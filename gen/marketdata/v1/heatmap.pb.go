@@ -258,69 +258,22 @@ func (x *HeatmapTimeRange) GetEndTime() *timestamppb.Timestamp {
 	return nil
 }
 
-// HeatmapCursor selects historical buckets older than from_ts_sec (exclusive).
-type HeatmapCursor struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	FromTsSec     uint64                 `protobuf:"varint,1,opt,name=from_ts_sec,json=fromTsSec,proto3" json:"from_ts_sec,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *HeatmapCursor) Reset() {
-	*x = HeatmapCursor{}
-	mi := &file_marketdata_v1_heatmap_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *HeatmapCursor) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*HeatmapCursor) ProtoMessage() {}
-
-func (x *HeatmapCursor) ProtoReflect() protoreflect.Message {
-	mi := &file_marketdata_v1_heatmap_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use HeatmapCursor.ProtoReflect.Descriptor instead.
-func (*HeatmapCursor) Descriptor() ([]byte, []int) {
-	return file_marketdata_v1_heatmap_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *HeatmapCursor) GetFromTsSec() uint64 {
-	if x != nil {
-		return x.FromTsSec
-	}
-	return 0
-}
-
 // GetOrderbookHeatmapRequest fetches historical heatmap buckets.
 type GetOrderbookHeatmapRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Engine symbol id.
+	// Numeric spot market identifier.
 	SymbolId uint32 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Heatmap bucket interval.
 	Interval HeatmapInterval `protobuf:"varint,2,opt,name=interval,proto3,enum=marketdata.v1.HeatmapInterval" json:"interval,omitempty"`
 	// Top-N levels per side included in each bucket.
 	Depth HeatmapDepth `protobuf:"varint,3,opt,name=depth,proto3,enum=marketdata.v1.HeatmapDepth" json:"depth,omitempty"`
-	// Query mode:
-	// - time_range: absolute range query
-	// - cursor: keyset pagination (older-than)
-	//
-	// Types that are valid to be assigned to Mode:
-	//
-	//	*GetOrderbookHeatmapRequest_TimeRange
-	//	*GetOrderbookHeatmapRequest_Cursor
-	Mode isGetOrderbookHeatmapRequest_Mode `protobuf_oneof:"mode"`
+	// Absolute time range for the first page. Reuse the same request filters and
+	// pass page_token from the prior response to continue older buckets.
+	TimeRange *HeatmapTimeRange `protobuf:"bytes,4,opt,name=time_range,json=timeRange,proto3" json:"time_range,omitempty"`
+	// Opaque keyset cursor from a previous response. The cursor is exclusive and
+	// bound to symbol, interval, depth, quantity mode, and the original time
+	// range.
+	PageToken string `protobuf:"bytes,5,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	// Maximum number of delta buckets returned (min 1, max 20000).
 	// This limit counts only `chain.deltas`; `chain.base_keyframe` is not counted.
 	Limit uint32 `protobuf:"varint,6,opt,name=limit,proto3" json:"limit,omitempty"`
@@ -334,7 +287,7 @@ type GetOrderbookHeatmapRequest struct {
 
 func (x *GetOrderbookHeatmapRequest) Reset() {
 	*x = GetOrderbookHeatmapRequest{}
-	mi := &file_marketdata_v1_heatmap_proto_msgTypes[2]
+	mi := &file_marketdata_v1_heatmap_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -346,7 +299,7 @@ func (x *GetOrderbookHeatmapRequest) String() string {
 func (*GetOrderbookHeatmapRequest) ProtoMessage() {}
 
 func (x *GetOrderbookHeatmapRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_marketdata_v1_heatmap_proto_msgTypes[2]
+	mi := &file_marketdata_v1_heatmap_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -359,7 +312,7 @@ func (x *GetOrderbookHeatmapRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOrderbookHeatmapRequest.ProtoReflect.Descriptor instead.
 func (*GetOrderbookHeatmapRequest) Descriptor() ([]byte, []int) {
-	return file_marketdata_v1_heatmap_proto_rawDescGZIP(), []int{2}
+	return file_marketdata_v1_heatmap_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *GetOrderbookHeatmapRequest) GetSymbolId() uint32 {
@@ -383,29 +336,18 @@ func (x *GetOrderbookHeatmapRequest) GetDepth() HeatmapDepth {
 	return HeatmapDepth_DEPTH_UNSPECIFIED
 }
 
-func (x *GetOrderbookHeatmapRequest) GetMode() isGetOrderbookHeatmapRequest_Mode {
-	if x != nil {
-		return x.Mode
-	}
-	return nil
-}
-
 func (x *GetOrderbookHeatmapRequest) GetTimeRange() *HeatmapTimeRange {
 	if x != nil {
-		if x, ok := x.Mode.(*GetOrderbookHeatmapRequest_TimeRange); ok {
-			return x.TimeRange
-		}
+		return x.TimeRange
 	}
 	return nil
 }
 
-func (x *GetOrderbookHeatmapRequest) GetCursor() *HeatmapCursor {
+func (x *GetOrderbookHeatmapRequest) GetPageToken() string {
 	if x != nil {
-		if x, ok := x.Mode.(*GetOrderbookHeatmapRequest_Cursor); ok {
-			return x.Cursor
-		}
+		return x.PageToken
 	}
-	return nil
+	return ""
 }
 
 func (x *GetOrderbookHeatmapRequest) GetLimit() uint32 {
@@ -422,29 +364,15 @@ func (x *GetOrderbookHeatmapRequest) GetQuantityMode() HeatmapQuantityMode {
 	return HeatmapQuantityMode_QTY_MODE_UNSPECIFIED
 }
 
-type isGetOrderbookHeatmapRequest_Mode interface {
-	isGetOrderbookHeatmapRequest_Mode()
-}
-
-type GetOrderbookHeatmapRequest_TimeRange struct {
-	TimeRange *HeatmapTimeRange `protobuf:"bytes,4,opt,name=time_range,json=timeRange,proto3,oneof"`
-}
-
-type GetOrderbookHeatmapRequest_Cursor struct {
-	Cursor *HeatmapCursor `protobuf:"bytes,5,opt,name=cursor,proto3,oneof"`
-}
-
-func (*GetOrderbookHeatmapRequest_TimeRange) isGetOrderbookHeatmapRequest_Mode() {}
-
-func (*GetOrderbookHeatmapRequest_Cursor) isGetOrderbookHeatmapRequest_Mode() {}
-
 // HeatmapLevels represents one side of the orderbook for snapshots.
 // Arrays are aligned by index and prices are sorted ascending for both sides:
 // - price_ticks[i] <-> qty_scaled[i]
 type HeatmapLevels struct {
-	state      protoimpl.MessageState `protogen:"open.v1"`
-	PriceTicks []int64                `protobuf:"varint,1,rep,packed,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
-	// Quantity at each price level according to quantity_mode.
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Price levels in quote units scaled by 1e6.
+	PriceTicks []int64 `protobuf:"varint,1,rep,packed,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
+	// Quantity at each price level according to quantity_mode, scaled by the
+	// pair's base_quantity_scale from GetSpotConfig.
 	QtyScaled     []int64 `protobuf:"varint,2,rep,packed,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -452,7 +380,7 @@ type HeatmapLevels struct {
 
 func (x *HeatmapLevels) Reset() {
 	*x = HeatmapLevels{}
-	mi := &file_marketdata_v1_heatmap_proto_msgTypes[3]
+	mi := &file_marketdata_v1_heatmap_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -464,7 +392,7 @@ func (x *HeatmapLevels) String() string {
 func (*HeatmapLevels) ProtoMessage() {}
 
 func (x *HeatmapLevels) ProtoReflect() protoreflect.Message {
-	mi := &file_marketdata_v1_heatmap_proto_msgTypes[3]
+	mi := &file_marketdata_v1_heatmap_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -477,7 +405,7 @@ func (x *HeatmapLevels) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeatmapLevels.ProtoReflect.Descriptor instead.
 func (*HeatmapLevels) Descriptor() ([]byte, []int) {
-	return file_marketdata_v1_heatmap_proto_rawDescGZIP(), []int{3}
+	return file_marketdata_v1_heatmap_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *HeatmapLevels) GetPriceTicks() []int64 {
@@ -499,16 +427,20 @@ func (x *HeatmapLevels) GetQtyScaled() []int64 {
 // - price_ticks[i] <-> qty_scaled[i]
 // Delete semantics: qty_scaled[i] = 0 means delete level at price_ticks[i].
 type HeatmapDeltaLevels struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	PriceTicks    []int64                `protobuf:"varint,1,rep,packed,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
-	QtyScaled     []int64                `protobuf:"varint,2,rep,packed,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Price levels in quote units scaled by 1e6.
+	PriceTicks []int64 `protobuf:"varint,1,rep,packed,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
+	// Quantity at each price level, scaled by the pair's base_quantity_scale from
+	// GetSpotConfig. A zero value deletes the level at the matching price_ticks
+	// index.
+	QtyScaled     []int64 `protobuf:"varint,2,rep,packed,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *HeatmapDeltaLevels) Reset() {
 	*x = HeatmapDeltaLevels{}
-	mi := &file_marketdata_v1_heatmap_proto_msgTypes[4]
+	mi := &file_marketdata_v1_heatmap_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -520,7 +452,7 @@ func (x *HeatmapDeltaLevels) String() string {
 func (*HeatmapDeltaLevels) ProtoMessage() {}
 
 func (x *HeatmapDeltaLevels) ProtoReflect() protoreflect.Message {
-	mi := &file_marketdata_v1_heatmap_proto_msgTypes[4]
+	mi := &file_marketdata_v1_heatmap_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -533,7 +465,7 @@ func (x *HeatmapDeltaLevels) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeatmapDeltaLevels.ProtoReflect.Descriptor instead.
 func (*HeatmapDeltaLevels) Descriptor() ([]byte, []int) {
-	return file_marketdata_v1_heatmap_proto_rawDescGZIP(), []int{4}
+	return file_marketdata_v1_heatmap_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *HeatmapDeltaLevels) GetPriceTicks() []int64 {
@@ -554,10 +486,13 @@ func (x *HeatmapDeltaLevels) GetQtyScaled() []int64 {
 type HeatmapKeyframe struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Snapshot timestamp (seconds since epoch, UTC).
-	TsSec         uint64         `protobuf:"varint,1,opt,name=ts_sec,json=tsSec,proto3" json:"ts_sec,omitempty"`
-	BestBidTick   int64          `protobuf:"varint,2,opt,name=best_bid_tick,json=bestBidTick,proto3" json:"best_bid_tick,omitempty"`
-	BestAskTick   int64          `protobuf:"varint,3,opt,name=best_ask_tick,json=bestAskTick,proto3" json:"best_ask_tick,omitempty"`
-	MidTick       int64          `protobuf:"varint,4,opt,name=mid_tick,json=midTick,proto3" json:"mid_tick,omitempty"`
+	TsSec uint64 `protobuf:"varint,1,opt,name=ts_sec,json=tsSec,proto3" json:"ts_sec,omitempty"`
+	// Best bid price in quote units scaled by 1e6.
+	BestBidTicks int64 `protobuf:"varint,2,opt,name=best_bid_ticks,json=bestBidTicks,proto3" json:"best_bid_ticks,omitempty"`
+	// Best ask price in quote units scaled by 1e6.
+	BestAskTicks int64 `protobuf:"varint,3,opt,name=best_ask_ticks,json=bestAskTicks,proto3" json:"best_ask_ticks,omitempty"`
+	// Mid price in quote units scaled by 1e6.
+	MidTicks      int64          `protobuf:"varint,4,opt,name=mid_ticks,json=midTicks,proto3" json:"mid_ticks,omitempty"`
 	Bids          *HeatmapLevels `protobuf:"bytes,5,opt,name=bids,proto3" json:"bids,omitempty"`
 	Asks          *HeatmapLevels `protobuf:"bytes,6,opt,name=asks,proto3" json:"asks,omitempty"`
 	BookSeq       uint64         `protobuf:"varint,7,opt,name=book_seq,json=bookSeq,proto3" json:"book_seq,omitempty"`
@@ -567,7 +502,7 @@ type HeatmapKeyframe struct {
 
 func (x *HeatmapKeyframe) Reset() {
 	*x = HeatmapKeyframe{}
-	mi := &file_marketdata_v1_heatmap_proto_msgTypes[5]
+	mi := &file_marketdata_v1_heatmap_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -579,7 +514,7 @@ func (x *HeatmapKeyframe) String() string {
 func (*HeatmapKeyframe) ProtoMessage() {}
 
 func (x *HeatmapKeyframe) ProtoReflect() protoreflect.Message {
-	mi := &file_marketdata_v1_heatmap_proto_msgTypes[5]
+	mi := &file_marketdata_v1_heatmap_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -592,7 +527,7 @@ func (x *HeatmapKeyframe) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeatmapKeyframe.ProtoReflect.Descriptor instead.
 func (*HeatmapKeyframe) Descriptor() ([]byte, []int) {
-	return file_marketdata_v1_heatmap_proto_rawDescGZIP(), []int{5}
+	return file_marketdata_v1_heatmap_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *HeatmapKeyframe) GetTsSec() uint64 {
@@ -602,23 +537,23 @@ func (x *HeatmapKeyframe) GetTsSec() uint64 {
 	return 0
 }
 
-func (x *HeatmapKeyframe) GetBestBidTick() int64 {
+func (x *HeatmapKeyframe) GetBestBidTicks() int64 {
 	if x != nil {
-		return x.BestBidTick
+		return x.BestBidTicks
 	}
 	return 0
 }
 
-func (x *HeatmapKeyframe) GetBestAskTick() int64 {
+func (x *HeatmapKeyframe) GetBestAskTicks() int64 {
 	if x != nil {
-		return x.BestAskTick
+		return x.BestAskTicks
 	}
 	return 0
 }
 
-func (x *HeatmapKeyframe) GetMidTick() int64 {
+func (x *HeatmapKeyframe) GetMidTicks() int64 {
 	if x != nil {
-		return x.MidTick
+		return x.MidTicks
 	}
 	return 0
 }
@@ -661,7 +596,7 @@ type HeatmapDeltaBucket struct {
 
 func (x *HeatmapDeltaBucket) Reset() {
 	*x = HeatmapDeltaBucket{}
-	mi := &file_marketdata_v1_heatmap_proto_msgTypes[6]
+	mi := &file_marketdata_v1_heatmap_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -673,7 +608,7 @@ func (x *HeatmapDeltaBucket) String() string {
 func (*HeatmapDeltaBucket) ProtoMessage() {}
 
 func (x *HeatmapDeltaBucket) ProtoReflect() protoreflect.Message {
-	mi := &file_marketdata_v1_heatmap_proto_msgTypes[6]
+	mi := &file_marketdata_v1_heatmap_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -686,7 +621,7 @@ func (x *HeatmapDeltaBucket) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeatmapDeltaBucket.ProtoReflect.Descriptor instead.
 func (*HeatmapDeltaBucket) Descriptor() ([]byte, []int) {
-	return file_marketdata_v1_heatmap_proto_rawDescGZIP(), []int{6}
+	return file_marketdata_v1_heatmap_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *HeatmapDeltaBucket) GetTsSec() uint64 {
@@ -735,7 +670,7 @@ func (x *HeatmapDeltaBucket) GetBookSeqEnd() uint64 {
 // It represents the latest state of one bucket (open or finalized).
 type HeatmapLiveBucket struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Engine symbol id.
+	// Numeric spot market identifier.
 	SymbolId uint32 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Bucket interval for this payload.
 	Interval HeatmapInterval `protobuf:"varint,2,opt,name=interval,proto3,enum=marketdata.v1.HeatmapInterval" json:"interval,omitempty"`
@@ -751,7 +686,8 @@ type HeatmapLiveBucket struct {
 	BookSeqEnd      uint64 `protobuf:"varint,9,opt,name=book_seq_end,json=bookSeqEnd,proto3" json:"book_seq_end,omitempty"`
 	// Quantity semantics for qty_scaled in bids/asks.
 	QuantityMode HeatmapQuantityMode `protobuf:"varint,10,opt,name=quantity_mode,json=quantityMode,proto3,enum=marketdata.v1.HeatmapQuantityMode" json:"quantity_mode,omitempty"`
-	// Effective bin stride used by projector for this symbol (in price ticks).
+	// Effective bin stride for this symbol as a price delta in 1e-6 quote-unit
+	// ticks.
 	EffectiveBinTicks uint64 `protobuf:"varint,11,opt,name=effective_bin_ticks,json=effectiveBinTicks,proto3" json:"effective_bin_ticks,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
@@ -759,7 +695,7 @@ type HeatmapLiveBucket struct {
 
 func (x *HeatmapLiveBucket) Reset() {
 	*x = HeatmapLiveBucket{}
-	mi := &file_marketdata_v1_heatmap_proto_msgTypes[7]
+	mi := &file_marketdata_v1_heatmap_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -771,7 +707,7 @@ func (x *HeatmapLiveBucket) String() string {
 func (*HeatmapLiveBucket) ProtoMessage() {}
 
 func (x *HeatmapLiveBucket) ProtoReflect() protoreflect.Message {
-	mi := &file_marketdata_v1_heatmap_proto_msgTypes[7]
+	mi := &file_marketdata_v1_heatmap_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -784,7 +720,7 @@ func (x *HeatmapLiveBucket) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeatmapLiveBucket.ProtoReflect.Descriptor instead.
 func (*HeatmapLiveBucket) Descriptor() ([]byte, []int) {
-	return file_marketdata_v1_heatmap_proto_rawDescGZIP(), []int{7}
+	return file_marketdata_v1_heatmap_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *HeatmapLiveBucket) GetSymbolId() uint32 {
@@ -877,7 +813,7 @@ type HeatmapDeltaChain struct {
 
 func (x *HeatmapDeltaChain) Reset() {
 	*x = HeatmapDeltaChain{}
-	mi := &file_marketdata_v1_heatmap_proto_msgTypes[8]
+	mi := &file_marketdata_v1_heatmap_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -889,7 +825,7 @@ func (x *HeatmapDeltaChain) String() string {
 func (*HeatmapDeltaChain) ProtoMessage() {}
 
 func (x *HeatmapDeltaChain) ProtoReflect() protoreflect.Message {
-	mi := &file_marketdata_v1_heatmap_proto_msgTypes[8]
+	mi := &file_marketdata_v1_heatmap_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -902,7 +838,7 @@ func (x *HeatmapDeltaChain) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeatmapDeltaChain.ProtoReflect.Descriptor instead.
 func (*HeatmapDeltaChain) Descriptor() ([]byte, []int) {
-	return file_marketdata_v1_heatmap_proto_rawDescGZIP(), []int{8}
+	return file_marketdata_v1_heatmap_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *HeatmapDeltaChain) GetBaseKeyframe() *HeatmapKeyframe {
@@ -923,7 +859,7 @@ func (x *HeatmapDeltaChain) GetDeltas() []*HeatmapDeltaBucket {
 // live bucket state for explicit realtime stitching.
 type GetOrderbookHeatmapResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Engine symbol id returned for the requested market.
+	// Numeric spot market identifier returned for the requested market.
 	SymbolId uint32 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Bucket interval used for the returned chain.
 	Interval HeatmapInterval `protobuf:"varint,2,opt,name=interval,proto3,enum=marketdata.v1.HeatmapInterval" json:"interval,omitempty"`
@@ -937,10 +873,8 @@ type GetOrderbookHeatmapResponse struct {
 	LiveFromBookSeqEnd uint64 `protobuf:"varint,6,opt,name=live_from_book_seq_end,json=liveFromBookSeqEnd,proto3" json:"live_from_book_seq_end,omitempty"`
 	// True when live_from_book_seq_end is available and can be used as a realtime continuation anchor.
 	HasLiveAnchor bool `protobuf:"varint,7,opt,name=has_live_anchor,json=hasLiveAnchor,proto3" json:"has_live_anchor,omitempty"`
-	// True when more older buckets are available through cursor pagination.
-	HasMore bool `protobuf:"varint,8,opt,name=has_more,json=hasMore,proto3" json:"has_more,omitempty"`
-	// Exclusive cursor for older-than pagination in cursor mode, in seconds since epoch (UTC). Zero means no next page.
-	NextTsSec uint64 `protobuf:"varint,9,opt,name=next_ts_sec,json=nextTsSec,proto3" json:"next_ts_sec,omitempty"`
+	// Opaque cursor for the next page. Empty when no more results exist.
+	NextPageToken string `protobuf:"bytes,8,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	// Server response time in seconds since epoch (UTC).
 	ServerTimeSec uint64 `protobuf:"varint,10,opt,name=server_time_sec,json=serverTimeSec,proto3" json:"server_time_sec,omitempty"`
 	// Quantity mode used for all qty_scaled values in the response.
@@ -954,7 +888,7 @@ type GetOrderbookHeatmapResponse struct {
 
 func (x *GetOrderbookHeatmapResponse) Reset() {
 	*x = GetOrderbookHeatmapResponse{}
-	mi := &file_marketdata_v1_heatmap_proto_msgTypes[9]
+	mi := &file_marketdata_v1_heatmap_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -966,7 +900,7 @@ func (x *GetOrderbookHeatmapResponse) String() string {
 func (*GetOrderbookHeatmapResponse) ProtoMessage() {}
 
 func (x *GetOrderbookHeatmapResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_marketdata_v1_heatmap_proto_msgTypes[9]
+	mi := &file_marketdata_v1_heatmap_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -979,7 +913,7 @@ func (x *GetOrderbookHeatmapResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOrderbookHeatmapResponse.ProtoReflect.Descriptor instead.
 func (*GetOrderbookHeatmapResponse) Descriptor() ([]byte, []int) {
-	return file_marketdata_v1_heatmap_proto_rawDescGZIP(), []int{9}
+	return file_marketdata_v1_heatmap_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetOrderbookHeatmapResponse) GetSymbolId() uint32 {
@@ -1031,18 +965,11 @@ func (x *GetOrderbookHeatmapResponse) GetHasLiveAnchor() bool {
 	return false
 }
 
-func (x *GetOrderbookHeatmapResponse) GetHasMore() bool {
+func (x *GetOrderbookHeatmapResponse) GetNextPageToken() string {
 	if x != nil {
-		return x.HasMore
+		return x.NextPageToken
 	}
-	return false
-}
-
-func (x *GetOrderbookHeatmapResponse) GetNextTsSec() uint64 {
-	if x != nil {
-		return x.NextTsSec
-	}
-	return 0
+	return ""
 }
 
 func (x *GetOrderbookHeatmapResponse) GetServerTimeSec() uint64 {
@@ -1076,22 +1003,21 @@ const file_marketdata_v1_heatmap_proto_rawDesc = "" +
 	"start_time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
 	"\bend_time\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\aendTime:\xab\x02\xbaH\xa7\x02\x1a~\n" +
 	"\x1cheatmap_time_range.non_empty\x122at least one of start_time or end_time must be set\x1a*has(this.start_time) || has(this.end_time)\x1a\xa4\x01\n" +
-	"\x1eheatmap_time_range.valid_order\x120end_time must be >= start_time when both are set\x1aP!has(this.start_time) || !has(this.end_time) || this.end_time >= this.start_time\"8\n" +
-	"\rHeatmapCursor\x12'\n" +
-	"\vfrom_ts_sec\x18\x01 \x01(\x04B\a\xbaH\x042\x02 \x00R\tfromTsSec\"\xca\x03\n" +
+	"\x1eheatmap_time_range.valid_order\x120end_time must be >= start_time when both are set\x1aP!has(this.start_time) || !has(this.end_time) || this.end_time >= this.start_time\"\xae\x04\n" +
 	"\x1aGetOrderbookHeatmapRequest\x12$\n" +
 	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\x12F\n" +
 	"\binterval\x18\x02 \x01(\x0e2\x1e.marketdata.v1.HeatmapIntervalB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\binterval\x12=\n" +
 	"\x05depth\x18\x03 \x01(\x0e2\x1b.marketdata.v1.HeatmapDepthB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x05depth\x12@\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x05depth\x12>\n" +
 	"\n" +
-	"time_range\x18\x04 \x01(\v2\x1f.marketdata.v1.HeatmapTimeRangeH\x00R\ttimeRange\x126\n" +
-	"\x06cursor\x18\x05 \x01(\v2\x1c.marketdata.v1.HeatmapCursorH\x00R\x06cursor\x12!\n" +
+	"time_range\x18\x04 \x01(\v2\x1f.marketdata.v1.HeatmapTimeRangeR\ttimeRange\x12'\n" +
+	"\n" +
+	"page_token\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken\x12!\n" +
 	"\x05limit\x18\x06 \x01(\rB\v\xbaH\b*\x06\x18\xa0\x9c\x01(\x01R\x05limit\x12S\n" +
 	"\rquantity_mode\x18\a \x01(\x0e2\".marketdata.v1.HeatmapQuantityModeB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\fquantityModeB\r\n" +
-	"\x04mode\x12\x05\xbaH\x02\b\x01\"\xdc\x01\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\fquantityMode:\x81\x01\xbaH~\x1a|\n" +
+	"%get_orderbook_heatmap.anchor_required\x12$time_range or page_token is required\x1a-has(this.time_range) || this.page_token != ''\"\xdc\x01\n" +
 	"\rHeatmapLevels\x12\x1f\n" +
 	"\vprice_ticks\x18\x01 \x03(\x03R\n" +
 	"priceTicks\x12\x1d\n" +
@@ -1103,12 +1029,12 @@ const file_marketdata_v1_heatmap_proto_rawDesc = "" +
 	"priceTicks\x12\x1d\n" +
 	"\n" +
 	"qty_scaled\x18\x02 \x03(\x03R\tqtyScaled:\x90\x01\xbaH\x8c\x01\x1a\x89\x01\n" +
-	"\"heatmap_delta_levels.equal_lengths\x122price_ticks and qty_scaled must have equal lengths\x1a/size(this.price_ticks) == size(this.qty_scaled)\"\x8a\x02\n" +
+	"\"heatmap_delta_levels.equal_lengths\x122price_ticks and qty_scaled must have equal lengths\x1a/size(this.price_ticks) == size(this.qty_scaled)\"\x90\x02\n" +
 	"\x0fHeatmapKeyframe\x12\x15\n" +
-	"\x06ts_sec\x18\x01 \x01(\x04R\x05tsSec\x12\"\n" +
-	"\rbest_bid_tick\x18\x02 \x01(\x03R\vbestBidTick\x12\"\n" +
-	"\rbest_ask_tick\x18\x03 \x01(\x03R\vbestAskTick\x12\x19\n" +
-	"\bmid_tick\x18\x04 \x01(\x03R\amidTick\x120\n" +
+	"\x06ts_sec\x18\x01 \x01(\x04R\x05tsSec\x12$\n" +
+	"\x0ebest_bid_ticks\x18\x02 \x01(\x03R\fbestBidTicks\x12$\n" +
+	"\x0ebest_ask_ticks\x18\x03 \x01(\x03R\fbestAskTicks\x12\x1b\n" +
+	"\tmid_ticks\x18\x04 \x01(\x03R\bmidTicks\x120\n" +
 	"\x04bids\x18\x05 \x01(\v2\x1c.marketdata.v1.HeatmapLevelsR\x04bids\x120\n" +
 	"\x04asks\x18\x06 \x01(\v2\x1c.marketdata.v1.HeatmapLevelsR\x04asks\x12\x19\n" +
 	"\bbook_seq\x18\a \x01(\x04R\abookSeq\"\x8d\x02\n" +
@@ -1138,7 +1064,7 @@ const file_marketdata_v1_heatmap_proto_rawDesc = "" +
 	"\x13effective_bin_ticks\x18\v \x01(\x04R\x11effectiveBinTicks\"\x93\x01\n" +
 	"\x11HeatmapDeltaChain\x12C\n" +
 	"\rbase_keyframe\x18\x01 \x01(\v2\x1e.marketdata.v1.HeatmapKeyframeR\fbaseKeyframe\x129\n" +
-	"\x06deltas\x18\x02 \x03(\v2!.marketdata.v1.HeatmapDeltaBucketR\x06deltas\"\xdf\x04\n" +
+	"\x06deltas\x18\x02 \x03(\v2!.marketdata.v1.HeatmapDeltaBucketR\x06deltas\"\xd6\x04\n" +
 	"\x1bGetOrderbookHeatmapResponse\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x12:\n" +
 	"\binterval\x18\x02 \x01(\x0e2\x1e.marketdata.v1.HeatmapIntervalR\binterval\x121\n" +
@@ -1146,9 +1072,8 @@ const file_marketdata_v1_heatmap_proto_rawDesc = "" +
 	"\x05chain\x18\x04 \x01(\v2 .marketdata.v1.HeatmapDeltaChainR\x05chain\x121\n" +
 	"\x15last_persisted_ts_sec\x18\x05 \x01(\x04R\x12lastPersistedTsSec\x122\n" +
 	"\x16live_from_book_seq_end\x18\x06 \x01(\x04R\x12liveFromBookSeqEnd\x12&\n" +
-	"\x0fhas_live_anchor\x18\a \x01(\bR\rhasLiveAnchor\x12\x19\n" +
-	"\bhas_more\x18\b \x01(\bR\ahasMore\x12\x1e\n" +
-	"\vnext_ts_sec\x18\t \x01(\x04R\tnextTsSec\x12&\n" +
+	"\x0fhas_live_anchor\x18\a \x01(\bR\rhasLiveAnchor\x120\n" +
+	"\x0fnext_page_token\x18\b \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\x12&\n" +
 	"\x0fserver_time_sec\x18\n" +
 	" \x01(\x04R\rserverTimeSec\x12G\n" +
 	"\rquantity_mode\x18\v \x01(\x0e2\".marketdata.v1.HeatmapQuantityModeR\fquantityMode\x12A\n" +
@@ -1192,53 +1117,51 @@ func file_marketdata_v1_heatmap_proto_rawDescGZIP() []byte {
 }
 
 var file_marketdata_v1_heatmap_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_marketdata_v1_heatmap_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_marketdata_v1_heatmap_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_marketdata_v1_heatmap_proto_goTypes = []any{
 	(HeatmapInterval)(0),                // 0: marketdata.v1.HeatmapInterval
 	(HeatmapDepth)(0),                   // 1: marketdata.v1.HeatmapDepth
 	(HeatmapQuantityMode)(0),            // 2: marketdata.v1.HeatmapQuantityMode
 	(*HeatmapTimeRange)(nil),            // 3: marketdata.v1.HeatmapTimeRange
-	(*HeatmapCursor)(nil),               // 4: marketdata.v1.HeatmapCursor
-	(*GetOrderbookHeatmapRequest)(nil),  // 5: marketdata.v1.GetOrderbookHeatmapRequest
-	(*HeatmapLevels)(nil),               // 6: marketdata.v1.HeatmapLevels
-	(*HeatmapDeltaLevels)(nil),          // 7: marketdata.v1.HeatmapDeltaLevels
-	(*HeatmapKeyframe)(nil),             // 8: marketdata.v1.HeatmapKeyframe
-	(*HeatmapDeltaBucket)(nil),          // 9: marketdata.v1.HeatmapDeltaBucket
-	(*HeatmapLiveBucket)(nil),           // 10: marketdata.v1.HeatmapLiveBucket
-	(*HeatmapDeltaChain)(nil),           // 11: marketdata.v1.HeatmapDeltaChain
-	(*GetOrderbookHeatmapResponse)(nil), // 12: marketdata.v1.GetOrderbookHeatmapResponse
-	(*timestamppb.Timestamp)(nil),       // 13: google.protobuf.Timestamp
+	(*GetOrderbookHeatmapRequest)(nil),  // 4: marketdata.v1.GetOrderbookHeatmapRequest
+	(*HeatmapLevels)(nil),               // 5: marketdata.v1.HeatmapLevels
+	(*HeatmapDeltaLevels)(nil),          // 6: marketdata.v1.HeatmapDeltaLevels
+	(*HeatmapKeyframe)(nil),             // 7: marketdata.v1.HeatmapKeyframe
+	(*HeatmapDeltaBucket)(nil),          // 8: marketdata.v1.HeatmapDeltaBucket
+	(*HeatmapLiveBucket)(nil),           // 9: marketdata.v1.HeatmapLiveBucket
+	(*HeatmapDeltaChain)(nil),           // 10: marketdata.v1.HeatmapDeltaChain
+	(*GetOrderbookHeatmapResponse)(nil), // 11: marketdata.v1.GetOrderbookHeatmapResponse
+	(*timestamppb.Timestamp)(nil),       // 12: google.protobuf.Timestamp
 }
 var file_marketdata_v1_heatmap_proto_depIdxs = []int32{
-	13, // 0: marketdata.v1.HeatmapTimeRange.start_time:type_name -> google.protobuf.Timestamp
-	13, // 1: marketdata.v1.HeatmapTimeRange.end_time:type_name -> google.protobuf.Timestamp
+	12, // 0: marketdata.v1.HeatmapTimeRange.start_time:type_name -> google.protobuf.Timestamp
+	12, // 1: marketdata.v1.HeatmapTimeRange.end_time:type_name -> google.protobuf.Timestamp
 	0,  // 2: marketdata.v1.GetOrderbookHeatmapRequest.interval:type_name -> marketdata.v1.HeatmapInterval
 	1,  // 3: marketdata.v1.GetOrderbookHeatmapRequest.depth:type_name -> marketdata.v1.HeatmapDepth
 	3,  // 4: marketdata.v1.GetOrderbookHeatmapRequest.time_range:type_name -> marketdata.v1.HeatmapTimeRange
-	4,  // 5: marketdata.v1.GetOrderbookHeatmapRequest.cursor:type_name -> marketdata.v1.HeatmapCursor
-	2,  // 6: marketdata.v1.GetOrderbookHeatmapRequest.quantity_mode:type_name -> marketdata.v1.HeatmapQuantityMode
-	6,  // 7: marketdata.v1.HeatmapKeyframe.bids:type_name -> marketdata.v1.HeatmapLevels
-	6,  // 8: marketdata.v1.HeatmapKeyframe.asks:type_name -> marketdata.v1.HeatmapLevels
-	7,  // 9: marketdata.v1.HeatmapDeltaBucket.bids:type_name -> marketdata.v1.HeatmapDeltaLevels
-	7,  // 10: marketdata.v1.HeatmapDeltaBucket.asks:type_name -> marketdata.v1.HeatmapDeltaLevels
-	0,  // 11: marketdata.v1.HeatmapLiveBucket.interval:type_name -> marketdata.v1.HeatmapInterval
-	7,  // 12: marketdata.v1.HeatmapLiveBucket.bids:type_name -> marketdata.v1.HeatmapDeltaLevels
-	7,  // 13: marketdata.v1.HeatmapLiveBucket.asks:type_name -> marketdata.v1.HeatmapDeltaLevels
-	2,  // 14: marketdata.v1.HeatmapLiveBucket.quantity_mode:type_name -> marketdata.v1.HeatmapQuantityMode
-	8,  // 15: marketdata.v1.HeatmapDeltaChain.base_keyframe:type_name -> marketdata.v1.HeatmapKeyframe
-	9,  // 16: marketdata.v1.HeatmapDeltaChain.deltas:type_name -> marketdata.v1.HeatmapDeltaBucket
-	0,  // 17: marketdata.v1.GetOrderbookHeatmapResponse.interval:type_name -> marketdata.v1.HeatmapInterval
-	1,  // 18: marketdata.v1.GetOrderbookHeatmapResponse.depth:type_name -> marketdata.v1.HeatmapDepth
-	11, // 19: marketdata.v1.GetOrderbookHeatmapResponse.chain:type_name -> marketdata.v1.HeatmapDeltaChain
-	2,  // 20: marketdata.v1.GetOrderbookHeatmapResponse.quantity_mode:type_name -> marketdata.v1.HeatmapQuantityMode
-	10, // 21: marketdata.v1.GetOrderbookHeatmapResponse.live_bucket:type_name -> marketdata.v1.HeatmapLiveBucket
-	5,  // 22: marketdata.v1.HeatmapService.GetOrderbookHeatmap:input_type -> marketdata.v1.GetOrderbookHeatmapRequest
-	12, // 23: marketdata.v1.HeatmapService.GetOrderbookHeatmap:output_type -> marketdata.v1.GetOrderbookHeatmapResponse
-	23, // [23:24] is the sub-list for method output_type
-	22, // [22:23] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	2,  // 5: marketdata.v1.GetOrderbookHeatmapRequest.quantity_mode:type_name -> marketdata.v1.HeatmapQuantityMode
+	5,  // 6: marketdata.v1.HeatmapKeyframe.bids:type_name -> marketdata.v1.HeatmapLevels
+	5,  // 7: marketdata.v1.HeatmapKeyframe.asks:type_name -> marketdata.v1.HeatmapLevels
+	6,  // 8: marketdata.v1.HeatmapDeltaBucket.bids:type_name -> marketdata.v1.HeatmapDeltaLevels
+	6,  // 9: marketdata.v1.HeatmapDeltaBucket.asks:type_name -> marketdata.v1.HeatmapDeltaLevels
+	0,  // 10: marketdata.v1.HeatmapLiveBucket.interval:type_name -> marketdata.v1.HeatmapInterval
+	6,  // 11: marketdata.v1.HeatmapLiveBucket.bids:type_name -> marketdata.v1.HeatmapDeltaLevels
+	6,  // 12: marketdata.v1.HeatmapLiveBucket.asks:type_name -> marketdata.v1.HeatmapDeltaLevels
+	2,  // 13: marketdata.v1.HeatmapLiveBucket.quantity_mode:type_name -> marketdata.v1.HeatmapQuantityMode
+	7,  // 14: marketdata.v1.HeatmapDeltaChain.base_keyframe:type_name -> marketdata.v1.HeatmapKeyframe
+	8,  // 15: marketdata.v1.HeatmapDeltaChain.deltas:type_name -> marketdata.v1.HeatmapDeltaBucket
+	0,  // 16: marketdata.v1.GetOrderbookHeatmapResponse.interval:type_name -> marketdata.v1.HeatmapInterval
+	1,  // 17: marketdata.v1.GetOrderbookHeatmapResponse.depth:type_name -> marketdata.v1.HeatmapDepth
+	10, // 18: marketdata.v1.GetOrderbookHeatmapResponse.chain:type_name -> marketdata.v1.HeatmapDeltaChain
+	2,  // 19: marketdata.v1.GetOrderbookHeatmapResponse.quantity_mode:type_name -> marketdata.v1.HeatmapQuantityMode
+	9,  // 20: marketdata.v1.GetOrderbookHeatmapResponse.live_bucket:type_name -> marketdata.v1.HeatmapLiveBucket
+	4,  // 21: marketdata.v1.HeatmapService.GetOrderbookHeatmap:input_type -> marketdata.v1.GetOrderbookHeatmapRequest
+	11, // 22: marketdata.v1.HeatmapService.GetOrderbookHeatmap:output_type -> marketdata.v1.GetOrderbookHeatmapResponse
+	22, // [22:23] is the sub-list for method output_type
+	21, // [21:22] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_marketdata_v1_heatmap_proto_init() }
@@ -1246,17 +1169,13 @@ func file_marketdata_v1_heatmap_proto_init() {
 	if File_marketdata_v1_heatmap_proto != nil {
 		return
 	}
-	file_marketdata_v1_heatmap_proto_msgTypes[2].OneofWrappers = []any{
-		(*GetOrderbookHeatmapRequest_TimeRange)(nil),
-		(*GetOrderbookHeatmapRequest_Cursor)(nil),
-	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_marketdata_v1_heatmap_proto_rawDesc), len(file_marketdata_v1_heatmap_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   10,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

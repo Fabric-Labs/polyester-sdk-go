@@ -276,11 +276,11 @@ func (m *TradingWithdrawIntentPayload) validate(all bool) error {
 	// no validation rules for DestinationChainId
 
 	if all {
-		switch v := interface{}(m.GetAmountQ()).(type) {
+		switch v := interface{}(m.GetAmountE18()).(type) {
 		case interface{ ValidateAll() error }:
 			if err := v.ValidateAll(); err != nil {
 				errors = append(errors, TradingWithdrawIntentPayloadValidationError{
-					field:  "AmountQ",
+					field:  "AmountE18",
 					reason: "embedded message failed validation",
 					cause:  err,
 				})
@@ -288,16 +288,16 @@ func (m *TradingWithdrawIntentPayload) validate(all bool) error {
 		case interface{ Validate() error }:
 			if err := v.Validate(); err != nil {
 				errors = append(errors, TradingWithdrawIntentPayloadValidationError{
-					field:  "AmountQ",
+					field:  "AmountE18",
 					reason: "embedded message failed validation",
 					cause:  err,
 				})
 			}
 		}
-	} else if v, ok := interface{}(m.GetAmountQ()).(interface{ Validate() error }); ok {
+	} else if v, ok := interface{}(m.GetAmountE18()).(interface{ Validate() error }); ok {
 		if err := v.Validate(); err != nil {
 			return TradingWithdrawIntentPayloadValidationError{
-				field:  "AmountQ",
+				field:  "AmountE18",
 				reason: "embedded message failed validation",
 				cause:  err,
 			}

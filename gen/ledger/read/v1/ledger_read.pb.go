@@ -8,6 +8,7 @@ package ledgerrdv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	v11 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/v1"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
 	v1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	_ "github.com/google/gnostic/openapiv3"
@@ -30,19 +31,19 @@ const (
 type BalanceRange int32
 
 const (
-	BalanceRange_BALANCE_RANGE_UNSPECIFIED BalanceRange = 0
-	BalanceRange_DAY_1                     BalanceRange = 1 // 1 day
-	BalanceRange_DAY_7                     BalanceRange = 2 // 7 days
-	BalanceRange_DAY_30                    BalanceRange = 3 // 30 days
-	BalanceRange_DAY_90                    BalanceRange = 4 // 90 days
-	BalanceRange_DAY_180                   BalanceRange = 5 // 180 days
-	BalanceRange_DAY_365                   BalanceRange = 6 // 365 days
+	BalanceRange_RANGE_UNSPECIFIED BalanceRange = 0
+	BalanceRange_DAY_1             BalanceRange = 1 // 1 day
+	BalanceRange_DAY_7             BalanceRange = 2 // 7 days
+	BalanceRange_DAY_30            BalanceRange = 3 // 30 days
+	BalanceRange_DAY_90            BalanceRange = 4 // 90 days
+	BalanceRange_DAY_180           BalanceRange = 5 // 180 days
+	BalanceRange_DAY_365           BalanceRange = 6 // 365 days
 )
 
 // Enum value maps for BalanceRange.
 var (
 	BalanceRange_name = map[int32]string{
-		0: "BALANCE_RANGE_UNSPECIFIED",
+		0: "RANGE_UNSPECIFIED",
 		1: "DAY_1",
 		2: "DAY_7",
 		3: "DAY_30",
@@ -51,13 +52,13 @@ var (
 		6: "DAY_365",
 	}
 	BalanceRange_value = map[string]int32{
-		"BALANCE_RANGE_UNSPECIFIED": 0,
-		"DAY_1":                     1,
-		"DAY_7":                     2,
-		"DAY_30":                    3,
-		"DAY_90":                    4,
-		"DAY_180":                   5,
-		"DAY_365":                   6,
+		"RANGE_UNSPECIFIED": 0,
+		"DAY_1":             1,
+		"DAY_7":             2,
+		"DAY_30":            3,
+		"DAY_90":            4,
+		"DAY_180":           5,
+		"DAY_365":           6,
 	}
 )
 
@@ -138,6 +139,77 @@ func (EquityGroupBy) EnumDescriptor() ([]byte, []int) {
 	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{1}
 }
 
+// TransferSideKind identifies the display class for one side of a transfer.
+type TransferSideKind int32
+
+const (
+	// Transfer side type was not specified.
+	TransferSideKind_TRANSFER_SIDE_KIND_UNSPECIFIED TransferSideKind = 0
+	// Polyester funding account.
+	TransferSideKind_FUNDING_ACCOUNT TransferSideKind = 1
+	// Polyester trading account.
+	TransferSideKind_TRADING_ACCOUNT TransferSideKind = 2
+	// External wallet or chain address. The address is lifecycle-derived and may
+	// be empty until ledger-to-lifecycle correlation is projected.
+	TransferSideKind_EXTERNAL_ADDRESS TransferSideKind = 3
+	// Private off-chain counterparty that must not be identified to the caller.
+	// account_id and address are intentionally omitted.
+	TransferSideKind_PRIVATE_COUNTERPARTY TransferSideKind = 4
+	// Fee ledger side, for example spot or perp trading fees.
+	TransferSideKind_FEE_ACCOUNT TransferSideKind = 5
+	// System, operator, clearing, or other non-user side.
+	TransferSideKind_SYSTEM_ACCOUNT TransferSideKind = 6
+)
+
+// Enum value maps for TransferSideKind.
+var (
+	TransferSideKind_name = map[int32]string{
+		0: "TRANSFER_SIDE_KIND_UNSPECIFIED",
+		1: "FUNDING_ACCOUNT",
+		2: "TRADING_ACCOUNT",
+		3: "EXTERNAL_ADDRESS",
+		4: "PRIVATE_COUNTERPARTY",
+		5: "FEE_ACCOUNT",
+		6: "SYSTEM_ACCOUNT",
+	}
+	TransferSideKind_value = map[string]int32{
+		"TRANSFER_SIDE_KIND_UNSPECIFIED": 0,
+		"FUNDING_ACCOUNT":                1,
+		"TRADING_ACCOUNT":                2,
+		"EXTERNAL_ADDRESS":               3,
+		"PRIVATE_COUNTERPARTY":           4,
+		"FEE_ACCOUNT":                    5,
+		"SYSTEM_ACCOUNT":                 6,
+	}
+)
+
+func (x TransferSideKind) Enum() *TransferSideKind {
+	p := new(TransferSideKind)
+	*p = x
+	return p
+}
+
+func (x TransferSideKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (TransferSideKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_ledger_read_v1_ledger_read_proto_enumTypes[2].Descriptor()
+}
+
+func (TransferSideKind) Type() protoreflect.EnumType {
+	return &file_ledger_read_v1_ledger_read_proto_enumTypes[2]
+}
+
+func (x TransferSideKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use TransferSideKind.Descriptor instead.
+func (TransferSideKind) EnumDescriptor() ([]byte, []int) {
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{2}
+}
+
 // ErrorCode enumerates stable machine-readable error codes for the Ledger Read
 // API. These mirror the REST problem+json "code" field for parity between REST
 // and ConnectRPC clients.
@@ -201,11 +273,11 @@ func (x ErrorCode) String() string {
 }
 
 func (ErrorCode) Descriptor() protoreflect.EnumDescriptor {
-	return file_ledger_read_v1_ledger_read_proto_enumTypes[2].Descriptor()
+	return file_ledger_read_v1_ledger_read_proto_enumTypes[3].Descriptor()
 }
 
 func (ErrorCode) Type() protoreflect.EnumType {
-	return &file_ledger_read_v1_ledger_read_proto_enumTypes[2]
+	return &file_ledger_read_v1_ledger_read_proto_enumTypes[3]
 }
 
 func (x ErrorCode) Number() protoreflect.EnumNumber {
@@ -214,7 +286,7 @@ func (x ErrorCode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ErrorCode.Descriptor instead.
 func (ErrorCode) EnumDescriptor() ([]byte, []int) {
-	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{2}
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{3}
 }
 
 type GetBalancesRequest struct {
@@ -268,15 +340,17 @@ func (x *GetBalancesRequest) GetSubaccountId() uint64 {
 // Fixed-size representation for balances (for Protobuf/WS clients).
 // Uses common U128 messages for amounts to keep schema tidy and consistent.
 type AssetBalance struct {
-	state   protoimpl.MessageState `protogen:"open.v1"`
-	AssetId uint32                 `protobuf:"varint,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"` // public asset id (client resolves name/scale)
-	// Trading/trading balance for this asset (u128 base units).
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public unified asset id. Resolve symbol from SpotConfig; U128 amounts in
+	// this message always use fixed 18-decimal ledger scale.
+	AssetId uint32 `protobuf:"varint,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	// Trading balance at fixed 18-decimal ledger scale.
 	Trading *v1.U128 `protobuf:"bytes,2,opt,name=trading,proto3" json:"trading,omitempty"`
-	// Funding balance for this asset (u128 base units).
+	// Funding balance at fixed 18-decimal ledger scale.
 	Funding *v1.U128 `protobuf:"bytes,3,opt,name=funding,proto3" json:"funding,omitempty"`
-	// Reserved amount in the trading bucket (u128 base units).
+	// Reserved amount in the trading bucket at fixed 18-decimal ledger scale.
 	Reserved *v1.U128 `protobuf:"bytes,4,opt,name=reserved,proto3" json:"reserved,omitempty"`
-	// Available amount in the trading bucket (u128 base units).
+	// Available amount in the trading bucket at fixed 18-decimal ledger scale.
 	// This is computed as max(trading - reserved, 0).
 	Available     *v1.U128 `protobuf:"bytes,5,opt,name=available,proto3" json:"available,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -405,7 +479,7 @@ type GetBalanceHistoryRequest struct {
 	Ledger uint32 `protobuf:"varint,3,opt,name=ledger,proto3" json:"ledger,omitempty"`
 	// Optional subset of account buckets to return. When empty, returns all
 	// account buckets.
-	AccountCodes  []uint32 `protobuf:"varint,4,rep,packed,name=account_codes,json=accountCodes,proto3" json:"account_codes,omitempty"`
+	AccountCodes  []v11.AccountCode `protobuf:"varint,4,rep,packed,name=account_codes,json=accountCodes,proto3,enum=ledger.v1.AccountCode" json:"account_codes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -451,7 +525,7 @@ func (x *GetBalanceHistoryRequest) GetRange() BalanceRange {
 	if x != nil {
 		return x.Range
 	}
-	return BalanceRange_BALANCE_RANGE_UNSPECIFIED
+	return BalanceRange_RANGE_UNSPECIFIED
 }
 
 func (x *GetBalanceHistoryRequest) GetLedger() uint32 {
@@ -461,7 +535,7 @@ func (x *GetBalanceHistoryRequest) GetLedger() uint32 {
 	return 0
 }
 
-func (x *GetBalanceHistoryRequest) GetAccountCodes() []uint32 {
+func (x *GetBalanceHistoryRequest) GetAccountCodes() []v11.AccountCode {
 	if x != nil {
 		return x.AccountCodes
 	}
@@ -472,9 +546,11 @@ func (x *GetBalanceHistoryRequest) GetAccountCodes() []uint32 {
 // REST renders decimal strings from these values.
 type BalanceSeries struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
-	AssetId     uint32                 `protobuf:"varint,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`             // public asset id
-	AccountCode uint32                 `protobuf:"varint,2,opt,name=account_code,json=accountCode,proto3" json:"account_code,omitempty"` // account bucket code
-	// balance in asset units scaled by 1e7 (7 decimals). Aligned 1:1 with implicit timestamps.
+	AssetId     uint32                 `protobuf:"varint,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`                                        // public unified asset id
+	AccountCode v11.AccountCode        `protobuf:"varint,2,opt,name=account_code,json=accountCode,proto3,enum=ledger.v1.AccountCode" json:"account_code,omitempty"` // account bucket
+	// Chart balance in asset units scaled by 1e7 (7 decimals).
+	// Values are downscaled from 18-decimal ledger balances for compact charting
+	// and align 1:1 with implicit timestamps.
 	BalanceQ      []uint64 `protobuf:"varint,3,rep,packed,name=balance_q,json=balanceQ,proto3" json:"balance_q,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -517,11 +593,11 @@ func (x *BalanceSeries) GetAssetId() uint32 {
 	return 0
 }
 
-func (x *BalanceSeries) GetAccountCode() uint32 {
+func (x *BalanceSeries) GetAccountCode() v11.AccountCode {
 	if x != nil {
 		return x.AccountCode
 	}
-	return 0
+	return v11.AccountCode(0)
 }
 
 func (x *BalanceSeries) GetBalanceQ() []uint64 {
@@ -577,7 +653,7 @@ func (x *GetBalanceHistoryResponse) GetRange() BalanceRange {
 	if x != nil {
 		return x.Range
 	}
-	return BalanceRange_BALANCE_RANGE_UNSPECIFIED
+	return BalanceRange_RANGE_UNSPECIFIED
 }
 
 func (x *GetBalanceHistoryResponse) GetBucket() string {
@@ -618,8 +694,8 @@ func (x *GetBalanceHistoryResponse) GetSeries() []*BalanceSeries {
 // Account grouping metadata (used when group_by = ACCOUNT).
 type AccountGrouping struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Code          uint32                 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"` // account bucket code
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`  // human-readable name ("funding", "trading")
+	AccountCode   uint32                 `protobuf:"varint,1,opt,name=account_code,json=accountCode,proto3" json:"account_code,omitempty"` // account bucket code
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`                                   // human-readable name ("funding", "trading")
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -654,9 +730,9 @@ func (*AccountGrouping) Descriptor() ([]byte, []int) {
 	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *AccountGrouping) GetCode() uint32 {
+func (x *AccountGrouping) GetAccountCode() uint32 {
 	if x != nil {
-		return x.Code
+		return x.AccountCode
 	}
 	return 0
 }
@@ -730,10 +806,10 @@ type GetEquityHistorySeriesRequest struct {
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// History window to return. When unset/UNSPECIFIED, defaults to 1D.
 	Range BalanceRange `protobuf:"varint,2,opt,name=range,proto3,enum=ledger.read.v1.BalanceRange" json:"range,omitempty"`
-	// Optional subset of account bucket codes.
+	// Optional subset of account buckets.
 	// When empty, server returns both funding and trading.
 	// Only used when group_by = ACCOUNT.
-	AccountCodes []uint32 `protobuf:"varint,4,rep,packed,name=account_codes,json=accountCodes,proto3" json:"account_codes,omitempty"`
+	AccountCodes []v11.AccountCode `protobuf:"varint,4,rep,packed,name=account_codes,json=accountCodes,proto3,enum=ledger.v1.AccountCode" json:"account_codes,omitempty"`
 	// How to group the equity series. Defaults to ACCOUNT if unspecified.
 	GroupBy       EquityGroupBy `protobuf:"varint,5,opt,name=group_by,json=groupBy,proto3,enum=ledger.read.v1.EquityGroupBy" json:"group_by,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -781,10 +857,10 @@ func (x *GetEquityHistorySeriesRequest) GetRange() BalanceRange {
 	if x != nil {
 		return x.Range
 	}
-	return BalanceRange_BALANCE_RANGE_UNSPECIFIED
+	return BalanceRange_RANGE_UNSPECIFIED
 }
 
-func (x *GetEquityHistorySeriesRequest) GetAccountCodes() []uint32 {
+func (x *GetEquityHistorySeriesRequest) GetAccountCodes() []v11.AccountCode {
 	if x != nil {
 		return x.AccountCodes
 	}
@@ -809,7 +885,8 @@ type EquitySeries struct {
 	//	*EquitySeries_Account
 	//	*EquitySeries_Asset
 	Grouping isEquitySeries_Grouping `protobuf_oneof:"grouping"`
-	// Equity in quote currency scaled by 1e4 (4 decimals). Aligned 1:1 with timestamps.
+	// Equity in quote currency (USDT) scaled by 1e4 (4 decimals).
+	// Values align 1:1 with timestamps.
 	EquityQ       []int64 `protobuf:"zigzag64,2,rep,packed,name=equity_q,json=equityQ,proto3" json:"equity_q,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -903,7 +980,7 @@ type GetEquityHistorySeriesResponse struct {
 	QuoteAsset string          `protobuf:"bytes,6,opt,name=quote_asset,json=quoteAsset,proto3" json:"quote_asset,omitempty"`
 	Points     uint32          `protobuf:"varint,7,opt,name=points,proto3" json:"points,omitempty"`
 	Series     []*EquitySeries `protobuf:"bytes,8,rep,name=series,proto3" json:"series,omitempty"`
-	// BTC price in USDT at each timestamp, scaled by 1e6 (price ticks).
+	// BTC-USDT close price at each timestamp, scaled by 1e6 (same as price_ticks).
 	// Enables client-side conversion to BTC denomination without refetch.
 	BtcPricesQ    []int64 `protobuf:"varint,10,rep,packed,name=btc_prices_q,json=btcPricesQ,proto3" json:"btc_prices_q,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -944,7 +1021,7 @@ func (x *GetEquityHistorySeriesResponse) GetRange() BalanceRange {
 	if x != nil {
 		return x.Range
 	}
-	return BalanceRange_BALANCE_RANGE_UNSPECIFIED
+	return BalanceRange_RANGE_UNSPECIFIED
 }
 
 func (x *GetEquityHistorySeriesResponse) GetBucket() string {
@@ -1001,19 +1078,26 @@ type ListTransfersRequest struct {
 	// Optional sub-account to scope transfers to. If omitted, transfers are
 	// listed for the authenticated root account derived from the JWT or API key.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
-	// Max number of rows to return (server may clamp). Default applied if 0.
+	// Maximum number of transfer rows to return. Defaults to 100 when omitted;
+	// maximum is 1000.
 	Limit uint32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
-	// true=newest first; false=oldest first.
+	// Sort direction. When true, rows are returned newest first; when false,
+	// rows are returned oldest first.
 	Reversed bool `protobuf:"varint,3,opt,name=reversed,proto3" json:"reversed,omitempty"`
-	// Optional lower timestamp bound (inclusive). Server may ignore.
-	TimestampMin uint64 `protobuf:"varint,4,opt,name=timestamp_min,json=timestampMin,proto3" json:"timestamp_min,omitempty"`
-	// Optional upper timestamp bound (inclusive). Server may ignore.
-	TimestampMax uint64 `protobuf:"varint,5,opt,name=timestamp_max,json=timestampMax,proto3" json:"timestamp_max,omitempty"`
-	// Optional filter by transfer reason code (stored as uint16 internally; use
-	// uint32 here for convenience).
-	Code          uint32 `protobuf:"varint,6,opt,name=code,proto3" json:"code,omitempty"`
-	Ledger        uint32 `protobuf:"varint,7,opt,name=ledger,proto3" json:"ledger,omitempty"` // optional filter by asset ledger
-	Since         uint64 `protobuf:"varint,8,opt,name=since,proto3" json:"since,omitempty"`   // cursor: return rows with timestamp > since
+	// Optional lower transfer timestamp bound in microseconds since epoch (UTC),
+	// inclusive.
+	TsMinUs uint64 `protobuf:"varint,4,opt,name=ts_min_us,json=tsMinUs,proto3" json:"ts_min_us,omitempty"`
+	// Optional upper transfer timestamp bound in microseconds since epoch (UTC),
+	// inclusive.
+	TsMaxUs uint64 `protobuf:"varint,5,opt,name=ts_max_us,json=tsMaxUs,proto3" json:"ts_max_us,omitempty"`
+	// Optional filter by transfer reason.
+	TransferCode v11.TransferCode `protobuf:"varint,6,opt,name=transfer_code,json=transferCode,proto3,enum=ledger.v1.TransferCode" json:"transfer_code,omitempty"`
+	// Optional filter by asset ledger.
+	Ledger uint32 `protobuf:"varint,7,opt,name=ledger,proto3" json:"ledger,omitempty"`
+	// Opaque keyset cursor from a previous response. The cursor is exclusive and
+	// bound to the authenticated account, sub-account scope, filters, timestamp
+	// bounds, and sort direction.
+	PageToken     string `protobuf:"bytes,9,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1069,25 +1153,25 @@ func (x *ListTransfersRequest) GetReversed() bool {
 	return false
 }
 
-func (x *ListTransfersRequest) GetTimestampMin() uint64 {
+func (x *ListTransfersRequest) GetTsMinUs() uint64 {
 	if x != nil {
-		return x.TimestampMin
+		return x.TsMinUs
 	}
 	return 0
 }
 
-func (x *ListTransfersRequest) GetTimestampMax() uint64 {
+func (x *ListTransfersRequest) GetTsMaxUs() uint64 {
 	if x != nil {
-		return x.TimestampMax
+		return x.TsMaxUs
 	}
 	return 0
 }
 
-func (x *ListTransfersRequest) GetCode() uint32 {
+func (x *ListTransfersRequest) GetTransferCode() v11.TransferCode {
 	if x != nil {
-		return x.Code
+		return x.TransferCode
 	}
-	return 0
+	return v11.TransferCode(0)
 }
 
 func (x *ListTransfersRequest) GetLedger() uint32 {
@@ -1097,35 +1181,111 @@ func (x *ListTransfersRequest) GetLedger() uint32 {
 	return 0
 }
 
-func (x *ListTransfersRequest) GetSince() uint64 {
+func (x *ListTransfersRequest) GetPageToken() string {
 	if x != nil {
-		return x.Since
+		return x.PageToken
+	}
+	return ""
+}
+
+// TransferSide describes one side of a ledger transfer for display.
+type TransferSide struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Kind  TransferSideKind       `protobuf:"varint,1,opt,name=kind,proto3,enum=ledger.read.v1.TransferSideKind" json:"kind,omitempty"`
+	// Public root or subaccount id when this side is safe to identify. Never
+	// populated for private counterparties or non-user ledger accounts.
+	AccountId *uint64 `protobuf:"fixed64,2,opt,name=account_id,json=accountId,proto3,oneof" json:"account_id,omitempty"`
+	// Address for this side when known. For EXTERNAL_ADDRESS this is an
+	// external-chain wallet address from lifecycle correlation; for identifiable
+	// Polyester user ledger accounts this is a Polyester smart-account address.
+	// May be empty during the transfer-to-lifecycle consistency window.
+	Address       string `protobuf:"bytes,3,opt,name=address,proto3" json:"address,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TransferSide) Reset() {
+	*x = TransferSide{}
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TransferSide) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TransferSide) ProtoMessage() {}
+
+func (x *TransferSide) ProtoReflect() protoreflect.Message {
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TransferSide.ProtoReflect.Descriptor instead.
+func (*TransferSide) Descriptor() ([]byte, []int) {
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *TransferSide) GetKind() TransferSideKind {
+	if x != nil {
+		return x.Kind
+	}
+	return TransferSideKind_TRANSFER_SIDE_KIND_UNSPECIFIED
+}
+
+func (x *TransferSide) GetAccountId() uint64 {
+	if x != nil && x.AccountId != nil {
+		return *x.AccountId
 	}
 	return 0
 }
 
+func (x *TransferSide) GetAddress() string {
+	if x != nil {
+		return x.Address
+	}
+	return ""
+}
+
 // Transfer row with compact integers and client-side resolution.
 type TransferRow struct {
-	state        protoimpl.MessageState `protogen:"open.v1"`
-	AssetId      uint32                 `protobuf:"varint,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`               // public asset id; client resolves symbol/scale
-	Amount       *v1.U128               `protobuf:"bytes,2,opt,name=amount,proto3" json:"amount,omitempty"`                                 // base units (u128)
-	Type         uint32                 `protobuf:"varint,3,opt,name=type,proto3" json:"type,omitempty"`                                    // reason code id
-	AccountCode  uint32                 `protobuf:"varint,4,opt,name=account_code,json=accountCode,proto3" json:"account_code,omitempty"`   // account bucket code
-	Timestamp    uint64                 `protobuf:"varint,5,opt,name=timestamp,proto3" json:"timestamp,omitempty"`                          // cluster timestamp
-	TxId         string                 `protobuf:"bytes,7,opt,name=tx_id,json=txId,proto3" json:"tx_id,omitempty"`                         // opaque transfer id (chain hash or internal id)
-	Onchain      bool                   `protobuf:"varint,8,opt,name=onchain,proto3" json:"onchain,omitempty"`                              // true for on-chain transfers
-	BalanceAfter *v1.U128               `protobuf:"bytes,9,opt,name=balance_after,json=balanceAfter,proto3" json:"balance_after,omitempty"` // post-transfer balance (u128)
-	IsDebit      bool                   `protobuf:"varint,10,opt,name=is_debit,json=isDebit,proto3" json:"is_debit,omitempty"`              // true for debit legs, false for credit legs
-	LinkId       uint64                 `protobuf:"varint,11,opt,name=link_id,json=linkId,proto3" json:"link_id,omitempty"`                 // correlation id derived from ME matchId for grouping
-	// related legs (0 when N/A)
-	FlowId        string `protobuf:"bytes,12,opt,name=flow_id,json=flowId,proto3" json:"flow_id,omitempty"` // public lifecycle flow id when this transfer belongs
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public unified asset id. Resolve symbol from SpotConfig; U128 amounts in
+	// this row always use fixed 18-decimal ledger scale.
+	AssetId uint32 `protobuf:"varint,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	// Transfer amount at fixed 18-decimal ledger scale.
+	AmountE18    *v1.U128         `protobuf:"bytes,2,opt,name=amount_e18,json=amountE18,proto3" json:"amount_e18,omitempty"`
+	TransferCode v11.TransferCode `protobuf:"varint,3,opt,name=transfer_code,json=transferCode,proto3,enum=ledger.v1.TransferCode" json:"transfer_code,omitempty"` // product reason for this transfer
+	AccountCode  v11.AccountCode  `protobuf:"varint,4,opt,name=account_code,json=accountCode,proto3,enum=ledger.v1.AccountCode" json:"account_code,omitempty"`     // account bucket affected by this transfer
+	TsUs         uint64           `protobuf:"varint,5,opt,name=ts_us,json=tsUs,proto3" json:"ts_us,omitempty"`                                                     // transfer timestamp in microseconds since epoch (UTC)
+	// Post-transfer balance at fixed 18-decimal ledger scale.
+	BalanceAfterE18 *v1.U128 `protobuf:"bytes,9,opt,name=balance_after_e18,json=balanceAfterE18,proto3" json:"balance_after_e18,omitempty"`
+	IsDebit         bool     `protobuf:"varint,10,opt,name=is_debit,json=isDebit,proto3" json:"is_debit,omitempty"` // true for debit legs, false for credit legs
+	// Correlation id derived from ME matchId for grouping related legs (0 when N/A).
+	LinkId uint64 `protobuf:"varint,11,opt,name=link_id,json=linkId,proto3" json:"link_id,omitempty"`
+	// Public lifecycle flow id when this transfer belongs to a chain lifecycle flow.
+	FlowId string `protobuf:"bytes,12,opt,name=flow_id,json=flowId,proto3" json:"flow_id,omitempty"`
+	// Ledger debit side for From-column display. This is debit-to-credit, not
+	// row-relative; use is_debit to know whether this row is the debit leg.
+	Source *TransferSide `protobuf:"bytes,13,opt,name=source,proto3" json:"source,omitempty"`
+	// Ledger credit side for To-column display. This is debit-to-credit, not
+	// row-relative; use is_debit to know whether this row is the credit leg.
+	Destination   *TransferSide `protobuf:"bytes,14,opt,name=destination,proto3" json:"destination,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TransferRow) Reset() {
 	*x = TransferRow{}
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[12]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1137,7 +1297,7 @@ func (x *TransferRow) String() string {
 func (*TransferRow) ProtoMessage() {}
 
 func (x *TransferRow) ProtoReflect() protoreflect.Message {
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[12]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1150,7 +1310,7 @@ func (x *TransferRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransferRow.ProtoReflect.Descriptor instead.
 func (*TransferRow) Descriptor() ([]byte, []int) {
-	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{12}
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *TransferRow) GetAssetId() uint32 {
@@ -1160,51 +1320,37 @@ func (x *TransferRow) GetAssetId() uint32 {
 	return 0
 }
 
-func (x *TransferRow) GetAmount() *v1.U128 {
+func (x *TransferRow) GetAmountE18() *v1.U128 {
 	if x != nil {
-		return x.Amount
+		return x.AmountE18
 	}
 	return nil
 }
 
-func (x *TransferRow) GetType() uint32 {
+func (x *TransferRow) GetTransferCode() v11.TransferCode {
 	if x != nil {
-		return x.Type
+		return x.TransferCode
 	}
-	return 0
+	return v11.TransferCode(0)
 }
 
-func (x *TransferRow) GetAccountCode() uint32 {
+func (x *TransferRow) GetAccountCode() v11.AccountCode {
 	if x != nil {
 		return x.AccountCode
 	}
-	return 0
+	return v11.AccountCode(0)
 }
 
-func (x *TransferRow) GetTimestamp() uint64 {
+func (x *TransferRow) GetTsUs() uint64 {
 	if x != nil {
-		return x.Timestamp
+		return x.TsUs
 	}
 	return 0
 }
 
-func (x *TransferRow) GetTxId() string {
+func (x *TransferRow) GetBalanceAfterE18() *v1.U128 {
 	if x != nil {
-		return x.TxId
-	}
-	return ""
-}
-
-func (x *TransferRow) GetOnchain() bool {
-	if x != nil {
-		return x.Onchain
-	}
-	return false
-}
-
-func (x *TransferRow) GetBalanceAfter() *v1.U128 {
-	if x != nil {
-		return x.BalanceAfter
+		return x.BalanceAfterE18
 	}
 	return nil
 }
@@ -1230,18 +1376,33 @@ func (x *TransferRow) GetFlowId() string {
 	return ""
 }
 
+func (x *TransferRow) GetSource() *TransferSide {
+	if x != nil {
+		return x.Source
+	}
+	return nil
+}
+
+func (x *TransferRow) GetDestination() *TransferSide {
+	if x != nil {
+		return x.Destination
+	}
+	return nil
+}
+
 type ListTransfersResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Transfer rows in requested order.
-	Transfers     []*TransferRow `protobuf:"bytes,1,rep,name=transfers,proto3" json:"transfers,omitempty"`
-	NextCursor    uint64         `protobuf:"varint,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	Transfers []*TransferRow `protobuf:"bytes,1,rep,name=transfers,proto3" json:"transfers,omitempty"`
+	// Opaque cursor for the next page. Empty when no more results exist.
+	NextPageToken string `protobuf:"bytes,3,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListTransfersResponse) Reset() {
 	*x = ListTransfersResponse{}
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[13]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1253,7 +1414,7 @@ func (x *ListTransfersResponse) String() string {
 func (*ListTransfersResponse) ProtoMessage() {}
 
 func (x *ListTransfersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[13]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1266,7 +1427,7 @@ func (x *ListTransfersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTransfersResponse.ProtoReflect.Descriptor instead.
 func (*ListTransfersResponse) Descriptor() ([]byte, []int) {
-	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{13}
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ListTransfersResponse) GetTransfers() []*TransferRow {
@@ -1276,11 +1437,11 @@ func (x *ListTransfersResponse) GetTransfers() []*TransferRow {
 	return nil
 }
 
-func (x *ListTransfersResponse) GetNextCursor() uint64 {
+func (x *ListTransfersResponse) GetNextPageToken() string {
 	if x != nil {
-		return x.NextCursor
+		return x.NextPageToken
 	}
-	return 0
+	return ""
 }
 
 type ListHoldsRequest struct {
@@ -1288,17 +1449,21 @@ type ListHoldsRequest struct {
 	// Optional sub-account to scope holds to. If omitted, holds are listed for
 	// the authenticated root account derived from the JWT or API key.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
-	// Max number of rows to return (server may clamp). Default applied if 0.
+	// Maximum number of holds to return. Defaults to 100 when omitted; maximum is
+	// 1000.
 	Limit uint32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
 	// true=newest first; false=oldest first.
-	Reversed      bool `protobuf:"varint,3,opt,name=reversed,proto3" json:"reversed,omitempty"`
+	Reversed bool `protobuf:"varint,3,opt,name=reversed,proto3" json:"reversed,omitempty"`
+	// Opaque keyset cursor from a previous response. The cursor is exclusive and
+	// bound to account, sub-account scope, and sort direction.
+	PageToken     string `protobuf:"bytes,4,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListHoldsRequest) Reset() {
 	*x = ListHoldsRequest{}
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[14]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1310,7 +1475,7 @@ func (x *ListHoldsRequest) String() string {
 func (*ListHoldsRequest) ProtoMessage() {}
 
 func (x *ListHoldsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[14]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1323,7 +1488,7 @@ func (x *ListHoldsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListHoldsRequest.ProtoReflect.Descriptor instead.
 func (*ListHoldsRequest) Descriptor() ([]byte, []int) {
-	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{14}
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ListHoldsRequest) GetSubaccountId() uint64 {
@@ -1347,20 +1512,29 @@ func (x *ListHoldsRequest) GetReversed() bool {
 	return false
 }
 
+func (x *ListHoldsRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
 // Hold row with compact integers and client-side resolution.
 type HoldRow struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	HoldId         uint64                 `protobuf:"fixed64,1,opt,name=hold_id,json=holdId,proto3" json:"hold_id,omitempty"`                       // pending transfer id (numeric)
-	AmountReserved *v1.U128               `protobuf:"bytes,2,opt,name=amount_reserved,json=amountReserved,proto3" json:"amount_reserved,omitempty"` // base units (u128)
-	AssetId        uint32                 `protobuf:"varint,3,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`                     // public asset id
-	ExpiresAtNs    uint64                 `protobuf:"varint,4,opt,name=expires_at_ns,json=expiresAtNs,proto3" json:"expires_at_ns,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	HoldId uint64                 `protobuf:"fixed64,1,opt,name=hold_id,json=holdId,proto3" json:"hold_id,omitempty"` // pending transfer id (numeric)
+	// Reserved amount at fixed 18-decimal ledger scale.
+	AmountReservedE18 *v1.U128 `protobuf:"bytes,2,opt,name=amount_reserved_e18,json=amountReservedE18,proto3" json:"amount_reserved_e18,omitempty"`
+	// Public unified asset id.
+	AssetId       uint32 `protobuf:"varint,3,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	ExpiresAtNs   uint64 `protobuf:"varint,4,opt,name=expires_at_ns,json=expiresAtNs,proto3" json:"expires_at_ns,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *HoldRow) Reset() {
 	*x = HoldRow{}
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[15]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1372,7 +1546,7 @@ func (x *HoldRow) String() string {
 func (*HoldRow) ProtoMessage() {}
 
 func (x *HoldRow) ProtoReflect() protoreflect.Message {
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[15]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1385,7 +1559,7 @@ func (x *HoldRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HoldRow.ProtoReflect.Descriptor instead.
 func (*HoldRow) Descriptor() ([]byte, []int) {
-	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{15}
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *HoldRow) GetHoldId() uint64 {
@@ -1395,9 +1569,9 @@ func (x *HoldRow) GetHoldId() uint64 {
 	return 0
 }
 
-func (x *HoldRow) GetAmountReserved() *v1.U128 {
+func (x *HoldRow) GetAmountReservedE18() *v1.U128 {
 	if x != nil {
-		return x.AmountReserved
+		return x.AmountReservedE18
 	}
 	return nil
 }
@@ -1417,15 +1591,17 @@ func (x *HoldRow) GetExpiresAtNs() uint64 {
 }
 
 type ListHoldsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Holds         []*HoldRow             `protobuf:"bytes,1,rep,name=holds,proto3" json:"holds,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Holds []*HoldRow             `protobuf:"bytes,1,rep,name=holds,proto3" json:"holds,omitempty"`
+	// Opaque cursor for the next page. Empty when no more results exist.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListHoldsResponse) Reset() {
 	*x = ListHoldsResponse{}
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[16]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1437,7 +1613,7 @@ func (x *ListHoldsResponse) String() string {
 func (*ListHoldsResponse) ProtoMessage() {}
 
 func (x *ListHoldsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[16]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1450,7 +1626,7 @@ func (x *ListHoldsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListHoldsResponse.ProtoReflect.Descriptor instead.
 func (*ListHoldsResponse) Descriptor() ([]byte, []int) {
-	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{16}
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ListHoldsResponse) GetHolds() []*HoldRow {
@@ -1458,6 +1634,13 @@ func (x *ListHoldsResponse) GetHolds() []*HoldRow {
 		return x.Holds
 	}
 	return nil
+}
+
+func (x *ListHoldsResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
 }
 
 type GetHealthRequest struct {
@@ -1468,7 +1651,7 @@ type GetHealthRequest struct {
 
 func (x *GetHealthRequest) Reset() {
 	*x = GetHealthRequest{}
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[17]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1480,7 +1663,7 @@ func (x *GetHealthRequest) String() string {
 func (*GetHealthRequest) ProtoMessage() {}
 
 func (x *GetHealthRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[17]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1493,7 +1676,7 @@ func (x *GetHealthRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetHealthRequest.ProtoReflect.Descriptor instead.
 func (*GetHealthRequest) Descriptor() ([]byte, []int) {
-	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{17}
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{18}
 }
 
 type GetHealthResponse struct {
@@ -1506,7 +1689,7 @@ type GetHealthResponse struct {
 
 func (x *GetHealthResponse) Reset() {
 	*x = GetHealthResponse{}
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[18]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1518,7 +1701,7 @@ func (x *GetHealthResponse) String() string {
 func (*GetHealthResponse) ProtoMessage() {}
 
 func (x *GetHealthResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[18]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1531,7 +1714,7 @@ func (x *GetHealthResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetHealthResponse.ProtoReflect.Descriptor instead.
 func (*GetHealthResponse) Descriptor() ([]byte, []int) {
-	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{18}
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *GetHealthResponse) GetOk() bool {
@@ -1560,7 +1743,7 @@ type ErrorDetail struct {
 
 func (x *ErrorDetail) Reset() {
 	*x = ErrorDetail{}
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[19]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1572,7 +1755,7 @@ func (x *ErrorDetail) String() string {
 func (*ErrorDetail) ProtoMessage() {}
 
 func (x *ErrorDetail) ProtoReflect() protoreflect.Message {
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[19]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1585,7 +1768,7 @@ func (x *ErrorDetail) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ErrorDetail.ProtoReflect.Descriptor instead.
 func (*ErrorDetail) Descriptor() ([]byte, []int) {
-	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{19}
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ErrorDetail) GetCode() ErrorCode {
@@ -1599,7 +1782,7 @@ var File_ledger_read_v1_ledger_read_proto protoreflect.FileDescriptor
 
 const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"\n" +
-	" ledger/read/v1/ledger_read.proto\x12\x0eledger.read.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1bpolyester/api/options.proto\x1a\x1cpolyester/type/v1/u128.proto\"P\n" +
+	" ledger/read/v1/ledger_read.proto\x12\x0eledger.read.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x17ledger/v1/catalog.proto\x1a\x1bpolyester/api/options.proto\x1a\x1cpolyester/type/v1/u128.proto\"P\n" +
 	"\x12GetBalancesRequest\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
 	"\x0e_subaccount_id\"\xfb\x01\n" +
@@ -1610,16 +1793,16 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"\breserved\x18\x04 \x01(\v2\x17.polyester.type.v1.U128R\breserved\x125\n" +
 	"\tavailable\x18\x05 \x01(\v2\x17.polyester.type.v1.U128R\tavailable\"O\n" +
 	"\x13GetBalancesResponse\x128\n" +
-	"\bbalances\x18\x01 \x03(\v2\x1c.ledger.read.v1.AssetBalanceR\bbalances\"\xd1\x01\n" +
+	"\bbalances\x18\x01 \x03(\v2\x1c.ledger.read.v1.AssetBalanceR\bbalances\"\xe9\x01\n" +
 	"\x18GetBalanceHistoryRequest\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12<\n" +
 	"\x05range\x18\x02 \x01(\x0e2\x1c.ledger.read.v1.BalanceRangeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x05range\x12\x16\n" +
-	"\x06ledger\x18\x03 \x01(\rR\x06ledger\x12#\n" +
-	"\raccount_codes\x18\x04 \x03(\rR\faccountCodesB\x10\n" +
-	"\x0e_subaccount_id\"j\n" +
+	"\x06ledger\x18\x03 \x01(\rR\x06ledger\x12;\n" +
+	"\raccount_codes\x18\x04 \x03(\x0e2\x16.ledger.v1.AccountCodeR\faccountCodesB\x10\n" +
+	"\x0e_subaccount_id\"\x82\x01\n" +
 	"\rBalanceSeries\x12\x19\n" +
-	"\basset_id\x18\x01 \x01(\rR\aassetId\x12!\n" +
-	"\faccount_code\x18\x02 \x01(\rR\vaccountCode\x12\x1b\n" +
+	"\basset_id\x18\x01 \x01(\rR\aassetId\x129\n" +
+	"\faccount_code\x18\x02 \x01(\x0e2\x16.ledger.v1.AccountCodeR\vaccountCode\x12\x1b\n" +
 	"\tbalance_q\x18\x03 \x03(\x04R\bbalanceQ\"\xf6\x01\n" +
 	"\x19GetBalanceHistoryResponse\x122\n" +
 	"\x05range\x18\x01 \x01(\x0e2\x1c.ledger.read.v1.BalanceRangeR\x05range\x12\x16\n" +
@@ -1629,25 +1812,25 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"\n" +
 	"end_ts_sec\x18\x04 \x01(\aR\bendTsSec\x12\x16\n" +
 	"\x06points\x18\x05 \x01(\rR\x06points\x125\n" +
-	"\x06series\x18\x06 \x03(\v2\x1d.ledger.read.v1.BalanceSeriesR\x06series\"9\n" +
-	"\x0fAccountGrouping\x12\x12\n" +
-	"\x04code\x18\x01 \x01(\rR\x04code\x12\x12\n" +
+	"\x06series\x18\x06 \x03(\v2\x1d.ledger.read.v1.BalanceSeriesR\x06series\"H\n" +
+	"\x0fAccountGrouping\x12!\n" +
+	"\faccount_code\x18\x01 \x01(\rR\vaccountCode\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\"7\n" +
 	"\rAssetGrouping\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x16\n" +
-	"\x06symbol\x18\x02 \x01(\tR\x06symbol\"\xfe\x01\n" +
+	"\x06symbol\x18\x02 \x01(\tR\x06symbol\"\x90\x02\n" +
 	"\x1dGetEquityHistorySeriesRequest\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12<\n" +
-	"\x05range\x18\x02 \x01(\x0e2\x1c.ledger.read.v1.BalanceRangeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x05range\x12#\n" +
-	"\raccount_codes\x18\x04 \x03(\rR\faccountCodes\x128\n" +
+	"\x05range\x18\x02 \x01(\x0e2\x1c.ledger.read.v1.BalanceRangeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x05range\x12;\n" +
+	"\raccount_codes\x18\x04 \x03(\x0e2\x16.ledger.v1.AccountCodeR\faccountCodes\x128\n" +
 	"\bgroup_by\x18\x05 \x01(\x0e2\x1d.ledger.read.v1.EquityGroupByR\agroupByB\x10\n" +
-	"\x0e_subaccount_idJ\x04\b\x03\x10\x04\"\xa9\x01\n" +
+	"\x0e_subaccount_id\"\xa9\x01\n" +
 	"\fEquitySeries\x12;\n" +
 	"\aaccount\x18\x01 \x01(\v2\x1f.ledger.read.v1.AccountGroupingH\x00R\aaccount\x125\n" +
 	"\x05asset\x18\x03 \x01(\v2\x1d.ledger.read.v1.AssetGroupingH\x00R\x05asset\x12\x19\n" +
 	"\bequity_q\x18\x02 \x03(\x12R\aequityQB\n" +
 	"\n" +
-	"\bgrouping\"\xc3\x02\n" +
+	"\bgrouping\"\xbd\x02\n" +
 	"\x1eGetEquityHistorySeriesResponse\x122\n" +
 	"\x05range\x18\x01 \x01(\x0e2\x1c.ledger.read.v1.BalanceRangeR\x05range\x12\x16\n" +
 	"\x06bucket\x18\x02 \x01(\tR\x06bucket\x12 \n" +
@@ -1661,55 +1844,65 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"\x06series\x18\b \x03(\v2\x1c.ledger.read.v1.EquitySeriesR\x06series\x12 \n" +
 	"\fbtc_prices_q\x18\n" +
 	" \x03(\x03R\n" +
-	"btcPricesQJ\x04\b\x05\x10\x06\"\xe6\x03\n" +
+	"btcPricesQ\"\xf9\x03\n" +
 	"\x14ListTransfersRequest\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12\x1e\n" +
 	"\x05limit\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xe8\aR\x05limit\x12\x1a\n" +
-	"\breversed\x18\x03 \x01(\bR\breversed\x12#\n" +
-	"\rtimestamp_min\x18\x04 \x01(\x04R\ftimestampMin\x12#\n" +
-	"\rtimestamp_max\x18\x05 \x01(\x04R\ftimestampMax\x12\x12\n" +
-	"\x04code\x18\x06 \x01(\rR\x04code\x12\x16\n" +
-	"\x06ledger\x18\a \x01(\rR\x06ledger\x12\x14\n" +
-	"\x05since\x18\b \x01(\x04R\x05since:\xc9\x01\xbaH\xc5\x01\x1a\xc2\x01\n" +
-	"$list_transfers.timestamp_range_valid\x128timestamp_max must be >= timestamp_min when both are set\x1a`this.timestamp_min == 0u || this.timestamp_max == 0u || this.timestamp_max >= this.timestamp_minB\x10\n" +
-	"\x0e_subaccount_id\"\xe8\x02\n" +
+	"\breversed\x18\x03 \x01(\bR\breversed\x12\x1a\n" +
+	"\tts_min_us\x18\x04 \x01(\x04R\atsMinUs\x12\x1a\n" +
+	"\tts_max_us\x18\x05 \x01(\x04R\atsMaxUs\x12<\n" +
+	"\rtransfer_code\x18\x06 \x01(\x0e2\x17.ledger.v1.TransferCodeR\ftransferCode\x12\x16\n" +
+	"\x06ledger\x18\a \x01(\rR\x06ledger\x12'\n" +
+	"\n" +
+	"page_token\x18\t \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken:\xb1\x01\xbaH\xad\x01\x1a\xaa\x01\n" +
+	"$list_transfers.timestamp_range_valid\x120ts_max_us must be >= ts_min_us when both are set\x1aPthis.ts_min_us == 0u || this.ts_max_us == 0u || this.ts_max_us >= this.ts_min_usB\x10\n" +
+	"\x0e_subaccount_id\"\x91\x01\n" +
+	"\fTransferSide\x124\n" +
+	"\x04kind\x18\x01 \x01(\x0e2 .ledger.read.v1.TransferSideKindR\x04kind\x12\"\n" +
+	"\n" +
+	"account_id\x18\x02 \x01(\x06H\x00R\taccountId\x88\x01\x01\x12\x18\n" +
+	"\aaddress\x18\x03 \x01(\tR\aaddressB\r\n" +
+	"\v_account_id\"\xf6\x03\n" +
 	"\vTransferRow\x12\x19\n" +
-	"\basset_id\x18\x01 \x01(\rR\aassetId\x12/\n" +
-	"\x06amount\x18\x02 \x01(\v2\x17.polyester.type.v1.U128R\x06amount\x12\x12\n" +
-	"\x04type\x18\x03 \x01(\rR\x04type\x12!\n" +
-	"\faccount_code\x18\x04 \x01(\rR\vaccountCode\x12\x1c\n" +
-	"\ttimestamp\x18\x05 \x01(\x04R\ttimestamp\x12\x13\n" +
-	"\x05tx_id\x18\a \x01(\tR\x04txId\x12\x18\n" +
-	"\aonchain\x18\b \x01(\bR\aonchain\x12<\n" +
-	"\rbalance_after\x18\t \x01(\v2\x17.polyester.type.v1.U128R\fbalanceAfter\x12\x19\n" +
+	"\basset_id\x18\x01 \x01(\rR\aassetId\x126\n" +
+	"\n" +
+	"amount_e18\x18\x02 \x01(\v2\x17.polyester.type.v1.U128R\tamountE18\x12<\n" +
+	"\rtransfer_code\x18\x03 \x01(\x0e2\x17.ledger.v1.TransferCodeR\ftransferCode\x129\n" +
+	"\faccount_code\x18\x04 \x01(\x0e2\x16.ledger.v1.AccountCodeR\vaccountCode\x12\x13\n" +
+	"\x05ts_us\x18\x05 \x01(\x04R\x04tsUs\x12C\n" +
+	"\x11balance_after_e18\x18\t \x01(\v2\x17.polyester.type.v1.U128R\x0fbalanceAfterE18\x12\x19\n" +
 	"\bis_debit\x18\n" +
 	" \x01(\bR\aisDebit\x12\x17\n" +
 	"\alink_id\x18\v \x01(\x04R\x06linkId\x12\x17\n" +
-	"\aflow_id\x18\f \x01(\tR\x06flowId\"s\n" +
+	"\aflow_id\x18\f \x01(\tR\x06flowId\x124\n" +
+	"\x06source\x18\r \x01(\v2\x1c.ledger.read.v1.TransferSideR\x06source\x12>\n" +
+	"\vdestination\x18\x0e \x01(\v2\x1c.ledger.read.v1.TransferSideR\vdestination\"\x84\x01\n" +
 	"\x15ListTransfersResponse\x129\n" +
-	"\ttransfers\x18\x01 \x03(\v2\x1b.ledger.read.v1.TransferRowR\ttransfers\x12\x1f\n" +
-	"\vnext_cursor\x18\x02 \x01(\x04R\n" +
-	"nextCursor\"\x8a\x01\n" +
+	"\ttransfers\x18\x01 \x03(\v2\x1b.ledger.read.v1.TransferRowR\ttransfers\x120\n" +
+	"\x0fnext_page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xb3\x01\n" +
 	"\x10ListHoldsRequest\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12\x1e\n" +
 	"\x05limit\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xe8\aR\x05limit\x12\x1a\n" +
-	"\breversed\x18\x03 \x01(\bR\breversedB\x10\n" +
-	"\x0e_subaccount_id\"\xa3\x01\n" +
+	"\breversed\x18\x03 \x01(\bR\breversed\x12'\n" +
+	"\n" +
+	"page_token\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageTokenB\x10\n" +
+	"\x0e_subaccount_id\"\xaa\x01\n" +
 	"\aHoldRow\x12\x17\n" +
-	"\ahold_id\x18\x01 \x01(\x06R\x06holdId\x12@\n" +
-	"\x0famount_reserved\x18\x02 \x01(\v2\x17.polyester.type.v1.U128R\x0eamountReserved\x12\x19\n" +
+	"\ahold_id\x18\x01 \x01(\x06R\x06holdId\x12G\n" +
+	"\x13amount_reserved_e18\x18\x02 \x01(\v2\x17.polyester.type.v1.U128R\x11amountReservedE18\x12\x19\n" +
 	"\basset_id\x18\x03 \x01(\rR\aassetId\x12\"\n" +
-	"\rexpires_at_ns\x18\x04 \x01(\x04R\vexpiresAtNs\"B\n" +
+	"\rexpires_at_ns\x18\x04 \x01(\x04R\vexpiresAtNs\"t\n" +
 	"\x11ListHoldsResponse\x12-\n" +
-	"\x05holds\x18\x01 \x03(\v2\x17.ledger.read.v1.HoldRowR\x05holds\"\x12\n" +
+	"\x05holds\x18\x01 \x03(\v2\x17.ledger.read.v1.HoldRowR\x05holds\x120\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\x12\n" +
 	"\x10GetHealthRequest\"=\n" +
 	"\x11GetHealthResponse\x12\x0e\n" +
 	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\"<\n" +
 	"\vErrorDetail\x12-\n" +
-	"\x04code\x18\x01 \x01(\x0e2\x19.ledger.read.v1.ErrorCodeR\x04code*u\n" +
-	"\fBalanceRange\x12\x1d\n" +
-	"\x19BALANCE_RANGE_UNSPECIFIED\x10\x00\x12\t\n" +
+	"\x04code\x18\x01 \x01(\x0e2\x19.ledger.read.v1.ErrorCodeR\x04code*m\n" +
+	"\fBalanceRange\x12\x15\n" +
+	"\x11RANGE_UNSPECIFIED\x10\x00\x12\t\n" +
 	"\x05DAY_1\x10\x01\x12\t\n" +
 	"\x05DAY_7\x10\x02\x12\n" +
 	"\n" +
@@ -1721,7 +1914,15 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"\rEquityGroupBy\x12\x18\n" +
 	"\x14GROUP_BY_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10GROUP_BY_ACCOUNT\x10\x01\x12\x12\n" +
-	"\x0eGROUP_BY_ASSET\x10\x02*\xf2\x02\n" +
+	"\x0eGROUP_BY_ASSET\x10\x02*\xb5\x01\n" +
+	"\x10TransferSideKind\x12\"\n" +
+	"\x1eTRANSFER_SIDE_KIND_UNSPECIFIED\x10\x00\x12\x13\n" +
+	"\x0fFUNDING_ACCOUNT\x10\x01\x12\x13\n" +
+	"\x0fTRADING_ACCOUNT\x10\x02\x12\x14\n" +
+	"\x10EXTERNAL_ADDRESS\x10\x03\x12\x18\n" +
+	"\x14PRIVATE_COUNTERPARTY\x10\x04\x12\x0f\n" +
+	"\vFEE_ACCOUNT\x10\x05\x12\x12\n" +
+	"\x0eSYSTEM_ACCOUNT\x10\x06*\xf2\x02\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16ERROR_CODE_BAD_REQUEST\x10\x01\x12\x1e\n" +
@@ -1759,72 +1960,85 @@ func file_ledger_read_v1_ledger_read_proto_rawDescGZIP() []byte {
 	return file_ledger_read_v1_ledger_read_proto_rawDescData
 }
 
-var file_ledger_read_v1_ledger_read_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_ledger_read_v1_ledger_read_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_ledger_read_v1_ledger_read_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
+var file_ledger_read_v1_ledger_read_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_ledger_read_v1_ledger_read_proto_goTypes = []any{
 	(BalanceRange)(0),                      // 0: ledger.read.v1.BalanceRange
 	(EquityGroupBy)(0),                     // 1: ledger.read.v1.EquityGroupBy
-	(ErrorCode)(0),                         // 2: ledger.read.v1.ErrorCode
-	(*GetBalancesRequest)(nil),             // 3: ledger.read.v1.GetBalancesRequest
-	(*AssetBalance)(nil),                   // 4: ledger.read.v1.AssetBalance
-	(*GetBalancesResponse)(nil),            // 5: ledger.read.v1.GetBalancesResponse
-	(*GetBalanceHistoryRequest)(nil),       // 6: ledger.read.v1.GetBalanceHistoryRequest
-	(*BalanceSeries)(nil),                  // 7: ledger.read.v1.BalanceSeries
-	(*GetBalanceHistoryResponse)(nil),      // 8: ledger.read.v1.GetBalanceHistoryResponse
-	(*AccountGrouping)(nil),                // 9: ledger.read.v1.AccountGrouping
-	(*AssetGrouping)(nil),                  // 10: ledger.read.v1.AssetGrouping
-	(*GetEquityHistorySeriesRequest)(nil),  // 11: ledger.read.v1.GetEquityHistorySeriesRequest
-	(*EquitySeries)(nil),                   // 12: ledger.read.v1.EquitySeries
-	(*GetEquityHistorySeriesResponse)(nil), // 13: ledger.read.v1.GetEquityHistorySeriesResponse
-	(*ListTransfersRequest)(nil),           // 14: ledger.read.v1.ListTransfersRequest
-	(*TransferRow)(nil),                    // 15: ledger.read.v1.TransferRow
-	(*ListTransfersResponse)(nil),          // 16: ledger.read.v1.ListTransfersResponse
-	(*ListHoldsRequest)(nil),               // 17: ledger.read.v1.ListHoldsRequest
-	(*HoldRow)(nil),                        // 18: ledger.read.v1.HoldRow
-	(*ListHoldsResponse)(nil),              // 19: ledger.read.v1.ListHoldsResponse
-	(*GetHealthRequest)(nil),               // 20: ledger.read.v1.GetHealthRequest
-	(*GetHealthResponse)(nil),              // 21: ledger.read.v1.GetHealthResponse
-	(*ErrorDetail)(nil),                    // 22: ledger.read.v1.ErrorDetail
-	(*v1.U128)(nil),                        // 23: polyester.type.v1.U128
+	(TransferSideKind)(0),                  // 2: ledger.read.v1.TransferSideKind
+	(ErrorCode)(0),                         // 3: ledger.read.v1.ErrorCode
+	(*GetBalancesRequest)(nil),             // 4: ledger.read.v1.GetBalancesRequest
+	(*AssetBalance)(nil),                   // 5: ledger.read.v1.AssetBalance
+	(*GetBalancesResponse)(nil),            // 6: ledger.read.v1.GetBalancesResponse
+	(*GetBalanceHistoryRequest)(nil),       // 7: ledger.read.v1.GetBalanceHistoryRequest
+	(*BalanceSeries)(nil),                  // 8: ledger.read.v1.BalanceSeries
+	(*GetBalanceHistoryResponse)(nil),      // 9: ledger.read.v1.GetBalanceHistoryResponse
+	(*AccountGrouping)(nil),                // 10: ledger.read.v1.AccountGrouping
+	(*AssetGrouping)(nil),                  // 11: ledger.read.v1.AssetGrouping
+	(*GetEquityHistorySeriesRequest)(nil),  // 12: ledger.read.v1.GetEquityHistorySeriesRequest
+	(*EquitySeries)(nil),                   // 13: ledger.read.v1.EquitySeries
+	(*GetEquityHistorySeriesResponse)(nil), // 14: ledger.read.v1.GetEquityHistorySeriesResponse
+	(*ListTransfersRequest)(nil),           // 15: ledger.read.v1.ListTransfersRequest
+	(*TransferSide)(nil),                   // 16: ledger.read.v1.TransferSide
+	(*TransferRow)(nil),                    // 17: ledger.read.v1.TransferRow
+	(*ListTransfersResponse)(nil),          // 18: ledger.read.v1.ListTransfersResponse
+	(*ListHoldsRequest)(nil),               // 19: ledger.read.v1.ListHoldsRequest
+	(*HoldRow)(nil),                        // 20: ledger.read.v1.HoldRow
+	(*ListHoldsResponse)(nil),              // 21: ledger.read.v1.ListHoldsResponse
+	(*GetHealthRequest)(nil),               // 22: ledger.read.v1.GetHealthRequest
+	(*GetHealthResponse)(nil),              // 23: ledger.read.v1.GetHealthResponse
+	(*ErrorDetail)(nil),                    // 24: ledger.read.v1.ErrorDetail
+	(*v1.U128)(nil),                        // 25: polyester.type.v1.U128
+	(v11.AccountCode)(0),                   // 26: ledger.v1.AccountCode
+	(v11.TransferCode)(0),                  // 27: ledger.v1.TransferCode
 }
 var file_ledger_read_v1_ledger_read_proto_depIdxs = []int32{
-	23, // 0: ledger.read.v1.AssetBalance.trading:type_name -> polyester.type.v1.U128
-	23, // 1: ledger.read.v1.AssetBalance.funding:type_name -> polyester.type.v1.U128
-	23, // 2: ledger.read.v1.AssetBalance.reserved:type_name -> polyester.type.v1.U128
-	23, // 3: ledger.read.v1.AssetBalance.available:type_name -> polyester.type.v1.U128
-	4,  // 4: ledger.read.v1.GetBalancesResponse.balances:type_name -> ledger.read.v1.AssetBalance
+	25, // 0: ledger.read.v1.AssetBalance.trading:type_name -> polyester.type.v1.U128
+	25, // 1: ledger.read.v1.AssetBalance.funding:type_name -> polyester.type.v1.U128
+	25, // 2: ledger.read.v1.AssetBalance.reserved:type_name -> polyester.type.v1.U128
+	25, // 3: ledger.read.v1.AssetBalance.available:type_name -> polyester.type.v1.U128
+	5,  // 4: ledger.read.v1.GetBalancesResponse.balances:type_name -> ledger.read.v1.AssetBalance
 	0,  // 5: ledger.read.v1.GetBalanceHistoryRequest.range:type_name -> ledger.read.v1.BalanceRange
-	0,  // 6: ledger.read.v1.GetBalanceHistoryResponse.range:type_name -> ledger.read.v1.BalanceRange
-	7,  // 7: ledger.read.v1.GetBalanceHistoryResponse.series:type_name -> ledger.read.v1.BalanceSeries
-	0,  // 8: ledger.read.v1.GetEquityHistorySeriesRequest.range:type_name -> ledger.read.v1.BalanceRange
-	1,  // 9: ledger.read.v1.GetEquityHistorySeriesRequest.group_by:type_name -> ledger.read.v1.EquityGroupBy
-	9,  // 10: ledger.read.v1.EquitySeries.account:type_name -> ledger.read.v1.AccountGrouping
-	10, // 11: ledger.read.v1.EquitySeries.asset:type_name -> ledger.read.v1.AssetGrouping
-	0,  // 12: ledger.read.v1.GetEquityHistorySeriesResponse.range:type_name -> ledger.read.v1.BalanceRange
-	12, // 13: ledger.read.v1.GetEquityHistorySeriesResponse.series:type_name -> ledger.read.v1.EquitySeries
-	23, // 14: ledger.read.v1.TransferRow.amount:type_name -> polyester.type.v1.U128
-	23, // 15: ledger.read.v1.TransferRow.balance_after:type_name -> polyester.type.v1.U128
-	15, // 16: ledger.read.v1.ListTransfersResponse.transfers:type_name -> ledger.read.v1.TransferRow
-	23, // 17: ledger.read.v1.HoldRow.amount_reserved:type_name -> polyester.type.v1.U128
-	18, // 18: ledger.read.v1.ListHoldsResponse.holds:type_name -> ledger.read.v1.HoldRow
-	2,  // 19: ledger.read.v1.ErrorDetail.code:type_name -> ledger.read.v1.ErrorCode
-	6,  // 20: ledger.read.v1.LedgerReadService.GetBalanceHistory:input_type -> ledger.read.v1.GetBalanceHistoryRequest
-	11, // 21: ledger.read.v1.LedgerReadService.GetEquityHistorySeries:input_type -> ledger.read.v1.GetEquityHistorySeriesRequest
-	14, // 22: ledger.read.v1.LedgerReadService.ListTransfers:input_type -> ledger.read.v1.ListTransfersRequest
-	17, // 23: ledger.read.v1.LedgerReadService.ListHolds:input_type -> ledger.read.v1.ListHoldsRequest
-	3,  // 24: ledger.read.v1.LedgerReadService.GetBalances:input_type -> ledger.read.v1.GetBalancesRequest
-	20, // 25: ledger.read.v1.LedgerReadService.GetHealth:input_type -> ledger.read.v1.GetHealthRequest
-	8,  // 26: ledger.read.v1.LedgerReadService.GetBalanceHistory:output_type -> ledger.read.v1.GetBalanceHistoryResponse
-	13, // 27: ledger.read.v1.LedgerReadService.GetEquityHistorySeries:output_type -> ledger.read.v1.GetEquityHistorySeriesResponse
-	16, // 28: ledger.read.v1.LedgerReadService.ListTransfers:output_type -> ledger.read.v1.ListTransfersResponse
-	19, // 29: ledger.read.v1.LedgerReadService.ListHolds:output_type -> ledger.read.v1.ListHoldsResponse
-	5,  // 30: ledger.read.v1.LedgerReadService.GetBalances:output_type -> ledger.read.v1.GetBalancesResponse
-	21, // 31: ledger.read.v1.LedgerReadService.GetHealth:output_type -> ledger.read.v1.GetHealthResponse
-	26, // [26:32] is the sub-list for method output_type
-	20, // [20:26] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	26, // 6: ledger.read.v1.GetBalanceHistoryRequest.account_codes:type_name -> ledger.v1.AccountCode
+	26, // 7: ledger.read.v1.BalanceSeries.account_code:type_name -> ledger.v1.AccountCode
+	0,  // 8: ledger.read.v1.GetBalanceHistoryResponse.range:type_name -> ledger.read.v1.BalanceRange
+	8,  // 9: ledger.read.v1.GetBalanceHistoryResponse.series:type_name -> ledger.read.v1.BalanceSeries
+	0,  // 10: ledger.read.v1.GetEquityHistorySeriesRequest.range:type_name -> ledger.read.v1.BalanceRange
+	26, // 11: ledger.read.v1.GetEquityHistorySeriesRequest.account_codes:type_name -> ledger.v1.AccountCode
+	1,  // 12: ledger.read.v1.GetEquityHistorySeriesRequest.group_by:type_name -> ledger.read.v1.EquityGroupBy
+	10, // 13: ledger.read.v1.EquitySeries.account:type_name -> ledger.read.v1.AccountGrouping
+	11, // 14: ledger.read.v1.EquitySeries.asset:type_name -> ledger.read.v1.AssetGrouping
+	0,  // 15: ledger.read.v1.GetEquityHistorySeriesResponse.range:type_name -> ledger.read.v1.BalanceRange
+	13, // 16: ledger.read.v1.GetEquityHistorySeriesResponse.series:type_name -> ledger.read.v1.EquitySeries
+	27, // 17: ledger.read.v1.ListTransfersRequest.transfer_code:type_name -> ledger.v1.TransferCode
+	2,  // 18: ledger.read.v1.TransferSide.kind:type_name -> ledger.read.v1.TransferSideKind
+	25, // 19: ledger.read.v1.TransferRow.amount_e18:type_name -> polyester.type.v1.U128
+	27, // 20: ledger.read.v1.TransferRow.transfer_code:type_name -> ledger.v1.TransferCode
+	26, // 21: ledger.read.v1.TransferRow.account_code:type_name -> ledger.v1.AccountCode
+	25, // 22: ledger.read.v1.TransferRow.balance_after_e18:type_name -> polyester.type.v1.U128
+	16, // 23: ledger.read.v1.TransferRow.source:type_name -> ledger.read.v1.TransferSide
+	16, // 24: ledger.read.v1.TransferRow.destination:type_name -> ledger.read.v1.TransferSide
+	17, // 25: ledger.read.v1.ListTransfersResponse.transfers:type_name -> ledger.read.v1.TransferRow
+	25, // 26: ledger.read.v1.HoldRow.amount_reserved_e18:type_name -> polyester.type.v1.U128
+	20, // 27: ledger.read.v1.ListHoldsResponse.holds:type_name -> ledger.read.v1.HoldRow
+	3,  // 28: ledger.read.v1.ErrorDetail.code:type_name -> ledger.read.v1.ErrorCode
+	7,  // 29: ledger.read.v1.LedgerReadService.GetBalanceHistory:input_type -> ledger.read.v1.GetBalanceHistoryRequest
+	12, // 30: ledger.read.v1.LedgerReadService.GetEquityHistorySeries:input_type -> ledger.read.v1.GetEquityHistorySeriesRequest
+	15, // 31: ledger.read.v1.LedgerReadService.ListTransfers:input_type -> ledger.read.v1.ListTransfersRequest
+	19, // 32: ledger.read.v1.LedgerReadService.ListHolds:input_type -> ledger.read.v1.ListHoldsRequest
+	4,  // 33: ledger.read.v1.LedgerReadService.GetBalances:input_type -> ledger.read.v1.GetBalancesRequest
+	22, // 34: ledger.read.v1.LedgerReadService.GetHealth:input_type -> ledger.read.v1.GetHealthRequest
+	9,  // 35: ledger.read.v1.LedgerReadService.GetBalanceHistory:output_type -> ledger.read.v1.GetBalanceHistoryResponse
+	14, // 36: ledger.read.v1.LedgerReadService.GetEquityHistorySeries:output_type -> ledger.read.v1.GetEquityHistorySeriesResponse
+	18, // 37: ledger.read.v1.LedgerReadService.ListTransfers:output_type -> ledger.read.v1.ListTransfersResponse
+	21, // 38: ledger.read.v1.LedgerReadService.ListHolds:output_type -> ledger.read.v1.ListHoldsResponse
+	6,  // 39: ledger.read.v1.LedgerReadService.GetBalances:output_type -> ledger.read.v1.GetBalancesResponse
+	23, // 40: ledger.read.v1.LedgerReadService.GetHealth:output_type -> ledger.read.v1.GetHealthResponse
+	35, // [35:41] is the sub-list for method output_type
+	29, // [29:35] is the sub-list for method input_type
+	29, // [29:29] is the sub-list for extension type_name
+	29, // [29:29] is the sub-list for extension extendee
+	0,  // [0:29] is the sub-list for field type_name
 }
 
 func init() { file_ledger_read_v1_ledger_read_proto_init() }
@@ -1840,14 +2054,15 @@ func file_ledger_read_v1_ledger_read_proto_init() {
 		(*EquitySeries_Asset)(nil),
 	}
 	file_ledger_read_v1_ledger_read_proto_msgTypes[11].OneofWrappers = []any{}
-	file_ledger_read_v1_ledger_read_proto_msgTypes[14].OneofWrappers = []any{}
+	file_ledger_read_v1_ledger_read_proto_msgTypes[12].OneofWrappers = []any{}
+	file_ledger_read_v1_ledger_read_proto_msgTypes[15].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ledger_read_v1_ledger_read_proto_rawDesc), len(file_ledger_read_v1_ledger_read_proto_rawDesc)),
-			NumEnums:      3,
-			NumMessages:   20,
+			NumEnums:      4,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

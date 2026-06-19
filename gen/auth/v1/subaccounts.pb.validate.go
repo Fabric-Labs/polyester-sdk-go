@@ -187,6 +187,10 @@ func (m *Subaccount) validate(all bool) error {
 
 	// no validation rules for RequireMemberMfa
 
+	if m.SmartAccountSaltNonce != nil {
+		// no validation rules for SmartAccountSaltNonce
+	}
+
 	if len(errors) > 0 {
 		return SubaccountMultiError(errors)
 	}
@@ -649,6 +653,8 @@ func (m *CreateSubaccountResponse) validate(all bool) error {
 	// no validation rules for SubaccountId
 
 	// no validation rules for TotalCreated
+
+	// no validation rules for SmartAccountSaltNonce
 
 	if len(errors) > 0 {
 		return CreateSubaccountResponseMultiError(errors)
@@ -3275,8 +3281,6 @@ func (m *ActivityEvent) validate(all bool) error {
 
 	var errors []error
 
-	// no validation rules for Cursor
-
 	if all {
 		switch v := interface{}(m.GetCreatedAt()).(type) {
 		case interface{ ValidateAll() error }:
@@ -3424,7 +3428,7 @@ func (m *ListSubaccountEventsRequest) validate(all bool) error {
 
 	// no validation rules for Limit
 
-	// no validation rules for Cursor
+	// no validation rules for PageToken
 
 	if len(errors) > 0 {
 		return ListSubaccountEventsRequestMultiError(errors)
@@ -3563,7 +3567,7 @@ func (m *ListSubaccountEventsResponse) validate(all bool) error {
 
 	}
 
-	// no validation rules for NextCursor
+	// no validation rules for NextPageToken
 
 	if len(errors) > 0 {
 		return ListSubaccountEventsResponseMultiError(errors)

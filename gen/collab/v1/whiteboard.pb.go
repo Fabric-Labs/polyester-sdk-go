@@ -875,8 +875,15 @@ type ListBoardsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// When true, include archived boards in the response.
 	IncludeArchived bool `protobuf:"varint,1,opt,name=include_archived,json=includeArchived,proto3" json:"include_archived,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Maximum number of boards to return. Defaults to 100 when omitted; maximum
+	// is 500.
+	Limit uint32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Opaque keyset cursor from a previous response. The cursor is exclusive and
+	// bound to the authenticated caller, archive filter, and newest-updated sort
+	// order.
+	PageToken     string `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListBoardsRequest) Reset() {
@@ -916,11 +923,27 @@ func (x *ListBoardsRequest) GetIncludeArchived() bool {
 	return false
 }
 
+func (x *ListBoardsRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListBoardsRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
 // ListBoardsResponse lists boards visible to the caller in most-recently-updated order.
 type ListBoardsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Visible boards ordered by updated_at descending, then board_id descending.
-	Boards        []*BoardListItem `protobuf:"bytes,1,rep,name=boards,proto3" json:"boards,omitempty"`
+	Boards []*BoardListItem `protobuf:"bytes,1,rep,name=boards,proto3" json:"boards,omitempty"`
+	// Opaque cursor for the next page. Empty when no more results exist.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -960,6 +983,13 @@ func (x *ListBoardsResponse) GetBoards() []*BoardListItem {
 		return x.Boards
 	}
 	return nil
+}
+
+func (x *ListBoardsResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
 }
 
 // UpdateBoardRequest updates mutable board metadata.
@@ -1563,11 +1593,15 @@ const file_collab_v1_whiteboard_proto_rawDesc = "" +
 	"\x05board\x18\x01 \x01(\v2\x10.collab.v1.BoardR\x05board\x129\n" +
 	"\vacl_entries\x18\x02 \x03(\v2\x18.collab.v1.BoardAclEntryR\n" +
 	"aclEntries\x12.\n" +
-	"\x06access\x18\x03 \x01(\v2\x16.collab.v1.BoardAccessR\x06access\">\n" +
+	"\x06access\x18\x03 \x01(\v2\x16.collab.v1.BoardAccessR\x06access\"\x87\x01\n" +
 	"\x11ListBoardsRequest\x12)\n" +
-	"\x10include_archived\x18\x01 \x01(\bR\x0fincludeArchived\"F\n" +
+	"\x10include_archived\x18\x01 \x01(\bR\x0fincludeArchived\x12\x1e\n" +
+	"\x05limit\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xf4\x03R\x05limit\x12'\n" +
+	"\n" +
+	"page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken\"x\n" +
 	"\x12ListBoardsResponse\x120\n" +
-	"\x06boards\x18\x01 \x03(\v2\x18.collab.v1.BoardListItemR\x06boards\"\xbe\x05\n" +
+	"\x06boards\x18\x01 \x03(\v2\x18.collab.v1.BoardListItemR\x06boards\x120\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xbe\x05\n" +
 	"\x12UpdateBoardRequest\x12&\n" +
 	"\bboard_id\x18\x01 \x01(\tB\v\xe0A\x02\xbaH\x05r\x03\xb0\x01\x01R\aboardId\x12(\n" +
 	"\x05title\x18\x02 \x01(\tB\r\xbaH\n" +

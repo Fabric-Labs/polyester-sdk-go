@@ -61,7 +61,7 @@ func (m *CreateInternalTransferRequest) validate(all bool) error {
 
 	// no validation rules for AssetId
 
-	// no validation rules for QuantityScaled
+	// no validation rules for QtyScaled
 
 	// no validation rules for IdempotencyKey
 
@@ -321,7 +321,7 @@ func (m *CreateInternalTransferResponse) validate(all bool) error {
 
 	// no validation rules for TransferId
 
-	// no validation rules for AcceptedAtUnixNs
+	// no validation rules for AcceptedAtTsNs
 
 	// no validation rules for AssetId
 
@@ -329,7 +329,7 @@ func (m *CreateInternalTransferResponse) validate(all bool) error {
 
 	// no validation rules for UAssetId
 
-	// no validation rules for QuantityScaled
+	// no validation rules for QtyScaled
 
 	if all {
 		switch v := interface{}(m.GetDestination()).(type) {

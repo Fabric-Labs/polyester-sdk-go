@@ -680,12 +680,12 @@ type ListInboxMarketLayersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Engine symbol identifier for the market inbox.
 	EngineSymbolId uint32 `protobuf:"varint,1,opt,name=engine_symbol_id,json=engineSymbolId,proto3" json:"engine_symbol_id,omitempty"`
-	// Maximum number of layers to return; the service may apply a smaller default or maximum.
+	// Maximum number of layers to return. Defaults to 100 when omitted; maximum
+	// is 500.
 	Limit uint32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
-	// Exclusive owner cursor from the previous response; 0 starts from the first page.
-	AfterOwnerId uint64 `protobuf:"fixed64,3,opt,name=after_owner_id,json=afterOwnerId,proto3" json:"after_owner_id,omitempty"`
-	// Exclusive layer cursor from the previous response; 0 starts from the first page.
-	AfterLayerId  uint64 `protobuf:"fixed64,4,opt,name=after_layer_id,json=afterLayerId,proto3" json:"after_layer_id,omitempty"`
+	// Opaque keyset cursor from a previous response. The cursor is exclusive and
+	// bound to caller, market, and inbox sort order.
+	PageToken     string `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -734,18 +734,11 @@ func (x *ListInboxMarketLayersRequest) GetLimit() uint32 {
 	return 0
 }
 
-func (x *ListInboxMarketLayersRequest) GetAfterOwnerId() uint64 {
+func (x *ListInboxMarketLayersRequest) GetPageToken() string {
 	if x != nil {
-		return x.AfterOwnerId
+		return x.PageToken
 	}
-	return 0
-}
-
-func (x *ListInboxMarketLayersRequest) GetAfterLayerId() uint64 {
-	if x != nil {
-		return x.AfterLayerId
-	}
-	return 0
+	return ""
 }
 
 // ListInboxMarketLayersResponse returns metadata-only shared layers for one market.
@@ -755,12 +748,10 @@ type ListInboxMarketLayersResponse struct {
 	EngineSymbolId uint32 `protobuf:"varint,1,opt,name=engine_symbol_id,json=engineSymbolId,proto3" json:"engine_symbol_id,omitempty"`
 	// Shared layer metadata only; drawings are not included.
 	Layers []*Layer `protobuf:"bytes,2,rep,name=layers,proto3" json:"layers,omitempty"`
-	// Cursor owner ID for the next page; 0 means there are no more pages.
-	NextAfterOwnerId uint64 `protobuf:"fixed64,3,opt,name=next_after_owner_id,json=nextAfterOwnerId,proto3" json:"next_after_owner_id,omitempty"`
-	// Cursor layer ID for the next page; 0 means there are no more pages.
-	NextAfterLayerId uint64 `protobuf:"fixed64,4,opt,name=next_after_layer_id,json=nextAfterLayerId,proto3" json:"next_after_layer_id,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Opaque cursor for the next page. Empty when no more results exist.
+	NextPageToken string `protobuf:"bytes,3,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListInboxMarketLayersResponse) Reset() {
@@ -807,18 +798,11 @@ func (x *ListInboxMarketLayersResponse) GetLayers() []*Layer {
 	return nil
 }
 
-func (x *ListInboxMarketLayersResponse) GetNextAfterOwnerId() uint64 {
+func (x *ListInboxMarketLayersResponse) GetNextPageToken() string {
 	if x != nil {
-		return x.NextAfterOwnerId
+		return x.NextPageToken
 	}
-	return 0
-}
-
-func (x *ListInboxMarketLayersResponse) GetNextAfterLayerId() uint64 {
-	if x != nil {
-		return x.NextAfterLayerId
-	}
-	return 0
+	return ""
 }
 
 // Fetch a single layer snapshot for realtime gap recovery and share viewing.
@@ -1462,12 +1446,12 @@ type ListOwnerPublishedLayersRequest struct {
 	OwnerId uint64 `protobuf:"fixed64,1,opt,name=owner_id,json=ownerId,proto3" json:"owner_id,omitempty"`
 	// Optional market filter.
 	EngineSymbolId *uint32 `protobuf:"varint,2,opt,name=engine_symbol_id,json=engineSymbolId,proto3,oneof" json:"engine_symbol_id,omitempty"`
-	// Maximum number of layers to return; the service may apply a smaller default or maximum.
+	// Maximum number of layers to return. Defaults to 100 when omitted; maximum
+	// is 500.
 	Limit uint32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
-	// Exclusive publication-time cursor from the previous response; 0 starts from the first page.
-	AfterPublishedAtMs uint64 `protobuf:"fixed64,4,opt,name=after_published_at_ms,json=afterPublishedAtMs,proto3" json:"after_published_at_ms,omitempty"`
-	// Exclusive layer cursor from the previous response; 0 starts from the first page.
-	AfterLayerId  uint64 `protobuf:"fixed64,5,opt,name=after_layer_id,json=afterLayerId,proto3" json:"after_layer_id,omitempty"`
+	// Opaque keyset cursor from a previous response. The cursor is exclusive and
+	// bound to owner, market filter, and newest-published sort order.
+	PageToken     string `protobuf:"bytes,4,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1523,18 +1507,11 @@ func (x *ListOwnerPublishedLayersRequest) GetLimit() uint32 {
 	return 0
 }
 
-func (x *ListOwnerPublishedLayersRequest) GetAfterPublishedAtMs() uint64 {
+func (x *ListOwnerPublishedLayersRequest) GetPageToken() string {
 	if x != nil {
-		return x.AfterPublishedAtMs
+		return x.PageToken
 	}
-	return 0
-}
-
-func (x *ListOwnerPublishedLayersRequest) GetAfterLayerId() uint64 {
-	if x != nil {
-		return x.AfterLayerId
-	}
-	return 0
+	return ""
 }
 
 // ListOwnerPublishedLayersResponse contains one page of discoverable layers.
@@ -1542,12 +1519,10 @@ type ListOwnerPublishedLayersResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Published layers, returned newest-published first.
 	Layers []*PublishedLayer `protobuf:"bytes,1,rep,name=layers,proto3" json:"layers,omitempty"`
-	// Cursor publication timestamp for the next page; 0 means there are no more pages.
-	NextAfterPublishedAtMs uint64 `protobuf:"fixed64,2,opt,name=next_after_published_at_ms,json=nextAfterPublishedAtMs,proto3" json:"next_after_published_at_ms,omitempty"`
-	// Cursor layer ID for the next page; 0 means there are no more pages.
-	NextAfterLayerId uint64 `protobuf:"fixed64,3,opt,name=next_after_layer_id,json=nextAfterLayerId,proto3" json:"next_after_layer_id,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Opaque cursor for the next page. Empty when no more results exist.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListOwnerPublishedLayersResponse) Reset() {
@@ -1587,18 +1562,11 @@ func (x *ListOwnerPublishedLayersResponse) GetLayers() []*PublishedLayer {
 	return nil
 }
 
-func (x *ListOwnerPublishedLayersResponse) GetNextAfterPublishedAtMs() uint64 {
+func (x *ListOwnerPublishedLayersResponse) GetNextPageToken() string {
 	if x != nil {
-		return x.NextAfterPublishedAtMs
+		return x.NextPageToken
 	}
-	return 0
-}
-
-func (x *ListOwnerPublishedLayersResponse) GetNextAfterLayerId() uint64 {
-	if x != nil {
-		return x.NextAfterLayerId
-	}
-	return 0
+	return ""
 }
 
 // PublishLayerRequest lists a layer for discovery. Publishing implies PUBLIC view access.
@@ -2384,17 +2352,16 @@ const file_polychart_v1_polychart_proto_rawDesc = "" +
 	"\x10engine_symbol_id\x18\x01 \x01(\rR\x0eengineSymbolId\x12E\n" +
 	"\rsubscriptions\x18\x02 \x03(\v2\x1f.polychart.v1.LayerSubscriptionR\rsubscriptions\x12+\n" +
 	"\x06layers\x18\x03 \x03(\v2\x13.polychart.v1.LayerR\x06layers\x121\n" +
-	"\bdrawings\x18\x04 \x03(\v2\x15.polychart.v1.DrawingR\bdrawings\"\xb3\x01\n" +
+	"\bdrawings\x18\x04 \x03(\v2\x15.polychart.v1.DrawingR\bdrawings\"\x9a\x01\n" +
 	"\x1cListInboxMarketLayersRequest\x121\n" +
-	"\x10engine_symbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\x0eengineSymbolId\x12\x14\n" +
-	"\x05limit\x18\x02 \x01(\rR\x05limit\x12$\n" +
-	"\x0eafter_owner_id\x18\x03 \x01(\x06R\fafterOwnerId\x12$\n" +
-	"\x0eafter_layer_id\x18\x04 \x01(\x06R\fafterLayerId\"\xd4\x01\n" +
+	"\x10engine_symbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\x0eengineSymbolId\x12\x1e\n" +
+	"\x05limit\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xf4\x03R\x05limit\x12'\n" +
+	"\n" +
+	"page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken\"\xa8\x01\n" +
 	"\x1dListInboxMarketLayersResponse\x12(\n" +
 	"\x10engine_symbol_id\x18\x01 \x01(\rR\x0eengineSymbolId\x12+\n" +
-	"\x06layers\x18\x02 \x03(\v2\x13.polychart.v1.LayerR\x06layers\x12-\n" +
-	"\x13next_after_owner_id\x18\x03 \x01(\x06R\x10nextAfterOwnerId\x12-\n" +
-	"\x13next_after_layer_id\x18\x04 \x01(\x06R\x10nextAfterLayerId\"G\n" +
+	"\x06layers\x18\x02 \x03(\v2\x13.polychart.v1.LayerR\x06layers\x120\n" +
+	"\x0fnext_page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"G\n" +
 	"\x17GetLayerSnapshotRequest\x12,\n" +
 	"\x05layer\x18\x01 \x01(\v2\x16.polychart.v1.LayerRefR\x05layer\"x\n" +
 	"\x18GetLayerSnapshotResponse\x12)\n" +
@@ -2427,18 +2394,17 @@ const file_polychart_v1_polychart_proto_rawDesc = "" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x12\n" +
 	"\x04tags\x18\x04 \x03(\tR\x04tags\x12&\n" +
-	"\x0fpublished_at_ms\x18\x05 \x01(\x06R\rpublishedAtMs\"\xef\x01\n" +
+	"\x0fpublished_at_ms\x18\x05 \x01(\x06R\rpublishedAtMs\"\xc9\x01\n" +
 	"\x1fListOwnerPublishedLayersRequest\x12\x19\n" +
 	"\bowner_id\x18\x01 \x01(\x06R\aownerId\x12-\n" +
-	"\x10engine_symbol_id\x18\x02 \x01(\rH\x00R\x0eengineSymbolId\x88\x01\x01\x12\x14\n" +
-	"\x05limit\x18\x03 \x01(\rR\x05limit\x121\n" +
-	"\x15after_published_at_ms\x18\x04 \x01(\x06R\x12afterPublishedAtMs\x12$\n" +
-	"\x0eafter_layer_id\x18\x05 \x01(\x06R\fafterLayerIdB\x13\n" +
-	"\x11_engine_symbol_id\"\xc3\x01\n" +
+	"\x10engine_symbol_id\x18\x02 \x01(\rH\x00R\x0eengineSymbolId\x88\x01\x01\x12\x1e\n" +
+	"\x05limit\x18\x03 \x01(\rB\b\xbaH\x05*\x03\x18\xf4\x03R\x05limit\x12'\n" +
+	"\n" +
+	"page_token\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageTokenB\x13\n" +
+	"\x11_engine_symbol_id\"\x8a\x01\n" +
 	" ListOwnerPublishedLayersResponse\x124\n" +
-	"\x06layers\x18\x01 \x03(\v2\x1c.polychart.v1.PublishedLayerR\x06layers\x12:\n" +
-	"\x1anext_after_published_at_ms\x18\x02 \x01(\x06R\x16nextAfterPublishedAtMs\x12-\n" +
-	"\x13next_after_layer_id\x18\x03 \x01(\x06R\x10nextAfterLayerId\"\x98\x01\n" +
+	"\x06layers\x18\x01 \x03(\v2\x1c.polychart.v1.PublishedLayerR\x06layers\x120\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\x98\x01\n" +
 	"\x13PublishLayerRequest\x12,\n" +
 	"\x05layer\x18\x01 \x01(\v2\x16.polychart.v1.LayerRefR\x05layer\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +

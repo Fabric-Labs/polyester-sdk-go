@@ -175,8 +175,8 @@ func (x *ChainConfig) GetMaxAddressLength() uint32 {
 // or withdraw from a unified Polyester asset.
 type AssetChainVariant struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Canonical chain asset id from `chain_zipped_assets.id`.
-	ChainAssetId uint32 `protobuf:"varint,1,opt,name=chain_asset_id,json=chainAssetId,proto3" json:"chain_asset_id,omitempty"`
+	// Canonical zipped asset route id.
+	ZippedAssetId uint32 `protobuf:"varint,1,opt,name=zipped_asset_id,json=zippedAssetId,proto3" json:"zipped_asset_id,omitempty"`
 	// Chain that this asset belongs to.
 	ChainId uint32 `protobuf:"varint,2,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
 	// True when the asset is the native gas/token of the source chain.
@@ -196,8 +196,11 @@ type AssetChainVariant struct {
 	DepositMinAmount string `protobuf:"bytes,10,opt,name=deposit_min_amount,json=depositMinAmount,proto3" json:"deposit_min_amount,omitempty"`
 	// Minimum withdraw amount for this variant as a human-readable string in zToken units.
 	WithdrawMinAmount string `protobuf:"bytes,11,opt,name=withdraw_min_amount,json=withdrawMinAmount,proto3" json:"withdraw_min_amount,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Latest zToken supply for this chain asset variant, scaled by the parent
+	// unified asset's quantity_scale. Decode: supply_q / 10^quantity_scale.
+	SupplyQ       uint64 `protobuf:"varint,12,opt,name=supply_q,json=supplyQ,proto3" json:"supply_q,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AssetChainVariant) Reset() {
@@ -230,9 +233,9 @@ func (*AssetChainVariant) Descriptor() ([]byte, []int) {
 	return file_chain_zipper_v1_zipper_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *AssetChainVariant) GetChainAssetId() uint32 {
+func (x *AssetChainVariant) GetZippedAssetId() uint32 {
 	if x != nil {
-		return x.ChainAssetId
+		return x.ZippedAssetId
 	}
 	return 0
 }
@@ -300,19 +303,130 @@ func (x *AssetChainVariant) GetWithdrawMinAmount() string {
 	return ""
 }
 
+func (x *AssetChainVariant) GetSupplyQ() uint64 {
+	if x != nil {
+		return x.SupplyQ
+	}
+	return 0
+}
+
+// ZippedAssetSupplyUpdate carries the latest route liquidity for one zipped
+// asset. It is published on the protobuf websocket channel.
+type ZippedAssetSupplyUpdate struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Canonical zipped asset route id.
+	ZippedAssetId uint32 `protobuf:"varint,1,opt,name=zipped_asset_id,json=zippedAssetId,proto3" json:"zipped_asset_id,omitempty"`
+	// Latest zToken supply for this route, scaled by the parent asset's
+	// quantity_scale. Decode: supply_q / 10^quantity_scale.
+	SupplyQ       uint64 `protobuf:"varint,2,opt,name=supply_q,json=supplyQ,proto3" json:"supply_q,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ZippedAssetSupplyUpdate) Reset() {
+	*x = ZippedAssetSupplyUpdate{}
+	mi := &file_chain_zipper_v1_zipper_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ZippedAssetSupplyUpdate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ZippedAssetSupplyUpdate) ProtoMessage() {}
+
+func (x *ZippedAssetSupplyUpdate) ProtoReflect() protoreflect.Message {
+	mi := &file_chain_zipper_v1_zipper_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ZippedAssetSupplyUpdate.ProtoReflect.Descriptor instead.
+func (*ZippedAssetSupplyUpdate) Descriptor() ([]byte, []int) {
+	return file_chain_zipper_v1_zipper_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ZippedAssetSupplyUpdate) GetZippedAssetId() uint32 {
+	if x != nil {
+		return x.ZippedAssetId
+	}
+	return 0
+}
+
+func (x *ZippedAssetSupplyUpdate) GetSupplyQ() uint64 {
+	if x != nil {
+		return x.SupplyQ
+	}
+	return 0
+}
+
+// ZippedAssetSupplyBatch batches public zipped-asset supply updates.
+type ZippedAssetSupplyBatch struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	Updates       []*ZippedAssetSupplyUpdate `protobuf:"bytes,1,rep,name=updates,proto3" json:"updates,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ZippedAssetSupplyBatch) Reset() {
+	*x = ZippedAssetSupplyBatch{}
+	mi := &file_chain_zipper_v1_zipper_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ZippedAssetSupplyBatch) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ZippedAssetSupplyBatch) ProtoMessage() {}
+
+func (x *ZippedAssetSupplyBatch) ProtoReflect() protoreflect.Message {
+	mi := &file_chain_zipper_v1_zipper_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ZippedAssetSupplyBatch.ProtoReflect.Descriptor instead.
+func (*ZippedAssetSupplyBatch) Descriptor() ([]byte, []int) {
+	return file_chain_zipper_v1_zipper_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ZippedAssetSupplyBatch) GetUpdates() []*ZippedAssetSupplyUpdate {
+	if x != nil {
+		return x.Updates
+	}
+	return nil
+}
+
 // AssetConfig describes one unified Polyester asset and all compatible
 // chain-specific variants supported by Zipper.
 type AssetConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Unified Polyester asset code used inside Funding/Trading (for example: "USDT").
 	Asset string `protobuf:"bytes,1,opt,name=asset,proto3" json:"asset,omitempty"`
-	// Polyester internal ledger id for the unified asset.
+	// Public unified asset id.
 	LedgerId uint32 `protobuf:"varint,2,opt,name=ledger_id,json=ledgerId,proto3" json:"ledger_id,omitempty"`
 	// Human-friendly unified asset display name.
 	Name string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	// Optional icon reference for the unified asset.
 	Icon string `protobuf:"bytes,4,opt,name=icon,proto3" json:"icon,omitempty"`
-	// Internal precision for the unified asset.
+	// Integer scale for unified-asset quantities (0..18). A scale of 8 means one
+	// whole asset is represented as 100000000 in supply_q and other
+	// quantity_scale-based fields.
 	QuantityScale uint32 `protobuf:"varint,5,opt,name=quantity_scale,json=quantityScale,proto3" json:"quantity_scale,omitempty"`
 	// UI display precision for the unified asset.
 	QuantityDisplayDecimals uint32 `protobuf:"varint,6,opt,name=quantity_display_decimals,json=quantityDisplayDecimals,proto3" json:"quantity_display_decimals,omitempty"`
@@ -326,7 +440,7 @@ type AssetConfig struct {
 
 func (x *AssetConfig) Reset() {
 	*x = AssetConfig{}
-	mi := &file_chain_zipper_v1_zipper_proto_msgTypes[2]
+	mi := &file_chain_zipper_v1_zipper_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -338,7 +452,7 @@ func (x *AssetConfig) String() string {
 func (*AssetConfig) ProtoMessage() {}
 
 func (x *AssetConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_chain_zipper_v1_zipper_proto_msgTypes[2]
+	mi := &file_chain_zipper_v1_zipper_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -351,7 +465,7 @@ func (x *AssetConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssetConfig.ProtoReflect.Descriptor instead.
 func (*AssetConfig) Descriptor() ([]byte, []int) {
-	return file_chain_zipper_v1_zipper_proto_rawDescGZIP(), []int{2}
+	return file_chain_zipper_v1_zipper_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *AssetConfig) GetAsset() string {
@@ -431,7 +545,7 @@ type ChainContractConfig struct {
 
 func (x *ChainContractConfig) Reset() {
 	*x = ChainContractConfig{}
-	mi := &file_chain_zipper_v1_zipper_proto_msgTypes[3]
+	mi := &file_chain_zipper_v1_zipper_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -443,7 +557,7 @@ func (x *ChainContractConfig) String() string {
 func (*ChainContractConfig) ProtoMessage() {}
 
 func (x *ChainContractConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_chain_zipper_v1_zipper_proto_msgTypes[3]
+	mi := &file_chain_zipper_v1_zipper_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -456,7 +570,7 @@ func (x *ChainContractConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChainContractConfig.ProtoReflect.Descriptor instead.
 func (*ChainContractConfig) Descriptor() ([]byte, []int) {
-	return file_chain_zipper_v1_zipper_proto_rawDescGZIP(), []int{3}
+	return file_chain_zipper_v1_zipper_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ChainContractConfig) GetName() string {
@@ -502,7 +616,7 @@ type GetDepositWithdrawConfigRequest struct {
 
 func (x *GetDepositWithdrawConfigRequest) Reset() {
 	*x = GetDepositWithdrawConfigRequest{}
-	mi := &file_chain_zipper_v1_zipper_proto_msgTypes[4]
+	mi := &file_chain_zipper_v1_zipper_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -514,7 +628,7 @@ func (x *GetDepositWithdrawConfigRequest) String() string {
 func (*GetDepositWithdrawConfigRequest) ProtoMessage() {}
 
 func (x *GetDepositWithdrawConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chain_zipper_v1_zipper_proto_msgTypes[4]
+	mi := &file_chain_zipper_v1_zipper_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -527,7 +641,7 @@ func (x *GetDepositWithdrawConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDepositWithdrawConfigRequest.ProtoReflect.Descriptor instead.
 func (*GetDepositWithdrawConfigRequest) Descriptor() ([]byte, []int) {
-	return file_chain_zipper_v1_zipper_proto_rawDescGZIP(), []int{4}
+	return file_chain_zipper_v1_zipper_proto_rawDescGZIP(), []int{6}
 }
 
 type GetDepositWithdrawConfigResponse struct {
@@ -548,7 +662,7 @@ type GetDepositWithdrawConfigResponse struct {
 
 func (x *GetDepositWithdrawConfigResponse) Reset() {
 	*x = GetDepositWithdrawConfigResponse{}
-	mi := &file_chain_zipper_v1_zipper_proto_msgTypes[5]
+	mi := &file_chain_zipper_v1_zipper_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -560,7 +674,7 @@ func (x *GetDepositWithdrawConfigResponse) String() string {
 func (*GetDepositWithdrawConfigResponse) ProtoMessage() {}
 
 func (x *GetDepositWithdrawConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chain_zipper_v1_zipper_proto_msgTypes[5]
+	mi := &file_chain_zipper_v1_zipper_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -573,7 +687,7 @@ func (x *GetDepositWithdrawConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDepositWithdrawConfigResponse.ProtoReflect.Descriptor instead.
 func (*GetDepositWithdrawConfigResponse) Descriptor() ([]byte, []int) {
-	return file_chain_zipper_v1_zipper_proto_rawDescGZIP(), []int{5}
+	return file_chain_zipper_v1_zipper_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetDepositWithdrawConfigResponse) GetChains() []*ChainConfig {
@@ -629,9 +743,9 @@ const file_chain_zipper_v1_zipper_proto_rawDesc = "" +
 	"\x11is_case_sensitive\x18\n" +
 	" \x01(\bR\x0fisCaseSensitive\x12,\n" +
 	"\x12min_address_length\x18\v \x01(\rR\x10minAddressLength\x12,\n" +
-	"\x12max_address_length\x18\f \x01(\rR\x10maxAddressLength\"\x9b\x03\n" +
-	"\x11AssetChainVariant\x12$\n" +
-	"\x0echain_asset_id\x18\x01 \x01(\rR\fchainAssetId\x12\x19\n" +
+	"\x12max_address_length\x18\f \x01(\rR\x10maxAddressLength\"\xb8\x03\n" +
+	"\x11AssetChainVariant\x12&\n" +
+	"\x0fzipped_asset_id\x18\x01 \x01(\rR\rzippedAssetId\x12\x19\n" +
 	"\bchain_id\x18\x02 \x01(\rR\achainId\x12&\n" +
 	"\x0fis_native_asset\x18\x03 \x01(\bR\risNativeAsset\x12\x1f\n" +
 	"\vnetwork_fee\x18\x04 \x01(\tR\n" +
@@ -642,7 +756,13 @@ const file_chain_zipper_v1_zipper_proto_rawDesc = "" +
 	"\x0fztoken_decimals\x18\t \x01(\rR\x0eztokenDecimals\x12,\n" +
 	"\x12deposit_min_amount\x18\n" +
 	" \x01(\tR\x10depositMinAmount\x12.\n" +
-	"\x13withdraw_min_amount\x18\v \x01(\tR\x11withdrawMinAmount\"\xa9\x02\n" +
+	"\x13withdraw_min_amount\x18\v \x01(\tR\x11withdrawMinAmount\x12\x19\n" +
+	"\bsupply_q\x18\f \x01(\x04R\asupplyQ\"\\\n" +
+	"\x17ZippedAssetSupplyUpdate\x12&\n" +
+	"\x0fzipped_asset_id\x18\x01 \x01(\rR\rzippedAssetId\x12\x19\n" +
+	"\bsupply_q\x18\x02 \x01(\x04R\asupplyQ\"\\\n" +
+	"\x16ZippedAssetSupplyBatch\x12B\n" +
+	"\aupdates\x18\x01 \x03(\v2(.chain.zipper.v1.ZippedAssetSupplyUpdateR\aupdates\"\xa9\x02\n" +
 	"\vAssetConfig\x12\x14\n" +
 	"\x05asset\x18\x01 \x01(\tR\x05asset\x12\x1b\n" +
 	"\tledger_id\x18\x02 \x01(\rR\bledgerId\x12\x12\n" +
@@ -683,27 +803,30 @@ func file_chain_zipper_v1_zipper_proto_rawDescGZIP() []byte {
 	return file_chain_zipper_v1_zipper_proto_rawDescData
 }
 
-var file_chain_zipper_v1_zipper_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_chain_zipper_v1_zipper_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_chain_zipper_v1_zipper_proto_goTypes = []any{
 	(*ChainConfig)(nil),                      // 0: chain.zipper.v1.ChainConfig
 	(*AssetChainVariant)(nil),                // 1: chain.zipper.v1.AssetChainVariant
-	(*AssetConfig)(nil),                      // 2: chain.zipper.v1.AssetConfig
-	(*ChainContractConfig)(nil),              // 3: chain.zipper.v1.ChainContractConfig
-	(*GetDepositWithdrawConfigRequest)(nil),  // 4: chain.zipper.v1.GetDepositWithdrawConfigRequest
-	(*GetDepositWithdrawConfigResponse)(nil), // 5: chain.zipper.v1.GetDepositWithdrawConfigResponse
+	(*ZippedAssetSupplyUpdate)(nil),          // 2: chain.zipper.v1.ZippedAssetSupplyUpdate
+	(*ZippedAssetSupplyBatch)(nil),           // 3: chain.zipper.v1.ZippedAssetSupplyBatch
+	(*AssetConfig)(nil),                      // 4: chain.zipper.v1.AssetConfig
+	(*ChainContractConfig)(nil),              // 5: chain.zipper.v1.ChainContractConfig
+	(*GetDepositWithdrawConfigRequest)(nil),  // 6: chain.zipper.v1.GetDepositWithdrawConfigRequest
+	(*GetDepositWithdrawConfigResponse)(nil), // 7: chain.zipper.v1.GetDepositWithdrawConfigResponse
 }
 var file_chain_zipper_v1_zipper_proto_depIdxs = []int32{
-	1, // 0: chain.zipper.v1.AssetConfig.variants:type_name -> chain.zipper.v1.AssetChainVariant
-	0, // 1: chain.zipper.v1.GetDepositWithdrawConfigResponse.chains:type_name -> chain.zipper.v1.ChainConfig
-	2, // 2: chain.zipper.v1.GetDepositWithdrawConfigResponse.assets:type_name -> chain.zipper.v1.AssetConfig
-	3, // 3: chain.zipper.v1.GetDepositWithdrawConfigResponse.contracts:type_name -> chain.zipper.v1.ChainContractConfig
-	4, // 4: chain.zipper.v1.ZipperService.GetDepositWithdrawConfig:input_type -> chain.zipper.v1.GetDepositWithdrawConfigRequest
-	5, // 5: chain.zipper.v1.ZipperService.GetDepositWithdrawConfig:output_type -> chain.zipper.v1.GetDepositWithdrawConfigResponse
-	5, // [5:6] is the sub-list for method output_type
-	4, // [4:5] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	2, // 0: chain.zipper.v1.ZippedAssetSupplyBatch.updates:type_name -> chain.zipper.v1.ZippedAssetSupplyUpdate
+	1, // 1: chain.zipper.v1.AssetConfig.variants:type_name -> chain.zipper.v1.AssetChainVariant
+	0, // 2: chain.zipper.v1.GetDepositWithdrawConfigResponse.chains:type_name -> chain.zipper.v1.ChainConfig
+	4, // 3: chain.zipper.v1.GetDepositWithdrawConfigResponse.assets:type_name -> chain.zipper.v1.AssetConfig
+	5, // 4: chain.zipper.v1.GetDepositWithdrawConfigResponse.contracts:type_name -> chain.zipper.v1.ChainContractConfig
+	6, // 5: chain.zipper.v1.ZipperService.GetDepositWithdrawConfig:input_type -> chain.zipper.v1.GetDepositWithdrawConfigRequest
+	7, // 6: chain.zipper.v1.ZipperService.GetDepositWithdrawConfig:output_type -> chain.zipper.v1.GetDepositWithdrawConfigResponse
+	6, // [6:7] is the sub-list for method output_type
+	5, // [5:6] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_chain_zipper_v1_zipper_proto_init() }
@@ -717,7 +840,7 @@ func file_chain_zipper_v1_zipper_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chain_zipper_v1_zipper_proto_rawDesc), len(file_chain_zipper_v1_zipper_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

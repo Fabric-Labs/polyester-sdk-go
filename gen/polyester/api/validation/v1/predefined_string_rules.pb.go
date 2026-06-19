@@ -38,6 +38,14 @@ var file_polyester_api_validation_v1_predefined_string_rules_proto_extTypes = []
 		Tag:           "varint,50001,opt,name=evm_address",
 		Filename:      "polyester/api/validation/v1/predefined_string_rules.proto",
 	},
+	{
+		ExtendedType:  (*validate.StringRules)(nil),
+		ExtensionType: (*bool)(nil),
+		Field:         50002,
+		Name:          "polyester.api.validation.v1.chain_tx_identifier",
+		Tag:           "varint,50002,opt,name=chain_tx_identifier",
+		Filename:      "polyester/api/validation/v1/predefined_string_rules.proto",
+	},
 }
 
 // Extension fields to validate.StringRules.
@@ -50,6 +58,10 @@ var (
 	//
 	// optional bool evm_address = 50001;
 	E_EvmAddress = &file_polyester_api_validation_v1_predefined_string_rules_proto_extTypes[1]
+	// Validates a transaction identifier from any supported chain.
+	//
+	// optional bool chain_tx_identifier = 50002;
+	E_ChainTxIdentifier = &file_polyester_api_validation_v1_predefined_string_rules_proto_extTypes[2]
 )
 
 var File_polyester_api_validation_v1_predefined_string_rules_proto protoreflect.FileDescriptor
@@ -63,7 +75,10 @@ const file_polyester_api_validation_v1_predefined_string_rules_proto_rawDesc = "
 	"\vevm_address\x12\x19.buf.validate.StringRules\x18ц\x03 \x01(\bB\x8a\x01\xc2H\x86\x01\n" +
 	"\x83\x01\n" +
 	"\x12string.evm_address\x123address must be a valid 0x-prefixed account address\x1a8this.size() == 42 && this.matches('^0x[0-9a-fA-F]{40}$')R\n" +
-	"evmAddressBVZTgithub.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api/validation/v1;validationv1"
+	"evmAddress:\xfe\x02\n" +
+	"\x13chain_tx_identifier\x12\x19.buf.validate.StringRules\x18҆\x03 \x01(\bB\xb0\x02\xc2H\xac\x02\n" +
+	"\xa9\x02\n" +
+	"\x1astring.chain_tx_identifier\x12Ltransaction identifier must be a valid EVM hash or chain-native printable id\x1a\xbc\x01(this.size() == 66 && this.matches('^0x[0-9a-fA-F]{64}$'))|| (this.size() > 0 && this.size() <= 256 && !this.startsWith('0x') && !this.startsWith('0X') && this.matches('^[\\\\x21-\\\\x7e]+$'))R\x11chainTxIdentifierBVZTgithub.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api/validation/v1;validationv1"
 
 var file_polyester_api_validation_v1_predefined_string_rules_proto_goTypes = []any{
 	(*validate.StringRules)(nil), // 0: buf.validate.StringRules
@@ -71,10 +86,11 @@ var file_polyester_api_validation_v1_predefined_string_rules_proto_goTypes = []a
 var file_polyester_api_validation_v1_predefined_string_rules_proto_depIdxs = []int32{
 	0, // 0: polyester.api.validation.v1.external_chain_address_text:extendee -> buf.validate.StringRules
 	0, // 1: polyester.api.validation.v1.evm_address:extendee -> buf.validate.StringRules
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	0, // [0:2] is the sub-list for extension extendee
+	0, // 2: polyester.api.validation.v1.chain_tx_identifier:extendee -> buf.validate.StringRules
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	0, // [0:3] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
 }
 
@@ -90,7 +106,7 @@ func file_polyester_api_validation_v1_predefined_string_rules_proto_init() {
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_polyester_api_validation_v1_predefined_string_rules_proto_rawDesc), len(file_polyester_api_validation_v1_predefined_string_rules_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   0,
-			NumExtensions: 2,
+			NumExtensions: 3,
 			NumServices:   0,
 		},
 		GoTypes:           file_polyester_api_validation_v1_predefined_string_rules_proto_goTypes,

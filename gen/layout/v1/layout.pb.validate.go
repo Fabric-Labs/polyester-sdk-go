@@ -849,6 +849,10 @@ func (m *GetLayoutsRequest) validate(all bool) error {
 
 	var errors []error
 
+	// no validation rules for Limit
+
+	// no validation rules for PageToken
+
 	if len(errors) > 0 {
 		return GetLayoutsRequestMultiError(errors)
 	}
@@ -984,6 +988,8 @@ func (m *GetLayoutsResponse) validate(all bool) error {
 		}
 
 	}
+
+	// no validation rules for NextPageToken
 
 	if len(errors) > 0 {
 		return GetLayoutsResponseMultiError(errors)
@@ -2349,9 +2355,7 @@ func (m *ListOwnerPublishedLayoutsRequest) validate(all bool) error {
 
 	// no validation rules for Limit
 
-	// no validation rules for AfterPublishedAtMs
-
-	// no validation rules for AfterLayoutId
+	// no validation rules for PageToken
 
 	if len(errors) > 0 {
 		return ListOwnerPublishedLayoutsRequestMultiError(errors)
@@ -2492,9 +2496,7 @@ func (m *ListOwnerPublishedLayoutsResponse) validate(all bool) error {
 
 	}
 
-	// no validation rules for NextAfterPublishedAtMs
-
-	// no validation rules for NextAfterLayoutId
+	// no validation rules for NextPageToken
 
 	if len(errors) > 0 {
 		return ListOwnerPublishedLayoutsResponseMultiError(errors)
@@ -2607,7 +2609,7 @@ func (m *ListLayoutTemplateVersionsRequest) validate(all bool) error {
 
 	// no validation rules for Limit
 
-	// no validation rules for AfterVersion
+	// no validation rules for PageToken
 
 	if len(errors) > 0 {
 		return ListLayoutTemplateVersionsRequestMultiError(errors)
@@ -2747,6 +2749,8 @@ func (m *ListLayoutTemplateVersionsResponse) validate(all bool) error {
 		}
 
 	}
+
+	// no validation rules for NextPageToken
 
 	if len(errors) > 0 {
 		return ListLayoutTemplateVersionsResponseMultiError(errors)
@@ -4106,6 +4110,10 @@ func (m *ListMyLayoutTemplateSubscriptionsRequest) validate(all bool) error {
 
 	var errors []error
 
+	// no validation rules for Limit
+
+	// no validation rules for PageToken
+
 	if len(errors) > 0 {
 		return ListMyLayoutTemplateSubscriptionsRequestMultiError(errors)
 	}
@@ -4245,6 +4253,8 @@ func (m *ListMyLayoutTemplateSubscriptionsResponse) validate(all bool) error {
 		}
 
 	}
+
+	// no validation rules for NextPageToken
 
 	if len(errors) > 0 {
 		return ListMyLayoutTemplateSubscriptionsResponseMultiError(errors)

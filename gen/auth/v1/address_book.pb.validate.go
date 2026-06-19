@@ -3568,6 +3568,10 @@ func (m *ListAddressBookEntriesRequest) validate(all bool) error {
 
 	// no validation rules for Kind
 
+	// no validation rules for Limit
+
+	// no validation rules for PageToken
+
 	if len(errors) > 0 {
 		return ListAddressBookEntriesRequestMultiError(errors)
 	}
@@ -3704,6 +3708,8 @@ func (m *ListAddressBookEntriesResponse) validate(all bool) error {
 		}
 
 	}
+
+	// no validation rules for NextPageToken
 
 	if len(errors) > 0 {
 		return ListAddressBookEntriesResponseMultiError(errors)
@@ -5802,7 +5808,7 @@ func (m *ListTransferCounterpartiesRequest) validate(all bool) error {
 
 	// no validation rules for Kind
 
-	// no validation rules for PageSize
+	// no validation rules for Limit
 
 	if len(errors) > 0 {
 		return ListTransferCounterpartiesRequestMultiError(errors)
@@ -5943,6 +5949,8 @@ func (m *ListTransferCounterpartiesResponse) validate(all bool) error {
 
 	}
 
+	// no validation rules for Truncated
+
 	if len(errors) > 0 {
 		return ListTransferCounterpartiesResponseMultiError(errors)
 	}
@@ -6050,6 +6058,10 @@ func (m *ListTransferDestinationsRequest) validate(all bool) error {
 	// no validation rules for SubaccountId
 
 	// no validation rules for Kind
+
+	// no validation rules for Limit
+
+	// no validation rules for PageToken
 
 	if len(errors) > 0 {
 		return ListTransferDestinationsRequestMultiError(errors)
@@ -6189,6 +6201,8 @@ func (m *ListTransferDestinationsResponse) validate(all bool) error {
 
 	}
 
+	// no validation rules for NextPageToken
+
 	if len(errors) > 0 {
 		return ListTransferDestinationsResponseMultiError(errors)
 	}
@@ -6296,6 +6310,10 @@ func (m *ListInternalTransferWhitelistEntriesRequest) validate(all bool) error {
 	var errors []error
 
 	// no validation rules for SubaccountId
+
+	// no validation rules for Limit
+
+	// no validation rules for PageToken
 
 	if len(errors) > 0 {
 		return ListInternalTransferWhitelistEntriesRequestMultiError(errors)
@@ -6436,6 +6454,8 @@ func (m *ListInternalTransferWhitelistEntriesResponse) validate(all bool) error 
 		}
 
 	}
+
+	// no validation rules for NextPageToken
 
 	if len(errors) > 0 {
 		return ListInternalTransferWhitelistEntriesResponseMultiError(errors)
@@ -6783,7 +6803,7 @@ func (m *GetAddressBookViewRequest) validate(all bool) error {
 
 	// no validation rules for SubaccountId
 
-	// no validation rules for PageSize
+	// no validation rules for Limit
 
 	if len(errors) > 0 {
 		return GetAddressBookViewRequestMultiError(errors)
@@ -7041,6 +7061,8 @@ func (m *GetAddressBookViewResponse) validate(all bool) error {
 			}
 		}
 	}
+
+	// no validation rules for RecentDestinationsTruncated
 
 	if len(errors) > 0 {
 		return GetAddressBookViewResponseMultiError(errors)

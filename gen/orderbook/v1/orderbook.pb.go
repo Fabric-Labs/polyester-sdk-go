@@ -163,12 +163,12 @@ func (x *GetOrderBookRequest) GetDepth() Depth {
 }
 
 // PriceLevel uses scaled integers for the binary (protobuf) API (low-latency).
-// Any REST surface should expose decimal strings via DTO conversion.
+// REST surfaces expose decimal strings via DTO conversion.
 type PriceLevel struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Price in ticks (scaled integer); same semantics as orders APIs (see orders.v1).
+	// Price in quote units scaled by 1e6.
 	PriceTicks int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
-	// Quantity in base units (scaled integer); same semantics as orders APIs.
+	// Quantity scaled by the pair's base_quantity_scale from GetSpotConfig.
 	QtyScaled     int64 `protobuf:"varint,2,opt,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -219,7 +219,7 @@ func (x *PriceLevel) GetQtyScaled() int64 {
 }
 
 // GetOrderBookResponse is a depth snapshot for the binary (protobuf) API (scaled integers).
-// Any REST surface should expose decimal strings via DTO conversion.
+// REST surfaces expose decimal strings via DTO conversion.
 type GetOrderBookResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Numeric symbol identifier (client resolves to symbol string).

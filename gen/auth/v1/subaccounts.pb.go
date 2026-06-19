@@ -299,8 +299,12 @@ type Subaccount struct {
 	// protected sub-account actions. This does not apply to read-only real-time
 	// subscriptions.
 	RequireMemberMfa bool `protobuf:"varint,12,opt,name=require_member_mfa,json=requireMemberMfa,proto3" json:"require_member_mfa,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Smart-account derivation salt nonce assigned when this sub-account was
+	// created. Present only when the caller owns the sub-account and can use it
+	// for direct chain signing.
+	SmartAccountSaltNonce *uint32 `protobuf:"varint,13,opt,name=smart_account_salt_nonce,json=smartAccountSaltNonce,proto3,oneof" json:"smart_account_salt_nonce,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *Subaccount) Reset() {
@@ -417,6 +421,13 @@ func (x *Subaccount) GetRequireMemberMfa() bool {
 	return false
 }
 
+func (x *Subaccount) GetSmartAccountSaltNonce() uint32 {
+	if x != nil && x.SmartAccountSaltNonce != nil {
+		return *x.SmartAccountSaltNonce
+	}
+	return 0
+}
+
 // Request to list sub-accounts owned by or shared with the caller.
 type ListSubaccountsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -460,8 +471,9 @@ type ListSubaccountsResponse struct {
 	// Sub-accounts owned by or shared with the caller, ordered by sub-account ID ascending.
 	Subaccounts []*Subaccount `protobuf:"bytes,1,rep,name=subaccounts,proto3" json:"subaccounts,omitempty"`
 	// Total number of sub-accounts that have ever been created for this root,
-	// including soft-deleted ones. Can be used by clients to derive a stable
-	// salt/index for new Smart Accounts.
+	// including soft-deleted ones. Clients use total_created + 1 only for the
+	// next new Smart Account; existing sub-accounts expose their assigned salt
+	// nonce on Subaccount when direct signing is available.
 	TotalCreated  uint32 `protobuf:"varint,2,opt,name=total_created,json=totalCreated,proto3" json:"total_created,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -522,7 +534,8 @@ type CreateSubaccountRequest struct {
 	Color string `protobuf:"bytes,8,opt,name=color,proto3" json:"color,omitempty"`
 	// Smart Account EVM address for the new sub-account.
 	SmartAccountAddress string `protobuf:"bytes,2,opt,name=smart_account_address,json=smartAccountAddress,proto3" json:"smart_account_address,omitempty"`
-	// Nonce returned by GetNonce for this smart account.
+	// Auth challenge nonce returned by GetNonce for this smart account. This is
+	// not the smart-account derivation salt nonce.
 	Nonce string `protobuf:"bytes,3,opt,name=nonce,proto3" json:"nonce,omitempty"`
 	// Signature over the canonical login message containing the nonce.
 	Signature string `protobuf:"bytes,4,opt,name=signature,proto3" json:"signature,omitempty"`
@@ -628,9 +641,12 @@ type CreateSubaccountResponse struct {
 	// Total number of sub-accounts that have ever been created for this root,
 	// including soft-deleted ones. Returned here so clients can immediately
 	// derive the next salt/index without requiring a fresh ListSubaccounts call.
-	TotalCreated  uint32 `protobuf:"varint,2,opt,name=total_created,json=totalCreated,proto3" json:"total_created,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	TotalCreated uint32 `protobuf:"varint,2,opt,name=total_created,json=totalCreated,proto3" json:"total_created,omitempty"`
+	// Smart-account derivation salt nonce assigned to the created sub-account.
+	// Today this equals total_created for a successful create.
+	SmartAccountSaltNonce uint32 `protobuf:"varint,3,opt,name=smart_account_salt_nonce,json=smartAccountSaltNonce,proto3" json:"smart_account_salt_nonce,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *CreateSubaccountResponse) Reset() {
@@ -673,6 +689,13 @@ func (x *CreateSubaccountResponse) GetSubaccountId() uint64 {
 func (x *CreateSubaccountResponse) GetTotalCreated() uint32 {
 	if x != nil {
 		return x.TotalCreated
+	}
+	return 0
+}
+
+func (x *CreateSubaccountResponse) GetSmartAccountSaltNonce() uint32 {
+	if x != nil {
+		return x.SmartAccountSaltNonce
 	}
 	return 0
 }
@@ -1927,8 +1950,6 @@ func (x *GetSubaccountResponse) GetBalances() *v1.GetBalancesResponse {
 // Activity or audit event for a sub-account.
 type ActivityEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Opaque cursor value for pagination (do not parse in clients).
-	Cursor string `protobuf:"bytes,1,opt,name=cursor,proto3" json:"cursor,omitempty"`
 	// Time when the event occurred.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Type of entity changed, such as "subaccount", "api_key", or "invite".
@@ -1977,13 +1998,6 @@ func (x *ActivityEvent) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ActivityEvent.ProtoReflect.Descriptor instead.
 func (*ActivityEvent) Descriptor() ([]byte, []int) {
 	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{26}
-}
-
-func (x *ActivityEvent) GetCursor() string {
-	if x != nil {
-		return x.Cursor
-	}
-	return ""
 }
 
 func (x *ActivityEvent) GetCreatedAt() *timestamppb.Timestamp {
@@ -2047,10 +2061,12 @@ type ListSubaccountEventsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target sub-account (opaque ID).
 	SubaccountId uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
-	// Maximum number of events to return. Defaults to 50 and is capped at 200.
+	// Maximum number of events to return. Defaults to 50 when omitted; maximum is
+	// 200.
 	Limit uint32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
-	// Opaque pagination cursor from a previous response. The cursor is exclusive.
-	Cursor        string `protobuf:"bytes,3,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	// Opaque keyset cursor from a previous response. The cursor is exclusive and
+	// bound to the authenticated account and requested sub-account.
+	PageToken     string `protobuf:"bytes,4,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2099,9 +2115,9 @@ func (x *ListSubaccountEventsRequest) GetLimit() uint32 {
 	return 0
 }
 
-func (x *ListSubaccountEventsRequest) GetCursor() string {
+func (x *ListSubaccountEventsRequest) GetPageToken() string {
 	if x != nil {
-		return x.Cursor
+		return x.PageToken
 	}
 	return ""
 }
@@ -2111,8 +2127,8 @@ type ListSubaccountEventsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Activity events ordered newest first.
 	Events []*ActivityEvent `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
-	// Opaque cursor to pass on the next request. Empty when this page contains no events.
-	NextCursor    string `protobuf:"bytes,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	// Opaque cursor for the next page. Empty when no more results exist.
+	NextPageToken string `protobuf:"bytes,3,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2154,9 +2170,9 @@ func (x *ListSubaccountEventsResponse) GetEvents() []*ActivityEvent {
 	return nil
 }
 
-func (x *ListSubaccountEventsResponse) GetNextCursor() string {
+func (x *ListSubaccountEventsResponse) GetNextPageToken() string {
 	if x != nil {
-		return x.NextCursor
+		return x.NextPageToken
 	}
 	return ""
 }
@@ -2168,7 +2184,7 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x19auth/v1/subaccounts.proto\x12\aauth.v1\x1a\x16auth/v1/api_keys.proto\x1a\x16auth/v1/policies.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a ledger/read/v1/ledger_read.proto\"p\n" +
 	"\x12SubaccountRoleView\x12#\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\x125\n" +
-	"\x04role\x18\x02 \x01(\x0e2\x17.auth.v1.SubaccountRoleB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04role\"\xfc\x03\n" +
+	"\x04role\x18\x02 \x01(\x0e2\x17.auth.v1.SubaccountRoleB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04role\"\xd7\x04\n" +
 	"\n" +
 	"Subaccount\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x06R\x02id\x125\n" +
@@ -2183,7 +2199,9 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x10owner_avatar_url\x18\a \x01(\tR\x0eownerAvatarUrl\x12F\n" +
 	" owner_root_smart_account_address\x18\b \x01(\tR\x1cownerRootSmartAccountAddress\x120\n" +
 	"\x14subaccount_policy_id\x18\t \x01(\x06R\x12subaccountPolicyId\x12,\n" +
-	"\x12require_member_mfa\x18\f \x01(\bR\x10requireMemberMfa\"\x18\n" +
+	"\x12require_member_mfa\x18\f \x01(\bR\x10requireMemberMfa\x12<\n" +
+	"\x18smart_account_salt_nonce\x18\r \x01(\rH\x00R\x15smartAccountSaltNonce\x88\x01\x01B\x1b\n" +
+	"\x19_smart_account_salt_nonce\"\x18\n" +
 	"\x16ListSubaccountsRequest\"u\n" +
 	"\x17ListSubaccountsResponse\x125\n" +
 	"\vsubaccounts\x18\x01 \x03(\v2\x13.auth.v1.SubaccountR\vsubaccounts\x12#\n" +
@@ -2200,10 +2218,11 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\xe0A\x02\xbaH\x04r\x02\x10\x01R\tsignature\x12\x85\x01\n" +
 	"\x16primary_wallet_address\x18\x05 \x01(\tBJ\xbaHGrE2\x13^0x[0-9a-fA-F]{40}$\x98\x01*\x92\x02*0x0000000000000000000000000000000000000000H\x00R\x14primaryWalletAddress\x88\x01\x01\x12'\n" +
 	"\x0fwallet_provider\x18\x06 \x01(\tR\x0ewalletProviderB\x19\n" +
-	"\x17_primary_wallet_address\"d\n" +
+	"\x17_primary_wallet_address\"\x9d\x01\n" +
 	"\x18CreateSubaccountResponse\x12#\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\x12#\n" +
-	"\rtotal_created\x18\x02 \x01(\rR\ftotalCreated\"\xc4\x02\n" +
+	"\rtotal_created\x18\x02 \x01(\rR\ftotalCreated\x127\n" +
+	"\x18smart_account_salt_nonce\x18\x03 \x01(\rR\x15smartAccountSaltNonce\"\xc4\x02\n" +
 	"\x17UpdateSubaccountRequest\x126\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xe0A\x02\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12\x93\x01\n" +
 	"\x05label\x18\x02 \x01(\tB}\xbaHz\xba\x01h\n" +
@@ -2287,9 +2306,8 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\amembers\x18\x03 \x03(\v2\x1d.auth.v1.SubaccountMemberViewR\amembers\x123\n" +
 	"\ainvites\x18\x04 \x03(\v2\x19.auth.v1.SubaccountInviteR\ainvites\x125\n" +
 	"\x06policy\x18\x05 \x01(\v2\x1d.auth.v1.SubaccountPolicyViewR\x06policy\x12?\n" +
-	"\bbalances\x18\x06 \x01(\v2#.ledger.read.v1.GetBalancesResponseR\bbalances\"\xf6\x02\n" +
-	"\rActivityEvent\x12\x16\n" +
-	"\x06cursor\x18\x01 \x01(\tR\x06cursor\x129\n" +
+	"\bbalances\x18\x06 \x01(\v2#.ledger.read.v1.GetBalancesResponseR\bbalances\"\xde\x02\n" +
+	"\rActivityEvent\x129\n" +
 	"\n" +
 	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12(\n" +
 	"\ventity_kind\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18 R\n" +
@@ -2301,15 +2319,15 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\n" +
 	"user_agent\x18\a \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tuserAgent\x12(\n" +
 	"\x10actor_account_id\x18\b \x01(\x06R\x0eactorAccountId\x12,\n" +
-	"\fpayload_json\x18\t \x01(\tB\t\xbaH\x06r\x04(\x80\x80\x04R\vpayloadJson\"\x97\x01\n" +
+	"\fpayload_json\x18\t \x01(\tB\t\xbaH\x06r\x04(\x80\x80\x04R\vpayloadJson\"\x9e\x01\n" +
 	"\x1bListSubaccountEventsRequest\x126\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xe0A\x02\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12\x1e\n" +
-	"\x05limit\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xf4\x03R\x05limit\x12 \n" +
-	"\x06cursor\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\x06cursor\"o\n" +
+	"\x05limit\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xc8\x01R\x05limit\x12'\n" +
+	"\n" +
+	"page_token\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken\"\x80\x01\n" +
 	"\x1cListSubaccountEventsResponse\x12.\n" +
-	"\x06events\x18\x01 \x03(\v2\x16.auth.v1.ActivityEventR\x06events\x12\x1f\n" +
-	"\vnext_cursor\x18\x02 \x01(\tR\n" +
-	"nextCursor*\x83\x01\n" +
+	"\x06events\x18\x01 \x03(\v2\x16.auth.v1.ActivityEventR\x06events\x120\n" +
+	"\x0fnext_page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken*\x83\x01\n" +
 	"\x0eSubaccountRole\x12\x1f\n" +
 	"\x1bSUBACCOUNT_ROLE_UNSPECIFIED\x10\x00\x12\n" +
 	"\n" +
@@ -2472,6 +2490,7 @@ func file_auth_v1_subaccounts_proto_init() {
 	}
 	file_auth_v1_api_keys_proto_init()
 	file_auth_v1_policies_proto_init()
+	file_auth_v1_subaccounts_proto_msgTypes[1].OneofWrappers = []any{}
 	file_auth_v1_subaccounts_proto_msgTypes[4].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
