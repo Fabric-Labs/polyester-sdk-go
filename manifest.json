@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-06-19T22:31:44.419126+00:00",
+  "generatedAt": "2026-06-20T13:43:16.913663+00:00",
   "goModule": "github.com/Fabric-Labs/polyester-sdk-go",
   "paths": {
     "gen": "gen"
   },
   "protoRepo": "Fabric-Labs/polyester-proto",
-  "publicDescriptorSha256": "c317d84a2ab8481ad51c633df21a92e6b883cb25f99eeee759fa7330678d875b",
+  "publicDescriptorSha256": "fcb81ab624f79954efe35ccdb78877c7ffe19f487260bd80f79271cbb76e4083",
   "schemaVersion": 1,
   "sdk": "go"
 }
