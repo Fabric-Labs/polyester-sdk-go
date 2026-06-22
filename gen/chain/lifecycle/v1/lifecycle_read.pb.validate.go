@@ -771,6 +771,10 @@ func (m *FlowTxMatchView) validate(all bool) error {
 
 	// no validation rules for LastActivityAtUnixMs
 
+	// no validation rules for OwnerAccountId
+
+	// no validation rules for SmartAccountAddress
+
 	if len(errors) > 0 {
 		return FlowTxMatchViewMultiError(errors)
 	}

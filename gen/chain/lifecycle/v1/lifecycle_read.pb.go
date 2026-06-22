@@ -910,8 +910,12 @@ type FlowTxMatchView struct {
 	ReasonCode FlowReason `protobuf:"varint,17,opt,name=reason_code,json=reasonCode,proto3,enum=chain.lifecycle.v1.FlowReason" json:"reason_code,omitempty"`
 	// Timestamp used for list ordering in milliseconds since epoch (UTC).
 	LastActivityAtUnixMs uint64 `protobuf:"varint,18,opt,name=last_activity_at_unix_ms,json=lastActivityAtUnixMs,proto3" json:"last_activity_at_unix_ms,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Public account or subaccount identifier that owns this flow.
+	OwnerAccountId uint64 `protobuf:"fixed64,19,opt,name=owner_account_id,json=ownerAccountId,proto3" json:"owner_account_id,omitempty"`
+	// Smart account address on Polyester Chain when known.
+	SmartAccountAddress string `protobuf:"bytes,20,opt,name=smart_account_address,json=smartAccountAddress,proto3" json:"smart_account_address,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *FlowTxMatchView) Reset() {
@@ -1061,6 +1065,20 @@ func (x *FlowTxMatchView) GetLastActivityAtUnixMs() uint64 {
 		return x.LastActivityAtUnixMs
 	}
 	return 0
+}
+
+func (x *FlowTxMatchView) GetOwnerAccountId() uint64 {
+	if x != nil {
+		return x.OwnerAccountId
+	}
+	return 0
+}
+
+func (x *FlowTxMatchView) GetSmartAccountAddress() string {
+	if x != nil {
+		return x.SmartAccountAddress
+	}
+	return ""
 }
 
 // ListFlowsByTxResponse returns a page of lifecycle flows that reference one
@@ -2120,7 +2138,7 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\x10account_selector\"\x80\x01\n" +
 	"\x11ListFlowsResponse\x129\n" +
 	"\x05flows\x18\x01 \x03(\v2#.chain.lifecycle.v1.FlowSummaryViewR\x05flows\x120\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xe0\x06\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xbe\a\n" +
 	"\x0fFlowTxMatchView\x12\x17\n" +
 	"\aflow_id\x18\x01 \x01(\tR\x06flowId\x129\n" +
 	"\tflow_kind\x18\x03 \x01(\x0e2\x1c.chain.lifecycle.v1.FlowKindR\bflowKind\x12$\n" +
@@ -2142,7 +2160,9 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\x13destination_address\x18\x10 \x01(\tR\x12destinationAddress\x12?\n" +
 	"\vreason_code\x18\x11 \x01(\x0e2\x1e.chain.lifecycle.v1.FlowReasonR\n" +
 	"reasonCode\x126\n" +
-	"\x18last_activity_at_unix_ms\x18\x12 \x01(\x04R\x14lastActivityAtUnixMs\"\xa1\x01\n" +
+	"\x18last_activity_at_unix_ms\x18\x12 \x01(\x04R\x14lastActivityAtUnixMs\x12(\n" +
+	"\x10owner_account_id\x18\x13 \x01(\x06R\x0eownerAccountId\x122\n" +
+	"\x15smart_account_address\x18\x14 \x01(\tR\x13smartAccountAddress\"\xa1\x01\n" +
 	"\x15ListFlowsByTxResponse\x12\x17\n" +
 	"\atx_hash\x18\x01 \x01(\tR\x06txHash\x12=\n" +
 	"\amatches\x18\x02 \x03(\v2#.chain.lifecycle.v1.FlowTxMatchViewR\amatches\x120\n" +
