@@ -96,44 +96,44 @@ type TriggerStatus int32
 
 const (
 	// Trigger status was not provided.
-	TriggerStatus_TRIGGER_STATUS_UNSPECIFIED TriggerStatus = 0
+	TriggerStatus_STATUS_UNSPECIFIED TriggerStatus = 0
 	// Trigger was created and is pending activation.
-	TriggerStatus_CREATED TriggerStatus = 1
+	TriggerStatus_STATUS_CREATED TriggerStatus = 1
 	// Trigger admitted and actively evaluating conditions.
-	TriggerStatus_ARMED TriggerStatus = 2
+	TriggerStatus_STATUS_ARMED TriggerStatus = 2
 	// Trigger is actively executing (for example, TWAP slices in progress).
-	TriggerStatus_RUNNING TriggerStatus = 3
+	TriggerStatus_STATUS_RUNNING TriggerStatus = 3
 	// Trigger completed successfully (all child orders placed/filled).
-	TriggerStatus_COMPLETED TriggerStatus = 4
+	TriggerStatus_STATUS_COMPLETED TriggerStatus = 4
 	// Trigger was canceled by user.
-	TriggerStatus_CANCELLED TriggerStatus = 5
+	TriggerStatus_STATUS_CANCELED TriggerStatus = 5
 	// Trigger failed (for example, reservation failure, child order rejection).
-	TriggerStatus_FAILED TriggerStatus = 6
+	TriggerStatus_STATUS_FAILED TriggerStatus = 6
 	// Trigger is paused (user-initiated, can be resumed).
-	TriggerStatus_PAUSED TriggerStatus = 7
+	TriggerStatus_STATUS_PAUSED TriggerStatus = 7
 )
 
 // Enum value maps for TriggerStatus.
 var (
 	TriggerStatus_name = map[int32]string{
-		0: "TRIGGER_STATUS_UNSPECIFIED",
-		1: "CREATED",
-		2: "ARMED",
-		3: "RUNNING",
-		4: "COMPLETED",
-		5: "CANCELLED",
-		6: "FAILED",
-		7: "PAUSED",
+		0: "STATUS_UNSPECIFIED",
+		1: "STATUS_CREATED",
+		2: "STATUS_ARMED",
+		3: "STATUS_RUNNING",
+		4: "STATUS_COMPLETED",
+		5: "STATUS_CANCELED",
+		6: "STATUS_FAILED",
+		7: "STATUS_PAUSED",
 	}
 	TriggerStatus_value = map[string]int32{
-		"TRIGGER_STATUS_UNSPECIFIED": 0,
-		"CREATED":                    1,
-		"ARMED":                      2,
-		"RUNNING":                    3,
-		"COMPLETED":                  4,
-		"CANCELLED":                  5,
-		"FAILED":                     6,
-		"PAUSED":                     7,
+		"STATUS_UNSPECIFIED": 0,
+		"STATUS_CREATED":     1,
+		"STATUS_ARMED":       2,
+		"STATUS_RUNNING":     3,
+		"STATUS_COMPLETED":   4,
+		"STATUS_CANCELED":    5,
+		"STATUS_FAILED":      6,
+		"STATUS_PAUSED":      7,
 	}
 )
 
@@ -169,28 +169,28 @@ type TriggerEventType int32
 
 const (
 	// Trigger event type was not provided.
-	TriggerEventType_TRIGGER_EVENT_TYPE_UNSPECIFIED TriggerEventType = 0
+	TriggerEventType_EVENT_UNSPECIFIED TriggerEventType = 0
 	// Trigger fired and may have created a child order.
-	TriggerEventType_FIRED TriggerEventType = 1
+	TriggerEventType_EVENT_FIRED TriggerEventType = 1
 	// Trigger was canceled.
-	TriggerEventType_CANCELED TriggerEventType = 2
+	TriggerEventType_EVENT_CANCELED TriggerEventType = 2
 	// Trigger configuration or lifecycle state was updated.
-	TriggerEventType_UPDATED TriggerEventType = 3
+	TriggerEventType_EVENT_UPDATED TriggerEventType = 3
 )
 
 // Enum value maps for TriggerEventType.
 var (
 	TriggerEventType_name = map[int32]string{
-		0: "TRIGGER_EVENT_TYPE_UNSPECIFIED",
-		1: "FIRED",
-		2: "CANCELED",
-		3: "UPDATED",
+		0: "EVENT_UNSPECIFIED",
+		1: "EVENT_FIRED",
+		2: "EVENT_CANCELED",
+		3: "EVENT_UPDATED",
 	}
 	TriggerEventType_value = map[string]int32{
-		"TRIGGER_EVENT_TYPE_UNSPECIFIED": 0,
-		"FIRED":                          1,
-		"CANCELED":                       2,
-		"UPDATED":                        3,
+		"EVENT_UNSPECIFIED": 0,
+		"EVENT_FIRED":       1,
+		"EVENT_CANCELED":    2,
+		"EVENT_UPDATED":     3,
 	}
 )
 
@@ -289,7 +289,8 @@ type CreateTriggerRequest struct {
 	Symbol string `protobuf:"bytes,2,opt,name=symbol,proto3" json:"symbol,omitempty"`
 	// Type of trigger. Required.
 	TriggerType TriggerType `protobuf:"varint,3,opt,name=trigger_type,json=triggerType,proto3,enum=triggers.v1.TriggerType" json:"trigger_type,omitempty"`
-	// Trigger price in ticks. Required for STOP_LOSS/TAKE_PROFIT.
+	// Trigger price in quote units scaled by 1e6. Required for
+	// STOP_LOSS/TAKE_PROFIT.
 	TriggerPriceTicks int64 `protobuf:"varint,10,opt,name=trigger_price_ticks,json=triggerPriceTicks,proto3" json:"trigger_price_ticks,omitempty"`
 	// Price source for trigger evaluation. Defaults to LAST_PRICE.
 	TriggerPriceSource v1.TriggerPriceSource `protobuf:"varint,11,opt,name=trigger_price_source,json=triggerPriceSource,proto3,enum=orders.v1.TriggerPriceSource" json:"trigger_price_source,omitempty"`
@@ -299,10 +300,11 @@ type CreateTriggerRequest struct {
 	OrderType v1.OrderType `protobuf:"varint,21,opt,name=order_type,json=orderType,proto3,enum=orders.v1.OrderType" json:"order_type,omitempty"`
 	// Time-in-force for the child order. Defaults to GTC for LIMIT, IOC for
 	// MARKET.
-	Tif v1.TIF `protobuf:"varint,22,opt,name=tif,proto3,enum=orders.v1.TIF" json:"tif,omitempty"`
-	// Quantity in base asset scale units. Required.
+	TimeInForce v1.TimeInForce `protobuf:"varint,22,opt,name=time_in_force,json=timeInForce,proto3,enum=orders.v1.TimeInForce" json:"time_in_force,omitempty"`
+	// Quantity scaled by the pair's base_quantity_scale from GetSpotConfig.
+	// Required.
 	QtyScaled int64 `protobuf:"varint,23,opt,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`
-	// Limit price in ticks for LIMIT child orders.
+	// Limit price in quote units scaled by 1e6 for LIMIT child orders.
 	LimitPriceTicks int64 `protobuf:"varint,24,opt,name=limit_price_ticks,json=limitPriceTicks,proto3" json:"limit_price_ticks,omitempty"`
 	// Fee source selection for BUY child orders. SELL child orders always pay in
 	// QUOTE.
@@ -312,7 +314,7 @@ type CreateTriggerRequest struct {
 	// Self-trade prevention mode for child orders.
 	//
 	// When omitted (UNSPECIFIED), defaults to EXPIRE_MAKER.
-	StpMode v1.STPMode `protobuf:"varint,26,opt,name=stp_mode,json=stpMode,proto3,enum=orders.v1.STPMode" json:"stp_mode,omitempty"`
+	SelfTradePreventionMode v1.SelfTradePreventionMode `protobuf:"varint,26,opt,name=self_trade_prevention_mode,json=selfTradePreventionMode,proto3,enum=orders.v1.SelfTradePreventionMode" json:"self_trade_prevention_mode,omitempty"`
 	// If true, child LIMIT orders are post-only (rejected if they would cross).
 	PostOnly bool `protobuf:"varint,27,opt,name=post_only,json=postOnly,proto3" json:"post_only,omitempty"`
 	// Trailing distance. Exactly one of these should be set for TRAILING_STOP.
@@ -323,7 +325,7 @@ type CreateTriggerRequest struct {
 	//	*CreateTriggerRequest_TrailingDistanceBps
 	TrailingDistance isCreateTriggerRequest_TrailingDistance `protobuf_oneof:"trailing_distance"`
 	// Optional activation price: trailing only starts after this price is
-	// reached.
+	// reached. Expressed in quote units scaled by 1e6.
 	ActivationPriceTicks int64 `protobuf:"varint,32,opt,name=activation_price_ticks,json=activationPriceTicks,proto3" json:"activation_price_ticks,omitempty"`
 	// Optional price protection. If set, when the trailing stop triggers we place
 	// an IOC LIMIT order at stop_price ± max_slippage (instead of an unprotected
@@ -340,9 +342,9 @@ type CreateTriggerRequest struct {
 	TwapDurationMs int64 `protobuf:"varint,40,opt,name=twap_duration_ms,json=twapDurationMs,proto3" json:"twap_duration_ms,omitempty"`
 	// Interval between TWAP slices in milliseconds. Required for TWAP.
 	TwapSliceIntervalMs int64 `protobuf:"varint,41,opt,name=twap_slice_interval_ms,json=twapSliceIntervalMs,proto3" json:"twap_slice_interval_ms,omitempty"`
-	// Minimum price in ticks for the ladder range.
+	// Minimum price in quote units scaled by 1e6 for the ladder range.
 	LadderPriceMinTicks int64 `protobuf:"varint,50,opt,name=ladder_price_min_ticks,json=ladderPriceMinTicks,proto3" json:"ladder_price_min_ticks,omitempty"`
-	// Maximum price in ticks for the ladder range.
+	// Maximum price in quote units scaled by 1e6 for the ladder range.
 	LadderPriceMaxTicks int64 `protobuf:"varint,51,opt,name=ladder_price_max_ticks,json=ladderPriceMaxTicks,proto3" json:"ladder_price_max_ticks,omitempty"`
 	// Number of price levels in the ladder.
 	// Required for LADDER; valid range is 2..100.
@@ -434,11 +436,11 @@ func (x *CreateTriggerRequest) GetOrderType() v1.OrderType {
 	return v1.OrderType(0)
 }
 
-func (x *CreateTriggerRequest) GetTif() v1.TIF {
+func (x *CreateTriggerRequest) GetTimeInForce() v1.TimeInForce {
 	if x != nil {
-		return x.Tif
+		return x.TimeInForce
 	}
-	return v1.TIF(0)
+	return v1.TimeInForce(0)
 }
 
 func (x *CreateTriggerRequest) GetQtyScaled() int64 {
@@ -462,11 +464,11 @@ func (x *CreateTriggerRequest) GetFeeSource() v1.FeeSource {
 	return v1.FeeSource(0)
 }
 
-func (x *CreateTriggerRequest) GetStpMode() v1.STPMode {
+func (x *CreateTriggerRequest) GetSelfTradePreventionMode() v1.SelfTradePreventionMode {
 	if x != nil {
-		return x.StpMode
+		return x.SelfTradePreventionMode
 	}
-	return v1.STPMode(0)
+	return v1.SelfTradePreventionMode(0)
 }
 
 func (x *CreateTriggerRequest) GetPostOnly() bool {
@@ -587,7 +589,7 @@ type isCreateTriggerRequest_TrailingDistance interface {
 }
 
 type CreateTriggerRequest_TrailingDistanceTicks struct {
-	// Trailing distance in absolute ticks.
+	// Trailing distance as a price delta in 1e-6 quote-unit ticks.
 	TrailingDistanceTicks int64 `protobuf:"varint,30,opt,name=trailing_distance_ticks,json=trailingDistanceTicks,proto3,oneof"`
 }
 
@@ -605,7 +607,7 @@ type isCreateTriggerRequest_MaxSlippage interface {
 }
 
 type CreateTriggerRequest_MaxSlippageTicks struct {
-	// Maximum allowed slippage in absolute ticks.
+	// Maximum allowed slippage as a price delta in 1e-6 quote-unit ticks.
 	MaxSlippageTicks int32 `protobuf:"varint,33,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
 }
 
@@ -676,7 +678,7 @@ func (x *CreateTriggerResponse) GetStatus() TriggerStatus {
 	if x != nil {
 		return x.Status
 	}
-	return TriggerStatus_TRIGGER_STATUS_UNSPECIFIED
+	return TriggerStatus_STATUS_UNSPECIFIED
 }
 
 func (x *CreateTriggerResponse) GetClientTriggerId() string {
@@ -815,10 +817,13 @@ type ListTriggersRequest struct {
 	TriggerType TriggerType `protobuf:"varint,4,opt,name=trigger_type,json=triggerType,proto3,enum=triggers.v1.TriggerType" json:"trigger_type,omitempty"`
 	// Optional filter by attached parent order ID.
 	ParentOrderId *uint64 `protobuf:"fixed64,5,opt,name=parent_order_id,json=parentOrderId,proto3,oneof" json:"parent_order_id,omitempty"`
-	// Page size. Defaults to 100 when omitted; maximum 1000.
-	Limit *int32 `protobuf:"varint,10,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
-	// Zero-based result offset for page-number style pagination. Defaults to 0.
-	Offset        int32 `protobuf:"varint,11,opt,name=offset,proto3" json:"offset,omitempty"`
+	// Maximum number of triggers to return. Defaults to 100 when omitted;
+	// maximum is 1000.
+	Limit uint32 `protobuf:"varint,10,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Opaque keyset cursor from a previous response. The cursor is exclusive and
+	// bound to the authenticated account, sub-account scope, filters, and newest
+	// first sort order.
+	PageToken     string `protobuf:"bytes,12,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -888,18 +893,18 @@ func (x *ListTriggersRequest) GetParentOrderId() uint64 {
 	return 0
 }
 
-func (x *ListTriggersRequest) GetLimit() int32 {
-	if x != nil && x.Limit != nil {
-		return *x.Limit
+func (x *ListTriggersRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
 	}
 	return 0
 }
 
-func (x *ListTriggersRequest) GetOffset() int32 {
+func (x *ListTriggersRequest) GetPageToken() string {
 	if x != nil {
-		return x.Offset
+		return x.PageToken
 	}
-	return 0
+	return ""
 }
 
 // ListTriggersResponse returns triggers ordered newest-first.
@@ -907,8 +912,8 @@ type ListTriggersResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Triggers ordered by creation time descending, then trigger ID descending.
 	Triggers []*Trigger `protobuf:"bytes,1,rep,name=triggers,proto3" json:"triggers,omitempty"`
-	// Total count matching the filter (for pagination).
-	Total         int32 `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	// Opaque cursor for the next page. Empty when no more results exist.
+	NextPageToken string `protobuf:"bytes,3,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -950,11 +955,11 @@ func (x *ListTriggersResponse) GetTriggers() []*Trigger {
 	return nil
 }
 
-func (x *ListTriggersResponse) GetTotal() int32 {
+func (x *ListTriggersResponse) GetNextPageToken() string {
 	if x != nil {
-		return x.Total
+		return x.NextPageToken
 	}
-	return 0
+	return ""
 }
 
 // ListTriggerEventsRequest lists historical events for one trigger.
@@ -965,11 +970,13 @@ type ListTriggerEventsRequest struct {
 	// Optional sub-account (authorization). When empty or omitted, uses the
 	// caller's root account.
 	SubaccountId *uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
-	// Page size. Defaults to 100 when omitted; maximum 1000.
-	Limit *int32 `protobuf:"varint,3,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
-	// Exclusive reverse-time cursor in nanoseconds since epoch (UTC).
-	// Zero means start from the latest event.
-	BeforeTsNs    uint64 `protobuf:"varint,4,opt,name=before_ts_ns,json=beforeTsNs,proto3" json:"before_ts_ns,omitempty"`
+	// Maximum number of events to return. Defaults to 100 when omitted; maximum
+	// is 1000.
+	Limit uint32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Opaque keyset cursor from a previous response. The cursor is exclusive and
+	// bound to the authenticated account, trigger, sub-account scope, and newest
+	// first sort order.
+	PageToken     string `protobuf:"bytes,5,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1018,18 +1025,18 @@ func (x *ListTriggerEventsRequest) GetSubaccountId() uint64 {
 	return 0
 }
 
-func (x *ListTriggerEventsRequest) GetLimit() int32 {
-	if x != nil && x.Limit != nil {
-		return *x.Limit
+func (x *ListTriggerEventsRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
 	}
 	return 0
 }
 
-func (x *ListTriggerEventsRequest) GetBeforeTsNs() uint64 {
+func (x *ListTriggerEventsRequest) GetPageToken() string {
 	if x != nil {
-		return x.BeforeTsNs
+		return x.PageToken
 	}
-	return 0
+	return ""
 }
 
 // TriggerEvent describes one historical trigger lifecycle event.
@@ -1051,8 +1058,9 @@ type TriggerEvent struct {
 	ChildSeq int32 `protobuf:"varint,11,opt,name=child_seq,json=childSeq,proto3" json:"child_seq,omitempty"`
 	// Child order ID created by this event, if any.
 	ChildOrderId uint64 `protobuf:"fixed64,12,opt,name=child_order_id,json=childOrderId,proto3" json:"child_order_id,omitempty"`
-	// Price that caused the trigger to fire, in ticks. Zero when not applicable.
-	FirePxTicks int64 `protobuf:"varint,13,opt,name=fire_px_ticks,json=firePxTicks,proto3" json:"fire_px_ticks,omitempty"`
+	// Price that caused the trigger to fire, in quote units scaled by 1e6. Zero
+	// when not applicable.
+	FirePriceTicks int64 `protobuf:"varint,13,opt,name=fire_price_ticks,json=firePriceTicks,proto3" json:"fire_price_ticks,omitempty"`
 	// Optional cancel reason.
 	Reason        string `protobuf:"bytes,20,opt,name=reason,proto3" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1121,7 +1129,7 @@ func (x *TriggerEvent) GetEventType() TriggerEventType {
 	if x != nil {
 		return x.EventType
 	}
-	return TriggerEventType_TRIGGER_EVENT_TYPE_UNSPECIFIED
+	return TriggerEventType_EVENT_UNSPECIFIED
 }
 
 func (x *TriggerEvent) GetTsNs() uint64 {
@@ -1145,9 +1153,9 @@ func (x *TriggerEvent) GetChildOrderId() uint64 {
 	return 0
 }
 
-func (x *TriggerEvent) GetFirePxTicks() int64 {
+func (x *TriggerEvent) GetFirePriceTicks() int64 {
 	if x != nil {
-		return x.FirePxTicks
+		return x.FirePriceTicks
 	}
 	return 0
 }
@@ -1162,13 +1170,13 @@ func (x *TriggerEvent) GetReason() string {
 // ListTriggerEventsResponse returns historical events ordered newest-first.
 type ListTriggerEventsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Events ordered by event time descending, then child sequence descending.
+	// Events ordered by event time descending, child sequence descending, and
+	// stable event tie-breakers descending.
 	Events []*TriggerEvent `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
-	// Cursor for the next page; pass as before_ts_ns to request strictly older events.
-	// Zero means this response is empty.
-	NextBeforeTsNs uint64 `protobuf:"varint,2,opt,name=next_before_ts_ns,json=nextBeforeTsNs,proto3" json:"next_before_ts_ns,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Opaque cursor for the next page. Empty when no more results exist.
+	NextPageToken string `protobuf:"bytes,3,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListTriggerEventsResponse) Reset() {
@@ -1208,11 +1216,11 @@ func (x *ListTriggerEventsResponse) GetEvents() []*TriggerEvent {
 	return nil
 }
 
-func (x *ListTriggerEventsResponse) GetNextBeforeTsNs() uint64 {
+func (x *ListTriggerEventsResponse) GetNextPageToken() string {
 	if x != nil {
-		return x.NextBeforeTsNs
+		return x.NextPageToken
 	}
-	return 0
+	return ""
 }
 
 // CancelTriggerRequest cancels an active trigger by ID.
@@ -1275,7 +1283,7 @@ type CancelTriggerResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Trigger ID that was canceled.
 	TriggerId uint64 `protobuf:"fixed64,1,opt,name=trigger_id,json=triggerId,proto3" json:"trigger_id,omitempty"`
-	// Final status (should be CANCELLED).
+	// Final status (should be STATUS_CANCELED).
 	Status TriggerStatus `protobuf:"varint,2,opt,name=status,proto3,enum=triggers.v1.TriggerStatus" json:"status,omitempty"`
 	// Server timestamp.
 	Ts *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=ts,proto3" json:"ts,omitempty"`
@@ -1326,7 +1334,7 @@ func (x *CancelTriggerResponse) GetStatus() TriggerStatus {
 	if x != nil {
 		return x.Status
 	}
-	return TriggerStatus_TRIGGER_STATUS_UNSPECIFIED
+	return TriggerStatus_STATUS_UNSPECIFIED
 }
 
 func (x *CancelTriggerResponse) GetTs() *timestamppb.Timestamp {
@@ -1352,9 +1360,9 @@ type ModifyTriggerRequest struct {
 	SubaccountId *uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Patch fields for safe price, trailing-distance, and slippage edits.
 	// For stop/take-profit:
-	// Updated trigger price in ticks.
+	// Updated trigger price in quote units scaled by 1e6.
 	TriggerPriceTicks *int64 `protobuf:"varint,10,opt,name=trigger_price_ticks,json=triggerPriceTicks,proto3,oneof" json:"trigger_price_ticks,omitempty"`
-	// Updated limit price in ticks for LIMIT child orders.
+	// Updated limit price in quote units scaled by 1e6 for LIMIT child orders.
 	LimitPriceTicks *int64 `protobuf:"varint,11,opt,name=limit_price_ticks,json=limitPriceTicks,proto3,oneof" json:"limit_price_ticks,omitempty"`
 	// For trailing stop:
 	//
@@ -1363,7 +1371,7 @@ type ModifyTriggerRequest struct {
 	//	*ModifyTriggerRequest_TrailingDistanceTicks
 	//	*ModifyTriggerRequest_TrailingDistanceBps
 	TrailingDistance isModifyTriggerRequest_TrailingDistance `protobuf_oneof:"trailing_distance"`
-	// Updated activation price in ticks.
+	// Updated activation price in quote units scaled by 1e6.
 	ActivationPriceTicks *int64 `protobuf:"varint,14,opt,name=activation_price_ticks,json=activationPriceTicks,proto3,oneof" json:"activation_price_ticks,omitempty"`
 	// Optional price protection.
 	//
@@ -1496,7 +1504,7 @@ type isModifyTriggerRequest_TrailingDistance interface {
 }
 
 type ModifyTriggerRequest_TrailingDistanceTicks struct {
-	// Updated trailing distance in absolute ticks.
+	// Updated trailing distance as a price delta in 1e-6 quote-unit ticks.
 	TrailingDistanceTicks int64 `protobuf:"varint,12,opt,name=trailing_distance_ticks,json=trailingDistanceTicks,proto3,oneof"`
 }
 
@@ -1514,7 +1522,7 @@ type isModifyTriggerRequest_MaxSlippage interface {
 }
 
 type ModifyTriggerRequest_MaxSlippageTicks struct {
-	// Updated maximum allowed slippage in absolute ticks.
+	// Updated maximum allowed slippage as a price delta in 1e-6 quote-unit ticks.
 	MaxSlippageTicks int32 `protobuf:"varint,15,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
 }
 
@@ -1583,7 +1591,7 @@ func (x *ModifyTriggerResponse) GetStatus() TriggerStatus {
 	if x != nil {
 		return x.Status
 	}
-	return TriggerStatus_TRIGGER_STATUS_UNSPECIFIED
+	return TriggerStatus_STATUS_UNSPECIFIED
 }
 
 func (x *ModifyTriggerResponse) GetTs() *timestamppb.Timestamp {
@@ -1711,7 +1719,7 @@ func (x *PauseTriggerResponse) GetStatus() TriggerStatus {
 	if x != nil {
 		return x.Status
 	}
-	return TriggerStatus_TRIGGER_STATUS_UNSPECIFIED
+	return TriggerStatus_STATUS_UNSPECIFIED
 }
 
 func (x *PauseTriggerResponse) GetTs() *timestamppb.Timestamp {
@@ -1839,7 +1847,7 @@ func (x *ResumeTriggerResponse) GetStatus() TriggerStatus {
 	if x != nil {
 		return x.Status
 	}
-	return TriggerStatus_TRIGGER_STATUS_UNSPECIFIED
+	return TriggerStatus_STATUS_UNSPECIFIED
 }
 
 func (x *ResumeTriggerResponse) GetTs() *timestamppb.Timestamp {
@@ -1859,7 +1867,7 @@ func (x *ResumeTriggerResponse) GetTsNs() uint64 {
 // StopDetails contains configuration for STOP_LOSS and TAKE_PROFIT triggers.
 type StopDetails struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Trigger threshold price in ticks (6 decimals).
+	// Trigger threshold price in quote units scaled by 1e6.
 	TriggerPriceTicks int64 `protobuf:"varint,1,opt,name=trigger_price_ticks,json=triggerPriceTicks,proto3" json:"trigger_price_ticks,omitempty"`
 	// Price source used for trigger evaluation.
 	TriggerPriceSource v1.TriggerPriceSource `protobuf:"varint,2,opt,name=trigger_price_source,json=triggerPriceSource,proto3,enum=orders.v1.TriggerPriceSource" json:"trigger_price_source,omitempty"`
@@ -1924,18 +1932,18 @@ func (x *StopDetails) GetTriggerDirection() v1.TriggerDirection {
 // triggers.
 type TrailingDetails struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Trailing distance in absolute ticks (6 decimals).
+	// Trailing distance as a price delta in 1e-6 quote-unit ticks.
 	TrailingDistanceTicks int64 `protobuf:"varint,1,opt,name=trailing_distance_ticks,json=trailingDistanceTicks,proto3" json:"trailing_distance_ticks,omitempty"`
 	// Optional activation price: trailing only starts after this price is
-	// reached.
+	// reached. Expressed in quote units scaled by 1e6.
 	ActivationPriceTicks int64 `protobuf:"varint,2,opt,name=activation_price_ticks,json=activationPriceTicks,proto3" json:"activation_price_ticks,omitempty"`
-	// Current peak price in ticks for sell trailing stops.
+	// Current peak price in quote units scaled by 1e6 for sell trailing stops.
 	PeakPriceTicks int64 `protobuf:"varint,3,opt,name=peak_price_ticks,json=peakPriceTicks,proto3" json:"peak_price_ticks,omitempty"`
-	// Current trough price in ticks for buy trailing stops.
+	// Current trough price in quote units scaled by 1e6 for buy trailing stops.
 	TroughPriceTicks int64 `protobuf:"varint,4,opt,name=trough_price_ticks,json=troughPriceTicks,proto3" json:"trough_price_ticks,omitempty"`
 	// Trailing distance in basis points (1 bp = 0.01%).
 	TrailingDistanceBps int32 `protobuf:"varint,5,opt,name=trailing_distance_bps,json=trailingDistanceBps,proto3" json:"trailing_distance_bps,omitempty"`
-	// Optional maximum allowed slippage in absolute ticks.
+	// Optional maximum allowed slippage as a price delta in 1e-6 quote-unit ticks.
 	MaxSlippageTicks int32 `protobuf:"varint,6,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3" json:"max_slippage_ticks,omitempty"`
 	// Optional maximum allowed slippage in basis points (1 bp = 0.01%).
 	MaxSlippageBps int32 `protobuf:"varint,7,opt,name=max_slippage_bps,json=maxSlippageBps,proto3" json:"max_slippage_bps,omitempty"`
@@ -2050,7 +2058,8 @@ type TwapDetails struct {
 	SliceIdx int32 `protobuf:"varint,4,opt,name=slice_idx,json=sliceIdx,proto3" json:"slice_idx,omitempty"`
 	// Total number of planned slices.
 	SliceCount int32 `protobuf:"varint,5,opt,name=slice_count,json=sliceCount,proto3" json:"slice_count,omitempty"`
-	// Cumulative executed quantity in scaled base units.
+	// Cumulative executed quantity scaled by the pair's base_quantity_scale from
+	// GetSpotConfig.
 	ExecutedQtyScaled int64 `protobuf:"varint,6,opt,name=executed_qty_scaled,json=executedQtyScaled,proto3" json:"executed_qty_scaled,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
@@ -2124,9 +2133,9 @@ func (x *TwapDetails) GetExecutedQtyScaled() int64 {
 // LadderDetails contains configuration for LADDER triggers.
 type LadderDetails struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Minimum price in ticks for the ladder range (6 decimals).
+	// Minimum price in quote units scaled by 1e6 for the ladder range.
 	LadderPriceMinTicks int64 `protobuf:"varint,1,opt,name=ladder_price_min_ticks,json=ladderPriceMinTicks,proto3" json:"ladder_price_min_ticks,omitempty"`
-	// Maximum price in ticks for the ladder range (6 decimals).
+	// Maximum price in quote units scaled by 1e6 for the ladder range.
 	LadderPriceMaxTicks int64 `protobuf:"varint,2,opt,name=ladder_price_max_ticks,json=ladderPriceMaxTicks,proto3" json:"ladder_price_max_ticks,omitempty"`
 	// Number of price levels in the ladder.
 	LadderLevels int32 `protobuf:"varint,3,opt,name=ladder_levels,json=ladderLevels,proto3" json:"ladder_levels,omitempty"`
@@ -2216,15 +2225,17 @@ type Trigger struct {
 	// Child order type.
 	OrderType v1.OrderType `protobuf:"varint,21,opt,name=order_type,json=orderType,proto3,enum=orders.v1.OrderType" json:"order_type,omitempty"`
 	// Child order time-in-force policy.
-	Tif v1.TIF `protobuf:"varint,22,opt,name=tif,proto3,enum=orders.v1.TIF" json:"tif,omitempty"`
-	// Child order quantity in scaled base units.
+	TimeInForce v1.TimeInForce `protobuf:"varint,22,opt,name=time_in_force,json=timeInForce,proto3,enum=orders.v1.TimeInForce" json:"time_in_force,omitempty"`
+	// Child order quantity scaled by the pair's base_quantity_scale from
+	// GetSpotConfig.
 	QtyScaled int64 `protobuf:"varint,23,opt,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`
-	// Child LIMIT order price in ticks. Zero for MARKET child orders.
+	// Child LIMIT order price in quote units scaled by 1e6. Zero for MARKET
+	// child orders.
 	LimitPriceTicks int64 `protobuf:"varint,24,opt,name=limit_price_ticks,json=limitPriceTicks,proto3" json:"limit_price_ticks,omitempty"`
 	// Fee source for BUY child orders.
 	FeeSource v1.FeeSource `protobuf:"varint,25,opt,name=fee_source,json=feeSource,proto3,enum=orders.v1.FeeSource" json:"fee_source,omitempty"`
 	// Self-trade prevention mode for child orders.
-	StpMode v1.STPMode `protobuf:"varint,26,opt,name=stp_mode,json=stpMode,proto3,enum=orders.v1.STPMode" json:"stp_mode,omitempty"`
+	SelfTradePreventionMode v1.SelfTradePreventionMode `protobuf:"varint,26,opt,name=self_trade_prevention_mode,json=selfTradePreventionMode,proto3,enum=orders.v1.SelfTradePreventionMode" json:"self_trade_prevention_mode,omitempty"`
 	// True if child LIMIT orders are post-only.
 	PostOnly bool `protobuf:"varint,27,opt,name=post_only,json=postOnly,proto3" json:"post_only,omitempty"`
 	// Type-specific fields.
@@ -2321,7 +2332,7 @@ func (x *Trigger) GetStatus() TriggerStatus {
 	if x != nil {
 		return x.Status
 	}
-	return TriggerStatus_TRIGGER_STATUS_UNSPECIFIED
+	return TriggerStatus_STATUS_UNSPECIFIED
 }
 
 func (x *Trigger) GetParentOrderId() uint64 {
@@ -2345,11 +2356,11 @@ func (x *Trigger) GetOrderType() v1.OrderType {
 	return v1.OrderType(0)
 }
 
-func (x *Trigger) GetTif() v1.TIF {
+func (x *Trigger) GetTimeInForce() v1.TimeInForce {
 	if x != nil {
-		return x.Tif
+		return x.TimeInForce
 	}
-	return v1.TIF(0)
+	return v1.TimeInForce(0)
 }
 
 func (x *Trigger) GetQtyScaled() int64 {
@@ -2373,11 +2384,11 @@ func (x *Trigger) GetFeeSource() v1.FeeSource {
 	return v1.FeeSource(0)
 }
 
-func (x *Trigger) GetStpMode() v1.STPMode {
+func (x *Trigger) GetSelfTradePreventionMode() v1.SelfTradePreventionMode {
 	if x != nil {
-		return x.StpMode
+		return x.SelfTradePreventionMode
 	}
-	return v1.STPMode(0)
+	return v1.SelfTradePreventionMode(0)
 }
 
 func (x *Trigger) GetPostOnly() bool {
@@ -2508,7 +2519,7 @@ var File_triggers_v1_triggers_proto protoreflect.FileDescriptor
 
 const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\n" +
-	"\x1atriggers/v1/triggers.proto\x12\vtriggers.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16orders/v1/orders.proto\"\x99\x15\n" +
+	"\x1atriggers/v1/triggers.proto\x12\vtriggers.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16orders/v1/orders.proto\"\xb7\x15\n" +
 	"\x14CreateTriggerRequest\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x02R\fsubaccountId\x88\x01\x01\x12\x1f\n" +
 	"\x06symbol\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06symbol\x12J\n" +
@@ -2518,14 +2529,14 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x14trigger_price_source\x18\v \x01(\x0e2\x1d.orders.v1.TriggerPriceSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\x12triggerPriceSource\x122\n" +
 	"\x04side\x18\x14 \x01(\x0e2\x0f.orders.v1.SideB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04side\x12=\n" +
 	"\n" +
-	"order_type\x18\x15 \x01(\x0e2\x14.orders.v1.OrderTypeB\b\xbaH\x05\x82\x01\x02\x10\x01R\torderType\x12*\n" +
-	"\x03tif\x18\x16 \x01(\x0e2\x0e.orders.v1.TIFB\b\xbaH\x05\x82\x01\x02\x10\x01R\x03tif\x12&\n" +
+	"order_type\x18\x15 \x01(\x0e2\x14.orders.v1.OrderTypeB\b\xbaH\x05\x82\x01\x02\x10\x01R\torderType\x12D\n" +
+	"\rtime_in_force\x18\x16 \x01(\x0e2\x16.orders.v1.TimeInForceB\b\xbaH\x05\x82\x01\x02\x10\x01R\vtimeInForce\x12&\n" +
 	"\n" +
 	"qty_scaled\x18\x17 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\tqtyScaled\x12*\n" +
 	"\x11limit_price_ticks\x18\x18 \x01(\x03R\x0flimitPriceTicks\x12=\n" +
 	"\n" +
-	"fee_source\x18\x19 \x01(\x0e2\x14.orders.v1.FeeSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\tfeeSource\x127\n" +
-	"\bstp_mode\x18\x1a \x01(\x0e2\x12.orders.v1.STPModeB\b\xbaH\x05\x82\x01\x02\x10\x01R\astpMode\x12\x1b\n" +
+	"fee_source\x18\x19 \x01(\x0e2\x14.orders.v1.FeeSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\tfeeSource\x12i\n" +
+	"\x1aself_trade_prevention_mode\x18\x1a \x01(\x0e2\".orders.v1.SelfTradePreventionModeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x17selfTradePreventionMode\x12\x1b\n" +
 	"\tpost_only\x18\x1b \x01(\bR\bpostOnly\x12A\n" +
 	"\x17trailing_distance_ticks\x18\x1e \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x00R\x15trailingDistanceTicks\x12@\n" +
 	"\x15trailing_distance_bps\x18\x1f \x01(\x05B\n" +
@@ -2550,7 +2561,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\"create_trigger.ladder.levels_valid\x12\x1dladder_levels must be [2,100]\x1aPthis.trigger_type != 5 || (this.ladder_levels >= 2 && this.ladder_levels <= 100)B\x13\n" +
 	"\x11trailing_distanceB\x0e\n" +
 	"\fmax_slippageB\x10\n" +
-	"\x0e_subaccount_idJ\x04\b\f\x10\rJ\x04\b*\x10+R\x11trigger_directionR\rtwap_flexible\"\xd7\x01\n" +
+	"\x0e_subaccount_id\"\xd7\x01\n" +
 	"\x15CreateTriggerResponse\x12\x1d\n" +
 	"\n" +
 	"trigger_id\x18\x01 \x01(\x06R\ttriggerId\x122\n" +
@@ -2564,34 +2575,31 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\rsubaccount_id\x18\x02 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
 	"\x0e_subaccount_id\"D\n" +
 	"\x12GetTriggerResponse\x12.\n" +
-	"\atrigger\x18\x01 \x01(\v2\x14.triggers.v1.TriggerR\atrigger\"\x86\x03\n" +
+	"\atrigger\x18\x01 \x01(\v2\x14.triggers.v1.TriggerR\atrigger\"\xfd\x02\n" +
 	"\x13ListTriggersRequest\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12\x16\n" +
 	"\x06symbol\x18\x02 \x01(\tR\x06symbol\x12A\n" +
 	"\x06status\x18\x03 \x03(\x0e2\x1a.triggers.v1.TriggerStatusB\r\xbaH\n" +
 	"\x92\x01\a\"\x05\x82\x01\x02\x10\x01R\x06status\x12E\n" +
 	"\ftrigger_type\x18\x04 \x01(\x0e2\x18.triggers.v1.TriggerTypeB\b\xbaH\x05\x82\x01\x02\x10\x01R\vtriggerType\x12+\n" +
-	"\x0fparent_order_id\x18\x05 \x01(\x06H\x01R\rparentOrderId\x88\x01\x01\x12%\n" +
+	"\x0fparent_order_id\x18\x05 \x01(\x06H\x01R\rparentOrderId\x88\x01\x01\x12\x1e\n" +
 	"\x05limit\x18\n" +
-	" \x01(\x05B\n" +
-	"\xbaH\a\x1a\x05\x18\xe8\a(\x01H\x02R\x05limit\x88\x01\x01\x12\x1f\n" +
-	"\x06offset\x18\v \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\x06offsetB\x10\n" +
+	" \x01(\rB\b\xbaH\x05*\x03\x18\xe8\aR\x05limit\x12'\n" +
+	"\n" +
+	"page_token\x18\f \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageTokenB\x10\n" +
 	"\x0e_subaccount_idB\x12\n" +
-	"\x10_parent_order_idB\b\n" +
-	"\x06_limit\"^\n" +
+	"\x10_parent_order_id\"z\n" +
 	"\x14ListTriggersResponse\x120\n" +
-	"\btriggers\x18\x01 \x03(\v2\x14.triggers.v1.TriggerR\btriggers\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\x05R\x05total\"\xd8\x01\n" +
+	"\btriggers\x18\x01 \x03(\v2\x14.triggers.v1.TriggerR\btriggers\x120\n" +
+	"\x0fnext_page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xce\x01\n" +
 	"\x18ListTriggerEventsRequest\x12-\n" +
 	"\n" +
 	"trigger_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\ttriggerId\x12(\n" +
-	"\rsubaccount_id\x18\x02 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12%\n" +
-	"\x05limit\x18\x03 \x01(\x05B\n" +
-	"\xbaH\a\x1a\x05\x18\xe8\a(\x01H\x01R\x05limit\x88\x01\x01\x12 \n" +
-	"\fbefore_ts_ns\x18\x04 \x01(\x04R\n" +
-	"beforeTsNsB\x10\n" +
-	"\x0e_subaccount_idB\b\n" +
-	"\x06_limit\"\xfe\x02\n" +
+	"\rsubaccount_id\x18\x02 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12\x1e\n" +
+	"\x05limit\x18\x03 \x01(\rB\b\xbaH\x05*\x03\x18\xe8\aR\x05limit\x12'\n" +
+	"\n" +
+	"page_token\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageTokenB\x10\n" +
+	"\x0e_subaccount_id\"\x84\x03\n" +
 	"\fTriggerEvent\x12\x1d\n" +
 	"\n" +
 	"trigger_id\x18\x01 \x01(\x06R\ttriggerId\x12#\n" +
@@ -2603,12 +2611,12 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x05ts_ns\x18\n" +
 	" \x01(\x04R\x04tsNs\x12\x1b\n" +
 	"\tchild_seq\x18\v \x01(\x05R\bchildSeq\x12$\n" +
-	"\x0echild_order_id\x18\f \x01(\x06R\fchildOrderId\x12\"\n" +
-	"\rfire_px_ticks\x18\r \x01(\x03R\vfirePxTicks\x12\x16\n" +
-	"\x06reason\x18\x14 \x01(\tR\x06reason\"y\n" +
+	"\x0echild_order_id\x18\f \x01(\x06R\fchildOrderId\x12(\n" +
+	"\x10fire_price_ticks\x18\r \x01(\x03R\x0efirePriceTicks\x12\x16\n" +
+	"\x06reason\x18\x14 \x01(\tR\x06reason\"\x80\x01\n" +
 	"\x19ListTriggerEventsResponse\x121\n" +
-	"\x06events\x18\x01 \x03(\v2\x19.triggers.v1.TriggerEventR\x06events\x12)\n" +
-	"\x11next_before_ts_ns\x18\x02 \x01(\x04R\x0enextBeforeTsNs\"\x81\x01\n" +
+	"\x06events\x18\x01 \x03(\v2\x19.triggers.v1.TriggerEventR\x06events\x120\n" +
+	"\x0fnext_page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\x81\x01\n" +
 	"\x14CancelTriggerRequest\x12-\n" +
 	"\n" +
 	"trigger_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\ttriggerId\x12(\n" +
@@ -2679,20 +2687,19 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x12max_slippage_ticks\x18\x06 \x01(\x05R\x10maxSlippageTicks\x12(\n" +
 	"\x10max_slippage_bps\x18\a \x01(\x05R\x0emaxSlippageBps\x12O\n" +
 	"\x14trigger_price_source\x18\b \x01(\x0e2\x1d.orders.v1.TriggerPriceSourceR\x12triggerPriceSource\x12H\n" +
-	"\x11trigger_direction\x18\t \x01(\x0e2\x1b.orders.v1.TriggerDirectionR\x10triggerDirection\"\xef\x01\n" +
+	"\x11trigger_direction\x18\t \x01(\x0e2\x1b.orders.v1.TriggerDirectionR\x10triggerDirection\"\xda\x01\n" +
 	"\vTwapDetails\x12(\n" +
 	"\x10twap_duration_ms\x18\x01 \x01(\x03R\x0etwapDurationMs\x123\n" +
 	"\x16twap_slice_interval_ms\x18\x02 \x01(\x03R\x13twapSliceIntervalMs\x12\x1b\n" +
 	"\tslice_idx\x18\x04 \x01(\x05R\bsliceIdx\x12\x1f\n" +
 	"\vslice_count\x18\x05 \x01(\x05R\n" +
 	"sliceCount\x12.\n" +
-	"\x13executed_qty_scaled\x18\x06 \x01(\x03R\x11executedQtyScaledJ\x04\b\x03\x10\x04R\rtwap_flexible\"\xf0\x01\n" +
+	"\x13executed_qty_scaled\x18\x06 \x01(\x03R\x11executedQtyScaled\"\xf0\x01\n" +
 	"\rLadderDetails\x123\n" +
 	"\x16ladder_price_min_ticks\x18\x01 \x01(\x03R\x13ladderPriceMinTicks\x123\n" +
 	"\x16ladder_price_max_ticks\x18\x02 \x01(\x03R\x13ladderPriceMaxTicks\x12#\n" +
 	"\rladder_levels\x18\x03 \x01(\x05R\fladderLevels\x12P\n" +
-	"\x13ladder_distribution\x18\x04 \x01(\x0e2\x1f.triggers.v1.LadderDistributionR\x12ladderDistribution\"\x91\n" +
-	"\n" +
+	"\x13ladder_distribution\x18\x04 \x01(\x0e2\x1f.triggers.v1.LadderDistributionR\x12ladderDistribution\"\xe5\t\n" +
 	"\aTrigger\x12\x1d\n" +
 	"\n" +
 	"trigger_id\x18\x01 \x01(\x06R\ttriggerId\x12#\n" +
@@ -2704,14 +2711,14 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x0fparent_order_id\x18\a \x01(\x06H\x01R\rparentOrderId\x88\x01\x01\x12#\n" +
 	"\x04side\x18\x14 \x01(\x0e2\x0f.orders.v1.SideR\x04side\x123\n" +
 	"\n" +
-	"order_type\x18\x15 \x01(\x0e2\x14.orders.v1.OrderTypeR\torderType\x12 \n" +
-	"\x03tif\x18\x16 \x01(\x0e2\x0e.orders.v1.TIFR\x03tif\x12\x1d\n" +
+	"order_type\x18\x15 \x01(\x0e2\x14.orders.v1.OrderTypeR\torderType\x12:\n" +
+	"\rtime_in_force\x18\x16 \x01(\x0e2\x16.orders.v1.TimeInForceR\vtimeInForce\x12\x1d\n" +
 	"\n" +
 	"qty_scaled\x18\x17 \x01(\x03R\tqtyScaled\x12*\n" +
 	"\x11limit_price_ticks\x18\x18 \x01(\x03R\x0flimitPriceTicks\x123\n" +
 	"\n" +
-	"fee_source\x18\x19 \x01(\x0e2\x14.orders.v1.FeeSourceR\tfeeSource\x12-\n" +
-	"\bstp_mode\x18\x1a \x01(\x0e2\x12.orders.v1.STPModeR\astpMode\x12\x1b\n" +
+	"fee_source\x18\x19 \x01(\x0e2\x14.orders.v1.FeeSourceR\tfeeSource\x12_\n" +
+	"\x1aself_trade_prevention_mode\x18\x1a \x01(\x0e2\".orders.v1.SelfTradePreventionModeR\x17selfTradePreventionMode\x12\x1b\n" +
 	"\tpost_only\x18\x1b \x01(\bR\bpostOnly\x12.\n" +
 	"\x04stop\x18d \x01(\v2\x18.triggers.v1.StopDetailsH\x00R\x04stop\x12:\n" +
 	"\btrailing\x18e \x01(\v2\x1c.triggers.v1.TrailingDetailsH\x00R\btrailing\x12.\n" +
@@ -2726,8 +2733,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\fcompleted_at\x18@ \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\x12&\n" +
 	"\x0fchild_order_ids\x18F \x03(\x06R\rchildOrderIdsB\t\n" +
 	"\adetailsB\x12\n" +
-	"\x10_parent_order_idJ\x04\b\n" +
-	"\x10\vJ\x04\b\v\x10\fJ\x04\b\f\x10\rJ\x04\b\x1e\x10\x1fJ\x04\b\x1f\x10 J\x04\b \x10!J\x04\b!\x10\"J\x04\b\"\x10#J\x04\b#\x10$J\x04\b$\x10%J\x04\b(\x10)J\x04\b)\x10*J\x04\b*\x10+J\x04\b+\x10,J\x04\b,\x10-J\x04\b-\x10.J\x04\b2\x103J\x04\b3\x104J\x04\b4\x105J\x04\b5\x106*t\n" +
+	"\x10_parent_order_id*t\n" +
 	"\vTriggerType\x12\x1c\n" +
 	"\x18TRIGGER_TYPE_UNSPECIFIED\x10\x00\x12\r\n" +
 	"\tSTOP_LOSS\x10\x01\x12\x0f\n" +
@@ -2735,23 +2741,21 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\rTRAILING_STOP\x10\x03\x12\b\n" +
 	"\x04TWAP\x10\x04\x12\n" +
 	"\n" +
-	"\x06LADDER\x10\x05*\x8a\x01\n" +
-	"\rTriggerStatus\x12\x1e\n" +
-	"\x1aTRIGGER_STATUS_UNSPECIFIED\x10\x00\x12\v\n" +
-	"\aCREATED\x10\x01\x12\t\n" +
-	"\x05ARMED\x10\x02\x12\v\n" +
-	"\aRUNNING\x10\x03\x12\r\n" +
-	"\tCOMPLETED\x10\x04\x12\r\n" +
-	"\tCANCELLED\x10\x05\x12\n" +
-	"\n" +
-	"\x06FAILED\x10\x06\x12\n" +
-	"\n" +
-	"\x06PAUSED\x10\a*\\\n" +
-	"\x10TriggerEventType\x12\"\n" +
-	"\x1eTRIGGER_EVENT_TYPE_UNSPECIFIED\x10\x00\x12\t\n" +
-	"\x05FIRED\x10\x01\x12\f\n" +
-	"\bCANCELED\x10\x02\x12\v\n" +
-	"\aUPDATED\x10\x03*l\n" +
+	"\x06LADDER\x10\x05*\xb2\x01\n" +
+	"\rTriggerStatus\x12\x16\n" +
+	"\x12STATUS_UNSPECIFIED\x10\x00\x12\x12\n" +
+	"\x0eSTATUS_CREATED\x10\x01\x12\x10\n" +
+	"\fSTATUS_ARMED\x10\x02\x12\x12\n" +
+	"\x0eSTATUS_RUNNING\x10\x03\x12\x14\n" +
+	"\x10STATUS_COMPLETED\x10\x04\x12\x13\n" +
+	"\x0fSTATUS_CANCELED\x10\x05\x12\x11\n" +
+	"\rSTATUS_FAILED\x10\x06\x12\x11\n" +
+	"\rSTATUS_PAUSED\x10\a*a\n" +
+	"\x10TriggerEventType\x12\x15\n" +
+	"\x11EVENT_UNSPECIFIED\x10\x00\x12\x0f\n" +
+	"\vEVENT_FIRED\x10\x01\x12\x12\n" +
+	"\x0eEVENT_CANCELED\x10\x02\x12\x11\n" +
+	"\rEVENT_UPDATED\x10\x03*l\n" +
 	"\x12LadderDistribution\x12#\n" +
 	"\x1fLADDER_DISTRIBUTION_UNSPECIFIED\x10\x00\x12\n" +
 	"\n" +
@@ -2822,9 +2826,9 @@ var file_triggers_v1_triggers_proto_goTypes = []any{
 	(v1.TriggerPriceSource)(0),        // 26: orders.v1.TriggerPriceSource
 	(v1.Side)(0),                      // 27: orders.v1.Side
 	(v1.OrderType)(0),                 // 28: orders.v1.OrderType
-	(v1.TIF)(0),                       // 29: orders.v1.TIF
+	(v1.TimeInForce)(0),               // 29: orders.v1.TimeInForce
 	(v1.FeeSource)(0),                 // 30: orders.v1.FeeSource
-	(v1.STPMode)(0),                   // 31: orders.v1.STPMode
+	(v1.SelfTradePreventionMode)(0),   // 31: orders.v1.SelfTradePreventionMode
 	(*timestamppb.Timestamp)(nil),     // 32: google.protobuf.Timestamp
 	(v1.TriggerDirection)(0),          // 33: orders.v1.TriggerDirection
 }
@@ -2833,9 +2837,9 @@ var file_triggers_v1_triggers_proto_depIdxs = []int32{
 	26, // 1: triggers.v1.CreateTriggerRequest.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
 	27, // 2: triggers.v1.CreateTriggerRequest.side:type_name -> orders.v1.Side
 	28, // 3: triggers.v1.CreateTriggerRequest.order_type:type_name -> orders.v1.OrderType
-	29, // 4: triggers.v1.CreateTriggerRequest.tif:type_name -> orders.v1.TIF
+	29, // 4: triggers.v1.CreateTriggerRequest.time_in_force:type_name -> orders.v1.TimeInForce
 	30, // 5: triggers.v1.CreateTriggerRequest.fee_source:type_name -> orders.v1.FeeSource
-	31, // 6: triggers.v1.CreateTriggerRequest.stp_mode:type_name -> orders.v1.STPMode
+	31, // 6: triggers.v1.CreateTriggerRequest.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
 	3,  // 7: triggers.v1.CreateTriggerRequest.ladder_distribution:type_name -> triggers.v1.LadderDistribution
 	1,  // 8: triggers.v1.CreateTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
 	32, // 9: triggers.v1.CreateTriggerResponse.ts:type_name -> google.protobuf.Timestamp
@@ -2863,9 +2867,9 @@ var file_triggers_v1_triggers_proto_depIdxs = []int32{
 	1,  // 31: triggers.v1.Trigger.status:type_name -> triggers.v1.TriggerStatus
 	27, // 32: triggers.v1.Trigger.side:type_name -> orders.v1.Side
 	28, // 33: triggers.v1.Trigger.order_type:type_name -> orders.v1.OrderType
-	29, // 34: triggers.v1.Trigger.tif:type_name -> orders.v1.TIF
+	29, // 34: triggers.v1.Trigger.time_in_force:type_name -> orders.v1.TimeInForce
 	30, // 35: triggers.v1.Trigger.fee_source:type_name -> orders.v1.FeeSource
-	31, // 36: triggers.v1.Trigger.stp_mode:type_name -> orders.v1.STPMode
+	31, // 36: triggers.v1.Trigger.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
 	21, // 37: triggers.v1.Trigger.stop:type_name -> triggers.v1.StopDetails
 	22, // 38: triggers.v1.Trigger.trailing:type_name -> triggers.v1.TrailingDetails
 	23, // 39: triggers.v1.Trigger.twap:type_name -> triggers.v1.TwapDetails

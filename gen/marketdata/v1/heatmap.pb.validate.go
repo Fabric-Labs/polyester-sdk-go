@@ -193,108 +193,6 @@ var _ interface {
 	ErrorName() string
 } = HeatmapTimeRangeValidationError{}
 
-// Validate checks the field values on HeatmapCursor with the rules defined in
-// the proto definition for this message. If any rules are violated, the first
-// error encountered is returned, or nil if there are no violations.
-func (m *HeatmapCursor) Validate() error {
-	return m.validate(false)
-}
-
-// ValidateAll checks the field values on HeatmapCursor with the rules defined
-// in the proto definition for this message. If any rules are violated, the
-// result is a list of violation errors wrapped in HeatmapCursorMultiError, or
-// nil if none found.
-func (m *HeatmapCursor) ValidateAll() error {
-	return m.validate(true)
-}
-
-func (m *HeatmapCursor) validate(all bool) error {
-	if m == nil {
-		return nil
-	}
-
-	var errors []error
-
-	// no validation rules for FromTsSec
-
-	if len(errors) > 0 {
-		return HeatmapCursorMultiError(errors)
-	}
-
-	return nil
-}
-
-// HeatmapCursorMultiError is an error wrapping multiple validation errors
-// returned by HeatmapCursor.ValidateAll() if the designated constraints
-// aren't met.
-type HeatmapCursorMultiError []error
-
-// Error returns a concatenation of all the error messages it wraps.
-func (m HeatmapCursorMultiError) Error() string {
-	msgs := make([]string, 0, len(m))
-	for _, err := range m {
-		msgs = append(msgs, err.Error())
-	}
-	return strings.Join(msgs, "; ")
-}
-
-// AllErrors returns a list of validation violation errors.
-func (m HeatmapCursorMultiError) AllErrors() []error { return m }
-
-// HeatmapCursorValidationError is the validation error returned by
-// HeatmapCursor.Validate if the designated constraints aren't met.
-type HeatmapCursorValidationError struct {
-	field  string
-	reason string
-	cause  error
-	key    bool
-}
-
-// Field function returns field value.
-func (e HeatmapCursorValidationError) Field() string { return e.field }
-
-// Reason function returns reason value.
-func (e HeatmapCursorValidationError) Reason() string { return e.reason }
-
-// Cause function returns cause value.
-func (e HeatmapCursorValidationError) Cause() error { return e.cause }
-
-// Key function returns key value.
-func (e HeatmapCursorValidationError) Key() bool { return e.key }
-
-// ErrorName returns error name.
-func (e HeatmapCursorValidationError) ErrorName() string { return "HeatmapCursorValidationError" }
-
-// Error satisfies the builtin error interface
-func (e HeatmapCursorValidationError) Error() string {
-	cause := ""
-	if e.cause != nil {
-		cause = fmt.Sprintf(" | caused by: %v", e.cause)
-	}
-
-	key := ""
-	if e.key {
-		key = "key for "
-	}
-
-	return fmt.Sprintf(
-		"invalid %sHeatmapCursor.%s: %s%s",
-		key,
-		e.field,
-		e.reason,
-		cause)
-}
-
-var _ error = HeatmapCursorValidationError{}
-
-var _ interface {
-	Field() string
-	Reason() string
-	Key() bool
-	Cause() error
-	ErrorName() string
-} = HeatmapCursorValidationError{}
-
 // Validate checks the field values on GetOrderbookHeatmapRequest with the
 // rules defined in the proto definition for this message. If any rules are
 // violated, the first error encountered is returned, or nil if there are no violations.
@@ -323,96 +221,40 @@ func (m *GetOrderbookHeatmapRequest) validate(all bool) error {
 
 	// no validation rules for Depth
 
-	// no validation rules for Limit
-
-	// no validation rules for QuantityMode
-
-	switch v := m.Mode.(type) {
-	case *GetOrderbookHeatmapRequest_TimeRange:
-		if v == nil {
-			err := GetOrderbookHeatmapRequestValidationError{
-				field:  "Mode",
-				reason: "oneof value cannot be a typed-nil",
-			}
-			if !all {
-				return err
-			}
-			errors = append(errors, err)
-		}
-
-		if all {
-			switch v := interface{}(m.GetTimeRange()).(type) {
-			case interface{ ValidateAll() error }:
-				if err := v.ValidateAll(); err != nil {
-					errors = append(errors, GetOrderbookHeatmapRequestValidationError{
-						field:  "TimeRange",
-						reason: "embedded message failed validation",
-						cause:  err,
-					})
-				}
-			case interface{ Validate() error }:
-				if err := v.Validate(); err != nil {
-					errors = append(errors, GetOrderbookHeatmapRequestValidationError{
-						field:  "TimeRange",
-						reason: "embedded message failed validation",
-						cause:  err,
-					})
-				}
-			}
-		} else if v, ok := interface{}(m.GetTimeRange()).(interface{ Validate() error }); ok {
-			if err := v.Validate(); err != nil {
-				return GetOrderbookHeatmapRequestValidationError{
+	if all {
+		switch v := interface{}(m.GetTimeRange()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, GetOrderbookHeatmapRequestValidationError{
 					field:  "TimeRange",
 					reason: "embedded message failed validation",
 					cause:  err,
-				}
+				})
 			}
-		}
-
-	case *GetOrderbookHeatmapRequest_Cursor:
-		if v == nil {
-			err := GetOrderbookHeatmapRequestValidationError{
-				field:  "Mode",
-				reason: "oneof value cannot be a typed-nil",
-			}
-			if !all {
-				return err
-			}
-			errors = append(errors, err)
-		}
-
-		if all {
-			switch v := interface{}(m.GetCursor()).(type) {
-			case interface{ ValidateAll() error }:
-				if err := v.ValidateAll(); err != nil {
-					errors = append(errors, GetOrderbookHeatmapRequestValidationError{
-						field:  "Cursor",
-						reason: "embedded message failed validation",
-						cause:  err,
-					})
-				}
-			case interface{ Validate() error }:
-				if err := v.Validate(); err != nil {
-					errors = append(errors, GetOrderbookHeatmapRequestValidationError{
-						field:  "Cursor",
-						reason: "embedded message failed validation",
-						cause:  err,
-					})
-				}
-			}
-		} else if v, ok := interface{}(m.GetCursor()).(interface{ Validate() error }); ok {
+		case interface{ Validate() error }:
 			if err := v.Validate(); err != nil {
-				return GetOrderbookHeatmapRequestValidationError{
-					field:  "Cursor",
+				errors = append(errors, GetOrderbookHeatmapRequestValidationError{
+					field:  "TimeRange",
 					reason: "embedded message failed validation",
 					cause:  err,
-				}
+				})
 			}
 		}
-
-	default:
-		_ = v // ensures v is used
+	} else if v, ok := interface{}(m.GetTimeRange()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return GetOrderbookHeatmapRequestValidationError{
+				field:  "TimeRange",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
 	}
+
+	// no validation rules for PageToken
+
+	// no validation rules for Limit
+
+	// no validation rules for QuantityMode
 
 	if len(errors) > 0 {
 		return GetOrderbookHeatmapRequestMultiError(errors)
@@ -720,11 +562,11 @@ func (m *HeatmapKeyframe) validate(all bool) error {
 
 	// no validation rules for TsSec
 
-	// no validation rules for BestBidTick
+	// no validation rules for BestBidTicks
 
-	// no validation rules for BestAskTick
+	// no validation rules for BestAskTicks
 
-	// no validation rules for MidTick
+	// no validation rules for MidTicks
 
 	if all {
 		switch v := interface{}(m.GetBids()).(type) {
@@ -1438,9 +1280,7 @@ func (m *GetOrderbookHeatmapResponse) validate(all bool) error {
 
 	// no validation rules for HasLiveAnchor
 
-	// no validation rules for HasMore
-
-	// no validation rules for NextTsSec
+	// no validation rules for NextPageToken
 
 	// no validation rules for ServerTimeSec
 

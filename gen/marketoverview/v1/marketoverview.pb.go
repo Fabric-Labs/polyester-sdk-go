@@ -90,10 +90,11 @@ type MarketOrderBy int32
 const (
 	MarketOrderBy_MARKET_ORDER_BY_UNSPECIFIED MarketOrderBy = 0
 	// Sort by absolute 24h change (basis points).
-	MarketOrderBy_ORDER_BY_CHANGE_24H_BP MarketOrderBy = 1
-	// Sort by 24h quote volume (scaled quote units).
+	MarketOrderBy_ORDER_BY_CHANGE_24H_BPS MarketOrderBy = 1
+	// Sort by 24h quote volume scaled by the pair's quote_quantity_scale from
+	// GetSpotConfig.
 	MarketOrderBy_ORDER_BY_VOLUME_24H_QUOTE MarketOrderBy = 2
-	// Sort by last price ticks.
+	// Sort by last price in quote units scaled by 1e6.
 	MarketOrderBy_ORDER_BY_LAST_PRICE MarketOrderBy = 3
 	// Sort by listing time (new listings first).
 	MarketOrderBy_ORDER_BY_DATE_ADDED MarketOrderBy = 4
@@ -103,14 +104,14 @@ const (
 var (
 	MarketOrderBy_name = map[int32]string{
 		0: "MARKET_ORDER_BY_UNSPECIFIED",
-		1: "ORDER_BY_CHANGE_24H_BP",
+		1: "ORDER_BY_CHANGE_24H_BPS",
 		2: "ORDER_BY_VOLUME_24H_QUOTE",
 		3: "ORDER_BY_LAST_PRICE",
 		4: "ORDER_BY_DATE_ADDED",
 	}
 	MarketOrderBy_value = map[string]int32{
 		"MARKET_ORDER_BY_UNSPECIFIED": 0,
-		"ORDER_BY_CHANGE_24H_BP":      1,
+		"ORDER_BY_CHANGE_24H_BPS":     1,
 		"ORDER_BY_VOLUME_24H_QUOTE":   2,
 		"ORDER_BY_LAST_PRICE":         3,
 		"ORDER_BY_DATE_ADDED":         4,
@@ -304,7 +305,7 @@ func (x *ErrorDetail) GetCode() ErrorCode {
 type Sparkline struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Interval SparklineInterval      `protobuf:"varint,1,opt,name=interval,proto3,enum=marketoverview.v1.SparklineInterval" json:"interval,omitempty"`
-	// Newest-first close prices (ticks).
+	// Newest-first close prices in quote units scaled by 1e6.
 	CloseTicks    []int64 `protobuf:"varint,2,rep,packed,name=close_ticks,json=closeTicks,proto3" json:"close_ticks,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -356,31 +357,38 @@ func (x *Sparkline) GetCloseTicks() []int64 {
 
 type MarketOverview struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Engine symbol id.
+	// Numeric spot market identifier.
 	SymbolId uint32 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Canonical pair symbol, e.g. "BTC-USDT".
 	Symbol string `protobuf:"bytes,2,opt,name=symbol,proto3" json:"symbol,omitempty"`
-	// Last traded price (ticks) and timestamp.
+	// Last traded price in quote units scaled by 1e6.
 	LastPriceTicks int64 `protobuf:"varint,3,opt,name=last_price_ticks,json=lastPriceTicks,proto3" json:"last_price_ticks,omitempty"`
 	// Last trade timestamp in nanoseconds since epoch.
 	LastTradeTsNs uint64 `protobuf:"varint,4,opt,name=last_trade_ts_ns,json=lastTradeTsNs,proto3" json:"last_trade_ts_ns,omitempty"`
 	// Rolling 24h change expressed in basis points (bp). Example: +123 = +1.23%.
-	Change_24HBp int32 `protobuf:"varint,5,opt,name=change_24h_bp,json=change24hBp,proto3" json:"change_24h_bp,omitempty"`
+	Change_24HBps int32 `protobuf:"varint,5,opt,name=change_24h_bps,json=change24hBps,proto3" json:"change_24h_bps,omitempty"`
 	// Rolling 24h stats.
+	// Highest traded price in the 24h window, in quote units scaled by 1e6.
 	High_24HTicks int64 `protobuf:"varint,6,opt,name=high_24h_ticks,json=high24hTicks,proto3" json:"high_24h_ticks,omitempty"`
-	Low_24HTicks  int64 `protobuf:"varint,7,opt,name=low_24h_ticks,json=low24hTicks,proto3" json:"low_24h_ticks,omitempty"`
-	// Rolling 24h base volume, in scaled base units.
+	// Lowest traded price in the 24h window, in quote units scaled by 1e6.
+	Low_24HTicks int64 `protobuf:"varint,7,opt,name=low_24h_ticks,json=low24hTicks,proto3" json:"low_24h_ticks,omitempty"`
+	// Rolling 24h base volume scaled by the pair's base_quantity_scale from
+	// GetSpotConfig.
 	Volume_24HBaseScaled int64 `protobuf:"varint,8,opt,name=volume_24h_base_scaled,json=volume24hBaseScaled,proto3" json:"volume_24h_base_scaled,omitempty"`
-	// Rolling 24h quote volume, in scaled quote units.
+	// Rolling 24h quote volume scaled by the pair's quote_quantity_scale from
+	// GetSpotConfig.
 	Volume_24HQuoteScaled int64 `protobuf:"varint,14,opt,name=volume_24h_quote_scaled,json=volume24hQuoteScaled,proto3" json:"volume_24h_quote_scaled,omitempty"`
 	// Listing timestamp in nanoseconds since epoch.
 	ListedTsNs uint64 `protobuf:"varint,15,opt,name=listed_ts_ns,json=listedTsNs,proto3" json:"listed_ts_ns,omitempty"`
-	// Current top-of-book (ticks).
+	// Current best bid price in quote units scaled by 1e6.
 	BestBidTicks int64 `protobuf:"varint,9,opt,name=best_bid_ticks,json=bestBidTicks,proto3" json:"best_bid_ticks,omitempty"`
-	// Best bid quantity, in scaled base units.
+	// Best bid quantity scaled by the pair's base_quantity_scale from
+	// GetSpotConfig.
 	BestBidQtyScaled int64 `protobuf:"varint,10,opt,name=best_bid_qty_scaled,json=bestBidQtyScaled,proto3" json:"best_bid_qty_scaled,omitempty"`
-	BestAskTicks     int64 `protobuf:"varint,11,opt,name=best_ask_ticks,json=bestAskTicks,proto3" json:"best_ask_ticks,omitempty"`
-	// Best ask quantity, in scaled base units.
+	// Current best ask price in quote units scaled by 1e6.
+	BestAskTicks int64 `protobuf:"varint,11,opt,name=best_ask_ticks,json=bestAskTicks,proto3" json:"best_ask_ticks,omitempty"`
+	// Best ask quantity scaled by the pair's base_quantity_scale from
+	// GetSpotConfig.
 	BestAskQtyScaled int64 `protobuf:"varint,12,opt,name=best_ask_qty_scaled,json=bestAskQtyScaled,proto3" json:"best_ask_qty_scaled,omitempty"`
 	// Optional sparklines (requested explicitly).
 	Sparklines    []*Sparkline `protobuf:"bytes,13,rep,name=sparklines,proto3" json:"sparklines,omitempty"`
@@ -446,9 +454,9 @@ func (x *MarketOverview) GetLastTradeTsNs() uint64 {
 	return 0
 }
 
-func (x *MarketOverview) GetChange_24HBp() int32 {
+func (x *MarketOverview) GetChange_24HBps() int32 {
 	if x != nil {
-		return x.Change_24HBp
+		return x.Change_24HBps
 	}
 	return 0
 }
@@ -527,11 +535,13 @@ type ListMarketOverviewRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Filter by specific symbols; when empty, returns all enabled markets.
 	Symbols []string `protobuf:"bytes,1,rep,name=symbols,proto3" json:"symbols,omitempty"`
-	// Pagination (simple page/limit). Page numbers are 1-based. Server defaults
-	// limit to 50 and clamps to a maximum of 2000.
+	// Maximum number of markets to return. Defaults to 50 when omitted; maximum
+	// is 2000.
 	Limit uint32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
-	// Page number (1-based). When unset/0, defaults to 1.
-	Page uint32 `protobuf:"varint,3,opt,name=page,proto3" json:"page,omitempty"`
+	// Opaque keyset cursor from a previous response. The cursor is exclusive and
+	// bound to symbols, sort key, and sort direction. Sparkline options affect
+	// only response enrichment and may change between pages.
+	PageToken string `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	// Sort key. When unset/UNSPECIFIED, defaults to 24h quote volume.
 	OrderBy MarketOrderBy `protobuf:"varint,4,opt,name=order_by,json=orderBy,proto3,enum=marketoverview.v1.MarketOrderBy" json:"order_by,omitempty"`
 	// Sort direction (DESC=newest/highest first).
@@ -589,11 +599,11 @@ func (x *ListMarketOverviewRequest) GetLimit() uint32 {
 	return 0
 }
 
-func (x *ListMarketOverviewRequest) GetPage() uint32 {
+func (x *ListMarketOverviewRequest) GetPageToken() string {
 	if x != nil {
-		return x.Page
+		return x.PageToken
 	}
-	return 0
+	return ""
 }
 
 func (x *ListMarketOverviewRequest) GetOrderBy() MarketOrderBy {
@@ -628,8 +638,8 @@ type ListMarketOverviewResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Market overview rows for the requested page.
 	Markets []*MarketOverview `protobuf:"bytes,1,rep,name=markets,proto3" json:"markets,omitempty"`
-	// Total count (best-effort). When unset/zero, clients can treat as unknown.
-	Total         uint32 `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	// Opaque cursor for the next page. Empty when no more results exist.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -671,11 +681,11 @@ func (x *ListMarketOverviewResponse) GetMarkets() []*MarketOverview {
 	return nil
 }
 
-func (x *ListMarketOverviewResponse) GetTotal() uint32 {
+func (x *ListMarketOverviewResponse) GetNextPageToken() string {
 	if x != nil {
-		return x.Total
+		return x.NextPageToken
 	}
-	return 0
+	return ""
 }
 
 // MarketOverviewBatch is a websocket payload carrying batched market overview
@@ -744,13 +754,13 @@ const file_marketoverview_v1_marketoverview_proto_rawDesc = "" +
 	"\tSparkline\x12J\n" +
 	"\binterval\x18\x01 \x01(\x0e2$.marketoverview.v1.SparklineIntervalB\b\xbaH\x05\x82\x01\x02\x10\x01R\binterval\x12\x1f\n" +
 	"\vclose_ticks\x18\x02 \x03(\x03R\n" +
-	"closeTicks\"\xfc\x04\n" +
+	"closeTicks\"\xfe\x04\n" +
 	"\x0eMarketOverview\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x12\x16\n" +
 	"\x06symbol\x18\x02 \x01(\tR\x06symbol\x12(\n" +
 	"\x10last_price_ticks\x18\x03 \x01(\x03R\x0elastPriceTicks\x12'\n" +
-	"\x10last_trade_ts_ns\x18\x04 \x01(\x04R\rlastTradeTsNs\x12\"\n" +
-	"\rchange_24h_bp\x18\x05 \x01(\x05R\vchange24hBp\x12$\n" +
+	"\x10last_trade_ts_ns\x18\x04 \x01(\x04R\rlastTradeTsNs\x12$\n" +
+	"\x0echange_24h_bps\x18\x05 \x01(\x05R\fchange24hBps\x12$\n" +
 	"\x0ehigh_24h_ticks\x18\x06 \x01(\x03R\fhigh24hTicks\x12\"\n" +
 	"\rlow_24h_ticks\x18\a \x01(\x03R\vlow24hTicks\x123\n" +
 	"\x16volume_24h_base_scaled\x18\b \x01(\x03R\x13volume24hBaseScaled\x125\n" +
@@ -764,19 +774,20 @@ const file_marketoverview_v1_marketoverview_proto_rawDesc = "" +
 	"\x13best_ask_qty_scaled\x18\f \x01(\x03R\x10bestAskQtyScaled\x12<\n" +
 	"\n" +
 	"sparklines\x18\r \x03(\v2\x1c.marketoverview.v1.SparklineR\n" +
-	"sparklines\"\xfb\x02\n" +
+	"sparklines\"\x9a\x03\n" +
 	"\x19ListMarketOverviewRequest\x12\x18\n" +
-	"\asymbols\x18\x01 \x03(\tR\asymbols\x12\x14\n" +
-	"\x05limit\x18\x02 \x01(\rR\x05limit\x12\x12\n" +
-	"\x04page\x18\x03 \x01(\rR\x04page\x12E\n" +
+	"\asymbols\x18\x01 \x03(\tR\asymbols\x12\x1e\n" +
+	"\x05limit\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xd0\x0fR\x05limit\x12'\n" +
+	"\n" +
+	"page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken\x12E\n" +
 	"\border_by\x18\x04 \x01(\x0e2 .marketoverview.v1.MarketOrderByB\b\xbaH\x05\x82\x01\x02\x10\x01R\aorderBy\x12>\n" +
 	"\x04sort\x18\x05 \x01(\x0e2 .marketoverview.v1.SortDirectionB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04sort\x12-\n" +
 	"\x12include_sparklines\x18\x06 \x01(\bR\x11includeSparklines\x12d\n" +
 	"\x13sparkline_intervals\x18\a \x03(\x0e2$.marketoverview.v1.SparklineIntervalB\r\xbaH\n" +
-	"\x92\x01\a\"\x05\x82\x01\x02\x10\x01R\x12sparklineIntervals\"o\n" +
+	"\x92\x01\a\"\x05\x82\x01\x02\x10\x01R\x12sparklineIntervals\"\x8b\x01\n" +
 	"\x1aListMarketOverviewResponse\x12;\n" +
-	"\amarkets\x18\x01 \x03(\v2!.marketoverview.v1.MarketOverviewR\amarkets\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\rR\x05total\"g\n" +
+	"\amarkets\x18\x01 \x03(\v2!.marketoverview.v1.MarketOverviewR\amarkets\x120\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"g\n" +
 	"\x13MarketOverviewBatch\x12;\n" +
 	"\amarkets\x18\x01 \x03(\v2!.marketoverview.v1.MarketOverviewR\amarkets\x12\x13\n" +
 	"\x05ts_ns\x18\x02 \x01(\x04R\x04tsNs*\x80\x01\n" +
@@ -785,10 +796,10 @@ const file_marketoverview_v1_marketoverview_proto_rawDesc = "" +
 	"\fSPARKLINE_1H\x10\x01\x12\x11\n" +
 	"\rSPARKLINE_24H\x10\x02\x12\x10\n" +
 	"\fSPARKLINE_1W\x10\x03\x12\x10\n" +
-	"\fSPARKLINE_1M\x10\x04*\x9d\x01\n" +
+	"\fSPARKLINE_1M\x10\x04*\x9e\x01\n" +
 	"\rMarketOrderBy\x12\x1f\n" +
-	"\x1bMARKET_ORDER_BY_UNSPECIFIED\x10\x00\x12\x1a\n" +
-	"\x16ORDER_BY_CHANGE_24H_BP\x10\x01\x12\x1d\n" +
+	"\x1bMARKET_ORDER_BY_UNSPECIFIED\x10\x00\x12\x1b\n" +
+	"\x17ORDER_BY_CHANGE_24H_BPS\x10\x01\x12\x1d\n" +
 	"\x19ORDER_BY_VOLUME_24H_QUOTE\x10\x02\x12\x17\n" +
 	"\x13ORDER_BY_LAST_PRICE\x10\x03\x12\x17\n" +
 	"\x13ORDER_BY_DATE_ADDED\x10\x04*L\n" +

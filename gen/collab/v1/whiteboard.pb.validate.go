@@ -1552,6 +1552,10 @@ func (m *ListBoardsRequest) validate(all bool) error {
 
 	// no validation rules for IncludeArchived
 
+	// no validation rules for Limit
+
+	// no validation rules for PageToken
+
 	if len(errors) > 0 {
 		return ListBoardsRequestMultiError(errors)
 	}
@@ -1687,6 +1691,8 @@ func (m *ListBoardsResponse) validate(all bool) error {
 		}
 
 	}
+
+	// no validation rules for NextPageToken
 
 	if len(errors) > 0 {
 		return ListBoardsResponseMultiError(errors)

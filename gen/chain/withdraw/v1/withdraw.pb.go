@@ -177,17 +177,20 @@ type TradingWithdrawIntentPayload struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Destination for funds leaving Trading.
 	Action TradingWithdrawAction `protobuf:"varint,1,opt,name=action,proto3,enum=chain.withdraw.v1.TradingWithdrawAction" json:"action,omitempty"`
-	// Asset identifier from Polyester asset metadata.
+	// Unified asset identifier from Polyester asset metadata. amount_e18 is
+	// denominated in this asset at canonical 18-decimal scale.
 	AssetId uint32 `protobuf:"varint,2,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
 	// External network id for TO_EXTERNAL_CHAIN. Omit for TO_FUNDING.
 	DestinationChainId uint64 `protobuf:"varint,3,opt,name=destination_chain_id,json=destinationChainId,proto3" json:"destination_chain_id,omitempty"`
-	// Withdraw amount in the asset's integer base units.
-	AmountQ *v1.U128 `protobuf:"bytes,4,opt,name=amount_q,json=amountQ,proto3" json:"amount_q,omitempty"`
+	// Withdraw amount in canonical 18-decimal unified asset units.
+	// For example, 0.5 is encoded as 500000000000000000.
+	AmountE18 *v1.U128 `protobuf:"bytes,4,opt,name=amount_e18,json=amountE18,proto3" json:"amount_e18,omitempty"`
 	// Unix timestamp in seconds after which this signed user authorization is no
 	// longer accepted by the API. This is separate from the server-owned
 	// execution deadline used later for on-chain submission.
 	DeadlineTsSec uint64 `protobuf:"varint,5,opt,name=deadline_ts_sec,json=deadlineTsSec,proto3" json:"deadline_ts_sec,omitempty"`
-	// Client-generated nonce bound to the signed request.
+	// Client-generated unsigned 128-bit nonce bound to the signed request. This
+	// is an identifier, not a decimal amount.
 	Nonce *v1.U128 `protobuf:"bytes,6,opt,name=nonce,proto3" json:"nonce,omitempty"`
 	// Destination address. For TO_EXTERNAL_CHAIN this is an address on
 	// destination_chain_id and is validated according to that network. For
@@ -253,9 +256,9 @@ func (x *TradingWithdrawIntentPayload) GetDestinationChainId() uint64 {
 	return 0
 }
 
-func (x *TradingWithdrawIntentPayload) GetAmountQ() *v1.U128 {
+func (x *TradingWithdrawIntentPayload) GetAmountE18() *v1.U128 {
 	if x != nil {
-		return x.AmountQ
+		return x.AmountE18
 	}
 	return nil
 }
@@ -426,13 +429,14 @@ const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"\x1dCreateTradingWithdrawResponse\x12\x1b\n" +
 	"\tintent_id\x18\x01 \x01(\tR\bintentId\"B\n" +
 	"#CreateWalletTradingWithdrawResponse\x12\x1b\n" +
-	"\tintent_id\x18\x01 \x01(\tR\bintentId\"\xc9\x03\n" +
+	"\tintent_id\x18\x01 \x01(\tR\bintentId\"\xcd\x03\n" +
 	"\x1cTradingWithdrawIntentPayload\x12L\n" +
 	"\x06action\x18\x01 \x01(\x0e2(.chain.withdraw.v1.TradingWithdrawActionB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x06action\x12\"\n" +
 	"\basset_id\x18\x02 \x01(\rB\a\xbaH\x04*\x02 \x00R\aassetId\x120\n" +
-	"\x14destination_chain_id\x18\x03 \x01(\x04R\x12destinationChainId\x12:\n" +
-	"\bamount_q\x18\x04 \x01(\v2\x17.polyester.type.v1.U128B\x06\xbaH\x03\xc8\x01\x01R\aamountQ\x12/\n" +
+	"\x14destination_chain_id\x18\x03 \x01(\x04R\x12destinationChainId\x12>\n" +
+	"\n" +
+	"amount_e18\x18\x04 \x01(\v2\x17.polyester.type.v1.U128B\x06\xbaH\x03\xc8\x01\x01R\tamountE18\x12/\n" +
 	"\x0fdeadline_ts_sec\x18\x05 \x01(\x04B\a\xbaH\x042\x02 \x00R\rdeadlineTsSec\x125\n" +
 	"\x05nonce\x18\x06 \x01(\v2\x17.polyester.type.v1.U128B\x06\xbaH\x03\xc8\x01\x01R\x05nonce\x12/\n" +
 	"\x13destination_address\x18\a \x01(\tR\x12destinationAddress\x120\n" +
@@ -482,7 +486,7 @@ var file_chain_withdraw_v1_withdraw_proto_goTypes = []any{
 }
 var file_chain_withdraw_v1_withdraw_proto_depIdxs = []int32{
 	0, // 0: chain.withdraw.v1.TradingWithdrawIntentPayload.action:type_name -> chain.withdraw.v1.TradingWithdrawAction
-	6, // 1: chain.withdraw.v1.TradingWithdrawIntentPayload.amount_q:type_name -> polyester.type.v1.U128
+	6, // 1: chain.withdraw.v1.TradingWithdrawIntentPayload.amount_e18:type_name -> polyester.type.v1.U128
 	6, // 2: chain.withdraw.v1.TradingWithdrawIntentPayload.nonce:type_name -> polyester.type.v1.U128
 	3, // 3: chain.withdraw.v1.CreateTradingWithdrawRequest.payload:type_name -> chain.withdraw.v1.TradingWithdrawIntentPayload
 	3, // 4: chain.withdraw.v1.CreateWalletTradingWithdrawRequest.payload:type_name -> chain.withdraw.v1.TradingWithdrawIntentPayload

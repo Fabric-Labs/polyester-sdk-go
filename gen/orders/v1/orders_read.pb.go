@@ -8,6 +8,8 @@ package ordersv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	v11 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/v1"
+	v1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -720,22 +722,26 @@ type Order struct {
 	// Order type.
 	OrderType OrderType `protobuf:"varint,7,opt,name=order_type,json=orderType,proto3,enum=orders.v1.OrderType" json:"order_type,omitempty"`
 	// Time-in-force policy.
-	Tif TIF `protobuf:"varint,8,opt,name=tif,proto3,enum=orders.v1.TIF" json:"tif,omitempty"`
+	TimeInForce TimeInForce `protobuf:"varint,8,opt,name=time_in_force,json=timeInForce,proto3,enum=orders.v1.TimeInForce" json:"time_in_force,omitempty"`
 	// Self-trade prevention mode.
-	StpMode STPMode `protobuf:"varint,9,opt,name=stp_mode,json=stpMode,proto3,enum=orders.v1.STPMode" json:"stp_mode,omitempty"`
-	// Fee source used for buy fills.
+	SelfTradePreventionMode SelfTradePreventionMode `protobuf:"varint,9,opt,name=self_trade_prevention_mode,json=selfTradePreventionMode,proto3,enum=orders.v1.SelfTradePreventionMode" json:"self_trade_prevention_mode,omitempty"`
+	// Fee source selected for BUY fills. This also determines the decode scale
+	// for fee_scaled and referral_share_scaled on user trade rows.
 	FeeSource FeeSource `protobuf:"varint,10,opt,name=fee_source,json=feeSource,proto3,enum=orders.v1.FeeSource" json:"fee_source,omitempty"`
 	// True if the order was submitted as post-only (maker-only).
 	PostOnly bool `protobuf:"varint,11,opt,name=post_only,json=postOnly,proto3" json:"post_only,omitempty"`
-	// Original order quantity (scaled base units).
-	OrigQty int64 `protobuf:"varint,12,opt,name=orig_qty,json=origQty,proto3" json:"orig_qty,omitempty"`
-	// Cumulative filled quantity (scaled base units).
-	CumQty int64 `protobuf:"varint,13,opt,name=cum_qty,json=cumQty,proto3" json:"cum_qty,omitempty"`
-	// Remaining working quantity (scaled base units). Zero for terminal orders.
-	LeavesQty int64 `protobuf:"varint,20,opt,name=leaves_qty,json=leavesQty,proto3" json:"leaves_qty,omitempty"`
-	// Average fill price in ticks (0 if no fills).
-	AvgPxTicks int64 `protobuf:"varint,14,opt,name=avg_px_ticks,json=avgPxTicks,proto3" json:"avg_px_ticks,omitempty"`
-	// Limit price in ticks (0 for MARKET).
+	// Original order quantity scaled by the pair's base_quantity_scale from
+	// GetSpotConfig for symbol_id.
+	OrigQtyScaled int64 `protobuf:"varint,12,opt,name=orig_qty_scaled,json=origQtyScaled,proto3" json:"orig_qty_scaled,omitempty"`
+	// Cumulative filled quantity scaled by the pair's base_quantity_scale from
+	// GetSpotConfig for symbol_id.
+	CumQtyScaled int64 `protobuf:"varint,13,opt,name=cum_qty_scaled,json=cumQtyScaled,proto3" json:"cum_qty_scaled,omitempty"`
+	// Remaining working quantity scaled by the pair's base_quantity_scale from
+	// GetSpotConfig for symbol_id. Zero for terminal orders.
+	LeavesQtyScaled int64 `protobuf:"varint,20,opt,name=leaves_qty_scaled,json=leavesQtyScaled,proto3" json:"leaves_qty_scaled,omitempty"`
+	// Average fill price in quote units scaled by 1e6. Zero if no fills.
+	AvgPriceTicks int64 `protobuf:"varint,14,opt,name=avg_price_ticks,json=avgPriceTicks,proto3" json:"avg_price_ticks,omitempty"`
+	// Limit price in quote units scaled by 1e6. Zero for MARKET orders.
 	PriceTicks int64 `protobuf:"varint,15,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	// Creation timestamp in nanoseconds since epoch (UTC).
 	CreatedTsNs uint64 `protobuf:"varint,16,opt,name=created_ts_ns,json=createdTsNs,proto3" json:"created_ts_ns,omitempty"`
@@ -751,9 +757,10 @@ type Order struct {
 	AttachedRisk *AttachedRisk `protobuf:"bytes,21,opt,name=attached_risk,json=attachedRisk,proto3" json:"attached_risk,omitempty"`
 	// Runtime lineage metadata (why the order exists and what generated it).
 	Origin *OrderOrigin `protobuf:"bytes,22,opt,name=origin,proto3" json:"origin,omitempty"`
-	// Optional client-side reference price used for MARKET slippage protection.
+	// Optional client-side reference price used for MARKET slippage protection,
+	// in quote units scaled by 1e6.
 	MarketClientRefPriceTicks int64 `protobuf:"varint,23,opt,name=market_client_ref_price_ticks,json=marketClientRefPriceTicks,proto3" json:"market_client_ref_price_ticks,omitempty"`
-	// Optional MARKET max slippage in absolute ticks.
+	// Optional MARKET max slippage as a price delta in 1e-6 quote-unit ticks.
 	MarketMaxSlippageTicks int32 `protobuf:"varint,24,opt,name=market_max_slippage_ticks,json=marketMaxSlippageTicks,proto3" json:"market_max_slippage_ticks,omitempty"`
 	// Optional MARKET max slippage in basis points (1 bp = 0.01%).
 	MarketMaxSlippageBps int32 `protobuf:"varint,25,opt,name=market_max_slippage_bps,json=marketMaxSlippageBps,proto3" json:"market_max_slippage_bps,omitempty"`
@@ -833,18 +840,18 @@ func (x *Order) GetOrderType() OrderType {
 	return OrderType_ORDER_TYPE_UNSPECIFIED
 }
 
-func (x *Order) GetTif() TIF {
+func (x *Order) GetTimeInForce() TimeInForce {
 	if x != nil {
-		return x.Tif
+		return x.TimeInForce
 	}
-	return TIF_TIF_UNSPECIFIED
+	return TimeInForce_TIME_IN_FORCE_UNSPECIFIED
 }
 
-func (x *Order) GetStpMode() STPMode {
+func (x *Order) GetSelfTradePreventionMode() SelfTradePreventionMode {
 	if x != nil {
-		return x.StpMode
+		return x.SelfTradePreventionMode
 	}
-	return STPMode_STP_UNSPECIFIED
+	return SelfTradePreventionMode_SELF_TRADE_PREVENTION_MODE_UNSPECIFIED
 }
 
 func (x *Order) GetFeeSource() FeeSource {
@@ -861,30 +868,30 @@ func (x *Order) GetPostOnly() bool {
 	return false
 }
 
-func (x *Order) GetOrigQty() int64 {
+func (x *Order) GetOrigQtyScaled() int64 {
 	if x != nil {
-		return x.OrigQty
+		return x.OrigQtyScaled
 	}
 	return 0
 }
 
-func (x *Order) GetCumQty() int64 {
+func (x *Order) GetCumQtyScaled() int64 {
 	if x != nil {
-		return x.CumQty
+		return x.CumQtyScaled
 	}
 	return 0
 }
 
-func (x *Order) GetLeavesQty() int64 {
+func (x *Order) GetLeavesQtyScaled() int64 {
 	if x != nil {
-		return x.LeavesQty
+		return x.LeavesQtyScaled
 	}
 	return 0
 }
 
-func (x *Order) GetAvgPxTicks() int64 {
+func (x *Order) GetAvgPriceTicks() int64 {
 	if x != nil {
-		return x.AvgPxTicks
+		return x.AvgPriceTicks
 	}
 	return 0
 }
@@ -972,15 +979,20 @@ type UserTrade struct {
 	Side Side `protobuf:"varint,5,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
 	// True if this fill was maker-side.
 	IsMaker bool `protobuf:"varint,6,opt,name=is_maker,json=isMaker,proto3" json:"is_maker,omitempty"`
-	// Execution price in ticks.
+	// Execution price in quote units scaled by 1e6.
 	PriceTicks int64 `protobuf:"varint,7,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
-	// Executed quantity in scaled base units.
+	// Executed quantity scaled by the pair's base_quantity_scale from
+	// GetSpotConfig for symbol_id.
 	QtyScaled int64 `protobuf:"varint,8,opt,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`
-	// Fee amount in scaled units.
+	// Fee amount in the charged asset's scale. Use quote_quantity_scale when
+	// fee_source is QUOTE or UNSPECIFIED; use base_quantity_scale when fee_source
+	// is RECEIVED.
 	FeeScaled int64 `protobuf:"varint,9,opt,name=fee_scaled,json=feeScaled,proto3" json:"fee_scaled,omitempty"`
-	// Fee source charged for this fill.
+	// Fee source charged for this fill. This determines how to decode fee_scaled
+	// and referral_share_scaled.
 	FeeSource FeeSource `protobuf:"varint,10,opt,name=fee_source,json=feeSource,proto3,enum=orders.v1.FeeSource" json:"fee_source,omitempty"`
-	// Referral share amount in scaled units.
+	// Referral share amount in the same denomination and scale as fee_scaled for
+	// this fill.
 	ReferralShareScaled int64 `protobuf:"varint,12,opt,name=referral_share_scaled,json=referralShareScaled,proto3" json:"referral_share_scaled,omitempty"`
 	// Execution timestamp in nanoseconds since epoch.
 	TsNs          uint64 `protobuf:"varint,13,opt,name=ts_ns,json=tsNs,proto3" json:"ts_ns,omitempty"`
@@ -1102,18 +1114,16 @@ type OrderTransfer struct {
 	MatchId uint64 `protobuf:"varint,1,opt,name=match_id,json=matchId,proto3" json:"match_id,omitempty"`
 	// Asset identifier for the transferred asset.
 	AssetId uint32 `protobuf:"varint,2,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
-	// Transfer amount, high 64 bits of an unsigned 128-bit integer.
-	AmountHi uint64 `protobuf:"varint,3,opt,name=amount_hi,json=amountHi,proto3" json:"amount_hi,omitempty"`
-	// Transfer amount, low 64 bits of an unsigned 128-bit integer.
-	AmountLo uint64 `protobuf:"varint,4,opt,name=amount_lo,json=amountLo,proto3" json:"amount_lo,omitempty"`
+	// Transfer amount at fixed 18-decimal ledger scale.
+	AmountE18 *v1.U128 `protobuf:"bytes,3,opt,name=amount_e18,json=amountE18,proto3" json:"amount_e18,omitempty"`
 	// True when the transfer debits the account; false when it credits the account.
 	IsDebit bool `protobuf:"varint,5,opt,name=is_debit,json=isDebit,proto3" json:"is_debit,omitempty"`
-	// Transfer type numeric code.
-	Type uint32 `protobuf:"varint,6,opt,name=type,proto3" json:"type,omitempty"`
-	// Account bucket numeric code for the transfer leg.
-	AccountCode uint32 `protobuf:"varint,7,opt,name=account_code,json=accountCode,proto3" json:"account_code,omitempty"`
+	// Product reason for this transfer leg.
+	TransferCode v11.TransferCode `protobuf:"varint,6,opt,name=transfer_code,json=transferCode,proto3,enum=ledger.v1.TransferCode" json:"transfer_code,omitempty"`
+	// Account bucket affected by this transfer leg.
+	AccountCode v11.AccountCode `protobuf:"varint,7,opt,name=account_code,json=accountCode,proto3,enum=ledger.v1.AccountCode" json:"account_code,omitempty"`
 	// Transfer timestamp in nanoseconds since epoch (UTC).
-	Timestamp uint64 `protobuf:"varint,8,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	TsNs uint64 `protobuf:"varint,8,opt,name=ts_ns,json=tsNs,proto3" json:"ts_ns,omitempty"`
 	// Transfer transaction identifier.
 	TxId          string `protobuf:"bytes,9,opt,name=tx_id,json=txId,proto3" json:"tx_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1164,18 +1174,11 @@ func (x *OrderTransfer) GetAssetId() uint32 {
 	return 0
 }
 
-func (x *OrderTransfer) GetAmountHi() uint64 {
+func (x *OrderTransfer) GetAmountE18() *v1.U128 {
 	if x != nil {
-		return x.AmountHi
+		return x.AmountE18
 	}
-	return 0
-}
-
-func (x *OrderTransfer) GetAmountLo() uint64 {
-	if x != nil {
-		return x.AmountLo
-	}
-	return 0
+	return nil
 }
 
 func (x *OrderTransfer) GetIsDebit() bool {
@@ -1185,23 +1188,23 @@ func (x *OrderTransfer) GetIsDebit() bool {
 	return false
 }
 
-func (x *OrderTransfer) GetType() uint32 {
+func (x *OrderTransfer) GetTransferCode() v11.TransferCode {
 	if x != nil {
-		return x.Type
+		return x.TransferCode
 	}
-	return 0
+	return v11.TransferCode(0)
 }
 
-func (x *OrderTransfer) GetAccountCode() uint32 {
+func (x *OrderTransfer) GetAccountCode() v11.AccountCode {
 	if x != nil {
 		return x.AccountCode
 	}
-	return 0
+	return v11.AccountCode(0)
 }
 
-func (x *OrderTransfer) GetTimestamp() uint64 {
+func (x *OrderTransfer) GetTsNs() uint64 {
 	if x != nil {
-		return x.Timestamp
+		return x.TsNs
 	}
 	return 0
 }
@@ -1224,7 +1227,9 @@ type GetOpenOrdersRequest struct {
 	Side Side `protobuf:"varint,3,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
 	// Max number of orders to return (1-1000, default 100).
 	Limit *uint32 `protobuf:"varint,10,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
-	// Opaque, account-bound cursor from previous response.
+	// Opaque keyset cursor from a previous response. The cursor is exclusive and
+	// bound to the authenticated account, sub-account scope, filters, and sort
+	// order.
 	PageToken string `protobuf:"bytes,11,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	// Include attached-risk policy details in each order (defaults to false when unset).
 	IncludeAttachedRisk *bool `protobuf:"varint,12,opt,name=include_attached_risk,json=includeAttachedRisk,proto3,oneof" json:"include_attached_risk,omitempty"`
@@ -1318,7 +1323,7 @@ type GetOpenOrdersResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Open orders ordered newest-first.
 	Orders []*Order `protobuf:"bytes,1,rep,name=orders,proto3" json:"orders,omitempty"`
-	// Opaque, account-bound cursor for next page.
+	// Opaque cursor for the next page. Empty when no more results exist.
 	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1385,7 +1390,9 @@ type GetOrderHistoryRequest struct {
 	EndTsNs *uint64 `protobuf:"varint,11,opt,name=end_ts_ns,json=endTsNs,proto3,oneof" json:"end_ts_ns,omitempty"`
 	// Max number of orders to return (1-1000, default 100).
 	Limit *uint32 `protobuf:"varint,12,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
-	// Opaque, account-bound cursor from previous response.
+	// Opaque keyset cursor from a previous response. The cursor is exclusive and
+	// bound to the authenticated account, sub-account scope, filters, time range,
+	// and sort order.
 	PageToken string `protobuf:"bytes,13,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	// Include attached-risk policy details in each order (defaults to false when unset).
 	IncludeAttachedRisk *bool `protobuf:"varint,14,opt,name=include_attached_risk,json=includeAttachedRisk,proto3,oneof" json:"include_attached_risk,omitempty"`
@@ -1500,7 +1507,7 @@ type GetOrderHistoryResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Historical orders ordered newest-first.
 	Orders []*Order `protobuf:"bytes,1,rep,name=orders,proto3" json:"orders,omitempty"`
-	// Opaque, account-bound cursor for next page.
+	// Opaque cursor for the next page. Empty when no more results exist.
 	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1565,7 +1572,9 @@ type GetUserTradesRequest struct {
 	EndTsNs *uint64 `protobuf:"varint,11,opt,name=end_ts_ns,json=endTsNs,proto3,oneof" json:"end_ts_ns,omitempty"`
 	// Max number of trades to return (1-1000, default 100).
 	Limit *uint32 `protobuf:"varint,12,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
-	// Opaque, account-bound cursor from previous response.
+	// Opaque keyset cursor from a previous response. The cursor is exclusive and
+	// bound to the authenticated account, sub-account scope, filters, time range,
+	// and sort order.
 	PageToken     string `protobuf:"bytes,13,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1655,7 +1664,7 @@ type GetUserTradesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Trades ordered newest-first.
 	Trades []*UserTrade `protobuf:"bytes,1,rep,name=trades,proto3" json:"trades,omitempty"`
-	// Opaque, account-bound cursor for next page.
+	// Opaque cursor for the next page. Empty when no more results exist.
 	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1887,7 +1896,7 @@ var File_orders_v1_orders_read_proto protoreflect.FileDescriptor
 
 const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\n" +
-	"\x1borders/v1/orders_read.proto\x12\torders.v1\x1a\x1bbuf/validate/validate.proto\x1a\x16orders/v1/orders.proto\"\xa5\x02\n" +
+	"\x1borders/v1/orders_read.proto\x12\torders.v1\x1a\x1bbuf/validate/validate.proto\x1a\x17ledger/v1/catalog.proto\x1a\x16orders/v1/orders.proto\x1a\x1cpolyester/type/v1/u128.proto\"\xa5\x02\n" +
 	"\vOrderOrigin\x12;\n" +
 	"\x05scope\x18\x01 \x01(\x0e2\x1b.orders.v1.OrderOriginScopeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x05scope\x12H\n" +
 	"\ftrigger_type\x18\x02 \x01(\x0e2\x1b.orders.v1.OrderTriggerTypeB\b\xbaH\x05\x82\x01\x02\x10\x01R\vtriggerType\x12\"\n" +
@@ -1932,7 +1941,7 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"takeProfit\x12<\n" +
 	"\tstop_loss\x18\x02 \x01(\v2\x1f.orders.v1.AttachedRiskStopLossR\bstopLoss\x12H\n" +
 	"\rtrailing_stop\x18\x03 \x01(\v2#.orders.v1.AttachedRiskTrailingStopR\ftrailingStop\x12\x10\n" +
-	"\x03oco\x18\x04 \x01(\bR\x03oco\"\x99\b\n" +
+	"\x03oco\x18\x04 \x01(\bR\x03oco\"\x92\t\n" +
 	"\x05Order\x12\x19\n" +
 	"\border_id\x18\x01 \x01(\x06R\aorderId\x12\x1b\n" +
 	"\tsymbol_id\x18\x03 \x01(\rR\bsymbolId\x12D\n" +
@@ -1940,19 +1949,17 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\x04side\x18\x05 \x01(\x0e2\x0f.orders.v1.SideB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04side\x12.\n" +
 	"\x06status\x18\x06 \x01(\x0e2\x16.orders.v1.OrderStatusR\x06status\x123\n" +
 	"\n" +
-	"order_type\x18\a \x01(\x0e2\x14.orders.v1.OrderTypeR\torderType\x12 \n" +
-	"\x03tif\x18\b \x01(\x0e2\x0e.orders.v1.TIFR\x03tif\x12-\n" +
-	"\bstp_mode\x18\t \x01(\x0e2\x12.orders.v1.STPModeR\astpMode\x123\n" +
+	"order_type\x18\a \x01(\x0e2\x14.orders.v1.OrderTypeR\torderType\x12:\n" +
+	"\rtime_in_force\x18\b \x01(\x0e2\x16.orders.v1.TimeInForceR\vtimeInForce\x12_\n" +
+	"\x1aself_trade_prevention_mode\x18\t \x01(\x0e2\".orders.v1.SelfTradePreventionModeR\x17selfTradePreventionMode\x123\n" +
 	"\n" +
 	"fee_source\x18\n" +
 	" \x01(\x0e2\x14.orders.v1.FeeSourceR\tfeeSource\x12\x1b\n" +
-	"\tpost_only\x18\v \x01(\bR\bpostOnly\x12\x19\n" +
-	"\borig_qty\x18\f \x01(\x03R\aorigQty\x12\x17\n" +
-	"\acum_qty\x18\r \x01(\x03R\x06cumQty\x12\x1d\n" +
-	"\n" +
-	"leaves_qty\x18\x14 \x01(\x03R\tleavesQty\x12 \n" +
-	"\favg_px_ticks\x18\x0e \x01(\x03R\n" +
-	"avgPxTicks\x12\x1f\n" +
+	"\tpost_only\x18\v \x01(\bR\bpostOnly\x12&\n" +
+	"\x0forig_qty_scaled\x18\f \x01(\x03R\rorigQtyScaled\x12$\n" +
+	"\x0ecum_qty_scaled\x18\r \x01(\x03R\fcumQtyScaled\x12*\n" +
+	"\x11leaves_qty_scaled\x18\x14 \x01(\x03R\x0fleavesQtyScaled\x12&\n" +
+	"\x0favg_price_ticks\x18\x0e \x01(\x03R\ravgPriceTicks\x12\x1f\n" +
 	"\vprice_ticks\x18\x0f \x01(\x03R\n" +
 	"priceTicks\x12\"\n" +
 	"\rcreated_ts_ns\x18\x10 \x01(\x04R\vcreatedTsNs\x12$\n" +
@@ -1980,16 +1987,16 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"fee_source\x18\n" +
 	" \x01(\x0e2\x14.orders.v1.FeeSourceR\tfeeSource\x122\n" +
 	"\x15referral_share_scaled\x18\f \x01(\x03R\x13referralShareScaled\x12\x13\n" +
-	"\x05ts_ns\x18\r \x01(\x04R\x04tsNs\"\x84\x02\n" +
+	"\x05ts_ns\x18\r \x01(\x04R\x04tsNs\"\xbb\x02\n" +
 	"\rOrderTransfer\x12\x19\n" +
 	"\bmatch_id\x18\x01 \x01(\x04R\amatchId\x12\x19\n" +
-	"\basset_id\x18\x02 \x01(\rR\aassetId\x12\x1b\n" +
-	"\tamount_hi\x18\x03 \x01(\x04R\bamountHi\x12\x1b\n" +
-	"\tamount_lo\x18\x04 \x01(\x04R\bamountLo\x12\x19\n" +
-	"\bis_debit\x18\x05 \x01(\bR\aisDebit\x12\x12\n" +
-	"\x04type\x18\x06 \x01(\rR\x04type\x12!\n" +
-	"\faccount_code\x18\a \x01(\rR\vaccountCode\x12\x1c\n" +
-	"\ttimestamp\x18\b \x01(\x04R\ttimestamp\x12\x13\n" +
+	"\basset_id\x18\x02 \x01(\rR\aassetId\x126\n" +
+	"\n" +
+	"amount_e18\x18\x03 \x01(\v2\x17.polyester.type.v1.U128R\tamountE18\x12\x19\n" +
+	"\bis_debit\x18\x05 \x01(\bR\aisDebit\x12<\n" +
+	"\rtransfer_code\x18\x06 \x01(\x0e2\x17.ledger.v1.TransferCodeR\ftransferCode\x129\n" +
+	"\faccount_code\x18\a \x01(\x0e2\x16.ledger.v1.AccountCodeR\vaccountCode\x12\x13\n" +
+	"\x05ts_ns\x18\b \x01(\x04R\x04tsNs\x12\x13\n" +
 	"\x05tx_id\x18\t \x01(\tR\x04txId\"\xd1\x03\n" +
 	"\x14GetOpenOrdersRequest\x128\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01\x12-\n" +
@@ -2144,9 +2151,12 @@ var file_orders_v1_orders_read_proto_goTypes = []any{
 	(*TrailingStopPolicy)(nil),       // 23: orders.v1.TrailingStopPolicy
 	(Side)(0),                        // 24: orders.v1.Side
 	(OrderType)(0),                   // 25: orders.v1.OrderType
-	(TIF)(0),                         // 26: orders.v1.TIF
-	(STPMode)(0),                     // 27: orders.v1.STPMode
+	(TimeInForce)(0),                 // 26: orders.v1.TimeInForce
+	(SelfTradePreventionMode)(0),     // 27: orders.v1.SelfTradePreventionMode
 	(FeeSource)(0),                   // 28: orders.v1.FeeSource
+	(*v1.U128)(nil),                  // 29: polyester.type.v1.U128
+	(v11.TransferCode)(0),            // 30: ledger.v1.TransferCode
+	(v11.AccountCode)(0),             // 31: ledger.v1.AccountCode
 }
 var file_orders_v1_orders_read_proto_depIdxs = []int32{
 	1,  // 0: orders.v1.OrderOrigin.scope:type_name -> orders.v1.OrderOriginScope
@@ -2164,36 +2174,39 @@ var file_orders_v1_orders_read_proto_depIdxs = []int32{
 	24, // 12: orders.v1.Order.side:type_name -> orders.v1.Side
 	0,  // 13: orders.v1.Order.status:type_name -> orders.v1.OrderStatus
 	25, // 14: orders.v1.Order.order_type:type_name -> orders.v1.OrderType
-	26, // 15: orders.v1.Order.tif:type_name -> orders.v1.TIF
-	27, // 16: orders.v1.Order.stp_mode:type_name -> orders.v1.STPMode
+	26, // 15: orders.v1.Order.time_in_force:type_name -> orders.v1.TimeInForce
+	27, // 16: orders.v1.Order.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
 	28, // 17: orders.v1.Order.fee_source:type_name -> orders.v1.FeeSource
 	9,  // 18: orders.v1.Order.attached_risk:type_name -> orders.v1.AttachedRisk
 	4,  // 19: orders.v1.Order.origin:type_name -> orders.v1.OrderOrigin
 	24, // 20: orders.v1.UserTrade.side:type_name -> orders.v1.Side
 	28, // 21: orders.v1.UserTrade.fee_source:type_name -> orders.v1.FeeSource
-	24, // 22: orders.v1.GetOpenOrdersRequest.side:type_name -> orders.v1.Side
-	10, // 23: orders.v1.GetOpenOrdersResponse.orders:type_name -> orders.v1.Order
-	24, // 24: orders.v1.GetOrderHistoryRequest.side:type_name -> orders.v1.Side
-	0,  // 25: orders.v1.GetOrderHistoryRequest.status:type_name -> orders.v1.OrderStatus
-	10, // 26: orders.v1.GetOrderHistoryResponse.orders:type_name -> orders.v1.Order
-	24, // 27: orders.v1.GetUserTradesRequest.side:type_name -> orders.v1.Side
-	11, // 28: orders.v1.GetUserTradesResponse.trades:type_name -> orders.v1.UserTrade
-	10, // 29: orders.v1.GetOrderResponse.order:type_name -> orders.v1.Order
-	11, // 30: orders.v1.GetOrderResponse.trades:type_name -> orders.v1.UserTrade
-	12, // 31: orders.v1.GetOrderResponse.transfers:type_name -> orders.v1.OrderTransfer
-	13, // 32: orders.v1.OrdersReadService.GetOpenOrders:input_type -> orders.v1.GetOpenOrdersRequest
-	15, // 33: orders.v1.OrdersReadService.GetOrderHistory:input_type -> orders.v1.GetOrderHistoryRequest
-	17, // 34: orders.v1.OrdersReadService.GetUserTrades:input_type -> orders.v1.GetUserTradesRequest
-	19, // 35: orders.v1.OrdersReadService.GetOrder:input_type -> orders.v1.GetOrderRequest
-	14, // 36: orders.v1.OrdersReadService.GetOpenOrders:output_type -> orders.v1.GetOpenOrdersResponse
-	16, // 37: orders.v1.OrdersReadService.GetOrderHistory:output_type -> orders.v1.GetOrderHistoryResponse
-	18, // 38: orders.v1.OrdersReadService.GetUserTrades:output_type -> orders.v1.GetUserTradesResponse
-	20, // 39: orders.v1.OrdersReadService.GetOrder:output_type -> orders.v1.GetOrderResponse
-	36, // [36:40] is the sub-list for method output_type
-	32, // [32:36] is the sub-list for method input_type
-	32, // [32:32] is the sub-list for extension type_name
-	32, // [32:32] is the sub-list for extension extendee
-	0,  // [0:32] is the sub-list for field type_name
+	29, // 22: orders.v1.OrderTransfer.amount_e18:type_name -> polyester.type.v1.U128
+	30, // 23: orders.v1.OrderTransfer.transfer_code:type_name -> ledger.v1.TransferCode
+	31, // 24: orders.v1.OrderTransfer.account_code:type_name -> ledger.v1.AccountCode
+	24, // 25: orders.v1.GetOpenOrdersRequest.side:type_name -> orders.v1.Side
+	10, // 26: orders.v1.GetOpenOrdersResponse.orders:type_name -> orders.v1.Order
+	24, // 27: orders.v1.GetOrderHistoryRequest.side:type_name -> orders.v1.Side
+	0,  // 28: orders.v1.GetOrderHistoryRequest.status:type_name -> orders.v1.OrderStatus
+	10, // 29: orders.v1.GetOrderHistoryResponse.orders:type_name -> orders.v1.Order
+	24, // 30: orders.v1.GetUserTradesRequest.side:type_name -> orders.v1.Side
+	11, // 31: orders.v1.GetUserTradesResponse.trades:type_name -> orders.v1.UserTrade
+	10, // 32: orders.v1.GetOrderResponse.order:type_name -> orders.v1.Order
+	11, // 33: orders.v1.GetOrderResponse.trades:type_name -> orders.v1.UserTrade
+	12, // 34: orders.v1.GetOrderResponse.transfers:type_name -> orders.v1.OrderTransfer
+	13, // 35: orders.v1.OrdersReadService.GetOpenOrders:input_type -> orders.v1.GetOpenOrdersRequest
+	15, // 36: orders.v1.OrdersReadService.GetOrderHistory:input_type -> orders.v1.GetOrderHistoryRequest
+	17, // 37: orders.v1.OrdersReadService.GetUserTrades:input_type -> orders.v1.GetUserTradesRequest
+	19, // 38: orders.v1.OrdersReadService.GetOrder:input_type -> orders.v1.GetOrderRequest
+	14, // 39: orders.v1.OrdersReadService.GetOpenOrders:output_type -> orders.v1.GetOpenOrdersResponse
+	16, // 40: orders.v1.OrdersReadService.GetOrderHistory:output_type -> orders.v1.GetOrderHistoryResponse
+	18, // 41: orders.v1.OrdersReadService.GetUserTrades:output_type -> orders.v1.GetUserTradesResponse
+	20, // 42: orders.v1.OrdersReadService.GetOrder:output_type -> orders.v1.GetOrderResponse
+	39, // [39:43] is the sub-list for method output_type
+	35, // [35:39] is the sub-list for method input_type
+	35, // [35:35] is the sub-list for extension type_name
+	35, // [35:35] is the sub-list for extension extendee
+	0,  // [0:35] is the sub-list for field type_name
 }
 
 func init() { file_orders_v1_orders_read_proto_init() }

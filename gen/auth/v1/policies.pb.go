@@ -2767,7 +2767,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x16SetApiKeyPolicyRequest\x124\n" +
 	"\x06key_id\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x15\x10\x012\x11^ak_[a-f0-9]{32}$R\x05keyId\x12\x1b\n" +
 	"\tpolicy_id\x18\x02 \x01(\x06R\bpolicyId\"\x19\n" +
-	"\x17SetApiKeyPolicyResponse*\xcd\x02\n" +
+	"\x17SetApiKeyPolicyResponse*\xaf\x02\n" +
 	"\fPolicyAction\x12\x0f\n" +
 	"\vUNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -2783,9 +2783,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x19READ_EXTERNAL_WITHDRAWALS\x10\t\x12\x1a\n" +
 	"\x16READ_TRANSFER_CONTROLS\x10\v\x12\x17\n" +
 	"\x13MANAGE_ADDRESS_BOOK\x10\f\x12\x1e\n" +
-	"\x1aMANAGE_TRANSFER_WHITELISTS\x10\r\"\x04\b\n" +
-	"\x10\n" +
-	"*\x16CREATE_DEPOSIT_ADDRESS2\x90\x17\n" +
+	"\x1aMANAGE_TRANSFER_WHITELISTS\x10\r2\x90\x17\n" +
 	"\rPolicyService\x12\xf8\x01\n" +
 	"\x16ListSubaccountPolicies\x12&.auth.v1.ListSubaccountPoliciesRequest\x1a'.auth.v1.ListSubaccountPoliciesResponse\"\x8c\x01\xbaGd\n" +
 	"\fAuth Service\x12\x18List Subaccount Policies\x1a:List sub-account policy templates available to the caller.\x82\xd3\xe4\x93\x02\x1f\x12\x1d/v1/auth/policies/subaccounts\x12\xf9\x01\n" +

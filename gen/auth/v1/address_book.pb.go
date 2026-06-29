@@ -2225,7 +2225,14 @@ type ListAddressBookEntriesRequest struct {
 	// Optional subaccount scope. Omit to use the root account address book.
 	SubaccountId uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
 	// Optional destination type filter.
-	Kind          AddressBookEntryKind `protobuf:"varint,2,opt,name=kind,proto3,enum=auth.v1.AddressBookEntryKind" json:"kind,omitempty"`
+	Kind AddressBookEntryKind `protobuf:"varint,2,opt,name=kind,proto3,enum=auth.v1.AddressBookEntryKind" json:"kind,omitempty"`
+	// Maximum number of entries to return. Defaults to 200 when omitted; maximum
+	// is 500.
+	Limit uint32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Opaque keyset cursor from a previous response. The cursor is exclusive and
+	// bound to account, subaccount scope, destination type filter, and
+	// newest-created sort order.
+	PageToken     string `protobuf:"bytes,4,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2274,10 +2281,26 @@ func (x *ListAddressBookEntriesRequest) GetKind() AddressBookEntryKind {
 	return AddressBookEntryKind_ENTRY_KIND_UNSPECIFIED
 }
 
+func (x *ListAddressBookEntriesRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListAddressBookEntriesRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
 type ListAddressBookEntriesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Saved address book entries matching the request filters, ordered by creation time newest first.
-	Entries       []*AddressBookEntry `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	Entries []*AddressBookEntry `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	// Opaque cursor for the next page. Empty when no more results exist.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2317,6 +2340,13 @@ func (x *ListAddressBookEntriesResponse) GetEntries() []*AddressBookEntry {
 		return x.Entries
 	}
 	return nil
+}
+
+func (x *ListAddressBookEntriesResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
 }
 
 type CreateAddressBookEntryRequest struct {
@@ -3203,8 +3233,9 @@ type ListTransferCounterpartiesRequest struct {
 	Direction TransferCounterpartyDirection `protobuf:"varint,2,opt,name=direction,proto3,enum=auth.v1.TransferCounterpartyDirection" json:"direction,omitempty"`
 	// Optional destination type filter.
 	Kind AddressBookEntryKind `protobuf:"varint,3,opt,name=kind,proto3,enum=auth.v1.AddressBookEntryKind" json:"kind,omitempty"`
-	// Maximum number of counterparties to return, up to 200. Defaults to the service limit when omitted.
-	PageSize      uint32 `protobuf:"varint,4,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	// Maximum number of counterparties to return. Defaults to 200 when omitted;
+	// maximum is 200.
+	Limit         uint32 `protobuf:"varint,5,opt,name=limit,proto3" json:"limit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3260,9 +3291,9 @@ func (x *ListTransferCounterpartiesRequest) GetKind() AddressBookEntryKind {
 	return AddressBookEntryKind_ENTRY_KIND_UNSPECIFIED
 }
 
-func (x *ListTransferCounterpartiesRequest) GetPageSize() uint32 {
+func (x *ListTransferCounterpartiesRequest) GetLimit() uint32 {
 	if x != nil {
-		return x.PageSize
+		return x.Limit
 	}
 	return 0
 }
@@ -3271,8 +3302,11 @@ type ListTransferCounterpartiesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Transfer counterparties matching the request filters, ordered by last_seen_at newest first.
 	Counterparties []*TransferCounterparty `protobuf:"bytes,1,rep,name=counterparties,proto3" json:"counterparties,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// True when more matching counterparties exist than were returned. This
+	// bounded view does not provide continuation.
+	Truncated     bool `protobuf:"varint,2,opt,name=truncated,proto3" json:"truncated,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListTransferCounterpartiesResponse) Reset() {
@@ -3312,12 +3346,26 @@ func (x *ListTransferCounterpartiesResponse) GetCounterparties() []*TransferCoun
 	return nil
 }
 
+func (x *ListTransferCounterpartiesResponse) GetTruncated() bool {
+	if x != nil {
+		return x.Truncated
+	}
+	return false
+}
+
 type ListTransferDestinationsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional subaccount scope. Omit to use the root account address book.
 	SubaccountId uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
 	// Optional destination type filter.
-	Kind          AddressBookEntryKind `protobuf:"varint,2,opt,name=kind,proto3,enum=auth.v1.AddressBookEntryKind" json:"kind,omitempty"`
+	Kind AddressBookEntryKind `protobuf:"varint,2,opt,name=kind,proto3,enum=auth.v1.AddressBookEntryKind" json:"kind,omitempty"`
+	// Maximum number of destinations to return. Defaults to 200 when omitted;
+	// maximum is 500.
+	Limit uint32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Opaque keyset cursor from a previous response. The cursor is exclusive and
+	// bound to account, subaccount scope, destination type filter, and stable
+	// destination sort order.
+	PageToken     string `protobuf:"bytes,4,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3366,10 +3414,27 @@ func (x *ListTransferDestinationsRequest) GetKind() AddressBookEntryKind {
 	return AddressBookEntryKind_ENTRY_KIND_UNSPECIFIED
 }
 
+func (x *ListTransferDestinationsRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListTransferDestinationsRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
 type ListTransferDestinationsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Saved destinations and active whitelisted destinations matching the request filters.
-	Destinations  []*TransferDestination `protobuf:"bytes,1,rep,name=destinations,proto3" json:"destinations,omitempty"`
+	// Saved destinations and active whitelisted destinations matching the request filters,
+	// ordered by creation or whitelist update time newest first.
+	Destinations []*TransferDestination `protobuf:"bytes,1,rep,name=destinations,proto3" json:"destinations,omitempty"`
+	// Opaque cursor for the next page. Empty when no more results exist.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3411,10 +3476,23 @@ func (x *ListTransferDestinationsResponse) GetDestinations() []*TransferDestinat
 	return nil
 }
 
+func (x *ListTransferDestinationsResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
 type ListInternalTransferWhitelistEntriesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional subaccount scope. Omit to use the root account address book.
-	SubaccountId  uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
+	SubaccountId uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
+	// Maximum number of whitelist entries to return. Defaults to 200 when
+	// omitted; maximum is 500.
+	Limit uint32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Opaque keyset cursor from a previous response. The cursor is exclusive and
+	// bound to account, subaccount scope, and stable whitelist-entry sort order.
+	PageToken     string `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3456,10 +3534,27 @@ func (x *ListInternalTransferWhitelistEntriesRequest) GetSubaccountId() uint64 {
 	return 0
 }
 
+func (x *ListInternalTransferWhitelistEntriesRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListInternalTransferWhitelistEntriesRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
 type ListInternalTransferWhitelistEntriesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Active internal transfer whitelist entries for the requested address book.
-	Entries       []*InternalTransferWhitelistEntry `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	// Active internal transfer whitelist entries for the requested address book,
+	// ordered by update time newest first.
+	Entries []*InternalTransferWhitelistEntry `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	// Opaque cursor for the next page. Empty when no more results exist.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3499,6 +3594,13 @@ func (x *ListInternalTransferWhitelistEntriesResponse) GetEntries() []*InternalT
 		return x.Entries
 	}
 	return nil
+}
+
+func (x *ListInternalTransferWhitelistEntriesResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
 }
 
 type GetWithdrawWhitelistViewRequest struct {
@@ -3595,8 +3697,9 @@ type GetAddressBookViewRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional subaccount scope. Omit to use the root account address book view.
 	SubaccountId uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
-	// Maximum number of recent destinations to return, up to 200. Defaults to the service limit when omitted.
-	PageSize      uint32 `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	// Maximum number of recent destinations to return. Defaults to 200 when
+	// omitted; maximum is 200.
+	Limit         uint32 `protobuf:"varint,6,opt,name=limit,proto3" json:"limit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3638,9 +3741,9 @@ func (x *GetAddressBookViewRequest) GetSubaccountId() uint64 {
 	return 0
 }
 
-func (x *GetAddressBookViewRequest) GetPageSize() uint32 {
+func (x *GetAddressBookViewRequest) GetLimit() uint32 {
 	if x != nil {
-		return x.PageSize
+		return x.Limit
 	}
 	return 0
 }
@@ -3657,8 +3760,11 @@ type GetAddressBookViewResponse struct {
 	Tags []*AddressBookTagSummary `protobuf:"bytes,4,rep,name=tags,proto3" json:"tags,omitempty"`
 	// External withdrawal whitelist status for the selected address book.
 	WithdrawWhitelist *WithdrawWhitelistView `protobuf:"bytes,5,opt,name=withdraw_whitelist,json=withdrawWhitelist,proto3" json:"withdraw_whitelist,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// True when more recent destinations exist than were returned. This bounded
+	// aggregate view does not provide continuation.
+	RecentDestinationsTruncated bool `protobuf:"varint,6,opt,name=recent_destinations_truncated,json=recentDestinationsTruncated,proto3" json:"recent_destinations_truncated,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *GetAddressBookViewResponse) Reset() {
@@ -3722,6 +3828,68 @@ func (x *GetAddressBookViewResponse) GetTags() []*AddressBookTagSummary {
 func (x *GetAddressBookViewResponse) GetWithdrawWhitelist() *WithdrawWhitelistView {
 	if x != nil {
 		return x.WithdrawWhitelist
+	}
+	return nil
+}
+
+func (x *GetAddressBookViewResponse) GetRecentDestinationsTruncated() bool {
+	if x != nil {
+		return x.RecentDestinationsTruncated
+	}
+	return false
+}
+
+// AddressBookViewInvalidated notifies clients to refetch the address-book aggregate view.
+type AddressBookViewInvalidated struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Address-book scope whose aggregate view may have changed.
+	Scope *AccountScopeRef `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
+	// Time the view was invalidated.
+	InvalidatedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=invalidated_at,json=invalidatedAt,proto3" json:"invalidated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AddressBookViewInvalidated) Reset() {
+	*x = AddressBookViewInvalidated{}
+	mi := &file_auth_v1_address_book_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddressBookViewInvalidated) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddressBookViewInvalidated) ProtoMessage() {}
+
+func (x *AddressBookViewInvalidated) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_address_book_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddressBookViewInvalidated.ProtoReflect.Descriptor instead.
+func (*AddressBookViewInvalidated) Descriptor() ([]byte, []int) {
+	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *AddressBookViewInvalidated) GetScope() *AccountScopeRef {
+	if x != nil {
+		return x.Scope
+	}
+	return nil
+}
+
+func (x *AddressBookViewInvalidated) GetInvalidatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.InvalidatedAt
 	}
 	return nil
 }
@@ -3911,12 +4079,16 @@ const file_auth_v1_address_book_proto_rawDesc = "" +
 	"\vdestination\"\x19\n" +
 	"\x17ListAddressBooksRequest\"F\n" +
 	"\x18ListAddressBooksResponse\x12*\n" +
-	"\x05books\x18\x01 \x03(\v2\x14.auth.v1.AddressBookR\x05books\"\x94\x01\n" +
+	"\x05books\x18\x01 \x03(\v2\x14.auth.v1.AddressBookR\x05books\"\xdd\x01\n" +
 	"\x1dListAddressBookEntriesRequest\x126\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12;\n" +
-	"\x04kind\x18\x02 \x01(\x0e2\x1d.auth.v1.AddressBookEntryKindB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04kind\"U\n" +
+	"\x04kind\x18\x02 \x01(\x0e2\x1d.auth.v1.AddressBookEntryKindB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04kind\x12\x1e\n" +
+	"\x05limit\x18\x03 \x01(\rB\b\xbaH\x05*\x03\x18\xf4\x03R\x05limit\x12'\n" +
+	"\n" +
+	"page_token\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken\"\x87\x01\n" +
 	"\x1eListAddressBookEntriesResponse\x123\n" +
-	"\aentries\x18\x01 \x03(\v2\x19.auth.v1.AddressBookEntryR\aentries\"\x8d\x03\n" +
+	"\aentries\x18\x01 \x03(\v2\x19.auth.v1.AddressBookEntryR\aentries\x120\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\x8d\x03\n" +
 	"\x1dCreateAddressBookEntryRequest\x126\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12\x1e\n" +
 	"\x05label\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x05label\x12\x1c\n" +
@@ -3968,36 +4140,49 @@ const file_auth_v1_address_book_proto_rawDesc = "" +
 	"\x03tag\x18\x01 \x01(\v2\x17.auth.v1.AddressBookTagR\x03tag\"G\n" +
 	"\x1bDeleteAddressBookTagRequest\x12(\n" +
 	"\x06tag_id\x18\x01 \x01(\x06B\x11\xe0A\x02\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x05tagId\"\x1e\n" +
-	"\x1cDeleteAddressBookTagResponse\"\x8f\x02\n" +
+	"\x1cDeleteAddressBookTagResponse\"\x88\x02\n" +
 	"!ListTransferCounterpartiesRequest\x126\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12N\n" +
 	"\tdirection\x18\x02 \x01(\x0e2&.auth.v1.TransferCounterpartyDirectionB\b\xbaH\x05\x82\x01\x02\x10\x01R\tdirection\x12;\n" +
-	"\x04kind\x18\x03 \x01(\x0e2\x1d.auth.v1.AddressBookEntryKindB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04kind\x12%\n" +
-	"\tpage_size\x18\x04 \x01(\rB\b\xbaH\x05*\x03\x18\xc8\x01R\bpageSize\"k\n" +
+	"\x04kind\x18\x03 \x01(\x0e2\x1d.auth.v1.AddressBookEntryKindB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04kind\x12\x1e\n" +
+	"\x05limit\x18\x05 \x01(\rB\b\xbaH\x05*\x03\x18\xc8\x01R\x05limit\"\x89\x01\n" +
 	"\"ListTransferCounterpartiesResponse\x12E\n" +
-	"\x0ecounterparties\x18\x01 \x03(\v2\x1d.auth.v1.TransferCounterpartyR\x0ecounterparties\"\x96\x01\n" +
+	"\x0ecounterparties\x18\x01 \x03(\v2\x1d.auth.v1.TransferCounterpartyR\x0ecounterparties\x12\x1c\n" +
+	"\ttruncated\x18\x02 \x01(\bR\ttruncated\"\xdf\x01\n" +
 	"\x1fListTransferDestinationsRequest\x126\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12;\n" +
-	"\x04kind\x18\x02 \x01(\x0e2\x1d.auth.v1.AddressBookEntryKindB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04kind\"d\n" +
+	"\x04kind\x18\x02 \x01(\x0e2\x1d.auth.v1.AddressBookEntryKindB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04kind\x12\x1e\n" +
+	"\x05limit\x18\x03 \x01(\rB\b\xbaH\x05*\x03\x18\xf4\x03R\x05limit\x12'\n" +
+	"\n" +
+	"page_token\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken\"\x96\x01\n" +
 	" ListTransferDestinationsResponse\x12@\n" +
-	"\fdestinations\x18\x01 \x03(\v2\x1c.auth.v1.TransferDestinationR\fdestinations\"e\n" +
+	"\fdestinations\x18\x01 \x03(\v2\x1c.auth.v1.TransferDestinationR\fdestinations\x120\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xae\x01\n" +
 	"+ListInternalTransferWhitelistEntriesRequest\x126\n" +
-	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\"q\n" +
+	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12\x1e\n" +
+	"\x05limit\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xf4\x03R\x05limit\x12'\n" +
+	"\n" +
+	"page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken\"\xa3\x01\n" +
 	",ListInternalTransferWhitelistEntriesResponse\x12A\n" +
-	"\aentries\x18\x01 \x03(\v2'.auth.v1.InternalTransferWhitelistEntryR\aentries\"Y\n" +
+	"\aentries\x18\x01 \x03(\v2'.auth.v1.InternalTransferWhitelistEntryR\aentries\x120\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"Y\n" +
 	"\x1fGetWithdrawWhitelistViewRequest\x126\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\"V\n" +
 	" GetWithdrawWhitelistViewResponse\x122\n" +
-	"\x04view\x18\x01 \x01(\v2\x1e.auth.v1.WithdrawWhitelistViewR\x04view\"z\n" +
+	"\x04view\x18\x01 \x01(\v2\x1e.auth.v1.WithdrawWhitelistViewR\x04view\"s\n" +
 	"\x19GetAddressBookViewRequest\x126\n" +
-	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12%\n" +
-	"\tpage_size\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xc8\x01R\bpageSize\"\xe3\x02\n" +
+	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12\x1e\n" +
+	"\x05limit\x18\x06 \x01(\rB\b\xbaH\x05*\x03\x18\xc8\x01R\x05limit\"\xa7\x03\n" +
 	"\x1aGetAddressBookViewResponse\x12*\n" +
 	"\x05books\x18\x01 \x03(\v2\x14.auth.v1.AddressBookR\x05books\x129\n" +
 	"\aentries\x18\x02 \x01(\v2\x1f.auth.v1.AddressBookEntriesViewR\aentries\x12[\n" +
 	"\x13recent_destinations\x18\x03 \x01(\v2*.auth.v1.AddressBookRecentDestinationsViewR\x12recentDestinations\x122\n" +
 	"\x04tags\x18\x04 \x03(\v2\x1e.auth.v1.AddressBookTagSummaryR\x04tags\x12M\n" +
-	"\x12withdraw_whitelist\x18\x05 \x01(\v2\x1e.auth.v1.WithdrawWhitelistViewR\x11withdrawWhitelist*O\n" +
+	"\x12withdraw_whitelist\x18\x05 \x01(\v2\x1e.auth.v1.WithdrawWhitelistViewR\x11withdrawWhitelist\x12B\n" +
+	"\x1drecent_destinations_truncated\x18\x06 \x01(\bR\x1brecentDestinationsTruncated\"\x8f\x01\n" +
+	"\x1aAddressBookViewInvalidated\x12.\n" +
+	"\x05scope\x18\x01 \x01(\v2\x18.auth.v1.AccountScopeRefR\x05scope\x12A\n" +
+	"\x0einvalidated_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\rinvalidatedAt*O\n" +
 	"\x10AccountScopeType\x12\x15\n" +
 	"\x11SCOPE_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -4066,7 +4251,7 @@ func file_auth_v1_address_book_proto_rawDescGZIP() []byte {
 }
 
 var file_auth_v1_address_book_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_auth_v1_address_book_proto_msgTypes = make([]protoimpl.MessageInfo, 48)
+var file_auth_v1_address_book_proto_msgTypes = make([]protoimpl.MessageInfo, 49)
 var file_auth_v1_address_book_proto_goTypes = []any{
 	(AccountScopeType)(0),                                // 0: auth.v1.AccountScopeType
 	(AddressBookEntryKind)(0),                            // 1: auth.v1.AddressBookEntryKind
@@ -4121,21 +4306,22 @@ var file_auth_v1_address_book_proto_goTypes = []any{
 	(*GetWithdrawWhitelistViewResponse)(nil),             // 50: auth.v1.GetWithdrawWhitelistViewResponse
 	(*GetAddressBookViewRequest)(nil),                    // 51: auth.v1.GetAddressBookViewRequest
 	(*GetAddressBookViewResponse)(nil),                   // 52: auth.v1.GetAddressBookViewResponse
-	(SubaccountRole)(0),                                  // 53: auth.v1.SubaccountRole
-	(*timestamppb.Timestamp)(nil),                        // 54: google.protobuf.Timestamp
+	(*AddressBookViewInvalidated)(nil),                   // 53: auth.v1.AddressBookViewInvalidated
+	(SubaccountRole)(0),                                  // 54: auth.v1.SubaccountRole
+	(*timestamppb.Timestamp)(nil),                        // 55: google.protobuf.Timestamp
 }
 var file_auth_v1_address_book_proto_depIdxs = []int32{
 	0,  // 0: auth.v1.AccountScopeRef.scope_type:type_name -> auth.v1.AccountScopeType
 	5,  // 1: auth.v1.AddressBook.scope:type_name -> auth.v1.AccountScopeRef
-	53, // 2: auth.v1.AddressBook.caller_role:type_name -> auth.v1.SubaccountRole
+	54, // 2: auth.v1.AddressBook.caller_role:type_name -> auth.v1.SubaccountRole
 	0,  // 3: auth.v1.InternalTransferAccount.target_scope_type:type_name -> auth.v1.AccountScopeType
 	5,  // 4: auth.v1.AddressBookTag.scope:type_name -> auth.v1.AccountScopeRef
-	54, // 5: auth.v1.AddressBookTag.created_at:type_name -> google.protobuf.Timestamp
-	54, // 6: auth.v1.AddressBookTag.updated_at:type_name -> google.protobuf.Timestamp
+	55, // 5: auth.v1.AddressBookTag.created_at:type_name -> google.protobuf.Timestamp
+	55, // 6: auth.v1.AddressBookTag.updated_at:type_name -> google.protobuf.Timestamp
 	5,  // 7: auth.v1.AddressBookEntry.scope:type_name -> auth.v1.AccountScopeRef
 	1,  // 8: auth.v1.AddressBookEntry.kind:type_name -> auth.v1.AddressBookEntryKind
-	54, // 9: auth.v1.AddressBookEntry.created_at:type_name -> google.protobuf.Timestamp
-	54, // 10: auth.v1.AddressBookEntry.updated_at:type_name -> google.protobuf.Timestamp
+	55, // 9: auth.v1.AddressBookEntry.created_at:type_name -> google.protobuf.Timestamp
+	55, // 10: auth.v1.AddressBookEntry.updated_at:type_name -> google.protobuf.Timestamp
 	7,  // 11: auth.v1.AddressBookEntry.external:type_name -> auth.v1.ExternalWithdrawAddress
 	8,  // 12: auth.v1.AddressBookEntry.internal:type_name -> auth.v1.InternalTransferAccount
 	9,  // 13: auth.v1.AddressBookEntry.tags:type_name -> auth.v1.AddressBookTag
@@ -4143,35 +4329,35 @@ var file_auth_v1_address_book_proto_depIdxs = []int32{
 	14, // 15: auth.v1.AddressBookEntriesView.internal:type_name -> auth.v1.InternalAddressBookEntry
 	5,  // 16: auth.v1.ExternalAddressBookEntry.scope:type_name -> auth.v1.AccountScopeRef
 	3,  // 17: auth.v1.ExternalAddressBookEntry.whitelist_status:type_name -> auth.v1.DestinationWhitelistStatus
-	54, // 18: auth.v1.ExternalAddressBookEntry.created_at:type_name -> google.protobuf.Timestamp
-	54, // 19: auth.v1.ExternalAddressBookEntry.updated_at:type_name -> google.protobuf.Timestamp
+	55, // 18: auth.v1.ExternalAddressBookEntry.created_at:type_name -> google.protobuf.Timestamp
+	55, // 19: auth.v1.ExternalAddressBookEntry.updated_at:type_name -> google.protobuf.Timestamp
 	5,  // 20: auth.v1.InternalAddressBookEntry.scope:type_name -> auth.v1.AccountScopeRef
 	3,  // 21: auth.v1.InternalAddressBookEntry.whitelist_status:type_name -> auth.v1.DestinationWhitelistStatus
 	0,  // 22: auth.v1.InternalAddressBookEntry.target_scope_type:type_name -> auth.v1.AccountScopeType
-	54, // 23: auth.v1.InternalAddressBookEntry.created_at:type_name -> google.protobuf.Timestamp
-	54, // 24: auth.v1.InternalAddressBookEntry.updated_at:type_name -> google.protobuf.Timestamp
+	55, // 23: auth.v1.InternalAddressBookEntry.created_at:type_name -> google.protobuf.Timestamp
+	55, // 24: auth.v1.InternalAddressBookEntry.updated_at:type_name -> google.protobuf.Timestamp
 	5,  // 25: auth.v1.TransferCounterparty.scope:type_name -> auth.v1.AccountScopeRef
 	4,  // 26: auth.v1.TransferCounterparty.direction:type_name -> auth.v1.TransferCounterpartyDirection
 	1,  // 27: auth.v1.TransferCounterparty.kind:type_name -> auth.v1.AddressBookEntryKind
-	54, // 28: auth.v1.TransferCounterparty.first_seen_at:type_name -> google.protobuf.Timestamp
-	54, // 29: auth.v1.TransferCounterparty.last_seen_at:type_name -> google.protobuf.Timestamp
+	55, // 28: auth.v1.TransferCounterparty.first_seen_at:type_name -> google.protobuf.Timestamp
+	55, // 29: auth.v1.TransferCounterparty.last_seen_at:type_name -> google.protobuf.Timestamp
 	7,  // 30: auth.v1.TransferCounterparty.external:type_name -> auth.v1.ExternalWithdrawAddress
 	8,  // 31: auth.v1.TransferCounterparty.internal:type_name -> auth.v1.InternalTransferAccount
 	17, // 32: auth.v1.AddressBookRecentDestinationsView.external:type_name -> auth.v1.ExternalRecentDestination
 	18, // 33: auth.v1.AddressBookRecentDestinationsView.internal:type_name -> auth.v1.InternalRecentDestination
 	5,  // 34: auth.v1.ExternalRecentDestination.scope:type_name -> auth.v1.AccountScopeRef
 	4,  // 35: auth.v1.ExternalRecentDestination.last_direction:type_name -> auth.v1.TransferCounterpartyDirection
-	54, // 36: auth.v1.ExternalRecentDestination.last_seen_at:type_name -> google.protobuf.Timestamp
+	55, // 36: auth.v1.ExternalRecentDestination.last_seen_at:type_name -> google.protobuf.Timestamp
 	5,  // 37: auth.v1.InternalRecentDestination.scope:type_name -> auth.v1.AccountScopeRef
 	4,  // 38: auth.v1.InternalRecentDestination.last_direction:type_name -> auth.v1.TransferCounterpartyDirection
-	54, // 39: auth.v1.InternalRecentDestination.last_seen_at:type_name -> google.protobuf.Timestamp
+	55, // 39: auth.v1.InternalRecentDestination.last_seen_at:type_name -> google.protobuf.Timestamp
 	0,  // 40: auth.v1.InternalRecentDestination.target_scope_type:type_name -> auth.v1.AccountScopeType
 	5,  // 41: auth.v1.InternalTransferWhitelistEntry.scope:type_name -> auth.v1.AccountScopeRef
 	0,  // 42: auth.v1.InternalTransferWhitelistEntry.target_scope_type:type_name -> auth.v1.AccountScopeType
-	54, // 43: auth.v1.InternalTransferWhitelistEntry.created_at:type_name -> google.protobuf.Timestamp
-	54, // 44: auth.v1.InternalTransferWhitelistEntry.updated_at:type_name -> google.protobuf.Timestamp
+	55, // 43: auth.v1.InternalTransferWhitelistEntry.created_at:type_name -> google.protobuf.Timestamp
+	55, // 44: auth.v1.InternalTransferWhitelistEntry.updated_at:type_name -> google.protobuf.Timestamp
 	2,  // 45: auth.v1.InternalTransferWhitelistEntry.resolution_status:type_name -> auth.v1.InternalWhitelistResolutionStatus
-	54, // 46: auth.v1.MirroredWithdrawWhitelistEntry.updated_at:type_name -> google.protobuf.Timestamp
+	55, // 46: auth.v1.MirroredWithdrawWhitelistEntry.updated_at:type_name -> google.protobuf.Timestamp
 	5,  // 47: auth.v1.WithdrawWhitelistView.scope:type_name -> auth.v1.AccountScopeRef
 	20, // 48: auth.v1.WithdrawWhitelistView.active_entries:type_name -> auth.v1.MirroredWithdrawWhitelistEntry
 	5,  // 49: auth.v1.TransferDestination.scope:type_name -> auth.v1.AccountScopeRef
@@ -4180,7 +4366,7 @@ var file_auth_v1_address_book_proto_depIdxs = []int32{
 	11, // 52: auth.v1.TransferDestination.address_book_entry:type_name -> auth.v1.AddressBookEntry
 	7,  // 53: auth.v1.TransferDestination.external:type_name -> auth.v1.ExternalWithdrawAddress
 	8,  // 54: auth.v1.TransferDestination.internal:type_name -> auth.v1.InternalTransferAccount
-	54, // 55: auth.v1.TransferDestination.whitelist_updated_at:type_name -> google.protobuf.Timestamp
+	55, // 55: auth.v1.TransferDestination.whitelist_updated_at:type_name -> google.protobuf.Timestamp
 	6,  // 56: auth.v1.ListAddressBooksResponse.books:type_name -> auth.v1.AddressBook
 	1,  // 57: auth.v1.ListAddressBookEntriesRequest.kind:type_name -> auth.v1.AddressBookEntryKind
 	11, // 58: auth.v1.ListAddressBookEntriesResponse.entries:type_name -> auth.v1.AddressBookEntry
@@ -4205,39 +4391,41 @@ var file_auth_v1_address_book_proto_depIdxs = []int32{
 	16, // 77: auth.v1.GetAddressBookViewResponse.recent_destinations:type_name -> auth.v1.AddressBookRecentDestinationsView
 	10, // 78: auth.v1.GetAddressBookViewResponse.tags:type_name -> auth.v1.AddressBookTagSummary
 	21, // 79: auth.v1.GetAddressBookViewResponse.withdraw_whitelist:type_name -> auth.v1.WithdrawWhitelistView
-	23, // 80: auth.v1.AddressBookService.ListAddressBooks:input_type -> auth.v1.ListAddressBooksRequest
-	25, // 81: auth.v1.AddressBookService.ListAddressBookEntries:input_type -> auth.v1.ListAddressBookEntriesRequest
-	27, // 82: auth.v1.AddressBookService.CreateAddressBookEntry:input_type -> auth.v1.CreateAddressBookEntryRequest
-	30, // 83: auth.v1.AddressBookService.UpdateAddressBookEntry:input_type -> auth.v1.UpdateAddressBookEntryRequest
-	33, // 84: auth.v1.AddressBookService.DeleteAddressBookEntry:input_type -> auth.v1.DeleteAddressBookEntryRequest
-	35, // 85: auth.v1.AddressBookService.CopyAddressBookEntry:input_type -> auth.v1.CopyAddressBookEntryRequest
-	37, // 86: auth.v1.AddressBookService.CreateAddressBookTag:input_type -> auth.v1.CreateAddressBookTagRequest
-	39, // 87: auth.v1.AddressBookService.UpdateAddressBookTag:input_type -> auth.v1.UpdateAddressBookTagRequest
-	41, // 88: auth.v1.AddressBookService.DeleteAddressBookTag:input_type -> auth.v1.DeleteAddressBookTagRequest
-	43, // 89: auth.v1.AddressBookService.ListTransferCounterparties:input_type -> auth.v1.ListTransferCounterpartiesRequest
-	45, // 90: auth.v1.AddressBookService.ListTransferDestinations:input_type -> auth.v1.ListTransferDestinationsRequest
-	47, // 91: auth.v1.AddressBookService.ListInternalTransferWhitelistEntries:input_type -> auth.v1.ListInternalTransferWhitelistEntriesRequest
-	49, // 92: auth.v1.AddressBookService.GetWithdrawWhitelistView:input_type -> auth.v1.GetWithdrawWhitelistViewRequest
-	51, // 93: auth.v1.AddressBookService.GetAddressBookView:input_type -> auth.v1.GetAddressBookViewRequest
-	24, // 94: auth.v1.AddressBookService.ListAddressBooks:output_type -> auth.v1.ListAddressBooksResponse
-	26, // 95: auth.v1.AddressBookService.ListAddressBookEntries:output_type -> auth.v1.ListAddressBookEntriesResponse
-	29, // 96: auth.v1.AddressBookService.CreateAddressBookEntry:output_type -> auth.v1.CreateAddressBookEntryResponse
-	31, // 97: auth.v1.AddressBookService.UpdateAddressBookEntry:output_type -> auth.v1.UpdateAddressBookEntryResponse
-	34, // 98: auth.v1.AddressBookService.DeleteAddressBookEntry:output_type -> auth.v1.DeleteAddressBookEntryResponse
-	36, // 99: auth.v1.AddressBookService.CopyAddressBookEntry:output_type -> auth.v1.CopyAddressBookEntryResponse
-	38, // 100: auth.v1.AddressBookService.CreateAddressBookTag:output_type -> auth.v1.CreateAddressBookTagResponse
-	40, // 101: auth.v1.AddressBookService.UpdateAddressBookTag:output_type -> auth.v1.UpdateAddressBookTagResponse
-	42, // 102: auth.v1.AddressBookService.DeleteAddressBookTag:output_type -> auth.v1.DeleteAddressBookTagResponse
-	44, // 103: auth.v1.AddressBookService.ListTransferCounterparties:output_type -> auth.v1.ListTransferCounterpartiesResponse
-	46, // 104: auth.v1.AddressBookService.ListTransferDestinations:output_type -> auth.v1.ListTransferDestinationsResponse
-	48, // 105: auth.v1.AddressBookService.ListInternalTransferWhitelistEntries:output_type -> auth.v1.ListInternalTransferWhitelistEntriesResponse
-	50, // 106: auth.v1.AddressBookService.GetWithdrawWhitelistView:output_type -> auth.v1.GetWithdrawWhitelistViewResponse
-	52, // 107: auth.v1.AddressBookService.GetAddressBookView:output_type -> auth.v1.GetAddressBookViewResponse
-	94, // [94:108] is the sub-list for method output_type
-	80, // [80:94] is the sub-list for method input_type
-	80, // [80:80] is the sub-list for extension type_name
-	80, // [80:80] is the sub-list for extension extendee
-	0,  // [0:80] is the sub-list for field type_name
+	5,  // 80: auth.v1.AddressBookViewInvalidated.scope:type_name -> auth.v1.AccountScopeRef
+	55, // 81: auth.v1.AddressBookViewInvalidated.invalidated_at:type_name -> google.protobuf.Timestamp
+	23, // 82: auth.v1.AddressBookService.ListAddressBooks:input_type -> auth.v1.ListAddressBooksRequest
+	25, // 83: auth.v1.AddressBookService.ListAddressBookEntries:input_type -> auth.v1.ListAddressBookEntriesRequest
+	27, // 84: auth.v1.AddressBookService.CreateAddressBookEntry:input_type -> auth.v1.CreateAddressBookEntryRequest
+	30, // 85: auth.v1.AddressBookService.UpdateAddressBookEntry:input_type -> auth.v1.UpdateAddressBookEntryRequest
+	33, // 86: auth.v1.AddressBookService.DeleteAddressBookEntry:input_type -> auth.v1.DeleteAddressBookEntryRequest
+	35, // 87: auth.v1.AddressBookService.CopyAddressBookEntry:input_type -> auth.v1.CopyAddressBookEntryRequest
+	37, // 88: auth.v1.AddressBookService.CreateAddressBookTag:input_type -> auth.v1.CreateAddressBookTagRequest
+	39, // 89: auth.v1.AddressBookService.UpdateAddressBookTag:input_type -> auth.v1.UpdateAddressBookTagRequest
+	41, // 90: auth.v1.AddressBookService.DeleteAddressBookTag:input_type -> auth.v1.DeleteAddressBookTagRequest
+	43, // 91: auth.v1.AddressBookService.ListTransferCounterparties:input_type -> auth.v1.ListTransferCounterpartiesRequest
+	45, // 92: auth.v1.AddressBookService.ListTransferDestinations:input_type -> auth.v1.ListTransferDestinationsRequest
+	47, // 93: auth.v1.AddressBookService.ListInternalTransferWhitelistEntries:input_type -> auth.v1.ListInternalTransferWhitelistEntriesRequest
+	49, // 94: auth.v1.AddressBookService.GetWithdrawWhitelistView:input_type -> auth.v1.GetWithdrawWhitelistViewRequest
+	51, // 95: auth.v1.AddressBookService.GetAddressBookView:input_type -> auth.v1.GetAddressBookViewRequest
+	24, // 96: auth.v1.AddressBookService.ListAddressBooks:output_type -> auth.v1.ListAddressBooksResponse
+	26, // 97: auth.v1.AddressBookService.ListAddressBookEntries:output_type -> auth.v1.ListAddressBookEntriesResponse
+	29, // 98: auth.v1.AddressBookService.CreateAddressBookEntry:output_type -> auth.v1.CreateAddressBookEntryResponse
+	31, // 99: auth.v1.AddressBookService.UpdateAddressBookEntry:output_type -> auth.v1.UpdateAddressBookEntryResponse
+	34, // 100: auth.v1.AddressBookService.DeleteAddressBookEntry:output_type -> auth.v1.DeleteAddressBookEntryResponse
+	36, // 101: auth.v1.AddressBookService.CopyAddressBookEntry:output_type -> auth.v1.CopyAddressBookEntryResponse
+	38, // 102: auth.v1.AddressBookService.CreateAddressBookTag:output_type -> auth.v1.CreateAddressBookTagResponse
+	40, // 103: auth.v1.AddressBookService.UpdateAddressBookTag:output_type -> auth.v1.UpdateAddressBookTagResponse
+	42, // 104: auth.v1.AddressBookService.DeleteAddressBookTag:output_type -> auth.v1.DeleteAddressBookTagResponse
+	44, // 105: auth.v1.AddressBookService.ListTransferCounterparties:output_type -> auth.v1.ListTransferCounterpartiesResponse
+	46, // 106: auth.v1.AddressBookService.ListTransferDestinations:output_type -> auth.v1.ListTransferDestinationsResponse
+	48, // 107: auth.v1.AddressBookService.ListInternalTransferWhitelistEntries:output_type -> auth.v1.ListInternalTransferWhitelistEntriesResponse
+	50, // 108: auth.v1.AddressBookService.GetWithdrawWhitelistView:output_type -> auth.v1.GetWithdrawWhitelistViewResponse
+	52, // 109: auth.v1.AddressBookService.GetAddressBookView:output_type -> auth.v1.GetAddressBookViewResponse
+	96, // [96:110] is the sub-list for method output_type
+	82, // [82:96] is the sub-list for method input_type
+	82, // [82:82] is the sub-list for extension type_name
+	82, // [82:82] is the sub-list for extension extendee
+	0,  // [0:82] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_address_book_proto_init() }
@@ -4268,7 +4456,7 @@ func file_auth_v1_address_book_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_address_book_proto_rawDesc), len(file_auth_v1_address_book_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   48,
+			NumMessages:   49,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

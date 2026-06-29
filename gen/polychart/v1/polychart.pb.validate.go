@@ -1001,9 +1001,7 @@ func (m *ListInboxMarketLayersRequest) validate(all bool) error {
 
 	// no validation rules for Limit
 
-	// no validation rules for AfterOwnerId
-
-	// no validation rules for AfterLayerId
+	// no validation rules for PageToken
 
 	if len(errors) > 0 {
 		return ListInboxMarketLayersRequestMultiError(errors)
@@ -1144,9 +1142,7 @@ func (m *ListInboxMarketLayersResponse) validate(all bool) error {
 
 	}
 
-	// no validation rules for NextAfterOwnerId
-
-	// no validation rules for NextAfterLayerId
+	// no validation rules for NextPageToken
 
 	if len(errors) > 0 {
 		return ListInboxMarketLayersResponseMultiError(errors)
@@ -2815,9 +2811,7 @@ func (m *ListOwnerPublishedLayersRequest) validate(all bool) error {
 
 	// no validation rules for Limit
 
-	// no validation rules for AfterPublishedAtMs
-
-	// no validation rules for AfterLayerId
+	// no validation rules for PageToken
 
 	if m.EngineSymbolId != nil {
 		// no validation rules for EngineSymbolId
@@ -2961,9 +2955,7 @@ func (m *ListOwnerPublishedLayersResponse) validate(all bool) error {
 
 	}
 
-	// no validation rules for NextAfterPublishedAtMs
-
-	// no validation rules for NextAfterLayerId
+	// no validation rules for NextPageToken
 
 	if len(errors) > 0 {
 		return ListOwnerPublishedLayersResponseMultiError(errors)

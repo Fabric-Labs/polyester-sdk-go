@@ -57,7 +57,7 @@ func (m *AssetIds) validate(all bool) error {
 
 	var errors []error
 
-	// no validation rules for ChainAssetId
+	// no validation rules for ZippedAssetId
 
 	// no validation rules for UnifiedAssetId
 

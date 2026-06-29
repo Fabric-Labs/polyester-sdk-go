@@ -17,6 +17,8 @@ import (
 	"unicode/utf8"
 
 	"google.golang.org/protobuf/types/known/anypb"
+
+	ledgerv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/v1"
 )
 
 // ensure the imports are used
@@ -33,6 +35,8 @@ var (
 	_ = (*mail.Address)(nil)
 	_ = anypb.Any{}
 	_ = sort.Sort
+
+	_ = ledgerv1.AccountCode(0)
 )
 
 // Validate checks the field values on GetBalancesRequest with the rules
@@ -876,7 +880,7 @@ func (m *AccountGrouping) validate(all bool) error {
 
 	var errors []error
 
-	// no validation rules for Code
+	// no validation rules for AccountCode
 
 	// no validation rules for Name
 
@@ -1534,15 +1538,15 @@ func (m *ListTransfersRequest) validate(all bool) error {
 
 	// no validation rules for Reversed
 
-	// no validation rules for TimestampMin
+	// no validation rules for TsMinUs
 
-	// no validation rules for TimestampMax
+	// no validation rules for TsMaxUs
 
-	// no validation rules for Code
+	// no validation rules for TransferCode
 
 	// no validation rules for Ledger
 
-	// no validation rules for Since
+	// no validation rules for PageToken
 
 	if m.SubaccountId != nil {
 		// no validation rules for SubaccountId
@@ -1628,6 +1632,113 @@ var _ interface {
 	ErrorName() string
 } = ListTransfersRequestValidationError{}
 
+// Validate checks the field values on TransferSide with the rules defined in
+// the proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *TransferSide) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on TransferSide with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// result is a list of violation errors wrapped in TransferSideMultiError, or
+// nil if none found.
+func (m *TransferSide) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *TransferSide) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Kind
+
+	// no validation rules for Address
+
+	if m.AccountId != nil {
+		// no validation rules for AccountId
+	}
+
+	if len(errors) > 0 {
+		return TransferSideMultiError(errors)
+	}
+
+	return nil
+}
+
+// TransferSideMultiError is an error wrapping multiple validation errors
+// returned by TransferSide.ValidateAll() if the designated constraints aren't met.
+type TransferSideMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m TransferSideMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m TransferSideMultiError) AllErrors() []error { return m }
+
+// TransferSideValidationError is the validation error returned by
+// TransferSide.Validate if the designated constraints aren't met.
+type TransferSideValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e TransferSideValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e TransferSideValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e TransferSideValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e TransferSideValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e TransferSideValidationError) ErrorName() string { return "TransferSideValidationError" }
+
+// Error satisfies the builtin error interface
+func (e TransferSideValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sTransferSide.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = TransferSideValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = TransferSideValidationError{}
+
 // Validate checks the field values on TransferRow with the rules defined in
 // the proto definition for this message. If any rules are violated, the first
 // error encountered is returned, or nil if there are no violations.
@@ -1653,11 +1764,11 @@ func (m *TransferRow) validate(all bool) error {
 	// no validation rules for AssetId
 
 	if all {
-		switch v := interface{}(m.GetAmount()).(type) {
+		switch v := interface{}(m.GetAmountE18()).(type) {
 		case interface{ ValidateAll() error }:
 			if err := v.ValidateAll(); err != nil {
 				errors = append(errors, TransferRowValidationError{
-					field:  "Amount",
+					field:  "AmountE18",
 					reason: "embedded message failed validation",
 					cause:  err,
 				})
@@ -1665,38 +1776,34 @@ func (m *TransferRow) validate(all bool) error {
 		case interface{ Validate() error }:
 			if err := v.Validate(); err != nil {
 				errors = append(errors, TransferRowValidationError{
-					field:  "Amount",
+					field:  "AmountE18",
 					reason: "embedded message failed validation",
 					cause:  err,
 				})
 			}
 		}
-	} else if v, ok := interface{}(m.GetAmount()).(interface{ Validate() error }); ok {
+	} else if v, ok := interface{}(m.GetAmountE18()).(interface{ Validate() error }); ok {
 		if err := v.Validate(); err != nil {
 			return TransferRowValidationError{
-				field:  "Amount",
+				field:  "AmountE18",
 				reason: "embedded message failed validation",
 				cause:  err,
 			}
 		}
 	}
 
-	// no validation rules for Type
+	// no validation rules for TransferCode
 
 	// no validation rules for AccountCode
 
-	// no validation rules for Timestamp
-
-	// no validation rules for TxId
-
-	// no validation rules for Onchain
+	// no validation rules for TsUs
 
 	if all {
-		switch v := interface{}(m.GetBalanceAfter()).(type) {
+		switch v := interface{}(m.GetBalanceAfterE18()).(type) {
 		case interface{ ValidateAll() error }:
 			if err := v.ValidateAll(); err != nil {
 				errors = append(errors, TransferRowValidationError{
-					field:  "BalanceAfter",
+					field:  "BalanceAfterE18",
 					reason: "embedded message failed validation",
 					cause:  err,
 				})
@@ -1704,16 +1811,16 @@ func (m *TransferRow) validate(all bool) error {
 		case interface{ Validate() error }:
 			if err := v.Validate(); err != nil {
 				errors = append(errors, TransferRowValidationError{
-					field:  "BalanceAfter",
+					field:  "BalanceAfterE18",
 					reason: "embedded message failed validation",
 					cause:  err,
 				})
 			}
 		}
-	} else if v, ok := interface{}(m.GetBalanceAfter()).(interface{ Validate() error }); ok {
+	} else if v, ok := interface{}(m.GetBalanceAfterE18()).(interface{ Validate() error }); ok {
 		if err := v.Validate(); err != nil {
 			return TransferRowValidationError{
-				field:  "BalanceAfter",
+				field:  "BalanceAfterE18",
 				reason: "embedded message failed validation",
 				cause:  err,
 			}
@@ -1725,6 +1832,64 @@ func (m *TransferRow) validate(all bool) error {
 	// no validation rules for LinkId
 
 	// no validation rules for FlowId
+
+	if all {
+		switch v := interface{}(m.GetSource()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, TransferRowValidationError{
+					field:  "Source",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, TransferRowValidationError{
+					field:  "Source",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetSource()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return TransferRowValidationError{
+				field:  "Source",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if all {
+		switch v := interface{}(m.GetDestination()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, TransferRowValidationError{
+					field:  "Destination",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, TransferRowValidationError{
+					field:  "Destination",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetDestination()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return TransferRowValidationError{
+				field:  "Destination",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
 
 	if len(errors) > 0 {
 		return TransferRowMultiError(errors)
@@ -1859,7 +2024,7 @@ func (m *ListTransfersResponse) validate(all bool) error {
 
 	}
 
-	// no validation rules for NextCursor
+	// no validation rules for NextPageToken
 
 	if len(errors) > 0 {
 		return ListTransfersResponseMultiError(errors)
@@ -1967,6 +2132,8 @@ func (m *ListHoldsRequest) validate(all bool) error {
 
 	// no validation rules for Reversed
 
+	// no validation rules for PageToken
+
 	if m.SubaccountId != nil {
 		// no validation rules for SubaccountId
 	}
@@ -2073,11 +2240,11 @@ func (m *HoldRow) validate(all bool) error {
 	// no validation rules for HoldId
 
 	if all {
-		switch v := interface{}(m.GetAmountReserved()).(type) {
+		switch v := interface{}(m.GetAmountReservedE18()).(type) {
 		case interface{ ValidateAll() error }:
 			if err := v.ValidateAll(); err != nil {
 				errors = append(errors, HoldRowValidationError{
-					field:  "AmountReserved",
+					field:  "AmountReservedE18",
 					reason: "embedded message failed validation",
 					cause:  err,
 				})
@@ -2085,16 +2252,16 @@ func (m *HoldRow) validate(all bool) error {
 		case interface{ Validate() error }:
 			if err := v.Validate(); err != nil {
 				errors = append(errors, HoldRowValidationError{
-					field:  "AmountReserved",
+					field:  "AmountReservedE18",
 					reason: "embedded message failed validation",
 					cause:  err,
 				})
 			}
 		}
-	} else if v, ok := interface{}(m.GetAmountReserved()).(interface{ Validate() error }); ok {
+	} else if v, ok := interface{}(m.GetAmountReservedE18()).(interface{ Validate() error }); ok {
 		if err := v.Validate(); err != nil {
 			return HoldRowValidationError{
-				field:  "AmountReserved",
+				field:  "AmountReservedE18",
 				reason: "embedded message failed validation",
 				cause:  err,
 			}
@@ -2237,6 +2404,8 @@ func (m *ListHoldsResponse) validate(all bool) error {
 		}
 
 	}
+
+	// no validation rules for NextPageToken
 
 	if len(errors) > 0 {
 		return ListHoldsResponseMultiError(errors)

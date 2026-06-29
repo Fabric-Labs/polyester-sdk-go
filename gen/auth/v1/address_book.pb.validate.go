@@ -3568,6 +3568,10 @@ func (m *ListAddressBookEntriesRequest) validate(all bool) error {
 
 	// no validation rules for Kind
 
+	// no validation rules for Limit
+
+	// no validation rules for PageToken
+
 	if len(errors) > 0 {
 		return ListAddressBookEntriesRequestMultiError(errors)
 	}
@@ -3704,6 +3708,8 @@ func (m *ListAddressBookEntriesResponse) validate(all bool) error {
 		}
 
 	}
+
+	// no validation rules for NextPageToken
 
 	if len(errors) > 0 {
 		return ListAddressBookEntriesResponseMultiError(errors)
@@ -5802,7 +5808,7 @@ func (m *ListTransferCounterpartiesRequest) validate(all bool) error {
 
 	// no validation rules for Kind
 
-	// no validation rules for PageSize
+	// no validation rules for Limit
 
 	if len(errors) > 0 {
 		return ListTransferCounterpartiesRequestMultiError(errors)
@@ -5943,6 +5949,8 @@ func (m *ListTransferCounterpartiesResponse) validate(all bool) error {
 
 	}
 
+	// no validation rules for Truncated
+
 	if len(errors) > 0 {
 		return ListTransferCounterpartiesResponseMultiError(errors)
 	}
@@ -6050,6 +6058,10 @@ func (m *ListTransferDestinationsRequest) validate(all bool) error {
 	// no validation rules for SubaccountId
 
 	// no validation rules for Kind
+
+	// no validation rules for Limit
+
+	// no validation rules for PageToken
 
 	if len(errors) > 0 {
 		return ListTransferDestinationsRequestMultiError(errors)
@@ -6189,6 +6201,8 @@ func (m *ListTransferDestinationsResponse) validate(all bool) error {
 
 	}
 
+	// no validation rules for NextPageToken
+
 	if len(errors) > 0 {
 		return ListTransferDestinationsResponseMultiError(errors)
 	}
@@ -6296,6 +6310,10 @@ func (m *ListInternalTransferWhitelistEntriesRequest) validate(all bool) error {
 	var errors []error
 
 	// no validation rules for SubaccountId
+
+	// no validation rules for Limit
+
+	// no validation rules for PageToken
 
 	if len(errors) > 0 {
 		return ListInternalTransferWhitelistEntriesRequestMultiError(errors)
@@ -6436,6 +6454,8 @@ func (m *ListInternalTransferWhitelistEntriesResponse) validate(all bool) error 
 		}
 
 	}
+
+	// no validation rules for NextPageToken
 
 	if len(errors) > 0 {
 		return ListInternalTransferWhitelistEntriesResponseMultiError(errors)
@@ -6783,7 +6803,7 @@ func (m *GetAddressBookViewRequest) validate(all bool) error {
 
 	// no validation rules for SubaccountId
 
-	// no validation rules for PageSize
+	// no validation rules for Limit
 
 	if len(errors) > 0 {
 		return GetAddressBookViewRequestMultiError(errors)
@@ -7042,6 +7062,8 @@ func (m *GetAddressBookViewResponse) validate(all bool) error {
 		}
 	}
 
+	// no validation rules for RecentDestinationsTruncated
+
 	if len(errors) > 0 {
 		return GetAddressBookViewResponseMultiError(errors)
 	}
@@ -7121,3 +7143,163 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = GetAddressBookViewResponseValidationError{}
+
+// Validate checks the field values on AddressBookViewInvalidated with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *AddressBookViewInvalidated) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on AddressBookViewInvalidated with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// AddressBookViewInvalidatedMultiError, or nil if none found.
+func (m *AddressBookViewInvalidated) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *AddressBookViewInvalidated) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if all {
+		switch v := interface{}(m.GetScope()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, AddressBookViewInvalidatedValidationError{
+					field:  "Scope",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, AddressBookViewInvalidatedValidationError{
+					field:  "Scope",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetScope()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return AddressBookViewInvalidatedValidationError{
+				field:  "Scope",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if all {
+		switch v := interface{}(m.GetInvalidatedAt()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, AddressBookViewInvalidatedValidationError{
+					field:  "InvalidatedAt",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, AddressBookViewInvalidatedValidationError{
+					field:  "InvalidatedAt",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetInvalidatedAt()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return AddressBookViewInvalidatedValidationError{
+				field:  "InvalidatedAt",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if len(errors) > 0 {
+		return AddressBookViewInvalidatedMultiError(errors)
+	}
+
+	return nil
+}
+
+// AddressBookViewInvalidatedMultiError is an error wrapping multiple
+// validation errors returned by AddressBookViewInvalidated.ValidateAll() if
+// the designated constraints aren't met.
+type AddressBookViewInvalidatedMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m AddressBookViewInvalidatedMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m AddressBookViewInvalidatedMultiError) AllErrors() []error { return m }
+
+// AddressBookViewInvalidatedValidationError is the validation error returned
+// by AddressBookViewInvalidated.Validate if the designated constraints aren't met.
+type AddressBookViewInvalidatedValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e AddressBookViewInvalidatedValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e AddressBookViewInvalidatedValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e AddressBookViewInvalidatedValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e AddressBookViewInvalidatedValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e AddressBookViewInvalidatedValidationError) ErrorName() string {
+	return "AddressBookViewInvalidatedValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e AddressBookViewInvalidatedValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sAddressBookViewInvalidated.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = AddressBookViewInvalidatedValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = AddressBookViewInvalidatedValidationError{}

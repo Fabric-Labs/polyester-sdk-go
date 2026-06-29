@@ -73,7 +73,7 @@ func (m *CreateTriggerRequest) validate(all bool) error {
 
 	// no validation rules for OrderType
 
-	// no validation rules for Tif
+	// no validation rules for TimeInForce
 
 	// no validation rules for QtyScaled
 
@@ -81,7 +81,7 @@ func (m *CreateTriggerRequest) validate(all bool) error {
 
 	// no validation rules for FeeSource
 
-	// no validation rules for StpMode
+	// no validation rules for SelfTradePreventionMode
 
 	// no validation rules for PostOnly
 
@@ -646,7 +646,9 @@ func (m *ListTriggersRequest) validate(all bool) error {
 
 	// no validation rules for TriggerType
 
-	// no validation rules for Offset
+	// no validation rules for Limit
+
+	// no validation rules for PageToken
 
 	if m.SubaccountId != nil {
 		// no validation rules for SubaccountId
@@ -654,10 +656,6 @@ func (m *ListTriggersRequest) validate(all bool) error {
 
 	if m.ParentOrderId != nil {
 		// no validation rules for ParentOrderId
-	}
-
-	if m.Limit != nil {
-		// no validation rules for Limit
 	}
 
 	if len(errors) > 0 {
@@ -796,7 +794,7 @@ func (m *ListTriggersResponse) validate(all bool) error {
 
 	}
 
-	// no validation rules for Total
+	// no validation rules for NextPageToken
 
 	if len(errors) > 0 {
 		return ListTriggersResponseMultiError(errors)
@@ -902,14 +900,12 @@ func (m *ListTriggerEventsRequest) validate(all bool) error {
 
 	// no validation rules for TriggerId
 
-	// no validation rules for BeforeTsNs
+	// no validation rules for Limit
+
+	// no validation rules for PageToken
 
 	if m.SubaccountId != nil {
 		// no validation rules for SubaccountId
-	}
-
-	if m.Limit != nil {
-		// no validation rules for Limit
 	}
 
 	if len(errors) > 0 {
@@ -1030,7 +1026,7 @@ func (m *TriggerEvent) validate(all bool) error {
 
 	// no validation rules for ChildOrderId
 
-	// no validation rules for FirePxTicks
+	// no validation rules for FirePriceTicks
 
 	// no validation rules for Reason
 
@@ -1167,7 +1163,7 @@ func (m *ListTriggerEventsResponse) validate(all bool) error {
 
 	}
 
-	// no validation rules for NextBeforeTsNs
+	// no validation rules for NextPageToken
 
 	if len(errors) > 0 {
 		return ListTriggerEventsResponseMultiError(errors)
@@ -2775,7 +2771,7 @@ func (m *Trigger) validate(all bool) error {
 
 	// no validation rules for OrderType
 
-	// no validation rules for Tif
+	// no validation rules for TimeInForce
 
 	// no validation rules for QtyScaled
 
@@ -2783,7 +2779,7 @@ func (m *Trigger) validate(all bool) error {
 
 	// no validation rules for FeeSource
 
-	// no validation rules for StpMode
+	// no validation rules for SelfTradePreventionMode
 
 	// no validation rules for PostOnly
 

@@ -97,8 +97,9 @@ type CreateInternalTransferRequest struct {
 	Destination isCreateInternalTransferRequest_Destination `protobuf_oneof:"destination"`
 	// Canonical public unified asset id for the asset being transferred.
 	AssetId uint32 `protobuf:"varint,5,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
-	// Quantity in asset quantity_scale units (scaled integer).
-	QuantityScaled int64 `protobuf:"varint,6,opt,name=quantity_scaled,json=quantityScaled,proto3" json:"quantity_scaled,omitempty"`
+	// Quantity scaled by the unified asset's quantity_scale from SpotConfig for
+	// asset_id.
+	QtyScaled int64 `protobuf:"varint,6,opt,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`
 	// Stable client-supplied idempotency key used to collapse safe retries.
 	IdempotencyKey string `protobuf:"bytes,7,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
 	unknownFields  protoimpl.UnknownFields
@@ -183,9 +184,9 @@ func (x *CreateInternalTransferRequest) GetAssetId() uint32 {
 	return 0
 }
 
-func (x *CreateInternalTransferRequest) GetQuantityScaled() int64 {
+func (x *CreateInternalTransferRequest) GetQtyScaled() int64 {
 	if x != nil {
-		return x.QuantityScaled
+		return x.QtyScaled
 	}
 	return 0
 }
@@ -299,15 +300,16 @@ type CreateInternalTransferResponse struct {
 	// Stable transfer identifier for the settled internal transfer.
 	TransferId string `protobuf:"bytes,2,opt,name=transfer_id,json=transferId,proto3" json:"transfer_id,omitempty"`
 	// Acceptance timestamp in nanoseconds since epoch (server time).
-	AcceptedAtUnixNs uint64 `protobuf:"varint,3,opt,name=accepted_at_unix_ns,json=acceptedAtUnixNs,proto3" json:"accepted_at_unix_ns,omitempty"`
+	AcceptedAtTsNs uint64 `protobuf:"varint,3,opt,name=accepted_at_ts_ns,json=acceptedAtTsNs,proto3" json:"accepted_at_ts_ns,omitempty"`
 	// Echoed canonical public unified asset id.
 	AssetId uint32 `protobuf:"varint,4,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
 	// Resolved asset code for convenience.
 	AssetCode string `protobuf:"bytes,5,opt,name=asset_code,json=assetCode,proto3" json:"asset_code,omitempty"`
 	// Resolved unified asset id used by downstream settlement.
 	UAssetId string `protobuf:"bytes,6,opt,name=u_asset_id,json=uAssetId,proto3" json:"u_asset_id,omitempty"`
-	// Echoed transfer quantity in asset quantity_scale units.
-	QuantityScaled int64 `protobuf:"varint,7,opt,name=quantity_scaled,json=quantityScaled,proto3" json:"quantity_scaled,omitempty"`
+	// Echoed transfer quantity scaled by the unified asset's quantity_scale from
+	// SpotConfig for asset_id.
+	QtyScaled int64 `protobuf:"varint,7,opt,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`
 	// Server-resolved destination summary.
 	Destination *ResolvedDestination `protobuf:"bytes,8,opt,name=destination,proto3" json:"destination,omitempty"`
 	// Public status for the transfer request.
@@ -360,9 +362,9 @@ func (x *CreateInternalTransferResponse) GetTransferId() string {
 	return ""
 }
 
-func (x *CreateInternalTransferResponse) GetAcceptedAtUnixNs() uint64 {
+func (x *CreateInternalTransferResponse) GetAcceptedAtTsNs() uint64 {
 	if x != nil {
-		return x.AcceptedAtUnixNs
+		return x.AcceptedAtTsNs
 	}
 	return 0
 }
@@ -388,9 +390,9 @@ func (x *CreateInternalTransferResponse) GetUAssetId() string {
 	return ""
 }
 
-func (x *CreateInternalTransferResponse) GetQuantityScaled() int64 {
+func (x *CreateInternalTransferResponse) GetQtyScaled() int64 {
 	if x != nil {
-		return x.QuantityScaled
+		return x.QtyScaled
 	}
 	return 0
 }
@@ -413,34 +415,36 @@ var File_transfer_v1_internal_transfer_proto protoreflect.FileDescriptor
 
 const file_transfer_v1_internal_transfer_proto_rawDesc = "" +
 	"\n" +
-	"#transfer/v1/internal_transfer.proto\x12\vtransfer.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\"\xe7\x03\n" +
+	"#transfer/v1/internal_transfer.proto\x12\vtransfer.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\"\xdd\x03\n" +
 	"\x1dCreateInternalTransferRequest\x126\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12F\n" +
 	"\x16destination_account_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\x14destinationAccountId\x12L\n" +
 	"\x19destination_subaccount_id\x18\x03 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\x17destinationSubaccountId\x12W\n" +
 	"!destination_smart_account_address\x18\x04 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x01H\x00R\x1edestinationSmartAccountAddress\x12\"\n" +
-	"\basset_id\x18\x05 \x01(\rB\a\xbaH\x04*\x02 \x00R\aassetId\x120\n" +
-	"\x0fquantity_scaled\x18\x06 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x0equantityScaled\x123\n" +
+	"\basset_id\x18\x05 \x01(\rB\a\xbaH\x04*\x02 \x00R\aassetId\x12&\n" +
+	"\n" +
+	"qty_scaled\x18\x06 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\tqtyScaled\x123\n" +
 	"\x0fidempotency_key\x18\a \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\x0eidempotencyKeyB\x14\n" +
 	"\vdestination\x12\x05\xbaH\x02\b\x01\"\xb0\x01\n" +
 	"\x13ResolvedDestination\x123\n" +
 	"\x16root_account_public_id\x18\x01 \x01(\tR\x13rootAccountPublicId\x120\n" +
 	"\x14subaccount_public_id\x18\x02 \x01(\tR\x12subaccountPublicId\x122\n" +
-	"\x15smart_account_address\x18\x03 \x01(\tR\x13smartAccountAddress\"\x91\x03\n" +
+	"\x15smart_account_address\x18\x03 \x01(\tR\x13smartAccountAddress\"\x83\x03\n" +
 	"\x1eCreateInternalTransferResponse\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x12\x1f\n" +
 	"\vtransfer_id\x18\x02 \x01(\tR\n" +
-	"transferId\x12-\n" +
-	"\x13accepted_at_unix_ns\x18\x03 \x01(\x04R\x10acceptedAtUnixNs\x12\x19\n" +
+	"transferId\x12)\n" +
+	"\x11accepted_at_ts_ns\x18\x03 \x01(\x04R\x0eacceptedAtTsNs\x12\x19\n" +
 	"\basset_id\x18\x04 \x01(\rR\aassetId\x12\x1d\n" +
 	"\n" +
 	"asset_code\x18\x05 \x01(\tR\tassetCode\x12\x1c\n" +
 	"\n" +
-	"u_asset_id\x18\x06 \x01(\tR\buAssetId\x12'\n" +
-	"\x0fquantity_scaled\x18\a \x01(\x03R\x0equantityScaled\x12B\n" +
+	"u_asset_id\x18\x06 \x01(\tR\buAssetId\x12\x1d\n" +
+	"\n" +
+	"qty_scaled\x18\a \x01(\x03R\tqtyScaled\x12B\n" +
 	"\vdestination\x18\b \x01(\v2 .transfer.v1.ResolvedDestinationR\vdestination\x12;\n" +
 	"\x06status\x18\t \x01(\x0e2#.transfer.v1.InternalTransferStatusR\x06status*\xb5\x01\n" +
 	"\x16InternalTransferStatus\x12(\n" +

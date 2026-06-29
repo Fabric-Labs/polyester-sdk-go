@@ -177,10 +177,9 @@ type GetTradesRequest struct {
 	EndTime *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
 	// Optional filter by trade aggressor side. Unspecified returns both sides.
 	Side SideFilter `protobuf:"varint,5,opt,name=side,proto3,enum=marketdata.v1.SideFilter" json:"side,omitempty"`
-	// Exclusive keyset cursor for older trades. Pass next_match_id from the
-	// previous response to continue after that page; only trades with lower
-	// match_id values are returned.
-	FromMatchId   uint64 `protobuf:"varint,6,opt,name=from_match_id,json=fromMatchId,proto3" json:"from_match_id,omitempty"`
+	// Opaque keyset cursor from a previous response. The cursor is exclusive and
+	// bound to symbol, time bounds, side filter, and newest-first sort order.
+	PageToken     string `protobuf:"bytes,6,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -250,11 +249,11 @@ func (x *GetTradesRequest) GetSide() SideFilter {
 	return SideFilter_SIDE_UNSPECIFIED
 }
 
-func (x *GetTradesRequest) GetFromMatchId() uint64 {
+func (x *GetTradesRequest) GetPageToken() string {
 	if x != nil {
-		return x.FromMatchId
+		return x.PageToken
 	}
-	return 0
+	return ""
 }
 
 // MarketTrade is one public trade print represented with scaled integers.
@@ -358,9 +357,8 @@ type GetTradesResponse struct {
 	// Trades ordered newest-first by execution timestamp, with match_id as a
 	// tie-breaker.
 	Trades []*MarketTrade `protobuf:"bytes,1,rep,name=trades,proto3" json:"trades,omitempty"`
-	// Cursor for the next older page. Pass this as from_match_id on the next
-	// request. This is 0 when fewer than limit trades were returned.
-	NextMatchId   uint64 `protobuf:"varint,2,opt,name=next_match_id,json=nextMatchId,proto3" json:"next_match_id,omitempty"`
+	// Opaque cursor for the next page. Empty when no more results exist.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -402,11 +400,11 @@ func (x *GetTradesResponse) GetTrades() []*MarketTrade {
 	return nil
 }
 
-func (x *GetTradesResponse) GetNextMatchId() uint64 {
+func (x *GetTradesResponse) GetNextPageToken() string {
 	if x != nil {
-		return x.NextMatchId
+		return x.NextPageToken
 	}
-	return 0
+	return ""
 }
 
 // GetCandlesRequest selects a spot market candle series.
@@ -439,8 +437,12 @@ type GetCandlesRequest struct {
 	// The reference series can be empty when no reference series is available for
 	// the requested timeframe.
 	IncludeReference bool `protobuf:"varint,7,opt,name=include_reference,json=includeReference,proto3" json:"include_reference,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Opaque keyset cursor from a previous response. The cursor is exclusive and
+	// bound to symbol, timeframe, time bounds, and newest-first candle ordering.
+	// Inclusion flags affect response enrichment and may change between pages.
+	PageToken     string `protobuf:"bytes,8,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetCandlesRequest) Reset() {
@@ -522,6 +524,13 @@ func (x *GetCandlesRequest) GetIncludeReference() bool {
 	return false
 }
 
+func (x *GetCandlesRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
 // GetCandlesColumnsRequest selects a spot market candle series for columnar output.
 //
 // The response is ordered oldest-first for efficient chart ingestion. When both
@@ -552,8 +561,12 @@ type GetCandlesColumnsRequest struct {
 	// The reference series can be empty when no reference series is available for
 	// the requested timeframe.
 	IncludeReference bool `protobuf:"varint,7,opt,name=include_reference,json=includeReference,proto3" json:"include_reference,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Opaque keyset cursor from a previous response. The cursor is exclusive and
+	// bound to symbol, timeframe, time bounds, and oldest-first candle ordering.
+	// Inclusion flags and columnar response shape may change between pages.
+	PageToken     string `protobuf:"bytes,8,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetCandlesColumnsRequest) Reset() {
@@ -633,6 +646,13 @@ func (x *GetCandlesColumnsRequest) GetIncludeReference() bool {
 		return x.IncludeReference
 	}
 	return false
+}
+
+func (x *GetCandlesColumnsRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
 }
 
 // CandlePoint is one OHLCV bucket represented with scaled integers.
@@ -756,8 +776,10 @@ type GetCandlesResponse struct {
 	// Populated only when include_reference is true and reference data is
 	// available.
 	ReferenceCandles []*CandlePoint `protobuf:"bytes,4,rep,name=reference_candles,json=referenceCandles,proto3" json:"reference_candles,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Opaque cursor for the next page. Empty when no more results exist.
+	NextPageToken string `protobuf:"bytes,5,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetCandlesResponse) Reset() {
@@ -818,34 +840,54 @@ func (x *GetCandlesResponse) GetReferenceCandles() []*CandlePoint {
 	return nil
 }
 
+func (x *GetCandlesResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
 // GetCandlesColumnsResponse returns the same candle series as GetCandles but in columnar form.
 // This is optimized for charting clients that ingest arrays of each field (binary only).
 //
 // Ordering: values are returned oldest-first (ascending ts_sec).
 type GetCandlesColumnsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Engine symbol id.
+	// Numeric spot market identifier.
 	SymbolId uint32 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Timeframe of this series.
 	Timeframe Timeframe `protobuf:"varint,2,opt,name=timeframe,proto3,enum=marketdata.v1.Timeframe" json:"timeframe,omitempty"`
 	// Candle bucket start timestamps (seconds since epoch, UTC).
 	TsSec []uint64 `protobuf:"varint,3,rep,packed,name=ts_sec,json=tsSec,proto3" json:"ts_sec,omitempty"`
-	// OHLCV values in engine tick/scale units.
-	Open   []int64 `protobuf:"varint,4,rep,packed,name=open,proto3" json:"open,omitempty"`
-	High   []int64 `protobuf:"varint,5,rep,packed,name=high,proto3" json:"high,omitempty"`
-	Low    []int64 `protobuf:"varint,6,rep,packed,name=low,proto3" json:"low,omitempty"`
-	Close  []int64 `protobuf:"varint,7,rep,packed,name=close,proto3" json:"close,omitempty"`
+	// Opening prices in quote units scaled by 1e6.
+	Open []int64 `protobuf:"varint,4,rep,packed,name=open,proto3" json:"open,omitempty"`
+	// Highest traded prices in quote units scaled by 1e6.
+	High []int64 `protobuf:"varint,5,rep,packed,name=high,proto3" json:"high,omitempty"`
+	// Lowest traded prices in quote units scaled by 1e6.
+	Low []int64 `protobuf:"varint,6,rep,packed,name=low,proto3" json:"low,omitempty"`
+	// Closing prices in quote units scaled by 1e6.
+	Close []int64 `protobuf:"varint,7,rep,packed,name=close,proto3" json:"close,omitempty"`
+	// Traded base-asset quantities scaled by the pair's base_quantity_scale from
+	// GetSpotConfig.
 	Volume []int64 `protobuf:"varint,8,rep,packed,name=volume,proto3" json:"volume,omitempty"`
 	// Reference candle series in columnar form (same ordering as ts_sec: oldest-first).
 	// Only populated when request.include_reference=true.
-	ReferenceTsSec  []uint64 `protobuf:"varint,9,rep,packed,name=reference_ts_sec,json=referenceTsSec,proto3" json:"reference_ts_sec,omitempty"`
-	ReferenceOpen   []int64  `protobuf:"varint,10,rep,packed,name=reference_open,json=referenceOpen,proto3" json:"reference_open,omitempty"`
-	ReferenceHigh   []int64  `protobuf:"varint,11,rep,packed,name=reference_high,json=referenceHigh,proto3" json:"reference_high,omitempty"`
-	ReferenceLow    []int64  `protobuf:"varint,12,rep,packed,name=reference_low,json=referenceLow,proto3" json:"reference_low,omitempty"`
-	ReferenceClose  []int64  `protobuf:"varint,13,rep,packed,name=reference_close,json=referenceClose,proto3" json:"reference_close,omitempty"`
-	ReferenceVolume []int64  `protobuf:"varint,14,rep,packed,name=reference_volume,json=referenceVolume,proto3" json:"reference_volume,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	ReferenceTsSec []uint64 `protobuf:"varint,9,rep,packed,name=reference_ts_sec,json=referenceTsSec,proto3" json:"reference_ts_sec,omitempty"`
+	// Reference opening prices in quote units scaled by 1e6.
+	ReferenceOpen []int64 `protobuf:"varint,10,rep,packed,name=reference_open,json=referenceOpen,proto3" json:"reference_open,omitempty"`
+	// Reference high prices in quote units scaled by 1e6.
+	ReferenceHigh []int64 `protobuf:"varint,11,rep,packed,name=reference_high,json=referenceHigh,proto3" json:"reference_high,omitempty"`
+	// Reference low prices in quote units scaled by 1e6.
+	ReferenceLow []int64 `protobuf:"varint,12,rep,packed,name=reference_low,json=referenceLow,proto3" json:"reference_low,omitempty"`
+	// Reference closing prices in quote units scaled by 1e6.
+	ReferenceClose []int64 `protobuf:"varint,13,rep,packed,name=reference_close,json=referenceClose,proto3" json:"reference_close,omitempty"`
+	// Reference traded base-asset quantities scaled by the pair's
+	// base_quantity_scale from GetSpotConfig.
+	ReferenceVolume []int64 `protobuf:"varint,14,rep,packed,name=reference_volume,json=referenceVolume,proto3" json:"reference_volume,omitempty"`
+	// Opaque cursor for the next page. Empty when no more results exist.
+	NextPageToken string `protobuf:"bytes,15,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetCandlesColumnsResponse) Reset() {
@@ -976,18 +1018,25 @@ func (x *GetCandlesColumnsResponse) GetReferenceVolume() []int64 {
 	return nil
 }
 
+func (x *GetCandlesColumnsResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
 // Candle represents a single OHLCV bucket for a symbol and timeframe.
-// Values are expressed in the same tick/scale units as the matching engine.
 type Candle struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
-	SymbolId  uint32                 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`                // engine symbol id
+	SymbolId  uint32                 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`                // numeric spot market identifier
 	Timeframe Timeframe              `protobuf:"varint,2,opt,name=timeframe,proto3,enum=marketdata.v1.Timeframe" json:"timeframe,omitempty"` // timeframe of this candle
 	TsSec     uint64                 `protobuf:"varint,3,opt,name=ts_sec,json=tsSec,proto3" json:"ts_sec,omitempty"`                         // bucket start timestamp (seconds since epoch, UTC)
-	Open      int64                  `protobuf:"varint,4,opt,name=open,proto3" json:"open,omitempty"`                                        // open
-	High      int64                  `protobuf:"varint,5,opt,name=high,proto3" json:"high,omitempty"`                                        // high
-	Low       int64                  `protobuf:"varint,6,opt,name=low,proto3" json:"low,omitempty"`                                          // low
-	Close     int64                  `protobuf:"varint,7,opt,name=close,proto3" json:"close,omitempty"`                                      // close
-	// volume in base units, scaled by the base asset quantity_scale (see GetSpotConfig).
+	Open      int64                  `protobuf:"varint,4,opt,name=open,proto3" json:"open,omitempty"`                                        // opening price in quote units scaled by 1e6
+	High      int64                  `protobuf:"varint,5,opt,name=high,proto3" json:"high,omitempty"`                                        // highest traded price in quote units scaled by 1e6
+	Low       int64                  `protobuf:"varint,6,opt,name=low,proto3" json:"low,omitempty"`                                          // lowest traded price in quote units scaled by 1e6
+	Close     int64                  `protobuf:"varint,7,opt,name=close,proto3" json:"close,omitempty"`                                      // closing price in quote units scaled by 1e6
+	// Traded base-asset quantity scaled by the pair's base_quantity_scale from
+	// GetSpotConfig.
 	Volume        int64 `protobuf:"varint,8,opt,name=volume,proto3" json:"volume,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1524,15 +1573,16 @@ var File_marketdata_v1_marketdata_proto protoreflect.FileDescriptor
 
 const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\n" +
-	"\x1emarketdata/v1/marketdata.proto\x12\rmarketdata.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\xc3\x05\n" +
+	"\x1emarketdata/v1/marketdata.proto\x12\rmarketdata.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\xc8\x05\n" +
 	"\x10GetTradesRequest\x12$\n" +
 	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\x12\x1e\n" +
 	"\x05limit\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xe8\aR\x05limit\x129\n" +
 	"\n" +
 	"start_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
 	"\bend_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\aendTime\x127\n" +
-	"\x04side\x18\x05 \x01(\x0e2\x19.marketdata.v1.SideFilterB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04side\x12\"\n" +
-	"\rfrom_match_id\x18\x06 \x01(\x04R\vfromMatchId:\x99\x03\xbaH\x95\x03\x1a\xa1\x01\n" +
+	"\x04side\x18\x05 \x01(\x0e2\x19.marketdata.v1.SideFilterB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04side\x12'\n" +
+	"\n" +
+	"page_token\x18\x06 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken:\x99\x03\xbaH\x95\x03\x1a\xa1\x01\n" +
 	"\x1bget_trades.time_range_valid\x120end_time must be >= start_time when both are set\x1aP!has(this.start_time) || !has(this.end_time) || this.end_time >= this.start_time\x1a\xee\x01\n" +
 	"\x1aget_trades.time_not_future\x12Estart_time and end_time must not be more than 5 minutes in the future\x1a\x88\x01(!has(this.start_time) || this.start_time <= now + duration('300s')) && (!has(this.end_time) || this.end_time <= now + duration('300s'))\"\xb1\x01\n" +
 	"\vMarketTrade\x12\x1b\n" +
@@ -1543,10 +1593,10 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"priceTicks\x12\x1d\n" +
 	"\n" +
 	"qty_scaled\x18\x05 \x01(\x03R\tqtyScaled\x12\x13\n" +
-	"\x05ts_ns\x18\x06 \x01(\x04R\x04tsNs\"k\n" +
+	"\x05ts_ns\x18\x06 \x01(\x04R\x04tsNs\"y\n" +
 	"\x11GetTradesResponse\x122\n" +
-	"\x06trades\x18\x01 \x03(\v2\x1a.marketdata.v1.MarketTradeR\x06trades\x12\"\n" +
-	"\rnext_match_id\x18\x02 \x01(\x04R\vnextMatchId\"\x89\x06\n" +
+	"\x06trades\x18\x01 \x03(\v2\x1a.marketdata.v1.MarketTradeR\x06trades\x120\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xb2\x06\n" +
 	"\x11GetCandlesRequest\x12$\n" +
 	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\x12B\n" +
 	"\ttimeframe\x18\x02 \x01(\x0e2\x18.marketdata.v1.TimeframeB\n" +
@@ -1556,9 +1606,11 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"start_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
 	"\bend_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\aendTime\x12-\n" +
 	"\x12include_incomplete\x18\x06 \x01(\bR\x11includeIncomplete\x12+\n" +
-	"\x11include_reference\x18\a \x01(\bR\x10includeReference:\x9b\x03\xbaH\x97\x03\x1a\xa2\x01\n" +
+	"\x11include_reference\x18\a \x01(\bR\x10includeReference\x12'\n" +
+	"\n" +
+	"page_token\x18\b \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken:\x9b\x03\xbaH\x97\x03\x1a\xa2\x01\n" +
 	"\x1cget_candles.time_range_valid\x120end_time must be >= start_time when both are set\x1aP!has(this.start_time) || !has(this.end_time) || this.end_time >= this.start_time\x1a\xef\x01\n" +
-	"\x1bget_candles.time_not_future\x12Estart_time and end_time must not be more than 5 minutes in the future\x1a\x88\x01(!has(this.start_time) || this.start_time <= now + duration('300s')) && (!has(this.end_time) || this.end_time <= now + duration('300s'))\"\xa0\x06\n" +
+	"\x1bget_candles.time_not_future\x12Estart_time and end_time must not be more than 5 minutes in the future\x1a\x88\x01(!has(this.start_time) || this.start_time <= now + duration('300s')) && (!has(this.end_time) || this.end_time <= now + duration('300s'))\"\xc9\x06\n" +
 	"\x18GetCandlesColumnsRequest\x12$\n" +
 	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\x12B\n" +
 	"\ttimeframe\x18\x02 \x01(\x0e2\x18.marketdata.v1.TimeframeB\n" +
@@ -1568,7 +1620,9 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"start_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
 	"\bend_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\aendTime\x12-\n" +
 	"\x12include_incomplete\x18\x06 \x01(\bR\x11includeIncomplete\x12+\n" +
-	"\x11include_reference\x18\a \x01(\bR\x10includeReference:\xab\x03\xbaH\xa7\x03\x1a\xaa\x01\n" +
+	"\x11include_reference\x18\a \x01(\bR\x10includeReference\x12'\n" +
+	"\n" +
+	"page_token\x18\b \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken:\xab\x03\xbaH\xa7\x03\x1a\xaa\x01\n" +
 	"$get_candles_columns.time_range_valid\x120end_time must be >= start_time when both are set\x1aP!has(this.start_time) || !has(this.end_time) || this.end_time >= this.start_time\x1a\xf7\x01\n" +
 	"#get_candles_columns.time_not_future\x12Estart_time and end_time must not be more than 5 minutes in the future\x1a\x88\x01(!has(this.start_time) || this.start_time <= now + duration('300s')) && (!has(this.end_time) || this.end_time <= now + duration('300s'))\"\xa9\x01\n" +
 	"\vCandlePoint\x12\x15\n" +
@@ -1578,12 +1632,13 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\x03low\x18\x04 \x01(\x03R\x03low\x12\x14\n" +
 	"\x05close\x18\x05 \x01(\x03R\x05close\x12\x16\n" +
 	"\x06volume\x18\x06 \x01(\x03R\x06volume\x12\x1b\n" +
-	"\tis_closed\x18\a \x01(\bR\bisClosed\"\xe8\x01\n" +
+	"\tis_closed\x18\a \x01(\bR\bisClosed\"\x9a\x02\n" +
 	"\x12GetCandlesResponse\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x126\n" +
 	"\ttimeframe\x18\x02 \x01(\x0e2\x18.marketdata.v1.TimeframeR\ttimeframe\x124\n" +
 	"\acandles\x18\x03 \x03(\v2\x1a.marketdata.v1.CandlePointR\acandles\x12G\n" +
-	"\x11reference_candles\x18\x04 \x03(\v2\x1a.marketdata.v1.CandlePointR\x10referenceCandles\"\xe0\x03\n" +
+	"\x11reference_candles\x18\x04 \x03(\v2\x1a.marketdata.v1.CandlePointR\x10referenceCandles\x120\n" +
+	"\x0fnext_page_token\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\x92\x04\n" +
 	"\x19GetCandlesColumnsResponse\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x126\n" +
 	"\ttimeframe\x18\x02 \x01(\x0e2\x18.marketdata.v1.TimeframeR\ttimeframe\x12\x15\n" +
@@ -1599,7 +1654,8 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\x0ereference_high\x18\v \x03(\x03R\rreferenceHigh\x12#\n" +
 	"\rreference_low\x18\f \x03(\x03R\freferenceLow\x12'\n" +
 	"\x0freference_close\x18\r \x03(\x03R\x0ereferenceClose\x12)\n" +
-	"\x10reference_volume\x18\x0e \x03(\x03R\x0freferenceVolume\"\xdc\x01\n" +
+	"\x10reference_volume\x18\x0e \x03(\x03R\x0freferenceVolume\x120\n" +
+	"\x0fnext_page_token\x18\x0f \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xdc\x01\n" +
 	"\x06Candle\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x126\n" +
 	"\ttimeframe\x18\x02 \x01(\x0e2\x18.marketdata.v1.TimeframeR\ttimeframe\x12\x15\n" +

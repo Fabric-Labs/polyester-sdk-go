@@ -51,14 +51,15 @@ const (
 type MarketDataServiceClient interface {
 	// Retrieve recent public trades for a spot market.
 	// Results are ordered newest-first and support optional aggressor side,
-	// inclusive time-range, and from_match_id keyset pagination filters.
+	// inclusive time-range, and opaque keyset pagination filters.
 	GetTrades(context.Context, *connect.Request[v1.GetTradesRequest]) (*connect.Response[v1.GetTradesResponse], error)
 	// Retrieve OHLCV candles for a spot market and timeframe.
 	// Results are ordered newest-first and support inclusive time bounds, optional
 	// current open candle inclusion, and optional composite reference candles.
 	GetCandles(context.Context, *connect.Request[v1.GetCandlesRequest]) (*connect.Response[v1.GetCandlesResponse], error)
 	// GetCandlesColumns returns OHLCV candles in a columnar representation optimized for charting.
-	// This method is intended for ConnectRPC clients (binary protobuf) and returns raw tick/scale ints.
+	// This method is intended for ConnectRPC clients and returns scaled integers:
+	// OHLC prices use 1e6 quote-unit scale, and volumes use base_quantity_scale.
 	GetCandlesColumns(context.Context, *connect.Request[v1.GetCandlesColumnsRequest]) (*connect.Response[v1.GetCandlesColumnsResponse], error)
 	// Retrieve a cacheable snapshot of spot assets and pairs, including precision and trading constraints.
 	GetSpotConfig(context.Context, *connect.Request[v1.GetSpotConfigRequest]) (*connect.Response[v1.GetSpotConfigResponse], error)
@@ -134,14 +135,15 @@ func (c *marketDataServiceClient) GetSpotConfig(ctx context.Context, req *connec
 type MarketDataServiceHandler interface {
 	// Retrieve recent public trades for a spot market.
 	// Results are ordered newest-first and support optional aggressor side,
-	// inclusive time-range, and from_match_id keyset pagination filters.
+	// inclusive time-range, and opaque keyset pagination filters.
 	GetTrades(context.Context, *connect.Request[v1.GetTradesRequest]) (*connect.Response[v1.GetTradesResponse], error)
 	// Retrieve OHLCV candles for a spot market and timeframe.
 	// Results are ordered newest-first and support inclusive time bounds, optional
 	// current open candle inclusion, and optional composite reference candles.
 	GetCandles(context.Context, *connect.Request[v1.GetCandlesRequest]) (*connect.Response[v1.GetCandlesResponse], error)
 	// GetCandlesColumns returns OHLCV candles in a columnar representation optimized for charting.
-	// This method is intended for ConnectRPC clients (binary protobuf) and returns raw tick/scale ints.
+	// This method is intended for ConnectRPC clients and returns scaled integers:
+	// OHLC prices use 1e6 quote-unit scale, and volumes use base_quantity_scale.
 	GetCandlesColumns(context.Context, *connect.Request[v1.GetCandlesColumnsRequest]) (*connect.Response[v1.GetCandlesColumnsResponse], error)
 	// Retrieve a cacheable snapshot of spot assets and pairs, including precision and trading constraints.
 	GetSpotConfig(context.Context, *connect.Request[v1.GetSpotConfigRequest]) (*connect.Response[v1.GetSpotConfigResponse], error)

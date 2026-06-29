@@ -267,7 +267,7 @@ func (m *MarketOverview) validate(all bool) error {
 
 	// no validation rules for LastTradeTsNs
 
-	// no validation rules for Change_24HBp
+	// no validation rules for Change_24HBps
 
 	// no validation rules for High_24HTicks
 
@@ -423,7 +423,7 @@ func (m *ListMarketOverviewRequest) validate(all bool) error {
 
 	// no validation rules for Limit
 
-	// no validation rules for Page
+	// no validation rules for PageToken
 
 	// no validation rules for OrderBy
 
@@ -567,7 +567,7 @@ func (m *ListMarketOverviewResponse) validate(all bool) error {
 
 	}
 
-	// no validation rules for Total
+	// no validation rules for NextPageToken
 
 	if len(errors) > 0 {
 		return ListMarketOverviewResponseMultiError(errors)

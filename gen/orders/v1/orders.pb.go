@@ -129,59 +129,59 @@ func (OrderType) EnumDescriptor() ([]byte, []int) {
 	return file_orders_v1_orders_proto_rawDescGZIP(), []int{1}
 }
 
-type TIF int32
+type TimeInForce int32
 
 const (
 	// Time-in-force was not provided; create requests default to GTC.
-	TIF_TIF_UNSPECIFIED TIF = 0
+	TimeInForce_TIME_IN_FORCE_UNSPECIFIED TimeInForce = 0
 	// Good-til-canceled.
-	TIF_GTC TIF = 1
+	TimeInForce_GTC TimeInForce = 1
 	// Immediate-or-cancel.
-	TIF_IOC TIF = 2
+	TimeInForce_IOC TimeInForce = 2
 	// Fill-or-kill.
-	TIF_FOK TIF = 3
+	TimeInForce_FOK TimeInForce = 3
 )
 
-// Enum value maps for TIF.
+// Enum value maps for TimeInForce.
 var (
-	TIF_name = map[int32]string{
-		0: "TIF_UNSPECIFIED",
+	TimeInForce_name = map[int32]string{
+		0: "TIME_IN_FORCE_UNSPECIFIED",
 		1: "GTC",
 		2: "IOC",
 		3: "FOK",
 	}
-	TIF_value = map[string]int32{
-		"TIF_UNSPECIFIED": 0,
-		"GTC":             1,
-		"IOC":             2,
-		"FOK":             3,
+	TimeInForce_value = map[string]int32{
+		"TIME_IN_FORCE_UNSPECIFIED": 0,
+		"GTC":                       1,
+		"IOC":                       2,
+		"FOK":                       3,
 	}
 )
 
-func (x TIF) Enum() *TIF {
-	p := new(TIF)
+func (x TimeInForce) Enum() *TimeInForce {
+	p := new(TimeInForce)
 	*p = x
 	return p
 }
 
-func (x TIF) String() string {
+func (x TimeInForce) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (TIF) Descriptor() protoreflect.EnumDescriptor {
+func (TimeInForce) Descriptor() protoreflect.EnumDescriptor {
 	return file_orders_v1_orders_proto_enumTypes[2].Descriptor()
 }
 
-func (TIF) Type() protoreflect.EnumType {
+func (TimeInForce) Type() protoreflect.EnumType {
 	return &file_orders_v1_orders_proto_enumTypes[2]
 }
 
-func (x TIF) Number() protoreflect.EnumNumber {
+func (x TimeInForce) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use TIF.Descriptor instead.
-func (TIF) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use TimeInForce.Descriptor instead.
+func (TimeInForce) EnumDescriptor() ([]byte, []int) {
 	return file_orders_v1_orders_proto_rawDescGZIP(), []int{2}
 }
 
@@ -190,9 +190,9 @@ type FeeSource int32
 const (
 	// Fee source was not provided; buy orders default to QUOTE.
 	FeeSource_FEE_SOURCE_UNSPECIFIED FeeSource = 0
-	// Fees are paid from quote asset.
+	// Fees are paid from the quote asset. SELL fees always use quote asset.
 	FeeSource_QUOTE FeeSource = 1
-	// Fees are paid from the received asset.
+	// BUY-only option: fees are paid from the received base asset.
 	FeeSource_RECEIVED FeeSource = 2
 )
 
@@ -237,59 +237,59 @@ func (FeeSource) EnumDescriptor() ([]byte, []int) {
 	return file_orders_v1_orders_proto_rawDescGZIP(), []int{3}
 }
 
-type STPMode int32
+type SelfTradePreventionMode int32
 
 const (
 	// Self-trade prevention mode was not provided; create requests default to EXPIRE_MAKER.
-	STPMode_STP_UNSPECIFIED STPMode = 0
+	SelfTradePreventionMode_SELF_TRADE_PREVENTION_MODE_UNSPECIFIED SelfTradePreventionMode = 0
 	// Cancel the resting maker order on self-trade.
-	STPMode_EXPIRE_MAKER STPMode = 1
+	SelfTradePreventionMode_EXPIRE_MAKER SelfTradePreventionMode = 1
 	// Cancel the incoming taker order on self-trade.
-	STPMode_EXPIRE_TAKER STPMode = 2
+	SelfTradePreventionMode_EXPIRE_TAKER SelfTradePreventionMode = 2
 	// Cancel both maker and taker orders on self-trade.
-	STPMode_EXPIRE_BOTH STPMode = 3
+	SelfTradePreventionMode_EXPIRE_BOTH SelfTradePreventionMode = 3
 )
 
-// Enum value maps for STPMode.
+// Enum value maps for SelfTradePreventionMode.
 var (
-	STPMode_name = map[int32]string{
-		0: "STP_UNSPECIFIED",
+	SelfTradePreventionMode_name = map[int32]string{
+		0: "SELF_TRADE_PREVENTION_MODE_UNSPECIFIED",
 		1: "EXPIRE_MAKER",
 		2: "EXPIRE_TAKER",
 		3: "EXPIRE_BOTH",
 	}
-	STPMode_value = map[string]int32{
-		"STP_UNSPECIFIED": 0,
-		"EXPIRE_MAKER":    1,
-		"EXPIRE_TAKER":    2,
-		"EXPIRE_BOTH":     3,
+	SelfTradePreventionMode_value = map[string]int32{
+		"SELF_TRADE_PREVENTION_MODE_UNSPECIFIED": 0,
+		"EXPIRE_MAKER":                           1,
+		"EXPIRE_TAKER":                           2,
+		"EXPIRE_BOTH":                            3,
 	}
 )
 
-func (x STPMode) Enum() *STPMode {
-	p := new(STPMode)
+func (x SelfTradePreventionMode) Enum() *SelfTradePreventionMode {
+	p := new(SelfTradePreventionMode)
 	*p = x
 	return p
 }
 
-func (x STPMode) String() string {
+func (x SelfTradePreventionMode) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (STPMode) Descriptor() protoreflect.EnumDescriptor {
+func (SelfTradePreventionMode) Descriptor() protoreflect.EnumDescriptor {
 	return file_orders_v1_orders_proto_enumTypes[4].Descriptor()
 }
 
-func (STPMode) Type() protoreflect.EnumType {
+func (SelfTradePreventionMode) Type() protoreflect.EnumType {
 	return &file_orders_v1_orders_proto_enumTypes[4]
 }
 
-func (x STPMode) Number() protoreflect.EnumNumber {
+func (x SelfTradePreventionMode) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use STPMode.Descriptor instead.
-func (STPMode) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use SelfTradePreventionMode.Descriptor instead.
+func (SelfTradePreventionMode) EnumDescriptor() ([]byte, []int) {
 	return file_orders_v1_orders_proto_rawDescGZIP(), []int{4}
 }
 
@@ -833,10 +833,10 @@ type CreateOrderRequest struct {
 	// Order type: LIMIT or MARKET.
 	OrderType OrderType `protobuf:"varint,4,opt,name=order_type,json=orderType,proto3,enum=orders.v1.OrderType" json:"order_type,omitempty"`
 	// Time-in-force: GTC, IOC, or FOK. Defaults to GTC if unspecified.
-	Tif TIF `protobuf:"varint,5,opt,name=tif,proto3,enum=orders.v1.TIF" json:"tif,omitempty"`
-	// Quantity in base asset scale units (scaled integer).
+	TimeInForce TimeInForce `protobuf:"varint,5,opt,name=time_in_force,json=timeInForce,proto3,enum=orders.v1.TimeInForce" json:"time_in_force,omitempty"`
+	// Quantity scaled by the pair's base_quantity_scale from GetSpotConfig.
 	QtyScaled int64 `protobuf:"varint,6,opt,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`
-	// Price in ticks (6 decimals); optional for MARKET orders.
+	// Price in quote units scaled by 1e6. Optional for MARKET orders.
 	PriceTicks int64 `protobuf:"varint,7,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	// Optional max slippage override for MARKET orders.
 	// If omitted, server-side per-pair default slippage is used.
@@ -846,17 +846,19 @@ type CreateOrderRequest struct {
 	//	*CreateOrderRequest_MarketMaxSlippageTicks
 	//	*CreateOrderRequest_MarketMaxSlippageBps
 	MarketMaxSlippage isCreateOrderRequest_MarketMaxSlippage `protobuf_oneof:"market_max_slippage"`
-	// Optional client-side reference price in ticks for MARKET slippage anchoring.
+	// Optional client-side reference price in quote units scaled by 1e6 for
+	// MARKET slippage anchoring.
 	// When absent, admission uses server-side reference pricing.
 	MarketClientRefPriceTicks int64 `protobuf:"varint,14,opt,name=market_client_ref_price_ticks,json=marketClientRefPriceTicks,proto3" json:"market_client_ref_price_ticks,omitempty"`
 	// If true, the order is rejected instead of crossing the book (maker-only).
 	PostOnly bool `protobuf:"varint,8,opt,name=post_only,json=postOnly,proto3" json:"post_only,omitempty"`
 	// Optional client order identifier for idempotency.
 	ClientOrderId string `protobuf:"bytes,9,opt,name=client_order_id,json=clientOrderId,proto3" json:"client_order_id,omitempty"`
-	// Fee source for BUY orders: QUOTE (default) or RECEIVED.
+	// Fee source for BUY orders: QUOTE (default) or RECEIVED. SELL orders always
+	// pay fees in quote asset.
 	FeeSource FeeSource `protobuf:"varint,10,opt,name=fee_source,json=feeSource,proto3,enum=orders.v1.FeeSource" json:"fee_source,omitempty"`
 	// Self-trade prevention mode. Defaults to EXPIRE_MAKER if unspecified.
-	StpMode STPMode `protobuf:"varint,11,opt,name=stp_mode,json=stpMode,proto3,enum=orders.v1.STPMode" json:"stp_mode,omitempty"`
+	SelfTradePreventionMode SelfTradePreventionMode `protobuf:"varint,11,opt,name=self_trade_prevention_mode,json=selfTradePreventionMode,proto3,enum=orders.v1.SelfTradePreventionMode" json:"self_trade_prevention_mode,omitempty"`
 	// Optional attached risk controls (TP/SL/TrailingStop) for this order.
 	AttachedRisk  *RiskPolicy `protobuf:"bytes,20,opt,name=attached_risk,json=attachedRisk,proto3" json:"attached_risk,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -921,11 +923,11 @@ func (x *CreateOrderRequest) GetOrderType() OrderType {
 	return OrderType_ORDER_TYPE_UNSPECIFIED
 }
 
-func (x *CreateOrderRequest) GetTif() TIF {
+func (x *CreateOrderRequest) GetTimeInForce() TimeInForce {
 	if x != nil {
-		return x.Tif
+		return x.TimeInForce
 	}
-	return TIF_TIF_UNSPECIFIED
+	return TimeInForce_TIME_IN_FORCE_UNSPECIFIED
 }
 
 func (x *CreateOrderRequest) GetQtyScaled() int64 {
@@ -995,11 +997,11 @@ func (x *CreateOrderRequest) GetFeeSource() FeeSource {
 	return FeeSource_FEE_SOURCE_UNSPECIFIED
 }
 
-func (x *CreateOrderRequest) GetStpMode() STPMode {
+func (x *CreateOrderRequest) GetSelfTradePreventionMode() SelfTradePreventionMode {
 	if x != nil {
-		return x.StpMode
+		return x.SelfTradePreventionMode
 	}
-	return STPMode_STP_UNSPECIFIED
+	return SelfTradePreventionMode_SELF_TRADE_PREVENTION_MODE_UNSPECIFIED
 }
 
 func (x *CreateOrderRequest) GetAttachedRisk() *RiskPolicy {
@@ -1014,7 +1016,7 @@ type isCreateOrderRequest_MarketMaxSlippage interface {
 }
 
 type CreateOrderRequest_MarketMaxSlippageTicks struct {
-	// Maximum allowed slippage in absolute ticks.
+	// Maximum allowed slippage as a price delta in 1e-6 quote-unit ticks.
 	MarketMaxSlippageTicks int32 `protobuf:"varint,12,opt,name=market_max_slippage_ticks,json=marketMaxSlippageTicks,proto3,oneof"`
 }
 
@@ -1363,14 +1365,14 @@ func (x *ErrorDetail) GetCode() ErrorCode {
 // Arms after the parent order fills; fires when price crosses the threshold.
 type TakeProfitPolicy struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Trigger price in ticks (6 decimals). Required.
+	// Trigger price in quote units scaled by 1e6. Required.
 	TriggerPriceTicks int64 `protobuf:"varint,1,opt,name=trigger_price_ticks,json=triggerPriceTicks,proto3" json:"trigger_price_ticks,omitempty"`
 	// Price source for trigger evaluation. Defaults to LAST_PRICE if unspecified.
 	TriggerPriceSource TriggerPriceSource `protobuf:"varint,2,opt,name=trigger_price_source,json=triggerPriceSource,proto3,enum=orders.v1.TriggerPriceSource" json:"trigger_price_source,omitempty"`
 	// Order type for the child order when triggered. Defaults to MARKET.
 	OrderType OrderType `protobuf:"varint,3,opt,name=order_type,json=orderType,proto3,enum=orders.v1.OrderType" json:"order_type,omitempty"`
-	// Limit price in ticks for LIMIT child orders. Required if order_type is
-	// LIMIT.
+	// Limit price in quote units scaled by 1e6 for LIMIT child orders. Required
+	// if order_type is LIMIT.
 	LimitPriceTicks int64 `protobuf:"varint,4,opt,name=limit_price_ticks,json=limitPriceTicks,proto3" json:"limit_price_ticks,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
@@ -1438,14 +1440,14 @@ func (x *TakeProfitPolicy) GetLimitPriceTicks() int64 {
 // Arms after the parent order fills; fires when price crosses the threshold.
 type StopLossPolicy struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Trigger price in ticks (6 decimals). Required.
+	// Trigger price in quote units scaled by 1e6. Required.
 	TriggerPriceTicks int64 `protobuf:"varint,1,opt,name=trigger_price_ticks,json=triggerPriceTicks,proto3" json:"trigger_price_ticks,omitempty"`
 	// Price source for trigger evaluation. Defaults to LAST_PRICE if unspecified.
 	TriggerPriceSource TriggerPriceSource `protobuf:"varint,2,opt,name=trigger_price_source,json=triggerPriceSource,proto3,enum=orders.v1.TriggerPriceSource" json:"trigger_price_source,omitempty"`
 	// Order type for the child order when triggered. Defaults to MARKET.
 	OrderType OrderType `protobuf:"varint,3,opt,name=order_type,json=orderType,proto3,enum=orders.v1.OrderType" json:"order_type,omitempty"`
-	// Limit price in ticks for LIMIT child orders. Required if order_type is
-	// LIMIT.
+	// Limit price in quote units scaled by 1e6 for LIMIT child orders. Required
+	// if order_type is LIMIT.
 	LimitPriceTicks int64 `protobuf:"varint,4,opt,name=limit_price_ticks,json=limitPriceTicks,proto3" json:"limit_price_ticks,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
@@ -1534,7 +1536,7 @@ type TrailingStopPolicy struct {
 	MaxSlippage isTrailingStopPolicy_MaxSlippage `protobuf_oneof:"max_slippage"`
 	// Optional activation price: trailing only starts after this price is
 	// reached. If omitted, trailing starts immediately after the parent order
-	// fills.
+	// fills. Expressed in quote units scaled by 1e6.
 	ActivationPriceTicks int64 `protobuf:"varint,3,opt,name=activation_price_ticks,json=activationPriceTicks,proto3" json:"activation_price_ticks,omitempty"`
 	// Price source for trigger evaluation. Defaults to LAST_PRICE if unspecified.
 	TriggerPriceSource TriggerPriceSource `protobuf:"varint,4,opt,name=trigger_price_source,json=triggerPriceSource,proto3,enum=orders.v1.TriggerPriceSource" json:"trigger_price_source,omitempty"`
@@ -1650,7 +1652,7 @@ type isTrailingStopPolicy_TrailingDistance interface {
 }
 
 type TrailingStopPolicy_TrailingDistanceTicks struct {
-	// Trailing distance in absolute ticks.
+	// Trailing distance as a price delta in 1e-6 quote-unit ticks.
 	TrailingDistanceTicks int64 `protobuf:"varint,1,opt,name=trailing_distance_ticks,json=trailingDistanceTicks,proto3,oneof"`
 }
 
@@ -1668,7 +1670,7 @@ type isTrailingStopPolicy_MaxSlippage interface {
 }
 
 type TrailingStopPolicy_MaxSlippageTicks struct {
-	// Maximum allowed slippage in absolute ticks.
+	// Maximum allowed slippage as a price delta in 1e-6 quote-unit ticks.
 	MaxSlippageTicks int32 `protobuf:"varint,6,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
 }
 
@@ -2411,9 +2413,10 @@ type ModifyOrderRequest struct {
 	// Idempotency key (required).
 	RequestId string `protobuf:"bytes,4,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	// Patch fields (presence-based).
-	// New limit price in ticks. Required for price changes.
+	// New limit price in quote units scaled by 1e6. Required for price changes.
 	NewPriceTicks *int64 `protobuf:"varint,5,opt,name=new_price_ticks,json=newPriceTicks,proto3,oneof" json:"new_price_ticks,omitempty"`
-	// Target total quantity after modify/replace.
+	// Target total quantity after modify/replace, scaled by the pair's
+	// base_quantity_scale from GetSpotConfig.
 	NewQtyScaled *int64 `protobuf:"varint,6,opt,name=new_qty_scaled,json=newQtyScaled,proto3,oneof" json:"new_qty_scaled,omitempty"`
 	// Replacement attached-risk policy for the order.
 	NewAttachedRisk *RiskPolicy `protobuf:"bytes,7,opt,name=new_attached_risk,json=newAttachedRisk,proto3" json:"new_attached_risk,omitempty"`
@@ -2672,9 +2675,10 @@ type BatchModifyItem struct {
 	//	*BatchModifyItem_OrderId
 	//	*BatchModifyItem_ClientOrderId
 	Key isBatchModifyItem_Key `protobuf_oneof:"key"`
-	// New limit price in ticks.
+	// New limit price in quote units scaled by 1e6.
 	NewPriceTicks *int64 `protobuf:"varint,3,opt,name=new_price_ticks,json=newPriceTicks,proto3,oneof" json:"new_price_ticks,omitempty"`
-	// Target total quantity after modify/replace.
+	// Target total quantity after modify/replace, scaled by the pair's
+	// base_quantity_scale from GetSpotConfig.
 	NewQtyScaled *int64 `protobuf:"varint,4,opt,name=new_qty_scaled,json=newQtyScaled,proto3,oneof" json:"new_qty_scaled,omitempty"`
 	// Replacement attached-risk policy for the order.
 	NewAttachedRisk *RiskPolicy `protobuf:"bytes,5,opt,name=new_attached_risk,json=newAttachedRisk,proto3" json:"new_attached_risk,omitempty"`
@@ -3373,14 +3377,14 @@ var File_orders_v1_orders_proto protoreflect.FileDescriptor
 
 const file_orders_v1_orders_proto_rawDesc = "" +
 	"\n" +
-	"\x16orders/v1/orders.proto\x12\torders.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf4\b\n" +
+	"\x16orders/v1/orders.proto\x12\torders.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc0\t\n" +
 	"\x12CreateOrderRequest\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x01R\fsubaccountId\x88\x01\x01\x12\x1f\n" +
 	"\x06symbol\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06symbol\x122\n" +
 	"\x04side\x18\x03 \x01(\x0e2\x0f.orders.v1.SideB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04side\x12B\n" +
 	"\n" +
-	"order_type\x18\x04 \x01(\x0e2\x14.orders.v1.OrderTypeB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\torderType\x12*\n" +
-	"\x03tif\x18\x05 \x01(\x0e2\x0e.orders.v1.TIFB\b\xbaH\x05\x82\x01\x02\x10\x01R\x03tif\x12&\n" +
+	"order_type\x18\x04 \x01(\x0e2\x14.orders.v1.OrderTypeB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\torderType\x12D\n" +
+	"\rtime_in_force\x18\x05 \x01(\x0e2\x16.orders.v1.TimeInForceB\b\xbaH\x05\x82\x01\x02\x10\x01R\vtimeInForce\x12&\n" +
 	"\n" +
 	"qty_scaled\x18\x06 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\tqtyScaled\x12\x1f\n" +
 	"\vprice_ticks\x18\a \x01(\x03R\n" +
@@ -3394,8 +3398,8 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x0fclient_order_id\x18\t \x01(\tB\x1c\xbaH\x19r\x17\x18$2\x13^[A-Za-z0-9._:/-]*$R\rclientOrderId\x12=\n" +
 	"\n" +
 	"fee_source\x18\n" +
-	" \x01(\x0e2\x14.orders.v1.FeeSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\tfeeSource\x127\n" +
-	"\bstp_mode\x18\v \x01(\x0e2\x12.orders.v1.STPModeB\b\xbaH\x05\x82\x01\x02\x10\x01R\astpMode\x12:\n" +
+	" \x01(\x0e2\x14.orders.v1.FeeSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\tfeeSource\x12i\n" +
+	"\x1aself_trade_prevention_mode\x18\v \x01(\x0e2\".orders.v1.SelfTradePreventionModeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x17selfTradePreventionMode\x12:\n" +
 	"\rattached_risk\x18\x14 \x01(\v2\x15.orders.v1.RiskPolicyR\fattachedRisk:\x8c\x02\xbaH\x88\x02\x1a\x85\x02\n" +
 	"(create_order.market_slippage_market_only\x12Emarket_max_slippage/client reference are only valid for MARKET orders\x1a\x91\x01(this.order_type == 2) || (!(has(this.market_max_slippage_ticks) || has(this.market_max_slippage_bps) || this.market_client_ref_price_ticks > 0))B\x15\n" +
 	"\x13market_max_slippageB\x10\n" +
@@ -3626,18 +3630,18 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x16ORDER_TYPE_UNSPECIFIED\x10\x00\x12\t\n" +
 	"\x05LIMIT\x10\x01\x12\n" +
 	"\n" +
-	"\x06MARKET\x10\x02*5\n" +
-	"\x03TIF\x12\x13\n" +
-	"\x0fTIF_UNSPECIFIED\x10\x00\x12\a\n" +
+	"\x06MARKET\x10\x02*G\n" +
+	"\vTimeInForce\x12\x1d\n" +
+	"\x19TIME_IN_FORCE_UNSPECIFIED\x10\x00\x12\a\n" +
 	"\x03GTC\x10\x01\x12\a\n" +
 	"\x03IOC\x10\x02\x12\a\n" +
 	"\x03FOK\x10\x03*@\n" +
 	"\tFeeSource\x12\x1a\n" +
 	"\x16FEE_SOURCE_UNSPECIFIED\x10\x00\x12\t\n" +
 	"\x05QUOTE\x10\x01\x12\f\n" +
-	"\bRECEIVED\x10\x02*S\n" +
-	"\aSTPMode\x12\x13\n" +
-	"\x0fSTP_UNSPECIFIED\x10\x00\x12\x10\n" +
+	"\bRECEIVED\x10\x02*z\n" +
+	"\x17SelfTradePreventionMode\x12*\n" +
+	"&SELF_TRADE_PREVENTION_MODE_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fEXPIRE_MAKER\x10\x01\x12\x10\n" +
 	"\fEXPIRE_TAKER\x10\x02\x12\x0f\n" +
 	"\vEXPIRE_BOTH\x10\x03*\xa6\x11\n" +
@@ -3763,9 +3767,9 @@ var file_orders_v1_orders_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_orders_v1_orders_proto_goTypes = []any{
 	(Side)(0),                         // 0: orders.v1.Side
 	(OrderType)(0),                    // 1: orders.v1.OrderType
-	(TIF)(0),                          // 2: orders.v1.TIF
+	(TimeInForce)(0),                  // 2: orders.v1.TimeInForce
 	(FeeSource)(0),                    // 3: orders.v1.FeeSource
-	(STPMode)(0),                      // 4: orders.v1.STPMode
+	(SelfTradePreventionMode)(0),      // 4: orders.v1.SelfTradePreventionMode
 	(ErrorCode)(0),                    // 5: orders.v1.ErrorCode
 	(TriggerPriceSource)(0),           // 6: orders.v1.TriggerPriceSource
 	(TriggerDirection)(0),             // 7: orders.v1.TriggerDirection
@@ -3802,9 +3806,9 @@ var file_orders_v1_orders_proto_goTypes = []any{
 var file_orders_v1_orders_proto_depIdxs = []int32{
 	0,  // 0: orders.v1.CreateOrderRequest.side:type_name -> orders.v1.Side
 	1,  // 1: orders.v1.CreateOrderRequest.order_type:type_name -> orders.v1.OrderType
-	2,  // 2: orders.v1.CreateOrderRequest.tif:type_name -> orders.v1.TIF
+	2,  // 2: orders.v1.CreateOrderRequest.time_in_force:type_name -> orders.v1.TimeInForce
 	3,  // 3: orders.v1.CreateOrderRequest.fee_source:type_name -> orders.v1.FeeSource
-	4,  // 4: orders.v1.CreateOrderRequest.stp_mode:type_name -> orders.v1.STPMode
+	4,  // 4: orders.v1.CreateOrderRequest.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
 	18, // 5: orders.v1.CreateOrderRequest.attached_risk:type_name -> orders.v1.RiskPolicy
 	36, // 6: orders.v1.CreateOrderResponse.ts:type_name -> google.protobuf.Timestamp
 	36, // 7: orders.v1.CancelOrderResponse.ts:type_name -> google.protobuf.Timestamp

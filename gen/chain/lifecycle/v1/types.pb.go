@@ -75,6 +75,90 @@ func (RequestFeeStatus) EnumDescriptor() ([]byte, []int) {
 	return file_chain_lifecycle_v1_types_proto_rawDescGZIP(), []int{0}
 }
 
+// FlowReason is the stable product-facing reason catalog for failed, dropped,
+// refunded, or otherwise notable lifecycle states.
+type FlowReason int32
+
+const (
+	FlowReason_FLOW_REASON_UNSPECIFIED FlowReason = 0
+	// Zipper validators reached the rejection quorum.
+	FlowReason_FLOW_REASON_ZIPPER_VALIDATION_REJECTED FlowReason = 101
+	// Zipper execution rejected the request.
+	FlowReason_FLOW_REASON_ZIPPER_EXECUTION_REJECTED FlowReason = 102
+	// Zipper withdraw execution failed.
+	FlowReason_FLOW_REASON_ZIPPER_WITHDRAW_EXECUTION_FAILED FlowReason = 103
+	// Zipper deposit refund failed.
+	FlowReason_FLOW_REASON_ZIPPER_DEPOSIT_REFUND_FAILED FlowReason = 104
+	// Ledger mirror rejected a command before it could be durably applied.
+	FlowReason_FLOW_REASON_LEDGER_MIRROR_REJECTED FlowReason = 200
+	// Ledger settlement rejected the mirror command because the source account did
+	// not have enough credits for the transfer.
+	FlowReason_FLOW_REASON_LEDGER_MIRROR_TRANSFER_EXCEEDS_CREDITS FlowReason = 201
+	// Ledger settlement reported that the transfer already exists for this mirror
+	// command identity.
+	FlowReason_FLOW_REASON_LEDGER_MIRROR_TRANSFER_EXISTS FlowReason = 202
+	// Ledger settlement reported that the pending transfer referenced by the
+	// command was not found.
+	FlowReason_FLOW_REASON_LEDGER_MIRROR_PENDING_TRANSFER_NOT_FOUND FlowReason = 203
+	// Ledger settlement reported that this transfer id is already marked failed.
+	FlowReason_FLOW_REASON_LEDGER_MIRROR_TRANSFER_ID_ALREADY_FAILED FlowReason = 204
+)
+
+// Enum value maps for FlowReason.
+var (
+	FlowReason_name = map[int32]string{
+		0:   "FLOW_REASON_UNSPECIFIED",
+		101: "FLOW_REASON_ZIPPER_VALIDATION_REJECTED",
+		102: "FLOW_REASON_ZIPPER_EXECUTION_REJECTED",
+		103: "FLOW_REASON_ZIPPER_WITHDRAW_EXECUTION_FAILED",
+		104: "FLOW_REASON_ZIPPER_DEPOSIT_REFUND_FAILED",
+		200: "FLOW_REASON_LEDGER_MIRROR_REJECTED",
+		201: "FLOW_REASON_LEDGER_MIRROR_TRANSFER_EXCEEDS_CREDITS",
+		202: "FLOW_REASON_LEDGER_MIRROR_TRANSFER_EXISTS",
+		203: "FLOW_REASON_LEDGER_MIRROR_PENDING_TRANSFER_NOT_FOUND",
+		204: "FLOW_REASON_LEDGER_MIRROR_TRANSFER_ID_ALREADY_FAILED",
+	}
+	FlowReason_value = map[string]int32{
+		"FLOW_REASON_UNSPECIFIED":                              0,
+		"FLOW_REASON_ZIPPER_VALIDATION_REJECTED":               101,
+		"FLOW_REASON_ZIPPER_EXECUTION_REJECTED":                102,
+		"FLOW_REASON_ZIPPER_WITHDRAW_EXECUTION_FAILED":         103,
+		"FLOW_REASON_ZIPPER_DEPOSIT_REFUND_FAILED":             104,
+		"FLOW_REASON_LEDGER_MIRROR_REJECTED":                   200,
+		"FLOW_REASON_LEDGER_MIRROR_TRANSFER_EXCEEDS_CREDITS":   201,
+		"FLOW_REASON_LEDGER_MIRROR_TRANSFER_EXISTS":            202,
+		"FLOW_REASON_LEDGER_MIRROR_PENDING_TRANSFER_NOT_FOUND": 203,
+		"FLOW_REASON_LEDGER_MIRROR_TRANSFER_ID_ALREADY_FAILED": 204,
+	}
+)
+
+func (x FlowReason) Enum() *FlowReason {
+	p := new(FlowReason)
+	*p = x
+	return p
+}
+
+func (x FlowReason) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (FlowReason) Descriptor() protoreflect.EnumDescriptor {
+	return file_chain_lifecycle_v1_types_proto_enumTypes[1].Descriptor()
+}
+
+func (FlowReason) Type() protoreflect.EnumType {
+	return &file_chain_lifecycle_v1_types_proto_enumTypes[1]
+}
+
+func (x FlowReason) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use FlowReason.Descriptor instead.
+func (FlowReason) EnumDescriptor() ([]byte, []int) {
+	return file_chain_lifecycle_v1_types_proto_rawDescGZIP(), []int{1}
+}
+
 // FlowKind identifies the product flow family.
 type FlowKind int32
 
@@ -115,11 +199,11 @@ func (x FlowKind) String() string {
 }
 
 func (FlowKind) Descriptor() protoreflect.EnumDescriptor {
-	return file_chain_lifecycle_v1_types_proto_enumTypes[1].Descriptor()
+	return file_chain_lifecycle_v1_types_proto_enumTypes[2].Descriptor()
 }
 
 func (FlowKind) Type() protoreflect.EnumType {
-	return &file_chain_lifecycle_v1_types_proto_enumTypes[1]
+	return &file_chain_lifecycle_v1_types_proto_enumTypes[2]
 }
 
 func (x FlowKind) Number() protoreflect.EnumNumber {
@@ -128,7 +212,7 @@ func (x FlowKind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use FlowKind.Descriptor instead.
 func (FlowKind) EnumDescriptor() ([]byte, []int) {
-	return file_chain_lifecycle_v1_types_proto_rawDescGZIP(), []int{1}
+	return file_chain_lifecycle_v1_types_proto_rawDescGZIP(), []int{2}
 }
 
 // FlowDomain identifies the product domain that currently owns or processes the
@@ -180,11 +264,11 @@ func (x FlowDomain) String() string {
 }
 
 func (FlowDomain) Descriptor() protoreflect.EnumDescriptor {
-	return file_chain_lifecycle_v1_types_proto_enumTypes[2].Descriptor()
+	return file_chain_lifecycle_v1_types_proto_enumTypes[3].Descriptor()
 }
 
 func (FlowDomain) Type() protoreflect.EnumType {
-	return &file_chain_lifecycle_v1_types_proto_enumTypes[2]
+	return &file_chain_lifecycle_v1_types_proto_enumTypes[3]
 }
 
 func (x FlowDomain) Number() protoreflect.EnumNumber {
@@ -193,7 +277,7 @@ func (x FlowDomain) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use FlowDomain.Descriptor instead.
 func (FlowDomain) EnumDescriptor() ([]byte, []int) {
-	return file_chain_lifecycle_v1_types_proto_rawDescGZIP(), []int{2}
+	return file_chain_lifecycle_v1_types_proto_rawDescGZIP(), []int{3}
 }
 
 // LifecycleSource identifies the subsystem that emitted a normalized fact or
@@ -241,11 +325,11 @@ func (x LifecycleSource) String() string {
 }
 
 func (LifecycleSource) Descriptor() protoreflect.EnumDescriptor {
-	return file_chain_lifecycle_v1_types_proto_enumTypes[3].Descriptor()
+	return file_chain_lifecycle_v1_types_proto_enumTypes[4].Descriptor()
 }
 
 func (LifecycleSource) Type() protoreflect.EnumType {
-	return &file_chain_lifecycle_v1_types_proto_enumTypes[3]
+	return &file_chain_lifecycle_v1_types_proto_enumTypes[4]
 }
 
 func (x LifecycleSource) Number() protoreflect.EnumNumber {
@@ -254,7 +338,7 @@ func (x LifecycleSource) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use LifecycleSource.Descriptor instead.
 func (LifecycleSource) EnumDescriptor() ([]byte, []int) {
-	return file_chain_lifecycle_v1_types_proto_rawDescGZIP(), []int{3}
+	return file_chain_lifecycle_v1_types_proto_rawDescGZIP(), []int{4}
 }
 
 // FlowState is the latest lifecycle state after folding normalized facts.
@@ -313,11 +397,11 @@ func (x FlowState) String() string {
 }
 
 func (FlowState) Descriptor() protoreflect.EnumDescriptor {
-	return file_chain_lifecycle_v1_types_proto_enumTypes[4].Descriptor()
+	return file_chain_lifecycle_v1_types_proto_enumTypes[5].Descriptor()
 }
 
 func (FlowState) Type() protoreflect.EnumType {
-	return &file_chain_lifecycle_v1_types_proto_enumTypes[4]
+	return &file_chain_lifecycle_v1_types_proto_enumTypes[5]
 }
 
 func (x FlowState) Number() protoreflect.EnumNumber {
@@ -326,17 +410,17 @@ func (x FlowState) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use FlowState.Descriptor instead.
 func (FlowState) EnumDescriptor() ([]byte, []int) {
-	return file_chain_lifecycle_v1_types_proto_rawDescGZIP(), []int{4}
+	return file_chain_lifecycle_v1_types_proto_rawDescGZIP(), []int{5}
 }
 
 // AssetIds identifies the asset roles involved in one lifecycle.
 type AssetIds struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Chain asset identifier for the chain-specific asset mapping row. This is
+	// Zipped asset identifier for the chain-specific asset mapping row. This is
 	// the canonical id from `chain_zipped_assets`, which already represents the
 	// source-chain asset metadata plus its mapped zToken relationship when
 	// relevant.
-	ChainAssetId uint32 `protobuf:"varint,1,opt,name=chain_asset_id,json=chainAssetId,proto3" json:"chain_asset_id,omitempty"`
+	ZippedAssetId uint32 `protobuf:"varint,1,opt,name=zipped_asset_id,json=zippedAssetId,proto3" json:"zipped_asset_id,omitempty"`
 	// Unified asset identifier for the uAsset used by funding or trading flows
 	// when relevant. This is the canonical Polyester asset identity used by
 	// FundingAccount, TradingGateway, Lending, and other downstream product
@@ -376,9 +460,9 @@ func (*AssetIds) Descriptor() ([]byte, []int) {
 	return file_chain_lifecycle_v1_types_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *AssetIds) GetChainAssetId() uint32 {
+func (x *AssetIds) GetZippedAssetId() uint32 {
 	if x != nil {
-		return x.ChainAssetId
+		return x.ZippedAssetId
 	}
 	return 0
 }
@@ -391,16 +475,21 @@ func (x *AssetIds) GetUnifiedAssetId() uint32 {
 }
 
 // RequestFee captures the on-chain fee associated with a deposit or withdrawal
-// request. This is separate from `amount_e18`, which remains the request
-// principal or net credited lifecycle amount.
+// request. This is separate from summary `amount_e18`, which carries the gross
+// request principal for API display.
 type RequestFee struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	AssetIds         *AssetIds              `protobuf:"bytes,1,opt,name=asset_ids,json=assetIds,proto3" json:"asset_ids,omitempty"`
-	AmountE18        *v1.U128               `protobuf:"bytes,2,opt,name=amount_e18,json=amountE18,proto3" json:"amount_e18,omitempty"`
-	RecipientAddress string                 `protobuf:"bytes,3,opt,name=recipient_address,json=recipientAddress,proto3" json:"recipient_address,omitempty"`
-	Status           RequestFeeStatus       `protobuf:"varint,4,opt,name=status,proto3,enum=chain.lifecycle.v1.RequestFeeStatus" json:"status,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Asset identities for the fee asset.
+	AssetIds *AssetIds `protobuf:"bytes,1,opt,name=asset_ids,json=assetIds,proto3" json:"asset_ids,omitempty"`
+	// On-chain request fee in 18-decimal units of the fee asset identified by
+	// asset_ids. Separate from gross flow amount_e18 on summaries.
+	AmountE18 *v1.U128 `protobuf:"bytes,2,opt,name=amount_e18,json=amountE18,proto3" json:"amount_e18,omitempty"`
+	// Fee recipient address when settled on chain.
+	RecipientAddress string `protobuf:"bytes,3,opt,name=recipient_address,json=recipientAddress,proto3" json:"recipient_address,omitempty"`
+	// Current state of the fee snapshot.
+	Status        RequestFeeStatus `protobuf:"varint,4,opt,name=status,proto3,enum=chain.lifecycle.v1.RequestFeeStatus" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RequestFee) Reset() {
@@ -465,9 +554,9 @@ var File_chain_lifecycle_v1_types_proto protoreflect.FileDescriptor
 
 const file_chain_lifecycle_v1_types_proto_rawDesc = "" +
 	"\n" +
-	"\x1echain/lifecycle/v1/types.proto\x12\x12chain.lifecycle.v1\x1a\x1cpolyester/type/v1/u128.proto\"`\n" +
-	"\bAssetIds\x12$\n" +
-	"\x0echain_asset_id\x18\x01 \x01(\rR\fchainAssetId\x12(\n" +
+	"\x1echain/lifecycle/v1/types.proto\x12\x12chain.lifecycle.v1\x1a\x1cpolyester/type/v1/u128.proto\"b\n" +
+	"\bAssetIds\x12&\n" +
+	"\x0fzipped_asset_id\x18\x01 \x01(\rR\rzippedAssetId\x12(\n" +
 	"\x10unified_asset_id\x18\x03 \x01(\rR\x0eunifiedAssetIdJ\x04\b\x02\x10\x03\"\xea\x01\n" +
 	"\n" +
 	"RequestFee\x129\n" +
@@ -479,7 +568,19 @@ const file_chain_lifecycle_v1_types_proto_rawDesc = "" +
 	"\x10RequestFeeStatus\x12\"\n" +
 	"\x1eREQUEST_FEE_STATUS_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19REQUEST_FEE_STATUS_LOCKED\x10\x01\x12\x1e\n" +
-	"\x1aREQUEST_FEE_STATUS_SETTLED\x10\x02*X\n" +
+	"\x1aREQUEST_FEE_STATUS_SETTLED\x10\x02*\xe8\x03\n" +
+	"\n" +
+	"FlowReason\x12\x1b\n" +
+	"\x17FLOW_REASON_UNSPECIFIED\x10\x00\x12*\n" +
+	"&FLOW_REASON_ZIPPER_VALIDATION_REJECTED\x10e\x12)\n" +
+	"%FLOW_REASON_ZIPPER_EXECUTION_REJECTED\x10f\x120\n" +
+	",FLOW_REASON_ZIPPER_WITHDRAW_EXECUTION_FAILED\x10g\x12,\n" +
+	"(FLOW_REASON_ZIPPER_DEPOSIT_REFUND_FAILED\x10h\x12'\n" +
+	"\"FLOW_REASON_LEDGER_MIRROR_REJECTED\x10\xc8\x01\x127\n" +
+	"2FLOW_REASON_LEDGER_MIRROR_TRANSFER_EXCEEDS_CREDITS\x10\xc9\x01\x12.\n" +
+	")FLOW_REASON_LEDGER_MIRROR_TRANSFER_EXISTS\x10\xca\x01\x129\n" +
+	"4FLOW_REASON_LEDGER_MIRROR_PENDING_TRANSFER_NOT_FOUND\x10\xcb\x01\x129\n" +
+	"4FLOW_REASON_LEDGER_MIRROR_TRANSFER_ID_ALREADY_FAILED\x10\xcc\x01*X\n" +
 	"\bFlowKind\x12\x14\n" +
 	"\x10KIND_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fKIND_DEPOSIT\x10\x01\x12\x11\n" +
@@ -521,21 +622,22 @@ func file_chain_lifecycle_v1_types_proto_rawDescGZIP() []byte {
 	return file_chain_lifecycle_v1_types_proto_rawDescData
 }
 
-var file_chain_lifecycle_v1_types_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
+var file_chain_lifecycle_v1_types_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
 var file_chain_lifecycle_v1_types_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_chain_lifecycle_v1_types_proto_goTypes = []any{
 	(RequestFeeStatus)(0), // 0: chain.lifecycle.v1.RequestFeeStatus
-	(FlowKind)(0),         // 1: chain.lifecycle.v1.FlowKind
-	(FlowDomain)(0),       // 2: chain.lifecycle.v1.FlowDomain
-	(LifecycleSource)(0),  // 3: chain.lifecycle.v1.LifecycleSource
-	(FlowState)(0),        // 4: chain.lifecycle.v1.FlowState
-	(*AssetIds)(nil),      // 5: chain.lifecycle.v1.AssetIds
-	(*RequestFee)(nil),    // 6: chain.lifecycle.v1.RequestFee
-	(*v1.U128)(nil),       // 7: polyester.type.v1.U128
+	(FlowReason)(0),       // 1: chain.lifecycle.v1.FlowReason
+	(FlowKind)(0),         // 2: chain.lifecycle.v1.FlowKind
+	(FlowDomain)(0),       // 3: chain.lifecycle.v1.FlowDomain
+	(LifecycleSource)(0),  // 4: chain.lifecycle.v1.LifecycleSource
+	(FlowState)(0),        // 5: chain.lifecycle.v1.FlowState
+	(*AssetIds)(nil),      // 6: chain.lifecycle.v1.AssetIds
+	(*RequestFee)(nil),    // 7: chain.lifecycle.v1.RequestFee
+	(*v1.U128)(nil),       // 8: polyester.type.v1.U128
 }
 var file_chain_lifecycle_v1_types_proto_depIdxs = []int32{
-	5, // 0: chain.lifecycle.v1.RequestFee.asset_ids:type_name -> chain.lifecycle.v1.AssetIds
-	7, // 1: chain.lifecycle.v1.RequestFee.amount_e18:type_name -> polyester.type.v1.U128
+	6, // 0: chain.lifecycle.v1.RequestFee.asset_ids:type_name -> chain.lifecycle.v1.AssetIds
+	8, // 1: chain.lifecycle.v1.RequestFee.amount_e18:type_name -> polyester.type.v1.U128
 	0, // 2: chain.lifecycle.v1.RequestFee.status:type_name -> chain.lifecycle.v1.RequestFeeStatus
 	3, // [3:3] is the sub-list for method output_type
 	3, // [3:3] is the sub-list for method input_type
@@ -554,7 +656,7 @@ func file_chain_lifecycle_v1_types_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chain_lifecycle_v1_types_proto_rawDesc), len(file_chain_lifecycle_v1_types_proto_rawDesc)),
-			NumEnums:      5,
+			NumEnums:      6,
 			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,

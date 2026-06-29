@@ -402,7 +402,7 @@ func (m *ListFlowsRequest) validate(all bool) error {
 
 	// no validation rules for Limit
 
-	// no validation rules for Reversed
+	// no validation rules for Sort
 
 	// no validation rules for FlowKind
 
@@ -413,6 +413,8 @@ func (m *ListFlowsRequest) validate(all bool) error {
 	// no validation rules for Scope
 
 	// no validation rules for PageToken
+
+	// no validation rules for OrderBy
 
 	switch v := m.AccountSelector.(type) {
 	case *ListFlowsRequest_OwnerAccountId:
@@ -695,7 +697,7 @@ func (m *FlowTxMatchView) validate(all bool) error {
 
 	// no validation rules for DestinationDomain
 
-	// no validation rules for LatestStep
+	// no validation rules for CurrentStep
 
 	// no validation rules for IsOpen
 
@@ -768,6 +770,10 @@ func (m *FlowTxMatchView) validate(all bool) error {
 	// no validation rules for ReasonCode
 
 	// no validation rules for LastActivityAtUnixMs
+
+	// no validation rules for OwnerAccountId
+
+	// no validation rules for SmartAccountAddress
 
 	if len(errors) > 0 {
 		return FlowTxMatchViewMultiError(errors)
@@ -1011,11 +1017,13 @@ func (m *FlowSummaryView) validate(all bool) error {
 
 	// no validation rules for OwnerAccountId
 
+	// no validation rules for SmartAccountAddress
+
 	// no validation rules for FlowId
 
 	// no validation rules for FlowKind
 
-	// no validation rules for LatestStep
+	// no validation rules for CurrentStep
 
 	if all {
 		switch v := interface{}(m.GetAssetIds()).(type) {
@@ -1136,7 +1144,7 @@ func (m *FlowSummaryView) validate(all bool) error {
 
 	// no validation rules for IsTerminal
 
-	// no validation rules for LatestStepSequence
+	// no validation rules for CurrentStepSequence
 
 	if all {
 		switch v := interface{}(m.GetCurrentProgress()).(type) {
@@ -1167,7 +1175,7 @@ func (m *FlowSummaryView) validate(all bool) error {
 		}
 	}
 
-	for idx, item := range m.GetSummaryTimeline() {
+	for idx, item := range m.GetProgressTimeline() {
 		_, _ = idx, item
 
 		if all {
@@ -1175,7 +1183,7 @@ func (m *FlowSummaryView) validate(all bool) error {
 			case interface{ ValidateAll() error }:
 				if err := v.ValidateAll(); err != nil {
 					errors = append(errors, FlowSummaryViewValidationError{
-						field:  fmt.Sprintf("SummaryTimeline[%v]", idx),
+						field:  fmt.Sprintf("ProgressTimeline[%v]", idx),
 						reason: "embedded message failed validation",
 						cause:  err,
 					})
@@ -1183,7 +1191,7 @@ func (m *FlowSummaryView) validate(all bool) error {
 			case interface{ Validate() error }:
 				if err := v.Validate(); err != nil {
 					errors = append(errors, FlowSummaryViewValidationError{
-						field:  fmt.Sprintf("SummaryTimeline[%v]", idx),
+						field:  fmt.Sprintf("ProgressTimeline[%v]", idx),
 						reason: "embedded message failed validation",
 						cause:  err,
 					})
@@ -1192,7 +1200,7 @@ func (m *FlowSummaryView) validate(all bool) error {
 		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
 			if err := v.Validate(); err != nil {
 				return FlowSummaryViewValidationError{
-					field:  fmt.Sprintf("SummaryTimeline[%v]", idx),
+					field:  fmt.Sprintf("ProgressTimeline[%v]", idx),
 					reason: "embedded message failed validation",
 					cause:  err,
 				}
@@ -1971,7 +1979,7 @@ func (m *FlowDetailView) validate(all bool) error {
 		}
 	}
 
-	for idx, item := range m.GetSteps() {
+	for idx, item := range m.GetObservedSteps() {
 		_, _ = idx, item
 
 		if all {
@@ -1979,7 +1987,7 @@ func (m *FlowDetailView) validate(all bool) error {
 			case interface{ ValidateAll() error }:
 				if err := v.ValidateAll(); err != nil {
 					errors = append(errors, FlowDetailViewValidationError{
-						field:  fmt.Sprintf("Steps[%v]", idx),
+						field:  fmt.Sprintf("ObservedSteps[%v]", idx),
 						reason: "embedded message failed validation",
 						cause:  err,
 					})
@@ -1987,7 +1995,7 @@ func (m *FlowDetailView) validate(all bool) error {
 			case interface{ Validate() error }:
 				if err := v.Validate(); err != nil {
 					errors = append(errors, FlowDetailViewValidationError{
-						field:  fmt.Sprintf("Steps[%v]", idx),
+						field:  fmt.Sprintf("ObservedSteps[%v]", idx),
 						reason: "embedded message failed validation",
 						cause:  err,
 					})
@@ -1996,7 +2004,7 @@ func (m *FlowDetailView) validate(all bool) error {
 		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
 			if err := v.Validate(); err != nil {
 				return FlowDetailViewValidationError{
-					field:  fmt.Sprintf("Steps[%v]", idx),
+					field:  fmt.Sprintf("ObservedSteps[%v]", idx),
 					reason: "embedded message failed validation",
 					cause:  err,
 				}
@@ -2006,40 +2014,6 @@ func (m *FlowDetailView) validate(all bool) error {
 	}
 
 	// no validation rules for FromLiveState
-
-	for idx, item := range m.GetTimeline() {
-		_, _ = idx, item
-
-		if all {
-			switch v := interface{}(item).(type) {
-			case interface{ ValidateAll() error }:
-				if err := v.ValidateAll(); err != nil {
-					errors = append(errors, FlowDetailViewValidationError{
-						field:  fmt.Sprintf("Timeline[%v]", idx),
-						reason: "embedded message failed validation",
-						cause:  err,
-					})
-				}
-			case interface{ Validate() error }:
-				if err := v.Validate(); err != nil {
-					errors = append(errors, FlowDetailViewValidationError{
-						field:  fmt.Sprintf("Timeline[%v]", idx),
-						reason: "embedded message failed validation",
-						cause:  err,
-					})
-				}
-			}
-		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
-			if err := v.Validate(); err != nil {
-				return FlowDetailViewValidationError{
-					field:  fmt.Sprintf("Timeline[%v]", idx),
-					reason: "embedded message failed validation",
-					cause:  err,
-				}
-			}
-		}
-
-	}
 
 	if len(errors) > 0 {
 		return FlowDetailViewMultiError(errors)

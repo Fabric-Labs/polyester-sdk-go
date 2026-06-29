@@ -505,7 +505,13 @@ func (x *LayerVisibilityOverride) GetVisible() bool {
 
 // GetLayoutsRequest lists saved layouts for the authenticated caller.
 type GetLayoutsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Maximum number of layouts to return. Defaults to 100 when omitted; maximum
+	// is 500.
+	Limit uint32 `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Opaque keyset cursor from a previous response. The cursor is exclusive and
+	// bound to the authenticated caller and newest-updated sort order.
+	PageToken     string `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -540,11 +546,27 @@ func (*GetLayoutsRequest) Descriptor() ([]byte, []int) {
 	return file_layout_v1_layout_proto_rawDescGZIP(), []int{6}
 }
 
+func (x *GetLayoutsRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *GetLayoutsRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
 // GetLayoutsResponse contains the caller's saved layouts.
 type GetLayoutsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Saved layouts for the caller, returned newest-updated first.
-	Layouts       []*Layout `protobuf:"bytes,1,rep,name=layouts,proto3" json:"layouts,omitempty"`
+	Layouts []*Layout `protobuf:"bytes,1,rep,name=layouts,proto3" json:"layouts,omitempty"`
+	// Opaque cursor for the next page. Empty when no more results exist.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -584,6 +606,13 @@ func (x *GetLayoutsResponse) GetLayouts() []*Layout {
 		return x.Layouts
 	}
 	return nil
+}
+
+func (x *GetLayoutsResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
 }
 
 // GetLayoutRequest fetches one saved layout by ID.
@@ -1241,12 +1270,12 @@ type ListOwnerPublishedLayoutsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Owner whose published layouts should be listed.
 	OwnerId uint64 `protobuf:"fixed64,1,opt,name=owner_id,json=ownerId,proto3" json:"owner_id,omitempty"`
-	// Maximum number of templates to return; the service may apply a smaller default or maximum.
+	// Maximum number of templates to return. Defaults to 100 when omitted;
+	// maximum is 500.
 	Limit uint32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
-	// Opaque keyset cursor component from the previous response; 0 starts from the first page.
-	AfterPublishedAtMs uint64 `protobuf:"fixed64,3,opt,name=after_published_at_ms,json=afterPublishedAtMs,proto3" json:"after_published_at_ms,omitempty"`
-	// Opaque keyset cursor component from the previous response; 0 starts from the first page.
-	AfterLayoutId uint64 `protobuf:"fixed64,4,opt,name=after_layout_id,json=afterLayoutId,proto3" json:"after_layout_id,omitempty"`
+	// Opaque keyset cursor from a previous response. The cursor is exclusive and
+	// bound to owner and newest-published sort order.
+	PageToken     string `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1295,18 +1324,11 @@ func (x *ListOwnerPublishedLayoutsRequest) GetLimit() uint32 {
 	return 0
 }
 
-func (x *ListOwnerPublishedLayoutsRequest) GetAfterPublishedAtMs() uint64 {
+func (x *ListOwnerPublishedLayoutsRequest) GetPageToken() string {
 	if x != nil {
-		return x.AfterPublishedAtMs
+		return x.PageToken
 	}
-	return 0
-}
-
-func (x *ListOwnerPublishedLayoutsRequest) GetAfterLayoutId() uint64 {
-	if x != nil {
-		return x.AfterLayoutId
-	}
-	return 0
+	return ""
 }
 
 // ListOwnerPublishedLayoutsResponse contains one page of published templates.
@@ -1314,12 +1336,10 @@ type ListOwnerPublishedLayoutsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Published templates for the owner, returned newest-published first.
 	Templates []*LayoutTemplate `protobuf:"bytes,1,rep,name=templates,proto3" json:"templates,omitempty"`
-	// Cursor timestamp for the next page; 0 means there are no more pages.
-	NextAfterPublishedAtMs uint64 `protobuf:"fixed64,2,opt,name=next_after_published_at_ms,json=nextAfterPublishedAtMs,proto3" json:"next_after_published_at_ms,omitempty"`
-	// Cursor layout ID for the next page; 0 means there are no more pages.
-	NextAfterLayoutId uint64 `protobuf:"fixed64,3,opt,name=next_after_layout_id,json=nextAfterLayoutId,proto3" json:"next_after_layout_id,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Opaque cursor for the next page. Empty when no more results exist.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListOwnerPublishedLayoutsResponse) Reset() {
@@ -1359,18 +1379,11 @@ func (x *ListOwnerPublishedLayoutsResponse) GetTemplates() []*LayoutTemplate {
 	return nil
 }
 
-func (x *ListOwnerPublishedLayoutsResponse) GetNextAfterPublishedAtMs() uint64 {
+func (x *ListOwnerPublishedLayoutsResponse) GetNextPageToken() string {
 	if x != nil {
-		return x.NextAfterPublishedAtMs
+		return x.NextPageToken
 	}
-	return 0
-}
-
-func (x *ListOwnerPublishedLayoutsResponse) GetNextAfterLayoutId() uint64 {
-	if x != nil {
-		return x.NextAfterLayoutId
-	}
-	return 0
+	return ""
 }
 
 // ListLayoutTemplateVersionsRequest lists immutable versions for one template.
@@ -1380,10 +1393,12 @@ type ListLayoutTemplateVersionsRequest struct {
 	OwnerId uint64 `protobuf:"fixed64,1,opt,name=owner_id,json=ownerId,proto3" json:"owner_id,omitempty"`
 	// Template identifier.
 	TemplateId uint64 `protobuf:"fixed64,2,opt,name=template_id,json=templateId,proto3" json:"template_id,omitempty"`
-	// Maximum number of versions to return; the service may apply a smaller default or maximum.
+	// Maximum number of versions to return. Defaults to 100 when omitted; maximum
+	// is 500.
 	Limit uint32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
-	// Exclusive version cursor; 0 starts from the latest version.
-	AfterVersion  uint32 `protobuf:"varint,4,opt,name=after_version,json=afterVersion,proto3" json:"after_version,omitempty"`
+	// Opaque keyset cursor from a previous response. The cursor is exclusive and
+	// bound to owner, template, and newest-version sort order.
+	PageToken     string `protobuf:"bytes,4,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1439,18 +1454,20 @@ func (x *ListLayoutTemplateVersionsRequest) GetLimit() uint32 {
 	return 0
 }
 
-func (x *ListLayoutTemplateVersionsRequest) GetAfterVersion() uint32 {
+func (x *ListLayoutTemplateVersionsRequest) GetPageToken() string {
 	if x != nil {
-		return x.AfterVersion
+		return x.PageToken
 	}
-	return 0
+	return ""
 }
 
 // ListLayoutTemplateVersionsResponse contains version metadata for a template.
 type ListLayoutTemplateVersionsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Template versions, returned newest version first.
-	Versions      []*LayoutTemplateVersionInfo `protobuf:"bytes,1,rep,name=versions,proto3" json:"versions,omitempty"`
+	Versions []*LayoutTemplateVersionInfo `protobuf:"bytes,1,rep,name=versions,proto3" json:"versions,omitempty"`
+	// Opaque cursor for the next page. Empty when no more results exist.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1490,6 +1507,13 @@ func (x *ListLayoutTemplateVersionsResponse) GetVersions() []*LayoutTemplateVers
 		return x.Versions
 	}
 	return nil
+}
+
+func (x *ListLayoutTemplateVersionsResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
 }
 
 // GetLayoutTemplateVersionRequest fetches one immutable template version.
@@ -2153,7 +2177,13 @@ func (x *LayoutTemplateSubscription) GetUpdatedAtMs() uint64 {
 
 // ListMyLayoutTemplateSubscriptionsRequest lists templates followed by the authenticated caller.
 type ListMyLayoutTemplateSubscriptionsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Maximum number of subscriptions to return. Defaults to 100 when omitted;
+	// maximum is 500.
+	Limit uint32 `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Opaque keyset cursor from a previous response. The cursor is exclusive and
+	// bound to the authenticated caller and newest-updated sort order.
+	PageToken     string `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2188,11 +2218,27 @@ func (*ListMyLayoutTemplateSubscriptionsRequest) Descriptor() ([]byte, []int) {
 	return file_layout_v1_layout_proto_rawDescGZIP(), []int{34}
 }
 
+func (x *ListMyLayoutTemplateSubscriptionsRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListMyLayoutTemplateSubscriptionsRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
 // ListMyLayoutTemplateSubscriptionsResponse contains the caller's followed templates.
 type ListMyLayoutTemplateSubscriptionsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Followed templates for the caller, returned newest-updated first.
 	Subscriptions []*LayoutTemplateSubscription `protobuf:"bytes,1,rep,name=subscriptions,proto3" json:"subscriptions,omitempty"`
+	// Opaque cursor for the next page. Empty when no more results exist.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2232,6 +2278,13 @@ func (x *ListMyLayoutTemplateSubscriptionsResponse) GetSubscriptions() []*Layout
 		return x.Subscriptions
 	}
 	return nil
+}
+
+func (x *ListMyLayoutTemplateSubscriptionsResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
 }
 
 // UpsertLayoutRequest creates or updates a saved layout for the authenticated caller.
@@ -2446,10 +2499,14 @@ const file_layout_v1_layout_proto_rawDesc = "" +
 	"styleBytes\"a\n" +
 	"\x17LayerVisibilityOverride\x12,\n" +
 	"\x05layer\x18\x01 \x01(\v2\x16.polychart.v1.LayerRefR\x05layer\x12\x18\n" +
-	"\avisible\x18\x02 \x01(\bR\avisible\"\x13\n" +
-	"\x11GetLayoutsRequest\"A\n" +
+	"\avisible\x18\x02 \x01(\bR\avisible\"\\\n" +
+	"\x11GetLayoutsRequest\x12\x1e\n" +
+	"\x05limit\x18\x01 \x01(\rB\b\xbaH\x05*\x03\x18\xf4\x03R\x05limit\x12'\n" +
+	"\n" +
+	"page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken\"s\n" +
 	"\x12GetLayoutsResponse\x12+\n" +
-	"\alayouts\x18\x01 \x03(\v2\x11.layout.v1.LayoutR\alayouts\"/\n" +
+	"\alayouts\x18\x01 \x03(\v2\x11.layout.v1.LayoutR\alayouts\x120\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"/\n" +
 	"\x10GetLayoutRequest\x12\x1b\n" +
 	"\tlayout_id\x18\x01 \x01(\x06R\blayoutId\">\n" +
 	"\x11GetLayoutResponse\x12)\n" +
@@ -2490,24 +2547,25 @@ const file_layout_v1_layout_proto_rawDesc = "" +
 	"\x19LayoutTemplateVersionInfo\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\rR\aversion\x12\x1c\n" +
 	"\tchangelog\x18\x02 \x01(\tR\tchangelog\x12\"\n" +
-	"\rcreated_at_ms\x18\x03 \x01(\x06R\vcreatedAtMs\"\xae\x01\n" +
+	"\rcreated_at_ms\x18\x03 \x01(\x06R\vcreatedAtMs\"\x86\x01\n" +
 	" ListOwnerPublishedLayoutsRequest\x12\x19\n" +
-	"\bowner_id\x18\x01 \x01(\x06R\aownerId\x12\x14\n" +
-	"\x05limit\x18\x02 \x01(\rR\x05limit\x121\n" +
-	"\x15after_published_at_ms\x18\x03 \x01(\x06R\x12afterPublishedAtMs\x12&\n" +
-	"\x0fafter_layout_id\x18\x04 \x01(\x06R\rafterLayoutId\"\xc9\x01\n" +
+	"\bowner_id\x18\x01 \x01(\x06R\aownerId\x12\x1e\n" +
+	"\x05limit\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xf4\x03R\x05limit\x12'\n" +
+	"\n" +
+	"page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken\"\x8e\x01\n" +
 	"!ListOwnerPublishedLayoutsResponse\x127\n" +
-	"\ttemplates\x18\x01 \x03(\v2\x19.layout.v1.LayoutTemplateR\ttemplates\x12:\n" +
-	"\x1anext_after_published_at_ms\x18\x02 \x01(\x06R\x16nextAfterPublishedAtMs\x12/\n" +
-	"\x14next_after_layout_id\x18\x03 \x01(\x06R\x11nextAfterLayoutId\"\x9a\x01\n" +
+	"\ttemplates\x18\x01 \x03(\v2\x19.layout.v1.LayoutTemplateR\ttemplates\x120\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xa8\x01\n" +
 	"!ListLayoutTemplateVersionsRequest\x12\x19\n" +
 	"\bowner_id\x18\x01 \x01(\x06R\aownerId\x12\x1f\n" +
 	"\vtemplate_id\x18\x02 \x01(\x06R\n" +
-	"templateId\x12\x14\n" +
-	"\x05limit\x18\x03 \x01(\rR\x05limit\x12#\n" +
-	"\rafter_version\x18\x04 \x01(\rR\fafterVersion\"f\n" +
+	"templateId\x12\x1e\n" +
+	"\x05limit\x18\x03 \x01(\rB\b\xbaH\x05*\x03\x18\xf4\x03R\x05limit\x12'\n" +
+	"\n" +
+	"page_token\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken\"\x98\x01\n" +
 	"\"ListLayoutTemplateVersionsResponse\x12@\n" +
-	"\bversions\x18\x01 \x03(\v2$.layout.v1.LayoutTemplateVersionInfoR\bversions\"w\n" +
+	"\bversions\x18\x01 \x03(\v2$.layout.v1.LayoutTemplateVersionInfoR\bversions\x120\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"w\n" +
 	"\x1fGetLayoutTemplateVersionRequest\x12\x19\n" +
 	"\bowner_id\x18\x01 \x01(\x06R\aownerId\x12\x1f\n" +
 	"\vtemplate_id\x18\x02 \x01(\x06R\n" +
@@ -2554,10 +2612,14 @@ const file_layout_v1_layout_proto_rawDesc = "" +
 	"\ftrack_latest\x18\x04 \x01(\bR\vtrackLatest\x12*\n" +
 	"\x0epinned_version\x18\x05 \x01(\rH\x00R\rpinnedVersion\x88\x01\x01\x12\"\n" +
 	"\rupdated_at_ms\x18\x06 \x01(\x06R\vupdatedAtMsB\x11\n" +
-	"\x0f_pinned_version\"*\n" +
-	"(ListMyLayoutTemplateSubscriptionsRequest\"x\n" +
+	"\x0f_pinned_version\"s\n" +
+	"(ListMyLayoutTemplateSubscriptionsRequest\x12\x1e\n" +
+	"\x05limit\x18\x01 \x01(\rB\b\xbaH\x05*\x03\x18\xf4\x03R\x05limit\x12'\n" +
+	"\n" +
+	"page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken\"\xaa\x01\n" +
 	")ListMyLayoutTemplateSubscriptionsResponse\x12K\n" +
-	"\rsubscriptions\x18\x01 \x03(\v2%.layout.v1.LayoutTemplateSubscriptionR\rsubscriptions\"@\n" +
+	"\rsubscriptions\x18\x01 \x03(\v2%.layout.v1.LayoutTemplateSubscriptionR\rsubscriptions\x120\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"@\n" +
 	"\x13UpsertLayoutRequest\x12)\n" +
 	"\x06layout\x18\x01 \x01(\v2\x11.layout.v1.LayoutR\x06layout\"A\n" +
 	"\x14UpsertLayoutResponse\x12)\n" +

@@ -63,7 +63,7 @@ func (m *CreateOrderRequest) validate(all bool) error {
 
 	// no validation rules for OrderType
 
-	// no validation rules for Tif
+	// no validation rules for TimeInForce
 
 	// no validation rules for QtyScaled
 
@@ -77,7 +77,7 @@ func (m *CreateOrderRequest) validate(all bool) error {
 
 	// no validation rules for FeeSource
 
-	// no validation rules for StpMode
+	// no validation rules for SelfTradePreventionMode
 
 	if all {
 		switch v := interface{}(m.GetAttachedRisk()).(type) {

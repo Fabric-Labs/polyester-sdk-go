@@ -121,7 +121,7 @@ func (m *GetTradesRequest) validate(all bool) error {
 
 	// no validation rules for Side
 
-	// no validation rules for FromMatchId
+	// no validation rules for PageToken
 
 	if len(errors) > 0 {
 		return GetTradesRequestMultiError(errors)
@@ -368,7 +368,7 @@ func (m *GetTradesResponse) validate(all bool) error {
 
 	}
 
-	// no validation rules for NextMatchId
+	// no validation rules for NextPageToken
 
 	if len(errors) > 0 {
 		return GetTradesResponseMultiError(errors)
@@ -540,6 +540,8 @@ func (m *GetCandlesRequest) validate(all bool) error {
 
 	// no validation rules for IncludeReference
 
+	// no validation rules for PageToken
+
 	if len(errors) > 0 {
 		return GetCandlesRequestMultiError(errors)
 	}
@@ -709,6 +711,8 @@ func (m *GetCandlesColumnsRequest) validate(all bool) error {
 	// no validation rules for IncludeIncomplete
 
 	// no validation rules for IncludeReference
+
+	// no validation rules for PageToken
 
 	if len(errors) > 0 {
 		return GetCandlesColumnsRequestMultiError(errors)
@@ -997,6 +1001,8 @@ func (m *GetCandlesResponse) validate(all bool) error {
 
 	}
 
+	// no validation rules for NextPageToken
+
 	if len(errors) > 0 {
 		return GetCandlesResponseMultiError(errors)
 	}
@@ -1102,6 +1108,8 @@ func (m *GetCandlesColumnsResponse) validate(all bool) error {
 	// no validation rules for SymbolId
 
 	// no validation rules for Timeframe
+
+	// no validation rules for NextPageToken
 
 	if len(errors) > 0 {
 		return GetCandlesColumnsResponseMultiError(errors)

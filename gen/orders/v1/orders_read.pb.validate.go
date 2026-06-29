@@ -17,6 +17,8 @@ import (
 	"unicode/utf8"
 
 	"google.golang.org/protobuf/types/known/anypb"
+
+	ledgerv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/v1"
 )
 
 // ensure the imports are used
@@ -33,6 +35,8 @@ var (
 	_ = (*mail.Address)(nil)
 	_ = anypb.Any{}
 	_ = sort.Sort
+
+	_ = ledgerv1.TransferCode(0)
 )
 
 // Validate checks the field values on OrderOrigin with the rules defined in
@@ -965,21 +969,21 @@ func (m *Order) validate(all bool) error {
 
 	// no validation rules for OrderType
 
-	// no validation rules for Tif
+	// no validation rules for TimeInForce
 
-	// no validation rules for StpMode
+	// no validation rules for SelfTradePreventionMode
 
 	// no validation rules for FeeSource
 
 	// no validation rules for PostOnly
 
-	// no validation rules for OrigQty
+	// no validation rules for OrigQtyScaled
 
-	// no validation rules for CumQty
+	// no validation rules for CumQtyScaled
 
-	// no validation rules for LeavesQty
+	// no validation rules for LeavesQtyScaled
 
-	// no validation rules for AvgPxTicks
+	// no validation rules for AvgPriceTicks
 
 	// no validation rules for PriceTicks
 
@@ -1279,17 +1283,42 @@ func (m *OrderTransfer) validate(all bool) error {
 
 	// no validation rules for AssetId
 
-	// no validation rules for AmountHi
-
-	// no validation rules for AmountLo
+	if all {
+		switch v := interface{}(m.GetAmountE18()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, OrderTransferValidationError{
+					field:  "AmountE18",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, OrderTransferValidationError{
+					field:  "AmountE18",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetAmountE18()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return OrderTransferValidationError{
+				field:  "AmountE18",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
 
 	// no validation rules for IsDebit
 
-	// no validation rules for Type
+	// no validation rules for TransferCode
 
 	// no validation rules for AccountCode
 
-	// no validation rules for Timestamp
+	// no validation rules for TsNs
 
 	// no validation rules for TxId
 
