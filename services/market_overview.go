@@ -1,0 +1,113 @@
+package services
+
+import (
+	"context"
+
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
+	marketoverviewv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketoverview/v1"
+	"github.com/Fabric-Labs/polyester-sdk-go/gen/marketoverview/v1/marketoverviewv1connect"
+	mosub "github.com/Fabric-Labs/polyester-sdk-go/marketoverview"
+	"github.com/Fabric-Labs/polyester-sdk-go/models"
+	"github.com/Fabric-Labs/polyester-sdk-go/realtime"
+	"github.com/Fabric-Labs/polyester-sdk-go/transport"
+)
+
+type MarketOverviewService struct {
+	transport *transport.Factory
+	realtime  RealtimeClient
+}
+
+func NewMarketOverviewService(factory *transport.Factory, realtime RealtimeClient) *MarketOverviewService {
+	return &MarketOverviewService{transport: factory, realtime: realtime}
+}
+
+func (s *MarketOverviewService) client() marketoverviewv1connect.MarketOverviewServiceClient {
+	return marketoverviewv1connect.NewMarketOverviewServiceClient(s.transport.HTTP, s.transport.Config.APIURL, s.transport.ConnectOptions(false)...)
+}
+
+func (s *MarketOverviewService) List(ctx context.Context, symbols []string, limit int, _ string, includeSparklines bool) (models.MarketOverviewList, error) {
+	req := &marketoverviewv1.ListMarketOverviewRequest{Limit: uint32(limit), IncludeSparklines: includeSparklines}
+	if len(symbols) > 0 {
+		req.Symbols = append(req.Symbols, symbols...)
+	}
+	return UnaryPublic(ctx, s.transport, s.client().ListMarketOverview, req, decode.MarketOverviewListFromProto)
+}
+
+// CreateSubscriptionOptions configures a managed market overview subscription.
+type MarketOverviewCreateSubscriptionOptions struct {
+	Symbols           []string
+	Limit             int
+	IncludeSparklines bool
+	OnEvent           func([]models.MarketOverviewEntry)
+}
+
+// CreateSubscription starts snapshot-then-stream market overview merging.
+func (s *MarketOverviewService) CreateSubscription(ctx context.Context, opts MarketOverviewCreateSubscriptionOptions) (*mosub.Subscription, error) {
+	if err := requireRealtime(s.realtime); err != nil {
+		return nil, err
+	}
+	limit := opts.Limit
+	if limit <= 0 {
+		limit = 50
+	}
+	channel := "public:spot:market_overview:updates:proto"
+	bySymbolID := map[uint32]models.MarketOverviewEntry{}
+
+	emit := func(sub *mosub.Subscription) {
+		rows := make([]models.MarketOverviewEntry, 0, len(bySymbolID))
+		for _, row := range bySymbolID {
+			rows = append(rows, row)
+		}
+		if opts.OnEvent != nil {
+			opts.OnEvent(rows)
+		}
+		if sub != nil {
+			sub.Enqueue(rows)
+		}
+	}
+
+	applyRows := func(rows []models.MarketOverviewEntry) {
+		for _, row := range rows {
+			bySymbolID[row.SymbolID] = row
+		}
+	}
+
+	var subscription *mosub.Subscription
+	stream := realtime.NewSnapshotThenStream(realtime.SnapshotThenStreamConfig[models.MarketOverviewList, models.MarketOverviewList]{
+		Client:  s.realtime,
+		Channel: channel,
+		Decode:  decode.MarketOverviewBatchFromBytes,
+		FetchSnapshot: func(fetchCtx context.Context) (models.MarketOverviewList, error) {
+			return s.List(fetchCtx, opts.Symbols, limit, "", opts.IncludeSparklines)
+		},
+		ReadPublication: func(batch models.MarketOverviewList) []models.MarketOverviewList {
+			return []models.MarketOverviewList{batch}
+		},
+		ApplySnapshot: func(snapshot models.MarketOverviewList, buffered []models.MarketOverviewList) {
+			clear(bySymbolID)
+			applyRows(snapshot.Markets)
+			for _, batch := range buffered {
+				applyRows(batch.Markets)
+			}
+			emit(subscription)
+		},
+		ApplyLivePublications: func(batches []models.MarketOverviewList) {
+			for _, batch := range batches {
+				applyRows(batch.Markets)
+			}
+			emit(subscription)
+		},
+		MaxBuffered: 2000,
+	})
+
+	subscription = mosub.NewSubscription(stream)
+	if err := stream.Start(ctx); err != nil {
+		subscription.Close()
+		return nil, err
+	}
+	return subscription, nil
+}
+
+func (s *MarketOverviewService) Subscribe(ctx context.Context) (*realtime.Subscription[models.MarketOverviewList], error) {
+	return SubscribePublicProto(ctx, s.realtime, "public:spot:market_overview:updates:proto", decode.MarketOverviewBatchFromBytes)
+}

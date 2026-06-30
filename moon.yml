@@ -1,0 +1,33 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+language: "go"
+type: "library"
+
+tasks:
+  test:
+    description: "Run unit tests"
+    command: "go"
+    args: ["test", "./..."]
+    inputs:
+      - "**/*.go"
+    local: true
+
+  lint:
+    description: "Run golangci-lint"
+    command: "golangci-lint run"
+    inputs:
+      - "@globs(sources)"
+      - "@globs(tests)"
+    options:
+      mutex: "golangci-lint"
+    local: true
+
+  fix:
+    description: "Run golangci-lint with auto-fix"
+    command: "golangci-lint run --fix"
+    inputs:
+      - "@globs(sources)"
+      - "@globs(tests)"
+    options:
+      mutex: "golangci-lint"
+    local: true

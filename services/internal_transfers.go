@@ -1,0 +1,64 @@
+package services
+
+import (
+	"context"
+
+	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
+	"github.com/Fabric-Labs/polyester-sdk-go/errors"
+	transferv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1"
+	"github.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1/transferv1connect"
+	"github.com/Fabric-Labs/polyester-sdk-go/models"
+	"github.com/Fabric-Labs/polyester-sdk-go/transport"
+)
+
+type InternalTransfersService struct {
+	transport *transport.Factory
+	catalogs  *catalogs.Manager
+	scoped    ScopedSubAccount
+}
+
+func NewInternalTransfersService(factory *transport.Factory, cats *catalogs.Manager, defaultSubAccountID *string) *InternalTransfersService {
+	return &InternalTransfersService{transport: factory, catalogs: cats, scoped: ScopedSubAccount{DefaultSubAccountID: defaultSubAccountID}}
+}
+
+func (s *InternalTransfersService) client() transferv1connect.InternalTransferServiceClient {
+	return transferv1connect.NewInternalTransferServiceClient(s.transport.HTTP, s.transport.Config.APIURL, s.transport.ConnectOptions(true)...)
+}
+
+func (s *InternalTransfersService) Create(ctx context.Context, assetID uint32, quantity, idempotencyKey string, account AccountScope, subAccountID *string, destinationAccountID, destinationSubaccountID, destinationSmartAccountAddress *string, quantityScale *int) (models.InternalTransferResult, error) {
+	if destinationAccountID == nil && destinationSubaccountID == nil && (destinationSmartAccountAddress == nil || *destinationSmartAccountAddress == "") {
+		return models.InternalTransferResult{}, &errors.ValidationError{Msg: "create requires destination_account_id, destination_subaccount_id, or destination_smart_account_address"}
+	}
+	scale := codecs.LedgerScale
+	if quantityScale != nil {
+		scale = *quantityScale
+	}
+	qty, err := codecs.ParseQtyScaled(quantity, scale, "quantity")
+	if err != nil {
+		return models.InternalTransferResult{}, err
+	}
+	req := &transferv1.CreateInternalTransferRequest{AssetId: assetID, QtyScaled: int64(qty), IdempotencyKey: idempotencyKey}
+	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {
+		return models.InternalTransferResult{}, err
+	}
+	if destinationAccountID != nil {
+		id, err := codecs.IDToInt(*destinationAccountID, "destination_account_id")
+		if err != nil {
+			return models.InternalTransferResult{}, err
+		}
+		req.Destination = &transferv1.CreateInternalTransferRequest_DestinationAccountId{DestinationAccountId: id}
+	}
+	if destinationSubaccountID != nil {
+		id, err := codecs.IDToInt(*destinationSubaccountID, "destination_subaccount_id")
+		if err != nil {
+			return models.InternalTransferResult{}, err
+		}
+		req.Destination = &transferv1.CreateInternalTransferRequest_DestinationSubaccountId{DestinationSubaccountId: id}
+	}
+	if destinationSmartAccountAddress != nil {
+		req.Destination = &transferv1.CreateInternalTransferRequest_DestinationSmartAccountAddress{DestinationSmartAccountAddress: *destinationSmartAccountAddress}
+	}
+	return UnaryAuth(ctx, s.transport, s.client().CreateInternalTransfer, req, decode.InternalTransferFromProto)
+}

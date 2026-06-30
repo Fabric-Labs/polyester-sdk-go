@@ -1,0 +1,54 @@
+package polyester
+
+import (
+	"reflect"
+	"testing"
+)
+
+func TestNewUsesDefaults(t *testing.T) {
+	client, err := New(Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+	if client.APIURL != DefaultAPIURL {
+		t.Fatalf("api url: %s", client.APIURL)
+	}
+	if client.Orderbook == nil || client.MarketData == nil {
+		t.Fatal("expected service tree")
+	}
+}
+
+func TestClientExposesDocumentedServices(t *testing.T) {
+	client, err := New(Config{HydrateCatalogs: false})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+
+	expected := []string{
+		"Auth", "Accounts", "ChainAnalytics", "MarketData", "Candles", "MarketOverview",
+		"Zipper", "Heatmap", "Lifecycle", "Balances", "Orderbook", "Orders", "Trades",
+		"Triggers", "Transfers", "InternalTransfers", "Deposit", "APIKeys", "Policies",
+		"SubAccounts", "Resolve", "AddressBook", "SocialVerification", "Whiteboard",
+		"Polychart", "Layout", "GuardSigner", "Withdraw", "TradingWithdraws", "LedgerWrite", "Realtime",
+	}
+	v := reflect.ValueOf(client).Elem()
+	for _, name := range expected {
+		if f := v.FieldByName(name); !f.IsValid() || f.IsNil() {
+			t.Fatalf("missing client.%s", name)
+		}
+	}
+	if client.Accounts != client.Resolve {
+		t.Fatal("Accounts alias should point to Resolve")
+	}
+	if client.Candles != client.MarketData {
+		t.Fatal("Candles alias should point to MarketData")
+	}
+	if client.TradingWithdraws != client.Withdraw {
+		t.Fatal("TradingWithdraws alias should point to Withdraw")
+	}
+	if client.Auth.Profile == nil {
+		t.Fatal("expected client.Auth.Profile")
+	}
+}

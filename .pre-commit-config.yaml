@@ -1,0 +1,12 @@
+# Install: pre-commit install  (or ./scripts/setup-hooks.sh)
+# Runs golangci-lint before each commit (check only — run `make fix` to auto-fix).
+
+repos:
+  - repo: local
+    hooks:
+      - id: golangci-lint
+        name: golangci-lint
+        entry: bash -c 'root="$(git rev-parse --show-toplevel)" && cd "$root" && ./scripts/run-lint.sh'
+        language: system
+        pass_filenames: false
+        files: \.go$
