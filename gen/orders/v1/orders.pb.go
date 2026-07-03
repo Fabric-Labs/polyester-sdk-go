@@ -370,8 +370,6 @@ const (
 	ErrorCode_ERROR_CODE_POST_ONLY_LIMIT_ONLY ErrorCode = 32
 	// Batch size exceeds the maximum allowed.
 	ErrorCode_ERROR_CODE_BATCH_TOO_LARGE ErrorCode = 33
-	// Cancel-all matched more orders than the safety cap allows.
-	ErrorCode_ERROR_CODE_LIMIT_EXCEEDED ErrorCode = 34
 	// Modify request in AMEND_ONLY mode requires replace semantics.
 	ErrorCode_ERROR_CODE_MODIFICATION_REQUIRES_REPLACE ErrorCode = 35
 	// Idempotency key was reused with a different payload.
@@ -469,7 +467,6 @@ var (
 		31: "ERROR_CODE_MIN_QTY",
 		32: "ERROR_CODE_POST_ONLY_LIMIT_ONLY",
 		33: "ERROR_CODE_BATCH_TOO_LARGE",
-		34: "ERROR_CODE_LIMIT_EXCEEDED",
 		35: "ERROR_CODE_MODIFICATION_REQUIRES_REPLACE",
 		36: "ERROR_CODE_CONFLICT_IDEMPOTENCY_KEY_REUSE",
 		37: "ERROR_CODE_MARKET_PRICE_UNAVAILABLE",
@@ -534,7 +531,6 @@ var (
 		"ERROR_CODE_MIN_QTY":                              31,
 		"ERROR_CODE_POST_ONLY_LIMIT_ONLY":                 32,
 		"ERROR_CODE_BATCH_TOO_LARGE":                      33,
-		"ERROR_CODE_LIMIT_EXCEEDED":                       34,
 		"ERROR_CODE_MODIFICATION_REQUIRES_REPLACE":        35,
 		"ERROR_CODE_CONFLICT_IDEMPOTENCY_KEY_REUSE":       36,
 		"ERROR_CODE_MARKET_PRICE_UNAVAILABLE":             37,
@@ -1805,9 +1801,6 @@ type CancelAllOrdersRequest struct {
 	Side Side `protobuf:"varint,3,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
 	// If true, return matched counts without actually canceling.
 	DryRun bool `protobuf:"varint,4,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
-	// Safety cap: reject if matched orders exceed this limit. Default 1000.
-	// Bounded to prevent accidental runaway values.
-	MaxOrders uint32 `protobuf:"varint,5,opt,name=max_orders,json=maxOrders,proto3" json:"max_orders,omitempty"`
 	// Idempotency key (required).
 	RequestId     string `protobuf:"bytes,6,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1870,13 +1863,6 @@ func (x *CancelAllOrdersRequest) GetDryRun() bool {
 		return x.DryRun
 	}
 	return false
-}
-
-func (x *CancelAllOrdersRequest) GetMaxOrders() uint32 {
-	if x != nil {
-		return x.MaxOrders
-	}
-	return 0
 }
 
 func (x *CancelAllOrdersRequest) GetRequestId() string {
@@ -3465,15 +3451,13 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x03oco\x18\x04 \x01(\bR\x03oco:\xdb\x01\xbaH\xd7\x01\x1a\xd4\x01\n" +
 	"(risk_policy.oco_requires_tp_and_one_stop\x12Noco requires take_profit and exactly one stop leg (stop_loss or trailing_stop)\x1aX!this.oco || (has(this.take_profit) && (has(this.stop_loss) != has(this.trailing_stop)))B\n" +
 	"\n" +
-	"\bstop_leg\"\xab\x02\n" +
+	"\bstop_leg\"\xff\x01\n" +
 	"\x16CancelAllOrdersRequest\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12\"\n" +
 	"\x06symbol\x18\x02 \x01(\tB\n" +
 	"\xbaH\a\xd8\x01\x01r\x02\x18 R\x06symbol\x12-\n" +
 	"\x04side\x18\x03 \x01(\x0e2\x0f.orders.v1.SideB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04side\x12\x17\n" +
-	"\adry_run\x18\x04 \x01(\bR\x06dryRun\x12*\n" +
-	"\n" +
-	"max_orders\x18\x05 \x01(\rB\v\xbaH\b\xd8\x01\x01*\x03\x18\x90NR\tmaxOrders\x12=\n" +
+	"\adry_run\x18\x04 \x01(\bR\x06dryRun\x12=\n" +
 	"\n" +
 	"request_id\x18\x06 \x01(\tB\x1e\xbaH\x1br\x19\x10\x01\x18@2\x13^[A-Za-z0-9._:/-]+$R\trequestIdB\x10\n" +
 	"\x0e_subaccount_id\"\xed\x01\n" +
@@ -3644,7 +3628,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"&SELF_TRADE_PREVENTION_MODE_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fEXPIRE_MAKER\x10\x01\x12\x10\n" +
 	"\fEXPIRE_TAKER\x10\x02\x12\x0f\n" +
-	"\vEXPIRE_BOTH\x10\x03*\xa6\x11\n" +
+	"\vEXPIRE_BOTH\x10\x03*\x87\x11\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16ERROR_CODE_BAD_REQUEST\x10\x01\x12\x1f\n" +
@@ -3680,8 +3664,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x1aERROR_CODE_PRICE_TICK_SIZE\x10\x1e\x12\x16\n" +
 	"\x12ERROR_CODE_MIN_QTY\x10\x1f\x12#\n" +
 	"\x1fERROR_CODE_POST_ONLY_LIMIT_ONLY\x10 \x12\x1e\n" +
-	"\x1aERROR_CODE_BATCH_TOO_LARGE\x10!\x12\x1d\n" +
-	"\x19ERROR_CODE_LIMIT_EXCEEDED\x10\"\x12,\n" +
+	"\x1aERROR_CODE_BATCH_TOO_LARGE\x10!\x12,\n" +
 	"(ERROR_CODE_MODIFICATION_REQUIRES_REPLACE\x10#\x12-\n" +
 	")ERROR_CODE_CONFLICT_IDEMPOTENCY_KEY_REUSE\x10$\x12'\n" +
 	"#ERROR_CODE_MARKET_PRICE_UNAVAILABLE\x10%\x12\"\n" +
@@ -3730,14 +3713,14 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x11ModifyActionTaken\x12\x1d\n" +
 	"\x19MODIFY_ACTION_UNSPECIFIED\x10\x00\x12\v\n" +
 	"\aAMENDED\x10\x01\x12\f\n" +
-	"\bREPLACED\x10\x022\xb9\x11\n" +
+	"\bREPLACED\x10\x022\xa6\x11\n" +
 	"\rOrdersService\x12\xaa\x02\n" +
 	"\vCreateOrder\x12\x1d.orders.v1.CreateOrderRequest\x1a\x1e.orders.v1.CreateOrderResponse\"\xdb\x01\xbaG\xd7\x01\n" +
 	"\x0eOrders Service\x12\fCreate Order\x1a\xb6\x01Create a single order with side, type, quantity, and optional price fields. Supports optional client order IDs and attached risk instructions (take-profit, stop-loss, trailing stop).\x12\xde\x01\n" +
 	"\vCancelOrder\x12\x1d.orders.v1.CancelOrderRequest\x1a\x1e.orders.v1.CancelOrderResponse\"\x8f\x01\xbaG\x8b\x01\n" +
-	"\x0eOrders Service\x12\fCancel Order\x1akCancel a single open order by order ID or client order ID. Supports optional subaccount and symbol scoping.\x12\x86\x02\n" +
-	"\x0fCancelAllOrders\x12!.orders.v1.CancelAllOrdersRequest\x1a\".orders.v1.CancelAllOrdersResponse\"\xab\x01\xbaG\xa7\x01\n" +
-	"\x0eOrders Service\x12\x11Cancel All Orders\x1a\x81\x01Cancel all matching open orders for an account. Supports optional symbol and side filters, dry-run preview, and max order bounds.\x12\xa0\x02\n" +
+	"\x0eOrders Service\x12\fCancel Order\x1akCancel a single open order by order ID or client order ID. Supports optional subaccount and symbol scoping.\x12\xf3\x01\n" +
+	"\x0fCancelAllOrders\x12!.orders.v1.CancelAllOrdersRequest\x1a\".orders.v1.CancelAllOrdersResponse\"\x98\x01\xbaG\x94\x01\n" +
+	"\x0eOrders Service\x12\x11Cancel All Orders\x1aoCancel all matching open orders for an account. Supports optional symbol and side filters plus dry-run preview.\x12\xa0\x02\n" +
 	"\x0eCancelAllAfter\x12 .orders.v1.CancelAllAfterRequest\x1a!.orders.v1.CancelAllAfterResponse\"\xc8\x01\xbaG\xc4\x01\n" +
 	"\x0eOrders Service\x12\"Cancel All After (Dead-Man Switch)\x1a\x8d\x01Set or disable a dead-man switch timeout for automatic cancel-all. Supports optional symbol and side scope with idempotent heartbeat refresh.\x12\x9f\x02\n" +
 	"\x11BatchCreateOrders\x12#.orders.v1.BatchCreateOrdersRequest\x1a$.orders.v1.BatchCreateOrdersResponse\"\xbe\x01\xbaG\xba\x01\n" +
