@@ -1373,8 +1373,6 @@ func (m *CancelAllOrdersRequest) validate(all bool) error {
 
 	// no validation rules for DryRun
 
-	// no validation rules for MaxOrders
-
 	// no validation rules for RequestId
 
 	if m.SubaccountId != nil {
