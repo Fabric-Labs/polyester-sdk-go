@@ -105,6 +105,13 @@ func CreateOrderToProto(req models.CreateOrderRequest, quantityScale int) (*orde
 	if req.PostOnly {
 		proto.PostOnly = true
 	}
+	if req.MarketClientRefPrice != nil {
+		ticks, err := ParsePriceTicks(*req.MarketClientRefPrice, "market_client_ref_price")
+		if err != nil {
+			return nil, err
+		}
+		proto.MarketClientRefPriceTicks = int64(ticks)
+	}
 	return proto, nil
 }
 
@@ -178,7 +185,7 @@ func ModifyOrderToProto(
 }
 
 // CancelAllOrdersToProto encodes cancel-all request.
-func CancelAllOrdersToProto(subAccountID *string, symbol, side *string, dryRun bool, maxOrders *int, requestID *string) (*orderv1.CancelAllOrdersRequest, error) {
+func CancelAllOrdersToProto(subAccountID *string, symbol, side *string, dryRun bool, requestID *string) (*orderv1.CancelAllOrdersRequest, error) {
 	proto := &orderv1.CancelAllOrdersRequest{
 		RequestId: coalesceRequestID(requestID, "cancel-all"),
 		DryRun:    dryRun,
@@ -199,10 +206,6 @@ func CancelAllOrdersToProto(subAccountID *string, symbol, side *string, dryRun b
 			return nil, &errors.ValidationError{Msg: "side must be buy or sell"}
 		}
 		proto.Side = s
-	}
-	if maxOrders != nil {
-		v := uint32(*maxOrders)
-		proto.MaxOrders = v
 	}
 	return proto, nil
 }

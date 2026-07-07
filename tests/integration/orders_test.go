@@ -76,7 +76,7 @@ func TestOrdersCancelAllDryRun(t *testing.T) {
 
 	symbol := testutil.SmokeSymbol(t, client, ctx)
 	result := testutil.CallOptional(t, "orders.cancel_all", func() (models.CancelAllOrdersResult, error) {
-		return client.Orders.CancelAll(ctx, nil, nil, &symbol, nil, true, nil, nil)
+		return client.Orders.CancelAll(ctx, nil, nil, &symbol, nil, true, nil)
 	})
 	if result.Status == "" {
 		t.Fatalf("expected status: %+v", result)

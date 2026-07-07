@@ -75,7 +75,7 @@ func TestOrderRoundTripMutation(t *testing.T) {
 	}
 
 	defer func() {
-		_, _ = client.Orders.CancelAll(ctx, nil, nil, &symbol, nil, false, nil, nil)
+		_, _ = client.Orders.CancelAll(ctx, nil, nil, &symbol, nil, false, nil)
 	}()
 
 	cancelled, err := client.Orders.Cancel(ctx, nil, nil, &clientOrderID, &symbol, nil, nil)

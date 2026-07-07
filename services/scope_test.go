@@ -24,6 +24,14 @@ func TestScopedSubAccountIDMainUsesDefault(t *testing.T) {
 	if got != nil {
 		t.Fatalf("got=%v want nil", got)
 	}
+	empty := ""
+	got, err = services.ScopedSubAccountID("main", nil, &empty)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != nil {
+		t.Fatalf("got=%v want nil for empty default subaccount", got)
+	}
 }
 
 func TestScopedSubAccountIDDict(t *testing.T) {

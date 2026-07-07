@@ -14,6 +14,8 @@ type CreateOrderRequest struct {
 	PostOnly      bool           `json:"post_only,omitempty"`
 	ExpiresAt     *string        `json:"expires_at,omitempty"`
 	AttachedRisk  map[string]any `json:"attached_risk,omitempty"`
+	// MarketClientRefPrice is the client-supplied reference price for MARKET orders (decimal string).
+	MarketClientRefPrice *string `json:"market_client_ref_price,omitempty"`
 }
 
 // BatchModifyItem is one item in orders.batch_modify.

@@ -25,6 +25,9 @@ func ResolveSubAccountID(value *string, defaultVal *string) *string {
 	if value != nil {
 		return value
 	}
+	if defaultVal != nil && *defaultVal == "" {
+		return nil
+	}
 	return defaultVal
 }
 
