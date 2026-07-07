@@ -18,6 +18,6 @@ if command -v golangci-lint >/dev/null 2>&1; then
 fi
 
 echo "golangci-lint not found; install with:" >&2
-echo "  go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.6" >&2
+echo "  go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.6.2" >&2
 echo "and ensure \$(go env GOPATH)/bin is on your PATH." >&2
 exit 127
