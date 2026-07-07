@@ -26,7 +26,7 @@ func USDTFundedBuyLimitParams(ctx context.Context, client *polyester.Client, sym
 		return "", "", err
 	}
 	pair := PairForSymbol(spotRaw, symbol)
-	price = FarBelowBuyLimitPrice(symbol, pair)
+	price = ResolvePostOnlyBuyLimitPrice(ctx, client, symbol, pair)
 	qty = MinBaseQtyForPair(pair, price)
 	return price, qty, nil
 }
@@ -144,4 +144,61 @@ func WaitForNoOpenOrder(ctx context.Context, client *polyester.Client, clientOrd
 		}
 	}
 	return fmt.Errorf("order %s still open after %s", clientOrderID, timeout)
+}
+
+// WaitForTerminalOrder polls until an order reaches a terminal status.
+func WaitForTerminalOrder(ctx context.Context, client *polyester.Client, clientOrderID string, timeout time.Duration) (models.GetOrderResult, error) {
+	if timeout <= 0 {
+		timeout = 20 * time.Second
+	}
+	deadline := time.Now().Add(timeout)
+	var lastDetail models.GetOrderResult
+	for time.Now().Before(deadline) {
+		detail, err := client.Orders.Get(ctx, nil, nil, &clientOrderID, nil, false, false)
+		if err == nil && detail.Order != nil && detail.Order.ClientOrderID == clientOrderID {
+			lastDetail = detail
+			if _, ok := terminalOrderStatuses[detail.Order.Status]; ok {
+				return detail, nil
+			}
+		} else if err != nil && !IsNotFound(err) {
+			return models.GetOrderResult{}, err
+		}
+		select {
+		case <-ctx.Done():
+			return models.GetOrderResult{}, ctx.Err()
+		case <-time.After(500 * time.Millisecond):
+		}
+	}
+	if lastDetail.Order != nil && lastDetail.Order.Status != "" {
+		return models.GetOrderResult{}, fmt.Errorf("order %s stuck in status %q after %s", clientOrderID, lastDetail.Order.Status, timeout)
+	}
+	return models.GetOrderResult{}, fmt.Errorf("order %s did not reach terminal status within %s", clientOrderID, timeout)
+}
+
+// RequireTradingBaseBalanceForSymbol skips when base trading balance is below qty.
+func RequireTradingBaseBalanceForSymbol(t *testing.T, ctx context.Context, client *polyester.Client, symbol, qty string) {
+	t.Helper()
+	if SkipFundingCheck() {
+		return
+	}
+	spotRaw := spotRawFromClient(t, client, ctx)
+	zipper := CallOptional(t, "zipper.get_deposit_withdraw_config", func() (models.DepositWithdrawConfig, error) {
+		return client.Zipper.GetDepositWithdrawConfig(ctx)
+	})
+	baseAssetID := BaseAssetIDForSymbol(spotRaw, symbol, zipper)
+	if baseAssetID == nil {
+		t.Skipf("cannot resolve base asset for %s", symbol)
+	}
+	qtyDecimal, err := DecimalStringRequired(qty)
+	if err != nil {
+		t.Fatal(err)
+	}
+	balances := CallRequired(t, "balances.list", func() (models.BalancesList, error) {
+		return client.Balances.List(ctx, nil, nil)
+	})
+	balance := TradingBalanceHuman(balances, *baseAssetID)
+	if balance.Cmp(qtyDecimal) < 0 {
+		t.Skipf("trading base balance %s below required %s for asset %d; fund devnet or set POLYESTER_TEST_SKIP_FUNDING_CHECK=1",
+			balance.FloatString(8), qtyDecimal.FloatString(8), *baseAssetID)
+	}
 }

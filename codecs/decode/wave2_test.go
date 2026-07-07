@@ -95,6 +95,9 @@ func TestMarketOverviewListFromProto(t *testing.T) {
 	if len(result.Markets) != 1 || result.Markets[0].Symbol != "BTC-USD" {
 		t.Fatalf("markets=%+v", result.Markets)
 	}
+	if result.Markets[0].LastPriceTicks != "50000" {
+		t.Fatalf("last_price_ticks=%q want 50000", result.Markets[0].LastPriceTicks)
+	}
 }
 
 func TestOrderbookFromProto(t *testing.T) {

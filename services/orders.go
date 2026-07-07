@@ -182,12 +182,12 @@ func (s *OrdersService) Modify(ctx context.Context, account AccountScope, symbol
 }
 
 // CancelAll cancels all matching orders.
-func (s *OrdersService) CancelAll(ctx context.Context, account AccountScope, subAccountID, symbol, side *string, dryRun bool, maxOrders *int, requestID *string) (models.CancelAllOrdersResult, error) {
+func (s *OrdersService) CancelAll(ctx context.Context, account AccountScope, subAccountID, symbol, side *string, dryRun bool, requestID *string) (models.CancelAllOrdersResult, error) {
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {
 		return models.CancelAllOrdersResult{}, err
 	}
-	protoReq, err := codecs.CancelAllOrdersToProto(sub, symbol, side, dryRun, maxOrders, requestID)
+	protoReq, err := codecs.CancelAllOrdersToProto(sub, symbol, side, dryRun, requestID)
 	if err != nil {
 		return models.CancelAllOrdersResult{}, err
 	}

@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"context"
 	"errors"
 	"math"
 	"math/big"
@@ -8,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Fabric-Labs/polyester-sdk-go"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
@@ -166,19 +168,137 @@ func FarAboveBuyStopPrice(symbol string, pair map[string]any) string {
 	return "50000"
 }
 
-// FarBelowBuyLimitPrice returns a post-only buy price far below typical devnet spot.
-func FarBelowBuyLimitPrice(symbol string, pair map[string]any) string {
+// MarketRefPrice returns a client reference price for MARKET order reservation.
+func MarketRefPrice(ctx context.Context, client *polyester.Client, symbol, side string, pair map[string]any) string {
+	if override := strings.TrimSpace(os.Getenv("POLYESTER_TEST_TRADE_PRICE")); override != "" {
+		return override
+	}
+	if client != nil {
+		book, err := client.Orderbook.Get(ctx, symbol, 5)
+		if err == nil {
+			switch strings.ToLower(strings.TrimSpace(side)) {
+			case "sell":
+				if len(book.Bids) > 0 && book.Bids[0].Price != "" {
+					return book.Bids[0].Price
+				}
+			default:
+				if len(book.Asks) > 0 && book.Asks[0].Price != "" {
+					return book.Asks[0].Price
+				}
+			}
+			if len(book.Asks) > 0 && book.Asks[0].Price != "" {
+				return book.Asks[0].Price
+			}
+			if len(book.Bids) > 0 && book.Bids[0].Price != "" {
+				return book.Bids[0].Price
+			}
+		}
+		overview, err := client.MarketOverview.List(ctx, []string{symbol}, 5, "", false)
+		if err == nil {
+			for _, row := range overview.Markets {
+				if row.Symbol != symbol || row.LastPriceTicks == "" {
+					continue
+				}
+				ticks, err := strconv.ParseInt(row.LastPriceTicks, 10, 64)
+				if err == nil && ticks > 0 {
+					return codecs.FormatPriceTicks(ticks)
+				}
+			}
+		}
+	}
+	return FarAboveBuyStopPrice(symbol, pair)
+}
+
+// ResolvePostOnlyBuyLimitPrice returns a post-only buy price slightly below the live book.
+func ResolvePostOnlyBuyLimitPrice(ctx context.Context, client *polyester.Client, symbol string, pair map[string]any) string {
 	if override := strings.TrimSpace(os.Getenv("POLYESTER_TEST_PRICE")); override != "" {
 		return override
 	}
 	if override := strings.TrimSpace(os.Getenv("POLYESTER_SMOKE_PRICE")); override != "" {
 		return override
 	}
+	tickSize := decimalString(pair["tickSize"], pair["tick_size"], "0.01")
+	if client != nil {
+		book, err := client.Orderbook.Get(ctx, symbol, 5)
+		if err == nil {
+			if price, ok := postOnlyBuyPriceFromBook(book, tickSize); ok {
+				return price
+			}
+		}
+		overview, err := client.MarketOverview.List(ctx, []string{symbol}, 5, "", false)
+		if err == nil {
+			for _, row := range overview.Markets {
+				if row.Symbol != symbol || row.LastPriceTicks == "" {
+					continue
+				}
+				ticks, err := strconv.ParseInt(row.LastPriceTicks, 10, 64)
+				if err == nil && ticks > 0 {
+					if price, ok := postOnlyBuyPriceFromLastTicks(ticks, tickSize, symbol); ok {
+						return price
+					}
+				}
+			}
+		}
+	}
 	if hint, ok := farBelowBuyPriceHints[symbol]; ok {
 		return hint
 	}
-	_ = pair
 	return "100"
+}
+
+// FarBelowBuyLimitPrice is deprecated; use ResolvePostOnlyBuyLimitPrice for live market pricing.
+func FarBelowBuyLimitPrice(symbol string, pair map[string]any) string {
+	return ResolvePostOnlyBuyLimitPrice(context.Background(), nil, symbol, pair)
+}
+
+func postOnlyBuyPriceFromBook(book models.OrderbookData, tickSize string) (string, bool) {
+	if len(book.Bids) == 0 {
+		return "", false
+	}
+	tickTicks, err := codecs.ParsePriceTicks(tickSize, "tick_size")
+	if err != nil || tickTicks == 0 {
+		return "", false
+	}
+	bidTicks, err := codecs.ParsePriceTicks(book.Bids[0].Price, "price")
+	if err != nil {
+		return "", false
+	}
+	target := int64(bidTicks) - int64(tickTicks)
+	if target < int64(tickTicks) {
+		target = int64(tickTicks)
+	}
+	if len(book.Asks) > 0 && book.Asks[0].Price != "" {
+		askTicks, err := codecs.ParsePriceTicks(book.Asks[0].Price, "price")
+		if err == nil {
+			maxPostOnly := int64(askTicks) - int64(tickTicks)
+			if target > maxPostOnly {
+				target = maxPostOnly
+			}
+		}
+	}
+	if target < int64(tickTicks) {
+		return "", false
+	}
+	return codecs.FormatPriceTicks(target), true
+}
+
+func postOnlyBuyPriceFromLastTicks(lastTicks int64, tickSize, symbol string) (string, bool) {
+	if lastTicks <= 0 {
+		return "", false
+	}
+	tickTicks, err := codecs.ParsePriceTicks(tickSize, "tick_size")
+	if err != nil || tickTicks == 0 {
+		return "", false
+	}
+	target := lastTicks * 995 / 1000
+	aligned := (target / int64(tickTicks)) * int64(tickTicks)
+	if aligned < int64(tickTicks) {
+		if hint, ok := farBelowBuyPriceHints[symbol]; ok {
+			return hint, true
+		}
+		aligned = int64(tickTicks)
+	}
+	return codecs.FormatPriceTicks(aligned), true
 }
 
 // MinBaseQtyForPair returns a minimum base quantity for a limit order.

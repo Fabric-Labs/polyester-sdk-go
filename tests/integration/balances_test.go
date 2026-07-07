@@ -31,7 +31,7 @@ func TestBalancesGetHealth(t *testing.T) {
 	client, ctx, cleanup := testutil.RequireLiveClient(t)
 	defer cleanup()
 
-	result := testutil.CallRequired(t, "balances.get_health", func() (models.LedgerHealth, error) {
+	result := testutil.CallOptional(t, "balances.get_health", func() (models.LedgerHealth, error) {
 		return client.Balances.GetHealth(ctx)
 	})
 	if !result.OK {

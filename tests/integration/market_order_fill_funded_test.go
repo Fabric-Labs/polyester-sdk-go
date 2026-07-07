@@ -14,10 +14,10 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
-func TestSpotFill(t *testing.T) {
+func TestMarketOrderFill(t *testing.T) {
 	testutil.RequireFunded(t)
 	if !testutil.TradeE2EEnabled() {
-		t.Skip("Set POLYESTER_TEST_TRADE_E2E=1 to run spot fill e2e")
+		t.Skip("Set POLYESTER_TEST_TRADE_E2E=1 to run market order fill e2e")
 	}
 
 	client, ctx, cleanup := testutil.RequireLiveClient(t)
@@ -26,18 +26,18 @@ func TestSpotFill(t *testing.T) {
 	symbol := testutil.TradeSymbol(t, client, ctx)
 	testutil.RequireTradingBalanceForSymbol(t, ctx, client, symbol)
 
-	maker, _, err := testutil.MakerClientFromEnv()
+	maker, hasMaker, err := testutil.MakerClientFromEnv()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if maker == nil {
-		t.Skip("Set POLYESTER_TEST_MAKER_API_KEY_ID and POLYESTER_TEST_MAKER_API_PRIVATE_KEY for limit fill e2e (devnet orderbook often has no liquidity)")
+	if !hasMaker {
+		t.Skip("Set POLYESTER_TEST_MAKER_API_KEY_ID and POLYESTER_TEST_MAKER_API_PRIVATE_KEY for market order fill e2e")
 	}
 	defer maker.Close()
 	_, _ = testutil.HydrateSpotRaw(ctx, maker)
 
-	makerCID := testutil.UniqueClientOrderID("maker-fill")
-	takerCID := testutil.UniqueClientOrderID("taker-fill")
+	makerCID := testutil.UniqueClientOrderID("maker-mkt")
+	takerCID := testutil.UniqueClientOrderID("taker-mkt")
 	makerOrderCreated := false
 	takerOrderCreated := false
 
@@ -128,15 +128,14 @@ func TestSpotFill(t *testing.T) {
 	}
 	makerOrderCreated = true
 
+	takerTIF := "ioc"
 	takerCreated, err := client.Orders.Create(ctx, models.CreateOrderRequest{
 		Symbol:        &symbol,
 		Side:          "buy",
-		OrderType:     "limit",
-		TIF:           &tif,
+		OrderType:     "market",
+		TIF:           &takerTIF,
 		Qty:           qty,
-		Price:         &price,
 		ClientOrderID: &takerCID,
-		PostOnly:      false,
 	}, nil)
 	if err != nil {
 		if testutil.IsDevnetOrderInternalError(err) || testutil.DevnetUnavailable(err) {
@@ -157,13 +156,17 @@ func TestSpotFill(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	matchIDs := map[string]struct{}{}
+	if takerDetail.Order != nil && takerDetail.Order.OrderType != "" && takerDetail.Order.OrderType != "market" {
+		t.Fatalf("taker order_type=%q want market", takerDetail.Order.OrderType)
+	}
+
+	takerMatchIDs := map[string]struct{}{}
 	for _, trade := range takerDetail.Trades {
 		if trade.MatchID != "" {
-			matchIDs[trade.MatchID] = struct{}{}
+			takerMatchIDs[trade.MatchID] = struct{}{}
 		}
 	}
-	if len(matchIDs) == 0 {
+	if len(takerMatchIDs) == 0 {
 		t.Fatal("expected taker match ids")
 	}
 
@@ -179,7 +182,7 @@ func TestSpotFill(t *testing.T) {
 	}
 
 	var matchID string
-	for id := range matchIDs {
+	for id := range takerMatchIDs {
 		if _, ok := makerMatchIDs[id]; ok {
 			matchID = id
 			break
