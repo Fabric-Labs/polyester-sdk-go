@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/testutil"
 )
@@ -25,7 +26,7 @@ func TestTriggerPauseResumeCancel(t *testing.T) {
 	}
 	clientTriggerID := testutil.UniqueClientOrderID("trg")
 
-	created, err := client.Triggers.Create(ctx, nil, symbol, "stop_loss", triggerPrice, "buy", qty, "limit", &limitPrice, "", "", nil, &clientTriggerID, false)
+	created, err := client.Triggers.Create(ctx, nil, symbol, "stop_loss", &triggerPrice, "buy", qty, "limit", &limitPrice, "", "", nil, &clientTriggerID, false, codecs.CreateTriggerOptions{})
 	if err != nil {
 		if testutil.DevnetBackendUnavailable(err) {
 			t.Skipf("devnet trigger placement unavailable: %v", err)

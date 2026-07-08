@@ -67,7 +67,7 @@ func (s *TriggersService) Get(ctx context.Context, account AccountScope, trigger
 	return UnaryAuth(ctx, s.transport, s.client().GetTrigger, req, decode.GetTriggerFromProto)
 }
 
-func (s *TriggersService) Create(ctx context.Context, account AccountScope, symbol, triggerType, triggerPrice, side, qty, orderType string, limitPrice *string, triggerPriceSource, tif string, subAccountID *string, clientTriggerID *string, postOnly bool) (models.TriggerMutationResult, error) {
+func (s *TriggersService) Create(ctx context.Context, account AccountScope, symbol, triggerType string, triggerPrice *string, side, qty, orderType string, limitPrice *string, triggerPriceSource, tif string, subAccountID *string, clientTriggerID *string, postOnly bool, opts codecs.CreateTriggerOptions) (models.TriggerMutationResult, error) {
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {
 		return models.TriggerMutationResult{}, err
@@ -76,7 +76,7 @@ func (s *TriggersService) Create(ctx context.Context, account AccountScope, symb
 	if s.catalogs != nil {
 		scale = s.catalogs.BaseQuantityScaleForSymbol(symbol)
 	}
-	req, err := codecs.CreateTriggerToProto(symbol, triggerType, triggerPrice, side, qty, orderType, limitPrice, triggerPriceSource, tif, sub, clientTriggerID, postOnly, scale)
+	req, err := codecs.CreateTriggerToProto(symbol, triggerType, triggerPrice, side, qty, orderType, limitPrice, triggerPriceSource, tif, sub, clientTriggerID, postOnly, scale, opts)
 	if err != nil {
 		return models.TriggerMutationResult{}, err
 	}

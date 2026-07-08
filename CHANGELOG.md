@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.0a5
+
+### Triggers
+- `Triggers.Create` accepts a `CreateTriggerOptions` struct exposing the full `CreateTriggerRequest` surface, unblocking `TRAILING_STOP`, `TWAP`, and `LADDER` creation: fee source, self-trade prevention mode, trailing distance (ticks/bps), activation price, max slippage (ticks/bps), TWAP window, and ladder range/levels/distribution
+- `Triggers.Create` now takes `triggerPrice` as an optional `*string` (not required for trailing/TWAP/ladder types)
+
+### Testing
+- Trigger creation integration test updated for the new `Create` signature
+
 ## 0.1.0a4
 
 ### Breaking

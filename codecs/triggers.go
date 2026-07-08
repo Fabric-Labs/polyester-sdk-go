@@ -28,7 +28,41 @@ var triggerPriceSourceToProto = map[string]orderv1.TriggerPriceSource{
 	"mark_price":  orderv1.TriggerPriceSource_MARK_PRICE,
 }
 
-func CreateTriggerToProto(symbol, triggerType, triggerPrice, side, qty, orderType string, limitPrice *string, triggerPriceSource, tif string, subAccountID *string, clientTriggerID *string, postOnly bool, quantityScale int) (*triggersv1.CreateTriggerRequest, error) {
+var ladderDistributionToProto = map[string]triggersv1.LadderDistribution{
+	"linear":             triggersv1.LadderDistribution_LINEAR,
+	"geometric":          triggersv1.LadderDistribution_GEOMETRIC,
+	"weighted_favorable": triggersv1.LadderDistribution_WEIGHTED_FAVORABLE,
+}
+
+var feeSourceToProto = map[string]orderv1.FeeSource{
+	"quote":    orderv1.FeeSource_QUOTE,
+	"received": orderv1.FeeSource_RECEIVED,
+}
+
+var selfTradePreventionModeToProto = map[string]orderv1.SelfTradePreventionMode{
+	"expire_taker": orderv1.SelfTradePreventionMode_EXPIRE_TAKER,
+	"expire_maker": orderv1.SelfTradePreventionMode_EXPIRE_MAKER,
+	"expire_both":  orderv1.SelfTradePreventionMode_EXPIRE_BOTH,
+}
+
+// CreateTriggerOptions carries optional create-trigger fields beyond the core order params.
+type CreateTriggerOptions struct {
+	FeeSource               *string
+	SelfTradePreventionMode *string
+	TrailingDistanceTicks   *int64
+	TrailingDistanceBps     *int32
+	ActivationPrice         *string
+	MaxSlippageTicks        *int32
+	MaxSlippageBps          *int32
+	TwapDurationMs          *int64
+	TwapSliceIntervalMs     *int64
+	LadderPriceMin          *string
+	LadderPriceMax          *string
+	LadderLevels            *int32
+	LadderDistribution      *string
+}
+
+func CreateTriggerToProto(symbol, triggerType string, triggerPrice *string, side, qty, orderType string, limitPrice *string, triggerPriceSource, tif string, subAccountID *string, clientTriggerID *string, postOnly bool, quantityScale int, opts CreateTriggerOptions) (*triggersv1.CreateTriggerRequest, error) {
 	typeKey := strings.ToLower(strings.ReplaceAll(triggerType, "-", "_"))
 	triggerEnum, ok := triggerTypeToProto[typeKey]
 	if !ok {
@@ -43,9 +77,13 @@ func CreateTriggerToProto(symbol, triggerType, triggerPrice, side, qty, orderTyp
 	if !ok {
 		return nil, &errors.ValidationError{Msg: "order_type must be limit or market"}
 	}
-	priceTicks, err := ParsePriceTicks(triggerPrice, "trigger_price")
-	if err != nil {
-		return nil, err
+	priceTicks := int64(0)
+	if triggerPrice != nil {
+		parsed, err := ParsePriceTicks(*triggerPrice, "trigger_price")
+		if err != nil {
+			return nil, err
+		}
+		priceTicks = int64(parsed)
 	}
 	qtyScaled, err := ParseQtyScaled(qty, quantityScale, "qty")
 	if err != nil {
@@ -54,7 +92,7 @@ func CreateTriggerToProto(symbol, triggerType, triggerPrice, side, qty, orderTyp
 	req := &triggersv1.CreateTriggerRequest{
 		Symbol:            symbol,
 		TriggerType:       triggerEnum,
-		TriggerPriceTicks: int64(priceTicks),
+		TriggerPriceTicks: priceTicks,
 		Side:              sideEnum,
 		OrderType:         orderEnum,
 		QtyScaled:         int64(qtyScaled),
@@ -86,6 +124,69 @@ func CreateTriggerToProto(symbol, triggerType, triggerPrice, side, qty, orderTyp
 			return nil, err
 		}
 		req.LimitPriceTicks = int64(ticks)
+	}
+	if opts.FeeSource != nil {
+		source, ok := feeSourceToProto[strings.ToLower(*opts.FeeSource)]
+		if !ok {
+			return nil, &errors.ValidationError{Msg: "fee_source must be quote or received"}
+		}
+		req.FeeSource = source
+	}
+	if opts.SelfTradePreventionMode != nil {
+		mode, ok := selfTradePreventionModeToProto[strings.ToLower(*opts.SelfTradePreventionMode)]
+		if !ok {
+			return nil, &errors.ValidationError{Msg: "self_trade_prevention_mode must be expire_taker, expire_maker, or expire_both"}
+		}
+		req.SelfTradePreventionMode = mode
+	}
+	if opts.TrailingDistanceTicks != nil {
+		req.TrailingDistance = &triggersv1.CreateTriggerRequest_TrailingDistanceTicks{TrailingDistanceTicks: *opts.TrailingDistanceTicks}
+	}
+	if opts.TrailingDistanceBps != nil {
+		req.TrailingDistance = &triggersv1.CreateTriggerRequest_TrailingDistanceBps{TrailingDistanceBps: *opts.TrailingDistanceBps}
+	}
+	if opts.ActivationPrice != nil {
+		ticks, err := ParsePriceTicks(*opts.ActivationPrice, "activation_price")
+		if err != nil {
+			return nil, err
+		}
+		req.ActivationPriceTicks = int64(ticks)
+	}
+	if opts.MaxSlippageTicks != nil {
+		req.MaxSlippage = &triggersv1.CreateTriggerRequest_MaxSlippageTicks{MaxSlippageTicks: *opts.MaxSlippageTicks}
+	}
+	if opts.MaxSlippageBps != nil {
+		req.MaxSlippage = &triggersv1.CreateTriggerRequest_MaxSlippageBps{MaxSlippageBps: *opts.MaxSlippageBps}
+	}
+	if opts.TwapDurationMs != nil {
+		req.TwapDurationMs = *opts.TwapDurationMs
+	}
+	if opts.TwapSliceIntervalMs != nil {
+		req.TwapSliceIntervalMs = *opts.TwapSliceIntervalMs
+	}
+	if opts.LadderPriceMin != nil {
+		ticks, err := ParsePriceTicks(*opts.LadderPriceMin, "ladder_price_min")
+		if err != nil {
+			return nil, err
+		}
+		req.LadderPriceMinTicks = int64(ticks)
+	}
+	if opts.LadderPriceMax != nil {
+		ticks, err := ParsePriceTicks(*opts.LadderPriceMax, "ladder_price_max")
+		if err != nil {
+			return nil, err
+		}
+		req.LadderPriceMaxTicks = int64(ticks)
+	}
+	if opts.LadderLevels != nil {
+		req.LadderLevels = *opts.LadderLevels
+	}
+	if opts.LadderDistribution != nil {
+		distribution, ok := ladderDistributionToProto[strings.ToLower(*opts.LadderDistribution)]
+		if !ok {
+			return nil, &errors.ValidationError{Msg: "ladder_distribution must be linear, geometric, or weighted_favorable"}
+		}
+		req.LadderDistribution = distribution
 	}
 	return req, nil
 }
