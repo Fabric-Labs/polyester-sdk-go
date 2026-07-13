@@ -12,7 +12,7 @@ func TestApplyDeltaDetectsGap(t *testing.T) {
 	delta := models.OrderBookDeltaUpdate{
 		BookSeqStart: "5",
 		BookSeqEnd:   "6",
-		Bids:         []models.PriceQtyPair{{PriceTicks: "100", QtyScaled: "7"}},
+		Bids:         []models.PriceQtyPair{{PriceTicks: 100, QtyScaled: 7}},
 	}
 	_, needsRefresh := ApplyDelta(bids, asks, 3, delta)
 	if !needsRefresh {
@@ -26,7 +26,7 @@ func TestApplyDeltaUpdatesBook(t *testing.T) {
 	delta := models.OrderBookDeltaUpdate{
 		BookSeqStart: "3",
 		BookSeqEnd:   "4",
-		Bids:         []models.PriceQtyPair{{PriceTicks: "100", QtyScaled: "7"}},
+		Bids:         []models.PriceQtyPair{{PriceTicks: 100, QtyScaled: 7}},
 	}
 	seq, needsRefresh := ApplyDelta(bids, asks, 3, delta)
 	if needsRefresh {

@@ -3,6 +3,7 @@ package decode
 import (
 	"strconv"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	lifecyclev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/lifecycle/v1"
 	zipperv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/zipper/v1"
@@ -29,15 +30,15 @@ func OrderbookDeltaFromBytes(payload []byte) (models.OrderBookDeltaUpdate, error
 	bids := make([]models.PriceQtyPair, 0, len(msg.GetBids()))
 	for _, level := range msg.GetBids() {
 		bids = append(bids, models.PriceQtyPair{
-			PriceTicks: strconv.FormatInt(level.GetPriceTicks(), 10),
-			QtyScaled:  strconv.FormatInt(level.GetQtyScaled(), 10),
+			PriceTicks: level.GetPriceTicks(),
+			QtyScaled:  level.GetQtyScaled(),
 		})
 	}
 	asks := make([]models.PriceQtyPair, 0, len(msg.GetAsks()))
 	for _, level := range msg.GetAsks() {
 		asks = append(asks, models.PriceQtyPair{
-			PriceTicks: strconv.FormatInt(level.GetPriceTicks(), 10),
-			QtyScaled:  strconv.FormatInt(level.GetQtyScaled(), 10),
+			PriceTicks: level.GetPriceTicks(),
+			QtyScaled:  level.GetQtyScaled(),
 		})
 	}
 	return models.OrderBookDeltaUpdate{
@@ -200,12 +201,12 @@ func MarketTradeFromBytes(payload []byte) (models.MarketTrade, error) {
 		side = "buy"
 	}
 	return models.MarketTrade{
-		SymbolID:   msg.GetSymbolId(),
-		MatchID:    strconv.FormatUint(msg.GetMatchId(), 10),
-		PriceTicks: strconv.FormatInt(msg.GetPriceTicks(), 10),
-		QtyScaled:  strconv.FormatInt(msg.GetQtyScaled(), 10),
-		TsNs:       strconv.FormatUint(msg.GetTsNs(), 10),
-		Side:       side,
+		SymbolID: msg.GetSymbolId(),
+		MatchID:  strconv.FormatUint(msg.GetMatchId(), 10),
+		Price:    codecs.DecodePriceTicks(msg.GetPriceTicks(), ""),
+		Qty:      codecs.DecodeQtyScaled(msg.GetQtyScaled(), -1, "", nil),
+		TsNs:     strconv.FormatUint(msg.GetTsNs(), 10),
+		Side:     side,
 	}, nil
 }
 

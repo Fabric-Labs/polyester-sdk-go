@@ -178,31 +178,28 @@ func MarketRefPrice(ctx context.Context, client *polyester.Client, symbol, side 
 		if err == nil {
 			switch strings.ToLower(strings.TrimSpace(side)) {
 			case "sell":
-				if len(book.Bids) > 0 && book.Bids[0].Price != "" {
-					return book.Bids[0].Price
+				if len(book.Bids) > 0 && book.Bids[0].Price.Ticks > 0 {
+					return book.Bids[0].Price.Format()
 				}
 			default:
-				if len(book.Asks) > 0 && book.Asks[0].Price != "" {
-					return book.Asks[0].Price
+				if len(book.Asks) > 0 && book.Asks[0].Price.Ticks > 0 {
+					return book.Asks[0].Price.Format()
 				}
 			}
-			if len(book.Asks) > 0 && book.Asks[0].Price != "" {
-				return book.Asks[0].Price
+			if len(book.Asks) > 0 && book.Asks[0].Price.Ticks > 0 {
+				return book.Asks[0].Price.Format()
 			}
-			if len(book.Bids) > 0 && book.Bids[0].Price != "" {
-				return book.Bids[0].Price
+			if len(book.Bids) > 0 && book.Bids[0].Price.Ticks > 0 {
+				return book.Bids[0].Price.Format()
 			}
 		}
 		overview, err := client.MarketOverview.List(ctx, []string{symbol}, 5, "", false)
 		if err == nil {
 			for _, row := range overview.Markets {
-				if row.Symbol != symbol || row.LastPriceTicks == "" {
+				if row.Symbol != symbol || row.LastPrice.Ticks <= 0 {
 					continue
 				}
-				ticks, err := strconv.ParseInt(row.LastPriceTicks, 10, 64)
-				if err == nil && ticks > 0 {
-					return codecs.FormatPriceTicks(ticks)
-				}
+				return row.LastPrice.Format()
 			}
 		}
 	}
@@ -228,14 +225,11 @@ func ResolvePostOnlyBuyLimitPrice(ctx context.Context, client *polyester.Client,
 		overview, err := client.MarketOverview.List(ctx, []string{symbol}, 5, "", false)
 		if err == nil {
 			for _, row := range overview.Markets {
-				if row.Symbol != symbol || row.LastPriceTicks == "" {
+				if row.Symbol != symbol || row.LastPrice.Ticks <= 0 {
 					continue
 				}
-				ticks, err := strconv.ParseInt(row.LastPriceTicks, 10, 64)
-				if err == nil && ticks > 0 {
-					if price, ok := postOnlyBuyPriceFromLastTicks(ticks, tickSize, symbol); ok {
-						return price
-					}
+				if price, ok := postOnlyBuyPriceFromLastTicks(row.LastPrice.Ticks, tickSize, symbol); ok {
+					return price
 				}
 			}
 		}
@@ -259,21 +253,16 @@ func postOnlyBuyPriceFromBook(book models.OrderbookData, tickSize string) (strin
 	if err != nil || tickTicks == 0 {
 		return "", false
 	}
-	bidTicks, err := codecs.ParsePriceTicks(book.Bids[0].Price, "price")
-	if err != nil {
-		return "", false
-	}
-	target := int64(bidTicks) - int64(tickTicks)
+	bidTicks := book.Bids[0].Price.Ticks
+	target := bidTicks - int64(tickTicks)
 	if target < int64(tickTicks) {
 		target = int64(tickTicks)
 	}
-	if len(book.Asks) > 0 && book.Asks[0].Price != "" {
-		askTicks, err := codecs.ParsePriceTicks(book.Asks[0].Price, "price")
-		if err == nil {
-			maxPostOnly := int64(askTicks) - int64(tickTicks)
-			if target > maxPostOnly {
-				target = maxPostOnly
-			}
+	if len(book.Asks) > 0 && book.Asks[0].Price.Ticks > 0 {
+		askTicks := book.Asks[0].Price.Ticks
+		maxPostOnly := askTicks - int64(tickTicks)
+		if target > maxPostOnly {
+			target = maxPostOnly
 		}
 	}
 	if target < int64(tickTicks) {

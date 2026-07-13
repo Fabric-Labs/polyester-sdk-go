@@ -3,6 +3,7 @@
 package integration_test
 
 import (
+	"fmt"
 	"math/big"
 	"os"
 	"strings"
@@ -80,7 +81,7 @@ func TestTransferToUserTiny(t *testing.T) {
 	}
 
 	idempotencyKey := testutil.UniqueClientOrderID("e2e-xfer")
-	result, err := client.InternalTransfers.Create(ctx, *assetID, quantity, idempotencyKey, nil, nil, &dest, nil, nil, nil)
+	result, err := client.InternalTransfers.Create(ctx, *assetID, models.AssetAmountFromDecimal(quantity), idempotencyKey, nil, nil, &dest, nil, nil, nil)
 	if err != nil {
 		if testutil.DevnetBackendUnavailable(err) || testutil.RouteUnavailable(err) || testutil.DevnetUnavailable(err) {
 			t.Skipf("devnet internal transfer unavailable: %v", err)
@@ -94,8 +95,8 @@ func TestTransferToUserTiny(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.QuantityScaled != expectedScaled {
-		t.Fatalf("quantity_scaled=%q want %q", result.QuantityScaled, expectedScaled)
+	if fmt.Sprint(result.Quantity.Scaled) != expectedScaled {
+		t.Fatalf("quantity=%v want %q", result.Quantity.Scaled, expectedScaled)
 	}
 
 	expectedAfter := new(big.Int).Sub(tradingBefore, qtyInt)

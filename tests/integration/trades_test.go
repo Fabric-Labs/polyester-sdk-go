@@ -3,6 +3,7 @@
 package integration_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/testutil"
@@ -27,10 +28,10 @@ func TestUserTradesList(t *testing.T) {
 		if trade.Side != "buy" && trade.Side != "sell" {
 			t.Fatalf("trade side=%q", trade.Side)
 		}
-		if testutil.NonNegativeIntStringPositive(t, trade.PriceTicks).Sign() == 0 {
+		if testutil.NonNegativeIntStringPositive(t, fmt.Sprint(trade.Price.Ticks)).Sign() == 0 {
 			t.Fatalf("trade price_ticks: %+v", trade)
 		}
-		if testutil.NonNegativeIntStringPositive(t, trade.QtyScaled).Sign() == 0 {
+		if testutil.NonNegativeIntStringPositive(t, fmt.Sprint(trade.Qty.Scaled)).Sign() == 0 {
 			t.Fatalf("trade qty_scaled: %+v", trade)
 		}
 		if testutil.NonNegativeIntStringPositive(t, trade.TsNs).Sign() == 0 {

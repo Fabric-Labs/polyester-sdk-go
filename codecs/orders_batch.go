@@ -89,7 +89,7 @@ func BatchModifyItemToProto(item models.BatchModifyItem, quantityScale int) (*or
 	if hasOrderID == hasClient {
 		return nil, &errors.ValidationError{Msg: "each batch item requires exactly one of order_id or client_order_id"}
 	}
-	if item.NewPrice == nil && item.NewQty == nil {
+	if (item.NewPrice == nil || !item.NewPrice.IsSet()) && (item.NewQty == nil || !item.NewQty.IsSet()) {
 		return nil, &errors.ValidationError{Msg: "each batch item requires new_price and/or new_qty"}
 	}
 	proto := &orderv1.BatchModifyItem{}
@@ -103,21 +103,19 @@ func BatchModifyItemToProto(item models.BatchModifyItem, quantityScale int) (*or
 	if hasClient {
 		proto.Key = &orderv1.BatchModifyItem_ClientOrderId{ClientOrderId: *item.ClientOrderID}
 	}
-	if item.NewPrice != nil {
-		ticks, err := ParsePriceTicks(*item.NewPrice, "new_price")
+	if item.NewPrice != nil && item.NewPrice.IsSet() {
+		ticks, err := ResolvePriceTicks(*item.NewPrice, "new_price", "")
 		if err != nil {
 			return nil, err
 		}
-		v := int64(ticks)
-		proto.NewPriceTicks = &v
+		proto.NewPriceTicks = &ticks
 	}
-	if item.NewQty != nil {
-		qty, err := ParseQtyScaled(*item.NewQty, quantityScale, "new_qty")
+	if item.NewQty != nil && item.NewQty.IsSet() {
+		qty, err := ResolveQtyScaled(*item.NewQty, quantityScale, "new_qty", "", nil)
 		if err != nil {
 			return nil, err
 		}
-		v := int64(qty)
-		proto.NewQtyScaled = &v
+		proto.NewQtyScaled = &qty
 	}
 	if item.Behavior != nil {
 		b, ok := modifyBehaviorToProto[strings.ToLower(*item.Behavior)]

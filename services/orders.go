@@ -168,7 +168,7 @@ func (s *OrdersService) Cancel(ctx context.Context, account AccountScope, orderI
 }
 
 // Modify modifies an open order.
-func (s *OrdersService) Modify(ctx context.Context, account AccountScope, symbol string, orderID, clientOrderID, subAccountID, requestID, newPrice, newQty, behavior, newClientOrderID *string) (models.ModifyOrderResult, error) {
+func (s *OrdersService) Modify(ctx context.Context, account AccountScope, symbol string, orderID, clientOrderID, subAccountID, requestID *string, newPrice *models.PriceInput, newQty *models.QtyInput, behavior, newClientOrderID *string) (models.ModifyOrderResult, error) {
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {
 		return models.ModifyOrderResult{}, err

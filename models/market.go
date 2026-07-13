@@ -22,12 +22,12 @@ type CandlesResult struct {
 
 // MarketTrade is a public market trade.
 type MarketTrade struct {
-	SymbolID   uint32 `json:"symbol_id,omitempty"`
-	MatchID    string `json:"match_id,omitempty"`
-	PriceTicks string `json:"price_ticks,omitempty"`
-	QtyScaled  string `json:"qty_scaled,omitempty"`
-	TsNs       string `json:"ts_ns,omitempty"`
-	Side       string `json:"side,omitempty"`
+	SymbolID uint32     `json:"symbol_id,omitempty"`
+	MatchID  string     `json:"match_id,omitempty"`
+	Price    PriceTicks `json:"price,omitempty"`
+	Qty      QtyScaled  `json:"qty,omitempty"`
+	TsNs     string     `json:"ts_ns,omitempty"`
+	Side     string     `json:"side,omitempty"`
 }
 
 // MarketTradesResult holds public trades.
@@ -37,9 +37,9 @@ type MarketTradesResult struct {
 
 // MarketOverviewEntry is one market overview row.
 type MarketOverviewEntry struct {
-	SymbolID       uint32 `json:"symbol_id"`
-	Symbol         string `json:"symbol,omitempty"`
-	LastPriceTicks string `json:"last_price_ticks,omitempty"`
+	SymbolID  uint32     `json:"symbol_id"`
+	Symbol    string     `json:"symbol,omitempty"`
+	LastPrice PriceTicks `json:"last_price,omitempty"`
 }
 
 // MarketOverviewList holds overview rows.

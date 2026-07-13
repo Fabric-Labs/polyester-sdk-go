@@ -51,12 +51,17 @@ func TriggerFromProto(msg *triggersv1.Trigger) models.Trigger {
 	if msg == nil {
 		return models.Trigger{}
 	}
+	sid := msg.GetSymbolId()
 	return models.Trigger{
-		TriggerID: codecs.FormatUint64ID(msg.GetTriggerId()), SymbolID: msg.GetSymbolId(), Symbol: msg.GetSymbol(),
-		TriggerType: msg.GetTriggerType().String(), Status: TriggerStatusLabel(msg.GetStatus()), Side: msg.GetSide().String(),
-		QtyScaled:         strconv.FormatInt(msg.GetQtyScaled(), 10),
-		TriggerPriceTicks: strconv.FormatInt(triggerPriceTicks(msg), 10),
-		ClientTriggerID:   msg.GetClientTriggerId(),
+		TriggerID:       codecs.FormatUint64ID(msg.GetTriggerId()),
+		SymbolID:        sid,
+		Symbol:          msg.GetSymbol(),
+		TriggerType:     msg.GetTriggerType().String(),
+		Status:          TriggerStatusLabel(msg.GetStatus()),
+		Side:            msg.GetSide().String(),
+		Qty:             codecs.DecodeQtyScaled(msg.GetQtyScaled(), -1, msg.GetSymbol(), &sid),
+		TriggerPrice:    codecs.DecodePriceTicks(triggerPriceTicks(msg), msg.GetSymbol()),
+		ClientTriggerID: msg.GetClientTriggerId(),
 	}
 }
 

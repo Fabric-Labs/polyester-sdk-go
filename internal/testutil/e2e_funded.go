@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math/big"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -144,15 +143,9 @@ func BestAskParams(ctx context.Context, client *polyester.Client, symbol string,
 		return "", "", fmt.Errorf("no visible asks on %s", symbol)
 	}
 	best := book.Asks[0]
-	minTicks, err := strconv.ParseInt(best.PriceTicks, 10, 64)
-	if err != nil {
-		return "", "", err
-	}
+	minTicks := best.Price.Ticks
 	for _, ask := range book.Asks[1:] {
-		ticks, parseErr := strconv.ParseInt(ask.PriceTicks, 10, 64)
-		if parseErr != nil {
-			continue
-		}
+		ticks := ask.Price.Ticks
 		if ticks < minTicks {
 			minTicks = ticks
 			best = ask
@@ -163,7 +156,11 @@ func BestAskParams(ctx context.Context, client *polyester.Client, symbol string,
 		return price, override, nil
 	}
 	qty = MinBaseQtyForPair(pair, price)
-	available, err := DecimalStringRequired(best.Qty)
+	qtyFmt, err := best.Qty.Format()
+	if err != nil {
+		return "", "", err
+	}
+	available, err := DecimalStringRequired(qtyFmt)
 	if err != nil {
 		return "", "", err
 	}
@@ -172,7 +169,7 @@ func BestAskParams(ctx context.Context, client *polyester.Client, symbol string,
 		return "", "", err
 	}
 	if available.Cmp(requested) < 0 {
-		return "", "", fmt.Errorf("best ask quantity %s below requested %s on %s", best.Qty, qty, symbol)
+		return "", "", fmt.Errorf("best ask quantity %s below requested %s on %s", qtyFmt, qty, symbol)
 	}
 	return price, qty, nil
 }

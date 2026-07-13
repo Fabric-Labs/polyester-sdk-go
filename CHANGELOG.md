@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## 0.1.0a7
+
+### Breaking
+- Dual-path qty/price scalars (POLY-3262): reads expose typed `Price` / `Quantity` / `AssetAmount` domain fields (`.Ticks` / `.Scaled`) instead of primary digit-string `PriceTicks` / `QtyScaled` fields
+- Order, trigger, transfer, and withdraw writes accept human decimals or bot scaled inputs (`PriceInput` / `QtyInput` / `AssetAmountInput`); excess precision is rejected (no silent truncation)
+
+### Money types
+- New `models.Price`, `models.Quantity`, and `models.AssetAmount` helpers plus codec helpers for human and scaled/tick paths, with domain/scale compatibility checks on reuse
+
+### Docs
+- README documents human vs bot dual-path usage
+
+### Testing
+- Unit coverage for money encode/decode paths
+- Integration asserts and helpers updated for typed price/qty reads
+
 ## 0.1.0a6
 
 ### Breaking

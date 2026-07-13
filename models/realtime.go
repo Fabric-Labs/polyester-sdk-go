@@ -2,8 +2,8 @@ package models
 
 // PriceQtyPair is a scaled price/qty tuple from realtime deltas.
 type PriceQtyPair struct {
-	PriceTicks string
-	QtyScaled  string
+	PriceTicks int64
+	QtyScaled  int64
 }
 
 // OrderBookDeltaUpdate is a decoded orderbook delta publication.

@@ -43,8 +43,9 @@ func TestInternalTransferFromProto(t *testing.T) {
 		QtyScaled:  500,
 	}
 	result := decode.InternalTransferFromProto(msg)
-	if result.RequestID != "req-1" || result.TransferID != "xfer-1" || result.QuantityScaled != "500" {
-		t.Fatalf("transfer=%+v", result)
+	qty, err := result.Quantity.Int64()
+	if err != nil || result.RequestID != "req-1" || result.TransferID != "xfer-1" || qty != 500 {
+		t.Fatalf("transfer=%+v err=%v", result, err)
 	}
 }
 
@@ -95,8 +96,8 @@ func TestMarketOverviewListFromProto(t *testing.T) {
 	if len(result.Markets) != 1 || result.Markets[0].Symbol != "BTC-USD" {
 		t.Fatalf("markets=%+v", result.Markets)
 	}
-	if result.Markets[0].LastPriceTicks != "50000" {
-		t.Fatalf("last_price_ticks=%q want 50000", result.Markets[0].LastPriceTicks)
+	if result.Markets[0].LastPrice.Ticks != 50_000 {
+		t.Fatalf("last_price=%+v want ticks 50000", result.Markets[0].LastPrice)
 	}
 }
 
@@ -110,7 +111,7 @@ func TestOrderbookFromProto(t *testing.T) {
 	if result.BookSeq != "42" || len(result.Bids) != 1 || len(result.Asks) != 1 {
 		t.Fatalf("book=%+v", result)
 	}
-	if result.Bids[0].Price != "0.0001" || result.Bids[0].Qty != "0.0000005" {
+	if result.Bids[0].Price.Ticks != 100 || result.Bids[0].Qty.Scaled != 50 {
 		t.Fatalf("bid=%+v", result.Bids[0])
 	}
 }

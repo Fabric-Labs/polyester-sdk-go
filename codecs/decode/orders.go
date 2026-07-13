@@ -13,19 +13,20 @@ func OrderFromProto(msg *orderv1.Order) models.Order {
 	if msg == nil {
 		return models.Order{}
 	}
+	sid := msg.GetSymbolId()
 	return models.Order{
 		OrderID:       codecs.FormatUint64ID(msg.GetOrderId()),
-		SymbolID:      msg.GetSymbolId(),
+		SymbolID:      sid,
 		ClientOrderID: msg.GetClientOrderId(),
 		Side:          codecs.OrderSideName(msg.GetSide()),
 		Status:        orderStatusName(msg.GetStatus()),
 		OrderType:     codecs.OrderTypeName(msg.GetOrderType()),
 		TIF:           codecs.TimeInForceName(msg.GetTimeInForce()),
-		OrigQty:       strconv.FormatInt(msg.GetOrigQtyScaled(), 10),
-		CumQty:        strconv.FormatInt(msg.GetCumQtyScaled(), 10),
-		LeavesQty:     strconv.FormatInt(msg.GetLeavesQtyScaled(), 10),
-		PriceTicks:    strconv.FormatInt(msg.GetPriceTicks(), 10),
-		AvgPxTicks:    strconv.FormatInt(msg.GetAvgPriceTicks(), 10),
+		OrigQty:       codecs.DecodeQtyScaled(msg.GetOrigQtyScaled(), -1, "", &sid),
+		CumQty:        codecs.DecodeQtyScaled(msg.GetCumQtyScaled(), -1, "", &sid),
+		LeavesQty:     codecs.DecodeQtyScaled(msg.GetLeavesQtyScaled(), -1, "", &sid),
+		Price:         codecs.DecodePriceTicks(msg.GetPriceTicks(), ""),
+		AvgPx:         codecs.DecodePriceTicks(msg.GetAvgPriceTicks(), ""),
 		CreatedTsNs:   strconv.FormatUint(msg.GetCreatedTsNs(), 10),
 	}
 }
@@ -72,16 +73,17 @@ func UserTradeFromProto(msg *orderv1.UserTrade) models.UserTrade {
 	if msg == nil {
 		return models.UserTrade{}
 	}
+	sid := msg.GetSymbolId()
 	return models.UserTrade{
-		SymbolID:   msg.GetSymbolId(),
-		MatchID:    strconv.FormatUint(msg.GetMatchId(), 10),
-		OrderID:    codecs.FormatUint64ID(msg.GetOrderId()),
-		Side:       codecs.OrderSideName(msg.GetSide()),
-		IsMaker:    msg.GetIsMaker(),
-		PriceTicks: strconv.FormatInt(msg.GetPriceTicks(), 10),
-		QtyScaled:  strconv.FormatInt(msg.GetQtyScaled(), 10),
-		FeeScaled:  strconv.FormatInt(msg.GetFeeScaled(), 10),
-		TsNs:       strconv.FormatUint(msg.GetTsNs(), 10),
+		SymbolID:  sid,
+		MatchID:   strconv.FormatUint(msg.GetMatchId(), 10),
+		OrderID:   codecs.FormatUint64ID(msg.GetOrderId()),
+		Side:      codecs.OrderSideName(msg.GetSide()),
+		IsMaker:   msg.GetIsMaker(),
+		Price:     codecs.DecodePriceTicks(msg.GetPriceTicks(), ""),
+		Qty:       codecs.DecodeQtyScaled(msg.GetQtyScaled(), -1, "", &sid),
+		FeeScaled: strconv.FormatInt(msg.GetFeeScaled(), 10),
+		TsNs:      strconv.FormatUint(msg.GetTsNs(), 10),
 	}
 }
 

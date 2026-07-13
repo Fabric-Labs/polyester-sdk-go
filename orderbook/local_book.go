@@ -28,8 +28,8 @@ func LevelsFromProtoLevels(levels []*orderbookv1.PriceLevel) BookSide {
 // ApplySideDelta applies delta levels to one side.
 func ApplySideDelta(book BookSide, pairs []models.PriceQtyPair) {
 	for _, pair := range pairs {
-		price, _ := strconv.Atoi(pair.PriceTicks)
-		qty, _ := strconv.Atoi(pair.QtyScaled)
+		price := int(pair.PriceTicks)
+		qty := int(pair.QtyScaled)
 		if qty == 0 {
 			delete(book, price)
 		} else {
@@ -95,12 +95,12 @@ func BuildOrderbookData(symbol string, depth, bookSeq int, bids, asks BookSide, 
 		Symbol:  symbol,
 		Depth:   depth,
 		BookSeq: strconv.Itoa(bookSeq),
-		Bids:    sideToLevels(bids, "bids", depth, bucketTicks, quantityScale),
-		Asks:    sideToLevels(asks, "asks", depth, bucketTicks, quantityScale),
+		Bids:    sideToLevels(bids, "bids", symbol, depth, bucketTicks, quantityScale),
+		Asks:    sideToLevels(asks, "asks", symbol, depth, bucketTicks, quantityScale),
 	}
 }
 
-func sideToLevels(book BookSide, side string, limit, bucketTicks, quantityScale int) []models.OrderbookLevel {
+func sideToLevels(book BookSide, side, symbol string, limit, bucketTicks, quantityScale int) []models.OrderbookLevel {
 	view := BucketSide(book, bucketTicks)
 	entries := make([][2]int, 0, len(view))
 	for price, qty := range view {
@@ -117,17 +117,9 @@ func sideToLevels(book BookSide, side string, limit, bucketTicks, quantityScale 
 	}
 	out := make([]models.OrderbookLevel, 0, limit)
 	for _, entry := range entries[:limit] {
-		price := codecs.FormatPriceTicks(int64(entry[0]))
-		qty := codecs.FormatQtyScaled(int64(entry[1]), quantityScale)
-		priceDisplay := price
-		qtyDisplay := qty
 		out = append(out, models.OrderbookLevel{
-			Price:        price,
-			Qty:          qty,
-			PriceTicks:   strconv.Itoa(entry[0]),
-			QtyScaled:    strconv.Itoa(entry[1]),
-			PriceDisplay: &priceDisplay,
-			QtyDisplay:   &qtyDisplay,
+			Price: codecs.DecodePriceTicks(int64(entry[0]), symbol),
+			Qty:   codecs.DecodeQtyScaled(int64(entry[1]), quantityScale, symbol, nil),
 		})
 	}
 	return out

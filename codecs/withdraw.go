@@ -5,8 +5,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	chainwithdrawv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/withdraw/v1"
 	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
+	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
 const defaultTradingWithdrawDeadlineSeconds = 5 * 60
@@ -27,32 +29,42 @@ func defaultWithdrawNonce() uint64 {
 	return nonce
 }
 
+// BigIntToU128Proto encodes a non-negative big.Int as U128.
+func BigIntToU128Proto(n *big.Int) *typev1.U128 {
+	if n == nil || n.Sign() <= 0 {
+		return &typev1.U128{}
+	}
+	hi := new(big.Int).Rsh(new(big.Int).Set(n), 64)
+	lo := new(big.Int).And(n, new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 64), big.NewInt(1)))
+	return &typev1.U128{Hi: hi.Uint64(), Lo: lo.Uint64()}
+}
+
 // StrToU128Proto scales a decimal string to U128 at the given scale.
 func StrToU128Proto(value string, scale int) *typev1.U128 {
 	if scale <= 0 {
 		scale = LedgerScale
 	}
-	rat, err := parseDecimal(strings.TrimSpace(value), "amount")
+	scaled, err := decimalToScaledBig(strings.TrimSpace(value), scale, "amount")
 	if err != nil {
 		return &typev1.U128{}
 	}
-	mul := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(scale)), nil)
-	scaled := new(big.Rat).Mul(rat, new(big.Rat).SetInt(mul))
-	num := scaled.Num()
-	hi := new(big.Int).Rsh(new(big.Int).Set(num), 64)
-	lo := new(big.Int).And(num, new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 64), big.NewInt(1)))
-	return &typev1.U128{Hi: hi.Uint64(), Lo: lo.Uint64()}
+	return BigIntToU128Proto(scaled)
 }
 
-func TradingWithdrawPayloadToProto(action string, assetID uint32, amount, idempotencyKey string, destinationChainID uint64, deadlineTsSec *uint64, nonce *string, destinationAddress string, amountScale int) (*chainwithdrawv1.TradingWithdrawIntentPayload, error) {
+func TradingWithdrawPayloadToProto(action string, assetID uint32, amount models.AssetAmountInput, idempotencyKey string, destinationChainID uint64, deadlineTsSec *uint64, nonce *string, destinationAddress string, amountScale int) (*chainwithdrawv1.TradingWithdrawIntentPayload, error) {
 	if amountScale <= 0 {
 		amountScale = LedgerScale
+	}
+	aid := assetID
+	scaled, err := ResolveAssetAmountScaled(amount, amountScale, "amount", models.QuantityDomainLedgerE18, &aid)
+	if err != nil {
+		return nil, err
 	}
 	payload := &chainwithdrawv1.TradingWithdrawIntentPayload{
 		AssetId:            assetID,
 		DestinationAddress: destinationAddress,
 		IdempotencyKey:     idempotencyKey,
-		AmountE18:          StrToU128Proto(amount, amountScale),
+		AmountE18:          BigIntToU128Proto(scaled),
 	}
 	switch strings.ToLower(strings.ReplaceAll(action, "-", "_")) {
 	case "to_funding":
@@ -72,6 +84,9 @@ func TradingWithdrawPayloadToProto(action string, assetID uint32, amount, idempo
 		payload.Nonce = StrToU128Proto(*nonce, 0)
 	} else {
 		payload.Nonce = &typev1.U128{Lo: defaultWithdrawNonce()}
+	}
+	if payload.AmountE18 == nil || (payload.AmountE18.Hi == 0 && payload.AmountE18.Lo == 0) {
+		return nil, &errors.ValidationError{Msg: "amount must be positive"}
 	}
 	return payload, nil
 }

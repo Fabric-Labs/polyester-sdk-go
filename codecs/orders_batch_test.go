@@ -9,12 +9,12 @@ import (
 
 func TestBatchCreateOrdersToProto(t *testing.T) {
 	symbol := "BTC-USD"
-	price := "50000"
 	tif := "gtc"
 	cid := "cid-1"
+	price := models.PriceFromDecimal("50000")
 	items := []models.CreateOrderRequest{
-		{Symbol: &symbol, Side: "buy", OrderType: "limit", TIF: &tif, Qty: "0.1", Price: &price, ClientOrderID: &cid},
-		{Symbol: strPtr("ETH-USD"), Side: "sell", OrderType: "market", Qty: "1", ClientOrderID: strPtr("cid-2")},
+		{Symbol: &symbol, Side: "buy", OrderType: "limit", TIF: &tif, Qty: models.QtyFromDecimal("0.1"), Price: &price, ClientOrderID: &cid},
+		{Symbol: strPtr("ETH-USD"), Side: "sell", OrderType: "market", Qty: models.QtyFromDecimal("1"), ClientOrderID: strPtr("cid-2")},
 	}
 	reqID := "req-create-1"
 	proto, err := BatchCreateOrdersToProto(items, strPtr("123"), &reqID, true, 8)

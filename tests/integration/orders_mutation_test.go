@@ -33,8 +33,8 @@ func TestOrderRoundTripMutation(t *testing.T) {
 		Side:          "buy",
 		OrderType:     "limit",
 		TIF:           &tif,
-		Qty:           qty,
-		Price:         &price,
+		Qty: models.QtyFromDecimal(qty),
+		Price:         pricePtr(models.PriceFromDecimal(price)),
 		ClientOrderID: &clientOrderID,
 		PostOnly:      postOnly,
 	}, nil)
@@ -89,3 +89,4 @@ func TestOrderRoundTripMutation(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+

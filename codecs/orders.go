@@ -66,24 +66,28 @@ func CreateOrderToProto(req models.CreateOrderRequest, quantityScale int) (*orde
 	if !ok {
 		return nil, &errors.ValidationError{Msg: "order_type must be 'limit' or 'market'"}
 	}
-	qty, err := ParseQtyScaled(req.Qty, quantityScale, "qty")
+	symbol := ""
+	if req.Symbol != nil {
+		symbol = *req.Symbol
+	}
+	qty, err := ResolveQtyScaled(req.Qty, quantityScale, "qty", symbol, req.SymbolID)
 	if err != nil {
 		return nil, err
 	}
 	proto := &orderv1.CreateOrderRequest{
 		Side:      side,
 		OrderType: orderType,
-		QtyScaled: int64(qty),
+		QtyScaled: qty,
 	}
 	if req.Symbol != nil {
 		proto.Symbol = *req.Symbol
 	}
-	if req.Price != nil {
-		ticks, err := ParsePriceTicks(*req.Price, "price")
+	if req.Price != nil && req.Price.IsSet() {
+		ticks, err := ResolvePriceTicks(*req.Price, "price", symbol)
 		if err != nil {
 			return nil, err
 		}
-		proto.PriceTicks = int64(ticks)
+		proto.PriceTicks = ticks
 	}
 	if req.TIF != nil {
 		tif, ok := tifToProto[strings.ToLower(*req.TIF)]
@@ -105,12 +109,12 @@ func CreateOrderToProto(req models.CreateOrderRequest, quantityScale int) (*orde
 	if req.PostOnly {
 		proto.PostOnly = true
 	}
-	if req.MarketClientRefPrice != nil {
-		ticks, err := ParsePriceTicks(*req.MarketClientRefPrice, "market_client_ref_price")
+	if req.MarketClientRefPrice != nil && req.MarketClientRefPrice.IsSet() {
+		ticks, err := ResolvePriceTicks(*req.MarketClientRefPrice, "market_client_ref_price", symbol)
 		if err != nil {
 			return nil, err
 		}
-		proto.MarketClientRefPriceTicks = int64(ticks)
+		proto.MarketClientRefPriceTicks = ticks
 	}
 	return proto, nil
 }
@@ -122,7 +126,8 @@ func ModifyOrderToProto(
 	clientOrderID *string,
 	subAccountID *string,
 	requestID *string,
-	newPrice, newQty *string,
+	newPrice *models.PriceInput,
+	newQty *models.QtyInput,
 	behavior *string,
 	newClientOrderID *string,
 	quantityScale int,
@@ -132,7 +137,7 @@ func ModifyOrderToProto(
 	if hasOrderID == hasClient {
 		return nil, &errors.ValidationError{Msg: "modify requires exactly one of order_id or client_order_id"}
 	}
-	if newPrice == nil && newQty == nil {
+	if (newPrice == nil || !newPrice.IsSet()) && (newQty == nil || !newQty.IsSet()) {
 		return nil, &errors.ValidationError{Msg: "modify requires new_price, new_qty, and/or new_attached_risk"}
 	}
 	proto := &orderv1.ModifyOrderRequest{
@@ -155,21 +160,19 @@ func ModifyOrderToProto(
 		}
 		proto.SubaccountId = &sub
 	}
-	if newPrice != nil {
-		ticks, err := ParsePriceTicks(*newPrice, "new_price")
+	if newPrice != nil && newPrice.IsSet() {
+		ticks, err := ResolvePriceTicks(*newPrice, "new_price", symbol)
 		if err != nil {
 			return nil, err
 		}
-		v := int64(ticks)
-		proto.NewPriceTicks = &v
+		proto.NewPriceTicks = &ticks
 	}
-	if newQty != nil {
-		qty, err := ParseQtyScaled(*newQty, quantityScale, "new_qty")
+	if newQty != nil && newQty.IsSet() {
+		qty, err := ResolveQtyScaled(*newQty, quantityScale, "new_qty", symbol, nil)
 		if err != nil {
 			return nil, err
 		}
-		v := int64(qty)
-		proto.NewQtyScaled = &v
+		proto.NewQtyScaled = &qty
 	}
 	if behavior != nil {
 		b, ok := modifyBehaviorToProto[strings.ToLower(*behavior)]

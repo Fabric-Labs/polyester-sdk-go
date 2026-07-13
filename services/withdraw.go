@@ -26,7 +26,7 @@ func (s *WithdrawService) client() chainwithdrawv1connect.WithdrawServiceClient 
 	return chainwithdrawv1connect.NewWithdrawServiceClient(s.transport.HTTP, s.transport.Config.APIURL, s.transport.ConnectOptions(true)...)
 }
 
-func (s *WithdrawService) CreateToFunding(ctx context.Context, assetID uint32, quantity string, payloadSignature []byte, idempotencyKey *string, account AccountScope, subAccountID *string, destinationAddress string, amountScale int) (models.WithdrawIntentResult, error) {
+func (s *WithdrawService) CreateToFunding(ctx context.Context, assetID uint32, quantity models.AssetAmountInput, payloadSignature []byte, idempotencyKey *string, account AccountScope, subAccountID *string, destinationAddress string, amountScale int) (models.WithdrawIntentResult, error) {
 	if len(payloadSignature) == 0 {
 		return models.WithdrawIntentResult{}, &errors.ValidationError{Msg: "payload_signature is required for trading withdraw"}
 	}
@@ -42,7 +42,7 @@ func (s *WithdrawService) CreateToFunding(ctx context.Context, assetID uint32, q
 	return s.createTradingWithdraw(ctx, req)
 }
 
-func (s *WithdrawService) CreateToExternalChain(ctx context.Context, assetID uint32, quantity string, payloadSignature []byte, destinationChainID uint64, destinationAddress string, idempotencyKey *string, account AccountScope, subAccountID *string, amountScale int) (models.WithdrawIntentResult, error) {
+func (s *WithdrawService) CreateToExternalChain(ctx context.Context, assetID uint32, quantity models.AssetAmountInput, payloadSignature []byte, destinationChainID uint64, destinationAddress string, idempotencyKey *string, account AccountScope, subAccountID *string, amountScale int) (models.WithdrawIntentResult, error) {
 	if len(payloadSignature) == 0 {
 		return models.WithdrawIntentResult{}, &errors.ValidationError{Msg: "payload_signature is required for trading withdraw"}
 	}
@@ -61,7 +61,7 @@ func (s *WithdrawService) CreateToExternalChain(ctx context.Context, assetID uin
 	return s.createTradingWithdraw(ctx, req)
 }
 
-func (s *WithdrawService) CreateWalletTradingWithdraw(ctx context.Context, action string, assetID uint32, amount, idempotencyKey string, payloadSignature []byte, signerWallet string, account AccountScope, subAccountID *string, destinationChainID uint64, deadlineTsSec *uint64, nonce any, destinationAddress string, amountScale int) (models.WithdrawIntentResult, error) {
+func (s *WithdrawService) CreateWalletTradingWithdraw(ctx context.Context, action string, assetID uint32, amount models.AssetAmountInput, idempotencyKey string, payloadSignature []byte, signerWallet string, account AccountScope, subAccountID *string, destinationChainID uint64, deadlineTsSec *uint64, nonce any, destinationAddress string, amountScale int) (models.WithdrawIntentResult, error) {
 	if len(payloadSignature) == 0 {
 		return models.WithdrawIntentResult{}, &errors.ValidationError{Msg: "payload_signature is required for trading withdraw"}
 	}

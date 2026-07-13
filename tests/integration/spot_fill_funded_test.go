@@ -112,8 +112,8 @@ func TestSpotFill(t *testing.T) {
 		Side:          "sell",
 		OrderType:     "limit",
 		TIF:           &tif,
-		Qty:           qty,
-		Price:         &price,
+		Qty: models.QtyFromDecimal(qty),
+		Price:         pricePtr(models.PriceFromDecimal(price)),
 		ClientOrderID: &makerCID,
 		PostOnly:      true,
 	}, nil)
@@ -133,8 +133,8 @@ func TestSpotFill(t *testing.T) {
 		Side:          "buy",
 		OrderType:     "limit",
 		TIF:           &tif,
-		Qty:           qty,
-		Price:         &price,
+		Qty: models.QtyFromDecimal(qty),
+		Price:         pricePtr(models.PriceFromDecimal(price)),
 		ClientOrderID: &takerCID,
 		PostOnly:      false,
 	}, nil)
@@ -225,3 +225,4 @@ func TestSpotFill(t *testing.T) {
 		t.Fatal("expected maker quote balance to increase")
 	}
 }
+

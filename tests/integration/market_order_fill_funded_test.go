@@ -112,8 +112,8 @@ func TestMarketOrderFill(t *testing.T) {
 		Side:          "sell",
 		OrderType:     "limit",
 		TIF:           &tif,
-		Qty:           qty,
-		Price:         &price,
+		Qty: models.QtyFromDecimal(qty),
+		Price:         pricePtr(models.PriceFromDecimal(price)),
 		ClientOrderID: &makerCID,
 		PostOnly:      true,
 	}, nil)
@@ -134,7 +134,7 @@ func TestMarketOrderFill(t *testing.T) {
 		Side:          "buy",
 		OrderType:     "market",
 		TIF:           &takerTIF,
-		Qty:           qty,
+		Qty: models.QtyFromDecimal(qty),
 		ClientOrderID: &takerCID,
 	}, nil)
 	if err != nil {
@@ -228,3 +228,4 @@ func TestMarketOrderFill(t *testing.T) {
 		t.Fatal("expected maker quote balance to increase")
 	}
 }
+

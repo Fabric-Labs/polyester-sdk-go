@@ -27,7 +27,7 @@ func (s *InternalTransfersService) client() transferv1connect.InternalTransferSe
 	return transferv1connect.NewInternalTransferServiceClient(s.transport.HTTP, s.transport.Config.APIURL, s.transport.ConnectOptions(true)...)
 }
 
-func (s *InternalTransfersService) Create(ctx context.Context, assetID uint32, quantity, idempotencyKey string, account AccountScope, subAccountID *string, destinationAccountID, destinationSubaccountID, destinationSmartAccountAddress *string, quantityScale *int) (models.InternalTransferResult, error) {
+func (s *InternalTransfersService) Create(ctx context.Context, assetID uint32, quantity models.AssetAmountInput, idempotencyKey string, account AccountScope, subAccountID *string, destinationAccountID, destinationSubaccountID, destinationSmartAccountAddress *string, quantityScale *int) (models.InternalTransferResult, error) {
 	if destinationAccountID == nil && destinationSubaccountID == nil && (destinationSmartAccountAddress == nil || *destinationSmartAccountAddress == "") {
 		return models.InternalTransferResult{}, &errors.ValidationError{Msg: "create requires destination_account_id, destination_subaccount_id, or destination_smart_account_address"}
 	}
@@ -35,11 +35,15 @@ func (s *InternalTransfersService) Create(ctx context.Context, assetID uint32, q
 	if quantityScale != nil {
 		scale = *quantityScale
 	}
-	qty, err := codecs.ParseQtyScaled(quantity, scale, "quantity")
+	aid := assetID
+	qtyBig, err := codecs.ResolveAssetAmountScaled(quantity, scale, "quantity", models.QuantityDomainAsset, &aid)
 	if err != nil {
 		return models.InternalTransferResult{}, err
 	}
-	req := &transferv1.CreateInternalTransferRequest{AssetId: assetID, QtyScaled: int64(qty), IdempotencyKey: idempotencyKey}
+	if !qtyBig.IsInt64() {
+		return models.InternalTransferResult{}, &errors.ValidationError{Msg: "quantity exceeds int64 range"}
+	}
+	req := &transferv1.CreateInternalTransferRequest{AssetId: assetID, QtyScaled: qtyBig.Int64(), IdempotencyKey: idempotencyKey}
 	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.InternalTransferResult{}, err
 	}

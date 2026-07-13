@@ -9,6 +9,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	triggersv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1"
+	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
 var triggerTypeToProto = map[string]triggersv1.TriggerType{
@@ -51,18 +52,18 @@ type CreateTriggerOptions struct {
 	SelfTradePreventionMode *string
 	TrailingDistanceTicks   *int64
 	TrailingDistanceBps     *int32
-	ActivationPrice         *string
+	ActivationPrice         *models.PriceInput
 	MaxSlippageTicks        *int32
 	MaxSlippageBps          *int32
 	TwapDurationMs          *int64
 	TwapSliceIntervalMs     *int64
-	LadderPriceMin          *string
-	LadderPriceMax          *string
+	LadderPriceMin          *models.PriceInput
+	LadderPriceMax          *models.PriceInput
 	LadderLevels            *int32
 	LadderDistribution      *string
 }
 
-func CreateTriggerToProto(symbol, triggerType string, triggerPrice *string, side, qty, orderType string, limitPrice *string, triggerPriceSource, tif string, subAccountID *string, clientTriggerID *string, postOnly bool, quantityScale int, opts CreateTriggerOptions) (*triggersv1.CreateTriggerRequest, error) {
+func CreateTriggerToProto(symbol, triggerType string, triggerPrice *models.PriceInput, side string, qty models.QtyInput, orderType string, limitPrice *models.PriceInput, triggerPriceSource, tif string, subAccountID *string, clientTriggerID *string, postOnly bool, quantityScale int, opts CreateTriggerOptions) (*triggersv1.CreateTriggerRequest, error) {
 	typeKey := strings.ToLower(strings.ReplaceAll(triggerType, "-", "_"))
 	triggerEnum, ok := triggerTypeToProto[typeKey]
 	if !ok {
@@ -78,14 +79,14 @@ func CreateTriggerToProto(symbol, triggerType string, triggerPrice *string, side
 		return nil, &errors.ValidationError{Msg: "order_type must be limit or market"}
 	}
 	priceTicks := int64(0)
-	if triggerPrice != nil {
-		parsed, err := ParsePriceTicks(*triggerPrice, "trigger_price")
+	if triggerPrice != nil && triggerPrice.IsSet() {
+		parsed, err := ResolvePriceTicks(*triggerPrice, "trigger_price", symbol)
 		if err != nil {
 			return nil, err
 		}
-		priceTicks = int64(parsed)
+		priceTicks = parsed
 	}
-	qtyScaled, err := ParseQtyScaled(qty, quantityScale, "qty")
+	qtyScaled, err := ResolveQtyScaled(qty, quantityScale, "qty", symbol, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +96,7 @@ func CreateTriggerToProto(symbol, triggerType string, triggerPrice *string, side
 		TriggerPriceTicks: priceTicks,
 		Side:              sideEnum,
 		OrderType:         orderEnum,
-		QtyScaled:         int64(qtyScaled),
+		QtyScaled:         qtyScaled,
 		PostOnly:          postOnly,
 	}
 	if source, ok := triggerPriceSourceToProto[strings.ToLower(triggerPriceSource)]; ok {
@@ -118,12 +119,12 @@ func CreateTriggerToProto(symbol, triggerType string, triggerPrice *string, side
 	} else {
 		req.ClientTriggerId = newTriggerRequestID()
 	}
-	if limitPrice != nil {
-		ticks, err := ParsePriceTicks(*limitPrice, "limit_price")
+	if limitPrice != nil && limitPrice.IsSet() {
+		ticks, err := ResolvePriceTicks(*limitPrice, "limit_price", symbol)
 		if err != nil {
 			return nil, err
 		}
-		req.LimitPriceTicks = int64(ticks)
+		req.LimitPriceTicks = ticks
 	}
 	if opts.FeeSource != nil {
 		source, ok := feeSourceToProto[strings.ToLower(*opts.FeeSource)]
@@ -145,12 +146,12 @@ func CreateTriggerToProto(symbol, triggerType string, triggerPrice *string, side
 	if opts.TrailingDistanceBps != nil {
 		req.TrailingDistance = &triggersv1.CreateTriggerRequest_TrailingDistanceBps{TrailingDistanceBps: *opts.TrailingDistanceBps}
 	}
-	if opts.ActivationPrice != nil {
-		ticks, err := ParsePriceTicks(*opts.ActivationPrice, "activation_price")
+	if opts.ActivationPrice != nil && opts.ActivationPrice.IsSet() {
+		ticks, err := ResolvePriceTicks(*opts.ActivationPrice, "activation_price", symbol)
 		if err != nil {
 			return nil, err
 		}
-		req.ActivationPriceTicks = int64(ticks)
+		req.ActivationPriceTicks = ticks
 	}
 	if opts.MaxSlippageTicks != nil {
 		req.MaxSlippage = &triggersv1.CreateTriggerRequest_MaxSlippageTicks{MaxSlippageTicks: *opts.MaxSlippageTicks}
@@ -164,19 +165,19 @@ func CreateTriggerToProto(symbol, triggerType string, triggerPrice *string, side
 	if opts.TwapSliceIntervalMs != nil {
 		req.TwapSliceIntervalMs = *opts.TwapSliceIntervalMs
 	}
-	if opts.LadderPriceMin != nil {
-		ticks, err := ParsePriceTicks(*opts.LadderPriceMin, "ladder_price_min")
+	if opts.LadderPriceMin != nil && opts.LadderPriceMin.IsSet() {
+		ticks, err := ResolvePriceTicks(*opts.LadderPriceMin, "ladder_price_min", symbol)
 		if err != nil {
 			return nil, err
 		}
-		req.LadderPriceMinTicks = int64(ticks)
+		req.LadderPriceMinTicks = ticks
 	}
-	if opts.LadderPriceMax != nil {
-		ticks, err := ParsePriceTicks(*opts.LadderPriceMax, "ladder_price_max")
+	if opts.LadderPriceMax != nil && opts.LadderPriceMax.IsSet() {
+		ticks, err := ResolvePriceTicks(*opts.LadderPriceMax, "ladder_price_max", symbol)
 		if err != nil {
 			return nil, err
 		}
-		req.LadderPriceMaxTicks = int64(ticks)
+		req.LadderPriceMaxTicks = ticks
 	}
 	if opts.LadderLevels != nil {
 		req.LadderLevels = *opts.LadderLevels
@@ -193,19 +194,21 @@ func CreateTriggerToProto(symbol, triggerType string, triggerPrice *string, side
 
 // ModifyTriggerOptions carries optional trigger patch fields.
 type ModifyTriggerOptions struct {
-	TriggerPrice          *string
-	LimitPrice            *string
+	TriggerPrice          *models.PriceInput
+	LimitPrice            *models.PriceInput
 	TrailingDistanceTicks *int64
 	TrailingDistanceBps   *int32
-	ActivationPrice       *string
+	ActivationPrice       *models.PriceInput
 	MaxSlippageTicks      *int32
 	MaxSlippageBps        *int32
 }
 
 func ModifyTriggerToProto(triggerID string, subAccountID *string, opts ModifyTriggerOptions) (*triggersv1.ModifyTriggerRequest, error) {
-	if opts.TriggerPrice == nil && opts.LimitPrice == nil &&
+	if (opts.TriggerPrice == nil || !opts.TriggerPrice.IsSet()) &&
+		(opts.LimitPrice == nil || !opts.LimitPrice.IsSet()) &&
 		opts.TrailingDistanceTicks == nil && opts.TrailingDistanceBps == nil &&
-		opts.ActivationPrice == nil && opts.MaxSlippageTicks == nil && opts.MaxSlippageBps == nil {
+		(opts.ActivationPrice == nil || !opts.ActivationPrice.IsSet()) &&
+		opts.MaxSlippageTicks == nil && opts.MaxSlippageBps == nil {
 		return nil, &errors.ValidationError{Msg: "modify requires at least one of trigger_price, limit_price, trailing_distance_ticks, trailing_distance_bps, activation_price, max_slippage_ticks, or max_slippage_bps"}
 	}
 	id, err := IDToInt(triggerID, "trigger_id")
@@ -220,21 +223,19 @@ func ModifyTriggerToProto(triggerID string, subAccountID *string, opts ModifyTri
 		}
 		req.SubaccountId = &sub
 	}
-	if opts.TriggerPrice != nil {
-		ticks, err := ParsePriceTicks(*opts.TriggerPrice, "trigger_price")
+	if opts.TriggerPrice != nil && opts.TriggerPrice.IsSet() {
+		ticks, err := ResolvePriceTicks(*opts.TriggerPrice, "trigger_price", "")
 		if err != nil {
 			return nil, err
 		}
-		v := int64(ticks)
-		req.TriggerPriceTicks = &v
+		req.TriggerPriceTicks = &ticks
 	}
-	if opts.LimitPrice != nil {
-		ticks, err := ParsePriceTicks(*opts.LimitPrice, "limit_price")
+	if opts.LimitPrice != nil && opts.LimitPrice.IsSet() {
+		ticks, err := ResolvePriceTicks(*opts.LimitPrice, "limit_price", "")
 		if err != nil {
 			return nil, err
 		}
-		v := int64(ticks)
-		req.LimitPriceTicks = &v
+		req.LimitPriceTicks = &ticks
 	}
 	if opts.TrailingDistanceTicks != nil {
 		req.TrailingDistance = &triggersv1.ModifyTriggerRequest_TrailingDistanceTicks{TrailingDistanceTicks: *opts.TrailingDistanceTicks}
@@ -242,13 +243,12 @@ func ModifyTriggerToProto(triggerID string, subAccountID *string, opts ModifyTri
 	if opts.TrailingDistanceBps != nil {
 		req.TrailingDistance = &triggersv1.ModifyTriggerRequest_TrailingDistanceBps{TrailingDistanceBps: *opts.TrailingDistanceBps}
 	}
-	if opts.ActivationPrice != nil {
-		ticks, err := ParsePriceTicks(*opts.ActivationPrice, "activation_price")
+	if opts.ActivationPrice != nil && opts.ActivationPrice.IsSet() {
+		ticks, err := ResolvePriceTicks(*opts.ActivationPrice, "activation_price", "")
 		if err != nil {
 			return nil, err
 		}
-		v := int64(ticks)
-		req.ActivationPriceTicks = &v
+		req.ActivationPriceTicks = &ticks
 	}
 	if opts.MaxSlippageTicks != nil {
 		req.MaxSlippage = &triggersv1.ModifyTriggerRequest_MaxSlippageTicks{MaxSlippageTicks: *opts.MaxSlippageTicks}

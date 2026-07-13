@@ -9,15 +9,21 @@ import (
 )
 
 func OrderbookFromProto(msg *orderbookv1.GetOrderBookResponse, symbol string, depth, quantityScale int) models.OrderbookData {
-	return models.OrderbookData{Symbol: symbol, Depth: depth, BookSeq: strconv.FormatUint(msg.GetBookSeq(), 10), Bids: levelsFromProto(msg.GetBids(), quantityScale), Asks: levelsFromProto(msg.GetAsks(), quantityScale)}
+	return models.OrderbookData{
+		Symbol:  symbol,
+		Depth:   depth,
+		BookSeq: strconv.FormatUint(msg.GetBookSeq(), 10),
+		Bids:    levelsFromProto(msg.GetBids(), symbol, quantityScale),
+		Asks:    levelsFromProto(msg.GetAsks(), symbol, quantityScale),
+	}
 }
 
-func levelsFromProto(levels []*orderbookv1.PriceLevel, scale int) []models.OrderbookLevel {
+func levelsFromProto(levels []*orderbookv1.PriceLevel, symbol string, scale int) []models.OrderbookLevel {
 	out := make([]models.OrderbookLevel, 0, len(levels))
 	for _, l := range levels {
 		out = append(out, models.OrderbookLevel{
-			PriceTicks: strconv.FormatInt(l.GetPriceTicks(), 10), QtyScaled: strconv.FormatInt(l.GetQtyScaled(), 10),
-			Price: codecs.FormatPriceTicks(l.GetPriceTicks()), Qty: codecs.FormatQtyScaled(l.GetQtyScaled(), scale),
+			Price: codecs.DecodePriceTicks(l.GetPriceTicks(), symbol),
+			Qty:   codecs.DecodeQtyScaled(l.GetQtyScaled(), scale, symbol, nil),
 		})
 	}
 	return out

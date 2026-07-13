@@ -27,7 +27,6 @@ func RequireLiveClient(t *testing.T) (*polyester.Client, context.Context, func()
 	}
 	return client, ctx, cleanup
 }
-
 // SmokeSymbol resolves a liquid devnet pair symbol from spot config.
 func SmokeSymbol(t *testing.T, client *polyester.Client, ctx context.Context) string {
 	t.Helper()

@@ -7,25 +7,25 @@ type CreateOrderRequest struct {
 	Side          string         `json:"side"`
 	OrderType     string         `json:"order_type"`
 	TIF           *string        `json:"tif,omitempty"`
-	Qty           string         `json:"qty"`
-	Price         *string        `json:"price,omitempty"`
+	Qty           QtyInput       `json:"qty"`
+	Price         *PriceInput    `json:"price,omitempty"`
 	SubAccountID  *string        `json:"sub_account_id,omitempty"`
 	ClientOrderID *string        `json:"client_order_id,omitempty"`
 	PostOnly      bool           `json:"post_only,omitempty"`
 	ExpiresAt     *string        `json:"expires_at,omitempty"`
 	AttachedRisk  map[string]any `json:"attached_risk,omitempty"`
-	// MarketClientRefPrice is the client-supplied reference price for MARKET orders (decimal string).
-	MarketClientRefPrice *string `json:"market_client_ref_price,omitempty"`
+	// MarketClientRefPrice is the client-supplied reference price for MARKET orders.
+	MarketClientRefPrice *PriceInput `json:"market_client_ref_price,omitempty"`
 }
 
 // BatchModifyItem is one item in orders.batch_modify.
 type BatchModifyItem struct {
-	OrderID          *string `json:"order_id,omitempty"`
-	ClientOrderID    *string `json:"client_order_id,omitempty"`
-	NewPrice         *string `json:"new_price,omitempty"`
-	NewQty           *string `json:"new_qty,omitempty"`
-	Behavior         *string `json:"behavior,omitempty"`
-	NewClientOrderID *string `json:"new_client_order_id,omitempty"`
+	OrderID          *string     `json:"order_id,omitempty"`
+	ClientOrderID    *string     `json:"client_order_id,omitempty"`
+	NewPrice         *PriceInput `json:"new_price,omitempty"`
+	NewQty           *QtyInput   `json:"new_qty,omitempty"`
+	Behavior         *string     `json:"behavior,omitempty"`
+	NewClientOrderID *string     `json:"new_client_order_id,omitempty"`
 }
 
 // BatchCancelItem is one item in orders.batch_cancel.
@@ -37,12 +37,8 @@ type BatchCancelItem struct {
 
 // OrderbookLevel is one orderbook price level.
 type OrderbookLevel struct {
-	Price        string  `json:"price,omitempty"`
-	Qty          string  `json:"qty,omitempty"`
-	PriceTicks   string  `json:"price_ticks,omitempty"`
-	QtyScaled    string  `json:"qty_scaled,omitempty"`
-	PriceDisplay *string `json:"price_display,omitempty"`
-	QtyDisplay   *string `json:"qty_display,omitempty"`
+	Price PriceTicks `json:"price"`
+	Qty   QtyScaled  `json:"qty"`
 }
 
 // OrderbookData is a normalized orderbook snapshot.

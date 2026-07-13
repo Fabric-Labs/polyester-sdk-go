@@ -2,19 +2,19 @@ package models
 
 // Order is a normalized open or historical order.
 type Order struct {
-	OrderID       string `json:"order_id"`
-	SymbolID      uint32 `json:"symbol_id"`
-	ClientOrderID string `json:"client_order_id,omitempty"`
-	Side          string `json:"side,omitempty"`
-	Status        string `json:"status,omitempty"`
-	OrderType     string `json:"order_type,omitempty"`
-	TIF           string `json:"tif,omitempty"`
-	OrigQty       string `json:"orig_qty,omitempty"`
-	CumQty        string `json:"cum_qty,omitempty"`
-	LeavesQty     string `json:"leaves_qty,omitempty"`
-	PriceTicks    string `json:"price_ticks,omitempty"`
-	AvgPxTicks    string `json:"avg_px_ticks,omitempty"`
-	CreatedTsNs   string `json:"created_ts_ns,omitempty"`
+	OrderID       string    `json:"order_id"`
+	SymbolID      uint32    `json:"symbol_id"`
+	ClientOrderID string    `json:"client_order_id,omitempty"`
+	Side          string    `json:"side,omitempty"`
+	Status        string    `json:"status,omitempty"`
+	OrderType     string    `json:"order_type,omitempty"`
+	TIF           string    `json:"tif,omitempty"`
+	OrigQty       QtyScaled `json:"orig_qty,omitempty"`
+	CumQty        QtyScaled `json:"cum_qty,omitempty"`
+	LeavesQty     QtyScaled `json:"leaves_qty,omitempty"`
+	Price         PriceTicks `json:"price,omitempty"`
+	AvgPx         PriceTicks `json:"avg_px,omitempty"`
+	CreatedTsNs   string    `json:"created_ts_ns,omitempty"`
 }
 
 // OrdersList holds paginated orders.
@@ -38,15 +38,15 @@ type GetOrderResult struct {
 
 // UserTrade is a user fill record.
 type UserTrade struct {
-	SymbolID   uint32 `json:"symbol_id"`
-	MatchID    string `json:"match_id,omitempty"`
-	OrderID    string `json:"order_id,omitempty"`
-	Side       string `json:"side,omitempty"`
-	IsMaker    bool   `json:"is_maker,omitempty"`
-	PriceTicks string `json:"price_ticks,omitempty"`
-	QtyScaled  string `json:"qty_scaled,omitempty"`
-	FeeScaled  string `json:"fee_scaled,omitempty"`
-	TsNs       string `json:"ts_ns,omitempty"`
+	SymbolID  uint32     `json:"symbol_id"`
+	MatchID   string     `json:"match_id,omitempty"`
+	OrderID   string     `json:"order_id,omitempty"`
+	Side      string     `json:"side,omitempty"`
+	IsMaker   bool       `json:"is_maker,omitempty"`
+	Price     PriceTicks `json:"price,omitempty"`
+	Qty       QtyScaled  `json:"qty,omitempty"`
+	FeeScaled string     `json:"fee_scaled,omitempty"`
+	TsNs      string     `json:"ts_ns,omitempty"`
 }
 
 // UserTradesList holds paginated user trades.
@@ -214,11 +214,11 @@ type TransfersList struct {
 
 // InternalTransferResult is an internal transfer outcome.
 type InternalTransferResult struct {
-	RequestID      string `json:"request_id,omitempty"`
-	TransferID     string `json:"transfer_id,omitempty"`
-	AssetID        uint32 `json:"asset_id,omitempty"`
-	AssetCode      string `json:"asset_code,omitempty"`
-	QuantityScaled string `json:"quantity_scaled,omitempty"`
+	RequestID  string            `json:"request_id,omitempty"`
+	TransferID string            `json:"transfer_id,omitempty"`
+	AssetID    uint32            `json:"asset_id,omitempty"`
+	AssetCode  string            `json:"asset_code,omitempty"`
+	Quantity   AssetAmountScaled `json:"quantity,omitempty"`
 }
 
 // DepositAddress is a chain deposit address.
@@ -258,15 +258,15 @@ type LifecycleFlowsList struct {
 
 // Trigger is a conditional order trigger.
 type Trigger struct {
-	TriggerID         string `json:"trigger_id,omitempty"`
-	SymbolID          uint32 `json:"symbol_id,omitempty"`
-	Symbol            string `json:"symbol,omitempty"`
-	TriggerType       string `json:"trigger_type,omitempty"`
-	Status            string `json:"status,omitempty"`
-	Side              string `json:"side,omitempty"`
-	QtyScaled         string `json:"qty_scaled,omitempty"`
-	TriggerPriceTicks string `json:"trigger_price_ticks,omitempty"`
-	ClientTriggerID   string `json:"client_trigger_id,omitempty"`
+	TriggerID       string     `json:"trigger_id,omitempty"`
+	SymbolID        uint32     `json:"symbol_id,omitempty"`
+	Symbol          string     `json:"symbol,omitempty"`
+	TriggerType     string     `json:"trigger_type,omitempty"`
+	Status          string     `json:"status,omitempty"`
+	Side            string     `json:"side,omitempty"`
+	Qty             QtyScaled  `json:"qty,omitempty"`
+	TriggerPrice    PriceTicks `json:"trigger_price,omitempty"`
+	ClientTriggerID string     `json:"client_trigger_id,omitempty"`
 }
 
 // TriggersList lists triggers.

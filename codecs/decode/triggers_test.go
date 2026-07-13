@@ -27,7 +27,7 @@ func TestTriggerFromProtoMapsStopPrice(t *testing.T) {
 	if trigger.TriggerID != codecs.FormatUint64ID(7) {
 		t.Fatalf("trigger_id=%q", trigger.TriggerID)
 	}
-	if trigger.TriggerPriceTicks != "50000000000" || trigger.ClientTriggerID != "ct-1" {
+	if trigger.TriggerPrice.Ticks != 50_000_000_000 || trigger.ClientTriggerID != "ct-1" {
 		t.Fatalf("trigger=%+v", trigger)
 	}
 }

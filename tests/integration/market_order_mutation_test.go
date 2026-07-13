@@ -44,9 +44,9 @@ func TestMarketBuyMutation(t *testing.T) {
 		Side:                 "buy",
 		OrderType:            "market",
 		TIF:                  &tif,
-		Qty:                  qty,
+		Qty: models.QtyFromDecimal(qty),
 		ClientOrderID:        &clientOrderID,
-		MarketClientRefPrice: &refPrice,
+		MarketClientRefPrice: pricePtr(models.PriceFromDecimal(refPrice)),
 	}, nil)
 	if err != nil {
 		if testutil.IsDevnetOrderInternalError(err) || testutil.DevnetUnavailable(err) {
@@ -116,9 +116,9 @@ func TestMarketSellMutation(t *testing.T) {
 		Side:                 "sell",
 		OrderType:            "market",
 		TIF:                  &tif,
-		Qty:                  qty,
+		Qty: models.QtyFromDecimal(qty),
 		ClientOrderID:        &clientOrderID,
-		MarketClientRefPrice: &refPrice,
+		MarketClientRefPrice: pricePtr(models.PriceFromDecimal(refPrice)),
 	}, nil)
 	if err != nil {
 		if testutil.IsDevnetOrderInternalError(err) || testutil.DevnetUnavailable(err) {
@@ -157,3 +157,4 @@ func TestMarketSellMutation(t *testing.T) {
 		t.Fatalf("unexpected terminal status %q", detail.Order.Status)
 	}
 }
+

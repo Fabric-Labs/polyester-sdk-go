@@ -3,6 +3,7 @@
 package integration_test
 
 import (
+	"fmt"
 	"strconv"
 	"testing"
 
@@ -41,10 +42,10 @@ func TestGetTrades(t *testing.T) {
 		if trade.SymbolID == 0 || trade.MatchID == "" {
 			t.Fatalf("trade missing ids: %+v", trade)
 		}
-		if testutil.NonNegativeIntStringPositive(t, trade.PriceTicks).Sign() == 0 {
+		if testutil.NonNegativeIntStringPositive(t, fmt.Sprint(trade.Price.Ticks)).Sign() == 0 {
 			t.Fatalf("trade price_ticks must be positive: %+v", trade)
 		}
-		if testutil.NonNegativeIntStringPositive(t, trade.QtyScaled).Sign() == 0 {
+		if testutil.NonNegativeIntStringPositive(t, fmt.Sprint(trade.Qty.Scaled)).Sign() == 0 {
 			t.Fatalf("trade qty_scaled must be positive: %+v", trade)
 		}
 		if testutil.NonNegativeIntStringPositive(t, trade.TsNs).Sign() == 0 {

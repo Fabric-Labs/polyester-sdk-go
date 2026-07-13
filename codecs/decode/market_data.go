@@ -26,8 +26,9 @@ func MarketTradesFromProto(msg *marketdatav1.GetTradesResponse) models.MarketTra
 		}
 		out = append(out, models.MarketTrade{
 			SymbolID: t.GetSymbolId(), MatchID: strconv.FormatUint(t.GetMatchId(), 10),
-			PriceTicks: strconv.FormatInt(t.GetPriceTicks(), 10), QtyScaled: strconv.FormatInt(t.GetQtyScaled(), 10),
-			TsNs: strconv.FormatUint(t.GetTsNs(), 10), Side: side,
+			Price: codecs.DecodePriceTicks(t.GetPriceTicks(), ""),
+			Qty:   codecs.DecodeQtyScaled(t.GetQtyScaled(), -1, "", nil),
+			TsNs:  strconv.FormatUint(t.GetTsNs(), 10), Side: side,
 		})
 	}
 	return models.MarketTradesResult{Trades: out}

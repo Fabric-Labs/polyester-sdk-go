@@ -31,8 +31,8 @@ func TestOrderFromProtoMapsEnumsAndIDs(t *testing.T) {
 	if order.Side != "buy" || order.Status != "working" || order.OrderType != "limit" || order.TIF != "gtc" {
 		t.Fatalf("order=%+v", order)
 	}
-	if order.OrigQty != "100" {
-		t.Fatalf("orig_qty=%q", order.OrigQty)
+	if order.OrigQty.Scaled != 100 {
+		t.Fatalf("orig_qty=%+v", order.OrigQty)
 	}
 }
 

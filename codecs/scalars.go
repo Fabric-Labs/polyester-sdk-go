@@ -13,21 +13,23 @@ const (
 	Uint64Max      = ^uint64(0)
 )
 
-// ParsePriceTicks parses a decimal price string into int6 ticks.
+// ParsePriceTicks parses a decimal price string into int64 ticks (strict; no rounding).
 func ParsePriceTicks(raw, fieldName string) (uint64, error) {
-	value, err := parseDecimal(raw, fieldName)
+	scaled, err := decimalToScaledBig(raw, PriceTickScale, fieldName)
 	if err != nil {
 		return 0, err
 	}
-	scaled := new(big.Rat).Mul(value, big.NewRat(1_000_000, 1))
 	if scaled.Sign() < 0 {
 		return 0, &errors.ValidationError{Msg: fieldName + " must be non-negative"}
 	}
-	num := scaled.Num()
-	if !num.IsUint64() {
+	if !scaled.IsUint64() {
 		return 0, &errors.ValidationError{Msg: fieldName + " out of range"}
 	}
-	return num.Uint64(), nil
+	u := scaled.Uint64()
+	if u > uint64(int64Max) {
+		return 0, &errors.ValidationError{Msg: fieldName + " exceeds int64 range"}
+	}
+	return u, nil
 }
 
 // FormatPriceTicks formats int6 ticks as a decimal string.
@@ -52,22 +54,22 @@ func FormatPriceTicks(ticks int64) string {
 	return out
 }
 
-// ParseQtyScaled parses a decimal quantity at the given scale.
+// ParseQtyScaled parses a decimal quantity at the given scale (strict; no rounding).
 func ParseQtyScaled(raw string, scale int, fieldName string) (uint64, error) {
-	value, err := parseDecimal(raw, fieldName)
+	scaled, err := decimalToScaledBig(raw, scale, fieldName)
 	if err != nil {
 		return 0, err
 	}
-	mul := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(scale)), nil)
-	scaled := new(big.Rat).Mul(value, new(big.Rat).SetInt(mul))
 	if scaled.Sign() <= 0 {
 		return 0, &errors.ValidationError{Msg: fieldName + " must be positive"}
 	}
-	num := scaled.Num()
-	if !num.IsUint64() {
+	if scale != 18 && !scaled.IsInt64() {
+		return 0, &errors.ValidationError{Msg: fieldName + " exceeds int64 range"}
+	}
+	if !scaled.IsUint64() {
 		return 0, &errors.ValidationError{Msg: fieldName + " out of range"}
 	}
-	return num.Uint64(), nil
+	return scaled.Uint64(), nil
 }
 
 // FormatQtyScaled formats a scaled integer quantity.
@@ -130,24 +132,9 @@ func FormatID(value uint64) string {
 	return base58.Encode(new(big.Int).SetUint64(value).Bytes())
 }
 
-func parseDecimal(raw, fieldName string) (*big.Rat, error) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return nil, &errors.ValidationError{Msg: fieldName + " must be a decimal string"}
-	}
-	rat := new(big.Rat)
-	if _, ok := rat.SetString(raw); !ok {
-		return nil, &errors.ValidationError{Msg: fieldName + " must be a valid decimal string"}
-	}
-	return rat, nil
-}
-
 func isDecimal(s string) bool {
-	for i, r := range s {
+	for _, r := range s {
 		if r < '0' || r > '9' {
-			return false
-		}
-		if i == 0 && len(s) == 0 {
 			return false
 		}
 	}

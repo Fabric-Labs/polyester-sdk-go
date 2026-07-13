@@ -46,6 +46,39 @@ func main() {
 
 Set `POLYESTER_API_KEY_ID`, `POLYESTER_API_PRIVATE_KEY`, and optionally `POLYESTER_ACCOUNT_ID`.
 
+## Qty / price inputs (dual path)
+
+Human path uses decimal strings. Bot path stays in wire units with typed values.
+`PriceTicks.Ticks` are protocol price units (fixed 1e6), not market tick-size alignment
+(the server still validates tick size).
+
+```go
+import "github.com/Fabric-Labs/polyester-sdk-go/models"
+
+symbol := "BNB-USDT"
+tif := "gtc"
+price := models.PriceFromDecimal("100")
+_, err = client.Orders.Create(ctx, models.CreateOrderRequest{
+    Symbol: &symbol, Side: "buy", OrderType: "limit", TIF: &tif,
+    Qty: models.QtyFromDecimal("0.01"), Price: &price, PostOnly: true,
+}, nil)
+```
+
+### For bots (scaled integers)
+
+```go
+qty := models.MustQtyScaled(1_000_000).WithScale(8) // already wire units
+price := models.PriceFromTicksInt(100_000_000)        // 100.000000 at 1e6
+_, err = client.Orders.Create(ctx, models.CreateOrderRequest{
+    Symbol: &symbol, Side: "buy", OrderType: "limit", TIF: &tif,
+    Qty: models.QtyFromScaled(qty), Price: &price, PostOnly: true,
+}, nil)
+// Reads expose the same types: order.Price.Ticks, order.OrigQty.Scaled
+```
+
+Compatible fill/book values can be passed back into writes when domain/instrument match.
+Transfers and trading withdraws use `AssetAmountInput` (not order `QtyInput`).
+
 ## Realtime
 
 Raw Centrifugo subscriptions return a typed channel:
