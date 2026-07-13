@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Breaking
+- Removed private `ledger.write.v1` / `Client.LedgerWrite` from the public SDK (not in `public.files.txt`)
+
 ## 0.1.0a5
 
 ### Triggers

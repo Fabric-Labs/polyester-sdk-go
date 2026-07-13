@@ -20,6 +20,13 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Reject private ledger.write gen
+        run: |
+          if [ -d gen/ledger/write ] || grep -Rql 'ledger\.write\.v1' gen; then
+            echo "private ledger.write.v1 must not appear in public SDK gen/" >&2
+            exit 1
+          fi
+
       - name: Test
         run: go test ./...
 

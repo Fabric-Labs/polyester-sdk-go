@@ -73,7 +73,6 @@ type Client struct {
 	GuardSigner        *services.GuardSignerService
 	Withdraw           *services.WithdrawService
 	TradingWithdraws   *services.WithdrawService
-	LedgerWrite        *services.LedgerWriteService
 
 	transport *transport.Factory
 	closeOnce sync.Once
@@ -146,7 +145,6 @@ func New(cfg Config) (*Client, error) {
 		Layout:              services.NewLayoutService(factory),
 		GuardSigner:         services.NewGuardSignerService(factory, cfg.DefaultSubAccountID),
 		Withdraw:            services.NewWithdrawService(factory, cfg.DefaultSubAccountID),
-		LedgerWrite:         services.NewLedgerWriteService(factory, cfg.DefaultSubAccountID, defaultAccountID),
 	}
 	client.Candles = client.MarketData
 	client.Accounts = client.Resolve

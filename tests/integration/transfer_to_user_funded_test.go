@@ -25,7 +25,6 @@ func TestTransferToUserTiny(t *testing.T) {
 		t.Skip(
 			"Funding→another user is on-chain in the Polyester app " +
 				"(FundingAccount.UAssetTransfer + wallet/smart-account signing), not an API-key RPC. " +
-				"ledger_write.CreateFundingUserTransfer is internal-only and is not mounted on api-devnet.polyester.ai. " +
 				"Set POLYESTER_TEST_TRANSFER_SOURCE_BUCKET=unified to run unified→user via internal_transfers.Create, " +
 				"or run TestInternalTransferTiny.",
 		)

@@ -239,12 +239,6 @@ type WithdrawIntentResult struct {
 	FlowID   string `json:"flow_id,omitempty"`
 }
 
-// LedgerWriteTransferResult is a ledger write transfer outcome.
-type LedgerWriteTransferResult struct {
-	TransferID string `json:"transfer_id,omitempty"`
-	Timestamp  uint64 `json:"timestamp,omitempty"`
-}
-
 // LifecycleFlowSummary is a lifecycle flow header.
 type LifecycleFlowSummary struct {
 	IntentID            string `json:"intent_id"`
