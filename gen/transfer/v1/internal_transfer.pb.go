@@ -8,6 +8,7 @@ package transferv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	v1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	_ "github.com/google/gnostic/openapiv3"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -97,9 +98,9 @@ type CreateInternalTransferRequest struct {
 	Destination isCreateInternalTransferRequest_Destination `protobuf_oneof:"destination"`
 	// Canonical public unified asset id for the asset being transferred.
 	AssetId uint32 `protobuf:"varint,5,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
-	// Quantity scaled by the unified asset's quantity_scale from SpotConfig for
-	// asset_id.
-	QtyScaled int64 `protobuf:"varint,6,opt,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`
+	// Transfer amount in canonical 18-decimal unified asset units.
+	// For example, 0.5 is encoded as 500000000000000000.
+	AmountE18 *v1.U128 `protobuf:"bytes,6,opt,name=amount_e18,json=amountE18,proto3" json:"amount_e18,omitempty"`
 	// Stable client-supplied idempotency key used to collapse safe retries.
 	IdempotencyKey string `protobuf:"bytes,7,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
 	unknownFields  protoimpl.UnknownFields
@@ -184,11 +185,11 @@ func (x *CreateInternalTransferRequest) GetAssetId() uint32 {
 	return 0
 }
 
-func (x *CreateInternalTransferRequest) GetQtyScaled() int64 {
+func (x *CreateInternalTransferRequest) GetAmountE18() *v1.U128 {
 	if x != nil {
-		return x.QtyScaled
+		return x.AmountE18
 	}
-	return 0
+	return nil
 }
 
 func (x *CreateInternalTransferRequest) GetIdempotencyKey() string {
@@ -307,9 +308,8 @@ type CreateInternalTransferResponse struct {
 	AssetCode string `protobuf:"bytes,5,opt,name=asset_code,json=assetCode,proto3" json:"asset_code,omitempty"`
 	// Resolved unified asset id used by downstream settlement.
 	UAssetId string `protobuf:"bytes,6,opt,name=u_asset_id,json=uAssetId,proto3" json:"u_asset_id,omitempty"`
-	// Echoed transfer quantity scaled by the unified asset's quantity_scale from
-	// SpotConfig for asset_id.
-	QtyScaled int64 `protobuf:"varint,7,opt,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`
+	// Echoed transfer amount in canonical 18-decimal unified asset units.
+	AmountE18 *v1.U128 `protobuf:"bytes,7,opt,name=amount_e18,json=amountE18,proto3" json:"amount_e18,omitempty"`
 	// Server-resolved destination summary.
 	Destination *ResolvedDestination `protobuf:"bytes,8,opt,name=destination,proto3" json:"destination,omitempty"`
 	// Public status for the transfer request.
@@ -390,11 +390,11 @@ func (x *CreateInternalTransferResponse) GetUAssetId() string {
 	return ""
 }
 
-func (x *CreateInternalTransferResponse) GetQtyScaled() int64 {
+func (x *CreateInternalTransferResponse) GetAmountE18() *v1.U128 {
 	if x != nil {
-		return x.QtyScaled
+		return x.AmountE18
 	}
-	return 0
+	return nil
 }
 
 func (x *CreateInternalTransferResponse) GetDestination() *ResolvedDestination {
@@ -415,23 +415,23 @@ var File_transfer_v1_internal_transfer_proto protoreflect.FileDescriptor
 
 const file_transfer_v1_internal_transfer_proto_rawDesc = "" +
 	"\n" +
-	"#transfer/v1/internal_transfer.proto\x12\vtransfer.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\"\xdd\x03\n" +
+	"#transfer/v1/internal_transfer.proto\x12\vtransfer.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1cpolyester/type/v1/u128.proto\"\xf5\x03\n" +
 	"\x1dCreateInternalTransferRequest\x126\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12F\n" +
 	"\x16destination_account_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\x14destinationAccountId\x12L\n" +
 	"\x19destination_subaccount_id\x18\x03 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\x17destinationSubaccountId\x12W\n" +
 	"!destination_smart_account_address\x18\x04 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x01H\x00R\x1edestinationSmartAccountAddress\x12\"\n" +
-	"\basset_id\x18\x05 \x01(\rB\a\xbaH\x04*\x02 \x00R\aassetId\x12&\n" +
+	"\basset_id\x18\x05 \x01(\rB\a\xbaH\x04*\x02 \x00R\aassetId\x12>\n" +
 	"\n" +
-	"qty_scaled\x18\x06 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\tqtyScaled\x123\n" +
+	"amount_e18\x18\x06 \x01(\v2\x17.polyester.type.v1.U128B\x06\xbaH\x03\xc8\x01\x01R\tamountE18\x123\n" +
 	"\x0fidempotency_key\x18\a \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\x0eidempotencyKeyB\x14\n" +
 	"\vdestination\x12\x05\xbaH\x02\b\x01\"\xb0\x01\n" +
 	"\x13ResolvedDestination\x123\n" +
 	"\x16root_account_public_id\x18\x01 \x01(\tR\x13rootAccountPublicId\x120\n" +
 	"\x14subaccount_public_id\x18\x02 \x01(\tR\x12subaccountPublicId\x122\n" +
-	"\x15smart_account_address\x18\x03 \x01(\tR\x13smartAccountAddress\"\x83\x03\n" +
+	"\x15smart_account_address\x18\x03 \x01(\tR\x13smartAccountAddress\"\x9c\x03\n" +
 	"\x1eCreateInternalTransferResponse\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x12\x1f\n" +
@@ -442,9 +442,9 @@ const file_transfer_v1_internal_transfer_proto_rawDesc = "" +
 	"\n" +
 	"asset_code\x18\x05 \x01(\tR\tassetCode\x12\x1c\n" +
 	"\n" +
-	"u_asset_id\x18\x06 \x01(\tR\buAssetId\x12\x1d\n" +
+	"u_asset_id\x18\x06 \x01(\tR\buAssetId\x126\n" +
 	"\n" +
-	"qty_scaled\x18\a \x01(\x03R\tqtyScaled\x12B\n" +
+	"amount_e18\x18\a \x01(\v2\x17.polyester.type.v1.U128R\tamountE18\x12B\n" +
 	"\vdestination\x18\b \x01(\v2 .transfer.v1.ResolvedDestinationR\vdestination\x12;\n" +
 	"\x06status\x18\t \x01(\x0e2#.transfer.v1.InternalTransferStatusR\x06status*\xb5\x01\n" +
 	"\x16InternalTransferStatus\x12(\n" +
@@ -476,17 +476,20 @@ var file_transfer_v1_internal_transfer_proto_goTypes = []any{
 	(*CreateInternalTransferRequest)(nil),  // 1: transfer.v1.CreateInternalTransferRequest
 	(*ResolvedDestination)(nil),            // 2: transfer.v1.ResolvedDestination
 	(*CreateInternalTransferResponse)(nil), // 3: transfer.v1.CreateInternalTransferResponse
+	(*v1.U128)(nil),                        // 4: polyester.type.v1.U128
 }
 var file_transfer_v1_internal_transfer_proto_depIdxs = []int32{
-	2, // 0: transfer.v1.CreateInternalTransferResponse.destination:type_name -> transfer.v1.ResolvedDestination
-	0, // 1: transfer.v1.CreateInternalTransferResponse.status:type_name -> transfer.v1.InternalTransferStatus
-	1, // 2: transfer.v1.InternalTransferService.CreateInternalTransfer:input_type -> transfer.v1.CreateInternalTransferRequest
-	3, // 3: transfer.v1.InternalTransferService.CreateInternalTransfer:output_type -> transfer.v1.CreateInternalTransferResponse
-	3, // [3:4] is the sub-list for method output_type
-	2, // [2:3] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	4, // 0: transfer.v1.CreateInternalTransferRequest.amount_e18:type_name -> polyester.type.v1.U128
+	4, // 1: transfer.v1.CreateInternalTransferResponse.amount_e18:type_name -> polyester.type.v1.U128
+	2, // 2: transfer.v1.CreateInternalTransferResponse.destination:type_name -> transfer.v1.ResolvedDestination
+	0, // 3: transfer.v1.CreateInternalTransferResponse.status:type_name -> transfer.v1.InternalTransferStatus
+	1, // 4: transfer.v1.InternalTransferService.CreateInternalTransfer:input_type -> transfer.v1.CreateInternalTransferRequest
+	3, // 5: transfer.v1.InternalTransferService.CreateInternalTransfer:output_type -> transfer.v1.CreateInternalTransferResponse
+	5, // [5:6] is the sub-list for method output_type
+	4, // [4:5] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_transfer_v1_internal_transfer_proto_init() }

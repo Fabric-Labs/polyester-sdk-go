@@ -48,9 +48,6 @@ const (
 	// LedgerReadServiceGetBalancesProcedure is the fully-qualified name of the LedgerReadService's
 	// GetBalances RPC.
 	LedgerReadServiceGetBalancesProcedure = "/ledger.read.v1.LedgerReadService/GetBalances"
-	// LedgerReadServiceGetHealthProcedure is the fully-qualified name of the LedgerReadService's
-	// GetHealth RPC.
-	LedgerReadServiceGetHealthProcedure = "/ledger.read.v1.LedgerReadService/GetHealth"
 )
 
 // LedgerReadServiceClient is a client for the ledger.read.v1.LedgerReadService service.
@@ -69,8 +66,6 @@ type LedgerReadServiceClient interface {
 	// Retrieve the latest balances for an account.
 	// Supports optional subaccount scoping and returns asset symbols with decimal amounts on REST.
 	GetBalances(context.Context, *connect.Request[v1.GetBalancesRequest]) (*connect.Response[v1.GetBalancesResponse], error)
-	// Retrieve service health and version (public).
-	GetHealth(context.Context, *connect.Request[v1.GetHealthRequest]) (*connect.Response[v1.GetHealthResponse], error)
 }
 
 // NewLedgerReadServiceClient constructs a client for the ledger.read.v1.LedgerReadService service.
@@ -114,12 +109,6 @@ func NewLedgerReadServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(ledgerReadServiceMethods.ByName("GetBalances")),
 			connect.WithClientOptions(opts...),
 		),
-		getHealth: connect.NewClient[v1.GetHealthRequest, v1.GetHealthResponse](
-			httpClient,
-			baseURL+LedgerReadServiceGetHealthProcedure,
-			connect.WithSchema(ledgerReadServiceMethods.ByName("GetHealth")),
-			connect.WithClientOptions(opts...),
-		),
 	}
 }
 
@@ -130,7 +119,6 @@ type ledgerReadServiceClient struct {
 	listTransfers          *connect.Client[v1.ListTransfersRequest, v1.ListTransfersResponse]
 	listHolds              *connect.Client[v1.ListHoldsRequest, v1.ListHoldsResponse]
 	getBalances            *connect.Client[v1.GetBalancesRequest, v1.GetBalancesResponse]
-	getHealth              *connect.Client[v1.GetHealthRequest, v1.GetHealthResponse]
 }
 
 // GetBalanceHistory calls ledger.read.v1.LedgerReadService.GetBalanceHistory.
@@ -158,11 +146,6 @@ func (c *ledgerReadServiceClient) GetBalances(ctx context.Context, req *connect.
 	return c.getBalances.CallUnary(ctx, req)
 }
 
-// GetHealth calls ledger.read.v1.LedgerReadService.GetHealth.
-func (c *ledgerReadServiceClient) GetHealth(ctx context.Context, req *connect.Request[v1.GetHealthRequest]) (*connect.Response[v1.GetHealthResponse], error) {
-	return c.getHealth.CallUnary(ctx, req)
-}
-
 // LedgerReadServiceHandler is an implementation of the ledger.read.v1.LedgerReadService service.
 type LedgerReadServiceHandler interface {
 	// Retrieve balance history buckets for an account.
@@ -179,8 +162,6 @@ type LedgerReadServiceHandler interface {
 	// Retrieve the latest balances for an account.
 	// Supports optional subaccount scoping and returns asset symbols with decimal amounts on REST.
 	GetBalances(context.Context, *connect.Request[v1.GetBalancesRequest]) (*connect.Response[v1.GetBalancesResponse], error)
-	// Retrieve service health and version (public).
-	GetHealth(context.Context, *connect.Request[v1.GetHealthRequest]) (*connect.Response[v1.GetHealthResponse], error)
 }
 
 // NewLedgerReadServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -220,12 +201,6 @@ func NewLedgerReadServiceHandler(svc LedgerReadServiceHandler, opts ...connect.H
 		connect.WithSchema(ledgerReadServiceMethods.ByName("GetBalances")),
 		connect.WithHandlerOptions(opts...),
 	)
-	ledgerReadServiceGetHealthHandler := connect.NewUnaryHandler(
-		LedgerReadServiceGetHealthProcedure,
-		svc.GetHealth,
-		connect.WithSchema(ledgerReadServiceMethods.ByName("GetHealth")),
-		connect.WithHandlerOptions(opts...),
-	)
 	return "/ledger.read.v1.LedgerReadService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case LedgerReadServiceGetBalanceHistoryProcedure:
@@ -238,8 +213,6 @@ func NewLedgerReadServiceHandler(svc LedgerReadServiceHandler, opts ...connect.H
 			ledgerReadServiceListHoldsHandler.ServeHTTP(w, r)
 		case LedgerReadServiceGetBalancesProcedure:
 			ledgerReadServiceGetBalancesHandler.ServeHTTP(w, r)
-		case LedgerReadServiceGetHealthProcedure:
-			ledgerReadServiceGetHealthHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -267,8 +240,4 @@ func (UnimplementedLedgerReadServiceHandler) ListHolds(context.Context, *connect
 
 func (UnimplementedLedgerReadServiceHandler) GetBalances(context.Context, *connect.Request[v1.GetBalancesRequest]) (*connect.Response[v1.GetBalancesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ledger.read.v1.LedgerReadService.GetBalances is not implemented"))
-}
-
-func (UnimplementedLedgerReadServiceHandler) GetHealth(context.Context, *connect.Request[v1.GetHealthRequest]) (*connect.Response[v1.GetHealthResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ledger.read.v1.LedgerReadService.GetHealth is not implemented"))
 }
