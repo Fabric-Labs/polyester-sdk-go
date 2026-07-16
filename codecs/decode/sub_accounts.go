@@ -10,9 +10,16 @@ func subAccount(msg *authv1.Subaccount) models.SubAccount {
 	if msg == nil {
 		return models.SubAccount{}
 	}
+	var updatedAtMs int64
+	if ts := msg.GetUpdatedAt(); ts != nil {
+		updatedAtMs = ts.AsTime().UnixMilli()
+	}
 	return models.SubAccount{
-		SubaccountID: codecs.FormatUint64ID(msg.GetId()), Label: msg.GetLabel(),
-		SmartAccountAddress: msg.GetSmartAccountAddress(), Status: msg.GetStatus(),
+		SubaccountID:        codecs.FormatUint64ID(msg.GetId()),
+		Label:               msg.GetLabel(),
+		SmartAccountAddress: msg.GetSmartAccountAddress(),
+		Status:              msg.GetStatus(),
+		UpdatedAtMs:         updatedAtMs,
 	}
 }
 

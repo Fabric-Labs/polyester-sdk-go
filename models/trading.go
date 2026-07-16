@@ -2,19 +2,20 @@ package models
 
 // Order is a normalized open or historical order.
 type Order struct {
-	OrderID       string    `json:"order_id"`
-	SymbolID      uint32    `json:"symbol_id"`
-	ClientOrderID string    `json:"client_order_id,omitempty"`
-	Side          string    `json:"side,omitempty"`
-	Status        string    `json:"status,omitempty"`
-	OrderType     string    `json:"order_type,omitempty"`
-	TIF           string    `json:"tif,omitempty"`
-	OrigQty       QtyScaled `json:"orig_qty,omitempty"`
-	CumQty        QtyScaled `json:"cum_qty,omitempty"`
-	LeavesQty     QtyScaled `json:"leaves_qty,omitempty"`
+	OrderID       string     `json:"order_id"`
+	SymbolID      uint32     `json:"symbol_id"`
+	ClientOrderID string     `json:"client_order_id,omitempty"`
+	Side          string     `json:"side,omitempty"`
+	Status        string     `json:"status,omitempty"`
+	OrderType     string     `json:"order_type,omitempty"`
+	TIF           string     `json:"tif,omitempty"`
+	OrigQty       QtyScaled  `json:"orig_qty,omitempty"`
+	CumQty        QtyScaled  `json:"cum_qty,omitempty"`
+	LeavesQty     QtyScaled  `json:"leaves_qty,omitempty"`
 	Price         PriceTicks `json:"price,omitempty"`
 	AvgPx         PriceTicks `json:"avg_px,omitempty"`
-	CreatedTsNs   string    `json:"created_ts_ns,omitempty"`
+	CreatedTsNs   string     `json:"created_ts_ns,omitempty"`
+	StateRevision uint64     `json:"state_revision,omitempty"`
 }
 
 // OrdersList holds paginated orders.
@@ -126,18 +127,20 @@ type CancelAllAfterResult struct {
 
 // AssetBalance is a ledger balance row.
 type AssetBalance struct {
-	AssetID   uint32 `json:"asset_id"`
-	Trading   string `json:"trading,omitempty"`
-	Funding   string `json:"funding,omitempty"`
-	Reserved  string `json:"reserved,omitempty"`
-	Available string `json:"available,omitempty"`
+	AssetID         uint32 `json:"asset_id"`
+	Trading         string `json:"trading,omitempty"`
+	Funding         string `json:"funding,omitempty"`
+	Reserved        string `json:"reserved,omitempty"`
+	Available       string `json:"available,omitempty"`
+	TradingVersion  uint64 `json:"trading_version,omitempty"`
+	FundingVersion  uint64 `json:"funding_version,omitempty"`
+	ReservedVersion uint64 `json:"reserved_version,omitempty"`
 }
 
 // BalancesList holds balance rows.
 type BalancesList struct {
 	Balances []AssetBalance `json:"balances"`
 }
-
 
 // BalanceHistorySeries is one balance history series.
 type BalanceHistorySeries struct {
@@ -294,6 +297,7 @@ type ApiKeySummary struct {
 	Label            string `json:"label,omitempty"`
 	Status           string `json:"status,omitempty"`
 	PublicKeyEd25519 string `json:"public_key_ed25519,omitempty"`
+	UpdatedAtMs      int64  `json:"updated_at_ms,omitempty"`
 }
 
 // ApiKeysList lists API keys.

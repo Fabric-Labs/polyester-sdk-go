@@ -6,6 +6,7 @@ type SubAccount struct {
 	Label               string `json:"label,omitempty"`
 	SmartAccountAddress string `json:"smart_account_address,omitempty"`
 	Status              string `json:"status,omitempty"`
+	UpdatedAtMs         int64  `json:"updated_at_ms,omitempty"`
 }
 
 // SubAccountsList lists subaccounts.
