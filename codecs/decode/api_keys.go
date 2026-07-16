@@ -11,7 +11,17 @@ func apiKey(msg *authv1.ApiKey) *models.ApiKeySummary {
 	if msg == nil {
 		return nil
 	}
-	return &models.ApiKeySummary{KeyID: msg.GetKeyId(), Label: msg.GetLabel(), Status: msg.GetStatus().String(), PublicKeyEd25519: hex.EncodeToString(msg.GetPublicKeyEd25519())}
+	var updatedAtMs int64
+	if ts := msg.GetUpdatedAt(); ts != nil {
+		updatedAtMs = ts.AsTime().UnixMilli()
+	}
+	return &models.ApiKeySummary{
+		KeyID:            msg.GetKeyId(),
+		Label:            msg.GetLabel(),
+		Status:           msg.GetStatus().String(),
+		PublicKeyEd25519: hex.EncodeToString(msg.GetPublicKeyEd25519()),
+		UpdatedAtMs:      updatedAtMs,
+	}
 }
 
 // ApiKeyMessageFromProto decodes one API key message.

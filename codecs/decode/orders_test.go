@@ -34,6 +34,11 @@ func TestOrderFromProtoMapsEnumsAndIDs(t *testing.T) {
 	if order.OrigQty.Scaled != 100 {
 		t.Fatalf("orig_qty=%+v", order.OrigQty)
 	}
+	msg.StateRevision = 7
+	order = decode.OrderFromProto(msg)
+	if order.StateRevision != 7 {
+		t.Fatalf("state_revision=%d", order.StateRevision)
+	}
 }
 
 func TestOrdersListFromProto(t *testing.T) {

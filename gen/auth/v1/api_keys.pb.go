@@ -118,8 +118,13 @@ type ApiKey struct {
 	// Read-only actor label describing who created this key, such as a username
 	// or account label.
 	CreatedByActor string `protobuf:"bytes,24,opt,name=created_by_actor,json=createdByActor,proto3" json:"created_by_actor,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Time in UTC when this key's configuration was last changed. For the same
+	// key, later is fresher, equal is an idempotent replay, and earlier is stale.
+	// Equal timestamps with different configuration indicate an invariant failure.
+	// This is independent of last_used_at, which tracks authentication activity.
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,25,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ApiKey) Reset() {
@@ -241,6 +246,13 @@ func (x *ApiKey) GetCreatedByActor() string {
 		return x.CreatedByActor
 	}
 	return ""
+}
+
+func (x *ApiKey) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
 }
 
 // IpWhitelist replaces or clears an API key IP whitelist during updates.
@@ -858,7 +870,7 @@ var File_auth_v1_api_keys_proto protoreflect.FileDescriptor
 
 const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\n" +
-	"\x16auth/v1/api_keys.proto\x12\aauth.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe8\x04\n" +
+	"\x16auth/v1/api_keys.proto\x12\aauth.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa3\x05\n" +
 	"\x06ApiKey\x12/\n" +
 	"\x06key_id\x18\x02 \x01(\tB\x18\xbaH\x15r\x132\x11^ak_[a-f0-9]{32}$R\x05keyId\x12\x14\n" +
 	"\x05label\x18\x03 \x01(\tR\x05label\x12\x1b\n" +
@@ -876,7 +888,9 @@ const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\x12public_key_ed25519\x18\x16 \x01(\fR\x10publicKeyEd25519\x129\n" +
 	"\n" +
 	"expires_at\x18\x17 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12(\n" +
-	"\x10created_by_actor\x18\x18 \x01(\tR\x0ecreatedByActorB\x10\n" +
+	"\x10created_by_actor\x18\x18 \x01(\tR\x0ecreatedByActor\x129\n" +
+	"\n" +
+	"updated_at\x18\x19 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x10\n" +
 	"\x0e_subaccount_idB\f\n" +
 	"\n" +
 	"_policy_id\"6\n" +
@@ -971,28 +985,29 @@ var file_auth_v1_api_keys_proto_depIdxs = []int32{
 	13, // 1: auth.v1.ApiKey.created_at:type_name -> google.protobuf.Timestamp
 	13, // 2: auth.v1.ApiKey.last_used_at:type_name -> google.protobuf.Timestamp
 	13, // 3: auth.v1.ApiKey.expires_at:type_name -> google.protobuf.Timestamp
-	1,  // 4: auth.v1.CreateApiKeyResponse.api_key:type_name -> auth.v1.ApiKey
-	1,  // 5: auth.v1.ListApiKeysResponse.api_keys:type_name -> auth.v1.ApiKey
-	1,  // 6: auth.v1.GetApiKeyResponse.api_key:type_name -> auth.v1.ApiKey
-	0,  // 7: auth.v1.UpdateApiKeyRequest.status:type_name -> auth.v1.ApiKeyStatus
-	2,  // 8: auth.v1.UpdateApiKeyRequest.ip_whitelist:type_name -> auth.v1.IpWhitelist
-	13, // 9: auth.v1.UpdateApiKeyRequest.expires_at:type_name -> google.protobuf.Timestamp
-	1,  // 10: auth.v1.UpdateApiKeyResponse.api_key:type_name -> auth.v1.ApiKey
-	3,  // 11: auth.v1.ApiKeyService.CreateApiKey:input_type -> auth.v1.CreateApiKeyRequest
-	5,  // 12: auth.v1.ApiKeyService.ListApiKeys:input_type -> auth.v1.ListApiKeysRequest
-	9,  // 13: auth.v1.ApiKeyService.GetApiKey:input_type -> auth.v1.GetApiKeyRequest
-	7,  // 14: auth.v1.ApiKeyService.DeleteApiKey:input_type -> auth.v1.DeleteApiKeyRequest
-	11, // 15: auth.v1.ApiKeyService.UpdateApiKey:input_type -> auth.v1.UpdateApiKeyRequest
-	4,  // 16: auth.v1.ApiKeyService.CreateApiKey:output_type -> auth.v1.CreateApiKeyResponse
-	6,  // 17: auth.v1.ApiKeyService.ListApiKeys:output_type -> auth.v1.ListApiKeysResponse
-	10, // 18: auth.v1.ApiKeyService.GetApiKey:output_type -> auth.v1.GetApiKeyResponse
-	8,  // 19: auth.v1.ApiKeyService.DeleteApiKey:output_type -> auth.v1.DeleteApiKeyResponse
-	12, // 20: auth.v1.ApiKeyService.UpdateApiKey:output_type -> auth.v1.UpdateApiKeyResponse
-	16, // [16:21] is the sub-list for method output_type
-	11, // [11:16] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	13, // 4: auth.v1.ApiKey.updated_at:type_name -> google.protobuf.Timestamp
+	1,  // 5: auth.v1.CreateApiKeyResponse.api_key:type_name -> auth.v1.ApiKey
+	1,  // 6: auth.v1.ListApiKeysResponse.api_keys:type_name -> auth.v1.ApiKey
+	1,  // 7: auth.v1.GetApiKeyResponse.api_key:type_name -> auth.v1.ApiKey
+	0,  // 8: auth.v1.UpdateApiKeyRequest.status:type_name -> auth.v1.ApiKeyStatus
+	2,  // 9: auth.v1.UpdateApiKeyRequest.ip_whitelist:type_name -> auth.v1.IpWhitelist
+	13, // 10: auth.v1.UpdateApiKeyRequest.expires_at:type_name -> google.protobuf.Timestamp
+	1,  // 11: auth.v1.UpdateApiKeyResponse.api_key:type_name -> auth.v1.ApiKey
+	3,  // 12: auth.v1.ApiKeyService.CreateApiKey:input_type -> auth.v1.CreateApiKeyRequest
+	5,  // 13: auth.v1.ApiKeyService.ListApiKeys:input_type -> auth.v1.ListApiKeysRequest
+	9,  // 14: auth.v1.ApiKeyService.GetApiKey:input_type -> auth.v1.GetApiKeyRequest
+	7,  // 15: auth.v1.ApiKeyService.DeleteApiKey:input_type -> auth.v1.DeleteApiKeyRequest
+	11, // 16: auth.v1.ApiKeyService.UpdateApiKey:input_type -> auth.v1.UpdateApiKeyRequest
+	4,  // 17: auth.v1.ApiKeyService.CreateApiKey:output_type -> auth.v1.CreateApiKeyResponse
+	6,  // 18: auth.v1.ApiKeyService.ListApiKeys:output_type -> auth.v1.ListApiKeysResponse
+	10, // 19: auth.v1.ApiKeyService.GetApiKey:output_type -> auth.v1.GetApiKeyResponse
+	8,  // 20: auth.v1.ApiKeyService.DeleteApiKey:output_type -> auth.v1.DeleteApiKeyResponse
+	12, // 21: auth.v1.ApiKeyService.UpdateApiKey:output_type -> auth.v1.UpdateApiKeyResponse
+	17, // [17:22] is the sub-list for method output_type
+	12, // [12:17] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_api_keys_proto_init() }

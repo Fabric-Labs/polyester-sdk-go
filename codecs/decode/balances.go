@@ -24,8 +24,14 @@ func u128(msg *typev1.U128) string {
 
 func AssetBalanceFromProto(msg *ledgerrdv1.AssetBalance) models.AssetBalance {
 	return models.AssetBalance{
-		AssetID: msg.GetAssetId(), Trading: u128(msg.GetTrading()), Funding: u128(msg.GetFunding()),
-		Reserved: u128(msg.GetReserved()), Available: u128(msg.GetAvailable()),
+		AssetID:         msg.GetAssetId(),
+		Trading:         u128(msg.GetTrading()),
+		Funding:         u128(msg.GetFunding()),
+		Reserved:        u128(msg.GetReserved()),
+		Available:       u128(msg.GetAvailable()),
+		TradingVersion:  msg.GetTradingVersion(),
+		FundingVersion:  msg.GetFundingVersion(),
+		ReservedVersion: msg.GetReservedVersion(),
 	}
 }
 
@@ -36,7 +42,6 @@ func BalancesListFromProto(msg *ledgerrdv1.GetBalancesResponse) models.BalancesL
 	}
 	return models.BalancesList{Balances: out}
 }
-
 
 func BalanceHistoryFromProto(msg *ledgerrdv1.GetBalanceHistoryResponse) models.BalanceHistory {
 	series := make([]models.BalanceHistorySeries, 0, len(msg.GetSeries()))

@@ -28,6 +28,7 @@ func OrderFromProto(msg *orderv1.Order) models.Order {
 		Price:         codecs.DecodePriceTicks(msg.GetPriceTicks(), ""),
 		AvgPx:         codecs.DecodePriceTicks(msg.GetAvgPriceTicks(), ""),
 		CreatedTsNs:   strconv.FormatUint(msg.GetCreatedTsNs(), 10),
+		StateRevision: msg.GetStateRevision(),
 	}
 }
 
