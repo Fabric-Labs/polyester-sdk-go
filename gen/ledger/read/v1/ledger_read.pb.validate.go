@@ -285,6 +285,10 @@ func (m *AssetBalance) validate(all bool) error {
 		}
 	}
 
+	// no validation rules for PostedVersion
+
+	// no validation rules for ReservedVersion
+
 	if len(errors) > 0 {
 		return AssetBalanceMultiError(errors)
 	}

@@ -350,9 +350,15 @@ type AssetBalance struct {
 	Reserved *v1.U128 `protobuf:"bytes,4,opt,name=reserved,proto3" json:"reserved,omitempty"`
 	// Available amount in the trading bucket at fixed 18-decimal ledger scale.
 	// This is computed as max(trading - reserved, 0).
-	Available     *v1.U128 `protobuf:"bytes,5,opt,name=available,proto3" json:"available,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Available *v1.U128 `protobuf:"bytes,5,opt,name=available,proto3" json:"available,omitempty"`
+	// Source-owned version of the latest posted balance snapshot.
+	// Compare only with posted_version values for the same account and asset.
+	PostedVersion uint64 `protobuf:"varint,6,opt,name=posted_version,json=postedVersion,proto3" json:"posted_version,omitempty"`
+	// Source-owned version of the latest reserved balance snapshot.
+	// Compare only with reserved_version values for the same account and asset.
+	ReservedVersion uint64 `protobuf:"varint,7,opt,name=reserved_version,json=reservedVersion,proto3" json:"reserved_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *AssetBalance) Reset() {
@@ -418,6 +424,20 @@ func (x *AssetBalance) GetAvailable() *v1.U128 {
 		return x.Available
 	}
 	return nil
+}
+
+func (x *AssetBalance) GetPostedVersion() uint64 {
+	if x != nil {
+		return x.PostedVersion
+	}
+	return 0
+}
+
+func (x *AssetBalance) GetReservedVersion() uint64 {
+	if x != nil {
+		return x.ReservedVersion
+	}
+	return 0
 }
 
 type GetBalancesResponse struct {
@@ -1695,13 +1715,15 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	" ledger/read/v1/ledger_read.proto\x12\x0eledger.read.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x17ledger/v1/catalog.proto\x1a\x1cpolyester/type/v1/u128.proto\"P\n" +
 	"\x12GetBalancesRequest\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
-	"\x0e_subaccount_id\"\xfb\x01\n" +
+	"\x0e_subaccount_id\"\xcd\x02\n" +
 	"\fAssetBalance\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\rR\aassetId\x121\n" +
 	"\atrading\x18\x02 \x01(\v2\x17.polyester.type.v1.U128R\atrading\x121\n" +
 	"\afunding\x18\x03 \x01(\v2\x17.polyester.type.v1.U128R\afunding\x123\n" +
 	"\breserved\x18\x04 \x01(\v2\x17.polyester.type.v1.U128R\breserved\x125\n" +
-	"\tavailable\x18\x05 \x01(\v2\x17.polyester.type.v1.U128R\tavailable\"O\n" +
+	"\tavailable\x18\x05 \x01(\v2\x17.polyester.type.v1.U128R\tavailable\x12%\n" +
+	"\x0eposted_version\x18\x06 \x01(\x04R\rpostedVersion\x12)\n" +
+	"\x10reserved_version\x18\a \x01(\x04R\x0freservedVersion\"O\n" +
 	"\x13GetBalancesResponse\x128\n" +
 	"\bbalances\x18\x01 \x03(\v2\x1c.ledger.read.v1.AssetBalanceR\bbalances\"\xe9\x01\n" +
 	"\x18GetBalanceHistoryRequest\x12(\n" +
