@@ -24,12 +24,17 @@ func FormatUint64ID(value uint64) string {
 	return FormatID(value)
 }
 
-// U128ToStr formats hi/lo u128 parts as decimal string.
-func U128ToStr(hi, lo uint64) string {
+// U128ToBig converts hi/lo u128 parts to a big.Int.
+func U128ToBig(hi, lo uint64) *big.Int {
 	value := new(big.Int).SetUint64(hi)
 	value.Lsh(value, 64)
 	value.Add(value, new(big.Int).SetUint64(lo))
-	return value.String()
+	return value
+}
+
+// U128ToStr formats hi/lo u128 parts as decimal string.
+func U128ToStr(hi, lo uint64) string {
+	return U128ToBig(hi, lo).String()
 }
 
 // ProtoEnumName strips common enum prefixes.

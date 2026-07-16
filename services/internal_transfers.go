@@ -36,14 +36,15 @@ func (s *InternalTransfersService) Create(ctx context.Context, assetID uint32, q
 		scale = *quantityScale
 	}
 	aid := assetID
-	qtyBig, err := codecs.ResolveAssetAmountScaled(quantity, scale, "quantity", models.QuantityDomainAsset, &aid)
+	qtyBig, err := codecs.ResolveAssetAmountScaled(quantity, scale, "quantity", models.QuantityDomainLedgerE18, &aid)
 	if err != nil {
 		return models.InternalTransferResult{}, err
 	}
-	if !qtyBig.IsInt64() {
-		return models.InternalTransferResult{}, &errors.ValidationError{Msg: "quantity exceeds int64 range"}
+	req := &transferv1.CreateInternalTransferRequest{
+		AssetId:        assetID,
+		AmountE18:      codecs.BigIntToU128Proto(qtyBig),
+		IdempotencyKey: idempotencyKey,
 	}
-	req := &transferv1.CreateInternalTransferRequest{AssetId: assetID, QtyScaled: qtyBig.Int64(), IdempotencyKey: idempotencyKey}
 	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.InternalTransferResult{}, err
 	}

@@ -37,9 +37,6 @@ func BalancesListFromProto(msg *ledgerrdv1.GetBalancesResponse) models.BalancesL
 	return models.BalancesList{Balances: out}
 }
 
-func LedgerHealthFromProto(msg *ledgerrdv1.GetHealthResponse) models.LedgerHealth {
-	return models.LedgerHealth{OK: msg.GetOk(), Version: msg.GetVersion()}
-}
 
 func BalanceHistoryFromProto(msg *ledgerrdv1.GetBalanceHistoryResponse) models.BalanceHistory {
 	series := make([]models.BalanceHistorySeries, 0, len(msg.GetSeries()))

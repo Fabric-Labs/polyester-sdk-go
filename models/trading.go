@@ -138,11 +138,6 @@ type BalancesList struct {
 	Balances []AssetBalance `json:"balances"`
 }
 
-// LedgerHealth is ledger service health.
-type LedgerHealth struct {
-	OK      bool   `json:"ok"`
-	Version string `json:"version,omitempty"`
-}
 
 // BalanceHistorySeries is one balance history series.
 type BalanceHistorySeries struct {
