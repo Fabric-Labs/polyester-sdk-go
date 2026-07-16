@@ -11,6 +11,7 @@ import (
 	marketdatav1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1"
 	marketoverviewv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketoverview/v1"
 	orderbookv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1"
+	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	transferv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1"
 )
 
@@ -40,7 +41,7 @@ func TestInternalTransferFromProto(t *testing.T) {
 		TransferId: "xfer-1",
 		AssetId:    3,
 		AssetCode:  "USDT",
-		QtyScaled:  500,
+		AmountE18:  &typev1.U128{Lo: 500},
 	}
 	result := decode.InternalTransferFromProto(msg)
 	qty, err := result.Quantity.Int64()

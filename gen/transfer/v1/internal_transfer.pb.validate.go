@@ -61,7 +61,34 @@ func (m *CreateInternalTransferRequest) validate(all bool) error {
 
 	// no validation rules for AssetId
 
-	// no validation rules for QtyScaled
+	if all {
+		switch v := interface{}(m.GetAmountE18()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, CreateInternalTransferRequestValidationError{
+					field:  "AmountE18",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, CreateInternalTransferRequestValidationError{
+					field:  "AmountE18",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetAmountE18()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return CreateInternalTransferRequestValidationError{
+				field:  "AmountE18",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
 
 	// no validation rules for IdempotencyKey
 
@@ -329,7 +356,34 @@ func (m *CreateInternalTransferResponse) validate(all bool) error {
 
 	// no validation rules for UAssetId
 
-	// no validation rules for QtyScaled
+	if all {
+		switch v := interface{}(m.GetAmountE18()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, CreateInternalTransferResponseValidationError{
+					field:  "AmountE18",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, CreateInternalTransferResponseValidationError{
+					field:  "AmountE18",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetAmountE18()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return CreateInternalTransferResponseValidationError{
+				field:  "AmountE18",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
 
 	if all {
 		switch v := interface{}(m.GetDestination()).(type) {

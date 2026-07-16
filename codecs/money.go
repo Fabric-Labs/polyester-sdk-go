@@ -137,8 +137,19 @@ func DecodeQtyScaled(scaled int64, scale int, symbol string, symbolID *uint32) m
 
 // DecodeAssetAmount builds a read-side asset amount.
 func DecodeAssetAmount(scaled int64, scale int, domain models.QuantityDomain, assetID *uint32) models.AssetAmountScaled {
+	return DecodeAssetAmountBig(big.NewInt(scaled), scale, domain, assetID)
+}
+
+// DecodeAssetAmountBig builds a read-side asset amount from a big.Int (U128-safe).
+func DecodeAssetAmountBig(scaled *big.Int, scale int, domain models.QuantityDomain, assetID *uint32) models.AssetAmountScaled {
+	var value *big.Int
+	if scaled != nil {
+		value = new(big.Int).Set(scaled)
+	} else {
+		value = big.NewInt(0)
+	}
 	a := models.AssetAmountScaled{
-		Scaled:  big.NewInt(scaled),
+		Scaled:  value,
 		Domain:  domain,
 		AssetID: assetID,
 	}

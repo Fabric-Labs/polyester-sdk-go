@@ -8,15 +8,20 @@ import (
 
 func InternalTransferFromProto(msg *transferv1.CreateInternalTransferResponse) models.InternalTransferResult {
 	aid := msg.GetAssetId()
+	amount := msg.GetAmountE18()
+	var scaled = codecs.U128ToBig(0, 0)
+	if amount != nil {
+		scaled = codecs.U128ToBig(amount.GetHi(), amount.GetLo())
+	}
 	return models.InternalTransferResult{
 		RequestID:  msg.GetRequestId(),
 		TransferID: msg.GetTransferId(),
 		AssetID:    aid,
 		AssetCode:  msg.GetAssetCode(),
-		Quantity: codecs.DecodeAssetAmount(
-			msg.GetQtyScaled(),
+		Quantity: codecs.DecodeAssetAmountBig(
+			scaled,
 			codecs.LedgerScale,
-			models.QuantityDomainAsset,
+			models.QuantityDomainLedgerE18,
 			&aid,
 		),
 	}

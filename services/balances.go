@@ -33,10 +33,6 @@ func (s *BalancesService) client() ledgerrdv1connect.LedgerReadServiceClient {
 	return ledgerrdv1connect.NewLedgerReadServiceClient(s.transport.HTTP, s.transport.Config.APIURL, s.transport.ConnectOptions(true)...)
 }
 
-func (s *BalancesService) GetHealth(ctx context.Context) (models.LedgerHealth, error) {
-	return UnaryAuth(ctx, s.transport, s.client().GetHealth, &ledgerrdv1.GetHealthRequest{}, decode.LedgerHealthFromProto)
-}
-
 func (s *BalancesService) List(ctx context.Context, account AccountScope, subAccountID *string) (models.BalancesList, error) {
 	req := &ledgerrdv1.GetBalancesRequest{}
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
