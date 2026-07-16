@@ -303,7 +303,10 @@ type Subaccount struct {
 	// created. Present only when the caller owns the sub-account and can use it
 	// for direct chain signing.
 	SmartAccountSaltNonce *uint32 `protobuf:"varint,13,opt,name=smart_account_salt_nonce,json=smartAccountSaltNonce,proto3,oneof" json:"smart_account_salt_nonce,omitempty"`
-	// Time in UTC when this sub-account's configuration was last changed.
+	// Time in UTC when this sub-account's configuration was last changed. For the
+	// same sub-account, later is fresher, equal is an idempotent replay, and
+	// earlier is stale. Equal timestamps with different configuration indicate
+	// an invariant failure.
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

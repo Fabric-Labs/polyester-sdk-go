@@ -118,8 +118,10 @@ type ApiKey struct {
 	// Read-only actor label describing who created this key, such as a username
 	// or account label.
 	CreatedByActor string `protobuf:"bytes,24,opt,name=created_by_actor,json=createdByActor,proto3" json:"created_by_actor,omitempty"`
-	// Time in UTC when this key's configuration was last changed. This is
-	// independent of last_used_at, which tracks authentication activity.
+	// Time in UTC when this key's configuration was last changed. For the same
+	// key, later is fresher, equal is an idempotent replay, and earlier is stale.
+	// Equal timestamps with different configuration indicate an invariant failure.
+	// This is independent of last_used_at, which tracks authentication activity.
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,25,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

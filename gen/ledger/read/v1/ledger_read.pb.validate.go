@@ -285,7 +285,9 @@ func (m *AssetBalance) validate(all bool) error {
 		}
 	}
 
-	// no validation rules for PostedVersion
+	// no validation rules for TradingVersion
+
+	// no validation rules for FundingVersion
 
 	// no validation rules for ReservedVersion
 

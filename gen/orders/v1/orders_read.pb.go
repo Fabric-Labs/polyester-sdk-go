@@ -764,8 +764,9 @@ type Order struct {
 	MarketMaxSlippageTicks int32 `protobuf:"varint,24,opt,name=market_max_slippage_ticks,json=marketMaxSlippageTicks,proto3" json:"market_max_slippage_ticks,omitempty"`
 	// Optional MARKET max slippage in basis points (1 bp = 0.01%).
 	MarketMaxSlippageBps int32 `protobuf:"varint,25,opt,name=market_max_slippage_bps,json=marketMaxSlippageBps,proto3" json:"market_max_slippage_bps,omitempty"`
-	// Source-owned per-order state revision. A larger value is always fresher for
-	// the same order; clients can use it to reject stale or duplicate updates.
+	// Source-owned per-order state revision. For the same order, a larger value
+	// is fresher, an equal value is an idempotent replay, and a smaller value is
+	// stale. Equal revisions with different state indicate an invariant failure.
 	StateRevision uint64 `protobuf:"varint,26,opt,name=state_revision,json=stateRevision,proto3" json:"state_revision,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
