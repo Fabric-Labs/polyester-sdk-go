@@ -635,10 +635,14 @@ func (x *SubaccountPolicyView) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// ListSubaccountPoliciesRequest lists all sub-account policy templates visible
-// to the caller. The request has no filters or pagination.
+// ListSubaccountPoliciesRequest lists the finite set of sub-account policies
+// visible in the requested account scope. Results are sorted by ascending
+// policy ID and are not paginated.
 type ListSubaccountPoliciesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional sub-account context for delegated administration. When omitted,
+	// only policies owned by the caller's root account are returned.
+	SubaccountId  *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -671,6 +675,13 @@ func (x *ListSubaccountPoliciesRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListSubaccountPoliciesRequest.ProtoReflect.Descriptor instead.
 func (*ListSubaccountPoliciesRequest) Descriptor() ([]byte, []int) {
 	return file_auth_v1_policies_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ListSubaccountPoliciesRequest) GetSubaccountId() uint64 {
+	if x != nil && x.SubaccountId != nil {
+		return *x.SubaccountId
+	}
+	return 0
 }
 
 // ListSubaccountPoliciesResponse contains sub-account policy templates sorted
@@ -724,7 +735,10 @@ func (x *ListSubaccountPoliciesResponse) GetPolicies() []*SubaccountPolicyView {
 type GetSubaccountPolicyRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Policy identifier (opaque ID).
-	PolicyId      uint64 `protobuf:"fixed64,1,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
+	PolicyId uint64 `protobuf:"fixed64,1,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
+	// Optional sub-account context for delegated administration. When omitted,
+	// the policy must be owned by the caller's root account.
+	SubaccountId  *uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -762,6 +776,13 @@ func (*GetSubaccountPolicyRequest) Descriptor() ([]byte, []int) {
 func (x *GetSubaccountPolicyRequest) GetPolicyId() uint64 {
 	if x != nil {
 		return x.PolicyId
+	}
+	return 0
+}
+
+func (x *GetSubaccountPolicyRequest) GetSubaccountId() uint64 {
+	if x != nil && x.SubaccountId != nil {
+		return *x.SubaccountId
 	}
 	return 0
 }
@@ -1812,10 +1833,14 @@ func (x *ApiPolicyView) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// ListApiPoliciesRequest lists all API key policy templates visible to the
-// caller. The request has no filters or pagination.
+// ListApiPoliciesRequest lists the finite set of API key policies visible in
+// the requested account scope. Results are sorted by ascending policy ID and
+// are not paginated.
 type ListApiPoliciesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional API key context for delegated administration. When omitted, only
+	// policies owned by the caller's root account are returned.
+	KeyId         *string `protobuf:"bytes,1,opt,name=key_id,json=keyId,proto3,oneof" json:"key_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1848,6 +1873,13 @@ func (x *ListApiPoliciesRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListApiPoliciesRequest.ProtoReflect.Descriptor instead.
 func (*ListApiPoliciesRequest) Descriptor() ([]byte, []int) {
 	return file_auth_v1_policies_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *ListApiPoliciesRequest) GetKeyId() string {
+	if x != nil && x.KeyId != nil {
+		return *x.KeyId
+	}
+	return ""
 }
 
 // ListApiPoliciesResponse contains API key policy templates sorted by ascending
@@ -1901,7 +1933,10 @@ func (x *ListApiPoliciesResponse) GetPolicies() []*ApiPolicyView {
 type GetApiPolicyRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Policy identifier (opaque ID).
-	PolicyId      uint64 `protobuf:"fixed64,1,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
+	PolicyId uint64 `protobuf:"fixed64,1,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
+	// Optional API key context for delegated administration. When omitted, the
+	// policy must be owned by the caller's root account.
+	KeyId         *string `protobuf:"bytes,2,opt,name=key_id,json=keyId,proto3,oneof" json:"key_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1941,6 +1976,13 @@ func (x *GetApiPolicyRequest) GetPolicyId() uint64 {
 		return x.PolicyId
 	}
 	return 0
+}
+
+func (x *GetApiPolicyRequest) GetKeyId() string {
+	if x != nil && x.KeyId != nil {
+		return *x.KeyId
+	}
+	return ""
 }
 
 // GetApiPolicyResponse returns the requested API key policy.
@@ -2613,12 +2655,16 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x14 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x1f\n" +
-	"\x1dListSubaccountPoliciesRequest\"[\n" +
+	"updated_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"k\n" +
+	"\x1dListSubaccountPoliciesRequest\x128\n" +
+	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
+	"\x0e_subaccount_id\"[\n" +
 	"\x1eListSubaccountPoliciesResponse\x129\n" +
-	"\bpolicies\x18\x01 \x03(\v2\x1d.auth.v1.SubaccountPolicyViewR\bpolicies\"I\n" +
+	"\bpolicies\x18\x01 \x03(\v2\x1d.auth.v1.SubaccountPolicyViewR\bpolicies\"\x95\x01\n" +
 	"\x1aGetSubaccountPolicyRequest\x12+\n" +
-	"\tpolicy_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\bpolicyId\"T\n" +
+	"\tpolicy_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\bpolicyId\x128\n" +
+	"\rsubaccount_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
+	"\x0e_subaccount_id\"T\n" +
 	"\x1bGetSubaccountPolicyResponse\x125\n" +
 	"\x06policy\x18\x01 \x01(\v2\x1d.auth.v1.SubaccountPolicyViewR\x06policy\"\x83\x0f\n" +
 	"\x1dCreateSubaccountPolicyRequest\x12 \n" +
@@ -2711,12 +2757,16 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x16 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x18\n" +
-	"\x16ListApiPoliciesRequest\"M\n" +
+	"updated_at\x18\x16 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"Y\n" +
+	"\x16ListApiPoliciesRequest\x124\n" +
+	"\x06key_id\x18\x01 \x01(\tB\x18\xbaH\x15r\x132\x11^ak_[a-f0-9]{32}$H\x00R\x05keyId\x88\x01\x01B\t\n" +
+	"\a_key_id\"M\n" +
 	"\x17ListApiPoliciesResponse\x122\n" +
-	"\bpolicies\x18\x01 \x03(\v2\x16.auth.v1.ApiPolicyViewR\bpolicies\"B\n" +
+	"\bpolicies\x18\x01 \x03(\v2\x16.auth.v1.ApiPolicyViewR\bpolicies\"\x83\x01\n" +
 	"\x13GetApiPolicyRequest\x12+\n" +
-	"\tpolicy_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\bpolicyId\"F\n" +
+	"\tpolicy_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\bpolicyId\x124\n" +
+	"\x06key_id\x18\x02 \x01(\tB\x18\xbaH\x15r\x132\x11^ak_[a-f0-9]{32}$H\x00R\x05keyId\x88\x01\x01B\t\n" +
+	"\a_key_id\"F\n" +
 	"\x14GetApiPolicyResponse\x12.\n" +
 	"\x06policy\x18\x01 \x01(\v2\x16.auth.v1.ApiPolicyViewR\x06policy\"\x9e\n" +
 	"\n" +
@@ -2943,7 +2993,11 @@ func file_auth_v1_policies_proto_init() {
 	if File_auth_v1_policies_proto != nil {
 		return
 	}
+	file_auth_v1_policies_proto_msgTypes[4].OneofWrappers = []any{}
+	file_auth_v1_policies_proto_msgTypes[6].OneofWrappers = []any{}
 	file_auth_v1_policies_proto_msgTypes[8].OneofWrappers = []any{}
+	file_auth_v1_policies_proto_msgTypes[17].OneofWrappers = []any{}
+	file_auth_v1_policies_proto_msgTypes[19].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

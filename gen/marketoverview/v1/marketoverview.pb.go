@@ -32,11 +32,11 @@ const (
 	SparklineInterval_SPARKLINE_INTERVAL_UNSPECIFIED SparklineInterval = 0
 	// 1 hour sparkline. Typically returns up to 60 points (1-minute buckets).
 	SparklineInterval_SPARKLINE_1H SparklineInterval = 1
-	// 24 hour sparkline. Typically returns up to 1440 points (1-minute buckets).
+	// 24 hour sparkline. Typically returns up to 96 points (15-minute buckets).
 	SparklineInterval_SPARKLINE_24H SparklineInterval = 2
 	// 1 week sparkline. Typically returns up to 168 points (1-hour buckets).
 	SparklineInterval_SPARKLINE_1W SparklineInterval = 3
-	// 1 month sparkline. Typically returns up to 30 points (1-day buckets).
+	// 1 month sparkline. Typically returns up to 180 points (4-hour buckets).
 	SparklineInterval_SPARKLINE_1M SparklineInterval = 4
 )
 

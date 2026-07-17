@@ -97,6 +97,12 @@ const (
 	AuthErrorCode_AUTH_STEP_UP_PROOF_UNAVAILABLE AuthErrorCode = 32
 	// The step-up proof has already been claimed.
 	AuthErrorCode_AUTH_STEP_UP_ALREADY_CLAIMED AuthErrorCode = 33
+	// The requested policy cannot be removed because it is still in use.
+	AuthErrorCode_AUTH_POLICY_IN_USE AuthErrorCode = 34
+	// The requested policy is locked against this mutation.
+	AuthErrorCode_AUTH_POLICY_LOCKED AuthErrorCode = 35
+	// The requested policy does not belong to the target account scope.
+	AuthErrorCode_AUTH_POLICY_SCOPE_MISMATCH AuthErrorCode = 36
 )
 
 // Enum value maps for AuthErrorCode.
@@ -136,6 +142,9 @@ var (
 		31: "AUTH_STEP_UP_REQUIRED",
 		32: "AUTH_STEP_UP_PROOF_UNAVAILABLE",
 		33: "AUTH_STEP_UP_ALREADY_CLAIMED",
+		34: "AUTH_POLICY_IN_USE",
+		35: "AUTH_POLICY_LOCKED",
+		36: "AUTH_POLICY_SCOPE_MISMATCH",
 	}
 	AuthErrorCode_value = map[string]int32{
 		"AUTH_UNSPECIFIED":                       0,
@@ -172,6 +181,9 @@ var (
 		"AUTH_STEP_UP_REQUIRED":                  31,
 		"AUTH_STEP_UP_PROOF_UNAVAILABLE":         32,
 		"AUTH_STEP_UP_ALREADY_CLAIMED":           33,
+		"AUTH_POLICY_IN_USE":                     34,
+		"AUTH_POLICY_LOCKED":                     35,
+		"AUTH_POLICY_SCOPE_MISMATCH":             36,
 	}
 )
 
@@ -681,7 +693,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x10GetNonceResponse\x12\x14\n" +
 	"\x05nonce\x18\x01 \x01(\tR\x05nonce\x129\n" +
 	"\n" +
-	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\x89\x03\n" +
+	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\x8c\x03\n" +
 	"\x16LoginWithWalletRequest\x12Q\n" +
 	"\x15smart_account_address\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x152\x13^0x[0-9a-fA-F]{40}$R\x13smartAccountAddress\x12#\n" +
 	"\x05nonce\x18\x02 \x01(\tB\r\xe0A\x02\xbaH\ar\x05\x10\x01\x18\x80\x02R\x05nonce\x12+\n" +
@@ -689,8 +701,8 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\n" +
 	"user_agent\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tuserAgent\x12\x1a\n" +
 	"\x02ip\x18\x05 \x01(\tB\n" +
-	"\xbaH\a\xd8\x01\x01r\x02\x18@R\x02ip\x12P\n" +
-	"\x16primary_wallet_address\x18\x06 \x01(\tB\x1a\xbaH\x17r\x152\x13^0x[0-9a-fA-F]{40}$R\x14primaryWalletAddress\x123\n" +
+	"\xbaH\a\xd8\x01\x01r\x02\x18@R\x02ip\x12S\n" +
+	"\x16primary_wallet_address\x18\x06 \x01(\tB\x1d\xbaH\x1a\xd8\x01\x01r\x152\x13^0x[0-9a-fA-F]{40}$R\x14primaryWalletAddress\x123\n" +
 	"\x0fwallet_provider\x18\a \x01(\tB\n" +
 	"\xbaH\a\xd8\x01\x01r\x02\x18 R\x0ewalletProvider\"\xe2\x01\n" +
 	"\x17LoginWithWalletResponse\x12!\n" +
@@ -716,7 +728,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\v_api_key_id\"W\n" +
 	"\x0fAuthErrorDetail\x12*\n" +
 	"\x04code\x18\x01 \x01(\x0e2\x16.auth.v1.AuthErrorCodeR\x04code\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage*\xbe\b\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage*\x8e\t\n" +
 	"\rAuthErrorCode\x12\x14\n" +
 	"\x10AUTH_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15AUTH_USERNAME_INVALID\x10\x01\x12\x17\n" +
@@ -752,7 +764,10 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"#AUTH_MFA_ENROLLMENT_BINDING_INVALID\x10\x1e\x12\x19\n" +
 	"\x15AUTH_STEP_UP_REQUIRED\x10\x1f\x12\"\n" +
 	"\x1eAUTH_STEP_UP_PROOF_UNAVAILABLE\x10 \x12 \n" +
-	"\x1cAUTH_STEP_UP_ALREADY_CLAIMED\x10!2\x95\x05\n" +
+	"\x1cAUTH_STEP_UP_ALREADY_CLAIMED\x10!\x12\x16\n" +
+	"\x12AUTH_POLICY_IN_USE\x10\"\x12\x16\n" +
+	"\x12AUTH_POLICY_LOCKED\x10#\x12\x1e\n" +
+	"\x1aAUTH_POLICY_SCOPE_MISMATCH\x10$2\x95\x05\n" +
 	"\vAuthService\x12\xbd\x01\n" +
 	"\bGetNonce\x12\x18.auth.v1.GetNonceRequest\x1a\x19.auth.v1.GetNonceResponse\"|\xbaG`\n" +
 	"\fAuth Service\x12\x16Get Wallet Login Nonce\x1a8Retrieve a short-lived nonce for wallet-signature login.\x82\xd3\xe4\x93\x02\x13:\x01*\"\x0e/v1/auth/nonce\x12\xeb\x01\n" +

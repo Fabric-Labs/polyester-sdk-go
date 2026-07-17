@@ -690,6 +690,10 @@ func (m *ListSubaccountPoliciesRequest) validate(all bool) error {
 
 	var errors []error
 
+	if m.SubaccountId != nil {
+		// no validation rules for SubaccountId
+	}
+
 	if len(errors) > 0 {
 		return ListSubaccountPoliciesRequestMultiError(errors)
 	}
@@ -931,6 +935,10 @@ func (m *GetSubaccountPolicyRequest) validate(all bool) error {
 	var errors []error
 
 	// no validation rules for PolicyId
+
+	if m.SubaccountId != nil {
+		// no validation rules for SubaccountId
+	}
 
 	if len(errors) > 0 {
 		return GetSubaccountPolicyRequestMultiError(errors)
@@ -2629,6 +2637,10 @@ func (m *ListApiPoliciesRequest) validate(all bool) error {
 
 	var errors []error
 
+	if m.KeyId != nil {
+		// no validation rules for KeyId
+	}
+
 	if len(errors) > 0 {
 		return ListApiPoliciesRequestMultiError(errors)
 	}
@@ -2868,6 +2880,10 @@ func (m *GetApiPolicyRequest) validate(all bool) error {
 	var errors []error
 
 	// no validation rules for PolicyId
+
+	if m.KeyId != nil {
+		// no validation rules for KeyId
+	}
 
 	if len(errors) > 0 {
 		return GetApiPolicyRequestMultiError(errors)
