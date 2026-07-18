@@ -285,11 +285,11 @@ func (m *AssetBalance) validate(all bool) error {
 		}
 	}
 
-	// no validation rules for TradingVersion
+	// no validation rules for TradingUpdatedAtNs
 
-	// no validation rules for FundingVersion
+	// no validation rules for FundingUpdatedAtNs
 
-	// no validation rules for ReservedVersion
+	// no validation rules for ReservedUpdatedAtNs
 
 	if len(errors) > 0 {
 		return AssetBalanceMultiError(errors)

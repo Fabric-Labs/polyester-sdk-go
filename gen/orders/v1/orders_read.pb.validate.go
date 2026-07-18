@@ -1059,7 +1059,7 @@ func (m *Order) validate(all bool) error {
 
 	// no validation rules for MarketMaxSlippageBps
 
-	// no validation rules for StateRevision
+	// no validation rules for Version
 
 	if len(errors) > 0 {
 		return OrderMultiError(errors)

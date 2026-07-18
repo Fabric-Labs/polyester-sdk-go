@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 // Order is a normalized open or historical order.
 type Order struct {
 	OrderID       string     `json:"order_id"`
@@ -15,7 +17,7 @@ type Order struct {
 	Price         PriceTicks `json:"price,omitempty"`
 	AvgPx         PriceTicks `json:"avg_px,omitempty"`
 	CreatedTsNs   string     `json:"created_ts_ns,omitempty"`
-	StateRevision uint64     `json:"state_revision,omitempty"`
+	Version       uint32     `json:"version,omitempty"`
 }
 
 // OrdersList holds paginated orders.
@@ -127,14 +129,14 @@ type CancelAllAfterResult struct {
 
 // AssetBalance is a ledger balance row.
 type AssetBalance struct {
-	AssetID         uint32 `json:"asset_id"`
-	Trading         string `json:"trading,omitempty"`
-	Funding         string `json:"funding,omitempty"`
-	Reserved        string `json:"reserved,omitempty"`
-	Available       string `json:"available,omitempty"`
-	TradingVersion  uint64 `json:"trading_version,omitempty"`
-	FundingVersion  uint64 `json:"funding_version,omitempty"`
-	ReservedVersion uint64 `json:"reserved_version,omitempty"`
+	AssetID             uint32 `json:"asset_id"`
+	Trading             string `json:"trading,omitempty"`
+	Funding             string `json:"funding,omitempty"`
+	Reserved            string `json:"reserved,omitempty"`
+	Available           string `json:"available,omitempty"`
+	TradingUpdatedAtNs  uint64 `json:"trading_updated_at_ns,omitempty"`
+	FundingUpdatedAtNs  uint64 `json:"funding_updated_at_ns,omitempty"`
+	ReservedUpdatedAtNs uint64 `json:"reserved_updated_at_ns,omitempty"`
 }
 
 // BalancesList holds balance rows.
@@ -293,11 +295,13 @@ type TriggerEventsList struct {
 
 // ApiKeySummary summarizes an API key.
 type ApiKeySummary struct {
-	KeyID            string `json:"key_id,omitempty"`
-	Label            string `json:"label,omitempty"`
-	Status           string `json:"status,omitempty"`
-	PublicKeyEd25519 string `json:"public_key_ed25519,omitempty"`
-	UpdatedAtMs      int64  `json:"updated_at_ms,omitempty"`
+	KeyID            string     `json:"key_id,omitempty"`
+	Label            string     `json:"label,omitempty"`
+	Status           string     `json:"status,omitempty"`
+	PublicKeyEd25519 string     `json:"public_key_ed25519,omitempty"`
+	CreatedAt        *time.Time `json:"created_at,omitempty"`
+	LastUsedAt       *time.Time `json:"last_used_at,omitempty"`
+	UpdatedAt        *time.Time `json:"updated_at,omitempty"`
 }
 
 // ApiKeysList lists API keys.

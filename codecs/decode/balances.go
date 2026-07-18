@@ -24,14 +24,14 @@ func u128(msg *typev1.U128) string {
 
 func AssetBalanceFromProto(msg *ledgerrdv1.AssetBalance) models.AssetBalance {
 	return models.AssetBalance{
-		AssetID:         msg.GetAssetId(),
-		Trading:         u128(msg.GetTrading()),
-		Funding:         u128(msg.GetFunding()),
-		Reserved:        u128(msg.GetReserved()),
-		Available:       u128(msg.GetAvailable()),
-		TradingVersion:  msg.GetTradingVersion(),
-		FundingVersion:  msg.GetFundingVersion(),
-		ReservedVersion: msg.GetReservedVersion(),
+		AssetID:             msg.GetAssetId(),
+		Trading:             u128(msg.GetTrading()),
+		Funding:             u128(msg.GetFunding()),
+		Reserved:            u128(msg.GetReserved()),
+		Available:           u128(msg.GetAvailable()),
+		TradingUpdatedAtNs:  msg.GetTradingUpdatedAtNs(),
+		FundingUpdatedAtNs:  msg.GetFundingUpdatedAtNs(),
+		ReservedUpdatedAtNs: msg.GetReservedUpdatedAtNs(),
 	}
 }
 

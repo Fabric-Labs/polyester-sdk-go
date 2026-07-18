@@ -9,6 +9,21 @@ import (
 	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 )
 
+func TestAssetBalanceFromProtoPreservesComponentTimestamps(t *testing.T) {
+	msg := &ledgerrdv1.AssetBalance{
+		AssetId:             1,
+		TradingUpdatedAtNs:  1<<63 + 1,
+		FundingUpdatedAtNs:  1<<63 + 2,
+		ReservedUpdatedAtNs: 1<<63 + 3,
+	}
+	result := decode.AssetBalanceFromProto(msg)
+	if result.TradingUpdatedAtNs != msg.TradingUpdatedAtNs ||
+		result.FundingUpdatedAtNs != msg.FundingUpdatedAtNs ||
+		result.ReservedUpdatedAtNs != msg.ReservedUpdatedAtNs {
+		t.Fatalf("timestamps=%+v", result)
+	}
+}
+
 func TestBalanceHistoryFromProto(t *testing.T) {
 	msg := &ledgerrdv1.GetBalanceHistoryResponse{
 		Range:      ledgerrdv1.BalanceRange_DAY_7,

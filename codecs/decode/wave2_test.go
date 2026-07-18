@@ -2,6 +2,7 @@ package decode_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
@@ -13,6 +14,7 @@ import (
 	orderbookv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1"
 	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	transferv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestDepositAddressFromProto(t *testing.T) {
@@ -53,12 +55,23 @@ func TestInternalTransferFromProto(t *testing.T) {
 func TestAPIKeysFromProto(t *testing.T) {
 	msg := &authv1.ListApiKeysResponse{
 		ApiKeys: []*authv1.ApiKey{
-			{KeyId: "key-1", Label: "bot", Status: authv1.ApiKeyStatus_ACTIVE},
+			{
+				KeyId: "key-1", Label: "bot", Status: authv1.ApiKeyStatus_ACTIVE,
+				CreatedAt:  timestamppb.New(time.Unix(1, 0)),
+				LastUsedAt: timestamppb.New(time.Unix(2, 0)),
+				UpdatedAt:  timestamppb.New(time.Unix(3, 123_456_000)),
+			},
 		},
 	}
 	result := decode.ApiKeysListFromProto(msg)
 	if len(result.Keys) != 1 || result.Keys[0].KeyID != "key-1" || result.Keys[0].Status != "ACTIVE" {
 		t.Fatalf("keys=%+v", result.Keys)
+	}
+	key := result.Keys[0]
+	if key.CreatedAt == nil || key.LastUsedAt == nil || key.UpdatedAt == nil ||
+		key.CreatedAt.Unix() != 1 || key.LastUsedAt.Unix() != 2 ||
+		key.UpdatedAt.Nanosecond() != 123_456_000 {
+		t.Fatalf("timestamps=%+v", key)
 	}
 }
 

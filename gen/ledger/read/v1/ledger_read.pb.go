@@ -351,20 +351,17 @@ type AssetBalance struct {
 	// Available amount in the trading bucket at fixed 18-decimal ledger scale.
 	// This is computed as max(trading - reserved, 0).
 	Available *v1.U128 `protobuf:"bytes,5,opt,name=available,proto3" json:"available,omitempty"`
-	// Source-owned revision of the latest trading balance component. For the
-	// same account and asset, larger is fresher, equal is an idempotent replay,
-	// and smaller is stale. Equal revisions with different values are invalid.
-	TradingVersion uint64 `protobuf:"varint,6,opt,name=trading_version,json=tradingVersion,proto3" json:"trading_version,omitempty"`
-	// Source-owned revision of the latest funding balance component. For the
-	// same account and asset, larger is fresher, equal is an idempotent replay,
-	// and smaller is stale. Equal revisions with different values are invalid.
-	FundingVersion uint64 `protobuf:"varint,7,opt,name=funding_version,json=fundingVersion,proto3" json:"funding_version,omitempty"`
-	// Source-owned revision of the latest reserved balance component. For the
-	// same account and asset, larger is fresher, equal is an idempotent replay,
-	// and smaller is stale. Equal revisions with different values are invalid.
-	ReservedVersion uint64 `protobuf:"varint,8,opt,name=reserved_version,json=reservedVersion,proto3" json:"reserved_version,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Source timestamp for the trading component in Unix nanoseconds. Zero until
+	// the component has been observed.
+	TradingUpdatedAtNs uint64 `protobuf:"varint,6,opt,name=trading_updated_at_ns,json=tradingUpdatedAtNs,proto3" json:"trading_updated_at_ns,omitempty"`
+	// Source timestamp for the funding component in Unix nanoseconds. Zero until
+	// the component has been observed.
+	FundingUpdatedAtNs uint64 `protobuf:"varint,7,opt,name=funding_updated_at_ns,json=fundingUpdatedAtNs,proto3" json:"funding_updated_at_ns,omitempty"`
+	// Source timestamp for the reserved component in Unix nanoseconds. Zero until
+	// the component has been observed.
+	ReservedUpdatedAtNs uint64 `protobuf:"varint,8,opt,name=reserved_updated_at_ns,json=reservedUpdatedAtNs,proto3" json:"reserved_updated_at_ns,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *AssetBalance) Reset() {
@@ -432,23 +429,23 @@ func (x *AssetBalance) GetAvailable() *v1.U128 {
 	return nil
 }
 
-func (x *AssetBalance) GetTradingVersion() uint64 {
+func (x *AssetBalance) GetTradingUpdatedAtNs() uint64 {
 	if x != nil {
-		return x.TradingVersion
+		return x.TradingUpdatedAtNs
 	}
 	return 0
 }
 
-func (x *AssetBalance) GetFundingVersion() uint64 {
+func (x *AssetBalance) GetFundingUpdatedAtNs() uint64 {
 	if x != nil {
-		return x.FundingVersion
+		return x.FundingUpdatedAtNs
 	}
 	return 0
 }
 
-func (x *AssetBalance) GetReservedVersion() uint64 {
+func (x *AssetBalance) GetReservedUpdatedAtNs() uint64 {
 	if x != nil {
-		return x.ReservedVersion
+		return x.ReservedUpdatedAtNs
 	}
 	return 0
 }
@@ -1728,16 +1725,16 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	" ledger/read/v1/ledger_read.proto\x12\x0eledger.read.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x17ledger/v1/catalog.proto\x1a\x1cpolyester/type/v1/u128.proto\"P\n" +
 	"\x12GetBalancesRequest\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
-	"\x0e_subaccount_id\"\xf8\x02\n" +
+	"\x0e_subaccount_id\"\x96\x03\n" +
 	"\fAssetBalance\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\rR\aassetId\x121\n" +
 	"\atrading\x18\x02 \x01(\v2\x17.polyester.type.v1.U128R\atrading\x121\n" +
 	"\afunding\x18\x03 \x01(\v2\x17.polyester.type.v1.U128R\afunding\x123\n" +
 	"\breserved\x18\x04 \x01(\v2\x17.polyester.type.v1.U128R\breserved\x125\n" +
-	"\tavailable\x18\x05 \x01(\v2\x17.polyester.type.v1.U128R\tavailable\x12'\n" +
-	"\x0ftrading_version\x18\x06 \x01(\x04R\x0etradingVersion\x12'\n" +
-	"\x0ffunding_version\x18\a \x01(\x04R\x0efundingVersion\x12)\n" +
-	"\x10reserved_version\x18\b \x01(\x04R\x0freservedVersion\"O\n" +
+	"\tavailable\x18\x05 \x01(\v2\x17.polyester.type.v1.U128R\tavailable\x121\n" +
+	"\x15trading_updated_at_ns\x18\x06 \x01(\x04R\x12tradingUpdatedAtNs\x121\n" +
+	"\x15funding_updated_at_ns\x18\a \x01(\x04R\x12fundingUpdatedAtNs\x123\n" +
+	"\x16reserved_updated_at_ns\x18\b \x01(\x04R\x13reservedUpdatedAtNs\"O\n" +
 	"\x13GetBalancesResponse\x128\n" +
 	"\bbalances\x18\x01 \x03(\v2\x1c.ledger.read.v1.AssetBalanceR\bbalances\"\xe9\x01\n" +
 	"\x18GetBalanceHistoryRequest\x12(\n" +

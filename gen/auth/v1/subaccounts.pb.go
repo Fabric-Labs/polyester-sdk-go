@@ -213,6 +213,245 @@ func (SubaccountInviteAction) EnumDescriptor() ([]byte, []int) {
 	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{2}
 }
 
+// Entity category affected by an activity event.
+type ActivityEntityKind int32
+
+const (
+	// No activity entity category was specified.
+	ActivityEntityKind_ACTIVITY_ENTITY_UNSPECIFIED ActivityEntityKind = 0
+	// Root account.
+	ActivityEntityKind_ACTIVITY_ENTITY_ACCOUNT ActivityEntityKind = 1
+	// Authentication session.
+	ActivityEntityKind_ACTIVITY_ENTITY_SESSION ActivityEntityKind = 2
+	// API key.
+	ActivityEntityKind_ACTIVITY_ENTITY_API_KEY ActivityEntityKind = 3
+	// Sub-account.
+	ActivityEntityKind_ACTIVITY_ENTITY_SUBACCOUNT ActivityEntityKind = 4
+	// Sub-account member.
+	ActivityEntityKind_ACTIVITY_ENTITY_MEMBER ActivityEntityKind = 5
+	// Access policy.
+	ActivityEntityKind_ACTIVITY_ENTITY_POLICY ActivityEntityKind = 6
+	// Sub-account invitation.
+	ActivityEntityKind_ACTIVITY_ENTITY_INVITE ActivityEntityKind = 7
+	// Account security configuration.
+	ActivityEntityKind_ACTIVITY_ENTITY_SECURITY ActivityEntityKind = 8
+	// Saved transfer destination.
+	ActivityEntityKind_ACTIVITY_ENTITY_DESTINATION ActivityEntityKind = 9
+)
+
+// Enum value maps for ActivityEntityKind.
+var (
+	ActivityEntityKind_name = map[int32]string{
+		0: "ACTIVITY_ENTITY_UNSPECIFIED",
+		1: "ACTIVITY_ENTITY_ACCOUNT",
+		2: "ACTIVITY_ENTITY_SESSION",
+		3: "ACTIVITY_ENTITY_API_KEY",
+		4: "ACTIVITY_ENTITY_SUBACCOUNT",
+		5: "ACTIVITY_ENTITY_MEMBER",
+		6: "ACTIVITY_ENTITY_POLICY",
+		7: "ACTIVITY_ENTITY_INVITE",
+		8: "ACTIVITY_ENTITY_SECURITY",
+		9: "ACTIVITY_ENTITY_DESTINATION",
+	}
+	ActivityEntityKind_value = map[string]int32{
+		"ACTIVITY_ENTITY_UNSPECIFIED": 0,
+		"ACTIVITY_ENTITY_ACCOUNT":     1,
+		"ACTIVITY_ENTITY_SESSION":     2,
+		"ACTIVITY_ENTITY_API_KEY":     3,
+		"ACTIVITY_ENTITY_SUBACCOUNT":  4,
+		"ACTIVITY_ENTITY_MEMBER":      5,
+		"ACTIVITY_ENTITY_POLICY":      6,
+		"ACTIVITY_ENTITY_INVITE":      7,
+		"ACTIVITY_ENTITY_SECURITY":    8,
+		"ACTIVITY_ENTITY_DESTINATION": 9,
+	}
+)
+
+func (x ActivityEntityKind) Enum() *ActivityEntityKind {
+	p := new(ActivityEntityKind)
+	*p = x
+	return p
+}
+
+func (x ActivityEntityKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ActivityEntityKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_auth_v1_subaccounts_proto_enumTypes[3].Descriptor()
+}
+
+func (ActivityEntityKind) Type() protoreflect.EnumType {
+	return &file_auth_v1_subaccounts_proto_enumTypes[3]
+}
+
+func (x ActivityEntityKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ActivityEntityKind.Descriptor instead.
+func (ActivityEntityKind) EnumDescriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{3}
+}
+
+// Action recorded by an activity event.
+type ActivityEventAction int32
+
+const (
+	// No activity action was specified.
+	ActivityEventAction_ACTIVITY_ACTION_UNSPECIFIED ActivityEventAction = 0
+	// Entity was created.
+	ActivityEventAction_ACTIVITY_ACTION_CREATED ActivityEventAction = 1
+	// Entity was updated.
+	ActivityEventAction_ACTIVITY_ACTION_UPDATED ActivityEventAction = 2
+	// Entity was deleted.
+	ActivityEventAction_ACTIVITY_ACTION_DELETED ActivityEventAction = 3
+	// Entity was enabled.
+	ActivityEventAction_ACTIVITY_ACTION_ENABLED ActivityEventAction = 4
+	// Entity was disabled.
+	ActivityEventAction_ACTIVITY_ACTION_DISABLED ActivityEventAction = 5
+	// Entity was removed from its parent scope.
+	ActivityEventAction_ACTIVITY_ACTION_REMOVED ActivityEventAction = 6
+	// Member role was assigned or changed.
+	ActivityEventAction_ACTIVITY_ACTION_ROLE_SET ActivityEventAction = 7
+	// Security challenge or request was received.
+	ActivityEventAction_ACTIVITY_ACTION_RECEIVED ActivityEventAction = 8
+	// Invitation or request was answered.
+	ActivityEventAction_ACTIVITY_ACTION_REPLIED ActivityEventAction = 9
+	// Operation failed.
+	ActivityEventAction_ACTIVITY_ACTION_FAILED ActivityEventAction = 10
+	// Access was revoked.
+	ActivityEventAction_ACTIVITY_ACTION_REVOKED ActivityEventAction = 11
+	// Operation was blocked.
+	ActivityEventAction_ACTIVITY_ACTION_BLOCKED ActivityEventAction = 12
+	// Security hold was placed.
+	ActivityEventAction_ACTIVITY_ACTION_HOLD_PLACED ActivityEventAction = 13
+	// Security hold was released.
+	ActivityEventAction_ACTIVITY_ACTION_HOLD_RELEASED ActivityEventAction = 14
+)
+
+// Enum value maps for ActivityEventAction.
+var (
+	ActivityEventAction_name = map[int32]string{
+		0:  "ACTIVITY_ACTION_UNSPECIFIED",
+		1:  "ACTIVITY_ACTION_CREATED",
+		2:  "ACTIVITY_ACTION_UPDATED",
+		3:  "ACTIVITY_ACTION_DELETED",
+		4:  "ACTIVITY_ACTION_ENABLED",
+		5:  "ACTIVITY_ACTION_DISABLED",
+		6:  "ACTIVITY_ACTION_REMOVED",
+		7:  "ACTIVITY_ACTION_ROLE_SET",
+		8:  "ACTIVITY_ACTION_RECEIVED",
+		9:  "ACTIVITY_ACTION_REPLIED",
+		10: "ACTIVITY_ACTION_FAILED",
+		11: "ACTIVITY_ACTION_REVOKED",
+		12: "ACTIVITY_ACTION_BLOCKED",
+		13: "ACTIVITY_ACTION_HOLD_PLACED",
+		14: "ACTIVITY_ACTION_HOLD_RELEASED",
+	}
+	ActivityEventAction_value = map[string]int32{
+		"ACTIVITY_ACTION_UNSPECIFIED":   0,
+		"ACTIVITY_ACTION_CREATED":       1,
+		"ACTIVITY_ACTION_UPDATED":       2,
+		"ACTIVITY_ACTION_DELETED":       3,
+		"ACTIVITY_ACTION_ENABLED":       4,
+		"ACTIVITY_ACTION_DISABLED":      5,
+		"ACTIVITY_ACTION_REMOVED":       6,
+		"ACTIVITY_ACTION_ROLE_SET":      7,
+		"ACTIVITY_ACTION_RECEIVED":      8,
+		"ACTIVITY_ACTION_REPLIED":       9,
+		"ACTIVITY_ACTION_FAILED":        10,
+		"ACTIVITY_ACTION_REVOKED":       11,
+		"ACTIVITY_ACTION_BLOCKED":       12,
+		"ACTIVITY_ACTION_HOLD_PLACED":   13,
+		"ACTIVITY_ACTION_HOLD_RELEASED": 14,
+	}
+)
+
+func (x ActivityEventAction) Enum() *ActivityEventAction {
+	p := new(ActivityEventAction)
+	*p = x
+	return p
+}
+
+func (x ActivityEventAction) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ActivityEventAction) Descriptor() protoreflect.EnumDescriptor {
+	return file_auth_v1_subaccounts_proto_enumTypes[4].Descriptor()
+}
+
+func (ActivityEventAction) Type() protoreflect.EnumType {
+	return &file_auth_v1_subaccounts_proto_enumTypes[4]
+}
+
+func (x ActivityEventAction) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ActivityEventAction.Descriptor instead.
+func (ActivityEventAction) EnumDescriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{4}
+}
+
+// Client channel from which an activity event originated.
+type ActivityEventSource int32
+
+const (
+	// No activity source was specified.
+	ActivityEventSource_ACTIVITY_SOURCE_UNSPECIFIED ActivityEventSource = 0
+	// Web client.
+	ActivityEventSource_ACTIVITY_SOURCE_WEB ActivityEventSource = 1
+	// Mobile client.
+	ActivityEventSource_ACTIVITY_SOURCE_MOBILE ActivityEventSource = 2
+	// Programmatic API client.
+	ActivityEventSource_ACTIVITY_SOURCE_API ActivityEventSource = 3
+)
+
+// Enum value maps for ActivityEventSource.
+var (
+	ActivityEventSource_name = map[int32]string{
+		0: "ACTIVITY_SOURCE_UNSPECIFIED",
+		1: "ACTIVITY_SOURCE_WEB",
+		2: "ACTIVITY_SOURCE_MOBILE",
+		3: "ACTIVITY_SOURCE_API",
+	}
+	ActivityEventSource_value = map[string]int32{
+		"ACTIVITY_SOURCE_UNSPECIFIED": 0,
+		"ACTIVITY_SOURCE_WEB":         1,
+		"ACTIVITY_SOURCE_MOBILE":      2,
+		"ACTIVITY_SOURCE_API":         3,
+	}
+)
+
+func (x ActivityEventSource) Enum() *ActivityEventSource {
+	p := new(ActivityEventSource)
+	*p = x
+	return p
+}
+
+func (x ActivityEventSource) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ActivityEventSource) Descriptor() protoreflect.EnumDescriptor {
+	return file_auth_v1_subaccounts_proto_enumTypes[5].Descriptor()
+}
+
+func (ActivityEventSource) Type() protoreflect.EnumType {
+	return &file_auth_v1_subaccounts_proto_enumTypes[5]
+}
+
+func (x ActivityEventSource) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ActivityEventSource.Descriptor instead.
+func (ActivityEventSource) EnumDescriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{5}
+}
+
 // Role summary for one sub-account visible to the caller.
 type SubaccountRoleView struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1964,12 +2203,12 @@ type ActivityEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Time when the event occurred.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	// Type of entity changed, such as "subaccount", "api_key", or "invite".
-	EntityKind string `protobuf:"bytes,3,opt,name=entity_kind,json=entityKind,proto3" json:"entity_kind,omitempty"`
-	// Action that occurred, such as "created", "updated", or "removed".
-	EventAction string `protobuf:"bytes,4,opt,name=event_action,json=eventAction,proto3" json:"event_action,omitempty"`
-	// Source of the event, such as "web", "mobile", or "api".
-	Source string `protobuf:"bytes,5,opt,name=source,proto3" json:"source,omitempty"`
+	// Category of entity affected by the event.
+	EntityKind ActivityEntityKind `protobuf:"varint,3,opt,name=entity_kind,json=entityKind,proto3,enum=auth.v1.ActivityEntityKind" json:"entity_kind,omitempty"`
+	// Action recorded for the entity.
+	EventAction ActivityEventAction `protobuf:"varint,4,opt,name=event_action,json=eventAction,proto3,enum=auth.v1.ActivityEventAction" json:"event_action,omitempty"`
+	// Client channel from which the event originated.
+	Source ActivityEventSource `protobuf:"varint,5,opt,name=source,proto3,enum=auth.v1.ActivityEventSource" json:"source,omitempty"`
 	// Origin IP address. Masked for non-owner and non-admin callers.
 	Ip string `protobuf:"bytes,6,opt,name=ip,proto3" json:"ip,omitempty"`
 	// User agent associated with the event, when available.
@@ -2019,25 +2258,25 @@ func (x *ActivityEvent) GetCreatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *ActivityEvent) GetEntityKind() string {
+func (x *ActivityEvent) GetEntityKind() ActivityEntityKind {
 	if x != nil {
 		return x.EntityKind
 	}
-	return ""
+	return ActivityEntityKind_ACTIVITY_ENTITY_UNSPECIFIED
 }
 
-func (x *ActivityEvent) GetEventAction() string {
+func (x *ActivityEvent) GetEventAction() ActivityEventAction {
 	if x != nil {
 		return x.EventAction
 	}
-	return ""
+	return ActivityEventAction_ACTIVITY_ACTION_UNSPECIFIED
 }
 
-func (x *ActivityEvent) GetSource() string {
+func (x *ActivityEvent) GetSource() ActivityEventSource {
 	if x != nil {
 		return x.Source
 	}
-	return ""
+	return ActivityEventSource_ACTIVITY_SOURCE_UNSPECIFIED
 }
 
 func (x *ActivityEvent) GetIp() string {
@@ -2320,14 +2559,14 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\amembers\x18\x03 \x03(\v2\x1d.auth.v1.SubaccountMemberViewR\amembers\x123\n" +
 	"\ainvites\x18\x04 \x03(\v2\x19.auth.v1.SubaccountInviteR\ainvites\x125\n" +
 	"\x06policy\x18\x05 \x01(\v2\x1d.auth.v1.SubaccountPolicyViewR\x06policy\x12?\n" +
-	"\bbalances\x18\x06 \x01(\v2#.ledger.read.v1.GetBalancesResponseR\bbalances\"\xde\x02\n" +
+	"\bbalances\x18\x06 \x01(\v2#.ledger.read.v1.GetBalancesResponseR\bbalances\"\xba\x03\n" +
 	"\rActivityEvent\x129\n" +
 	"\n" +
-	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12(\n" +
-	"\ventity_kind\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18 R\n" +
-	"entityKind\x12*\n" +
-	"\fevent_action\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x18 R\veventAction\x12\x1f\n" +
-	"\x06source\x18\x05 \x01(\tB\a\xbaH\x04r\x02\x18 R\x06source\x12\x1a\n" +
+	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12F\n" +
+	"\ventity_kind\x18\x03 \x01(\x0e2\x1b.auth.v1.ActivityEntityKindB\b\xbaH\x05\x82\x01\x02\x10\x01R\n" +
+	"entityKind\x12I\n" +
+	"\fevent_action\x18\x04 \x01(\x0e2\x1c.auth.v1.ActivityEventActionB\b\xbaH\x05\x82\x01\x02\x10\x01R\veventAction\x12>\n" +
+	"\x06source\x18\x05 \x01(\x0e2\x1c.auth.v1.ActivityEventSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\x06source\x12\x1a\n" +
 	"\x02ip\x18\x06 \x01(\tB\n" +
 	"\xbaH\a\xd8\x01\x01r\x02\x18@R\x02ip\x12'\n" +
 	"\n" +
@@ -2362,7 +2601,40 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"$SUBACCOUNT_INVITE_ACTION_UNSPECIFIED\x10\x00\x12#\n" +
 	"\x1fSUBACCOUNT_INVITE_ACTION_ACCEPT\x10\x01\x12$\n" +
 	" SUBACCOUNT_INVITE_ACTION_DECLINE\x10\x02\x12#\n" +
-	"\x1fSUBACCOUNT_INVITE_ACTION_CANCEL\x10\x032\xda\x04\n" +
+	"\x1fSUBACCOUNT_INVITE_ACTION_CANCEL\x10\x03*\xbf\x02\n" +
+	"\x12ActivityEntityKind\x12\x1f\n" +
+	"\x1bACTIVITY_ENTITY_UNSPECIFIED\x10\x00\x12\x1b\n" +
+	"\x17ACTIVITY_ENTITY_ACCOUNT\x10\x01\x12\x1b\n" +
+	"\x17ACTIVITY_ENTITY_SESSION\x10\x02\x12\x1b\n" +
+	"\x17ACTIVITY_ENTITY_API_KEY\x10\x03\x12\x1e\n" +
+	"\x1aACTIVITY_ENTITY_SUBACCOUNT\x10\x04\x12\x1a\n" +
+	"\x16ACTIVITY_ENTITY_MEMBER\x10\x05\x12\x1a\n" +
+	"\x16ACTIVITY_ENTITY_POLICY\x10\x06\x12\x1a\n" +
+	"\x16ACTIVITY_ENTITY_INVITE\x10\a\x12\x1c\n" +
+	"\x18ACTIVITY_ENTITY_SECURITY\x10\b\x12\x1f\n" +
+	"\x1bACTIVITY_ENTITY_DESTINATION\x10\t*\xd8\x03\n" +
+	"\x13ActivityEventAction\x12\x1f\n" +
+	"\x1bACTIVITY_ACTION_UNSPECIFIED\x10\x00\x12\x1b\n" +
+	"\x17ACTIVITY_ACTION_CREATED\x10\x01\x12\x1b\n" +
+	"\x17ACTIVITY_ACTION_UPDATED\x10\x02\x12\x1b\n" +
+	"\x17ACTIVITY_ACTION_DELETED\x10\x03\x12\x1b\n" +
+	"\x17ACTIVITY_ACTION_ENABLED\x10\x04\x12\x1c\n" +
+	"\x18ACTIVITY_ACTION_DISABLED\x10\x05\x12\x1b\n" +
+	"\x17ACTIVITY_ACTION_REMOVED\x10\x06\x12\x1c\n" +
+	"\x18ACTIVITY_ACTION_ROLE_SET\x10\a\x12\x1c\n" +
+	"\x18ACTIVITY_ACTION_RECEIVED\x10\b\x12\x1b\n" +
+	"\x17ACTIVITY_ACTION_REPLIED\x10\t\x12\x1a\n" +
+	"\x16ACTIVITY_ACTION_FAILED\x10\n" +
+	"\x12\x1b\n" +
+	"\x17ACTIVITY_ACTION_REVOKED\x10\v\x12\x1b\n" +
+	"\x17ACTIVITY_ACTION_BLOCKED\x10\f\x12\x1f\n" +
+	"\x1bACTIVITY_ACTION_HOLD_PLACED\x10\r\x12!\n" +
+	"\x1dACTIVITY_ACTION_HOLD_RELEASED\x10\x0e*\x84\x01\n" +
+	"\x13ActivityEventSource\x12\x1f\n" +
+	"\x1bACTIVITY_SOURCE_UNSPECIFIED\x10\x00\x12\x17\n" +
+	"\x13ACTIVITY_SOURCE_WEB\x10\x01\x12\x1a\n" +
+	"\x16ACTIVITY_SOURCE_MOBILE\x10\x02\x12\x17\n" +
+	"\x13ACTIVITY_SOURCE_API\x10\x032\xda\x04\n" +
 	"\x15SubaccountViewService\x12\xb6\x02\n" +
 	"\rGetSubaccount\x12\x1d.auth.v1.GetSubaccountRequest\x1a\x1e.auth.v1.GetSubaccountResponse\"\xe5\x01\xbaG\xb5\x01\n" +
 	"\fAuth Service\x12\x13Get Subaccount View\x1a\x8f\x01Return a single payload containing the sub-account and requested related read models, such as members, API keys, invites, policy, and balances.\x82\xd3\xe4\x93\x02&\x12$/v1/auth/subaccounts/{subaccount_id}\x12\x87\x02\n" +
@@ -2402,100 +2674,106 @@ func file_auth_v1_subaccounts_proto_rawDescGZIP() []byte {
 	return file_auth_v1_subaccounts_proto_rawDescData
 }
 
-var file_auth_v1_subaccounts_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_auth_v1_subaccounts_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
 var file_auth_v1_subaccounts_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_auth_v1_subaccounts_proto_goTypes = []any{
 	(SubaccountRole)(0),                               // 0: auth.v1.SubaccountRole
 	(SubaccountInviteStatus)(0),                       // 1: auth.v1.SubaccountInviteStatus
 	(SubaccountInviteAction)(0),                       // 2: auth.v1.SubaccountInviteAction
-	(*SubaccountRoleView)(nil),                        // 3: auth.v1.SubaccountRoleView
-	(*Subaccount)(nil),                                // 4: auth.v1.Subaccount
-	(*ListSubaccountsRequest)(nil),                    // 5: auth.v1.ListSubaccountsRequest
-	(*ListSubaccountsResponse)(nil),                   // 6: auth.v1.ListSubaccountsResponse
-	(*CreateSubaccountRequest)(nil),                   // 7: auth.v1.CreateSubaccountRequest
-	(*CreateSubaccountResponse)(nil),                  // 8: auth.v1.CreateSubaccountResponse
-	(*UpdateSubaccountRequest)(nil),                   // 9: auth.v1.UpdateSubaccountRequest
-	(*UpdateSubaccountResponse)(nil),                  // 10: auth.v1.UpdateSubaccountResponse
-	(*SetSubaccountMemberMFARequirementRequest)(nil),  // 11: auth.v1.SetSubaccountMemberMFARequirementRequest
-	(*SetSubaccountMemberMFARequirementResponse)(nil), // 12: auth.v1.SetSubaccountMemberMFARequirementResponse
-	(*SubaccountMemberView)(nil),                      // 13: auth.v1.SubaccountMemberView
-	(*ListSubaccountMembersRequest)(nil),              // 14: auth.v1.ListSubaccountMembersRequest
-	(*ListSubaccountMembersResponse)(nil),             // 15: auth.v1.ListSubaccountMembersResponse
-	(*RemoveSubaccountMemberRequest)(nil),             // 16: auth.v1.RemoveSubaccountMemberRequest
-	(*RemoveSubaccountMemberResponse)(nil),            // 17: auth.v1.RemoveSubaccountMemberResponse
-	(*UpdateSubaccountMemberRoleRequest)(nil),         // 18: auth.v1.UpdateSubaccountMemberRoleRequest
-	(*UpdateSubaccountMemberRoleResponse)(nil),        // 19: auth.v1.UpdateSubaccountMemberRoleResponse
-	(*SubaccountInvite)(nil),                          // 20: auth.v1.SubaccountInvite
-	(*InviteSubaccountMemberRequest)(nil),             // 21: auth.v1.InviteSubaccountMemberRequest
-	(*InviteSubaccountMemberResponse)(nil),            // 22: auth.v1.InviteSubaccountMemberResponse
-	(*ListSubaccountInvitesRequest)(nil),              // 23: auth.v1.ListSubaccountInvitesRequest
-	(*ListSubaccountInvitesResponse)(nil),             // 24: auth.v1.ListSubaccountInvitesResponse
-	(*RespondSubaccountInviteRequest)(nil),            // 25: auth.v1.RespondSubaccountInviteRequest
-	(*RespondSubaccountInviteResponse)(nil),           // 26: auth.v1.RespondSubaccountInviteResponse
-	(*GetSubaccountRequest)(nil),                      // 27: auth.v1.GetSubaccountRequest
-	(*GetSubaccountResponse)(nil),                     // 28: auth.v1.GetSubaccountResponse
-	(*ActivityEvent)(nil),                             // 29: auth.v1.ActivityEvent
-	(*ListSubaccountEventsRequest)(nil),               // 30: auth.v1.ListSubaccountEventsRequest
-	(*ListSubaccountEventsResponse)(nil),              // 31: auth.v1.ListSubaccountEventsResponse
-	(*timestamppb.Timestamp)(nil),                     // 32: google.protobuf.Timestamp
-	(*ApiKey)(nil),                                    // 33: auth.v1.ApiKey
-	(*SubaccountPolicyView)(nil),                      // 34: auth.v1.SubaccountPolicyView
-	(*v1.GetBalancesResponse)(nil),                    // 35: ledger.read.v1.GetBalancesResponse
+	(ActivityEntityKind)(0),                           // 3: auth.v1.ActivityEntityKind
+	(ActivityEventAction)(0),                          // 4: auth.v1.ActivityEventAction
+	(ActivityEventSource)(0),                          // 5: auth.v1.ActivityEventSource
+	(*SubaccountRoleView)(nil),                        // 6: auth.v1.SubaccountRoleView
+	(*Subaccount)(nil),                                // 7: auth.v1.Subaccount
+	(*ListSubaccountsRequest)(nil),                    // 8: auth.v1.ListSubaccountsRequest
+	(*ListSubaccountsResponse)(nil),                   // 9: auth.v1.ListSubaccountsResponse
+	(*CreateSubaccountRequest)(nil),                   // 10: auth.v1.CreateSubaccountRequest
+	(*CreateSubaccountResponse)(nil),                  // 11: auth.v1.CreateSubaccountResponse
+	(*UpdateSubaccountRequest)(nil),                   // 12: auth.v1.UpdateSubaccountRequest
+	(*UpdateSubaccountResponse)(nil),                  // 13: auth.v1.UpdateSubaccountResponse
+	(*SetSubaccountMemberMFARequirementRequest)(nil),  // 14: auth.v1.SetSubaccountMemberMFARequirementRequest
+	(*SetSubaccountMemberMFARequirementResponse)(nil), // 15: auth.v1.SetSubaccountMemberMFARequirementResponse
+	(*SubaccountMemberView)(nil),                      // 16: auth.v1.SubaccountMemberView
+	(*ListSubaccountMembersRequest)(nil),              // 17: auth.v1.ListSubaccountMembersRequest
+	(*ListSubaccountMembersResponse)(nil),             // 18: auth.v1.ListSubaccountMembersResponse
+	(*RemoveSubaccountMemberRequest)(nil),             // 19: auth.v1.RemoveSubaccountMemberRequest
+	(*RemoveSubaccountMemberResponse)(nil),            // 20: auth.v1.RemoveSubaccountMemberResponse
+	(*UpdateSubaccountMemberRoleRequest)(nil),         // 21: auth.v1.UpdateSubaccountMemberRoleRequest
+	(*UpdateSubaccountMemberRoleResponse)(nil),        // 22: auth.v1.UpdateSubaccountMemberRoleResponse
+	(*SubaccountInvite)(nil),                          // 23: auth.v1.SubaccountInvite
+	(*InviteSubaccountMemberRequest)(nil),             // 24: auth.v1.InviteSubaccountMemberRequest
+	(*InviteSubaccountMemberResponse)(nil),            // 25: auth.v1.InviteSubaccountMemberResponse
+	(*ListSubaccountInvitesRequest)(nil),              // 26: auth.v1.ListSubaccountInvitesRequest
+	(*ListSubaccountInvitesResponse)(nil),             // 27: auth.v1.ListSubaccountInvitesResponse
+	(*RespondSubaccountInviteRequest)(nil),            // 28: auth.v1.RespondSubaccountInviteRequest
+	(*RespondSubaccountInviteResponse)(nil),           // 29: auth.v1.RespondSubaccountInviteResponse
+	(*GetSubaccountRequest)(nil),                      // 30: auth.v1.GetSubaccountRequest
+	(*GetSubaccountResponse)(nil),                     // 31: auth.v1.GetSubaccountResponse
+	(*ActivityEvent)(nil),                             // 32: auth.v1.ActivityEvent
+	(*ListSubaccountEventsRequest)(nil),               // 33: auth.v1.ListSubaccountEventsRequest
+	(*ListSubaccountEventsResponse)(nil),              // 34: auth.v1.ListSubaccountEventsResponse
+	(*timestamppb.Timestamp)(nil),                     // 35: google.protobuf.Timestamp
+	(*ApiKey)(nil),                                    // 36: auth.v1.ApiKey
+	(*SubaccountPolicyView)(nil),                      // 37: auth.v1.SubaccountPolicyView
+	(*v1.GetBalancesResponse)(nil),                    // 38: ledger.read.v1.GetBalancesResponse
 }
 var file_auth_v1_subaccounts_proto_depIdxs = []int32{
 	0,  // 0: auth.v1.SubaccountRoleView.role:type_name -> auth.v1.SubaccountRole
 	0,  // 1: auth.v1.Subaccount.role:type_name -> auth.v1.SubaccountRole
-	32, // 2: auth.v1.Subaccount.updated_at:type_name -> google.protobuf.Timestamp
-	4,  // 3: auth.v1.ListSubaccountsResponse.subaccounts:type_name -> auth.v1.Subaccount
+	35, // 2: auth.v1.Subaccount.updated_at:type_name -> google.protobuf.Timestamp
+	7,  // 3: auth.v1.ListSubaccountsResponse.subaccounts:type_name -> auth.v1.Subaccount
 	0,  // 4: auth.v1.SubaccountMemberView.role:type_name -> auth.v1.SubaccountRole
-	13, // 5: auth.v1.ListSubaccountMembersResponse.members:type_name -> auth.v1.SubaccountMemberView
+	16, // 5: auth.v1.ListSubaccountMembersResponse.members:type_name -> auth.v1.SubaccountMemberView
 	0,  // 6: auth.v1.UpdateSubaccountMemberRoleRequest.role:type_name -> auth.v1.SubaccountRole
 	0,  // 7: auth.v1.SubaccountInvite.role:type_name -> auth.v1.SubaccountRole
 	1,  // 8: auth.v1.SubaccountInvite.status:type_name -> auth.v1.SubaccountInviteStatus
-	32, // 9: auth.v1.SubaccountInvite.created_at:type_name -> google.protobuf.Timestamp
-	32, // 10: auth.v1.SubaccountInvite.responded_at:type_name -> google.protobuf.Timestamp
+	35, // 9: auth.v1.SubaccountInvite.created_at:type_name -> google.protobuf.Timestamp
+	35, // 10: auth.v1.SubaccountInvite.responded_at:type_name -> google.protobuf.Timestamp
 	0,  // 11: auth.v1.InviteSubaccountMemberRequest.role:type_name -> auth.v1.SubaccountRole
-	20, // 12: auth.v1.InviteSubaccountMemberResponse.invite:type_name -> auth.v1.SubaccountInvite
-	20, // 13: auth.v1.ListSubaccountInvitesResponse.invites:type_name -> auth.v1.SubaccountInvite
+	23, // 12: auth.v1.InviteSubaccountMemberResponse.invite:type_name -> auth.v1.SubaccountInvite
+	23, // 13: auth.v1.ListSubaccountInvitesResponse.invites:type_name -> auth.v1.SubaccountInvite
 	2,  // 14: auth.v1.RespondSubaccountInviteRequest.action:type_name -> auth.v1.SubaccountInviteAction
-	20, // 15: auth.v1.RespondSubaccountInviteResponse.invite:type_name -> auth.v1.SubaccountInvite
-	4,  // 16: auth.v1.GetSubaccountResponse.subaccount:type_name -> auth.v1.Subaccount
-	33, // 17: auth.v1.GetSubaccountResponse.api_keys:type_name -> auth.v1.ApiKey
-	13, // 18: auth.v1.GetSubaccountResponse.members:type_name -> auth.v1.SubaccountMemberView
-	20, // 19: auth.v1.GetSubaccountResponse.invites:type_name -> auth.v1.SubaccountInvite
-	34, // 20: auth.v1.GetSubaccountResponse.policy:type_name -> auth.v1.SubaccountPolicyView
-	35, // 21: auth.v1.GetSubaccountResponse.balances:type_name -> ledger.read.v1.GetBalancesResponse
-	32, // 22: auth.v1.ActivityEvent.created_at:type_name -> google.protobuf.Timestamp
-	29, // 23: auth.v1.ListSubaccountEventsResponse.events:type_name -> auth.v1.ActivityEvent
-	27, // 24: auth.v1.SubaccountViewService.GetSubaccount:input_type -> auth.v1.GetSubaccountRequest
-	30, // 25: auth.v1.SubaccountViewService.ListSubaccountActivity:input_type -> auth.v1.ListSubaccountEventsRequest
-	5,  // 26: auth.v1.SubaccountService.ListSubaccounts:input_type -> auth.v1.ListSubaccountsRequest
-	7,  // 27: auth.v1.SubaccountService.CreateSubaccount:input_type -> auth.v1.CreateSubaccountRequest
-	9,  // 28: auth.v1.SubaccountService.UpdateSubaccount:input_type -> auth.v1.UpdateSubaccountRequest
-	11, // 29: auth.v1.SubaccountService.SetSubaccountMemberMFARequirement:input_type -> auth.v1.SetSubaccountMemberMFARequirementRequest
-	14, // 30: auth.v1.SubaccountService.ListSubaccountMembers:input_type -> auth.v1.ListSubaccountMembersRequest
-	16, // 31: auth.v1.SubaccountService.RemoveSubaccountMember:input_type -> auth.v1.RemoveSubaccountMemberRequest
-	18, // 32: auth.v1.SubaccountService.UpdateSubaccountMemberRole:input_type -> auth.v1.UpdateSubaccountMemberRoleRequest
-	21, // 33: auth.v1.SubaccountService.InviteSubaccountMember:input_type -> auth.v1.InviteSubaccountMemberRequest
-	23, // 34: auth.v1.SubaccountService.ListSubaccountInvites:input_type -> auth.v1.ListSubaccountInvitesRequest
-	25, // 35: auth.v1.SubaccountService.RespondSubaccountInvite:input_type -> auth.v1.RespondSubaccountInviteRequest
-	28, // 36: auth.v1.SubaccountViewService.GetSubaccount:output_type -> auth.v1.GetSubaccountResponse
-	31, // 37: auth.v1.SubaccountViewService.ListSubaccountActivity:output_type -> auth.v1.ListSubaccountEventsResponse
-	6,  // 38: auth.v1.SubaccountService.ListSubaccounts:output_type -> auth.v1.ListSubaccountsResponse
-	8,  // 39: auth.v1.SubaccountService.CreateSubaccount:output_type -> auth.v1.CreateSubaccountResponse
-	10, // 40: auth.v1.SubaccountService.UpdateSubaccount:output_type -> auth.v1.UpdateSubaccountResponse
-	12, // 41: auth.v1.SubaccountService.SetSubaccountMemberMFARequirement:output_type -> auth.v1.SetSubaccountMemberMFARequirementResponse
-	15, // 42: auth.v1.SubaccountService.ListSubaccountMembers:output_type -> auth.v1.ListSubaccountMembersResponse
-	17, // 43: auth.v1.SubaccountService.RemoveSubaccountMember:output_type -> auth.v1.RemoveSubaccountMemberResponse
-	19, // 44: auth.v1.SubaccountService.UpdateSubaccountMemberRole:output_type -> auth.v1.UpdateSubaccountMemberRoleResponse
-	22, // 45: auth.v1.SubaccountService.InviteSubaccountMember:output_type -> auth.v1.InviteSubaccountMemberResponse
-	24, // 46: auth.v1.SubaccountService.ListSubaccountInvites:output_type -> auth.v1.ListSubaccountInvitesResponse
-	26, // 47: auth.v1.SubaccountService.RespondSubaccountInvite:output_type -> auth.v1.RespondSubaccountInviteResponse
-	36, // [36:48] is the sub-list for method output_type
-	24, // [24:36] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	23, // 15: auth.v1.RespondSubaccountInviteResponse.invite:type_name -> auth.v1.SubaccountInvite
+	7,  // 16: auth.v1.GetSubaccountResponse.subaccount:type_name -> auth.v1.Subaccount
+	36, // 17: auth.v1.GetSubaccountResponse.api_keys:type_name -> auth.v1.ApiKey
+	16, // 18: auth.v1.GetSubaccountResponse.members:type_name -> auth.v1.SubaccountMemberView
+	23, // 19: auth.v1.GetSubaccountResponse.invites:type_name -> auth.v1.SubaccountInvite
+	37, // 20: auth.v1.GetSubaccountResponse.policy:type_name -> auth.v1.SubaccountPolicyView
+	38, // 21: auth.v1.GetSubaccountResponse.balances:type_name -> ledger.read.v1.GetBalancesResponse
+	35, // 22: auth.v1.ActivityEvent.created_at:type_name -> google.protobuf.Timestamp
+	3,  // 23: auth.v1.ActivityEvent.entity_kind:type_name -> auth.v1.ActivityEntityKind
+	4,  // 24: auth.v1.ActivityEvent.event_action:type_name -> auth.v1.ActivityEventAction
+	5,  // 25: auth.v1.ActivityEvent.source:type_name -> auth.v1.ActivityEventSource
+	32, // 26: auth.v1.ListSubaccountEventsResponse.events:type_name -> auth.v1.ActivityEvent
+	30, // 27: auth.v1.SubaccountViewService.GetSubaccount:input_type -> auth.v1.GetSubaccountRequest
+	33, // 28: auth.v1.SubaccountViewService.ListSubaccountActivity:input_type -> auth.v1.ListSubaccountEventsRequest
+	8,  // 29: auth.v1.SubaccountService.ListSubaccounts:input_type -> auth.v1.ListSubaccountsRequest
+	10, // 30: auth.v1.SubaccountService.CreateSubaccount:input_type -> auth.v1.CreateSubaccountRequest
+	12, // 31: auth.v1.SubaccountService.UpdateSubaccount:input_type -> auth.v1.UpdateSubaccountRequest
+	14, // 32: auth.v1.SubaccountService.SetSubaccountMemberMFARequirement:input_type -> auth.v1.SetSubaccountMemberMFARequirementRequest
+	17, // 33: auth.v1.SubaccountService.ListSubaccountMembers:input_type -> auth.v1.ListSubaccountMembersRequest
+	19, // 34: auth.v1.SubaccountService.RemoveSubaccountMember:input_type -> auth.v1.RemoveSubaccountMemberRequest
+	21, // 35: auth.v1.SubaccountService.UpdateSubaccountMemberRole:input_type -> auth.v1.UpdateSubaccountMemberRoleRequest
+	24, // 36: auth.v1.SubaccountService.InviteSubaccountMember:input_type -> auth.v1.InviteSubaccountMemberRequest
+	26, // 37: auth.v1.SubaccountService.ListSubaccountInvites:input_type -> auth.v1.ListSubaccountInvitesRequest
+	28, // 38: auth.v1.SubaccountService.RespondSubaccountInvite:input_type -> auth.v1.RespondSubaccountInviteRequest
+	31, // 39: auth.v1.SubaccountViewService.GetSubaccount:output_type -> auth.v1.GetSubaccountResponse
+	34, // 40: auth.v1.SubaccountViewService.ListSubaccountActivity:output_type -> auth.v1.ListSubaccountEventsResponse
+	9,  // 41: auth.v1.SubaccountService.ListSubaccounts:output_type -> auth.v1.ListSubaccountsResponse
+	11, // 42: auth.v1.SubaccountService.CreateSubaccount:output_type -> auth.v1.CreateSubaccountResponse
+	13, // 43: auth.v1.SubaccountService.UpdateSubaccount:output_type -> auth.v1.UpdateSubaccountResponse
+	15, // 44: auth.v1.SubaccountService.SetSubaccountMemberMFARequirement:output_type -> auth.v1.SetSubaccountMemberMFARequirementResponse
+	18, // 45: auth.v1.SubaccountService.ListSubaccountMembers:output_type -> auth.v1.ListSubaccountMembersResponse
+	20, // 46: auth.v1.SubaccountService.RemoveSubaccountMember:output_type -> auth.v1.RemoveSubaccountMemberResponse
+	22, // 47: auth.v1.SubaccountService.UpdateSubaccountMemberRole:output_type -> auth.v1.UpdateSubaccountMemberRoleResponse
+	25, // 48: auth.v1.SubaccountService.InviteSubaccountMember:output_type -> auth.v1.InviteSubaccountMemberResponse
+	27, // 49: auth.v1.SubaccountService.ListSubaccountInvites:output_type -> auth.v1.ListSubaccountInvitesResponse
+	29, // 50: auth.v1.SubaccountService.RespondSubaccountInvite:output_type -> auth.v1.RespondSubaccountInviteResponse
+	39, // [39:51] is the sub-list for method output_type
+	27, // [27:39] is the sub-list for method input_type
+	27, // [27:27] is the sub-list for extension type_name
+	27, // [27:27] is the sub-list for extension extendee
+	0,  // [0:27] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_subaccounts_proto_init() }
@@ -2512,7 +2790,7 @@ func file_auth_v1_subaccounts_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_subaccounts_proto_rawDesc), len(file_auth_v1_subaccounts_proto_rawDesc)),
-			NumEnums:      3,
+			NumEnums:      6,
 			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   2,

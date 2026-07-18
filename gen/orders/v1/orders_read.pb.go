@@ -764,10 +764,9 @@ type Order struct {
 	MarketMaxSlippageTicks int32 `protobuf:"varint,24,opt,name=market_max_slippage_ticks,json=marketMaxSlippageTicks,proto3" json:"market_max_slippage_ticks,omitempty"`
 	// Optional MARKET max slippage in basis points (1 bp = 0.01%).
 	MarketMaxSlippageBps int32 `protobuf:"varint,25,opt,name=market_max_slippage_bps,json=marketMaxSlippageBps,proto3" json:"market_max_slippage_bps,omitempty"`
-	// Source-owned per-order state revision. For the same order, a larger value
-	// is fresher, an equal value is an idempotent replay, and a smaller value is
-	// stale. Equal revisions with different state indicate an invariant failure.
-	StateRevision uint64 `protobuf:"varint,26,opt,name=state_revision,json=stateRevision,proto3" json:"state_revision,omitempty"`
+	// Per-order state version. Starts at 1 and increases for every published
+	// state change. Use this field to reconcile API and realtime updates.
+	Version       uint32 `protobuf:"varint,26,opt,name=version,proto3" json:"version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -970,9 +969,9 @@ func (x *Order) GetMarketMaxSlippageBps() int32 {
 	return 0
 }
 
-func (x *Order) GetStateRevision() uint64 {
+func (x *Order) GetVersion() uint32 {
 	if x != nil {
-		return x.StateRevision
+		return x.Version
 	}
 	return 0
 }
@@ -1952,7 +1951,7 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"takeProfit\x12<\n" +
 	"\tstop_loss\x18\x02 \x01(\v2\x1f.orders.v1.AttachedRiskStopLossR\bstopLoss\x12H\n" +
 	"\rtrailing_stop\x18\x03 \x01(\v2#.orders.v1.AttachedRiskTrailingStopR\ftrailingStop\x12\x10\n" +
-	"\x03oco\x18\x04 \x01(\bR\x03oco\"\xb9\t\n" +
+	"\x03oco\x18\x04 \x01(\bR\x03oco\"\xbb\t\n" +
 	"\x05Order\x12\x19\n" +
 	"\border_id\x18\x01 \x01(\x06R\aorderId\x12\x1b\n" +
 	"\tsymbol_id\x18\x03 \x01(\rR\bsymbolId\x12D\n" +
@@ -1981,8 +1980,9 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\x06origin\x18\x16 \x01(\v2\x16.orders.v1.OrderOriginR\x06origin\x12@\n" +
 	"\x1dmarket_client_ref_price_ticks\x18\x17 \x01(\x03R\x19marketClientRefPriceTicks\x129\n" +
 	"\x19market_max_slippage_ticks\x18\x18 \x01(\x05R\x16marketMaxSlippageTicks\x125\n" +
-	"\x17market_max_slippage_bps\x18\x19 \x01(\x05R\x14marketMaxSlippageBps\x12%\n" +
-	"\x0estate_revision\x18\x1a \x01(\x04R\rstateRevision\"\x85\x03\n" +
+	"\x17market_max_slippage_bps\x18\x19 \x01(\x05R\x14marketMaxSlippageBps\x12'\n" +
+	"\aversion\x18\x1a \x01(\rB\r\xbaH\n" +
+	"*\b\x18\xff\xff\xff\xff\a(\x01R\aversion\"\x85\x03\n" +
 	"\tUserTrade\x12\x1b\n" +
 	"\tsymbol_id\x18\x02 \x01(\rR\bsymbolId\x12\x19\n" +
 	"\bmatch_id\x18\x03 \x01(\x04R\amatchId\x12\x19\n" +

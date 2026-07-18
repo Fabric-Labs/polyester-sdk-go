@@ -1,12 +1,14 @@
 package models
 
+import "time"
+
 // SubAccount is a subaccount summary.
 type SubAccount struct {
-	SubaccountID        string `json:"subaccount_id,omitempty"`
-	Label               string `json:"label,omitempty"`
-	SmartAccountAddress string `json:"smart_account_address,omitempty"`
-	Status              string `json:"status,omitempty"`
-	UpdatedAtMs         int64  `json:"updated_at_ms,omitempty"`
+	SubaccountID        string     `json:"subaccount_id,omitempty"`
+	Label               string     `json:"label,omitempty"`
+	SmartAccountAddress string     `json:"smart_account_address,omitempty"`
+	Status              string     `json:"status,omitempty"`
+	UpdatedAt           *time.Time `json:"updated_at,omitempty"`
 }
 
 // SubAccountsList lists subaccounts.
