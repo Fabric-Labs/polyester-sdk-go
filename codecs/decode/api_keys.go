@@ -2,25 +2,33 @@ package decode
 
 import (
 	"encoding/hex"
+	"time"
 
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
+
+func timestampTime(ts *timestamppb.Timestamp) *time.Time {
+	if ts == nil {
+		return nil
+	}
+	value := ts.AsTime()
+	return &value
+}
 
 func apiKey(msg *authv1.ApiKey) *models.ApiKeySummary {
 	if msg == nil {
 		return nil
-	}
-	var updatedAtMs int64
-	if ts := msg.GetUpdatedAt(); ts != nil {
-		updatedAtMs = ts.AsTime().UnixMilli()
 	}
 	return &models.ApiKeySummary{
 		KeyID:            msg.GetKeyId(),
 		Label:            msg.GetLabel(),
 		Status:           msg.GetStatus().String(),
 		PublicKeyEd25519: hex.EncodeToString(msg.GetPublicKeyEd25519()),
-		UpdatedAtMs:      updatedAtMs,
+		CreatedAt:        timestampTime(msg.GetCreatedAt()),
+		LastUsedAt:       timestampTime(msg.GetLastUsedAt()),
+		UpdatedAt:        timestampTime(msg.GetUpdatedAt()),
 	}
 }
 

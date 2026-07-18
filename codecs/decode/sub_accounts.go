@@ -1,6 +1,9 @@
 package decode
 
 import (
+	"strings"
+	"time"
+
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
@@ -10,16 +13,17 @@ func subAccount(msg *authv1.Subaccount) models.SubAccount {
 	if msg == nil {
 		return models.SubAccount{}
 	}
-	var updatedAtMs int64
+	var updatedAt *time.Time
 	if ts := msg.GetUpdatedAt(); ts != nil {
-		updatedAtMs = ts.AsTime().UnixMilli()
+		value := ts.AsTime()
+		updatedAt = &value
 	}
 	return models.SubAccount{
 		SubaccountID:        codecs.FormatUint64ID(msg.GetId()),
 		Label:               msg.GetLabel(),
 		SmartAccountAddress: msg.GetSmartAccountAddress(),
 		Status:              msg.GetStatus(),
-		UpdatedAtMs:         updatedAtMs,
+		UpdatedAt:           updatedAt,
 	}
 }
 
@@ -96,7 +100,9 @@ func SubaccountActivityListFromProto(msg *authv1.ListSubaccountEventsResponse) m
 			tsMs = e.GetCreatedAt().AsTime().UnixMilli()
 		}
 		out = append(out, models.SubAccountActivityEvent{
-			EventType: e.GetEntityKind() + ":" + e.GetEventAction(), TsMs: tsMs,
+			EventType: strings.ToLower(strings.TrimPrefix(e.GetEntityKind().String(), "ACTIVITY_ENTITY_")) +
+				":" + strings.ToLower(strings.TrimPrefix(e.GetEventAction().String(), "ACTIVITY_ACTION_")),
+			TsMs: tsMs,
 		})
 	}
 	return models.SubAccountActivityList{Events: out, NextPageToken: msg.GetNextPageToken()}

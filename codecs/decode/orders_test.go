@@ -34,10 +34,10 @@ func TestOrderFromProtoMapsEnumsAndIDs(t *testing.T) {
 	if order.OrigQty.Scaled != 100 {
 		t.Fatalf("orig_qty=%+v", order.OrigQty)
 	}
-	msg.StateRevision = 7
+	msg.Version = 7
 	order = decode.OrderFromProto(msg)
-	if order.StateRevision != 7 {
-		t.Fatalf("state_revision=%d", order.StateRevision)
+	if order.Version != 7 {
+		t.Fatalf("version=%d", order.Version)
 	}
 }
 
@@ -71,9 +71,9 @@ func TestGetOrderFromProtoIncludesTrades(t *testing.T) {
 func TestModifyOrderFromProtoActionTakenEnum(t *testing.T) {
 	msg := &orderv1.ModifyOrderResponse{
 		ActionTaken:  orderv1.ModifyActionTaken_AMENDED,
-		OldOrderId:    10,
-		FinalOrderId:  11,
-		Code:          "ok",
+		OldOrderId:   10,
+		FinalOrderId: 11,
+		Code:         "ok",
 	}
 	result := decode.ModifyOrderFromProto(msg)
 	if result.ActionTaken != "amended" {

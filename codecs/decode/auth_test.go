@@ -27,3 +27,16 @@ func TestMeFromProto(t *testing.T) {
 		t.Fatalf("me=%+v", me)
 	}
 }
+
+func TestSubaccountActivityFromProtoNormalizesTypedEnums(t *testing.T) {
+	msg := &authv1.ListSubaccountEventsResponse{
+		Events: []*authv1.ActivityEvent{{
+			EntityKind:  authv1.ActivityEntityKind_ACTIVITY_ENTITY_INVITE,
+			EventAction: authv1.ActivityEventAction_ACTIVITY_ACTION_CREATED,
+		}},
+	}
+	result := decode.SubaccountActivityListFromProto(msg)
+	if len(result.Events) != 1 || result.Events[0].EventType != "invite:created" {
+		t.Fatalf("events=%+v", result.Events)
+	}
+}
