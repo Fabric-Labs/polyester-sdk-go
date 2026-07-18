@@ -31,7 +31,10 @@ jobs:
         run: go test ./...
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v7
+        # verify:false skips remote JSON Schema fetch from golangci-lint.run
+        # (flaky timeouts). Invalid config still fails at `golangci-lint run`.
+        uses: golangci/golangci-lint-action@v9
         with:
           version: v2.6.2
+          verify: false
           args: --timeout=5m
