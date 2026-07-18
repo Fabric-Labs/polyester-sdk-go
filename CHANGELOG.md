@@ -12,7 +12,7 @@
 - Internal transfer amounts use U128 wire types end-to-end
 
 ### Docs
-- Added [VERSIONING.md](VERSIONING.md) for the shared Go/Python/Rust tag scheme (`v0.1.0aN`)
+- Added [VERSIONING.md](VERSIONING.md): independent per-SDK versions, shared `v0.1.0aN` tag format
 
 ## 0.1.0a7
 
