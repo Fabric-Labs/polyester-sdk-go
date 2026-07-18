@@ -11,9 +11,6 @@
 - Generated reconciliation and policy types exposed in the public SDK surface
 - Internal transfer amounts use U128 wire types end-to-end
 
-### Docs
-- Added [VERSIONING.md](VERSIONING.md): independent per-SDK versions, shared `v0.1.0aN` tag format
-
 ## 0.1.0a7
 
 ### Breaking
