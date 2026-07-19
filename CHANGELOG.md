@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.0a9
+
+### Features
+- `Client.WaitForCatalogs(ctx)` waits for best-effort background catalog hydration (parity with Python/Rust)
+- Connect RPC wrapper coverage gate (POLY-3533): `scripts/check_sdk_coverage.py`, allowlist, and committed `docs/sdk-coverage.*` reports
+
+### Docs
+- README documents `WaitForCatalogs` before decimal writes that depend on catalog scales
+
 ## 0.1.0a8
 
 ### Breaking

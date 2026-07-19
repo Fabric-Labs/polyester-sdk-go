@@ -46,6 +46,17 @@ func main() {
 
 Set `POLYESTER_API_KEY_ID`, `POLYESTER_API_PRIVATE_KEY`, and optionally `POLYESTER_ACCOUNT_ID`.
 
+`FromEnv` starts best-effort spot and Zipper catalog hydration in the background.
+Wait for it before decimal writes that depend on catalog scales:
+
+```go
+if err := client.WaitForCatalogs(ctx); err != nil {
+    log.Fatal(err)
+}
+```
+
+`WaitForCatalogs` returns immediately when `HydrateCatalogs` is disabled.
+
 ## Qty / price inputs (dual path)
 
 Human path uses decimal strings. Bot path stays in wire units with typed values.
@@ -116,8 +127,13 @@ make test-integration  # live devnet smoke tests (reads .env)
 make test-all          # unit + integration (sources .env automatically)
 make lint              # golangci-lint (moon run :lint when moon is installed)
 make fix               # golangci-lint --fix (moon run :fix when moon is installed)
+make coverage          # regenerate Connect RPC ↔ wrapper coverage reports
 ./scripts/setup-hooks.sh   # optional: lint before each git commit
 ```
+
+Connect RPC wrapper coverage (public gen vs handwritten services) is tracked in
+[`docs/sdk-coverage.md`](docs/sdk-coverage.md). CI fails on unexpected gaps or a
+stale report — after wrapping a new RPC or refreshing gen, run `make coverage`.
 
 Unit tests run offline. Integration tests use `//go:build integration` and need API keys in `.env` (same variables as Python: `POLYESTER_API_KEY_ID`, `POLYESTER_API_PRIVATE_KEY`, optional `POLYESTER_ACCOUNT_ID`, `POLYESTER_API_URL`).
 

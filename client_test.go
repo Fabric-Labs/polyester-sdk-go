@@ -1,8 +1,11 @@
 package polyester
 
 import (
+	"context"
+	"errors"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestNewUsesDefaults(t *testing.T) {
@@ -50,5 +53,29 @@ func TestClientExposesDocumentedServices(t *testing.T) {
 	}
 	if client.Auth.Profile == nil {
 		t.Fatal("expected client.Auth.Profile")
+	}
+}
+
+func TestWaitForCatalogsReturnsImmediatelyWhenHydrationDisabled(t *testing.T) {
+	client, err := New(Config{HydrateCatalogs: false})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := client.WaitForCatalogs(ctx); err != nil {
+		t.Fatalf("wait for catalogs: %v", err)
+	}
+}
+
+func TestWaitForCatalogsHonorsContextCancellation(t *testing.T) {
+	client := &Client{catalogHydrationDone: make(chan struct{})}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	if err := client.WaitForCatalogs(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context cancellation, got %v", err)
 	}
 }

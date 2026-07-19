@@ -74,8 +74,9 @@ type Client struct {
 	Withdraw           *services.WithdrawService
 	TradingWithdraws   *services.WithdrawService
 
-	transport *transport.Factory
-	closeOnce sync.Once
+	transport            *transport.Factory
+	closeOnce            sync.Once
+	catalogHydrationDone chan struct{}
 }
 
 // New creates a Polyester client.
@@ -112,46 +113,52 @@ func New(cfg Config) (*Client, error) {
 	}
 
 	client := &Client{
-		APIURL:              cfg.APIURL,
-		WSURL:               cfg.WSURL,
-		DefaultSubAccountID: cfg.DefaultSubAccountID,
-		DefaultAccountID:    defaultAccountID,
-		Catalogs:            cats,
-		Realtime:            rt,
-		transport:           factory,
-		Auth:                services.NewAuthService(factory, rt),
-		MarketData:          services.NewMarketDataService(factory, cats, rt),
-		MarketOverview:      services.NewMarketOverviewService(factory, rt),
-		Zipper:              services.NewZipperService(factory, cats, rt),
-		ChainAnalytics:      services.NewChainAnalyticsService(factory),
-		Heatmap:             services.NewHeatmapService(factory, cats, rt),
-		Lifecycle:           services.NewLifecycleService(factory, rt),
-		Balances:            services.NewBalancesService(factory, cats, cfg.DefaultSubAccountID, rt, defaultAccountID),
-		Orderbook:           services.NewOrderbookService(factory, cats, rt),
-		Orders:              services.NewOrdersService(factory, cats, cfg.DefaultSubAccountID, rt, defaultAccountID),
-		Trades:              services.NewTradesService(factory, cats, cfg.DefaultSubAccountID, rt, defaultAccountID),
-		Triggers:            services.NewTriggersService(factory, cats, cfg.DefaultSubAccountID, rt, defaultAccountID),
-		Transfers:           services.NewTransfersService(factory, cfg.DefaultSubAccountID, rt, defaultAccountID),
-		InternalTransfers:   services.NewInternalTransfersService(factory, cats, cfg.DefaultSubAccountID),
-		Deposit:             services.NewDepositService(factory, cfg.DefaultSubAccountID),
-		APIKeys:             services.NewApiKeysService(factory, cfg.DefaultSubAccountID, rt, defaultAccountID),
-		Policies:            services.NewPoliciesService(factory, cfg.DefaultSubAccountID, rt, defaultAccountID),
-		SubAccounts:         services.NewSubAccountsService(factory, cfg.DefaultSubAccountID, rt, defaultAccountID),
-		Resolve:             services.NewResolveService(factory),
-		AddressBook:         services.NewAddressBookService(factory, cfg.DefaultSubAccountID, rt, defaultAccountID),
-		SocialVerification:  services.NewSocialVerificationService(factory),
-		Whiteboard:          services.NewWhiteboardService(factory),
-		Polychart:           services.NewPolychartService(factory),
-		Layout:              services.NewLayoutService(factory),
-		GuardSigner:         services.NewGuardSignerService(factory, cfg.DefaultSubAccountID),
-		Withdraw:            services.NewWithdrawService(factory, cfg.DefaultSubAccountID),
+		APIURL:               cfg.APIURL,
+		WSURL:                cfg.WSURL,
+		DefaultSubAccountID:  cfg.DefaultSubAccountID,
+		DefaultAccountID:     defaultAccountID,
+		Catalogs:             cats,
+		Realtime:             rt,
+		transport:            factory,
+		Auth:                 services.NewAuthService(factory, rt),
+		MarketData:           services.NewMarketDataService(factory, cats, rt),
+		MarketOverview:       services.NewMarketOverviewService(factory, rt),
+		Zipper:               services.NewZipperService(factory, cats, rt),
+		ChainAnalytics:       services.NewChainAnalyticsService(factory),
+		Heatmap:              services.NewHeatmapService(factory, cats, rt),
+		Lifecycle:            services.NewLifecycleService(factory, rt),
+		Balances:             services.NewBalancesService(factory, cats, cfg.DefaultSubAccountID, rt, defaultAccountID),
+		Orderbook:            services.NewOrderbookService(factory, cats, rt),
+		Orders:               services.NewOrdersService(factory, cats, cfg.DefaultSubAccountID, rt, defaultAccountID),
+		Trades:               services.NewTradesService(factory, cats, cfg.DefaultSubAccountID, rt, defaultAccountID),
+		Triggers:             services.NewTriggersService(factory, cats, cfg.DefaultSubAccountID, rt, defaultAccountID),
+		Transfers:            services.NewTransfersService(factory, cfg.DefaultSubAccountID, rt, defaultAccountID),
+		InternalTransfers:    services.NewInternalTransfersService(factory, cats, cfg.DefaultSubAccountID),
+		Deposit:              services.NewDepositService(factory, cfg.DefaultSubAccountID),
+		APIKeys:              services.NewApiKeysService(factory, cfg.DefaultSubAccountID, rt, defaultAccountID),
+		Policies:             services.NewPoliciesService(factory, cfg.DefaultSubAccountID, rt, defaultAccountID),
+		SubAccounts:          services.NewSubAccountsService(factory, cfg.DefaultSubAccountID, rt, defaultAccountID),
+		Resolve:              services.NewResolveService(factory),
+		AddressBook:          services.NewAddressBookService(factory, cfg.DefaultSubAccountID, rt, defaultAccountID),
+		SocialVerification:   services.NewSocialVerificationService(factory),
+		Whiteboard:           services.NewWhiteboardService(factory),
+		Polychart:            services.NewPolychartService(factory),
+		Layout:               services.NewLayoutService(factory),
+		GuardSigner:          services.NewGuardSignerService(factory, cfg.DefaultSubAccountID),
+		Withdraw:             services.NewWithdrawService(factory, cfg.DefaultSubAccountID),
+		catalogHydrationDone: make(chan struct{}),
 	}
 	client.Candles = client.MarketData
 	client.Accounts = client.Resolve
 	client.TradingWithdraws = client.Withdraw
 
 	if cfg.HydrateCatalogs {
-		go client.hydrateCatalogsBestEffort()
+		go func() {
+			defer close(client.catalogHydrationDone)
+			client.hydrateCatalogsBestEffort()
+		}()
+	} else {
+		close(client.catalogHydrationDone)
 	}
 	return client, nil
 }
@@ -184,6 +191,18 @@ func (c *Client) hydrateCatalogsBestEffort() {
 	}
 	if zipper, err := c.Zipper.GetDepositWithdrawConfig(ctx); err == nil {
 		c.Catalogs.HydrateZipperConfig(zipper)
+	}
+}
+
+// WaitForCatalogs waits for the client's best-effort background catalog hydration.
+// It returns immediately when HydrateCatalogs is disabled. Hydration failures remain
+// best-effort; callers receive an error only when the context is canceled.
+func (c *Client) WaitForCatalogs(ctx context.Context) error {
+	select {
+	case <-c.catalogHydrationDone:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 }
 
