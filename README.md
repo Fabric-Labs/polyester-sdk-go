@@ -2,6 +2,9 @@
 
 Go SDK for the Polyester public API — parity with `polyester-sdk-python` using the checked-in `gen/` protobuf bundle (no local proto generation required for normal development).
 
+API-key only (no browser login or session MFA). Full cross-language comparison:
+[SDK capability matrix](https://polyester.ai/docs/developer-docs/getting-started/sdk-capability-matrix).
+
 ## Install
 
 ```bash
