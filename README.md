@@ -1,8 +1,14 @@
 # Polyester Go SDK
 
-Go SDK for the Polyester public API — parity with `polyester-sdk-python` using the checked-in `gen/` protobuf bundle (no local proto generation required for normal development).
+Official Go SDK for Polyester APIs, built for trading bots, backend services,
+and automation. Parity with `polyester-sdk-python` and `polyester-sdk-rust`
+using the checked-in `gen/` protobuf bundle (no local proto generation for
+normal development).
 
-**Status:** Alpha. API-key only — no browser login or session MFA.
+**Status:** Alpha. Proprietary license (not open source). API-key only —
+no browser login or session MFA.
+
+Requires a recent Go toolchain (see `go.mod`).
 
 ## Supported surface
 
@@ -55,87 +61,258 @@ Full cross-language comparison:
 go get github.com/Fabric-Labs/polyester-sdk-go@latest
 ```
 
+For development from a git checkout:
+
+```bash
+git clone https://github.com/Fabric-Labs/polyester-sdk-go.git
+cd polyester-sdk-go
+go test ./...
+```
+
 ## Quick start
+
+Create an API key in the Polyester app (**API** in the sidebar). Copy the key id
+and private key when shown — the private key is only displayed once.
 
 ```go
 package main
 
 import (
-    "context"
-    "fmt"
-    "log"
+	"context"
+	"fmt"
+	"log"
 
-    polyester "github.com/Fabric-Labs/polyester-sdk-go"
-    "github.com/Fabric-Labs/polyester-sdk-go/services"
+	polyester "github.com/Fabric-Labs/polyester-sdk-go"
 )
 
 func main() {
-    client, err := polyester.FromEnv()
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer client.Close()
+	accountID := "RLxqJGUDg92" // Profile → Account ID
+	client, err := polyester.New(polyester.Config{
+		APIKeyID:         "ak_...",
+		APIPrivateKey:    "...", // 64-char hex secret from API key creation
+		DefaultAccountID: &accountID,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer client.Close()
 
-    ctx := context.Background()
-    me, err := client.Auth.Me(ctx)
-    if err != nil {
-        log.Fatal(err)
-    }
-    fmt.Println("account:", me.AccountID)
+	ctx := context.Background()
+	overview, err := client.MarketOverview.List(ctx, nil, 5, "", false)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, market := range overview.Markets {
+		fmt.Println(market.Symbol, market.LastPrice.Ticks)
+	}
 
-    spot, err := client.MarketData.GetSpotConfig(ctx)
-    if err != nil {
-        log.Fatal(err)
-    }
-    fmt.Println("pairs:", len(spot.Raw))
+	openOrders, err := client.Orders.ListOpen(ctx, nil, nil, nil, nil, false, false)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%d open orders\n", len(openOrders.Orders))
 }
 ```
 
-Set `POLYESTER_API_KEY_ID`, `POLYESTER_API_PRIVATE_KEY`, and optionally `POLYESTER_ACCOUNT_ID`.
+## Credentials
 
-`FromEnv` starts best-effort spot and Zipper catalog hydration in the background.
-Wait for it before decimal writes that depend on catalog scales:
+| Value | Where to find it | Config field |
+| --- | --- | --- |
+| API key id | **API** → create or view key | `APIKeyID` |
+| API private key | Shown once when the key is created | `APIPrivateKey` |
+| Account ID | **Profile** → **Account ID** (e.g. `RLxqJGUDg92`) | `DefaultAccountID` |
+
+Pass credentials on `polyester.Config` / `polyester.New`. The SDK does not
+implicitly read environment variables unless you call `FromEnv`.
+
+`APIPrivateKey` accepts the 64-character hex Ed25519 secret from key creation,
+or raw 32-byte key material via the credentials loader.
+
+`DefaultAccountID` is the **Account ID** string from your Profile page. Use the
+value exactly as shown in the app. Do not use an internal numeric id.
+
+`DefaultAccountID` is optional for public market-data calls. It is required for
+account-scoped operations such as private realtime channels, bucket transfers, and
+some ledger writes.
+
+## Authentication patterns
+
+**Recommended — explicit config:**
+
+```go
+accountID := "RLxqJGUDg92"
+client, err := polyester.New(polyester.Config{
+	APIKeyID:         "ak_...",
+	APIPrivateKey:    "...",
+	DefaultAccountID: &accountID,
+})
+```
+
+**If your deployment stores secrets in environment variables**, read them in your
+application and pass them to `New`:
+
+```go
+accountID := os.Getenv("POLYESTER_ACCOUNT_ID")
+client, err := polyester.New(polyester.Config{
+	APIKeyID:         os.Getenv("POLYESTER_API_KEY_ID"),
+	APIPrivateKey:    os.Getenv("POLYESTER_API_PRIVATE_KEY"),
+	DefaultAccountID: &accountID,
+})
+```
+
+`polyester.New` never implicitly reads `os.Environ`.
+
+**Scripts and local tests only** — `polyester.FromEnv()` loads
+`POLYESTER_API_KEY_ID`, `POLYESTER_API_PRIVATE_KEY`, and optionally
+`POLYESTER_ACCOUNT_ID` / `POLYESTER_API_URL`. This is a convenience helper, not
+the primary integration pattern.
+
+`New` / `FromEnv` start best-effort spot and Zipper catalog hydration in the
+background (when `HydrateCatalogs` is left enabled). Wait for it before decimal
+writes that depend on catalog scales:
 
 ```go
 if err := client.WaitForCatalogs(ctx); err != nil {
-    log.Fatal(err)
+	log.Fatal(err)
 }
 ```
 
 `WaitForCatalogs` returns immediately when `HydrateCatalogs` is disabled.
 
-## Qty / price inputs (dual path)
-
-Human path uses decimal strings. Bot path stays in wire units with typed values.
-`PriceTicks.Ticks` are protocol price units (fixed 1e6), not market tick-size alignment
-(the server still validates tick size).
+## Create and cancel orders
 
 ```go
 import "github.com/Fabric-Labs/polyester-sdk-go/models"
 
 symbol := "BNB-USDT"
 tif := "gtc"
+clientOrderID := "my-bot-001"
 price := models.PriceFromDecimal("100")
-_, err = client.Orders.Create(ctx, models.CreateOrderRequest{
-    Symbol: &symbol, Side: "buy", OrderType: "limit", TIF: &tif,
-    Qty: models.QtyFromDecimal("0.01"), Price: &price, PostOnly: true,
+
+result, err := client.Orders.Create(ctx, models.CreateOrderRequest{
+	Symbol:        &symbol,
+	Side:          "buy",
+	OrderType:     "limit",
+	TIF:           &tif,
+	Qty:           models.QtyFromDecimal("0.01"),
+	Price:         &price,
+	PostOnly:      true,
+	ClientOrderID: &clientOrderID,
 }, nil)
+if err != nil {
+	log.Fatal(err)
+}
+fmt.Println(result.Status, result.OrderID)
+
+_, err = client.Orders.Cancel(ctx, nil, nil, &clientOrderID, &symbol, nil, nil)
 ```
 
+Use **decimal strings** for human-facing `qty` / `price` inputs. Do **not** pass
+floats. `PriceTicks.Ticks` are Polyester protocol price units (fixed 1e6), not
+market tick-size alignment (server validates tick size).
+
 ### For bots (scaled integers)
+
+Stay in integer space — no string round-trip:
 
 ```go
 qty := models.MustQtyScaled(1_000_000).WithScale(8) // already wire units
 price := models.PriceFromTicksInt(100_000_000)        // 100.000000 at 1e6
 _, err = client.Orders.Create(ctx, models.CreateOrderRequest{
-    Symbol: &symbol, Side: "buy", OrderType: "limit", TIF: &tif,
-    Qty: models.QtyFromScaled(qty), Price: &price, PostOnly: true,
+	Symbol: &symbol, Side: "buy", OrderType: "limit", TIF: &tif,
+	Qty: models.QtyFromScaled(qty), Price: &price, PostOnly: true,
 }, nil)
 // Reads expose the same types: order.Price.Ticks, order.OrigQty.Scaled
 ```
 
-Compatible fill/book values can be passed back into writes when domain/instrument match.
-Transfers and trading withdraws use `AssetAmountInput` (not order `QtyInput`).
+Compatible values from fills/books can be passed back into writes when the
+instrument/domain matches. Transfers and trading withdraws use
+`AssetAmountInput` (not order `QtyInput`).
+
+Your API key needs a policy that allows trading. Spot orders spend **trading**
+balance (see below).
+
+## Balances: funding vs trading
+
+Ledger balances have separate **funding** and **trading** buckets per asset.
+
+- Deposits land in **funding**.
+- Spot orders spend **trading** balance.
+- Move funds funding → trading in the Polyester UI (**Funding → Unified Trading**)
+  or on-chain via the funding wallet.
+
+SDK notes:
+
+- **Funding → trading:** on-chain `TradingGateway.deposit` (not an API-key RPC).
+- **Funding → another user's funding wallet:** on-chain `FundingAccount.UAssetTransfer`
+  via wallet/smart-account signing in the Polyester app (not an API-key RPC).
+- **Trading → funding:** `client.TradingWithdraws.CreateToFunding(...)` with a
+  signed intent payload.
+- **Trading → trading (another account):** `client.InternalTransfers.Create(...)`.
+
+Pass `DefaultAccountID` (your Profile **Account ID**) on the client for bucket
+transfers and other account-scoped ledger operations.
+
+Format u128 wire amounts with the public helper (18-decimal scale):
+
+```go
+import "github.com/Fabric-Labs/polyester-sdk-go/codecs"
+
+balances, err := client.Balances.List(ctx, nil, nil)
+if err != nil {
+	log.Fatal(err)
+}
+for _, bal := range balances.Balances {
+	fmt.Println(
+		codecs.FormatLedgerU128(bal.Funding, codecs.LedgerScale),
+		codecs.FormatLedgerU128(bal.Trading, codecs.LedgerScale),
+	)
+}
+```
+
+## Public market data
+
+Public endpoints do not require an API key. Authenticated endpoints use the
+credentials above.
+
+```go
+symbol := "BTC-USDT"
+candles, err := client.MarketData.GetCandles(ctx, &symbol, nil, "1m", 50, nil, nil, false)
+current, err := client.MarketData.GetCurrentCandle(ctx, &symbol, nil, "1m")
+trades, err := client.MarketData.GetTrades(ctx, &symbol, nil, 20, nil)
+_ = candles
+_ = current
+_ = trades
+
+bnb := "BNB-USDT"
+sub, err := client.MarketData.SubscribeTrades(ctx, &bnb, nil)
+if err != nil {
+	log.Fatal(err)
+}
+defer sub.Close()
+for trade := range sub.Messages() {
+	fmt.Println(trade.Price.Ticks, trade.Qty.Scaled)
+	break
+}
+```
+
+Merged market overview stream (snapshot + live updates):
+
+```go
+import "github.com/Fabric-Labs/polyester-sdk-go/services"
+
+mo, err := client.MarketOverview.CreateSubscription(ctx, services.MarketOverviewCreateSubscriptionOptions{
+	Limit: 50,
+})
+if err != nil {
+	log.Fatal(err)
+}
+defer mo.Close()
+for markets := range mo.Updates() {
+	fmt.Println(len(markets), "rows")
+	break
+}
+```
 
 ## Realtime
 
@@ -143,26 +320,32 @@ Raw Centrifugo subscriptions return a typed channel:
 
 ```go
 sub, err := client.Orders.Subscribe(ctx, nil)
-if err != nil { log.Fatal(err) }
+if err != nil {
+	log.Fatal(err)
+}
 defer sub.Close()
 
 for order := range sub.Messages() {
-    fmt.Println(order.Symbol)
+	fmt.Println(order.OrderID, order.Status)
 }
 ```
 
 Managed snapshot-then-stream helpers:
 
 ```go
+import "github.com/Fabric-Labs/polyester-sdk-go/services"
+
 ob, err := client.Orderbook.CreateSubscription(ctx, services.CreateSubscriptionOptions{
-    Symbol: "ETH-USDT",
-    Depth:  50,
+	Symbol: "ETH-USDT",
+	Depth:  50,
 })
-if err != nil { log.Fatal(err) }
+if err != nil {
+	log.Fatal(err)
+}
 defer ob.Close()
 
 for book := range ob.Updates() {
-    fmt.Println(book.BookSeq, len(book.Bids))
+	fmt.Println(book.BookSeq, len(book.Bids))
 }
 ```
 
@@ -178,11 +361,19 @@ make fix               # golangci-lint --fix (moon run :fix when moon is install
 ```
 
 CI requires every public Connect RPC in `gen/` to be wrapped or listed in
-`sdk-coverage.toml`. Contributors: `python3 scripts/check_sdk_coverage.py`.
+`sdk-coverage.toml`. Contributors:
 
-Unit tests run offline. Integration tests use `//go:build integration` and need API keys in `.env` (same variables as Python: `POLYESTER_API_KEY_ID`, `POLYESTER_API_PRIVATE_KEY`, optional `POLYESTER_ACCOUNT_ID`, `POLYESTER_API_URL`).
+```bash
+python3 scripts/check_sdk_coverage.py
+python3 scripts/check_sdk_coverage.py --write-capabilities  # refresh JSON + README table
+```
 
-`make test-integration` and `testutil.LiveClientFromEnv` load `.env` from the repo root when present. You can also export vars manually:
+CI also refreshes `sdk-capabilities.json` and the README capability table on the
+same branch when they drift (same-repo PRs / pushes to `main`).
+
+Unit tests run offline. Integration tests use `//go:build integration` and need
+API keys in `.env` (same variables as Python: `POLYESTER_API_KEY_ID`,
+`POLYESTER_API_PRIVATE_KEY`, optional `POLYESTER_ACCOUNT_ID`, `POLYESTER_API_URL`).
 
 ```bash
 set -a && source .env && set +a
@@ -195,13 +386,22 @@ Integration tests skip automatically when API keys are not set.
 
 | Path | Purpose |
 |------|---------|
-| `client.go` | Root `Client`, `FromEnv`, service tree |
+| `client.go` | Root `Client`, `New`, `FromEnv`, service tree |
 | `services/` | Typed unary RPC + subscribe helpers |
 | `realtime/` | Centrifugo client, snapshot-then-stream |
 | `orderbook/` | Local book merge + managed subscription |
 | `codecs/` | Request encoding, scalar helpers, decode |
 | `gen/` | Checked-in Connect + protobuf generated code |
 
-## Note on protos
+## Changelog
 
-The Go SDK ships with a committed `gen/` tree. Proto stubs are updated when Yvan lands a new `gen/` bundle (same source as Python). You do not need local buf generation for day-to-day SDK work.
+See [CHANGELOG.md](CHANGELOG.md).
+
+## Transport
+
+Connect RPC over HTTP via generated clients in `gen/`. Wire format defaults to
+**binary protobuf**; set `Config.WireFormat` to `"json"` for debugging.
+
+The Go SDK ships with a committed `gen/` tree. Proto stubs are updated when a new
+`gen/` bundle is landed (same source as Python/Rust). You do not need local buf
+generation for day-to-day SDK work.
