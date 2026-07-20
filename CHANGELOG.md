@@ -2,11 +2,14 @@
 
 ## Unreleased
 
+### Changed
+- Connect RPC coverage gate no longer commits dashboard reports under `docs/`; CI fails on unexpected gaps only (`sdk-coverage.toml` + `scripts/check_sdk_coverage.py`)
+
 ## 0.1.0a9
 
 ### Features
 - `Client.WaitForCatalogs(ctx)` waits for best-effort background catalog hydration (parity with Python/Rust)
-- Connect RPC wrapper coverage gate (POLY-3533): `scripts/check_sdk_coverage.py`, allowlist, and committed `docs/sdk-coverage.*` reports
+- Connect RPC wrapper coverage gate (POLY-3533): `scripts/check_sdk_coverage.py` + `sdk-coverage.toml`
 
 ### Docs
 - README documents `WaitForCatalogs` before decimal writes that depend on catalog scales

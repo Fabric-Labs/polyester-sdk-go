@@ -1,5 +1,6 @@
 *.test
 coverage.out
+.sdk-coverage/
 .env
 .env.*
 !.env.example

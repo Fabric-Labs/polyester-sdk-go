@@ -19,8 +19,4 @@ fix:
 build:
 	go build ./...
 
-coverage:
-	python3 scripts/check_sdk_coverage.py --write
-	python3 scripts/check_sdk_coverage.py
-
-.PHONY: run test test-integration test-all lint fix build coverage
+.PHONY: run test test-integration test-all lint fix build

@@ -127,13 +127,11 @@ make test-integration  # live devnet smoke tests (reads .env)
 make test-all          # unit + integration (sources .env automatically)
 make lint              # golangci-lint (moon run :lint when moon is installed)
 make fix               # golangci-lint --fix (moon run :fix when moon is installed)
-make coverage          # regenerate Connect RPC ↔ wrapper coverage reports
 ./scripts/setup-hooks.sh   # optional: lint before each git commit
 ```
 
-Connect RPC wrapper coverage (public gen vs handwritten services) is tracked in
-[`docs/sdk-coverage.md`](docs/sdk-coverage.md). CI fails on unexpected gaps or a
-stale report — after wrapping a new RPC or refreshing gen, run `make coverage`.
+CI requires every public Connect RPC in `gen/` to be wrapped or listed in
+`sdk-coverage.toml`. Contributors: `python3 scripts/check_sdk_coverage.py`.
 
 Unit tests run offline. Integration tests use `//go:build integration` and need API keys in `.env` (same variables as Python: `POLYESTER_API_KEY_ID`, `POLYESTER_API_PRIVATE_KEY`, optional `POLYESTER_ACCOUNT_ID`, `POLYESTER_API_URL`).
 
