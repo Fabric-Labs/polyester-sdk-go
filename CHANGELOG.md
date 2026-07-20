@@ -12,7 +12,7 @@
 
 ### Features
 - `Client.WaitForCatalogs(ctx)` waits for best-effort background catalog hydration (parity with Python/Rust)
-- Connect RPC wrapper coverage gate (POLY-3533): `scripts/check_sdk_coverage.py` + `sdk-coverage.toml`
+- Connect RPC wrapper coverage gate: `scripts/check_sdk_coverage.py` + `sdk-coverage.toml`
 
 ### Docs
 - README documents `WaitForCatalogs` before decimal writes that depend on catalog scales
@@ -20,7 +20,7 @@
 ## 0.1.0a8
 
 ### Breaking
-- Authoritative freshness (POLY-3564): `Order.StateRevision` → `Order.Version`; balance `TradingVersion` / `FundingVersion` / `ReservedVersion` → `TradingUpdatedAtNs` / `FundingUpdatedAtNs` / `ReservedUpdatedAtNs`; subaccount and API-key `UpdatedAt` are configuration timestamps; API-key `LastUsedAt` stays independent activity time
+- Authoritative freshness: `Order.StateRevision` → `Order.Version`; balance `TradingVersion` / `FundingVersion` / `ReservedVersion` → `TradingUpdatedAtNs` / `FundingUpdatedAtNs` / `ReservedUpdatedAtNs`; subaccount and API-key `UpdatedAt` are configuration timestamps; API-key `LastUsedAt` stays independent activity time
 
 ### Features
 - Generated reconciliation and policy types exposed in the public SDK surface
@@ -29,7 +29,7 @@
 ## 0.1.0a7
 
 ### Breaking
-- Dual-path qty/price scalars (POLY-3262): reads expose typed `Price` / `Quantity` / `AssetAmount` domain fields (`.Ticks` / `.Scaled`) instead of primary digit-string `PriceTicks` / `QtyScaled` fields
+- Dual-path qty/price scalars: reads expose typed `Price` / `Quantity` / `AssetAmount` domain fields (`.Ticks` / `.Scaled`) instead of primary digit-string `PriceTicks` / `QtyScaled` fields
 - Order, trigger, transfer, and withdraw writes accept human decimals or bot scaled inputs (`PriceInput` / `QtyInput` / `AssetAmountInput`); excess precision is rejected (no silent truncation)
 
 ### Money types

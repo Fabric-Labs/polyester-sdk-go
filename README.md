@@ -2,7 +2,14 @@
 
 Go SDK for the Polyester public API — parity with `polyester-sdk-python` using the checked-in `gen/` protobuf bundle (no local proto generation required for normal development).
 
-API-key only (no browser login or session MFA). Full cross-language comparison:
+**Status:** Alpha. API-key only — no browser login or session MFA.
+
+## Supported surface
+
+API-key trading, market data, accounts, funding, and realtime streams — parity with
+the Python and Rust SDKs. Wallet login and session MFA are TypeScript/browser only.
+
+Full cross-language comparison:
 [SDK capability matrix](https://polyester.ai/docs/developer-docs/getting-started/sdk-capability-matrix).
 
 ## Install
