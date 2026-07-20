@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "sdk": "go",
-  "generatedAt": "2026-07-20T14:25:29Z",
+  "generatedAt": "2026-07-20T14:43:44Z",
   "publicDescriptorSha256": "286358d1c69b8c7bf7e81f7caf13e7c8efbae2d00df110037a4c71892840a8c5",
   "capabilities": [
     {
