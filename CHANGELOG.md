@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Testing
+- Live funded UserOp tests: Funding → Trading and Funding → external withdraw, gated by `POLYESTER_TEST_CHAIN_USEROP=1`
+
 ### Docs
 - Realtime and on-chain Funding helpers remain required dependencies (already hard `require`s in `go.mod`); aligns with Python/Rust packaging.
 
