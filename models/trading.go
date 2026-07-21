@@ -299,6 +299,7 @@ type ApiKeySummary struct {
 	Label            string     `json:"label,omitempty"`
 	Status           string     `json:"status,omitempty"`
 	PublicKeyEd25519 string     `json:"public_key_ed25519,omitempty"`
+	Revision         uint64     `json:"revision,omitempty"`
 	CreatedAt        *time.Time `json:"created_at,omitempty"`
 	LastUsedAt       *time.Time `json:"last_used_at,omitempty"`
 	UpdatedAt        *time.Time `json:"updated_at,omitempty"`

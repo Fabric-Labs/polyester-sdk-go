@@ -8,6 +8,7 @@ type SubAccount struct {
 	Label               string     `json:"label,omitempty"`
 	SmartAccountAddress string     `json:"smart_account_address,omitempty"`
 	Status              string     `json:"status,omitempty"`
+	Revision            uint64     `json:"revision,omitempty"`
 	UpdatedAt           *time.Time `json:"updated_at,omitempty"`
 }
 

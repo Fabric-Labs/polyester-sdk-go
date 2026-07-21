@@ -56,12 +56,12 @@ func (s *PoliciesService) CreateSubaccountPolicy(ctx context.Context, account Ac
 	return UnaryAuth(ctx, s.transport, s.client().CreateSubaccountPolicy, req, decode.CreateSubaccountPolicyFromProto)
 }
 
-func (s *PoliciesService) UpdateSubaccountPolicy(ctx context.Context, policyID string, opts codecs.SubaccountPolicyWriteOpts) (*models.SubaccountPolicy, error) {
+func (s *PoliciesService) UpdateSubaccountPolicy(ctx context.Context, policyID string, patch codecs.SubaccountPolicyPatch) (*models.SubaccountPolicy, error) {
 	id, err := codecs.IDToInt(policyID, "policy_id")
 	if err != nil {
 		return nil, err
 	}
-	req, err := codecs.BuildUpdateSubaccountPolicyRequest(id, opts)
+	req, err := codecs.BuildUpdateSubaccountPolicyRequest(id, patch)
 	if err != nil {
 		return nil, err
 	}
@@ -111,12 +111,12 @@ func (s *PoliciesService) CreateAPIPolicy(ctx context.Context, opts codecs.ApiPo
 	return UnaryAuth(ctx, s.transport, s.client().CreateApiPolicy, req, decode.CreateApiPolicyFromProto)
 }
 
-func (s *PoliciesService) UpdateAPIPolicy(ctx context.Context, policyID string, opts codecs.ApiPolicyWriteOpts) (*models.ApiPolicy, error) {
+func (s *PoliciesService) UpdateAPIPolicy(ctx context.Context, policyID string, patch codecs.ApiPolicyPatch) (*models.ApiPolicy, error) {
 	id, err := codecs.IDToInt(policyID, "policy_id")
 	if err != nil {
 		return nil, err
 	}
-	req, err := codecs.BuildUpdateApiPolicyRequest(id, opts)
+	req, err := codecs.BuildUpdateApiPolicyRequest(id, patch)
 	if err != nil {
 		return nil, err
 	}

@@ -5,6 +5,7 @@ type AddressBookEntry struct {
 	AddressBookEntryID string `json:"address_book_entry_id,omitempty"`
 	Label              string `json:"label,omitempty"`
 	Kind               string `json:"kind,omitempty"`
+	Revision           uint64 `json:"revision,omitempty"`
 }
 
 // AddressBookEntriesList lists entries.
