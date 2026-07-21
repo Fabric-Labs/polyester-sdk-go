@@ -50,8 +50,34 @@ func isPrivateChannel(channel string) bool {
 	return strings.HasPrefix(channel, "private:")
 }
 
+// SubscribeProtoOptions configures protobuf subscription behavior.
+type SubscribeProtoOptions struct {
+	// AutoReconnect controls whether the transport reconnects after disconnect.
+	// Default true for raw subscriptions. Snapshot-then-stream sets this false so
+	// it can refresh REST state between reconnect attempts.
+	AutoReconnect *bool
+}
+
+func autoReconnectEnabled(opts *SubscribeProtoOptions) bool {
+	if opts == nil || opts.AutoReconnect == nil {
+		return true
+	}
+	return *opts.AutoReconnect
+}
+
 // SubscribeProto subscribes to a protobuf Centrifugo channel.
 func SubscribeProto[T any](ctx context.Context, c *Client, channel string, decode func([]byte) (T, error)) (*Subscription[T], error) {
+	return SubscribeProtoWithOptions(ctx, c, channel, decode, nil)
+}
+
+// SubscribeProtoWithOptions subscribes with optional reconnect control.
+func SubscribeProtoWithOptions[T any](
+	ctx context.Context,
+	c *Client,
+	channel string,
+	decode func([]byte) (T, error),
+	opts *SubscribeProtoOptions,
+) (*Subscription[T], error) {
 	if c == nil {
 		return nil, &sdkerrors.RealtimeError{Msg: "Realtime client is not configured"}
 	}
@@ -66,6 +92,7 @@ func SubscribeProto[T any](ctx context.Context, c *Client, channel string, decod
 
 	runCtx, cancel := context.WithCancel(ctx)
 	sub := newSubscription[T](c.maxQueue, cancel)
+	reconnect := autoReconnectEnabled(opts)
 
 	go func() {
 		defer sub.Close()
@@ -76,6 +103,13 @@ func SubscribeProto[T any](ctx context.Context, c *Client, channel string, decod
 			}
 			err := runSubscriptionOnce(runCtx, c, channel, decode, sub)
 			if err == nil || runCtx.Err() != nil {
+				return
+			}
+			// Overflow and other terminal subscription faults must not reconnect.
+			if sub.Err() != nil {
+				return
+			}
+			if !reconnect {
 				return
 			}
 			select {
@@ -141,7 +175,12 @@ func runSubscriptionOnce[T any](ctx context.Context, c *Client, channel string, 
 				return err
 			}
 			for _, item := range items {
-				sub.enqueue(item)
+				if !sub.enqueue(item) {
+					if err := sub.Err(); err != nil {
+						return err
+					}
+					return ctx.Err()
+				}
 			}
 		}
 	}
@@ -270,6 +309,8 @@ type SnapshotThenStream[TSnapshot any, TPublication any] struct {
 	readPublication       func(TPublication) []TPublication
 	applySnapshot         func(TSnapshot, []TPublication)
 	applyLivePublications func([]TPublication)
+	onReconnect           func()
+	onSnapshotRefresh     func()
 	maxBuffered           int
 
 	mu         sync.Mutex
@@ -290,7 +331,11 @@ type SnapshotThenStreamConfig[TSnapshot any, TPublication any] struct {
 	ReadPublication       func(TPublication) []TPublication
 	ApplySnapshot         func(TSnapshot, []TPublication)
 	ApplyLivePublications func([]TPublication)
-	MaxBuffered           int
+	// OnReconnect is called after a transport disconnect before snapshot rebuild.
+	OnReconnect func()
+	// OnSnapshotRefresh is called after a successful snapshot rebuild.
+	OnSnapshotRefresh func()
+	MaxBuffered       int
 }
 
 // NewSnapshotThenStream creates a snapshot-then-stream coordinator.
@@ -307,6 +352,8 @@ func NewSnapshotThenStream[TSnapshot any, TPublication any](cfg SnapshotThenStre
 		readPublication:       cfg.ReadPublication,
 		applySnapshot:         cfg.ApplySnapshot,
 		applyLivePublications: cfg.ApplyLivePublications,
+		onReconnect:           cfg.OnReconnect,
+		onSnapshotRefresh:     cfg.OnSnapshotRefresh,
 		maxBuffered:           maxBuffered,
 		done:                  make(chan struct{}),
 	}
@@ -329,22 +376,72 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) Start(ctx context.Context)
 
 func (s *SnapshotThenStream[TSnapshot, TPublication]) run(ctx context.Context) {
 	defer close(s.done)
-	sub, err := SubscribeProto(ctx, s.client, s.channel, s.decode)
-	if err != nil {
-		return
-	}
-	defer sub.Close()
+	first := true
 	for {
+		if ctx.Err() != nil {
+			return
+		}
+		s.mu.Lock()
+		disposed := s.disposed
+		s.mu.Unlock()
+		if disposed {
+			return
+		}
+
+		noReconnect := false
+		sub, err := SubscribeProtoWithOptions(ctx, s.client, s.channel, s.decode, &SubscribeProtoOptions{
+			AutoReconnect: &noReconnect,
+		})
+		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(time.Second):
+				continue
+			}
+		}
+
+		if !first {
+			if s.onReconnect != nil {
+				s.onReconnect()
+			}
+			_ = s.RefreshSnapshot(ctx)
+		}
+		first = false
+
+		func() {
+			defer sub.Close()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-sub.Done():
+					return
+				case msg, ok := <-sub.Messages():
+					if !ok {
+						return
+					}
+					s.handlePublication(msg)
+				}
+			}
+		}()
+
+		if ctx.Err() != nil {
+			return
+		}
+		s.mu.Lock()
+		disposed = s.disposed
+		s.mu.Unlock()
+		if disposed {
+			return
+		}
 		select {
 		case <-ctx.Done():
 			return
-		case <-sub.Done():
-			return
-		case msg, ok := <-sub.Messages():
-			if !ok {
-				return
-			}
-			s.handlePublication(msg)
+		case <-time.After(time.Second):
 		}
 	}
 }
@@ -385,14 +482,19 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) RefreshSnapshot(ctx contex
 	}
 
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.disposed || generation != s.generation {
+		s.mu.Unlock()
 		return nil
 	}
 	buffered := s.pending
 	s.pending = nil
 	s.applySnapshot(snapshot, buffered)
 	s.ready = true
+	onRefresh := s.onSnapshotRefresh
+	s.mu.Unlock()
+	if onRefresh != nil {
+		onRefresh()
+	}
 	return nil
 }
 
