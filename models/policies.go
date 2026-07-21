@@ -16,6 +16,7 @@ type SubaccountPolicy struct {
 	PolicyID    string `json:"policy_id,omitempty"`
 	Name        string `json:"name,omitempty"`
 	Description string `json:"description,omitempty"`
+	Revision    uint64 `json:"revision,omitempty"`
 }
 
 // SubaccountPoliciesList lists subaccount policies.
@@ -28,6 +29,7 @@ type ApiPolicy struct {
 	PolicyID    string `json:"policy_id,omitempty"`
 	Name        string `json:"name,omitempty"`
 	Description string `json:"description,omitempty"`
+	Revision    uint64 `json:"revision,omitempty"`
 }
 
 // ApiPoliciesList lists API policies.
