@@ -588,6 +588,8 @@ func (m *SubaccountPolicyView) validate(all bool) error {
 		}
 	}
 
+	// no validation rules for Revision
+
 	if len(errors) > 0 {
 		return SubaccountPolicyViewMultiError(errors)
 	}
@@ -1152,22 +1154,22 @@ var _ interface {
 	ErrorName() string
 } = GetSubaccountPolicyResponseValidationError{}
 
-// Validate checks the field values on CreateSubaccountPolicyRequest with the
-// rules defined in the proto definition for this message. If any rules are
+// Validate checks the field values on SubaccountPolicySpec with the rules
+// defined in the proto definition for this message. If any rules are
 // violated, the first error encountered is returned, or nil if there are no violations.
-func (m *CreateSubaccountPolicyRequest) Validate() error {
+func (m *SubaccountPolicySpec) Validate() error {
 	return m.validate(false)
 }
 
-// ValidateAll checks the field values on CreateSubaccountPolicyRequest with
-// the rules defined in the proto definition for this message. If any rules
-// are violated, the result is a list of violation errors wrapped in
-// CreateSubaccountPolicyRequestMultiError, or nil if none found.
-func (m *CreateSubaccountPolicyRequest) ValidateAll() error {
+// ValidateAll checks the field values on SubaccountPolicySpec with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// SubaccountPolicySpecMultiError, or nil if none found.
+func (m *SubaccountPolicySpec) ValidateAll() error {
 	return m.validate(true)
 }
 
-func (m *CreateSubaccountPolicyRequest) validate(all bool) error {
+func (m *SubaccountPolicySpec) validate(all bool) error {
 	if m == nil {
 		return nil
 	}
@@ -1185,7 +1187,7 @@ func (m *CreateSubaccountPolicyRequest) validate(all bool) error {
 			switch v := interface{}(item).(type) {
 			case interface{ ValidateAll() error }:
 				if err := v.ValidateAll(); err != nil {
-					errors = append(errors, CreateSubaccountPolicyRequestValidationError{
+					errors = append(errors, SubaccountPolicySpecValidationError{
 						field:  fmt.Sprintf("SpotMarkets[%v]", idx),
 						reason: "embedded message failed validation",
 						cause:  err,
@@ -1193,7 +1195,7 @@ func (m *CreateSubaccountPolicyRequest) validate(all bool) error {
 				}
 			case interface{ Validate() error }:
 				if err := v.Validate(); err != nil {
-					errors = append(errors, CreateSubaccountPolicyRequestValidationError{
+					errors = append(errors, SubaccountPolicySpecValidationError{
 						field:  fmt.Sprintf("SpotMarkets[%v]", idx),
 						reason: "embedded message failed validation",
 						cause:  err,
@@ -1202,7 +1204,7 @@ func (m *CreateSubaccountPolicyRequest) validate(all bool) error {
 			}
 		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
 			if err := v.Validate(); err != nil {
-				return CreateSubaccountPolicyRequestValidationError{
+				return SubaccountPolicySpecValidationError{
 					field:  fmt.Sprintf("SpotMarkets[%v]", idx),
 					reason: "embedded message failed validation",
 					cause:  err,
@@ -1219,7 +1221,7 @@ func (m *CreateSubaccountPolicyRequest) validate(all bool) error {
 			switch v := interface{}(item).(type) {
 			case interface{ ValidateAll() error }:
 				if err := v.ValidateAll(); err != nil {
-					errors = append(errors, CreateSubaccountPolicyRequestValidationError{
+					errors = append(errors, SubaccountPolicySpecValidationError{
 						field:  fmt.Sprintf("PerpMarkets[%v]", idx),
 						reason: "embedded message failed validation",
 						cause:  err,
@@ -1227,7 +1229,7 @@ func (m *CreateSubaccountPolicyRequest) validate(all bool) error {
 				}
 			case interface{ Validate() error }:
 				if err := v.Validate(); err != nil {
-					errors = append(errors, CreateSubaccountPolicyRequestValidationError{
+					errors = append(errors, SubaccountPolicySpecValidationError{
 						field:  fmt.Sprintf("PerpMarkets[%v]", idx),
 						reason: "embedded message failed validation",
 						cause:  err,
@@ -1236,7 +1238,7 @@ func (m *CreateSubaccountPolicyRequest) validate(all bool) error {
 			}
 		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
 			if err := v.Validate(); err != nil {
-				return CreateSubaccountPolicyRequestValidationError{
+				return SubaccountPolicySpecValidationError{
 					field:  fmt.Sprintf("PerpMarkets[%v]", idx),
 					reason: "embedded message failed validation",
 					cause:  err,
@@ -1282,7 +1284,7 @@ func (m *CreateSubaccountPolicyRequest) validate(all bool) error {
 		switch v := interface{}(m.GetReviewAt()).(type) {
 		case interface{ ValidateAll() error }:
 			if err := v.ValidateAll(); err != nil {
-				errors = append(errors, CreateSubaccountPolicyRequestValidationError{
+				errors = append(errors, SubaccountPolicySpecValidationError{
 					field:  "ReviewAt",
 					reason: "embedded message failed validation",
 					cause:  err,
@@ -1290,7 +1292,7 @@ func (m *CreateSubaccountPolicyRequest) validate(all bool) error {
 			}
 		case interface{ Validate() error }:
 			if err := v.Validate(); err != nil {
-				errors = append(errors, CreateSubaccountPolicyRequestValidationError{
+				errors = append(errors, SubaccountPolicySpecValidationError{
 					field:  "ReviewAt",
 					reason: "embedded message failed validation",
 					cause:  err,
@@ -1299,7 +1301,7 @@ func (m *CreateSubaccountPolicyRequest) validate(all bool) error {
 		}
 	} else if v, ok := interface{}(m.GetReviewAt()).(interface{ Validate() error }); ok {
 		if err := v.Validate(); err != nil {
-			return CreateSubaccountPolicyRequestValidationError{
+			return SubaccountPolicySpecValidationError{
 				field:  "ReviewAt",
 				reason: "embedded message failed validation",
 				cause:  err,
@@ -1311,7 +1313,7 @@ func (m *CreateSubaccountPolicyRequest) validate(all bool) error {
 		switch v := interface{}(m.GetExpiresAt()).(type) {
 		case interface{ ValidateAll() error }:
 			if err := v.ValidateAll(); err != nil {
-				errors = append(errors, CreateSubaccountPolicyRequestValidationError{
+				errors = append(errors, SubaccountPolicySpecValidationError{
 					field:  "ExpiresAt",
 					reason: "embedded message failed validation",
 					cause:  err,
@@ -1319,7 +1321,7 @@ func (m *CreateSubaccountPolicyRequest) validate(all bool) error {
 			}
 		case interface{ Validate() error }:
 			if err := v.Validate(); err != nil {
-				errors = append(errors, CreateSubaccountPolicyRequestValidationError{
+				errors = append(errors, SubaccountPolicySpecValidationError{
 					field:  "ExpiresAt",
 					reason: "embedded message failed validation",
 					cause:  err,
@@ -1328,8 +1330,139 @@ func (m *CreateSubaccountPolicyRequest) validate(all bool) error {
 		}
 	} else if v, ok := interface{}(m.GetExpiresAt()).(interface{ Validate() error }); ok {
 		if err := v.Validate(); err != nil {
-			return CreateSubaccountPolicyRequestValidationError{
+			return SubaccountPolicySpecValidationError{
 				field:  "ExpiresAt",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if len(errors) > 0 {
+		return SubaccountPolicySpecMultiError(errors)
+	}
+
+	return nil
+}
+
+// SubaccountPolicySpecMultiError is an error wrapping multiple validation
+// errors returned by SubaccountPolicySpec.ValidateAll() if the designated
+// constraints aren't met.
+type SubaccountPolicySpecMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m SubaccountPolicySpecMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m SubaccountPolicySpecMultiError) AllErrors() []error { return m }
+
+// SubaccountPolicySpecValidationError is the validation error returned by
+// SubaccountPolicySpec.Validate if the designated constraints aren't met.
+type SubaccountPolicySpecValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e SubaccountPolicySpecValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e SubaccountPolicySpecValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e SubaccountPolicySpecValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e SubaccountPolicySpecValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e SubaccountPolicySpecValidationError) ErrorName() string {
+	return "SubaccountPolicySpecValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e SubaccountPolicySpecValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sSubaccountPolicySpec.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = SubaccountPolicySpecValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = SubaccountPolicySpecValidationError{}
+
+// Validate checks the field values on CreateSubaccountPolicyRequest with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *CreateSubaccountPolicyRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on CreateSubaccountPolicyRequest with
+// the rules defined in the proto definition for this message. If any rules
+// are violated, the result is a list of violation errors wrapped in
+// CreateSubaccountPolicyRequestMultiError, or nil if none found.
+func (m *CreateSubaccountPolicyRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *CreateSubaccountPolicyRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if all {
+		switch v := interface{}(m.GetPolicy()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, CreateSubaccountPolicyRequestValidationError{
+					field:  "Policy",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, CreateSubaccountPolicyRequestValidationError{
+					field:  "Policy",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetPolicy()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return CreateSubaccountPolicyRequestValidationError{
+				field:  "Policy",
 				reason: "embedded message failed validation",
 				cause:  err,
 			}
@@ -1577,116 +1710,12 @@ func (m *UpdateSubaccountPolicyRequest) validate(all bool) error {
 
 	// no validation rules for PolicyId
 
-	// no validation rules for Name
-
-	// no validation rules for Description
-
-	for idx, item := range m.GetSpotMarkets() {
-		_, _ = idx, item
-
-		if all {
-			switch v := interface{}(item).(type) {
-			case interface{ ValidateAll() error }:
-				if err := v.ValidateAll(); err != nil {
-					errors = append(errors, UpdateSubaccountPolicyRequestValidationError{
-						field:  fmt.Sprintf("SpotMarkets[%v]", idx),
-						reason: "embedded message failed validation",
-						cause:  err,
-					})
-				}
-			case interface{ Validate() error }:
-				if err := v.Validate(); err != nil {
-					errors = append(errors, UpdateSubaccountPolicyRequestValidationError{
-						field:  fmt.Sprintf("SpotMarkets[%v]", idx),
-						reason: "embedded message failed validation",
-						cause:  err,
-					})
-				}
-			}
-		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
-			if err := v.Validate(); err != nil {
-				return UpdateSubaccountPolicyRequestValidationError{
-					field:  fmt.Sprintf("SpotMarkets[%v]", idx),
-					reason: "embedded message failed validation",
-					cause:  err,
-				}
-			}
-		}
-
-	}
-
-	for idx, item := range m.GetPerpMarkets() {
-		_, _ = idx, item
-
-		if all {
-			switch v := interface{}(item).(type) {
-			case interface{ ValidateAll() error }:
-				if err := v.ValidateAll(); err != nil {
-					errors = append(errors, UpdateSubaccountPolicyRequestValidationError{
-						field:  fmt.Sprintf("PerpMarkets[%v]", idx),
-						reason: "embedded message failed validation",
-						cause:  err,
-					})
-				}
-			case interface{ Validate() error }:
-				if err := v.Validate(); err != nil {
-					errors = append(errors, UpdateSubaccountPolicyRequestValidationError{
-						field:  fmt.Sprintf("PerpMarkets[%v]", idx),
-						reason: "embedded message failed validation",
-						cause:  err,
-					})
-				}
-			}
-		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
-			if err := v.Validate(); err != nil {
-				return UpdateSubaccountPolicyRequestValidationError{
-					field:  fmt.Sprintf("PerpMarkets[%v]", idx),
-					reason: "embedded message failed validation",
-					cause:  err,
-				}
-			}
-		}
-
-	}
-
-	// no validation rules for SpotMarketScope
-
-	// no validation rules for PerpMarketScope
-
-	// no validation rules for GlobalNotionalCap
-
-	// no validation rules for MaxOrderNotional
-
-	// no validation rules for MaxOpenOrders
-
-	// no validation rules for MaxOpenPositions
-
-	// no validation rules for GlobalPerpLeverageX
-
-	// no validation rules for DailyInternalTransferOutLimit
-
-	// no validation rules for DailyWithdrawLimit
-
-	// no validation rules for InternalTransfersOwnOnly
-
-	// no validation rules for EnforceWithdrawWhitelist
-
-	// no validation rules for TradingHalted
-
-	// no validation rules for LiquidationOnly
-
-	// no validation rules for DailyLossLimit
-
-	// no validation rules for IntradayDrawdownLimitBps
-
-	// no validation rules for Locked
-
 	if all {
-		switch v := interface{}(m.GetReviewAt()).(type) {
+		switch v := interface{}(m.GetPolicy()).(type) {
 		case interface{ ValidateAll() error }:
 			if err := v.ValidateAll(); err != nil {
 				errors = append(errors, UpdateSubaccountPolicyRequestValidationError{
-					field:  "ReviewAt",
+					field:  "Policy",
 					reason: "embedded message failed validation",
 					cause:  err,
 				})
@@ -1694,16 +1723,16 @@ func (m *UpdateSubaccountPolicyRequest) validate(all bool) error {
 		case interface{ Validate() error }:
 			if err := v.Validate(); err != nil {
 				errors = append(errors, UpdateSubaccountPolicyRequestValidationError{
-					field:  "ReviewAt",
+					field:  "Policy",
 					reason: "embedded message failed validation",
 					cause:  err,
 				})
 			}
 		}
-	} else if v, ok := interface{}(m.GetReviewAt()).(interface{ Validate() error }); ok {
+	} else if v, ok := interface{}(m.GetPolicy()).(interface{ Validate() error }); ok {
 		if err := v.Validate(); err != nil {
 			return UpdateSubaccountPolicyRequestValidationError{
-				field:  "ReviewAt",
+				field:  "Policy",
 				reason: "embedded message failed validation",
 				cause:  err,
 			}
@@ -1711,11 +1740,11 @@ func (m *UpdateSubaccountPolicyRequest) validate(all bool) error {
 	}
 
 	if all {
-		switch v := interface{}(m.GetExpiresAt()).(type) {
+		switch v := interface{}(m.GetUpdateMask()).(type) {
 		case interface{ ValidateAll() error }:
 			if err := v.ValidateAll(); err != nil {
 				errors = append(errors, UpdateSubaccountPolicyRequestValidationError{
-					field:  "ExpiresAt",
+					field:  "UpdateMask",
 					reason: "embedded message failed validation",
 					cause:  err,
 				})
@@ -1723,21 +1752,23 @@ func (m *UpdateSubaccountPolicyRequest) validate(all bool) error {
 		case interface{ Validate() error }:
 			if err := v.Validate(); err != nil {
 				errors = append(errors, UpdateSubaccountPolicyRequestValidationError{
-					field:  "ExpiresAt",
+					field:  "UpdateMask",
 					reason: "embedded message failed validation",
 					cause:  err,
 				})
 			}
 		}
-	} else if v, ok := interface{}(m.GetExpiresAt()).(interface{ Validate() error }); ok {
+	} else if v, ok := interface{}(m.GetUpdateMask()).(interface{ Validate() error }); ok {
 		if err := v.Validate(); err != nil {
 			return UpdateSubaccountPolicyRequestValidationError{
-				field:  "ExpiresAt",
+				field:  "UpdateMask",
 				reason: "embedded message failed validation",
 				cause:  err,
 			}
 		}
 	}
+
+	// no validation rules for ExpectedRevision
 
 	if len(errors) > 0 {
 		return UpdateSubaccountPolicyRequestMultiError(errors)
@@ -2537,6 +2568,8 @@ func (m *ApiPolicyView) validate(all bool) error {
 		}
 	}
 
+	// no validation rules for Revision
+
 	if len(errors) > 0 {
 		return ApiPolicyViewMultiError(errors)
 	}
@@ -3096,6 +3129,190 @@ var _ interface {
 	ErrorName() string
 } = GetApiPolicyResponseValidationError{}
 
+// Validate checks the field values on ApiPolicySpec with the rules defined in
+// the proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *ApiPolicySpec) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on ApiPolicySpec with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// result is a list of violation errors wrapped in ApiPolicySpecMultiError, or
+// nil if none found.
+func (m *ApiPolicySpec) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *ApiPolicySpec) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Name
+
+	// no validation rules for Description
+
+	for idx, item := range m.GetSpotMarkets() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, ApiPolicySpecValidationError{
+						field:  fmt.Sprintf("SpotMarkets[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, ApiPolicySpecValidationError{
+						field:  fmt.Sprintf("SpotMarkets[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return ApiPolicySpecValidationError{
+					field:  fmt.Sprintf("SpotMarkets[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	for idx, item := range m.GetPerpMarkets() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, ApiPolicySpecValidationError{
+						field:  fmt.Sprintf("PerpMarkets[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, ApiPolicySpecValidationError{
+						field:  fmt.Sprintf("PerpMarkets[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return ApiPolicySpecValidationError{
+					field:  fmt.Sprintf("PerpMarkets[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	// no validation rules for SpotMarketScope
+
+	// no validation rules for PerpMarketScope
+
+	// no validation rules for MaxOrderNotional
+
+	// no validation rules for DailyInternalTransferOutLimit
+
+	// no validation rules for DailyWithdrawLimit
+
+	// no validation rules for IsTemplate
+
+	if len(errors) > 0 {
+		return ApiPolicySpecMultiError(errors)
+	}
+
+	return nil
+}
+
+// ApiPolicySpecMultiError is an error wrapping multiple validation errors
+// returned by ApiPolicySpec.ValidateAll() if the designated constraints
+// aren't met.
+type ApiPolicySpecMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m ApiPolicySpecMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m ApiPolicySpecMultiError) AllErrors() []error { return m }
+
+// ApiPolicySpecValidationError is the validation error returned by
+// ApiPolicySpec.Validate if the designated constraints aren't met.
+type ApiPolicySpecValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ApiPolicySpecValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ApiPolicySpecValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ApiPolicySpecValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ApiPolicySpecValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ApiPolicySpecValidationError) ErrorName() string { return "ApiPolicySpecValidationError" }
+
+// Error satisfies the builtin error interface
+func (e ApiPolicySpecValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sApiPolicySpec.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ApiPolicySpecValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ApiPolicySpecValidationError{}
+
 // Validate checks the field values on CreateApiPolicyRequest with the rules
 // defined in the proto definition for this message. If any rules are
 // violated, the first error encountered is returned, or nil if there are no violations.
@@ -3118,89 +3335,34 @@ func (m *CreateApiPolicyRequest) validate(all bool) error {
 
 	var errors []error
 
-	// no validation rules for Name
-
-	// no validation rules for Description
-
-	for idx, item := range m.GetSpotMarkets() {
-		_, _ = idx, item
-
-		if all {
-			switch v := interface{}(item).(type) {
-			case interface{ ValidateAll() error }:
-				if err := v.ValidateAll(); err != nil {
-					errors = append(errors, CreateApiPolicyRequestValidationError{
-						field:  fmt.Sprintf("SpotMarkets[%v]", idx),
-						reason: "embedded message failed validation",
-						cause:  err,
-					})
-				}
-			case interface{ Validate() error }:
-				if err := v.Validate(); err != nil {
-					errors = append(errors, CreateApiPolicyRequestValidationError{
-						field:  fmt.Sprintf("SpotMarkets[%v]", idx),
-						reason: "embedded message failed validation",
-						cause:  err,
-					})
-				}
-			}
-		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
-			if err := v.Validate(); err != nil {
-				return CreateApiPolicyRequestValidationError{
-					field:  fmt.Sprintf("SpotMarkets[%v]", idx),
+	if all {
+		switch v := interface{}(m.GetPolicy()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, CreateApiPolicyRequestValidationError{
+					field:  "Policy",
 					reason: "embedded message failed validation",
 					cause:  err,
-				}
+				})
 			}
-		}
-
-	}
-
-	for idx, item := range m.GetPerpMarkets() {
-		_, _ = idx, item
-
-		if all {
-			switch v := interface{}(item).(type) {
-			case interface{ ValidateAll() error }:
-				if err := v.ValidateAll(); err != nil {
-					errors = append(errors, CreateApiPolicyRequestValidationError{
-						field:  fmt.Sprintf("PerpMarkets[%v]", idx),
-						reason: "embedded message failed validation",
-						cause:  err,
-					})
-				}
-			case interface{ Validate() error }:
-				if err := v.Validate(); err != nil {
-					errors = append(errors, CreateApiPolicyRequestValidationError{
-						field:  fmt.Sprintf("PerpMarkets[%v]", idx),
-						reason: "embedded message failed validation",
-						cause:  err,
-					})
-				}
-			}
-		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+		case interface{ Validate() error }:
 			if err := v.Validate(); err != nil {
-				return CreateApiPolicyRequestValidationError{
-					field:  fmt.Sprintf("PerpMarkets[%v]", idx),
+				errors = append(errors, CreateApiPolicyRequestValidationError{
+					field:  "Policy",
 					reason: "embedded message failed validation",
 					cause:  err,
-				}
+				})
 			}
 		}
-
+	} else if v, ok := interface{}(m.GetPolicy()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return CreateApiPolicyRequestValidationError{
+				field:  "Policy",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
 	}
-
-	// no validation rules for SpotMarketScope
-
-	// no validation rules for PerpMarketScope
-
-	// no validation rules for MaxOrderNotional
-
-	// no validation rules for DailyInternalTransferOutLimit
-
-	// no validation rules for DailyWithdrawLimit
-
-	// no validation rules for IsTemplate
 
 	// no validation rules for AssignToKeyId
 
@@ -3439,89 +3601,65 @@ func (m *UpdateApiPolicyRequest) validate(all bool) error {
 
 	// no validation rules for PolicyId
 
-	// no validation rules for Name
-
-	// no validation rules for Description
-
-	for idx, item := range m.GetSpotMarkets() {
-		_, _ = idx, item
-
-		if all {
-			switch v := interface{}(item).(type) {
-			case interface{ ValidateAll() error }:
-				if err := v.ValidateAll(); err != nil {
-					errors = append(errors, UpdateApiPolicyRequestValidationError{
-						field:  fmt.Sprintf("SpotMarkets[%v]", idx),
-						reason: "embedded message failed validation",
-						cause:  err,
-					})
-				}
-			case interface{ Validate() error }:
-				if err := v.Validate(); err != nil {
-					errors = append(errors, UpdateApiPolicyRequestValidationError{
-						field:  fmt.Sprintf("SpotMarkets[%v]", idx),
-						reason: "embedded message failed validation",
-						cause:  err,
-					})
-				}
-			}
-		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
-			if err := v.Validate(); err != nil {
-				return UpdateApiPolicyRequestValidationError{
-					field:  fmt.Sprintf("SpotMarkets[%v]", idx),
+	if all {
+		switch v := interface{}(m.GetPolicy()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, UpdateApiPolicyRequestValidationError{
+					field:  "Policy",
 					reason: "embedded message failed validation",
 					cause:  err,
-				}
+				})
 			}
-		}
-
-	}
-
-	for idx, item := range m.GetPerpMarkets() {
-		_, _ = idx, item
-
-		if all {
-			switch v := interface{}(item).(type) {
-			case interface{ ValidateAll() error }:
-				if err := v.ValidateAll(); err != nil {
-					errors = append(errors, UpdateApiPolicyRequestValidationError{
-						field:  fmt.Sprintf("PerpMarkets[%v]", idx),
-						reason: "embedded message failed validation",
-						cause:  err,
-					})
-				}
-			case interface{ Validate() error }:
-				if err := v.Validate(); err != nil {
-					errors = append(errors, UpdateApiPolicyRequestValidationError{
-						field:  fmt.Sprintf("PerpMarkets[%v]", idx),
-						reason: "embedded message failed validation",
-						cause:  err,
-					})
-				}
-			}
-		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+		case interface{ Validate() error }:
 			if err := v.Validate(); err != nil {
-				return UpdateApiPolicyRequestValidationError{
-					field:  fmt.Sprintf("PerpMarkets[%v]", idx),
+				errors = append(errors, UpdateApiPolicyRequestValidationError{
+					field:  "Policy",
 					reason: "embedded message failed validation",
 					cause:  err,
-				}
+				})
 			}
 		}
-
+	} else if v, ok := interface{}(m.GetPolicy()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return UpdateApiPolicyRequestValidationError{
+				field:  "Policy",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
 	}
 
-	// no validation rules for SpotMarketScope
+	if all {
+		switch v := interface{}(m.GetUpdateMask()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, UpdateApiPolicyRequestValidationError{
+					field:  "UpdateMask",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, UpdateApiPolicyRequestValidationError{
+					field:  "UpdateMask",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetUpdateMask()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return UpdateApiPolicyRequestValidationError{
+				field:  "UpdateMask",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
 
-	// no validation rules for PerpMarketScope
-
-	// no validation rules for MaxOrderNotional
-
-	// no validation rules for DailyInternalTransferOutLimit
-
-	// no validation rules for DailyWithdrawLimit
-
-	// no validation rules for IsTemplate
+	// no validation rules for ExpectedRevision
 
 	if len(errors) > 0 {
 		return UpdateApiPolicyRequestMultiError(errors)

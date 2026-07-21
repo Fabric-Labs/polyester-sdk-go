@@ -12,6 +12,7 @@ import (
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -404,7 +405,9 @@ type SubaccountPolicyView struct {
 	// Creation time in UTC.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,20,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Last update time in UTC.
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,21,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,21,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// Monotonic resource revision used for conditional updates.
+	Revision      uint64 `protobuf:"varint,30,opt,name=revision,proto3" json:"revision,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -635,6 +638,13 @@ func (x *SubaccountPolicyView) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *SubaccountPolicyView) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
 // ListSubaccountPoliciesRequest lists the finite set of sub-account policies
 // visible in the requested account scope. Results are sorted by ascending
 // policy ID and are not paginated.
@@ -833,18 +843,14 @@ func (x *GetSubaccountPolicyResponse) GetPolicy() *SubaccountPolicyView {
 	return nil
 }
 
-// CreateSubaccountPolicyRequest defines a new sub-account policy template, with
-// an optional attach step for one target sub-account.
-type CreateSubaccountPolicyRequest struct {
+// SubaccountPolicySpec contains the mutable configuration of a sub-account policy.
+type SubaccountPolicySpec struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Human-readable policy name. Required; 1 to 64 characters.
+	// Human-readable policy name. Create requires a non-empty value; update
+	// validates it after merging fields selected by update_mask.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// Optional policy description for dashboards and audits. Maximum 256 characters.
 	Description string `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
-	// Optional: if set, the created policy will be immediately attached to this
-	// sub-account (opaque ID) in the same request. Useful for "create
-	// policy for this sub-account" flows. Omit to create reusable templates.
-	SubaccountId *uint64 `protobuf:"fixed64,9,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Allowed spot markets for this policy.
 	SpotMarkets []*SpotMarketRule `protobuf:"bytes,3,rep,name=spot_markets,json=spotMarkets,proto3" json:"spot_markets,omitempty"`
 	// Allowed perp markets and optional per-contract leverage caps.
@@ -909,9 +915,212 @@ type CreateSubaccountPolicyRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
+func (x *SubaccountPolicySpec) Reset() {
+	*x = SubaccountPolicySpec{}
+	mi := &file_auth_v1_policies_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubaccountPolicySpec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubaccountPolicySpec) ProtoMessage() {}
+
+func (x *SubaccountPolicySpec) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_policies_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubaccountPolicySpec.ProtoReflect.Descriptor instead.
+func (*SubaccountPolicySpec) Descriptor() ([]byte, []int) {
+	return file_auth_v1_policies_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *SubaccountPolicySpec) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *SubaccountPolicySpec) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *SubaccountPolicySpec) GetSpotMarkets() []*SpotMarketRule {
+	if x != nil {
+		return x.SpotMarkets
+	}
+	return nil
+}
+
+func (x *SubaccountPolicySpec) GetPerpMarkets() []*PerpMarketRule {
+	if x != nil {
+		return x.PerpMarkets
+	}
+	return nil
+}
+
+func (x *SubaccountPolicySpec) GetSpotMarketScope() MarketScope_Value {
+	if x != nil {
+		return x.SpotMarketScope
+	}
+	return MarketScope_UNSPECIFIED
+}
+
+func (x *SubaccountPolicySpec) GetPerpMarketScope() MarketScope_Value {
+	if x != nil {
+		return x.PerpMarketScope
+	}
+	return MarketScope_UNSPECIFIED
+}
+
+func (x *SubaccountPolicySpec) GetActions() []PolicyAction {
+	if x != nil {
+		return x.Actions
+	}
+	return nil
+}
+
+func (x *SubaccountPolicySpec) GetGlobalNotionalCap() uint64 {
+	if x != nil {
+		return x.GlobalNotionalCap
+	}
+	return 0
+}
+
+func (x *SubaccountPolicySpec) GetMaxOrderNotional() uint64 {
+	if x != nil {
+		return x.MaxOrderNotional
+	}
+	return 0
+}
+
+func (x *SubaccountPolicySpec) GetMaxOpenOrders() uint32 {
+	if x != nil {
+		return x.MaxOpenOrders
+	}
+	return 0
+}
+
+func (x *SubaccountPolicySpec) GetMaxOpenPositions() uint32 {
+	if x != nil {
+		return x.MaxOpenPositions
+	}
+	return 0
+}
+
+func (x *SubaccountPolicySpec) GetGlobalPerpLeverageX() uint32 {
+	if x != nil {
+		return x.GlobalPerpLeverageX
+	}
+	return 0
+}
+
+func (x *SubaccountPolicySpec) GetDailyInternalTransferOutLimit() uint64 {
+	if x != nil {
+		return x.DailyInternalTransferOutLimit
+	}
+	return 0
+}
+
+func (x *SubaccountPolicySpec) GetDailyWithdrawLimit() uint64 {
+	if x != nil {
+		return x.DailyWithdrawLimit
+	}
+	return 0
+}
+
+func (x *SubaccountPolicySpec) GetInternalTransfersOwnOnly() bool {
+	if x != nil {
+		return x.InternalTransfersOwnOnly
+	}
+	return false
+}
+
+func (x *SubaccountPolicySpec) GetEnforceWithdrawWhitelist() bool {
+	if x != nil {
+		return x.EnforceWithdrawWhitelist
+	}
+	return false
+}
+
+func (x *SubaccountPolicySpec) GetTradingHalted() bool {
+	if x != nil {
+		return x.TradingHalted
+	}
+	return false
+}
+
+func (x *SubaccountPolicySpec) GetLiquidationOnly() bool {
+	if x != nil {
+		return x.LiquidationOnly
+	}
+	return false
+}
+
+func (x *SubaccountPolicySpec) GetDailyLossLimit() uint64 {
+	if x != nil {
+		return x.DailyLossLimit
+	}
+	return 0
+}
+
+func (x *SubaccountPolicySpec) GetIntradayDrawdownLimitBps() uint32 {
+	if x != nil {
+		return x.IntradayDrawdownLimitBps
+	}
+	return 0
+}
+
+func (x *SubaccountPolicySpec) GetLocked() bool {
+	if x != nil {
+		return x.Locked
+	}
+	return false
+}
+
+func (x *SubaccountPolicySpec) GetReviewAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ReviewAt
+	}
+	return nil
+}
+
+func (x *SubaccountPolicySpec) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+// CreateSubaccountPolicyRequest defines a new sub-account policy template, with
+// an optional attach step for one target sub-account.
+type CreateSubaccountPolicyRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Complete mutable policy configuration.
+	Policy *SubaccountPolicySpec `protobuf:"bytes,1,opt,name=policy,proto3" json:"policy,omitempty"`
+	// Optional target sub-account to attach atomically after creation.
+	SubaccountId  *uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
 func (x *CreateSubaccountPolicyRequest) Reset() {
 	*x = CreateSubaccountPolicyRequest{}
-	mi := &file_auth_v1_policies_proto_msgTypes[8]
+	mi := &file_auth_v1_policies_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -923,7 +1132,7 @@ func (x *CreateSubaccountPolicyRequest) String() string {
 func (*CreateSubaccountPolicyRequest) ProtoMessage() {}
 
 func (x *CreateSubaccountPolicyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_policies_proto_msgTypes[8]
+	mi := &file_auth_v1_policies_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -936,21 +1145,14 @@ func (x *CreateSubaccountPolicyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateSubaccountPolicyRequest.ProtoReflect.Descriptor instead.
 func (*CreateSubaccountPolicyRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_policies_proto_rawDescGZIP(), []int{8}
+	return file_auth_v1_policies_proto_rawDescGZIP(), []int{9}
 }
 
-func (x *CreateSubaccountPolicyRequest) GetName() string {
+func (x *CreateSubaccountPolicyRequest) GetPolicy() *SubaccountPolicySpec {
 	if x != nil {
-		return x.Name
+		return x.Policy
 	}
-	return ""
-}
-
-func (x *CreateSubaccountPolicyRequest) GetDescription() string {
-	if x != nil {
-		return x.Description
-	}
-	return ""
+	return nil
 }
 
 func (x *CreateSubaccountPolicyRequest) GetSubaccountId() uint64 {
@@ -958,153 +1160,6 @@ func (x *CreateSubaccountPolicyRequest) GetSubaccountId() uint64 {
 		return *x.SubaccountId
 	}
 	return 0
-}
-
-func (x *CreateSubaccountPolicyRequest) GetSpotMarkets() []*SpotMarketRule {
-	if x != nil {
-		return x.SpotMarkets
-	}
-	return nil
-}
-
-func (x *CreateSubaccountPolicyRequest) GetPerpMarkets() []*PerpMarketRule {
-	if x != nil {
-		return x.PerpMarkets
-	}
-	return nil
-}
-
-func (x *CreateSubaccountPolicyRequest) GetSpotMarketScope() MarketScope_Value {
-	if x != nil {
-		return x.SpotMarketScope
-	}
-	return MarketScope_UNSPECIFIED
-}
-
-func (x *CreateSubaccountPolicyRequest) GetPerpMarketScope() MarketScope_Value {
-	if x != nil {
-		return x.PerpMarketScope
-	}
-	return MarketScope_UNSPECIFIED
-}
-
-func (x *CreateSubaccountPolicyRequest) GetActions() []PolicyAction {
-	if x != nil {
-		return x.Actions
-	}
-	return nil
-}
-
-func (x *CreateSubaccountPolicyRequest) GetGlobalNotionalCap() uint64 {
-	if x != nil {
-		return x.GlobalNotionalCap
-	}
-	return 0
-}
-
-func (x *CreateSubaccountPolicyRequest) GetMaxOrderNotional() uint64 {
-	if x != nil {
-		return x.MaxOrderNotional
-	}
-	return 0
-}
-
-func (x *CreateSubaccountPolicyRequest) GetMaxOpenOrders() uint32 {
-	if x != nil {
-		return x.MaxOpenOrders
-	}
-	return 0
-}
-
-func (x *CreateSubaccountPolicyRequest) GetMaxOpenPositions() uint32 {
-	if x != nil {
-		return x.MaxOpenPositions
-	}
-	return 0
-}
-
-func (x *CreateSubaccountPolicyRequest) GetGlobalPerpLeverageX() uint32 {
-	if x != nil {
-		return x.GlobalPerpLeverageX
-	}
-	return 0
-}
-
-func (x *CreateSubaccountPolicyRequest) GetDailyInternalTransferOutLimit() uint64 {
-	if x != nil {
-		return x.DailyInternalTransferOutLimit
-	}
-	return 0
-}
-
-func (x *CreateSubaccountPolicyRequest) GetDailyWithdrawLimit() uint64 {
-	if x != nil {
-		return x.DailyWithdrawLimit
-	}
-	return 0
-}
-
-func (x *CreateSubaccountPolicyRequest) GetInternalTransfersOwnOnly() bool {
-	if x != nil {
-		return x.InternalTransfersOwnOnly
-	}
-	return false
-}
-
-func (x *CreateSubaccountPolicyRequest) GetEnforceWithdrawWhitelist() bool {
-	if x != nil {
-		return x.EnforceWithdrawWhitelist
-	}
-	return false
-}
-
-func (x *CreateSubaccountPolicyRequest) GetTradingHalted() bool {
-	if x != nil {
-		return x.TradingHalted
-	}
-	return false
-}
-
-func (x *CreateSubaccountPolicyRequest) GetLiquidationOnly() bool {
-	if x != nil {
-		return x.LiquidationOnly
-	}
-	return false
-}
-
-func (x *CreateSubaccountPolicyRequest) GetDailyLossLimit() uint64 {
-	if x != nil {
-		return x.DailyLossLimit
-	}
-	return 0
-}
-
-func (x *CreateSubaccountPolicyRequest) GetIntradayDrawdownLimitBps() uint32 {
-	if x != nil {
-		return x.IntradayDrawdownLimitBps
-	}
-	return 0
-}
-
-func (x *CreateSubaccountPolicyRequest) GetLocked() bool {
-	if x != nil {
-		return x.Locked
-	}
-	return false
-}
-
-func (x *CreateSubaccountPolicyRequest) GetReviewAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ReviewAt
-	}
-	return nil
-}
-
-func (x *CreateSubaccountPolicyRequest) GetExpiresAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ExpiresAt
-	}
-	return nil
 }
 
 // CreateSubaccountPolicyResponse returns the created sub-account policy.
@@ -1118,7 +1173,7 @@ type CreateSubaccountPolicyResponse struct {
 
 func (x *CreateSubaccountPolicyResponse) Reset() {
 	*x = CreateSubaccountPolicyResponse{}
-	mi := &file_auth_v1_policies_proto_msgTypes[9]
+	mi := &file_auth_v1_policies_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1130,7 +1185,7 @@ func (x *CreateSubaccountPolicyResponse) String() string {
 func (*CreateSubaccountPolicyResponse) ProtoMessage() {}
 
 func (x *CreateSubaccountPolicyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_policies_proto_msgTypes[9]
+	mi := &file_auth_v1_policies_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1143,7 +1198,7 @@ func (x *CreateSubaccountPolicyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateSubaccountPolicyResponse.ProtoReflect.Descriptor instead.
 func (*CreateSubaccountPolicyResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_policies_proto_rawDescGZIP(), []int{9}
+	return file_auth_v1_policies_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CreateSubaccountPolicyResponse) GetPolicy() *SubaccountPolicyView {
@@ -1153,83 +1208,27 @@ func (x *CreateSubaccountPolicyResponse) GetPolicy() *SubaccountPolicyView {
 	return nil
 }
 
-// UpdateSubaccountPolicyRequest fully replaces an existing sub-account policy
-// template.
+// UpdateSubaccountPolicyRequest changes selected mutable fields on an existing
+// sub-account policy.
 type UpdateSubaccountPolicyRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Policy identifier (opaque ID).
 	PolicyId uint64 `protobuf:"fixed64,1,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
-	// Human-readable policy name. Required; 1 to 64 characters.
-	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	// Optional policy description for dashboards and audits. Maximum 256 characters.
-	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	// Allowed spot markets for this policy.
-	SpotMarkets []*SpotMarketRule `protobuf:"bytes,4,rep,name=spot_markets,json=spotMarkets,proto3" json:"spot_markets,omitempty"`
-	// Allowed perp markets and optional per-contract leverage caps.
-	PerpMarkets []*PerpMarketRule `protobuf:"bytes,5,rep,name=perp_markets,json=perpMarkets,proto3" json:"perp_markets,omitempty"`
-	// Market-level scope for spot markets. When unspecified, defaults to ALL.
-	SpotMarketScope MarketScope_Value `protobuf:"varint,6,opt,name=spot_market_scope,json=spotMarketScope,proto3,enum=auth.v1.MarketScope_Value" json:"spot_market_scope,omitempty"`
-	// Market-level scope for perp contracts. When unspecified, defaults to ALL.
-	PerpMarketScope MarketScope_Value `protobuf:"varint,7,opt,name=perp_market_scope,json=perpMarketScope,proto3,enum=auth.v1.MarketScope_Value" json:"perp_market_scope,omitempty"`
-	// High-level actions enabled for the sub-account policy. Up to 64 unique
-	// explicit actions are allowed.
-	Actions []PolicyAction `protobuf:"varint,8,rep,packed,name=actions,proto3,enum=auth.v1.PolicyAction" json:"actions,omitempty"`
-	// Maximum total notional exposure across all positions for this sub-account,
-	// expressed in the canonical quote unit (for example, micro-USDT). A value of
-	// 0 means no explicit cap.
-	GlobalNotionalCap uint64 `protobuf:"varint,12,opt,name=global_notional_cap,json=globalNotionalCap,proto3" json:"global_notional_cap,omitempty"`
-	// Maximum notional size for any single order on this sub-account, expressed
-	// in the canonical quote unit (for example, micro-USDT). A value of 0 means
-	// no explicit cap.
-	MaxOrderNotional uint64 `protobuf:"varint,13,opt,name=max_order_notional,json=maxOrderNotional,proto3" json:"max_order_notional,omitempty"`
-	// Maximum number of resting orders allowed on this sub-account at any time.
-	// A value of 0 means no explicit cap.
-	MaxOpenOrders uint32 `protobuf:"varint,14,opt,name=max_open_orders,json=maxOpenOrders,proto3" json:"max_open_orders,omitempty"`
-	// Maximum number of open perp positions allowed on this sub-account. A value
-	// of 0 means no explicit cap.
-	MaxOpenPositions uint32 `protobuf:"varint,15,opt,name=max_open_positions,json=maxOpenPositions,proto3" json:"max_open_positions,omitempty"`
-	// Optional global leverage cap across all perp contracts. Supported non-zero
-	// values are 1, 3, 5, 10, 20, 50, and 100. A value of 0 means no explicit cap.
-	GlobalPerpLeverageX uint32 `protobuf:"varint,16,opt,name=global_perp_leverage_x,json=globalPerpLeverageX,proto3" json:"global_perp_leverage_x,omitempty"`
-	// Maximum total notional this sub-account can transfer out internally per
-	// rolling day, expressed in the canonical quote unit (for example,
-	// micro-USDT). A value of 0 means no explicit cap.
-	DailyInternalTransferOutLimit uint64 `protobuf:"varint,17,opt,name=daily_internal_transfer_out_limit,json=dailyInternalTransferOutLimit,proto3" json:"daily_internal_transfer_out_limit,omitempty"`
-	// Maximum total notional this sub-account can withdraw per rolling day,
-	// expressed in the canonical quote unit (for example, micro-USDT). A value of
-	// 0 means no explicit cap.
-	DailyWithdrawLimit uint64 `protobuf:"varint,18,opt,name=daily_withdraw_limit,json=dailyWithdrawLimit,proto3" json:"daily_withdraw_limit,omitempty"`
-	// When true, internal transfers from this sub-account may only target other
-	// sub-accounts owned by the same root account.
-	InternalTransfersOwnOnly bool `protobuf:"varint,19,opt,name=internal_transfers_own_only,json=internalTransfersOwnOnly,proto3" json:"internal_transfers_own_only,omitempty"`
-	// When true, external withdrawals from this sub-account must target an
-	// approved withdrawal destination.
-	EnforceWithdrawWhitelist bool `protobuf:"varint,20,opt,name=enforce_withdraw_whitelist,json=enforceWithdrawWhitelist,proto3" json:"enforce_withdraw_whitelist,omitempty"`
-	// When true, new orders for this sub-account are rejected regardless of other
-	// policy settings.
-	TradingHalted bool `protobuf:"varint,21,opt,name=trading_halted,json=tradingHalted,proto3" json:"trading_halted,omitempty"`
-	// When true, this sub-account may only reduce or close existing exposure.
-	LiquidationOnly bool `protobuf:"varint,22,opt,name=liquidation_only,json=liquidationOnly,proto3" json:"liquidation_only,omitempty"`
-	// Maximum realized loss over a rolling day before safety controls may halt
-	// activity, expressed in the canonical quote unit (for example, micro-USDT).
-	// A value of 0 means no explicit limit.
-	DailyLossLimit uint64 `protobuf:"varint,23,opt,name=daily_loss_limit,json=dailyLossLimit,proto3" json:"daily_loss_limit,omitempty"`
-	// Maximum drawdown from peak equity in basis points. One basis point is
-	// 1/100 of one percent. A value of 0 means no explicit limit.
-	IntradayDrawdownLimitBps uint32 `protobuf:"varint,24,opt,name=intraday_drawdown_limit_bps,json=intradayDrawdownLimitBps,proto3" json:"intraday_drawdown_limit_bps,omitempty"`
-	// When true, the policy is write-protected and requires an elevated mutation path.
-	Locked bool `protobuf:"varint,25,opt,name=locked,proto3" json:"locked,omitempty"`
-	// Optional review time in UTC. This does not automatically disable the policy.
-	ReviewAt *timestamppb.Timestamp `protobuf:"bytes,26,opt,name=review_at,json=reviewAt,proto3" json:"review_at,omitempty"`
-	// Optional expiry time in UTC. This does not automatically disable the policy.
-	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,27,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Candidate values for fields selected by update_mask.
+	Policy *SubaccountPolicySpec `protobuf:"bytes,2,opt,name=policy,proto3" json:"policy,omitempty"`
+	// Mutable fields to apply. Paths are relative to policy. The mask is required,
+	// must be non-empty, and cannot contain "*".
+	UpdateMask *fieldmaskpb.FieldMask `protobuf:"bytes,3,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
+	// Revision returned by the latest successful read. Stale revisions fail with
+	// a conflict before no-op detection.
+	ExpectedRevision uint64 `protobuf:"varint,4,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *UpdateSubaccountPolicyRequest) Reset() {
 	*x = UpdateSubaccountPolicyRequest{}
-	mi := &file_auth_v1_policies_proto_msgTypes[10]
+	mi := &file_auth_v1_policies_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1241,7 +1240,7 @@ func (x *UpdateSubaccountPolicyRequest) String() string {
 func (*UpdateSubaccountPolicyRequest) ProtoMessage() {}
 
 func (x *UpdateSubaccountPolicyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_policies_proto_msgTypes[10]
+	mi := &file_auth_v1_policies_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1254,7 +1253,7 @@ func (x *UpdateSubaccountPolicyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSubaccountPolicyRequest.ProtoReflect.Descriptor instead.
 func (*UpdateSubaccountPolicyRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_policies_proto_rawDescGZIP(), []int{10}
+	return file_auth_v1_policies_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *UpdateSubaccountPolicyRequest) GetPolicyId() uint64 {
@@ -1264,165 +1263,25 @@ func (x *UpdateSubaccountPolicyRequest) GetPolicyId() uint64 {
 	return 0
 }
 
-func (x *UpdateSubaccountPolicyRequest) GetName() string {
+func (x *UpdateSubaccountPolicyRequest) GetPolicy() *SubaccountPolicySpec {
 	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *UpdateSubaccountPolicyRequest) GetDescription() string {
-	if x != nil {
-		return x.Description
-	}
-	return ""
-}
-
-func (x *UpdateSubaccountPolicyRequest) GetSpotMarkets() []*SpotMarketRule {
-	if x != nil {
-		return x.SpotMarkets
+		return x.Policy
 	}
 	return nil
 }
 
-func (x *UpdateSubaccountPolicyRequest) GetPerpMarkets() []*PerpMarketRule {
+func (x *UpdateSubaccountPolicyRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
 	if x != nil {
-		return x.PerpMarkets
+		return x.UpdateMask
 	}
 	return nil
 }
 
-func (x *UpdateSubaccountPolicyRequest) GetSpotMarketScope() MarketScope_Value {
+func (x *UpdateSubaccountPolicyRequest) GetExpectedRevision() uint64 {
 	if x != nil {
-		return x.SpotMarketScope
-	}
-	return MarketScope_UNSPECIFIED
-}
-
-func (x *UpdateSubaccountPolicyRequest) GetPerpMarketScope() MarketScope_Value {
-	if x != nil {
-		return x.PerpMarketScope
-	}
-	return MarketScope_UNSPECIFIED
-}
-
-func (x *UpdateSubaccountPolicyRequest) GetActions() []PolicyAction {
-	if x != nil {
-		return x.Actions
-	}
-	return nil
-}
-
-func (x *UpdateSubaccountPolicyRequest) GetGlobalNotionalCap() uint64 {
-	if x != nil {
-		return x.GlobalNotionalCap
+		return x.ExpectedRevision
 	}
 	return 0
-}
-
-func (x *UpdateSubaccountPolicyRequest) GetMaxOrderNotional() uint64 {
-	if x != nil {
-		return x.MaxOrderNotional
-	}
-	return 0
-}
-
-func (x *UpdateSubaccountPolicyRequest) GetMaxOpenOrders() uint32 {
-	if x != nil {
-		return x.MaxOpenOrders
-	}
-	return 0
-}
-
-func (x *UpdateSubaccountPolicyRequest) GetMaxOpenPositions() uint32 {
-	if x != nil {
-		return x.MaxOpenPositions
-	}
-	return 0
-}
-
-func (x *UpdateSubaccountPolicyRequest) GetGlobalPerpLeverageX() uint32 {
-	if x != nil {
-		return x.GlobalPerpLeverageX
-	}
-	return 0
-}
-
-func (x *UpdateSubaccountPolicyRequest) GetDailyInternalTransferOutLimit() uint64 {
-	if x != nil {
-		return x.DailyInternalTransferOutLimit
-	}
-	return 0
-}
-
-func (x *UpdateSubaccountPolicyRequest) GetDailyWithdrawLimit() uint64 {
-	if x != nil {
-		return x.DailyWithdrawLimit
-	}
-	return 0
-}
-
-func (x *UpdateSubaccountPolicyRequest) GetInternalTransfersOwnOnly() bool {
-	if x != nil {
-		return x.InternalTransfersOwnOnly
-	}
-	return false
-}
-
-func (x *UpdateSubaccountPolicyRequest) GetEnforceWithdrawWhitelist() bool {
-	if x != nil {
-		return x.EnforceWithdrawWhitelist
-	}
-	return false
-}
-
-func (x *UpdateSubaccountPolicyRequest) GetTradingHalted() bool {
-	if x != nil {
-		return x.TradingHalted
-	}
-	return false
-}
-
-func (x *UpdateSubaccountPolicyRequest) GetLiquidationOnly() bool {
-	if x != nil {
-		return x.LiquidationOnly
-	}
-	return false
-}
-
-func (x *UpdateSubaccountPolicyRequest) GetDailyLossLimit() uint64 {
-	if x != nil {
-		return x.DailyLossLimit
-	}
-	return 0
-}
-
-func (x *UpdateSubaccountPolicyRequest) GetIntradayDrawdownLimitBps() uint32 {
-	if x != nil {
-		return x.IntradayDrawdownLimitBps
-	}
-	return 0
-}
-
-func (x *UpdateSubaccountPolicyRequest) GetLocked() bool {
-	if x != nil {
-		return x.Locked
-	}
-	return false
-}
-
-func (x *UpdateSubaccountPolicyRequest) GetReviewAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ReviewAt
-	}
-	return nil
-}
-
-func (x *UpdateSubaccountPolicyRequest) GetExpiresAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ExpiresAt
-	}
-	return nil
 }
 
 // UpdateSubaccountPolicyResponse returns the updated sub-account policy.
@@ -1436,7 +1295,7 @@ type UpdateSubaccountPolicyResponse struct {
 
 func (x *UpdateSubaccountPolicyResponse) Reset() {
 	*x = UpdateSubaccountPolicyResponse{}
-	mi := &file_auth_v1_policies_proto_msgTypes[11]
+	mi := &file_auth_v1_policies_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1448,7 +1307,7 @@ func (x *UpdateSubaccountPolicyResponse) String() string {
 func (*UpdateSubaccountPolicyResponse) ProtoMessage() {}
 
 func (x *UpdateSubaccountPolicyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_policies_proto_msgTypes[11]
+	mi := &file_auth_v1_policies_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1461,7 +1320,7 @@ func (x *UpdateSubaccountPolicyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSubaccountPolicyResponse.ProtoReflect.Descriptor instead.
 func (*UpdateSubaccountPolicyResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_policies_proto_rawDescGZIP(), []int{11}
+	return file_auth_v1_policies_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *UpdateSubaccountPolicyResponse) GetPolicy() *SubaccountPolicyView {
@@ -1483,7 +1342,7 @@ type DeleteSubaccountPolicyRequest struct {
 
 func (x *DeleteSubaccountPolicyRequest) Reset() {
 	*x = DeleteSubaccountPolicyRequest{}
-	mi := &file_auth_v1_policies_proto_msgTypes[12]
+	mi := &file_auth_v1_policies_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1495,7 +1354,7 @@ func (x *DeleteSubaccountPolicyRequest) String() string {
 func (*DeleteSubaccountPolicyRequest) ProtoMessage() {}
 
 func (x *DeleteSubaccountPolicyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_policies_proto_msgTypes[12]
+	mi := &file_auth_v1_policies_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1508,7 +1367,7 @@ func (x *DeleteSubaccountPolicyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteSubaccountPolicyRequest.ProtoReflect.Descriptor instead.
 func (*DeleteSubaccountPolicyRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_policies_proto_rawDescGZIP(), []int{12}
+	return file_auth_v1_policies_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *DeleteSubaccountPolicyRequest) GetPolicyId() uint64 {
@@ -1527,7 +1386,7 @@ type DeleteSubaccountPolicyResponse struct {
 
 func (x *DeleteSubaccountPolicyResponse) Reset() {
 	*x = DeleteSubaccountPolicyResponse{}
-	mi := &file_auth_v1_policies_proto_msgTypes[13]
+	mi := &file_auth_v1_policies_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1539,7 +1398,7 @@ func (x *DeleteSubaccountPolicyResponse) String() string {
 func (*DeleteSubaccountPolicyResponse) ProtoMessage() {}
 
 func (x *DeleteSubaccountPolicyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_policies_proto_msgTypes[13]
+	mi := &file_auth_v1_policies_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1552,7 +1411,7 @@ func (x *DeleteSubaccountPolicyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteSubaccountPolicyResponse.ProtoReflect.Descriptor instead.
 func (*DeleteSubaccountPolicyResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_policies_proto_rawDescGZIP(), []int{13}
+	return file_auth_v1_policies_proto_rawDescGZIP(), []int{14}
 }
 
 // SetSubaccountPolicyRequest attaches or clears a policy template on a
@@ -1570,7 +1429,7 @@ type SetSubaccountPolicyRequest struct {
 
 func (x *SetSubaccountPolicyRequest) Reset() {
 	*x = SetSubaccountPolicyRequest{}
-	mi := &file_auth_v1_policies_proto_msgTypes[14]
+	mi := &file_auth_v1_policies_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1582,7 +1441,7 @@ func (x *SetSubaccountPolicyRequest) String() string {
 func (*SetSubaccountPolicyRequest) ProtoMessage() {}
 
 func (x *SetSubaccountPolicyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_policies_proto_msgTypes[14]
+	mi := &file_auth_v1_policies_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1595,7 +1454,7 @@ func (x *SetSubaccountPolicyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetSubaccountPolicyRequest.ProtoReflect.Descriptor instead.
 func (*SetSubaccountPolicyRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_policies_proto_rawDescGZIP(), []int{14}
+	return file_auth_v1_policies_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *SetSubaccountPolicyRequest) GetSubaccountId() uint64 {
@@ -1621,7 +1480,7 @@ type SetSubaccountPolicyResponse struct {
 
 func (x *SetSubaccountPolicyResponse) Reset() {
 	*x = SetSubaccountPolicyResponse{}
-	mi := &file_auth_v1_policies_proto_msgTypes[15]
+	mi := &file_auth_v1_policies_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1633,7 +1492,7 @@ func (x *SetSubaccountPolicyResponse) String() string {
 func (*SetSubaccountPolicyResponse) ProtoMessage() {}
 
 func (x *SetSubaccountPolicyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_policies_proto_msgTypes[15]
+	mi := &file_auth_v1_policies_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1646,7 +1505,7 @@ func (x *SetSubaccountPolicyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetSubaccountPolicyResponse.ProtoReflect.Descriptor instead.
 func (*SetSubaccountPolicyResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_policies_proto_rawDescGZIP(), []int{15}
+	return file_auth_v1_policies_proto_rawDescGZIP(), []int{16}
 }
 
 // ApiPolicyView is the public view of an API key policy template. API key
@@ -1693,14 +1552,16 @@ type ApiPolicyView struct {
 	// Creation time in UTC.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,21,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Last update time in UTC.
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,22,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,22,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// Monotonic resource revision used for conditional updates.
+	Revision      uint64 `protobuf:"varint,23,opt,name=revision,proto3" json:"revision,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ApiPolicyView) Reset() {
 	*x = ApiPolicyView{}
-	mi := &file_auth_v1_policies_proto_msgTypes[16]
+	mi := &file_auth_v1_policies_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1712,7 +1573,7 @@ func (x *ApiPolicyView) String() string {
 func (*ApiPolicyView) ProtoMessage() {}
 
 func (x *ApiPolicyView) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_policies_proto_msgTypes[16]
+	mi := &file_auth_v1_policies_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1725,7 +1586,7 @@ func (x *ApiPolicyView) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApiPolicyView.ProtoReflect.Descriptor instead.
 func (*ApiPolicyView) Descriptor() ([]byte, []int) {
-	return file_auth_v1_policies_proto_rawDescGZIP(), []int{16}
+	return file_auth_v1_policies_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ApiPolicyView) GetId() uint64 {
@@ -1833,6 +1694,13 @@ func (x *ApiPolicyView) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *ApiPolicyView) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
 // ListApiPoliciesRequest lists the finite set of API key policies visible in
 // the requested account scope. Results are sorted by ascending policy ID and
 // are not paginated.
@@ -1847,7 +1715,7 @@ type ListApiPoliciesRequest struct {
 
 func (x *ListApiPoliciesRequest) Reset() {
 	*x = ListApiPoliciesRequest{}
-	mi := &file_auth_v1_policies_proto_msgTypes[17]
+	mi := &file_auth_v1_policies_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1859,7 +1727,7 @@ func (x *ListApiPoliciesRequest) String() string {
 func (*ListApiPoliciesRequest) ProtoMessage() {}
 
 func (x *ListApiPoliciesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_policies_proto_msgTypes[17]
+	mi := &file_auth_v1_policies_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1872,7 +1740,7 @@ func (x *ListApiPoliciesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListApiPoliciesRequest.ProtoReflect.Descriptor instead.
 func (*ListApiPoliciesRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_policies_proto_rawDescGZIP(), []int{17}
+	return file_auth_v1_policies_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ListApiPoliciesRequest) GetKeyId() string {
@@ -1894,7 +1762,7 @@ type ListApiPoliciesResponse struct {
 
 func (x *ListApiPoliciesResponse) Reset() {
 	*x = ListApiPoliciesResponse{}
-	mi := &file_auth_v1_policies_proto_msgTypes[18]
+	mi := &file_auth_v1_policies_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1906,7 +1774,7 @@ func (x *ListApiPoliciesResponse) String() string {
 func (*ListApiPoliciesResponse) ProtoMessage() {}
 
 func (x *ListApiPoliciesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_policies_proto_msgTypes[18]
+	mi := &file_auth_v1_policies_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1919,7 +1787,7 @@ func (x *ListApiPoliciesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListApiPoliciesResponse.ProtoReflect.Descriptor instead.
 func (*ListApiPoliciesResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_policies_proto_rawDescGZIP(), []int{18}
+	return file_auth_v1_policies_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ListApiPoliciesResponse) GetPolicies() []*ApiPolicyView {
@@ -1943,7 +1811,7 @@ type GetApiPolicyRequest struct {
 
 func (x *GetApiPolicyRequest) Reset() {
 	*x = GetApiPolicyRequest{}
-	mi := &file_auth_v1_policies_proto_msgTypes[19]
+	mi := &file_auth_v1_policies_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1955,7 +1823,7 @@ func (x *GetApiPolicyRequest) String() string {
 func (*GetApiPolicyRequest) ProtoMessage() {}
 
 func (x *GetApiPolicyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_policies_proto_msgTypes[19]
+	mi := &file_auth_v1_policies_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1968,7 +1836,7 @@ func (x *GetApiPolicyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetApiPolicyRequest.ProtoReflect.Descriptor instead.
 func (*GetApiPolicyRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_policies_proto_rawDescGZIP(), []int{19}
+	return file_auth_v1_policies_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GetApiPolicyRequest) GetPolicyId() uint64 {
@@ -1996,7 +1864,7 @@ type GetApiPolicyResponse struct {
 
 func (x *GetApiPolicyResponse) Reset() {
 	*x = GetApiPolicyResponse{}
-	mi := &file_auth_v1_policies_proto_msgTypes[20]
+	mi := &file_auth_v1_policies_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2008,7 +1876,7 @@ func (x *GetApiPolicyResponse) String() string {
 func (*GetApiPolicyResponse) ProtoMessage() {}
 
 func (x *GetApiPolicyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_policies_proto_msgTypes[20]
+	mi := &file_auth_v1_policies_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2021,7 +1889,7 @@ func (x *GetApiPolicyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetApiPolicyResponse.ProtoReflect.Descriptor instead.
 func (*GetApiPolicyResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_policies_proto_rawDescGZIP(), []int{20}
+	return file_auth_v1_policies_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *GetApiPolicyResponse) GetPolicy() *ApiPolicyView {
@@ -2031,10 +1899,11 @@ func (x *GetApiPolicyResponse) GetPolicy() *ApiPolicyView {
 	return nil
 }
 
-// CreateApiPolicyRequest defines a new API key policy template.
-type CreateApiPolicyRequest struct {
+// ApiPolicySpec contains the mutable configuration of an API key policy.
+type ApiPolicySpec struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Human-readable policy name. Required; 1 to 64 characters.
+	// Human-readable policy name. Create requires a non-empty value; update
+	// validates it after merging fields selected by update_mask.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// Optional policy description for dashboards and audits. Maximum 256 characters.
 	Description string `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
@@ -2062,18 +1931,134 @@ type CreateApiPolicyRequest struct {
 	// no additional cap beyond the sub-account policy.
 	DailyWithdrawLimit uint64 `protobuf:"varint,18,opt,name=daily_withdraw_limit,json=dailyWithdrawLimit,proto3" json:"daily_withdraw_limit,omitempty"`
 	// Whether this policy should be treated as a reusable template.
-	IsTemplate bool `protobuf:"varint,19,opt,name=is_template,json=isTemplate,proto3" json:"is_template,omitempty"`
+	IsTemplate    bool `protobuf:"varint,19,opt,name=is_template,json=isTemplate,proto3" json:"is_template,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ApiPolicySpec) Reset() {
+	*x = ApiPolicySpec{}
+	mi := &file_auth_v1_policies_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApiPolicySpec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApiPolicySpec) ProtoMessage() {}
+
+func (x *ApiPolicySpec) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_policies_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApiPolicySpec.ProtoReflect.Descriptor instead.
+func (*ApiPolicySpec) Descriptor() ([]byte, []int) {
+	return file_auth_v1_policies_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *ApiPolicySpec) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ApiPolicySpec) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *ApiPolicySpec) GetSpotMarkets() []*SpotMarketRule {
+	if x != nil {
+		return x.SpotMarkets
+	}
+	return nil
+}
+
+func (x *ApiPolicySpec) GetPerpMarkets() []*PerpMarketRule {
+	if x != nil {
+		return x.PerpMarkets
+	}
+	return nil
+}
+
+func (x *ApiPolicySpec) GetSpotMarketScope() MarketScope_Value {
+	if x != nil {
+		return x.SpotMarketScope
+	}
+	return MarketScope_UNSPECIFIED
+}
+
+func (x *ApiPolicySpec) GetPerpMarketScope() MarketScope_Value {
+	if x != nil {
+		return x.PerpMarketScope
+	}
+	return MarketScope_UNSPECIFIED
+}
+
+func (x *ApiPolicySpec) GetActions() []PolicyAction {
+	if x != nil {
+		return x.Actions
+	}
+	return nil
+}
+
+func (x *ApiPolicySpec) GetMaxOrderNotional() uint64 {
+	if x != nil {
+		return x.MaxOrderNotional
+	}
+	return 0
+}
+
+func (x *ApiPolicySpec) GetDailyInternalTransferOutLimit() uint64 {
+	if x != nil {
+		return x.DailyInternalTransferOutLimit
+	}
+	return 0
+}
+
+func (x *ApiPolicySpec) GetDailyWithdrawLimit() uint64 {
+	if x != nil {
+		return x.DailyWithdrawLimit
+	}
+	return 0
+}
+
+func (x *ApiPolicySpec) GetIsTemplate() bool {
+	if x != nil {
+		return x.IsTemplate
+	}
+	return false
+}
+
+// CreateApiPolicyRequest defines a new API key policy template.
+type CreateApiPolicyRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Complete mutable policy configuration.
+	Policy *ApiPolicySpec `protobuf:"bytes,1,opt,name=policy,proto3" json:"policy,omitempty"`
 	// Optional API key identifier to bind this newly-created policy to
 	// atomically. When set, the caller must be allowed to manage the key and the
 	// create+assign operation consumes a single fresh step-up proof.
-	AssignToKeyId string `protobuf:"bytes,20,opt,name=assign_to_key_id,json=assignToKeyId,proto3" json:"assign_to_key_id,omitempty"`
+	AssignToKeyId string `protobuf:"bytes,2,opt,name=assign_to_key_id,json=assignToKeyId,proto3" json:"assign_to_key_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateApiPolicyRequest) Reset() {
 	*x = CreateApiPolicyRequest{}
-	mi := &file_auth_v1_policies_proto_msgTypes[21]
+	mi := &file_auth_v1_policies_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2085,7 +2070,7 @@ func (x *CreateApiPolicyRequest) String() string {
 func (*CreateApiPolicyRequest) ProtoMessage() {}
 
 func (x *CreateApiPolicyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_policies_proto_msgTypes[21]
+	mi := &file_auth_v1_policies_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2098,84 +2083,14 @@ func (x *CreateApiPolicyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateApiPolicyRequest.ProtoReflect.Descriptor instead.
 func (*CreateApiPolicyRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_policies_proto_rawDescGZIP(), []int{21}
+	return file_auth_v1_policies_proto_rawDescGZIP(), []int{23}
 }
 
-func (x *CreateApiPolicyRequest) GetName() string {
+func (x *CreateApiPolicyRequest) GetPolicy() *ApiPolicySpec {
 	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *CreateApiPolicyRequest) GetDescription() string {
-	if x != nil {
-		return x.Description
-	}
-	return ""
-}
-
-func (x *CreateApiPolicyRequest) GetSpotMarkets() []*SpotMarketRule {
-	if x != nil {
-		return x.SpotMarkets
+		return x.Policy
 	}
 	return nil
-}
-
-func (x *CreateApiPolicyRequest) GetPerpMarkets() []*PerpMarketRule {
-	if x != nil {
-		return x.PerpMarkets
-	}
-	return nil
-}
-
-func (x *CreateApiPolicyRequest) GetSpotMarketScope() MarketScope_Value {
-	if x != nil {
-		return x.SpotMarketScope
-	}
-	return MarketScope_UNSPECIFIED
-}
-
-func (x *CreateApiPolicyRequest) GetPerpMarketScope() MarketScope_Value {
-	if x != nil {
-		return x.PerpMarketScope
-	}
-	return MarketScope_UNSPECIFIED
-}
-
-func (x *CreateApiPolicyRequest) GetActions() []PolicyAction {
-	if x != nil {
-		return x.Actions
-	}
-	return nil
-}
-
-func (x *CreateApiPolicyRequest) GetMaxOrderNotional() uint64 {
-	if x != nil {
-		return x.MaxOrderNotional
-	}
-	return 0
-}
-
-func (x *CreateApiPolicyRequest) GetDailyInternalTransferOutLimit() uint64 {
-	if x != nil {
-		return x.DailyInternalTransferOutLimit
-	}
-	return 0
-}
-
-func (x *CreateApiPolicyRequest) GetDailyWithdrawLimit() uint64 {
-	if x != nil {
-		return x.DailyWithdrawLimit
-	}
-	return 0
-}
-
-func (x *CreateApiPolicyRequest) GetIsTemplate() bool {
-	if x != nil {
-		return x.IsTemplate
-	}
-	return false
 }
 
 func (x *CreateApiPolicyRequest) GetAssignToKeyId() string {
@@ -2196,7 +2111,7 @@ type CreateApiPolicyResponse struct {
 
 func (x *CreateApiPolicyResponse) Reset() {
 	*x = CreateApiPolicyResponse{}
-	mi := &file_auth_v1_policies_proto_msgTypes[22]
+	mi := &file_auth_v1_policies_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2208,7 +2123,7 @@ func (x *CreateApiPolicyResponse) String() string {
 func (*CreateApiPolicyResponse) ProtoMessage() {}
 
 func (x *CreateApiPolicyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_policies_proto_msgTypes[22]
+	mi := &file_auth_v1_policies_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2221,7 +2136,7 @@ func (x *CreateApiPolicyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateApiPolicyResponse.ProtoReflect.Descriptor instead.
 func (*CreateApiPolicyResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_policies_proto_rawDescGZIP(), []int{22}
+	return file_auth_v1_policies_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *CreateApiPolicyResponse) GetPolicy() *ApiPolicyView {
@@ -2231,47 +2146,27 @@ func (x *CreateApiPolicyResponse) GetPolicy() *ApiPolicyView {
 	return nil
 }
 
-// UpdateApiPolicyRequest replaces an existing API key policy template.
+// UpdateApiPolicyRequest changes selected mutable fields on an existing API
+// key policy.
 type UpdateApiPolicyRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Policy identifier (opaque ID).
 	PolicyId uint64 `protobuf:"fixed64,1,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
-	// Human-readable policy name. Required; 1 to 64 characters.
-	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	// Optional policy description for dashboards and audits. Maximum 256 characters.
-	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	// Allowed spot markets for this API key policy.
-	SpotMarkets []*SpotMarketRule `protobuf:"bytes,4,rep,name=spot_markets,json=spotMarkets,proto3" json:"spot_markets,omitempty"`
-	// Allowed perp markets and optional per-contract leverage caps.
-	PerpMarkets []*PerpMarketRule `protobuf:"bytes,5,rep,name=perp_markets,json=perpMarkets,proto3" json:"perp_markets,omitempty"`
-	// Market-level scope for spot markets. When unspecified, defaults to ALL.
-	SpotMarketScope MarketScope_Value `protobuf:"varint,6,opt,name=spot_market_scope,json=spotMarketScope,proto3,enum=auth.v1.MarketScope_Value" json:"spot_market_scope,omitempty"`
-	// Market-level scope for perp contracts. When unspecified, defaults to ALL.
-	PerpMarketScope MarketScope_Value `protobuf:"varint,7,opt,name=perp_market_scope,json=perpMarketScope,proto3,enum=auth.v1.MarketScope_Value" json:"perp_market_scope,omitempty"`
-	// High-level actions enabled for the API key policy. Up to 64 unique explicit
-	// actions are allowed.
-	Actions []PolicyAction `protobuf:"varint,8,rep,packed,name=actions,proto3,enum=auth.v1.PolicyAction" json:"actions,omitempty"`
-	// Maximum notional size for any single order submitted with this API key,
-	// expressed in the canonical quote unit (for example, micro-USDT). A value of
-	// 0 means no additional cap beyond the sub-account policy.
-	MaxOrderNotional uint64 `protobuf:"varint,13,opt,name=max_order_notional,json=maxOrderNotional,proto3" json:"max_order_notional,omitempty"`
-	// Maximum total notional this API key can transfer out internally per rolling
-	// day, expressed in the canonical quote unit (for example, micro-USDT). A
-	// value of 0 means no additional cap beyond the sub-account policy.
-	DailyInternalTransferOutLimit uint64 `protobuf:"varint,17,opt,name=daily_internal_transfer_out_limit,json=dailyInternalTransferOutLimit,proto3" json:"daily_internal_transfer_out_limit,omitempty"`
-	// Maximum total notional this API key can withdraw per rolling day, expressed
-	// in the canonical quote unit (for example, micro-USDT). A value of 0 means
-	// no additional cap beyond the sub-account policy.
-	DailyWithdrawLimit uint64 `protobuf:"varint,18,opt,name=daily_withdraw_limit,json=dailyWithdrawLimit,proto3" json:"daily_withdraw_limit,omitempty"`
-	// Whether this policy should be treated as a reusable template.
-	IsTemplate    bool `protobuf:"varint,19,opt,name=is_template,json=isTemplate,proto3" json:"is_template,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Candidate values for fields selected by update_mask.
+	Policy *ApiPolicySpec `protobuf:"bytes,2,opt,name=policy,proto3" json:"policy,omitempty"`
+	// Mutable fields to apply. Paths are relative to policy. The mask is required,
+	// must be non-empty, and cannot contain "*".
+	UpdateMask *fieldmaskpb.FieldMask `protobuf:"bytes,3,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
+	// Revision returned by the latest successful read. Stale revisions fail with
+	// a conflict before no-op detection.
+	ExpectedRevision uint64 `protobuf:"varint,4,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *UpdateApiPolicyRequest) Reset() {
 	*x = UpdateApiPolicyRequest{}
-	mi := &file_auth_v1_policies_proto_msgTypes[23]
+	mi := &file_auth_v1_policies_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2283,7 +2178,7 @@ func (x *UpdateApiPolicyRequest) String() string {
 func (*UpdateApiPolicyRequest) ProtoMessage() {}
 
 func (x *UpdateApiPolicyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_policies_proto_msgTypes[23]
+	mi := &file_auth_v1_policies_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2296,7 +2191,7 @@ func (x *UpdateApiPolicyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateApiPolicyRequest.ProtoReflect.Descriptor instead.
 func (*UpdateApiPolicyRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_policies_proto_rawDescGZIP(), []int{23}
+	return file_auth_v1_policies_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *UpdateApiPolicyRequest) GetPolicyId() uint64 {
@@ -2306,81 +2201,25 @@ func (x *UpdateApiPolicyRequest) GetPolicyId() uint64 {
 	return 0
 }
 
-func (x *UpdateApiPolicyRequest) GetName() string {
+func (x *UpdateApiPolicyRequest) GetPolicy() *ApiPolicySpec {
 	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *UpdateApiPolicyRequest) GetDescription() string {
-	if x != nil {
-		return x.Description
-	}
-	return ""
-}
-
-func (x *UpdateApiPolicyRequest) GetSpotMarkets() []*SpotMarketRule {
-	if x != nil {
-		return x.SpotMarkets
+		return x.Policy
 	}
 	return nil
 }
 
-func (x *UpdateApiPolicyRequest) GetPerpMarkets() []*PerpMarketRule {
+func (x *UpdateApiPolicyRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
 	if x != nil {
-		return x.PerpMarkets
+		return x.UpdateMask
 	}
 	return nil
 }
 
-func (x *UpdateApiPolicyRequest) GetSpotMarketScope() MarketScope_Value {
+func (x *UpdateApiPolicyRequest) GetExpectedRevision() uint64 {
 	if x != nil {
-		return x.SpotMarketScope
-	}
-	return MarketScope_UNSPECIFIED
-}
-
-func (x *UpdateApiPolicyRequest) GetPerpMarketScope() MarketScope_Value {
-	if x != nil {
-		return x.PerpMarketScope
-	}
-	return MarketScope_UNSPECIFIED
-}
-
-func (x *UpdateApiPolicyRequest) GetActions() []PolicyAction {
-	if x != nil {
-		return x.Actions
-	}
-	return nil
-}
-
-func (x *UpdateApiPolicyRequest) GetMaxOrderNotional() uint64 {
-	if x != nil {
-		return x.MaxOrderNotional
+		return x.ExpectedRevision
 	}
 	return 0
-}
-
-func (x *UpdateApiPolicyRequest) GetDailyInternalTransferOutLimit() uint64 {
-	if x != nil {
-		return x.DailyInternalTransferOutLimit
-	}
-	return 0
-}
-
-func (x *UpdateApiPolicyRequest) GetDailyWithdrawLimit() uint64 {
-	if x != nil {
-		return x.DailyWithdrawLimit
-	}
-	return 0
-}
-
-func (x *UpdateApiPolicyRequest) GetIsTemplate() bool {
-	if x != nil {
-		return x.IsTemplate
-	}
-	return false
 }
 
 // UpdateApiPolicyResponse returns the updated API key policy.
@@ -2394,7 +2233,7 @@ type UpdateApiPolicyResponse struct {
 
 func (x *UpdateApiPolicyResponse) Reset() {
 	*x = UpdateApiPolicyResponse{}
-	mi := &file_auth_v1_policies_proto_msgTypes[24]
+	mi := &file_auth_v1_policies_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2406,7 +2245,7 @@ func (x *UpdateApiPolicyResponse) String() string {
 func (*UpdateApiPolicyResponse) ProtoMessage() {}
 
 func (x *UpdateApiPolicyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_policies_proto_msgTypes[24]
+	mi := &file_auth_v1_policies_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2419,7 +2258,7 @@ func (x *UpdateApiPolicyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateApiPolicyResponse.ProtoReflect.Descriptor instead.
 func (*UpdateApiPolicyResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_policies_proto_rawDescGZIP(), []int{24}
+	return file_auth_v1_policies_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *UpdateApiPolicyResponse) GetPolicy() *ApiPolicyView {
@@ -2440,7 +2279,7 @@ type DeleteApiPolicyRequest struct {
 
 func (x *DeleteApiPolicyRequest) Reset() {
 	*x = DeleteApiPolicyRequest{}
-	mi := &file_auth_v1_policies_proto_msgTypes[25]
+	mi := &file_auth_v1_policies_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2452,7 +2291,7 @@ func (x *DeleteApiPolicyRequest) String() string {
 func (*DeleteApiPolicyRequest) ProtoMessage() {}
 
 func (x *DeleteApiPolicyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_policies_proto_msgTypes[25]
+	mi := &file_auth_v1_policies_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2465,7 +2304,7 @@ func (x *DeleteApiPolicyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteApiPolicyRequest.ProtoReflect.Descriptor instead.
 func (*DeleteApiPolicyRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_policies_proto_rawDescGZIP(), []int{25}
+	return file_auth_v1_policies_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *DeleteApiPolicyRequest) GetPolicyId() uint64 {
@@ -2484,7 +2323,7 @@ type DeleteApiPolicyResponse struct {
 
 func (x *DeleteApiPolicyResponse) Reset() {
 	*x = DeleteApiPolicyResponse{}
-	mi := &file_auth_v1_policies_proto_msgTypes[26]
+	mi := &file_auth_v1_policies_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2496,7 +2335,7 @@ func (x *DeleteApiPolicyResponse) String() string {
 func (*DeleteApiPolicyResponse) ProtoMessage() {}
 
 func (x *DeleteApiPolicyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_policies_proto_msgTypes[26]
+	mi := &file_auth_v1_policies_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2509,7 +2348,7 @@ func (x *DeleteApiPolicyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteApiPolicyResponse.ProtoReflect.Descriptor instead.
 func (*DeleteApiPolicyResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_policies_proto_rawDescGZIP(), []int{26}
+	return file_auth_v1_policies_proto_rawDescGZIP(), []int{28}
 }
 
 // SetApiKeyPolicyRequest attaches or clears a policy template on an API key.
@@ -2528,7 +2367,7 @@ type SetApiKeyPolicyRequest struct {
 
 func (x *SetApiKeyPolicyRequest) Reset() {
 	*x = SetApiKeyPolicyRequest{}
-	mi := &file_auth_v1_policies_proto_msgTypes[27]
+	mi := &file_auth_v1_policies_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2540,7 +2379,7 @@ func (x *SetApiKeyPolicyRequest) String() string {
 func (*SetApiKeyPolicyRequest) ProtoMessage() {}
 
 func (x *SetApiKeyPolicyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_policies_proto_msgTypes[27]
+	mi := &file_auth_v1_policies_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2553,7 +2392,7 @@ func (x *SetApiKeyPolicyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetApiKeyPolicyRequest.ProtoReflect.Descriptor instead.
 func (*SetApiKeyPolicyRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_policies_proto_rawDescGZIP(), []int{27}
+	return file_auth_v1_policies_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *SetApiKeyPolicyRequest) GetKeyId() string {
@@ -2579,7 +2418,7 @@ type SetApiKeyPolicyResponse struct {
 
 func (x *SetApiKeyPolicyResponse) Reset() {
 	*x = SetApiKeyPolicyResponse{}
-	mi := &file_auth_v1_policies_proto_msgTypes[28]
+	mi := &file_auth_v1_policies_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2591,7 +2430,7 @@ func (x *SetApiKeyPolicyResponse) String() string {
 func (*SetApiKeyPolicyResponse) ProtoMessage() {}
 
 func (x *SetApiKeyPolicyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_policies_proto_msgTypes[28]
+	mi := &file_auth_v1_policies_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2604,14 +2443,14 @@ func (x *SetApiKeyPolicyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetApiKeyPolicyResponse.ProtoReflect.Descriptor instead.
 func (*SetApiKeyPolicyResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_policies_proto_rawDescGZIP(), []int{28}
+	return file_auth_v1_policies_proto_rawDescGZIP(), []int{30}
 }
 
 var File_auth_v1_policies_proto protoreflect.FileDescriptor
 
 const file_auth_v1_policies_proto_rawDesc = "" +
 	"\n" +
-	"\x16auth/v1/policies.proto\x12\aauth.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"?\n" +
+	"\x16auth/v1/policies.proto\x12\aauth.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"?\n" +
 	"\vMarketScope\"0\n" +
 	"\x05Value\x12\x0f\n" +
 	"\vUNSPECIFIED\x10\x00\x12\a\n" +
@@ -2621,7 +2460,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x06symbol\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18 R\x06symbol\"c\n" +
 	"\x0ePerpMarketRule\x12!\n" +
 	"\x06symbol\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18 R\x06symbol\x12.\n" +
-	"\x0emax_leverage_x\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xe8\aR\fmaxLeverageX\"\xb6\v\n" +
+	"\x0emax_leverage_x\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xe8\aR\fmaxLeverageX\"\xd2\v\n" +
 	"\x14SubaccountPolicyView\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x06R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -2655,7 +2494,8 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x14 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"k\n" +
+	"updated_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1a\n" +
+	"\brevision\x18\x1e \x01(\x04R\brevision\"k\n" +
 	"\x1dListSubaccountPoliciesRequest\x128\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
 	"\x0e_subaccount_id\"[\n" +
@@ -2666,11 +2506,10 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\rsubaccount_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
 	"\x0e_subaccount_id\"T\n" +
 	"\x1bGetSubaccountPolicyResponse\x125\n" +
-	"\x06policy\x18\x01 \x01(\v2\x1d.auth.v1.SubaccountPolicyViewR\x06policy\"\x83\x0f\n" +
-	"\x1dCreateSubaccountPolicyRequest\x12 \n" +
-	"\x04name\x18\x01 \x01(\tB\f\xe0A\x02\xbaH\x06r\x04\x10\x01\x18@R\x04name\x12*\n" +
-	"\vdescription\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\vdescription\x12(\n" +
-	"\rsubaccount_id\x18\t \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12:\n" +
+	"\x06policy\x18\x01 \x01(\v2\x1d.auth.v1.SubaccountPolicyViewR\x06policy\"\xb9\x0e\n" +
+	"\x14SubaccountPolicySpec\x12\x1b\n" +
+	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18@R\x04name\x12*\n" +
+	"\vdescription\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\vdescription\x12:\n" +
 	"\fspot_markets\x18\x03 \x03(\v2\x17.auth.v1.SpotMarketRuleR\vspotMarkets\x12:\n" +
 	"\fperp_markets\x18\x04 \x03(\v2\x17.auth.v1.PerpMarketRuleR\vperpMarkets\x12P\n" +
 	"\x11spot_market_scope\x18\x05 \x01(\x0e2\x1a.auth.v1.MarketScope.ValueB\b\xbaH\x05\x82\x01\x02\x10\x01R\x0fspotMarketScope\x12P\n" +
@@ -2696,40 +2535,20 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x1fspot_allowlist_requires_markets\x12Bspot_markets must be non-empty when spot_market_scope is ALLOWLIST\x1a@this.spot_market_scope != 2 ? true : size(this.spot_markets) > 0\x1a\xa7\x01\n" +
 	"\x1fperp_allowlist_requires_markets\x12Bperp_markets must be non-empty when perp_market_scope is ALLOWLIST\x1a@this.perp_market_scope != 2 ? true : size(this.perp_markets) > 0\x1as\n" +
 	"\x13spot_markets_unique\x12/spot_markets must not contain duplicate symbols\x1a+this.spot_markets.map(m, m.symbol).unique()\x1as\n" +
-	"\x13perp_markets_unique\x12/perp_markets must not contain duplicate symbols\x1a+this.perp_markets.map(m, m.symbol).unique()B\x10\n" +
+	"\x13perp_markets_unique\x12/perp_markets must not contain duplicate symbols\x1a+this.perp_markets.map(m, m.symbol).unique()\"\xad\x01\n" +
+	"\x1dCreateSubaccountPolicyRequest\x12@\n" +
+	"\x06policy\x18\x01 \x01(\v2\x1d.auth.v1.SubaccountPolicySpecB\t\xe0A\x02\xbaH\x03\xc8\x01\x01R\x06policy\x128\n" +
+	"\rsubaccount_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
 	"\x0e_subaccount_id\"W\n" +
 	"\x1eCreateSubaccountPolicyResponse\x125\n" +
-	"\x06policy\x18\x01 \x01(\v2\x1d.auth.v1.SubaccountPolicyViewR\x06policy\"\xf4\x0e\n" +
-	"\x1dUpdateSubaccountPolicyRequest\x12+\n" +
-	"\tpolicy_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\bpolicyId\x12 \n" +
-	"\x04name\x18\x02 \x01(\tB\f\xe0A\x02\xbaH\x06r\x04\x10\x01\x18@R\x04name\x12*\n" +
-	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\vdescription\x12:\n" +
-	"\fspot_markets\x18\x04 \x03(\v2\x17.auth.v1.SpotMarketRuleR\vspotMarkets\x12:\n" +
-	"\fperp_markets\x18\x05 \x03(\v2\x17.auth.v1.PerpMarketRuleR\vperpMarkets\x12P\n" +
-	"\x11spot_market_scope\x18\x06 \x01(\x0e2\x1a.auth.v1.MarketScope.ValueB\b\xbaH\x05\x82\x01\x02\x10\x01R\x0fspotMarketScope\x12P\n" +
-	"\x11perp_market_scope\x18\a \x01(\x0e2\x1a.auth.v1.MarketScope.ValueB\b\xbaH\x05\x82\x01\x02\x10\x01R\x0fperpMarketScope\x12D\n" +
-	"\aactions\x18\b \x03(\x0e2\x15.auth.v1.PolicyActionB\x13\xbaH\x10\x92\x01\r\x10@\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\aactions\x12.\n" +
-	"\x13global_notional_cap\x18\f \x01(\x04R\x11globalNotionalCap\x12,\n" +
-	"\x12max_order_notional\x18\r \x01(\x04R\x10maxOrderNotional\x12&\n" +
-	"\x0fmax_open_orders\x18\x0e \x01(\rR\rmaxOpenOrders\x12,\n" +
-	"\x12max_open_positions\x18\x0f \x01(\rR\x10maxOpenPositions\x123\n" +
-	"\x16global_perp_leverage_x\x18\x10 \x01(\rR\x13globalPerpLeverageX\x12H\n" +
-	"!daily_internal_transfer_out_limit\x18\x11 \x01(\x04R\x1ddailyInternalTransferOutLimit\x120\n" +
-	"\x14daily_withdraw_limit\x18\x12 \x01(\x04R\x12dailyWithdrawLimit\x12=\n" +
-	"\x1binternal_transfers_own_only\x18\x13 \x01(\bR\x18internalTransfersOwnOnly\x12<\n" +
-	"\x1aenforce_withdraw_whitelist\x18\x14 \x01(\bR\x18enforceWithdrawWhitelist\x12%\n" +
-	"\x0etrading_halted\x18\x15 \x01(\bR\rtradingHalted\x12)\n" +
-	"\x10liquidation_only\x18\x16 \x01(\bR\x0fliquidationOnly\x12(\n" +
-	"\x10daily_loss_limit\x18\x17 \x01(\x04R\x0edailyLossLimit\x12G\n" +
-	"\x1bintraday_drawdown_limit_bps\x18\x18 \x01(\rB\b\xbaH\x05*\x03\x18\x90NR\x18intradayDrawdownLimitBps\x12\x16\n" +
-	"\x06locked\x18\x19 \x01(\bR\x06locked\x127\n" +
-	"\treview_at\x18\x1a \x01(\v2\x1a.google.protobuf.TimestampR\breviewAt\x129\n" +
-	"\n" +
-	"expires_at\x18\x1b \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt:\xc2\x04\xbaH\xbe\x04\x1a\xa7\x01\n" +
-	"\x1fspot_allowlist_requires_markets\x12Bspot_markets must be non-empty when spot_market_scope is ALLOWLIST\x1a@this.spot_market_scope != 2 ? true : size(this.spot_markets) > 0\x1a\xa7\x01\n" +
-	"\x1fperp_allowlist_requires_markets\x12Bperp_markets must be non-empty when perp_market_scope is ALLOWLIST\x1a@this.perp_market_scope != 2 ? true : size(this.perp_markets) > 0\x1as\n" +
-	"\x13spot_markets_unique\x12/spot_markets must not contain duplicate symbols\x1a+this.spot_markets.map(m, m.symbol).unique()\x1as\n" +
-	"\x13perp_markets_unique\x12/perp_markets must not contain duplicate symbols\x1a+this.perp_markets.map(m, m.symbol).unique()\"W\n" +
+	"\x06policy\x18\x01 \x01(\v2\x1d.auth.v1.SubaccountPolicyViewR\x06policy\"\x92\x02\n" +
+	"\x1dUpdateSubaccountPolicyRequest\x12.\n" +
+	"\tpolicy_id\x18\x01 \x01(\x06B\x11\xe0A\x02\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\bpolicyId\x12@\n" +
+	"\x06policy\x18\x02 \x01(\v2\x1d.auth.v1.SubaccountPolicySpecB\t\xe0A\x02\xbaH\x03\xc8\x01\x01R\x06policy\x12F\n" +
+	"\vupdate_mask\x18\x03 \x01(\v2\x1a.google.protobuf.FieldMaskB\t\xe0A\x02\xbaH\x03\xc8\x01\x01R\n" +
+	"updateMask\x127\n" +
+	"\x11expected_revision\x18\x04 \x01(\x04B\n" +
+	"\xe0A\x02\xbaH\x042\x02 \x00R\x10expectedRevision\"W\n" +
 	"\x1eUpdateSubaccountPolicyResponse\x125\n" +
 	"\x06policy\x18\x01 \x01(\v2\x1d.auth.v1.SubaccountPolicyViewR\x06policy\"L\n" +
 	"\x1dDeleteSubaccountPolicyRequest\x12+\n" +
@@ -2738,7 +2557,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x1aSetSubaccountPolicyRequest\x123\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12\x1b\n" +
 	"\tpolicy_id\x18\x02 \x01(\x06R\bpolicyId\"\x1d\n" +
-	"\x1bSetSubaccountPolicyResponse\"\xa6\x06\n" +
+	"\x1bSetSubaccountPolicyResponse\"\xc2\x06\n" +
 	"\rApiPolicyView\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x06R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -2757,7 +2576,8 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x16 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"Y\n" +
+	"updated_at\x18\x16 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1a\n" +
+	"\brevision\x18\x17 \x01(\x04R\brevision\"Y\n" +
 	"\x16ListApiPoliciesRequest\x124\n" +
 	"\x06key_id\x18\x01 \x01(\tB\x18\xbaH\x15r\x132\x11^ak_[a-f0-9]{32}$H\x00R\x05keyId\x88\x01\x01B\t\n" +
 	"\a_key_id\"M\n" +
@@ -2768,10 +2588,9 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x06key_id\x18\x02 \x01(\tB\x18\xbaH\x15r\x132\x11^ak_[a-f0-9]{32}$H\x00R\x05keyId\x88\x01\x01B\t\n" +
 	"\a_key_id\"F\n" +
 	"\x14GetApiPolicyResponse\x12.\n" +
-	"\x06policy\x18\x01 \x01(\v2\x16.auth.v1.ApiPolicyViewR\x06policy\"\x9e\n" +
-	"\n" +
-	"\x16CreateApiPolicyRequest\x12 \n" +
-	"\x04name\x18\x01 \x01(\tB\f\xe0A\x02\xbaH\x06r\x04\x10\x01\x18@R\x04name\x12*\n" +
+	"\x06policy\x18\x01 \x01(\v2\x16.auth.v1.ApiPolicyViewR\x06policy\"\xca\t\n" +
+	"\rApiPolicySpec\x12\x1b\n" +
+	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18@R\x04name\x12*\n" +
 	"\vdescription\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\vdescription\x12:\n" +
 	"\fspot_markets\x18\x03 \x03(\v2\x17.auth.v1.SpotMarketRuleR\vspotMarkets\x12:\n" +
 	"\fperp_markets\x18\x04 \x03(\v2\x17.auth.v1.PerpMarketRuleR\vperpMarkets\x12P\n" +
@@ -2782,33 +2601,23 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"!daily_internal_transfer_out_limit\x18\x11 \x01(\x04R\x1ddailyInternalTransferOutLimit\x120\n" +
 	"\x14daily_withdraw_limit\x18\x12 \x01(\x04R\x12dailyWithdrawLimit\x12\x1f\n" +
 	"\vis_template\x18\x13 \x01(\bR\n" +
-	"isTemplate\x12D\n" +
-	"\x10assign_to_key_id\x18\x14 \x01(\tB\x1b\xbaH\x18r\x162\x14^$|^ak_[a-f0-9]{32}$R\rassignToKeyId:\xc2\x04\xbaH\xbe\x04\x1a\xa7\x01\n" +
-	"\x1fspot_allowlist_requires_markets\x12Bspot_markets must be non-empty when spot_market_scope is ALLOWLIST\x1a@this.spot_market_scope != 2 ? true : size(this.spot_markets) > 0\x1a\xa7\x01\n" +
-	"\x1fperp_allowlist_requires_markets\x12Bperp_markets must be non-empty when perp_market_scope is ALLOWLIST\x1a@this.perp_market_scope != 2 ? true : size(this.perp_markets) > 0\x1as\n" +
-	"\x13spot_markets_unique\x12/spot_markets must not contain duplicate symbols\x1a+this.spot_markets.map(m, m.symbol).unique()\x1as\n" +
-	"\x13perp_markets_unique\x12/perp_markets must not contain duplicate symbols\x1a+this.perp_markets.map(m, m.symbol).unique()\"I\n" +
-	"\x17CreateApiPolicyResponse\x12.\n" +
-	"\x06policy\x18\x01 \x01(\v2\x16.auth.v1.ApiPolicyViewR\x06policy\"\x85\n" +
-	"\n" +
-	"\x16UpdateApiPolicyRequest\x12+\n" +
-	"\tpolicy_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\bpolicyId\x12 \n" +
-	"\x04name\x18\x02 \x01(\tB\f\xe0A\x02\xbaH\x06r\x04\x10\x01\x18@R\x04name\x12*\n" +
-	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\vdescription\x12:\n" +
-	"\fspot_markets\x18\x04 \x03(\v2\x17.auth.v1.SpotMarketRuleR\vspotMarkets\x12:\n" +
-	"\fperp_markets\x18\x05 \x03(\v2\x17.auth.v1.PerpMarketRuleR\vperpMarkets\x12P\n" +
-	"\x11spot_market_scope\x18\x06 \x01(\x0e2\x1a.auth.v1.MarketScope.ValueB\b\xbaH\x05\x82\x01\x02\x10\x01R\x0fspotMarketScope\x12P\n" +
-	"\x11perp_market_scope\x18\a \x01(\x0e2\x1a.auth.v1.MarketScope.ValueB\b\xbaH\x05\x82\x01\x02\x10\x01R\x0fperpMarketScope\x12D\n" +
-	"\aactions\x18\b \x03(\x0e2\x15.auth.v1.PolicyActionB\x13\xbaH\x10\x92\x01\r\x10@\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\aactions\x12,\n" +
-	"\x12max_order_notional\x18\r \x01(\x04R\x10maxOrderNotional\x12H\n" +
-	"!daily_internal_transfer_out_limit\x18\x11 \x01(\x04R\x1ddailyInternalTransferOutLimit\x120\n" +
-	"\x14daily_withdraw_limit\x18\x12 \x01(\x04R\x12dailyWithdrawLimit\x12\x1f\n" +
-	"\vis_template\x18\x13 \x01(\bR\n" +
 	"isTemplate:\xc2\x04\xbaH\xbe\x04\x1a\xa7\x01\n" +
 	"\x1fspot_allowlist_requires_markets\x12Bspot_markets must be non-empty when spot_market_scope is ALLOWLIST\x1a@this.spot_market_scope != 2 ? true : size(this.spot_markets) > 0\x1a\xa7\x01\n" +
 	"\x1fperp_allowlist_requires_markets\x12Bperp_markets must be non-empty when perp_market_scope is ALLOWLIST\x1a@this.perp_market_scope != 2 ? true : size(this.perp_markets) > 0\x1as\n" +
 	"\x13spot_markets_unique\x12/spot_markets must not contain duplicate symbols\x1a+this.spot_markets.map(m, m.symbol).unique()\x1as\n" +
-	"\x13perp_markets_unique\x12/perp_markets must not contain duplicate symbols\x1a+this.perp_markets.map(m, m.symbol).unique()\"I\n" +
+	"\x13perp_markets_unique\x12/perp_markets must not contain duplicate symbols\x1a+this.perp_markets.map(m, m.symbol).unique()\"\x99\x01\n" +
+	"\x16CreateApiPolicyRequest\x129\n" +
+	"\x06policy\x18\x01 \x01(\v2\x16.auth.v1.ApiPolicySpecB\t\xe0A\x02\xbaH\x03\xc8\x01\x01R\x06policy\x12D\n" +
+	"\x10assign_to_key_id\x18\x02 \x01(\tB\x1b\xbaH\x18r\x162\x14^$|^ak_[a-f0-9]{32}$R\rassignToKeyId\"I\n" +
+	"\x17CreateApiPolicyResponse\x12.\n" +
+	"\x06policy\x18\x01 \x01(\v2\x16.auth.v1.ApiPolicyViewR\x06policy\"\x84\x02\n" +
+	"\x16UpdateApiPolicyRequest\x12.\n" +
+	"\tpolicy_id\x18\x01 \x01(\x06B\x11\xe0A\x02\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\bpolicyId\x129\n" +
+	"\x06policy\x18\x02 \x01(\v2\x16.auth.v1.ApiPolicySpecB\t\xe0A\x02\xbaH\x03\xc8\x01\x01R\x06policy\x12F\n" +
+	"\vupdate_mask\x18\x03 \x01(\v2\x1a.google.protobuf.FieldMaskB\t\xe0A\x02\xbaH\x03\xc8\x01\x01R\n" +
+	"updateMask\x127\n" +
+	"\x11expected_revision\x18\x04 \x01(\x04B\n" +
+	"\xe0A\x02\xbaH\x042\x02 \x00R\x10expectedRevision\"I\n" +
 	"\x17UpdateApiPolicyResponse\x12.\n" +
 	"\x06policy\x18\x01 \x01(\v2\x16.auth.v1.ApiPolicyViewR\x06policy\"E\n" +
 	"\x16DeleteApiPolicyRequest\x12+\n" +
@@ -2833,16 +2642,16 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x19READ_EXTERNAL_WITHDRAWALS\x10\t\x12\x1a\n" +
 	"\x16READ_TRANSFER_CONTROLS\x10\v\x12\x17\n" +
 	"\x13MANAGE_ADDRESS_BOOK\x10\f\x12\x1e\n" +
-	"\x1aMANAGE_TRANSFER_WHITELISTS\x10\r2\x90\x17\n" +
+	"\x1aMANAGE_TRANSFER_WHITELISTS\x10\r2\xb4\x17\n" +
 	"\rPolicyService\x12\xf8\x01\n" +
 	"\x16ListSubaccountPolicies\x12&.auth.v1.ListSubaccountPoliciesRequest\x1a'.auth.v1.ListSubaccountPoliciesResponse\"\x8c\x01\xbaGd\n" +
 	"\fAuth Service\x12\x18List Subaccount Policies\x1a:List sub-account policy templates available to the caller.\x82\xd3\xe4\x93\x02\x1f\x12\x1d/v1/auth/policies/subaccounts\x12\xf9\x01\n" +
 	"\x13GetSubaccountPolicy\x12#.auth.v1.GetSubaccountPolicyRequest\x1a$.auth.v1.GetSubaccountPolicyResponse\"\x96\x01\xbaGb\n" +
 	"\fAuth Service\x12\x15Get Subaccount Policy\x1a;Retrieve a single sub-account policy template by policy ID.\x82\xd3\xe4\x93\x02+\x12)/v1/auth/policies/subaccounts/{policy_id}\x12\x8e\x02\n" +
 	"\x16CreateSubaccountPolicy\x12&.auth.v1.CreateSubaccountPolicyRequest\x1a'.auth.v1.CreateSubaccountPolicyResponse\"\xa2\x01\xbaGw\n" +
-	"\fAuth Service\x12\x18Create Subaccount Policy\x1aMCreate a new sub-account policy template for the caller account or workspace.\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/v1/auth/policies/subaccounts\x12\xfd\x01\n" +
-	"\x16UpdateSubaccountPolicy\x12&.auth.v1.UpdateSubaccountPolicyRequest\x1a'.auth.v1.UpdateSubaccountPolicyResponse\"\x91\x01\xbaGZ\n" +
-	"\fAuth Service\x12\x18Update Subaccount Policy\x1a0Replace an existing sub-account policy template.\x82\xd3\xe4\x93\x02.:\x01*2)/v1/auth/policies/subaccounts/{policy_id}\x12\x8f\x02\n" +
+	"\fAuth Service\x12\x18Create Subaccount Policy\x1aMCreate a new sub-account policy template for the caller account or workspace.\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/v1/auth/policies/subaccounts\x12\x8f\x02\n" +
+	"\x16UpdateSubaccountPolicy\x12&.auth.v1.UpdateSubaccountPolicyRequest\x1a'.auth.v1.UpdateSubaccountPolicyResponse\"\xa3\x01\xbaGl\n" +
+	"\fAuth Service\x12\x18Update Subaccount Policy\x1aBChange selected fields on an existing sub-account policy template.\x82\xd3\xe4\x93\x02.:\x01*2)/v1/auth/policies/subaccounts/{policy_id}\x12\x8f\x02\n" +
 	"\x16DeleteSubaccountPolicy\x12&.auth.v1.DeleteSubaccountPolicyRequest\x1a'.auth.v1.DeleteSubaccountPolicyResponse\"\xa3\x01\xbaGo\n" +
 	"\fAuth Service\x12\x18Delete Subaccount Policy\x1aEDelete an existing sub-account policy template when it is not in use.\x82\xd3\xe4\x93\x02+*)/v1/auth/policies/subaccounts/{policy_id}\x12\x83\x02\n" +
 	"\x13SetSubaccountPolicy\x12#.auth.v1.SetSubaccountPolicyRequest\x1a$.auth.v1.SetSubaccountPolicyResponse\"\xa0\x01\xbaGg\n" +
@@ -2852,9 +2661,9 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\fGetApiPolicy\x12\x1c.auth.v1.GetApiPolicyRequest\x1a\x1d.auth.v1.GetApiPolicyResponse\"\x8c\x01\xbaG[\n" +
 	"\fAuth Service\x12\x12Get API Key Policy\x1a7Retrieve a single API key policy template by policy ID.\x82\xd3\xe4\x93\x02(\x12&/v1/auth/policies/api-keys/{policy_id}\x12\xef\x01\n" +
 	"\x0fCreateApiPolicy\x12\x1f.auth.v1.CreateApiPolicyRequest\x1a .auth.v1.CreateApiPolicyResponse\"\x98\x01\xbaGp\n" +
-	"\fAuth Service\x12\x15Create API Key Policy\x1aICreate a new API key policy template for the caller account or workspace.\x82\xd3\xe4\x93\x02\x1f:\x01*\"\x1a/v1/auth/policies/api-keys\x12\xde\x01\n" +
-	"\x0fUpdateApiPolicy\x12\x1f.auth.v1.UpdateApiPolicyRequest\x1a .auth.v1.UpdateApiPolicyResponse\"\x87\x01\xbaGS\n" +
-	"\fAuth Service\x12\x15Update API Key Policy\x1a,Replace an existing API key policy template.\x82\xd3\xe4\x93\x02+:\x01*2&/v1/auth/policies/api-keys/{policy_id}\x12\xf0\x01\n" +
+	"\fAuth Service\x12\x15Create API Key Policy\x1aICreate a new API key policy template for the caller account or workspace.\x82\xd3\xe4\x93\x02\x1f:\x01*\"\x1a/v1/auth/policies/api-keys\x12\xf0\x01\n" +
+	"\x0fUpdateApiPolicy\x12\x1f.auth.v1.UpdateApiPolicyRequest\x1a .auth.v1.UpdateApiPolicyResponse\"\x99\x01\xbaGe\n" +
+	"\fAuth Service\x12\x15Update API Key Policy\x1a>Change selected fields on an existing API key policy template.\x82\xd3\xe4\x93\x02+:\x01*2&/v1/auth/policies/api-keys/{policy_id}\x12\xf0\x01\n" +
 	"\x0fDeleteApiPolicy\x12\x1f.auth.v1.DeleteApiPolicyRequest\x1a .auth.v1.DeleteApiPolicyResponse\"\x99\x01\xbaGh\n" +
 	"\fAuth Service\x12\x15Delete API Key Policy\x1aADelete an existing API key policy template when it is not in use.\x82\xd3\xe4\x93\x02(*&/v1/auth/policies/api-keys/{policy_id}\x12\xdf\x01\n" +
 	"\x0fSetApiKeyPolicy\x12\x1f.auth.v1.SetApiKeyPolicyRequest\x1a .auth.v1.SetApiKeyPolicyResponse\"\x88\x01\xbaGY\n" +
@@ -2873,7 +2682,7 @@ func file_auth_v1_policies_proto_rawDescGZIP() []byte {
 }
 
 var file_auth_v1_policies_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_auth_v1_policies_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
+var file_auth_v1_policies_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
 var file_auth_v1_policies_proto_goTypes = []any{
 	(PolicyAction)(0),                      // 0: auth.v1.PolicyAction
 	(MarketScope_Value)(0),                 // 1: auth.v1.MarketScope.Value
@@ -2885,28 +2694,31 @@ var file_auth_v1_policies_proto_goTypes = []any{
 	(*ListSubaccountPoliciesResponse)(nil), // 7: auth.v1.ListSubaccountPoliciesResponse
 	(*GetSubaccountPolicyRequest)(nil),     // 8: auth.v1.GetSubaccountPolicyRequest
 	(*GetSubaccountPolicyResponse)(nil),    // 9: auth.v1.GetSubaccountPolicyResponse
-	(*CreateSubaccountPolicyRequest)(nil),  // 10: auth.v1.CreateSubaccountPolicyRequest
-	(*CreateSubaccountPolicyResponse)(nil), // 11: auth.v1.CreateSubaccountPolicyResponse
-	(*UpdateSubaccountPolicyRequest)(nil),  // 12: auth.v1.UpdateSubaccountPolicyRequest
-	(*UpdateSubaccountPolicyResponse)(nil), // 13: auth.v1.UpdateSubaccountPolicyResponse
-	(*DeleteSubaccountPolicyRequest)(nil),  // 14: auth.v1.DeleteSubaccountPolicyRequest
-	(*DeleteSubaccountPolicyResponse)(nil), // 15: auth.v1.DeleteSubaccountPolicyResponse
-	(*SetSubaccountPolicyRequest)(nil),     // 16: auth.v1.SetSubaccountPolicyRequest
-	(*SetSubaccountPolicyResponse)(nil),    // 17: auth.v1.SetSubaccountPolicyResponse
-	(*ApiPolicyView)(nil),                  // 18: auth.v1.ApiPolicyView
-	(*ListApiPoliciesRequest)(nil),         // 19: auth.v1.ListApiPoliciesRequest
-	(*ListApiPoliciesResponse)(nil),        // 20: auth.v1.ListApiPoliciesResponse
-	(*GetApiPolicyRequest)(nil),            // 21: auth.v1.GetApiPolicyRequest
-	(*GetApiPolicyResponse)(nil),           // 22: auth.v1.GetApiPolicyResponse
-	(*CreateApiPolicyRequest)(nil),         // 23: auth.v1.CreateApiPolicyRequest
-	(*CreateApiPolicyResponse)(nil),        // 24: auth.v1.CreateApiPolicyResponse
-	(*UpdateApiPolicyRequest)(nil),         // 25: auth.v1.UpdateApiPolicyRequest
-	(*UpdateApiPolicyResponse)(nil),        // 26: auth.v1.UpdateApiPolicyResponse
-	(*DeleteApiPolicyRequest)(nil),         // 27: auth.v1.DeleteApiPolicyRequest
-	(*DeleteApiPolicyResponse)(nil),        // 28: auth.v1.DeleteApiPolicyResponse
-	(*SetApiKeyPolicyRequest)(nil),         // 29: auth.v1.SetApiKeyPolicyRequest
-	(*SetApiKeyPolicyResponse)(nil),        // 30: auth.v1.SetApiKeyPolicyResponse
-	(*timestamppb.Timestamp)(nil),          // 31: google.protobuf.Timestamp
+	(*SubaccountPolicySpec)(nil),           // 10: auth.v1.SubaccountPolicySpec
+	(*CreateSubaccountPolicyRequest)(nil),  // 11: auth.v1.CreateSubaccountPolicyRequest
+	(*CreateSubaccountPolicyResponse)(nil), // 12: auth.v1.CreateSubaccountPolicyResponse
+	(*UpdateSubaccountPolicyRequest)(nil),  // 13: auth.v1.UpdateSubaccountPolicyRequest
+	(*UpdateSubaccountPolicyResponse)(nil), // 14: auth.v1.UpdateSubaccountPolicyResponse
+	(*DeleteSubaccountPolicyRequest)(nil),  // 15: auth.v1.DeleteSubaccountPolicyRequest
+	(*DeleteSubaccountPolicyResponse)(nil), // 16: auth.v1.DeleteSubaccountPolicyResponse
+	(*SetSubaccountPolicyRequest)(nil),     // 17: auth.v1.SetSubaccountPolicyRequest
+	(*SetSubaccountPolicyResponse)(nil),    // 18: auth.v1.SetSubaccountPolicyResponse
+	(*ApiPolicyView)(nil),                  // 19: auth.v1.ApiPolicyView
+	(*ListApiPoliciesRequest)(nil),         // 20: auth.v1.ListApiPoliciesRequest
+	(*ListApiPoliciesResponse)(nil),        // 21: auth.v1.ListApiPoliciesResponse
+	(*GetApiPolicyRequest)(nil),            // 22: auth.v1.GetApiPolicyRequest
+	(*GetApiPolicyResponse)(nil),           // 23: auth.v1.GetApiPolicyResponse
+	(*ApiPolicySpec)(nil),                  // 24: auth.v1.ApiPolicySpec
+	(*CreateApiPolicyRequest)(nil),         // 25: auth.v1.CreateApiPolicyRequest
+	(*CreateApiPolicyResponse)(nil),        // 26: auth.v1.CreateApiPolicyResponse
+	(*UpdateApiPolicyRequest)(nil),         // 27: auth.v1.UpdateApiPolicyRequest
+	(*UpdateApiPolicyResponse)(nil),        // 28: auth.v1.UpdateApiPolicyResponse
+	(*DeleteApiPolicyRequest)(nil),         // 29: auth.v1.DeleteApiPolicyRequest
+	(*DeleteApiPolicyResponse)(nil),        // 30: auth.v1.DeleteApiPolicyResponse
+	(*SetApiKeyPolicyRequest)(nil),         // 31: auth.v1.SetApiKeyPolicyRequest
+	(*SetApiKeyPolicyResponse)(nil),        // 32: auth.v1.SetApiKeyPolicyResponse
+	(*timestamppb.Timestamp)(nil),          // 33: google.protobuf.Timestamp
+	(*fieldmaskpb.FieldMask)(nil),          // 34: google.protobuf.FieldMask
 }
 var file_auth_v1_policies_proto_depIdxs = []int32{
 	3,  // 0: auth.v1.SubaccountPolicyView.spot_markets:type_name -> auth.v1.SpotMarketRule
@@ -2914,78 +2726,72 @@ var file_auth_v1_policies_proto_depIdxs = []int32{
 	1,  // 2: auth.v1.SubaccountPolicyView.spot_market_scope:type_name -> auth.v1.MarketScope.Value
 	1,  // 3: auth.v1.SubaccountPolicyView.perp_market_scope:type_name -> auth.v1.MarketScope.Value
 	0,  // 4: auth.v1.SubaccountPolicyView.actions:type_name -> auth.v1.PolicyAction
-	31, // 5: auth.v1.SubaccountPolicyView.review_at:type_name -> google.protobuf.Timestamp
-	31, // 6: auth.v1.SubaccountPolicyView.expires_at:type_name -> google.protobuf.Timestamp
-	31, // 7: auth.v1.SubaccountPolicyView.created_at:type_name -> google.protobuf.Timestamp
-	31, // 8: auth.v1.SubaccountPolicyView.updated_at:type_name -> google.protobuf.Timestamp
+	33, // 5: auth.v1.SubaccountPolicyView.review_at:type_name -> google.protobuf.Timestamp
+	33, // 6: auth.v1.SubaccountPolicyView.expires_at:type_name -> google.protobuf.Timestamp
+	33, // 7: auth.v1.SubaccountPolicyView.created_at:type_name -> google.protobuf.Timestamp
+	33, // 8: auth.v1.SubaccountPolicyView.updated_at:type_name -> google.protobuf.Timestamp
 	5,  // 9: auth.v1.ListSubaccountPoliciesResponse.policies:type_name -> auth.v1.SubaccountPolicyView
 	5,  // 10: auth.v1.GetSubaccountPolicyResponse.policy:type_name -> auth.v1.SubaccountPolicyView
-	3,  // 11: auth.v1.CreateSubaccountPolicyRequest.spot_markets:type_name -> auth.v1.SpotMarketRule
-	4,  // 12: auth.v1.CreateSubaccountPolicyRequest.perp_markets:type_name -> auth.v1.PerpMarketRule
-	1,  // 13: auth.v1.CreateSubaccountPolicyRequest.spot_market_scope:type_name -> auth.v1.MarketScope.Value
-	1,  // 14: auth.v1.CreateSubaccountPolicyRequest.perp_market_scope:type_name -> auth.v1.MarketScope.Value
-	0,  // 15: auth.v1.CreateSubaccountPolicyRequest.actions:type_name -> auth.v1.PolicyAction
-	31, // 16: auth.v1.CreateSubaccountPolicyRequest.review_at:type_name -> google.protobuf.Timestamp
-	31, // 17: auth.v1.CreateSubaccountPolicyRequest.expires_at:type_name -> google.protobuf.Timestamp
-	5,  // 18: auth.v1.CreateSubaccountPolicyResponse.policy:type_name -> auth.v1.SubaccountPolicyView
-	3,  // 19: auth.v1.UpdateSubaccountPolicyRequest.spot_markets:type_name -> auth.v1.SpotMarketRule
-	4,  // 20: auth.v1.UpdateSubaccountPolicyRequest.perp_markets:type_name -> auth.v1.PerpMarketRule
-	1,  // 21: auth.v1.UpdateSubaccountPolicyRequest.spot_market_scope:type_name -> auth.v1.MarketScope.Value
-	1,  // 22: auth.v1.UpdateSubaccountPolicyRequest.perp_market_scope:type_name -> auth.v1.MarketScope.Value
-	0,  // 23: auth.v1.UpdateSubaccountPolicyRequest.actions:type_name -> auth.v1.PolicyAction
-	31, // 24: auth.v1.UpdateSubaccountPolicyRequest.review_at:type_name -> google.protobuf.Timestamp
-	31, // 25: auth.v1.UpdateSubaccountPolicyRequest.expires_at:type_name -> google.protobuf.Timestamp
-	5,  // 26: auth.v1.UpdateSubaccountPolicyResponse.policy:type_name -> auth.v1.SubaccountPolicyView
-	3,  // 27: auth.v1.ApiPolicyView.spot_markets:type_name -> auth.v1.SpotMarketRule
-	4,  // 28: auth.v1.ApiPolicyView.perp_markets:type_name -> auth.v1.PerpMarketRule
-	0,  // 29: auth.v1.ApiPolicyView.actions:type_name -> auth.v1.PolicyAction
-	1,  // 30: auth.v1.ApiPolicyView.spot_market_scope:type_name -> auth.v1.MarketScope.Value
-	1,  // 31: auth.v1.ApiPolicyView.perp_market_scope:type_name -> auth.v1.MarketScope.Value
-	31, // 32: auth.v1.ApiPolicyView.created_at:type_name -> google.protobuf.Timestamp
-	31, // 33: auth.v1.ApiPolicyView.updated_at:type_name -> google.protobuf.Timestamp
-	18, // 34: auth.v1.ListApiPoliciesResponse.policies:type_name -> auth.v1.ApiPolicyView
-	18, // 35: auth.v1.GetApiPolicyResponse.policy:type_name -> auth.v1.ApiPolicyView
-	3,  // 36: auth.v1.CreateApiPolicyRequest.spot_markets:type_name -> auth.v1.SpotMarketRule
-	4,  // 37: auth.v1.CreateApiPolicyRequest.perp_markets:type_name -> auth.v1.PerpMarketRule
-	1,  // 38: auth.v1.CreateApiPolicyRequest.spot_market_scope:type_name -> auth.v1.MarketScope.Value
-	1,  // 39: auth.v1.CreateApiPolicyRequest.perp_market_scope:type_name -> auth.v1.MarketScope.Value
-	0,  // 40: auth.v1.CreateApiPolicyRequest.actions:type_name -> auth.v1.PolicyAction
-	18, // 41: auth.v1.CreateApiPolicyResponse.policy:type_name -> auth.v1.ApiPolicyView
-	3,  // 42: auth.v1.UpdateApiPolicyRequest.spot_markets:type_name -> auth.v1.SpotMarketRule
-	4,  // 43: auth.v1.UpdateApiPolicyRequest.perp_markets:type_name -> auth.v1.PerpMarketRule
-	1,  // 44: auth.v1.UpdateApiPolicyRequest.spot_market_scope:type_name -> auth.v1.MarketScope.Value
-	1,  // 45: auth.v1.UpdateApiPolicyRequest.perp_market_scope:type_name -> auth.v1.MarketScope.Value
-	0,  // 46: auth.v1.UpdateApiPolicyRequest.actions:type_name -> auth.v1.PolicyAction
-	18, // 47: auth.v1.UpdateApiPolicyResponse.policy:type_name -> auth.v1.ApiPolicyView
-	6,  // 48: auth.v1.PolicyService.ListSubaccountPolicies:input_type -> auth.v1.ListSubaccountPoliciesRequest
-	8,  // 49: auth.v1.PolicyService.GetSubaccountPolicy:input_type -> auth.v1.GetSubaccountPolicyRequest
-	10, // 50: auth.v1.PolicyService.CreateSubaccountPolicy:input_type -> auth.v1.CreateSubaccountPolicyRequest
-	12, // 51: auth.v1.PolicyService.UpdateSubaccountPolicy:input_type -> auth.v1.UpdateSubaccountPolicyRequest
-	14, // 52: auth.v1.PolicyService.DeleteSubaccountPolicy:input_type -> auth.v1.DeleteSubaccountPolicyRequest
-	16, // 53: auth.v1.PolicyService.SetSubaccountPolicy:input_type -> auth.v1.SetSubaccountPolicyRequest
-	19, // 54: auth.v1.PolicyService.ListApiPolicies:input_type -> auth.v1.ListApiPoliciesRequest
-	21, // 55: auth.v1.PolicyService.GetApiPolicy:input_type -> auth.v1.GetApiPolicyRequest
-	23, // 56: auth.v1.PolicyService.CreateApiPolicy:input_type -> auth.v1.CreateApiPolicyRequest
-	25, // 57: auth.v1.PolicyService.UpdateApiPolicy:input_type -> auth.v1.UpdateApiPolicyRequest
-	27, // 58: auth.v1.PolicyService.DeleteApiPolicy:input_type -> auth.v1.DeleteApiPolicyRequest
-	29, // 59: auth.v1.PolicyService.SetApiKeyPolicy:input_type -> auth.v1.SetApiKeyPolicyRequest
-	7,  // 60: auth.v1.PolicyService.ListSubaccountPolicies:output_type -> auth.v1.ListSubaccountPoliciesResponse
-	9,  // 61: auth.v1.PolicyService.GetSubaccountPolicy:output_type -> auth.v1.GetSubaccountPolicyResponse
-	11, // 62: auth.v1.PolicyService.CreateSubaccountPolicy:output_type -> auth.v1.CreateSubaccountPolicyResponse
-	13, // 63: auth.v1.PolicyService.UpdateSubaccountPolicy:output_type -> auth.v1.UpdateSubaccountPolicyResponse
-	15, // 64: auth.v1.PolicyService.DeleteSubaccountPolicy:output_type -> auth.v1.DeleteSubaccountPolicyResponse
-	17, // 65: auth.v1.PolicyService.SetSubaccountPolicy:output_type -> auth.v1.SetSubaccountPolicyResponse
-	20, // 66: auth.v1.PolicyService.ListApiPolicies:output_type -> auth.v1.ListApiPoliciesResponse
-	22, // 67: auth.v1.PolicyService.GetApiPolicy:output_type -> auth.v1.GetApiPolicyResponse
-	24, // 68: auth.v1.PolicyService.CreateApiPolicy:output_type -> auth.v1.CreateApiPolicyResponse
-	26, // 69: auth.v1.PolicyService.UpdateApiPolicy:output_type -> auth.v1.UpdateApiPolicyResponse
-	28, // 70: auth.v1.PolicyService.DeleteApiPolicy:output_type -> auth.v1.DeleteApiPolicyResponse
-	30, // 71: auth.v1.PolicyService.SetApiKeyPolicy:output_type -> auth.v1.SetApiKeyPolicyResponse
-	60, // [60:72] is the sub-list for method output_type
-	48, // [48:60] is the sub-list for method input_type
-	48, // [48:48] is the sub-list for extension type_name
-	48, // [48:48] is the sub-list for extension extendee
-	0,  // [0:48] is the sub-list for field type_name
+	3,  // 11: auth.v1.SubaccountPolicySpec.spot_markets:type_name -> auth.v1.SpotMarketRule
+	4,  // 12: auth.v1.SubaccountPolicySpec.perp_markets:type_name -> auth.v1.PerpMarketRule
+	1,  // 13: auth.v1.SubaccountPolicySpec.spot_market_scope:type_name -> auth.v1.MarketScope.Value
+	1,  // 14: auth.v1.SubaccountPolicySpec.perp_market_scope:type_name -> auth.v1.MarketScope.Value
+	0,  // 15: auth.v1.SubaccountPolicySpec.actions:type_name -> auth.v1.PolicyAction
+	33, // 16: auth.v1.SubaccountPolicySpec.review_at:type_name -> google.protobuf.Timestamp
+	33, // 17: auth.v1.SubaccountPolicySpec.expires_at:type_name -> google.protobuf.Timestamp
+	10, // 18: auth.v1.CreateSubaccountPolicyRequest.policy:type_name -> auth.v1.SubaccountPolicySpec
+	5,  // 19: auth.v1.CreateSubaccountPolicyResponse.policy:type_name -> auth.v1.SubaccountPolicyView
+	10, // 20: auth.v1.UpdateSubaccountPolicyRequest.policy:type_name -> auth.v1.SubaccountPolicySpec
+	34, // 21: auth.v1.UpdateSubaccountPolicyRequest.update_mask:type_name -> google.protobuf.FieldMask
+	5,  // 22: auth.v1.UpdateSubaccountPolicyResponse.policy:type_name -> auth.v1.SubaccountPolicyView
+	3,  // 23: auth.v1.ApiPolicyView.spot_markets:type_name -> auth.v1.SpotMarketRule
+	4,  // 24: auth.v1.ApiPolicyView.perp_markets:type_name -> auth.v1.PerpMarketRule
+	0,  // 25: auth.v1.ApiPolicyView.actions:type_name -> auth.v1.PolicyAction
+	1,  // 26: auth.v1.ApiPolicyView.spot_market_scope:type_name -> auth.v1.MarketScope.Value
+	1,  // 27: auth.v1.ApiPolicyView.perp_market_scope:type_name -> auth.v1.MarketScope.Value
+	33, // 28: auth.v1.ApiPolicyView.created_at:type_name -> google.protobuf.Timestamp
+	33, // 29: auth.v1.ApiPolicyView.updated_at:type_name -> google.protobuf.Timestamp
+	19, // 30: auth.v1.ListApiPoliciesResponse.policies:type_name -> auth.v1.ApiPolicyView
+	19, // 31: auth.v1.GetApiPolicyResponse.policy:type_name -> auth.v1.ApiPolicyView
+	3,  // 32: auth.v1.ApiPolicySpec.spot_markets:type_name -> auth.v1.SpotMarketRule
+	4,  // 33: auth.v1.ApiPolicySpec.perp_markets:type_name -> auth.v1.PerpMarketRule
+	1,  // 34: auth.v1.ApiPolicySpec.spot_market_scope:type_name -> auth.v1.MarketScope.Value
+	1,  // 35: auth.v1.ApiPolicySpec.perp_market_scope:type_name -> auth.v1.MarketScope.Value
+	0,  // 36: auth.v1.ApiPolicySpec.actions:type_name -> auth.v1.PolicyAction
+	24, // 37: auth.v1.CreateApiPolicyRequest.policy:type_name -> auth.v1.ApiPolicySpec
+	19, // 38: auth.v1.CreateApiPolicyResponse.policy:type_name -> auth.v1.ApiPolicyView
+	24, // 39: auth.v1.UpdateApiPolicyRequest.policy:type_name -> auth.v1.ApiPolicySpec
+	34, // 40: auth.v1.UpdateApiPolicyRequest.update_mask:type_name -> google.protobuf.FieldMask
+	19, // 41: auth.v1.UpdateApiPolicyResponse.policy:type_name -> auth.v1.ApiPolicyView
+	6,  // 42: auth.v1.PolicyService.ListSubaccountPolicies:input_type -> auth.v1.ListSubaccountPoliciesRequest
+	8,  // 43: auth.v1.PolicyService.GetSubaccountPolicy:input_type -> auth.v1.GetSubaccountPolicyRequest
+	11, // 44: auth.v1.PolicyService.CreateSubaccountPolicy:input_type -> auth.v1.CreateSubaccountPolicyRequest
+	13, // 45: auth.v1.PolicyService.UpdateSubaccountPolicy:input_type -> auth.v1.UpdateSubaccountPolicyRequest
+	15, // 46: auth.v1.PolicyService.DeleteSubaccountPolicy:input_type -> auth.v1.DeleteSubaccountPolicyRequest
+	17, // 47: auth.v1.PolicyService.SetSubaccountPolicy:input_type -> auth.v1.SetSubaccountPolicyRequest
+	20, // 48: auth.v1.PolicyService.ListApiPolicies:input_type -> auth.v1.ListApiPoliciesRequest
+	22, // 49: auth.v1.PolicyService.GetApiPolicy:input_type -> auth.v1.GetApiPolicyRequest
+	25, // 50: auth.v1.PolicyService.CreateApiPolicy:input_type -> auth.v1.CreateApiPolicyRequest
+	27, // 51: auth.v1.PolicyService.UpdateApiPolicy:input_type -> auth.v1.UpdateApiPolicyRequest
+	29, // 52: auth.v1.PolicyService.DeleteApiPolicy:input_type -> auth.v1.DeleteApiPolicyRequest
+	31, // 53: auth.v1.PolicyService.SetApiKeyPolicy:input_type -> auth.v1.SetApiKeyPolicyRequest
+	7,  // 54: auth.v1.PolicyService.ListSubaccountPolicies:output_type -> auth.v1.ListSubaccountPoliciesResponse
+	9,  // 55: auth.v1.PolicyService.GetSubaccountPolicy:output_type -> auth.v1.GetSubaccountPolicyResponse
+	12, // 56: auth.v1.PolicyService.CreateSubaccountPolicy:output_type -> auth.v1.CreateSubaccountPolicyResponse
+	14, // 57: auth.v1.PolicyService.UpdateSubaccountPolicy:output_type -> auth.v1.UpdateSubaccountPolicyResponse
+	16, // 58: auth.v1.PolicyService.DeleteSubaccountPolicy:output_type -> auth.v1.DeleteSubaccountPolicyResponse
+	18, // 59: auth.v1.PolicyService.SetSubaccountPolicy:output_type -> auth.v1.SetSubaccountPolicyResponse
+	21, // 60: auth.v1.PolicyService.ListApiPolicies:output_type -> auth.v1.ListApiPoliciesResponse
+	23, // 61: auth.v1.PolicyService.GetApiPolicy:output_type -> auth.v1.GetApiPolicyResponse
+	26, // 62: auth.v1.PolicyService.CreateApiPolicy:output_type -> auth.v1.CreateApiPolicyResponse
+	28, // 63: auth.v1.PolicyService.UpdateApiPolicy:output_type -> auth.v1.UpdateApiPolicyResponse
+	30, // 64: auth.v1.PolicyService.DeleteApiPolicy:output_type -> auth.v1.DeleteApiPolicyResponse
+	32, // 65: auth.v1.PolicyService.SetApiKeyPolicy:output_type -> auth.v1.SetApiKeyPolicyResponse
+	54, // [54:66] is the sub-list for method output_type
+	42, // [42:54] is the sub-list for method input_type
+	42, // [42:42] is the sub-list for extension type_name
+	42, // [42:42] is the sub-list for extension extendee
+	0,  // [0:42] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_policies_proto_init() }
@@ -2995,16 +2801,16 @@ func file_auth_v1_policies_proto_init() {
 	}
 	file_auth_v1_policies_proto_msgTypes[4].OneofWrappers = []any{}
 	file_auth_v1_policies_proto_msgTypes[6].OneofWrappers = []any{}
-	file_auth_v1_policies_proto_msgTypes[8].OneofWrappers = []any{}
-	file_auth_v1_policies_proto_msgTypes[17].OneofWrappers = []any{}
-	file_auth_v1_policies_proto_msgTypes[19].OneofWrappers = []any{}
+	file_auth_v1_policies_proto_msgTypes[9].OneofWrappers = []any{}
+	file_auth_v1_policies_proto_msgTypes[18].OneofWrappers = []any{}
+	file_auth_v1_policies_proto_msgTypes[20].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_policies_proto_rawDesc), len(file_auth_v1_policies_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   29,
+			NumMessages:   31,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

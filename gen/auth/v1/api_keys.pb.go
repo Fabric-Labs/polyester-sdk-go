@@ -12,6 +12,7 @@ import (
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -122,7 +123,9 @@ type ApiKey struct {
 	// key, later is fresher, equal is an idempotent replay, and earlier is stale.
 	// Equal timestamps with different configuration indicate an invariant failure.
 	// This is independent of last_used_at, which tracks authentication activity.
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,25,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,25,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// Monotonic resource revision used for conditional updates.
+	Revision      uint64 `protobuf:"varint,26,opt,name=revision,proto3" json:"revision,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -255,50 +258,11 @@ func (x *ApiKey) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// IpWhitelist replaces or clears an API key IP whitelist during updates.
-type IpWhitelist struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// CIDR strings, e.g. "1.2.3.4/32". Maximum 32 unique entries.
-	Cidrs         []string `protobuf:"bytes,1,rep,name=cidrs,proto3" json:"cidrs,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *IpWhitelist) Reset() {
-	*x = IpWhitelist{}
-	mi := &file_auth_v1_api_keys_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *IpWhitelist) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*IpWhitelist) ProtoMessage() {}
-
-func (x *IpWhitelist) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_api_keys_proto_msgTypes[1]
+func (x *ApiKey) GetRevision() uint64 {
 	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
+		return x.Revision
 	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use IpWhitelist.ProtoReflect.Descriptor instead.
-func (*IpWhitelist) Descriptor() ([]byte, []int) {
-	return file_auth_v1_api_keys_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *IpWhitelist) GetCidrs() []string {
-	if x != nil {
-		return x.Cidrs
-	}
-	return nil
+	return 0
 }
 
 // CreateApiKeyRequest creates a new API key. Clients generate the Ed25519 key
@@ -326,7 +290,7 @@ type CreateApiKeyRequest struct {
 
 func (x *CreateApiKeyRequest) Reset() {
 	*x = CreateApiKeyRequest{}
-	mi := &file_auth_v1_api_keys_proto_msgTypes[2]
+	mi := &file_auth_v1_api_keys_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -338,7 +302,7 @@ func (x *CreateApiKeyRequest) String() string {
 func (*CreateApiKeyRequest) ProtoMessage() {}
 
 func (x *CreateApiKeyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_api_keys_proto_msgTypes[2]
+	mi := &file_auth_v1_api_keys_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -351,7 +315,7 @@ func (x *CreateApiKeyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateApiKeyRequest.ProtoReflect.Descriptor instead.
 func (*CreateApiKeyRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_api_keys_proto_rawDescGZIP(), []int{2}
+	return file_auth_v1_api_keys_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *CreateApiKeyRequest) GetLabel() string {
@@ -407,7 +371,7 @@ type CreateApiKeyResponse struct {
 
 func (x *CreateApiKeyResponse) Reset() {
 	*x = CreateApiKeyResponse{}
-	mi := &file_auth_v1_api_keys_proto_msgTypes[3]
+	mi := &file_auth_v1_api_keys_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -419,7 +383,7 @@ func (x *CreateApiKeyResponse) String() string {
 func (*CreateApiKeyResponse) ProtoMessage() {}
 
 func (x *CreateApiKeyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_api_keys_proto_msgTypes[3]
+	mi := &file_auth_v1_api_keys_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -432,7 +396,7 @@ func (x *CreateApiKeyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateApiKeyResponse.ProtoReflect.Descriptor instead.
 func (*CreateApiKeyResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_api_keys_proto_rawDescGZIP(), []int{3}
+	return file_auth_v1_api_keys_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *CreateApiKeyResponse) GetApiKey() *ApiKey {
@@ -454,7 +418,7 @@ type ListApiKeysRequest struct {
 
 func (x *ListApiKeysRequest) Reset() {
 	*x = ListApiKeysRequest{}
-	mi := &file_auth_v1_api_keys_proto_msgTypes[4]
+	mi := &file_auth_v1_api_keys_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -466,7 +430,7 @@ func (x *ListApiKeysRequest) String() string {
 func (*ListApiKeysRequest) ProtoMessage() {}
 
 func (x *ListApiKeysRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_api_keys_proto_msgTypes[4]
+	mi := &file_auth_v1_api_keys_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -479,7 +443,7 @@ func (x *ListApiKeysRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListApiKeysRequest.ProtoReflect.Descriptor instead.
 func (*ListApiKeysRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_api_keys_proto_rawDescGZIP(), []int{4}
+	return file_auth_v1_api_keys_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ListApiKeysRequest) GetSubaccountId() uint64 {
@@ -500,7 +464,7 @@ type ListApiKeysResponse struct {
 
 func (x *ListApiKeysResponse) Reset() {
 	*x = ListApiKeysResponse{}
-	mi := &file_auth_v1_api_keys_proto_msgTypes[5]
+	mi := &file_auth_v1_api_keys_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -512,7 +476,7 @@ func (x *ListApiKeysResponse) String() string {
 func (*ListApiKeysResponse) ProtoMessage() {}
 
 func (x *ListApiKeysResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_api_keys_proto_msgTypes[5]
+	mi := &file_auth_v1_api_keys_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -525,7 +489,7 @@ func (x *ListApiKeysResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListApiKeysResponse.ProtoReflect.Descriptor instead.
 func (*ListApiKeysResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_api_keys_proto_rawDescGZIP(), []int{5}
+	return file_auth_v1_api_keys_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ListApiKeysResponse) GetApiKeys() []*ApiKey {
@@ -547,7 +511,7 @@ type DeleteApiKeyRequest struct {
 
 func (x *DeleteApiKeyRequest) Reset() {
 	*x = DeleteApiKeyRequest{}
-	mi := &file_auth_v1_api_keys_proto_msgTypes[6]
+	mi := &file_auth_v1_api_keys_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -559,7 +523,7 @@ func (x *DeleteApiKeyRequest) String() string {
 func (*DeleteApiKeyRequest) ProtoMessage() {}
 
 func (x *DeleteApiKeyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_api_keys_proto_msgTypes[6]
+	mi := &file_auth_v1_api_keys_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -572,7 +536,7 @@ func (x *DeleteApiKeyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteApiKeyRequest.ProtoReflect.Descriptor instead.
 func (*DeleteApiKeyRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_api_keys_proto_rawDescGZIP(), []int{6}
+	return file_auth_v1_api_keys_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *DeleteApiKeyRequest) GetKeyId() string {
@@ -591,7 +555,7 @@ type DeleteApiKeyResponse struct {
 
 func (x *DeleteApiKeyResponse) Reset() {
 	*x = DeleteApiKeyResponse{}
-	mi := &file_auth_v1_api_keys_proto_msgTypes[7]
+	mi := &file_auth_v1_api_keys_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -603,7 +567,7 @@ func (x *DeleteApiKeyResponse) String() string {
 func (*DeleteApiKeyResponse) ProtoMessage() {}
 
 func (x *DeleteApiKeyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_api_keys_proto_msgTypes[7]
+	mi := &file_auth_v1_api_keys_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -616,7 +580,7 @@ func (x *DeleteApiKeyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteApiKeyResponse.ProtoReflect.Descriptor instead.
 func (*DeleteApiKeyResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_api_keys_proto_rawDescGZIP(), []int{7}
+	return file_auth_v1_api_keys_proto_rawDescGZIP(), []int{6}
 }
 
 // GetApiKeyRequest returns a single API key owned by the caller's account.
@@ -631,7 +595,7 @@ type GetApiKeyRequest struct {
 
 func (x *GetApiKeyRequest) Reset() {
 	*x = GetApiKeyRequest{}
-	mi := &file_auth_v1_api_keys_proto_msgTypes[8]
+	mi := &file_auth_v1_api_keys_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -643,7 +607,7 @@ func (x *GetApiKeyRequest) String() string {
 func (*GetApiKeyRequest) ProtoMessage() {}
 
 func (x *GetApiKeyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_api_keys_proto_msgTypes[8]
+	mi := &file_auth_v1_api_keys_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -656,7 +620,7 @@ func (x *GetApiKeyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetApiKeyRequest.ProtoReflect.Descriptor instead.
 func (*GetApiKeyRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_api_keys_proto_rawDescGZIP(), []int{8}
+	return file_auth_v1_api_keys_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetApiKeyRequest) GetKeyId() string {
@@ -677,7 +641,7 @@ type GetApiKeyResponse struct {
 
 func (x *GetApiKeyResponse) Reset() {
 	*x = GetApiKeyResponse{}
-	mi := &file_auth_v1_api_keys_proto_msgTypes[9]
+	mi := &file_auth_v1_api_keys_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -689,7 +653,7 @@ func (x *GetApiKeyResponse) String() string {
 func (*GetApiKeyResponse) ProtoMessage() {}
 
 func (x *GetApiKeyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_api_keys_proto_msgTypes[9]
+	mi := &file_auth_v1_api_keys_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -702,7 +666,7 @@ func (x *GetApiKeyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetApiKeyResponse.ProtoReflect.Descriptor instead.
 func (*GetApiKeyResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_api_keys_proto_rawDescGZIP(), []int{9}
+	return file_auth_v1_api_keys_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetApiKeyResponse) GetApiKey() *ApiKey {
@@ -712,33 +676,111 @@ func (x *GetApiKeyResponse) GetApiKey() *ApiKey {
 	return nil
 }
 
-// UpdateApiKeyRequest updates mutable metadata for an existing API key.
+// ApiKeyUpdateSpec contains mutable API key configuration.
+type ApiKeyUpdateSpec struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Human-friendly label for the key. Empty clears the label when selected.
+	Label string `protobuf:"bytes,1,opt,name=label,proto3" json:"label,omitempty"`
+	// User-chosen icon/emoji for UI display. Empty clears the icon when selected.
+	Icon string `protobuf:"bytes,2,opt,name=icon,proto3" json:"icon,omitempty"`
+	// User-chosen color token for UI display. Empty clears the color when selected.
+	Color string `protobuf:"bytes,3,opt,name=color,proto3" json:"color,omitempty"`
+	// New status. ACTIVE and DISABLED are allowed; revocation uses DeleteApiKey.
+	Status ApiKeyStatus `protobuf:"varint,4,opt,name=status,proto3,enum=auth.v1.ApiKeyStatus" json:"status,omitempty"`
+	// Complete replacement IP whitelist. Empty clears the restriction when selected.
+	IpWhitelist []string `protobuf:"bytes,5,rep,name=ip_whitelist,json=ipWhitelist,proto3" json:"ip_whitelist,omitempty"`
+	// Expiry time in UTC. When selected, omission or the epoch clears expiry.
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ApiKeyUpdateSpec) Reset() {
+	*x = ApiKeyUpdateSpec{}
+	mi := &file_auth_v1_api_keys_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ApiKeyUpdateSpec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ApiKeyUpdateSpec) ProtoMessage() {}
+
+func (x *ApiKeyUpdateSpec) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_api_keys_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ApiKeyUpdateSpec.ProtoReflect.Descriptor instead.
+func (*ApiKeyUpdateSpec) Descriptor() ([]byte, []int) {
+	return file_auth_v1_api_keys_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ApiKeyUpdateSpec) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *ApiKeyUpdateSpec) GetIcon() string {
+	if x != nil {
+		return x.Icon
+	}
+	return ""
+}
+
+func (x *ApiKeyUpdateSpec) GetColor() string {
+	if x != nil {
+		return x.Color
+	}
+	return ""
+}
+
+func (x *ApiKeyUpdateSpec) GetStatus() ApiKeyStatus {
+	if x != nil {
+		return x.Status
+	}
+	return ApiKeyStatus_API_KEY_STATUS_UNSPECIFIED
+}
+
+func (x *ApiKeyUpdateSpec) GetIpWhitelist() []string {
+	if x != nil {
+		return x.IpWhitelist
+	}
+	return nil
+}
+
+func (x *ApiKeyUpdateSpec) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+// UpdateApiKeyRequest changes selected mutable fields on an existing API key.
 type UpdateApiKeyRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Opaque API key identifier to update.
 	KeyId string `protobuf:"bytes,1,opt,name=key_id,json=keyId,proto3" json:"key_id,omitempty"`
-	// New human-friendly label for the key. If empty, label is left unchanged.
-	// Maximum length is 64 characters.
-	Label string `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
-	// New user-chosen icon/emoji for UI display. If empty, left unchanged.
-	Icon string `protobuf:"bytes,6,opt,name=icon,proto3" json:"icon,omitempty"`
-	// New user-chosen color token for UI display. If empty, left unchanged.
-	Color string `protobuf:"bytes,7,opt,name=color,proto3" json:"color,omitempty"`
-	// Optional new status. ACTIVE and DISABLED are allowed; REVOKED must be done
-	// via DeleteApiKey and is terminal.
-	Status ApiKeyStatus `protobuf:"varint,3,opt,name=status,proto3,enum=auth.v1.ApiKeyStatus" json:"status,omitempty"`
-	// Optional new IP whitelist. If this field is omitted, the whitelist is left
-	// unchanged. If it is present:
-	// - cidrs non-empty replaces the existing whitelist.
-	// - cidrs empty clears the whitelist (no IP restriction).
-	IpWhitelist *IpWhitelist `protobuf:"bytes,4,opt,name=ip_whitelist,json=ipWhitelist,proto3" json:"ip_whitelist,omitempty"`
-	// Optional new expiry time in UTC. If this field is present:
-	// - Non-zero timestamp sets/updates the expiry.
-	// - Zero/epoch timestamp clears the expiry (no automatic expiry).
-	// If this field is omitted, the expiry is left unchanged.
-	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Candidate values for fields selected by update_mask.
+	ApiKey *ApiKeyUpdateSpec `protobuf:"bytes,2,opt,name=api_key,json=apiKey,proto3" json:"api_key,omitempty"`
+	// Mutable fields to apply. Paths are relative to api_key. The mask is required,
+	// must be non-empty, and cannot contain "*".
+	UpdateMask *fieldmaskpb.FieldMask `protobuf:"bytes,3,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
+	// Revision returned by the latest successful read.
+	ExpectedRevision uint64 `protobuf:"varint,4,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *UpdateApiKeyRequest) Reset() {
@@ -778,46 +820,25 @@ func (x *UpdateApiKeyRequest) GetKeyId() string {
 	return ""
 }
 
-func (x *UpdateApiKeyRequest) GetLabel() string {
+func (x *UpdateApiKeyRequest) GetApiKey() *ApiKeyUpdateSpec {
 	if x != nil {
-		return x.Label
-	}
-	return ""
-}
-
-func (x *UpdateApiKeyRequest) GetIcon() string {
-	if x != nil {
-		return x.Icon
-	}
-	return ""
-}
-
-func (x *UpdateApiKeyRequest) GetColor() string {
-	if x != nil {
-		return x.Color
-	}
-	return ""
-}
-
-func (x *UpdateApiKeyRequest) GetStatus() ApiKeyStatus {
-	if x != nil {
-		return x.Status
-	}
-	return ApiKeyStatus_API_KEY_STATUS_UNSPECIFIED
-}
-
-func (x *UpdateApiKeyRequest) GetIpWhitelist() *IpWhitelist {
-	if x != nil {
-		return x.IpWhitelist
+		return x.ApiKey
 	}
 	return nil
 }
 
-func (x *UpdateApiKeyRequest) GetExpiresAt() *timestamppb.Timestamp {
+func (x *UpdateApiKeyRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
 	if x != nil {
-		return x.ExpiresAt
+		return x.UpdateMask
 	}
 	return nil
+}
+
+func (x *UpdateApiKeyRequest) GetExpectedRevision() uint64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
 }
 
 // UpdateApiKeyResponse returns the API key after applying the update.
@@ -870,7 +891,7 @@ var File_auth_v1_api_keys_proto protoreflect.FileDescriptor
 
 const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\n" +
-	"\x16auth/v1/api_keys.proto\x12\aauth.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa3\x05\n" +
+	"\x16auth/v1/api_keys.proto\x12\aauth.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xbf\x05\n" +
 	"\x06ApiKey\x12/\n" +
 	"\x06key_id\x18\x02 \x01(\tB\x18\xbaH\x15r\x132\x11^ak_[a-f0-9]{32}$R\x05keyId\x12\x14\n" +
 	"\x05label\x18\x03 \x01(\tR\x05label\x12\x1b\n" +
@@ -890,12 +911,11 @@ const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"expires_at\x18\x17 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12(\n" +
 	"\x10created_by_actor\x18\x18 \x01(\tR\x0ecreatedByActor\x129\n" +
 	"\n" +
-	"updated_at\x18\x19 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x10\n" +
+	"updated_at\x18\x19 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1a\n" +
+	"\brevision\x18\x1a \x01(\x04R\brevisionB\x10\n" +
 	"\x0e_subaccount_idB\f\n" +
 	"\n" +
-	"_policy_id\"6\n" +
-	"\vIpWhitelist\x12'\n" +
-	"\x05cidrs\x18\x01 \x03(\tB\x11\xbaH\x0e\x92\x01\v\x10 \x18\x01\"\x05r\x03\xd0\x01\x01R\x05cidrs\"\xa1\x02\n" +
+	"_policy_id\"\xa1\x02\n" +
 	"\x13CreateApiKeyRequest\x12\"\n" +
 	"\x05label\x18\x01 \x01(\tB\f\xe0A\x02\xbaH\x06r\x04\x10\x01\x18@R\x05label\x12(\n" +
 	"\rsubaccount_id\x18\x03 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12\x1b\n" +
@@ -918,18 +938,24 @@ const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\x10GetApiKeyRequest\x124\n" +
 	"\x06key_id\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x15\x10\x012\x11^ak_[a-f0-9]{32}$R\x05keyId\"=\n" +
 	"\x11GetApiKeyResponse\x12(\n" +
-	"\aapi_key\x18\x01 \x01(\v2\x0f.auth.v1.ApiKeyR\x06apiKey\"\x98\x04\n" +
-	"\x13UpdateApiKeyRequest\x124\n" +
-	"\x06key_id\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x15\x10\x012\x11^ak_[a-f0-9]{32}$R\x05keyId\x12\x1d\n" +
-	"\x05label\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18@R\x05label\x12\x1b\n" +
-	"\x04icon\x18\x06 \x01(\tB\a\xbaH\x04r\x02\x18 R\x04icon\x12\x1d\n" +
-	"\x05color\x18\a \x01(\tB\a\xbaH\x04r\x02\x18 R\x05color\x129\n" +
-	"\x06status\x18\x03 \x01(\x0e2\x15.auth.v1.ApiKeyStatusB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x02R\x06status\x127\n" +
-	"\fip_whitelist\x18\x04 \x01(\v2\x14.auth.v1.IpWhitelistR\vipWhitelist\x129\n" +
+	"\aapi_key\x18\x01 \x01(\v2\x0f.auth.v1.ApiKeyR\x06apiKey\"\xdc\x03\n" +
+	"\x10ApiKeyUpdateSpec\x12\x1d\n" +
+	"\x05label\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18@R\x05label\x12\x1b\n" +
+	"\x04icon\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18 R\x04icon\x12\x1d\n" +
+	"\x05color\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18 R\x05color\x129\n" +
+	"\x06status\x18\x04 \x01(\x0e2\x15.auth.v1.ApiKeyStatusB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x02R\x06status\x124\n" +
+	"\fip_whitelist\x18\x05 \x03(\tB\x11\xbaH\x0e\x92\x01\v\x10 \x18\x01\"\x05r\x03\xd0\x01\x01R\vipWhitelist\x129\n" +
 	"\n" +
-	"expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt:\xc0\x01\xbaH\xbc\x01\x1a\xb9\x01\n" +
-	"\x19expires_at_future_or_zero\x12(expires_at must be in the future or zero\x1ar!has(this.expires_at) ? true : this.expires_at == timestamp('1970-01-01T00:00:00Z') ? true : this.expires_at > now\"@\n" +
+	"expires_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt:\xc0\x01\xbaH\xbc\x01\x1a\xb9\x01\n" +
+	"\x19expires_at_future_or_zero\x12(expires_at must be in the future or zero\x1ar!has(this.expires_at) ? true : this.expires_at == timestamp('1970-01-01T00:00:00Z') ? true : this.expires_at > now\"\x8b\x02\n" +
+	"\x13UpdateApiKeyRequest\x124\n" +
+	"\x06key_id\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x15\x10\x012\x11^ak_[a-f0-9]{32}$R\x05keyId\x12=\n" +
+	"\aapi_key\x18\x02 \x01(\v2\x19.auth.v1.ApiKeyUpdateSpecB\t\xe0A\x02\xbaH\x03\xc8\x01\x01R\x06apiKey\x12F\n" +
+	"\vupdate_mask\x18\x03 \x01(\v2\x1a.google.protobuf.FieldMaskB\t\xe0A\x02\xbaH\x03\xc8\x01\x01R\n" +
+	"updateMask\x127\n" +
+	"\x11expected_revision\x18\x04 \x01(\x04B\n" +
+	"\xe0A\x02\xbaH\x042\x02 \x00R\x10expectedRevision\"@\n" +
 	"\x14UpdateApiKeyResponse\x12(\n" +
 	"\aapi_key\x18\x01 \x01(\v2\x0f.auth.v1.ApiKeyR\x06apiKey*U\n" +
 	"\fApiKeyStatus\x12\x1e\n" +
@@ -967,18 +993,19 @@ var file_auth_v1_api_keys_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_auth_v1_api_keys_proto_goTypes = []any{
 	(ApiKeyStatus)(0),             // 0: auth.v1.ApiKeyStatus
 	(*ApiKey)(nil),                // 1: auth.v1.ApiKey
-	(*IpWhitelist)(nil),           // 2: auth.v1.IpWhitelist
-	(*CreateApiKeyRequest)(nil),   // 3: auth.v1.CreateApiKeyRequest
-	(*CreateApiKeyResponse)(nil),  // 4: auth.v1.CreateApiKeyResponse
-	(*ListApiKeysRequest)(nil),    // 5: auth.v1.ListApiKeysRequest
-	(*ListApiKeysResponse)(nil),   // 6: auth.v1.ListApiKeysResponse
-	(*DeleteApiKeyRequest)(nil),   // 7: auth.v1.DeleteApiKeyRequest
-	(*DeleteApiKeyResponse)(nil),  // 8: auth.v1.DeleteApiKeyResponse
-	(*GetApiKeyRequest)(nil),      // 9: auth.v1.GetApiKeyRequest
-	(*GetApiKeyResponse)(nil),     // 10: auth.v1.GetApiKeyResponse
+	(*CreateApiKeyRequest)(nil),   // 2: auth.v1.CreateApiKeyRequest
+	(*CreateApiKeyResponse)(nil),  // 3: auth.v1.CreateApiKeyResponse
+	(*ListApiKeysRequest)(nil),    // 4: auth.v1.ListApiKeysRequest
+	(*ListApiKeysResponse)(nil),   // 5: auth.v1.ListApiKeysResponse
+	(*DeleteApiKeyRequest)(nil),   // 6: auth.v1.DeleteApiKeyRequest
+	(*DeleteApiKeyResponse)(nil),  // 7: auth.v1.DeleteApiKeyResponse
+	(*GetApiKeyRequest)(nil),      // 8: auth.v1.GetApiKeyRequest
+	(*GetApiKeyResponse)(nil),     // 9: auth.v1.GetApiKeyResponse
+	(*ApiKeyUpdateSpec)(nil),      // 10: auth.v1.ApiKeyUpdateSpec
 	(*UpdateApiKeyRequest)(nil),   // 11: auth.v1.UpdateApiKeyRequest
 	(*UpdateApiKeyResponse)(nil),  // 12: auth.v1.UpdateApiKeyResponse
 	(*timestamppb.Timestamp)(nil), // 13: google.protobuf.Timestamp
+	(*fieldmaskpb.FieldMask)(nil), // 14: google.protobuf.FieldMask
 }
 var file_auth_v1_api_keys_proto_depIdxs = []int32{
 	0,  // 0: auth.v1.ApiKey.status:type_name -> auth.v1.ApiKeyStatus
@@ -989,25 +1016,26 @@ var file_auth_v1_api_keys_proto_depIdxs = []int32{
 	1,  // 5: auth.v1.CreateApiKeyResponse.api_key:type_name -> auth.v1.ApiKey
 	1,  // 6: auth.v1.ListApiKeysResponse.api_keys:type_name -> auth.v1.ApiKey
 	1,  // 7: auth.v1.GetApiKeyResponse.api_key:type_name -> auth.v1.ApiKey
-	0,  // 8: auth.v1.UpdateApiKeyRequest.status:type_name -> auth.v1.ApiKeyStatus
-	2,  // 9: auth.v1.UpdateApiKeyRequest.ip_whitelist:type_name -> auth.v1.IpWhitelist
-	13, // 10: auth.v1.UpdateApiKeyRequest.expires_at:type_name -> google.protobuf.Timestamp
-	1,  // 11: auth.v1.UpdateApiKeyResponse.api_key:type_name -> auth.v1.ApiKey
-	3,  // 12: auth.v1.ApiKeyService.CreateApiKey:input_type -> auth.v1.CreateApiKeyRequest
-	5,  // 13: auth.v1.ApiKeyService.ListApiKeys:input_type -> auth.v1.ListApiKeysRequest
-	9,  // 14: auth.v1.ApiKeyService.GetApiKey:input_type -> auth.v1.GetApiKeyRequest
-	7,  // 15: auth.v1.ApiKeyService.DeleteApiKey:input_type -> auth.v1.DeleteApiKeyRequest
-	11, // 16: auth.v1.ApiKeyService.UpdateApiKey:input_type -> auth.v1.UpdateApiKeyRequest
-	4,  // 17: auth.v1.ApiKeyService.CreateApiKey:output_type -> auth.v1.CreateApiKeyResponse
-	6,  // 18: auth.v1.ApiKeyService.ListApiKeys:output_type -> auth.v1.ListApiKeysResponse
-	10, // 19: auth.v1.ApiKeyService.GetApiKey:output_type -> auth.v1.GetApiKeyResponse
-	8,  // 20: auth.v1.ApiKeyService.DeleteApiKey:output_type -> auth.v1.DeleteApiKeyResponse
-	12, // 21: auth.v1.ApiKeyService.UpdateApiKey:output_type -> auth.v1.UpdateApiKeyResponse
-	17, // [17:22] is the sub-list for method output_type
-	12, // [12:17] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	0,  // 8: auth.v1.ApiKeyUpdateSpec.status:type_name -> auth.v1.ApiKeyStatus
+	13, // 9: auth.v1.ApiKeyUpdateSpec.expires_at:type_name -> google.protobuf.Timestamp
+	10, // 10: auth.v1.UpdateApiKeyRequest.api_key:type_name -> auth.v1.ApiKeyUpdateSpec
+	14, // 11: auth.v1.UpdateApiKeyRequest.update_mask:type_name -> google.protobuf.FieldMask
+	1,  // 12: auth.v1.UpdateApiKeyResponse.api_key:type_name -> auth.v1.ApiKey
+	2,  // 13: auth.v1.ApiKeyService.CreateApiKey:input_type -> auth.v1.CreateApiKeyRequest
+	4,  // 14: auth.v1.ApiKeyService.ListApiKeys:input_type -> auth.v1.ListApiKeysRequest
+	8,  // 15: auth.v1.ApiKeyService.GetApiKey:input_type -> auth.v1.GetApiKeyRequest
+	6,  // 16: auth.v1.ApiKeyService.DeleteApiKey:input_type -> auth.v1.DeleteApiKeyRequest
+	11, // 17: auth.v1.ApiKeyService.UpdateApiKey:input_type -> auth.v1.UpdateApiKeyRequest
+	3,  // 18: auth.v1.ApiKeyService.CreateApiKey:output_type -> auth.v1.CreateApiKeyResponse
+	5,  // 19: auth.v1.ApiKeyService.ListApiKeys:output_type -> auth.v1.ListApiKeysResponse
+	9,  // 20: auth.v1.ApiKeyService.GetApiKey:output_type -> auth.v1.GetApiKeyResponse
+	7,  // 21: auth.v1.ApiKeyService.DeleteApiKey:output_type -> auth.v1.DeleteApiKeyResponse
+	12, // 22: auth.v1.ApiKeyService.UpdateApiKey:output_type -> auth.v1.UpdateApiKeyResponse
+	18, // [18:23] is the sub-list for method output_type
+	13, // [13:18] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_api_keys_proto_init() }
@@ -1016,8 +1044,8 @@ func file_auth_v1_api_keys_proto_init() {
 		return
 	}
 	file_auth_v1_api_keys_proto_msgTypes[0].OneofWrappers = []any{}
-	file_auth_v1_api_keys_proto_msgTypes[2].OneofWrappers = []any{}
-	file_auth_v1_api_keys_proto_msgTypes[4].OneofWrappers = []any{}
+	file_auth_v1_api_keys_proto_msgTypes[1].OneofWrappers = []any{}
+	file_auth_v1_api_keys_proto_msgTypes[3].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

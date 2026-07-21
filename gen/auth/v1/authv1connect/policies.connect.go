@@ -79,7 +79,7 @@ type PolicyServiceClient interface {
 	GetSubaccountPolicy(context.Context, *connect.Request[v1.GetSubaccountPolicyRequest]) (*connect.Response[v1.GetSubaccountPolicyResponse], error)
 	// Create a new sub-account policy template (optionally attach to a sub-account).
 	CreateSubaccountPolicy(context.Context, *connect.Request[v1.CreateSubaccountPolicyRequest]) (*connect.Response[v1.CreateSubaccountPolicyResponse], error)
-	// Replace an existing sub-account policy template.
+	// Change selected fields on an existing sub-account policy template.
 	UpdateSubaccountPolicy(context.Context, *connect.Request[v1.UpdateSubaccountPolicyRequest]) (*connect.Response[v1.UpdateSubaccountPolicyResponse], error)
 	// Delete a sub-account policy template.
 	DeleteSubaccountPolicy(context.Context, *connect.Request[v1.DeleteSubaccountPolicyRequest]) (*connect.Response[v1.DeleteSubaccountPolicyResponse], error)
@@ -91,7 +91,7 @@ type PolicyServiceClient interface {
 	GetApiPolicy(context.Context, *connect.Request[v1.GetApiPolicyRequest]) (*connect.Response[v1.GetApiPolicyResponse], error)
 	// Create a new API key policy template.
 	CreateApiPolicy(context.Context, *connect.Request[v1.CreateApiPolicyRequest]) (*connect.Response[v1.CreateApiPolicyResponse], error)
-	// Replace an existing API key policy template.
+	// Change selected fields on an existing API key policy template.
 	UpdateApiPolicy(context.Context, *connect.Request[v1.UpdateApiPolicyRequest]) (*connect.Response[v1.UpdateApiPolicyResponse], error)
 	// Delete an API key policy template.
 	DeleteApiPolicy(context.Context, *connect.Request[v1.DeleteApiPolicyRequest]) (*connect.Response[v1.DeleteApiPolicyResponse], error)
@@ -269,7 +269,7 @@ type PolicyServiceHandler interface {
 	GetSubaccountPolicy(context.Context, *connect.Request[v1.GetSubaccountPolicyRequest]) (*connect.Response[v1.GetSubaccountPolicyResponse], error)
 	// Create a new sub-account policy template (optionally attach to a sub-account).
 	CreateSubaccountPolicy(context.Context, *connect.Request[v1.CreateSubaccountPolicyRequest]) (*connect.Response[v1.CreateSubaccountPolicyResponse], error)
-	// Replace an existing sub-account policy template.
+	// Change selected fields on an existing sub-account policy template.
 	UpdateSubaccountPolicy(context.Context, *connect.Request[v1.UpdateSubaccountPolicyRequest]) (*connect.Response[v1.UpdateSubaccountPolicyResponse], error)
 	// Delete a sub-account policy template.
 	DeleteSubaccountPolicy(context.Context, *connect.Request[v1.DeleteSubaccountPolicyRequest]) (*connect.Response[v1.DeleteSubaccountPolicyResponse], error)
@@ -281,7 +281,7 @@ type PolicyServiceHandler interface {
 	GetApiPolicy(context.Context, *connect.Request[v1.GetApiPolicyRequest]) (*connect.Response[v1.GetApiPolicyResponse], error)
 	// Create a new API key policy template.
 	CreateApiPolicy(context.Context, *connect.Request[v1.CreateApiPolicyRequest]) (*connect.Response[v1.CreateApiPolicyResponse], error)
-	// Replace an existing API key policy template.
+	// Change selected fields on an existing API key policy template.
 	UpdateApiPolicy(context.Context, *connect.Request[v1.UpdateApiPolicyRequest]) (*connect.Response[v1.UpdateApiPolicyResponse], error)
 	// Delete an API key policy template.
 	DeleteApiPolicy(context.Context, *connect.Request[v1.DeleteApiPolicyRequest]) (*connect.Response[v1.DeleteApiPolicyResponse], error)

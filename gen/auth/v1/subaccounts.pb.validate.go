@@ -216,6 +216,8 @@ func (m *Subaccount) validate(all bool) error {
 		}
 	}
 
+	// no validation rules for Revision
+
 	if m.SmartAccountSaltNonce != nil {
 		// no validation rules for SmartAccountSaltNonce
 	}
@@ -765,6 +767,116 @@ var _ interface {
 	ErrorName() string
 } = CreateSubaccountResponseValidationError{}
 
+// Validate checks the field values on SubaccountUpdateSpec with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *SubaccountUpdateSpec) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on SubaccountUpdateSpec with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// SubaccountUpdateSpecMultiError, or nil if none found.
+func (m *SubaccountUpdateSpec) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *SubaccountUpdateSpec) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Label
+
+	// no validation rules for Icon
+
+	// no validation rules for Color
+
+	// no validation rules for Status
+
+	if len(errors) > 0 {
+		return SubaccountUpdateSpecMultiError(errors)
+	}
+
+	return nil
+}
+
+// SubaccountUpdateSpecMultiError is an error wrapping multiple validation
+// errors returned by SubaccountUpdateSpec.ValidateAll() if the designated
+// constraints aren't met.
+type SubaccountUpdateSpecMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m SubaccountUpdateSpecMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m SubaccountUpdateSpecMultiError) AllErrors() []error { return m }
+
+// SubaccountUpdateSpecValidationError is the validation error returned by
+// SubaccountUpdateSpec.Validate if the designated constraints aren't met.
+type SubaccountUpdateSpecValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e SubaccountUpdateSpecValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e SubaccountUpdateSpecValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e SubaccountUpdateSpecValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e SubaccountUpdateSpecValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e SubaccountUpdateSpecValidationError) ErrorName() string {
+	return "SubaccountUpdateSpecValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e SubaccountUpdateSpecValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sSubaccountUpdateSpec.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = SubaccountUpdateSpecValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = SubaccountUpdateSpecValidationError{}
+
 // Validate checks the field values on UpdateSubaccountRequest with the rules
 // defined in the proto definition for this message. If any rules are
 // violated, the first error encountered is returned, or nil if there are no violations.
@@ -789,13 +901,65 @@ func (m *UpdateSubaccountRequest) validate(all bool) error {
 
 	// no validation rules for SubaccountId
 
-	// no validation rules for Label
+	if all {
+		switch v := interface{}(m.GetSubaccount()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, UpdateSubaccountRequestValidationError{
+					field:  "Subaccount",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, UpdateSubaccountRequestValidationError{
+					field:  "Subaccount",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetSubaccount()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return UpdateSubaccountRequestValidationError{
+				field:  "Subaccount",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
 
-	// no validation rules for Icon
+	if all {
+		switch v := interface{}(m.GetUpdateMask()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, UpdateSubaccountRequestValidationError{
+					field:  "UpdateMask",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, UpdateSubaccountRequestValidationError{
+					field:  "UpdateMask",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetUpdateMask()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return UpdateSubaccountRequestValidationError{
+				field:  "UpdateMask",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
 
-	// no validation rules for Color
-
-	// no validation rules for Status
+	// no validation rules for ExpectedRevision
 
 	if len(errors) > 0 {
 		return UpdateSubaccountRequestMultiError(errors)
@@ -898,6 +1062,35 @@ func (m *UpdateSubaccountResponse) validate(all bool) error {
 	}
 
 	var errors []error
+
+	if all {
+		switch v := interface{}(m.GetSubaccount()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, UpdateSubaccountResponseValidationError{
+					field:  "Subaccount",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, UpdateSubaccountResponseValidationError{
+					field:  "Subaccount",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetSubaccount()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return UpdateSubaccountResponseValidationError{
+				field:  "Subaccount",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
 
 	if len(errors) > 0 {
 		return UpdateSubaccountResponseMultiError(errors)
