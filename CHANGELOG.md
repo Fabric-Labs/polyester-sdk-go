@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Docs
+- Realtime and on-chain Funding helpers remain required dependencies (already hard `require`s in `go.mod`); aligns with Python/Rust packaging.
+
 ## 0.1.0a10
 
 ### Features
