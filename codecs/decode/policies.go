@@ -10,7 +10,12 @@ func subPolicy(msg *authv1.SubaccountPolicyView) *models.SubaccountPolicy {
 	if msg == nil {
 		return nil
 	}
-	return &models.SubaccountPolicy{PolicyID: codecs.FormatUint64ID(msg.GetId()), Name: msg.GetName(), Description: msg.GetDescription()}
+	return &models.SubaccountPolicy{
+		PolicyID:    codecs.FormatUint64ID(msg.GetId()),
+		Name:        msg.GetName(),
+		Description: msg.GetDescription(),
+		Revision:    msg.GetRevision(),
+	}
 }
 
 // SubaccountPolicyMessageFromProto decodes one subaccount policy message.
@@ -42,7 +47,12 @@ func apiPolicy(msg *authv1.ApiPolicyView) *models.ApiPolicy {
 	if msg == nil {
 		return nil
 	}
-	return &models.ApiPolicy{PolicyID: codecs.FormatUint64ID(msg.GetId()), Name: msg.GetName(), Description: msg.GetDescription()}
+	return &models.ApiPolicy{
+		PolicyID:    codecs.FormatUint64ID(msg.GetId()),
+		Name:        msg.GetName(),
+		Description: msg.GetDescription(),
+		Revision:    msg.GetRevision(),
+	}
 }
 
 func ApiPoliciesListFromProto(msg *authv1.ListApiPoliciesResponse) models.ApiPoliciesList {

@@ -13,6 +13,7 @@ import (
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -766,7 +767,9 @@ type AddressBookEntry struct {
 	//	*AddressBookEntry_Internal
 	Entry isAddressBookEntry_Entry `protobuf_oneof:"entry"`
 	// Tags currently attached to this entry.
-	Tags          []*AddressBookTag `protobuf:"bytes,30,rep,name=tags,proto3" json:"tags,omitempty"`
+	Tags []*AddressBookTag `protobuf:"bytes,30,rep,name=tags,proto3" json:"tags,omitempty"`
+	// Monotonic resource revision used for conditional updates.
+	Revision      uint64 `protobuf:"varint,31,opt,name=revision,proto3" json:"revision,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -882,6 +885,13 @@ func (x *AddressBookEntry) GetTags() []*AddressBookTag {
 	return nil
 }
 
+func (x *AddressBookEntry) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
 type isAddressBookEntry_Entry interface {
 	isAddressBookEntry_Entry()
 }
@@ -975,7 +985,9 @@ type ExternalAddressBookEntry struct {
 	// Time this entry was created, as a UTC timestamp.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Time this entry was last updated, as a UTC timestamp.
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// Monotonic resource revision used for conditional updates.
+	Revision      uint64 `protobuf:"varint,11,opt,name=revision,proto3" json:"revision,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1080,6 +1092,13 @@ func (x *ExternalAddressBookEntry) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *ExternalAddressBookEntry) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
 type InternalAddressBookEntry struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable public id of the saved internal destination.
@@ -1109,7 +1128,9 @@ type InternalAddressBookEntry struct {
 	// Time this entry was created, as a UTC timestamp.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Time this entry was last updated, as a UTC timestamp.
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// Monotonic resource revision used for conditional updates.
+	Revision      uint64 `protobuf:"varint,15,opt,name=revision,proto3" json:"revision,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1240,6 +1261,13 @@ func (x *InternalAddressBookEntry) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *InternalAddressBookEntry) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
 }
 
 type TransferCounterparty struct {
@@ -2568,25 +2596,88 @@ func (x *CreateAddressBookEntryResponse) GetEntry() *AddressBookEntry {
 	return nil
 }
 
-type UpdateAddressBookEntryRequest struct {
+// AddressBookEntryUpdateSpec contains mutable saved-destination metadata.
+type AddressBookEntryUpdateSpec struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Address-book entry id to update.
-	AddressBookEntryId uint64 `protobuf:"fixed64,1,opt,name=address_book_entry_id,json=addressBookEntryId,proto3" json:"address_book_entry_id,omitempty"`
-	// Replacement display label.
-	Label string `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
-	// Replacement note.
-	Note string `protobuf:"bytes,3,opt,name=note,proto3" json:"note,omitempty"`
-	// Complete replacement set of tag ids to attach to the entry.
-	TagIds []uint64 `protobuf:"fixed64,4,rep,packed,name=tag_ids,json=tagIds,proto3" json:"tag_ids,omitempty"`
-	// New tags to create and attach with this entry update.
-	NewTags       []*AddressBookTagInput `protobuf:"bytes,5,rep,name=new_tags,json=newTags,proto3" json:"new_tags,omitempty"`
+	// Display label. Empty clears the label when selected.
+	Label string `protobuf:"bytes,1,opt,name=label,proto3" json:"label,omitempty"`
+	// User-defined note. Empty clears the note when selected.
+	Note string `protobuf:"bytes,2,opt,name=note,proto3" json:"note,omitempty"`
+	// Complete replacement set of tag ids when selected.
+	TagIds        []uint64 `protobuf:"fixed64,3,rep,packed,name=tag_ids,json=tagIds,proto3" json:"tag_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
+func (x *AddressBookEntryUpdateSpec) Reset() {
+	*x = AddressBookEntryUpdateSpec{}
+	mi := &file_auth_v1_address_book_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AddressBookEntryUpdateSpec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AddressBookEntryUpdateSpec) ProtoMessage() {}
+
+func (x *AddressBookEntryUpdateSpec) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_address_book_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AddressBookEntryUpdateSpec.ProtoReflect.Descriptor instead.
+func (*AddressBookEntryUpdateSpec) Descriptor() ([]byte, []int) {
+	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *AddressBookEntryUpdateSpec) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *AddressBookEntryUpdateSpec) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+func (x *AddressBookEntryUpdateSpec) GetTagIds() []uint64 {
+	if x != nil {
+		return x.TagIds
+	}
+	return nil
+}
+
+type UpdateAddressBookEntryRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Address-book entry id to update.
+	AddressBookEntryId uint64 `protobuf:"fixed64,1,opt,name=address_book_entry_id,json=addressBookEntryId,proto3" json:"address_book_entry_id,omitempty"`
+	// Candidate values for fields selected by update_mask.
+	Entry *AddressBookEntryUpdateSpec `protobuf:"bytes,2,opt,name=entry,proto3" json:"entry,omitempty"`
+	// Mutable fields to apply. Paths are relative to entry. The mask is required,
+	// must be non-empty, and cannot contain "*".
+	UpdateMask *fieldmaskpb.FieldMask `protobuf:"bytes,3,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
+	// Revision returned by the latest successful read.
+	ExpectedRevision uint64 `protobuf:"varint,4,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
 func (x *UpdateAddressBookEntryRequest) Reset() {
 	*x = UpdateAddressBookEntryRequest{}
-	mi := &file_auth_v1_address_book_proto_msgTypes[25]
+	mi := &file_auth_v1_address_book_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2598,7 +2689,7 @@ func (x *UpdateAddressBookEntryRequest) String() string {
 func (*UpdateAddressBookEntryRequest) ProtoMessage() {}
 
 func (x *UpdateAddressBookEntryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_address_book_proto_msgTypes[25]
+	mi := &file_auth_v1_address_book_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2611,7 +2702,7 @@ func (x *UpdateAddressBookEntryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateAddressBookEntryRequest.ProtoReflect.Descriptor instead.
 func (*UpdateAddressBookEntryRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{25}
+	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *UpdateAddressBookEntryRequest) GetAddressBookEntryId() uint64 {
@@ -2621,32 +2712,25 @@ func (x *UpdateAddressBookEntryRequest) GetAddressBookEntryId() uint64 {
 	return 0
 }
 
-func (x *UpdateAddressBookEntryRequest) GetLabel() string {
+func (x *UpdateAddressBookEntryRequest) GetEntry() *AddressBookEntryUpdateSpec {
 	if x != nil {
-		return x.Label
-	}
-	return ""
-}
-
-func (x *UpdateAddressBookEntryRequest) GetNote() string {
-	if x != nil {
-		return x.Note
-	}
-	return ""
-}
-
-func (x *UpdateAddressBookEntryRequest) GetTagIds() []uint64 {
-	if x != nil {
-		return x.TagIds
+		return x.Entry
 	}
 	return nil
 }
 
-func (x *UpdateAddressBookEntryRequest) GetNewTags() []*AddressBookTagInput {
+func (x *UpdateAddressBookEntryRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
 	if x != nil {
-		return x.NewTags
+		return x.UpdateMask
 	}
 	return nil
+}
+
+func (x *UpdateAddressBookEntryRequest) GetExpectedRevision() uint64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
 }
 
 type UpdateAddressBookEntryResponse struct {
@@ -2659,7 +2743,7 @@ type UpdateAddressBookEntryResponse struct {
 
 func (x *UpdateAddressBookEntryResponse) Reset() {
 	*x = UpdateAddressBookEntryResponse{}
-	mi := &file_auth_v1_address_book_proto_msgTypes[26]
+	mi := &file_auth_v1_address_book_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2671,7 +2755,7 @@ func (x *UpdateAddressBookEntryResponse) String() string {
 func (*UpdateAddressBookEntryResponse) ProtoMessage() {}
 
 func (x *UpdateAddressBookEntryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_address_book_proto_msgTypes[26]
+	mi := &file_auth_v1_address_book_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2684,7 +2768,7 @@ func (x *UpdateAddressBookEntryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateAddressBookEntryResponse.ProtoReflect.Descriptor instead.
 func (*UpdateAddressBookEntryResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{26}
+	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *UpdateAddressBookEntryResponse) GetEntry() *AddressBookEntry {
@@ -2706,7 +2790,7 @@ type AddressBookTagInput struct {
 
 func (x *AddressBookTagInput) Reset() {
 	*x = AddressBookTagInput{}
-	mi := &file_auth_v1_address_book_proto_msgTypes[27]
+	mi := &file_auth_v1_address_book_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2718,7 +2802,7 @@ func (x *AddressBookTagInput) String() string {
 func (*AddressBookTagInput) ProtoMessage() {}
 
 func (x *AddressBookTagInput) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_address_book_proto_msgTypes[27]
+	mi := &file_auth_v1_address_book_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2731,7 +2815,7 @@ func (x *AddressBookTagInput) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddressBookTagInput.ProtoReflect.Descriptor instead.
 func (*AddressBookTagInput) Descriptor() ([]byte, []int) {
-	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{27}
+	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *AddressBookTagInput) GetName() string {
@@ -2758,7 +2842,7 @@ type DeleteAddressBookEntryRequest struct {
 
 func (x *DeleteAddressBookEntryRequest) Reset() {
 	*x = DeleteAddressBookEntryRequest{}
-	mi := &file_auth_v1_address_book_proto_msgTypes[28]
+	mi := &file_auth_v1_address_book_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2770,7 +2854,7 @@ func (x *DeleteAddressBookEntryRequest) String() string {
 func (*DeleteAddressBookEntryRequest) ProtoMessage() {}
 
 func (x *DeleteAddressBookEntryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_address_book_proto_msgTypes[28]
+	mi := &file_auth_v1_address_book_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2783,7 +2867,7 @@ func (x *DeleteAddressBookEntryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAddressBookEntryRequest.ProtoReflect.Descriptor instead.
 func (*DeleteAddressBookEntryRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{28}
+	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *DeleteAddressBookEntryRequest) GetAddressBookEntryId() uint64 {
@@ -2801,7 +2885,7 @@ type DeleteAddressBookEntryResponse struct {
 
 func (x *DeleteAddressBookEntryResponse) Reset() {
 	*x = DeleteAddressBookEntryResponse{}
-	mi := &file_auth_v1_address_book_proto_msgTypes[29]
+	mi := &file_auth_v1_address_book_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2813,7 +2897,7 @@ func (x *DeleteAddressBookEntryResponse) String() string {
 func (*DeleteAddressBookEntryResponse) ProtoMessage() {}
 
 func (x *DeleteAddressBookEntryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_address_book_proto_msgTypes[29]
+	mi := &file_auth_v1_address_book_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2826,7 +2910,7 @@ func (x *DeleteAddressBookEntryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAddressBookEntryResponse.ProtoReflect.Descriptor instead.
 func (*DeleteAddressBookEntryResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{29}
+	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{30}
 }
 
 type CopyAddressBookEntryRequest struct {
@@ -2841,7 +2925,7 @@ type CopyAddressBookEntryRequest struct {
 
 func (x *CopyAddressBookEntryRequest) Reset() {
 	*x = CopyAddressBookEntryRequest{}
-	mi := &file_auth_v1_address_book_proto_msgTypes[30]
+	mi := &file_auth_v1_address_book_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2853,7 +2937,7 @@ func (x *CopyAddressBookEntryRequest) String() string {
 func (*CopyAddressBookEntryRequest) ProtoMessage() {}
 
 func (x *CopyAddressBookEntryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_address_book_proto_msgTypes[30]
+	mi := &file_auth_v1_address_book_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2866,7 +2950,7 @@ func (x *CopyAddressBookEntryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CopyAddressBookEntryRequest.ProtoReflect.Descriptor instead.
 func (*CopyAddressBookEntryRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{30}
+	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *CopyAddressBookEntryRequest) GetAddressBookEntryId() uint64 {
@@ -2893,7 +2977,7 @@ type CopyAddressBookEntryResponse struct {
 
 func (x *CopyAddressBookEntryResponse) Reset() {
 	*x = CopyAddressBookEntryResponse{}
-	mi := &file_auth_v1_address_book_proto_msgTypes[31]
+	mi := &file_auth_v1_address_book_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2905,7 +2989,7 @@ func (x *CopyAddressBookEntryResponse) String() string {
 func (*CopyAddressBookEntryResponse) ProtoMessage() {}
 
 func (x *CopyAddressBookEntryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_address_book_proto_msgTypes[31]
+	mi := &file_auth_v1_address_book_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2918,7 +3002,7 @@ func (x *CopyAddressBookEntryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CopyAddressBookEntryResponse.ProtoReflect.Descriptor instead.
 func (*CopyAddressBookEntryResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{31}
+	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *CopyAddressBookEntryResponse) GetEntry() *AddressBookEntry {
@@ -2942,7 +3026,7 @@ type CreateAddressBookTagRequest struct {
 
 func (x *CreateAddressBookTagRequest) Reset() {
 	*x = CreateAddressBookTagRequest{}
-	mi := &file_auth_v1_address_book_proto_msgTypes[32]
+	mi := &file_auth_v1_address_book_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2954,7 +3038,7 @@ func (x *CreateAddressBookTagRequest) String() string {
 func (*CreateAddressBookTagRequest) ProtoMessage() {}
 
 func (x *CreateAddressBookTagRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_address_book_proto_msgTypes[32]
+	mi := &file_auth_v1_address_book_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2967,7 +3051,7 @@ func (x *CreateAddressBookTagRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateAddressBookTagRequest.ProtoReflect.Descriptor instead.
 func (*CreateAddressBookTagRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{32}
+	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *CreateAddressBookTagRequest) GetSubaccountId() uint64 {
@@ -3001,7 +3085,7 @@ type CreateAddressBookTagResponse struct {
 
 func (x *CreateAddressBookTagResponse) Reset() {
 	*x = CreateAddressBookTagResponse{}
-	mi := &file_auth_v1_address_book_proto_msgTypes[33]
+	mi := &file_auth_v1_address_book_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3013,7 +3097,7 @@ func (x *CreateAddressBookTagResponse) String() string {
 func (*CreateAddressBookTagResponse) ProtoMessage() {}
 
 func (x *CreateAddressBookTagResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_address_book_proto_msgTypes[33]
+	mi := &file_auth_v1_address_book_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3026,7 +3110,7 @@ func (x *CreateAddressBookTagResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateAddressBookTagResponse.ProtoReflect.Descriptor instead.
 func (*CreateAddressBookTagResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{33}
+	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *CreateAddressBookTagResponse) GetTag() *AddressBookTag {
@@ -3040,17 +3124,17 @@ type UpdateAddressBookTagRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Tag id to update.
 	TagId uint64 `protobuf:"fixed64,1,opt,name=tag_id,json=tagId,proto3" json:"tag_id,omitempty"`
-	// Replacement tag name.
-	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	// Replacement UI color token.
-	Color         string `protobuf:"bytes,3,opt,name=color,proto3" json:"color,omitempty"`
+	// Replacement tag name. Omit to preserve the current name.
+	Name *string `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	// Replacement UI color token. Omit to preserve; an empty value clears it.
+	Color         *string `protobuf:"bytes,3,opt,name=color,proto3,oneof" json:"color,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateAddressBookTagRequest) Reset() {
 	*x = UpdateAddressBookTagRequest{}
-	mi := &file_auth_v1_address_book_proto_msgTypes[34]
+	mi := &file_auth_v1_address_book_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3062,7 +3146,7 @@ func (x *UpdateAddressBookTagRequest) String() string {
 func (*UpdateAddressBookTagRequest) ProtoMessage() {}
 
 func (x *UpdateAddressBookTagRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_address_book_proto_msgTypes[34]
+	mi := &file_auth_v1_address_book_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3075,7 +3159,7 @@ func (x *UpdateAddressBookTagRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateAddressBookTagRequest.ProtoReflect.Descriptor instead.
 func (*UpdateAddressBookTagRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{34}
+	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *UpdateAddressBookTagRequest) GetTagId() uint64 {
@@ -3086,15 +3170,15 @@ func (x *UpdateAddressBookTagRequest) GetTagId() uint64 {
 }
 
 func (x *UpdateAddressBookTagRequest) GetName() string {
-	if x != nil {
-		return x.Name
+	if x != nil && x.Name != nil {
+		return *x.Name
 	}
 	return ""
 }
 
 func (x *UpdateAddressBookTagRequest) GetColor() string {
-	if x != nil {
-		return x.Color
+	if x != nil && x.Color != nil {
+		return *x.Color
 	}
 	return ""
 }
@@ -3109,7 +3193,7 @@ type UpdateAddressBookTagResponse struct {
 
 func (x *UpdateAddressBookTagResponse) Reset() {
 	*x = UpdateAddressBookTagResponse{}
-	mi := &file_auth_v1_address_book_proto_msgTypes[35]
+	mi := &file_auth_v1_address_book_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3121,7 +3205,7 @@ func (x *UpdateAddressBookTagResponse) String() string {
 func (*UpdateAddressBookTagResponse) ProtoMessage() {}
 
 func (x *UpdateAddressBookTagResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_address_book_proto_msgTypes[35]
+	mi := &file_auth_v1_address_book_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3134,7 +3218,7 @@ func (x *UpdateAddressBookTagResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateAddressBookTagResponse.ProtoReflect.Descriptor instead.
 func (*UpdateAddressBookTagResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{35}
+	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *UpdateAddressBookTagResponse) GetTag() *AddressBookTag {
@@ -3154,7 +3238,7 @@ type DeleteAddressBookTagRequest struct {
 
 func (x *DeleteAddressBookTagRequest) Reset() {
 	*x = DeleteAddressBookTagRequest{}
-	mi := &file_auth_v1_address_book_proto_msgTypes[36]
+	mi := &file_auth_v1_address_book_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3166,7 +3250,7 @@ func (x *DeleteAddressBookTagRequest) String() string {
 func (*DeleteAddressBookTagRequest) ProtoMessage() {}
 
 func (x *DeleteAddressBookTagRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_address_book_proto_msgTypes[36]
+	mi := &file_auth_v1_address_book_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3179,7 +3263,7 @@ func (x *DeleteAddressBookTagRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAddressBookTagRequest.ProtoReflect.Descriptor instead.
 func (*DeleteAddressBookTagRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{36}
+	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *DeleteAddressBookTagRequest) GetTagId() uint64 {
@@ -3197,7 +3281,7 @@ type DeleteAddressBookTagResponse struct {
 
 func (x *DeleteAddressBookTagResponse) Reset() {
 	*x = DeleteAddressBookTagResponse{}
-	mi := &file_auth_v1_address_book_proto_msgTypes[37]
+	mi := &file_auth_v1_address_book_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3209,7 +3293,7 @@ func (x *DeleteAddressBookTagResponse) String() string {
 func (*DeleteAddressBookTagResponse) ProtoMessage() {}
 
 func (x *DeleteAddressBookTagResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_address_book_proto_msgTypes[37]
+	mi := &file_auth_v1_address_book_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3222,7 +3306,7 @@ func (x *DeleteAddressBookTagResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteAddressBookTagResponse.ProtoReflect.Descriptor instead.
 func (*DeleteAddressBookTagResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{37}
+	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{38}
 }
 
 type ListTransferCounterpartiesRequest struct {
@@ -3242,7 +3326,7 @@ type ListTransferCounterpartiesRequest struct {
 
 func (x *ListTransferCounterpartiesRequest) Reset() {
 	*x = ListTransferCounterpartiesRequest{}
-	mi := &file_auth_v1_address_book_proto_msgTypes[38]
+	mi := &file_auth_v1_address_book_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3254,7 +3338,7 @@ func (x *ListTransferCounterpartiesRequest) String() string {
 func (*ListTransferCounterpartiesRequest) ProtoMessage() {}
 
 func (x *ListTransferCounterpartiesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_address_book_proto_msgTypes[38]
+	mi := &file_auth_v1_address_book_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3267,7 +3351,7 @@ func (x *ListTransferCounterpartiesRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use ListTransferCounterpartiesRequest.ProtoReflect.Descriptor instead.
 func (*ListTransferCounterpartiesRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{38}
+	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *ListTransferCounterpartiesRequest) GetSubaccountId() uint64 {
@@ -3311,7 +3395,7 @@ type ListTransferCounterpartiesResponse struct {
 
 func (x *ListTransferCounterpartiesResponse) Reset() {
 	*x = ListTransferCounterpartiesResponse{}
-	mi := &file_auth_v1_address_book_proto_msgTypes[39]
+	mi := &file_auth_v1_address_book_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3323,7 +3407,7 @@ func (x *ListTransferCounterpartiesResponse) String() string {
 func (*ListTransferCounterpartiesResponse) ProtoMessage() {}
 
 func (x *ListTransferCounterpartiesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_address_book_proto_msgTypes[39]
+	mi := &file_auth_v1_address_book_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3336,7 +3420,7 @@ func (x *ListTransferCounterpartiesResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use ListTransferCounterpartiesResponse.ProtoReflect.Descriptor instead.
 func (*ListTransferCounterpartiesResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{39}
+	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *ListTransferCounterpartiesResponse) GetCounterparties() []*TransferCounterparty {
@@ -3372,7 +3456,7 @@ type ListTransferDestinationsRequest struct {
 
 func (x *ListTransferDestinationsRequest) Reset() {
 	*x = ListTransferDestinationsRequest{}
-	mi := &file_auth_v1_address_book_proto_msgTypes[40]
+	mi := &file_auth_v1_address_book_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3384,7 +3468,7 @@ func (x *ListTransferDestinationsRequest) String() string {
 func (*ListTransferDestinationsRequest) ProtoMessage() {}
 
 func (x *ListTransferDestinationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_address_book_proto_msgTypes[40]
+	mi := &file_auth_v1_address_book_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3397,7 +3481,7 @@ func (x *ListTransferDestinationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTransferDestinationsRequest.ProtoReflect.Descriptor instead.
 func (*ListTransferDestinationsRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{40}
+	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *ListTransferDestinationsRequest) GetSubaccountId() uint64 {
@@ -3441,7 +3525,7 @@ type ListTransferDestinationsResponse struct {
 
 func (x *ListTransferDestinationsResponse) Reset() {
 	*x = ListTransferDestinationsResponse{}
-	mi := &file_auth_v1_address_book_proto_msgTypes[41]
+	mi := &file_auth_v1_address_book_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3453,7 +3537,7 @@ func (x *ListTransferDestinationsResponse) String() string {
 func (*ListTransferDestinationsResponse) ProtoMessage() {}
 
 func (x *ListTransferDestinationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_address_book_proto_msgTypes[41]
+	mi := &file_auth_v1_address_book_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3466,7 +3550,7 @@ func (x *ListTransferDestinationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTransferDestinationsResponse.ProtoReflect.Descriptor instead.
 func (*ListTransferDestinationsResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{41}
+	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *ListTransferDestinationsResponse) GetDestinations() []*TransferDestination {
@@ -3499,7 +3583,7 @@ type ListInternalTransferWhitelistEntriesRequest struct {
 
 func (x *ListInternalTransferWhitelistEntriesRequest) Reset() {
 	*x = ListInternalTransferWhitelistEntriesRequest{}
-	mi := &file_auth_v1_address_book_proto_msgTypes[42]
+	mi := &file_auth_v1_address_book_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3511,7 +3595,7 @@ func (x *ListInternalTransferWhitelistEntriesRequest) String() string {
 func (*ListInternalTransferWhitelistEntriesRequest) ProtoMessage() {}
 
 func (x *ListInternalTransferWhitelistEntriesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_address_book_proto_msgTypes[42]
+	mi := &file_auth_v1_address_book_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3524,7 +3608,7 @@ func (x *ListInternalTransferWhitelistEntriesRequest) ProtoReflect() protoreflec
 
 // Deprecated: Use ListInternalTransferWhitelistEntriesRequest.ProtoReflect.Descriptor instead.
 func (*ListInternalTransferWhitelistEntriesRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{42}
+	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *ListInternalTransferWhitelistEntriesRequest) GetSubaccountId() uint64 {
@@ -3561,7 +3645,7 @@ type ListInternalTransferWhitelistEntriesResponse struct {
 
 func (x *ListInternalTransferWhitelistEntriesResponse) Reset() {
 	*x = ListInternalTransferWhitelistEntriesResponse{}
-	mi := &file_auth_v1_address_book_proto_msgTypes[43]
+	mi := &file_auth_v1_address_book_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3573,7 +3657,7 @@ func (x *ListInternalTransferWhitelistEntriesResponse) String() string {
 func (*ListInternalTransferWhitelistEntriesResponse) ProtoMessage() {}
 
 func (x *ListInternalTransferWhitelistEntriesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_address_book_proto_msgTypes[43]
+	mi := &file_auth_v1_address_book_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3586,7 +3670,7 @@ func (x *ListInternalTransferWhitelistEntriesResponse) ProtoReflect() protorefle
 
 // Deprecated: Use ListInternalTransferWhitelistEntriesResponse.ProtoReflect.Descriptor instead.
 func (*ListInternalTransferWhitelistEntriesResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{43}
+	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *ListInternalTransferWhitelistEntriesResponse) GetEntries() []*InternalTransferWhitelistEntry {
@@ -3613,7 +3697,7 @@ type GetWithdrawWhitelistViewRequest struct {
 
 func (x *GetWithdrawWhitelistViewRequest) Reset() {
 	*x = GetWithdrawWhitelistViewRequest{}
-	mi := &file_auth_v1_address_book_proto_msgTypes[44]
+	mi := &file_auth_v1_address_book_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3625,7 +3709,7 @@ func (x *GetWithdrawWhitelistViewRequest) String() string {
 func (*GetWithdrawWhitelistViewRequest) ProtoMessage() {}
 
 func (x *GetWithdrawWhitelistViewRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_address_book_proto_msgTypes[44]
+	mi := &file_auth_v1_address_book_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3638,7 +3722,7 @@ func (x *GetWithdrawWhitelistViewRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetWithdrawWhitelistViewRequest.ProtoReflect.Descriptor instead.
 func (*GetWithdrawWhitelistViewRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{44}
+	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *GetWithdrawWhitelistViewRequest) GetSubaccountId() uint64 {
@@ -3658,7 +3742,7 @@ type GetWithdrawWhitelistViewResponse struct {
 
 func (x *GetWithdrawWhitelistViewResponse) Reset() {
 	*x = GetWithdrawWhitelistViewResponse{}
-	mi := &file_auth_v1_address_book_proto_msgTypes[45]
+	mi := &file_auth_v1_address_book_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3670,7 +3754,7 @@ func (x *GetWithdrawWhitelistViewResponse) String() string {
 func (*GetWithdrawWhitelistViewResponse) ProtoMessage() {}
 
 func (x *GetWithdrawWhitelistViewResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_address_book_proto_msgTypes[45]
+	mi := &file_auth_v1_address_book_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3683,7 +3767,7 @@ func (x *GetWithdrawWhitelistViewResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetWithdrawWhitelistViewResponse.ProtoReflect.Descriptor instead.
 func (*GetWithdrawWhitelistViewResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{45}
+	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *GetWithdrawWhitelistViewResponse) GetView() *WithdrawWhitelistView {
@@ -3706,7 +3790,7 @@ type GetAddressBookViewRequest struct {
 
 func (x *GetAddressBookViewRequest) Reset() {
 	*x = GetAddressBookViewRequest{}
-	mi := &file_auth_v1_address_book_proto_msgTypes[46]
+	mi := &file_auth_v1_address_book_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3718,7 +3802,7 @@ func (x *GetAddressBookViewRequest) String() string {
 func (*GetAddressBookViewRequest) ProtoMessage() {}
 
 func (x *GetAddressBookViewRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_address_book_proto_msgTypes[46]
+	mi := &file_auth_v1_address_book_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3731,7 +3815,7 @@ func (x *GetAddressBookViewRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAddressBookViewRequest.ProtoReflect.Descriptor instead.
 func (*GetAddressBookViewRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{46}
+	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *GetAddressBookViewRequest) GetSubaccountId() uint64 {
@@ -3769,7 +3853,7 @@ type GetAddressBookViewResponse struct {
 
 func (x *GetAddressBookViewResponse) Reset() {
 	*x = GetAddressBookViewResponse{}
-	mi := &file_auth_v1_address_book_proto_msgTypes[47]
+	mi := &file_auth_v1_address_book_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3781,7 +3865,7 @@ func (x *GetAddressBookViewResponse) String() string {
 func (*GetAddressBookViewResponse) ProtoMessage() {}
 
 func (x *GetAddressBookViewResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_address_book_proto_msgTypes[47]
+	mi := &file_auth_v1_address_book_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3794,7 +3878,7 @@ func (x *GetAddressBookViewResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAddressBookViewResponse.ProtoReflect.Descriptor instead.
 func (*GetAddressBookViewResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{47}
+	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *GetAddressBookViewResponse) GetBooks() []*AddressBook {
@@ -3852,7 +3936,7 @@ type AddressBookViewInvalidated struct {
 
 func (x *AddressBookViewInvalidated) Reset() {
 	*x = AddressBookViewInvalidated{}
-	mi := &file_auth_v1_address_book_proto_msgTypes[48]
+	mi := &file_auth_v1_address_book_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3864,7 +3948,7 @@ func (x *AddressBookViewInvalidated) String() string {
 func (*AddressBookViewInvalidated) ProtoMessage() {}
 
 func (x *AddressBookViewInvalidated) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_address_book_proto_msgTypes[48]
+	mi := &file_auth_v1_address_book_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3877,7 +3961,7 @@ func (x *AddressBookViewInvalidated) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddressBookViewInvalidated.ProtoReflect.Descriptor instead.
 func (*AddressBookViewInvalidated) Descriptor() ([]byte, []int) {
-	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{48}
+	return file_auth_v1_address_book_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *AddressBookViewInvalidated) GetScope() *AccountScopeRef {
@@ -3898,7 +3982,7 @@ var File_auth_v1_address_book_proto protoreflect.FileDescriptor
 
 const file_auth_v1_address_book_proto_rawDesc = "" +
 	"\n" +
-	"\x1aauth/v1/address_book.proto\x12\aauth.v1\x1a\x19auth/v1/subaccounts.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a9polyester/api/validation/v1/predefined_string_rules.proto\"\xc7\x01\n" +
+	"\x1aauth/v1/address_book.proto\x12\aauth.v1\x1a\x19auth/v1/subaccounts.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a9polyester/api/validation/v1/predefined_string_rules.proto\"\xc7\x01\n" +
 	"\x0fAccountScopeRef\x12D\n" +
 	"\n" +
 	"scope_type\x18\x01 \x01(\x0e2\x19.auth.v1.AccountScopeTypeB\n" +
@@ -3936,7 +4020,7 @@ const file_auth_v1_address_book_proto_rawDesc = "" +
 	"\x15AddressBookTagSummary\x12%\n" +
 	"\x06tag_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x05tagId\x12\x1d\n" +
 	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x180R\x04name\x12\x1d\n" +
-	"\x05color\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18 R\x05color\"\xae\x04\n" +
+	"\x05color\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18 R\x05color\"\xca\x04\n" +
 	"\x10AddressBookEntry\x12A\n" +
 	"\x15address_book_entry_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x12addressBookEntryId\x12.\n" +
 	"\x05scope\x18\x02 \x01(\v2\x18.auth.v1.AccountScopeRefR\x05scope\x12=\n" +
@@ -3950,11 +4034,12 @@ const file_auth_v1_address_book_proto_rawDesc = "" +
 	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12>\n" +
 	"\bexternal\x18\x14 \x01(\v2 .auth.v1.ExternalWithdrawAddressH\x00R\bexternal\x12>\n" +
 	"\binternal\x18\x15 \x01(\v2 .auth.v1.InternalTransferAccountH\x00R\binternal\x12+\n" +
-	"\x04tags\x18\x1e \x03(\v2\x17.auth.v1.AddressBookTagR\x04tagsB\a\n" +
+	"\x04tags\x18\x1e \x03(\v2\x17.auth.v1.AddressBookTagR\x04tags\x12\x1a\n" +
+	"\brevision\x18\x1f \x01(\x04R\brevisionB\a\n" +
 	"\x05entry\"\x96\x01\n" +
 	"\x16AddressBookEntriesView\x12=\n" +
 	"\bexternal\x18\x01 \x03(\v2!.auth.v1.ExternalAddressBookEntryR\bexternal\x12=\n" +
-	"\binternal\x18\x02 \x03(\v2!.auth.v1.InternalAddressBookEntryR\binternal\"\x9c\x04\n" +
+	"\binternal\x18\x02 \x03(\v2!.auth.v1.InternalAddressBookEntryR\binternal\"\xb8\x04\n" +
 	"\x18ExternalAddressBookEntry\x12A\n" +
 	"\x15address_book_entry_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x12addressBookEntryId\x12.\n" +
 	"\x05scope\x18\x02 \x01(\v2\x18.auth.v1.AccountScopeRefR\x05scope\x12\x1e\n" +
@@ -3970,7 +4055,8 @@ const file_auth_v1_address_book_proto_rawDesc = "" +
 	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xac\x06\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1a\n" +
+	"\brevision\x18\v \x01(\x04R\brevision\"\xc8\x06\n" +
 	"\x18InternalAddressBookEntry\x12A\n" +
 	"\x15address_book_entry_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x12addressBookEntryId\x12.\n" +
 	"\x05scope\x18\x02 \x01(\v2\x18.auth.v1.AccountScopeRefR\x05scope\x12\x1e\n" +
@@ -3990,7 +4076,8 @@ const file_auth_v1_address_book_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x97\x05\n" +
+	"updated_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1a\n" +
+	"\brevision\x18\x0f \x01(\x04R\brevision\"\x97\x05\n" +
 	"\x14TransferCounterparty\x127\n" +
 	"\x0fcounterparty_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x0ecounterpartyId\x12.\n" +
 	"\x05scope\x18\x02 \x01(\v2\x18.auth.v1.AccountScopeRefR\x05scope\x12P\n" +
@@ -4104,15 +4191,19 @@ const file_auth_v1_address_book_proto_rawDesc = "" +
 	" RequestedInternalTransferAccount\x12=\n" +
 	"\x15smart_account_address\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x88\xb5\x18\x01R\x13smartAccountAddress\"Q\n" +
 	"\x1eCreateAddressBookEntryResponse\x12/\n" +
-	"\x05entry\x18\x01 \x01(\v2\x19.auth.v1.AddressBookEntryR\x05entry\"\x89\x02\n" +
+	"\x05entry\x18\x01 \x01(\v2\x19.auth.v1.AddressBookEntryR\x05entry\"}\n" +
+	"\x1aAddressBookEntryUpdateSpec\x12\x1e\n" +
+	"\x05label\x18\x01 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x05label\x12\x1c\n" +
+	"\x04note\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\x04note\x12!\n" +
+	"\atag_ids\x18\x03 \x03(\x06B\b\xbaH\x05\x92\x01\x02\x10\n" +
+	"R\x06tagIds\"\xac\x02\n" +
 	"\x1dUpdateAddressBookEntryRequest\x12D\n" +
-	"\x15address_book_entry_id\x18\x01 \x01(\x06B\x11\xe0A\x02\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x12addressBookEntryId\x12\x1e\n" +
-	"\x05label\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x05label\x12\x1c\n" +
-	"\x04note\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\x04note\x12!\n" +
-	"\atag_ids\x18\x04 \x03(\x06B\b\xbaH\x05\x92\x01\x02\x10\n" +
-	"R\x06tagIds\x12A\n" +
-	"\bnew_tags\x18\x05 \x03(\v2\x1c.auth.v1.AddressBookTagInputB\b\xbaH\x05\x92\x01\x02\x10\n" +
-	"R\anewTags\"Q\n" +
+	"\x15address_book_entry_id\x18\x01 \x01(\x06B\x11\xe0A\x02\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x12addressBookEntryId\x12D\n" +
+	"\x05entry\x18\x02 \x01(\v2#.auth.v1.AddressBookEntryUpdateSpecB\t\xe0A\x02\xbaH\x03\xc8\x01\x01R\x05entry\x12F\n" +
+	"\vupdate_mask\x18\x03 \x01(\v2\x1a.google.protobuf.FieldMaskB\t\xe0A\x02\xbaH\x03\xc8\x01\x01R\n" +
+	"updateMask\x127\n" +
+	"\x11expected_revision\x18\x04 \x01(\x04B\n" +
+	"\xe0A\x02\xbaH\x042\x02 \x00R\x10expectedRevision\"Q\n" +
 	"\x1eUpdateAddressBookEntryResponse\x12/\n" +
 	"\x05entry\x18\x01 \x01(\v2\x19.auth.v1.AddressBookEntryR\x05entry\"S\n" +
 	"\x13AddressBookTagInput\x12\x1d\n" +
@@ -4131,11 +4222,13 @@ const file_auth_v1_address_book_proto_rawDesc = "" +
 	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x180R\x04name\x12\x1d\n" +
 	"\x05color\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18 R\x05color\"I\n" +
 	"\x1cCreateAddressBookTagResponse\x12)\n" +
-	"\x03tag\x18\x01 \x01(\v2\x17.auth.v1.AddressBookTagR\x03tag\"\x85\x01\n" +
+	"\x03tag\x18\x01 \x01(\v2\x17.auth.v1.AddressBookTagR\x03tag\"\xa2\x01\n" +
 	"\x1bUpdateAddressBookTagRequest\x12(\n" +
-	"\x06tag_id\x18\x01 \x01(\x06B\x11\xe0A\x02\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x05tagId\x12\x1d\n" +
-	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x180R\x04name\x12\x1d\n" +
-	"\x05color\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18 R\x05color\"I\n" +
+	"\x06tag_id\x18\x01 \x01(\x06B\x11\xe0A\x02\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x05tagId\x12\"\n" +
+	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x180H\x00R\x04name\x88\x01\x01\x12\"\n" +
+	"\x05color\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18 H\x01R\x05color\x88\x01\x01B\a\n" +
+	"\x05_nameB\b\n" +
+	"\x06_color\"I\n" +
 	"\x1cUpdateAddressBookTagResponse\x12)\n" +
 	"\x03tag\x18\x01 \x01(\v2\x17.auth.v1.AddressBookTagR\x03tag\"G\n" +
 	"\x1bDeleteAddressBookTagRequest\x12(\n" +
@@ -4251,7 +4344,7 @@ func file_auth_v1_address_book_proto_rawDescGZIP() []byte {
 }
 
 var file_auth_v1_address_book_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_auth_v1_address_book_proto_msgTypes = make([]protoimpl.MessageInfo, 49)
+var file_auth_v1_address_book_proto_msgTypes = make([]protoimpl.MessageInfo, 50)
 var file_auth_v1_address_book_proto_goTypes = []any{
 	(AccountScopeType)(0),                                // 0: auth.v1.AccountScopeType
 	(AddressBookEntryKind)(0),                            // 1: auth.v1.AddressBookEntryKind
@@ -4283,45 +4376,47 @@ var file_auth_v1_address_book_proto_goTypes = []any{
 	(*CreateAddressBookEntryRequest)(nil),                // 27: auth.v1.CreateAddressBookEntryRequest
 	(*RequestedInternalTransferAccount)(nil),             // 28: auth.v1.RequestedInternalTransferAccount
 	(*CreateAddressBookEntryResponse)(nil),               // 29: auth.v1.CreateAddressBookEntryResponse
-	(*UpdateAddressBookEntryRequest)(nil),                // 30: auth.v1.UpdateAddressBookEntryRequest
-	(*UpdateAddressBookEntryResponse)(nil),               // 31: auth.v1.UpdateAddressBookEntryResponse
-	(*AddressBookTagInput)(nil),                          // 32: auth.v1.AddressBookTagInput
-	(*DeleteAddressBookEntryRequest)(nil),                // 33: auth.v1.DeleteAddressBookEntryRequest
-	(*DeleteAddressBookEntryResponse)(nil),               // 34: auth.v1.DeleteAddressBookEntryResponse
-	(*CopyAddressBookEntryRequest)(nil),                  // 35: auth.v1.CopyAddressBookEntryRequest
-	(*CopyAddressBookEntryResponse)(nil),                 // 36: auth.v1.CopyAddressBookEntryResponse
-	(*CreateAddressBookTagRequest)(nil),                  // 37: auth.v1.CreateAddressBookTagRequest
-	(*CreateAddressBookTagResponse)(nil),                 // 38: auth.v1.CreateAddressBookTagResponse
-	(*UpdateAddressBookTagRequest)(nil),                  // 39: auth.v1.UpdateAddressBookTagRequest
-	(*UpdateAddressBookTagResponse)(nil),                 // 40: auth.v1.UpdateAddressBookTagResponse
-	(*DeleteAddressBookTagRequest)(nil),                  // 41: auth.v1.DeleteAddressBookTagRequest
-	(*DeleteAddressBookTagResponse)(nil),                 // 42: auth.v1.DeleteAddressBookTagResponse
-	(*ListTransferCounterpartiesRequest)(nil),            // 43: auth.v1.ListTransferCounterpartiesRequest
-	(*ListTransferCounterpartiesResponse)(nil),           // 44: auth.v1.ListTransferCounterpartiesResponse
-	(*ListTransferDestinationsRequest)(nil),              // 45: auth.v1.ListTransferDestinationsRequest
-	(*ListTransferDestinationsResponse)(nil),             // 46: auth.v1.ListTransferDestinationsResponse
-	(*ListInternalTransferWhitelistEntriesRequest)(nil),  // 47: auth.v1.ListInternalTransferWhitelistEntriesRequest
-	(*ListInternalTransferWhitelistEntriesResponse)(nil), // 48: auth.v1.ListInternalTransferWhitelistEntriesResponse
-	(*GetWithdrawWhitelistViewRequest)(nil),              // 49: auth.v1.GetWithdrawWhitelistViewRequest
-	(*GetWithdrawWhitelistViewResponse)(nil),             // 50: auth.v1.GetWithdrawWhitelistViewResponse
-	(*GetAddressBookViewRequest)(nil),                    // 51: auth.v1.GetAddressBookViewRequest
-	(*GetAddressBookViewResponse)(nil),                   // 52: auth.v1.GetAddressBookViewResponse
-	(*AddressBookViewInvalidated)(nil),                   // 53: auth.v1.AddressBookViewInvalidated
-	(SubaccountRole)(0),                                  // 54: auth.v1.SubaccountRole
-	(*timestamppb.Timestamp)(nil),                        // 55: google.protobuf.Timestamp
+	(*AddressBookEntryUpdateSpec)(nil),                   // 30: auth.v1.AddressBookEntryUpdateSpec
+	(*UpdateAddressBookEntryRequest)(nil),                // 31: auth.v1.UpdateAddressBookEntryRequest
+	(*UpdateAddressBookEntryResponse)(nil),               // 32: auth.v1.UpdateAddressBookEntryResponse
+	(*AddressBookTagInput)(nil),                          // 33: auth.v1.AddressBookTagInput
+	(*DeleteAddressBookEntryRequest)(nil),                // 34: auth.v1.DeleteAddressBookEntryRequest
+	(*DeleteAddressBookEntryResponse)(nil),               // 35: auth.v1.DeleteAddressBookEntryResponse
+	(*CopyAddressBookEntryRequest)(nil),                  // 36: auth.v1.CopyAddressBookEntryRequest
+	(*CopyAddressBookEntryResponse)(nil),                 // 37: auth.v1.CopyAddressBookEntryResponse
+	(*CreateAddressBookTagRequest)(nil),                  // 38: auth.v1.CreateAddressBookTagRequest
+	(*CreateAddressBookTagResponse)(nil),                 // 39: auth.v1.CreateAddressBookTagResponse
+	(*UpdateAddressBookTagRequest)(nil),                  // 40: auth.v1.UpdateAddressBookTagRequest
+	(*UpdateAddressBookTagResponse)(nil),                 // 41: auth.v1.UpdateAddressBookTagResponse
+	(*DeleteAddressBookTagRequest)(nil),                  // 42: auth.v1.DeleteAddressBookTagRequest
+	(*DeleteAddressBookTagResponse)(nil),                 // 43: auth.v1.DeleteAddressBookTagResponse
+	(*ListTransferCounterpartiesRequest)(nil),            // 44: auth.v1.ListTransferCounterpartiesRequest
+	(*ListTransferCounterpartiesResponse)(nil),           // 45: auth.v1.ListTransferCounterpartiesResponse
+	(*ListTransferDestinationsRequest)(nil),              // 46: auth.v1.ListTransferDestinationsRequest
+	(*ListTransferDestinationsResponse)(nil),             // 47: auth.v1.ListTransferDestinationsResponse
+	(*ListInternalTransferWhitelistEntriesRequest)(nil),  // 48: auth.v1.ListInternalTransferWhitelistEntriesRequest
+	(*ListInternalTransferWhitelistEntriesResponse)(nil), // 49: auth.v1.ListInternalTransferWhitelistEntriesResponse
+	(*GetWithdrawWhitelistViewRequest)(nil),              // 50: auth.v1.GetWithdrawWhitelistViewRequest
+	(*GetWithdrawWhitelistViewResponse)(nil),             // 51: auth.v1.GetWithdrawWhitelistViewResponse
+	(*GetAddressBookViewRequest)(nil),                    // 52: auth.v1.GetAddressBookViewRequest
+	(*GetAddressBookViewResponse)(nil),                   // 53: auth.v1.GetAddressBookViewResponse
+	(*AddressBookViewInvalidated)(nil),                   // 54: auth.v1.AddressBookViewInvalidated
+	(SubaccountRole)(0),                                  // 55: auth.v1.SubaccountRole
+	(*timestamppb.Timestamp)(nil),                        // 56: google.protobuf.Timestamp
+	(*fieldmaskpb.FieldMask)(nil),                        // 57: google.protobuf.FieldMask
 }
 var file_auth_v1_address_book_proto_depIdxs = []int32{
 	0,  // 0: auth.v1.AccountScopeRef.scope_type:type_name -> auth.v1.AccountScopeType
 	5,  // 1: auth.v1.AddressBook.scope:type_name -> auth.v1.AccountScopeRef
-	54, // 2: auth.v1.AddressBook.caller_role:type_name -> auth.v1.SubaccountRole
+	55, // 2: auth.v1.AddressBook.caller_role:type_name -> auth.v1.SubaccountRole
 	0,  // 3: auth.v1.InternalTransferAccount.target_scope_type:type_name -> auth.v1.AccountScopeType
 	5,  // 4: auth.v1.AddressBookTag.scope:type_name -> auth.v1.AccountScopeRef
-	55, // 5: auth.v1.AddressBookTag.created_at:type_name -> google.protobuf.Timestamp
-	55, // 6: auth.v1.AddressBookTag.updated_at:type_name -> google.protobuf.Timestamp
+	56, // 5: auth.v1.AddressBookTag.created_at:type_name -> google.protobuf.Timestamp
+	56, // 6: auth.v1.AddressBookTag.updated_at:type_name -> google.protobuf.Timestamp
 	5,  // 7: auth.v1.AddressBookEntry.scope:type_name -> auth.v1.AccountScopeRef
 	1,  // 8: auth.v1.AddressBookEntry.kind:type_name -> auth.v1.AddressBookEntryKind
-	55, // 9: auth.v1.AddressBookEntry.created_at:type_name -> google.protobuf.Timestamp
-	55, // 10: auth.v1.AddressBookEntry.updated_at:type_name -> google.protobuf.Timestamp
+	56, // 9: auth.v1.AddressBookEntry.created_at:type_name -> google.protobuf.Timestamp
+	56, // 10: auth.v1.AddressBookEntry.updated_at:type_name -> google.protobuf.Timestamp
 	7,  // 11: auth.v1.AddressBookEntry.external:type_name -> auth.v1.ExternalWithdrawAddress
 	8,  // 12: auth.v1.AddressBookEntry.internal:type_name -> auth.v1.InternalTransferAccount
 	9,  // 13: auth.v1.AddressBookEntry.tags:type_name -> auth.v1.AddressBookTag
@@ -4329,35 +4424,35 @@ var file_auth_v1_address_book_proto_depIdxs = []int32{
 	14, // 15: auth.v1.AddressBookEntriesView.internal:type_name -> auth.v1.InternalAddressBookEntry
 	5,  // 16: auth.v1.ExternalAddressBookEntry.scope:type_name -> auth.v1.AccountScopeRef
 	3,  // 17: auth.v1.ExternalAddressBookEntry.whitelist_status:type_name -> auth.v1.DestinationWhitelistStatus
-	55, // 18: auth.v1.ExternalAddressBookEntry.created_at:type_name -> google.protobuf.Timestamp
-	55, // 19: auth.v1.ExternalAddressBookEntry.updated_at:type_name -> google.protobuf.Timestamp
+	56, // 18: auth.v1.ExternalAddressBookEntry.created_at:type_name -> google.protobuf.Timestamp
+	56, // 19: auth.v1.ExternalAddressBookEntry.updated_at:type_name -> google.protobuf.Timestamp
 	5,  // 20: auth.v1.InternalAddressBookEntry.scope:type_name -> auth.v1.AccountScopeRef
 	3,  // 21: auth.v1.InternalAddressBookEntry.whitelist_status:type_name -> auth.v1.DestinationWhitelistStatus
 	0,  // 22: auth.v1.InternalAddressBookEntry.target_scope_type:type_name -> auth.v1.AccountScopeType
-	55, // 23: auth.v1.InternalAddressBookEntry.created_at:type_name -> google.protobuf.Timestamp
-	55, // 24: auth.v1.InternalAddressBookEntry.updated_at:type_name -> google.protobuf.Timestamp
+	56, // 23: auth.v1.InternalAddressBookEntry.created_at:type_name -> google.protobuf.Timestamp
+	56, // 24: auth.v1.InternalAddressBookEntry.updated_at:type_name -> google.protobuf.Timestamp
 	5,  // 25: auth.v1.TransferCounterparty.scope:type_name -> auth.v1.AccountScopeRef
 	4,  // 26: auth.v1.TransferCounterparty.direction:type_name -> auth.v1.TransferCounterpartyDirection
 	1,  // 27: auth.v1.TransferCounterparty.kind:type_name -> auth.v1.AddressBookEntryKind
-	55, // 28: auth.v1.TransferCounterparty.first_seen_at:type_name -> google.protobuf.Timestamp
-	55, // 29: auth.v1.TransferCounterparty.last_seen_at:type_name -> google.protobuf.Timestamp
+	56, // 28: auth.v1.TransferCounterparty.first_seen_at:type_name -> google.protobuf.Timestamp
+	56, // 29: auth.v1.TransferCounterparty.last_seen_at:type_name -> google.protobuf.Timestamp
 	7,  // 30: auth.v1.TransferCounterparty.external:type_name -> auth.v1.ExternalWithdrawAddress
 	8,  // 31: auth.v1.TransferCounterparty.internal:type_name -> auth.v1.InternalTransferAccount
 	17, // 32: auth.v1.AddressBookRecentDestinationsView.external:type_name -> auth.v1.ExternalRecentDestination
 	18, // 33: auth.v1.AddressBookRecentDestinationsView.internal:type_name -> auth.v1.InternalRecentDestination
 	5,  // 34: auth.v1.ExternalRecentDestination.scope:type_name -> auth.v1.AccountScopeRef
 	4,  // 35: auth.v1.ExternalRecentDestination.last_direction:type_name -> auth.v1.TransferCounterpartyDirection
-	55, // 36: auth.v1.ExternalRecentDestination.last_seen_at:type_name -> google.protobuf.Timestamp
+	56, // 36: auth.v1.ExternalRecentDestination.last_seen_at:type_name -> google.protobuf.Timestamp
 	5,  // 37: auth.v1.InternalRecentDestination.scope:type_name -> auth.v1.AccountScopeRef
 	4,  // 38: auth.v1.InternalRecentDestination.last_direction:type_name -> auth.v1.TransferCounterpartyDirection
-	55, // 39: auth.v1.InternalRecentDestination.last_seen_at:type_name -> google.protobuf.Timestamp
+	56, // 39: auth.v1.InternalRecentDestination.last_seen_at:type_name -> google.protobuf.Timestamp
 	0,  // 40: auth.v1.InternalRecentDestination.target_scope_type:type_name -> auth.v1.AccountScopeType
 	5,  // 41: auth.v1.InternalTransferWhitelistEntry.scope:type_name -> auth.v1.AccountScopeRef
 	0,  // 42: auth.v1.InternalTransferWhitelistEntry.target_scope_type:type_name -> auth.v1.AccountScopeType
-	55, // 43: auth.v1.InternalTransferWhitelistEntry.created_at:type_name -> google.protobuf.Timestamp
-	55, // 44: auth.v1.InternalTransferWhitelistEntry.updated_at:type_name -> google.protobuf.Timestamp
+	56, // 43: auth.v1.InternalTransferWhitelistEntry.created_at:type_name -> google.protobuf.Timestamp
+	56, // 44: auth.v1.InternalTransferWhitelistEntry.updated_at:type_name -> google.protobuf.Timestamp
 	2,  // 45: auth.v1.InternalTransferWhitelistEntry.resolution_status:type_name -> auth.v1.InternalWhitelistResolutionStatus
-	55, // 46: auth.v1.MirroredWithdrawWhitelistEntry.updated_at:type_name -> google.protobuf.Timestamp
+	56, // 46: auth.v1.MirroredWithdrawWhitelistEntry.updated_at:type_name -> google.protobuf.Timestamp
 	5,  // 47: auth.v1.WithdrawWhitelistView.scope:type_name -> auth.v1.AccountScopeRef
 	20, // 48: auth.v1.WithdrawWhitelistView.active_entries:type_name -> auth.v1.MirroredWithdrawWhitelistEntry
 	5,  // 49: auth.v1.TransferDestination.scope:type_name -> auth.v1.AccountScopeRef
@@ -4366,66 +4461,67 @@ var file_auth_v1_address_book_proto_depIdxs = []int32{
 	11, // 52: auth.v1.TransferDestination.address_book_entry:type_name -> auth.v1.AddressBookEntry
 	7,  // 53: auth.v1.TransferDestination.external:type_name -> auth.v1.ExternalWithdrawAddress
 	8,  // 54: auth.v1.TransferDestination.internal:type_name -> auth.v1.InternalTransferAccount
-	55, // 55: auth.v1.TransferDestination.whitelist_updated_at:type_name -> google.protobuf.Timestamp
+	56, // 55: auth.v1.TransferDestination.whitelist_updated_at:type_name -> google.protobuf.Timestamp
 	6,  // 56: auth.v1.ListAddressBooksResponse.books:type_name -> auth.v1.AddressBook
 	1,  // 57: auth.v1.ListAddressBookEntriesRequest.kind:type_name -> auth.v1.AddressBookEntryKind
 	11, // 58: auth.v1.ListAddressBookEntriesResponse.entries:type_name -> auth.v1.AddressBookEntry
 	7,  // 59: auth.v1.CreateAddressBookEntryRequest.external:type_name -> auth.v1.ExternalWithdrawAddress
 	28, // 60: auth.v1.CreateAddressBookEntryRequest.internal:type_name -> auth.v1.RequestedInternalTransferAccount
-	32, // 61: auth.v1.CreateAddressBookEntryRequest.new_tags:type_name -> auth.v1.AddressBookTagInput
+	33, // 61: auth.v1.CreateAddressBookEntryRequest.new_tags:type_name -> auth.v1.AddressBookTagInput
 	11, // 62: auth.v1.CreateAddressBookEntryResponse.entry:type_name -> auth.v1.AddressBookEntry
-	32, // 63: auth.v1.UpdateAddressBookEntryRequest.new_tags:type_name -> auth.v1.AddressBookTagInput
-	11, // 64: auth.v1.UpdateAddressBookEntryResponse.entry:type_name -> auth.v1.AddressBookEntry
-	11, // 65: auth.v1.CopyAddressBookEntryResponse.entry:type_name -> auth.v1.AddressBookEntry
-	9,  // 66: auth.v1.CreateAddressBookTagResponse.tag:type_name -> auth.v1.AddressBookTag
-	9,  // 67: auth.v1.UpdateAddressBookTagResponse.tag:type_name -> auth.v1.AddressBookTag
-	4,  // 68: auth.v1.ListTransferCounterpartiesRequest.direction:type_name -> auth.v1.TransferCounterpartyDirection
-	1,  // 69: auth.v1.ListTransferCounterpartiesRequest.kind:type_name -> auth.v1.AddressBookEntryKind
-	15, // 70: auth.v1.ListTransferCounterpartiesResponse.counterparties:type_name -> auth.v1.TransferCounterparty
-	1,  // 71: auth.v1.ListTransferDestinationsRequest.kind:type_name -> auth.v1.AddressBookEntryKind
-	22, // 72: auth.v1.ListTransferDestinationsResponse.destinations:type_name -> auth.v1.TransferDestination
-	19, // 73: auth.v1.ListInternalTransferWhitelistEntriesResponse.entries:type_name -> auth.v1.InternalTransferWhitelistEntry
-	21, // 74: auth.v1.GetWithdrawWhitelistViewResponse.view:type_name -> auth.v1.WithdrawWhitelistView
-	6,  // 75: auth.v1.GetAddressBookViewResponse.books:type_name -> auth.v1.AddressBook
-	12, // 76: auth.v1.GetAddressBookViewResponse.entries:type_name -> auth.v1.AddressBookEntriesView
-	16, // 77: auth.v1.GetAddressBookViewResponse.recent_destinations:type_name -> auth.v1.AddressBookRecentDestinationsView
-	10, // 78: auth.v1.GetAddressBookViewResponse.tags:type_name -> auth.v1.AddressBookTagSummary
-	21, // 79: auth.v1.GetAddressBookViewResponse.withdraw_whitelist:type_name -> auth.v1.WithdrawWhitelistView
-	5,  // 80: auth.v1.AddressBookViewInvalidated.scope:type_name -> auth.v1.AccountScopeRef
-	55, // 81: auth.v1.AddressBookViewInvalidated.invalidated_at:type_name -> google.protobuf.Timestamp
-	23, // 82: auth.v1.AddressBookService.ListAddressBooks:input_type -> auth.v1.ListAddressBooksRequest
-	25, // 83: auth.v1.AddressBookService.ListAddressBookEntries:input_type -> auth.v1.ListAddressBookEntriesRequest
-	27, // 84: auth.v1.AddressBookService.CreateAddressBookEntry:input_type -> auth.v1.CreateAddressBookEntryRequest
-	30, // 85: auth.v1.AddressBookService.UpdateAddressBookEntry:input_type -> auth.v1.UpdateAddressBookEntryRequest
-	33, // 86: auth.v1.AddressBookService.DeleteAddressBookEntry:input_type -> auth.v1.DeleteAddressBookEntryRequest
-	35, // 87: auth.v1.AddressBookService.CopyAddressBookEntry:input_type -> auth.v1.CopyAddressBookEntryRequest
-	37, // 88: auth.v1.AddressBookService.CreateAddressBookTag:input_type -> auth.v1.CreateAddressBookTagRequest
-	39, // 89: auth.v1.AddressBookService.UpdateAddressBookTag:input_type -> auth.v1.UpdateAddressBookTagRequest
-	41, // 90: auth.v1.AddressBookService.DeleteAddressBookTag:input_type -> auth.v1.DeleteAddressBookTagRequest
-	43, // 91: auth.v1.AddressBookService.ListTransferCounterparties:input_type -> auth.v1.ListTransferCounterpartiesRequest
-	45, // 92: auth.v1.AddressBookService.ListTransferDestinations:input_type -> auth.v1.ListTransferDestinationsRequest
-	47, // 93: auth.v1.AddressBookService.ListInternalTransferWhitelistEntries:input_type -> auth.v1.ListInternalTransferWhitelistEntriesRequest
-	49, // 94: auth.v1.AddressBookService.GetWithdrawWhitelistView:input_type -> auth.v1.GetWithdrawWhitelistViewRequest
-	51, // 95: auth.v1.AddressBookService.GetAddressBookView:input_type -> auth.v1.GetAddressBookViewRequest
-	24, // 96: auth.v1.AddressBookService.ListAddressBooks:output_type -> auth.v1.ListAddressBooksResponse
-	26, // 97: auth.v1.AddressBookService.ListAddressBookEntries:output_type -> auth.v1.ListAddressBookEntriesResponse
-	29, // 98: auth.v1.AddressBookService.CreateAddressBookEntry:output_type -> auth.v1.CreateAddressBookEntryResponse
-	31, // 99: auth.v1.AddressBookService.UpdateAddressBookEntry:output_type -> auth.v1.UpdateAddressBookEntryResponse
-	34, // 100: auth.v1.AddressBookService.DeleteAddressBookEntry:output_type -> auth.v1.DeleteAddressBookEntryResponse
-	36, // 101: auth.v1.AddressBookService.CopyAddressBookEntry:output_type -> auth.v1.CopyAddressBookEntryResponse
-	38, // 102: auth.v1.AddressBookService.CreateAddressBookTag:output_type -> auth.v1.CreateAddressBookTagResponse
-	40, // 103: auth.v1.AddressBookService.UpdateAddressBookTag:output_type -> auth.v1.UpdateAddressBookTagResponse
-	42, // 104: auth.v1.AddressBookService.DeleteAddressBookTag:output_type -> auth.v1.DeleteAddressBookTagResponse
-	44, // 105: auth.v1.AddressBookService.ListTransferCounterparties:output_type -> auth.v1.ListTransferCounterpartiesResponse
-	46, // 106: auth.v1.AddressBookService.ListTransferDestinations:output_type -> auth.v1.ListTransferDestinationsResponse
-	48, // 107: auth.v1.AddressBookService.ListInternalTransferWhitelistEntries:output_type -> auth.v1.ListInternalTransferWhitelistEntriesResponse
-	50, // 108: auth.v1.AddressBookService.GetWithdrawWhitelistView:output_type -> auth.v1.GetWithdrawWhitelistViewResponse
-	52, // 109: auth.v1.AddressBookService.GetAddressBookView:output_type -> auth.v1.GetAddressBookViewResponse
-	96, // [96:110] is the sub-list for method output_type
-	82, // [82:96] is the sub-list for method input_type
-	82, // [82:82] is the sub-list for extension type_name
-	82, // [82:82] is the sub-list for extension extendee
-	0,  // [0:82] is the sub-list for field type_name
+	30, // 63: auth.v1.UpdateAddressBookEntryRequest.entry:type_name -> auth.v1.AddressBookEntryUpdateSpec
+	57, // 64: auth.v1.UpdateAddressBookEntryRequest.update_mask:type_name -> google.protobuf.FieldMask
+	11, // 65: auth.v1.UpdateAddressBookEntryResponse.entry:type_name -> auth.v1.AddressBookEntry
+	11, // 66: auth.v1.CopyAddressBookEntryResponse.entry:type_name -> auth.v1.AddressBookEntry
+	9,  // 67: auth.v1.CreateAddressBookTagResponse.tag:type_name -> auth.v1.AddressBookTag
+	9,  // 68: auth.v1.UpdateAddressBookTagResponse.tag:type_name -> auth.v1.AddressBookTag
+	4,  // 69: auth.v1.ListTransferCounterpartiesRequest.direction:type_name -> auth.v1.TransferCounterpartyDirection
+	1,  // 70: auth.v1.ListTransferCounterpartiesRequest.kind:type_name -> auth.v1.AddressBookEntryKind
+	15, // 71: auth.v1.ListTransferCounterpartiesResponse.counterparties:type_name -> auth.v1.TransferCounterparty
+	1,  // 72: auth.v1.ListTransferDestinationsRequest.kind:type_name -> auth.v1.AddressBookEntryKind
+	22, // 73: auth.v1.ListTransferDestinationsResponse.destinations:type_name -> auth.v1.TransferDestination
+	19, // 74: auth.v1.ListInternalTransferWhitelistEntriesResponse.entries:type_name -> auth.v1.InternalTransferWhitelistEntry
+	21, // 75: auth.v1.GetWithdrawWhitelistViewResponse.view:type_name -> auth.v1.WithdrawWhitelistView
+	6,  // 76: auth.v1.GetAddressBookViewResponse.books:type_name -> auth.v1.AddressBook
+	12, // 77: auth.v1.GetAddressBookViewResponse.entries:type_name -> auth.v1.AddressBookEntriesView
+	16, // 78: auth.v1.GetAddressBookViewResponse.recent_destinations:type_name -> auth.v1.AddressBookRecentDestinationsView
+	10, // 79: auth.v1.GetAddressBookViewResponse.tags:type_name -> auth.v1.AddressBookTagSummary
+	21, // 80: auth.v1.GetAddressBookViewResponse.withdraw_whitelist:type_name -> auth.v1.WithdrawWhitelistView
+	5,  // 81: auth.v1.AddressBookViewInvalidated.scope:type_name -> auth.v1.AccountScopeRef
+	56, // 82: auth.v1.AddressBookViewInvalidated.invalidated_at:type_name -> google.protobuf.Timestamp
+	23, // 83: auth.v1.AddressBookService.ListAddressBooks:input_type -> auth.v1.ListAddressBooksRequest
+	25, // 84: auth.v1.AddressBookService.ListAddressBookEntries:input_type -> auth.v1.ListAddressBookEntriesRequest
+	27, // 85: auth.v1.AddressBookService.CreateAddressBookEntry:input_type -> auth.v1.CreateAddressBookEntryRequest
+	31, // 86: auth.v1.AddressBookService.UpdateAddressBookEntry:input_type -> auth.v1.UpdateAddressBookEntryRequest
+	34, // 87: auth.v1.AddressBookService.DeleteAddressBookEntry:input_type -> auth.v1.DeleteAddressBookEntryRequest
+	36, // 88: auth.v1.AddressBookService.CopyAddressBookEntry:input_type -> auth.v1.CopyAddressBookEntryRequest
+	38, // 89: auth.v1.AddressBookService.CreateAddressBookTag:input_type -> auth.v1.CreateAddressBookTagRequest
+	40, // 90: auth.v1.AddressBookService.UpdateAddressBookTag:input_type -> auth.v1.UpdateAddressBookTagRequest
+	42, // 91: auth.v1.AddressBookService.DeleteAddressBookTag:input_type -> auth.v1.DeleteAddressBookTagRequest
+	44, // 92: auth.v1.AddressBookService.ListTransferCounterparties:input_type -> auth.v1.ListTransferCounterpartiesRequest
+	46, // 93: auth.v1.AddressBookService.ListTransferDestinations:input_type -> auth.v1.ListTransferDestinationsRequest
+	48, // 94: auth.v1.AddressBookService.ListInternalTransferWhitelistEntries:input_type -> auth.v1.ListInternalTransferWhitelistEntriesRequest
+	50, // 95: auth.v1.AddressBookService.GetWithdrawWhitelistView:input_type -> auth.v1.GetWithdrawWhitelistViewRequest
+	52, // 96: auth.v1.AddressBookService.GetAddressBookView:input_type -> auth.v1.GetAddressBookViewRequest
+	24, // 97: auth.v1.AddressBookService.ListAddressBooks:output_type -> auth.v1.ListAddressBooksResponse
+	26, // 98: auth.v1.AddressBookService.ListAddressBookEntries:output_type -> auth.v1.ListAddressBookEntriesResponse
+	29, // 99: auth.v1.AddressBookService.CreateAddressBookEntry:output_type -> auth.v1.CreateAddressBookEntryResponse
+	32, // 100: auth.v1.AddressBookService.UpdateAddressBookEntry:output_type -> auth.v1.UpdateAddressBookEntryResponse
+	35, // 101: auth.v1.AddressBookService.DeleteAddressBookEntry:output_type -> auth.v1.DeleteAddressBookEntryResponse
+	37, // 102: auth.v1.AddressBookService.CopyAddressBookEntry:output_type -> auth.v1.CopyAddressBookEntryResponse
+	39, // 103: auth.v1.AddressBookService.CreateAddressBookTag:output_type -> auth.v1.CreateAddressBookTagResponse
+	41, // 104: auth.v1.AddressBookService.UpdateAddressBookTag:output_type -> auth.v1.UpdateAddressBookTagResponse
+	43, // 105: auth.v1.AddressBookService.DeleteAddressBookTag:output_type -> auth.v1.DeleteAddressBookTagResponse
+	45, // 106: auth.v1.AddressBookService.ListTransferCounterparties:output_type -> auth.v1.ListTransferCounterpartiesResponse
+	47, // 107: auth.v1.AddressBookService.ListTransferDestinations:output_type -> auth.v1.ListTransferDestinationsResponse
+	49, // 108: auth.v1.AddressBookService.ListInternalTransferWhitelistEntries:output_type -> auth.v1.ListInternalTransferWhitelistEntriesResponse
+	51, // 109: auth.v1.AddressBookService.GetWithdrawWhitelistView:output_type -> auth.v1.GetWithdrawWhitelistViewResponse
+	53, // 110: auth.v1.AddressBookService.GetAddressBookView:output_type -> auth.v1.GetAddressBookViewResponse
+	97, // [97:111] is the sub-list for method output_type
+	83, // [83:97] is the sub-list for method input_type
+	83, // [83:83] is the sub-list for extension type_name
+	83, // [83:83] is the sub-list for extension extendee
+	0,  // [0:83] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_address_book_proto_init() }
@@ -4450,13 +4546,14 @@ func file_auth_v1_address_book_proto_init() {
 		(*CreateAddressBookEntryRequest_External)(nil),
 		(*CreateAddressBookEntryRequest_Internal)(nil),
 	}
+	file_auth_v1_address_book_proto_msgTypes[35].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_address_book_proto_rawDesc), len(file_auth_v1_address_book_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   49,
+			NumMessages:   50,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

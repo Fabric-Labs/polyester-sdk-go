@@ -10,7 +10,15 @@ import (
 )
 
 func entryFromProto(msg *authv1.AddressBookEntry) models.AddressBookEntry {
-	return models.AddressBookEntry{AddressBookEntryID: codecs.FormatUint64ID(msg.GetAddressBookEntryId()), Label: msg.GetLabel(), Kind: msg.GetKind().String()}
+	if msg == nil {
+		return models.AddressBookEntry{}
+	}
+	return models.AddressBookEntry{
+		AddressBookEntryID: codecs.FormatUint64ID(msg.GetAddressBookEntryId()),
+		Label:              msg.GetLabel(),
+		Kind:               msg.GetKind().String(),
+		Revision:           msg.GetRevision(),
+	}
 }
 
 func ListEntriesFromProto(msg *authv1.ListAddressBookEntriesResponse) models.AddressBookEntriesList {

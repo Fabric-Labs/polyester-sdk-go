@@ -13,6 +13,7 @@ import (
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -546,7 +547,9 @@ type Subaccount struct {
 	// same sub-account, later is fresher, equal is an idempotent replay, and
 	// earlier is stale. Equal timestamps with different configuration indicate
 	// an invariant failure.
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// Monotonic resource revision used for conditional updates.
+	Revision      uint64 `protobuf:"varint,15,opt,name=revision,proto3" json:"revision,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -677,6 +680,13 @@ func (x *Subaccount) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *Subaccount) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
 }
 
 // Request to list sub-accounts owned by or shared with the caller.
@@ -951,26 +961,98 @@ func (x *CreateSubaccountResponse) GetSmartAccountSaltNonce() uint32 {
 	return 0
 }
 
-// Request to update mutable display and status fields for a sub-account.
-type UpdateSubaccountRequest struct {
+// SubaccountUpdateSpec contains mutable display and status configuration.
+type SubaccountUpdateSpec struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Sub-account to update (opaque ID).
-	SubaccountId uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
-	// New label for the sub-account. If empty, the label is left unchanged.
-	Label string `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
-	// New user-chosen icon/emoji for UI display. If empty, left unchanged.
-	Icon string `protobuf:"bytes,4,opt,name=icon,proto3" json:"icon,omitempty"`
-	// New user-chosen color token for UI display. If empty, left unchanged. Tokens use lowercase letters, numbers, underscores, or hyphens.
-	Color string `protobuf:"bytes,5,opt,name=color,proto3" json:"color,omitempty"`
-	// New status for the sub-account, such as "active" or "disabled". If empty, the status is left unchanged.
-	Status        string `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	// Label for the sub-account. Empty clears the label when selected.
+	Label string `protobuf:"bytes,1,opt,name=label,proto3" json:"label,omitempty"`
+	// User-chosen icon/emoji for UI display. Empty clears the icon when selected.
+	Icon string `protobuf:"bytes,2,opt,name=icon,proto3" json:"icon,omitempty"`
+	// User-chosen color token for UI display. Empty clears the color when selected.
+	Color string `protobuf:"bytes,3,opt,name=color,proto3" json:"color,omitempty"`
+	// Status for the sub-account, such as "active" or "disabled".
+	Status        string `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
+func (x *SubaccountUpdateSpec) Reset() {
+	*x = SubaccountUpdateSpec{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubaccountUpdateSpec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubaccountUpdateSpec) ProtoMessage() {}
+
+func (x *SubaccountUpdateSpec) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubaccountUpdateSpec.ProtoReflect.Descriptor instead.
+func (*SubaccountUpdateSpec) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *SubaccountUpdateSpec) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *SubaccountUpdateSpec) GetIcon() string {
+	if x != nil {
+		return x.Icon
+	}
+	return ""
+}
+
+func (x *SubaccountUpdateSpec) GetColor() string {
+	if x != nil {
+		return x.Color
+	}
+	return ""
+}
+
+func (x *SubaccountUpdateSpec) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+// Request to change selected mutable fields for a sub-account.
+type UpdateSubaccountRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Sub-account to update (opaque ID).
+	SubaccountId uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
+	// Candidate values for fields selected by update_mask.
+	Subaccount *SubaccountUpdateSpec `protobuf:"bytes,2,opt,name=subaccount,proto3" json:"subaccount,omitempty"`
+	// Mutable fields to apply. Paths are relative to subaccount. The mask is
+	// required, must be non-empty, and cannot contain "*".
+	UpdateMask *fieldmaskpb.FieldMask `protobuf:"bytes,3,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
+	// Revision returned by the latest successful read.
+	ExpectedRevision uint64 `protobuf:"varint,4,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
 func (x *UpdateSubaccountRequest) Reset() {
 	*x = UpdateSubaccountRequest{}
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[6]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -982,7 +1064,7 @@ func (x *UpdateSubaccountRequest) String() string {
 func (*UpdateSubaccountRequest) ProtoMessage() {}
 
 func (x *UpdateSubaccountRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[6]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -995,7 +1077,7 @@ func (x *UpdateSubaccountRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSubaccountRequest.ProtoReflect.Descriptor instead.
 func (*UpdateSubaccountRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{6}
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *UpdateSubaccountRequest) GetSubaccountId() uint64 {
@@ -1005,44 +1087,39 @@ func (x *UpdateSubaccountRequest) GetSubaccountId() uint64 {
 	return 0
 }
 
-func (x *UpdateSubaccountRequest) GetLabel() string {
+func (x *UpdateSubaccountRequest) GetSubaccount() *SubaccountUpdateSpec {
 	if x != nil {
-		return x.Label
+		return x.Subaccount
 	}
-	return ""
+	return nil
 }
 
-func (x *UpdateSubaccountRequest) GetIcon() string {
+func (x *UpdateSubaccountRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
 	if x != nil {
-		return x.Icon
+		return x.UpdateMask
 	}
-	return ""
+	return nil
 }
 
-func (x *UpdateSubaccountRequest) GetColor() string {
+func (x *UpdateSubaccountRequest) GetExpectedRevision() uint64 {
 	if x != nil {
-		return x.Color
+		return x.ExpectedRevision
 	}
-	return ""
+	return 0
 }
 
-func (x *UpdateSubaccountRequest) GetStatus() string {
-	if x != nil {
-		return x.Status
-	}
-	return ""
-}
-
-// Empty response returned after updating a sub-account.
+// Response returned after updating a sub-account.
 type UpdateSubaccountResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Sub-account after applying the update.
+	Subaccount    *Subaccount `protobuf:"bytes,1,opt,name=subaccount,proto3" json:"subaccount,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateSubaccountResponse) Reset() {
 	*x = UpdateSubaccountResponse{}
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[7]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1054,7 +1131,7 @@ func (x *UpdateSubaccountResponse) String() string {
 func (*UpdateSubaccountResponse) ProtoMessage() {}
 
 func (x *UpdateSubaccountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[7]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1067,7 +1144,14 @@ func (x *UpdateSubaccountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateSubaccountResponse.ProtoReflect.Descriptor instead.
 func (*UpdateSubaccountResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{7}
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *UpdateSubaccountResponse) GetSubaccount() *Subaccount {
+	if x != nil {
+		return x.Subaccount
+	}
+	return nil
 }
 
 // Request to update the delegated-member MFA requirement for a sub-account.
@@ -1085,7 +1169,7 @@ type SetSubaccountMemberMFARequirementRequest struct {
 
 func (x *SetSubaccountMemberMFARequirementRequest) Reset() {
 	*x = SetSubaccountMemberMFARequirementRequest{}
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[8]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1097,7 +1181,7 @@ func (x *SetSubaccountMemberMFARequirementRequest) String() string {
 func (*SetSubaccountMemberMFARequirementRequest) ProtoMessage() {}
 
 func (x *SetSubaccountMemberMFARequirementRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[8]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1110,7 +1194,7 @@ func (x *SetSubaccountMemberMFARequirementRequest) ProtoReflect() protoreflect.M
 
 // Deprecated: Use SetSubaccountMemberMFARequirementRequest.ProtoReflect.Descriptor instead.
 func (*SetSubaccountMemberMFARequirementRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{8}
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *SetSubaccountMemberMFARequirementRequest) GetSubaccountId() uint64 {
@@ -1136,7 +1220,7 @@ type SetSubaccountMemberMFARequirementResponse struct {
 
 func (x *SetSubaccountMemberMFARequirementResponse) Reset() {
 	*x = SetSubaccountMemberMFARequirementResponse{}
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[9]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1148,7 +1232,7 @@ func (x *SetSubaccountMemberMFARequirementResponse) String() string {
 func (*SetSubaccountMemberMFARequirementResponse) ProtoMessage() {}
 
 func (x *SetSubaccountMemberMFARequirementResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[9]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1161,7 +1245,7 @@ func (x *SetSubaccountMemberMFARequirementResponse) ProtoReflect() protoreflect.
 
 // Deprecated: Use SetSubaccountMemberMFARequirementResponse.ProtoReflect.Descriptor instead.
 func (*SetSubaccountMemberMFARequirementResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{9}
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{10}
 }
 
 // Member summary for a root account with access to a sub-account.
@@ -1185,7 +1269,7 @@ type SubaccountMemberView struct {
 
 func (x *SubaccountMemberView) Reset() {
 	*x = SubaccountMemberView{}
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[10]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1197,7 +1281,7 @@ func (x *SubaccountMemberView) String() string {
 func (*SubaccountMemberView) ProtoMessage() {}
 
 func (x *SubaccountMemberView) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[10]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1210,7 +1294,7 @@ func (x *SubaccountMemberView) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubaccountMemberView.ProtoReflect.Descriptor instead.
 func (*SubaccountMemberView) Descriptor() ([]byte, []int) {
-	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{10}
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SubaccountMemberView) GetAccountId() uint64 {
@@ -1266,7 +1350,7 @@ type ListSubaccountMembersRequest struct {
 
 func (x *ListSubaccountMembersRequest) Reset() {
 	*x = ListSubaccountMembersRequest{}
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[11]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1278,7 +1362,7 @@ func (x *ListSubaccountMembersRequest) String() string {
 func (*ListSubaccountMembersRequest) ProtoMessage() {}
 
 func (x *ListSubaccountMembersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[11]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1291,7 +1375,7 @@ func (x *ListSubaccountMembersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSubaccountMembersRequest.ProtoReflect.Descriptor instead.
 func (*ListSubaccountMembersRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{11}
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ListSubaccountMembersRequest) GetSubaccountId() uint64 {
@@ -1312,7 +1396,7 @@ type ListSubaccountMembersResponse struct {
 
 func (x *ListSubaccountMembersResponse) Reset() {
 	*x = ListSubaccountMembersResponse{}
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[12]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1324,7 +1408,7 @@ func (x *ListSubaccountMembersResponse) String() string {
 func (*ListSubaccountMembersResponse) ProtoMessage() {}
 
 func (x *ListSubaccountMembersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[12]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1337,7 +1421,7 @@ func (x *ListSubaccountMembersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSubaccountMembersResponse.ProtoReflect.Descriptor instead.
 func (*ListSubaccountMembersResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{12}
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ListSubaccountMembersResponse) GetMembers() []*SubaccountMemberView {
@@ -1360,7 +1444,7 @@ type RemoveSubaccountMemberRequest struct {
 
 func (x *RemoveSubaccountMemberRequest) Reset() {
 	*x = RemoveSubaccountMemberRequest{}
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[13]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1372,7 +1456,7 @@ func (x *RemoveSubaccountMemberRequest) String() string {
 func (*RemoveSubaccountMemberRequest) ProtoMessage() {}
 
 func (x *RemoveSubaccountMemberRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[13]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1385,7 +1469,7 @@ func (x *RemoveSubaccountMemberRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveSubaccountMemberRequest.ProtoReflect.Descriptor instead.
 func (*RemoveSubaccountMemberRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{13}
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *RemoveSubaccountMemberRequest) GetSubaccountId() uint64 {
@@ -1411,7 +1495,7 @@ type RemoveSubaccountMemberResponse struct {
 
 func (x *RemoveSubaccountMemberResponse) Reset() {
 	*x = RemoveSubaccountMemberResponse{}
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[14]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1423,7 +1507,7 @@ func (x *RemoveSubaccountMemberResponse) String() string {
 func (*RemoveSubaccountMemberResponse) ProtoMessage() {}
 
 func (x *RemoveSubaccountMemberResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[14]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1436,7 +1520,7 @@ func (x *RemoveSubaccountMemberResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveSubaccountMemberResponse.ProtoReflect.Descriptor instead.
 func (*RemoveSubaccountMemberResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{14}
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{15}
 }
 
 // Request to change the role of an existing sub-account member without sending a new invitation.
@@ -1454,7 +1538,7 @@ type UpdateSubaccountMemberRoleRequest struct {
 
 func (x *UpdateSubaccountMemberRoleRequest) Reset() {
 	*x = UpdateSubaccountMemberRoleRequest{}
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[15]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1466,7 +1550,7 @@ func (x *UpdateSubaccountMemberRoleRequest) String() string {
 func (*UpdateSubaccountMemberRoleRequest) ProtoMessage() {}
 
 func (x *UpdateSubaccountMemberRoleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[15]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1479,7 +1563,7 @@ func (x *UpdateSubaccountMemberRoleRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use UpdateSubaccountMemberRoleRequest.ProtoReflect.Descriptor instead.
 func (*UpdateSubaccountMemberRoleRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{15}
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *UpdateSubaccountMemberRoleRequest) GetSubaccountId() uint64 {
@@ -1512,7 +1596,7 @@ type UpdateSubaccountMemberRoleResponse struct {
 
 func (x *UpdateSubaccountMemberRoleResponse) Reset() {
 	*x = UpdateSubaccountMemberRoleResponse{}
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[16]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1524,7 +1608,7 @@ func (x *UpdateSubaccountMemberRoleResponse) String() string {
 func (*UpdateSubaccountMemberRoleResponse) ProtoMessage() {}
 
 func (x *UpdateSubaccountMemberRoleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[16]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1537,7 +1621,7 @@ func (x *UpdateSubaccountMemberRoleResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use UpdateSubaccountMemberRoleResponse.ProtoReflect.Descriptor instead.
 func (*UpdateSubaccountMemberRoleResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{16}
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{17}
 }
 
 // View of a pending or historical invitation to a sub-account.
@@ -1578,7 +1662,7 @@ type SubaccountInvite struct {
 
 func (x *SubaccountInvite) Reset() {
 	*x = SubaccountInvite{}
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[17]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1590,7 +1674,7 @@ func (x *SubaccountInvite) String() string {
 func (*SubaccountInvite) ProtoMessage() {}
 
 func (x *SubaccountInvite) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[17]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1603,7 +1687,7 @@ func (x *SubaccountInvite) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubaccountInvite.ProtoReflect.Descriptor instead.
 func (*SubaccountInvite) Descriptor() ([]byte, []int) {
-	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{17}
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *SubaccountInvite) GetId() uint64 {
@@ -1719,7 +1803,7 @@ type InviteSubaccountMemberRequest struct {
 
 func (x *InviteSubaccountMemberRequest) Reset() {
 	*x = InviteSubaccountMemberRequest{}
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[18]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1731,7 +1815,7 @@ func (x *InviteSubaccountMemberRequest) String() string {
 func (*InviteSubaccountMemberRequest) ProtoMessage() {}
 
 func (x *InviteSubaccountMemberRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[18]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1744,7 +1828,7 @@ func (x *InviteSubaccountMemberRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InviteSubaccountMemberRequest.ProtoReflect.Descriptor instead.
 func (*InviteSubaccountMemberRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{18}
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *InviteSubaccountMemberRequest) GetSubaccountId() uint64 {
@@ -1779,7 +1863,7 @@ type InviteSubaccountMemberResponse struct {
 
 func (x *InviteSubaccountMemberResponse) Reset() {
 	*x = InviteSubaccountMemberResponse{}
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[19]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1791,7 +1875,7 @@ func (x *InviteSubaccountMemberResponse) String() string {
 func (*InviteSubaccountMemberResponse) ProtoMessage() {}
 
 func (x *InviteSubaccountMemberResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[19]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1804,7 +1888,7 @@ func (x *InviteSubaccountMemberResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InviteSubaccountMemberResponse.ProtoReflect.Descriptor instead.
 func (*InviteSubaccountMemberResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{19}
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *InviteSubaccountMemberResponse) GetInvite() *SubaccountInvite {
@@ -1825,7 +1909,7 @@ type ListSubaccountInvitesRequest struct {
 
 func (x *ListSubaccountInvitesRequest) Reset() {
 	*x = ListSubaccountInvitesRequest{}
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[20]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1837,7 +1921,7 @@ func (x *ListSubaccountInvitesRequest) String() string {
 func (*ListSubaccountInvitesRequest) ProtoMessage() {}
 
 func (x *ListSubaccountInvitesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[20]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1850,7 +1934,7 @@ func (x *ListSubaccountInvitesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSubaccountInvitesRequest.ProtoReflect.Descriptor instead.
 func (*ListSubaccountInvitesRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{20}
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ListSubaccountInvitesRequest) GetDirection() string {
@@ -1871,7 +1955,7 @@ type ListSubaccountInvitesResponse struct {
 
 func (x *ListSubaccountInvitesResponse) Reset() {
 	*x = ListSubaccountInvitesResponse{}
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[21]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1883,7 +1967,7 @@ func (x *ListSubaccountInvitesResponse) String() string {
 func (*ListSubaccountInvitesResponse) ProtoMessage() {}
 
 func (x *ListSubaccountInvitesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[21]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1896,7 +1980,7 @@ func (x *ListSubaccountInvitesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSubaccountInvitesResponse.ProtoReflect.Descriptor instead.
 func (*ListSubaccountInvitesResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{21}
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ListSubaccountInvitesResponse) GetInvites() []*SubaccountInvite {
@@ -1919,7 +2003,7 @@ type RespondSubaccountInviteRequest struct {
 
 func (x *RespondSubaccountInviteRequest) Reset() {
 	*x = RespondSubaccountInviteRequest{}
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[22]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1931,7 +2015,7 @@ func (x *RespondSubaccountInviteRequest) String() string {
 func (*RespondSubaccountInviteRequest) ProtoMessage() {}
 
 func (x *RespondSubaccountInviteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[22]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1944,7 +2028,7 @@ func (x *RespondSubaccountInviteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RespondSubaccountInviteRequest.ProtoReflect.Descriptor instead.
 func (*RespondSubaccountInviteRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{22}
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *RespondSubaccountInviteRequest) GetInviteId() uint64 {
@@ -1972,7 +2056,7 @@ type RespondSubaccountInviteResponse struct {
 
 func (x *RespondSubaccountInviteResponse) Reset() {
 	*x = RespondSubaccountInviteResponse{}
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[23]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1984,7 +2068,7 @@ func (x *RespondSubaccountInviteResponse) String() string {
 func (*RespondSubaccountInviteResponse) ProtoMessage() {}
 
 func (x *RespondSubaccountInviteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[23]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1997,7 +2081,7 @@ func (x *RespondSubaccountInviteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RespondSubaccountInviteResponse.ProtoReflect.Descriptor instead.
 func (*RespondSubaccountInviteResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{23}
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *RespondSubaccountInviteResponse) GetInvite() *SubaccountInvite {
@@ -2030,7 +2114,7 @@ type GetSubaccountRequest struct {
 
 func (x *GetSubaccountRequest) Reset() {
 	*x = GetSubaccountRequest{}
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[24]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2042,7 +2126,7 @@ func (x *GetSubaccountRequest) String() string {
 func (*GetSubaccountRequest) ProtoMessage() {}
 
 func (x *GetSubaccountRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[24]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2055,7 +2139,7 @@ func (x *GetSubaccountRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSubaccountRequest.ProtoReflect.Descriptor instead.
 func (*GetSubaccountRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{24}
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *GetSubaccountRequest) GetSubaccountId() uint64 {
@@ -2128,7 +2212,7 @@ type GetSubaccountResponse struct {
 
 func (x *GetSubaccountResponse) Reset() {
 	*x = GetSubaccountResponse{}
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[25]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2140,7 +2224,7 @@ func (x *GetSubaccountResponse) String() string {
 func (*GetSubaccountResponse) ProtoMessage() {}
 
 func (x *GetSubaccountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[25]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2153,7 +2237,7 @@ func (x *GetSubaccountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSubaccountResponse.ProtoReflect.Descriptor instead.
 func (*GetSubaccountResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{25}
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *GetSubaccountResponse) GetSubaccount() *Subaccount {
@@ -2223,7 +2307,7 @@ type ActivityEvent struct {
 
 func (x *ActivityEvent) Reset() {
 	*x = ActivityEvent{}
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[26]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2235,7 +2319,7 @@ func (x *ActivityEvent) String() string {
 func (*ActivityEvent) ProtoMessage() {}
 
 func (x *ActivityEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[26]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2248,7 +2332,7 @@ func (x *ActivityEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActivityEvent.ProtoReflect.Descriptor instead.
 func (*ActivityEvent) Descriptor() ([]byte, []int) {
-	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{26}
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ActivityEvent) GetCreatedAt() *timestamppb.Timestamp {
@@ -2324,7 +2408,7 @@ type ListSubaccountEventsRequest struct {
 
 func (x *ListSubaccountEventsRequest) Reset() {
 	*x = ListSubaccountEventsRequest{}
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[27]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2336,7 +2420,7 @@ func (x *ListSubaccountEventsRequest) String() string {
 func (*ListSubaccountEventsRequest) ProtoMessage() {}
 
 func (x *ListSubaccountEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[27]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2349,7 +2433,7 @@ func (x *ListSubaccountEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSubaccountEventsRequest.ProtoReflect.Descriptor instead.
 func (*ListSubaccountEventsRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{27}
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ListSubaccountEventsRequest) GetSubaccountId() uint64 {
@@ -2386,7 +2470,7 @@ type ListSubaccountEventsResponse struct {
 
 func (x *ListSubaccountEventsResponse) Reset() {
 	*x = ListSubaccountEventsResponse{}
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[28]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2398,7 +2482,7 @@ func (x *ListSubaccountEventsResponse) String() string {
 func (*ListSubaccountEventsResponse) ProtoMessage() {}
 
 func (x *ListSubaccountEventsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[28]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2411,7 +2495,7 @@ func (x *ListSubaccountEventsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSubaccountEventsResponse.ProtoReflect.Descriptor instead.
 func (*ListSubaccountEventsResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{28}
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *ListSubaccountEventsResponse) GetEvents() []*ActivityEvent {
@@ -2432,10 +2516,10 @@ var File_auth_v1_subaccounts_proto protoreflect.FileDescriptor
 
 const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\n" +
-	"\x19auth/v1/subaccounts.proto\x12\aauth.v1\x1a\x16auth/v1/api_keys.proto\x1a\x16auth/v1/policies.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a ledger/read/v1/ledger_read.proto\"p\n" +
+	"\x19auth/v1/subaccounts.proto\x12\aauth.v1\x1a\x16auth/v1/api_keys.proto\x1a\x16auth/v1/policies.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a ledger/read/v1/ledger_read.proto\"p\n" +
 	"\x12SubaccountRoleView\x12#\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\x125\n" +
-	"\x04role\x18\x02 \x01(\x0e2\x17.auth.v1.SubaccountRoleB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04role\"\x92\x05\n" +
+	"\x04role\x18\x02 \x01(\x0e2\x17.auth.v1.SubaccountRoleB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04role\"\xae\x05\n" +
 	"\n" +
 	"Subaccount\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x06R\x02id\x125\n" +
@@ -2453,7 +2537,8 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x12require_member_mfa\x18\f \x01(\bR\x10requireMemberMfa\x12<\n" +
 	"\x18smart_account_salt_nonce\x18\r \x01(\rH\x00R\x15smartAccountSaltNonce\x88\x01\x01\x129\n" +
 	"\n" +
-	"updated_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAtB\x1b\n" +
+	"updated_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1a\n" +
+	"\brevision\x18\x0f \x01(\x04R\brevisionB\x1b\n" +
 	"\x19_smart_account_salt_nonce\"\x18\n" +
 	"\x16ListSubaccountsRequest\"u\n" +
 	"\x17ListSubaccountsResponse\x125\n" +
@@ -2475,15 +2560,26 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x18CreateSubaccountResponse\x12#\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\x12#\n" +
 	"\rtotal_created\x18\x02 \x01(\rR\ftotalCreated\x127\n" +
-	"\x18smart_account_salt_nonce\x18\x03 \x01(\rR\x15smartAccountSaltNonce\"\xc4\x02\n" +
-	"\x17UpdateSubaccountRequest\x126\n" +
-	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xe0A\x02\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12\x93\x01\n" +
-	"\x05label\x18\x02 \x01(\tB}\xbaHz\xba\x01h\n" +
+	"\x18smart_account_salt_nonce\x18\x03 \x01(\rR\x15smartAccountSaltNonce\"\x89\x02\n" +
+	"\x14SubaccountUpdateSpec\x12\x93\x01\n" +
+	"\x05label\x18\x01 \x01(\tB}\xbaHz\xba\x01h\n" +
 	"\x17label.no_angle_brackets\x12!label must not contain '<' or '>'\x1a*!this.contains('<') && !this.contains('>')r\r\x18@\x92\x02\bTreasuryR\x05label\x12\x1b\n" +
-	"\x04icon\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x18 R\x04icon\x12\x1d\n" +
-	"\x05color\x18\x05 \x01(\tB\a\xbaH\x04r\x02\x18 R\x05color\x12\x1f\n" +
-	"\x06status\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18 R\x06status\"\x1a\n" +
-	"\x18UpdateSubaccountResponse\"\x90\x01\n" +
+	"\x04icon\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18 R\x04icon\x12\x1d\n" +
+	"\x05color\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18 R\x05color\x12\x1f\n" +
+	"\x06status\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x18 R\x06status\"\x9c\x02\n" +
+	"\x17UpdateSubaccountRequest\x126\n" +
+	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xe0A\x02\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12H\n" +
+	"\n" +
+	"subaccount\x18\x02 \x01(\v2\x1d.auth.v1.SubaccountUpdateSpecB\t\xe0A\x02\xbaH\x03\xc8\x01\x01R\n" +
+	"subaccount\x12F\n" +
+	"\vupdate_mask\x18\x03 \x01(\v2\x1a.google.protobuf.FieldMaskB\t\xe0A\x02\xbaH\x03\xc8\x01\x01R\n" +
+	"updateMask\x127\n" +
+	"\x11expected_revision\x18\x04 \x01(\x04B\n" +
+	"\xe0A\x02\xbaH\x042\x02 \x00R\x10expectedRevision\"O\n" +
+	"\x18UpdateSubaccountResponse\x123\n" +
+	"\n" +
+	"subaccount\x18\x01 \x01(\v2\x13.auth.v1.SubaccountR\n" +
+	"subaccount\"\x90\x01\n" +
 	"(SetSubaccountMemberMFARequirementRequest\x126\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xe0A\x02\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12,\n" +
 	"\x12require_member_mfa\x18\x02 \x01(\bR\x10requireMemberMfa\"+\n" +
@@ -2675,7 +2771,7 @@ func file_auth_v1_subaccounts_proto_rawDescGZIP() []byte {
 }
 
 var file_auth_v1_subaccounts_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_auth_v1_subaccounts_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
+var file_auth_v1_subaccounts_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
 var file_auth_v1_subaccounts_proto_goTypes = []any{
 	(SubaccountRole)(0),                               // 0: auth.v1.SubaccountRole
 	(SubaccountInviteStatus)(0),                       // 1: auth.v1.SubaccountInviteStatus
@@ -2689,91 +2785,96 @@ var file_auth_v1_subaccounts_proto_goTypes = []any{
 	(*ListSubaccountsResponse)(nil),                   // 9: auth.v1.ListSubaccountsResponse
 	(*CreateSubaccountRequest)(nil),                   // 10: auth.v1.CreateSubaccountRequest
 	(*CreateSubaccountResponse)(nil),                  // 11: auth.v1.CreateSubaccountResponse
-	(*UpdateSubaccountRequest)(nil),                   // 12: auth.v1.UpdateSubaccountRequest
-	(*UpdateSubaccountResponse)(nil),                  // 13: auth.v1.UpdateSubaccountResponse
-	(*SetSubaccountMemberMFARequirementRequest)(nil),  // 14: auth.v1.SetSubaccountMemberMFARequirementRequest
-	(*SetSubaccountMemberMFARequirementResponse)(nil), // 15: auth.v1.SetSubaccountMemberMFARequirementResponse
-	(*SubaccountMemberView)(nil),                      // 16: auth.v1.SubaccountMemberView
-	(*ListSubaccountMembersRequest)(nil),              // 17: auth.v1.ListSubaccountMembersRequest
-	(*ListSubaccountMembersResponse)(nil),             // 18: auth.v1.ListSubaccountMembersResponse
-	(*RemoveSubaccountMemberRequest)(nil),             // 19: auth.v1.RemoveSubaccountMemberRequest
-	(*RemoveSubaccountMemberResponse)(nil),            // 20: auth.v1.RemoveSubaccountMemberResponse
-	(*UpdateSubaccountMemberRoleRequest)(nil),         // 21: auth.v1.UpdateSubaccountMemberRoleRequest
-	(*UpdateSubaccountMemberRoleResponse)(nil),        // 22: auth.v1.UpdateSubaccountMemberRoleResponse
-	(*SubaccountInvite)(nil),                          // 23: auth.v1.SubaccountInvite
-	(*InviteSubaccountMemberRequest)(nil),             // 24: auth.v1.InviteSubaccountMemberRequest
-	(*InviteSubaccountMemberResponse)(nil),            // 25: auth.v1.InviteSubaccountMemberResponse
-	(*ListSubaccountInvitesRequest)(nil),              // 26: auth.v1.ListSubaccountInvitesRequest
-	(*ListSubaccountInvitesResponse)(nil),             // 27: auth.v1.ListSubaccountInvitesResponse
-	(*RespondSubaccountInviteRequest)(nil),            // 28: auth.v1.RespondSubaccountInviteRequest
-	(*RespondSubaccountInviteResponse)(nil),           // 29: auth.v1.RespondSubaccountInviteResponse
-	(*GetSubaccountRequest)(nil),                      // 30: auth.v1.GetSubaccountRequest
-	(*GetSubaccountResponse)(nil),                     // 31: auth.v1.GetSubaccountResponse
-	(*ActivityEvent)(nil),                             // 32: auth.v1.ActivityEvent
-	(*ListSubaccountEventsRequest)(nil),               // 33: auth.v1.ListSubaccountEventsRequest
-	(*ListSubaccountEventsResponse)(nil),              // 34: auth.v1.ListSubaccountEventsResponse
-	(*timestamppb.Timestamp)(nil),                     // 35: google.protobuf.Timestamp
-	(*ApiKey)(nil),                                    // 36: auth.v1.ApiKey
-	(*SubaccountPolicyView)(nil),                      // 37: auth.v1.SubaccountPolicyView
-	(*v1.GetBalancesResponse)(nil),                    // 38: ledger.read.v1.GetBalancesResponse
+	(*SubaccountUpdateSpec)(nil),                      // 12: auth.v1.SubaccountUpdateSpec
+	(*UpdateSubaccountRequest)(nil),                   // 13: auth.v1.UpdateSubaccountRequest
+	(*UpdateSubaccountResponse)(nil),                  // 14: auth.v1.UpdateSubaccountResponse
+	(*SetSubaccountMemberMFARequirementRequest)(nil),  // 15: auth.v1.SetSubaccountMemberMFARequirementRequest
+	(*SetSubaccountMemberMFARequirementResponse)(nil), // 16: auth.v1.SetSubaccountMemberMFARequirementResponse
+	(*SubaccountMemberView)(nil),                      // 17: auth.v1.SubaccountMemberView
+	(*ListSubaccountMembersRequest)(nil),              // 18: auth.v1.ListSubaccountMembersRequest
+	(*ListSubaccountMembersResponse)(nil),             // 19: auth.v1.ListSubaccountMembersResponse
+	(*RemoveSubaccountMemberRequest)(nil),             // 20: auth.v1.RemoveSubaccountMemberRequest
+	(*RemoveSubaccountMemberResponse)(nil),            // 21: auth.v1.RemoveSubaccountMemberResponse
+	(*UpdateSubaccountMemberRoleRequest)(nil),         // 22: auth.v1.UpdateSubaccountMemberRoleRequest
+	(*UpdateSubaccountMemberRoleResponse)(nil),        // 23: auth.v1.UpdateSubaccountMemberRoleResponse
+	(*SubaccountInvite)(nil),                          // 24: auth.v1.SubaccountInvite
+	(*InviteSubaccountMemberRequest)(nil),             // 25: auth.v1.InviteSubaccountMemberRequest
+	(*InviteSubaccountMemberResponse)(nil),            // 26: auth.v1.InviteSubaccountMemberResponse
+	(*ListSubaccountInvitesRequest)(nil),              // 27: auth.v1.ListSubaccountInvitesRequest
+	(*ListSubaccountInvitesResponse)(nil),             // 28: auth.v1.ListSubaccountInvitesResponse
+	(*RespondSubaccountInviteRequest)(nil),            // 29: auth.v1.RespondSubaccountInviteRequest
+	(*RespondSubaccountInviteResponse)(nil),           // 30: auth.v1.RespondSubaccountInviteResponse
+	(*GetSubaccountRequest)(nil),                      // 31: auth.v1.GetSubaccountRequest
+	(*GetSubaccountResponse)(nil),                     // 32: auth.v1.GetSubaccountResponse
+	(*ActivityEvent)(nil),                             // 33: auth.v1.ActivityEvent
+	(*ListSubaccountEventsRequest)(nil),               // 34: auth.v1.ListSubaccountEventsRequest
+	(*ListSubaccountEventsResponse)(nil),              // 35: auth.v1.ListSubaccountEventsResponse
+	(*timestamppb.Timestamp)(nil),                     // 36: google.protobuf.Timestamp
+	(*fieldmaskpb.FieldMask)(nil),                     // 37: google.protobuf.FieldMask
+	(*ApiKey)(nil),                                    // 38: auth.v1.ApiKey
+	(*SubaccountPolicyView)(nil),                      // 39: auth.v1.SubaccountPolicyView
+	(*v1.GetBalancesResponse)(nil),                    // 40: ledger.read.v1.GetBalancesResponse
 }
 var file_auth_v1_subaccounts_proto_depIdxs = []int32{
 	0,  // 0: auth.v1.SubaccountRoleView.role:type_name -> auth.v1.SubaccountRole
 	0,  // 1: auth.v1.Subaccount.role:type_name -> auth.v1.SubaccountRole
-	35, // 2: auth.v1.Subaccount.updated_at:type_name -> google.protobuf.Timestamp
+	36, // 2: auth.v1.Subaccount.updated_at:type_name -> google.protobuf.Timestamp
 	7,  // 3: auth.v1.ListSubaccountsResponse.subaccounts:type_name -> auth.v1.Subaccount
-	0,  // 4: auth.v1.SubaccountMemberView.role:type_name -> auth.v1.SubaccountRole
-	16, // 5: auth.v1.ListSubaccountMembersResponse.members:type_name -> auth.v1.SubaccountMemberView
-	0,  // 6: auth.v1.UpdateSubaccountMemberRoleRequest.role:type_name -> auth.v1.SubaccountRole
-	0,  // 7: auth.v1.SubaccountInvite.role:type_name -> auth.v1.SubaccountRole
-	1,  // 8: auth.v1.SubaccountInvite.status:type_name -> auth.v1.SubaccountInviteStatus
-	35, // 9: auth.v1.SubaccountInvite.created_at:type_name -> google.protobuf.Timestamp
-	35, // 10: auth.v1.SubaccountInvite.responded_at:type_name -> google.protobuf.Timestamp
-	0,  // 11: auth.v1.InviteSubaccountMemberRequest.role:type_name -> auth.v1.SubaccountRole
-	23, // 12: auth.v1.InviteSubaccountMemberResponse.invite:type_name -> auth.v1.SubaccountInvite
-	23, // 13: auth.v1.ListSubaccountInvitesResponse.invites:type_name -> auth.v1.SubaccountInvite
-	2,  // 14: auth.v1.RespondSubaccountInviteRequest.action:type_name -> auth.v1.SubaccountInviteAction
-	23, // 15: auth.v1.RespondSubaccountInviteResponse.invite:type_name -> auth.v1.SubaccountInvite
-	7,  // 16: auth.v1.GetSubaccountResponse.subaccount:type_name -> auth.v1.Subaccount
-	36, // 17: auth.v1.GetSubaccountResponse.api_keys:type_name -> auth.v1.ApiKey
-	16, // 18: auth.v1.GetSubaccountResponse.members:type_name -> auth.v1.SubaccountMemberView
-	23, // 19: auth.v1.GetSubaccountResponse.invites:type_name -> auth.v1.SubaccountInvite
-	37, // 20: auth.v1.GetSubaccountResponse.policy:type_name -> auth.v1.SubaccountPolicyView
-	38, // 21: auth.v1.GetSubaccountResponse.balances:type_name -> ledger.read.v1.GetBalancesResponse
-	35, // 22: auth.v1.ActivityEvent.created_at:type_name -> google.protobuf.Timestamp
-	3,  // 23: auth.v1.ActivityEvent.entity_kind:type_name -> auth.v1.ActivityEntityKind
-	4,  // 24: auth.v1.ActivityEvent.event_action:type_name -> auth.v1.ActivityEventAction
-	5,  // 25: auth.v1.ActivityEvent.source:type_name -> auth.v1.ActivityEventSource
-	32, // 26: auth.v1.ListSubaccountEventsResponse.events:type_name -> auth.v1.ActivityEvent
-	30, // 27: auth.v1.SubaccountViewService.GetSubaccount:input_type -> auth.v1.GetSubaccountRequest
-	33, // 28: auth.v1.SubaccountViewService.ListSubaccountActivity:input_type -> auth.v1.ListSubaccountEventsRequest
-	8,  // 29: auth.v1.SubaccountService.ListSubaccounts:input_type -> auth.v1.ListSubaccountsRequest
-	10, // 30: auth.v1.SubaccountService.CreateSubaccount:input_type -> auth.v1.CreateSubaccountRequest
-	12, // 31: auth.v1.SubaccountService.UpdateSubaccount:input_type -> auth.v1.UpdateSubaccountRequest
-	14, // 32: auth.v1.SubaccountService.SetSubaccountMemberMFARequirement:input_type -> auth.v1.SetSubaccountMemberMFARequirementRequest
-	17, // 33: auth.v1.SubaccountService.ListSubaccountMembers:input_type -> auth.v1.ListSubaccountMembersRequest
-	19, // 34: auth.v1.SubaccountService.RemoveSubaccountMember:input_type -> auth.v1.RemoveSubaccountMemberRequest
-	21, // 35: auth.v1.SubaccountService.UpdateSubaccountMemberRole:input_type -> auth.v1.UpdateSubaccountMemberRoleRequest
-	24, // 36: auth.v1.SubaccountService.InviteSubaccountMember:input_type -> auth.v1.InviteSubaccountMemberRequest
-	26, // 37: auth.v1.SubaccountService.ListSubaccountInvites:input_type -> auth.v1.ListSubaccountInvitesRequest
-	28, // 38: auth.v1.SubaccountService.RespondSubaccountInvite:input_type -> auth.v1.RespondSubaccountInviteRequest
-	31, // 39: auth.v1.SubaccountViewService.GetSubaccount:output_type -> auth.v1.GetSubaccountResponse
-	34, // 40: auth.v1.SubaccountViewService.ListSubaccountActivity:output_type -> auth.v1.ListSubaccountEventsResponse
-	9,  // 41: auth.v1.SubaccountService.ListSubaccounts:output_type -> auth.v1.ListSubaccountsResponse
-	11, // 42: auth.v1.SubaccountService.CreateSubaccount:output_type -> auth.v1.CreateSubaccountResponse
-	13, // 43: auth.v1.SubaccountService.UpdateSubaccount:output_type -> auth.v1.UpdateSubaccountResponse
-	15, // 44: auth.v1.SubaccountService.SetSubaccountMemberMFARequirement:output_type -> auth.v1.SetSubaccountMemberMFARequirementResponse
-	18, // 45: auth.v1.SubaccountService.ListSubaccountMembers:output_type -> auth.v1.ListSubaccountMembersResponse
-	20, // 46: auth.v1.SubaccountService.RemoveSubaccountMember:output_type -> auth.v1.RemoveSubaccountMemberResponse
-	22, // 47: auth.v1.SubaccountService.UpdateSubaccountMemberRole:output_type -> auth.v1.UpdateSubaccountMemberRoleResponse
-	25, // 48: auth.v1.SubaccountService.InviteSubaccountMember:output_type -> auth.v1.InviteSubaccountMemberResponse
-	27, // 49: auth.v1.SubaccountService.ListSubaccountInvites:output_type -> auth.v1.ListSubaccountInvitesResponse
-	29, // 50: auth.v1.SubaccountService.RespondSubaccountInvite:output_type -> auth.v1.RespondSubaccountInviteResponse
-	39, // [39:51] is the sub-list for method output_type
-	27, // [27:39] is the sub-list for method input_type
-	27, // [27:27] is the sub-list for extension type_name
-	27, // [27:27] is the sub-list for extension extendee
-	0,  // [0:27] is the sub-list for field type_name
+	12, // 4: auth.v1.UpdateSubaccountRequest.subaccount:type_name -> auth.v1.SubaccountUpdateSpec
+	37, // 5: auth.v1.UpdateSubaccountRequest.update_mask:type_name -> google.protobuf.FieldMask
+	7,  // 6: auth.v1.UpdateSubaccountResponse.subaccount:type_name -> auth.v1.Subaccount
+	0,  // 7: auth.v1.SubaccountMemberView.role:type_name -> auth.v1.SubaccountRole
+	17, // 8: auth.v1.ListSubaccountMembersResponse.members:type_name -> auth.v1.SubaccountMemberView
+	0,  // 9: auth.v1.UpdateSubaccountMemberRoleRequest.role:type_name -> auth.v1.SubaccountRole
+	0,  // 10: auth.v1.SubaccountInvite.role:type_name -> auth.v1.SubaccountRole
+	1,  // 11: auth.v1.SubaccountInvite.status:type_name -> auth.v1.SubaccountInviteStatus
+	36, // 12: auth.v1.SubaccountInvite.created_at:type_name -> google.protobuf.Timestamp
+	36, // 13: auth.v1.SubaccountInvite.responded_at:type_name -> google.protobuf.Timestamp
+	0,  // 14: auth.v1.InviteSubaccountMemberRequest.role:type_name -> auth.v1.SubaccountRole
+	24, // 15: auth.v1.InviteSubaccountMemberResponse.invite:type_name -> auth.v1.SubaccountInvite
+	24, // 16: auth.v1.ListSubaccountInvitesResponse.invites:type_name -> auth.v1.SubaccountInvite
+	2,  // 17: auth.v1.RespondSubaccountInviteRequest.action:type_name -> auth.v1.SubaccountInviteAction
+	24, // 18: auth.v1.RespondSubaccountInviteResponse.invite:type_name -> auth.v1.SubaccountInvite
+	7,  // 19: auth.v1.GetSubaccountResponse.subaccount:type_name -> auth.v1.Subaccount
+	38, // 20: auth.v1.GetSubaccountResponse.api_keys:type_name -> auth.v1.ApiKey
+	17, // 21: auth.v1.GetSubaccountResponse.members:type_name -> auth.v1.SubaccountMemberView
+	24, // 22: auth.v1.GetSubaccountResponse.invites:type_name -> auth.v1.SubaccountInvite
+	39, // 23: auth.v1.GetSubaccountResponse.policy:type_name -> auth.v1.SubaccountPolicyView
+	40, // 24: auth.v1.GetSubaccountResponse.balances:type_name -> ledger.read.v1.GetBalancesResponse
+	36, // 25: auth.v1.ActivityEvent.created_at:type_name -> google.protobuf.Timestamp
+	3,  // 26: auth.v1.ActivityEvent.entity_kind:type_name -> auth.v1.ActivityEntityKind
+	4,  // 27: auth.v1.ActivityEvent.event_action:type_name -> auth.v1.ActivityEventAction
+	5,  // 28: auth.v1.ActivityEvent.source:type_name -> auth.v1.ActivityEventSource
+	33, // 29: auth.v1.ListSubaccountEventsResponse.events:type_name -> auth.v1.ActivityEvent
+	31, // 30: auth.v1.SubaccountViewService.GetSubaccount:input_type -> auth.v1.GetSubaccountRequest
+	34, // 31: auth.v1.SubaccountViewService.ListSubaccountActivity:input_type -> auth.v1.ListSubaccountEventsRequest
+	8,  // 32: auth.v1.SubaccountService.ListSubaccounts:input_type -> auth.v1.ListSubaccountsRequest
+	10, // 33: auth.v1.SubaccountService.CreateSubaccount:input_type -> auth.v1.CreateSubaccountRequest
+	13, // 34: auth.v1.SubaccountService.UpdateSubaccount:input_type -> auth.v1.UpdateSubaccountRequest
+	15, // 35: auth.v1.SubaccountService.SetSubaccountMemberMFARequirement:input_type -> auth.v1.SetSubaccountMemberMFARequirementRequest
+	18, // 36: auth.v1.SubaccountService.ListSubaccountMembers:input_type -> auth.v1.ListSubaccountMembersRequest
+	20, // 37: auth.v1.SubaccountService.RemoveSubaccountMember:input_type -> auth.v1.RemoveSubaccountMemberRequest
+	22, // 38: auth.v1.SubaccountService.UpdateSubaccountMemberRole:input_type -> auth.v1.UpdateSubaccountMemberRoleRequest
+	25, // 39: auth.v1.SubaccountService.InviteSubaccountMember:input_type -> auth.v1.InviteSubaccountMemberRequest
+	27, // 40: auth.v1.SubaccountService.ListSubaccountInvites:input_type -> auth.v1.ListSubaccountInvitesRequest
+	29, // 41: auth.v1.SubaccountService.RespondSubaccountInvite:input_type -> auth.v1.RespondSubaccountInviteRequest
+	32, // 42: auth.v1.SubaccountViewService.GetSubaccount:output_type -> auth.v1.GetSubaccountResponse
+	35, // 43: auth.v1.SubaccountViewService.ListSubaccountActivity:output_type -> auth.v1.ListSubaccountEventsResponse
+	9,  // 44: auth.v1.SubaccountService.ListSubaccounts:output_type -> auth.v1.ListSubaccountsResponse
+	11, // 45: auth.v1.SubaccountService.CreateSubaccount:output_type -> auth.v1.CreateSubaccountResponse
+	14, // 46: auth.v1.SubaccountService.UpdateSubaccount:output_type -> auth.v1.UpdateSubaccountResponse
+	16, // 47: auth.v1.SubaccountService.SetSubaccountMemberMFARequirement:output_type -> auth.v1.SetSubaccountMemberMFARequirementResponse
+	19, // 48: auth.v1.SubaccountService.ListSubaccountMembers:output_type -> auth.v1.ListSubaccountMembersResponse
+	21, // 49: auth.v1.SubaccountService.RemoveSubaccountMember:output_type -> auth.v1.RemoveSubaccountMemberResponse
+	23, // 50: auth.v1.SubaccountService.UpdateSubaccountMemberRole:output_type -> auth.v1.UpdateSubaccountMemberRoleResponse
+	26, // 51: auth.v1.SubaccountService.InviteSubaccountMember:output_type -> auth.v1.InviteSubaccountMemberResponse
+	28, // 52: auth.v1.SubaccountService.ListSubaccountInvites:output_type -> auth.v1.ListSubaccountInvitesResponse
+	30, // 53: auth.v1.SubaccountService.RespondSubaccountInvite:output_type -> auth.v1.RespondSubaccountInviteResponse
+	42, // [42:54] is the sub-list for method output_type
+	30, // [30:42] is the sub-list for method input_type
+	30, // [30:30] is the sub-list for extension type_name
+	30, // [30:30] is the sub-list for extension extendee
+	0,  // [0:30] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_subaccounts_proto_init() }
@@ -2791,7 +2892,7 @@ func file_auth_v1_subaccounts_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_subaccounts_proto_rawDesc), len(file_auth_v1_subaccounts_proto_rawDesc)),
 			NumEnums:      6,
-			NumMessages:   29,
+			NumMessages:   30,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

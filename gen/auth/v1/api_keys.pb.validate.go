@@ -186,6 +186,8 @@ func (m *ApiKey) validate(all bool) error {
 		}
 	}
 
+	// no validation rules for Revision
+
 	if m.SubaccountId != nil {
 		// no validation rules for SubaccountId
 	}
@@ -270,105 +272,6 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = ApiKeyValidationError{}
-
-// Validate checks the field values on IpWhitelist with the rules defined in
-// the proto definition for this message. If any rules are violated, the first
-// error encountered is returned, or nil if there are no violations.
-func (m *IpWhitelist) Validate() error {
-	return m.validate(false)
-}
-
-// ValidateAll checks the field values on IpWhitelist with the rules defined in
-// the proto definition for this message. If any rules are violated, the
-// result is a list of violation errors wrapped in IpWhitelistMultiError, or
-// nil if none found.
-func (m *IpWhitelist) ValidateAll() error {
-	return m.validate(true)
-}
-
-func (m *IpWhitelist) validate(all bool) error {
-	if m == nil {
-		return nil
-	}
-
-	var errors []error
-
-	if len(errors) > 0 {
-		return IpWhitelistMultiError(errors)
-	}
-
-	return nil
-}
-
-// IpWhitelistMultiError is an error wrapping multiple validation errors
-// returned by IpWhitelist.ValidateAll() if the designated constraints aren't met.
-type IpWhitelistMultiError []error
-
-// Error returns a concatenation of all the error messages it wraps.
-func (m IpWhitelistMultiError) Error() string {
-	msgs := make([]string, 0, len(m))
-	for _, err := range m {
-		msgs = append(msgs, err.Error())
-	}
-	return strings.Join(msgs, "; ")
-}
-
-// AllErrors returns a list of validation violation errors.
-func (m IpWhitelistMultiError) AllErrors() []error { return m }
-
-// IpWhitelistValidationError is the validation error returned by
-// IpWhitelist.Validate if the designated constraints aren't met.
-type IpWhitelistValidationError struct {
-	field  string
-	reason string
-	cause  error
-	key    bool
-}
-
-// Field function returns field value.
-func (e IpWhitelistValidationError) Field() string { return e.field }
-
-// Reason function returns reason value.
-func (e IpWhitelistValidationError) Reason() string { return e.reason }
-
-// Cause function returns cause value.
-func (e IpWhitelistValidationError) Cause() error { return e.cause }
-
-// Key function returns key value.
-func (e IpWhitelistValidationError) Key() bool { return e.key }
-
-// ErrorName returns error name.
-func (e IpWhitelistValidationError) ErrorName() string { return "IpWhitelistValidationError" }
-
-// Error satisfies the builtin error interface
-func (e IpWhitelistValidationError) Error() string {
-	cause := ""
-	if e.cause != nil {
-		cause = fmt.Sprintf(" | caused by: %v", e.cause)
-	}
-
-	key := ""
-	if e.key {
-		key = "key for "
-	}
-
-	return fmt.Sprintf(
-		"invalid %sIpWhitelist.%s: %s%s",
-		key,
-		e.field,
-		e.reason,
-		cause)
-}
-
-var _ error = IpWhitelistValidationError{}
-
-var _ interface {
-	Field() string
-	Reason() string
-	Key() bool
-	Cause() error
-	ErrorName() string
-} = IpWhitelistValidationError{}
 
 // Validate checks the field values on CreateApiKeyRequest with the rules
 // defined in the proto definition for this message. If any rules are
@@ -1296,6 +1199,143 @@ var _ interface {
 	ErrorName() string
 } = GetApiKeyResponseValidationError{}
 
+// Validate checks the field values on ApiKeyUpdateSpec with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// first error encountered is returned, or nil if there are no violations.
+func (m *ApiKeyUpdateSpec) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on ApiKeyUpdateSpec with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// ApiKeyUpdateSpecMultiError, or nil if none found.
+func (m *ApiKeyUpdateSpec) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *ApiKeyUpdateSpec) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Label
+
+	// no validation rules for Icon
+
+	// no validation rules for Color
+
+	// no validation rules for Status
+
+	if all {
+		switch v := interface{}(m.GetExpiresAt()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, ApiKeyUpdateSpecValidationError{
+					field:  "ExpiresAt",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, ApiKeyUpdateSpecValidationError{
+					field:  "ExpiresAt",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetExpiresAt()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return ApiKeyUpdateSpecValidationError{
+				field:  "ExpiresAt",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if len(errors) > 0 {
+		return ApiKeyUpdateSpecMultiError(errors)
+	}
+
+	return nil
+}
+
+// ApiKeyUpdateSpecMultiError is an error wrapping multiple validation errors
+// returned by ApiKeyUpdateSpec.ValidateAll() if the designated constraints
+// aren't met.
+type ApiKeyUpdateSpecMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m ApiKeyUpdateSpecMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m ApiKeyUpdateSpecMultiError) AllErrors() []error { return m }
+
+// ApiKeyUpdateSpecValidationError is the validation error returned by
+// ApiKeyUpdateSpec.Validate if the designated constraints aren't met.
+type ApiKeyUpdateSpecValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ApiKeyUpdateSpecValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ApiKeyUpdateSpecValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ApiKeyUpdateSpecValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ApiKeyUpdateSpecValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ApiKeyUpdateSpecValidationError) ErrorName() string { return "ApiKeyUpdateSpecValidationError" }
+
+// Error satisfies the builtin error interface
+func (e ApiKeyUpdateSpecValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sApiKeyUpdateSpec.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ApiKeyUpdateSpecValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ApiKeyUpdateSpecValidationError{}
+
 // Validate checks the field values on UpdateApiKeyRequest with the rules
 // defined in the proto definition for this message. If any rules are
 // violated, the first error encountered is returned, or nil if there are no violations.
@@ -1320,20 +1360,12 @@ func (m *UpdateApiKeyRequest) validate(all bool) error {
 
 	// no validation rules for KeyId
 
-	// no validation rules for Label
-
-	// no validation rules for Icon
-
-	// no validation rules for Color
-
-	// no validation rules for Status
-
 	if all {
-		switch v := interface{}(m.GetIpWhitelist()).(type) {
+		switch v := interface{}(m.GetApiKey()).(type) {
 		case interface{ ValidateAll() error }:
 			if err := v.ValidateAll(); err != nil {
 				errors = append(errors, UpdateApiKeyRequestValidationError{
-					field:  "IpWhitelist",
+					field:  "ApiKey",
 					reason: "embedded message failed validation",
 					cause:  err,
 				})
@@ -1341,16 +1373,16 @@ func (m *UpdateApiKeyRequest) validate(all bool) error {
 		case interface{ Validate() error }:
 			if err := v.Validate(); err != nil {
 				errors = append(errors, UpdateApiKeyRequestValidationError{
-					field:  "IpWhitelist",
+					field:  "ApiKey",
 					reason: "embedded message failed validation",
 					cause:  err,
 				})
 			}
 		}
-	} else if v, ok := interface{}(m.GetIpWhitelist()).(interface{ Validate() error }); ok {
+	} else if v, ok := interface{}(m.GetApiKey()).(interface{ Validate() error }); ok {
 		if err := v.Validate(); err != nil {
 			return UpdateApiKeyRequestValidationError{
-				field:  "IpWhitelist",
+				field:  "ApiKey",
 				reason: "embedded message failed validation",
 				cause:  err,
 			}
@@ -1358,11 +1390,11 @@ func (m *UpdateApiKeyRequest) validate(all bool) error {
 	}
 
 	if all {
-		switch v := interface{}(m.GetExpiresAt()).(type) {
+		switch v := interface{}(m.GetUpdateMask()).(type) {
 		case interface{ ValidateAll() error }:
 			if err := v.ValidateAll(); err != nil {
 				errors = append(errors, UpdateApiKeyRequestValidationError{
-					field:  "ExpiresAt",
+					field:  "UpdateMask",
 					reason: "embedded message failed validation",
 					cause:  err,
 				})
@@ -1370,21 +1402,23 @@ func (m *UpdateApiKeyRequest) validate(all bool) error {
 		case interface{ Validate() error }:
 			if err := v.Validate(); err != nil {
 				errors = append(errors, UpdateApiKeyRequestValidationError{
-					field:  "ExpiresAt",
+					field:  "UpdateMask",
 					reason: "embedded message failed validation",
 					cause:  err,
 				})
 			}
 		}
-	} else if v, ok := interface{}(m.GetExpiresAt()).(interface{ Validate() error }); ok {
+	} else if v, ok := interface{}(m.GetUpdateMask()).(interface{ Validate() error }); ok {
 		if err := v.Validate(); err != nil {
 			return UpdateApiKeyRequestValidationError{
-				field:  "ExpiresAt",
+				field:  "UpdateMask",
 				reason: "embedded message failed validation",
 				cause:  err,
 			}
 		}
 	}
+
+	// no validation rules for ExpectedRevision
 
 	if len(errors) > 0 {
 		return UpdateApiKeyRequestMultiError(errors)

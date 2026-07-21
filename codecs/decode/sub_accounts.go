@@ -23,6 +23,7 @@ func subAccount(msg *authv1.Subaccount) models.SubAccount {
 		Label:               msg.GetLabel(),
 		SmartAccountAddress: msg.GetSmartAccountAddress(),
 		Status:              msg.GetStatus(),
+		Revision:            msg.GetRevision(),
 		UpdatedAt:           updatedAt,
 	}
 }
@@ -45,6 +46,14 @@ func GetSubaccountFromProto(msg *authv1.GetSubaccountResponse) models.GetSubacco
 
 func CreateSubaccountFromProto(msg *authv1.CreateSubaccountResponse) models.CreateSubaccountResult {
 	return models.CreateSubaccountResult{SubaccountID: codecs.FormatUint64ID(msg.GetSubaccountId())}
+}
+
+func UpdateSubaccountFromProto(msg *authv1.UpdateSubaccountResponse) *models.SubAccount {
+	if msg.GetSubaccount() == nil {
+		return nil
+	}
+	row := subAccount(msg.GetSubaccount())
+	return &row
 }
 
 func SubaccountMembersListFromProto(msg *authv1.ListSubaccountMembersResponse) models.SubAccountMembersList {

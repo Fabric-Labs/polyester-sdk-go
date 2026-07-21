@@ -103,6 +103,8 @@ const (
 	AuthErrorCode_AUTH_POLICY_LOCKED AuthErrorCode = 35
 	// The requested policy does not belong to the target account scope.
 	AuthErrorCode_AUTH_POLICY_SCOPE_MISMATCH AuthErrorCode = 36
+	// The resource changed after the caller read it.
+	AuthErrorCode_AUTH_REVISION_CONFLICT AuthErrorCode = 37
 )
 
 // Enum value maps for AuthErrorCode.
@@ -145,6 +147,7 @@ var (
 		34: "AUTH_POLICY_IN_USE",
 		35: "AUTH_POLICY_LOCKED",
 		36: "AUTH_POLICY_SCOPE_MISMATCH",
+		37: "AUTH_REVISION_CONFLICT",
 	}
 	AuthErrorCode_value = map[string]int32{
 		"AUTH_UNSPECIFIED":                       0,
@@ -184,6 +187,7 @@ var (
 		"AUTH_POLICY_IN_USE":                     34,
 		"AUTH_POLICY_LOCKED":                     35,
 		"AUTH_POLICY_SCOPE_MISMATCH":             36,
+		"AUTH_REVISION_CONFLICT":                 37,
 	}
 )
 
@@ -728,7 +732,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\v_api_key_id\"W\n" +
 	"\x0fAuthErrorDetail\x12*\n" +
 	"\x04code\x18\x01 \x01(\x0e2\x16.auth.v1.AuthErrorCodeR\x04code\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage*\x8e\t\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage*\xaa\t\n" +
 	"\rAuthErrorCode\x12\x14\n" +
 	"\x10AUTH_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15AUTH_USERNAME_INVALID\x10\x01\x12\x17\n" +
@@ -767,7 +771,8 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x1cAUTH_STEP_UP_ALREADY_CLAIMED\x10!\x12\x16\n" +
 	"\x12AUTH_POLICY_IN_USE\x10\"\x12\x16\n" +
 	"\x12AUTH_POLICY_LOCKED\x10#\x12\x1e\n" +
-	"\x1aAUTH_POLICY_SCOPE_MISMATCH\x10$2\x95\x05\n" +
+	"\x1aAUTH_POLICY_SCOPE_MISMATCH\x10$\x12\x1a\n" +
+	"\x16AUTH_REVISION_CONFLICT\x10%2\x95\x05\n" +
 	"\vAuthService\x12\xbd\x01\n" +
 	"\bGetNonce\x12\x18.auth.v1.GetNonceRequest\x1a\x19.auth.v1.GetNonceResponse\"|\xbaG`\n" +
 	"\fAuth Service\x12\x16Get Wallet Login Nonce\x1a8Retrieve a short-lived nonce for wallet-signature login.\x82\xd3\xe4\x93\x02\x13:\x01*\"\x0e/v1/auth/nonce\x12\xeb\x01\n" +

@@ -81,19 +81,14 @@ func (s *AddressBookService) CreateEntry(ctx context.Context, label string, acco
 	return UnaryAuth(ctx, s.transport, s.client().CreateAddressBookEntry, req, decode.EntryFromCreateProto)
 }
 
-func (s *AddressBookService) UpdateEntry(ctx context.Context, addressBookEntryID, label, note string, tagIDs []string, newTags []models.AddressBookTagInput) (models.AddressBookEntry, error) {
+func (s *AddressBookService) UpdateEntry(ctx context.Context, addressBookEntryID string, patch codecs.AddressBookEntryPatch) (models.AddressBookEntry, error) {
 	id, err := codecs.IDToInt(addressBookEntryID, "address_book_entry_id")
 	if err != nil {
 		return models.AddressBookEntry{}, err
 	}
-	req := &authv1.UpdateAddressBookEntryRequest{AddressBookEntryId: id, Label: label, Note: note}
-	ids, err := parseTagIDs(tagIDs)
+	req, err := codecs.BuildUpdateAddressBookEntryRequest(id, patch)
 	if err != nil {
 		return models.AddressBookEntry{}, err
-	}
-	req.TagIds = ids
-	for _, tag := range newTags {
-		req.NewTags = append(req.NewTags, codecs.AddressBookTagInputToProto(tag.Name, tag.Color))
 	}
 	return UnaryAuth(ctx, s.transport, s.client().UpdateAddressBookEntry, req, decode.EntryFromUpdateProto)
 }
@@ -127,7 +122,7 @@ func (s *AddressBookService) CreateTag(ctx context.Context, name string, account
 	return UnaryAuth(ctx, s.transport, s.client().CreateAddressBookTag, req, decode.TagFromCreateProto)
 }
 
-func (s *AddressBookService) UpdateTag(ctx context.Context, tagID, name, color string) (models.AddressBookTag, error) {
+func (s *AddressBookService) UpdateTag(ctx context.Context, tagID string, name, color *string) (models.AddressBookTag, error) {
 	id, err := codecs.IDToInt(tagID, "tag_id")
 	if err != nil {
 		return models.AddressBookTag{}, err

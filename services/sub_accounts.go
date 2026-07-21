@@ -79,18 +79,25 @@ func (s *SubAccountsService) Create(ctx context.Context, smartAccountAddress, no
 	return UnaryAuth(ctx, s.transport, s.writeClient().CreateSubaccount, req, decode.CreateSubaccountFromProto)
 }
 
-func (s *SubAccountsService) Update(ctx context.Context, account AccountScope, subAccountID *string, label, icon, color, status string) error {
+func (s *SubAccountsService) Update(ctx context.Context, account AccountScope, subAccountID *string, patch codecs.SubaccountPatch) (*models.SubAccount, error) {
 	parsed, err := s.requireSubaccountID(account, subAccountID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	req := &authv1.UpdateSubaccountRequest{SubaccountId: parsed, Label: label, Icon: icon, Color: color, Status: status}
-	_, err = UnaryAuth(ctx, s.transport, s.writeClient().UpdateSubaccount, req, decode.Void[authv1.UpdateSubaccountResponse])
-	return err
+	req, err := codecs.BuildUpdateSubaccountRequest(parsed, patch)
+	if err != nil {
+		return nil, err
+	}
+	return UnaryAuth(ctx, s.transport, s.writeClient().UpdateSubaccount, req, decode.UpdateSubaccountFromProto)
 }
 
-func (s *SubAccountsService) Delete(ctx context.Context, account AccountScope, subAccountID *string) error {
-	return s.Update(ctx, account, subAccountID, "", "", "", "deleted")
+func (s *SubAccountsService) Delete(ctx context.Context, account AccountScope, subAccountID *string, expectedRevision uint64) error {
+	status := "deleted"
+	_, err := s.Update(ctx, account, subAccountID, codecs.SubaccountPatch{
+		ExpectedRevision: expectedRevision,
+		Status:           &status,
+	})
+	return err
 }
 
 func (s *SubAccountsService) SetMemberMFARequirement(ctx context.Context, account AccountScope, subAccountID *string, requireMemberMFA bool) error {
