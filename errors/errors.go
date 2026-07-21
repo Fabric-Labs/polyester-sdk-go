@@ -66,3 +66,16 @@ type RealtimeError struct{ Msg string }
 
 func (e *RealtimeError) Error() string        { return e.Msg }
 func (e *RealtimeError) Is(target error) bool { return target == ErrPolyester }
+
+// QueueOverflowError indicates a realtime subscription discarded work because the
+// consumer lagged behind the publication rate. Subscriptions fail instead of
+// silently dropping updates.
+type QueueOverflowError struct{ Msg string }
+
+func (e *QueueOverflowError) Error() string {
+	if e.Msg != "" {
+		return e.Msg
+	}
+	return "realtime subscription queue full; consumer too slow"
+}
+func (e *QueueOverflowError) Is(target error) bool { return target == ErrPolyester }

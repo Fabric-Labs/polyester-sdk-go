@@ -244,11 +244,32 @@ Ledger balances have separate **funding** and **trading** buckets per asset.
 SDK notes:
 
 - **Funding → trading:** on-chain `TradingGateway.deposit` (not an API-key RPC).
+  Package `github.com/Fabric-Labs/polyester-sdk-go/chain` encodes calldata and can
+  submit UserOps: pass an owner EOA private key to `NewSmartAccount` (SDK derives
+  the Polyester Safe — no UI-exported owner key).
+- **Funding → external:** on-chain `FundingAccount.withdrawToChain` (same `chain` package).
 - **Funding → another user's funding wallet:** on-chain `FundingAccount.UAssetTransfer`
   via wallet/smart-account signing in the Polyester app (not an API-key RPC).
 - **Trading → funding:** `client.TradingWithdraws.CreateToFunding(...)` with a
   signed intent payload.
 - **Trading → trading (another account):** `client.InternalTransfers.Create(...)`.
+
+```go
+account, err := chain.NewSmartAccount(ownerPrivateKeyHex, nil, nil)
+call, err := chain.EncodeTradingGatewayDeposit(
+    chain.PolyesterTestnetEnvironment.Contracts.TradingGatewayAddress,
+    uAssetID, quantityScaled,
+)
+receipt, err := account.SendCalls([]chain.ChainCall{call}, true, 60*time.Second)
+
+// Funding → external: QuoteZipperFee + EncodeFundingWithdrawToChain
+// Whitelist toggles / destination entries / GuardRegistry signer setup:
+// EncodeAddAllowedExternalDestinations, EncodeSetInternalAccountAllowlistRequired, …
+```
+
+Realtime delivery: bounded queues fail with `QueueOverflowError` instead of
+silently dropping. Orderbook `CreateSubscriptionOptions` exposes
+`OnSequenceGap`, `OnReconnect`, and `OnSnapshotRefresh`.
 
 Pass `DefaultAccountID` (your Profile **Account ID**) on the client for bucket
 transfers and other account-scoped ledger operations.

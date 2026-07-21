@@ -2,12 +2,15 @@ package catalogs
 
 import (
 	"strconv"
+	"sync"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
 // Manager holds hydrated spot and zipper catalogs.
+// All public methods are safe for concurrent use.
 type Manager struct {
+	mu                    sync.RWMutex
 	SpotConfig            map[string]any
 	Zipper                *models.ZipperCatalogData
 	DepositWithdrawConfig *models.DepositWithdrawConfig
@@ -23,6 +26,8 @@ func NewManager() *Manager {
 
 // ZipperConfig returns a backward-compatible raw dict view.
 func (m *Manager) ZipperConfig() map[string]any {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	if m.DepositWithdrawConfig == nil {
 		return map[string]any{}
 	}
@@ -38,6 +43,8 @@ func (m *Manager) ZipperConfig() map[string]any {
 
 // HydrateSpotConfig stores spot pair config.
 func (m *Manager) HydrateSpotConfig(config map[string]any) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.SpotConfig = config
 }
 
@@ -49,6 +56,8 @@ func (m *Manager) HydrateZipperConfig(config any) {
 	case *models.DepositWithdrawConfig:
 		m.HydrateDepositWithdrawConfig(c)
 	case map[string]any:
+		m.mu.Lock()
+		defer m.mu.Unlock()
 		m.DepositWithdrawConfig = nil
 		m.Zipper = nil
 		m.legacyZipperRaw = c
@@ -57,13 +66,17 @@ func (m *Manager) HydrateZipperConfig(config any) {
 
 // HydrateDepositWithdrawConfig stores typed deposit/withdraw config.
 func (m *Manager) HydrateDepositWithdrawConfig(config *models.DepositWithdrawConfig) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.DepositWithdrawConfig = config
 	m.Zipper = BuildZipperCatalogData(config)
 }
 
 // SymbolIDForSymbol resolves symbol id from spot config.
 func (m *Manager) SymbolIDForSymbol(symbol string) *uint32 {
-	for _, pair := range m.pairs() {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, pair := range m.pairsLocked() {
 		if s, _ := pair["symbol"].(string); s == symbol {
 			if v := intish(pair["symbol_id"]); v != nil {
 				return v
@@ -78,7 +91,9 @@ func (m *Manager) SymbolIDForSymbol(symbol string) *uint32 {
 
 // BaseQuantityScaleForSymbol returns qty scale for symbol.
 func (m *Manager) BaseQuantityScaleForSymbol(symbol string) int {
-	for _, pair := range m.pairs() {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, pair := range m.pairsLocked() {
 		if s, _ := pair["symbol"].(string); s == symbol {
 			if v := intValue(pair["base_quantity_scale"]); v > 0 {
 				return v
@@ -96,14 +111,29 @@ func (m *Manager) BaseQuantityScaleForSymbol(symbol string) int {
 
 // BaseQuantityScaleForSymbolID returns qty scale for symbol id.
 func (m *Manager) BaseQuantityScaleForSymbolID(symbolID uint32) int {
-	for _, pair := range m.pairs() {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, pair := range m.pairsLocked() {
 		v := intish(pair["symbol_id"])
 		if v == nil {
 			v = intish(pair["symbolId"])
 		}
 		if v != nil && *v == symbolID {
 			if sym, _ := pair["symbol"].(string); sym != "" {
-				return m.BaseQuantityScaleForSymbol(sym)
+				// unlock before recursive call would deadlock — resolve inline
+				for _, p := range m.pairsLocked() {
+					if s, _ := p["symbol"].(string); s == sym {
+						if scale := intValue(p["base_quantity_scale"]); scale > 0 {
+							return scale
+						}
+						if scale := intValue(p["baseQuantityScale"]); scale > 0 {
+							return scale
+						}
+						if scale := intValue(p["qtyScale"]); scale > 0 {
+							return scale
+						}
+					}
+				}
 			}
 			break
 		}
@@ -113,7 +143,9 @@ func (m *Manager) BaseQuantityScaleForSymbolID(symbolID uint32) int {
 
 // OrderbookPriceBucketsForSymbol returns configured price buckets.
 func (m *Manager) OrderbookPriceBucketsForSymbol(symbol string) []string {
-	pair := m.pairForSymbol(symbol)
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	pair := m.pairForSymbolLocked(symbol)
 	if pair == nil {
 		return nil
 	}
@@ -144,6 +176,8 @@ func (m *Manager) OrderbookPriceBucketsForSymbol(symbol string) []string {
 
 // LedgerIDForAsset resolves ledger id for asset symbol.
 func (m *Manager) LedgerIDForAsset(assetSymbol string) *uint32 {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	if m.Zipper != nil {
 		for _, asset := range m.Zipper.Assets {
 			if asset.Asset == assetSymbol && asset.LedgerID != 0 {
@@ -154,7 +188,13 @@ func (m *Manager) LedgerIDForAsset(assetSymbol string) *uint32 {
 	}
 	raw := m.legacyZipperRaw
 	if raw == nil {
-		raw = m.ZipperConfig()
+		if m.DepositWithdrawConfig == nil {
+			return nil
+		}
+		cfg := m.DepositWithdrawConfig
+		raw = map[string]any{
+			"assets": cfg.Assets,
+		}
 	}
 	assets, _ := raw["assets"].([]any)
 	for _, row := range assets {
@@ -172,6 +212,8 @@ func (m *Manager) LedgerIDForAsset(assetSymbol string) *uint32 {
 
 // QuantityScaleForAsset returns quantity scale for asset symbol.
 func (m *Manager) QuantityScaleForAsset(assetSymbol string) *int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	if m.Zipper != nil {
 		for _, asset := range m.Zipper.Assets {
 			if asset.Asset == assetSymbol {
@@ -182,7 +224,10 @@ func (m *Manager) QuantityScaleForAsset(assetSymbol string) *int {
 	}
 	raw := m.legacyZipperRaw
 	if raw == nil {
-		raw = m.ZipperConfig()
+		if m.DepositWithdrawConfig == nil {
+			return nil
+		}
+		raw = map[string]any{"assets": m.DepositWithdrawConfig.Assets}
 	}
 	assets, _ := raw["assets"].([]any)
 	for _, row := range assets {
@@ -205,6 +250,8 @@ func (m *Manager) QuantityScaleForAsset(assetSymbol string) *int {
 
 // QuantityScaleForZippedAssetID returns scale for zipped asset id.
 func (m *Manager) QuantityScaleForZippedAssetID(zippedAssetID uint32) int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	if m.Zipper != nil {
 		for _, asset := range m.Zipper.Assets {
 			for _, chain := range asset.Chains {
@@ -219,6 +266,8 @@ func (m *Manager) QuantityScaleForZippedAssetID(zippedAssetID uint32) int {
 
 // PatchZipperSupply applies supply updates to the in-memory catalog.
 func (m *Manager) PatchZipperSupply(updates []models.ZippedAssetSupplyUpdate) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.Zipper == nil || len(updates) == 0 {
 		return false
 	}
@@ -230,8 +279,8 @@ func (m *Manager) PatchZipperSupply(updates []models.ZippedAssetSupplyUpdate) bo
 	return true
 }
 
-func (m *Manager) pairForSymbol(symbol string) map[string]any {
-	for _, pair := range m.pairs() {
+func (m *Manager) pairForSymbolLocked(symbol string) map[string]any {
+	for _, pair := range m.pairsLocked() {
 		if s, _ := pair["symbol"].(string); s == symbol {
 			return pair
 		}
@@ -239,7 +288,7 @@ func (m *Manager) pairForSymbol(symbol string) map[string]any {
 	return nil
 }
 
-func (m *Manager) pairs() []map[string]any {
+func (m *Manager) pairsLocked() []map[string]any {
 	var pairs []map[string]any
 	if raw, ok := m.SpotConfig["pairs"].([]any); ok {
 		for _, item := range raw {

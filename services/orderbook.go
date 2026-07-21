@@ -55,6 +55,12 @@ type CreateSubscriptionOptions struct {
 	Depth    int
 	Bucket   string
 	OnEvent  func(models.OrderbookData)
+	// OnSequenceGap is called when a book sequence gap is detected (before snapshot refresh).
+	OnSequenceGap func()
+	// OnReconnect is called after a websocket disconnect, before snapshot rebuild.
+	OnReconnect func()
+	// OnSnapshotRefresh is called after a successful snapshot rebuild.
+	OnSnapshotRefresh func()
 }
 
 // CreateSubscription starts snapshot-then-stream orderbook merging.
@@ -108,6 +114,9 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		localStream := stream
 		mu.Unlock()
 		if needsRefresh && localStream != nil {
+			if opts.OnSequenceGap != nil {
+				opts.OnSequenceGap()
+			}
 			_ = localStream.RefreshSnapshot(ctx)
 			return
 		}
@@ -118,6 +127,8 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		Client:  s.realtime,
 		Channel: channel,
 		Decode:  decode.OrderbookDeltaFromBytes,
+		OnReconnect: opts.OnReconnect,
+		OnSnapshotRefresh: opts.OnSnapshotRefresh,
 		FetchSnapshot: func(fetchCtx context.Context) (models.OrderbookData, error) {
 			name := codecs.DepthToConnectEnum(wsDepth)
 			v, ok := orderbookv1.Depth_value[name]
