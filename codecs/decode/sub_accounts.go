@@ -45,7 +45,10 @@ func GetSubaccountFromProto(msg *authv1.GetSubaccountResponse) models.GetSubacco
 }
 
 func CreateSubaccountFromProto(msg *authv1.CreateSubaccountResponse) models.CreateSubaccountResult {
-	return models.CreateSubaccountResult{SubaccountID: codecs.FormatUint64ID(msg.GetSubaccountId())}
+	return models.CreateSubaccountResult{
+		SubaccountID: codecs.FormatUint64ID(msg.GetSubaccountId()),
+		Revision:     msg.GetRevision(),
+	}
 }
 
 func UpdateSubaccountFromProto(msg *authv1.UpdateSubaccountResponse) *models.SubAccount {
