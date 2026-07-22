@@ -906,8 +906,11 @@ type CreateSubaccountResponse struct {
 	// Smart-account derivation salt nonce assigned to the created sub-account.
 	// Today this equals total_created for a successful create.
 	SmartAccountSaltNonce uint32 `protobuf:"varint,3,opt,name=smart_account_salt_nonce,json=smartAccountSaltNonce,proto3" json:"smart_account_salt_nonce,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Initial monotonic resource revision. Clients can pass this value directly
+	// as expected_revision on the next revision-gated mutation.
+	Revision      uint64 `protobuf:"varint,4,opt,name=revision,proto3" json:"revision,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateSubaccountResponse) Reset() {
@@ -957,6 +960,13 @@ func (x *CreateSubaccountResponse) GetTotalCreated() uint32 {
 func (x *CreateSubaccountResponse) GetSmartAccountSaltNonce() uint32 {
 	if x != nil {
 		return x.SmartAccountSaltNonce
+	}
+	return 0
+}
+
+func (x *CreateSubaccountResponse) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
 	}
 	return 0
 }
@@ -2556,11 +2566,12 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\xe0A\x02\xbaH\x04r\x02\x10\x01R\tsignature\x12\x85\x01\n" +
 	"\x16primary_wallet_address\x18\x05 \x01(\tBJ\xbaHGrE2\x13^0x[0-9a-fA-F]{40}$\x98\x01*\x92\x02*0x0000000000000000000000000000000000000000H\x00R\x14primaryWalletAddress\x88\x01\x01\x12'\n" +
 	"\x0fwallet_provider\x18\x06 \x01(\tR\x0ewalletProviderB\x19\n" +
-	"\x17_primary_wallet_address\"\x9d\x01\n" +
+	"\x17_primary_wallet_address\"\xb9\x01\n" +
 	"\x18CreateSubaccountResponse\x12#\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\x12#\n" +
 	"\rtotal_created\x18\x02 \x01(\rR\ftotalCreated\x127\n" +
-	"\x18smart_account_salt_nonce\x18\x03 \x01(\rR\x15smartAccountSaltNonce\"\x89\x02\n" +
+	"\x18smart_account_salt_nonce\x18\x03 \x01(\rR\x15smartAccountSaltNonce\x12\x1a\n" +
+	"\brevision\x18\x04 \x01(\x04R\brevision\"\x89\x02\n" +
 	"\x14SubaccountUpdateSpec\x12\x93\x01\n" +
 	"\x05label\x18\x01 \x01(\tB}\xbaHz\xba\x01h\n" +
 	"\x17label.no_angle_brackets\x12!label must not contain '<' or '>'\x1a*!this.contains('<') && !this.contains('>')r\r\x18@\x92\x02\bTreasuryR\x05label\x12\x1b\n" +
