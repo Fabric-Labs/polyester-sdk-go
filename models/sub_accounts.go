@@ -26,6 +26,7 @@ type GetSubaccountResult struct {
 type CreateSubaccountResult struct {
 	SubaccountID        string `json:"subaccount_id,omitempty"`
 	SmartAccountAddress string `json:"smart_account_address,omitempty"`
+	Revision            uint64 `json:"revision,omitempty"`
 }
 
 // SubAccountMember is a subaccount member.

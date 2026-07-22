@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Fixed
+- `CreateSubaccountResult.Revision` is returned from create so clients can pass `expected_revision` on the next mutation without a follow-up read
+
 ## 0.1.0a11
 
 ### Breaking

@@ -43,4 +43,12 @@ func TestDecodeRevisionFields(t *testing.T) {
 	if updated == nil || updated.Revision != 2 || updated.Label != "x" {
 		t.Fatalf("updated subaccount=%+v", updated)
 	}
+
+	created := decode.CreateSubaccountFromProto(&authv1.CreateSubaccountResponse{
+		SubaccountId: 11,
+		Revision:     1,
+	})
+	if created.SubaccountID == "" || created.Revision != 1 {
+		t.Fatalf("create subaccount=%+v", created)
+	}
 }
