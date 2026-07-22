@@ -687,6 +687,8 @@ func (m *CreateSubaccountResponse) validate(all bool) error {
 
 	// no validation rules for SmartAccountSaltNonce
 
+	// no validation rules for Revision
+
 	if len(errors) > 0 {
 		return CreateSubaccountResponseMultiError(errors)
 	}
