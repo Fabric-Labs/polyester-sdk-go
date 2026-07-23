@@ -36,8 +36,1806 @@ var (
 	_ = anypb.Any{}
 	_ = sort.Sort
 
-	_ = ordersv1.TriggerPriceSource(0)
+	_ = ordersv1.Side(0)
 )
+
+// Validate checks the field values on TriggerMarketIoc with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// first error encountered is returned, or nil if there are no violations.
+func (m *TriggerMarketIoc) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on TriggerMarketIoc with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// TriggerMarketIocMultiError, or nil if none found.
+func (m *TriggerMarketIoc) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *TriggerMarketIoc) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if len(errors) > 0 {
+		return TriggerMarketIocMultiError(errors)
+	}
+
+	return nil
+}
+
+// TriggerMarketIocMultiError is an error wrapping multiple validation errors
+// returned by TriggerMarketIoc.ValidateAll() if the designated constraints
+// aren't met.
+type TriggerMarketIocMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m TriggerMarketIocMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m TriggerMarketIocMultiError) AllErrors() []error { return m }
+
+// TriggerMarketIocValidationError is the validation error returned by
+// TriggerMarketIoc.Validate if the designated constraints aren't met.
+type TriggerMarketIocValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e TriggerMarketIocValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e TriggerMarketIocValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e TriggerMarketIocValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e TriggerMarketIocValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e TriggerMarketIocValidationError) ErrorName() string { return "TriggerMarketIocValidationError" }
+
+// Error satisfies the builtin error interface
+func (e TriggerMarketIocValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sTriggerMarketIoc.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = TriggerMarketIocValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = TriggerMarketIocValidationError{}
+
+// Validate checks the field values on TriggerLimitGtc with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// first error encountered is returned, or nil if there are no violations.
+func (m *TriggerLimitGtc) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on TriggerLimitGtc with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// TriggerLimitGtcMultiError, or nil if none found.
+func (m *TriggerLimitGtc) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *TriggerLimitGtc) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for PriceTicks
+
+	// no validation rules for PostOnly
+
+	if len(errors) > 0 {
+		return TriggerLimitGtcMultiError(errors)
+	}
+
+	return nil
+}
+
+// TriggerLimitGtcMultiError is an error wrapping multiple validation errors
+// returned by TriggerLimitGtc.ValidateAll() if the designated constraints
+// aren't met.
+type TriggerLimitGtcMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m TriggerLimitGtcMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m TriggerLimitGtcMultiError) AllErrors() []error { return m }
+
+// TriggerLimitGtcValidationError is the validation error returned by
+// TriggerLimitGtc.Validate if the designated constraints aren't met.
+type TriggerLimitGtcValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e TriggerLimitGtcValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e TriggerLimitGtcValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e TriggerLimitGtcValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e TriggerLimitGtcValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e TriggerLimitGtcValidationError) ErrorName() string { return "TriggerLimitGtcValidationError" }
+
+// Error satisfies the builtin error interface
+func (e TriggerLimitGtcValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sTriggerLimitGtc.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = TriggerLimitGtcValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = TriggerLimitGtcValidationError{}
+
+// Validate checks the field values on TriggerLimitIoc with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// first error encountered is returned, or nil if there are no violations.
+func (m *TriggerLimitIoc) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on TriggerLimitIoc with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// TriggerLimitIocMultiError, or nil if none found.
+func (m *TriggerLimitIoc) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *TriggerLimitIoc) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for PriceTicks
+
+	if len(errors) > 0 {
+		return TriggerLimitIocMultiError(errors)
+	}
+
+	return nil
+}
+
+// TriggerLimitIocMultiError is an error wrapping multiple validation errors
+// returned by TriggerLimitIoc.ValidateAll() if the designated constraints
+// aren't met.
+type TriggerLimitIocMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m TriggerLimitIocMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m TriggerLimitIocMultiError) AllErrors() []error { return m }
+
+// TriggerLimitIocValidationError is the validation error returned by
+// TriggerLimitIoc.Validate if the designated constraints aren't met.
+type TriggerLimitIocValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e TriggerLimitIocValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e TriggerLimitIocValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e TriggerLimitIocValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e TriggerLimitIocValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e TriggerLimitIocValidationError) ErrorName() string { return "TriggerLimitIocValidationError" }
+
+// Error satisfies the builtin error interface
+func (e TriggerLimitIocValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sTriggerLimitIoc.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = TriggerLimitIocValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = TriggerLimitIocValidationError{}
+
+// Validate checks the field values on TriggerLimitFok with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// first error encountered is returned, or nil if there are no violations.
+func (m *TriggerLimitFok) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on TriggerLimitFok with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// TriggerLimitFokMultiError, or nil if none found.
+func (m *TriggerLimitFok) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *TriggerLimitFok) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for PriceTicks
+
+	if len(errors) > 0 {
+		return TriggerLimitFokMultiError(errors)
+	}
+
+	return nil
+}
+
+// TriggerLimitFokMultiError is an error wrapping multiple validation errors
+// returned by TriggerLimitFok.ValidateAll() if the designated constraints
+// aren't met.
+type TriggerLimitFokMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m TriggerLimitFokMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m TriggerLimitFokMultiError) AllErrors() []error { return m }
+
+// TriggerLimitFokValidationError is the validation error returned by
+// TriggerLimitFok.Validate if the designated constraints aren't met.
+type TriggerLimitFokValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e TriggerLimitFokValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e TriggerLimitFokValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e TriggerLimitFokValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e TriggerLimitFokValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e TriggerLimitFokValidationError) ErrorName() string { return "TriggerLimitFokValidationError" }
+
+// Error satisfies the builtin error interface
+func (e TriggerLimitFokValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sTriggerLimitFok.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = TriggerLimitFokValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = TriggerLimitFokValidationError{}
+
+// Validate checks the field values on ConditionalChildExecution with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *ConditionalChildExecution) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on ConditionalChildExecution with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// ConditionalChildExecutionMultiError, or nil if none found.
+func (m *ConditionalChildExecution) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *ConditionalChildExecution) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	switch v := m.Execution.(type) {
+	case *ConditionalChildExecution_MarketIoc:
+		if v == nil {
+			err := ConditionalChildExecutionValidationError{
+				field:  "Execution",
+				reason: "oneof value cannot be a typed-nil",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+
+		if all {
+			switch v := interface{}(m.GetMarketIoc()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, ConditionalChildExecutionValidationError{
+						field:  "MarketIoc",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, ConditionalChildExecutionValidationError{
+						field:  "MarketIoc",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetMarketIoc()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return ConditionalChildExecutionValidationError{
+					field:  "MarketIoc",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	case *ConditionalChildExecution_LimitGtc:
+		if v == nil {
+			err := ConditionalChildExecutionValidationError{
+				field:  "Execution",
+				reason: "oneof value cannot be a typed-nil",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+
+		if all {
+			switch v := interface{}(m.GetLimitGtc()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, ConditionalChildExecutionValidationError{
+						field:  "LimitGtc",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, ConditionalChildExecutionValidationError{
+						field:  "LimitGtc",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetLimitGtc()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return ConditionalChildExecutionValidationError{
+					field:  "LimitGtc",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	case *ConditionalChildExecution_LimitIoc:
+		if v == nil {
+			err := ConditionalChildExecutionValidationError{
+				field:  "Execution",
+				reason: "oneof value cannot be a typed-nil",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+
+		if all {
+			switch v := interface{}(m.GetLimitIoc()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, ConditionalChildExecutionValidationError{
+						field:  "LimitIoc",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, ConditionalChildExecutionValidationError{
+						field:  "LimitIoc",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetLimitIoc()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return ConditionalChildExecutionValidationError{
+					field:  "LimitIoc",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	case *ConditionalChildExecution_LimitFok:
+		if v == nil {
+			err := ConditionalChildExecutionValidationError{
+				field:  "Execution",
+				reason: "oneof value cannot be a typed-nil",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+
+		if all {
+			switch v := interface{}(m.GetLimitFok()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, ConditionalChildExecutionValidationError{
+						field:  "LimitFok",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, ConditionalChildExecutionValidationError{
+						field:  "LimitFok",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetLimitFok()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return ConditionalChildExecutionValidationError{
+					field:  "LimitFok",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	default:
+		_ = v // ensures v is used
+	}
+
+	if len(errors) > 0 {
+		return ConditionalChildExecutionMultiError(errors)
+	}
+
+	return nil
+}
+
+// ConditionalChildExecutionMultiError is an error wrapping multiple validation
+// errors returned by ConditionalChildExecution.ValidateAll() if the
+// designated constraints aren't met.
+type ConditionalChildExecutionMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m ConditionalChildExecutionMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m ConditionalChildExecutionMultiError) AllErrors() []error { return m }
+
+// ConditionalChildExecutionValidationError is the validation error returned by
+// ConditionalChildExecution.Validate if the designated constraints aren't met.
+type ConditionalChildExecutionValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ConditionalChildExecutionValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ConditionalChildExecutionValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ConditionalChildExecutionValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ConditionalChildExecutionValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ConditionalChildExecutionValidationError) ErrorName() string {
+	return "ConditionalChildExecutionValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e ConditionalChildExecutionValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sConditionalChildExecution.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ConditionalChildExecutionValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ConditionalChildExecutionValidationError{}
+
+// Validate checks the field values on ConditionalTrigger with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *ConditionalTrigger) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on ConditionalTrigger with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// ConditionalTriggerMultiError, or nil if none found.
+func (m *ConditionalTrigger) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *ConditionalTrigger) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for TriggerPriceTicks
+
+	// no validation rules for Side
+
+	if all {
+		switch v := interface{}(m.GetChild()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, ConditionalTriggerValidationError{
+					field:  "Child",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, ConditionalTriggerValidationError{
+					field:  "Child",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
+			}
+		}
+	} else if v, ok := interface{}(m.GetChild()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return ConditionalTriggerValidationError{
+				field:  "Child",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	if len(errors) > 0 {
+		return ConditionalTriggerMultiError(errors)
+	}
+
+	return nil
+}
+
+// ConditionalTriggerMultiError is an error wrapping multiple validation errors
+// returned by ConditionalTrigger.ValidateAll() if the designated constraints
+// aren't met.
+type ConditionalTriggerMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m ConditionalTriggerMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m ConditionalTriggerMultiError) AllErrors() []error { return m }
+
+// ConditionalTriggerValidationError is the validation error returned by
+// ConditionalTrigger.Validate if the designated constraints aren't met.
+type ConditionalTriggerValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ConditionalTriggerValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ConditionalTriggerValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ConditionalTriggerValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ConditionalTriggerValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ConditionalTriggerValidationError) ErrorName() string {
+	return "ConditionalTriggerValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e ConditionalTriggerValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sConditionalTrigger.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ConditionalTriggerValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ConditionalTriggerValidationError{}
+
+// Validate checks the field values on TrailingStopTrigger with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *TrailingStopTrigger) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on TrailingStopTrigger with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// TrailingStopTriggerMultiError, or nil if none found.
+func (m *TrailingStopTrigger) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *TrailingStopTrigger) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for ActivationPriceTicks
+
+	switch v := m.TrailingDistance.(type) {
+	case *TrailingStopTrigger_TrailingDistanceTicks:
+		if v == nil {
+			err := TrailingStopTriggerValidationError{
+				field:  "TrailingDistance",
+				reason: "oneof value cannot be a typed-nil",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+		// no validation rules for TrailingDistanceTicks
+	case *TrailingStopTrigger_TrailingDistanceBps:
+		if v == nil {
+			err := TrailingStopTriggerValidationError{
+				field:  "TrailingDistance",
+				reason: "oneof value cannot be a typed-nil",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+		// no validation rules for TrailingDistanceBps
+	default:
+		_ = v // ensures v is used
+	}
+	switch v := m.MaxSlippage.(type) {
+	case *TrailingStopTrigger_MaxSlippageTicks:
+		if v == nil {
+			err := TrailingStopTriggerValidationError{
+				field:  "MaxSlippage",
+				reason: "oneof value cannot be a typed-nil",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+		// no validation rules for MaxSlippageTicks
+	case *TrailingStopTrigger_MaxSlippageBps:
+		if v == nil {
+			err := TrailingStopTriggerValidationError{
+				field:  "MaxSlippage",
+				reason: "oneof value cannot be a typed-nil",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+		// no validation rules for MaxSlippageBps
+	default:
+		_ = v // ensures v is used
+	}
+
+	if len(errors) > 0 {
+		return TrailingStopTriggerMultiError(errors)
+	}
+
+	return nil
+}
+
+// TrailingStopTriggerMultiError is an error wrapping multiple validation
+// errors returned by TrailingStopTrigger.ValidateAll() if the designated
+// constraints aren't met.
+type TrailingStopTriggerMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m TrailingStopTriggerMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m TrailingStopTriggerMultiError) AllErrors() []error { return m }
+
+// TrailingStopTriggerValidationError is the validation error returned by
+// TrailingStopTrigger.Validate if the designated constraints aren't met.
+type TrailingStopTriggerValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e TrailingStopTriggerValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e TrailingStopTriggerValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e TrailingStopTriggerValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e TrailingStopTriggerValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e TrailingStopTriggerValidationError) ErrorName() string {
+	return "TrailingStopTriggerValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e TrailingStopTriggerValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sTrailingStopTrigger.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = TrailingStopTriggerValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = TrailingStopTriggerValidationError{}
+
+// Validate checks the field values on TwapMarketIoc with the rules defined in
+// the proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *TwapMarketIoc) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on TwapMarketIoc with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// result is a list of violation errors wrapped in TwapMarketIocMultiError, or
+// nil if none found.
+func (m *TwapMarketIoc) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *TwapMarketIoc) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if len(errors) > 0 {
+		return TwapMarketIocMultiError(errors)
+	}
+
+	return nil
+}
+
+// TwapMarketIocMultiError is an error wrapping multiple validation errors
+// returned by TwapMarketIoc.ValidateAll() if the designated constraints
+// aren't met.
+type TwapMarketIocMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m TwapMarketIocMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m TwapMarketIocMultiError) AllErrors() []error { return m }
+
+// TwapMarketIocValidationError is the validation error returned by
+// TwapMarketIoc.Validate if the designated constraints aren't met.
+type TwapMarketIocValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e TwapMarketIocValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e TwapMarketIocValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e TwapMarketIocValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e TwapMarketIocValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e TwapMarketIocValidationError) ErrorName() string { return "TwapMarketIocValidationError" }
+
+// Error satisfies the builtin error interface
+func (e TwapMarketIocValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sTwapMarketIoc.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = TwapMarketIocValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = TwapMarketIocValidationError{}
+
+// Validate checks the field values on TwapLimitGtc with the rules defined in
+// the proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *TwapLimitGtc) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on TwapLimitGtc with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// result is a list of violation errors wrapped in TwapLimitGtcMultiError, or
+// nil if none found.
+func (m *TwapLimitGtc) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *TwapLimitGtc) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for PriceTicks
+
+	if len(errors) > 0 {
+		return TwapLimitGtcMultiError(errors)
+	}
+
+	return nil
+}
+
+// TwapLimitGtcMultiError is an error wrapping multiple validation errors
+// returned by TwapLimitGtc.ValidateAll() if the designated constraints aren't met.
+type TwapLimitGtcMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m TwapLimitGtcMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m TwapLimitGtcMultiError) AllErrors() []error { return m }
+
+// TwapLimitGtcValidationError is the validation error returned by
+// TwapLimitGtc.Validate if the designated constraints aren't met.
+type TwapLimitGtcValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e TwapLimitGtcValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e TwapLimitGtcValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e TwapLimitGtcValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e TwapLimitGtcValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e TwapLimitGtcValidationError) ErrorName() string { return "TwapLimitGtcValidationError" }
+
+// Error satisfies the builtin error interface
+func (e TwapLimitGtcValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sTwapLimitGtc.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = TwapLimitGtcValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = TwapLimitGtcValidationError{}
+
+// Validate checks the field values on TwapTrigger with the rules defined in
+// the proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *TwapTrigger) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on TwapTrigger with the rules defined in
+// the proto definition for this message. If any rules are violated, the
+// result is a list of violation errors wrapped in TwapTriggerMultiError, or
+// nil if none found.
+func (m *TwapTrigger) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *TwapTrigger) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Side
+
+	// no validation rules for DurationMs
+
+	// no validation rules for SliceIntervalMs
+
+	switch v := m.Execution.(type) {
+	case *TwapTrigger_MarketIoc:
+		if v == nil {
+			err := TwapTriggerValidationError{
+				field:  "Execution",
+				reason: "oneof value cannot be a typed-nil",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+
+		if all {
+			switch v := interface{}(m.GetMarketIoc()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, TwapTriggerValidationError{
+						field:  "MarketIoc",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, TwapTriggerValidationError{
+						field:  "MarketIoc",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetMarketIoc()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return TwapTriggerValidationError{
+					field:  "MarketIoc",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	case *TwapTrigger_LimitGtc:
+		if v == nil {
+			err := TwapTriggerValidationError{
+				field:  "Execution",
+				reason: "oneof value cannot be a typed-nil",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+
+		if all {
+			switch v := interface{}(m.GetLimitGtc()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, TwapTriggerValidationError{
+						field:  "LimitGtc",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, TwapTriggerValidationError{
+						field:  "LimitGtc",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetLimitGtc()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return TwapTriggerValidationError{
+					field:  "LimitGtc",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	default:
+		_ = v // ensures v is used
+	}
+
+	if len(errors) > 0 {
+		return TwapTriggerMultiError(errors)
+	}
+
+	return nil
+}
+
+// TwapTriggerMultiError is an error wrapping multiple validation errors
+// returned by TwapTrigger.ValidateAll() if the designated constraints aren't met.
+type TwapTriggerMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m TwapTriggerMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m TwapTriggerMultiError) AllErrors() []error { return m }
+
+// TwapTriggerValidationError is the validation error returned by
+// TwapTrigger.Validate if the designated constraints aren't met.
+type TwapTriggerValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e TwapTriggerValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e TwapTriggerValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e TwapTriggerValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e TwapTriggerValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e TwapTriggerValidationError) ErrorName() string { return "TwapTriggerValidationError" }
+
+// Error satisfies the builtin error interface
+func (e TwapTriggerValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sTwapTrigger.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = TwapTriggerValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = TwapTriggerValidationError{}
+
+// Validate checks the field values on LadderTrigger with the rules defined in
+// the proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *LadderTrigger) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on LadderTrigger with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// result is a list of violation errors wrapped in LadderTriggerMultiError, or
+// nil if none found.
+func (m *LadderTrigger) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *LadderTrigger) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Side
+
+	// no validation rules for PriceMinTicks
+
+	// no validation rules for PriceMaxTicks
+
+	// no validation rules for Levels
+
+	// no validation rules for PostOnly
+
+	if len(errors) > 0 {
+		return LadderTriggerMultiError(errors)
+	}
+
+	return nil
+}
+
+// LadderTriggerMultiError is an error wrapping multiple validation errors
+// returned by LadderTrigger.ValidateAll() if the designated constraints
+// aren't met.
+type LadderTriggerMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m LadderTriggerMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m LadderTriggerMultiError) AllErrors() []error { return m }
+
+// LadderTriggerValidationError is the validation error returned by
+// LadderTrigger.Validate if the designated constraints aren't met.
+type LadderTriggerValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e LadderTriggerValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e LadderTriggerValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e LadderTriggerValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e LadderTriggerValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e LadderTriggerValidationError) ErrorName() string { return "LadderTriggerValidationError" }
+
+// Error satisfies the builtin error interface
+func (e LadderTriggerValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sLadderTrigger.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = LadderTriggerValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = LadderTriggerValidationError{}
+
+// Validate checks the field values on TriggerIntent with the rules defined in
+// the proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *TriggerIntent) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on TriggerIntent with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// result is a list of violation errors wrapped in TriggerIntentMultiError, or
+// nil if none found.
+func (m *TriggerIntent) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *TriggerIntent) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Symbol
+
+	// no validation rules for QtyScaled
+
+	// no validation rules for FeeSource
+
+	// no validation rules for SelfTradePreventionMode
+
+	// no validation rules for ClientTriggerId
+
+	switch v := m.Strategy.(type) {
+	case *TriggerIntent_StopLoss:
+		if v == nil {
+			err := TriggerIntentValidationError{
+				field:  "Strategy",
+				reason: "oneof value cannot be a typed-nil",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+
+		if all {
+			switch v := interface{}(m.GetStopLoss()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, TriggerIntentValidationError{
+						field:  "StopLoss",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, TriggerIntentValidationError{
+						field:  "StopLoss",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetStopLoss()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return TriggerIntentValidationError{
+					field:  "StopLoss",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	case *TriggerIntent_TakeProfit:
+		if v == nil {
+			err := TriggerIntentValidationError{
+				field:  "Strategy",
+				reason: "oneof value cannot be a typed-nil",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+
+		if all {
+			switch v := interface{}(m.GetTakeProfit()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, TriggerIntentValidationError{
+						field:  "TakeProfit",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, TriggerIntentValidationError{
+						field:  "TakeProfit",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetTakeProfit()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return TriggerIntentValidationError{
+					field:  "TakeProfit",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	case *TriggerIntent_TrailingStop:
+		if v == nil {
+			err := TriggerIntentValidationError{
+				field:  "Strategy",
+				reason: "oneof value cannot be a typed-nil",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+
+		if all {
+			switch v := interface{}(m.GetTrailingStop()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, TriggerIntentValidationError{
+						field:  "TrailingStop",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, TriggerIntentValidationError{
+						field:  "TrailingStop",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetTrailingStop()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return TriggerIntentValidationError{
+					field:  "TrailingStop",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	case *TriggerIntent_Twap:
+		if v == nil {
+			err := TriggerIntentValidationError{
+				field:  "Strategy",
+				reason: "oneof value cannot be a typed-nil",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+
+		if all {
+			switch v := interface{}(m.GetTwap()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, TriggerIntentValidationError{
+						field:  "Twap",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, TriggerIntentValidationError{
+						field:  "Twap",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetTwap()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return TriggerIntentValidationError{
+					field:  "Twap",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	case *TriggerIntent_Ladder:
+		if v == nil {
+			err := TriggerIntentValidationError{
+				field:  "Strategy",
+				reason: "oneof value cannot be a typed-nil",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+
+		if all {
+			switch v := interface{}(m.GetLadder()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, TriggerIntentValidationError{
+						field:  "Ladder",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, TriggerIntentValidationError{
+						field:  "Ladder",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetLadder()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return TriggerIntentValidationError{
+					field:  "Ladder",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	default:
+		_ = v // ensures v is used
+	}
+
+	if len(errors) > 0 {
+		return TriggerIntentMultiError(errors)
+	}
+
+	return nil
+}
+
+// TriggerIntentMultiError is an error wrapping multiple validation errors
+// returned by TriggerIntent.ValidateAll() if the designated constraints
+// aren't met.
+type TriggerIntentMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m TriggerIntentMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m TriggerIntentMultiError) AllErrors() []error { return m }
+
+// TriggerIntentValidationError is the validation error returned by
+// TriggerIntent.Validate if the designated constraints aren't met.
+type TriggerIntentValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e TriggerIntentValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e TriggerIntentValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e TriggerIntentValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e TriggerIntentValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e TriggerIntentValidationError) ErrorName() string { return "TriggerIntentValidationError" }
+
+// Error satisfies the builtin error interface
+func (e TriggerIntentValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sTriggerIntent.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = TriggerIntentValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = TriggerIntentValidationError{}
 
 // Validate checks the field values on CreateTriggerRequest with the rules
 // defined in the proto definition for this message. If any rules are
@@ -61,101 +1859,33 @@ func (m *CreateTriggerRequest) validate(all bool) error {
 
 	var errors []error
 
-	// no validation rules for Symbol
-
-	// no validation rules for TriggerType
-
-	// no validation rules for TriggerPriceTicks
-
-	// no validation rules for TriggerPriceSource
-
-	// no validation rules for Side
-
-	// no validation rules for OrderType
-
-	// no validation rules for TimeInForce
-
-	// no validation rules for QtyScaled
-
-	// no validation rules for LimitPriceTicks
-
-	// no validation rules for FeeSource
-
-	// no validation rules for SelfTradePreventionMode
-
-	// no validation rules for PostOnly
-
-	// no validation rules for ActivationPriceTicks
-
-	// no validation rules for TwapDurationMs
-
-	// no validation rules for TwapSliceIntervalMs
-
-	// no validation rules for LadderPriceMinTicks
-
-	// no validation rules for LadderPriceMaxTicks
-
-	// no validation rules for LadderLevels
-
-	// no validation rules for LadderDistribution
-
-	// no validation rules for ClientTriggerId
-
-	switch v := m.TrailingDistance.(type) {
-	case *CreateTriggerRequest_TrailingDistanceTicks:
-		if v == nil {
-			err := CreateTriggerRequestValidationError{
-				field:  "TrailingDistance",
-				reason: "oneof value cannot be a typed-nil",
+	if all {
+		switch v := interface{}(m.GetTrigger()).(type) {
+		case interface{ ValidateAll() error }:
+			if err := v.ValidateAll(); err != nil {
+				errors = append(errors, CreateTriggerRequestValidationError{
+					field:  "Trigger",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
 			}
-			if !all {
-				return err
+		case interface{ Validate() error }:
+			if err := v.Validate(); err != nil {
+				errors = append(errors, CreateTriggerRequestValidationError{
+					field:  "Trigger",
+					reason: "embedded message failed validation",
+					cause:  err,
+				})
 			}
-			errors = append(errors, err)
 		}
-		// no validation rules for TrailingDistanceTicks
-	case *CreateTriggerRequest_TrailingDistanceBps:
-		if v == nil {
-			err := CreateTriggerRequestValidationError{
-				field:  "TrailingDistance",
-				reason: "oneof value cannot be a typed-nil",
+	} else if v, ok := interface{}(m.GetTrigger()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return CreateTriggerRequestValidationError{
+				field:  "Trigger",
+				reason: "embedded message failed validation",
+				cause:  err,
 			}
-			if !all {
-				return err
-			}
-			errors = append(errors, err)
 		}
-		// no validation rules for TrailingDistanceBps
-	default:
-		_ = v // ensures v is used
-	}
-	switch v := m.MaxSlippage.(type) {
-	case *CreateTriggerRequest_MaxSlippageTicks:
-		if v == nil {
-			err := CreateTriggerRequestValidationError{
-				field:  "MaxSlippage",
-				reason: "oneof value cannot be a typed-nil",
-			}
-			if !all {
-				return err
-			}
-			errors = append(errors, err)
-		}
-		// no validation rules for MaxSlippageTicks
-	case *CreateTriggerRequest_MaxSlippageBps:
-		if v == nil {
-			err := CreateTriggerRequestValidationError{
-				field:  "MaxSlippage",
-				reason: "oneof value cannot be a typed-nil",
-			}
-			if !all {
-				return err
-			}
-			errors = append(errors, err)
-		}
-		// no validation rules for MaxSlippageBps
-	default:
-		_ = v // ensures v is used
 	}
 
 	if m.SubaccountId != nil {
@@ -266,16 +1996,14 @@ func (m *CreateTriggerResponse) validate(all bool) error {
 
 	// no validation rules for TriggerId
 
-	// no validation rules for Status
-
 	// no validation rules for ClientTriggerId
 
 	if all {
-		switch v := interface{}(m.GetTs()).(type) {
+		switch v := interface{}(m.GetAcceptedAt()).(type) {
 		case interface{ ValidateAll() error }:
 			if err := v.ValidateAll(); err != nil {
 				errors = append(errors, CreateTriggerResponseValidationError{
-					field:  "Ts",
+					field:  "AcceptedAt",
 					reason: "embedded message failed validation",
 					cause:  err,
 				})
@@ -283,23 +2011,23 @@ func (m *CreateTriggerResponse) validate(all bool) error {
 		case interface{ Validate() error }:
 			if err := v.Validate(); err != nil {
 				errors = append(errors, CreateTriggerResponseValidationError{
-					field:  "Ts",
+					field:  "AcceptedAt",
 					reason: "embedded message failed validation",
 					cause:  err,
 				})
 			}
 		}
-	} else if v, ok := interface{}(m.GetTs()).(interface{ Validate() error }); ok {
+	} else if v, ok := interface{}(m.GetAcceptedAt()).(interface{ Validate() error }); ok {
 		if err := v.Validate(); err != nil {
 			return CreateTriggerResponseValidationError{
-				field:  "Ts",
+				field:  "AcceptedAt",
 				reason: "embedded message failed validation",
 				cause:  err,
 			}
 		}
 	}
 
-	// no validation rules for TsNs
+	// no validation rules for AcceptedAtTsNs
 
 	if len(errors) > 0 {
 		return CreateTriggerResponseMultiError(errors)
@@ -2763,25 +4491,13 @@ func (m *Trigger) validate(all bool) error {
 
 	// no validation rules for Symbol
 
-	// no validation rules for TriggerType
-
 	// no validation rules for Status
 
-	// no validation rules for Side
-
-	// no validation rules for OrderType
-
-	// no validation rules for TimeInForce
-
 	// no validation rules for QtyScaled
-
-	// no validation rules for LimitPriceTicks
 
 	// no validation rules for FeeSource
 
 	// no validation rules for SelfTradePreventionMode
-
-	// no validation rules for PostOnly
 
 	// no validation rules for ClientTriggerId
 
@@ -2901,11 +4617,11 @@ func (m *Trigger) validate(all bool) error {
 		}
 	}
 
-	switch v := m.Details.(type) {
-	case *Trigger_Stop:
+	switch v := m.Configuration.(type) {
+	case *Trigger_StopLoss:
 		if v == nil {
 			err := TriggerValidationError{
-				field:  "Details",
+				field:  "Configuration",
 				reason: "oneof value cannot be a typed-nil",
 			}
 			if !all {
@@ -2915,11 +4631,11 @@ func (m *Trigger) validate(all bool) error {
 		}
 
 		if all {
-			switch v := interface{}(m.GetStop()).(type) {
+			switch v := interface{}(m.GetStopLoss()).(type) {
 			case interface{ ValidateAll() error }:
 				if err := v.ValidateAll(); err != nil {
 					errors = append(errors, TriggerValidationError{
-						field:  "Stop",
+						field:  "StopLoss",
 						reason: "embedded message failed validation",
 						cause:  err,
 					})
@@ -2927,26 +4643,26 @@ func (m *Trigger) validate(all bool) error {
 			case interface{ Validate() error }:
 				if err := v.Validate(); err != nil {
 					errors = append(errors, TriggerValidationError{
-						field:  "Stop",
+						field:  "StopLoss",
 						reason: "embedded message failed validation",
 						cause:  err,
 					})
 				}
 			}
-		} else if v, ok := interface{}(m.GetStop()).(interface{ Validate() error }); ok {
+		} else if v, ok := interface{}(m.GetStopLoss()).(interface{ Validate() error }); ok {
 			if err := v.Validate(); err != nil {
 				return TriggerValidationError{
-					field:  "Stop",
+					field:  "StopLoss",
 					reason: "embedded message failed validation",
 					cause:  err,
 				}
 			}
 		}
 
-	case *Trigger_Trailing:
+	case *Trigger_TakeProfit:
 		if v == nil {
 			err := TriggerValidationError{
-				field:  "Details",
+				field:  "Configuration",
 				reason: "oneof value cannot be a typed-nil",
 			}
 			if !all {
@@ -2956,11 +4672,11 @@ func (m *Trigger) validate(all bool) error {
 		}
 
 		if all {
-			switch v := interface{}(m.GetTrailing()).(type) {
+			switch v := interface{}(m.GetTakeProfit()).(type) {
 			case interface{ ValidateAll() error }:
 				if err := v.ValidateAll(); err != nil {
 					errors = append(errors, TriggerValidationError{
-						field:  "Trailing",
+						field:  "TakeProfit",
 						reason: "embedded message failed validation",
 						cause:  err,
 					})
@@ -2968,16 +4684,57 @@ func (m *Trigger) validate(all bool) error {
 			case interface{ Validate() error }:
 				if err := v.Validate(); err != nil {
 					errors = append(errors, TriggerValidationError{
-						field:  "Trailing",
+						field:  "TakeProfit",
 						reason: "embedded message failed validation",
 						cause:  err,
 					})
 				}
 			}
-		} else if v, ok := interface{}(m.GetTrailing()).(interface{ Validate() error }); ok {
+		} else if v, ok := interface{}(m.GetTakeProfit()).(interface{ Validate() error }); ok {
 			if err := v.Validate(); err != nil {
 				return TriggerValidationError{
-					field:  "Trailing",
+					field:  "TakeProfit",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	case *Trigger_TrailingStop:
+		if v == nil {
+			err := TriggerValidationError{
+				field:  "Configuration",
+				reason: "oneof value cannot be a typed-nil",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+
+		if all {
+			switch v := interface{}(m.GetTrailingStop()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, TriggerValidationError{
+						field:  "TrailingStop",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, TriggerValidationError{
+						field:  "TrailingStop",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetTrailingStop()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return TriggerValidationError{
+					field:  "TrailingStop",
 					reason: "embedded message failed validation",
 					cause:  err,
 				}
@@ -2987,7 +4744,7 @@ func (m *Trigger) validate(all bool) error {
 	case *Trigger_Twap:
 		if v == nil {
 			err := TriggerValidationError{
-				field:  "Details",
+				field:  "Configuration",
 				reason: "oneof value cannot be a typed-nil",
 			}
 			if !all {
@@ -3028,7 +4785,7 @@ func (m *Trigger) validate(all bool) error {
 	case *Trigger_Ladder:
 		if v == nil {
 			err := TriggerValidationError{
-				field:  "Details",
+				field:  "Configuration",
 				reason: "oneof value cannot be a typed-nil",
 			}
 			if !all {
@@ -3060,6 +4817,174 @@ func (m *Trigger) validate(all bool) error {
 			if err := v.Validate(); err != nil {
 				return TriggerValidationError{
 					field:  "Ladder",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	default:
+		_ = v // ensures v is used
+	}
+	switch v := m.RuntimeDetails.(type) {
+	case *Trigger_Stop:
+		if v == nil {
+			err := TriggerValidationError{
+				field:  "RuntimeDetails",
+				reason: "oneof value cannot be a typed-nil",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+
+		if all {
+			switch v := interface{}(m.GetStop()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, TriggerValidationError{
+						field:  "Stop",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, TriggerValidationError{
+						field:  "Stop",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetStop()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return TriggerValidationError{
+					field:  "Stop",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	case *Trigger_Trailing:
+		if v == nil {
+			err := TriggerValidationError{
+				field:  "RuntimeDetails",
+				reason: "oneof value cannot be a typed-nil",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+
+		if all {
+			switch v := interface{}(m.GetTrailing()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, TriggerValidationError{
+						field:  "Trailing",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, TriggerValidationError{
+						field:  "Trailing",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetTrailing()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return TriggerValidationError{
+					field:  "Trailing",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	case *Trigger_TwapState:
+		if v == nil {
+			err := TriggerValidationError{
+				field:  "RuntimeDetails",
+				reason: "oneof value cannot be a typed-nil",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+
+		if all {
+			switch v := interface{}(m.GetTwapState()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, TriggerValidationError{
+						field:  "TwapState",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, TriggerValidationError{
+						field:  "TwapState",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetTwapState()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return TriggerValidationError{
+					field:  "TwapState",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	case *Trigger_LadderState:
+		if v == nil {
+			err := TriggerValidationError{
+				field:  "RuntimeDetails",
+				reason: "oneof value cannot be a typed-nil",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+
+		if all {
+			switch v := interface{}(m.GetLadderState()).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, TriggerValidationError{
+						field:  "LadderState",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, TriggerValidationError{
+						field:  "LadderState",
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(m.GetLadderState()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return TriggerValidationError{
+					field:  "LadderState",
 					reason: "embedded message failed validation",
 					cause:  err,
 				}

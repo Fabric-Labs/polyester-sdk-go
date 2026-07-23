@@ -278,88 +278,999 @@ func (LadderDistribution) EnumDescriptor() ([]byte, []int) {
 	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{3}
 }
 
-// CreateTriggerRequest creates a standalone trigger (stop order, TWAP, ladder,
-// etc.). Standalone triggers have independent lifecycle and arm immediately
-// after creation.
-type CreateTriggerRequest struct {
+// TriggerMarketIoc configures an immediate market child.
+type TriggerMarketIoc struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TriggerMarketIoc) Reset() {
+	*x = TriggerMarketIoc{}
+	mi := &file_triggers_v1_triggers_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TriggerMarketIoc) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TriggerMarketIoc) ProtoMessage() {}
+
+func (x *TriggerMarketIoc) ProtoReflect() protoreflect.Message {
+	mi := &file_triggers_v1_triggers_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TriggerMarketIoc.ProtoReflect.Descriptor instead.
+func (*TriggerMarketIoc) Descriptor() ([]byte, []int) {
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{0}
+}
+
+// TriggerLimitGtc configures a resting limit child.
+type TriggerLimitGtc struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Target sub-account. When empty or omitted, uses the caller's root account.
-	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
-	// Symbol, for example "BTC-USDT"; resolved to a numeric symbol ID.
-	Symbol string `protobuf:"bytes,2,opt,name=symbol,proto3" json:"symbol,omitempty"`
-	// Type of trigger. Required.
-	TriggerType TriggerType `protobuf:"varint,3,opt,name=trigger_type,json=triggerType,proto3,enum=triggers.v1.TriggerType" json:"trigger_type,omitempty"`
-	// Trigger price in quote units scaled by 1e6. Required for
-	// STOP_LOSS/TAKE_PROFIT.
-	TriggerPriceTicks int64 `protobuf:"varint,10,opt,name=trigger_price_ticks,json=triggerPriceTicks,proto3" json:"trigger_price_ticks,omitempty"`
-	// Price source for trigger evaluation. Defaults to LAST_PRICE.
-	TriggerPriceSource v1.TriggerPriceSource `protobuf:"varint,11,opt,name=trigger_price_source,json=triggerPriceSource,proto3,enum=orders.v1.TriggerPriceSource" json:"trigger_price_source,omitempty"`
-	// Side for the child order. Required.
-	Side v1.Side `protobuf:"varint,20,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
-	// Order type for the child order (LIMIT or MARKET). Defaults to MARKET.
-	OrderType v1.OrderType `protobuf:"varint,21,opt,name=order_type,json=orderType,proto3,enum=orders.v1.OrderType" json:"order_type,omitempty"`
-	// Time-in-force for the child order. Defaults to GTC for LIMIT, IOC for
-	// MARKET.
-	TimeInForce v1.TimeInForce `protobuf:"varint,22,opt,name=time_in_force,json=timeInForce,proto3,enum=orders.v1.TimeInForce" json:"time_in_force,omitempty"`
-	// Quantity scaled by the pair's base_quantity_scale from GetSpotConfig.
-	// Required.
-	QtyScaled int64 `protobuf:"varint,23,opt,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`
-	// Limit price in quote units scaled by 1e6 for LIMIT child orders.
-	LimitPriceTicks int64 `protobuf:"varint,24,opt,name=limit_price_ticks,json=limitPriceTicks,proto3" json:"limit_price_ticks,omitempty"`
-	// Fee source selection for BUY child orders. SELL child orders always pay in
-	// QUOTE.
+	// Limit price in quote units scaled by 1e6.
+	PriceTicks int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
+	// Reject instead of taking liquidity.
+	PostOnly      bool `protobuf:"varint,2,opt,name=post_only,json=postOnly,proto3" json:"post_only,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TriggerLimitGtc) Reset() {
+	*x = TriggerLimitGtc{}
+	mi := &file_triggers_v1_triggers_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TriggerLimitGtc) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TriggerLimitGtc) ProtoMessage() {}
+
+func (x *TriggerLimitGtc) ProtoReflect() protoreflect.Message {
+	mi := &file_triggers_v1_triggers_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TriggerLimitGtc.ProtoReflect.Descriptor instead.
+func (*TriggerLimitGtc) Descriptor() ([]byte, []int) {
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *TriggerLimitGtc) GetPriceTicks() int64 {
+	if x != nil {
+		return x.PriceTicks
+	}
+	return 0
+}
+
+func (x *TriggerLimitGtc) GetPostOnly() bool {
+	if x != nil {
+		return x.PostOnly
+	}
+	return false
+}
+
+// TriggerLimitIoc configures an immediate-or-cancel limit child.
+type TriggerLimitIoc struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Limit price in quote units scaled by 1e6.
+	PriceTicks    int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TriggerLimitIoc) Reset() {
+	*x = TriggerLimitIoc{}
+	mi := &file_triggers_v1_triggers_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TriggerLimitIoc) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TriggerLimitIoc) ProtoMessage() {}
+
+func (x *TriggerLimitIoc) ProtoReflect() protoreflect.Message {
+	mi := &file_triggers_v1_triggers_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TriggerLimitIoc.ProtoReflect.Descriptor instead.
+func (*TriggerLimitIoc) Descriptor() ([]byte, []int) {
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *TriggerLimitIoc) GetPriceTicks() int64 {
+	if x != nil {
+		return x.PriceTicks
+	}
+	return 0
+}
+
+// TriggerLimitFok configures a fill-or-kill limit child.
+type TriggerLimitFok struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Limit price in quote units scaled by 1e6.
+	PriceTicks    int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TriggerLimitFok) Reset() {
+	*x = TriggerLimitFok{}
+	mi := &file_triggers_v1_triggers_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TriggerLimitFok) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TriggerLimitFok) ProtoMessage() {}
+
+func (x *TriggerLimitFok) ProtoReflect() protoreflect.Message {
+	mi := &file_triggers_v1_triggers_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TriggerLimitFok.ProtoReflect.Descriptor instead.
+func (*TriggerLimitFok) Descriptor() ([]byte, []int) {
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *TriggerLimitFok) GetPriceTicks() int64 {
+	if x != nil {
+		return x.PriceTicks
+	}
+	return 0
+}
+
+// ConditionalChildExecution selects the child submitted by a stop-loss or
+// take-profit trigger. BUY market children are not supported in spot.
+type ConditionalChildExecution struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Execution:
 	//
-	// When omitted (UNSPECIFIED), defaults to QUOTE.
-	FeeSource v1.FeeSource `protobuf:"varint,25,opt,name=fee_source,json=feeSource,proto3,enum=orders.v1.FeeSource" json:"fee_source,omitempty"`
-	// Self-trade prevention mode for child orders.
-	//
-	// When omitted (UNSPECIFIED), defaults to EXPIRE_MAKER.
-	SelfTradePreventionMode v1.SelfTradePreventionMode `protobuf:"varint,26,opt,name=self_trade_prevention_mode,json=selfTradePreventionMode,proto3,enum=orders.v1.SelfTradePreventionMode" json:"self_trade_prevention_mode,omitempty"`
-	// If true, child LIMIT orders are post-only (rejected if they would cross).
-	PostOnly bool `protobuf:"varint,27,opt,name=post_only,json=postOnly,proto3" json:"post_only,omitempty"`
-	// Trailing distance. Exactly one of these should be set for TRAILING_STOP.
+	//	*ConditionalChildExecution_MarketIoc
+	//	*ConditionalChildExecution_LimitGtc
+	//	*ConditionalChildExecution_LimitIoc
+	//	*ConditionalChildExecution_LimitFok
+	Execution     isConditionalChildExecution_Execution `protobuf_oneof:"execution"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConditionalChildExecution) Reset() {
+	*x = ConditionalChildExecution{}
+	mi := &file_triggers_v1_triggers_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConditionalChildExecution) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConditionalChildExecution) ProtoMessage() {}
+
+func (x *ConditionalChildExecution) ProtoReflect() protoreflect.Message {
+	mi := &file_triggers_v1_triggers_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConditionalChildExecution.ProtoReflect.Descriptor instead.
+func (*ConditionalChildExecution) Descriptor() ([]byte, []int) {
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ConditionalChildExecution) GetExecution() isConditionalChildExecution_Execution {
+	if x != nil {
+		return x.Execution
+	}
+	return nil
+}
+
+func (x *ConditionalChildExecution) GetMarketIoc() *TriggerMarketIoc {
+	if x != nil {
+		if x, ok := x.Execution.(*ConditionalChildExecution_MarketIoc); ok {
+			return x.MarketIoc
+		}
+	}
+	return nil
+}
+
+func (x *ConditionalChildExecution) GetLimitGtc() *TriggerLimitGtc {
+	if x != nil {
+		if x, ok := x.Execution.(*ConditionalChildExecution_LimitGtc); ok {
+			return x.LimitGtc
+		}
+	}
+	return nil
+}
+
+func (x *ConditionalChildExecution) GetLimitIoc() *TriggerLimitIoc {
+	if x != nil {
+		if x, ok := x.Execution.(*ConditionalChildExecution_LimitIoc); ok {
+			return x.LimitIoc
+		}
+	}
+	return nil
+}
+
+func (x *ConditionalChildExecution) GetLimitFok() *TriggerLimitFok {
+	if x != nil {
+		if x, ok := x.Execution.(*ConditionalChildExecution_LimitFok); ok {
+			return x.LimitFok
+		}
+	}
+	return nil
+}
+
+type isConditionalChildExecution_Execution interface {
+	isConditionalChildExecution_Execution()
+}
+
+type ConditionalChildExecution_MarketIoc struct {
+	// Market child with implicit IOC behavior.
+	MarketIoc *TriggerMarketIoc `protobuf:"bytes,1,opt,name=market_ioc,json=marketIoc,proto3,oneof"`
+}
+
+type ConditionalChildExecution_LimitGtc struct {
+	// Resting GTC limit child, optionally post-only.
+	LimitGtc *TriggerLimitGtc `protobuf:"bytes,2,opt,name=limit_gtc,json=limitGtc,proto3,oneof"`
+}
+
+type ConditionalChildExecution_LimitIoc struct {
+	// Immediate-or-cancel limit child.
+	LimitIoc *TriggerLimitIoc `protobuf:"bytes,3,opt,name=limit_ioc,json=limitIoc,proto3,oneof"`
+}
+
+type ConditionalChildExecution_LimitFok struct {
+	// Fill-or-kill limit child.
+	LimitFok *TriggerLimitFok `protobuf:"bytes,4,opt,name=limit_fok,json=limitFok,proto3,oneof"`
+}
+
+func (*ConditionalChildExecution_MarketIoc) isConditionalChildExecution_Execution() {}
+
+func (*ConditionalChildExecution_LimitGtc) isConditionalChildExecution_Execution() {}
+
+func (*ConditionalChildExecution_LimitIoc) isConditionalChildExecution_Execution() {}
+
+func (*ConditionalChildExecution_LimitFok) isConditionalChildExecution_Execution() {}
+
+// ConditionalTrigger configures a standalone stop-loss or take-profit.
+type ConditionalTrigger struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Trigger threshold in quote units scaled by 1e6.
+	TriggerPriceTicks int64 `protobuf:"varint,1,opt,name=trigger_price_ticks,json=triggerPriceTicks,proto3" json:"trigger_price_ticks,omitempty"`
+	// Child order side.
+	Side v1.Side `protobuf:"varint,2,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
+	// Child execution.
+	Child         *ConditionalChildExecution `protobuf:"bytes,3,opt,name=child,proto3" json:"child,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConditionalTrigger) Reset() {
+	*x = ConditionalTrigger{}
+	mi := &file_triggers_v1_triggers_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConditionalTrigger) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConditionalTrigger) ProtoMessage() {}
+
+func (x *ConditionalTrigger) ProtoReflect() protoreflect.Message {
+	mi := &file_triggers_v1_triggers_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConditionalTrigger.ProtoReflect.Descriptor instead.
+func (*ConditionalTrigger) Descriptor() ([]byte, []int) {
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ConditionalTrigger) GetTriggerPriceTicks() int64 {
+	if x != nil {
+		return x.TriggerPriceTicks
+	}
+	return 0
+}
+
+func (x *ConditionalTrigger) GetSide() v1.Side {
+	if x != nil {
+		return x.Side
+	}
+	return v1.Side(0)
+}
+
+func (x *ConditionalTrigger) GetChild() *ConditionalChildExecution {
+	if x != nil {
+		return x.Child
+	}
+	return nil
+}
+
+// TrailingStopTrigger configures the supported spot trailing-stop strategy.
+// It tracks last trade price and submits a SELL market-IOC child when fired.
+type TrailingStopTrigger struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required trailing distance.
 	//
 	// Types that are valid to be assigned to TrailingDistance:
 	//
-	//	*CreateTriggerRequest_TrailingDistanceTicks
-	//	*CreateTriggerRequest_TrailingDistanceBps
-	TrailingDistance isCreateTriggerRequest_TrailingDistance `protobuf_oneof:"trailing_distance"`
-	// Optional activation price: trailing only starts after this price is
-	// reached. Expressed in quote units scaled by 1e6.
-	ActivationPriceTicks int64 `protobuf:"varint,32,opt,name=activation_price_ticks,json=activationPriceTicks,proto3" json:"activation_price_ticks,omitempty"`
-	// Optional price protection. If set, when the trailing stop triggers we place
-	// an IOC LIMIT order at stop_price ± max_slippage (instead of an unprotected
-	// MARKET order).
-	//
-	// Exactly one of these should be set (or neither for unprotected behavior).
+	//	*TrailingStopTrigger_TrailingDistanceTicks
+	//	*TrailingStopTrigger_TrailingDistanceBps
+	TrailingDistance isTrailingStopTrigger_TrailingDistance `protobuf_oneof:"trailing_distance"`
+	// Optional activation price in quote units scaled by 1e6.
+	ActivationPriceTicks int64 `protobuf:"varint,3,opt,name=activation_price_ticks,json=activationPriceTicks,proto3" json:"activation_price_ticks,omitempty"`
+	// Optional protection applied when the market child fires.
 	//
 	// Types that are valid to be assigned to MaxSlippage:
 	//
-	//	*CreateTriggerRequest_MaxSlippageTicks
-	//	*CreateTriggerRequest_MaxSlippageBps
-	MaxSlippage isCreateTriggerRequest_MaxSlippage `protobuf_oneof:"max_slippage"`
-	// Total duration of TWAP execution in milliseconds. Required for TWAP.
-	TwapDurationMs int64 `protobuf:"varint,40,opt,name=twap_duration_ms,json=twapDurationMs,proto3" json:"twap_duration_ms,omitempty"`
-	// Interval between TWAP slices in milliseconds. Required for TWAP.
-	TwapSliceIntervalMs int64 `protobuf:"varint,41,opt,name=twap_slice_interval_ms,json=twapSliceIntervalMs,proto3" json:"twap_slice_interval_ms,omitempty"`
-	// Minimum price in quote units scaled by 1e6 for the ladder range.
-	LadderPriceMinTicks int64 `protobuf:"varint,50,opt,name=ladder_price_min_ticks,json=ladderPriceMinTicks,proto3" json:"ladder_price_min_ticks,omitempty"`
-	// Maximum price in quote units scaled by 1e6 for the ladder range.
-	LadderPriceMaxTicks int64 `protobuf:"varint,51,opt,name=ladder_price_max_ticks,json=ladderPriceMaxTicks,proto3" json:"ladder_price_max_ticks,omitempty"`
-	// Number of price levels in the ladder.
-	// Required for LADDER; valid range is 2..100.
-	LadderLevels int32 `protobuf:"varint,52,opt,name=ladder_levels,json=ladderLevels,proto3" json:"ladder_levels,omitempty"`
-	// Distribution of quantity across levels.
-	LadderDistribution LadderDistribution `protobuf:"varint,53,opt,name=ladder_distribution,json=ladderDistribution,proto3,enum=triggers.v1.LadderDistribution" json:"ladder_distribution,omitempty"`
-	// Client-provided trigger ID for idempotency. Required.
-	ClientTriggerId string `protobuf:"bytes,60,opt,name=client_trigger_id,json=clientTriggerId,proto3" json:"client_trigger_id,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	//	*TrailingStopTrigger_MaxSlippageTicks
+	//	*TrailingStopTrigger_MaxSlippageBps
+	MaxSlippage   isTrailingStopTrigger_MaxSlippage `protobuf_oneof:"max_slippage"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TrailingStopTrigger) Reset() {
+	*x = TrailingStopTrigger{}
+	mi := &file_triggers_v1_triggers_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TrailingStopTrigger) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TrailingStopTrigger) ProtoMessage() {}
+
+func (x *TrailingStopTrigger) ProtoReflect() protoreflect.Message {
+	mi := &file_triggers_v1_triggers_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TrailingStopTrigger.ProtoReflect.Descriptor instead.
+func (*TrailingStopTrigger) Descriptor() ([]byte, []int) {
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *TrailingStopTrigger) GetTrailingDistance() isTrailingStopTrigger_TrailingDistance {
+	if x != nil {
+		return x.TrailingDistance
+	}
+	return nil
+}
+
+func (x *TrailingStopTrigger) GetTrailingDistanceTicks() int64 {
+	if x != nil {
+		if x, ok := x.TrailingDistance.(*TrailingStopTrigger_TrailingDistanceTicks); ok {
+			return x.TrailingDistanceTicks
+		}
+	}
+	return 0
+}
+
+func (x *TrailingStopTrigger) GetTrailingDistanceBps() int32 {
+	if x != nil {
+		if x, ok := x.TrailingDistance.(*TrailingStopTrigger_TrailingDistanceBps); ok {
+			return x.TrailingDistanceBps
+		}
+	}
+	return 0
+}
+
+func (x *TrailingStopTrigger) GetActivationPriceTicks() int64 {
+	if x != nil {
+		return x.ActivationPriceTicks
+	}
+	return 0
+}
+
+func (x *TrailingStopTrigger) GetMaxSlippage() isTrailingStopTrigger_MaxSlippage {
+	if x != nil {
+		return x.MaxSlippage
+	}
+	return nil
+}
+
+func (x *TrailingStopTrigger) GetMaxSlippageTicks() int32 {
+	if x != nil {
+		if x, ok := x.MaxSlippage.(*TrailingStopTrigger_MaxSlippageTicks); ok {
+			return x.MaxSlippageTicks
+		}
+	}
+	return 0
+}
+
+func (x *TrailingStopTrigger) GetMaxSlippageBps() int32 {
+	if x != nil {
+		if x, ok := x.MaxSlippage.(*TrailingStopTrigger_MaxSlippageBps); ok {
+			return x.MaxSlippageBps
+		}
+	}
+	return 0
+}
+
+type isTrailingStopTrigger_TrailingDistance interface {
+	isTrailingStopTrigger_TrailingDistance()
+}
+
+type TrailingStopTrigger_TrailingDistanceTicks struct {
+	// Distance as a price delta in 1e-6 quote-unit ticks.
+	TrailingDistanceTicks int64 `protobuf:"varint,1,opt,name=trailing_distance_ticks,json=trailingDistanceTicks,proto3,oneof"`
+}
+
+type TrailingStopTrigger_TrailingDistanceBps struct {
+	// Distance in basis points (1 bp = 0.01%).
+	TrailingDistanceBps int32 `protobuf:"varint,2,opt,name=trailing_distance_bps,json=trailingDistanceBps,proto3,oneof"`
+}
+
+func (*TrailingStopTrigger_TrailingDistanceTicks) isTrailingStopTrigger_TrailingDistance() {}
+
+func (*TrailingStopTrigger_TrailingDistanceBps) isTrailingStopTrigger_TrailingDistance() {}
+
+type isTrailingStopTrigger_MaxSlippage interface {
+	isTrailingStopTrigger_MaxSlippage()
+}
+
+type TrailingStopTrigger_MaxSlippageTicks struct {
+	// Maximum slippage as a price delta in 1e-6 quote-unit ticks.
+	MaxSlippageTicks int32 `protobuf:"varint,4,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
+}
+
+type TrailingStopTrigger_MaxSlippageBps struct {
+	// Maximum slippage in basis points (1 bp = 0.01%).
+	MaxSlippageBps int32 `protobuf:"varint,5,opt,name=max_slippage_bps,json=maxSlippageBps,proto3,oneof"`
+}
+
+func (*TrailingStopTrigger_MaxSlippageTicks) isTrailingStopTrigger_MaxSlippage() {}
+
+func (*TrailingStopTrigger_MaxSlippageBps) isTrailingStopTrigger_MaxSlippage() {}
+
+// TwapMarketIoc configures server-priced market-IOC slices.
+type TwapMarketIoc struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TwapMarketIoc) Reset() {
+	*x = TwapMarketIoc{}
+	mi := &file_triggers_v1_triggers_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TwapMarketIoc) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TwapMarketIoc) ProtoMessage() {}
+
+func (x *TwapMarketIoc) ProtoReflect() protoreflect.Message {
+	mi := &file_triggers_v1_triggers_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TwapMarketIoc.ProtoReflect.Descriptor instead.
+func (*TwapMarketIoc) Descriptor() ([]byte, []int) {
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{7}
+}
+
+// TwapLimitGtc configures one resting limit slice at a time. A previous open
+// slice is canceled before the next interval.
+type TwapLimitGtc struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Slice limit price in quote units scaled by 1e6.
+	PriceTicks    int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TwapLimitGtc) Reset() {
+	*x = TwapLimitGtc{}
+	mi := &file_triggers_v1_triggers_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TwapLimitGtc) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TwapLimitGtc) ProtoMessage() {}
+
+func (x *TwapLimitGtc) ProtoReflect() protoreflect.Message {
+	mi := &file_triggers_v1_triggers_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TwapLimitGtc.ProtoReflect.Descriptor instead.
+func (*TwapLimitGtc) Descriptor() ([]byte, []int) {
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *TwapLimitGtc) GetPriceTicks() int64 {
+	if x != nil {
+		return x.PriceTicks
+	}
+	return 0
+}
+
+// TwapTrigger configures a proven TWAP execution mode.
+type TwapTrigger struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Child side.
+	Side v1.Side `protobuf:"varint,1,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
+	// Total execution duration in milliseconds.
+	DurationMs int64 `protobuf:"varint,2,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	// Interval between slices in milliseconds.
+	SliceIntervalMs int64 `protobuf:"varint,3,opt,name=slice_interval_ms,json=sliceIntervalMs,proto3" json:"slice_interval_ms,omitempty"`
+	// Proven slice execution behavior.
+	//
+	// Types that are valid to be assigned to Execution:
+	//
+	//	*TwapTrigger_MarketIoc
+	//	*TwapTrigger_LimitGtc
+	Execution     isTwapTrigger_Execution `protobuf_oneof:"execution"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TwapTrigger) Reset() {
+	*x = TwapTrigger{}
+	mi := &file_triggers_v1_triggers_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TwapTrigger) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TwapTrigger) ProtoMessage() {}
+
+func (x *TwapTrigger) ProtoReflect() protoreflect.Message {
+	mi := &file_triggers_v1_triggers_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TwapTrigger.ProtoReflect.Descriptor instead.
+func (*TwapTrigger) Descriptor() ([]byte, []int) {
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *TwapTrigger) GetSide() v1.Side {
+	if x != nil {
+		return x.Side
+	}
+	return v1.Side(0)
+}
+
+func (x *TwapTrigger) GetDurationMs() int64 {
+	if x != nil {
+		return x.DurationMs
+	}
+	return 0
+}
+
+func (x *TwapTrigger) GetSliceIntervalMs() int64 {
+	if x != nil {
+		return x.SliceIntervalMs
+	}
+	return 0
+}
+
+func (x *TwapTrigger) GetExecution() isTwapTrigger_Execution {
+	if x != nil {
+		return x.Execution
+	}
+	return nil
+}
+
+func (x *TwapTrigger) GetMarketIoc() *TwapMarketIoc {
+	if x != nil {
+		if x, ok := x.Execution.(*TwapTrigger_MarketIoc); ok {
+			return x.MarketIoc
+		}
+	}
+	return nil
+}
+
+func (x *TwapTrigger) GetLimitGtc() *TwapLimitGtc {
+	if x != nil {
+		if x, ok := x.Execution.(*TwapTrigger_LimitGtc); ok {
+			return x.LimitGtc
+		}
+	}
+	return nil
+}
+
+type isTwapTrigger_Execution interface {
+	isTwapTrigger_Execution()
+}
+
+type TwapTrigger_MarketIoc struct {
+	// Server-priced market IOC slices.
+	MarketIoc *TwapMarketIoc `protobuf:"bytes,4,opt,name=market_ioc,json=marketIoc,proto3,oneof"`
+}
+
+type TwapTrigger_LimitGtc struct {
+	// Limit GTC slices with cancel-before-next behavior.
+	LimitGtc *TwapLimitGtc `protobuf:"bytes,5,opt,name=limit_gtc,json=limitGtc,proto3,oneof"`
+}
+
+func (*TwapTrigger_MarketIoc) isTwapTrigger_Execution() {}
+
+func (*TwapTrigger_LimitGtc) isTwapTrigger_Execution() {}
+
+// LadderTrigger configures the supported LINEAR limit-GTC ladder. All levels
+// are admitted immediately and may rest concurrently.
+type LadderTrigger struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Child side.
+	Side v1.Side `protobuf:"varint,1,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
+	// Minimum generated level price in quote units scaled by 1e6.
+	PriceMinTicks int64 `protobuf:"varint,2,opt,name=price_min_ticks,json=priceMinTicks,proto3" json:"price_min_ticks,omitempty"`
+	// Maximum generated level price in quote units scaled by 1e6.
+	PriceMaxTicks int64 `protobuf:"varint,3,opt,name=price_max_ticks,json=priceMaxTicks,proto3" json:"price_max_ticks,omitempty"`
+	// Number of linearly distributed levels.
+	Levels int32 `protobuf:"varint,4,opt,name=levels,proto3" json:"levels,omitempty"`
+	// Reject each level instead of taking liquidity.
+	PostOnly      bool `protobuf:"varint,5,opt,name=post_only,json=postOnly,proto3" json:"post_only,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LadderTrigger) Reset() {
+	*x = LadderTrigger{}
+	mi := &file_triggers_v1_triggers_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LadderTrigger) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LadderTrigger) ProtoMessage() {}
+
+func (x *LadderTrigger) ProtoReflect() protoreflect.Message {
+	mi := &file_triggers_v1_triggers_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LadderTrigger.ProtoReflect.Descriptor instead.
+func (*LadderTrigger) Descriptor() ([]byte, []int) {
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *LadderTrigger) GetSide() v1.Side {
+	if x != nil {
+		return x.Side
+	}
+	return v1.Side(0)
+}
+
+func (x *LadderTrigger) GetPriceMinTicks() int64 {
+	if x != nil {
+		return x.PriceMinTicks
+	}
+	return 0
+}
+
+func (x *LadderTrigger) GetPriceMaxTicks() int64 {
+	if x != nil {
+		return x.PriceMaxTicks
+	}
+	return 0
+}
+
+func (x *LadderTrigger) GetLevels() int32 {
+	if x != nil {
+		return x.Levels
+	}
+	return 0
+}
+
+func (x *LadderTrigger) GetPostOnly() bool {
+	if x != nil {
+		return x.PostOnly
+	}
+	return false
+}
+
+// TriggerIntent contains one standalone trigger's immutable configuration.
+type TriggerIntent struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Symbol, for example "BTC-USDT".
+	Symbol string `protobuf:"bytes,1,opt,name=symbol,proto3" json:"symbol,omitempty"`
+	// Total quantity scaled by the pair's base_quantity_scale.
+	QtyScaled int64 `protobuf:"varint,2,opt,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`
+	// Fee source for BUY children. SELL children must use QUOTE.
+	FeeSource v1.FeeSource `protobuf:"varint,3,opt,name=fee_source,json=feeSource,proto3,enum=orders.v1.FeeSource" json:"fee_source,omitempty"`
+	// Child self-trade prevention mode. Defaults to EXPIRE_MAKER.
+	SelfTradePreventionMode v1.SelfTradePreventionMode `protobuf:"varint,4,opt,name=self_trade_prevention_mode,json=selfTradePreventionMode,proto3,enum=orders.v1.SelfTradePreventionMode" json:"self_trade_prevention_mode,omitempty"`
+	// Client-provided trigger ID for idempotency.
+	ClientTriggerId string `protobuf:"bytes,5,opt,name=client_trigger_id,json=clientTriggerId,proto3" json:"client_trigger_id,omitempty"`
+	// Required trigger strategy.
+	//
+	// Types that are valid to be assigned to Strategy:
+	//
+	//	*TriggerIntent_StopLoss
+	//	*TriggerIntent_TakeProfit
+	//	*TriggerIntent_TrailingStop
+	//	*TriggerIntent_Twap
+	//	*TriggerIntent_Ladder
+	Strategy      isTriggerIntent_Strategy `protobuf_oneof:"strategy"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TriggerIntent) Reset() {
+	*x = TriggerIntent{}
+	mi := &file_triggers_v1_triggers_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TriggerIntent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TriggerIntent) ProtoMessage() {}
+
+func (x *TriggerIntent) ProtoReflect() protoreflect.Message {
+	mi := &file_triggers_v1_triggers_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TriggerIntent.ProtoReflect.Descriptor instead.
+func (*TriggerIntent) Descriptor() ([]byte, []int) {
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *TriggerIntent) GetSymbol() string {
+	if x != nil {
+		return x.Symbol
+	}
+	return ""
+}
+
+func (x *TriggerIntent) GetQtyScaled() int64 {
+	if x != nil {
+		return x.QtyScaled
+	}
+	return 0
+}
+
+func (x *TriggerIntent) GetFeeSource() v1.FeeSource {
+	if x != nil {
+		return x.FeeSource
+	}
+	return v1.FeeSource(0)
+}
+
+func (x *TriggerIntent) GetSelfTradePreventionMode() v1.SelfTradePreventionMode {
+	if x != nil {
+		return x.SelfTradePreventionMode
+	}
+	return v1.SelfTradePreventionMode(0)
+}
+
+func (x *TriggerIntent) GetClientTriggerId() string {
+	if x != nil {
+		return x.ClientTriggerId
+	}
+	return ""
+}
+
+func (x *TriggerIntent) GetStrategy() isTriggerIntent_Strategy {
+	if x != nil {
+		return x.Strategy
+	}
+	return nil
+}
+
+func (x *TriggerIntent) GetStopLoss() *ConditionalTrigger {
+	if x != nil {
+		if x, ok := x.Strategy.(*TriggerIntent_StopLoss); ok {
+			return x.StopLoss
+		}
+	}
+	return nil
+}
+
+func (x *TriggerIntent) GetTakeProfit() *ConditionalTrigger {
+	if x != nil {
+		if x, ok := x.Strategy.(*TriggerIntent_TakeProfit); ok {
+			return x.TakeProfit
+		}
+	}
+	return nil
+}
+
+func (x *TriggerIntent) GetTrailingStop() *TrailingStopTrigger {
+	if x != nil {
+		if x, ok := x.Strategy.(*TriggerIntent_TrailingStop); ok {
+			return x.TrailingStop
+		}
+	}
+	return nil
+}
+
+func (x *TriggerIntent) GetTwap() *TwapTrigger {
+	if x != nil {
+		if x, ok := x.Strategy.(*TriggerIntent_Twap); ok {
+			return x.Twap
+		}
+	}
+	return nil
+}
+
+func (x *TriggerIntent) GetLadder() *LadderTrigger {
+	if x != nil {
+		if x, ok := x.Strategy.(*TriggerIntent_Ladder); ok {
+			return x.Ladder
+		}
+	}
+	return nil
+}
+
+type isTriggerIntent_Strategy interface {
+	isTriggerIntent_Strategy()
+}
+
+type TriggerIntent_StopLoss struct {
+	// Standalone stop-loss.
+	StopLoss *ConditionalTrigger `protobuf:"bytes,10,opt,name=stop_loss,json=stopLoss,proto3,oneof"`
+}
+
+type TriggerIntent_TakeProfit struct {
+	// Standalone take-profit.
+	TakeProfit *ConditionalTrigger `protobuf:"bytes,11,opt,name=take_profit,json=takeProfit,proto3,oneof"`
+}
+
+type TriggerIntent_TrailingStop struct {
+	// SELL market-IOC trailing stop.
+	TrailingStop *TrailingStopTrigger `protobuf:"bytes,12,opt,name=trailing_stop,json=trailingStop,proto3,oneof"`
+}
+
+type TriggerIntent_Twap struct {
+	// TWAP strategy.
+	Twap *TwapTrigger `protobuf:"bytes,13,opt,name=twap,proto3,oneof"`
+}
+
+type TriggerIntent_Ladder struct {
+	// LINEAR limit-GTC ladder.
+	Ladder *LadderTrigger `protobuf:"bytes,14,opt,name=ladder,proto3,oneof"`
+}
+
+func (*TriggerIntent_StopLoss) isTriggerIntent_Strategy() {}
+
+func (*TriggerIntent_TakeProfit) isTriggerIntent_Strategy() {}
+
+func (*TriggerIntent_TrailingStop) isTriggerIntent_Strategy() {}
+
+func (*TriggerIntent_Twap) isTriggerIntent_Strategy() {}
+
+func (*TriggerIntent_Ladder) isTriggerIntent_Strategy() {}
+
+// CreateTriggerRequest submits one standalone trigger intent for admission.
+type CreateTriggerRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Target sub-account. When omitted, uses the caller's root account.
+	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
+	// Trigger to admit.
+	Trigger       *TriggerIntent `protobuf:"bytes,2,opt,name=trigger,proto3" json:"trigger,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateTriggerRequest) Reset() {
 	*x = CreateTriggerRequest{}
-	mi := &file_triggers_v1_triggers_proto_msgTypes[0]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -371,7 +1282,7 @@ func (x *CreateTriggerRequest) String() string {
 func (*CreateTriggerRequest) ProtoMessage() {}
 
 func (x *CreateTriggerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_triggers_v1_triggers_proto_msgTypes[0]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -384,7 +1295,7 @@ func (x *CreateTriggerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateTriggerRequest.ProtoReflect.Descriptor instead.
 func (*CreateTriggerRequest) Descriptor() ([]byte, []int) {
-	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{0}
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *CreateTriggerRequest) GetSubaccountId() uint64 {
@@ -394,252 +1305,32 @@ func (x *CreateTriggerRequest) GetSubaccountId() uint64 {
 	return 0
 }
 
-func (x *CreateTriggerRequest) GetSymbol() string {
+func (x *CreateTriggerRequest) GetTrigger() *TriggerIntent {
 	if x != nil {
-		return x.Symbol
-	}
-	return ""
-}
-
-func (x *CreateTriggerRequest) GetTriggerType() TriggerType {
-	if x != nil {
-		return x.TriggerType
-	}
-	return TriggerType_TRIGGER_TYPE_UNSPECIFIED
-}
-
-func (x *CreateTriggerRequest) GetTriggerPriceTicks() int64 {
-	if x != nil {
-		return x.TriggerPriceTicks
-	}
-	return 0
-}
-
-func (x *CreateTriggerRequest) GetTriggerPriceSource() v1.TriggerPriceSource {
-	if x != nil {
-		return x.TriggerPriceSource
-	}
-	return v1.TriggerPriceSource(0)
-}
-
-func (x *CreateTriggerRequest) GetSide() v1.Side {
-	if x != nil {
-		return x.Side
-	}
-	return v1.Side(0)
-}
-
-func (x *CreateTriggerRequest) GetOrderType() v1.OrderType {
-	if x != nil {
-		return x.OrderType
-	}
-	return v1.OrderType(0)
-}
-
-func (x *CreateTriggerRequest) GetTimeInForce() v1.TimeInForce {
-	if x != nil {
-		return x.TimeInForce
-	}
-	return v1.TimeInForce(0)
-}
-
-func (x *CreateTriggerRequest) GetQtyScaled() int64 {
-	if x != nil {
-		return x.QtyScaled
-	}
-	return 0
-}
-
-func (x *CreateTriggerRequest) GetLimitPriceTicks() int64 {
-	if x != nil {
-		return x.LimitPriceTicks
-	}
-	return 0
-}
-
-func (x *CreateTriggerRequest) GetFeeSource() v1.FeeSource {
-	if x != nil {
-		return x.FeeSource
-	}
-	return v1.FeeSource(0)
-}
-
-func (x *CreateTriggerRequest) GetSelfTradePreventionMode() v1.SelfTradePreventionMode {
-	if x != nil {
-		return x.SelfTradePreventionMode
-	}
-	return v1.SelfTradePreventionMode(0)
-}
-
-func (x *CreateTriggerRequest) GetPostOnly() bool {
-	if x != nil {
-		return x.PostOnly
-	}
-	return false
-}
-
-func (x *CreateTriggerRequest) GetTrailingDistance() isCreateTriggerRequest_TrailingDistance {
-	if x != nil {
-		return x.TrailingDistance
+		return x.Trigger
 	}
 	return nil
 }
 
-func (x *CreateTriggerRequest) GetTrailingDistanceTicks() int64 {
-	if x != nil {
-		if x, ok := x.TrailingDistance.(*CreateTriggerRequest_TrailingDistanceTicks); ok {
-			return x.TrailingDistanceTicks
-		}
-	}
-	return 0
-}
-
-func (x *CreateTriggerRequest) GetTrailingDistanceBps() int32 {
-	if x != nil {
-		if x, ok := x.TrailingDistance.(*CreateTriggerRequest_TrailingDistanceBps); ok {
-			return x.TrailingDistanceBps
-		}
-	}
-	return 0
-}
-
-func (x *CreateTriggerRequest) GetActivationPriceTicks() int64 {
-	if x != nil {
-		return x.ActivationPriceTicks
-	}
-	return 0
-}
-
-func (x *CreateTriggerRequest) GetMaxSlippage() isCreateTriggerRequest_MaxSlippage {
-	if x != nil {
-		return x.MaxSlippage
-	}
-	return nil
-}
-
-func (x *CreateTriggerRequest) GetMaxSlippageTicks() int32 {
-	if x != nil {
-		if x, ok := x.MaxSlippage.(*CreateTriggerRequest_MaxSlippageTicks); ok {
-			return x.MaxSlippageTicks
-		}
-	}
-	return 0
-}
-
-func (x *CreateTriggerRequest) GetMaxSlippageBps() int32 {
-	if x != nil {
-		if x, ok := x.MaxSlippage.(*CreateTriggerRequest_MaxSlippageBps); ok {
-			return x.MaxSlippageBps
-		}
-	}
-	return 0
-}
-
-func (x *CreateTriggerRequest) GetTwapDurationMs() int64 {
-	if x != nil {
-		return x.TwapDurationMs
-	}
-	return 0
-}
-
-func (x *CreateTriggerRequest) GetTwapSliceIntervalMs() int64 {
-	if x != nil {
-		return x.TwapSliceIntervalMs
-	}
-	return 0
-}
-
-func (x *CreateTriggerRequest) GetLadderPriceMinTicks() int64 {
-	if x != nil {
-		return x.LadderPriceMinTicks
-	}
-	return 0
-}
-
-func (x *CreateTriggerRequest) GetLadderPriceMaxTicks() int64 {
-	if x != nil {
-		return x.LadderPriceMaxTicks
-	}
-	return 0
-}
-
-func (x *CreateTriggerRequest) GetLadderLevels() int32 {
-	if x != nil {
-		return x.LadderLevels
-	}
-	return 0
-}
-
-func (x *CreateTriggerRequest) GetLadderDistribution() LadderDistribution {
-	if x != nil {
-		return x.LadderDistribution
-	}
-	return LadderDistribution_LADDER_DISTRIBUTION_UNSPECIFIED
-}
-
-func (x *CreateTriggerRequest) GetClientTriggerId() string {
-	if x != nil {
-		return x.ClientTriggerId
-	}
-	return ""
-}
-
-type isCreateTriggerRequest_TrailingDistance interface {
-	isCreateTriggerRequest_TrailingDistance()
-}
-
-type CreateTriggerRequest_TrailingDistanceTicks struct {
-	// Trailing distance as a price delta in 1e-6 quote-unit ticks.
-	TrailingDistanceTicks int64 `protobuf:"varint,30,opt,name=trailing_distance_ticks,json=trailingDistanceTicks,proto3,oneof"`
-}
-
-type CreateTriggerRequest_TrailingDistanceBps struct {
-	// Trailing distance in basis points (1 bp = 0.01%).
-	TrailingDistanceBps int32 `protobuf:"varint,31,opt,name=trailing_distance_bps,json=trailingDistanceBps,proto3,oneof"`
-}
-
-func (*CreateTriggerRequest_TrailingDistanceTicks) isCreateTriggerRequest_TrailingDistance() {}
-
-func (*CreateTriggerRequest_TrailingDistanceBps) isCreateTriggerRequest_TrailingDistance() {}
-
-type isCreateTriggerRequest_MaxSlippage interface {
-	isCreateTriggerRequest_MaxSlippage()
-}
-
-type CreateTriggerRequest_MaxSlippageTicks struct {
-	// Maximum allowed slippage as a price delta in 1e-6 quote-unit ticks.
-	MaxSlippageTicks int32 `protobuf:"varint,33,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
-}
-
-type CreateTriggerRequest_MaxSlippageBps struct {
-	// Maximum allowed slippage in basis points (1 bp = 0.01%).
-	MaxSlippageBps int32 `protobuf:"varint,34,opt,name=max_slippage_bps,json=maxSlippageBps,proto3,oneof"`
-}
-
-func (*CreateTriggerRequest_MaxSlippageTicks) isCreateTriggerRequest_MaxSlippage() {}
-
-func (*CreateTriggerRequest_MaxSlippageBps) isCreateTriggerRequest_MaxSlippage() {}
-
-// CreateTriggerResponse returns the accepted trigger identifier and status.
+// CreateTriggerResponse acknowledges trigger creation only. Arming and child
+// execution happen asynchronously and are visible through trigger reads/events.
 type CreateTriggerResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unique trigger ID assigned by the system.
+	// Assigned trigger ID.
 	TriggerId uint64 `protobuf:"fixed64,1,opt,name=trigger_id,json=triggerId,proto3" json:"trigger_id,omitempty"`
-	// Current status of the trigger.
-	Status TriggerStatus `protobuf:"varint,2,opt,name=status,proto3,enum=triggers.v1.TriggerStatus" json:"status,omitempty"`
-	// Echoed back if provided in request.
-	ClientTriggerId string `protobuf:"bytes,3,opt,name=client_trigger_id,json=clientTriggerId,proto3" json:"client_trigger_id,omitempty"`
-	// Server timestamp.
-	Ts *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=ts,proto3" json:"ts,omitempty"`
-	// Server timestamp in nanoseconds since epoch (UTC).
-	TsNs          uint64 `protobuf:"varint,5,opt,name=ts_ns,json=tsNs,proto3" json:"ts_ns,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Echoed client trigger ID.
+	ClientTriggerId string `protobuf:"bytes,2,opt,name=client_trigger_id,json=clientTriggerId,proto3" json:"client_trigger_id,omitempty"`
+	// Time creation admission completed.
+	AcceptedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=accepted_at,json=acceptedAt,proto3" json:"accepted_at,omitempty"`
+	// Admission completion time in nanoseconds since epoch (UTC).
+	AcceptedAtTsNs uint64 `protobuf:"varint,4,opt,name=accepted_at_ts_ns,json=acceptedAtTsNs,proto3" json:"accepted_at_ts_ns,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *CreateTriggerResponse) Reset() {
 	*x = CreateTriggerResponse{}
-	mi := &file_triggers_v1_triggers_proto_msgTypes[1]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -651,7 +1342,7 @@ func (x *CreateTriggerResponse) String() string {
 func (*CreateTriggerResponse) ProtoMessage() {}
 
 func (x *CreateTriggerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_triggers_v1_triggers_proto_msgTypes[1]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -664,7 +1355,7 @@ func (x *CreateTriggerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateTriggerResponse.ProtoReflect.Descriptor instead.
 func (*CreateTriggerResponse) Descriptor() ([]byte, []int) {
-	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{1}
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CreateTriggerResponse) GetTriggerId() uint64 {
@@ -674,13 +1365,6 @@ func (x *CreateTriggerResponse) GetTriggerId() uint64 {
 	return 0
 }
 
-func (x *CreateTriggerResponse) GetStatus() TriggerStatus {
-	if x != nil {
-		return x.Status
-	}
-	return TriggerStatus_STATUS_UNSPECIFIED
-}
-
 func (x *CreateTriggerResponse) GetClientTriggerId() string {
 	if x != nil {
 		return x.ClientTriggerId
@@ -688,16 +1372,16 @@ func (x *CreateTriggerResponse) GetClientTriggerId() string {
 	return ""
 }
 
-func (x *CreateTriggerResponse) GetTs() *timestamppb.Timestamp {
+func (x *CreateTriggerResponse) GetAcceptedAt() *timestamppb.Timestamp {
 	if x != nil {
-		return x.Ts
+		return x.AcceptedAt
 	}
 	return nil
 }
 
-func (x *CreateTriggerResponse) GetTsNs() uint64 {
+func (x *CreateTriggerResponse) GetAcceptedAtTsNs() uint64 {
 	if x != nil {
-		return x.TsNs
+		return x.AcceptedAtTsNs
 	}
 	return 0
 }
@@ -715,7 +1399,7 @@ type GetTriggerRequest struct {
 
 func (x *GetTriggerRequest) Reset() {
 	*x = GetTriggerRequest{}
-	mi := &file_triggers_v1_triggers_proto_msgTypes[2]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -727,7 +1411,7 @@ func (x *GetTriggerRequest) String() string {
 func (*GetTriggerRequest) ProtoMessage() {}
 
 func (x *GetTriggerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_triggers_v1_triggers_proto_msgTypes[2]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -740,7 +1424,7 @@ func (x *GetTriggerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTriggerRequest.ProtoReflect.Descriptor instead.
 func (*GetTriggerRequest) Descriptor() ([]byte, []int) {
-	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{2}
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetTriggerRequest) GetTriggerId() uint64 {
@@ -768,7 +1452,7 @@ type GetTriggerResponse struct {
 
 func (x *GetTriggerResponse) Reset() {
 	*x = GetTriggerResponse{}
-	mi := &file_triggers_v1_triggers_proto_msgTypes[3]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -780,7 +1464,7 @@ func (x *GetTriggerResponse) String() string {
 func (*GetTriggerResponse) ProtoMessage() {}
 
 func (x *GetTriggerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_triggers_v1_triggers_proto_msgTypes[3]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -793,7 +1477,7 @@ func (x *GetTriggerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTriggerResponse.ProtoReflect.Descriptor instead.
 func (*GetTriggerResponse) Descriptor() ([]byte, []int) {
-	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{3}
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetTriggerResponse) GetTrigger() *Trigger {
@@ -830,7 +1514,7 @@ type ListTriggersRequest struct {
 
 func (x *ListTriggersRequest) Reset() {
 	*x = ListTriggersRequest{}
-	mi := &file_triggers_v1_triggers_proto_msgTypes[4]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -842,7 +1526,7 @@ func (x *ListTriggersRequest) String() string {
 func (*ListTriggersRequest) ProtoMessage() {}
 
 func (x *ListTriggersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_triggers_v1_triggers_proto_msgTypes[4]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -855,7 +1539,7 @@ func (x *ListTriggersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTriggersRequest.ProtoReflect.Descriptor instead.
 func (*ListTriggersRequest) Descriptor() ([]byte, []int) {
-	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{4}
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ListTriggersRequest) GetSubaccountId() uint64 {
@@ -920,7 +1604,7 @@ type ListTriggersResponse struct {
 
 func (x *ListTriggersResponse) Reset() {
 	*x = ListTriggersResponse{}
-	mi := &file_triggers_v1_triggers_proto_msgTypes[5]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -932,7 +1616,7 @@ func (x *ListTriggersResponse) String() string {
 func (*ListTriggersResponse) ProtoMessage() {}
 
 func (x *ListTriggersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_triggers_v1_triggers_proto_msgTypes[5]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -945,7 +1629,7 @@ func (x *ListTriggersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTriggersResponse.ProtoReflect.Descriptor instead.
 func (*ListTriggersResponse) Descriptor() ([]byte, []int) {
-	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{5}
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ListTriggersResponse) GetTriggers() []*Trigger {
@@ -983,7 +1667,7 @@ type ListTriggerEventsRequest struct {
 
 func (x *ListTriggerEventsRequest) Reset() {
 	*x = ListTriggerEventsRequest{}
-	mi := &file_triggers_v1_triggers_proto_msgTypes[6]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -995,7 +1679,7 @@ func (x *ListTriggerEventsRequest) String() string {
 func (*ListTriggerEventsRequest) ProtoMessage() {}
 
 func (x *ListTriggerEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_triggers_v1_triggers_proto_msgTypes[6]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1008,7 +1692,7 @@ func (x *ListTriggerEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTriggerEventsRequest.ProtoReflect.Descriptor instead.
 func (*ListTriggerEventsRequest) Descriptor() ([]byte, []int) {
-	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{6}
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ListTriggerEventsRequest) GetTriggerId() uint64 {
@@ -1069,7 +1753,7 @@ type TriggerEvent struct {
 
 func (x *TriggerEvent) Reset() {
 	*x = TriggerEvent{}
-	mi := &file_triggers_v1_triggers_proto_msgTypes[7]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1081,7 +1765,7 @@ func (x *TriggerEvent) String() string {
 func (*TriggerEvent) ProtoMessage() {}
 
 func (x *TriggerEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_triggers_v1_triggers_proto_msgTypes[7]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1094,7 +1778,7 @@ func (x *TriggerEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TriggerEvent.ProtoReflect.Descriptor instead.
 func (*TriggerEvent) Descriptor() ([]byte, []int) {
-	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{7}
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *TriggerEvent) GetTriggerId() uint64 {
@@ -1181,7 +1865,7 @@ type ListTriggerEventsResponse struct {
 
 func (x *ListTriggerEventsResponse) Reset() {
 	*x = ListTriggerEventsResponse{}
-	mi := &file_triggers_v1_triggers_proto_msgTypes[8]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1193,7 +1877,7 @@ func (x *ListTriggerEventsResponse) String() string {
 func (*ListTriggerEventsResponse) ProtoMessage() {}
 
 func (x *ListTriggerEventsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_triggers_v1_triggers_proto_msgTypes[8]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1206,7 +1890,7 @@ func (x *ListTriggerEventsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTriggerEventsResponse.ProtoReflect.Descriptor instead.
 func (*ListTriggerEventsResponse) Descriptor() ([]byte, []int) {
-	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{8}
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ListTriggerEventsResponse) GetEvents() []*TriggerEvent {
@@ -1236,7 +1920,7 @@ type CancelTriggerRequest struct {
 
 func (x *CancelTriggerRequest) Reset() {
 	*x = CancelTriggerRequest{}
-	mi := &file_triggers_v1_triggers_proto_msgTypes[9]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1248,7 +1932,7 @@ func (x *CancelTriggerRequest) String() string {
 func (*CancelTriggerRequest) ProtoMessage() {}
 
 func (x *CancelTriggerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_triggers_v1_triggers_proto_msgTypes[9]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1261,7 +1945,7 @@ func (x *CancelTriggerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelTriggerRequest.ProtoReflect.Descriptor instead.
 func (*CancelTriggerRequest) Descriptor() ([]byte, []int) {
-	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{9}
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *CancelTriggerRequest) GetTriggerId() uint64 {
@@ -1295,7 +1979,7 @@ type CancelTriggerResponse struct {
 
 func (x *CancelTriggerResponse) Reset() {
 	*x = CancelTriggerResponse{}
-	mi := &file_triggers_v1_triggers_proto_msgTypes[10]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1307,7 +1991,7 @@ func (x *CancelTriggerResponse) String() string {
 func (*CancelTriggerResponse) ProtoMessage() {}
 
 func (x *CancelTriggerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_triggers_v1_triggers_proto_msgTypes[10]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1320,7 +2004,7 @@ func (x *CancelTriggerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelTriggerResponse.ProtoReflect.Descriptor instead.
 func (*CancelTriggerResponse) Descriptor() ([]byte, []int) {
-	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{10}
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *CancelTriggerResponse) GetTriggerId() uint64 {
@@ -1386,7 +2070,7 @@ type ModifyTriggerRequest struct {
 
 func (x *ModifyTriggerRequest) Reset() {
 	*x = ModifyTriggerRequest{}
-	mi := &file_triggers_v1_triggers_proto_msgTypes[11]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1398,7 +2082,7 @@ func (x *ModifyTriggerRequest) String() string {
 func (*ModifyTriggerRequest) ProtoMessage() {}
 
 func (x *ModifyTriggerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_triggers_v1_triggers_proto_msgTypes[11]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1411,7 +2095,7 @@ func (x *ModifyTriggerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModifyTriggerRequest.ProtoReflect.Descriptor instead.
 func (*ModifyTriggerRequest) Descriptor() ([]byte, []int) {
-	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{11}
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ModifyTriggerRequest) GetTriggerId() uint64 {
@@ -1552,7 +2236,7 @@ type ModifyTriggerResponse struct {
 
 func (x *ModifyTriggerResponse) Reset() {
 	*x = ModifyTriggerResponse{}
-	mi := &file_triggers_v1_triggers_proto_msgTypes[12]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1564,7 +2248,7 @@ func (x *ModifyTriggerResponse) String() string {
 func (*ModifyTriggerResponse) ProtoMessage() {}
 
 func (x *ModifyTriggerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_triggers_v1_triggers_proto_msgTypes[12]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1577,7 +2261,7 @@ func (x *ModifyTriggerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModifyTriggerResponse.ProtoReflect.Descriptor instead.
 func (*ModifyTriggerResponse) Descriptor() ([]byte, []int) {
-	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{12}
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ModifyTriggerResponse) GetTriggerId() uint64 {
@@ -1621,7 +2305,7 @@ type PauseTriggerRequest struct {
 
 func (x *PauseTriggerRequest) Reset() {
 	*x = PauseTriggerRequest{}
-	mi := &file_triggers_v1_triggers_proto_msgTypes[13]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1633,7 +2317,7 @@ func (x *PauseTriggerRequest) String() string {
 func (*PauseTriggerRequest) ProtoMessage() {}
 
 func (x *PauseTriggerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_triggers_v1_triggers_proto_msgTypes[13]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1646,7 +2330,7 @@ func (x *PauseTriggerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PauseTriggerRequest.ProtoReflect.Descriptor instead.
 func (*PauseTriggerRequest) Descriptor() ([]byte, []int) {
-	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{13}
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *PauseTriggerRequest) GetTriggerId() uint64 {
@@ -1680,7 +2364,7 @@ type PauseTriggerResponse struct {
 
 func (x *PauseTriggerResponse) Reset() {
 	*x = PauseTriggerResponse{}
-	mi := &file_triggers_v1_triggers_proto_msgTypes[14]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1692,7 +2376,7 @@ func (x *PauseTriggerResponse) String() string {
 func (*PauseTriggerResponse) ProtoMessage() {}
 
 func (x *PauseTriggerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_triggers_v1_triggers_proto_msgTypes[14]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1705,7 +2389,7 @@ func (x *PauseTriggerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PauseTriggerResponse.ProtoReflect.Descriptor instead.
 func (*PauseTriggerResponse) Descriptor() ([]byte, []int) {
-	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{14}
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *PauseTriggerResponse) GetTriggerId() uint64 {
@@ -1749,7 +2433,7 @@ type ResumeTriggerRequest struct {
 
 func (x *ResumeTriggerRequest) Reset() {
 	*x = ResumeTriggerRequest{}
-	mi := &file_triggers_v1_triggers_proto_msgTypes[15]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1761,7 +2445,7 @@ func (x *ResumeTriggerRequest) String() string {
 func (*ResumeTriggerRequest) ProtoMessage() {}
 
 func (x *ResumeTriggerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_triggers_v1_triggers_proto_msgTypes[15]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1774,7 +2458,7 @@ func (x *ResumeTriggerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeTriggerRequest.ProtoReflect.Descriptor instead.
 func (*ResumeTriggerRequest) Descriptor() ([]byte, []int) {
-	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{15}
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ResumeTriggerRequest) GetTriggerId() uint64 {
@@ -1808,7 +2492,7 @@ type ResumeTriggerResponse struct {
 
 func (x *ResumeTriggerResponse) Reset() {
 	*x = ResumeTriggerResponse{}
-	mi := &file_triggers_v1_triggers_proto_msgTypes[16]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1820,7 +2504,7 @@ func (x *ResumeTriggerResponse) String() string {
 func (*ResumeTriggerResponse) ProtoMessage() {}
 
 func (x *ResumeTriggerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_triggers_v1_triggers_proto_msgTypes[16]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1833,7 +2517,7 @@ func (x *ResumeTriggerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeTriggerResponse.ProtoReflect.Descriptor instead.
 func (*ResumeTriggerResponse) Descriptor() ([]byte, []int) {
-	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{16}
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ResumeTriggerResponse) GetTriggerId() uint64 {
@@ -1879,7 +2563,7 @@ type StopDetails struct {
 
 func (x *StopDetails) Reset() {
 	*x = StopDetails{}
-	mi := &file_triggers_v1_triggers_proto_msgTypes[17]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1891,7 +2575,7 @@ func (x *StopDetails) String() string {
 func (*StopDetails) ProtoMessage() {}
 
 func (x *StopDetails) ProtoReflect() protoreflect.Message {
-	mi := &file_triggers_v1_triggers_proto_msgTypes[17]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1904,7 +2588,7 @@ func (x *StopDetails) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopDetails.ProtoReflect.Descriptor instead.
 func (*StopDetails) Descriptor() ([]byte, []int) {
-	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{17}
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *StopDetails) GetTriggerPriceTicks() int64 {
@@ -1956,7 +2640,7 @@ type TrailingDetails struct {
 
 func (x *TrailingDetails) Reset() {
 	*x = TrailingDetails{}
-	mi := &file_triggers_v1_triggers_proto_msgTypes[18]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1968,7 +2652,7 @@ func (x *TrailingDetails) String() string {
 func (*TrailingDetails) ProtoMessage() {}
 
 func (x *TrailingDetails) ProtoReflect() protoreflect.Message {
-	mi := &file_triggers_v1_triggers_proto_msgTypes[18]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1981,7 +2665,7 @@ func (x *TrailingDetails) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TrailingDetails.ProtoReflect.Descriptor instead.
 func (*TrailingDetails) Descriptor() ([]byte, []int) {
-	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{18}
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *TrailingDetails) GetTrailingDistanceTicks() int64 {
@@ -2067,7 +2751,7 @@ type TwapDetails struct {
 
 func (x *TwapDetails) Reset() {
 	*x = TwapDetails{}
-	mi := &file_triggers_v1_triggers_proto_msgTypes[19]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2079,7 +2763,7 @@ func (x *TwapDetails) String() string {
 func (*TwapDetails) ProtoMessage() {}
 
 func (x *TwapDetails) ProtoReflect() protoreflect.Message {
-	mi := &file_triggers_v1_triggers_proto_msgTypes[19]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2092,7 +2776,7 @@ func (x *TwapDetails) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TwapDetails.ProtoReflect.Descriptor instead.
 func (*TwapDetails) Descriptor() ([]byte, []int) {
-	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{19}
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *TwapDetails) GetTwapDurationMs() int64 {
@@ -2147,7 +2831,7 @@ type LadderDetails struct {
 
 func (x *LadderDetails) Reset() {
 	*x = LadderDetails{}
-	mi := &file_triggers_v1_triggers_proto_msgTypes[20]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2159,7 +2843,7 @@ func (x *LadderDetails) String() string {
 func (*LadderDetails) ProtoMessage() {}
 
 func (x *LadderDetails) ProtoReflect() protoreflect.Message {
-	mi := &file_triggers_v1_triggers_proto_msgTypes[20]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2172,7 +2856,7 @@ func (x *LadderDetails) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LadderDetails.ProtoReflect.Descriptor instead.
 func (*LadderDetails) Descriptor() ([]byte, []int) {
-	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{20}
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *LadderDetails) GetLadderPriceMinTicks() int64 {
@@ -2214,39 +2898,36 @@ type Trigger struct {
 	SymbolId uint32 `protobuf:"varint,3,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Trading symbol, for example "BTC-USDT".
 	Symbol string `protobuf:"bytes,4,opt,name=symbol,proto3" json:"symbol,omitempty"`
-	// Trigger category.
-	TriggerType TriggerType `protobuf:"varint,5,opt,name=trigger_type,json=triggerType,proto3,enum=triggers.v1.TriggerType" json:"trigger_type,omitempty"`
 	// Current trigger lifecycle status.
-	Status TriggerStatus `protobuf:"varint,6,opt,name=status,proto3,enum=triggers.v1.TriggerStatus" json:"status,omitempty"`
+	Status TriggerStatus `protobuf:"varint,5,opt,name=status,proto3,enum=triggers.v1.TriggerStatus" json:"status,omitempty"`
 	// Parent order ID for attached-risk triggers; empty for standalone triggers.
-	ParentOrderId *uint64 `protobuf:"fixed64,7,opt,name=parent_order_id,json=parentOrderId,proto3,oneof" json:"parent_order_id,omitempty"`
-	// Child order side.
-	Side v1.Side `protobuf:"varint,20,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
-	// Child order type.
-	OrderType v1.OrderType `protobuf:"varint,21,opt,name=order_type,json=orderType,proto3,enum=orders.v1.OrderType" json:"order_type,omitempty"`
-	// Child order time-in-force policy.
-	TimeInForce v1.TimeInForce `protobuf:"varint,22,opt,name=time_in_force,json=timeInForce,proto3,enum=orders.v1.TimeInForce" json:"time_in_force,omitempty"`
-	// Child order quantity scaled by the pair's base_quantity_scale from
-	// GetSpotConfig.
-	QtyScaled int64 `protobuf:"varint,23,opt,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`
-	// Child LIMIT order price in quote units scaled by 1e6. Zero for MARKET
-	// child orders.
-	LimitPriceTicks int64 `protobuf:"varint,24,opt,name=limit_price_ticks,json=limitPriceTicks,proto3" json:"limit_price_ticks,omitempty"`
+	ParentOrderId *uint64 `protobuf:"fixed64,6,opt,name=parent_order_id,json=parentOrderId,proto3,oneof" json:"parent_order_id,omitempty"`
+	// Child quantity scaled by the pair's base_quantity_scale from GetSpotConfig.
+	QtyScaled int64 `protobuf:"varint,20,opt,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`
 	// Fee source for BUY child orders.
-	FeeSource v1.FeeSource `protobuf:"varint,25,opt,name=fee_source,json=feeSource,proto3,enum=orders.v1.FeeSource" json:"fee_source,omitempty"`
+	FeeSource v1.FeeSource `protobuf:"varint,21,opt,name=fee_source,json=feeSource,proto3,enum=orders.v1.FeeSource" json:"fee_source,omitempty"`
 	// Self-trade prevention mode for child orders.
-	SelfTradePreventionMode v1.SelfTradePreventionMode `protobuf:"varint,26,opt,name=self_trade_prevention_mode,json=selfTradePreventionMode,proto3,enum=orders.v1.SelfTradePreventionMode" json:"self_trade_prevention_mode,omitempty"`
-	// True if child LIMIT orders are post-only.
-	PostOnly bool `protobuf:"varint,27,opt,name=post_only,json=postOnly,proto3" json:"post_only,omitempty"`
-	// Type-specific fields.
+	SelfTradePreventionMode v1.SelfTradePreventionMode `protobuf:"varint,22,opt,name=self_trade_prevention_mode,json=selfTradePreventionMode,proto3,enum=orders.v1.SelfTradePreventionMode" json:"self_trade_prevention_mode,omitempty"`
+	// Immutable strategy configuration. The selected variant is the trigger
+	// category and uses the same shape accepted by CreateTrigger.
 	//
-	// Types that are valid to be assigned to Details:
+	// Types that are valid to be assigned to Configuration:
+	//
+	//	*Trigger_StopLoss
+	//	*Trigger_TakeProfit
+	//	*Trigger_TrailingStop
+	//	*Trigger_Twap
+	//	*Trigger_Ladder
+	Configuration isTrigger_Configuration `protobuf_oneof:"configuration"`
+	// Type-specific runtime state.
+	//
+	// Types that are valid to be assigned to RuntimeDetails:
 	//
 	//	*Trigger_Stop
 	//	*Trigger_Trailing
-	//	*Trigger_Twap
-	//	*Trigger_Ladder
-	Details isTrigger_Details `protobuf_oneof:"details"`
+	//	*Trigger_TwapState
+	//	*Trigger_LadderState
+	RuntimeDetails isTrigger_RuntimeDetails `protobuf_oneof:"runtime_details"`
 	// Client-provided trigger ID for idempotency and correlation.
 	ClientTriggerId string `protobuf:"bytes,60,opt,name=client_trigger_id,json=clientTriggerId,proto3" json:"client_trigger_id,omitempty"`
 	// Creation timestamp.
@@ -2265,7 +2946,7 @@ type Trigger struct {
 
 func (x *Trigger) Reset() {
 	*x = Trigger{}
-	mi := &file_triggers_v1_triggers_proto_msgTypes[21]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2277,7 +2958,7 @@ func (x *Trigger) String() string {
 func (*Trigger) ProtoMessage() {}
 
 func (x *Trigger) ProtoReflect() protoreflect.Message {
-	mi := &file_triggers_v1_triggers_proto_msgTypes[21]
+	mi := &file_triggers_v1_triggers_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2290,7 +2971,7 @@ func (x *Trigger) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Trigger.ProtoReflect.Descriptor instead.
 func (*Trigger) Descriptor() ([]byte, []int) {
-	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{21}
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *Trigger) GetTriggerId() uint64 {
@@ -2321,13 +3002,6 @@ func (x *Trigger) GetSymbol() string {
 	return ""
 }
 
-func (x *Trigger) GetTriggerType() TriggerType {
-	if x != nil {
-		return x.TriggerType
-	}
-	return TriggerType_TRIGGER_TYPE_UNSPECIFIED
-}
-
 func (x *Trigger) GetStatus() TriggerStatus {
 	if x != nil {
 		return x.Status
@@ -2342,37 +3016,9 @@ func (x *Trigger) GetParentOrderId() uint64 {
 	return 0
 }
 
-func (x *Trigger) GetSide() v1.Side {
-	if x != nil {
-		return x.Side
-	}
-	return v1.Side(0)
-}
-
-func (x *Trigger) GetOrderType() v1.OrderType {
-	if x != nil {
-		return x.OrderType
-	}
-	return v1.OrderType(0)
-}
-
-func (x *Trigger) GetTimeInForce() v1.TimeInForce {
-	if x != nil {
-		return x.TimeInForce
-	}
-	return v1.TimeInForce(0)
-}
-
 func (x *Trigger) GetQtyScaled() int64 {
 	if x != nil {
 		return x.QtyScaled
-	}
-	return 0
-}
-
-func (x *Trigger) GetLimitPriceTicks() int64 {
-	if x != nil {
-		return x.LimitPriceTicks
 	}
 	return 0
 }
@@ -2391,23 +3037,68 @@ func (x *Trigger) GetSelfTradePreventionMode() v1.SelfTradePreventionMode {
 	return v1.SelfTradePreventionMode(0)
 }
 
-func (x *Trigger) GetPostOnly() bool {
+func (x *Trigger) GetConfiguration() isTrigger_Configuration {
 	if x != nil {
-		return x.PostOnly
+		return x.Configuration
 	}
-	return false
+	return nil
 }
 
-func (x *Trigger) GetDetails() isTrigger_Details {
+func (x *Trigger) GetStopLoss() *ConditionalTrigger {
 	if x != nil {
-		return x.Details
+		if x, ok := x.Configuration.(*Trigger_StopLoss); ok {
+			return x.StopLoss
+		}
+	}
+	return nil
+}
+
+func (x *Trigger) GetTakeProfit() *ConditionalTrigger {
+	if x != nil {
+		if x, ok := x.Configuration.(*Trigger_TakeProfit); ok {
+			return x.TakeProfit
+		}
+	}
+	return nil
+}
+
+func (x *Trigger) GetTrailingStop() *TrailingStopTrigger {
+	if x != nil {
+		if x, ok := x.Configuration.(*Trigger_TrailingStop); ok {
+			return x.TrailingStop
+		}
+	}
+	return nil
+}
+
+func (x *Trigger) GetTwap() *TwapTrigger {
+	if x != nil {
+		if x, ok := x.Configuration.(*Trigger_Twap); ok {
+			return x.Twap
+		}
+	}
+	return nil
+}
+
+func (x *Trigger) GetLadder() *LadderTrigger {
+	if x != nil {
+		if x, ok := x.Configuration.(*Trigger_Ladder); ok {
+			return x.Ladder
+		}
+	}
+	return nil
+}
+
+func (x *Trigger) GetRuntimeDetails() isTrigger_RuntimeDetails {
+	if x != nil {
+		return x.RuntimeDetails
 	}
 	return nil
 }
 
 func (x *Trigger) GetStop() *StopDetails {
 	if x != nil {
-		if x, ok := x.Details.(*Trigger_Stop); ok {
+		if x, ok := x.RuntimeDetails.(*Trigger_Stop); ok {
 			return x.Stop
 		}
 	}
@@ -2416,26 +3107,26 @@ func (x *Trigger) GetStop() *StopDetails {
 
 func (x *Trigger) GetTrailing() *TrailingDetails {
 	if x != nil {
-		if x, ok := x.Details.(*Trigger_Trailing); ok {
+		if x, ok := x.RuntimeDetails.(*Trigger_Trailing); ok {
 			return x.Trailing
 		}
 	}
 	return nil
 }
 
-func (x *Trigger) GetTwap() *TwapDetails {
+func (x *Trigger) GetTwapState() *TwapDetails {
 	if x != nil {
-		if x, ok := x.Details.(*Trigger_Twap); ok {
-			return x.Twap
+		if x, ok := x.RuntimeDetails.(*Trigger_TwapState); ok {
+			return x.TwapState
 		}
 	}
 	return nil
 }
 
-func (x *Trigger) GetLadder() *LadderDetails {
+func (x *Trigger) GetLadderState() *LadderDetails {
 	if x != nil {
-		if x, ok := x.Details.(*Trigger_Ladder); ok {
-			return x.Ladder
+		if x, ok := x.RuntimeDetails.(*Trigger_LadderState); ok {
+			return x.LadderState
 		}
 	}
 	return nil
@@ -2483,8 +3174,47 @@ func (x *Trigger) GetChildOrderIds() []uint64 {
 	return nil
 }
 
-type isTrigger_Details interface {
-	isTrigger_Details()
+type isTrigger_Configuration interface {
+	isTrigger_Configuration()
+}
+
+type Trigger_StopLoss struct {
+	// Stop-loss configuration.
+	StopLoss *ConditionalTrigger `protobuf:"bytes,30,opt,name=stop_loss,json=stopLoss,proto3,oneof"`
+}
+
+type Trigger_TakeProfit struct {
+	// Take-profit configuration.
+	TakeProfit *ConditionalTrigger `protobuf:"bytes,31,opt,name=take_profit,json=takeProfit,proto3,oneof"`
+}
+
+type Trigger_TrailingStop struct {
+	// Trailing-stop configuration.
+	TrailingStop *TrailingStopTrigger `protobuf:"bytes,32,opt,name=trailing_stop,json=trailingStop,proto3,oneof"`
+}
+
+type Trigger_Twap struct {
+	// TWAP configuration.
+	Twap *TwapTrigger `protobuf:"bytes,33,opt,name=twap,proto3,oneof"`
+}
+
+type Trigger_Ladder struct {
+	// Ladder configuration.
+	Ladder *LadderTrigger `protobuf:"bytes,34,opt,name=ladder,proto3,oneof"`
+}
+
+func (*Trigger_StopLoss) isTrigger_Configuration() {}
+
+func (*Trigger_TakeProfit) isTrigger_Configuration() {}
+
+func (*Trigger_TrailingStop) isTrigger_Configuration() {}
+
+func (*Trigger_Twap) isTrigger_Configuration() {}
+
+func (*Trigger_Ladder) isTrigger_Configuration() {}
+
+type isTrigger_RuntimeDetails interface {
+	isTrigger_RuntimeDetails()
 }
 
 type Trigger_Stop struct {
@@ -2497,78 +3227,117 @@ type Trigger_Trailing struct {
 	Trailing *TrailingDetails `protobuf:"bytes,101,opt,name=trailing,proto3,oneof"`
 }
 
-type Trigger_Twap struct {
+type Trigger_TwapState struct {
 	// TWAP trigger details.
-	Twap *TwapDetails `protobuf:"bytes,102,opt,name=twap,proto3,oneof"`
+	TwapState *TwapDetails `protobuf:"bytes,102,opt,name=twap_state,json=twapState,proto3,oneof"`
 }
 
-type Trigger_Ladder struct {
+type Trigger_LadderState struct {
 	// Ladder trigger details.
-	Ladder *LadderDetails `protobuf:"bytes,103,opt,name=ladder,proto3,oneof"`
+	LadderState *LadderDetails `protobuf:"bytes,103,opt,name=ladder_state,json=ladderState,proto3,oneof"`
 }
 
-func (*Trigger_Stop) isTrigger_Details() {}
+func (*Trigger_Stop) isTrigger_RuntimeDetails() {}
 
-func (*Trigger_Trailing) isTrigger_Details() {}
+func (*Trigger_Trailing) isTrigger_RuntimeDetails() {}
 
-func (*Trigger_Twap) isTrigger_Details() {}
+func (*Trigger_TwapState) isTrigger_RuntimeDetails() {}
 
-func (*Trigger_Ladder) isTrigger_Details() {}
+func (*Trigger_LadderState) isTrigger_RuntimeDetails() {}
 
 var File_triggers_v1_triggers_proto protoreflect.FileDescriptor
 
 const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\n" +
-	"\x1atriggers/v1/triggers.proto\x12\vtriggers.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16orders/v1/orders.proto\"\xb7\x15\n" +
+	"\x1atriggers/v1/triggers.proto\x12\vtriggers.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16orders/v1/orders.proto\"\x12\n" +
+	"\x10TriggerMarketIoc\"X\n" +
+	"\x0fTriggerLimitGtc\x12(\n" +
+	"\vprice_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\n" +
+	"priceTicks\x12\x1b\n" +
+	"\tpost_only\x18\x02 \x01(\bR\bpostOnly\";\n" +
+	"\x0fTriggerLimitIoc\x12(\n" +
+	"\vprice_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\n" +
+	"priceTicks\";\n" +
+	"\x0fTriggerLimitFok\x12(\n" +
+	"\vprice_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\n" +
+	"priceTicks\"\xa6\x02\n" +
+	"\x19ConditionalChildExecution\x12>\n" +
+	"\n" +
+	"market_ioc\x18\x01 \x01(\v2\x1d.triggers.v1.TriggerMarketIocH\x00R\tmarketIoc\x12;\n" +
+	"\tlimit_gtc\x18\x02 \x01(\v2\x1c.triggers.v1.TriggerLimitGtcH\x00R\blimitGtc\x12;\n" +
+	"\tlimit_ioc\x18\x03 \x01(\v2\x1c.triggers.v1.TriggerLimitIocH\x00R\blimitIoc\x12;\n" +
+	"\tlimit_fok\x18\x04 \x01(\v2\x1c.triggers.v1.TriggerLimitFokH\x00R\blimitFokB\x12\n" +
+	"\texecution\x12\x05\xbaH\x02\b\x01\"\xe3\x02\n" +
+	"\x12ConditionalTrigger\x127\n" +
+	"\x13trigger_price_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x11triggerPriceTicks\x12/\n" +
+	"\x04side\x18\x02 \x01(\x0e2\x0f.orders.v1.SideB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04side\x12D\n" +
+	"\x05child\x18\x03 \x01(\v2&.triggers.v1.ConditionalChildExecutionB\x06\xbaH\x03\xc8\x01\x01R\x05child:\x9c\x01\xbaH\x98\x01\x1a\x95\x01\n" +
+	"&conditional_trigger.buy_requires_limit\x12<BUY stop-loss and take-profit triggers require a limit child\x1a-this.side != 1 || !has(this.child.market_ioc)\"\xf9\x02\n" +
+	"\x13TrailingStopTrigger\x12A\n" +
+	"\x17trailing_distance_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x00R\x15trailingDistanceTicks\x12@\n" +
+	"\x15trailing_distance_bps\x18\x02 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\x90N \x00H\x00R\x13trailingDistanceBps\x12@\n" +
+	"\x16activation_price_ticks\x18\x03 \x01(\x03B\n" +
+	"\xbaH\a\xd8\x01\x01\"\x02 \x00R\x14activationPriceTicks\x127\n" +
+	"\x12max_slippage_ticks\x18\x04 \x01(\x05B\a\xbaH\x04\x1a\x02 \x00H\x01R\x10maxSlippageTicks\x126\n" +
+	"\x10max_slippage_bps\x18\x05 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\x90N \x00H\x01R\x0emaxSlippageBpsB\x1a\n" +
+	"\x11trailing_distance\x12\x05\xbaH\x02\b\x01B\x0e\n" +
+	"\fmax_slippage\"\x0f\n" +
+	"\rTwapMarketIoc\"8\n" +
+	"\fTwapLimitGtc\x12(\n" +
+	"\vprice_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\n" +
+	"priceTicks\"\xd5\x03\n" +
+	"\vTwapTrigger\x12/\n" +
+	"\x04side\x18\x01 \x01(\x0e2\x0f.orders.v1.SideB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04side\x12\x1f\n" +
+	"\vduration_ms\x18\x02 \x01(\x03R\n" +
+	"durationMs\x12*\n" +
+	"\x11slice_interval_ms\x18\x03 \x01(\x03R\x0fsliceIntervalMs\x12;\n" +
+	"\n" +
+	"market_ioc\x18\x04 \x01(\v2\x1a.triggers.v1.TwapMarketIocH\x00R\tmarketIoc\x128\n" +
+	"\tlimit_gtc\x18\x05 \x01(\v2\x19.triggers.v1.TwapLimitGtcH\x00R\blimitGtc:\xbc\x01\xbaH\xb8\x01\x1a\xb5\x01\n" +
+	"\x13twap_trigger.window\x125slice_interval_ms must be between 100 and duration_ms\x1agthis.duration_ms >= 1000 && this.slice_interval_ms >= 100 && this.slice_interval_ms <= this.duration_msB\x12\n" +
+	"\texecution\x12\x05\xbaH\x02\b\x01\"\xe2\x02\n" +
+	"\rLadderTrigger\x12/\n" +
+	"\x04side\x18\x01 \x01(\x0e2\x0f.orders.v1.SideB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04side\x12/\n" +
+	"\x0fprice_min_ticks\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\rpriceMinTicks\x12/\n" +
+	"\x0fprice_max_ticks\x18\x03 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\rpriceMaxTicks\x12!\n" +
+	"\x06levels\x18\x04 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x02R\x06levels\x12\x1b\n" +
+	"\tpost_only\x18\x05 \x01(\bR\bpostOnly:~\xbaH{\x1ay\n" +
+	"\x14ladder_trigger.range\x124price_max_ticks must be greater than price_min_ticks\x1a+this.price_max_ticks > this.price_min_ticks\"\x86\x05\n" +
+	"\rTriggerIntent\x12\"\n" +
+	"\x06symbol\x18\x01 \x01(\tB\n" +
+	"\xe0A\x02\xbaH\x04r\x02\x10\x01R\x06symbol\x12)\n" +
+	"\n" +
+	"qty_scaled\x18\x02 \x01(\x03B\n" +
+	"\xe0A\x02\xbaH\x04\"\x02 \x00R\tqtyScaled\x12=\n" +
+	"\n" +
+	"fee_source\x18\x03 \x01(\x0e2\x14.orders.v1.FeeSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\tfeeSource\x12i\n" +
+	"\x1aself_trade_prevention_mode\x18\x04 \x01(\x0e2\".orders.v1.SelfTradePreventionModeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x17selfTradePreventionMode\x126\n" +
+	"\x11client_trigger_id\x18\x05 \x01(\tB\n" +
+	"\xe0A\x02\xbaH\x04r\x02\x10\x01R\x0fclientTriggerId\x12>\n" +
+	"\tstop_loss\x18\n" +
+	" \x01(\v2\x1f.triggers.v1.ConditionalTriggerH\x00R\bstopLoss\x12B\n" +
+	"\vtake_profit\x18\v \x01(\v2\x1f.triggers.v1.ConditionalTriggerH\x00R\n" +
+	"takeProfit\x12G\n" +
+	"\rtrailing_stop\x18\f \x01(\v2 .triggers.v1.TrailingStopTriggerH\x00R\ftrailingStop\x12.\n" +
+	"\x04twap\x18\r \x01(\v2\x18.triggers.v1.TwapTriggerH\x00R\x04twap\x124\n" +
+	"\x06ladder\x18\x0e \x01(\v2\x1a.triggers.v1.LadderTriggerH\x00R\x06ladderB\x11\n" +
+	"\bstrategy\x12\x05\xbaH\x02\b\x01\"\x93\x01\n" +
 	"\x14CreateTriggerRequest\x12(\n" +
-	"\rsubaccount_id\x18\x01 \x01(\x06H\x02R\fsubaccountId\x88\x01\x01\x12\x1f\n" +
-	"\x06symbol\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06symbol\x12J\n" +
-	"\ftrigger_type\x18\x03 \x01(\x0e2\x18.triggers.v1.TriggerTypeB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\vtriggerType\x12.\n" +
-	"\x13trigger_price_ticks\x18\n" +
-	" \x01(\x03R\x11triggerPriceTicks\x12Y\n" +
-	"\x14trigger_price_source\x18\v \x01(\x0e2\x1d.orders.v1.TriggerPriceSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\x12triggerPriceSource\x122\n" +
-	"\x04side\x18\x14 \x01(\x0e2\x0f.orders.v1.SideB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04side\x12=\n" +
-	"\n" +
-	"order_type\x18\x15 \x01(\x0e2\x14.orders.v1.OrderTypeB\b\xbaH\x05\x82\x01\x02\x10\x01R\torderType\x12D\n" +
-	"\rtime_in_force\x18\x16 \x01(\x0e2\x16.orders.v1.TimeInForceB\b\xbaH\x05\x82\x01\x02\x10\x01R\vtimeInForce\x12&\n" +
-	"\n" +
-	"qty_scaled\x18\x17 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\tqtyScaled\x12*\n" +
-	"\x11limit_price_ticks\x18\x18 \x01(\x03R\x0flimitPriceTicks\x12=\n" +
-	"\n" +
-	"fee_source\x18\x19 \x01(\x0e2\x14.orders.v1.FeeSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\tfeeSource\x12i\n" +
-	"\x1aself_trade_prevention_mode\x18\x1a \x01(\x0e2\".orders.v1.SelfTradePreventionModeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x17selfTradePreventionMode\x12\x1b\n" +
-	"\tpost_only\x18\x1b \x01(\bR\bpostOnly\x12A\n" +
-	"\x17trailing_distance_ticks\x18\x1e \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x00R\x15trailingDistanceTicks\x12@\n" +
-	"\x15trailing_distance_bps\x18\x1f \x01(\x05B\n" +
-	"\xbaH\a\x1a\x05\x18\x90N \x00H\x00R\x13trailingDistanceBps\x124\n" +
-	"\x16activation_price_ticks\x18  \x01(\x03R\x14activationPriceTicks\x127\n" +
-	"\x12max_slippage_ticks\x18! \x01(\x05B\a\xbaH\x04\x1a\x02 \x00H\x01R\x10maxSlippageTicks\x126\n" +
-	"\x10max_slippage_bps\x18\" \x01(\x05B\n" +
-	"\xbaH\a\x1a\x05\x18\x90N \x00H\x01R\x0emaxSlippageBps\x12(\n" +
-	"\x10twap_duration_ms\x18( \x01(\x03R\x0etwapDurationMs\x123\n" +
-	"\x16twap_slice_interval_ms\x18) \x01(\x03R\x13twapSliceIntervalMs\x123\n" +
-	"\x16ladder_price_min_ticks\x182 \x01(\x03R\x13ladderPriceMinTicks\x123\n" +
-	"\x16ladder_price_max_ticks\x183 \x01(\x03R\x13ladderPriceMaxTicks\x12#\n" +
-	"\rladder_levels\x184 \x01(\x05R\fladderLevels\x12Z\n" +
-	"\x13ladder_distribution\x185 \x01(\x0e2\x1f.triggers.v1.LadderDistributionB\b\xbaH\x05\x82\x01\x02\x10\x01R\x12ladderDistribution\x126\n" +
-	"\x11client_trigger_id\x18< \x01(\tB\n" +
-	"\xe0A\x02\xbaH\x04r\x02\x10\x01R\x0fclientTriggerId:\xc3\t\xbaH\xbf\t\x1a\xbf\x01\n" +
-	"*create_trigger.stop.trigger_price_required\x12=trigger_price_ticks must be > 0 for STOP_LOSS and TAKE_PROFIT\x1aR(this.trigger_type != 1 && this.trigger_type != 2) || this.trigger_price_ticks > 0\x1a\xac\x01\n" +
-	")create_trigger.limit.limit_price_required\x121limit_price_ticks required for LIMIT child orders\x1aLthis.order_type != 1 || this.limit_price_ticks > 0 || this.trigger_type == 5\x1a\xc4\x01\n" +
-	"2create_trigger.trailing.trailing_distance_required\x12,trailing_distance required for TRAILING_STOP\x1a`this.trigger_type != 3 || (has(this.trailing_distance_ticks) || has(this.trailing_distance_bps))\x1a\xf1\x01\n" +
-	" create_trigger.twap.window_valid\x123twap_duration_ms and twap_slice_interval_ms invalid\x1a\x97\x01this.trigger_type != 4 || (this.twap_duration_ms >= 1000 && this.twap_slice_interval_ms >= 100 && this.twap_slice_interval_ms <= this.twap_duration_ms)\x1a\xf8\x01\n" +
-	"!create_trigger.ladder.range_valid\x125ladder_price_min_ticks/ladder_price_max_ticks invalid\x1a\x9b\x01this.trigger_type != 5 || (this.ladder_price_min_ticks > 0 && this.ladder_price_max_ticks > 0 && this.ladder_price_max_ticks > this.ladder_price_min_ticks)\x1a\x95\x01\n" +
-	"\"create_trigger.ladder.levels_valid\x12\x1dladder_levels must be [2,100]\x1aPthis.trigger_type != 5 || (this.ladder_levels >= 2 && this.ladder_levels <= 100)B\x13\n" +
-	"\x11trailing_distanceB\x0e\n" +
-	"\fmax_slippageB\x10\n" +
-	"\x0e_subaccount_id\"\xd7\x01\n" +
+	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12?\n" +
+	"\atrigger\x18\x02 \x01(\v2\x1a.triggers.v1.TriggerIntentB\t\xe0A\x02\xbaH\x03\xc8\x01\x01R\atriggerB\x10\n" +
+	"\x0e_subaccount_id\"\xca\x01\n" +
 	"\x15CreateTriggerResponse\x12\x1d\n" +
 	"\n" +
-	"trigger_id\x18\x01 \x01(\x06R\ttriggerId\x122\n" +
-	"\x06status\x18\x02 \x01(\x0e2\x1a.triggers.v1.TriggerStatusR\x06status\x12*\n" +
-	"\x11client_trigger_id\x18\x03 \x01(\tR\x0fclientTriggerId\x12*\n" +
-	"\x02ts\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x02ts\x12\x13\n" +
-	"\x05ts_ns\x18\x05 \x01(\x04R\x04tsNs\"~\n" +
+	"trigger_id\x18\x01 \x01(\x06R\ttriggerId\x12*\n" +
+	"\x11client_trigger_id\x18\x02 \x01(\tR\x0fclientTriggerId\x12;\n" +
+	"\vaccepted_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"acceptedAt\x12)\n" +
+	"\x11accepted_at_ts_ns\x18\x04 \x01(\x04R\x0eacceptedAtTsNs\"~\n" +
 	"\x11GetTriggerRequest\x12-\n" +
 	"\n" +
 	"trigger_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\ttriggerId\x12(\n" +
@@ -2699,31 +3468,32 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x16ladder_price_min_ticks\x18\x01 \x01(\x03R\x13ladderPriceMinTicks\x123\n" +
 	"\x16ladder_price_max_ticks\x18\x02 \x01(\x03R\x13ladderPriceMaxTicks\x12#\n" +
 	"\rladder_levels\x18\x03 \x01(\x05R\fladderLevels\x12P\n" +
-	"\x13ladder_distribution\x18\x04 \x01(\x0e2\x1f.triggers.v1.LadderDistributionR\x12ladderDistribution\"\xe5\t\n" +
+	"\x13ladder_distribution\x18\x04 \x01(\x0e2\x1f.triggers.v1.LadderDistributionR\x12ladderDistribution\"\xab\n" +
+	"\n" +
 	"\aTrigger\x12\x1d\n" +
 	"\n" +
 	"trigger_id\x18\x01 \x01(\x06R\ttriggerId\x12#\n" +
 	"\rsubaccount_id\x18\x02 \x01(\x06R\fsubaccountId\x12\x1b\n" +
 	"\tsymbol_id\x18\x03 \x01(\rR\bsymbolId\x12\x16\n" +
-	"\x06symbol\x18\x04 \x01(\tR\x06symbol\x12;\n" +
-	"\ftrigger_type\x18\x05 \x01(\x0e2\x18.triggers.v1.TriggerTypeR\vtriggerType\x122\n" +
-	"\x06status\x18\x06 \x01(\x0e2\x1a.triggers.v1.TriggerStatusR\x06status\x12+\n" +
-	"\x0fparent_order_id\x18\a \x01(\x06H\x01R\rparentOrderId\x88\x01\x01\x12#\n" +
-	"\x04side\x18\x14 \x01(\x0e2\x0f.orders.v1.SideR\x04side\x123\n" +
+	"\x06symbol\x18\x04 \x01(\tR\x06symbol\x122\n" +
+	"\x06status\x18\x05 \x01(\x0e2\x1a.triggers.v1.TriggerStatusR\x06status\x12+\n" +
+	"\x0fparent_order_id\x18\x06 \x01(\x06H\x02R\rparentOrderId\x88\x01\x01\x12\x1d\n" +
 	"\n" +
-	"order_type\x18\x15 \x01(\x0e2\x14.orders.v1.OrderTypeR\torderType\x12:\n" +
-	"\rtime_in_force\x18\x16 \x01(\x0e2\x16.orders.v1.TimeInForceR\vtimeInForce\x12\x1d\n" +
+	"qty_scaled\x18\x14 \x01(\x03R\tqtyScaled\x123\n" +
 	"\n" +
-	"qty_scaled\x18\x17 \x01(\x03R\tqtyScaled\x12*\n" +
-	"\x11limit_price_ticks\x18\x18 \x01(\x03R\x0flimitPriceTicks\x123\n" +
+	"fee_source\x18\x15 \x01(\x0e2\x14.orders.v1.FeeSourceR\tfeeSource\x12_\n" +
+	"\x1aself_trade_prevention_mode\x18\x16 \x01(\x0e2\".orders.v1.SelfTradePreventionModeR\x17selfTradePreventionMode\x12>\n" +
+	"\tstop_loss\x18\x1e \x01(\v2\x1f.triggers.v1.ConditionalTriggerH\x00R\bstopLoss\x12B\n" +
+	"\vtake_profit\x18\x1f \x01(\v2\x1f.triggers.v1.ConditionalTriggerH\x00R\n" +
+	"takeProfit\x12G\n" +
+	"\rtrailing_stop\x18  \x01(\v2 .triggers.v1.TrailingStopTriggerH\x00R\ftrailingStop\x12.\n" +
+	"\x04twap\x18! \x01(\v2\x18.triggers.v1.TwapTriggerH\x00R\x04twap\x124\n" +
+	"\x06ladder\x18\" \x01(\v2\x1a.triggers.v1.LadderTriggerH\x00R\x06ladder\x12.\n" +
+	"\x04stop\x18d \x01(\v2\x18.triggers.v1.StopDetailsH\x01R\x04stop\x12:\n" +
+	"\btrailing\x18e \x01(\v2\x1c.triggers.v1.TrailingDetailsH\x01R\btrailing\x129\n" +
 	"\n" +
-	"fee_source\x18\x19 \x01(\x0e2\x14.orders.v1.FeeSourceR\tfeeSource\x12_\n" +
-	"\x1aself_trade_prevention_mode\x18\x1a \x01(\x0e2\".orders.v1.SelfTradePreventionModeR\x17selfTradePreventionMode\x12\x1b\n" +
-	"\tpost_only\x18\x1b \x01(\bR\bpostOnly\x12.\n" +
-	"\x04stop\x18d \x01(\v2\x18.triggers.v1.StopDetailsH\x00R\x04stop\x12:\n" +
-	"\btrailing\x18e \x01(\v2\x1c.triggers.v1.TrailingDetailsH\x00R\btrailing\x12.\n" +
-	"\x04twap\x18f \x01(\v2\x18.triggers.v1.TwapDetailsH\x00R\x04twap\x124\n" +
-	"\x06ladder\x18g \x01(\v2\x1a.triggers.v1.LadderDetailsH\x00R\x06ladder\x12*\n" +
+	"twap_state\x18f \x01(\v2\x18.triggers.v1.TwapDetailsH\x01R\ttwapState\x12?\n" +
+	"\fladder_state\x18g \x01(\v2\x1a.triggers.v1.LadderDetailsH\x01R\vladderState\x12*\n" +
 	"\x11client_trigger_id\x18< \x01(\tR\x0fclientTriggerId\x129\n" +
 	"\n" +
 	"created_at\x18= \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
@@ -2731,8 +3501,9 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"updated_at\x18> \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x125\n" +
 	"\barmed_at\x18? \x01(\v2\x1a.google.protobuf.TimestampR\aarmedAt\x12=\n" +
 	"\fcompleted_at\x18@ \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\x12&\n" +
-	"\x0fchild_order_ids\x18F \x03(\x06R\rchildOrderIdsB\t\n" +
-	"\adetailsB\x12\n" +
+	"\x0fchild_order_ids\x18F \x03(\x06R\rchildOrderIdsB\x0f\n" +
+	"\rconfigurationB\x11\n" +
+	"\x0fruntime_detailsB\x12\n" +
 	"\x10_parent_order_id*t\n" +
 	"\vTriggerType\x12\x1c\n" +
 	"\x18TRIGGER_TYPE_UNSPECIFIED\x10\x00\x12\r\n" +
@@ -2795,110 +3566,130 @@ func file_triggers_v1_triggers_proto_rawDescGZIP() []byte {
 }
 
 var file_triggers_v1_triggers_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_triggers_v1_triggers_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_triggers_v1_triggers_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
 var file_triggers_v1_triggers_proto_goTypes = []any{
 	(TriggerType)(0),                  // 0: triggers.v1.TriggerType
 	(TriggerStatus)(0),                // 1: triggers.v1.TriggerStatus
 	(TriggerEventType)(0),             // 2: triggers.v1.TriggerEventType
 	(LadderDistribution)(0),           // 3: triggers.v1.LadderDistribution
-	(*CreateTriggerRequest)(nil),      // 4: triggers.v1.CreateTriggerRequest
-	(*CreateTriggerResponse)(nil),     // 5: triggers.v1.CreateTriggerResponse
-	(*GetTriggerRequest)(nil),         // 6: triggers.v1.GetTriggerRequest
-	(*GetTriggerResponse)(nil),        // 7: triggers.v1.GetTriggerResponse
-	(*ListTriggersRequest)(nil),       // 8: triggers.v1.ListTriggersRequest
-	(*ListTriggersResponse)(nil),      // 9: triggers.v1.ListTriggersResponse
-	(*ListTriggerEventsRequest)(nil),  // 10: triggers.v1.ListTriggerEventsRequest
-	(*TriggerEvent)(nil),              // 11: triggers.v1.TriggerEvent
-	(*ListTriggerEventsResponse)(nil), // 12: triggers.v1.ListTriggerEventsResponse
-	(*CancelTriggerRequest)(nil),      // 13: triggers.v1.CancelTriggerRequest
-	(*CancelTriggerResponse)(nil),     // 14: triggers.v1.CancelTriggerResponse
-	(*ModifyTriggerRequest)(nil),      // 15: triggers.v1.ModifyTriggerRequest
-	(*ModifyTriggerResponse)(nil),     // 16: triggers.v1.ModifyTriggerResponse
-	(*PauseTriggerRequest)(nil),       // 17: triggers.v1.PauseTriggerRequest
-	(*PauseTriggerResponse)(nil),      // 18: triggers.v1.PauseTriggerResponse
-	(*ResumeTriggerRequest)(nil),      // 19: triggers.v1.ResumeTriggerRequest
-	(*ResumeTriggerResponse)(nil),     // 20: triggers.v1.ResumeTriggerResponse
-	(*StopDetails)(nil),               // 21: triggers.v1.StopDetails
-	(*TrailingDetails)(nil),           // 22: triggers.v1.TrailingDetails
-	(*TwapDetails)(nil),               // 23: triggers.v1.TwapDetails
-	(*LadderDetails)(nil),             // 24: triggers.v1.LadderDetails
-	(*Trigger)(nil),                   // 25: triggers.v1.Trigger
-	(v1.TriggerPriceSource)(0),        // 26: orders.v1.TriggerPriceSource
-	(v1.Side)(0),                      // 27: orders.v1.Side
-	(v1.OrderType)(0),                 // 28: orders.v1.OrderType
-	(v1.TimeInForce)(0),               // 29: orders.v1.TimeInForce
-	(v1.FeeSource)(0),                 // 30: orders.v1.FeeSource
-	(v1.SelfTradePreventionMode)(0),   // 31: orders.v1.SelfTradePreventionMode
-	(*timestamppb.Timestamp)(nil),     // 32: google.protobuf.Timestamp
-	(v1.TriggerDirection)(0),          // 33: orders.v1.TriggerDirection
+	(*TriggerMarketIoc)(nil),          // 4: triggers.v1.TriggerMarketIoc
+	(*TriggerLimitGtc)(nil),           // 5: triggers.v1.TriggerLimitGtc
+	(*TriggerLimitIoc)(nil),           // 6: triggers.v1.TriggerLimitIoc
+	(*TriggerLimitFok)(nil),           // 7: triggers.v1.TriggerLimitFok
+	(*ConditionalChildExecution)(nil), // 8: triggers.v1.ConditionalChildExecution
+	(*ConditionalTrigger)(nil),        // 9: triggers.v1.ConditionalTrigger
+	(*TrailingStopTrigger)(nil),       // 10: triggers.v1.TrailingStopTrigger
+	(*TwapMarketIoc)(nil),             // 11: triggers.v1.TwapMarketIoc
+	(*TwapLimitGtc)(nil),              // 12: triggers.v1.TwapLimitGtc
+	(*TwapTrigger)(nil),               // 13: triggers.v1.TwapTrigger
+	(*LadderTrigger)(nil),             // 14: triggers.v1.LadderTrigger
+	(*TriggerIntent)(nil),             // 15: triggers.v1.TriggerIntent
+	(*CreateTriggerRequest)(nil),      // 16: triggers.v1.CreateTriggerRequest
+	(*CreateTriggerResponse)(nil),     // 17: triggers.v1.CreateTriggerResponse
+	(*GetTriggerRequest)(nil),         // 18: triggers.v1.GetTriggerRequest
+	(*GetTriggerResponse)(nil),        // 19: triggers.v1.GetTriggerResponse
+	(*ListTriggersRequest)(nil),       // 20: triggers.v1.ListTriggersRequest
+	(*ListTriggersResponse)(nil),      // 21: triggers.v1.ListTriggersResponse
+	(*ListTriggerEventsRequest)(nil),  // 22: triggers.v1.ListTriggerEventsRequest
+	(*TriggerEvent)(nil),              // 23: triggers.v1.TriggerEvent
+	(*ListTriggerEventsResponse)(nil), // 24: triggers.v1.ListTriggerEventsResponse
+	(*CancelTriggerRequest)(nil),      // 25: triggers.v1.CancelTriggerRequest
+	(*CancelTriggerResponse)(nil),     // 26: triggers.v1.CancelTriggerResponse
+	(*ModifyTriggerRequest)(nil),      // 27: triggers.v1.ModifyTriggerRequest
+	(*ModifyTriggerResponse)(nil),     // 28: triggers.v1.ModifyTriggerResponse
+	(*PauseTriggerRequest)(nil),       // 29: triggers.v1.PauseTriggerRequest
+	(*PauseTriggerResponse)(nil),      // 30: triggers.v1.PauseTriggerResponse
+	(*ResumeTriggerRequest)(nil),      // 31: triggers.v1.ResumeTriggerRequest
+	(*ResumeTriggerResponse)(nil),     // 32: triggers.v1.ResumeTriggerResponse
+	(*StopDetails)(nil),               // 33: triggers.v1.StopDetails
+	(*TrailingDetails)(nil),           // 34: triggers.v1.TrailingDetails
+	(*TwapDetails)(nil),               // 35: triggers.v1.TwapDetails
+	(*LadderDetails)(nil),             // 36: triggers.v1.LadderDetails
+	(*Trigger)(nil),                   // 37: triggers.v1.Trigger
+	(v1.Side)(0),                      // 38: orders.v1.Side
+	(v1.FeeSource)(0),                 // 39: orders.v1.FeeSource
+	(v1.SelfTradePreventionMode)(0),   // 40: orders.v1.SelfTradePreventionMode
+	(*timestamppb.Timestamp)(nil),     // 41: google.protobuf.Timestamp
+	(v1.TriggerPriceSource)(0),        // 42: orders.v1.TriggerPriceSource
+	(v1.TriggerDirection)(0),          // 43: orders.v1.TriggerDirection
 }
 var file_triggers_v1_triggers_proto_depIdxs = []int32{
-	0,  // 0: triggers.v1.CreateTriggerRequest.trigger_type:type_name -> triggers.v1.TriggerType
-	26, // 1: triggers.v1.CreateTriggerRequest.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
-	27, // 2: triggers.v1.CreateTriggerRequest.side:type_name -> orders.v1.Side
-	28, // 3: triggers.v1.CreateTriggerRequest.order_type:type_name -> orders.v1.OrderType
-	29, // 4: triggers.v1.CreateTriggerRequest.time_in_force:type_name -> orders.v1.TimeInForce
-	30, // 5: triggers.v1.CreateTriggerRequest.fee_source:type_name -> orders.v1.FeeSource
-	31, // 6: triggers.v1.CreateTriggerRequest.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
-	3,  // 7: triggers.v1.CreateTriggerRequest.ladder_distribution:type_name -> triggers.v1.LadderDistribution
-	1,  // 8: triggers.v1.CreateTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
-	32, // 9: triggers.v1.CreateTriggerResponse.ts:type_name -> google.protobuf.Timestamp
-	25, // 10: triggers.v1.GetTriggerResponse.trigger:type_name -> triggers.v1.Trigger
-	1,  // 11: triggers.v1.ListTriggersRequest.status:type_name -> triggers.v1.TriggerStatus
-	0,  // 12: triggers.v1.ListTriggersRequest.trigger_type:type_name -> triggers.v1.TriggerType
-	25, // 13: triggers.v1.ListTriggersResponse.triggers:type_name -> triggers.v1.Trigger
-	0,  // 14: triggers.v1.TriggerEvent.trigger_type:type_name -> triggers.v1.TriggerType
-	2,  // 15: triggers.v1.TriggerEvent.event_type:type_name -> triggers.v1.TriggerEventType
-	11, // 16: triggers.v1.ListTriggerEventsResponse.events:type_name -> triggers.v1.TriggerEvent
-	1,  // 17: triggers.v1.CancelTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
-	32, // 18: triggers.v1.CancelTriggerResponse.ts:type_name -> google.protobuf.Timestamp
-	1,  // 19: triggers.v1.ModifyTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
-	32, // 20: triggers.v1.ModifyTriggerResponse.ts:type_name -> google.protobuf.Timestamp
-	1,  // 21: triggers.v1.PauseTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
-	32, // 22: triggers.v1.PauseTriggerResponse.ts:type_name -> google.protobuf.Timestamp
-	1,  // 23: triggers.v1.ResumeTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
-	32, // 24: triggers.v1.ResumeTriggerResponse.ts:type_name -> google.protobuf.Timestamp
-	26, // 25: triggers.v1.StopDetails.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
-	33, // 26: triggers.v1.StopDetails.trigger_direction:type_name -> orders.v1.TriggerDirection
-	26, // 27: triggers.v1.TrailingDetails.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
-	33, // 28: triggers.v1.TrailingDetails.trigger_direction:type_name -> orders.v1.TriggerDirection
-	3,  // 29: triggers.v1.LadderDetails.ladder_distribution:type_name -> triggers.v1.LadderDistribution
-	0,  // 30: triggers.v1.Trigger.trigger_type:type_name -> triggers.v1.TriggerType
-	1,  // 31: triggers.v1.Trigger.status:type_name -> triggers.v1.TriggerStatus
-	27, // 32: triggers.v1.Trigger.side:type_name -> orders.v1.Side
-	28, // 33: triggers.v1.Trigger.order_type:type_name -> orders.v1.OrderType
-	29, // 34: triggers.v1.Trigger.time_in_force:type_name -> orders.v1.TimeInForce
-	30, // 35: triggers.v1.Trigger.fee_source:type_name -> orders.v1.FeeSource
-	31, // 36: triggers.v1.Trigger.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
-	21, // 37: triggers.v1.Trigger.stop:type_name -> triggers.v1.StopDetails
-	22, // 38: triggers.v1.Trigger.trailing:type_name -> triggers.v1.TrailingDetails
-	23, // 39: triggers.v1.Trigger.twap:type_name -> triggers.v1.TwapDetails
-	24, // 40: triggers.v1.Trigger.ladder:type_name -> triggers.v1.LadderDetails
-	32, // 41: triggers.v1.Trigger.created_at:type_name -> google.protobuf.Timestamp
-	32, // 42: triggers.v1.Trigger.updated_at:type_name -> google.protobuf.Timestamp
-	32, // 43: triggers.v1.Trigger.armed_at:type_name -> google.protobuf.Timestamp
-	32, // 44: triggers.v1.Trigger.completed_at:type_name -> google.protobuf.Timestamp
-	4,  // 45: triggers.v1.TriggersService.CreateTrigger:input_type -> triggers.v1.CreateTriggerRequest
-	6,  // 46: triggers.v1.TriggersService.GetTrigger:input_type -> triggers.v1.GetTriggerRequest
-	8,  // 47: triggers.v1.TriggersService.ListTriggers:input_type -> triggers.v1.ListTriggersRequest
-	10, // 48: triggers.v1.TriggersService.ListTriggerEvents:input_type -> triggers.v1.ListTriggerEventsRequest
-	13, // 49: triggers.v1.TriggersService.CancelTrigger:input_type -> triggers.v1.CancelTriggerRequest
-	15, // 50: triggers.v1.TriggersService.ModifyTrigger:input_type -> triggers.v1.ModifyTriggerRequest
-	17, // 51: triggers.v1.TriggersService.PauseTrigger:input_type -> triggers.v1.PauseTriggerRequest
-	19, // 52: triggers.v1.TriggersService.ResumeTrigger:input_type -> triggers.v1.ResumeTriggerRequest
-	5,  // 53: triggers.v1.TriggersService.CreateTrigger:output_type -> triggers.v1.CreateTriggerResponse
-	7,  // 54: triggers.v1.TriggersService.GetTrigger:output_type -> triggers.v1.GetTriggerResponse
-	9,  // 55: triggers.v1.TriggersService.ListTriggers:output_type -> triggers.v1.ListTriggersResponse
-	12, // 56: triggers.v1.TriggersService.ListTriggerEvents:output_type -> triggers.v1.ListTriggerEventsResponse
-	14, // 57: triggers.v1.TriggersService.CancelTrigger:output_type -> triggers.v1.CancelTriggerResponse
-	16, // 58: triggers.v1.TriggersService.ModifyTrigger:output_type -> triggers.v1.ModifyTriggerResponse
-	18, // 59: triggers.v1.TriggersService.PauseTrigger:output_type -> triggers.v1.PauseTriggerResponse
-	20, // 60: triggers.v1.TriggersService.ResumeTrigger:output_type -> triggers.v1.ResumeTriggerResponse
-	53, // [53:61] is the sub-list for method output_type
-	45, // [45:53] is the sub-list for method input_type
-	45, // [45:45] is the sub-list for extension type_name
-	45, // [45:45] is the sub-list for extension extendee
-	0,  // [0:45] is the sub-list for field type_name
+	4,  // 0: triggers.v1.ConditionalChildExecution.market_ioc:type_name -> triggers.v1.TriggerMarketIoc
+	5,  // 1: triggers.v1.ConditionalChildExecution.limit_gtc:type_name -> triggers.v1.TriggerLimitGtc
+	6,  // 2: triggers.v1.ConditionalChildExecution.limit_ioc:type_name -> triggers.v1.TriggerLimitIoc
+	7,  // 3: triggers.v1.ConditionalChildExecution.limit_fok:type_name -> triggers.v1.TriggerLimitFok
+	38, // 4: triggers.v1.ConditionalTrigger.side:type_name -> orders.v1.Side
+	8,  // 5: triggers.v1.ConditionalTrigger.child:type_name -> triggers.v1.ConditionalChildExecution
+	38, // 6: triggers.v1.TwapTrigger.side:type_name -> orders.v1.Side
+	11, // 7: triggers.v1.TwapTrigger.market_ioc:type_name -> triggers.v1.TwapMarketIoc
+	12, // 8: triggers.v1.TwapTrigger.limit_gtc:type_name -> triggers.v1.TwapLimitGtc
+	38, // 9: triggers.v1.LadderTrigger.side:type_name -> orders.v1.Side
+	39, // 10: triggers.v1.TriggerIntent.fee_source:type_name -> orders.v1.FeeSource
+	40, // 11: triggers.v1.TriggerIntent.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
+	9,  // 12: triggers.v1.TriggerIntent.stop_loss:type_name -> triggers.v1.ConditionalTrigger
+	9,  // 13: triggers.v1.TriggerIntent.take_profit:type_name -> triggers.v1.ConditionalTrigger
+	10, // 14: triggers.v1.TriggerIntent.trailing_stop:type_name -> triggers.v1.TrailingStopTrigger
+	13, // 15: triggers.v1.TriggerIntent.twap:type_name -> triggers.v1.TwapTrigger
+	14, // 16: triggers.v1.TriggerIntent.ladder:type_name -> triggers.v1.LadderTrigger
+	15, // 17: triggers.v1.CreateTriggerRequest.trigger:type_name -> triggers.v1.TriggerIntent
+	41, // 18: triggers.v1.CreateTriggerResponse.accepted_at:type_name -> google.protobuf.Timestamp
+	37, // 19: triggers.v1.GetTriggerResponse.trigger:type_name -> triggers.v1.Trigger
+	1,  // 20: triggers.v1.ListTriggersRequest.status:type_name -> triggers.v1.TriggerStatus
+	0,  // 21: triggers.v1.ListTriggersRequest.trigger_type:type_name -> triggers.v1.TriggerType
+	37, // 22: triggers.v1.ListTriggersResponse.triggers:type_name -> triggers.v1.Trigger
+	0,  // 23: triggers.v1.TriggerEvent.trigger_type:type_name -> triggers.v1.TriggerType
+	2,  // 24: triggers.v1.TriggerEvent.event_type:type_name -> triggers.v1.TriggerEventType
+	23, // 25: triggers.v1.ListTriggerEventsResponse.events:type_name -> triggers.v1.TriggerEvent
+	1,  // 26: triggers.v1.CancelTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
+	41, // 27: triggers.v1.CancelTriggerResponse.ts:type_name -> google.protobuf.Timestamp
+	1,  // 28: triggers.v1.ModifyTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
+	41, // 29: triggers.v1.ModifyTriggerResponse.ts:type_name -> google.protobuf.Timestamp
+	1,  // 30: triggers.v1.PauseTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
+	41, // 31: triggers.v1.PauseTriggerResponse.ts:type_name -> google.protobuf.Timestamp
+	1,  // 32: triggers.v1.ResumeTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
+	41, // 33: triggers.v1.ResumeTriggerResponse.ts:type_name -> google.protobuf.Timestamp
+	42, // 34: triggers.v1.StopDetails.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
+	43, // 35: triggers.v1.StopDetails.trigger_direction:type_name -> orders.v1.TriggerDirection
+	42, // 36: triggers.v1.TrailingDetails.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
+	43, // 37: triggers.v1.TrailingDetails.trigger_direction:type_name -> orders.v1.TriggerDirection
+	3,  // 38: triggers.v1.LadderDetails.ladder_distribution:type_name -> triggers.v1.LadderDistribution
+	1,  // 39: triggers.v1.Trigger.status:type_name -> triggers.v1.TriggerStatus
+	39, // 40: triggers.v1.Trigger.fee_source:type_name -> orders.v1.FeeSource
+	40, // 41: triggers.v1.Trigger.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
+	9,  // 42: triggers.v1.Trigger.stop_loss:type_name -> triggers.v1.ConditionalTrigger
+	9,  // 43: triggers.v1.Trigger.take_profit:type_name -> triggers.v1.ConditionalTrigger
+	10, // 44: triggers.v1.Trigger.trailing_stop:type_name -> triggers.v1.TrailingStopTrigger
+	13, // 45: triggers.v1.Trigger.twap:type_name -> triggers.v1.TwapTrigger
+	14, // 46: triggers.v1.Trigger.ladder:type_name -> triggers.v1.LadderTrigger
+	33, // 47: triggers.v1.Trigger.stop:type_name -> triggers.v1.StopDetails
+	34, // 48: triggers.v1.Trigger.trailing:type_name -> triggers.v1.TrailingDetails
+	35, // 49: triggers.v1.Trigger.twap_state:type_name -> triggers.v1.TwapDetails
+	36, // 50: triggers.v1.Trigger.ladder_state:type_name -> triggers.v1.LadderDetails
+	41, // 51: triggers.v1.Trigger.created_at:type_name -> google.protobuf.Timestamp
+	41, // 52: triggers.v1.Trigger.updated_at:type_name -> google.protobuf.Timestamp
+	41, // 53: triggers.v1.Trigger.armed_at:type_name -> google.protobuf.Timestamp
+	41, // 54: triggers.v1.Trigger.completed_at:type_name -> google.protobuf.Timestamp
+	16, // 55: triggers.v1.TriggersService.CreateTrigger:input_type -> triggers.v1.CreateTriggerRequest
+	18, // 56: triggers.v1.TriggersService.GetTrigger:input_type -> triggers.v1.GetTriggerRequest
+	20, // 57: triggers.v1.TriggersService.ListTriggers:input_type -> triggers.v1.ListTriggersRequest
+	22, // 58: triggers.v1.TriggersService.ListTriggerEvents:input_type -> triggers.v1.ListTriggerEventsRequest
+	25, // 59: triggers.v1.TriggersService.CancelTrigger:input_type -> triggers.v1.CancelTriggerRequest
+	27, // 60: triggers.v1.TriggersService.ModifyTrigger:input_type -> triggers.v1.ModifyTriggerRequest
+	29, // 61: triggers.v1.TriggersService.PauseTrigger:input_type -> triggers.v1.PauseTriggerRequest
+	31, // 62: triggers.v1.TriggersService.ResumeTrigger:input_type -> triggers.v1.ResumeTriggerRequest
+	17, // 63: triggers.v1.TriggersService.CreateTrigger:output_type -> triggers.v1.CreateTriggerResponse
+	19, // 64: triggers.v1.TriggersService.GetTrigger:output_type -> triggers.v1.GetTriggerResponse
+	21, // 65: triggers.v1.TriggersService.ListTriggers:output_type -> triggers.v1.ListTriggersResponse
+	24, // 66: triggers.v1.TriggersService.ListTriggerEvents:output_type -> triggers.v1.ListTriggerEventsResponse
+	26, // 67: triggers.v1.TriggersService.CancelTrigger:output_type -> triggers.v1.CancelTriggerResponse
+	28, // 68: triggers.v1.TriggersService.ModifyTrigger:output_type -> triggers.v1.ModifyTriggerResponse
+	30, // 69: triggers.v1.TriggersService.PauseTrigger:output_type -> triggers.v1.PauseTriggerResponse
+	32, // 70: triggers.v1.TriggersService.ResumeTrigger:output_type -> triggers.v1.ResumeTriggerResponse
+	63, // [63:71] is the sub-list for method output_type
+	55, // [55:63] is the sub-list for method input_type
+	55, // [55:55] is the sub-list for extension type_name
+	55, // [55:55] is the sub-list for extension extendee
+	0,  // [0:55] is the sub-list for field type_name
 }
 
 func init() { file_triggers_v1_triggers_proto_init() }
@@ -2906,29 +3697,52 @@ func file_triggers_v1_triggers_proto_init() {
 	if File_triggers_v1_triggers_proto != nil {
 		return
 	}
-	file_triggers_v1_triggers_proto_msgTypes[0].OneofWrappers = []any{
-		(*CreateTriggerRequest_TrailingDistanceTicks)(nil),
-		(*CreateTriggerRequest_TrailingDistanceBps)(nil),
-		(*CreateTriggerRequest_MaxSlippageTicks)(nil),
-		(*CreateTriggerRequest_MaxSlippageBps)(nil),
+	file_triggers_v1_triggers_proto_msgTypes[4].OneofWrappers = []any{
+		(*ConditionalChildExecution_MarketIoc)(nil),
+		(*ConditionalChildExecution_LimitGtc)(nil),
+		(*ConditionalChildExecution_LimitIoc)(nil),
+		(*ConditionalChildExecution_LimitFok)(nil),
 	}
-	file_triggers_v1_triggers_proto_msgTypes[2].OneofWrappers = []any{}
-	file_triggers_v1_triggers_proto_msgTypes[4].OneofWrappers = []any{}
-	file_triggers_v1_triggers_proto_msgTypes[6].OneofWrappers = []any{}
-	file_triggers_v1_triggers_proto_msgTypes[9].OneofWrappers = []any{}
+	file_triggers_v1_triggers_proto_msgTypes[6].OneofWrappers = []any{
+		(*TrailingStopTrigger_TrailingDistanceTicks)(nil),
+		(*TrailingStopTrigger_TrailingDistanceBps)(nil),
+		(*TrailingStopTrigger_MaxSlippageTicks)(nil),
+		(*TrailingStopTrigger_MaxSlippageBps)(nil),
+	}
+	file_triggers_v1_triggers_proto_msgTypes[9].OneofWrappers = []any{
+		(*TwapTrigger_MarketIoc)(nil),
+		(*TwapTrigger_LimitGtc)(nil),
+	}
 	file_triggers_v1_triggers_proto_msgTypes[11].OneofWrappers = []any{
+		(*TriggerIntent_StopLoss)(nil),
+		(*TriggerIntent_TakeProfit)(nil),
+		(*TriggerIntent_TrailingStop)(nil),
+		(*TriggerIntent_Twap)(nil),
+		(*TriggerIntent_Ladder)(nil),
+	}
+	file_triggers_v1_triggers_proto_msgTypes[12].OneofWrappers = []any{}
+	file_triggers_v1_triggers_proto_msgTypes[14].OneofWrappers = []any{}
+	file_triggers_v1_triggers_proto_msgTypes[16].OneofWrappers = []any{}
+	file_triggers_v1_triggers_proto_msgTypes[18].OneofWrappers = []any{}
+	file_triggers_v1_triggers_proto_msgTypes[21].OneofWrappers = []any{}
+	file_triggers_v1_triggers_proto_msgTypes[23].OneofWrappers = []any{
 		(*ModifyTriggerRequest_TrailingDistanceTicks)(nil),
 		(*ModifyTriggerRequest_TrailingDistanceBps)(nil),
 		(*ModifyTriggerRequest_MaxSlippageTicks)(nil),
 		(*ModifyTriggerRequest_MaxSlippageBps)(nil),
 	}
-	file_triggers_v1_triggers_proto_msgTypes[13].OneofWrappers = []any{}
-	file_triggers_v1_triggers_proto_msgTypes[15].OneofWrappers = []any{}
-	file_triggers_v1_triggers_proto_msgTypes[21].OneofWrappers = []any{
-		(*Trigger_Stop)(nil),
-		(*Trigger_Trailing)(nil),
+	file_triggers_v1_triggers_proto_msgTypes[25].OneofWrappers = []any{}
+	file_triggers_v1_triggers_proto_msgTypes[27].OneofWrappers = []any{}
+	file_triggers_v1_triggers_proto_msgTypes[33].OneofWrappers = []any{
+		(*Trigger_StopLoss)(nil),
+		(*Trigger_TakeProfit)(nil),
+		(*Trigger_TrailingStop)(nil),
 		(*Trigger_Twap)(nil),
 		(*Trigger_Ladder)(nil),
+		(*Trigger_Stop)(nil),
+		(*Trigger_Trailing)(nil),
+		(*Trigger_TwapState)(nil),
+		(*Trigger_LadderState)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -2936,7 +3750,7 @@ func file_triggers_v1_triggers_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_triggers_v1_triggers_proto_rawDesc), len(file_triggers_v1_triggers_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   22,
+			NumMessages:   34,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

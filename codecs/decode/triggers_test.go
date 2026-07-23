@@ -11,14 +11,21 @@ import (
 
 func TestTriggerFromProtoMapsStopPrice(t *testing.T) {
 	msg := &triggersv1.Trigger{
-		TriggerId:       7,
-		SymbolId:        2,
-		Symbol:          "BTC-USD",
-		TriggerType:     triggersv1.TriggerType_STOP_LOSS,
-		Status:          triggersv1.TriggerStatus_STATUS_ARMED,
-		Side:            orderv1.Side_SELL,
-		QtyScaled:       1_000_000,
-		Details: &triggersv1.Trigger_Stop{
+		TriggerId: 7,
+		SymbolId:  2,
+		Symbol:    "BTC-USD",
+		Status:    triggersv1.TriggerStatus_STATUS_ARMED,
+		QtyScaled: 1_000_000,
+		Configuration: &triggersv1.Trigger_StopLoss{
+			StopLoss: &triggersv1.ConditionalTrigger{
+				TriggerPriceTicks: 50_000_000_000,
+				Side:              orderv1.Side_SELL,
+				Child: &triggersv1.ConditionalChildExecution{
+					Execution: &triggersv1.ConditionalChildExecution_MarketIoc{MarketIoc: &triggersv1.TriggerMarketIoc{}},
+				},
+			},
+		},
+		RuntimeDetails: &triggersv1.Trigger_Stop{
 			Stop: &triggersv1.StopDetails{TriggerPriceTicks: 50_000_000_000},
 		},
 		ClientTriggerId: "ct-1",
@@ -29,6 +36,25 @@ func TestTriggerFromProtoMapsStopPrice(t *testing.T) {
 	}
 	if trigger.TriggerPrice.Ticks != 50_000_000_000 || trigger.ClientTriggerID != "ct-1" {
 		t.Fatalf("trigger=%+v", trigger)
+	}
+	if trigger.TriggerType != "stop_loss" || trigger.Status != "armed" {
+		t.Fatalf("trigger=%+v", trigger)
+	}
+	if trigger.Side != "sell" || trigger.OrderType != "market" {
+		t.Fatalf("trigger side/type=%+v", trigger)
+	}
+	if trigger.Details == nil || trigger.Details.Case != "stop" {
+		t.Fatalf("details=%+v", trigger.Details)
+	}
+}
+
+func TestTriggerStatusFromLabel(t *testing.T) {
+	st, err := decode.TriggerStatusFromLabel("armed")
+	if err != nil || st != triggersv1.TriggerStatus_STATUS_ARMED {
+		t.Fatalf("armed: %v %v", st, err)
+	}
+	if _, err := decode.TriggerStatusFromLabel("nope"); err == nil {
+		t.Fatal("expected error for invalid status")
 	}
 }
 

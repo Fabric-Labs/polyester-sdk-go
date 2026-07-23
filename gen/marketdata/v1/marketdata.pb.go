@@ -157,6 +157,71 @@ func (Timeframe) EnumDescriptor() ([]byte, []int) {
 	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{1}
 }
 
+// PairStatus describes which order mutations a spot pair currently accepts.
+type PairStatus int32
+
+const (
+	// Pair status was not provided.
+	PairStatus_PAIR_STATUS_UNSPECIFIED PairStatus = 0
+	// New orders and cancellations are accepted.
+	PairStatus_PAIR_STATUS_ENABLED PairStatus = 1
+	// New orders are temporarily disabled.
+	PairStatus_PAIR_STATUS_DISABLED PairStatus = 2
+	// Only cancellations are accepted.
+	PairStatus_PAIR_STATUS_CANCEL_ONLY PairStatus = 3
+	// New orders must use a post-only execution variant.
+	PairStatus_PAIR_STATUS_POST_ONLY PairStatus = 4
+	// New spot orders are blocked by reduce-only policy.
+	PairStatus_PAIR_STATUS_REDUCE_ONLY PairStatus = 5
+)
+
+// Enum value maps for PairStatus.
+var (
+	PairStatus_name = map[int32]string{
+		0: "PAIR_STATUS_UNSPECIFIED",
+		1: "PAIR_STATUS_ENABLED",
+		2: "PAIR_STATUS_DISABLED",
+		3: "PAIR_STATUS_CANCEL_ONLY",
+		4: "PAIR_STATUS_POST_ONLY",
+		5: "PAIR_STATUS_REDUCE_ONLY",
+	}
+	PairStatus_value = map[string]int32{
+		"PAIR_STATUS_UNSPECIFIED": 0,
+		"PAIR_STATUS_ENABLED":     1,
+		"PAIR_STATUS_DISABLED":    2,
+		"PAIR_STATUS_CANCEL_ONLY": 3,
+		"PAIR_STATUS_POST_ONLY":   4,
+		"PAIR_STATUS_REDUCE_ONLY": 5,
+	}
+)
+
+func (x PairStatus) Enum() *PairStatus {
+	p := new(PairStatus)
+	*p = x
+	return p
+}
+
+func (x PairStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PairStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_marketdata_v1_marketdata_proto_enumTypes[2].Descriptor()
+}
+
+func (PairStatus) Type() protoreflect.EnumType {
+	return &file_marketdata_v1_marketdata_proto_enumTypes[2]
+}
+
+func (x PairStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PairStatus.Descriptor instead.
+func (PairStatus) EnumDescriptor() ([]byte, []int) {
+	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{2}
+}
+
 // GetTradesRequest selects recent public trades for one spot market.
 //
 // Results are ordered newest-first by execution timestamp, with match_id as a
@@ -1295,9 +1360,8 @@ type PairConfig struct {
 	// Scheduled delisting timestamp. When unset, the pair has no explicit
 	// delisting time.
 	DelistingAt *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=delisting_at,json=delistingAt,proto3" json:"delisting_at,omitempty"`
-	// Current trading status: enabled, disabled, cancel_only, post_only, or
-	// reduce_only.
-	Status string `protobuf:"bytes,15,opt,name=status,proto3" json:"status,omitempty"`
+	// Current trading status.
+	Status PairStatus `protobuf:"varint,15,opt,name=status,proto3,enum=marketdata.v1.PairStatus" json:"status,omitempty"`
 	// Default MARKET order slippage cap for BUY orders, in basis points
 	// (1 bp = 0.01%). A request-level slippage setting can override this value.
 	DefaultMarketSlippageBpsBuy int32 `protobuf:"varint,16,opt,name=default_market_slippage_bps_buy,json=defaultMarketSlippageBpsBuy,proto3" json:"default_market_slippage_bps_buy,omitempty"`
@@ -1440,11 +1504,11 @@ func (x *PairConfig) GetDelistingAt() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *PairConfig) GetStatus() string {
+func (x *PairConfig) GetStatus() PairStatus {
 	if x != nil {
 		return x.Status
 	}
-	return ""
+	return PairStatus_PAIR_STATUS_UNSPECIFIED
 }
 
 func (x *PairConfig) GetDefaultMarketSlippageBpsBuy() int32 {
@@ -1672,7 +1736,7 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\x19quantity_display_decimals\x18\x04 \x01(\rR\x17quantityDisplayDecimals\x12%\n" +
 	"\x0equantity_scale\x18\x05 \x01(\rR\rquantityScale\"N\n" +
 	"\x14PairMarketdataConfig\x126\n" +
-	"\x17orderbook_price_buckets\x18\x01 \x03(\x01R\x15orderbookPriceBuckets\"\xc8\x06\n" +
+	"\x17orderbook_price_buckets\x18\x01 \x03(\x01R\x15orderbookPriceBuckets\"\xe3\x06\n" +
 	"\n" +
 	"PairConfig\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x12\x16\n" +
@@ -1695,8 +1759,8 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"marketdata\x129\n" +
 	"\n" +
 	"listing_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tlistingAt\x12=\n" +
-	"\fdelisting_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\vdelistingAt\x12\x16\n" +
-	"\x06status\x18\x0f \x01(\tR\x06status\x12D\n" +
+	"\fdelisting_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\vdelistingAt\x121\n" +
+	"\x06status\x18\x0f \x01(\x0e2\x19.marketdata.v1.PairStatusR\x06status\x12D\n" +
 	"\x1fdefault_market_slippage_bps_buy\x18\x10 \x01(\x05R\x1bdefaultMarketSlippageBpsBuy\x12F\n" +
 	" default_market_slippage_bps_sell\x18\x11 \x01(\x05R\x1cdefaultMarketSlippageBpsSell\x126\n" +
 	"\x18max_client_ref_drift_bps\x18\x12 \x01(\x05R\x14maxClientRefDriftBps\"\x16\n" +
@@ -1728,7 +1792,15 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\n" +
 	"\x06WEEK_1\x10\n" +
 	"\x12\v\n" +
-	"\aMONTH_1\x10\v2\x96\x03\n" +
+	"\aMONTH_1\x10\v*\xb1\x01\n" +
+	"\n" +
+	"PairStatus\x12\x1b\n" +
+	"\x17PAIR_STATUS_UNSPECIFIED\x10\x00\x12\x17\n" +
+	"\x13PAIR_STATUS_ENABLED\x10\x01\x12\x18\n" +
+	"\x14PAIR_STATUS_DISABLED\x10\x02\x12\x1b\n" +
+	"\x17PAIR_STATUS_CANCEL_ONLY\x10\x03\x12\x19\n" +
+	"\x15PAIR_STATUS_POST_ONLY\x10\x04\x12\x1b\n" +
+	"\x17PAIR_STATUS_REDUCE_ONLY\x10\x052\x96\x03\n" +
 	"\x11MarketDataService\x12T\n" +
 	"\tGetTrades\x12\x1f.marketdata.v1.GetTradesRequest\x1a .marketdata.v1.GetTradesResponse\"\x04\x88\xb5\x18\x01\x12W\n" +
 	"\n" +
@@ -1748,61 +1820,63 @@ func file_marketdata_v1_marketdata_proto_rawDescGZIP() []byte {
 	return file_marketdata_v1_marketdata_proto_rawDescData
 }
 
-var file_marketdata_v1_marketdata_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_marketdata_v1_marketdata_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_marketdata_v1_marketdata_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_marketdata_v1_marketdata_proto_goTypes = []any{
 	(SideFilter)(0),                   // 0: marketdata.v1.SideFilter
 	(Timeframe)(0),                    // 1: marketdata.v1.Timeframe
-	(*GetTradesRequest)(nil),          // 2: marketdata.v1.GetTradesRequest
-	(*MarketTrade)(nil),               // 3: marketdata.v1.MarketTrade
-	(*GetTradesResponse)(nil),         // 4: marketdata.v1.GetTradesResponse
-	(*GetCandlesRequest)(nil),         // 5: marketdata.v1.GetCandlesRequest
-	(*GetCandlesColumnsRequest)(nil),  // 6: marketdata.v1.GetCandlesColumnsRequest
-	(*CandlePoint)(nil),               // 7: marketdata.v1.CandlePoint
-	(*GetCandlesResponse)(nil),        // 8: marketdata.v1.GetCandlesResponse
-	(*GetCandlesColumnsResponse)(nil), // 9: marketdata.v1.GetCandlesColumnsResponse
-	(*Candle)(nil),                    // 10: marketdata.v1.Candle
-	(*AssetConfig)(nil),               // 11: marketdata.v1.AssetConfig
-	(*PairMarketdataConfig)(nil),      // 12: marketdata.v1.PairMarketdataConfig
-	(*PairConfig)(nil),                // 13: marketdata.v1.PairConfig
-	(*GetSpotConfigRequest)(nil),      // 14: marketdata.v1.GetSpotConfigRequest
-	(*GetSpotConfigResponse)(nil),     // 15: marketdata.v1.GetSpotConfigResponse
-	(*timestamppb.Timestamp)(nil),     // 16: google.protobuf.Timestamp
+	(PairStatus)(0),                   // 2: marketdata.v1.PairStatus
+	(*GetTradesRequest)(nil),          // 3: marketdata.v1.GetTradesRequest
+	(*MarketTrade)(nil),               // 4: marketdata.v1.MarketTrade
+	(*GetTradesResponse)(nil),         // 5: marketdata.v1.GetTradesResponse
+	(*GetCandlesRequest)(nil),         // 6: marketdata.v1.GetCandlesRequest
+	(*GetCandlesColumnsRequest)(nil),  // 7: marketdata.v1.GetCandlesColumnsRequest
+	(*CandlePoint)(nil),               // 8: marketdata.v1.CandlePoint
+	(*GetCandlesResponse)(nil),        // 9: marketdata.v1.GetCandlesResponse
+	(*GetCandlesColumnsResponse)(nil), // 10: marketdata.v1.GetCandlesColumnsResponse
+	(*Candle)(nil),                    // 11: marketdata.v1.Candle
+	(*AssetConfig)(nil),               // 12: marketdata.v1.AssetConfig
+	(*PairMarketdataConfig)(nil),      // 13: marketdata.v1.PairMarketdataConfig
+	(*PairConfig)(nil),                // 14: marketdata.v1.PairConfig
+	(*GetSpotConfigRequest)(nil),      // 15: marketdata.v1.GetSpotConfigRequest
+	(*GetSpotConfigResponse)(nil),     // 16: marketdata.v1.GetSpotConfigResponse
+	(*timestamppb.Timestamp)(nil),     // 17: google.protobuf.Timestamp
 }
 var file_marketdata_v1_marketdata_proto_depIdxs = []int32{
-	16, // 0: marketdata.v1.GetTradesRequest.start_time:type_name -> google.protobuf.Timestamp
-	16, // 1: marketdata.v1.GetTradesRequest.end_time:type_name -> google.protobuf.Timestamp
+	17, // 0: marketdata.v1.GetTradesRequest.start_time:type_name -> google.protobuf.Timestamp
+	17, // 1: marketdata.v1.GetTradesRequest.end_time:type_name -> google.protobuf.Timestamp
 	0,  // 2: marketdata.v1.GetTradesRequest.side:type_name -> marketdata.v1.SideFilter
-	3,  // 3: marketdata.v1.GetTradesResponse.trades:type_name -> marketdata.v1.MarketTrade
+	4,  // 3: marketdata.v1.GetTradesResponse.trades:type_name -> marketdata.v1.MarketTrade
 	1,  // 4: marketdata.v1.GetCandlesRequest.timeframe:type_name -> marketdata.v1.Timeframe
-	16, // 5: marketdata.v1.GetCandlesRequest.start_time:type_name -> google.protobuf.Timestamp
-	16, // 6: marketdata.v1.GetCandlesRequest.end_time:type_name -> google.protobuf.Timestamp
+	17, // 5: marketdata.v1.GetCandlesRequest.start_time:type_name -> google.protobuf.Timestamp
+	17, // 6: marketdata.v1.GetCandlesRequest.end_time:type_name -> google.protobuf.Timestamp
 	1,  // 7: marketdata.v1.GetCandlesColumnsRequest.timeframe:type_name -> marketdata.v1.Timeframe
-	16, // 8: marketdata.v1.GetCandlesColumnsRequest.start_time:type_name -> google.protobuf.Timestamp
-	16, // 9: marketdata.v1.GetCandlesColumnsRequest.end_time:type_name -> google.protobuf.Timestamp
+	17, // 8: marketdata.v1.GetCandlesColumnsRequest.start_time:type_name -> google.protobuf.Timestamp
+	17, // 9: marketdata.v1.GetCandlesColumnsRequest.end_time:type_name -> google.protobuf.Timestamp
 	1,  // 10: marketdata.v1.GetCandlesResponse.timeframe:type_name -> marketdata.v1.Timeframe
-	7,  // 11: marketdata.v1.GetCandlesResponse.candles:type_name -> marketdata.v1.CandlePoint
-	7,  // 12: marketdata.v1.GetCandlesResponse.reference_candles:type_name -> marketdata.v1.CandlePoint
+	8,  // 11: marketdata.v1.GetCandlesResponse.candles:type_name -> marketdata.v1.CandlePoint
+	8,  // 12: marketdata.v1.GetCandlesResponse.reference_candles:type_name -> marketdata.v1.CandlePoint
 	1,  // 13: marketdata.v1.GetCandlesColumnsResponse.timeframe:type_name -> marketdata.v1.Timeframe
 	1,  // 14: marketdata.v1.Candle.timeframe:type_name -> marketdata.v1.Timeframe
-	12, // 15: marketdata.v1.PairConfig.marketdata:type_name -> marketdata.v1.PairMarketdataConfig
-	16, // 16: marketdata.v1.PairConfig.listing_at:type_name -> google.protobuf.Timestamp
-	16, // 17: marketdata.v1.PairConfig.delisting_at:type_name -> google.protobuf.Timestamp
-	11, // 18: marketdata.v1.GetSpotConfigResponse.assets:type_name -> marketdata.v1.AssetConfig
-	13, // 19: marketdata.v1.GetSpotConfigResponse.pairs:type_name -> marketdata.v1.PairConfig
-	2,  // 20: marketdata.v1.MarketDataService.GetTrades:input_type -> marketdata.v1.GetTradesRequest
-	5,  // 21: marketdata.v1.MarketDataService.GetCandles:input_type -> marketdata.v1.GetCandlesRequest
-	6,  // 22: marketdata.v1.MarketDataService.GetCandlesColumns:input_type -> marketdata.v1.GetCandlesColumnsRequest
-	14, // 23: marketdata.v1.MarketDataService.GetSpotConfig:input_type -> marketdata.v1.GetSpotConfigRequest
-	4,  // 24: marketdata.v1.MarketDataService.GetTrades:output_type -> marketdata.v1.GetTradesResponse
-	8,  // 25: marketdata.v1.MarketDataService.GetCandles:output_type -> marketdata.v1.GetCandlesResponse
-	9,  // 26: marketdata.v1.MarketDataService.GetCandlesColumns:output_type -> marketdata.v1.GetCandlesColumnsResponse
-	15, // 27: marketdata.v1.MarketDataService.GetSpotConfig:output_type -> marketdata.v1.GetSpotConfigResponse
-	24, // [24:28] is the sub-list for method output_type
-	20, // [20:24] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	13, // 15: marketdata.v1.PairConfig.marketdata:type_name -> marketdata.v1.PairMarketdataConfig
+	17, // 16: marketdata.v1.PairConfig.listing_at:type_name -> google.protobuf.Timestamp
+	17, // 17: marketdata.v1.PairConfig.delisting_at:type_name -> google.protobuf.Timestamp
+	2,  // 18: marketdata.v1.PairConfig.status:type_name -> marketdata.v1.PairStatus
+	12, // 19: marketdata.v1.GetSpotConfigResponse.assets:type_name -> marketdata.v1.AssetConfig
+	14, // 20: marketdata.v1.GetSpotConfigResponse.pairs:type_name -> marketdata.v1.PairConfig
+	3,  // 21: marketdata.v1.MarketDataService.GetTrades:input_type -> marketdata.v1.GetTradesRequest
+	6,  // 22: marketdata.v1.MarketDataService.GetCandles:input_type -> marketdata.v1.GetCandlesRequest
+	7,  // 23: marketdata.v1.MarketDataService.GetCandlesColumns:input_type -> marketdata.v1.GetCandlesColumnsRequest
+	15, // 24: marketdata.v1.MarketDataService.GetSpotConfig:input_type -> marketdata.v1.GetSpotConfigRequest
+	5,  // 25: marketdata.v1.MarketDataService.GetTrades:output_type -> marketdata.v1.GetTradesResponse
+	9,  // 26: marketdata.v1.MarketDataService.GetCandles:output_type -> marketdata.v1.GetCandlesResponse
+	10, // 27: marketdata.v1.MarketDataService.GetCandlesColumns:output_type -> marketdata.v1.GetCandlesColumnsResponse
+	16, // 28: marketdata.v1.MarketDataService.GetSpotConfig:output_type -> marketdata.v1.GetSpotConfigResponse
+	25, // [25:29] is the sub-list for method output_type
+	21, // [21:25] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_marketdata_v1_marketdata_proto_init() }
@@ -1815,7 +1889,7 @@ func file_marketdata_v1_marketdata_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_marketdata_v1_marketdata_proto_rawDesc), len(file_marketdata_v1_marketdata_proto_rawDesc)),
-			NumEnums:      2,
+			NumEnums:      3,
 			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,

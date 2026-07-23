@@ -232,6 +232,18 @@ instrument/domain matches. Transfers and trading withdraws use
 Your API key needs a policy that allows trading. Spot orders spend **trading**
 balance (see below).
 
+## Triggers
+
+`Triggers.List(..., status, ...)` filters by lifecycle status. Valid values:
+
+`created`, `armed`, `running`, `completed`, `cancelled`, `failed`, `paused`
+
+Unknown values return an error (they do not silently return an empty list).
+Response `Status` uses the same labels (British spelling `cancelled`).
+
+`Orders.Get(..., includeAttachedRisk)` returns policy data on
+`Order.AttachedRisk`. `Order` also exposes `PostOnly`.
+
 ## Balances: funding vs trading
 
 Ledger balances have separate **funding** and **trading** buckets per asset.

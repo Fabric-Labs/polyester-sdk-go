@@ -29,7 +29,7 @@ func (s *TriggersService) client() triggersv1connect.TriggersServiceClient {
 	return triggersv1connect.NewTriggersServiceClient(s.transport.HTTP, s.transport.Config.APIURL, s.transport.ConnectOptions(true)...)
 }
 
-func (s *TriggersService) List(ctx context.Context, account AccountScope, subAccountID, symbol *string, limit int, pageToken *string) (models.TriggersList, error) {
+func (s *TriggersService) List(ctx context.Context, account AccountScope, subAccountID, symbol *string, status []string, limit int, pageToken *string) (models.TriggersList, error) {
 	req := &triggersv1.ListTriggersRequest{Limit: uint32(limit)}
 	if pageToken != nil && *pageToken != "" {
 		req.PageToken = *pageToken
@@ -45,6 +45,13 @@ func (s *TriggersService) List(ctx context.Context, account AccountScope, subAcc
 	}
 	if symbol != nil {
 		req.Symbol = *symbol
+	}
+	for _, label := range status {
+		st, err := decode.TriggerStatusFromLabel(label)
+		if err != nil {
+			return models.TriggersList{}, err
+		}
+		req.Status = append(req.Status, st)
 	}
 	return UnaryAuth(ctx, s.transport, s.client().ListTriggers, req, decode.TriggersListFromProto)
 }

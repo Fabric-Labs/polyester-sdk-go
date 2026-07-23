@@ -4,20 +4,49 @@ import "time"
 
 // Order is a normalized open or historical order.
 type Order struct {
-	OrderID       string     `json:"order_id"`
-	SymbolID      uint32     `json:"symbol_id"`
-	ClientOrderID string     `json:"client_order_id,omitempty"`
-	Side          string     `json:"side,omitempty"`
-	Status        string     `json:"status,omitempty"`
-	OrderType     string     `json:"order_type,omitempty"`
-	TIF           string     `json:"tif,omitempty"`
-	OrigQty       QtyScaled  `json:"orig_qty,omitempty"`
-	CumQty        QtyScaled  `json:"cum_qty,omitempty"`
-	LeavesQty     QtyScaled  `json:"leaves_qty,omitempty"`
-	Price         PriceTicks `json:"price,omitempty"`
-	AvgPx         PriceTicks `json:"avg_px,omitempty"`
-	CreatedTsNs   string     `json:"created_ts_ns,omitempty"`
-	Version       uint32     `json:"version,omitempty"`
+	OrderID       string        `json:"order_id"`
+	SymbolID      uint32        `json:"symbol_id"`
+	ClientOrderID string        `json:"client_order_id,omitempty"`
+	Side          string        `json:"side,omitempty"`
+	Status        string        `json:"status,omitempty"`
+	OrderType     string        `json:"order_type,omitempty"`
+	TIF           string        `json:"tif,omitempty"`
+	OrigQty       QtyScaled     `json:"orig_qty,omitempty"`
+	CumQty        QtyScaled     `json:"cum_qty,omitempty"`
+	LeavesQty     QtyScaled     `json:"leaves_qty,omitempty"`
+	Price         PriceTicks    `json:"price,omitempty"`
+	AvgPx         PriceTicks    `json:"avg_px,omitempty"`
+	CreatedTsNs   string        `json:"created_ts_ns,omitempty"`
+	Version       uint32        `json:"version,omitempty"`
+	PostOnly      bool          `json:"post_only,omitempty"`
+	AttachedRisk  *AttachedRisk `json:"attached_risk,omitempty"`
+}
+
+// RiskLeg is a take-profit or stop-loss attached-risk policy.
+type RiskLeg struct {
+	TriggerPrice       PriceTicks `json:"trigger_price,omitempty"`
+	TriggerPriceSource string     `json:"trigger_price_source,omitempty"`
+	OrderType          string     `json:"order_type,omitempty"`
+	LimitPrice         PriceTicks `json:"limit_price,omitempty"`
+}
+
+// TrailingStop is a trailing-stop attached-risk policy.
+type TrailingStop struct {
+	DistanceTicks      int64      `json:"distance_ticks,omitempty"`
+	DistanceBps        int32      `json:"distance_bps,omitempty"`
+	MaxSlippageTicks   int32      `json:"max_slippage_ticks,omitempty"`
+	MaxSlippageBps     int32      `json:"max_slippage_bps,omitempty"`
+	ActivationPrice    PriceTicks `json:"activation_price,omitempty"`
+	TriggerPriceSource string     `json:"trigger_price_source,omitempty"`
+	OrderType          string     `json:"order_type,omitempty"`
+}
+
+// AttachedRisk is the parent-side attached risk policy (no runtime leg state).
+type AttachedRisk struct {
+	TakeProfit   *RiskLeg      `json:"take_profit,omitempty"`
+	StopLoss     *RiskLeg      `json:"stop_loss,omitempty"`
+	TrailingStop *TrailingStop `json:"trailing_stop,omitempty"`
+	Oco          bool          `json:"oco,omitempty"`
 }
 
 // OrdersList holds paginated orders.
@@ -258,15 +287,62 @@ type LifecycleFlowsList struct {
 
 // Trigger is a conditional order trigger.
 type Trigger struct {
-	TriggerID       string     `json:"trigger_id,omitempty"`
-	SymbolID        uint32     `json:"symbol_id,omitempty"`
-	Symbol          string     `json:"symbol,omitempty"`
-	TriggerType     string     `json:"trigger_type,omitempty"`
-	Status          string     `json:"status,omitempty"`
-	Side            string     `json:"side,omitempty"`
-	Qty             QtyScaled  `json:"qty,omitempty"`
-	TriggerPrice    PriceTicks `json:"trigger_price,omitempty"`
-	ClientTriggerID string     `json:"client_trigger_id,omitempty"`
+	TriggerID                string          `json:"trigger_id,omitempty"`
+	SubaccountID             string          `json:"subaccount_id,omitempty"`
+	SymbolID                 uint32          `json:"symbol_id,omitempty"`
+	Symbol                   string          `json:"symbol,omitempty"`
+	TriggerType              string          `json:"trigger_type,omitempty"`
+	Status                   string          `json:"status,omitempty"`
+	ParentOrderID            string          `json:"parent_order_id,omitempty"`
+	Side                     string          `json:"side,omitempty"`
+	OrderType                string          `json:"order_type,omitempty"`
+	TimeInForce              string          `json:"time_in_force,omitempty"`
+	Qty                      QtyScaled       `json:"qty,omitempty"`
+	LimitPrice               PriceTicks      `json:"limit_price,omitempty"`
+	FeeSource                string          `json:"fee_source,omitempty"`
+	SelfTradePreventionMode  string          `json:"self_trade_prevention_mode,omitempty"`
+	PostOnly                 bool            `json:"post_only,omitempty"`
+	TriggerPrice             PriceTicks      `json:"trigger_price,omitempty"`
+	ClientTriggerID          string          `json:"client_trigger_id,omitempty"`
+	CreatedAt                *time.Time      `json:"created_at,omitempty"`
+	UpdatedAt                *time.Time      `json:"updated_at,omitempty"`
+	ArmedAt                  *time.Time      `json:"armed_at,omitempty"`
+	CompletedAt              *time.Time      `json:"completed_at,omitempty"`
+	ChildOrderIDs            []string        `json:"child_order_ids,omitempty"`
+	Details                  *TriggerDetails `json:"details,omitempty"`
+}
+
+// TriggerDetails is a discriminated trigger strategy payload.
+// Case is one of: "stop", "trailing", "twap", "ladder".
+type TriggerDetails struct {
+	Case string `json:"case"`
+
+	// stop
+	TriggerPrice       PriceTicks `json:"trigger_price,omitempty"`
+	TriggerPriceSource string     `json:"trigger_price_source,omitempty"`
+	TriggerDirection   string     `json:"trigger_direction,omitempty"`
+
+	// trailing
+	TrailingDistance    PriceTicks `json:"trailing_distance,omitempty"`
+	TrailingDistanceBps int32      `json:"trailing_distance_bps,omitempty"`
+	ActivationPrice     PriceTicks `json:"activation_price,omitempty"`
+	PeakPrice           PriceTicks `json:"peak_price,omitempty"`
+	TroughPrice         PriceTicks `json:"trough_price,omitempty"`
+	MaxSlippage         PriceTicks `json:"max_slippage,omitempty"`
+	MaxSlippageBps      int32      `json:"max_slippage_bps,omitempty"`
+
+	// twap
+	TwapDurationMs      int64     `json:"twap_duration_ms,omitempty"`
+	TwapSliceIntervalMs int64     `json:"twap_slice_interval_ms,omitempty"`
+	SliceIdx            int32     `json:"slice_idx,omitempty"`
+	SliceCount          int32     `json:"slice_count,omitempty"`
+	ExecutedQty         QtyScaled `json:"executed_qty,omitempty"`
+
+	// ladder
+	LadderPriceMin      PriceTicks `json:"ladder_price_min,omitempty"`
+	LadderPriceMax      PriceTicks `json:"ladder_price_max,omitempty"`
+	LadderLevels        int32      `json:"ladder_levels,omitempty"`
+	LadderDistribution  string     `json:"ladder_distribution,omitempty"`
 }
 
 // TriggersList lists triggers.
