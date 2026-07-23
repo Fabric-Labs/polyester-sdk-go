@@ -20,21 +20,6 @@ var triggerTypeToProto = map[string]triggersv1.TriggerType{
 	"ladder":        triggersv1.TriggerType_LADDER,
 }
 
-var triggerPriceSourceToProto = map[string]orderv1.TriggerPriceSource{
-	"last":        orderv1.TriggerPriceSource_LAST_PRICE,
-	"last_price":  orderv1.TriggerPriceSource_LAST_PRICE,
-	"index":       orderv1.TriggerPriceSource_INDEX_PRICE,
-	"index_price": orderv1.TriggerPriceSource_INDEX_PRICE,
-	"mark":        orderv1.TriggerPriceSource_MARK_PRICE,
-	"mark_price":  orderv1.TriggerPriceSource_MARK_PRICE,
-}
-
-var ladderDistributionToProto = map[string]triggersv1.LadderDistribution{
-	"linear":             triggersv1.LadderDistribution_LINEAR,
-	"geometric":          triggersv1.LadderDistribution_GEOMETRIC,
-	"weighted_favorable": triggersv1.LadderDistribution_WEIGHTED_FAVORABLE,
-}
-
 var feeSourceToProto = map[string]orderv1.FeeSource{
 	"quote":    orderv1.FeeSource_QUOTE,
 	"received": orderv1.FeeSource_RECEIVED,
@@ -65,48 +50,155 @@ type CreateTriggerOptions struct {
 
 func CreateTriggerToProto(symbol, triggerType string, triggerPrice *models.PriceInput, side string, qty models.QtyInput, orderType string, limitPrice *models.PriceInput, triggerPriceSource, tif string, subAccountID *string, clientTriggerID *string, postOnly bool, quantityScale int, opts CreateTriggerOptions) (*triggersv1.CreateTriggerRequest, error) {
 	typeKey := strings.ToLower(strings.ReplaceAll(triggerType, "-", "_"))
-	triggerEnum, ok := triggerTypeToProto[typeKey]
-	if !ok {
+	if _, ok := triggerTypeToProto[typeKey]; !ok {
 		return nil, &errors.ValidationError{Msg: "trigger_type must be stop_loss, take_profit, trailing_stop, twap, or ladder"}
-	}
-	sideEnum, ok := orderSideToProto[strings.ToLower(side)]
-	if !ok {
-		return nil, &errors.ValidationError{Msg: "side must be buy or sell"}
-	}
-	orderKey := strings.ToLower(orderType)
-	orderEnum, ok := orderTypeToProto[orderKey]
-	if !ok {
-		return nil, &errors.ValidationError{Msg: "order_type must be limit or market"}
-	}
-	priceTicks := int64(0)
-	if triggerPrice != nil && triggerPrice.IsSet() {
-		parsed, err := ResolvePriceTicks(*triggerPrice, "trigger_price", symbol)
-		if err != nil {
-			return nil, err
-		}
-		priceTicks = parsed
 	}
 	qtyScaled, err := ResolveQtyScaled(qty, quantityScale, "qty", symbol, nil)
 	if err != nil {
 		return nil, err
 	}
-	req := &triggersv1.CreateTriggerRequest{
-		Symbol:            symbol,
-		TriggerType:       triggerEnum,
-		TriggerPriceTicks: priceTicks,
-		Side:              sideEnum,
-		OrderType:         orderEnum,
-		QtyScaled:         qtyScaled,
-		PostOnly:          postOnly,
+	intent := &triggersv1.TriggerIntent{
+		Symbol:    symbol,
+		QtyScaled: qtyScaled,
 	}
-	if source, ok := triggerPriceSourceToProto[strings.ToLower(triggerPriceSource)]; ok {
-		req.TriggerPriceSource = source
+	if clientTriggerID != nil && *clientTriggerID != "" {
+		intent.ClientTriggerId = *clientTriggerID
+	} else {
+		intent.ClientTriggerId = newTriggerRequestID()
 	}
-	if tifKey := strings.ToLower(tif); tifKey != "" {
-		if tifEnum, ok := tifToProto[tifKey]; ok {
-			req.TimeInForce = tifEnum
+	if opts.FeeSource != nil {
+		source, ok := feeSourceToProto[strings.ToLower(*opts.FeeSource)]
+		if !ok {
+			return nil, &errors.ValidationError{Msg: "fee_source must be quote or received"}
 		}
+		intent.FeeSource = source
 	}
+	if opts.SelfTradePreventionMode != nil {
+		mode, ok := selfTradePreventionModeToProto[strings.ToLower(*opts.SelfTradePreventionMode)]
+		if !ok {
+			return nil, &errors.ValidationError{Msg: "self_trade_prevention_mode must be expire_taker, expire_maker, or expire_both"}
+		}
+		intent.SelfTradePreventionMode = mode
+	}
+
+	// triggerPriceSource is no longer part of the create wire contract; it is
+	// evaluated server-side. Accept and ignore for API compatibility.
+	_ = triggerPriceSource
+
+	switch typeKey {
+	case "stop_loss", "take_profit":
+		sideEnum, ok := orderSideToProto[strings.ToLower(side)]
+		if !ok {
+			return nil, &errors.ValidationError{Msg: "side must be buy or sell"}
+		}
+		triggerTicks := int64(0)
+		if triggerPrice != nil && triggerPrice.IsSet() {
+			parsed, err := ResolvePriceTicks(*triggerPrice, "trigger_price", symbol)
+			if err != nil {
+				return nil, err
+			}
+			triggerTicks = parsed
+		}
+		child, err := conditionalChildToProto(orderType, tif, limitPrice, symbol, postOnly)
+		if err != nil {
+			return nil, err
+		}
+		cond := &triggersv1.ConditionalTrigger{
+			TriggerPriceTicks: triggerTicks,
+			Side:              sideEnum,
+			Child:             child,
+		}
+		if typeKey == "stop_loss" {
+			intent.Strategy = &triggersv1.TriggerIntent_StopLoss{StopLoss: cond}
+		} else {
+			intent.Strategy = &triggersv1.TriggerIntent_TakeProfit{TakeProfit: cond}
+		}
+	case "trailing_stop":
+		// Trailing stop is an implicit SELL market-IOC strategy; side, order_type,
+		// tif, and post_only are ignored.
+		trailing := &triggersv1.TrailingStopTrigger{}
+		switch {
+		case opts.TrailingDistanceTicks != nil:
+			trailing.TrailingDistance = &triggersv1.TrailingStopTrigger_TrailingDistanceTicks{TrailingDistanceTicks: *opts.TrailingDistanceTicks}
+		case opts.TrailingDistanceBps != nil:
+			trailing.TrailingDistance = &triggersv1.TrailingStopTrigger_TrailingDistanceBps{TrailingDistanceBps: *opts.TrailingDistanceBps}
+		default:
+			return nil, &errors.ValidationError{Msg: "trailing_stop requires trailing_distance_ticks or trailing_distance_bps"}
+		}
+		if opts.ActivationPrice != nil && opts.ActivationPrice.IsSet() {
+			ticks, err := ResolvePriceTicks(*opts.ActivationPrice, "activation_price", symbol)
+			if err != nil {
+				return nil, err
+			}
+			trailing.ActivationPriceTicks = ticks
+		}
+		switch {
+		case opts.MaxSlippageTicks != nil:
+			trailing.MaxSlippage = &triggersv1.TrailingStopTrigger_MaxSlippageTicks{MaxSlippageTicks: *opts.MaxSlippageTicks}
+		case opts.MaxSlippageBps != nil:
+			trailing.MaxSlippage = &triggersv1.TrailingStopTrigger_MaxSlippageBps{MaxSlippageBps: *opts.MaxSlippageBps}
+		}
+		intent.Strategy = &triggersv1.TriggerIntent_TrailingStop{TrailingStop: trailing}
+	case "twap":
+		sideEnum, ok := orderSideToProto[strings.ToLower(side)]
+		if !ok {
+			return nil, &errors.ValidationError{Msg: "side must be buy or sell"}
+		}
+		twap := &triggersv1.TwapTrigger{Side: sideEnum}
+		if opts.TwapDurationMs != nil {
+			twap.DurationMs = *opts.TwapDurationMs
+		}
+		if opts.TwapSliceIntervalMs != nil {
+			twap.SliceIntervalMs = *opts.TwapSliceIntervalMs
+		}
+		switch strings.ToLower(orderType) {
+		case "market":
+			twap.Execution = &triggersv1.TwapTrigger_MarketIoc{MarketIoc: &triggersv1.TwapMarketIoc{}}
+		case "limit":
+			if limitPrice == nil || !limitPrice.IsSet() {
+				return nil, &errors.ValidationError{Msg: "twap limit slices require limit_price"}
+			}
+			ticks, err := ResolvePriceTicks(*limitPrice, "limit_price", symbol)
+			if err != nil {
+				return nil, err
+			}
+			twap.Execution = &triggersv1.TwapTrigger_LimitGtc{LimitGtc: &triggersv1.TwapLimitGtc{PriceTicks: ticks}}
+		default:
+			return nil, &errors.ValidationError{Msg: "order_type must be limit or market"}
+		}
+		intent.Strategy = &triggersv1.TriggerIntent_Twap{Twap: twap}
+	case "ladder":
+		sideEnum, ok := orderSideToProto[strings.ToLower(side)]
+		if !ok {
+			return nil, &errors.ValidationError{Msg: "side must be buy or sell"}
+		}
+		if opts.LadderDistribution != nil {
+			if dist := strings.ToLower(*opts.LadderDistribution); dist != "" && dist != "linear" {
+				return nil, &errors.ValidationError{Msg: "ladder only supports linear distribution"}
+			}
+		}
+		ladder := &triggersv1.LadderTrigger{Side: sideEnum, PostOnly: postOnly}
+		if opts.LadderPriceMin != nil && opts.LadderPriceMin.IsSet() {
+			ticks, err := ResolvePriceTicks(*opts.LadderPriceMin, "ladder_price_min", symbol)
+			if err != nil {
+				return nil, err
+			}
+			ladder.PriceMinTicks = ticks
+		}
+		if opts.LadderPriceMax != nil && opts.LadderPriceMax.IsSet() {
+			ticks, err := ResolvePriceTicks(*opts.LadderPriceMax, "ladder_price_max", symbol)
+			if err != nil {
+				return nil, err
+			}
+			ladder.PriceMaxTicks = ticks
+		}
+		if opts.LadderLevels != nil {
+			ladder.Levels = *opts.LadderLevels
+		}
+		intent.Strategy = &triggersv1.TriggerIntent_Ladder{Ladder: ladder}
+	}
+
+	req := &triggersv1.CreateTriggerRequest{Trigger: intent}
 	if subAccountID != nil {
 		sub, err := IDToInt(*subAccountID, "sub_account_id")
 		if err != nil {
@@ -114,82 +206,42 @@ func CreateTriggerToProto(symbol, triggerType string, triggerPrice *models.Price
 		}
 		req.SubaccountId = &sub
 	}
-	if clientTriggerID != nil && *clientTriggerID != "" {
-		req.ClientTriggerId = *clientTriggerID
-	} else {
-		req.ClientTriggerId = newTriggerRequestID()
-	}
-	if limitPrice != nil && limitPrice.IsSet() {
+	return req, nil
+}
+
+// conditionalChildToProto maps flat (order_type, tif, limit_price, post_only)
+// params onto a stop-loss / take-profit child execution variant.
+func conditionalChildToProto(orderType, tif string, limitPrice *models.PriceInput, symbol string, postOnly bool) (*triggersv1.ConditionalChildExecution, error) {
+	switch strings.ToLower(orderType) {
+	case "market":
+		return &triggersv1.ConditionalChildExecution{
+			Execution: &triggersv1.ConditionalChildExecution_MarketIoc{MarketIoc: &triggersv1.TriggerMarketIoc{}},
+		}, nil
+	case "limit":
+		if limitPrice == nil || !limitPrice.IsSet() {
+			return nil, &errors.ValidationError{Msg: "limit trigger requires limit_price"}
+		}
 		ticks, err := ResolvePriceTicks(*limitPrice, "limit_price", symbol)
 		if err != nil {
 			return nil, err
 		}
-		req.LimitPriceTicks = ticks
-	}
-	if opts.FeeSource != nil {
-		source, ok := feeSourceToProto[strings.ToLower(*opts.FeeSource)]
-		if !ok {
-			return nil, &errors.ValidationError{Msg: "fee_source must be quote or received"}
+		switch strings.ToLower(tif) {
+		case "ioc":
+			return &triggersv1.ConditionalChildExecution{
+				Execution: &triggersv1.ConditionalChildExecution_LimitIoc{LimitIoc: &triggersv1.TriggerLimitIoc{PriceTicks: ticks}},
+			}, nil
+		case "fok":
+			return &triggersv1.ConditionalChildExecution{
+				Execution: &triggersv1.ConditionalChildExecution_LimitFok{LimitFok: &triggersv1.TriggerLimitFok{PriceTicks: ticks}},
+			}, nil
+		default: // gtc or unspecified
+			return &triggersv1.ConditionalChildExecution{
+				Execution: &triggersv1.ConditionalChildExecution_LimitGtc{LimitGtc: &triggersv1.TriggerLimitGtc{PriceTicks: ticks, PostOnly: postOnly}},
+			}, nil
 		}
-		req.FeeSource = source
+	default:
+		return nil, &errors.ValidationError{Msg: "order_type must be limit or market"}
 	}
-	if opts.SelfTradePreventionMode != nil {
-		mode, ok := selfTradePreventionModeToProto[strings.ToLower(*opts.SelfTradePreventionMode)]
-		if !ok {
-			return nil, &errors.ValidationError{Msg: "self_trade_prevention_mode must be expire_taker, expire_maker, or expire_both"}
-		}
-		req.SelfTradePreventionMode = mode
-	}
-	if opts.TrailingDistanceTicks != nil {
-		req.TrailingDistance = &triggersv1.CreateTriggerRequest_TrailingDistanceTicks{TrailingDistanceTicks: *opts.TrailingDistanceTicks}
-	}
-	if opts.TrailingDistanceBps != nil {
-		req.TrailingDistance = &triggersv1.CreateTriggerRequest_TrailingDistanceBps{TrailingDistanceBps: *opts.TrailingDistanceBps}
-	}
-	if opts.ActivationPrice != nil && opts.ActivationPrice.IsSet() {
-		ticks, err := ResolvePriceTicks(*opts.ActivationPrice, "activation_price", symbol)
-		if err != nil {
-			return nil, err
-		}
-		req.ActivationPriceTicks = ticks
-	}
-	if opts.MaxSlippageTicks != nil {
-		req.MaxSlippage = &triggersv1.CreateTriggerRequest_MaxSlippageTicks{MaxSlippageTicks: *opts.MaxSlippageTicks}
-	}
-	if opts.MaxSlippageBps != nil {
-		req.MaxSlippage = &triggersv1.CreateTriggerRequest_MaxSlippageBps{MaxSlippageBps: *opts.MaxSlippageBps}
-	}
-	if opts.TwapDurationMs != nil {
-		req.TwapDurationMs = *opts.TwapDurationMs
-	}
-	if opts.TwapSliceIntervalMs != nil {
-		req.TwapSliceIntervalMs = *opts.TwapSliceIntervalMs
-	}
-	if opts.LadderPriceMin != nil && opts.LadderPriceMin.IsSet() {
-		ticks, err := ResolvePriceTicks(*opts.LadderPriceMin, "ladder_price_min", symbol)
-		if err != nil {
-			return nil, err
-		}
-		req.LadderPriceMinTicks = ticks
-	}
-	if opts.LadderPriceMax != nil && opts.LadderPriceMax.IsSet() {
-		ticks, err := ResolvePriceTicks(*opts.LadderPriceMax, "ladder_price_max", symbol)
-		if err != nil {
-			return nil, err
-		}
-		req.LadderPriceMaxTicks = ticks
-	}
-	if opts.LadderLevels != nil {
-		req.LadderLevels = *opts.LadderLevels
-	}
-	if opts.LadderDistribution != nil {
-		distribution, ok := ladderDistributionToProto[strings.ToLower(*opts.LadderDistribution)]
-		if !ok {
-			return nil, &errors.ValidationError{Msg: "ladder_distribution must be linear, geometric, or weighted_favorable"}
-		}
-		req.LadderDistribution = distribution
-	}
-	return req, nil
 }
 
 // ModifyTriggerOptions carries optional trigger patch fields.

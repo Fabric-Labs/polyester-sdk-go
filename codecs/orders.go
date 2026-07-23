@@ -17,15 +17,6 @@ var (
 		"buy":  orderv1.Side_BUY,
 		"sell": orderv1.Side_SELL,
 	}
-	orderTypeToProto = map[string]orderv1.OrderType{
-		"limit":  orderv1.OrderType_LIMIT,
-		"market": orderv1.OrderType_MARKET,
-	}
-	tifToProto = map[string]orderv1.TimeInForce{
-		"gtc": orderv1.TimeInForce_GTC,
-		"ioc": orderv1.TimeInForce_IOC,
-		"fok": orderv1.TimeInForce_FOK,
-	}
 	modifyBehaviorToProto = map[string]orderv1.ModifyBehavior{
 		"amend_or_replace": orderv1.ModifyBehavior_AMEND_OR_REPLACE,
 		"amend_only":       orderv1.ModifyBehavior_AMEND_ONLY,
@@ -53,8 +44,10 @@ func QuantityScaleForSymbol(c *catalogs.Manager, symbol *string) int {
 	return 8
 }
 
-// CreateOrderToProto encodes create order request.
-func CreateOrderToProto(req models.CreateOrderRequest, quantityScale int) (*orderv1.CreateOrderRequest, error) {
+// OrderIntentToProto encodes the transport-independent OrderIntent shared by
+// single and batch create. The flat public params (order_type/tif/post_only)
+// are mapped onto the appropriate execution variant.
+func OrderIntentToProto(req models.CreateOrderRequest, quantityScale int) (*orderv1.OrderIntent, error) {
 	if req.Symbol == nil && req.SymbolID == nil {
 		return nil, &errors.ValidationError{Msg: "orders.create requires symbol or symbol_id"}
 	}
@@ -62,8 +55,8 @@ func CreateOrderToProto(req models.CreateOrderRequest, quantityScale int) (*orde
 	if !ok {
 		return nil, &errors.ValidationError{Msg: "side must be 'buy' or 'sell'"}
 	}
-	orderType, ok := orderTypeToProto[strings.ToLower(req.OrderType)]
-	if !ok {
+	orderType := strings.ToLower(req.OrderType)
+	if orderType != "limit" && orderType != "market" {
 		return nil, &errors.ValidationError{Msg: "order_type must be 'limit' or 'market'"}
 	}
 	symbol := ""
@@ -74,47 +67,81 @@ func CreateOrderToProto(req models.CreateOrderRequest, quantityScale int) (*orde
 	if err != nil {
 		return nil, err
 	}
-	proto := &orderv1.CreateOrderRequest{
+	intent := &orderv1.OrderIntent{
+		Symbol:    symbol,
 		Side:      side,
-		OrderType: orderType,
 		QtyScaled: qty,
 	}
-	if req.Symbol != nil {
-		proto.Symbol = *req.Symbol
+	if req.ClientOrderID != nil {
+		intent.ClientOrderId = *req.ClientOrderID
 	}
-	if req.Price != nil && req.Price.IsSet() {
+
+	hasPrice := req.Price != nil && req.Price.IsSet()
+	var priceTicks int64
+	if hasPrice {
 		ticks, err := ResolvePriceTicks(*req.Price, "price", symbol)
 		if err != nil {
 			return nil, err
 		}
-		proto.PriceTicks = ticks
+		priceTicks = ticks
 	}
+	tif := ""
 	if req.TIF != nil {
-		tif, ok := tifToProto[strings.ToLower(*req.TIF)]
-		if !ok {
+		tif = strings.ToLower(*req.TIF)
+		if tif != "gtc" && tif != "ioc" && tif != "fok" {
 			return nil, &errors.ValidationError{Msg: "tif must be one of 'gtc', 'ioc', or 'fok'"}
 		}
-		proto.TimeInForce = tif
 	}
+
+	switch orderType {
+	case "market":
+		if req.PostOnly {
+			return nil, &errors.ValidationError{Msg: "post_only is not supported for market orders"}
+		}
+		market := &orderv1.MarketIoc{}
+		if req.MarketClientRefPrice != nil && req.MarketClientRefPrice.IsSet() {
+			ticks, err := ResolvePriceTicks(*req.MarketClientRefPrice, "market_client_ref_price", symbol)
+			if err != nil {
+				return nil, err
+			}
+			market.ClientRefPriceTicks = ticks
+		}
+		intent.Execution = &orderv1.OrderIntent_MarketIoc{MarketIoc: market}
+	case "limit":
+		if !hasPrice {
+			return nil, &errors.ValidationError{Msg: "limit orders require price"}
+		}
+		switch tif {
+		case "ioc":
+			if req.PostOnly {
+				return nil, &errors.ValidationError{Msg: "post_only is not supported for ioc limit orders"}
+			}
+			intent.Execution = &orderv1.OrderIntent_LimitIoc{LimitIoc: &orderv1.LimitIoc{PriceTicks: priceTicks}}
+		case "fok":
+			if req.PostOnly {
+				return nil, &errors.ValidationError{Msg: "post_only is not supported for fok limit orders"}
+			}
+			intent.Execution = &orderv1.OrderIntent_LimitFok{LimitFok: &orderv1.LimitFok{PriceTicks: priceTicks}}
+		default: // gtc or unspecified
+			intent.Execution = &orderv1.OrderIntent_LimitGtc{LimitGtc: &orderv1.LimitGtc{PriceTicks: priceTicks, PostOnly: req.PostOnly}}
+		}
+	}
+	return intent, nil
+}
+
+// CreateOrderToProto encodes create order request.
+func CreateOrderToProto(req models.CreateOrderRequest, quantityScale int) (*orderv1.CreateOrderRequest, error) {
+	intent, err := OrderIntentToProto(req, quantityScale)
+	if err != nil {
+		return nil, err
+	}
+	proto := &orderv1.CreateOrderRequest{Order: intent}
 	if req.SubAccountID != nil {
 		sub, err := IDToInt(*req.SubAccountID, "sub_account_id")
 		if err != nil {
 			return nil, err
 		}
 		proto.SubaccountId = &sub
-	}
-	if req.ClientOrderID != nil {
-		proto.ClientOrderId = *req.ClientOrderID
-	}
-	if req.PostOnly {
-		proto.PostOnly = true
-	}
-	if req.MarketClientRefPrice != nil && req.MarketClientRefPrice.IsSet() {
-		ticks, err := ResolvePriceTicks(*req.MarketClientRefPrice, "market_client_ref_price", symbol)
-		if err != nil {
-			return nil, err
-		}
-		proto.MarketClientRefPriceTicks = ticks
 	}
 	return proto, nil
 }

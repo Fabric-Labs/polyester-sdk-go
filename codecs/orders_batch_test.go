@@ -21,7 +21,7 @@ func TestBatchCreateOrdersToProto(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if proto.RequestId != "req-create-1" || !proto.AllowPartial {
+	if proto.RequestId != "req-create-1" {
 		t.Fatalf("request meta: %+v", proto)
 	}
 	if proto.GetSubaccountId() != 123 || len(proto.Items) != 2 {
@@ -30,11 +30,15 @@ func TestBatchCreateOrdersToProto(t *testing.T) {
 	if proto.Items[0].Symbol != "BTC-USD" || proto.Items[0].Side != orderv1.Side_BUY {
 		t.Fatalf("item0=%+v", proto.Items[0])
 	}
-	if proto.Items[0].QtyScaled != 10_000_000 || proto.Items[0].PriceTicks != 50_000_000_000 {
-		t.Fatalf("item0 scales: qty=%d price=%d", proto.Items[0].QtyScaled, proto.Items[0].PriceTicks)
+	limitGtc := proto.Items[0].GetLimitGtc()
+	if limitGtc == nil {
+		t.Fatalf("item0 expected limit_gtc execution: %+v", proto.Items[0])
 	}
-	if proto.Items[1].OrderType != orderv1.OrderType_MARKET {
-		t.Fatalf("item1 type=%v", proto.Items[1].OrderType)
+	if proto.Items[0].QtyScaled != 10_000_000 || limitGtc.GetPriceTicks() != 50_000_000_000 {
+		t.Fatalf("item0 scales: qty=%d price=%d", proto.Items[0].QtyScaled, limitGtc.GetPriceTicks())
+	}
+	if proto.Items[1].GetMarketIoc() == nil {
+		t.Fatalf("item1 expected market_ioc execution: %+v", proto.Items[1])
 	}
 }
 

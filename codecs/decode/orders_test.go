@@ -23,6 +23,7 @@ func TestOrderFromProtoMapsEnumsAndIDs(t *testing.T) {
 		PriceTicks:      5000,
 		AvgPriceTicks:   4990,
 		CreatedTsNs:     1_700_000_000_000,
+		PostOnly:        true,
 	}
 	order := decode.OrderFromProto(msg)
 	if order.OrderID != codecs.FormatUint64ID(42) {
@@ -34,10 +35,63 @@ func TestOrderFromProtoMapsEnumsAndIDs(t *testing.T) {
 	if order.OrigQty.Scaled != 100 {
 		t.Fatalf("orig_qty=%+v", order.OrigQty)
 	}
+	if !order.PostOnly {
+		t.Fatalf("expected post_only=true, got %+v", order)
+	}
 	msg.Version = 7
 	order = decode.OrderFromProto(msg)
 	if order.Version != 7 {
 		t.Fatalf("version=%d", order.Version)
+	}
+}
+
+func TestOrderFromProtoMapsAttachedRisk(t *testing.T) {
+	msg := &orderv1.Order{
+		OrderId:  1,
+		SymbolId: 1,
+		PostOnly: false,
+		AttachedRisk: &orderv1.AttachedRisk{
+			TakeProfit: &orderv1.AttachedRiskTakeProfit{
+				Policy: &orderv1.TakeProfitPolicy{
+					TriggerPriceTicks: 6000,
+					Child: &orderv1.RiskExecution{
+						Execution: &orderv1.RiskExecution_MarketIoc{MarketIoc: &orderv1.RiskMarketIoc{}},
+					},
+				},
+			},
+			TrailingStop: &orderv1.AttachedRiskTrailingStop{
+				Policy: &orderv1.TrailingStopPolicy{
+					ActivationPriceTicks: 5500,
+					TrailingDistance: &orderv1.TrailingStopPolicy_TrailingDistanceBps{
+						TrailingDistanceBps: 25,
+					},
+					MaxSlippage: &orderv1.TrailingStopPolicy_MaxSlippageTicks{
+						MaxSlippageTicks: 10,
+					},
+				},
+			},
+			Oco: true,
+		},
+	}
+	order := decode.OrderFromProto(msg)
+	if order.AttachedRisk == nil {
+		t.Fatal("expected attached_risk")
+	}
+	risk := order.AttachedRisk
+	if !risk.Oco || risk.TakeProfit == nil || risk.TrailingStop == nil {
+		t.Fatalf("risk=%+v", risk)
+	}
+	if risk.StopLoss != nil {
+		t.Fatalf("stop_loss should be suppressed when trailing present: %+v", risk.StopLoss)
+	}
+	if risk.TakeProfit.TriggerPrice.Ticks != 6000 || risk.TakeProfit.OrderType != "market" {
+		t.Fatalf("take_profit=%+v", risk.TakeProfit)
+	}
+	if risk.TrailingStop.DistanceBps != 25 || risk.TrailingStop.MaxSlippageTicks != 10 {
+		t.Fatalf("trailing=%+v", risk.TrailingStop)
+	}
+	if risk.TrailingStop.ActivationPrice.Ticks != 5500 {
+		t.Fatalf("trailing=%+v", risk.TrailingStop)
 	}
 }
 
@@ -86,7 +140,6 @@ func TestModifyOrderFromProtoActionTakenEnum(t *testing.T) {
 
 func TestOrderMutationFromProtoCreateIncludesClientOrderID(t *testing.T) {
 	msg := &orderv1.CreateOrderResponse{
-		Status:        "accepted",
 		OrderId:       42,
 		ClientOrderId: "coid-1",
 	}
