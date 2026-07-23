@@ -428,6 +428,8 @@ const (
 	ErrorCode_ERROR_CODE_MAX_SLIPPAGE_INVALID ErrorCode = 48
 	// Client reference price is stale compared to server-side BBO/drift policy.
 	ErrorCode_ERROR_CODE_STALE_QUOTE ErrorCode = 65
+	// Request failed structural or cross-field validation.
+	ErrorCode_ERROR_CODE_VALIDATION_ERROR ErrorCode = 66
 )
 
 // Enum value maps for ErrorCode.
@@ -495,6 +497,7 @@ var (
 		47: "ERROR_CODE_CONFLICT_DUPLICATE_CLIENT_TRIGGER_ID",
 		48: "ERROR_CODE_MAX_SLIPPAGE_INVALID",
 		65: "ERROR_CODE_STALE_QUOTE",
+		66: "ERROR_CODE_VALIDATION_ERROR",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_CODE_UNSPECIFIED":                          0,
@@ -559,6 +562,7 @@ var (
 		"ERROR_CODE_CONFLICT_DUPLICATE_CLIENT_TRIGGER_ID": 47,
 		"ERROR_CODE_MAX_SLIPPAGE_INVALID":                 48,
 		"ERROR_CODE_STALE_QUOTE":                          65,
+		"ERROR_CODE_VALIDATION_ERROR":                     66,
 	}
 )
 
@@ -815,55 +819,453 @@ func (ModifyActionTaken) EnumDescriptor() ([]byte, []int) {
 	return file_orders_v1_orders_proto_rawDescGZIP(), []int{9}
 }
 
-// CreateOrderRequest is the binary (protobuf) request for placing orders.
-// Uses scaled integers for quantity and price, plus fixed64 IDs.
-// Preferred by latency-sensitive clients.
+// MarketIoc configures a market order. Market orders always execute as
+// immediate-or-cancel and therefore cannot rest or be post-only.
+type MarketIoc struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional max slippage override. If omitted, the pair default is used.
+	//
+	// Types that are valid to be assigned to MaxSlippage:
+	//
+	//	*MarketIoc_MaxSlippageTicks
+	//	*MarketIoc_MaxSlippageBps
+	MaxSlippage isMarketIoc_MaxSlippage `protobuf_oneof:"max_slippage"`
+	// Optional client reference price in quote units scaled by 1e6. When
+	// omitted, admission uses server-side reference pricing.
+	ClientRefPriceTicks int64 `protobuf:"varint,3,opt,name=client_ref_price_ticks,json=clientRefPriceTicks,proto3" json:"client_ref_price_ticks,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *MarketIoc) Reset() {
+	*x = MarketIoc{}
+	mi := &file_orders_v1_orders_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MarketIoc) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MarketIoc) ProtoMessage() {}
+
+func (x *MarketIoc) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_orders_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MarketIoc.ProtoReflect.Descriptor instead.
+func (*MarketIoc) Descriptor() ([]byte, []int) {
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *MarketIoc) GetMaxSlippage() isMarketIoc_MaxSlippage {
+	if x != nil {
+		return x.MaxSlippage
+	}
+	return nil
+}
+
+func (x *MarketIoc) GetMaxSlippageTicks() int32 {
+	if x != nil {
+		if x, ok := x.MaxSlippage.(*MarketIoc_MaxSlippageTicks); ok {
+			return x.MaxSlippageTicks
+		}
+	}
+	return 0
+}
+
+func (x *MarketIoc) GetMaxSlippageBps() int32 {
+	if x != nil {
+		if x, ok := x.MaxSlippage.(*MarketIoc_MaxSlippageBps); ok {
+			return x.MaxSlippageBps
+		}
+	}
+	return 0
+}
+
+func (x *MarketIoc) GetClientRefPriceTicks() int64 {
+	if x != nil {
+		return x.ClientRefPriceTicks
+	}
+	return 0
+}
+
+type isMarketIoc_MaxSlippage interface {
+	isMarketIoc_MaxSlippage()
+}
+
+type MarketIoc_MaxSlippageTicks struct {
+	// Maximum allowed slippage as a price delta in 1e-6 quote-unit ticks.
+	MaxSlippageTicks int32 `protobuf:"varint,1,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
+}
+
+type MarketIoc_MaxSlippageBps struct {
+	// Maximum allowed slippage in basis points (1 bp = 0.01%).
+	MaxSlippageBps int32 `protobuf:"varint,2,opt,name=max_slippage_bps,json=maxSlippageBps,proto3,oneof"`
+}
+
+func (*MarketIoc_MaxSlippageTicks) isMarketIoc_MaxSlippage() {}
+
+func (*MarketIoc_MaxSlippageBps) isMarketIoc_MaxSlippage() {}
+
+// LimitGtc configures a good-til-canceled limit order.
+type LimitGtc struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Limit price in quote units scaled by 1e6.
+	PriceTicks int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
+	// Reject the order instead of taking liquidity. Post-only is available only
+	// on this resting limit-order variant.
+	PostOnly      bool `protobuf:"varint,2,opt,name=post_only,json=postOnly,proto3" json:"post_only,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LimitGtc) Reset() {
+	*x = LimitGtc{}
+	mi := &file_orders_v1_orders_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LimitGtc) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LimitGtc) ProtoMessage() {}
+
+func (x *LimitGtc) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_orders_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LimitGtc.ProtoReflect.Descriptor instead.
+func (*LimitGtc) Descriptor() ([]byte, []int) {
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *LimitGtc) GetPriceTicks() int64 {
+	if x != nil {
+		return x.PriceTicks
+	}
+	return 0
+}
+
+func (x *LimitGtc) GetPostOnly() bool {
+	if x != nil {
+		return x.PostOnly
+	}
+	return false
+}
+
+// LimitIoc configures an immediate-or-cancel limit order.
+type LimitIoc struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Limit price in quote units scaled by 1e6.
+	PriceTicks    int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LimitIoc) Reset() {
+	*x = LimitIoc{}
+	mi := &file_orders_v1_orders_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LimitIoc) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LimitIoc) ProtoMessage() {}
+
+func (x *LimitIoc) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_orders_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LimitIoc.ProtoReflect.Descriptor instead.
+func (*LimitIoc) Descriptor() ([]byte, []int) {
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *LimitIoc) GetPriceTicks() int64 {
+	if x != nil {
+		return x.PriceTicks
+	}
+	return 0
+}
+
+// LimitFok configures a fill-or-kill limit order.
+type LimitFok struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Limit price in quote units scaled by 1e6.
+	PriceTicks    int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LimitFok) Reset() {
+	*x = LimitFok{}
+	mi := &file_orders_v1_orders_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LimitFok) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LimitFok) ProtoMessage() {}
+
+func (x *LimitFok) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_orders_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LimitFok.ProtoReflect.Descriptor instead.
+func (*LimitFok) Descriptor() ([]byte, []int) {
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *LimitFok) GetPriceTicks() int64 {
+	if x != nil {
+		return x.PriceTicks
+	}
+	return 0
+}
+
+// OrderIntent contains one order's complete, transport-independent placement
+// intent. Single and batch create use this same message.
+type OrderIntent struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Trading pair symbol, for example "BTC-USDT".
+	Symbol string `protobuf:"bytes,1,opt,name=symbol,proto3" json:"symbol,omitempty"`
+	// Order side.
+	Side Side `protobuf:"varint,2,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
+	// Quantity scaled by the pair's base_quantity_scale from GetSpotConfig.
+	QtyScaled int64 `protobuf:"varint,3,opt,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`
+	// Required execution behavior. The selected variant exposes only fields that
+	// can be honored together.
+	//
+	// Types that are valid to be assigned to Execution:
+	//
+	//	*OrderIntent_MarketIoc
+	//	*OrderIntent_LimitGtc
+	//	*OrderIntent_LimitIoc
+	//	*OrderIntent_LimitFok
+	Execution isOrderIntent_Execution `protobuf_oneof:"execution"`
+	// Optional client order identifier for idempotency.
+	ClientOrderId string `protobuf:"bytes,20,opt,name=client_order_id,json=clientOrderId,proto3" json:"client_order_id,omitempty"`
+	// Fee source for BUY orders: QUOTE (default) or RECEIVED. SELL orders must
+	// use QUOTE.
+	FeeSource FeeSource `protobuf:"varint,21,opt,name=fee_source,json=feeSource,proto3,enum=orders.v1.FeeSource" json:"fee_source,omitempty"`
+	// Self-trade prevention mode. Defaults to EXPIRE_MAKER if unspecified.
+	SelfTradePreventionMode SelfTradePreventionMode `protobuf:"varint,22,opt,name=self_trade_prevention_mode,json=selfTradePreventionMode,proto3,enum=orders.v1.SelfTradePreventionMode" json:"self_trade_prevention_mode,omitempty"`
+	// Optional attached risk controls that arm after the parent order fills.
+	AttachedRisk  *RiskPolicy `protobuf:"bytes,30,opt,name=attached_risk,json=attachedRisk,proto3" json:"attached_risk,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OrderIntent) Reset() {
+	*x = OrderIntent{}
+	mi := &file_orders_v1_orders_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OrderIntent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OrderIntent) ProtoMessage() {}
+
+func (x *OrderIntent) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_orders_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OrderIntent.ProtoReflect.Descriptor instead.
+func (*OrderIntent) Descriptor() ([]byte, []int) {
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *OrderIntent) GetSymbol() string {
+	if x != nil {
+		return x.Symbol
+	}
+	return ""
+}
+
+func (x *OrderIntent) GetSide() Side {
+	if x != nil {
+		return x.Side
+	}
+	return Side_SIDE_UNSPECIFIED
+}
+
+func (x *OrderIntent) GetQtyScaled() int64 {
+	if x != nil {
+		return x.QtyScaled
+	}
+	return 0
+}
+
+func (x *OrderIntent) GetExecution() isOrderIntent_Execution {
+	if x != nil {
+		return x.Execution
+	}
+	return nil
+}
+
+func (x *OrderIntent) GetMarketIoc() *MarketIoc {
+	if x != nil {
+		if x, ok := x.Execution.(*OrderIntent_MarketIoc); ok {
+			return x.MarketIoc
+		}
+	}
+	return nil
+}
+
+func (x *OrderIntent) GetLimitGtc() *LimitGtc {
+	if x != nil {
+		if x, ok := x.Execution.(*OrderIntent_LimitGtc); ok {
+			return x.LimitGtc
+		}
+	}
+	return nil
+}
+
+func (x *OrderIntent) GetLimitIoc() *LimitIoc {
+	if x != nil {
+		if x, ok := x.Execution.(*OrderIntent_LimitIoc); ok {
+			return x.LimitIoc
+		}
+	}
+	return nil
+}
+
+func (x *OrderIntent) GetLimitFok() *LimitFok {
+	if x != nil {
+		if x, ok := x.Execution.(*OrderIntent_LimitFok); ok {
+			return x.LimitFok
+		}
+	}
+	return nil
+}
+
+func (x *OrderIntent) GetClientOrderId() string {
+	if x != nil {
+		return x.ClientOrderId
+	}
+	return ""
+}
+
+func (x *OrderIntent) GetFeeSource() FeeSource {
+	if x != nil {
+		return x.FeeSource
+	}
+	return FeeSource_FEE_SOURCE_UNSPECIFIED
+}
+
+func (x *OrderIntent) GetSelfTradePreventionMode() SelfTradePreventionMode {
+	if x != nil {
+		return x.SelfTradePreventionMode
+	}
+	return SelfTradePreventionMode_SELF_TRADE_PREVENTION_MODE_UNSPECIFIED
+}
+
+func (x *OrderIntent) GetAttachedRisk() *RiskPolicy {
+	if x != nil {
+		return x.AttachedRisk
+	}
+	return nil
+}
+
+type isOrderIntent_Execution interface {
+	isOrderIntent_Execution()
+}
+
+type OrderIntent_MarketIoc struct {
+	// Market order with implicit IOC behavior.
+	MarketIoc *MarketIoc `protobuf:"bytes,10,opt,name=market_ioc,json=marketIoc,proto3,oneof"`
+}
+
+type OrderIntent_LimitGtc struct {
+	// Resting GTC limit order, optionally post-only.
+	LimitGtc *LimitGtc `protobuf:"bytes,11,opt,name=limit_gtc,json=limitGtc,proto3,oneof"`
+}
+
+type OrderIntent_LimitIoc struct {
+	// Immediate-or-cancel limit order.
+	LimitIoc *LimitIoc `protobuf:"bytes,12,opt,name=limit_ioc,json=limitIoc,proto3,oneof"`
+}
+
+type OrderIntent_LimitFok struct {
+	// Fill-or-kill limit order.
+	LimitFok *LimitFok `protobuf:"bytes,13,opt,name=limit_fok,json=limitFok,proto3,oneof"`
+}
+
+func (*OrderIntent_MarketIoc) isOrderIntent_Execution() {}
+
+func (*OrderIntent_LimitGtc) isOrderIntent_Execution() {}
+
+func (*OrderIntent_LimitIoc) isOrderIntent_Execution() {}
+
+func (*OrderIntent_LimitFok) isOrderIntent_Execution() {}
+
+// CreateOrderRequest submits one order intent for admission.
 type CreateOrderRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target sub-account numeric ID. When omitted, uses caller's root account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
-	// Trading pair symbol, e.g., "BTC-USDT"; resolved to pair_id by gateway.
-	Symbol string `protobuf:"bytes,2,opt,name=symbol,proto3" json:"symbol,omitempty"`
-	// Order side: BUY or SELL.
-	Side Side `protobuf:"varint,3,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
-	// Order type: LIMIT or MARKET.
-	OrderType OrderType `protobuf:"varint,4,opt,name=order_type,json=orderType,proto3,enum=orders.v1.OrderType" json:"order_type,omitempty"`
-	// Time-in-force: GTC, IOC, or FOK. Defaults to GTC if unspecified.
-	TimeInForce TimeInForce `protobuf:"varint,5,opt,name=time_in_force,json=timeInForce,proto3,enum=orders.v1.TimeInForce" json:"time_in_force,omitempty"`
-	// Quantity scaled by the pair's base_quantity_scale from GetSpotConfig.
-	QtyScaled int64 `protobuf:"varint,6,opt,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`
-	// Price in quote units scaled by 1e6. Optional for MARKET orders.
-	PriceTicks int64 `protobuf:"varint,7,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
-	// Optional max slippage override for MARKET orders.
-	// If omitted, server-side per-pair default slippage is used.
-	//
-	// Types that are valid to be assigned to MarketMaxSlippage:
-	//
-	//	*CreateOrderRequest_MarketMaxSlippageTicks
-	//	*CreateOrderRequest_MarketMaxSlippageBps
-	MarketMaxSlippage isCreateOrderRequest_MarketMaxSlippage `protobuf_oneof:"market_max_slippage"`
-	// Optional client-side reference price in quote units scaled by 1e6 for
-	// MARKET slippage anchoring.
-	// When absent, admission uses server-side reference pricing.
-	MarketClientRefPriceTicks int64 `protobuf:"varint,14,opt,name=market_client_ref_price_ticks,json=marketClientRefPriceTicks,proto3" json:"market_client_ref_price_ticks,omitempty"`
-	// If true, the order is rejected instead of crossing the book (maker-only).
-	PostOnly bool `protobuf:"varint,8,opt,name=post_only,json=postOnly,proto3" json:"post_only,omitempty"`
-	// Optional client order identifier for idempotency.
-	ClientOrderId string `protobuf:"bytes,9,opt,name=client_order_id,json=clientOrderId,proto3" json:"client_order_id,omitempty"`
-	// Fee source for BUY orders: QUOTE (default) or RECEIVED. SELL orders always
-	// pay fees in quote asset.
-	FeeSource FeeSource `protobuf:"varint,10,opt,name=fee_source,json=feeSource,proto3,enum=orders.v1.FeeSource" json:"fee_source,omitempty"`
-	// Self-trade prevention mode. Defaults to EXPIRE_MAKER if unspecified.
-	SelfTradePreventionMode SelfTradePreventionMode `protobuf:"varint,11,opt,name=self_trade_prevention_mode,json=selfTradePreventionMode,proto3,enum=orders.v1.SelfTradePreventionMode" json:"self_trade_prevention_mode,omitempty"`
-	// Optional attached risk controls (TP/SL/TrailingStop) for this order.
-	AttachedRisk  *RiskPolicy `protobuf:"bytes,20,opt,name=attached_risk,json=attachedRisk,proto3" json:"attached_risk,omitempty"`
+	// Order to admit.
+	Order         *OrderIntent `protobuf:"bytes,2,opt,name=order,proto3" json:"order,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateOrderRequest) Reset() {
 	*x = CreateOrderRequest{}
-	mi := &file_orders_v1_orders_proto_msgTypes[0]
+	mi := &file_orders_v1_orders_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -875,7 +1277,7 @@ func (x *CreateOrderRequest) String() string {
 func (*CreateOrderRequest) ProtoMessage() {}
 
 func (x *CreateOrderRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_proto_msgTypes[0]
+	mi := &file_orders_v1_orders_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -888,7 +1290,7 @@ func (x *CreateOrderRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateOrderRequest.ProtoReflect.Descriptor instead.
 func (*CreateOrderRequest) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_proto_rawDescGZIP(), []int{0}
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CreateOrderRequest) GetSubaccountId() uint64 {
@@ -898,146 +1300,26 @@ func (x *CreateOrderRequest) GetSubaccountId() uint64 {
 	return 0
 }
 
-func (x *CreateOrderRequest) GetSymbol() string {
+func (x *CreateOrderRequest) GetOrder() *OrderIntent {
 	if x != nil {
-		return x.Symbol
-	}
-	return ""
-}
-
-func (x *CreateOrderRequest) GetSide() Side {
-	if x != nil {
-		return x.Side
-	}
-	return Side_SIDE_UNSPECIFIED
-}
-
-func (x *CreateOrderRequest) GetOrderType() OrderType {
-	if x != nil {
-		return x.OrderType
-	}
-	return OrderType_ORDER_TYPE_UNSPECIFIED
-}
-
-func (x *CreateOrderRequest) GetTimeInForce() TimeInForce {
-	if x != nil {
-		return x.TimeInForce
-	}
-	return TimeInForce_TIME_IN_FORCE_UNSPECIFIED
-}
-
-func (x *CreateOrderRequest) GetQtyScaled() int64 {
-	if x != nil {
-		return x.QtyScaled
-	}
-	return 0
-}
-
-func (x *CreateOrderRequest) GetPriceTicks() int64 {
-	if x != nil {
-		return x.PriceTicks
-	}
-	return 0
-}
-
-func (x *CreateOrderRequest) GetMarketMaxSlippage() isCreateOrderRequest_MarketMaxSlippage {
-	if x != nil {
-		return x.MarketMaxSlippage
+		return x.Order
 	}
 	return nil
 }
 
-func (x *CreateOrderRequest) GetMarketMaxSlippageTicks() int32 {
-	if x != nil {
-		if x, ok := x.MarketMaxSlippage.(*CreateOrderRequest_MarketMaxSlippageTicks); ok {
-			return x.MarketMaxSlippageTicks
-		}
-	}
-	return 0
-}
-
-func (x *CreateOrderRequest) GetMarketMaxSlippageBps() int32 {
-	if x != nil {
-		if x, ok := x.MarketMaxSlippage.(*CreateOrderRequest_MarketMaxSlippageBps); ok {
-			return x.MarketMaxSlippageBps
-		}
-	}
-	return 0
-}
-
-func (x *CreateOrderRequest) GetMarketClientRefPriceTicks() int64 {
-	if x != nil {
-		return x.MarketClientRefPriceTicks
-	}
-	return 0
-}
-
-func (x *CreateOrderRequest) GetPostOnly() bool {
-	if x != nil {
-		return x.PostOnly
-	}
-	return false
-}
-
-func (x *CreateOrderRequest) GetClientOrderId() string {
-	if x != nil {
-		return x.ClientOrderId
-	}
-	return ""
-}
-
-func (x *CreateOrderRequest) GetFeeSource() FeeSource {
-	if x != nil {
-		return x.FeeSource
-	}
-	return FeeSource_FEE_SOURCE_UNSPECIFIED
-}
-
-func (x *CreateOrderRequest) GetSelfTradePreventionMode() SelfTradePreventionMode {
-	if x != nil {
-		return x.SelfTradePreventionMode
-	}
-	return SelfTradePreventionMode_SELF_TRADE_PREVENTION_MODE_UNSPECIFIED
-}
-
-func (x *CreateOrderRequest) GetAttachedRisk() *RiskPolicy {
-	if x != nil {
-		return x.AttachedRisk
-	}
-	return nil
-}
-
-type isCreateOrderRequest_MarketMaxSlippage interface {
-	isCreateOrderRequest_MarketMaxSlippage()
-}
-
-type CreateOrderRequest_MarketMaxSlippageTicks struct {
-	// Maximum allowed slippage as a price delta in 1e-6 quote-unit ticks.
-	MarketMaxSlippageTicks int32 `protobuf:"varint,12,opt,name=market_max_slippage_ticks,json=marketMaxSlippageTicks,proto3,oneof"`
-}
-
-type CreateOrderRequest_MarketMaxSlippageBps struct {
-	// Maximum allowed slippage in basis points (1 bp = 0.01%).
-	MarketMaxSlippageBps int32 `protobuf:"varint,13,opt,name=market_max_slippage_bps,json=marketMaxSlippageBps,proto3,oneof"`
-}
-
-func (*CreateOrderRequest_MarketMaxSlippageTicks) isCreateOrderRequest_MarketMaxSlippage() {}
-
-func (*CreateOrderRequest_MarketMaxSlippageBps) isCreateOrderRequest_MarketMaxSlippage() {}
-
-// CreateOrderResponse is the binary (protobuf) response after placing an order.
+// CreateOrderResponse acknowledges admission only. It does not report whether
+// the order is working, filled, canceled, or rejected after admission; use
+// order reads or realtime streams for execution state.
 type CreateOrderResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Status indicator, e.g., "accepted".
-	Status string `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
-	// Order ID as fixed64.
-	OrderId uint64 `protobuf:"fixed64,2,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
-	// Echoed client order ID (when provided in request).
-	ClientOrderId string `protobuf:"bytes,3,opt,name=client_order_id,json=clientOrderId,proto3" json:"client_order_id,omitempty"`
-	// Server timestamp.
-	Ts *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=ts,proto3" json:"ts,omitempty"`
-	// Server timestamp as epoch nanoseconds (for bots).
-	TsNs uint64 `protobuf:"varint,5,opt,name=ts_ns,json=tsNs,proto3" json:"ts_ns,omitempty"`
+	// Assigned order ID.
+	OrderId uint64 `protobuf:"fixed64,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
+	// Echoed client order ID when one was supplied.
+	ClientOrderId string `protobuf:"bytes,2,opt,name=client_order_id,json=clientOrderId,proto3" json:"client_order_id,omitempty"`
+	// Time admission completed.
+	AcceptedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=accepted_at,json=acceptedAt,proto3" json:"accepted_at,omitempty"`
+	// Admission completion time as epoch nanoseconds (UTC).
+	AcceptedAtTsNs uint64 `protobuf:"varint,4,opt,name=accepted_at_ts_ns,json=acceptedAtTsNs,proto3" json:"accepted_at_ts_ns,omitempty"`
 	// Trigger ID for attached take-profit.
 	TakeProfitTriggerId *uint64 `protobuf:"varint,20,opt,name=take_profit_trigger_id,json=takeProfitTriggerId,proto3,oneof" json:"take_profit_trigger_id,omitempty"`
 	// Trigger ID for attached stop-loss.
@@ -1050,7 +1332,7 @@ type CreateOrderResponse struct {
 
 func (x *CreateOrderResponse) Reset() {
 	*x = CreateOrderResponse{}
-	mi := &file_orders_v1_orders_proto_msgTypes[1]
+	mi := &file_orders_v1_orders_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1062,7 +1344,7 @@ func (x *CreateOrderResponse) String() string {
 func (*CreateOrderResponse) ProtoMessage() {}
 
 func (x *CreateOrderResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_proto_msgTypes[1]
+	mi := &file_orders_v1_orders_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1075,14 +1357,7 @@ func (x *CreateOrderResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateOrderResponse.ProtoReflect.Descriptor instead.
 func (*CreateOrderResponse) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *CreateOrderResponse) GetStatus() string {
-	if x != nil {
-		return x.Status
-	}
-	return ""
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *CreateOrderResponse) GetOrderId() uint64 {
@@ -1099,16 +1374,16 @@ func (x *CreateOrderResponse) GetClientOrderId() string {
 	return ""
 }
 
-func (x *CreateOrderResponse) GetTs() *timestamppb.Timestamp {
+func (x *CreateOrderResponse) GetAcceptedAt() *timestamppb.Timestamp {
 	if x != nil {
-		return x.Ts
+		return x.AcceptedAt
 	}
 	return nil
 }
 
-func (x *CreateOrderResponse) GetTsNs() uint64 {
+func (x *CreateOrderResponse) GetAcceptedAtTsNs() uint64 {
 	if x != nil {
-		return x.TsNs
+		return x.AcceptedAtTsNs
 	}
 	return 0
 }
@@ -1152,7 +1427,7 @@ type CancelOrderRequest struct {
 
 func (x *CancelOrderRequest) Reset() {
 	*x = CancelOrderRequest{}
-	mi := &file_orders_v1_orders_proto_msgTypes[2]
+	mi := &file_orders_v1_orders_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1164,7 +1439,7 @@ func (x *CancelOrderRequest) String() string {
 func (*CancelOrderRequest) ProtoMessage() {}
 
 func (x *CancelOrderRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_proto_msgTypes[2]
+	mi := &file_orders_v1_orders_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1177,7 +1452,7 @@ func (x *CancelOrderRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelOrderRequest.ProtoReflect.Descriptor instead.
 func (*CancelOrderRequest) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_proto_rawDescGZIP(), []int{2}
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *CancelOrderRequest) GetKey() isCancelOrderRequest_Key {
@@ -1254,7 +1529,7 @@ type CancelOrderResponse struct {
 
 func (x *CancelOrderResponse) Reset() {
 	*x = CancelOrderResponse{}
-	mi := &file_orders_v1_orders_proto_msgTypes[3]
+	mi := &file_orders_v1_orders_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1266,7 +1541,7 @@ func (x *CancelOrderResponse) String() string {
 func (*CancelOrderResponse) ProtoMessage() {}
 
 func (x *CancelOrderResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_proto_msgTypes[3]
+	mi := &file_orders_v1_orders_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1279,7 +1554,7 @@ func (x *CancelOrderResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelOrderResponse.ProtoReflect.Descriptor instead.
 func (*CancelOrderResponse) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_proto_rawDescGZIP(), []int{3}
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CancelOrderResponse) GetStatus() string {
@@ -1310,19 +1585,85 @@ func (x *CancelOrderResponse) GetTsNs() uint64 {
 	return 0
 }
 
+// FieldViolation describes one actionable request validation failure.
+type FieldViolation struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Protobuf field path relative to the request, using canonical field names.
+	FieldPath string `protobuf:"bytes,1,opt,name=field_path,json=fieldPath,proto3" json:"field_path,omitempty"`
+	// Stable validation rule identifier suitable for programmatic matching.
+	RuleId string `protobuf:"bytes,2,opt,name=rule_id,json=ruleId,proto3" json:"rule_id,omitempty"`
+	// Human-readable explanation of the violation.
+	Message       string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FieldViolation) Reset() {
+	*x = FieldViolation{}
+	mi := &file_orders_v1_orders_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FieldViolation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FieldViolation) ProtoMessage() {}
+
+func (x *FieldViolation) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_orders_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FieldViolation.ProtoReflect.Descriptor instead.
+func (*FieldViolation) Descriptor() ([]byte, []int) {
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *FieldViolation) GetFieldPath() string {
+	if x != nil {
+		return x.FieldPath
+	}
+	return ""
+}
+
+func (x *FieldViolation) GetRuleId() string {
+	if x != nil {
+		return x.RuleId
+	}
+	return ""
+}
+
+func (x *FieldViolation) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 // ErrorDetail is attached to ConnectRPC errors for structured error handling.
 // Clients can inspect this to get a stable machine-readable error code.
 type ErrorDetail struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable error code matching the REST problem+json "code" field.
-	Code          ErrorCode `protobuf:"varint,1,opt,name=code,proto3,enum=orders.v1.ErrorCode" json:"code,omitempty"`
+	Code ErrorCode `protobuf:"varint,1,opt,name=code,proto3,enum=orders.v1.ErrorCode" json:"code,omitempty"`
+	// Field-level validation failures. Empty for non-validation domain errors.
+	Violations    []*FieldViolation `protobuf:"bytes,2,rep,name=violations,proto3" json:"violations,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ErrorDetail) Reset() {
 	*x = ErrorDetail{}
-	mi := &file_orders_v1_orders_proto_msgTypes[4]
+	mi := &file_orders_v1_orders_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1334,7 +1675,7 @@ func (x *ErrorDetail) String() string {
 func (*ErrorDetail) ProtoMessage() {}
 
 func (x *ErrorDetail) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_proto_msgTypes[4]
+	mi := &file_orders_v1_orders_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1347,7 +1688,7 @@ func (x *ErrorDetail) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ErrorDetail.ProtoReflect.Descriptor instead.
 func (*ErrorDetail) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_proto_rawDescGZIP(), []int{4}
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ErrorDetail) GetCode() ErrorCode {
@@ -1357,26 +1698,199 @@ func (x *ErrorDetail) GetCode() ErrorCode {
 	return ErrorCode_ERROR_CODE_UNSPECIFIED
 }
 
-// TakeProfitPolicy defines a take-profit attached to an order.
-// Arms after the parent order fills; fires when price crosses the threshold.
+func (x *ErrorDetail) GetViolations() []*FieldViolation {
+	if x != nil {
+		return x.Violations
+	}
+	return nil
+}
+
+// RiskMarketIoc configures an attached risk leg that submits a market child
+// with implicit immediate-or-cancel behavior.
+type RiskMarketIoc struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RiskMarketIoc) Reset() {
+	*x = RiskMarketIoc{}
+	mi := &file_orders_v1_orders_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RiskMarketIoc) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RiskMarketIoc) ProtoMessage() {}
+
+func (x *RiskMarketIoc) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_orders_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RiskMarketIoc.ProtoReflect.Descriptor instead.
+func (*RiskMarketIoc) Descriptor() ([]byte, []int) {
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{11}
+}
+
+// RiskLimitGtc configures an attached risk leg that submits a resting limit
+// child. Attached risk legs do not support post-only.
+type RiskLimitGtc struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Limit price in quote units scaled by 1e6.
+	PriceTicks    int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RiskLimitGtc) Reset() {
+	*x = RiskLimitGtc{}
+	mi := &file_orders_v1_orders_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RiskLimitGtc) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RiskLimitGtc) ProtoMessage() {}
+
+func (x *RiskLimitGtc) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_orders_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RiskLimitGtc.ProtoReflect.Descriptor instead.
+func (*RiskLimitGtc) Descriptor() ([]byte, []int) {
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *RiskLimitGtc) GetPriceTicks() int64 {
+	if x != nil {
+		return x.PriceTicks
+	}
+	return 0
+}
+
+// RiskExecution selects the child execution supported by attached take-profit
+// and stop-loss policies.
+type RiskExecution struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Execution:
+	//
+	//	*RiskExecution_MarketIoc
+	//	*RiskExecution_LimitGtc
+	Execution     isRiskExecution_Execution `protobuf_oneof:"execution"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RiskExecution) Reset() {
+	*x = RiskExecution{}
+	mi := &file_orders_v1_orders_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RiskExecution) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RiskExecution) ProtoMessage() {}
+
+func (x *RiskExecution) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_orders_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RiskExecution.ProtoReflect.Descriptor instead.
+func (*RiskExecution) Descriptor() ([]byte, []int) {
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *RiskExecution) GetExecution() isRiskExecution_Execution {
+	if x != nil {
+		return x.Execution
+	}
+	return nil
+}
+
+func (x *RiskExecution) GetMarketIoc() *RiskMarketIoc {
+	if x != nil {
+		if x, ok := x.Execution.(*RiskExecution_MarketIoc); ok {
+			return x.MarketIoc
+		}
+	}
+	return nil
+}
+
+func (x *RiskExecution) GetLimitGtc() *RiskLimitGtc {
+	if x != nil {
+		if x, ok := x.Execution.(*RiskExecution_LimitGtc); ok {
+			return x.LimitGtc
+		}
+	}
+	return nil
+}
+
+type isRiskExecution_Execution interface {
+	isRiskExecution_Execution()
+}
+
+type RiskExecution_MarketIoc struct {
+	// Market child with implicit IOC behavior.
+	MarketIoc *RiskMarketIoc `protobuf:"bytes,1,opt,name=market_ioc,json=marketIoc,proto3,oneof"`
+}
+
+type RiskExecution_LimitGtc struct {
+	// Resting GTC limit child.
+	LimitGtc *RiskLimitGtc `protobuf:"bytes,2,opt,name=limit_gtc,json=limitGtc,proto3,oneof"`
+}
+
+func (*RiskExecution_MarketIoc) isRiskExecution_Execution() {}
+
+func (*RiskExecution_LimitGtc) isRiskExecution_Execution() {}
+
+// TakeProfitPolicy defines a take-profit attached to an order. It evaluates
+// last trade price, arms after the parent fills, and submits the selected child.
 type TakeProfitPolicy struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Trigger price in quote units scaled by 1e6. Required.
+	// Trigger price in quote units scaled by 1e6.
 	TriggerPriceTicks int64 `protobuf:"varint,1,opt,name=trigger_price_ticks,json=triggerPriceTicks,proto3" json:"trigger_price_ticks,omitempty"`
-	// Price source for trigger evaluation. Defaults to LAST_PRICE if unspecified.
-	TriggerPriceSource TriggerPriceSource `protobuf:"varint,2,opt,name=trigger_price_source,json=triggerPriceSource,proto3,enum=orders.v1.TriggerPriceSource" json:"trigger_price_source,omitempty"`
-	// Order type for the child order when triggered. Defaults to MARKET.
-	OrderType OrderType `protobuf:"varint,3,opt,name=order_type,json=orderType,proto3,enum=orders.v1.OrderType" json:"order_type,omitempty"`
-	// Limit price in quote units scaled by 1e6 for LIMIT child orders. Required
-	// if order_type is LIMIT.
-	LimitPriceTicks int64 `protobuf:"varint,4,opt,name=limit_price_ticks,json=limitPriceTicks,proto3" json:"limit_price_ticks,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Child execution when the threshold is crossed.
+	Child         *RiskExecution `protobuf:"bytes,2,opt,name=child,proto3" json:"child,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TakeProfitPolicy) Reset() {
 	*x = TakeProfitPolicy{}
-	mi := &file_orders_v1_orders_proto_msgTypes[5]
+	mi := &file_orders_v1_orders_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1388,7 +1902,7 @@ func (x *TakeProfitPolicy) String() string {
 func (*TakeProfitPolicy) ProtoMessage() {}
 
 func (x *TakeProfitPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_proto_msgTypes[5]
+	mi := &file_orders_v1_orders_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1401,7 +1915,7 @@ func (x *TakeProfitPolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TakeProfitPolicy.ProtoReflect.Descriptor instead.
 func (*TakeProfitPolicy) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_proto_rawDescGZIP(), []int{5}
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *TakeProfitPolicy) GetTriggerPriceTicks() int64 {
@@ -1411,47 +1925,28 @@ func (x *TakeProfitPolicy) GetTriggerPriceTicks() int64 {
 	return 0
 }
 
-func (x *TakeProfitPolicy) GetTriggerPriceSource() TriggerPriceSource {
+func (x *TakeProfitPolicy) GetChild() *RiskExecution {
 	if x != nil {
-		return x.TriggerPriceSource
+		return x.Child
 	}
-	return TriggerPriceSource_TRIGGER_PRICE_SOURCE_UNSPECIFIED
+	return nil
 }
 
-func (x *TakeProfitPolicy) GetOrderType() OrderType {
-	if x != nil {
-		return x.OrderType
-	}
-	return OrderType_ORDER_TYPE_UNSPECIFIED
-}
-
-func (x *TakeProfitPolicy) GetLimitPriceTicks() int64 {
-	if x != nil {
-		return x.LimitPriceTicks
-	}
-	return 0
-}
-
-// StopLossPolicy defines a stop-loss attached to an order.
-// Arms after the parent order fills; fires when price crosses the threshold.
+// StopLossPolicy defines a stop-loss attached to an order. It evaluates last
+// trade price, arms after the parent fills, and submits the selected child.
 type StopLossPolicy struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Trigger price in quote units scaled by 1e6. Required.
+	// Trigger price in quote units scaled by 1e6.
 	TriggerPriceTicks int64 `protobuf:"varint,1,opt,name=trigger_price_ticks,json=triggerPriceTicks,proto3" json:"trigger_price_ticks,omitempty"`
-	// Price source for trigger evaluation. Defaults to LAST_PRICE if unspecified.
-	TriggerPriceSource TriggerPriceSource `protobuf:"varint,2,opt,name=trigger_price_source,json=triggerPriceSource,proto3,enum=orders.v1.TriggerPriceSource" json:"trigger_price_source,omitempty"`
-	// Order type for the child order when triggered. Defaults to MARKET.
-	OrderType OrderType `protobuf:"varint,3,opt,name=order_type,json=orderType,proto3,enum=orders.v1.OrderType" json:"order_type,omitempty"`
-	// Limit price in quote units scaled by 1e6 for LIMIT child orders. Required
-	// if order_type is LIMIT.
-	LimitPriceTicks int64 `protobuf:"varint,4,opt,name=limit_price_ticks,json=limitPriceTicks,proto3" json:"limit_price_ticks,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Child execution when the threshold is crossed.
+	Child         *RiskExecution `protobuf:"bytes,2,opt,name=child,proto3" json:"child,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StopLossPolicy) Reset() {
 	*x = StopLossPolicy{}
-	mi := &file_orders_v1_orders_proto_msgTypes[6]
+	mi := &file_orders_v1_orders_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1463,7 +1958,7 @@ func (x *StopLossPolicy) String() string {
 func (*StopLossPolicy) ProtoMessage() {}
 
 func (x *StopLossPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_proto_msgTypes[6]
+	mi := &file_orders_v1_orders_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1476,7 +1971,7 @@ func (x *StopLossPolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopLossPolicy.ProtoReflect.Descriptor instead.
 func (*StopLossPolicy) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_proto_rawDescGZIP(), []int{6}
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *StopLossPolicy) GetTriggerPriceTicks() int64 {
@@ -1486,25 +1981,11 @@ func (x *StopLossPolicy) GetTriggerPriceTicks() int64 {
 	return 0
 }
 
-func (x *StopLossPolicy) GetTriggerPriceSource() TriggerPriceSource {
+func (x *StopLossPolicy) GetChild() *RiskExecution {
 	if x != nil {
-		return x.TriggerPriceSource
+		return x.Child
 	}
-	return TriggerPriceSource_TRIGGER_PRICE_SOURCE_UNSPECIFIED
-}
-
-func (x *StopLossPolicy) GetOrderType() OrderType {
-	if x != nil {
-		return x.OrderType
-	}
-	return OrderType_ORDER_TYPE_UNSPECIFIED
-}
-
-func (x *StopLossPolicy) GetLimitPriceTicks() int64 {
-	if x != nil {
-		return x.LimitPriceTicks
-	}
-	return 0
+	return nil
 }
 
 // TrailingStopPolicy defines a trailing stop attached to an order.
@@ -1534,17 +2015,13 @@ type TrailingStopPolicy struct {
 	// reached. If omitted, trailing starts immediately after the parent order
 	// fills. Expressed in quote units scaled by 1e6.
 	ActivationPriceTicks int64 `protobuf:"varint,3,opt,name=activation_price_ticks,json=activationPriceTicks,proto3" json:"activation_price_ticks,omitempty"`
-	// Price source for trigger evaluation. Defaults to LAST_PRICE if unspecified.
-	TriggerPriceSource TriggerPriceSource `protobuf:"varint,4,opt,name=trigger_price_source,json=triggerPriceSource,proto3,enum=orders.v1.TriggerPriceSource" json:"trigger_price_source,omitempty"`
-	// Order type for the child order when triggered. Defaults to MARKET.
-	OrderType     OrderType `protobuf:"varint,5,opt,name=order_type,json=orderType,proto3,enum=orders.v1.OrderType" json:"order_type,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *TrailingStopPolicy) Reset() {
 	*x = TrailingStopPolicy{}
-	mi := &file_orders_v1_orders_proto_msgTypes[7]
+	mi := &file_orders_v1_orders_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1556,7 +2033,7 @@ func (x *TrailingStopPolicy) String() string {
 func (*TrailingStopPolicy) ProtoMessage() {}
 
 func (x *TrailingStopPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_proto_msgTypes[7]
+	mi := &file_orders_v1_orders_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1569,7 +2046,7 @@ func (x *TrailingStopPolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TrailingStopPolicy.ProtoReflect.Descriptor instead.
 func (*TrailingStopPolicy) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_proto_rawDescGZIP(), []int{7}
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *TrailingStopPolicy) GetTrailingDistance() isTrailingStopPolicy_TrailingDistance {
@@ -1627,20 +2104,6 @@ func (x *TrailingStopPolicy) GetActivationPriceTicks() int64 {
 		return x.ActivationPriceTicks
 	}
 	return 0
-}
-
-func (x *TrailingStopPolicy) GetTriggerPriceSource() TriggerPriceSource {
-	if x != nil {
-		return x.TriggerPriceSource
-	}
-	return TriggerPriceSource_TRIGGER_PRICE_SOURCE_UNSPECIFIED
-}
-
-func (x *TrailingStopPolicy) GetOrderType() OrderType {
-	if x != nil {
-		return x.OrderType
-	}
-	return OrderType_ORDER_TYPE_UNSPECIFIED
 }
 
 type isTrailingStopPolicy_TrailingDistance interface {
@@ -1704,7 +2167,7 @@ type RiskPolicy struct {
 
 func (x *RiskPolicy) Reset() {
 	*x = RiskPolicy{}
-	mi := &file_orders_v1_orders_proto_msgTypes[8]
+	mi := &file_orders_v1_orders_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1716,7 +2179,7 @@ func (x *RiskPolicy) String() string {
 func (*RiskPolicy) ProtoMessage() {}
 
 func (x *RiskPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_proto_msgTypes[8]
+	mi := &file_orders_v1_orders_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1729,7 +2192,7 @@ func (x *RiskPolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RiskPolicy.ProtoReflect.Descriptor instead.
 func (*RiskPolicy) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_proto_rawDescGZIP(), []int{8}
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *RiskPolicy) GetTakeProfit() *TakeProfitPolicy {
@@ -1809,7 +2272,7 @@ type CancelAllOrdersRequest struct {
 
 func (x *CancelAllOrdersRequest) Reset() {
 	*x = CancelAllOrdersRequest{}
-	mi := &file_orders_v1_orders_proto_msgTypes[9]
+	mi := &file_orders_v1_orders_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1821,7 +2284,7 @@ func (x *CancelAllOrdersRequest) String() string {
 func (*CancelAllOrdersRequest) ProtoMessage() {}
 
 func (x *CancelAllOrdersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_proto_msgTypes[9]
+	mi := &file_orders_v1_orders_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1834,7 +2297,7 @@ func (x *CancelAllOrdersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelAllOrdersRequest.ProtoReflect.Descriptor instead.
 func (*CancelAllOrdersRequest) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_proto_rawDescGZIP(), []int{9}
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *CancelAllOrdersRequest) GetSubaccountId() uint64 {
@@ -1893,7 +2356,7 @@ type CancelAllOrdersResponse struct {
 
 func (x *CancelAllOrdersResponse) Reset() {
 	*x = CancelAllOrdersResponse{}
-	mi := &file_orders_v1_orders_proto_msgTypes[10]
+	mi := &file_orders_v1_orders_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1905,7 +2368,7 @@ func (x *CancelAllOrdersResponse) String() string {
 func (*CancelAllOrdersResponse) ProtoMessage() {}
 
 func (x *CancelAllOrdersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_proto_msgTypes[10]
+	mi := &file_orders_v1_orders_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1918,7 +2381,7 @@ func (x *CancelAllOrdersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelAllOrdersResponse.ProtoReflect.Descriptor instead.
 func (*CancelAllOrdersResponse) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_proto_rawDescGZIP(), []int{10}
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *CancelAllOrdersResponse) GetStatus() string {
@@ -1985,7 +2448,7 @@ type CancelAllAfterRequest struct {
 
 func (x *CancelAllAfterRequest) Reset() {
 	*x = CancelAllAfterRequest{}
-	mi := &file_orders_v1_orders_proto_msgTypes[11]
+	mi := &file_orders_v1_orders_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1997,7 +2460,7 @@ func (x *CancelAllAfterRequest) String() string {
 func (*CancelAllAfterRequest) ProtoMessage() {}
 
 func (x *CancelAllAfterRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_proto_msgTypes[11]
+	mi := &file_orders_v1_orders_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2010,7 +2473,7 @@ func (x *CancelAllAfterRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelAllAfterRequest.ProtoReflect.Descriptor instead.
 func (*CancelAllAfterRequest) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_proto_rawDescGZIP(), []int{11}
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *CancelAllAfterRequest) GetSubaccountId() uint64 {
@@ -2067,7 +2530,7 @@ type CancelAllAfterResponse struct {
 
 func (x *CancelAllAfterResponse) Reset() {
 	*x = CancelAllAfterResponse{}
-	mi := &file_orders_v1_orders_proto_msgTypes[12]
+	mi := &file_orders_v1_orders_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2079,7 +2542,7 @@ func (x *CancelAllAfterResponse) String() string {
 func (*CancelAllAfterResponse) ProtoMessage() {}
 
 func (x *CancelAllAfterResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_proto_msgTypes[12]
+	mi := &file_orders_v1_orders_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2092,7 +2555,7 @@ func (x *CancelAllAfterResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelAllAfterResponse.ProtoReflect.Descriptor instead.
 func (*CancelAllAfterResponse) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_proto_rawDescGZIP(), []int{12}
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *CancelAllAfterResponse) GetStatus() string {
@@ -2130,30 +2593,144 @@ func (x *CancelAllAfterResponse) GetTsNs() uint64 {
 	return 0
 }
 
-// BatchCreateResultItem contains the per-item result of a batch create.
-type BatchCreateResultItem struct {
+// BatchCreateAccepted contains the assigned identifiers for an admitted item.
+type BatchCreateAccepted struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// "accepted" or "rejected".
-	Status string `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
-	// Resolved order ID (populated on accept).
-	OrderId uint64 `protobuf:"fixed64,2,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
-	// Echoed client order ID.
-	ClientOrderId string `protobuf:"bytes,3,opt,name=client_order_id,json=clientOrderId,proto3" json:"client_order_id,omitempty"`
-	// Error code if rejected.
-	Code string `protobuf:"bytes,4,opt,name=code,proto3" json:"code,omitempty"`
+	// Assigned order ID.
+	OrderId uint64 `protobuf:"fixed64,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
 	// Trigger ID for attached take-profit (when accepted and configured).
-	TakeProfitTriggerId *uint64 `protobuf:"varint,5,opt,name=take_profit_trigger_id,json=takeProfitTriggerId,proto3,oneof" json:"take_profit_trigger_id,omitempty"`
+	TakeProfitTriggerId *uint64 `protobuf:"varint,2,opt,name=take_profit_trigger_id,json=takeProfitTriggerId,proto3,oneof" json:"take_profit_trigger_id,omitempty"`
 	// Trigger ID for attached stop-loss (when accepted and configured).
-	StopLossTriggerId *uint64 `protobuf:"varint,6,opt,name=stop_loss_trigger_id,json=stopLossTriggerId,proto3,oneof" json:"stop_loss_trigger_id,omitempty"`
+	StopLossTriggerId *uint64 `protobuf:"varint,3,opt,name=stop_loss_trigger_id,json=stopLossTriggerId,proto3,oneof" json:"stop_loss_trigger_id,omitempty"`
 	// Trigger ID for attached trailing stop (when accepted and configured).
-	TrailingStopTriggerId *uint64 `protobuf:"varint,7,opt,name=trailing_stop_trigger_id,json=trailingStopTriggerId,proto3,oneof" json:"trailing_stop_trigger_id,omitempty"`
+	TrailingStopTriggerId *uint64 `protobuf:"varint,4,opt,name=trailing_stop_trigger_id,json=trailingStopTriggerId,proto3,oneof" json:"trailing_stop_trigger_id,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
 
+func (x *BatchCreateAccepted) Reset() {
+	*x = BatchCreateAccepted{}
+	mi := &file_orders_v1_orders_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BatchCreateAccepted) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BatchCreateAccepted) ProtoMessage() {}
+
+func (x *BatchCreateAccepted) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_orders_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BatchCreateAccepted.ProtoReflect.Descriptor instead.
+func (*BatchCreateAccepted) Descriptor() ([]byte, []int) {
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *BatchCreateAccepted) GetOrderId() uint64 {
+	if x != nil {
+		return x.OrderId
+	}
+	return 0
+}
+
+func (x *BatchCreateAccepted) GetTakeProfitTriggerId() uint64 {
+	if x != nil && x.TakeProfitTriggerId != nil {
+		return *x.TakeProfitTriggerId
+	}
+	return 0
+}
+
+func (x *BatchCreateAccepted) GetStopLossTriggerId() uint64 {
+	if x != nil && x.StopLossTriggerId != nil {
+		return *x.StopLossTriggerId
+	}
+	return 0
+}
+
+func (x *BatchCreateAccepted) GetTrailingStopTriggerId() uint64 {
+	if x != nil && x.TrailingStopTriggerId != nil {
+		return *x.TrailingStopTriggerId
+	}
+	return 0
+}
+
+// BatchCreateRejected contains the typed reason an item was not admitted.
+type BatchCreateRejected struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Structured rejection detail.
+	Error         *ErrorDetail `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BatchCreateRejected) Reset() {
+	*x = BatchCreateRejected{}
+	mi := &file_orders_v1_orders_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BatchCreateRejected) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BatchCreateRejected) ProtoMessage() {}
+
+func (x *BatchCreateRejected) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_orders_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BatchCreateRejected.ProtoReflect.Descriptor instead.
+func (*BatchCreateRejected) Descriptor() ([]byte, []int) {
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *BatchCreateRejected) GetError() *ErrorDetail {
+	if x != nil {
+		return x.Error
+	}
+	return nil
+}
+
+// BatchCreateResultItem contains exactly one per-item batch outcome.
+type BatchCreateResultItem struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Echoed client order ID.
+	ClientOrderId string `protobuf:"bytes,1,opt,name=client_order_id,json=clientOrderId,proto3" json:"client_order_id,omitempty"`
+	// Accepted or rejected outcome.
+	//
+	// Types that are valid to be assigned to Outcome:
+	//
+	//	*BatchCreateResultItem_Accepted
+	//	*BatchCreateResultItem_Rejected
+	Outcome       isBatchCreateResultItem_Outcome `protobuf_oneof:"outcome"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
 func (x *BatchCreateResultItem) Reset() {
 	*x = BatchCreateResultItem{}
-	mi := &file_orders_v1_orders_proto_msgTypes[13]
+	mi := &file_orders_v1_orders_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2165,7 +2742,7 @@ func (x *BatchCreateResultItem) String() string {
 func (*BatchCreateResultItem) ProtoMessage() {}
 
 func (x *BatchCreateResultItem) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_proto_msgTypes[13]
+	mi := &file_orders_v1_orders_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2178,21 +2755,7 @@ func (x *BatchCreateResultItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchCreateResultItem.ProtoReflect.Descriptor instead.
 func (*BatchCreateResultItem) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_proto_rawDescGZIP(), []int{13}
-}
-
-func (x *BatchCreateResultItem) GetStatus() string {
-	if x != nil {
-		return x.Status
-	}
-	return ""
-}
-
-func (x *BatchCreateResultItem) GetOrderId() uint64 {
-	if x != nil {
-		return x.OrderId
-	}
-	return 0
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *BatchCreateResultItem) GetClientOrderId() string {
@@ -2202,33 +2765,48 @@ func (x *BatchCreateResultItem) GetClientOrderId() string {
 	return ""
 }
 
-func (x *BatchCreateResultItem) GetCode() string {
+func (x *BatchCreateResultItem) GetOutcome() isBatchCreateResultItem_Outcome {
 	if x != nil {
-		return x.Code
+		return x.Outcome
 	}
-	return ""
+	return nil
 }
 
-func (x *BatchCreateResultItem) GetTakeProfitTriggerId() uint64 {
-	if x != nil && x.TakeProfitTriggerId != nil {
-		return *x.TakeProfitTriggerId
+func (x *BatchCreateResultItem) GetAccepted() *BatchCreateAccepted {
+	if x != nil {
+		if x, ok := x.Outcome.(*BatchCreateResultItem_Accepted); ok {
+			return x.Accepted
+		}
 	}
-	return 0
+	return nil
 }
 
-func (x *BatchCreateResultItem) GetStopLossTriggerId() uint64 {
-	if x != nil && x.StopLossTriggerId != nil {
-		return *x.StopLossTriggerId
+func (x *BatchCreateResultItem) GetRejected() *BatchCreateRejected {
+	if x != nil {
+		if x, ok := x.Outcome.(*BatchCreateResultItem_Rejected); ok {
+			return x.Rejected
+		}
 	}
-	return 0
+	return nil
 }
 
-func (x *BatchCreateResultItem) GetTrailingStopTriggerId() uint64 {
-	if x != nil && x.TrailingStopTriggerId != nil {
-		return *x.TrailingStopTriggerId
-	}
-	return 0
+type isBatchCreateResultItem_Outcome interface {
+	isBatchCreateResultItem_Outcome()
 }
+
+type BatchCreateResultItem_Accepted struct {
+	// Item was admitted.
+	Accepted *BatchCreateAccepted `protobuf:"bytes,2,opt,name=accepted,proto3,oneof"`
+}
+
+type BatchCreateResultItem_Rejected struct {
+	// Item was rejected before admission.
+	Rejected *BatchCreateRejected `protobuf:"bytes,3,opt,name=rejected,proto3,oneof"`
+}
+
+func (*BatchCreateResultItem_Accepted) isBatchCreateResultItem_Outcome() {}
+
+func (*BatchCreateResultItem_Rejected) isBatchCreateResultItem_Outcome() {}
 
 // BatchCreateOrdersRequest places multiple orders in one request.
 type BatchCreateOrdersRequest struct {
@@ -2237,17 +2815,16 @@ type BatchCreateOrdersRequest struct {
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Top-level idempotency key for the batch request.
 	RequestId string `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	// Orders to create (max 20). Reuses CreateOrderRequest payload, including attached risk.
-	Items []*CreateOrderRequest `protobuf:"bytes,3,rep,name=items,proto3" json:"items,omitempty"`
-	// Optional partial-success flag. Current implementation is always best-effort.
-	AllowPartial  bool `protobuf:"varint,4,opt,name=allow_partial,json=allowPartial,proto3" json:"allow_partial,omitempty"`
+	// Orders to create (max 20). Every item uses the same OrderIntent contract as
+	// single create.
+	Items         []*OrderIntent `protobuf:"bytes,3,rep,name=items,proto3" json:"items,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *BatchCreateOrdersRequest) Reset() {
 	*x = BatchCreateOrdersRequest{}
-	mi := &file_orders_v1_orders_proto_msgTypes[14]
+	mi := &file_orders_v1_orders_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2259,7 +2836,7 @@ func (x *BatchCreateOrdersRequest) String() string {
 func (*BatchCreateOrdersRequest) ProtoMessage() {}
 
 func (x *BatchCreateOrdersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_proto_msgTypes[14]
+	mi := &file_orders_v1_orders_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2272,7 +2849,7 @@ func (x *BatchCreateOrdersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchCreateOrdersRequest.ProtoReflect.Descriptor instead.
 func (*BatchCreateOrdersRequest) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_proto_rawDescGZIP(), []int{14}
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *BatchCreateOrdersRequest) GetSubaccountId() uint64 {
@@ -2289,18 +2866,11 @@ func (x *BatchCreateOrdersRequest) GetRequestId() string {
 	return ""
 }
 
-func (x *BatchCreateOrdersRequest) GetItems() []*CreateOrderRequest {
+func (x *BatchCreateOrdersRequest) GetItems() []*OrderIntent {
 	if x != nil {
 		return x.Items
 	}
 	return nil
-}
-
-func (x *BatchCreateOrdersRequest) GetAllowPartial() bool {
-	if x != nil {
-		return x.AllowPartial
-	}
-	return false
 }
 
 // BatchCreateOrdersResponse returns per-item results for a batch create.
@@ -2321,7 +2891,7 @@ type BatchCreateOrdersResponse struct {
 
 func (x *BatchCreateOrdersResponse) Reset() {
 	*x = BatchCreateOrdersResponse{}
-	mi := &file_orders_v1_orders_proto_msgTypes[15]
+	mi := &file_orders_v1_orders_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2333,7 +2903,7 @@ func (x *BatchCreateOrdersResponse) String() string {
 func (*BatchCreateOrdersResponse) ProtoMessage() {}
 
 func (x *BatchCreateOrdersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_proto_msgTypes[15]
+	mi := &file_orders_v1_orders_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2346,7 +2916,7 @@ func (x *BatchCreateOrdersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchCreateOrdersResponse.ProtoReflect.Descriptor instead.
 func (*BatchCreateOrdersResponse) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_proto_rawDescGZIP(), []int{15}
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *BatchCreateOrdersResponse) GetResults() []*BatchCreateResultItem {
@@ -2417,7 +2987,7 @@ type ModifyOrderRequest struct {
 
 func (x *ModifyOrderRequest) Reset() {
 	*x = ModifyOrderRequest{}
-	mi := &file_orders_v1_orders_proto_msgTypes[16]
+	mi := &file_orders_v1_orders_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2429,7 +2999,7 @@ func (x *ModifyOrderRequest) String() string {
 func (*ModifyOrderRequest) ProtoMessage() {}
 
 func (x *ModifyOrderRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_proto_msgTypes[16]
+	mi := &file_orders_v1_orders_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2442,7 +3012,7 @@ func (x *ModifyOrderRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModifyOrderRequest.ProtoReflect.Descriptor instead.
 func (*ModifyOrderRequest) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_proto_rawDescGZIP(), []int{16}
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ModifyOrderRequest) GetSubaccountId() uint64 {
@@ -2562,7 +3132,7 @@ type ModifyOrderResponse struct {
 
 func (x *ModifyOrderResponse) Reset() {
 	*x = ModifyOrderResponse{}
-	mi := &file_orders_v1_orders_proto_msgTypes[17]
+	mi := &file_orders_v1_orders_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2574,7 +3144,7 @@ func (x *ModifyOrderResponse) String() string {
 func (*ModifyOrderResponse) ProtoMessage() {}
 
 func (x *ModifyOrderResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_proto_msgTypes[17]
+	mi := &file_orders_v1_orders_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2587,7 +3157,7 @@ func (x *ModifyOrderResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModifyOrderResponse.ProtoReflect.Descriptor instead.
 func (*ModifyOrderResponse) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_proto_rawDescGZIP(), []int{17}
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ModifyOrderResponse) GetActionTaken() ModifyActionTaken {
@@ -2679,7 +3249,7 @@ type BatchModifyItem struct {
 
 func (x *BatchModifyItem) Reset() {
 	*x = BatchModifyItem{}
-	mi := &file_orders_v1_orders_proto_msgTypes[18]
+	mi := &file_orders_v1_orders_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2691,7 +3261,7 @@ func (x *BatchModifyItem) String() string {
 func (*BatchModifyItem) ProtoMessage() {}
 
 func (x *BatchModifyItem) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_proto_msgTypes[18]
+	mi := &file_orders_v1_orders_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2704,7 +3274,7 @@ func (x *BatchModifyItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchModifyItem.ProtoReflect.Descriptor instead.
 func (*BatchModifyItem) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_proto_rawDescGZIP(), []int{18}
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *BatchModifyItem) GetKey() isBatchModifyItem_Key {
@@ -2812,7 +3382,7 @@ type BatchModifyResultItem struct {
 
 func (x *BatchModifyResultItem) Reset() {
 	*x = BatchModifyResultItem{}
-	mi := &file_orders_v1_orders_proto_msgTypes[19]
+	mi := &file_orders_v1_orders_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2824,7 +3394,7 @@ func (x *BatchModifyResultItem) String() string {
 func (*BatchModifyResultItem) ProtoMessage() {}
 
 func (x *BatchModifyResultItem) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_proto_msgTypes[19]
+	mi := &file_orders_v1_orders_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2837,7 +3407,7 @@ func (x *BatchModifyResultItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchModifyResultItem.ProtoReflect.Descriptor instead.
 func (*BatchModifyResultItem) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_proto_rawDescGZIP(), []int{19}
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *BatchModifyResultItem) GetStatus() string {
@@ -2923,7 +3493,7 @@ type BatchModifyOrdersRequest struct {
 
 func (x *BatchModifyOrdersRequest) Reset() {
 	*x = BatchModifyOrdersRequest{}
-	mi := &file_orders_v1_orders_proto_msgTypes[20]
+	mi := &file_orders_v1_orders_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2935,7 +3505,7 @@ func (x *BatchModifyOrdersRequest) String() string {
 func (*BatchModifyOrdersRequest) ProtoMessage() {}
 
 func (x *BatchModifyOrdersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_proto_msgTypes[20]
+	mi := &file_orders_v1_orders_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2948,7 +3518,7 @@ func (x *BatchModifyOrdersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchModifyOrdersRequest.ProtoReflect.Descriptor instead.
 func (*BatchModifyOrdersRequest) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_proto_rawDescGZIP(), []int{20}
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *BatchModifyOrdersRequest) GetSubaccountId() uint64 {
@@ -3007,7 +3577,7 @@ type BatchModifyOrdersResponse struct {
 
 func (x *BatchModifyOrdersResponse) Reset() {
 	*x = BatchModifyOrdersResponse{}
-	mi := &file_orders_v1_orders_proto_msgTypes[21]
+	mi := &file_orders_v1_orders_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3019,7 +3589,7 @@ func (x *BatchModifyOrdersResponse) String() string {
 func (*BatchModifyOrdersResponse) ProtoMessage() {}
 
 func (x *BatchModifyOrdersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_proto_msgTypes[21]
+	mi := &file_orders_v1_orders_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3032,7 +3602,7 @@ func (x *BatchModifyOrdersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchModifyOrdersResponse.ProtoReflect.Descriptor instead.
 func (*BatchModifyOrdersResponse) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_proto_rawDescGZIP(), []int{21}
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *BatchModifyOrdersResponse) GetResults() []*BatchModifyResultItem {
@@ -3092,7 +3662,7 @@ type BatchCancelItem struct {
 
 func (x *BatchCancelItem) Reset() {
 	*x = BatchCancelItem{}
-	mi := &file_orders_v1_orders_proto_msgTypes[22]
+	mi := &file_orders_v1_orders_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3104,7 +3674,7 @@ func (x *BatchCancelItem) String() string {
 func (*BatchCancelItem) ProtoMessage() {}
 
 func (x *BatchCancelItem) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_proto_msgTypes[22]
+	mi := &file_orders_v1_orders_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3117,7 +3687,7 @@ func (x *BatchCancelItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchCancelItem.ProtoReflect.Descriptor instead.
 func (*BatchCancelItem) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_proto_rawDescGZIP(), []int{22}
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *BatchCancelItem) GetOrderId() uint64 {
@@ -3158,7 +3728,7 @@ type BatchCancelResultItem struct {
 
 func (x *BatchCancelResultItem) Reset() {
 	*x = BatchCancelResultItem{}
-	mi := &file_orders_v1_orders_proto_msgTypes[23]
+	mi := &file_orders_v1_orders_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3170,7 +3740,7 @@ func (x *BatchCancelResultItem) String() string {
 func (*BatchCancelResultItem) ProtoMessage() {}
 
 func (x *BatchCancelResultItem) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_proto_msgTypes[23]
+	mi := &file_orders_v1_orders_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3183,7 +3753,7 @@ func (x *BatchCancelResultItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchCancelResultItem.ProtoReflect.Descriptor instead.
 func (*BatchCancelResultItem) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_proto_rawDescGZIP(), []int{23}
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *BatchCancelResultItem) GetStatus() string {
@@ -3229,7 +3799,7 @@ type BatchCancelOrdersRequest struct {
 
 func (x *BatchCancelOrdersRequest) Reset() {
 	*x = BatchCancelOrdersRequest{}
-	mi := &file_orders_v1_orders_proto_msgTypes[24]
+	mi := &file_orders_v1_orders_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3241,7 +3811,7 @@ func (x *BatchCancelOrdersRequest) String() string {
 func (*BatchCancelOrdersRequest) ProtoMessage() {}
 
 func (x *BatchCancelOrdersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_proto_msgTypes[24]
+	mi := &file_orders_v1_orders_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3254,7 +3824,7 @@ func (x *BatchCancelOrdersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchCancelOrdersRequest.ProtoReflect.Descriptor instead.
 func (*BatchCancelOrdersRequest) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_proto_rawDescGZIP(), []int{24}
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *BatchCancelOrdersRequest) GetSubaccountId() uint64 {
@@ -3296,7 +3866,7 @@ type BatchCancelOrdersResponse struct {
 
 func (x *BatchCancelOrdersResponse) Reset() {
 	*x = BatchCancelOrdersResponse{}
-	mi := &file_orders_v1_orders_proto_msgTypes[25]
+	mi := &file_orders_v1_orders_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3308,7 +3878,7 @@ func (x *BatchCancelOrdersResponse) String() string {
 func (*BatchCancelOrdersResponse) ProtoMessage() {}
 
 func (x *BatchCancelOrdersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_proto_msgTypes[25]
+	mi := &file_orders_v1_orders_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3321,7 +3891,7 @@ func (x *BatchCancelOrdersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchCancelOrdersResponse.ProtoReflect.Descriptor instead.
 func (*BatchCancelOrdersResponse) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_proto_rawDescGZIP(), []int{25}
+	return file_orders_v1_orders_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *BatchCancelOrdersResponse) GetResults() []*BatchCancelResultItem {
@@ -3363,39 +3933,53 @@ var File_orders_v1_orders_proto protoreflect.FileDescriptor
 
 const file_orders_v1_orders_proto_rawDesc = "" +
 	"\n" +
-	"\x16orders/v1/orders.proto\x12\torders.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc0\t\n" +
+	"\x16orders/v1/orders.proto\x12\torders.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcd\x01\n" +
+	"\tMarketIoc\x127\n" +
+	"\x12max_slippage_ticks\x18\x01 \x01(\x05B\a\xbaH\x04\x1a\x02 \x00H\x00R\x10maxSlippageTicks\x126\n" +
+	"\x10max_slippage_bps\x18\x02 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\x90N \x00H\x00R\x0emaxSlippageBps\x12?\n" +
+	"\x16client_ref_price_ticks\x18\x03 \x01(\x03B\n" +
+	"\xbaH\a\xd8\x01\x01\"\x02 \x00R\x13clientRefPriceTicksB\x0e\n" +
+	"\fmax_slippage\"Q\n" +
+	"\bLimitGtc\x12(\n" +
+	"\vprice_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\n" +
+	"priceTicks\x12\x1b\n" +
+	"\tpost_only\x18\x02 \x01(\bR\bpostOnly\"4\n" +
+	"\bLimitIoc\x12(\n" +
+	"\vprice_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\n" +
+	"priceTicks\"4\n" +
+	"\bLimitFok\x12(\n" +
+	"\vprice_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\n" +
+	"priceTicks\"\xa3\x05\n" +
+	"\vOrderIntent\x12\"\n" +
+	"\x06symbol\x18\x01 \x01(\tB\n" +
+	"\xe0A\x02\xbaH\x04r\x02\x10\x01R\x06symbol\x122\n" +
+	"\x04side\x18\x02 \x01(\x0e2\x0f.orders.v1.SideB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04side\x12)\n" +
+	"\n" +
+	"qty_scaled\x18\x03 \x01(\x03B\n" +
+	"\xe0A\x02\xbaH\x04\"\x02 \x00R\tqtyScaled\x125\n" +
+	"\n" +
+	"market_ioc\x18\n" +
+	" \x01(\v2\x14.orders.v1.MarketIocH\x00R\tmarketIoc\x122\n" +
+	"\tlimit_gtc\x18\v \x01(\v2\x13.orders.v1.LimitGtcH\x00R\blimitGtc\x122\n" +
+	"\tlimit_ioc\x18\f \x01(\v2\x13.orders.v1.LimitIocH\x00R\blimitIoc\x122\n" +
+	"\tlimit_fok\x18\r \x01(\v2\x13.orders.v1.LimitFokH\x00R\blimitFok\x12D\n" +
+	"\x0fclient_order_id\x18\x14 \x01(\tB\x1c\xbaH\x19r\x17\x18$2\x13^[A-Za-z0-9._:/-]*$R\rclientOrderId\x12=\n" +
+	"\n" +
+	"fee_source\x18\x15 \x01(\x0e2\x14.orders.v1.FeeSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\tfeeSource\x12i\n" +
+	"\x1aself_trade_prevention_mode\x18\x16 \x01(\x0e2\".orders.v1.SelfTradePreventionModeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x17selfTradePreventionMode\x12:\n" +
+	"\rattached_risk\x18\x1e \x01(\v2\x15.orders.v1.RiskPolicyR\fattachedRiskB\x12\n" +
+	"\texecution\x12\x05\xbaH\x02\b\x01\"\x89\x01\n" +
 	"\x12CreateOrderRequest\x12(\n" +
-	"\rsubaccount_id\x18\x01 \x01(\x06H\x01R\fsubaccountId\x88\x01\x01\x12\x1f\n" +
-	"\x06symbol\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06symbol\x122\n" +
-	"\x04side\x18\x03 \x01(\x0e2\x0f.orders.v1.SideB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04side\x12B\n" +
-	"\n" +
-	"order_type\x18\x04 \x01(\x0e2\x14.orders.v1.OrderTypeB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\torderType\x12D\n" +
-	"\rtime_in_force\x18\x05 \x01(\x0e2\x16.orders.v1.TimeInForceB\b\xbaH\x05\x82\x01\x02\x10\x01R\vtimeInForce\x12&\n" +
-	"\n" +
-	"qty_scaled\x18\x06 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\tqtyScaled\x12\x1f\n" +
-	"\vprice_ticks\x18\a \x01(\x03R\n" +
-	"priceTicks\x12D\n" +
-	"\x19market_max_slippage_ticks\x18\f \x01(\x05B\a\xbaH\x04\x1a\x02 \x00H\x00R\x16marketMaxSlippageTicks\x12C\n" +
-	"\x17market_max_slippage_bps\x18\r \x01(\x05B\n" +
-	"\xbaH\a\x1a\x05\x18\x90N \x00H\x00R\x14marketMaxSlippageBps\x12L\n" +
-	"\x1dmarket_client_ref_price_ticks\x18\x0e \x01(\x03B\n" +
-	"\xbaH\a\xd8\x01\x01\"\x02 \x00R\x19marketClientRefPriceTicks\x12\x1b\n" +
-	"\tpost_only\x18\b \x01(\bR\bpostOnly\x12D\n" +
-	"\x0fclient_order_id\x18\t \x01(\tB\x1c\xbaH\x19r\x17\x18$2\x13^[A-Za-z0-9._:/-]*$R\rclientOrderId\x12=\n" +
-	"\n" +
-	"fee_source\x18\n" +
-	" \x01(\x0e2\x14.orders.v1.FeeSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\tfeeSource\x12i\n" +
-	"\x1aself_trade_prevention_mode\x18\v \x01(\x0e2\".orders.v1.SelfTradePreventionModeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x17selfTradePreventionMode\x12:\n" +
-	"\rattached_risk\x18\x14 \x01(\v2\x15.orders.v1.RiskPolicyR\fattachedRisk:\x8c\x02\xbaH\x88\x02\x1a\x85\x02\n" +
-	"(create_order.market_slippage_market_only\x12Emarket_max_slippage/client reference are only valid for MARKET orders\x1a\x91\x01(this.order_type == 2) || (!(has(this.market_max_slippage_ticks) || has(this.market_max_slippage_bps) || this.market_client_ref_price_ticks > 0))B\x15\n" +
-	"\x13market_max_slippageB\x10\n" +
-	"\x0e_subaccount_id\"\xb0\x03\n" +
-	"\x13CreateOrderResponse\x12\x16\n" +
-	"\x06status\x18\x01 \x01(\tR\x06status\x12\x19\n" +
-	"\border_id\x18\x02 \x01(\x06R\aorderId\x12&\n" +
-	"\x0fclient_order_id\x18\x03 \x01(\tR\rclientOrderId\x12*\n" +
-	"\x02ts\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x02ts\x12\x13\n" +
-	"\x05ts_ns\x18\x05 \x01(\x04R\x04tsNs\x128\n" +
+	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x127\n" +
+	"\x05order\x18\x02 \x01(\v2\x16.orders.v1.OrderIntentB\t\xe0A\x02\xbaH\x03\xc8\x01\x01R\x05orderB\x10\n" +
+	"\x0e_subaccount_id\"\xbf\x03\n" +
+	"\x13CreateOrderResponse\x12\x19\n" +
+	"\border_id\x18\x01 \x01(\x06R\aorderId\x12&\n" +
+	"\x0fclient_order_id\x18\x02 \x01(\tR\rclientOrderId\x12;\n" +
+	"\vaccepted_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"acceptedAt\x12)\n" +
+	"\x11accepted_at_ts_ns\x18\x04 \x01(\x04R\x0eacceptedAtTsNs\x128\n" +
 	"\x16take_profit_trigger_id\x18\x14 \x01(\x04H\x00R\x13takeProfitTriggerId\x88\x01\x01\x124\n" +
 	"\x14stop_loss_trigger_id\x18\x15 \x01(\x04H\x01R\x11stopLossTriggerId\x88\x01\x01\x12<\n" +
 	"\x18trailing_stop_trigger_id\x18\x16 \x01(\x04H\x02R\x15trailingStopTriggerId\x88\x01\x01B\x19\n" +
@@ -3414,21 +3998,32 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x19\n" +
 	"\border_id\x18\x02 \x01(\x06R\aorderId\x12*\n" +
 	"\x02ts\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x02ts\x12\x13\n" +
-	"\x05ts_ns\x18\x04 \x01(\x04R\x04tsNs\"7\n" +
+	"\x05ts_ns\x18\x04 \x01(\x04R\x04tsNs\"b\n" +
+	"\x0eFieldViolation\x12\x1d\n" +
+	"\n" +
+	"field_path\x18\x01 \x01(\tR\tfieldPath\x12\x17\n" +
+	"\arule_id\x18\x02 \x01(\tR\x06ruleId\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"r\n" +
 	"\vErrorDetail\x12(\n" +
-	"\x04code\x18\x01 \x01(\x0e2\x14.orders.v1.ErrorCodeR\x04code\"\x91\x02\n" +
+	"\x04code\x18\x01 \x01(\x0e2\x14.orders.v1.ErrorCodeR\x04code\x129\n" +
+	"\n" +
+	"violations\x18\x02 \x03(\v2\x19.orders.v1.FieldViolationR\n" +
+	"violations\"\x0f\n" +
+	"\rRiskMarketIoc\"8\n" +
+	"\fRiskLimitGtc\x12(\n" +
+	"\vprice_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\n" +
+	"priceTicks\"\x96\x01\n" +
+	"\rRiskExecution\x129\n" +
+	"\n" +
+	"market_ioc\x18\x01 \x01(\v2\x18.orders.v1.RiskMarketIocH\x00R\tmarketIoc\x126\n" +
+	"\tlimit_gtc\x18\x02 \x01(\v2\x17.orders.v1.RiskLimitGtcH\x00R\blimitGtcB\x12\n" +
+	"\texecution\x12\x05\xbaH\x02\b\x01\"\x83\x01\n" +
 	"\x10TakeProfitPolicy\x127\n" +
-	"\x13trigger_price_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x11triggerPriceTicks\x12Y\n" +
-	"\x14trigger_price_source\x18\x02 \x01(\x0e2\x1d.orders.v1.TriggerPriceSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\x12triggerPriceSource\x12=\n" +
-	"\n" +
-	"order_type\x18\x03 \x01(\x0e2\x14.orders.v1.OrderTypeB\b\xbaH\x05\x82\x01\x02\x10\x01R\torderType\x12*\n" +
-	"\x11limit_price_ticks\x18\x04 \x01(\x03R\x0flimitPriceTicks\"\x8f\x02\n" +
+	"\x13trigger_price_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x11triggerPriceTicks\x126\n" +
+	"\x05child\x18\x02 \x01(\v2\x18.orders.v1.RiskExecutionB\x06\xbaH\x03\xc8\x01\x01R\x05child\"\x81\x01\n" +
 	"\x0eStopLossPolicy\x127\n" +
-	"\x13trigger_price_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x11triggerPriceTicks\x12Y\n" +
-	"\x14trigger_price_source\x18\x02 \x01(\x0e2\x1d.orders.v1.TriggerPriceSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\x12triggerPriceSource\x12=\n" +
-	"\n" +
-	"order_type\x18\x03 \x01(\x0e2\x14.orders.v1.OrderTypeB\b\xbaH\x05\x82\x01\x02\x10\x01R\torderType\x12*\n" +
-	"\x11limit_price_ticks\x18\x04 \x01(\x03R\x0flimitPriceTicks\"\xff\x03\n" +
+	"\x13trigger_price_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x11triggerPriceTicks\x126\n" +
+	"\x05child\x18\x02 \x01(\v2\x18.orders.v1.RiskExecutionB\x06\xbaH\x03\xc8\x01\x01R\x05child\"\xe5\x02\n" +
 	"\x12TrailingStopPolicy\x12A\n" +
 	"\x17trailing_distance_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x00R\x15trailingDistanceTicks\x12@\n" +
 	"\x15trailing_distance_bps\x18\x02 \x01(\x05B\n" +
@@ -3436,10 +4031,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x12max_slippage_ticks\x18\x06 \x01(\x05B\a\xbaH\x04\x1a\x02 \x00H\x01R\x10maxSlippageTicks\x126\n" +
 	"\x10max_slippage_bps\x18\a \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\x90N \x00H\x01R\x0emaxSlippageBps\x124\n" +
-	"\x16activation_price_ticks\x18\x03 \x01(\x03R\x14activationPriceTicks\x12Y\n" +
-	"\x14trigger_price_source\x18\x04 \x01(\x0e2\x1d.orders.v1.TriggerPriceSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\x12triggerPriceSource\x12=\n" +
-	"\n" +
-	"order_type\x18\x05 \x01(\x0e2\x14.orders.v1.OrderTypeB\b\xbaH\x05\x82\x01\x02\x10\x01R\torderTypeB\x13\n" +
+	"\x16activation_price_ticks\x18\x03 \x01(\x03R\x14activationPriceTicksB\x13\n" +
 	"\x11trailing_distanceB\x0e\n" +
 	"\fmax_slippage\"\xc6\x03\n" +
 	"\n" +
@@ -3484,25 +4076,28 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x15effective_timeout_sec\x18\x02 \x01(\rR\x13effectiveTimeoutSec\x12'\n" +
 	"\x10expires_at_ts_ns\x18\x03 \x01(\x04R\rexpiresAtTsNs\x12*\n" +
 	"\x02ts\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x02ts\x12\x13\n" +
-	"\x05ts_ns\x18\x05 \x01(\x04R\x04tsNs\"\x85\x03\n" +
-	"\x15BatchCreateResultItem\x12\x16\n" +
-	"\x06status\x18\x01 \x01(\tR\x06status\x12\x19\n" +
-	"\border_id\x18\x02 \x01(\x06R\aorderId\x12&\n" +
-	"\x0fclient_order_id\x18\x03 \x01(\tR\rclientOrderId\x12\x12\n" +
-	"\x04code\x18\x04 \x01(\tR\x04code\x128\n" +
-	"\x16take_profit_trigger_id\x18\x05 \x01(\x04H\x00R\x13takeProfitTriggerId\x88\x01\x01\x124\n" +
-	"\x14stop_loss_trigger_id\x18\x06 \x01(\x04H\x01R\x11stopLossTriggerId\x88\x01\x01\x12<\n" +
-	"\x18trailing_stop_trigger_id\x18\a \x01(\x04H\x02R\x15trailingStopTriggerId\x88\x01\x01B\x19\n" +
+	"\x05ts_ns\x18\x05 \x01(\x04R\x04tsNs\"\xaf\x02\n" +
+	"\x13BatchCreateAccepted\x12\x19\n" +
+	"\border_id\x18\x01 \x01(\x06R\aorderId\x128\n" +
+	"\x16take_profit_trigger_id\x18\x02 \x01(\x04H\x00R\x13takeProfitTriggerId\x88\x01\x01\x124\n" +
+	"\x14stop_loss_trigger_id\x18\x03 \x01(\x04H\x01R\x11stopLossTriggerId\x88\x01\x01\x12<\n" +
+	"\x18trailing_stop_trigger_id\x18\x04 \x01(\x04H\x02R\x15trailingStopTriggerId\x88\x01\x01B\x19\n" +
 	"\x17_take_profit_trigger_idB\x17\n" +
 	"\x15_stop_loss_trigger_idB\x1b\n" +
-	"\x19_trailing_stop_trigger_id\"\xfb\x01\n" +
+	"\x19_trailing_stop_trigger_id\"K\n" +
+	"\x13BatchCreateRejected\x124\n" +
+	"\x05error\x18\x01 \x01(\v2\x16.orders.v1.ErrorDetailB\x06\xbaH\x03\xc8\x01\x01R\x05error\"\xcd\x01\n" +
+	"\x15BatchCreateResultItem\x12&\n" +
+	"\x0fclient_order_id\x18\x01 \x01(\tR\rclientOrderId\x12<\n" +
+	"\baccepted\x18\x02 \x01(\v2\x1e.orders.v1.BatchCreateAcceptedH\x00R\baccepted\x12<\n" +
+	"\brejected\x18\x03 \x01(\v2\x1e.orders.v1.BatchCreateRejectedH\x00R\brejectedB\x10\n" +
+	"\aoutcome\x12\x05\xbaH\x02\b\x01\"\xcf\x01\n" +
 	"\x18BatchCreateOrdersRequest\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12=\n" +
 	"\n" +
-	"request_id\x18\x02 \x01(\tB\x1e\xbaH\x1br\x19\x10\x01\x18@2\x13^[A-Za-z0-9._:/-]+$R\trequestId\x12?\n" +
-	"\x05items\x18\x03 \x03(\v2\x1d.orders.v1.CreateOrderRequestB\n" +
-	"\xbaH\a\x92\x01\x04\b\x01\x10\x14R\x05items\x12#\n" +
-	"\rallow_partial\x18\x04 \x01(\bR\fallowPartialB\x10\n" +
+	"request_id\x18\x02 \x01(\tB\x1e\xbaH\x1br\x19\x10\x01\x18@2\x13^[A-Za-z0-9._:/-]+$R\trequestId\x128\n" +
+	"\x05items\x18\x03 \x03(\v2\x16.orders.v1.OrderIntentB\n" +
+	"\xbaH\a\x92\x01\x04\b\x01\x10\x14R\x05itemsB\x10\n" +
 	"\x0e_subaccount_id\"\xe6\x01\n" +
 	"\x19BatchCreateOrdersResponse\x12:\n" +
 	"\aresults\x18\x01 \x03(\v2 .orders.v1.BatchCreateResultItemR\aresults\x12%\n" +
@@ -3628,7 +4223,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"&SELF_TRADE_PREVENTION_MODE_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fEXPIRE_MAKER\x10\x01\x12\x10\n" +
 	"\fEXPIRE_TAKER\x10\x02\x12\x0f\n" +
-	"\vEXPIRE_BOTH\x10\x03*\x87\x11\n" +
+	"\vEXPIRE_BOTH\x10\x03*\xa8\x11\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16ERROR_CODE_BAD_REQUEST\x10\x01\x12\x1f\n" +
@@ -3692,7 +4287,8 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"!ERROR_CODE_TRIGGER_NOT_MODIFIABLE\x10.\x123\n" +
 	"/ERROR_CODE_CONFLICT_DUPLICATE_CLIENT_TRIGGER_ID\x10/\x12#\n" +
 	"\x1fERROR_CODE_MAX_SLIPPAGE_INVALID\x100\x12\x1a\n" +
-	"\x16ERROR_CODE_STALE_QUOTE\x10A*k\n" +
+	"\x16ERROR_CODE_STALE_QUOTE\x10A\x12\x1f\n" +
+	"\x1bERROR_CODE_VALIDATION_ERROR\x10B*k\n" +
 	"\x12TriggerPriceSource\x12$\n" +
 	" TRIGGER_PRICE_SOURCE_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -3746,7 +4342,7 @@ func file_orders_v1_orders_proto_rawDescGZIP() []byte {
 }
 
 var file_orders_v1_orders_proto_enumTypes = make([]protoimpl.EnumInfo, 10)
-var file_orders_v1_orders_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
+var file_orders_v1_orders_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
 var file_orders_v1_orders_proto_goTypes = []any{
 	(Side)(0),                         // 0: orders.v1.Side
 	(OrderType)(0),                    // 1: orders.v1.OrderType
@@ -3758,95 +4354,111 @@ var file_orders_v1_orders_proto_goTypes = []any{
 	(TriggerDirection)(0),             // 7: orders.v1.TriggerDirection
 	(ModifyBehavior)(0),               // 8: orders.v1.ModifyBehavior
 	(ModifyActionTaken)(0),            // 9: orders.v1.ModifyActionTaken
-	(*CreateOrderRequest)(nil),        // 10: orders.v1.CreateOrderRequest
-	(*CreateOrderResponse)(nil),       // 11: orders.v1.CreateOrderResponse
-	(*CancelOrderRequest)(nil),        // 12: orders.v1.CancelOrderRequest
-	(*CancelOrderResponse)(nil),       // 13: orders.v1.CancelOrderResponse
-	(*ErrorDetail)(nil),               // 14: orders.v1.ErrorDetail
-	(*TakeProfitPolicy)(nil),          // 15: orders.v1.TakeProfitPolicy
-	(*StopLossPolicy)(nil),            // 16: orders.v1.StopLossPolicy
-	(*TrailingStopPolicy)(nil),        // 17: orders.v1.TrailingStopPolicy
-	(*RiskPolicy)(nil),                // 18: orders.v1.RiskPolicy
-	(*CancelAllOrdersRequest)(nil),    // 19: orders.v1.CancelAllOrdersRequest
-	(*CancelAllOrdersResponse)(nil),   // 20: orders.v1.CancelAllOrdersResponse
-	(*CancelAllAfterRequest)(nil),     // 21: orders.v1.CancelAllAfterRequest
-	(*CancelAllAfterResponse)(nil),    // 22: orders.v1.CancelAllAfterResponse
-	(*BatchCreateResultItem)(nil),     // 23: orders.v1.BatchCreateResultItem
-	(*BatchCreateOrdersRequest)(nil),  // 24: orders.v1.BatchCreateOrdersRequest
-	(*BatchCreateOrdersResponse)(nil), // 25: orders.v1.BatchCreateOrdersResponse
-	(*ModifyOrderRequest)(nil),        // 26: orders.v1.ModifyOrderRequest
-	(*ModifyOrderResponse)(nil),       // 27: orders.v1.ModifyOrderResponse
-	(*BatchModifyItem)(nil),           // 28: orders.v1.BatchModifyItem
-	(*BatchModifyResultItem)(nil),     // 29: orders.v1.BatchModifyResultItem
-	(*BatchModifyOrdersRequest)(nil),  // 30: orders.v1.BatchModifyOrdersRequest
-	(*BatchModifyOrdersResponse)(nil), // 31: orders.v1.BatchModifyOrdersResponse
-	(*BatchCancelItem)(nil),           // 32: orders.v1.BatchCancelItem
-	(*BatchCancelResultItem)(nil),     // 33: orders.v1.BatchCancelResultItem
-	(*BatchCancelOrdersRequest)(nil),  // 34: orders.v1.BatchCancelOrdersRequest
-	(*BatchCancelOrdersResponse)(nil), // 35: orders.v1.BatchCancelOrdersResponse
-	(*timestamppb.Timestamp)(nil),     // 36: google.protobuf.Timestamp
+	(*MarketIoc)(nil),                 // 10: orders.v1.MarketIoc
+	(*LimitGtc)(nil),                  // 11: orders.v1.LimitGtc
+	(*LimitIoc)(nil),                  // 12: orders.v1.LimitIoc
+	(*LimitFok)(nil),                  // 13: orders.v1.LimitFok
+	(*OrderIntent)(nil),               // 14: orders.v1.OrderIntent
+	(*CreateOrderRequest)(nil),        // 15: orders.v1.CreateOrderRequest
+	(*CreateOrderResponse)(nil),       // 16: orders.v1.CreateOrderResponse
+	(*CancelOrderRequest)(nil),        // 17: orders.v1.CancelOrderRequest
+	(*CancelOrderResponse)(nil),       // 18: orders.v1.CancelOrderResponse
+	(*FieldViolation)(nil),            // 19: orders.v1.FieldViolation
+	(*ErrorDetail)(nil),               // 20: orders.v1.ErrorDetail
+	(*RiskMarketIoc)(nil),             // 21: orders.v1.RiskMarketIoc
+	(*RiskLimitGtc)(nil),              // 22: orders.v1.RiskLimitGtc
+	(*RiskExecution)(nil),             // 23: orders.v1.RiskExecution
+	(*TakeProfitPolicy)(nil),          // 24: orders.v1.TakeProfitPolicy
+	(*StopLossPolicy)(nil),            // 25: orders.v1.StopLossPolicy
+	(*TrailingStopPolicy)(nil),        // 26: orders.v1.TrailingStopPolicy
+	(*RiskPolicy)(nil),                // 27: orders.v1.RiskPolicy
+	(*CancelAllOrdersRequest)(nil),    // 28: orders.v1.CancelAllOrdersRequest
+	(*CancelAllOrdersResponse)(nil),   // 29: orders.v1.CancelAllOrdersResponse
+	(*CancelAllAfterRequest)(nil),     // 30: orders.v1.CancelAllAfterRequest
+	(*CancelAllAfterResponse)(nil),    // 31: orders.v1.CancelAllAfterResponse
+	(*BatchCreateAccepted)(nil),       // 32: orders.v1.BatchCreateAccepted
+	(*BatchCreateRejected)(nil),       // 33: orders.v1.BatchCreateRejected
+	(*BatchCreateResultItem)(nil),     // 34: orders.v1.BatchCreateResultItem
+	(*BatchCreateOrdersRequest)(nil),  // 35: orders.v1.BatchCreateOrdersRequest
+	(*BatchCreateOrdersResponse)(nil), // 36: orders.v1.BatchCreateOrdersResponse
+	(*ModifyOrderRequest)(nil),        // 37: orders.v1.ModifyOrderRequest
+	(*ModifyOrderResponse)(nil),       // 38: orders.v1.ModifyOrderResponse
+	(*BatchModifyItem)(nil),           // 39: orders.v1.BatchModifyItem
+	(*BatchModifyResultItem)(nil),     // 40: orders.v1.BatchModifyResultItem
+	(*BatchModifyOrdersRequest)(nil),  // 41: orders.v1.BatchModifyOrdersRequest
+	(*BatchModifyOrdersResponse)(nil), // 42: orders.v1.BatchModifyOrdersResponse
+	(*BatchCancelItem)(nil),           // 43: orders.v1.BatchCancelItem
+	(*BatchCancelResultItem)(nil),     // 44: orders.v1.BatchCancelResultItem
+	(*BatchCancelOrdersRequest)(nil),  // 45: orders.v1.BatchCancelOrdersRequest
+	(*BatchCancelOrdersResponse)(nil), // 46: orders.v1.BatchCancelOrdersResponse
+	(*timestamppb.Timestamp)(nil),     // 47: google.protobuf.Timestamp
 }
 var file_orders_v1_orders_proto_depIdxs = []int32{
-	0,  // 0: orders.v1.CreateOrderRequest.side:type_name -> orders.v1.Side
-	1,  // 1: orders.v1.CreateOrderRequest.order_type:type_name -> orders.v1.OrderType
-	2,  // 2: orders.v1.CreateOrderRequest.time_in_force:type_name -> orders.v1.TimeInForce
-	3,  // 3: orders.v1.CreateOrderRequest.fee_source:type_name -> orders.v1.FeeSource
-	4,  // 4: orders.v1.CreateOrderRequest.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
-	18, // 5: orders.v1.CreateOrderRequest.attached_risk:type_name -> orders.v1.RiskPolicy
-	36, // 6: orders.v1.CreateOrderResponse.ts:type_name -> google.protobuf.Timestamp
-	36, // 7: orders.v1.CancelOrderResponse.ts:type_name -> google.protobuf.Timestamp
-	5,  // 8: orders.v1.ErrorDetail.code:type_name -> orders.v1.ErrorCode
-	6,  // 9: orders.v1.TakeProfitPolicy.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
-	1,  // 10: orders.v1.TakeProfitPolicy.order_type:type_name -> orders.v1.OrderType
-	6,  // 11: orders.v1.StopLossPolicy.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
-	1,  // 12: orders.v1.StopLossPolicy.order_type:type_name -> orders.v1.OrderType
-	6,  // 13: orders.v1.TrailingStopPolicy.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
-	1,  // 14: orders.v1.TrailingStopPolicy.order_type:type_name -> orders.v1.OrderType
-	15, // 15: orders.v1.RiskPolicy.take_profit:type_name -> orders.v1.TakeProfitPolicy
-	16, // 16: orders.v1.RiskPolicy.stop_loss:type_name -> orders.v1.StopLossPolicy
-	17, // 17: orders.v1.RiskPolicy.trailing_stop:type_name -> orders.v1.TrailingStopPolicy
-	0,  // 18: orders.v1.CancelAllOrdersRequest.side:type_name -> orders.v1.Side
-	36, // 19: orders.v1.CancelAllOrdersResponse.ts:type_name -> google.protobuf.Timestamp
-	0,  // 20: orders.v1.CancelAllAfterRequest.side:type_name -> orders.v1.Side
-	36, // 21: orders.v1.CancelAllAfterResponse.ts:type_name -> google.protobuf.Timestamp
-	10, // 22: orders.v1.BatchCreateOrdersRequest.items:type_name -> orders.v1.CreateOrderRequest
-	23, // 23: orders.v1.BatchCreateOrdersResponse.results:type_name -> orders.v1.BatchCreateResultItem
-	36, // 24: orders.v1.BatchCreateOrdersResponse.ts:type_name -> google.protobuf.Timestamp
-	18, // 25: orders.v1.ModifyOrderRequest.new_attached_risk:type_name -> orders.v1.RiskPolicy
-	8,  // 26: orders.v1.ModifyOrderRequest.behavior:type_name -> orders.v1.ModifyBehavior
-	9,  // 27: orders.v1.ModifyOrderResponse.action_taken:type_name -> orders.v1.ModifyActionTaken
-	36, // 28: orders.v1.ModifyOrderResponse.ts:type_name -> google.protobuf.Timestamp
-	18, // 29: orders.v1.BatchModifyItem.new_attached_risk:type_name -> orders.v1.RiskPolicy
-	8,  // 30: orders.v1.BatchModifyItem.behavior:type_name -> orders.v1.ModifyBehavior
-	9,  // 31: orders.v1.BatchModifyResultItem.action_taken:type_name -> orders.v1.ModifyActionTaken
-	28, // 32: orders.v1.BatchModifyOrdersRequest.items:type_name -> orders.v1.BatchModifyItem
-	8,  // 33: orders.v1.BatchModifyOrdersRequest.behavior_default:type_name -> orders.v1.ModifyBehavior
-	29, // 34: orders.v1.BatchModifyOrdersResponse.results:type_name -> orders.v1.BatchModifyResultItem
-	36, // 35: orders.v1.BatchModifyOrdersResponse.ts:type_name -> google.protobuf.Timestamp
-	32, // 36: orders.v1.BatchCancelOrdersRequest.items:type_name -> orders.v1.BatchCancelItem
-	33, // 37: orders.v1.BatchCancelOrdersResponse.results:type_name -> orders.v1.BatchCancelResultItem
-	36, // 38: orders.v1.BatchCancelOrdersResponse.ts:type_name -> google.protobuf.Timestamp
-	10, // 39: orders.v1.OrdersService.CreateOrder:input_type -> orders.v1.CreateOrderRequest
-	12, // 40: orders.v1.OrdersService.CancelOrder:input_type -> orders.v1.CancelOrderRequest
-	19, // 41: orders.v1.OrdersService.CancelAllOrders:input_type -> orders.v1.CancelAllOrdersRequest
-	21, // 42: orders.v1.OrdersService.CancelAllAfter:input_type -> orders.v1.CancelAllAfterRequest
-	24, // 43: orders.v1.OrdersService.BatchCreateOrders:input_type -> orders.v1.BatchCreateOrdersRequest
-	26, // 44: orders.v1.OrdersService.ModifyOrder:input_type -> orders.v1.ModifyOrderRequest
-	30, // 45: orders.v1.OrdersService.BatchModifyOrders:input_type -> orders.v1.BatchModifyOrdersRequest
-	34, // 46: orders.v1.OrdersService.BatchCancelOrders:input_type -> orders.v1.BatchCancelOrdersRequest
-	11, // 47: orders.v1.OrdersService.CreateOrder:output_type -> orders.v1.CreateOrderResponse
-	13, // 48: orders.v1.OrdersService.CancelOrder:output_type -> orders.v1.CancelOrderResponse
-	20, // 49: orders.v1.OrdersService.CancelAllOrders:output_type -> orders.v1.CancelAllOrdersResponse
-	22, // 50: orders.v1.OrdersService.CancelAllAfter:output_type -> orders.v1.CancelAllAfterResponse
-	25, // 51: orders.v1.OrdersService.BatchCreateOrders:output_type -> orders.v1.BatchCreateOrdersResponse
-	27, // 52: orders.v1.OrdersService.ModifyOrder:output_type -> orders.v1.ModifyOrderResponse
-	31, // 53: orders.v1.OrdersService.BatchModifyOrders:output_type -> orders.v1.BatchModifyOrdersResponse
-	35, // 54: orders.v1.OrdersService.BatchCancelOrders:output_type -> orders.v1.BatchCancelOrdersResponse
-	47, // [47:55] is the sub-list for method output_type
-	39, // [39:47] is the sub-list for method input_type
-	39, // [39:39] is the sub-list for extension type_name
-	39, // [39:39] is the sub-list for extension extendee
-	0,  // [0:39] is the sub-list for field type_name
+	0,  // 0: orders.v1.OrderIntent.side:type_name -> orders.v1.Side
+	10, // 1: orders.v1.OrderIntent.market_ioc:type_name -> orders.v1.MarketIoc
+	11, // 2: orders.v1.OrderIntent.limit_gtc:type_name -> orders.v1.LimitGtc
+	12, // 3: orders.v1.OrderIntent.limit_ioc:type_name -> orders.v1.LimitIoc
+	13, // 4: orders.v1.OrderIntent.limit_fok:type_name -> orders.v1.LimitFok
+	3,  // 5: orders.v1.OrderIntent.fee_source:type_name -> orders.v1.FeeSource
+	4,  // 6: orders.v1.OrderIntent.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
+	27, // 7: orders.v1.OrderIntent.attached_risk:type_name -> orders.v1.RiskPolicy
+	14, // 8: orders.v1.CreateOrderRequest.order:type_name -> orders.v1.OrderIntent
+	47, // 9: orders.v1.CreateOrderResponse.accepted_at:type_name -> google.protobuf.Timestamp
+	47, // 10: orders.v1.CancelOrderResponse.ts:type_name -> google.protobuf.Timestamp
+	5,  // 11: orders.v1.ErrorDetail.code:type_name -> orders.v1.ErrorCode
+	19, // 12: orders.v1.ErrorDetail.violations:type_name -> orders.v1.FieldViolation
+	21, // 13: orders.v1.RiskExecution.market_ioc:type_name -> orders.v1.RiskMarketIoc
+	22, // 14: orders.v1.RiskExecution.limit_gtc:type_name -> orders.v1.RiskLimitGtc
+	23, // 15: orders.v1.TakeProfitPolicy.child:type_name -> orders.v1.RiskExecution
+	23, // 16: orders.v1.StopLossPolicy.child:type_name -> orders.v1.RiskExecution
+	24, // 17: orders.v1.RiskPolicy.take_profit:type_name -> orders.v1.TakeProfitPolicy
+	25, // 18: orders.v1.RiskPolicy.stop_loss:type_name -> orders.v1.StopLossPolicy
+	26, // 19: orders.v1.RiskPolicy.trailing_stop:type_name -> orders.v1.TrailingStopPolicy
+	0,  // 20: orders.v1.CancelAllOrdersRequest.side:type_name -> orders.v1.Side
+	47, // 21: orders.v1.CancelAllOrdersResponse.ts:type_name -> google.protobuf.Timestamp
+	0,  // 22: orders.v1.CancelAllAfterRequest.side:type_name -> orders.v1.Side
+	47, // 23: orders.v1.CancelAllAfterResponse.ts:type_name -> google.protobuf.Timestamp
+	20, // 24: orders.v1.BatchCreateRejected.error:type_name -> orders.v1.ErrorDetail
+	32, // 25: orders.v1.BatchCreateResultItem.accepted:type_name -> orders.v1.BatchCreateAccepted
+	33, // 26: orders.v1.BatchCreateResultItem.rejected:type_name -> orders.v1.BatchCreateRejected
+	14, // 27: orders.v1.BatchCreateOrdersRequest.items:type_name -> orders.v1.OrderIntent
+	34, // 28: orders.v1.BatchCreateOrdersResponse.results:type_name -> orders.v1.BatchCreateResultItem
+	47, // 29: orders.v1.BatchCreateOrdersResponse.ts:type_name -> google.protobuf.Timestamp
+	27, // 30: orders.v1.ModifyOrderRequest.new_attached_risk:type_name -> orders.v1.RiskPolicy
+	8,  // 31: orders.v1.ModifyOrderRequest.behavior:type_name -> orders.v1.ModifyBehavior
+	9,  // 32: orders.v1.ModifyOrderResponse.action_taken:type_name -> orders.v1.ModifyActionTaken
+	47, // 33: orders.v1.ModifyOrderResponse.ts:type_name -> google.protobuf.Timestamp
+	27, // 34: orders.v1.BatchModifyItem.new_attached_risk:type_name -> orders.v1.RiskPolicy
+	8,  // 35: orders.v1.BatchModifyItem.behavior:type_name -> orders.v1.ModifyBehavior
+	9,  // 36: orders.v1.BatchModifyResultItem.action_taken:type_name -> orders.v1.ModifyActionTaken
+	39, // 37: orders.v1.BatchModifyOrdersRequest.items:type_name -> orders.v1.BatchModifyItem
+	8,  // 38: orders.v1.BatchModifyOrdersRequest.behavior_default:type_name -> orders.v1.ModifyBehavior
+	40, // 39: orders.v1.BatchModifyOrdersResponse.results:type_name -> orders.v1.BatchModifyResultItem
+	47, // 40: orders.v1.BatchModifyOrdersResponse.ts:type_name -> google.protobuf.Timestamp
+	43, // 41: orders.v1.BatchCancelOrdersRequest.items:type_name -> orders.v1.BatchCancelItem
+	44, // 42: orders.v1.BatchCancelOrdersResponse.results:type_name -> orders.v1.BatchCancelResultItem
+	47, // 43: orders.v1.BatchCancelOrdersResponse.ts:type_name -> google.protobuf.Timestamp
+	15, // 44: orders.v1.OrdersService.CreateOrder:input_type -> orders.v1.CreateOrderRequest
+	17, // 45: orders.v1.OrdersService.CancelOrder:input_type -> orders.v1.CancelOrderRequest
+	28, // 46: orders.v1.OrdersService.CancelAllOrders:input_type -> orders.v1.CancelAllOrdersRequest
+	30, // 47: orders.v1.OrdersService.CancelAllAfter:input_type -> orders.v1.CancelAllAfterRequest
+	35, // 48: orders.v1.OrdersService.BatchCreateOrders:input_type -> orders.v1.BatchCreateOrdersRequest
+	37, // 49: orders.v1.OrdersService.ModifyOrder:input_type -> orders.v1.ModifyOrderRequest
+	41, // 50: orders.v1.OrdersService.BatchModifyOrders:input_type -> orders.v1.BatchModifyOrdersRequest
+	45, // 51: orders.v1.OrdersService.BatchCancelOrders:input_type -> orders.v1.BatchCancelOrdersRequest
+	16, // 52: orders.v1.OrdersService.CreateOrder:output_type -> orders.v1.CreateOrderResponse
+	18, // 53: orders.v1.OrdersService.CancelOrder:output_type -> orders.v1.CancelOrderResponse
+	29, // 54: orders.v1.OrdersService.CancelAllOrders:output_type -> orders.v1.CancelAllOrdersResponse
+	31, // 55: orders.v1.OrdersService.CancelAllAfter:output_type -> orders.v1.CancelAllAfterResponse
+	36, // 56: orders.v1.OrdersService.BatchCreateOrders:output_type -> orders.v1.BatchCreateOrdersResponse
+	38, // 57: orders.v1.OrdersService.ModifyOrder:output_type -> orders.v1.ModifyOrderResponse
+	42, // 58: orders.v1.OrdersService.BatchModifyOrders:output_type -> orders.v1.BatchModifyOrdersResponse
+	46, // 59: orders.v1.OrdersService.BatchCancelOrders:output_type -> orders.v1.BatchCancelOrdersResponse
+	52, // [52:60] is the sub-list for method output_type
+	44, // [44:52] is the sub-list for method input_type
+	44, // [44:44] is the sub-list for extension type_name
+	44, // [44:44] is the sub-list for extension extendee
+	0,  // [0:44] is the sub-list for field type_name
 }
 
 func init() { file_orders_v1_orders_proto_init() }
@@ -3855,47 +4467,62 @@ func file_orders_v1_orders_proto_init() {
 		return
 	}
 	file_orders_v1_orders_proto_msgTypes[0].OneofWrappers = []any{
-		(*CreateOrderRequest_MarketMaxSlippageTicks)(nil),
-		(*CreateOrderRequest_MarketMaxSlippageBps)(nil),
+		(*MarketIoc_MaxSlippageTicks)(nil),
+		(*MarketIoc_MaxSlippageBps)(nil),
 	}
-	file_orders_v1_orders_proto_msgTypes[1].OneofWrappers = []any{}
-	file_orders_v1_orders_proto_msgTypes[2].OneofWrappers = []any{
+	file_orders_v1_orders_proto_msgTypes[4].OneofWrappers = []any{
+		(*OrderIntent_MarketIoc)(nil),
+		(*OrderIntent_LimitGtc)(nil),
+		(*OrderIntent_LimitIoc)(nil),
+		(*OrderIntent_LimitFok)(nil),
+	}
+	file_orders_v1_orders_proto_msgTypes[5].OneofWrappers = []any{}
+	file_orders_v1_orders_proto_msgTypes[6].OneofWrappers = []any{}
+	file_orders_v1_orders_proto_msgTypes[7].OneofWrappers = []any{
 		(*CancelOrderRequest_OrderId)(nil),
 		(*CancelOrderRequest_ClientOrderId)(nil),
 	}
-	file_orders_v1_orders_proto_msgTypes[7].OneofWrappers = []any{
+	file_orders_v1_orders_proto_msgTypes[13].OneofWrappers = []any{
+		(*RiskExecution_MarketIoc)(nil),
+		(*RiskExecution_LimitGtc)(nil),
+	}
+	file_orders_v1_orders_proto_msgTypes[16].OneofWrappers = []any{
 		(*TrailingStopPolicy_TrailingDistanceTicks)(nil),
 		(*TrailingStopPolicy_TrailingDistanceBps)(nil),
 		(*TrailingStopPolicy_MaxSlippageTicks)(nil),
 		(*TrailingStopPolicy_MaxSlippageBps)(nil),
 	}
-	file_orders_v1_orders_proto_msgTypes[8].OneofWrappers = []any{
+	file_orders_v1_orders_proto_msgTypes[17].OneofWrappers = []any{
 		(*RiskPolicy_StopLoss)(nil),
 		(*RiskPolicy_TrailingStop)(nil),
 	}
-	file_orders_v1_orders_proto_msgTypes[9].OneofWrappers = []any{}
-	file_orders_v1_orders_proto_msgTypes[11].OneofWrappers = []any{}
-	file_orders_v1_orders_proto_msgTypes[13].OneofWrappers = []any{}
-	file_orders_v1_orders_proto_msgTypes[14].OneofWrappers = []any{}
-	file_orders_v1_orders_proto_msgTypes[16].OneofWrappers = []any{
+	file_orders_v1_orders_proto_msgTypes[18].OneofWrappers = []any{}
+	file_orders_v1_orders_proto_msgTypes[20].OneofWrappers = []any{}
+	file_orders_v1_orders_proto_msgTypes[22].OneofWrappers = []any{}
+	file_orders_v1_orders_proto_msgTypes[24].OneofWrappers = []any{
+		(*BatchCreateResultItem_Accepted)(nil),
+		(*BatchCreateResultItem_Rejected)(nil),
+	}
+	file_orders_v1_orders_proto_msgTypes[25].OneofWrappers = []any{}
+	file_orders_v1_orders_proto_msgTypes[27].OneofWrappers = []any{
 		(*ModifyOrderRequest_OrderId)(nil),
 		(*ModifyOrderRequest_ClientOrderId)(nil),
 	}
-	file_orders_v1_orders_proto_msgTypes[17].OneofWrappers = []any{}
-	file_orders_v1_orders_proto_msgTypes[18].OneofWrappers = []any{
+	file_orders_v1_orders_proto_msgTypes[28].OneofWrappers = []any{}
+	file_orders_v1_orders_proto_msgTypes[29].OneofWrappers = []any{
 		(*BatchModifyItem_OrderId)(nil),
 		(*BatchModifyItem_ClientOrderId)(nil),
 	}
-	file_orders_v1_orders_proto_msgTypes[19].OneofWrappers = []any{}
-	file_orders_v1_orders_proto_msgTypes[20].OneofWrappers = []any{}
-	file_orders_v1_orders_proto_msgTypes[24].OneofWrappers = []any{}
+	file_orders_v1_orders_proto_msgTypes[30].OneofWrappers = []any{}
+	file_orders_v1_orders_proto_msgTypes[31].OneofWrappers = []any{}
+	file_orders_v1_orders_proto_msgTypes[35].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orders_v1_orders_proto_rawDesc), len(file_orders_v1_orders_proto_rawDesc)),
 			NumEnums:      10,
-			NumMessages:   26,
+			NumMessages:   37,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
