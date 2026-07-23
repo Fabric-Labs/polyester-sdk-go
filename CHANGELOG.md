@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Changed
+- CI no longer auto-commits `sdk-capabilities.json` / README on pull requests. Capability refresh + optional bot commit runs only on merge to `main`.
+
 ## 0.1.0a13
 
 ### Breaking
