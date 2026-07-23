@@ -14,7 +14,7 @@ func TestTriggersList(t *testing.T) {
 	defer cleanup()
 
 	result := testutil.CallRequired(t, "triggers.list", func() (models.TriggersList, error) {
-		return client.Triggers.List(ctx, nil, nil, nil, 10, nil)
+		return client.Triggers.List(ctx, nil, nil, nil, nil, 10, nil)
 	})
 	if result.Triggers == nil {
 		t.Fatal("expected triggers list")

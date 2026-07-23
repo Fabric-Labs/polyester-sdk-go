@@ -8,13 +8,16 @@ import (
 )
 
 // BatchCreateOrdersToProto encodes a batch create request.
+//
+// The allowPartial argument is retained for API compatibility but is ignored:
+// the POLY-3701 wire contract removed the batch allow_partial field.
 func BatchCreateOrdersToProto(items []models.CreateOrderRequest, subAccountID *string, requestID *string, allowPartial bool, quantityScale int) (*orderv1.BatchCreateOrdersRequest, error) {
+	_ = allowPartial
 	if len(items) == 0 {
 		return nil, &errors.ValidationError{Msg: "batch_create requires at least one item"}
 	}
 	proto := &orderv1.BatchCreateOrdersRequest{
-		RequestId:    coalesceRequestID(requestID, "batch-create"),
-		AllowPartial: allowPartial,
+		RequestId: coalesceRequestID(requestID, "batch-create"),
 	}
 	if subAccountID != nil && *subAccountID != "" {
 		sub, err := IDToInt(*subAccountID, "sub_account_id")
@@ -24,7 +27,7 @@ func BatchCreateOrdersToProto(items []models.CreateOrderRequest, subAccountID *s
 		proto.SubaccountId = &sub
 	}
 	for _, item := range items {
-		encoded, err := CreateOrderToProto(item, quantityScale)
+		encoded, err := OrderIntentToProto(item, quantityScale)
 		if err != nil {
 			return nil, err
 		}

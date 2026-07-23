@@ -93,3 +93,17 @@ func TimeInForceName(v orderv1.TimeInForce) string {
 
 // TIFName is an alias for TimeInForceName.
 func TIFName(v orderv1.TimeInForce) string { return TimeInForceName(v) }
+
+// TriggerPriceSourceName formats trigger price source enum to TS-aligned labels.
+func TriggerPriceSourceName(v orderv1.TriggerPriceSource) string {
+	switch v {
+	case orderv1.TriggerPriceSource_LAST_PRICE:
+		return "last"
+	case orderv1.TriggerPriceSource_INDEX_PRICE:
+		return "index"
+	case orderv1.TriggerPriceSource_MARK_PRICE:
+		return "mark"
+	default:
+		return ""
+	}
+}

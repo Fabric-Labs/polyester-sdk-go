@@ -29,6 +29,92 @@ func OrderFromProto(msg *orderv1.Order) models.Order {
 		AvgPx:         codecs.DecodePriceTicks(msg.GetAvgPriceTicks(), ""),
 		CreatedTsNs:   strconv.FormatUint(msg.GetCreatedTsNs(), 10),
 		Version:       msg.GetVersion(),
+		PostOnly:      msg.GetPostOnly(),
+		AttachedRisk:  attachedRiskFromProto(msg.GetAttachedRisk()),
+	}
+}
+
+// riskLegFromChild projects an attached take-profit/stop-loss policy onto the
+// flat public RiskLeg. The child execution determines order_type/limit_price.
+// TriggerPriceSource is no longer part of the policy wire and is left empty.
+func riskLegFromChild(triggerPriceTicks int64, child *orderv1.RiskExecution) *models.RiskLeg {
+	if triggerPriceTicks == 0 {
+		return nil
+	}
+	leg := &models.RiskLeg{
+		TriggerPrice: codecs.DecodePriceTicks(triggerPriceTicks, ""),
+	}
+	if child != nil {
+		switch {
+		case child.GetMarketIoc() != nil:
+			leg.OrderType = "market"
+		case child.GetLimitGtc() != nil:
+			leg.OrderType = "limit"
+			leg.LimitPrice = codecs.DecodePriceTicks(child.GetLimitGtc().GetPriceTicks(), "")
+		}
+	}
+	return leg
+}
+
+func riskLegFromTakeProfit(policy *orderv1.TakeProfitPolicy) *models.RiskLeg {
+	if policy == nil {
+		return nil
+	}
+	return riskLegFromChild(policy.GetTriggerPriceTicks(), policy.GetChild())
+}
+
+func riskLegFromStopLoss(policy *orderv1.StopLossPolicy) *models.RiskLeg {
+	if policy == nil {
+		return nil
+	}
+	return riskLegFromChild(policy.GetTriggerPriceTicks(), policy.GetChild())
+}
+
+func trailingStopFromPolicy(policy *orderv1.TrailingStopPolicy) *models.TrailingStop {
+	if policy == nil {
+		return nil
+	}
+	// OrderType/TriggerPriceSource were dropped from the trailing-stop policy
+	// wire; the child is an implicit market execution.
+	out := &models.TrailingStop{
+		DistanceTicks:    policy.GetTrailingDistanceTicks(),
+		DistanceBps:      policy.GetTrailingDistanceBps(),
+		MaxSlippageTicks: policy.GetMaxSlippageTicks(),
+		MaxSlippageBps:   policy.GetMaxSlippageBps(),
+	}
+	if policy.GetActivationPriceTicks() > 0 {
+		out.ActivationPrice = codecs.DecodePriceTicks(policy.GetActivationPriceTicks(), "")
+	}
+	return out
+}
+
+func attachedRiskFromProto(msg *orderv1.AttachedRisk) *models.AttachedRisk {
+	if msg == nil {
+		return nil
+	}
+	var takeProfit *models.RiskLeg
+	if tp := msg.GetTakeProfit(); tp != nil {
+		takeProfit = riskLegFromTakeProfit(tp.GetPolicy())
+	}
+	var trailingStop *models.TrailingStop
+	if ts := msg.GetTrailingStop(); ts != nil {
+		trailingStop = trailingStopFromPolicy(ts.GetPolicy())
+	}
+	var stopLoss *models.RiskLeg
+	// Match TS: when trailing is present, stop-loss is suppressed.
+	if trailingStop == nil {
+		if sl := msg.GetStopLoss(); sl != nil {
+			stopLoss = riskLegFromStopLoss(sl.GetPolicy())
+		}
+	}
+	if takeProfit == nil && stopLoss == nil && trailingStop == nil {
+		return nil
+	}
+	return &models.AttachedRisk{
+		TakeProfit:   takeProfit,
+		StopLoss:     stopLoss,
+		TrailingStop: trailingStop,
+		Oco:          msg.GetOco(),
 	}
 }
 
@@ -112,8 +198,11 @@ func GetOrderFromProto(msg *orderv1.GetOrderResponse) models.GetOrderResult {
 }
 
 // OrderMutationFromProto decodes order mutation response.
+//
+// CreateOrderResponse acknowledges admission only and no longer carries a
+// status field; synthesize "accepted".
 func OrderMutationFromProto(msg *orderv1.CreateOrderResponse) models.OrderMutationResult {
-	return orderMutation(msg.GetStatus(), msg.GetOrderId(), msg.GetClientOrderId())
+	return orderMutation("accepted", msg.GetOrderId(), msg.GetClientOrderId())
 }
 
 // OrderMutationFromCancel decodes cancel response.
@@ -179,15 +268,25 @@ func BatchModifyFromProto(msg *orderv1.BatchModifyOrdersResponse) models.BatchMo
 }
 
 // BatchCreateFromProto decodes batch create response.
+//
+// Per-item results now carry an Accepted/Rejected outcome oneof instead of flat
+// status/order_id/code fields.
 func BatchCreateFromProto(msg *orderv1.BatchCreateOrdersResponse) models.BatchCreateOrdersResult {
 	results := make([]models.BatchCreateResultItem, 0, len(msg.GetResults()))
 	for _, item := range msg.GetResults() {
-		results = append(results, models.BatchCreateResultItem{
-			Status:        item.GetStatus(),
-			OrderID:       codecs.FormatUint64ID(item.GetOrderId()),
+		out := models.BatchCreateResultItem{
 			ClientOrderID: item.GetClientOrderId(),
-			Code:          item.GetCode(),
-		})
+		}
+		if accepted := item.GetAccepted(); accepted != nil {
+			out.Status = "accepted"
+			out.OrderID = codecs.FormatUint64ID(accepted.GetOrderId())
+		} else if rejected := item.GetRejected(); rejected != nil {
+			out.Status = "rejected"
+			if err := rejected.GetError(); err != nil {
+				out.Code = err.GetCode().String()
+			}
+		}
+		results = append(results, out)
 	}
 	return models.BatchCreateOrdersResult{
 		Results:       results,
