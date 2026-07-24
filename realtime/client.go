@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
@@ -71,6 +72,10 @@ func SubscribeProto[T any](ctx context.Context, c *Client, channel string, decod
 }
 
 // SubscribeProtoWithOptions subscribes with optional reconnect control.
+//
+// It waits for the Centrifugo connect/subscribe handshake (including private
+// token fetch) to succeed before returning. Initial auth/handshake failures are
+// returned immediately and do not reconnect in the background.
 func SubscribeProtoWithOptions[T any](
 	ctx context.Context,
 	c *Client,
@@ -93,20 +98,35 @@ func SubscribeProtoWithOptions[T any](
 	runCtx, cancel := context.WithCancel(ctx)
 	sub := newSubscription[T](c.maxQueue, cancel)
 	reconnect := autoReconnectEnabled(opts)
+	readyCh := make(chan error, 1)
+	var readySent atomic.Bool
+	sendReady := func(err error) {
+		if readySent.CompareAndSwap(false, true) {
+			readyCh <- err
+		}
+	}
 
 	go func() {
 		defer sub.Close()
 		defer close(sub.ch)
+		defer sendReady(&sdkerrors.RealtimeError{Msg: "realtime subscription ended before handshake"})
 		for {
 			if runCtx.Err() != nil {
 				return
 			}
-			err := runSubscriptionOnce(runCtx, c, channel, decode, sub)
+			err := runSubscriptionOnce(runCtx, c, channel, decode, sub, func() {
+				sendReady(nil)
+			})
 			if err == nil || runCtx.Err() != nil {
 				return
 			}
 			// Overflow and other terminal subscription faults must not reconnect.
 			if sub.Err() != nil {
+				return
+			}
+			// Match Rust: first handshake failure is terminal (no silent reconnect).
+			if !readySent.Load() {
+				sendReady(err)
 				return
 			}
 			if !reconnect {
@@ -120,10 +140,27 @@ func SubscribeProtoWithOptions[T any](
 		}
 	}()
 
-	return sub, nil
+	select {
+	case err := <-readyCh:
+		if err != nil {
+			cancel()
+			return nil, err
+		}
+		return sub, nil
+	case <-ctx.Done():
+		cancel()
+		return nil, ctx.Err()
+	}
 }
 
-func runSubscriptionOnce[T any](ctx context.Context, c *Client, channel string, decode func([]byte) (T, error), sub *Subscription[T]) error {
+func runSubscriptionOnce[T any](
+	ctx context.Context,
+	c *Client,
+	channel string,
+	decode func([]byte) (T, error),
+	sub *Subscription[T],
+	onReady func(),
+) error {
 	dialer := websocket.Dialer{HandshakeTimeout: 10 * time.Second}
 	conn, _, err := dialer.DialContext(ctx, c.wsURL, nil)
 	if err != nil {
@@ -153,6 +190,9 @@ func runSubscriptionOnce[T any](ctx context.Context, c *Client, channel string, 
 		if err := centrifugoSubscribe(ctx, conn, channel, ""); err != nil {
 			return err
 		}
+	}
+	if onReady != nil {
+		onReady()
 	}
 
 	for {

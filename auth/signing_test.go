@@ -16,6 +16,32 @@ func TestCanonicalQuerySortsAndEncodesValues(t *testing.T) {
 	}
 }
 
+func TestCanonicalQueryPreservesHyphensInChannelParam(t *testing.T) {
+	got := CanonicalQuery("https://api.example.test/v1/rt/subscribe?channel=private:auth:api-keys:account:proto")
+	want := "channel=private%3Aauth%3Aapi-keys%3Aaccount%3Aproto"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestCanonicalQuerySharedVectors(t *testing.T) {
+	cases := []struct {
+		url, want string
+	}{
+		{"https://api.example.test/x?z=1&a=hello world&m=a+b", "a=hello%20world&m=a%20b&z=1"},
+		{"https://api.example.test/x?z=1&a=hello%20world&m=a%2Bb", "a=hello%20world&m=a%2Bb&z=1"},
+		{"https://api.example.test/x?b=&a=1", "a=1&b="},
+		{"https://api.example.test/x?a=1&a=2&b=0", "a=1&a=2&b=0"},
+		{"https://api.example.test/x?path=foo/bar&name=a_b.c~d-e", "name=a_b.c~d-e&path=foo%2Fbar"},
+		{"https://api.example.test/x?msg=%E2%9C%93&plain=ok", "msg=%E2%9C%93&plain=ok"},
+	}
+	for _, tc := range cases {
+		if got := CanonicalQuery(tc.url); got != tc.want {
+			t.Fatalf("url=%q got %q want %q", tc.url, got, tc.want)
+		}
+	}
+}
+
 func TestCanonicalSigningStringMatchesContract(t *testing.T) {
 	got := CanonicalSigningString(
 		"123",

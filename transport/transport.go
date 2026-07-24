@@ -59,7 +59,7 @@ func NewFactory(cfg Config, creds *auth.Credentials, httpClient *http.Client) *F
 		HTTP:        httpClient,
 	}
 	if creds != nil {
-		f.authInterceptor = NewAPIKeyInterceptor(creds, cfg.APIURL)
+		f.authInterceptor = NewAPIKeyInterceptor(creds, cfg.APIURL, cfg.WireFormat)
 	}
 	return f
 }
