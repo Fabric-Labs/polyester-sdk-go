@@ -5,6 +5,49 @@ import "errors"
 // ErrPolyester is the root sentinel for SDK errors.
 var ErrPolyester = errors.New("polyester")
 
+// Stable auth.v1.AuthErrorDetail codes used for MFA control flow.
+// Prefer these over ConnectError message text.
+const (
+	AuthCodeMFANotEnrolled        = "AUTH_MFA_NOT_ENROLLED"
+	AuthCodeStepUpRequired        = "AUTH_STEP_UP_REQUIRED"
+	AuthCodeMFAElevationRequired  = "AUTH_MFA_ELEVATION_REQUIRED"
+	AuthCodeMFALastFactorRequired = "AUTH_MFA_LAST_FACTOR_REQUIRED"
+)
+
+// AuthErrorCode returns the structured auth.v1.AuthErrorDetail code when err is
+// an *APIError that carries one. Otherwise it returns "".
+func AuthErrorCode(err error) string {
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) {
+		return ""
+	}
+	return apiErr.Code
+}
+
+// IsMFAEnrollmentRequired reports whether err requires MFA enrollment before
+// the operation can continue (AUTH_MFA_NOT_ENROLLED).
+func IsMFAEnrollmentRequired(err error) bool {
+	return AuthErrorCode(err) == AuthCodeMFANotEnrolled
+}
+
+// IsStepUpRequired reports whether err requires a fresh one-use step-up proof
+// via X-Auth-Step-Up (AUTH_STEP_UP_REQUIRED).
+func IsStepUpRequired(err error) bool {
+	return AuthErrorCode(err) == AuthCodeStepUpRequired
+}
+
+// IsMFAElevationRequired reports whether err requires a recent MFA-elevated
+// interactive session, not a one-use step-up proof (AUTH_MFA_ELEVATION_REQUIRED).
+func IsMFAElevationRequired(err error) bool {
+	return AuthErrorCode(err) == AuthCodeMFAElevationRequired
+}
+
+// IsMFALastFactorRequired reports whether err rejects removing the final
+// active MFA factor (AUTH_MFA_LAST_FACTOR_REQUIRED).
+func IsMFALastFactorRequired(err error) bool {
+	return AuthErrorCode(err) == AuthCodeMFALastFactorRequired
+}
+
 // AuthError indicates missing or invalid credentials.
 type AuthError struct{ Msg string }
 
