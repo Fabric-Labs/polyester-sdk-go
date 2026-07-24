@@ -35,18 +35,6 @@ func ProfileFromProto(msg *authv1.UserProfile) models.UserProfile {
 	}
 }
 
-func UsernameHistoryFromProto(msg *authv1.GetUsernameHistoryResponse) models.UsernameHistoryList {
-	entries := make([]models.UsernameHistoryEntry, 0, len(msg.GetHistory()))
-	for _, e := range msg.GetHistory() {
-		changedAt := int64(0)
-		if ts := e.GetSetAt(); ts != nil {
-			changedAt = ts.AsTime().UnixMilli()
-		}
-		entries = append(entries, models.UsernameHistoryEntry{Username: e.GetUsername(), ChangedAt: changedAt})
-	}
-	return models.UsernameHistoryList{Entries: entries}
-}
-
 // AccountIdentityFromProto decodes a public identity update.
 func AccountIdentityFromProto(msg *authv1.AccountIdentity) models.AccountIdentity {
 	if msg == nil {

@@ -22,38 +22,6 @@ func TestAuthMeReturnsIdentityFields(t *testing.T) {
 	}
 }
 
-func TestProfileGetMatchesMeUsernameWhenPresentOptional(t *testing.T) {
-	client, ctx, cleanup := testutil.RequireLiveClient(t)
-	defer cleanup()
-
-	me := testutil.CallRequired(t, "auth.me", func() (models.MeResult, error) {
-		return client.Auth.Me(ctx)
-	})
-	profile := testutil.CallOptional(t, "profile.get", func() (models.UserProfile, error) {
-		return client.Auth.Profile.Get(ctx)
-	})
-	if me.Username != "" && profile.Username != me.Username {
-		t.Fatalf("profile username=%q me username=%q", profile.Username, me.Username)
-	}
-}
-
-func TestProfileUsernameHistoryIsListOptional(t *testing.T) {
-	client, ctx, cleanup := testutil.RequireLiveClient(t)
-	defer cleanup()
-
-	result := testutil.CallOptional(t, "profile.get_username_history", func() (models.UsernameHistoryList, error) {
-		return client.Auth.Profile.GetUsernameHistory(ctx)
-	})
-	if result.Entries == nil {
-		t.Fatal("expected username history list")
-	}
-	for _, entry := range result.Entries {
-		if entry.Username == "" {
-			t.Fatalf("history entry missing username: %+v", entry)
-		}
-	}
-}
-
 func TestChainAnalyticsUnifiedBalancesSeriesShapeOptional(t *testing.T) {
 	client, ctx, cleanup := testutil.RequireLiveClient(t)
 	defer cleanup()

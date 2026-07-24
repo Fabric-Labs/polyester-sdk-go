@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	chaindepositv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/deposit/v1"
@@ -72,18 +71,6 @@ func TestAPIKeysFromProto(t *testing.T) {
 		key.CreatedAt.Unix() != 1 || key.LastUsedAt.Unix() != 2 ||
 		key.UpdatedAt.Nanosecond() != 123_456_000 {
 		t.Fatalf("timestamps=%+v", key)
-	}
-}
-
-func TestResolvedAccountsFromProto(t *testing.T) {
-	msg := &authv1.ResolveAccountResponse{
-		Matches: []*authv1.ResolvedAccount{
-			{SmartAccountAddress: "0x123", Kind: "subaccount", AccountId: 99},
-		},
-	}
-	result := decode.ResolvedAccountsFromProto(msg)
-	if len(result.Accounts) != 1 || result.Accounts[0].AccountID != codecs.FormatUint64ID(99) {
-		t.Fatalf("accounts=%+v", result.Accounts)
 	}
 }
 

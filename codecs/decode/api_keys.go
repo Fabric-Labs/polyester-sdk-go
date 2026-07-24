@@ -49,9 +49,3 @@ func ApiKeysListFromProto(msg *authv1.ListApiKeysResponse) models.ApiKeysList {
 func ApiKeyFromGetProto(msg *authv1.GetApiKeyResponse) *models.ApiKeySummary {
 	return apiKey(msg.GetApiKey())
 }
-func ApiKeyFromCreateProto(msg *authv1.CreateApiKeyResponse) *models.ApiKeySummary {
-	return apiKey(msg.GetApiKey())
-}
-func ApiKeyFromUpdateProto(msg *authv1.UpdateApiKeyResponse) *models.ApiKeySummary {
-	return apiKey(msg.GetApiKey())
-}

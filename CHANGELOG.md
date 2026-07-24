@@ -5,6 +5,14 @@
 ### Breaking
 - Stable MFA auth error codes (POLY-2919): `AUTH_API_KEY_MFA_REQUIRED` is removed; use `AUTH_MFA_NOT_ENROLLED`, `AUTH_STEP_UP_REQUIRED`, `AUTH_MFA_ELEVATION_REQUIRED`, and `AUTH_MFA_LAST_FACTOR_REQUIRED` from `AuthErrorDetail`
 - Generated `*.pb.validate.go` outputs are no longer shipped with the SDK bundle
+- Removed JWT/session-only auth admin/mutation wrappers that cannot work with API-key auth:
+  - `Policies`: all unary List/Get/Create/Update/Delete/Set methods (subscribe-only remains)
+  - `APIKeys.Create` / `Update` / `Delete` (List/Get/GenerateKeypair/Subscribe remain)
+  - `SubAccounts` write/admin methods (Create/Update/Delete/SetMemberMFARequirement/RemoveMember/UpdateMemberRole/InviteMember/RespondInvite)
+  - `AddressBook` entry/tag mutation methods (list/view/subscribe remain)
+  - `Profile.Get` / `Update` / `GetUsernameHistory` (`SubscribeIdentity` remains)
+  - `Resolve` / `Accounts` service removed entirely
+- Dropped mutation request builders used only by the removed methods (`codecs` policy/API-key/subaccount/address-book write patches)
 
 ### Features
 - `errors.IsMFAEnrollmentRequired` / `IsStepUpRequired` / `IsMFAElevationRequired` / `IsMFALastFactorRequired` classify MFA control flow from structured auth codes only (no message heuristics)
@@ -14,9 +22,11 @@
 ### Testing
 - Unit coverage for MFA auth-code mapping and predicates
 - Unit coverage for API/subaccount policy realtime protobuf decode
+- Integration: policy/API-key mutation realtime tests removed; private subscribe coverage remains
 
 ### Changed
 - CI no longer auto-commits `sdk-capabilities.json` / README on pull requests. Capability refresh + optional bot commit runs only on merge to `main`.
+- README capability matrix labels updated for API-key-safe auth surface (policies/profile subscribe; resolve unsupported)
 
 ## 0.1.0a13
 

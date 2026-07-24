@@ -3,41 +3,12 @@
 package integration_test
 
 import (
-	"os"
 	"strings"
 	"testing"
 
-	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/testutil"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
-
-func TestResolveAccountByEnvAccountIDOptional(t *testing.T) {
-	accountID := strings.TrimSpace(os.Getenv(auth.AccountIDEnv))
-	if accountID == "" {
-		t.Skip("POLYESTER_ACCOUNT_ID not set")
-	}
-
-	client, ctx, cleanup := testutil.RequireLiveClient(t)
-	defer cleanup()
-
-	result := testutil.CallOptional(t, "resolve.resolve_account", func() (models.ResolvedAccountsList, error) {
-		return client.Resolve.ResolveAccount(ctx, accountID, "id", false)
-	})
-	if len(result.Accounts) == 0 {
-		t.Fatal("expected at least one resolved account")
-	}
-	found := false
-	for _, account := range result.Accounts {
-		if account.AccountID == accountID {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected account_id %q in %+v", accountID, result.Accounts)
-	}
-}
 
 func TestAPIKeysListReturnsKeySummaries(t *testing.T) {
 	client, ctx, cleanup := testutil.RequireLiveClient(t)

@@ -29,24 +29,6 @@ func ListEntriesFromProto(msg *authv1.ListAddressBookEntriesResponse) models.Add
 	return models.AddressBookEntriesList{Entries: out, NextPageToken: msg.GetNextPageToken()}
 }
 
-func EntryFromCreateProto(msg *authv1.CreateAddressBookEntryResponse) models.AddressBookEntry {
-	return entryFromProto(msg.GetEntry())
-}
-func EntryFromUpdateProto(msg *authv1.UpdateAddressBookEntryResponse) models.AddressBookEntry {
-	return entryFromProto(msg.GetEntry())
-}
-func EntryFromCopyProto(msg *authv1.CopyAddressBookEntryResponse) models.AddressBookEntry {
-	return entryFromProto(msg.GetEntry())
-}
-
-func TagFromCreateProto(msg *authv1.CreateAddressBookTagResponse) models.AddressBookTag {
-	return models.AddressBookTag{TagID: codecs.FormatUint64ID(msg.GetTag().GetTagId()), Name: msg.GetTag().GetName(), Color: msg.GetTag().GetColor()}
-}
-
-func TagFromUpdateProto(msg *authv1.UpdateAddressBookTagResponse) models.AddressBookTag {
-	return models.AddressBookTag{TagID: codecs.FormatUint64ID(msg.GetTag().GetTagId()), Name: msg.GetTag().GetName(), Color: msg.GetTag().GetColor()}
-}
-
 func ListBooksFromProto(msg *authv1.ListAddressBooksResponse) models.AddressBooksList {
 	books := make([]map[string]any, 0, len(msg.GetBooks()))
 	for _, b := range msg.GetBooks() {

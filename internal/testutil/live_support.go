@@ -63,12 +63,26 @@ func DevnetProtoMismatch(err error) bool {
 
 // JWTSessionOnly reports auth errors that indicate JWT/session-only routes.
 func JWTSessionOnly(err error) bool {
-	var auth *sdkerrors.AuthError
-	if !errors.As(err, &auth) {
+	if err == nil {
 		return false
 	}
-	msg := strings.ToLower(auth.Msg)
-	return strings.Contains(msg, "authorization header") || strings.Contains(msg, "bearer")
+	msg := strings.ToLower(err.Error())
+	sessionish := strings.Contains(msg, "authorization header") ||
+		strings.Contains(msg, "bearer") ||
+		strings.Contains(msg, "interactive session") ||
+		strings.Contains(msg, "permission denied") ||
+		strings.Contains(msg, "permission_denied")
+
+	var auth *sdkerrors.AuthError
+	if errors.As(err, &auth) {
+		return sessionish
+	}
+	var api *sdkerrors.APIError
+	if errors.As(err, &api) {
+		code := strings.ToLower(strings.TrimSpace(api.Code))
+		return sessionish || code == "unauthenticated" || code == "permission_denied"
+	}
+	return false
 }
 
 // CallOptional runs a live RPC and skips when the route is unavailable on devnet.

@@ -63,8 +63,6 @@ type Client struct {
 	APIKeys            *services.ApiKeysService
 	Policies           *services.PoliciesService
 	SubAccounts        *services.SubAccountsService
-	Resolve            *services.ResolveService
-	Accounts           *services.ResolveService
 	AddressBook        *services.AddressBookService
 	SocialVerification *services.SocialVerificationService
 	Whiteboard         *services.WhiteboardService
@@ -136,9 +134,8 @@ func New(cfg Config) (*Client, error) {
 		InternalTransfers:    services.NewInternalTransfersService(factory, cats, cfg.DefaultSubAccountID),
 		Deposit:              services.NewDepositService(factory, cfg.DefaultSubAccountID),
 		APIKeys:              services.NewApiKeysService(factory, cfg.DefaultSubAccountID, rt, defaultAccountID),
-		Policies:             services.NewPoliciesService(factory, cfg.DefaultSubAccountID, rt, defaultAccountID),
+		Policies:             services.NewPoliciesService(rt, defaultAccountID),
 		SubAccounts:          services.NewSubAccountsService(factory, cfg.DefaultSubAccountID, rt, defaultAccountID),
-		Resolve:              services.NewResolveService(factory),
 		AddressBook:          services.NewAddressBookService(factory, cfg.DefaultSubAccountID, rt, defaultAccountID),
 		SocialVerification:   services.NewSocialVerificationService(factory),
 		Whiteboard:           services.NewWhiteboardService(factory),
@@ -149,7 +146,6 @@ func New(cfg Config) (*Client, error) {
 		catalogHydrationDone: make(chan struct{}),
 	}
 	client.Candles = client.MarketData
-	client.Accounts = client.Resolve
 	client.TradingWithdraws = client.Withdraw
 
 	if cfg.HydrateCatalogs {

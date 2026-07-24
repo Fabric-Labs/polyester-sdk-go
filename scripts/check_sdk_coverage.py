@@ -632,17 +632,17 @@ CAPABILITY_DEFS: list[dict[str, Any]] = [
     },
     {
         "id": "profile",
-        "label": "Profile",
-        "any_services": ["auth.v1.ProfileService"],
+        "label": "Profile (identity subscribe)",
+        "kind": "profile_subscribe",
     },
     {
         "id": "api_keys",
-        "label": "API keys",
+        "label": "API keys (list/get/subscribe)",
         "any_services": ["auth.v1.ApiKeyService"],
     },
     {
         "id": "subaccounts",
-        "label": "Subaccounts (members, invites, activity)",
+        "label": "Subaccounts (list/get/members/invites/activity/subscribe)",
         "any_services": [
             "auth.v1.SubaccountService",
             "auth.v1.SubaccountViewService",
@@ -650,13 +650,13 @@ CAPABILITY_DEFS: list[dict[str, Any]] = [
     },
     {
         "id": "address_book",
-        "label": "Address book",
+        "label": "Address book (list/view/subscribe)",
         "any_services": ["auth.v1.AddressBookService"],
     },
     {
         "id": "policies",
-        "label": "Policies",
-        "any_services": ["auth.v1.PolicyService"],
+        "label": "Policies (realtime subscribe)",
+        "kind": "policies_subscribe",
     },
     {
         "id": "guard_signer",
@@ -761,7 +761,8 @@ CAPABILITY_DEFS: list[dict[str, Any]] = [
     {
         "id": "resolve",
         "label": "Account resolve / lookup",
-        "any_services": ["auth.v1.ResolveService"],
+        "kind": "always_no",
+        "note": "JWT/session only; not available with API-key auth.",
     },
 ]
 
@@ -812,6 +813,26 @@ def _detect_realtime(root: Path, sdk: str) -> bool:
     return False
 
 
+def _detect_policies_subscribe(root: Path, sdk: str) -> bool:
+    if sdk == "go":
+        return (root / "services" / "policies.go").is_file()
+    if sdk == "python":
+        return (root / "src" / "polyester" / "services" / "policies.py").is_file()
+    if sdk == "rust":
+        return (root / "src" / "services" / "policies.rs").is_file()
+    return False
+
+
+def _detect_profile_subscribe(root: Path, sdk: str) -> bool:
+    if sdk == "go":
+        return (root / "services" / "profile.go").is_file()
+    if sdk == "python":
+        return (root / "src" / "polyester" / "services" / "profile.py").is_file()
+    if sdk == "rust":
+        return (root / "src" / "services" / "profile.rs").is_file()
+    return False
+
+
 def build_capabilities(result: CoverageResult, root: Path) -> dict[str, Any]:
     """Public product capability snapshot derived from wrappers + heuristics."""
     rows: list[dict[str, Any]] = []
@@ -832,6 +853,10 @@ def build_capabilities(result: CoverageResult, root: Path) -> dict[str, Any]:
             supported = _detect_catalogs(root, result.sdk)
         elif kind == "realtime":
             supported = _detect_realtime(root, result.sdk)
+        elif kind == "policies_subscribe":
+            supported = _detect_policies_subscribe(root, result.sdk)
+        elif kind == "profile_subscribe":
+            supported = _detect_profile_subscribe(root, result.sdk)
         elif cap.get("any_procedures"):
             supported = any(
                 _procedure_wrapped(result, p) for p in cap["any_procedures"]
