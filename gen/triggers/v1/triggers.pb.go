@@ -2631,11 +2631,14 @@ type TrailingDetails struct {
 	MaxSlippageTicks int32 `protobuf:"varint,6,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3" json:"max_slippage_ticks,omitempty"`
 	// Optional maximum allowed slippage in basis points (1 bp = 0.01%).
 	MaxSlippageBps int32 `protobuf:"varint,7,opt,name=max_slippage_bps,json=maxSlippageBps,proto3" json:"max_slippage_bps,omitempty"`
-	// Direction/source are fixed per trigger; exposed for completeness.
+	// Price source used for trigger evaluation. Fixed for the lifetime of the
+	// trigger and exposed for completeness.
 	TriggerPriceSource v1.TriggerPriceSource `protobuf:"varint,8,opt,name=trigger_price_source,json=triggerPriceSource,proto3,enum=orders.v1.TriggerPriceSource" json:"trigger_price_source,omitempty"`
-	TriggerDirection   v1.TriggerDirection   `protobuf:"varint,9,opt,name=trigger_direction,json=triggerDirection,proto3,enum=orders.v1.TriggerDirection" json:"trigger_direction,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Direction the price must cross to fire the trigger. Fixed for the lifetime
+	// of the trigger and exposed for completeness.
+	TriggerDirection v1.TriggerDirection `protobuf:"varint,9,opt,name=trigger_direction,json=triggerDirection,proto3,enum=orders.v1.TriggerDirection" json:"trigger_direction,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *TrailingDetails) Reset() {

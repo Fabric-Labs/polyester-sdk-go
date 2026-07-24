@@ -8,6 +8,7 @@ package chainwithdrawv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
 	v1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	_ "github.com/google/gnostic/openapiv3"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
@@ -425,7 +426,7 @@ var File_chain_withdraw_v1_withdraw_proto protoreflect.FileDescriptor
 
 const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"\n" +
-	" chain/withdraw/v1/withdraw.proto\x12\x11chain.withdraw.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1cpolyester/type/v1/u128.proto\"<\n" +
+	" chain/withdraw/v1/withdraw.proto\x12\x11chain.withdraw.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1bpolyester/api/options.proto\x1a\x1cpolyester/type/v1/u128.proto\"<\n" +
 	"\x1dCreateTradingWithdrawResponse\x12\x1b\n" +
 	"\tintent_id\x18\x01 \x01(\tR\bintentId\"B\n" +
 	"#CreateWalletTradingWithdrawResponse\x12\x1b\n" +
@@ -453,12 +454,12 @@ const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"\x12ACTION_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
 	"TO_FUNDING\x10\x01\x12\x15\n" +
-	"\x11TO_EXTERNAL_CHAIN\x10\x022\xc6\x05\n" +
+	"\x11TO_EXTERNAL_CHAIN\x10\x022\xca\x05\n" +
 	"\x0fWithdrawService\x12\xcb\x02\n" +
 	"\x15CreateTradingWithdraw\x12/.chain.withdraw.v1.CreateTradingWithdrawRequest\x1a0.chain.withdraw.v1.CreateTradingWithdrawResponse\"\xce\x01\xbaG\xa4\x01\n" +
-	"\x11Trading Withdraws\x12\x17Create Trading Withdraw\x1avCreate or return one durable withdraw from Trading to Funding or to an external chain for the selected account target.\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/v1/chain/trading-withdraws\x12\xe4\x02\n" +
-	"\x1bCreateWalletTradingWithdraw\x125.chain.withdraw.v1.CreateWalletTradingWithdrawRequest\x1a6.chain.withdraw.v1.CreateWalletTradingWithdrawResponse\"\xd5\x01\xbaG\xa4\x01\n" +
-	"\x11Trading Withdraws\x12\x1eCreate Wallet Trading Withdraw\x1aoCreate or return one durable Trading withdraw intent from typed frontend fields and a wallet EIP-712 signature.\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/chain/trading-withdraws:walletB\xb0\x01\xbaG^:\\\n" +
+	"\x11Trading Withdraws\x12\x17Create Trading Withdraw\x1avCreate or return one durable withdraw from Trading to Funding or to an external chain for the selected account target.\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/v1/chain/trading-withdraws\x12\xe8\x02\n" +
+	"\x1bCreateWalletTradingWithdraw\x125.chain.withdraw.v1.CreateWalletTradingWithdrawRequest\x1a6.chain.withdraw.v1.CreateWalletTradingWithdrawResponse\"\xd9\x01\xbaG\xa4\x01\n" +
+	"\x11Trading Withdraws\x12\x1eCreate Wallet Trading Withdraw\x1aoCreate or return one durable Trading withdraw intent from typed frontend fields and a wallet EIP-712 signature.\x98\xb5\x18\x02\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/chain/trading-withdraws:walletB\xb0\x01\xbaG^:\\\n" +
 	"\x11Trading Withdraws\x12GRequest withdrawals from Trading for a Polyester account or subaccount.ZMgithub.com/Fabric-Labs/polyester-sdk-go/gen/chain/withdraw/v1;chainwithdrawv1b\x06proto3"
 
 var (

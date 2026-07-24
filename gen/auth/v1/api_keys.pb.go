@@ -8,6 +8,7 @@ package authv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
 	_ "github.com/google/gnostic/openapiv3"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -891,7 +892,7 @@ var File_auth_v1_api_keys_proto protoreflect.FileDescriptor
 
 const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\n" +
-	"\x16auth/v1/api_keys.proto\x12\aauth.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xbf\x05\n" +
+	"\x16auth/v1/api_keys.proto\x12\aauth.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\xbf\x05\n" +
 	"\x06ApiKey\x12/\n" +
 	"\x06key_id\x18\x02 \x01(\tB\x18\xbaH\x15r\x132\x11^ak_[a-f0-9]{32}$R\x05keyId\x12\x14\n" +
 	"\x05label\x18\x03 \x01(\tR\x05label\x12\x1b\n" +
@@ -963,18 +964,18 @@ const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\n" +
 	"\x06ACTIVE\x10\x01\x12\v\n" +
 	"\aREVOKED\x10\x02\x12\f\n" +
-	"\bDISABLED\x10\x032\xe7\b\n" +
-	"\rApiKeyService\x12\xe5\x01\n" +
-	"\fCreateApiKey\x12\x1c.auth.v1.CreateApiKeyRequest\x1a\x1d.auth.v1.CreateApiKeyResponse\"\x97\x01\xbaGx\n" +
-	"\fAuth Service\x12\x0eCreate API Key\x1aXCreate a new API key for the caller account, including public key material and metadata.\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v1/auth/api-keys\x12\xea\x01\n" +
+	"\bDISABLED\x10\x032\xf3\b\n" +
+	"\rApiKeyService\x12\xe9\x01\n" +
+	"\fCreateApiKey\x12\x1c.auth.v1.CreateApiKeyRequest\x1a\x1d.auth.v1.CreateApiKeyResponse\"\x9b\x01\xbaGx\n" +
+	"\fAuth Service\x12\x0eCreate API Key\x1aXCreate a new API key for the caller account, including public key material and metadata.\x98\xb5\x18\x02\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v1/auth/api-keys\x12\xea\x01\n" +
 	"\vListApiKeys\x12\x1b.auth.v1.ListApiKeysRequest\x1a\x1c.auth.v1.ListApiKeysResponse\"\x9f\x01\xbaG\x82\x01\n" +
 	"\fAuth Service\x12\rList API Keys\x1acList non-revoked API keys for the caller account, newest first, optionally filtered by sub-account.\x82\xd3\xe4\x93\x02\x13\x12\x11/v1/auth/api-keys\x12\xbc\x01\n" +
 	"\tGetApiKey\x12\x19.auth.v1.GetApiKeyRequest\x1a\x1a.auth.v1.GetApiKeyResponse\"x\xbaGS\n" +
-	"\fAuth Service\x12\vGet API Key\x1a6Retrieve a single API key owned by the caller account.\x82\xd3\xe4\x93\x02\x1c\x12\x1a/v1/auth/api-keys/{key_id}\x12\xda\x01\n" +
-	"\fDeleteApiKey\x12\x1c.auth.v1.DeleteApiKeyRequest\x1a\x1d.auth.v1.DeleteApiKeyResponse\"\x8c\x01\xbaGg\n" +
-	"\fAuth Service\x12\x0eDelete API Key\x1aGRevoke an API key owned by the caller account. Revocation is permanent.\x82\xd3\xe4\x93\x02\x1c*\x1a/v1/auth/api-keys/{key_id}\x12\xe4\x01\n" +
-	"\fUpdateApiKey\x12\x1c.auth.v1.UpdateApiKeyRequest\x1a\x1d.auth.v1.UpdateApiKeyResponse\"\x96\x01\xbaGn\n" +
-	"\fAuth Service\x12\x0eUpdate API Key\x1aNUpdate mutable API key fields, including label, status, whitelist, and expiry.\x82\xd3\xe4\x93\x02\x1f:\x01*2\x1a/v1/auth/api-keys/{key_id}B<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
+	"\fAuth Service\x12\vGet API Key\x1a6Retrieve a single API key owned by the caller account.\x82\xd3\xe4\x93\x02\x1c\x12\x1a/v1/auth/api-keys/{key_id}\x12\xde\x01\n" +
+	"\fDeleteApiKey\x12\x1c.auth.v1.DeleteApiKeyRequest\x1a\x1d.auth.v1.DeleteApiKeyResponse\"\x90\x01\xbaGg\n" +
+	"\fAuth Service\x12\x0eDelete API Key\x1aGRevoke an API key owned by the caller account. Revocation is permanent.\x98\xb5\x18\x02\x82\xd3\xe4\x93\x02\x1c*\x1a/v1/auth/api-keys/{key_id}\x12\xe8\x01\n" +
+	"\fUpdateApiKey\x12\x1c.auth.v1.UpdateApiKeyRequest\x1a\x1d.auth.v1.UpdateApiKeyResponse\"\x9a\x01\xbaGn\n" +
+	"\fAuth Service\x12\x0eUpdate API Key\x1aNUpdate mutable API key fields, including label, status, whitelist, and expiry.\x98\xb5\x18\x02\x82\xd3\xe4\x93\x02\x1f:\x01*2\x1a/v1/auth/api-keys/{key_id}B<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
 
 var (
 	file_auth_v1_api_keys_proto_rawDescOnce sync.Once

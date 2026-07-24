@@ -321,7 +321,9 @@ type OrderBookDelta struct {
 	// Monotonic book sequence range covered by this update.
 	// When reset=true, book_seq_start may be 0.
 	BookSeqStart uint64 `protobuf:"varint,2,opt,name=book_seq_start,json=bookSeqStart,proto3" json:"book_seq_start,omitempty"`
-	BookSeqEnd   uint64 `protobuf:"varint,3,opt,name=book_seq_end,json=bookSeqEnd,proto3" json:"book_seq_end,omitempty"`
+	// Monotonic book sequence at the end of this update's range. Consumers can
+	// retain it as the last applied sequence and ignore updates that do not advance it.
+	BookSeqEnd uint64 `protobuf:"varint,3,opt,name=book_seq_end,json=bookSeqEnd,proto3" json:"book_seq_end,omitempty"`
 	// Bid-side updates (SET semantics at price_ticks).
 	Bids []*PriceLevel `protobuf:"bytes,4,rep,name=bids,proto3" json:"bids,omitempty"`
 	// Ask-side updates (SET semantics at price_ticks).

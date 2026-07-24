@@ -8,6 +8,7 @@ package authv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
 	_ "github.com/google/gnostic/openapiv3"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -2450,7 +2451,7 @@ var File_auth_v1_policies_proto protoreflect.FileDescriptor
 
 const file_auth_v1_policies_proto_rawDesc = "" +
 	"\n" +
-	"\x16auth/v1/policies.proto\x12\aauth.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"?\n" +
+	"\x16auth/v1/policies.proto\x12\aauth.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"?\n" +
 	"\vMarketScope\"0\n" +
 	"\x05Value\x12\x0f\n" +
 	"\vUNSPECIFIED\x10\x00\x12\a\n" +
@@ -2642,32 +2643,32 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x19READ_EXTERNAL_WITHDRAWALS\x10\t\x12\x1a\n" +
 	"\x16READ_TRANSFER_CONTROLS\x10\v\x12\x17\n" +
 	"\x13MANAGE_ADDRESS_BOOK\x10\f\x12\x1e\n" +
-	"\x1aMANAGE_TRANSFER_WHITELISTS\x10\r2\xb4\x17\n" +
+	"\x1aMANAGE_TRANSFER_WHITELISTS\x10\r2\xd4\x17\n" +
 	"\rPolicyService\x12\xf8\x01\n" +
 	"\x16ListSubaccountPolicies\x12&.auth.v1.ListSubaccountPoliciesRequest\x1a'.auth.v1.ListSubaccountPoliciesResponse\"\x8c\x01\xbaGd\n" +
 	"\fAuth Service\x12\x18List Subaccount Policies\x1a:List sub-account policy templates available to the caller.\x82\xd3\xe4\x93\x02\x1f\x12\x1d/v1/auth/policies/subaccounts\x12\xf9\x01\n" +
 	"\x13GetSubaccountPolicy\x12#.auth.v1.GetSubaccountPolicyRequest\x1a$.auth.v1.GetSubaccountPolicyResponse\"\x96\x01\xbaGb\n" +
-	"\fAuth Service\x12\x15Get Subaccount Policy\x1a;Retrieve a single sub-account policy template by policy ID.\x82\xd3\xe4\x93\x02+\x12)/v1/auth/policies/subaccounts/{policy_id}\x12\x8e\x02\n" +
-	"\x16CreateSubaccountPolicy\x12&.auth.v1.CreateSubaccountPolicyRequest\x1a'.auth.v1.CreateSubaccountPolicyResponse\"\xa2\x01\xbaGw\n" +
-	"\fAuth Service\x12\x18Create Subaccount Policy\x1aMCreate a new sub-account policy template for the caller account or workspace.\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/v1/auth/policies/subaccounts\x12\x8f\x02\n" +
-	"\x16UpdateSubaccountPolicy\x12&.auth.v1.UpdateSubaccountPolicyRequest\x1a'.auth.v1.UpdateSubaccountPolicyResponse\"\xa3\x01\xbaGl\n" +
-	"\fAuth Service\x12\x18Update Subaccount Policy\x1aBChange selected fields on an existing sub-account policy template.\x82\xd3\xe4\x93\x02.:\x01*2)/v1/auth/policies/subaccounts/{policy_id}\x12\x8f\x02\n" +
-	"\x16DeleteSubaccountPolicy\x12&.auth.v1.DeleteSubaccountPolicyRequest\x1a'.auth.v1.DeleteSubaccountPolicyResponse\"\xa3\x01\xbaGo\n" +
-	"\fAuth Service\x12\x18Delete Subaccount Policy\x1aEDelete an existing sub-account policy template when it is not in use.\x82\xd3\xe4\x93\x02+*)/v1/auth/policies/subaccounts/{policy_id}\x12\x83\x02\n" +
-	"\x13SetSubaccountPolicy\x12#.auth.v1.SetSubaccountPolicyRequest\x1a$.auth.v1.SetSubaccountPolicyResponse\"\xa0\x01\xbaGg\n" +
-	"\fAuth Service\x12\x15Set Subaccount Policy\x1a@Attach or clear a sub-account policy for the target sub-account.\x82\xd3\xe4\x93\x020:\x01*2+/v1/auth/subaccounts/{subaccount_id}/policy\x12\xd9\x01\n" +
+	"\fAuth Service\x12\x15Get Subaccount Policy\x1a;Retrieve a single sub-account policy template by policy ID.\x82\xd3\xe4\x93\x02+\x12)/v1/auth/policies/subaccounts/{policy_id}\x12\x92\x02\n" +
+	"\x16CreateSubaccountPolicy\x12&.auth.v1.CreateSubaccountPolicyRequest\x1a'.auth.v1.CreateSubaccountPolicyResponse\"\xa6\x01\xbaGw\n" +
+	"\fAuth Service\x12\x18Create Subaccount Policy\x1aMCreate a new sub-account policy template for the caller account or workspace.\x98\xb5\x18\x02\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/v1/auth/policies/subaccounts\x12\x93\x02\n" +
+	"\x16UpdateSubaccountPolicy\x12&.auth.v1.UpdateSubaccountPolicyRequest\x1a'.auth.v1.UpdateSubaccountPolicyResponse\"\xa7\x01\xbaGl\n" +
+	"\fAuth Service\x12\x18Update Subaccount Policy\x1aBChange selected fields on an existing sub-account policy template.\x98\xb5\x18\x02\x82\xd3\xe4\x93\x02.:\x01*2)/v1/auth/policies/subaccounts/{policy_id}\x12\x93\x02\n" +
+	"\x16DeleteSubaccountPolicy\x12&.auth.v1.DeleteSubaccountPolicyRequest\x1a'.auth.v1.DeleteSubaccountPolicyResponse\"\xa7\x01\xbaGo\n" +
+	"\fAuth Service\x12\x18Delete Subaccount Policy\x1aEDelete an existing sub-account policy template when it is not in use.\x98\xb5\x18\x02\x82\xd3\xe4\x93\x02+*)/v1/auth/policies/subaccounts/{policy_id}\x12\x87\x02\n" +
+	"\x13SetSubaccountPolicy\x12#.auth.v1.SetSubaccountPolicyRequest\x1a$.auth.v1.SetSubaccountPolicyResponse\"\xa4\x01\xbaGg\n" +
+	"\fAuth Service\x12\x15Set Subaccount Policy\x1a@Attach or clear a sub-account policy for the target sub-account.\x98\xb5\x18\x02\x82\xd3\xe4\x93\x020:\x01*2+/v1/auth/subaccounts/{subaccount_id}/policy\x12\xd9\x01\n" +
 	"\x0fListApiPolicies\x12\x1f.auth.v1.ListApiPoliciesRequest\x1a .auth.v1.ListApiPoliciesResponse\"\x82\x01\xbaG]\n" +
 	"\fAuth Service\x12\x15List API Key Policies\x1a6List API key policy templates available to the caller.\x82\xd3\xe4\x93\x02\x1c\x12\x1a/v1/auth/policies/api-keys\x12\xda\x01\n" +
 	"\fGetApiPolicy\x12\x1c.auth.v1.GetApiPolicyRequest\x1a\x1d.auth.v1.GetApiPolicyResponse\"\x8c\x01\xbaG[\n" +
-	"\fAuth Service\x12\x12Get API Key Policy\x1a7Retrieve a single API key policy template by policy ID.\x82\xd3\xe4\x93\x02(\x12&/v1/auth/policies/api-keys/{policy_id}\x12\xef\x01\n" +
-	"\x0fCreateApiPolicy\x12\x1f.auth.v1.CreateApiPolicyRequest\x1a .auth.v1.CreateApiPolicyResponse\"\x98\x01\xbaGp\n" +
-	"\fAuth Service\x12\x15Create API Key Policy\x1aICreate a new API key policy template for the caller account or workspace.\x82\xd3\xe4\x93\x02\x1f:\x01*\"\x1a/v1/auth/policies/api-keys\x12\xf0\x01\n" +
-	"\x0fUpdateApiPolicy\x12\x1f.auth.v1.UpdateApiPolicyRequest\x1a .auth.v1.UpdateApiPolicyResponse\"\x99\x01\xbaGe\n" +
-	"\fAuth Service\x12\x15Update API Key Policy\x1a>Change selected fields on an existing API key policy template.\x82\xd3\xe4\x93\x02+:\x01*2&/v1/auth/policies/api-keys/{policy_id}\x12\xf0\x01\n" +
-	"\x0fDeleteApiPolicy\x12\x1f.auth.v1.DeleteApiPolicyRequest\x1a .auth.v1.DeleteApiPolicyResponse\"\x99\x01\xbaGh\n" +
-	"\fAuth Service\x12\x15Delete API Key Policy\x1aADelete an existing API key policy template when it is not in use.\x82\xd3\xe4\x93\x02(*&/v1/auth/policies/api-keys/{policy_id}\x12\xdf\x01\n" +
-	"\x0fSetApiKeyPolicy\x12\x1f.auth.v1.SetApiKeyPolicyRequest\x1a .auth.v1.SetApiKeyPolicyResponse\"\x88\x01\xbaGY\n" +
-	"\fAuth Service\x12\x12Set API Key Policy\x1a5Attach or clear an API key policy for the target key.\x82\xd3\xe4\x93\x02&:\x01*2!/v1/auth/api-keys/{key_id}/policyB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
+	"\fAuth Service\x12\x12Get API Key Policy\x1a7Retrieve a single API key policy template by policy ID.\x82\xd3\xe4\x93\x02(\x12&/v1/auth/policies/api-keys/{policy_id}\x12\xf3\x01\n" +
+	"\x0fCreateApiPolicy\x12\x1f.auth.v1.CreateApiPolicyRequest\x1a .auth.v1.CreateApiPolicyResponse\"\x9c\x01\xbaGp\n" +
+	"\fAuth Service\x12\x15Create API Key Policy\x1aICreate a new API key policy template for the caller account or workspace.\x98\xb5\x18\x02\x82\xd3\xe4\x93\x02\x1f:\x01*\"\x1a/v1/auth/policies/api-keys\x12\xf4\x01\n" +
+	"\x0fUpdateApiPolicy\x12\x1f.auth.v1.UpdateApiPolicyRequest\x1a .auth.v1.UpdateApiPolicyResponse\"\x9d\x01\xbaGe\n" +
+	"\fAuth Service\x12\x15Update API Key Policy\x1a>Change selected fields on an existing API key policy template.\x98\xb5\x18\x02\x82\xd3\xe4\x93\x02+:\x01*2&/v1/auth/policies/api-keys/{policy_id}\x12\xf4\x01\n" +
+	"\x0fDeleteApiPolicy\x12\x1f.auth.v1.DeleteApiPolicyRequest\x1a .auth.v1.DeleteApiPolicyResponse\"\x9d\x01\xbaGh\n" +
+	"\fAuth Service\x12\x15Delete API Key Policy\x1aADelete an existing API key policy template when it is not in use.\x98\xb5\x18\x02\x82\xd3\xe4\x93\x02(*&/v1/auth/policies/api-keys/{policy_id}\x12\xe3\x01\n" +
+	"\x0fSetApiKeyPolicy\x12\x1f.auth.v1.SetApiKeyPolicyRequest\x1a .auth.v1.SetApiKeyPolicyResponse\"\x8c\x01\xbaGY\n" +
+	"\fAuth Service\x12\x12Set API Key Policy\x1a5Attach or clear an API key policy for the target key.\x98\xb5\x18\x02\x82\xd3\xe4\x93\x02&:\x01*2!/v1/auth/api-keys/{key_id}/policyB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
 
 var (
 	file_auth_v1_policies_proto_rawDescOnce sync.Once

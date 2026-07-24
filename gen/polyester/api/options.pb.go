@@ -11,6 +11,7 @@ import (
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
 	reflect "reflect"
+	sync "sync"
 	unsafe "unsafe"
 )
 
@@ -20,6 +21,63 @@ const (
 	// Verify that runtime/protoimpl is sufficiently up-to-date.
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
+
+// MFARequirement describes the interactive MFA assurance documented for an RPC.
+type MFARequirement int32
+
+const (
+	// No interactive MFA requirement is declared; documentation treats this as none.
+	MFARequirement_MFA_UNSPECIFIED MFARequirement = 0
+	// The RPC requires recently completed interactive MFA. Stale assurance must be renewed.
+	MFARequirement_MFA_RECENT MFARequirement = 1
+	// The RPC always requires a fresh, single-use step-up proof, even when MFA was completed recently.
+	MFARequirement_MFA_FRESH_STEP_UP MFARequirement = 2
+	// The required MFA level depends on the request.
+	MFARequirement_MFA_CONDITIONAL MFARequirement = 3
+)
+
+// Enum value maps for MFARequirement.
+var (
+	MFARequirement_name = map[int32]string{
+		0: "MFA_UNSPECIFIED",
+		1: "MFA_RECENT",
+		2: "MFA_FRESH_STEP_UP",
+		3: "MFA_CONDITIONAL",
+	}
+	MFARequirement_value = map[string]int32{
+		"MFA_UNSPECIFIED":   0,
+		"MFA_RECENT":        1,
+		"MFA_FRESH_STEP_UP": 2,
+		"MFA_CONDITIONAL":   3,
+	}
+)
+
+func (x MFARequirement) Enum() *MFARequirement {
+	p := new(MFARequirement)
+	*p = x
+	return p
+}
+
+func (x MFARequirement) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (MFARequirement) Descriptor() protoreflect.EnumDescriptor {
+	return file_polyester_api_options_proto_enumTypes[0].Descriptor()
+}
+
+func (MFARequirement) Type() protoreflect.EnumType {
+	return &file_polyester_api_options_proto_enumTypes[0]
+}
+
+func (x MFARequirement) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use MFARequirement.Descriptor instead.
+func (MFARequirement) EnumDescriptor() ([]byte, []int) {
+	return file_polyester_api_options_proto_rawDescGZIP(), []int{0}
+}
 
 var file_polyester_api_options_proto_extTypes = []protoimpl.ExtensionInfo{
 	{
@@ -38,6 +96,14 @@ var file_polyester_api_options_proto_extTypes = []protoimpl.ExtensionInfo{
 		Tag:           "varint,50002,opt,name=hidden",
 		Filename:      "polyester/api/options.proto",
 	},
+	{
+		ExtendedType:  (*descriptorpb.MethodOptions)(nil),
+		ExtensionType: (*MFARequirement)(nil),
+		Field:         50003,
+		Name:          "polyester.api.mfa_requirement",
+		Tag:           "varint,50003,opt,name=mfa_requirement,enum=polyester.api.MFARequirement",
+		Filename:      "polyester/api/options.proto",
+	},
 }
 
 // Extension fields to descriptorpb.MethodOptions.
@@ -51,26 +117,54 @@ var (
 	//
 	// optional bool hidden = 50002;
 	E_Hidden = &file_polyester_api_options_proto_extTypes[1]
+	// Interactive MFA assurance documented for this RPC.
+	// This metadata does not enforce runtime authorization.
+	//
+	// optional polyester.api.MFARequirement mfa_requirement = 50003;
+	E_MfaRequirement = &file_polyester_api_options_proto_extTypes[2]
 )
 
 var File_polyester_api_options_proto protoreflect.FileDescriptor
 
 const file_polyester_api_options_proto_rawDesc = "" +
 	"\n" +
-	"\x1bpolyester/api/options.proto\x12\rpolyester.api\x1a google/protobuf/descriptor.proto:8\n" +
+	"\x1bpolyester/api/options.proto\x12\rpolyester.api\x1a google/protobuf/descriptor.proto*a\n" +
+	"\x0eMFARequirement\x12\x13\n" +
+	"\x0fMFA_UNSPECIFIED\x10\x00\x12\x0e\n" +
+	"\n" +
+	"MFA_RECENT\x10\x01\x12\x15\n" +
+	"\x11MFA_FRESH_STEP_UP\x10\x02\x12\x13\n" +
+	"\x0fMFA_CONDITIONAL\x10\x03:8\n" +
 	"\x06public\x12\x1e.google.protobuf.MethodOptions\x18ц\x03 \x01(\bR\x06public:8\n" +
-	"\x06hidden\x12\x1e.google.protobuf.MethodOptions\x18҆\x03 \x01(\bR\x06hiddenBJZHgithub.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api;polyesterapiv1b\x06proto3"
+	"\x06hidden\x12\x1e.google.protobuf.MethodOptions\x18҆\x03 \x01(\bR\x06hidden:h\n" +
+	"\x0fmfa_requirement\x12\x1e.google.protobuf.MethodOptions\x18ӆ\x03 \x01(\x0e2\x1d.polyester.api.MFARequirementR\x0emfaRequirementBJZHgithub.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api;polyesterapiv1b\x06proto3"
 
+var (
+	file_polyester_api_options_proto_rawDescOnce sync.Once
+	file_polyester_api_options_proto_rawDescData []byte
+)
+
+func file_polyester_api_options_proto_rawDescGZIP() []byte {
+	file_polyester_api_options_proto_rawDescOnce.Do(func() {
+		file_polyester_api_options_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_polyester_api_options_proto_rawDesc), len(file_polyester_api_options_proto_rawDesc)))
+	})
+	return file_polyester_api_options_proto_rawDescData
+}
+
+var file_polyester_api_options_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_polyester_api_options_proto_goTypes = []any{
-	(*descriptorpb.MethodOptions)(nil), // 0: google.protobuf.MethodOptions
+	(MFARequirement)(0),                // 0: polyester.api.MFARequirement
+	(*descriptorpb.MethodOptions)(nil), // 1: google.protobuf.MethodOptions
 }
 var file_polyester_api_options_proto_depIdxs = []int32{
-	0, // 0: polyester.api.public:extendee -> google.protobuf.MethodOptions
-	0, // 1: polyester.api.hidden:extendee -> google.protobuf.MethodOptions
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	0, // [0:2] is the sub-list for extension extendee
+	1, // 0: polyester.api.public:extendee -> google.protobuf.MethodOptions
+	1, // 1: polyester.api.hidden:extendee -> google.protobuf.MethodOptions
+	1, // 2: polyester.api.mfa_requirement:extendee -> google.protobuf.MethodOptions
+	0, // 3: polyester.api.mfa_requirement:type_name -> polyester.api.MFARequirement
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	3, // [3:4] is the sub-list for extension type_name
+	0, // [0:3] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
 }
 
@@ -84,13 +178,14 @@ func file_polyester_api_options_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_polyester_api_options_proto_rawDesc), len(file_polyester_api_options_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   0,
-			NumExtensions: 2,
+			NumExtensions: 3,
 			NumServices:   0,
 		},
 		GoTypes:           file_polyester_api_options_proto_goTypes,
 		DependencyIndexes: file_polyester_api_options_proto_depIdxs,
+		EnumInfos:         file_polyester_api_options_proto_enumTypes,
 		ExtensionInfos:    file_polyester_api_options_proto_extTypes,
 	}.Build()
 	File_polyester_api_options_proto = out.File

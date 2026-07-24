@@ -55,8 +55,6 @@ const (
 	AuthErrorCode_AUTH_SUBACCOUNT_ACCESS_DENIED AuthErrorCode = 11
 	// Caller does not have access to the requested API key.
 	AuthErrorCode_AUTH_API_KEY_ACCESS_DENIED AuthErrorCode = 12
-	// API key operation requires MFA.
-	AuthErrorCode_AUTH_API_KEY_MFA_REQUIRED AuthErrorCode = 13
 	// Requested API key status transition is not allowed.
 	AuthErrorCode_AUTH_API_KEY_INVALID_STATUS_TRANSITION AuthErrorCode = 14
 	// Policy definition or binding is invalid.
@@ -105,6 +103,10 @@ const (
 	AuthErrorCode_AUTH_POLICY_SCOPE_MISMATCH AuthErrorCode = 36
 	// The resource changed after the caller read it.
 	AuthErrorCode_AUTH_REVISION_CONFLICT AuthErrorCode = 37
+	// A recently MFA-elevated interactive session is required.
+	AuthErrorCode_AUTH_MFA_ELEVATION_REQUIRED AuthErrorCode = 38
+	// At least one active MFA factor must remain enrolled.
+	AuthErrorCode_AUTH_MFA_LAST_FACTOR_REQUIRED AuthErrorCode = 39
 )
 
 // Enum value maps for AuthErrorCode.
@@ -123,7 +125,6 @@ var (
 		10: "AUTH_RESOURCE_NOT_FOUND",
 		11: "AUTH_SUBACCOUNT_ACCESS_DENIED",
 		12: "AUTH_API_KEY_ACCESS_DENIED",
-		13: "AUTH_API_KEY_MFA_REQUIRED",
 		14: "AUTH_API_KEY_INVALID_STATUS_TRANSITION",
 		15: "AUTH_POLICY_INVALID",
 		16: "AUTH_SMART_ACCOUNT_ALREADY_LINKED",
@@ -148,6 +149,8 @@ var (
 		35: "AUTH_POLICY_LOCKED",
 		36: "AUTH_POLICY_SCOPE_MISMATCH",
 		37: "AUTH_REVISION_CONFLICT",
+		38: "AUTH_MFA_ELEVATION_REQUIRED",
+		39: "AUTH_MFA_LAST_FACTOR_REQUIRED",
 	}
 	AuthErrorCode_value = map[string]int32{
 		"AUTH_UNSPECIFIED":                       0,
@@ -163,7 +166,6 @@ var (
 		"AUTH_RESOURCE_NOT_FOUND":                10,
 		"AUTH_SUBACCOUNT_ACCESS_DENIED":          11,
 		"AUTH_API_KEY_ACCESS_DENIED":             12,
-		"AUTH_API_KEY_MFA_REQUIRED":              13,
 		"AUTH_API_KEY_INVALID_STATUS_TRANSITION": 14,
 		"AUTH_POLICY_INVALID":                    15,
 		"AUTH_SMART_ACCOUNT_ALREADY_LINKED":      16,
@@ -188,6 +190,8 @@ var (
 		"AUTH_POLICY_LOCKED":                     35,
 		"AUTH_POLICY_SCOPE_MISMATCH":             36,
 		"AUTH_REVISION_CONFLICT":                 37,
+		"AUTH_MFA_ELEVATION_REQUIRED":            38,
+		"AUTH_MFA_LAST_FACTOR_REQUIRED":          39,
 	}
 )
 
@@ -732,7 +736,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\v_api_key_id\"W\n" +
 	"\x0fAuthErrorDetail\x12*\n" +
 	"\x04code\x18\x01 \x01(\x0e2\x16.auth.v1.AuthErrorCodeR\x04code\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage*\xaa\t\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage*\xcf\t\n" +
 	"\rAuthErrorCode\x12\x14\n" +
 	"\x10AUTH_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15AUTH_USERNAME_INVALID\x10\x01\x12\x17\n" +
@@ -747,8 +751,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x17AUTH_RESOURCE_NOT_FOUND\x10\n" +
 	"\x12!\n" +
 	"\x1dAUTH_SUBACCOUNT_ACCESS_DENIED\x10\v\x12\x1e\n" +
-	"\x1aAUTH_API_KEY_ACCESS_DENIED\x10\f\x12\x1d\n" +
-	"\x19AUTH_API_KEY_MFA_REQUIRED\x10\r\x12*\n" +
+	"\x1aAUTH_API_KEY_ACCESS_DENIED\x10\f\x12*\n" +
 	"&AUTH_API_KEY_INVALID_STATUS_TRANSITION\x10\x0e\x12\x17\n" +
 	"\x13AUTH_POLICY_INVALID\x10\x0f\x12%\n" +
 	"!AUTH_SMART_ACCOUNT_ALREADY_LINKED\x10\x10\x12\x1d\n" +
@@ -772,7 +775,9 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x12AUTH_POLICY_IN_USE\x10\"\x12\x16\n" +
 	"\x12AUTH_POLICY_LOCKED\x10#\x12\x1e\n" +
 	"\x1aAUTH_POLICY_SCOPE_MISMATCH\x10$\x12\x1a\n" +
-	"\x16AUTH_REVISION_CONFLICT\x10%2\x95\x05\n" +
+	"\x16AUTH_REVISION_CONFLICT\x10%\x12\x1f\n" +
+	"\x1bAUTH_MFA_ELEVATION_REQUIRED\x10&\x12!\n" +
+	"\x1dAUTH_MFA_LAST_FACTOR_REQUIRED\x10'2\x95\x05\n" +
 	"\vAuthService\x12\xbd\x01\n" +
 	"\bGetNonce\x12\x18.auth.v1.GetNonceRequest\x1a\x19.auth.v1.GetNonceResponse\"|\xbaG`\n" +
 	"\fAuth Service\x12\x16Get Wallet Login Nonce\x1a8Retrieve a short-lived nonce for wallet-signature login.\x82\xd3\xe4\x93\x02\x13:\x01*\"\x0e/v1/auth/nonce\x12\xeb\x01\n" +

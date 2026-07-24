@@ -25,6 +25,8 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// SparklineInterval identifies the time range and sampling resolution for a
+// sparkline.
 type SparklineInterval int32
 
 const (
@@ -302,9 +304,11 @@ func (x *ErrorDetail) GetCode() ErrorCode {
 	return ErrorCode_ERROR_CODE_UNSPECIFIED
 }
 
+// Sparkline contains newest-first close prices for one time range.
 type Sparkline struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Interval SparklineInterval      `protobuf:"varint,1,opt,name=interval,proto3,enum=marketoverview.v1.SparklineInterval" json:"interval,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Time range and sampling resolution represented by these close prices.
+	Interval SparklineInterval `protobuf:"varint,1,opt,name=interval,proto3,enum=marketoverview.v1.SparklineInterval" json:"interval,omitempty"`
 	// Newest-first close prices in quote units scaled by 1e6.
 	CloseTicks    []int64 `protobuf:"varint,2,rep,packed,name=close_ticks,json=closeTicks,proto3" json:"close_ticks,omitempty"`
 	unknownFields protoimpl.UnknownFields

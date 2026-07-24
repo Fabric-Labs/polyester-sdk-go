@@ -8,6 +8,7 @@ package transferv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
 	v1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	_ "github.com/google/gnostic/openapiv3"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
@@ -415,7 +416,7 @@ var File_transfer_v1_internal_transfer_proto protoreflect.FileDescriptor
 
 const file_transfer_v1_internal_transfer_proto_rawDesc = "" +
 	"\n" +
-	"#transfer/v1/internal_transfer.proto\x12\vtransfer.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1cpolyester/type/v1/u128.proto\"\xf5\x03\n" +
+	"#transfer/v1/internal_transfer.proto\x12\vtransfer.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1bpolyester/api/options.proto\x1a\x1cpolyester/type/v1/u128.proto\"\xf5\x03\n" +
 	"\x1dCreateInternalTransferRequest\x126\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12F\n" +
 	"\x16destination_account_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\x14destinationAccountId\x12L\n" +
@@ -451,10 +452,10 @@ const file_transfer_v1_internal_transfer_proto_rawDesc = "" +
 	"$INTERNAL_TRANSFER_STATUS_UNSPECIFIED\x10\x00\x12%\n" +
 	"!INTERNAL_TRANSFER_STATUS_ACCEPTED\x10\x01\x12%\n" +
 	"!INTERNAL_TRANSFER_STATUS_REJECTED\x10\x02\x12#\n" +
-	"\x1fINTERNAL_TRANSFER_STATUS_FAILED\x10\x032\xb4\x02\n" +
-	"\x17InternalTransferService\x12\x98\x02\n" +
-	"\x16CreateInternalTransfer\x12*.transfer.v1.CreateInternalTransferRequest\x1a+.transfer.v1.CreateInternalTransferResponse\"\xa4\x01\xbaGx\n" +
-	"\x12Internal Transfers\x12\x18Create Internal Transfer\x1aHCreate or return one authenticated Trading to Trading internal transfer.\x82\xd3\xe4\x93\x02#:\x01*\"\x1e/v1/trading/internal-transfersB\x99\x01\xbaGR:P\n" +
+	"\x1fINTERNAL_TRANSFER_STATUS_FAILED\x10\x032\xb8\x02\n" +
+	"\x17InternalTransferService\x12\x9c\x02\n" +
+	"\x16CreateInternalTransfer\x12*.transfer.v1.CreateInternalTransferRequest\x1a+.transfer.v1.CreateInternalTransferResponse\"\xa8\x01\xbaGx\n" +
+	"\x12Internal Transfers\x12\x18Create Internal Transfer\x1aHCreate or return one authenticated Trading to Trading internal transfer.\x98\xb5\x18\x03\x82\xd3\xe4\x93\x02#:\x01*\"\x1e/v1/trading/internal-transfersB\x99\x01\xbaGR:P\n" +
 	"\x12Internal Transfers\x12:Authenticated Trading to Trading internal transfer intake.ZBgithub.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1;transferv1b\x06proto3"
 
 var (

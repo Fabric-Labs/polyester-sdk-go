@@ -666,7 +666,7 @@ func (x *HeatmapDeltaBucket) GetBookSeqEnd() uint64 {
 	return 0
 }
 
-// HeatmapLiveBucket is the canonical live payload for realtime heatmap updates.
+// HeatmapLiveBucket is the canonical live payload for real-time heatmap updates.
 // It represents the latest state of one bucket (open or finalized).
 type HeatmapLiveBucket struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -676,15 +676,20 @@ type HeatmapLiveBucket struct {
 	Interval HeatmapInterval `protobuf:"varint,2,opt,name=interval,proto3,enum=marketdata.v1.HeatmapInterval" json:"interval,omitempty"`
 	// Bucket start timestamp (seconds since epoch, UTC), aligned to `interval`.
 	TsSec uint64 `protobuf:"varint,3,opt,name=ts_sec,json=tsSec,proto3" json:"ts_sec,omitempty"`
-	// false for provisional open-bucket updates, true when bucket is finalized.
-	IsFinal bool                `protobuf:"varint,4,opt,name=is_final,json=isFinal,proto3" json:"is_final,omitempty"`
-	Bids    *HeatmapDeltaLevels `protobuf:"bytes,5,opt,name=bids,proto3" json:"bids,omitempty"`
-	Asks    *HeatmapDeltaLevels `protobuf:"bytes,6,opt,name=asks,proto3" json:"asks,omitempty"`
+	// True when this bucket is finalized; false for provisional updates to an
+	// open bucket.
+	IsFinal bool `protobuf:"varint,4,opt,name=is_final,json=isFinal,proto3" json:"is_final,omitempty"`
+	// Sparse bid-side level changes represented by this bucket.
+	Bids *HeatmapDeltaLevels `protobuf:"bytes,5,opt,name=bids,proto3" json:"bids,omitempty"`
+	// Sparse ask-side level changes represented by this bucket.
+	Asks *HeatmapDeltaLevels `protobuf:"bytes,6,opt,name=asks,proto3" json:"asks,omitempty"`
 	// Number of upstream L2 updates aggregated into this interval bucket.
 	UpdatesInBucket uint32 `protobuf:"varint,7,opt,name=updates_in_bucket,json=updatesInBucket,proto3" json:"updates_in_bucket,omitempty"`
-	BookSeqStart    uint64 `protobuf:"varint,8,opt,name=book_seq_start,json=bookSeqStart,proto3" json:"book_seq_start,omitempty"`
-	BookSeqEnd      uint64 `protobuf:"varint,9,opt,name=book_seq_end,json=bookSeqEnd,proto3" json:"book_seq_end,omitempty"`
-	// Quantity semantics for qty_scaled in bids/asks.
+	// Earliest monotonic order book sequence represented by this bucket.
+	BookSeqStart uint64 `protobuf:"varint,8,opt,name=book_seq_start,json=bookSeqStart,proto3" json:"book_seq_start,omitempty"`
+	// Latest monotonic order book sequence represented by this bucket.
+	BookSeqEnd uint64 `protobuf:"varint,9,opt,name=book_seq_end,json=bookSeqEnd,proto3" json:"book_seq_end,omitempty"`
+	// Quantity semantics for qty_scaled in bids and asks.
 	QuantityMode HeatmapQuantityMode `protobuf:"varint,10,opt,name=quantity_mode,json=quantityMode,proto3,enum=marketdata.v1.HeatmapQuantityMode" json:"quantity_mode,omitempty"`
 	// Effective bin stride for this symbol as a price delta in 1e-6 quote-unit
 	// ticks.
