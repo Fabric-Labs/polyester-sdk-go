@@ -151,6 +151,18 @@ func SubaccountPolicyFromBytes(payload []byte) (models.SubaccountPolicy, error) 
 	return models.SubaccountPolicy{}, nil
 }
 
+// ApiPolicyFromBytes parses an API key policy publication.
+func ApiPolicyFromBytes(payload []byte) (models.ApiPolicy, error) {
+	var msg authv1.ApiPolicyView
+	if err := unmarshalProto(payload, &msg); err != nil {
+		return models.ApiPolicy{}, err
+	}
+	if row := ApiPolicyMessageFromProto(&msg); row != nil {
+		return *row, nil
+	}
+	return models.ApiPolicy{}, nil
+}
+
 // FlowSummaryFromBytes parses a lifecycle flow summary publication.
 func FlowSummaryFromBytes(payload []byte) (models.LifecycleFlowSummary, error) {
 	var msg lifecyclev1.FlowSummaryView

@@ -9,9 +9,11 @@
 ### Features
 - `errors.IsMFAEnrollmentRequired` / `IsStepUpRequired` / `IsMFAElevationRequired` / `IsMFALastFactorRequired` classify MFA control flow from structured auth codes only (no message heuristics)
 - Public method options expose `polyester.api.MFARequirement` documentation metadata
+- POLY-3739: `Policies.SubscribeAPIPolicies` typed subscribe for `private:auth:api-policies:{account}:proto` (parity with subaccount policies / other private auth streams)
 
 ### Testing
 - Unit coverage for MFA auth-code mapping and predicates
+- Unit coverage for API/subaccount policy realtime protobuf decode
 
 ### Changed
 - CI no longer auto-commits `sdk-capabilities.json` / README on pull requests. Capability refresh + optional bot commit runs only on merge to `main`.

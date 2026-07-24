@@ -363,6 +363,22 @@ for order := range sub.Messages() {
 }
 ```
 
+Private auth policy streams decode `ApiPolicyView` / `SubaccountPolicyView` snapshots:
+
+```go
+apiPolicies, err := client.Policies.SubscribeAPIPolicies(ctx, nil)
+if err != nil {
+	log.Fatal(err)
+}
+defer apiPolicies.Close()
+
+subPolicies, err := client.Policies.SubscribeSubaccountPolicies(ctx, nil)
+if err != nil {
+	log.Fatal(err)
+}
+defer subPolicies.Close()
+```
+
 Managed snapshot-then-stream helpers:
 
 ```go

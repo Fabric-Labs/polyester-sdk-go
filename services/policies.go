@@ -150,6 +150,11 @@ func (s *PoliciesService) SubscribeSubaccountPolicies(ctx context.Context, accou
 	return s.Subscribe(ctx, accountID)
 }
 
+// SubscribeAPIPolicies subscribes to private API-key policy snapshots for an account.
+func (s *PoliciesService) SubscribeAPIPolicies(ctx context.Context, accountID any) (*realtime.Subscription[models.ApiPolicy], error) {
+	return SubscribeAccountProto(ctx, s.realtime, "private:auth:api-policies:{account_id}:proto", accountID, s.defaultAccountID, decode.ApiPolicyFromBytes)
+}
+
 func (s *PoliciesService) requireSubaccountID(account AccountScope, subAccountID *string) (uint64, error) {
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {

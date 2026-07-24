@@ -55,6 +55,11 @@ func apiPolicy(msg *authv1.ApiPolicyView) *models.ApiPolicy {
 	}
 }
 
+// ApiPolicyMessageFromProto decodes one API key policy message.
+func ApiPolicyMessageFromProto(msg *authv1.ApiPolicyView) *models.ApiPolicy {
+	return apiPolicy(msg)
+}
+
 func ApiPoliciesListFromProto(msg *authv1.ListApiPoliciesResponse) models.ApiPoliciesList {
 	out := make([]models.ApiPolicy, 0, len(msg.GetPolicies()))
 	for _, p := range msg.GetPolicies() {
