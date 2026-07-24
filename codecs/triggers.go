@@ -214,6 +214,9 @@ func CreateTriggerToProto(symbol, triggerType string, triggerPrice *models.Price
 func conditionalChildToProto(orderType, tif string, limitPrice *models.PriceInput, symbol string, postOnly bool) (*triggersv1.ConditionalChildExecution, error) {
 	switch strings.ToLower(orderType) {
 	case "market":
+		if postOnly {
+			return nil, &errors.ValidationError{Msg: "post_only is only valid for limit GTC executions"}
+		}
 		return &triggersv1.ConditionalChildExecution{
 			Execution: &triggersv1.ConditionalChildExecution_MarketIoc{MarketIoc: &triggersv1.TriggerMarketIoc{}},
 		}, nil
@@ -227,10 +230,16 @@ func conditionalChildToProto(orderType, tif string, limitPrice *models.PriceInpu
 		}
 		switch strings.ToLower(tif) {
 		case "ioc":
+			if postOnly {
+				return nil, &errors.ValidationError{Msg: "post_only is only valid for limit GTC executions"}
+			}
 			return &triggersv1.ConditionalChildExecution{
 				Execution: &triggersv1.ConditionalChildExecution_LimitIoc{LimitIoc: &triggersv1.TriggerLimitIoc{PriceTicks: ticks}},
 			}, nil
 		case "fok":
+			if postOnly {
+				return nil, &errors.ValidationError{Msg: "post_only is only valid for limit GTC executions"}
+			}
 			return &triggersv1.ConditionalChildExecution{
 				Execution: &triggersv1.ConditionalChildExecution_LimitFok{LimitFok: &triggersv1.TriggerLimitFok{PriceTicks: ticks}},
 			}, nil

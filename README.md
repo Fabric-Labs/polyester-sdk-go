@@ -21,7 +21,7 @@ Requires a recent Go toolchain (see `go.mod`).
 | Order book snapshot + realtime | Yes |
 | Market overview (list + subscribe) | Yes |
 | Order book heatmap | Yes |
-| API-key (Ed25519 HMAC) auth | Yes |
+| API-key (Ed25519 signature) auth | Yes |
 | Wallet / browser login | No |
 | Session MFA enrollment and challenges | No |
 | Profile (identity subscribe) | Yes |

@@ -27,6 +27,11 @@
 ### Changed
 - CI no longer auto-commits `sdk-capabilities.json` / README on pull requests. Capability refresh + optional bot commit runs only on merge to `main`.
 - README capability matrix labels updated for API-key-safe auth surface (policies/profile subscribe; resolve unsupported)
+- Realtime subscribe waits for the Centrifugo handshake (including private token fetch) before returning; initial auth failures are returned immediately
+
+### Fixed
+- API-key signatures for `WireFormat: "json"` now hash ProtoJSON body bytes (matching `connect.WithProtoJSON()`), not binary protobuf
+- Conditional trigger children reject `post_only` for market / limit IOC / limit FOK (limit GTC only), matching Python/Rust and the CreateTrigger schema
 
 ## 0.1.0a13
 

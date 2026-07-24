@@ -17,13 +17,22 @@ func waitPrivateSubscribeOptional[T any](t *testing.T, label string, sub *realti
 
 	select {
 	case <-sub.Done():
+		if err := sub.Err(); err != nil {
+			t.Fatalf("%s failed: %v", label, err)
+		}
 		t.Skipf("%s closed without publications", label)
 	case _, ok := <-sub.Messages():
 		if !ok {
+			if err := sub.Err(); err != nil {
+				t.Fatalf("%s failed: %v", label, err)
+			}
 			t.Skipf("%s closed without publications", label)
 		}
 	case <-time.After(5 * time.Second):
-		// Subscribe + private-channel auth succeeded; idle channel is OK.
+		// Subscribe already waited for private-channel auth handshake; idle is OK.
+		if err := sub.Err(); err != nil {
+			t.Fatalf("%s failed after handshake: %v", label, err)
+		}
 	}
 }
 

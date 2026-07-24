@@ -7,20 +7,25 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
+	"github.com/Fabric-Labs/polyester-sdk-go/connectx"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
-// APIKeyInterceptor signs unary Connect requests.
+// APIKeyInterceptor signs unary Connect requests over the exact body bytes the
+// configured wire format will transmit (binary protobuf or ProtoJSON).
 type APIKeyInterceptor struct {
 	Credentials *auth.Credentials
 	BaseURL     string
+	WireFormat  connectx.WireFormat
 }
 
 // NewAPIKeyInterceptor constructs an API-key signing interceptor.
-func NewAPIKeyInterceptor(creds *auth.Credentials, baseURL string) *APIKeyInterceptor {
+func NewAPIKeyInterceptor(creds *auth.Credentials, baseURL string, wire connectx.WireFormat) *APIKeyInterceptor {
 	return &APIKeyInterceptor{
 		Credentials: creds,
 		BaseURL:     strings.TrimRight(baseURL, "/"),
+		WireFormat:  wire,
 	}
 }
 
@@ -31,7 +36,7 @@ func (i *APIKeyInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc 
 		if !ok {
 			return next(ctx, req)
 		}
-		body, err := proto.Marshal(msg)
+		body, err := encodeWireBody(msg, i.WireFormat)
 		if err != nil {
 			return nil, err
 		}
@@ -47,6 +52,14 @@ func (i *APIKeyInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc 
 		}
 		return next(ctx, req)
 	}
+}
+
+func encodeWireBody(msg proto.Message, wire connectx.WireFormat) ([]byte, error) {
+	if wire == connectx.WireJSON {
+		// Must match connect.WithProtoJSON() / connect's jsonCodec (default protojson).
+		return protojson.MarshalOptions{}.Marshal(msg)
+	}
+	return proto.Marshal(msg)
 }
 
 // WrapStreamingClient is a no-op for client streaming.
