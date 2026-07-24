@@ -1219,14 +1219,15 @@ func (x *ListTransfersRequest) GetPageToken() string {
 // TransferSide describes one side of a ledger transfer for display.
 type TransferSide struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	Kind  TransferSideKind       `protobuf:"varint,1,opt,name=kind,proto3,enum=ledger.read.v1.TransferSideKind" json:"kind,omitempty"`
-	// Public root or subaccount id when this side is safe to identify. Never
+	// Display classification for this transfer side.
+	Kind TransferSideKind `protobuf:"varint,1,opt,name=kind,proto3,enum=ledger.read.v1.TransferSideKind" json:"kind,omitempty"`
+	// Public root account or subaccount ID when this side is safe to identify. Never
 	// populated for private counterparties or non-user ledger accounts.
 	AccountId *uint64 `protobuf:"fixed64,2,opt,name=account_id,json=accountId,proto3,oneof" json:"account_id,omitempty"`
 	// Address for this side when known. For EXTERNAL_ADDRESS this is an
 	// external-chain wallet address from lifecycle correlation; for identifiable
-	// Polyester user ledger accounts this is a Polyester smart-account address.
-	// May be empty during the transfer-to-lifecycle consistency window.
+	// Polyester accounts this is a Polyester smart-account address.
+	// May be empty until the corresponding lifecycle details are available.
 	Address       string `protobuf:"bytes,3,opt,name=address,proto3" json:"address,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1283,29 +1284,33 @@ func (x *TransferSide) GetAddress() string {
 	return ""
 }
 
-// Transfer row with compact integers and client-side resolution.
+// TransferRow describes one debit or credit leg of a ledger transfer.
 type TransferRow struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Public unified asset id. Resolve symbol from SpotConfig; U128 amounts in
-	// this row always use fixed 18-decimal ledger scale.
+	// Public unified asset ID. Resolve its symbol through the spot configuration
+	// API. U128 amounts in this row always use a fixed 18-decimal ledger scale.
 	AssetId uint32 `protobuf:"varint,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
 	// Transfer amount at fixed 18-decimal ledger scale.
-	AmountE18    *v1.U128         `protobuf:"bytes,2,opt,name=amount_e18,json=amountE18,proto3" json:"amount_e18,omitempty"`
-	TransferCode v11.TransferCode `protobuf:"varint,3,opt,name=transfer_code,json=transferCode,proto3,enum=ledger.v1.TransferCode" json:"transfer_code,omitempty"` // product reason for this transfer
-	AccountCode  v11.AccountCode  `protobuf:"varint,4,opt,name=account_code,json=accountCode,proto3,enum=ledger.v1.AccountCode" json:"account_code,omitempty"`     // account bucket affected by this transfer
-	TsUs         uint64           `protobuf:"varint,5,opt,name=ts_us,json=tsUs,proto3" json:"ts_us,omitempty"`                                                     // transfer timestamp in microseconds since epoch (UTC)
+	AmountE18 *v1.U128 `protobuf:"bytes,2,opt,name=amount_e18,json=amountE18,proto3" json:"amount_e18,omitempty"`
+	// Product reason for this transfer.
+	TransferCode v11.TransferCode `protobuf:"varint,3,opt,name=transfer_code,json=transferCode,proto3,enum=ledger.v1.TransferCode" json:"transfer_code,omitempty"`
+	// Account bucket affected by this transfer.
+	AccountCode v11.AccountCode `protobuf:"varint,4,opt,name=account_code,json=accountCode,proto3,enum=ledger.v1.AccountCode" json:"account_code,omitempty"`
+	// Transfer timestamp in microseconds since epoch (UTC).
+	TsUs uint64 `protobuf:"varint,5,opt,name=ts_us,json=tsUs,proto3" json:"ts_us,omitempty"`
 	// Post-transfer balance at fixed 18-decimal ledger scale.
 	BalanceAfterE18 *v1.U128 `protobuf:"bytes,9,opt,name=balance_after_e18,json=balanceAfterE18,proto3" json:"balance_after_e18,omitempty"`
-	IsDebit         bool     `protobuf:"varint,10,opt,name=is_debit,json=isDebit,proto3" json:"is_debit,omitempty"` // true for debit legs, false for credit legs
-	// Correlation id derived from ME matchId for grouping related legs (0 when N/A).
+	// True when this row is the debit leg; false when it is the credit leg.
+	IsDebit bool `protobuf:"varint,10,opt,name=is_debit,json=isDebit,proto3" json:"is_debit,omitempty"`
+	// Correlation ID used to group related transfer legs. Zero when unavailable.
 	LinkId uint64 `protobuf:"varint,11,opt,name=link_id,json=linkId,proto3" json:"link_id,omitempty"`
-	// Public lifecycle flow id when this transfer belongs to a chain lifecycle flow.
+	// Public lifecycle flow ID when this transfer belongs to a chain lifecycle flow.
 	FlowId string `protobuf:"bytes,12,opt,name=flow_id,json=flowId,proto3" json:"flow_id,omitempty"`
-	// Ledger debit side for From-column display. This is debit-to-credit, not
-	// row-relative; use is_debit to know whether this row is the debit leg.
+	// Debit side of the transfer. This relationship is debit-to-credit rather
+	// than row-relative; use is_debit to determine whether this row is the debit leg.
 	Source *TransferSide `protobuf:"bytes,13,opt,name=source,proto3" json:"source,omitempty"`
-	// Ledger credit side for To-column display. This is debit-to-credit, not
-	// row-relative; use is_debit to know whether this row is the credit leg.
+	// Credit side of the transfer. This relationship is debit-to-credit rather
+	// than row-relative; use is_debit to determine whether this row is the credit leg.
 	Destination   *TransferSide `protobuf:"bytes,14,opt,name=destination,proto3" json:"destination,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1418,6 +1423,7 @@ func (x *TransferRow) GetDestination() *TransferSide {
 	return nil
 }
 
+// ListTransfersResponse contains transfer rows and an optional continuation cursor.
 type ListTransfersResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Transfer rows in requested order.

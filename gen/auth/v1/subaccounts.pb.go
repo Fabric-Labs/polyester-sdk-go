@@ -9,6 +9,7 @@ package authv1
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	v1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
 	_ "github.com/google/gnostic/openapiv3"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -2526,7 +2527,7 @@ var File_auth_v1_subaccounts_proto protoreflect.FileDescriptor
 
 const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\n" +
-	"\x19auth/v1/subaccounts.proto\x12\aauth.v1\x1a\x16auth/v1/api_keys.proto\x1a\x16auth/v1/policies.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a ledger/read/v1/ledger_read.proto\"p\n" +
+	"\x19auth/v1/subaccounts.proto\x12\aauth.v1\x1a\x16auth/v1/api_keys.proto\x1a\x16auth/v1/policies.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a ledger/read/v1/ledger_read.proto\x1a\x1bpolyester/api/options.proto\"p\n" +
 	"\x12SubaccountRoleView\x12#\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\x125\n" +
 	"\x04role\x18\x02 \x01(\x0e2\x17.auth.v1.SubaccountRoleB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04role\"\xae\x05\n" +
@@ -2746,28 +2747,28 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\rGetSubaccount\x12\x1d.auth.v1.GetSubaccountRequest\x1a\x1e.auth.v1.GetSubaccountResponse\"\xe5\x01\xbaG\xb5\x01\n" +
 	"\fAuth Service\x12\x13Get Subaccount View\x1a\x8f\x01Return a single payload containing the sub-account and requested related read models, such as members, API keys, invites, policy, and balances.\x82\xd3\xe4\x93\x02&\x12$/v1/auth/subaccounts/{subaccount_id}\x12\x87\x02\n" +
 	"\x16ListSubaccountActivity\x12$.auth.v1.ListSubaccountEventsRequest\x1a%.auth.v1.ListSubaccountEventsResponse\"\x9f\x01\xbaGi\n" +
-	"\fAuth Service\x12\x18List Subaccount Activity\x1a?List audit and activity events for a sub-account, newest first.\x82\xd3\xe4\x93\x02-\x12+/v1/auth/subaccounts/{subaccount_id}/events2\x9f\x15\n" +
+	"\fAuth Service\x12\x18List Subaccount Activity\x1a?List audit and activity events for a sub-account, newest first.\x82\xd3\xe4\x93\x02-\x12+/v1/auth/subaccounts/{subaccount_id}/events2\xb3\x15\n" +
 	"\x11SubaccountService\x12\xe7\x01\n" +
 	"\x0fListSubaccounts\x12\x1f.auth.v1.ListSubaccountsRequest\x1a .auth.v1.ListSubaccountsResponse\"\x90\x01\xbaGq\n" +
 	"\fAuth Service\x12\x10List Subaccounts\x1aOList sub-accounts owned by or shared with the caller, including role and label.\x82\xd3\xe4\x93\x02\x16\x12\x14/v1/auth/subaccounts\x12\xd7\x01\n" +
 	"\x10CreateSubaccount\x12 .auth.v1.CreateSubaccountRequest\x1a!.auth.v1.CreateSubaccountResponse\"~\xbaG\\\n" +
 	"\fAuth Service\x12\x11Create Subaccount\x1a9Create a new sub-account under the caller's root account.\x82\xd3\xe4\x93\x02\x19:\x01*\"\x14/v1/auth/subaccounts\x12\xf8\x01\n" +
 	"\x10UpdateSubaccount\x12 .auth.v1.UpdateSubaccountRequest\x1a!.auth.v1.UpdateSubaccountResponse\"\x9e\x01\xbaGl\n" +
-	"\fAuth Service\x12\x11Update Subaccount\x1aIUpdate mutable sub-account fields such as label, icon, color, and status.\x82\xd3\xe4\x93\x02):\x01*2$/v1/auth/subaccounts/{subaccount_id}\x12\xe0\x02\n" +
-	"!SetSubaccountMemberMFARequirement\x121.auth.v1.SetSubaccountMemberMFARequirementRequest\x1a2.auth.v1.SetSubaccountMemberMFARequirementResponse\"\xd3\x01\xbaG\x95\x01\n" +
-	"\fAuth Service\x12%Set Subaccount Member MFA Requirement\x1a^Enable or disable the owner-controlled MFA requirement for protected delegated-member actions.\x82\xd3\xe4\x93\x024:\x01*2//v1/auth/subaccounts/{subaccount_id}/member-mfa\x12\x8b\x02\n" +
+	"\fAuth Service\x12\x11Update Subaccount\x1aIUpdate mutable sub-account fields such as label, icon, color, and status.\x82\xd3\xe4\x93\x02):\x01*2$/v1/auth/subaccounts/{subaccount_id}\x12\xe4\x02\n" +
+	"!SetSubaccountMemberMFARequirement\x121.auth.v1.SetSubaccountMemberMFARequirementRequest\x1a2.auth.v1.SetSubaccountMemberMFARequirementResponse\"\xd7\x01\xbaG\x95\x01\n" +
+	"\fAuth Service\x12%Set Subaccount Member MFA Requirement\x1a^Enable or disable the owner-controlled MFA requirement for protected delegated-member actions.\x98\xb5\x18\x03\x82\xd3\xe4\x93\x024:\x01*2//v1/auth/subaccounts/{subaccount_id}/member-mfa\x12\x8b\x02\n" +
 	"\x15ListSubaccountMembers\x12%.auth.v1.ListSubaccountMembersRequest\x1a&.auth.v1.ListSubaccountMembersResponse\"\xa2\x01\xbaGk\n" +
-	"\fAuth Service\x12\x17List Subaccount Members\x1aBList all members and roles for a sub-account, including the owner.\x82\xd3\xe4\x93\x02.\x12,/v1/auth/subaccounts/{subaccount_id}/members\x12\x85\x02\n" +
-	"\x16RemoveSubaccountMember\x12&.auth.v1.RemoveSubaccountMemberRequest\x1a'.auth.v1.RemoveSubaccountMemberResponse\"\x99\x01\xbaGM\n" +
-	"\fAuth Service\x12\x18Remove Subaccount Member\x1a#Remove a member from a sub-account.\x82\xd3\xe4\x93\x02C*A/v1/auth/subaccounts/{subaccount_id}/members/{grantee_account_id}\x12\xa8\x02\n" +
-	"\x1aUpdateSubaccountMemberRole\x12*.auth.v1.UpdateSubaccountMemberRoleRequest\x1a+.auth.v1.UpdateSubaccountMemberRoleResponse\"\xb0\x01\xbaGa\n" +
-	"\fAuth Service\x12\x1dUpdate Subaccount Member Role\x1a2Update the role of an existing sub-account member.\x82\xd3\xe4\x93\x02F:\x01*2A/v1/auth/subaccounts/{subaccount_id}/members/{grantee_account_id}\x12\x8d\x02\n" +
-	"\x16InviteSubaccountMember\x12&.auth.v1.InviteSubaccountMemberRequest\x1a'.auth.v1.InviteSubaccountMemberResponse\"\xa1\x01\xbaGg\n" +
-	"\fAuth Service\x12\x18Invite Subaccount Member\x1a=Create a pending invitation to grant a role on a sub-account.\x82\xd3\xe4\x93\x021:\x01*\",/v1/auth/subaccounts/{subaccount_id}/invites\x12\xfb\x01\n" +
+	"\fAuth Service\x12\x17List Subaccount Members\x1aBList all members and roles for a sub-account, including the owner.\x82\xd3\xe4\x93\x02.\x12,/v1/auth/subaccounts/{subaccount_id}/members\x12\x89\x02\n" +
+	"\x16RemoveSubaccountMember\x12&.auth.v1.RemoveSubaccountMemberRequest\x1a'.auth.v1.RemoveSubaccountMemberResponse\"\x9d\x01\xbaGM\n" +
+	"\fAuth Service\x12\x18Remove Subaccount Member\x1a#Remove a member from a sub-account.\x98\xb5\x18\x03\x82\xd3\xe4\x93\x02C*A/v1/auth/subaccounts/{subaccount_id}/members/{grantee_account_id}\x12\xac\x02\n" +
+	"\x1aUpdateSubaccountMemberRole\x12*.auth.v1.UpdateSubaccountMemberRoleRequest\x1a+.auth.v1.UpdateSubaccountMemberRoleResponse\"\xb4\x01\xbaGa\n" +
+	"\fAuth Service\x12\x1dUpdate Subaccount Member Role\x1a2Update the role of an existing sub-account member.\x98\xb5\x18\x02\x82\xd3\xe4\x93\x02F:\x01*2A/v1/auth/subaccounts/{subaccount_id}/members/{grantee_account_id}\x12\x91\x02\n" +
+	"\x16InviteSubaccountMember\x12&.auth.v1.InviteSubaccountMemberRequest\x1a'.auth.v1.InviteSubaccountMemberResponse\"\xa5\x01\xbaGg\n" +
+	"\fAuth Service\x12\x18Invite Subaccount Member\x1a=Create a pending invitation to grant a role on a sub-account.\x98\xb5\x18\x02\x82\xd3\xe4\x93\x021:\x01*\",/v1/auth/subaccounts/{subaccount_id}/invites\x12\xfb\x01\n" +
 	"\x15ListSubaccountInvites\x12%.auth.v1.ListSubaccountInvitesRequest\x1a&.auth.v1.ListSubaccountInvitesResponse\"\x92\x01\xbaGk\n" +
-	"\fAuth Service\x12\x17List Subaccount Invites\x1aBList incoming and outgoing sub-account invitations for the caller.\x82\xd3\xe4\x93\x02\x1e\x12\x1c/v1/auth/subaccounts:invites\x12\x98\x02\n" +
-	"\x17RespondSubaccountInvite\x12'.auth.v1.RespondSubaccountInviteRequest\x1a(.auth.v1.RespondSubaccountInviteResponse\"\xa9\x01\xbaGk\n" +
-	"\fAuth Service\x12\x19Respond Subaccount Invite\x1a@Accept or decline an invite as grantee, or cancel it as inviter.\x82\xd3\xe4\x93\x025:\x01*\"0/v1/auth/subaccounts/invites/{invite_id}:respondB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
+	"\fAuth Service\x12\x17List Subaccount Invites\x1aBList incoming and outgoing sub-account invitations for the caller.\x82\xd3\xe4\x93\x02\x1e\x12\x1c/v1/auth/subaccounts:invites\x12\x9c\x02\n" +
+	"\x17RespondSubaccountInvite\x12'.auth.v1.RespondSubaccountInviteRequest\x1a(.auth.v1.RespondSubaccountInviteResponse\"\xad\x01\xbaGk\n" +
+	"\fAuth Service\x12\x19Respond Subaccount Invite\x1a@Accept or decline an invite as grantee, or cancel it as inviter.\x98\xb5\x18\x03\x82\xd3\xe4\x93\x025:\x01*\"0/v1/auth/subaccounts/invites/{invite_id}:respondB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
 
 var (
 	file_auth_v1_subaccounts_proto_rawDescOnce sync.Once

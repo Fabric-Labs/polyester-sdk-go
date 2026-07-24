@@ -311,10 +311,10 @@ func (x *AssetChainVariant) GetSupplyQ() uint64 {
 }
 
 // ZippedAssetSupplyUpdate carries the latest route liquidity for one zipped
-// asset. It is published on the protobuf websocket channel.
+// asset. It is published on the Protobuf WebSocket channel.
 type ZippedAssetSupplyUpdate struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Canonical zipped asset route id.
+	// Canonical zipped asset route ID.
 	ZippedAssetId uint32 `protobuf:"varint,1,opt,name=zipped_asset_id,json=zippedAssetId,proto3" json:"zipped_asset_id,omitempty"`
 	// Latest zToken supply for this route, scaled by the parent asset's
 	// quantity_scale. Decode: supply_q / 10^quantity_scale.
@@ -369,7 +369,8 @@ func (x *ZippedAssetSupplyUpdate) GetSupplyQ() uint64 {
 
 // ZippedAssetSupplyBatch batches public zipped-asset supply updates.
 type ZippedAssetSupplyBatch struct {
-	state         protoimpl.MessageState     `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Supply updates included in this batch.
 	Updates       []*ZippedAssetSupplyUpdate `protobuf:"bytes,1,rep,name=updates,proto3" json:"updates,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

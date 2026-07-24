@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Breaking
+- Stable MFA auth error codes (POLY-2919): `AUTH_API_KEY_MFA_REQUIRED` is removed; use `AUTH_MFA_NOT_ENROLLED`, `AUTH_STEP_UP_REQUIRED`, `AUTH_MFA_ELEVATION_REQUIRED`, and `AUTH_MFA_LAST_FACTOR_REQUIRED` from `AuthErrorDetail`
+- Generated `*.pb.validate.go` outputs are no longer shipped with the SDK bundle
+
+### Features
+- `errors.IsMFAEnrollmentRequired` / `IsStepUpRequired` / `IsMFAElevationRequired` / `IsMFALastFactorRequired` classify MFA control flow from structured auth codes only (no message heuristics)
+- Public method options expose `polyester.api.MFARequirement` documentation metadata
+
+### Testing
+- Unit coverage for MFA auth-code mapping and predicates
+
 ### Changed
 - CI no longer auto-commits `sdk-capabilities.json` / README on pull requests. Capability refresh + optional bot commit runs only on merge to `main`.
 

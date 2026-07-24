@@ -8,6 +8,7 @@ package authv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api/validation/v1"
 	_ "github.com/google/gnostic/openapiv3"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
@@ -3982,7 +3983,7 @@ var File_auth_v1_address_book_proto protoreflect.FileDescriptor
 
 const file_auth_v1_address_book_proto_rawDesc = "" +
 	"\n" +
-	"\x1aauth/v1/address_book.proto\x12\aauth.v1\x1a\x19auth/v1/subaccounts.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a9polyester/api/validation/v1/predefined_string_rules.proto\"\xc7\x01\n" +
+	"\x1aauth/v1/address_book.proto\x12\aauth.v1\x1a\x19auth/v1/subaccounts.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\x1a9polyester/api/validation/v1/predefined_string_rules.proto\"\xc7\x01\n" +
 	"\x0fAccountScopeRef\x12D\n" +
 	"\n" +
 	"scope_type\x18\x01 \x01(\x0e2\x19.auth.v1.AccountScopeTypeB\n" +
@@ -4299,26 +4300,26 @@ const file_auth_v1_address_book_proto_rawDesc = "" +
 	"\fDEPOSIT_FROM\x10\x01\x12\x0f\n" +
 	"\vWITHDRAW_TO\x10\x02\x12\x1a\n" +
 	"\x16INTERNAL_TRANSFER_FROM\x10\x03\x12\x18\n" +
-	"\x14INTERNAL_TRANSFER_TO\x10\x042\xe3\x1d\n" +
+	"\x14INTERNAL_TRANSFER_TO\x10\x042\xff\x1d\n" +
 	"\x12AddressBookService\x12\xe0\x01\n" +
 	"\x10ListAddressBooks\x12 .auth.v1.ListAddressBooksRequest\x1a!.auth.v1.ListAddressBooksResponse\"\x86\x01\xbaGe\n" +
 	"\fAddress Book\x12\x12List Address Books\x1aAList the root and subaccount address books visible to the caller.\x82\xd3\xe4\x93\x02\x18\x12\x16/v1/auth/address-books\x12\x88\x02\n" +
 	"\x16ListAddressBookEntries\x12&.auth.v1.ListAddressBookEntriesRequest\x1a'.auth.v1.ListAddressBookEntriesResponse\"\x9c\x01\xbaGt\n" +
-	"\fAddress Book\x12\x19List Address Book Entries\x1aIList saved address-book entries for one visible root or subaccount scope.\x82\xd3\xe4\x93\x02\x1f\x12\x1d/v1/auth/address-book-entries\x12\x8e\x02\n" +
-	"\x16CreateAddressBookEntry\x12&.auth.v1.CreateAddressBookEntryRequest\x1a'.auth.v1.CreateAddressBookEntryResponse\"\xa2\x01\xbaGw\n" +
-	"\fAddress Book\x12\x19Create Address Book Entry\x1aLCreate one saved address-book entry in the selected root or subaccount book.\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/v1/auth/address-book-entries\x12\x95\x02\n" +
-	"\x16UpdateAddressBookEntry\x12&.auth.v1.UpdateAddressBookEntryRequest\x1a'.auth.v1.UpdateAddressBookEntryResponse\"\xa9\x01\xbaGf\n" +
-	"\fAddress Book\x12\x19Update Address Book Entry\x1a;Update the label, note, or tags for one address-book entry.\x82\xd3\xe4\x93\x02::\x01*25/v1/auth/address-book-entries/{address_book_entry_id}\x12\x94\x02\n" +
-	"\x16DeleteAddressBookEntry\x12&.auth.v1.DeleteAddressBookEntryRequest\x1a'.auth.v1.DeleteAddressBookEntryResponse\"\xa8\x01\xbaGh\n" +
-	"\fAddress Book\x12\x19Delete Address Book Entry\x1a=Delete one address-book entry from the selected address book.\x82\xd3\xe4\x93\x027*5/v1/auth/address-book-entries/{address_book_entry_id}\x12\xa0\x02\n" +
-	"\x14CopyAddressBookEntry\x12$.auth.v1.CopyAddressBookEntryRequest\x1a%.auth.v1.CopyAddressBookEntryResponse\"\xba\x01\xbaGr\n" +
-	"\fAddress Book\x12\x17Copy Address Book Entry\x1aICopy one address-book entry into another visible root or subaccount book.\x82\xd3\xe4\x93\x02?:\x01*\":/v1/auth/address-book-entries/{address_book_entry_id}:copy\x12\xf6\x01\n" +
-	"\x14CreateAddressBookTag\x12$.auth.v1.CreateAddressBookTagRequest\x1a%.auth.v1.CreateAddressBookTagResponse\"\x90\x01\xbaGh\n" +
-	"\fAddress Book\x12\x17Create Address Book Tag\x1a?Create one tag in the selected root or subaccount address book.\x82\xd3\xe4\x93\x02\x1f:\x01*\"\x1a/v1/auth/address-book-tags\x12\xdb\x01\n" +
-	"\x14UpdateAddressBookTag\x12$.auth.v1.UpdateAddressBookTagRequest\x1a%.auth.v1.UpdateAddressBookTagResponse\"v\xbaGE\n" +
-	"\fAddress Book\x12\x17Update Address Book Tag\x1a\x1cUpdate one address-book tag.\x82\xd3\xe4\x93\x02(:\x01*2#/v1/auth/address-book-tags/{tag_id}\x12\xf4\x01\n" +
-	"\x14DeleteAddressBookTag\x12$.auth.v1.DeleteAddressBookTagRequest\x1a%.auth.v1.DeleteAddressBookTagResponse\"\x8e\x01\xbaG`\n" +
-	"\fAddress Book\x12\x17Delete Address Book Tag\x1a7Delete one address-book tag and detach it from entries.\x82\xd3\xe4\x93\x02%*#/v1/auth/address-book-tags/{tag_id}\x12\xb5\x02\n" +
+	"\fAddress Book\x12\x19List Address Book Entries\x1aIList saved address-book entries for one visible root or subaccount scope.\x82\xd3\xe4\x93\x02\x1f\x12\x1d/v1/auth/address-book-entries\x12\x92\x02\n" +
+	"\x16CreateAddressBookEntry\x12&.auth.v1.CreateAddressBookEntryRequest\x1a'.auth.v1.CreateAddressBookEntryResponse\"\xa6\x01\xbaGw\n" +
+	"\fAddress Book\x12\x19Create Address Book Entry\x1aLCreate one saved address-book entry in the selected root or subaccount book.\x98\xb5\x18\x01\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/v1/auth/address-book-entries\x12\x99\x02\n" +
+	"\x16UpdateAddressBookEntry\x12&.auth.v1.UpdateAddressBookEntryRequest\x1a'.auth.v1.UpdateAddressBookEntryResponse\"\xad\x01\xbaGf\n" +
+	"\fAddress Book\x12\x19Update Address Book Entry\x1a;Update the label, note, or tags for one address-book entry.\x98\xb5\x18\x01\x82\xd3\xe4\x93\x02::\x01*25/v1/auth/address-book-entries/{address_book_entry_id}\x12\x98\x02\n" +
+	"\x16DeleteAddressBookEntry\x12&.auth.v1.DeleteAddressBookEntryRequest\x1a'.auth.v1.DeleteAddressBookEntryResponse\"\xac\x01\xbaGh\n" +
+	"\fAddress Book\x12\x19Delete Address Book Entry\x1a=Delete one address-book entry from the selected address book.\x98\xb5\x18\x01\x82\xd3\xe4\x93\x027*5/v1/auth/address-book-entries/{address_book_entry_id}\x12\xa4\x02\n" +
+	"\x14CopyAddressBookEntry\x12$.auth.v1.CopyAddressBookEntryRequest\x1a%.auth.v1.CopyAddressBookEntryResponse\"\xbe\x01\xbaGr\n" +
+	"\fAddress Book\x12\x17Copy Address Book Entry\x1aICopy one address-book entry into another visible root or subaccount book.\x98\xb5\x18\x01\x82\xd3\xe4\x93\x02?:\x01*\":/v1/auth/address-book-entries/{address_book_entry_id}:copy\x12\xfa\x01\n" +
+	"\x14CreateAddressBookTag\x12$.auth.v1.CreateAddressBookTagRequest\x1a%.auth.v1.CreateAddressBookTagResponse\"\x94\x01\xbaGh\n" +
+	"\fAddress Book\x12\x17Create Address Book Tag\x1a?Create one tag in the selected root or subaccount address book.\x98\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1f:\x01*\"\x1a/v1/auth/address-book-tags\x12\xdf\x01\n" +
+	"\x14UpdateAddressBookTag\x12$.auth.v1.UpdateAddressBookTagRequest\x1a%.auth.v1.UpdateAddressBookTagResponse\"z\xbaGE\n" +
+	"\fAddress Book\x12\x17Update Address Book Tag\x1a\x1cUpdate one address-book tag.\x98\xb5\x18\x01\x82\xd3\xe4\x93\x02(:\x01*2#/v1/auth/address-book-tags/{tag_id}\x12\xf8\x01\n" +
+	"\x14DeleteAddressBookTag\x12$.auth.v1.DeleteAddressBookTagRequest\x1a%.auth.v1.DeleteAddressBookTagResponse\"\x92\x01\xbaG`\n" +
+	"\fAddress Book\x12\x17Delete Address Book Tag\x1a7Delete one address-book tag and detach it from entries.\x98\xb5\x18\x01\x82\xd3\xe4\x93\x02%*#/v1/auth/address-book-tags/{tag_id}\x12\xb5\x02\n" +
 	"\x1aListTransferCounterparties\x12*.auth.v1.ListTransferCounterpartiesRequest\x1a+.auth.v1.ListTransferCounterpartiesResponse\"\xbd\x01\xbaG\x91\x01\n" +
 	"\fAddress Book\x12\x1cList Transfer Counterparties\x1acList recent transfer counterparties, including destinations that are not saved in the address book.\x82\xd3\xe4\x93\x02\"\x12 /v1/auth/transfer-counterparties\x12\x95\x02\n" +
 	"\x18ListTransferDestinations\x12(.auth.v1.ListTransferDestinationsRequest\x1a).auth.v1.ListTransferDestinationsResponse\"\xa3\x01\xbaGz\n" +

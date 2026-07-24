@@ -8,6 +8,7 @@ package authv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
 	_ "github.com/google/gnostic/openapiv3"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -1901,7 +1902,7 @@ var File_auth_v1_mfa_proto protoreflect.FileDescriptor
 
 const file_auth_v1_mfa_proto_rawDesc = "" +
 	"\n" +
-	"\x11auth/v1/mfa.proto\x12\aauth.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xff\x01\n" +
+	"\x11auth/v1/mfa.proto\x12\aauth.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\xff\x01\n" +
 	"\vSessionInfo\x12&\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18@R\tsessionId\x12D\n" +
@@ -2038,19 +2039,19 @@ const file_auth_v1_mfa_proto_rawDesc = "" +
 	"\x13MFAChallengePurpose\x12%\n" +
 	"!MFA_CHALLENGE_PURPOSE_UNSPECIFIED\x10\x00\x12+\n" +
 	"'MFA_CHALLENGE_PURPOSE_SESSION_ELEVATION\x10\x01\x12'\n" +
-	"#MFA_CHALLENGE_PURPOSE_FRESH_STEP_UP\x10\x022\x86\x1a\n" +
+	"#MFA_CHALLENGE_PURPOSE_FRESH_STEP_UP\x10\x022\x9f\x1a\n" +
 	"\n" +
 	"MFAService\x12\xd1\x01\n" +
 	"\x0eListMFAFactors\x12\x1e.auth.v1.ListMFAFactorsRequest\x1a\x1f.auth.v1.ListMFAFactorsResponse\"~\xbaG_\n" +
-	"\fAuth Service\x12\x10List MFA Factors\x1a=List the caller's MFA factors and recovery-code availability.\x82\xd3\xe4\x93\x02\x16\x12\x14/v1/auth/mfa/factors\x12\xf9\x01\n" +
-	"\x13BeginTOTPEnrollment\x12#.auth.v1.BeginTOTPEnrollmentRequest\x1a$.auth.v1.BeginTOTPEnrollmentResponse\"\x96\x01\xbaGf\n" +
-	"\fAuth Service\x12\x15Begin TOTP Enrollment\x1a?Generate a TOTP secret and enrollment challenge for the caller.\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/auth/mfa/totp:begin-enrollment\x12\xf2\x01\n" +
-	"\x14FinishTOTPEnrollment\x12$.auth.v1.FinishTOTPEnrollmentRequest\x1a%.auth.v1.FinishTOTPEnrollmentResponse\"\x8c\x01\xbaG[\n" +
-	"\fAuth Service\x12\x16Finish TOTP Enrollment\x1a3Verify the first TOTP code and activate the factor.\x82\xd3\xe4\x93\x02(:\x01*\"#/v1/auth/mfa/totp:finish-enrollment\x12\x80\x02\n" +
-	"\x16BeginPasskeyEnrollment\x12&.auth.v1.BeginPasskeyEnrollmentRequest\x1a'.auth.v1.BeginPasskeyEnrollmentResponse\"\x94\x01\xbaG`\n" +
-	"\fAuth Service\x12\x18Begin Passkey Enrollment\x1a6Create passkey registration options for a new passkey.\x82\xd3\xe4\x93\x02+:\x01*\"&/v1/auth/mfa/passkeys:begin-enrollment\x12\x8e\x02\n" +
-	"\x17FinishPasskeyEnrollment\x12'.auth.v1.FinishPasskeyEnrollmentRequest\x1a(.auth.v1.FinishPasskeyEnrollmentResponse\"\x9f\x01\xbaGj\n" +
-	"\fAuth Service\x12\x19Finish Passkey Enrollment\x1a?Verify a passkey registration response and activate the factor.\x82\xd3\xe4\x93\x02,:\x01*\"'/v1/auth/mfa/passkeys:finish-enrollment\x12\xed\x01\n" +
+	"\fAuth Service\x12\x10List MFA Factors\x1a=List the caller's MFA factors and recovery-code availability.\x82\xd3\xe4\x93\x02\x16\x12\x14/v1/auth/mfa/factors\x12\xfd\x01\n" +
+	"\x13BeginTOTPEnrollment\x12#.auth.v1.BeginTOTPEnrollmentRequest\x1a$.auth.v1.BeginTOTPEnrollmentResponse\"\x9a\x01\xbaGf\n" +
+	"\fAuth Service\x12\x15Begin TOTP Enrollment\x1a?Generate a TOTP secret and enrollment challenge for the caller.\x98\xb5\x18\x03\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/auth/mfa/totp:begin-enrollment\x12\xf6\x01\n" +
+	"\x14FinishTOTPEnrollment\x12$.auth.v1.FinishTOTPEnrollmentRequest\x1a%.auth.v1.FinishTOTPEnrollmentResponse\"\x90\x01\xbaG[\n" +
+	"\fAuth Service\x12\x16Finish TOTP Enrollment\x1a3Verify the first TOTP code and activate the factor.\x98\xb5\x18\x03\x82\xd3\xe4\x93\x02(:\x01*\"#/v1/auth/mfa/totp:finish-enrollment\x12\x84\x02\n" +
+	"\x16BeginPasskeyEnrollment\x12&.auth.v1.BeginPasskeyEnrollmentRequest\x1a'.auth.v1.BeginPasskeyEnrollmentResponse\"\x98\x01\xbaG`\n" +
+	"\fAuth Service\x12\x18Begin Passkey Enrollment\x1a6Create passkey registration options for a new passkey.\x98\xb5\x18\x03\x82\xd3\xe4\x93\x02+:\x01*\"&/v1/auth/mfa/passkeys:begin-enrollment\x12\x92\x02\n" +
+	"\x17FinishPasskeyEnrollment\x12'.auth.v1.FinishPasskeyEnrollmentRequest\x1a(.auth.v1.FinishPasskeyEnrollmentResponse\"\xa3\x01\xbaGj\n" +
+	"\fAuth Service\x12\x19Finish Passkey Enrollment\x1a?Verify a passkey registration response and activate the factor.\x98\xb5\x18\x03\x82\xd3\xe4\x93\x02,:\x01*\"'/v1/auth/mfa/passkeys:finish-enrollment\x12\xed\x01\n" +
 	"\x11BeginMFAChallenge\x12!.auth.v1.BeginMFAChallengeRequest\x1a\".auth.v1.BeginMFAChallengeResponse\"\x90\x01\xbaGk\n" +
 	"\fAuth Service\x12\x13Begin MFA Challenge\x1aFStart session elevation or fresh step-up using an enrolled MFA factor.\x82\xd3\xe4\x93\x02\x1c:\x01*\"\x17/v1/auth/mfa/challenges\x12\x85\x02\n" +
 	"\x13VerifyTOTPChallenge\x12#.auth.v1.VerifyTOTPChallengeRequest\x1a%.auth.v1.CompleteMFAChallengeResponse\"\xa1\x01\xbaGa\n" +
@@ -2060,11 +2061,11 @@ const file_auth_v1_mfa_proto_rawDesc = "" +
 	"\x1bVerifyRecoveryCodeChallenge\x12+.auth.v1.VerifyRecoveryCodeChallengeRequest\x1a%.auth.v1.CompleteMFAChallengeResponse\"\xb8\x01\xbaGo\n" +
 	"\fAuth Service\x12\x1eVerify Recovery Code Challenge\x1a?Consume a recovery code for session elevation or fresh step-up.\x82\xd3\xe4\x93\x02@:\x01*\";/v1/auth/mfa/challenges/{challenge_id}:verify-recovery-code\x12\xdb\x01\n" +
 	"\x0fUpdateMFAFactor\x12\x1f.auth.v1.UpdateMFAFactorRequest\x1a .auth.v1.UpdateMFAFactorResponse\"\x84\x01\xbaGV\n" +
-	"\fAuth Service\x12\x11Update MFA Factor\x1a3Update mutable metadata for an enrolled MFA factor.\x82\xd3\xe4\x93\x02%:\x01*2 /v1/auth/mfa/factors/{factor_id}\x12\xd5\x01\n" +
-	"\x0fDeleteMFAFactor\x12\x1f.auth.v1.DeleteMFAFactorRequest\x1a .auth.v1.DeleteMFAFactorResponse\"\x7f\xbaGT\n" +
-	"\fAuth Service\x12\x11Delete MFA Factor\x1a1Remove an MFA factor after a fresh step-up check.\x82\xd3\xe4\x93\x02\"* /v1/auth/mfa/factors/{factor_id}\x12\x80\x02\n" +
-	"\x17RegenerateRecoveryCodes\x12'.auth.v1.RegenerateRecoveryCodesRequest\x1a(.auth.v1.RegenerateRecoveryCodesResponse\"\x91\x01\xbaG]\n" +
-	"\fAuth Service\x12\x19Regenerate Recovery Codes\x1a2Rotate recovery codes after a fresh step-up check.\x82\xd3\xe4\x93\x02+:\x01*\"&/v1/auth/mfa/recovery-codes:regenerate\x12W\n" +
+	"\fAuth Service\x12\x11Update MFA Factor\x1a3Update mutable metadata for an enrolled MFA factor.\x82\xd3\xe4\x93\x02%:\x01*2 /v1/auth/mfa/factors/{factor_id}\x12\xda\x01\n" +
+	"\x0fDeleteMFAFactor\x12\x1f.auth.v1.DeleteMFAFactorRequest\x1a .auth.v1.DeleteMFAFactorResponse\"\x83\x01\xbaGT\n" +
+	"\fAuth Service\x12\x11Delete MFA Factor\x1a1Remove an MFA factor after a fresh step-up check.\x98\xb5\x18\x02\x82\xd3\xe4\x93\x02\"* /v1/auth/mfa/factors/{factor_id}\x12\x84\x02\n" +
+	"\x17RegenerateRecoveryCodes\x12'.auth.v1.RegenerateRecoveryCodesRequest\x1a(.auth.v1.RegenerateRecoveryCodesResponse\"\x95\x01\xbaG]\n" +
+	"\fAuth Service\x12\x19Regenerate Recovery Codes\x1a2Rotate recovery codes after a fresh step-up check.\x98\xb5\x18\x02\x82\xd3\xe4\x93\x02+:\x01*\"&/v1/auth/mfa/recovery-codes:regenerate\x12W\n" +
 	"\x10ClaimFreshStepUp\x12 .auth.v1.ClaimFreshStepUpRequest\x1a!.auth.v1.ClaimFreshStepUpResponse\x12]\n" +
 	"\x12ConsumeFreshStepUp\x12\".auth.v1.ConsumeFreshStepUpRequest\x1a#.auth.v1.ConsumeFreshStepUpResponse\x12]\n" +
 	"\x12ReleaseFreshStepUp\x12\".auth.v1.ReleaseFreshStepUpRequest\x1a#.auth.v1.ReleaseFreshStepUpResponseB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
