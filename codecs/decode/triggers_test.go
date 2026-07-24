@@ -60,10 +60,26 @@ func TestTriggerStatusFromLabel(t *testing.T) {
 
 func TestTriggersListFromProto(t *testing.T) {
 	msg := &triggersv1.ListTriggersResponse{
-		Triggers: []*triggersv1.Trigger{{TriggerId: 1, SymbolId: 1}},
+		Triggers:      []*triggersv1.Trigger{{TriggerId: 1, SymbolId: 1}},
+		NextPageToken: "trig-page-2",
 	}
 	result := decode.TriggersListFromProto(msg)
-	if len(result.Triggers) != 1 || result.Total != 1 {
+	if len(result.Triggers) != 1 || result.Total != 1 || result.NextPageToken != "trig-page-2" {
+		t.Fatalf("result=%+v", result)
+	}
+}
+
+func TestTriggerEventsListFromProto(t *testing.T) {
+	msg := &triggersv1.ListTriggerEventsResponse{
+		Events: []*triggersv1.TriggerEvent{{
+			TriggerId: 1,
+			EventType: triggersv1.TriggerEventType_EVENT_FIRED,
+			TsNs:      123,
+		}},
+		NextPageToken: "evt-page-2",
+	}
+	result := decode.TriggerEventsListFromProto(msg)
+	if len(result.Events) != 1 || result.NextPageToken != "evt-page-2" {
 		t.Fatalf("result=%+v", result)
 	}
 }

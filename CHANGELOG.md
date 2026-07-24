@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.1.0a15
+
+### Fixed
+- `models.TriggersList` and `models.TriggerEventsList` now surface `NextPageToken` from list responses so trigger pagination can continue through the high-level wrappers
+
 ## 0.1.0a14
 
 ### Breaking

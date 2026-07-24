@@ -327,7 +327,11 @@ func TriggersListFromProto(msg *triggersv1.ListTriggersResponse) models.Triggers
 	for _, t := range msg.GetTriggers() {
 		out = append(out, TriggerFromProto(t))
 	}
-	return models.TriggersList{Triggers: out, Total: len(out)}
+	return models.TriggersList{
+		Triggers:      out,
+		Total:         len(out),
+		NextPageToken: msg.GetNextPageToken(),
+	}
 }
 
 // GetTriggerFromProto decodes get trigger response.
@@ -376,7 +380,10 @@ func TriggerEventsListFromProto(msg *triggersv1.ListTriggerEventsResponse) model
 	for _, e := range msg.GetEvents() {
 		out = append(out, TriggerEventMessageFromProto(e))
 	}
-	return models.TriggerEventsList{Events: out}
+	return models.TriggerEventsList{
+		Events:        out,
+		NextPageToken: msg.GetNextPageToken(),
+	}
 }
 
 // TriggerEventMessageFromProto decodes one trigger event.

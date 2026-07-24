@@ -287,29 +287,29 @@ type LifecycleFlowsList struct {
 
 // Trigger is a conditional order trigger.
 type Trigger struct {
-	TriggerID                string          `json:"trigger_id,omitempty"`
-	SubaccountID             string          `json:"subaccount_id,omitempty"`
-	SymbolID                 uint32          `json:"symbol_id,omitempty"`
-	Symbol                   string          `json:"symbol,omitempty"`
-	TriggerType              string          `json:"trigger_type,omitempty"`
-	Status                   string          `json:"status,omitempty"`
-	ParentOrderID            string          `json:"parent_order_id,omitempty"`
-	Side                     string          `json:"side,omitempty"`
-	OrderType                string          `json:"order_type,omitempty"`
-	TimeInForce              string          `json:"time_in_force,omitempty"`
-	Qty                      QtyScaled       `json:"qty,omitempty"`
-	LimitPrice               PriceTicks      `json:"limit_price,omitempty"`
-	FeeSource                string          `json:"fee_source,omitempty"`
-	SelfTradePreventionMode  string          `json:"self_trade_prevention_mode,omitempty"`
-	PostOnly                 bool            `json:"post_only,omitempty"`
-	TriggerPrice             PriceTicks      `json:"trigger_price,omitempty"`
-	ClientTriggerID          string          `json:"client_trigger_id,omitempty"`
-	CreatedAt                *time.Time      `json:"created_at,omitempty"`
-	UpdatedAt                *time.Time      `json:"updated_at,omitempty"`
-	ArmedAt                  *time.Time      `json:"armed_at,omitempty"`
-	CompletedAt              *time.Time      `json:"completed_at,omitempty"`
-	ChildOrderIDs            []string        `json:"child_order_ids,omitempty"`
-	Details                  *TriggerDetails `json:"details,omitempty"`
+	TriggerID               string          `json:"trigger_id,omitempty"`
+	SubaccountID            string          `json:"subaccount_id,omitempty"`
+	SymbolID                uint32          `json:"symbol_id,omitempty"`
+	Symbol                  string          `json:"symbol,omitempty"`
+	TriggerType             string          `json:"trigger_type,omitempty"`
+	Status                  string          `json:"status,omitempty"`
+	ParentOrderID           string          `json:"parent_order_id,omitempty"`
+	Side                    string          `json:"side,omitempty"`
+	OrderType               string          `json:"order_type,omitempty"`
+	TimeInForce             string          `json:"time_in_force,omitempty"`
+	Qty                     QtyScaled       `json:"qty,omitempty"`
+	LimitPrice              PriceTicks      `json:"limit_price,omitempty"`
+	FeeSource               string          `json:"fee_source,omitempty"`
+	SelfTradePreventionMode string          `json:"self_trade_prevention_mode,omitempty"`
+	PostOnly                bool            `json:"post_only,omitempty"`
+	TriggerPrice            PriceTicks      `json:"trigger_price,omitempty"`
+	ClientTriggerID         string          `json:"client_trigger_id,omitempty"`
+	CreatedAt               *time.Time      `json:"created_at,omitempty"`
+	UpdatedAt               *time.Time      `json:"updated_at,omitempty"`
+	ArmedAt                 *time.Time      `json:"armed_at,omitempty"`
+	CompletedAt             *time.Time      `json:"completed_at,omitempty"`
+	ChildOrderIDs           []string        `json:"child_order_ids,omitempty"`
+	Details                 *TriggerDetails `json:"details,omitempty"`
 }
 
 // TriggerDetails is a discriminated trigger strategy payload.
@@ -339,16 +339,17 @@ type TriggerDetails struct {
 	ExecutedQty         QtyScaled `json:"executed_qty,omitempty"`
 
 	// ladder
-	LadderPriceMin      PriceTicks `json:"ladder_price_min,omitempty"`
-	LadderPriceMax      PriceTicks `json:"ladder_price_max,omitempty"`
-	LadderLevels        int32      `json:"ladder_levels,omitempty"`
-	LadderDistribution  string     `json:"ladder_distribution,omitempty"`
+	LadderPriceMin     PriceTicks `json:"ladder_price_min,omitempty"`
+	LadderPriceMax     PriceTicks `json:"ladder_price_max,omitempty"`
+	LadderLevels       int32      `json:"ladder_levels,omitempty"`
+	LadderDistribution string     `json:"ladder_distribution,omitempty"`
 }
 
 // TriggersList lists triggers.
 type TriggersList struct {
-	Triggers []Trigger `json:"triggers"`
-	Total    int       `json:"total,omitempty"`
+	Triggers      []Trigger `json:"triggers"`
+	Total         int       `json:"total,omitempty"`
+	NextPageToken string    `json:"next_page_token,omitempty"`
 }
 
 // TriggerMutationResult is a trigger mutation outcome.
@@ -366,7 +367,8 @@ type TriggerEvent struct {
 
 // TriggerEventsList lists trigger events.
 type TriggerEventsList struct {
-	Events []TriggerEvent `json:"events"`
+	Events        []TriggerEvent `json:"events"`
+	NextPageToken string         `json:"next_page_token,omitempty"`
 }
 
 // ApiKeySummary summarizes an API key.
