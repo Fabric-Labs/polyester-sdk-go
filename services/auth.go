@@ -17,7 +17,7 @@ type AuthService struct {
 }
 
 func NewAuthService(factory *transport.Factory, realtime RealtimeClient) *AuthService {
-	return &AuthService{transport: factory, realtime: realtime, Profile: NewProfileService(factory, realtime)}
+	return &AuthService{transport: factory, realtime: realtime, Profile: NewProfileService(realtime)}
 }
 
 func (s *AuthService) client() authv1connect.AuthServiceClient {

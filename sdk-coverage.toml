@@ -13,3 +13,83 @@ reason = "Wallet login; this SDK authenticates with API-key HMAC credentials."
 [[allowlist]]
 procedure = "/auth.v1.AuthService/LoginWithWallet"
 reason = "Wallet login; this SDK authenticates with API-key HMAC credentials."
+
+[[allowlist]]
+service = "auth.v1.PolicyService"
+reason = "Policy unary RPCs require JWT/session auth; API-key SDK exposes realtime subscribe only."
+
+[[allowlist]]
+service = "auth.v1.ProfileService"
+reason = "Profile Get/Update/history require JWT/session auth; API-key SDK exposes identity subscribe only."
+
+[[allowlist]]
+service = "auth.v1.ResolveService"
+reason = "Account resolve requires JWT/session auth and is not wrapped in the API-key SDK."
+
+[[allowlist]]
+procedure = "/auth.v1.ApiKeyService/CreateApiKey"
+reason = "API key create requires JWT/session auth."
+
+[[allowlist]]
+procedure = "/auth.v1.ApiKeyService/UpdateApiKey"
+reason = "API key update requires JWT/session auth."
+
+[[allowlist]]
+procedure = "/auth.v1.ApiKeyService/DeleteApiKey"
+reason = "API key delete requires JWT/session auth."
+
+[[allowlist]]
+procedure = "/auth.v1.SubaccountService/CreateSubaccount"
+reason = "Subaccount create requires JWT/session auth."
+
+[[allowlist]]
+procedure = "/auth.v1.SubaccountService/UpdateSubaccount"
+reason = "Subaccount update/delete requires JWT/session auth."
+
+[[allowlist]]
+procedure = "/auth.v1.SubaccountService/SetSubaccountMemberMFARequirement"
+reason = "Subaccount MFA admin requires JWT/session auth."
+
+[[allowlist]]
+procedure = "/auth.v1.SubaccountService/RemoveSubaccountMember"
+reason = "Subaccount member admin requires JWT/session auth."
+
+[[allowlist]]
+procedure = "/auth.v1.SubaccountService/UpdateSubaccountMemberRole"
+reason = "Subaccount member admin requires JWT/session auth."
+
+[[allowlist]]
+procedure = "/auth.v1.SubaccountService/InviteSubaccountMember"
+reason = "Subaccount invite mutations require JWT/session auth."
+
+[[allowlist]]
+procedure = "/auth.v1.SubaccountService/RespondSubaccountInvite"
+reason = "Subaccount invite mutations require JWT/session auth."
+
+[[allowlist]]
+procedure = "/auth.v1.AddressBookService/CreateAddressBookEntry"
+reason = "Address book mutations require JWT/session auth."
+
+[[allowlist]]
+procedure = "/auth.v1.AddressBookService/UpdateAddressBookEntry"
+reason = "Address book mutations require JWT/session auth."
+
+[[allowlist]]
+procedure = "/auth.v1.AddressBookService/DeleteAddressBookEntry"
+reason = "Address book mutations require JWT/session auth."
+
+[[allowlist]]
+procedure = "/auth.v1.AddressBookService/CopyAddressBookEntry"
+reason = "Address book mutations require JWT/session auth."
+
+[[allowlist]]
+procedure = "/auth.v1.AddressBookService/CreateAddressBookTag"
+reason = "Address book tag mutations require JWT/session auth."
+
+[[allowlist]]
+procedure = "/auth.v1.AddressBookService/UpdateAddressBookTag"
+reason = "Address book tag mutations require JWT/session auth."
+
+[[allowlist]]
+procedure = "/auth.v1.AddressBookService/DeleteAddressBookTag"
+reason = "Address book tag mutations require JWT/session auth."

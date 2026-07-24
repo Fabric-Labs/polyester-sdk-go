@@ -24,11 +24,11 @@ Requires a recent Go toolchain (see `go.mod`).
 | API-key (Ed25519 HMAC) auth | Yes |
 | Wallet / browser login | No |
 | Session MFA enrollment and challenges | No |
-| Profile | Yes |
-| API keys | Yes |
-| Subaccounts (members, invites, activity) | Yes |
-| Address book | Yes |
-| Policies | Yes |
+| Profile (identity subscribe) | Yes |
+| API keys (list/get/subscribe) | Yes |
+| Subaccounts (list/get/members/invites/activity/subscribe) | Yes |
+| Address book (list/view/subscribe) | Yes |
+| Policies (realtime subscribe) | Yes |
 | Guard signer | Yes |
 | Balances, holds, equity history | Yes |
 | Orders (create, cancel, modify, batch, cancel-all) | Yes |
@@ -46,7 +46,7 @@ Requires a recent Go toolchain (see `go.mod`).
 | Reference catalogs + wait-for-ready | Yes |
 | Qty / price decimal + scaled-int inputs | Yes |
 | Social verification | Yes |
-| Account resolve / lookup | Yes |
+| Account resolve / lookup | No |
 
 Rows marked **No** are intentional for API-key SDKs (use the TypeScript
 browser client for wallet login and session MFA).
@@ -361,6 +361,22 @@ defer sub.Close()
 for order := range sub.Messages() {
 	fmt.Println(order.OrderID, order.Status)
 }
+```
+
+Private auth policy streams decode `ApiPolicyView` / `SubaccountPolicyView` snapshots:
+
+```go
+apiPolicies, err := client.Policies.SubscribeAPIPolicies(ctx, nil)
+if err != nil {
+	log.Fatal(err)
+}
+defer apiPolicies.Close()
+
+subPolicies, err := client.Policies.SubscribeSubaccountPolicies(ctx, nil)
+if err != nil {
+	log.Fatal(err)
+}
+defer subPolicies.Close()
 ```
 
 Managed snapshot-then-stream helpers:

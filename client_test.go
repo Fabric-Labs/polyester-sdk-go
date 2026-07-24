@@ -30,10 +30,10 @@ func TestClientExposesDocumentedServices(t *testing.T) {
 	t.Cleanup(func() { _ = client.Close() })
 
 	expected := []string{
-		"Auth", "Accounts", "ChainAnalytics", "MarketData", "Candles", "MarketOverview",
+		"Auth", "ChainAnalytics", "MarketData", "Candles", "MarketOverview",
 		"Zipper", "Heatmap", "Lifecycle", "Balances", "Orderbook", "Orders", "Trades",
 		"Triggers", "Transfers", "InternalTransfers", "Deposit", "APIKeys", "Policies",
-		"SubAccounts", "Resolve", "AddressBook", "SocialVerification", "Whiteboard",
+		"SubAccounts", "AddressBook", "SocialVerification", "Whiteboard",
 		"Polychart", "Layout", "GuardSigner", "Withdraw", "TradingWithdraws", "Realtime",
 	}
 	v := reflect.ValueOf(client).Elem()
@@ -41,9 +41,6 @@ func TestClientExposesDocumentedServices(t *testing.T) {
 		if f := v.FieldByName(name); !f.IsValid() || f.IsNil() {
 			t.Fatalf("missing client.%s", name)
 		}
-	}
-	if client.Accounts != client.Resolve {
-		t.Fatal("Accounts alias should point to Resolve")
 	}
 	if client.Candles != client.MarketData {
 		t.Fatal("Candles alias should point to MarketData")

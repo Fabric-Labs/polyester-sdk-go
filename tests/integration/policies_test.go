@@ -3,70 +3,47 @@
 package integration_test
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/testutil"
-	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
-func TestPoliciesListSubaccountPolicies(t *testing.T) {
-	client, ctx, cleanup := testutil.RequireLiveClient(t)
-	defer cleanup()
-
-	result := testutil.CallRequired(t, "policies.list_subaccount_policies", func() (models.SubaccountPoliciesList, error) {
-		return client.Policies.ListSubaccountPolicies(ctx)
-	})
-	if result.Policies == nil {
-		t.Fatal("expected policies list")
+// Policy unary RPCs are JWT/session-only; API-key coverage is subscribe-only
+// (see TestPrivateAuthAndLedgerSubscribeConnects).
+func TestPoliciesSubscribeAPIPoliciesOptional(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping realtime subscription in short mode")
 	}
-}
-
-func TestPoliciesListAPIPolicies(t *testing.T) {
-	client, ctx, cleanup := testutil.RequireLiveClient(t)
-	defer cleanup()
-
-	result := testutil.CallRequired(t, "policies.list_api_policies", func() (models.ApiPoliciesList, error) {
-		return client.Policies.ListAPIPolicies(ctx)
-	})
-	if result.Policies == nil {
-		t.Fatal("expected api policies list")
+	client, ok, err := testutil.LiveClientFromEnv()
+	if err != nil {
+		t.Fatal(err)
 	}
-}
-
-func TestPoliciesGetSubaccountPolicyWhenPresent(t *testing.T) {
-	client, ctx, cleanup := testutil.RequireLiveClient(t)
-	defer cleanup()
-
-	listed := testutil.CallRequired(t, "policies.list_subaccount_policies", func() (models.SubaccountPoliciesList, error) {
-		return client.Policies.ListSubaccountPolicies(ctx)
-	})
-	if len(listed.Policies) == 0 {
-		t.Skip("no subaccount policies on devnet")
+	if !ok {
+		t.Skip("POLYESTER_API_KEY_ID and POLYESTER_API_PRIVATE_KEY required")
 	}
-	policyID := listed.Policies[0].PolicyID
-	policy := testutil.CallRequired(t, "policies.get_subaccount_policy", func() (*models.SubaccountPolicy, error) {
-		return client.Policies.GetSubaccountPolicy(ctx, policyID)
-	})
-	if policy == nil || policy.PolicyID != policyID {
-		t.Fatalf("policy=%+v want id=%s", policy, policyID)
+	defer client.Close()
+	if client.DefaultAccountID == nil || *client.DefaultAccountID == "" {
+		t.Skip("POLYESTER_ACCOUNT_ID required for private realtime")
 	}
-}
 
-func TestPoliciesGetAPIPolicyWhenPresent(t *testing.T) {
-	client, ctx, cleanup := testutil.RequireLiveClient(t)
-	defer cleanup()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-	listed := testutil.CallRequired(t, "policies.list_api_policies", func() (models.ApiPoliciesList, error) {
-		return client.Policies.ListAPIPolicies(ctx)
-	})
-	if len(listed.Policies) == 0 {
-		t.Skip("no api policies on devnet")
+	sub, err := client.Policies.SubscribeAPIPolicies(ctx, *client.DefaultAccountID)
+	if err != nil {
+		if testutil.RouteUnavailable(err) || testutil.JWTSessionOnly(err) || testutil.DevnetUnavailable(err) || testutil.DevnetProtoMismatch(err) {
+			t.Skipf("policies.subscribe_api_policies unavailable: %v", err)
+		}
+		t.Fatalf("policies.subscribe_api_policies: %v", err)
 	}
-	policyID := listed.Policies[0].PolicyID
-	policy := testutil.CallRequired(t, "policies.get_api_policy", func() (*models.ApiPolicy, error) {
-		return client.Policies.GetAPIPolicy(ctx, policyID)
-	})
-	if policy == nil || policy.PolicyID != policyID {
-		t.Fatalf("policy=%+v want id=%s", policy, policyID)
+	defer sub.Close()
+
+	select {
+	case <-sub.Done():
+		t.Skip("policies.subscribe_api_policies closed without publications")
+	case <-sub.Messages():
+	case <-time.After(5 * time.Second):
 	}
 }

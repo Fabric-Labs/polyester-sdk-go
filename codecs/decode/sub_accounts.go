@@ -44,21 +44,6 @@ func GetSubaccountFromProto(msg *authv1.GetSubaccountResponse) models.GetSubacco
 	return models.GetSubaccountResult{Subaccount: &s}
 }
 
-func CreateSubaccountFromProto(msg *authv1.CreateSubaccountResponse) models.CreateSubaccountResult {
-	return models.CreateSubaccountResult{
-		SubaccountID: codecs.FormatUint64ID(msg.GetSubaccountId()),
-		Revision:     msg.GetRevision(),
-	}
-}
-
-func UpdateSubaccountFromProto(msg *authv1.UpdateSubaccountResponse) *models.SubAccount {
-	if msg.GetSubaccount() == nil {
-		return nil
-	}
-	row := subAccount(msg.GetSubaccount())
-	return &row
-}
-
 func SubaccountMembersListFromProto(msg *authv1.ListSubaccountMembersResponse) models.SubAccountMembersList {
 	out := make([]models.SubAccountMember, 0, len(msg.GetMembers()))
 	for _, m := range msg.GetMembers() {
@@ -78,22 +63,6 @@ func inviteFromProto(inv *authv1.SubaccountInvite) models.SubAccountInvite {
 		GranteeAccountID: codecs.FormatUint64ID(inv.GetGranteeAccountId()),
 		Role:             inv.GetRole().String(), Status: inv.GetStatus().String(),
 	}
-}
-
-func InviteSubaccountMemberFromProto(msg *authv1.InviteSubaccountMemberResponse) *models.SubAccountInvite {
-	if msg.GetInvite() == nil {
-		return nil
-	}
-	inv := inviteFromProto(msg.GetInvite())
-	return &inv
-}
-
-func RespondSubaccountInviteFromProto(msg *authv1.RespondSubaccountInviteResponse) *models.SubAccountInvite {
-	if msg.GetInvite() == nil {
-		return nil
-	}
-	inv := inviteFromProto(msg.GetInvite())
-	return &inv
 }
 
 func SubaccountInvitesListFromProto(msg *authv1.ListSubaccountInvitesResponse) models.SubAccountInvitesList {

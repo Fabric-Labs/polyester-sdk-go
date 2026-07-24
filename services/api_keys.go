@@ -46,39 +46,6 @@ func (s *ApiKeysService) Get(ctx context.Context, keyID string) (*models.ApiKeyS
 	return UnaryAuth(ctx, s.transport, s.client().GetApiKey, &authv1.GetApiKeyRequest{KeyId: keyID}, decode.ApiKeyFromGetProto)
 }
 
-func (s *ApiKeysService) Create(ctx context.Context, label string, account AccountScope, subAccountID *string, icon, color string, ipWhitelist []string, publicKeyEd25519 []byte) (*models.ApiKeySummary, error) {
-	req := &authv1.CreateApiKeyRequest{Label: label, Icon: icon, Color: color}
-	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
-	if err != nil {
-		return nil, err
-	}
-	if parsed, err := codecs.ParseOptionalSubaccountID(sub); err != nil {
-		return nil, err
-	} else if parsed != nil {
-		req.SubaccountId = parsed
-	}
-	if len(ipWhitelist) > 0 {
-		req.IpWhitelist = ipWhitelist
-	}
-	if len(publicKeyEd25519) > 0 {
-		req.PublicKeyEd25519 = publicKeyEd25519
-	}
-	return UnaryAuth(ctx, s.transport, s.client().CreateApiKey, req, decode.ApiKeyFromCreateProto)
-}
-
-func (s *ApiKeysService) Update(ctx context.Context, keyID string, patch codecs.ApiKeyPatch) (*models.ApiKeySummary, error) {
-	req, err := codecs.BuildUpdateApiKeyRequest(keyID, patch)
-	if err != nil {
-		return nil, err
-	}
-	return UnaryAuth(ctx, s.transport, s.client().UpdateApiKey, req, decode.ApiKeyFromUpdateProto)
-}
-
-func (s *ApiKeysService) Delete(ctx context.Context, keyID string) error {
-	_, err := UnaryAuth(ctx, s.transport, s.client().DeleteApiKey, &authv1.DeleteApiKeyRequest{KeyId: keyID}, decode.Void[authv1.DeleteApiKeyResponse])
-	return err
-}
-
 func (s *ApiKeysService) GenerateKeypair() models.Ed25519Keypair {
 	return auth.GenerateEd25519Keypair()
 }

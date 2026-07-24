@@ -23,32 +23,15 @@ func TestDecodeRevisionFields(t *testing.T) {
 		t.Fatalf("subaccount policy=%+v", policy)
 	}
 
-	apiPolicy := decode.GetApiPolicyFromProto(&authv1.GetApiPolicyResponse{
-		Policy: &authv1.ApiPolicyView{Id: 4, Revision: 6},
-	})
+	apiPolicy := decode.ApiPolicyMessageFromProto(&authv1.ApiPolicyView{Id: 4, Revision: 6})
 	if apiPolicy == nil || apiPolicy.Revision != 6 {
 		t.Fatalf("api policy=%+v", apiPolicy)
 	}
 
-	entry := decode.EntryFromUpdateProto(&authv1.UpdateAddressBookEntryResponse{
-		Entry: &authv1.AddressBookEntry{AddressBookEntryId: 9, Revision: 15},
+	entries := decode.ListEntriesFromProto(&authv1.ListAddressBookEntriesResponse{
+		Entries: []*authv1.AddressBookEntry{{AddressBookEntryId: 9, Revision: 15}},
 	})
-	if entry.Revision != 15 {
-		t.Fatalf("entry revision=%d", entry.Revision)
-	}
-
-	updated := decode.UpdateSubaccountFromProto(&authv1.UpdateSubaccountResponse{
-		Subaccount: &authv1.Subaccount{Id: 7, Label: "x", Revision: 2},
-	})
-	if updated == nil || updated.Revision != 2 || updated.Label != "x" {
-		t.Fatalf("updated subaccount=%+v", updated)
-	}
-
-	created := decode.CreateSubaccountFromProto(&authv1.CreateSubaccountResponse{
-		SubaccountId: 11,
-		Revision:     1,
-	})
-	if created.SubaccountID == "" || created.Revision != 1 {
-		t.Fatalf("create subaccount=%+v", created)
+	if len(entries.Entries) != 1 || entries.Entries[0].Revision != 15 {
+		t.Fatalf("entries=%+v", entries.Entries)
 	}
 }
