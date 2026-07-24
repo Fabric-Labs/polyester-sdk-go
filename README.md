@@ -5,8 +5,8 @@ and automation. Parity with `polyester-sdk-python` and `polyester-sdk-rust`
 using the checked-in `gen/` protobuf bundle (no local proto generation for
 normal development).
 
-**Status:** Alpha. Proprietary license (not open source). API-key only —
-no browser login or session MFA.
+**Status:** Alpha (`v0.1.0a15`). Proprietary license (not open source).
+API-key only — no browser login or session MFA.
 
 Requires a recent Go toolchain (see `go.mod`).
 
@@ -51,6 +51,14 @@ Requires a recent Go toolchain (see `go.mod`).
 Rows marked **No** are intentional for API-key SDKs (use the TypeScript
 browser client for wallet login and session MFA).
 
+Rows marked **Yes** mean that an SDK wrapper exists; deployment authorization
+still applies. In particular, whiteboard/social-verification and some
+layout/polychart routes may require a JWT session or may not be mounted.
+Subscription-token requests for API-key, policy, subaccount, and address-book
+administration channels may return `401` where those channels are not enabled
+for API-key principals. Normal order, balance, trade, trigger, and transfer
+market-making flows are separate.
+
 Full cross-language comparison:
 [SDK capability matrix](https://polyester.ai/docs/developer-docs/getting-started/sdk-capability-matrix).
 <!-- sdk-capabilities:end -->
@@ -58,7 +66,7 @@ Full cross-language comparison:
 ## Install
 
 ```bash
-go get github.com/Fabric-Labs/polyester-sdk-go@latest
+go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a15
 ```
 
 For development from a git checkout:
@@ -91,6 +99,7 @@ func main() {
 		APIKeyID:         "ak_...",
 		APIPrivateKey:    "...", // 64-char hex secret from API key creation
 		DefaultAccountID: &accountID,
+		HydrateCatalogs:  true,
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -145,6 +154,7 @@ client, err := polyester.New(polyester.Config{
 	APIKeyID:         "ak_...",
 	APIPrivateKey:    "...",
 	DefaultAccountID: &accountID,
+	HydrateCatalogs:  true,
 })
 ```
 
@@ -157,6 +167,7 @@ client, err := polyester.New(polyester.Config{
 	APIKeyID:         os.Getenv("POLYESTER_API_KEY_ID"),
 	APIPrivateKey:    os.Getenv("POLYESTER_API_PRIVATE_KEY"),
 	DefaultAccountID: &accountID,
+	HydrateCatalogs:  true,
 })
 ```
 
@@ -164,12 +175,14 @@ client, err := polyester.New(polyester.Config{
 
 **Scripts and local tests only** — `polyester.FromEnv()` loads
 `POLYESTER_API_KEY_ID`, `POLYESTER_API_PRIVATE_KEY`, and optionally
-`POLYESTER_ACCOUNT_ID` / `POLYESTER_API_URL`. This is a convenience helper, not
-the primary integration pattern.
+`POLYESTER_ACCOUNT_ID`. It does not read API or WebSocket URL environment
+variables; pass an override function if you need non-default endpoints. This is
+a convenience helper, not the primary integration pattern.
 
-`New` / `FromEnv` start best-effort spot and Zipper catalog hydration in the
-background (when `HydrateCatalogs` is left enabled). Wait for it before decimal
-writes that depend on catalog scales:
+`FromEnv` enables best-effort spot and Zipper catalog hydration. The zero value
+used by `New` disables it, so set `HydrateCatalogs: true` explicitly when using
+decimal writes that depend on catalog scales. Wait for hydration before those
+writes:
 
 ```go
 if err := client.WaitForCatalogs(ctx); err != nil {
