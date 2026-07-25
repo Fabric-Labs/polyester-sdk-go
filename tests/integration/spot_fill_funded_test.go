@@ -16,6 +16,7 @@ import (
 
 func TestSpotFill(t *testing.T) {
 	testutil.RequireFunded(t)
+	testutil.RequireMutation(t)
 	if !testutil.TradeE2EEnabled() {
 		t.Skip("Set POLYESTER_TEST_TRADE_E2E=1 to run spot fill e2e")
 	}
@@ -225,4 +226,3 @@ func TestSpotFill(t *testing.T) {
 		t.Fatal("expected maker quote balance to increase")
 	}
 }
-

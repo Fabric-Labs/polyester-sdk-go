@@ -15,6 +15,8 @@ var routeNotFoundMessages = map[string]struct{}{
 	"404 not found":      {},
 }
 
+const emptyErrorMessage = "request failed without server error details"
+
 // MapConnectError converts Connect errors into SDK error types.
 func MapConnectError(err error) error {
 	if err == nil {
@@ -40,6 +42,9 @@ func MapConnectError(err error) error {
 	}
 	code := connectErr.Code()
 	msg := connectErr.Message()
+	if strings.TrimSpace(msg) == "" {
+		msg = emptyErrorMessage
+	}
 	switch code {
 	case connect.CodeUnauthenticated, connect.CodePermissionDenied:
 		return &sdkerrors.AuthError{Msg: msg}

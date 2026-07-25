@@ -114,8 +114,10 @@ func CreateTriggerToProto(symbol, triggerType string, triggerPrice *models.Price
 			intent.Strategy = &triggersv1.TriggerIntent_TakeProfit{TakeProfit: cond}
 		}
 	case "trailing_stop":
-		// Trailing stop is an implicit SELL market-IOC strategy; side, order_type,
-		// tif, and post_only are ignored.
+		// The wire strategy has no side field and executes as SELL.
+		if strings.ToLower(side) != "sell" {
+			return nil, &errors.ValidationError{Msg: "trailing_stop only supports side=sell"}
+		}
 		trailing := &triggersv1.TrailingStopTrigger{}
 		switch {
 		case opts.TrailingDistanceTicks != nil:

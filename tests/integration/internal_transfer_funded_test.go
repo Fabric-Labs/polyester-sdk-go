@@ -16,6 +16,7 @@ import (
 
 func TestInternalTransferTiny(t *testing.T) {
 	testutil.RequireFunded(t)
+	testutil.RequireMutation(t)
 	client, ctx, cleanup := testutil.RequireLiveClient(t)
 	defer cleanup()
 

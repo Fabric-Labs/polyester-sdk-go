@@ -9,11 +9,34 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go"
 )
 
+// StrictLiveEnabled reports whether soft-skips should fail closed.
+func StrictLiveEnabled() bool {
+	return EnvTruthy("POLYESTER_TEST_STRICT_LIVE")
+}
+
+// SoftSkip skips unless POLYESTER_TEST_STRICT_LIVE is set, in which case it fails.
+func SoftSkip(t *testing.T, args ...any) {
+	t.Helper()
+	if StrictLiveEnabled() {
+		t.Fatal(append([]any{"strict live mode rejected soft skip:"}, args...)...)
+	}
+	t.Skip(args...)
+}
+
+// SoftSkipf skips unless POLYESTER_TEST_STRICT_LIVE is set, in which case it fails.
+func SoftSkipf(t *testing.T, format string, args ...any) {
+	t.Helper()
+	if StrictLiveEnabled() {
+		t.Fatalf("strict live mode rejected soft skip: "+format, args...)
+	}
+	t.Skipf(format, args...)
+}
+
 // RequireMutation skips unless POLYESTER_TEST_MUTATION is truthy.
 func RequireMutation(t *testing.T) {
 	t.Helper()
 	if !EnvTruthy("POLYESTER_TEST_MUTATION") {
-		t.Skip("Set POLYESTER_TEST_MUTATION=1 to run mutation tests")
+		SoftSkip(t, "Set POLYESTER_TEST_MUTATION=1 to run mutation tests")
 	}
 }
 
@@ -21,7 +44,7 @@ func RequireMutation(t *testing.T) {
 func RequireFunded(t *testing.T) {
 	t.Helper()
 	if !EnvTruthy("POLYESTER_TEST_FUNDED") {
-		t.Skip("Set POLYESTER_TEST_FUNDED=1 to run funded tests")
+		SoftSkip(t, "Set POLYESTER_TEST_FUNDED=1 to run funded tests")
 	}
 }
 

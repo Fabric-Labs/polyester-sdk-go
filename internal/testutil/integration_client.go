@@ -18,7 +18,7 @@ func RequireLiveClient(t *testing.T) (*polyester.Client, context.Context, func()
 		t.Fatal(err)
 	}
 	if !ok {
-		t.Skip("POLYESTER_API_KEY_ID and POLYESTER_API_PRIVATE_KEY required")
+		SoftSkip(t, "POLYESTER_API_KEY_ID and POLYESTER_API_PRIVATE_KEY required")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	cleanup := func() {

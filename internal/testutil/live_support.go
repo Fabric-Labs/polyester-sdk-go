@@ -97,13 +97,13 @@ func CallOptional[T any](t *testing.T, label string, fn func() (T, error), opts 
 		return v
 	}
 	if RouteUnavailable(err) {
-		t.Skipf("%s not mounted on devnet: %v", label, err)
+		SoftSkipf(t, "%s not mounted on devnet: %v", label, err)
 	}
 	if o.AllowJWTOnly && JWTSessionOnly(err) {
-		t.Skipf("%s requires JWT/session auth (API key not accepted on devnet): %v", label, err)
+		SoftSkipf(t, "%s requires JWT/session auth (API key not accepted on devnet): %v", label, err)
 	}
 	if o.AllowProtoMismatch && (DevnetProtoMismatch(err) || DevnetUnavailable(err)) {
-		t.Skipf("%s unavailable on devnet: %v", label, err)
+		SoftSkipf(t, "%s unavailable on devnet: %v", label, err)
 	}
 	t.Fatalf("%s: %v", label, err)
 	var zero T

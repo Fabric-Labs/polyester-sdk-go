@@ -22,6 +22,17 @@ func TestMapConnectErrorSurfacesAuthRevisionConflict(t *testing.T) {
 	}
 }
 
+func TestMapConnectErrorNeverReturnsEmptyAuthMessage(t *testing.T) {
+	mapped := MapConnectError(connect.NewError(connect.CodeUnauthenticated, nil))
+	authErr, ok := mapped.(*sdkerrors.AuthError)
+	if !ok {
+		t.Fatalf("mapped=%T %#v", mapped, mapped)
+	}
+	if authErr.Msg == "" {
+		t.Fatal("expected non-empty auth error message")
+	}
+}
+
 func TestMapConnectErrorSurfacesStableMFACodes(t *testing.T) {
 	cases := []struct {
 		code  authv1.AuthErrorCode

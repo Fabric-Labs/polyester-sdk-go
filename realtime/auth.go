@@ -7,11 +7,14 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 )
+
+const maxTokenResponseBytes = 64 * 1024
 
 func connectionTokenURL(apiURL string) string {
 	return strings.TrimRight(apiURL, "/") + "/v1/rt/token"
@@ -20,6 +23,18 @@ func connectionTokenURL(apiURL string) string {
 func subscriptionTokenURL(apiURL, channel string) string {
 	base := strings.TrimRight(apiURL, "/") + "/v1/rt/subscribe"
 	return base + "?channel=" + url.QueryEscape(channel)
+}
+
+func contentLengthExceedsLimit(header http.Header, maxBytes int) bool {
+	raw := header.Get("Content-Length")
+	if raw == "" {
+		return false
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil {
+		return false
+	}
+	return n > maxBytes
 }
 
 func fetchRTToken(ctx context.Context, httpClient *http.Client, creds *auth.Credentials, rawURL, label string) (string, error) {
@@ -35,7 +50,17 @@ func fetchRTToken(ctx context.Context, httpClient *http.Client, creds *auth.Cred
 		return "", err
 	}
 	defer func() { _ = resp.Body.Close() }()
-	body, _ := io.ReadAll(resp.Body)
+	if contentLengthExceedsLimit(resp.Header, maxTokenResponseBytes) {
+		return "", &sdkerrors.RealtimeError{Msg: fmt.Sprintf("%s: response exceeds %d bytes", label, maxTokenResponseBytes)}
+	}
+	limited := io.LimitReader(resp.Body, int64(maxTokenResponseBytes)+1)
+	body, err := io.ReadAll(limited)
+	if err != nil {
+		return "", &sdkerrors.RealtimeError{Msg: label + ": read body: " + err.Error()}
+	}
+	if len(body) > maxTokenResponseBytes {
+		return "", &sdkerrors.RealtimeError{Msg: fmt.Sprintf("%s: response exceeds %d bytes", label, maxTokenResponseBytes)}
+	}
 	if resp.StatusCode == http.StatusUnauthorized {
 		return "", &sdkerrors.AuthError{Msg: label + ": authentication failed"}
 	}
