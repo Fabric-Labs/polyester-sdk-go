@@ -58,3 +58,36 @@ func TestEnqueueAfterOverflowIsRejected(t *testing.T) {
 		t.Fatal("expected enqueue after overflow to fail")
 	}
 }
+
+func TestResubscribeSignalIncrementsAfterReconnect(t *testing.T) {
+	sub := newSubscription[int](1, func() {})
+	if sub.Resubscribes() != 0 {
+		t.Fatalf("Resubscribes=%d want 0 before any reconnect", sub.Resubscribes())
+	}
+	if sub.TakeResubscribed() {
+		t.Fatal("TakeResubscribed true before reconnect")
+	}
+
+	// First successful handshake must not count as a gap/resubscribe.
+	sub.noteHandshakeReady(true)
+	if sub.Resubscribes() != 0 || sub.TakeResubscribed() {
+		t.Fatal("first connect must not signal resubscribe/gap")
+	}
+
+	// Subsequent handshakes (reconnect path) signal possible data loss.
+	sub.noteHandshakeReady(false)
+	if sub.Resubscribes() != 1 {
+		t.Fatalf("Resubscribes=%d want 1 after reconnect", sub.Resubscribes())
+	}
+	if !sub.TakeResubscribed() {
+		t.Fatal("TakeResubscribed false after reconnect")
+	}
+	if sub.TakeResubscribed() {
+		t.Fatal("TakeResubscribed should clear the latch")
+	}
+
+	sub.noteHandshakeReady(false)
+	if sub.Resubscribes() != 2 {
+		t.Fatalf("Resubscribes=%d want 2 after second reconnect", sub.Resubscribes())
+	}
+}

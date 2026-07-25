@@ -79,9 +79,9 @@ func (s *TriggersService) Create(ctx context.Context, account AccountScope, symb
 	if err != nil {
 		return models.TriggerMutationResult{}, err
 	}
-	scale := 8
-	if s.catalogs != nil {
-		scale = s.catalogs.BaseQuantityScaleForSymbol(symbol)
+	scale, err := codecs.QuantityScaleForSymbol(s.catalogs, &symbol)
+	if err != nil {
+		return models.TriggerMutationResult{}, err
 	}
 	req, err := codecs.CreateTriggerToProto(symbol, triggerType, triggerPrice, side, qty, orderType, limitPrice, triggerPriceSource, tif, sub, clientTriggerID, postOnly, scale, opts)
 	if err != nil {

@@ -85,6 +85,9 @@ func TestMarketTradesFromProto(t *testing.T) {
 	if len(result.Trades) != 1 || result.Trades[0].MatchID != "55" {
 		t.Fatalf("trades=%+v", result.Trades)
 	}
+	if result.NextPageToken != "56" {
+		t.Fatalf("NextPageToken=%q want 56", result.NextPageToken)
+	}
 }
 
 func TestMarketOverviewListFromProto(t *testing.T) {

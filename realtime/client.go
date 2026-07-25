@@ -100,6 +100,7 @@ func SubscribeProtoWithOptions[T any](
 	reconnect := autoReconnectEnabled(opts)
 	readyCh := make(chan error, 1)
 	var readySent atomic.Bool
+	var handshakes atomic.Uint64
 	sendReady := func(err error) {
 		if readySent.CompareAndSwap(false, true) {
 			readyCh <- err
@@ -115,6 +116,8 @@ func SubscribeProtoWithOptions[T any](
 				return
 			}
 			err := runSubscriptionOnce(runCtx, c, channel, decode, sub, func() {
+				n := handshakes.Add(1)
+				sub.noteHandshakeReady(n == 1)
 				sendReady(nil)
 			})
 			if err == nil || runCtx.Err() != nil {

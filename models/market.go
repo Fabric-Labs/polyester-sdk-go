@@ -32,7 +32,8 @@ type MarketTrade struct {
 
 // MarketTradesResult holds public trades.
 type MarketTradesResult struct {
-	Trades []MarketTrade `json:"trades"`
+	Trades        []MarketTrade `json:"trades"`
+	NextPageToken string        `json:"next_page_token,omitempty"`
 }
 
 // MarketOverviewEntry is one market overview row.

@@ -127,9 +127,9 @@ func (s *OrdersService) Create(ctx context.Context, req models.CreateOrderReques
 		}
 		req.SubAccountID = sub
 	}
-	scale := 8
-	if req.Symbol != nil {
-		scale = s.catalogs.BaseQuantityScaleForSymbol(*req.Symbol)
+	scale, err := quantityScaleForOrderWrite(s.catalogs, req.Symbol, req.SymbolID)
+	if err != nil {
+		return models.OrderMutationResult{}, err
 	}
 	protoReq, err := codecs.CreateOrderToProto(req, scale)
 	if err != nil {
@@ -173,7 +173,10 @@ func (s *OrdersService) Modify(ctx context.Context, account AccountScope, symbol
 	if err != nil {
 		return models.ModifyOrderResult{}, err
 	}
-	scale := codecs.QuantityScaleForSymbol(s.catalogs, &symbol)
+	scale, err := codecs.QuantityScaleForSymbol(s.catalogs, &symbol)
+	if err != nil {
+		return models.ModifyOrderResult{}, err
+	}
 	protoReq, err := codecs.ModifyOrderToProto(symbol, orderID, clientOrderID, sub, requestID, newPrice, newQty, behavior, newClientOrderID, scale)
 	if err != nil {
 		return models.ModifyOrderResult{}, err
@@ -213,7 +216,10 @@ func (s *OrdersService) BatchCreate(ctx context.Context, account AccountScope, i
 	if err != nil {
 		return models.BatchCreateOrdersResult{}, err
 	}
-	scale := codecs.QuantityScaleForSymbol(s.catalogs, symbol)
+	scale, err := codecs.QuantityScaleForSymbol(s.catalogs, symbol)
+	if err != nil {
+		return models.BatchCreateOrdersResult{}, err
+	}
 	protoReq, err := codecs.BatchCreateOrdersToProto(items, sub, requestID, allowPartial, scale)
 	if err != nil {
 		return models.BatchCreateOrdersResult{}, err
@@ -240,7 +246,10 @@ func (s *OrdersService) BatchModify(ctx context.Context, account AccountScope, i
 	if err != nil {
 		return models.BatchModifyOrdersResult{}, err
 	}
-	scale := codecs.QuantityScaleForSymbol(s.catalogs, symbol)
+	scale, err := codecs.QuantityScaleForSymbol(s.catalogs, symbol)
+	if err != nil {
+		return models.BatchModifyOrdersResult{}, err
+	}
 	protoReq, err := codecs.BatchModifyOrdersToProto(items, sub, requestID, behaviorDefault, allowPartial, scale)
 	if err != nil {
 		return models.BatchModifyOrdersResult{}, err
@@ -251,4 +260,14 @@ func (s *OrdersService) BatchModify(ctx context.Context, account AccountScope, i
 // Subscribe streams private order updates for an account.
 func (s *OrdersService) Subscribe(ctx context.Context, accountID any) (*realtime.Subscription[models.Order], error) {
 	return SubscribeAccountProto(ctx, s.realtime, "private:spot:orders:{account_id}:proto", accountID, s.defaultAccountID, decode.OrderFromBytes)
+}
+
+func quantityScaleForOrderWrite(c *catalogs.Manager, symbol *string, symbolID *uint32) (int, error) {
+	if symbol != nil && *symbol != "" {
+		return codecs.QuantityScaleForSymbol(c, symbol)
+	}
+	if c != nil && symbolID != nil {
+		return c.BaseQuantityScaleForSymbolID(*symbolID), nil
+	}
+	return 0, &sdkerrors.ValidationError{Msg: "quantity scale requires catalogs and symbol"}
 }

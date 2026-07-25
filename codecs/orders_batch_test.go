@@ -53,18 +53,18 @@ func TestBatchCancelOrdersToProto(t *testing.T) {
 	sid := uint32(3)
 	sid2 := uint32(5)
 	items := []models.BatchCancelItem{
-		{OrderID: strPtr("42"), SymbolID: &sid},
+		{OrderID: strPtr("100"), SymbolID: &sid},
 		{ClientOrderID: strPtr("cid-9"), SymbolID: &sid2},
 	}
 	reqID := "req-cancel-1"
-	proto, err := BatchCancelOrdersToProto(items, strPtr("99"), &reqID)
+	proto, err := BatchCancelOrdersToProto(items, strPtr("100"), &reqID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if proto.RequestId != "req-cancel-1" || proto.GetSubaccountId() != 99 || len(proto.Items) != 2 {
+	if proto.RequestId != "req-cancel-1" || proto.GetSubaccountId() != 100 || len(proto.Items) != 2 {
 		t.Fatalf("proto=%+v", proto)
 	}
-	if proto.Items[0].OrderId != 42 || proto.Items[0].SymbolId != 3 {
+	if proto.Items[0].OrderId != 100 || proto.Items[0].SymbolId != 3 {
 		t.Fatalf("item0=%+v", proto.Items[0])
 	}
 	if proto.Items[1].ClientOrderId != "cid-9" || proto.Items[1].SymbolId != 5 {

@@ -9,6 +9,11 @@
 - Authentication failures without server detail now carry a non-empty fallback message.
 - `Config` / `Credentials` `String`/`GoString` redact private key material.
 - Realtime subscription-token HTTP exchange rejects response bodies larger than 64 KiB.
+- Public ID parsing prefers canonical base58 when an all-digit string round-trips via `FormatID`.
+- `QuantityScaleForSymbol` returns an error instead of silently defaulting to scale 8.
+- Subscriptions expose `Resubscribes` / `TakeResubscribed` after reconnect gaps.
+- `MarketTradesResult` exposes `NextPageToken` for public trades pagination.
+- Candle subscriptions normalize aliases (`MIN_1` / `min1`) to the live channel label (`1m`).
 
 ### Changed
 - Live integration soft-skips fail closed when `POLYESTER_TEST_STRICT_LIVE=1` (local release QA). Default CI remains unit-only (`go test ./...` without the `integration` build tag).

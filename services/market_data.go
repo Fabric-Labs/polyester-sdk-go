@@ -3,6 +3,8 @@ package services
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
@@ -13,10 +15,21 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/realtime"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"time"
 )
 
 var timeframeAliases = map[string]string{"1s": "SEC_1", "1m": "MIN_1", "5m": "MIN_5", "15m": "MIN_15", "30m": "MIN_30", "1h": "HOUR_1", "4h": "HOUR_4", "12h": "HOUR_12", "1d": "DAY_1", "1w": "WEEK_1", "1mo": "MONTH_1"}
+
+// Live Centrifugo channels use human labels (`1m`), not REST enum names (`MIN_1`).
+var channelTimeframeAliases = func() map[string]string {
+	out := make(map[string]string, len(timeframeAliases)*4)
+	for label, enumName := range timeframeAliases {
+		out[label] = label
+		out[enumName] = label
+		out[strings.ToLower(enumName)] = label
+		out[strings.ToLower(strings.ReplaceAll(enumName, "_", ""))] = label
+	}
+	return out
+}()
 
 type MarketDataService struct {
 	transport *transport.Factory
@@ -129,11 +142,30 @@ func (s *MarketDataService) SubscribeCandles(ctx context.Context, symbol *string
 	if err != nil {
 		return nil, err
 	}
+	channelTimeframe, err := resolveCandleChannelTimeframe(timeframe)
+	if err != nil {
+		return nil, err
+	}
 	volumeScale := 8
 	if s.catalogs != nil {
 		volumeScale = s.catalogs.BaseQuantityScaleForSymbolID(resolved)
 	}
-	channel := fmt.Sprintf("public:spot:market:candles:%s:%d:proto", timeframe, resolved)
-	decodeFn := decode.CandlePointFromBytes(resolved, timeframe, volumeScale)
+	channel := fmt.Sprintf("public:spot:market:candles:%s:%d:proto", channelTimeframe, resolved)
+	decodeFn := decode.CandlePointFromBytes(resolved, channelTimeframe, volumeScale)
 	return SubscribePublicProto(ctx, s.realtime, channel, decodeFn)
+}
+
+// resolveCandleChannelTimeframe normalizes user timeframe aliases to the live channel label.
+func resolveCandleChannelTimeframe(timeframe string) (string, error) {
+	if label, ok := channelTimeframeAliases[timeframe]; ok {
+		return label, nil
+	}
+	if label, ok := channelTimeframeAliases[strings.ToUpper(timeframe)]; ok {
+		return label, nil
+	}
+	compact := strings.ToLower(strings.ReplaceAll(timeframe, "_", ""))
+	if label, ok := channelTimeframeAliases[compact]; ok {
+		return label, nil
+	}
+	return "", &errors.ValidationError{Msg: "Unknown candle timeframe; use aliases like '1m', '1h', '1d'"}
 }

@@ -98,6 +98,11 @@ func FormatQtyScaled(qtyScaled int64, scale int) string {
 }
 
 // IDToInt parses base58 or decimal uint64 ids.
+//
+// All-digit strings are ambiguous: they may be a decimal literal or a base58
+// encoding that happens to use only digit characters (e.g. FormatID(4) == "5").
+// For those inputs, prefer the canonical base58 decode when FormatID(b) matches
+// the input; otherwise treat the value as decimal.
 func IDToInt(value string, label string) (uint64, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -111,7 +116,17 @@ func IDToInt(value string, label string) (uint64, error) {
 		if n.Sign() < 0 || n.Cmp(new(big.Int).SetUint64(Uint64Max)) > 0 {
 			return 0, &errors.ValidationError{Msg: label + " exceeds uint64 range"}
 		}
-		return n.Uint64(), nil
+		d := n.Uint64()
+		if decoded, err := base58.Decode(value); err == nil {
+			b := new(big.Int).SetBytes(decoded)
+			if b.Sign() >= 0 && b.Cmp(new(big.Int).SetUint64(Uint64Max)) <= 0 {
+				canonical := b.Uint64()
+				if FormatID(canonical) == value {
+					return canonical, nil
+				}
+			}
+		}
+		return d, nil
 	}
 	decoded, err := base58.Decode(value)
 	if err != nil {

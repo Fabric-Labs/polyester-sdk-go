@@ -55,6 +55,11 @@ func ResolveQtyScaled(in models.QtyInput, scale int, fieldName, symbol string, s
 		return qty.Scaled, nil
 	}
 	if dec, ok := in.Decimal(); ok {
+		if scale <= 0 {
+			return 0, &errors.ValidationError{
+				Msg: fieldName + " requires known quantity scale (catalogs + symbol)",
+			}
+		}
 		u, err := ParseQtyScaled(dec, scale, fieldName)
 		if err != nil {
 			return 0, err

@@ -31,7 +31,7 @@ func MarketTradesFromProto(msg *marketdatav1.GetTradesResponse) models.MarketTra
 			TsNs:  strconv.FormatUint(t.GetTsNs(), 10), Side: side,
 		})
 	}
-	return models.MarketTradesResult{Trades: out}
+	return models.MarketTradesResult{Trades: out, NextPageToken: msg.GetNextPageToken()}
 }
 
 func CandlesFromProto(msg *marketdatav1.GetCandlesResponse, volumeScale int) models.CandlesResult {

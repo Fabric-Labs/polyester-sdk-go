@@ -36,12 +36,15 @@ func ParseOptionalSubaccountID(value *string) (*uint64, error) {
 	return &parsed, nil
 }
 
-// QuantityScaleForSymbol returns quantity scale from catalog or default 8.
-func QuantityScaleForSymbol(c *catalogs.Manager, symbol *string) int {
-	if symbol != nil && c != nil {
-		return c.BaseQuantityScaleForSymbol(*symbol)
+// QuantityScaleForSymbol returns quantity scale from the spot catalog.
+//
+// It does not silently fall back to scale 8 when catalogs or symbol are missing;
+// write paths that encode decimal quantities must fail loudly instead.
+func QuantityScaleForSymbol(c *catalogs.Manager, symbol *string) (int, error) {
+	if c == nil || symbol == nil || *symbol == "" {
+		return 0, &errors.ValidationError{Msg: "quantity scale requires catalogs and symbol"}
 	}
-	return 8
+	return c.BaseQuantityScaleForSymbol(*symbol), nil
 }
 
 // OrderIntentToProto encodes the transport-independent OrderIntent shared by

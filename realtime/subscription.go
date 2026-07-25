@@ -2,6 +2,7 @@ package realtime
 
 import (
 	"sync"
+	"sync/atomic"
 
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 )
@@ -11,14 +12,20 @@ import (
 // Delivery contract: the queue is bounded. If the consumer cannot keep up,
 // enqueue fails the subscription with QueueOverflowError instead of silently
 // dropping updates.
+//
+// After a transport reconnect the subscription is re-established without a
+// server-side resume cursor. Resubscribes()/TakeResubscribed() signal that gap:
+// publications may have been lost between disconnect and the new subscribe.
 type Subscription[T any] struct {
-	ch     chan T
-	done   chan struct{}
-	close  sync.Once
-	closed bool
-	mu     sync.Mutex
-	cancel func()
-	err    error
+	ch           chan T
+	done         chan struct{}
+	close        sync.Once
+	closed       bool
+	mu           sync.Mutex
+	cancel       func()
+	err          error
+	resubscribes atomic.Uint64
+	resubscribed atomic.Bool
 }
 
 func newSubscription[T any](maxQueue int, cancel func()) *Subscription[T] {
@@ -62,6 +69,30 @@ func (s *Subscription[T]) Close() {
 		}
 		close(s.done)
 	})
+}
+
+// Resubscribes returns how many times this subscription successfully
+// reconnected after the initial connect. A non-zero value means the stream may
+// have gaps relative to a continuous subscription (possible data loss).
+func (s *Subscription[T]) Resubscribes() uint64 {
+	return s.resubscribes.Load()
+}
+
+// TakeResubscribed reports whether a reconnect/resubscribe happened since the
+// last call and clears the latch. Callers can poll this to refresh REST state
+// after a gap. The initial connect does not set the latch.
+func (s *Subscription[T]) TakeResubscribed() bool {
+	return s.resubscribed.Swap(false)
+}
+
+// noteHandshakeReady records a successful Centrifugo connect/subscribe.
+// first=true is the initial handshake; subsequent calls signal a gap/resubscribe.
+func (s *Subscription[T]) noteHandshakeReady(first bool) {
+	if first {
+		return
+	}
+	s.resubscribes.Add(1)
+	s.resubscribed.Store(true)
 }
 
 func (s *Subscription[T]) failLocked(err error) {
