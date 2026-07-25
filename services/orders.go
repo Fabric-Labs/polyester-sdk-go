@@ -16,21 +16,35 @@ import (
 
 // OrdersService wraps order read/write RPCs.
 type OrdersService struct {
-	transport        *transport.Factory
-	catalogs         *catalogs.Manager
-	scoped           ScopedSubAccount
-	defaultAccountID *string
-	realtime         RealtimeClient
+	transport            *transport.Factory
+	catalogs             *catalogs.Manager
+	scoped               ScopedSubAccount
+	defaultAccountID     *string
+	realtime             RealtimeClient
+	catalogHydrationDone <-chan struct{}
 }
 
 // NewOrdersService constructs OrdersService.
-func NewOrdersService(factory *transport.Factory, cats *catalogs.Manager, defaultSubAccountID *string, realtime RealtimeClient, defaultAccountID *string) *OrdersService {
+func NewOrdersService(factory *transport.Factory, cats *catalogs.Manager, defaultSubAccountID *string, realtime RealtimeClient, defaultAccountID *string, catalogHydrationDone <-chan struct{}) *OrdersService {
 	return &OrdersService{
-		transport:        factory,
-		catalogs:         cats,
-		scoped:           ScopedSubAccount{DefaultSubAccountID: defaultSubAccountID},
-		realtime:         realtime,
-		defaultAccountID: defaultAccountID,
+		transport:            factory,
+		catalogs:             cats,
+		scoped:               ScopedSubAccount{DefaultSubAccountID: defaultSubAccountID},
+		realtime:             realtime,
+		defaultAccountID:     defaultAccountID,
+		catalogHydrationDone: catalogHydrationDone,
+	}
+}
+
+func (s *OrdersService) ensureCatalogs(ctx context.Context) error {
+	if s.catalogHydrationDone == nil {
+		return nil
+	}
+	select {
+	case <-s.catalogHydrationDone:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 }
 
@@ -113,6 +127,9 @@ func (s *OrdersService) Get(ctx context.Context, account AccountScope, orderID, 
 
 // Create places a new order.
 func (s *OrdersService) Create(ctx context.Context, req models.CreateOrderRequest, account AccountScope) (models.OrderMutationResult, error) {
+	if err := s.ensureCatalogs(ctx); err != nil {
+		return models.OrderMutationResult{}, err
+	}
 	if account != nil {
 		sub, err := s.scoped.ResolveSubAccountID(nil, account)
 		if err != nil {
@@ -169,6 +186,9 @@ func (s *OrdersService) Cancel(ctx context.Context, account AccountScope, orderI
 
 // Modify modifies an open order.
 func (s *OrdersService) Modify(ctx context.Context, account AccountScope, symbol string, orderID, clientOrderID, subAccountID, requestID *string, newPrice *models.PriceInput, newQty *models.QtyInput, behavior, newClientOrderID *string) (models.ModifyOrderResult, error) {
+	if err := s.ensureCatalogs(ctx); err != nil {
+		return models.ModifyOrderResult{}, err
+	}
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {
 		return models.ModifyOrderResult{}, err
@@ -212,6 +232,9 @@ func (s *OrdersService) CancelAllAfter(ctx context.Context, account AccountScope
 
 // BatchCreate places multiple orders in one request.
 func (s *OrdersService) BatchCreate(ctx context.Context, account AccountScope, items []models.CreateOrderRequest, subAccountID *string, symbol *string, requestID *string, allowPartial bool) (models.BatchCreateOrdersResult, error) {
+	if err := s.ensureCatalogs(ctx); err != nil {
+		return models.BatchCreateOrdersResult{}, err
+	}
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {
 		return models.BatchCreateOrdersResult{}, err
@@ -242,6 +265,9 @@ func (s *OrdersService) BatchCancel(ctx context.Context, account AccountScope, i
 
 // BatchModify modifies multiple orders in one request.
 func (s *OrdersService) BatchModify(ctx context.Context, account AccountScope, items []models.BatchModifyItem, subAccountID *string, symbol *string, requestID *string, behaviorDefault *string, allowPartial bool) (models.BatchModifyOrdersResult, error) {
+	if err := s.ensureCatalogs(ctx); err != nil {
+		return models.BatchModifyOrdersResult{}, err
+	}
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {
 		return models.BatchModifyOrdersResult{}, err
@@ -267,7 +293,13 @@ func quantityScaleForOrderWrite(c *catalogs.Manager, symbol *string, symbolID *u
 		return codecs.QuantityScaleForSymbol(c, symbol)
 	}
 	if c != nil && symbolID != nil {
-		return c.BaseQuantityScaleForSymbolID(*symbolID), nil
+		scale, ok := c.BaseQuantityScaleForSymbolID(*symbolID)
+		if !ok {
+			return 0, &sdkerrors.ValidationError{
+				Msg: "quantity scale for symbol_id is unavailable; call WaitForCatalogs before placing orders, or pass a scaled Quantity",
+			}
+		}
+		return scale, nil
 	}
 	return 0, &sdkerrors.ValidationError{Msg: "quantity scale requires catalogs and symbol"}
 }

@@ -14,15 +14,35 @@ import (
 )
 
 type TriggersService struct {
-	transport        *transport.Factory
-	catalogs         *catalogs.Manager
-	scoped           ScopedSubAccount
-	defaultAccountID *string
-	realtime         RealtimeClient
+	transport            *transport.Factory
+	catalogs             *catalogs.Manager
+	scoped               ScopedSubAccount
+	defaultAccountID     *string
+	realtime             RealtimeClient
+	catalogHydrationDone <-chan struct{}
 }
 
-func NewTriggersService(factory *transport.Factory, cats *catalogs.Manager, defaultSubAccountID *string, realtime RealtimeClient, defaultAccountID *string) *TriggersService {
-	return &TriggersService{transport: factory, catalogs: cats, scoped: ScopedSubAccount{DefaultSubAccountID: defaultSubAccountID}, realtime: realtime, defaultAccountID: defaultAccountID}
+func NewTriggersService(factory *transport.Factory, cats *catalogs.Manager, defaultSubAccountID *string, realtime RealtimeClient, defaultAccountID *string, catalogHydrationDone <-chan struct{}) *TriggersService {
+	return &TriggersService{
+		transport:            factory,
+		catalogs:             cats,
+		scoped:               ScopedSubAccount{DefaultSubAccountID: defaultSubAccountID},
+		realtime:             realtime,
+		defaultAccountID:     defaultAccountID,
+		catalogHydrationDone: catalogHydrationDone,
+	}
+}
+
+func (s *TriggersService) ensureCatalogs(ctx context.Context) error {
+	if s.catalogHydrationDone == nil {
+		return nil
+	}
+	select {
+	case <-s.catalogHydrationDone:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func (s *TriggersService) client() triggersv1connect.TriggersServiceClient {
@@ -75,6 +95,9 @@ func (s *TriggersService) Get(ctx context.Context, account AccountScope, trigger
 }
 
 func (s *TriggersService) Create(ctx context.Context, account AccountScope, symbol, triggerType string, triggerPrice *models.PriceInput, side string, qty models.QtyInput, orderType string, limitPrice *models.PriceInput, triggerPriceSource, tif string, subAccountID *string, clientTriggerID *string, postOnly bool, opts codecs.CreateTriggerOptions) (models.TriggerMutationResult, error) {
+	if err := s.ensureCatalogs(ctx); err != nil {
+		return models.TriggerMutationResult{}, err
+	}
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {
 		return models.TriggerMutationResult{}, err

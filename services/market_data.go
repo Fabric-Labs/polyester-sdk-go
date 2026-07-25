@@ -121,7 +121,9 @@ func (s *MarketDataService) buildCandlesRequest(symbol *string, symbolID *uint32
 		}
 		scale := 8
 		if s.catalogs != nil {
-			scale = s.catalogs.BaseQuantityScaleForSymbolID(resolved)
+			if resolvedScale, ok := s.catalogs.BaseQuantityScaleForSymbolID(resolved); ok {
+				scale = resolvedScale
+			}
 		}
 		return req, scale, nil
 	}
@@ -148,7 +150,9 @@ func (s *MarketDataService) SubscribeCandles(ctx context.Context, symbol *string
 	}
 	volumeScale := 8
 	if s.catalogs != nil {
-		volumeScale = s.catalogs.BaseQuantityScaleForSymbolID(resolved)
+		if resolvedScale, ok := s.catalogs.BaseQuantityScaleForSymbolID(resolved); ok {
+			volumeScale = resolvedScale
+		}
 	}
 	channel := fmt.Sprintf("public:spot:market:candles:%s:%d:proto", channelTimeframe, resolved)
 	decodeFn := decode.CandlePointFromBytes(resolved, channelTimeframe, volumeScale)
