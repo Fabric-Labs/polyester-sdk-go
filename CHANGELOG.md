@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Breaking
+- `AssetBalance` drops `TradingUpdatedAtNs` / `FundingUpdatedAtNs` / `ReservedUpdatedAtNs`. Use `TradingRevision` (orders trading/reserved/available) and `FundingRevision` (orders funding independently) instead (POLY-3668).
+
 ## 0.1.0a16
 
 ### Fixed

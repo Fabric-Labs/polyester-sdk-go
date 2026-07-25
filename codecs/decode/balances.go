@@ -29,9 +29,8 @@ func AssetBalanceFromProto(msg *ledgerrdv1.AssetBalance) models.AssetBalance {
 		Funding:             u128(msg.GetFunding()),
 		Reserved:            u128(msg.GetReserved()),
 		Available:           u128(msg.GetAvailable()),
-		TradingUpdatedAtNs:  msg.GetTradingUpdatedAtNs(),
-		FundingUpdatedAtNs:  msg.GetFundingUpdatedAtNs(),
-		ReservedUpdatedAtNs: msg.GetReservedUpdatedAtNs(),
+		TradingRevision: msg.GetTradingRevision(),
+		FundingRevision: msg.GetFundingRevision(),
 	}
 }
 

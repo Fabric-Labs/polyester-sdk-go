@@ -348,20 +348,17 @@ type AssetBalance struct {
 	Funding *v1.U128 `protobuf:"bytes,3,opt,name=funding,proto3" json:"funding,omitempty"`
 	// Reserved amount in the trading bucket at fixed 18-decimal ledger scale.
 	Reserved *v1.U128 `protobuf:"bytes,4,opt,name=reserved,proto3" json:"reserved,omitempty"`
-	// Available amount in the trading bucket at fixed 18-decimal ledger scale.
-	// This is computed as max(trading - reserved, 0).
+	// Amount currently available for new trading activity at fixed 18-decimal
+	// ledger scale. This value already accounts for active reservations.
 	Available *v1.U128 `protobuf:"bytes,5,opt,name=available,proto3" json:"available,omitempty"`
-	// Source timestamp for the trading component in Unix nanoseconds. Zero until
-	// the component has been observed.
-	TradingUpdatedAtNs uint64 `protobuf:"varint,6,opt,name=trading_updated_at_ns,json=tradingUpdatedAtNs,proto3" json:"trading_updated_at_ns,omitempty"`
-	// Source timestamp for the funding component in Unix nanoseconds. Zero until
-	// the component has been observed.
-	FundingUpdatedAtNs uint64 `protobuf:"varint,7,opt,name=funding_updated_at_ns,json=fundingUpdatedAtNs,proto3" json:"funding_updated_at_ns,omitempty"`
-	// Source timestamp for the reserved component in Unix nanoseconds. Zero until
-	// the component has been observed.
-	ReservedUpdatedAtNs uint64 `protobuf:"varint,8,opt,name=reserved_updated_at_ns,json=reservedUpdatedAtNs,proto3" json:"reserved_updated_at_ns,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// Opaque monotonic revision for the atomic trading, reserved, and available
+	// values. Higher means newer; zero means no trading state has been observed.
+	TradingRevision uint64 `protobuf:"varint,6,opt,name=trading_revision,json=tradingRevision,proto3" json:"trading_revision,omitempty"`
+	// Opaque monotonic revision for the funding value. Higher means newer; zero
+	// means no funding state has been observed.
+	FundingRevision uint64 `protobuf:"varint,7,opt,name=funding_revision,json=fundingRevision,proto3" json:"funding_revision,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *AssetBalance) Reset() {
@@ -429,23 +426,16 @@ func (x *AssetBalance) GetAvailable() *v1.U128 {
 	return nil
 }
 
-func (x *AssetBalance) GetTradingUpdatedAtNs() uint64 {
+func (x *AssetBalance) GetTradingRevision() uint64 {
 	if x != nil {
-		return x.TradingUpdatedAtNs
+		return x.TradingRevision
 	}
 	return 0
 }
 
-func (x *AssetBalance) GetFundingUpdatedAtNs() uint64 {
+func (x *AssetBalance) GetFundingRevision() uint64 {
 	if x != nil {
-		return x.FundingUpdatedAtNs
-	}
-	return 0
-}
-
-func (x *AssetBalance) GetReservedUpdatedAtNs() uint64 {
-	if x != nil {
-		return x.ReservedUpdatedAtNs
+		return x.FundingRevision
 	}
 	return 0
 }
@@ -1731,16 +1721,15 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	" ledger/read/v1/ledger_read.proto\x12\x0eledger.read.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x17ledger/v1/catalog.proto\x1a\x1cpolyester/type/v1/u128.proto\"P\n" +
 	"\x12GetBalancesRequest\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
-	"\x0e_subaccount_id\"\x96\x03\n" +
+	"\x0e_subaccount_id\"\xd1\x02\n" +
 	"\fAssetBalance\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\rR\aassetId\x121\n" +
 	"\atrading\x18\x02 \x01(\v2\x17.polyester.type.v1.U128R\atrading\x121\n" +
 	"\afunding\x18\x03 \x01(\v2\x17.polyester.type.v1.U128R\afunding\x123\n" +
 	"\breserved\x18\x04 \x01(\v2\x17.polyester.type.v1.U128R\breserved\x125\n" +
-	"\tavailable\x18\x05 \x01(\v2\x17.polyester.type.v1.U128R\tavailable\x121\n" +
-	"\x15trading_updated_at_ns\x18\x06 \x01(\x04R\x12tradingUpdatedAtNs\x121\n" +
-	"\x15funding_updated_at_ns\x18\a \x01(\x04R\x12fundingUpdatedAtNs\x123\n" +
-	"\x16reserved_updated_at_ns\x18\b \x01(\x04R\x13reservedUpdatedAtNs\"O\n" +
+	"\tavailable\x18\x05 \x01(\v2\x17.polyester.type.v1.U128R\tavailable\x12)\n" +
+	"\x10trading_revision\x18\x06 \x01(\x04R\x0ftradingRevision\x12)\n" +
+	"\x10funding_revision\x18\a \x01(\x04R\x0ffundingRevision\"O\n" +
 	"\x13GetBalancesResponse\x128\n" +
 	"\bbalances\x18\x01 \x03(\v2\x1c.ledger.read.v1.AssetBalanceR\bbalances\"\xe9\x01\n" +
 	"\x18GetBalanceHistoryRequest\x12(\n" +

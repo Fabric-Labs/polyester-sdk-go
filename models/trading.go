@@ -163,9 +163,10 @@ type AssetBalance struct {
 	Funding             string `json:"funding,omitempty"`
 	Reserved            string `json:"reserved,omitempty"`
 	Available           string `json:"available,omitempty"`
-	TradingUpdatedAtNs  uint64 `json:"trading_updated_at_ns,omitempty"`
-	FundingUpdatedAtNs  uint64 `json:"funding_updated_at_ns,omitempty"`
-	ReservedUpdatedAtNs uint64 `json:"reserved_updated_at_ns,omitempty"`
+	// TradingRevision orders the atomic trading/reserved/available state.
+	TradingRevision uint64 `json:"trading_revision,omitempty"`
+	// FundingRevision orders funding state independently of trading.
+	FundingRevision uint64 `json:"funding_revision,omitempty"`
 }
 
 // BalancesList holds balance rows.
