@@ -2,6 +2,7 @@ package polyester
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -32,6 +33,23 @@ type Config struct {
 	WireFormat          string
 	HydrateCatalogs     bool
 	HTTPClient          *http.Client
+}
+
+// String redacts the API private key.
+func (c Config) String() string {
+	key := c.APIPrivateKey
+	if key != "" {
+		key = "[REDACTED]"
+	}
+	return fmt.Sprintf(
+		"Config{APIKeyID:%q APIPrivateKey:%q APIURL:%q WSURL:%q Timeout:%s WireFormat:%q HydrateCatalogs:%t}",
+		c.APIKeyID, key, c.APIURL, c.WSURL, c.Timeout, c.WireFormat, c.HydrateCatalogs,
+	)
+}
+
+// GoString redacts the API private key for %#v formatting.
+func (c Config) GoString() string {
+	return c.String()
 }
 
 // Client is the root Polyester SDK entrypoint.

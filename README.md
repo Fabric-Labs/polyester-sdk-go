@@ -55,11 +55,24 @@ Full cross-language comparison:
 [SDK capability matrix](https://polyester.ai/docs/developer-docs/getting-started/sdk-capability-matrix).
 <!-- sdk-capabilities:end -->
 
+Rows marked **Yes** mean that an SDK wrapper exists; deployment authorization
+still applies. In particular, whiteboard/social-verification and some
+layout/polychart routes may require a JWT session or may not be mounted.
+Current devnet testing verifies API-key subscription handshakes for API keys,
+API policies, subaccount policies, subaccounts, address-book invalidations, and
+normal trading and ledger streams.
+
 ## Install
 
 ```bash
+GOPRIVATE='github.com/Fabric-Labs/*' \
+GONOSUMDB='github.com/Fabric-Labs/*' \
 go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a15
 ```
+
+The repository is currently private. GitHub access and authenticated Git credentials are
+required; the private-module variables keep the public Go proxy and checksum database out of
+the resolution path.
 
 For development from a git checkout:
 
@@ -73,6 +86,8 @@ go test ./...
 
 Create an API key in the Polyester app (**API** in the sidebar). Copy the key id
 and private key when shown — the private key is only displayed once.
+Open the key's **Permissions**, enable **Spot trading**, select the markets it
+may trade, and set a maximum order size appropriate for the strategy.
 
 ```go
 package main
@@ -212,6 +227,11 @@ fmt.Println(result.Status, result.OrderID)
 _, err = client.Orders.Cancel(ctx, nil, nil, &clientOrderID, &symbol, nil, nil)
 ```
 
+Client order ids accept 1 to 36 ASCII letters, digits, `.`, `_`, `:`, `/`, and
+`-`. Batch create accepts at most 20 orders. Treat a cancel response as an
+admission acknowledgement and reconcile with `ListOpen` before releasing local
+state.
+
 Use **decimal strings** for human-facing `qty` / `price` inputs. Do **not** pass
 floats. `PriceTicks.Ticks` are Polyester protocol price units (fixed 1e6), not
 market tick-size alignment (server validates tick size).
@@ -253,7 +273,8 @@ Response `Status` uses the same labels (British spelling `cancelled`).
 
 Ledger balances have separate **funding** and **trading** buckets per asset.
 
-- Deposits land in **funding**.
+- An external deposit can stop in **funding** or continue to **trading**,
+  depending on its configured route.
 - Spot orders spend **trading** balance.
 - Move funds funding → trading in the Polyester UI (**Funding → Unified Trading**)
   or on-chain via the funding wallet.
@@ -354,6 +375,11 @@ for markets := range mo.Updates() {
 
 ## Realtime
 
+Realtime is binary-only. The client negotiates the `centrifuge-protobuf`
+WebSocket subprotocol, sends binary length-delimited Centrifugo commands, and
+decodes protobuf publication payloads from `:proto` channels. ConnectRPC's
+optional JSON wire mode does not apply to realtime.
+
 Raw Centrifugo subscriptions return a typed channel:
 
 ```go
@@ -435,6 +461,10 @@ go test -tags=integration -v ./tests/integration/...
 ```
 
 Integration tests skip automatically when API keys are not set.
+Set `POLYESTER_TEST_MUTATION=1` for state-changing tests. Funded mutations
+require both `POLYESTER_TEST_MUTATION=1` and `POLYESTER_TEST_FUNDED=1`.
+For release certification, set `POLYESTER_TEST_STRICT_LIVE=1` so soft-skips
+fail instead of reporting as skipped.
 
 ## Layout
 

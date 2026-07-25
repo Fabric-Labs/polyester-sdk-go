@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Fixed
+- Realtime now negotiates the `centrifuge-protobuf` WebSocket subprotocol and uses binary, length-delimited Centrifugo commands, replies, pings, and publications. Previous releases selected `:proto` channels while speaking the JSON client protocol, so subscriptions could handshake but receive no binary publications.
+- Concurrent authenticated calls now receive distinct monotonic signing timestamps, preventing identical same-millisecond requests from colliding with replay protection.
+- BUY trailing-stop requests are rejected locally because the wire strategy is SELL-only; they are no longer silently encoded as SELL.
+- Authentication failures without server detail now carry a non-empty fallback message.
+- `Config` / `Credentials` `String`/`GoString` redact private key material.
+- Realtime subscription-token HTTP exchange rejects response bodies larger than 64 KiB.
+
+### Changed
+- Live integration soft-skips fail closed when `POLYESTER_TEST_STRICT_LIVE=1` (local release QA). Default CI remains unit-only (`go test ./...` without the `integration` build tag).
+
 ## 0.1.0a15
 
 ### Fixed

@@ -3,6 +3,8 @@ package auth
 import (
 	"crypto/ed25519"
 	"encoding/hex"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
@@ -70,6 +72,50 @@ func TestSignRequestReturnsPolyesterHeaders(t *testing.T) {
 	}
 	if len(headers["X-API-SIGNATURE"]) != 128 {
 		t.Fatalf("signature length: %d", len(headers["X-API-SIGNATURE"]))
+	}
+}
+
+func TestAutomaticTimestampsAreUniqueUnderConcurrency(t *testing.T) {
+	_, private, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	creds := &Credentials{KeyID: "key_123", PrivateKey: private}
+	const count = 32
+	var wg sync.WaitGroup
+	headers := make(chan map[string]string, count)
+	wg.Add(count)
+	for range count {
+		go func() {
+			defer wg.Done()
+			headers <- SignRequest(creds, "POST", "https://api.example.test/foo", []byte("{}"), "")
+		}()
+	}
+	wg.Wait()
+	close(headers)
+	timestamps := make(map[string]struct{}, count)
+	signatures := make(map[string]struct{}, count)
+	for item := range headers {
+		timestamps[item["X-API-TIMESTAMP"]] = struct{}{}
+		signatures[item["X-API-SIGNATURE"]] = struct{}{}
+	}
+	if len(timestamps) != count || len(signatures) != count {
+		t.Fatalf("unique timestamps=%d signatures=%d", len(timestamps), len(signatures))
+	}
+}
+
+func TestCredentialsStringRedactsPrivateKey(t *testing.T) {
+	_, private, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	creds := &Credentials{KeyID: "key_123", PrivateKey: private}
+	rendered := creds.String()
+	if !strings.Contains(rendered, "[REDACTED]") {
+		t.Fatalf("expected redaction, got %s", rendered)
+	}
+	if strings.Contains(rendered, hex.EncodeToString(private.Seed())) {
+		t.Fatalf("private key leaked: %s", rendered)
 	}
 }
 

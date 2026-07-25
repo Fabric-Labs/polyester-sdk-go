@@ -2,8 +2,6 @@ package realtime
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -15,6 +13,8 @@ import (
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"github.com/gorilla/websocket"
 )
+
+const centrifugoProtobufSubprotocol = "centrifuge-protobuf"
 
 // Client connects to Centrifugo for public and private protobuf channels.
 type Client struct {
@@ -161,12 +161,18 @@ func runSubscriptionOnce[T any](
 	sub *Subscription[T],
 	onReady func(),
 ) error {
-	dialer := websocket.Dialer{HandshakeTimeout: 10 * time.Second}
+	dialer := websocket.Dialer{
+		HandshakeTimeout: 10 * time.Second,
+		Subprotocols:     []string{centrifugoProtobufSubprotocol},
+	}
 	conn, _, err := dialer.DialContext(ctx, c.wsURL, nil)
 	if err != nil {
 		return &sdkerrors.RealtimeError{Msg: err.Error()}
 	}
 	defer func() { _ = conn.Close() }()
+	if conn.Subprotocol() != centrifugoProtobufSubprotocol {
+		return &sdkerrors.RealtimeError{Msg: "server did not negotiate centrifuge-protobuf websocket subprotocol"}
+	}
 
 	if isPrivateChannel(channel) {
 		token, err := fetchConnectionToken(ctx, c.http, c.credentials, c.apiURL)
@@ -202,24 +208,40 @@ func runSubscriptionOnce[T any](
 		// Use a long read deadline so Centrifugo ping/pong can complete without
 		// retrying ReadMessage on a deadline-poisoned connection (gorilla/websocket).
 		_ = conn.SetReadDeadline(time.Now().Add(30 * time.Second))
-		_, raw, err := conn.ReadMessage()
+		messageType, raw, err := conn.ReadMessage()
 		if err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
 			return &sdkerrors.RealtimeError{Msg: err.Error()}
 		}
-		for _, frame := range splitCentrifugoFrames(raw) {
-			items, err := handleCentrifugoFrame(conn, frame, decode)
-			if err != nil {
-				return err
-			}
-			for _, item := range items {
+		if messageType != websocket.BinaryMessage {
+			return &sdkerrors.RealtimeError{Msg: "received JSON text frame on protobuf websocket"}
+		}
+		incoming, err := decodeReplies(raw)
+		if err != nil {
+			return &sdkerrors.RealtimeError{Msg: err.Error()}
+		}
+		for _, message := range incoming {
+			switch message.kind {
+			case incomingPing:
+				if err := conn.WriteMessage(websocket.BinaryMessage, pongCommand()); err != nil {
+					return &sdkerrors.RealtimeError{Msg: err.Error()}
+				}
+			case incomingPublication:
+				item, err := decode(message.data)
+				if err != nil {
+					return &sdkerrors.RealtimeError{Msg: err.Error()}
+				}
 				if !sub.enqueue(item) {
 					if err := sub.Err(); err != nil {
 						return err
 					}
 					return ctx.Err()
+				}
+			case incomingReply:
+				if message.err != nil {
+					return centrifugoProtocolError(message.err)
 				}
 			}
 		}
@@ -227,116 +249,59 @@ func runSubscriptionOnce[T any](
 }
 
 func centrifugoConnect(ctx context.Context, conn *websocket.Conn, token string) error {
-	payload := map[string]any{}
-	if token != "" {
-		payload["token"] = token
-	}
-	if err := conn.WriteJSON(map[string]any{"id": 1, "connect": payload}); err != nil {
+	if err := conn.WriteMessage(websocket.BinaryMessage, connectCommand(1, token)); err != nil {
 		return &sdkerrors.RealtimeError{Msg: err.Error()}
 	}
-	return readCentrifugoReply(ctx, conn)
+	return readCentrifugoReply(ctx, conn, 1)
 }
 
 func centrifugoSubscribe(ctx context.Context, conn *websocket.Conn, channel, token string) error {
-	payload := map[string]any{"channel": channel}
-	if token != "" {
-		payload["token"] = token
-	}
-	if err := conn.WriteJSON(map[string]any{"id": 2, "subscribe": payload}); err != nil {
+	if err := conn.WriteMessage(websocket.BinaryMessage, subscribeCommand(2, channel, token)); err != nil {
 		return &sdkerrors.RealtimeError{Msg: err.Error()}
 	}
-	return readCentrifugoReply(ctx, conn)
+	return readCentrifugoReply(ctx, conn, 2)
 }
 
-func readCentrifugoReply(ctx context.Context, conn *websocket.Conn) error {
+func readCentrifugoReply(ctx context.Context, conn *websocket.Conn, expectedID uint32) error {
 	deadline, ok := ctx.Deadline()
 	if !ok {
 		deadline = time.Now().Add(10 * time.Second)
 	}
 	_ = conn.SetReadDeadline(deadline)
-	_, raw, err := conn.ReadMessage()
-	if err != nil {
-		return &sdkerrors.RealtimeError{Msg: err.Error()}
-	}
-	var payload map[string]any
-	if err := json.Unmarshal(raw, &payload); err != nil {
-		return &sdkerrors.RealtimeError{Msg: err.Error()}
-	}
-	if payload["error"] != nil {
-		return &sdkerrors.RealtimeError{Msg: fmt.Sprint(payload["error"])}
-	}
-	return nil
-}
-
-func splitCentrifugoFrames(raw []byte) []string {
-	text := strings.TrimSpace(string(raw))
-	if text == "" {
-		return nil
-	}
-	parts := strings.Split(text, "\n")
-	out := make([]string, 0, len(parts))
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if part != "" {
-			out = append(out, part)
-		}
-	}
-	return out
-}
-
-func handleCentrifugoFrame[T any](conn *websocket.Conn, frame string, decode func([]byte) (T, error)) ([]T, error) {
-	var message map[string]any
-	if err := json.Unmarshal([]byte(frame), &message); err != nil {
-		return nil, nil
-	}
-	if len(message) == 0 {
-		_ = conn.WriteMessage(websocket.TextMessage, []byte("{}"))
-		return nil, nil
-	}
-	if push, ok := message["push"].(map[string]any); ok {
-		if push["ping"] != nil {
-			_ = conn.WriteMessage(websocket.TextMessage, []byte("{}"))
-			return nil, nil
-		}
-		pub, _ := push["pub"].(map[string]any)
-		if data := pub["data"]; data != nil {
-			payload, err := decodePublicationData(data)
-			if err != nil {
-				return nil, err
-			}
-			item, err := decode(payload)
-			if err != nil {
-				return nil, &sdkerrors.RealtimeError{Msg: err.Error()}
-			}
-			return []T{item}, nil
-		}
-	}
-	if message["ping"] != nil && message["id"] == nil {
-		_ = conn.WriteMessage(websocket.TextMessage, []byte("{}"))
-	}
-	return nil, nil
-}
-
-func decodePublicationData(data any) ([]byte, error) {
-	switch t := data.(type) {
-	case string:
-		out, err := base64.StdEncoding.DecodeString(t)
+	for {
+		messageType, raw, err := conn.ReadMessage()
 		if err != nil {
-			return nil, &sdkerrors.RealtimeError{Msg: err.Error()}
+			return &sdkerrors.RealtimeError{Msg: err.Error()}
 		}
-		return out, nil
-	case []any:
-		out := make([]byte, 0, len(t))
-		for _, v := range t {
-			n, ok := v.(float64)
-			if !ok {
-				return nil, &sdkerrors.RealtimeError{Msg: "invalid publication bytes"}
+		if messageType != websocket.BinaryMessage {
+			return &sdkerrors.RealtimeError{Msg: "received JSON text reply on protobuf websocket"}
+		}
+		incoming, err := decodeReplies(raw)
+		if err != nil {
+			return &sdkerrors.RealtimeError{Msg: err.Error()}
+		}
+		for _, message := range incoming {
+			switch {
+			case message.kind == incomingPing:
+				if err := conn.WriteMessage(websocket.BinaryMessage, pongCommand()); err != nil {
+					return &sdkerrors.RealtimeError{Msg: err.Error()}
+				}
+			case message.kind == incomingReply && message.id == expectedID && message.err != nil:
+				return centrifugoProtocolError(message.err)
+			case message.kind == incomingReply && message.id == expectedID:
+				return nil
 			}
-			out = append(out, byte(n))
 		}
-		return out, nil
-	default:
-		return nil, &sdkerrors.RealtimeError{Msg: "unsupported publication data type"}
+	}
+}
+
+func centrifugoProtocolError(protocolErr *protocolError) error {
+	temporary := ""
+	if protocolErr.temporary {
+		temporary = " (temporary)"
+	}
+	return &sdkerrors.RealtimeError{
+		Msg: fmt.Sprintf("centrifugo error %d: %s%s", protocolErr.code, protocolErr.message, temporary),
 	}
 }
 

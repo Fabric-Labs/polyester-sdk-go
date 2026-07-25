@@ -36,6 +36,7 @@ func TestPublicTradesSubscriptionSurvivesCentrifugoPing(t *testing.T) {
 	defer sub.Close()
 
 	deadline := time.Now().Add(realtimeHeartbeatHold)
+	publications := 0
 	for time.Now().Before(deadline) {
 		select {
 		case <-ctx.Done():
@@ -46,8 +47,12 @@ func TestPublicTradesSubscriptionSurvivesCentrifugoPing(t *testing.T) {
 			if !ok {
 				t.Fatalf("public trades subscription closed before Centrifugo heartbeat window elapsed (%s)", realtimeHeartbeatHold)
 			}
+			publications++
 		case <-time.After(2 * time.Second):
 		}
+	}
+	if publications == 0 {
+		t.Fatal("protobuf subscription stayed open but delivered no publications")
 	}
 }
 

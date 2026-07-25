@@ -17,6 +17,7 @@ import (
 
 func TestTransferToUserTiny(t *testing.T) {
 	testutil.RequireFunded(t)
+	testutil.RequireMutation(t)
 
 	bucket := strings.ToLower(strings.TrimSpace(os.Getenv("POLYESTER_TEST_TRANSFER_SOURCE_BUCKET")))
 	if bucket == "" {

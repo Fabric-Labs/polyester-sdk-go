@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // CanonicalQuery sorts and URL-encodes query parameters from rawURL.
@@ -52,7 +51,7 @@ func CanonicalSigningString(timestampMS, method, rawURL string, body []byte) str
 // SignRequest returns Polyester API-key headers for an HTTP request.
 func SignRequest(creds *Credentials, method, rawURL string, body []byte, timestampMS string) map[string]string {
 	if timestampMS == "" {
-		timestampMS = strconv.FormatInt(time.Now().UnixMilli(), 10)
+		timestampMS = strconv.FormatInt(creds.nextTimestampMS(), 10)
 	}
 	canonical := CanonicalSigningString(timestampMS, method, rawURL, body)
 	sig := ed25519.Sign(creds.PrivateKey, []byte(canonical))

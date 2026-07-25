@@ -57,6 +57,7 @@ func depositQtyScaled(t *testing.T) *big.Int {
 
 func TestFundingToTradingUserOp(t *testing.T) {
 	testutil.RequireFunded(t)
+	testutil.RequireMutation(t)
 	owner := requireChainUserOp(t)
 	client, ctx, cleanup := testutil.RequireLiveClient(t)
 	defer cleanup()
@@ -114,6 +115,7 @@ func TestFundingToTradingUserOp(t *testing.T) {
 
 func TestFundingWithdrawToChainUserOp(t *testing.T) {
 	testutil.RequireFunded(t)
+	testutil.RequireMutation(t)
 	owner := requireChainUserOp(t)
 	dest := strings.TrimSpace(os.Getenv("POLYESTER_TEST_WITHDRAW_DESTINATION"))
 	if dest == "" {

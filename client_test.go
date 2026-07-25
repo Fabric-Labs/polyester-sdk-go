@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -19,6 +20,21 @@ func TestNewUsesDefaults(t *testing.T) {
 	}
 	if client.Orderbook == nil || client.MarketData == nil {
 		t.Fatal("expected service tree")
+	}
+}
+
+func TestConfigStringRedactsPrivateKey(t *testing.T) {
+	cfg := Config{
+		APIKeyID:      "key_123",
+		APIPrivateKey: "super-secret-private-key",
+		APIURL:        DefaultAPIURL,
+	}
+	rendered := cfg.String()
+	if !strings.Contains(rendered, "[REDACTED]") {
+		t.Fatalf("expected redaction, got %s", rendered)
+	}
+	if strings.Contains(rendered, "super-secret-private-key") {
+		t.Fatalf("private key leaked: %s", rendered)
 	}
 }
 
