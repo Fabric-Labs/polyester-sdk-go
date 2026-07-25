@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.0a17
+
 ### Breaking
 - `AssetBalance` drops `TradingUpdatedAtNs` / `FundingUpdatedAtNs` / `ReservedUpdatedAtNs`. Use `TradingRevision` (orders trading/reserved/available) and `FundingRevision` (orders funding independently) instead (POLY-3668).
 - `Manager.BaseQuantityScaleForSymbol` / `BaseQuantityScaleForSymbolID` return `(scale, ok)` and no longer invent scale `8` when unknown/unhydrated (POLY-3549). Decode-only paths keep an explicit fallback of `8`.
