@@ -4,6 +4,10 @@
 
 ### Breaking
 - `AssetBalance` drops `TradingUpdatedAtNs` / `FundingUpdatedAtNs` / `ReservedUpdatedAtNs`. Use `TradingRevision` (orders trading/reserved/available) and `FundingRevision` (orders funding independently) instead (POLY-3668).
+- `Manager.BaseQuantityScaleForSymbol` / `BaseQuantityScaleForSymbolID` return `(scale, ok)` and no longer invent scale `8` when unknown/unhydrated (POLY-3549). Decode-only paths keep an explicit fallback of `8`.
+
+### Fixed
+- Order/trigger write paths wait for background catalog hydration before resolving pair quantity scale, preventing first-order false `INSUFFICIENT_FUNDS` when a pair (e.g. ETH-USDT scale 6) was encoded at invented scale 8 (POLY-3549).
 
 ## 0.1.0a16
 

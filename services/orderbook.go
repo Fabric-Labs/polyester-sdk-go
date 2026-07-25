@@ -42,7 +42,10 @@ func (s *OrderbookService) Get(ctx context.Context, symbol string, depth int) (m
 		return models.OrderbookData{}, &errors.ValidationError{Msg: "unsupported orderbook depth"}
 	}
 	req := &orderbookv1.GetOrderBookRequest{Symbol: symbol, Depth: orderbookv1.Depth(v)}
-	scale := s.catalogs.BaseQuantityScaleForSymbol(symbol)
+	scale, ok := s.catalogs.BaseQuantityScaleForSymbol(symbol)
+	if !ok {
+		scale = 8
+	}
 	return UnaryPublic(ctx, s.transport, s.client().GetOrderBook, req, func(msg *orderbookv1.GetOrderBookResponse) models.OrderbookData {
 		return decode.OrderbookFromProto(msg, symbol, depth, scale)
 	})
@@ -83,13 +86,16 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 	}
 	channel := fmt.Sprintf("public:spot:orderbook:deltas:depth:%d:%d:proto", wsDepth, *resolvedSymbolID)
 
+	quantityScale, ok := s.catalogs.BaseQuantityScaleForSymbol(symbol)
+	if !ok {
+		quantityScale = 8
+	}
 	var (
 		mu             sync.Mutex
 		bids           = orderbook.BookSide{}
 		asks           = orderbook.BookSide{}
 		currentBookSeq int
 		bucketTicks    = orderbook.ParseBucketTicks(opts.Bucket)
-		quantityScale  = s.catalogs.BaseQuantityScaleForSymbol(symbol)
 		subscription   *orderbook.Subscription
 		stream         *realtime.SnapshotThenStream[models.OrderbookData, models.OrderBookDeltaUpdate]
 	)

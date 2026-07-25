@@ -28,8 +28,8 @@ func TestManagerConcurrentHydrateAndRead(t *testing.T) {
 			defer wg.Done()
 			for j := 0; j < 200; j++ {
 				_ = m.SymbolIDForSymbol("BTCUSDT")
-				_ = m.BaseQuantityScaleForSymbol("BTCUSDT")
-				_ = m.BaseQuantityScaleForSymbolID(1)
+				_, _ = m.BaseQuantityScaleForSymbol("BTCUSDT")
+				_, _ = m.BaseQuantityScaleForSymbolID(1)
 			}
 		}()
 	}

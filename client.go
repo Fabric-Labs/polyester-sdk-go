@@ -128,6 +128,7 @@ func New(cfg Config) (*Client, error) {
 		}
 	}
 
+	catalogHydrationDone := make(chan struct{})
 	client := &Client{
 		APIURL:               cfg.APIURL,
 		WSURL:                cfg.WSURL,
@@ -145,9 +146,9 @@ func New(cfg Config) (*Client, error) {
 		Lifecycle:            services.NewLifecycleService(factory, rt),
 		Balances:             services.NewBalancesService(factory, cats, cfg.DefaultSubAccountID, rt, defaultAccountID),
 		Orderbook:            services.NewOrderbookService(factory, cats, rt),
-		Orders:               services.NewOrdersService(factory, cats, cfg.DefaultSubAccountID, rt, defaultAccountID),
+		Orders:               services.NewOrdersService(factory, cats, cfg.DefaultSubAccountID, rt, defaultAccountID, catalogHydrationDone),
 		Trades:               services.NewTradesService(factory, cats, cfg.DefaultSubAccountID, rt, defaultAccountID),
-		Triggers:             services.NewTriggersService(factory, cats, cfg.DefaultSubAccountID, rt, defaultAccountID),
+		Triggers:             services.NewTriggersService(factory, cats, cfg.DefaultSubAccountID, rt, defaultAccountID, catalogHydrationDone),
 		Transfers:            services.NewTransfersService(factory, cfg.DefaultSubAccountID, rt, defaultAccountID),
 		InternalTransfers:    services.NewInternalTransfersService(factory, cats, cfg.DefaultSubAccountID),
 		Deposit:              services.NewDepositService(factory, cfg.DefaultSubAccountID),
@@ -161,7 +162,7 @@ func New(cfg Config) (*Client, error) {
 		Layout:               services.NewLayoutService(factory),
 		GuardSigner:          services.NewGuardSignerService(factory, cfg.DefaultSubAccountID),
 		Withdraw:             services.NewWithdrawService(factory, cfg.DefaultSubAccountID),
-		catalogHydrationDone: make(chan struct{}),
+		catalogHydrationDone: catalogHydrationDone,
 	}
 	client.Candles = client.MarketData
 	client.TradingWithdraws = client.Withdraw

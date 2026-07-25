@@ -2,8 +2,10 @@ package codecs
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
@@ -20,6 +22,31 @@ func TestQuantityScaleForSymbolRequiresCatalogAndSymbol(t *testing.T) {
 	_, err := QuantityScaleForSymbol(nil, nil)
 	if !errors.As(err, &ve) {
 		t.Fatalf("want ValidationError, got %T %v", err, err)
+	}
+}
+
+func TestQuantityScaleForSymbolErrorsWhenCatalogUnhydrated(t *testing.T) {
+	m := catalogs.NewManager()
+	symbol := "ETH-USDT"
+	_, err := QuantityScaleForSymbol(m, &symbol)
+	if err == nil {
+		t.Fatal("expected error for unhydrated catalog")
+	}
+	if !strings.Contains(err.Error(), "unavailable") {
+		t.Fatalf("want unavailable error, got %v", err)
+	}
+	m.HydrateSpotConfig(map[string]any{
+		"pairs": []any{
+			map[string]any{
+				"symbol":              "ETH-USDT",
+				"symbol_id":           float64(2),
+				"base_quantity_scale": float64(6),
+			},
+		},
+	})
+	scale, err := QuantityScaleForSymbol(m, &symbol)
+	if err != nil || scale != 6 {
+		t.Fatalf("expected scale 6, got scale=%d err=%v", scale, err)
 	}
 }
 

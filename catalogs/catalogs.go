@@ -90,27 +90,34 @@ func (m *Manager) SymbolIDForSymbol(symbol string) *uint32 {
 }
 
 // BaseQuantityScaleForSymbol returns qty scale for symbol.
-func (m *Manager) BaseQuantityScaleForSymbol(symbol string) int {
+//
+// ok is false when the symbol is unknown or catalogs are unhydrated.
+// Callers that need a decode-only fallback must choose it explicitly (never
+// invent scale 8 here — that caused POLY-3549 false INSUFFICIENT_FUNDS).
+func (m *Manager) BaseQuantityScaleForSymbol(symbol string) (scale int, ok bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	for _, pair := range m.pairsLocked() {
 		if s, _ := pair["symbol"].(string); s == symbol {
 			if v := intValue(pair["base_quantity_scale"]); v > 0 {
-				return v
+				return v, true
 			}
 			if v := intValue(pair["baseQuantityScale"]); v > 0 {
-				return v
+				return v, true
 			}
 			if v := intValue(pair["qtyScale"]); v > 0 {
-				return v
+				return v, true
 			}
+			return 0, false
 		}
 	}
-	return 8
+	return 0, false
 }
 
 // BaseQuantityScaleForSymbolID returns qty scale for symbol id.
-func (m *Manager) BaseQuantityScaleForSymbolID(symbolID uint32) int {
+//
+// ok is false when the id is unknown or catalogs are unhydrated.
+func (m *Manager) BaseQuantityScaleForSymbolID(symbolID uint32) (scale int, ok bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	for _, pair := range m.pairsLocked() {
@@ -124,21 +131,22 @@ func (m *Manager) BaseQuantityScaleForSymbolID(symbolID uint32) int {
 				for _, p := range m.pairsLocked() {
 					if s, _ := p["symbol"].(string); s == sym {
 						if scale := intValue(p["base_quantity_scale"]); scale > 0 {
-							return scale
+							return scale, true
 						}
 						if scale := intValue(p["baseQuantityScale"]); scale > 0 {
-							return scale
+							return scale, true
 						}
 						if scale := intValue(p["qtyScale"]); scale > 0 {
-							return scale
+							return scale, true
 						}
+						return 0, false
 					}
 				}
 			}
 			break
 		}
 	}
-	return 8
+	return 0, false
 }
 
 // OrderbookPriceBucketsForSymbol returns configured price buckets.
