@@ -1656,6 +1656,7 @@ type SubaccountInvite struct {
 	RespondedAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=responded_at,json=respondedAt,proto3" json:"responded_at,omitempty"`
 	// Optional usernames for better UX in invite lists.
 	GranteeUsername string `protobuf:"bytes,9,opt,name=grantee_username,json=granteeUsername,proto3" json:"grantee_username,omitempty"`
+	// Username of the account that sent the invitation, when available.
 	InviterUsername string `protobuf:"bytes,10,opt,name=inviter_username,json=inviterUsername,proto3" json:"inviter_username,omitempty"`
 	// Optional label for the target sub-account, for display in invite lists.
 	SubaccountLabel string `protobuf:"bytes,11,opt,name=subaccount_label,json=subaccountLabel,proto3" json:"subaccount_label,omitempty"`

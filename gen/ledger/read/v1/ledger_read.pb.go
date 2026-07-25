@@ -441,8 +441,11 @@ func (x *AssetBalance) GetFundingRevision() uint64 {
 }
 
 type GetBalancesResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Balances      []*AssetBalance        `protobuf:"bytes,1,rep,name=balances,proto3" json:"balances,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// One entry for every supported unified asset, including assets with zero
+	// balances. Sorted by available trading amount (highest first), then by
+	// asset symbol alphabetically.
+	Balances      []*AssetBalance `protobuf:"bytes,1,rep,name=balances,proto3" json:"balances,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -625,14 +628,21 @@ func (x *BalanceSeries) GetBalanceQ() []uint64 {
 	return nil
 }
 
+// GetBalanceHistoryResponse returns aligned balance chart series.
 type GetBalanceHistoryResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Range         BalanceRange           `protobuf:"varint,1,opt,name=range,proto3,enum=ledger.read.v1.BalanceRange" json:"range,omitempty"`
-	Bucket        string                 `protobuf:"bytes,2,opt,name=bucket,proto3" json:"bucket,omitempty"`
-	StartTsSec    uint32                 `protobuf:"fixed32,3,opt,name=start_ts_sec,json=startTsSec,proto3" json:"start_ts_sec,omitempty"`
-	EndTsSec      uint32                 `protobuf:"fixed32,4,opt,name=end_ts_sec,json=endTsSec,proto3" json:"end_ts_sec,omitempty"`
-	Points        uint32                 `protobuf:"varint,5,opt,name=points,proto3" json:"points,omitempty"`
-	Series        []*BalanceSeries       `protobuf:"bytes,6,rep,name=series,proto3" json:"series,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Resolved history window.
+	Range BalanceRange `protobuf:"varint,1,opt,name=range,proto3,enum=ledger.read.v1.BalanceRange" json:"range,omitempty"`
+	// Sampling interval between points, such as "5m" or "1h".
+	Bucket string `protobuf:"bytes,2,opt,name=bucket,proto3" json:"bucket,omitempty"`
+	// First point timestamp in seconds since epoch (UTC).
+	StartTsSec uint32 `protobuf:"fixed32,3,opt,name=start_ts_sec,json=startTsSec,proto3" json:"start_ts_sec,omitempty"`
+	// Last point timestamp in seconds since epoch (UTC).
+	EndTsSec uint32 `protobuf:"fixed32,4,opt,name=end_ts_sec,json=endTsSec,proto3" json:"end_ts_sec,omitempty"`
+	// Number of aligned points in each returned series.
+	Points uint32 `protobuf:"varint,5,opt,name=points,proto3" json:"points,omitempty"`
+	// Balance series ordered by asset ID, then account bucket.
+	Series        []*BalanceSeries `protobuf:"bytes,6,rep,name=series,proto3" json:"series,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -988,16 +998,23 @@ func (*EquitySeries_Account) isEquitySeries_Grouping() {}
 
 func (*EquitySeries_Asset) isEquitySeries_Grouping() {}
 
+// GetEquityHistorySeriesResponse returns aligned equity chart series.
 type GetEquityHistorySeriesResponse struct {
-	state      protoimpl.MessageState `protogen:"open.v1"`
-	Range      BalanceRange           `protobuf:"varint,1,opt,name=range,proto3,enum=ledger.read.v1.BalanceRange" json:"range,omitempty"`
-	Bucket     string                 `protobuf:"bytes,2,opt,name=bucket,proto3" json:"bucket,omitempty"`
-	StartTsSec uint32                 `protobuf:"fixed32,3,opt,name=start_ts_sec,json=startTsSec,proto3" json:"start_ts_sec,omitempty"`
-	EndTsSec   uint32                 `protobuf:"fixed32,4,opt,name=end_ts_sec,json=endTsSec,proto3" json:"end_ts_sec,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Resolved history window.
+	Range BalanceRange `protobuf:"varint,1,opt,name=range,proto3,enum=ledger.read.v1.BalanceRange" json:"range,omitempty"`
+	// Sampling interval between points, such as "5m" or "1h".
+	Bucket string `protobuf:"bytes,2,opt,name=bucket,proto3" json:"bucket,omitempty"`
+	// First point timestamp in seconds since epoch (UTC).
+	StartTsSec uint32 `protobuf:"fixed32,3,opt,name=start_ts_sec,json=startTsSec,proto3" json:"start_ts_sec,omitempty"`
+	// Last point timestamp in seconds since epoch (UTC).
+	EndTsSec uint32 `protobuf:"fixed32,4,opt,name=end_ts_sec,json=endTsSec,proto3" json:"end_ts_sec,omitempty"`
 	// Human-readable quote asset symbol (always "USDT").
-	QuoteAsset string          `protobuf:"bytes,6,opt,name=quote_asset,json=quoteAsset,proto3" json:"quote_asset,omitempty"`
-	Points     uint32          `protobuf:"varint,7,opt,name=points,proto3" json:"points,omitempty"`
-	Series     []*EquitySeries `protobuf:"bytes,8,rep,name=series,proto3" json:"series,omitempty"`
+	QuoteAsset string `protobuf:"bytes,6,opt,name=quote_asset,json=quoteAsset,proto3" json:"quote_asset,omitempty"`
+	// Number of aligned points in each returned series.
+	Points uint32 `protobuf:"varint,7,opt,name=points,proto3" json:"points,omitempty"`
+	// Equity series ordered by grouping identifier ascending.
+	Series []*EquitySeries `protobuf:"bytes,8,rep,name=series,proto3" json:"series,omitempty"`
 	// BTC-USDT close price at each timestamp, scaled by 1e6 (same as price_ticks).
 	// Enables client-side conversion to BTC denomination without refetch.
 	BtcPricesQ    []int64 `protobuf:"varint,10,rep,packed,name=btc_prices_q,json=btcPricesQ,proto3" json:"btc_prices_q,omitempty"`
@@ -1550,7 +1567,8 @@ type HoldRow struct {
 	// Reserved amount at fixed 18-decimal ledger scale.
 	AmountReservedE18 *v1.U128 `protobuf:"bytes,2,opt,name=amount_reserved_e18,json=amountReservedE18,proto3" json:"amount_reserved_e18,omitempty"`
 	// Public unified asset id.
-	AssetId       uint32 `protobuf:"varint,3,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	AssetId uint32 `protobuf:"varint,3,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	// Expiration time in nanoseconds since epoch (UTC).
 	ExpiresAtNs   uint64 `protobuf:"varint,4,opt,name=expires_at_ns,json=expiresAtNs,proto3" json:"expires_at_ns,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1616,7 +1634,8 @@ func (x *HoldRow) GetExpiresAtNs() uint64 {
 
 type ListHoldsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	Holds []*HoldRow             `protobuf:"bytes,1,rep,name=holds,proto3" json:"holds,omitempty"`
+	// Hold rows in the sort direction requested by the caller.
+	Holds []*HoldRow `protobuf:"bytes,1,rep,name=holds,proto3" json:"holds,omitempty"`
 	// Opaque cursor for the next page. Empty when no more results exist.
 	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields

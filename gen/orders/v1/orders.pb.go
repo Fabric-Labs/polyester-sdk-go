@@ -2878,8 +2878,9 @@ type BatchCreateOrdersResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Per-item results in same order as request.
 	Results []*BatchCreateResultItem `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
-	// Aggregate counts.
+	// Number of requested orders that were accepted.
 	AcceptedCount uint32 `protobuf:"varint,2,opt,name=accepted_count,json=acceptedCount,proto3" json:"accepted_count,omitempty"`
+	// Number of requested orders that were rejected.
 	RejectedCount uint32 `protobuf:"varint,3,opt,name=rejected_count,json=rejectedCount,proto3" json:"rejected_count,omitempty"`
 	// Server timestamp.
 	Ts *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=ts,proto3" json:"ts,omitempty"`
@@ -3118,9 +3119,11 @@ type ModifyOrderResponse struct {
 	FinalOrderId uint64 `protobuf:"fixed64,3,opt,name=final_order_id,json=finalOrderId,proto3" json:"final_order_id,omitempty"`
 	// Error code if rejected.
 	Code string `protobuf:"bytes,4,opt,name=code,proto3" json:"code,omitempty"`
-	// Trigger IDs for updated attached risk controls (when applicable).
-	TakeProfitTriggerId   *uint64 `protobuf:"varint,5,opt,name=take_profit_trigger_id,json=takeProfitTriggerId,proto3,oneof" json:"take_profit_trigger_id,omitempty"`
-	StopLossTriggerId     *uint64 `protobuf:"varint,6,opt,name=stop_loss_trigger_id,json=stopLossTriggerId,proto3,oneof" json:"stop_loss_trigger_id,omitempty"`
+	// Trigger ID for attached take-profit after modification, when configured.
+	TakeProfitTriggerId *uint64 `protobuf:"varint,5,opt,name=take_profit_trigger_id,json=takeProfitTriggerId,proto3,oneof" json:"take_profit_trigger_id,omitempty"`
+	// Trigger ID for attached stop-loss after modification, when configured.
+	StopLossTriggerId *uint64 `protobuf:"varint,6,opt,name=stop_loss_trigger_id,json=stopLossTriggerId,proto3,oneof" json:"stop_loss_trigger_id,omitempty"`
+	// Trigger ID for attached trailing stop after modification, when configured.
 	TrailingStopTriggerId *uint64 `protobuf:"varint,7,opt,name=trailing_stop_trigger_id,json=trailingStopTriggerId,proto3,oneof" json:"trailing_stop_trigger_id,omitempty"`
 	// Server timestamp.
 	Ts *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=ts,proto3" json:"ts,omitempty"`
@@ -3853,8 +3856,9 @@ type BatchCancelOrdersResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Per-item results in same order as request.
 	Results []*BatchCancelResultItem `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
-	// Aggregate counts.
+	// Number of requested cancellations that were accepted.
 	AcceptedCount uint32 `protobuf:"varint,2,opt,name=accepted_count,json=acceptedCount,proto3" json:"accepted_count,omitempty"`
+	// Number of requested cancellations that were rejected.
 	RejectedCount uint32 `protobuf:"varint,3,opt,name=rejected_count,json=rejectedCount,proto3" json:"rejected_count,omitempty"`
 	// Server timestamp.
 	Ts *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=ts,proto3" json:"ts,omitempty"`

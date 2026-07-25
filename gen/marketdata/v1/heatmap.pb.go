@@ -207,8 +207,10 @@ func (HeatmapQuantityMode) EnumDescriptor() ([]byte, []int) {
 // HeatmapTimeRange selects historical buckets by [start_time, end_time] (UTC).
 // At least one bound is required.
 type HeatmapTimeRange struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	StartTime     *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Inclusive lower bound in UTC. Omit to leave the lower bound open.
+	StartTime *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	// Inclusive upper bound in UTC. Omit to leave the upper bound open.
 	EndTime       *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -492,10 +494,13 @@ type HeatmapKeyframe struct {
 	// Best ask price in quote units scaled by 1e6.
 	BestAskTicks int64 `protobuf:"varint,3,opt,name=best_ask_ticks,json=bestAskTicks,proto3" json:"best_ask_ticks,omitempty"`
 	// Mid price in quote units scaled by 1e6.
-	MidTicks      int64          `protobuf:"varint,4,opt,name=mid_ticks,json=midTicks,proto3" json:"mid_ticks,omitempty"`
-	Bids          *HeatmapLevels `protobuf:"bytes,5,opt,name=bids,proto3" json:"bids,omitempty"`
-	Asks          *HeatmapLevels `protobuf:"bytes,6,opt,name=asks,proto3" json:"asks,omitempty"`
-	BookSeq       uint64         `protobuf:"varint,7,opt,name=book_seq,json=bookSeq,proto3" json:"book_seq,omitempty"`
+	MidTicks int64 `protobuf:"varint,4,opt,name=mid_ticks,json=midTicks,proto3" json:"mid_ticks,omitempty"`
+	// Complete bid-side levels at the snapshot.
+	Bids *HeatmapLevels `protobuf:"bytes,5,opt,name=bids,proto3" json:"bids,omitempty"`
+	// Complete ask-side levels at the snapshot.
+	Asks *HeatmapLevels `protobuf:"bytes,6,opt,name=asks,proto3" json:"asks,omitempty"`
+	// Monotonic order book sequence at the snapshot.
+	BookSeq       uint64 `protobuf:"varint,7,opt,name=book_seq,json=bookSeq,proto3" json:"book_seq,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -583,15 +588,19 @@ func (x *HeatmapKeyframe) GetBookSeq() uint64 {
 type HeatmapDeltaBucket struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Bucket start timestamp (seconds since epoch, UTC), aligned to `interval`.
-	TsSec uint64              `protobuf:"varint,1,opt,name=ts_sec,json=tsSec,proto3" json:"ts_sec,omitempty"`
-	Bids  *HeatmapDeltaLevels `protobuf:"bytes,2,opt,name=bids,proto3" json:"bids,omitempty"`
-	Asks  *HeatmapDeltaLevels `protobuf:"bytes,3,opt,name=asks,proto3" json:"asks,omitempty"`
+	TsSec uint64 `protobuf:"varint,1,opt,name=ts_sec,json=tsSec,proto3" json:"ts_sec,omitempty"`
+	// Sparse bid-side level changes in this bucket.
+	Bids *HeatmapDeltaLevels `protobuf:"bytes,2,opt,name=bids,proto3" json:"bids,omitempty"`
+	// Sparse ask-side level changes in this bucket.
+	Asks *HeatmapDeltaLevels `protobuf:"bytes,3,opt,name=asks,proto3" json:"asks,omitempty"`
 	// Number of upstream L2 updates aggregated into this interval bucket.
 	UpdatesInBucket uint32 `protobuf:"varint,4,opt,name=updates_in_bucket,json=updatesInBucket,proto3" json:"updates_in_bucket,omitempty"`
-	BookSeqStart    uint64 `protobuf:"varint,5,opt,name=book_seq_start,json=bookSeqStart,proto3" json:"book_seq_start,omitempty"`
-	BookSeqEnd      uint64 `protobuf:"varint,6,opt,name=book_seq_end,json=bookSeqEnd,proto3" json:"book_seq_end,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Earliest monotonic order book sequence represented by this bucket.
+	BookSeqStart uint64 `protobuf:"varint,5,opt,name=book_seq_start,json=bookSeqStart,proto3" json:"book_seq_start,omitempty"`
+	// Latest monotonic order book sequence represented by this bucket.
+	BookSeqEnd    uint64 `protobuf:"varint,6,opt,name=book_seq_end,json=bookSeqEnd,proto3" json:"book_seq_end,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *HeatmapDeltaBucket) Reset() {
@@ -809,9 +818,11 @@ func (x *HeatmapLiveBucket) GetEffectiveBinTicks() uint64 {
 // Reconstruct by applying deltas over base_keyframe.
 // Deltas are ordered oldest-first by ts_sec.
 type HeatmapDeltaChain struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	BaseKeyframe  *HeatmapKeyframe       `protobuf:"bytes,1,opt,name=base_keyframe,json=baseKeyframe,proto3" json:"base_keyframe,omitempty"`
-	Deltas        []*HeatmapDeltaBucket  `protobuf:"bytes,2,rep,name=deltas,proto3" json:"deltas,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Full-book snapshot from which to apply the returned deltas.
+	BaseKeyframe *HeatmapKeyframe `protobuf:"bytes,1,opt,name=base_keyframe,json=baseKeyframe,proto3" json:"base_keyframe,omitempty"`
+	// Sparse update buckets ordered oldest-first by timestamp.
+	Deltas        []*HeatmapDeltaBucket `protobuf:"bytes,2,rep,name=deltas,proto3" json:"deltas,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
