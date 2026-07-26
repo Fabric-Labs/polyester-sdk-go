@@ -50,6 +50,15 @@ func TestFetchRTTokenMaps403ToAuthError(t *testing.T) {
 	if !strings.Contains(authErr.Body, "permission_denied") {
 		t.Fatalf("body=%q", authErr.Body)
 	}
+	if authErr.Code != "permission_denied" {
+		t.Fatalf("code=%q", authErr.Code)
+	}
+	if authErr.Context != "realtime connection token" {
+		t.Fatalf("context=%q", authErr.Context)
+	}
+	if authErr.Endpoint != srv.URL+"/v1/rt/token" {
+		t.Fatalf("endpoint=%q", authErr.Endpoint)
+	}
 	var rtErr *sdkerrors.RealtimeError
 	if errors.As(err, &rtErr) {
 		t.Fatalf("must not be RealtimeError: %v", err)
@@ -76,5 +85,8 @@ func TestFetchRTTokenMaps401ToAuthError(t *testing.T) {
 	}
 	if authErr.Status != http.StatusUnauthorized {
 		t.Fatalf("status=%d", authErr.Status)
+	}
+	if authErr.Code != "unauthenticated" {
+		t.Fatalf("code=%q", authErr.Code)
 	}
 }

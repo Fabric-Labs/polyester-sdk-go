@@ -2,7 +2,10 @@ package realtime
 
 import (
 	"context"
+	"errors"
 	"testing"
+
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 )
 
 func TestRefreshSnapshotFiresOnSnapshotRefresh(t *testing.T) {
@@ -29,6 +32,24 @@ func TestRefreshSnapshotFiresOnSnapshotRefresh(t *testing.T) {
 	if !sts.IsReady() {
 		t.Fatal("expected ready after RefreshSnapshot")
 	}
+}
+
+func TestSnapshotRecoveryBufferOverflowFailsClosed(t *testing.T) {
+	sts := NewSnapshotThenStream[string, int](SnapshotThenStreamConfig[string, int]{
+		Decode:                func([]byte) (int, error) { return 0, nil },
+		FetchSnapshot:         func(context.Context) (string, error) { return "snap", nil },
+		ReadPublication:       func(p int) []int { return []int{p} },
+		ApplySnapshot:         func(string, []int) {},
+		ApplyLivePublications: func([]int) {},
+		MaxBuffered:           1,
+	})
+	sts.handlePublication(1)
+	sts.handlePublication(2)
+	var overflow *sdkerrors.QueueOverflowError
+	if !errors.As(sts.Err(), &overflow) {
+		t.Fatalf("want QueueOverflowError, got %T: %v", sts.Err(), sts.Err())
+	}
+	sts.Close() // Must also be safe before Start.
 }
 
 func TestRefreshSnapshotSkippedWhenDisposed(t *testing.T) {

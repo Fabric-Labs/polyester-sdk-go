@@ -7,8 +7,7 @@ import (
 )
 
 func TestPickSmokeSymbolPrefersCandidates(t *testing.T) {
-	t.Setenv("POLYESTER_TEST_SMOKE_SYMBOL", "")
-	t.Setenv("POLYESTER_SMOKE_SYMBOL", "")
+	t.Setenv("POLYESTER_TEST_TRADE_SYMBOL", "")
 	spot := map[string]any{
 		"pairs": []any{
 			map[string]any{"symbol": "SOL-USDT"},
@@ -21,8 +20,7 @@ func TestPickSmokeSymbolPrefersCandidates(t *testing.T) {
 }
 
 func TestPickSmokeSymbolFallsBackToFirstPair(t *testing.T) {
-	t.Setenv("POLYESTER_TEST_SMOKE_SYMBOL", "")
-	t.Setenv("POLYESTER_SMOKE_SYMBOL", "")
+	t.Setenv("POLYESTER_TEST_TRADE_SYMBOL", "")
 	spot := map[string]any{
 		"pairs": []any{map[string]any{"symbol": "FOO-BAR"}},
 	}
@@ -32,8 +30,7 @@ func TestPickSmokeSymbolFallsBackToFirstPair(t *testing.T) {
 }
 
 func TestPickSmokeSymbolDefaultWhenEmpty(t *testing.T) {
-	t.Setenv("POLYESTER_TEST_SMOKE_SYMBOL", "")
-	t.Setenv("POLYESTER_SMOKE_SYMBOL", "")
+	t.Setenv("POLYESTER_TEST_TRADE_SYMBOL", "")
 	if got := testutil.PickSmokeSymbol(nil); got != "ETH-USDT" {
 		t.Fatalf("got %q want ETH-USDT", got)
 	}

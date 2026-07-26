@@ -73,7 +73,7 @@ func IsPermissionDenied(err error) bool {
 
 	var auth *sdkerrors.AuthError
 	if errors.As(err, &auth) {
-		return permissionish
+		return permissionish || strings.EqualFold(auth.Code, "permission_denied")
 	}
 	var api *sdkerrors.APIError
 	if errors.As(err, &api) {

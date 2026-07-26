@@ -50,15 +50,39 @@ func truncateAuthBody(body []byte) string {
 
 func authHTTPError(status int, label string, body []byte) error {
 	truncated := truncateAuthBody(body)
-	msg := fmt.Sprintf("%s: HTTP %d", label, status)
-	if truncated != "" {
-		msg += ": " + truncated
+	code := ""
+	serverMessage := ""
+	var payload map[string]any
+	if json.Unmarshal(body, &payload) == nil {
+		if value, ok := payload["code"].(string); ok {
+			code = strings.TrimSpace(value)
+		}
+		if value, ok := payload["message"].(string); ok {
+			serverMessage = strings.TrimSpace(value)
+		}
+	}
+	if code == "" {
+		if status == http.StatusForbidden {
+			code = "permission_denied"
+		} else {
+			code = "unauthenticated"
+		}
+	}
+	detail := serverMessage
+	if detail == "" {
+		detail = truncated
+	}
+	msg := fmt.Sprintf("%s: HTTP %d, code %s", label, status, code)
+	if detail != "" {
+		msg += ": " + detail
 	}
 	return &sdkerrors.AuthError{
-		Msg:    msg,
-		Status: status,
-		Label:  label,
-		Body:   truncated,
+		Msg:     msg,
+		Status:  status,
+		Label:   label,
+		Body:    truncated,
+		Code:    code,
+		Context: label,
 	}
 }
 
@@ -88,7 +112,10 @@ func fetchRTToken(ctx context.Context, httpClient *http.Client, creds *auth.Cred
 	}
 	switch resp.StatusCode {
 	case http.StatusUnauthorized, http.StatusForbidden:
-		return "", authHTTPError(resp.StatusCode, label, body)
+		authErr := authHTTPError(resp.StatusCode, label, body).(*sdkerrors.AuthError)
+		authErr.Endpoint = rawURL
+		authErr.Msg += " [" + rawURL + "]"
+		return "", authErr
 	}
 	if resp.StatusCode >= 400 {
 		return "", &sdkerrors.RealtimeError{Msg: fmt.Sprintf("%s: HTTP %d", label, resp.StatusCode)}

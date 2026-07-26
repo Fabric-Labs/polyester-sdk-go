@@ -53,10 +53,13 @@ func IsMFALastFactorRequired(err error) bool {
 
 // AuthError indicates missing or invalid credentials / permissions.
 type AuthError struct {
-	Msg    string
-	Status int    // HTTP status when sourced from an HTTP exchange (e.g. 401/403)
-	Label  string // endpoint/procedure label
-	Body   string // truncated server body
+	Msg      string
+	Status   int    // HTTP status when sourced from an HTTP exchange (e.g. 401/403)
+	Label    string // backward-compatible endpoint/procedure label
+	Body     string // truncated server body
+	Code     string // stable server code, when supplied
+	Context  string // channel/procedure context
+	Endpoint string // exact HTTP endpoint used
 }
 
 func (e *AuthError) Error() string {

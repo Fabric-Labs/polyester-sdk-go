@@ -53,12 +53,18 @@ func command(id uint32, field uint32, request []byte) []byte {
 }
 
 func decodeReplies(frame []byte) ([]incomingMessage, error) {
+	if int64(len(frame)) > MaxRealtimeMessageBytes {
+		return nil, fmt.Errorf("centrifugo protobuf message exceeds %d bytes", MaxRealtimeMessageBytes)
+	}
 	cursor := protoCursor{data: frame}
 	var incoming []incomingMessage
 	for cursor.remaining() > 0 {
 		length, err := cursor.varint()
 		if err != nil {
 			return nil, err
+		}
+		if length > uint64(MaxRealtimeMessageBytes) {
+			return nil, fmt.Errorf("centrifugo protobuf record exceeds %d bytes", MaxRealtimeMessageBytes)
 		}
 		reply, err := cursor.take(int(length))
 		if err != nil {
@@ -283,6 +289,9 @@ func (c *protoCursor) lengthDelimited() ([]byte, error) {
 	length, err := c.varint()
 	if err != nil {
 		return nil, err
+	}
+	if length > uint64(MaxRealtimeMessageBytes) {
+		return nil, fmt.Errorf("centrifugo protobuf field exceeds %d bytes", MaxRealtimeMessageBytes)
 	}
 	if length > uint64(c.remaining()) {
 		return nil, fmt.Errorf("truncated centrifugo protobuf")

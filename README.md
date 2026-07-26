@@ -5,7 +5,7 @@ and automation. Parity with `polyester-sdk-python` and `polyester-sdk-rust`
 using the checked-in `gen/` protobuf bundle (no local proto generation for
 normal development).
 
-**Status:** Alpha (`v0.1.0a18`). Proprietary license (not open source).
+**Status:** Alpha (`v0.1.0a19`). Proprietary license (not open source).
 API-key only — no browser login or session MFA.
 
 Requires a recent Go toolchain (see `go.mod`).
@@ -67,7 +67,7 @@ normal trading and ledger streams.
 ```bash
 GOPRIVATE='github.com/Fabric-Labs/*' \
 GONOSUMDB='github.com/Fabric-Labs/*' \
-go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a18
+go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a19
 ```
 
 The repository is currently private. GitHub access and authenticated Git credentials are
@@ -386,7 +386,8 @@ for markets := range mo.Updates() {
 Realtime is binary-only. The client negotiates the `centrifuge-protobuf`
 WebSocket subprotocol, sends binary length-delimited Centrifugo commands, and
 decodes protobuf publication payloads from `:proto` channels. ConnectRPC's
-optional JSON wire mode does not apply to realtime.
+optional JSON wire mode does not apply to realtime. Incoming WebSocket messages
+and protobuf record/field lengths are capped at 8 MiB.
 
 Raw Centrifugo subscriptions return a typed channel:
 
@@ -419,6 +420,10 @@ defer subPolicies.Close()
 ```
 
 Managed snapshot-then-stream helpers:
+
+Snapshot retries retain buffered publications until a successful refresh merges
+them exactly once. Recovery-buffer overflow fails closed, and `Close` cancels
+in-flight refresh work and the replacement socket.
 
 ```go
 import "github.com/Fabric-Labs/polyester-sdk-go/services"

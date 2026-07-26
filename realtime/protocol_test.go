@@ -46,3 +46,10 @@ func TestDecodeRepliesRejectsTruncatedFrame(t *testing.T) {
 		t.Fatal("expected truncated frame error")
 	}
 }
+
+func TestDecodeRepliesRejectsDeclaredRecordAboveLimitWithoutAllocation(t *testing.T) {
+	frame := appendVarint(nil, uint64(MaxRealtimeMessageBytes)+1)
+	if _, err := decodeReplies(frame); err == nil {
+		t.Fatal("expected oversized record error")
+	}
+}
