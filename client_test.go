@@ -3,6 +3,7 @@ package polyester
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -35,6 +36,16 @@ func TestConfigStringRedactsPrivateKey(t *testing.T) {
 	}
 	if strings.Contains(rendered, "super-secret-private-key") {
 		t.Fatalf("private key leaked: %s", rendered)
+	}
+	goRendered := cfg.GoString()
+	if !strings.Contains(goRendered, "[REDACTED]") {
+		t.Fatalf("GoString expected redaction, got %s", goRendered)
+	}
+	if strings.Contains(goRendered, "super-secret-private-key") {
+		t.Fatalf("private key leaked via GoString: %s", goRendered)
+	}
+	if strings.Contains(fmt.Sprintf("%#v", cfg), "super-secret-private-key") {
+		t.Fatalf("private key leaked via %%#v: %#v", cfg)
 	}
 }
 

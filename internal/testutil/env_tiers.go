@@ -63,18 +63,35 @@ func EnvTradeSymbol() string {
 	return strings.TrimSpace(os.Getenv("POLYESTER_TEST_TRADE_SYMBOL"))
 }
 
-// PickTradeSymbol chooses the trade symbol for mutation/funded tests.
+// PickTradeSymbol chooses the trade symbol for mutation/funded/realtime tests.
+// Canonical env: POLYESTER_TEST_TRADE_SYMBOL. Smoke-symbol env vars are not consulted.
 func PickTradeSymbol(spotRaw map[string]any) string {
 	if override := EnvTradeSymbol(); override != "" {
 		return override
 	}
-	return PickSmokeSymbol(spotRaw)
+	// Default candidate list (not smoke-env): prefer liquid majors from spot config.
+	symbols := spotSymbols(spotRaw)
+	available := make(map[string]struct{}, len(symbols))
+	for _, sym := range symbols {
+		available[sym] = struct{}{}
+	}
+	for _, candidate := range []string{"ETH-USDT", "BTC-USDT", "SOL-USDT", "BNB-USDT"} {
+		if _, ok := available[candidate]; ok {
+			return candidate
+		}
+	}
+	if len(symbols) > 0 {
+		return symbols[0]
+	}
+	return "ETH-USDT"
 }
 
-// TradeSymbol resolves the trade symbol from a live client.
+// TradeSymbol resolves the trade symbol from a live client and logs it.
 func TradeSymbol(t *testing.T, client *polyester.Client, ctx context.Context) string {
 	t.Helper()
-	return PickTradeSymbol(spotRawFromClient(t, client, ctx))
+	symbol := PickTradeSymbol(spotRawFromClient(t, client, ctx))
+	t.Logf("trade_symbol=%s", symbol)
+	return symbol
 }
 
 // HydrateSpotRaw fetches spot config and hydrates catalogs.
@@ -84,7 +101,9 @@ func HydrateSpotRaw(ctx context.Context, client *polyester.Client) (map[string]a
 		return nil, err
 	}
 	if client.Catalogs != nil {
-		client.Catalogs.HydrateSpotConfig(cfg.Raw)
+		if err := client.Catalogs.HydrateSpotConfig(cfg.Raw); err != nil {
+			return nil, err
+		}
 	}
 	return cfg.Raw, nil
 }

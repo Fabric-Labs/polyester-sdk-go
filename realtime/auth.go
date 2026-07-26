@@ -14,7 +14,10 @@ import (
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 )
 
-const maxTokenResponseBytes = 64 * 1024
+const (
+	maxTokenResponseBytes = 64 * 1024
+	maxAuthErrorBodyBytes = 512
+)
 
 func connectionTokenURL(apiURL string) string {
 	return strings.TrimRight(apiURL, "/") + "/v1/rt/token"
@@ -35,6 +38,28 @@ func contentLengthExceedsLimit(header http.Header, maxBytes int) bool {
 		return false
 	}
 	return n > maxBytes
+}
+
+func truncateAuthBody(body []byte) string {
+	text := strings.TrimSpace(string(body))
+	if len(text) <= maxAuthErrorBodyBytes {
+		return text
+	}
+	return text[:maxAuthErrorBodyBytes] + "…"
+}
+
+func authHTTPError(status int, label string, body []byte) error {
+	truncated := truncateAuthBody(body)
+	msg := fmt.Sprintf("%s: HTTP %d", label, status)
+	if truncated != "" {
+		msg += ": " + truncated
+	}
+	return &sdkerrors.AuthError{
+		Msg:    msg,
+		Status: status,
+		Label:  label,
+		Body:   truncated,
+	}
 }
 
 func fetchRTToken(ctx context.Context, httpClient *http.Client, creds *auth.Credentials, rawURL, label string) (string, error) {
@@ -61,8 +86,9 @@ func fetchRTToken(ctx context.Context, httpClient *http.Client, creds *auth.Cred
 	if len(body) > maxTokenResponseBytes {
 		return "", &sdkerrors.RealtimeError{Msg: fmt.Sprintf("%s: response exceeds %d bytes", label, maxTokenResponseBytes)}
 	}
-	if resp.StatusCode == http.StatusUnauthorized {
-		return "", &sdkerrors.AuthError{Msg: label + ": authentication failed"}
+	switch resp.StatusCode {
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return "", authHTTPError(resp.StatusCode, label, body)
 	}
 	if resp.StatusCode >= 400 {
 		return "", &sdkerrors.RealtimeError{Msg: fmt.Sprintf("%s: HTTP %d", label, resp.StatusCode)}

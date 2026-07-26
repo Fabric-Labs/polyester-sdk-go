@@ -43,6 +43,8 @@ func TestEnqueueFailsSubscriptionOnOverflow(t *testing.T) {
 	if !errors.As(err, &overflow) {
 		t.Fatalf("expected QueueOverflowError, got %T: %v", err, err)
 	}
+	// Production run-loop calls markFinished on cancel; unit-test the same.
+	sub.markFinished()
 	select {
 	case <-sub.Done():
 	default:

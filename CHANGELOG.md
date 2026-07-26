@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+## 0.1.0a18
+
+### Breaking
+- `WaitForCatalogs` returns an error when construction-time catalog hydration fails or catalogs are unusable (was Ok-after-fail). Use `CatalogsLastError()` to inspect. Order/trigger writes that auto-wait also surface that error (POLY-3746).
+- `codecs.FormatQtyScaled` / `codecs.FormatLedgerU128` now return `(string, error)` and reject scales above `MaxProtocolScale` (36) instead of allocating pathological pads (POLY-3746).
+- `catalogs.Manager.HydrateSpotConfig` / `HydrateZipperConfig` / `HydrateDepositWithdrawConfig` return `error` and reject oversized u64→u32 IDs/scales and scales > 36 (no silent truncation) (POLY-3746).
+- Realtime HTTP 403 token responses map to `errors.AuthError` (with status, label, truncated body) instead of opaque `RealtimeError` strings matching `HTTP 403` (POLY-3746).
+
+### Fixed
+- JSON-RPC client keeps `http.Client.Timeout` as the e2e deadline, caps response bodies at 1 MiB, and validates `jsonrpc=="2.0"`, matching `id`, and exactly one of `result`|`error` (POLY-3746).
+- `SnapshotThenStream` surfaces refresh errors via `Err()`, clears on success, and fail-closes after one bounded reconnect retry (POLY-3746).
+- Realtime `Subscription.Close` cancels promptly and waits for run-loop exit; `Client.Close` closes tracked subscriptions (POLY-3746).
+
+### Features
+- `Orders.WaitForOrderTradesComplete` polls until sum of trade quantities equals order `cum_qty` or timeout (POLY-3750 helper / POLY-3746).
+
+### Testing
+- Unit + httptest coverage for scale bounds, catalog reject, JSON-RPC envelope/size/timeout, realtime 403, WaitForCatalogs failure, and snapshot errors.
+- Live harness unifies `POLYESTER_TEST_TRADE_SYMBOL`; market BUY→SELL roundtrip fixture carries filled qty into cleanup sell.
+
 ## 0.1.0a17
 
 ### Breaking

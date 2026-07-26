@@ -130,10 +130,10 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 	}
 
 	stream = realtime.NewSnapshotThenStream(realtime.SnapshotThenStreamConfig[models.OrderbookData, models.OrderBookDeltaUpdate]{
-		Client:  s.realtime,
-		Channel: channel,
-		Decode:  decode.OrderbookDeltaFromBytes,
-		OnReconnect: opts.OnReconnect,
+		Client:            s.realtime,
+		Channel:           channel,
+		Decode:            decode.OrderbookDeltaFromBytes,
+		OnReconnect:       opts.OnReconnect,
 		OnSnapshotRefresh: opts.OnSnapshotRefresh,
 		FetchSnapshot: func(fetchCtx context.Context) (models.OrderbookData, error) {
 			name := codecs.DepthToConnectEnum(wsDepth)

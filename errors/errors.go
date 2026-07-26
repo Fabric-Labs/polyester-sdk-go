@@ -1,6 +1,9 @@
 package errors
 
-import "errors"
+import (
+	"errors"
+	"strconv"
+)
 
 // ErrPolyester is the root sentinel for SDK errors.
 var ErrPolyester = errors.New("polyester")
@@ -48,10 +51,26 @@ func IsMFALastFactorRequired(err error) bool {
 	return AuthErrorCode(err) == AuthCodeMFALastFactorRequired
 }
 
-// AuthError indicates missing or invalid credentials.
-type AuthError struct{ Msg string }
+// AuthError indicates missing or invalid credentials / permissions.
+type AuthError struct {
+	Msg    string
+	Status int    // HTTP status when sourced from an HTTP exchange (e.g. 401/403)
+	Label  string // endpoint/procedure label
+	Body   string // truncated server body
+}
 
-func (e *AuthError) Error() string        { return e.Msg }
+func (e *AuthError) Error() string {
+	if e == nil {
+		return "auth error"
+	}
+	if e.Msg != "" {
+		return e.Msg
+	}
+	if e.Status != 0 && e.Label != "" {
+		return e.Label + ": HTTP " + strconv.Itoa(e.Status)
+	}
+	return "auth error"
+}
 func (e *AuthError) Is(target error) bool { return target == ErrPolyester }
 
 // ValidationError indicates invalid SDK input.

@@ -93,6 +93,8 @@ type Client struct {
 	transport            *transport.Factory
 	closeOnce            sync.Once
 	catalogHydrationDone chan struct{}
+	catalogMu            sync.Mutex
+	catalogLastError     error
 }
 
 // New creates a Polyester client.
@@ -146,9 +148,7 @@ func New(cfg Config) (*Client, error) {
 		Lifecycle:            services.NewLifecycleService(factory, rt),
 		Balances:             services.NewBalancesService(factory, cats, cfg.DefaultSubAccountID, rt, defaultAccountID),
 		Orderbook:            services.NewOrderbookService(factory, cats, rt),
-		Orders:               services.NewOrdersService(factory, cats, cfg.DefaultSubAccountID, rt, defaultAccountID, catalogHydrationDone),
 		Trades:               services.NewTradesService(factory, cats, cfg.DefaultSubAccountID, rt, defaultAccountID),
-		Triggers:             services.NewTriggersService(factory, cats, cfg.DefaultSubAccountID, rt, defaultAccountID, catalogHydrationDone),
 		Transfers:            services.NewTransfersService(factory, cfg.DefaultSubAccountID, rt, defaultAccountID),
 		InternalTransfers:    services.NewInternalTransfersService(factory, cats, cfg.DefaultSubAccountID),
 		Deposit:              services.NewDepositService(factory, cfg.DefaultSubAccountID),
@@ -164,13 +164,15 @@ func New(cfg Config) (*Client, error) {
 		Withdraw:             services.NewWithdrawService(factory, cfg.DefaultSubAccountID),
 		catalogHydrationDone: catalogHydrationDone,
 	}
+	client.Orders = services.NewOrdersService(factory, cats, cfg.DefaultSubAccountID, rt, defaultAccountID, catalogHydrationDone, client.CatalogsLastError)
+	client.Triggers = services.NewTriggersService(factory, cats, cfg.DefaultSubAccountID, rt, defaultAccountID, catalogHydrationDone, client.CatalogsLastError)
 	client.Candles = client.MarketData
 	client.TradingWithdraws = client.Withdraw
 
 	if cfg.HydrateCatalogs {
 		go func() {
 			defer close(client.catalogHydrationDone)
-			client.hydrateCatalogsBestEffort()
+			client.hydrateCatalogs()
 		}()
 	} else {
 		close(client.catalogHydrationDone)
@@ -198,32 +200,62 @@ func FromEnv(overrides ...func(*Config)) (*Client, error) {
 	return New(cfg)
 }
 
-func (c *Client) hydrateCatalogsBestEffort() {
+func (c *Client) hydrateCatalogs() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	if spot, err := c.MarketData.GetSpotConfig(ctx); err == nil {
-		c.Catalogs.HydrateSpotConfig(spot.Raw)
+
+	var firstErr error
+	spot, err := c.MarketData.GetSpotConfig(ctx)
+	if err != nil {
+		firstErr = fmt.Errorf("catalog spot hydrate: %w", err)
+	} else if len(spot.Raw) == 0 {
+		firstErr = fmt.Errorf("catalog spot hydrate: empty config")
+	} else if err := c.Catalogs.HydrateSpotConfig(spot.Raw); err != nil {
+		firstErr = fmt.Errorf("catalog spot hydrate: %w", err)
 	}
-	if zipper, err := c.Zipper.GetDepositWithdrawConfig(ctx); err == nil {
-		c.Catalogs.HydrateZipperConfig(zipper)
+
+	zipper, err := c.Zipper.GetDepositWithdrawConfig(ctx)
+	if err != nil {
+		if firstErr == nil {
+			firstErr = fmt.Errorf("catalog zipper hydrate: %w", err)
+		}
+	} else if err := c.Catalogs.HydrateZipperConfig(zipper); err != nil {
+		if firstErr == nil {
+			firstErr = fmt.Errorf("catalog zipper hydrate: %w", err)
+		}
 	}
+
+	c.catalogMu.Lock()
+	c.catalogLastError = firstErr
+	c.catalogMu.Unlock()
 }
 
-// WaitForCatalogs waits for the client's best-effort background catalog hydration.
-// It returns immediately when HydrateCatalogs is disabled. Hydration failures remain
-// best-effort; callers receive an error only when the context is canceled.
+// CatalogsLastError returns the last construction-time catalog hydration error, if any.
+func (c *Client) CatalogsLastError() error {
+	c.catalogMu.Lock()
+	defer c.catalogMu.Unlock()
+	return c.catalogLastError
+}
+
+// WaitForCatalogs waits for construction-time catalog hydration to finish.
+// It returns immediately when HydrateCatalogs is disabled.
+// When hydration fails or catalogs are unusable, it returns that error
+// (breaking vs prior Ok-after-fail best-effort behavior).
 func (c *Client) WaitForCatalogs(ctx context.Context) error {
 	select {
 	case <-c.catalogHydrationDone:
-		return nil
+		return c.CatalogsLastError()
 	case <-ctx.Done():
 		return ctx.Err()
 	}
 }
 
-// Close releases client resources.
+// Close releases client resources, including tracked realtime subscriptions.
 func (c *Client) Close() error {
 	c.closeOnce.Do(func() {
+		if c.Realtime != nil {
+			c.Realtime.Close()
+		}
 		_ = c.transport.Close()
 	})
 	return nil

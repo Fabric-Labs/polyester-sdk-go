@@ -29,7 +29,10 @@ func main() {
 	defer client.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
-	_ = client.WaitForCatalogs(ctx)
+	if err := client.WaitForCatalogs(ctx); err != nil {
+		fmt.Println("FAIL: WaitForCatalogs:", err)
+		os.Exit(1)
+	}
 
 	limit := 1
 	var wg sync.WaitGroup
@@ -60,10 +63,11 @@ func main() {
 	}
 	fmt.Println("OK: concurrent ListOpen 32/32")
 
-	symbol := os.Getenv("POLYESTER_TEST_SMOKE_SYMBOL")
+	symbol := os.Getenv("POLYESTER_TEST_TRADE_SYMBOL")
 	if symbol == "" {
 		symbol = "BTC-USDT"
 	}
+	fmt.Printf("trade_symbol=%s\n", symbol)
 	sub, err := client.MarketData.SubscribeTrades(ctx, &symbol, nil)
 	if err != nil {
 		fmt.Println("FAIL: SubscribeTrades:", err)

@@ -61,17 +61,41 @@ func DevnetProtoMismatch(err error) bool {
 	return strings.Contains(msg, "internal error") || strings.Contains(msg, "decode") || strings.Contains(msg, "proto")
 }
 
+// IsPermissionDenied reports structured Auth/403 permission failures (F-24).
+func IsPermissionDenied(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	permissionish := strings.Contains(msg, "permission denied") ||
+		strings.Contains(msg, "permission_denied") ||
+		strings.Contains(msg, "http 403")
+
+	var auth *sdkerrors.AuthError
+	if errors.As(err, &auth) {
+		return permissionish
+	}
+	var api *sdkerrors.APIError
+	if errors.As(err, &api) {
+		code := strings.ToLower(strings.TrimSpace(api.Code))
+		return permissionish || strings.Contains(code, "permission_denied")
+	}
+	return false
+}
+
 // JWTSessionOnly reports auth errors that indicate JWT/session-only routes.
 func JWTSessionOnly(err error) bool {
 	if err == nil {
 		return false
 	}
+	// Permission-denied is classified separately (F-24).
+	if IsPermissionDenied(err) {
+		return false
+	}
 	msg := strings.ToLower(err.Error())
 	sessionish := strings.Contains(msg, "authorization header") ||
 		strings.Contains(msg, "bearer") ||
-		strings.Contains(msg, "interactive session") ||
-		strings.Contains(msg, "permission denied") ||
-		strings.Contains(msg, "permission_denied")
+		strings.Contains(msg, "interactive session")
 
 	var auth *sdkerrors.AuthError
 	if errors.As(err, &auth) {
@@ -80,7 +104,7 @@ func JWTSessionOnly(err error) bool {
 	var api *sdkerrors.APIError
 	if errors.As(err, &api) {
 		code := strings.ToLower(strings.TrimSpace(api.Code))
-		return sessionish || code == "unauthenticated" || code == "permission_denied"
+		return sessionish || code == "unauthenticated"
 	}
 	return false
 }
@@ -98,6 +122,9 @@ func CallOptional[T any](t *testing.T, label string, fn func() (T, error), opts 
 	}
 	if RouteUnavailable(err) {
 		SoftSkipf(t, "%s not mounted on devnet: %v", label, err)
+	}
+	if IsPermissionDenied(err) {
+		SoftSkipf(t, "%s missing required API-key permission (declare fixture scopes): %v", label, err)
 	}
 	if o.AllowJWTOnly && JWTSessionOnly(err) {
 		SoftSkipf(t, "%s requires JWT/session auth (API key not accepted on devnet): %v", label, err)

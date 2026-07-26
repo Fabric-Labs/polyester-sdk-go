@@ -11,7 +11,7 @@ func TestEmptyCatalogDoesNotDefaultETHUSDTToScale8(t *testing.T) {
 
 func TestHydratedETHUSDTUsesScale6(t *testing.T) {
 	m := NewManager()
-	m.HydrateSpotConfig(map[string]any{
+	if err := m.HydrateSpotConfig(map[string]any{
 		"pairs": []any{
 			map[string]any{
 				"symbol":              "ETH-USDT",
@@ -19,7 +19,9 @@ func TestHydratedETHUSDTUsesScale6(t *testing.T) {
 				"base_quantity_scale": float64(6),
 			},
 		},
-	})
+	}); err != nil {
+		t.Fatal(err)
+	}
 	scale, ok := m.BaseQuantityScaleForSymbol("ETH-USDT")
 	if !ok || scale != 6 {
 		t.Fatalf("expected scale 6, got scale=%d ok=%v", scale, ok)

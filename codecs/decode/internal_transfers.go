@@ -1,8 +1,8 @@
 package decode
 
 import (
-	transferv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
+	transferv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 

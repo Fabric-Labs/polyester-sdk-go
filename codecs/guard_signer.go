@@ -39,11 +39,11 @@ func ProtectedActionArgsToProto(externalChainID *int, external, internal []strin
 
 // BatchProtectedActionInput is one item for batch protected-action signing.
 type BatchProtectedActionInput struct {
-	Action                    string
-	ExternalPolychainChainID  *int
-	ExternalAddresses         []string
-	InternalAddresses         []string
-	WhitelistRequired         *bool
+	Action                   string
+	ExternalPolychainChainID *int
+	ExternalAddresses        []string
+	InternalAddresses        []string
+	WhitelistRequired        *bool
 }
 
 // BatchProtectedActionFromMap parses one batch-sign action item.

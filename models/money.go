@@ -46,7 +46,11 @@ func MustPriceTicks(ticks int64) PriceTicks {
 
 // Format returns the decimal string for this price.
 func (p PriceTicks) Format() string {
-	return formatFixed(p.Ticks, priceTickScale)
+	out, err := formatFixed(p.Ticks, priceTickScale)
+	if err != nil {
+		return "0"
+	}
+	return out
 }
 
 // CompatibleWith rejects known symbol mismatches.
@@ -97,12 +101,12 @@ func (q QtyScaled) WithSymbol(symbol string) QtyScaled {
 	return q
 }
 
-// Format returns the decimal string; requires a known scale.
+// Format returns the decimal string; requires a known scale within MaxProtocolScale.
 func (q QtyScaled) Format() (string, error) {
 	if q.Scale == nil {
 		return "", &errors.ValidationError{Msg: "format requires a known scale"}
 	}
-	return formatFixed(q.Scaled, *q.Scale), nil
+	return formatFixed(q.Scaled, *q.Scale)
 }
 
 // CompatibleWith rejects known domain/scale/instrument mismatches.
@@ -204,7 +208,7 @@ func (a AssetAmountScaled) Int64() (int64, error) {
 	return a.Scaled.Int64(), nil
 }
 
-// Format returns the decimal string; requires a known scale.
+// Format returns the decimal string; requires a known scale within MaxProtocolScale.
 func (a AssetAmountScaled) Format() (string, error) {
 	if a.Scale == nil {
 		return "", &errors.ValidationError{Msg: "format requires a known scale"}
@@ -212,7 +216,7 @@ func (a AssetAmountScaled) Format() (string, error) {
 	if a.Scaled == nil {
 		return "0", nil
 	}
-	return formatFixedBig(a.Scaled, *a.Scale), nil
+	return formatFixedBig(a.Scaled, *a.Scale)
 }
 
 // CompatibleWith rejects known domain/scale/asset mismatches.
@@ -243,10 +247,10 @@ func (a AssetAmountScaled) CompatibleWith(domain QuantityDomain, scale *int, ass
 
 // PriceInput is a write-side price: decimal string or PriceTicks.
 type PriceInput struct {
-	decimal   string
-	hasDec    bool
-	ticks     PriceTicks
-	hasTicks  bool
+	decimal  string
+	hasDec   bool
+	ticks    PriceTicks
+	hasTicks bool
 }
 
 // PriceFromDecimal builds a human-path price input.
@@ -328,17 +332,29 @@ func (a AssetAmountInput) ScaledValue() (AssetAmountScaled, bool) {
 	return a.scaled, a.hasScaled
 }
 
-func formatFixed(n int64, scale int) string {
-	if scale <= 0 {
-		return fmt.Sprintf("%d", n)
+// MaxProtocolScale mirrors codecs.MaxProtocolScale for money formatters.
+const MaxProtocolScale = 36
+
+func formatFixed(n int64, scale int) (string, error) {
+	if scale < 0 {
+		return "", &errors.ValidationError{Msg: "scale must be non-negative"}
+	}
+	if scale > MaxProtocolScale {
+		return "", &errors.ValidationError{
+			Msg: fmt.Sprintf("scale %d exceeds maximum protocol scale %d", scale, MaxProtocolScale),
+		}
+	}
+	if scale == 0 {
+		return fmt.Sprintf("%d", n), nil
 	}
 	neg := n < 0
 	if neg {
 		n = -n
 	}
 	digits := fmt.Sprintf("%d", n)
-	for len(digits) < scale+1 {
-		digits = "0" + digits
+	width := scale + 1
+	if len(digits) < width {
+		digits = strings.Repeat("0", width-len(digits)) + digits
 	}
 	head := strings.TrimLeft(digits[:len(digits)-scale], "0")
 	if head == "" {
@@ -350,20 +366,29 @@ func formatFixed(n int64, scale int) string {
 		out += "." + tail
 	}
 	if neg {
-		return "-" + out
+		return "-" + out, nil
 	}
-	return out
+	return out, nil
 }
 
-func formatFixedBig(n *big.Int, scale int) string {
-	if scale <= 0 {
-		return n.String()
+func formatFixedBig(n *big.Int, scale int) (string, error) {
+	if scale < 0 {
+		return "", &errors.ValidationError{Msg: "scale must be non-negative"}
+	}
+	if scale > MaxProtocolScale {
+		return "", &errors.ValidationError{
+			Msg: fmt.Sprintf("scale %d exceeds maximum protocol scale %d", scale, MaxProtocolScale),
+		}
+	}
+	if scale == 0 {
+		return n.String(), nil
 	}
 	neg := n.Sign() < 0
 	abs := new(big.Int).Abs(n)
 	digits := abs.String()
-	for len(digits) < scale+1 {
-		digits = "0" + digits
+	width := scale + 1
+	if len(digits) < width {
+		digits = strings.Repeat("0", width-len(digits)) + digits
 	}
 	head := strings.TrimLeft(digits[:len(digits)-scale], "0")
 	if head == "" {
@@ -375,9 +400,9 @@ func formatFixedBig(n *big.Int, scale int) string {
 		out += "." + tail
 	}
 	if neg {
-		return "-" + out
+		return "-" + out, nil
 	}
-	return out
+	return out, nil
 }
 
 // Int64Max is math.MaxInt64 for bounds docs/tests.

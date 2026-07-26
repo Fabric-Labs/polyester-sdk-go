@@ -5,7 +5,7 @@ and automation. Parity with `polyester-sdk-python` and `polyester-sdk-rust`
 using the checked-in `gen/` protobuf bundle (no local proto generation for
 normal development).
 
-**Status:** Alpha (`v0.1.0a17`). Proprietary license (not open source).
+**Status:** Alpha (`v0.1.0a18`). Proprietary license (not open source).
 API-key only — no browser login or session MFA.
 
 Requires a recent Go toolchain (see `go.mod`).
@@ -67,7 +67,7 @@ normal trading and ledger streams.
 ```bash
 GOPRIVATE='github.com/Fabric-Labs/*' \
 GONOSUMDB='github.com/Fabric-Labs/*' \
-go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a17
+go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a18
 ```
 
 The repository is currently private. GitHub access and authenticated Git credentials are
@@ -186,10 +186,9 @@ client, err := polyester.New(polyester.Config{
 variables; pass an override function if you need non-default endpoints. This is
 a convenience helper, not the primary integration pattern.
 
-`FromEnv` enables best-effort spot and Zipper catalog hydration. The zero value
-used by `New` disables it, so set `HydrateCatalogs: true` explicitly when using
-decimal writes that depend on catalog scales. Wait for hydration before those
-writes:
+`FromEnv` enables spot and Zipper catalog hydration. The zero value used by
+`New` disables it, so set `HydrateCatalogs: true` explicitly when using decimal
+writes that depend on catalog scales. Wait for hydration before those writes:
 
 ```go
 if err := client.WaitForCatalogs(ctx); err != nil {
@@ -197,7 +196,11 @@ if err := client.WaitForCatalogs(ctx); err != nil {
 }
 ```
 
-`WaitForCatalogs` returns immediately when `HydrateCatalogs` is disabled.
+`WaitForCatalogs` returns immediately when `HydrateCatalogs` is disabled. When
+hydration is enabled, it returns an error if spot/Zipper hydration failed or
+catalogs are unusable (use `CatalogsLastError()` to inspect). Typed Zipper
+hydration is available via `client.Catalogs.HydrateZipperConfig(cfg)` /
+`HydrateDepositWithdrawConfig`.
 
 ## Create and cancel orders
 
@@ -322,10 +325,15 @@ if err != nil {
 	log.Fatal(err)
 }
 for _, bal := range balances.Balances {
-	fmt.Println(
-		codecs.FormatLedgerU128(bal.Funding, codecs.LedgerScale),
-		codecs.FormatLedgerU128(bal.Trading, codecs.LedgerScale),
-	)
+	funding, err := codecs.FormatLedgerU128(bal.Funding, codecs.LedgerScale)
+	if err != nil {
+		log.Fatal(err)
+	}
+	trading, err := codecs.FormatLedgerU128(bal.Trading, codecs.LedgerScale)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(funding, trading)
 }
 ```
 
@@ -451,20 +459,30 @@ python3 scripts/check_sdk_coverage.py --write-capabilities  # refresh JSON + REA
 CI also refreshes `sdk-capabilities.json` and the README capability table on the
 same branch when they drift (same-repo PRs / pushes to `main`).
 
-Unit tests run offline. Integration tests use `//go:build integration` and need
-API keys in `.env` (same variables as Python: `POLYESTER_API_KEY_ID`,
-`POLYESTER_API_PRIVATE_KEY`, optional `POLYESTER_ACCOUNT_ID`, `POLYESTER_API_URL`).
+Unit / public-smoke tests run offline (no API keys):
+
+```bash
+make test-public-smoke   # go test ./... + ./tests/public_smoke/...
+```
+
+Credentialed live tests use `//go:build integration` and need API keys in
+`.env` (`POLYESTER_API_KEY_ID`, `POLYESTER_API_PRIVATE_KEY`, optional
+`POLYESTER_ACCOUNT_ID`, `POLYESTER_API_URL`).
 
 ```bash
 set -a && source .env && set +a
-go test -tags=integration -v ./tests/integration/...
+make test-integration
+# A7 release gate (executed/skipped/failed counts + min executed floor):
+POLYESTER_TEST_STRICT_LIVE=1 make test-integration-strict
 ```
 
 Integration tests skip automatically when API keys are not set.
 Set `POLYESTER_TEST_MUTATION=1` for state-changing tests. Funded mutations
 require both `POLYESTER_TEST_MUTATION=1` and `POLYESTER_TEST_FUNDED=1`.
 For release certification, set `POLYESTER_TEST_STRICT_LIVE=1` so soft-skips
-fail instead of reporting as skipped.
+and missing/malformed credentials fail closed. The A7 harness prints
+`executed` / `skipped` / `failed` counts and requires at least
+`POLYESTER_TEST_MIN_EXECUTED` (default 5) executed tests under strict live.
 
 ## Layout
 

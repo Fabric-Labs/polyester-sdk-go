@@ -9,13 +9,13 @@ import (
 
 func TestFlowSummaryFromProto(t *testing.T) {
 	msg := &lifecyclev1.FlowSummaryView{
-		FlowId:              "flow-abc",
-		FlowKind:            lifecyclev1.FlowKind_KIND_DEPOSIT,
-		CurrentStep:         lifecyclev1.FlowStep_FLOW_STEP_SETTLEMENT,
-		IsOpen:              false,
-		IsTerminal:          true,
-		OwnerAccountId:      99,
-		SourceAddress:       "0xabc",
+		FlowId:         "flow-abc",
+		FlowKind:       lifecyclev1.FlowKind_KIND_DEPOSIT,
+		CurrentStep:    lifecyclev1.FlowStep_FLOW_STEP_SETTLEMENT,
+		IsOpen:         false,
+		IsTerminal:     true,
+		OwnerAccountId: 99,
+		SourceAddress:  "0xabc",
 	}
 	flow := decode.FlowSummaryMessageFromProto(msg)
 	if flow.IntentID != "flow-abc" || !flow.IsTerminal || flow.SmartAccountAddress != "0xabc" {

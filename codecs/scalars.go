@@ -11,7 +11,24 @@ import (
 const (
 	PriceTickScale = 6
 	Uint64Max      = ^uint64(0)
+	// MaxProtocolScale is the maximum accepted quantity/ledger scale for public
+	// formatters, parsers, and catalog hydration. Values above this are rejected
+	// instead of allocating pathological padding (scale ≥ 65535 historically panicked).
+	MaxProtocolScale = 36
 )
+
+// ValidateProtocolScale rejects scales above MaxProtocolScale.
+func ValidateProtocolScale(scale int) error {
+	if scale < 0 {
+		return &errors.ValidationError{Msg: "scale must be non-negative"}
+	}
+	if scale > MaxProtocolScale {
+		return &errors.ValidationError{
+			Msg: "scale " + itoa(scale) + " exceeds maximum protocol scale " + itoa(MaxProtocolScale),
+		}
+	}
+	return nil
+}
 
 // ParsePriceTicks parses a decimal price string into int64 ticks (strict; no rounding).
 func ParsePriceTicks(raw, fieldName string) (uint64, error) {
@@ -56,6 +73,9 @@ func FormatPriceTicks(ticks int64) string {
 
 // ParseQtyScaled parses a decimal quantity at the given scale (strict; no rounding).
 func ParseQtyScaled(raw string, scale int, fieldName string) (uint64, error) {
+	if err := ValidateProtocolScale(scale); err != nil {
+		return 0, err
+	}
 	scaled, err := decimalToScaledBig(raw, scale, fieldName)
 	if err != nil {
 		return 0, err
@@ -73,15 +93,21 @@ func ParseQtyScaled(raw string, scale int, fieldName string) (uint64, error) {
 }
 
 // FormatQtyScaled formats a scaled integer quantity.
-func FormatQtyScaled(qtyScaled int64, scale int) string {
-	if scale <= 0 {
-		return formatInt(qtyScaled)
+// Scale must be in [0, MaxProtocolScale]; larger values return a ValidationError
+// instead of allocating huge zero-pads.
+func FormatQtyScaled(qtyScaled int64, scale int) (string, error) {
+	if err := ValidateProtocolScale(scale); err != nil {
+		return "", err
+	}
+	if scale == 0 {
+		return formatInt(qtyScaled), nil
 	}
 	neg := qtyScaled < 0
 	if neg {
 		qtyScaled = -qtyScaled
 	}
-	digits := formatPadded(qtyScaled, scale+1)
+	width := scale + 1
+	digits := formatPadded(qtyScaled, width)
 	head := strings.TrimLeft(digits[:len(digits)-scale], "0")
 	if head == "" {
 		head = "0"
@@ -92,9 +118,9 @@ func FormatQtyScaled(qtyScaled int64, scale int) string {
 		out += "." + tail
 	}
 	if neg {
-		return "-" + out
+		return "-" + out, nil
 	}
-	return out
+	return out, nil
 }
 
 // IDToInt parses base58 or decimal uint64 ids.
