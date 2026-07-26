@@ -48,21 +48,29 @@ func TestMarketBuySellRoundtrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !hasMaker {
-		testutil.SoftSkip(t, "Set POLYESTER_TEST_MAKER_API_KEY_ID and POLYESTER_TEST_MAKER_API_PRIVATE_KEY for market roundtrip")
+	if hasMaker {
+		defer maker.Close()
+		_, _ = testutil.HydrateSpotRaw(ctx, maker)
+		t.Log("market roundtrip liquidity=dedicated-maker")
+	} else {
+		t.Log("market roundtrip liquidity=external-orderbook")
 	}
-	defer maker.Close()
-	_, _ = testutil.HydrateSpotRaw(ctx, maker)
 
 	buyCID := testutil.UniqueClientOrderID("rt-buy")
 	sellCID := testutil.UniqueClientOrderID("rt-sell")
 	makerCID := testutil.UniqueClientOrderID("rt-maker")
+	makerBuyCID := testutil.UniqueClientOrderID("rt-maker-buy")
 	testCIDs := map[string]struct{}{buyCID: {}, sellCID: {}}
+	makerCIDs := map[string]struct{}{makerCID: {}, makerBuyCID: {}}
 
 	defer func() {
-		verifiedCancelAll(t, ctx, client, symbol, "taker")
-		verifiedCancelAll(t, ctx, maker, symbol, "maker")
-		if err := waitNoOpenCIDs(ctx, client, symbol, testCIDs, 20*time.Second); err != nil {
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cleanupCancel()
+		cancelOpenTestOrders(t, cleanupCtx, client, symbol, testCIDs, "taker")
+		if hasMaker {
+			cancelOpenTestOrders(t, cleanupCtx, maker, symbol, makerCIDs, "maker")
+		}
+		if err := waitNoOpenCIDs(cleanupCtx, client, symbol, testCIDs, 20*time.Second); err != nil {
 			if testutil.StrictLiveEnabled() {
 				t.Errorf("cleanup verification failed: %v", err)
 			} else {
@@ -99,28 +107,36 @@ func TestMarketBuySellRoundtrip(t *testing.T) {
 		quoteReservedBefore = testutil.ReservedBalance(before, *quoteAssetID)
 	}
 
-	price := testutil.FarAboveBuyStopPrice(symbol, pair)
+	buyRefPrice := testutil.MarketRefPrice(ctx, client, symbol, "buy", pair)
+	price := buyRefPrice
+	if hasMaker {
+		price = testutil.FarAboveBuyStopPrice(symbol, pair)
+	}
 	qty := testutil.MinBaseQtyForPair(pair, price)
 	tif := "gtc"
-	makerCreated, err := maker.Orders.Create(ctx, models.CreateOrderRequest{
-		Symbol: &symbol, Side: "sell", OrderType: "limit", TIF: &tif,
-		Qty: models.QtyFromDecimal(qty), Price: pricePtr(models.PriceFromDecimal(price)),
-		ClientOrderID: &makerCID, PostOnly: true,
-	}, nil)
-	if err != nil {
-		if testutil.IsDevnetOrderInternalError(err) || testutil.DevnetUnavailable(err) {
-			testutil.SoftSkipf(t, "devnet order placement unavailable: %v", err)
+	if hasMaker {
+		makerCreated, err := maker.Orders.Create(ctx, models.CreateOrderRequest{
+			Symbol: &symbol, Side: "sell", OrderType: "limit", TIF: &tif,
+			Qty: models.QtyFromDecimal(qty), Price: pricePtr(models.PriceFromDecimal(price)),
+			ClientOrderID: &makerCID, PostOnly: true,
+		}, nil)
+		if err != nil {
+			if testutil.IsDevnetOrderInternalError(err) || testutil.DevnetUnavailable(err) {
+				testutil.SoftSkipf(t, "devnet order placement unavailable: %v", err)
+			}
+			t.Fatal(err)
 		}
-		t.Fatal(err)
-	}
-	if makerCreated.OrderID == "" {
-		t.Fatalf("maker create=%+v", makerCreated)
+		if makerCreated.OrderID == "" {
+			t.Fatalf("maker create=%+v", makerCreated)
+		}
 	}
 
 	buyTIF := "ioc"
+	buyRef := models.PriceFromDecimal(buyRefPrice)
 	_, err = client.Orders.Create(ctx, models.CreateOrderRequest{
 		Symbol: &symbol, Side: "buy", OrderType: "market", TIF: &buyTIF,
 		Qty: models.QtyFromDecimal(qty), ClientOrderID: &buyCID,
+		MarketClientRefPrice: &buyRef,
 	}, nil)
 	if err != nil {
 		if testutil.IsDevnetOrderInternalError(err) || testutil.DevnetUnavailable(err) {
@@ -145,26 +161,30 @@ func TestMarketBuySellRoundtrip(t *testing.T) {
 		testutil.SoftSkip(t, "buy produced no fill (possible POLY-3028)")
 	}
 
-	// Provide buy liquidity for the cleanup SELL (self-contained; no residual position).
-	makerBuyCID := testutil.UniqueClientOrderID("rt-maker-buy")
-	makerBuyPrice := testutil.ResolvePostOnlyBuyLimitPrice(ctx, maker, symbol, pair)
-	_, err = maker.Orders.Create(ctx, models.CreateOrderRequest{
-		Symbol: &symbol, Side: "buy", OrderType: "limit", TIF: &tif,
-		Qty: models.QtyFromScaled(filled), Price: pricePtr(models.PriceFromDecimal(makerBuyPrice)),
-		ClientOrderID: &makerBuyCID, PostOnly: true,
-	}, nil)
-	if err != nil {
-		if testutil.IsDevnetOrderInternalError(err) || testutil.DevnetUnavailable(err) {
-			testutil.SoftSkipf(t, "devnet maker buy unavailable: %v", err)
+	if hasMaker {
+		// Provide buy liquidity for the cleanup SELL when dedicated maker
+		// credentials are available.
+		makerBuyPrice := testutil.ResolvePostOnlyBuyLimitPrice(ctx, maker, symbol, pair)
+		_, err = maker.Orders.Create(ctx, models.CreateOrderRequest{
+			Symbol: &symbol, Side: "buy", OrderType: "limit", TIF: &tif,
+			Qty: models.QtyFromScaled(filled), Price: pricePtr(models.PriceFromDecimal(makerBuyPrice)),
+			ClientOrderID: &makerBuyCID, PostOnly: true,
+		}, nil)
+		if err != nil {
+			if testutil.IsDevnetOrderInternalError(err) || testutil.DevnetUnavailable(err) {
+				testutil.SoftSkipf(t, "devnet maker buy unavailable: %v", err)
+			}
+			t.Fatal(err)
 		}
-		t.Fatal(err)
 	}
 
 	// Carry the exact filled base qty into the cleanup SELL (no larger independent size).
 	sellTIF := "ioc"
+	sellRef := models.PriceFromDecimal(testutil.MarketRefPrice(ctx, client, symbol, "sell", pair))
 	_, err = client.Orders.Create(ctx, models.CreateOrderRequest{
 		Symbol: &symbol, Side: "sell", OrderType: "market", TIF: &sellTIF,
 		Qty: models.QtyFromScaled(filled), ClientOrderID: &sellCID,
+		MarketClientRefPrice: &sellRef,
 	}, nil)
 	if err != nil {
 		if testutil.IsDevnetOrderInternalError(err) || testutil.DevnetUnavailable(err) {
@@ -204,20 +224,21 @@ func TestMarketBuySellRoundtrip(t *testing.T) {
 		t.Fatalf("residual base position not zero: before=%s after=%s", baseBefore, baseAfter)
 	}
 
-	// Holds reconciled when list_holds route is mounted.
+	// Reserved balances are the required reconciliation signal even when the
+	// optional detailed list_holds route is not mounted.
+	baseReservedAfter := testutil.ReservedBalance(after, *baseAssetID)
+	if baseReservedAfter.Cmp(baseReservedBefore) != 0 {
+		t.Fatalf("base reserved not reconciled: before=%s after=%s", baseReservedBefore, baseReservedAfter)
+	}
+	if quoteAssetID != nil {
+		quoteReservedAfter := testutil.ReservedBalance(after, *quoteAssetID)
+		if quoteReservedAfter.Cmp(quoteReservedBefore) != 0 {
+			t.Fatalf("quote reserved not reconciled: before=%s after=%s", quoteReservedBefore, quoteReservedAfter)
+		}
+	}
+
 	_, holdsErr := client.Balances.ListHolds(ctx, nil, nil, 20, false)
-	if holdsErr == nil {
-		baseReservedAfter := testutil.ReservedBalance(after, *baseAssetID)
-		if baseReservedAfter.Cmp(baseReservedBefore) != 0 {
-			t.Fatalf("base reserved not reconciled: before=%s after=%s", baseReservedBefore, baseReservedAfter)
-		}
-		if quoteAssetID != nil {
-			quoteReservedAfter := testutil.ReservedBalance(after, *quoteAssetID)
-			if quoteReservedAfter.Cmp(quoteReservedBefore) != 0 {
-				t.Fatalf("quote reserved not reconciled: before=%s after=%s", quoteReservedBefore, quoteReservedAfter)
-			}
-		}
-	} else if !testutil.RouteUnavailable(holdsErr) {
+	if holdsErr != nil && !testutil.RouteUnavailable(holdsErr) {
 		if testutil.StrictLiveEnabled() {
 			t.Fatalf("list_holds after roundtrip: %v", holdsErr)
 		}
@@ -225,13 +246,21 @@ func TestMarketBuySellRoundtrip(t *testing.T) {
 	}
 }
 
-func verifiedCancelAll(t *testing.T, ctx context.Context, client *polyester.Client, symbol, label string) {
+func cancelOpenTestOrders(t *testing.T, ctx context.Context, client *polyester.Client, symbol string, cids map[string]struct{}, label string) {
 	t.Helper()
-	if _, err := client.Orders.CancelAll(ctx, nil, nil, &symbol, nil, false, nil); err != nil {
-		if testutil.StrictLiveEnabled() {
-			t.Errorf("cleanup %s cancel_all failed: %v", label, err)
-		} else {
-			t.Logf("cleanup %s cancel_all warning: %v", label, err)
+	limit := 100
+	open, err := client.Orders.ListOpen(ctx, nil, nil, nil, &limit, false, false)
+	if err != nil {
+		t.Errorf("cleanup %s list_open failed: %v", label, err)
+		return
+	}
+	for _, order := range open.Orders {
+		if _, ok := cids[order.ClientOrderID]; !ok {
+			continue
+		}
+		cid := order.ClientOrderID
+		if _, err := client.Orders.Cancel(ctx, nil, nil, &cid, &symbol, nil, nil); err != nil {
+			t.Errorf("cleanup %s cancel %s failed: %v", label, cid, err)
 		}
 	}
 }

@@ -48,6 +48,15 @@ func RequireFunded(t *testing.T) {
 	}
 }
 
+// RequireAccountWideCleanup requires an explicit dedicated-account gate before
+// a test may call a non-dry-run account-wide cancellation endpoint.
+func RequireAccountWideCleanup(t *testing.T) {
+	t.Helper()
+	if !EnvTruthy("POLYESTER_TEST_ACCOUNT_WIDE_CLEANUP") {
+		SoftSkip(t, "Set POLYESTER_TEST_ACCOUNT_WIDE_CLEANUP=1 only for a dedicated test account")
+	}
+}
+
 // TradeE2EEnabled reports whether spot-fill e2e tests are enabled.
 func TradeE2EEnabled() bool {
 	return EnvTruthy("POLYESTER_TEST_TRADE_E2E")

@@ -15,6 +15,7 @@ import (
 const btcUSDT = "BTC-USDT"
 
 func TestMarketBuyMutation(t *testing.T) {
+	testutil.RequireAccountWideCleanup(t)
 	testutil.RequireMutation(t)
 	client, ctx, cleanup := testutil.RequireLiveClient(t)
 	defer cleanup()
@@ -87,6 +88,7 @@ func TestMarketBuyMutation(t *testing.T) {
 }
 
 func TestMarketSellMutation(t *testing.T) {
+	testutil.RequireAccountWideCleanup(t)
 	testutil.RequireMutation(t)
 	client, ctx, cleanup := testutil.RequireLiveClient(t)
 	defer cleanup()

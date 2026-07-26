@@ -637,7 +637,7 @@ CAPABILITY_DEFS: list[dict[str, Any]] = [
     },
     {
         "id": "api_keys",
-        "label": "API keys (list/get/subscribe)",
+        "label": "API keys (list/get/subscribe/local keypair generation)",
         "any_services": ["auth.v1.ApiKeyService"],
     },
     {

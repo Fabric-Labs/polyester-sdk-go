@@ -12,6 +12,9 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/wire"
 )
 
+// MaxConnectResponseBytes bounds decompressed unary Connect response messages.
+const MaxConnectResponseBytes = 4 * 1024 * 1024
+
 // Config holds HTTP and Connect client settings.
 type Config struct {
 	APIURL     string
@@ -66,7 +69,7 @@ func NewFactory(cfg Config, creds *auth.Credentials, httpClient *http.Client) *F
 
 // ConnectOptions returns client options for generated Connect clients.
 func (f *Factory) ConnectOptions(authenticated bool) []connect.ClientOption {
-	var opts []connect.ClientOption
+	opts := []connect.ClientOption{connect.WithReadMaxBytes(MaxConnectResponseBytes)}
 	if f.Config.WireFormat == connectx.WireJSON {
 		opts = append(opts, connect.WithProtoJSON())
 	}

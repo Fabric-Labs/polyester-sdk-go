@@ -15,6 +15,7 @@ import (
 )
 
 func TestMarketOrderFill(t *testing.T) {
+	testutil.RequireAccountWideCleanup(t)
 	testutil.RequireFunded(t)
 	testutil.RequireMutation(t)
 	if !testutil.TradeE2EEnabled() {

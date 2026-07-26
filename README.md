@@ -5,8 +5,8 @@ and automation. Parity with `polyester-sdk-python` and `polyester-sdk-rust`
 using the checked-in `gen/` protobuf bundle (no local proto generation for
 normal development).
 
-**Status:** Alpha (`v0.1.0a19`). Proprietary license (not open source).
-API-key only — no browser login or session MFA.
+**Status:** Alpha (`v0.1.0a20`). Proprietary license (not open source).
+API-key only; no browser login or session MFA.
 
 Requires a recent Go toolchain (see `go.mod`).
 
@@ -25,7 +25,7 @@ Requires a recent Go toolchain (see `go.mod`).
 | Wallet / browser login | No |
 | Session MFA enrollment and challenges | No |
 | Profile (identity subscribe) | Yes |
-| API keys (list/get/subscribe) | Yes |
+| API keys (list/get/subscribe/local keypair generation) | Yes |
 | Subaccounts (list/get/members/invites/activity/subscribe) | Yes |
 | Address book (list/view/subscribe) | Yes |
 | Policies (realtime subscribe) | Yes |
@@ -58,16 +58,17 @@ Full cross-language comparison:
 Rows marked **Yes** mean that an SDK wrapper exists; deployment authorization
 still applies. In particular, whiteboard/social-verification and some
 layout/polychart routes may require a JWT session or may not be mounted.
-Current devnet testing verifies API-key subscription handshakes for API keys,
-API policies, subaccount policies, subaccounts, address-book invalidations, and
-normal trading and ledger streams.
+Private streams require an Account ID and the corresponding API-key permission.
+A successful subscribe call means the token exchange and realtime handshake
+completed. Treat a structured permission denial as non-transient and update the
+API-key policy before retrying.
 
 ## Install
 
 ```bash
 GOPRIVATE='github.com/Fabric-Labs/*' \
 GONOSUMDB='github.com/Fabric-Labs/*' \
-go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a19
+go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a20
 ```
 
 The repository is currently private. GitHub access and authenticated Git credentials are
@@ -85,7 +86,7 @@ go test ./...
 ## Quick start
 
 Create an API key in the Polyester app (**API** in the sidebar). Copy the key id
-and private key when shown — the private key is only displayed once.
+and private key when shown. The private key is only displayed once.
 Open the key's **Permissions**, enable **Spot trading**, select the markets it
 may trade, and set a maximum order size appropriate for the strategy.
 
@@ -153,7 +154,7 @@ some ledger writes.
 
 ## Authentication patterns
 
-**Recommended — explicit config:**
+**Recommended: explicit config**
 
 ```go
 accountID := "RLxqJGUDg92"
@@ -180,7 +181,7 @@ client, err := polyester.New(polyester.Config{
 
 `polyester.New` never implicitly reads `os.Environ`.
 
-**Scripts and local tests only** — `polyester.FromEnv()` loads
+**Scripts and local tests only:** `polyester.FromEnv()` loads
 `POLYESTER_API_KEY_ID`, `POLYESTER_API_PRIVATE_KEY`, and optionally
 `POLYESTER_ACCOUNT_ID`. It does not read API or WebSocket URL environment
 variables; pass an override function if you need non-default endpoints. This is
@@ -241,7 +242,7 @@ market tick-size alignment (server validates tick size).
 
 ### For bots (scaled integers)
 
-Stay in integer space — no string round-trip:
+Stay in integer space; no string round-trip:
 
 ```go
 qty := models.MustQtyScaled(1_000_000).WithScale(8) // already wire units
@@ -287,7 +288,7 @@ SDK notes:
 - **Funding → trading:** on-chain `TradingGateway.deposit` (not an API-key RPC).
   Package `github.com/Fabric-Labs/polyester-sdk-go/chain` encodes calldata and can
   submit UserOps: pass an owner EOA private key to `NewSmartAccount` (SDK derives
-  the Polyester Safe — no UI-exported owner key).
+  the Polyester Safe; no UI-exported owner key).
 - **Funding → external:** on-chain `FundingAccount.withdrawToChain` (same `chain` package).
 - **Funding → another user's funding wallet:** on-chain `FundingAccount.UAssetTransfer`
   via wallet/smart-account signing in the Polyester app (not an API-key RPC).
@@ -488,6 +489,9 @@ For release certification, set `POLYESTER_TEST_STRICT_LIVE=1` so soft-skips
 and missing/malformed credentials fail closed. The A7 harness prints
 `executed` / `skipped` / `failed` counts and requires at least
 `POLYESTER_TEST_MIN_EXECUTED` (default 5) executed tests under strict live.
+Legacy stress tests that use non-dry-run `CancelAll` additionally require
+`POLYESTER_TEST_ACCOUNT_WIDE_CLEANUP=1`. Set it only for a dedicated test
+account.
 
 ## Layout
 
