@@ -2,6 +2,8 @@ package wire
 
 import (
 	"errors"
+	"math"
+	"strconv"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -16,6 +18,28 @@ var routeNotFoundMessages = map[string]struct{}{
 }
 
 const emptyErrorMessage = "request failed without server error details"
+
+func retryAfterSeconds(connectErr *connect.Error) *float64 {
+	parse := func(name string, divisor float64) *float64 {
+		raw := strings.TrimSpace(connectErr.Meta().Get(name))
+		if raw == "" {
+			return nil
+		}
+		value, err := strconv.ParseFloat(raw, 64)
+		if err != nil || math.IsNaN(value) || math.IsInf(value, 0) || value < 0 {
+			return nil
+		}
+		value /= divisor
+		return &value
+	}
+	if seconds := parse("Retry-After", 1); seconds != nil {
+		return seconds
+	}
+	if seconds := parse("Retry-After-Ms", 1_000); seconds != nil {
+		return seconds
+	}
+	return parse("Grpc-Retry-Pushback-Ms", 1_000)
+}
 
 // MapConnectError converts Connect errors into SDK error types.
 func MapConnectError(err error) error {
@@ -50,6 +74,11 @@ func MapConnectError(err error) error {
 		return &sdkerrors.AuthError{Msg: msg}
 	case connect.CodeUnavailable, connect.CodeInternal:
 		return &sdkerrors.ServerError{Msg: msg}
+	case connect.CodeResourceExhausted:
+		return &sdkerrors.RateLimitError{
+			Msg:        msg,
+			RetryAfter: retryAfterSeconds(connectErr),
+		}
 	case connect.CodeDeadlineExceeded:
 		return &sdkerrors.TransportError{Msg: msg}
 	case connect.CodeUnimplemented:

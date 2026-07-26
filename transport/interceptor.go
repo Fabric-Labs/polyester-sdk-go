@@ -45,7 +45,10 @@ func (i *APIKeyInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc 
 			method = http.MethodPost
 		}
 		signURL := auth.RequestURL(i.BaseURL, req.Spec().Procedure)
-		headers := auth.SignRequest(i.Credentials, method, signURL, body, "")
+		headers, err := auth.SignRequest(i.Credentials, method, signURL, body, "")
+		if err != nil {
+			return nil, err
+		}
 		h := req.Header()
 		for k, v := range headers {
 			h.Set(k, v)

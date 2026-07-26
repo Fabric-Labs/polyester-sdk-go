@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	lifecyclev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/lifecycle/v1"
 	zipperv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/zipper/v1"
@@ -18,7 +19,16 @@ import (
 )
 
 func unmarshalProto[T proto.Message](payload []byte, msg T) error {
-	return proto.Unmarshal(payload, msg)
+	if len(payload) == 0 {
+		return &sdkerrors.RealtimeError{Msg: "proto decode: empty publication payload"}
+	}
+	if len(payload) > 8*1024*1024 {
+		return &sdkerrors.RealtimeError{Msg: "proto decode: publication exceeds 8388608 bytes"}
+	}
+	if err := proto.Unmarshal(payload, msg); err != nil {
+		return &sdkerrors.RealtimeError{Msg: "proto decode: " + err.Error()}
+	}
+	return nil
 }
 
 // OrderbookDeltaFromBytes parses an orderbook delta protobuf payload.
@@ -179,7 +189,9 @@ func FlowDetailFromBytes(payload []byte) (models.LifecycleFlowSummary, error) {
 		return models.LifecycleFlowSummary{}, err
 	}
 	if msg.GetSummary() == nil {
-		return models.LifecycleFlowSummary{}, nil
+		return models.LifecycleFlowSummary{}, &sdkerrors.RealtimeError{
+			Msg: "proto decode: flow detail is missing summary",
+		}
 	}
 	return FlowSummaryMessageFromProto(msg.GetSummary()), nil
 }
@@ -203,23 +215,25 @@ func AddressBookInvalidationFromBytes(payload []byte) (models.AddressBookViewInv
 }
 
 // MarketTradeFromBytes parses a public market trade publication.
-func MarketTradeFromBytes(payload []byte) (models.MarketTrade, error) {
-	var msg marketdatav1.MarketTrade
-	if err := unmarshalProto(payload, &msg); err != nil {
-		return models.MarketTrade{}, err
+func MarketTradeFromBytes(quantityScale int) func([]byte) (models.MarketTrade, error) {
+	return func(payload []byte) (models.MarketTrade, error) {
+		var msg marketdatav1.MarketTrade
+		if err := unmarshalProto(payload, &msg); err != nil {
+			return models.MarketTrade{}, err
+		}
+		side := "sell"
+		if msg.GetIsBuy() {
+			side = "buy"
+		}
+		return models.MarketTrade{
+			SymbolID: msg.GetSymbolId(),
+			MatchID:  strconv.FormatUint(msg.GetMatchId(), 10),
+			Price:    codecs.DecodePriceTicks(msg.GetPriceTicks(), ""),
+			Qty:      codecs.DecodeQtyScaled(msg.GetQtyScaled(), quantityScale, "", nil),
+			TsNs:     strconv.FormatUint(msg.GetTsNs(), 10),
+			Side:     side,
+		}, nil
 	}
-	side := "sell"
-	if msg.GetIsBuy() {
-		side = "buy"
-	}
-	return models.MarketTrade{
-		SymbolID: msg.GetSymbolId(),
-		MatchID:  strconv.FormatUint(msg.GetMatchId(), 10),
-		Price:    codecs.DecodePriceTicks(msg.GetPriceTicks(), ""),
-		Qty:      codecs.DecodeQtyScaled(msg.GetQtyScaled(), -1, "", nil),
-		TsNs:     strconv.FormatUint(msg.GetTsNs(), 10),
-		Side:     side,
-	}, nil
 }
 
 // CandlePointFromBytes returns a decoder for candle point publications.
@@ -243,10 +257,10 @@ func HeatmapLiveBucketFromBytes(payload []byte) (models.ApiData, error) {
 }
 
 // ZippedAssetSupplyBatchFromBytes parses a zipper supply batch publication.
-func ZippedAssetSupplyBatchFromBytes(payload []byte, scaleFn func(uint32) int) (models.ZippedAssetSupplyBatch, error) {
+func ZippedAssetSupplyBatchFromBytes(payload []byte, scaleFn func(uint32) (int, bool)) (models.ZippedAssetSupplyBatch, error) {
 	var msg zipperv1.ZippedAssetSupplyBatch
 	if err := unmarshalProto(payload, &msg); err != nil {
 		return models.ZippedAssetSupplyBatch{}, err
 	}
-	return ZippedAssetSupplyBatchFromProto(&msg, scaleFn), nil
+	return ZippedAssetSupplyBatchFromProto(&msg, scaleFn)
 }

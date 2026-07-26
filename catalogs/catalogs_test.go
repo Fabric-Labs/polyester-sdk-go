@@ -12,8 +12,9 @@ func TestOrderbookPriceBucketsForSymbolReadsSpotMarketdata(t *testing.T) {
 	if err := mgr.HydrateSpotConfig(map[string]any{
 		"pairs": []any{
 			map[string]any{
-				"symbol":    "BTC-USDT",
-				"symbol_id": float64(1),
+				"symbol":              "BTC-USDT",
+				"symbol_id":           float64(1),
+				"base_quantity_scale": float64(8),
 				"marketdata": map[string]any{
 					"orderbook_price_buckets": []any{0.01, 0.1, 1.0},
 				},

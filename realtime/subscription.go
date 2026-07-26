@@ -28,6 +28,7 @@ type Subscription[T any] struct {
 	mu           sync.Mutex
 	cancel       func()
 	err          error
+	onError      func(error)
 	resubscribes atomic.Uint64
 	resubscribed atomic.Bool
 	untrack      func()
@@ -125,7 +126,36 @@ func (s *Subscription[T]) failLocked(err error) {
 func (s *Subscription[T]) fail(err error) {
 	s.mu.Lock()
 	s.failLocked(err)
+	callback := s.onError
 	s.mu.Unlock()
+	callErrorCallback(callback, err)
+}
+
+// SetOnError installs a callback for background transport and terminal stream
+// errors. Callback panics are isolated from the subscription worker.
+func (s *Subscription[T]) SetOnError(callback func(error)) {
+	s.mu.Lock()
+	s.onError = callback
+	err := s.err
+	s.mu.Unlock()
+	if callback != nil && err != nil {
+		callErrorCallback(callback, err)
+	}
+}
+
+func (s *Subscription[T]) notifyError(err error) {
+	s.mu.Lock()
+	callback := s.onError
+	s.mu.Unlock()
+	callErrorCallback(callback, err)
+}
+
+func callErrorCallback(callback func(error), err error) {
+	if callback == nil || err == nil {
+		return
+	}
+	defer func() { _ = recover() }()
+	callback(err)
 }
 
 // enqueue delivers an item or fails the subscription on overflow.
@@ -142,11 +172,14 @@ func (s *Subscription[T]) enqueue(item T) bool {
 		s.mu.Unlock()
 		return true
 	default:
-		s.failLocked(&sdkerrors.QueueOverflowError{
+		err := &sdkerrors.QueueOverflowError{
 			Msg: "realtime subscription queue full; consumer too slow",
-		})
+		}
+		s.failLocked(err)
 		cancel := s.cancel
+		callback := s.onError
 		s.mu.Unlock()
+		callErrorCallback(callback, err)
 		if cancel != nil {
 			cancel()
 		}

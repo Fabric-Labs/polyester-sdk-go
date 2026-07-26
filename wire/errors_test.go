@@ -33,6 +33,35 @@ func TestMapConnectErrorNeverReturnsEmptyAuthMessage(t *testing.T) {
 	}
 }
 
+func TestMapConnectErrorSurfacesRetryAfter(t *testing.T) {
+	connectErr := connect.NewError(connect.CodeResourceExhausted, nil)
+	connectErr.Meta().Set("Retry-After", "2.5")
+	mapped := MapConnectError(connectErr)
+	rateLimitErr, ok := mapped.(*sdkerrors.RateLimitError)
+	if !ok {
+		t.Fatalf("mapped=%T %#v", mapped, mapped)
+	}
+	if rateLimitErr.RetryAfter == nil || *rateLimitErr.RetryAfter != 2.5 {
+		t.Fatalf("retry_after=%v", rateLimitErr.RetryAfter)
+	}
+	if !sdkerrors.IsRetryable(mapped) {
+		t.Fatal("rate limit must be retryable")
+	}
+	if sdkerrors.MutationOutcomeUnknown(mapped) {
+		t.Fatal("rate-limit rejection must not be marked as ambiguous")
+	}
+}
+
+func TestTransportRetryClassificationPreservesAmbiguity(t *testing.T) {
+	err := &sdkerrors.TransportError{Msg: "deadline exceeded"}
+	if !sdkerrors.IsRetryable(err) {
+		t.Fatal("transport error must be retryable")
+	}
+	if !sdkerrors.MutationOutcomeUnknown(err) {
+		t.Fatal("transport error must preserve unknown mutation outcome")
+	}
+}
+
 func TestMapConnectErrorSurfacesStableMFACodes(t *testing.T) {
 	cases := []struct {
 		code  authv1.AuthErrorCode

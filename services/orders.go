@@ -262,7 +262,7 @@ func (s *OrdersService) BatchCreate(ctx context.Context, account AccountScope, i
 	if err != nil {
 		return models.BatchCreateOrdersResult{}, err
 	}
-	return UnaryAuth(ctx, s.transport, s.writeClient().BatchCreateOrders, protoReq, decode.BatchCreateFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().BatchCreateOrders, protoReq, decode.BatchCreateFromProto)
 }
 
 // BatchCancel cancels multiple orders in one request.

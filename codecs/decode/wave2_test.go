@@ -81,7 +81,7 @@ func TestMarketTradesFromProto(t *testing.T) {
 		},
 		NextPageToken: "56",
 	}
-	result := decode.MarketTradesFromProto(msg)
+	result := decode.MarketTradesFromProto(msg, 8)
 	if len(result.Trades) != 1 || result.Trades[0].MatchID != "55" {
 		t.Fatalf("trades=%+v", result.Trades)
 	}

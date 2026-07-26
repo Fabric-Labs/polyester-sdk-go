@@ -124,13 +124,7 @@ func (m *Manager) BaseQuantityScaleForSymbol(symbol string) (scale int, ok bool)
 	defer m.mu.RUnlock()
 	for _, pair := range m.pairsLocked() {
 		if s, _ := pair["symbol"].(string); s == symbol {
-			if v := intValue(pair["base_quantity_scale"]); v > 0 {
-				return v, true
-			}
-			if v := intValue(pair["baseQuantityScale"]); v > 0 {
-				return v, true
-			}
-			if v := intValue(pair["qtyScale"]); v > 0 {
+			if v, found := intField(pair, "base_quantity_scale", "baseQuantityScale", "qtyScale"); found {
 				return v, true
 			}
 			return 0, false
@@ -154,13 +148,7 @@ func (m *Manager) BaseQuantityScaleForSymbolID(symbolID uint32) (scale int, ok b
 			if sym, _ := pair["symbol"].(string); sym != "" {
 				for _, p := range m.pairsLocked() {
 					if s, _ := p["symbol"].(string); s == sym {
-						if scale := intValue(p["base_quantity_scale"]); scale > 0 {
-							return scale, true
-						}
-						if scale := intValue(p["baseQuantityScale"]); scale > 0 {
-							return scale, true
-						}
-						if scale := intValue(p["qtyScale"]); scale > 0 {
+						if scale, found := intField(p, "base_quantity_scale", "baseQuantityScale", "qtyScale"); found {
 							return scale, true
 						}
 						return 0, false
@@ -269,10 +257,7 @@ func (m *Manager) QuantityScaleForAsset(assetSymbol string) *int {
 			symbol, _ = item["code"].(string)
 		}
 		if symbol == assetSymbol {
-			if v := intValue(item["quantityScale"]); v > 0 {
-				return &v
-			}
-			if v := intValue(item["quantity_scale"]); v > 0 {
+			if v, found := intField(item, "quantityScale", "quantity_scale"); found {
 				return &v
 			}
 		}
@@ -281,19 +266,19 @@ func (m *Manager) QuantityScaleForAsset(assetSymbol string) *int {
 }
 
 // QuantityScaleForZippedAssetID returns scale for zipped asset id.
-func (m *Manager) QuantityScaleForZippedAssetID(zippedAssetID uint32) int {
+func (m *Manager) QuantityScaleForZippedAssetID(zippedAssetID uint32) (int, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	if m.Zipper != nil {
 		for _, asset := range m.Zipper.Assets {
 			for _, chain := range asset.Chains {
 				if chain.ZippedAssetID == zippedAssetID {
-					return asset.QuantityScale
+					return asset.QuantityScale, true
 				}
 			}
 		}
 	}
-	return 18
+	return 0, false
 }
 
 // PatchZipperSupply applies supply updates to the in-memory catalog.
@@ -341,41 +326,104 @@ func (m *Manager) pairsLocked() []map[string]any {
 
 func validateSpotConfig(config map[string]any) error {
 	if config == nil {
-		return nil
+		return &errors.ValidationError{Msg: "spot catalog is required"}
 	}
+	symbols := map[string]struct{}{}
+	ids := map[uint32]struct{}{}
+	count := 0
 	for _, key := range []string{"pairs", "symbols"} {
 		raw, _ := config[key].([]any)
 		for i, item := range raw {
 			pair, ok := item.(map[string]any)
 			if !ok {
-				continue
+				return &errors.ValidationError{Msg: fmt.Sprintf("spot %s[%d] must be an object", key, i)}
 			}
-			if err := validateOptionalU32Field(pair, "symbol_id", "symbolId"); err != nil {
+			symbol, _ := pair["symbol"].(string)
+			if symbol == "" {
+				return &errors.ValidationError{Msg: fmt.Sprintf("spot %s[%d] symbol is required", key, i)}
+			}
+			id, found, err := requiredU32Field(pair, "symbol_id", "symbolId")
+			if err != nil || !found || id == 0 {
+				if err == nil {
+					err = &errors.ValidationError{Msg: "symbol_id must be non-zero"}
+				}
 				return fmt.Errorf("spot %s[%d]: %w", key, i, err)
 			}
-			if err := validateOptionalScaleField(pair, "base_quantity_scale", "baseQuantityScale", "qtyScale"); err != nil {
+			if err := validateRequiredScaleField(pair, "base_quantity_scale", "baseQuantityScale", "qtyScale"); err != nil {
 				return fmt.Errorf("spot %s[%d]: %w", key, i, err)
 			}
+			if _, exists := symbols[symbol]; exists {
+				return &errors.ValidationError{Msg: fmt.Sprintf("spot catalog contains duplicate symbol %q", symbol)}
+			}
+			if _, exists := ids[id]; exists {
+				return &errors.ValidationError{Msg: fmt.Sprintf("spot catalog contains duplicate symbol_id %d", id)}
+			}
+			symbols[symbol] = struct{}{}
+			ids[id] = struct{}{}
+			count++
 		}
+	}
+	if count == 0 {
+		return &errors.ValidationError{Msg: "spot catalog empty or missing pairs"}
 	}
 	return nil
 }
 
 func validateZipperRaw(config map[string]any) error {
 	if config == nil {
-		return nil
+		return &errors.ValidationError{Msg: "zipper catalog is required"}
 	}
+	assetNames := map[string]struct{}{}
+	ledgerIDs := map[uint32]struct{}{}
+	zippedIDs := map[uint32]struct{}{}
 	assets, _ := config["assets"].([]any)
 	for i, row := range assets {
 		item, ok := row.(map[string]any)
 		if !ok {
-			continue
+			return &errors.ValidationError{Msg: fmt.Sprintf("zipper assets[%d] must be an object", i)}
 		}
-		if err := validateOptionalU32Field(item, "ledger_id", "ledgerId"); err != nil {
+		asset, _ := item["asset"].(string)
+		if asset == "" {
+			asset, _ = item["code"].(string)
+		}
+		if asset == "" {
+			return &errors.ValidationError{Msg: fmt.Sprintf("zipper assets[%d] asset is required", i)}
+		}
+		ledgerID, found, err := requiredU32Field(item, "ledger_id", "ledgerId")
+		if err != nil || !found || ledgerID == 0 {
+			if err == nil {
+				err = &errors.ValidationError{Msg: "ledger_id must be non-zero"}
+			}
 			return fmt.Errorf("zipper assets[%d]: %w", i, err)
 		}
-		if err := validateOptionalScaleField(item, "quantity_scale", "quantityScale"); err != nil {
+		if err := validateRequiredScaleField(item, "quantity_scale", "quantityScale"); err != nil {
 			return fmt.Errorf("zipper assets[%d]: %w", i, err)
+		}
+		if _, exists := assetNames[asset]; exists {
+			return &errors.ValidationError{Msg: fmt.Sprintf("zipper catalog contains duplicate asset %q", asset)}
+		}
+		if _, exists := ledgerIDs[ledgerID]; exists {
+			return &errors.ValidationError{Msg: fmt.Sprintf("zipper catalog contains duplicate ledger_id %d", ledgerID)}
+		}
+		assetNames[asset] = struct{}{}
+		ledgerIDs[ledgerID] = struct{}{}
+		variants, _ := item["variants"].([]any)
+		for j, rawVariant := range variants {
+			variant, ok := rawVariant.(map[string]any)
+			if !ok {
+				return &errors.ValidationError{Msg: fmt.Sprintf("zipper assets[%d] variants[%d] must be an object", i, j)}
+			}
+			zippedID, found, err := requiredU32Field(variant, "zipped_asset_id", "zippedAssetId")
+			if err != nil || !found || zippedID == 0 {
+				if err == nil {
+					err = &errors.ValidationError{Msg: "zipped_asset_id must be non-zero"}
+				}
+				return fmt.Errorf("zipper assets[%d] variants[%d]: %w", i, j, err)
+			}
+			if _, exists := zippedIDs[zippedID]; exists {
+				return &errors.ValidationError{Msg: fmt.Sprintf("zipper catalog contains duplicate zipped_asset_id %d", zippedID)}
+			}
+			zippedIDs[zippedID] = struct{}{}
 		}
 	}
 	return nil
@@ -385,27 +433,56 @@ func validateDepositWithdrawConfig(config *models.DepositWithdrawConfig) error {
 	if config == nil {
 		return nil
 	}
+	assetNames := map[string]struct{}{}
+	ledgerIDs := map[uint32]struct{}{}
+	zippedIDs := map[uint32]struct{}{}
 	for i, asset := range config.Assets {
+		if asset.Asset == "" || asset.LedgerID == 0 {
+			return &errors.ValidationError{Msg: fmt.Sprintf("zipper assets[%d] requires asset and non-zero ledger_id", i)}
+		}
 		if asset.QuantityScale < 0 || asset.QuantityScale > maxProtocolScale {
 			return &errors.ValidationError{
 				Msg: fmt.Sprintf("zipper assets[%d] quantity_scale %d exceeds maximum protocol scale %d", i, asset.QuantityScale, maxProtocolScale),
 			}
 		}
+		if _, ok := assetNames[asset.Asset]; ok {
+			return &errors.ValidationError{Msg: fmt.Sprintf("zipper catalog contains duplicate asset %q", asset.Asset)}
+		}
+		if _, ok := ledgerIDs[asset.LedgerID]; ok {
+			return &errors.ValidationError{Msg: fmt.Sprintf("zipper catalog contains duplicate ledger_id %d", asset.LedgerID)}
+		}
+		assetNames[asset.Asset] = struct{}{}
+		ledgerIDs[asset.LedgerID] = struct{}{}
+		for j, variant := range asset.Variants {
+			if variant.ZippedAssetID == 0 {
+				return &errors.ValidationError{Msg: fmt.Sprintf("zipper assets[%d] variants[%d] requires non-zero zipped_asset_id", i, j)}
+			}
+			if _, ok := zippedIDs[variant.ZippedAssetID]; ok {
+				return &errors.ValidationError{Msg: fmt.Sprintf("zipper catalog contains duplicate zipped_asset_id %d", variant.ZippedAssetID)}
+			}
+			zippedIDs[variant.ZippedAssetID] = struct{}{}
+		}
 	}
 	return nil
 }
 
-func validateOptionalU32Field(row map[string]any, keys ...string) error {
+func requiredU32Field(row map[string]any, keys ...string) (uint32, bool, error) {
 	for _, key := range keys {
-		if _, ok := row[key]; !ok {
-			continue
+		if value, ok := row[key]; ok {
+			parsed, err := parseU32Exact(value, key)
+			return parsed, true, err
 		}
-		if _, err := parseU32Exact(row[key], key); err != nil {
-			return err
-		}
-		return nil
 	}
-	return nil
+	return 0, false, nil
+}
+
+func validateRequiredScaleField(row map[string]any, keys ...string) error {
+	for _, key := range keys {
+		if _, ok := row[key]; ok {
+			return validateOptionalScaleField(row, keys...)
+		}
+	}
+	return &errors.ValidationError{Msg: "quantity scale is required"}
 }
 
 func validateOptionalScaleField(row map[string]any, keys ...string) error {
@@ -512,6 +589,15 @@ func intValue(v any) int {
 		return 0
 	}
 	return n
+}
+
+func intField(row map[string]any, keys ...string) (int, bool) {
+	for _, key := range keys {
+		if value, ok := row[key]; ok && value != nil {
+			return intValue(value), true
+		}
+	}
+	return 0, false
 }
 
 func trimFloat(v float64) string {

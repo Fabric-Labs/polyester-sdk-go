@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+## 0.1.0a21
+
+### Breaking
+- `models.BalanceHistorySeries.BalanceQ` is now `[]uint64`, matching the protobuf wire type and preserving values above `math.MaxInt64`.
+- `models.BalanceHistorySeries.AccountCode` is now `int32`, preserving unknown negative protobuf enum values instead of wrapping them into large unsigned values.
+- Trading withdrawals require explicit non-empty idempotency key and non-zero nonce values.
+- `auth.SignRequest` and canonical URL helpers now return errors for malformed absolute URLs.
+- Scale-dependent market data, orderbook, and Zipper supply paths require hydrated catalog scales instead of guessing.
+
+### Features
+- Realtime subscriptions expose `SetOnError`; managed snapshot streams accept `OnError`.
+- Retry classifiers and cryptographically random withdrawal key/nonce helpers are exported.
+
+### Fixed
+- Batch-create decoding rejects missing outcomes and inconsistent aggregate counts; unknown rejection enum values retain their numeric code.
+- Realtime reconnects use capped exponential backoff with per-subscription jitter.
+- Signing timestamps stay on wall clock during large concurrent bursts.
+- Catalog hydration rejects conflicting symbol/asset identities atomically and accepts valid proto3 scale `0` values; REST and realtime public trades carry catalog quantity-scale metadata.
+
 ## 0.1.0a20
 
 ### Fixed

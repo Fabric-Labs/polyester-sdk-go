@@ -8,6 +8,7 @@ import (
 
 func TestRefreshSnapshotSurfacesError(t *testing.T) {
 	want := errors.New("snapshot boom")
+	var observed error
 	sts := NewSnapshotThenStream[string, int](SnapshotThenStreamConfig[string, int]{
 		FetchSnapshot: func(context.Context) (string, error) {
 			return "", want
@@ -16,6 +17,7 @@ func TestRefreshSnapshotSurfacesError(t *testing.T) {
 		ApplyLivePublications: func([]int) {},
 		ReadPublication:       func(p int) []int { return []int{p} },
 		Decode:                func([]byte) (int, error) { return 0, nil },
+		OnError:               func(err error) { observed = err },
 	})
 
 	err := sts.RefreshSnapshot(context.Background())
@@ -27,6 +29,9 @@ func TestRefreshSnapshotSurfacesError(t *testing.T) {
 	}
 	if !errors.Is(sts.Err(), want) {
 		t.Fatalf("Err()=%v want %v", sts.Err(), want)
+	}
+	if !errors.Is(observed, want) {
+		t.Fatalf("OnError=%v want %v", observed, want)
 	}
 }
 

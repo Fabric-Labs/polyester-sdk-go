@@ -19,7 +19,9 @@ func TestZippedAssetSupplyBatchFromBytes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	batch, err := decode.ZippedAssetSupplyBatchFromBytes(payload, func(uint32) int { return 9 })
+	batch, err := decode.ZippedAssetSupplyBatchFromBytes(payload, func(uint32) (int, bool) {
+		return 9, true
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

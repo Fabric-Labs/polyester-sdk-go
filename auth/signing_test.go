@@ -4,15 +4,20 @@ import (
 	"crypto/ed25519"
 	"encoding/hex"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 )
 
 func TestCanonicalQuerySortsAndEncodesValues(t *testing.T) {
-	got := CanonicalQuery("https://api.example.test/path?b=2&a=hello world")
+	got, err := CanonicalQuery("https://api.example.test/path?b=2&a=hello world")
+	if err != nil {
+		t.Fatal(err)
+	}
 	want := "a=hello%20world&b=2"
 	if got != want {
 		t.Fatalf("got %q want %q", got, want)
@@ -20,7 +25,10 @@ func TestCanonicalQuerySortsAndEncodesValues(t *testing.T) {
 }
 
 func TestCanonicalQueryPreservesHyphensInChannelParam(t *testing.T) {
-	got := CanonicalQuery("https://api.example.test/v1/rt/subscribe?channel=private:auth:api-keys:account:proto")
+	got, err := CanonicalQuery("https://api.example.test/v1/rt/subscribe?channel=private:auth:api-keys:account:proto")
+	if err != nil {
+		t.Fatal(err)
+	}
 	want := "channel=private%3Aauth%3Aapi-keys%3Aaccount%3Aproto"
 	if got != want {
 		t.Fatalf("got %q want %q", got, want)
@@ -39,19 +47,26 @@ func TestCanonicalQuerySharedVectors(t *testing.T) {
 		{"https://api.example.test/x?msg=%E2%9C%93&plain=ok", "msg=%E2%9C%93&plain=ok"},
 	}
 	for _, tc := range cases {
-		if got := CanonicalQuery(tc.url); got != tc.want {
+		got, err := CanonicalQuery(tc.url)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != tc.want {
 			t.Fatalf("url=%q got %q want %q", tc.url, got, tc.want)
 		}
 	}
 }
 
 func TestCanonicalSigningStringMatchesContract(t *testing.T) {
-	got := CanonicalSigningString(
+	got, err := CanonicalSigningString(
 		"123",
 		"post",
 		"https://api.example.test/foo/bar?b=2&a=1",
 		[]byte("{}"),
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 	want := "123\nPOST\n/foo/bar\na=1&b=2\n44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
 	if got != want {
 		t.Fatalf("got %q want %q", got, want)
@@ -64,7 +79,10 @@ func TestSignRequestReturnsPolyesterHeaders(t *testing.T) {
 		t.Fatal(err)
 	}
 	creds := &Credentials{KeyID: "key_123", PrivateKey: private}
-	headers := SignRequest(creds, "POST", "https://api.example.test/foo", []byte("{}"), "123")
+	headers, err := SignRequest(creds, "POST", "https://api.example.test/foo", []byte("{}"), "123")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if headers["X-API-KEY-ID"] != "key_123" {
 		t.Fatalf("key id: %s", headers["X-API-KEY-ID"])
 	}
@@ -76,32 +94,56 @@ func TestSignRequestReturnsPolyesterHeaders(t *testing.T) {
 	}
 }
 
-func TestAutomaticTimestampsAreUniqueUnderConcurrency(t *testing.T) {
+func TestAutomaticTimestampsTrackWallClockUnderConcurrency(t *testing.T) {
 	_, private, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	creds := &Credentials{KeyID: "key_123", PrivateKey: private}
-	const count = 32
+	const count = 100_000
 	var wg sync.WaitGroup
 	headers := make(chan map[string]string, count)
+	before := time.Now().UnixMilli()
 	wg.Add(count)
 	for range count {
 		go func() {
 			defer wg.Done()
-			headers <- SignRequest(creds, "POST", "https://api.example.test/foo", []byte("{}"), "")
+			signed, signErr := SignRequest(creds, "POST", "https://api.example.test/foo", []byte("{}"), "")
+			if signErr != nil {
+				t.Errorf("sign: %v", signErr)
+				return
+			}
+			headers <- signed
 		}()
 	}
 	wg.Wait()
 	close(headers)
-	timestamps := make(map[string]struct{}, count)
-	signatures := make(map[string]struct{}, count)
+	after := time.Now().UnixMilli()
 	for item := range headers {
-		timestamps[item["X-API-TIMESTAMP"]] = struct{}{}
-		signatures[item["X-API-SIGNATURE"]] = struct{}{}
+		ts, parseErr := strconv.ParseInt(item["X-API-TIMESTAMP"], 10, 64)
+		if parseErr != nil {
+			t.Fatal(parseErr)
+		}
+		if ts < before || ts > after {
+			t.Fatalf("timestamp %d outside wall-clock interval [%d,%d]", ts, before, after)
+		}
 	}
-	if len(timestamps) != count || len(signatures) != count {
-		t.Fatalf("unique timestamps=%d signatures=%d", len(timestamps), len(signatures))
+}
+
+func TestSignRequestRejectsMalformedURL(t *testing.T) {
+	_, private, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = SignRequest(
+		&Credentials{KeyID: "key_123", PrivateKey: private},
+		"POST",
+		"://not-a-url",
+		[]byte("{}"),
+		"",
+	)
+	if err == nil {
+		t.Fatal("malformed URL must fail closed")
 	}
 }
 

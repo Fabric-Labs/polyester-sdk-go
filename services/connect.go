@@ -41,3 +41,23 @@ func UnaryAuth[Req any, Resp any, Out any](
 	}
 	return decode(resp.Msg), nil
 }
+
+// UnaryAuthDecoded calls an authenticated Connect RPC whose decoder can reject
+// a malformed success response.
+func UnaryAuthDecoded[Req any, Resp any, Out any](
+	ctx context.Context,
+	factory *transport.Factory,
+	call func(context.Context, *connect.Request[Req]) (*connect.Response[Resp], error),
+	req *Req,
+	decode func(*Resp) (Out, error),
+) (Out, error) {
+	var zero Out
+	if _, err := factory.RequireCredentials(); err != nil {
+		return zero, err
+	}
+	resp, err := call(ctx, connect.NewRequest(req))
+	if err != nil {
+		return zero, transport.MapError(err)
+	}
+	return decode(resp.Msg)
+}

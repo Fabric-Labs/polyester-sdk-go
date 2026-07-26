@@ -14,10 +14,22 @@ func SpotConfigFromProto(msg *marketdatav1.GetSpotConfigResponse) models.SpotCon
 	if err != nil {
 		return models.SpotConfig{}
 	}
+	// proto3 omits scalar zeroes during proto-JSON conversion. Scale zero is
+	// valid, so restore the typed wire value instead of treating it as missing.
+	if pairs, ok := raw["pairs"].([]any); ok {
+		for i, typed := range msg.GetPairs() {
+			if i >= len(pairs) {
+				break
+			}
+			if pair, ok := pairs[i].(map[string]any); ok {
+				pair["base_quantity_scale"] = float64(typed.GetBaseQuantityScale())
+			}
+		}
+	}
 	return models.SpotConfig{Raw: raw}
 }
 
-func MarketTradesFromProto(msg *marketdatav1.GetTradesResponse) models.MarketTradesResult {
+func MarketTradesFromProto(msg *marketdatav1.GetTradesResponse, quantityScale int) models.MarketTradesResult {
 	out := make([]models.MarketTrade, 0, len(msg.GetTrades()))
 	for _, t := range msg.GetTrades() {
 		side := "sell"
@@ -27,7 +39,7 @@ func MarketTradesFromProto(msg *marketdatav1.GetTradesResponse) models.MarketTra
 		out = append(out, models.MarketTrade{
 			SymbolID: t.GetSymbolId(), MatchID: strconv.FormatUint(t.GetMatchId(), 10),
 			Price: codecs.DecodePriceTicks(t.GetPriceTicks(), ""),
-			Qty:   codecs.DecodeQtyScaled(t.GetQtyScaled(), -1, "", nil),
+			Qty:   codecs.DecodeQtyScaled(t.GetQtyScaled(), quantityScale, "", nil),
 			TsNs:  strconv.FormatUint(t.GetTsNs(), 10), Side: side,
 		})
 	}
