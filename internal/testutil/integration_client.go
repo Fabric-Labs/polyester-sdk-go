@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go"
-	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
 // RequireLiveClient returns a devnet client and timed context, or skips when credentials are missing.
@@ -27,16 +26,12 @@ func RequireLiveClient(t *testing.T) (*polyester.Client, context.Context, func()
 	}
 	return client, ctx, cleanup
 }
-// SmokeSymbol resolves a liquid devnet pair symbol from spot config.
+
+// SmokeSymbol resolves the live-test trade symbol (POLYESTER_TEST_TRADE_SYMBOL).
+// Kept as a compatibility alias for TradeSymbol; smoke-env fallbacks are not used.
 func SmokeSymbol(t *testing.T, client *polyester.Client, ctx context.Context) string {
 	t.Helper()
-	cfg := CallRequired(t, "market_data.get_spot_config", func() (models.SpotConfig, error) {
-		return client.MarketData.GetSpotConfig(ctx)
-	})
-	if client.Catalogs != nil {
-		client.Catalogs.HydrateSpotConfig(cfg.Raw)
-	}
-	return PickSmokeSymbol(cfg.Raw)
+	return TradeSymbol(t, client, ctx)
 }
 
 // NonNegativeIntString parses a non-negative integer string field (including u128-sized values).

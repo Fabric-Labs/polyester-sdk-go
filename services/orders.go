@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
@@ -22,10 +24,19 @@ type OrdersService struct {
 	defaultAccountID     *string
 	realtime             RealtimeClient
 	catalogHydrationDone <-chan struct{}
+	catalogLastError     func() error
 }
 
 // NewOrdersService constructs OrdersService.
-func NewOrdersService(factory *transport.Factory, cats *catalogs.Manager, defaultSubAccountID *string, realtime RealtimeClient, defaultAccountID *string, catalogHydrationDone <-chan struct{}) *OrdersService {
+func NewOrdersService(
+	factory *transport.Factory,
+	cats *catalogs.Manager,
+	defaultSubAccountID *string,
+	realtime RealtimeClient,
+	defaultAccountID *string,
+	catalogHydrationDone <-chan struct{},
+	catalogLastError func() error,
+) *OrdersService {
 	return &OrdersService{
 		transport:            factory,
 		catalogs:             cats,
@@ -33,6 +44,7 @@ func NewOrdersService(factory *transport.Factory, cats *catalogs.Manager, defaul
 		realtime:             realtime,
 		defaultAccountID:     defaultAccountID,
 		catalogHydrationDone: catalogHydrationDone,
+		catalogLastError:     catalogLastError,
 	}
 }
 
@@ -42,6 +54,9 @@ func (s *OrdersService) ensureCatalogs(ctx context.Context) error {
 	}
 	select {
 	case <-s.catalogHydrationDone:
+		if s.catalogLastError != nil {
+			return s.catalogLastError()
+		}
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
@@ -286,6 +301,67 @@ func (s *OrdersService) BatchModify(ctx context.Context, account AccountScope, i
 // Subscribe streams private order updates for an account.
 func (s *OrdersService) Subscribe(ctx context.Context, accountID any) (*realtime.Subscription[models.Order], error) {
 	return SubscribeAccountProto(ctx, s.realtime, "private:spot:orders:{account_id}:proto", accountID, s.defaultAccountID, decode.OrderFromBytes)
+}
+
+// WaitForOrderTradesComplete polls GetOrder until the sum of returned trade
+// quantities equals the order's cumulative filled quantity, or the timeout elapses.
+//
+// Trade projection can lag the order filled/cum qty fields (POLY-3750); use this
+// helper when fills must be fully projected before continuing.
+func (s *OrdersService) WaitForOrderTradesComplete(
+	ctx context.Context,
+	account AccountScope,
+	orderID, clientOrderID, subAccountID *string,
+	timeout time.Duration,
+) (models.GetOrderResult, error) {
+	if timeout <= 0 {
+		timeout = 15 * time.Second
+	}
+	deadline := time.Now().Add(timeout)
+	var last models.GetOrderResult
+	for {
+		if err := ctx.Err(); err != nil {
+			return last, err
+		}
+		detail, err := s.Get(ctx, account, orderID, clientOrderID, subAccountID, false, false)
+		if err != nil {
+			return last, err
+		}
+		last = detail
+		if detail.Order != nil && orderTradesComplete(detail) {
+			return detail, nil
+		}
+		if time.Now().After(deadline) {
+			cum := int64(0)
+			if detail.Order != nil {
+				cum = detail.Order.CumQty.Scaled
+			}
+			return last, fmt.Errorf(
+				"order trades not complete within %s: cum_qty=%d trade_qty_sum=%d trades=%d",
+				timeout, cum, sumTradeQty(detail.Trades), len(detail.Trades),
+			)
+		}
+		select {
+		case <-ctx.Done():
+			return last, ctx.Err()
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+}
+
+func orderTradesComplete(detail models.GetOrderResult) bool {
+	if detail.Order == nil {
+		return false
+	}
+	return sumTradeQty(detail.Trades) == detail.Order.CumQty.Scaled
+}
+
+func sumTradeQty(trades []models.UserTrade) int64 {
+	var sum int64
+	for _, trade := range trades {
+		sum += trade.Qty.Scaled
+	}
+	return sum
 }
 
 func quantityScaleForOrderWrite(c *catalogs.Manager, symbol *string, symbolID *uint32) (int, error) {

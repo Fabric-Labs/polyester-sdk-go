@@ -3,7 +3,6 @@ package decode
 import (
 	"strconv"
 
-	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	zipperv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/zipper/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
@@ -55,7 +54,7 @@ func zippedAssetSupplyUpdateFromProto(msg *zipperv1.ZippedAssetSupplyUpdate, sca
 	}
 	return models.ZippedAssetSupplyUpdate{
 		ZippedAssetID: msg.GetZippedAssetId(),
-		Supply:        codecs.FormatLedgerU128(strconv.FormatUint(msg.GetSupplyQ(), 10), scale),
+		Supply:        formatLedgerU128OrZero(strconv.FormatUint(msg.GetSupplyQ(), 10), scale),
 	}
 }
 

@@ -32,7 +32,7 @@ func TestInternalTransferTiny(t *testing.T) {
 		return client.MarketData.GetSpotConfig(ctx)
 	}).Raw
 	if client.Catalogs != nil {
-		client.Catalogs.HydrateSpotConfig(spotRaw)
+		_ = client.Catalogs.HydrateSpotConfig(spotRaw)
 	}
 	zipper := testutil.CallOptional(t, "zipper.get_deposit_withdraw_config", func() (models.DepositWithdrawConfig, error) {
 		return client.Zipper.GetDepositWithdrawConfig(ctx)

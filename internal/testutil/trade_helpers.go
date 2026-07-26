@@ -75,6 +75,23 @@ func TradingBalance(balances models.BalancesList, assetID uint32) *big.Int {
 	return big.NewInt(0)
 }
 
+// ReservedBalance returns the reserved ledger balance for an asset id (u128 wire scale).
+func ReservedBalance(balances models.BalancesList, assetID uint32) *big.Int {
+	for _, row := range balances.Balances {
+		if row.AssetID == assetID {
+			if strings.TrimSpace(row.Reserved) == "" {
+				return big.NewInt(0)
+			}
+			n, ok := new(big.Int).SetString(row.Reserved, 10)
+			if !ok {
+				return big.NewInt(0)
+			}
+			return n
+		}
+	}
+	return big.NewInt(0)
+}
+
 // FundingBalance returns the funding ledger balance for an asset id (u128 wire scale).
 func FundingBalance(balances models.BalancesList, assetID uint32) *big.Int {
 	for _, row := range balances.Balances {
@@ -92,7 +109,10 @@ func FundingBalance(balances models.BalancesList, assetID uint32) *big.Int {
 // TradingBalanceHuman returns the human-readable trading balance for an asset id.
 func TradingBalanceHuman(balances models.BalancesList, assetID uint32) *big.Rat {
 	raw := TradingBalance(balances, assetID)
-	formatted := codecs.FormatLedgerU128(raw.String(), codecs.LedgerScale)
+	formatted, err := codecs.FormatLedgerU128(raw.String(), codecs.LedgerScale)
+	if err != nil {
+		return big.NewRat(0, 1)
+	}
 	rat, ok := new(big.Rat).SetString(formatted)
 	if !ok {
 		return new(big.Rat)

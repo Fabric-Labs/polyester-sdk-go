@@ -13,7 +13,7 @@ func TestManagerConcurrentHydrateAndRead(t *testing.T) {
 		go func(n int) {
 			defer wg.Done()
 			for j := 0; j < 200; j++ {
-				m.HydrateSpotConfig(map[string]any{
+				_ = m.HydrateSpotConfig(map[string]any{
 					"pairs": []any{
 						map[string]any{
 							"symbol":              "BTCUSDT",

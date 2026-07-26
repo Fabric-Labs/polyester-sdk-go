@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
-	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	"github.com/Fabric-Labs/polyester-sdk-go/connectx"
+	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 )
 
 func TestAPIKeyInterceptorSetsSignatureHeaders(t *testing.T) {

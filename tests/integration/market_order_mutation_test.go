@@ -44,7 +44,7 @@ func TestMarketBuyMutation(t *testing.T) {
 		Side:                 "buy",
 		OrderType:            "market",
 		TIF:                  &tif,
-		Qty: models.QtyFromDecimal(qty),
+		Qty:                  models.QtyFromDecimal(qty),
 		ClientOrderID:        &clientOrderID,
 		MarketClientRefPrice: pricePtr(models.PriceFromDecimal(refPrice)),
 	}, nil)
@@ -116,7 +116,7 @@ func TestMarketSellMutation(t *testing.T) {
 		Side:                 "sell",
 		OrderType:            "market",
 		TIF:                  &tif,
-		Qty: models.QtyFromDecimal(qty),
+		Qty:                  models.QtyFromDecimal(qty),
 		ClientOrderID:        &clientOrderID,
 		MarketClientRefPrice: pricePtr(models.PriceFromDecimal(refPrice)),
 	}, nil)
@@ -157,4 +157,3 @@ func TestMarketSellMutation(t *testing.T) {
 		t.Fatalf("unexpected terminal status %q", detail.Order.Status)
 	}
 }
-

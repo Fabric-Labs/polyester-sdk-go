@@ -165,6 +165,9 @@ func DecodeAssetAmountBig(scaled *big.Int, scale int, domain models.QuantityDoma
 }
 
 func decimalToScaledBig(raw string, scale int, fieldName string) (*big.Int, error) {
+	if err := ValidateProtocolScale(scale); err != nil {
+		return nil, err
+	}
 	text, err := normalizeStrictDecimal(raw, fieldName)
 	if err != nil {
 		return nil, err

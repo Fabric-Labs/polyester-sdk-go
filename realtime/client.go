@@ -23,6 +23,10 @@ type Client struct {
 	credentials *auth.Credentials
 	http        *http.Client
 	maxQueue    int
+
+	mu     sync.Mutex
+	subs   []func()
+	closed bool
 }
 
 // NewClient creates a realtime client.
@@ -36,6 +40,38 @@ func NewClient(wsURL string, apiURL string, credentials *auth.Credentials, httpC
 		credentials: credentials,
 		http:        httpClient,
 		maxQueue:    maxQueue,
+	}
+}
+
+// Close cancels all tracked subscriptions.
+func (c *Client) Close() {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	c.closed = true
+	subs := c.subs
+	c.subs = nil
+	c.mu.Unlock()
+	for _, closeFn := range subs {
+		closeFn()
+	}
+}
+
+func (c *Client) trackSubscription(closeFn func()) (untrack func()) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closed {
+		return func() {}
+	}
+	c.subs = append(c.subs, closeFn)
+	idx := len(c.subs) - 1
+	return func() {
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		if idx >= 0 && idx < len(c.subs) {
+			c.subs[idx] = func() {}
+		}
 	}
 }
 
@@ -97,6 +133,10 @@ func SubscribeProtoWithOptions[T any](
 
 	runCtx, cancel := context.WithCancel(ctx)
 	sub := newSubscription[T](c.maxQueue, cancel)
+	untrack := c.trackSubscription(func() { sub.Close() })
+	sub.mu.Lock()
+	sub.untrack = untrack
+	sub.mu.Unlock()
 	reconnect := autoReconnectEnabled(opts)
 	readyCh := make(chan error, 1)
 	var readySent atomic.Bool
@@ -108,8 +148,8 @@ func SubscribeProtoWithOptions[T any](
 	}
 
 	go func() {
-		defer sub.Close()
 		defer close(sub.ch)
+		defer sub.markFinished()
 		defer sendReady(&sdkerrors.RealtimeError{Msg: "realtime subscription ended before handshake"})
 		for {
 			if runCtx.Err() != nil {
@@ -147,11 +187,13 @@ func SubscribeProtoWithOptions[T any](
 	case err := <-readyCh:
 		if err != nil {
 			cancel()
+			<-sub.done
 			return nil, err
 		}
 		return sub, nil
 	case <-ctx.Done():
 		cancel()
+		<-sub.done
 		return nil, ctx.Err()
 	}
 }
@@ -173,6 +215,11 @@ func runSubscriptionOnce[T any](
 		return &sdkerrors.RealtimeError{Msg: err.Error()}
 	}
 	defer func() { _ = conn.Close() }()
+	// Abort ReadMessage promptly when the subscription context is canceled.
+	go func() {
+		<-ctx.Done()
+		_ = conn.Close()
+	}()
 	if conn.Subprotocol() != centrifugoProtobufSubprotocol {
 		return &sdkerrors.RealtimeError{Msg: "server did not negotiate centrifuge-protobuf websocket subprotocol"}
 	}
@@ -326,6 +373,7 @@ type SnapshotThenStream[TSnapshot any, TPublication any] struct {
 	disposed   bool
 	generation int
 	pending    []TPublication
+	lastErr    error
 	cancel     context.CancelFunc
 	done       chan struct{}
 }
@@ -416,7 +464,46 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) run(ctx context.Context) {
 			if s.onReconnect != nil {
 				s.onReconnect()
 			}
-			_ = s.RefreshSnapshot(ctx)
+			// Drain publications into the pending buffer while refresh runs
+			// (ready=false). Without this, reconnect pubs sit in sub.Messages()
+			// until after ready=true and incorrectly apply as live duplicates.
+			refreshDone := make(chan error, 1)
+			go func() {
+				refreshDone <- s.refreshSnapshotWithRetry(ctx)
+			}()
+		drainRefresh:
+			for {
+				select {
+				case <-ctx.Done():
+					sub.Close()
+					return
+				case err := <-refreshDone:
+					if err != nil {
+						s.setErr(err)
+						// Fail-closed: stop the stream after a failed reconnect refresh.
+						sub.Close()
+						return
+					}
+					break drainRefresh
+				case <-sub.Done():
+					err := <-refreshDone
+					if err != nil {
+						s.setErr(err)
+						return
+					}
+					break drainRefresh
+				case msg, ok := <-sub.Messages():
+					if !ok {
+						err := <-refreshDone
+						if err != nil {
+							s.setErr(err)
+							return
+						}
+						break drainRefresh
+					}
+					s.handlePublication(msg)
+				}
+			}
 		}
 		first = false
 
@@ -472,6 +559,7 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) handlePublication(msg TPub
 }
 
 // RefreshSnapshot fetches a REST snapshot and merges buffered publications.
+// On failure the stream is marked not-ready and Err() is set. Success clears Err().
 func (s *SnapshotThenStream[TSnapshot, TPublication]) RefreshSnapshot(ctx context.Context) error {
 	s.mu.Lock()
 	if s.disposed {
@@ -486,6 +574,7 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) RefreshSnapshot(ctx contex
 
 	snapshot, err := s.fetchSnapshot(ctx)
 	if err != nil {
+		s.setErr(err)
 		return err
 	}
 
@@ -498,12 +587,40 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) RefreshSnapshot(ctx contex
 	s.pending = nil
 	s.applySnapshot(snapshot, buffered)
 	s.ready = true
+	s.lastErr = nil
 	onRefresh := s.onSnapshotRefresh
 	s.mu.Unlock()
 	if onRefresh != nil {
 		onRefresh()
 	}
 	return nil
+}
+
+// refreshSnapshotWithRetry performs one bounded retry then fail-closes.
+func (s *SnapshotThenStream[TSnapshot, TPublication]) refreshSnapshotWithRetry(ctx context.Context) error {
+	if err := s.RefreshSnapshot(ctx); err == nil {
+		return nil
+	}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(200 * time.Millisecond):
+	}
+	return s.RefreshSnapshot(ctx)
+}
+
+func (s *SnapshotThenStream[TSnapshot, TPublication]) setErr(err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.lastErr = err
+	s.ready = false
+}
+
+// Err returns the last snapshot/stream error, if any.
+func (s *SnapshotThenStream[TSnapshot, TPublication]) Err() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.lastErr
 }
 
 // Close stops the stream.

@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
-	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/testutil"
+	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
 func TestTriggerPauseResumeCancel(t *testing.T) {

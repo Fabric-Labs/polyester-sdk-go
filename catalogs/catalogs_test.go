@@ -9,7 +9,7 @@ import (
 
 func TestOrderbookPriceBucketsForSymbolReadsSpotMarketdata(t *testing.T) {
 	mgr := catalogs.NewManager()
-	mgr.HydrateSpotConfig(map[string]any{
+	if err := mgr.HydrateSpotConfig(map[string]any{
 		"pairs": []any{
 			map[string]any{
 				"symbol":    "BTC-USDT",
@@ -19,7 +19,9 @@ func TestOrderbookPriceBucketsForSymbolReadsSpotMarketdata(t *testing.T) {
 				},
 			},
 		},
-	})
+	}); err != nil {
+		t.Fatal(err)
+	}
 	got := mgr.OrderbookPriceBucketsForSymbol("BTC-USDT")
 	want := []string{"0.01", "0.1", "1"}
 	if len(got) != len(want) {
@@ -34,9 +36,11 @@ func TestOrderbookPriceBucketsForSymbolReadsSpotMarketdata(t *testing.T) {
 
 func TestLedgerIDForAssetUsesTypedZipperCatalog(t *testing.T) {
 	mgr := catalogs.NewManager()
-	mgr.HydrateZipperConfig(models.DepositWithdrawConfig{
+	if err := mgr.HydrateZipperConfig(models.DepositWithdrawConfig{
 		Assets: []models.ZipperAssetConfig{{Asset: "USDT", LedgerID: 99, QuantityScale: 6}},
-	})
+	}); err != nil {
+		t.Fatal(err)
+	}
 	id := mgr.LedgerIDForAsset("USDT")
 	if id == nil || *id != 99 {
 		t.Fatalf("ledger_id=%v want 99", id)

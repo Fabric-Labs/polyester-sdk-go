@@ -20,9 +20,18 @@ type TriggersService struct {
 	defaultAccountID     *string
 	realtime             RealtimeClient
 	catalogHydrationDone <-chan struct{}
+	catalogLastError     func() error
 }
 
-func NewTriggersService(factory *transport.Factory, cats *catalogs.Manager, defaultSubAccountID *string, realtime RealtimeClient, defaultAccountID *string, catalogHydrationDone <-chan struct{}) *TriggersService {
+func NewTriggersService(
+	factory *transport.Factory,
+	cats *catalogs.Manager,
+	defaultSubAccountID *string,
+	realtime RealtimeClient,
+	defaultAccountID *string,
+	catalogHydrationDone <-chan struct{},
+	catalogLastError func() error,
+) *TriggersService {
 	return &TriggersService{
 		transport:            factory,
 		catalogs:             cats,
@@ -30,6 +39,7 @@ func NewTriggersService(factory *transport.Factory, cats *catalogs.Manager, defa
 		realtime:             realtime,
 		defaultAccountID:     defaultAccountID,
 		catalogHydrationDone: catalogHydrationDone,
+		catalogLastError:     catalogLastError,
 	}
 }
 
@@ -39,6 +49,9 @@ func (s *TriggersService) ensureCatalogs(ctx context.Context) error {
 	}
 	select {
 	case <-s.catalogHydrationDone:
+		if s.catalogLastError != nil {
+			return s.catalogLastError()
+		}
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()

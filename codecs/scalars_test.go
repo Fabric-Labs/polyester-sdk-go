@@ -131,7 +131,11 @@ func TestParseAndFormatQtyScaled(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := FormatQtyScaled(int64(qty), 8); got != "1.5" {
+	got, err := FormatQtyScaled(int64(qty), 8)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "1.5" {
 		t.Fatalf("got %q", got)
 	}
 }

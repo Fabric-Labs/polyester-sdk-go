@@ -11,6 +11,9 @@ var dotenvOnce sync.Once
 
 func loadDotEnv() {
 	dotenvOnce.Do(func() {
+		if EnvTruthy("POLYESTER_TEST_DISABLE_DOTENV") {
+			return
+		}
 		for _, path := range []string{".env", "../.env", "../../.env"} {
 			if parseEnvFile(path) == nil {
 				return

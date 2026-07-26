@@ -41,7 +41,7 @@ func CandlesFromProto(msg *marketdatav1.GetCandlesResponse, volumeScale int) mod
 			TsSec: int64(c.GetTsSec()),
 			Open:  codecs.FormatPriceTicks(c.GetOpen()), High: codecs.FormatPriceTicks(c.GetHigh()),
 			Low: codecs.FormatPriceTicks(c.GetLow()), Close: codecs.FormatPriceTicks(c.GetClose()),
-			Volume: codecs.FormatQtyScaled(c.GetVolume(), volumeScale),
+			Volume: formatQtyScaledOrEmpty(c.GetVolume(), volumeScale),
 		})
 	}
 	return models.CandlesResult{Candles: out}
@@ -74,7 +74,7 @@ func CandlesColumnsFromProto(msg *marketdatav1.GetCandlesColumnsResponse, volume
 			candle.Close = codecs.FormatPriceTicks(msg.GetClose()[i])
 		}
 		if i < len(msg.GetVolume()) {
-			candle.Volume = codecs.FormatQtyScaled(msg.GetVolume()[i], volumeScale)
+			candle.Volume = formatQtyScaledOrEmpty(msg.GetVolume()[i], volumeScale)
 		}
 		out = append(out, candle)
 	}
@@ -95,7 +95,7 @@ func CandlePointFromProto(point *marketdatav1.CandlePoint, symbolID uint32, time
 		High:      codecs.FormatPriceTicks(point.GetHigh()),
 		Low:       codecs.FormatPriceTicks(point.GetLow()),
 		Close:     codecs.FormatPriceTicks(point.GetClose()),
-		Volume:    codecs.FormatQtyScaled(point.GetVolume(), volumeScale),
+		Volume:    formatQtyScaledOrEmpty(point.GetVolume(), volumeScale),
 		SymbolID:  symbolID,
 		Timeframe: timeframe,
 	}

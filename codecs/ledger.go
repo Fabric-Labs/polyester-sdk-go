@@ -1,7 +1,6 @@
 package codecs
 
 import (
-	"math/big"
 	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
@@ -46,27 +45,46 @@ func ResolveEquityGroupBy(groupBy string) (ledgerrdv1.EquityGroupBy, error) {
 }
 
 // FormatLedgerU128 formats a ledger u128 wire decimal string.
-func FormatLedgerU128(raw string, scale int) string {
+// Scale must be in [0, MaxProtocolScale] (0 defaults to LedgerScale). Larger
+// values return a ValidationError instead of allocating pathological padding.
+func FormatLedgerU128(raw string, scale int) (string, error) {
 	if scale <= 0 {
 		scale = LedgerScale
+	}
+	if err := ValidateProtocolScale(scale); err != nil {
+		return "", err
 	}
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		raw = "0"
 	}
-	value := new(big.Rat)
-	if _, ok := value.SetString(raw); !ok {
-		return "0"
+	for _, r := range raw {
+		if r < '0' || r > '9' {
+			return "", &errors.ValidationError{Msg: "ledger value must be an unsigned decimal integer string"}
+		}
 	}
-	divisor := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(scale)), nil)
-	value.Quo(value, new(big.Rat).SetInt(divisor))
-	if value.Sign() == 0 {
-		return "0"
+	digits := strings.TrimLeft(raw, "0")
+	if digits == "" {
+		digits = "0"
 	}
-	out := value.FloatString(int(scale))
-	out = strings.TrimRight(strings.TrimRight(out, "0"), ".")
-	if out == "" || out == "-0" {
-		return "0"
+	const u128MaxDecimal = "340282366920938463463374607431768211455"
+	if len(digits) > len(u128MaxDecimal) || (len(digits) == len(u128MaxDecimal) && digits > u128MaxDecimal) {
+		return "", &errors.ValidationError{Msg: "ledger value exceeds u128 range"}
 	}
-	return out
+	if scale == 0 {
+		return digits, nil
+	}
+	width := scale + 1
+	if len(digits) < width {
+		digits = strings.Repeat("0", width-len(digits)) + digits
+	}
+	head := strings.TrimLeft(digits[:len(digits)-scale], "0")
+	if head == "" {
+		head = "0"
+	}
+	tail := strings.TrimRight(digits[len(digits)-scale:], "0")
+	if tail == "" {
+		return head, nil
+	}
+	return head + "." + tail, nil
 }

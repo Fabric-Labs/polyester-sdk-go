@@ -158,11 +158,11 @@ type CancelAllAfterResult struct {
 
 // AssetBalance is a ledger balance row.
 type AssetBalance struct {
-	AssetID             uint32 `json:"asset_id"`
-	Trading             string `json:"trading,omitempty"`
-	Funding             string `json:"funding,omitempty"`
-	Reserved            string `json:"reserved,omitempty"`
-	Available           string `json:"available,omitempty"`
+	AssetID   uint32 `json:"asset_id"`
+	Trading   string `json:"trading,omitempty"`
+	Funding   string `json:"funding,omitempty"`
+	Reserved  string `json:"reserved,omitempty"`
+	Available string `json:"available,omitempty"`
 	// TradingRevision orders the atomic trading/reserved/available state.
 	TradingRevision uint64 `json:"trading_revision,omitempty"`
 	// FundingRevision orders funding state independently of trading.

@@ -35,7 +35,7 @@ func TestQuantityScaleForSymbolErrorsWhenCatalogUnhydrated(t *testing.T) {
 	if !strings.Contains(err.Error(), "unavailable") {
 		t.Fatalf("want unavailable error, got %v", err)
 	}
-	m.HydrateSpotConfig(map[string]any{
+	if err := m.HydrateSpotConfig(map[string]any{
 		"pairs": []any{
 			map[string]any{
 				"symbol":              "ETH-USDT",
@@ -43,7 +43,9 @@ func TestQuantityScaleForSymbolErrorsWhenCatalogUnhydrated(t *testing.T) {
 				"base_quantity_scale": float64(6),
 			},
 		},
-	})
+	}); err != nil {
+		t.Fatal(err)
+	}
 	scale, err := QuantityScaleForSymbol(m, &symbol)
 	if err != nil || scale != 6 {
 		t.Fatalf("expected scale 6, got scale=%d err=%v", scale, err)

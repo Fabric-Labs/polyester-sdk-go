@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/ed25519"
 	"encoding/hex"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -110,12 +111,23 @@ func TestCredentialsStringRedactsPrivateKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	creds := &Credentials{KeyID: "key_123", PrivateKey: private}
+	secret := hex.EncodeToString(private.Seed())
 	rendered := creds.String()
 	if !strings.Contains(rendered, "[REDACTED]") {
 		t.Fatalf("expected redaction, got %s", rendered)
 	}
-	if strings.Contains(rendered, hex.EncodeToString(private.Seed())) {
+	if strings.Contains(rendered, secret) {
 		t.Fatalf("private key leaked: %s", rendered)
+	}
+	goRendered := creds.GoString()
+	if !strings.Contains(goRendered, "[REDACTED]") {
+		t.Fatalf("GoString expected redaction, got %s", goRendered)
+	}
+	if strings.Contains(goRendered, secret) {
+		t.Fatalf("private key leaked via GoString: %s", goRendered)
+	}
+	if strings.Contains(fmt.Sprintf("%#v", creds), secret) {
+		t.Fatalf("private key leaked via %%#v: %#v", creds)
 	}
 }
 
