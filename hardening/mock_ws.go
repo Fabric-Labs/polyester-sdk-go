@@ -74,6 +74,36 @@ func SpawnCentrifugoPublic(active *atomic.Int64) *MockWSServer {
 	})
 }
 
+// SpawnCentrifugoOversizedAfterHandshake sends one oversized binary message
+// after acknowledging connect + subscribe.
+func SpawnCentrifugoOversizedAfterHandshake(active *atomic.Int64, messageBytes int) *MockWSServer {
+	if active == nil {
+		active = &atomic.Int64{}
+	}
+	return spawnWS(active, func(conn *websocket.Conn, active *atomic.Int64, connects *atomic.Int64) {
+		connects.Add(1)
+		active.Add(1)
+		defer active.Add(-1)
+		replies := 0
+		for {
+			messageType, _, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+			if messageType == websocket.BinaryMessage && replies < 2 {
+				replies++
+				if err := conn.WriteMessage(websocket.BinaryMessage, CentrifugoOKReply(uint32(replies))); err != nil {
+					return
+				}
+				if replies == 2 {
+					_ = conn.WriteMessage(websocket.BinaryMessage, make([]byte, messageBytes))
+					return
+				}
+			}
+		}
+	})
+}
+
 // SpawnCentrifugoDisconnectAfterHandshake replies to connect+subscribe then
 // closes the socket so the client reconnects.
 func SpawnCentrifugoDisconnectAfterHandshake(active *atomic.Int64) *MockWSServer {

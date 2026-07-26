@@ -80,6 +80,33 @@ func TestL2HundredSubCloseReturnsConnCountToBaseline(t *testing.T) {
 	}
 }
 
+func TestL2RealtimeOversizedBinaryMessageFailsClosed(t *testing.T) {
+	var active atomic.Int64
+	ws := hardening.SpawnCentrifugoOversizedAfterHandshake(
+		&active,
+		int(realtime.MaxRealtimeMessageBytes)+1,
+	)
+	t.Cleanup(ws.Close)
+
+	noReconnect := false
+	rt := newRT(ws.WSURL(), "", nil, 5*time.Second)
+	sub, err := realtime.SubscribeProtoWithOptions(
+		context.Background(),
+		rt,
+		"public:spot:market:trades:1:proto",
+		identityDecode,
+		&realtime.SubscribeProtoOptions{AutoReconnect: &noReconnect},
+	)
+	if err != nil {
+		t.Fatalf("subscribe: %v", err)
+	}
+	hardening.WaitUntil(t, func() bool { return !subAlive(sub) }, 3*time.Second)
+	if sub.Err() == nil || !strings.Contains(strings.ToLower(sub.Err().Error()), "exceeds") {
+		t.Fatalf("oversized message must surface a terminal size error, got %v", sub.Err())
+	}
+	hardening.WaitUntil(t, func() bool { return active.Load() == 0 }, 750*time.Millisecond)
+}
+
 func TestL2CancelDuringCentrifugoWaitNoOrphan(t *testing.T) {
 	var wsActive atomic.Int64
 	ws := hardening.SpawnHangAfterAcceptCounted(&wsActive)

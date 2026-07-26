@@ -38,10 +38,8 @@ func TestL2SnapshotThenStreamReconnectFailRetryThenMergeOnce(t *testing.T) {
 			case 1:
 				return []byte("initial"), nil
 			case 2:
-				return nil, errors.New("snapshot refresh failed")
-			default:
-				// Retry success path: publish while ready=false so the reconnect
-				// drain loop buffers the pub into pending for ApplySnapshot.
+				// Buffer during the failed attempt. The successful retry must
+				// retain and merge this publication exactly once.
 				select {
 				case pubCh <- []byte("buffered-1"):
 				case <-ctx.Done():
@@ -56,6 +54,8 @@ func TestL2SnapshotThenStreamReconnectFailRetryThenMergeOnce(t *testing.T) {
 				case <-time.After(2 * time.Second):
 					return nil, errors.New("pending buffer timeout")
 				}
+				return nil, errors.New("snapshot refresh failed")
+			default:
 				return []byte("recovered"), nil
 			}
 		},
@@ -144,5 +144,57 @@ func TestL2SnapshotThenStreamReconnectFailRetryThenMergeOnce(t *testing.T) {
 	}
 
 	sts.Close()
+	hardening.WaitUntil(t, func() bool { return active.Load() == 0 }, 750*time.Millisecond)
+}
+
+func TestL2CloseDuringSnapshotRetryCancelsFetchAndSocket(t *testing.T) {
+	var active atomic.Int64
+	ws := hardening.SpawnCentrifugoDisconnectAfterHandshake(&active)
+	t.Cleanup(ws.Close)
+	rt := newRT(ws.WSURL(), "", nil, 5*time.Second)
+
+	var attempts atomic.Int64
+	retryStalled := make(chan struct{})
+	fetchCanceled := make(chan struct{})
+	sts := realtime.NewSnapshotThenStream[string, []byte](realtime.SnapshotThenStreamConfig[string, []byte]{
+		Client:  rt,
+		Channel: "public:spot:market:trades:1:proto",
+		Decode:  identityDecode,
+		FetchSnapshot: func(ctx context.Context) (string, error) {
+			switch attempts.Add(1) {
+			case 1:
+				return "initial", nil
+			case 2:
+				return "", errors.New("retry once")
+			default:
+				close(retryStalled)
+				<-ctx.Done()
+				close(fetchCanceled)
+				return "", ctx.Err()
+			}
+		},
+		ReadPublication:       func(p []byte) [][]byte { return [][]byte{p} },
+		ApplySnapshot:         func(string, [][]byte) {},
+		ApplyLivePublications: func([][]byte) {},
+		MaxBuffered:           8,
+	})
+	if err := sts.Start(context.Background()); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	select {
+	case <-retryStalled:
+	case <-time.After(5 * time.Second):
+		t.Fatal("snapshot retry did not stall")
+	}
+	started := time.Now()
+	sts.Close()
+	if time.Since(started) >= 750*time.Millisecond {
+		t.Fatalf("close during snapshot retry lingered %s", time.Since(started))
+	}
+	select {
+	case <-fetchCanceled:
+	default:
+		t.Fatal("close must cancel the in-flight snapshot fetch")
+	}
 	hardening.WaitUntil(t, func() bool { return active.Load() == 0 }, 750*time.Millisecond)
 }

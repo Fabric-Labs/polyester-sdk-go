@@ -2,6 +2,7 @@ package realtime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -15,6 +16,20 @@ import (
 )
 
 const centrifugoProtobufSubprotocol = "centrifuge-protobuf"
+
+// MaxRealtimeMessageBytes bounds inbound WebSocket buffering and protobuf records.
+const MaxRealtimeMessageBytes int64 = 8 * 1024 * 1024
+
+type terminalRealtimeError struct {
+	err error
+}
+
+func (e *terminalRealtimeError) Error() string { return e.err.Error() }
+func (e *terminalRealtimeError) Unwrap() error { return e.err }
+
+func terminalRealtime(message string) error {
+	return &terminalRealtimeError{err: &sdkerrors.RealtimeError{Msg: message}}
+}
 
 // Client connects to Centrifugo for public and private protobuf channels.
 type Client struct {
@@ -167,12 +182,18 @@ func SubscribeProtoWithOptions[T any](
 			if sub.Err() != nil {
 				return
 			}
+			var terminal *terminalRealtimeError
+			if errors.As(err, &terminal) {
+				sub.fail(err)
+				return
+			}
 			// Match Rust: first handshake failure is terminal (no silent reconnect).
 			if !readySent.Load() {
 				sendReady(err)
 				return
 			}
 			if !reconnect {
+				sub.fail(err)
 				return
 			}
 			select {
@@ -215,10 +236,16 @@ func runSubscriptionOnce[T any](
 		return &sdkerrors.RealtimeError{Msg: err.Error()}
 	}
 	defer func() { _ = conn.Close() }()
+	conn.SetReadLimit(MaxRealtimeMessageBytes)
 	// Abort ReadMessage promptly when the subscription context is canceled.
+	abortWatcherDone := make(chan struct{})
+	defer close(abortWatcherDone)
 	go func() {
-		<-ctx.Done()
-		_ = conn.Close()
+		select {
+		case <-ctx.Done():
+			_ = conn.Close()
+		case <-abortWatcherDone:
+		}
 	}()
 	if conn.Subprotocol() != centrifugoProtobufSubprotocol {
 		return &sdkerrors.RealtimeError{Msg: "server did not negotiate centrifuge-protobuf websocket subprotocol"}
@@ -263,14 +290,21 @@ func runSubscriptionOnce[T any](
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
+			if strings.Contains(strings.ToLower(err.Error()), "read limit") ||
+				websocket.IsCloseError(err, websocket.CloseMessageTooBig) {
+				return terminalRealtime(fmt.Sprintf(
+					"realtime message exceeds %d bytes",
+					MaxRealtimeMessageBytes,
+				))
+			}
 			return &sdkerrors.RealtimeError{Msg: err.Error()}
 		}
 		if messageType != websocket.BinaryMessage {
-			return &sdkerrors.RealtimeError{Msg: "received JSON text frame on protobuf websocket"}
+			return terminalRealtime("received JSON text frame on protobuf websocket")
 		}
 		incoming, err := decodeReplies(raw)
 		if err != nil {
-			return &sdkerrors.RealtimeError{Msg: err.Error()}
+			return terminalRealtime("invalid realtime protobuf frame: " + err.Error())
 		}
 		for _, message := range incoming {
 			switch message.kind {
@@ -281,7 +315,7 @@ func runSubscriptionOnce[T any](
 			case incomingPublication:
 				item, err := decode(message.data)
 				if err != nil {
-					return &sdkerrors.RealtimeError{Msg: err.Error()}
+					return terminalRealtime("invalid realtime publication: " + err.Error())
 				}
 				if !sub.enqueue(item) {
 					if err := sub.Err(); err != nil {
@@ -543,19 +577,32 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) run(ctx context.Context) {
 
 func (s *SnapshotThenStream[TSnapshot, TPublication]) handlePublication(msg TPublication) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.disposed {
+		s.mu.Unlock()
 		return
 	}
 	items := s.readPublication(msg)
 	if !s.ready {
-		if len(s.pending) >= s.maxBuffered {
-			s.pending = s.pending[1:]
+		if len(s.pending)+len(items) > s.maxBuffered {
+			err := &sdkerrors.QueueOverflowError{Msg: "snapshot recovery buffer full; recreate the subscription"}
+			s.pending = nil
+			s.ready = false
+			s.disposed = true
+			s.generation++
+			s.lastErr = err
+			cancel := s.cancel
+			s.mu.Unlock()
+			if cancel != nil {
+				cancel()
+			}
+			return
 		}
 		s.pending = append(s.pending, items...)
+		s.mu.Unlock()
 		return
 	}
 	s.applyLivePublications(items)
+	s.mu.Unlock()
 }
 
 // RefreshSnapshot fetches a REST snapshot and merges buffered publications.
@@ -569,7 +616,8 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) RefreshSnapshot(ctx contex
 	generation := s.generation + 1
 	s.generation = generation
 	s.ready = false
-	s.pending = nil
+	// Retain publications buffered during a failed attempt so a successful
+	// retry merges them exactly once.
 	s.mu.Unlock()
 
 	snapshot, err := s.fetchSnapshot(ctx)
@@ -633,8 +681,8 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) Close() {
 	s.mu.Unlock()
 	if cancel != nil {
 		cancel()
+		<-s.done
 	}
-	<-s.done
 }
 
 // IsReady reports whether the initial snapshot has been applied.

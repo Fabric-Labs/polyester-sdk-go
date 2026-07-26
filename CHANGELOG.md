@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 0.1.0a19
+
+### Fixed
+- Realtime HTTP 401/403 errors now expose `Code`, `Context`, and `Endpoint` in addition to the existing status/label/body fields.
+- Realtime WebSocket messages and protobuf record/field lengths are capped at 8 MiB.
+- Snapshot reconnect retries retain buffered publications across failed attempts; recovery-buffer overflow now fails closed instead of discarding the oldest publication.
+- `SnapshotThenStream.Close` cancels an in-flight snapshot retry and is safe before `Start`.
+- Every live-test and smoke path now uses `POLYESTER_TEST_TRADE_SYMBOL`; legacy smoke-symbol variables are no longer consulted.
+
+### Testing
+- Added oversized-message and combined reconnect/retry/cancellation fault-injection regressions.
+
 ## 0.1.0a18
 
 ### Breaking

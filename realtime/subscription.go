@@ -122,6 +122,12 @@ func (s *Subscription[T]) failLocked(err error) {
 	s.closed = true
 }
 
+func (s *Subscription[T]) fail(err error) {
+	s.mu.Lock()
+	s.failLocked(err)
+	s.mu.Unlock()
+}
+
 // enqueue delivers an item or fails the subscription on overflow.
 // Returns true when the item was queued. On overflow it records
 // QueueOverflowError, closes the subscription, and returns false.
