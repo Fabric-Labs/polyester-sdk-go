@@ -3,6 +3,7 @@ package hardening_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -17,6 +18,7 @@ import (
 	marketdatav1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1/marketdatav1connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
+	"github.com/Fabric-Labs/polyester-sdk-go/transport"
 )
 
 type spotHandler struct {
@@ -144,6 +146,50 @@ func TestL2WaitForCatalogsFailClosedOnEmptyOrMalformed(t *testing.T) {
 			t.Fatalf("must not store rejected scale, got %d", scale)
 		}
 	})
+}
+
+func TestL2WaitForCatalogsRejectsBadWireResponse(t *testing.T) {
+	tests := []struct {
+		name string
+		body []byte
+	}{
+		{name: "malformed_protobuf", body: []byte{0x0f}},
+		{name: "oversized_protobuf", body: make([]byte, transport.MaxConnectResponseBytes+1)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if strings.Contains(r.URL.Path, "GetSpotConfig") {
+					w.Header().Set("Content-Type", "application/proto")
+					w.Header().Set("Content-Length", fmt.Sprint(len(tt.body)))
+					_, _ = w.Write(tt.body)
+					return
+				}
+				http.NotFound(w, r)
+			}))
+			t.Cleanup(srv.Close)
+
+			client, err := polyester.New(polyester.Config{
+				APIURL:          srv.URL,
+				HydrateCatalogs: true,
+				Timeout:         2 * time.Second,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = client.Close() })
+
+			if err := client.WaitForCatalogs(context.Background()); err == nil {
+				t.Fatalf("%s must fail closed", tt.name)
+			}
+			if client.CatalogsLastError() == nil {
+				t.Fatal("CatalogsLastError should be set")
+			}
+			if _, ok := client.Catalogs.BaseQuantityScaleForSymbol("BTC-USDT"); ok {
+				t.Fatal("catalogs must not expose data after bad wire response")
+			}
+		})
+	}
 }
 
 func TestL2ConcurrentWaitForCatalogsShareOneAttempt(t *testing.T) {

@@ -16,6 +16,7 @@ import (
 
 // TestBatchModifyFiveRoundsOfForty is F-01/M1: blocking BatchModify regression.
 func TestBatchModifyFiveRoundsOfForty(t *testing.T) {
+	testutil.RequireAccountWideCleanup(t)
 	testutil.RequireFunded(t)
 	testutil.RequireMutation(t)
 

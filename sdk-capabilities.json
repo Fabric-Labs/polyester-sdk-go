@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "sdk": "go",
-  "generatedAt": "2026-07-25T13:24:02Z",
+  "generatedAt": "2026-07-26T18:10:53Z",
   "publicDescriptorSha256": "075c41163ab9adba3448373e1312e47ad7ced65d88d8c5db738c470470f10208",
   "capabilities": [
     {
@@ -48,7 +48,7 @@
     },
     {
       "id": "api_keys",
-      "label": "API keys (list/get/subscribe)",
+      "label": "API keys (list/get/subscribe/local keypair generation)",
       "supported": true
     },
     {
