@@ -5,7 +5,7 @@ and automation. Parity with `polyester-sdk-python` and `polyester-sdk-rust`
 using the checked-in `gen/` protobuf bundle (no local proto generation for
 normal development).
 
-**Status:** Alpha (`v0.1.0a20`). Proprietary license (not open source).
+**Status:** Alpha (`v0.1.0a21`). Proprietary license (not open source).
 API-key only; no browser login or session MFA.
 
 Requires a recent Go toolchain (see `go.mod`).
@@ -68,7 +68,7 @@ API-key policy before retrying.
 ```bash
 GOPRIVATE='github.com/Fabric-Labs/*' \
 GONOSUMDB='github.com/Fabric-Labs/*' \
-go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a20
+go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a21
 ```
 
 The repository is currently private. GitHub access and authenticated Git credentials are
@@ -310,8 +310,11 @@ receipt, err := account.SendCalls([]chain.ChainCall{call}, true, 60*time.Second)
 ```
 
 Realtime delivery: bounded queues fail with `QueueOverflowError` instead of
-silently dropping. Orderbook `CreateSubscriptionOptions` exposes
-`OnSequenceGap`, `OnReconnect`, and `OnSnapshotRefresh`.
+silently dropping. Use `SetOnError` and check `Err()` after `Messages()` closes.
+Reconnects use capped exponential backoff with per-subscription jitter.
+Orderbook `CreateSubscriptionOptions` exposes `OnSequenceGap`, `OnReconnect`,
+`OnSnapshotRefresh`, and `OnError`. Managed create methods wait for both the
+WebSocket handshake and initial snapshot before returning.
 
 Pass `DefaultAccountID` (your Profile **Account ID**) on the client for bucket
 transfers and other account-scoped ledger operations.
@@ -358,9 +361,15 @@ if err != nil {
 	log.Fatal(err)
 }
 defer sub.Close()
+sub.SetOnError(func(err error) {
+	log.Printf("realtime interruption: %v", err)
+})
 for trade := range sub.Messages() {
 	fmt.Println(trade.Price.Ticks, trade.Qty.Scaled)
 	break
+}
+if err := sub.Err(); err != nil {
+	log.Printf("realtime ended: %v", err)
 }
 ```
 
@@ -376,6 +385,9 @@ if err != nil {
 	log.Fatal(err)
 }
 defer mo.Close()
+mo.SetOnError(func(err error) {
+	log.Printf("managed overview failed: %v", err)
+})
 for markets := range mo.Updates() {
 	fmt.Println(len(markets), "rows")
 	break
@@ -437,6 +449,9 @@ if err != nil {
 	log.Fatal(err)
 }
 defer ob.Close()
+ob.SetOnError(func(err error) {
+	log.Printf("managed order book failed: %v", err)
+})
 
 for book := range ob.Updates() {
 	fmt.Println(book.BookSeq, len(book.Bids))

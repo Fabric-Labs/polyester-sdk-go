@@ -1,6 +1,9 @@
 package codecs
 
 import (
+	cryptorand "crypto/rand"
+	"encoding/hex"
+	"fmt"
 	"math/big"
 	"strings"
 	"time"
@@ -13,20 +16,38 @@ import (
 
 const defaultTradingWithdrawDeadlineSeconds = 5 * 60
 
-func NewTradingWithdrawIdempotencyKey() string {
-	return coalesceRequestID(nil, "wd")
-}
-
-func defaultWithdrawDeadlineTsSec() uint64 {
-	return uint64(time.Now().Unix()) + defaultTradingWithdrawDeadlineSeconds
-}
-
-func defaultWithdrawNonce() uint64 {
-	nonce := uint64(time.Now().UnixNano())
-	if nonce == 0 {
-		return 1
+// NewTradingWithdrawIdempotencyKey returns a cryptographically random key.
+// Generate it once per logical withdrawal, persist it, and reuse it on retry.
+func NewTradingWithdrawIdempotencyKey() (string, error) {
+	var random [16]byte
+	if _, err := cryptorand.Read(random[:]); err != nil {
+		return "", fmt.Errorf("secure randomness unavailable: %w", err)
 	}
-	return nonce
+	return "wd-" + hex.EncodeToString(random[:]), nil
+}
+
+// NewTradingWithdrawNonce returns a cryptographically random, non-zero uint128
+// decimal nonce. Persist it with the idempotency key before signing.
+func NewTradingWithdrawNonce() (string, error) {
+	for range 2 {
+		var random [16]byte
+		if _, err := cryptorand.Read(random[:]); err != nil {
+			return "", fmt.Errorf("secure randomness unavailable: %w", err)
+		}
+		nonce := new(big.Int).SetBytes(random[:])
+		if nonce.Sign() != 0 {
+			return nonce.String(), nil
+		}
+	}
+	return "", fmt.Errorf("secure random source returned a zero withdrawal nonce twice")
+}
+
+func defaultWithdrawDeadlineTsSec() (uint64, error) {
+	now := time.Now().Unix()
+	if now < 0 {
+		return 0, &errors.ValidationError{Msg: "system clock is before UNIX_EPOCH"}
+	}
+	return uint64(now) + defaultTradingWithdrawDeadlineSeconds, nil
 }
 
 // BigIntToU128Proto encodes a non-negative big.Int as U128.
@@ -51,7 +72,17 @@ func StrToU128Proto(value string, scale int) *typev1.U128 {
 	return BigIntToU128Proto(scaled)
 }
 
-func TradingWithdrawPayloadToProto(action string, assetID uint32, amount models.AssetAmountInput, idempotencyKey string, destinationChainID uint64, deadlineTsSec *uint64, nonce *string, destinationAddress string, amountScale int) (*chainwithdrawv1.TradingWithdrawIntentPayload, error) {
+func TradingWithdrawPayloadToProto(action string, assetID uint32, amount models.AssetAmountInput, idempotencyKey string, destinationChainID uint64, deadlineTsSec *uint64, nonce string, destinationAddress string, amountScale int) (*chainwithdrawv1.TradingWithdrawIntentPayload, error) {
+	if strings.TrimSpace(idempotencyKey) == "" {
+		return nil, &errors.ValidationError{Msg: "idempotency_key is required"}
+	}
+	nonceValue, ok := new(big.Int).SetString(strings.TrimSpace(nonce), 10)
+	if !ok || nonceValue.Sign() <= 0 {
+		return nil, &errors.ValidationError{Msg: "nonce must be a positive decimal integer"}
+	}
+	if nonceValue.BitLen() > 128 {
+		return nil, &errors.ValidationError{Msg: "nonce exceeds uint128 range"}
+	}
 	if amountScale <= 0 {
 		amountScale = LedgerScale
 	}
@@ -78,13 +109,12 @@ func TradingWithdrawPayloadToProto(action string, assetID uint32, amount models.
 	if deadlineTsSec != nil {
 		payload.DeadlineTsSec = *deadlineTsSec
 	} else {
-		payload.DeadlineTsSec = defaultWithdrawDeadlineTsSec()
+		payload.DeadlineTsSec, err = defaultWithdrawDeadlineTsSec()
+		if err != nil {
+			return nil, err
+		}
 	}
-	if nonce != nil {
-		payload.Nonce = StrToU128Proto(*nonce, 0)
-	} else {
-		payload.Nonce = &typev1.U128{Lo: defaultWithdrawNonce()}
-	}
+	payload.Nonce = BigIntToU128Proto(nonceValue)
 	if payload.AmountE18 == nil || (payload.AmountE18.Hi == 0 && payload.AmountE18.Lo == 0) {
 		return nil, &errors.ValidationError{Msg: "amount must be positive"}
 	}

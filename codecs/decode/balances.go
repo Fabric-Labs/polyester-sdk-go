@@ -45,17 +45,9 @@ func BalancesListFromProto(msg *ledgerrdv1.GetBalancesResponse) models.BalancesL
 func BalanceHistoryFromProto(msg *ledgerrdv1.GetBalanceHistoryResponse) models.BalanceHistory {
 	series := make([]models.BalanceHistorySeries, 0, len(msg.GetSeries()))
 	for _, s := range msg.GetSeries() {
-		series = append(series, models.BalanceHistorySeries{AssetID: s.GetAssetId(), AccountCode: uint32(s.GetAccountCode()), BalanceQ: uintsToInts(s.GetBalanceQ())})
+		series = append(series, models.BalanceHistorySeries{AssetID: s.GetAssetId(), AccountCode: int32(s.GetAccountCode()), BalanceQ: append([]uint64(nil), s.GetBalanceQ()...)})
 	}
 	return models.BalanceHistory{Range: balanceRangeLabels[msg.GetRange()], Bucket: msg.GetBucket(), StartTsSec: int64(msg.GetStartTsSec()), EndTsSec: int64(msg.GetEndTsSec()), Points: int(msg.GetPoints()), Series: series}
-}
-
-func uintsToInts(in []uint64) []int64 {
-	out := make([]int64, len(in))
-	for i, v := range in {
-		out[i] = int64(v)
-	}
-	return out
 }
 
 func EquityHistoryFromProto(msg *ledgerrdv1.GetEquityHistorySeriesResponse) models.EquityHistory {

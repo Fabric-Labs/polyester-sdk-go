@@ -35,6 +35,7 @@ func TestRefreshSnapshotFiresOnSnapshotRefresh(t *testing.T) {
 }
 
 func TestSnapshotRecoveryBufferOverflowFailsClosed(t *testing.T) {
+	var observed error
 	sts := NewSnapshotThenStream[string, int](SnapshotThenStreamConfig[string, int]{
 		Decode:                func([]byte) (int, error) { return 0, nil },
 		FetchSnapshot:         func(context.Context) (string, error) { return "snap", nil },
@@ -42,12 +43,16 @@ func TestSnapshotRecoveryBufferOverflowFailsClosed(t *testing.T) {
 		ApplySnapshot:         func(string, []int) {},
 		ApplyLivePublications: func([]int) {},
 		MaxBuffered:           1,
+		OnError:               func(err error) { observed = err },
 	})
 	sts.handlePublication(1)
 	sts.handlePublication(2)
 	var overflow *sdkerrors.QueueOverflowError
 	if !errors.As(sts.Err(), &overflow) {
 		t.Fatalf("want QueueOverflowError, got %T: %v", sts.Err(), sts.Err())
+	}
+	if !errors.As(observed, &overflow) {
+		t.Fatalf("OnError=%v, want QueueOverflowError", observed)
 	}
 	sts.Close() // Must also be safe before Start.
 }
@@ -74,4 +79,32 @@ func TestRefreshSnapshotSkippedWhenDisposed(t *testing.T) {
 	if called {
 		t.Fatal("did not expect fetch when disposed")
 	}
+}
+
+func TestSnapshotCallbacksPanicFailClosedWithoutLockingTheCoordinator(t *testing.T) {
+	var observed error
+	sts := NewSnapshotThenStream[string, int](SnapshotThenStreamConfig[string, int]{
+		FetchSnapshot:         func(context.Context) (string, error) { return "snap", nil },
+		ApplySnapshot:         func(string, []int) {},
+		ApplyLivePublications: func([]int) { panic("consumer bug") },
+		ReadPublication:       func(p int) []int { return []int{p} },
+		Decode:                func([]byte) (int, error) { return 0, nil },
+		OnError:               func(err error) { observed = err },
+	})
+	if err := sts.RefreshSnapshot(context.Background()); err != nil {
+		t.Fatalf("RefreshSnapshot: %v", err)
+	}
+
+	sts.handlePublication(1)
+	if observed == nil {
+		t.Fatal("callback panic was not surfaced")
+	}
+	if sts.IsReady() {
+		t.Fatal("callback panic must fail closed")
+	}
+	if sts.Err() == nil {
+		t.Fatal("callback panic must remain observable through Err")
+	}
+	// These calls prove the mutex was released before invoking consumer code.
+	sts.Close()
 }

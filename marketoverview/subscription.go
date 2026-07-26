@@ -20,6 +20,7 @@ type Subscription struct {
 	closed    bool
 	mu        sync.Mutex
 	err       error
+	onError   func(error)
 }
 
 // NewSubscription creates a managed market overview subscription.
@@ -38,8 +39,26 @@ func (s *Subscription) Updates() <-chan []models.MarketOverviewEntry {
 // Err returns the terminal subscription error, if any.
 func (s *Subscription) Err() error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.err
+	err := s.err
+	s.mu.Unlock()
+	if err == nil && s.stream != nil {
+		return s.stream.Err()
+	}
+	return err
+}
+
+// SetOnError installs a callback for managed snapshot/stream and queue errors.
+func (s *Subscription) SetOnError(callback func(error)) {
+	s.mu.Lock()
+	s.onError = callback
+	err := s.err
+	s.mu.Unlock()
+	if s.stream != nil {
+		s.stream.SetOnError(callback)
+	}
+	if err != nil {
+		callErrorCallback(callback, err)
+	}
 }
 
 // RefreshSnapshot refetches the REST snapshot.
@@ -78,9 +97,20 @@ func (s *Subscription) Enqueue(rows []models.MarketOverviewEntry) bool {
 				Msg: "market overview subscription queue full; consumer too slow",
 			}
 		}
+		err := s.err
+		callback := s.onError
 		s.closed = true
 		s.mu.Unlock()
+		callErrorCallback(callback, err)
 		s.Close()
 		return false
 	}
+}
+
+func callErrorCallback(callback func(error), err error) {
+	if callback == nil || err == nil {
+		return
+	}
+	defer func() { _ = recover() }()
+	callback(err)
 }

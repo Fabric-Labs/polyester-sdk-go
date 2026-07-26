@@ -166,11 +166,13 @@ func SubscribeProtoWithOptions[T any](
 		defer close(sub.ch)
 		defer sub.markFinished()
 		defer sendReady(&sdkerrors.RealtimeError{Msg: "realtime subscription ended before handshake"})
+		var backoff reconnectBackoff
 		for {
 			if runCtx.Err() != nil {
 				return
 			}
 			err := runSubscriptionOnce(runCtx, c, channel, decode, sub, func() {
+				backoff.reset()
 				n := handshakes.Add(1)
 				sub.noteHandshakeReady(n == 1)
 				sendReady(nil)
@@ -196,10 +198,11 @@ func SubscribeProtoWithOptions[T any](
 				sub.fail(err)
 				return
 			}
+			sub.notifyError(err)
 			select {
 			case <-runCtx.Done():
 				return
-			case <-time.After(time.Second):
+			case <-time.After(backoff.next()):
 			}
 		}
 	}()
@@ -400,16 +403,19 @@ type SnapshotThenStream[TSnapshot any, TPublication any] struct {
 	applyLivePublications func([]TPublication)
 	onReconnect           func()
 	onSnapshotRefresh     func()
+	onError               func(error)
 	maxBuffered           int
 
-	mu         sync.Mutex
-	ready      bool
-	disposed   bool
-	generation int
-	pending    []TPublication
-	lastErr    error
-	cancel     context.CancelFunc
-	done       chan struct{}
+	mu          sync.Mutex
+	ready       bool
+	disposed    bool
+	generation  int
+	pending     []TPublication
+	lastErr     error
+	cancel      context.CancelFunc
+	done        chan struct{}
+	connected   chan error
+	connectOnce sync.Once
 }
 
 // SnapshotThenStreamConfig configures snapshot-then-stream behavior.
@@ -425,7 +431,72 @@ type SnapshotThenStreamConfig[TSnapshot any, TPublication any] struct {
 	OnReconnect func()
 	// OnSnapshotRefresh is called after a successful snapshot rebuild.
 	OnSnapshotRefresh func()
-	MaxBuffered       int
+	// OnError is called when snapshot or stream processing fails.
+	OnError     func(error)
+	MaxBuffered int
+}
+
+func snapshotCallbackError(name string, recovered any) error {
+	return &sdkerrors.RealtimeError{Msg: fmt.Sprintf("%s callback panicked: %v", name, recovered)}
+}
+
+func callSnapshotFetch[TSnapshot any](
+	ctx context.Context,
+	callback func(context.Context) (TSnapshot, error),
+) (value TSnapshot, err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = snapshotCallbackError("fetch_snapshot", recovered)
+		}
+	}()
+	return callback(ctx)
+}
+
+func callSnapshotRead[TPublication any](
+	callback func(TPublication) []TPublication,
+	publication TPublication,
+) (items []TPublication, err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = snapshotCallbackError("read_publication", recovered)
+		}
+	}()
+	return callback(publication), nil
+}
+
+func callSnapshotApply[TSnapshot, TPublication any](
+	callback func(TSnapshot, []TPublication),
+	snapshot TSnapshot,
+	publications []TPublication,
+) (err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = snapshotCallbackError("apply_snapshot", recovered)
+		}
+	}()
+	callback(snapshot, publications)
+	return nil
+}
+
+func callSnapshotApplyLive[TPublication any](
+	callback func([]TPublication),
+	publications []TPublication,
+) (err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = snapshotCallbackError("apply_live_publications", recovered)
+		}
+	}()
+	callback(publications)
+	return nil
+}
+
+func callSnapshotNotification(callback func()) {
+	if callback == nil {
+		return
+	}
+	defer func() { _ = recover() }()
+	callback()
 }
 
 // NewSnapshotThenStream creates a snapshot-then-stream coordinator.
@@ -444,8 +515,10 @@ func NewSnapshotThenStream[TSnapshot any, TPublication any](cfg SnapshotThenStre
 		applyLivePublications: cfg.ApplyLivePublications,
 		onReconnect:           cfg.OnReconnect,
 		onSnapshotRefresh:     cfg.OnSnapshotRefresh,
+		onError:               cfg.OnError,
 		maxBuffered:           maxBuffered,
 		done:                  make(chan struct{}),
+		connected:             make(chan error, 1),
 	}
 }
 
@@ -461,12 +534,33 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) Start(ctx context.Context)
 	s.mu.Unlock()
 
 	go s.run(runCtx)
-	return s.RefreshSnapshot(ctx)
+	select {
+	case err := <-s.connected:
+		if err != nil {
+			s.Close()
+			return err
+		}
+	case <-ctx.Done():
+		s.Close()
+		return ctx.Err()
+	}
+	if err := s.RefreshSnapshot(ctx); err != nil {
+		s.Close()
+		return err
+	}
+	return nil
+}
+
+func (s *SnapshotThenStream[TSnapshot, TPublication]) signalInitialConnection(err error) {
+	s.connectOnce.Do(func() {
+		s.connected <- err
+	})
 }
 
 func (s *SnapshotThenStream[TSnapshot, TPublication]) run(ctx context.Context) {
 	defer close(s.done)
 	first := true
+	var backoff reconnectBackoff
 	for {
 		if ctx.Err() != nil {
 			return
@@ -484,19 +578,29 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) run(ctx context.Context) {
 		})
 		if err != nil {
 			if ctx.Err() != nil {
+				s.signalInitialConnection(ctx.Err())
+				return
+			}
+			s.setErr(err)
+			if first {
+				s.signalInitialConnection(err)
 				return
 			}
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.After(time.Second):
+			case <-time.After(backoff.next()):
 				continue
 			}
+		}
+		backoff.reset()
+		if first {
+			s.signalInitialConnection(nil)
 		}
 
 		if !first {
 			if s.onReconnect != nil {
-				s.onReconnect()
+				callSnapshotNotification(s.onReconnect)
 			}
 			// Drain publications into the pending buffer while refresh runs
 			// (ready=false). Without this, reconnect pubs sit in sub.Messages()
@@ -557,6 +661,9 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) run(ctx context.Context) {
 				}
 			}
 		}()
+		if err := sub.Err(); err != nil {
+			s.setErr(err)
+		}
 
 		if ctx.Err() != nil {
 			return
@@ -570,7 +677,7 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) run(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(time.Second):
+		case <-time.After(backoff.next()):
 		}
 	}
 }
@@ -581,17 +688,34 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) handlePublication(msg TPub
 		s.mu.Unlock()
 		return
 	}
-	items := s.readPublication(msg)
+	s.mu.Unlock()
+
+	items, err := callSnapshotRead(s.readPublication, msg)
+	if err != nil {
+		s.failClosed(err)
+		return
+	}
+	if len(items) == 0 {
+		return
+	}
+
+	s.mu.Lock()
+	if s.disposed {
+		s.mu.Unlock()
+		return
+	}
 	if !s.ready {
 		if len(s.pending)+len(items) > s.maxBuffered {
 			err := &sdkerrors.QueueOverflowError{Msg: "snapshot recovery buffer full; recreate the subscription"}
+			callback := s.onError
+			cancel := s.cancel
 			s.pending = nil
 			s.ready = false
 			s.disposed = true
 			s.generation++
 			s.lastErr = err
-			cancel := s.cancel
 			s.mu.Unlock()
+			callErrorCallback(callback, err)
 			if cancel != nil {
 				cancel()
 			}
@@ -601,8 +725,10 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) handlePublication(msg TPub
 		s.mu.Unlock()
 		return
 	}
-	s.applyLivePublications(items)
 	s.mu.Unlock()
+	if err := callSnapshotApplyLive(s.applyLivePublications, items); err != nil {
+		s.failClosed(err)
+	}
 }
 
 // RefreshSnapshot fetches a REST snapshot and merges buffered publications.
@@ -620,7 +746,7 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) RefreshSnapshot(ctx contex
 	// retry merges them exactly once.
 	s.mu.Unlock()
 
-	snapshot, err := s.fetchSnapshot(ctx)
+	snapshot, err := callSnapshotFetch(ctx, s.fetchSnapshot)
 	if err != nil {
 		s.setErr(err)
 		return err
@@ -633,14 +759,22 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) RefreshSnapshot(ctx contex
 	}
 	buffered := s.pending
 	s.pending = nil
-	s.applySnapshot(snapshot, buffered)
+	s.mu.Unlock()
+	if err := callSnapshotApply(s.applySnapshot, snapshot, buffered); err != nil {
+		s.failClosed(err)
+		return err
+	}
+
+	s.mu.Lock()
+	if s.disposed || generation != s.generation {
+		s.mu.Unlock()
+		return nil
+	}
 	s.ready = true
 	s.lastErr = nil
 	onRefresh := s.onSnapshotRefresh
 	s.mu.Unlock()
-	if onRefresh != nil {
-		onRefresh()
-	}
+	callSnapshotNotification(onRefresh)
 	return nil
 }
 
@@ -659,9 +793,31 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) refreshSnapshotWithRetry(c
 
 func (s *SnapshotThenStream[TSnapshot, TPublication]) setErr(err error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.lastErr = err
 	s.ready = false
+	callback := s.onError
+	s.mu.Unlock()
+	callErrorCallback(callback, err)
+}
+
+func (s *SnapshotThenStream[TSnapshot, TPublication]) failClosed(err error) {
+	s.mu.Lock()
+	if s.disposed {
+		s.mu.Unlock()
+		return
+	}
+	s.lastErr = err
+	s.ready = false
+	s.disposed = true
+	s.generation++
+	s.pending = nil
+	callback := s.onError
+	cancel := s.cancel
+	s.mu.Unlock()
+	callErrorCallback(callback, err)
+	if cancel != nil {
+		cancel()
+	}
 }
 
 // Err returns the last snapshot/stream error, if any.
@@ -669,6 +825,16 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) Err() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.lastErr
+}
+
+// SetOnError installs a callback for transport, decode, snapshot, and terminal
+// buffering errors. Callback panics are isolated from the stream worker.
+func (s *SnapshotThenStream[TSnapshot, TPublication]) SetOnError(callback func(error)) {
+	s.mu.Lock()
+	s.onError = callback
+	err := s.lastErr
+	s.mu.Unlock()
+	callErrorCallback(callback, err)
 }
 
 // Close stops the stream.
@@ -690,4 +856,11 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) IsReady() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.ready
+}
+
+// IsDisposed reports whether the coordinator has stopped permanently.
+func (s *SnapshotThenStream[TSnapshot, TPublication]) IsDisposed() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.disposed
 }

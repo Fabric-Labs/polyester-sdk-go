@@ -3,6 +3,7 @@ package realtime
 import (
 	"errors"
 	"testing"
+	"time"
 
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 )
@@ -91,5 +92,43 @@ func TestResubscribeSignalIncrementsAfterReconnect(t *testing.T) {
 	sub.noteHandshakeReady(false)
 	if sub.Resubscribes() != 2 {
 		t.Fatalf("Resubscribes=%d want 2 after second reconnect", sub.Resubscribes())
+	}
+}
+
+func TestSubscriptionErrorCallbackIsObservableAndIsolated(t *testing.T) {
+	sub := newSubscription[int](1, func() {})
+	var observed error
+	sub.SetOnError(func(err error) { observed = err })
+	want := &sdkerrors.RealtimeError{Msg: "feed stopped"}
+	sub.fail(want)
+	if observed != want || sub.Err() != want {
+		t.Fatalf("callback=%v terminal=%v want=%v", observed, sub.Err(), want)
+	}
+
+	sub.SetOnError(func(error) { panic("consumer callback") })
+	sub.notifyError(&sdkerrors.RealtimeError{Msg: "callback panic is isolated"})
+}
+
+func TestReconnectBackoffBoundsAndReset(t *testing.T) {
+	var backoff reconnectBackoff
+	caps := []time.Duration{
+		500 * time.Millisecond,
+		time.Second,
+		2 * time.Second,
+		4 * time.Second,
+		8 * time.Second,
+		16 * time.Second,
+		30 * time.Second,
+	}
+	for _, cap := range caps {
+		delay := backoff.next()
+		if delay < cap/2 || delay > cap {
+			t.Fatalf("delay %s outside [%s,%s]", delay, cap/2, cap)
+		}
+	}
+	backoff.reset()
+	delay := backoff.next()
+	if delay < 250*time.Millisecond || delay > 500*time.Millisecond {
+		t.Fatalf("reset delay=%s", delay)
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
 	ledgerrdv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
+	ledgerv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/v1"
 	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 )
 
@@ -30,8 +31,9 @@ func TestBalanceHistoryFromProto(t *testing.T) {
 		EndTsSec:   200,
 		Points:     2,
 		Series: []*ledgerrdv1.BalanceSeries{{
-			AssetId:  1,
-			BalanceQ: []uint64{100, 200},
+			AssetId:     1,
+			AccountCode: ledgerv1.AccountCode(-7),
+			BalanceQ:    []uint64{1<<63 + 1, ^uint64(0)},
 		}},
 	}
 	result := decode.BalanceHistoryFromProto(msg)
@@ -40,6 +42,12 @@ func TestBalanceHistoryFromProto(t *testing.T) {
 	}
 	if len(result.Series) != 1 || len(result.Series[0].BalanceQ) != 2 {
 		t.Fatalf("series=%+v", result.Series)
+	}
+	if result.Series[0].BalanceQ[0] != 1<<63+1 || result.Series[0].BalanceQ[1] != ^uint64(0) {
+		t.Fatalf("unsigned balances were not preserved: %+v", result.Series[0].BalanceQ)
+	}
+	if result.Series[0].AccountCode != -7 {
+		t.Fatalf("unknown account code was not preserved: %d", result.Series[0].AccountCode)
 	}
 }
 

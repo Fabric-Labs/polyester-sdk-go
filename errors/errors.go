@@ -144,3 +144,24 @@ func (e *QueueOverflowError) Error() string {
 	return "realtime subscription queue full; consumer too slow"
 }
 func (e *QueueOverflowError) Is(target error) bool { return target == ErrPolyester }
+
+// IsRetryable reports whether retrying may succeed after backoff.
+//
+// It does not guarantee that a mutation was not applied. Preserve the same
+// idempotency key and reconcile first when MutationOutcomeUnknown is true.
+func IsRetryable(err error) bool {
+	var transportErr *TransportError
+	var rateLimitErr *RateLimitError
+	var serverErr *ServerError
+	return errors.As(err, &transportErr) ||
+		errors.As(err, &rateLimitErr) ||
+		errors.As(err, &serverErr)
+}
+
+// MutationOutcomeUnknown reports whether the server may have applied a failed
+// mutation before the error became visible to the caller.
+func MutationOutcomeUnknown(err error) bool {
+	var transportErr *TransportError
+	var serverErr *ServerError
+	return errors.As(err, &transportErr) || errors.As(err, &serverErr)
+}

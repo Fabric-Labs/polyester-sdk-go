@@ -3,6 +3,7 @@ package decode
 import (
 	"strconv"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	zipperv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/zipper/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
@@ -44,25 +45,32 @@ func DepositWithdrawConfigFromProto(msg *zipperv1.GetDepositWithdrawConfigRespon
 	return cfg
 }
 
-func zippedAssetSupplyUpdateFromProto(msg *zipperv1.ZippedAssetSupplyUpdate, scaleFn func(uint32) int) models.ZippedAssetSupplyUpdate {
+func zippedAssetSupplyUpdateFromProto(msg *zipperv1.ZippedAssetSupplyUpdate, scaleFn func(uint32) (int, bool)) (models.ZippedAssetSupplyUpdate, error) {
 	if msg == nil {
-		return models.ZippedAssetSupplyUpdate{}
+		return models.ZippedAssetSupplyUpdate{}, &errors.ValidationError{Msg: "zipped asset supply update is missing"}
 	}
-	scale := 18
-	if scaleFn != nil {
-		scale = scaleFn(msg.GetZippedAssetId())
+	if scaleFn == nil {
+		return models.ZippedAssetSupplyUpdate{}, &errors.ValidationError{Msg: "zipped asset supply decoding requires a hydrated catalog scale"}
+	}
+	scale, ok := scaleFn(msg.GetZippedAssetId())
+	if !ok {
+		return models.ZippedAssetSupplyUpdate{}, &errors.ValidationError{Msg: "unknown quantity scale for zipped_asset_id"}
 	}
 	return models.ZippedAssetSupplyUpdate{
 		ZippedAssetID: msg.GetZippedAssetId(),
 		Supply:        formatLedgerU128OrZero(strconv.FormatUint(msg.GetSupplyQ(), 10), scale),
-	}
+	}, nil
 }
 
 // ZippedAssetSupplyBatchFromProto decodes a realtime supply batch.
-func ZippedAssetSupplyBatchFromProto(msg *zipperv1.ZippedAssetSupplyBatch, scaleFn func(uint32) int) models.ZippedAssetSupplyBatch {
+func ZippedAssetSupplyBatchFromProto(msg *zipperv1.ZippedAssetSupplyBatch, scaleFn func(uint32) (int, bool)) (models.ZippedAssetSupplyBatch, error) {
 	out := make([]models.ZippedAssetSupplyUpdate, 0, len(msg.GetUpdates()))
 	for _, u := range msg.GetUpdates() {
-		out = append(out, zippedAssetSupplyUpdateFromProto(u, scaleFn))
+		update, err := zippedAssetSupplyUpdateFromProto(u, scaleFn)
+		if err != nil {
+			return models.ZippedAssetSupplyBatch{}, err
+		}
+		out = append(out, update)
 	}
-	return models.ZippedAssetSupplyBatch{Updates: out}
+	return models.ZippedAssetSupplyBatch{Updates: out}, nil
 }

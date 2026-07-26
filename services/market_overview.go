@@ -39,6 +39,7 @@ type MarketOverviewCreateSubscriptionOptions struct {
 	Limit             int
 	IncludeSparklines bool
 	OnEvent           func([]models.MarketOverviewEntry)
+	OnError           func(error)
 }
 
 // CreateSubscription starts snapshot-then-stream market overview merging.
@@ -97,10 +98,12 @@ func (s *MarketOverviewService) CreateSubscription(ctx context.Context, opts Mar
 			}
 			emit(subscription)
 		},
+		OnError:     opts.OnError,
 		MaxBuffered: 2000,
 	})
 
 	subscription = mosub.NewSubscription(stream)
+	subscription.SetOnError(opts.OnError)
 	if err := stream.Start(ctx); err != nil {
 		subscription.Close()
 		return nil, err

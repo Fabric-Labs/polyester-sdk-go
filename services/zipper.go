@@ -5,6 +5,7 @@ import (
 
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
+	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	zipperv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/zipper/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/chain/zipper/v1/chainzipperv1connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
@@ -32,9 +33,9 @@ func (s *ZipperService) GetDepositWithdrawConfig(ctx context.Context) (models.De
 
 func (s *ZipperService) SubscribeZippedAssetSupply(ctx context.Context, patchCatalog bool) (*realtime.Subscription[models.ZippedAssetSupplyBatch], error) {
 	decodeFn := func(payload []byte) (models.ZippedAssetSupplyBatch, error) {
-		scaleFn := func(id uint32) int {
+		scaleFn := func(id uint32) (int, bool) {
 			if s.catalogs == nil {
-				return 18
+				return 0, false
 			}
 			return s.catalogs.QuantityScaleForZippedAssetID(id)
 		}
@@ -46,6 +47,9 @@ func (s *ZipperService) SubscribeZippedAssetSupply(ctx context.Context, patchCat
 			s.catalogs.PatchZipperSupply(batch.Updates)
 		}
 		return batch, nil
+	}
+	if s.catalogs == nil {
+		return nil, &errors.ValidationError{Msg: "zipped asset supply decoding requires hydrated catalogs"}
 	}
 	return SubscribePublicProto(ctx, s.realtime, "public:chain:zipped-asset:supply:proto", decodeFn)
 }

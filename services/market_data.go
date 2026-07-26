@@ -54,11 +54,17 @@ func (s *MarketDataService) GetTrades(ctx context.Context, symbol *string, symbo
 	if err != nil {
 		return models.MarketTradesResult{}, err
 	}
+	scale, err := s.requireQuantityScale(resolved, "get_trades")
+	if err != nil {
+		return models.MarketTradesResult{}, err
+	}
 	req := &marketdatav1.GetTradesRequest{SymbolId: resolved, Limit: uint32(limit)}
 	if pageToken != nil && *pageToken != "" {
 		req.PageToken = *pageToken
 	}
-	return UnaryPublic(ctx, s.transport, s.client().GetTrades, req, decode.MarketTradesFromProto)
+	return UnaryPublic(ctx, s.transport, s.client().GetTrades, req, func(msg *marketdatav1.GetTradesResponse) models.MarketTradesResult {
+		return decode.MarketTradesFromProto(msg, scale)
+	})
 }
 
 func (s *MarketDataService) GetCandles(ctx context.Context, symbol *string, symbolID *uint32, timeframe string, limit int, start, end *time.Time, includeIncomplete bool) (models.CandlesResult, error) {
@@ -119,11 +125,9 @@ func (s *MarketDataService) buildCandlesRequest(symbol *string, symbolID *uint32
 		if pageToken != nil {
 			req.PageToken = *pageToken
 		}
-		scale := 8
-		if s.catalogs != nil {
-			if resolvedScale, ok := s.catalogs.BaseQuantityScaleForSymbolID(resolved); ok {
-				scale = resolvedScale
-			}
+		scale, err := s.requireQuantityScale(resolved, "candle volume")
+		if err != nil {
+			return nil, 0, err
 		}
 		return req, scale, nil
 	}
@@ -135,8 +139,12 @@ func (s *MarketDataService) SubscribeTrades(ctx context.Context, symbol *string,
 	if err != nil {
 		return nil, err
 	}
+	scale, err := s.requireQuantityScale(resolved, "subscribe_trades")
+	if err != nil {
+		return nil, err
+	}
 	channel := fmt.Sprintf("public:spot:market:trades:%d:proto", resolved)
-	return SubscribePublicProto(ctx, s.realtime, channel, decode.MarketTradeFromBytes)
+	return SubscribePublicProto(ctx, s.realtime, channel, decode.MarketTradeFromBytes(scale))
 }
 
 func (s *MarketDataService) SubscribeCandles(ctx context.Context, symbol *string, symbolID *uint32, timeframe string) (*realtime.Subscription[models.Candle], error) {
@@ -148,15 +156,24 @@ func (s *MarketDataService) SubscribeCandles(ctx context.Context, symbol *string
 	if err != nil {
 		return nil, err
 	}
-	volumeScale := 8
-	if s.catalogs != nil {
-		if resolvedScale, ok := s.catalogs.BaseQuantityScaleForSymbolID(resolved); ok {
-			volumeScale = resolvedScale
-		}
+	volumeScale, err := s.requireQuantityScale(resolved, "candle volume")
+	if err != nil {
+		return nil, err
 	}
 	channel := fmt.Sprintf("public:spot:market:candles:%s:%d:proto", channelTimeframe, resolved)
 	decodeFn := decode.CandlePointFromBytes(resolved, channelTimeframe, volumeScale)
 	return SubscribePublicProto(ctx, s.realtime, channel, decodeFn)
+}
+
+func (s *MarketDataService) requireQuantityScale(symbolID uint32, label string) (int, error) {
+	if s.catalogs != nil {
+		if scale, ok := s.catalogs.BaseQuantityScaleForSymbolID(symbolID); ok {
+			return scale, nil
+		}
+	}
+	return 0, &errors.ValidationError{
+		Msg: fmt.Sprintf("%s requires a hydrated catalog quantity scale for symbol_id %d", label, symbolID),
+	}
 }
 
 // resolveCandleChannelTimeframe normalizes user timeframe aliases to the live channel label.

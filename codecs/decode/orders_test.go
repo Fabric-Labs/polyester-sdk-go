@@ -1,10 +1,12 @@
 package decode_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 )
 
@@ -154,5 +156,50 @@ func TestOrderMutationFromProtoCancelOmitsClientOrderID(t *testing.T) {
 	result := decode.OrderMutationFromCancel(msg)
 	if result.Status != "cancelled" || result.OrderID != codecs.FormatUint64ID(42) || result.ClientOrderID != "" {
 		t.Fatalf("result=%+v", result)
+	}
+}
+
+func TestBatchCreateRejectsMissingOutcome(t *testing.T) {
+	_, err := decode.BatchCreateFromProto(&orderv1.BatchCreateOrdersResponse{
+		Results: []*orderv1.BatchCreateResultItem{{ClientOrderId: "missing"}},
+	})
+	var transportErr *sdkerrors.TransportError
+	if !errors.As(err, &transportErr) {
+		t.Fatalf("expected TransportError, got %T: %v", err, err)
+	}
+}
+
+func TestBatchCreatePreservesUnknownRejectionCode(t *testing.T) {
+	result, err := decode.BatchCreateFromProto(&orderv1.BatchCreateOrdersResponse{
+		Results: []*orderv1.BatchCreateResultItem{{
+			ClientOrderId: "rejected",
+			Outcome: &orderv1.BatchCreateResultItem_Rejected{
+				Rejected: &orderv1.BatchCreateRejected{
+					Error: &orderv1.ErrorDetail{Code: orderv1.ErrorCode(99_999)},
+				},
+			},
+		}},
+		RejectedCount: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Results[0].Code != "UNKNOWN_ERROR_CODE(99999)" {
+		t.Fatalf("code=%q", result.Results[0].Code)
+	}
+}
+
+func TestBatchCreateRejectsCountMismatch(t *testing.T) {
+	_, err := decode.BatchCreateFromProto(&orderv1.BatchCreateOrdersResponse{
+		Results: []*orderv1.BatchCreateResultItem{{
+			Outcome: &orderv1.BatchCreateResultItem_Accepted{
+				Accepted: &orderv1.BatchCreateAccepted{OrderId: 1},
+			},
+		}},
+		RejectedCount: 1,
+	})
+	var transportErr *sdkerrors.TransportError
+	if !errors.As(err, &transportErr) {
+		t.Fatalf("expected TransportError, got %T: %v", err, err)
 	}
 }

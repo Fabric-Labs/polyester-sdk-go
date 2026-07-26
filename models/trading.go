@@ -176,9 +176,9 @@ type BalancesList struct {
 
 // BalanceHistorySeries is one balance history series.
 type BalanceHistorySeries struct {
-	AssetID     uint32  `json:"asset_id"`
-	AccountCode uint32  `json:"account_code"`
-	BalanceQ    []int64 `json:"balance_q"`
+	AssetID     uint32   `json:"asset_id"`
+	AccountCode int32    `json:"account_code"`
+	BalanceQ    []uint64 `json:"balance_q"`
 }
 
 // BalanceHistory is balance history response.

@@ -8,13 +8,16 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
+
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 )
 
 // CanonicalQuery sorts and URL-encodes query parameters from rawURL.
-func CanonicalQuery(rawURL string) string {
-	parsed, err := url.Parse(rawURL)
+func CanonicalQuery(rawURL string) (string, error) {
+	parsed, err := parseSigningURL(rawURL)
 	if err != nil {
-		return ""
+		return "", err
 	}
 	values := parsed.Query()
 	keys := make([]string, 0, len(values))
@@ -28,38 +31,56 @@ func CanonicalQuery(rawURL string) string {
 			pairs = append(pairs, queryComponentEscape(key)+"="+queryComponentEscape(value))
 		}
 	}
-	return strings.Join(pairs, "&")
+	return strings.Join(pairs, "&"), nil
 }
 
 // CanonicalSigningString builds the Polyester API-key signing payload.
-func CanonicalSigningString(timestampMS, method, rawURL string, body []byte) string {
-	parsed, err := url.Parse(rawURL)
+func CanonicalSigningString(timestampMS, method, rawURL string, body []byte) (string, error) {
+	parsed, err := parseSigningURL(rawURL)
+	if err != nil {
+		return "", err
+	}
 	pathname := "/"
-	if err == nil && parsed.Path != "" {
+	if parsed.Path != "" {
 		pathname = parsed.Path
+	}
+	query, err := CanonicalQuery(rawURL)
+	if err != nil {
+		return "", err
 	}
 	sum := sha256.Sum256(body)
 	return strings.Join([]string{
 		timestampMS,
 		strings.ToUpper(method),
 		pathname,
-		CanonicalQuery(rawURL),
+		query,
 		hex.EncodeToString(sum[:]),
-	}, "\n")
+	}, "\n"), nil
 }
 
 // SignRequest returns Polyester API-key headers for an HTTP request.
-func SignRequest(creds *Credentials, method, rawURL string, body []byte, timestampMS string) map[string]string {
+func SignRequest(creds *Credentials, method, rawURL string, body []byte, timestampMS string) (map[string]string, error) {
 	if timestampMS == "" {
-		timestampMS = strconv.FormatInt(creds.nextTimestampMS(), 10)
+		timestampMS = strconv.FormatInt(time.Now().UnixMilli(), 10)
 	}
-	canonical := CanonicalSigningString(timestampMS, method, rawURL, body)
+	canonical, err := CanonicalSigningString(timestampMS, method, rawURL, body)
+	if err != nil {
+		return nil, err
+	}
 	sig := ed25519.Sign(creds.PrivateKey, []byte(canonical))
 	return map[string]string{
 		"X-API-KEY-ID":    creds.KeyID,
 		"X-API-TIMESTAMP": timestampMS,
 		"X-API-SIGNATURE": hex.EncodeToString(sig),
+	}, nil
+}
+
+func parseSigningURL(rawURL string) (*url.URL, error) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+		return nil, &sdkerrors.AuthError{Msg: "cannot sign malformed absolute HTTP URL"}
 	}
+	return parsed, nil
 }
 
 // queryComponentEscape matches Python urllib.parse.quote(..., safe="").

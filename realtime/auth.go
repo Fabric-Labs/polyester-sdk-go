@@ -91,7 +91,11 @@ func fetchRTToken(ctx context.Context, httpClient *http.Client, creds *auth.Cred
 	if err != nil {
 		return "", err
 	}
-	for key, value := range auth.SignRequest(creds, http.MethodGet, rawURL, nil, "") {
+	headers, err := auth.SignRequest(creds, http.MethodGet, rawURL, nil, "")
+	if err != nil {
+		return "", err
+	}
+	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
 	resp, err := httpClient.Do(req)

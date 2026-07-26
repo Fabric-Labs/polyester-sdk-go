@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync/atomic"
-	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 )
@@ -20,9 +18,8 @@ const (
 
 // Credentials holds API-key authentication material.
 type Credentials struct {
-	KeyID           string
-	PrivateKey      ed25519.PrivateKey
-	lastTimestampMS atomic.Int64
+	KeyID      string
+	PrivateKey ed25519.PrivateKey
 }
 
 // String redacts the private key.
@@ -36,17 +33,6 @@ func (c *Credentials) String() string {
 // GoString redacts the private key for %#v formatting.
 func (c *Credentials) GoString() string {
 	return c.String()
-}
-
-func (c *Credentials) nextTimestampMS() int64 {
-	now := time.Now().UnixMilli()
-	for {
-		observed := c.lastTimestampMS.Load()
-		next := max(now, observed+1)
-		if c.lastTimestampMS.CompareAndSwap(observed, next) {
-			return next
-		}
-	}
 }
 
 // LoadCredentials loads credentials from explicit values and optionally the environment.

@@ -44,7 +44,7 @@ func (s *OrderbookService) Get(ctx context.Context, symbol string, depth int) (m
 	req := &orderbookv1.GetOrderBookRequest{Symbol: symbol, Depth: orderbookv1.Depth(v)}
 	scale, ok := s.catalogs.BaseQuantityScaleForSymbol(symbol)
 	if !ok {
-		scale = 8
+		return models.OrderbookData{}, &errors.ValidationError{Msg: fmt.Sprintf("orderbook decoding requires a hydrated catalog quantity scale for %q", symbol)}
 	}
 	return UnaryPublic(ctx, s.transport, s.client().GetOrderBook, req, func(msg *orderbookv1.GetOrderBookResponse) models.OrderbookData {
 		return decode.OrderbookFromProto(msg, symbol, depth, scale)
@@ -64,6 +64,8 @@ type CreateSubscriptionOptions struct {
 	OnReconnect func()
 	// OnSnapshotRefresh is called after a successful snapshot rebuild.
 	OnSnapshotRefresh func()
+	// OnError is called for transport, decode, snapshot, and terminal queue errors.
+	OnError func(error)
 }
 
 // CreateSubscription starts snapshot-then-stream orderbook merging.
@@ -88,7 +90,7 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 
 	quantityScale, ok := s.catalogs.BaseQuantityScaleForSymbol(symbol)
 	if !ok {
-		quantityScale = 8
+		return nil, &errors.ValidationError{Msg: fmt.Sprintf("orderbook decoding requires a hydrated catalog quantity scale for %q", symbol)}
 	}
 	var (
 		mu             sync.Mutex
@@ -102,11 +104,12 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 
 	emit := func() {
 		mu.Lock()
-		defer mu.Unlock()
 		if subscription == nil {
+			mu.Unlock()
 			return
 		}
 		data := orderbook.BuildOrderbookData(symbol, wsDepth, currentBookSeq, bids, asks, bucketTicks, quantityScale)
+		mu.Unlock()
 		if opts.OnEvent != nil {
 			opts.OnEvent(data)
 		}
@@ -135,6 +138,7 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		Decode:            decode.OrderbookDeltaFromBytes,
 		OnReconnect:       opts.OnReconnect,
 		OnSnapshotRefresh: opts.OnSnapshotRefresh,
+		OnError:           opts.OnError,
 		FetchSnapshot: func(fetchCtx context.Context) (models.OrderbookData, error) {
 			name := codecs.DepthToConnectEnum(wsDepth)
 			v, ok := orderbookv1.Depth_value[name]
@@ -169,7 +173,12 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		MaxBuffered: 200,
 	})
 
-	subscription = orderbook.NewSubscription(stream, emit)
+	subscription = orderbook.NewSubscription(stream, emit, func(ticks int) {
+		mu.Lock()
+		bucketTicks = ticks
+		mu.Unlock()
+	})
+	subscription.SetOnError(opts.OnError)
 	subscription.SetBucket(opts.Bucket)
 	if err := stream.Start(ctx); err != nil {
 		subscription.Close()

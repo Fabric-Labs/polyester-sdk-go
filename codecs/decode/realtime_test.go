@@ -1,10 +1,12 @@
 package decode
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
+	lifecyclev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/lifecycle/v1"
 	orderbookv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1"
 	"google.golang.org/protobuf/proto"
 )
@@ -67,5 +69,18 @@ func TestSubaccountPolicyFromBytes(t *testing.T) {
 	}
 	if policy.PolicyID != codecs.FormatUint64ID(7) || policy.Name != "trader" || policy.Revision != 3 {
 		t.Fatalf("policy=%+v", policy)
+	}
+}
+
+func TestRealtimeDecodersRejectEmptyAndMissingRequiredNestedMessages(t *testing.T) {
+	if _, err := OrderbookDeltaFromBytes(nil); err == nil || !strings.Contains(err.Error(), "empty publication") {
+		t.Fatalf("empty payload error=%v", err)
+	}
+	payload, err := proto.Marshal(&lifecyclev1.FlowDetailView{FromLiveState: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := FlowDetailFromBytes(payload); err == nil || !strings.Contains(err.Error(), "missing summary") {
+		t.Fatalf("missing summary error=%v", err)
 	}
 }

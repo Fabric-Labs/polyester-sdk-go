@@ -1,9 +1,11 @@
 package decode
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
@@ -271,28 +273,56 @@ func BatchModifyFromProto(msg *orderv1.BatchModifyOrdersResponse) models.BatchMo
 //
 // Per-item results now carry an Accepted/Rejected outcome oneof instead of flat
 // status/order_id/code fields.
-func BatchCreateFromProto(msg *orderv1.BatchCreateOrdersResponse) models.BatchCreateOrdersResult {
+func BatchCreateFromProto(msg *orderv1.BatchCreateOrdersResponse) (models.BatchCreateOrdersResult, error) {
 	results := make([]models.BatchCreateResultItem, 0, len(msg.GetResults()))
+	decodedAccepted := 0
+	decodedRejected := 0
 	for _, item := range msg.GetResults() {
 		out := models.BatchCreateResultItem{
 			ClientOrderID: item.GetClientOrderId(),
 		}
 		if accepted := item.GetAccepted(); accepted != nil {
+			decodedAccepted++
 			out.Status = "accepted"
 			out.OrderID = codecs.FormatUint64ID(accepted.GetOrderId())
 		} else if rejected := item.GetRejected(); rejected != nil {
+			decodedRejected++
 			out.Status = "rejected"
 			if err := rejected.GetError(); err != nil {
-				out.Code = err.GetCode().String()
+				raw := int32(err.GetCode())
+				if raw == 0 {
+					out.Code = "ERROR_CODE_UNSPECIFIED"
+				} else if name, ok := orderv1.ErrorCode_name[raw]; ok {
+					out.Code = name
+				} else {
+					out.Code = fmt.Sprintf("UNKNOWN_ERROR_CODE(%d)", raw)
+				}
+			} else {
+				out.Code = "ERROR_CODE_UNSPECIFIED"
+			}
+		} else {
+			return models.BatchCreateOrdersResult{}, &sdkerrors.TransportError{
+				Msg: "batch create response item has neither accepted nor rejected outcome",
 			}
 		}
 		results = append(results, out)
 	}
+	accepted := int(msg.GetAcceptedCount())
+	rejected := int(msg.GetRejectedCount())
+	if accepted != decodedAccepted || rejected != decodedRejected ||
+		accepted+rejected != len(results) {
+		return models.BatchCreateOrdersResult{}, &sdkerrors.TransportError{
+			Msg: fmt.Sprintf(
+				"batch create response counts do not match decoded outcomes: accepted=%d/%d rejected=%d/%d results=%d",
+				accepted, decodedAccepted, rejected, decodedRejected, len(results),
+			),
+		}
+	}
 	return models.BatchCreateOrdersResult{
 		Results:       results,
-		AcceptedCount: int(msg.GetAcceptedCount()),
-		RejectedCount: int(msg.GetRejectedCount()),
-	}
+		AcceptedCount: accepted,
+		RejectedCount: rejected,
+	}, nil
 }
 
 // BatchCancelFromProto decodes batch cancel response.
