@@ -16,8 +16,12 @@ func BatchCreateOrdersToProto(items []models.CreateOrderRequest, subAccountID *s
 	if len(items) == 0 {
 		return nil, &errors.ValidationError{Msg: "batch_create requires at least one item"}
 	}
+	resolvedRequestID, err := coalesceRequestID(requestID, "batch-create")
+	if err != nil {
+		return nil, err
+	}
 	proto := &orderv1.BatchCreateOrdersRequest{
-		RequestId: coalesceRequestID(requestID, "batch-create"),
+		RequestId: resolvedRequestID,
 	}
 	if subAccountID != nil && *subAccountID != "" {
 		sub, err := IDToInt(*subAccountID, "sub_account_id")
@@ -52,7 +56,11 @@ func BatchCancelItemToProto(item models.BatchCancelItem) (*orderv1.BatchCancelIt
 		proto.OrderId = id
 	}
 	if hasClient {
-		proto.ClientOrderId = *item.ClientOrderID
+		validated, err := requiredClientID(*item.ClientOrderID, "client_order_id")
+		if err != nil {
+			return nil, err
+		}
+		proto.ClientOrderId = validated
 	}
 	if item.SymbolID != nil {
 		proto.SymbolId = *item.SymbolID
@@ -65,8 +73,12 @@ func BatchCancelOrdersToProto(items []models.BatchCancelItem, subAccountID *stri
 	if len(items) == 0 {
 		return nil, &errors.ValidationError{Msg: "batch_cancel requires at least one item"}
 	}
+	resolvedRequestID, err := coalesceRequestID(requestID, "batch-cancel")
+	if err != nil {
+		return nil, err
+	}
 	proto := &orderv1.BatchCancelOrdersRequest{
-		RequestId: coalesceRequestID(requestID, "batch-cancel"),
+		RequestId: resolvedRequestID,
 	}
 	if subAccountID != nil && *subAccountID != "" {
 		sub, err := IDToInt(*subAccountID, "sub_account_id")
@@ -104,7 +116,11 @@ func BatchModifyItemToProto(item models.BatchModifyItem, quantityScale int) (*or
 		proto.Key = &orderv1.BatchModifyItem_OrderId{OrderId: id}
 	}
 	if hasClient {
-		proto.Key = &orderv1.BatchModifyItem_ClientOrderId{ClientOrderId: *item.ClientOrderID}
+		validated, err := requiredClientID(*item.ClientOrderID, "client_order_id")
+		if err != nil {
+			return nil, err
+		}
+		proto.Key = &orderv1.BatchModifyItem_ClientOrderId{ClientOrderId: validated}
 	}
 	if item.NewPrice != nil && item.NewPrice.IsSet() {
 		ticks, err := ResolvePriceTicks(*item.NewPrice, "new_price", "")
@@ -127,8 +143,12 @@ func BatchModifyItemToProto(item models.BatchModifyItem, quantityScale int) (*or
 		}
 		proto.Behavior = b
 	}
-	if item.NewClientOrderID != nil {
-		proto.NewClientOrderId = *item.NewClientOrderID
+	validatedNewID, err := optionalClientID(item.NewClientOrderID, "new_client_order_id")
+	if err != nil {
+		return nil, err
+	}
+	if validatedNewID != nil {
+		proto.NewClientOrderId = *validatedNewID
 	}
 	return proto, nil
 }
@@ -138,8 +158,12 @@ func BatchModifyOrdersToProto(items []models.BatchModifyItem, subAccountID *stri
 	if len(items) == 0 {
 		return nil, &errors.ValidationError{Msg: "batch_modify requires at least one item"}
 	}
+	resolvedRequestID, err := coalesceRequestID(requestID, "batch-mod")
+	if err != nil {
+		return nil, err
+	}
 	proto := &orderv1.BatchModifyOrdersRequest{
-		RequestId:    coalesceRequestID(requestID, "batch-mod"),
+		RequestId:    resolvedRequestID,
 		AllowPartial: allowPartial,
 	}
 	if subAccountID != nil && *subAccountID != "" {

@@ -254,3 +254,52 @@ func TestBatchModifyReconcilesActionsAndCounts(t *testing.T) {
 		t.Fatalf("expected TransportError for count mismatch, got %T: %v", err, err)
 	}
 }
+
+func TestCancelAllRequiresKnownStatus(t *testing.T) {
+	result, err := decode.CancelAllFromProto(&orderv1.CancelAllOrdersResponse{
+		Status:           "submitted",
+		MatchedOrders:    2,
+		SubmittedCancels: 2,
+		FailedCancels:    1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != "submitted" || result.FailedCancels != 1 {
+		t.Fatalf("result=%+v", result)
+	}
+	if _, err := decode.CancelAllFromProto(&orderv1.CancelAllOrdersResponse{Status: "dry_run"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, status := range []string{"", "ok", "maybe", "accepted"} {
+		_, err := decode.CancelAllFromProto(&orderv1.CancelAllOrdersResponse{Status: status, MatchedOrders: 1})
+		var transportErr *sdkerrors.TransportError
+		if !errors.As(err, &transportErr) {
+			t.Fatalf("status %q: expected TransportError, got %T: %v", status, err, err)
+		}
+	}
+}
+
+func TestCancelAllAfterRequiresKnownStatus(t *testing.T) {
+	result, err := decode.CancelAllAfterFromProto(&orderv1.CancelAllAfterResponse{
+		Status:              "armed",
+		EffectiveTimeoutSec: 30,
+		ExpiresAtTsNs:       99,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != "armed" || result.EffectiveTimeoutSec != 30 || result.ExpiresAtTsNs != "99" {
+		t.Fatalf("result=%+v", result)
+	}
+	if _, err := decode.CancelAllAfterFromProto(&orderv1.CancelAllAfterResponse{Status: "disabled"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, status := range []string{"", "ok", "submitted", "maybe"} {
+		_, err := decode.CancelAllAfterFromProto(&orderv1.CancelAllAfterResponse{Status: status, EffectiveTimeoutSec: 10})
+		var transportErr *sdkerrors.TransportError
+		if !errors.As(err, &transportErr) {
+			t.Fatalf("status %q: expected TransportError, got %T: %v", status, err, err)
+		}
+	}
+}

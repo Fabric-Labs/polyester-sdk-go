@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 0.1.0a24
+
+### Breaking
+- Public local-orderbook helpers now return errors for malformed data, and cancel-all response codecs return `(result, error)` so direct callers must propagate validation/transport failures.
+
+### Fixed
+- Local orderbook bucketing uses checked multiply/add, rounds asks up, and rejects negative prices/quantities instead of wrapping or emitting corrupted levels.
+- `CancelAll` / `CancelAllAfter` response decoding rejects empty or unknown statuses (`submitted`/`dry_run`, `armed`/`disabled`) instead of returning success for ambiguous payloads. Cancel-all now also surfaces `failed_cancels`.
+- Client order/trigger IDs and caller-supplied request IDs are trimmed and validated locally for documented length and ASCII-character constraints before a request is sent.
+
+### Testing
+- Decoder coverage asserts empty/unknown cancel-all and cancel-all-after statuses fail closed.
+- Orderbook unit coverage asserts negative levels and quantity overflow are rejected.
+
 ## 0.1.0a23
 
 ### Fixed
