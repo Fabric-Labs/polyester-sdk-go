@@ -43,15 +43,15 @@ func TestIDToIntRoundTripFormatIDCanonical(t *testing.T) {
 		t.Fatalf("IDToInt(FormatID(4))=%d want 4", got)
 	}
 
-	// FormatID(0) maps 0→1 then encodes; round-trip must stay consistent with
-	// preferring the canonical base58 form.
-	encoded0 := FormatID(0)
-	got0, err := IDToInt(encoded0, "id")
-	if err != nil {
-		t.Fatal(err)
+	// Zero has its own canonical base58 encoding and must not alias id 1.
+	if got := FormatID(0); got != "1" {
+		t.Fatalf("FormatID(0)=%q want 1", got)
 	}
-	if FormatID(got0) != encoded0 {
-		t.Fatalf("FormatID(0) round-trip inconsistent: decoded=%d FormatID=%q want %q", got0, FormatID(got0), encoded0)
+	if got := FormatID(1); got != "2" {
+		t.Fatalf("FormatID(1)=%q want 2", got)
+	}
+	if FormatID(0) == FormatID(1) {
+		t.Fatal("FormatID(0) must not alias FormatID(1)")
 	}
 }
 
@@ -72,8 +72,8 @@ func TestIDToIntPrefersCanonicalBase58ForAllDigitCollisions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("id=%d encoded=%q: %v", id, encoded, err)
 		}
-		if FormatID(got) != encoded {
-			t.Fatalf("id=%d encoded=%q: IDToInt=%d FormatID=%q", id, encoded, got, FormatID(got))
+		if got != id {
+			t.Fatalf("id=%d encoded=%q: IDToInt=%d", id, encoded, got)
 		}
 	}
 }
