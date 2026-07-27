@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 0.1.0a23
+
+### Fixed
+- `FormatID(0)` now returns the canonical base58 zero (`"1"`) instead of aliasing id `1` as `"2"`; Go now preserves distinct zero/one round-trips and matches Python/TypeScript encoding.
+
+### Clarified
+- Document that `CreateOrderRequest.ClientOrderID` is API-optional; set a stable value when retrying after ambiguous mutation failures.
+
+### Testing
+- The 10,000-identical-request authentication regression also verifies that scheduler timers continue advancing during bounded signing backpressure.
+
 ## 0.1.0a22
 
 ### Fixed

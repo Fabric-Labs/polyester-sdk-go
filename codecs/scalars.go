@@ -168,7 +168,7 @@ func IDToInt(value string, label string) (uint64, error) {
 // FormatID encodes a uint64 id as base58.
 func FormatID(value uint64) string {
 	if value == 0 {
-		value = 1
+		return base58.Encode([]byte{0})
 	}
 	return base58.Encode(new(big.Int).SetUint64(value).Bytes())
 }

@@ -107,6 +107,20 @@ func TestTenThousandIdenticalRequestsGetUniqueBoundedAuthTuples(t *testing.T) {
 		observedAtMS int64
 	}
 	results := make(chan signedAt, count)
+	stopTicker := make(chan struct{})
+	timerTicks := make(chan struct{}, count)
+	go func() {
+		ticker := time.NewTicker(10 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				timerTicks <- struct{}{}
+			case <-stopTicker:
+				return
+			}
+		}
+	}()
 	before := time.Now().UnixMilli()
 	wg.Add(count)
 	for range count {
@@ -121,6 +135,7 @@ func TestTenThousandIdenticalRequestsGetUniqueBoundedAuthTuples(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+	close(stopTicker)
 	close(results)
 	timestamps := make(map[int64]struct{}, count)
 	signatures := make(map[string]struct{}, count)
@@ -148,6 +163,9 @@ func TestTenThousandIdenticalRequestsGetUniqueBoundedAuthTuples(t *testing.T) {
 	}
 	if len(timestamps) != count || len(signatures) != count {
 		t.Fatalf("unique timestamps=%d signatures=%d want %d", len(timestamps), len(signatures), count)
+	}
+	if len(timerTicks) < 100 {
+		t.Fatalf("scheduler timer advanced only %d times during signing backpressure", len(timerTicks))
 	}
 }
 
