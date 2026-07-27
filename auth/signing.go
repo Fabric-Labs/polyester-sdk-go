@@ -6,9 +6,7 @@ import (
 	"encoding/hex"
 	"net/url"
 	"sort"
-	"strconv"
 	"strings"
-	"time"
 
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 )
@@ -61,7 +59,11 @@ func CanonicalSigningString(timestampMS, method, rawURL string, body []byte) (st
 // SignRequest returns Polyester API-key headers for an HTTP request.
 func SignRequest(creds *Credentials, method, rawURL string, body []byte, timestampMS string) (map[string]string, error) {
 	if timestampMS == "" {
-		timestampMS = strconv.FormatInt(time.Now().UnixMilli(), 10)
+		var err error
+		timestampMS, err = automaticSigningTimestamp(creds)
+		if err != nil {
+			return nil, err
+		}
 	}
 	canonical, err := CanonicalSigningString(timestampMS, method, rawURL, body)
 	if err != nil {

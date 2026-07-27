@@ -3,6 +3,7 @@ package decode
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
@@ -164,15 +165,30 @@ func UserTradeFromProto(msg *orderv1.UserTrade) models.UserTrade {
 	}
 	sid := msg.GetSymbolId()
 	return models.UserTrade{
-		SymbolID:  sid,
-		MatchID:   strconv.FormatUint(msg.GetMatchId(), 10),
-		OrderID:   codecs.FormatUint64ID(msg.GetOrderId()),
-		Side:      codecs.OrderSideName(msg.GetSide()),
-		IsMaker:   msg.GetIsMaker(),
-		Price:     codecs.DecodePriceTicks(msg.GetPriceTicks(), ""),
-		Qty:       codecs.DecodeQtyScaled(msg.GetQtyScaled(), -1, "", &sid),
-		FeeScaled: strconv.FormatInt(msg.GetFeeScaled(), 10),
-		TsNs:      strconv.FormatUint(msg.GetTsNs(), 10),
+		SymbolID:            sid,
+		MatchID:             strconv.FormatUint(msg.GetMatchId(), 10),
+		OrderID:             codecs.FormatUint64ID(msg.GetOrderId()),
+		Side:                codecs.OrderSideName(msg.GetSide()),
+		IsMaker:             msg.GetIsMaker(),
+		Price:               codecs.DecodePriceTicks(msg.GetPriceTicks(), ""),
+		Qty:                 codecs.DecodeQtyScaled(msg.GetQtyScaled(), -1, "", &sid),
+		FeeScaled:           strconv.FormatInt(msg.GetFeeScaled(), 10),
+		FeeSource:           feeSourceName(msg.GetFeeSource()),
+		ReferralShareScaled: strconv.FormatInt(msg.GetReferralShareScaled(), 10),
+		TsNs:                strconv.FormatUint(msg.GetTsNs(), 10),
+	}
+}
+
+func feeSourceName(source orderv1.FeeSource) string {
+	switch source {
+	case orderv1.FeeSource_FEE_SOURCE_UNSPECIFIED:
+		return ""
+	case orderv1.FeeSource_QUOTE:
+		return "quote"
+	case orderv1.FeeSource_RECEIVED:
+		return "received"
+	default:
+		return fmt.Sprintf("unknown(%d)", source)
 	}
 }
 
@@ -251,9 +267,36 @@ func CancelAllFromProto(msg *orderv1.CancelAllOrdersResponse) models.CancelAllOr
 }
 
 // BatchModifyFromProto decodes batch modify response.
-func BatchModifyFromProto(msg *orderv1.BatchModifyOrdersResponse) models.BatchModifyOrdersResult {
+func BatchModifyFromProto(msg *orderv1.BatchModifyOrdersResponse) (models.BatchModifyOrdersResult, error) {
 	results := make([]models.BatchModifyResultItem, 0, len(msg.GetResults()))
+	decodedAmended := 0
+	decodedReplaced := 0
+	decodedRejected := 0
 	for _, item := range msg.GetResults() {
+		switch strings.ToLower(item.GetStatus()) {
+		case "modified":
+			switch item.GetActionTaken() {
+			case orderv1.ModifyActionTaken_AMENDED:
+				decodedAmended++
+			case orderv1.ModifyActionTaken_REPLACED:
+				decodedReplaced++
+			default:
+				return models.BatchModifyOrdersResult{}, &sdkerrors.TransportError{
+					Msg: fmt.Sprintf("batch modify response has unknown action: %d", item.GetActionTaken()),
+				}
+			}
+		case "rejected":
+			if item.GetActionTaken() != orderv1.ModifyActionTaken_MODIFY_ACTION_UNSPECIFIED {
+				return models.BatchModifyOrdersResult{}, &sdkerrors.TransportError{
+					Msg: "batch modify rejected result unexpectedly carries an action",
+				}
+			}
+			decodedRejected++
+		default:
+			return models.BatchModifyOrdersResult{}, &sdkerrors.TransportError{
+				Msg: fmt.Sprintf("batch modify response has unknown status: %q", item.GetStatus()),
+			}
+		}
 		results = append(results, models.BatchModifyResultItem{
 			Status:        item.GetStatus(),
 			ClientOrderID: item.GetClientOrderId(),
@@ -261,12 +304,22 @@ func BatchModifyFromProto(msg *orderv1.BatchModifyOrdersResponse) models.BatchMo
 			Code:          item.GetCode(),
 		})
 	}
+	amended := int(msg.GetAmendedCount())
+	replaced := int(msg.GetReplacedCount())
+	rejected := int(msg.GetRejectedCount())
+	if amended != decodedAmended || replaced != decodedReplaced ||
+		rejected != decodedRejected || amended+replaced+rejected != len(results) {
+		return models.BatchModifyOrdersResult{}, &sdkerrors.TransportError{Msg: fmt.Sprintf(
+			"batch modify response counts do not match decoded outcomes: amended=%d/%d replaced=%d/%d rejected=%d/%d results=%d",
+			amended, decodedAmended, replaced, decodedReplaced, rejected, decodedRejected, len(results),
+		)}
+	}
 	return models.BatchModifyOrdersResult{
 		Results:       results,
-		AmendedCount:  int(msg.GetAmendedCount()),
-		ReplacedCount: int(msg.GetReplacedCount()),
-		RejectedCount: int(msg.GetRejectedCount()),
-	}
+		AmendedCount:  amended,
+		ReplacedCount: replaced,
+		RejectedCount: rejected,
+	}, nil
 }
 
 // BatchCreateFromProto decodes batch create response.
@@ -326,9 +379,21 @@ func BatchCreateFromProto(msg *orderv1.BatchCreateOrdersResponse) (models.BatchC
 }
 
 // BatchCancelFromProto decodes batch cancel response.
-func BatchCancelFromProto(msg *orderv1.BatchCancelOrdersResponse) models.BatchCancelOrdersResult {
+func BatchCancelFromProto(msg *orderv1.BatchCancelOrdersResponse) (models.BatchCancelOrdersResult, error) {
 	results := make([]models.BatchCancelResultItem, 0, len(msg.GetResults()))
+	decodedAccepted := 0
+	decodedRejected := 0
 	for _, item := range msg.GetResults() {
+		switch strings.ToLower(item.GetStatus()) {
+		case "accepted":
+			decodedAccepted++
+		case "rejected":
+			decodedRejected++
+		default:
+			return models.BatchCancelOrdersResult{}, &sdkerrors.TransportError{
+				Msg: fmt.Sprintf("batch cancel response has unknown status: %q", item.GetStatus()),
+			}
+		}
 		results = append(results, models.BatchCancelResultItem{
 			Status:        item.GetStatus(),
 			OrderID:       codecs.FormatUint64ID(item.GetOrderId()),
@@ -336,11 +401,20 @@ func BatchCancelFromProto(msg *orderv1.BatchCancelOrdersResponse) models.BatchCa
 			Code:          item.GetCode(),
 		})
 	}
+	accepted := int(msg.GetAcceptedCount())
+	rejected := int(msg.GetRejectedCount())
+	if accepted != decodedAccepted || rejected != decodedRejected ||
+		accepted+rejected != len(results) {
+		return models.BatchCancelOrdersResult{}, &sdkerrors.TransportError{Msg: fmt.Sprintf(
+			"batch cancel response counts do not match decoded outcomes: accepted=%d/%d rejected=%d/%d results=%d",
+			accepted, decodedAccepted, rejected, decodedRejected, len(results),
+		)}
+	}
 	return models.BatchCancelOrdersResult{
 		Results:       results,
-		AcceptedCount: int(msg.GetAcceptedCount()),
-		RejectedCount: int(msg.GetRejectedCount()),
-	}
+		AcceptedCount: accepted,
+		RejectedCount: rejected,
+	}, nil
 }
 
 // CancelAllAfterFromProto decodes cancel-all-after response.

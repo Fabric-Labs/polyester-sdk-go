@@ -74,7 +74,7 @@ func (s *LifecycleService) GetFlow(ctx context.Context, intentID, flowID *string
 		return models.LifecycleFlowSummary{}, &errors.ValidationError{Msg: "flow_id or intent_id is required"}
 	}
 	req := &lifecyclev1.GetFlowByIdRequest{FlowId: *resolved}
-	return UnaryPublic(ctx, s.transport, s.client().GetFlowById, req, decode.FlowFromGetResponse)
+	return UnaryPublicDecoded(ctx, s.transport, s.client().GetFlowById, req, decode.FlowFromGetResponse)
 }
 
 func (s *LifecycleService) GetFlowByTx(ctx context.Context, txHash, lookupKind string, limit int) (models.LifecycleFlowSummary, error) {
@@ -86,7 +86,7 @@ func (s *LifecycleService) GetFlowByTx(ctx context.Context, txHash, lookupKind s
 		LookupKind: codecs.TxLookupKindFromLabel(lookupKind),
 		Limit:      uint32(limit),
 	}
-	return UnaryPublic(ctx, s.transport, s.client().ListFlowsByTx, req, decode.FlowFromGetByTxResponse)
+	return UnaryPublicDecoded(ctx, s.transport, s.client().ListFlowsByTx, req, decode.FlowFromGetByTxResponse)
 }
 
 func (s *LifecycleService) ListFlowsByTx(ctx context.Context, txHash, lookupKind string, limit int, pageToken *string) (models.LifecycleFlowsList, error) {

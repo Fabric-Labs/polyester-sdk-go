@@ -36,12 +36,9 @@ func (s *DepositService) CreateAddress(ctx context.Context, chainID uint32, acco
 	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.DepositAddress{}, err
 	}
-	result, err := UnaryAuth(ctx, s.transport, s.client().CreateDepositAddress, req, decode.CreateDepositAddressFromProto)
+	result, err := UnaryAuthDecoded(ctx, s.transport, s.client().CreateDepositAddress, req, decode.CreateDepositAddressFromProto)
 	if err != nil {
 		return models.DepositAddress{}, err
-	}
-	if result.DepositAddress == "" {
-		return models.DepositAddress{ChainID: chainID}, nil
 	}
 	return result, nil
 }

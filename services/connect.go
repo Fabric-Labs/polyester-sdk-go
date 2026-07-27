@@ -23,6 +23,23 @@ func UnaryPublic[Req any, Resp any, Out any](
 	return decode(resp.Msg), nil
 }
 
+// UnaryPublicDecoded calls a public Connect RPC whose decoder can reject a
+// malformed success response.
+func UnaryPublicDecoded[Req any, Resp any, Out any](
+	ctx context.Context,
+	factory *transport.Factory,
+	call func(context.Context, *connect.Request[Req]) (*connect.Response[Resp], error),
+	req *Req,
+	decode func(*Resp) (Out, error),
+) (Out, error) {
+	var zero Out
+	resp, err := call(ctx, connect.NewRequest(req))
+	if err != nil {
+		return zero, transport.MapError(err)
+	}
+	return decode(resp.Msg)
+}
+
 // UnaryAuth calls an authenticated Connect RPC and decodes the response.
 func UnaryAuth[Req any, Resp any, Out any](
 	ctx context.Context,

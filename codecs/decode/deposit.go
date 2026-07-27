@@ -1,6 +1,7 @@
 package decode
 
 import (
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	chaindepositv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/deposit/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
@@ -20,6 +21,17 @@ func DepositAddressesListFromProto(msg *chaindepositv1.ListDepositAddressesRespo
 	return models.DepositAddressesList{Addresses: out}
 }
 
-func CreateDepositAddressFromProto(msg *chaindepositv1.CreateDepositAddressResponse) models.DepositAddress {
-	return depositAddress(msg.GetDepositAddress())
+func CreateDepositAddressFromProto(msg *chaindepositv1.CreateDepositAddressResponse) (models.DepositAddress, error) {
+	if msg.GetDepositAddress() == nil {
+		return models.DepositAddress{}, &sdkerrors.TransportError{
+			Msg: "invalid CreateDepositAddress response: missing deposit_address",
+		}
+	}
+	result := depositAddress(msg.GetDepositAddress())
+	if result.DepositAddress == "" {
+		return models.DepositAddress{}, &sdkerrors.TransportError{
+			Msg: "invalid CreateDepositAddress response: empty deposit address",
+		}
+	}
+	return result, nil
 }

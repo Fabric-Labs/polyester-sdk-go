@@ -70,15 +70,17 @@ type GetOrderResult struct {
 
 // UserTrade is a user fill record.
 type UserTrade struct {
-	SymbolID  uint32     `json:"symbol_id"`
-	MatchID   string     `json:"match_id,omitempty"`
-	OrderID   string     `json:"order_id,omitempty"`
-	Side      string     `json:"side,omitempty"`
-	IsMaker   bool       `json:"is_maker,omitempty"`
-	Price     PriceTicks `json:"price,omitempty"`
-	Qty       QtyScaled  `json:"qty,omitempty"`
-	FeeScaled string     `json:"fee_scaled,omitempty"`
-	TsNs      string     `json:"ts_ns,omitempty"`
+	SymbolID            uint32     `json:"symbol_id"`
+	MatchID             string     `json:"match_id,omitempty"`
+	OrderID             string     `json:"order_id,omitempty"`
+	Side                string     `json:"side,omitempty"`
+	IsMaker             bool       `json:"is_maker,omitempty"`
+	Price               PriceTicks `json:"price,omitempty"`
+	Qty                 QtyScaled  `json:"qty,omitempty"`
+	FeeScaled           string     `json:"fee_scaled,omitempty"`
+	FeeSource           string     `json:"fee_source,omitempty"`
+	ReferralShareScaled string     `json:"referral_share_scaled,omitempty"`
+	TsNs                string     `json:"ts_ns,omitempty"`
 }
 
 // UserTradesList holds paginated user trades.

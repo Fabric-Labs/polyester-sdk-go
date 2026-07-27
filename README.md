@@ -5,7 +5,7 @@ and automation. Parity with `polyester-sdk-python` and `polyester-sdk-rust`
 using the checked-in `gen/` protobuf bundle (no local proto generation for
 normal development).
 
-**Status:** Alpha (`v0.1.0a21`). Proprietary license (not open source).
+**Status:** Alpha (`v0.1.0a22`). Proprietary license (not open source).
 API-key only; no browser login or session MFA.
 
 Requires a recent Go toolchain (see `go.mod`).
@@ -68,7 +68,7 @@ API-key policy before retrying.
 ```bash
 GOPRIVATE='github.com/Fabric-Labs/*' \
 GONOSUMDB='github.com/Fabric-Labs/*' \
-go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a21
+go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a22
 ```
 
 The repository is currently private. GitHub access and authenticated Git credentials are
@@ -151,6 +151,11 @@ value exactly as shown in the app. Do not use an internal numeric id.
 `DefaultAccountID` is optional for public market-data calls. It is required for
 account-scoped operations such as private realtime channels, bucket transfers, and
 some ledger writes.
+
+Automatic request signing gives concurrent identical calls distinct authentication tuples.
+Credential copies for the same key share the process allocator. Timestamps can lead the local clock
+by at most five seconds; larger bursts are backpressured instead of reusing a signature or drifting
+outside the API's 10-second freshness window.
 
 ## Authentication patterns
 
