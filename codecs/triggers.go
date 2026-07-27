@@ -62,7 +62,11 @@ func CreateTriggerToProto(symbol, triggerType string, triggerPrice *models.Price
 		QtyScaled: qtyScaled,
 	}
 	if clientTriggerID != nil && *clientTriggerID != "" {
-		intent.ClientTriggerId = *clientTriggerID
+		validated, err := requiredClientID(*clientTriggerID, "client_trigger_id")
+		if err != nil {
+			return nil, err
+		}
+		intent.ClientTriggerId = validated
 	} else {
 		intent.ClientTriggerId = newTriggerRequestID()
 	}

@@ -1,9 +1,6 @@
 package codecs
 
 import (
-	"crypto/rand"
-	"encoding/hex"
-	"fmt"
 	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
@@ -81,8 +78,12 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale int) (*orde
 		Side:      side,
 		QtyScaled: qty,
 	}
-	if req.ClientOrderID != nil {
-		intent.ClientOrderId = *req.ClientOrderID
+	clientOrderID, err := optionalClientID(req.ClientOrderID, "client_order_id")
+	if err != nil {
+		return nil, err
+	}
+	if clientOrderID != nil {
+		intent.ClientOrderId = *clientOrderID
 	}
 
 	hasPrice := req.Price != nil && req.Price.IsSet()
@@ -176,8 +177,12 @@ func ModifyOrderToProto(
 	if (newPrice == nil || !newPrice.IsSet()) && (newQty == nil || !newQty.IsSet()) {
 		return nil, &errors.ValidationError{Msg: "modify requires new_price, new_qty, and/or new_attached_risk"}
 	}
+	resolvedRequestID, err := coalesceRequestID(requestID, "mod")
+	if err != nil {
+		return nil, err
+	}
 	proto := &orderv1.ModifyOrderRequest{
-		RequestId: coalesceRequestID(requestID, "mod"),
+		RequestId: resolvedRequestID,
 	}
 	if hasOrderID {
 		id, err := IDToInt(*orderID, "order_id")
@@ -187,7 +192,11 @@ func ModifyOrderToProto(
 		proto.Key = &orderv1.ModifyOrderRequest_OrderId{OrderId: id}
 	}
 	if hasClient {
-		proto.Key = &orderv1.ModifyOrderRequest_ClientOrderId{ClientOrderId: *clientOrderID}
+		validated, err := requiredClientID(*clientOrderID, "client_order_id")
+		if err != nil {
+			return nil, err
+		}
+		proto.Key = &orderv1.ModifyOrderRequest_ClientOrderId{ClientOrderId: validated}
 	}
 	if subAccountID != nil {
 		sub, err := IDToInt(*subAccountID, "sub_account_id")
@@ -217,16 +226,24 @@ func ModifyOrderToProto(
 		}
 		proto.Behavior = b
 	}
-	if newClientOrderID != nil {
-		proto.NewClientOrderId = *newClientOrderID
+	validatedNewID, err := optionalClientID(newClientOrderID, "new_client_order_id")
+	if err != nil {
+		return nil, err
+	}
+	if validatedNewID != nil {
+		proto.NewClientOrderId = *validatedNewID
 	}
 	return proto, nil
 }
 
 // CancelAllOrdersToProto encodes cancel-all request.
 func CancelAllOrdersToProto(subAccountID *string, symbol, side *string, dryRun bool, requestID *string) (*orderv1.CancelAllOrdersRequest, error) {
+	resolvedRequestID, err := coalesceRequestID(requestID, "cancel-all")
+	if err != nil {
+		return nil, err
+	}
 	proto := &orderv1.CancelAllOrdersRequest{
-		RequestId: coalesceRequestID(requestID, "cancel-all"),
+		RequestId: resolvedRequestID,
 		DryRun:    dryRun,
 	}
 	if subAccountID != nil {
@@ -251,8 +268,12 @@ func CancelAllOrdersToProto(subAccountID *string, symbol, side *string, dryRun b
 
 // CancelAllAfterToProto encodes cancel-all-after request.
 func CancelAllAfterToProto(subAccountID *string, timeoutSec int, symbol, side *string, requestID *string) (*orderv1.CancelAllAfterRequest, error) {
+	resolvedRequestID, err := coalesceRequestID(requestID, "cancel-after")
+	if err != nil {
+		return nil, err
+	}
 	proto := &orderv1.CancelAllAfterRequest{
-		RequestId:  coalesceRequestID(requestID, "cancel-after"),
+		RequestId:  resolvedRequestID,
 		TimeoutSec: uint32(timeoutSec),
 	}
 	if subAccountID != nil {
@@ -273,13 +294,4 @@ func CancelAllAfterToProto(subAccountID *string, timeoutSec int, symbol, side *s
 		proto.Side = s
 	}
 	return proto, nil
-}
-
-func coalesceRequestID(requestID *string, prefix string) string {
-	if requestID != nil && *requestID != "" {
-		return *requestID
-	}
-	var b [6]byte
-	_, _ = rand.Read(b[:])
-	return fmt.Sprintf("%s-%s", prefix, hex.EncodeToString(b[:]))
 }

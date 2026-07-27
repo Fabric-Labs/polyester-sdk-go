@@ -108,12 +108,19 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 			mu.Unlock()
 			return
 		}
-		data := orderbook.BuildOrderbookData(symbol, wsDepth, currentBookSeq, bids, asks, bucketTicks, quantityScale)
+		data, err := orderbook.BuildOrderbookData(symbol, wsDepth, currentBookSeq, bids, asks, bucketTicks, quantityScale)
+		localSub := subscription
 		mu.Unlock()
+		if err != nil {
+			if opts.OnError != nil {
+				opts.OnError(err)
+			}
+			return
+		}
 		if opts.OnEvent != nil {
 			opts.OnEvent(data)
 		}
-		subscription.Enqueue(data)
+		localSub.Enqueue(data)
 	}
 
 	handleDelta := func(delta models.OrderBookDeltaUpdate) {
@@ -146,7 +153,7 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 				return models.OrderbookData{}, &errors.ValidationError{Msg: "unsupported orderbook depth"}
 			}
 			req := &orderbookv1.GetOrderBookRequest{Symbol: symbol, Depth: orderbookv1.Depth(v)}
-			return UnaryPublic(fetchCtx, s.transport, s.client().GetOrderBook, req, func(msg *orderbookv1.GetOrderBookResponse) models.OrderbookData {
+			return UnaryPublicDecoded(fetchCtx, s.transport, s.client().GetOrderBook, req, func(msg *orderbookv1.GetOrderBookResponse) (models.OrderbookData, error) {
 				mu.Lock()
 				bids = orderbook.LevelsFromProtoLevels(msg.GetBids())
 				asks = orderbook.LevelsFromProtoLevels(msg.GetAsks())

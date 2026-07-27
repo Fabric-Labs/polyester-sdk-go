@@ -258,12 +258,20 @@ func modifyActionName(v orderv1.ModifyActionTaken) string {
 }
 
 // CancelAllFromProto decodes cancel all response.
-func CancelAllFromProto(msg *orderv1.CancelAllOrdersResponse) models.CancelAllOrdersResult {
+func CancelAllFromProto(msg *orderv1.CancelAllOrdersResponse) (models.CancelAllOrdersResult, error) {
+	status := strings.TrimSpace(msg.GetStatus())
+	if status == "" ||
+		!strings.EqualFold(status, "submitted") && !strings.EqualFold(status, "dry_run") {
+		return models.CancelAllOrdersResult{}, &sdkerrors.TransportError{
+			Msg: fmt.Sprintf("invalid CancelAllOrders response: unknown status %q", msg.GetStatus()),
+		}
+	}
 	return models.CancelAllOrdersResult{
 		Status:           msg.GetStatus(),
 		MatchedOrders:    int(msg.GetMatchedOrders()),
 		SubmittedCancels: int(msg.GetSubmittedCancels()),
-	}
+		FailedCancels:    int(msg.GetFailedCancels()),
+	}, nil
 }
 
 // BatchModifyFromProto decodes batch modify response.
@@ -418,10 +426,17 @@ func BatchCancelFromProto(msg *orderv1.BatchCancelOrdersResponse) (models.BatchC
 }
 
 // CancelAllAfterFromProto decodes cancel-all-after response.
-func CancelAllAfterFromProto(msg *orderv1.CancelAllAfterResponse) models.CancelAllAfterResult {
+func CancelAllAfterFromProto(msg *orderv1.CancelAllAfterResponse) (models.CancelAllAfterResult, error) {
+	status := strings.TrimSpace(msg.GetStatus())
+	if status == "" ||
+		!strings.EqualFold(status, "armed") && !strings.EqualFold(status, "disabled") {
+		return models.CancelAllAfterResult{}, &sdkerrors.TransportError{
+			Msg: fmt.Sprintf("invalid CancelAllAfter response: unknown status %q", msg.GetStatus()),
+		}
+	}
 	return models.CancelAllAfterResult{
 		Status:              msg.GetStatus(),
 		EffectiveTimeoutSec: int(msg.GetEffectiveTimeoutSec()),
 		ExpiresAtTsNs:       strconv.FormatUint(msg.GetExpiresAtTsNs(), 10),
-	}
+	}, nil
 }

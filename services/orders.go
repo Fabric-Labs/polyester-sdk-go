@@ -229,7 +229,7 @@ func (s *OrdersService) CancelAll(ctx context.Context, account AccountScope, sub
 	if err != nil {
 		return models.CancelAllOrdersResult{}, err
 	}
-	return UnaryAuth(ctx, s.transport, s.writeClient().CancelAllOrders, protoReq, decode.CancelAllFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().CancelAllOrders, protoReq, decode.CancelAllFromProto)
 }
 
 // CancelAllAfter arms cancel-all-after.
@@ -242,7 +242,7 @@ func (s *OrdersService) CancelAllAfter(ctx context.Context, account AccountScope
 	if err != nil {
 		return models.CancelAllAfterResult{}, err
 	}
-	return UnaryAuth(ctx, s.transport, s.writeClient().CancelAllAfter, protoReq, decode.CancelAllAfterFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().CancelAllAfter, protoReq, decode.CancelAllAfterFromProto)
 }
 
 // BatchCreate places multiple orders in one request.
