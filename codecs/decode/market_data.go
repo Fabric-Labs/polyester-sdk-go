@@ -1,9 +1,11 @@
 package decode
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	marketdatav1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/wire"
@@ -69,31 +71,33 @@ var timeframeLabels = map[marketdatav1.Timeframe]string{
 }
 
 // CandlesColumnsFromProto decodes columnar candle responses into rows.
-func CandlesColumnsFromProto(msg *marketdatav1.GetCandlesColumnsResponse, volumeScale int) models.CandlesResult {
+func CandlesColumnsFromProto(msg *marketdatav1.GetCandlesColumnsResponse, volumeScale int) (models.CandlesResult, error) {
+	rows := len(msg.GetTsSec())
+	if len(msg.GetOpen()) != rows || len(msg.GetHigh()) != rows ||
+		len(msg.GetLow()) != rows || len(msg.GetClose()) != rows ||
+		len(msg.GetVolume()) != rows {
+		return models.CandlesResult{}, &sdkerrors.TransportError{Msg: fmt.Sprintf(
+			"invalid GetCandlesColumns response lengths: ts_sec=%d open=%d high=%d low=%d close=%d volume=%d",
+			rows, len(msg.GetOpen()), len(msg.GetHigh()), len(msg.GetLow()),
+			len(msg.GetClose()), len(msg.GetVolume()),
+		)}
+	}
 	out := make([]models.Candle, 0, len(msg.GetTsSec()))
 	for i, ts := range msg.GetTsSec() {
-		candle := models.Candle{TsSec: int64(ts)}
-		if i < len(msg.GetOpen()) {
-			candle.Open = codecs.FormatPriceTicks(msg.GetOpen()[i])
-		}
-		if i < len(msg.GetHigh()) {
-			candle.High = codecs.FormatPriceTicks(msg.GetHigh()[i])
-		}
-		if i < len(msg.GetLow()) {
-			candle.Low = codecs.FormatPriceTicks(msg.GetLow()[i])
-		}
-		if i < len(msg.GetClose()) {
-			candle.Close = codecs.FormatPriceTicks(msg.GetClose()[i])
-		}
-		if i < len(msg.GetVolume()) {
-			candle.Volume = formatQtyScaledOrEmpty(msg.GetVolume()[i], volumeScale)
+		candle := models.Candle{
+			TsSec:  int64(ts),
+			Open:   codecs.FormatPriceTicks(msg.GetOpen()[i]),
+			High:   codecs.FormatPriceTicks(msg.GetHigh()[i]),
+			Low:    codecs.FormatPriceTicks(msg.GetLow()[i]),
+			Close:  codecs.FormatPriceTicks(msg.GetClose()[i]),
+			Volume: formatQtyScaledOrEmpty(msg.GetVolume()[i], volumeScale),
 		}
 		out = append(out, candle)
 	}
 	tf := timeframeLabels[msg.GetTimeframe()]
 	return models.CandlesResult{
 		SymbolID: msg.GetSymbolId(), Timeframe: tf, Candles: out, NextPageToken: msg.GetNextPageToken(),
-	}
+	}, nil
 }
 
 // CandlePointFromProto decodes one candle point publication.

@@ -94,15 +94,19 @@ func TestSignRequestReturnsPolyesterHeaders(t *testing.T) {
 	}
 }
 
-func TestAutomaticTimestampsTrackWallClockUnderConcurrency(t *testing.T) {
+func TestTenThousandIdenticalRequestsGetUniqueBoundedAuthTuples(t *testing.T) {
 	_, private, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	creds := &Credentials{KeyID: "key_123", PrivateKey: private}
-	const count = 100_000
+	const count = 10_000
 	var wg sync.WaitGroup
-	headers := make(chan map[string]string, count)
+	type signedAt struct {
+		headers      map[string]string
+		observedAtMS int64
+	}
+	results := make(chan signedAt, count)
 	before := time.Now().UnixMilli()
 	wg.Add(count)
 	for range count {
@@ -113,20 +117,37 @@ func TestAutomaticTimestampsTrackWallClockUnderConcurrency(t *testing.T) {
 				t.Errorf("sign: %v", signErr)
 				return
 			}
-			headers <- signed
+			results <- signedAt{headers: signed, observedAtMS: time.Now().UnixMilli()}
 		}()
 	}
 	wg.Wait()
-	close(headers)
-	after := time.Now().UnixMilli()
-	for item := range headers {
+	close(results)
+	timestamps := make(map[int64]struct{}, count)
+	signatures := make(map[string]struct{}, count)
+	for result := range results {
+		item := result.headers
 		ts, parseErr := strconv.ParseInt(item["X-API-TIMESTAMP"], 10, 64)
 		if parseErr != nil {
 			t.Fatal(parseErr)
 		}
-		if ts < before || ts > after {
-			t.Fatalf("timestamp %d outside wall-clock interval [%d,%d]", ts, before, after)
+		if ts < before || ts > result.observedAtMS+MaxSigningFutureSkewMS {
+			t.Fatalf(
+				"timestamp %d outside per-request bounded interval [%d,%d]",
+				ts, before, result.observedAtMS+MaxSigningFutureSkewMS,
+			)
 		}
+		if _, exists := timestamps[ts]; exists {
+			t.Fatalf("duplicate timestamp %d", ts)
+		}
+		timestamps[ts] = struct{}{}
+		signature := item["X-API-SIGNATURE"]
+		if _, exists := signatures[signature]; exists {
+			t.Fatalf("duplicate signature for timestamp %d", ts)
+		}
+		signatures[signature] = struct{}{}
+	}
+	if len(timestamps) != count || len(signatures) != count {
+		t.Fatalf("unique timestamps=%d signatures=%d want %d", len(timestamps), len(signatures), count)
 	}
 }
 

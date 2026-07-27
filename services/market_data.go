@@ -100,7 +100,7 @@ func (s *MarketDataService) GetCandlesColumns(ctx context.Context, symbol *strin
 		StartTime: base.StartTime, EndTime: base.EndTime, IncludeIncomplete: base.IncludeIncomplete,
 		IncludeReference: base.IncludeReference, PageToken: base.PageToken,
 	}
-	return UnaryPublic(ctx, s.transport, s.client().GetCandlesColumns, req, func(msg *marketdatav1.GetCandlesColumnsResponse) models.CandlesResult {
+	return UnaryPublicDecoded(ctx, s.transport, s.client().GetCandlesColumns, req, func(msg *marketdatav1.GetCandlesColumnsResponse) (models.CandlesResult, error) {
 		return decode.CandlesColumnsFromProto(msg, scale)
 	})
 }

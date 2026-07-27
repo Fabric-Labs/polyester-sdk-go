@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 0.1.0a22
+
+### Fixed
+- Batch-modify and batch-cancel decoding reconcile aggregate counts against per-item outcomes and reject unknown/ambiguous result states.
+- Columnar candles reject misaligned OHLCV arrays instead of emitting empty fields.
+- Deposit-address creation and singular lifecycle lookups reject missing required entities instead of returning placeholder models.
+- User trades expose fee source and referral share, so received-asset fees can be distinguished from quote fees and BUY net quantity can be calculated correctly.
+- Concurrent identical requests receive unique authentication timestamps per API key with a five-second future-skew ceiling and bounded backpressure.
+
+### Testing
+- Public-service Connect fault injection covers inconsistent batch counts and misaligned candle columns in addition to decoder-level boundary tests.
+- The funded BUY-to-SELL acceptance test waits for complete fill projection and sells net received base quantity after received-asset fees.
+
 ## 0.1.0a21
 
 ### Breaking

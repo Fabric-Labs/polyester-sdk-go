@@ -5,7 +5,9 @@ package integration_test
 import (
 	"context"
 	"errors"
+	"math"
 	"math/big"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -16,13 +18,10 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
-// TestMarketBuySellRoundtrip is a self-contained F-22 fixture:
-// market BUY → carry cum filled base qty → market SELL that exact qty →
+// TestMarketBuySellRoundtrip is a self-contained fixture:
+// market BUY → carry net received base qty → market SELL that exact qty →
 // assert terminal fills, residual base zero, no residual open test orders,
 // and holds reconciled when list_holds is mounted.
-//
-// Live acceptance may still be blocked by backend reserve corruption (POLY-3028);
-// the fixture design itself must not soft-pass on an independently larger sell.
 func TestMarketBuySellRoundtrip(t *testing.T) {
 	testutil.RequireFunded(t)
 	testutil.RequireMutation(t)
@@ -160,6 +159,31 @@ func TestMarketBuySellRoundtrip(t *testing.T) {
 	if filled.Scaled <= 0 {
 		testutil.SoftSkip(t, "buy produced no fill (possible POLY-3028)")
 	}
+	buyProjection, err := client.Orders.WaitForOrderTradesComplete(
+		ctx, nil, nil, &buyCID, nil, 20*time.Second,
+	)
+	if err != nil {
+		t.Fatalf("BUY trade projection did not reconcile: %v", err)
+	}
+	var receivedFee int64
+	for _, trade := range buyProjection.Trades {
+		if trade.FeeSource != "received" {
+			continue
+		}
+		fee, parseErr := strconv.ParseInt(trade.FeeScaled, 10, 64)
+		if parseErr != nil {
+			t.Fatalf("invalid received-asset fee %q: %v", trade.FeeScaled, parseErr)
+		}
+		if receivedFee > math.MaxInt64-fee {
+			t.Fatal("received-asset fee sum overflow")
+		}
+		receivedFee += fee
+	}
+	netReceived := filled
+	netReceived.Scaled -= receivedFee
+	if netReceived.Scaled <= 0 {
+		t.Fatalf("BUY net received quantity must be positive: filled=%d fee=%d", filled.Scaled, receivedFee)
+	}
 
 	if hasMaker {
 		// Provide buy liquidity for the cleanup SELL when dedicated maker
@@ -167,7 +191,7 @@ func TestMarketBuySellRoundtrip(t *testing.T) {
 		makerBuyPrice := testutil.ResolvePostOnlyBuyLimitPrice(ctx, maker, symbol, pair)
 		_, err = maker.Orders.Create(ctx, models.CreateOrderRequest{
 			Symbol: &symbol, Side: "buy", OrderType: "limit", TIF: &tif,
-			Qty: models.QtyFromScaled(filled), Price: pricePtr(models.PriceFromDecimal(makerBuyPrice)),
+			Qty: models.QtyFromScaled(netReceived), Price: pricePtr(models.PriceFromDecimal(makerBuyPrice)),
 			ClientOrderID: &makerBuyCID, PostOnly: true,
 		}, nil)
 		if err != nil {
@@ -178,12 +202,13 @@ func TestMarketBuySellRoundtrip(t *testing.T) {
 		}
 	}
 
-	// Carry the exact filled base qty into the cleanup SELL (no larger independent size).
+	// A BUY that pays fees from the received asset cannot safely sell its
+	// gross cum_qty; carry the exact net base received into cleanup.
 	sellTIF := "ioc"
 	sellRef := models.PriceFromDecimal(testutil.MarketRefPrice(ctx, client, symbol, "sell", pair))
 	_, err = client.Orders.Create(ctx, models.CreateOrderRequest{
 		Symbol: &symbol, Side: "sell", OrderType: "market", TIF: &sellTIF,
-		Qty: models.QtyFromScaled(filled), ClientOrderID: &sellCID,
+		Qty: models.QtyFromScaled(netReceived), ClientOrderID: &sellCID,
 		MarketClientRefPrice: &sellRef,
 	}, nil)
 	if err != nil {
@@ -200,8 +225,8 @@ func TestMarketBuySellRoundtrip(t *testing.T) {
 	if sellDetail.Order == nil {
 		t.Fatal("expected sell order detail")
 	}
-	if sellDetail.Order.CumQty.Scaled != filled.Scaled {
-		t.Fatalf("sell cum_qty=%d want buy filled %d", sellDetail.Order.CumQty.Scaled, filled.Scaled)
+	if sellDetail.Order.CumQty.Scaled != netReceived.Scaled {
+		t.Fatalf("sell cum_qty=%d want buy net received %d", sellDetail.Order.CumQty.Scaled, netReceived.Scaled)
 	}
 
 	limit := 100

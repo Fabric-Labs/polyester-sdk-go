@@ -275,7 +275,7 @@ func (s *OrdersService) BatchCancel(ctx context.Context, account AccountScope, i
 	if err != nil {
 		return models.BatchCancelOrdersResult{}, err
 	}
-	return UnaryAuth(ctx, s.transport, s.writeClient().BatchCancelOrders, protoReq, decode.BatchCancelFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().BatchCancelOrders, protoReq, decode.BatchCancelFromProto)
 }
 
 // BatchModify modifies multiple orders in one request.
@@ -295,7 +295,7 @@ func (s *OrdersService) BatchModify(ctx context.Context, account AccountScope, i
 	if err != nil {
 		return models.BatchModifyOrdersResult{}, err
 	}
-	return UnaryAuth(ctx, s.transport, s.writeClient().BatchModifyOrders, protoReq, decode.BatchModifyFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().BatchModifyOrders, protoReq, decode.BatchModifyFromProto)
 }
 
 // Subscribe streams private order updates for an account.

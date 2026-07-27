@@ -113,6 +113,7 @@ func TestGetOrderFromProtoIncludesTrades(t *testing.T) {
 		Order: &orderv1.Order{OrderId: 7, SymbolId: 2},
 		Trades: []*orderv1.UserTrade{{
 			SymbolId: 2, MatchId: 99, OrderId: 7, Side: orderv1.Side_BUY,
+			FeeScaled: 5, FeeSource: orderv1.FeeSource_RECEIVED, ReferralShareScaled: 2,
 		}},
 	}
 	result := decode.GetOrderFromProto(msg)
@@ -121,6 +122,10 @@ func TestGetOrderFromProtoIncludesTrades(t *testing.T) {
 	}
 	if len(result.Trades) != 1 || result.Trades[0].MatchID != "99" {
 		t.Fatalf("trades=%+v", result.Trades)
+	}
+	if result.Trades[0].FeeScaled != "5" || result.Trades[0].FeeSource != "received" ||
+		result.Trades[0].ReferralShareScaled != "2" {
+		t.Fatalf("trade fee fields=%+v", result.Trades[0])
 	}
 }
 
@@ -201,5 +206,51 @@ func TestBatchCreateRejectsCountMismatch(t *testing.T) {
 	var transportErr *sdkerrors.TransportError
 	if !errors.As(err, &transportErr) {
 		t.Fatalf("expected TransportError, got %T: %v", err, err)
+	}
+}
+
+func TestBatchCancelRejectsCountMismatchAndUnknownStatus(t *testing.T) {
+	_, err := decode.BatchCancelFromProto(&orderv1.BatchCancelOrdersResponse{
+		Results:       []*orderv1.BatchCancelResultItem{{Status: "accepted"}},
+		RejectedCount: 1,
+	})
+	var transportErr *sdkerrors.TransportError
+	if !errors.As(err, &transportErr) {
+		t.Fatalf("expected TransportError for count mismatch, got %T: %v", err, err)
+	}
+
+	_, err = decode.BatchCancelFromProto(&orderv1.BatchCancelOrdersResponse{
+		Results:       []*orderv1.BatchCancelResultItem{{Status: "maybe"}},
+		AcceptedCount: 1,
+	})
+	if !errors.As(err, &transportErr) {
+		t.Fatalf("expected TransportError for unknown status, got %T: %v", err, err)
+	}
+}
+
+func TestBatchModifyReconcilesActionsAndCounts(t *testing.T) {
+	valid := &orderv1.BatchModifyOrdersResponse{
+		Results: []*orderv1.BatchModifyResultItem{
+			{Status: "modified", ActionTaken: orderv1.ModifyActionTaken_AMENDED},
+			{Status: "modified", ActionTaken: orderv1.ModifyActionTaken_REPLACED},
+			{Status: "rejected"},
+		},
+		AmendedCount:  1,
+		ReplacedCount: 1,
+		RejectedCount: 1,
+	}
+	result, err := decode.BatchModifyFromProto(valid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.AmendedCount != 1 || result.ReplacedCount != 1 || result.RejectedCount != 1 {
+		t.Fatalf("result=%+v", result)
+	}
+
+	valid.AmendedCount = 2
+	_, err = decode.BatchModifyFromProto(valid)
+	var transportErr *sdkerrors.TransportError
+	if !errors.As(err, &transportErr) {
+		t.Fatalf("expected TransportError for count mismatch, got %T: %v", err, err)
 	}
 }

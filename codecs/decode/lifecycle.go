@@ -2,6 +2,7 @@ package decode
 
 import (
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	lifecyclev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/lifecycle/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
@@ -30,11 +31,18 @@ func FlowsListFromProto(msg *lifecyclev1.ListFlowsResponse) models.LifecycleFlow
 	return models.LifecycleFlowsList{Flows: out, NextPageToken: msg.GetNextPageToken()}
 }
 
-func FlowFromGetResponse(msg *lifecyclev1.GetFlowResponse) models.LifecycleFlowSummary {
+func FlowFromGetResponse(msg *lifecyclev1.GetFlowResponse) (models.LifecycleFlowSummary, error) {
 	if msg.GetFlow() == nil {
-		return models.LifecycleFlowSummary{}
+		return models.LifecycleFlowSummary{}, &sdkerrors.TransportError{
+			Msg: "invalid GetFlow response: missing flow",
+		}
 	}
-	return flowSummary(msg.GetFlow().GetSummary())
+	if msg.GetFlow().GetSummary() == nil {
+		return models.LifecycleFlowSummary{}, &sdkerrors.TransportError{
+			Msg: "invalid GetFlow response: missing flow summary",
+		}
+	}
+	return flowSummary(msg.GetFlow().GetSummary()), nil
 }
 
 func flowTxMatch(msg *lifecyclev1.FlowTxMatchView) models.LifecycleFlowSummary {
@@ -47,11 +55,13 @@ func flowTxMatch(msg *lifecyclev1.FlowTxMatchView) models.LifecycleFlowSummary {
 	}
 }
 
-func FlowFromGetByTxResponse(msg *lifecyclev1.ListFlowsByTxResponse) models.LifecycleFlowSummary {
+func FlowFromGetByTxResponse(msg *lifecyclev1.ListFlowsByTxResponse) (models.LifecycleFlowSummary, error) {
 	if len(msg.GetMatches()) == 0 {
-		return models.LifecycleFlowSummary{}
+		return models.LifecycleFlowSummary{}, &sdkerrors.TransportError{
+			Msg: "invalid GetFlowByTx response: no matching flow",
+		}
 	}
-	return flowTxMatch(msg.GetMatches()[0])
+	return flowTxMatch(msg.GetMatches()[0]), nil
 }
 
 func FlowsByTxListFromProto(msg *lifecyclev1.ListFlowsByTxResponse) models.LifecycleFlowsList {
