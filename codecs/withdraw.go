@@ -6,15 +6,12 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
-	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	chainwithdrawv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/withdraw/v1"
 	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
-
-const defaultTradingWithdrawDeadlineSeconds = 5 * 60
 
 // NewTradingWithdrawIdempotencyKey returns a cryptographically random key.
 // Generate it once per logical withdrawal, persist it, and reuse it on retry.
@@ -40,14 +37,6 @@ func NewTradingWithdrawNonce() (string, error) {
 		}
 	}
 	return "", fmt.Errorf("secure random source returned a zero withdrawal nonce twice")
-}
-
-func defaultWithdrawDeadlineTsSec() (uint64, error) {
-	now := time.Now().Unix()
-	if now < 0 {
-		return 0, &errors.ValidationError{Msg: "system clock is before UNIX_EPOCH"}
-	}
-	return uint64(now) + defaultTradingWithdrawDeadlineSeconds, nil
 }
 
 // BigIntToU128Proto encodes a non-negative big.Int as U128.
@@ -83,11 +72,12 @@ func TradingWithdrawPayloadToProto(action string, assetID uint32, amount models.
 	if nonceValue.BitLen() > 128 {
 		return nil, &errors.ValidationError{Msg: "nonce exceeds uint128 range"}
 	}
-	if amountScale <= 0 {
-		amountScale = LedgerScale
+	var inputScale *int
+	if amountScale > 0 {
+		inputScale = &amountScale
 	}
 	aid := assetID
-	scaled, err := ResolveAssetAmountScaled(amount, amountScale, "amount", models.QuantityDomainLedgerE18, &aid)
+	scaled, err := ResolveAssetAmountScaledToScale(amount, inputScale, LedgerScale, "amount", models.QuantityDomainLedgerE18, &aid)
 	if err != nil {
 		return nil, err
 	}
@@ -104,16 +94,12 @@ func TradingWithdrawPayloadToProto(action string, assetID uint32, amount models.
 		payload.Action = chainwithdrawv1.TradingWithdrawAction_TO_EXTERNAL_CHAIN
 		payload.DestinationChainId = destinationChainID
 	default:
-		payload.Action = chainwithdrawv1.TradingWithdrawAction_ACTION_UNSPECIFIED
+		return nil, &errors.ValidationError{Msg: fmt.Sprintf("unknown trading withdraw action: %s", action)}
 	}
-	if deadlineTsSec != nil {
-		payload.DeadlineTsSec = *deadlineTsSec
-	} else {
-		payload.DeadlineTsSec, err = defaultWithdrawDeadlineTsSec()
-		if err != nil {
-			return nil, err
-		}
+	if deadlineTsSec == nil || *deadlineTsSec == 0 {
+		return nil, &errors.ValidationError{Msg: "deadline_ts_sec must be explicitly non-zero when payload_signature is precomputed"}
 	}
+	payload.DeadlineTsSec = *deadlineTsSec
 	payload.Nonce = BigIntToU128Proto(nonceValue)
 	if payload.AmountE18 == nil || (payload.AmountE18.Hi == 0 && payload.AmountE18.Lo == 0) {
 		return nil, &errors.ValidationError{Msg: "amount must be positive"}

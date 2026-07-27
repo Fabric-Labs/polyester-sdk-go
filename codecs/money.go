@@ -18,7 +18,7 @@ func ResolvePriceTicks(in models.PriceInput, fieldName, symbol string) (int64, e
 		if err := ticks.CompatibleWith(symbol); err != nil {
 			return 0, err
 		}
-		return ticks.Ticks, nil
+		return ticks.Ticks(), nil
 	}
 	if dec, ok := in.Decimal(); ok {
 		u, err := ParsePriceTicks(dec, fieldName)
@@ -49,10 +49,10 @@ func ResolveQtyScaled(in models.QtyInput, scale int, fieldName, symbol string, s
 		if err := qty.CompatibleWith(models.QuantityDomainOrderBase, scalePtr, symbol, symbolID); err != nil {
 			return 0, err
 		}
-		if qty.Scaled <= 0 {
+		if qty.Scaled() <= 0 {
 			return 0, &errors.ValidationError{Msg: fieldName + " must be positive"}
 		}
-		return qty.Scaled, nil
+		return qty.Scaled(), nil
 	}
 	if dec, ok := in.Decimal(); ok {
 		if scale <= 0 {
@@ -89,29 +89,66 @@ func ResolveAssetAmountScaled(
 	domain models.QuantityDomain,
 	assetID *uint32,
 ) (*big.Int, error) {
+	return ResolveAssetAmountScaledToScale(in, &scale, scale, fieldName, domain, assetID)
+}
+
+// ResolveAssetAmountScaledToScale resolves an amount from its declared/input
+// scale to a fixed target scale exactly. It never rounds.
+func ResolveAssetAmountScaledToScale(
+	in models.AssetAmountInput,
+	inputScale *int,
+	targetScale int,
+	fieldName string,
+	domain models.QuantityDomain,
+	assetID *uint32,
+) (*big.Int, error) {
 	if domain == "" {
 		domain = models.QuantityDomainAsset
 	}
+	if err := ValidateProtocolScale(targetScale); err != nil {
+		return nil, err
+	}
 	if amt, ok := in.ScaledValue(); ok {
-		scalePtr := &scale
-		if err := amt.CompatibleWith(domain, scalePtr, assetID); err != nil {
+		if err := amt.CompatibleWith(domain, nil, assetID); err != nil {
 			return nil, err
 		}
-		if amt.Scaled == nil || amt.Scaled.Sign() <= 0 {
+		value := amt.Scaled()
+		if value == nil || value.Sign() <= 0 {
 			return nil, &errors.ValidationError{Msg: fieldName + " must be positive"}
 		}
-		if domain != models.QuantityDomainLedgerE18 && !amt.Scaled.IsInt64() {
+		sourceScale := targetScale
+		if declared := amt.Scale(); declared != nil {
+			sourceScale = *declared
+			if inputScale != nil && *inputScale != sourceScale {
+				return nil, &errors.ValidationError{Msg: fieldName + " scale metadata does not match input scale"}
+			}
+		} else if inputScale != nil {
+			sourceScale = *inputScale
+		}
+		rescaled, err := rescaleExact(value, sourceScale, targetScale, fieldName)
+		if err != nil {
+			return nil, err
+		}
+		if domain != models.QuantityDomainLedgerE18 && !rescaled.IsInt64() {
 			return nil, &errors.ValidationError{Msg: fieldName + " exceeds int64 range"}
 		}
-		return new(big.Int).Set(amt.Scaled), nil
+		return rescaled, nil
 	}
 	if dec, ok := in.Decimal(); ok {
-		scaled, err := decimalToScaledBig(dec, scale, fieldName)
+		sourceScale := targetScale
+		if inputScale != nil {
+			sourceScale = *inputScale
+		}
+		scaled, err := decimalToScaledBig(dec, sourceScale, fieldName)
 		if err != nil {
 			return nil, err
 		}
 		if scaled.Sign() <= 0 {
 			return nil, &errors.ValidationError{Msg: fieldName + " must be positive"}
+		}
+		scaled, err = rescaleExact(scaled, sourceScale, targetScale, fieldName)
+		if err != nil {
+			return nil, err
 		}
 		if domain != models.QuantityDomainLedgerE18 && !scaled.IsInt64() {
 			return nil, &errors.ValidationError{Msg: fieldName + " exceeds int64 range"}
@@ -121,21 +158,55 @@ func ResolveAssetAmountScaled(
 	return nil, &errors.ValidationError{Msg: fieldName + " is required"}
 }
 
+func rescaleExact(value *big.Int, sourceScale, targetScale int, fieldName string) (*big.Int, error) {
+	if err := ValidateProtocolScale(sourceScale); err != nil {
+		return nil, err
+	}
+	if sourceScale == targetScale {
+		if value.BitLen() > 128 {
+			return nil, &errors.ValidationError{Msg: fieldName + " exceeds uint128 range"}
+		}
+		return new(big.Int).Set(value), nil
+	}
+	diff := sourceScale - targetScale
+	if diff < 0 {
+		factor := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(-diff)), nil)
+		out := new(big.Int).Mul(value, factor)
+		if out.BitLen() > 128 {
+			return nil, &errors.ValidationError{Msg: fieldName + " scale conversion exceeds uint128 range"}
+		}
+		return out, nil
+	}
+	divisor := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(diff)), nil)
+	quotient, remainder := new(big.Int), new(big.Int)
+	quotient.QuoRem(value, divisor, remainder)
+	if remainder.Sign() != 0 {
+		return nil, &errors.ValidationError{Msg: fieldName + " cannot be represented exactly at target scale"}
+	}
+	if quotient.BitLen() > 128 {
+		return nil, &errors.ValidationError{Msg: fieldName + " exceeds uint128 range"}
+	}
+	return quotient, nil
+}
+
 // DecodePriceTicks builds a read-side PriceTicks.
 func DecodePriceTicks(ticks int64, symbol string) models.PriceTicks {
-	return models.PriceTicks{Ticks: ticks, Symbol: symbol}
+	value, err := models.NewPriceTicks(ticks)
+	if err != nil {
+		return models.PriceTicks{}
+	}
+	return value.WithSymbol(symbol)
 }
 
 // DecodeQtyScaled builds a read-side order quantity.
 func DecodeQtyScaled(scaled int64, scale int, symbol string, symbolID *uint32) models.QtyScaled {
-	q := models.QtyScaled{
-		Scaled:   scaled,
-		Domain:   models.QuantityDomainOrderBase,
-		Symbol:   symbol,
-		SymbolID: symbolID,
-	}
+	q, _ := models.NewQtyScaled(scaled)
 	if scale >= 0 {
-		q.Scale = &scale
+		q = q.WithScale(scale)
+	}
+	q = q.WithSymbol(symbol)
+	if symbolID != nil {
+		q = q.WithSymbolID(*symbolID)
 	}
 	return q
 }
@@ -153,13 +224,13 @@ func DecodeAssetAmountBig(scaled *big.Int, scale int, domain models.QuantityDoma
 	} else {
 		value = big.NewInt(0)
 	}
-	a := models.AssetAmountScaled{
-		Scaled:  value,
-		Domain:  domain,
-		AssetID: assetID,
-	}
+	a, _ := models.NewAssetAmountFromBig(value)
+	a = a.WithDomain(domain)
 	if scale >= 0 {
-		a.Scale = &scale
+		a = a.WithScale(scale)
+	}
+	if assetID != nil {
+		a = a.WithAssetID(*assetID)
 	}
 	return a
 }

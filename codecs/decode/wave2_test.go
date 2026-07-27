@@ -30,7 +30,10 @@ func TestDepositAddressFromProto(t *testing.T) {
 
 func TestWithdrawIntentFromProto(t *testing.T) {
 	msg := &chainwithdrawv1.CreateTradingWithdrawResponse{IntentId: "intent-1"}
-	result := decode.WithdrawIntentFromProto(msg)
+	result, err := decode.WithdrawIntentFromProto(msg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if result.IntentID != "intent-1" {
 		t.Fatalf("intent=%+v", result)
 	}
@@ -44,7 +47,10 @@ func TestInternalTransferFromProto(t *testing.T) {
 		AssetCode:  "USDT",
 		AmountE18:  &typev1.U128{Lo: 500},
 	}
-	result := decode.InternalTransferFromProto(msg)
+	result, err := decode.InternalTransferFromProto(msg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	qty, err := result.Quantity.Int64()
 	if err != nil || result.RequestID != "req-1" || result.TransferID != "xfer-1" || qty != 500 {
 		t.Fatalf("transfer=%+v err=%v", result, err)
@@ -100,7 +106,7 @@ func TestMarketOverviewListFromProto(t *testing.T) {
 	if len(result.Markets) != 1 || result.Markets[0].Symbol != "BTC-USD" {
 		t.Fatalf("markets=%+v", result.Markets)
 	}
-	if result.Markets[0].LastPrice.Ticks != 50_000 {
+	if result.Markets[0].LastPrice.Ticks() != 50_000 {
 		t.Fatalf("last_price=%+v want ticks 50000", result.Markets[0].LastPrice)
 	}
 }
@@ -111,11 +117,26 @@ func TestOrderbookFromProto(t *testing.T) {
 		Bids:    []*orderbookv1.PriceLevel{{PriceTicks: 100, QtyScaled: 50}},
 		Asks:    []*orderbookv1.PriceLevel{{PriceTicks: 101, QtyScaled: 25}},
 	}
-	result := decode.OrderbookFromProto(msg, "BTC-USD", 50, 8)
+	result, err := decode.OrderbookFromProto(msg, "BTC-USD", 50, 8)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if result.BookSeq != "42" || len(result.Bids) != 1 || len(result.Asks) != 1 {
 		t.Fatalf("book=%+v", result)
 	}
-	if result.Bids[0].Price.Ticks != 100 || result.Bids[0].Qty.Scaled != 50 {
+	if result.Bids[0].Price.Ticks() != 100 || result.Bids[0].Qty.Scaled() != 50 {
 		t.Fatalf("bid=%+v", result.Bids[0])
+	}
+
+	for _, level := range []*orderbookv1.PriceLevel{
+		{PriceTicks: 0, QtyScaled: 1},
+		{PriceTicks: 1, QtyScaled: 0},
+		{PriceTicks: -1, QtyScaled: 1},
+		{PriceTicks: 1, QtyScaled: -1},
+	} {
+		msg := &orderbookv1.GetOrderBookResponse{Bids: []*orderbookv1.PriceLevel{level}}
+		if _, err := decode.OrderbookFromProto(msg, "BTC-USD", 1, 8); err == nil {
+			t.Fatalf("expected malformed level rejection: %+v", level)
+		}
 	}
 }

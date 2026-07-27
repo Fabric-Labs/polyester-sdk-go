@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+## 0.1.0a25
+
+Git tag: `v0.1.0a25`.
+
+### Fixed
+- Outbound HTTP/Connect/JSON-RPC requests send an explicit `User-Agent: polyester-sdk-go/<version>` instead of Go's default `Go-http-client/1.1`, so edge WAF rules that ban browser signatures (Cloudflare error 1010) do not block the SDK before authentication.
+- Cloudflare error 1010 responses are mapped to `TransportError` with an explicit WAF message instead of being misclassified as auth failures.
+
+### Breaking
+- `MarketData.GetCurrentCandle` returns `(*models.Candle, error)`; `nil` means no candle rows (aligns with Rust `Option<Candle>`). Previously an empty result was a zero-valued `models.Candle`.
+- `decode.OrderbookFromProto` and `orderbook.LevelsFromProtoLevels` now return errors so malformed snapshots cannot silently produce corrupt local books.
+- `PriceTicks`, `QtyScaled`, and `AssetAmountScaled` fields are private; use constructors, immutable metadata builders, and `Ticks()` / `Scaled()` / `Scale()` getters.
+- Mutation decoders that validate successful response contracts now return `(result, error)`.
+
+### Fixed
+- Managed orderbooks reject malformed levels and invalid sequence ranges atomically, keep the prior sequence/book, and request a snapshot refresh.
+- Snapshot depth `1` and `1000` requests now use the matching protocol variants.
+- Singular cancel and lookup by client-order-id validate the documented identifier constraints before contacting the transport.
+- API-key withdrawals can be prepared, deterministically signed, persisted, restored, and submitted unchanged; precomputed signatures require an explicit deadline.
+- Withdraw and internal-transfer amounts are exactly rescaled to canonical `amount_e18` without rounding.
+- Mutation response contract violations are non-retryable outcome-unknown errors.
+- Snapshot refreshes atomically drain pre-ready publications and sequence-gap refreshes are bounded, coalesced, and fail-closed.
+
 ## 0.1.0a24
 
 ### Breaking

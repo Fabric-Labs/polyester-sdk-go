@@ -113,6 +113,25 @@ type APIError struct {
 func (e *APIError) Error() string        { return e.Msg }
 func (e *APIError) Is(target error) bool { return target == ErrPolyester }
 
+// ResponseContractError indicates that a successful mutation response violated
+// the documented wire contract. The mutation may already have been applied, so
+// callers must reconcile state rather than blindly retrying.
+type ResponseContractError struct {
+	Operation string
+	Msg       string
+}
+
+func (e *ResponseContractError) Error() string {
+	if e == nil {
+		return "response contract violation"
+	}
+	if e.Operation == "" {
+		return "response contract violation: " + e.Msg
+	}
+	return e.Operation + " response contract violation: " + e.Msg
+}
+func (e *ResponseContractError) Is(target error) bool { return target == ErrPolyester }
+
 // RouteNotFoundError indicates the gateway has no route for an RPC.
 type RouteNotFoundError struct{ Procedure string }
 
@@ -163,5 +182,8 @@ func IsRetryable(err error) bool {
 func MutationOutcomeUnknown(err error) bool {
 	var transportErr *TransportError
 	var serverErr *ServerError
-	return errors.As(err, &transportErr) || errors.As(err, &serverErr)
+	var contractErr *ResponseContractError
+	return errors.As(err, &transportErr) ||
+		errors.As(err, &serverErr) ||
+		errors.As(err, &contractErr)
 }

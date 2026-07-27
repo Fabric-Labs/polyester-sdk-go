@@ -74,9 +74,9 @@ func TestL2BatchCancelRejectsInconsistentCountsThroughPublicService(t *testing.T
 		nil,
 		nil,
 	)
-	var transportErr *sdkerrors.TransportError
-	if !errors.As(err, &transportErr) {
-		t.Fatalf("expected TransportError, got %T: %v", err, err)
+	var contractErr *sdkerrors.ResponseContractError
+	if !errors.As(err, &contractErr) {
+		t.Fatalf("expected ResponseContractError, got %T: %v", err, err)
 	}
 }
 
@@ -191,9 +191,9 @@ func TestL2BatchModifyRejectsInconsistentCountsThroughPublicService(t *testing.T
 		nil,
 		false,
 	)
-	var transportErr *sdkerrors.TransportError
-	if !errors.As(err, &transportErr) {
-		t.Fatalf("expected TransportError, got %T: %v", err, err)
+	var contractErr *sdkerrors.ResponseContractError
+	if !errors.As(err, &contractErr) {
+		t.Fatalf("expected ResponseContractError, got %T: %v", err, err)
 	}
 }
 

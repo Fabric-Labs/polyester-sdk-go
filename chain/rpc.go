@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"sync/atomic"
 	"time"
+
+	"github.com/Fabric-Labs/polyester-sdk-go/useragent"
 )
 
 // MaxJSONRPCResponseBytes is the default response body size cap (1 MiB).
@@ -44,9 +46,9 @@ func NewJSONRPCClient(url string, timeout time.Duration) *JSONRPCClient {
 	}
 	return &JSONRPCClient{
 		url: url,
-		client: &http.Client{
+		client: useragent.WrapClient(&http.Client{
 			Timeout: timeout,
-		},
+		}),
 		maxBody: MaxJSONRPCResponseBytes,
 	}
 }

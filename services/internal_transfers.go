@@ -2,11 +2,13 @@ package services
 
 import (
 	"context"
+	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
+	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	transferv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1/transferv1connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
@@ -19,6 +21,15 @@ type InternalTransfersService struct {
 	scoped    ScopedSubAccount
 }
 
+func internalTransferAmountE18(quantity models.AssetAmountInput, quantityScale *int, assetID uint32) (*typev1.U128, error) {
+	aid := assetID
+	qtyBig, err := codecs.ResolveAssetAmountScaledToScale(quantity, quantityScale, codecs.LedgerScale, "quantity", models.QuantityDomainLedgerE18, &aid)
+	if err != nil {
+		return nil, err
+	}
+	return codecs.BigIntToU128Proto(qtyBig), nil
+}
+
 func NewInternalTransfersService(factory *transport.Factory, cats *catalogs.Manager, defaultSubAccountID *string) *InternalTransfersService {
 	return &InternalTransfersService{transport: factory, catalogs: cats, scoped: ScopedSubAccount{DefaultSubAccountID: defaultSubAccountID}}
 }
@@ -28,21 +39,29 @@ func (s *InternalTransfersService) client() transferv1connect.InternalTransferSe
 }
 
 func (s *InternalTransfersService) Create(ctx context.Context, assetID uint32, quantity models.AssetAmountInput, idempotencyKey string, account AccountScope, subAccountID *string, destinationAccountID, destinationSubaccountID, destinationSmartAccountAddress *string, quantityScale *int) (models.InternalTransferResult, error) {
-	if destinationAccountID == nil && destinationSubaccountID == nil && (destinationSmartAccountAddress == nil || *destinationSmartAccountAddress == "") {
-		return models.InternalTransferResult{}, &errors.ValidationError{Msg: "create requires destination_account_id, destination_subaccount_id, or destination_smart_account_address"}
+	destinations := 0
+	if destinationAccountID != nil && strings.TrimSpace(*destinationAccountID) != "" {
+		destinations++
 	}
-	scale := codecs.LedgerScale
-	if quantityScale != nil {
-		scale = *quantityScale
+	if destinationSubaccountID != nil && strings.TrimSpace(*destinationSubaccountID) != "" {
+		destinations++
 	}
-	aid := assetID
-	qtyBig, err := codecs.ResolveAssetAmountScaled(quantity, scale, "quantity", models.QuantityDomainLedgerE18, &aid)
+	if destinationSmartAccountAddress != nil && strings.TrimSpace(*destinationSmartAccountAddress) != "" {
+		destinations++
+	}
+	if destinations != 1 {
+		return models.InternalTransferResult{}, &errors.ValidationError{Msg: "create requires exactly one destination"}
+	}
+	if strings.TrimSpace(idempotencyKey) == "" {
+		return models.InternalTransferResult{}, &errors.ValidationError{Msg: "idempotency_key is required"}
+	}
+	amountE18, err := internalTransferAmountE18(quantity, quantityScale, assetID)
 	if err != nil {
 		return models.InternalTransferResult{}, err
 	}
 	req := &transferv1.CreateInternalTransferRequest{
 		AssetId:        assetID,
-		AmountE18:      codecs.BigIntToU128Proto(qtyBig),
+		AmountE18:      amountE18,
 		IdempotencyKey: idempotencyKey,
 	}
 	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {
@@ -65,5 +84,5 @@ func (s *InternalTransfersService) Create(ctx context.Context, assetID uint32, q
 	if destinationSmartAccountAddress != nil {
 		req.Destination = &transferv1.CreateInternalTransferRequest_DestinationSmartAccountAddress{DestinationSmartAccountAddress: *destinationSmartAccountAddress}
 	}
-	return UnaryAuth(ctx, s.transport, s.client().CreateInternalTransfer, req, decode.InternalTransferFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.client().CreateInternalTransfer, req, decode.InternalTransferFromProto)
 }

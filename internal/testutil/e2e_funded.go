@@ -143,9 +143,9 @@ func BestAskParams(ctx context.Context, client *polyester.Client, symbol string,
 		return "", "", fmt.Errorf("no visible asks on %s", symbol)
 	}
 	best := book.Asks[0]
-	minTicks := best.Price.Ticks
+	minTicks := best.Price.Ticks()
 	for _, ask := range book.Asks[1:] {
-		ticks := ask.Price.Ticks
+		ticks := ask.Price.Ticks()
 		if ticks < minTicks {
 			minTicks = ticks
 			best = ask

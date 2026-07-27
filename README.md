@@ -5,7 +5,7 @@ and automation. Parity with `polyester-sdk-python` and `polyester-sdk-rust`
 using the checked-in `gen/` protobuf bundle (no local proto generation for
 normal development).
 
-**Status:** Alpha (`v0.1.0a24`). Proprietary license (not open source).
+**Status:** Alpha (`v0.1.0a25`). Proprietary license (not open source).
 API-key only; no browser login or session MFA.
 
 Requires a recent Go toolchain (see `go.mod`).
@@ -68,7 +68,7 @@ API-key policy before retrying.
 ```bash
 GOPRIVATE='github.com/Fabric-Labs/*' \
 GONOSUMDB='github.com/Fabric-Labs/*' \
-go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a24
+go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a25
 ```
 
 The repository is currently private. GitHub access and authenticated Git credentials are
@@ -89,6 +89,11 @@ Create an API key in the Polyester app (**API** in the sidebar). Copy the key id
 and private key when shown. The private key is only displayed once.
 Open the key's **Permissions**, enable **Spot trading**, select the markets it
 may trade, and set a maximum order size appropriate for the strategy.
+
+Subaccount-scoped keys also need an attached **API-key policy**. Grant ledger
+read permission for balance reads and private balance streams, and grant
+trading permission for order mutations. This key policy is separate from the
+subaccount policy; authorization applies the intersection of both.
 
 ```go
 package main
@@ -120,7 +125,7 @@ func main() {
 		log.Fatal(err)
 	}
 	for _, market := range overview.Markets {
-		fmt.Println(market.Symbol, market.LastPrice.Ticks)
+		fmt.Println(market.Symbol, market.LastPrice.Ticks())
 	}
 
 	openOrders, err := client.Orders.ListOpen(ctx, nil, nil, nil, nil, false, false)
@@ -147,6 +152,7 @@ or raw 32-byte key material via the credentials loader.
 
 `DefaultAccountID` is the **Account ID** string from your Profile page. Use the
 value exactly as shown in the app. Do not use an internal numeric id.
+Username is optional; API-key authentication with the Account ID is valid.
 
 `DefaultAccountID` is optional for public market-data calls. It is required for
 account-scoped operations such as private realtime channels, bucket transfers, and
@@ -246,7 +252,7 @@ admission acknowledgement and reconcile with `ListOpen` before releasing local
 state.
 
 Use **decimal strings** for human-facing `qty` / `price` inputs. Do **not** pass
-floats. `PriceTicks.Ticks` are Polyester protocol price units (fixed 1e6), not
+floats. `PriceTicks.Ticks()` returns Polyester protocol price units (fixed 1e6), not
 market tick-size alignment (server validates tick size).
 
 ### For bots (scaled integers)
@@ -254,13 +260,17 @@ market tick-size alignment (server validates tick size).
 Stay in integer space; no string round-trip:
 
 ```go
-qty := models.MustQtyScaled(1_000_000).WithScale(8) // already wire units
-price := models.PriceFromTicksInt(100_000_000)        // 100.000000 at 1e6
+scale, ok := client.Catalogs.BaseQuantityScaleForSymbol(symbol)
+if !ok {
+	log.Fatal("base quantity scale is unavailable; wait for hydrated catalogs")
+}
+qty := models.MustQtyScaled(1_000_000).WithScale(scale).WithSymbol(symbol)
+price := models.PriceFromTicksInt(100_000_000) // 100.000000 at 1e6
 _, err = client.Orders.Create(ctx, models.CreateOrderRequest{
 	Symbol: &symbol, Side: "buy", OrderType: "limit", TIF: &tif,
 	Qty: models.QtyFromScaled(qty), Price: &price, PostOnly: true,
 }, nil)
-// Reads expose the same types: order.Price.Ticks, order.OrigQty.Scaled
+// Reads expose immutable getters: order.Price.Ticks(), order.OrigQty.Scaled()
 ```
 
 Compatible values from fills/books can be passed back into writes when the
@@ -361,7 +371,9 @@ candles, err := client.MarketData.GetCandles(ctx, &symbol, nil, "1m", 50, nil, n
 current, err := client.MarketData.GetCurrentCandle(ctx, &symbol, nil, "1m")
 trades, err := client.MarketData.GetTrades(ctx, &symbol, nil, 20, nil)
 _ = candles
-_ = current
+if current != nil {
+	_ = *current
+}
 _ = trades
 
 bnb := "BNB-USDT"
@@ -374,13 +386,17 @@ sub.SetOnError(func(err error) {
 	log.Printf("realtime interruption: %v", err)
 })
 for trade := range sub.Messages() {
-	fmt.Println(trade.Price.Ticks, trade.Qty.Scaled)
+	fmt.Println(trade.Price.Ticks(), trade.Qty.Scaled())
 	break
 }
 if err := sub.Err(); err != nil {
 	log.Printf("realtime ended: %v", err)
 }
 ```
+
+`GetCandles` returns rows newest-first. With incomplete candles enabled, the
+open candle is prepended; `GetCurrentCandle` therefore returns the first row, or
+`nil` when no candle rows exist.
 
 Merged market overview stream (snapshot + live updates):
 
@@ -424,6 +440,12 @@ for order := range sub.Messages() {
 	fmt.Println(order.OrderID, order.Status)
 }
 ```
+
+Private order-stream quantities are raw scaled integers, and
+`order.OrigQty.Scale()`, `order.CumQty.Scale()`, and `order.LeavesQty.Scale()` may be
+`nil`. Bots must resolve the base quantity scale from hydrated catalogs using
+`order.SymbolID` (or the symbol when available) before formatting or reusing a
+quantity. Never invent a fallback scale.
 
 Private auth policy streams decode `ApiPolicyView` / `SubaccountPolicyView` snapshots:
 

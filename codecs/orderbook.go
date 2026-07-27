@@ -4,6 +4,10 @@ import "fmt"
 
 func DepthToConnectEnum(depth int) string {
 	switch {
+	case depth <= 0:
+		return "DEPTH_5"
+	case depth == 1:
+		return "DEPTH_1"
 	case depth <= 5:
 		return "DEPTH_5"
 	case depth <= 10:
@@ -16,8 +20,10 @@ func DepthToConnectEnum(depth int) string {
 		return "DEPTH_100"
 	case depth <= 200:
 		return "DEPTH_200"
-	default:
+	case depth <= 500:
 		return "DEPTH_500"
+	default:
+		return "DEPTH_1000"
 	}
 }
 

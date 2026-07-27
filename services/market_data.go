@@ -67,6 +67,8 @@ func (s *MarketDataService) GetTrades(ctx context.Context, symbol *string, symbo
 	})
 }
 
+// GetCandles returns OHLCV candles newest-first. When includeIncomplete is true,
+// the open candle, if present, is prepended.
 func (s *MarketDataService) GetCandles(ctx context.Context, symbol *string, symbolID *uint32, timeframe string, limit int, start, end *time.Time, includeIncomplete bool) (models.CandlesResult, error) {
 	req, scale, err := s.buildCandlesRequest(symbol, symbolID, timeframe, limit, start, end, includeIncomplete, nil, false)
 	if err != nil {
@@ -77,16 +79,22 @@ func (s *MarketDataService) GetCandles(ctx context.Context, symbol *string, symb
 	})
 }
 
-// GetCurrentCandle returns the latest candle for a symbol/timeframe.
-func (s *MarketDataService) GetCurrentCandle(ctx context.Context, symbol *string, symbolID *uint32, timeframe string) (models.Candle, error) {
+// GetCurrentCandle returns the latest candle for a symbol/timeframe, or nil when
+// the market has no candle rows (aligns with Rust Option<Candle>).
+func (s *MarketDataService) GetCurrentCandle(ctx context.Context, symbol *string, symbolID *uint32, timeframe string) (*models.Candle, error) {
 	result, err := s.GetCandles(ctx, symbol, symbolID, timeframe, 1, nil, nil, true)
 	if err != nil {
-		return models.Candle{}, err
+		return nil, err
 	}
 	if len(result.Candles) == 0 {
-		return models.Candle{TsSec: 0}, nil
+		return nil, nil
 	}
-	return result.Candles[len(result.Candles)-1], nil
+	candle := currentCandle(result.Candles)
+	return &candle, nil
+}
+
+func currentCandle(candles []models.Candle) models.Candle {
+	return candles[0]
 }
 
 // GetCandlesColumns returns OHLCV candles in columnar wire form, decoded to rows.

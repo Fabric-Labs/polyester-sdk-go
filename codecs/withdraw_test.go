@@ -90,3 +90,22 @@ func TestTradingWithdrawGeneratorsReturnExplicitValues(t *testing.T) {
 		t.Fatalf("nonce=%q", nonce)
 	}
 }
+
+func TestTradingWithdrawRejectsUnknownActionAndMissingDeadline(t *testing.T) {
+	deadline := uint64(1_800_000_000)
+	for _, tc := range []struct {
+		action   string
+		deadline *uint64
+	}{
+		{action: "future_action", deadline: &deadline},
+		{action: "to_funding", deadline: nil},
+	} {
+		_, err := TradingWithdrawPayloadToProto(
+			tc.action, 7, models.AssetAmountFromDecimal("1"),
+			"stable-withdraw", 0, tc.deadline, "42", "", 18,
+		)
+		if _, ok := err.(*sdkerrors.ValidationError); !ok {
+			t.Fatalf("action=%q err=%T %v", tc.action, err, err)
+		}
+	}
+}

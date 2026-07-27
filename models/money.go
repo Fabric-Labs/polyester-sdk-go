@@ -1,6 +1,7 @@
 package models
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"math/big"
@@ -23,8 +24,8 @@ const priceTickScale = 6
 // PriceTicks is a resolved protocol price (protobuf price_ticks, fixed 1e6).
 // Ticks are not market tick-size alignment; the server still validates tick size.
 type PriceTicks struct {
-	Ticks  int64  `json:"ticks"`
-	Symbol string `json:"symbol,omitempty"`
+	ticks  int64
+	symbol string
 }
 
 // NewPriceTicks constructs a PriceTicks from wire units.
@@ -32,7 +33,7 @@ func NewPriceTicks(ticks int64) (PriceTicks, error) {
 	if ticks < 0 {
 		return PriceTicks{}, &errors.ValidationError{Msg: "ticks must be non-negative"}
 	}
-	return PriceTicks{Ticks: ticks}, nil
+	return PriceTicks{ticks: ticks}, nil
 }
 
 // MustPriceTicks is NewPriceTicks that panics on error (tests/examples).
@@ -46,7 +47,7 @@ func MustPriceTicks(ticks int64) PriceTicks {
 
 // Format returns the decimal string for this price.
 func (p PriceTicks) Format() string {
-	out, err := formatFixed(p.Ticks, priceTickScale)
+	out, err := formatFixed(p.ticks, priceTickScale)
 	if err != nil {
 		return "0"
 	}
@@ -55,21 +56,40 @@ func (p PriceTicks) Format() string {
 
 // CompatibleWith rejects known symbol mismatches.
 func (p PriceTicks) CompatibleWith(symbol string) error {
-	if p.Symbol != "" && symbol != "" && p.Symbol != symbol {
+	if p.symbol != "" && symbol != "" && p.symbol != symbol {
 		return &errors.ValidationError{
-			Msg: fmt.Sprintf("price symbol mismatch: value is for %s, destination is %s", p.Symbol, symbol),
+			Msg: fmt.Sprintf("price symbol mismatch: value is for %s, destination is %s", p.symbol, symbol),
 		}
 	}
 	return nil
 }
 
+// Ticks returns the immutable protocol tick value.
+func (p PriceTicks) Ticks() int64 { return p.ticks }
+
+// Symbol returns the immutable optional symbol metadata.
+func (p PriceTicks) Symbol() string { return p.symbol }
+
+// WithSymbol returns a copy with symbol compatibility metadata.
+func (p PriceTicks) WithSymbol(symbol string) PriceTicks {
+	p.symbol = symbol
+	return p
+}
+
+func (p PriceTicks) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Ticks  int64  `json:"ticks"`
+		Symbol string `json:"symbol,omitempty"`
+	}{p.ticks, p.symbol})
+}
+
 // QtyScaled is a resolved order/trigger base quantity (protobuf qty_scaled).
 type QtyScaled struct {
-	Scaled   int64          `json:"scaled"`
-	Scale    *int           `json:"scale,omitempty"`
-	Domain   QuantityDomain `json:"domain,omitempty"`
-	Symbol   string         `json:"symbol,omitempty"`
-	SymbolID *uint32        `json:"symbol_id,omitempty"`
+	scaled   int64
+	scale    *int
+	domain   QuantityDomain
+	symbol   string
+	symbolID *uint32
 }
 
 // NewQtyScaled constructs an order-base quantity from wire units.
@@ -77,7 +97,7 @@ func NewQtyScaled(scaled int64) (QtyScaled, error) {
 	if scaled < 0 {
 		return QtyScaled{}, &errors.ValidationError{Msg: "scaled must be non-negative"}
 	}
-	return QtyScaled{Scaled: scaled, Domain: QuantityDomainOrderBase}, nil
+	return QtyScaled{scaled: scaled, domain: QuantityDomainOrderBase}, nil
 }
 
 // MustQtyScaled is NewQtyScaled that panics on error.
@@ -91,50 +111,78 @@ func MustQtyScaled(scaled int64) QtyScaled {
 
 // WithScale attaches formatting/compatibility scale metadata.
 func (q QtyScaled) WithScale(scale int) QtyScaled {
-	q.Scale = &scale
+	q.scale = &scale
 	return q
 }
 
 // WithSymbol attaches instrument metadata for compatibility checks.
 func (q QtyScaled) WithSymbol(symbol string) QtyScaled {
-	q.Symbol = symbol
+	q.symbol = symbol
 	return q
+}
+
+// WithSymbolID returns a copy with symbol ID compatibility metadata.
+func (q QtyScaled) WithSymbolID(symbolID uint32) QtyScaled {
+	q.symbolID = &symbolID
+	return q
+}
+
+// WithDomain returns a copy with quantity-domain metadata.
+func (q QtyScaled) WithDomain(domain QuantityDomain) QtyScaled {
+	q.domain = domain
+	return q
+}
+
+func (q QtyScaled) Scaled() int64          { return q.scaled }
+func (q QtyScaled) Scale() *int            { return cloneInt(q.scale) }
+func (q QtyScaled) Domain() QuantityDomain { return q.domain }
+func (q QtyScaled) Symbol() string         { return q.symbol }
+func (q QtyScaled) SymbolID() *uint32      { return cloneUint32(q.symbolID) }
+
+func (q QtyScaled) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Scaled   int64          `json:"scaled"`
+		Scale    *int           `json:"scale,omitempty"`
+		Domain   QuantityDomain `json:"domain,omitempty"`
+		Symbol   string         `json:"symbol,omitempty"`
+		SymbolID *uint32        `json:"symbol_id,omitempty"`
+	}{q.scaled, q.scale, q.domain, q.symbol, q.symbolID})
 }
 
 // Format returns the decimal string; requires a known scale within MaxProtocolScale.
 func (q QtyScaled) Format() (string, error) {
-	if q.Scale == nil {
+	if q.scale == nil {
 		return "", &errors.ValidationError{Msg: "format requires a known scale"}
 	}
-	return formatFixed(q.Scaled, *q.Scale)
+	return formatFixed(q.scaled, *q.scale)
 }
 
 // CompatibleWith rejects known domain/scale/instrument mismatches.
 func (q QtyScaled) CompatibleWith(domain QuantityDomain, scale *int, symbol string, symbolID *uint32) error {
-	if q.Domain == "" {
-		q.Domain = QuantityDomainOrderBase
+	if q.domain == "" {
+		q.domain = QuantityDomainOrderBase
 	}
 	if domain == "" {
 		domain = QuantityDomainOrderBase
 	}
-	if q.Domain != domain {
+	if q.domain != domain {
 		return &errors.ValidationError{
-			Msg: fmt.Sprintf("quantity domain mismatch: value is %s, destination is %s", q.Domain, domain),
+			Msg: fmt.Sprintf("quantity domain mismatch: value is %s, destination is %s", q.domain, domain),
 		}
 	}
-	if q.Scale != nil && scale != nil && *q.Scale != *scale {
+	if q.scale != nil && scale != nil && *q.scale != *scale {
 		return &errors.ValidationError{
-			Msg: fmt.Sprintf("quantity scale mismatch: value scale is %d, destination is %d", *q.Scale, *scale),
+			Msg: fmt.Sprintf("quantity scale mismatch: value scale is %d, destination is %d", *q.scale, *scale),
 		}
 	}
-	if q.Symbol != "" && symbol != "" && q.Symbol != symbol {
+	if q.symbol != "" && symbol != "" && q.symbol != symbol {
 		return &errors.ValidationError{
-			Msg: fmt.Sprintf("quantity symbol mismatch: value is for %s, destination is %s", q.Symbol, symbol),
+			Msg: fmt.Sprintf("quantity symbol mismatch: value is for %s, destination is %s", q.symbol, symbol),
 		}
 	}
-	if q.SymbolID != nil && symbolID != nil && *q.SymbolID != *symbolID {
+	if q.symbolID != nil && symbolID != nil && *q.symbolID != *symbolID {
 		return &errors.ValidationError{
-			Msg: fmt.Sprintf("quantity symbol_id mismatch: value is for %d, destination is %d", *q.SymbolID, *symbolID),
+			Msg: fmt.Sprintf("quantity symbol_id mismatch: value is for %d, destination is %d", *q.symbolID, *symbolID),
 		}
 	}
 	return nil
@@ -142,10 +190,10 @@ func (q QtyScaled) CompatibleWith(domain QuantityDomain, scale *int, symbol stri
 
 // AssetAmountScaled is a resolved transfer/withdraw amount.
 type AssetAmountScaled struct {
-	Scaled  *big.Int       `json:"scaled"`
-	Scale   *int           `json:"scale,omitempty"`
-	Domain  QuantityDomain `json:"domain,omitempty"`
-	AssetID *uint32        `json:"asset_id,omitempty"`
+	scaled  *big.Int
+	scale   *int
+	domain  QuantityDomain
+	assetID *uint32
 }
 
 // NewAssetAmountScaled constructs an asset amount from wire units (int64-safe).
@@ -154,8 +202,8 @@ func NewAssetAmountScaled(scaled int64) (AssetAmountScaled, error) {
 		return AssetAmountScaled{}, &errors.ValidationError{Msg: "scaled must be non-negative"}
 	}
 	return AssetAmountScaled{
-		Scaled: big.NewInt(scaled),
-		Domain: QuantityDomainAsset,
+		scaled: big.NewInt(scaled),
+		domain: QuantityDomainAsset,
 	}, nil
 }
 
@@ -165,8 +213,8 @@ func NewAssetAmountFromBig(scaled *big.Int) (AssetAmountScaled, error) {
 		return AssetAmountScaled{}, &errors.ValidationError{Msg: "scaled must be non-negative"}
 	}
 	return AssetAmountScaled{
-		Scaled: new(big.Int).Set(scaled),
-		Domain: QuantityDomainLedgerE18,
+		scaled: new(big.Int).Set(scaled),
+		domain: QuantityDomainLedgerE18,
 	}, nil
 }
 
@@ -181,65 +229,85 @@ func MustAssetAmountScaled(scaled int64) AssetAmountScaled {
 
 // WithScale attaches formatting/compatibility scale.
 func (a AssetAmountScaled) WithScale(scale int) AssetAmountScaled {
-	a.Scale = &scale
+	a.scale = &scale
 	return a
 }
 
 // WithDomain sets asset vs ledger_e18 domain.
 func (a AssetAmountScaled) WithDomain(domain QuantityDomain) AssetAmountScaled {
-	a.Domain = domain
+	a.domain = domain
 	return a
 }
 
 // WithAssetID attaches asset metadata for compatibility checks.
 func (a AssetAmountScaled) WithAssetID(assetID uint32) AssetAmountScaled {
-	a.AssetID = &assetID
+	a.assetID = &assetID
 	return a
+}
+
+// Scaled returns a deep copy of the immutable scaled integer.
+func (a AssetAmountScaled) Scaled() *big.Int {
+	if a.scaled == nil {
+		return nil
+	}
+	return new(big.Int).Set(a.scaled)
+}
+func (a AssetAmountScaled) Scale() *int            { return cloneInt(a.scale) }
+func (a AssetAmountScaled) Domain() QuantityDomain { return a.domain }
+func (a AssetAmountScaled) AssetID() *uint32       { return cloneUint32(a.assetID) }
+
+func (a AssetAmountScaled) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Scaled  *big.Int       `json:"scaled"`
+		Scale   *int           `json:"scale,omitempty"`
+		Domain  QuantityDomain `json:"domain,omitempty"`
+		AssetID *uint32        `json:"asset_id,omitempty"`
+	}{a.Scaled(), a.scale, a.domain, a.assetID})
 }
 
 // Int64 returns the scaled value when it fits in int64.
 func (a AssetAmountScaled) Int64() (int64, error) {
-	if a.Scaled == nil {
+	if a.scaled == nil {
 		return 0, &errors.ValidationError{Msg: "scaled is nil"}
 	}
-	if !a.Scaled.IsInt64() {
+	if !a.scaled.IsInt64() {
 		return 0, &errors.ValidationError{Msg: "scaled exceeds int64 range"}
 	}
-	return a.Scaled.Int64(), nil
+	return a.scaled.Int64(), nil
 }
 
 // Format returns the decimal string; requires a known scale within MaxProtocolScale.
 func (a AssetAmountScaled) Format() (string, error) {
-	if a.Scale == nil {
+	if a.scale == nil {
 		return "", &errors.ValidationError{Msg: "format requires a known scale"}
 	}
-	if a.Scaled == nil {
+	if a.scaled == nil {
 		return "0", nil
 	}
-	return formatFixedBig(a.Scaled, *a.Scale)
+	return formatFixedBig(a.scaled, *a.scale)
 }
 
 // CompatibleWith rejects known domain/scale/asset mismatches.
 func (a AssetAmountScaled) CompatibleWith(domain QuantityDomain, scale *int, assetID *uint32) error {
-	if a.Domain == "" {
-		a.Domain = QuantityDomainAsset
+	if a.domain == "" {
+		a.domain = QuantityDomainAsset
 	}
 	if domain == "" {
 		domain = QuantityDomainAsset
 	}
-	if a.Domain != domain {
+	if a.domain != domain {
 		return &errors.ValidationError{
-			Msg: fmt.Sprintf("amount domain mismatch: value is %s, destination is %s", a.Domain, domain),
+			Msg: fmt.Sprintf("amount domain mismatch: value is %s, destination is %s", a.domain, domain),
 		}
 	}
-	if a.Scale != nil && scale != nil && *a.Scale != *scale {
+	if a.scale != nil && scale != nil && *a.scale != *scale {
 		return &errors.ValidationError{
-			Msg: fmt.Sprintf("amount scale mismatch: value scale is %d, destination is %d", *a.Scale, *scale),
+			Msg: fmt.Sprintf("amount scale mismatch: value scale is %d, destination is %d", *a.scale, *scale),
 		}
 	}
-	if a.AssetID != nil && assetID != nil && *a.AssetID != *assetID {
+	if a.assetID != nil && assetID != nil && *a.assetID != *assetID {
 		return &errors.ValidationError{
-			Msg: fmt.Sprintf("amount asset_id mismatch: value is for %d, destination is %d", *a.AssetID, *assetID),
+			Msg: fmt.Sprintf("amount asset_id mismatch: value is for %d, destination is %d", *a.assetID, *assetID),
 		}
 	}
 	return nil
@@ -312,7 +380,7 @@ func AssetAmountFromDecimal(s string) AssetAmountInput {
 
 // AssetAmountFromScaled builds a bot-path amount input.
 func AssetAmountFromScaled(a AssetAmountScaled) AssetAmountInput {
-	return AssetAmountInput{scaled: a, hasScaled: true}
+	return AssetAmountInput{scaled: a.clone(), hasScaled: true}
 }
 
 // IsSet reports whether any path was provided.
@@ -329,7 +397,33 @@ func (q QtyInput) ScaledValue() (QtyScaled, bool) {
 }
 func (a AssetAmountInput) Decimal() (string, bool) { return a.decimal, a.hasDec }
 func (a AssetAmountInput) ScaledValue() (AssetAmountScaled, bool) {
-	return a.scaled, a.hasScaled
+	return a.scaled.clone(), a.hasScaled
+}
+
+func (a AssetAmountScaled) clone() AssetAmountScaled {
+	out := a
+	out.scale = cloneInt(a.scale)
+	out.assetID = cloneUint32(a.assetID)
+	if a.scaled != nil {
+		out.scaled = new(big.Int).Set(a.scaled)
+	}
+	return out
+}
+
+func cloneInt(value *int) *int {
+	if value == nil {
+		return nil
+	}
+	out := *value
+	return &out
+}
+
+func cloneUint32(value *uint32) *uint32 {
+	if value == nil {
+		return nil
+	}
+	out := *value
+	return &out
 }
 
 // MaxProtocolScale mirrors codecs.MaxProtocolScale for money formatters.

@@ -12,6 +12,7 @@ import (
 
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
+	"github.com/Fabric-Labs/polyester-sdk-go/useragent"
 )
 
 const (
@@ -115,7 +116,12 @@ func fetchRTToken(ctx context.Context, httpClient *http.Client, creds *auth.Cred
 		return "", &sdkerrors.RealtimeError{Msg: fmt.Sprintf("%s: response exceeds %d bytes", label, maxTokenResponseBytes)}
 	}
 	switch resp.StatusCode {
-	case http.StatusUnauthorized, http.StatusForbidden:
+	case http.StatusForbidden:
+		if useragent.IsCloudflareBrowserBan(string(body)) {
+			return "", &sdkerrors.TransportError{Msg: useragent.Cloudflare1010Message()}
+		}
+		fallthrough
+	case http.StatusUnauthorized:
 		authErr := authHTTPError(resp.StatusCode, label, body).(*sdkerrors.AuthError)
 		authErr.Endpoint = rawURL
 		authErr.Msg += " [" + rawURL + "]"

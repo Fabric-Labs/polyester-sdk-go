@@ -35,6 +35,14 @@ func (c *Credentials) GoString() string {
 	return c.String()
 }
 
+// SignPayload signs exact deterministic protobuf payload bytes.
+func (c *Credentials) SignPayload(payload []byte) ([]byte, error) {
+	if c == nil || len(c.PrivateKey) != ed25519.PrivateKeySize {
+		return nil, &errors.AuthError{Msg: "valid API-key credentials are required to sign payload"}
+	}
+	return ed25519.Sign(c.PrivateKey, payload), nil
+}
+
 // LoadCredentials loads credentials from explicit values and optionally the environment.
 func LoadCredentials(apiKeyID, apiPrivateKey string, fromEnv bool) (*Credentials, error) {
 	keyID := strings.TrimSpace(apiKeyID)

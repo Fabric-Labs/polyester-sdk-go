@@ -9,6 +9,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	"github.com/Fabric-Labs/polyester-sdk-go/connectx"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
+	"github.com/Fabric-Labs/polyester-sdk-go/useragent"
 	"github.com/Fabric-Labs/polyester-sdk-go/wire"
 )
 
@@ -56,6 +57,7 @@ func NewFactory(cfg Config, creds *auth.Credentials, httpClient *http.Client) *F
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: cfg.Timeout}
 	}
+	httpClient = useragent.WrapClient(httpClient)
 	f := &Factory{
 		Config:      cfg,
 		Credentials: creds,

@@ -3,7 +3,10 @@ package realtime
 import (
 	"context"
 	"errors"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 )
@@ -32,6 +35,77 @@ func TestRefreshSnapshotFiresOnSnapshotRefresh(t *testing.T) {
 	if !sts.IsReady() {
 		t.Fatal("expected ready after RefreshSnapshot")
 	}
+}
+
+func TestRefreshSnapshotAtomicallyDrainsBeforeReady(t *testing.T) {
+	applyStarted := make(chan struct{})
+	releaseApply := make(chan struct{})
+	var mu sync.Mutex
+	var live []int
+	sts := NewSnapshotThenStream[string, int](SnapshotThenStreamConfig[string, int]{
+		FetchSnapshot:   func(context.Context) (string, error) { return "snap", nil },
+		ReadPublication: func(p int) []int { return []int{p} },
+		ApplySnapshot: func(string, []int) {
+			close(applyStarted)
+			<-releaseApply
+		},
+		ApplyLivePublications: func(items []int) {
+			mu.Lock()
+			live = append(live, items...)
+			mu.Unlock()
+		},
+		Decode: func([]byte) (int, error) { return 0, nil },
+	})
+	done := make(chan error, 1)
+	go func() { done <- sts.RefreshSnapshot(context.Background()) }()
+	<-applyStarted
+	sts.handlePublication(7)
+	close(releaseApply)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if !sts.IsReady() || len(live) != 1 || live[0] != 7 {
+		t.Fatalf("ready=%v live=%v", sts.IsReady(), live)
+	}
+}
+
+func TestRequestedRefreshIsSingleFlightAndBounded(t *testing.T) {
+	var concurrent atomic.Int32
+	var maxConcurrent atomic.Int32
+	var calls atomic.Int32
+	release := make(chan struct{})
+	sts := NewSnapshotThenStream[string, int](SnapshotThenStreamConfig[string, int]{
+		FetchSnapshot: func(context.Context) (string, error) {
+			calls.Add(1)
+			current := concurrent.Add(1)
+			for current > maxConcurrent.Load() && !maxConcurrent.CompareAndSwap(maxConcurrent.Load(), current) {
+			}
+			<-release
+			concurrent.Add(-1)
+			return "snap", nil
+		},
+		ReadPublication:       func(p int) []int { return []int{p} },
+		ApplySnapshot:         func(string, []int) {},
+		ApplyLivePublications: func([]int) {},
+		Decode:                func([]byte) (int, error) { return 0, nil },
+	})
+	for range 20 {
+		sts.RequestSnapshotRefresh(context.Background())
+	}
+	for calls.Load() == 0 {
+		time.Sleep(time.Millisecond)
+	}
+	close(release)
+	deadline := time.Now().Add(time.Second)
+	for calls.Load() < 2 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if maxConcurrent.Load() != 1 || calls.Load() > 2 {
+		t.Fatalf("max concurrent=%d calls=%d", maxConcurrent.Load(), calls.Load())
+	}
+	sts.Close()
 }
 
 func TestSnapshotRecoveryBufferOverflowFailsClosed(t *testing.T) {

@@ -12,6 +12,7 @@ import (
 
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
+	"github.com/Fabric-Labs/polyester-sdk-go/useragent"
 	"github.com/gorilla/websocket"
 )
 
@@ -47,7 +48,9 @@ type Client struct {
 // NewClient creates a realtime client.
 func NewClient(wsURL string, apiURL string, credentials *auth.Credentials, httpClient *http.Client, maxQueue int) *Client {
 	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 10 * time.Second}
+		httpClient = useragent.WrapClient(&http.Client{Timeout: 10 * time.Second})
+	} else {
+		httpClient = useragent.WrapClient(httpClient)
 	}
 	return &Client{
 		wsURL:       normalizeWSURL(wsURL),
@@ -416,6 +419,9 @@ type SnapshotThenStream[TSnapshot any, TPublication any] struct {
 	done        chan struct{}
 	connected   chan error
 	connectOnce sync.Once
+	refreshMu   sync.Mutex
+	refreshRun  bool
+	refreshNext bool
 }
 
 // SnapshotThenStreamConfig configures snapshot-then-stream behavior.
@@ -734,6 +740,8 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) handlePublication(msg TPub
 // RefreshSnapshot fetches a REST snapshot and merges buffered publications.
 // On failure the stream is marked not-ready and Err() is set. Success clears Err().
 func (s *SnapshotThenStream[TSnapshot, TPublication]) RefreshSnapshot(ctx context.Context) error {
+	s.refreshMu.Lock()
+	defer s.refreshMu.Unlock()
 	s.mu.Lock()
 	if s.disposed {
 		s.mu.Unlock()
@@ -765,17 +773,65 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) RefreshSnapshot(ctx contex
 		return err
 	}
 
-	s.mu.Lock()
-	if s.disposed || generation != s.generation {
+	// Drain publications that arrived after pending was taken but before the
+	// snapshot callback completed. Marking ready is atomic with observing an
+	// empty pending queue, so no publication can be stranded pre-ready.
+	for {
+		s.mu.Lock()
+		if s.disposed || generation != s.generation {
+			s.mu.Unlock()
+			return nil
+		}
+		buffered = s.pending
+		s.pending = nil
+		if len(buffered) == 0 {
+			s.ready = true
+			s.lastErr = nil
+			onRefresh := s.onSnapshotRefresh
+			s.mu.Unlock()
+			callSnapshotNotification(onRefresh)
+			return nil
+		}
 		s.mu.Unlock()
-		return nil
+		if err := callSnapshotApplyLive(s.applyLivePublications, buffered); err != nil {
+			s.failClosed(err)
+			return err
+		}
 	}
-	s.ready = true
-	s.lastErr = nil
-	onRefresh := s.onSnapshotRefresh
+}
+
+// RequestSnapshotRefresh coalesces sequence-gap refresh requests into one
+// bounded single-flight worker. A failed retry fails the stream closed.
+func (s *SnapshotThenStream[TSnapshot, TPublication]) RequestSnapshotRefresh(ctx context.Context) {
+	s.mu.Lock()
+	if s.disposed {
+		s.mu.Unlock()
+		return
+	}
+	s.refreshNext = true
+	if s.refreshRun {
+		s.mu.Unlock()
+		return
+	}
+	s.refreshRun = true
 	s.mu.Unlock()
-	callSnapshotNotification(onRefresh)
-	return nil
+
+	go func() {
+		for {
+			s.mu.Lock()
+			if s.disposed || !s.refreshNext {
+				s.refreshRun = false
+				s.mu.Unlock()
+				return
+			}
+			s.refreshNext = false
+			s.mu.Unlock()
+			if err := s.refreshSnapshotWithRetry(ctx); err != nil {
+				s.failClosed(err)
+				return
+			}
+		}
+	}()
 }
 
 // refreshSnapshotWithRetry performs one bounded retry then fail-closes.

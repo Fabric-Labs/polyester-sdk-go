@@ -118,8 +118,10 @@ func (s *OrdersService) ListHistory(ctx context.Context, account AccountScope, s
 
 // Get returns one order.
 func (s *OrdersService) Get(ctx context.Context, account AccountScope, orderID, clientOrderID, subAccountID *string, includeAttachedRisk, includeAttachedRiskState bool) (models.GetOrderResult, error) {
-	if (orderID == nil || *orderID == "") && (clientOrderID == nil || *clientOrderID == "") {
-		return models.GetOrderResult{}, &sdkerrors.ValidationError{Msg: "get requires order_id or client_order_id"}
+	hasOrder := orderID != nil && *orderID != ""
+	hasClient := clientOrderID != nil && *clientOrderID != ""
+	if hasOrder == hasClient {
+		return models.GetOrderResult{}, &sdkerrors.ValidationError{Msg: "get requires exactly one of order_id or client_order_id"}
 	}
 	req := &orderv1.GetOrderRequest{
 		IncludeAttachedRisk: boolPtr(includeAttachedRisk), IncludeAttachedRiskState: boolPtr(includeAttachedRiskState),
@@ -127,15 +129,19 @@ func (s *OrdersService) Get(ctx context.Context, account AccountScope, orderID, 
 	if err := s.scoped.ApplyOptionalSubaccountIDPtr(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.GetOrderResult{}, err
 	}
-	if orderID != nil {
+	if hasOrder {
 		id, err := codecs.IDToInt(*orderID, "order_id")
 		if err != nil {
 			return models.GetOrderResult{}, err
 		}
 		req.Key = &orderv1.GetOrderRequest_OrderId{OrderId: id}
 	}
-	if clientOrderID != nil {
-		req.Key = &orderv1.GetOrderRequest_ClientOrderId{ClientOrderId: *clientOrderID}
+	if hasClient {
+		validated, err := codecs.ValidateClientOrderID(*clientOrderID)
+		if err != nil {
+			return models.GetOrderResult{}, err
+		}
+		req.Key = &orderv1.GetOrderRequest_ClientOrderId{ClientOrderId: validated}
 	}
 	return UnaryAuth(ctx, s.transport, s.readClient().GetOrder, req, decode.GetOrderFromProto)
 }
@@ -167,36 +173,50 @@ func (s *OrdersService) Create(ctx context.Context, req models.CreateOrderReques
 	if err != nil {
 		return models.OrderMutationResult{}, err
 	}
-	return UnaryAuth(ctx, s.transport, s.writeClient().CreateOrder, protoReq, decode.OrderMutationFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().CreateOrder, protoReq, decode.OrderMutationFromProto)
 }
 
 // Cancel cancels an order.
 func (s *OrdersService) Cancel(ctx context.Context, account AccountScope, orderID, clientOrderID, symbol *string, symbolID *uint32, subAccountID *string) (models.OrderMutationResult, error) {
-	if (orderID == nil || *orderID == "") && (clientOrderID == nil || *clientOrderID == "") {
-		return models.OrderMutationResult{}, &sdkerrors.ValidationError{Msg: "cancel requires order_id or client_order_id"}
+	hasOrder := orderID != nil && *orderID != ""
+	hasClient := clientOrderID != nil && *clientOrderID != ""
+	if hasOrder == hasClient {
+		return models.OrderMutationResult{}, &sdkerrors.ValidationError{Msg: "cancel requires exactly one of order_id or client_order_id"}
+	}
+	if symbol != nil && symbolID != nil {
+		return models.OrderMutationResult{}, &sdkerrors.ValidationError{Msg: "cancel accepts symbol or symbol_id, not both"}
+	}
+	if symbolID != nil && *symbolID == 0 {
+		return models.OrderMutationResult{}, &sdkerrors.ValidationError{Msg: "symbol_id must be non-zero when explicitly supplied"}
 	}
 	req := &orderv1.CancelOrderRequest{}
-	if orderID != nil {
+	if hasOrder {
 		id, err := codecs.IDToInt(*orderID, "order_id")
 		if err != nil {
 			return models.OrderMutationResult{}, err
 		}
 		req.Key = &orderv1.CancelOrderRequest_OrderId{OrderId: id}
 	}
-	if clientOrderID != nil {
-		req.Key = &orderv1.CancelOrderRequest_ClientOrderId{ClientOrderId: *clientOrderID}
+	if hasClient {
+		validated, err := codecs.ValidateClientOrderID(*clientOrderID)
+		if err != nil {
+			return models.OrderMutationResult{}, err
+		}
+		req.Key = &orderv1.CancelOrderRequest_ClientOrderId{ClientOrderId: validated}
 	}
 	if symbolID != nil {
 		req.SymbolId = *symbolID
 	} else if symbol != nil {
-		if id := s.catalogs.SymbolIDForSymbol(*symbol); id != nil {
-			req.SymbolId = *id
+		id := s.catalogs.SymbolIDForSymbol(*symbol)
+		if id == nil {
+			return models.OrderMutationResult{}, &sdkerrors.ValidationError{Msg: fmt.Sprintf("unknown symbol %q", *symbol)}
 		}
+		req.SymbolId = *id
 	}
 	if err := s.scoped.ApplyOptionalSubaccountIDPtr(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.OrderMutationResult{}, err
 	}
-	return UnaryAuth(ctx, s.transport, s.writeClient().CancelOrder, req, decode.OrderMutationFromCancel)
+	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().CancelOrder, req, decode.OrderMutationFromCancel)
 }
 
 // Modify modifies an open order.
@@ -216,7 +236,7 @@ func (s *OrdersService) Modify(ctx context.Context, account AccountScope, symbol
 	if err != nil {
 		return models.ModifyOrderResult{}, err
 	}
-	return UnaryAuth(ctx, s.transport, s.writeClient().ModifyOrder, protoReq, decode.ModifyOrderFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().ModifyOrder, protoReq, decode.ModifyOrderFromProto)
 }
 
 // CancelAll cancels all matching orders.
@@ -334,7 +354,7 @@ func (s *OrdersService) WaitForOrderTradesComplete(
 		if time.Now().After(deadline) {
 			cum := int64(0)
 			if detail.Order != nil {
-				cum = detail.Order.CumQty.Scaled
+				cum = detail.Order.CumQty.Scaled()
 			}
 			return last, fmt.Errorf(
 				"order trades not complete within %s: cum_qty=%d trade_qty_sum=%d trades=%d",
@@ -353,13 +373,13 @@ func orderTradesComplete(detail models.GetOrderResult) bool {
 	if detail.Order == nil {
 		return false
 	}
-	return sumTradeQty(detail.Trades) == detail.Order.CumQty.Scaled
+	return sumTradeQty(detail.Trades) == detail.Order.CumQty.Scaled()
 }
 
 func sumTradeQty(trades []models.UserTrade) int64 {
 	var sum int64
 	for _, trade := range trades {
-		sum += trade.Qty.Scaled
+		sum += trade.Qty.Scaled()
 	}
 	return sum
 }
