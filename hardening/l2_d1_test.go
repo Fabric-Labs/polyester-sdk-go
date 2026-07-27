@@ -2,6 +2,7 @@ package hardening_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -11,6 +12,7 @@ import (
 	"connectrpc.com/connect"
 	polyester "github.com/Fabric-Labs/polyester-sdk-go"
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1/ordersv1connect"
 )
@@ -90,13 +92,54 @@ func TestWaitForOrderTradesCompletePollsUntilSumMatches(t *testing.T) {
 	}
 	var sum int64
 	for _, tr := range result.Trades {
-		sum += tr.Qty.Scaled
+		sum += tr.Qty.Scaled()
 	}
-	if result.Order == nil || result.Order.CumQty.Scaled != 100 || sum != 100 {
+	if result.Order == nil || result.Order.CumQty.Scaled() != 100 || sum != 100 {
 		t.Fatalf("cum=%v sum=%d trades=%+v", result.Order, sum, result.Trades)
 	}
 	if result.Trades[0].FeeSource != "received" || result.Trades[0].FeeScaled != "1" ||
 		result.Trades[0].ReferralShareScaled != "1" {
 		t.Fatalf("fee fields=%+v", result.Trades[0])
+	}
+}
+
+func TestCancelRejectsInvalidClientOrderIDBeforeTransport(t *testing.T) {
+	var httpHits atomic.Int64
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		httpHits.Add(1)
+	}))
+	t.Cleanup(srv.Close)
+
+	kp := auth.GenerateEd25519Keypair()
+	client, err := polyester.New(polyester.Config{
+		APIURL:          srv.URL,
+		APIKeyID:        "ak_test",
+		APIPrivateKey:   kp.SecretKeyHex,
+		HydrateCatalogs: false,
+		Timeout:         5 * time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+
+	clientOrderID := "bad id!"
+	_, err = client.Orders.Cancel(
+		context.Background(), nil, nil, &clientOrderID, nil, nil, nil,
+	)
+	var validationErr *sdkerrors.ValidationError
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("expected ValidationError, got %T: %v", err, err)
+	}
+
+	_, err = client.Orders.Get(
+		context.Background(), nil, nil, &clientOrderID, nil, false, false,
+	)
+	validationErr = nil
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("expected ValidationError from get, got %T: %v", err, err)
+	}
+	if httpHits.Load() != 0 {
+		t.Fatalf("invalid singular order method reached transport; hits=%d", httpHits.Load())
 	}
 }

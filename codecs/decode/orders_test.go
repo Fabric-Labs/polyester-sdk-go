@@ -34,7 +34,7 @@ func TestOrderFromProtoMapsEnumsAndIDs(t *testing.T) {
 	if order.Side != "buy" || order.Status != "working" || order.OrderType != "limit" || order.TIF != "gtc" {
 		t.Fatalf("order=%+v", order)
 	}
-	if order.OrigQty.Scaled != 100 {
+	if order.OrigQty.Scaled() != 100 {
 		t.Fatalf("orig_qty=%+v", order.OrigQty)
 	}
 	if !order.PostOnly {
@@ -86,13 +86,13 @@ func TestOrderFromProtoMapsAttachedRisk(t *testing.T) {
 	if risk.StopLoss != nil {
 		t.Fatalf("stop_loss should be suppressed when trailing present: %+v", risk.StopLoss)
 	}
-	if risk.TakeProfit.TriggerPrice.Ticks != 6000 || risk.TakeProfit.OrderType != "market" {
+	if risk.TakeProfit.TriggerPrice.Ticks() != 6000 || risk.TakeProfit.OrderType != "market" {
 		t.Fatalf("take_profit=%+v", risk.TakeProfit)
 	}
 	if risk.TrailingStop.DistanceBps != 25 || risk.TrailingStop.MaxSlippageTicks != 10 {
 		t.Fatalf("trailing=%+v", risk.TrailingStop)
 	}
-	if risk.TrailingStop.ActivationPrice.Ticks != 5500 {
+	if risk.TrailingStop.ActivationPrice.Ticks() != 5500 {
 		t.Fatalf("trailing=%+v", risk.TrailingStop)
 	}
 }
@@ -136,7 +136,10 @@ func TestModifyOrderFromProtoActionTakenEnum(t *testing.T) {
 		FinalOrderId: 11,
 		Code:         "ok",
 	}
-	result := decode.ModifyOrderFromProto(msg)
+	result, err := decode.ModifyOrderFromProto(msg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if result.ActionTaken != "amended" {
 		t.Fatalf("action_taken=%q", result.ActionTaken)
 	}
@@ -150,7 +153,10 @@ func TestOrderMutationFromProtoCreateIncludesClientOrderID(t *testing.T) {
 		OrderId:       42,
 		ClientOrderId: "coid-1",
 	}
-	result := decode.OrderMutationFromProto(msg)
+	result, err := decode.OrderMutationFromProto(msg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if result.Status != "accepted" || result.OrderID != codecs.FormatUint64ID(42) || result.ClientOrderID != "coid-1" {
 		t.Fatalf("result=%+v", result)
 	}
@@ -158,7 +164,10 @@ func TestOrderMutationFromProtoCreateIncludesClientOrderID(t *testing.T) {
 
 func TestOrderMutationFromProtoCancelOmitsClientOrderID(t *testing.T) {
 	msg := &orderv1.CancelOrderResponse{Status: "cancelled", OrderId: 42}
-	result := decode.OrderMutationFromCancel(msg)
+	result, err := decode.OrderMutationFromCancel(msg)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if result.Status != "cancelled" || result.OrderID != codecs.FormatUint64ID(42) || result.ClientOrderID != "" {
 		t.Fatalf("result=%+v", result)
 	}
@@ -168,9 +177,9 @@ func TestBatchCreateRejectsMissingOutcome(t *testing.T) {
 	_, err := decode.BatchCreateFromProto(&orderv1.BatchCreateOrdersResponse{
 		Results: []*orderv1.BatchCreateResultItem{{ClientOrderId: "missing"}},
 	})
-	var transportErr *sdkerrors.TransportError
-	if !errors.As(err, &transportErr) {
-		t.Fatalf("expected TransportError, got %T: %v", err, err)
+	var contractErr *sdkerrors.ResponseContractError
+	if !errors.As(err, &contractErr) {
+		t.Fatalf("expected ResponseContractError, got %T: %v", err, err)
 	}
 }
 
@@ -203,9 +212,9 @@ func TestBatchCreateRejectsCountMismatch(t *testing.T) {
 		}},
 		RejectedCount: 1,
 	})
-	var transportErr *sdkerrors.TransportError
-	if !errors.As(err, &transportErr) {
-		t.Fatalf("expected TransportError, got %T: %v", err, err)
+	var contractErr *sdkerrors.ResponseContractError
+	if !errors.As(err, &contractErr) {
+		t.Fatalf("expected ResponseContractError, got %T: %v", err, err)
 	}
 }
 
@@ -214,17 +223,17 @@ func TestBatchCancelRejectsCountMismatchAndUnknownStatus(t *testing.T) {
 		Results:       []*orderv1.BatchCancelResultItem{{Status: "accepted"}},
 		RejectedCount: 1,
 	})
-	var transportErr *sdkerrors.TransportError
-	if !errors.As(err, &transportErr) {
-		t.Fatalf("expected TransportError for count mismatch, got %T: %v", err, err)
+	var contractErr *sdkerrors.ResponseContractError
+	if !errors.As(err, &contractErr) {
+		t.Fatalf("expected ResponseContractError for count mismatch, got %T: %v", err, err)
 	}
 
 	_, err = decode.BatchCancelFromProto(&orderv1.BatchCancelOrdersResponse{
 		Results:       []*orderv1.BatchCancelResultItem{{Status: "maybe"}},
 		AcceptedCount: 1,
 	})
-	if !errors.As(err, &transportErr) {
-		t.Fatalf("expected TransportError for unknown status, got %T: %v", err, err)
+	if !errors.As(err, &contractErr) {
+		t.Fatalf("expected ResponseContractError for unknown status, got %T: %v", err, err)
 	}
 }
 
@@ -249,16 +258,16 @@ func TestBatchModifyReconcilesActionsAndCounts(t *testing.T) {
 
 	valid.AmendedCount = 2
 	_, err = decode.BatchModifyFromProto(valid)
-	var transportErr *sdkerrors.TransportError
-	if !errors.As(err, &transportErr) {
-		t.Fatalf("expected TransportError for count mismatch, got %T: %v", err, err)
+	var contractErr *sdkerrors.ResponseContractError
+	if !errors.As(err, &contractErr) {
+		t.Fatalf("expected ResponseContractError for count mismatch, got %T: %v", err, err)
 	}
 }
 
 func TestCancelAllRequiresKnownStatus(t *testing.T) {
 	result, err := decode.CancelAllFromProto(&orderv1.CancelAllOrdersResponse{
 		Status:           "submitted",
-		MatchedOrders:    2,
+		MatchedOrders:    3,
 		SubmittedCancels: 2,
 		FailedCancels:    1,
 	})
@@ -273,9 +282,9 @@ func TestCancelAllRequiresKnownStatus(t *testing.T) {
 	}
 	for _, status := range []string{"", "ok", "maybe", "accepted"} {
 		_, err := decode.CancelAllFromProto(&orderv1.CancelAllOrdersResponse{Status: status, MatchedOrders: 1})
-		var transportErr *sdkerrors.TransportError
-		if !errors.As(err, &transportErr) {
-			t.Fatalf("status %q: expected TransportError, got %T: %v", status, err, err)
+		var contractErr *sdkerrors.ResponseContractError
+		if !errors.As(err, &contractErr) {
+			t.Fatalf("status %q: expected ResponseContractError, got %T: %v", status, err, err)
 		}
 	}
 }
@@ -297,9 +306,9 @@ func TestCancelAllAfterRequiresKnownStatus(t *testing.T) {
 	}
 	for _, status := range []string{"", "ok", "submitted", "maybe"} {
 		_, err := decode.CancelAllAfterFromProto(&orderv1.CancelAllAfterResponse{Status: status, EffectiveTimeoutSec: 10})
-		var transportErr *sdkerrors.TransportError
-		if !errors.As(err, &transportErr) {
-			t.Fatalf("status %q: expected TransportError, got %T: %v", status, err, err)
+		var contractErr *sdkerrors.ResponseContractError
+		if !errors.As(err, &contractErr) {
+			t.Fatalf("status %q: expected ResponseContractError, got %T: %v", status, err, err)
 		}
 	}
 }

@@ -57,6 +57,9 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale int) (*orde
 	if req.Symbol == nil && req.SymbolID == nil {
 		return nil, &errors.ValidationError{Msg: "orders.create requires symbol or symbol_id"}
 	}
+	if req.AttachedRisk != nil {
+		return nil, &errors.ValidationError{Msg: "attached_risk is not supported by the current Go order input; refusing to discard it"}
+	}
 	side, ok := orderSideToProto[strings.ToLower(req.Side)]
 	if !ok {
 		return nil, &errors.ValidationError{Msg: "side must be 'buy' or 'sell'"}

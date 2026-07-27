@@ -46,7 +46,7 @@ func (s *OrderbookService) Get(ctx context.Context, symbol string, depth int) (m
 	if !ok {
 		return models.OrderbookData{}, &errors.ValidationError{Msg: fmt.Sprintf("orderbook decoding requires a hydrated catalog quantity scale for %q", symbol)}
 	}
-	return UnaryPublic(ctx, s.transport, s.client().GetOrderBook, req, func(msg *orderbookv1.GetOrderBookResponse) models.OrderbookData {
+	return UnaryPublicDecoded(ctx, s.transport, s.client().GetOrderBook, req, func(msg *orderbookv1.GetOrderBookResponse) (models.OrderbookData, error) {
 		return decode.OrderbookFromProto(msg, symbol, depth, scale)
 	})
 }
@@ -133,7 +133,7 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 			if opts.OnSequenceGap != nil {
 				opts.OnSequenceGap()
 			}
-			_ = localStream.RefreshSnapshot(ctx)
+			localStream.RequestSnapshotRefresh(ctx)
 			return
 		}
 		emit()
@@ -154,9 +154,17 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 			}
 			req := &orderbookv1.GetOrderBookRequest{Symbol: symbol, Depth: orderbookv1.Depth(v)}
 			return UnaryPublicDecoded(fetchCtx, s.transport, s.client().GetOrderBook, req, func(msg *orderbookv1.GetOrderBookResponse) (models.OrderbookData, error) {
+				nextBids, err := orderbook.LevelsFromProtoLevels(msg.GetBids())
+				if err != nil {
+					return models.OrderbookData{}, err
+				}
+				nextAsks, err := orderbook.LevelsFromProtoLevels(msg.GetAsks())
+				if err != nil {
+					return models.OrderbookData{}, err
+				}
 				mu.Lock()
-				bids = orderbook.LevelsFromProtoLevels(msg.GetBids())
-				asks = orderbook.LevelsFromProtoLevels(msg.GetAsks())
+				bids = nextBids
+				asks = nextAsks
 				currentBookSeq = int(msg.GetBookSeq())
 				mu.Unlock()
 				return orderbook.BuildOrderbookData(symbol, wsDepth, currentBookSeq, bids, asks, bucketTicks, quantityScale)

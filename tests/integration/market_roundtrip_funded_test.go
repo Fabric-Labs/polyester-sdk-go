@@ -156,7 +156,7 @@ func TestMarketBuySellRoundtrip(t *testing.T) {
 		t.Fatal("expected buy order detail")
 	}
 	filled := buyDetail.Order.CumQty
-	if filled.Scaled <= 0 {
+	if filled.Scaled() <= 0 {
 		testutil.SoftSkip(t, "buy produced no fill (possible POLY-3028)")
 	}
 	buyProjection, err := client.Orders.WaitForOrderTradesComplete(
@@ -179,10 +179,17 @@ func TestMarketBuySellRoundtrip(t *testing.T) {
 		}
 		receivedFee += fee
 	}
-	netReceived := filled
-	netReceived.Scaled -= receivedFee
-	if netReceived.Scaled <= 0 {
-		t.Fatalf("BUY net received quantity must be positive: filled=%d fee=%d", filled.Scaled, receivedFee)
+	netReceived := models.MustQtyScaled(filled.Scaled() - receivedFee).
+		WithDomain(filled.Domain()).
+		WithSymbol(filled.Symbol())
+	if scale := filled.Scale(); scale != nil {
+		netReceived = netReceived.WithScale(*scale)
+	}
+	if symbolID := filled.SymbolID(); symbolID != nil {
+		netReceived = netReceived.WithSymbolID(*symbolID)
+	}
+	if netReceived.Scaled() <= 0 {
+		t.Fatalf("BUY net received quantity must be positive: filled=%d fee=%d", filled.Scaled(), receivedFee)
 	}
 
 	if hasMaker {
@@ -225,8 +232,8 @@ func TestMarketBuySellRoundtrip(t *testing.T) {
 	if sellDetail.Order == nil {
 		t.Fatal("expected sell order detail")
 	}
-	if sellDetail.Order.CumQty.Scaled != netReceived.Scaled {
-		t.Fatalf("sell cum_qty=%d want buy net received %d", sellDetail.Order.CumQty.Scaled, netReceived.Scaled)
+	if sellDetail.Order.CumQty.Scaled() != netReceived.Scaled() {
+		t.Fatalf("sell cum_qty=%d want buy net received %d", sellDetail.Order.CumQty.Scaled(), netReceived.Scaled())
 	}
 
 	limit := 100

@@ -283,7 +283,7 @@ func TriggerFromProto(msg *triggersv1.Trigger) models.Trigger {
 	details := triggerDetailsFromProto(msg)
 	triggerType, side, orderType, tif, postOnly, limitPrice, triggerPrice := triggerConfigProjection(msg)
 	// Fall back to stop runtime details for the trigger price convenience field.
-	if triggerPrice.Ticks == 0 && details != nil && details.Case == "stop" {
+	if triggerPrice.Ticks() == 0 && details != nil && details.Case == "stop" {
 		triggerPrice = details.TriggerPrice
 	}
 	var parentOrderID string

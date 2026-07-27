@@ -198,25 +198,25 @@ func MarketRefPrice(ctx context.Context, client *polyester.Client, symbol, side 
 		if err == nil {
 			switch strings.ToLower(strings.TrimSpace(side)) {
 			case "sell":
-				if len(book.Bids) > 0 && book.Bids[0].Price.Ticks > 0 {
+				if len(book.Bids) > 0 && book.Bids[0].Price.Ticks() > 0 {
 					return book.Bids[0].Price.Format()
 				}
 			default:
-				if len(book.Asks) > 0 && book.Asks[0].Price.Ticks > 0 {
+				if len(book.Asks) > 0 && book.Asks[0].Price.Ticks() > 0 {
 					return book.Asks[0].Price.Format()
 				}
 			}
-			if len(book.Asks) > 0 && book.Asks[0].Price.Ticks > 0 {
+			if len(book.Asks) > 0 && book.Asks[0].Price.Ticks() > 0 {
 				return book.Asks[0].Price.Format()
 			}
-			if len(book.Bids) > 0 && book.Bids[0].Price.Ticks > 0 {
+			if len(book.Bids) > 0 && book.Bids[0].Price.Ticks() > 0 {
 				return book.Bids[0].Price.Format()
 			}
 		}
 		overview, err := client.MarketOverview.List(ctx, []string{symbol}, 5, "", false)
 		if err == nil {
 			for _, row := range overview.Markets {
-				if row.Symbol != symbol || row.LastPrice.Ticks <= 0 {
+				if row.Symbol != symbol || row.LastPrice.Ticks() <= 0 {
 					continue
 				}
 				return row.LastPrice.Format()
@@ -245,10 +245,10 @@ func ResolvePostOnlyBuyLimitPrice(ctx context.Context, client *polyester.Client,
 		overview, err := client.MarketOverview.List(ctx, []string{symbol}, 5, "", false)
 		if err == nil {
 			for _, row := range overview.Markets {
-				if row.Symbol != symbol || row.LastPrice.Ticks <= 0 {
+				if row.Symbol != symbol || row.LastPrice.Ticks() <= 0 {
 					continue
 				}
-				if price, ok := postOnlyBuyPriceFromLastTicks(row.LastPrice.Ticks, tickSize, symbol); ok {
+				if price, ok := postOnlyBuyPriceFromLastTicks(row.LastPrice.Ticks(), tickSize, symbol); ok {
 					return price
 				}
 			}
@@ -273,13 +273,13 @@ func postOnlyBuyPriceFromBook(book models.OrderbookData, tickSize string) (strin
 	if err != nil || tickTicks == 0 {
 		return "", false
 	}
-	bidTicks := book.Bids[0].Price.Ticks
+	bidTicks := book.Bids[0].Price.Ticks()
 	target := bidTicks - int64(tickTicks)
 	if target < int64(tickTicks) {
 		target = int64(tickTicks)
 	}
-	if len(book.Asks) > 0 && book.Asks[0].Price.Ticks > 0 {
-		askTicks := book.Asks[0].Price.Ticks
+	if len(book.Asks) > 0 && book.Asks[0].Price.Ticks() > 0 {
+		askTicks := book.Asks[0].Price.Ticks()
 		maxPostOnly := askTicks - int64(tickTicks)
 		if target > maxPostOnly {
 			target = maxPostOnly

@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
+	"github.com/Fabric-Labs/polyester-sdk-go/useragent"
 )
 
 var routeNotFoundMessages = map[string]struct{}{
@@ -68,6 +69,9 @@ func MapConnectError(err error) error {
 	msg := connectErr.Message()
 	if strings.TrimSpace(msg) == "" {
 		msg = emptyErrorMessage
+	}
+	if useragent.IsCloudflareBrowserBan(msg) {
+		return &sdkerrors.TransportError{Msg: useragent.Cloudflare1010Message()}
 	}
 	switch code {
 	case connect.CodeUnauthenticated, connect.CodePermissionDenied:

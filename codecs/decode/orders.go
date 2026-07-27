@@ -219,13 +219,19 @@ func GetOrderFromProto(msg *orderv1.GetOrderResponse) models.GetOrderResult {
 //
 // CreateOrderResponse acknowledges admission only and no longer carries a
 // status field; synthesize "accepted".
-func OrderMutationFromProto(msg *orderv1.CreateOrderResponse) models.OrderMutationResult {
-	return orderMutation("accepted", msg.GetOrderId(), msg.GetClientOrderId())
+func OrderMutationFromProto(msg *orderv1.CreateOrderResponse) (models.OrderMutationResult, error) {
+	if msg.GetOrderId() == 0 {
+		return models.OrderMutationResult{}, &sdkerrors.ResponseContractError{Operation: "CreateOrder", Msg: "missing order_id"}
+	}
+	return orderMutation("accepted", msg.GetOrderId(), msg.GetClientOrderId()), nil
 }
 
 // OrderMutationFromCancel decodes cancel response.
-func OrderMutationFromCancel(msg *orderv1.CancelOrderResponse) models.OrderMutationResult {
-	return orderMutation(msg.GetStatus(), msg.GetOrderId(), "")
+func OrderMutationFromCancel(msg *orderv1.CancelOrderResponse) (models.OrderMutationResult, error) {
+	if msg.GetOrderId() == 0 || strings.TrimSpace(msg.GetStatus()) == "" {
+		return models.OrderMutationResult{}, &sdkerrors.ResponseContractError{Operation: "CancelOrder", Msg: "missing order_id or status"}
+	}
+	return orderMutation(msg.GetStatus(), msg.GetOrderId(), ""), nil
 }
 
 func orderMutation(status string, orderID uint64, clientOrderID string) models.OrderMutationResult {
@@ -237,13 +243,17 @@ func orderMutation(status string, orderID uint64, clientOrderID string) models.O
 }
 
 // ModifyOrderFromProto decodes modify order response.
-func ModifyOrderFromProto(msg *orderv1.ModifyOrderResponse) models.ModifyOrderResult {
+func ModifyOrderFromProto(msg *orderv1.ModifyOrderResponse) (models.ModifyOrderResult, error) {
+	action := modifyActionName(msg.GetActionTaken())
+	if action == "" || msg.GetOldOrderId() == 0 || msg.GetFinalOrderId() == 0 {
+		return models.ModifyOrderResult{}, &sdkerrors.ResponseContractError{Operation: "ModifyOrder", Msg: "missing action_taken, old_order_id, or final_order_id"}
+	}
 	return models.ModifyOrderResult{
-		ActionTaken:  modifyActionName(msg.GetActionTaken()),
+		ActionTaken:  action,
 		OldOrderID:   codecs.FormatUint64ID(msg.GetOldOrderId()),
 		FinalOrderID: codecs.FormatUint64ID(msg.GetFinalOrderId()),
 		Code:         msg.GetCode(),
-	}
+	}, nil
 }
 
 func modifyActionName(v orderv1.ModifyActionTaken) string {
@@ -262,9 +272,16 @@ func CancelAllFromProto(msg *orderv1.CancelAllOrdersResponse) (models.CancelAllO
 	status := strings.TrimSpace(msg.GetStatus())
 	if status == "" ||
 		!strings.EqualFold(status, "submitted") && !strings.EqualFold(status, "dry_run") {
-		return models.CancelAllOrdersResult{}, &sdkerrors.TransportError{
+		return models.CancelAllOrdersResult{}, &sdkerrors.ResponseContractError{Operation: "CancelAllOrders",
 			Msg: fmt.Sprintf("invalid CancelAllOrders response: unknown status %q", msg.GetStatus()),
 		}
+	}
+	matched, submitted, failed := msg.GetMatchedOrders(), msg.GetSubmittedCancels(), msg.GetFailedCancels()
+	if strings.EqualFold(status, "submitted") && uint64(submitted)+uint64(failed) != uint64(matched) {
+		return models.CancelAllOrdersResult{}, &sdkerrors.ResponseContractError{Operation: "CancelAllOrders", Msg: "submitted and failed counts do not equal matched_orders"}
+	}
+	if strings.EqualFold(status, "dry_run") && (submitted != 0 || failed != 0) {
+		return models.CancelAllOrdersResult{}, &sdkerrors.ResponseContractError{Operation: "CancelAllOrders", Msg: "dry_run reported submitted or failed cancels"}
 	}
 	return models.CancelAllOrdersResult{
 		Status:           msg.GetStatus(),
@@ -289,19 +306,19 @@ func BatchModifyFromProto(msg *orderv1.BatchModifyOrdersResponse) (models.BatchM
 			case orderv1.ModifyActionTaken_REPLACED:
 				decodedReplaced++
 			default:
-				return models.BatchModifyOrdersResult{}, &sdkerrors.TransportError{
+				return models.BatchModifyOrdersResult{}, &sdkerrors.ResponseContractError{Operation: "BatchModifyOrders",
 					Msg: fmt.Sprintf("batch modify response has unknown action: %d", item.GetActionTaken()),
 				}
 			}
 		case "rejected":
 			if item.GetActionTaken() != orderv1.ModifyActionTaken_MODIFY_ACTION_UNSPECIFIED {
-				return models.BatchModifyOrdersResult{}, &sdkerrors.TransportError{
+				return models.BatchModifyOrdersResult{}, &sdkerrors.ResponseContractError{Operation: "BatchModifyOrders",
 					Msg: "batch modify rejected result unexpectedly carries an action",
 				}
 			}
 			decodedRejected++
 		default:
-			return models.BatchModifyOrdersResult{}, &sdkerrors.TransportError{
+			return models.BatchModifyOrdersResult{}, &sdkerrors.ResponseContractError{Operation: "BatchModifyOrders",
 				Msg: fmt.Sprintf("batch modify response has unknown status: %q", item.GetStatus()),
 			}
 		}
@@ -317,7 +334,7 @@ func BatchModifyFromProto(msg *orderv1.BatchModifyOrdersResponse) (models.BatchM
 	rejected := int(msg.GetRejectedCount())
 	if amended != decodedAmended || replaced != decodedReplaced ||
 		rejected != decodedRejected || amended+replaced+rejected != len(results) {
-		return models.BatchModifyOrdersResult{}, &sdkerrors.TransportError{Msg: fmt.Sprintf(
+		return models.BatchModifyOrdersResult{}, &sdkerrors.ResponseContractError{Operation: "BatchModifyOrders", Msg: fmt.Sprintf(
 			"batch modify response counts do not match decoded outcomes: amended=%d/%d replaced=%d/%d rejected=%d/%d results=%d",
 			amended, decodedAmended, replaced, decodedReplaced, rejected, decodedRejected, len(results),
 		)}
@@ -362,7 +379,7 @@ func BatchCreateFromProto(msg *orderv1.BatchCreateOrdersResponse) (models.BatchC
 				out.Code = "ERROR_CODE_UNSPECIFIED"
 			}
 		} else {
-			return models.BatchCreateOrdersResult{}, &sdkerrors.TransportError{
+			return models.BatchCreateOrdersResult{}, &sdkerrors.ResponseContractError{Operation: "BatchCreateOrders",
 				Msg: "batch create response item has neither accepted nor rejected outcome",
 			}
 		}
@@ -372,7 +389,7 @@ func BatchCreateFromProto(msg *orderv1.BatchCreateOrdersResponse) (models.BatchC
 	rejected := int(msg.GetRejectedCount())
 	if accepted != decodedAccepted || rejected != decodedRejected ||
 		accepted+rejected != len(results) {
-		return models.BatchCreateOrdersResult{}, &sdkerrors.TransportError{
+		return models.BatchCreateOrdersResult{}, &sdkerrors.ResponseContractError{Operation: "BatchCreateOrders",
 			Msg: fmt.Sprintf(
 				"batch create response counts do not match decoded outcomes: accepted=%d/%d rejected=%d/%d results=%d",
 				accepted, decodedAccepted, rejected, decodedRejected, len(results),
@@ -398,7 +415,7 @@ func BatchCancelFromProto(msg *orderv1.BatchCancelOrdersResponse) (models.BatchC
 		case "rejected":
 			decodedRejected++
 		default:
-			return models.BatchCancelOrdersResult{}, &sdkerrors.TransportError{
+			return models.BatchCancelOrdersResult{}, &sdkerrors.ResponseContractError{Operation: "BatchCancelOrders",
 				Msg: fmt.Sprintf("batch cancel response has unknown status: %q", item.GetStatus()),
 			}
 		}
@@ -413,7 +430,7 @@ func BatchCancelFromProto(msg *orderv1.BatchCancelOrdersResponse) (models.BatchC
 	rejected := int(msg.GetRejectedCount())
 	if accepted != decodedAccepted || rejected != decodedRejected ||
 		accepted+rejected != len(results) {
-		return models.BatchCancelOrdersResult{}, &sdkerrors.TransportError{Msg: fmt.Sprintf(
+		return models.BatchCancelOrdersResult{}, &sdkerrors.ResponseContractError{Operation: "BatchCancelOrders", Msg: fmt.Sprintf(
 			"batch cancel response counts do not match decoded outcomes: accepted=%d/%d rejected=%d/%d results=%d",
 			accepted, decodedAccepted, rejected, decodedRejected, len(results),
 		)}
@@ -430,7 +447,7 @@ func CancelAllAfterFromProto(msg *orderv1.CancelAllAfterResponse) (models.Cancel
 	status := strings.TrimSpace(msg.GetStatus())
 	if status == "" ||
 		!strings.EqualFold(status, "armed") && !strings.EqualFold(status, "disabled") {
-		return models.CancelAllAfterResult{}, &sdkerrors.TransportError{
+		return models.CancelAllAfterResult{}, &sdkerrors.ResponseContractError{Operation: "CancelAllAfter",
 			Msg: fmt.Sprintf("invalid CancelAllAfter response: unknown status %q", msg.GetStatus()),
 		}
 	}

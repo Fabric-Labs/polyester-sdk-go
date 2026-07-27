@@ -50,6 +50,11 @@ func requiredClientID(value, field string) (string, error) {
 	return validateCorrelationID(value, field, clientIDMaxLen)
 }
 
+// ValidateClientOrderID validates and normalizes a required client order ID.
+func ValidateClientOrderID(value string) (string, error) {
+	return requiredClientID(value, "client_order_id")
+}
+
 func coalesceRequestID(requestID *string, prefix string) (string, error) {
 	if requestID != nil && strings.TrimSpace(*requestID) != "" {
 		return validateCorrelationID(*requestID, "request_id", requestIDMaxLen)

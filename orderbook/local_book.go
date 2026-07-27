@@ -14,17 +14,23 @@ import (
 type BookSide map[int]int
 
 // LevelsFromProtoLevels converts protobuf levels into a side map.
-func LevelsFromProtoLevels(levels []*orderbookv1.PriceLevel) BookSide {
+func LevelsFromProtoLevels(levels []*orderbookv1.PriceLevel) (BookSide, error) {
 	book := BookSide{}
 	for _, level := range levels {
+		if level == nil {
+			return nil, &sdkerrors.ValidationError{Msg: "orderbook level is missing"}
+		}
 		price := int(level.GetPriceTicks())
 		qty := int(level.GetQtyScaled())
-		if price < 0 || qty <= 0 {
-			continue
+		if price <= 0 {
+			return nil, &sdkerrors.ValidationError{Msg: "orderbook level has invalid or missing price"}
+		}
+		if qty <= 0 {
+			return nil, &sdkerrors.ValidationError{Msg: "orderbook level has invalid or missing quantity"}
 		}
 		book[price] = qty
 	}
-	return book
+	return book, nil
 }
 
 // ApplySideDelta applies delta levels to one side.
@@ -121,18 +127,32 @@ func ParseBucketTicks(bucket string) int {
 
 // ApplyDelta applies one delta and returns the new book sequence and whether a snapshot refresh is needed.
 func ApplyDelta(bids, asks BookSide, currentBookSeq int, delta models.OrderBookDeltaUpdate) (int, bool) {
+	// Reject the whole update atomically. Skipping corrupt rows while advancing
+	// the sequence permanently leaves stale quantity in the local book.
+	for _, pair := range append(append([]models.PriceQtyPair{}, delta.Bids...), delta.Asks...) {
+		if pair.PriceTicks < 0 || pair.QtyScaled < 0 {
+			return currentBookSeq, true
+		}
+	}
+	seqStart, startErr := strconv.Atoi(delta.BookSeqStart)
+	seqEnd, endErr := strconv.Atoi(delta.BookSeqEnd)
+	if startErr != nil || endErr != nil || seqStart < 0 || seqEnd < seqStart {
+		return currentBookSeq, true
+	}
+	comparisonSeq := currentBookSeq
+	if delta.Reset {
+		comparisonSeq = 0
+	}
+	if comparisonSeq != 0 && seqStart > comparisonSeq+1 {
+		return currentBookSeq, true
+	}
+	if !delta.Reset && seqEnd <= currentBookSeq {
+		return currentBookSeq, false
+	}
 	if delta.Reset {
 		clear(bids)
 		clear(asks)
 		currentBookSeq = 0
-	}
-	seqStart, _ := strconv.Atoi(delta.BookSeqStart)
-	seqEnd, _ := strconv.Atoi(delta.BookSeqEnd)
-	if currentBookSeq != 0 && seqStart > currentBookSeq+1 {
-		return currentBookSeq, true
-	}
-	if seqEnd <= currentBookSeq {
-		return currentBookSeq, false
 	}
 	ApplySideDelta(bids, delta.Bids)
 	ApplySideDelta(asks, delta.Asks)
@@ -185,11 +205,11 @@ func sideToLevels(book BookSide, side, symbol string, limit, bucketTicks, quanti
 	out := make([]models.OrderbookLevel, 0, limit)
 	for _, entry := range entries[:limit] {
 		price := codecs.DecodePriceTicks(int64(entry[0]), symbol)
-		if price.Ticks < 0 {
+		if price.Ticks() < 0 {
 			return nil, &sdkerrors.ValidationError{Msg: "orderbook level has invalid or missing price"}
 		}
 		qty := codecs.DecodeQtyScaled(int64(entry[1]), quantityScale, symbol, nil)
-		if qty.Scaled < 0 {
+		if qty.Scaled() < 0 {
 			return nil, &sdkerrors.ValidationError{Msg: "orderbook level has invalid or missing quantity"}
 		}
 		out = append(out, models.OrderbookLevel{

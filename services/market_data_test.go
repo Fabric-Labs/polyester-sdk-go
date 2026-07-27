@@ -3,6 +3,8 @@ package services
 import (
 	"fmt"
 	"testing"
+
+	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
 func TestResolveCandleChannelTimeframe(t *testing.T) {
@@ -24,5 +26,16 @@ func TestResolveCandleChannelTimeframe(t *testing.T) {
 func TestResolveCandleChannelTimeframeUnknown(t *testing.T) {
 	if _, err := resolveCandleChannelTimeframe("not-a-tf"); err == nil {
 		t.Fatal("expected validation error")
+	}
+}
+
+func TestCurrentCandleSelectsFirstNewestRow(t *testing.T) {
+	candles := []models.Candle{
+		{TsSec: 200, Close: "2"},
+		{TsSec: 100, Close: "1"},
+	}
+	got := currentCandle(candles)
+	if got.TsSec != 200 || got.Close != "2" {
+		t.Fatalf("currentCandle() = %+v, want first/newest row", got)
 	}
 }

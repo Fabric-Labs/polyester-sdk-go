@@ -78,8 +78,8 @@ func TestInternalTransferTiny(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if fmt.Sprint(result.Quantity.Scaled) != expectedScaled {
-		t.Fatalf("quantity=%v want %q", result.Quantity.Scaled, expectedScaled)
+	if fmt.Sprint(result.Quantity.Scaled()) != expectedScaled {
+		t.Fatalf("quantity=%v want %q", result.Quantity.Scaled(), expectedScaled)
 	}
 
 	expectedAfter := new(big.Int).Sub(tradingBefore, qtyInt)
