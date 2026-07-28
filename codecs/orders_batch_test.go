@@ -53,8 +53,8 @@ func TestBatchCancelOrdersToProto(t *testing.T) {
 	sid := uint32(3)
 	sid2 := uint32(5)
 	items := []models.BatchCancelItem{
-		{OrderID: strPtr("100"), SymbolID: &sid},
-		{ClientOrderID: strPtr("cid-9"), SymbolID: &sid2},
+		{Key: models.OrderKeyByID("100"), SymbolID: &sid},
+		{Key: models.OrderKeyByClientID("cid-9"), SymbolID: &sid2},
 	}
 	reqID := "req-cancel-1"
 	proto, err := BatchCancelOrdersToProto(items, strPtr("100"), &reqID)
@@ -76,10 +76,6 @@ func TestBatchCancelItemRequiresOneTarget(t *testing.T) {
 	_, err := BatchCancelOrdersToProto([]models.BatchCancelItem{{}}, nil, nil)
 	if err == nil {
 		t.Fatal("expected validation error for empty item")
-	}
-	_, err = BatchCancelOrdersToProto([]models.BatchCancelItem{{OrderID: strPtr("1"), ClientOrderID: strPtr("cid")}}, nil, nil)
-	if err == nil {
-		t.Fatal("expected validation error for both targets")
 	}
 }
 

@@ -22,8 +22,7 @@ type CreateOrderRequest struct {
 
 // BatchModifyItem is one item in orders.batch_modify.
 type BatchModifyItem struct {
-	OrderID          *string     `json:"order_id,omitempty"`
-	ClientOrderID    *string     `json:"client_order_id,omitempty"`
+	Key              OrderKey    `json:"key"`
 	NewPrice         *PriceInput `json:"new_price,omitempty"`
 	NewQty           *QtyInput   `json:"new_qty,omitempty"`
 	Behavior         *string     `json:"behavior,omitempty"`
@@ -32,9 +31,8 @@ type BatchModifyItem struct {
 
 // BatchCancelItem is one item in orders.batch_cancel.
 type BatchCancelItem struct {
-	OrderID       *string `json:"order_id,omitempty"`
-	ClientOrderID *string `json:"client_order_id,omitempty"`
-	SymbolID      *uint32 `json:"symbol_id,omitempty"`
+	Key      OrderKey `json:"key"`
+	SymbolID *uint32  `json:"symbol_id,omitempty"`
 }
 
 // OrderbookLevel is one orderbook price level.

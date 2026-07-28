@@ -40,14 +40,14 @@ func TestOrdersGetRoundTripsListOpen(t *testing.T) {
 	}
 	sample := listed.Orders[0]
 	byOrderID := testutil.CallRequired(t, "orders.get", func() (models.GetOrderResult, error) {
-		return client.Orders.Get(ctx, nil, &sample.OrderID, nil, nil, false, false)
+		return client.Orders.Get(ctx, nil, models.OrderKeyByID(sample.OrderID), nil, false, false)
 	})
 	if byOrderID.Order == nil || byOrderID.Order.OrderID != sample.OrderID {
 		t.Fatalf("get by order_id=%+v sample=%+v", byOrderID.Order, sample)
 	}
 	if sample.ClientOrderID != "" {
 		byClientID := testutil.CallRequired(t, "orders.get", func() (models.GetOrderResult, error) {
-			return client.Orders.Get(ctx, nil, nil, &sample.ClientOrderID, nil, false, false)
+			return client.Orders.Get(ctx, nil, models.OrderKeyByClientID(sample.ClientOrderID), nil, false, false)
 		})
 		if byClientID.Order == nil || byClientID.Order.ClientOrderID != sample.ClientOrderID {
 			t.Fatalf("get by client_order_id=%+v", byClientID.Order)

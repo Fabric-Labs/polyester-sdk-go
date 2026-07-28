@@ -69,7 +69,7 @@ func TestOrderRoundTripMutation(t *testing.T) {
 	}
 
 	detail := testutil.CallRequired(t, "orders.get", func() (models.GetOrderResult, error) {
-		return client.Orders.Get(ctx, nil, nil, &clientOrderID, nil, false, false)
+		return client.Orders.Get(ctx, nil, models.OrderKeyByClientID(clientOrderID), nil, false, false)
 	})
 	if detail.Order == nil || detail.Order.ClientOrderID != clientOrderID {
 		t.Fatalf("detail=%+v", detail.Order)
@@ -79,7 +79,7 @@ func TestOrderRoundTripMutation(t *testing.T) {
 		_, _ = client.Orders.CancelAll(ctx, nil, nil, &symbol, nil, false, nil)
 	}()
 
-	cancelled, err := client.Orders.Cancel(ctx, nil, nil, &clientOrderID, &symbol, nil, nil)
+	cancelled, err := client.Orders.Cancel(ctx, nil, models.OrderKeyByClientID(clientOrderID), &symbol, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

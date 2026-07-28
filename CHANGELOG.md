@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Breaking
+- Order identity for `Get` / `Cancel` / `Modify` / `WaitForOrderTradesComplete` and batch cancel/modify items is now a typed `models.OrderKey` (`OrderKeyByID` / `OrderKeyByClientID`) instead of two optional `*string` fields.
+
 ## 0.1.0a25
 
 Git tag: `v0.1.0a25`.

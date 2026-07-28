@@ -167,8 +167,7 @@ func CreateOrderToProto(req models.CreateOrderRequest, quantityScale int) (*orde
 // ModifyOrderToProto encodes modify order request.
 func ModifyOrderToProto(
 	symbol string,
-	orderID *string,
-	clientOrderID *string,
+	key models.OrderKey,
 	subAccountID *string,
 	requestID *string,
 	newPrice *models.PriceInput,
@@ -177,11 +176,6 @@ func ModifyOrderToProto(
 	newClientOrderID *string,
 	quantityScale int,
 ) (*orderv1.ModifyOrderRequest, error) {
-	hasOrderID := orderID != nil && *orderID != ""
-	hasClient := clientOrderID != nil && *clientOrderID != ""
-	if hasOrderID == hasClient {
-		return nil, &errors.ValidationError{Msg: "modify requires exactly one of order_id or client_order_id"}
-	}
 	if (newPrice == nil || !newPrice.IsSet()) && (newQty == nil || !newQty.IsSet()) {
 		return nil, &errors.ValidationError{Msg: "modify requires new_price, new_qty, and/or new_attached_risk"}
 	}
@@ -192,19 +186,8 @@ func ModifyOrderToProto(
 	proto := &orderv1.ModifyOrderRequest{
 		RequestId: resolvedRequestID,
 	}
-	if hasOrderID {
-		id, err := IDToInt(*orderID, "order_id")
-		if err != nil {
-			return nil, err
-		}
-		proto.Key = &orderv1.ModifyOrderRequest_OrderId{OrderId: id}
-	}
-	if hasClient {
-		validated, err := requiredClientID(*clientOrderID, "client_order_id")
-		if err != nil {
-			return nil, err
-		}
-		proto.Key = &orderv1.ModifyOrderRequest_ClientOrderId{ClientOrderId: validated}
+	if err := ApplyOrderKeyToModify(proto, key); err != nil {
+		return nil, err
 	}
 	if subAccountID != nil {
 		sub, err := IDToInt(*subAccountID, "sub_account_id")

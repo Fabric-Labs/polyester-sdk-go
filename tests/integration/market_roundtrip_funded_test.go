@@ -160,7 +160,7 @@ func TestMarketBuySellRoundtrip(t *testing.T) {
 		testutil.SoftSkip(t, "buy produced no fill (possible POLY-3028)")
 	}
 	buyProjection, err := client.Orders.WaitForOrderTradesComplete(
-		ctx, nil, nil, &buyCID, nil, 20*time.Second,
+		ctx, nil, models.OrderKeyByClientID(buyCID), nil, 20*time.Second,
 	)
 	if err != nil {
 		t.Fatalf("BUY trade projection did not reconcile: %v", err)
@@ -291,7 +291,7 @@ func cancelOpenTestOrders(t *testing.T, ctx context.Context, client *polyester.C
 			continue
 		}
 		cid := order.ClientOrderID
-		if _, err := client.Orders.Cancel(ctx, nil, nil, &cid, &symbol, nil, nil); err != nil {
+		if _, err := client.Orders.Cancel(ctx, nil, models.OrderKeyByClientID(cid), &symbol, nil, nil); err != nil {
 			t.Errorf("cleanup %s cancel %s failed: %v", label, cid, err)
 		}
 	}

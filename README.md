@@ -239,7 +239,7 @@ if err != nil {
 }
 fmt.Println(result.Status, result.OrderID)
 
-_, err = client.Orders.Cancel(ctx, nil, nil, &clientOrderID, &symbol, nil, nil)
+_, err = client.Orders.Cancel(ctx, nil, models.OrderKeyByClientID(clientOrderID), &symbol, nil, nil)
 ```
 
 `ClientOrderID` is **optional** (matches the API). Omit it for one-shot creates.
