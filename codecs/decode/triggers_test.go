@@ -48,6 +48,56 @@ func TestTriggerFromProtoMapsStopPrice(t *testing.T) {
 	}
 }
 
+func TestTriggerFromProtoProjectsTwapChildOrdersAndExecutedQty(t *testing.T) {
+	msg := &triggersv1.Trigger{
+		TriggerId: 11,
+		SymbolId:  1,
+		Symbol:    "BTC-USDT",
+		Status:    triggersv1.TriggerStatus_STATUS_RUNNING,
+		QtyScaled: 100_000_000,
+		Configuration: &triggersv1.Trigger_Twap{
+			Twap: &triggersv1.TwapTrigger{
+				Side:            orderv1.Side_BUY,
+				DurationMs:      60_000,
+				SliceIntervalMs: 5_000,
+				Execution: &triggersv1.TwapTrigger_MarketIoc{
+					MarketIoc: &triggersv1.TwapMarketIoc{},
+				},
+			},
+		},
+		RuntimeDetails: &triggersv1.Trigger_TwapState{
+			TwapState: &triggersv1.TwapDetails{
+				TwapDurationMs:      60_000,
+				TwapSliceIntervalMs: 5_000,
+				SliceIdx:            2,
+				SliceCount:          12,
+				ExecutedQtyScaled:   25_000_000,
+			},
+		},
+		ChildOrderIds:   []uint64{101, 202},
+		ClientTriggerId: "twap-1",
+	}
+	trigger := decode.TriggerFromProto(msg)
+	if trigger.TriggerType != "twap" || trigger.Side != "buy" || trigger.OrderType != "market" {
+		t.Fatalf("trigger=%+v", trigger)
+	}
+	if len(trigger.ChildOrderIDs) != 2 {
+		t.Fatalf("child_order_ids=%v", trigger.ChildOrderIDs)
+	}
+	if trigger.ChildOrderIDs[0] != codecs.FormatUint64ID(101) || trigger.ChildOrderIDs[1] != codecs.FormatUint64ID(202) {
+		t.Fatalf("child_order_ids=%v", trigger.ChildOrderIDs)
+	}
+	if trigger.Details == nil || trigger.Details.Case != "twap" {
+		t.Fatalf("details=%+v", trigger.Details)
+	}
+	if trigger.Details.SliceIdx != 2 || trigger.Details.SliceCount != 12 {
+		t.Fatalf("twap slices=%+v", trigger.Details)
+	}
+	if trigger.Details.ExecutedQty.Scaled() != 25_000_000 {
+		t.Fatalf("executed_qty=%+v", trigger.Details.ExecutedQty)
+	}
+}
+
 func TestTriggerStatusFromLabel(t *testing.T) {
 	st, err := decode.TriggerStatusFromLabel("armed")
 	if err != nil || st != triggersv1.TriggerStatus_STATUS_ARMED {

@@ -117,31 +117,15 @@ func (s *OrdersService) ListHistory(ctx context.Context, account AccountScope, s
 }
 
 // Get returns one order.
-func (s *OrdersService) Get(ctx context.Context, account AccountScope, orderID, clientOrderID, subAccountID *string, includeAttachedRisk, includeAttachedRiskState bool) (models.GetOrderResult, error) {
-	hasOrder := orderID != nil && *orderID != ""
-	hasClient := clientOrderID != nil && *clientOrderID != ""
-	if hasOrder == hasClient {
-		return models.GetOrderResult{}, &sdkerrors.ValidationError{Msg: "get requires exactly one of order_id or client_order_id"}
-	}
+func (s *OrdersService) Get(ctx context.Context, account AccountScope, key models.OrderKey, subAccountID *string, includeAttachedRisk, includeAttachedRiskState bool) (models.GetOrderResult, error) {
 	req := &orderv1.GetOrderRequest{
 		IncludeAttachedRisk: boolPtr(includeAttachedRisk), IncludeAttachedRiskState: boolPtr(includeAttachedRiskState),
 	}
 	if err := s.scoped.ApplyOptionalSubaccountIDPtr(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.GetOrderResult{}, err
 	}
-	if hasOrder {
-		id, err := codecs.IDToInt(*orderID, "order_id")
-		if err != nil {
-			return models.GetOrderResult{}, err
-		}
-		req.Key = &orderv1.GetOrderRequest_OrderId{OrderId: id}
-	}
-	if hasClient {
-		validated, err := codecs.ValidateClientOrderID(*clientOrderID)
-		if err != nil {
-			return models.GetOrderResult{}, err
-		}
-		req.Key = &orderv1.GetOrderRequest_ClientOrderId{ClientOrderId: validated}
+	if err := codecs.ApplyOrderKeyToGet(req, key); err != nil {
+		return models.GetOrderResult{}, err
 	}
 	return UnaryAuth(ctx, s.transport, s.readClient().GetOrder, req, decode.GetOrderFromProto)
 }
@@ -177,12 +161,7 @@ func (s *OrdersService) Create(ctx context.Context, req models.CreateOrderReques
 }
 
 // Cancel cancels an order.
-func (s *OrdersService) Cancel(ctx context.Context, account AccountScope, orderID, clientOrderID, symbol *string, symbolID *uint32, subAccountID *string) (models.OrderMutationResult, error) {
-	hasOrder := orderID != nil && *orderID != ""
-	hasClient := clientOrderID != nil && *clientOrderID != ""
-	if hasOrder == hasClient {
-		return models.OrderMutationResult{}, &sdkerrors.ValidationError{Msg: "cancel requires exactly one of order_id or client_order_id"}
-	}
+func (s *OrdersService) Cancel(ctx context.Context, account AccountScope, key models.OrderKey, symbol *string, symbolID *uint32, subAccountID *string) (models.OrderMutationResult, error) {
 	if symbol != nil && symbolID != nil {
 		return models.OrderMutationResult{}, &sdkerrors.ValidationError{Msg: "cancel accepts symbol or symbol_id, not both"}
 	}
@@ -190,19 +169,8 @@ func (s *OrdersService) Cancel(ctx context.Context, account AccountScope, orderI
 		return models.OrderMutationResult{}, &sdkerrors.ValidationError{Msg: "symbol_id must be non-zero when explicitly supplied"}
 	}
 	req := &orderv1.CancelOrderRequest{}
-	if hasOrder {
-		id, err := codecs.IDToInt(*orderID, "order_id")
-		if err != nil {
-			return models.OrderMutationResult{}, err
-		}
-		req.Key = &orderv1.CancelOrderRequest_OrderId{OrderId: id}
-	}
-	if hasClient {
-		validated, err := codecs.ValidateClientOrderID(*clientOrderID)
-		if err != nil {
-			return models.OrderMutationResult{}, err
-		}
-		req.Key = &orderv1.CancelOrderRequest_ClientOrderId{ClientOrderId: validated}
+	if err := codecs.ApplyOrderKeyToCancel(req, key); err != nil {
+		return models.OrderMutationResult{}, err
 	}
 	if symbolID != nil {
 		req.SymbolId = *symbolID
@@ -220,7 +188,7 @@ func (s *OrdersService) Cancel(ctx context.Context, account AccountScope, orderI
 }
 
 // Modify modifies an open order.
-func (s *OrdersService) Modify(ctx context.Context, account AccountScope, symbol string, orderID, clientOrderID, subAccountID, requestID *string, newPrice *models.PriceInput, newQty *models.QtyInput, behavior, newClientOrderID *string) (models.ModifyOrderResult, error) {
+func (s *OrdersService) Modify(ctx context.Context, account AccountScope, symbol string, key models.OrderKey, subAccountID, requestID *string, newPrice *models.PriceInput, newQty *models.QtyInput, behavior, newClientOrderID *string) (models.ModifyOrderResult, error) {
 	if err := s.ensureCatalogs(ctx); err != nil {
 		return models.ModifyOrderResult{}, err
 	}
@@ -232,7 +200,7 @@ func (s *OrdersService) Modify(ctx context.Context, account AccountScope, symbol
 	if err != nil {
 		return models.ModifyOrderResult{}, err
 	}
-	protoReq, err := codecs.ModifyOrderToProto(symbol, orderID, clientOrderID, sub, requestID, newPrice, newQty, behavior, newClientOrderID, scale)
+	protoReq, err := codecs.ModifyOrderToProto(symbol, key, sub, requestID, newPrice, newQty, behavior, newClientOrderID, scale)
 	if err != nil {
 		return models.ModifyOrderResult{}, err
 	}
@@ -331,7 +299,8 @@ func (s *OrdersService) Subscribe(ctx context.Context, accountID any) (*realtime
 func (s *OrdersService) WaitForOrderTradesComplete(
 	ctx context.Context,
 	account AccountScope,
-	orderID, clientOrderID, subAccountID *string,
+	key models.OrderKey,
+	subAccountID *string,
 	timeout time.Duration,
 ) (models.GetOrderResult, error) {
 	if timeout <= 0 {
@@ -343,7 +312,7 @@ func (s *OrdersService) WaitForOrderTradesComplete(
 		if err := ctx.Err(); err != nil {
 			return last, err
 		}
-		detail, err := s.Get(ctx, account, orderID, clientOrderID, subAccountID, false, false)
+		detail, err := s.Get(ctx, account, key, subAccountID, false, false)
 		if err != nil {
 			return last, err
 		}

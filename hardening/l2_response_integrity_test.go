@@ -70,7 +70,7 @@ func TestL2BatchCancelRejectsInconsistentCountsThroughPublicService(t *testing.T
 	_, err = client.Orders.BatchCancel(
 		context.Background(),
 		nil,
-		[]models.BatchCancelItem{{OrderID: &orderID}},
+		[]models.BatchCancelItem{{Key: models.OrderKeyByID(orderID)}},
 		nil,
 		nil,
 	)
@@ -184,7 +184,7 @@ func TestL2BatchModifyRejectsInconsistentCountsThroughPublicService(t *testing.T
 	_, err = client.Orders.BatchModify(
 		context.Background(),
 		nil,
-		[]models.BatchModifyItem{{OrderID: &orderID, NewPrice: &price}},
+		[]models.BatchModifyItem{{Key: models.OrderKeyByID(orderID), NewPrice: &price}},
 		nil,
 		&symbol,
 		nil,

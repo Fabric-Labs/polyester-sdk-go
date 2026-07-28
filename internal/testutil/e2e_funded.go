@@ -88,7 +88,7 @@ func WaitForFilledOrder(ctx context.Context, client *polyester.Client, clientOrd
 	deadline := time.Now().Add(timeout)
 	var last models.GetOrderResult
 	for time.Now().Before(deadline) {
-		detail, err := client.Orders.Get(ctx, nil, nil, &clientOrderID, nil, false, false)
+		detail, err := client.Orders.Get(ctx, nil, models.OrderKeyByClientID(clientOrderID), nil, false, false)
 		if err != nil {
 			return models.GetOrderResult{}, err
 		}

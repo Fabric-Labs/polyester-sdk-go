@@ -78,7 +78,7 @@ func WaitForOpenOrder(ctx context.Context, client *polyester.Client, clientOrder
 	deadline := time.Now().Add(timeout)
 	var lastStatus string
 	for time.Now().Before(deadline) {
-		detail, err := client.Orders.Get(ctx, nil, nil, &clientOrderID, nil, false, false)
+		detail, err := client.Orders.Get(ctx, nil, models.OrderKeyByClientID(clientOrderID), nil, false, false)
 		if err == nil && detail.Order != nil && detail.Order.ClientOrderID == clientOrderID {
 			order := *detail.Order
 			if order.Status == "" {
@@ -154,7 +154,7 @@ func WaitForTerminalOrder(ctx context.Context, client *polyester.Client, clientO
 	deadline := time.Now().Add(timeout)
 	var lastDetail models.GetOrderResult
 	for time.Now().Before(deadline) {
-		detail, err := client.Orders.Get(ctx, nil, nil, &clientOrderID, nil, false, false)
+		detail, err := client.Orders.Get(ctx, nil, models.OrderKeyByClientID(clientOrderID), nil, false, false)
 		if err == nil && detail.Order != nil && detail.Order.ClientOrderID == clientOrderID {
 			lastDetail = detail
 			if _, ok := terminalOrderStatuses[detail.Order.Status]; ok {

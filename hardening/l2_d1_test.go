@@ -15,6 +15,7 @@ import (
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1/ordersv1connect"
+	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
 type getOrderSeq struct {
@@ -72,12 +73,10 @@ func TestWaitForOrderTradesCompletePollsUntilSumMatches(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = client.Close() })
 
-	orderID := "1"
 	result, err := client.Orders.WaitForOrderTradesComplete(
 		context.Background(),
 		nil,
-		&orderID,
-		nil,
+		models.OrderKeyByID("1"),
 		nil,
 		2*time.Second,
 	)
@@ -123,9 +122,8 @@ func TestCancelRejectsInvalidClientOrderIDBeforeTransport(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = client.Close() })
 
-	clientOrderID := "bad id!"
 	_, err = client.Orders.Cancel(
-		context.Background(), nil, nil, &clientOrderID, nil, nil, nil,
+		context.Background(), nil, models.OrderKeyByClientID("bad id!"), nil, nil, nil,
 	)
 	var validationErr *sdkerrors.ValidationError
 	if !errors.As(err, &validationErr) {
@@ -133,7 +131,7 @@ func TestCancelRejectsInvalidClientOrderIDBeforeTransport(t *testing.T) {
 	}
 
 	_, err = client.Orders.Get(
-		context.Background(), nil, nil, &clientOrderID, nil, false, false,
+		context.Background(), nil, models.OrderKeyByClientID("bad id!"), nil, false, false,
 	)
 	validationErr = nil
 	if !errors.As(err, &validationErr) {

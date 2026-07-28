@@ -126,6 +126,24 @@ func TestParseAndFormatPriceTicks(t *testing.T) {
 	}
 }
 
+func TestParsePriceTicksRejectsTrailingDotAcceptsTrimmedWhitespace(t *testing.T) {
+	for _, raw := range []string{"65000.", "65.", "."} {
+		if _, err := ParsePriceTicks(raw, "price"); err == nil {
+			t.Fatalf("%q: expected rejection", raw)
+		}
+	}
+	// Leading/trailing whitespace is trimmed (TS value.trim() parity).
+	for _, raw := range []string{" 65000", "65000 ", "65000.0"} {
+		ticks, err := ParsePriceTicks(raw, "price")
+		if err != nil {
+			t.Fatalf("%q: %v", raw, err)
+		}
+		if ticks != 65_000_000_000 {
+			t.Fatalf("%q: ticks=%d", raw, ticks)
+		}
+	}
+}
+
 func TestParseAndFormatQtyScaled(t *testing.T) {
 	qty, err := ParseQtyScaled("1.5", 8, "qty")
 	if err != nil {

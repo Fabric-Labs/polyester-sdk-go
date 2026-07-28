@@ -42,21 +42,19 @@ func BatchCreateOrdersToProto(items []models.CreateOrderRequest, subAccountID *s
 
 // BatchCancelItemToProto encodes one batch cancel item.
 func BatchCancelItemToProto(item models.BatchCancelItem) (*orderv1.BatchCancelItem, error) {
-	hasOrderID := item.OrderID != nil && *item.OrderID != ""
-	hasClient := item.ClientOrderID != nil && *item.ClientOrderID != ""
-	if hasOrderID == hasClient {
-		return nil, &errors.ValidationError{Msg: "each batch cancel item requires exactly one of order_id or client_order_id"}
+	if !item.Key.IsSet() {
+		return nil, &errors.ValidationError{Msg: "each batch cancel item requires an OrderKey (OrderKeyByID or OrderKeyByClientID)"}
 	}
 	proto := &orderv1.BatchCancelItem{}
-	if hasOrderID {
-		id, err := IDToInt(*item.OrderID, "order_id")
+	if orderID, ok := item.Key.OrderID(); ok {
+		id, err := IDToInt(orderID, "order_id")
 		if err != nil {
 			return nil, err
 		}
 		proto.OrderId = id
-	}
-	if hasClient {
-		validated, err := requiredClientID(*item.ClientOrderID, "client_order_id")
+	} else {
+		clientOrderID, _ := item.Key.ClientOrderID()
+		validated, err := requiredClientID(clientOrderID, "client_order_id")
 		if err != nil {
 			return nil, err
 		}
@@ -99,24 +97,22 @@ func BatchCancelOrdersToProto(items []models.BatchCancelItem, subAccountID *stri
 
 // BatchModifyItemToProto encodes one batch modify item.
 func BatchModifyItemToProto(item models.BatchModifyItem, quantityScale int) (*orderv1.BatchModifyItem, error) {
-	hasOrderID := item.OrderID != nil && *item.OrderID != ""
-	hasClient := item.ClientOrderID != nil && *item.ClientOrderID != ""
-	if hasOrderID == hasClient {
-		return nil, &errors.ValidationError{Msg: "each batch item requires exactly one of order_id or client_order_id"}
+	if !item.Key.IsSet() {
+		return nil, &errors.ValidationError{Msg: "each batch item requires an OrderKey (OrderKeyByID or OrderKeyByClientID)"}
 	}
 	if (item.NewPrice == nil || !item.NewPrice.IsSet()) && (item.NewQty == nil || !item.NewQty.IsSet()) {
 		return nil, &errors.ValidationError{Msg: "each batch item requires new_price and/or new_qty"}
 	}
 	proto := &orderv1.BatchModifyItem{}
-	if hasOrderID {
-		id, err := IDToInt(*item.OrderID, "order_id")
+	if orderID, ok := item.Key.OrderID(); ok {
+		id, err := IDToInt(orderID, "order_id")
 		if err != nil {
 			return nil, err
 		}
 		proto.Key = &orderv1.BatchModifyItem_OrderId{OrderId: id}
-	}
-	if hasClient {
-		validated, err := requiredClientID(*item.ClientOrderID, "client_order_id")
+	} else {
+		clientOrderID, _ := item.Key.ClientOrderID()
+		validated, err := requiredClientID(clientOrderID, "client_order_id")
 		if err != nil {
 			return nil, err
 		}

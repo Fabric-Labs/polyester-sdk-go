@@ -116,7 +116,7 @@ func TestBatchModifyFiveRoundsOfForty(t *testing.T) {
 			p := modifyPrice
 			nc := newCID
 			items = append(items, models.BatchModifyItem{
-				ClientOrderID:    &cid,
+				Key:              models.OrderKeyByClientID(cid),
 				NewPrice:         &p,
 				NewClientOrderID: &nc,
 			})
