@@ -161,14 +161,17 @@ func triggerDetailsFromProto(msg *triggersv1.Trigger) *models.TriggerDetails {
 		if twap == nil {
 			return nil
 		}
-		return &models.TriggerDetails{
+		out := &models.TriggerDetails{
 			Case:                "twap",
 			TwapDurationMs:      twap.GetTwapDurationMs(),
 			TwapSliceIntervalMs: twap.GetTwapSliceIntervalMs(),
 			SliceIdx:            twap.GetSliceIdx(),
 			SliceCount:          twap.GetSliceCount(),
-			ExecutedQty:         codecs.DecodeQtyScaled(twap.GetExecutedQtyScaled(), -1, symbol, &sid),
 		}
+		if twap.GetExecutedQtyScaled() != 0 {
+			out.ExecutedQty = codecs.DecodeQtyScaled(twap.GetExecutedQtyScaled(), -1, symbol, &sid)
+		}
+		return out
 	case *triggersv1.Trigger_LadderState:
 		ladder := d.LadderState
 		if ladder == nil {

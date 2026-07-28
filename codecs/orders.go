@@ -111,6 +111,11 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale int) (*orde
 		if req.PostOnly {
 			return nil, &errors.ValidationError{Msg: "post_only is not supported for market orders"}
 		}
+		if hasPrice {
+			return nil, &errors.ValidationError{
+				Msg: "price is not valid for market orders; use market_client_ref_price for a reservation reference",
+			}
+		}
 		market := &orderv1.MarketIoc{}
 		if req.MarketClientRefPrice != nil && req.MarketClientRefPrice.IsSet() {
 			ticks, err := ResolvePriceTicks(*req.MarketClientRefPrice, "market_client_ref_price", symbol)
