@@ -2,8 +2,17 @@
 
 ## Unreleased
 
+## 0.1.0a26
+
+Git tag: `v0.1.0a26`.
+
 ### Breaking
 - Order identity for `Get` / `Cancel` / `Modify` / `WaitForOrderTradesComplete` and batch cancel/modify items is now a typed `models.OrderKey` (`OrderKeyByID` / `OrderKeyByClientID`) instead of two optional `*string` fields.
+
+### Fixed
+- Reject market creates that also supply a limit `price`.
+- Decimal price parsing stays exact (no float intermediate).
+- TWAP trigger projection coverage for proto decode paths.
 
 ## 0.1.0a25
 
