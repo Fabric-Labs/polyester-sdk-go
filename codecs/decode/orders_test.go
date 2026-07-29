@@ -237,30 +237,52 @@ func TestBatchCancelRejectsCountMismatchAndUnknownStatus(t *testing.T) {
 	}
 }
 
-func TestBatchModifyReconcilesActionsAndCounts(t *testing.T) {
-	valid := &orderv1.BatchModifyOrdersResponse{
-		Results: []*orderv1.BatchModifyResultItem{
-			{Status: "modified", ActionTaken: orderv1.ModifyActionTaken_AMENDED},
-			{Status: "modified", ActionTaken: orderv1.ModifyActionTaken_REPLACED},
-			{Status: "rejected"},
+func TestBatchReplaceReconcilesAdmissionCounts(t *testing.T) {
+	valid := &orderv1.BatchReplaceOrdersResponse{
+		BatchRequestId: 42,
+		Status:         orderv1.BatchReplaceAdmissionStatus_BATCH_REPLACE_ADMISSION_STATUS_PARTIALLY_ADMITTED,
+		Results: []*orderv1.BatchReplaceAdmissionItem{
+			{ItemIndex: 0, Status: orderv1.BatchReplaceItemAdmissionStatus_BATCH_REPLACE_ITEM_ADMISSION_STATUS_ADMITTED, OldOrderId: 1, ReplacementOrderId: 2},
+			{ItemIndex: 1, Status: orderv1.BatchReplaceItemAdmissionStatus_BATCH_REPLACE_ITEM_ADMISSION_STATUS_REJECTED, OldOrderId: 3, Code: "REJECTED"},
 		},
-		AmendedCount:  1,
-		ReplacedCount: 1,
+		AcceptedCount: 1,
 		RejectedCount: 1,
 	}
-	result, err := decode.BatchModifyFromProto(valid)
+	result, err := decode.BatchReplaceFromProto(valid)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.AmendedCount != 1 || result.ReplacedCount != 1 || result.RejectedCount != 1 {
+	if result.BatchRequestID == "" || result.BatchRequestID == "0" || result.Status != "partially_admitted" ||
+		result.AcceptedCount != 1 || result.RejectedCount != 1 {
 		t.Fatalf("result=%+v", result)
 	}
 
-	valid.AmendedCount = 2
-	_, err = decode.BatchModifyFromProto(valid)
+	valid.AcceptedCount = 2
+	_, err = decode.BatchReplaceFromProto(valid)
 	var contractErr *sdkerrors.ResponseContractError
 	if !errors.As(err, &contractErr) {
 		t.Fatalf("expected ResponseContractError for count mismatch, got %T: %v", err, err)
+	}
+}
+
+func TestBatchReplaceStatusDecodesPhases(t *testing.T) {
+	result, err := decode.BatchReplaceStatusFromProto(&orderv1.GetBatchReplaceStatusResponse{
+		BatchRequestId:  7,
+		AdmissionStatus: orderv1.BatchReplaceAdmissionStatus_BATCH_REPLACE_ADMISSION_STATUS_ADMITTED,
+		Items: []*orderv1.BatchReplaceStatusItem{
+			{ItemIndex: 0, Phase: orderv1.BatchReplacePhase_BATCH_REPLACE_PHASE_WORKING, OldOrderId: 1, ReplacementOrderId: 2, OrderStatus: orderv1.OrderStatus_WORKING},
+			{ItemIndex: 1, Phase: orderv1.BatchReplacePhase_BATCH_REPLACE_PHASE_TERMINAL, OldOrderId: 3, ReplacementOrderId: 4, OrderStatus: orderv1.OrderStatus_FILLED},
+		},
+		AcceptedCount: 2,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.BatchRequestID == "" || result.BatchRequestID == "0" || result.AdmissionStatus != "admitted" || len(result.Items) != 2 {
+		t.Fatalf("result=%+v", result)
+	}
+	if result.Items[0].Phase != "working" || result.Items[1].Phase != "terminal" {
+		t.Fatalf("phases=%+v", result.Items)
 	}
 }
 

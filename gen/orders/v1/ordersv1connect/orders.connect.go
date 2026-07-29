@@ -51,9 +51,9 @@ const (
 	// OrdersServiceModifyOrderProcedure is the fully-qualified name of the OrdersService's ModifyOrder
 	// RPC.
 	OrdersServiceModifyOrderProcedure = "/orders.v1.OrdersService/ModifyOrder"
-	// OrdersServiceBatchModifyOrdersProcedure is the fully-qualified name of the OrdersService's
-	// BatchModifyOrders RPC.
-	OrdersServiceBatchModifyOrdersProcedure = "/orders.v1.OrdersService/BatchModifyOrders"
+	// OrdersServiceBatchReplaceOrdersProcedure is the fully-qualified name of the OrdersService's
+	// BatchReplaceOrders RPC.
+	OrdersServiceBatchReplaceOrdersProcedure = "/orders.v1.OrdersService/BatchReplaceOrders"
 	// OrdersServiceBatchCancelOrdersProcedure is the fully-qualified name of the OrdersService's
 	// BatchCancelOrders RPC.
 	OrdersServiceBatchCancelOrdersProcedure = "/orders.v1.OrdersService/BatchCancelOrders"
@@ -80,8 +80,8 @@ type OrdersServiceClient interface {
 	BatchCreateOrders(context.Context, *connect.Request[v1.BatchCreateOrdersRequest]) (*connect.Response[v1.BatchCreateOrdersResponse], error)
 	// Modifies an existing order using explicit behavior policy.
 	ModifyOrder(context.Context, *connect.Request[v1.ModifyOrderRequest]) (*connect.Response[v1.ModifyOrderResponse], error)
-	// Modifies multiple existing orders in one request.
-	BatchModifyOrders(context.Context, *connect.Request[v1.BatchModifyOrdersRequest]) (*connect.Response[v1.BatchModifyOrdersResponse], error)
+	// Replaces same-symbol orders and returns after authoritative admission.
+	BatchReplaceOrders(context.Context, *connect.Request[v1.BatchReplaceOrdersRequest]) (*connect.Response[v1.BatchReplaceOrdersResponse], error)
 	// Cancels multiple orders by explicit ID in a single request.
 	// Per-item results are returned; partial success is the default.
 	// Final state is confirmed via the order update stream or read path.
@@ -135,10 +135,10 @@ func NewOrdersServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(ordersServiceMethods.ByName("ModifyOrder")),
 			connect.WithClientOptions(opts...),
 		),
-		batchModifyOrders: connect.NewClient[v1.BatchModifyOrdersRequest, v1.BatchModifyOrdersResponse](
+		batchReplaceOrders: connect.NewClient[v1.BatchReplaceOrdersRequest, v1.BatchReplaceOrdersResponse](
 			httpClient,
-			baseURL+OrdersServiceBatchModifyOrdersProcedure,
-			connect.WithSchema(ordersServiceMethods.ByName("BatchModifyOrders")),
+			baseURL+OrdersServiceBatchReplaceOrdersProcedure,
+			connect.WithSchema(ordersServiceMethods.ByName("BatchReplaceOrders")),
 			connect.WithClientOptions(opts...),
 		),
 		batchCancelOrders: connect.NewClient[v1.BatchCancelOrdersRequest, v1.BatchCancelOrdersResponse](
@@ -152,14 +152,14 @@ func NewOrdersServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 
 // ordersServiceClient implements OrdersServiceClient.
 type ordersServiceClient struct {
-	createOrder       *connect.Client[v1.CreateOrderRequest, v1.CreateOrderResponse]
-	cancelOrder       *connect.Client[v1.CancelOrderRequest, v1.CancelOrderResponse]
-	cancelAllOrders   *connect.Client[v1.CancelAllOrdersRequest, v1.CancelAllOrdersResponse]
-	cancelAllAfter    *connect.Client[v1.CancelAllAfterRequest, v1.CancelAllAfterResponse]
-	batchCreateOrders *connect.Client[v1.BatchCreateOrdersRequest, v1.BatchCreateOrdersResponse]
-	modifyOrder       *connect.Client[v1.ModifyOrderRequest, v1.ModifyOrderResponse]
-	batchModifyOrders *connect.Client[v1.BatchModifyOrdersRequest, v1.BatchModifyOrdersResponse]
-	batchCancelOrders *connect.Client[v1.BatchCancelOrdersRequest, v1.BatchCancelOrdersResponse]
+	createOrder        *connect.Client[v1.CreateOrderRequest, v1.CreateOrderResponse]
+	cancelOrder        *connect.Client[v1.CancelOrderRequest, v1.CancelOrderResponse]
+	cancelAllOrders    *connect.Client[v1.CancelAllOrdersRequest, v1.CancelAllOrdersResponse]
+	cancelAllAfter     *connect.Client[v1.CancelAllAfterRequest, v1.CancelAllAfterResponse]
+	batchCreateOrders  *connect.Client[v1.BatchCreateOrdersRequest, v1.BatchCreateOrdersResponse]
+	modifyOrder        *connect.Client[v1.ModifyOrderRequest, v1.ModifyOrderResponse]
+	batchReplaceOrders *connect.Client[v1.BatchReplaceOrdersRequest, v1.BatchReplaceOrdersResponse]
+	batchCancelOrders  *connect.Client[v1.BatchCancelOrdersRequest, v1.BatchCancelOrdersResponse]
 }
 
 // CreateOrder calls orders.v1.OrdersService.CreateOrder.
@@ -192,9 +192,9 @@ func (c *ordersServiceClient) ModifyOrder(ctx context.Context, req *connect.Requ
 	return c.modifyOrder.CallUnary(ctx, req)
 }
 
-// BatchModifyOrders calls orders.v1.OrdersService.BatchModifyOrders.
-func (c *ordersServiceClient) BatchModifyOrders(ctx context.Context, req *connect.Request[v1.BatchModifyOrdersRequest]) (*connect.Response[v1.BatchModifyOrdersResponse], error) {
-	return c.batchModifyOrders.CallUnary(ctx, req)
+// BatchReplaceOrders calls orders.v1.OrdersService.BatchReplaceOrders.
+func (c *ordersServiceClient) BatchReplaceOrders(ctx context.Context, req *connect.Request[v1.BatchReplaceOrdersRequest]) (*connect.Response[v1.BatchReplaceOrdersResponse], error) {
+	return c.batchReplaceOrders.CallUnary(ctx, req)
 }
 
 // BatchCancelOrders calls orders.v1.OrdersService.BatchCancelOrders.
@@ -223,8 +223,8 @@ type OrdersServiceHandler interface {
 	BatchCreateOrders(context.Context, *connect.Request[v1.BatchCreateOrdersRequest]) (*connect.Response[v1.BatchCreateOrdersResponse], error)
 	// Modifies an existing order using explicit behavior policy.
 	ModifyOrder(context.Context, *connect.Request[v1.ModifyOrderRequest]) (*connect.Response[v1.ModifyOrderResponse], error)
-	// Modifies multiple existing orders in one request.
-	BatchModifyOrders(context.Context, *connect.Request[v1.BatchModifyOrdersRequest]) (*connect.Response[v1.BatchModifyOrdersResponse], error)
+	// Replaces same-symbol orders and returns after authoritative admission.
+	BatchReplaceOrders(context.Context, *connect.Request[v1.BatchReplaceOrdersRequest]) (*connect.Response[v1.BatchReplaceOrdersResponse], error)
 	// Cancels multiple orders by explicit ID in a single request.
 	// Per-item results are returned; partial success is the default.
 	// Final state is confirmed via the order update stream or read path.
@@ -274,10 +274,10 @@ func NewOrdersServiceHandler(svc OrdersServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(ordersServiceMethods.ByName("ModifyOrder")),
 		connect.WithHandlerOptions(opts...),
 	)
-	ordersServiceBatchModifyOrdersHandler := connect.NewUnaryHandler(
-		OrdersServiceBatchModifyOrdersProcedure,
-		svc.BatchModifyOrders,
-		connect.WithSchema(ordersServiceMethods.ByName("BatchModifyOrders")),
+	ordersServiceBatchReplaceOrdersHandler := connect.NewUnaryHandler(
+		OrdersServiceBatchReplaceOrdersProcedure,
+		svc.BatchReplaceOrders,
+		connect.WithSchema(ordersServiceMethods.ByName("BatchReplaceOrders")),
 		connect.WithHandlerOptions(opts...),
 	)
 	ordersServiceBatchCancelOrdersHandler := connect.NewUnaryHandler(
@@ -300,8 +300,8 @@ func NewOrdersServiceHandler(svc OrdersServiceHandler, opts ...connect.HandlerOp
 			ordersServiceBatchCreateOrdersHandler.ServeHTTP(w, r)
 		case OrdersServiceModifyOrderProcedure:
 			ordersServiceModifyOrderHandler.ServeHTTP(w, r)
-		case OrdersServiceBatchModifyOrdersProcedure:
-			ordersServiceBatchModifyOrdersHandler.ServeHTTP(w, r)
+		case OrdersServiceBatchReplaceOrdersProcedure:
+			ordersServiceBatchReplaceOrdersHandler.ServeHTTP(w, r)
 		case OrdersServiceBatchCancelOrdersProcedure:
 			ordersServiceBatchCancelOrdersHandler.ServeHTTP(w, r)
 		default:
@@ -337,8 +337,8 @@ func (UnimplementedOrdersServiceHandler) ModifyOrder(context.Context, *connect.R
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orders.v1.OrdersService.ModifyOrder is not implemented"))
 }
 
-func (UnimplementedOrdersServiceHandler) BatchModifyOrders(context.Context, *connect.Request[v1.BatchModifyOrdersRequest]) (*connect.Response[v1.BatchModifyOrdersResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orders.v1.OrdersService.BatchModifyOrders is not implemented"))
+func (UnimplementedOrdersServiceHandler) BatchReplaceOrders(context.Context, *connect.Request[v1.BatchReplaceOrdersRequest]) (*connect.Response[v1.BatchReplaceOrdersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orders.v1.OrdersService.BatchReplaceOrders is not implemented"))
 }
 
 func (UnimplementedOrdersServiceHandler) BatchCancelOrders(context.Context, *connect.Request[v1.BatchCancelOrdersRequest]) (*connect.Response[v1.BatchCancelOrdersResponse], error) {

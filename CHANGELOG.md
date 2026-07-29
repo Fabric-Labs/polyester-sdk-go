@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Breaking
+- `Orders.BatchModify` / `models.BatchModify*` are replaced by admission-oriented `Orders.BatchReplace` / `models.BatchReplace*` (`BatchReplaceItem`, `BatchReplaceOrdersResult`). The write RPC returns a durable admission receipt (`batch_request_id`, accepted/rejected counts); poll `Orders.GetBatchReplaceStatus` for recoverable execution finality. Per-item `behavior` / request `behavior_default` / `allow_partial` are gone; batch replace is same-symbol quote refresh only.
+
 ## 0.1.0a26
 
 Git tag: `v0.1.0a26`.

@@ -36,12 +36,15 @@ func (*inconsistentBatchCancelHandler) BatchCancelOrders(context.Context, *conne
 	}), nil
 }
 
-func (*inconsistentBatchCancelHandler) BatchModifyOrders(context.Context, *connect.Request[orderv1.BatchModifyOrdersRequest]) (*connect.Response[orderv1.BatchModifyOrdersResponse], error) {
-	return connect.NewResponse(&orderv1.BatchModifyOrdersResponse{
-		Results: []*orderv1.BatchModifyResultItem{{
-			Status:       "modified",
-			ActionTaken:  orderv1.ModifyActionTaken_AMENDED,
-			FinalOrderId: 9,
+func (*inconsistentBatchCancelHandler) BatchReplaceOrders(context.Context, *connect.Request[orderv1.BatchReplaceOrdersRequest]) (*connect.Response[orderv1.BatchReplaceOrdersResponse], error) {
+	return connect.NewResponse(&orderv1.BatchReplaceOrdersResponse{
+		BatchRequestId: 11,
+		Status:         orderv1.BatchReplaceAdmissionStatus_BATCH_REPLACE_ADMISSION_STATUS_PARTIALLY_ADMITTED,
+		Results: []*orderv1.BatchReplaceAdmissionItem{{
+			ItemIndex:          0,
+			Status:             orderv1.BatchReplaceItemAdmissionStatus_BATCH_REPLACE_ITEM_ADMISSION_STATUS_ADMITTED,
+			OldOrderId:         9,
+			ReplacementOrderId: 10,
 		}},
 		RejectedCount: 1,
 	}), nil
@@ -152,7 +155,7 @@ func TestL2ColumnarCandlesRejectMisalignedColumnsThroughPublicService(t *testing
 	}
 }
 
-func TestL2BatchModifyRejectsInconsistentCountsThroughPublicService(t *testing.T) {
+func TestL2BatchReplaceRejectsInconsistentCountsThroughPublicService(t *testing.T) {
 	mux := http.NewServeMux()
 	path, handler := marketdatav1connect.NewMarketDataServiceHandler(&misalignedCandlesHandler{})
 	mux.Handle(path, handler)
@@ -180,16 +183,13 @@ func TestL2BatchModifyRejectsInconsistentCountsThroughPublicService(t *testing.T
 
 	orderID := "9"
 	price := models.PriceFromDecimal("1")
-	symbol := "BTC-USDT"
-	_, err = client.Orders.BatchModify(
+	_, err = client.Orders.BatchReplace(
 		context.Background(),
 		nil,
-		[]models.BatchModifyItem{{Key: models.OrderKeyByID(orderID), NewPrice: &price}},
+		[]models.BatchReplaceItem{{Key: models.OrderKeyByID(orderID), NewPrice: &price}},
+		"BTC-USDT",
 		nil,
-		&symbol,
 		nil,
-		nil,
-		false,
 	)
 	var contractErr *sdkerrors.ResponseContractError
 	if !errors.As(err, &contractErr) {

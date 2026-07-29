@@ -4,7 +4,6 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
-	"strings"
 )
 
 // BatchCreateOrdersToProto encodes a batch create request.
@@ -95,28 +94,28 @@ func BatchCancelOrdersToProto(items []models.BatchCancelItem, subAccountID *stri
 	return proto, nil
 }
 
-// BatchModifyItemToProto encodes one batch modify item.
-func BatchModifyItemToProto(item models.BatchModifyItem, quantityScale int) (*orderv1.BatchModifyItem, error) {
+// BatchReplaceItemToProto encodes one batch replace item.
+func BatchReplaceItemToProto(item models.BatchReplaceItem, quantityScale int) (*orderv1.BatchReplaceOrderItem, error) {
 	if !item.Key.IsSet() {
 		return nil, &errors.ValidationError{Msg: "each batch item requires an OrderKey (OrderKeyByID or OrderKeyByClientID)"}
 	}
 	if (item.NewPrice == nil || !item.NewPrice.IsSet()) && (item.NewQty == nil || !item.NewQty.IsSet()) {
 		return nil, &errors.ValidationError{Msg: "each batch item requires new_price and/or new_qty"}
 	}
-	proto := &orderv1.BatchModifyItem{}
+	proto := &orderv1.BatchReplaceOrderItem{}
 	if orderID, ok := item.Key.OrderID(); ok {
 		id, err := IDToInt(orderID, "order_id")
 		if err != nil {
 			return nil, err
 		}
-		proto.Key = &orderv1.BatchModifyItem_OrderId{OrderId: id}
+		proto.Key = &orderv1.BatchReplaceOrderItem_OrderId{OrderId: id}
 	} else {
 		clientOrderID, _ := item.Key.ClientOrderID()
 		validated, err := requiredClientID(clientOrderID, "client_order_id")
 		if err != nil {
 			return nil, err
 		}
-		proto.Key = &orderv1.BatchModifyItem_ClientOrderId{ClientOrderId: validated}
+		proto.Key = &orderv1.BatchReplaceOrderItem_ClientOrderId{ClientOrderId: validated}
 	}
 	if item.NewPrice != nil && item.NewPrice.IsSet() {
 		ticks, err := ResolvePriceTicks(*item.NewPrice, "new_price", "")
@@ -132,13 +131,6 @@ func BatchModifyItemToProto(item models.BatchModifyItem, quantityScale int) (*or
 		}
 		proto.NewQtyScaled = &qty
 	}
-	if item.Behavior != nil {
-		b, ok := modifyBehaviorToProto[strings.ToLower(*item.Behavior)]
-		if !ok {
-			return nil, &errors.ValidationError{Msg: "behavior must be amend_or_replace, amend_only, or replace_only"}
-		}
-		proto.Behavior = b
-	}
 	validatedNewID, err := optionalClientID(item.NewClientOrderID, "new_client_order_id")
 	if err != nil {
 		return nil, err
@@ -149,18 +141,21 @@ func BatchModifyItemToProto(item models.BatchModifyItem, quantityScale int) (*or
 	return proto, nil
 }
 
-// BatchModifyOrdersToProto encodes a batch modify request.
-func BatchModifyOrdersToProto(items []models.BatchModifyItem, subAccountID *string, requestID *string, behaviorDefault *string, allowPartial bool, quantityScale int) (*orderv1.BatchModifyOrdersRequest, error) {
+// BatchReplaceOrdersToProto encodes a batch replace request.
+func BatchReplaceOrdersToProto(items []models.BatchReplaceItem, symbolID uint32, subAccountID *string, requestID *string, quantityScale int) (*orderv1.BatchReplaceOrdersRequest, error) {
 	if len(items) == 0 {
-		return nil, &errors.ValidationError{Msg: "batch_modify requires at least one item"}
+		return nil, &errors.ValidationError{Msg: "batch_replace requires at least one item"}
 	}
-	resolvedRequestID, err := coalesceRequestID(requestID, "batch-mod")
+	if symbolID == 0 {
+		return nil, &errors.ValidationError{Msg: "batch_replace requires a resolved symbol_id"}
+	}
+	resolvedRequestID, err := coalesceRequestID(requestID, "batch-replace")
 	if err != nil {
 		return nil, err
 	}
-	proto := &orderv1.BatchModifyOrdersRequest{
-		RequestId:    resolvedRequestID,
-		AllowPartial: allowPartial,
+	proto := &orderv1.BatchReplaceOrdersRequest{
+		SymbolId:  symbolID,
+		RequestId: resolvedRequestID,
 	}
 	if subAccountID != nil && *subAccountID != "" {
 		sub, err := IDToInt(*subAccountID, "sub_account_id")
@@ -169,15 +164,8 @@ func BatchModifyOrdersToProto(items []models.BatchModifyItem, subAccountID *stri
 		}
 		proto.SubaccountId = &sub
 	}
-	if behaviorDefault != nil && *behaviorDefault != "" {
-		b, ok := modifyBehaviorToProto[strings.ToLower(*behaviorDefault)]
-		if !ok {
-			return nil, &errors.ValidationError{Msg: "behavior_default must be amend_or_replace, amend_only, or replace_only"}
-		}
-		proto.BehaviorDefault = b
-	}
 	for _, item := range items {
-		encoded, err := BatchModifyItemToProto(item, quantityScale)
+		encoded, err := BatchReplaceItemToProto(item, quantityScale)
 		if err != nil {
 			return nil, err
 		}

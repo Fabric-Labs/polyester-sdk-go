@@ -20,12 +20,11 @@ type CreateOrderRequest struct {
 	MarketClientRefPrice *PriceInput `json:"market_client_ref_price,omitempty"`
 }
 
-// BatchModifyItem is one item in orders.batch_modify.
-type BatchModifyItem struct {
+// BatchReplaceItem is one item in orders.batch_replace.
+type BatchReplaceItem struct {
 	Key              OrderKey    `json:"key"`
 	NewPrice         *PriceInput `json:"new_price,omitempty"`
 	NewQty           *QtyInput   `json:"new_qty,omitempty"`
-	Behavior         *string     `json:"behavior,omitempty"`
 	NewClientOrderID *string     `json:"new_client_order_id,omitempty"`
 }
 

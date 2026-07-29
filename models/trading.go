@@ -105,20 +105,46 @@ type CancelAllOrdersResult struct {
 	FailedCancels    int    `json:"failed_cancels,omitempty"`
 }
 
-// BatchModifyResultItem is one batch modify outcome.
-type BatchModifyResultItem struct {
-	Status        string `json:"status"`
-	ClientOrderID string `json:"client_order_id,omitempty"`
-	FinalOrderID  string `json:"final_order_id,omitempty"`
-	Code          string `json:"code,omitempty"`
+// BatchReplaceAdmissionItem is one admission outcome from batch_replace.
+type BatchReplaceAdmissionItem struct {
+	ItemIndex          uint32 `json:"item_index"`
+	Status             string `json:"status"`
+	OldOrderID         string `json:"old_order_id,omitempty"`
+	ReplacementOrderID string `json:"replacement_order_id,omitempty"`
+	ClientOrderID      string `json:"client_order_id,omitempty"`
+	Code               string `json:"code,omitempty"`
 }
 
-// BatchModifyOrdersResult summarizes batch modify.
-type BatchModifyOrdersResult struct {
-	Results       []BatchModifyResultItem `json:"results"`
-	AmendedCount  int                     `json:"amended_count,omitempty"`
-	ReplacedCount int                     `json:"replaced_count,omitempty"`
-	RejectedCount int                     `json:"rejected_count,omitempty"`
+// BatchReplaceOrdersResult is the durable admission receipt from batch_replace.
+type BatchReplaceOrdersResult struct {
+	BatchRequestID string                       `json:"batch_request_id"`
+	Status         string                       `json:"status"`
+	Results        []BatchReplaceAdmissionItem  `json:"results"`
+	AcceptedCount  int                          `json:"accepted_count,omitempty"`
+	RejectedCount  int                          `json:"rejected_count,omitempty"`
+	AcceptedTsNs   uint64                       `json:"accepted_ts_ns,omitempty"`
+}
+
+// BatchReplaceStatusItem is one recoverable execution status from get_batch_replace_status.
+type BatchReplaceStatusItem struct {
+	ItemIndex          uint32 `json:"item_index"`
+	Phase              string `json:"phase"`
+	OldOrderID         string `json:"old_order_id,omitempty"`
+	ReplacementOrderID string `json:"replacement_order_id,omitempty"`
+	OrderStatus        string `json:"order_status,omitempty"`
+	Code               string `json:"code,omitempty"`
+	UpdatedTsNs        uint64 `json:"updated_ts_ns,omitempty"`
+}
+
+// BatchReplaceStatusResult is the durable batch status from get_batch_replace_status.
+type BatchReplaceStatusResult struct {
+	BatchRequestID  string                   `json:"batch_request_id"`
+	AdmissionStatus string                   `json:"admission_status"`
+	Items           []BatchReplaceStatusItem `json:"items"`
+	AcceptedCount   int                      `json:"accepted_count,omitempty"`
+	RejectedCount   int                      `json:"rejected_count,omitempty"`
+	AcceptedTsNs    uint64                   `json:"accepted_ts_ns,omitempty"`
+	UpdatedTsNs     uint64                   `json:"updated_ts_ns,omitempty"`
 }
 
 // BatchCreateResultItem is one batch create outcome.
