@@ -45,6 +45,9 @@ const (
 	// OrdersReadServiceGetOrderProcedure is the fully-qualified name of the OrdersReadService's
 	// GetOrder RPC.
 	OrdersReadServiceGetOrderProcedure = "/orders.v1.OrdersReadService/GetOrder"
+	// OrdersReadServiceGetBatchReplaceStatusProcedure is the fully-qualified name of the
+	// OrdersReadService's GetBatchReplaceStatus RPC.
+	OrdersReadServiceGetBatchReplaceStatusProcedure = "/orders.v1.OrdersReadService/GetBatchReplaceStatus"
 )
 
 // OrdersReadServiceClient is a client for the orders.v1.OrdersReadService service.
@@ -60,6 +63,8 @@ type OrdersReadServiceClient interface {
 	GetUserTrades(context.Context, *connect.Request[v1.GetUserTradesRequest]) (*connect.Response[v1.GetUserTradesResponse], error)
 	// Retrieve a single order by order ID or client order ID, including related user trades and ledger transfers.
 	GetOrder(context.Context, *connect.Request[v1.GetOrderRequest]) (*connect.Response[v1.GetOrderResponse], error)
+	// Retrieve durable execution status for one admitted batch replacement.
+	GetBatchReplaceStatus(context.Context, *connect.Request[v1.GetBatchReplaceStatusRequest]) (*connect.Response[v1.GetBatchReplaceStatusResponse], error)
 }
 
 // NewOrdersReadServiceClient constructs a client for the orders.v1.OrdersReadService service. By
@@ -97,15 +102,22 @@ func NewOrdersReadServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(ordersReadServiceMethods.ByName("GetOrder")),
 			connect.WithClientOptions(opts...),
 		),
+		getBatchReplaceStatus: connect.NewClient[v1.GetBatchReplaceStatusRequest, v1.GetBatchReplaceStatusResponse](
+			httpClient,
+			baseURL+OrdersReadServiceGetBatchReplaceStatusProcedure,
+			connect.WithSchema(ordersReadServiceMethods.ByName("GetBatchReplaceStatus")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // ordersReadServiceClient implements OrdersReadServiceClient.
 type ordersReadServiceClient struct {
-	getOpenOrders   *connect.Client[v1.GetOpenOrdersRequest, v1.GetOpenOrdersResponse]
-	getOrderHistory *connect.Client[v1.GetOrderHistoryRequest, v1.GetOrderHistoryResponse]
-	getUserTrades   *connect.Client[v1.GetUserTradesRequest, v1.GetUserTradesResponse]
-	getOrder        *connect.Client[v1.GetOrderRequest, v1.GetOrderResponse]
+	getOpenOrders         *connect.Client[v1.GetOpenOrdersRequest, v1.GetOpenOrdersResponse]
+	getOrderHistory       *connect.Client[v1.GetOrderHistoryRequest, v1.GetOrderHistoryResponse]
+	getUserTrades         *connect.Client[v1.GetUserTradesRequest, v1.GetUserTradesResponse]
+	getOrder              *connect.Client[v1.GetOrderRequest, v1.GetOrderResponse]
+	getBatchReplaceStatus *connect.Client[v1.GetBatchReplaceStatusRequest, v1.GetBatchReplaceStatusResponse]
 }
 
 // GetOpenOrders calls orders.v1.OrdersReadService.GetOpenOrders.
@@ -128,6 +140,11 @@ func (c *ordersReadServiceClient) GetOrder(ctx context.Context, req *connect.Req
 	return c.getOrder.CallUnary(ctx, req)
 }
 
+// GetBatchReplaceStatus calls orders.v1.OrdersReadService.GetBatchReplaceStatus.
+func (c *ordersReadServiceClient) GetBatchReplaceStatus(ctx context.Context, req *connect.Request[v1.GetBatchReplaceStatusRequest]) (*connect.Response[v1.GetBatchReplaceStatusResponse], error) {
+	return c.getBatchReplaceStatus.CallUnary(ctx, req)
+}
+
 // OrdersReadServiceHandler is an implementation of the orders.v1.OrdersReadService service.
 type OrdersReadServiceHandler interface {
 	// Retrieve non-terminal orders for an account.
@@ -141,6 +158,8 @@ type OrdersReadServiceHandler interface {
 	GetUserTrades(context.Context, *connect.Request[v1.GetUserTradesRequest]) (*connect.Response[v1.GetUserTradesResponse], error)
 	// Retrieve a single order by order ID or client order ID, including related user trades and ledger transfers.
 	GetOrder(context.Context, *connect.Request[v1.GetOrderRequest]) (*connect.Response[v1.GetOrderResponse], error)
+	// Retrieve durable execution status for one admitted batch replacement.
+	GetBatchReplaceStatus(context.Context, *connect.Request[v1.GetBatchReplaceStatusRequest]) (*connect.Response[v1.GetBatchReplaceStatusResponse], error)
 }
 
 // NewOrdersReadServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -174,6 +193,12 @@ func NewOrdersReadServiceHandler(svc OrdersReadServiceHandler, opts ...connect.H
 		connect.WithSchema(ordersReadServiceMethods.ByName("GetOrder")),
 		connect.WithHandlerOptions(opts...),
 	)
+	ordersReadServiceGetBatchReplaceStatusHandler := connect.NewUnaryHandler(
+		OrdersReadServiceGetBatchReplaceStatusProcedure,
+		svc.GetBatchReplaceStatus,
+		connect.WithSchema(ordersReadServiceMethods.ByName("GetBatchReplaceStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/orders.v1.OrdersReadService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case OrdersReadServiceGetOpenOrdersProcedure:
@@ -184,6 +209,8 @@ func NewOrdersReadServiceHandler(svc OrdersReadServiceHandler, opts ...connect.H
 			ordersReadServiceGetUserTradesHandler.ServeHTTP(w, r)
 		case OrdersReadServiceGetOrderProcedure:
 			ordersReadServiceGetOrderHandler.ServeHTTP(w, r)
+		case OrdersReadServiceGetBatchReplaceStatusProcedure:
+			ordersReadServiceGetBatchReplaceStatusHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -207,4 +234,8 @@ func (UnimplementedOrdersReadServiceHandler) GetUserTrades(context.Context, *con
 
 func (UnimplementedOrdersReadServiceHandler) GetOrder(context.Context, *connect.Request[v1.GetOrderRequest]) (*connect.Response[v1.GetOrderResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orders.v1.OrdersReadService.GetOrder is not implemented"))
+}
+
+func (UnimplementedOrdersReadServiceHandler) GetBatchReplaceStatus(context.Context, *connect.Request[v1.GetBatchReplaceStatusRequest]) (*connect.Response[v1.GetBatchReplaceStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orders.v1.OrdersReadService.GetBatchReplaceStatus is not implemented"))
 }

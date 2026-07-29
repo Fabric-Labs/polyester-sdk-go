@@ -94,6 +94,67 @@ func (OrderStatus) EnumDescriptor() ([]byte, []int) {
 	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{0}
 }
 
+// BatchReplacePhase is the recoverable execution phase for one replacement.
+type BatchReplacePhase int32
+
+const (
+	// Phase is unavailable.
+	BatchReplacePhase_BATCH_REPLACE_PHASE_UNSPECIFIED BatchReplacePhase = 0
+	// The replacement was admitted and handed to execution.
+	BatchReplacePhase_BATCH_REPLACE_PHASE_ADMITTED BatchReplacePhase = 1
+	// The successor order is active.
+	BatchReplacePhase_BATCH_REPLACE_PHASE_WORKING BatchReplacePhase = 2
+	// The replacement was rejected.
+	BatchReplacePhase_BATCH_REPLACE_PHASE_REJECTED BatchReplacePhase = 3
+	// The successor reached a terminal order state.
+	BatchReplacePhase_BATCH_REPLACE_PHASE_TERMINAL BatchReplacePhase = 4
+)
+
+// Enum value maps for BatchReplacePhase.
+var (
+	BatchReplacePhase_name = map[int32]string{
+		0: "BATCH_REPLACE_PHASE_UNSPECIFIED",
+		1: "BATCH_REPLACE_PHASE_ADMITTED",
+		2: "BATCH_REPLACE_PHASE_WORKING",
+		3: "BATCH_REPLACE_PHASE_REJECTED",
+		4: "BATCH_REPLACE_PHASE_TERMINAL",
+	}
+	BatchReplacePhase_value = map[string]int32{
+		"BATCH_REPLACE_PHASE_UNSPECIFIED": 0,
+		"BATCH_REPLACE_PHASE_ADMITTED":    1,
+		"BATCH_REPLACE_PHASE_WORKING":     2,
+		"BATCH_REPLACE_PHASE_REJECTED":    3,
+		"BATCH_REPLACE_PHASE_TERMINAL":    4,
+	}
+)
+
+func (x BatchReplacePhase) Enum() *BatchReplacePhase {
+	p := new(BatchReplacePhase)
+	*p = x
+	return p
+}
+
+func (x BatchReplacePhase) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (BatchReplacePhase) Descriptor() protoreflect.EnumDescriptor {
+	return file_orders_v1_orders_read_proto_enumTypes[1].Descriptor()
+}
+
+func (BatchReplacePhase) Type() protoreflect.EnumType {
+	return &file_orders_v1_orders_read_proto_enumTypes[1]
+}
+
+func (x BatchReplacePhase) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use BatchReplacePhase.Descriptor instead.
+func (BatchReplacePhase) EnumDescriptor() ([]byte, []int) {
+	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{1}
+}
+
 // OrderOriginScope captures broad origin classes for an order.
 type OrderOriginScope int32
 
@@ -139,11 +200,11 @@ func (x OrderOriginScope) String() string {
 }
 
 func (OrderOriginScope) Descriptor() protoreflect.EnumDescriptor {
-	return file_orders_v1_orders_read_proto_enumTypes[1].Descriptor()
+	return file_orders_v1_orders_read_proto_enumTypes[2].Descriptor()
 }
 
 func (OrderOriginScope) Type() protoreflect.EnumType {
-	return &file_orders_v1_orders_read_proto_enumTypes[1]
+	return &file_orders_v1_orders_read_proto_enumTypes[2]
 }
 
 func (x OrderOriginScope) Number() protoreflect.EnumNumber {
@@ -152,7 +213,7 @@ func (x OrderOriginScope) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use OrderOriginScope.Descriptor instead.
 func (OrderOriginScope) EnumDescriptor() ([]byte, []int) {
-	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{1}
+	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{2}
 }
 
 // OrderTriggerType captures the trigger strategy that generated the order.
@@ -204,11 +265,11 @@ func (x OrderTriggerType) String() string {
 }
 
 func (OrderTriggerType) Descriptor() protoreflect.EnumDescriptor {
-	return file_orders_v1_orders_read_proto_enumTypes[2].Descriptor()
+	return file_orders_v1_orders_read_proto_enumTypes[3].Descriptor()
 }
 
 func (OrderTriggerType) Type() protoreflect.EnumType {
-	return &file_orders_v1_orders_read_proto_enumTypes[2]
+	return &file_orders_v1_orders_read_proto_enumTypes[3]
 }
 
 func (x OrderTriggerType) Number() protoreflect.EnumNumber {
@@ -217,7 +278,7 @@ func (x OrderTriggerType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use OrderTriggerType.Descriptor instead.
 func (OrderTriggerType) EnumDescriptor() ([]byte, []int) {
-	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{2}
+	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{3}
 }
 
 // Runtime lifecycle for an attached-risk trigger leg.
@@ -281,11 +342,11 @@ func (x AttachedRiskLegState_Status) String() string {
 }
 
 func (AttachedRiskLegState_Status) Descriptor() protoreflect.EnumDescriptor {
-	return file_orders_v1_orders_read_proto_enumTypes[3].Descriptor()
+	return file_orders_v1_orders_read_proto_enumTypes[4].Descriptor()
 }
 
 func (AttachedRiskLegState_Status) Type() protoreflect.EnumType {
-	return &file_orders_v1_orders_read_proto_enumTypes[3]
+	return &file_orders_v1_orders_read_proto_enumTypes[4]
 }
 
 func (x AttachedRiskLegState_Status) Number() protoreflect.EnumNumber {
@@ -766,9 +827,11 @@ type Order struct {
 	MarketMaxSlippageBps int32 `protobuf:"varint,25,opt,name=market_max_slippage_bps,json=marketMaxSlippageBps,proto3" json:"market_max_slippage_bps,omitempty"`
 	// Per-order state version. Starts at 1 and increases for every published
 	// state change. Use this field to reconcile API and realtime updates.
-	Version       uint32 `protobuf:"varint,26,opt,name=version,proto3" json:"version,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Version uint32 `protobuf:"varint,26,opt,name=version,proto3" json:"version,omitempty"`
+	// Batch-replace identity that admitted this order. Zero for other origins.
+	BatchRequestId uint64 `protobuf:"fixed64,27,opt,name=batch_request_id,json=batchRequestId,proto3" json:"batch_request_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Order) Reset() {
@@ -972,6 +1035,13 @@ func (x *Order) GetMarketMaxSlippageBps() int32 {
 func (x *Order) GetVersion() uint32 {
 	if x != nil {
 		return x.Version
+	}
+	return 0
+}
+
+func (x *Order) GetBatchRequestId() uint64 {
+	if x != nil {
+		return x.BatchRequestId
 	}
 	return 0
 }
@@ -1902,6 +1972,261 @@ func (x *GetOrderResponse) GetTransfers() []*OrderTransfer {
 	return nil
 }
 
+// GetBatchReplaceStatusRequest retrieves one admitted batch by server identity.
+type GetBatchReplaceStatusRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Target sub-account numeric ID. When omitted, uses caller's root account.
+	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
+	// Server-issued batch identity from BatchReplaceOrders.
+	BatchRequestId uint64 `protobuf:"fixed64,2,opt,name=batch_request_id,json=batchRequestId,proto3" json:"batch_request_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GetBatchReplaceStatusRequest) Reset() {
+	*x = GetBatchReplaceStatusRequest{}
+	mi := &file_orders_v1_orders_read_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBatchReplaceStatusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBatchReplaceStatusRequest) ProtoMessage() {}
+
+func (x *GetBatchReplaceStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_orders_read_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBatchReplaceStatusRequest.ProtoReflect.Descriptor instead.
+func (*GetBatchReplaceStatusRequest) Descriptor() ([]byte, []int) {
+	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *GetBatchReplaceStatusRequest) GetSubaccountId() uint64 {
+	if x != nil && x.SubaccountId != nil {
+		return *x.SubaccountId
+	}
+	return 0
+}
+
+func (x *GetBatchReplaceStatusRequest) GetBatchRequestId() uint64 {
+	if x != nil {
+		return x.BatchRequestId
+	}
+	return 0
+}
+
+// BatchReplaceStatusItem is the index-stable execution status for one replacement.
+type BatchReplaceStatusItem struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Zero-based item index from the write request.
+	ItemIndex uint32 `protobuf:"varint,1,opt,name=item_index,json=itemIndex,proto3" json:"item_index,omitempty"`
+	// Current recoverable phase.
+	Phase BatchReplacePhase `protobuf:"varint,2,opt,name=phase,proto3,enum=orders.v1.BatchReplacePhase" json:"phase,omitempty"`
+	// Original order targeted by the replacement.
+	OldOrderId uint64 `protobuf:"fixed64,3,opt,name=old_order_id,json=oldOrderId,proto3" json:"old_order_id,omitempty"`
+	// Assigned successor order ID. Zero when rejected before assignment.
+	ReplacementOrderId uint64 `protobuf:"fixed64,4,opt,name=replacement_order_id,json=replacementOrderId,proto3" json:"replacement_order_id,omitempty"`
+	// Current successor order status when available.
+	OrderStatus OrderStatus `protobuf:"varint,5,opt,name=order_status,json=orderStatus,proto3,enum=orders.v1.OrderStatus" json:"order_status,omitempty"`
+	// Stable rejection or terminal error code. Empty when none.
+	Code string `protobuf:"bytes,6,opt,name=code,proto3" json:"code,omitempty"`
+	// Latest status timestamp in nanoseconds since epoch.
+	UpdatedTsNs   uint64 `protobuf:"varint,7,opt,name=updated_ts_ns,json=updatedTsNs,proto3" json:"updated_ts_ns,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BatchReplaceStatusItem) Reset() {
+	*x = BatchReplaceStatusItem{}
+	mi := &file_orders_v1_orders_read_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BatchReplaceStatusItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BatchReplaceStatusItem) ProtoMessage() {}
+
+func (x *BatchReplaceStatusItem) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_orders_read_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BatchReplaceStatusItem.ProtoReflect.Descriptor instead.
+func (*BatchReplaceStatusItem) Descriptor() ([]byte, []int) {
+	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *BatchReplaceStatusItem) GetItemIndex() uint32 {
+	if x != nil {
+		return x.ItemIndex
+	}
+	return 0
+}
+
+func (x *BatchReplaceStatusItem) GetPhase() BatchReplacePhase {
+	if x != nil {
+		return x.Phase
+	}
+	return BatchReplacePhase_BATCH_REPLACE_PHASE_UNSPECIFIED
+}
+
+func (x *BatchReplaceStatusItem) GetOldOrderId() uint64 {
+	if x != nil {
+		return x.OldOrderId
+	}
+	return 0
+}
+
+func (x *BatchReplaceStatusItem) GetReplacementOrderId() uint64 {
+	if x != nil {
+		return x.ReplacementOrderId
+	}
+	return 0
+}
+
+func (x *BatchReplaceStatusItem) GetOrderStatus() OrderStatus {
+	if x != nil {
+		return x.OrderStatus
+	}
+	return OrderStatus_ORDER_STATUS_UNSPECIFIED
+}
+
+func (x *BatchReplaceStatusItem) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *BatchReplaceStatusItem) GetUpdatedTsNs() uint64 {
+	if x != nil {
+		return x.UpdatedTsNs
+	}
+	return 0
+}
+
+// GetBatchReplaceStatusResponse returns durable batch and per-item finality.
+type GetBatchReplaceStatusResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Server-issued batch identity.
+	BatchRequestId uint64 `protobuf:"fixed64,1,opt,name=batch_request_id,json=batchRequestId,proto3" json:"batch_request_id,omitempty"`
+	// Aggregate admission status returned by the write receipt.
+	AdmissionStatus BatchReplaceAdmissionStatus `protobuf:"varint,2,opt,name=admission_status,json=admissionStatus,proto3,enum=orders.v1.BatchReplaceAdmissionStatus" json:"admission_status,omitempty"`
+	// Per-item statuses in request order.
+	Items []*BatchReplaceStatusItem `protobuf:"bytes,3,rep,name=items,proto3" json:"items,omitempty"`
+	// Number of admitted items.
+	AcceptedCount uint32 `protobuf:"varint,4,opt,name=accepted_count,json=acceptedCount,proto3" json:"accepted_count,omitempty"`
+	// Number of rejected items.
+	RejectedCount uint32 `protobuf:"varint,5,opt,name=rejected_count,json=rejectedCount,proto3" json:"rejected_count,omitempty"`
+	// Server acceptance timestamp in nanoseconds since epoch.
+	AcceptedTsNs uint64 `protobuf:"varint,6,opt,name=accepted_ts_ns,json=acceptedTsNs,proto3" json:"accepted_ts_ns,omitempty"`
+	// Latest batch status timestamp in nanoseconds since epoch.
+	UpdatedTsNs   uint64 `protobuf:"varint,7,opt,name=updated_ts_ns,json=updatedTsNs,proto3" json:"updated_ts_ns,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetBatchReplaceStatusResponse) Reset() {
+	*x = GetBatchReplaceStatusResponse{}
+	mi := &file_orders_v1_orders_read_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBatchReplaceStatusResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBatchReplaceStatusResponse) ProtoMessage() {}
+
+func (x *GetBatchReplaceStatusResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_orders_read_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBatchReplaceStatusResponse.ProtoReflect.Descriptor instead.
+func (*GetBatchReplaceStatusResponse) Descriptor() ([]byte, []int) {
+	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *GetBatchReplaceStatusResponse) GetBatchRequestId() uint64 {
+	if x != nil {
+		return x.BatchRequestId
+	}
+	return 0
+}
+
+func (x *GetBatchReplaceStatusResponse) GetAdmissionStatus() BatchReplaceAdmissionStatus {
+	if x != nil {
+		return x.AdmissionStatus
+	}
+	return BatchReplaceAdmissionStatus_BATCH_REPLACE_ADMISSION_STATUS_UNSPECIFIED
+}
+
+func (x *GetBatchReplaceStatusResponse) GetItems() []*BatchReplaceStatusItem {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+func (x *GetBatchReplaceStatusResponse) GetAcceptedCount() uint32 {
+	if x != nil {
+		return x.AcceptedCount
+	}
+	return 0
+}
+
+func (x *GetBatchReplaceStatusResponse) GetRejectedCount() uint32 {
+	if x != nil {
+		return x.RejectedCount
+	}
+	return 0
+}
+
+func (x *GetBatchReplaceStatusResponse) GetAcceptedTsNs() uint64 {
+	if x != nil {
+		return x.AcceptedTsNs
+	}
+	return 0
+}
+
+func (x *GetBatchReplaceStatusResponse) GetUpdatedTsNs() uint64 {
+	if x != nil {
+		return x.UpdatedTsNs
+	}
+	return 0
+}
+
 var File_orders_v1_orders_read_proto protoreflect.FileDescriptor
 
 const file_orders_v1_orders_read_proto_rawDesc = "" +
@@ -1951,7 +2276,7 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"takeProfit\x12<\n" +
 	"\tstop_loss\x18\x02 \x01(\v2\x1f.orders.v1.AttachedRiskStopLossR\bstopLoss\x12H\n" +
 	"\rtrailing_stop\x18\x03 \x01(\v2#.orders.v1.AttachedRiskTrailingStopR\ftrailingStop\x12\x10\n" +
-	"\x03oco\x18\x04 \x01(\bR\x03oco\"\xbb\t\n" +
+	"\x03oco\x18\x04 \x01(\bR\x03oco\"\xe5\t\n" +
 	"\x05Order\x12\x19\n" +
 	"\border_id\x18\x01 \x01(\x06R\aorderId\x12\x1b\n" +
 	"\tsymbol_id\x18\x03 \x01(\rR\bsymbolId\x12D\n" +
@@ -1982,7 +2307,8 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\x19market_max_slippage_ticks\x18\x18 \x01(\x05R\x16marketMaxSlippageTicks\x125\n" +
 	"\x17market_max_slippage_bps\x18\x19 \x01(\x05R\x14marketMaxSlippageBps\x12'\n" +
 	"\aversion\x18\x1a \x01(\rB\r\xbaH\n" +
-	"*\b\x18\xff\xff\xff\xff\a(\x01R\aversion\"\x85\x03\n" +
+	"*\b\x18\xff\xff\xff\xff\a(\x01R\aversion\x12(\n" +
+	"\x10batch_request_id\x18\x1b \x01(\x06R\x0ebatchRequestId\"\x85\x03\n" +
 	"\tUserTrade\x12\x1b\n" +
 	"\tsymbol_id\x18\x02 \x01(\rR\bsymbolId\x12\x19\n" +
 	"\bmatch_id\x18\x03 \x01(\x04R\amatchId\x12\x19\n" +
@@ -2090,7 +2416,29 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\x10GetOrderResponse\x12&\n" +
 	"\x05order\x18\x01 \x01(\v2\x10.orders.v1.OrderR\x05order\x12,\n" +
 	"\x06trades\x18\x02 \x03(\v2\x14.orders.v1.UserTradeR\x06trades\x126\n" +
-	"\ttransfers\x18\x03 \x03(\v2\x18.orders.v1.OrderTransferR\ttransfers*\x81\x01\n" +
+	"\ttransfers\x18\x03 \x03(\v2\x18.orders.v1.OrderTransferR\ttransfers\"\xa4\x01\n" +
+	"\x1cGetBatchReplaceStatusRequest\x128\n" +
+	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01\x128\n" +
+	"\x10batch_request_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x0ebatchRequestIdB\x10\n" +
+	"\x0e_subaccount_id\"\xb2\x02\n" +
+	"\x16BatchReplaceStatusItem\x12\x1d\n" +
+	"\n" +
+	"item_index\x18\x01 \x01(\rR\titemIndex\x122\n" +
+	"\x05phase\x18\x02 \x01(\x0e2\x1c.orders.v1.BatchReplacePhaseR\x05phase\x12 \n" +
+	"\fold_order_id\x18\x03 \x01(\x06R\n" +
+	"oldOrderId\x120\n" +
+	"\x14replacement_order_id\x18\x04 \x01(\x06R\x12replacementOrderId\x129\n" +
+	"\forder_status\x18\x05 \x01(\x0e2\x16.orders.v1.OrderStatusR\vorderStatus\x12\x12\n" +
+	"\x04code\x18\x06 \x01(\tR\x04code\x12\"\n" +
+	"\rupdated_ts_ns\x18\a \x01(\x04R\vupdatedTsNs\"\xed\x02\n" +
+	"\x1dGetBatchReplaceStatusResponse\x12(\n" +
+	"\x10batch_request_id\x18\x01 \x01(\x06R\x0ebatchRequestId\x12Q\n" +
+	"\x10admission_status\x18\x02 \x01(\x0e2&.orders.v1.BatchReplaceAdmissionStatusR\x0fadmissionStatus\x127\n" +
+	"\x05items\x18\x03 \x03(\v2!.orders.v1.BatchReplaceStatusItemR\x05items\x12%\n" +
+	"\x0eaccepted_count\x18\x04 \x01(\rR\racceptedCount\x12%\n" +
+	"\x0erejected_count\x18\x05 \x01(\rR\rrejectedCount\x12$\n" +
+	"\x0eaccepted_ts_ns\x18\x06 \x01(\x04R\facceptedTsNs\x12\"\n" +
+	"\rupdated_ts_ns\x18\a \x01(\x04R\vupdatedTsNs*\x81\x01\n" +
 	"\vOrderStatus\x12\x1c\n" +
 	"\x18ORDER_STATUS_UNSPECIFIED\x10\x00\x12\v\n" +
 	"\aPENDING\x10\x01\x12\x12\n" +
@@ -2099,7 +2447,13 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\n" +
 	"\x06FILLED\x10\x04\x12\f\n" +
 	"\bCANCELED\x10\x05\x12\f\n" +
-	"\bREJECTED\x10\x06*y\n" +
+	"\bREJECTED\x10\x06*\xbf\x01\n" +
+	"\x11BatchReplacePhase\x12#\n" +
+	"\x1fBATCH_REPLACE_PHASE_UNSPECIFIED\x10\x00\x12 \n" +
+	"\x1cBATCH_REPLACE_PHASE_ADMITTED\x10\x01\x12\x1f\n" +
+	"\x1bBATCH_REPLACE_PHASE_WORKING\x10\x02\x12 \n" +
+	"\x1cBATCH_REPLACE_PHASE_REJECTED\x10\x03\x12 \n" +
+	"\x1cBATCH_REPLACE_PHASE_TERMINAL\x10\x04*y\n" +
 	"\x10OrderOriginScope\x12\"\n" +
 	"\x1eORDER_ORIGIN_SCOPE_UNSPECIFIED\x10\x00\x12\n" +
 	"\n" +
@@ -2115,12 +2469,13 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\rTRAILING_STOP\x10\x03\x12\b\n" +
 	"\x04TWAP\x10\x04\x12\n" +
 	"\n" +
-	"\x06LADDER\x10\x052\xe2\x02\n" +
+	"\x06LADDER\x10\x052\xd0\x03\n" +
 	"\x11OrdersReadService\x12T\n" +
 	"\rGetOpenOrders\x12\x1f.orders.v1.GetOpenOrdersRequest\x1a .orders.v1.GetOpenOrdersResponse\"\x00\x12Z\n" +
 	"\x0fGetOrderHistory\x12!.orders.v1.GetOrderHistoryRequest\x1a\".orders.v1.GetOrderHistoryResponse\"\x00\x12T\n" +
 	"\rGetUserTrades\x12\x1f.orders.v1.GetUserTradesRequest\x1a .orders.v1.GetUserTradesResponse\"\x00\x12E\n" +
-	"\bGetOrder\x12\x1a.orders.v1.GetOrderRequest\x1a\x1b.orders.v1.GetOrderResponse\"\x00B@Z>github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1;ordersv1b\x06proto3"
+	"\bGetOrder\x12\x1a.orders.v1.GetOrderRequest\x1a\x1b.orders.v1.GetOrderResponse\"\x00\x12l\n" +
+	"\x15GetBatchReplaceStatus\x12'.orders.v1.GetBatchReplaceStatusRequest\x1a(.orders.v1.GetBatchReplaceStatusResponse\"\x00B@Z>github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1;ordersv1b\x06proto3"
 
 var (
 	file_orders_v1_orders_read_proto_rawDescOnce sync.Once
@@ -2134,91 +2489,102 @@ func file_orders_v1_orders_read_proto_rawDescGZIP() []byte {
 	return file_orders_v1_orders_read_proto_rawDescData
 }
 
-var file_orders_v1_orders_read_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_orders_v1_orders_read_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_orders_v1_orders_read_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
+var file_orders_v1_orders_read_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_orders_v1_orders_read_proto_goTypes = []any{
-	(OrderStatus)(0),                 // 0: orders.v1.OrderStatus
-	(OrderOriginScope)(0),            // 1: orders.v1.OrderOriginScope
-	(OrderTriggerType)(0),            // 2: orders.v1.OrderTriggerType
-	(AttachedRiskLegState_Status)(0), // 3: orders.v1.AttachedRiskLegState.Status
-	(*OrderOrigin)(nil),              // 4: orders.v1.OrderOrigin
-	(*AttachedRiskLegState)(nil),     // 5: orders.v1.AttachedRiskLegState
-	(*AttachedRiskTakeProfit)(nil),   // 6: orders.v1.AttachedRiskTakeProfit
-	(*AttachedRiskStopLoss)(nil),     // 7: orders.v1.AttachedRiskStopLoss
-	(*AttachedRiskTrailingStop)(nil), // 8: orders.v1.AttachedRiskTrailingStop
-	(*AttachedRisk)(nil),             // 9: orders.v1.AttachedRisk
-	(*Order)(nil),                    // 10: orders.v1.Order
-	(*UserTrade)(nil),                // 11: orders.v1.UserTrade
-	(*OrderTransfer)(nil),            // 12: orders.v1.OrderTransfer
-	(*GetOpenOrdersRequest)(nil),     // 13: orders.v1.GetOpenOrdersRequest
-	(*GetOpenOrdersResponse)(nil),    // 14: orders.v1.GetOpenOrdersResponse
-	(*GetOrderHistoryRequest)(nil),   // 15: orders.v1.GetOrderHistoryRequest
-	(*GetOrderHistoryResponse)(nil),  // 16: orders.v1.GetOrderHistoryResponse
-	(*GetUserTradesRequest)(nil),     // 17: orders.v1.GetUserTradesRequest
-	(*GetUserTradesResponse)(nil),    // 18: orders.v1.GetUserTradesResponse
-	(*GetOrderRequest)(nil),          // 19: orders.v1.GetOrderRequest
-	(*GetOrderResponse)(nil),         // 20: orders.v1.GetOrderResponse
-	(*TakeProfitPolicy)(nil),         // 21: orders.v1.TakeProfitPolicy
-	(*StopLossPolicy)(nil),           // 22: orders.v1.StopLossPolicy
-	(*TrailingStopPolicy)(nil),       // 23: orders.v1.TrailingStopPolicy
-	(Side)(0),                        // 24: orders.v1.Side
-	(OrderType)(0),                   // 25: orders.v1.OrderType
-	(TimeInForce)(0),                 // 26: orders.v1.TimeInForce
-	(SelfTradePreventionMode)(0),     // 27: orders.v1.SelfTradePreventionMode
-	(FeeSource)(0),                   // 28: orders.v1.FeeSource
-	(*v1.U128)(nil),                  // 29: polyester.type.v1.U128
-	(v11.TransferCode)(0),            // 30: ledger.v1.TransferCode
-	(v11.AccountCode)(0),             // 31: ledger.v1.AccountCode
+	(OrderStatus)(0),                      // 0: orders.v1.OrderStatus
+	(BatchReplacePhase)(0),                // 1: orders.v1.BatchReplacePhase
+	(OrderOriginScope)(0),                 // 2: orders.v1.OrderOriginScope
+	(OrderTriggerType)(0),                 // 3: orders.v1.OrderTriggerType
+	(AttachedRiskLegState_Status)(0),      // 4: orders.v1.AttachedRiskLegState.Status
+	(*OrderOrigin)(nil),                   // 5: orders.v1.OrderOrigin
+	(*AttachedRiskLegState)(nil),          // 6: orders.v1.AttachedRiskLegState
+	(*AttachedRiskTakeProfit)(nil),        // 7: orders.v1.AttachedRiskTakeProfit
+	(*AttachedRiskStopLoss)(nil),          // 8: orders.v1.AttachedRiskStopLoss
+	(*AttachedRiskTrailingStop)(nil),      // 9: orders.v1.AttachedRiskTrailingStop
+	(*AttachedRisk)(nil),                  // 10: orders.v1.AttachedRisk
+	(*Order)(nil),                         // 11: orders.v1.Order
+	(*UserTrade)(nil),                     // 12: orders.v1.UserTrade
+	(*OrderTransfer)(nil),                 // 13: orders.v1.OrderTransfer
+	(*GetOpenOrdersRequest)(nil),          // 14: orders.v1.GetOpenOrdersRequest
+	(*GetOpenOrdersResponse)(nil),         // 15: orders.v1.GetOpenOrdersResponse
+	(*GetOrderHistoryRequest)(nil),        // 16: orders.v1.GetOrderHistoryRequest
+	(*GetOrderHistoryResponse)(nil),       // 17: orders.v1.GetOrderHistoryResponse
+	(*GetUserTradesRequest)(nil),          // 18: orders.v1.GetUserTradesRequest
+	(*GetUserTradesResponse)(nil),         // 19: orders.v1.GetUserTradesResponse
+	(*GetOrderRequest)(nil),               // 20: orders.v1.GetOrderRequest
+	(*GetOrderResponse)(nil),              // 21: orders.v1.GetOrderResponse
+	(*GetBatchReplaceStatusRequest)(nil),  // 22: orders.v1.GetBatchReplaceStatusRequest
+	(*BatchReplaceStatusItem)(nil),        // 23: orders.v1.BatchReplaceStatusItem
+	(*GetBatchReplaceStatusResponse)(nil), // 24: orders.v1.GetBatchReplaceStatusResponse
+	(*TakeProfitPolicy)(nil),              // 25: orders.v1.TakeProfitPolicy
+	(*StopLossPolicy)(nil),                // 26: orders.v1.StopLossPolicy
+	(*TrailingStopPolicy)(nil),            // 27: orders.v1.TrailingStopPolicy
+	(Side)(0),                             // 28: orders.v1.Side
+	(OrderType)(0),                        // 29: orders.v1.OrderType
+	(TimeInForce)(0),                      // 30: orders.v1.TimeInForce
+	(SelfTradePreventionMode)(0),          // 31: orders.v1.SelfTradePreventionMode
+	(FeeSource)(0),                        // 32: orders.v1.FeeSource
+	(*v1.U128)(nil),                       // 33: polyester.type.v1.U128
+	(v11.TransferCode)(0),                 // 34: ledger.v1.TransferCode
+	(v11.AccountCode)(0),                  // 35: ledger.v1.AccountCode
+	(BatchReplaceAdmissionStatus)(0),      // 36: orders.v1.BatchReplaceAdmissionStatus
 }
 var file_orders_v1_orders_read_proto_depIdxs = []int32{
-	1,  // 0: orders.v1.OrderOrigin.scope:type_name -> orders.v1.OrderOriginScope
-	2,  // 1: orders.v1.OrderOrigin.trigger_type:type_name -> orders.v1.OrderTriggerType
-	3,  // 2: orders.v1.AttachedRiskLegState.status:type_name -> orders.v1.AttachedRiskLegState.Status
-	21, // 3: orders.v1.AttachedRiskTakeProfit.policy:type_name -> orders.v1.TakeProfitPolicy
-	5,  // 4: orders.v1.AttachedRiskTakeProfit.state:type_name -> orders.v1.AttachedRiskLegState
-	22, // 5: orders.v1.AttachedRiskStopLoss.policy:type_name -> orders.v1.StopLossPolicy
-	5,  // 6: orders.v1.AttachedRiskStopLoss.state:type_name -> orders.v1.AttachedRiskLegState
-	23, // 7: orders.v1.AttachedRiskTrailingStop.policy:type_name -> orders.v1.TrailingStopPolicy
-	5,  // 8: orders.v1.AttachedRiskTrailingStop.state:type_name -> orders.v1.AttachedRiskLegState
-	6,  // 9: orders.v1.AttachedRisk.take_profit:type_name -> orders.v1.AttachedRiskTakeProfit
-	7,  // 10: orders.v1.AttachedRisk.stop_loss:type_name -> orders.v1.AttachedRiskStopLoss
-	8,  // 11: orders.v1.AttachedRisk.trailing_stop:type_name -> orders.v1.AttachedRiskTrailingStop
-	24, // 12: orders.v1.Order.side:type_name -> orders.v1.Side
+	2,  // 0: orders.v1.OrderOrigin.scope:type_name -> orders.v1.OrderOriginScope
+	3,  // 1: orders.v1.OrderOrigin.trigger_type:type_name -> orders.v1.OrderTriggerType
+	4,  // 2: orders.v1.AttachedRiskLegState.status:type_name -> orders.v1.AttachedRiskLegState.Status
+	25, // 3: orders.v1.AttachedRiskTakeProfit.policy:type_name -> orders.v1.TakeProfitPolicy
+	6,  // 4: orders.v1.AttachedRiskTakeProfit.state:type_name -> orders.v1.AttachedRiskLegState
+	26, // 5: orders.v1.AttachedRiskStopLoss.policy:type_name -> orders.v1.StopLossPolicy
+	6,  // 6: orders.v1.AttachedRiskStopLoss.state:type_name -> orders.v1.AttachedRiskLegState
+	27, // 7: orders.v1.AttachedRiskTrailingStop.policy:type_name -> orders.v1.TrailingStopPolicy
+	6,  // 8: orders.v1.AttachedRiskTrailingStop.state:type_name -> orders.v1.AttachedRiskLegState
+	7,  // 9: orders.v1.AttachedRisk.take_profit:type_name -> orders.v1.AttachedRiskTakeProfit
+	8,  // 10: orders.v1.AttachedRisk.stop_loss:type_name -> orders.v1.AttachedRiskStopLoss
+	9,  // 11: orders.v1.AttachedRisk.trailing_stop:type_name -> orders.v1.AttachedRiskTrailingStop
+	28, // 12: orders.v1.Order.side:type_name -> orders.v1.Side
 	0,  // 13: orders.v1.Order.status:type_name -> orders.v1.OrderStatus
-	25, // 14: orders.v1.Order.order_type:type_name -> orders.v1.OrderType
-	26, // 15: orders.v1.Order.time_in_force:type_name -> orders.v1.TimeInForce
-	27, // 16: orders.v1.Order.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
-	28, // 17: orders.v1.Order.fee_source:type_name -> orders.v1.FeeSource
-	9,  // 18: orders.v1.Order.attached_risk:type_name -> orders.v1.AttachedRisk
-	4,  // 19: orders.v1.Order.origin:type_name -> orders.v1.OrderOrigin
-	24, // 20: orders.v1.UserTrade.side:type_name -> orders.v1.Side
-	28, // 21: orders.v1.UserTrade.fee_source:type_name -> orders.v1.FeeSource
-	29, // 22: orders.v1.OrderTransfer.amount_e18:type_name -> polyester.type.v1.U128
-	30, // 23: orders.v1.OrderTransfer.transfer_code:type_name -> ledger.v1.TransferCode
-	31, // 24: orders.v1.OrderTransfer.account_code:type_name -> ledger.v1.AccountCode
-	24, // 25: orders.v1.GetOpenOrdersRequest.side:type_name -> orders.v1.Side
-	10, // 26: orders.v1.GetOpenOrdersResponse.orders:type_name -> orders.v1.Order
-	24, // 27: orders.v1.GetOrderHistoryRequest.side:type_name -> orders.v1.Side
+	29, // 14: orders.v1.Order.order_type:type_name -> orders.v1.OrderType
+	30, // 15: orders.v1.Order.time_in_force:type_name -> orders.v1.TimeInForce
+	31, // 16: orders.v1.Order.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
+	32, // 17: orders.v1.Order.fee_source:type_name -> orders.v1.FeeSource
+	10, // 18: orders.v1.Order.attached_risk:type_name -> orders.v1.AttachedRisk
+	5,  // 19: orders.v1.Order.origin:type_name -> orders.v1.OrderOrigin
+	28, // 20: orders.v1.UserTrade.side:type_name -> orders.v1.Side
+	32, // 21: orders.v1.UserTrade.fee_source:type_name -> orders.v1.FeeSource
+	33, // 22: orders.v1.OrderTransfer.amount_e18:type_name -> polyester.type.v1.U128
+	34, // 23: orders.v1.OrderTransfer.transfer_code:type_name -> ledger.v1.TransferCode
+	35, // 24: orders.v1.OrderTransfer.account_code:type_name -> ledger.v1.AccountCode
+	28, // 25: orders.v1.GetOpenOrdersRequest.side:type_name -> orders.v1.Side
+	11, // 26: orders.v1.GetOpenOrdersResponse.orders:type_name -> orders.v1.Order
+	28, // 27: orders.v1.GetOrderHistoryRequest.side:type_name -> orders.v1.Side
 	0,  // 28: orders.v1.GetOrderHistoryRequest.status:type_name -> orders.v1.OrderStatus
-	10, // 29: orders.v1.GetOrderHistoryResponse.orders:type_name -> orders.v1.Order
-	24, // 30: orders.v1.GetUserTradesRequest.side:type_name -> orders.v1.Side
-	11, // 31: orders.v1.GetUserTradesResponse.trades:type_name -> orders.v1.UserTrade
-	10, // 32: orders.v1.GetOrderResponse.order:type_name -> orders.v1.Order
-	11, // 33: orders.v1.GetOrderResponse.trades:type_name -> orders.v1.UserTrade
-	12, // 34: orders.v1.GetOrderResponse.transfers:type_name -> orders.v1.OrderTransfer
-	13, // 35: orders.v1.OrdersReadService.GetOpenOrders:input_type -> orders.v1.GetOpenOrdersRequest
-	15, // 36: orders.v1.OrdersReadService.GetOrderHistory:input_type -> orders.v1.GetOrderHistoryRequest
-	17, // 37: orders.v1.OrdersReadService.GetUserTrades:input_type -> orders.v1.GetUserTradesRequest
-	19, // 38: orders.v1.OrdersReadService.GetOrder:input_type -> orders.v1.GetOrderRequest
-	14, // 39: orders.v1.OrdersReadService.GetOpenOrders:output_type -> orders.v1.GetOpenOrdersResponse
-	16, // 40: orders.v1.OrdersReadService.GetOrderHistory:output_type -> orders.v1.GetOrderHistoryResponse
-	18, // 41: orders.v1.OrdersReadService.GetUserTrades:output_type -> orders.v1.GetUserTradesResponse
-	20, // 42: orders.v1.OrdersReadService.GetOrder:output_type -> orders.v1.GetOrderResponse
-	39, // [39:43] is the sub-list for method output_type
-	35, // [35:39] is the sub-list for method input_type
-	35, // [35:35] is the sub-list for extension type_name
-	35, // [35:35] is the sub-list for extension extendee
-	0,  // [0:35] is the sub-list for field type_name
+	11, // 29: orders.v1.GetOrderHistoryResponse.orders:type_name -> orders.v1.Order
+	28, // 30: orders.v1.GetUserTradesRequest.side:type_name -> orders.v1.Side
+	12, // 31: orders.v1.GetUserTradesResponse.trades:type_name -> orders.v1.UserTrade
+	11, // 32: orders.v1.GetOrderResponse.order:type_name -> orders.v1.Order
+	12, // 33: orders.v1.GetOrderResponse.trades:type_name -> orders.v1.UserTrade
+	13, // 34: orders.v1.GetOrderResponse.transfers:type_name -> orders.v1.OrderTransfer
+	1,  // 35: orders.v1.BatchReplaceStatusItem.phase:type_name -> orders.v1.BatchReplacePhase
+	0,  // 36: orders.v1.BatchReplaceStatusItem.order_status:type_name -> orders.v1.OrderStatus
+	36, // 37: orders.v1.GetBatchReplaceStatusResponse.admission_status:type_name -> orders.v1.BatchReplaceAdmissionStatus
+	23, // 38: orders.v1.GetBatchReplaceStatusResponse.items:type_name -> orders.v1.BatchReplaceStatusItem
+	14, // 39: orders.v1.OrdersReadService.GetOpenOrders:input_type -> orders.v1.GetOpenOrdersRequest
+	16, // 40: orders.v1.OrdersReadService.GetOrderHistory:input_type -> orders.v1.GetOrderHistoryRequest
+	18, // 41: orders.v1.OrdersReadService.GetUserTrades:input_type -> orders.v1.GetUserTradesRequest
+	20, // 42: orders.v1.OrdersReadService.GetOrder:input_type -> orders.v1.GetOrderRequest
+	22, // 43: orders.v1.OrdersReadService.GetBatchReplaceStatus:input_type -> orders.v1.GetBatchReplaceStatusRequest
+	15, // 44: orders.v1.OrdersReadService.GetOpenOrders:output_type -> orders.v1.GetOpenOrdersResponse
+	17, // 45: orders.v1.OrdersReadService.GetOrderHistory:output_type -> orders.v1.GetOrderHistoryResponse
+	19, // 46: orders.v1.OrdersReadService.GetUserTrades:output_type -> orders.v1.GetUserTradesResponse
+	21, // 47: orders.v1.OrdersReadService.GetOrder:output_type -> orders.v1.GetOrderResponse
+	24, // 48: orders.v1.OrdersReadService.GetBatchReplaceStatus:output_type -> orders.v1.GetBatchReplaceStatusResponse
+	44, // [44:49] is the sub-list for method output_type
+	39, // [39:44] is the sub-list for method input_type
+	39, // [39:39] is the sub-list for extension type_name
+	39, // [39:39] is the sub-list for extension extendee
+	0,  // [0:39] is the sub-list for field type_name
 }
 
 func init() { file_orders_v1_orders_read_proto_init() }
@@ -2236,13 +2602,14 @@ func file_orders_v1_orders_read_proto_init() {
 		(*GetOrderRequest_OrderId)(nil),
 		(*GetOrderRequest_ClientOrderId)(nil),
 	}
+	file_orders_v1_orders_read_proto_msgTypes[17].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orders_v1_orders_read_proto_rawDesc), len(file_orders_v1_orders_read_proto_rawDesc)),
-			NumEnums:      4,
-			NumMessages:   17,
+			NumEnums:      5,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
