@@ -10,12 +10,13 @@ import (
 	"testing"
 	"time"
 
+	polyester "github.com/Fabric-Labs/polyester-sdk-go"
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/testutil"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
-// TestBatchModifyFiveRoundsOfForty is F-01/M1: blocking BatchModify regression.
-func TestBatchModifyFiveRoundsOfForty(t *testing.T) {
+// TestBatchReplaceFiveRoundsOfForty is F-01/M1: BatchReplace admission + status regression.
+func TestBatchReplaceFiveRoundsOfForty(t *testing.T) {
 	testutil.RequireAccountWideCleanup(t)
 	testutil.RequireFunded(t)
 	testutil.RequireMutation(t)
@@ -70,7 +71,7 @@ func TestBatchModifyFiveRoundsOfForty(t *testing.T) {
 	}()
 
 	for i := 0; i < batchSize; i++ {
-		cid := testutil.UniqueClientOrderID(fmt.Sprintf("bm-%d", i))
+		cid := testutil.UniqueClientOrderID(fmt.Sprintf("br-%d", i))
 		_, err := client.Orders.Create(ctx, models.CreateOrderRequest{
 			Symbol: &symbol, Side: "buy", OrderType: "limit", TIF: &tif,
 			Qty: models.QtyFromDecimal(qty), Price: pricePtr(models.PriceFromDecimal(price)),
@@ -106,22 +107,22 @@ func TestBatchModifyFiveRoundsOfForty(t *testing.T) {
 		modifyPrice := models.PriceFromDecimal(modifyPriceDec)
 		newCIDs := make([]string, batchSize)
 		requested := make(map[string]struct{}, batchSize)
-		items := make([]models.BatchModifyItem, 0, batchSize)
+		items := make([]models.BatchReplaceItem, 0, batchSize)
 		for i, cid := range cids {
 			cid := cid
 			requested[cid] = struct{}{}
-			newCID := testutil.UniqueClientOrderID(fmt.Sprintf("bm-r%d-%d", round, i))
+			newCID := testutil.UniqueClientOrderID(fmt.Sprintf("br-r%d-%d", round, i))
 			newCIDs[i] = newCID
 			allCIDs[newCID] = struct{}{}
 			p := modifyPrice
 			nc := newCID
-			items = append(items, models.BatchModifyItem{
+			items = append(items, models.BatchReplaceItem{
 				Key:              models.OrderKeyByClientID(cid),
 				NewPrice:         &p,
 				NewClientOrderID: &nc,
 			})
 		}
-		reqID := testutil.UniqueClientOrderID(fmt.Sprintf("bm-req-%d", round))
+		reqID := testutil.UniqueClientOrderID(fmt.Sprintf("br-req-%d", round))
 
 		beforeCount := 0
 		for attempt := 0; attempt < 20; attempt++ {
@@ -146,10 +147,10 @@ func TestBatchModifyFiveRoundsOfForty(t *testing.T) {
 				round, beforeCount, batchSize)
 		}
 
-		result, err := client.Orders.BatchModify(ctx, nil, items, nil, &symbol, &reqID, nil, true)
+		result, err := client.Orders.BatchReplace(ctx, nil, items, symbol, nil, &reqID)
 		if err != nil {
 			if testutil.DevnetUnavailable(err) {
-				testutil.SoftSkipf(t, "batch_modify unavailable: %v", err)
+				testutil.SoftSkipf(t, "batch_replace unavailable: %v", err)
 			}
 			// Timeout / ambiguous commit: reconcile then same request_id retry.
 			limit := 100
@@ -167,22 +168,27 @@ func TestBatchModifyFiveRoundsOfForty(t *testing.T) {
 				t.Fatalf("round %d: open set changed during failed attempt (%d); first=%v", round, afterCount, err)
 			}
 			time.Sleep(200 * time.Millisecond)
-			result, err = client.Orders.BatchModify(ctx, nil, items, nil, &symbol, &reqID, nil, true)
+			result, err = client.Orders.BatchReplace(ctx, nil, items, symbol, nil, &reqID)
 			if err != nil {
-				t.Fatalf("batch_modify round %d: %v", round, err)
+				t.Fatalf("batch_replace round %d: %v", round, err)
 			}
 		}
-		assertCompleteBatchResult(t, result, requested, round)
-		fingerprint := batchResultFingerprint(result)
+		assertCompleteBatchReplaceAdmission(t, result, round)
+		status, err := waitBatchReplaceSettled(ctx, client, result.BatchRequestID, 30*time.Second)
+		if err != nil {
+			t.Fatalf("round %d status wait: %v", round, err)
+		}
+		assertBatchReplaceStatusComplete(t, status, round)
+		fingerprint := batchReplaceFingerprint(result)
 
 		// Intentional identical request_id retry after success — prove no double-apply.
-		retryOK, err := client.Orders.BatchModify(ctx, nil, items, nil, &symbol, &reqID, nil, true)
+		retryOK, err := client.Orders.BatchReplace(ctx, nil, items, symbol, nil, &reqID)
 		if err != nil {
 			t.Fatalf("idempotent retry round %d: %v", round, err)
 		}
-		assertCompleteBatchResult(t, retryOK, requested, round)
-		if got := batchResultFingerprint(retryOK); fmt.Sprint(got) != fmt.Sprint(fingerprint) {
-			t.Fatalf("round %d: idempotent retry changed action/final ids: before=%v after=%v", round, fingerprint, got)
+		assertCompleteBatchReplaceAdmission(t, retryOK, round)
+		if got := batchReplaceFingerprint(retryOK); fmt.Sprint(got) != fmt.Sprint(fingerprint) {
+			t.Fatalf("round %d: idempotent retry changed admission receipt: before=%v after=%v", round, fingerprint, got)
 		}
 		// Resolve live key per item: prefer newCID when open.
 		nextCIDs := make([]string, 0, batchSize)
@@ -194,7 +200,7 @@ func TestBatchModifyFiveRoundsOfForty(t *testing.T) {
 			} else if _, err := testutil.WaitForOpenOrder(ctx, client, oldCID, 50, 3*time.Second); err == nil {
 				chosen = oldCID
 			} else {
-				t.Fatalf("round %d: neither %q nor %q open after modify", round, oldCID, newCID)
+				t.Fatalf("round %d: neither %q nor %q open after replace", round, oldCID, newCID)
 			}
 			nextCIDs = append(nextCIDs, chosen)
 		}
@@ -208,7 +214,97 @@ func TestBatchModifyFiveRoundsOfForty(t *testing.T) {
 	cidSet = allCIDs
 }
 
-func allResultsInternalError(result models.BatchModifyOrdersResult) bool {
+func waitBatchReplaceSettled(ctx context.Context, client *polyester.Client, batchRequestID string, timeout time.Duration) (models.BatchReplaceStatusResult, error) {
+	deadline := time.Now().Add(timeout)
+	var last models.BatchReplaceStatusResult
+	var lastErr error
+	for {
+		status, err := client.Orders.GetBatchReplaceStatus(ctx, nil, batchRequestID, nil)
+		if err != nil {
+			lastErr = err
+			// Status projection can lag the admission receipt briefly.
+			if !strings.Contains(strings.ToLower(err.Error()), "not found") {
+				return last, err
+			}
+		} else {
+			last = status
+			lastErr = nil
+			if batchReplaceStatusSettled(status) {
+				return status, nil
+			}
+		}
+		if time.Now().After(deadline) {
+			if lastErr != nil {
+				return last, fmt.Errorf("batch %s not settled within %s: %w", batchRequestID, timeout, lastErr)
+			}
+			return last, fmt.Errorf("batch %s not settled within %s: %+v", batchRequestID, timeout, last)
+		}
+		select {
+		case <-ctx.Done():
+			return last, ctx.Err()
+		case <-time.After(200 * time.Millisecond):
+		}
+	}
+}
+
+func batchReplaceStatusSettled(status models.BatchReplaceStatusResult) bool {
+	if len(status.Items) == 0 {
+		return false
+	}
+	for _, item := range status.Items {
+		switch item.Phase {
+		case "working", "rejected", "terminal":
+			continue
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func assertCompleteBatchReplaceAdmission(t *testing.T, result models.BatchReplaceOrdersResult, round int) {
+	t.Helper()
+	if result.BatchRequestID == "" || result.BatchRequestID == "0" {
+		t.Fatalf("round %d: missing batch_request_id", round)
+	}
+	if len(result.Results) != 40 {
+		t.Fatalf("round %d: expected 40 result items, got %d", round, len(result.Results))
+	}
+	if allAdmissionInternalError(result) {
+		testutil.SoftSkip(t, "Devnet order placement returned INTERNAL_ERROR for USDT-funded buys; check OMS on devnet")
+	}
+	if result.RejectedCount != 0 {
+		t.Fatalf("round %d: expected no rejected, got %d", round, result.RejectedCount)
+	}
+	if result.AcceptedCount != 40 {
+		t.Fatalf("round %d: accepted=%d != 40", round, result.AcceptedCount)
+	}
+	if result.Status != "admitted" && result.Status != "partially_admitted" {
+		t.Fatalf("round %d: unexpected admission status %q", round, result.Status)
+	}
+	for _, item := range result.Results {
+		if item.Status == "rejected" {
+			t.Fatalf("round %d: rejected item %+v", round, item)
+		}
+	}
+}
+
+func assertBatchReplaceStatusComplete(t *testing.T, status models.BatchReplaceStatusResult, round int) {
+	t.Helper()
+	if len(status.Items) != 40 {
+		t.Fatalf("round %d: expected 40 status items, got %d", round, len(status.Items))
+	}
+	if status.RejectedCount != 0 {
+		t.Fatalf("round %d: status rejected_count=%d", round, status.RejectedCount)
+	}
+	for _, item := range status.Items {
+		if item.Phase == "rejected" {
+			t.Fatalf("round %d: rejected status item %+v", round, item)
+		}
+	}
+}
+
+func allAdmissionInternalError(result models.BatchReplaceOrdersResult) bool {
 	if len(result.Results) == 0 {
 		return false
 	}
@@ -220,42 +316,12 @@ func allResultsInternalError(result models.BatchModifyOrdersResult) bool {
 	return true
 }
 
-func assertCompleteBatchResult(t *testing.T, result models.BatchModifyOrdersResult, expected map[string]struct{}, round int) {
-	t.Helper()
-	if len(result.Results) != 40 {
-		t.Fatalf("round %d: expected 40 result items, got %d", round, len(result.Results))
-	}
-	if allResultsInternalError(result) {
-		testutil.SoftSkip(t, "Devnet order placement returned INTERNAL_ERROR for USDT-funded buys; check OMS on devnet")
-	}
-	if result.RejectedCount != 0 {
-		t.Fatalf("round %d: expected no rejected, got %d", round, result.RejectedCount)
-	}
-	if result.AmendedCount+result.ReplacedCount != 40 {
-		t.Fatalf("round %d: amended+replaced=%d+%d != 40", round, result.AmendedCount, result.ReplacedCount)
-	}
-	seen := make(map[string]struct{}, len(result.Results))
+func batchReplaceFingerprint(result models.BatchReplaceOrdersResult) []string {
+	out := make([]string, 0, len(result.Results)+2)
+	out = append(out, result.BatchRequestID, result.Status)
 	for _, item := range result.Results {
-		if item.ClientOrderID != "" {
-			seen[item.ClientOrderID] = struct{}{}
-		}
-		if strings.EqualFold(item.Status, "rejected") {
-			t.Fatalf("round %d: rejected item %+v", round, item)
-		}
+		out = append(out, fmt.Sprintf("%d|%s|%s|%s", item.ItemIndex, item.Status, item.ClientOrderID, item.ReplacementOrderID))
 	}
-	for cid := range expected {
-		if _, ok := seen[cid]; !ok {
-			t.Fatalf("round %d: missing client_order_id %s in results", round, cid)
-		}
-	}
-}
-
-func batchResultFingerprint(result models.BatchModifyOrdersResult) []string {
-	out := make([]string, 0, len(result.Results))
-	for _, item := range result.Results {
-		out = append(out, fmt.Sprintf("%s|%s|%s", item.ClientOrderID, item.Status, item.FinalOrderID))
-	}
-	// Stable compare via sorted copy.
 	for i := 0; i < len(out); i++ {
 		for j := i + 1; j < len(out); j++ {
 			if out[j] < out[i] {

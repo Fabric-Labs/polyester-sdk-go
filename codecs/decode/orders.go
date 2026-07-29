@@ -291,60 +291,147 @@ func CancelAllFromProto(msg *orderv1.CancelAllOrdersResponse) (models.CancelAllO
 	}, nil
 }
 
-// BatchModifyFromProto decodes batch modify response.
-func BatchModifyFromProto(msg *orderv1.BatchModifyOrdersResponse) (models.BatchModifyOrdersResult, error) {
-	results := make([]models.BatchModifyResultItem, 0, len(msg.GetResults()))
-	decodedAmended := 0
-	decodedReplaced := 0
+// BatchReplaceFromProto decodes batch replace admission receipt.
+func BatchReplaceFromProto(msg *orderv1.BatchReplaceOrdersResponse) (models.BatchReplaceOrdersResult, error) {
+	if msg.GetBatchRequestId() == 0 {
+		return models.BatchReplaceOrdersResult{}, &sdkerrors.ResponseContractError{
+			Operation: "BatchReplaceOrders", Msg: "missing batch_request_id",
+		}
+	}
+	status := batchReplaceAdmissionStatusName(msg.GetStatus())
+	if status == "" {
+		return models.BatchReplaceOrdersResult{}, &sdkerrors.ResponseContractError{
+			Operation: "BatchReplaceOrders",
+			Msg:       fmt.Sprintf("unknown admission status: %d", msg.GetStatus()),
+		}
+	}
+	results := make([]models.BatchReplaceAdmissionItem, 0, len(msg.GetResults()))
+	decodedAccepted := 0
 	decodedRejected := 0
 	for _, item := range msg.GetResults() {
-		switch strings.ToLower(item.GetStatus()) {
-		case "modified":
-			switch item.GetActionTaken() {
-			case orderv1.ModifyActionTaken_AMENDED:
-				decodedAmended++
-			case orderv1.ModifyActionTaken_REPLACED:
-				decodedReplaced++
-			default:
-				return models.BatchModifyOrdersResult{}, &sdkerrors.ResponseContractError{Operation: "BatchModifyOrders",
-					Msg: fmt.Sprintf("batch modify response has unknown action: %d", item.GetActionTaken()),
-				}
-			}
+		itemStatus := batchReplaceItemAdmissionStatusName(item.GetStatus())
+		switch itemStatus {
+		case "admitted":
+			decodedAccepted++
 		case "rejected":
-			if item.GetActionTaken() != orderv1.ModifyActionTaken_MODIFY_ACTION_UNSPECIFIED {
-				return models.BatchModifyOrdersResult{}, &sdkerrors.ResponseContractError{Operation: "BatchModifyOrders",
-					Msg: "batch modify rejected result unexpectedly carries an action",
-				}
-			}
 			decodedRejected++
 		default:
-			return models.BatchModifyOrdersResult{}, &sdkerrors.ResponseContractError{Operation: "BatchModifyOrders",
-				Msg: fmt.Sprintf("batch modify response has unknown status: %q", item.GetStatus()),
+			return models.BatchReplaceOrdersResult{}, &sdkerrors.ResponseContractError{
+				Operation: "BatchReplaceOrders",
+				Msg:       fmt.Sprintf("batch replace response has unknown item status: %d", item.GetStatus()),
 			}
 		}
-		results = append(results, models.BatchModifyResultItem{
-			Status:        item.GetStatus(),
-			ClientOrderID: item.GetClientOrderId(),
-			FinalOrderID:  codecs.FormatUint64ID(item.GetFinalOrderId()),
-			Code:          item.GetCode(),
+		results = append(results, models.BatchReplaceAdmissionItem{
+			ItemIndex:          item.GetItemIndex(),
+			Status:             itemStatus,
+			OldOrderID:         codecs.FormatUint64ID(item.GetOldOrderId()),
+			ReplacementOrderID: codecs.FormatUint64ID(item.GetReplacementOrderId()),
+			ClientOrderID:      item.GetClientOrderId(),
+			Code:               item.GetCode(),
 		})
 	}
-	amended := int(msg.GetAmendedCount())
-	replaced := int(msg.GetReplacedCount())
+	accepted := int(msg.GetAcceptedCount())
 	rejected := int(msg.GetRejectedCount())
-	if amended != decodedAmended || replaced != decodedReplaced ||
-		rejected != decodedRejected || amended+replaced+rejected != len(results) {
-		return models.BatchModifyOrdersResult{}, &sdkerrors.ResponseContractError{Operation: "BatchModifyOrders", Msg: fmt.Sprintf(
-			"batch modify response counts do not match decoded outcomes: amended=%d/%d replaced=%d/%d rejected=%d/%d results=%d",
-			amended, decodedAmended, replaced, decodedReplaced, rejected, decodedRejected, len(results),
-		)}
+	if accepted != decodedAccepted || rejected != decodedRejected || accepted+rejected != len(results) {
+		return models.BatchReplaceOrdersResult{}, &sdkerrors.ResponseContractError{
+			Operation: "BatchReplaceOrders",
+			Msg: fmt.Sprintf(
+				"batch replace response counts do not match decoded outcomes: accepted=%d/%d rejected=%d/%d results=%d",
+				accepted, decodedAccepted, rejected, decodedRejected, len(results),
+			),
+		}
 	}
-	return models.BatchModifyOrdersResult{
-		Results:       results,
-		AmendedCount:  amended,
-		ReplacedCount: replaced,
-		RejectedCount: rejected,
+	return models.BatchReplaceOrdersResult{
+		BatchRequestID: codecs.FormatUint64ID(msg.GetBatchRequestId()),
+		Status:         status,
+		Results:        results,
+		AcceptedCount:  accepted,
+		RejectedCount:  rejected,
+		AcceptedTsNs:   msg.GetAcceptedTsNs(),
 	}, nil
+}
+
+// BatchReplaceStatusFromProto decodes get batch replace status response.
+func BatchReplaceStatusFromProto(msg *orderv1.GetBatchReplaceStatusResponse) (models.BatchReplaceStatusResult, error) {
+	if msg.GetBatchRequestId() == 0 {
+		return models.BatchReplaceStatusResult{}, &sdkerrors.ResponseContractError{
+			Operation: "GetBatchReplaceStatus", Msg: "missing batch_request_id",
+		}
+	}
+	admission := batchReplaceAdmissionStatusName(msg.GetAdmissionStatus())
+	if admission == "" {
+		return models.BatchReplaceStatusResult{}, &sdkerrors.ResponseContractError{
+			Operation: "GetBatchReplaceStatus",
+			Msg:       fmt.Sprintf("unknown admission status: %d", msg.GetAdmissionStatus()),
+		}
+	}
+	items := make([]models.BatchReplaceStatusItem, 0, len(msg.GetItems()))
+	for _, item := range msg.GetItems() {
+		phase := batchReplacePhaseName(item.GetPhase())
+		if phase == "" {
+			return models.BatchReplaceStatusResult{}, &sdkerrors.ResponseContractError{
+				Operation: "GetBatchReplaceStatus",
+				Msg:       fmt.Sprintf("unknown batch replace phase: %d", item.GetPhase()),
+			}
+		}
+		items = append(items, models.BatchReplaceStatusItem{
+			ItemIndex:          item.GetItemIndex(),
+			Phase:              phase,
+			OldOrderID:         codecs.FormatUint64ID(item.GetOldOrderId()),
+			ReplacementOrderID: codecs.FormatUint64ID(item.GetReplacementOrderId()),
+			OrderStatus:        orderStatusName(item.GetOrderStatus()),
+			Code:               item.GetCode(),
+			UpdatedTsNs:        item.GetUpdatedTsNs(),
+		})
+	}
+	return models.BatchReplaceStatusResult{
+		BatchRequestID:  codecs.FormatUint64ID(msg.GetBatchRequestId()),
+		AdmissionStatus: admission,
+		Items:           items,
+		AcceptedCount:   int(msg.GetAcceptedCount()),
+		RejectedCount:   int(msg.GetRejectedCount()),
+		AcceptedTsNs:    msg.GetAcceptedTsNs(),
+		UpdatedTsNs:     msg.GetUpdatedTsNs(),
+	}, nil
+}
+
+func batchReplaceAdmissionStatusName(v orderv1.BatchReplaceAdmissionStatus) string {
+	switch v {
+	case orderv1.BatchReplaceAdmissionStatus_BATCH_REPLACE_ADMISSION_STATUS_ADMITTED:
+		return "admitted"
+	case orderv1.BatchReplaceAdmissionStatus_BATCH_REPLACE_ADMISSION_STATUS_PARTIALLY_ADMITTED:
+		return "partially_admitted"
+	case orderv1.BatchReplaceAdmissionStatus_BATCH_REPLACE_ADMISSION_STATUS_REJECTED:
+		return "rejected"
+	default:
+		return ""
+	}
+}
+
+func batchReplaceItemAdmissionStatusName(v orderv1.BatchReplaceItemAdmissionStatus) string {
+	switch v {
+	case orderv1.BatchReplaceItemAdmissionStatus_BATCH_REPLACE_ITEM_ADMISSION_STATUS_ADMITTED:
+		return "admitted"
+	case orderv1.BatchReplaceItemAdmissionStatus_BATCH_REPLACE_ITEM_ADMISSION_STATUS_REJECTED:
+		return "rejected"
+	default:
+		return ""
+	}
+}
+
+func batchReplacePhaseName(v orderv1.BatchReplacePhase) string {
+	switch v {
+	case orderv1.BatchReplacePhase_BATCH_REPLACE_PHASE_ADMITTED:
+		return "admitted"
+	case orderv1.BatchReplacePhase_BATCH_REPLACE_PHASE_WORKING:
+		return "working"
+	case orderv1.BatchReplacePhase_BATCH_REPLACE_PHASE_REJECTED:
+		return "rejected"
+	case orderv1.BatchReplacePhase_BATCH_REPLACE_PHASE_TERMINAL:
+		return "terminal"
+	default:
+		return ""
+	}
 }
 
 // BatchCreateFromProto decodes batch create response.

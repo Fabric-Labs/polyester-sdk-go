@@ -266,24 +266,44 @@ func (s *OrdersService) BatchCancel(ctx context.Context, account AccountScope, i
 	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().BatchCancelOrders, protoReq, decode.BatchCancelFromProto)
 }
 
-// BatchModify modifies multiple orders in one request.
-func (s *OrdersService) BatchModify(ctx context.Context, account AccountScope, items []models.BatchModifyItem, subAccountID *string, symbol *string, requestID *string, behaviorDefault *string, allowPartial bool) (models.BatchModifyOrdersResult, error) {
+// BatchReplace replaces multiple same-symbol orders and returns after admission.
+//
+// The response is an admission receipt. Poll GetBatchReplaceStatus with the
+// returned batch_request_id for recoverable execution finality.
+func (s *OrdersService) BatchReplace(ctx context.Context, account AccountScope, items []models.BatchReplaceItem, symbol string, subAccountID *string, requestID *string) (models.BatchReplaceOrdersResult, error) {
 	if err := s.ensureCatalogs(ctx); err != nil {
-		return models.BatchModifyOrdersResult{}, err
+		return models.BatchReplaceOrdersResult{}, err
 	}
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {
-		return models.BatchModifyOrdersResult{}, err
+		return models.BatchReplaceOrdersResult{}, err
 	}
-	scale, err := codecs.QuantityScaleForSymbol(s.catalogs, symbol)
+	symbolID, err := ResolveSymbolID(s.catalogs, &symbol, nil, "batch_replace")
 	if err != nil {
-		return models.BatchModifyOrdersResult{}, err
+		return models.BatchReplaceOrdersResult{}, err
 	}
-	protoReq, err := codecs.BatchModifyOrdersToProto(items, sub, requestID, behaviorDefault, allowPartial, scale)
+	scale, err := codecs.QuantityScaleForSymbol(s.catalogs, &symbol)
 	if err != nil {
-		return models.BatchModifyOrdersResult{}, err
+		return models.BatchReplaceOrdersResult{}, err
 	}
-	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().BatchModifyOrders, protoReq, decode.BatchModifyFromProto)
+	protoReq, err := codecs.BatchReplaceOrdersToProto(items, symbolID, sub, requestID, scale)
+	if err != nil {
+		return models.BatchReplaceOrdersResult{}, err
+	}
+	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().BatchReplaceOrders, protoReq, decode.BatchReplaceFromProto)
+}
+
+// GetBatchReplaceStatus returns durable execution status for one admitted batch.
+func (s *OrdersService) GetBatchReplaceStatus(ctx context.Context, account AccountScope, batchRequestID string, subAccountID *string) (models.BatchReplaceStatusResult, error) {
+	id, err := codecs.IDToInt(batchRequestID, "batch_request_id")
+	if err != nil {
+		return models.BatchReplaceStatusResult{}, err
+	}
+	req := &orderv1.GetBatchReplaceStatusRequest{BatchRequestId: id}
+	if err := s.scoped.ApplyOptionalSubaccountIDPtr(&req.SubaccountId, account, subAccountID); err != nil {
+		return models.BatchReplaceStatusResult{}, err
+	}
+	return UnaryAuthDecoded(ctx, s.transport, s.readClient().GetBatchReplaceStatus, req, decode.BatchReplaceStatusFromProto)
 }
 
 // Subscribe streams private order updates for an account.
