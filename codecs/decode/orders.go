@@ -33,7 +33,11 @@ func OrderFromProto(msg *orderv1.Order) models.Order {
 		CreatedTsNs:   strconv.FormatUint(msg.GetCreatedTsNs(), 10),
 		Version:       msg.GetVersion(),
 		PostOnly:      msg.GetPostOnly(),
-		AttachedRisk:  attachedRiskFromProto(msg.GetAttachedRisk()),
+		FeeAsset:      feeAssetName(msg.GetFeeAsset()),
+		SubmittedMaxQuoteDebitScaled: optionalScaledString(
+			msg.SubmittedMaxQuoteDebitScaled,
+		),
+		AttachedRisk: attachedRiskFromProto(msg.GetAttachedRisk()),
 	}
 }
 
@@ -173,23 +177,38 @@ func UserTradeFromProto(msg *orderv1.UserTrade) models.UserTrade {
 		Price:               codecs.DecodePriceTicks(msg.GetPriceTicks(), ""),
 		Qty:                 codecs.DecodeQtyScaled(msg.GetQtyScaled(), -1, "", &sid),
 		FeeScaled:           strconv.FormatInt(msg.GetFeeScaled(), 10),
-		FeeSource:           feeSourceName(msg.GetFeeSource()),
+		FeeAsset:            feeAssetName(msg.GetFeeAsset()),
 		ReferralShareScaled: strconv.FormatInt(msg.GetReferralShareScaled(), 10),
 		TsNs:                strconv.FormatUint(msg.GetTsNs(), 10),
 	}
 }
 
-func feeSourceName(source orderv1.FeeSource) string {
-	switch source {
-	case orderv1.FeeSource_FEE_SOURCE_UNSPECIFIED:
+func feeAssetName(asset orderv1.FeeAsset) string {
+	switch asset {
+	case orderv1.FeeAsset_FEE_ASSET_UNSPECIFIED:
 		return ""
-	case orderv1.FeeSource_QUOTE:
+	case orderv1.FeeAsset_QUOTE:
 		return "quote"
-	case orderv1.FeeSource_RECEIVED:
-		return "received"
+	case orderv1.FeeAsset_BASE:
+		return "base"
 	default:
-		return fmt.Sprintf("unknown(%d)", source)
+		return fmt.Sprintf("unknown(%d)", asset)
 	}
+}
+
+func optionalScaledString(value *int64) string {
+	if value == nil {
+		return ""
+	}
+	return strconv.FormatInt(*value, 10)
+}
+
+func qtyFromScaled(value int64) *models.QtyScaled {
+	if value == 0 {
+		return nil
+	}
+	qty := codecs.DecodeQtyScaled(value, -1, "", nil)
+	return &qty
 }
 
 // UserTradesListFromProto decodes user trades list.
@@ -223,7 +242,13 @@ func OrderMutationFromProto(msg *orderv1.CreateOrderResponse) (models.OrderMutat
 	if msg.GetOrderId() == 0 {
 		return models.OrderMutationResult{}, &sdkerrors.ResponseContractError{Operation: "CreateOrder", Msg: "missing order_id"}
 	}
-	return orderMutation("accepted", msg.GetOrderId(), msg.GetClientOrderId()), nil
+	result := orderMutation("accepted", msg.GetOrderId(), msg.GetClientOrderId())
+	if value := msg.GetResolvedBaseQtyScaled(); value != 0 {
+		result.ResolvedBaseQtyScaled = strconv.FormatInt(value, 10)
+		result.ResolvedBaseQty = qtyFromScaled(value)
+	}
+	result.SubmittedMaxQuoteDebitScaled = optionalScaledString(msg.SubmittedMaxQuoteDebitScaled)
+	return result, nil
 }
 
 // OrderMutationFromCancel decodes cancel response.
@@ -240,6 +265,31 @@ func orderMutation(status string, orderID uint64, clientOrderID string) models.O
 		OrderID:       codecs.FormatUint64ID(orderID),
 		ClientOrderID: clientOrderID,
 	}
+}
+
+// PreviewOrderFromProto decodes the advisory order sizing and fee estimate.
+func PreviewOrderFromProto(msg *orderv1.PreviewOrderResponse) models.PreviewOrderResult {
+	if msg == nil {
+		return models.PreviewOrderResult{}
+	}
+	result := models.PreviewOrderResult{
+		EstimatedQuoteDebitScaled: strconv.FormatInt(msg.GetEstimatedQuoteDebitScaled(), 10),
+		EstimatedFeeScaled:        strconv.FormatInt(msg.GetEstimatedFeeScaled(), 10),
+		FeeAsset:                  feeAssetName(msg.GetFeeAsset()),
+		FreshAtTsNs:               strconv.FormatUint(msg.GetFreshAtTsNs(), 10),
+	}
+	if value := msg.GetResolvedBaseQtyScaled(); value != 0 {
+		result.ResolvedBaseQtyScaled = strconv.FormatInt(value, 10)
+		result.ResolvedBaseQty = qtyFromScaled(value)
+	}
+	if value := msg.GetPriceBoundTicks(); value != 0 {
+		price := codecs.DecodePriceTicks(value, "")
+		result.PriceBound = &price
+	}
+	if value := msg.GetEstimatedNetBaseQtyScaled(); value != 0 {
+		result.EstimatedNetBaseQty = qtyFromScaled(value)
+	}
+	return result
 }
 
 // ModifyOrderFromProto decodes modify order response.
@@ -366,6 +416,8 @@ func BatchReplaceStatusFromProto(msg *orderv1.GetBatchReplaceStatusResponse) (mo
 		}
 	}
 	items := make([]models.BatchReplaceStatusItem, 0, len(msg.GetItems()))
+	decodedAccepted := 0
+	decodedRejected := 0
 	for _, item := range msg.GetItems() {
 		phase := batchReplacePhaseName(item.GetPhase())
 		if phase == "" {
@@ -373,6 +425,12 @@ func BatchReplaceStatusFromProto(msg *orderv1.GetBatchReplaceStatusResponse) (mo
 				Operation: "GetBatchReplaceStatus",
 				Msg:       fmt.Sprintf("unknown batch replace phase: %d", item.GetPhase()),
 			}
+		}
+		switch phase {
+		case "rejected":
+			decodedRejected++
+		case "admitted", "working", "terminal":
+			decodedAccepted++
 		}
 		items = append(items, models.BatchReplaceStatusItem{
 			ItemIndex:          item.GetItemIndex(),
@@ -384,12 +442,23 @@ func BatchReplaceStatusFromProto(msg *orderv1.GetBatchReplaceStatusResponse) (mo
 			UpdatedTsNs:        item.GetUpdatedTsNs(),
 		})
 	}
+	accepted := int(msg.GetAcceptedCount())
+	rejected := int(msg.GetRejectedCount())
+	if accepted != decodedAccepted || rejected != decodedRejected || accepted+rejected != len(items) {
+		return models.BatchReplaceStatusResult{}, &sdkerrors.ResponseContractError{
+			Operation: "GetBatchReplaceStatus",
+			Msg: fmt.Sprintf(
+				"batch replace status counts do not match decoded phases: accepted=%d/%d rejected=%d/%d items=%d",
+				accepted, decodedAccepted, rejected, decodedRejected, len(items),
+			),
+		}
+	}
 	return models.BatchReplaceStatusResult{
 		BatchRequestID:  codecs.FormatUint64ID(msg.GetBatchRequestId()),
 		AdmissionStatus: admission,
 		Items:           items,
-		AcceptedCount:   int(msg.GetAcceptedCount()),
-		RejectedCount:   int(msg.GetRejectedCount()),
+		AcceptedCount:   accepted,
+		RejectedCount:   rejected,
 		AcceptedTsNs:    msg.GetAcceptedTsNs(),
 		UpdatedTsNs:     msg.GetUpdatedTsNs(),
 	}, nil

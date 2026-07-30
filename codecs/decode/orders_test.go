@@ -113,7 +113,7 @@ func TestGetOrderFromProtoIncludesTrades(t *testing.T) {
 		Order: &orderv1.Order{OrderId: 7, SymbolId: 2},
 		Trades: []*orderv1.UserTrade{{
 			SymbolId: 2, MatchId: 99, OrderId: 7, Side: orderv1.Side_BUY,
-			FeeScaled: 5, FeeSource: orderv1.FeeSource_RECEIVED, ReferralShareScaled: 2,
+			FeeScaled: 5, FeeAsset: orderv1.FeeAsset_BASE, ReferralShareScaled: 2,
 		}},
 	}
 	result := decode.GetOrderFromProto(msg)
@@ -123,7 +123,7 @@ func TestGetOrderFromProtoIncludesTrades(t *testing.T) {
 	if len(result.Trades) != 1 || result.Trades[0].MatchID != "99" {
 		t.Fatalf("trades=%+v", result.Trades)
 	}
-	if result.Trades[0].FeeScaled != "5" || result.Trades[0].FeeSource != "received" ||
+	if result.Trades[0].FeeScaled != "5" || result.Trades[0].FeeAsset != "base" ||
 		result.Trades[0].ReferralShareScaled != "2" {
 		t.Fatalf("trade fee fields=%+v", result.Trades[0])
 	}
@@ -149,15 +149,39 @@ func TestModifyOrderFromProtoActionTakenEnum(t *testing.T) {
 }
 
 func TestOrderMutationFromProtoCreateIncludesClientOrderID(t *testing.T) {
+	budget := int64(500)
 	msg := &orderv1.CreateOrderResponse{
-		OrderId:       42,
-		ClientOrderId: "coid-1",
+		OrderId:                      42,
+		ClientOrderId:                "coid-1",
+		ResolvedBaseQtyScaled:        100,
+		SubmittedMaxQuoteDebitScaled: &budget,
 	}
 	result, err := decode.OrderMutationFromProto(msg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Status != "accepted" || result.OrderID != codecs.FormatUint64ID(42) || result.ClientOrderID != "coid-1" {
+	if result.Status != "accepted" || result.OrderID != codecs.FormatUint64ID(42) || result.ClientOrderID != "coid-1" ||
+		result.ResolvedBaseQtyScaled != "100" || result.ResolvedBaseQty == nil ||
+		result.ResolvedBaseQty.Scaled() != 100 || result.SubmittedMaxQuoteDebitScaled != "500" {
+		t.Fatalf("result=%+v", result)
+	}
+}
+
+func TestPreviewOrderFromProto(t *testing.T) {
+	result := decode.PreviewOrderFromProto(&orderv1.PreviewOrderResponse{
+		ResolvedBaseQtyScaled:     100,
+		PriceBoundTicks:           50_000_000_000,
+		EstimatedQuoteDebitScaled: 500,
+		EstimatedFeeScaled:        2,
+		EstimatedNetBaseQtyScaled: 98,
+		FeeAsset:                  orderv1.FeeAsset_BASE,
+		FreshAtTsNs:               123,
+	})
+	if result.ResolvedBaseQtyScaled != "100" || result.ResolvedBaseQty == nil ||
+		result.ResolvedBaseQty.Scaled() != 100 || result.PriceBound == nil ||
+		result.PriceBound.Ticks() != 50_000_000_000 || result.EstimatedQuoteDebitScaled != "500" ||
+		result.EstimatedFeeScaled != "2" || result.EstimatedNetBaseQty == nil ||
+		result.EstimatedNetBaseQty.Scaled() != 98 || result.FeeAsset != "base" || result.FreshAtTsNs != "123" {
 		t.Fatalf("result=%+v", result)
 	}
 }
@@ -283,6 +307,21 @@ func TestBatchReplaceStatusDecodesPhases(t *testing.T) {
 	}
 	if result.Items[0].Phase != "working" || result.Items[1].Phase != "terminal" {
 		t.Fatalf("phases=%+v", result.Items)
+	}
+}
+
+func TestBatchReplaceStatusRejectsCountMismatch(t *testing.T) {
+	_, err := decode.BatchReplaceStatusFromProto(&orderv1.GetBatchReplaceStatusResponse{
+		BatchRequestId:  7,
+		AdmissionStatus: orderv1.BatchReplaceAdmissionStatus_BATCH_REPLACE_ADMISSION_STATUS_ADMITTED,
+		Items: []*orderv1.BatchReplaceStatusItem{
+			{ItemIndex: 0, Phase: orderv1.BatchReplacePhase_BATCH_REPLACE_PHASE_REJECTED},
+		},
+		AcceptedCount: 1,
+	})
+	var contractErr *sdkerrors.ResponseContractError
+	if !errors.As(err, &contractErr) {
+		t.Fatalf("expected ResponseContractError for count mismatch, got %T: %v", err, err)
 	}
 }
 

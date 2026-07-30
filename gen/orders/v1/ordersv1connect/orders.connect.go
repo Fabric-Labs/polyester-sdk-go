@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// OrdersServicePreviewOrderProcedure is the fully-qualified name of the OrdersService's
+	// PreviewOrder RPC.
+	OrdersServicePreviewOrderProcedure = "/orders.v1.OrdersService/PreviewOrder"
 	// OrdersServiceCreateOrderProcedure is the fully-qualified name of the OrdersService's CreateOrder
 	// RPC.
 	OrdersServiceCreateOrderProcedure = "/orders.v1.OrdersService/CreateOrder"
@@ -61,13 +64,16 @@ const (
 
 // OrdersServiceClient is a client for the orders.v1.OrdersService service.
 type OrdersServiceClient interface {
+	// Preview advisory order sizing and fees without reserving funds or
+	// submitting an order.
+	PreviewOrder(context.Context, *connect.Request[v1.PreviewOrderRequest]) (*connect.Response[v1.PreviewOrderResponse], error)
 	// Create a new order.
-	// REST clients use generated handlers that convert decimal strings to scaled ints.
-	// ConnectRPC clients use this directly with scaled integer values.
+	// REST clients submit decimal quantity and price strings. ConnectRPC clients
+	// submit scaled integer values.
 	CreateOrder(context.Context, *connect.Request[v1.CreateOrderRequest]) (*connect.Response[v1.CreateOrderResponse], error)
 	// Cancels an existing order by id or client order id.
-	// REST clients use generated handlers that convert base58 IDs to uint64.
-	// ConnectRPC clients use this directly with fixed64 IDs.
+	// REST clients submit base58 order IDs. ConnectRPC clients submit fixed64
+	// order IDs.
 	CancelOrder(context.Context, *connect.Request[v1.CancelOrderRequest]) (*connect.Response[v1.CancelOrderResponse], error)
 	// Cancels all matching open orders for an account (kill switch).
 	// Evaluates matching orders from a consistent snapshot at request start.
@@ -99,6 +105,12 @@ func NewOrdersServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 	baseURL = strings.TrimRight(baseURL, "/")
 	ordersServiceMethods := v1.File_orders_v1_orders_proto.Services().ByName("OrdersService").Methods()
 	return &ordersServiceClient{
+		previewOrder: connect.NewClient[v1.PreviewOrderRequest, v1.PreviewOrderResponse](
+			httpClient,
+			baseURL+OrdersServicePreviewOrderProcedure,
+			connect.WithSchema(ordersServiceMethods.ByName("PreviewOrder")),
+			connect.WithClientOptions(opts...),
+		),
 		createOrder: connect.NewClient[v1.CreateOrderRequest, v1.CreateOrderResponse](
 			httpClient,
 			baseURL+OrdersServiceCreateOrderProcedure,
@@ -152,6 +164,7 @@ func NewOrdersServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 
 // ordersServiceClient implements OrdersServiceClient.
 type ordersServiceClient struct {
+	previewOrder       *connect.Client[v1.PreviewOrderRequest, v1.PreviewOrderResponse]
 	createOrder        *connect.Client[v1.CreateOrderRequest, v1.CreateOrderResponse]
 	cancelOrder        *connect.Client[v1.CancelOrderRequest, v1.CancelOrderResponse]
 	cancelAllOrders    *connect.Client[v1.CancelAllOrdersRequest, v1.CancelAllOrdersResponse]
@@ -160,6 +173,11 @@ type ordersServiceClient struct {
 	modifyOrder        *connect.Client[v1.ModifyOrderRequest, v1.ModifyOrderResponse]
 	batchReplaceOrders *connect.Client[v1.BatchReplaceOrdersRequest, v1.BatchReplaceOrdersResponse]
 	batchCancelOrders  *connect.Client[v1.BatchCancelOrdersRequest, v1.BatchCancelOrdersResponse]
+}
+
+// PreviewOrder calls orders.v1.OrdersService.PreviewOrder.
+func (c *ordersServiceClient) PreviewOrder(ctx context.Context, req *connect.Request[v1.PreviewOrderRequest]) (*connect.Response[v1.PreviewOrderResponse], error) {
+	return c.previewOrder.CallUnary(ctx, req)
 }
 
 // CreateOrder calls orders.v1.OrdersService.CreateOrder.
@@ -204,13 +222,16 @@ func (c *ordersServiceClient) BatchCancelOrders(ctx context.Context, req *connec
 
 // OrdersServiceHandler is an implementation of the orders.v1.OrdersService service.
 type OrdersServiceHandler interface {
+	// Preview advisory order sizing and fees without reserving funds or
+	// submitting an order.
+	PreviewOrder(context.Context, *connect.Request[v1.PreviewOrderRequest]) (*connect.Response[v1.PreviewOrderResponse], error)
 	// Create a new order.
-	// REST clients use generated handlers that convert decimal strings to scaled ints.
-	// ConnectRPC clients use this directly with scaled integer values.
+	// REST clients submit decimal quantity and price strings. ConnectRPC clients
+	// submit scaled integer values.
 	CreateOrder(context.Context, *connect.Request[v1.CreateOrderRequest]) (*connect.Response[v1.CreateOrderResponse], error)
 	// Cancels an existing order by id or client order id.
-	// REST clients use generated handlers that convert base58 IDs to uint64.
-	// ConnectRPC clients use this directly with fixed64 IDs.
+	// REST clients submit base58 order IDs. ConnectRPC clients submit fixed64
+	// order IDs.
 	CancelOrder(context.Context, *connect.Request[v1.CancelOrderRequest]) (*connect.Response[v1.CancelOrderResponse], error)
 	// Cancels all matching open orders for an account (kill switch).
 	// Evaluates matching orders from a consistent snapshot at request start.
@@ -238,6 +259,12 @@ type OrdersServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewOrdersServiceHandler(svc OrdersServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	ordersServiceMethods := v1.File_orders_v1_orders_proto.Services().ByName("OrdersService").Methods()
+	ordersServicePreviewOrderHandler := connect.NewUnaryHandler(
+		OrdersServicePreviewOrderProcedure,
+		svc.PreviewOrder,
+		connect.WithSchema(ordersServiceMethods.ByName("PreviewOrder")),
+		connect.WithHandlerOptions(opts...),
+	)
 	ordersServiceCreateOrderHandler := connect.NewUnaryHandler(
 		OrdersServiceCreateOrderProcedure,
 		svc.CreateOrder,
@@ -288,6 +315,8 @@ func NewOrdersServiceHandler(svc OrdersServiceHandler, opts ...connect.HandlerOp
 	)
 	return "/orders.v1.OrdersService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case OrdersServicePreviewOrderProcedure:
+			ordersServicePreviewOrderHandler.ServeHTTP(w, r)
 		case OrdersServiceCreateOrderProcedure:
 			ordersServiceCreateOrderHandler.ServeHTTP(w, r)
 		case OrdersServiceCancelOrderProcedure:
@@ -312,6 +341,10 @@ func NewOrdersServiceHandler(svc OrdersServiceHandler, opts ...connect.HandlerOp
 
 // UnimplementedOrdersServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedOrdersServiceHandler struct{}
+
+func (UnimplementedOrdersServiceHandler) PreviewOrder(context.Context, *connect.Request[v1.PreviewOrderRequest]) (*connect.Response[v1.PreviewOrderResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orders.v1.OrdersService.PreviewOrder is not implemented"))
+}
 
 func (UnimplementedOrdersServiceHandler) CreateOrder(context.Context, *connect.Request[v1.CreateOrderRequest]) (*connect.Response[v1.CreateOrderResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("orders.v1.OrdersService.CreateOrder is not implemented"))

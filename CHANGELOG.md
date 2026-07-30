@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Breaking
+- Order and trigger fee outputs now use `FeeAsset` (`quote` / `base`); the removed `received` value maps to `base`.
+
+### Added
+- `CreateOrderRequest` supports exactly one of base `Qty` or BUY quote-budget `MaxQuoteDebitScaled`; create results expose resolved base quantity and submitted quote debit.
+- `Orders.Preview` wraps `PreviewOrder` and returns advisory resolved size, price bound, debit, and fee estimates.
+- `models.BatchReplaceStatusSettled` / `models.IsBatchReplaceSettled` identify stable post-admission batch-replace phases.
+
+### Fixed
+- `GetBatchReplaceStatus` fails closed with `ResponseContractError` when accepted/rejected counters disagree with per-item phases.
+
 ## 0.1.0a27
 
 Git tag: `v0.1.0a27`.

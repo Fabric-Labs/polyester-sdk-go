@@ -20,9 +20,10 @@ var triggerTypeToProto = map[string]triggersv1.TriggerType{
 	"ladder":        triggersv1.TriggerType_LADDER,
 }
 
-var feeSourceToProto = map[string]orderv1.FeeSource{
-	"quote":    orderv1.FeeSource_QUOTE,
-	"received": orderv1.FeeSource_RECEIVED,
+var triggerFeeAssetToProto = map[string]orderv1.FeeAsset{
+	"quote":    orderv1.FeeAsset_QUOTE,
+	"base":     orderv1.FeeAsset_BASE,
+	"received": orderv1.FeeAsset_BASE, // legacy synonym for a received base fee
 }
 
 var selfTradePreventionModeToProto = map[string]orderv1.SelfTradePreventionMode{
@@ -33,7 +34,7 @@ var selfTradePreventionModeToProto = map[string]orderv1.SelfTradePreventionMode{
 
 // CreateTriggerOptions carries optional create-trigger fields beyond the core order params.
 type CreateTriggerOptions struct {
-	FeeSource               *string
+	FeeAsset                *string
 	SelfTradePreventionMode *string
 	TrailingDistanceTicks   *int64
 	TrailingDistanceBps     *int32
@@ -70,12 +71,12 @@ func CreateTriggerToProto(symbol, triggerType string, triggerPrice *models.Price
 	} else {
 		intent.ClientTriggerId = newTriggerRequestID()
 	}
-	if opts.FeeSource != nil {
-		source, ok := feeSourceToProto[strings.ToLower(*opts.FeeSource)]
+	if opts.FeeAsset != nil {
+		asset, ok := triggerFeeAssetToProto[strings.ToLower(*opts.FeeAsset)]
 		if !ok {
-			return nil, &errors.ValidationError{Msg: "fee_source must be quote or received"}
+			return nil, &errors.ValidationError{Msg: "fee_asset must be quote or base"}
 		}
-		intent.FeeSource = source
+		intent.FeeAsset = asset
 	}
 	if opts.SelfTradePreventionMode != nil {
 		mode, ok := selfTradePreventionModeToProto[strings.ToLower(*opts.SelfTradePreventionMode)]

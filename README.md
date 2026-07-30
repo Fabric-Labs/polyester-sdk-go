@@ -277,6 +277,30 @@ Compatible values from fills/books can be passed back into writes when the
 instrument/domain matches. Transfers and trading withdraws use
 `AssetAmountInput` (not order `QtyInput`).
 
+### Quote-budget orders and previews
+
+Create requests use exactly one sizing mode: base `Qty`, or
+`MaxQuoteDebitScaled` (a hard all-in quote debit in protocol quote units).
+Quote-budget sizing is valid for BUY market and limit-IOC orders. `FeeAsset`
+is `quote` (default) or `base`; base fees are valid for BUY orders only. The
+former `received` fee source is now `base`.
+
+Use `client.Orders.Preview(ctx, request, account)` before submission to obtain
+the advisory resolved base quantity, price bound, debit, and fee estimate.
+Create results expose `ResolvedBaseQtyScaled` and, for quote-budget orders,
+`SubmittedMaxQuoteDebitScaled`.
+
+### Batch replace reconciliation
+
+`Orders.BatchReplace` returns admission, not execution finality. Each item
+contains a stale predecessor `OldOrderID` and its successor
+`ReplacementOrderID`. Persist the returned `BatchRequestID`, and poll
+`Orders.GetBatchReplaceStatus` to reconcile successor IDs and item phases.
+`models.BatchReplaceStatusSettled` / `models.IsBatchReplaceSettled` returns
+true when every item is `working`, `rejected`, or `terminal`; `working` only
+means the successor is live. Reuse the same caller-owned `requestID` when
+retrying the same logical batch after an ambiguous failure.
+
 Your API key needs a policy that allows trading. Spot orders spend **trading**
 balance (see below).
 

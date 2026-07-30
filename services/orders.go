@@ -160,6 +160,38 @@ func (s *OrdersService) Create(ctx context.Context, req models.CreateOrderReques
 	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().CreateOrder, protoReq, decode.OrderMutationFromProto)
 }
 
+// Preview resolves an order's executable size, price bound, and estimated fees
+// without admitting it. The result is advisory and should be refreshed promptly
+// in a moving market.
+func (s *OrdersService) Preview(ctx context.Context, req models.CreateOrderRequest, account AccountScope) (models.PreviewOrderResult, error) {
+	if err := s.ensureCatalogs(ctx); err != nil {
+		return models.PreviewOrderResult{}, err
+	}
+	if account != nil {
+		sub, err := s.scoped.ResolveSubAccountID(nil, account)
+		if err != nil {
+			return models.PreviewOrderResult{}, err
+		}
+		req.SubAccountID = sub
+	}
+	if req.SubAccountID == nil {
+		sub, err := s.scoped.ResolveSubAccountID(nil, nil)
+		if err != nil {
+			return models.PreviewOrderResult{}, err
+		}
+		req.SubAccountID = sub
+	}
+	scale, err := quantityScaleForOrderWrite(s.catalogs, req.Symbol, req.SymbolID)
+	if err != nil {
+		return models.PreviewOrderResult{}, err
+	}
+	protoReq, err := codecs.PreviewOrderToProto(req, scale)
+	if err != nil {
+		return models.PreviewOrderResult{}, err
+	}
+	return UnaryAuth(ctx, s.transport, s.writeClient().PreviewOrder, protoReq, decode.PreviewOrderFromProto)
+}
+
 // Cancel cancels an order.
 func (s *OrdersService) Cancel(ctx context.Context, account AccountScope, key models.OrderKey, symbol *string, symbolID *uint32, subAccountID *string) (models.OrderMutationResult, error) {
 	if symbol != nil && symbolID != nil {
@@ -268,8 +300,10 @@ func (s *OrdersService) BatchCancel(ctx context.Context, account AccountScope, i
 
 // BatchReplace replaces multiple same-symbol orders and returns after admission.
 //
-// The response is an admission receipt. Poll GetBatchReplaceStatus with the
-// returned batch_request_id for recoverable execution finality.
+// The response is an admission receipt. Old IDs are the stale predecessors;
+// replacement IDs are successors. Poll GetBatchReplaceStatus to reconcile item
+// phases and IDs, not to infer execution finality. Reuse the same requestID
+// when retrying the same logical batch.
 func (s *OrdersService) BatchReplace(ctx context.Context, account AccountScope, items []models.BatchReplaceItem, symbol string, subAccountID *string, requestID *string) (models.BatchReplaceOrdersResult, error) {
 	if err := s.ensureCatalogs(ctx); err != nil {
 		return models.BatchReplaceOrdersResult{}, err
@@ -293,7 +327,8 @@ func (s *OrdersService) BatchReplace(ctx context.Context, account AccountScope, 
 	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().BatchReplaceOrders, protoReq, decode.BatchReplaceFromProto)
 }
 
-// GetBatchReplaceStatus returns durable execution status for one admitted batch.
+// GetBatchReplaceStatus returns durable reconciliation status for one admitted
+// batch. A working successor is live, but not necessarily execution-final.
 func (s *OrdersService) GetBatchReplaceStatus(ctx context.Context, account AccountScope, batchRequestID string, subAccountID *string) (models.BatchReplaceStatusResult, error) {
 	id, err := codecs.IDToInt(batchRequestID, "batch_request_id")
 	if err != nil {

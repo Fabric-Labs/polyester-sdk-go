@@ -1081,8 +1081,8 @@ type TriggerIntent struct {
 	Symbol string `protobuf:"bytes,1,opt,name=symbol,proto3" json:"symbol,omitempty"`
 	// Total quantity scaled by the pair's base_quantity_scale.
 	QtyScaled int64 `protobuf:"varint,2,opt,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`
-	// Fee source for BUY children. SELL children must use QUOTE.
-	FeeSource v1.FeeSource `protobuf:"varint,3,opt,name=fee_source,json=feeSource,proto3,enum=orders.v1.FeeSource" json:"fee_source,omitempty"`
+	// Fee asset for BUY children. SELL children must use QUOTE.
+	FeeAsset v1.FeeAsset `protobuf:"varint,3,opt,name=fee_asset,json=feeAsset,proto3,enum=orders.v1.FeeAsset" json:"fee_asset,omitempty"`
 	// Child self-trade prevention mode. Defaults to EXPIRE_MAKER.
 	SelfTradePreventionMode v1.SelfTradePreventionMode `protobuf:"varint,4,opt,name=self_trade_prevention_mode,json=selfTradePreventionMode,proto3,enum=orders.v1.SelfTradePreventionMode" json:"self_trade_prevention_mode,omitempty"`
 	// Client-provided trigger ID for idempotency.
@@ -1145,11 +1145,11 @@ func (x *TriggerIntent) GetQtyScaled() int64 {
 	return 0
 }
 
-func (x *TriggerIntent) GetFeeSource() v1.FeeSource {
+func (x *TriggerIntent) GetFeeAsset() v1.FeeAsset {
 	if x != nil {
-		return x.FeeSource
+		return x.FeeAsset
 	}
-	return v1.FeeSource(0)
+	return v1.FeeAsset(0)
 }
 
 func (x *TriggerIntent) GetSelfTradePreventionMode() v1.SelfTradePreventionMode {
@@ -2907,8 +2907,8 @@ type Trigger struct {
 	ParentOrderId *uint64 `protobuf:"fixed64,6,opt,name=parent_order_id,json=parentOrderId,proto3,oneof" json:"parent_order_id,omitempty"`
 	// Child quantity scaled by the pair's base_quantity_scale from GetSpotConfig.
 	QtyScaled int64 `protobuf:"varint,20,opt,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`
-	// Fee source for BUY child orders.
-	FeeSource v1.FeeSource `protobuf:"varint,21,opt,name=fee_source,json=feeSource,proto3,enum=orders.v1.FeeSource" json:"fee_source,omitempty"`
+	// Fee asset for BUY child orders.
+	FeeAsset v1.FeeAsset `protobuf:"varint,21,opt,name=fee_asset,json=feeAsset,proto3,enum=orders.v1.FeeAsset" json:"fee_asset,omitempty"`
 	// Self-trade prevention mode for child orders.
 	SelfTradePreventionMode v1.SelfTradePreventionMode `protobuf:"varint,22,opt,name=self_trade_prevention_mode,json=selfTradePreventionMode,proto3,enum=orders.v1.SelfTradePreventionMode" json:"self_trade_prevention_mode,omitempty"`
 	// Immutable strategy configuration. The selected variant is the trigger
@@ -3026,11 +3026,11 @@ func (x *Trigger) GetQtyScaled() int64 {
 	return 0
 }
 
-func (x *Trigger) GetFeeSource() v1.FeeSource {
+func (x *Trigger) GetFeeAsset() v1.FeeAsset {
 	if x != nil {
-		return x.FeeSource
+		return x.FeeAsset
 	}
-	return v1.FeeSource(0)
+	return v1.FeeAsset(0)
 }
 
 func (x *Trigger) GetSelfTradePreventionMode() v1.SelfTradePreventionMode {
@@ -3310,15 +3310,14 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x0fprice_max_ticks\x18\x03 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\rpriceMaxTicks\x12!\n" +
 	"\x06levels\x18\x04 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x02R\x06levels\x12\x1b\n" +
 	"\tpost_only\x18\x05 \x01(\bR\bpostOnly:~\xbaH{\x1ay\n" +
-	"\x14ladder_trigger.range\x124price_max_ticks must be greater than price_min_ticks\x1a+this.price_max_ticks > this.price_min_ticks\"\x86\x05\n" +
+	"\x14ladder_trigger.range\x124price_max_ticks must be greater than price_min_ticks\x1a+this.price_max_ticks > this.price_min_ticks\"\x83\x05\n" +
 	"\rTriggerIntent\x12\"\n" +
 	"\x06symbol\x18\x01 \x01(\tB\n" +
 	"\xe0A\x02\xbaH\x04r\x02\x10\x01R\x06symbol\x12)\n" +
 	"\n" +
 	"qty_scaled\x18\x02 \x01(\x03B\n" +
-	"\xe0A\x02\xbaH\x04\"\x02 \x00R\tqtyScaled\x12=\n" +
-	"\n" +
-	"fee_source\x18\x03 \x01(\x0e2\x14.orders.v1.FeeSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\tfeeSource\x12i\n" +
+	"\xe0A\x02\xbaH\x04\"\x02 \x00R\tqtyScaled\x12:\n" +
+	"\tfee_asset\x18\x03 \x01(\x0e2\x13.orders.v1.FeeAssetB\b\xbaH\x05\x82\x01\x02\x10\x01R\bfeeAsset\x12i\n" +
 	"\x1aself_trade_prevention_mode\x18\x04 \x01(\x0e2\".orders.v1.SelfTradePreventionModeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x17selfTradePreventionMode\x126\n" +
 	"\x11client_trigger_id\x18\x05 \x01(\tB\n" +
 	"\xe0A\x02\xbaH\x04r\x02\x10\x01R\x0fclientTriggerId\x12>\n" +
@@ -3471,7 +3470,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x16ladder_price_min_ticks\x18\x01 \x01(\x03R\x13ladderPriceMinTicks\x123\n" +
 	"\x16ladder_price_max_ticks\x18\x02 \x01(\x03R\x13ladderPriceMaxTicks\x12#\n" +
 	"\rladder_levels\x18\x03 \x01(\x05R\fladderLevels\x12P\n" +
-	"\x13ladder_distribution\x18\x04 \x01(\x0e2\x1f.triggers.v1.LadderDistributionR\x12ladderDistribution\"\xab\n" +
+	"\x13ladder_distribution\x18\x04 \x01(\x0e2\x1f.triggers.v1.LadderDistributionR\x12ladderDistribution\"\xa8\n" +
 	"\n" +
 	"\aTrigger\x12\x1d\n" +
 	"\n" +
@@ -3482,9 +3481,8 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x06status\x18\x05 \x01(\x0e2\x1a.triggers.v1.TriggerStatusR\x06status\x12+\n" +
 	"\x0fparent_order_id\x18\x06 \x01(\x06H\x02R\rparentOrderId\x88\x01\x01\x12\x1d\n" +
 	"\n" +
-	"qty_scaled\x18\x14 \x01(\x03R\tqtyScaled\x123\n" +
-	"\n" +
-	"fee_source\x18\x15 \x01(\x0e2\x14.orders.v1.FeeSourceR\tfeeSource\x12_\n" +
+	"qty_scaled\x18\x14 \x01(\x03R\tqtyScaled\x120\n" +
+	"\tfee_asset\x18\x15 \x01(\x0e2\x13.orders.v1.FeeAssetR\bfeeAsset\x12_\n" +
 	"\x1aself_trade_prevention_mode\x18\x16 \x01(\x0e2\".orders.v1.SelfTradePreventionModeR\x17selfTradePreventionMode\x12>\n" +
 	"\tstop_loss\x18\x1e \x01(\v2\x1f.triggers.v1.ConditionalTriggerH\x00R\bstopLoss\x12B\n" +
 	"\vtake_profit\x18\x1f \x01(\v2\x1f.triggers.v1.ConditionalTriggerH\x00R\n" +
@@ -3610,7 +3608,7 @@ var file_triggers_v1_triggers_proto_goTypes = []any{
 	(*LadderDetails)(nil),             // 36: triggers.v1.LadderDetails
 	(*Trigger)(nil),                   // 37: triggers.v1.Trigger
 	(v1.Side)(0),                      // 38: orders.v1.Side
-	(v1.FeeSource)(0),                 // 39: orders.v1.FeeSource
+	(v1.FeeAsset)(0),                  // 39: orders.v1.FeeAsset
 	(v1.SelfTradePreventionMode)(0),   // 40: orders.v1.SelfTradePreventionMode
 	(*timestamppb.Timestamp)(nil),     // 41: google.protobuf.Timestamp
 	(v1.TriggerPriceSource)(0),        // 42: orders.v1.TriggerPriceSource
@@ -3627,7 +3625,7 @@ var file_triggers_v1_triggers_proto_depIdxs = []int32{
 	11, // 7: triggers.v1.TwapTrigger.market_ioc:type_name -> triggers.v1.TwapMarketIoc
 	12, // 8: triggers.v1.TwapTrigger.limit_gtc:type_name -> triggers.v1.TwapLimitGtc
 	38, // 9: triggers.v1.LadderTrigger.side:type_name -> orders.v1.Side
-	39, // 10: triggers.v1.TriggerIntent.fee_source:type_name -> orders.v1.FeeSource
+	39, // 10: triggers.v1.TriggerIntent.fee_asset:type_name -> orders.v1.FeeAsset
 	40, // 11: triggers.v1.TriggerIntent.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
 	9,  // 12: triggers.v1.TriggerIntent.stop_loss:type_name -> triggers.v1.ConditionalTrigger
 	9,  // 13: triggers.v1.TriggerIntent.take_profit:type_name -> triggers.v1.ConditionalTrigger
@@ -3657,7 +3655,7 @@ var file_triggers_v1_triggers_proto_depIdxs = []int32{
 	43, // 37: triggers.v1.TrailingDetails.trigger_direction:type_name -> orders.v1.TriggerDirection
 	3,  // 38: triggers.v1.LadderDetails.ladder_distribution:type_name -> triggers.v1.LadderDistribution
 	1,  // 39: triggers.v1.Trigger.status:type_name -> triggers.v1.TriggerStatus
-	39, // 40: triggers.v1.Trigger.fee_source:type_name -> orders.v1.FeeSource
+	39, // 40: triggers.v1.Trigger.fee_asset:type_name -> orders.v1.FeeAsset
 	40, // 41: triggers.v1.Trigger.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
 	9,  // 42: triggers.v1.Trigger.stop_loss:type_name -> triggers.v1.ConditionalTrigger
 	9,  // 43: triggers.v1.Trigger.take_profit:type_name -> triggers.v1.ConditionalTrigger

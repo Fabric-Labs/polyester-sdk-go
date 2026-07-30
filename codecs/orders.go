@@ -19,6 +19,10 @@ var (
 		"amend_only":       orderv1.ModifyBehavior_AMEND_ONLY,
 		"replace_only":     orderv1.ModifyBehavior_REPLACE_ONLY,
 	}
+	feeAssetToProto = map[string]orderv1.FeeAsset{
+		"quote": orderv1.FeeAsset_QUOTE,
+		"base":  orderv1.FeeAsset_BASE,
+	}
 )
 
 // ParseOptionalSubaccountID parses optional subaccount id to uint64.
@@ -72,14 +76,30 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale int) (*orde
 	if req.Symbol != nil {
 		symbol = *req.Symbol
 	}
-	qty, err := ResolveQtyScaled(req.Qty, quantityScale, "qty", symbol, req.SymbolID)
-	if err != nil {
-		return nil, err
-	}
 	intent := &orderv1.OrderIntent{
-		Symbol:    symbol,
-		Side:      side,
-		QtyScaled: qty,
+		Symbol:   symbol,
+		Side:     side,
+		FeeAsset: orderv1.FeeAsset_QUOTE,
+	}
+	hasQty := req.Qty.IsSet()
+	hasQuoteBudget := req.MaxQuoteDebitScaled != nil
+	if hasQty == hasQuoteBudget {
+		return nil, &errors.ValidationError{Msg: "orders.create requires exactly one of qty or max_quote_debit_scaled"}
+	}
+	if hasQty {
+		qty, err := ResolveQtyScaled(req.Qty, quantityScale, "qty", symbol, req.SymbolID)
+		if err != nil {
+			return nil, err
+		}
+		intent.Sizing = &orderv1.OrderIntent_BaseQtyScaled{BaseQtyScaled: qty}
+	} else {
+		if *req.MaxQuoteDebitScaled <= 0 {
+			return nil, &errors.ValidationError{Msg: "max_quote_debit_scaled must be positive"}
+		}
+		if side != orderv1.Side_BUY {
+			return nil, &errors.ValidationError{Msg: "max_quote_debit_scaled is only valid for buy orders"}
+		}
+		intent.Sizing = &orderv1.OrderIntent_MaxQuoteDebitScaled{MaxQuoteDebitScaled: *req.MaxQuoteDebitScaled}
 	}
 	clientOrderID, err := optionalClientID(req.ClientOrderID, "client_order_id")
 	if err != nil {
@@ -87,6 +107,16 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale int) (*orde
 	}
 	if clientOrderID != nil {
 		intent.ClientOrderId = *clientOrderID
+	}
+	if req.FeeAsset != nil {
+		feeAsset, ok := feeAssetToProto[strings.ToLower(*req.FeeAsset)]
+		if !ok {
+			return nil, &errors.ValidationError{Msg: "fee_asset must be quote or base"}
+		}
+		if feeAsset == orderv1.FeeAsset_BASE && side != orderv1.Side_BUY {
+			return nil, &errors.ValidationError{Msg: "fee_asset=base is only valid for buy orders"}
+		}
+		intent.FeeAsset = feeAsset
 	}
 
 	hasPrice := req.Price != nil && req.Price.IsSet()
@@ -144,7 +174,52 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale int) (*orde
 			intent.Execution = &orderv1.OrderIntent_LimitGtc{LimitGtc: &orderv1.LimitGtc{PriceTicks: priceTicks, PostOnly: req.PostOnly}}
 		}
 	}
+	if hasQuoteBudget && orderType == "limit" && tif != "ioc" {
+		return nil, &errors.ValidationError{Msg: "max_quote_debit_scaled is only valid for buy market or limit IOC orders"}
+	}
 	return intent, nil
+}
+
+// PreviewOrderToProto encodes the preview request from the same public input
+// shape as create, preserving sizing, execution, and fee-asset semantics.
+func PreviewOrderToProto(req models.CreateOrderRequest, quantityScale int) (*orderv1.PreviewOrderRequest, error) {
+	intent, err := OrderIntentToProto(req, quantityScale)
+	if err != nil {
+		return nil, err
+	}
+	proto := &orderv1.PreviewOrderRequest{
+		Symbol:   intent.GetSymbol(),
+		Side:     intent.GetSide(),
+		FeeAsset: intent.GetFeeAsset(),
+	}
+	switch sizing := intent.GetSizing().(type) {
+	case *orderv1.OrderIntent_BaseQtyScaled:
+		proto.Sizing = &orderv1.PreviewOrderRequest_BaseQtyScaled{BaseQtyScaled: sizing.BaseQtyScaled}
+	case *orderv1.OrderIntent_MaxQuoteDebitScaled:
+		proto.Sizing = &orderv1.PreviewOrderRequest_MaxQuoteDebitScaled{MaxQuoteDebitScaled: sizing.MaxQuoteDebitScaled}
+	default:
+		return nil, &errors.ValidationError{Msg: "orders.preview requires sizing"}
+	}
+	switch execution := intent.GetExecution().(type) {
+	case *orderv1.OrderIntent_MarketIoc:
+		proto.Execution = &orderv1.PreviewOrderRequest_MarketIoc{MarketIoc: execution.MarketIoc}
+	case *orderv1.OrderIntent_LimitGtc:
+		proto.Execution = &orderv1.PreviewOrderRequest_LimitGtc{LimitGtc: execution.LimitGtc}
+	case *orderv1.OrderIntent_LimitIoc:
+		proto.Execution = &orderv1.PreviewOrderRequest_LimitIoc{LimitIoc: execution.LimitIoc}
+	case *orderv1.OrderIntent_LimitFok:
+		proto.Execution = &orderv1.PreviewOrderRequest_LimitFok{LimitFok: execution.LimitFok}
+	default:
+		return nil, &errors.ValidationError{Msg: "orders.preview requires execution"}
+	}
+	if req.SubAccountID != nil {
+		sub, err := IDToInt(*req.SubAccountID, "sub_account_id")
+		if err != nil {
+			return nil, err
+		}
+		proto.SubaccountId = &sub
+	}
+	return proto, nil
 }
 
 // CreateOrderToProto encodes create order request.
