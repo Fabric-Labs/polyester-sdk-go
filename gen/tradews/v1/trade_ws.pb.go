@@ -22,8 +22,8 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// ClientFrame is the protobuf write-websocket envelope. The payloads reuse the
-// public Orders API DTOs so protobuf clients do not learn a second order model.
+// ClientFrame is the protobuf write-websocket envelope. Its payloads reuse the
+// public Orders API request contracts so every transport shares one order model.
 type ClientFrame struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Monotonic per-connection client sequence number, starting at 1.
@@ -148,22 +148,23 @@ type ClientFrame_Ping struct {
 }
 
 type ClientFrame_CreateOrder struct {
-	// Create-order command using the public Orders API DTO.
+	// Create-order command using the public Orders API request contract,
+	// including its required base-quantity or maximum-quote-debit sizing choice.
 	CreateOrder *v1.CreateOrderRequest `protobuf:"bytes,11,opt,name=create_order,json=createOrder,proto3,oneof"`
 }
 
 type ClientFrame_CancelOrder struct {
-	// Cancel-order command using the public Orders API DTO.
+	// Cancel-order command using the public Orders API request contract.
 	CancelOrder *v1.CancelOrderRequest `protobuf:"bytes,12,opt,name=cancel_order,json=cancelOrder,proto3,oneof"`
 }
 
 type ClientFrame_ModifyOrder struct {
-	// Modify-order command using the public Orders API DTO.
+	// Modify-order command using the public Orders API request contract.
 	ModifyOrder *v1.ModifyOrderRequest `protobuf:"bytes,13,opt,name=modify_order,json=modifyOrder,proto3,oneof"`
 }
 
 type ClientFrame_CancelAllOrders struct {
-	// Cancel-all command using the public Orders API DTO.
+	// Cancel-all command using the public Orders API request contract.
 	CancelAllOrders *v1.CancelAllOrdersRequest `protobuf:"bytes,14,opt,name=cancel_all_orders,json=cancelAllOrders,proto3,oneof"`
 }
 

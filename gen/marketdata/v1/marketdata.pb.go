@@ -1345,9 +1345,9 @@ type PairConfig struct {
 	MinNotionalQuote string `protobuf:"bytes,7,opt,name=min_notional_quote,json=minNotionalQuote,proto3" json:"min_notional_quote,omitempty"`
 	// Minimum order quantity as a decimal string in base-asset units.
 	MinQtyBase string `protobuf:"bytes,8,opt,name=min_qty_base,json=minQtyBase,proto3" json:"min_qty_base,omitempty"`
-	// Whether BUY order fees may be paid from the received base asset instead of
-	// the spent quote asset when the order request selects that fee source.
-	AllowBuyFeeFromReceived bool `protobuf:"varint,9,opt,name=allow_buy_fee_from_received,json=allowBuyFeeFromReceived,proto3" json:"allow_buy_fee_from_received,omitempty"`
+	// Whether BUY order fees may be paid from the base asset instead of the
+	// spent quote asset when the order request selects the base fee asset.
+	AllowBuyFeeFromBase bool `protobuf:"varint,9,opt,name=allow_buy_fee_from_base,json=allowBuyFeeFromBase,proto3" json:"allow_buy_fee_from_base,omitempty"`
 	// Quantity scale for base-asset amounts in this pair.
 	BaseQuantityScale uint32 `protobuf:"varint,10,opt,name=base_quantity_scale,json=baseQuantityScale,proto3" json:"base_quantity_scale,omitempty"`
 	// Quantity scale for quote-asset amounts in this pair.
@@ -1462,9 +1462,9 @@ func (x *PairConfig) GetMinQtyBase() string {
 	return ""
 }
 
-func (x *PairConfig) GetAllowBuyFeeFromReceived() bool {
+func (x *PairConfig) GetAllowBuyFeeFromBase() bool {
 	if x != nil {
-		return x.AllowBuyFeeFromReceived
+		return x.AllowBuyFeeFromBase
 	}
 	return false
 }
@@ -1736,7 +1736,7 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\x19quantity_display_decimals\x18\x04 \x01(\rR\x17quantityDisplayDecimals\x12%\n" +
 	"\x0equantity_scale\x18\x05 \x01(\rR\rquantityScale\"N\n" +
 	"\x14PairMarketdataConfig\x126\n" +
-	"\x17orderbook_price_buckets\x18\x01 \x03(\x01R\x15orderbookPriceBuckets\"\xe3\x06\n" +
+	"\x17orderbook_price_buckets\x18\x01 \x03(\x01R\x15orderbookPriceBuckets\"\xdb\x06\n" +
 	"\n" +
 	"PairConfig\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x12\x16\n" +
@@ -1749,8 +1749,8 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\tstep_size\x18\x06 \x01(\tR\bstepSize\x12,\n" +
 	"\x12min_notional_quote\x18\a \x01(\tR\x10minNotionalQuote\x12 \n" +
 	"\fmin_qty_base\x18\b \x01(\tR\n" +
-	"minQtyBase\x12<\n" +
-	"\x1ballow_buy_fee_from_received\x18\t \x01(\bR\x17allowBuyFeeFromReceived\x12.\n" +
+	"minQtyBase\x124\n" +
+	"\x17allow_buy_fee_from_base\x18\t \x01(\bR\x13allowBuyFeeFromBase\x12.\n" +
 	"\x13base_quantity_scale\x18\n" +
 	" \x01(\rR\x11baseQuantityScale\x120\n" +
 	"\x14quote_quantity_scale\x18\v \x01(\rR\x12quoteQuantityScale\x12C\n" +
