@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.0a28
+
+Git tag: `v0.1.0a28`.
+
 ### Breaking
 - Order and trigger fee outputs now use `FeeAsset` (`quote` / `base`); the removed `received` value maps to `base`.
 
