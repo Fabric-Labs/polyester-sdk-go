@@ -78,7 +78,7 @@
     },
     {
       "id": "orders",
-      "label": "Orders (create, cancel, modify, batch, cancel-all)",
+      "label": "Orders (create/preview, quote-budget sizing, cancel, modify, batch, cancel-all)",
       "supported": true
     },
     {

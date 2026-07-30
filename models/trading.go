@@ -4,22 +4,25 @@ import "time"
 
 // Order is a normalized open or historical order.
 type Order struct {
-	OrderID       string        `json:"order_id"`
-	SymbolID      uint32        `json:"symbol_id"`
-	ClientOrderID string        `json:"client_order_id,omitempty"`
-	Side          string        `json:"side,omitempty"`
-	Status        string        `json:"status,omitempty"`
-	OrderType     string        `json:"order_type,omitempty"`
-	TIF           string        `json:"tif,omitempty"`
-	OrigQty       QtyScaled     `json:"orig_qty,omitempty"`
-	CumQty        QtyScaled     `json:"cum_qty,omitempty"`
-	LeavesQty     QtyScaled     `json:"leaves_qty,omitempty"`
-	Price         PriceTicks    `json:"price,omitempty"`
-	AvgPx         PriceTicks    `json:"avg_px,omitempty"`
-	CreatedTsNs   string        `json:"created_ts_ns,omitempty"`
-	Version       uint32        `json:"version,omitempty"`
-	PostOnly      bool          `json:"post_only,omitempty"`
-	AttachedRisk  *AttachedRisk `json:"attached_risk,omitempty"`
+	OrderID       string     `json:"order_id"`
+	SymbolID      uint32     `json:"symbol_id"`
+	ClientOrderID string     `json:"client_order_id,omitempty"`
+	Side          string     `json:"side,omitempty"`
+	Status        string     `json:"status,omitempty"`
+	OrderType     string     `json:"order_type,omitempty"`
+	TIF           string     `json:"tif,omitempty"`
+	OrigQty       QtyScaled  `json:"orig_qty,omitempty"`
+	CumQty        QtyScaled  `json:"cum_qty,omitempty"`
+	LeavesQty     QtyScaled  `json:"leaves_qty,omitempty"`
+	Price         PriceTicks `json:"price,omitempty"`
+	AvgPx         PriceTicks `json:"avg_px,omitempty"`
+	CreatedTsNs   string     `json:"created_ts_ns,omitempty"`
+	Version       uint32     `json:"version,omitempty"`
+	PostOnly      bool       `json:"post_only,omitempty"`
+	FeeAsset      string     `json:"fee_asset,omitempty"`
+	// SubmittedMaxQuoteDebitScaled is populated for quote-budget sized orders.
+	SubmittedMaxQuoteDebitScaled string        `json:"submitted_max_quote_debit_scaled,omitempty"`
+	AttachedRisk                 *AttachedRisk `json:"attached_risk,omitempty"`
 }
 
 // RiskLeg is a take-profit or stop-loss attached-risk policy.
@@ -57,9 +60,24 @@ type OrdersList struct {
 
 // OrderMutationResult is the outcome of a single order mutation.
 type OrderMutationResult struct {
-	Status        string `json:"status"`
-	OrderID       string `json:"order_id,omitempty"`
-	ClientOrderID string `json:"client_order_id,omitempty"`
+	Status                       string     `json:"status"`
+	OrderID                      string     `json:"order_id,omitempty"`
+	ClientOrderID                string     `json:"client_order_id,omitempty"`
+	ResolvedBaseQtyScaled        string     `json:"resolved_base_qty_scaled,omitempty"`
+	ResolvedBaseQty              *QtyScaled `json:"resolved_base_qty,omitempty"`
+	SubmittedMaxQuoteDebitScaled string     `json:"submitted_max_quote_debit_scaled,omitempty"`
+}
+
+// PreviewOrderResult is the advisory result of Orders.Preview.
+type PreviewOrderResult struct {
+	ResolvedBaseQtyScaled     string      `json:"resolved_base_qty_scaled,omitempty"`
+	ResolvedBaseQty           *QtyScaled  `json:"resolved_base_qty,omitempty"`
+	PriceBound                *PriceTicks `json:"price_bound,omitempty"`
+	EstimatedQuoteDebitScaled string      `json:"estimated_quote_debit_scaled,omitempty"`
+	EstimatedFeeScaled        string      `json:"estimated_fee_scaled,omitempty"`
+	EstimatedNetBaseQty       *QtyScaled  `json:"estimated_net_base_qty,omitempty"`
+	FeeAsset                  string      `json:"fee_asset,omitempty"`
+	FreshAtTsNs               string      `json:"fresh_at_ts_ns,omitempty"`
 }
 
 // GetOrderResult includes order detail and related fills.
@@ -78,7 +96,7 @@ type UserTrade struct {
 	Price               PriceTicks `json:"price,omitempty"`
 	Qty                 QtyScaled  `json:"qty,omitempty"`
 	FeeScaled           string     `json:"fee_scaled,omitempty"`
-	FeeSource           string     `json:"fee_source,omitempty"`
+	FeeAsset            string     `json:"fee_asset,omitempty"`
 	ReferralShareScaled string     `json:"referral_share_scaled,omitempty"`
 	TsNs                string     `json:"ts_ns,omitempty"`
 }
@@ -117,12 +135,12 @@ type BatchReplaceAdmissionItem struct {
 
 // BatchReplaceOrdersResult is the durable admission receipt from batch_replace.
 type BatchReplaceOrdersResult struct {
-	BatchRequestID string                       `json:"batch_request_id"`
-	Status         string                       `json:"status"`
-	Results        []BatchReplaceAdmissionItem  `json:"results"`
-	AcceptedCount  int                          `json:"accepted_count,omitempty"`
-	RejectedCount  int                          `json:"rejected_count,omitempty"`
-	AcceptedTsNs   uint64                       `json:"accepted_ts_ns,omitempty"`
+	BatchRequestID string                      `json:"batch_request_id"`
+	Status         string                      `json:"status"`
+	Results        []BatchReplaceAdmissionItem `json:"results"`
+	AcceptedCount  int                         `json:"accepted_count,omitempty"`
+	RejectedCount  int                         `json:"rejected_count,omitempty"`
+	AcceptedTsNs   uint64                      `json:"accepted_ts_ns,omitempty"`
 }
 
 // BatchReplaceStatusItem is one recoverable execution status from get_batch_replace_status.
@@ -145,6 +163,34 @@ type BatchReplaceStatusResult struct {
 	RejectedCount   int                      `json:"rejected_count,omitempty"`
 	AcceptedTsNs    uint64                   `json:"accepted_ts_ns,omitempty"`
 	UpdatedTsNs     uint64                   `json:"updated_ts_ns,omitempty"`
+}
+
+// BatchReplaceStatusSettled reports whether every replacement has reached a
+// stable post-admission phase. "working" means live, not execution-final.
+func (s BatchReplaceStatusResult) BatchReplaceStatusSettled() bool {
+	return IsBatchReplaceSettled(s)
+}
+
+// BatchReplaceStatusSettled reports whether every batch-replace item has
+// reached a stable post-admission phase.
+func BatchReplaceStatusSettled(status BatchReplaceStatusResult) bool {
+	return IsBatchReplaceSettled(status)
+}
+
+// IsBatchReplaceSettled reports whether all batch-replace items are working,
+// rejected, or terminal. An empty status is not settled.
+func IsBatchReplaceSettled(status BatchReplaceStatusResult) bool {
+	if len(status.Items) == 0 {
+		return false
+	}
+	for _, item := range status.Items {
+		switch item.Phase {
+		case "working", "rejected", "terminal":
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // BatchCreateResultItem is one batch create outcome.
@@ -328,7 +374,7 @@ type Trigger struct {
 	TimeInForce             string          `json:"time_in_force,omitempty"`
 	Qty                     QtyScaled       `json:"qty,omitempty"`
 	LimitPrice              PriceTicks      `json:"limit_price,omitempty"`
-	FeeSource               string          `json:"fee_source,omitempty"`
+	FeeAsset                string          `json:"fee_asset,omitempty"`
 	SelfTradePreventionMode string          `json:"self_trade_prevention_mode,omitempty"`
 	PostOnly                bool            `json:"post_only,omitempty"`
 	TriggerPrice            PriceTicks      `json:"trigger_price,omitempty"`

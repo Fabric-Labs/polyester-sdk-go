@@ -167,7 +167,7 @@ func TestMarketBuySellRoundtrip(t *testing.T) {
 	}
 	var receivedFee int64
 	for _, trade := range buyProjection.Trades {
-		if trade.FeeSource != "received" {
+		if trade.FeeAsset != "base" {
 			continue
 		}
 		fee, parseErr := strconv.ParseInt(trade.FeeScaled, 10, 64)

@@ -73,12 +73,12 @@ func triggerDirectionLabel(v orderv1.TriggerDirection) string {
 	}
 }
 
-func feeSourceLabel(v orderv1.FeeSource) string {
+func feeAssetLabel(v orderv1.FeeAsset) string {
 	switch v {
-	case orderv1.FeeSource_QUOTE:
+	case orderv1.FeeAsset_QUOTE:
 		return "quote"
-	case orderv1.FeeSource_RECEIVED:
-		return "received"
+	case orderv1.FeeAsset_BASE:
+		return "base"
 	default:
 		return ""
 	}
@@ -309,7 +309,7 @@ func TriggerFromProto(msg *triggersv1.Trigger) models.Trigger {
 		OrderType:               orderType,
 		TimeInForce:             tif,
 		Qty:                     codecs.DecodeQtyScaled(msg.GetQtyScaled(), -1, msg.GetSymbol(), &sid),
-		FeeSource:               feeSourceLabel(msg.GetFeeSource()),
+		FeeAsset:                feeAssetLabel(msg.GetFeeAsset()),
 		SelfTradePreventionMode: stpModeLabel(msg.GetSelfTradePreventionMode()),
 		PostOnly:                postOnly,
 		LimitPrice:              limitPrice,

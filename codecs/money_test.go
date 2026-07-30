@@ -136,7 +136,7 @@ func TestCreateOrderAcceptsDecimalAndScaled(t *testing.T) {
 		t.Fatal(err)
 	}
 	intent := proto.GetOrder()
-	if intent.GetQtyScaled() != 10_000_000 || intent.GetLimitGtc().GetPriceTicks() != 50_000_000_000 {
+	if intent.GetBaseQtyScaled() != 10_000_000 || intent.GetLimitGtc().GetPriceTicks() != 50_000_000_000 {
 		t.Fatalf("proto=%+v", proto)
 	}
 
@@ -151,7 +151,7 @@ func TestCreateOrderAcceptsDecimalAndScaled(t *testing.T) {
 		t.Fatal(err)
 	}
 	intent2 := proto2.GetOrder()
-	if intent2.GetQtyScaled() != intent.GetQtyScaled() || intent2.GetLimitGtc().GetPriceTicks() != intent.GetLimitGtc().GetPriceTicks() {
+	if intent2.GetBaseQtyScaled() != intent.GetBaseQtyScaled() || intent2.GetLimitGtc().GetPriceTicks() != intent.GetLimitGtc().GetPriceTicks() {
 		t.Fatalf("proto2=%+v proto=%+v", proto2, proto)
 	}
 }

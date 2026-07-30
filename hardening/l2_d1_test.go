@@ -41,7 +41,7 @@ func (h *getOrderSeq) GetOrder(context.Context, *connect.Request[orderv1.GetOrde
 		Trades: []*orderv1.UserTrade{
 			{
 				SymbolId: 1, QtyScaled: 40, FeeScaled: 1,
-				FeeSource: orderv1.FeeSource_RECEIVED, ReferralShareScaled: 1,
+				FeeAsset: orderv1.FeeAsset_BASE, ReferralShareScaled: 1,
 			},
 			{SymbolId: 1, QtyScaled: 60},
 		},
@@ -96,7 +96,7 @@ func TestWaitForOrderTradesCompletePollsUntilSumMatches(t *testing.T) {
 	if result.Order == nil || result.Order.CumQty.Scaled() != 100 || sum != 100 {
 		t.Fatalf("cum=%v sum=%d trades=%+v", result.Order, sum, result.Trades)
 	}
-	if result.Trades[0].FeeSource != "received" || result.Trades[0].FeeScaled != "1" ||
+	if result.Trades[0].FeeAsset != "base" || result.Trades[0].FeeScaled != "1" ||
 		result.Trades[0].ReferralShareScaled != "1" {
 		t.Fatalf("fee fields=%+v", result.Trades[0])
 	}
