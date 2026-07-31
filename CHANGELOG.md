@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.0a30
+
+Git tag: `v0.1.0a30`.
+
 ### Breaking
 - `CreateOrderRequest.MaxQuoteDebitScaled` is now a typed `QtyInput` with
   `QuantityDomainOrderQuote` instead of `*int64`. Construct quote budgets with
