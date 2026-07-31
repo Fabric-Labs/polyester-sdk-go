@@ -43,9 +43,13 @@ func TestOrderIntentSupportsBaseOrQuoteBudgetSizing(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if preview.GetMaxQuoteDebitScaled() != 500 || preview.GetFeeAsset() != orderv1.FeeAsset_BASE ||
-		preview.GetLimitIoc() == nil {
-		t.Fatalf("preview=%+v", preview)
+	order := preview.GetOrder()
+	if order == nil {
+		t.Fatal("preview.order missing")
+	}
+	if order.GetMaxQuoteDebitScaled() != 500 || order.GetFeeAsset() != orderv1.FeeAsset_BASE ||
+		order.GetLimitIoc() == nil || order.GetSide() != orderv1.Side_BUY {
+		t.Fatalf("preview.order=%+v", order)
 	}
 }
 

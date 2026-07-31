@@ -213,11 +213,14 @@ func triggerConfigProjection(msg *triggersv1.Trigger) (triggerType, side, orderT
 			triggerPrice = codecs.DecodePriceTicks(cfg.TakeProfit.GetTriggerPriceTicks(), symbol)
 		}
 	case *triggersv1.Trigger_TrailingStop:
-		// Trailing stop is an implicit SELL market-IOC strategy.
+		// Trailing stop fires a market-IOC child; side is on the wire config
+		// (standalone historically SELL; attached may be either side).
 		triggerType = "trailing_stop"
-		side = "sell"
 		orderType = "market"
 		tif = "ioc"
+		if t := cfg.TrailingStop; t != nil {
+			side = codecs.OrderSideName(t.GetSide())
+		}
 	case *triggersv1.Trigger_Twap:
 		triggerType = "twap"
 		if t := cfg.Twap; t != nil {

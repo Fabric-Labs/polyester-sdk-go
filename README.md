@@ -307,8 +307,10 @@ _, err = client.Orders.Create(ctx, models.CreateOrderRequest{
 }, nil)
 ```
 
-Use `client.Orders.Preview(ctx, request, account)` to obtain advisory resolved
-base quantity, price bound, and typed quote/fee estimates
+Use `client.Orders.Preview(ctx, request, account)` with the same
+`CreateOrderRequest` shape as create. On the wire, preview wraps a full
+`OrderIntent` (same contract as `CreateOrderRequest.order`) and returns
+advisory resolved base quantity, price bound, and typed quote/fee estimates
 (`EstimatedQuoteDebit` always has `OrderQuote` domain; `EstimatedFee` has
 `OrderBase` or `OrderQuote` according to `FeeAsset`). Preview is not deployed
 on every API host, so handle an unimplemented/not-found response and do not
@@ -345,6 +347,11 @@ Response `Status` uses the same labels (British spelling `cancelled`).
 
 `Orders.Get(..., includeAttachedRisk)` returns policy data on
 `Order.AttachedRisk`. `Order` also exposes `PostOnly`.
+
+Standalone `trailing_stop` creates remain sell-only; the wire
+`TrailingStopTrigger` carries `side`, and list/get projections use that side
+(attached trailing stops may be buy or sell, opposite the parent). Attached
+triggers expose `ParentOrderID` when present.
 
 ## Balances: funding vs trading
 

@@ -9,6 +9,12 @@
   scale against the pair's catalog `quote_quantity_scale`.
 - `PreviewOrderResult` now exposes typed `EstimatedQuoteDebit` and
   `EstimatedFee` (`QtyScaled`) instead of bare `*_Scaled` strings.
+- Wire `PreviewOrderRequest` is no longer a flat sizing/execution message; it
+  matches create: optional `subaccount_id` plus `order` (`OrderIntent`). Public
+  `Orders.Preview` still accepts `CreateOrderRequest`.
+- Wire `TrailingStopTrigger` carries `side` (`orders.v1.Side`). Standalone
+  create still validates sell-only; read models project the wire side (buy or
+  sell) instead of hardcoding sell.
 
 ### Added
 - Catalog quote-quantity-scale lookup:
@@ -19,6 +25,8 @@
 - Transfer and trading-withdraw amounts fail closed when neither the
   `AssetAmount` nor request parameters provide a source scale.
 - Spot-config decoding preserves valid zero quote quantity scales.
+- Trailing-stop decode projects configuration `side` / type correctly and keeps
+  `parent_order_id` for attached risk triggers.
 
 ## 0.1.0a29
 

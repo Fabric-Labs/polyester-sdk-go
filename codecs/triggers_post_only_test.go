@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
+	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
@@ -47,5 +48,27 @@ func TestTrailingStopRejectsBuy(t *testing.T) {
 	var validationErr *sdkerrors.ValidationError
 	if !errors.As(err, &validationErr) {
 		t.Fatalf("want ValidationError, got %T %v", err, err)
+	}
+}
+
+func TestTrailingStopEncodesSellSide(t *testing.T) {
+	distance := int32(100)
+	req, err := CreateTriggerToProto(
+		"BTC-USDT", "trailing_stop", nil, "sell", models.QtyFromDecimal("0.1"),
+		"market", nil, "", "", nil, nil, false, 8,
+		CreateTriggerOptions{TrailingDistanceBps: &distance},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trailing := req.GetTrigger().GetTrailingStop()
+	if trailing == nil {
+		t.Fatal("trailing_stop strategy missing")
+	}
+	if trailing.GetSide() != orderv1.Side_SELL {
+		t.Fatalf("side=%v", trailing.GetSide())
+	}
+	if trailing.GetTrailingDistanceBps() != 100 {
+		t.Fatalf("distance=%v", trailing.GetTrailingDistanceBps())
 	}
 }

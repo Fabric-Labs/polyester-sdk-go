@@ -201,37 +201,14 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale, quoteQuant
 }
 
 // PreviewOrderToProto encodes the preview request from the same public input
-// shape as create, preserving sizing, execution, and fee-asset semantics.
+// shape as create. Wire PreviewOrderRequest matches CreateOrderRequest:
+// optional subaccount_id plus a full OrderIntent in order.
 func PreviewOrderToProto(req models.CreateOrderRequest, quantityScale, quoteQuantityScale int) (*orderv1.PreviewOrderRequest, error) {
 	intent, err := OrderIntentToProto(req, quantityScale, quoteQuantityScale)
 	if err != nil {
 		return nil, err
 	}
-	proto := &orderv1.PreviewOrderRequest{
-		Symbol:   intent.GetSymbol(),
-		Side:     intent.GetSide(),
-		FeeAsset: intent.GetFeeAsset(),
-	}
-	switch sizing := intent.GetSizing().(type) {
-	case *orderv1.OrderIntent_BaseQtyScaled:
-		proto.Sizing = &orderv1.PreviewOrderRequest_BaseQtyScaled{BaseQtyScaled: sizing.BaseQtyScaled}
-	case *orderv1.OrderIntent_MaxQuoteDebitScaled:
-		proto.Sizing = &orderv1.PreviewOrderRequest_MaxQuoteDebitScaled{MaxQuoteDebitScaled: sizing.MaxQuoteDebitScaled}
-	default:
-		return nil, &errors.ValidationError{Msg: "orders.preview requires sizing"}
-	}
-	switch execution := intent.GetExecution().(type) {
-	case *orderv1.OrderIntent_MarketIoc:
-		proto.Execution = &orderv1.PreviewOrderRequest_MarketIoc{MarketIoc: execution.MarketIoc}
-	case *orderv1.OrderIntent_LimitGtc:
-		proto.Execution = &orderv1.PreviewOrderRequest_LimitGtc{LimitGtc: execution.LimitGtc}
-	case *orderv1.OrderIntent_LimitIoc:
-		proto.Execution = &orderv1.PreviewOrderRequest_LimitIoc{LimitIoc: execution.LimitIoc}
-	case *orderv1.OrderIntent_LimitFok:
-		proto.Execution = &orderv1.PreviewOrderRequest_LimitFok{LimitFok: execution.LimitFok}
-	default:
-		return nil, &errors.ValidationError{Msg: "orders.preview requires execution"}
-	}
+	proto := &orderv1.PreviewOrderRequest{Order: intent}
 	if req.SubAccountID != nil {
 		sub, err := IDToInt(*req.SubAccountID, "sub_account_id")
 		if err != nil {

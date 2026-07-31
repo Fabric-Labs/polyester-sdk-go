@@ -646,8 +646,9 @@ func (x *ConditionalTrigger) GetChild() *ConditionalChildExecution {
 	return nil
 }
 
-// TrailingStopTrigger configures the supported spot trailing-stop strategy.
-// It tracks last trade price and submits a SELL market-IOC child when fired.
+// TrailingStopTrigger configures a spot trailing-stop strategy.
+// Standalone triggers currently support SELL market-IOC children. Attached
+// trailing stops may use either side, opposite their parent order.
 type TrailingStopTrigger struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required trailing distance.
@@ -665,7 +666,9 @@ type TrailingStopTrigger struct {
 	//
 	//	*TrailingStopTrigger_MaxSlippageTicks
 	//	*TrailingStopTrigger_MaxSlippageBps
-	MaxSlippage   isTrailingStopTrigger_MaxSlippage `protobuf_oneof:"max_slippage"`
+	MaxSlippage isTrailingStopTrigger_MaxSlippage `protobuf_oneof:"max_slippage"`
+	// Child order side.
+	Side          v1.Side `protobuf:"varint,6,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -755,6 +758,13 @@ func (x *TrailingStopTrigger) GetMaxSlippageBps() int32 {
 		}
 	}
 	return 0
+}
+
+func (x *TrailingStopTrigger) GetSide() v1.Side {
+	if x != nil {
+		return x.Side
+	}
+	return v1.Side(0)
 }
 
 type isTrailingStopTrigger_TrailingDistance interface {
@@ -3276,7 +3286,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x04side\x18\x02 \x01(\x0e2\x0f.orders.v1.SideB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04side\x12D\n" +
 	"\x05child\x18\x03 \x01(\v2&.triggers.v1.ConditionalChildExecutionB\x06\xbaH\x03\xc8\x01\x01R\x05child:\x9c\x01\xbaH\x98\x01\x1a\x95\x01\n" +
-	"&conditional_trigger.buy_requires_limit\x12<BUY stop-loss and take-profit triggers require a limit child\x1a-this.side != 1 || !has(this.child.market_ioc)\"\xf9\x02\n" +
+	"&conditional_trigger.buy_requires_limit\x12<BUY stop-loss and take-profit triggers require a limit child\x1a-this.side != 1 || !has(this.child.market_ioc)\"\xaa\x03\n" +
 	"\x13TrailingStopTrigger\x12A\n" +
 	"\x17trailing_distance_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x00R\x15trailingDistanceTicks\x12@\n" +
 	"\x15trailing_distance_bps\x18\x02 \x01(\x05B\n" +
@@ -3285,7 +3295,9 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\xbaH\a\xd8\x01\x01\"\x02 \x00R\x14activationPriceTicks\x127\n" +
 	"\x12max_slippage_ticks\x18\x04 \x01(\x05B\a\xbaH\x04\x1a\x02 \x00H\x01R\x10maxSlippageTicks\x126\n" +
 	"\x10max_slippage_bps\x18\x05 \x01(\x05B\n" +
-	"\xbaH\a\x1a\x05\x18\x90N \x00H\x01R\x0emaxSlippageBpsB\x1a\n" +
+	"\xbaH\a\x1a\x05\x18\x90N \x00H\x01R\x0emaxSlippageBps\x12/\n" +
+	"\x04side\x18\x06 \x01(\x0e2\x0f.orders.v1.SideB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04sideB\x1a\n" +
 	"\x11trailing_distance\x12\x05\xbaH\x02\b\x01B\x0e\n" +
 	"\fmax_slippage\"\x0f\n" +
 	"\rTwapMarketIoc\"8\n" +
@@ -3621,76 +3633,77 @@ var file_triggers_v1_triggers_proto_depIdxs = []int32{
 	7,  // 3: triggers.v1.ConditionalChildExecution.limit_fok:type_name -> triggers.v1.TriggerLimitFok
 	38, // 4: triggers.v1.ConditionalTrigger.side:type_name -> orders.v1.Side
 	8,  // 5: triggers.v1.ConditionalTrigger.child:type_name -> triggers.v1.ConditionalChildExecution
-	38, // 6: triggers.v1.TwapTrigger.side:type_name -> orders.v1.Side
-	11, // 7: triggers.v1.TwapTrigger.market_ioc:type_name -> triggers.v1.TwapMarketIoc
-	12, // 8: triggers.v1.TwapTrigger.limit_gtc:type_name -> triggers.v1.TwapLimitGtc
-	38, // 9: triggers.v1.LadderTrigger.side:type_name -> orders.v1.Side
-	39, // 10: triggers.v1.TriggerIntent.fee_asset:type_name -> orders.v1.FeeAsset
-	40, // 11: triggers.v1.TriggerIntent.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
-	9,  // 12: triggers.v1.TriggerIntent.stop_loss:type_name -> triggers.v1.ConditionalTrigger
-	9,  // 13: triggers.v1.TriggerIntent.take_profit:type_name -> triggers.v1.ConditionalTrigger
-	10, // 14: triggers.v1.TriggerIntent.trailing_stop:type_name -> triggers.v1.TrailingStopTrigger
-	13, // 15: triggers.v1.TriggerIntent.twap:type_name -> triggers.v1.TwapTrigger
-	14, // 16: triggers.v1.TriggerIntent.ladder:type_name -> triggers.v1.LadderTrigger
-	15, // 17: triggers.v1.CreateTriggerRequest.trigger:type_name -> triggers.v1.TriggerIntent
-	41, // 18: triggers.v1.CreateTriggerResponse.accepted_at:type_name -> google.protobuf.Timestamp
-	37, // 19: triggers.v1.GetTriggerResponse.trigger:type_name -> triggers.v1.Trigger
-	1,  // 20: triggers.v1.ListTriggersRequest.status:type_name -> triggers.v1.TriggerStatus
-	0,  // 21: triggers.v1.ListTriggersRequest.trigger_type:type_name -> triggers.v1.TriggerType
-	37, // 22: triggers.v1.ListTriggersResponse.triggers:type_name -> triggers.v1.Trigger
-	0,  // 23: triggers.v1.TriggerEvent.trigger_type:type_name -> triggers.v1.TriggerType
-	2,  // 24: triggers.v1.TriggerEvent.event_type:type_name -> triggers.v1.TriggerEventType
-	23, // 25: triggers.v1.ListTriggerEventsResponse.events:type_name -> triggers.v1.TriggerEvent
-	1,  // 26: triggers.v1.CancelTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
-	41, // 27: triggers.v1.CancelTriggerResponse.ts:type_name -> google.protobuf.Timestamp
-	1,  // 28: triggers.v1.ModifyTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
-	41, // 29: triggers.v1.ModifyTriggerResponse.ts:type_name -> google.protobuf.Timestamp
-	1,  // 30: triggers.v1.PauseTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
-	41, // 31: triggers.v1.PauseTriggerResponse.ts:type_name -> google.protobuf.Timestamp
-	1,  // 32: triggers.v1.ResumeTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
-	41, // 33: triggers.v1.ResumeTriggerResponse.ts:type_name -> google.protobuf.Timestamp
-	42, // 34: triggers.v1.StopDetails.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
-	43, // 35: triggers.v1.StopDetails.trigger_direction:type_name -> orders.v1.TriggerDirection
-	42, // 36: triggers.v1.TrailingDetails.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
-	43, // 37: triggers.v1.TrailingDetails.trigger_direction:type_name -> orders.v1.TriggerDirection
-	3,  // 38: triggers.v1.LadderDetails.ladder_distribution:type_name -> triggers.v1.LadderDistribution
-	1,  // 39: triggers.v1.Trigger.status:type_name -> triggers.v1.TriggerStatus
-	39, // 40: triggers.v1.Trigger.fee_asset:type_name -> orders.v1.FeeAsset
-	40, // 41: triggers.v1.Trigger.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
-	9,  // 42: triggers.v1.Trigger.stop_loss:type_name -> triggers.v1.ConditionalTrigger
-	9,  // 43: triggers.v1.Trigger.take_profit:type_name -> triggers.v1.ConditionalTrigger
-	10, // 44: triggers.v1.Trigger.trailing_stop:type_name -> triggers.v1.TrailingStopTrigger
-	13, // 45: triggers.v1.Trigger.twap:type_name -> triggers.v1.TwapTrigger
-	14, // 46: triggers.v1.Trigger.ladder:type_name -> triggers.v1.LadderTrigger
-	33, // 47: triggers.v1.Trigger.stop:type_name -> triggers.v1.StopDetails
-	34, // 48: triggers.v1.Trigger.trailing:type_name -> triggers.v1.TrailingDetails
-	35, // 49: triggers.v1.Trigger.twap_state:type_name -> triggers.v1.TwapDetails
-	36, // 50: triggers.v1.Trigger.ladder_state:type_name -> triggers.v1.LadderDetails
-	41, // 51: triggers.v1.Trigger.created_at:type_name -> google.protobuf.Timestamp
-	41, // 52: triggers.v1.Trigger.updated_at:type_name -> google.protobuf.Timestamp
-	41, // 53: triggers.v1.Trigger.armed_at:type_name -> google.protobuf.Timestamp
-	41, // 54: triggers.v1.Trigger.completed_at:type_name -> google.protobuf.Timestamp
-	16, // 55: triggers.v1.TriggersService.CreateTrigger:input_type -> triggers.v1.CreateTriggerRequest
-	18, // 56: triggers.v1.TriggersService.GetTrigger:input_type -> triggers.v1.GetTriggerRequest
-	20, // 57: triggers.v1.TriggersService.ListTriggers:input_type -> triggers.v1.ListTriggersRequest
-	22, // 58: triggers.v1.TriggersService.ListTriggerEvents:input_type -> triggers.v1.ListTriggerEventsRequest
-	25, // 59: triggers.v1.TriggersService.CancelTrigger:input_type -> triggers.v1.CancelTriggerRequest
-	27, // 60: triggers.v1.TriggersService.ModifyTrigger:input_type -> triggers.v1.ModifyTriggerRequest
-	29, // 61: triggers.v1.TriggersService.PauseTrigger:input_type -> triggers.v1.PauseTriggerRequest
-	31, // 62: triggers.v1.TriggersService.ResumeTrigger:input_type -> triggers.v1.ResumeTriggerRequest
-	17, // 63: triggers.v1.TriggersService.CreateTrigger:output_type -> triggers.v1.CreateTriggerResponse
-	19, // 64: triggers.v1.TriggersService.GetTrigger:output_type -> triggers.v1.GetTriggerResponse
-	21, // 65: triggers.v1.TriggersService.ListTriggers:output_type -> triggers.v1.ListTriggersResponse
-	24, // 66: triggers.v1.TriggersService.ListTriggerEvents:output_type -> triggers.v1.ListTriggerEventsResponse
-	26, // 67: triggers.v1.TriggersService.CancelTrigger:output_type -> triggers.v1.CancelTriggerResponse
-	28, // 68: triggers.v1.TriggersService.ModifyTrigger:output_type -> triggers.v1.ModifyTriggerResponse
-	30, // 69: triggers.v1.TriggersService.PauseTrigger:output_type -> triggers.v1.PauseTriggerResponse
-	32, // 70: triggers.v1.TriggersService.ResumeTrigger:output_type -> triggers.v1.ResumeTriggerResponse
-	63, // [63:71] is the sub-list for method output_type
-	55, // [55:63] is the sub-list for method input_type
-	55, // [55:55] is the sub-list for extension type_name
-	55, // [55:55] is the sub-list for extension extendee
-	0,  // [0:55] is the sub-list for field type_name
+	38, // 6: triggers.v1.TrailingStopTrigger.side:type_name -> orders.v1.Side
+	38, // 7: triggers.v1.TwapTrigger.side:type_name -> orders.v1.Side
+	11, // 8: triggers.v1.TwapTrigger.market_ioc:type_name -> triggers.v1.TwapMarketIoc
+	12, // 9: triggers.v1.TwapTrigger.limit_gtc:type_name -> triggers.v1.TwapLimitGtc
+	38, // 10: triggers.v1.LadderTrigger.side:type_name -> orders.v1.Side
+	39, // 11: triggers.v1.TriggerIntent.fee_asset:type_name -> orders.v1.FeeAsset
+	40, // 12: triggers.v1.TriggerIntent.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
+	9,  // 13: triggers.v1.TriggerIntent.stop_loss:type_name -> triggers.v1.ConditionalTrigger
+	9,  // 14: triggers.v1.TriggerIntent.take_profit:type_name -> triggers.v1.ConditionalTrigger
+	10, // 15: triggers.v1.TriggerIntent.trailing_stop:type_name -> triggers.v1.TrailingStopTrigger
+	13, // 16: triggers.v1.TriggerIntent.twap:type_name -> triggers.v1.TwapTrigger
+	14, // 17: triggers.v1.TriggerIntent.ladder:type_name -> triggers.v1.LadderTrigger
+	15, // 18: triggers.v1.CreateTriggerRequest.trigger:type_name -> triggers.v1.TriggerIntent
+	41, // 19: triggers.v1.CreateTriggerResponse.accepted_at:type_name -> google.protobuf.Timestamp
+	37, // 20: triggers.v1.GetTriggerResponse.trigger:type_name -> triggers.v1.Trigger
+	1,  // 21: triggers.v1.ListTriggersRequest.status:type_name -> triggers.v1.TriggerStatus
+	0,  // 22: triggers.v1.ListTriggersRequest.trigger_type:type_name -> triggers.v1.TriggerType
+	37, // 23: triggers.v1.ListTriggersResponse.triggers:type_name -> triggers.v1.Trigger
+	0,  // 24: triggers.v1.TriggerEvent.trigger_type:type_name -> triggers.v1.TriggerType
+	2,  // 25: triggers.v1.TriggerEvent.event_type:type_name -> triggers.v1.TriggerEventType
+	23, // 26: triggers.v1.ListTriggerEventsResponse.events:type_name -> triggers.v1.TriggerEvent
+	1,  // 27: triggers.v1.CancelTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
+	41, // 28: triggers.v1.CancelTriggerResponse.ts:type_name -> google.protobuf.Timestamp
+	1,  // 29: triggers.v1.ModifyTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
+	41, // 30: triggers.v1.ModifyTriggerResponse.ts:type_name -> google.protobuf.Timestamp
+	1,  // 31: triggers.v1.PauseTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
+	41, // 32: triggers.v1.PauseTriggerResponse.ts:type_name -> google.protobuf.Timestamp
+	1,  // 33: triggers.v1.ResumeTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
+	41, // 34: triggers.v1.ResumeTriggerResponse.ts:type_name -> google.protobuf.Timestamp
+	42, // 35: triggers.v1.StopDetails.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
+	43, // 36: triggers.v1.StopDetails.trigger_direction:type_name -> orders.v1.TriggerDirection
+	42, // 37: triggers.v1.TrailingDetails.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
+	43, // 38: triggers.v1.TrailingDetails.trigger_direction:type_name -> orders.v1.TriggerDirection
+	3,  // 39: triggers.v1.LadderDetails.ladder_distribution:type_name -> triggers.v1.LadderDistribution
+	1,  // 40: triggers.v1.Trigger.status:type_name -> triggers.v1.TriggerStatus
+	39, // 41: triggers.v1.Trigger.fee_asset:type_name -> orders.v1.FeeAsset
+	40, // 42: triggers.v1.Trigger.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
+	9,  // 43: triggers.v1.Trigger.stop_loss:type_name -> triggers.v1.ConditionalTrigger
+	9,  // 44: triggers.v1.Trigger.take_profit:type_name -> triggers.v1.ConditionalTrigger
+	10, // 45: triggers.v1.Trigger.trailing_stop:type_name -> triggers.v1.TrailingStopTrigger
+	13, // 46: triggers.v1.Trigger.twap:type_name -> triggers.v1.TwapTrigger
+	14, // 47: triggers.v1.Trigger.ladder:type_name -> triggers.v1.LadderTrigger
+	33, // 48: triggers.v1.Trigger.stop:type_name -> triggers.v1.StopDetails
+	34, // 49: triggers.v1.Trigger.trailing:type_name -> triggers.v1.TrailingDetails
+	35, // 50: triggers.v1.Trigger.twap_state:type_name -> triggers.v1.TwapDetails
+	36, // 51: triggers.v1.Trigger.ladder_state:type_name -> triggers.v1.LadderDetails
+	41, // 52: triggers.v1.Trigger.created_at:type_name -> google.protobuf.Timestamp
+	41, // 53: triggers.v1.Trigger.updated_at:type_name -> google.protobuf.Timestamp
+	41, // 54: triggers.v1.Trigger.armed_at:type_name -> google.protobuf.Timestamp
+	41, // 55: triggers.v1.Trigger.completed_at:type_name -> google.protobuf.Timestamp
+	16, // 56: triggers.v1.TriggersService.CreateTrigger:input_type -> triggers.v1.CreateTriggerRequest
+	18, // 57: triggers.v1.TriggersService.GetTrigger:input_type -> triggers.v1.GetTriggerRequest
+	20, // 58: triggers.v1.TriggersService.ListTriggers:input_type -> triggers.v1.ListTriggersRequest
+	22, // 59: triggers.v1.TriggersService.ListTriggerEvents:input_type -> triggers.v1.ListTriggerEventsRequest
+	25, // 60: triggers.v1.TriggersService.CancelTrigger:input_type -> triggers.v1.CancelTriggerRequest
+	27, // 61: triggers.v1.TriggersService.ModifyTrigger:input_type -> triggers.v1.ModifyTriggerRequest
+	29, // 62: triggers.v1.TriggersService.PauseTrigger:input_type -> triggers.v1.PauseTriggerRequest
+	31, // 63: triggers.v1.TriggersService.ResumeTrigger:input_type -> triggers.v1.ResumeTriggerRequest
+	17, // 64: triggers.v1.TriggersService.CreateTrigger:output_type -> triggers.v1.CreateTriggerResponse
+	19, // 65: triggers.v1.TriggersService.GetTrigger:output_type -> triggers.v1.GetTriggerResponse
+	21, // 66: triggers.v1.TriggersService.ListTriggers:output_type -> triggers.v1.ListTriggersResponse
+	24, // 67: triggers.v1.TriggersService.ListTriggerEvents:output_type -> triggers.v1.ListTriggerEventsResponse
+	26, // 68: triggers.v1.TriggersService.CancelTrigger:output_type -> triggers.v1.CancelTriggerResponse
+	28, // 69: triggers.v1.TriggersService.ModifyTrigger:output_type -> triggers.v1.ModifyTriggerResponse
+	30, // 70: triggers.v1.TriggersService.PauseTrigger:output_type -> triggers.v1.PauseTriggerResponse
+	32, // 71: triggers.v1.TriggersService.ResumeTrigger:output_type -> triggers.v1.ResumeTriggerResponse
+	64, // [64:72] is the sub-list for method output_type
+	56, // [56:64] is the sub-list for method input_type
+	56, // [56:56] is the sub-list for extension type_name
+	56, // [56:56] is the sub-list for extension extendee
+	0,  // [0:56] is the sub-list for field type_name
 }
 
 func init() { file_triggers_v1_triggers_proto_init() }

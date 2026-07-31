@@ -1592,35 +1592,15 @@ func (x *CreateOrderResponse) GetTrailingStopTriggerId() uint64 {
 	return 0
 }
 
-// PreviewOrderRequest asks for an advisory resolution of one order intent.
-// A preview does not reserve funds, submit an order, or guarantee later
-// admission or execution.
+// PreviewOrderRequest asks whether one complete order intent is currently
+// admissible. It uses the same order contract as CreateOrderRequest. Previewing
+// creates no order, hold, reservation, or client-order-ID claim.
 type PreviewOrderRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target sub-account numeric ID. When omitted, uses caller's root account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
-	// Trading pair symbol, for example "BTC-USDT".
-	Symbol string `protobuf:"bytes,2,opt,name=symbol,proto3" json:"symbol,omitempty"`
-	// Order side.
-	Side Side `protobuf:"varint,3,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
-	// Required advisory sizing input.
-	//
-	// Types that are valid to be assigned to Sizing:
-	//
-	//	*PreviewOrderRequest_BaseQtyScaled
-	//	*PreviewOrderRequest_MaxQuoteDebitScaled
-	Sizing isPreviewOrderRequest_Sizing `protobuf_oneof:"sizing"`
-	// Required execution behavior used to establish the preview price bound.
-	//
-	// Types that are valid to be assigned to Execution:
-	//
-	//	*PreviewOrderRequest_MarketIoc
-	//	*PreviewOrderRequest_LimitGtc
-	//	*PreviewOrderRequest_LimitIoc
-	//	*PreviewOrderRequest_LimitFok
-	Execution isPreviewOrderRequest_Execution `protobuf_oneof:"execution"`
-	// Asset charged for fees. Defaults to QUOTE. BASE is available only for BUY.
-	FeeAsset      FeeAsset `protobuf:"varint,20,opt,name=fee_asset,json=feeAsset,proto3,enum=orders.v1.FeeAsset" json:"fee_asset,omitempty"`
+	// Order intent to evaluate without submitting it.
+	Order         *OrderIntent `protobuf:"bytes,2,opt,name=order,proto3" json:"order,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1662,149 +1642,17 @@ func (x *PreviewOrderRequest) GetSubaccountId() uint64 {
 	return 0
 }
 
-func (x *PreviewOrderRequest) GetSymbol() string {
+func (x *PreviewOrderRequest) GetOrder() *OrderIntent {
 	if x != nil {
-		return x.Symbol
-	}
-	return ""
-}
-
-func (x *PreviewOrderRequest) GetSide() Side {
-	if x != nil {
-		return x.Side
-	}
-	return Side_SIDE_UNSPECIFIED
-}
-
-func (x *PreviewOrderRequest) GetSizing() isPreviewOrderRequest_Sizing {
-	if x != nil {
-		return x.Sizing
+		return x.Order
 	}
 	return nil
 }
 
-func (x *PreviewOrderRequest) GetBaseQtyScaled() int64 {
-	if x != nil {
-		if x, ok := x.Sizing.(*PreviewOrderRequest_BaseQtyScaled); ok {
-			return x.BaseQtyScaled
-		}
-	}
-	return 0
-}
-
-func (x *PreviewOrderRequest) GetMaxQuoteDebitScaled() int64 {
-	if x != nil {
-		if x, ok := x.Sizing.(*PreviewOrderRequest_MaxQuoteDebitScaled); ok {
-			return x.MaxQuoteDebitScaled
-		}
-	}
-	return 0
-}
-
-func (x *PreviewOrderRequest) GetExecution() isPreviewOrderRequest_Execution {
-	if x != nil {
-		return x.Execution
-	}
-	return nil
-}
-
-func (x *PreviewOrderRequest) GetMarketIoc() *MarketIoc {
-	if x != nil {
-		if x, ok := x.Execution.(*PreviewOrderRequest_MarketIoc); ok {
-			return x.MarketIoc
-		}
-	}
-	return nil
-}
-
-func (x *PreviewOrderRequest) GetLimitGtc() *LimitGtc {
-	if x != nil {
-		if x, ok := x.Execution.(*PreviewOrderRequest_LimitGtc); ok {
-			return x.LimitGtc
-		}
-	}
-	return nil
-}
-
-func (x *PreviewOrderRequest) GetLimitIoc() *LimitIoc {
-	if x != nil {
-		if x, ok := x.Execution.(*PreviewOrderRequest_LimitIoc); ok {
-			return x.LimitIoc
-		}
-	}
-	return nil
-}
-
-func (x *PreviewOrderRequest) GetLimitFok() *LimitFok {
-	if x != nil {
-		if x, ok := x.Execution.(*PreviewOrderRequest_LimitFok); ok {
-			return x.LimitFok
-		}
-	}
-	return nil
-}
-
-func (x *PreviewOrderRequest) GetFeeAsset() FeeAsset {
-	if x != nil {
-		return x.FeeAsset
-	}
-	return FeeAsset_FEE_ASSET_UNSPECIFIED
-}
-
-type isPreviewOrderRequest_Sizing interface {
-	isPreviewOrderRequest_Sizing()
-}
-
-type PreviewOrderRequest_BaseQtyScaled struct {
-	// Exact gross base quantity scaled by the pair's base_quantity_scale from
-	// GetSpotConfig.
-	BaseQtyScaled int64 `protobuf:"varint,4,opt,name=base_qty_scaled,json=baseQtyScaled,proto3,oneof"`
-}
-
-type PreviewOrderRequest_MaxQuoteDebitScaled struct {
-	// Hard all-in quote debit limit scaled by the pair's quote_quantity_scale
-	// from GetSpotConfig. Valid only for BUY market IOC and BUY limit IOC.
-	MaxQuoteDebitScaled int64 `protobuf:"varint,5,opt,name=max_quote_debit_scaled,json=maxQuoteDebitScaled,proto3,oneof"`
-}
-
-func (*PreviewOrderRequest_BaseQtyScaled) isPreviewOrderRequest_Sizing() {}
-
-func (*PreviewOrderRequest_MaxQuoteDebitScaled) isPreviewOrderRequest_Sizing() {}
-
-type isPreviewOrderRequest_Execution interface {
-	isPreviewOrderRequest_Execution()
-}
-
-type PreviewOrderRequest_MarketIoc struct {
-	// Market order with implicit IOC behavior.
-	MarketIoc *MarketIoc `protobuf:"bytes,10,opt,name=market_ioc,json=marketIoc,proto3,oneof"`
-}
-
-type PreviewOrderRequest_LimitGtc struct {
-	// Resting GTC limit order, optionally post-only.
-	LimitGtc *LimitGtc `protobuf:"bytes,11,opt,name=limit_gtc,json=limitGtc,proto3,oneof"`
-}
-
-type PreviewOrderRequest_LimitIoc struct {
-	// Immediate-or-cancel limit order.
-	LimitIoc *LimitIoc `protobuf:"bytes,12,opt,name=limit_ioc,json=limitIoc,proto3,oneof"`
-}
-
-type PreviewOrderRequest_LimitFok struct {
-	// Fill-or-kill limit order.
-	LimitFok *LimitFok `protobuf:"bytes,13,opt,name=limit_fok,json=limitFok,proto3,oneof"`
-}
-
-func (*PreviewOrderRequest_MarketIoc) isPreviewOrderRequest_Execution() {}
-
-func (*PreviewOrderRequest_LimitGtc) isPreviewOrderRequest_Execution() {}
-
-func (*PreviewOrderRequest_LimitIoc) isPreviewOrderRequest_Execution() {}
-
-func (*PreviewOrderRequest_LimitFok) isPreviewOrderRequest_Execution() {}
-
-// PreviewOrderResponse returns an advisory sizing and fee estimate. Values may
-// change before submission as prices, liquidity, and fees change.
+// PreviewOrderResponse reports whether an order is currently admissible and
+// returns its resolved financial values. The result is advisory: account,
+// market, and fee inputs may change, and CreateOrder always evaluates the
+// intent again.
 type PreviewOrderResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Gross base quantity resolved for execution, scaled by the pair's
@@ -1825,7 +1673,13 @@ type PreviewOrderResponse struct {
 	// Time at which the market and fee inputs used by this preview were fresh.
 	FreshAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=fresh_at,json=freshAt,proto3" json:"fresh_at,omitempty"`
 	// Freshness time as epoch nanoseconds (UTC).
-	FreshAtTsNs   uint64 `protobuf:"varint,8,opt,name=fresh_at_ts_ns,json=freshAtTsNs,proto3" json:"fresh_at_ts_ns,omitempty"`
+	FreshAtTsNs uint64 `protobuf:"varint,8,opt,name=fresh_at_ts_ns,json=freshAtTsNs,proto3" json:"fresh_at_ts_ns,omitempty"`
+	// Whether the order passed the current validation, policy, risk, and
+	// available-balance checks.
+	Admissible *bool `protobuf:"varint,9,opt,name=admissible,proto3,oneof" json:"admissible,omitempty"`
+	// Typed reason the order is not currently admissible. Omitted when
+	// admissible is true.
+	Rejection     *ErrorDetail `protobuf:"bytes,10,opt,name=rejection,proto3" json:"rejection,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1914,6 +1768,20 @@ func (x *PreviewOrderResponse) GetFreshAtTsNs() uint64 {
 		return x.FreshAtTsNs
 	}
 	return 0
+}
+
+func (x *PreviewOrderResponse) GetAdmissible() bool {
+	if x != nil && x.Admissible != nil {
+		return *x.Admissible
+	}
+	return false
+}
+
+func (x *PreviewOrderResponse) GetRejection() *ErrorDetail {
+	if x != nil {
+		return x.Rejection
+	}
+	return nil
 }
 
 // CancelOrderRequest is the binary (protobuf) request for canceling orders.
@@ -4482,26 +4350,11 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"!_submitted_max_quote_debit_scaledB\x19\n" +
 	"\x17_take_profit_trigger_idB\x17\n" +
 	"\x15_stop_loss_trigger_idB\x1b\n" +
-	"\x19_trailing_stop_trigger_id\"\xc7\a\n" +
+	"\x19_trailing_stop_trigger_id\"\x8a\x01\n" +
 	"\x13PreviewOrderRequest\x12(\n" +
-	"\rsubaccount_id\x18\x01 \x01(\x06H\x02R\fsubaccountId\x88\x01\x01\x12\"\n" +
-	"\x06symbol\x18\x02 \x01(\tB\n" +
-	"\xe0A\x02\xbaH\x04r\x02\x10\x01R\x06symbol\x122\n" +
-	"\x04side\x18\x03 \x01(\x0e2\x0f.orders.v1.SideB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04side\x121\n" +
-	"\x0fbase_qty_scaled\x18\x04 \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x00R\rbaseQtyScaled\x12>\n" +
-	"\x16max_quote_debit_scaled\x18\x05 \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x00R\x13maxQuoteDebitScaled\x125\n" +
-	"\n" +
-	"market_ioc\x18\n" +
-	" \x01(\v2\x14.orders.v1.MarketIocH\x01R\tmarketIoc\x122\n" +
-	"\tlimit_gtc\x18\v \x01(\v2\x13.orders.v1.LimitGtcH\x01R\blimitGtc\x122\n" +
-	"\tlimit_ioc\x18\f \x01(\v2\x13.orders.v1.LimitIocH\x01R\blimitIoc\x122\n" +
-	"\tlimit_fok\x18\r \x01(\v2\x13.orders.v1.LimitFokH\x01R\blimitFok\x12:\n" +
-	"\tfee_asset\x18\x14 \x01(\x0e2\x13.orders.v1.FeeAssetB\b\xbaH\x05\x82\x01\x02\x10\x01R\bfeeAsset:\xf4\x02\xbaH\xf0\x02\x1a\xe4\x01\n" +
-	")preview_order.max_quote_debit_eligibility\x12Omax_quote_debit_scaled is valid only for BUY market IOC or BUY limit IOC orders\x1af!has(this.max_quote_debit_scaled) || (this.side == 1 && (has(this.market_ioc) || has(this.limit_ioc)))\x1a\x86\x01\n" +
-	"\x1cpreview_order.sell_fee_asset\x12(SELL orders must use the QUOTE fee asset\x1a<this.side != 2 || this.fee_asset == 0 || this.fee_asset == 1B\x0f\n" +
-	"\x06sizing\x12\x05\xbaH\x02\b\x01B\x12\n" +
-	"\texecution\x12\x05\xbaH\x02\b\x01B\x10\n" +
-	"\x0e_subaccount_id\"\xbe\x03\n" +
+	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x127\n" +
+	"\x05order\x18\x02 \x01(\v2\x16.orders.v1.OrderIntentB\t\xe0A\x02\xbaH\x03\xc8\x01\x01R\x05orderB\x10\n" +
+	"\x0e_subaccount_id\"\xa8\x04\n" +
 	"\x14PreviewOrderResponse\x127\n" +
 	"\x18resolved_base_qty_scaled\x18\x01 \x01(\x03R\x15resolvedBaseQtyScaled\x12*\n" +
 	"\x11price_bound_ticks\x18\x02 \x01(\x03R\x0fpriceBoundTicks\x12?\n" +
@@ -4510,7 +4363,13 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x1destimated_net_base_qty_scaled\x18\x05 \x01(\x03R\x19estimatedNetBaseQtyScaled\x120\n" +
 	"\tfee_asset\x18\x06 \x01(\x0e2\x13.orders.v1.FeeAssetR\bfeeAsset\x125\n" +
 	"\bfresh_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\afreshAt\x12#\n" +
-	"\x0efresh_at_ts_ns\x18\b \x01(\x04R\vfreshAtTsNs\"\xfe\x02\n" +
+	"\x0efresh_at_ts_ns\x18\b \x01(\x04R\vfreshAtTsNs\x12#\n" +
+	"\n" +
+	"admissible\x18\t \x01(\bH\x00R\n" +
+	"admissible\x88\x01\x01\x124\n" +
+	"\trejection\x18\n" +
+	" \x01(\v2\x16.orders.v1.ErrorDetailR\trejectionB\r\n" +
+	"\v_admissible\"\xfe\x02\n" +
 	"\x12CancelOrderRequest\x12+\n" +
 	"\border_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\aorderId\x12H\n" +
 	"\x0fclient_order_id\x18\x02 \x01(\tB\x1e\xbaH\x1br\x19\x10\x01\x18$2\x13^[A-Za-z0-9._:/-]+$H\x00R\rclientOrderId\x12\x1b\n" +
@@ -4843,10 +4702,10 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x1fBatchReplaceItemAdmissionStatus\x123\n" +
 	"/BATCH_REPLACE_ITEM_ADMISSION_STATUS_UNSPECIFIED\x10\x00\x120\n" +
 	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_ADMITTED\x10\x01\x120\n" +
-	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_REJECTED\x10\x022\xa5\x13\n" +
-	"\rOrdersService\x12\x84\x02\n" +
-	"\fPreviewOrder\x12\x1e.orders.v1.PreviewOrderRequest\x1a\x1f.orders.v1.PreviewOrderResponse\"\xb2\x01\xbaG\xae\x01\n" +
-	"\x0eOrders Service\x12\rPreview Order\x1a\x8c\x01Preview resolved gross base quantity, price protection, quote debit, fees, and net base using current market inputs. The result is advisory.\x12\xaa\x02\n" +
+	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_REJECTED\x10\x022\xaf\x13\n" +
+	"\rOrdersService\x12\x8e\x02\n" +
+	"\fPreviewOrder\x12\x1e.orders.v1.PreviewOrderRequest\x1a\x1f.orders.v1.PreviewOrderResponse\"\xbc\x01\xbaG\xb8\x01\n" +
+	"\x0eOrders Service\x12\rPreview Order\x1a\x96\x01Check current order eligibility and available balance, and preview resolved quantity, price protection, quote debit, and fees. The result is advisory.\x12\xaa\x02\n" +
 	"\vCreateOrder\x12\x1d.orders.v1.CreateOrderRequest\x1a\x1e.orders.v1.CreateOrderResponse\"\xdb\x01\xbaG\xd7\x01\n" +
 	"\x0eOrders Service\x12\fCreate Order\x1a\xb6\x01Create a single order with side, type, quantity, and optional price fields. Supports optional client order IDs and attached risk instructions (take-profit, stop-loss, trailing stop).\x12\xde\x01\n" +
 	"\vCancelOrder\x12\x1d.orders.v1.CancelOrderRequest\x1a\x1e.orders.v1.CancelOrderResponse\"\x8f\x01\xbaG\x8b\x01\n" +
@@ -4944,70 +4803,66 @@ var file_orders_v1_orders_proto_depIdxs = []int32{
 	31, // 7: orders.v1.OrderIntent.attached_risk:type_name -> orders.v1.RiskPolicy
 	16, // 8: orders.v1.CreateOrderRequest.order:type_name -> orders.v1.OrderIntent
 	51, // 9: orders.v1.CreateOrderResponse.accepted_at:type_name -> google.protobuf.Timestamp
-	0,  // 10: orders.v1.PreviewOrderRequest.side:type_name -> orders.v1.Side
-	12, // 11: orders.v1.PreviewOrderRequest.market_ioc:type_name -> orders.v1.MarketIoc
-	13, // 12: orders.v1.PreviewOrderRequest.limit_gtc:type_name -> orders.v1.LimitGtc
-	14, // 13: orders.v1.PreviewOrderRequest.limit_ioc:type_name -> orders.v1.LimitIoc
-	15, // 14: orders.v1.PreviewOrderRequest.limit_fok:type_name -> orders.v1.LimitFok
-	3,  // 15: orders.v1.PreviewOrderRequest.fee_asset:type_name -> orders.v1.FeeAsset
-	3,  // 16: orders.v1.PreviewOrderResponse.fee_asset:type_name -> orders.v1.FeeAsset
-	51, // 17: orders.v1.PreviewOrderResponse.fresh_at:type_name -> google.protobuf.Timestamp
-	51, // 18: orders.v1.CancelOrderResponse.ts:type_name -> google.protobuf.Timestamp
-	5,  // 19: orders.v1.ErrorDetail.code:type_name -> orders.v1.ErrorCode
-	23, // 20: orders.v1.ErrorDetail.violations:type_name -> orders.v1.FieldViolation
-	25, // 21: orders.v1.RiskExecution.market_ioc:type_name -> orders.v1.RiskMarketIoc
-	26, // 22: orders.v1.RiskExecution.limit_gtc:type_name -> orders.v1.RiskLimitGtc
-	27, // 23: orders.v1.TakeProfitPolicy.child:type_name -> orders.v1.RiskExecution
-	27, // 24: orders.v1.StopLossPolicy.child:type_name -> orders.v1.RiskExecution
-	28, // 25: orders.v1.RiskPolicy.take_profit:type_name -> orders.v1.TakeProfitPolicy
-	29, // 26: orders.v1.RiskPolicy.stop_loss:type_name -> orders.v1.StopLossPolicy
-	30, // 27: orders.v1.RiskPolicy.trailing_stop:type_name -> orders.v1.TrailingStopPolicy
-	0,  // 28: orders.v1.CancelAllOrdersRequest.side:type_name -> orders.v1.Side
-	51, // 29: orders.v1.CancelAllOrdersResponse.ts:type_name -> google.protobuf.Timestamp
-	0,  // 30: orders.v1.CancelAllAfterRequest.side:type_name -> orders.v1.Side
-	51, // 31: orders.v1.CancelAllAfterResponse.ts:type_name -> google.protobuf.Timestamp
-	24, // 32: orders.v1.BatchCreateRejected.error:type_name -> orders.v1.ErrorDetail
-	36, // 33: orders.v1.BatchCreateResultItem.accepted:type_name -> orders.v1.BatchCreateAccepted
-	37, // 34: orders.v1.BatchCreateResultItem.rejected:type_name -> orders.v1.BatchCreateRejected
-	16, // 35: orders.v1.BatchCreateOrdersRequest.items:type_name -> orders.v1.OrderIntent
-	38, // 36: orders.v1.BatchCreateOrdersResponse.results:type_name -> orders.v1.BatchCreateResultItem
-	51, // 37: orders.v1.BatchCreateOrdersResponse.ts:type_name -> google.protobuf.Timestamp
-	31, // 38: orders.v1.ModifyOrderRequest.new_attached_risk:type_name -> orders.v1.RiskPolicy
-	8,  // 39: orders.v1.ModifyOrderRequest.behavior:type_name -> orders.v1.ModifyBehavior
-	9,  // 40: orders.v1.ModifyOrderResponse.action_taken:type_name -> orders.v1.ModifyActionTaken
-	51, // 41: orders.v1.ModifyOrderResponse.ts:type_name -> google.protobuf.Timestamp
-	31, // 42: orders.v1.BatchReplaceOrderItem.new_attached_risk:type_name -> orders.v1.RiskPolicy
-	11, // 43: orders.v1.BatchReplaceAdmissionItem.status:type_name -> orders.v1.BatchReplaceItemAdmissionStatus
-	43, // 44: orders.v1.BatchReplaceOrdersRequest.items:type_name -> orders.v1.BatchReplaceOrderItem
-	10, // 45: orders.v1.BatchReplaceOrdersResponse.status:type_name -> orders.v1.BatchReplaceAdmissionStatus
-	44, // 46: orders.v1.BatchReplaceOrdersResponse.results:type_name -> orders.v1.BatchReplaceAdmissionItem
-	51, // 47: orders.v1.BatchReplaceOrdersResponse.accepted_ts:type_name -> google.protobuf.Timestamp
-	47, // 48: orders.v1.BatchCancelOrdersRequest.items:type_name -> orders.v1.BatchCancelItem
-	48, // 49: orders.v1.BatchCancelOrdersResponse.results:type_name -> orders.v1.BatchCancelResultItem
-	51, // 50: orders.v1.BatchCancelOrdersResponse.ts:type_name -> google.protobuf.Timestamp
-	19, // 51: orders.v1.OrdersService.PreviewOrder:input_type -> orders.v1.PreviewOrderRequest
-	17, // 52: orders.v1.OrdersService.CreateOrder:input_type -> orders.v1.CreateOrderRequest
-	21, // 53: orders.v1.OrdersService.CancelOrder:input_type -> orders.v1.CancelOrderRequest
-	32, // 54: orders.v1.OrdersService.CancelAllOrders:input_type -> orders.v1.CancelAllOrdersRequest
-	34, // 55: orders.v1.OrdersService.CancelAllAfter:input_type -> orders.v1.CancelAllAfterRequest
-	39, // 56: orders.v1.OrdersService.BatchCreateOrders:input_type -> orders.v1.BatchCreateOrdersRequest
-	41, // 57: orders.v1.OrdersService.ModifyOrder:input_type -> orders.v1.ModifyOrderRequest
-	45, // 58: orders.v1.OrdersService.BatchReplaceOrders:input_type -> orders.v1.BatchReplaceOrdersRequest
-	49, // 59: orders.v1.OrdersService.BatchCancelOrders:input_type -> orders.v1.BatchCancelOrdersRequest
-	20, // 60: orders.v1.OrdersService.PreviewOrder:output_type -> orders.v1.PreviewOrderResponse
-	18, // 61: orders.v1.OrdersService.CreateOrder:output_type -> orders.v1.CreateOrderResponse
-	22, // 62: orders.v1.OrdersService.CancelOrder:output_type -> orders.v1.CancelOrderResponse
-	33, // 63: orders.v1.OrdersService.CancelAllOrders:output_type -> orders.v1.CancelAllOrdersResponse
-	35, // 64: orders.v1.OrdersService.CancelAllAfter:output_type -> orders.v1.CancelAllAfterResponse
-	40, // 65: orders.v1.OrdersService.BatchCreateOrders:output_type -> orders.v1.BatchCreateOrdersResponse
-	42, // 66: orders.v1.OrdersService.ModifyOrder:output_type -> orders.v1.ModifyOrderResponse
-	46, // 67: orders.v1.OrdersService.BatchReplaceOrders:output_type -> orders.v1.BatchReplaceOrdersResponse
-	50, // 68: orders.v1.OrdersService.BatchCancelOrders:output_type -> orders.v1.BatchCancelOrdersResponse
-	60, // [60:69] is the sub-list for method output_type
-	51, // [51:60] is the sub-list for method input_type
-	51, // [51:51] is the sub-list for extension type_name
-	51, // [51:51] is the sub-list for extension extendee
-	0,  // [0:51] is the sub-list for field type_name
+	16, // 10: orders.v1.PreviewOrderRequest.order:type_name -> orders.v1.OrderIntent
+	3,  // 11: orders.v1.PreviewOrderResponse.fee_asset:type_name -> orders.v1.FeeAsset
+	51, // 12: orders.v1.PreviewOrderResponse.fresh_at:type_name -> google.protobuf.Timestamp
+	24, // 13: orders.v1.PreviewOrderResponse.rejection:type_name -> orders.v1.ErrorDetail
+	51, // 14: orders.v1.CancelOrderResponse.ts:type_name -> google.protobuf.Timestamp
+	5,  // 15: orders.v1.ErrorDetail.code:type_name -> orders.v1.ErrorCode
+	23, // 16: orders.v1.ErrorDetail.violations:type_name -> orders.v1.FieldViolation
+	25, // 17: orders.v1.RiskExecution.market_ioc:type_name -> orders.v1.RiskMarketIoc
+	26, // 18: orders.v1.RiskExecution.limit_gtc:type_name -> orders.v1.RiskLimitGtc
+	27, // 19: orders.v1.TakeProfitPolicy.child:type_name -> orders.v1.RiskExecution
+	27, // 20: orders.v1.StopLossPolicy.child:type_name -> orders.v1.RiskExecution
+	28, // 21: orders.v1.RiskPolicy.take_profit:type_name -> orders.v1.TakeProfitPolicy
+	29, // 22: orders.v1.RiskPolicy.stop_loss:type_name -> orders.v1.StopLossPolicy
+	30, // 23: orders.v1.RiskPolicy.trailing_stop:type_name -> orders.v1.TrailingStopPolicy
+	0,  // 24: orders.v1.CancelAllOrdersRequest.side:type_name -> orders.v1.Side
+	51, // 25: orders.v1.CancelAllOrdersResponse.ts:type_name -> google.protobuf.Timestamp
+	0,  // 26: orders.v1.CancelAllAfterRequest.side:type_name -> orders.v1.Side
+	51, // 27: orders.v1.CancelAllAfterResponse.ts:type_name -> google.protobuf.Timestamp
+	24, // 28: orders.v1.BatchCreateRejected.error:type_name -> orders.v1.ErrorDetail
+	36, // 29: orders.v1.BatchCreateResultItem.accepted:type_name -> orders.v1.BatchCreateAccepted
+	37, // 30: orders.v1.BatchCreateResultItem.rejected:type_name -> orders.v1.BatchCreateRejected
+	16, // 31: orders.v1.BatchCreateOrdersRequest.items:type_name -> orders.v1.OrderIntent
+	38, // 32: orders.v1.BatchCreateOrdersResponse.results:type_name -> orders.v1.BatchCreateResultItem
+	51, // 33: orders.v1.BatchCreateOrdersResponse.ts:type_name -> google.protobuf.Timestamp
+	31, // 34: orders.v1.ModifyOrderRequest.new_attached_risk:type_name -> orders.v1.RiskPolicy
+	8,  // 35: orders.v1.ModifyOrderRequest.behavior:type_name -> orders.v1.ModifyBehavior
+	9,  // 36: orders.v1.ModifyOrderResponse.action_taken:type_name -> orders.v1.ModifyActionTaken
+	51, // 37: orders.v1.ModifyOrderResponse.ts:type_name -> google.protobuf.Timestamp
+	31, // 38: orders.v1.BatchReplaceOrderItem.new_attached_risk:type_name -> orders.v1.RiskPolicy
+	11, // 39: orders.v1.BatchReplaceAdmissionItem.status:type_name -> orders.v1.BatchReplaceItemAdmissionStatus
+	43, // 40: orders.v1.BatchReplaceOrdersRequest.items:type_name -> orders.v1.BatchReplaceOrderItem
+	10, // 41: orders.v1.BatchReplaceOrdersResponse.status:type_name -> orders.v1.BatchReplaceAdmissionStatus
+	44, // 42: orders.v1.BatchReplaceOrdersResponse.results:type_name -> orders.v1.BatchReplaceAdmissionItem
+	51, // 43: orders.v1.BatchReplaceOrdersResponse.accepted_ts:type_name -> google.protobuf.Timestamp
+	47, // 44: orders.v1.BatchCancelOrdersRequest.items:type_name -> orders.v1.BatchCancelItem
+	48, // 45: orders.v1.BatchCancelOrdersResponse.results:type_name -> orders.v1.BatchCancelResultItem
+	51, // 46: orders.v1.BatchCancelOrdersResponse.ts:type_name -> google.protobuf.Timestamp
+	19, // 47: orders.v1.OrdersService.PreviewOrder:input_type -> orders.v1.PreviewOrderRequest
+	17, // 48: orders.v1.OrdersService.CreateOrder:input_type -> orders.v1.CreateOrderRequest
+	21, // 49: orders.v1.OrdersService.CancelOrder:input_type -> orders.v1.CancelOrderRequest
+	32, // 50: orders.v1.OrdersService.CancelAllOrders:input_type -> orders.v1.CancelAllOrdersRequest
+	34, // 51: orders.v1.OrdersService.CancelAllAfter:input_type -> orders.v1.CancelAllAfterRequest
+	39, // 52: orders.v1.OrdersService.BatchCreateOrders:input_type -> orders.v1.BatchCreateOrdersRequest
+	41, // 53: orders.v1.OrdersService.ModifyOrder:input_type -> orders.v1.ModifyOrderRequest
+	45, // 54: orders.v1.OrdersService.BatchReplaceOrders:input_type -> orders.v1.BatchReplaceOrdersRequest
+	49, // 55: orders.v1.OrdersService.BatchCancelOrders:input_type -> orders.v1.BatchCancelOrdersRequest
+	20, // 56: orders.v1.OrdersService.PreviewOrder:output_type -> orders.v1.PreviewOrderResponse
+	18, // 57: orders.v1.OrdersService.CreateOrder:output_type -> orders.v1.CreateOrderResponse
+	22, // 58: orders.v1.OrdersService.CancelOrder:output_type -> orders.v1.CancelOrderResponse
+	33, // 59: orders.v1.OrdersService.CancelAllOrders:output_type -> orders.v1.CancelAllOrdersResponse
+	35, // 60: orders.v1.OrdersService.CancelAllAfter:output_type -> orders.v1.CancelAllAfterResponse
+	40, // 61: orders.v1.OrdersService.BatchCreateOrders:output_type -> orders.v1.BatchCreateOrdersResponse
+	42, // 62: orders.v1.OrdersService.ModifyOrder:output_type -> orders.v1.ModifyOrderResponse
+	46, // 63: orders.v1.OrdersService.BatchReplaceOrders:output_type -> orders.v1.BatchReplaceOrdersResponse
+	50, // 64: orders.v1.OrdersService.BatchCancelOrders:output_type -> orders.v1.BatchCancelOrdersResponse
+	56, // [56:65] is the sub-list for method output_type
+	47, // [47:56] is the sub-list for method input_type
+	47, // [47:47] is the sub-list for extension type_name
+	47, // [47:47] is the sub-list for extension extendee
+	0,  // [0:47] is the sub-list for field type_name
 }
 
 func init() { file_orders_v1_orders_proto_init() }
@@ -5029,14 +4884,8 @@ func file_orders_v1_orders_proto_init() {
 	}
 	file_orders_v1_orders_proto_msgTypes[5].OneofWrappers = []any{}
 	file_orders_v1_orders_proto_msgTypes[6].OneofWrappers = []any{}
-	file_orders_v1_orders_proto_msgTypes[7].OneofWrappers = []any{
-		(*PreviewOrderRequest_BaseQtyScaled)(nil),
-		(*PreviewOrderRequest_MaxQuoteDebitScaled)(nil),
-		(*PreviewOrderRequest_MarketIoc)(nil),
-		(*PreviewOrderRequest_LimitGtc)(nil),
-		(*PreviewOrderRequest_LimitIoc)(nil),
-		(*PreviewOrderRequest_LimitFok)(nil),
-	}
+	file_orders_v1_orders_proto_msgTypes[7].OneofWrappers = []any{}
+	file_orders_v1_orders_proto_msgTypes[8].OneofWrappers = []any{}
 	file_orders_v1_orders_proto_msgTypes[9].OneofWrappers = []any{
 		(*CancelOrderRequest_OrderId)(nil),
 		(*CancelOrderRequest_ClientOrderId)(nil),

@@ -64,8 +64,8 @@ const (
 
 // OrdersServiceClient is a client for the orders.v1.OrdersService service.
 type OrdersServiceClient interface {
-	// Preview advisory order sizing and fees without reserving funds or
-	// submitting an order.
+	// Check whether an order is currently admissible without creating an order,
+	// claiming its client order ID, or reserving funds.
 	PreviewOrder(context.Context, *connect.Request[v1.PreviewOrderRequest]) (*connect.Response[v1.PreviewOrderResponse], error)
 	// Create a new order.
 	// REST clients submit decimal quantity and price strings. ConnectRPC clients
@@ -222,8 +222,8 @@ func (c *ordersServiceClient) BatchCancelOrders(ctx context.Context, req *connec
 
 // OrdersServiceHandler is an implementation of the orders.v1.OrdersService service.
 type OrdersServiceHandler interface {
-	// Preview advisory order sizing and fees without reserving funds or
-	// submitting an order.
+	// Check whether an order is currently admissible without creating an order,
+	// claiming its client order ID, or reserving funds.
 	PreviewOrder(context.Context, *connect.Request[v1.PreviewOrderRequest]) (*connect.Response[v1.PreviewOrderResponse], error)
 	// Create a new order.
 	// REST clients submit decimal quantity and price strings. ConnectRPC clients

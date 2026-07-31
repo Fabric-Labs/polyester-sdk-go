@@ -48,6 +48,39 @@ func TestTriggerFromProtoMapsStopPrice(t *testing.T) {
 	}
 }
 
+func TestTriggerFromProtoProjectsTrailingStopSideAndParent(t *testing.T) {
+	parentID := uint64(99)
+	msg := &triggersv1.Trigger{
+		TriggerId: 21,
+		SymbolId:  1,
+		Symbol:    "BTC-USDT",
+		Status:    triggersv1.TriggerStatus_STATUS_ARMED,
+		QtyScaled: 50_000_000,
+		ParentOrderId: &parentID,
+		Configuration: &triggersv1.Trigger_TrailingStop{
+			TrailingStop: &triggersv1.TrailingStopTrigger{
+				TrailingDistance: &triggersv1.TrailingStopTrigger_TrailingDistanceBps{
+					TrailingDistanceBps: 25,
+				},
+				Side: orderv1.Side_BUY,
+			},
+		},
+	}
+	trigger := decode.TriggerFromProto(msg)
+	if trigger.TriggerType != "trailing_stop" {
+		t.Fatalf("type=%q", trigger.TriggerType)
+	}
+	if trigger.Side != "buy" {
+		t.Fatalf("side=%q (want buy from wire, not unspecified)", trigger.Side)
+	}
+	if trigger.OrderType != "market" || trigger.TimeInForce != "ioc" {
+		t.Fatalf("child projection=%+v", trigger)
+	}
+	if trigger.ParentOrderID != codecs.FormatUint64ID(99) {
+		t.Fatalf("parent_order_id=%q", trigger.ParentOrderID)
+	}
+}
+
 func TestTriggerFromProtoProjectsTwapChildOrdersAndExecutedQty(t *testing.T) {
 	msg := &triggersv1.Trigger{
 		TriggerId: 11,
