@@ -75,87 +75,87 @@ func (RequestFeeStatus) EnumDescriptor() ([]byte, []int) {
 	return file_chain_lifecycle_v1_types_proto_rawDescGZIP(), []int{0}
 }
 
-// FlowReason is the stable product-facing reason catalog for failed, dropped,
+// LifecycleReason is the stable product-facing reason catalog for failed, dropped,
 // refunded, or otherwise notable lifecycle states.
-type FlowReason int32
+type LifecycleReason int32
 
 const (
-	FlowReason_FLOW_REASON_UNSPECIFIED FlowReason = 0
+	LifecycleReason_REASON_UNSPECIFIED LifecycleReason = 0
 	// Zipper validators reached the rejection quorum.
-	FlowReason_FLOW_REASON_ZIPPER_VALIDATION_REJECTED FlowReason = 101
+	LifecycleReason_ZIPPER_VALIDATION_REJECTED LifecycleReason = 101
 	// Zipper execution rejected the request.
-	FlowReason_FLOW_REASON_ZIPPER_EXECUTION_REJECTED FlowReason = 102
+	LifecycleReason_ZIPPER_EXECUTION_REJECTED LifecycleReason = 102
 	// Zipper withdraw execution failed.
-	FlowReason_FLOW_REASON_ZIPPER_WITHDRAW_EXECUTION_FAILED FlowReason = 103
+	LifecycleReason_ZIPPER_WITHDRAW_EXECUTION_FAILED LifecycleReason = 103
 	// Zipper deposit refund failed.
-	FlowReason_FLOW_REASON_ZIPPER_DEPOSIT_REFUND_FAILED FlowReason = 104
+	LifecycleReason_ZIPPER_DEPOSIT_REFUND_FAILED LifecycleReason = 104
 	// Ledger mirror rejected a command before it could be durably applied.
-	FlowReason_FLOW_REASON_LEDGER_MIRROR_REJECTED FlowReason = 200
+	LifecycleReason_LEDGER_MIRROR_REJECTED LifecycleReason = 200
 	// Ledger settlement rejected the mirror command because the source account did
 	// not have enough credits for the transfer.
-	FlowReason_FLOW_REASON_LEDGER_MIRROR_TRANSFER_EXCEEDS_CREDITS FlowReason = 201
+	LifecycleReason_LEDGER_MIRROR_TRANSFER_EXCEEDS_CREDITS LifecycleReason = 201
 	// Ledger settlement reported that the transfer already exists for this mirror
 	// command identity.
-	FlowReason_FLOW_REASON_LEDGER_MIRROR_TRANSFER_EXISTS FlowReason = 202
+	LifecycleReason_LEDGER_MIRROR_TRANSFER_EXISTS LifecycleReason = 202
 	// Ledger settlement reported that the pending transfer referenced by the
 	// command was not found.
-	FlowReason_FLOW_REASON_LEDGER_MIRROR_PENDING_TRANSFER_NOT_FOUND FlowReason = 203
+	LifecycleReason_LEDGER_MIRROR_PENDING_TRANSFER_NOT_FOUND LifecycleReason = 203
 	// Ledger settlement reported that this transfer id is already marked failed.
-	FlowReason_FLOW_REASON_LEDGER_MIRROR_TRANSFER_ID_ALREADY_FAILED FlowReason = 204
+	LifecycleReason_LEDGER_MIRROR_TRANSFER_ID_ALREADY_FAILED LifecycleReason = 204
 )
 
-// Enum value maps for FlowReason.
+// Enum value maps for LifecycleReason.
 var (
-	FlowReason_name = map[int32]string{
-		0:   "FLOW_REASON_UNSPECIFIED",
-		101: "FLOW_REASON_ZIPPER_VALIDATION_REJECTED",
-		102: "FLOW_REASON_ZIPPER_EXECUTION_REJECTED",
-		103: "FLOW_REASON_ZIPPER_WITHDRAW_EXECUTION_FAILED",
-		104: "FLOW_REASON_ZIPPER_DEPOSIT_REFUND_FAILED",
-		200: "FLOW_REASON_LEDGER_MIRROR_REJECTED",
-		201: "FLOW_REASON_LEDGER_MIRROR_TRANSFER_EXCEEDS_CREDITS",
-		202: "FLOW_REASON_LEDGER_MIRROR_TRANSFER_EXISTS",
-		203: "FLOW_REASON_LEDGER_MIRROR_PENDING_TRANSFER_NOT_FOUND",
-		204: "FLOW_REASON_LEDGER_MIRROR_TRANSFER_ID_ALREADY_FAILED",
+	LifecycleReason_name = map[int32]string{
+		0:   "REASON_UNSPECIFIED",
+		101: "ZIPPER_VALIDATION_REJECTED",
+		102: "ZIPPER_EXECUTION_REJECTED",
+		103: "ZIPPER_WITHDRAW_EXECUTION_FAILED",
+		104: "ZIPPER_DEPOSIT_REFUND_FAILED",
+		200: "LEDGER_MIRROR_REJECTED",
+		201: "LEDGER_MIRROR_TRANSFER_EXCEEDS_CREDITS",
+		202: "LEDGER_MIRROR_TRANSFER_EXISTS",
+		203: "LEDGER_MIRROR_PENDING_TRANSFER_NOT_FOUND",
+		204: "LEDGER_MIRROR_TRANSFER_ID_ALREADY_FAILED",
 	}
-	FlowReason_value = map[string]int32{
-		"FLOW_REASON_UNSPECIFIED":                              0,
-		"FLOW_REASON_ZIPPER_VALIDATION_REJECTED":               101,
-		"FLOW_REASON_ZIPPER_EXECUTION_REJECTED":                102,
-		"FLOW_REASON_ZIPPER_WITHDRAW_EXECUTION_FAILED":         103,
-		"FLOW_REASON_ZIPPER_DEPOSIT_REFUND_FAILED":             104,
-		"FLOW_REASON_LEDGER_MIRROR_REJECTED":                   200,
-		"FLOW_REASON_LEDGER_MIRROR_TRANSFER_EXCEEDS_CREDITS":   201,
-		"FLOW_REASON_LEDGER_MIRROR_TRANSFER_EXISTS":            202,
-		"FLOW_REASON_LEDGER_MIRROR_PENDING_TRANSFER_NOT_FOUND": 203,
-		"FLOW_REASON_LEDGER_MIRROR_TRANSFER_ID_ALREADY_FAILED": 204,
+	LifecycleReason_value = map[string]int32{
+		"REASON_UNSPECIFIED":                       0,
+		"ZIPPER_VALIDATION_REJECTED":               101,
+		"ZIPPER_EXECUTION_REJECTED":                102,
+		"ZIPPER_WITHDRAW_EXECUTION_FAILED":         103,
+		"ZIPPER_DEPOSIT_REFUND_FAILED":             104,
+		"LEDGER_MIRROR_REJECTED":                   200,
+		"LEDGER_MIRROR_TRANSFER_EXCEEDS_CREDITS":   201,
+		"LEDGER_MIRROR_TRANSFER_EXISTS":            202,
+		"LEDGER_MIRROR_PENDING_TRANSFER_NOT_FOUND": 203,
+		"LEDGER_MIRROR_TRANSFER_ID_ALREADY_FAILED": 204,
 	}
 )
 
-func (x FlowReason) Enum() *FlowReason {
-	p := new(FlowReason)
+func (x LifecycleReason) Enum() *LifecycleReason {
+	p := new(LifecycleReason)
 	*p = x
 	return p
 }
 
-func (x FlowReason) String() string {
+func (x LifecycleReason) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (FlowReason) Descriptor() protoreflect.EnumDescriptor {
+func (LifecycleReason) Descriptor() protoreflect.EnumDescriptor {
 	return file_chain_lifecycle_v1_types_proto_enumTypes[1].Descriptor()
 }
 
-func (FlowReason) Type() protoreflect.EnumType {
+func (LifecycleReason) Type() protoreflect.EnumType {
 	return &file_chain_lifecycle_v1_types_proto_enumTypes[1]
 }
 
-func (x FlowReason) Number() protoreflect.EnumNumber {
+func (x LifecycleReason) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use FlowReason.Descriptor instead.
-func (FlowReason) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use LifecycleReason.Descriptor instead.
+func (LifecycleReason) EnumDescriptor() ([]byte, []int) {
 	return file_chain_lifecycle_v1_types_proto_rawDescGZIP(), []int{1}
 }
 
@@ -568,19 +568,18 @@ const file_chain_lifecycle_v1_types_proto_rawDesc = "" +
 	"\x10RequestFeeStatus\x12\"\n" +
 	"\x1eREQUEST_FEE_STATUS_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19REQUEST_FEE_STATUS_LOCKED\x10\x01\x12\x1e\n" +
-	"\x1aREQUEST_FEE_STATUS_SETTLED\x10\x02*\xe8\x03\n" +
-	"\n" +
-	"FlowReason\x12\x1b\n" +
-	"\x17FLOW_REASON_UNSPECIFIED\x10\x00\x12*\n" +
-	"&FLOW_REASON_ZIPPER_VALIDATION_REJECTED\x10e\x12)\n" +
-	"%FLOW_REASON_ZIPPER_EXECUTION_REJECTED\x10f\x120\n" +
-	",FLOW_REASON_ZIPPER_WITHDRAW_EXECUTION_FAILED\x10g\x12,\n" +
-	"(FLOW_REASON_ZIPPER_DEPOSIT_REFUND_FAILED\x10h\x12'\n" +
-	"\"FLOW_REASON_LEDGER_MIRROR_REJECTED\x10\xc8\x01\x127\n" +
-	"2FLOW_REASON_LEDGER_MIRROR_TRANSFER_EXCEEDS_CREDITS\x10\xc9\x01\x12.\n" +
-	")FLOW_REASON_LEDGER_MIRROR_TRANSFER_EXISTS\x10\xca\x01\x129\n" +
-	"4FLOW_REASON_LEDGER_MIRROR_PENDING_TRANSFER_NOT_FOUND\x10\xcb\x01\x129\n" +
-	"4FLOW_REASON_LEDGER_MIRROR_TRANSFER_ID_ALREADY_FAILED\x10\xcc\x01*X\n" +
+	"\x1aREQUEST_FEE_STATUS_SETTLED\x10\x02*\xfc\x02\n" +
+	"\x0fLifecycleReason\x12\x16\n" +
+	"\x12REASON_UNSPECIFIED\x10\x00\x12\x1e\n" +
+	"\x1aZIPPER_VALIDATION_REJECTED\x10e\x12\x1d\n" +
+	"\x19ZIPPER_EXECUTION_REJECTED\x10f\x12$\n" +
+	" ZIPPER_WITHDRAW_EXECUTION_FAILED\x10g\x12 \n" +
+	"\x1cZIPPER_DEPOSIT_REFUND_FAILED\x10h\x12\x1b\n" +
+	"\x16LEDGER_MIRROR_REJECTED\x10\xc8\x01\x12+\n" +
+	"&LEDGER_MIRROR_TRANSFER_EXCEEDS_CREDITS\x10\xc9\x01\x12\"\n" +
+	"\x1dLEDGER_MIRROR_TRANSFER_EXISTS\x10\xca\x01\x12-\n" +
+	"(LEDGER_MIRROR_PENDING_TRANSFER_NOT_FOUND\x10\xcb\x01\x12-\n" +
+	"(LEDGER_MIRROR_TRANSFER_ID_ALREADY_FAILED\x10\xcc\x01*X\n" +
 	"\bFlowKind\x12\x14\n" +
 	"\x10KIND_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fKIND_DEPOSIT\x10\x01\x12\x11\n" +
@@ -626,7 +625,7 @@ var file_chain_lifecycle_v1_types_proto_enumTypes = make([]protoimpl.EnumInfo, 6
 var file_chain_lifecycle_v1_types_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_chain_lifecycle_v1_types_proto_goTypes = []any{
 	(RequestFeeStatus)(0), // 0: chain.lifecycle.v1.RequestFeeStatus
-	(FlowReason)(0),       // 1: chain.lifecycle.v1.FlowReason
+	(LifecycleReason)(0),  // 1: chain.lifecycle.v1.LifecycleReason
 	(FlowKind)(0),         // 2: chain.lifecycle.v1.FlowKind
 	(FlowDomain)(0),       // 3: chain.lifecycle.v1.FlowDomain
 	(LifecycleSource)(0),  // 4: chain.lifecycle.v1.LifecycleSource
