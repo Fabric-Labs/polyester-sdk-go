@@ -78,3 +78,13 @@ func TestInternalTransferAmountUsesCanonicalE18(t *testing.T) {
 		t.Fatalf("amount_e18=%s want %s", got, want)
 	}
 }
+
+func TestInternalTransferRejectsMissingAmountScale(t *testing.T) {
+	amount := models.MustAssetAmountScaled(1).
+		WithDomain(models.QuantityDomainLedgerE18).
+		WithAssetID(7)
+	_, err := internalTransferAmountE18(models.AssetAmountFromScaled(amount), nil, 7)
+	if err == nil {
+		t.Fatal("missing scale must not silently mean e18")
+	}
+}

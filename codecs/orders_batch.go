@@ -1,19 +1,36 @@
 package codecs
 
 import (
+	"fmt"
+
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
+// MaxBatchOrderItems is the local upper bound for batch create/cancel/replace.
+const MaxBatchOrderItems = 20
+
+func validateBatchSize(operation string, lenItems int) error {
+	if lenItems == 0 {
+		return &errors.ValidationError{Msg: operation + " requires at least one item"}
+	}
+	if lenItems > MaxBatchOrderItems {
+		return &errors.ValidationError{
+			Msg: fmt.Sprintf("%s accepts at most %d items", operation, MaxBatchOrderItems),
+		}
+	}
+	return nil
+}
+
 // BatchCreateOrdersToProto encodes a batch create request.
 //
 // The allowPartial argument is retained for API compatibility but is ignored:
 // the POLY-3701 wire contract removed the batch allow_partial field.
-func BatchCreateOrdersToProto(items []models.CreateOrderRequest, subAccountID *string, requestID *string, allowPartial bool, quantityScale int) (*orderv1.BatchCreateOrdersRequest, error) {
+func BatchCreateOrdersToProto(items []models.CreateOrderRequest, subAccountID *string, requestID *string, allowPartial bool, quantityScale, quoteQuantityScale int) (*orderv1.BatchCreateOrdersRequest, error) {
 	_ = allowPartial
-	if len(items) == 0 {
-		return nil, &errors.ValidationError{Msg: "batch_create requires at least one item"}
+	if err := validateBatchSize("batch_create", len(items)); err != nil {
+		return nil, err
 	}
 	resolvedRequestID, err := coalesceRequestID(requestID, "batch-create")
 	if err != nil {
@@ -30,7 +47,7 @@ func BatchCreateOrdersToProto(items []models.CreateOrderRequest, subAccountID *s
 		proto.SubaccountId = &sub
 	}
 	for _, item := range items {
-		encoded, err := OrderIntentToProto(item, quantityScale)
+		encoded, err := OrderIntentToProto(item, quantityScale, quoteQuantityScale)
 		if err != nil {
 			return nil, err
 		}
@@ -67,8 +84,8 @@ func BatchCancelItemToProto(item models.BatchCancelItem) (*orderv1.BatchCancelIt
 
 // BatchCancelOrdersToProto encodes a batch cancel request.
 func BatchCancelOrdersToProto(items []models.BatchCancelItem, subAccountID *string, requestID *string) (*orderv1.BatchCancelOrdersRequest, error) {
-	if len(items) == 0 {
-		return nil, &errors.ValidationError{Msg: "batch_cancel requires at least one item"}
+	if err := validateBatchSize("batch_cancel", len(items)); err != nil {
+		return nil, err
 	}
 	resolvedRequestID, err := coalesceRequestID(requestID, "batch-cancel")
 	if err != nil {
@@ -143,8 +160,8 @@ func BatchReplaceItemToProto(item models.BatchReplaceItem, quantityScale int) (*
 
 // BatchReplaceOrdersToProto encodes a batch replace request.
 func BatchReplaceOrdersToProto(items []models.BatchReplaceItem, symbolID uint32, subAccountID *string, requestID *string, quantityScale int) (*orderv1.BatchReplaceOrdersRequest, error) {
-	if len(items) == 0 {
-		return nil, &errors.ValidationError{Msg: "batch_replace requires at least one item"}
+	if err := validateBatchSize("batch_replace", len(items)); err != nil {
+		return nil, err
 	}
 	if symbolID == 0 {
 		return nil, &errors.ValidationError{Msg: "batch_replace requires a resolved symbol_id"}

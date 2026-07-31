@@ -2,6 +2,7 @@ package codecs_test
 
 import (
 	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
@@ -86,6 +87,54 @@ func TestScaledPathPassThrough(t *testing.T) {
 	}
 }
 
+func TestAssetAmountWithoutValueOrParameterScaleFailsClosed(t *testing.T) {
+	amount := models.MustAssetAmountScaled(1).WithDomain(models.QuantityDomainLedgerE18).WithAssetID(7)
+	aid := uint32(7)
+	_, err := codecs.ResolveAssetAmountScaledToScale(
+		models.AssetAmountFromScaled(amount), nil, 18, "amount",
+		models.QuantityDomainLedgerE18, &aid,
+	)
+	if err == nil {
+		t.Fatal("missing source scale must not be treated as e18")
+	}
+	if !strings.Contains(err.Error(), "scale is required") {
+		t.Fatalf("err=%v", err)
+	}
+	inputScale := 6
+	got, err := codecs.ResolveAssetAmountScaledToScale(
+		models.AssetAmountFromScaled(amount), &inputScale, 18, "amount",
+		models.QuantityDomainLedgerE18, &aid,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := new(big.Int).Exp(big.NewInt(10), big.NewInt(12), nil) // 1 * 10^(18-6)
+	if got.Cmp(want) != 0 {
+		t.Fatalf("got=%s want=%s", got, want)
+	}
+}
+
+func TestQuoteAmountRequiresExplicitMatchingScale(t *testing.T) {
+	sid := uint32(1)
+	quote := models.QtyFromQuoteDecimal("12.5")
+	got, err := codecs.ResolveQuoteQtyScaled(quote, 6, "max_quote_debit_scaled", "BTC-USDT", &sid)
+	if err != nil || got != 12_500_000 {
+		t.Fatalf("got=%d err=%v", got, err)
+	}
+	quoteScaled := models.QtyFromQuoteScaled(12_500_000, 6)
+	got, err = codecs.ResolveQuoteQtyScaled(quoteScaled, 6, "max_quote_debit_scaled", "BTC-USDT", &sid)
+	if err != nil || got != 12_500_000 {
+		t.Fatalf("scaled got=%d err=%v", got, err)
+	}
+	if _, err := codecs.ResolveQuoteQtyScaled(quoteScaled, 8, "max_quote_debit_scaled", "BTC-USDT", &sid); err == nil {
+		t.Fatal("expected scale mismatch")
+	}
+	missing := models.QtyFromScaled(models.MustQtyScaled(12_500_000).WithDomain(models.QuantityDomainOrderQuote))
+	if _, err := codecs.ResolveQuoteQtyScaled(missing, 6, "max_quote_debit_scaled", "", nil); err == nil {
+		t.Fatal("expected missing scale rejection")
+	}
+}
+
 func TestDomainMismatchRejected(t *testing.T) {
 	amount := models.MustAssetAmountScaled(100).WithDomain(models.QuantityDomainAsset)
 	_, err := codecs.ResolveAssetAmountScaled(
@@ -131,7 +180,7 @@ func TestCreateOrderAcceptsDecimalAndScaled(t *testing.T) {
 		Symbol: &symbol, Side: "buy", OrderType: "limit", TIF: &tif,
 		Qty: models.QtyFromDecimal("0.1"), Price: &price,
 	}
-	proto, err := codecs.CreateOrderToProto(req, 8)
+	proto, err := codecs.CreateOrderToProto(req, 8, 6)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,7 +195,7 @@ func TestCreateOrderAcceptsDecimalAndScaled(t *testing.T) {
 		Symbol: &symbol, Side: "buy", OrderType: "limit", TIF: &tif,
 		Qty: models.QtyFromScaled(scaledQty), Price: &scaledPrice,
 	}
-	proto2, err := codecs.CreateOrderToProto(req2, 8)
+	proto2, err := codecs.CreateOrderToProto(req2, 8, 6)
 	if err != nil {
 		t.Fatal(err)
 	}

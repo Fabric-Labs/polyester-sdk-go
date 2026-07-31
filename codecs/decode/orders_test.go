@@ -8,6 +8,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
+	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
 func TestOrderFromProtoMapsEnumsAndIDs(t *testing.T) {
@@ -168,7 +169,8 @@ func TestOrderMutationFromProtoCreateIncludesClientOrderID(t *testing.T) {
 }
 
 func TestPreviewOrderFromProto(t *testing.T) {
-	result := decode.PreviewOrderFromProto(&orderv1.PreviewOrderResponse{
+	sid := uint32(1)
+	result, err := decode.PreviewOrderFromProto(&orderv1.PreviewOrderResponse{
 		ResolvedBaseQtyScaled:     100,
 		PriceBoundTicks:           50_000_000_000,
 		EstimatedQuoteDebitScaled: 500,
@@ -176,12 +178,19 @@ func TestPreviewOrderFromProto(t *testing.T) {
 		EstimatedNetBaseQtyScaled: 98,
 		FeeAsset:                  orderv1.FeeAsset_BASE,
 		FreshAtTsNs:               123,
-	})
+	}, 8, 6, "BTC-USDT", &sid)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if result.ResolvedBaseQtyScaled != "100" || result.ResolvedBaseQty == nil ||
 		result.ResolvedBaseQty.Scaled() != 100 || result.PriceBound == nil ||
-		result.PriceBound.Ticks() != 50_000_000_000 || result.EstimatedQuoteDebitScaled != "500" ||
-		result.EstimatedFeeScaled != "2" || result.EstimatedNetBaseQty == nil ||
-		result.EstimatedNetBaseQty.Scaled() != 98 || result.FeeAsset != "base" || result.FreshAtTsNs != "123" {
+		result.PriceBound.Ticks() != 50_000_000_000 || result.EstimatedQuoteDebit.Scaled() != 500 ||
+		result.EstimatedQuoteDebit.Domain() != models.QuantityDomainOrderQuote ||
+		result.EstimatedQuoteDebit.Scale() == nil || *result.EstimatedQuoteDebit.Scale() != 6 ||
+		result.EstimatedFee.Scaled() != 2 || result.EstimatedFee.Domain() != models.QuantityDomainOrderBase ||
+		result.EstimatedFee.Scale() == nil || *result.EstimatedFee.Scale() != 8 ||
+		result.EstimatedNetBaseQty == nil || result.EstimatedNetBaseQty.Scaled() != 98 ||
+		result.FeeAsset != "base" || result.FreshAtTsNs != "123" {
 		t.Fatalf("result=%+v", result)
 	}
 }

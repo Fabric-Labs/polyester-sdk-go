@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Breaking
+- `CreateOrderRequest.MaxQuoteDebitScaled` is now a typed `QtyInput` with
+  `QuantityDomainOrderQuote` instead of `*int64`. Construct quote budgets with
+  `QtyFromQuoteDecimal` / `QtyFromQuoteScaled`; the SDK validates the embedded
+  scale against the pair's catalog `quote_quantity_scale`.
+- `PreviewOrderResult` now exposes typed `EstimatedQuoteDebit` and
+  `EstimatedFee` (`QtyScaled`) instead of bare `*_Scaled` strings.
+
+### Added
+- Catalog quote-quantity-scale lookup:
+  `QuoteQuantityScaleForSymbol` / `QuoteQuantityScaleForSymbolID`.
+- Local validation rejects create, cancel, and replace batches above 20 items.
+
+### Fixed
+- Transfer and trading-withdraw amounts fail closed when neither the
+  `AssetAmount` nor request parameters provide a source scale.
+- Spot-config decoding preserves valid zero quote quantity scales.
+
 ## 0.1.0a29
 
 Git tag: `v0.1.0a29`.

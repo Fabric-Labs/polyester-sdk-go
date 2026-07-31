@@ -214,6 +214,12 @@ catalogs are unusable (use `CatalogsLastError()` to inspect). Typed Zipper
 hydration is available via `client.Catalogs.HydrateZipperConfig(cfg)` /
 `HydrateDepositWithdrawConfig`.
 
+Scaled bot inputs (`PriceFromTicks`, `QtyFromScaled`, `AssetAmountFromScaled`)
+must carry their source scale. An `AssetAmount` constructed without scale is
+accepted for composition only and fails closed on transfer/withdraw encoding
+unless the request's `amount_scale` / `quantity_scale` is explicit. Prefer
+`AssetAmountFromDecimal`, or attach `.WithScale(scale)` before encoding.
+
 ## Create and cancel orders
 
 ```go
@@ -247,9 +253,9 @@ _, err = client.Orders.Cancel(ctx, nil, models.OrderKeyByClientID(clientOrderID)
 transport/server failure, and reuse that same id on retry / reconciliation -
 without it you cannot safely tell whether the first attempt admitted the order.
 Client order ids accept 1 to 36 ASCII letters, digits, `.`, `_`, `:`, `/`, and
-`-`. Batch create accepts at most 20 orders. Treat a cancel response as an
-admission acknowledgement and reconcile with `ListOpen` before releasing local
-state.
+`-`. Batch create, cancel, and replace accept at most 20 items (rejected locally
+before encoding). Treat a cancel response as an admission acknowledgement and
+reconcile with `ListOpen` before releasing local state.
 
 Use **decimal strings** for human-facing `qty` / `price` inputs. Do **not** pass
 floats. `PriceTicks.Ticks()` returns Polyester protocol price units (fixed 1e6), not
@@ -280,15 +286,39 @@ instrument/domain matches. Transfers and trading withdraws use
 ### Quote-budget orders and previews
 
 Create requests use exactly one sizing mode: base `Qty`, or
-`MaxQuoteDebitScaled` (a hard all-in quote debit in protocol quote units).
-Quote-budget sizing is valid for BUY market and limit-IOC orders. `FeeAsset`
-is `quote` (default) or `base`; base fees are valid for BUY orders only. The
-former `received` fee source is now `base`.
+`MaxQuoteDebitScaled` (a typed hard all-in quote-debit budget). Construct the
+latter with `QtyFromQuoteDecimal` / `QtyFromQuoteScaled`; the SDK validates its
+`OrderQuote` domain and scale against
+`Catalogs.QuoteQuantityScaleForSymbol`. Quote-budget sizing is valid for BUY
+market and limit-IOC orders. `FeeAsset` is `quote` (default) or `base`; base
+fees are valid for BUY orders only. The former `received` fee source is now
+`base`.
 
-Use `client.Orders.Preview(ctx, request, account)` before submission to obtain
-the advisory resolved base quantity, price bound, debit, and fee estimate.
-Create results expose `ResolvedBaseQtyScaled` and, for quote-budget orders,
+```go
+quoteScale, ok := client.Catalogs.QuoteQuantityScaleForSymbol(symbol)
+if !ok {
+	log.Fatal("quote quantity scale is unavailable; wait for hydrated catalogs")
+}
+budget := models.QtyFromQuoteDecimal("25.00")
+// or: models.QtyFromScaled(models.MustQtyQuoteScaled(25_000_000, quoteScale).WithSymbol(symbol))
+_, err = client.Orders.Create(ctx, models.CreateOrderRequest{
+	Symbol: &symbol, Side: "buy", OrderType: "market",
+	MaxQuoteDebitScaled: budget,
+}, nil)
+```
+
+Use `client.Orders.Preview(ctx, request, account)` to obtain advisory resolved
+base quantity, price bound, and typed quote/fee estimates
+(`EstimatedQuoteDebit` always has `OrderQuote` domain; `EstimatedFee` has
+`OrderBase` or `OrderQuote` according to `FeeAsset`). Preview is not deployed
+on every API host, so handle an unimplemented/not-found response and do not
+make Preview a prerequisite for order submission. Create results expose
+`ResolvedBaseQtyScaled` and, for quote-budget orders,
 `SubmittedMaxQuoteDebitScaled`.
+
+Market orders are IOC and enforce a slippage-derived execution boundary. See
+[Market Order Price Protection](https://polyester.ai/developer-docs/shared-concepts/market-order-price-protection)
+before overriding market slippage controls.
 
 ### Batch replace reconciliation
 

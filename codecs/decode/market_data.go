@@ -25,6 +25,11 @@ func SpotConfigFromProto(msg *marketdatav1.GetSpotConfigResponse) models.SpotCon
 			}
 			if pair, ok := pairs[i].(map[string]any); ok {
 				pair["base_quantity_scale"] = float64(typed.GetBaseQuantityScale())
+				// proto3 omits scalar zeroes; restore typed quote scale when present
+				// on the wire (including valid zero).
+				delete(pair, "quote_quantity_scale")
+				delete(pair, "quoteQuantityScale")
+				pair["quote_quantity_scale"] = float64(typed.GetQuoteQuantityScale())
 			}
 		}
 	}

@@ -64,7 +64,7 @@ func TestCreateOrderDecimalQtyNilSymbolValidationError(t *testing.T) {
 		SymbolID: &sid, Side: "buy", OrderType: "limit", TIF: &tif,
 		Qty: models.QtyFromDecimal("0.1"), Price: &price,
 	}
-	_, err = CreateOrderToProto(req, scale)
+	_, err = CreateOrderToProto(req, scale, 0)
 	if err == nil {
 		t.Fatal("expected ValidationError for decimal qty without catalog+symbol scale")
 	}
@@ -81,7 +81,7 @@ func TestCreateOrderRejectsStrayPriceOnMarket(t *testing.T) {
 		Symbol: &symbol, Side: "buy", OrderType: "market",
 		Qty: models.QtyFromScaledInt(1_000_000), Price: &price,
 	}
-	_, err := CreateOrderToProto(req, 8)
+	_, err := CreateOrderToProto(req, 8, 0)
 	if err == nil {
 		t.Fatal("expected ValidationError for market+price")
 	}
@@ -118,7 +118,7 @@ func TestBatchCreateDecimalQtyNilSymbolValidationError(t *testing.T) {
 		SymbolID: &sid, Side: "buy", OrderType: "limit", TIF: &tif,
 		Qty: models.QtyFromDecimal("1.5"), Price: &price,
 	}}
-	_, err = BatchCreateOrdersToProto(items, nil, nil, false, scale)
+	_, err = BatchCreateOrdersToProto(items, nil, nil, false, scale, 0)
 	if err == nil {
 		t.Fatal("expected ValidationError for decimal qty without catalog+symbol scale")
 	}

@@ -268,28 +268,58 @@ func orderMutation(status string, orderID uint64, clientOrderID string) models.O
 }
 
 // PreviewOrderFromProto decodes the advisory order sizing and fee estimate.
-func PreviewOrderFromProto(msg *orderv1.PreviewOrderResponse) models.PreviewOrderResult {
+//
+// baseScale / quoteScale / symbol come from the service layer (catalog lookup),
+// matching typed Preview estimates in the Rust SDK.
+func PreviewOrderFromProto(
+	msg *orderv1.PreviewOrderResponse,
+	baseScale, quoteScale int,
+	symbol string,
+	symbolID *uint32,
+) (models.PreviewOrderResult, error) {
 	if msg == nil {
-		return models.PreviewOrderResult{}
+		return models.PreviewOrderResult{}, nil
 	}
+	feeAsset := feeAssetName(msg.GetFeeAsset())
+	var feeDomain models.QuantityDomain
+	var feeScale int
+	switch feeAsset {
+	case "base":
+		feeDomain = models.QuantityDomainOrderBase
+		feeScale = baseScale
+	case "quote":
+		feeDomain = models.QuantityDomainOrderQuote
+		feeScale = quoteScale
+	default:
+		return models.PreviewOrderResult{}, &sdkerrors.ResponseContractError{
+			Operation: "PreviewOrder",
+			Msg:       fmt.Sprintf("unknown fee_asset %q", feeAsset),
+		}
+	}
+	quoteDebit := codecs.DecodeQtyScaled(msg.GetEstimatedQuoteDebitScaled(), quoteScale, symbol, symbolID).
+		WithDomain(models.QuantityDomainOrderQuote)
+	fee := codecs.DecodeQtyScaled(msg.GetEstimatedFeeScaled(), feeScale, symbol, symbolID).
+		WithDomain(feeDomain)
 	result := models.PreviewOrderResult{
-		EstimatedQuoteDebitScaled: strconv.FormatInt(msg.GetEstimatedQuoteDebitScaled(), 10),
-		EstimatedFeeScaled:        strconv.FormatInt(msg.GetEstimatedFeeScaled(), 10),
-		FeeAsset:                  feeAssetName(msg.GetFeeAsset()),
-		FreshAtTsNs:               strconv.FormatUint(msg.GetFreshAtTsNs(), 10),
+		EstimatedQuoteDebit: quoteDebit,
+		EstimatedFee:        fee,
+		FeeAsset:            feeAsset,
+		FreshAtTsNs:         strconv.FormatUint(msg.GetFreshAtTsNs(), 10),
 	}
 	if value := msg.GetResolvedBaseQtyScaled(); value != 0 {
 		result.ResolvedBaseQtyScaled = strconv.FormatInt(value, 10)
-		result.ResolvedBaseQty = qtyFromScaled(value)
+		qty := codecs.DecodeQtyScaled(value, baseScale, symbol, symbolID)
+		result.ResolvedBaseQty = &qty
 	}
 	if value := msg.GetPriceBoundTicks(); value != 0 {
-		price := codecs.DecodePriceTicks(value, "")
+		price := codecs.DecodePriceTicks(value, symbol)
 		result.PriceBound = &price
 	}
 	if value := msg.GetEstimatedNetBaseQtyScaled(); value != 0 {
-		result.EstimatedNetBaseQty = qtyFromScaled(value)
+		qty := codecs.DecodeQtyScaled(value, baseScale, symbol, symbolID)
+		result.EstimatedNetBaseQty = &qty
 	}
-	return result
+	return result, nil
 }
 
 // ModifyOrderFromProto decodes modify order response.

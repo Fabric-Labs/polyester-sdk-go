@@ -54,10 +54,29 @@ func QuantityScaleForSymbol(c *catalogs.Manager, symbol *string) (int, error) {
 	return scale, nil
 }
 
+// QuoteQuantityScaleForSymbol returns quote quantity scale from the spot catalog.
+//
+// Quote-debit budgets must use this scale. It does not fall back to base scale.
+func QuoteQuantityScaleForSymbol(c *catalogs.Manager, symbol *string) (int, error) {
+	if c == nil || symbol == nil || *symbol == "" {
+		return 0, &errors.ValidationError{Msg: "quote quantity scale requires catalogs and symbol"}
+	}
+	scale, ok := c.QuoteQuantityScaleForSymbol(*symbol)
+	if !ok {
+		return 0, &errors.ValidationError{
+			Msg: "quote quantity scale for " + *symbol + " is unavailable; call WaitForCatalogs before placing quote-budget orders",
+		}
+	}
+	return scale, nil
+}
+
 // OrderIntentToProto encodes the transport-independent OrderIntent shared by
 // single and batch create. The flat public params (order_type/tif/post_only)
 // are mapped onto the appropriate execution variant.
-func OrderIntentToProto(req models.CreateOrderRequest, quantityScale int) (*orderv1.OrderIntent, error) {
+//
+// quoteQuantityScale is required when MaxQuoteDebitScaled is set; otherwise it
+// is ignored.
+func OrderIntentToProto(req models.CreateOrderRequest, quantityScale, quoteQuantityScale int) (*orderv1.OrderIntent, error) {
 	if req.Symbol == nil && req.SymbolID == nil {
 		return nil, &errors.ValidationError{Msg: "orders.create requires symbol or symbol_id"}
 	}
@@ -82,7 +101,7 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale int) (*orde
 		FeeAsset: orderv1.FeeAsset_QUOTE,
 	}
 	hasQty := req.Qty.IsSet()
-	hasQuoteBudget := req.MaxQuoteDebitScaled != nil
+	hasQuoteBudget := req.MaxQuoteDebitScaled.IsSet()
 	if hasQty == hasQuoteBudget {
 		return nil, &errors.ValidationError{Msg: "orders.create requires exactly one of qty or max_quote_debit_scaled"}
 	}
@@ -93,13 +112,14 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale int) (*orde
 		}
 		intent.Sizing = &orderv1.OrderIntent_BaseQtyScaled{BaseQtyScaled: qty}
 	} else {
-		if *req.MaxQuoteDebitScaled <= 0 {
-			return nil, &errors.ValidationError{Msg: "max_quote_debit_scaled must be positive"}
-		}
 		if side != orderv1.Side_BUY {
 			return nil, &errors.ValidationError{Msg: "max_quote_debit_scaled is only valid for buy orders"}
 		}
-		intent.Sizing = &orderv1.OrderIntent_MaxQuoteDebitScaled{MaxQuoteDebitScaled: *req.MaxQuoteDebitScaled}
+		budget, err := ResolveQuoteQtyScaled(req.MaxQuoteDebitScaled, quoteQuantityScale, "max_quote_debit_scaled", symbol, req.SymbolID)
+		if err != nil {
+			return nil, err
+		}
+		intent.Sizing = &orderv1.OrderIntent_MaxQuoteDebitScaled{MaxQuoteDebitScaled: budget}
 	}
 	clientOrderID, err := optionalClientID(req.ClientOrderID, "client_order_id")
 	if err != nil {
@@ -182,8 +202,8 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale int) (*orde
 
 // PreviewOrderToProto encodes the preview request from the same public input
 // shape as create, preserving sizing, execution, and fee-asset semantics.
-func PreviewOrderToProto(req models.CreateOrderRequest, quantityScale int) (*orderv1.PreviewOrderRequest, error) {
-	intent, err := OrderIntentToProto(req, quantityScale)
+func PreviewOrderToProto(req models.CreateOrderRequest, quantityScale, quoteQuantityScale int) (*orderv1.PreviewOrderRequest, error) {
+	intent, err := OrderIntentToProto(req, quantityScale, quoteQuantityScale)
 	if err != nil {
 		return nil, err
 	}
@@ -223,8 +243,8 @@ func PreviewOrderToProto(req models.CreateOrderRequest, quantityScale int) (*ord
 }
 
 // CreateOrderToProto encodes create order request.
-func CreateOrderToProto(req models.CreateOrderRequest, quantityScale int) (*orderv1.CreateOrderRequest, error) {
-	intent, err := OrderIntentToProto(req, quantityScale)
+func CreateOrderToProto(req models.CreateOrderRequest, quantityScale, quoteQuantityScale int) (*orderv1.CreateOrderRequest, error) {
+	intent, err := OrderIntentToProto(req, quantityScale, quoteQuantityScale)
 	if err != nil {
 		return nil, err
 	}

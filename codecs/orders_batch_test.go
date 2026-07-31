@@ -17,7 +17,7 @@ func TestBatchCreateOrdersToProto(t *testing.T) {
 		{Symbol: strPtr("ETH-USD"), Side: "sell", OrderType: "market", Qty: models.QtyFromDecimal("1"), ClientOrderID: strPtr("cid-2")},
 	}
 	reqID := "req-create-1"
-	proto, err := BatchCreateOrdersToProto(items, strPtr("123"), &reqID, true, 8)
+	proto, err := BatchCreateOrdersToProto(items, strPtr("123"), &reqID, true, 8, 6)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,9 +43,40 @@ func TestBatchCreateOrdersToProto(t *testing.T) {
 }
 
 func TestBatchCreateOrdersRequiresItems(t *testing.T) {
-	_, err := BatchCreateOrdersToProto(nil, nil, nil, false, 8)
+	_, err := BatchCreateOrdersToProto(nil, nil, nil, false, 8, 6)
 	if err == nil {
 		t.Fatal("expected validation error")
+	}
+}
+
+func TestBatchSizeGuardRejectsMoreThanTwenty(t *testing.T) {
+	symbol := "BTC-USD"
+	tif := "gtc"
+	price := models.PriceFromDecimal("50000")
+	items := make([]models.CreateOrderRequest, 21)
+	for i := range items {
+		items[i] = models.CreateOrderRequest{
+			Symbol: &symbol, Side: "buy", OrderType: "limit", TIF: &tif,
+			Qty: models.QtyFromDecimal("0.1"), Price: &price,
+		}
+	}
+	if _, err := BatchCreateOrdersToProto(items, nil, nil, false, 8, 6); err == nil {
+		t.Fatal("expected batch_create max-20 rejection")
+	}
+	cancelItems := make([]models.BatchCancelItem, 21)
+	for i := range cancelItems {
+		cancelItems[i] = models.BatchCancelItem{Key: models.OrderKeyByID("1")}
+	}
+	if _, err := BatchCancelOrdersToProto(cancelItems, nil, nil); err == nil {
+		t.Fatal("expected batch_cancel max-20 rejection")
+	}
+	replaceItems := make([]models.BatchReplaceItem, 21)
+	for i := range replaceItems {
+		p := models.PriceFromDecimal("1")
+		replaceItems[i] = models.BatchReplaceItem{Key: models.OrderKeyByID("1"), NewPrice: &p}
+	}
+	if _, err := BatchReplaceOrdersToProto(replaceItems, 1, nil, nil, 8); err == nil {
+		t.Fatal("expected batch_replace max-20 rejection")
 	}
 }
 

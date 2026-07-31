@@ -14,9 +14,10 @@ import (
 type QuantityDomain string
 
 const (
-	QuantityDomainOrderBase QuantityDomain = "order_base"
-	QuantityDomainAsset     QuantityDomain = "asset"
-	QuantityDomainLedgerE18 QuantityDomain = "ledger_e18"
+	QuantityDomainOrderBase  QuantityDomain = "order_base"
+	QuantityDomainOrderQuote QuantityDomain = "order_quote"
+	QuantityDomainAsset      QuantityDomain = "asset"
+	QuantityDomainLedgerE18  QuantityDomain = "ledger_e18"
 )
 
 const priceTickScale = 6
@@ -98,6 +99,34 @@ func NewQtyScaled(scaled int64) (QtyScaled, error) {
 		return QtyScaled{}, &errors.ValidationError{Msg: "scaled must be non-negative"}
 	}
 	return QtyScaled{scaled: scaled, domain: QuantityDomainOrderBase}, nil
+}
+
+// NewQtyQuoteScaled constructs an order-quote quantity from wire units.
+//
+// scale is required so a bare integer can never silently inherit the catalog
+// scale. Use catalogs.Manager.QuoteQuantityScaleForSymbol.
+func NewQtyQuoteScaled(scaled int64, scale int) (QtyScaled, error) {
+	if scaled < 0 {
+		return QtyScaled{}, &errors.ValidationError{Msg: "scaled must be non-negative"}
+	}
+	if scale < 0 {
+		return QtyScaled{}, &errors.ValidationError{Msg: "scale must be non-negative"}
+	}
+	if scale > MaxProtocolScale {
+		return QtyScaled{}, &errors.ValidationError{
+			Msg: fmt.Sprintf("scale %d exceeds maximum protocol scale %d", scale, MaxProtocolScale),
+		}
+	}
+	return QtyScaled{scaled: scaled, scale: &scale, domain: QuantityDomainOrderQuote}, nil
+}
+
+// MustQtyQuoteScaled is NewQtyQuoteScaled that panics on error.
+func MustQtyQuoteScaled(scaled int64, scale int) QtyScaled {
+	q, err := NewQtyQuoteScaled(scaled, scale)
+	if err != nil {
+		panic(err)
+	}
+	return q
 }
 
 // MustQtyScaled is NewQtyScaled that panics on error.
@@ -360,6 +389,18 @@ func QtyFromScaled(q QtyScaled) QtyInput {
 // QtyFromScaledInt is QtyFromScaled(MustQtyScaled(n)).
 func QtyFromScaledInt(scaled int64) QtyInput {
 	return QtyFromScaled(MustQtyScaled(scaled))
+}
+
+// QtyFromQuoteDecimal builds a human-path quote-debit budget input.
+//
+// Scale is applied at resolve time from the pair's catalog quote_quantity_scale.
+func QtyFromQuoteDecimal(s string) QtyInput {
+	return QtyFromDecimal(s)
+}
+
+// QtyFromQuoteScaled builds a bot-path quote-debit budget with OrderQuote domain.
+func QtyFromQuoteScaled(scaled int64, scale int) QtyInput {
+	return QtyFromScaled(MustQtyQuoteScaled(scaled, scale))
 }
 
 // IsSet reports whether any path was provided.

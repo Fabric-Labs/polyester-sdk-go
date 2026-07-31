@@ -153,7 +153,11 @@ func (s *OrdersService) Create(ctx context.Context, req models.CreateOrderReques
 	if err != nil {
 		return models.OrderMutationResult{}, err
 	}
-	protoReq, err := codecs.CreateOrderToProto(req, scale)
+	quoteScale, err := quoteQuantityScaleForOrderWrite(s.catalogs, req.Symbol, req.SymbolID, req.MaxQuoteDebitScaled.IsSet())
+	if err != nil {
+		return models.OrderMutationResult{}, err
+	}
+	protoReq, err := codecs.CreateOrderToProto(req, scale, quoteScale)
 	if err != nil {
 		return models.OrderMutationResult{}, err
 	}
@@ -162,7 +166,9 @@ func (s *OrdersService) Create(ctx context.Context, req models.CreateOrderReques
 
 // Preview resolves an order's executable size, price bound, and estimated fees
 // without admitting it. The result is advisory and should be refreshed promptly
-// in a moving market.
+// in a moving market. Preview is not deployed on every API host; treat
+// unimplemented/not-found as non-fatal and do not make Preview a prerequisite
+// for order submission.
 func (s *OrdersService) Preview(ctx context.Context, req models.CreateOrderRequest, account AccountScope) (models.PreviewOrderResult, error) {
 	if err := s.ensureCatalogs(ctx); err != nil {
 		return models.PreviewOrderResult{}, err
@@ -181,15 +187,25 @@ func (s *OrdersService) Preview(ctx context.Context, req models.CreateOrderReque
 		}
 		req.SubAccountID = sub
 	}
-	scale, err := quantityScaleForOrderWrite(s.catalogs, req.Symbol, req.SymbolID)
+	baseScale, err := quantityScaleForOrderWrite(s.catalogs, req.Symbol, req.SymbolID)
 	if err != nil {
 		return models.PreviewOrderResult{}, err
 	}
-	protoReq, err := codecs.PreviewOrderToProto(req, scale)
+	quoteScale, err := quoteQuantityScaleForOrderWrite(s.catalogs, req.Symbol, req.SymbolID, true)
 	if err != nil {
 		return models.PreviewOrderResult{}, err
 	}
-	return UnaryAuth(ctx, s.transport, s.writeClient().PreviewOrder, protoReq, decode.PreviewOrderFromProto)
+	protoReq, err := codecs.PreviewOrderToProto(req, baseScale, quoteScale)
+	if err != nil {
+		return models.PreviewOrderResult{}, err
+	}
+	symbol := ""
+	if req.Symbol != nil {
+		symbol = *req.Symbol
+	}
+	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().PreviewOrder, protoReq, func(msg *orderv1.PreviewOrderResponse) (models.PreviewOrderResult, error) {
+		return decode.PreviewOrderFromProto(msg, baseScale, quoteScale, symbol, req.SymbolID)
+	})
 }
 
 // Cancel cancels an order.
@@ -278,7 +294,18 @@ func (s *OrdersService) BatchCreate(ctx context.Context, account AccountScope, i
 	if err != nil {
 		return models.BatchCreateOrdersResult{}, err
 	}
-	protoReq, err := codecs.BatchCreateOrdersToProto(items, sub, requestID, allowPartial, scale)
+	needsQuoteScale := false
+	for _, item := range items {
+		if item.MaxQuoteDebitScaled.IsSet() {
+			needsQuoteScale = true
+			break
+		}
+	}
+	quoteScale, err := quoteQuantityScaleForOrderWrite(s.catalogs, symbol, nil, needsQuoteScale)
+	if err != nil {
+		return models.BatchCreateOrdersResult{}, err
+	}
+	protoReq, err := codecs.BatchCreateOrdersToProto(items, sub, requestID, allowPartial, scale, quoteScale)
 	if err != nil {
 		return models.BatchCreateOrdersResult{}, err
 	}
@@ -422,4 +449,23 @@ func quantityScaleForOrderWrite(c *catalogs.Manager, symbol *string, symbolID *u
 		return scale, nil
 	}
 	return 0, &sdkerrors.ValidationError{Msg: "quantity scale requires catalogs and symbol"}
+}
+
+func quoteQuantityScaleForOrderWrite(c *catalogs.Manager, symbol *string, symbolID *uint32, required bool) (int, error) {
+	if !required {
+		return 0, nil
+	}
+	if symbol != nil && *symbol != "" {
+		return codecs.QuoteQuantityScaleForSymbol(c, symbol)
+	}
+	if c != nil && symbolID != nil {
+		scale, ok := c.QuoteQuantityScaleForSymbolID(*symbolID)
+		if !ok {
+			return 0, &sdkerrors.ValidationError{
+				Msg: "quote quantity scale for symbol_id is unavailable; call WaitForCatalogs before placing quote-budget orders",
+			}
+		}
+		return scale, nil
+	}
+	return 0, &sdkerrors.ValidationError{Msg: "quote quantity scale requires catalogs and symbol"}
 }

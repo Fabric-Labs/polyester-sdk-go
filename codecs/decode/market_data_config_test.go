@@ -11,9 +11,10 @@ import (
 func TestSpotConfigFromProtoPreservesValidZeroQuantityScale(t *testing.T) {
 	got := SpotConfigFromProto(&marketdatav1.GetSpotConfigResponse{
 		Pairs: []*marketdatav1.PairConfig{{
-			Symbol:            "WHOLE-USDT",
-			SymbolId:          9,
-			BaseQuantityScale: 0,
+			Symbol:             "WHOLE-USDT",
+			SymbolId:           9,
+			BaseQuantityScale:  0,
+			QuoteQuantityScale: 0,
 		}},
 	})
 
@@ -27,6 +28,9 @@ func TestSpotConfigFromProtoPreservesValidZeroQuantityScale(t *testing.T) {
 	}
 	if scale, exists := pair["base_quantity_scale"]; !exists || scale != float64(0) {
 		t.Fatalf("valid zero scale was lost: %#v", pair)
+	}
+	if scale, exists := pair["quote_quantity_scale"]; !exists || scale != float64(0) {
+		t.Fatalf("valid zero quote scale was lost: %#v", pair)
 	}
 }
 

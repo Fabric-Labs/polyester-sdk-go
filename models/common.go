@@ -10,9 +10,11 @@ type CreateOrderRequest struct {
 	// Qty is the requested base quantity. Set exactly one of Qty or
 	// MaxQuoteDebitScaled.
 	Qty QtyInput `json:"qty"`
-	// MaxQuoteDebitScaled is the hard all-in quote debit limit in protocol
-	// quote units. It is valid for BUY market and limit-IOC orders only.
-	MaxQuoteDebitScaled *int64      `json:"max_quote_debit_scaled,omitempty"`
+	// MaxQuoteDebitScaled is the hard all-in quote debit budget. Construct with
+	// QtyFromQuoteDecimal / QtyFromQuoteScaled (OrderQuote domain). The SDK
+	// validates the embedded scale against the pair's catalog quote_quantity_scale.
+	// Valid for BUY market and limit-IOC orders only.
+	MaxQuoteDebitScaled QtyInput    `json:"max_quote_debit_scaled"`
 	Price               *PriceInput `json:"price,omitempty"`
 	SubAccountID        *string     `json:"sub_account_id,omitempty"`
 	// ClientOrderID is optional. Set a stable non-empty value when you may retry

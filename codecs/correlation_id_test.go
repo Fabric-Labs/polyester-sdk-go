@@ -39,7 +39,7 @@ func TestOrderEncodersRejectInvalidCorrelationIDs(t *testing.T) {
 		Qty:           models.QtyFromScaledInt(1),
 		ClientOrderID: &clientOrderID,
 	}
-	if _, err := CreateOrderToProto(req, 8); err == nil {
+	if _, err := CreateOrderToProto(req, 8, 0); err == nil {
 		t.Fatal("expected invalid client_order_id rejection")
 	}
 

@@ -81,6 +81,42 @@ func ResolveOptionalQtyScaled(in *models.QtyInput, scale int, fieldName, symbol 
 	return &qty, nil
 }
 
+// ResolveQuoteQtyScaled resolves a quote-debit budget. Scaled inputs must carry
+// OrderQuote domain and an explicit scale matching the catalog quote scale.
+func ResolveQuoteQtyScaled(in models.QtyInput, scale int, fieldName, symbol string, symbolID *uint32) (int64, error) {
+	if qty, ok := in.ScaledValue(); ok {
+		if qty.Scale() == nil {
+			return 0, &errors.ValidationError{
+				Msg: fieldName + " scale is required; use QtyFromQuoteScaled/QtyFromQuoteDecimal",
+			}
+		}
+		scalePtr := &scale
+		if err := qty.CompatibleWith(models.QuantityDomainOrderQuote, scalePtr, symbol, symbolID); err != nil {
+			return 0, err
+		}
+		if qty.Scaled() <= 0 {
+			return 0, &errors.ValidationError{Msg: fieldName + " must be positive"}
+		}
+		return qty.Scaled(), nil
+	}
+	if dec, ok := in.Decimal(); ok {
+		if scale < 0 {
+			return 0, &errors.ValidationError{
+				Msg: fieldName + " requires known quote quantity scale (catalogs + symbol)",
+			}
+		}
+		u, err := ParseQtyScaled(dec, scale, fieldName)
+		if err != nil {
+			return 0, err
+		}
+		if int64(u) <= 0 {
+			return 0, &errors.ValidationError{Msg: fieldName + " must be positive"}
+		}
+		return int64(u), nil
+	}
+	return 0, &errors.ValidationError{Msg: fieldName + " is required"}
+}
+
 // ResolveAssetAmountScaled resolves an AssetAmountInput to a big.Int scaled value.
 func ResolveAssetAmountScaled(
 	in models.AssetAmountInput,
@@ -116,7 +152,7 @@ func ResolveAssetAmountScaledToScale(
 		if value == nil || value.Sign() <= 0 {
 			return nil, &errors.ValidationError{Msg: fieldName + " must be positive"}
 		}
-		sourceScale := targetScale
+		var sourceScale int
 		if declared := amt.Scale(); declared != nil {
 			sourceScale = *declared
 			if inputScale != nil && *inputScale != sourceScale {
@@ -124,6 +160,10 @@ func ResolveAssetAmountScaledToScale(
 			}
 		} else if inputScale != nil {
 			sourceScale = *inputScale
+		} else {
+			return nil, &errors.ValidationError{
+				Msg: fieldName + " scale is required; construct AssetAmount with an explicit scale or pass amount_scale/quantity_scale",
+			}
 		}
 		rescaled, err := rescaleExact(value, sourceScale, targetScale, fieldName)
 		if err != nil {

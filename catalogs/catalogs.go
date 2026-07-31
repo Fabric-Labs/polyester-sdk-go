@@ -161,6 +161,55 @@ func (m *Manager) BaseQuantityScaleForSymbolID(symbolID uint32) (scale int, ok b
 	return 0, false
 }
 
+// QuoteQuantityScaleForSymbol returns the pair quote quantity scale.
+//
+// Quote-debit budgets must use this scale. Callers must not infer it from the
+// base quantity scale or from the quote asset's display decimals.
+// ok is false when the symbol is unknown, catalogs are unhydrated, or the pair
+// omits quote_quantity_scale.
+func (m *Manager) QuoteQuantityScaleForSymbol(symbol string) (scale int, ok bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, pair := range m.pairsLocked() {
+		if s, _ := pair["symbol"].(string); s == symbol {
+			if v, found := intField(pair, "quote_quantity_scale", "quoteQuantityScale"); found {
+				return v, true
+			}
+			return 0, false
+		}
+	}
+	return 0, false
+}
+
+// QuoteQuantityScaleForSymbolID returns the pair quote quantity scale for symbol id.
+//
+// ok is false when the id is unknown, catalogs are unhydrated, or the pair
+// omits quote_quantity_scale.
+func (m *Manager) QuoteQuantityScaleForSymbolID(symbolID uint32) (scale int, ok bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, pair := range m.pairsLocked() {
+		v := intish(pair["symbol_id"])
+		if v == nil {
+			v = intish(pair["symbolId"])
+		}
+		if v != nil && *v == symbolID {
+			if sym, _ := pair["symbol"].(string); sym != "" {
+				for _, p := range m.pairsLocked() {
+					if s, _ := p["symbol"].(string); s == sym {
+						if scale, found := intField(p, "quote_quantity_scale", "quoteQuantityScale"); found {
+							return scale, true
+						}
+						return 0, false
+					}
+				}
+			}
+			break
+		}
+	}
+	return 0, false
+}
+
 // OrderbookPriceBucketsForSymbol returns configured price buckets.
 func (m *Manager) OrderbookPriceBucketsForSymbol(symbol string) []string {
 	m.mu.RLock()
@@ -350,6 +399,9 @@ func validateSpotConfig(config map[string]any) error {
 				return fmt.Errorf("spot %s[%d]: %w", key, i, err)
 			}
 			if err := validateRequiredScaleField(pair, "base_quantity_scale", "baseQuantityScale", "qtyScale"); err != nil {
+				return fmt.Errorf("spot %s[%d]: %w", key, i, err)
+			}
+			if err := validateOptionalScaleField(pair, "quote_quantity_scale", "quoteQuantityScale"); err != nil {
 				return fmt.Errorf("spot %s[%d]: %w", key, i, err)
 			}
 			if _, exists := symbols[symbol]; exists {
