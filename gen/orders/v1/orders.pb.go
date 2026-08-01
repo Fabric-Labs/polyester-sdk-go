@@ -1650,36 +1650,25 @@ func (x *PreviewOrderRequest) GetOrder() *OrderIntent {
 }
 
 // PreviewOrderResponse reports whether an order is currently admissible and
-// returns its resolved financial values. The result is advisory: account,
-// market, and fee inputs may change, and CreateOrder always evaluates the
-// intent again.
+// returns any sizing and price-protection values resolved during evaluation.
+// The result is advisory: account, market, and policy inputs may change, and
+// CreateOrder always evaluates the intent again.
 type PreviewOrderResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Gross base quantity resolved for execution, scaled by the pair's
-	// base_quantity_scale from GetSpotConfig.
-	ResolvedBaseQtyScaled int64 `protobuf:"varint,1,opt,name=resolved_base_qty_scaled,json=resolvedBaseQtyScaled,proto3" json:"resolved_base_qty_scaled,omitempty"`
-	// Protective execution price bound in quote units scaled by 1e6.
-	PriceBoundTicks int64 `protobuf:"varint,2,opt,name=price_bound_ticks,json=priceBoundTicks,proto3" json:"price_bound_ticks,omitempty"`
-	// Estimated all-in quote debit scaled by the pair's quote_quantity_scale
-	// from GetSpotConfig.
-	EstimatedQuoteDebitScaled int64 `protobuf:"varint,3,opt,name=estimated_quote_debit_scaled,json=estimatedQuoteDebitScaled,proto3" json:"estimated_quote_debit_scaled,omitempty"`
-	// Estimated fee amount scaled by the quantity scale of fee_asset.
-	EstimatedFeeScaled int64 `protobuf:"varint,4,opt,name=estimated_fee_scaled,json=estimatedFeeScaled,proto3" json:"estimated_fee_scaled,omitempty"`
-	// Estimated base quantity received after any BASE-denominated fee, scaled by
-	// the pair's base_quantity_scale from GetSpotConfig.
-	EstimatedNetBaseQtyScaled int64 `protobuf:"varint,5,opt,name=estimated_net_base_qty_scaled,json=estimatedNetBaseQtyScaled,proto3" json:"estimated_net_base_qty_scaled,omitempty"`
-	// Asset in which estimated_fee_scaled is denominated.
-	FeeAsset FeeAsset `protobuf:"varint,6,opt,name=fee_asset,json=feeAsset,proto3,enum=orders.v1.FeeAsset" json:"fee_asset,omitempty"`
-	// Time at which the market and fee inputs used by this preview were fresh.
-	FreshAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=fresh_at,json=freshAt,proto3" json:"fresh_at,omitempty"`
-	// Freshness time as epoch nanoseconds (UTC).
-	FreshAtTsNs uint64 `protobuf:"varint,8,opt,name=fresh_at_ts_ns,json=freshAtTsNs,proto3" json:"fresh_at_ts_ns,omitempty"`
 	// Whether the order passed the current validation, policy, risk, and
 	// available-balance checks.
-	Admissible *bool `protobuf:"varint,9,opt,name=admissible,proto3,oneof" json:"admissible,omitempty"`
+	Admissible *bool `protobuf:"varint,1,opt,name=admissible,proto3,oneof" json:"admissible,omitempty"`
 	// Typed reason the order is not currently admissible. Omitted when
 	// admissible is true.
-	Rejection     *ErrorDetail `protobuf:"bytes,10,opt,name=rejection,proto3" json:"rejection,omitempty"`
+	Rejection *ErrorDetail `protobuf:"bytes,2,opt,name=rejection,proto3" json:"rejection,omitempty"`
+	// Gross base quantity resolved for execution, scaled by the pair's
+	// base_quantity_scale from GetSpotConfig. Present when sizing was resolved.
+	ResolvedBaseQtyScaled *int64 `protobuf:"varint,3,opt,name=resolved_base_qty_scaled,json=resolvedBaseQtyScaled,proto3,oneof" json:"resolved_base_qty_scaled,omitempty"`
+	// Protective execution boundary in quote units scaled by 1e6. This is not an
+	// expected fill price. Present when price protection was resolved.
+	ProtectedPriceBoundTicks *int64 `protobuf:"varint,4,opt,name=protected_price_bound_ticks,json=protectedPriceBoundTicks,proto3,oneof" json:"protected_price_bound_ticks,omitempty"`
+	// Time at which this admission evaluation completed.
+	EvaluatedAt   *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=evaluated_at,json=evaluatedAt,proto3" json:"evaluated_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1714,62 +1703,6 @@ func (*PreviewOrderResponse) Descriptor() ([]byte, []int) {
 	return file_orders_v1_orders_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *PreviewOrderResponse) GetResolvedBaseQtyScaled() int64 {
-	if x != nil {
-		return x.ResolvedBaseQtyScaled
-	}
-	return 0
-}
-
-func (x *PreviewOrderResponse) GetPriceBoundTicks() int64 {
-	if x != nil {
-		return x.PriceBoundTicks
-	}
-	return 0
-}
-
-func (x *PreviewOrderResponse) GetEstimatedQuoteDebitScaled() int64 {
-	if x != nil {
-		return x.EstimatedQuoteDebitScaled
-	}
-	return 0
-}
-
-func (x *PreviewOrderResponse) GetEstimatedFeeScaled() int64 {
-	if x != nil {
-		return x.EstimatedFeeScaled
-	}
-	return 0
-}
-
-func (x *PreviewOrderResponse) GetEstimatedNetBaseQtyScaled() int64 {
-	if x != nil {
-		return x.EstimatedNetBaseQtyScaled
-	}
-	return 0
-}
-
-func (x *PreviewOrderResponse) GetFeeAsset() FeeAsset {
-	if x != nil {
-		return x.FeeAsset
-	}
-	return FeeAsset_FEE_ASSET_UNSPECIFIED
-}
-
-func (x *PreviewOrderResponse) GetFreshAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.FreshAt
-	}
-	return nil
-}
-
-func (x *PreviewOrderResponse) GetFreshAtTsNs() uint64 {
-	if x != nil {
-		return x.FreshAtTsNs
-	}
-	return 0
-}
-
 func (x *PreviewOrderResponse) GetAdmissible() bool {
 	if x != nil && x.Admissible != nil {
 		return *x.Admissible
@@ -1780,6 +1713,27 @@ func (x *PreviewOrderResponse) GetAdmissible() bool {
 func (x *PreviewOrderResponse) GetRejection() *ErrorDetail {
 	if x != nil {
 		return x.Rejection
+	}
+	return nil
+}
+
+func (x *PreviewOrderResponse) GetResolvedBaseQtyScaled() int64 {
+	if x != nil && x.ResolvedBaseQtyScaled != nil {
+		return *x.ResolvedBaseQtyScaled
+	}
+	return 0
+}
+
+func (x *PreviewOrderResponse) GetProtectedPriceBoundTicks() int64 {
+	if x != nil && x.ProtectedPriceBoundTicks != nil {
+		return *x.ProtectedPriceBoundTicks
+	}
+	return 0
+}
+
+func (x *PreviewOrderResponse) GetEvaluatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EvaluatedAt
 	}
 	return nil
 }
@@ -4354,22 +4308,18 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x13PreviewOrderRequest\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x127\n" +
 	"\x05order\x18\x02 \x01(\v2\x16.orders.v1.OrderIntentB\t\xe0A\x02\xbaH\x03\xc8\x01\x01R\x05orderB\x10\n" +
-	"\x0e_subaccount_id\"\xa8\x04\n" +
-	"\x14PreviewOrderResponse\x127\n" +
-	"\x18resolved_base_qty_scaled\x18\x01 \x01(\x03R\x15resolvedBaseQtyScaled\x12*\n" +
-	"\x11price_bound_ticks\x18\x02 \x01(\x03R\x0fpriceBoundTicks\x12?\n" +
-	"\x1cestimated_quote_debit_scaled\x18\x03 \x01(\x03R\x19estimatedQuoteDebitScaled\x120\n" +
-	"\x14estimated_fee_scaled\x18\x04 \x01(\x03R\x12estimatedFeeScaled\x12@\n" +
-	"\x1destimated_net_base_qty_scaled\x18\x05 \x01(\x03R\x19estimatedNetBaseQtyScaled\x120\n" +
-	"\tfee_asset\x18\x06 \x01(\x0e2\x13.orders.v1.FeeAssetR\bfeeAsset\x125\n" +
-	"\bfresh_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\afreshAt\x12#\n" +
-	"\x0efresh_at_ts_ns\x18\b \x01(\x04R\vfreshAtTsNs\x12#\n" +
+	"\x0e_subaccount_id\"\xfe\x02\n" +
+	"\x14PreviewOrderResponse\x12#\n" +
 	"\n" +
-	"admissible\x18\t \x01(\bH\x00R\n" +
+	"admissible\x18\x01 \x01(\bH\x00R\n" +
 	"admissible\x88\x01\x01\x124\n" +
-	"\trejection\x18\n" +
-	" \x01(\v2\x16.orders.v1.ErrorDetailR\trejectionB\r\n" +
-	"\v_admissible\"\xfe\x02\n" +
+	"\trejection\x18\x02 \x01(\v2\x16.orders.v1.ErrorDetailR\trejection\x12<\n" +
+	"\x18resolved_base_qty_scaled\x18\x03 \x01(\x03H\x01R\x15resolvedBaseQtyScaled\x88\x01\x01\x12B\n" +
+	"\x1bprotected_price_bound_ticks\x18\x04 \x01(\x03H\x02R\x18protectedPriceBoundTicks\x88\x01\x01\x12=\n" +
+	"\fevaluated_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\vevaluatedAtB\r\n" +
+	"\v_admissibleB\x1b\n" +
+	"\x19_resolved_base_qty_scaledB\x1e\n" +
+	"\x1c_protected_price_bound_ticks\"\xfe\x02\n" +
 	"\x12CancelOrderRequest\x12+\n" +
 	"\border_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\aorderId\x12H\n" +
 	"\x0fclient_order_id\x18\x02 \x01(\tB\x1e\xbaH\x1br\x19\x10\x01\x18$2\x13^[A-Za-z0-9._:/-]+$H\x00R\rclientOrderId\x12\x1b\n" +
@@ -4702,10 +4652,10 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x1fBatchReplaceItemAdmissionStatus\x123\n" +
 	"/BATCH_REPLACE_ITEM_ADMISSION_STATUS_UNSPECIFIED\x10\x00\x120\n" +
 	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_ADMITTED\x10\x01\x120\n" +
-	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_REJECTED\x10\x022\xaf\x13\n" +
-	"\rOrdersService\x12\x8e\x02\n" +
-	"\fPreviewOrder\x12\x1e.orders.v1.PreviewOrderRequest\x1a\x1f.orders.v1.PreviewOrderResponse\"\xbc\x01\xbaG\xb8\x01\n" +
-	"\x0eOrders Service\x12\rPreview Order\x1a\x96\x01Check current order eligibility and available balance, and preview resolved quantity, price protection, quote debit, and fees. The result is advisory.\x12\xaa\x02\n" +
+	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_REJECTED\x10\x022\xb5\x13\n" +
+	"\rOrdersService\x12\x94\x02\n" +
+	"\fPreviewOrder\x12\x1e.orders.v1.PreviewOrderRequest\x1a\x1f.orders.v1.PreviewOrderResponse\"\xc2\x01\xbaG\xbe\x01\n" +
+	"\x0eOrders Service\x12\rPreview Order\x1a\x9c\x01Check current order eligibility and available balance without creating an order or reservation. Returns resolved sizing and price protection when available.\x12\xaa\x02\n" +
 	"\vCreateOrder\x12\x1d.orders.v1.CreateOrderRequest\x1a\x1e.orders.v1.CreateOrderResponse\"\xdb\x01\xbaG\xd7\x01\n" +
 	"\x0eOrders Service\x12\fCreate Order\x1a\xb6\x01Create a single order with side, type, quantity, and optional price fields. Supports optional client order IDs and attached risk instructions (take-profit, stop-loss, trailing stop).\x12\xde\x01\n" +
 	"\vCancelOrder\x12\x1d.orders.v1.CancelOrderRequest\x1a\x1e.orders.v1.CancelOrderResponse\"\x8f\x01\xbaG\x8b\x01\n" +
@@ -4804,65 +4754,64 @@ var file_orders_v1_orders_proto_depIdxs = []int32{
 	16, // 8: orders.v1.CreateOrderRequest.order:type_name -> orders.v1.OrderIntent
 	51, // 9: orders.v1.CreateOrderResponse.accepted_at:type_name -> google.protobuf.Timestamp
 	16, // 10: orders.v1.PreviewOrderRequest.order:type_name -> orders.v1.OrderIntent
-	3,  // 11: orders.v1.PreviewOrderResponse.fee_asset:type_name -> orders.v1.FeeAsset
-	51, // 12: orders.v1.PreviewOrderResponse.fresh_at:type_name -> google.protobuf.Timestamp
-	24, // 13: orders.v1.PreviewOrderResponse.rejection:type_name -> orders.v1.ErrorDetail
-	51, // 14: orders.v1.CancelOrderResponse.ts:type_name -> google.protobuf.Timestamp
-	5,  // 15: orders.v1.ErrorDetail.code:type_name -> orders.v1.ErrorCode
-	23, // 16: orders.v1.ErrorDetail.violations:type_name -> orders.v1.FieldViolation
-	25, // 17: orders.v1.RiskExecution.market_ioc:type_name -> orders.v1.RiskMarketIoc
-	26, // 18: orders.v1.RiskExecution.limit_gtc:type_name -> orders.v1.RiskLimitGtc
-	27, // 19: orders.v1.TakeProfitPolicy.child:type_name -> orders.v1.RiskExecution
-	27, // 20: orders.v1.StopLossPolicy.child:type_name -> orders.v1.RiskExecution
-	28, // 21: orders.v1.RiskPolicy.take_profit:type_name -> orders.v1.TakeProfitPolicy
-	29, // 22: orders.v1.RiskPolicy.stop_loss:type_name -> orders.v1.StopLossPolicy
-	30, // 23: orders.v1.RiskPolicy.trailing_stop:type_name -> orders.v1.TrailingStopPolicy
-	0,  // 24: orders.v1.CancelAllOrdersRequest.side:type_name -> orders.v1.Side
-	51, // 25: orders.v1.CancelAllOrdersResponse.ts:type_name -> google.protobuf.Timestamp
-	0,  // 26: orders.v1.CancelAllAfterRequest.side:type_name -> orders.v1.Side
-	51, // 27: orders.v1.CancelAllAfterResponse.ts:type_name -> google.protobuf.Timestamp
-	24, // 28: orders.v1.BatchCreateRejected.error:type_name -> orders.v1.ErrorDetail
-	36, // 29: orders.v1.BatchCreateResultItem.accepted:type_name -> orders.v1.BatchCreateAccepted
-	37, // 30: orders.v1.BatchCreateResultItem.rejected:type_name -> orders.v1.BatchCreateRejected
-	16, // 31: orders.v1.BatchCreateOrdersRequest.items:type_name -> orders.v1.OrderIntent
-	38, // 32: orders.v1.BatchCreateOrdersResponse.results:type_name -> orders.v1.BatchCreateResultItem
-	51, // 33: orders.v1.BatchCreateOrdersResponse.ts:type_name -> google.protobuf.Timestamp
-	31, // 34: orders.v1.ModifyOrderRequest.new_attached_risk:type_name -> orders.v1.RiskPolicy
-	8,  // 35: orders.v1.ModifyOrderRequest.behavior:type_name -> orders.v1.ModifyBehavior
-	9,  // 36: orders.v1.ModifyOrderResponse.action_taken:type_name -> orders.v1.ModifyActionTaken
-	51, // 37: orders.v1.ModifyOrderResponse.ts:type_name -> google.protobuf.Timestamp
-	31, // 38: orders.v1.BatchReplaceOrderItem.new_attached_risk:type_name -> orders.v1.RiskPolicy
-	11, // 39: orders.v1.BatchReplaceAdmissionItem.status:type_name -> orders.v1.BatchReplaceItemAdmissionStatus
-	43, // 40: orders.v1.BatchReplaceOrdersRequest.items:type_name -> orders.v1.BatchReplaceOrderItem
-	10, // 41: orders.v1.BatchReplaceOrdersResponse.status:type_name -> orders.v1.BatchReplaceAdmissionStatus
-	44, // 42: orders.v1.BatchReplaceOrdersResponse.results:type_name -> orders.v1.BatchReplaceAdmissionItem
-	51, // 43: orders.v1.BatchReplaceOrdersResponse.accepted_ts:type_name -> google.protobuf.Timestamp
-	47, // 44: orders.v1.BatchCancelOrdersRequest.items:type_name -> orders.v1.BatchCancelItem
-	48, // 45: orders.v1.BatchCancelOrdersResponse.results:type_name -> orders.v1.BatchCancelResultItem
-	51, // 46: orders.v1.BatchCancelOrdersResponse.ts:type_name -> google.protobuf.Timestamp
-	19, // 47: orders.v1.OrdersService.PreviewOrder:input_type -> orders.v1.PreviewOrderRequest
-	17, // 48: orders.v1.OrdersService.CreateOrder:input_type -> orders.v1.CreateOrderRequest
-	21, // 49: orders.v1.OrdersService.CancelOrder:input_type -> orders.v1.CancelOrderRequest
-	32, // 50: orders.v1.OrdersService.CancelAllOrders:input_type -> orders.v1.CancelAllOrdersRequest
-	34, // 51: orders.v1.OrdersService.CancelAllAfter:input_type -> orders.v1.CancelAllAfterRequest
-	39, // 52: orders.v1.OrdersService.BatchCreateOrders:input_type -> orders.v1.BatchCreateOrdersRequest
-	41, // 53: orders.v1.OrdersService.ModifyOrder:input_type -> orders.v1.ModifyOrderRequest
-	45, // 54: orders.v1.OrdersService.BatchReplaceOrders:input_type -> orders.v1.BatchReplaceOrdersRequest
-	49, // 55: orders.v1.OrdersService.BatchCancelOrders:input_type -> orders.v1.BatchCancelOrdersRequest
-	20, // 56: orders.v1.OrdersService.PreviewOrder:output_type -> orders.v1.PreviewOrderResponse
-	18, // 57: orders.v1.OrdersService.CreateOrder:output_type -> orders.v1.CreateOrderResponse
-	22, // 58: orders.v1.OrdersService.CancelOrder:output_type -> orders.v1.CancelOrderResponse
-	33, // 59: orders.v1.OrdersService.CancelAllOrders:output_type -> orders.v1.CancelAllOrdersResponse
-	35, // 60: orders.v1.OrdersService.CancelAllAfter:output_type -> orders.v1.CancelAllAfterResponse
-	40, // 61: orders.v1.OrdersService.BatchCreateOrders:output_type -> orders.v1.BatchCreateOrdersResponse
-	42, // 62: orders.v1.OrdersService.ModifyOrder:output_type -> orders.v1.ModifyOrderResponse
-	46, // 63: orders.v1.OrdersService.BatchReplaceOrders:output_type -> orders.v1.BatchReplaceOrdersResponse
-	50, // 64: orders.v1.OrdersService.BatchCancelOrders:output_type -> orders.v1.BatchCancelOrdersResponse
-	56, // [56:65] is the sub-list for method output_type
-	47, // [47:56] is the sub-list for method input_type
-	47, // [47:47] is the sub-list for extension type_name
-	47, // [47:47] is the sub-list for extension extendee
-	0,  // [0:47] is the sub-list for field type_name
+	24, // 11: orders.v1.PreviewOrderResponse.rejection:type_name -> orders.v1.ErrorDetail
+	51, // 12: orders.v1.PreviewOrderResponse.evaluated_at:type_name -> google.protobuf.Timestamp
+	51, // 13: orders.v1.CancelOrderResponse.ts:type_name -> google.protobuf.Timestamp
+	5,  // 14: orders.v1.ErrorDetail.code:type_name -> orders.v1.ErrorCode
+	23, // 15: orders.v1.ErrorDetail.violations:type_name -> orders.v1.FieldViolation
+	25, // 16: orders.v1.RiskExecution.market_ioc:type_name -> orders.v1.RiskMarketIoc
+	26, // 17: orders.v1.RiskExecution.limit_gtc:type_name -> orders.v1.RiskLimitGtc
+	27, // 18: orders.v1.TakeProfitPolicy.child:type_name -> orders.v1.RiskExecution
+	27, // 19: orders.v1.StopLossPolicy.child:type_name -> orders.v1.RiskExecution
+	28, // 20: orders.v1.RiskPolicy.take_profit:type_name -> orders.v1.TakeProfitPolicy
+	29, // 21: orders.v1.RiskPolicy.stop_loss:type_name -> orders.v1.StopLossPolicy
+	30, // 22: orders.v1.RiskPolicy.trailing_stop:type_name -> orders.v1.TrailingStopPolicy
+	0,  // 23: orders.v1.CancelAllOrdersRequest.side:type_name -> orders.v1.Side
+	51, // 24: orders.v1.CancelAllOrdersResponse.ts:type_name -> google.protobuf.Timestamp
+	0,  // 25: orders.v1.CancelAllAfterRequest.side:type_name -> orders.v1.Side
+	51, // 26: orders.v1.CancelAllAfterResponse.ts:type_name -> google.protobuf.Timestamp
+	24, // 27: orders.v1.BatchCreateRejected.error:type_name -> orders.v1.ErrorDetail
+	36, // 28: orders.v1.BatchCreateResultItem.accepted:type_name -> orders.v1.BatchCreateAccepted
+	37, // 29: orders.v1.BatchCreateResultItem.rejected:type_name -> orders.v1.BatchCreateRejected
+	16, // 30: orders.v1.BatchCreateOrdersRequest.items:type_name -> orders.v1.OrderIntent
+	38, // 31: orders.v1.BatchCreateOrdersResponse.results:type_name -> orders.v1.BatchCreateResultItem
+	51, // 32: orders.v1.BatchCreateOrdersResponse.ts:type_name -> google.protobuf.Timestamp
+	31, // 33: orders.v1.ModifyOrderRequest.new_attached_risk:type_name -> orders.v1.RiskPolicy
+	8,  // 34: orders.v1.ModifyOrderRequest.behavior:type_name -> orders.v1.ModifyBehavior
+	9,  // 35: orders.v1.ModifyOrderResponse.action_taken:type_name -> orders.v1.ModifyActionTaken
+	51, // 36: orders.v1.ModifyOrderResponse.ts:type_name -> google.protobuf.Timestamp
+	31, // 37: orders.v1.BatchReplaceOrderItem.new_attached_risk:type_name -> orders.v1.RiskPolicy
+	11, // 38: orders.v1.BatchReplaceAdmissionItem.status:type_name -> orders.v1.BatchReplaceItemAdmissionStatus
+	43, // 39: orders.v1.BatchReplaceOrdersRequest.items:type_name -> orders.v1.BatchReplaceOrderItem
+	10, // 40: orders.v1.BatchReplaceOrdersResponse.status:type_name -> orders.v1.BatchReplaceAdmissionStatus
+	44, // 41: orders.v1.BatchReplaceOrdersResponse.results:type_name -> orders.v1.BatchReplaceAdmissionItem
+	51, // 42: orders.v1.BatchReplaceOrdersResponse.accepted_ts:type_name -> google.protobuf.Timestamp
+	47, // 43: orders.v1.BatchCancelOrdersRequest.items:type_name -> orders.v1.BatchCancelItem
+	48, // 44: orders.v1.BatchCancelOrdersResponse.results:type_name -> orders.v1.BatchCancelResultItem
+	51, // 45: orders.v1.BatchCancelOrdersResponse.ts:type_name -> google.protobuf.Timestamp
+	19, // 46: orders.v1.OrdersService.PreviewOrder:input_type -> orders.v1.PreviewOrderRequest
+	17, // 47: orders.v1.OrdersService.CreateOrder:input_type -> orders.v1.CreateOrderRequest
+	21, // 48: orders.v1.OrdersService.CancelOrder:input_type -> orders.v1.CancelOrderRequest
+	32, // 49: orders.v1.OrdersService.CancelAllOrders:input_type -> orders.v1.CancelAllOrdersRequest
+	34, // 50: orders.v1.OrdersService.CancelAllAfter:input_type -> orders.v1.CancelAllAfterRequest
+	39, // 51: orders.v1.OrdersService.BatchCreateOrders:input_type -> orders.v1.BatchCreateOrdersRequest
+	41, // 52: orders.v1.OrdersService.ModifyOrder:input_type -> orders.v1.ModifyOrderRequest
+	45, // 53: orders.v1.OrdersService.BatchReplaceOrders:input_type -> orders.v1.BatchReplaceOrdersRequest
+	49, // 54: orders.v1.OrdersService.BatchCancelOrders:input_type -> orders.v1.BatchCancelOrdersRequest
+	20, // 55: orders.v1.OrdersService.PreviewOrder:output_type -> orders.v1.PreviewOrderResponse
+	18, // 56: orders.v1.OrdersService.CreateOrder:output_type -> orders.v1.CreateOrderResponse
+	22, // 57: orders.v1.OrdersService.CancelOrder:output_type -> orders.v1.CancelOrderResponse
+	33, // 58: orders.v1.OrdersService.CancelAllOrders:output_type -> orders.v1.CancelAllOrdersResponse
+	35, // 59: orders.v1.OrdersService.CancelAllAfter:output_type -> orders.v1.CancelAllAfterResponse
+	40, // 60: orders.v1.OrdersService.BatchCreateOrders:output_type -> orders.v1.BatchCreateOrdersResponse
+	42, // 61: orders.v1.OrdersService.ModifyOrder:output_type -> orders.v1.ModifyOrderResponse
+	46, // 62: orders.v1.OrdersService.BatchReplaceOrders:output_type -> orders.v1.BatchReplaceOrdersResponse
+	50, // 63: orders.v1.OrdersService.BatchCancelOrders:output_type -> orders.v1.BatchCancelOrdersResponse
+	55, // [55:64] is the sub-list for method output_type
+	46, // [46:55] is the sub-list for method input_type
+	46, // [46:46] is the sub-list for extension type_name
+	46, // [46:46] is the sub-list for extension extendee
+	0,  // [0:46] is the sub-list for field type_name
 }
 
 func init() { file_orders_v1_orders_proto_init() }
