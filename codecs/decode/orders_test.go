@@ -3,12 +3,13 @@ package decode_test
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
-	"github.com/Fabric-Labs/polyester-sdk-go/models"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestOrderFromProtoMapsEnumsAndIDs(t *testing.T) {
@@ -170,28 +171,88 @@ func TestOrderMutationFromProtoCreateIncludesClientOrderID(t *testing.T) {
 
 func TestPreviewOrderFromProto(t *testing.T) {
 	sid := uint32(1)
+	admissible := true
+	resolved := int64(100)
+	bound := int64(50_000_000_000)
 	result, err := decode.PreviewOrderFromProto(&orderv1.PreviewOrderResponse{
-		ResolvedBaseQtyScaled:     100,
-		PriceBoundTicks:           50_000_000_000,
-		EstimatedQuoteDebitScaled: 500,
-		EstimatedFeeScaled:        2,
-		EstimatedNetBaseQtyScaled: 98,
-		FeeAsset:                  orderv1.FeeAsset_BASE,
-		FreshAtTsNs:               123,
-	}, 8, 6, "BTC-USDT", &sid)
+		Admissible:               &admissible,
+		ResolvedBaseQtyScaled:    &resolved,
+		ProtectedPriceBoundTicks: &bound,
+		EvaluatedAt:              timestamppb.New(time.Unix(1, 250_000_000)),
+	}, 8, "BTC-USDT", &sid)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.ResolvedBaseQtyScaled != "100" || result.ResolvedBaseQty == nil ||
-		result.ResolvedBaseQty.Scaled() != 100 || result.PriceBound == nil ||
-		result.PriceBound.Ticks() != 50_000_000_000 || result.EstimatedQuoteDebit.Scaled() != 500 ||
-		result.EstimatedQuoteDebit.Domain() != models.QuantityDomainOrderQuote ||
-		result.EstimatedQuoteDebit.Scale() == nil || *result.EstimatedQuoteDebit.Scale() != 6 ||
-		result.EstimatedFee.Scaled() != 2 || result.EstimatedFee.Domain() != models.QuantityDomainOrderBase ||
-		result.EstimatedFee.Scale() == nil || *result.EstimatedFee.Scale() != 8 ||
-		result.EstimatedNetBaseQty == nil || result.EstimatedNetBaseQty.Scaled() != 98 ||
-		result.FeeAsset != "base" || result.FreshAtTsNs != "123" {
+	if result.Admissible == nil || !*result.Admissible ||
+		result.Rejection != nil ||
+		result.ResolvedBaseQtyScaled != "100" || result.ResolvedBaseQty == nil ||
+		result.ResolvedBaseQty.Scaled() != 100 ||
+		result.ProtectedPriceBound == nil ||
+		result.ProtectedPriceBound.Ticks() != 50_000_000_000 ||
+		result.EvaluatedAtMs != 1_250 {
 		t.Fatalf("result=%+v", result)
+	}
+}
+
+func TestPreviewOrderFromProtoRejectionPreservesUnknownCode(t *testing.T) {
+	admissible := false
+	result, err := decode.PreviewOrderFromProto(&orderv1.PreviewOrderResponse{
+		Admissible: &admissible,
+		Rejection: &orderv1.ErrorDetail{
+			Code: orderv1.ErrorCode(99_999),
+			Violations: []*orderv1.FieldViolation{{
+				FieldPath: "order.base_qty_scaled",
+				RuleId:    "positive",
+				Message:   "Quantity must be positive.",
+			}},
+		},
+		EvaluatedAt: timestamppb.New(time.Unix(1, 0)),
+	}, 8, "BTC-USDT", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Admissible == nil || *result.Admissible ||
+		result.Rejection == nil ||
+		result.Rejection.Code != "UNKNOWN_ERROR_CODE(99999)" ||
+		len(result.Rejection.Violations) != 1 ||
+		result.Rejection.Violations[0].FieldPath != "order.base_qty_scaled" ||
+		result.Rejection.Violations[0].RuleID != "positive" ||
+		result.Rejection.Violations[0].Message != "Quantity must be positive." ||
+		result.EvaluatedAtMs != 1_000 {
+		t.Fatalf("result=%+v", result)
+	}
+}
+
+func TestPreviewOrderFromProtoOmitsUnsetOptionalFields(t *testing.T) {
+	admissible := false
+	result, err := decode.PreviewOrderFromProto(&orderv1.PreviewOrderResponse{
+		Admissible:  &admissible,
+		EvaluatedAt: timestamppb.New(time.Unix(2, 0)),
+		Rejection: &orderv1.ErrorDetail{
+			Code: orderv1.ErrorCode_ERROR_CODE_BAD_QTY,
+		},
+	}, 8, "BTC-USDT", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ResolvedBaseQtyScaled != "" || result.ResolvedBaseQty != nil ||
+		result.ProtectedPriceBound != nil ||
+		result.Rejection == nil || result.Rejection.Code != "BAD_QTY" ||
+		result.EvaluatedAtMs != 2_000 {
+		t.Fatalf("result=%+v", result)
+	}
+}
+
+func TestPreviewOrderFromProtoRejectsMissingEvaluatedAt(t *testing.T) {
+	_, err := decode.PreviewOrderFromProto(
+		&orderv1.PreviewOrderResponse{},
+		8,
+		"BTC-USDT",
+		nil,
+	)
+	var contractErr *sdkerrors.ResponseContractError
+	if !errors.As(err, &contractErr) {
+		t.Fatalf("expected ResponseContractError, got %T: %v", err, err)
 	}
 }
 

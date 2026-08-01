@@ -267,59 +267,80 @@ func orderMutation(status string, orderID uint64, clientOrderID string) models.O
 	}
 }
 
-// PreviewOrderFromProto decodes the advisory order sizing and fee estimate.
+// PreviewOrderFromProto decodes the advisory PreviewOrder admission response.
 //
-// baseScale / quoteScale / symbol come from the service layer (catalog lookup),
-// matching typed Preview estimates in the Rust SDK.
+// baseScale / symbol come from the service layer (catalog lookup) so resolved
+// base quantity can be typed when present. Fee/quote estimates are no longer on
+// the wire.
 func PreviewOrderFromProto(
 	msg *orderv1.PreviewOrderResponse,
-	baseScale, quoteScale int,
+	baseScale int,
 	symbol string,
 	symbolID *uint32,
 ) (models.PreviewOrderResult, error) {
 	if msg == nil {
 		return models.PreviewOrderResult{}, nil
 	}
-	feeAsset := feeAssetName(msg.GetFeeAsset())
-	var feeDomain models.QuantityDomain
-	var feeScale int
-	switch feeAsset {
-	case "base":
-		feeDomain = models.QuantityDomainOrderBase
-		feeScale = baseScale
-	case "quote":
-		feeDomain = models.QuantityDomainOrderQuote
-		feeScale = quoteScale
-	default:
+	if msg.GetEvaluatedAt() == nil {
 		return models.PreviewOrderResult{}, &sdkerrors.ResponseContractError{
 			Operation: "PreviewOrder",
-			Msg:       fmt.Sprintf("unknown fee_asset %q", feeAsset),
+			Msg:       "successful response is missing evaluated_at",
 		}
 	}
-	quoteDebit := codecs.DecodeQtyScaled(msg.GetEstimatedQuoteDebitScaled(), quoteScale, symbol, symbolID).
-		WithDomain(models.QuantityDomainOrderQuote)
-	fee := codecs.DecodeQtyScaled(msg.GetEstimatedFeeScaled(), feeScale, symbol, symbolID).
-		WithDomain(feeDomain)
-	result := models.PreviewOrderResult{
-		EstimatedQuoteDebit: quoteDebit,
-		EstimatedFee:        fee,
-		FeeAsset:            feeAsset,
-		FreshAtTsNs:         strconv.FormatUint(msg.GetFreshAtTsNs(), 10),
+	result := models.PreviewOrderResult{}
+	if msg.Admissible != nil {
+		admissible := msg.GetAdmissible()
+		result.Admissible = &admissible
 	}
-	if value := msg.GetResolvedBaseQtyScaled(); value != 0 {
+	if rejection := msg.GetRejection(); rejection != nil {
+		result.Rejection = orderErrorDetailFromProto(rejection)
+	}
+	if msg.ResolvedBaseQtyScaled != nil {
+		value := msg.GetResolvedBaseQtyScaled()
 		result.ResolvedBaseQtyScaled = strconv.FormatInt(value, 10)
 		qty := codecs.DecodeQtyScaled(value, baseScale, symbol, symbolID)
 		result.ResolvedBaseQty = &qty
 	}
-	if value := msg.GetPriceBoundTicks(); value != 0 {
-		price := codecs.DecodePriceTicks(value, symbol)
-		result.PriceBound = &price
+	if msg.ProtectedPriceBoundTicks != nil {
+		price := codecs.DecodePriceTicks(msg.GetProtectedPriceBoundTicks(), symbol)
+		result.ProtectedPriceBound = &price
 	}
-	if value := msg.GetEstimatedNetBaseQtyScaled(); value != 0 {
-		qty := codecs.DecodeQtyScaled(value, baseScale, symbol, symbolID)
-		result.EstimatedNetBaseQty = &qty
-	}
+	result.EvaluatedAtMs = msg.GetEvaluatedAt().AsTime().UnixMilli()
 	return result, nil
+}
+
+func orderErrorDetailFromProto(msg *orderv1.ErrorDetail) *models.OrderErrorDetail {
+	if msg == nil {
+		return nil
+	}
+	out := &models.OrderErrorDetail{
+		Code: errorCodeName(msg.GetCode()),
+	}
+	if violations := msg.GetViolations(); len(violations) > 0 {
+		out.Violations = make([]models.OrderFieldViolation, 0, len(violations))
+		for _, v := range violations {
+			if v == nil {
+				continue
+			}
+			out.Violations = append(out.Violations, models.OrderFieldViolation{
+				FieldPath: v.GetFieldPath(),
+				RuleID:    v.GetRuleId(),
+				Message:   v.GetMessage(),
+			})
+		}
+	}
+	return out
+}
+
+func errorCodeName(code orderv1.ErrorCode) string {
+	raw := int32(code)
+	if raw == 0 {
+		return "UNSPECIFIED"
+	}
+	if name, ok := orderv1.ErrorCode_name[raw]; ok {
+		return strings.TrimPrefix(name, "ERROR_CODE_")
+	}
+	return fmt.Sprintf("UNKNOWN_ERROR_CODE(%d)", raw)
 }
 
 // ModifyOrderFromProto decodes modify order response.

@@ -4,24 +4,63 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	lifecyclev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/lifecycle/v1"
+	zipperv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/zipper/v1"
 )
 
 func TestFlowSummaryFromProto(t *testing.T) {
 	msg := &lifecyclev1.FlowSummaryView{
-		FlowId:         "flow-abc",
-		FlowKind:       lifecyclev1.FlowKind_KIND_DEPOSIT,
-		CurrentStep:    lifecyclev1.FlowStep_FLOW_STEP_SETTLEMENT,
-		IsOpen:         false,
-		IsTerminal:     true,
-		OwnerAccountId: 99,
-		SourceAddress:  "0xabc",
+		FlowId:              "flow-abc",
+		FlowKind:            lifecyclev1.FlowKind_KIND_DEPOSIT,
+		CurrentStep:         lifecyclev1.FlowStep_FLOW_STEP_SETTLEMENT,
+		IsOpen:              false,
+		IsTerminal:          true,
+		OwnerAccountId:      99,
+		SourceAddress:       "0xsource",
+		SmartAccountAddress: "0xabc",
+		LifecycleReason:     lifecyclev1.LifecycleReason_ZIPPER_VALIDATION_REJECTED,
+		ZipperReason: &zipperv1.ZipperReasonDetails{
+			Code:     zipperv1.ZipperReasonCode_DEPOSIT_AMOUNT_BELOW_MINIMUM,
+			ReasonId: "deposit_amount_below_minimum",
+			Message:  "Deposit amount is below the minimum.",
+		},
 	}
 	flow := decode.FlowSummaryMessageFromProto(msg)
-	if flow.IntentID != "flow-abc" || !flow.IsTerminal || flow.SmartAccountAddress != "0xabc" {
+	if flow.IntentID != "flow-abc" || !flow.IsTerminal ||
+		flow.FlowKind != "deposit" ||
+		flow.LatestStep != "settlement" ||
+		flow.SmartAccountAddress != "0xabc" ||
+		flow.LifecycleReason != "zipper_validation_rejected" ||
+		flow.ZipperReason == nil ||
+		flow.ZipperReason.Code != int32(zipperv1.ZipperReasonCode_DEPOSIT_AMOUNT_BELOW_MINIMUM) ||
+		flow.ZipperReason.ReasonID != "deposit_amount_below_minimum" ||
+		flow.ZipperReason.Message != "Deposit amount is below the minimum." {
 		t.Fatalf("flow=%+v", flow)
+	}
+}
+
+func TestLifecycleReasonUnknownCodePreserved(t *testing.T) {
+	flow := decode.FlowSummaryMessageFromProto(&lifecyclev1.FlowSummaryView{
+		FlowId:          "flow-unknown",
+		LifecycleReason: lifecyclev1.LifecycleReason(2001),
+	})
+	if flow.LifecycleReason != "unknown_reason_2001" {
+		t.Fatalf("lifecycle_reason=%q", flow.LifecycleReason)
+	}
+}
+
+func TestLifecycleReasonUnspecified(t *testing.T) {
+	flow := decode.FlowSummaryMessageFromProto(&lifecyclev1.FlowSummaryView{
+		FlowId: "flow-ok",
+	})
+	if flow.LifecycleReason != "unspecified" {
+		t.Fatalf("lifecycle_reason=%q", flow.LifecycleReason)
+	}
+	if flow.FlowKind != "unspecified" || flow.LatestStep != "unspecified" {
+		t.Fatalf("flow kind/step=%q/%q", flow.FlowKind, flow.LatestStep)
 	}
 }
 
@@ -48,6 +87,26 @@ func TestFlowsListFromProto(t *testing.T) {
 	}
 	result := decode.FlowsListFromProto(msg)
 	if len(result.Flows) != 2 || result.NextPageToken != "next" {
+		t.Fatalf("result=%+v", result)
+	}
+}
+
+func TestFlowTxMatchUsesSmartAccountAddress(t *testing.T) {
+	result, err := decode.FlowFromGetByTxResponse(&lifecyclev1.ListFlowsByTxResponse{
+		Matches: []*lifecyclev1.FlowTxMatchView{{
+			FlowId:              "flow-tx",
+			SourceAddress:       "0xsource",
+			OwnerAccountId:      99,
+			SmartAccountAddress: "0xsmart",
+			LifecycleReason:     lifecyclev1.LifecycleReason_LEDGER_MIRROR_REJECTED,
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.OwnerAccountID != codecs.FormatUint64ID(99) ||
+		result.SmartAccountAddress != "0xsmart" ||
+		result.LifecycleReason != "ledger_mirror_rejected" {
 		t.Fatalf("result=%+v", result)
 	}
 }

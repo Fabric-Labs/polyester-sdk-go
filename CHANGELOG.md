@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+## 0.1.0a31
+
+Git tag: `v0.1.0a31`.
+
+### Breaking
+- `PreviewOrderResult` no longer returns fee/quote estimates
+  (`EstimatedQuoteDebit`, `EstimatedFee`, `EstimatedNetBaseQty`, `FeeAsset`,
+  `FreshAtTsNs`) or `PriceBound`. It now exposes admission fields:
+  optional `Admissible`, optional `Rejection` (`OrderErrorDetail` with
+  `OrderFieldViolation`s), optional resolved base quantity,
+  `ProtectedPriceBound` (renamed from `PriceBound`), and `EvaluatedAtMs`.
+  Known Preview rejection codes use TypeScript-compatible labels such as
+  `BAD_QTY`; unknown open-enum values use `UNKNOWN_ERROR_CODE(<n>)`.
+- Lifecycle flow summaries map `lifecycle_reason` (formerly `reason_code` /
+  `FlowReason`) to snake labels on `LifecycleFlowSummary.LifecycleReason`.
+  Unknown reason codes decode as `unknown_reason_<n>` instead of failing the
+  flow. Tx-match flows preserve `OwnerAccountID`.
+
+### Added
+- `OrderErrorDetail` / `OrderFieldViolation` for PreviewOrder rejection detail.
+- `ZipperReasonDetails` and `LifecycleFlowSummary.ZipperReason` for Zipper
+  failure codes, reason ids, and messages from `chain.zipper.v1`.
+
 ## 0.1.0a30
 
 Git tag: `v0.1.0a30`.
