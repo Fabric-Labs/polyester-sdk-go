@@ -8,6 +8,7 @@ package chainlifecyclev1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	v11 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/zipper/v1"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api/validation/v1"
 	v1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
@@ -907,15 +908,17 @@ type FlowTxMatchView struct {
 	// Destination address to show for this flow.
 	DestinationAddress string `protobuf:"bytes,16,opt,name=destination_address,json=destinationAddress,proto3" json:"destination_address,omitempty"`
 	// Product-facing reason for failed, dropped, or otherwise notable flows.
-	ReasonCode FlowReason `protobuf:"varint,17,opt,name=reason_code,json=reasonCode,proto3,enum=chain.lifecycle.v1.FlowReason" json:"reason_code,omitempty"`
+	LifecycleReason LifecycleReason `protobuf:"varint,17,opt,name=lifecycle_reason,json=lifecycleReason,proto3,enum=chain.lifecycle.v1.LifecycleReason" json:"lifecycle_reason,omitempty"`
 	// Timestamp used for list ordering in milliseconds since epoch (UTC).
 	LastActivityAtUnixMs uint64 `protobuf:"varint,18,opt,name=last_activity_at_unix_ms,json=lastActivityAtUnixMs,proto3" json:"last_activity_at_unix_ms,omitempty"`
 	// Public account or subaccount identifier that owns this flow.
 	OwnerAccountId uint64 `protobuf:"fixed64,19,opt,name=owner_account_id,json=ownerAccountId,proto3" json:"owner_account_id,omitempty"`
 	// Smart account address on Polyester Chain when known.
 	SmartAccountAddress string `protobuf:"bytes,20,opt,name=smart_account_address,json=smartAccountAddress,proto3" json:"smart_account_address,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// Specific reason details when a notable outcome has a catalog entry.
+	ZipperReason  *v11.ZipperReasonDetails `protobuf:"bytes,21,opt,name=zipper_reason,json=zipperReason,proto3" json:"zipper_reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *FlowTxMatchView) Reset() {
@@ -1053,11 +1056,11 @@ func (x *FlowTxMatchView) GetDestinationAddress() string {
 	return ""
 }
 
-func (x *FlowTxMatchView) GetReasonCode() FlowReason {
+func (x *FlowTxMatchView) GetLifecycleReason() LifecycleReason {
 	if x != nil {
-		return x.ReasonCode
+		return x.LifecycleReason
 	}
-	return FlowReason_FLOW_REASON_UNSPECIFIED
+	return LifecycleReason_REASON_UNSPECIFIED
 }
 
 func (x *FlowTxMatchView) GetLastActivityAtUnixMs() uint64 {
@@ -1079,6 +1082,13 @@ func (x *FlowTxMatchView) GetSmartAccountAddress() string {
 		return x.SmartAccountAddress
 	}
 	return ""
+}
+
+func (x *FlowTxMatchView) GetZipperReason() *v11.ZipperReasonDetails {
+	if x != nil {
+		return x.ZipperReason
+	}
+	return nil
 }
 
 // ListFlowsByTxResponse returns a page of lifecycle flows that reference one
@@ -1200,7 +1210,9 @@ type FlowSummaryView struct {
 	// summary. This is not necessarily the source of the entire flow.
 	LatestLifecycleSource LifecycleSource `protobuf:"varint,16,opt,name=latest_lifecycle_source,json=latestLifecycleSource,proto3,enum=chain.lifecycle.v1.LifecycleSource" json:"latest_lifecycle_source,omitempty"`
 	// Product-facing reason for failed, dropped, or otherwise notable flows.
-	ReasonCode FlowReason `protobuf:"varint,17,opt,name=reason_code,json=reasonCode,proto3,enum=chain.lifecycle.v1.FlowReason" json:"reason_code,omitempty"`
+	LifecycleReason LifecycleReason `protobuf:"varint,17,opt,name=lifecycle_reason,json=lifecycleReason,proto3,enum=chain.lifecycle.v1.LifecycleReason" json:"lifecycle_reason,omitempty"`
+	// Specific reason details when a notable outcome has a catalog entry.
+	ZipperReason *v11.ZipperReasonDetails `protobuf:"bytes,35,opt,name=zipper_reason,json=zipperReason,proto3" json:"zipper_reason,omitempty"`
 	// First observed business timestamp in milliseconds since epoch (UTC).
 	StartedAtUnixMs uint64 `protobuf:"varint,18,opt,name=started_at_unix_ms,json=startedAtUnixMs,proto3" json:"started_at_unix_ms,omitempty"`
 	// Last summary update timestamp in milliseconds since epoch (UTC).
@@ -1375,11 +1387,18 @@ func (x *FlowSummaryView) GetLatestLifecycleSource() LifecycleSource {
 	return LifecycleSource_SOURCE_UNSPECIFIED
 }
 
-func (x *FlowSummaryView) GetReasonCode() FlowReason {
+func (x *FlowSummaryView) GetLifecycleReason() LifecycleReason {
 	if x != nil {
-		return x.ReasonCode
+		return x.LifecycleReason
 	}
-	return FlowReason_FLOW_REASON_UNSPECIFIED
+	return LifecycleReason_REASON_UNSPECIFIED
+}
+
+func (x *FlowSummaryView) GetZipperReason() *v11.ZipperReasonDetails {
+	if x != nil {
+		return x.ZipperReason
+	}
+	return nil
 }
 
 func (x *FlowSummaryView) GetStartedAtUnixMs() uint64 {
@@ -1594,7 +1613,9 @@ type FlowStepView struct {
 	// Source that produced this visible step.
 	LifecycleSource LifecycleSource `protobuf:"varint,12,opt,name=lifecycle_source,json=lifecycleSource,proto3,enum=chain.lifecycle.v1.LifecycleSource" json:"lifecycle_source,omitempty"`
 	// Product-facing reason for failed, dropped, or otherwise notable steps.
-	ReasonCode FlowReason `protobuf:"varint,13,opt,name=reason_code,json=reasonCode,proto3,enum=chain.lifecycle.v1.FlowReason" json:"reason_code,omitempty"`
+	LifecycleReason LifecycleReason `protobuf:"varint,13,opt,name=lifecycle_reason,json=lifecycleReason,proto3,enum=chain.lifecycle.v1.LifecycleReason" json:"lifecycle_reason,omitempty"`
+	// Specific reason details when a notable outcome has a catalog entry.
+	ZipperReason *v11.ZipperReasonDetails `protobuf:"bytes,25,opt,name=zipper_reason,json=zipperReason,proto3" json:"zipper_reason,omitempty"`
 	// Current source confirmation count when confirmations apply.
 	CurrentConfirmations uint32 `protobuf:"varint,14,opt,name=current_confirmations,json=currentConfirmations,proto3" json:"current_confirmations,omitempty"`
 	// Required source confirmation count when confirmations apply.
@@ -1707,11 +1728,18 @@ func (x *FlowStepView) GetLifecycleSource() LifecycleSource {
 	return LifecycleSource_SOURCE_UNSPECIFIED
 }
 
-func (x *FlowStepView) GetReasonCode() FlowReason {
+func (x *FlowStepView) GetLifecycleReason() LifecycleReason {
 	if x != nil {
-		return x.ReasonCode
+		return x.LifecycleReason
 	}
-	return FlowReason_FLOW_REASON_UNSPECIFIED
+	return LifecycleReason_REASON_UNSPECIFIED
+}
+
+func (x *FlowStepView) GetZipperReason() *v11.ZipperReasonDetails {
+	if x != nil {
+		return x.ZipperReason
+	}
+	return nil
 }
 
 func (x *FlowStepView) GetCurrentConfirmations() uint32 {
@@ -1796,7 +1824,9 @@ type FlowStepActivityView struct {
 	// Source that produced this activity.
 	LifecycleSource LifecycleSource `protobuf:"varint,4,opt,name=lifecycle_source,json=lifecycleSource,proto3,enum=chain.lifecycle.v1.LifecycleSource" json:"lifecycle_source,omitempty"`
 	// Product-facing reason for notable activity states.
-	ReasonCode FlowReason `protobuf:"varint,5,opt,name=reason_code,json=reasonCode,proto3,enum=chain.lifecycle.v1.FlowReason" json:"reason_code,omitempty"`
+	LifecycleReason LifecycleReason `protobuf:"varint,5,opt,name=lifecycle_reason,json=lifecycleReason,proto3,enum=chain.lifecycle.v1.LifecycleReason" json:"lifecycle_reason,omitempty"`
+	// Specific reason details when a notable outcome has a catalog entry.
+	ZipperReason *v11.ZipperReasonDetails `protobuf:"bytes,16,opt,name=zipper_reason,json=zipperReason,proto3" json:"zipper_reason,omitempty"`
 	// Current source confirmation count when confirmations apply.
 	CurrentConfirmations uint32 `protobuf:"varint,6,opt,name=current_confirmations,json=currentConfirmations,proto3" json:"current_confirmations,omitempty"`
 	// Required source confirmation count when confirmations apply.
@@ -1881,11 +1911,18 @@ func (x *FlowStepActivityView) GetLifecycleSource() LifecycleSource {
 	return LifecycleSource_SOURCE_UNSPECIFIED
 }
 
-func (x *FlowStepActivityView) GetReasonCode() FlowReason {
+func (x *FlowStepActivityView) GetLifecycleReason() LifecycleReason {
 	if x != nil {
-		return x.ReasonCode
+		return x.LifecycleReason
 	}
-	return FlowReason_FLOW_REASON_UNSPECIFIED
+	return LifecycleReason_REASON_UNSPECIFIED
+}
+
+func (x *FlowStepActivityView) GetZipperReason() *v11.ZipperReasonDetails {
+	if x != nil {
+		return x.ZipperReason
+	}
+	return nil
 }
 
 func (x *FlowStepActivityView) GetCurrentConfirmations() uint32 {
@@ -2103,7 +2140,7 @@ var File_chain_lifecycle_v1_lifecycle_read_proto protoreflect.FileDescriptor
 
 const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\n" +
-	"'chain/lifecycle/v1/lifecycle_read.proto\x12\x12chain.lifecycle.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echain/lifecycle/v1/types.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1bpolyester/api/options.proto\x1a9polyester/api/validation/v1/predefined_string_rules.proto\x1a\x1cpolyester/type/v1/u128.proto\"I\n" +
+	"'chain/lifecycle/v1/lifecycle_read.proto\x12\x12chain.lifecycle.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echain/lifecycle/v1/types.proto\x1a\x1cchain/zipper/v1/reason.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1bpolyester/api/options.proto\x1a9polyester/api/validation/v1/predefined_string_rules.proto\x1a\x1cpolyester/type/v1/u128.proto\"I\n" +
 	"\x0fGetFlowResponse\x126\n" +
 	"\x04flow\x18\x01 \x01(\v2\".chain.lifecycle.v1.FlowDetailViewR\x04flow\"V\n" +
 	"\x12GetFlowByIdRequest\x12@\n" +
@@ -2138,7 +2175,7 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\x10account_selector\"\x80\x01\n" +
 	"\x11ListFlowsResponse\x129\n" +
 	"\x05flows\x18\x01 \x03(\v2#.chain.lifecycle.v1.FlowSummaryViewR\x05flows\x120\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xbe\a\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xb5\b\n" +
 	"\x0fFlowTxMatchView\x12\x17\n" +
 	"\aflow_id\x18\x01 \x01(\tR\x06flowId\x129\n" +
 	"\tflow_kind\x18\x03 \x01(\x0e2\x1c.chain.lifecycle.v1.FlowKindR\bflowKind\x12$\n" +
@@ -2157,16 +2194,16 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\n" +
 	"amount_e18\x18\x0e \x01(\v2\x17.polyester.type.v1.U128R\tamountE18\x12%\n" +
 	"\x0esource_address\x18\x0f \x01(\tR\rsourceAddress\x12/\n" +
-	"\x13destination_address\x18\x10 \x01(\tR\x12destinationAddress\x12?\n" +
-	"\vreason_code\x18\x11 \x01(\x0e2\x1e.chain.lifecycle.v1.FlowReasonR\n" +
-	"reasonCode\x126\n" +
+	"\x13destination_address\x18\x10 \x01(\tR\x12destinationAddress\x12N\n" +
+	"\x10lifecycle_reason\x18\x11 \x01(\x0e2#.chain.lifecycle.v1.LifecycleReasonR\x0flifecycleReason\x126\n" +
 	"\x18last_activity_at_unix_ms\x18\x12 \x01(\x04R\x14lastActivityAtUnixMs\x12(\n" +
 	"\x10owner_account_id\x18\x13 \x01(\x06R\x0eownerAccountId\x122\n" +
-	"\x15smart_account_address\x18\x14 \x01(\tR\x13smartAccountAddress\"\xa1\x01\n" +
+	"\x15smart_account_address\x18\x14 \x01(\tR\x13smartAccountAddress\x12I\n" +
+	"\rzipper_reason\x18\x15 \x01(\v2$.chain.zipper.v1.ZipperReasonDetailsR\fzipperReasonR\vreason_codeR\x0ereason_details\"\xa1\x01\n" +
 	"\x15ListFlowsByTxResponse\x12\x17\n" +
 	"\atx_hash\x18\x01 \x01(\tR\x06txHash\x12=\n" +
 	"\amatches\x18\x02 \x03(\v2#.chain.lifecycle.v1.FlowTxMatchViewR\amatches\x120\n" +
-	"\x0fnext_page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\x97\f\n" +
+	"\x0fnext_page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\x8e\r\n" +
 	"\x0fFlowSummaryView\x12(\n" +
 	"\x10owner_account_id\x18\x01 \x01(\x06R\x0eownerAccountId\x12@\n" +
 	"\x15smart_account_address\x18\" \x01(\tB\f\xbaH\t\xd8\x01\x01r\x04\x88\xb5\x18\x01R\x13smartAccountAddress\x12\x17\n" +
@@ -2186,9 +2223,9 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\rlatest_tx_ref\x18\x0f \x01(\tR\vlatestTxRef\x12C\n" +
 	"\rsource_domain\x18\x1d \x01(\x0e2\x1e.chain.lifecycle.v1.FlowDomainR\fsourceDomain\x12M\n" +
 	"\x12destination_domain\x18\x1e \x01(\x0e2\x1e.chain.lifecycle.v1.FlowDomainR\x11destinationDomain\x12[\n" +
-	"\x17latest_lifecycle_source\x18\x10 \x01(\x0e2#.chain.lifecycle.v1.LifecycleSourceR\x15latestLifecycleSource\x12?\n" +
-	"\vreason_code\x18\x11 \x01(\x0e2\x1e.chain.lifecycle.v1.FlowReasonR\n" +
-	"reasonCode\x12+\n" +
+	"\x17latest_lifecycle_source\x18\x10 \x01(\x0e2#.chain.lifecycle.v1.LifecycleSourceR\x15latestLifecycleSource\x12N\n" +
+	"\x10lifecycle_reason\x18\x11 \x01(\x0e2#.chain.lifecycle.v1.LifecycleReasonR\x0flifecycleReason\x12I\n" +
+	"\rzipper_reason\x18# \x01(\v2$.chain.zipper.v1.ZipperReasonDetailsR\fzipperReason\x12+\n" +
 	"\x12started_at_unix_ms\x18\x12 \x01(\x04R\x0fstartedAtUnixMs\x12+\n" +
 	"\x12updated_at_unix_ms\x18\x13 \x01(\x04R\x0fupdatedAtUnixMs\x12-\n" +
 	"\x13terminal_at_unix_ms\x18\x14 \x01(\x04R\x10terminalAtUnixMs\x126\n" +
@@ -2199,7 +2236,7 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\x15current_step_sequence\x18\x18 \x01(\rR\x13currentStepSequence\x12V\n" +
 	"\x10current_progress\x18\x19 \x01(\v2+.chain.lifecycle.v1.FlowSummaryProgressViewR\x0fcurrentProgress\x12U\n" +
 	"\x11progress_timeline\x18\x1a \x03(\v2(.chain.lifecycle.v1.FlowTimelineItemViewR\x10progressTimeline\x12?\n" +
-	"\x1cestimated_completion_unix_ms\x18\x1b \x01(\x04R\x19estimatedCompletionUnixMs\"\xe5\x03\n" +
+	"\x1cestimated_completion_unix_ms\x18\x1b \x01(\x04R\x19estimatedCompletionUnixMsR\vreason_codeR\x0ereason_details\"\xe5\x03\n" +
 	"\x17FlowSummaryProgressView\x12C\n" +
 	"\x1fcurrent_step_started_at_unix_ms\x18\x01 \x01(\x04R\x1acurrentStepStartedAtUnixMs\x12H\n" +
 	"!current_step_expected_duration_ms\x18\x02 \x01(\x04R\x1dcurrentStepExpectedDurationMs\x123\n" +
@@ -2210,7 +2247,7 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\x0fvalidator_count\x18\t \x01(\rR\x0evalidatorCount\x12-\n" +
 	"\x12required_approvals\x18\n" +
 	" \x01(\rR\x11requiredApprovals\x12/\n" +
-	"\x13required_rejections\x18\v \x01(\rR\x12requiredRejections\"\xef\a\n" +
+	"\x13required_rejections\x18\v \x01(\rR\x12requiredRejections\"\xe6\b\n" +
 	"\fFlowStepView\x12\x1a\n" +
 	"\bsequence\x18\x01 \x01(\rR\bsequence\x120\n" +
 	"\x04step\x18\x03 \x01(\x0e2\x1c.chain.lifecycle.v1.FlowStepR\x04step\x129\n" +
@@ -2221,9 +2258,9 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\vrequest_fee\x18\x18 \x01(\v2\x1e.chain.lifecycle.v1.RequestFeeR\n" +
 	"requestFee\x12(\n" +
 	"\x10milestone_tx_ref\x18\v \x01(\tR\x0emilestoneTxRef\x12N\n" +
-	"\x10lifecycle_source\x18\f \x01(\x0e2#.chain.lifecycle.v1.LifecycleSourceR\x0flifecycleSource\x12?\n" +
-	"\vreason_code\x18\r \x01(\x0e2\x1e.chain.lifecycle.v1.FlowReasonR\n" +
-	"reasonCode\x123\n" +
+	"\x10lifecycle_source\x18\f \x01(\x0e2#.chain.lifecycle.v1.LifecycleSourceR\x0flifecycleSource\x12N\n" +
+	"\x10lifecycle_reason\x18\r \x01(\x0e2#.chain.lifecycle.v1.LifecycleReasonR\x0flifecycleReason\x12I\n" +
+	"\rzipper_reason\x18\x19 \x01(\v2$.chain.zipper.v1.ZipperReasonDetailsR\fzipperReason\x123\n" +
 	"\x15current_confirmations\x18\x0e \x01(\rR\x14currentConfirmations\x125\n" +
 	"\x16required_confirmations\x18\x0f \x01(\rR\x15requiredConfirmations\x12#\n" +
 	"\rapprove_count\x18\x10 \x01(\rR\fapproveCount\x12!\n" +
@@ -2235,14 +2272,14 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\x1cblock_time_moving_average_ms\x18\x14 \x01(\x04R\x18blockTimeMovingAverageMs\x12H\n" +
 	"\n" +
 	"activities\x18\x15 \x03(\v2(.chain.lifecycle.v1.FlowStepActivityViewR\n" +
-	"activities\"\xea\x05\n" +
+	"activitiesR\vreason_codeR\x0ereason_details\"\xe1\x06\n" +
 	"\x14FlowStepActivityView\x12\x1a\n" +
 	"\bsequence\x18\x01 \x01(\rR\bsequence\x12\x15\n" +
 	"\x06tx_ref\x18\x02 \x01(\tR\x05txRef\x12-\n" +
 	"\x13occurred_at_unix_ms\x18\x03 \x01(\x04R\x10occurredAtUnixMs\x12N\n" +
-	"\x10lifecycle_source\x18\x04 \x01(\x0e2#.chain.lifecycle.v1.LifecycleSourceR\x0flifecycleSource\x12?\n" +
-	"\vreason_code\x18\x05 \x01(\x0e2\x1e.chain.lifecycle.v1.FlowReasonR\n" +
-	"reasonCode\x123\n" +
+	"\x10lifecycle_source\x18\x04 \x01(\x0e2#.chain.lifecycle.v1.LifecycleSourceR\x0flifecycleSource\x12N\n" +
+	"\x10lifecycle_reason\x18\x05 \x01(\x0e2#.chain.lifecycle.v1.LifecycleReasonR\x0flifecycleReason\x12I\n" +
+	"\rzipper_reason\x18\x10 \x01(\v2$.chain.zipper.v1.ZipperReasonDetailsR\fzipperReason\x123\n" +
 	"\x15current_confirmations\x18\x06 \x01(\rR\x14currentConfirmations\x125\n" +
 	"\x16required_confirmations\x18\a \x01(\rR\x15requiredConfirmations\x12#\n" +
 	"\rapprove_count\x18\b \x01(\rR\fapproveCount\x12!\n" +
@@ -2254,7 +2291,7 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\x13required_rejections\x18\r \x01(\rR\x12requiredRejections\x126\n" +
 	"\n" +
 	"amount_e18\x18\x0e \x01(\v2\x17.polyester.type.v1.U128R\tamountE18\x12,\n" +
-	"\x12ledger_transfer_id\x18\x0f \x01(\tR\x10ledgerTransferId\"\xd6\x01\n" +
+	"\x12ledger_transfer_id\x18\x0f \x01(\tR\x10ledgerTransferIdR\vreason_codeR\x0ereason_details\"\xd6\x01\n" +
 	"\x14FlowTimelineItemView\x12\x1a\n" +
 	"\bsequence\x18\x01 \x01(\rR\bsequence\x120\n" +
 	"\x04step\x18\x02 \x01(\x0e2\x1c.chain.lifecycle.v1.FlowStepR\x04step\x12>\n" +
@@ -2356,9 +2393,10 @@ var file_chain_lifecycle_v1_lifecycle_read_proto_goTypes = []any{
 	(FlowDomain)(0),                 // 22: chain.lifecycle.v1.FlowDomain
 	(*AssetIds)(nil),                // 23: chain.lifecycle.v1.AssetIds
 	(*v1.U128)(nil),                 // 24: polyester.type.v1.U128
-	(FlowReason)(0),                 // 25: chain.lifecycle.v1.FlowReason
-	(*RequestFee)(nil),              // 26: chain.lifecycle.v1.RequestFee
-	(LifecycleSource)(0),            // 27: chain.lifecycle.v1.LifecycleSource
+	(LifecycleReason)(0),            // 25: chain.lifecycle.v1.LifecycleReason
+	(*v11.ZipperReasonDetails)(nil), // 26: chain.zipper.v1.ZipperReasonDetails
+	(*RequestFee)(nil),              // 27: chain.lifecycle.v1.RequestFee
+	(LifecycleSource)(0),            // 28: chain.lifecycle.v1.LifecycleSource
 }
 var file_chain_lifecycle_v1_lifecycle_read_proto_depIdxs = []int32{
 	19, // 0: chain.lifecycle.v1.GetFlowResponse.flow:type_name -> chain.lifecycle.v1.FlowDetailView
@@ -2375,45 +2413,49 @@ var file_chain_lifecycle_v1_lifecycle_read_proto_depIdxs = []int32{
 	4,  // 11: chain.lifecycle.v1.FlowTxMatchView.current_step:type_name -> chain.lifecycle.v1.FlowStep
 	23, // 12: chain.lifecycle.v1.FlowTxMatchView.asset_ids:type_name -> chain.lifecycle.v1.AssetIds
 	24, // 13: chain.lifecycle.v1.FlowTxMatchView.amount_e18:type_name -> polyester.type.v1.U128
-	25, // 14: chain.lifecycle.v1.FlowTxMatchView.reason_code:type_name -> chain.lifecycle.v1.FlowReason
-	12, // 15: chain.lifecycle.v1.ListFlowsByTxResponse.matches:type_name -> chain.lifecycle.v1.FlowTxMatchView
-	20, // 16: chain.lifecycle.v1.FlowSummaryView.flow_kind:type_name -> chain.lifecycle.v1.FlowKind
-	4,  // 17: chain.lifecycle.v1.FlowSummaryView.current_step:type_name -> chain.lifecycle.v1.FlowStep
-	23, // 18: chain.lifecycle.v1.FlowSummaryView.asset_ids:type_name -> chain.lifecycle.v1.AssetIds
-	24, // 19: chain.lifecycle.v1.FlowSummaryView.amount_e18:type_name -> polyester.type.v1.U128
-	26, // 20: chain.lifecycle.v1.FlowSummaryView.request_fee:type_name -> chain.lifecycle.v1.RequestFee
-	22, // 21: chain.lifecycle.v1.FlowSummaryView.source_domain:type_name -> chain.lifecycle.v1.FlowDomain
-	22, // 22: chain.lifecycle.v1.FlowSummaryView.destination_domain:type_name -> chain.lifecycle.v1.FlowDomain
-	27, // 23: chain.lifecycle.v1.FlowSummaryView.latest_lifecycle_source:type_name -> chain.lifecycle.v1.LifecycleSource
-	25, // 24: chain.lifecycle.v1.FlowSummaryView.reason_code:type_name -> chain.lifecycle.v1.FlowReason
-	15, // 25: chain.lifecycle.v1.FlowSummaryView.current_progress:type_name -> chain.lifecycle.v1.FlowSummaryProgressView
-	18, // 26: chain.lifecycle.v1.FlowSummaryView.progress_timeline:type_name -> chain.lifecycle.v1.FlowTimelineItemView
-	4,  // 27: chain.lifecycle.v1.FlowStepView.step:type_name -> chain.lifecycle.v1.FlowStep
-	23, // 28: chain.lifecycle.v1.FlowStepView.asset_ids:type_name -> chain.lifecycle.v1.AssetIds
-	24, // 29: chain.lifecycle.v1.FlowStepView.amount_e18:type_name -> polyester.type.v1.U128
-	26, // 30: chain.lifecycle.v1.FlowStepView.request_fee:type_name -> chain.lifecycle.v1.RequestFee
-	27, // 31: chain.lifecycle.v1.FlowStepView.lifecycle_source:type_name -> chain.lifecycle.v1.LifecycleSource
-	25, // 32: chain.lifecycle.v1.FlowStepView.reason_code:type_name -> chain.lifecycle.v1.FlowReason
-	17, // 33: chain.lifecycle.v1.FlowStepView.activities:type_name -> chain.lifecycle.v1.FlowStepActivityView
-	27, // 34: chain.lifecycle.v1.FlowStepActivityView.lifecycle_source:type_name -> chain.lifecycle.v1.LifecycleSource
-	25, // 35: chain.lifecycle.v1.FlowStepActivityView.reason_code:type_name -> chain.lifecycle.v1.FlowReason
-	5,  // 36: chain.lifecycle.v1.FlowStepActivityView.kind:type_name -> chain.lifecycle.v1.FlowStepActivityKind
-	24, // 37: chain.lifecycle.v1.FlowStepActivityView.amount_e18:type_name -> polyester.type.v1.U128
-	4,  // 38: chain.lifecycle.v1.FlowTimelineItemView.step:type_name -> chain.lifecycle.v1.FlowStep
-	6,  // 39: chain.lifecycle.v1.FlowTimelineItemView.status:type_name -> chain.lifecycle.v1.FlowTimelineStatus
-	14, // 40: chain.lifecycle.v1.FlowDetailView.summary:type_name -> chain.lifecycle.v1.FlowSummaryView
-	16, // 41: chain.lifecycle.v1.FlowDetailView.observed_steps:type_name -> chain.lifecycle.v1.FlowStepView
-	8,  // 42: chain.lifecycle.v1.LifecycleReadService.GetFlowById:input_type -> chain.lifecycle.v1.GetFlowByIdRequest
-	10, // 43: chain.lifecycle.v1.LifecycleReadService.ListFlows:input_type -> chain.lifecycle.v1.ListFlowsRequest
-	9,  // 44: chain.lifecycle.v1.LifecycleReadService.ListFlowsByTx:input_type -> chain.lifecycle.v1.ListFlowsByTxRequest
-	7,  // 45: chain.lifecycle.v1.LifecycleReadService.GetFlowById:output_type -> chain.lifecycle.v1.GetFlowResponse
-	11, // 46: chain.lifecycle.v1.LifecycleReadService.ListFlows:output_type -> chain.lifecycle.v1.ListFlowsResponse
-	13, // 47: chain.lifecycle.v1.LifecycleReadService.ListFlowsByTx:output_type -> chain.lifecycle.v1.ListFlowsByTxResponse
-	45, // [45:48] is the sub-list for method output_type
-	42, // [42:45] is the sub-list for method input_type
-	42, // [42:42] is the sub-list for extension type_name
-	42, // [42:42] is the sub-list for extension extendee
-	0,  // [0:42] is the sub-list for field type_name
+	25, // 14: chain.lifecycle.v1.FlowTxMatchView.lifecycle_reason:type_name -> chain.lifecycle.v1.LifecycleReason
+	26, // 15: chain.lifecycle.v1.FlowTxMatchView.zipper_reason:type_name -> chain.zipper.v1.ZipperReasonDetails
+	12, // 16: chain.lifecycle.v1.ListFlowsByTxResponse.matches:type_name -> chain.lifecycle.v1.FlowTxMatchView
+	20, // 17: chain.lifecycle.v1.FlowSummaryView.flow_kind:type_name -> chain.lifecycle.v1.FlowKind
+	4,  // 18: chain.lifecycle.v1.FlowSummaryView.current_step:type_name -> chain.lifecycle.v1.FlowStep
+	23, // 19: chain.lifecycle.v1.FlowSummaryView.asset_ids:type_name -> chain.lifecycle.v1.AssetIds
+	24, // 20: chain.lifecycle.v1.FlowSummaryView.amount_e18:type_name -> polyester.type.v1.U128
+	27, // 21: chain.lifecycle.v1.FlowSummaryView.request_fee:type_name -> chain.lifecycle.v1.RequestFee
+	22, // 22: chain.lifecycle.v1.FlowSummaryView.source_domain:type_name -> chain.lifecycle.v1.FlowDomain
+	22, // 23: chain.lifecycle.v1.FlowSummaryView.destination_domain:type_name -> chain.lifecycle.v1.FlowDomain
+	28, // 24: chain.lifecycle.v1.FlowSummaryView.latest_lifecycle_source:type_name -> chain.lifecycle.v1.LifecycleSource
+	25, // 25: chain.lifecycle.v1.FlowSummaryView.lifecycle_reason:type_name -> chain.lifecycle.v1.LifecycleReason
+	26, // 26: chain.lifecycle.v1.FlowSummaryView.zipper_reason:type_name -> chain.zipper.v1.ZipperReasonDetails
+	15, // 27: chain.lifecycle.v1.FlowSummaryView.current_progress:type_name -> chain.lifecycle.v1.FlowSummaryProgressView
+	18, // 28: chain.lifecycle.v1.FlowSummaryView.progress_timeline:type_name -> chain.lifecycle.v1.FlowTimelineItemView
+	4,  // 29: chain.lifecycle.v1.FlowStepView.step:type_name -> chain.lifecycle.v1.FlowStep
+	23, // 30: chain.lifecycle.v1.FlowStepView.asset_ids:type_name -> chain.lifecycle.v1.AssetIds
+	24, // 31: chain.lifecycle.v1.FlowStepView.amount_e18:type_name -> polyester.type.v1.U128
+	27, // 32: chain.lifecycle.v1.FlowStepView.request_fee:type_name -> chain.lifecycle.v1.RequestFee
+	28, // 33: chain.lifecycle.v1.FlowStepView.lifecycle_source:type_name -> chain.lifecycle.v1.LifecycleSource
+	25, // 34: chain.lifecycle.v1.FlowStepView.lifecycle_reason:type_name -> chain.lifecycle.v1.LifecycleReason
+	26, // 35: chain.lifecycle.v1.FlowStepView.zipper_reason:type_name -> chain.zipper.v1.ZipperReasonDetails
+	17, // 36: chain.lifecycle.v1.FlowStepView.activities:type_name -> chain.lifecycle.v1.FlowStepActivityView
+	28, // 37: chain.lifecycle.v1.FlowStepActivityView.lifecycle_source:type_name -> chain.lifecycle.v1.LifecycleSource
+	25, // 38: chain.lifecycle.v1.FlowStepActivityView.lifecycle_reason:type_name -> chain.lifecycle.v1.LifecycleReason
+	26, // 39: chain.lifecycle.v1.FlowStepActivityView.zipper_reason:type_name -> chain.zipper.v1.ZipperReasonDetails
+	5,  // 40: chain.lifecycle.v1.FlowStepActivityView.kind:type_name -> chain.lifecycle.v1.FlowStepActivityKind
+	24, // 41: chain.lifecycle.v1.FlowStepActivityView.amount_e18:type_name -> polyester.type.v1.U128
+	4,  // 42: chain.lifecycle.v1.FlowTimelineItemView.step:type_name -> chain.lifecycle.v1.FlowStep
+	6,  // 43: chain.lifecycle.v1.FlowTimelineItemView.status:type_name -> chain.lifecycle.v1.FlowTimelineStatus
+	14, // 44: chain.lifecycle.v1.FlowDetailView.summary:type_name -> chain.lifecycle.v1.FlowSummaryView
+	16, // 45: chain.lifecycle.v1.FlowDetailView.observed_steps:type_name -> chain.lifecycle.v1.FlowStepView
+	8,  // 46: chain.lifecycle.v1.LifecycleReadService.GetFlowById:input_type -> chain.lifecycle.v1.GetFlowByIdRequest
+	10, // 47: chain.lifecycle.v1.LifecycleReadService.ListFlows:input_type -> chain.lifecycle.v1.ListFlowsRequest
+	9,  // 48: chain.lifecycle.v1.LifecycleReadService.ListFlowsByTx:input_type -> chain.lifecycle.v1.ListFlowsByTxRequest
+	7,  // 49: chain.lifecycle.v1.LifecycleReadService.GetFlowById:output_type -> chain.lifecycle.v1.GetFlowResponse
+	11, // 50: chain.lifecycle.v1.LifecycleReadService.ListFlows:output_type -> chain.lifecycle.v1.ListFlowsResponse
+	13, // 51: chain.lifecycle.v1.LifecycleReadService.ListFlowsByTx:output_type -> chain.lifecycle.v1.ListFlowsByTxResponse
+	49, // [49:52] is the sub-list for method output_type
+	46, // [46:49] is the sub-list for method input_type
+	46, // [46:46] is the sub-list for extension type_name
+	46, // [46:46] is the sub-list for extension extendee
+	0,  // [0:46] is the sub-list for field type_name
 }
 
 func init() { file_chain_lifecycle_v1_lifecycle_read_proto_init() }

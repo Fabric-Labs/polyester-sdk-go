@@ -5,7 +5,7 @@ and automation. Parity with `polyester-sdk-python` and `polyester-sdk-rust`
 using the checked-in `gen/` protobuf bundle (no local proto generation for
 normal development).
 
-**Status:** Alpha (`v0.1.0a30`). Proprietary license (not open source).
+**Status:** Alpha (`v0.1.0a31`). Proprietary license (not open source).
 API-key only; no browser login or session MFA.
 
 Requires a recent Go toolchain (see `go.mod`).
@@ -68,7 +68,7 @@ API-key policy before retrying.
 ```bash
 GOPRIVATE='github.com/Fabric-Labs/*' \
 GONOSUMDB='github.com/Fabric-Labs/*' \
-go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a30
+go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a31
 ```
 
 The repository is currently private. GitHub access and authenticated Git credentials are
@@ -309,14 +309,15 @@ _, err = client.Orders.Create(ctx, models.CreateOrderRequest{
 
 Use `client.Orders.Preview(ctx, request, account)` with the same
 `CreateOrderRequest` shape as create. On the wire, preview wraps a full
-`OrderIntent` (same contract as `CreateOrderRequest.order`) and returns
-advisory resolved base quantity, price bound, and typed quote/fee estimates
-(`EstimatedQuoteDebit` always has `OrderQuote` domain; `EstimatedFee` has
-`OrderBase` or `OrderQuote` according to `FeeAsset`). Preview is not deployed
-on every API host, so handle an unimplemented/not-found response and do not
-make Preview a prerequisite for order submission. Create results expose
-`ResolvedBaseQtyScaled` and, for quote-budget orders,
-`SubmittedMaxQuoteDebitScaled`.
+`OrderIntent` (same contract as `CreateOrderRequest.order`) and returns an
+advisory admission result: optional `Admissible`, typed `Rejection`
+(`OrderErrorDetail` with a stable code label such as `BAD_QTY` and field violations), optional
+resolved base quantity, optional `ProtectedPriceBound`, and `EvaluatedAtMs`.
+Fee/quote estimates are no longer returned; CreateOrder always re-evaluates
+the intent. Preview is not deployed on every API host, so handle an
+unimplemented/not-found response and do not make Preview a prerequisite for
+order submission. Create results expose `ResolvedBaseQtyScaled` and, for
+quote-budget orders, `SubmittedMaxQuoteDebitScaled`.
 
 Market orders are IOC and enforce a slippage-derived execution boundary. See
 [Market Order Price Protection](https://polyester.ai/developer-docs/shared-concepts/market-order-price-protection)

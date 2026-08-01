@@ -164,11 +164,12 @@ func (s *OrdersService) Create(ctx context.Context, req models.CreateOrderReques
 	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().CreateOrder, protoReq, decode.OrderMutationFromProto)
 }
 
-// Preview resolves an order's executable size, price bound, and estimated fees
-// without admitting it. The result is advisory and should be refreshed promptly
-// in a moving market. Preview is not deployed on every API host; treat
-// unimplemented/not-found as non-fatal and do not make Preview a prerequisite
-// for order submission.
+// Preview checks whether an order intent is currently admissible without
+// creating it. The result may include resolved base quantity and a protected
+// price bound when sizing/protection were evaluated. It is advisory: account,
+// market, and policy inputs may change, and CreateOrder always re-evaluates.
+// Preview is not deployed on every API host; treat unimplemented/not-found as
+// non-fatal and do not make Preview a prerequisite for order submission.
 func (s *OrdersService) Preview(ctx context.Context, req models.CreateOrderRequest, account AccountScope) (models.PreviewOrderResult, error) {
 	if err := s.ensureCatalogs(ctx); err != nil {
 		return models.PreviewOrderResult{}, err
@@ -191,6 +192,7 @@ func (s *OrdersService) Preview(ctx context.Context, req models.CreateOrderReque
 	if err != nil {
 		return models.PreviewOrderResult{}, err
 	}
+	// Quote scale is still required to encode BUY max_quote_debit on the request.
 	quoteScale, err := quoteQuantityScaleForOrderWrite(s.catalogs, req.Symbol, req.SymbolID, true)
 	if err != nil {
 		return models.PreviewOrderResult{}, err
@@ -204,7 +206,7 @@ func (s *OrdersService) Preview(ctx context.Context, req models.CreateOrderReque
 		symbol = *req.Symbol
 	}
 	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().PreviewOrder, protoReq, func(msg *orderv1.PreviewOrderResponse) (models.PreviewOrderResult, error) {
-		return decode.PreviewOrderFromProto(msg, baseScale, quoteScale, symbol, req.SymbolID)
+		return decode.PreviewOrderFromProto(msg, baseScale, symbol, req.SymbolID)
 	})
 }
 

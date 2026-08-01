@@ -68,19 +68,29 @@ type OrderMutationResult struct {
 	SubmittedMaxQuoteDebitScaled string     `json:"submitted_max_quote_debit_scaled,omitempty"`
 }
 
-// PreviewOrderResult is the advisory result of Orders.Preview.
+// OrderFieldViolation is one field-level validation failure on an order intent.
+type OrderFieldViolation struct {
+	FieldPath string `json:"field_path,omitempty"`
+	RuleID    string `json:"rule_id,omitempty"`
+	Message   string `json:"message,omitempty"`
+}
+
+// OrderErrorDetail is a typed order rejection with optional field violations.
+type OrderErrorDetail struct {
+	Code       string                `json:"code,omitempty"`
+	Violations []OrderFieldViolation `json:"violations,omitempty"`
+}
+
+// PreviewOrderResult is the advisory admission result of Orders.Preview.
+// Fee/quote estimates are no longer returned on the wire; CreateOrder always
+// re-evaluates the intent.
 type PreviewOrderResult struct {
-	ResolvedBaseQtyScaled string      `json:"resolved_base_qty_scaled,omitempty"`
-	ResolvedBaseQty       *QtyScaled  `json:"resolved_base_qty,omitempty"`
-	PriceBound            *PriceTicks `json:"price_bound,omitempty"`
-	// EstimatedQuoteDebit is the all-in quote debit with OrderQuote domain +
-	// catalog quote scale.
-	EstimatedQuoteDebit QtyScaled `json:"estimated_quote_debit"`
-	// EstimatedFee uses OrderBase or OrderQuote domain according to FeeAsset.
-	EstimatedFee          QtyScaled  `json:"estimated_fee"`
-	EstimatedNetBaseQty   *QtyScaled `json:"estimated_net_base_qty,omitempty"`
-	FeeAsset              string     `json:"fee_asset,omitempty"`
-	FreshAtTsNs           string     `json:"fresh_at_ts_ns,omitempty"`
+	Admissible            *bool             `json:"admissible,omitempty"`
+	Rejection             *OrderErrorDetail `json:"rejection,omitempty"`
+	ResolvedBaseQtyScaled string            `json:"resolved_base_qty_scaled,omitempty"`
+	ResolvedBaseQty       *QtyScaled        `json:"resolved_base_qty,omitempty"`
+	ProtectedPriceBound   *PriceTicks       `json:"protected_price_bound,omitempty"`
+	EvaluatedAtMs         int64             `json:"evaluated_at_ms,omitempty"`
 }
 
 // GetOrderResult includes order detail and related fills.
@@ -346,15 +356,24 @@ type WithdrawIntentResult struct {
 	FlowID   string `json:"flow_id,omitempty"`
 }
 
+// ZipperReasonDetails is the Zipper-specific failure detail on a lifecycle flow.
+type ZipperReasonDetails struct {
+	Code     int32  `json:"code,omitempty"`
+	ReasonID string `json:"reason_id,omitempty"`
+	Message  string `json:"message,omitempty"`
+}
+
 // LifecycleFlowSummary is a lifecycle flow header.
 type LifecycleFlowSummary struct {
-	IntentID            string `json:"intent_id"`
-	FlowKind            string `json:"flow_kind,omitempty"`
-	LatestStep          string `json:"latest_step,omitempty"`
-	IsOpen              bool   `json:"is_open,omitempty"`
-	IsTerminal          bool   `json:"is_terminal,omitempty"`
-	OwnerAccountID      string `json:"owner_account_id,omitempty"`
-	SmartAccountAddress string `json:"smart_account_address,omitempty"`
+	IntentID            string               `json:"intent_id"`
+	FlowKind            string               `json:"flow_kind,omitempty"`
+	LatestStep          string               `json:"latest_step,omitempty"`
+	IsOpen              bool                 `json:"is_open,omitempty"`
+	IsTerminal          bool                 `json:"is_terminal,omitempty"`
+	OwnerAccountID      string               `json:"owner_account_id,omitempty"`
+	SmartAccountAddress string               `json:"smart_account_address,omitempty"`
+	LifecycleReason     string               `json:"lifecycle_reason,omitempty"`
+	ZipperReason        *ZipperReasonDetails `json:"zipper_reason,omitempty"`
 }
 
 // LifecycleFlowsList lists lifecycle flows.
