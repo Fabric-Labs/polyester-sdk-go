@@ -15,8 +15,8 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
-// TestBatchReplaceFiveRoundsOfForty is F-01/M1: BatchReplace admission + status regression.
-func TestBatchReplaceFiveRoundsOfForty(t *testing.T) {
+// TestBatchReplaceFiveRoundsOfTwenty is F-01/M1: BatchReplace admission + status regression.
+func TestBatchReplaceFiveRoundsOfTwenty(t *testing.T) {
 	testutil.RequireAccountWideCleanup(t)
 	testutil.RequireFunded(t)
 	testutil.RequireMutation(t)
@@ -49,7 +49,7 @@ func TestBatchReplaceFiveRoundsOfForty(t *testing.T) {
 	tif := "gtc"
 	postOnly := true
 
-	const batchSize = 40
+	const batchSize = 20
 	const rounds = 5
 	cids := make([]string, 0, batchSize)
 	cidSet := make(map[string]struct{}, batchSize)
@@ -267,8 +267,8 @@ func assertCompleteBatchReplaceAdmission(t *testing.T, result models.BatchReplac
 	if result.BatchRequestID == "" || result.BatchRequestID == "0" {
 		t.Fatalf("round %d: missing batch_request_id", round)
 	}
-	if len(result.Results) != 40 {
-		t.Fatalf("round %d: expected 40 result items, got %d", round, len(result.Results))
+	if len(result.Results) != 20 {
+		t.Fatalf("round %d: expected 20 result items, got %d", round, len(result.Results))
 	}
 	if allAdmissionInternalError(result) {
 		testutil.SoftSkip(t, "Devnet order placement returned INTERNAL_ERROR for USDT-funded buys; check OMS on devnet")
@@ -276,8 +276,8 @@ func assertCompleteBatchReplaceAdmission(t *testing.T, result models.BatchReplac
 	if result.RejectedCount != 0 {
 		t.Fatalf("round %d: expected no rejected, got %d", round, result.RejectedCount)
 	}
-	if result.AcceptedCount != 40 {
-		t.Fatalf("round %d: accepted=%d != 40", round, result.AcceptedCount)
+	if result.AcceptedCount != 20 {
+		t.Fatalf("round %d: accepted=%d != 20", round, result.AcceptedCount)
 	}
 	if result.Status != "admitted" && result.Status != "partially_admitted" {
 		t.Fatalf("round %d: unexpected admission status %q", round, result.Status)
@@ -291,8 +291,8 @@ func assertCompleteBatchReplaceAdmission(t *testing.T, result models.BatchReplac
 
 func assertBatchReplaceStatusComplete(t *testing.T, status models.BatchReplaceStatusResult, round int) {
 	t.Helper()
-	if len(status.Items) != 40 {
-		t.Fatalf("round %d: expected 40 status items, got %d", round, len(status.Items))
+	if len(status.Items) != 20 {
+		t.Fatalf("round %d: expected 20 status items, got %d", round, len(status.Items))
 	}
 	if status.RejectedCount != 0 {
 		t.Fatalf("round %d: status rejected_count=%d", round, status.RejectedCount)

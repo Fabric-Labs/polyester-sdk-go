@@ -5,7 +5,7 @@ and automation. Parity with `polyester-sdk-python` and `polyester-sdk-rust`
 using the checked-in `gen/` protobuf bundle (no local proto generation for
 normal development).
 
-**Status:** Alpha (`v0.1.0a32`). Proprietary license (not open source).
+**Status:** Alpha (`v0.1.0a33`). Proprietary license (not open source).
 API-key only; no browser login or session MFA.
 
 Requires a recent Go toolchain (see `go.mod`).
@@ -68,7 +68,7 @@ API-key policy before retrying.
 ```bash
 GOPRIVATE='github.com/Fabric-Labs/*' \
 GONOSUMDB='github.com/Fabric-Labs/*' \
-go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a32
+go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a33
 ```
 
 The repository is currently private. GitHub access and authenticated Git credentials are
@@ -347,7 +347,10 @@ Unknown values return an error (they do not silently return an empty list).
 Response `Status` uses the same labels (British spelling `cancelled`).
 
 `Orders.Get(..., includeAttachedRisk)` returns policy data on
-`Order.AttachedRisk`. `Order` also exposes `PostOnly`.
+`Order.AttachedRisk`. `Order` also exposes `PostOnly`. Decoded attached trailing
+stops require a positive distance; missing/non-positive distance is omitted
+rather than projected as a zero stop. Order create still rejects
+`AttachedRisk` input (use Rust/Python for attached trailing create/modify).
 
 Standalone `trailing_stop` creates remain sell-only; the wire
 `TrailingStopTrigger` carries `side`, and list/get projections use that side

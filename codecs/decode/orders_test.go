@@ -99,6 +99,24 @@ func TestOrderFromProtoMapsAttachedRisk(t *testing.T) {
 	}
 }
 
+func TestOrderFromProtoOmitsTrailingStopWithoutDistance(t *testing.T) {
+	msg := &orderv1.Order{
+		OrderId:  3,
+		SymbolId: 1,
+		AttachedRisk: &orderv1.AttachedRisk{
+			TrailingStop: &orderv1.AttachedRiskTrailingStop{
+				Policy: &orderv1.TrailingStopPolicy{
+					ActivationPriceTicks: 5500,
+				},
+			},
+		},
+	}
+	order := decode.OrderFromProto(msg)
+	if order.AttachedRisk != nil {
+		t.Fatalf("expected attached_risk omitted when trailing distance missing, got %+v", order.AttachedRisk)
+	}
+}
+
 func TestOrdersListFromProto(t *testing.T) {
 	msg := &orderv1.GetOpenOrdersResponse{
 		Orders:        []*orderv1.Order{{OrderId: 1, SymbolId: 1, Side: orderv1.Side_SELL}},

@@ -81,13 +81,24 @@ func trailingStopFromPolicy(policy *orderv1.TrailingStopPolicy) *models.Trailing
 	if policy == nil {
 		return nil
 	}
+	distanceTicks := policy.GetTrailingDistanceTicks()
+	distanceBps := policy.GetTrailingDistanceBps()
+	// Missing or non-positive distance is not a usable trailing stop; omit
+	// rather than fabricating a zero-distance stop.
+	if distanceTicks <= 0 && distanceBps <= 0 {
+		return nil
+	}
 	// OrderType/TriggerPriceSource were dropped from the trailing-stop policy
 	// wire; the child is an implicit market execution.
 	out := &models.TrailingStop{
-		DistanceTicks:    policy.GetTrailingDistanceTicks(),
-		DistanceBps:      policy.GetTrailingDistanceBps(),
-		MaxSlippageTicks: policy.GetMaxSlippageTicks(),
-		MaxSlippageBps:   policy.GetMaxSlippageBps(),
+		DistanceTicks: distanceTicks,
+		DistanceBps:   distanceBps,
+	}
+	if ticks := policy.GetMaxSlippageTicks(); ticks > 0 {
+		out.MaxSlippageTicks = ticks
+	}
+	if bps := policy.GetMaxSlippageBps(); bps > 0 {
+		out.MaxSlippageBps = bps
 	}
 	if policy.GetActivationPriceTicks() > 0 {
 		out.ActivationPrice = codecs.DecodePriceTicks(policy.GetActivationPriceTicks(), "")

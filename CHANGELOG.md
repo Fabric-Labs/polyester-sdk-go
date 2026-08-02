@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.0a33
+
+Git tag: `v0.1.0a33`.
+
+### Fixed
+- `Ed25519Keypair` `String` / `GoString` redact secret material (same posture as `Config`).
+- Decode omits attached trailing legs that lack a positive distance (no fabricated
+  zero-distance stop).
+
 ## 0.1.0a32
 
 Git tag: `v0.1.0a32`.

@@ -33,7 +33,12 @@ type RiskLeg struct {
 	LimitPrice         PriceTicks `json:"limit_price,omitempty"`
 }
 
-// TrailingStop is a trailing-stop attached-risk policy.
+// TrailingStop is a trailing-stop attached-risk policy projection.
+//
+// Decode omits the leg when distance is missing/non-positive. TriggerPriceSource
+// and OrderType are not on the trailing-stop wire (child is always market /
+// last trade) and remain empty on decode. Order create currently refuses
+// attached_risk; use Rust/Python for attached trailing create/modify.
 type TrailingStop struct {
 	DistanceTicks      int64      `json:"distance_ticks,omitempty"`
 	DistanceBps        int32      `json:"distance_bps,omitempty"`
