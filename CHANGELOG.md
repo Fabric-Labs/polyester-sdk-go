@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Breaking
+- Trigger snapshots no longer expose `ChildOrderIDs`. Child-order history is
+  authoritative on trigger events: use `Triggers.ListEvents(..., eventType, ...)`
+  with `eventType="fired"` and read `ChildOrderID` / `ChildSeq`.
+- `Triggers.ListEvents` gains an `eventType *string` argument before
+  `pageToken`.
+- Decoded `TriggerEvent.EventType` labels are now `fired` / `canceled` /
+  `updated` (not proto names like `EVENT_FIRED`).
+
+### Added
+- `TriggerEvent` thickens with `SubaccountID`, `SymbolID`, `TriggerType`,
+  `ChildSeq`, `ChildOrderID`, `FirePrice`, and `Reason`.
+
 ## 0.1.0a31
 
 Git tag: `v0.1.0a31`.

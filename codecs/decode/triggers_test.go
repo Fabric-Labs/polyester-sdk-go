@@ -81,7 +81,7 @@ func TestTriggerFromProtoProjectsTrailingStopSideAndParent(t *testing.T) {
 	}
 }
 
-func TestTriggerFromProtoProjectsTwapChildOrdersAndExecutedQty(t *testing.T) {
+func TestTriggerFromProtoProjectsTwapExecutedQty(t *testing.T) {
 	msg := &triggersv1.Trigger{
 		TriggerId: 11,
 		SymbolId:  1,
@@ -107,18 +107,11 @@ func TestTriggerFromProtoProjectsTwapChildOrdersAndExecutedQty(t *testing.T) {
 				ExecutedQtyScaled:   25_000_000,
 			},
 		},
-		ChildOrderIds:   []uint64{101, 202},
 		ClientTriggerId: "twap-1",
 	}
 	trigger := decode.TriggerFromProto(msg)
 	if trigger.TriggerType != "twap" || trigger.Side != "buy" || trigger.OrderType != "market" {
 		t.Fatalf("trigger=%+v", trigger)
-	}
-	if len(trigger.ChildOrderIDs) != 2 {
-		t.Fatalf("child_order_ids=%v", trigger.ChildOrderIDs)
-	}
-	if trigger.ChildOrderIDs[0] != codecs.FormatUint64ID(101) || trigger.ChildOrderIDs[1] != codecs.FormatUint64ID(202) {
-		t.Fatalf("child_order_ids=%v", trigger.ChildOrderIDs)
 	}
 	if trigger.Details == nil || trigger.Details.Case != "twap" {
 		t.Fatalf("details=%+v", trigger.Details)
@@ -155,15 +148,42 @@ func TestTriggersListFromProto(t *testing.T) {
 func TestTriggerEventsListFromProto(t *testing.T) {
 	msg := &triggersv1.ListTriggerEventsResponse{
 		Events: []*triggersv1.TriggerEvent{{
-			TriggerId: 1,
-			EventType: triggersv1.TriggerEventType_EVENT_FIRED,
-			TsNs:      123,
+			TriggerId:       1,
+			SubaccountId:    9,
+			SymbolId:        2,
+			TriggerType:     triggersv1.TriggerType_TAKE_PROFIT,
+			EventType:       triggersv1.TriggerEventType_EVENT_FIRED,
+			TsNs:            123,
+			ChildSeq:        3,
+			ChildOrderId:    77,
+			FirePriceTicks:  100,
+			Reason:          "hit",
 		}},
 		NextPageToken: "evt-page-2",
 	}
 	result := decode.TriggerEventsListFromProto(msg)
 	if len(result.Events) != 1 || result.NextPageToken != "evt-page-2" {
 		t.Fatalf("result=%+v", result)
+	}
+	ev := result.Events[0]
+	if ev.EventType != "fired" || ev.TriggerType != "take_profit" {
+		t.Fatalf("labels=%+v", ev)
+	}
+	if ev.SubaccountID != codecs.FormatUint64ID(9) || ev.ChildOrderID != codecs.FormatUint64ID(77) {
+		t.Fatalf("ids=%+v", ev)
+	}
+	if ev.ChildSeq != 3 || ev.FirePrice.Ticks() != 100 || ev.Reason != "hit" {
+		t.Fatalf("detail=%+v", ev)
+	}
+}
+
+func TestTriggerEventTypeFromLabel(t *testing.T) {
+	et, err := decode.TriggerEventTypeFromLabel("fired")
+	if err != nil || et != triggersv1.TriggerEventType_EVENT_FIRED {
+		t.Fatalf("fired: %v %v", et, err)
+	}
+	if _, err := decode.TriggerEventTypeFromLabel("nope"); err == nil {
+		t.Fatal("expected error for invalid event type")
 	}
 }
 

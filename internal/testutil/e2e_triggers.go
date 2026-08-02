@@ -64,7 +64,7 @@ func WaitForTriggerEvents(ctx context.Context, client *polyester.Client, trigger
 	}
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		events, err := client.Triggers.ListEvents(ctx, nil, triggerID, nil, 10, nil)
+		events, err := client.Triggers.ListEvents(ctx, nil, triggerID, nil, 10, nil, nil)
 		if err != nil {
 			return models.TriggerEventsList{}, err
 		}
