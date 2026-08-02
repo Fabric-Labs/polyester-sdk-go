@@ -405,7 +405,6 @@ type Trigger struct {
 	UpdatedAt               *time.Time      `json:"updated_at,omitempty"`
 	ArmedAt                 *time.Time      `json:"armed_at,omitempty"`
 	CompletedAt             *time.Time      `json:"completed_at,omitempty"`
-	ChildOrderIDs           []string        `json:"child_order_ids,omitempty"`
 	Details                 *TriggerDetails `json:"details,omitempty"`
 }
 
@@ -457,9 +456,16 @@ type TriggerMutationResult struct {
 
 // TriggerEvent is a trigger lifecycle event.
 type TriggerEvent struct {
-	TriggerID string `json:"trigger_id,omitempty"`
-	EventType string `json:"event_type,omitempty"`
-	TsNs      string `json:"ts_ns,omitempty"`
+	TriggerID     string     `json:"trigger_id,omitempty"`
+	SubaccountID  string     `json:"subaccount_id,omitempty"`
+	SymbolID      uint32     `json:"symbol_id,omitempty"`
+	TriggerType   string     `json:"trigger_type,omitempty"`
+	EventType     string     `json:"event_type,omitempty"`
+	TsNs          string     `json:"ts_ns,omitempty"`
+	ChildSeq      int32      `json:"child_seq,omitempty"`
+	ChildOrderID  string     `json:"child_order_id,omitempty"`
+	FirePrice     PriceTicks `json:"fire_price,omitempty"`
+	Reason        string     `json:"reason,omitempty"`
 }
 
 // TriggerEventsList lists trigger events.

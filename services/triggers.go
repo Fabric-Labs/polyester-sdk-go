@@ -192,7 +192,7 @@ func (s *TriggersService) Modify(ctx context.Context, account AccountScope, trig
 	return UnaryAuth(ctx, s.transport, s.client().ModifyTrigger, req, decode.TriggerMutationFromModify)
 }
 
-func (s *TriggersService) ListEvents(ctx context.Context, account AccountScope, triggerID string, subAccountID *string, limit int, pageToken *string) (models.TriggerEventsList, error) {
+func (s *TriggersService) ListEvents(ctx context.Context, account AccountScope, triggerID string, subAccountID *string, limit int, eventType *string, pageToken *string) (models.TriggerEventsList, error) {
 	id, err := codecs.IDToInt(triggerID, "trigger_id")
 	if err != nil {
 		return models.TriggerEventsList{}, err
@@ -206,6 +206,13 @@ func (s *TriggersService) ListEvents(ctx context.Context, account AccountScope, 
 		return models.TriggerEventsList{}, err
 	} else if parsed != nil {
 		req.SubaccountId = parsed
+	}
+	if eventType != nil && *eventType != "" {
+		parsed, err := decode.TriggerEventTypeFromLabel(*eventType)
+		if err != nil {
+			return models.TriggerEventsList{}, err
+		}
+		req.EventType = parsed
 	}
 	if pageToken != nil && *pageToken != "" {
 		req.PageToken = *pageToken

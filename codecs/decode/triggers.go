@@ -55,6 +55,50 @@ func TriggerStatusFromLabel(label string) (triggersv1.TriggerStatus, error) {
 	)
 }
 
+var triggerEventTypeLabels = map[triggersv1.TriggerEventType]string{
+	triggersv1.TriggerEventType_EVENT_FIRED:    "fired",
+	triggersv1.TriggerEventType_EVENT_CANCELED: "canceled",
+	triggersv1.TriggerEventType_EVENT_UPDATED:  "updated",
+}
+
+var triggerEventTypeFromLabel = map[string]triggersv1.TriggerEventType{
+	"fired":     triggersv1.TriggerEventType_EVENT_FIRED,
+	"canceled":  triggersv1.TriggerEventType_EVENT_CANCELED,
+	"cancelled": triggersv1.TriggerEventType_EVENT_CANCELED,
+	"updated":   triggersv1.TriggerEventType_EVENT_UPDATED,
+}
+
+// TriggerEventTypeLabel maps proto trigger event type to SDK output labels.
+func TriggerEventTypeLabel(eventType triggersv1.TriggerEventType) string {
+	if label, ok := triggerEventTypeLabels[eventType]; ok {
+		return label
+	}
+	if eventType == triggersv1.TriggerEventType_EVENT_UNSPECIFIED {
+		return ""
+	}
+	return strings.ToLower(strings.TrimPrefix(eventType.String(), "EVENT_"))
+}
+
+// TriggerEventTypeFromLabel parses a trigger event type filter label.
+func TriggerEventTypeFromLabel(label string) (triggersv1.TriggerEventType, error) {
+	key := strings.ToLower(strings.TrimSpace(label))
+	if eventType, ok := triggerEventTypeFromLabel[key]; ok {
+		return eventType, nil
+	}
+	return triggersv1.TriggerEventType_EVENT_UNSPECIFIED, fmt.Errorf(
+		"invalid trigger event type %q; expected one of: fired, canceled, updated",
+		label,
+	)
+}
+
+// TriggerTypeLabel maps proto trigger type to SDK output labels.
+func TriggerTypeLabel(triggerType triggersv1.TriggerType) string {
+	if triggerType == triggersv1.TriggerType_TRIGGER_TYPE_UNSPECIFIED {
+		return ""
+	}
+	return strings.ToLower(triggerType.String())
+}
+
 func triggerMutationResult(triggerID uint64, status triggersv1.TriggerStatus) models.TriggerMutationResult {
 	return models.TriggerMutationResult{
 		TriggerID: codecs.FormatUint64ID(triggerID),
@@ -296,10 +340,6 @@ func TriggerFromProto(msg *triggersv1.Trigger) models.Trigger {
 	if msg.ParentOrderId != nil {
 		parentOrderID = codecs.FormatUint64ID(msg.GetParentOrderId())
 	}
-	childIDs := make([]string, 0, len(msg.GetChildOrderIds()))
-	for _, id := range msg.GetChildOrderIds() {
-		childIDs = append(childIDs, codecs.FormatUint64ID(id))
-	}
 	return models.Trigger{
 		TriggerID:               codecs.FormatUint64ID(msg.GetTriggerId()),
 		SubaccountID:            codecs.FormatUint64ID(msg.GetSubaccountId()),
@@ -322,7 +362,6 @@ func TriggerFromProto(msg *triggersv1.Trigger) models.Trigger {
 		UpdatedAt:               timestampTime(msg.GetUpdatedAt()),
 		ArmedAt:                 timestampTime(msg.GetArmedAt()),
 		CompletedAt:             timestampTime(msg.GetCompletedAt()),
-		ChildOrderIDs:           childIDs,
 		Details:                 details,
 	}
 }
@@ -397,9 +436,28 @@ func TriggerEventMessageFromProto(e *triggersv1.TriggerEvent) models.TriggerEven
 	if e == nil {
 		return models.TriggerEvent{}
 	}
+	tsNs := ""
+	if e.GetTsNs() != 0 {
+		tsNs = strconv.FormatUint(e.GetTsNs(), 10)
+	}
+	childOrderID := ""
+	if e.GetChildOrderId() != 0 {
+		childOrderID = codecs.FormatUint64ID(e.GetChildOrderId())
+	}
+	subaccountID := ""
+	if e.GetSubaccountId() != 0 {
+		subaccountID = codecs.FormatUint64ID(e.GetSubaccountId())
+	}
 	return models.TriggerEvent{
-		TriggerID: codecs.FormatUint64ID(e.GetTriggerId()),
-		EventType: e.GetEventType().String(),
-		TsNs:      strconv.FormatUint(e.GetTsNs(), 10),
+		TriggerID:    codecs.FormatUint64ID(e.GetTriggerId()),
+		SubaccountID: subaccountID,
+		SymbolID:     e.GetSymbolId(),
+		TriggerType:  TriggerTypeLabel(e.GetTriggerType()),
+		EventType:    TriggerEventTypeLabel(e.GetEventType()),
+		TsNs:         tsNs,
+		ChildSeq:     e.GetChildSeq(),
+		ChildOrderID: childOrderID,
+		FirePrice:    codecs.DecodePriceTicks(e.GetFirePriceTicks(), ""),
+		Reason:       e.GetReason(),
 	}
 }
