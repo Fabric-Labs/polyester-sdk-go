@@ -1667,9 +1667,12 @@ type ListTriggerEventsRequest struct {
 	// Maximum number of events to return. Defaults to 100 when omitted; maximum
 	// is 1000.
 	Limit uint32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Optional event category filter. When unspecified, returns all event
+	// categories. Use EVENT_FIRED to enumerate child-order actions.
+	EventType TriggerEventType `protobuf:"varint,4,opt,name=event_type,json=eventType,proto3,enum=triggers.v1.TriggerEventType" json:"event_type,omitempty"`
 	// Opaque keyset cursor from a previous response. The cursor is exclusive and
-	// bound to the authenticated account, trigger, sub-account scope, and newest
-	// first sort order.
+	// bound to the authenticated account, trigger, sub-account scope, event
+	// filter, and newest-first sort order.
 	PageToken     string `protobuf:"bytes,5,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1724,6 +1727,13 @@ func (x *ListTriggerEventsRequest) GetLimit() uint32 {
 		return x.Limit
 	}
 	return 0
+}
+
+func (x *ListTriggerEventsRequest) GetEventType() TriggerEventType {
+	if x != nil {
+		return x.EventType
+	}
+	return TriggerEventType_EVENT_UNSPECIFIED
 }
 
 func (x *ListTriggerEventsRequest) GetPageToken() string {
@@ -2755,8 +2765,8 @@ type TwapDetails struct {
 	SliceIdx int32 `protobuf:"varint,4,opt,name=slice_idx,json=sliceIdx,proto3" json:"slice_idx,omitempty"`
 	// Total number of planned slices.
 	SliceCount int32 `protobuf:"varint,5,opt,name=slice_count,json=sliceCount,proto3" json:"slice_count,omitempty"`
-	// Cumulative executed quantity scaled by the pair's base_quantity_scale from
-	// GetSpotConfig.
+	// Cumulative filled child-order base quantity scaled by the pair's
+	// base_quantity_scale from GetSpotConfig.
 	ExecutedQtyScaled int64 `protobuf:"varint,6,opt,name=executed_qty_scaled,json=executedQtyScaled,proto3" json:"executed_qty_scaled,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
@@ -2900,7 +2910,9 @@ func (x *LadderDetails) GetLadderDistribution() LadderDistribution {
 	return LadderDistribution_LADDER_DISTRIBUTION_UNSPECIFIED
 }
 
-// Trigger represents a trigger with its full state.
+// Trigger represents current trigger configuration, lifecycle state, and
+// aggregate strategy progress. Use ListTriggerEvents to enumerate child-order
+// actions and inspect append-only lifecycle history.
 type Trigger struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Trigger ID.
@@ -2950,9 +2962,7 @@ type Trigger struct {
 	// Timestamp when the trigger became armed.
 	ArmedAt *timestamppb.Timestamp `protobuf:"bytes,63,opt,name=armed_at,json=armedAt,proto3" json:"armed_at,omitempty"`
 	// Timestamp when the trigger reached a terminal successful state.
-	CompletedAt *timestamppb.Timestamp `protobuf:"bytes,64,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
-	// Child orders spawned by this trigger.
-	ChildOrderIds []uint64 `protobuf:"fixed64,70,rep,packed,name=child_order_ids,json=childOrderIds,proto3" json:"child_order_ids,omitempty"`
+	CompletedAt   *timestamppb.Timestamp `protobuf:"bytes,64,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3180,13 +3190,6 @@ func (x *Trigger) GetCompletedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *Trigger) GetChildOrderIds() []uint64 {
-	if x != nil {
-		return x.ChildOrderIds
-	}
-	return nil
-}
-
 type isTrigger_Configuration interface {
 	isTrigger_Configuration()
 }
@@ -3374,12 +3377,14 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x10_parent_order_id\"z\n" +
 	"\x14ListTriggersResponse\x120\n" +
 	"\btriggers\x18\x01 \x03(\v2\x14.triggers.v1.TriggerR\btriggers\x120\n" +
-	"\x0fnext_page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xce\x01\n" +
+	"\x0fnext_page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\x96\x02\n" +
 	"\x18ListTriggerEventsRequest\x12-\n" +
 	"\n" +
 	"trigger_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\ttriggerId\x12(\n" +
 	"\rsubaccount_id\x18\x02 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12\x1e\n" +
-	"\x05limit\x18\x03 \x01(\rB\b\xbaH\x05*\x03\x18\xe8\aR\x05limit\x12'\n" +
+	"\x05limit\x18\x03 \x01(\rB\b\xbaH\x05*\x03\x18\xe8\aR\x05limit\x12F\n" +
+	"\n" +
+	"event_type\x18\x04 \x01(\x0e2\x1d.triggers.v1.TriggerEventTypeB\b\xbaH\x05\x82\x01\x02\x10\x01R\teventType\x12'\n" +
 	"\n" +
 	"page_token\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageTokenB\x10\n" +
 	"\x0e_subaccount_id\"\x84\x03\n" +
@@ -3482,7 +3487,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x16ladder_price_min_ticks\x18\x01 \x01(\x03R\x13ladderPriceMinTicks\x123\n" +
 	"\x16ladder_price_max_ticks\x18\x02 \x01(\x03R\x13ladderPriceMaxTicks\x12#\n" +
 	"\rladder_levels\x18\x03 \x01(\x05R\fladderLevels\x12P\n" +
-	"\x13ladder_distribution\x18\x04 \x01(\x0e2\x1f.triggers.v1.LadderDistributionR\x12ladderDistribution\"\xa8\n" +
+	"\x13ladder_distribution\x18\x04 \x01(\x0e2\x1f.triggers.v1.LadderDistributionR\x12ladderDistribution\"\x80\n" +
 	"\n" +
 	"\aTrigger\x12\x1d\n" +
 	"\n" +
@@ -3513,8 +3518,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18> \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x125\n" +
 	"\barmed_at\x18? \x01(\v2\x1a.google.protobuf.TimestampR\aarmedAt\x12=\n" +
-	"\fcompleted_at\x18@ \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\x12&\n" +
-	"\x0fchild_order_ids\x18F \x03(\x06R\rchildOrderIdsB\x0f\n" +
+	"\fcompleted_at\x18@ \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAtB\x0f\n" +
 	"\rconfigurationB\x11\n" +
 	"\x0fruntime_detailsB\x12\n" +
 	"\x10_parent_order_id*t\n" +
@@ -3545,7 +3549,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\n" +
 	"\x06LINEAR\x10\x01\x12\r\n" +
 	"\tGEOMETRIC\x10\x02\x12\x16\n" +
-	"\x12WEIGHTED_FAVORABLE\x10\x032\xbd\x0f\n" +
+	"\x12WEIGHTED_FAVORABLE\x10\x032\xe4\x0f\n" +
 	"\x0fTriggersService\x12\xfc\x01\n" +
 	"\rCreateTrigger\x12!.triggers.v1.CreateTriggerRequest\x1a\".triggers.v1.CreateTriggerResponse\"\xa3\x01\xbaG\x88\x01\n" +
 	"\x10Triggers Service\x12\x0eCreate Trigger\x1adCreate a standalone trigger order. Supports stop, trailing, TWAP, and ladder trigger configurations.\x82\xd3\xe4\x93\x02\x11:\x01*\"\f/v1/triggers\x12\xf6\x01\n" +
@@ -3553,9 +3557,9 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"GetTrigger\x12\x1e.triggers.v1.GetTriggerRequest\x1a\x1f.triggers.v1.GetTriggerResponse\"\xa6\x01\xbaG\x81\x01\n" +
 	"\x10Triggers Service\x12\vGet Trigger\x1a`Retrieve a single trigger by trigger ID, including lifecycle state and strategy-specific fields.\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/triggers/{trigger_id}\x12\xe4\x01\n" +
 	"\fListTriggers\x12 .triggers.v1.ListTriggersRequest\x1a!.triggers.v1.ListTriggersResponse\"\x8e\x01\xbaGw\n" +
-	"\x10Triggers Service\x12\rList Triggers\x1aTList triggers for an account with optional symbol, status, and trigger-type filters.\x82\xd3\xe4\x93\x02\x0e\x12\f/v1/triggers\x12\xa5\x02\n" +
-	"\x11ListTriggerEvents\x12%.triggers.v1.ListTriggerEventsRequest\x1a&.triggers.v1.ListTriggerEventsResponse\"\xc0\x01\xbaG\x94\x01\n" +
-	"\x10Triggers Service\x12\x13List Trigger Events\x1akList append-only trigger events for a trigger, including child-order actions, with reverse-time pagination.\x82\xd3\xe4\x93\x02\"\x12 /v1/triggers/{trigger_id}/events\x12\xe2\x01\n" +
+	"\x10Triggers Service\x12\rList Triggers\x1aTList triggers for an account with optional symbol, status, and trigger-type filters.\x82\xd3\xe4\x93\x02\x0e\x12\f/v1/triggers\x12\xcc\x02\n" +
+	"\x11ListTriggerEvents\x12%.triggers.v1.ListTriggerEventsRequest\x1a&.triggers.v1.ListTriggerEventsResponse\"\xe7\x01\xbaG\xbb\x01\n" +
+	"\x10Triggers Service\x12\x13List Trigger Events\x1a\x91\x01List append-only trigger events for a trigger, including child-order actions, with optional event-category filtering and reverse-time pagination.\x82\xd3\xe4\x93\x02\"\x12 /v1/triggers/{trigger_id}/events\x12\xe2\x01\n" +
 	"\rCancelTrigger\x12!.triggers.v1.CancelTriggerRequest\x1a\".triggers.v1.CancelTriggerResponse\"\x89\x01\xbaGe\n" +
 	"\x10Triggers Service\x12\x0eCancel Trigger\x1aACancel a trigger by trigger ID and release its reserved quantity.\x82\xd3\xe4\x93\x02\x1b*\x19/v1/triggers/{trigger_id}\x12\x8f\x02\n" +
 	"\rModifyTrigger\x12!.triggers.v1.ModifyTriggerRequest\x1a\".triggers.v1.ModifyTriggerResponse\"\xb6\x01\xbaG\x8e\x01\n" +
@@ -3651,59 +3655,60 @@ var file_triggers_v1_triggers_proto_depIdxs = []int32{
 	1,  // 21: triggers.v1.ListTriggersRequest.status:type_name -> triggers.v1.TriggerStatus
 	0,  // 22: triggers.v1.ListTriggersRequest.trigger_type:type_name -> triggers.v1.TriggerType
 	37, // 23: triggers.v1.ListTriggersResponse.triggers:type_name -> triggers.v1.Trigger
-	0,  // 24: triggers.v1.TriggerEvent.trigger_type:type_name -> triggers.v1.TriggerType
-	2,  // 25: triggers.v1.TriggerEvent.event_type:type_name -> triggers.v1.TriggerEventType
-	23, // 26: triggers.v1.ListTriggerEventsResponse.events:type_name -> triggers.v1.TriggerEvent
-	1,  // 27: triggers.v1.CancelTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
-	41, // 28: triggers.v1.CancelTriggerResponse.ts:type_name -> google.protobuf.Timestamp
-	1,  // 29: triggers.v1.ModifyTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
-	41, // 30: triggers.v1.ModifyTriggerResponse.ts:type_name -> google.protobuf.Timestamp
-	1,  // 31: triggers.v1.PauseTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
-	41, // 32: triggers.v1.PauseTriggerResponse.ts:type_name -> google.protobuf.Timestamp
-	1,  // 33: triggers.v1.ResumeTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
-	41, // 34: triggers.v1.ResumeTriggerResponse.ts:type_name -> google.protobuf.Timestamp
-	42, // 35: triggers.v1.StopDetails.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
-	43, // 36: triggers.v1.StopDetails.trigger_direction:type_name -> orders.v1.TriggerDirection
-	42, // 37: triggers.v1.TrailingDetails.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
-	43, // 38: triggers.v1.TrailingDetails.trigger_direction:type_name -> orders.v1.TriggerDirection
-	3,  // 39: triggers.v1.LadderDetails.ladder_distribution:type_name -> triggers.v1.LadderDistribution
-	1,  // 40: triggers.v1.Trigger.status:type_name -> triggers.v1.TriggerStatus
-	39, // 41: triggers.v1.Trigger.fee_asset:type_name -> orders.v1.FeeAsset
-	40, // 42: triggers.v1.Trigger.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
-	9,  // 43: triggers.v1.Trigger.stop_loss:type_name -> triggers.v1.ConditionalTrigger
-	9,  // 44: triggers.v1.Trigger.take_profit:type_name -> triggers.v1.ConditionalTrigger
-	10, // 45: triggers.v1.Trigger.trailing_stop:type_name -> triggers.v1.TrailingStopTrigger
-	13, // 46: triggers.v1.Trigger.twap:type_name -> triggers.v1.TwapTrigger
-	14, // 47: triggers.v1.Trigger.ladder:type_name -> triggers.v1.LadderTrigger
-	33, // 48: triggers.v1.Trigger.stop:type_name -> triggers.v1.StopDetails
-	34, // 49: triggers.v1.Trigger.trailing:type_name -> triggers.v1.TrailingDetails
-	35, // 50: triggers.v1.Trigger.twap_state:type_name -> triggers.v1.TwapDetails
-	36, // 51: triggers.v1.Trigger.ladder_state:type_name -> triggers.v1.LadderDetails
-	41, // 52: triggers.v1.Trigger.created_at:type_name -> google.protobuf.Timestamp
-	41, // 53: triggers.v1.Trigger.updated_at:type_name -> google.protobuf.Timestamp
-	41, // 54: triggers.v1.Trigger.armed_at:type_name -> google.protobuf.Timestamp
-	41, // 55: triggers.v1.Trigger.completed_at:type_name -> google.protobuf.Timestamp
-	16, // 56: triggers.v1.TriggersService.CreateTrigger:input_type -> triggers.v1.CreateTriggerRequest
-	18, // 57: triggers.v1.TriggersService.GetTrigger:input_type -> triggers.v1.GetTriggerRequest
-	20, // 58: triggers.v1.TriggersService.ListTriggers:input_type -> triggers.v1.ListTriggersRequest
-	22, // 59: triggers.v1.TriggersService.ListTriggerEvents:input_type -> triggers.v1.ListTriggerEventsRequest
-	25, // 60: triggers.v1.TriggersService.CancelTrigger:input_type -> triggers.v1.CancelTriggerRequest
-	27, // 61: triggers.v1.TriggersService.ModifyTrigger:input_type -> triggers.v1.ModifyTriggerRequest
-	29, // 62: triggers.v1.TriggersService.PauseTrigger:input_type -> triggers.v1.PauseTriggerRequest
-	31, // 63: triggers.v1.TriggersService.ResumeTrigger:input_type -> triggers.v1.ResumeTriggerRequest
-	17, // 64: triggers.v1.TriggersService.CreateTrigger:output_type -> triggers.v1.CreateTriggerResponse
-	19, // 65: triggers.v1.TriggersService.GetTrigger:output_type -> triggers.v1.GetTriggerResponse
-	21, // 66: triggers.v1.TriggersService.ListTriggers:output_type -> triggers.v1.ListTriggersResponse
-	24, // 67: triggers.v1.TriggersService.ListTriggerEvents:output_type -> triggers.v1.ListTriggerEventsResponse
-	26, // 68: triggers.v1.TriggersService.CancelTrigger:output_type -> triggers.v1.CancelTriggerResponse
-	28, // 69: triggers.v1.TriggersService.ModifyTrigger:output_type -> triggers.v1.ModifyTriggerResponse
-	30, // 70: triggers.v1.TriggersService.PauseTrigger:output_type -> triggers.v1.PauseTriggerResponse
-	32, // 71: triggers.v1.TriggersService.ResumeTrigger:output_type -> triggers.v1.ResumeTriggerResponse
-	64, // [64:72] is the sub-list for method output_type
-	56, // [56:64] is the sub-list for method input_type
-	56, // [56:56] is the sub-list for extension type_name
-	56, // [56:56] is the sub-list for extension extendee
-	0,  // [0:56] is the sub-list for field type_name
+	2,  // 24: triggers.v1.ListTriggerEventsRequest.event_type:type_name -> triggers.v1.TriggerEventType
+	0,  // 25: triggers.v1.TriggerEvent.trigger_type:type_name -> triggers.v1.TriggerType
+	2,  // 26: triggers.v1.TriggerEvent.event_type:type_name -> triggers.v1.TriggerEventType
+	23, // 27: triggers.v1.ListTriggerEventsResponse.events:type_name -> triggers.v1.TriggerEvent
+	1,  // 28: triggers.v1.CancelTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
+	41, // 29: triggers.v1.CancelTriggerResponse.ts:type_name -> google.protobuf.Timestamp
+	1,  // 30: triggers.v1.ModifyTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
+	41, // 31: triggers.v1.ModifyTriggerResponse.ts:type_name -> google.protobuf.Timestamp
+	1,  // 32: triggers.v1.PauseTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
+	41, // 33: triggers.v1.PauseTriggerResponse.ts:type_name -> google.protobuf.Timestamp
+	1,  // 34: triggers.v1.ResumeTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
+	41, // 35: triggers.v1.ResumeTriggerResponse.ts:type_name -> google.protobuf.Timestamp
+	42, // 36: triggers.v1.StopDetails.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
+	43, // 37: triggers.v1.StopDetails.trigger_direction:type_name -> orders.v1.TriggerDirection
+	42, // 38: triggers.v1.TrailingDetails.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
+	43, // 39: triggers.v1.TrailingDetails.trigger_direction:type_name -> orders.v1.TriggerDirection
+	3,  // 40: triggers.v1.LadderDetails.ladder_distribution:type_name -> triggers.v1.LadderDistribution
+	1,  // 41: triggers.v1.Trigger.status:type_name -> triggers.v1.TriggerStatus
+	39, // 42: triggers.v1.Trigger.fee_asset:type_name -> orders.v1.FeeAsset
+	40, // 43: triggers.v1.Trigger.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
+	9,  // 44: triggers.v1.Trigger.stop_loss:type_name -> triggers.v1.ConditionalTrigger
+	9,  // 45: triggers.v1.Trigger.take_profit:type_name -> triggers.v1.ConditionalTrigger
+	10, // 46: triggers.v1.Trigger.trailing_stop:type_name -> triggers.v1.TrailingStopTrigger
+	13, // 47: triggers.v1.Trigger.twap:type_name -> triggers.v1.TwapTrigger
+	14, // 48: triggers.v1.Trigger.ladder:type_name -> triggers.v1.LadderTrigger
+	33, // 49: triggers.v1.Trigger.stop:type_name -> triggers.v1.StopDetails
+	34, // 50: triggers.v1.Trigger.trailing:type_name -> triggers.v1.TrailingDetails
+	35, // 51: triggers.v1.Trigger.twap_state:type_name -> triggers.v1.TwapDetails
+	36, // 52: triggers.v1.Trigger.ladder_state:type_name -> triggers.v1.LadderDetails
+	41, // 53: triggers.v1.Trigger.created_at:type_name -> google.protobuf.Timestamp
+	41, // 54: triggers.v1.Trigger.updated_at:type_name -> google.protobuf.Timestamp
+	41, // 55: triggers.v1.Trigger.armed_at:type_name -> google.protobuf.Timestamp
+	41, // 56: triggers.v1.Trigger.completed_at:type_name -> google.protobuf.Timestamp
+	16, // 57: triggers.v1.TriggersService.CreateTrigger:input_type -> triggers.v1.CreateTriggerRequest
+	18, // 58: triggers.v1.TriggersService.GetTrigger:input_type -> triggers.v1.GetTriggerRequest
+	20, // 59: triggers.v1.TriggersService.ListTriggers:input_type -> triggers.v1.ListTriggersRequest
+	22, // 60: triggers.v1.TriggersService.ListTriggerEvents:input_type -> triggers.v1.ListTriggerEventsRequest
+	25, // 61: triggers.v1.TriggersService.CancelTrigger:input_type -> triggers.v1.CancelTriggerRequest
+	27, // 62: triggers.v1.TriggersService.ModifyTrigger:input_type -> triggers.v1.ModifyTriggerRequest
+	29, // 63: triggers.v1.TriggersService.PauseTrigger:input_type -> triggers.v1.PauseTriggerRequest
+	31, // 64: triggers.v1.TriggersService.ResumeTrigger:input_type -> triggers.v1.ResumeTriggerRequest
+	17, // 65: triggers.v1.TriggersService.CreateTrigger:output_type -> triggers.v1.CreateTriggerResponse
+	19, // 66: triggers.v1.TriggersService.GetTrigger:output_type -> triggers.v1.GetTriggerResponse
+	21, // 67: triggers.v1.TriggersService.ListTriggers:output_type -> triggers.v1.ListTriggersResponse
+	24, // 68: triggers.v1.TriggersService.ListTriggerEvents:output_type -> triggers.v1.ListTriggerEventsResponse
+	26, // 69: triggers.v1.TriggersService.CancelTrigger:output_type -> triggers.v1.CancelTriggerResponse
+	28, // 70: triggers.v1.TriggersService.ModifyTrigger:output_type -> triggers.v1.ModifyTriggerResponse
+	30, // 71: triggers.v1.TriggersService.PauseTrigger:output_type -> triggers.v1.PauseTriggerResponse
+	32, // 72: triggers.v1.TriggersService.ResumeTrigger:output_type -> triggers.v1.ResumeTriggerResponse
+	65, // [65:73] is the sub-list for method output_type
+	57, // [57:65] is the sub-list for method input_type
+	57, // [57:57] is the sub-list for extension type_name
+	57, // [57:57] is the sub-list for extension extendee
+	0,  // [0:57] is the sub-list for field type_name
 }
 
 func init() { file_triggers_v1_triggers_proto_init() }

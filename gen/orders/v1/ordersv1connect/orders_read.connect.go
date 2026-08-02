@@ -62,6 +62,7 @@ type OrdersReadServiceClient interface {
 	// Supports optional subaccount, symbol, side, and time-range filters with cursor pagination.
 	GetUserTrades(context.Context, *connect.Request[v1.GetUserTradesRequest]) (*connect.Response[v1.GetUserTradesResponse], error)
 	// Retrieve a single order by order ID or client order ID, including related user trades and ledger transfers.
+	// Recent accepted orders may wait briefly for read availability; retry UNAVAILABLE with the same lookup key.
 	GetOrder(context.Context, *connect.Request[v1.GetOrderRequest]) (*connect.Response[v1.GetOrderResponse], error)
 	// Retrieve durable execution status for one admitted batch replacement.
 	GetBatchReplaceStatus(context.Context, *connect.Request[v1.GetBatchReplaceStatusRequest]) (*connect.Response[v1.GetBatchReplaceStatusResponse], error)
@@ -157,6 +158,7 @@ type OrdersReadServiceHandler interface {
 	// Supports optional subaccount, symbol, side, and time-range filters with cursor pagination.
 	GetUserTrades(context.Context, *connect.Request[v1.GetUserTradesRequest]) (*connect.Response[v1.GetUserTradesResponse], error)
 	// Retrieve a single order by order ID or client order ID, including related user trades and ledger transfers.
+	// Recent accepted orders may wait briefly for read availability; retry UNAVAILABLE with the same lookup key.
 	GetOrder(context.Context, *connect.Request[v1.GetOrderRequest]) (*connect.Response[v1.GetOrderResponse], error)
 	// Retrieve durable execution status for one admitted batch replacement.
 	GetBatchReplaceStatus(context.Context, *connect.Request[v1.GetBatchReplaceStatusRequest]) (*connect.Response[v1.GetBatchReplaceStatusResponse], error)
