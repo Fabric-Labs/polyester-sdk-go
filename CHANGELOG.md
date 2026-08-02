@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.0a32
+
+Git tag: `v0.1.0a32`.
+
 ### Breaking
 - Trigger snapshots no longer expose `ChildOrderIDs`. Child-order history is
   authoritative on trigger events: use `Triggers.ListEvents(..., eventType, ...)`
