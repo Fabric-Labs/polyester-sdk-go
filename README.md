@@ -5,7 +5,7 @@ and automation. Parity with `polyester-sdk-python` and `polyester-sdk-rust`
 using the checked-in `gen/` protobuf bundle (no local proto generation for
 normal development).
 
-**Status:** Alpha (`v0.1.0a34`). Proprietary license (not open source).
+**Status:** Alpha (`v0.1.0a35`). Proprietary license (not open source).
 API-key only; no browser login or session MFA.
 
 Requires a recent Go toolchain (see `go.mod`).
@@ -63,12 +63,16 @@ A successful subscribe call means the token exchange and realtime handshake
 completed. Treat a structured permission denial as non-transient and update the
 API-key policy before retrying.
 
+**Attached risk:** order create/modify do **not** accept `AttachedRisk` input
+(decode-only via `Orders.Get(..., includeAttachedRisk)`). Use Rust/Python for
+attached TP/SL/trailing create/modify.
+
 ## Install
 
 ```bash
 GOPRIVATE='github.com/Fabric-Labs/*' \
 GONOSUMDB='github.com/Fabric-Labs/*' \
-go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a34
+go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a35
 ```
 
 The repository is currently private. GitHub access and authenticated Git credentials are
@@ -336,6 +340,17 @@ retrying the same logical batch after an ambiguous failure.
 
 Your API key needs a policy that allows trading. Spot orders spend **trading**
 balance (see below).
+
+## User trade fees
+
+`UserTrade` fee fields are fixed **18-decimal** magnitudes of `FeeAsset`
+(`FeeAmountE18`, `ReferralShareAmountE18`), not catalog asset-scaled integers.
+Convert e18 → the fee asset's catalog scale before subtracting from a BUY fill's
+base quantity.
+
+Magnitudes are unsigned. Treat `FeeAmountE18` as a **debit** unless
+`FeeIsRebate` is true (then it is a **credit**). Proto3 omits false, so the
+rebate flag is sparse on the wire.
 
 ## Triggers
 

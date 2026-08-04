@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.0a35
+
+Git tag: `v0.1.0a35`.
+
+### Docs
+- README documents `UserTrade` fee e18 fields and `FeeIsRebate` polarity.
+- README / capabilities note: order create/modify do not accept `AttachedRisk`
+  (decode-only; use Rust/Python for attached create/modify).
+
 ## 0.1.0a34
 
 Git tag: `v0.1.0a34`.
