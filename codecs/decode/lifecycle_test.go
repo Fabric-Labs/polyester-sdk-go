@@ -52,6 +52,29 @@ func TestLifecycleReasonUnknownCodePreserved(t *testing.T) {
 	}
 }
 
+func TestTradingWithdrawLifecycleReasons(t *testing.T) {
+	cases := []struct {
+		reason   lifecyclev1.LifecycleReason
+		expected string
+	}{
+		{lifecyclev1.LifecycleReason_TRADING_WITHDRAW_POLICY_DENIED, "trading_withdraw_policy_denied"},
+		{lifecyclev1.LifecycleReason_TRADING_WITHDRAW_CONTRACT_REVERTED, "trading_withdraw_contract_reverted"},
+		{lifecyclev1.LifecycleReason_TRADING_WITHDRAW_EXECUTION_FAILED, "trading_withdraw_execution_failed"},
+	}
+	for _, tc := range cases {
+		flow := decode.FlowSummaryMessageFromProto(&lifecyclev1.FlowSummaryView{
+			FlowId:          "flow-trading-withdraw",
+			FlowKind:        lifecyclev1.FlowKind_KIND_WITHDRAW,
+			CurrentStep:     lifecyclev1.FlowStep_FLOW_STEP_FAILED,
+			IsTerminal:      true,
+			LifecycleReason: tc.reason,
+		})
+		if flow.LifecycleReason != tc.expected {
+			t.Fatalf("reason=%v lifecycle_reason=%q want %q", tc.reason, flow.LifecycleReason, tc.expected)
+		}
+	}
+}
+
 func TestLifecycleReasonUnspecified(t *testing.T) {
 	flow := decode.FlowSummaryMessageFromProto(&lifecyclev1.FlowSummaryView{
 		FlowId: "flow-ok",

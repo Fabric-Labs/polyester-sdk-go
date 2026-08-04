@@ -35,6 +35,12 @@ func lifecycleReasonLabel(code lifecyclev1.LifecycleReason) string {
 		return "ledger_mirror_pending_transfer_not_found"
 	case lifecyclev1.LifecycleReason_LEDGER_MIRROR_TRANSFER_ID_ALREADY_FAILED:
 		return "ledger_mirror_transfer_id_already_failed"
+	case lifecyclev1.LifecycleReason_TRADING_WITHDRAW_POLICY_DENIED:
+		return "trading_withdraw_policy_denied"
+	case lifecyclev1.LifecycleReason_TRADING_WITHDRAW_CONTRACT_REVERTED:
+		return "trading_withdraw_contract_reverted"
+	case lifecyclev1.LifecycleReason_TRADING_WITHDRAW_EXECUTION_FAILED:
+		return "trading_withdraw_execution_failed"
 	default:
 		return fmt.Sprintf("unknown_reason_%d", int32(code))
 	}
