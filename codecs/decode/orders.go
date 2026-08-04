@@ -180,17 +180,18 @@ func UserTradeFromProto(msg *orderv1.UserTrade) models.UserTrade {
 	}
 	sid := msg.GetSymbolId()
 	return models.UserTrade{
-		SymbolID:            sid,
-		MatchID:             strconv.FormatUint(msg.GetMatchId(), 10),
-		OrderID:             codecs.FormatUint64ID(msg.GetOrderId()),
-		Side:                codecs.OrderSideName(msg.GetSide()),
-		IsMaker:             msg.GetIsMaker(),
-		Price:               codecs.DecodePriceTicks(msg.GetPriceTicks(), ""),
-		Qty:                 codecs.DecodeQtyScaled(msg.GetQtyScaled(), -1, "", &sid),
-		FeeScaled:           strconv.FormatInt(msg.GetFeeScaled(), 10),
-		FeeAsset:            feeAssetName(msg.GetFeeAsset()),
-		ReferralShareScaled: strconv.FormatInt(msg.GetReferralShareScaled(), 10),
-		TsNs:                strconv.FormatUint(msg.GetTsNs(), 10),
+		SymbolID:               sid,
+		MatchID:                strconv.FormatUint(msg.GetMatchId(), 10),
+		OrderID:                codecs.FormatUint64ID(msg.GetOrderId()),
+		Side:                   codecs.OrderSideName(msg.GetSide()),
+		IsMaker:                msg.GetIsMaker(),
+		Price:                  codecs.DecodePriceTicks(msg.GetPriceTicks(), ""),
+		Qty:                    codecs.DecodeQtyScaled(msg.GetQtyScaled(), -1, "", &sid),
+		FeeAmountE18:           u128(msg.GetFeeAmountE18()),
+		FeeAsset:               feeAssetName(msg.GetFeeAsset()),
+		ReferralShareAmountE18: u128(msg.GetReferralShareAmountE18()),
+		TsNs:                   strconv.FormatUint(msg.GetTsNs(), 10),
+		FeeIsRebate:            msg.GetFeeIsRebate(),
 	}
 }
 

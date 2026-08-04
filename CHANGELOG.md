@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 0.1.0a34
+
+Git tag: `v0.1.0a34`.
+
+### Breaking
+- `UserTrade` fee fields move from asset-scaled integers to fixed 18-decimal
+  magnitudes: `FeeScaled` → `FeeAmountE18`, `ReferralShareScaled` →
+  `ReferralShareAmountE18` (decimal strings of wire `U128`). Convert to the fee
+  asset's catalog scale before subtracting from BUY fill quantity.
+- `UserTrade` adds sparse `FeeIsRebate`. When true, `FeeAmountE18` is a rebate
+  credit rather than a fee debit (proto3 omits false).
+
 ## 0.1.0a33
 
 Git tag: `v0.1.0a33`.

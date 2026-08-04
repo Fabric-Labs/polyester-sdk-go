@@ -9,6 +9,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
+	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -133,7 +134,10 @@ func TestGetOrderFromProtoIncludesTrades(t *testing.T) {
 		Order: &orderv1.Order{OrderId: 7, SymbolId: 2},
 		Trades: []*orderv1.UserTrade{{
 			SymbolId: 2, MatchId: 99, OrderId: 7, Side: orderv1.Side_BUY,
-			FeeScaled: 5, FeeAsset: orderv1.FeeAsset_BASE, ReferralShareScaled: 2,
+			FeeAmountE18:           &typev1.U128{Lo: 5},
+			FeeAsset:               orderv1.FeeAsset_BASE,
+			ReferralShareAmountE18: &typev1.U128{Lo: 2},
+			FeeIsRebate:            true,
 		}},
 	}
 	result := decode.GetOrderFromProto(msg)
@@ -143,8 +147,8 @@ func TestGetOrderFromProtoIncludesTrades(t *testing.T) {
 	if len(result.Trades) != 1 || result.Trades[0].MatchID != "99" {
 		t.Fatalf("trades=%+v", result.Trades)
 	}
-	if result.Trades[0].FeeScaled != "5" || result.Trades[0].FeeAsset != "base" ||
-		result.Trades[0].ReferralShareScaled != "2" {
+	if result.Trades[0].FeeAmountE18 != "5" || result.Trades[0].FeeAsset != "base" ||
+		result.Trades[0].ReferralShareAmountE18 != "2" || !result.Trades[0].FeeIsRebate {
 		t.Fatalf("trade fee fields=%+v", result.Trades[0])
 	}
 }

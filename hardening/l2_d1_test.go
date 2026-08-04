@@ -15,6 +15,7 @@ import (
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1/ordersv1connect"
+	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
@@ -40,8 +41,10 @@ func (h *getOrderSeq) GetOrder(context.Context, *connect.Request[orderv1.GetOrde
 		Order: order,
 		Trades: []*orderv1.UserTrade{
 			{
-				SymbolId: 1, QtyScaled: 40, FeeScaled: 1,
-				FeeAsset: orderv1.FeeAsset_BASE, ReferralShareScaled: 1,
+				SymbolId: 1, QtyScaled: 40,
+				FeeAmountE18:           &typev1.U128{Lo: 1},
+				FeeAsset:               orderv1.FeeAsset_BASE,
+				ReferralShareAmountE18: &typev1.U128{Lo: 1},
 			},
 			{SymbolId: 1, QtyScaled: 60},
 		},
@@ -96,8 +99,8 @@ func TestWaitForOrderTradesCompletePollsUntilSumMatches(t *testing.T) {
 	if result.Order == nil || result.Order.CumQty.Scaled() != 100 || sum != 100 {
 		t.Fatalf("cum=%v sum=%d trades=%+v", result.Order, sum, result.Trades)
 	}
-	if result.Trades[0].FeeAsset != "base" || result.Trades[0].FeeScaled != "1" ||
-		result.Trades[0].ReferralShareScaled != "1" {
+	if result.Trades[0].FeeAsset != "base" || result.Trades[0].FeeAmountE18 != "1" ||
+		result.Trades[0].ReferralShareAmountE18 != "1" || result.Trades[0].FeeIsRebate {
 		t.Fatalf("fee fields=%+v", result.Trades[0])
 	}
 }

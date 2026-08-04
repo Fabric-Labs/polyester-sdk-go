@@ -4,6 +4,7 @@ package integration_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/testutil"
@@ -36,6 +37,18 @@ func TestUserTradesList(t *testing.T) {
 		}
 		if testutil.NonNegativeIntStringPositive(t, trade.TsNs).Sign() == 0 {
 			t.Fatalf("trade ts_ns: %+v", trade)
+		}
+		if trade.FeeAmountE18 == "" {
+			t.Fatalf("trade fee_amount_e18 missing: %+v", trade)
+		}
+		_ = testutil.NonNegativeIntString(t, trade.FeeAmountE18)
+		if trade.ReferralShareAmountE18 == "" {
+			t.Fatalf("trade referral_share_amount_e18 missing: %+v", trade)
+		}
+		_ = testutil.NonNegativeIntString(t, trade.ReferralShareAmountE18)
+		if trade.FeeAsset != "" && trade.FeeAsset != "quote" && trade.FeeAsset != "base" &&
+			!strings.HasPrefix(trade.FeeAsset, "unknown(") {
+			t.Fatalf("trade fee_asset=%q", trade.FeeAsset)
 		}
 	}
 }

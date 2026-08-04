@@ -7,7 +7,6 @@ import (
 	"errors"
 	"math"
 	"math/big"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -165,19 +164,30 @@ func TestMarketBuySellRoundtrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BUY trade projection did not reconcile: %v", err)
 	}
+	assetScale := 0
+	if scale := filled.Scale(); scale != nil {
+		assetScale = *scale
+	}
 	var receivedFee int64
 	for _, trade := range buyProjection.Trades {
 		if trade.FeeAsset != "base" {
 			continue
 		}
-		fee, parseErr := strconv.ParseInt(trade.FeeScaled, 10, 64)
+		fee, parseErr := feeAmountE18ToAssetScaled(trade.FeeAmountE18, assetScale)
 		if parseErr != nil {
-			t.Fatalf("invalid received-asset fee %q: %v", trade.FeeScaled, parseErr)
+			t.Fatalf("invalid received-asset fee_amount_e18 %q: %v", trade.FeeAmountE18, parseErr)
 		}
-		if receivedFee > math.MaxInt64-fee {
+		signed := fee
+		if trade.FeeIsRebate {
+			signed = -fee
+		}
+		if signed > 0 && receivedFee > math.MaxInt64-signed {
 			t.Fatal("received-asset fee sum overflow")
 		}
-		receivedFee += fee
+		if signed < 0 && receivedFee < math.MinInt64-signed {
+			t.Fatal("received-asset fee sum underflow")
+		}
+		receivedFee += signed
 	}
 	netReceived := models.MustQtyScaled(filled.Scaled() - receivedFee).
 		WithDomain(filled.Domain()).
@@ -189,7 +199,7 @@ func TestMarketBuySellRoundtrip(t *testing.T) {
 		netReceived = netReceived.WithSymbolID(*symbolID)
 	}
 	if netReceived.Scaled() <= 0 {
-		t.Fatalf("BUY net received quantity must be positive: filled=%d fee=%d", filled.Scaled(), receivedFee)
+		t.Fatalf("BUY net received quantity must be positive: filled=%d signed_fee=%d", filled.Scaled(), receivedFee)
 	}
 
 	if hasMaker {
