@@ -102,6 +102,12 @@ const (
 	LifecycleReason_LEDGER_MIRROR_PENDING_TRANSFER_NOT_FOUND LifecycleReason = 203
 	// Ledger settlement reported that this transfer id is already marked failed.
 	LifecycleReason_LEDGER_MIRROR_TRANSFER_ID_ALREADY_FAILED LifecycleReason = 204
+	// A trading withdrawal was denied by the account's active transfer policy.
+	LifecycleReason_TRADING_WITHDRAW_POLICY_DENIED LifecycleReason = 300
+	// A trading withdrawal was rejected before submission by its destination contract.
+	LifecycleReason_TRADING_WITHDRAW_CONTRACT_REVERTED LifecycleReason = 301
+	// A trading withdrawal could not be submitted because execution failed.
+	LifecycleReason_TRADING_WITHDRAW_EXECUTION_FAILED LifecycleReason = 302
 )
 
 // Enum value maps for LifecycleReason.
@@ -117,6 +123,9 @@ var (
 		202: "LEDGER_MIRROR_TRANSFER_EXISTS",
 		203: "LEDGER_MIRROR_PENDING_TRANSFER_NOT_FOUND",
 		204: "LEDGER_MIRROR_TRANSFER_ID_ALREADY_FAILED",
+		300: "TRADING_WITHDRAW_POLICY_DENIED",
+		301: "TRADING_WITHDRAW_CONTRACT_REVERTED",
+		302: "TRADING_WITHDRAW_EXECUTION_FAILED",
 	}
 	LifecycleReason_value = map[string]int32{
 		"REASON_UNSPECIFIED":                       0,
@@ -129,6 +138,9 @@ var (
 		"LEDGER_MIRROR_TRANSFER_EXISTS":            202,
 		"LEDGER_MIRROR_PENDING_TRANSFER_NOT_FOUND": 203,
 		"LEDGER_MIRROR_TRANSFER_ID_ALREADY_FAILED": 204,
+		"TRADING_WITHDRAW_POLICY_DENIED":           300,
+		"TRADING_WITHDRAW_CONTRACT_REVERTED":       301,
+		"TRADING_WITHDRAW_EXECUTION_FAILED":        302,
 	}
 )
 
@@ -568,7 +580,7 @@ const file_chain_lifecycle_v1_types_proto_rawDesc = "" +
 	"\x10RequestFeeStatus\x12\"\n" +
 	"\x1eREQUEST_FEE_STATUS_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19REQUEST_FEE_STATUS_LOCKED\x10\x01\x12\x1e\n" +
-	"\x1aREQUEST_FEE_STATUS_SETTLED\x10\x02*\xfc\x02\n" +
+	"\x1aREQUEST_FEE_STATUS_SETTLED\x10\x02*\xf2\x03\n" +
 	"\x0fLifecycleReason\x12\x16\n" +
 	"\x12REASON_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aZIPPER_VALIDATION_REJECTED\x10e\x12\x1d\n" +
@@ -579,7 +591,10 @@ const file_chain_lifecycle_v1_types_proto_rawDesc = "" +
 	"&LEDGER_MIRROR_TRANSFER_EXCEEDS_CREDITS\x10\xc9\x01\x12\"\n" +
 	"\x1dLEDGER_MIRROR_TRANSFER_EXISTS\x10\xca\x01\x12-\n" +
 	"(LEDGER_MIRROR_PENDING_TRANSFER_NOT_FOUND\x10\xcb\x01\x12-\n" +
-	"(LEDGER_MIRROR_TRANSFER_ID_ALREADY_FAILED\x10\xcc\x01*X\n" +
+	"(LEDGER_MIRROR_TRANSFER_ID_ALREADY_FAILED\x10\xcc\x01\x12#\n" +
+	"\x1eTRADING_WITHDRAW_POLICY_DENIED\x10\xac\x02\x12'\n" +
+	"\"TRADING_WITHDRAW_CONTRACT_REVERTED\x10\xad\x02\x12&\n" +
+	"!TRADING_WITHDRAW_EXECUTION_FAILED\x10\xae\x02*X\n" +
 	"\bFlowKind\x12\x14\n" +
 	"\x10KIND_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fKIND_DEPOSIT\x10\x01\x12\x11\n" +
