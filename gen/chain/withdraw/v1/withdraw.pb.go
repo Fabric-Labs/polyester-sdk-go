@@ -454,12 +454,12 @@ const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"\x12ACTION_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
 	"TO_FUNDING\x10\x01\x12\x15\n" +
-	"\x11TO_EXTERNAL_CHAIN\x10\x022\xca\x05\n" +
+	"\x11TO_EXTERNAL_CHAIN\x10\x022\xbe\x06\n" +
 	"\x0fWithdrawService\x12\xcb\x02\n" +
 	"\x15CreateTradingWithdraw\x12/.chain.withdraw.v1.CreateTradingWithdrawRequest\x1a0.chain.withdraw.v1.CreateTradingWithdrawResponse\"\xce\x01\xbaG\xa4\x01\n" +
-	"\x11Trading Withdraws\x12\x17Create Trading Withdraw\x1avCreate or return one durable withdraw from Trading to Funding or to an external chain for the selected account target.\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/v1/chain/trading-withdraws\x12\xe8\x02\n" +
-	"\x1bCreateWalletTradingWithdraw\x125.chain.withdraw.v1.CreateWalletTradingWithdrawRequest\x1a6.chain.withdraw.v1.CreateWalletTradingWithdrawResponse\"\xd9\x01\xbaG\xa4\x01\n" +
-	"\x11Trading Withdraws\x12\x1eCreate Wallet Trading Withdraw\x1aoCreate or return one durable Trading withdraw intent from typed frontend fields and a wallet EIP-712 signature.\x98\xb5\x18\x02\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/chain/trading-withdraws:walletB\xb0\x01\xbaG^:\\\n" +
+	"\x11Trading Withdraws\x12\x17Create Trading Withdraw\x1avCreate or return one durable withdraw from Trading to Funding or to an external chain for the selected account target.\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/v1/chain/trading-withdraws\x12\xdc\x03\n" +
+	"\x1bCreateWalletTradingWithdraw\x125.chain.withdraw.v1.CreateWalletTradingWithdrawRequest\x1a6.chain.withdraw.v1.CreateWalletTradingWithdrawResponse\"\xcd\x02\xbaG\x98\x02\n" +
+	"\x11Trading Withdraws\x12\x1eCreate Wallet Trading Withdraw\x1a\xe2\x01Create or return one durable Trading withdraw intent from typed frontend fields and a wallet EIP-712 signature. Own-account Trading to Funding accepts recent MFA; other interactive movements require a fresh single-use step-up.\x98\xb5\x18\x03\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/chain/trading-withdraws:walletB\xb0\x01\xbaG^:\\\n" +
 	"\x11Trading Withdraws\x12GRequest withdrawals from Trading for a Polyester account or subaccount.ZMgithub.com/Fabric-Labs/polyester-sdk-go/gen/chain/withdraw/v1;chainwithdrawv1b\x06proto3"
 
 var (

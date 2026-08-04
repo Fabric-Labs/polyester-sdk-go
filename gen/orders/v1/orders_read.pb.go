@@ -785,8 +785,7 @@ type Order struct {
 	TimeInForce TimeInForce `protobuf:"varint,8,opt,name=time_in_force,json=timeInForce,proto3,enum=orders.v1.TimeInForce" json:"time_in_force,omitempty"`
 	// Self-trade prevention mode.
 	SelfTradePreventionMode SelfTradePreventionMode `protobuf:"varint,9,opt,name=self_trade_prevention_mode,json=selfTradePreventionMode,proto3,enum=orders.v1.SelfTradePreventionMode" json:"self_trade_prevention_mode,omitempty"`
-	// Fee asset selected for fills. This also determines the decode scale
-	// for fee_scaled and referral_share_scaled on user trade rows.
+	// Fee asset selected for fills.
 	FeeAsset FeeAsset `protobuf:"varint,10,opt,name=fee_asset,json=feeAsset,proto3,enum=orders.v1.FeeAsset" json:"fee_asset,omitempty"`
 	// True if the order was submitted as post-only (maker-only).
 	PostOnly bool `protobuf:"varint,11,opt,name=post_only,json=postOnly,proto3" json:"post_only,omitempty"`
@@ -1074,18 +1073,16 @@ type UserTrade struct {
 	// Executed quantity scaled by the pair's base_quantity_scale from
 	// GetSpotConfig for symbol_id.
 	QtyScaled int64 `protobuf:"varint,8,opt,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`
-	// Fee amount in the charged asset's scale. Use quote_quantity_scale when
-	// fee_asset is QUOTE or UNSPECIFIED; use base_quantity_scale when fee_asset
-	// is BASE.
-	FeeScaled int64 `protobuf:"varint,9,opt,name=fee_scaled,json=feeScaled,proto3" json:"fee_scaled,omitempty"`
-	// Fee asset charged for this fill. This determines how to decode fee_scaled
-	// and referral_share_scaled.
+	// Exact fee magnitude in fixed 18-decimal units of fee_asset.
+	FeeAmountE18 *v1.U128 `protobuf:"bytes,9,opt,name=fee_amount_e18,json=feeAmountE18,proto3" json:"fee_amount_e18,omitempty"`
+	// Fee asset charged or credited for this fill.
 	FeeAsset FeeAsset `protobuf:"varint,10,opt,name=fee_asset,json=feeAsset,proto3,enum=orders.v1.FeeAsset" json:"fee_asset,omitempty"`
-	// Referral share amount in the same denomination and scale as fee_scaled for
-	// this fill.
-	ReferralShareScaled int64 `protobuf:"varint,12,opt,name=referral_share_scaled,json=referralShareScaled,proto3" json:"referral_share_scaled,omitempty"`
+	// Exact referral share magnitude in fixed 18-decimal units of fee_asset.
+	ReferralShareAmountE18 *v1.U128 `protobuf:"bytes,12,opt,name=referral_share_amount_e18,json=referralShareAmountE18,proto3" json:"referral_share_amount_e18,omitempty"`
 	// Execution timestamp in nanoseconds since epoch.
-	TsNs          uint64 `protobuf:"varint,13,opt,name=ts_ns,json=tsNs,proto3" json:"ts_ns,omitempty"`
+	TsNs uint64 `protobuf:"varint,13,opt,name=ts_ns,json=tsNs,proto3" json:"ts_ns,omitempty"`
+	// Whether this fill earned a rebate instead of paying a fee.
+	FeeIsRebate   bool `protobuf:"varint,14,opt,name=fee_is_rebate,json=feeIsRebate,proto3" json:"fee_is_rebate,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1169,11 +1166,11 @@ func (x *UserTrade) GetQtyScaled() int64 {
 	return 0
 }
 
-func (x *UserTrade) GetFeeScaled() int64 {
+func (x *UserTrade) GetFeeAmountE18() *v1.U128 {
 	if x != nil {
-		return x.FeeScaled
+		return x.FeeAmountE18
 	}
-	return 0
+	return nil
 }
 
 func (x *UserTrade) GetFeeAsset() FeeAsset {
@@ -1183,11 +1180,11 @@ func (x *UserTrade) GetFeeAsset() FeeAsset {
 	return FeeAsset_FEE_ASSET_UNSPECIFIED
 }
 
-func (x *UserTrade) GetReferralShareScaled() int64 {
+func (x *UserTrade) GetReferralShareAmountE18() *v1.U128 {
 	if x != nil {
-		return x.ReferralShareScaled
+		return x.ReferralShareAmountE18
 	}
-	return 0
+	return nil
 }
 
 func (x *UserTrade) GetTsNs() uint64 {
@@ -1195,6 +1192,13 @@ func (x *UserTrade) GetTsNs() uint64 {
 		return x.TsNs
 	}
 	return 0
+}
+
+func (x *UserTrade) GetFeeIsRebate() bool {
+	if x != nil {
+		return x.FeeIsRebate
+	}
+	return false
 }
 
 // OrderTransfer is the Connect-facing minimal per-leg transfer view.
@@ -2320,7 +2324,7 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"*\b\x18\xff\xff\xff\xff\a(\x01R\aversion\x12(\n" +
 	"\x10batch_request_id\x18\x1b \x01(\x06R\x0ebatchRequestId\x12K\n" +
 	" submitted_max_quote_debit_scaled\x18\x1c \x01(\x03H\x00R\x1csubmittedMaxQuoteDebitScaled\x88\x01\x01B#\n" +
-	"!_submitted_max_quote_debit_scaled\"\x82\x03\n" +
+	"!_submitted_max_quote_debit_scaled\"\xe6\x03\n" +
 	"\tUserTrade\x12\x1b\n" +
 	"\tsymbol_id\x18\x02 \x01(\rR\bsymbolId\x12\x19\n" +
 	"\bmatch_id\x18\x03 \x01(\x04R\amatchId\x12\x19\n" +
@@ -2330,13 +2334,13 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\vprice_ticks\x18\a \x01(\x03R\n" +
 	"priceTicks\x12\x1d\n" +
 	"\n" +
-	"qty_scaled\x18\b \x01(\x03R\tqtyScaled\x12\x1d\n" +
-	"\n" +
-	"fee_scaled\x18\t \x01(\x03R\tfeeScaled\x120\n" +
+	"qty_scaled\x18\b \x01(\x03R\tqtyScaled\x12=\n" +
+	"\x0efee_amount_e18\x18\t \x01(\v2\x17.polyester.type.v1.U128R\ffeeAmountE18\x120\n" +
 	"\tfee_asset\x18\n" +
-	" \x01(\x0e2\x13.orders.v1.FeeAssetR\bfeeAsset\x122\n" +
-	"\x15referral_share_scaled\x18\f \x01(\x03R\x13referralShareScaled\x12\x13\n" +
-	"\x05ts_ns\x18\r \x01(\x04R\x04tsNs\"\xbb\x02\n" +
+	" \x01(\x0e2\x13.orders.v1.FeeAssetR\bfeeAsset\x12R\n" +
+	"\x19referral_share_amount_e18\x18\f \x01(\v2\x17.polyester.type.v1.U128R\x16referralShareAmountE18\x12\x13\n" +
+	"\x05ts_ns\x18\r \x01(\x04R\x04tsNs\x12\"\n" +
+	"\rfee_is_rebate\x18\x0e \x01(\bR\vfeeIsRebate\"\xbb\x02\n" +
 	"\rOrderTransfer\x12\x19\n" +
 	"\bmatch_id\x18\x01 \x01(\x04R\amatchId\x12\x19\n" +
 	"\basset_id\x18\x02 \x01(\rR\aassetId\x126\n" +
@@ -2563,39 +2567,41 @@ var file_orders_v1_orders_read_proto_depIdxs = []int32{
 	10, // 18: orders.v1.Order.attached_risk:type_name -> orders.v1.AttachedRisk
 	5,  // 19: orders.v1.Order.origin:type_name -> orders.v1.OrderOrigin
 	28, // 20: orders.v1.UserTrade.side:type_name -> orders.v1.Side
-	32, // 21: orders.v1.UserTrade.fee_asset:type_name -> orders.v1.FeeAsset
-	33, // 22: orders.v1.OrderTransfer.amount_e18:type_name -> polyester.type.v1.U128
-	34, // 23: orders.v1.OrderTransfer.transfer_code:type_name -> ledger.v1.TransferCode
-	35, // 24: orders.v1.OrderTransfer.account_code:type_name -> ledger.v1.AccountCode
-	28, // 25: orders.v1.GetOpenOrdersRequest.side:type_name -> orders.v1.Side
-	11, // 26: orders.v1.GetOpenOrdersResponse.orders:type_name -> orders.v1.Order
-	28, // 27: orders.v1.GetOrderHistoryRequest.side:type_name -> orders.v1.Side
-	0,  // 28: orders.v1.GetOrderHistoryRequest.status:type_name -> orders.v1.OrderStatus
-	11, // 29: orders.v1.GetOrderHistoryResponse.orders:type_name -> orders.v1.Order
-	28, // 30: orders.v1.GetUserTradesRequest.side:type_name -> orders.v1.Side
-	12, // 31: orders.v1.GetUserTradesResponse.trades:type_name -> orders.v1.UserTrade
-	11, // 32: orders.v1.GetOrderResponse.order:type_name -> orders.v1.Order
-	12, // 33: orders.v1.GetOrderResponse.trades:type_name -> orders.v1.UserTrade
-	13, // 34: orders.v1.GetOrderResponse.transfers:type_name -> orders.v1.OrderTransfer
-	1,  // 35: orders.v1.BatchReplaceStatusItem.phase:type_name -> orders.v1.BatchReplacePhase
-	0,  // 36: orders.v1.BatchReplaceStatusItem.order_status:type_name -> orders.v1.OrderStatus
-	36, // 37: orders.v1.GetBatchReplaceStatusResponse.admission_status:type_name -> orders.v1.BatchReplaceAdmissionStatus
-	23, // 38: orders.v1.GetBatchReplaceStatusResponse.items:type_name -> orders.v1.BatchReplaceStatusItem
-	14, // 39: orders.v1.OrdersReadService.GetOpenOrders:input_type -> orders.v1.GetOpenOrdersRequest
-	16, // 40: orders.v1.OrdersReadService.GetOrderHistory:input_type -> orders.v1.GetOrderHistoryRequest
-	18, // 41: orders.v1.OrdersReadService.GetUserTrades:input_type -> orders.v1.GetUserTradesRequest
-	20, // 42: orders.v1.OrdersReadService.GetOrder:input_type -> orders.v1.GetOrderRequest
-	22, // 43: orders.v1.OrdersReadService.GetBatchReplaceStatus:input_type -> orders.v1.GetBatchReplaceStatusRequest
-	15, // 44: orders.v1.OrdersReadService.GetOpenOrders:output_type -> orders.v1.GetOpenOrdersResponse
-	17, // 45: orders.v1.OrdersReadService.GetOrderHistory:output_type -> orders.v1.GetOrderHistoryResponse
-	19, // 46: orders.v1.OrdersReadService.GetUserTrades:output_type -> orders.v1.GetUserTradesResponse
-	21, // 47: orders.v1.OrdersReadService.GetOrder:output_type -> orders.v1.GetOrderResponse
-	24, // 48: orders.v1.OrdersReadService.GetBatchReplaceStatus:output_type -> orders.v1.GetBatchReplaceStatusResponse
-	44, // [44:49] is the sub-list for method output_type
-	39, // [39:44] is the sub-list for method input_type
-	39, // [39:39] is the sub-list for extension type_name
-	39, // [39:39] is the sub-list for extension extendee
-	0,  // [0:39] is the sub-list for field type_name
+	33, // 21: orders.v1.UserTrade.fee_amount_e18:type_name -> polyester.type.v1.U128
+	32, // 22: orders.v1.UserTrade.fee_asset:type_name -> orders.v1.FeeAsset
+	33, // 23: orders.v1.UserTrade.referral_share_amount_e18:type_name -> polyester.type.v1.U128
+	33, // 24: orders.v1.OrderTransfer.amount_e18:type_name -> polyester.type.v1.U128
+	34, // 25: orders.v1.OrderTransfer.transfer_code:type_name -> ledger.v1.TransferCode
+	35, // 26: orders.v1.OrderTransfer.account_code:type_name -> ledger.v1.AccountCode
+	28, // 27: orders.v1.GetOpenOrdersRequest.side:type_name -> orders.v1.Side
+	11, // 28: orders.v1.GetOpenOrdersResponse.orders:type_name -> orders.v1.Order
+	28, // 29: orders.v1.GetOrderHistoryRequest.side:type_name -> orders.v1.Side
+	0,  // 30: orders.v1.GetOrderHistoryRequest.status:type_name -> orders.v1.OrderStatus
+	11, // 31: orders.v1.GetOrderHistoryResponse.orders:type_name -> orders.v1.Order
+	28, // 32: orders.v1.GetUserTradesRequest.side:type_name -> orders.v1.Side
+	12, // 33: orders.v1.GetUserTradesResponse.trades:type_name -> orders.v1.UserTrade
+	11, // 34: orders.v1.GetOrderResponse.order:type_name -> orders.v1.Order
+	12, // 35: orders.v1.GetOrderResponse.trades:type_name -> orders.v1.UserTrade
+	13, // 36: orders.v1.GetOrderResponse.transfers:type_name -> orders.v1.OrderTransfer
+	1,  // 37: orders.v1.BatchReplaceStatusItem.phase:type_name -> orders.v1.BatchReplacePhase
+	0,  // 38: orders.v1.BatchReplaceStatusItem.order_status:type_name -> orders.v1.OrderStatus
+	36, // 39: orders.v1.GetBatchReplaceStatusResponse.admission_status:type_name -> orders.v1.BatchReplaceAdmissionStatus
+	23, // 40: orders.v1.GetBatchReplaceStatusResponse.items:type_name -> orders.v1.BatchReplaceStatusItem
+	14, // 41: orders.v1.OrdersReadService.GetOpenOrders:input_type -> orders.v1.GetOpenOrdersRequest
+	16, // 42: orders.v1.OrdersReadService.GetOrderHistory:input_type -> orders.v1.GetOrderHistoryRequest
+	18, // 43: orders.v1.OrdersReadService.GetUserTrades:input_type -> orders.v1.GetUserTradesRequest
+	20, // 44: orders.v1.OrdersReadService.GetOrder:input_type -> orders.v1.GetOrderRequest
+	22, // 45: orders.v1.OrdersReadService.GetBatchReplaceStatus:input_type -> orders.v1.GetBatchReplaceStatusRequest
+	15, // 46: orders.v1.OrdersReadService.GetOpenOrders:output_type -> orders.v1.GetOpenOrdersResponse
+	17, // 47: orders.v1.OrdersReadService.GetOrderHistory:output_type -> orders.v1.GetOrderHistoryResponse
+	19, // 48: orders.v1.OrdersReadService.GetUserTrades:output_type -> orders.v1.GetUserTradesResponse
+	21, // 49: orders.v1.OrdersReadService.GetOrder:output_type -> orders.v1.GetOrderResponse
+	24, // 50: orders.v1.OrdersReadService.GetBatchReplaceStatus:output_type -> orders.v1.GetBatchReplaceStatusResponse
+	46, // [46:51] is the sub-list for method output_type
+	41, // [41:46] is the sub-list for method input_type
+	41, // [41:41] is the sub-list for extension type_name
+	41, // [41:41] is the sub-list for extension extendee
+	0,  // [0:41] is the sub-list for field type_name
 }
 
 func init() { file_orders_v1_orders_read_proto_init() }
