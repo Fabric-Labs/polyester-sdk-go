@@ -76,6 +76,77 @@ func (TradingWithdrawAction) EnumDescriptor() ([]byte, []int) {
 	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{0}
 }
 
+// WithdrawDestinationValidationCode identifies the public outcome of an
+// external-chain destination validation.
+type WithdrawDestinationValidationCode int32
+
+const (
+	// No validation outcome was produced.
+	WithdrawDestinationValidationCode_RESULT_UNSPECIFIED WithdrawDestinationValidationCode = 0
+	// The destination is valid and may be used for a withdraw.
+	WithdrawDestinationValidationCode_VALID WithdrawDestinationValidationCode = 1
+	// The address is not valid for the selected destination chain.
+	WithdrawDestinationValidationCode_INVALID_ADDRESS WithdrawDestinationValidationCode = 2
+	// The selected destination chain is not supported for withdraws.
+	WithdrawDestinationValidationCode_UNSUPPORTED_CHAIN WithdrawDestinationValidationCode = 3
+	// The destination is a Polyester smart account and cannot be used for an
+	// external-chain withdraw.
+	WithdrawDestinationValidationCode_POLYESTER_SMART_ACCOUNT WithdrawDestinationValidationCode = 4
+	// The destination is a token contract and cannot receive withdrawals.
+	WithdrawDestinationValidationCode_TOKEN_CONTRACT WithdrawDestinationValidationCode = 5
+	// The destination is blocked by Polyester's user-safety denylist.
+	WithdrawDestinationValidationCode_DENYLISTED_ADDRESS WithdrawDestinationValidationCode = 6
+)
+
+// Enum value maps for WithdrawDestinationValidationCode.
+var (
+	WithdrawDestinationValidationCode_name = map[int32]string{
+		0: "RESULT_UNSPECIFIED",
+		1: "VALID",
+		2: "INVALID_ADDRESS",
+		3: "UNSUPPORTED_CHAIN",
+		4: "POLYESTER_SMART_ACCOUNT",
+		5: "TOKEN_CONTRACT",
+		6: "DENYLISTED_ADDRESS",
+	}
+	WithdrawDestinationValidationCode_value = map[string]int32{
+		"RESULT_UNSPECIFIED":      0,
+		"VALID":                   1,
+		"INVALID_ADDRESS":         2,
+		"UNSUPPORTED_CHAIN":       3,
+		"POLYESTER_SMART_ACCOUNT": 4,
+		"TOKEN_CONTRACT":          5,
+		"DENYLISTED_ADDRESS":      6,
+	}
+)
+
+func (x WithdrawDestinationValidationCode) Enum() *WithdrawDestinationValidationCode {
+	p := new(WithdrawDestinationValidationCode)
+	*p = x
+	return p
+}
+
+func (x WithdrawDestinationValidationCode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (WithdrawDestinationValidationCode) Descriptor() protoreflect.EnumDescriptor {
+	return file_chain_withdraw_v1_withdraw_proto_enumTypes[1].Descriptor()
+}
+
+func (WithdrawDestinationValidationCode) Type() protoreflect.EnumType {
+	return &file_chain_withdraw_v1_withdraw_proto_enumTypes[1]
+}
+
+func (x WithdrawDestinationValidationCode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use WithdrawDestinationValidationCode.Descriptor instead.
+func (WithdrawDestinationValidationCode) EnumDescriptor() ([]byte, []int) {
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{1}
+}
+
 // CreateTradingWithdrawResponse returns the accepted durable intent identifier
 // for the withdraw lifecycle.
 type CreateTradingWithdrawResponse struct {
@@ -422,6 +493,136 @@ func (x *CreateWalletTradingWithdrawRequest) GetPayloadSignature() []byte {
 	return nil
 }
 
+// ValidateWithdrawDestinationRequest checks one external-chain
+// destination for an authenticated caller without creating a withdraw.
+type ValidateWithdrawDestinationRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// External destination chain identifier.
+	DestinationChainId uint64 `protobuf:"varint,1,opt,name=destination_chain_id,json=destinationChainId,proto3" json:"destination_chain_id,omitempty"`
+	// Destination address to validate for destination_chain_id.
+	DestinationAddress string `protobuf:"bytes,2,opt,name=destination_address,json=destinationAddress,proto3" json:"destination_address,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *ValidateWithdrawDestinationRequest) Reset() {
+	*x = ValidateWithdrawDestinationRequest{}
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateWithdrawDestinationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateWithdrawDestinationRequest) ProtoMessage() {}
+
+func (x *ValidateWithdrawDestinationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateWithdrawDestinationRequest.ProtoReflect.Descriptor instead.
+func (*ValidateWithdrawDestinationRequest) Descriptor() ([]byte, []int) {
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ValidateWithdrawDestinationRequest) GetDestinationChainId() uint64 {
+	if x != nil {
+		return x.DestinationChainId
+	}
+	return 0
+}
+
+func (x *ValidateWithdrawDestinationRequest) GetDestinationAddress() string {
+	if x != nil {
+		return x.DestinationAddress
+	}
+	return ""
+}
+
+// ValidateWithdrawDestinationResponse returns a user-safe validation
+// result without exposing internal denylist details.
+type ValidateWithdrawDestinationResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Whether the destination may be used for a withdraw.
+	Valid bool `protobuf:"varint,1,opt,name=valid,proto3" json:"valid,omitempty"`
+	// Public validation outcome code.
+	Code WithdrawDestinationValidationCode `protobuf:"varint,2,opt,name=code,proto3,enum=chain.withdraw.v1.WithdrawDestinationValidationCode" json:"code,omitempty"`
+	// User-safe explanation of the validation outcome.
+	Message string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	// Canonical destination address when valid. Empty when valid is false.
+	CanonicalDestinationAddress string `protobuf:"bytes,4,opt,name=canonical_destination_address,json=canonicalDestinationAddress,proto3" json:"canonical_destination_address,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
+}
+
+func (x *ValidateWithdrawDestinationResponse) Reset() {
+	*x = ValidateWithdrawDestinationResponse{}
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ValidateWithdrawDestinationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ValidateWithdrawDestinationResponse) ProtoMessage() {}
+
+func (x *ValidateWithdrawDestinationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ValidateWithdrawDestinationResponse.ProtoReflect.Descriptor instead.
+func (*ValidateWithdrawDestinationResponse) Descriptor() ([]byte, []int) {
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ValidateWithdrawDestinationResponse) GetValid() bool {
+	if x != nil {
+		return x.Valid
+	}
+	return false
+}
+
+func (x *ValidateWithdrawDestinationResponse) GetCode() WithdrawDestinationValidationCode {
+	if x != nil {
+		return x.Code
+	}
+	return WithdrawDestinationValidationCode_RESULT_UNSPECIFIED
+}
+
+func (x *ValidateWithdrawDestinationResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *ValidateWithdrawDestinationResponse) GetCanonicalDestinationAddress() string {
+	if x != nil {
+		return x.CanonicalDestinationAddress
+	}
+	return ""
+}
+
 var File_chain_withdraw_v1_withdraw_proto protoreflect.FileDescriptor
 
 const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
@@ -449,13 +650,31 @@ const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"\apayload\x18\x01 \x01(\v2/.chain.withdraw.v1.TradingWithdrawIntentPayloadB\x06\xbaH\x03\xc8\x01\x01R\apayload\x12#\n" +
 	"\rsubaccount_id\x18\x02 \x01(\x04R\fsubaccountId\x12?\n" +
 	"\rsigner_wallet\x18\x03 \x01(\tB\x1a\xbaH\x17r\x152\x13^0x[0-9a-fA-F]{40}$R\fsignerWallet\x124\n" +
-	"\x11payload_signature\x18\x04 \x01(\fB\a\xbaH\x04z\x02\x10\x01R\x10payloadSignature*V\n" +
+	"\x11payload_signature\x18\x04 \x01(\fB\a\xbaH\x04z\x02\x10\x01R\x10payloadSignature\"\x99\x01\n" +
+	"\"ValidateWithdrawDestinationRequest\x129\n" +
+	"\x14destination_chain_id\x18\x01 \x01(\x04B\a\xbaH\x042\x02 \x00R\x12destinationChainId\x128\n" +
+	"\x13destination_address\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x12destinationAddress\"\xe3\x01\n" +
+	"#ValidateWithdrawDestinationResponse\x12\x14\n" +
+	"\x05valid\x18\x01 \x01(\bR\x05valid\x12H\n" +
+	"\x04code\x18\x02 \x01(\x0e24.chain.withdraw.v1.WithdrawDestinationValidationCodeR\x04code\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\x12B\n" +
+	"\x1dcanonical_destination_address\x18\x04 \x01(\tR\x1bcanonicalDestinationAddress*V\n" +
 	"\x15TradingWithdrawAction\x12\x16\n" +
 	"\x12ACTION_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
 	"TO_FUNDING\x10\x01\x12\x15\n" +
-	"\x11TO_EXTERNAL_CHAIN\x10\x022\xbe\x06\n" +
-	"\x0fWithdrawService\x12\xcb\x02\n" +
+	"\x11TO_EXTERNAL_CHAIN\x10\x02*\xbb\x01\n" +
+	"!WithdrawDestinationValidationCode\x12\x16\n" +
+	"\x12RESULT_UNSPECIFIED\x10\x00\x12\t\n" +
+	"\x05VALID\x10\x01\x12\x13\n" +
+	"\x0fINVALID_ADDRESS\x10\x02\x12\x15\n" +
+	"\x11UNSUPPORTED_CHAIN\x10\x03\x12\x1b\n" +
+	"\x17POLYESTER_SMART_ACCOUNT\x10\x04\x12\x12\n" +
+	"\x0eTOKEN_CONTRACT\x10\x05\x12\x16\n" +
+	"\x12DENYLISTED_ADDRESS\x10\x062\x9d\t\n" +
+	"\x0fWithdrawService\x12\xdc\x02\n" +
+	"\x1bValidateWithdrawDestination\x125.chain.withdraw.v1.ValidateWithdrawDestinationRequest\x1a6.chain.withdraw.v1.ValidateWithdrawDestinationResponse\"\xcd\x01\xbaG\x96\x01\n" +
+	"\vWithdrawals\x12\x1dValidate Withdraw Destination\x1ahValidate an external-chain withdraw destination for an authenticated caller without creating a withdraw.\x82\xd3\xe4\x93\x02-:\x01*\"(/v1/chain/withdraws:validate-destination\x12\xcb\x02\n" +
 	"\x15CreateTradingWithdraw\x12/.chain.withdraw.v1.CreateTradingWithdrawRequest\x1a0.chain.withdraw.v1.CreateTradingWithdrawResponse\"\xce\x01\xbaG\xa4\x01\n" +
 	"\x11Trading Withdraws\x12\x17Create Trading Withdraw\x1avCreate or return one durable withdraw from Trading to Funding or to an external chain for the selected account target.\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/v1/chain/trading-withdraws\x12\xdc\x03\n" +
 	"\x1bCreateWalletTradingWithdraw\x125.chain.withdraw.v1.CreateWalletTradingWithdrawRequest\x1a6.chain.withdraw.v1.CreateWalletTradingWithdrawResponse\"\xcd\x02\xbaG\x98\x02\n" +
@@ -474,32 +693,38 @@ func file_chain_withdraw_v1_withdraw_proto_rawDescGZIP() []byte {
 	return file_chain_withdraw_v1_withdraw_proto_rawDescData
 }
 
-var file_chain_withdraw_v1_withdraw_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chain_withdraw_v1_withdraw_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_chain_withdraw_v1_withdraw_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_chain_withdraw_v1_withdraw_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_chain_withdraw_v1_withdraw_proto_goTypes = []any{
 	(TradingWithdrawAction)(0),                  // 0: chain.withdraw.v1.TradingWithdrawAction
-	(*CreateTradingWithdrawResponse)(nil),       // 1: chain.withdraw.v1.CreateTradingWithdrawResponse
-	(*CreateWalletTradingWithdrawResponse)(nil), // 2: chain.withdraw.v1.CreateWalletTradingWithdrawResponse
-	(*TradingWithdrawIntentPayload)(nil),        // 3: chain.withdraw.v1.TradingWithdrawIntentPayload
-	(*CreateTradingWithdrawRequest)(nil),        // 4: chain.withdraw.v1.CreateTradingWithdrawRequest
-	(*CreateWalletTradingWithdrawRequest)(nil),  // 5: chain.withdraw.v1.CreateWalletTradingWithdrawRequest
-	(*v1.U128)(nil),                             // 6: polyester.type.v1.U128
+	(WithdrawDestinationValidationCode)(0),      // 1: chain.withdraw.v1.WithdrawDestinationValidationCode
+	(*CreateTradingWithdrawResponse)(nil),       // 2: chain.withdraw.v1.CreateTradingWithdrawResponse
+	(*CreateWalletTradingWithdrawResponse)(nil), // 3: chain.withdraw.v1.CreateWalletTradingWithdrawResponse
+	(*TradingWithdrawIntentPayload)(nil),        // 4: chain.withdraw.v1.TradingWithdrawIntentPayload
+	(*CreateTradingWithdrawRequest)(nil),        // 5: chain.withdraw.v1.CreateTradingWithdrawRequest
+	(*CreateWalletTradingWithdrawRequest)(nil),  // 6: chain.withdraw.v1.CreateWalletTradingWithdrawRequest
+	(*ValidateWithdrawDestinationRequest)(nil),  // 7: chain.withdraw.v1.ValidateWithdrawDestinationRequest
+	(*ValidateWithdrawDestinationResponse)(nil), // 8: chain.withdraw.v1.ValidateWithdrawDestinationResponse
+	(*v1.U128)(nil), // 9: polyester.type.v1.U128
 }
 var file_chain_withdraw_v1_withdraw_proto_depIdxs = []int32{
 	0, // 0: chain.withdraw.v1.TradingWithdrawIntentPayload.action:type_name -> chain.withdraw.v1.TradingWithdrawAction
-	6, // 1: chain.withdraw.v1.TradingWithdrawIntentPayload.amount_e18:type_name -> polyester.type.v1.U128
-	6, // 2: chain.withdraw.v1.TradingWithdrawIntentPayload.nonce:type_name -> polyester.type.v1.U128
-	3, // 3: chain.withdraw.v1.CreateTradingWithdrawRequest.payload:type_name -> chain.withdraw.v1.TradingWithdrawIntentPayload
-	3, // 4: chain.withdraw.v1.CreateWalletTradingWithdrawRequest.payload:type_name -> chain.withdraw.v1.TradingWithdrawIntentPayload
-	4, // 5: chain.withdraw.v1.WithdrawService.CreateTradingWithdraw:input_type -> chain.withdraw.v1.CreateTradingWithdrawRequest
-	5, // 6: chain.withdraw.v1.WithdrawService.CreateWalletTradingWithdraw:input_type -> chain.withdraw.v1.CreateWalletTradingWithdrawRequest
-	1, // 7: chain.withdraw.v1.WithdrawService.CreateTradingWithdraw:output_type -> chain.withdraw.v1.CreateTradingWithdrawResponse
-	2, // 8: chain.withdraw.v1.WithdrawService.CreateWalletTradingWithdraw:output_type -> chain.withdraw.v1.CreateWalletTradingWithdrawResponse
-	7, // [7:9] is the sub-list for method output_type
-	5, // [5:7] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	9, // 1: chain.withdraw.v1.TradingWithdrawIntentPayload.amount_e18:type_name -> polyester.type.v1.U128
+	9, // 2: chain.withdraw.v1.TradingWithdrawIntentPayload.nonce:type_name -> polyester.type.v1.U128
+	4, // 3: chain.withdraw.v1.CreateTradingWithdrawRequest.payload:type_name -> chain.withdraw.v1.TradingWithdrawIntentPayload
+	4, // 4: chain.withdraw.v1.CreateWalletTradingWithdrawRequest.payload:type_name -> chain.withdraw.v1.TradingWithdrawIntentPayload
+	1, // 5: chain.withdraw.v1.ValidateWithdrawDestinationResponse.code:type_name -> chain.withdraw.v1.WithdrawDestinationValidationCode
+	7, // 6: chain.withdraw.v1.WithdrawService.ValidateWithdrawDestination:input_type -> chain.withdraw.v1.ValidateWithdrawDestinationRequest
+	5, // 7: chain.withdraw.v1.WithdrawService.CreateTradingWithdraw:input_type -> chain.withdraw.v1.CreateTradingWithdrawRequest
+	6, // 8: chain.withdraw.v1.WithdrawService.CreateWalletTradingWithdraw:input_type -> chain.withdraw.v1.CreateWalletTradingWithdrawRequest
+	8, // 9: chain.withdraw.v1.WithdrawService.ValidateWithdrawDestination:output_type -> chain.withdraw.v1.ValidateWithdrawDestinationResponse
+	2, // 10: chain.withdraw.v1.WithdrawService.CreateTradingWithdraw:output_type -> chain.withdraw.v1.CreateTradingWithdrawResponse
+	3, // 11: chain.withdraw.v1.WithdrawService.CreateWalletTradingWithdraw:output_type -> chain.withdraw.v1.CreateWalletTradingWithdrawResponse
+	9, // [9:12] is the sub-list for method output_type
+	6, // [6:9] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_chain_withdraw_v1_withdraw_proto_init() }
@@ -512,8 +737,8 @@ func file_chain_withdraw_v1_withdraw_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chain_withdraw_v1_withdraw_proto_rawDesc), len(file_chain_withdraw_v1_withdraw_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   5,
+			NumEnums:      2,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
