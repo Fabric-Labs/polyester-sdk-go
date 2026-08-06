@@ -244,6 +244,23 @@ func (s *WithdrawService) CreateToExternalChain(ctx context.Context, assetID uin
 	return s.createTradingWithdraw(ctx, req)
 }
 
+// ValidateDestination checks one external-chain destination without creating a
+// withdraw. Use it for form feedback before Trading → external submission; the
+// create RPCs remain authoritative.
+func (s *WithdrawService) ValidateDestination(ctx context.Context, destinationChainID uint64, destinationAddress string) (models.WithdrawDestinationValidation, error) {
+	if destinationChainID == 0 {
+		return models.WithdrawDestinationValidation{}, &errors.ValidationError{Msg: "destination_chain_id must be non-zero"}
+	}
+	if destinationAddress == "" {
+		return models.WithdrawDestinationValidation{}, &errors.ValidationError{Msg: "destination_address is required"}
+	}
+	req := &chainwithdrawv1.ValidateWithdrawDestinationRequest{
+		DestinationChainId: destinationChainID,
+		DestinationAddress: destinationAddress,
+	}
+	return UnaryAuth(ctx, s.transport, s.client().ValidateWithdrawDestination, req, decode.WithdrawDestinationValidationFromProto)
+}
+
 func (s *WithdrawService) CreateWalletTradingWithdraw(ctx context.Context, action string, assetID uint32, amount models.AssetAmountInput, idempotencyKey string, payloadSignature []byte, signerWallet string, account AccountScope, subAccountID *string, destinationChainID uint64, deadlineTsSec *uint64, nonce string, destinationAddress string, amountScale int) (models.WithdrawIntentResult, error) {
 	if len(payloadSignature) == 0 {
 		return models.WithdrawIntentResult{}, &errors.ValidationError{Msg: "payload_signature is required for trading withdraw"}

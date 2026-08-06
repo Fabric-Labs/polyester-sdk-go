@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// WithdrawServiceValidateWithdrawDestinationProcedure is the fully-qualified name of the
+	// WithdrawService's ValidateWithdrawDestination RPC.
+	WithdrawServiceValidateWithdrawDestinationProcedure = "/chain.withdraw.v1.WithdrawService/ValidateWithdrawDestination"
 	// WithdrawServiceCreateTradingWithdrawProcedure is the fully-qualified name of the
 	// WithdrawService's CreateTradingWithdraw RPC.
 	WithdrawServiceCreateTradingWithdrawProcedure = "/chain.withdraw.v1.WithdrawService/CreateTradingWithdraw"
@@ -43,6 +46,9 @@ const (
 
 // WithdrawServiceClient is a client for the chain.withdraw.v1.WithdrawService service.
 type WithdrawServiceClient interface {
+	// Validate an external-chain withdraw destination for an authenticated
+	// caller without creating, signing, or reserving a withdraw.
+	ValidateWithdrawDestination(context.Context, *connect.Request[v1.ValidateWithdrawDestinationRequest]) (*connect.Response[v1.ValidateWithdrawDestinationResponse], error)
 	// Create or return one durable withdraw from Trading.
 	CreateTradingWithdraw(context.Context, *connect.Request[v1.CreateTradingWithdrawRequest]) (*connect.Response[v1.CreateTradingWithdrawResponse], error)
 	// Create or return one wallet/JWT withdraw from Trading.
@@ -62,6 +68,12 @@ func NewWithdrawServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 	baseURL = strings.TrimRight(baseURL, "/")
 	withdrawServiceMethods := v1.File_chain_withdraw_v1_withdraw_proto.Services().ByName("WithdrawService").Methods()
 	return &withdrawServiceClient{
+		validateWithdrawDestination: connect.NewClient[v1.ValidateWithdrawDestinationRequest, v1.ValidateWithdrawDestinationResponse](
+			httpClient,
+			baseURL+WithdrawServiceValidateWithdrawDestinationProcedure,
+			connect.WithSchema(withdrawServiceMethods.ByName("ValidateWithdrawDestination")),
+			connect.WithClientOptions(opts...),
+		),
 		createTradingWithdraw: connect.NewClient[v1.CreateTradingWithdrawRequest, v1.CreateTradingWithdrawResponse](
 			httpClient,
 			baseURL+WithdrawServiceCreateTradingWithdrawProcedure,
@@ -79,8 +91,14 @@ func NewWithdrawServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // withdrawServiceClient implements WithdrawServiceClient.
 type withdrawServiceClient struct {
+	validateWithdrawDestination *connect.Client[v1.ValidateWithdrawDestinationRequest, v1.ValidateWithdrawDestinationResponse]
 	createTradingWithdraw       *connect.Client[v1.CreateTradingWithdrawRequest, v1.CreateTradingWithdrawResponse]
 	createWalletTradingWithdraw *connect.Client[v1.CreateWalletTradingWithdrawRequest, v1.CreateWalletTradingWithdrawResponse]
+}
+
+// ValidateWithdrawDestination calls chain.withdraw.v1.WithdrawService.ValidateWithdrawDestination.
+func (c *withdrawServiceClient) ValidateWithdrawDestination(ctx context.Context, req *connect.Request[v1.ValidateWithdrawDestinationRequest]) (*connect.Response[v1.ValidateWithdrawDestinationResponse], error) {
+	return c.validateWithdrawDestination.CallUnary(ctx, req)
 }
 
 // CreateTradingWithdraw calls chain.withdraw.v1.WithdrawService.CreateTradingWithdraw.
@@ -95,6 +113,9 @@ func (c *withdrawServiceClient) CreateWalletTradingWithdraw(ctx context.Context,
 
 // WithdrawServiceHandler is an implementation of the chain.withdraw.v1.WithdrawService service.
 type WithdrawServiceHandler interface {
+	// Validate an external-chain withdraw destination for an authenticated
+	// caller without creating, signing, or reserving a withdraw.
+	ValidateWithdrawDestination(context.Context, *connect.Request[v1.ValidateWithdrawDestinationRequest]) (*connect.Response[v1.ValidateWithdrawDestinationResponse], error)
 	// Create or return one durable withdraw from Trading.
 	CreateTradingWithdraw(context.Context, *connect.Request[v1.CreateTradingWithdrawRequest]) (*connect.Response[v1.CreateTradingWithdrawResponse], error)
 	// Create or return one wallet/JWT withdraw from Trading.
@@ -110,6 +131,12 @@ type WithdrawServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewWithdrawServiceHandler(svc WithdrawServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	withdrawServiceMethods := v1.File_chain_withdraw_v1_withdraw_proto.Services().ByName("WithdrawService").Methods()
+	withdrawServiceValidateWithdrawDestinationHandler := connect.NewUnaryHandler(
+		WithdrawServiceValidateWithdrawDestinationProcedure,
+		svc.ValidateWithdrawDestination,
+		connect.WithSchema(withdrawServiceMethods.ByName("ValidateWithdrawDestination")),
+		connect.WithHandlerOptions(opts...),
+	)
 	withdrawServiceCreateTradingWithdrawHandler := connect.NewUnaryHandler(
 		WithdrawServiceCreateTradingWithdrawProcedure,
 		svc.CreateTradingWithdraw,
@@ -124,6 +151,8 @@ func NewWithdrawServiceHandler(svc WithdrawServiceHandler, opts ...connect.Handl
 	)
 	return "/chain.withdraw.v1.WithdrawService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case WithdrawServiceValidateWithdrawDestinationProcedure:
+			withdrawServiceValidateWithdrawDestinationHandler.ServeHTTP(w, r)
 		case WithdrawServiceCreateTradingWithdrawProcedure:
 			withdrawServiceCreateTradingWithdrawHandler.ServeHTTP(w, r)
 		case WithdrawServiceCreateWalletTradingWithdrawProcedure:
@@ -136,6 +165,10 @@ func NewWithdrawServiceHandler(svc WithdrawServiceHandler, opts ...connect.Handl
 
 // UnimplementedWithdrawServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedWithdrawServiceHandler struct{}
+
+func (UnimplementedWithdrawServiceHandler) ValidateWithdrawDestination(context.Context, *connect.Request[v1.ValidateWithdrawDestinationRequest]) (*connect.Response[v1.ValidateWithdrawDestinationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chain.withdraw.v1.WithdrawService.ValidateWithdrawDestination is not implemented"))
+}
 
 func (UnimplementedWithdrawServiceHandler) CreateTradingWithdraw(context.Context, *connect.Request[v1.CreateTradingWithdrawRequest]) (*connect.Response[v1.CreateTradingWithdrawResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chain.withdraw.v1.WithdrawService.CreateTradingWithdraw is not implemented"))

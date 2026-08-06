@@ -393,6 +393,10 @@ SDK notes:
   via wallet/smart-account signing in the Polyester app (not an API-key RPC).
 - **Trading → funding:** `client.TradingWithdraws.CreateToFunding(...)` with a
   signed intent payload.
+- **Trading → external destination check:**
+  `client.TradingWithdraws.ValidateDestination(ctx, chainID, address)` returns
+  user-safe `valid` / `code` / `message` / `canonical_destination_address`
+  without creating a withdraw (create RPCs remain authoritative).
 - **Trading → trading (another account):** `client.InternalTransfers.Create(...)`.
 
 ```go

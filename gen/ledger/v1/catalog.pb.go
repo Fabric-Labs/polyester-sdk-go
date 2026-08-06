@@ -104,6 +104,8 @@ const (
 	TransferCode_TRADING_WITHDRAW_RESERVE TransferCode = 1062
 	// Funding user-to-user transfer.
 	TransferCode_FUNDING_USER_TRANSFER TransferCode = 1063
+	// Non-refundable on-chain request fee retained when a submitted trading withdrawal fails.
+	TransferCode_TRADING_WITHDRAW_REQUEST_FEE TransferCode = 1065
 )
 
 // Enum value maps for TransferCode.
@@ -122,21 +124,23 @@ var (
 		1061: "TRADING_TO_FUNDING",
 		1062: "TRADING_WITHDRAW_RESERVE",
 		1063: "FUNDING_USER_TRANSFER",
+		1065: "TRADING_WITHDRAW_REQUEST_FEE",
 	}
 	TransferCode_value = map[string]int32{
-		"TRANSFER_CODE_UNSPECIFIED": 0,
-		"DEPOSIT":                   1000,
-		"WITHDRAW":                  1001,
-		"MAKER_FEE":                 1010,
-		"TAKER_FEE":                 1011,
-		"INTERNAL_TRANSFER":         1030,
-		"TRADE_BASE":                1031,
-		"TRADE_QUOTE":               1032,
-		"REBATE":                    1041,
-		"FUNDING_TO_TRADING":        1060,
-		"TRADING_TO_FUNDING":        1061,
-		"TRADING_WITHDRAW_RESERVE":  1062,
-		"FUNDING_USER_TRANSFER":     1063,
+		"TRANSFER_CODE_UNSPECIFIED":    0,
+		"DEPOSIT":                      1000,
+		"WITHDRAW":                     1001,
+		"MAKER_FEE":                    1010,
+		"TAKER_FEE":                    1011,
+		"INTERNAL_TRANSFER":            1030,
+		"TRADE_BASE":                   1031,
+		"TRADE_QUOTE":                  1032,
+		"REBATE":                       1041,
+		"FUNDING_TO_TRADING":           1060,
+		"TRADING_TO_FUNDING":           1061,
+		"TRADING_WITHDRAW_RESERVE":     1062,
+		"FUNDING_USER_TRANSFER":        1063,
+		"TRADING_WITHDRAW_REQUEST_FEE": 1065,
 	}
 )
 
@@ -175,7 +179,7 @@ const file_ledger_v1_catalog_proto_rawDesc = "" +
 	"\vAccountCode\x12\x1c\n" +
 	"\x18ACCOUNT_CODE_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\aFUNDING\x10\xac\x02\x12\f\n" +
-	"\aTRADING\x10\xad\x02*\x9f\x02\n" +
+	"\aTRADING\x10\xad\x02*\xc2\x02\n" +
 	"\fTransferCode\x12\x1d\n" +
 	"\x19TRANSFER_CODE_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\aDEPOSIT\x10\xe8\a\x12\r\n" +
@@ -190,7 +194,8 @@ const file_ledger_v1_catalog_proto_rawDesc = "" +
 	"\x12FUNDING_TO_TRADING\x10\xa4\b\x12\x17\n" +
 	"\x12TRADING_TO_FUNDING\x10\xa5\b\x12\x1d\n" +
 	"\x18TRADING_WITHDRAW_RESERVE\x10\xa6\b\x12\x1a\n" +
-	"\x15FUNDING_USER_TRANSFER\x10\xa7\bB@Z>github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/v1;ledgerv1b\x06proto3"
+	"\x15FUNDING_USER_TRANSFER\x10\xa7\b\x12!\n" +
+	"\x1cTRADING_WITHDRAW_REQUEST_FEE\x10\xa9\bB@Z>github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/v1;ledgerv1b\x06proto3"
 
 var (
 	file_ledger_v1_catalog_proto_rawDescOnce sync.Once

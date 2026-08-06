@@ -1801,14 +1801,14 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"\x06series\x18\b \x03(\v2\x1c.ledger.read.v1.EquitySeriesR\x06series\x12 \n" +
 	"\fbtc_prices_q\x18\n" +
 	" \x03(\x03R\n" +
-	"btcPricesQ\"\xf9\x03\n" +
+	"btcPricesQ\"\x83\x04\n" +
 	"\x14ListTransfersRequest\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12\x1e\n" +
 	"\x05limit\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xe8\aR\x05limit\x12\x1a\n" +
 	"\breversed\x18\x03 \x01(\bR\breversed\x12\x1a\n" +
 	"\tts_min_us\x18\x04 \x01(\x04R\atsMinUs\x12\x1a\n" +
-	"\tts_max_us\x18\x05 \x01(\x04R\atsMaxUs\x12<\n" +
-	"\rtransfer_code\x18\x06 \x01(\x0e2\x17.ledger.v1.TransferCodeR\ftransferCode\x12\x16\n" +
+	"\tts_max_us\x18\x05 \x01(\x04R\atsMaxUs\x12F\n" +
+	"\rtransfer_code\x18\x06 \x01(\x0e2\x17.ledger.v1.TransferCodeB\b\xbaH\x05\x82\x01\x02\x10\x01R\ftransferCode\x12\x16\n" +
 	"\x06ledger\x18\a \x01(\rR\x06ledger\x12'\n" +
 	"\n" +
 	"page_token\x18\t \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken:\xb1\x01\xbaH\xad\x01\x1a\xaa\x01\n" +
