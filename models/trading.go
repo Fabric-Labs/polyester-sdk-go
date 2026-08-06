@@ -364,6 +364,15 @@ type WithdrawIntentResult struct {
 	FlowID   string `json:"flow_id,omitempty"`
 }
 
+// WithdrawDestinationValidation is the user-safe outcome of
+// WithdrawService.ValidateDestination.
+type WithdrawDestinationValidation struct {
+	Valid                       bool   `json:"valid"`
+	Code                        string `json:"code,omitempty"`
+	Message                     string `json:"message,omitempty"`
+	CanonicalDestinationAddress string `json:"canonical_destination_address,omitempty"`
+}
+
 // ZipperReasonDetails is the Zipper-specific failure detail on a lifecycle flow.
 type ZipperReasonDetails struct {
 	Code     int32  `json:"code,omitempty"`

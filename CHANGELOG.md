@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Added
+- `Withdraw.ValidateDestination` wraps `ValidateWithdrawDestination` and maps
+  validation codes to snake labels (`valid`, `invalid_address`,
+  `denylisted_address`, …) for preflight checks before Trading → external
+  withdraws.
+
 ## 0.1.0a36
 
 Git tag: `v0.1.0a36`.
