@@ -549,7 +549,9 @@ type CommandReject struct {
 	// Stable machine-readable reject code.
 	Code string `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
 	// Client-safe diagnostic detail.
-	Detail        string `protobuf:"bytes,2,opt,name=detail,proto3" json:"detail,omitempty"`
+	Detail string `protobuf:"bytes,2,opt,name=detail,proto3" json:"detail,omitempty"`
+	// Structured error details, including retry guidance for rate-limit rejections.
+	Error         *v1.ErrorDetail `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -596,6 +598,13 @@ func (x *CommandReject) GetDetail() string {
 		return x.Detail
 	}
 	return ""
+}
+
+func (x *CommandReject) GetError() *v1.ErrorDetail {
+	if x != nil {
+		return x.Error
+	}
+	return nil
 }
 
 // OverloadResponse reports that the session exceeded server admission limits.
@@ -743,10 +752,11 @@ const file_tradews_v1_trade_ws_proto_rawDesc = "" +
 	"\fcancel_order\x18\x02 \x01(\v2\x1e.orders.v1.CancelOrderResponseH\x00R\vcancelOrder\x12C\n" +
 	"\fmodify_order\x18\x03 \x01(\v2\x1e.orders.v1.ModifyOrderResponseH\x00R\vmodifyOrder\x12P\n" +
 	"\x11cancel_all_orders\x18\x04 \x01(\v2\".orders.v1.CancelAllOrdersResponseH\x00R\x0fcancelAllOrdersB\b\n" +
-	"\x06result\";\n" +
+	"\x06result\"i\n" +
 	"\rCommandReject\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x16\n" +
-	"\x06detail\x18\x02 \x01(\tR\x06detail\">\n" +
+	"\x06detail\x18\x02 \x01(\tR\x06detail\x12,\n" +
+	"\x05error\x18\x03 \x01(\v2\x16.orders.v1.ErrorDetailR\x05error\">\n" +
 	"\x10OverloadResponse\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x16\n" +
 	"\x06detail\x18\x02 \x01(\tR\x06detail\"B\n" +
@@ -784,6 +794,7 @@ var file_tradews_v1_trade_ws_proto_goTypes = []any{
 	(*v1.CancelOrderResponse)(nil),     // 13: orders.v1.CancelOrderResponse
 	(*v1.ModifyOrderResponse)(nil),     // 14: orders.v1.ModifyOrderResponse
 	(*v1.CancelAllOrdersResponse)(nil), // 15: orders.v1.CancelAllOrdersResponse
+	(*v1.ErrorDetail)(nil),             // 16: orders.v1.ErrorDetail
 }
 var file_tradews_v1_trade_ws_proto_depIdxs = []int32{
 	1,  // 0: tradews.v1.ClientFrame.ping:type_name -> tradews.v1.PingRequest
@@ -800,11 +811,12 @@ var file_tradews_v1_trade_ws_proto_depIdxs = []int32{
 	13, // 11: tradews.v1.AckResponse.cancel_order:type_name -> orders.v1.CancelOrderResponse
 	14, // 12: tradews.v1.AckResponse.modify_order:type_name -> orders.v1.ModifyOrderResponse
 	15, // 13: tradews.v1.AckResponse.cancel_all_orders:type_name -> orders.v1.CancelAllOrdersResponse
-	14, // [14:14] is the sub-list for method output_type
-	14, // [14:14] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	16, // 14: tradews.v1.CommandReject.error:type_name -> orders.v1.ErrorDetail
+	15, // [15:15] is the sub-list for method output_type
+	15, // [15:15] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_tradews_v1_trade_ws_proto_init() }
