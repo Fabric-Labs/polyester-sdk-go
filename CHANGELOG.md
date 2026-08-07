@@ -2,10 +2,18 @@
 
 ## Unreleased
 
+## 0.1.0a38
+
+Git tag: `v0.1.0a38`.
+
 ### Breaking
 - `Lifecycle.GetFlowByTx` now returns `models.LifecycleFlowsList` instead of
   silently returning only the first match. A non-positive limit now defaults
   to 50; use `Lifecycle.ListFlowsByTx` with `NextPageToken` for pagination.
+
+### Added
+- Generated `polyester.ratelimit.v1` contracts expose structured quota
+  rejection details used by order and trade WebSocket responses.
 
 ## 0.1.0a37
 
