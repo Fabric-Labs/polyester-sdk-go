@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Breaking
+- `Lifecycle.GetFlowByTx` now returns `models.LifecycleFlowsList` instead of
+  silently returning only the first match. A non-positive limit now defaults
+  to 50; use `Lifecycle.ListFlowsByTx` with `NextPageToken` for pagination.
+
 ## 0.1.0a37
 
 Git tag: `v0.1.0a37`.

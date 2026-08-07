@@ -87,16 +87,11 @@ func TestLifecycleReasonUnspecified(t *testing.T) {
 	}
 }
 
-func TestSingularLifecycleResponsesRejectMissingRequiredEntities(t *testing.T) {
+func TestGetFlowResponseRejectsMissingRequiredEntity(t *testing.T) {
 	_, err := decode.FlowFromGetResponse(&lifecyclev1.GetFlowResponse{})
 	var transportErr *sdkerrors.TransportError
 	if !errors.As(err, &transportErr) {
 		t.Fatalf("expected TransportError for missing flow, got %T: %v", err, err)
-	}
-
-	_, err = decode.FlowFromGetByTxResponse(&lifecyclev1.ListFlowsByTxResponse{})
-	if !errors.As(err, &transportErr) {
-		t.Fatalf("expected TransportError for missing match, got %T: %v", err, err)
 	}
 }
 
@@ -114,22 +109,29 @@ func TestFlowsListFromProto(t *testing.T) {
 	}
 }
 
-func TestFlowTxMatchUsesSmartAccountAddress(t *testing.T) {
+func TestFlowByTxResponseReturnsAllMatches(t *testing.T) {
 	result, err := decode.FlowFromGetByTxResponse(&lifecyclev1.ListFlowsByTxResponse{
-		Matches: []*lifecyclev1.FlowTxMatchView{{
-			FlowId:              "flow-tx",
-			SourceAddress:       "0xsource",
-			OwnerAccountId:      99,
-			SmartAccountAddress: "0xsmart",
-			LifecycleReason:     lifecyclev1.LifecycleReason_LEDGER_MIRROR_REJECTED,
-		}},
+		Matches: []*lifecyclev1.FlowTxMatchView{
+			{
+				FlowId:              "flow-a",
+				SourceAddress:       "0xsource",
+				OwnerAccountId:      99,
+				SmartAccountAddress: "0xsmart",
+				LifecycleReason:     lifecyclev1.LifecycleReason_LEDGER_MIRROR_REJECTED,
+			},
+			{FlowId: "flow-b"},
+		},
+		NextPageToken: "next",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.OwnerAccountID != codecs.FormatUint64ID(99) ||
-		result.SmartAccountAddress != "0xsmart" ||
-		result.LifecycleReason != "ledger_mirror_rejected" {
+	if len(result.Flows) != 2 ||
+		result.Flows[0].OwnerAccountID != codecs.FormatUint64ID(99) ||
+		result.Flows[0].SmartAccountAddress != "0xsmart" ||
+		result.Flows[0].LifecycleReason != "ledger_mirror_rejected" ||
+		result.Flows[1].IntentID != "flow-b" ||
+		result.NextPageToken != "next" {
 		t.Fatalf("result=%+v", result)
 	}
 }

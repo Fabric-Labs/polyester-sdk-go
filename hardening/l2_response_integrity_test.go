@@ -231,16 +231,24 @@ func TestL2CreateDepositAddressRejectsMissingEntityThroughPublicService(t *testi
 	}
 }
 
-type missingLifecycleFlowHandler struct {
+type lifecycleFlowsHandler struct {
 	chainlifecyclev1connect.UnimplementedLifecycleReadServiceHandler
+	lastLimit uint32
 }
 
-func (*missingLifecycleFlowHandler) ListFlowsByTx(context.Context, *connect.Request[lifecyclev1.ListFlowsByTxRequest]) (*connect.Response[lifecyclev1.ListFlowsByTxResponse], error) {
-	return connect.NewResponse(&lifecyclev1.ListFlowsByTxResponse{}), nil
+func (h *lifecycleFlowsHandler) ListFlowsByTx(_ context.Context, req *connect.Request[lifecyclev1.ListFlowsByTxRequest]) (*connect.Response[lifecyclev1.ListFlowsByTxResponse], error) {
+	h.lastLimit = req.Msg.GetLimit()
+	return connect.NewResponse(&lifecyclev1.ListFlowsByTxResponse{
+		Matches: []*lifecyclev1.FlowTxMatchView{
+			{FlowId: "flow-a"},
+			{FlowId: "flow-b"},
+		},
+	}), nil
 }
 
-func TestL2GetFlowByTxRejectsMissingMatchThroughPublicService(t *testing.T) {
-	path, handler := chainlifecyclev1connect.NewLifecycleReadServiceHandler(&missingLifecycleFlowHandler{})
+func TestL2GetFlowByTxReturnsAllMatchesThroughPublicService(t *testing.T) {
+	service := &lifecycleFlowsHandler{}
+	path, handler := chainlifecyclev1connect.NewLifecycleReadServiceHandler(service)
 	mux := http.NewServeMux()
 	mux.Handle(path, handler)
 	srv := httptest.NewServer(mux)
@@ -255,9 +263,14 @@ func TestL2GetFlowByTxRejectsMissingMatchThroughPublicService(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = client.Close() })
 
-	_, err = client.Lifecycle.GetFlowByTx(context.Background(), "0x01", "any", 1)
-	var transportErr *sdkerrors.TransportError
-	if !errors.As(err, &transportErr) {
-		t.Fatalf("expected TransportError, got %T: %v", err, err)
+	result, err := client.Lifecycle.GetFlowByTx(context.Background(), "0x01", "any", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Flows) != 2 || result.Flows[0].IntentID != "flow-a" || result.Flows[1].IntentID != "flow-b" {
+		t.Fatalf("result=%+v", result)
+	}
+	if service.lastLimit != 50 {
+		t.Fatalf("default limit=%d, want 50", service.lastLimit)
 	}
 }

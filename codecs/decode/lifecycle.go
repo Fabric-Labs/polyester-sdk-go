@@ -164,13 +164,12 @@ func flowTxMatch(msg *lifecyclev1.FlowTxMatchView) models.LifecycleFlowSummary {
 	}
 }
 
-func FlowFromGetByTxResponse(msg *lifecyclev1.ListFlowsByTxResponse) (models.LifecycleFlowSummary, error) {
-	if len(msg.GetMatches()) == 0 {
-		return models.LifecycleFlowSummary{}, &sdkerrors.TransportError{
-			Msg: "invalid GetFlowByTx response: no matching flow",
-		}
-	}
-	return flowTxMatch(msg.GetMatches()[0]), nil
+// FlowFromGetByTxResponse decodes every match in a transaction lookup.
+//
+// The legacy helper name is retained for compatibility, but transaction
+// lookups are one-to-many and must not silently discard bundled flows.
+func FlowFromGetByTxResponse(msg *lifecyclev1.ListFlowsByTxResponse) (models.LifecycleFlowsList, error) {
+	return FlowsByTxListFromProto(msg), nil
 }
 
 func FlowsByTxListFromProto(msg *lifecyclev1.ListFlowsByTxResponse) models.LifecycleFlowsList {

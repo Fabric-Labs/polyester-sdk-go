@@ -77,9 +77,12 @@ func (s *LifecycleService) GetFlow(ctx context.Context, intentID, flowID *string
 	return UnaryPublicDecoded(ctx, s.transport, s.client().GetFlowById, req, decode.FlowFromGetResponse)
 }
 
-func (s *LifecycleService) GetFlowByTx(ctx context.Context, txHash, lookupKind string, limit int) (models.LifecycleFlowSummary, error) {
+// GetFlowByTx returns all matches in the first response page for a transaction.
+// A chain transaction can contain multiple bundled lifecycle flows. Use
+// ListFlowsByTx to follow NextPageToken when the result spans multiple pages.
+func (s *LifecycleService) GetFlowByTx(ctx context.Context, txHash, lookupKind string, limit int) (models.LifecycleFlowsList, error) {
 	if limit <= 0 {
-		limit = 1
+		limit = 50
 	}
 	req := &lifecyclev1.ListFlowsByTxRequest{
 		TxHash:     txHash,

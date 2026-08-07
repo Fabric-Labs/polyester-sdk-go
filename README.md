@@ -634,6 +634,35 @@ account.
 | `codecs/` | Request encoding, scalar helpers, decode |
 | `gen/` | Checked-in Connect + protobuf generated code |
 
+## Lifecycle transaction lookups
+
+One chain transaction can reference multiple lifecycle flows when operations
+are bundled. Transaction lookups therefore return a page, not one flow:
+
+```go
+page, err := client.Lifecycle.ListFlowsByTx(ctx, txHash, "any", 50, nil)
+if err != nil {
+	log.Fatal(err)
+}
+flowIDs := make([]string, 0, len(page.Flows))
+for _, flow := range page.Flows {
+	flowIDs = append(flowIDs, flow.IntentID)
+}
+for page.NextPageToken != "" {
+	token := page.NextPageToken
+	page, err = client.Lifecycle.ListFlowsByTx(ctx, txHash, "any", 50, &token)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for _, flow := range page.Flows {
+		flowIDs = append(flowIDs, flow.IntentID)
+	}
+}
+```
+
+`Lifecycle.GetFlowByTx` also returns the complete first page. Use
+`Lifecycle.ListFlowsByTx` when following pagination.
+
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md).
