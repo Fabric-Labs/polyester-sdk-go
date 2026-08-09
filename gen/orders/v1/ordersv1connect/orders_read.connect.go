@@ -53,10 +53,10 @@ const (
 // OrdersReadServiceClient is a client for the orders.v1.OrdersReadService service.
 type OrdersReadServiceClient interface {
 	// Retrieve non-terminal orders for an account.
-	// Supports optional subaccount, symbol, and side filters with cursor pagination.
+	// Supports optional subaccount, trigger, symbol, and side filters with cursor pagination.
 	GetOpenOrders(context.Context, *connect.Request[v1.GetOpenOrdersRequest]) (*connect.Response[v1.GetOpenOrdersResponse], error)
 	// Retrieve terminal order history for an account.
-	// Supports optional subaccount, symbol, side, status, and time-range filters with cursor pagination.
+	// Supports optional subaccount, trigger, symbol, side, status, and time-range filters with cursor pagination.
 	GetOrderHistory(context.Context, *connect.Request[v1.GetOrderHistoryRequest]) (*connect.Response[v1.GetOrderHistoryResponse], error)
 	// Retrieve per-user trade fills for an account.
 	// Supports optional subaccount, symbol, side, and time-range filters with cursor pagination.
@@ -149,10 +149,10 @@ func (c *ordersReadServiceClient) GetBatchReplaceStatus(ctx context.Context, req
 // OrdersReadServiceHandler is an implementation of the orders.v1.OrdersReadService service.
 type OrdersReadServiceHandler interface {
 	// Retrieve non-terminal orders for an account.
-	// Supports optional subaccount, symbol, and side filters with cursor pagination.
+	// Supports optional subaccount, trigger, symbol, and side filters with cursor pagination.
 	GetOpenOrders(context.Context, *connect.Request[v1.GetOpenOrdersRequest]) (*connect.Response[v1.GetOpenOrdersResponse], error)
 	// Retrieve terminal order history for an account.
-	// Supports optional subaccount, symbol, side, status, and time-range filters with cursor pagination.
+	// Supports optional subaccount, trigger, symbol, side, status, and time-range filters with cursor pagination.
 	GetOrderHistory(context.Context, *connect.Request[v1.GetOrderHistoryRequest]) (*connect.Response[v1.GetOrderHistoryResponse], error)
 	// Retrieve per-user trade fills for an account.
 	// Supports optional subaccount, symbol, side, and time-range filters with cursor pagination.
