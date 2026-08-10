@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.0a39
+
+Git tag: `v0.1.0a39`.
+
 ### Breaking
 - `Orders.ListOpen` and `Orders.ListHistory` gain a trailing `triggerID *string`
   filter. When set, only child orders created by that trigger are returned
