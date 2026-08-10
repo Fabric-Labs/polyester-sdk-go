@@ -1329,8 +1329,11 @@ type GetOpenOrdersRequest struct {
 	IncludeAttachedRisk *bool `protobuf:"varint,12,opt,name=include_attached_risk,json=includeAttachedRisk,proto3,oneof" json:"include_attached_risk,omitempty"`
 	// Include attached-risk state details in each order (defaults to false when unset).
 	IncludeAttachedRiskState *bool `protobuf:"varint,13,opt,name=include_attached_risk_state,json=includeAttachedRiskState,proto3,oneof" json:"include_attached_risk_state,omitempty"`
-	unknownFields            protoimpl.UnknownFields
-	sizeCache                protoimpl.SizeCache
+	// Optional trigger identifier. When set, returns only child orders created by
+	// that trigger.
+	TriggerId     *uint64 `protobuf:"fixed64,14,opt,name=trigger_id,json=triggerId,proto3,oneof" json:"trigger_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetOpenOrdersRequest) Reset() {
@@ -1410,6 +1413,13 @@ func (x *GetOpenOrdersRequest) GetIncludeAttachedRiskState() bool {
 		return *x.IncludeAttachedRiskState
 	}
 	return false
+}
+
+func (x *GetOpenOrdersRequest) GetTriggerId() uint64 {
+	if x != nil && x.TriggerId != nil {
+		return *x.TriggerId
+	}
+	return 0
 }
 
 // GetOpenOrdersResponse returns open orders and an optional next-page cursor.
@@ -1492,8 +1502,11 @@ type GetOrderHistoryRequest struct {
 	IncludeAttachedRisk *bool `protobuf:"varint,14,opt,name=include_attached_risk,json=includeAttachedRisk,proto3,oneof" json:"include_attached_risk,omitempty"`
 	// Include attached-risk state details in each order (defaults to false when unset).
 	IncludeAttachedRiskState *bool `protobuf:"varint,15,opt,name=include_attached_risk_state,json=includeAttachedRiskState,proto3,oneof" json:"include_attached_risk_state,omitempty"`
-	unknownFields            protoimpl.UnknownFields
-	sizeCache                protoimpl.SizeCache
+	// Optional trigger identifier. When set, returns only child orders created by
+	// that trigger.
+	TriggerId     *uint64 `protobuf:"fixed64,16,opt,name=trigger_id,json=triggerId,proto3,oneof" json:"trigger_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetOrderHistoryRequest) Reset() {
@@ -1594,6 +1607,13 @@ func (x *GetOrderHistoryRequest) GetIncludeAttachedRiskState() bool {
 		return *x.IncludeAttachedRiskState
 	}
 	return false
+}
+
+func (x *GetOrderHistoryRequest) GetTriggerId() uint64 {
+	if x != nil && x.TriggerId != nil {
+		return *x.TriggerId
+	}
+	return 0
 }
 
 // GetOrderHistoryResponse returns historical orders and an optional next-page cursor.
@@ -2350,7 +2370,7 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\rtransfer_code\x18\x06 \x01(\x0e2\x17.ledger.v1.TransferCodeR\ftransferCode\x129\n" +
 	"\faccount_code\x18\a \x01(\x0e2\x16.ledger.v1.AccountCodeR\vaccountCode\x12\x13\n" +
 	"\x05ts_ns\x18\b \x01(\x04R\x04tsNs\x12\x13\n" +
-	"\x05tx_id\x18\t \x01(\tR\x04txId\"\xd1\x03\n" +
+	"\x05tx_id\x18\t \x01(\tR\x04txId\"\x94\x04\n" +
 	"\x14GetOpenOrdersRequest\x128\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01\x12-\n" +
 	"\tsymbol_id\x18\x02 \x03(\rB\x10\xbaH\r\x92\x01\n" +
@@ -2362,14 +2382,17 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\n" +
 	"page_token\x18\v \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken\x127\n" +
 	"\x15include_attached_risk\x18\f \x01(\bH\x02R\x13includeAttachedRisk\x88\x01\x01\x12B\n" +
-	"\x1binclude_attached_risk_state\x18\r \x01(\bH\x03R\x18includeAttachedRiskState\x88\x01\x01B\x10\n" +
+	"\x1binclude_attached_risk_state\x18\r \x01(\bH\x03R\x18includeAttachedRiskState\x88\x01\x01\x122\n" +
+	"\n" +
+	"trigger_id\x18\x0e \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x04R\ttriggerId\x88\x01\x01B\x10\n" +
 	"\x0e_subaccount_idB\b\n" +
 	"\x06_limitB\x18\n" +
 	"\x16_include_attached_riskB\x1e\n" +
-	"\x1c_include_attached_risk_state\"s\n" +
+	"\x1c_include_attached_risk_stateB\r\n" +
+	"\v_trigger_id\"s\n" +
 	"\x15GetOpenOrdersResponse\x12(\n" +
 	"\x06orders\x18\x01 \x03(\v2\x10.orders.v1.OrderR\x06orders\x120\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xae\x06\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xf1\x06\n" +
 	"\x16GetOrderHistoryRequest\x128\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01\x12-\n" +
 	"\tsymbol_id\x18\x02 \x03(\rB\x10\xbaH\r\x92\x01\n" +
@@ -2384,7 +2407,9 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\n" +
 	"page_token\x18\r \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken\x127\n" +
 	"\x15include_attached_risk\x18\x0e \x01(\bH\x04R\x13includeAttachedRisk\x88\x01\x01\x12B\n" +
-	"\x1binclude_attached_risk_state\x18\x0f \x01(\bH\x05R\x18includeAttachedRiskState\x88\x01\x01:\xba\x01\xbaH\xb6\x01\x1a\xb3\x01\n" +
+	"\x1binclude_attached_risk_state\x18\x0f \x01(\bH\x05R\x18includeAttachedRiskState\x88\x01\x01\x122\n" +
+	"\n" +
+	"trigger_id\x18\x10 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x06R\ttriggerId\x88\x01\x01:\xba\x01\xbaH\xb6\x01\x1a\xb3\x01\n" +
 	"%orders_history_bin.ordered_time_range\x122start_ts_ns must be <= end_ts_ns when both are set\x1aV!has(this.start_ts_ns) || !has(this.end_ts_ns) || (this.start_ts_ns <= this.end_ts_ns)B\x10\n" +
 	"\x0e_subaccount_idB\x0e\n" +
 	"\f_start_ts_nsB\f\n" +
@@ -2392,7 +2417,8 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"_end_ts_nsB\b\n" +
 	"\x06_limitB\x18\n" +
 	"\x16_include_attached_riskB\x1e\n" +
-	"\x1c_include_attached_risk_state\"u\n" +
+	"\x1c_include_attached_risk_stateB\r\n" +
+	"\v_trigger_id\"u\n" +
 	"\x17GetOrderHistoryResponse\x12(\n" +
 	"\x06orders\x18\x01 \x03(\v2\x10.orders.v1.OrderR\x06orders\x120\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xb2\x04\n" +

@@ -3,9 +3,15 @@ package testutil
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
+
+// nonDryRunCancelAll matches CancelAll(..., dryRun=false, requestID).
+// Avoid matching unrelated calls that merely end with ", false, nil)" such as
+// ListOpen(..., includeAttachedRisk, includeAttachedRiskState, triggerID).
+var nonDryRunCancelAll = regexp.MustCompile(`\.CancelAll\([^;]*,\s*false,\s*nil\)`)
 
 func TestNonDryRunCancelAllTestsRequireDedicatedAccountGate(t *testing.T) {
 	integrationRoot := filepath.Join("..", "..", "tests", "integration")
@@ -24,8 +30,7 @@ func TestNonDryRunCancelAllTestsRequireDedicatedAccountGate(t *testing.T) {
 			t.Fatal(err)
 		}
 		source := string(raw)
-		if strings.Contains(source, ".CancelAll(") &&
-			strings.Contains(source, "false, nil)") &&
+		if nonDryRunCancelAll.MatchString(source) &&
 			!strings.Contains(source, "RequireAccountWideCleanup") {
 			unguarded = append(unguarded, entry.Name())
 		}

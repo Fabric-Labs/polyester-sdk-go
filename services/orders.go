@@ -76,7 +76,8 @@ func boolPtr(v bool) *bool { return &v }
 func uint32Ptr(v uint32) *uint32 { return &v }
 
 // ListOpen returns open orders.
-func (s *OrdersService) ListOpen(ctx context.Context, account AccountScope, subAccountID *string, pageToken *string, limit *int, includeAttachedRisk, includeAttachedRiskState bool) (models.OrdersList, error) {
+// When triggerID is set, only child orders created by that trigger are returned.
+func (s *OrdersService) ListOpen(ctx context.Context, account AccountScope, subAccountID *string, pageToken *string, limit *int, includeAttachedRisk, includeAttachedRiskState bool, triggerID *string) (models.OrdersList, error) {
 	req := &orderv1.GetOpenOrdersRequest{
 		IncludeAttachedRisk: boolPtr(includeAttachedRisk), IncludeAttachedRiskState: boolPtr(includeAttachedRiskState),
 	}
@@ -89,11 +90,19 @@ func (s *OrdersService) ListOpen(ctx context.Context, account AccountScope, subA
 	if limit != nil {
 		req.Limit = uint32Ptr(uint32(*limit))
 	}
+	if triggerID != nil && *triggerID != "" {
+		id, err := codecs.IDToInt(*triggerID, "trigger_id")
+		if err != nil {
+			return models.OrdersList{}, err
+		}
+		req.TriggerId = &id
+	}
 	return UnaryAuth(ctx, s.transport, s.readClient().GetOpenOrders, req, decode.OrdersListFromOpen)
 }
 
 // ListHistory returns order history.
-func (s *OrdersService) ListHistory(ctx context.Context, account AccountScope, subAccountID, symbol *string, symbolID *uint32, pageToken *string, limit int, includeAttachedRisk, includeAttachedRiskState bool) (models.OrdersList, error) {
+// When triggerID is set, only child orders created by that trigger are returned.
+func (s *OrdersService) ListHistory(ctx context.Context, account AccountScope, subAccountID, symbol *string, symbolID *uint32, pageToken *string, limit int, includeAttachedRisk, includeAttachedRiskState bool, triggerID *string) (models.OrdersList, error) {
 	req := &orderv1.GetOrderHistoryRequest{
 		Limit: uint32Ptr(uint32(limit)), IncludeAttachedRisk: boolPtr(includeAttachedRisk),
 		IncludeAttachedRiskState: boolPtr(includeAttachedRiskState),
@@ -112,6 +121,13 @@ func (s *OrdersService) ListHistory(ctx context.Context, account AccountScope, s
 	}
 	if pageToken != nil {
 		req.PageToken = *pageToken
+	}
+	if triggerID != nil && *triggerID != "" {
+		id, err := codecs.IDToInt(*triggerID, "trigger_id")
+		if err != nil {
+			return models.OrdersList{}, err
+		}
+		req.TriggerId = &id
 	}
 	return UnaryAuth(ctx, s.transport, s.readClient().GetOrderHistory, req, decode.OrdersListFromHistory)
 }

@@ -51,11 +51,11 @@ func TestTriggerFromProtoMapsStopPrice(t *testing.T) {
 func TestTriggerFromProtoProjectsTrailingStopSideAndParent(t *testing.T) {
 	parentID := uint64(99)
 	msg := &triggersv1.Trigger{
-		TriggerId: 21,
-		SymbolId:  1,
-		Symbol:    "BTC-USDT",
-		Status:    triggersv1.TriggerStatus_STATUS_ARMED,
-		QtyScaled: 50_000_000,
+		TriggerId:     21,
+		SymbolId:      1,
+		Symbol:        "BTC-USDT",
+		Status:        triggersv1.TriggerStatus_STATUS_ARMED,
+		QtyScaled:     50_000_000,
 		ParentOrderId: &parentID,
 		Configuration: &triggersv1.Trigger_TrailingStop{
 			TrailingStop: &triggersv1.TrailingStopTrigger{
@@ -148,16 +148,16 @@ func TestTriggersListFromProto(t *testing.T) {
 func TestTriggerEventsListFromProto(t *testing.T) {
 	msg := &triggersv1.ListTriggerEventsResponse{
 		Events: []*triggersv1.TriggerEvent{{
-			TriggerId:       1,
-			SubaccountId:    9,
-			SymbolId:        2,
-			TriggerType:     triggersv1.TriggerType_TAKE_PROFIT,
-			EventType:       triggersv1.TriggerEventType_EVENT_FIRED,
-			TsNs:            123,
-			ChildSeq:        3,
-			ChildOrderId:    77,
-			FirePriceTicks:  100,
-			Reason:          "hit",
+			TriggerId:      1,
+			SubaccountId:   9,
+			SymbolId:       2,
+			TriggerType:    triggersv1.TriggerType_TAKE_PROFIT,
+			EventType:      triggersv1.TriggerEventType_EVENT_FIRED,
+			TsNs:           123,
+			ChildSeq:       3,
+			ChildOrderId:   77,
+			FirePriceTicks: int64Ptr(100),
+			Reason:         "hit",
 		}},
 		NextPageToken: "evt-page-2",
 	}
@@ -196,3 +196,23 @@ func TestGetTriggerFromProto(t *testing.T) {
 		t.Fatalf("trigger=%+v", trigger)
 	}
 }
+
+func TestTriggerEventAbsentFirePrice(t *testing.T) {
+	msg := &triggersv1.ListTriggerEventsResponse{
+		Events: []*triggersv1.TriggerEvent{{
+			TriggerId:   1,
+			EventType:   triggersv1.TriggerEventType_EVENT_FIRED,
+			TriggerType: triggersv1.TriggerType_TWAP,
+			ChildSeq:    1,
+		}},
+	}
+	result := decode.TriggerEventsListFromProto(msg)
+	if len(result.Events) != 1 {
+		t.Fatalf("events=%+v", result.Events)
+	}
+	if result.Events[0].FirePrice.Ticks() != 0 {
+		t.Fatalf("expected absent fire price, got %+v", result.Events[0].FirePrice)
+	}
+}
+
+func int64Ptr(v int64) *int64 { return &v }

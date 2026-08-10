@@ -127,7 +127,7 @@ func TestBatchReplaceFiveRoundsOfTwenty(t *testing.T) {
 		beforeCount := 0
 		for attempt := 0; attempt < 20; attempt++ {
 			limit := 100
-			beforeOpen, err := client.Orders.ListOpen(ctx, nil, nil, nil, &limit, false, false)
+			beforeOpen, err := client.Orders.ListOpen(ctx, nil, nil, nil, &limit, false, false, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -154,7 +154,7 @@ func TestBatchReplaceFiveRoundsOfTwenty(t *testing.T) {
 			}
 			// Timeout / ambiguous commit: reconcile then same request_id retry.
 			limit := 100
-			afterOpen, listErr := client.Orders.ListOpen(ctx, nil, nil, nil, &limit, false, false)
+			afterOpen, listErr := client.Orders.ListOpen(ctx, nil, nil, nil, &limit, false, false, nil)
 			if listErr != nil {
 				t.Fatalf("round %d reconcile list_open: %v (first=%v)", round, listErr, err)
 			}

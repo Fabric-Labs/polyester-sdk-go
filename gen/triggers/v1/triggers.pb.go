@@ -1762,9 +1762,9 @@ type TriggerEvent struct {
 	ChildSeq int32 `protobuf:"varint,11,opt,name=child_seq,json=childSeq,proto3" json:"child_seq,omitempty"`
 	// Child order ID created by this event, if any.
 	ChildOrderId uint64 `protobuf:"fixed64,12,opt,name=child_order_id,json=childOrderId,proto3" json:"child_order_id,omitempty"`
-	// Price that caused the trigger to fire, in quote units scaled by 1e6. Zero
-	// when not applicable.
-	FirePriceTicks int64 `protobuf:"varint,13,opt,name=fire_price_ticks,json=firePriceTicks,proto3" json:"fire_price_ticks,omitempty"`
+	// Price that caused a conditional trigger to fire, in quote units scaled by
+	// 1e6. Absent for time-scheduled triggers such as TWAP.
+	FirePriceTicks *int64 `protobuf:"varint,13,opt,name=fire_price_ticks,json=firePriceTicks,proto3,oneof" json:"fire_price_ticks,omitempty"`
 	// Optional cancel reason.
 	Reason        string `protobuf:"bytes,20,opt,name=reason,proto3" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1858,8 +1858,8 @@ func (x *TriggerEvent) GetChildOrderId() uint64 {
 }
 
 func (x *TriggerEvent) GetFirePriceTicks() int64 {
-	if x != nil {
-		return x.FirePriceTicks
+	if x != nil && x.FirePriceTicks != nil {
+		return *x.FirePriceTicks
 	}
 	return 0
 }
@@ -3387,7 +3387,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"event_type\x18\x04 \x01(\x0e2\x1d.triggers.v1.TriggerEventTypeB\b\xbaH\x05\x82\x01\x02\x10\x01R\teventType\x12'\n" +
 	"\n" +
 	"page_token\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageTokenB\x10\n" +
-	"\x0e_subaccount_id\"\x84\x03\n" +
+	"\x0e_subaccount_id\"\xa7\x03\n" +
 	"\fTriggerEvent\x12\x1d\n" +
 	"\n" +
 	"trigger_id\x18\x01 \x01(\x06R\ttriggerId\x12#\n" +
@@ -3399,9 +3399,10 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x05ts_ns\x18\n" +
 	" \x01(\x04R\x04tsNs\x12\x1b\n" +
 	"\tchild_seq\x18\v \x01(\x05R\bchildSeq\x12$\n" +
-	"\x0echild_order_id\x18\f \x01(\x06R\fchildOrderId\x12(\n" +
-	"\x10fire_price_ticks\x18\r \x01(\x03R\x0efirePriceTicks\x12\x16\n" +
-	"\x06reason\x18\x14 \x01(\tR\x06reason\"\x80\x01\n" +
+	"\x0echild_order_id\x18\f \x01(\x06R\fchildOrderId\x126\n" +
+	"\x10fire_price_ticks\x18\r \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x00R\x0efirePriceTicks\x88\x01\x01\x12\x16\n" +
+	"\x06reason\x18\x14 \x01(\tR\x06reasonB\x13\n" +
+	"\x11_fire_price_ticks\"\x80\x01\n" +
 	"\x19ListTriggerEventsResponse\x121\n" +
 	"\x06events\x18\x01 \x03(\v2\x19.triggers.v1.TriggerEventR\x06events\x120\n" +
 	"\x0fnext_page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\x81\x01\n" +
@@ -3743,6 +3744,7 @@ func file_triggers_v1_triggers_proto_init() {
 	file_triggers_v1_triggers_proto_msgTypes[14].OneofWrappers = []any{}
 	file_triggers_v1_triggers_proto_msgTypes[16].OneofWrappers = []any{}
 	file_triggers_v1_triggers_proto_msgTypes[18].OneofWrappers = []any{}
+	file_triggers_v1_triggers_proto_msgTypes[19].OneofWrappers = []any{}
 	file_triggers_v1_triggers_proto_msgTypes[21].OneofWrappers = []any{}
 	file_triggers_v1_triggers_proto_msgTypes[23].OneofWrappers = []any{
 		(*ModifyTriggerRequest_TrailingDistanceTicks)(nil),
