@@ -247,7 +247,7 @@ func TestMarketBuySellRoundtrip(t *testing.T) {
 	}
 
 	limit := 100
-	open, err := client.Orders.ListOpen(ctx, nil, nil, nil, &limit, false, false)
+	open, err := client.Orders.ListOpen(ctx, nil, nil, nil, &limit, false, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -291,7 +291,7 @@ func TestMarketBuySellRoundtrip(t *testing.T) {
 func cancelOpenTestOrders(t *testing.T, ctx context.Context, client *polyester.Client, symbol string, cids map[string]struct{}, label string) {
 	t.Helper()
 	limit := 100
-	open, err := client.Orders.ListOpen(ctx, nil, nil, nil, &limit, false, false)
+	open, err := client.Orders.ListOpen(ctx, nil, nil, nil, &limit, false, false, nil)
 	if err != nil {
 		t.Errorf("cleanup %s list_open failed: %v", label, err)
 		return
@@ -312,7 +312,7 @@ func waitNoOpenCIDs(ctx context.Context, client *polyester.Client, symbol string
 	deadline := time.Now().Add(timeout)
 	limit := 100
 	for time.Now().Before(deadline) {
-		open, err := client.Orders.ListOpen(ctx, nil, nil, nil, &limit, false, false)
+		open, err := client.Orders.ListOpen(ctx, nil, nil, nil, &limit, false, false, nil)
 		if err == nil {
 			remaining := 0
 			for _, order := range open.Orders {

@@ -92,7 +92,7 @@ func WaitForOpenOrder(ctx context.Context, client *polyester.Client, clientOrder
 				return models.Order{}, fmt.Errorf("order %s reached terminal status %q", clientOrderID, order.Status)
 			}
 		}
-		listed, err := client.Orders.ListOpen(ctx, nil, nil, nil, &limit, false, false)
+		listed, err := client.Orders.ListOpen(ctx, nil, nil, nil, &limit, false, false, nil)
 		if err == nil {
 			for _, order := range listed.Orders {
 				if order.ClientOrderID == clientOrderID {
@@ -123,7 +123,7 @@ func WaitForNoOpenOrder(ctx context.Context, client *polyester.Client, clientOrd
 	}
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		listed, err := client.Orders.ListOpen(ctx, nil, nil, nil, &limit, false, false)
+		listed, err := client.Orders.ListOpen(ctx, nil, nil, nil, &limit, false, false, nil)
 		if err != nil {
 			return err
 		}

@@ -41,7 +41,7 @@ func main() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := client.Orders.ListOpen(ctx, nil, nil, nil, &limit, false, false)
+			_, err := client.Orders.ListOpen(ctx, nil, nil, nil, &limit, false, false, nil)
 			if err != nil {
 				errCh <- err
 			}

@@ -15,7 +15,7 @@ func TestOrdersListOpen(t *testing.T) {
 
 	limit := 10
 	result := testutil.CallRequired(t, "orders.list_open", func() (models.OrdersList, error) {
-		return client.Orders.ListOpen(ctx, nil, nil, nil, &limit, false, false)
+		return client.Orders.ListOpen(ctx, nil, nil, nil, &limit, false, false, nil)
 	})
 	if result.Orders == nil {
 		t.Fatal("expected orders list")
@@ -33,7 +33,7 @@ func TestOrdersGetRoundTripsListOpen(t *testing.T) {
 
 	limit := 10
 	listed := testutil.CallRequired(t, "orders.list_open", func() (models.OrdersList, error) {
-		return client.Orders.ListOpen(ctx, nil, nil, nil, &limit, false, false)
+		return client.Orders.ListOpen(ctx, nil, nil, nil, &limit, false, false, nil)
 	})
 	if len(listed.Orders) == 0 {
 		t.Skip("no open orders on devnet; cannot round-trip orders.get")
@@ -61,7 +61,7 @@ func TestOrdersListHistory(t *testing.T) {
 
 	symbol := testutil.SmokeSymbol(t, client, ctx)
 	result := testutil.CallRequired(t, "orders.list_history", func() (models.OrdersList, error) {
-		return client.Orders.ListHistory(ctx, nil, nil, &symbol, nil, nil, 5, false, false)
+		return client.Orders.ListHistory(ctx, nil, nil, &symbol, nil, nil, 5, false, false, nil)
 	})
 	for _, order := range result.Orders {
 		if order.OrderID == "" || order.SymbolID == 0 || order.Status == "" {

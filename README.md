@@ -132,7 +132,7 @@ func main() {
 		fmt.Println(market.Symbol, market.LastPrice.Ticks())
 	}
 
-	openOrders, err := client.Orders.ListOpen(ctx, nil, nil, nil, nil, false, false)
+	openOrders, err := client.Orders.ListOpen(ctx, nil, nil, nil, nil, false, false, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -371,6 +371,11 @@ Standalone `trailing_stop` creates remain sell-only; the wire
 `TrailingStopTrigger` carries `side`, and list/get projections use that side
 (attached trailing stops may be buy or sell, opposite the parent). Attached
 triggers expose `ParentOrderID` when present.
+
+`Orders.ListOpen` / `Orders.ListHistory` accept an optional trailing
+`triggerID` to return only child orders created by that trigger (TWAP/ladder
+slices). Trigger-event `FirePrice` is empty for time-scheduled TWAP slice fires
+(`fire_price_ticks` is optional on the wire).
 
 ## Balances: funding vs trading
 

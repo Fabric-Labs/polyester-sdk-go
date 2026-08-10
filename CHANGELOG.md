@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Breaking
+- `Orders.ListOpen` and `Orders.ListHistory` gain a trailing `triggerID *string`
+  filter. When set, only child orders created by that trigger are returned
+  (useful for TWAP/ladder slice children and their execution prices).
+- Generated `TriggerEvent.fire_price_ticks` is now optional (absent for
+  time-scheduled TWAP slice fires). Decoded `TriggerEvent.FirePrice` stays
+  empty when the wire field is unset.
+
 ## 0.1.0a38
 
 Git tag: `v0.1.0a38`.
