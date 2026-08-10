@@ -6,6 +6,8 @@ import (
 	"connectrpc.com/connect"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
+	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
+	ratelimitv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/ratelimit/v1"
 )
 
 func TestMapConnectErrorSurfacesAuthRevisionConflict(t *testing.T) {
@@ -44,11 +46,90 @@ func TestMapConnectErrorSurfacesRetryAfter(t *testing.T) {
 	if rateLimitErr.RetryAfter == nil || *rateLimitErr.RetryAfter != 2.5 {
 		t.Fatalf("retry_after=%v", rateLimitErr.RetryAfter)
 	}
+	if rateLimitErr.Detail != nil {
+		t.Fatalf("expected nil detail, got %#v", rateLimitErr.Detail)
+	}
 	if !sdkerrors.IsRetryable(mapped) {
 		t.Fatal("rate limit must be retryable")
 	}
 	if sdkerrors.MutationOutcomeUnknown(mapped) {
 		t.Fatal("rate-limit rejection must not be marked as ambiguous")
+	}
+}
+
+func TestMapConnectErrorSurfacesNestedRateLimitDetail(t *testing.T) {
+	limit := uint64(100)
+	remaining := uint64(0)
+	retryAfterMs := uint64(2500)
+	policyVersion := uint64(3)
+	connectErr := connect.NewError(connect.CodeResourceExhausted, nil)
+	connectErr.Meta().Set("Retry-After", "9")
+	detail, err := connect.NewErrorDetail(&orderv1.ErrorDetail{
+		Code: orderv1.ErrorCode_ERROR_CODE_RATE_LIMIT_EXCEEDED,
+		RateLimit: &ratelimitv1.RateLimitDetail{
+			Reason:        ratelimitv1.FailureReason_QUOTA_EXCEEDED,
+			Limit:         &limit,
+			Remaining:     &remaining,
+			RetryAfterMs:  &retryAfterMs,
+			PolicyVersion: &policyVersion,
+			OperationId:   "orders.create",
+			PolicyClass:   ratelimitv1.PolicyClass_TRADING_PLACE,
+			Scope:         ratelimitv1.LimiterScope_API_KEY,
+			RefillModel:   ratelimitv1.RefillModel_CONTINUOUS,
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewErrorDetail: %v", err)
+	}
+	connectErr.AddDetail(detail)
+	mapped := MapConnectError(connectErr)
+	rateLimitErr, ok := mapped.(*sdkerrors.RateLimitError)
+	if !ok {
+		t.Fatalf("mapped=%T %#v", mapped, mapped)
+	}
+	if rateLimitErr.RetryAfter == nil || *rateLimitErr.RetryAfter != 2.5 {
+		t.Fatalf("detail retry_after should win over header: %v", rateLimitErr.RetryAfter)
+	}
+	if rateLimitErr.Detail == nil {
+		t.Fatal("expected rate limit detail")
+	}
+	if rateLimitErr.Detail.Reason != "QUOTA_EXCEEDED" ||
+		rateLimitErr.Detail.OperationID != "orders.create" ||
+		rateLimitErr.Detail.PolicyClass != "TRADING_PLACE" ||
+		rateLimitErr.Detail.Scope != "API_KEY" ||
+		rateLimitErr.Detail.RefillModel != "CONTINUOUS" ||
+		rateLimitErr.Detail.Limit == nil || *rateLimitErr.Detail.Limit != 100 ||
+		rateLimitErr.Detail.Remaining == nil || *rateLimitErr.Detail.Remaining != 0 ||
+		rateLimitErr.Detail.RetryAfterMs == nil || *rateLimitErr.Detail.RetryAfterMs != 2500 ||
+		rateLimitErr.Detail.PolicyVersion == nil || *rateLimitErr.Detail.PolicyVersion != 3 {
+		t.Fatalf("detail=%#v", rateLimitErr.Detail)
+	}
+}
+
+func TestMapConnectErrorSurfacesTopLevelRateLimitDetail(t *testing.T) {
+	retryAfterMs := uint64(1250)
+	connectErr := connect.NewError(connect.CodeResourceExhausted, nil)
+	detail, err := connect.NewErrorDetail(&ratelimitv1.RateLimitDetail{
+		Reason:       ratelimitv1.FailureReason_QUOTA_EXCEEDED,
+		RetryAfterMs: &retryAfterMs,
+		OperationId:  "auth.me",
+		PolicyClass:  ratelimitv1.PolicyClass_AUTH_PUBLIC,
+		Scope:        ratelimitv1.LimiterScope_CLIENT_IP,
+	})
+	if err != nil {
+		t.Fatalf("NewErrorDetail: %v", err)
+	}
+	connectErr.AddDetail(detail)
+	mapped := MapConnectError(connectErr)
+	rateLimitErr, ok := mapped.(*sdkerrors.RateLimitError)
+	if !ok {
+		t.Fatalf("mapped=%T %#v", mapped, mapped)
+	}
+	if rateLimitErr.RetryAfter == nil || *rateLimitErr.RetryAfter != 1.25 {
+		t.Fatalf("retry_after=%v", rateLimitErr.RetryAfter)
+	}
+	if rateLimitErr.Detail == nil || rateLimitErr.Detail.OperationID != "auth.me" {
+		t.Fatalf("detail=%#v", rateLimitErr.Detail)
 	}
 }
 

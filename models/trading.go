@@ -84,6 +84,8 @@ type OrderFieldViolation struct {
 type OrderErrorDetail struct {
 	Code       string                `json:"code,omitempty"`
 	Violations []OrderFieldViolation `json:"violations,omitempty"`
+	// RateLimit is set when the rejection carries polyester.ratelimit.v1 detail.
+	RateLimit *RateLimitDetail `json:"rate_limit,omitempty"`
 }
 
 // PreviewOrderResult is the advisory admission result of Orders.Preview.
@@ -152,6 +154,8 @@ type BatchReplaceAdmissionItem struct {
 	ReplacementOrderID string `json:"replacement_order_id,omitempty"`
 	ClientOrderID      string `json:"client_order_id,omitempty"`
 	Code               string `json:"code,omitempty"`
+	// RateLimit is set when ErrorDetail.rate_limit is present on rejection.
+	RateLimit *RateLimitDetail `json:"rate_limit,omitempty"`
 }
 
 // BatchReplaceOrdersResult is the durable admission receipt from batch_replace.
@@ -220,6 +224,8 @@ type BatchCreateResultItem struct {
 	OrderID       string `json:"order_id,omitempty"`
 	ClientOrderID string `json:"client_order_id,omitempty"`
 	Code          string `json:"code,omitempty"`
+	// RateLimit is set when ErrorDetail.rate_limit is present on rejection.
+	RateLimit *RateLimitDetail `json:"rate_limit,omitempty"`
 }
 
 // BatchCreateOrdersResult summarizes batch create.
@@ -235,6 +241,8 @@ type BatchCancelResultItem struct {
 	OrderID       string `json:"order_id,omitempty"`
 	ClientOrderID string `json:"client_order_id,omitempty"`
 	Code          string `json:"code,omitempty"`
+	// RateLimit is set when ErrorDetail.rate_limit is present on rejection.
+	RateLimit *RateLimitDetail `json:"rate_limit,omitempty"`
 }
 
 // BatchCancelOrdersResult summarizes batch cancel.

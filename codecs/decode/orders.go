@@ -326,7 +326,8 @@ func orderErrorDetailFromProto(msg *orderv1.ErrorDetail) *models.OrderErrorDetai
 		return nil
 	}
 	out := &models.OrderErrorDetail{
-		Code: errorCodeName(msg.GetCode()),
+		Code:      errorCodeName(msg.GetCode()),
+		RateLimit: RateLimitDetailFromProto(msg.GetRateLimit()),
 	}
 	if violations := msg.GetViolations(); len(violations) > 0 {
 		out.Violations = make([]models.OrderFieldViolation, 0, len(violations))
@@ -434,6 +435,10 @@ func BatchReplaceFromProto(msg *orderv1.BatchReplaceOrdersResponse) (models.Batc
 				Msg:       fmt.Sprintf("batch replace response has unknown item status: %d", item.GetStatus()),
 			}
 		}
+		var rateLimit *models.RateLimitDetail
+		if errDetail := item.GetError(); errDetail != nil {
+			rateLimit = RateLimitDetailFromProto(errDetail.GetRateLimit())
+		}
 		results = append(results, models.BatchReplaceAdmissionItem{
 			ItemIndex:          item.GetItemIndex(),
 			Status:             itemStatus,
@@ -441,6 +446,7 @@ func BatchReplaceFromProto(msg *orderv1.BatchReplaceOrdersResponse) (models.Batc
 			ReplacementOrderID: codecs.FormatUint64ID(item.GetReplacementOrderId()),
 			ClientOrderID:      item.GetClientOrderId(),
 			Code:               item.GetCode(),
+			RateLimit:          rateLimit,
 		})
 	}
 	accepted := int(msg.GetAcceptedCount())
@@ -594,6 +600,7 @@ func BatchCreateFromProto(msg *orderv1.BatchCreateOrdersResponse) (models.BatchC
 				} else {
 					out.Code = fmt.Sprintf("UNKNOWN_ERROR_CODE(%d)", raw)
 				}
+				out.RateLimit = RateLimitDetailFromProto(err.GetRateLimit())
 			} else {
 				out.Code = "ERROR_CODE_UNSPECIFIED"
 			}
@@ -638,11 +645,16 @@ func BatchCancelFromProto(msg *orderv1.BatchCancelOrdersResponse) (models.BatchC
 				Msg: fmt.Sprintf("batch cancel response has unknown status: %q", item.GetStatus()),
 			}
 		}
+		var rateLimit *models.RateLimitDetail
+		if errDetail := item.GetError(); errDetail != nil {
+			rateLimit = RateLimitDetailFromProto(errDetail.GetRateLimit())
+		}
 		results = append(results, models.BatchCancelResultItem{
 			Status:        item.GetStatus(),
 			OrderID:       codecs.FormatUint64ID(item.GetOrderId()),
 			ClientOrderID: item.GetClientOrderId(),
 			Code:          item.GetCode(),
+			RateLimit:     rateLimit,
 		})
 	}
 	accepted := int(msg.GetAcceptedCount())

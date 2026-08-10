@@ -5,7 +5,7 @@ and automation. Parity with `polyester-sdk-python` and `polyester-sdk-rust`
 using the checked-in `gen/` protobuf bundle (no local proto generation for
 normal development).
 
-**Status:** Alpha (`v0.1.0a39`). Proprietary license (not open source).
+**Status:** Alpha (`v0.1.0a40`). Proprietary license (not open source).
 API-key only; no browser login or session MFA.
 
 Requires a recent Go toolchain (see `go.mod`).
@@ -72,7 +72,7 @@ attached TP/SL/trailing create/modify.
 ```bash
 GOPRIVATE='github.com/Fabric-Labs/*' \
 GONOSUMDB='github.com/Fabric-Labs/*' \
-go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a39
+go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a40
 ```
 
 The repository is currently private. GitHub access and authenticated Git credentials are
@@ -166,6 +166,13 @@ Automatic request signing gives concurrent identical calls distinct authenticati
 Credential copies for the same key share the process allocator. Timestamps can lead the local clock
 by at most five seconds; larger bursts are backpressured instead of reusing a signature or drifting
 outside the API's 10-second freshness window.
+
+Connect `resource_exhausted` and HTTP 429 responses map to `errors.RateLimitError`. When the
+server attaches `polyester.ratelimit.v1.RateLimitDetail` (top-level Connect detail or nested under
+`orders.v1.ErrorDetail.rate_limit`), use `RateLimitError.Detail` for `policy_class`, `scope`,
+`operation_id`, and presence-aware quota fields. `RetryAfter` prefers `detail.retry_after_ms`,
+then `Retry-After` / `Retry-After-Ms` / `Grpc-Retry-Pushback-Ms` headers. Preview and batch
+rejections expose the same payload on `OrderErrorDetail.RateLimit` / batch item `RateLimit`.
 
 ## Authentication patterns
 

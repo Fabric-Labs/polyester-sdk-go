@@ -9,6 +9,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
+	ratelimitv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/ratelimit/v1"
 	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -241,6 +242,41 @@ func TestPreviewOrderFromProtoRejectionPreservesUnknownCode(t *testing.T) {
 		result.Rejection.Violations[0].RuleID != "positive" ||
 		result.Rejection.Violations[0].Message != "Quantity must be positive." ||
 		result.EvaluatedAtMs != 1_000 {
+		t.Fatalf("result=%+v", result)
+	}
+}
+
+func TestPreviewOrderFromProtoSurfacesRateLimitDetail(t *testing.T) {
+	admissible := false
+	limit := uint64(50)
+	retryAfterMs := uint64(500)
+	result, err := decode.PreviewOrderFromProto(&orderv1.PreviewOrderResponse{
+		Admissible: &admissible,
+		Rejection: &orderv1.ErrorDetail{
+			Code: orderv1.ErrorCode_ERROR_CODE_RATE_LIMIT_EXCEEDED,
+			RateLimit: &ratelimitv1.RateLimitDetail{
+				Reason:       ratelimitv1.FailureReason_QUOTA_EXCEEDED,
+				Limit:        &limit,
+				RetryAfterMs: &retryAfterMs,
+				OperationId:  "orders.preview",
+				PolicyClass:  ratelimitv1.PolicyClass_TRADING_PLACE,
+				Scope:        ratelimitv1.LimiterScope_ACCOUNT,
+			},
+		},
+		EvaluatedAt: timestamppb.New(time.Unix(1, 0)),
+	}, 8, "BTC-USDT", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Rejection == nil ||
+		result.Rejection.Code != "RATE_LIMIT_EXCEEDED" ||
+		result.Rejection.RateLimit == nil ||
+		result.Rejection.RateLimit.Reason != "QUOTA_EXCEEDED" ||
+		result.Rejection.RateLimit.RetryAfterMs == nil ||
+		*result.Rejection.RateLimit.RetryAfterMs != 500 ||
+		result.Rejection.RateLimit.Limit == nil ||
+		*result.Rejection.RateLimit.Limit != 50 ||
+		result.Rejection.RateLimit.Remaining != nil {
 		t.Fatalf("result=%+v", result)
 	}
 }

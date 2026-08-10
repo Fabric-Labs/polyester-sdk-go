@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 0.1.0a40
+
+Git tag: `v0.1.0a40`.
+
+### Added
+- Public `RateLimitDetail` model for `polyester.ratelimit.v1` quota rejection
+  payloads (`Reason`, presence-aware `Limit` / `Remaining` / `RetryAfterMs` /
+  `PolicyVersion`, plus `OperationID`, `PolicyClass`, `Scope`, `RefillModel`).
+- `errors.RateLimitError.Detail` carries that structured payload when Connect
+  attaches top-level `RateLimitDetail` or nested `orders.v1.ErrorDetail.rate_limit`.
+  `RetryAfter` prefers `detail.retry_after_ms`, then `Retry-After` /
+  `Retry-After-Ms` / `Grpc-Retry-Pushback-Ms` headers.
+- Preview / batch create / batch replace / batch cancel rejections surface
+  `RateLimit` on `OrderErrorDetail` and batch result items when present.
+
 ## 0.1.0a39
 
 Git tag: `v0.1.0a39`.

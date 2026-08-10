@@ -89,9 +89,14 @@ func (e *TransportError) Error() string        { return e.Msg }
 func (e *TransportError) Is(target error) bool { return target == ErrPolyester }
 
 // RateLimitError indicates rate limiting from the API.
+//
+// Detail carries structured polyester.ratelimit.v1.RateLimitDetail when the
+// server attached it (Connect details or in-band order rejection). RetryAfter
+// prefers detail.retry_after_ms, then response headers.
 type RateLimitError struct {
 	Msg        string
 	RetryAfter *float64
+	Detail     *RateLimitDetail
 }
 
 func (e *RateLimitError) Error() string        { return e.Msg }
