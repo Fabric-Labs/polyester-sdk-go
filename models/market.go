@@ -38,9 +38,10 @@ type MarketTradesResult struct {
 
 // MarketOverviewEntry is one market overview row.
 type MarketOverviewEntry struct {
-	SymbolID  uint32     `json:"symbol_id"`
-	Symbol    string     `json:"symbol,omitempty"`
-	LastPrice PriceTicks `json:"last_price,omitempty"`
+	SymbolID   uint32     `json:"symbol_id"`
+	Symbol     string     `json:"symbol,omitempty"`
+	LastPrice  PriceTicks `json:"last_price,omitempty"`
+	IndexPrice PriceTicks `json:"index_price,omitempty"`
 }
 
 // MarketOverviewList holds overview rows.

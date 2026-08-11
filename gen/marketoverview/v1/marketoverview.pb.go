@@ -395,9 +395,12 @@ type MarketOverview struct {
 	// GetSpotConfig.
 	BestAskQtyScaled int64 `protobuf:"varint,12,opt,name=best_ask_qty_scaled,json=bestAskQtyScaled,proto3" json:"best_ask_qty_scaled,omitempty"`
 	// Optional sparklines (requested explicitly).
-	Sparklines    []*Sparkline `protobuf:"bytes,13,rep,name=sparklines,proto3" json:"sparklines,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Sparklines []*Sparkline `protobuf:"bytes,13,rep,name=sparklines,proto3" json:"sparklines,omitempty"`
+	// Current multi-venue index price in quote units scaled by 1e6.
+	// Zero when no fresh, valid index price is available.
+	IndexPriceTicks int64 `protobuf:"varint,16,opt,name=index_price_ticks,json=indexPriceTicks,proto3" json:"index_price_ticks,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *MarketOverview) Reset() {
@@ -533,6 +536,13 @@ func (x *MarketOverview) GetSparklines() []*Sparkline {
 		return x.Sparklines
 	}
 	return nil
+}
+
+func (x *MarketOverview) GetIndexPriceTicks() int64 {
+	if x != nil {
+		return x.IndexPriceTicks
+	}
+	return 0
 }
 
 type ListMarketOverviewRequest struct {
@@ -758,7 +768,7 @@ const file_marketoverview_v1_marketoverview_proto_rawDesc = "" +
 	"\tSparkline\x12J\n" +
 	"\binterval\x18\x01 \x01(\x0e2$.marketoverview.v1.SparklineIntervalB\b\xbaH\x05\x82\x01\x02\x10\x01R\binterval\x12\x1f\n" +
 	"\vclose_ticks\x18\x02 \x03(\x03R\n" +
-	"closeTicks\"\xfe\x04\n" +
+	"closeTicks\"\xaa\x05\n" +
 	"\x0eMarketOverview\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x12\x16\n" +
 	"\x06symbol\x18\x02 \x01(\tR\x06symbol\x12(\n" +
@@ -778,7 +788,8 @@ const file_marketoverview_v1_marketoverview_proto_rawDesc = "" +
 	"\x13best_ask_qty_scaled\x18\f \x01(\x03R\x10bestAskQtyScaled\x12<\n" +
 	"\n" +
 	"sparklines\x18\r \x03(\v2\x1c.marketoverview.v1.SparklineR\n" +
-	"sparklines\"\x9a\x03\n" +
+	"sparklines\x12*\n" +
+	"\x11index_price_ticks\x18\x10 \x01(\x03R\x0findexPriceTicks\"\x9a\x03\n" +
 	"\x19ListMarketOverviewRequest\x12\x18\n" +
 	"\asymbols\x18\x01 \x03(\tR\asymbols\x12\x1e\n" +
 	"\x05limit\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xd0\x0fR\x05limit\x12'\n" +

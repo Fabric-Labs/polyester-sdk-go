@@ -14,6 +14,9 @@ func MarketOverviewEntryFromProto(m *marketoverviewv1.MarketOverview) models.Mar
 	if ticks := m.GetLastPriceTicks(); ticks > 0 {
 		entry.LastPrice = codecs.DecodePriceTicks(ticks, m.GetSymbol())
 	}
+	if ticks := m.GetIndexPriceTicks(); ticks > 0 {
+		entry.IndexPrice = codecs.DecodePriceTicks(ticks, m.GetSymbol())
+	}
 	return entry
 }
 

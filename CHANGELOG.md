@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.1.0a42
+
+Git tag: `v0.1.0a42`.
+
+### Added
+- Market overview `IndexPrice` from proto `index_price_ticks` (multi-venue index
+  in quote units scaled by 1e6; zero when no fresh index is available).
+
 ## 0.1.0a41
 
 Git tag: `v0.1.0a41`.

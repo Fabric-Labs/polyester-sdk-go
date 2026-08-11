@@ -99,7 +99,12 @@ func TestMarketTradesFromProto(t *testing.T) {
 func TestMarketOverviewListFromProto(t *testing.T) {
 	msg := &marketoverviewv1.ListMarketOverviewResponse{
 		Markets: []*marketoverviewv1.MarketOverview{
-			{SymbolId: 1, Symbol: "BTC-USD", LastPriceTicks: 50_000},
+			{
+				SymbolId:        1,
+				Symbol:          "BTC-USD",
+				LastPriceTicks:  50_000,
+				IndexPriceTicks: 49_500,
+			},
 		},
 	}
 	result := decode.MarketOverviewListFromProto(msg)
@@ -108,6 +113,9 @@ func TestMarketOverviewListFromProto(t *testing.T) {
 	}
 	if result.Markets[0].LastPrice.Ticks() != 50_000 {
 		t.Fatalf("last_price=%+v want ticks 50000", result.Markets[0].LastPrice)
+	}
+	if result.Markets[0].IndexPrice.Ticks() != 49_500 {
+		t.Fatalf("index_price=%+v want ticks 49500", result.Markets[0].IndexPrice)
 	}
 }
 
