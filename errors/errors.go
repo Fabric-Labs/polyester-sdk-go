@@ -76,8 +76,14 @@ func (e *AuthError) Error() string {
 }
 func (e *AuthError) Is(target error) bool { return target == ErrPolyester }
 
-// ValidationError indicates invalid SDK input.
-type ValidationError struct{ Msg string }
+// ValidationError indicates invalid SDK input or a concrete server-side
+// validation rejection. Code and Metadata are populated when structured wire
+// details are available.
+type ValidationError struct {
+	Msg      string
+	Code     string
+	Metadata map[string]string
+}
 
 func (e *ValidationError) Error() string        { return e.Msg }
 func (e *ValidationError) Is(target error) bool { return target == ErrPolyester }

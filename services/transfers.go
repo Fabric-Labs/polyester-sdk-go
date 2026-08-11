@@ -28,7 +28,11 @@ func (s *TransfersService) client() ledgerrdv1connect.LedgerReadServiceClient {
 }
 
 func (s *TransfersService) List(ctx context.Context, account AccountScope, subAccountID *string, limit int, reversed bool, since *int64) (models.TransfersList, error) {
-	req := &ledgerrdv1.ListTransfersRequest{Limit: uint32(limit), Reversed: reversed}
+	parsedLimit, err := PaginationLimit(limit, "limit")
+	if err != nil {
+		return models.TransfersList{}, err
+	}
+	req := &ledgerrdv1.ListTransfersRequest{Limit: parsedLimit, Reversed: reversed}
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {
 		return models.TransfersList{}, err

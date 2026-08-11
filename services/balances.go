@@ -88,7 +88,11 @@ func (s *BalancesService) GetEquityHistory(ctx context.Context, account AccountS
 }
 
 func (s *BalancesService) ListHolds(ctx context.Context, account AccountScope, subAccountID *string, limit int, reversed bool) (models.HoldsList, error) {
-	req := &ledgerrdv1.ListHoldsRequest{Limit: uint32(limit), Reversed: reversed}
+	parsedLimit, err := PaginationLimit(limit, "limit")
+	if err != nil {
+		return models.HoldsList{}, err
+	}
+	req := &ledgerrdv1.ListHoldsRequest{Limit: parsedLimit, Reversed: reversed}
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {
 		return models.HoldsList{}, err

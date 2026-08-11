@@ -29,10 +29,11 @@ func (s *LifecycleService) client() chainlifecyclev1connect.LifecycleReadService
 }
 
 func (s *LifecycleService) ListFlows(ctx context.Context, limit int, pageToken *string, scope *string, ownerAccountID *string, smartAccountAddress *string, reversed bool) (models.LifecycleFlowsList, error) {
-	if limit <= 0 {
-		limit = 50
+	parsedLimit, err := PaginationLimitOrDefault(limit, 50, "limit")
+	if err != nil {
+		return models.LifecycleFlowsList{}, err
 	}
-	req := &lifecyclev1.ListFlowsRequest{Limit: uint32(limit)}
+	req := &lifecyclev1.ListFlowsRequest{Limit: parsedLimit}
 	if reversed {
 		req.Sort = lifecyclev1.Sort_SORT_OLDEST
 	} else {
@@ -81,25 +82,27 @@ func (s *LifecycleService) GetFlow(ctx context.Context, intentID, flowID *string
 // A chain transaction can contain multiple bundled lifecycle flows. Use
 // ListFlowsByTx to follow NextPageToken when the result spans multiple pages.
 func (s *LifecycleService) GetFlowByTx(ctx context.Context, txHash, lookupKind string, limit int) (models.LifecycleFlowsList, error) {
-	if limit <= 0 {
-		limit = 50
+	parsedLimit, err := PaginationLimitOrDefault(limit, 50, "limit")
+	if err != nil {
+		return models.LifecycleFlowsList{}, err
 	}
 	req := &lifecyclev1.ListFlowsByTxRequest{
 		TxHash:     txHash,
 		LookupKind: codecs.TxLookupKindFromLabel(lookupKind),
-		Limit:      uint32(limit),
+		Limit:      parsedLimit,
 	}
 	return UnaryPublicDecoded(ctx, s.transport, s.client().ListFlowsByTx, req, decode.FlowFromGetByTxResponse)
 }
 
 func (s *LifecycleService) ListFlowsByTx(ctx context.Context, txHash, lookupKind string, limit int, pageToken *string) (models.LifecycleFlowsList, error) {
-	if limit <= 0 {
-		limit = 50
+	parsedLimit, err := PaginationLimitOrDefault(limit, 50, "limit")
+	if err != nil {
+		return models.LifecycleFlowsList{}, err
 	}
 	req := &lifecyclev1.ListFlowsByTxRequest{
 		TxHash:     txHash,
 		LookupKind: codecs.TxLookupKindFromLabel(lookupKind),
-		Limit:      uint32(limit),
+		Limit:      parsedLimit,
 	}
 	if pageToken != nil {
 		req.PageToken = *pageToken

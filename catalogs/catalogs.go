@@ -3,6 +3,7 @@ package catalogs
 import (
 	"fmt"
 	"math"
+	"math/big"
 	"strconv"
 	"sync"
 
@@ -208,6 +209,125 @@ func (m *Manager) QuoteQuantityScaleForSymbolID(symbolID uint32) (scale int, ok 
 		}
 	}
 	return 0, false
+}
+
+// PairConstraintsForSymbol returns exact, parsed trading constraints for symbol.
+// ok is false when the symbol is unknown or the catalog omits/malforms a rule.
+func (m *Manager) PairConstraintsForSymbol(symbol string) (models.PairConstraints, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return pairConstraints(m.pairForSymbolLocked(symbol))
+}
+
+// PairConstraintsForSymbolID returns exact, parsed trading constraints for a
+// symbol id. It never invents defaults for missing catalog fields.
+func (m *Manager) PairConstraintsForSymbolID(symbolID uint32) (models.PairConstraints, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, pair := range m.pairsLocked() {
+		id := intish(pair["symbol_id"])
+		if id == nil {
+			id = intish(pair["symbolId"])
+		}
+		if id != nil && *id == symbolID {
+			return pairConstraints(pair)
+		}
+	}
+	return models.PairConstraints{}, false
+}
+
+func pairConstraints(pair map[string]any) (models.PairConstraints, bool) {
+	if pair == nil {
+		return models.PairConstraints{}, false
+	}
+	symbol, _ := pair["symbol"].(string)
+	id := intish(pair["symbol_id"])
+	if id == nil {
+		id = intish(pair["symbolId"])
+	}
+	baseScale, baseOK := intField(pair, "base_quantity_scale", "baseQuantityScale", "qtyScale")
+	quoteScale, quoteOK := intField(pair, "quote_quantity_scale", "quoteQuantityScale")
+	tick := stringField(pair, "tick_size", "tickSize")
+	step := stringField(pair, "step_size", "stepSize")
+	minQty := stringField(pair, "min_qty_base", "minQtyBase")
+	minNotional := stringField(pair, "min_notional_quote", "minNotionalQuote")
+	if symbol == "" || id == nil || !baseOK {
+		return models.PairConstraints{}, false
+	}
+	tickTicks, ok := optionalScaledDecimal(tick, 6, false)
+	if !ok {
+		return models.PairConstraints{}, false
+	}
+	stepScaled, ok := optionalScaledDecimal(step, baseScale, false)
+	if !ok {
+		return models.PairConstraints{}, false
+	}
+	minQtyScaled, ok := optionalScaledDecimal(minQty, baseScale, true)
+	if !ok {
+		return models.PairConstraints{}, false
+	}
+	minNotionalComputable := false
+	if minNotional != "" {
+		value, valid := new(big.Rat).SetString(minNotional)
+		if !valid || value.Sign() < 0 {
+			return models.PairConstraints{}, false
+		}
+		if value.Sign() == 0 {
+			minNotional = ""
+		} else if quoteOK {
+			minNotionalComputable = true
+		}
+	}
+	return models.PairConstraints{
+		Symbol:                symbol,
+		SymbolID:              *id,
+		BaseQuantityScale:     baseScale,
+		QuoteQuantityScale:    quoteScale,
+		TickSize:              tick,
+		TickSizeTicks:         tickTicks,
+		StepSize:              step,
+		StepSizeScaled:        stepScaled,
+		MinQtyBase:            minQty,
+		MinQtyScaled:          minQtyScaled,
+		MinNotionalQuote:      minNotional,
+		MinNotionalComputable: minNotionalComputable,
+	}, true
+}
+
+func optionalScaledDecimal(raw string, scale int, zeroIsUnset bool) (int64, bool) {
+	if raw == "" {
+		return 0, true
+	}
+	value, ok := scaledDecimalInt64(raw, scale)
+	if !ok || value < 0 || (value == 0 && !zeroIsUnset) {
+		return 0, false
+	}
+	return value, true
+}
+
+func stringField(row map[string]any, keys ...string) string {
+	for _, key := range keys {
+		if value, ok := row[key].(string); ok {
+			return value
+		}
+	}
+	return ""
+}
+
+func scaledDecimalInt64(raw string, scale int) (int64, bool) {
+	if scale < 0 || scale > maxProtocolScale {
+		return 0, false
+	}
+	value, ok := new(big.Rat).SetString(raw)
+	if !ok || value.Sign() < 0 {
+		return 0, false
+	}
+	factor := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(scale)), nil)
+	scaled := new(big.Rat).Mul(value, new(big.Rat).SetInt(factor))
+	if !scaled.IsInt() || !scaled.Num().IsInt64() {
+		return 0, false
+	}
+	return scaled.Num().Int64(), true
 }
 
 // OrderbookPriceBucketsForSymbol returns configured price buckets.

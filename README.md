@@ -5,7 +5,7 @@ and automation. Parity with `polyester-sdk-python` and `polyester-sdk-rust`
 using the checked-in `gen/` protobuf bundle (no local proto generation for
 normal development).
 
-**Status:** Alpha (`v0.1.0a40`). Proprietary license (not open source).
+**Status:** Alpha (`v0.1.0a41`). Proprietary license (not open source).
 API-key only; no browser login or session MFA.
 
 Requires a recent Go toolchain (see `go.mod`).
@@ -72,7 +72,7 @@ attached TP/SL/trailing create/modify.
 ```bash
 GOPRIVATE='github.com/Fabric-Labs/*' \
 GONOSUMDB='github.com/Fabric-Labs/*' \
-go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a40
+go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a41
 ```
 
 The repository is currently private. GitHub access and authenticated Git credentials are
@@ -173,6 +173,9 @@ server attaches `polyester.ratelimit.v1.RateLimitDetail` (top-level Connect deta
 `operation_id`, and presence-aware quota fields. `RetryAfter` prefers `detail.retry_after_ms`,
 then `Retry-After` / `Retry-After-Ms` / `Grpc-Retry-Pushback-Ms` headers. Preview and batch
 rejections expose the same payload on `OrderErrorDetail.RateLimit` / batch item `RateLimit`.
+Canceled/deadline failures map to `errors.TransportError`; Connect validation
+codes map to `errors.ValidationError`. Structured order violations preserve the
+order code plus field/rule/message metadata on `ValidationError`.
 
 ## Authentication patterns
 
@@ -225,6 +228,14 @@ catalogs are unusable (use `CatalogsLastError()` to inspect). Typed Zipper
 hydration is available via `client.Catalogs.HydrateZipperConfig(cfg)` /
 `HydrateDepositWithdrawConfig`.
 
+Raw non-empty symbol filters are catalog-backed and fail closed when unknown,
+including market overview and order/trigger cancel/filter paths. Use
+`Catalogs.PairConstraintsForSymbol` (or `PairConstraintsForSymbolID`) to inspect
+exact tick size, quantity step, minimum quantity, and minimum notional rules.
+Order and trigger creates preflight tick/step/minimum quantity and minimum
+notional whenever the request contains enough price information to compute it;
+the server remains authoritative.
+
 Scaled bot inputs (`PriceFromTicks`, `QtyFromScaled`, `AssetAmountFromScaled`)
 must carry their source scale. An `AssetAmount` constructed without scale is
 accepted for composition only and fails closed on transfer/withdraw encoding
@@ -269,8 +280,14 @@ before encoding). Treat a cancel response as an admission acknowledgement and
 reconcile with `ListOpen` before releasing local state.
 
 Use **decimal strings** for human-facing `qty` / `price` inputs. Do **not** pass
-floats. `PriceTicks.Ticks()` returns Polyester protocol price units (fixed 1e6), not
-market tick-size alignment (server validates tick size).
+floats. `PriceTicks.Ticks()` returns Polyester protocol price units (fixed 1e6).
+Catalog-backed writes locally validate market tick-size alignment before sending.
+Pagination `limit` values never wrap during protobuf conversion: zero preserves
+each method's documented omitted/default behavior, while negative or uint32-
+overflowing explicit values return `errors.ValidationError`.
+Successful responses whose `*_ts_ns` fields contain epoch-millisecond-shaped
+values are rejected as `errors.ResponseContractError`; the SDK does not silently
+reinterpret response timestamp units.
 
 ### For bots (scaled integers)
 

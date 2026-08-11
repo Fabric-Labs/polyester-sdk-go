@@ -431,6 +431,15 @@ func TriggerEventsListFromProto(msg *triggersv1.ListTriggerEventsResponse) model
 	}
 }
 
+func TriggerEventsListFromProtoChecked(msg *triggersv1.ListTriggerEventsResponse) (models.TriggerEventsList, error) {
+	for _, event := range msg.GetEvents() {
+		if err := ValidateTimestampNS(event.GetTsNs(), "ListTriggerEvents", "events.ts_ns"); err != nil {
+			return models.TriggerEventsList{}, err
+		}
+	}
+	return TriggerEventsListFromProto(msg), nil
+}
+
 // TriggerEventMessageFromProto decodes one trigger event.
 func TriggerEventMessageFromProto(e *triggersv1.TriggerEvent) models.TriggerEvent {
 	if e == nil {

@@ -25,7 +25,11 @@ func (s *LayoutService) client() layoutv1connect.LayoutServiceClient {
 }
 
 func (s *LayoutService) GetLayouts(ctx context.Context, limit int, pageToken string) (models.ApiData, error) {
-	req := &layoutv1.GetLayoutsRequest{Limit: uint32(limit), PageToken: pageToken}
+	parsedLimit, err := PaginationLimit(limit, "limit")
+	if err != nil {
+		return models.ApiData{}, err
+	}
+	req := &layoutv1.GetLayoutsRequest{Limit: parsedLimit, PageToken: pageToken}
 	return UnaryAuth(ctx, s.transport, s.client().GetLayouts, req, func(msg *layoutv1.GetLayoutsResponse) models.ApiData {
 		return decode.APIDataFromProtoMust(msg)
 	})
@@ -88,7 +92,11 @@ func (s *LayoutService) ListOwnerPublishedLayouts(ctx context.Context, ownerID s
 	if err != nil {
 		return models.ApiData{}, err
 	}
-	req := &layoutv1.ListOwnerPublishedLayoutsRequest{OwnerId: id, Limit: uint32(limit), PageToken: pageToken}
+	parsedLimit, err := PaginationLimit(limit, "limit")
+	if err != nil {
+		return models.ApiData{}, err
+	}
+	req := &layoutv1.ListOwnerPublishedLayoutsRequest{OwnerId: id, Limit: parsedLimit, PageToken: pageToken}
 	return UnaryAuth(ctx, s.transport, s.client().ListOwnerPublishedLayouts, req, func(msg *layoutv1.ListOwnerPublishedLayoutsResponse) models.ApiData {
 		return decode.APIDataFromProtoMust(msg)
 	})
@@ -129,8 +137,12 @@ func (s *LayoutService) ListLayoutTemplateVersions(ctx context.Context, ownerID,
 	if err != nil {
 		return models.ApiData{}, err
 	}
+	parsedLimit, err := PaginationLimit(limit, "limit")
+	if err != nil {
+		return models.ApiData{}, err
+	}
 	req := &layoutv1.ListLayoutTemplateVersionsRequest{
-		OwnerId: owner, TemplateId: template, Limit: uint32(limit), PageToken: pageToken,
+		OwnerId: owner, TemplateId: template, Limit: parsedLimit, PageToken: pageToken,
 	}
 	return UnaryAuth(ctx, s.transport, s.client().ListLayoutTemplateVersions, req, func(msg *layoutv1.ListLayoutTemplateVersionsResponse) models.ApiData {
 		return decode.APIDataFromProtoMust(msg)
@@ -189,7 +201,11 @@ func (s *LayoutService) DeleteLayoutTemplateSubscription(ctx context.Context, ow
 }
 
 func (s *LayoutService) ListMyLayoutTemplateSubscriptions(ctx context.Context, limit int, pageToken string) (models.ApiData, error) {
-	req := &layoutv1.ListMyLayoutTemplateSubscriptionsRequest{Limit: uint32(limit), PageToken: pageToken}
+	parsedLimit, err := PaginationLimit(limit, "limit")
+	if err != nil {
+		return models.ApiData{}, err
+	}
+	req := &layoutv1.ListMyLayoutTemplateSubscriptionsRequest{Limit: parsedLimit, PageToken: pageToken}
 	return UnaryAuth(ctx, s.transport, s.client().ListMyLayoutTemplateSubscriptions, req, func(msg *layoutv1.ListMyLayoutTemplateSubscriptionsResponse) models.ApiData {
 		return decode.APIDataFromProtoMust(msg)
 	})

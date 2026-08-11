@@ -141,7 +141,7 @@ func New(cfg Config) (*Client, error) {
 		transport:            factory,
 		Auth:                 services.NewAuthService(factory, rt),
 		MarketData:           services.NewMarketDataService(factory, cats, rt),
-		MarketOverview:       services.NewMarketOverviewService(factory, rt),
+		MarketOverview:       services.NewMarketOverviewServiceWithCatalogs(factory, cats, rt),
 		Zipper:               services.NewZipperService(factory, cats, rt),
 		ChainAnalytics:       services.NewChainAnalyticsService(factory),
 		Heatmap:              services.NewHeatmapService(factory, cats, rt),

@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## 0.1.0a41
+
+Git tag: `v0.1.0a41`.
+
+### Added
+- Fail-closed catalog-backed symbol filters for market overview and raw symbol paths.
+- Shared pagination validators before `int` → `uint32` conversions.
+- Catalog pair-constraint accessors and deterministic order/trigger preflight.
+- Shared `ts_ns` response-contract validation that rejects millisecond-shaped values.
+- Focused regression tests for F001/F002/F004/F006/F007/F018–F020/F027/F008/F031.
+
+### Fixed
+- Unknown non-empty symbol filters no longer degrade into unfiltered requests.
+- Connect validation/cancellation/deadline failures map into stable SDK error types.
+- Zero-valued optional catalog minimums are treated as unset so live catalogs remain usable.
+
 ## 0.1.0a40
 
 Git tag: `v0.1.0a40`.

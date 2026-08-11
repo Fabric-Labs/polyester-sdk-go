@@ -1,6 +1,7 @@
 package wire
 
 import (
+	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -21,6 +22,42 @@ func TestMapConnectErrorSurfacesAuthRevisionConflict(t *testing.T) {
 	}
 	if apiErr.Msg != "resource changed" {
 		t.Fatalf("msg=%q", apiErr.Msg)
+	}
+}
+
+func TestMapConnectErrorMapsCancellationAndValidationConcretely(t *testing.T) {
+	var transportErr *sdkerrors.TransportError
+	if err := MapConnectError(connect.NewError(connect.CodeCanceled, nil)); !errors.As(err, &transportErr) {
+		t.Fatalf("canceled mapped to %T: %v", err, err)
+	}
+	var validationErr *sdkerrors.ValidationError
+	if err := MapConnectError(connect.NewError(connect.CodeInvalidArgument, nil)); !errors.As(err, &validationErr) {
+		t.Fatalf("invalid argument mapped to %T: %v", err, err)
+	}
+}
+
+func TestMapConnectErrorPreservesOrderValidationDetails(t *testing.T) {
+	connectErr := connect.NewError(connect.CodeInvalidArgument, nil)
+	detail, err := connect.NewErrorDetail(&orderv1.ErrorDetail{
+		Code: orderv1.ErrorCode_ERROR_CODE_PRICE_TICK_SIZE,
+		Violations: []*orderv1.FieldViolation{{
+			FieldPath: "order.limit_gtc.price_ticks",
+			RuleId:    "price_tick_size",
+			Message:   "price is off tick",
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	connectErr.AddDetail(detail)
+	mapped := MapConnectError(connectErr)
+	var validationErr *sdkerrors.ValidationError
+	if !errors.As(mapped, &validationErr) {
+		t.Fatalf("mapped=%T: %v", mapped, mapped)
+	}
+	if validationErr.Code != "ERROR_CODE_PRICE_TICK_SIZE" ||
+		validationErr.Metadata["violation.0.rule_id"] != "price_tick_size" {
+		t.Fatalf("validation detail=%#v", validationErr)
 	}
 }
 

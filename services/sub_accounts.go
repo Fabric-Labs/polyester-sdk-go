@@ -84,10 +84,11 @@ func (s *SubAccountsService) ListActivity(ctx context.Context, account AccountSc
 	if err != nil {
 		return models.SubAccountActivityList{}, err
 	}
-	if limit <= 0 {
-		limit = 50
+	parsedLimit, err := PaginationLimitOrDefault(limit, 50, "limit")
+	if err != nil {
+		return models.SubAccountActivityList{}, err
 	}
-	req := &authv1.ListSubaccountEventsRequest{SubaccountId: parsed, Limit: uint32(limit)}
+	req := &authv1.ListSubaccountEventsRequest{SubaccountId: parsed, Limit: parsedLimit}
 	if pageToken != nil {
 		req.PageToken = *pageToken
 	}

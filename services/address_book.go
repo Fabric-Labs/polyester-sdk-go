@@ -32,10 +32,11 @@ func (s *AddressBookService) ListBooks(ctx context.Context) (models.AddressBooks
 }
 
 func (s *AddressBookService) ListEntries(ctx context.Context, account AccountScope, subAccountID, kind *string, limit int, pageToken *string) (models.AddressBookEntriesList, error) {
-	if limit <= 0 {
-		limit = 50
+	parsedLimit, err := PaginationLimitOrDefault(limit, 50, "limit")
+	if err != nil {
+		return models.AddressBookEntriesList{}, err
 	}
-	req := &authv1.ListAddressBookEntriesRequest{Limit: uint32(limit)}
+	req := &authv1.ListAddressBookEntriesRequest{Limit: parsedLimit}
 	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.AddressBookEntriesList{}, err
 	}
@@ -49,10 +50,11 @@ func (s *AddressBookService) ListEntries(ctx context.Context, account AccountSco
 }
 
 func (s *AddressBookService) ListTransferCounterparties(ctx context.Context, account AccountScope, subAccountID *string, direction, kind *string, limit int) (models.TransferCounterpartiesList, error) {
-	if limit <= 0 {
-		limit = 50
+	parsedLimit, err := PaginationLimitOrDefault(limit, 50, "limit")
+	if err != nil {
+		return models.TransferCounterpartiesList{}, err
 	}
-	req := &authv1.ListTransferCounterpartiesRequest{Limit: uint32(limit)}
+	req := &authv1.ListTransferCounterpartiesRequest{Limit: parsedLimit}
 	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.TransferCounterpartiesList{}, err
 	}
@@ -66,15 +68,16 @@ func (s *AddressBookService) ListTransferCounterparties(ctx context.Context, acc
 }
 
 func (s *AddressBookService) ListTransferDestinations(ctx context.Context, account AccountScope, subAccountID *string, kind string, limit int, pageToken *string) (models.AddressBookTransferDestinationsList, error) {
-	if limit <= 0 {
-		limit = 50
+	parsedLimit, err := PaginationLimitOrDefault(limit, 50, "limit")
+	if err != nil {
+		return models.AddressBookTransferDestinationsList{}, err
 	}
 	if kind == "" {
 		kind = "internal_account"
 	}
 	req := &authv1.ListTransferDestinationsRequest{
 		Kind:  codecs.AddressBookEntryKindFromLabel(kind),
-		Limit: uint32(limit),
+		Limit: parsedLimit,
 	}
 	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.AddressBookTransferDestinationsList{}, err
@@ -86,10 +89,11 @@ func (s *AddressBookService) ListTransferDestinations(ctx context.Context, accou
 }
 
 func (s *AddressBookService) ListInternalTransferWhitelistEntries(ctx context.Context, account AccountScope, subAccountID *string, limit int, pageToken *string) (models.InternalTransferWhitelistEntriesList, error) {
-	if limit <= 0 {
-		limit = 50
+	parsedLimit, err := PaginationLimitOrDefault(limit, 50, "limit")
+	if err != nil {
+		return models.InternalTransferWhitelistEntriesList{}, err
 	}
-	req := &authv1.ListInternalTransferWhitelistEntriesRequest{Limit: uint32(limit)}
+	req := &authv1.ListInternalTransferWhitelistEntriesRequest{Limit: parsedLimit}
 	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.InternalTransferWhitelistEntriesList{}, err
 	}
@@ -108,10 +112,11 @@ func (s *AddressBookService) GetWithdrawWhitelistView(ctx context.Context, accou
 }
 
 func (s *AddressBookService) GetView(ctx context.Context, account AccountScope, subAccountID *string, limit int) (models.AddressBookView, error) {
-	if limit <= 0 {
-		limit = 50
+	parsedLimit, err := PaginationLimitOrDefault(limit, 50, "limit")
+	if err != nil {
+		return models.AddressBookView{}, err
 	}
-	req := &authv1.GetAddressBookViewRequest{Limit: uint32(limit)}
+	req := &authv1.GetAddressBookViewRequest{Limit: parsedLimit}
 	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.AddressBookView{}, err
 	}

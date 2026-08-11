@@ -87,8 +87,12 @@ func (s *OrdersService) ListOpen(ctx context.Context, account AccountScope, subA
 	if pageToken != nil {
 		req.PageToken = *pageToken
 	}
-	if limit != nil {
-		req.Limit = uint32Ptr(uint32(*limit))
+	parsedLimit, err := ExplicitPaginationLimit(limit, "limit")
+	if err != nil {
+		return models.OrdersList{}, err
+	}
+	if parsedLimit != nil {
+		req.Limit = parsedLimit
 	}
 	if triggerID != nil && *triggerID != "" {
 		id, err := codecs.IDToInt(*triggerID, "trigger_id")
@@ -97,14 +101,18 @@ func (s *OrdersService) ListOpen(ctx context.Context, account AccountScope, subA
 		}
 		req.TriggerId = &id
 	}
-	return UnaryAuth(ctx, s.transport, s.readClient().GetOpenOrders, req, decode.OrdersListFromOpen)
+	return UnaryAuthDecoded(ctx, s.transport, s.readClient().GetOpenOrders, req, decode.OrdersListFromOpenChecked)
 }
 
 // ListHistory returns order history.
 // When triggerID is set, only child orders created by that trigger are returned.
 func (s *OrdersService) ListHistory(ctx context.Context, account AccountScope, subAccountID, symbol *string, symbolID *uint32, pageToken *string, limit int, includeAttachedRisk, includeAttachedRiskState bool, triggerID *string) (models.OrdersList, error) {
+	parsedLimit, err := PaginationLimit(limit, "limit")
+	if err != nil {
+		return models.OrdersList{}, err
+	}
 	req := &orderv1.GetOrderHistoryRequest{
-		Limit: uint32Ptr(uint32(limit)), IncludeAttachedRisk: boolPtr(includeAttachedRisk),
+		Limit: uint32Ptr(parsedLimit), IncludeAttachedRisk: boolPtr(includeAttachedRisk),
 		IncludeAttachedRiskState: boolPtr(includeAttachedRiskState),
 	}
 	if err := s.scoped.ApplyOptionalSubaccountIDPtr(&req.SubaccountId, account, subAccountID); err != nil {
@@ -129,7 +137,7 @@ func (s *OrdersService) ListHistory(ctx context.Context, account AccountScope, s
 		}
 		req.TriggerId = &id
 	}
-	return UnaryAuth(ctx, s.transport, s.readClient().GetOrderHistory, req, decode.OrdersListFromHistory)
+	return UnaryAuthDecoded(ctx, s.transport, s.readClient().GetOrderHistory, req, decode.OrdersListFromHistoryChecked)
 }
 
 // Get returns one order.
@@ -143,7 +151,7 @@ func (s *OrdersService) Get(ctx context.Context, account AccountScope, key model
 	if err := codecs.ApplyOrderKeyToGet(req, key); err != nil {
 		return models.GetOrderResult{}, err
 	}
-	return UnaryAuth(ctx, s.transport, s.readClient().GetOrder, req, decode.GetOrderFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.readClient().GetOrder, req, decode.GetOrderFromProtoChecked)
 }
 
 // Create places a new order.
@@ -176,6 +184,11 @@ func (s *OrdersService) Create(ctx context.Context, req models.CreateOrderReques
 	protoReq, err := codecs.CreateOrderToProto(req, scale, quoteScale)
 	if err != nil {
 		return models.OrderMutationResult{}, err
+	}
+	if constraints, ok := pairConstraints(s.catalogs, req.Symbol, req.SymbolID); ok {
+		if err := preflightOrderIntent(constraints, protoReq.GetOrder()); err != nil {
+			return models.OrderMutationResult{}, err
+		}
 	}
 	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().CreateOrder, protoReq, decode.OrderMutationFromProto)
 }
@@ -217,6 +230,11 @@ func (s *OrdersService) Preview(ctx context.Context, req models.CreateOrderReque
 	if err != nil {
 		return models.PreviewOrderResult{}, err
 	}
+	if constraints, ok := pairConstraints(s.catalogs, req.Symbol, req.SymbolID); ok {
+		if err := preflightOrderIntent(constraints, protoReq.GetOrder()); err != nil {
+			return models.PreviewOrderResult{}, err
+		}
+	}
 	symbol := ""
 	if req.Symbol != nil {
 		symbol = *req.Symbol
@@ -241,11 +259,11 @@ func (s *OrdersService) Cancel(ctx context.Context, account AccountScope, key mo
 	if symbolID != nil {
 		req.SymbolId = *symbolID
 	} else if symbol != nil {
-		id := s.catalogs.SymbolIDForSymbol(*symbol)
-		if id == nil {
-			return models.OrderMutationResult{}, &sdkerrors.ValidationError{Msg: fmt.Sprintf("unknown symbol %q", *symbol)}
+		id, err := ResolveSymbolID(s.catalogs, symbol, nil, "cancel")
+		if err != nil {
+			return models.OrderMutationResult{}, err
 		}
-		req.SymbolId = *id
+		req.SymbolId = id
 	}
 	if err := s.scoped.ApplyOptionalSubaccountIDPtr(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.OrderMutationResult{}, err
@@ -270,11 +288,28 @@ func (s *OrdersService) Modify(ctx context.Context, account AccountScope, symbol
 	if err != nil {
 		return models.ModifyOrderResult{}, err
 	}
+	if constraints, ok := pairConstraints(s.catalogs, &symbol, nil); ok {
+		var prices []int64
+		var notionalPrice *int64
+		if protoReq.NewPriceTicks != nil {
+			prices = append(prices, protoReq.GetNewPriceTicks())
+			if protoReq.NewQtyScaled != nil {
+				value := protoReq.GetNewPriceTicks()
+				notionalPrice = &value
+			}
+		}
+		if err := preflightPairValues(constraints, protoReq.GetNewQtyScaled(), prices, notionalPrice); err != nil {
+			return models.ModifyOrderResult{}, err
+		}
+	}
 	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().ModifyOrder, protoReq, decode.ModifyOrderFromProto)
 }
 
 // CancelAll cancels all matching orders.
 func (s *OrdersService) CancelAll(ctx context.Context, account AccountScope, subAccountID, symbol, side *string, dryRun bool, requestID *string) (models.CancelAllOrdersResult, error) {
+	if err := ValidateSymbolFilter(s.catalogs, symbol, "cancel_all"); err != nil {
+		return models.CancelAllOrdersResult{}, err
+	}
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {
 		return models.CancelAllOrdersResult{}, err
@@ -288,6 +323,9 @@ func (s *OrdersService) CancelAll(ctx context.Context, account AccountScope, sub
 
 // CancelAllAfter arms cancel-all-after.
 func (s *OrdersService) CancelAllAfter(ctx context.Context, account AccountScope, timeoutSec int, subAccountID, symbol, side, requestID *string) (models.CancelAllAfterResult, error) {
+	if err := ValidateSymbolFilter(s.catalogs, symbol, "cancel_all_after"); err != nil {
+		return models.CancelAllAfterResult{}, err
+	}
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {
 		return models.CancelAllAfterResult{}, err
@@ -326,6 +364,13 @@ func (s *OrdersService) BatchCreate(ctx context.Context, account AccountScope, i
 	protoReq, err := codecs.BatchCreateOrdersToProto(items, sub, requestID, allowPartial, scale, quoteScale)
 	if err != nil {
 		return models.BatchCreateOrdersResult{}, err
+	}
+	if constraints, ok := pairConstraints(s.catalogs, symbol, nil); ok {
+		for _, intent := range protoReq.GetItems() {
+			if err := preflightOrderIntent(constraints, intent); err != nil {
+				return models.BatchCreateOrdersResult{}, err
+			}
+		}
 	}
 	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().BatchCreateOrders, protoReq, decode.BatchCreateFromProto)
 }
@@ -368,6 +413,22 @@ func (s *OrdersService) BatchReplace(ctx context.Context, account AccountScope, 
 	protoReq, err := codecs.BatchReplaceOrdersToProto(items, symbolID, sub, requestID, scale)
 	if err != nil {
 		return models.BatchReplaceOrdersResult{}, err
+	}
+	if constraints, ok := pairConstraints(s.catalogs, &symbol, nil); ok {
+		for _, item := range protoReq.GetItems() {
+			var prices []int64
+			var notionalPrice *int64
+			if item.NewPriceTicks != nil {
+				prices = append(prices, item.GetNewPriceTicks())
+				if item.NewQtyScaled != nil {
+					value := item.GetNewPriceTicks()
+					notionalPrice = &value
+				}
+			}
+			if err := preflightPairValues(constraints, item.GetNewQtyScaled(), prices, notionalPrice); err != nil {
+				return models.BatchReplaceOrdersResult{}, err
+			}
+		}
 	}
 	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().BatchReplaceOrders, protoReq, decode.BatchReplaceFromProto)
 }

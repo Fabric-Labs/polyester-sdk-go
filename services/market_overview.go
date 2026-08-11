@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
 	marketoverviewv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketoverview/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/marketoverview/v1/marketoverviewv1connect"
@@ -14,11 +15,19 @@ import (
 
 type MarketOverviewService struct {
 	transport *transport.Factory
+	catalogs  *catalogs.Manager
 	realtime  RealtimeClient
 }
 
+// NewMarketOverviewService preserves the legacy direct-construction shape.
+// Non-empty symbol filters require a catalog; root clients use
+// NewMarketOverviewServiceWithCatalogs.
 func NewMarketOverviewService(factory *transport.Factory, realtime RealtimeClient) *MarketOverviewService {
 	return &MarketOverviewService{transport: factory, realtime: realtime}
+}
+
+func NewMarketOverviewServiceWithCatalogs(factory *transport.Factory, cats *catalogs.Manager, realtime RealtimeClient) *MarketOverviewService {
+	return &MarketOverviewService{transport: factory, catalogs: cats, realtime: realtime}
 }
 
 func (s *MarketOverviewService) client() marketoverviewv1connect.MarketOverviewServiceClient {
@@ -26,7 +35,14 @@ func (s *MarketOverviewService) client() marketoverviewv1connect.MarketOverviewS
 }
 
 func (s *MarketOverviewService) List(ctx context.Context, symbols []string, limit int, _ string, includeSparklines bool) (models.MarketOverviewList, error) {
-	req := &marketoverviewv1.ListMarketOverviewRequest{Limit: uint32(limit), IncludeSparklines: includeSparklines}
+	if err := ValidateSymbolFilters(s.catalogs, symbols, "market_overview.list"); err != nil {
+		return models.MarketOverviewList{}, err
+	}
+	parsedLimit, err := PaginationLimit(limit, "limit")
+	if err != nil {
+		return models.MarketOverviewList{}, err
+	}
+	req := &marketoverviewv1.ListMarketOverviewRequest{Limit: parsedLimit, IncludeSparklines: includeSparklines}
 	if len(symbols) > 0 {
 		req.Symbols = append(req.Symbols, symbols...)
 	}
@@ -48,7 +64,7 @@ func (s *MarketOverviewService) CreateSubscription(ctx context.Context, opts Mar
 		return nil, err
 	}
 	limit := opts.Limit
-	if limit <= 0 {
+	if limit == 0 {
 		limit = 50
 	}
 	channel := "public:spot:market_overview:updates:proto"

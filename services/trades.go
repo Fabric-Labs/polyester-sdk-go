@@ -30,7 +30,11 @@ func (s *TradesService) client() ordersv1connect.OrdersReadServiceClient {
 }
 
 func (s *TradesService) List(ctx context.Context, account AccountScope, subAccountID, symbol *string, symbolID *uint32, limit int, pageToken *string) (models.UserTradesList, error) {
-	req := &orderv1.GetUserTradesRequest{Limit: uint32Ptr(uint32(limit))}
+	parsedLimit, err := PaginationLimit(limit, "limit")
+	if err != nil {
+		return models.UserTradesList{}, err
+	}
+	req := &orderv1.GetUserTradesRequest{Limit: uint32Ptr(parsedLimit)}
 	if symbol != nil || symbolID != nil {
 		resolved, err := ResolveSymbolID(s.catalogs, symbol, symbolID, "trades.list")
 		if err != nil {
@@ -50,7 +54,7 @@ func (s *TradesService) List(ctx context.Context, account AccountScope, subAccou
 	if pageToken != nil {
 		req.PageToken = *pageToken
 	}
-	return UnaryAuth(ctx, s.transport, s.client().GetUserTrades, req, decode.UserTradesListFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.client().GetUserTrades, req, decode.UserTradesListFromProtoChecked)
 }
 
 func (s *TradesService) Subscribe(ctx context.Context, accountID any) (*realtime.Subscription[models.UserTrade], error) {

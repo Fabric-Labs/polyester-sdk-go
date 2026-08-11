@@ -89,6 +89,9 @@ func UserTradeFromBytes(payload []byte) (models.UserTrade, error) {
 	if err := unmarshalProto(payload, &msg); err != nil {
 		return models.UserTrade{}, err
 	}
+	if err := ValidateTimestampNS(msg.GetTsNs(), "UserTradePublication", "ts_ns"); err != nil {
+		return models.UserTrade{}, err
+	}
 	return UserTradeFromProto(&msg), nil
 }
 
@@ -107,6 +110,9 @@ func OrderFromBytes(payload []byte) (models.Order, error) {
 	if err := unmarshalProto(payload, &msg); err != nil {
 		return models.Order{}, err
 	}
+	if err := ValidateTimestampNS(msg.GetCreatedTsNs(), "OrderPublication", "created_ts_ns"); err != nil {
+		return models.Order{}, err
+	}
 	return OrderFromProto(&msg), nil
 }
 
@@ -123,6 +129,9 @@ func TriggerFromBytes(payload []byte) (models.Trigger, error) {
 func TriggerEventFromBytes(payload []byte) (models.TriggerEvent, error) {
 	var msg triggersv1.TriggerEvent
 	if err := unmarshalProto(payload, &msg); err != nil {
+		return models.TriggerEvent{}, err
+	}
+	if err := ValidateTimestampNS(msg.GetTsNs(), "TriggerEventPublication", "ts_ns"); err != nil {
 		return models.TriggerEvent{}, err
 	}
 	return TriggerEventMessageFromProto(&msg), nil
@@ -224,6 +233,9 @@ func MarketTradeFromBytes(quantityScale int) func([]byte) (models.MarketTrade, e
 		side := "sell"
 		if msg.GetIsBuy() {
 			side = "buy"
+		}
+		if err := ValidateTimestampNS(msg.GetTsNs(), "MarketTradePublication", "ts_ns"); err != nil {
+			return models.MarketTrade{}, err
 		}
 		return models.MarketTrade{
 			SymbolID: msg.GetSymbolId(),

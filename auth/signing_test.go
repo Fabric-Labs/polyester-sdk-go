@@ -242,3 +242,17 @@ func TestLoadCredentialsRequiresBoth(t *testing.T) {
 		t.Fatalf("expected AuthError, got %T", err)
 	}
 }
+
+func TestMalformedPrivateKeyErrorDoesNotDiscloseSecret(t *testing.T) {
+	secret := "not-hex-private-key-material"
+	_, err := LoadCredentials("ak_test", secret, false)
+	if err == nil {
+		t.Fatal("expected malformed private key error")
+	}
+	if strings.Contains(err.Error(), secret) {
+		t.Fatalf("malformed secret disclosed in error: %v", err)
+	}
+	if strings.Contains(fmt.Sprintf("%#v", err), secret) {
+		t.Fatalf("malformed secret disclosed in formatted error: %#v", err)
+	}
+}

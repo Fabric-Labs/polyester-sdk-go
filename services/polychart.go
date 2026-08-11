@@ -29,7 +29,11 @@ func (s *PolychartService) GetMarketLayers(ctx context.Context, engineSymbolID u
 }
 
 func (s *PolychartService) ListInboxMarketLayers(ctx context.Context, engineSymbolID uint32, limit int, pageToken string) (models.ApiData, error) {
-	req := &polychartv1.ListInboxMarketLayersRequest{EngineSymbolId: engineSymbolID, Limit: uint32(limit), PageToken: pageToken}
+	parsedLimit, err := PaginationLimit(limit, "limit")
+	if err != nil {
+		return models.ApiData{}, err
+	}
+	req := &polychartv1.ListInboxMarketLayersRequest{EngineSymbolId: engineSymbolID, Limit: parsedLimit, PageToken: pageToken}
 	return UnaryAuth(ctx, s.transport, s.client().ListInboxMarketLayers, req, func(msg *polychartv1.ListInboxMarketLayersResponse) models.ApiData { return apiData(msg) })
 }
 
@@ -72,7 +76,11 @@ func (s *PolychartService) ListOwnerPublishedLayers(ctx context.Context, ownerID
 	if err != nil {
 		return models.ApiData{}, err
 	}
-	req := &polychartv1.ListOwnerPublishedLayersRequest{OwnerId: id, Limit: uint32(limit), PageToken: pageToken}
+	parsedLimit, err := PaginationLimit(limit, "limit")
+	if err != nil {
+		return models.ApiData{}, err
+	}
+	req := &polychartv1.ListOwnerPublishedLayersRequest{OwnerId: id, Limit: parsedLimit, PageToken: pageToken}
 	if engineSymbolID != 0 {
 		req.EngineSymbolId = &engineSymbolID
 	}

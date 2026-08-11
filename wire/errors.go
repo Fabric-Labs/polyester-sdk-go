@@ -1,6 +1,7 @@
 package wire
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -98,6 +99,9 @@ func MapConnectError(err error) error {
 	if err == nil {
 		return nil
 	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return &sdkerrors.TransportError{Msg: err.Error()}
+	}
 	var connectErr *connect.Error
 	if !errors.As(err, &connectErr) {
 		return &sdkerrors.TransportError{Msg: err.Error()}
@@ -128,8 +132,18 @@ func MapConnectError(err error) error {
 			if rl != nil || orderDetail.GetCode() == orderv1.ErrorCode_ERROR_CODE_RATE_LIMIT_EXCEEDED {
 				return rateLimitError(msg, rl, headerRetry)
 			}
-			// Non-rate-limit order ErrorDetail continues to Connect code mapping.
-			continue
+			code := orderDetail.GetCode().String()
+			if len(orderDetail.GetViolations()) > 0 {
+				metadata := make(map[string]string, len(orderDetail.GetViolations())*2)
+				for i, violation := range orderDetail.GetViolations() {
+					prefix := fmt.Sprintf("violation.%d.", i)
+					metadata[prefix+"field_path"] = violation.GetFieldPath()
+					metadata[prefix+"rule_id"] = violation.GetRuleId()
+					metadata[prefix+"message"] = violation.GetMessage()
+				}
+				return &sdkerrors.ValidationError{Msg: msg, Code: code, Metadata: metadata}
+			}
+			return &sdkerrors.APIError{Msg: msg, Code: code}
 		}
 	}
 	if useragent.IsCloudflareBrowserBan(msg) {
@@ -142,8 +156,10 @@ func MapConnectError(err error) error {
 		return &sdkerrors.ServerError{Msg: msg}
 	case connect.CodeResourceExhausted:
 		return rateLimitError(msg, nil, headerRetry)
-	case connect.CodeDeadlineExceeded:
+	case connect.CodeCanceled, connect.CodeDeadlineExceeded:
 		return &sdkerrors.TransportError{Msg: msg}
+	case connect.CodeInvalidArgument, connect.CodeFailedPrecondition, connect.CodeOutOfRange:
+		return &sdkerrors.ValidationError{Msg: msg, Code: connectErr.Code().String()}
 	case connect.CodeUnimplemented:
 		if _, ok := routeNotFoundMessages[strings.ToLower(strings.TrimSpace(msg))]; ok {
 			return &sdkerrors.RouteNotFoundError{}

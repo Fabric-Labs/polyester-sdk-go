@@ -55,7 +55,11 @@ func (s *WhiteboardService) Get(ctx context.Context, boardID string) (models.Api
 }
 
 func (s *WhiteboardService) List(ctx context.Context, includeArchived bool, limit int, pageToken string) (models.ApiData, error) {
-	req := &collabv1.ListBoardsRequest{IncludeArchived: includeArchived, Limit: uint32(limit), PageToken: pageToken}
+	parsedLimit, err := PaginationLimit(limit, "limit")
+	if err != nil {
+		return models.ApiData{}, err
+	}
+	req := &collabv1.ListBoardsRequest{IncludeArchived: includeArchived, Limit: parsedLimit, PageToken: pageToken}
 	return UnaryAuth(ctx, s.transport, s.client().ListBoards, req, func(msg *collabv1.ListBoardsResponse) models.ApiData { return apiData(msg) })
 }
 

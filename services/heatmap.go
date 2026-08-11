@@ -57,7 +57,11 @@ func (s *HeatmapService) Get(ctx context.Context, symbol *string, symbolID *uint
 	if !ok {
 		return models.ApiData{}, &errors.ValidationError{Msg: "quantity_mode must be 'close' or 'peak'"}
 	}
-	req := &heatmapv1.GetOrderbookHeatmapRequest{SymbolId: resolved, Interval: heatmapv1.HeatmapInterval(intervalEnum), Depth: heatmapv1.HeatmapDepth(depthEnum), Limit: uint32(limit), QuantityMode: heatmapv1.HeatmapQuantityMode(qtyEnum)}
+	parsedLimit, err := PaginationLimit(limit, "limit")
+	if err != nil {
+		return models.ApiData{}, err
+	}
+	req := &heatmapv1.GetOrderbookHeatmapRequest{SymbolId: resolved, Interval: heatmapv1.HeatmapInterval(intervalEnum), Depth: heatmapv1.HeatmapDepth(depthEnum), Limit: parsedLimit, QuantityMode: heatmapv1.HeatmapQuantityMode(qtyEnum)}
 	tr := &heatmapv1.HeatmapTimeRange{}
 	now := time.Now().UTC()
 	if fromTsSec != nil {

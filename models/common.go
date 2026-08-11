@@ -68,3 +68,21 @@ type ApiData struct {
 type SpotConfig struct {
 	Raw map[string]any `json:"raw"`
 }
+
+// PairConstraints is the deterministic, parsed trading-rule view for one spot
+// pair. Decimal strings preserve the catalog contract; scaled fields are ready
+// for exact local preflight checks.
+type PairConstraints struct {
+	Symbol                string `json:"symbol"`
+	SymbolID              uint32 `json:"symbol_id"`
+	BaseQuantityScale     int    `json:"base_quantity_scale"`
+	QuoteQuantityScale    int    `json:"quote_quantity_scale"`
+	TickSize              string `json:"tick_size"`
+	TickSizeTicks         int64  `json:"tick_size_ticks"`
+	StepSize              string `json:"step_size"`
+	StepSizeScaled        int64  `json:"step_size_scaled"`
+	MinQtyBase            string `json:"min_qty_base"`
+	MinQtyScaled          int64  `json:"min_qty_scaled"`
+	MinNotionalQuote      string `json:"min_notional_quote"`
+	MinNotionalComputable bool   `json:"min_notional_computable"`
+}
