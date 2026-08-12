@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Changed
+- SDK boundary cleanup: raw `symbol`/`symbols` filters are forwarded without
+  catalog fail-closed checks (market overview, triggers list, cancel-all /
+  cancel-all-after). `symbol_id` wire paths still resolve locally.
+- Removed client-side pair-constraint preflight on order/trigger writes; the
+  API remains authoritative for tick/step/minimum admission.
+- Removed millisecond-shaped `*_ts_ns` response rejection; timestamps decode as
+  returned by the server.
+
+### Kept
+- Pagination wire-safety (`PaginationLimit` / `ExplicitPaginationLimit`).
+- `ResolveSymbolID` for `symbol_id` fields, Connect error mapping, secret
+  redaction coverage, catalog zero-optional-minima hydration, realtime private
+  auth tests.
+
 ## 0.1.0a42
 
 Git tag: `v0.1.0a42`.

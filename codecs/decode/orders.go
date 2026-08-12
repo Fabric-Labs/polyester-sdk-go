@@ -165,20 +165,6 @@ func OrdersListFromHistory(msg *orderv1.GetOrderHistoryResponse) models.OrdersLi
 	return ordersList(msg.GetOrders(), msg.GetNextPageToken())
 }
 
-func OrdersListFromOpenChecked(msg *orderv1.GetOpenOrdersResponse) (models.OrdersList, error) {
-	if err := validateOrderTimestamps(msg.GetOrders(), "GetOpenOrders"); err != nil {
-		return models.OrdersList{}, err
-	}
-	return OrdersListFromOpen(msg), nil
-}
-
-func OrdersListFromHistoryChecked(msg *orderv1.GetOrderHistoryResponse) (models.OrdersList, error) {
-	if err := validateOrderTimestamps(msg.GetOrders(), "GetOrderHistory"); err != nil {
-		return models.OrdersList{}, err
-	}
-	return OrdersListFromHistory(msg), nil
-}
-
 func ordersList(orders []*orderv1.Order, token string) models.OrdersList {
 	out := make([]models.Order, 0, len(orders))
 	for _, o := range orders {
@@ -246,31 +232,6 @@ func UserTradesListFromProto(msg *orderv1.GetUserTradesResponse) models.UserTrad
 	return models.UserTradesList{Trades: trades, NextPageToken: msg.GetNextPageToken()}
 }
 
-func UserTradesListFromProtoChecked(msg *orderv1.GetUserTradesResponse) (models.UserTradesList, error) {
-	if err := validateUserTradeTimestamps(msg.GetTrades(), "GetUserTrades"); err != nil {
-		return models.UserTradesList{}, err
-	}
-	return UserTradesListFromProto(msg), nil
-}
-
-func validateOrderTimestamps(orders []*orderv1.Order, operation string) error {
-	for _, order := range orders {
-		if err := ValidateTimestampNS(order.GetCreatedTsNs(), operation, "orders.created_ts_ns"); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func validateUserTradeTimestamps(trades []*orderv1.UserTrade, operation string) error {
-	for _, trade := range trades {
-		if err := ValidateTimestampNS(trade.GetTsNs(), operation, "trades.ts_ns"); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // GetOrderFromProto decodes get order response.
 func GetOrderFromProto(msg *orderv1.GetOrderResponse) models.GetOrderResult {
 	var order *models.Order
@@ -283,16 +244,6 @@ func GetOrderFromProto(msg *orderv1.GetOrderResponse) models.GetOrderResult {
 		trades = append(trades, UserTradeFromProto(t))
 	}
 	return models.GetOrderResult{Order: order, Trades: trades}
-}
-
-func GetOrderFromProtoChecked(msg *orderv1.GetOrderResponse) (models.GetOrderResult, error) {
-	if err := validateOrderTimestamps([]*orderv1.Order{msg.GetOrder()}, "GetOrder"); err != nil {
-		return models.GetOrderResult{}, err
-	}
-	if err := validateUserTradeTimestamps(msg.GetTrades(), "GetOrder"); err != nil {
-		return models.GetOrderResult{}, err
-	}
-	return GetOrderFromProto(msg), nil
 }
 
 // OrderMutationFromProto decodes order mutation response.
@@ -456,9 +407,6 @@ func CancelAllFromProto(msg *orderv1.CancelAllOrdersResponse) (models.CancelAllO
 
 // BatchReplaceFromProto decodes batch replace admission receipt.
 func BatchReplaceFromProto(msg *orderv1.BatchReplaceOrdersResponse) (models.BatchReplaceOrdersResult, error) {
-	if err := ValidateTimestampNS(msg.GetAcceptedTsNs(), "BatchReplaceOrders", "accepted_ts_ns"); err != nil {
-		return models.BatchReplaceOrdersResult{}, err
-	}
 	if msg.GetBatchRequestId() == 0 {
 		return models.BatchReplaceOrdersResult{}, &sdkerrors.ResponseContractError{
 			Operation: "BatchReplaceOrders", Msg: "missing batch_request_id",
@@ -524,12 +472,6 @@ func BatchReplaceFromProto(msg *orderv1.BatchReplaceOrdersResponse) (models.Batc
 
 // BatchReplaceStatusFromProto decodes get batch replace status response.
 func BatchReplaceStatusFromProto(msg *orderv1.GetBatchReplaceStatusResponse) (models.BatchReplaceStatusResult, error) {
-	if err := ValidateTimestampNS(msg.GetAcceptedTsNs(), "GetBatchReplaceStatus", "accepted_ts_ns"); err != nil {
-		return models.BatchReplaceStatusResult{}, err
-	}
-	if err := ValidateTimestampNS(msg.GetUpdatedTsNs(), "GetBatchReplaceStatus", "updated_ts_ns"); err != nil {
-		return models.BatchReplaceStatusResult{}, err
-	}
 	if msg.GetBatchRequestId() == 0 {
 		return models.BatchReplaceStatusResult{}, &sdkerrors.ResponseContractError{
 			Operation: "GetBatchReplaceStatus", Msg: "missing batch_request_id",
@@ -546,9 +488,6 @@ func BatchReplaceStatusFromProto(msg *orderv1.GetBatchReplaceStatusResponse) (mo
 	decodedAccepted := 0
 	decodedRejected := 0
 	for _, item := range msg.GetItems() {
-		if err := ValidateTimestampNS(item.GetUpdatedTsNs(), "GetBatchReplaceStatus", "items.updated_ts_ns"); err != nil {
-			return models.BatchReplaceStatusResult{}, err
-		}
 		phase := batchReplacePhaseName(item.GetPhase())
 		if phase == "" {
 			return models.BatchReplaceStatusResult{}, &sdkerrors.ResponseContractError{
@@ -736,9 +675,6 @@ func BatchCancelFromProto(msg *orderv1.BatchCancelOrdersResponse) (models.BatchC
 
 // CancelAllAfterFromProto decodes cancel-all-after response.
 func CancelAllAfterFromProto(msg *orderv1.CancelAllAfterResponse) (models.CancelAllAfterResult, error) {
-	if err := ValidateTimestampNS(msg.GetExpiresAtTsNs(), "CancelAllAfter", "expires_at_ts_ns"); err != nil {
-		return models.CancelAllAfterResult{}, err
-	}
 	status := strings.TrimSpace(msg.GetStatus())
 	if status == "" ||
 		!strings.EqualFold(status, "armed") && !strings.EqualFold(status, "disabled") {

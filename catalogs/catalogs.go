@@ -213,6 +213,8 @@ func (m *Manager) QuoteQuantityScaleForSymbolID(symbolID uint32) (scale int, ok 
 
 // PairConstraintsForSymbol returns exact, parsed trading constraints for symbol.
 // ok is false when the symbol is unknown or the catalog omits/malforms a rule.
+// Zero-valued optional minima (`min_qty_base` / `min_notional_quote` of "0")
+// are treated as unset so live catalogs remain usable for inspection.
 func (m *Manager) PairConstraintsForSymbol(symbol string) (models.PairConstraints, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

@@ -54,7 +54,7 @@ func (s *TradesService) List(ctx context.Context, account AccountScope, subAccou
 	if pageToken != nil {
 		req.PageToken = *pageToken
 	}
-	return UnaryAuthDecoded(ctx, s.transport, s.client().GetUserTrades, req, decode.UserTradesListFromProtoChecked)
+	return UnaryAuth(ctx, s.transport, s.client().GetUserTrades, req, decode.UserTradesListFromProto)
 }
 
 func (s *TradesService) Subscribe(ctx context.Context, accountID any) (*realtime.Subscription[models.UserTrade], error) {

@@ -71,7 +71,7 @@ type SpotConfig struct {
 
 // PairConstraints is the deterministic, parsed trading-rule view for one spot
 // pair. Decimal strings preserve the catalog contract; scaled fields are ready
-// for exact local preflight checks.
+// for local inspection. The API remains authoritative for order admission.
 type PairConstraints struct {
 	Symbol                string `json:"symbol"`
 	SymbolID              uint32 `json:"symbol_id"`

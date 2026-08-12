@@ -6,7 +6,9 @@ import (
 	"testing"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
+	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
 func auditCatalog(t *testing.T) *catalogs.Manager {
@@ -28,17 +30,38 @@ func auditCatalog(t *testing.T) *catalogs.Manager {
 	return manager
 }
 
-func TestRawSymbolFiltersFailClosed(t *testing.T) {
+func TestRawSymbolsAreForwardedWithoutCatalogFailClosed(t *testing.T) {
+	unknown := "NOPE-USDT"
+	proto, err := codecs.CancelAllOrdersToProto(nil, &unknown, nil, true, nil)
+	if err != nil {
+		t.Fatalf("cancel-all encode failed: %v", err)
+	}
+	if proto.GetSymbol() != unknown {
+		t.Fatalf("raw symbol not forwarded: got %q", proto.GetSymbol())
+	}
+
+	empty := "   "
+	proto, err = codecs.CancelAllOrdersToProto(nil, &empty, nil, true, nil)
+	if err != nil {
+		t.Fatalf("empty symbol encode failed: %v", err)
+	}
+	if proto.GetSymbol() != "" {
+		t.Fatalf("empty/whitespace symbol should be omitted, got %q", proto.GetSymbol())
+	}
+}
+
+func TestResolveSymbolIDStillFailsClosedForWireSymbolIDPaths(t *testing.T) {
 	manager := auditCatalog(t)
 	unknown := "NOPE-USDT"
-	err := ValidateSymbolFilter(manager, &unknown, "test")
+	_, err := ResolveSymbolID(manager, &unknown, nil, "list_history")
 	var validationErr *sdkerrors.ValidationError
 	if !errors.As(err, &validationErr) {
 		t.Fatalf("expected ValidationError, got %T: %v", err, err)
 	}
-	empty := ""
-	if err := ValidateSymbolFilter(manager, &empty, "test"); err != nil {
-		t.Fatalf("empty filter must preserve unfiltered semantics: %v", err)
+	id := uint32(1)
+	got, err := ResolveSymbolID(manager, nil, &id, "list_history")
+	if err != nil || got != 1 {
+		t.Fatalf("explicit symbol_id resolve got=%d err=%v", got, err)
 	}
 }
 
@@ -51,27 +74,27 @@ func TestPaginationLimitRejectsWrappingInputs(t *testing.T) {
 	if got, err := PaginationLimitOrDefault(0, 50, "limit"); err != nil || got != 50 {
 		t.Fatalf("default limit got=%d err=%v", got, err)
 	}
+	if _, err := ExplicitPaginationLimit(nil, "limit"); err != nil {
+		t.Fatalf("nil explicit limit should omit: %v", err)
+	}
 }
 
-func TestPairPreflightChecksTickStepMinimumsAndNotional(t *testing.T) {
-	constraints, ok := auditCatalog(t).PairConstraintsForSymbol("BTC-USDT")
-	if !ok {
-		t.Fatal("constraints unavailable")
+func TestOrderCreateDoesNotPreflightOffTickPrices(t *testing.T) {
+	symbol := "BTC-USDT"
+	tif := "gtc"
+	// 5000.000001 is not aligned to tick_size 0.01; SDK must still encode and
+	// leave admission to the API.
+	price := models.PriceFromDecimal("5000.000001")
+	req := models.CreateOrderRequest{
+		Symbol: &symbol, Side: "buy", OrderType: "limit", TIF: &tif,
+		Qty: models.QtyFromDecimal("0.001"), Price: &price,
 	}
-	validPrice := int64(5_000_000_000) // 5000 quote; 0.002 base = 10 quote.
-	if err := preflightPairValues(constraints, 2, []int64{validPrice}, &validPrice); err != nil {
-		t.Fatalf("valid boundary rejected: %v", err)
+	proto, err := codecs.CreateOrderToProto(req, 3, 2)
+	if err != nil {
+		t.Fatalf("off-tick order should encode without SDK preflight: %v", err)
 	}
-	badTick := validPrice + 1
-	if err := preflightPairValues(constraints, 2, []int64{badTick}, &badTick); err == nil {
-		t.Fatal("misaligned tick should fail")
-	}
-	if err := preflightPairValues(constraints, 1, []int64{validPrice}, &validPrice); err == nil {
-		t.Fatal("quantity below minimum should fail")
-	}
-	lowPrice := int64(4_000_000_000)
-	if err := preflightPairValues(constraints, 2, []int64{lowPrice}, &lowPrice); err == nil {
-		t.Fatal("computable notional below minimum should fail")
+	if proto.GetOrder() == nil || proto.GetOrder().GetLimitGtc() == nil {
+		t.Fatal("expected limit GTC intent")
 	}
 }
 
@@ -97,5 +120,8 @@ func TestPairConstraintsTreatZeroOptionalRulesAsUnset(t *testing.T) {
 	if constraints.TickSizeTicks == 0 || constraints.StepSizeScaled == 0 ||
 		constraints.MinQtyScaled != 0 || constraints.MinNotionalComputable {
 		t.Fatalf("zero-valued optional constraints were enforced: %+v", constraints)
+	}
+	if scale, ok := manager.BaseQuantityScaleForSymbol("BTC-USDT"); !ok || scale != 3 {
+		t.Fatalf("scale hydration broken with zero optional minima: scale=%d ok=%v", scale, ok)
 	}
 }

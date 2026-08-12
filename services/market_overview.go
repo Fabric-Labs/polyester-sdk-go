@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 
-	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
 	marketoverviewv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketoverview/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/marketoverview/v1/marketoverviewv1connect"
@@ -15,19 +14,11 @@ import (
 
 type MarketOverviewService struct {
 	transport *transport.Factory
-	catalogs  *catalogs.Manager
 	realtime  RealtimeClient
 }
 
-// NewMarketOverviewService preserves the legacy direct-construction shape.
-// Non-empty symbol filters require a catalog; root clients use
-// NewMarketOverviewServiceWithCatalogs.
 func NewMarketOverviewService(factory *transport.Factory, realtime RealtimeClient) *MarketOverviewService {
 	return &MarketOverviewService{transport: factory, realtime: realtime}
-}
-
-func NewMarketOverviewServiceWithCatalogs(factory *transport.Factory, cats *catalogs.Manager, realtime RealtimeClient) *MarketOverviewService {
-	return &MarketOverviewService{transport: factory, catalogs: cats, realtime: realtime}
 }
 
 func (s *MarketOverviewService) client() marketoverviewv1connect.MarketOverviewServiceClient {
@@ -35,9 +26,6 @@ func (s *MarketOverviewService) client() marketoverviewv1connect.MarketOverviewS
 }
 
 func (s *MarketOverviewService) List(ctx context.Context, symbols []string, limit int, _ string, includeSparklines bool) (models.MarketOverviewList, error) {
-	if err := ValidateSymbolFilters(s.catalogs, symbols, "market_overview.list"); err != nil {
-		return models.MarketOverviewList{}, err
-	}
 	parsedLimit, err := PaginationLimit(limit, "limit")
 	if err != nil {
 		return models.MarketOverviewList{}, err

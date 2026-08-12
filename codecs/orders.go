@@ -316,8 +316,8 @@ func CancelAllOrdersToProto(subAccountID *string, symbol, side *string, dryRun b
 		}
 		proto.SubaccountId = &sub
 	}
-	if symbol != nil {
-		proto.Symbol = *symbol
+	if symbol != nil && strings.TrimSpace(*symbol) != "" {
+		proto.Symbol = strings.TrimSpace(*symbol)
 	}
 	if side != nil {
 		s, ok := orderSideToProto[strings.ToLower(*side)]
@@ -346,8 +346,8 @@ func CancelAllAfterToProto(subAccountID *string, timeoutSec int, symbol, side *s
 		}
 		proto.SubaccountId = &sub
 	}
-	if symbol != nil {
-		proto.Symbol = *symbol
+	if symbol != nil && strings.TrimSpace(*symbol) != "" {
+		proto.Symbol = strings.TrimSpace(*symbol)
 	}
 	if side != nil {
 		s, ok := orderSideToProto[strings.ToLower(*side)]

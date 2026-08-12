@@ -53,17 +53,6 @@ func MarketTradesFromProto(msg *marketdatav1.GetTradesResponse, quantityScale in
 	return models.MarketTradesResult{Trades: out, NextPageToken: msg.GetNextPageToken()}
 }
 
-// MarketTradesFromProtoChecked enforces response timestamp units before
-// exposing successful trade rows.
-func MarketTradesFromProtoChecked(msg *marketdatav1.GetTradesResponse, quantityScale int) (models.MarketTradesResult, error) {
-	for _, trade := range msg.GetTrades() {
-		if err := ValidateTimestampNS(trade.GetTsNs(), "GetTrades", "trades.ts_ns"); err != nil {
-			return models.MarketTradesResult{}, err
-		}
-	}
-	return MarketTradesFromProto(msg, quantityScale), nil
-}
-
 func CandlesFromProto(msg *marketdatav1.GetCandlesResponse, volumeScale int) models.CandlesResult {
 	out := make([]models.Candle, 0, len(msg.GetCandles()))
 	for _, c := range msg.GetCandles() {

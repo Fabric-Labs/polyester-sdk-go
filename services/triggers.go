@@ -63,9 +63,6 @@ func (s *TriggersService) client() triggersv1connect.TriggersServiceClient {
 }
 
 func (s *TriggersService) List(ctx context.Context, account AccountScope, subAccountID, symbol *string, status []string, limit int, pageToken *string) (models.TriggersList, error) {
-	if err := ValidateSymbolFilter(s.catalogs, symbol, "triggers.list"); err != nil {
-		return models.TriggersList{}, err
-	}
 	parsedLimit, err := PaginationLimit(limit, "limit")
 	if err != nil {
 		return models.TriggersList{}, err
@@ -83,7 +80,7 @@ func (s *TriggersService) List(ctx context.Context, account AccountScope, subAcc
 	} else if parsed != nil {
 		req.SubaccountId = parsed
 	}
-	if symbol != nil {
+	if symbol != nil && *symbol != "" {
 		req.Symbol = *symbol
 	}
 	for _, label := range status {
@@ -129,11 +126,6 @@ func (s *TriggersService) Create(ctx context.Context, account AccountScope, symb
 	req, err := codecs.CreateTriggerToProto(symbol, triggerType, triggerPrice, side, qty, orderType, limitPrice, triggerPriceSource, tif, sub, clientTriggerID, postOnly, scale, opts)
 	if err != nil {
 		return models.TriggerMutationResult{}, err
-	}
-	if constraints, ok := pairConstraints(s.catalogs, &symbol, nil); ok {
-		if err := preflightTriggerIntent(constraints, req.GetTrigger()); err != nil {
-			return models.TriggerMutationResult{}, err
-		}
 	}
 	return UnaryAuth(ctx, s.transport, s.client().CreateTrigger, req, decode.TriggerMutationFromProto)
 }
@@ -233,7 +225,7 @@ func (s *TriggersService) ListEvents(ctx context.Context, account AccountScope, 
 	if pageToken != nil && *pageToken != "" {
 		req.PageToken = *pageToken
 	}
-	return UnaryAuthDecoded(ctx, s.transport, s.client().ListTriggerEvents, req, decode.TriggerEventsListFromProtoChecked)
+	return UnaryAuth(ctx, s.transport, s.client().ListTriggerEvents, req, decode.TriggerEventsListFromProto)
 }
 
 func (s *TriggersService) Subscribe(ctx context.Context, accountID any) (*realtime.Subscription[models.Trigger], error) {

@@ -66,8 +66,8 @@ func (s *MarketDataService) GetTrades(ctx context.Context, symbol *string, symbo
 	if pageToken != nil && *pageToken != "" {
 		req.PageToken = *pageToken
 	}
-	return UnaryPublicDecoded(ctx, s.transport, s.client().GetTrades, req, func(msg *marketdatav1.GetTradesResponse) (models.MarketTradesResult, error) {
-		return decode.MarketTradesFromProtoChecked(msg, scale)
+	return UnaryPublic(ctx, s.transport, s.client().GetTrades, req, func(msg *marketdatav1.GetTradesResponse) models.MarketTradesResult {
+		return decode.MarketTradesFromProto(msg, scale)
 	})
 }
 

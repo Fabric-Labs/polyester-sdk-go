@@ -228,13 +228,11 @@ catalogs are unusable (use `CatalogsLastError()` to inspect). Typed Zipper
 hydration is available via `client.Catalogs.HydrateZipperConfig(cfg)` /
 `HydrateDepositWithdrawConfig`.
 
-Raw non-empty symbol filters are catalog-backed and fail closed when unknown,
-including market overview and order/trigger cancel/filter paths. Use
+Endpoints that take raw `symbol` / `symbols` strings forward those filters to
+the API (trim/empty-omit is OK). Catalog fail-closed resolution applies only
+where the wire contract uses `symbol_id`. Use
 `Catalogs.PairConstraintsForSymbol` (or `PairConstraintsForSymbolID`) to inspect
-exact tick size, quantity step, minimum quantity, and minimum notional rules.
-Order and trigger creates preflight tick/step/minimum quantity and minimum
-notional whenever the request contains enough price information to compute it;
-the server remains authoritative.
+tick size, quantity step, and minimums; order admission stays server-side.
 
 Scaled bot inputs (`PriceFromTicks`, `QtyFromScaled`, `AssetAmountFromScaled`)
 must carry their source scale. An `AssetAmount` constructed without scale is
@@ -280,14 +278,11 @@ before encoding). Treat a cancel response as an admission acknowledgement and
 reconcile with `ListOpen` before releasing local state.
 
 Use **decimal strings** for human-facing `qty` / `price` inputs. Do **not** pass
-floats. `PriceTicks.Ticks()` returns Polyester protocol price units (fixed 1e6).
-Catalog-backed writes locally validate market tick-size alignment before sending.
+floats. `PriceTicks.Ticks()` returns Polyester protocol price units (fixed 1e6),
+not market tick-size alignment (server validates tick size).
 Pagination `limit` values never wrap during protobuf conversion: zero preserves
 each method's documented omitted/default behavior, while negative or uint32-
 overflowing explicit values return `errors.ValidationError`.
-Successful responses whose `*_ts_ns` fields contain epoch-millisecond-shaped
-values are rejected as `errors.ResponseContractError`; the SDK does not silently
-reinterpret response timestamp units.
 
 ### For bots (scaled integers)
 
