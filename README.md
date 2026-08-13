@@ -5,7 +5,7 @@ and automation. Parity with `polyester-sdk-python` and `polyester-sdk-rust`
 using the checked-in `gen/` protobuf bundle (no local proto generation for
 normal development).
 
-**Status:** Alpha (`v0.1.0a42`). Proprietary license (not open source).
+**Status:** Alpha (`v0.1.0a43`). Proprietary license (not open source).
 API-key only; no browser login or session MFA.
 
 Requires a recent Go toolchain (see `go.mod`).
@@ -30,6 +30,9 @@ Requires a recent Go toolchain (see `go.mod`).
 | Address book (list/view/subscribe) | Yes |
 | Policies (realtime subscribe) | Yes |
 | Guard signer | Yes |
+| VIP tiers + status | Yes |
+| Spot fee rates | Yes |
+| Trading rate limits | Yes |
 | Balances, holds, equity history | Yes |
 | Orders (create, cancel, modify, batch, cancel-all) | Yes |
 | User trades | Yes |
@@ -72,7 +75,7 @@ attached TP/SL/trailing create/modify.
 ```bash
 GOPRIVATE='github.com/Fabric-Labs/*' \
 GONOSUMDB='github.com/Fabric-Labs/*' \
-go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a42
+go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a43
 ```
 
 The repository is currently private. GitHub access and authenticated Git credentials are
@@ -173,6 +176,8 @@ server attaches `polyester.ratelimit.v1.RateLimitDetail` (top-level Connect deta
 `operation_id`, and presence-aware quota fields. `RetryAfter` prefers `detail.retry_after_ms`,
 then `Retry-After` / `Retry-After-Ms` / `Grpc-Retry-Pushback-Ms` headers. Preview and batch
 rejections expose the same payload on `OrderErrorDetail.RateLimit` / batch item `RateLimit`.
+That error payload is distinct from `client.RateLimits` (`ratelimit.v1.RateLimitService`),
+which returns the public trading quota catalog and authenticated account / API-key limits.
 Canceled/deadline failures map to `errors.TransportError`; Connect validation
 codes map to `errors.ValidationError`. Structured order violations preserve the
 order code plus field/rule/message metadata on `ValidationError`.
@@ -370,6 +375,28 @@ base quantity.
 Magnitudes are unsigned. Treat `FeeAmountE18` as a **debit** unless
 `FeeIsRebate` is true (then it is a **credit**). Proto3 omits false, so the
 rebate flag is sparse on the wire.
+
+`client.Fees.GetSpotFeeRates` returns the account target's current effective maker/taker
+percents per listed symbol (optional `symbolID` filter). That is the live effective-rate
+surface, not a guaranteed quote of every future fill. The completed user-trade record still
+owns the exact charge.
+
+## VIP, spot fees, and trading rate limits
+
+Public catalog reads need no credentials. Authenticated VIP status, effective spot fees, and
+account trading limits require an API key. `GetVIPStatus` has no subaccount selector: JWT and
+API-key callers receive the owning root group only. USD amounts and fee percents are decimal
+strings. Optional qualification metrics, timestamps, and next-tier thresholds stay omitted
+when unset. `policy_class` uses full protobuf enum names
+(`TRADING_RATE_LIMIT_CLASS_PLACE` / `_CANCEL`).
+
+```go
+tiers, err := client.VIP.ListVIPTiers(ctx)
+status, err := client.VIP.GetVIPStatus(ctx)
+fees, err := client.Fees.GetSpotFeeRates(ctx, nil, nil, nil)
+catalog, err := client.RateLimits.GetRateLimitConfig(ctx)
+limits, err := client.RateLimits.GetTradingRateLimits(ctx, nil, nil)
+```
 
 ## Triggers
 

@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 0.1.0a43
+
+Git tag: `v0.1.0a43`.
+
+### Added
+- VIP catalog and caller-root status: `client.VIP.ListVIPTiers` /
+  `client.VIP.GetVIPStatus` (`vip.v1.VIPService`). Optional qualification
+  metrics, timestamps, and next-tier thresholds stay omitted when unset.
+- Effective spot fee rates: `client.Fees.GetSpotFeeRates`
+  (`fees.v1.FeeService`), optionally filtered by subaccount and `symbol_id`.
+- Public trading rate-limit catalog and authenticated account/API-key limits:
+  `client.RateLimits.GetRateLimitConfig` /
+  `client.RateLimits.GetTradingRateLimits` (`ratelimit.v1.RateLimitService`).
+  `policy_class` uses full protobuf enum names.
+
 ### Changed
 - SDK boundary cleanup: raw `symbol`/`symbols` filters are forwarded without
   catalog fail-closed checks (market overview, triggers list, cancel-all /

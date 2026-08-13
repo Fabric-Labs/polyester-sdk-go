@@ -87,6 +87,9 @@ type Client struct {
 	Polychart          *services.PolychartService
 	Layout             *services.LayoutService
 	GuardSigner        *services.GuardSignerService
+	VIP                *services.VIPService
+	Fees               *services.FeeService
+	RateLimits         *services.RateLimitService
 	Withdraw           *services.WithdrawService
 	TradingWithdraws   *services.WithdrawService
 
@@ -161,6 +164,9 @@ func New(cfg Config) (*Client, error) {
 		Polychart:            services.NewPolychartService(factory),
 		Layout:               services.NewLayoutService(factory),
 		GuardSigner:          services.NewGuardSignerService(factory, cfg.DefaultSubAccountID),
+		VIP:                  services.NewVIPService(factory),
+		Fees:                 services.NewFeeService(factory, cfg.DefaultSubAccountID),
+		RateLimits:           services.NewRateLimitService(factory, cfg.DefaultSubAccountID),
 		Withdraw:             services.NewWithdrawService(factory, cfg.DefaultSubAccountID),
 		catalogHydrationDone: catalogHydrationDone,
 	}

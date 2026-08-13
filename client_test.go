@@ -61,7 +61,8 @@ func TestClientExposesDocumentedServices(t *testing.T) {
 		"Zipper", "Heatmap", "Lifecycle", "Balances", "Orderbook", "Orders", "Trades",
 		"Triggers", "Transfers", "InternalTransfers", "Deposit", "APIKeys", "Policies",
 		"SubAccounts", "AddressBook", "SocialVerification", "Whiteboard",
-		"Polychart", "Layout", "GuardSigner", "Withdraw", "TradingWithdraws", "Realtime",
+		"Polychart", "Layout", "GuardSigner", "VIP", "Fees", "RateLimits",
+		"Withdraw", "TradingWithdraws", "Realtime",
 	}
 	v := reflect.ValueOf(client).Elem()
 	for _, name := range expected {
