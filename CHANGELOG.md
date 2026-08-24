@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.0a44
+
+Git tag: `v0.1.0a44`.
+
 ### Added
 - Address-book write wrappers: `CreateEntry`, `UpdateEntry`, `DeleteEntry`,
   `CreateTag`, `UpdateTag`, and `DeleteTag`. Create and update accept
