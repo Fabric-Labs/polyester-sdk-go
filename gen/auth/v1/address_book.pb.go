@@ -2605,7 +2605,11 @@ type AddressBookEntryUpdateSpec struct {
 	// User-defined note. Empty clears the note when selected.
 	Note string `protobuf:"bytes,2,opt,name=note,proto3" json:"note,omitempty"`
 	// Complete replacement set of tag ids when selected.
-	TagIds        []uint64 `protobuf:"fixed64,3,rep,packed,name=tag_ids,json=tagIds,proto3" json:"tag_ids,omitempty"`
+	TagIds []uint64 `protobuf:"fixed64,3,rep,packed,name=tag_ids,json=tagIds,proto3" json:"tag_ids,omitempty"`
+	// New tags to create and attach in the same protected update. When tag_ids
+	// is also selected, the resulting set is tag_ids plus these tags. Otherwise,
+	// currently attached tags are preserved and these tags are appended.
+	NewTags       []*AddressBookTagInput `protobuf:"bytes,4,rep,name=new_tags,json=newTags,proto3" json:"new_tags,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2657,6 +2661,13 @@ func (x *AddressBookEntryUpdateSpec) GetNote() string {
 func (x *AddressBookEntryUpdateSpec) GetTagIds() []uint64 {
 	if x != nil {
 		return x.TagIds
+	}
+	return nil
+}
+
+func (x *AddressBookEntryUpdateSpec) GetNewTags() []*AddressBookTagInput {
+	if x != nil {
+		return x.NewTags
 	}
 	return nil
 }
@@ -4192,12 +4203,14 @@ const file_auth_v1_address_book_proto_rawDesc = "" +
 	" RequestedInternalTransferAccount\x12=\n" +
 	"\x15smart_account_address\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x88\xb5\x18\x01R\x13smartAccountAddress\"Q\n" +
 	"\x1eCreateAddressBookEntryResponse\x12/\n" +
-	"\x05entry\x18\x01 \x01(\v2\x19.auth.v1.AddressBookEntryR\x05entry\"}\n" +
+	"\x05entry\x18\x01 \x01(\v2\x19.auth.v1.AddressBookEntryR\x05entry\"\xc0\x01\n" +
 	"\x1aAddressBookEntryUpdateSpec\x12\x1e\n" +
 	"\x05label\x18\x01 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x05label\x12\x1c\n" +
 	"\x04note\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\x04note\x12!\n" +
 	"\atag_ids\x18\x03 \x03(\x06B\b\xbaH\x05\x92\x01\x02\x10\n" +
-	"R\x06tagIds\"\xac\x02\n" +
+	"R\x06tagIds\x12A\n" +
+	"\bnew_tags\x18\x04 \x03(\v2\x1c.auth.v1.AddressBookTagInputB\b\xbaH\x05\x92\x01\x02\x10\n" +
+	"R\anewTags\"\xac\x02\n" +
 	"\x1dUpdateAddressBookEntryRequest\x12D\n" +
 	"\x15address_book_entry_id\x18\x01 \x01(\x06B\x11\xe0A\x02\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x12addressBookEntryId\x12D\n" +
 	"\x05entry\x18\x02 \x01(\v2#.auth.v1.AddressBookEntryUpdateSpecB\t\xe0A\x02\xbaH\x03\xc8\x01\x01R\x05entry\x12F\n" +
@@ -4470,59 +4483,60 @@ var file_auth_v1_address_book_proto_depIdxs = []int32{
 	28, // 60: auth.v1.CreateAddressBookEntryRequest.internal:type_name -> auth.v1.RequestedInternalTransferAccount
 	33, // 61: auth.v1.CreateAddressBookEntryRequest.new_tags:type_name -> auth.v1.AddressBookTagInput
 	11, // 62: auth.v1.CreateAddressBookEntryResponse.entry:type_name -> auth.v1.AddressBookEntry
-	30, // 63: auth.v1.UpdateAddressBookEntryRequest.entry:type_name -> auth.v1.AddressBookEntryUpdateSpec
-	57, // 64: auth.v1.UpdateAddressBookEntryRequest.update_mask:type_name -> google.protobuf.FieldMask
-	11, // 65: auth.v1.UpdateAddressBookEntryResponse.entry:type_name -> auth.v1.AddressBookEntry
-	11, // 66: auth.v1.CopyAddressBookEntryResponse.entry:type_name -> auth.v1.AddressBookEntry
-	9,  // 67: auth.v1.CreateAddressBookTagResponse.tag:type_name -> auth.v1.AddressBookTag
-	9,  // 68: auth.v1.UpdateAddressBookTagResponse.tag:type_name -> auth.v1.AddressBookTag
-	4,  // 69: auth.v1.ListTransferCounterpartiesRequest.direction:type_name -> auth.v1.TransferCounterpartyDirection
-	1,  // 70: auth.v1.ListTransferCounterpartiesRequest.kind:type_name -> auth.v1.AddressBookEntryKind
-	15, // 71: auth.v1.ListTransferCounterpartiesResponse.counterparties:type_name -> auth.v1.TransferCounterparty
-	1,  // 72: auth.v1.ListTransferDestinationsRequest.kind:type_name -> auth.v1.AddressBookEntryKind
-	22, // 73: auth.v1.ListTransferDestinationsResponse.destinations:type_name -> auth.v1.TransferDestination
-	19, // 74: auth.v1.ListInternalTransferWhitelistEntriesResponse.entries:type_name -> auth.v1.InternalTransferWhitelistEntry
-	21, // 75: auth.v1.GetWithdrawWhitelistViewResponse.view:type_name -> auth.v1.WithdrawWhitelistView
-	6,  // 76: auth.v1.GetAddressBookViewResponse.books:type_name -> auth.v1.AddressBook
-	12, // 77: auth.v1.GetAddressBookViewResponse.entries:type_name -> auth.v1.AddressBookEntriesView
-	16, // 78: auth.v1.GetAddressBookViewResponse.recent_destinations:type_name -> auth.v1.AddressBookRecentDestinationsView
-	10, // 79: auth.v1.GetAddressBookViewResponse.tags:type_name -> auth.v1.AddressBookTagSummary
-	21, // 80: auth.v1.GetAddressBookViewResponse.withdraw_whitelist:type_name -> auth.v1.WithdrawWhitelistView
-	5,  // 81: auth.v1.AddressBookViewInvalidated.scope:type_name -> auth.v1.AccountScopeRef
-	56, // 82: auth.v1.AddressBookViewInvalidated.invalidated_at:type_name -> google.protobuf.Timestamp
-	23, // 83: auth.v1.AddressBookService.ListAddressBooks:input_type -> auth.v1.ListAddressBooksRequest
-	25, // 84: auth.v1.AddressBookService.ListAddressBookEntries:input_type -> auth.v1.ListAddressBookEntriesRequest
-	27, // 85: auth.v1.AddressBookService.CreateAddressBookEntry:input_type -> auth.v1.CreateAddressBookEntryRequest
-	31, // 86: auth.v1.AddressBookService.UpdateAddressBookEntry:input_type -> auth.v1.UpdateAddressBookEntryRequest
-	34, // 87: auth.v1.AddressBookService.DeleteAddressBookEntry:input_type -> auth.v1.DeleteAddressBookEntryRequest
-	36, // 88: auth.v1.AddressBookService.CopyAddressBookEntry:input_type -> auth.v1.CopyAddressBookEntryRequest
-	38, // 89: auth.v1.AddressBookService.CreateAddressBookTag:input_type -> auth.v1.CreateAddressBookTagRequest
-	40, // 90: auth.v1.AddressBookService.UpdateAddressBookTag:input_type -> auth.v1.UpdateAddressBookTagRequest
-	42, // 91: auth.v1.AddressBookService.DeleteAddressBookTag:input_type -> auth.v1.DeleteAddressBookTagRequest
-	44, // 92: auth.v1.AddressBookService.ListTransferCounterparties:input_type -> auth.v1.ListTransferCounterpartiesRequest
-	46, // 93: auth.v1.AddressBookService.ListTransferDestinations:input_type -> auth.v1.ListTransferDestinationsRequest
-	48, // 94: auth.v1.AddressBookService.ListInternalTransferWhitelistEntries:input_type -> auth.v1.ListInternalTransferWhitelistEntriesRequest
-	50, // 95: auth.v1.AddressBookService.GetWithdrawWhitelistView:input_type -> auth.v1.GetWithdrawWhitelistViewRequest
-	52, // 96: auth.v1.AddressBookService.GetAddressBookView:input_type -> auth.v1.GetAddressBookViewRequest
-	24, // 97: auth.v1.AddressBookService.ListAddressBooks:output_type -> auth.v1.ListAddressBooksResponse
-	26, // 98: auth.v1.AddressBookService.ListAddressBookEntries:output_type -> auth.v1.ListAddressBookEntriesResponse
-	29, // 99: auth.v1.AddressBookService.CreateAddressBookEntry:output_type -> auth.v1.CreateAddressBookEntryResponse
-	32, // 100: auth.v1.AddressBookService.UpdateAddressBookEntry:output_type -> auth.v1.UpdateAddressBookEntryResponse
-	35, // 101: auth.v1.AddressBookService.DeleteAddressBookEntry:output_type -> auth.v1.DeleteAddressBookEntryResponse
-	37, // 102: auth.v1.AddressBookService.CopyAddressBookEntry:output_type -> auth.v1.CopyAddressBookEntryResponse
-	39, // 103: auth.v1.AddressBookService.CreateAddressBookTag:output_type -> auth.v1.CreateAddressBookTagResponse
-	41, // 104: auth.v1.AddressBookService.UpdateAddressBookTag:output_type -> auth.v1.UpdateAddressBookTagResponse
-	43, // 105: auth.v1.AddressBookService.DeleteAddressBookTag:output_type -> auth.v1.DeleteAddressBookTagResponse
-	45, // 106: auth.v1.AddressBookService.ListTransferCounterparties:output_type -> auth.v1.ListTransferCounterpartiesResponse
-	47, // 107: auth.v1.AddressBookService.ListTransferDestinations:output_type -> auth.v1.ListTransferDestinationsResponse
-	49, // 108: auth.v1.AddressBookService.ListInternalTransferWhitelistEntries:output_type -> auth.v1.ListInternalTransferWhitelistEntriesResponse
-	51, // 109: auth.v1.AddressBookService.GetWithdrawWhitelistView:output_type -> auth.v1.GetWithdrawWhitelistViewResponse
-	53, // 110: auth.v1.AddressBookService.GetAddressBookView:output_type -> auth.v1.GetAddressBookViewResponse
-	97, // [97:111] is the sub-list for method output_type
-	83, // [83:97] is the sub-list for method input_type
-	83, // [83:83] is the sub-list for extension type_name
-	83, // [83:83] is the sub-list for extension extendee
-	0,  // [0:83] is the sub-list for field type_name
+	33, // 63: auth.v1.AddressBookEntryUpdateSpec.new_tags:type_name -> auth.v1.AddressBookTagInput
+	30, // 64: auth.v1.UpdateAddressBookEntryRequest.entry:type_name -> auth.v1.AddressBookEntryUpdateSpec
+	57, // 65: auth.v1.UpdateAddressBookEntryRequest.update_mask:type_name -> google.protobuf.FieldMask
+	11, // 66: auth.v1.UpdateAddressBookEntryResponse.entry:type_name -> auth.v1.AddressBookEntry
+	11, // 67: auth.v1.CopyAddressBookEntryResponse.entry:type_name -> auth.v1.AddressBookEntry
+	9,  // 68: auth.v1.CreateAddressBookTagResponse.tag:type_name -> auth.v1.AddressBookTag
+	9,  // 69: auth.v1.UpdateAddressBookTagResponse.tag:type_name -> auth.v1.AddressBookTag
+	4,  // 70: auth.v1.ListTransferCounterpartiesRequest.direction:type_name -> auth.v1.TransferCounterpartyDirection
+	1,  // 71: auth.v1.ListTransferCounterpartiesRequest.kind:type_name -> auth.v1.AddressBookEntryKind
+	15, // 72: auth.v1.ListTransferCounterpartiesResponse.counterparties:type_name -> auth.v1.TransferCounterparty
+	1,  // 73: auth.v1.ListTransferDestinationsRequest.kind:type_name -> auth.v1.AddressBookEntryKind
+	22, // 74: auth.v1.ListTransferDestinationsResponse.destinations:type_name -> auth.v1.TransferDestination
+	19, // 75: auth.v1.ListInternalTransferWhitelistEntriesResponse.entries:type_name -> auth.v1.InternalTransferWhitelistEntry
+	21, // 76: auth.v1.GetWithdrawWhitelistViewResponse.view:type_name -> auth.v1.WithdrawWhitelistView
+	6,  // 77: auth.v1.GetAddressBookViewResponse.books:type_name -> auth.v1.AddressBook
+	12, // 78: auth.v1.GetAddressBookViewResponse.entries:type_name -> auth.v1.AddressBookEntriesView
+	16, // 79: auth.v1.GetAddressBookViewResponse.recent_destinations:type_name -> auth.v1.AddressBookRecentDestinationsView
+	10, // 80: auth.v1.GetAddressBookViewResponse.tags:type_name -> auth.v1.AddressBookTagSummary
+	21, // 81: auth.v1.GetAddressBookViewResponse.withdraw_whitelist:type_name -> auth.v1.WithdrawWhitelistView
+	5,  // 82: auth.v1.AddressBookViewInvalidated.scope:type_name -> auth.v1.AccountScopeRef
+	56, // 83: auth.v1.AddressBookViewInvalidated.invalidated_at:type_name -> google.protobuf.Timestamp
+	23, // 84: auth.v1.AddressBookService.ListAddressBooks:input_type -> auth.v1.ListAddressBooksRequest
+	25, // 85: auth.v1.AddressBookService.ListAddressBookEntries:input_type -> auth.v1.ListAddressBookEntriesRequest
+	27, // 86: auth.v1.AddressBookService.CreateAddressBookEntry:input_type -> auth.v1.CreateAddressBookEntryRequest
+	31, // 87: auth.v1.AddressBookService.UpdateAddressBookEntry:input_type -> auth.v1.UpdateAddressBookEntryRequest
+	34, // 88: auth.v1.AddressBookService.DeleteAddressBookEntry:input_type -> auth.v1.DeleteAddressBookEntryRequest
+	36, // 89: auth.v1.AddressBookService.CopyAddressBookEntry:input_type -> auth.v1.CopyAddressBookEntryRequest
+	38, // 90: auth.v1.AddressBookService.CreateAddressBookTag:input_type -> auth.v1.CreateAddressBookTagRequest
+	40, // 91: auth.v1.AddressBookService.UpdateAddressBookTag:input_type -> auth.v1.UpdateAddressBookTagRequest
+	42, // 92: auth.v1.AddressBookService.DeleteAddressBookTag:input_type -> auth.v1.DeleteAddressBookTagRequest
+	44, // 93: auth.v1.AddressBookService.ListTransferCounterparties:input_type -> auth.v1.ListTransferCounterpartiesRequest
+	46, // 94: auth.v1.AddressBookService.ListTransferDestinations:input_type -> auth.v1.ListTransferDestinationsRequest
+	48, // 95: auth.v1.AddressBookService.ListInternalTransferWhitelistEntries:input_type -> auth.v1.ListInternalTransferWhitelistEntriesRequest
+	50, // 96: auth.v1.AddressBookService.GetWithdrawWhitelistView:input_type -> auth.v1.GetWithdrawWhitelistViewRequest
+	52, // 97: auth.v1.AddressBookService.GetAddressBookView:input_type -> auth.v1.GetAddressBookViewRequest
+	24, // 98: auth.v1.AddressBookService.ListAddressBooks:output_type -> auth.v1.ListAddressBooksResponse
+	26, // 99: auth.v1.AddressBookService.ListAddressBookEntries:output_type -> auth.v1.ListAddressBookEntriesResponse
+	29, // 100: auth.v1.AddressBookService.CreateAddressBookEntry:output_type -> auth.v1.CreateAddressBookEntryResponse
+	32, // 101: auth.v1.AddressBookService.UpdateAddressBookEntry:output_type -> auth.v1.UpdateAddressBookEntryResponse
+	35, // 102: auth.v1.AddressBookService.DeleteAddressBookEntry:output_type -> auth.v1.DeleteAddressBookEntryResponse
+	37, // 103: auth.v1.AddressBookService.CopyAddressBookEntry:output_type -> auth.v1.CopyAddressBookEntryResponse
+	39, // 104: auth.v1.AddressBookService.CreateAddressBookTag:output_type -> auth.v1.CreateAddressBookTagResponse
+	41, // 105: auth.v1.AddressBookService.UpdateAddressBookTag:output_type -> auth.v1.UpdateAddressBookTagResponse
+	43, // 106: auth.v1.AddressBookService.DeleteAddressBookTag:output_type -> auth.v1.DeleteAddressBookTagResponse
+	45, // 107: auth.v1.AddressBookService.ListTransferCounterparties:output_type -> auth.v1.ListTransferCounterpartiesResponse
+	47, // 108: auth.v1.AddressBookService.ListTransferDestinations:output_type -> auth.v1.ListTransferDestinationsResponse
+	49, // 109: auth.v1.AddressBookService.ListInternalTransferWhitelistEntries:output_type -> auth.v1.ListInternalTransferWhitelistEntriesResponse
+	51, // 110: auth.v1.AddressBookService.GetWithdrawWhitelistView:output_type -> auth.v1.GetWithdrawWhitelistViewResponse
+	53, // 111: auth.v1.AddressBookService.GetAddressBookView:output_type -> auth.v1.GetAddressBookViewResponse
+	98, // [98:112] is the sub-list for method output_type
+	84, // [84:98] is the sub-list for method input_type
+	84, // [84:84] is the sub-list for extension type_name
+	84, // [84:84] is the sub-list for extension extendee
+	0,  // [0:84] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_address_book_proto_init() }

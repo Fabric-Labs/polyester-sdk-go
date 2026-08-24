@@ -23,8 +23,12 @@ func (s *SocialVerificationService) client() authv1connect.SocialVerificationSer
 	return authv1connect.NewSocialVerificationServiceClient(s.transport.HTTP, s.transport.Config.APIURL, s.transport.ConnectOptions(true)...)
 }
 
+func startSocialVerificationRequest(provider, method, handle string) *authv1.StartSocialVerificationRequest {
+	return &authv1.StartSocialVerificationRequest{Provider: providerEnum(provider), Method: methodEnum(method), Handle: handle}
+}
+
 func (s *SocialVerificationService) Start(ctx context.Context, provider, method, handle string) (models.ApiData, error) {
-	req := &authv1.StartSocialVerificationRequest{Provider: providerEnum(provider), Method: methodEnum(method), Handle: handle}
+	req := startSocialVerificationRequest(provider, method, handle)
 	return UnaryAuth(ctx, s.transport, s.client().StartSocialVerification, req, func(msg *authv1.StartSocialVerificationResponse) models.ApiData {
 		return decode.APIDataFromProtoMust(msg)
 	})

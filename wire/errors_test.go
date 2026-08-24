@@ -180,6 +180,13 @@ func TestTransportRetryClassificationPreservesAmbiguity(t *testing.T) {
 	}
 }
 
+func TestMapConnectErrorSurfacesAuthInternalError(t *testing.T) {
+	mapped := mapAuthDetail(t, authv1.AuthErrorCode_AUTH_INTERNAL_ERROR, "internal")
+	if sdkerrors.AuthErrorCode(mapped) != sdkerrors.AuthCodeInternalError {
+		t.Fatalf("AuthErrorCode=%q", sdkerrors.AuthErrorCode(mapped))
+	}
+}
+
 func TestMapConnectErrorSurfacesStableMFACodes(t *testing.T) {
 	cases := []struct {
 		code  authv1.AuthErrorCode

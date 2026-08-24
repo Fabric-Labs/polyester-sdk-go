@@ -710,13 +710,13 @@ const file_auth_v1_social_verification_proto_rawDesc = "" +
 	"last_error\x18\n" +
 	" \x01(\tR\tlastError\x129\n" +
 	"\n" +
-	"updated_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xe4\x03\n" +
+	"updated_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xf7\x03\n" +
 	"\x1eStartSocialVerificationRequest\x12B\n" +
 	"\bprovider\x18\x01 \x01(\x0e2\x17.auth.v1.SocialProviderB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\bprovider\x12C\n" +
 	"\x06method\x18\x03 \x01(\x0e2!.auth.v1.SocialVerificationMethodB\b\xbaH\x05\x82\x01\x02\x10\x01R\x06method\x12\x91\x01\n" +
 	"\x06handle\x18\x02 \x01(\tBy\xe0A\x02\xbaHs\xba\x01j\n" +
-	"\x18handle.no_angle_brackets\x12\"handle must not contain '<' or '>'\x1a*!this.contains('<') && !this.contains('>')r\x04\x10\x01\x18@R\x06handle:\xa4\x01\xbaH\xa0\x01\x1a\x9d\x01\n" +
-	"\x15twitter_handle_format\x12;twitter handle must be 1-15 chars [A-Za-z0-9_], without '@'\x1aGthis.provider != 1 ? true : this.handle.matches('^[A-Za-z0-9_]{1,15}$')\"\xc4\x01\n" +
+	"\x18handle.no_angle_brackets\x12\"handle must not contain '<' or '>'\x1a*!this.contains('<') && !this.contains('>')r\x04\x10\x01\x18@R\x06handle:\xb7\x01\xbaH\xb3\x01\x1a\xb0\x01\n" +
+	"\x15twitter_handle_format\x12Ltwitter handle must be 1-15 chars [A-Za-z0-9_], optionally prefixed with '@'\x1aIthis.provider != 1 ? true : this.handle.matches('^@?[A-Za-z0-9_]{1,15}$')\"\xc4\x01\n" +
 	"\x1fStartSocialVerificationResponse\x12%\n" +
 	"\x0echallenge_code\x18\x01 \x01(\tR\rchallengeCode\x129\n" +
 	"\n" +

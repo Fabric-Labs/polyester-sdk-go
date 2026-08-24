@@ -107,6 +107,8 @@ const (
 	AuthErrorCode_AUTH_MFA_ELEVATION_REQUIRED AuthErrorCode = 38
 	// At least one active MFA factor must remain enrolled.
 	AuthErrorCode_AUTH_MFA_LAST_FACTOR_REQUIRED AuthErrorCode = 39
+	// An unexpected internal failure prevented the auth mutation from completing.
+	AuthErrorCode_AUTH_INTERNAL_ERROR AuthErrorCode = 40
 )
 
 // Enum value maps for AuthErrorCode.
@@ -151,6 +153,7 @@ var (
 		37: "AUTH_REVISION_CONFLICT",
 		38: "AUTH_MFA_ELEVATION_REQUIRED",
 		39: "AUTH_MFA_LAST_FACTOR_REQUIRED",
+		40: "AUTH_INTERNAL_ERROR",
 	}
 	AuthErrorCode_value = map[string]int32{
 		"AUTH_UNSPECIFIED":                       0,
@@ -192,6 +195,7 @@ var (
 		"AUTH_REVISION_CONFLICT":                 37,
 		"AUTH_MFA_ELEVATION_REQUIRED":            38,
 		"AUTH_MFA_LAST_FACTOR_REQUIRED":          39,
+		"AUTH_INTERNAL_ERROR":                    40,
 	}
 )
 
@@ -736,7 +740,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\v_api_key_id\"W\n" +
 	"\x0fAuthErrorDetail\x12*\n" +
 	"\x04code\x18\x01 \x01(\x0e2\x16.auth.v1.AuthErrorCodeR\x04code\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage*\xcf\t\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage*\xe8\t\n" +
 	"\rAuthErrorCode\x12\x14\n" +
 	"\x10AUTH_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15AUTH_USERNAME_INVALID\x10\x01\x12\x17\n" +
@@ -777,7 +781,8 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x1aAUTH_POLICY_SCOPE_MISMATCH\x10$\x12\x1a\n" +
 	"\x16AUTH_REVISION_CONFLICT\x10%\x12\x1f\n" +
 	"\x1bAUTH_MFA_ELEVATION_REQUIRED\x10&\x12!\n" +
-	"\x1dAUTH_MFA_LAST_FACTOR_REQUIRED\x10'2\x95\x05\n" +
+	"\x1dAUTH_MFA_LAST_FACTOR_REQUIRED\x10'\x12\x17\n" +
+	"\x13AUTH_INTERNAL_ERROR\x10(2\x95\x05\n" +
 	"\vAuthService\x12\xbd\x01\n" +
 	"\bGetNonce\x12\x18.auth.v1.GetNonceRequest\x1a\x19.auth.v1.GetNonceResponse\"|\xbaG`\n" +
 	"\fAuth Service\x12\x16Get Wallet Login Nonce\x1a8Retrieve a short-lived nonce for wallet-signature login.\x82\xd3\xe4\x93\x02\x13:\x01*\"\x0e/v1/auth/nonce\x12\xeb\x01\n" +

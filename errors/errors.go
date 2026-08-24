@@ -15,6 +15,7 @@ const (
 	AuthCodeStepUpRequired        = "AUTH_STEP_UP_REQUIRED"
 	AuthCodeMFAElevationRequired  = "AUTH_MFA_ELEVATION_REQUIRED"
 	AuthCodeMFALastFactorRequired = "AUTH_MFA_LAST_FACTOR_REQUIRED"
+	AuthCodeInternalError         = "AUTH_INTERNAL_ERROR"
 )
 
 // AuthErrorCode returns the structured auth.v1.AuthErrorDetail code when err is

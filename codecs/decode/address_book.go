@@ -4,10 +4,33 @@ import (
 	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/wire"
 )
+
+func tagFromProto(msg *authv1.AddressBookTag) models.AddressBookTag {
+	if msg == nil {
+		return models.AddressBookTag{}
+	}
+	return models.AddressBookTag{
+		TagID: codecs.FormatUint64ID(msg.GetTagId()),
+		Name:  msg.GetName(),
+		Color: msg.GetColor(),
+	}
+}
+
+func tagsFromProto(items []*authv1.AddressBookTag) []models.AddressBookTag {
+	out := make([]models.AddressBookTag, 0, len(items))
+	for _, item := range items {
+		if item == nil {
+			continue
+		}
+		out = append(out, tagFromProto(item))
+	}
+	return out
+}
 
 func entryFromProto(msg *authv1.AddressBookEntry) models.AddressBookEntry {
 	if msg == nil {
@@ -18,7 +41,50 @@ func entryFromProto(msg *authv1.AddressBookEntry) models.AddressBookEntry {
 		Label:              msg.GetLabel(),
 		Kind:               msg.GetKind().String(),
 		Revision:           msg.GetRevision(),
+		Tags:               tagsFromProto(msg.GetTags()),
 	}
+}
+
+func requireEntry(operation string, entry *authv1.AddressBookEntry) (models.AddressBookEntry, error) {
+	if entry == nil {
+		return models.AddressBookEntry{}, &sdkerrors.ResponseContractError{Operation: operation, Msg: "missing entry"}
+	}
+	return entryFromProto(entry), nil
+}
+
+func requireTag(operation string, tag *authv1.AddressBookTag) (models.AddressBookTag, error) {
+	if tag == nil {
+		return models.AddressBookTag{}, &sdkerrors.ResponseContractError{Operation: operation, Msg: "missing tag"}
+	}
+	return tagFromProto(tag), nil
+}
+
+func EntryFromCreateProto(msg *authv1.CreateAddressBookEntryResponse) (models.AddressBookEntry, error) {
+	if msg == nil {
+		return models.AddressBookEntry{}, &sdkerrors.ResponseContractError{Operation: "CreateAddressBookEntry", Msg: "missing entry"}
+	}
+	return requireEntry("CreateAddressBookEntry", msg.GetEntry())
+}
+
+func EntryFromUpdateProto(msg *authv1.UpdateAddressBookEntryResponse) (models.AddressBookEntry, error) {
+	if msg == nil {
+		return models.AddressBookEntry{}, &sdkerrors.ResponseContractError{Operation: "UpdateAddressBookEntry", Msg: "missing entry"}
+	}
+	return requireEntry("UpdateAddressBookEntry", msg.GetEntry())
+}
+
+func TagFromCreateProto(msg *authv1.CreateAddressBookTagResponse) (models.AddressBookTag, error) {
+	if msg == nil {
+		return models.AddressBookTag{}, &sdkerrors.ResponseContractError{Operation: "CreateAddressBookTag", Msg: "missing tag"}
+	}
+	return requireTag("CreateAddressBookTag", msg.GetTag())
+}
+
+func TagFromUpdateProto(msg *authv1.UpdateAddressBookTagResponse) (models.AddressBookTag, error) {
+	if msg == nil {
+		return models.AddressBookTag{}, &sdkerrors.ResponseContractError{Operation: "UpdateAddressBookTag", Msg: "missing tag"}
+	}
+	return requireTag("UpdateAddressBookTag", msg.GetTag())
 }
 
 func ListEntriesFromProto(msg *authv1.ListAddressBookEntriesResponse) models.AddressBookEntriesList {

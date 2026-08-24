@@ -93,14 +93,16 @@ func JWTSessionOnly(err error) bool {
 		return false
 	}
 	msg := strings.ToLower(err.Error())
-    sessionish := strings.Contains(msg, "authorization header") ||
+	sessionish := strings.Contains(msg, "authorization header") ||
 		strings.Contains(msg, "bearer") ||
 		strings.Contains(msg, "interactive session") ||
-		strings.Contains(msg, "api keys cannot")
+		strings.Contains(msg, "api keys cannot") ||
+		strings.Contains(msg, "unauthorized") ||
+		strings.Contains(msg, "unauthenticated")
 
 	var auth *sdkerrors.AuthError
 	if errors.As(err, &auth) {
-		return sessionish
+		return sessionish || auth.Status == 401
 	}
 	var api *sdkerrors.APIError
 	if errors.As(err, &api) {

@@ -67,29 +67,5 @@ procedure = "/auth.v1.SubaccountService/RespondSubaccountInvite"
 reason = "Subaccount invite mutations require JWT/session auth."
 
 [[allowlist]]
-procedure = "/auth.v1.AddressBookService/CreateAddressBookEntry"
-reason = "Address book mutations require JWT/session auth."
-
-[[allowlist]]
-procedure = "/auth.v1.AddressBookService/UpdateAddressBookEntry"
-reason = "Address book mutations require JWT/session auth."
-
-[[allowlist]]
-procedure = "/auth.v1.AddressBookService/DeleteAddressBookEntry"
-reason = "Address book mutations require JWT/session auth."
-
-[[allowlist]]
 procedure = "/auth.v1.AddressBookService/CopyAddressBookEntry"
-reason = "Address book mutations require JWT/session auth."
-
-[[allowlist]]
-procedure = "/auth.v1.AddressBookService/CreateAddressBookTag"
-reason = "Address book tag mutations require JWT/session auth."
-
-[[allowlist]]
-procedure = "/auth.v1.AddressBookService/UpdateAddressBookTag"
-reason = "Address book tag mutations require JWT/session auth."
-
-[[allowlist]]
-procedure = "/auth.v1.AddressBookService/DeleteAddressBookTag"
-reason = "Address book tag mutations require JWT/session auth."
+reason = "Address book copy is not wrapped in the API-key SDK."

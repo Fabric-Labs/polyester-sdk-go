@@ -130,3 +130,85 @@ func (s *AddressBookService) Subscribe(ctx context.Context, accountID any) (*rea
 func (s *AddressBookService) SubscribeViewInvalidations(ctx context.Context, rootAccountPublicID any) (*realtime.Subscription[models.AddressBookViewInvalidation], error) {
 	return s.Subscribe(ctx, rootAccountPublicID)
 }
+
+func (s *AddressBookService) CreateEntry(
+	ctx context.Context,
+	account AccountScope,
+	subAccountID *string,
+	label, note string,
+	externalAddress *string,
+	polychainChainID *uint32,
+	smartAccountAddress *string,
+	tagIDs []string,
+	newTags []models.AddressBookTagInput,
+) (models.AddressBookEntry, error) {
+	req, err := codecs.CreateAddressBookEntryToProto(label, note, externalAddress, polychainChainID, smartAccountAddress, tagIDs, newTags)
+	if err != nil {
+		return models.AddressBookEntry{}, err
+	}
+	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {
+		return models.AddressBookEntry{}, err
+	}
+	return UnaryAuthDecoded(ctx, s.transport, s.client().CreateAddressBookEntry, req, decode.EntryFromCreateProto)
+}
+
+func (s *AddressBookService) UpdateEntry(
+	ctx context.Context,
+	entryID string,
+	expectedRevision uint64,
+	label *string,
+	note *string,
+	tagIDs *[]string,
+	newTags *[]models.AddressBookTagInput,
+) (models.AddressBookEntry, error) {
+	id, err := codecs.IDToInt(entryID, "address_book_entry_id")
+	if err != nil {
+		return models.AddressBookEntry{}, err
+	}
+	req, err := codecs.BuildUpdateAddressBookEntryRequest(id, codecs.AddressBookEntryPatch{
+		ExpectedRevision: expectedRevision,
+		Label:            label,
+		Note:             note,
+		TagIDs:           tagIDs,
+		NewTags:          newTags,
+	})
+	if err != nil {
+		return models.AddressBookEntry{}, err
+	}
+	return UnaryAuthDecoded(ctx, s.transport, s.client().UpdateAddressBookEntry, req, decode.EntryFromUpdateProto)
+}
+
+func (s *AddressBookService) DeleteEntry(ctx context.Context, entryID string) error {
+	id, err := codecs.IDToInt(entryID, "address_book_entry_id")
+	if err != nil {
+		return err
+	}
+	_, err = UnaryAuth(ctx, s.transport, s.client().DeleteAddressBookEntry, &authv1.DeleteAddressBookEntryRequest{AddressBookEntryId: id}, decode.Void[authv1.DeleteAddressBookEntryResponse])
+	return err
+}
+
+func (s *AddressBookService) CreateTag(ctx context.Context, account AccountScope, subAccountID *string, name, color string) (models.AddressBookTag, error) {
+	req := &authv1.CreateAddressBookTagRequest{Name: name, Color: color}
+	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {
+		return models.AddressBookTag{}, err
+	}
+	return UnaryAuthDecoded(ctx, s.transport, s.client().CreateAddressBookTag, req, decode.TagFromCreateProto)
+}
+
+func (s *AddressBookService) UpdateTag(ctx context.Context, tagID string, name, color *string) (models.AddressBookTag, error) {
+	id, err := codecs.IDToInt(tagID, "tag_id")
+	if err != nil {
+		return models.AddressBookTag{}, err
+	}
+	req := &authv1.UpdateAddressBookTagRequest{TagId: id, Name: name, Color: color}
+	return UnaryAuthDecoded(ctx, s.transport, s.client().UpdateAddressBookTag, req, decode.TagFromUpdateProto)
+}
+
+func (s *AddressBookService) DeleteTag(ctx context.Context, tagID string) error {
+	id, err := codecs.IDToInt(tagID, "tag_id")
+	if err != nil {
+		return err
+	}
+	_, err = UnaryAuth(ctx, s.transport, s.client().DeleteAddressBookTag, &authv1.DeleteAddressBookTagRequest{TagId: id}, decode.Void[authv1.DeleteAddressBookTagResponse])
+	return err
+}

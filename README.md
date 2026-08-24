@@ -27,7 +27,7 @@ Requires a recent Go toolchain (see `go.mod`).
 | Profile (identity subscribe) | Yes |
 | API keys (list/get/subscribe/local keypair generation) | Yes |
 | Subaccounts (list/get/members/invites/activity/subscribe) | Yes |
-| Address book (list/view/subscribe) | Yes |
+| Address book (list/view/subscribe/create/update) | Yes |
 | Policies (realtime subscribe) | Yes |
 | Guard signer | Yes |
 | VIP tiers + status | Yes |
@@ -58,9 +58,16 @@ Full cross-language comparison:
 [SDK capability matrix](https://polyester.ai/docs/developer-docs/getting-started/sdk-capability-matrix).
 <!-- sdk-capabilities:end -->
 
+Address-book writes (`CreateEntry` / `UpdateEntry` / `DeleteEntry` and tag
+create/update/delete) are wrapped. `new_tags` creates and attaches tags in the
+same protected update; when `tag_ids` is omitted, current tags are preserved
+and the new tags are appended. Twitter social-verification handles accept an
+optional leading `@` and are forwarded as-is.
+
 Rows marked **Yes** mean that an SDK wrapper exists; deployment authorization
-still applies. In particular, whiteboard/social-verification and some
-layout/polychart routes may require a JWT session or may not be mounted.
+still applies. In particular, whiteboard/social-verification, address-book
+writes, and some layout/polychart routes may require a JWT session or may not
+be mounted.
 Private streams require an Account ID and the corresponding API-key permission.
 A successful subscribe call means the token exchange and realtime handshake
 completed. Treat a structured permission denial as non-transient and update the

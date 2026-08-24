@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Added
+- Address-book write wrappers: `CreateEntry`, `UpdateEntry`, `DeleteEntry`,
+  `CreateTag`, `UpdateTag`, and `DeleteTag`. Create and update accept
+  `new_tags` for atomic tag create-and-attach; updates use a durable FieldMask
+  (`label`, `note`, `tag_ids`, `new_tags`).
+- `errors.AuthCodeInternalError` (`AUTH_INTERNAL_ERROR`).
+
+### Changed
+- Twitter social-verification handles are forwarded as-is, including an
+  optional leading `@`.
+
 ## 0.1.0a43
 
 Git tag: `v0.1.0a43`.

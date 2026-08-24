@@ -24,6 +24,9 @@ func TestJWTSessionOnly(t *testing.T) {
 	if !testutil.JWTSessionOnly(&sdkerrors.AuthError{Msg: "missing Authorization header"}) {
 		t.Fatal("expected jwt-only auth error")
 	}
+	if !testutil.JWTSessionOnly(&sdkerrors.AuthError{Msg: "401 Unauthorized"}) {
+		t.Fatal("expected 401 unauthorized to classify as jwt-only")
+	}
 	if testutil.JWTSessionOnly(&sdkerrors.AuthError{Msg: "invalid signature"}) {
 		t.Fatal("unexpected jwt-only")
 	}
