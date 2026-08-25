@@ -372,6 +372,8 @@ const (
 	ErrorCode_ERROR_CODE_POST_ONLY_LIMIT_ONLY ErrorCode = 32
 	// Batch size exceeds the maximum allowed.
 	ErrorCode_ERROR_CODE_BATCH_TOO_LARGE ErrorCode = 33
+	// Sub-account policy maximum number of open orders has been reached.
+	ErrorCode_ERROR_CODE_POLICY_MAX_OPEN_ORDERS ErrorCode = 34
 	// Modify request in AMEND_ONLY mode requires replace semantics.
 	ErrorCode_ERROR_CODE_MODIFICATION_REQUIRES_REPLACE ErrorCode = 35
 	// Idempotency key was reused with a different payload.
@@ -438,6 +440,12 @@ const (
 	ErrorCode_ERROR_CODE_MAX_QUOTE_DEBIT_TOO_SMALL ErrorCode = 68
 	// The account exhausted its current order-admission quota.
 	ErrorCode_ERROR_CODE_RATE_LIMIT_EXCEEDED ErrorCode = 69
+	// Caller has a sub-account role that does not allow reading spot data.
+	ErrorCode_ERROR_CODE_SUBACCOUNT_READ_FORBIDDEN ErrorCode = 70
+	// Sub-account policy does not allow reading spot data.
+	ErrorCode_ERROR_CODE_POLICY_SPOT_READ_DENY ErrorCode = 71
+	// API key policy does not allow reading spot data.
+	ErrorCode_ERROR_CODE_API_KEY_SPOT_READ_DENY ErrorCode = 72
 )
 
 // Enum value maps for ErrorCode.
@@ -477,6 +485,7 @@ var (
 		31: "ERROR_CODE_MIN_QTY",
 		32: "ERROR_CODE_POST_ONLY_LIMIT_ONLY",
 		33: "ERROR_CODE_BATCH_TOO_LARGE",
+		34: "ERROR_CODE_POLICY_MAX_OPEN_ORDERS",
 		35: "ERROR_CODE_MODIFICATION_REQUIRES_REPLACE",
 		36: "ERROR_CODE_CONFLICT_IDEMPOTENCY_KEY_REUSE",
 		37: "ERROR_CODE_MARKET_PRICE_UNAVAILABLE",
@@ -509,6 +518,9 @@ var (
 		67: "ERROR_CODE_OVERLOADED",
 		68: "ERROR_CODE_MAX_QUOTE_DEBIT_TOO_SMALL",
 		69: "ERROR_CODE_RATE_LIMIT_EXCEEDED",
+		70: "ERROR_CODE_SUBACCOUNT_READ_FORBIDDEN",
+		71: "ERROR_CODE_POLICY_SPOT_READ_DENY",
+		72: "ERROR_CODE_API_KEY_SPOT_READ_DENY",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_CODE_UNSPECIFIED":                          0,
@@ -545,6 +557,7 @@ var (
 		"ERROR_CODE_MIN_QTY":                              31,
 		"ERROR_CODE_POST_ONLY_LIMIT_ONLY":                 32,
 		"ERROR_CODE_BATCH_TOO_LARGE":                      33,
+		"ERROR_CODE_POLICY_MAX_OPEN_ORDERS":               34,
 		"ERROR_CODE_MODIFICATION_REQUIRES_REPLACE":        35,
 		"ERROR_CODE_CONFLICT_IDEMPOTENCY_KEY_REUSE":       36,
 		"ERROR_CODE_MARKET_PRICE_UNAVAILABLE":             37,
@@ -577,6 +590,9 @@ var (
 		"ERROR_CODE_OVERLOADED":                           67,
 		"ERROR_CODE_MAX_QUOTE_DEBIT_TOO_SMALL":            68,
 		"ERROR_CODE_RATE_LIMIT_EXCEEDED":                  69,
+		"ERROR_CODE_SUBACCOUNT_READ_FORBIDDEN":            70,
+		"ERROR_CODE_POLICY_SPOT_READ_DENY":                71,
+		"ERROR_CODE_API_KEY_SPOT_READ_DENY":               72,
 	}
 )
 
@@ -3345,8 +3361,11 @@ type ModifyOrderRequest struct {
 	Behavior ModifyBehavior `protobuf:"varint,8,opt,name=behavior,proto3,enum=orders.v1.ModifyBehavior" json:"behavior,omitempty"`
 	// Optional new client order id when replace path is taken.
 	NewClientOrderId string `protobuf:"bytes,9,opt,name=new_client_order_id,json=newClientOrderId,proto3" json:"new_client_order_id,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Trading symbol numeric identifier. Required so API-key market policy can
+	// be enforced before forwarding; AAS verifies it against the target order.
+	SymbolId      uint32 `protobuf:"varint,10,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ModifyOrderRequest) Reset() {
@@ -3451,6 +3470,13 @@ func (x *ModifyOrderRequest) GetNewClientOrderId() string {
 		return x.NewClientOrderId
 	}
 	return ""
+}
+
+func (x *ModifyOrderRequest) GetSymbolId() uint32 {
+	if x != nil {
+		return x.SymbolId
+	}
+	return 0
 }
 
 type isModifyOrderRequest_Key interface {
@@ -4475,7 +4501,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x0eaccepted_count\x18\x02 \x01(\rR\racceptedCount\x12%\n" +
 	"\x0erejected_count\x18\x03 \x01(\rR\rrejectedCount\x12*\n" +
 	"\x02ts\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x02ts\x12\x13\n" +
-	"\x05ts_ns\x18\x05 \x01(\x04R\x04tsNs\"\xc9\x06\n" +
+	"\x05ts_ns\x18\x05 \x01(\x04R\x04tsNs\"\xf2\x06\n" +
 	"\x12ModifyOrderRequest\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x01R\fsubaccountId\x88\x01\x01\x12+\n" +
 	"\border_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\aorderId\x12H\n" +
@@ -4486,7 +4512,10 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x0enew_qty_scaled\x18\x06 \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x03R\fnewQtyScaled\x88\x01\x01\x12A\n" +
 	"\x11new_attached_risk\x18\a \x01(\v2\x15.orders.v1.RiskPolicyR\x0fnewAttachedRisk\x12?\n" +
 	"\bbehavior\x18\b \x01(\x0e2\x19.orders.v1.ModifyBehaviorB\b\xbaH\x05\x82\x01\x02\x10\x01R\bbehavior\x12N\n" +
-	"\x13new_client_order_id\x18\t \x01(\tB\x1f\xbaH\x1c\xd8\x01\x01r\x17\x18$2\x13^[A-Za-z0-9._:/-]+$R\x10newClientOrderId:\xcd\x01\xbaH\xc9\x01\x1a\xc6\x01\n" +
+	"\x13new_client_order_id\x18\t \x01(\tB\x1f\xbaH\x1c\xd8\x01\x01r\x17\x18$2\x13^[A-Za-z0-9._:/-]+$R\x10newClientOrderId\x12'\n" +
+	"\tsymbol_id\x18\n" +
+	" \x01(\rB\n" +
+	"\xe0A\x02\xbaH\x04*\x02 \x00R\bsymbolId:\xcd\x01\xbaH\xc9\x01\x1a\xc6\x01\n" +
 	"\x1bmodify_order.patch_required\x12Qat least one of new_price_ticks, new_qty_scaled, or new_attached_risk must be set\x1aThas(this.new_price_ticks) || has(this.new_qty_scaled) || has(this.new_attached_risk)B\f\n" +
 	"\x03key\x12\x05\xbaH\x02\b\x01B\x10\n" +
 	"\x0e_subaccount_idB\x12\n" +
@@ -4591,7 +4620,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"&SELF_TRADE_PREVENTION_MODE_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fEXPIRE_MAKER\x10\x01\x12\x10\n" +
 	"\fEXPIRE_TAKER\x10\x02\x12\x0f\n" +
-	"\vEXPIRE_BOTH\x10\x03*\x90\x12\n" +
+	"\vEXPIRE_BOTH\x10\x03*\xae\x13\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16ERROR_CODE_BAD_REQUEST\x10\x01\x12\x1f\n" +
@@ -4627,7 +4656,8 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x1aERROR_CODE_PRICE_TICK_SIZE\x10\x1e\x12\x16\n" +
 	"\x12ERROR_CODE_MIN_QTY\x10\x1f\x12#\n" +
 	"\x1fERROR_CODE_POST_ONLY_LIMIT_ONLY\x10 \x12\x1e\n" +
-	"\x1aERROR_CODE_BATCH_TOO_LARGE\x10!\x12,\n" +
+	"\x1aERROR_CODE_BATCH_TOO_LARGE\x10!\x12%\n" +
+	"!ERROR_CODE_POLICY_MAX_OPEN_ORDERS\x10\"\x12,\n" +
 	"(ERROR_CODE_MODIFICATION_REQUIRES_REPLACE\x10#\x12-\n" +
 	")ERROR_CODE_CONFLICT_IDEMPOTENCY_KEY_REUSE\x10$\x12'\n" +
 	"#ERROR_CODE_MARKET_PRICE_UNAVAILABLE\x10%\x12\"\n" +
@@ -4659,7 +4689,10 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x1bERROR_CODE_VALIDATION_ERROR\x10B\x12\x19\n" +
 	"\x15ERROR_CODE_OVERLOADED\x10C\x12(\n" +
 	"$ERROR_CODE_MAX_QUOTE_DEBIT_TOO_SMALL\x10D\x12\"\n" +
-	"\x1eERROR_CODE_RATE_LIMIT_EXCEEDED\x10E*k\n" +
+	"\x1eERROR_CODE_RATE_LIMIT_EXCEEDED\x10E\x12(\n" +
+	"$ERROR_CODE_SUBACCOUNT_READ_FORBIDDEN\x10F\x12$\n" +
+	" ERROR_CODE_POLICY_SPOT_READ_DENY\x10G\x12%\n" +
+	"!ERROR_CODE_API_KEY_SPOT_READ_DENY\x10H*k\n" +
 	"\x12TriggerPriceSource\x12$\n" +
 	" TRIGGER_PRICE_SOURCE_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
