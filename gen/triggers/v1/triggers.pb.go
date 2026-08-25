@@ -176,6 +176,8 @@ const (
 	TriggerEventType_EVENT_CANCELED TriggerEventType = 2
 	// Trigger configuration or lifecycle state was updated.
 	TriggerEventType_EVENT_UPDATED TriggerEventType = 3
+	// Trigger became terminal after its next child order could not be admitted.
+	TriggerEventType_EVENT_FAILED TriggerEventType = 4
 )
 
 // Enum value maps for TriggerEventType.
@@ -185,12 +187,14 @@ var (
 		1: "EVENT_FIRED",
 		2: "EVENT_CANCELED",
 		3: "EVENT_UPDATED",
+		4: "EVENT_FAILED",
 	}
 	TriggerEventType_value = map[string]int32{
 		"EVENT_UNSPECIFIED": 0,
 		"EVENT_FIRED":       1,
 		"EVENT_CANCELED":    2,
 		"EVENT_UPDATED":     3,
+		"EVENT_FAILED":      4,
 	}
 )
 
@@ -1765,7 +1769,7 @@ type TriggerEvent struct {
 	// Price that caused a conditional trigger to fire, in quote units scaled by
 	// 1e6. Absent for time-scheduled triggers such as TWAP.
 	FirePriceTicks *int64 `protobuf:"varint,13,opt,name=fire_price_ticks,json=firePriceTicks,proto3,oneof" json:"fire_price_ticks,omitempty"`
-	// Optional cancel reason.
+	// Cancel or failure reason.
 	Reason        string `protobuf:"bytes,20,opt,name=reason,proto3" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2062,6 +2066,9 @@ type ModifyTriggerRequest struct {
 	TriggerId uint64 `protobuf:"fixed64,1,opt,name=trigger_id,json=triggerId,proto3" json:"trigger_id,omitempty"`
 	// Optional sub-account for authorization.
 	SubaccountId *uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
+	// Trading symbol numeric identifier. Required for API-key market policy;
+	// AAS verifies it against the stored trigger.
+	SymbolId uint32 `protobuf:"varint,3,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Patch fields for safe price, trailing-distance, and slippage edits.
 	// For stop/take-profit:
 	// Updated trigger price in quote units scaled by 1e6.
@@ -2128,6 +2135,13 @@ func (x *ModifyTriggerRequest) GetTriggerId() uint64 {
 func (x *ModifyTriggerRequest) GetSubaccountId() uint64 {
 	if x != nil && x.SubaccountId != nil {
 		return *x.SubaccountId
+	}
+	return 0
+}
+
+func (x *ModifyTriggerRequest) GetSymbolId() uint32 {
+	if x != nil {
+		return x.SymbolId
 	}
 	return 0
 }
@@ -2446,7 +2460,10 @@ type ResumeTriggerRequest struct {
 	// Trigger ID to resume.
 	TriggerId uint64 `protobuf:"fixed64,1,opt,name=trigger_id,json=triggerId,proto3" json:"trigger_id,omitempty"`
 	// Optional sub-account for authorization.
-	SubaccountId  *uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
+	SubaccountId *uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
+	// Trading symbol numeric identifier. Required for API-key market policy;
+	// AAS verifies it against the stored trigger.
+	SymbolId      uint32 `protobuf:"varint,3,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2491,6 +2508,13 @@ func (x *ResumeTriggerRequest) GetTriggerId() uint64 {
 func (x *ResumeTriggerRequest) GetSubaccountId() uint64 {
 	if x != nil && x.SubaccountId != nil {
 		return *x.SubaccountId
+	}
+	return 0
+}
+
+func (x *ResumeTriggerRequest) GetSymbolId() uint32 {
+	if x != nil {
+		return x.SymbolId
 	}
 	return 0
 }
@@ -3416,11 +3440,13 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"trigger_id\x18\x01 \x01(\x06R\ttriggerId\x122\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x1a.triggers.v1.TriggerStatusR\x06status\x12*\n" +
 	"\x02ts\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x02ts\x12\x13\n" +
-	"\x05ts_ns\x18\x04 \x01(\x04R\x04tsNs\"\xdc\x04\n" +
+	"\x05ts_ns\x18\x04 \x01(\x04R\x04tsNs\"\x85\x05\n" +
 	"\x14ModifyTriggerRequest\x12-\n" +
 	"\n" +
 	"trigger_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\ttriggerId\x12(\n" +
-	"\rsubaccount_id\x18\x02 \x01(\x06H\x02R\fsubaccountId\x88\x01\x01\x123\n" +
+	"\rsubaccount_id\x18\x02 \x01(\x06H\x02R\fsubaccountId\x88\x01\x01\x12'\n" +
+	"\tsymbol_id\x18\x03 \x01(\rB\n" +
+	"\xe0A\x02\xbaH\x04*\x02 \x00R\bsymbolId\x123\n" +
 	"\x13trigger_price_ticks\x18\n" +
 	" \x01(\x03H\x03R\x11triggerPriceTicks\x88\x01\x01\x12/\n" +
 	"\x11limit_price_ticks\x18\v \x01(\x03H\x04R\x0flimitPriceTicks\x88\x01\x01\x128\n" +
@@ -3451,11 +3477,13 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"trigger_id\x18\x01 \x01(\x06R\ttriggerId\x122\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x1a.triggers.v1.TriggerStatusR\x06status\x12*\n" +
 	"\x02ts\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x02ts\x12\x13\n" +
-	"\x05ts_ns\x18\x04 \x01(\x04R\x04tsNs\"\x81\x01\n" +
+	"\x05ts_ns\x18\x04 \x01(\x04R\x04tsNs\"\xaa\x01\n" +
 	"\x14ResumeTriggerRequest\x12-\n" +
 	"\n" +
 	"trigger_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\ttriggerId\x12(\n" +
-	"\rsubaccount_id\x18\x02 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
+	"\rsubaccount_id\x18\x02 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12'\n" +
+	"\tsymbol_id\x18\x03 \x01(\rB\n" +
+	"\xe0A\x02\xbaH\x04*\x02 \x00R\bsymbolIdB\x10\n" +
 	"\x0e_subaccount_id\"\xab\x01\n" +
 	"\x15ResumeTriggerResponse\x12\x1d\n" +
 	"\n" +
@@ -3539,12 +3567,13 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x10STATUS_COMPLETED\x10\x04\x12\x13\n" +
 	"\x0fSTATUS_CANCELED\x10\x05\x12\x11\n" +
 	"\rSTATUS_FAILED\x10\x06\x12\x11\n" +
-	"\rSTATUS_PAUSED\x10\a*a\n" +
+	"\rSTATUS_PAUSED\x10\a*s\n" +
 	"\x10TriggerEventType\x12\x15\n" +
 	"\x11EVENT_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vEVENT_FIRED\x10\x01\x12\x12\n" +
 	"\x0eEVENT_CANCELED\x10\x02\x12\x11\n" +
-	"\rEVENT_UPDATED\x10\x03*l\n" +
+	"\rEVENT_UPDATED\x10\x03\x12\x10\n" +
+	"\fEVENT_FAILED\x10\x04*l\n" +
 	"\x12LadderDistribution\x12#\n" +
 	"\x1fLADDER_DISTRIBUTION_UNSPECIFIED\x10\x00\x12\n" +
 	"\n" +
