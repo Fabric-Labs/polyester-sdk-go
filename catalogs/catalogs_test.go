@@ -35,6 +35,32 @@ func TestOrderbookPriceBucketsForSymbolReadsSpotMarketdata(t *testing.T) {
 	}
 }
 
+func TestSymbolForSymbolIDIsReverseOfSymbolIDForSymbol(t *testing.T) {
+	mgr := catalogs.NewManager()
+	if err := mgr.HydrateSpotConfig(map[string]any{
+		"pairs": []any{
+			map[string]any{
+				"symbol":              "BTC-USDT",
+				"symbol_id":           float64(1),
+				"base_quantity_scale": float64(8),
+			},
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	id := mgr.SymbolIDForSymbol("BTC-USDT")
+	if id == nil || *id != 1 {
+		t.Fatalf("SymbolIDForSymbol=%v", id)
+	}
+	symbol := mgr.SymbolForSymbolID(*id)
+	if symbol == nil || *symbol != "BTC-USDT" {
+		t.Fatalf("SymbolForSymbolID=%v", symbol)
+	}
+	if got := mgr.SymbolForSymbolID(99); got != nil {
+		t.Fatalf("unknown id leaked %v", *got)
+	}
+}
+
 func TestLedgerIDForAssetUsesTypedZipperCatalog(t *testing.T) {
 	mgr := catalogs.NewManager()
 	if err := mgr.HydrateZipperConfig(models.DepositWithdrawConfig{

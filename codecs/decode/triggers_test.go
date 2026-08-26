@@ -13,7 +13,6 @@ func TestTriggerFromProtoMapsStopPrice(t *testing.T) {
 	msg := &triggersv1.Trigger{
 		TriggerId: 7,
 		SymbolId:  2,
-		Symbol:    "BTC-USD",
 		Status:    triggersv1.TriggerStatus_STATUS_ARMED,
 		QtyScaled: 1_000_000,
 		Configuration: &triggersv1.Trigger_StopLoss{
@@ -46,6 +45,9 @@ func TestTriggerFromProtoMapsStopPrice(t *testing.T) {
 	if trigger.Details == nil || trigger.Details.Case != "stop" {
 		t.Fatalf("details=%+v", trigger.Details)
 	}
+	if trigger.SymbolID != 2 || trigger.Symbol != "" {
+		t.Fatalf("symbol decode=%+v", trigger)
+	}
 }
 
 func TestTriggerFromProtoProjectsTrailingStopSideAndParent(t *testing.T) {
@@ -53,7 +55,6 @@ func TestTriggerFromProtoProjectsTrailingStopSideAndParent(t *testing.T) {
 	msg := &triggersv1.Trigger{
 		TriggerId:     21,
 		SymbolId:      1,
-		Symbol:        "BTC-USDT",
 		Status:        triggersv1.TriggerStatus_STATUS_ARMED,
 		QtyScaled:     50_000_000,
 		ParentOrderId: &parentID,
@@ -85,7 +86,6 @@ func TestTriggerFromProtoProjectsTwapExecutedQty(t *testing.T) {
 	msg := &triggersv1.Trigger{
 		TriggerId: 11,
 		SymbolId:  1,
-		Symbol:    "BTC-USDT",
 		Status:    triggersv1.TriggerStatus_STATUS_RUNNING,
 		QtyScaled: 100_000_000,
 		Configuration: &triggersv1.Trigger_Twap{

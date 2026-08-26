@@ -101,14 +101,13 @@ func TestMarketOverviewListFromProto(t *testing.T) {
 		Markets: []*marketoverviewv1.MarketOverview{
 			{
 				SymbolId:        1,
-				Symbol:          "BTC-USD",
 				LastPriceTicks:  50_000,
 				IndexPriceTicks: 49_500,
 			},
 		},
 	}
-	result := decode.MarketOverviewListFromProto(msg)
-	if len(result.Markets) != 1 || result.Markets[0].Symbol != "BTC-USD" {
+	result := decode.MarketOverviewListFromProto(msg, nil)
+	if len(result.Markets) != 1 || result.Markets[0].SymbolID != 1 || result.Markets[0].Symbol != "" {
 		t.Fatalf("markets=%+v", result.Markets)
 	}
 	if result.Markets[0].LastPrice.Ticks() != 50_000 {

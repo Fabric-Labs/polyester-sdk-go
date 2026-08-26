@@ -31,9 +31,11 @@ func TestCorrelationIDValidation(t *testing.T) {
 
 func TestOrderEncodersRejectInvalidCorrelationIDs(t *testing.T) {
 	symbol := "BTC-USDT"
+	sid := uint32(1)
 	clientOrderID := "bad id"
 	req := models.CreateOrderRequest{
 		Symbol:        &symbol,
+		SymbolID:      &sid,
 		Side:          "buy",
 		OrderType:     "market",
 		Qty:           models.QtyFromScaledInt(1),

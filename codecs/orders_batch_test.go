@@ -9,12 +9,14 @@ import (
 
 func TestBatchCreateOrdersToProto(t *testing.T) {
 	symbol := "BTC-USD"
+	sid := uint32(1)
+	ethID := uint32(2)
 	tif := "gtc"
 	cid := "cid-1"
 	price := models.PriceFromDecimal("50000")
 	items := []models.CreateOrderRequest{
-		{Symbol: &symbol, Side: "buy", OrderType: "limit", TIF: &tif, Qty: models.QtyFromDecimal("0.1"), Price: &price, ClientOrderID: &cid},
-		{Symbol: strPtr("ETH-USD"), Side: "sell", OrderType: "market", Qty: models.QtyFromDecimal("1"), ClientOrderID: strPtr("cid-2")},
+		{Symbol: &symbol, SymbolID: &sid, Side: "buy", OrderType: "limit", TIF: &tif, Qty: models.QtyFromDecimal("0.1"), Price: &price, ClientOrderID: &cid},
+		{Symbol: strPtr("ETH-USD"), SymbolID: &ethID, Side: "sell", OrderType: "market", Qty: models.QtyFromDecimal("1"), ClientOrderID: strPtr("cid-2")},
 	}
 	reqID := "req-create-1"
 	proto, err := BatchCreateOrdersToProto(items, strPtr("123"), &reqID, true, 8, 6)
@@ -27,7 +29,7 @@ func TestBatchCreateOrdersToProto(t *testing.T) {
 	if proto.GetSubaccountId() != 123 || len(proto.Items) != 2 {
 		t.Fatalf("items=%d sub=%d", len(proto.Items), proto.GetSubaccountId())
 	}
-	if proto.Items[0].Symbol != "BTC-USD" || proto.Items[0].Side != orderv1.Side_BUY {
+	if proto.Items[0].SymbolId != 1 || proto.Items[0].Side != orderv1.Side_BUY {
 		t.Fatalf("item0=%+v", proto.Items[0])
 	}
 	limitGtc := proto.Items[0].GetLimitGtc()
@@ -51,12 +53,13 @@ func TestBatchCreateOrdersRequiresItems(t *testing.T) {
 
 func TestBatchSizeGuardRejectsMoreThanTwenty(t *testing.T) {
 	symbol := "BTC-USD"
+	sid := uint32(1)
 	tif := "gtc"
 	price := models.PriceFromDecimal("50000")
 	items := make([]models.CreateOrderRequest, 21)
 	for i := range items {
 		items[i] = models.CreateOrderRequest{
-			Symbol: &symbol, Side: "buy", OrderType: "limit", TIF: &tif,
+			Symbol: &symbol, SymbolID: &sid, Side: "buy", OrderType: "limit", TIF: &tif,
 			Qty: models.QtyFromDecimal("0.1"), Price: &price,
 		}
 	}

@@ -173,6 +173,9 @@ func (s *OrdersService) Create(ctx context.Context, req models.CreateOrderReques
 		}
 		req.SubAccountID = sub
 	}
+	if err := resolveOrderSymbolID(s.catalogs, &req, nil, "orders.create"); err != nil {
+		return models.OrderMutationResult{}, err
+	}
 	scale, err := quantityScaleForOrderWrite(s.catalogs, req.Symbol, req.SymbolID)
 	if err != nil {
 		return models.OrderMutationResult{}, err
@@ -211,6 +214,9 @@ func (s *OrdersService) Preview(ctx context.Context, req models.CreateOrderReque
 			return models.PreviewOrderResult{}, err
 		}
 		req.SubAccountID = sub
+	}
+	if err := resolveOrderSymbolID(s.catalogs, &req, nil, "orders.preview"); err != nil {
+		return models.PreviewOrderResult{}, err
 	}
 	baseScale, err := quantityScaleForOrderWrite(s.catalogs, req.Symbol, req.SymbolID)
 	if err != nil {
@@ -270,11 +276,15 @@ func (s *OrdersService) Modify(ctx context.Context, account AccountScope, symbol
 	if err != nil {
 		return models.ModifyOrderResult{}, err
 	}
+	resolvedSymbolID, err := ResolveSymbolID(s.catalogs, &symbol, nil, "orders.modify")
+	if err != nil {
+		return models.ModifyOrderResult{}, err
+	}
 	scale, err := codecs.QuantityScaleForSymbol(s.catalogs, &symbol)
 	if err != nil {
 		return models.ModifyOrderResult{}, err
 	}
-	protoReq, err := codecs.ModifyOrderToProto(symbol, key, sub, requestID, newPrice, newQty, behavior, newClientOrderID, scale)
+	protoReq, err := codecs.ModifyOrderToProto(symbol, resolvedSymbolID, key, sub, requestID, newPrice, newQty, behavior, newClientOrderID, scale)
 	if err != nil {
 		return models.ModifyOrderResult{}, err
 	}
@@ -287,7 +297,15 @@ func (s *OrdersService) CancelAll(ctx context.Context, account AccountScope, sub
 	if err != nil {
 		return models.CancelAllOrdersResult{}, err
 	}
-	protoReq, err := codecs.CancelAllOrdersToProto(sub, symbol, side, dryRun, requestID)
+	resolvedSymbolID, err := ResolveOptionalSymbolID(s.catalogs, symbol, nil, "orders.cancel_all")
+	if err != nil {
+		return models.CancelAllOrdersResult{}, err
+	}
+	var symbolID *uint32
+	if resolvedSymbolID != 0 {
+		symbolID = uint32Ptr(resolvedSymbolID)
+	}
+	protoReq, err := codecs.CancelAllOrdersToProto(sub, symbolID, side, dryRun, requestID)
 	if err != nil {
 		return models.CancelAllOrdersResult{}, err
 	}
@@ -300,7 +318,15 @@ func (s *OrdersService) CancelAllAfter(ctx context.Context, account AccountScope
 	if err != nil {
 		return models.CancelAllAfterResult{}, err
 	}
-	protoReq, err := codecs.CancelAllAfterToProto(sub, timeoutSec, symbol, side, requestID)
+	resolvedSymbolID, err := ResolveOptionalSymbolID(s.catalogs, symbol, nil, "orders.cancel_all_after")
+	if err != nil {
+		return models.CancelAllAfterResult{}, err
+	}
+	var symbolID *uint32
+	if resolvedSymbolID != 0 {
+		symbolID = uint32Ptr(resolvedSymbolID)
+	}
+	protoReq, err := codecs.CancelAllAfterToProto(sub, timeoutSec, symbolID, side, requestID)
 	if err != nil {
 		return models.CancelAllAfterResult{}, err
 	}
@@ -315,6 +341,11 @@ func (s *OrdersService) BatchCreate(ctx context.Context, account AccountScope, i
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {
 		return models.BatchCreateOrdersResult{}, err
+	}
+	for i := range items {
+		if err := resolveOrderSymbolID(s.catalogs, &items[i], symbol, "orders.batch_create"); err != nil {
+			return models.BatchCreateOrdersResult{}, err
+		}
 	}
 	scale, err := codecs.QuantityScaleForSymbol(s.catalogs, symbol)
 	if err != nil {
@@ -459,6 +490,25 @@ func sumTradeQty(trades []models.UserTrade) int64 {
 		sum += trade.Qty.Scaled()
 	}
 	return sum
+}
+
+func resolveOrderSymbolID(c *catalogs.Manager, req *models.CreateOrderRequest, fallback *string, label string) error {
+	if req.SymbolID != nil && *req.SymbolID != 0 {
+		return nil
+	}
+	symbol := req.Symbol
+	if symbol == nil {
+		symbol = fallback
+	}
+	id, err := ResolveSymbolID(c, symbol, req.SymbolID, label)
+	if err != nil {
+		return err
+	}
+	if id == 0 {
+		return &sdkerrors.ValidationError{Msg: label + " requires a resolved non-zero symbol_id"}
+	}
+	req.SymbolID = &id
+	return nil
 }
 
 func quantityScaleForOrderWrite(c *catalogs.Manager, symbol *string, symbolID *uint32) (int, error) {

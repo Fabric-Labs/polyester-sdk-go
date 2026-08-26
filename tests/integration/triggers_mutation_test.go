@@ -81,7 +81,7 @@ func TestTriggerPauseResumeCancel(t *testing.T) {
 		t.Fatalf("pause status=%q want paused", paused.Status)
 	}
 
-	resumed, err := client.Triggers.Resume(ctx, nil, created.TriggerID, nil)
+	resumed, err := client.Triggers.Resume(ctx, nil, created.TriggerID, nil, &symbol, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

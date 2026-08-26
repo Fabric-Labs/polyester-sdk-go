@@ -240,9 +240,10 @@ catalogs are unusable (use `CatalogsLastError()` to inspect). Typed Zipper
 hydration is available via `client.Catalogs.HydrateZipperConfig(cfg)` /
 `HydrateDepositWithdrawConfig`.
 
-Endpoints that take raw `symbol` / `symbols` strings forward those filters to
-the API (trim/empty-omit is OK). Catalog fail-closed resolution applies only
-where the wire contract uses `symbol_id`. Use
+Public methods may still accept display `symbol` strings. The SDK resolves them
+through the spot catalog and fails closed on unknown symbols. Connect requests
+send `symbol_id` only (GetSpotConfig still accepts both). Empty or omitted
+symbol filters mean all symbols (`symbol_id = 0`). Use
 `Catalogs.PairConstraintsForSymbol` (or `PairConstraintsForSymbolID`) to inspect
 tick size, quantity step, and minimums; order admission stays server-side.
 

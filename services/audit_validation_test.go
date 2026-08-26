@@ -30,23 +30,39 @@ func auditCatalog(t *testing.T) *catalogs.Manager {
 	return manager
 }
 
-func TestRawSymbolsAreForwardedWithoutCatalogFailClosed(t *testing.T) {
+func TestOptionalSymbolFiltersFailClosedAndOmitEmpty(t *testing.T) {
+	manager := auditCatalog(t)
 	unknown := "NOPE-USDT"
-	proto, err := codecs.CancelAllOrdersToProto(nil, &unknown, nil, true, nil)
-	if err != nil {
-		t.Fatalf("cancel-all encode failed: %v", err)
-	}
-	if proto.GetSymbol() != unknown {
-		t.Fatalf("raw symbol not forwarded: got %q", proto.GetSymbol())
+	if _, err := ResolveOptionalSymbolID(manager, &unknown, nil, "cancel_all"); err == nil {
+		t.Fatal("unknown display symbol must fail closed")
 	}
 
 	empty := "   "
-	proto, err = codecs.CancelAllOrdersToProto(nil, &empty, nil, true, nil)
-	if err != nil {
-		t.Fatalf("empty symbol encode failed: %v", err)
+	got, err := ResolveOptionalSymbolID(manager, &empty, nil, "cancel_all")
+	if err != nil || got != 0 {
+		t.Fatalf("empty/whitespace symbol should mean all symbols, got=%d err=%v", got, err)
 	}
-	if proto.GetSymbol() != "" {
-		t.Fatalf("empty/whitespace symbol should be omitted, got %q", proto.GetSymbol())
+
+	known := "BTC-USDT"
+	got, err = ResolveOptionalSymbolID(manager, &known, nil, "cancel_all")
+	if err != nil || got != 1 {
+		t.Fatalf("known symbol resolve got=%d err=%v", got, err)
+	}
+
+	proto, err := codecs.CancelAllOrdersToProto(nil, nil, nil, true, nil)
+	if err != nil {
+		t.Fatalf("cancel-all encode failed: %v", err)
+	}
+	if proto.GetSymbolId() != 0 {
+		t.Fatalf("omitted filter should encode symbol_id=0, got %d", proto.GetSymbolId())
+	}
+	id := uint32(1)
+	proto, err = codecs.CancelAllOrdersToProto(nil, &id, nil, true, nil)
+	if err != nil {
+		t.Fatalf("cancel-all encode failed: %v", err)
+	}
+	if proto.GetSymbolId() != 1 {
+		t.Fatalf("symbol_id not encoded: got %d", proto.GetSymbolId())
 	}
 }
 
@@ -85,8 +101,9 @@ func TestOrderCreateDoesNotPreflightOffTickPrices(t *testing.T) {
 	// 5000.000001 is not aligned to tick_size 0.01; SDK must still encode and
 	// leave admission to the API.
 	price := models.PriceFromDecimal("5000.000001")
+	sid := uint32(1)
 	req := models.CreateOrderRequest{
-		Symbol: &symbol, Side: "buy", OrderType: "limit", TIF: &tif,
+		Symbol: &symbol, SymbolID: &sid, Side: "buy", OrderType: "limit", TIF: &tif,
 		Qty: models.QtyFromDecimal("0.001"), Price: &price,
 	}
 	proto, err := codecs.CreateOrderToProto(req, 3, 2)

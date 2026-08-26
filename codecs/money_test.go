@@ -176,8 +176,9 @@ func TestCreateOrderAcceptsDecimalAndScaled(t *testing.T) {
 	symbol := "BTC-USD"
 	tif := "gtc"
 	price := models.PriceFromDecimal("50000")
+	sid := uint32(1)
 	req := models.CreateOrderRequest{
-		Symbol: &symbol, Side: "buy", OrderType: "limit", TIF: &tif,
+		Symbol: &symbol, SymbolID: &sid, Side: "buy", OrderType: "limit", TIF: &tif,
 		Qty: models.QtyFromDecimal("0.1"), Price: &price,
 	}
 	proto, err := codecs.CreateOrderToProto(req, 8, 6)
@@ -192,7 +193,7 @@ func TestCreateOrderAcceptsDecimalAndScaled(t *testing.T) {
 	scaledQty := models.MustQtyScaled(10_000_000).WithScale(8).WithSymbol("BTC-USD")
 	scaledPrice := models.PriceFromTicks(models.MustPriceTicks(50_000_000_000))
 	req2 := models.CreateOrderRequest{
-		Symbol: &symbol, Side: "buy", OrderType: "limit", TIF: &tif,
+		Symbol: &symbol, SymbolID: &sid, Side: "buy", OrderType: "limit", TIF: &tif,
 		Qty: models.QtyFromScaled(scaledQty), Price: &scaledPrice,
 	}
 	proto2, err := codecs.CreateOrderToProto(req2, 8, 6)

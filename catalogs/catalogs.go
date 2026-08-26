@@ -115,6 +115,27 @@ func (m *Manager) SymbolIDForSymbol(symbol string) *uint32 {
 	return nil
 }
 
+// SymbolForSymbolID resolves display symbol from spot config symbol id.
+func (m *Manager) SymbolForSymbolID(symbolID uint32) *string {
+	if symbolID == 0 {
+		return nil
+	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, pair := range m.pairsLocked() {
+		v := intish(pair["symbol_id"])
+		if v == nil {
+			v = intish(pair["symbolId"])
+		}
+		if v != nil && *v == symbolID {
+			if s, _ := pair["symbol"].(string); s != "" {
+				return &s
+			}
+		}
+	}
+	return nil
+}
+
 // BaseQuantityScaleForSymbol returns qty scale for symbol.
 //
 // ok is false when the symbol is unknown or catalogs are unhydrated.
