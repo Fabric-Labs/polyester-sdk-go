@@ -363,8 +363,6 @@ type MarketOverview struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Numeric spot market identifier.
 	SymbolId uint32 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
-	// Canonical pair symbol, e.g. "BTC-USDT".
-	Symbol string `protobuf:"bytes,2,opt,name=symbol,proto3" json:"symbol,omitempty"`
 	// Last traded price in quote units scaled by 1e6.
 	LastPriceTicks int64 `protobuf:"varint,3,opt,name=last_price_ticks,json=lastPriceTicks,proto3" json:"last_price_ticks,omitempty"`
 	// Last trade timestamp in nanoseconds since epoch.
@@ -438,13 +436,6 @@ func (x *MarketOverview) GetSymbolId() uint32 {
 		return x.SymbolId
 	}
 	return 0
-}
-
-func (x *MarketOverview) GetSymbol() string {
-	if x != nil {
-		return x.Symbol
-	}
-	return ""
 }
 
 func (x *MarketOverview) GetLastPriceTicks() int64 {
@@ -547,14 +538,15 @@ func (x *MarketOverview) GetIndexPriceTicks() int64 {
 
 type ListMarketOverviewRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Filter by specific symbols; when empty, returns all enabled markets.
-	Symbols []string `protobuf:"bytes,1,rep,name=symbols,proto3" json:"symbols,omitempty"`
+	// Filter by stable numeric pair IDs from GetSpotConfig. When empty, returns
+	// all enabled markets.
+	SymbolId []uint32 `protobuf:"varint,1,rep,packed,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Maximum number of markets to return. Defaults to 50 when omitted; maximum
 	// is 2000.
 	Limit uint32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
 	// Opaque keyset cursor from a previous response. The cursor is exclusive and
-	// bound to symbols, sort key, and sort direction. Sparkline options affect
-	// only response enrichment and may change between pages.
+	// bound to symbol IDs, sort key, and sort direction. Sparkline options
+	// affect only response enrichment and may change between pages.
 	PageToken string `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	// Sort key. When unset/UNSPECIFIED, defaults to 24h quote volume.
 	OrderBy MarketOrderBy `protobuf:"varint,4,opt,name=order_by,json=orderBy,proto3,enum=marketoverview.v1.MarketOrderBy" json:"order_by,omitempty"`
@@ -599,9 +591,9 @@ func (*ListMarketOverviewRequest) Descriptor() ([]byte, []int) {
 	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *ListMarketOverviewRequest) GetSymbols() []string {
+func (x *ListMarketOverviewRequest) GetSymbolId() []uint32 {
 	if x != nil {
-		return x.Symbols
+		return x.SymbolId
 	}
 	return nil
 }
@@ -768,10 +760,9 @@ const file_marketoverview_v1_marketoverview_proto_rawDesc = "" +
 	"\tSparkline\x12J\n" +
 	"\binterval\x18\x01 \x01(\x0e2$.marketoverview.v1.SparklineIntervalB\b\xbaH\x05\x82\x01\x02\x10\x01R\binterval\x12\x1f\n" +
 	"\vclose_ticks\x18\x02 \x03(\x03R\n" +
-	"closeTicks\"\xaa\x05\n" +
+	"closeTicks\"\x92\x05\n" +
 	"\x0eMarketOverview\x12\x1b\n" +
-	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x12\x16\n" +
-	"\x06symbol\x18\x02 \x01(\tR\x06symbol\x12(\n" +
+	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x12(\n" +
 	"\x10last_price_ticks\x18\x03 \x01(\x03R\x0elastPriceTicks\x12'\n" +
 	"\x10last_trade_ts_ns\x18\x04 \x01(\x04R\rlastTradeTsNs\x12$\n" +
 	"\x0echange_24h_bps\x18\x05 \x01(\x05R\fchange24hBps\x12$\n" +
@@ -789,9 +780,9 @@ const file_marketoverview_v1_marketoverview_proto_rawDesc = "" +
 	"\n" +
 	"sparklines\x18\r \x03(\v2\x1c.marketoverview.v1.SparklineR\n" +
 	"sparklines\x12*\n" +
-	"\x11index_price_ticks\x18\x10 \x01(\x03R\x0findexPriceTicks\"\x9a\x03\n" +
-	"\x19ListMarketOverviewRequest\x12\x18\n" +
-	"\asymbols\x18\x01 \x03(\tR\asymbols\x12\x1e\n" +
+	"\x11index_price_ticks\x18\x10 \x01(\x03R\x0findexPriceTicks\"\xb0\x03\n" +
+	"\x19ListMarketOverviewRequest\x12.\n" +
+	"\tsymbol_id\x18\x01 \x03(\rB\x11\xbaH\x0e\x92\x01\v\x10\xd0\x0f\x18\x01\"\x04*\x02 \x00R\bsymbolId\x12\x1e\n" +
 	"\x05limit\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xd0\x0fR\x05limit\x12'\n" +
 	"\n" +
 	"page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken\x12E\n" +

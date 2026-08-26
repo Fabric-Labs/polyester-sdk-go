@@ -104,7 +104,7 @@ type ApiKey struct {
 	// Optional sub-account this key is scoped to (opaque ID; empty = root-level).
 	SubaccountId *uint64 `protobuf:"fixed64,7,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Optional API policy attached to this key (opaque ID).
-	// Empty means "no per-key policy", so only the sub-account policy (and roles) apply.
+	// Empty means no policy is attached and the key has no permissions.
 	PolicyId *uint64 `protobuf:"fixed64,8,opt,name=policy_id,json=policyId,proto3,oneof" json:"policy_id,omitempty"`
 	// Time in UTC when this key was created.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,20,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`

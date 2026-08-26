@@ -110,8 +110,8 @@ func (Depth) EnumDescriptor() ([]byte, []int) {
 // GetOrderBookRequest describes a snapshot view request.
 type GetOrderBookRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// e.g. "BTC-USDT"; resolved to symbol_id server-side.
-	Symbol string `protobuf:"bytes,1,opt,name=symbol,proto3" json:"symbol,omitempty"`
+	// Stable numeric pair ID from GetSpotConfig.
+	SymbolId uint32 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Requested depth per side (number of price levels). Default is 50.
 	Depth         Depth `protobuf:"varint,2,opt,name=depth,proto3,enum=orderbook.v1.Depth" json:"depth,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -148,11 +148,11 @@ func (*GetOrderBookRequest) Descriptor() ([]byte, []int) {
 	return file_orderbook_v1_orderbook_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *GetOrderBookRequest) GetSymbol() string {
+func (x *GetOrderBookRequest) GetSymbolId() uint32 {
 	if x != nil {
-		return x.Symbol
+		return x.SymbolId
 	}
-	return ""
+	return 0
 }
 
 func (x *GetOrderBookRequest) GetDepth() Depth {
@@ -420,9 +420,9 @@ var File_orderbook_v1_orderbook_proto protoreflect.FileDescriptor
 
 const file_orderbook_v1_orderbook_proto_rawDesc = "" +
 	"\n" +
-	"\x1corderbook/v1/orderbook.proto\x12\forderbook.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"m\n" +
-	"\x13GetOrderBookRequest\x12!\n" +
-	"\x06symbol\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18\x14R\x06symbol\x123\n" +
+	"\x1corderbook/v1/orderbook.proto\x12\forderbook.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"p\n" +
+	"\x13GetOrderBookRequest\x12$\n" +
+	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\x123\n" +
 	"\x05depth\x18\x02 \x01(\x0e2\x13.orderbook.v1.DepthB\b\xbaH\x05\x82\x01\x02\x10\x01R\x05depth\"L\n" +
 	"\n" +
 	"PriceLevel\x12\x1f\n" +
@@ -456,10 +456,10 @@ const file_orderbook_v1_orderbook_proto_rawDesc = "" +
 	"\tDEPTH_200\x10\a\x12\r\n" +
 	"\tDEPTH_500\x10\b\x12\x0e\n" +
 	"\n" +
-	"DEPTH_1000\x10\t2\xb3\x02\n" +
-	"\x10OrderbookService\x12\x9e\x02\n" +
-	"\fGetOrderBook\x12!.orderbook.v1.GetOrderBookRequest\x1a\".orderbook.v1.GetOrderBookResponse\"\xc6\x01\xbaG\xa0\x01\n" +
-	"\x11Orderbook Service\x12\x0eGet Order Book\x1a{Retrieve a spot order book depth snapshot for a symbol. Supports selectable depth per side and returns best bid/ask levels.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x18\x12\x16/v1/orderbook/{symbol}B\x97\x01\xbaGN:L\n" +
+	"DEPTH_1000\x10\t2\xb6\x02\n" +
+	"\x10OrderbookService\x12\xa1\x02\n" +
+	"\fGetOrderBook\x12!.orderbook.v1.GetOrderBookRequest\x1a\".orderbook.v1.GetOrderBookResponse\"\xc9\x01\xbaG\xa0\x01\n" +
+	"\x11Orderbook Service\x12\x0eGet Order Book\x1a{Retrieve a spot order book depth snapshot for a symbol. Supports selectable depth per side and returns best bid/ask levels.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/orderbook/{symbol_id}B\x97\x01\xbaGN:L\n" +
 	"\x11Orderbook Service\x127Public read surface for spot orderbook depth snapshots.ZDgithub.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1;orderbookv1b\x06proto3"
 
 var (

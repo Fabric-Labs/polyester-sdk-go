@@ -176,6 +176,8 @@ const (
 	TriggerEventType_EVENT_CANCELED TriggerEventType = 2
 	// Trigger configuration or lifecycle state was updated.
 	TriggerEventType_EVENT_UPDATED TriggerEventType = 3
+	// Trigger became terminal after its next child order could not be admitted.
+	TriggerEventType_EVENT_FAILED TriggerEventType = 4
 )
 
 // Enum value maps for TriggerEventType.
@@ -185,12 +187,14 @@ var (
 		1: "EVENT_FIRED",
 		2: "EVENT_CANCELED",
 		3: "EVENT_UPDATED",
+		4: "EVENT_FAILED",
 	}
 	TriggerEventType_value = map[string]int32{
 		"EVENT_UNSPECIFIED": 0,
 		"EVENT_FIRED":       1,
 		"EVENT_CANCELED":    2,
 		"EVENT_UPDATED":     3,
+		"EVENT_FAILED":      4,
 	}
 )
 
@@ -1087,8 +1091,8 @@ func (x *LadderTrigger) GetPostOnly() bool {
 // TriggerIntent contains one standalone trigger's immutable configuration.
 type TriggerIntent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Symbol, for example "BTC-USDT".
-	Symbol string `protobuf:"bytes,1,opt,name=symbol,proto3" json:"symbol,omitempty"`
+	// Stable numeric pair ID from GetSpotConfig.
+	SymbolId uint32 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Total quantity scaled by the pair's base_quantity_scale.
 	QtyScaled int64 `protobuf:"varint,2,opt,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`
 	// Fee asset for BUY children. SELL children must use QUOTE.
@@ -1141,11 +1145,11 @@ func (*TriggerIntent) Descriptor() ([]byte, []int) {
 	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{11}
 }
 
-func (x *TriggerIntent) GetSymbol() string {
+func (x *TriggerIntent) GetSymbolId() uint32 {
 	if x != nil {
-		return x.Symbol
+		return x.SymbolId
 	}
-	return ""
+	return 0
 }
 
 func (x *TriggerIntent) GetQtyScaled() int64 {
@@ -1503,8 +1507,8 @@ type ListTriggersRequest struct {
 	// Optional sub-account to list triggers for. When empty or omitted, uses the
 	// caller's root account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
-	// Optional filter by symbol.
-	Symbol string `protobuf:"bytes,2,opt,name=symbol,proto3" json:"symbol,omitempty"`
+	// Optional filter by stable numeric pair ID. Zero means all symbols.
+	SymbolId uint32 `protobuf:"varint,2,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Optional filter by status (can specify multiple).
 	Status []TriggerStatus `protobuf:"varint,3,rep,packed,name=status,proto3,enum=triggers.v1.TriggerStatus" json:"status,omitempty"`
 	// Optional filter by type.
@@ -1559,11 +1563,11 @@ func (x *ListTriggersRequest) GetSubaccountId() uint64 {
 	return 0
 }
 
-func (x *ListTriggersRequest) GetSymbol() string {
+func (x *ListTriggersRequest) GetSymbolId() uint32 {
 	if x != nil {
-		return x.Symbol
+		return x.SymbolId
 	}
-	return ""
+	return 0
 }
 
 func (x *ListTriggersRequest) GetStatus() []TriggerStatus {
@@ -1765,7 +1769,7 @@ type TriggerEvent struct {
 	// Price that caused a conditional trigger to fire, in quote units scaled by
 	// 1e6. Absent for time-scheduled triggers such as TWAP.
 	FirePriceTicks *int64 `protobuf:"varint,13,opt,name=fire_price_ticks,json=firePriceTicks,proto3,oneof" json:"fire_price_ticks,omitempty"`
-	// Optional cancel reason.
+	// Cancel or failure reason.
 	Reason        string `protobuf:"bytes,20,opt,name=reason,proto3" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2062,6 +2066,9 @@ type ModifyTriggerRequest struct {
 	TriggerId uint64 `protobuf:"fixed64,1,opt,name=trigger_id,json=triggerId,proto3" json:"trigger_id,omitempty"`
 	// Optional sub-account for authorization.
 	SubaccountId *uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
+	// Trading symbol numeric identifier. Required for API-key market policy;
+	// AAS verifies it against the stored trigger.
+	SymbolId uint32 `protobuf:"varint,3,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Patch fields for safe price, trailing-distance, and slippage edits.
 	// For stop/take-profit:
 	// Updated trigger price in quote units scaled by 1e6.
@@ -2128,6 +2135,13 @@ func (x *ModifyTriggerRequest) GetTriggerId() uint64 {
 func (x *ModifyTriggerRequest) GetSubaccountId() uint64 {
 	if x != nil && x.SubaccountId != nil {
 		return *x.SubaccountId
+	}
+	return 0
+}
+
+func (x *ModifyTriggerRequest) GetSymbolId() uint32 {
+	if x != nil {
+		return x.SymbolId
 	}
 	return 0
 }
@@ -2446,7 +2460,10 @@ type ResumeTriggerRequest struct {
 	// Trigger ID to resume.
 	TriggerId uint64 `protobuf:"fixed64,1,opt,name=trigger_id,json=triggerId,proto3" json:"trigger_id,omitempty"`
 	// Optional sub-account for authorization.
-	SubaccountId  *uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
+	SubaccountId *uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
+	// Trading symbol numeric identifier. Required for API-key market policy;
+	// AAS verifies it against the stored trigger.
+	SymbolId      uint32 `protobuf:"varint,3,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2491,6 +2508,13 @@ func (x *ResumeTriggerRequest) GetTriggerId() uint64 {
 func (x *ResumeTriggerRequest) GetSubaccountId() uint64 {
 	if x != nil && x.SubaccountId != nil {
 		return *x.SubaccountId
+	}
+	return 0
+}
+
+func (x *ResumeTriggerRequest) GetSymbolId() uint32 {
+	if x != nil {
+		return x.SymbolId
 	}
 	return 0
 }
@@ -2921,8 +2945,6 @@ type Trigger struct {
 	SubaccountId uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
 	// Trading symbol numeric identifier.
 	SymbolId uint32 `protobuf:"varint,3,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
-	// Trading symbol, for example "BTC-USDT".
-	Symbol string `protobuf:"bytes,4,opt,name=symbol,proto3" json:"symbol,omitempty"`
 	// Current trigger lifecycle status.
 	Status TriggerStatus `protobuf:"varint,5,opt,name=status,proto3,enum=triggers.v1.TriggerStatus" json:"status,omitempty"`
 	// Parent order ID for attached-risk triggers; empty for standalone triggers.
@@ -3016,13 +3038,6 @@ func (x *Trigger) GetSymbolId() uint32 {
 		return x.SymbolId
 	}
 	return 0
-}
-
-func (x *Trigger) GetSymbol() string {
-	if x != nil {
-		return x.Symbol
-	}
-	return ""
 }
 
 func (x *Trigger) GetStatus() TriggerStatus {
@@ -3325,10 +3340,10 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x0fprice_max_ticks\x18\x03 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\rpriceMaxTicks\x12!\n" +
 	"\x06levels\x18\x04 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x02R\x06levels\x12\x1b\n" +
 	"\tpost_only\x18\x05 \x01(\bR\bpostOnly:~\xbaH{\x1ay\n" +
-	"\x14ladder_trigger.range\x124price_max_ticks must be greater than price_min_ticks\x1a+this.price_max_ticks > this.price_min_ticks\"\x83\x05\n" +
-	"\rTriggerIntent\x12\"\n" +
-	"\x06symbol\x18\x01 \x01(\tB\n" +
-	"\xe0A\x02\xbaH\x04r\x02\x10\x01R\x06symbol\x12)\n" +
+	"\x14ladder_trigger.range\x124price_max_ticks must be greater than price_min_ticks\x1a+this.price_max_ticks > this.price_min_ticks\"\x88\x05\n" +
+	"\rTriggerIntent\x12'\n" +
+	"\tsymbol_id\x18\x01 \x01(\rB\n" +
+	"\xe0A\x02\xbaH\x04*\x02 \x00R\bsymbolId\x12)\n" +
 	"\n" +
 	"qty_scaled\x18\x02 \x01(\x03B\n" +
 	"\xe0A\x02\xbaH\x04\"\x02 \x00R\tqtyScaled\x12:\n" +
@@ -3361,10 +3376,11 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\rsubaccount_id\x18\x02 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
 	"\x0e_subaccount_id\"D\n" +
 	"\x12GetTriggerResponse\x12.\n" +
-	"\atrigger\x18\x01 \x01(\v2\x14.triggers.v1.TriggerR\atrigger\"\xfd\x02\n" +
+	"\atrigger\x18\x01 \x01(\v2\x14.triggers.v1.TriggerR\atrigger\"\x8e\x03\n" +
 	"\x13ListTriggersRequest\x12(\n" +
-	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12\x16\n" +
-	"\x06symbol\x18\x02 \x01(\tR\x06symbol\x12A\n" +
+	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12'\n" +
+	"\tsymbol_id\x18\x02 \x01(\rB\n" +
+	"\xbaH\a\xd8\x01\x01*\x02 \x00R\bsymbolId\x12A\n" +
 	"\x06status\x18\x03 \x03(\x0e2\x1a.triggers.v1.TriggerStatusB\r\xbaH\n" +
 	"\x92\x01\a\"\x05\x82\x01\x02\x10\x01R\x06status\x12E\n" +
 	"\ftrigger_type\x18\x04 \x01(\x0e2\x18.triggers.v1.TriggerTypeB\b\xbaH\x05\x82\x01\x02\x10\x01R\vtriggerType\x12+\n" +
@@ -3416,11 +3432,13 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"trigger_id\x18\x01 \x01(\x06R\ttriggerId\x122\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x1a.triggers.v1.TriggerStatusR\x06status\x12*\n" +
 	"\x02ts\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x02ts\x12\x13\n" +
-	"\x05ts_ns\x18\x04 \x01(\x04R\x04tsNs\"\xdc\x04\n" +
+	"\x05ts_ns\x18\x04 \x01(\x04R\x04tsNs\"\x85\x05\n" +
 	"\x14ModifyTriggerRequest\x12-\n" +
 	"\n" +
 	"trigger_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\ttriggerId\x12(\n" +
-	"\rsubaccount_id\x18\x02 \x01(\x06H\x02R\fsubaccountId\x88\x01\x01\x123\n" +
+	"\rsubaccount_id\x18\x02 \x01(\x06H\x02R\fsubaccountId\x88\x01\x01\x12'\n" +
+	"\tsymbol_id\x18\x03 \x01(\rB\n" +
+	"\xe0A\x02\xbaH\x04*\x02 \x00R\bsymbolId\x123\n" +
 	"\x13trigger_price_ticks\x18\n" +
 	" \x01(\x03H\x03R\x11triggerPriceTicks\x88\x01\x01\x12/\n" +
 	"\x11limit_price_ticks\x18\v \x01(\x03H\x04R\x0flimitPriceTicks\x88\x01\x01\x128\n" +
@@ -3451,11 +3469,13 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"trigger_id\x18\x01 \x01(\x06R\ttriggerId\x122\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x1a.triggers.v1.TriggerStatusR\x06status\x12*\n" +
 	"\x02ts\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x02ts\x12\x13\n" +
-	"\x05ts_ns\x18\x04 \x01(\x04R\x04tsNs\"\x81\x01\n" +
+	"\x05ts_ns\x18\x04 \x01(\x04R\x04tsNs\"\xaa\x01\n" +
 	"\x14ResumeTriggerRequest\x12-\n" +
 	"\n" +
 	"trigger_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\ttriggerId\x12(\n" +
-	"\rsubaccount_id\x18\x02 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
+	"\rsubaccount_id\x18\x02 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12'\n" +
+	"\tsymbol_id\x18\x03 \x01(\rB\n" +
+	"\xe0A\x02\xbaH\x04*\x02 \x00R\bsymbolIdB\x10\n" +
 	"\x0e_subaccount_id\"\xab\x01\n" +
 	"\x15ResumeTriggerResponse\x12\x1d\n" +
 	"\n" +
@@ -3488,14 +3508,12 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x16ladder_price_min_ticks\x18\x01 \x01(\x03R\x13ladderPriceMinTicks\x123\n" +
 	"\x16ladder_price_max_ticks\x18\x02 \x01(\x03R\x13ladderPriceMaxTicks\x12#\n" +
 	"\rladder_levels\x18\x03 \x01(\x05R\fladderLevels\x12P\n" +
-	"\x13ladder_distribution\x18\x04 \x01(\x0e2\x1f.triggers.v1.LadderDistributionR\x12ladderDistribution\"\x80\n" +
-	"\n" +
+	"\x13ladder_distribution\x18\x04 \x01(\x0e2\x1f.triggers.v1.LadderDistributionR\x12ladderDistribution\"\xe8\t\n" +
 	"\aTrigger\x12\x1d\n" +
 	"\n" +
 	"trigger_id\x18\x01 \x01(\x06R\ttriggerId\x12#\n" +
 	"\rsubaccount_id\x18\x02 \x01(\x06R\fsubaccountId\x12\x1b\n" +
-	"\tsymbol_id\x18\x03 \x01(\rR\bsymbolId\x12\x16\n" +
-	"\x06symbol\x18\x04 \x01(\tR\x06symbol\x122\n" +
+	"\tsymbol_id\x18\x03 \x01(\rR\bsymbolId\x122\n" +
 	"\x06status\x18\x05 \x01(\x0e2\x1a.triggers.v1.TriggerStatusR\x06status\x12+\n" +
 	"\x0fparent_order_id\x18\x06 \x01(\x06H\x02R\rparentOrderId\x88\x01\x01\x12\x1d\n" +
 	"\n" +
@@ -3539,12 +3557,13 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x10STATUS_COMPLETED\x10\x04\x12\x13\n" +
 	"\x0fSTATUS_CANCELED\x10\x05\x12\x11\n" +
 	"\rSTATUS_FAILED\x10\x06\x12\x11\n" +
-	"\rSTATUS_PAUSED\x10\a*a\n" +
+	"\rSTATUS_PAUSED\x10\a*s\n" +
 	"\x10TriggerEventType\x12\x15\n" +
 	"\x11EVENT_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vEVENT_FIRED\x10\x01\x12\x12\n" +
 	"\x0eEVENT_CANCELED\x10\x02\x12\x11\n" +
-	"\rEVENT_UPDATED\x10\x03*l\n" +
+	"\rEVENT_UPDATED\x10\x03\x12\x10\n" +
+	"\fEVENT_FAILED\x10\x04*l\n" +
 	"\x12LadderDistribution\x12#\n" +
 	"\x1fLADDER_DISTRIBUTION_UNSPECIFIED\x10\x00\x12\n" +
 	"\n" +
