@@ -57,10 +57,6 @@ func sourceTemplateID(id uint64) string {
 	return codecs.FormatUint64ID(id)
 }
 
-func subPolicy(msg *authv1.SubaccountPolicyView) *models.SubaccountPolicy {
-	return SubaccountPolicyFromView(msg, nil)
-}
-
 // SubaccountPolicyFromView decodes one subaccount policy view.
 func SubaccountPolicyFromView(msg *authv1.SubaccountPolicyView, cats *catalogs.Manager) *models.SubaccountPolicy {
 	if msg == nil {
@@ -90,10 +86,6 @@ func SubaccountPolicyFromView(msg *authv1.SubaccountPolicyView, cats *catalogs.M
 // SubaccountPolicyMessageFromProto decodes one subaccount policy message.
 func SubaccountPolicyMessageFromProto(msg *authv1.SubaccountPolicyView) *models.SubaccountPolicy {
 	return SubaccountPolicyFromView(msg, nil)
-}
-
-func apiPolicy(msg *authv1.ApiPolicyView) *models.ApiPolicy {
-	return ApiPolicyFromView(msg, nil)
 }
 
 // ApiPolicyFromView decodes one API key policy view.
