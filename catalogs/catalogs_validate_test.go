@@ -106,6 +106,12 @@ func TestRejectedSpotRefreshPreservesPreviousSnapshotAndZeroScale(t *testing.T) 
 	if got := m.SymbolIDForSymbol("ETH-USDT"); got != nil {
 		t.Fatalf("partial refresh leaked ETH-USDT: %v", *got)
 	}
+	if got := m.SymbolForSymbolID(1); got == nil || *got != "BTC-USDT" {
+		t.Fatalf("reverse lookup for symbol_id=1: %v", got)
+	}
+	if got := m.SymbolForSymbolID(2); got != nil {
+		t.Fatalf("reverse lookup leaked unknown id: %v", *got)
+	}
 }
 
 func TestRejectedZipperRefreshPreservesPreviousSnapshotAndZeroScale(t *testing.T) {

@@ -159,7 +159,7 @@ func triggerDetailsFromProto(msg *triggersv1.Trigger) *models.TriggerDetails {
 		return nil
 	}
 	sid := msg.GetSymbolId()
-	symbol := msg.GetSymbol()
+	symbol := ""
 	switch d := msg.GetRuntimeDetails().(type) {
 	case *triggersv1.Trigger_Stop:
 		stop := d.Stop
@@ -242,7 +242,7 @@ func triggerDetailsFromProto(msg *triggersv1.Trigger) *models.TriggerDetails {
 // (type/side/order_type/tif/post_only/limit_price/trigger_price) from the
 // immutable Configuration oneof.
 func triggerConfigProjection(msg *triggersv1.Trigger) (triggerType, side, orderType, tif string, postOnly bool, limitPrice, triggerPrice models.PriceTicks) {
-	symbol := msg.GetSymbol()
+	symbol := ""
 	switch cfg := msg.GetConfiguration().(type) {
 	case *triggersv1.Trigger_StopLoss:
 		triggerType = "stop_loss"
@@ -344,14 +344,14 @@ func TriggerFromProto(msg *triggersv1.Trigger) models.Trigger {
 		TriggerID:               codecs.FormatUint64ID(msg.GetTriggerId()),
 		SubaccountID:            codecs.FormatUint64ID(msg.GetSubaccountId()),
 		SymbolID:                sid,
-		Symbol:                  msg.GetSymbol(),
+		Symbol:                  "",
 		TriggerType:             triggerType,
 		Status:                  TriggerStatusLabel(msg.GetStatus()),
 		ParentOrderID:           parentOrderID,
 		Side:                    side,
 		OrderType:               orderType,
 		TimeInForce:             tif,
-		Qty:                     codecs.DecodeQtyScaled(msg.GetQtyScaled(), -1, msg.GetSymbol(), &sid),
+		Qty:                     codecs.DecodeQtyScaled(msg.GetQtyScaled(), -1, "", &sid),
 		FeeAsset:                feeAssetLabel(msg.GetFeeAsset()),
 		SelfTradePreventionMode: stpModeLabel(msg.GetSelfTradePreventionMode()),
 		PostOnly:                postOnly,

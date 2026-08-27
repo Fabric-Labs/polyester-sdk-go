@@ -80,9 +80,11 @@ func (s *TriggersService) List(ctx context.Context, account AccountScope, subAcc
 	} else if parsed != nil {
 		req.SubaccountId = parsed
 	}
-	if symbol != nil && *symbol != "" {
-		req.Symbol = *symbol
+	resolvedSymbolID, err := ResolveOptionalSymbolID(s.catalogs, symbol, nil, "triggers.list")
+	if err != nil {
+		return models.TriggersList{}, err
 	}
+	req.SymbolId = resolvedSymbolID
 	for _, label := range status {
 		st, err := decode.TriggerStatusFromLabel(label)
 		if err != nil {
@@ -123,7 +125,11 @@ func (s *TriggersService) Create(ctx context.Context, account AccountScope, symb
 	if err != nil {
 		return models.TriggerMutationResult{}, err
 	}
-	req, err := codecs.CreateTriggerToProto(symbol, triggerType, triggerPrice, side, qty, orderType, limitPrice, triggerPriceSource, tif, sub, clientTriggerID, postOnly, scale, opts)
+	symbolID, err := ResolveSymbolID(s.catalogs, &symbol, nil, "triggers.create")
+	if err != nil {
+		return models.TriggerMutationResult{}, err
+	}
+	req, err := codecs.CreateTriggerToProto(symbolID, symbol, triggerType, triggerPrice, side, qty, orderType, limitPrice, triggerPriceSource, tif, sub, clientTriggerID, postOnly, scale, opts)
 	if err != nil {
 		return models.TriggerMutationResult{}, err
 	}
@@ -166,12 +172,16 @@ func (s *TriggersService) Pause(ctx context.Context, account AccountScope, trigg
 	return UnaryAuth(ctx, s.transport, s.client().PauseTrigger, req, decode.TriggerMutationFromPause)
 }
 
-func (s *TriggersService) Resume(ctx context.Context, account AccountScope, triggerID string, subAccountID *string) (models.TriggerMutationResult, error) {
+func (s *TriggersService) Resume(ctx context.Context, account AccountScope, triggerID string, subAccountID, symbol *string, symbolID *uint32) (models.TriggerMutationResult, error) {
 	id, err := codecs.IDToInt(triggerID, "trigger_id")
 	if err != nil {
 		return models.TriggerMutationResult{}, err
 	}
-	req := &triggersv1.ResumeTriggerRequest{TriggerId: id}
+	resolvedSymbolID, err := ResolveSymbolID(s.catalogs, symbol, symbolID, "triggers.resume")
+	if err != nil {
+		return models.TriggerMutationResult{}, err
+	}
+	req := &triggersv1.ResumeTriggerRequest{TriggerId: id, SymbolId: resolvedSymbolID}
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {
 		return models.TriggerMutationResult{}, err
@@ -184,12 +194,16 @@ func (s *TriggersService) Resume(ctx context.Context, account AccountScope, trig
 	return UnaryAuth(ctx, s.transport, s.client().ResumeTrigger, req, decode.TriggerMutationFromResume)
 }
 
-func (s *TriggersService) Modify(ctx context.Context, account AccountScope, triggerID string, subAccountID *string, opts codecs.ModifyTriggerOptions) (models.TriggerMutationResult, error) {
+func (s *TriggersService) Modify(ctx context.Context, account AccountScope, triggerID string, subAccountID, symbol *string, symbolID *uint32, opts codecs.ModifyTriggerOptions) (models.TriggerMutationResult, error) {
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {
 		return models.TriggerMutationResult{}, err
 	}
-	req, err := codecs.ModifyTriggerToProto(triggerID, sub, opts)
+	resolvedSymbolID, err := ResolveSymbolID(s.catalogs, symbol, symbolID, "triggers.modify")
+	if err != nil {
+		return models.TriggerMutationResult{}, err
+	}
+	req, err := codecs.ModifyTriggerToProto(triggerID, resolvedSymbolID, sub, opts)
 	if err != nil {
 		return models.TriggerMutationResult{}, err
 	}

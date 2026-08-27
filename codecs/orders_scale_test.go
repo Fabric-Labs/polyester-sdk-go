@@ -77,8 +77,9 @@ func TestCreateOrderDecimalQtyNilSymbolValidationError(t *testing.T) {
 func TestCreateOrderRejectsStrayPriceOnMarket(t *testing.T) {
 	symbol := "BTC-USDT"
 	price := models.PriceFromDecimal("65000")
+	sid := uint32(1)
 	req := models.CreateOrderRequest{
-		Symbol: &symbol, Side: "buy", OrderType: "market",
+		Symbol: &symbol, SymbolID: &sid, Side: "buy", OrderType: "market",
 		Qty: models.QtyFromScaledInt(1_000_000), Price: &price,
 	}
 	_, err := CreateOrderToProto(req, 8, 0)
@@ -96,7 +97,7 @@ func TestModifyOrderDecimalQtyNilSymbolValidationError(t *testing.T) {
 		t.Fatal("expected QuantityScaleForSymbol error")
 	}
 	qty := models.QtyFromDecimal("0.25")
-	_, err = ModifyOrderToProto("BTC-USD", models.OrderKeyByID("100"), nil, nil, nil, &qty, nil, nil, scale)
+	_, err = ModifyOrderToProto("BTC-USD", 1, models.OrderKeyByID("100"), nil, nil, nil, &qty, nil, nil, scale)
 	if err == nil {
 		t.Fatal("expected ValidationError for decimal qty without catalog+symbol scale")
 	}

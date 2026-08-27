@@ -49,17 +49,20 @@ type CreateTriggerOptions struct {
 	LadderDistribution      *string
 }
 
-func CreateTriggerToProto(symbol, triggerType string, triggerPrice *models.PriceInput, side string, qty models.QtyInput, orderType string, limitPrice *models.PriceInput, triggerPriceSource, tif string, subAccountID *string, clientTriggerID *string, postOnly bool, quantityScale int, opts CreateTriggerOptions) (*triggersv1.CreateTriggerRequest, error) {
+func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPrice *models.PriceInput, side string, qty models.QtyInput, orderType string, limitPrice *models.PriceInput, triggerPriceSource, tif string, subAccountID *string, clientTriggerID *string, postOnly bool, quantityScale int, opts CreateTriggerOptions) (*triggersv1.CreateTriggerRequest, error) {
+	if symbolID == 0 {
+		return nil, &errors.ValidationError{Msg: "triggers.create requires a resolved non-zero symbol_id"}
+	}
 	typeKey := strings.ToLower(strings.ReplaceAll(triggerType, "-", "_"))
 	if _, ok := triggerTypeToProto[typeKey]; !ok {
 		return nil, &errors.ValidationError{Msg: "trigger_type must be stop_loss, take_profit, trailing_stop, twap, or ladder"}
 	}
-	qtyScaled, err := ResolveQtyScaled(qty, quantityScale, "qty", symbol, nil)
+	qtyScaled, err := ResolveQtyScaled(qty, quantityScale, "qty", symbol, &symbolID)
 	if err != nil {
 		return nil, err
 	}
 	intent := &triggersv1.TriggerIntent{
-		Symbol:    symbol,
+		SymbolId:  symbolID,
 		QtyScaled: qtyScaled,
 	}
 	if clientTriggerID != nil && *clientTriggerID != "" {
@@ -276,7 +279,10 @@ type ModifyTriggerOptions struct {
 	MaxSlippageBps        *int32
 }
 
-func ModifyTriggerToProto(triggerID string, subAccountID *string, opts ModifyTriggerOptions) (*triggersv1.ModifyTriggerRequest, error) {
+func ModifyTriggerToProto(triggerID string, symbolID uint32, subAccountID *string, opts ModifyTriggerOptions) (*triggersv1.ModifyTriggerRequest, error) {
+	if symbolID == 0 {
+		return nil, &errors.ValidationError{Msg: "triggers.modify requires a resolved non-zero symbol_id"}
+	}
 	if (opts.TriggerPrice == nil || !opts.TriggerPrice.IsSet()) &&
 		(opts.LimitPrice == nil || !opts.LimitPrice.IsSet()) &&
 		opts.TrailingDistanceTicks == nil && opts.TrailingDistanceBps == nil &&
@@ -288,7 +294,7 @@ func ModifyTriggerToProto(triggerID string, subAccountID *string, opts ModifyTri
 	if err != nil {
 		return nil, err
 	}
-	req := &triggersv1.ModifyTriggerRequest{TriggerId: id}
+	req := &triggersv1.ModifyTriggerRequest{TriggerId: id, SymbolId: symbolID}
 	if subAccountID != nil && *subAccountID != "" {
 		sub, err := IDToInt(*subAccountID, "sub_account_id")
 		if err != nil {

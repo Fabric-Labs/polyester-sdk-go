@@ -3,6 +3,7 @@ package decode
 import (
 	"strconv"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
@@ -62,16 +63,24 @@ func OrderbookDeltaFromBytes(payload []byte) (models.OrderBookDeltaUpdate, error
 }
 
 // MarketOverviewBatchFromBytes parses a market overview websocket batch.
+// Display Symbol is empty unless a catalog is supplied via MarketOverviewBatchDecoder.
 func MarketOverviewBatchFromBytes(payload []byte) (models.MarketOverviewList, error) {
-	var batch marketoverviewv1.MarketOverviewBatch
-	if err := unmarshalProto(payload, &batch); err != nil {
-		return models.MarketOverviewList{}, err
+	return MarketOverviewBatchDecoder(nil)(payload)
+}
+
+// MarketOverviewBatchDecoder returns a batch decoder that fills display Symbol from catalogs.
+func MarketOverviewBatchDecoder(cats *catalogs.Manager) func([]byte) (models.MarketOverviewList, error) {
+	return func(payload []byte) (models.MarketOverviewList, error) {
+		var batch marketoverviewv1.MarketOverviewBatch
+		if err := unmarshalProto(payload, &batch); err != nil {
+			return models.MarketOverviewList{}, err
+		}
+		out := make([]models.MarketOverviewEntry, 0, len(batch.GetMarkets()))
+		for _, row := range batch.GetMarkets() {
+			out = append(out, MarketOverviewEntryFromProto(row, cats))
+		}
+		return models.MarketOverviewList{Markets: out}, nil
 	}
-	out := make([]models.MarketOverviewEntry, 0, len(batch.GetMarkets()))
-	for _, row := range batch.GetMarkets() {
-		out = append(out, MarketOverviewEntryFromProto(row))
-	}
-	return models.MarketOverviewList{Markets: out}, nil
 }
 
 // AssetBalanceFromBytes parses a balance publication.

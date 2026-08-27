@@ -33,32 +33,30 @@ const (
 type PolicyAction int32
 
 const (
-	// No policy action selected. Requests must choose one or more explicit actions.
+	// No policy action selected. An empty API-key action list grants no access;
+	// sub-account policies retain their mandatory read-only actions.
 	PolicyAction_UNSPECIFIED PolicyAction = 0
-	// Allow placing/modifying/cancelling spot orders.
+	// Allow placing and modifying spot orders and triggers, including reading
+	// spot orders and trades. Cancellation and pausing remain available as
+	// safety actions.
 	PolicyAction_TRADE_SPOT PolicyAction = 1
-	// Allow placing/modifying/cancelling perpetual futures orders.
-	PolicyAction_TRADE_PERP PolicyAction = 2
-	// Allow internal transfers between sub-accounts or linked Polyester accounts.
+	// Allow internal transfers between sub-accounts or linked Polyester accounts,
+	// including reading internal transfer history.
 	PolicyAction_INTERNAL_TRANSFER PolicyAction = 3
-	// Allow external withdrawals to whitelisted addresses.
+	// Allow value to leave Trading through external withdrawals. Destination
+	// authorization is enforced separately from this policy.
 	PolicyAction_EXTERNAL_WITHDRAW PolicyAction = 4
-	// Allow reading balances, positions and equity for a sub-account or API key.
+	// Allow reading balances and equity for a sub-account or API key.
 	PolicyAction_READ_BALANCES PolicyAction = 5
-	// Allow reading spot orders/trades/positions (no write).
+	// Allow reading spot orders and trades (no write).
 	PolicyAction_READ_SPOT PolicyAction = 6
-	// Allow reading perp orders/trades/positions (no write).
-	PolicyAction_READ_PERP PolicyAction = 7
 	// Allow reading internal transfer history.
 	PolicyAction_READ_INTERNAL_TRANSFERS PolicyAction = 8
-	// Allow reading external withdrawal history.
-	PolicyAction_READ_EXTERNAL_WITHDRAWALS PolicyAction = 9
-	// Allow listing destination books, address book entries, recents, and mirrored whitelist state.
-	PolicyAction_READ_TRANSFER_CONTROLS PolicyAction = 11
-	// Allow creating, updating, deleting, and copying saved destination entries.
+	// Allow reading saved, recent, and whitelisted address-book destinations.
+	PolicyAction_READ_ADDRESS_BOOK PolicyAction = 11
+	// Allow creating, updating, deleting, and copying saved destination entries,
+	// including reading the address book.
 	PolicyAction_MANAGE_ADDRESS_BOOK PolicyAction = 12
-	// Allow mutating internal-transfer whitelist rows and requesting withdraw whitelist changes.
-	PolicyAction_MANAGE_TRANSFER_WHITELISTS PolicyAction = 13
 )
 
 // Enum value maps for PolicyAction.
@@ -66,32 +64,24 @@ var (
 	PolicyAction_name = map[int32]string{
 		0:  "UNSPECIFIED",
 		1:  "TRADE_SPOT",
-		2:  "TRADE_PERP",
 		3:  "INTERNAL_TRANSFER",
 		4:  "EXTERNAL_WITHDRAW",
 		5:  "READ_BALANCES",
 		6:  "READ_SPOT",
-		7:  "READ_PERP",
 		8:  "READ_INTERNAL_TRANSFERS",
-		9:  "READ_EXTERNAL_WITHDRAWALS",
-		11: "READ_TRANSFER_CONTROLS",
+		11: "READ_ADDRESS_BOOK",
 		12: "MANAGE_ADDRESS_BOOK",
-		13: "MANAGE_TRANSFER_WHITELISTS",
 	}
 	PolicyAction_value = map[string]int32{
-		"UNSPECIFIED":                0,
-		"TRADE_SPOT":                 1,
-		"TRADE_PERP":                 2,
-		"INTERNAL_TRANSFER":          3,
-		"EXTERNAL_WITHDRAW":          4,
-		"READ_BALANCES":              5,
-		"READ_SPOT":                  6,
-		"READ_PERP":                  7,
-		"READ_INTERNAL_TRANSFERS":    8,
-		"READ_EXTERNAL_WITHDRAWALS":  9,
-		"READ_TRANSFER_CONTROLS":     11,
-		"MANAGE_ADDRESS_BOOK":        12,
-		"MANAGE_TRANSFER_WHITELISTS": 13,
+		"UNSPECIFIED":             0,
+		"TRADE_SPOT":              1,
+		"INTERNAL_TRANSFER":       3,
+		"EXTERNAL_WITHDRAW":       4,
+		"READ_BALANCES":           5,
+		"READ_SPOT":               6,
+		"READ_INTERNAL_TRANSFERS": 8,
+		"READ_ADDRESS_BOOK":       11,
+		"MANAGE_ADDRESS_BOOK":     12,
 	}
 )
 
@@ -124,15 +114,15 @@ func (PolicyAction) EnumDescriptor() ([]byte, []int) {
 
 // Value is the market-level scope:
 // - ALL: no market-level restriction; new listings are automatically allowed.
-// - ALLOWLIST: only the listed markets or contracts are allowed.
+// - ALLOWLIST: only the listed markets are allowed.
 type MarketScope_Value int32
 
 const (
 	// No scope selected. Create and update requests treat this as ALL.
 	MarketScope_UNSPECIFIED MarketScope_Value = 0
-	// Allow all current and future markets or contracts for this policy.
+	// Allow all current and future markets for this policy.
 	MarketScope_ALL MarketScope_Value = 1
-	// Allow only the markets or contracts listed on this policy.
+	// Allow only the markets listed on this policy.
 	MarketScope_ALLOWLIST MarketScope_Value = 2
 )
 
@@ -177,7 +167,7 @@ func (MarketScope_Value) EnumDescriptor() ([]byte, []int) {
 	return file_auth_v1_policies_proto_rawDescGZIP(), []int{0, 0}
 }
 
-// MarketScope describes how a policy applies to spot markets or perp contracts.
+// MarketScope describes how a policy applies to spot markets.
 type MarketScope struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -214,18 +204,64 @@ func (*MarketScope) Descriptor() ([]byte, []int) {
 	return file_auth_v1_policies_proto_rawDescGZIP(), []int{0}
 }
 
-// SpotMarketRule describes an allowed spot market for a sub-account policy.
+// SpotMarketSelector identifies an allowed spot market in policy mutations.
+type SpotMarketSelector struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable numeric pair ID from GetSpotConfig.
+	SymbolId      uint32 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SpotMarketSelector) Reset() {
+	*x = SpotMarketSelector{}
+	mi := &file_auth_v1_policies_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SpotMarketSelector) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SpotMarketSelector) ProtoMessage() {}
+
+func (x *SpotMarketSelector) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_policies_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SpotMarketSelector.ProtoReflect.Descriptor instead.
+func (*SpotMarketSelector) Descriptor() ([]byte, []int) {
+	return file_auth_v1_policies_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *SpotMarketSelector) GetSymbolId() uint32 {
+	if x != nil {
+		return x.SymbolId
+	}
+	return 0
+}
+
+// SpotMarketRule describes an allowed spot market in policy views.
 type SpotMarketRule struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Spot market symbol, e.g. "BTC-USDT".
-	Symbol        string `protobuf:"bytes,1,opt,name=symbol,proto3" json:"symbol,omitempty"`
+	// Stable numeric pair ID.
+	SymbolId      uint32 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SpotMarketRule) Reset() {
 	*x = SpotMarketRule{}
-	mi := &file_auth_v1_policies_proto_msgTypes[1]
+	mi := &file_auth_v1_policies_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -237,7 +273,7 @@ func (x *SpotMarketRule) String() string {
 func (*SpotMarketRule) ProtoMessage() {}
 
 func (x *SpotMarketRule) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_policies_proto_msgTypes[1]
+	mi := &file_auth_v1_policies_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -250,69 +286,12 @@ func (x *SpotMarketRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpotMarketRule.ProtoReflect.Descriptor instead.
 func (*SpotMarketRule) Descriptor() ([]byte, []int) {
-	return file_auth_v1_policies_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *SpotMarketRule) GetSymbol() string {
-	if x != nil {
-		return x.Symbol
-	}
-	return ""
-}
-
-// PerpMarketRule describes an allowed perp contract and optional max leverage.
-type PerpMarketRule struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Perp contract symbol, e.g. "BTCUSDT".
-	Symbol string `protobuf:"bytes,1,opt,name=symbol,proto3" json:"symbol,omitempty"`
-	// Optional maximum leverage multiplier. Supported non-zero values are 1, 3,
-	// 5, 10, 20, 50, and 100. A value of 0 means no explicit per-contract cap;
-	// global_perp_leverage_x and product defaults still apply.
-	MaxLeverageX  uint32 `protobuf:"varint,2,opt,name=max_leverage_x,json=maxLeverageX,proto3" json:"max_leverage_x,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *PerpMarketRule) Reset() {
-	*x = PerpMarketRule{}
-	mi := &file_auth_v1_policies_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *PerpMarketRule) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*PerpMarketRule) ProtoMessage() {}
-
-func (x *PerpMarketRule) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_policies_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use PerpMarketRule.ProtoReflect.Descriptor instead.
-func (*PerpMarketRule) Descriptor() ([]byte, []int) {
 	return file_auth_v1_policies_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *PerpMarketRule) GetSymbol() string {
+func (x *SpotMarketRule) GetSymbolId() uint32 {
 	if x != nil {
-		return x.Symbol
-	}
-	return ""
-}
-
-func (x *PerpMarketRule) GetMaxLeverageX() uint32 {
-	if x != nil {
-		return x.MaxLeverageX
+		return x.SymbolId
 	}
 	return 0
 }
@@ -328,16 +307,11 @@ type SubaccountPolicyView struct {
 	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	// Allowed spot markets for this sub-account.
 	SpotMarkets []*SpotMarketRule `protobuf:"bytes,4,rep,name=spot_markets,json=spotMarkets,proto3" json:"spot_markets,omitempty"`
-	// Allowed perp contracts for this sub-account, with optional per-contract caps.
-	PerpMarkets []*PerpMarketRule `protobuf:"bytes,5,rep,name=perp_markets,json=perpMarkets,proto3" json:"perp_markets,omitempty"`
 	// Market-level scope for spot markets. When ALL, spot_markets is returned
 	// for display only and is not enforced.
 	SpotMarketScope MarketScope_Value `protobuf:"varint,6,opt,name=spot_market_scope,json=spotMarketScope,proto3,enum=auth.v1.MarketScope_Value" json:"spot_market_scope,omitempty"`
-	// Market-level scope for perp contracts. When ALL, perp_markets is returned
-	// for display only and is not enforced.
-	PerpMarketScope MarketScope_Value `protobuf:"varint,7,opt,name=perp_market_scope,json=perpMarketScope,proto3,enum=auth.v1.MarketScope_Value" json:"perp_market_scope,omitempty"`
-	// High-level actions enabled for the sub-account. Up to 64 unique explicit
-	// actions may be returned.
+	// Effective high-level actions enabled for the sub-account. Mandatory
+	// read-only actions are always included.
 	Actions []PolicyAction `protobuf:"varint,8,rep,packed,name=actions,proto3,enum=auth.v1.PolicyAction" json:"actions,omitempty"`
 	// True if this policy is a reusable template; false if it is a
 	// per-sub-account instance.
@@ -345,55 +319,17 @@ type SubaccountPolicyView struct {
 	// Optional source template this policy was copied from (opaque ID). This is
 	// audit metadata only and does not imply live linkage.
 	SourceTemplateId uint64 `protobuf:"fixed64,11,opt,name=source_template_id,json=sourceTemplateId,proto3" json:"source_template_id,omitempty"`
-	// Maximum total notional exposure (across all positions) allowed for this
-	// sub-account, expressed in a canonical quote unit (e.g. micro-USDT).
-	// A value of 0 means "no explicit cap".
-	GlobalNotionalCap uint64 `protobuf:"varint,12,opt,name=global_notional_cap,json=globalNotionalCap,proto3" json:"global_notional_cap,omitempty"`
 	// Maximum notional size allowed for any single order on this sub-account,
-	// expressed in the same canonical quote unit as global_notional_cap.
+	// expressed in canonical quote microunits (one unit is 0.000001 USDT).
 	// A value of 0 means "no explicit cap".
 	MaxOrderNotional uint64 `protobuf:"varint,13,opt,name=max_order_notional,json=maxOrderNotional,proto3" json:"max_order_notional,omitempty"`
 	// Maximum number of resting orders allowed on this sub-account at any time.
 	// A value of 0 means "no explicit cap".
 	MaxOpenOrders uint32 `protobuf:"varint,14,opt,name=max_open_orders,json=maxOpenOrders,proto3" json:"max_open_orders,omitempty"`
-	// Maximum number of open perp positions allowed on this sub-account.
-	// A value of 0 means "no explicit cap".
-	MaxOpenPositions uint32 `protobuf:"varint,15,opt,name=max_open_positions,json=maxOpenPositions,proto3" json:"max_open_positions,omitempty"`
-	// Optional global leverage cap across all perp contracts, expressed as a
-	// maximum leverage multiple. Supported non-zero values are 1, 3, 5, 10, 20,
-	// 50, and 100. A value of 0 means "no explicit global cap"; per-contract
-	// caps still apply.
-	GlobalPerpLeverageX uint32 `protobuf:"varint,16,opt,name=global_perp_leverage_x,json=globalPerpLeverageX,proto3" json:"global_perp_leverage_x,omitempty"`
-	// Maximum total notional this sub-account can transfer out internally per
-	// day, expressed in the canonical quote unit (for example, micro-USDT). A
-	// value of 0 means "no explicit cap".
-	DailyInternalTransferOutLimit uint64 `protobuf:"varint,17,opt,name=daily_internal_transfer_out_limit,json=dailyInternalTransferOutLimit,proto3" json:"daily_internal_transfer_out_limit,omitempty"`
-	// Maximum total notional this sub-account can withdraw per day, expressed in
-	// the canonical quote unit (for example, micro-USDT). A value of 0 means "no
-	// explicit cap".
-	DailyWithdrawLimit uint64 `protobuf:"varint,18,opt,name=daily_withdraw_limit,json=dailyWithdrawLimit,proto3" json:"daily_withdraw_limit,omitempty"`
-	// When true, internal transfers from this sub-account may only target other
-	// sub-accounts owned by the same root account. When false, transfers to
-	// other owners are allowed (subject to other policy checks).
-	InternalTransfersOwnOnly bool `protobuf:"varint,19,opt,name=internal_transfers_own_only,json=internalTransfersOwnOnly,proto3" json:"internal_transfers_own_only,omitempty"`
-	// When true, external withdrawals from this sub-account must target an
-	// approved withdrawal destination.
-	EnforceWithdrawWhitelist bool `protobuf:"varint,22,opt,name=enforce_withdraw_whitelist,json=enforceWithdrawWhitelist,proto3" json:"enforce_withdraw_whitelist,omitempty"`
-	// When true, trading on this sub-account is halted: new orders are rejected
-	// regardless of other settings. Existing positions may still be closed by
-	// product safety controls.
+	// When true, new orders and exposure-increasing order or trigger changes are
+	// rejected regardless of other settings. Existing orders and triggers may
+	// still be canceled or paused.
 	TradingHalted bool `protobuf:"varint,23,opt,name=trading_halted,json=tradingHalted,proto3" json:"trading_halted,omitempty"`
-	// When true, this sub-account is in liquidation-only mode: new exposure
-	// cannot be opened, but reduce-only / close-out actions are allowed.
-	LiquidationOnly bool `protobuf:"varint,24,opt,name=liquidation_only,json=liquidationOnly,proto3" json:"liquidation_only,omitempty"`
-	// Maximum allowed realized loss for this sub-account over a rolling day
-	// before safety controls may halt activity, expressed in the canonical quote
-	// unit (for example, micro-USDT). A value of 0 means "no explicit limit".
-	DailyLossLimit uint64 `protobuf:"varint,25,opt,name=daily_loss_limit,json=dailyLossLimit,proto3" json:"daily_loss_limit,omitempty"`
-	// Maximum allowed drawdown from peak equity in basis points (1/100 of a
-	// percent) before safety controls may halt activity. A value of 0 means "no
-	// explicit limit".
-	IntradayDrawdownLimitBps uint32 `protobuf:"varint,26,opt,name=intraday_drawdown_limit_bps,json=intradayDrawdownLimitBps,proto3" json:"intraday_drawdown_limit_bps,omitempty"`
 	// When true, this policy is write-protected and requires an elevated approval
 	// flow to modify it.
 	Locked bool `protobuf:"varint,27,opt,name=locked,proto3" json:"locked,omitempty"`
@@ -471,23 +407,9 @@ func (x *SubaccountPolicyView) GetSpotMarkets() []*SpotMarketRule {
 	return nil
 }
 
-func (x *SubaccountPolicyView) GetPerpMarkets() []*PerpMarketRule {
-	if x != nil {
-		return x.PerpMarkets
-	}
-	return nil
-}
-
 func (x *SubaccountPolicyView) GetSpotMarketScope() MarketScope_Value {
 	if x != nil {
 		return x.SpotMarketScope
-	}
-	return MarketScope_UNSPECIFIED
-}
-
-func (x *SubaccountPolicyView) GetPerpMarketScope() MarketScope_Value {
-	if x != nil {
-		return x.PerpMarketScope
 	}
 	return MarketScope_UNSPECIFIED
 }
@@ -513,13 +435,6 @@ func (x *SubaccountPolicyView) GetSourceTemplateId() uint64 {
 	return 0
 }
 
-func (x *SubaccountPolicyView) GetGlobalNotionalCap() uint64 {
-	if x != nil {
-		return x.GlobalNotionalCap
-	}
-	return 0
-}
-
 func (x *SubaccountPolicyView) GetMaxOrderNotional() uint64 {
 	if x != nil {
 		return x.MaxOrderNotional
@@ -534,74 +449,11 @@ func (x *SubaccountPolicyView) GetMaxOpenOrders() uint32 {
 	return 0
 }
 
-func (x *SubaccountPolicyView) GetMaxOpenPositions() uint32 {
-	if x != nil {
-		return x.MaxOpenPositions
-	}
-	return 0
-}
-
-func (x *SubaccountPolicyView) GetGlobalPerpLeverageX() uint32 {
-	if x != nil {
-		return x.GlobalPerpLeverageX
-	}
-	return 0
-}
-
-func (x *SubaccountPolicyView) GetDailyInternalTransferOutLimit() uint64 {
-	if x != nil {
-		return x.DailyInternalTransferOutLimit
-	}
-	return 0
-}
-
-func (x *SubaccountPolicyView) GetDailyWithdrawLimit() uint64 {
-	if x != nil {
-		return x.DailyWithdrawLimit
-	}
-	return 0
-}
-
-func (x *SubaccountPolicyView) GetInternalTransfersOwnOnly() bool {
-	if x != nil {
-		return x.InternalTransfersOwnOnly
-	}
-	return false
-}
-
-func (x *SubaccountPolicyView) GetEnforceWithdrawWhitelist() bool {
-	if x != nil {
-		return x.EnforceWithdrawWhitelist
-	}
-	return false
-}
-
 func (x *SubaccountPolicyView) GetTradingHalted() bool {
 	if x != nil {
 		return x.TradingHalted
 	}
 	return false
-}
-
-func (x *SubaccountPolicyView) GetLiquidationOnly() bool {
-	if x != nil {
-		return x.LiquidationOnly
-	}
-	return false
-}
-
-func (x *SubaccountPolicyView) GetDailyLossLimit() uint64 {
-	if x != nil {
-		return x.DailyLossLimit
-	}
-	return 0
-}
-
-func (x *SubaccountPolicyView) GetIntradayDrawdownLimitBps() uint32 {
-	if x != nil {
-		return x.IntradayDrawdownLimitBps
-	}
-	return 0
 }
 
 func (x *SubaccountPolicyView) GetLocked() bool {
@@ -853,59 +705,24 @@ type SubaccountPolicySpec struct {
 	// Optional policy description for dashboards and audits. Maximum 256 characters.
 	Description string `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
 	// Allowed spot markets for this policy.
-	SpotMarkets []*SpotMarketRule `protobuf:"bytes,3,rep,name=spot_markets,json=spotMarkets,proto3" json:"spot_markets,omitempty"`
-	// Allowed perp markets and optional per-contract leverage caps.
-	PerpMarkets []*PerpMarketRule `protobuf:"bytes,4,rep,name=perp_markets,json=perpMarkets,proto3" json:"perp_markets,omitempty"`
+	SpotMarkets []*SpotMarketSelector `protobuf:"bytes,3,rep,name=spot_markets,json=spotMarkets,proto3" json:"spot_markets,omitempty"`
 	// Market-level scope for spot markets. When unspecified, defaults to ALL.
 	SpotMarketScope MarketScope_Value `protobuf:"varint,5,opt,name=spot_market_scope,json=spotMarketScope,proto3,enum=auth.v1.MarketScope_Value" json:"spot_market_scope,omitempty"`
-	// Market-level scope for perp contracts. When unspecified, defaults to ALL.
-	PerpMarketScope MarketScope_Value `protobuf:"varint,6,opt,name=perp_market_scope,json=perpMarketScope,proto3,enum=auth.v1.MarketScope_Value" json:"perp_market_scope,omitempty"`
-	// High-level actions enabled for the sub-account policy. Up to 64 unique
-	// explicit actions are allowed.
+	// High-level actions enabled for the sub-account policy. Mandatory read-only
+	// actions are included when omitted. Up to 64 unique explicit actions are
+	// allowed.
 	Actions []PolicyAction `protobuf:"varint,7,rep,packed,name=actions,proto3,enum=auth.v1.PolicyAction" json:"actions,omitempty"`
-	// Maximum total notional exposure across all positions for this sub-account,
-	// expressed in the canonical quote unit (for example, micro-USDT). A value of
-	// 0 means no explicit cap.
-	GlobalNotionalCap uint64 `protobuf:"varint,12,opt,name=global_notional_cap,json=globalNotionalCap,proto3" json:"global_notional_cap,omitempty"`
 	// Maximum notional size for any single order on this sub-account, expressed
-	// in the canonical quote unit (for example, micro-USDT). A value of 0 means
-	// no explicit cap.
+	// in canonical quote microunits (one unit is 0.000001 USDT). A value of 0
+	// means no explicit cap.
 	MaxOrderNotional uint64 `protobuf:"varint,13,opt,name=max_order_notional,json=maxOrderNotional,proto3" json:"max_order_notional,omitempty"`
 	// Maximum number of resting orders allowed on this sub-account at any time.
 	// A value of 0 means no explicit cap.
 	MaxOpenOrders uint32 `protobuf:"varint,14,opt,name=max_open_orders,json=maxOpenOrders,proto3" json:"max_open_orders,omitempty"`
-	// Maximum number of open perp positions allowed on this sub-account. A value
-	// of 0 means no explicit cap.
-	MaxOpenPositions uint32 `protobuf:"varint,15,opt,name=max_open_positions,json=maxOpenPositions,proto3" json:"max_open_positions,omitempty"`
-	// Optional global leverage cap across all perp contracts. Supported non-zero
-	// values are 1, 3, 5, 10, 20, 50, and 100. A value of 0 means no explicit cap.
-	GlobalPerpLeverageX uint32 `protobuf:"varint,16,opt,name=global_perp_leverage_x,json=globalPerpLeverageX,proto3" json:"global_perp_leverage_x,omitempty"`
-	// Maximum total notional this sub-account can transfer out internally per
-	// rolling day, expressed in the canonical quote unit (for example,
-	// micro-USDT). A value of 0 means no explicit cap.
-	DailyInternalTransferOutLimit uint64 `protobuf:"varint,17,opt,name=daily_internal_transfer_out_limit,json=dailyInternalTransferOutLimit,proto3" json:"daily_internal_transfer_out_limit,omitempty"`
-	// Maximum total notional this sub-account can withdraw per rolling day,
-	// expressed in the canonical quote unit (for example, micro-USDT). A value of
-	// 0 means no explicit cap.
-	DailyWithdrawLimit uint64 `protobuf:"varint,18,opt,name=daily_withdraw_limit,json=dailyWithdrawLimit,proto3" json:"daily_withdraw_limit,omitempty"`
-	// When true, internal transfers from this sub-account may only target other
-	// sub-accounts owned by the same root account.
-	InternalTransfersOwnOnly bool `protobuf:"varint,19,opt,name=internal_transfers_own_only,json=internalTransfersOwnOnly,proto3" json:"internal_transfers_own_only,omitempty"`
-	// When true, external withdrawals from this sub-account must target an
-	// approved withdrawal destination.
-	EnforceWithdrawWhitelist bool `protobuf:"varint,20,opt,name=enforce_withdraw_whitelist,json=enforceWithdrawWhitelist,proto3" json:"enforce_withdraw_whitelist,omitempty"`
-	// When true, new orders for this sub-account are rejected regardless of other
-	// policy settings.
+	// When true, new orders and exposure-increasing order or trigger changes are
+	// rejected regardless of other settings. Existing orders and triggers may
+	// still be canceled or paused.
 	TradingHalted bool `protobuf:"varint,21,opt,name=trading_halted,json=tradingHalted,proto3" json:"trading_halted,omitempty"`
-	// When true, this sub-account may only reduce or close existing exposure.
-	LiquidationOnly bool `protobuf:"varint,22,opt,name=liquidation_only,json=liquidationOnly,proto3" json:"liquidation_only,omitempty"`
-	// Maximum realized loss over a rolling day before safety controls may halt
-	// activity, expressed in the canonical quote unit (for example, micro-USDT).
-	// A value of 0 means no explicit limit.
-	DailyLossLimit uint64 `protobuf:"varint,23,opt,name=daily_loss_limit,json=dailyLossLimit,proto3" json:"daily_loss_limit,omitempty"`
-	// Maximum drawdown from peak equity in basis points. One basis point is
-	// 1/100 of one percent. A value of 0 means no explicit limit.
-	IntradayDrawdownLimitBps uint32 `protobuf:"varint,24,opt,name=intraday_drawdown_limit_bps,json=intradayDrawdownLimitBps,proto3" json:"intraday_drawdown_limit_bps,omitempty"`
 	// When true, the policy is write-protected and requires an elevated mutation path.
 	Locked bool `protobuf:"varint,25,opt,name=locked,proto3" json:"locked,omitempty"`
 	// Optional review time in UTC. This does not automatically disable the policy.
@@ -960,16 +777,9 @@ func (x *SubaccountPolicySpec) GetDescription() string {
 	return ""
 }
 
-func (x *SubaccountPolicySpec) GetSpotMarkets() []*SpotMarketRule {
+func (x *SubaccountPolicySpec) GetSpotMarkets() []*SpotMarketSelector {
 	if x != nil {
 		return x.SpotMarkets
-	}
-	return nil
-}
-
-func (x *SubaccountPolicySpec) GetPerpMarkets() []*PerpMarketRule {
-	if x != nil {
-		return x.PerpMarkets
 	}
 	return nil
 }
@@ -981,25 +791,11 @@ func (x *SubaccountPolicySpec) GetSpotMarketScope() MarketScope_Value {
 	return MarketScope_UNSPECIFIED
 }
 
-func (x *SubaccountPolicySpec) GetPerpMarketScope() MarketScope_Value {
-	if x != nil {
-		return x.PerpMarketScope
-	}
-	return MarketScope_UNSPECIFIED
-}
-
 func (x *SubaccountPolicySpec) GetActions() []PolicyAction {
 	if x != nil {
 		return x.Actions
 	}
 	return nil
-}
-
-func (x *SubaccountPolicySpec) GetGlobalNotionalCap() uint64 {
-	if x != nil {
-		return x.GlobalNotionalCap
-	}
-	return 0
 }
 
 func (x *SubaccountPolicySpec) GetMaxOrderNotional() uint64 {
@@ -1016,74 +812,11 @@ func (x *SubaccountPolicySpec) GetMaxOpenOrders() uint32 {
 	return 0
 }
 
-func (x *SubaccountPolicySpec) GetMaxOpenPositions() uint32 {
-	if x != nil {
-		return x.MaxOpenPositions
-	}
-	return 0
-}
-
-func (x *SubaccountPolicySpec) GetGlobalPerpLeverageX() uint32 {
-	if x != nil {
-		return x.GlobalPerpLeverageX
-	}
-	return 0
-}
-
-func (x *SubaccountPolicySpec) GetDailyInternalTransferOutLimit() uint64 {
-	if x != nil {
-		return x.DailyInternalTransferOutLimit
-	}
-	return 0
-}
-
-func (x *SubaccountPolicySpec) GetDailyWithdrawLimit() uint64 {
-	if x != nil {
-		return x.DailyWithdrawLimit
-	}
-	return 0
-}
-
-func (x *SubaccountPolicySpec) GetInternalTransfersOwnOnly() bool {
-	if x != nil {
-		return x.InternalTransfersOwnOnly
-	}
-	return false
-}
-
-func (x *SubaccountPolicySpec) GetEnforceWithdrawWhitelist() bool {
-	if x != nil {
-		return x.EnforceWithdrawWhitelist
-	}
-	return false
-}
-
 func (x *SubaccountPolicySpec) GetTradingHalted() bool {
 	if x != nil {
 		return x.TradingHalted
 	}
 	return false
-}
-
-func (x *SubaccountPolicySpec) GetLiquidationOnly() bool {
-	if x != nil {
-		return x.LiquidationOnly
-	}
-	return false
-}
-
-func (x *SubaccountPolicySpec) GetDailyLossLimit() uint64 {
-	if x != nil {
-		return x.DailyLossLimit
-	}
-	return 0
-}
-
-func (x *SubaccountPolicySpec) GetIntradayDrawdownLimitBps() uint32 {
-	if x != nil {
-		return x.IntradayDrawdownLimitBps
-	}
-	return 0
 }
 
 func (x *SubaccountPolicySpec) GetLocked() bool {
@@ -1421,8 +1154,8 @@ type SetSubaccountPolicyRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Sub-account identifier (opaque ID).
 	SubaccountId uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
-	// Policy template to attach (opaque ID). A value of 0 clears the policy
-	// and reverts to the platform default for this sub-account.
+	// Policy template to attach (opaque ID). A value of 0 clears the explicit
+	// binding and restores the system Read Only policy.
 	PolicyId      uint64 `protobuf:"fixed64,2,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1509,8 +1242,8 @@ func (*SetSubaccountPolicyResponse) Descriptor() ([]byte, []int) {
 	return file_auth_v1_policies_proto_rawDescGZIP(), []int{16}
 }
 
-// ApiPolicyView is the public view of an API key policy template. API key
-// policy limits are additional caps and cannot exceed the sub-account policy.
+// ApiPolicyView is the public view of an API key policy template. Its action
+// and spot-market floor cannot exceed an attached sub-account policy.
 type ApiPolicyView struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Policy identifier (opaque ID).
@@ -1521,29 +1254,12 @@ type ApiPolicyView struct {
 	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
 	// Allowed spot markets for this API key policy.
 	SpotMarkets []*SpotMarketRule `protobuf:"bytes,4,rep,name=spot_markets,json=spotMarkets,proto3" json:"spot_markets,omitempty"`
-	// Allowed perp contracts for this API key policy, with optional per-contract caps.
-	PerpMarkets []*PerpMarketRule `protobuf:"bytes,5,rep,name=perp_markets,json=perpMarkets,proto3" json:"perp_markets,omitempty"`
 	// High-level actions enabled for this API key. Up to 64 unique explicit
 	// actions may be returned.
 	Actions []PolicyAction `protobuf:"varint,6,rep,packed,name=actions,proto3,enum=auth.v1.PolicyAction" json:"actions,omitempty"`
 	// Market-level scope for spot markets. When ALL, spot_markets is returned
 	// for display only and is not enforced.
-	SpotMarketScope MarketScope_Value `protobuf:"varint,7,opt,name=spot_market_scope,json=spotMarketScope,proto3,enum=auth.v1.MarketScope_Value" json:"spot_market_scope,omitempty"`
-	// Market-level scope for perp contracts. When ALL, perp_markets is returned
-	// for display only and is not enforced.
-	PerpMarketScope MarketScope_Value `protobuf:"varint,8,opt,name=perp_market_scope,json=perpMarketScope,proto3,enum=auth.v1.MarketScope_Value" json:"perp_market_scope,omitempty"`
-	// Maximum notional size allowed for any single order via this key, expressed
-	// in a canonical quote unit (e.g. micro-USDT). A value of 0 means "no
-	// explicit additional cap" beyond the sub-account policy.
-	MaxOrderNotional uint64 `protobuf:"varint,13,opt,name=max_order_notional,json=maxOrderNotional,proto3" json:"max_order_notional,omitempty"`
-	// Maximum total notional this API key can transfer out internally per day,
-	// expressed in the canonical quote unit (for example, micro-USDT). A value of
-	// 0 means no additional cap beyond the sub-account policy.
-	DailyInternalTransferOutLimit uint64 `protobuf:"varint,17,opt,name=daily_internal_transfer_out_limit,json=dailyInternalTransferOutLimit,proto3" json:"daily_internal_transfer_out_limit,omitempty"`
-	// Maximum total notional this API key can withdraw per day, expressed in the
-	// canonical quote unit (for example, micro-USDT). A value of 0 means no
-	// additional cap beyond the sub-account policy.
-	DailyWithdrawLimit uint64 `protobuf:"varint,18,opt,name=daily_withdraw_limit,json=dailyWithdrawLimit,proto3" json:"daily_withdraw_limit,omitempty"`
+	SpotMarketScope MarketScope_Value `protobuf:"varint,7,opt,name=spot_market_scope,json=spotMarketScope,proto3,enum=auth.v1.MarketScope_Value" json:"spot_market_scope,omitempty"` // --- Template / lifecycle metadata ---
 	// When true, this policy is intended to be reused as a template across
 	// multiple API keys. When false, it represents a single-key instance.
 	IsTemplate bool `protobuf:"varint,19,opt,name=is_template,json=isTemplate,proto3" json:"is_template,omitempty"`
@@ -1618,13 +1334,6 @@ func (x *ApiPolicyView) GetSpotMarkets() []*SpotMarketRule {
 	return nil
 }
 
-func (x *ApiPolicyView) GetPerpMarkets() []*PerpMarketRule {
-	if x != nil {
-		return x.PerpMarkets
-	}
-	return nil
-}
-
 func (x *ApiPolicyView) GetActions() []PolicyAction {
 	if x != nil {
 		return x.Actions
@@ -1637,34 +1346,6 @@ func (x *ApiPolicyView) GetSpotMarketScope() MarketScope_Value {
 		return x.SpotMarketScope
 	}
 	return MarketScope_UNSPECIFIED
-}
-
-func (x *ApiPolicyView) GetPerpMarketScope() MarketScope_Value {
-	if x != nil {
-		return x.PerpMarketScope
-	}
-	return MarketScope_UNSPECIFIED
-}
-
-func (x *ApiPolicyView) GetMaxOrderNotional() uint64 {
-	if x != nil {
-		return x.MaxOrderNotional
-	}
-	return 0
-}
-
-func (x *ApiPolicyView) GetDailyInternalTransferOutLimit() uint64 {
-	if x != nil {
-		return x.DailyInternalTransferOutLimit
-	}
-	return 0
-}
-
-func (x *ApiPolicyView) GetDailyWithdrawLimit() uint64 {
-	if x != nil {
-		return x.DailyWithdrawLimit
-	}
-	return 0
 }
 
 func (x *ApiPolicyView) GetIsTemplate() bool {
@@ -1909,28 +1590,12 @@ type ApiPolicySpec struct {
 	// Optional policy description for dashboards and audits. Maximum 256 characters.
 	Description string `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
 	// Allowed spot markets for this API key policy.
-	SpotMarkets []*SpotMarketRule `protobuf:"bytes,3,rep,name=spot_markets,json=spotMarkets,proto3" json:"spot_markets,omitempty"`
-	// Allowed perp markets and optional per-contract leverage caps.
-	PerpMarkets []*PerpMarketRule `protobuf:"bytes,4,rep,name=perp_markets,json=perpMarkets,proto3" json:"perp_markets,omitempty"`
+	SpotMarkets []*SpotMarketSelector `protobuf:"bytes,3,rep,name=spot_markets,json=spotMarkets,proto3" json:"spot_markets,omitempty"`
 	// Market-level scope for spot markets. When unspecified, defaults to ALL.
 	SpotMarketScope MarketScope_Value `protobuf:"varint,5,opt,name=spot_market_scope,json=spotMarketScope,proto3,enum=auth.v1.MarketScope_Value" json:"spot_market_scope,omitempty"`
-	// Market-level scope for perp contracts. When unspecified, defaults to ALL.
-	PerpMarketScope MarketScope_Value `protobuf:"varint,6,opt,name=perp_market_scope,json=perpMarketScope,proto3,enum=auth.v1.MarketScope_Value" json:"perp_market_scope,omitempty"`
-	// High-level actions enabled for the API key policy. Up to 64 unique explicit
-	// actions are allowed.
+	// High-level actions enabled for the API key policy. An empty list grants no
+	// access. Up to 64 unique explicit actions are allowed.
 	Actions []PolicyAction `protobuf:"varint,7,rep,packed,name=actions,proto3,enum=auth.v1.PolicyAction" json:"actions,omitempty"`
-	// Maximum notional size for any single order submitted with this API key,
-	// expressed in the canonical quote unit (for example, micro-USDT). A value of
-	// 0 means no additional cap beyond the sub-account policy.
-	MaxOrderNotional uint64 `protobuf:"varint,13,opt,name=max_order_notional,json=maxOrderNotional,proto3" json:"max_order_notional,omitempty"`
-	// Maximum total notional this API key can transfer out internally per rolling
-	// day, expressed in the canonical quote unit (for example, micro-USDT). A
-	// value of 0 means no additional cap beyond the sub-account policy.
-	DailyInternalTransferOutLimit uint64 `protobuf:"varint,17,opt,name=daily_internal_transfer_out_limit,json=dailyInternalTransferOutLimit,proto3" json:"daily_internal_transfer_out_limit,omitempty"`
-	// Maximum total notional this API key can withdraw per rolling day, expressed
-	// in the canonical quote unit (for example, micro-USDT). A value of 0 means
-	// no additional cap beyond the sub-account policy.
-	DailyWithdrawLimit uint64 `protobuf:"varint,18,opt,name=daily_withdraw_limit,json=dailyWithdrawLimit,proto3" json:"daily_withdraw_limit,omitempty"`
 	// Whether this policy should be treated as a reusable template.
 	IsTemplate    bool `protobuf:"varint,19,opt,name=is_template,json=isTemplate,proto3" json:"is_template,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1981,16 +1646,9 @@ func (x *ApiPolicySpec) GetDescription() string {
 	return ""
 }
 
-func (x *ApiPolicySpec) GetSpotMarkets() []*SpotMarketRule {
+func (x *ApiPolicySpec) GetSpotMarkets() []*SpotMarketSelector {
 	if x != nil {
 		return x.SpotMarkets
-	}
-	return nil
-}
-
-func (x *ApiPolicySpec) GetPerpMarkets() []*PerpMarketRule {
-	if x != nil {
-		return x.PerpMarkets
 	}
 	return nil
 }
@@ -2002,39 +1660,11 @@ func (x *ApiPolicySpec) GetSpotMarketScope() MarketScope_Value {
 	return MarketScope_UNSPECIFIED
 }
 
-func (x *ApiPolicySpec) GetPerpMarketScope() MarketScope_Value {
-	if x != nil {
-		return x.PerpMarketScope
-	}
-	return MarketScope_UNSPECIFIED
-}
-
 func (x *ApiPolicySpec) GetActions() []PolicyAction {
 	if x != nil {
 		return x.Actions
 	}
 	return nil
-}
-
-func (x *ApiPolicySpec) GetMaxOrderNotional() uint64 {
-	if x != nil {
-		return x.MaxOrderNotional
-	}
-	return 0
-}
-
-func (x *ApiPolicySpec) GetDailyInternalTransferOutLimit() uint64 {
-	if x != nil {
-		return x.DailyInternalTransferOutLimit
-	}
-	return 0
-}
-
-func (x *ApiPolicySpec) GetDailyWithdrawLimit() uint64 {
-	if x != nil {
-		return x.DailyWithdrawLimit
-	}
-	return 0
 }
 
 func (x *ApiPolicySpec) GetIsTemplate() bool {
@@ -2358,9 +1988,8 @@ type SetApiKeyPolicyRequest struct {
 	// Opaque API key identifier, formatted as "ak_" followed by 32 lowercase hex
 	// characters.
 	KeyId string `protobuf:"bytes,1,opt,name=key_id,json=keyId,proto3" json:"key_id,omitempty"`
-	// Policy template to attach (opaque ID). A value of 0 clears the policy
-	// and reverts to no per-key policy. The sub-account policy and role remain
-	// the permission ceiling.
+	// Policy template to attach (opaque ID). A value of 0 clears the binding.
+	// An API key without an attached policy has no permissions.
 	PolicyId      uint64 `protobuf:"fixed64,2,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2456,38 +2085,25 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x05Value\x12\x0f\n" +
 	"\vUNSPECIFIED\x10\x00\x12\a\n" +
 	"\x03ALL\x10\x01\x12\r\n" +
-	"\tALLOWLIST\x10\x02\"3\n" +
-	"\x0eSpotMarketRule\x12!\n" +
-	"\x06symbol\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18 R\x06symbol\"c\n" +
-	"\x0ePerpMarketRule\x12!\n" +
-	"\x06symbol\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18 R\x06symbol\x12.\n" +
-	"\x0emax_leverage_x\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xe8\aR\fmaxLeverageX\"\xd2\v\n" +
+	"\tALLOWLIST\x10\x02\":\n" +
+	"\x12SpotMarketSelector\x12$\n" +
+	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\"-\n" +
+	"\x0eSpotMarketRule\x12\x1b\n" +
+	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\"\xd3\b\n" +
 	"\x14SubaccountPolicyView\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x06R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12:\n" +
-	"\fspot_markets\x18\x04 \x03(\v2\x17.auth.v1.SpotMarketRuleR\vspotMarkets\x12:\n" +
-	"\fperp_markets\x18\x05 \x03(\v2\x17.auth.v1.PerpMarketRuleR\vperpMarkets\x12P\n" +
-	"\x11spot_market_scope\x18\x06 \x01(\x0e2\x1a.auth.v1.MarketScope.ValueB\b\xbaH\x05\x82\x01\x02\x10\x01R\x0fspotMarketScope\x12P\n" +
-	"\x11perp_market_scope\x18\a \x01(\x0e2\x1a.auth.v1.MarketScope.ValueB\b\xbaH\x05\x82\x01\x02\x10\x01R\x0fperpMarketScope\x12D\n" +
+	"\fspot_markets\x18\x04 \x03(\v2\x17.auth.v1.SpotMarketRuleR\vspotMarkets\x12P\n" +
+	"\x11spot_market_scope\x18\x06 \x01(\x0e2\x1a.auth.v1.MarketScope.ValueB\b\xbaH\x05\x82\x01\x02\x10\x01R\x0fspotMarketScope\x12D\n" +
 	"\aactions\x18\b \x03(\x0e2\x15.auth.v1.PolicyActionB\x13\xbaH\x10\x92\x01\r\x10@\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\aactions\x12\x1f\n" +
 	"\vis_template\x18\n" +
 	" \x01(\bR\n" +
 	"isTemplate\x12,\n" +
-	"\x12source_template_id\x18\v \x01(\x06R\x10sourceTemplateId\x12.\n" +
-	"\x13global_notional_cap\x18\f \x01(\x04R\x11globalNotionalCap\x12,\n" +
+	"\x12source_template_id\x18\v \x01(\x06R\x10sourceTemplateId\x12,\n" +
 	"\x12max_order_notional\x18\r \x01(\x04R\x10maxOrderNotional\x12&\n" +
-	"\x0fmax_open_orders\x18\x0e \x01(\rR\rmaxOpenOrders\x12,\n" +
-	"\x12max_open_positions\x18\x0f \x01(\rR\x10maxOpenPositions\x123\n" +
-	"\x16global_perp_leverage_x\x18\x10 \x01(\rR\x13globalPerpLeverageX\x12H\n" +
-	"!daily_internal_transfer_out_limit\x18\x11 \x01(\x04R\x1ddailyInternalTransferOutLimit\x120\n" +
-	"\x14daily_withdraw_limit\x18\x12 \x01(\x04R\x12dailyWithdrawLimit\x12=\n" +
-	"\x1binternal_transfers_own_only\x18\x13 \x01(\bR\x18internalTransfersOwnOnly\x12<\n" +
-	"\x1aenforce_withdraw_whitelist\x18\x16 \x01(\bR\x18enforceWithdrawWhitelist\x12%\n" +
-	"\x0etrading_halted\x18\x17 \x01(\bR\rtradingHalted\x12)\n" +
-	"\x10liquidation_only\x18\x18 \x01(\bR\x0fliquidationOnly\x12(\n" +
-	"\x10daily_loss_limit\x18\x19 \x01(\x04R\x0edailyLossLimit\x12G\n" +
-	"\x1bintraday_drawdown_limit_bps\x18\x1a \x01(\rB\b\xbaH\x05*\x03\x18\x90NR\x18intradayDrawdownLimitBps\x12\x16\n" +
+	"\x0fmax_open_orders\x18\x0e \x01(\rR\rmaxOpenOrders\x12%\n" +
+	"\x0etrading_halted\x18\x17 \x01(\bR\rtradingHalted\x12\x16\n" +
 	"\x06locked\x18\x1b \x01(\bR\x06locked\x127\n" +
 	"\treview_at\x18\x1c \x01(\v2\x1a.google.protobuf.TimestampR\breviewAt\x129\n" +
 	"\n" +
@@ -2496,7 +2112,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"created_at\x18\x14 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1a\n" +
-	"\brevision\x18\x1e \x01(\x04R\brevision\"k\n" +
+	"\brevision\x18\x1e \x01(\x04R\brevisionJ\x04\b\x05\x10\x06J\x04\b\a\x10\bJ\x04\b\f\x10\rJ\x04\b\x0f\x10\x14J\x04\b\x16\x10\x17J\x04\b\x18\x10\x1bR\fperp_marketsR\x11perp_market_scopeR\x13global_notional_capR\x12max_open_positionsR\x16global_perp_leverage_xR!daily_internal_transfer_out_limitR\x14daily_withdraw_limitR\x1binternal_transfers_own_onlyR\x1aenforce_withdraw_whitelistR\x10liquidation_onlyR\x10daily_loss_limitR\x1bintraday_drawdown_limit_bps\"k\n" +
 	"\x1dListSubaccountPoliciesRequest\x128\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
 	"\x0e_subaccount_id\"[\n" +
@@ -2507,36 +2123,22 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\rsubaccount_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
 	"\x0e_subaccount_id\"T\n" +
 	"\x1bGetSubaccountPolicyResponse\x125\n" +
-	"\x06policy\x18\x01 \x01(\v2\x1d.auth.v1.SubaccountPolicyViewR\x06policy\"\xb9\x0e\n" +
+	"\x06policy\x18\x01 \x01(\v2\x1d.auth.v1.SubaccountPolicyViewR\x06policy\"\x9f\t\n" +
 	"\x14SubaccountPolicySpec\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18@R\x04name\x12*\n" +
-	"\vdescription\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\vdescription\x12:\n" +
-	"\fspot_markets\x18\x03 \x03(\v2\x17.auth.v1.SpotMarketRuleR\vspotMarkets\x12:\n" +
-	"\fperp_markets\x18\x04 \x03(\v2\x17.auth.v1.PerpMarketRuleR\vperpMarkets\x12P\n" +
-	"\x11spot_market_scope\x18\x05 \x01(\x0e2\x1a.auth.v1.MarketScope.ValueB\b\xbaH\x05\x82\x01\x02\x10\x01R\x0fspotMarketScope\x12P\n" +
-	"\x11perp_market_scope\x18\x06 \x01(\x0e2\x1a.auth.v1.MarketScope.ValueB\b\xbaH\x05\x82\x01\x02\x10\x01R\x0fperpMarketScope\x12D\n" +
-	"\aactions\x18\a \x03(\x0e2\x15.auth.v1.PolicyActionB\x13\xbaH\x10\x92\x01\r\x10@\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\aactions\x12.\n" +
-	"\x13global_notional_cap\x18\f \x01(\x04R\x11globalNotionalCap\x12,\n" +
+	"\vdescription\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\vdescription\x12>\n" +
+	"\fspot_markets\x18\x03 \x03(\v2\x1b.auth.v1.SpotMarketSelectorR\vspotMarkets\x12P\n" +
+	"\x11spot_market_scope\x18\x05 \x01(\x0e2\x1a.auth.v1.MarketScope.ValueB\b\xbaH\x05\x82\x01\x02\x10\x01R\x0fspotMarketScope\x12D\n" +
+	"\aactions\x18\a \x03(\x0e2\x15.auth.v1.PolicyActionB\x13\xbaH\x10\x92\x01\r\x10@\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\aactions\x12,\n" +
 	"\x12max_order_notional\x18\r \x01(\x04R\x10maxOrderNotional\x12&\n" +
-	"\x0fmax_open_orders\x18\x0e \x01(\rR\rmaxOpenOrders\x12,\n" +
-	"\x12max_open_positions\x18\x0f \x01(\rR\x10maxOpenPositions\x123\n" +
-	"\x16global_perp_leverage_x\x18\x10 \x01(\rR\x13globalPerpLeverageX\x12H\n" +
-	"!daily_internal_transfer_out_limit\x18\x11 \x01(\x04R\x1ddailyInternalTransferOutLimit\x120\n" +
-	"\x14daily_withdraw_limit\x18\x12 \x01(\x04R\x12dailyWithdrawLimit\x12=\n" +
-	"\x1binternal_transfers_own_only\x18\x13 \x01(\bR\x18internalTransfersOwnOnly\x12<\n" +
-	"\x1aenforce_withdraw_whitelist\x18\x14 \x01(\bR\x18enforceWithdrawWhitelist\x12%\n" +
-	"\x0etrading_halted\x18\x15 \x01(\bR\rtradingHalted\x12)\n" +
-	"\x10liquidation_only\x18\x16 \x01(\bR\x0fliquidationOnly\x12(\n" +
-	"\x10daily_loss_limit\x18\x17 \x01(\x04R\x0edailyLossLimit\x12G\n" +
-	"\x1bintraday_drawdown_limit_bps\x18\x18 \x01(\rB\b\xbaH\x05*\x03\x18\x90NR\x18intradayDrawdownLimitBps\x12\x16\n" +
+	"\x0fmax_open_orders\x18\x0e \x01(\rR\rmaxOpenOrders\x12%\n" +
+	"\x0etrading_halted\x18\x15 \x01(\bR\rtradingHalted\x12\x16\n" +
 	"\x06locked\x18\x19 \x01(\bR\x06locked\x127\n" +
 	"\treview_at\x18\x1a \x01(\v2\x1a.google.protobuf.TimestampR\breviewAt\x129\n" +
 	"\n" +
-	"expires_at\x18\x1b \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt:\xc2\x04\xbaH\xbe\x04\x1a\xa7\x01\n" +
-	"\x1fspot_allowlist_requires_markets\x12Bspot_markets must be non-empty when spot_market_scope is ALLOWLIST\x1a@this.spot_market_scope != 2 ? true : size(this.spot_markets) > 0\x1a\xa7\x01\n" +
-	"\x1fperp_allowlist_requires_markets\x12Bperp_markets must be non-empty when perp_market_scope is ALLOWLIST\x1a@this.perp_market_scope != 2 ? true : size(this.perp_markets) > 0\x1as\n" +
-	"\x13spot_markets_unique\x12/spot_markets must not contain duplicate symbols\x1a+this.spot_markets.map(m, m.symbol).unique()\x1as\n" +
-	"\x13perp_markets_unique\x12/perp_markets must not contain duplicate symbols\x1a+this.perp_markets.map(m, m.symbol).unique()\"\xad\x01\n" +
+	"expires_at\x18\x1b \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt:\xa9\x02\xbaH\xa5\x02\x1a\xa7\x01\n" +
+	"\x1fspot_allowlist_requires_markets\x12Bspot_markets must be non-empty when spot_market_scope is ALLOWLIST\x1a@this.spot_market_scope != 2 ? true : size(this.spot_markets) > 0\x1ay\n" +
+	"\x13spot_markets_unique\x122spot_markets must not contain duplicate symbol IDs\x1a.this.spot_markets.map(m, m.symbol_id).unique()J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\f\x10\rJ\x04\b\x0f\x10\x15J\x04\b\x16\x10\x19R\fperp_marketsR\x11perp_market_scopeR\x13global_notional_capR\x12max_open_positionsR\x16global_perp_leverage_xR!daily_internal_transfer_out_limitR\x14daily_withdraw_limitR\x1binternal_transfers_own_onlyR\x1aenforce_withdraw_whitelistR\x10liquidation_onlyR\x10daily_loss_limitR\x1bintraday_drawdown_limit_bps\"\xad\x01\n" +
 	"\x1dCreateSubaccountPolicyRequest\x12@\n" +
 	"\x06policy\x18\x01 \x01(\v2\x1d.auth.v1.SubaccountPolicySpecB\t\xe0A\x02\xbaH\x03\xc8\x01\x01R\x06policy\x128\n" +
 	"\rsubaccount_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
@@ -2558,19 +2160,14 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x1aSetSubaccountPolicyRequest\x123\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12\x1b\n" +
 	"\tpolicy_id\x18\x02 \x01(\x06R\bpolicyId\"\x1d\n" +
-	"\x1bSetSubaccountPolicyResponse\"\xc2\x06\n" +
+	"\x1bSetSubaccountPolicyResponse\"\x96\x05\n" +
 	"\rApiPolicyView\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x06R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12:\n" +
-	"\fspot_markets\x18\x04 \x03(\v2\x17.auth.v1.SpotMarketRuleR\vspotMarkets\x12:\n" +
-	"\fperp_markets\x18\x05 \x03(\v2\x17.auth.v1.PerpMarketRuleR\vperpMarkets\x12D\n" +
+	"\fspot_markets\x18\x04 \x03(\v2\x17.auth.v1.SpotMarketRuleR\vspotMarkets\x12D\n" +
 	"\aactions\x18\x06 \x03(\x0e2\x15.auth.v1.PolicyActionB\x13\xbaH\x10\x92\x01\r\x10@\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\aactions\x12P\n" +
-	"\x11spot_market_scope\x18\a \x01(\x0e2\x1a.auth.v1.MarketScope.ValueB\b\xbaH\x05\x82\x01\x02\x10\x01R\x0fspotMarketScope\x12P\n" +
-	"\x11perp_market_scope\x18\b \x01(\x0e2\x1a.auth.v1.MarketScope.ValueB\b\xbaH\x05\x82\x01\x02\x10\x01R\x0fperpMarketScope\x12,\n" +
-	"\x12max_order_notional\x18\r \x01(\x04R\x10maxOrderNotional\x12H\n" +
-	"!daily_internal_transfer_out_limit\x18\x11 \x01(\x04R\x1ddailyInternalTransferOutLimit\x120\n" +
-	"\x14daily_withdraw_limit\x18\x12 \x01(\x04R\x12dailyWithdrawLimit\x12\x1f\n" +
+	"\x11spot_market_scope\x18\a \x01(\x0e2\x1a.auth.v1.MarketScope.ValueB\b\xbaH\x05\x82\x01\x02\x10\x01R\x0fspotMarketScope\x12\x1f\n" +
 	"\vis_template\x18\x13 \x01(\bR\n" +
 	"isTemplate\x12,\n" +
 	"\x12source_template_id\x18\x14 \x01(\x06R\x10sourceTemplateId\x129\n" +
@@ -2578,7 +2175,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"created_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\x16 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1a\n" +
-	"\brevision\x18\x17 \x01(\x04R\brevision\"Y\n" +
+	"\brevision\x18\x17 \x01(\x04R\brevisionJ\x04\b\x05\x10\x06J\x04\b\b\x10\tJ\x04\b\r\x10\x0eJ\x04\b\x11\x10\x12J\x04\b\x12\x10\x13R\fperp_marketsR\x11perp_market_scopeR!daily_internal_transfer_out_limitR\x14daily_withdraw_limitR\x12max_order_notional\"Y\n" +
 	"\x16ListApiPoliciesRequest\x124\n" +
 	"\x06key_id\x18\x01 \x01(\tB\x18\xbaH\x15r\x132\x11^ak_[a-f0-9]{32}$H\x00R\x05keyId\x88\x01\x01B\t\n" +
 	"\a_key_id\"M\n" +
@@ -2589,24 +2186,17 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x06key_id\x18\x02 \x01(\tB\x18\xbaH\x15r\x132\x11^ak_[a-f0-9]{32}$H\x00R\x05keyId\x88\x01\x01B\t\n" +
 	"\a_key_id\"F\n" +
 	"\x14GetApiPolicyResponse\x12.\n" +
-	"\x06policy\x18\x01 \x01(\v2\x16.auth.v1.ApiPolicyViewR\x06policy\"\xca\t\n" +
+	"\x06policy\x18\x01 \x01(\v2\x16.auth.v1.ApiPolicyViewR\x06policy\"\x89\x06\n" +
 	"\rApiPolicySpec\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18@R\x04name\x12*\n" +
-	"\vdescription\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\vdescription\x12:\n" +
-	"\fspot_markets\x18\x03 \x03(\v2\x17.auth.v1.SpotMarketRuleR\vspotMarkets\x12:\n" +
-	"\fperp_markets\x18\x04 \x03(\v2\x17.auth.v1.PerpMarketRuleR\vperpMarkets\x12P\n" +
-	"\x11spot_market_scope\x18\x05 \x01(\x0e2\x1a.auth.v1.MarketScope.ValueB\b\xbaH\x05\x82\x01\x02\x10\x01R\x0fspotMarketScope\x12P\n" +
-	"\x11perp_market_scope\x18\x06 \x01(\x0e2\x1a.auth.v1.MarketScope.ValueB\b\xbaH\x05\x82\x01\x02\x10\x01R\x0fperpMarketScope\x12D\n" +
-	"\aactions\x18\a \x03(\x0e2\x15.auth.v1.PolicyActionB\x13\xbaH\x10\x92\x01\r\x10@\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\aactions\x12,\n" +
-	"\x12max_order_notional\x18\r \x01(\x04R\x10maxOrderNotional\x12H\n" +
-	"!daily_internal_transfer_out_limit\x18\x11 \x01(\x04R\x1ddailyInternalTransferOutLimit\x120\n" +
-	"\x14daily_withdraw_limit\x18\x12 \x01(\x04R\x12dailyWithdrawLimit\x12\x1f\n" +
+	"\vdescription\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\vdescription\x12>\n" +
+	"\fspot_markets\x18\x03 \x03(\v2\x1b.auth.v1.SpotMarketSelectorR\vspotMarkets\x12P\n" +
+	"\x11spot_market_scope\x18\x05 \x01(\x0e2\x1a.auth.v1.MarketScope.ValueB\b\xbaH\x05\x82\x01\x02\x10\x01R\x0fspotMarketScope\x12D\n" +
+	"\aactions\x18\a \x03(\x0e2\x15.auth.v1.PolicyActionB\x13\xbaH\x10\x92\x01\r\x10@\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\aactions\x12\x1f\n" +
 	"\vis_template\x18\x13 \x01(\bR\n" +
-	"isTemplate:\xc2\x04\xbaH\xbe\x04\x1a\xa7\x01\n" +
-	"\x1fspot_allowlist_requires_markets\x12Bspot_markets must be non-empty when spot_market_scope is ALLOWLIST\x1a@this.spot_market_scope != 2 ? true : size(this.spot_markets) > 0\x1a\xa7\x01\n" +
-	"\x1fperp_allowlist_requires_markets\x12Bperp_markets must be non-empty when perp_market_scope is ALLOWLIST\x1a@this.perp_market_scope != 2 ? true : size(this.perp_markets) > 0\x1as\n" +
-	"\x13spot_markets_unique\x12/spot_markets must not contain duplicate symbols\x1a+this.spot_markets.map(m, m.symbol).unique()\x1as\n" +
-	"\x13perp_markets_unique\x12/perp_markets must not contain duplicate symbols\x1a+this.perp_markets.map(m, m.symbol).unique()\"\x99\x01\n" +
+	"isTemplate:\xa9\x02\xbaH\xa5\x02\x1a\xa7\x01\n" +
+	"\x1fspot_allowlist_requires_markets\x12Bspot_markets must be non-empty when spot_market_scope is ALLOWLIST\x1a@this.spot_market_scope != 2 ? true : size(this.spot_markets) > 0\x1ay\n" +
+	"\x13spot_markets_unique\x122spot_markets must not contain duplicate symbol IDs\x1a.this.spot_markets.map(m, m.symbol_id).unique()J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\r\x10\x0eJ\x04\b\x11\x10\x12J\x04\b\x12\x10\x13R\fperp_marketsR\x11perp_market_scopeR!daily_internal_transfer_out_limitR\x14daily_withdraw_limitR\x12max_order_notional\"\x99\x01\n" +
 	"\x16CreateApiPolicyRequest\x129\n" +
 	"\x06policy\x18\x01 \x01(\v2\x16.auth.v1.ApiPolicySpecB\t\xe0A\x02\xbaH\x03\xc8\x01\x01R\x06policy\x12D\n" +
 	"\x10assign_to_key_id\x18\x02 \x01(\tB\x1b\xbaH\x18r\x162\x14^$|^ak_[a-f0-9]{32}$R\rassignToKeyId\"I\n" +
@@ -2627,23 +2217,19 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x16SetApiKeyPolicyRequest\x124\n" +
 	"\x06key_id\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x15\x10\x012\x11^ak_[a-f0-9]{32}$R\x05keyId\x12\x1b\n" +
 	"\tpolicy_id\x18\x02 \x01(\x06R\bpolicyId\"\x19\n" +
-	"\x17SetApiKeyPolicyResponse*\xaf\x02\n" +
+	"\x17SetApiKeyPolicyResponse*\xce\x02\n" +
 	"\fPolicyAction\x12\x0f\n" +
 	"\vUNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
-	"TRADE_SPOT\x10\x01\x12\x0e\n" +
-	"\n" +
-	"TRADE_PERP\x10\x02\x12\x15\n" +
+	"TRADE_SPOT\x10\x01\x12\x15\n" +
 	"\x11INTERNAL_TRANSFER\x10\x03\x12\x15\n" +
 	"\x11EXTERNAL_WITHDRAW\x10\x04\x12\x11\n" +
 	"\rREAD_BALANCES\x10\x05\x12\r\n" +
-	"\tREAD_SPOT\x10\x06\x12\r\n" +
-	"\tREAD_PERP\x10\a\x12\x1b\n" +
-	"\x17READ_INTERNAL_TRANSFERS\x10\b\x12\x1d\n" +
-	"\x19READ_EXTERNAL_WITHDRAWALS\x10\t\x12\x1a\n" +
-	"\x16READ_TRANSFER_CONTROLS\x10\v\x12\x17\n" +
-	"\x13MANAGE_ADDRESS_BOOK\x10\f\x12\x1e\n" +
-	"\x1aMANAGE_TRANSFER_WHITELISTS\x10\r2\xd4\x17\n" +
+	"\tREAD_SPOT\x10\x06\x12\x1b\n" +
+	"\x17READ_INTERNAL_TRANSFERS\x10\b\x12\x15\n" +
+	"\x11READ_ADDRESS_BOOK\x10\v\x12\x17\n" +
+	"\x13MANAGE_ADDRESS_BOOK\x10\f\"\x04\b\x02\x10\x02\"\x04\b\a\x10\a\"\x04\b\r\x10\r\"\x04\b\t\x10\t*\n" +
+	"TRADE_PERP*\tREAD_PERP*\x1aREAD_TRANSFER_DESTINATIONS*\x1aMANAGE_TRANSFER_WHITELISTS*\x19READ_EXTERNAL_WITHDRAWALS2\xd4\x17\n" +
 	"\rPolicyService\x12\xf8\x01\n" +
 	"\x16ListSubaccountPolicies\x12&.auth.v1.ListSubaccountPoliciesRequest\x1a'.auth.v1.ListSubaccountPoliciesResponse\"\x8c\x01\xbaGd\n" +
 	"\fAuth Service\x12\x18List Subaccount Policies\x1a:List sub-account policy templates available to the caller.\x82\xd3\xe4\x93\x02\x1f\x12\x1d/v1/auth/policies/subaccounts\x12\xf9\x01\n" +
@@ -2688,8 +2274,8 @@ var file_auth_v1_policies_proto_goTypes = []any{
 	(PolicyAction)(0),                      // 0: auth.v1.PolicyAction
 	(MarketScope_Value)(0),                 // 1: auth.v1.MarketScope.Value
 	(*MarketScope)(nil),                    // 2: auth.v1.MarketScope
-	(*SpotMarketRule)(nil),                 // 3: auth.v1.SpotMarketRule
-	(*PerpMarketRule)(nil),                 // 4: auth.v1.PerpMarketRule
+	(*SpotMarketSelector)(nil),             // 3: auth.v1.SpotMarketSelector
+	(*SpotMarketRule)(nil),                 // 4: auth.v1.SpotMarketRule
 	(*SubaccountPolicyView)(nil),           // 5: auth.v1.SubaccountPolicyView
 	(*ListSubaccountPoliciesRequest)(nil),  // 6: auth.v1.ListSubaccountPoliciesRequest
 	(*ListSubaccountPoliciesResponse)(nil), // 7: auth.v1.ListSubaccountPoliciesResponse
@@ -2722,77 +2308,69 @@ var file_auth_v1_policies_proto_goTypes = []any{
 	(*fieldmaskpb.FieldMask)(nil),          // 34: google.protobuf.FieldMask
 }
 var file_auth_v1_policies_proto_depIdxs = []int32{
-	3,  // 0: auth.v1.SubaccountPolicyView.spot_markets:type_name -> auth.v1.SpotMarketRule
-	4,  // 1: auth.v1.SubaccountPolicyView.perp_markets:type_name -> auth.v1.PerpMarketRule
-	1,  // 2: auth.v1.SubaccountPolicyView.spot_market_scope:type_name -> auth.v1.MarketScope.Value
-	1,  // 3: auth.v1.SubaccountPolicyView.perp_market_scope:type_name -> auth.v1.MarketScope.Value
-	0,  // 4: auth.v1.SubaccountPolicyView.actions:type_name -> auth.v1.PolicyAction
-	33, // 5: auth.v1.SubaccountPolicyView.review_at:type_name -> google.protobuf.Timestamp
-	33, // 6: auth.v1.SubaccountPolicyView.expires_at:type_name -> google.protobuf.Timestamp
-	33, // 7: auth.v1.SubaccountPolicyView.created_at:type_name -> google.protobuf.Timestamp
-	33, // 8: auth.v1.SubaccountPolicyView.updated_at:type_name -> google.protobuf.Timestamp
-	5,  // 9: auth.v1.ListSubaccountPoliciesResponse.policies:type_name -> auth.v1.SubaccountPolicyView
-	5,  // 10: auth.v1.GetSubaccountPolicyResponse.policy:type_name -> auth.v1.SubaccountPolicyView
-	3,  // 11: auth.v1.SubaccountPolicySpec.spot_markets:type_name -> auth.v1.SpotMarketRule
-	4,  // 12: auth.v1.SubaccountPolicySpec.perp_markets:type_name -> auth.v1.PerpMarketRule
-	1,  // 13: auth.v1.SubaccountPolicySpec.spot_market_scope:type_name -> auth.v1.MarketScope.Value
-	1,  // 14: auth.v1.SubaccountPolicySpec.perp_market_scope:type_name -> auth.v1.MarketScope.Value
-	0,  // 15: auth.v1.SubaccountPolicySpec.actions:type_name -> auth.v1.PolicyAction
-	33, // 16: auth.v1.SubaccountPolicySpec.review_at:type_name -> google.protobuf.Timestamp
-	33, // 17: auth.v1.SubaccountPolicySpec.expires_at:type_name -> google.protobuf.Timestamp
-	10, // 18: auth.v1.CreateSubaccountPolicyRequest.policy:type_name -> auth.v1.SubaccountPolicySpec
-	5,  // 19: auth.v1.CreateSubaccountPolicyResponse.policy:type_name -> auth.v1.SubaccountPolicyView
-	10, // 20: auth.v1.UpdateSubaccountPolicyRequest.policy:type_name -> auth.v1.SubaccountPolicySpec
-	34, // 21: auth.v1.UpdateSubaccountPolicyRequest.update_mask:type_name -> google.protobuf.FieldMask
-	5,  // 22: auth.v1.UpdateSubaccountPolicyResponse.policy:type_name -> auth.v1.SubaccountPolicyView
-	3,  // 23: auth.v1.ApiPolicyView.spot_markets:type_name -> auth.v1.SpotMarketRule
-	4,  // 24: auth.v1.ApiPolicyView.perp_markets:type_name -> auth.v1.PerpMarketRule
-	0,  // 25: auth.v1.ApiPolicyView.actions:type_name -> auth.v1.PolicyAction
-	1,  // 26: auth.v1.ApiPolicyView.spot_market_scope:type_name -> auth.v1.MarketScope.Value
-	1,  // 27: auth.v1.ApiPolicyView.perp_market_scope:type_name -> auth.v1.MarketScope.Value
-	33, // 28: auth.v1.ApiPolicyView.created_at:type_name -> google.protobuf.Timestamp
-	33, // 29: auth.v1.ApiPolicyView.updated_at:type_name -> google.protobuf.Timestamp
-	19, // 30: auth.v1.ListApiPoliciesResponse.policies:type_name -> auth.v1.ApiPolicyView
-	19, // 31: auth.v1.GetApiPolicyResponse.policy:type_name -> auth.v1.ApiPolicyView
-	3,  // 32: auth.v1.ApiPolicySpec.spot_markets:type_name -> auth.v1.SpotMarketRule
-	4,  // 33: auth.v1.ApiPolicySpec.perp_markets:type_name -> auth.v1.PerpMarketRule
-	1,  // 34: auth.v1.ApiPolicySpec.spot_market_scope:type_name -> auth.v1.MarketScope.Value
-	1,  // 35: auth.v1.ApiPolicySpec.perp_market_scope:type_name -> auth.v1.MarketScope.Value
-	0,  // 36: auth.v1.ApiPolicySpec.actions:type_name -> auth.v1.PolicyAction
-	24, // 37: auth.v1.CreateApiPolicyRequest.policy:type_name -> auth.v1.ApiPolicySpec
-	19, // 38: auth.v1.CreateApiPolicyResponse.policy:type_name -> auth.v1.ApiPolicyView
-	24, // 39: auth.v1.UpdateApiPolicyRequest.policy:type_name -> auth.v1.ApiPolicySpec
-	34, // 40: auth.v1.UpdateApiPolicyRequest.update_mask:type_name -> google.protobuf.FieldMask
-	19, // 41: auth.v1.UpdateApiPolicyResponse.policy:type_name -> auth.v1.ApiPolicyView
-	6,  // 42: auth.v1.PolicyService.ListSubaccountPolicies:input_type -> auth.v1.ListSubaccountPoliciesRequest
-	8,  // 43: auth.v1.PolicyService.GetSubaccountPolicy:input_type -> auth.v1.GetSubaccountPolicyRequest
-	11, // 44: auth.v1.PolicyService.CreateSubaccountPolicy:input_type -> auth.v1.CreateSubaccountPolicyRequest
-	13, // 45: auth.v1.PolicyService.UpdateSubaccountPolicy:input_type -> auth.v1.UpdateSubaccountPolicyRequest
-	15, // 46: auth.v1.PolicyService.DeleteSubaccountPolicy:input_type -> auth.v1.DeleteSubaccountPolicyRequest
-	17, // 47: auth.v1.PolicyService.SetSubaccountPolicy:input_type -> auth.v1.SetSubaccountPolicyRequest
-	20, // 48: auth.v1.PolicyService.ListApiPolicies:input_type -> auth.v1.ListApiPoliciesRequest
-	22, // 49: auth.v1.PolicyService.GetApiPolicy:input_type -> auth.v1.GetApiPolicyRequest
-	25, // 50: auth.v1.PolicyService.CreateApiPolicy:input_type -> auth.v1.CreateApiPolicyRequest
-	27, // 51: auth.v1.PolicyService.UpdateApiPolicy:input_type -> auth.v1.UpdateApiPolicyRequest
-	29, // 52: auth.v1.PolicyService.DeleteApiPolicy:input_type -> auth.v1.DeleteApiPolicyRequest
-	31, // 53: auth.v1.PolicyService.SetApiKeyPolicy:input_type -> auth.v1.SetApiKeyPolicyRequest
-	7,  // 54: auth.v1.PolicyService.ListSubaccountPolicies:output_type -> auth.v1.ListSubaccountPoliciesResponse
-	9,  // 55: auth.v1.PolicyService.GetSubaccountPolicy:output_type -> auth.v1.GetSubaccountPolicyResponse
-	12, // 56: auth.v1.PolicyService.CreateSubaccountPolicy:output_type -> auth.v1.CreateSubaccountPolicyResponse
-	14, // 57: auth.v1.PolicyService.UpdateSubaccountPolicy:output_type -> auth.v1.UpdateSubaccountPolicyResponse
-	16, // 58: auth.v1.PolicyService.DeleteSubaccountPolicy:output_type -> auth.v1.DeleteSubaccountPolicyResponse
-	18, // 59: auth.v1.PolicyService.SetSubaccountPolicy:output_type -> auth.v1.SetSubaccountPolicyResponse
-	21, // 60: auth.v1.PolicyService.ListApiPolicies:output_type -> auth.v1.ListApiPoliciesResponse
-	23, // 61: auth.v1.PolicyService.GetApiPolicy:output_type -> auth.v1.GetApiPolicyResponse
-	26, // 62: auth.v1.PolicyService.CreateApiPolicy:output_type -> auth.v1.CreateApiPolicyResponse
-	28, // 63: auth.v1.PolicyService.UpdateApiPolicy:output_type -> auth.v1.UpdateApiPolicyResponse
-	30, // 64: auth.v1.PolicyService.DeleteApiPolicy:output_type -> auth.v1.DeleteApiPolicyResponse
-	32, // 65: auth.v1.PolicyService.SetApiKeyPolicy:output_type -> auth.v1.SetApiKeyPolicyResponse
-	54, // [54:66] is the sub-list for method output_type
-	42, // [42:54] is the sub-list for method input_type
-	42, // [42:42] is the sub-list for extension type_name
-	42, // [42:42] is the sub-list for extension extendee
-	0,  // [0:42] is the sub-list for field type_name
+	4,  // 0: auth.v1.SubaccountPolicyView.spot_markets:type_name -> auth.v1.SpotMarketRule
+	1,  // 1: auth.v1.SubaccountPolicyView.spot_market_scope:type_name -> auth.v1.MarketScope.Value
+	0,  // 2: auth.v1.SubaccountPolicyView.actions:type_name -> auth.v1.PolicyAction
+	33, // 3: auth.v1.SubaccountPolicyView.review_at:type_name -> google.protobuf.Timestamp
+	33, // 4: auth.v1.SubaccountPolicyView.expires_at:type_name -> google.protobuf.Timestamp
+	33, // 5: auth.v1.SubaccountPolicyView.created_at:type_name -> google.protobuf.Timestamp
+	33, // 6: auth.v1.SubaccountPolicyView.updated_at:type_name -> google.protobuf.Timestamp
+	5,  // 7: auth.v1.ListSubaccountPoliciesResponse.policies:type_name -> auth.v1.SubaccountPolicyView
+	5,  // 8: auth.v1.GetSubaccountPolicyResponse.policy:type_name -> auth.v1.SubaccountPolicyView
+	3,  // 9: auth.v1.SubaccountPolicySpec.spot_markets:type_name -> auth.v1.SpotMarketSelector
+	1,  // 10: auth.v1.SubaccountPolicySpec.spot_market_scope:type_name -> auth.v1.MarketScope.Value
+	0,  // 11: auth.v1.SubaccountPolicySpec.actions:type_name -> auth.v1.PolicyAction
+	33, // 12: auth.v1.SubaccountPolicySpec.review_at:type_name -> google.protobuf.Timestamp
+	33, // 13: auth.v1.SubaccountPolicySpec.expires_at:type_name -> google.protobuf.Timestamp
+	10, // 14: auth.v1.CreateSubaccountPolicyRequest.policy:type_name -> auth.v1.SubaccountPolicySpec
+	5,  // 15: auth.v1.CreateSubaccountPolicyResponse.policy:type_name -> auth.v1.SubaccountPolicyView
+	10, // 16: auth.v1.UpdateSubaccountPolicyRequest.policy:type_name -> auth.v1.SubaccountPolicySpec
+	34, // 17: auth.v1.UpdateSubaccountPolicyRequest.update_mask:type_name -> google.protobuf.FieldMask
+	5,  // 18: auth.v1.UpdateSubaccountPolicyResponse.policy:type_name -> auth.v1.SubaccountPolicyView
+	4,  // 19: auth.v1.ApiPolicyView.spot_markets:type_name -> auth.v1.SpotMarketRule
+	0,  // 20: auth.v1.ApiPolicyView.actions:type_name -> auth.v1.PolicyAction
+	1,  // 21: auth.v1.ApiPolicyView.spot_market_scope:type_name -> auth.v1.MarketScope.Value
+	33, // 22: auth.v1.ApiPolicyView.created_at:type_name -> google.protobuf.Timestamp
+	33, // 23: auth.v1.ApiPolicyView.updated_at:type_name -> google.protobuf.Timestamp
+	19, // 24: auth.v1.ListApiPoliciesResponse.policies:type_name -> auth.v1.ApiPolicyView
+	19, // 25: auth.v1.GetApiPolicyResponse.policy:type_name -> auth.v1.ApiPolicyView
+	3,  // 26: auth.v1.ApiPolicySpec.spot_markets:type_name -> auth.v1.SpotMarketSelector
+	1,  // 27: auth.v1.ApiPolicySpec.spot_market_scope:type_name -> auth.v1.MarketScope.Value
+	0,  // 28: auth.v1.ApiPolicySpec.actions:type_name -> auth.v1.PolicyAction
+	24, // 29: auth.v1.CreateApiPolicyRequest.policy:type_name -> auth.v1.ApiPolicySpec
+	19, // 30: auth.v1.CreateApiPolicyResponse.policy:type_name -> auth.v1.ApiPolicyView
+	24, // 31: auth.v1.UpdateApiPolicyRequest.policy:type_name -> auth.v1.ApiPolicySpec
+	34, // 32: auth.v1.UpdateApiPolicyRequest.update_mask:type_name -> google.protobuf.FieldMask
+	19, // 33: auth.v1.UpdateApiPolicyResponse.policy:type_name -> auth.v1.ApiPolicyView
+	6,  // 34: auth.v1.PolicyService.ListSubaccountPolicies:input_type -> auth.v1.ListSubaccountPoliciesRequest
+	8,  // 35: auth.v1.PolicyService.GetSubaccountPolicy:input_type -> auth.v1.GetSubaccountPolicyRequest
+	11, // 36: auth.v1.PolicyService.CreateSubaccountPolicy:input_type -> auth.v1.CreateSubaccountPolicyRequest
+	13, // 37: auth.v1.PolicyService.UpdateSubaccountPolicy:input_type -> auth.v1.UpdateSubaccountPolicyRequest
+	15, // 38: auth.v1.PolicyService.DeleteSubaccountPolicy:input_type -> auth.v1.DeleteSubaccountPolicyRequest
+	17, // 39: auth.v1.PolicyService.SetSubaccountPolicy:input_type -> auth.v1.SetSubaccountPolicyRequest
+	20, // 40: auth.v1.PolicyService.ListApiPolicies:input_type -> auth.v1.ListApiPoliciesRequest
+	22, // 41: auth.v1.PolicyService.GetApiPolicy:input_type -> auth.v1.GetApiPolicyRequest
+	25, // 42: auth.v1.PolicyService.CreateApiPolicy:input_type -> auth.v1.CreateApiPolicyRequest
+	27, // 43: auth.v1.PolicyService.UpdateApiPolicy:input_type -> auth.v1.UpdateApiPolicyRequest
+	29, // 44: auth.v1.PolicyService.DeleteApiPolicy:input_type -> auth.v1.DeleteApiPolicyRequest
+	31, // 45: auth.v1.PolicyService.SetApiKeyPolicy:input_type -> auth.v1.SetApiKeyPolicyRequest
+	7,  // 46: auth.v1.PolicyService.ListSubaccountPolicies:output_type -> auth.v1.ListSubaccountPoliciesResponse
+	9,  // 47: auth.v1.PolicyService.GetSubaccountPolicy:output_type -> auth.v1.GetSubaccountPolicyResponse
+	12, // 48: auth.v1.PolicyService.CreateSubaccountPolicy:output_type -> auth.v1.CreateSubaccountPolicyResponse
+	14, // 49: auth.v1.PolicyService.UpdateSubaccountPolicy:output_type -> auth.v1.UpdateSubaccountPolicyResponse
+	16, // 50: auth.v1.PolicyService.DeleteSubaccountPolicy:output_type -> auth.v1.DeleteSubaccountPolicyResponse
+	18, // 51: auth.v1.PolicyService.SetSubaccountPolicy:output_type -> auth.v1.SetSubaccountPolicyResponse
+	21, // 52: auth.v1.PolicyService.ListApiPolicies:output_type -> auth.v1.ListApiPoliciesResponse
+	23, // 53: auth.v1.PolicyService.GetApiPolicy:output_type -> auth.v1.GetApiPolicyResponse
+	26, // 54: auth.v1.PolicyService.CreateApiPolicy:output_type -> auth.v1.CreateApiPolicyResponse
+	28, // 55: auth.v1.PolicyService.UpdateApiPolicy:output_type -> auth.v1.UpdateApiPolicyResponse
+	30, // 56: auth.v1.PolicyService.DeleteApiPolicy:output_type -> auth.v1.DeleteApiPolicyResponse
+	32, // 57: auth.v1.PolicyService.SetApiKeyPolicy:output_type -> auth.v1.SetApiKeyPolicyResponse
+	46, // [46:58] is the sub-list for method output_type
+	34, // [34:46] is the sub-list for method input_type
+	34, // [34:34] is the sub-list for extension type_name
+	34, // [34:34] is the sub-list for extension extendee
+	0,  // [0:34] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_policies_proto_init() }

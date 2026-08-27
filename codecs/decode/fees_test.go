@@ -12,19 +12,18 @@ func TestSpotFeeRatesDecodeRows(t *testing.T) {
 		FeeRates: []*feesv1.SpotFeeRate{
 			{
 				SymbolId:            7,
-				Symbol:              "BTC-USDT",
 				MakerFeeRatePercent: "0.01",
 				TakerFeeRatePercent: "0.04",
 				VipTier:             2,
 			},
 		},
 	}
-	result := decode.SpotFeeRatesListFromProto(msg)
+	result := decode.SpotFeeRatesListFromProto(msg, nil)
 	if len(result.FeeRates) != 1 {
 		t.Fatalf("rows=%d", len(result.FeeRates))
 	}
 	row := result.FeeRates[0]
-	if row.SymbolID != 7 || row.Symbol != "BTC-USDT" || row.VIPTier != 2 {
+	if row.SymbolID != 7 || row.Symbol != "" || row.VIPTier != 2 {
 		t.Fatalf("row=%+v", row)
 	}
 	if row.MakerFeeRatePercent != "0.01" || row.TakerFeeRatePercent != "0.04" {

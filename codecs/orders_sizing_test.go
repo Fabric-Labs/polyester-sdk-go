@@ -9,6 +9,7 @@ import (
 
 func TestOrderIntentSupportsBaseOrQuoteBudgetSizing(t *testing.T) {
 	symbol := "BTC-USDT"
+	sid := uint32(1)
 	tif := "ioc"
 	price := models.PriceFromTicksInt(50_000_000_000)
 	budget := models.QtyFromQuoteScaled(500, 6)
@@ -16,6 +17,7 @@ func TestOrderIntentSupportsBaseOrQuoteBudgetSizing(t *testing.T) {
 
 	intent, err := OrderIntentToProto(models.CreateOrderRequest{
 		Symbol:              &symbol,
+		SymbolID:            &sid,
 		Side:                "buy",
 		OrderType:           "limit",
 		TIF:                 &tif,
@@ -33,6 +35,7 @@ func TestOrderIntentSupportsBaseOrQuoteBudgetSizing(t *testing.T) {
 
 	preview, err := PreviewOrderToProto(models.CreateOrderRequest{
 		Symbol:              &symbol,
+		SymbolID:            &sid,
 		Side:                "buy",
 		OrderType:           "limit",
 		TIF:                 &tif,
@@ -55,12 +58,13 @@ func TestOrderIntentSupportsBaseOrQuoteBudgetSizing(t *testing.T) {
 
 func TestOrderIntentRejectsAmbiguousOrInvalidQuoteBudgetSizing(t *testing.T) {
 	symbol := "BTC-USDT"
+	sid := uint32(1)
 	qty := models.QtyFromDecimal("1")
 	price := models.PriceFromTicksInt(50_000_000_000)
 	budget := models.QtyFromQuoteScaled(500, 6)
 	for _, req := range []models.CreateOrderRequest{
-		{Symbol: &symbol, Side: "buy", OrderType: "limit", Qty: qty, MaxQuoteDebitScaled: budget, Price: &price},
-		{Symbol: &symbol, Side: "sell", OrderType: "market", MaxQuoteDebitScaled: budget},
+		{Symbol: &symbol, SymbolID: &sid, Side: "buy", OrderType: "limit", Qty: qty, MaxQuoteDebitScaled: budget, Price: &price},
+		{Symbol: &symbol, SymbolID: &sid, Side: "sell", OrderType: "market", MaxQuoteDebitScaled: budget},
 	} {
 		if _, err := OrderIntentToProto(req, 8, 6); err == nil {
 			t.Fatalf("expected sizing validation error for %+v", req)
@@ -70,11 +74,12 @@ func TestOrderIntentRejectsAmbiguousOrInvalidQuoteBudgetSizing(t *testing.T) {
 
 func TestOrderIntentRejectsQuoteBudgetScaleMismatch(t *testing.T) {
 	symbol := "BTC-USDT"
+	sid := uint32(1)
 	tif := "ioc"
 	price := models.PriceFromTicksInt(50_000_000_000)
 	budget := models.QtyFromQuoteScaled(5_000_000, 8)
 	_, err := OrderIntentToProto(models.CreateOrderRequest{
-		Symbol: &symbol, Side: "buy", OrderType: "limit", TIF: &tif,
+		Symbol: &symbol, SymbolID: &sid, Side: "buy", OrderType: "limit", TIF: &tif,
 		MaxQuoteDebitScaled: budget, Price: &price,
 	}, 8, 6)
 	if err == nil {

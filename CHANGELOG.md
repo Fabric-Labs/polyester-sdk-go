@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Breaking
+
+- Connect is `symbol_id`-only except GetSpotConfig. Public methods still accept
+  display `symbol` strings, but the SDK resolves them through the spot catalog
+  and fails closed. Raw symbol filters are no longer forwarded on market
+  overview, triggers list, cancel-all, or cancel-all-after.
+- Order/trigger encode sets `SymbolId` and never `Symbol`. Create, preview,
+  modify, and batch-create require a resolved non-zero `symbol_id`.
+- `CancelAllOrdersToProto` / `CancelAllAfterToProto` take `symbolID *uint32`.
+- Trigger `Modify` and `Resume` require `symbol` or `symbolID`.
+- Policy models drop perp rules and removed fields (`perp_*`, daily limits,
+  `global_notional_cap`, `max_open_positions`, `liquidation_only`,
+  `daily_loss_limit`). `READ_TRANSFER_DESTINATIONS` is gone;
+  `READ_ADDRESS_BOOK` exists. `SpotMarketRule` has `SymbolID` and optional
+  display `Symbol`.
+- Decode of market overview, fees, and triggers no longer reads proto
+  `GetSymbol()`; display `Symbol` is empty unless filled from catalogs.
+
 ## 0.1.0a44
 
 Git tag: `v0.1.0a44`.

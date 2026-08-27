@@ -77,8 +77,8 @@ func QuoteQuantityScaleForSymbol(c *catalogs.Manager, symbol *string) (int, erro
 // quoteQuantityScale is required when MaxQuoteDebitScaled is set; otherwise it
 // is ignored.
 func OrderIntentToProto(req models.CreateOrderRequest, quantityScale, quoteQuantityScale int) (*orderv1.OrderIntent, error) {
-	if req.Symbol == nil && req.SymbolID == nil {
-		return nil, &errors.ValidationError{Msg: "orders.create requires symbol or symbol_id"}
+	if req.SymbolID == nil || *req.SymbolID == 0 {
+		return nil, &errors.ValidationError{Msg: "orders.create requires a resolved non-zero symbol_id"}
 	}
 	if req.AttachedRisk != nil {
 		return nil, &errors.ValidationError{Msg: "attached_risk is not supported by the current Go order input; refusing to discard it"}
@@ -96,7 +96,7 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale, quoteQuant
 		symbol = *req.Symbol
 	}
 	intent := &orderv1.OrderIntent{
-		Symbol:   symbol,
+		SymbolId: *req.SymbolID,
 		Side:     side,
 		FeeAsset: orderv1.FeeAsset_QUOTE,
 	}
@@ -239,6 +239,7 @@ func CreateOrderToProto(req models.CreateOrderRequest, quantityScale, quoteQuant
 // ModifyOrderToProto encodes modify order request.
 func ModifyOrderToProto(
 	symbol string,
+	symbolID uint32,
 	key models.OrderKey,
 	subAccountID *string,
 	requestID *string,
@@ -248,6 +249,9 @@ func ModifyOrderToProto(
 	newClientOrderID *string,
 	quantityScale int,
 ) (*orderv1.ModifyOrderRequest, error) {
+	if symbolID == 0 {
+		return nil, &errors.ValidationError{Msg: "modify requires a resolved non-zero symbol_id"}
+	}
 	if (newPrice == nil || !newPrice.IsSet()) && (newQty == nil || !newQty.IsSet()) {
 		return nil, &errors.ValidationError{Msg: "modify requires new_price, new_qty, and/or new_attached_risk"}
 	}
@@ -257,6 +261,7 @@ func ModifyOrderToProto(
 	}
 	proto := &orderv1.ModifyOrderRequest{
 		RequestId: resolvedRequestID,
+		SymbolId:  symbolID,
 	}
 	if err := ApplyOrderKeyToModify(proto, key); err != nil {
 		return nil, err
@@ -300,7 +305,8 @@ func ModifyOrderToProto(
 }
 
 // CancelAllOrdersToProto encodes cancel-all request.
-func CancelAllOrdersToProto(subAccountID *string, symbol, side *string, dryRun bool, requestID *string) (*orderv1.CancelAllOrdersRequest, error) {
+// symbolID 0 (or nil) means all symbols.
+func CancelAllOrdersToProto(subAccountID *string, symbolID *uint32, side *string, dryRun bool, requestID *string) (*orderv1.CancelAllOrdersRequest, error) {
 	resolvedRequestID, err := coalesceRequestID(requestID, "cancel-all")
 	if err != nil {
 		return nil, err
@@ -316,8 +322,8 @@ func CancelAllOrdersToProto(subAccountID *string, symbol, side *string, dryRun b
 		}
 		proto.SubaccountId = &sub
 	}
-	if symbol != nil && strings.TrimSpace(*symbol) != "" {
-		proto.Symbol = strings.TrimSpace(*symbol)
+	if symbolID != nil {
+		proto.SymbolId = *symbolID
 	}
 	if side != nil {
 		s, ok := orderSideToProto[strings.ToLower(*side)]
@@ -330,7 +336,8 @@ func CancelAllOrdersToProto(subAccountID *string, symbol, side *string, dryRun b
 }
 
 // CancelAllAfterToProto encodes cancel-all-after request.
-func CancelAllAfterToProto(subAccountID *string, timeoutSec int, symbol, side *string, requestID *string) (*orderv1.CancelAllAfterRequest, error) {
+// symbolID 0 (or nil) means all symbols.
+func CancelAllAfterToProto(subAccountID *string, timeoutSec int, symbolID *uint32, side *string, requestID *string) (*orderv1.CancelAllAfterRequest, error) {
 	resolvedRequestID, err := coalesceRequestID(requestID, "cancel-after")
 	if err != nil {
 		return nil, err
@@ -346,8 +353,8 @@ func CancelAllAfterToProto(subAccountID *string, timeoutSec int, symbol, side *s
 		}
 		proto.SubaccountId = &sub
 	}
-	if symbol != nil && strings.TrimSpace(*symbol) != "" {
-		proto.Symbol = strings.TrimSpace(*symbol)
+	if symbolID != nil {
+		proto.SymbolId = *symbolID
 	}
 	if side != nil {
 		s, ok := orderSideToProto[strings.ToLower(*side)]

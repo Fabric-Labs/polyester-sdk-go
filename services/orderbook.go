@@ -41,7 +41,11 @@ func (s *OrderbookService) Get(ctx context.Context, symbol string, depth int) (m
 	if !ok {
 		return models.OrderbookData{}, &errors.ValidationError{Msg: "unsupported orderbook depth"}
 	}
-	req := &orderbookv1.GetOrderBookRequest{Symbol: symbol, Depth: orderbookv1.Depth(v)}
+	symbolID, err := ResolveSymbolID(s.catalogs, &symbol, nil, "orderbook.get")
+	if err != nil {
+		return models.OrderbookData{}, err
+	}
+	req := &orderbookv1.GetOrderBookRequest{SymbolId: symbolID, Depth: orderbookv1.Depth(v)}
 	scale, ok := s.catalogs.BaseQuantityScaleForSymbol(symbol)
 	if !ok {
 		return models.OrderbookData{}, &errors.ValidationError{Msg: fmt.Sprintf("orderbook decoding requires a hydrated catalog quantity scale for %q", symbol)}
@@ -152,7 +156,7 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 			if !ok {
 				return models.OrderbookData{}, &errors.ValidationError{Msg: "unsupported orderbook depth"}
 			}
-			req := &orderbookv1.GetOrderBookRequest{Symbol: symbol, Depth: orderbookv1.Depth(v)}
+			req := &orderbookv1.GetOrderBookRequest{SymbolId: *resolvedSymbolID, Depth: orderbookv1.Depth(v)}
 			return UnaryPublicDecoded(fetchCtx, s.transport, s.client().GetOrderBook, req, func(msg *orderbookv1.GetOrderBookResponse) (models.OrderbookData, error) {
 				nextBids, err := orderbook.LevelsFromProtoLevels(msg.GetBids())
 				if err != nil {

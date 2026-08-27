@@ -30,8 +30,6 @@ type SpotFeeRate struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable numeric spot market identifier.
 	SymbolId uint32 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
-	// Canonical spot market symbol, for example "BTC-USDT".
-	Symbol string `protobuf:"bytes,2,opt,name=symbol,proto3" json:"symbol,omitempty"`
 	// Effective maker fee rate encoded as a base-10 percentage string without a
 	// percent sign. Values are between -100 and 100 inclusive.
 	MakerFeeRatePercent string `protobuf:"bytes,3,opt,name=maker_fee_rate_percent,json=makerFeeRatePercent,proto3" json:"maker_fee_rate_percent,omitempty"`
@@ -79,13 +77,6 @@ func (x *SpotFeeRate) GetSymbolId() uint32 {
 		return x.SymbolId
 	}
 	return 0
-}
-
-func (x *SpotFeeRate) GetSymbol() string {
-	if x != nil {
-		return x.Symbol
-	}
-	return ""
 }
 
 func (x *SpotFeeRate) GetMakerFeeRatePercent() string {
@@ -221,10 +212,9 @@ var File_fees_v1_fees_proto protoreflect.FileDescriptor
 
 const file_fees_v1_fees_proto_rawDesc = "" +
 	"\n" +
-	"\x12fees/v1/fees.proto\x12\afees.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\"\xdc\x02\n" +
+	"\x12fees/v1/fees.proto\x12\afees.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\"\xb9\x02\n" +
 	"\vSpotFeeRate\x12$\n" +
-	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\x12!\n" +
-	"\x06symbol\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18 R\x06symbol\x12p\n" +
+	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\x12p\n" +
 	"\x16maker_fee_rate_percent\x18\x03 \x01(\tB;\xbaH8r6\x10\x01\x18\x0e20^-?(100([.]0+)?|([0-9]|[1-9][0-9])([.][0-9]+)?)$R\x13makerFeeRatePercent\x12n\n" +
 	"\x16taker_fee_rate_percent\x18\x04 \x01(\tB9\xbaH6r4\x10\x01\x18\r2.^(100([.]0+)?|([0-9]|[1-9][0-9])([.][0-9]+)?)$R\x13takerFeeRatePercent\x12\"\n" +
 	"\bvip_tier\x18\x05 \x01(\rB\a\xbaH\x04*\x02\x18\n" +

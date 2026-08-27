@@ -2,7 +2,9 @@ package services
 
 import (
 	"context"
+	"strings"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
 	marketoverviewv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketoverview/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/marketoverview/v1/marketoverviewv1connect"
@@ -14,11 +16,15 @@ import (
 
 type MarketOverviewService struct {
 	transport *transport.Factory
+	catalogs  *catalogs.Manager
 	realtime  RealtimeClient
 }
 
-func NewMarketOverviewService(factory *transport.Factory, realtime RealtimeClient) *MarketOverviewService {
-	return &MarketOverviewService{transport: factory, realtime: realtime}
+func NewMarketOverviewService(factory *transport.Factory, cats *catalogs.Manager, realtime RealtimeClient) *MarketOverviewService {
+	if cats == nil {
+		cats = catalogs.NewManager()
+	}
+	return &MarketOverviewService{transport: factory, catalogs: cats, realtime: realtime}
 }
 
 func (s *MarketOverviewService) client() marketoverviewv1connect.MarketOverviewServiceClient {
@@ -31,10 +37,20 @@ func (s *MarketOverviewService) List(ctx context.Context, symbols []string, limi
 		return models.MarketOverviewList{}, err
 	}
 	req := &marketoverviewv1.ListMarketOverviewRequest{Limit: parsedLimit, IncludeSparklines: includeSparklines}
-	if len(symbols) > 0 {
-		req.Symbols = append(req.Symbols, symbols...)
+	for _, symbol := range symbols {
+		trimmed := strings.TrimSpace(symbol)
+		if trimmed == "" {
+			continue
+		}
+		id, err := ResolveSymbolID(s.catalogs, &trimmed, nil, "market_overview.list")
+		if err != nil {
+			return models.MarketOverviewList{}, err
+		}
+		req.SymbolId = append(req.SymbolId, id)
 	}
-	return UnaryPublic(ctx, s.transport, s.client().ListMarketOverview, req, decode.MarketOverviewListFromProto)
+	return UnaryPublic(ctx, s.transport, s.client().ListMarketOverview, req, func(msg *marketoverviewv1.ListMarketOverviewResponse) models.MarketOverviewList {
+		return decode.MarketOverviewListFromProto(msg, s.catalogs)
+	})
 }
 
 // CreateSubscriptionOptions configures a managed market overview subscription.
@@ -57,6 +73,7 @@ func (s *MarketOverviewService) CreateSubscription(ctx context.Context, opts Mar
 	}
 	channel := "public:spot:market_overview:updates:proto"
 	bySymbolID := map[uint32]models.MarketOverviewEntry{}
+	decodeBatch := decode.MarketOverviewBatchDecoder(s.catalogs)
 
 	emit := func(sub *mosub.Subscription) {
 		rows := make([]models.MarketOverviewEntry, 0, len(bySymbolID))
@@ -81,7 +98,7 @@ func (s *MarketOverviewService) CreateSubscription(ctx context.Context, opts Mar
 	stream := realtime.NewSnapshotThenStream(realtime.SnapshotThenStreamConfig[models.MarketOverviewList, models.MarketOverviewList]{
 		Client:  s.realtime,
 		Channel: channel,
-		Decode:  decode.MarketOverviewBatchFromBytes,
+		Decode:  decodeBatch,
 		FetchSnapshot: func(fetchCtx context.Context) (models.MarketOverviewList, error) {
 			return s.List(fetchCtx, opts.Symbols, limit, "", opts.IncludeSparklines)
 		},
@@ -116,5 +133,5 @@ func (s *MarketOverviewService) CreateSubscription(ctx context.Context, opts Mar
 }
 
 func (s *MarketOverviewService) Subscribe(ctx context.Context) (*realtime.Subscription[models.MarketOverviewList], error) {
-	return SubscribePublicProto(ctx, s.realtime, "public:spot:market_overview:updates:proto", decode.MarketOverviewBatchFromBytes)
+	return SubscribePublicProto(ctx, s.realtime, "public:spot:market_overview:updates:proto", decode.MarketOverviewBatchDecoder(s.catalogs))
 }
