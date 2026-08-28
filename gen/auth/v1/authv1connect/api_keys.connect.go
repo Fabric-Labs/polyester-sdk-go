@@ -54,9 +54,9 @@ type ApiKeyServiceClient interface {
 	// Create a new API key for the caller. Account security settings may require
 	// MFA enrollment or a fresh step-up proof.
 	CreateApiKey(context.Context, *connect.Request[v1.CreateApiKeyRequest]) (*connect.Response[v1.CreateApiKeyResponse], error)
-	// List non-revoked API keys owned by the caller, newest first.
+	// List non-revoked API keys visible to the caller, newest first.
 	ListApiKeys(context.Context, *connect.Request[v1.ListApiKeysRequest]) (*connect.Response[v1.ListApiKeysResponse], error)
-	// Get a single API key owned by the caller.
+	// Get a single API key owned by the caller or scoped to a sub-account the caller administers.
 	GetApiKey(context.Context, *connect.Request[v1.GetApiKeyRequest]) (*connect.Response[v1.GetApiKeyResponse], error)
 	// Revoke an API key permanently.
 	DeleteApiKey(context.Context, *connect.Request[v1.DeleteApiKeyRequest]) (*connect.Response[v1.DeleteApiKeyResponse], error)
@@ -148,9 +148,9 @@ type ApiKeyServiceHandler interface {
 	// Create a new API key for the caller. Account security settings may require
 	// MFA enrollment or a fresh step-up proof.
 	CreateApiKey(context.Context, *connect.Request[v1.CreateApiKeyRequest]) (*connect.Response[v1.CreateApiKeyResponse], error)
-	// List non-revoked API keys owned by the caller, newest first.
+	// List non-revoked API keys visible to the caller, newest first.
 	ListApiKeys(context.Context, *connect.Request[v1.ListApiKeysRequest]) (*connect.Response[v1.ListApiKeysResponse], error)
-	// Get a single API key owned by the caller.
+	// Get a single API key owned by the caller or scoped to a sub-account the caller administers.
 	GetApiKey(context.Context, *connect.Request[v1.GetApiKeyRequest]) (*connect.Response[v1.GetApiKeyResponse], error)
 	// Revoke an API key permanently.
 	DeleteApiKey(context.Context, *connect.Request[v1.DeleteApiKeyRequest]) (*connect.Response[v1.DeleteApiKeyResponse], error)
