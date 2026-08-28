@@ -264,7 +264,7 @@ unless the request's `amount_scale` / `quantity_scale` is explicit. Prefer
 ```go
 import "github.com/Fabric-Labs/polyester-sdk-go/models"
 
-symbol := "ETH-USDT"
+symbol := "BTC-USDT"
 tif := "gtc"
 clientOrderID := "my-bot-001"
 price := models.PriceFromDecimal("100")
@@ -525,8 +525,7 @@ if current != nil {
 }
 _ = trades
 
-sol := "SOL-USDT"
-sub, err := client.MarketData.SubscribeTrades(ctx, &sol, nil)
+sub, err := client.MarketData.SubscribeTrades(ctx, &symbol, nil)
 if err != nil {
 	log.Fatal(err)
 }
@@ -622,7 +621,7 @@ in-flight refresh work and the replacement socket.
 import "github.com/Fabric-Labs/polyester-sdk-go/services"
 
 ob, err := client.Orderbook.CreateSubscription(ctx, services.CreateSubscriptionOptions{
-	Symbol: "ETH-USDT",
+	Symbol: "BTC-USDT",
 	Depth:  50,
 })
 if err != nil {
