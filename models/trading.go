@@ -430,6 +430,8 @@ type Trigger struct {
 	UpdatedAt               *time.Time      `json:"updated_at,omitempty"`
 	ArmedAt                 *time.Time      `json:"armed_at,omitempty"`
 	CompletedAt             *time.Time      `json:"completed_at,omitempty"`
+	CancelReason            string          `json:"cancel_reason,omitempty"`
+	FailureReason           string          `json:"failure_reason,omitempty"`
 	Details                 *TriggerDetails `json:"details,omitempty"`
 }
 
@@ -490,7 +492,8 @@ type TriggerEvent struct {
 	ChildSeq      int32      `json:"child_seq,omitempty"`
 	ChildOrderID  string     `json:"child_order_id,omitempty"`
 	FirePrice     PriceTicks `json:"fire_price,omitempty"`
-	Reason        string     `json:"reason,omitempty"`
+	CancelReason  string     `json:"cancel_reason,omitempty"`
+	FailureReason string     `json:"failure_reason,omitempty"`
 }
 
 // TriggerEventsList lists trigger events.

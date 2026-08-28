@@ -111,12 +111,15 @@ func (s *AddressBookService) GetWithdrawWhitelistView(ctx context.Context, accou
 	return UnaryAuth(ctx, s.transport, s.client().GetWithdrawWhitelistView, req, decode.WithdrawWhitelistViewFromGetProto)
 }
 
-func (s *AddressBookService) GetView(ctx context.Context, account AccountScope, subAccountID *string, limit int) (models.AddressBookView, error) {
+func (s *AddressBookService) GetView(ctx context.Context, account AccountScope, subAccountID *string, limit int, minimumViewRevision uint64) (models.AddressBookView, error) {
 	parsedLimit, err := PaginationLimitOrDefault(limit, 50, "limit")
 	if err != nil {
 		return models.AddressBookView{}, err
 	}
 	req := &authv1.GetAddressBookViewRequest{Limit: parsedLimit}
+	if minimumViewRevision != 0 {
+		req.MinimumViewRevision = minimumViewRevision
+	}
 	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.AddressBookView{}, err
 	}

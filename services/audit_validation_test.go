@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"errors"
 	"math"
 	"testing"
@@ -78,6 +79,28 @@ func TestResolveSymbolIDStillFailsClosedForWireSymbolIDPaths(t *testing.T) {
 	got, err := ResolveSymbolID(manager, nil, &id, "list_history")
 	if err != nil || got != 1 {
 		t.Fatalf("explicit symbol_id resolve got=%d err=%v", got, err)
+	}
+}
+
+func TestTradesListAfterMatchIDRequiresResolvedSymbol(t *testing.T) {
+	svc := NewTradesService(nil, auditCatalog(t), nil, nil, nil)
+	after := uint64(99)
+	_, err := svc.List(context.Background(), nil, nil, nil, nil, 10, nil, &after)
+	var validationErr *sdkerrors.ValidationError
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("expected ValidationError when after_match_id lacks symbol, got %T: %v", err, err)
+	}
+
+	unknown := "NOPE-USDT"
+	_, err = svc.List(context.Background(), nil, nil, &unknown, nil, 10, nil, &after)
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("expected ValidationError for unknown symbol, got %T: %v", err, err)
+	}
+
+	zero := uint32(0)
+	_, err = svc.List(context.Background(), nil, nil, nil, &zero, 10, nil, &after)
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("expected ValidationError for zero symbol_id, got %T: %v", err, err)
 	}
 }
 

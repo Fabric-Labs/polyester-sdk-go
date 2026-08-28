@@ -6,6 +6,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
+	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1/ordersv1connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
@@ -29,13 +30,23 @@ func (s *TradesService) client() ordersv1connect.OrdersReadServiceClient {
 	return ordersv1connect.NewOrdersReadServiceClient(s.transport.HTTP, s.transport.Config.APIURL, s.transport.ConnectOptions(true)...)
 }
 
-func (s *TradesService) List(ctx context.Context, account AccountScope, subAccountID, symbol *string, symbolID *uint32, limit int, pageToken *string) (models.UserTradesList, error) {
+func (s *TradesService) List(ctx context.Context, account AccountScope, subAccountID, symbol *string, symbolID *uint32, limit int, pageToken *string, afterMatchID *uint64) (models.UserTradesList, error) {
 	parsedLimit, err := PaginationLimit(limit, "limit")
 	if err != nil {
 		return models.UserTradesList{}, err
 	}
 	req := &orderv1.GetUserTradesRequest{Limit: uint32Ptr(parsedLimit)}
-	if symbol != nil || symbolID != nil {
+	if afterMatchID != nil {
+		resolved, err := ResolveSymbolID(s.catalogs, symbol, symbolID, "trades.list")
+		if err != nil {
+			return models.UserTradesList{}, err
+		}
+		if resolved == 0 {
+			return models.UserTradesList{}, &errors.ValidationError{Msg: "trades.list after_match_id requires a resolved non-zero symbol_id"}
+		}
+		req.SymbolId = resolved
+		req.AfterMatchId = afterMatchID
+	} else if symbol != nil || symbolID != nil {
 		resolved, err := ResolveSymbolID(s.catalogs, symbol, symbolID, "trades.list")
 		if err != nil {
 			return models.UserTradesList{}, err

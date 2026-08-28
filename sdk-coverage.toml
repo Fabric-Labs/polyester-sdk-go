@@ -69,3 +69,7 @@ reason = "Subaccount invite mutations require JWT/session auth."
 [[allowlist]]
 procedure = "/auth.v1.AddressBookService/CopyAddressBookEntry"
 reason = "Address book copy is not wrapped in the API-key SDK."
+
+[[allowlist]]
+service = "auth.v1.SubaccountRoleService"
+reason = "Subaccount role catalog RPCs are JWT/session-only; outside the API-key SDK surface."

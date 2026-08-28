@@ -17,7 +17,7 @@ func TestUserTradesList(t *testing.T) {
 
 	symbol := testutil.SmokeSymbol(t, client, ctx)
 	result := testutil.CallRequired(t, "trades.list", func() (models.UserTradesList, error) {
-		return client.Trades.List(ctx, nil, nil, &symbol, nil, 5, nil)
+		return client.Trades.List(ctx, nil, nil, &symbol, nil, 5, nil, nil)
 	})
 	if result.Trades == nil {
 		t.Fatal("expected trades list")

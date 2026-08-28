@@ -16,14 +16,14 @@ func TestRateLimitConfigUsesFullPolicyClassNames(t *testing.T) {
 		Rules: []*ratelimitv1.TradingRateLimitRule{
 			{
 				PolicyClass: ratelimitv1.TradingRateLimitClass_TRADING_RATE_LIMIT_CLASS_PLACE,
-				Tier:        0,
+				VipTier:     0,
 				QuotaWeight: 100,
 				PeriodMs:    1000,
 				BurstWeight: 20,
 			},
 			{
 				PolicyClass: ratelimitv1.TradingRateLimitClass(99),
-				Tier:        1,
+				VipTier:     1,
 				QuotaWeight: 50,
 				PeriodMs:    1000,
 				BurstWeight: 10,
@@ -52,7 +52,7 @@ func TestRateLimitConfigUsesFullPolicyClassNames(t *testing.T) {
 func TestTradingRateLimitsDecodeAccountAndAPIKeyRules(t *testing.T) {
 	rule := &ratelimitv1.TradingRateLimitRule{
 		PolicyClass: ratelimitv1.TradingRateLimitClass_TRADING_RATE_LIMIT_CLASS_CANCEL,
-		Tier:        3,
+		VipTier:     3,
 		QuotaWeight: 200,
 		PeriodMs:    500,
 		BurstWeight: 40,
@@ -69,7 +69,7 @@ func TestTradingRateLimitsDecodeAccountAndAPIKeyRules(t *testing.T) {
 	if len(result.Rules) != 1 || result.Rules[0].PolicyClass != "TRADING_RATE_LIMIT_CLASS_CANCEL" {
 		t.Fatalf("rules=%+v", result.Rules)
 	}
-	if len(result.APIKeyRules) != 1 || result.APIKeyRules[0].Tier != 3 {
+	if len(result.APIKeyRules) != 1 || result.APIKeyRules[0].VIPTier != 3 {
 		t.Fatalf("api_key_rules=%+v", result.APIKeyRules)
 	}
 }

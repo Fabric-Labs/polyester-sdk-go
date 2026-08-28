@@ -112,7 +112,7 @@ func WaitForTradeMatch(ctx context.Context, client *polyester.Client, symbol, ma
 	}
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		trades, err := client.Trades.List(ctx, nil, nil, &symbol, nil, 25, nil)
+		trades, err := client.Trades.List(ctx, nil, nil, &symbol, nil, 25, nil, nil)
 		if err != nil {
 			return models.UserTrade{}, err
 		}
