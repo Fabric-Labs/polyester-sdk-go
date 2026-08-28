@@ -20,6 +20,13 @@
 - Decode of market overview, fees, and triggers no longer reads proto
   `GetSymbol()`; display `Symbol` is empty unless filled from catalogs.
 
+### Docs
+- README links the sibling
+  [`polyester-examples-go`](https://github.com/Fabric-Labs/polyester-examples-go)
+  cookbook near the top.
+- README examples use placeholder `YOUR_ACCOUNT_ID` and mix `ETH-USDT` /
+  `SOL-USDT` instead of a live Account ID and `BNB-USDT`.
+
 ## 0.1.0a44
 
 Git tag: `v0.1.0a44`.
