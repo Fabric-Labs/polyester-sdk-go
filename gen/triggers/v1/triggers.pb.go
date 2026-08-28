@@ -2066,8 +2066,8 @@ type ModifyTriggerRequest struct {
 	TriggerId uint64 `protobuf:"fixed64,1,opt,name=trigger_id,json=triggerId,proto3" json:"trigger_id,omitempty"`
 	// Optional sub-account for authorization.
 	SubaccountId *uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
-	// Trading symbol numeric identifier. Required for API-key market policy;
-	// AAS verifies it against the stored trigger.
+	// Trading symbol numeric identifier. Required for API-key market policy and
+	// must match the stored trigger.
 	SymbolId uint32 `protobuf:"varint,3,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Patch fields for safe price, trailing-distance, and slippage edits.
 	// For stop/take-profit:
@@ -2461,8 +2461,8 @@ type ResumeTriggerRequest struct {
 	TriggerId uint64 `protobuf:"fixed64,1,opt,name=trigger_id,json=triggerId,proto3" json:"trigger_id,omitempty"`
 	// Optional sub-account for authorization.
 	SubaccountId *uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
-	// Trading symbol numeric identifier. Required for API-key market policy;
-	// AAS verifies it against the stored trigger.
+	// Trading symbol numeric identifier. Required for API-key market policy and
+	// must match the stored trigger.
 	SymbolId      uint32 `protobuf:"varint,3,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
