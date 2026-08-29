@@ -3361,8 +3361,8 @@ type ModifyOrderRequest struct {
 	Behavior ModifyBehavior `protobuf:"varint,8,opt,name=behavior,proto3,enum=orders.v1.ModifyBehavior" json:"behavior,omitempty"`
 	// Optional new client order id when replace path is taken.
 	NewClientOrderId string `protobuf:"bytes,9,opt,name=new_client_order_id,json=newClientOrderId,proto3" json:"new_client_order_id,omitempty"`
-	// Trading symbol numeric identifier. Required so API-key market policy can
-	// be enforced before forwarding; AAS verifies it against the target order.
+	// Trading symbol numeric identifier. Required for API-key market policy and
+	// must match the target order.
 	SymbolId      uint32 `protobuf:"varint,10,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

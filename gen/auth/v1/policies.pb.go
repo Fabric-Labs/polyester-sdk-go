@@ -503,8 +503,10 @@ func (x *SubaccountPolicyView) GetRevision() uint64 {
 // policy ID and are not paginated.
 type ListSubaccountPoliciesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Optional sub-account context for delegated administration. When omitted,
-	// only policies owned by the caller's root account are returned.
+	// Optional sub-account context. When provided, a current member may read the
+	// policy attached to that sub-account; the owner retains visibility of all
+	// policies owned by their root account. When omitted, only policies owned by
+	// the caller's root account are returned.
 	SubaccountId  *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -599,8 +601,10 @@ type GetSubaccountPolicyRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Policy identifier (opaque ID).
 	PolicyId uint64 `protobuf:"fixed64,1,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
-	// Optional sub-account context for delegated administration. When omitted,
-	// the policy must be owned by the caller's root account.
+	// Optional sub-account context. When provided, a current member may read the
+	// policy attached to that sub-account; the owner may also read another policy
+	// owned by their root account. When omitted, the policy must be owned by the
+	// caller's root account.
 	SubaccountId  *uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

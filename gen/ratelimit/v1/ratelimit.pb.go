@@ -87,7 +87,7 @@ type TradingRateLimitRule struct {
 	// TRADING_RATE_LIMIT_CLASS_PLACE or TRADING_RATE_LIMIT_CLASS_CANCEL.
 	PolicyClass TradingRateLimitClass `protobuf:"varint,1,opt,name=policy_class,json=policyClass,proto3,enum=ratelimit.v1.TradingRateLimitClass" json:"policy_class,omitempty"`
 	// VIP tier for this rule, in the inclusive range 0 through 10.
-	Tier uint32 `protobuf:"varint,2,opt,name=tier,proto3" json:"tier,omitempty"`
+	VipTier uint32 `protobuf:"varint,2,opt,name=vip_tier,json=vipTier,proto3" json:"vip_tier,omitempty"`
 	// Weighted request capacity available during each policy period. One
 	// operation consumes the weight assigned to that operation.
 	QuotaWeight uint64 `protobuf:"varint,3,opt,name=quota_weight,json=quotaWeight,proto3" json:"quota_weight,omitempty"`
@@ -136,9 +136,9 @@ func (x *TradingRateLimitRule) GetPolicyClass() TradingRateLimitClass {
 	return TradingRateLimitClass_TRADING_RATE_LIMIT_CLASS_UNSPECIFIED
 }
 
-func (x *TradingRateLimitRule) GetTier() uint32 {
+func (x *TradingRateLimitRule) GetVipTier() uint32 {
 	if x != nil {
-		return x.Tier
+		return x.VipTier
 	}
 	return 0
 }
@@ -399,12 +399,12 @@ var File_ratelimit_v1_ratelimit_proto protoreflect.FileDescriptor
 
 const file_ratelimit_v1_ratelimit_proto_rawDesc = "" +
 	"\n" +
-	"\x1cratelimit/v1/ratelimit.proto\x12\fratelimit.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\x85\x02\n" +
+	"\x1cratelimit/v1/ratelimit.proto\x12\fratelimit.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\x8c\x02\n" +
 	"\x14TradingRateLimitRule\x12R\n" +
 	"\fpolicy_class\x18\x01 \x01(\x0e2#.ratelimit.v1.TradingRateLimitClassB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\vpolicyClass\x12\x1b\n" +
-	"\x04tier\x18\x02 \x01(\rB\a\xbaH\x04*\x02\x18\n" +
-	"R\x04tier\x12*\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\vpolicyClass\x12\"\n" +
+	"\bvip_tier\x18\x02 \x01(\rB\a\xbaH\x04*\x02\x18\n" +
+	"R\avipTier\x12*\n" +
 	"\fquota_weight\x18\x03 \x01(\x04B\a\xbaH\x042\x02 \x00R\vquotaWeight\x12$\n" +
 	"\tperiod_ms\x18\x04 \x01(\x04B\a\xbaH\x042\x02 \x00R\bperiodMs\x12*\n" +
 	"\fburst_weight\x18\x05 \x01(\x04B\a\xbaH\x042\x02 \x00R\vburstWeight\"\x1b\n" +

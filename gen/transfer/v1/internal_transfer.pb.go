@@ -452,10 +452,10 @@ const file_transfer_v1_internal_transfer_proto_rawDesc = "" +
 	"$INTERNAL_TRANSFER_STATUS_UNSPECIFIED\x10\x00\x12%\n" +
 	"!INTERNAL_TRANSFER_STATUS_ACCEPTED\x10\x01\x12%\n" +
 	"!INTERNAL_TRANSFER_STATUS_REJECTED\x10\x02\x12#\n" +
-	"\x1fINTERNAL_TRANSFER_STATUS_FAILED\x10\x032\xb8\x02\n" +
-	"\x17InternalTransferService\x12\x9c\x02\n" +
-	"\x16CreateInternalTransfer\x12*.transfer.v1.CreateInternalTransferRequest\x1a+.transfer.v1.CreateInternalTransferResponse\"\xa8\x01\xbaGx\n" +
-	"\x12Internal Transfers\x12\x18Create Internal Transfer\x1aHCreate or return one authenticated Trading to Trading internal transfer.\x98\xb5\x18\x03\x82\xd3\xe4\x93\x02#:\x01*\"\x1e/v1/trading/internal-transfersB\x99\x01\xbaGR:P\n" +
+	"\x1fINTERNAL_TRANSFER_STATUS_FAILED\x10\x032\xee\x03\n" +
+	"\x17InternalTransferService\x12\xd2\x03\n" +
+	"\x16CreateInternalTransfer\x12*.transfer.v1.CreateInternalTransferRequest\x1a+.transfer.v1.CreateInternalTransferResponse\"\xde\x02\xbaG\xad\x02\n" +
+	"\x12Internal Transfers\x12\x18Create Internal Transfer\x1a\xfc\x01Create or return one authenticated Trading to Trading internal transfer. Root-owner same-owner transfers and root-owner transfers to explicitly whitelisted destinations accept recent MFA; delegated and other interactive transfers require fresh step-up.\x98\xb5\x18\x03\x82\xd3\xe4\x93\x02#:\x01*\"\x1e/v1/trading/internal-transfersB\x99\x01\xbaGR:P\n" +
 	"\x12Internal Transfers\x12:Authenticated Trading to Trading internal transfer intake.ZBgithub.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1;transferv1b\x06proto3"
 
 var (
