@@ -106,11 +106,14 @@ func ListBooksFromProto(msg *authv1.ListAddressBooksResponse) models.AddressBook
 }
 
 func AddressBookViewFromProto(msg *authv1.GetAddressBookViewResponse) models.AddressBookView {
+	if msg == nil {
+		return models.AddressBookView{}
+	}
 	raw, err := wire.ProtoToMap(msg)
 	if err != nil {
 		return models.AddressBookView{}
 	}
-	return models.AddressBookView{Raw: raw}
+	return models.AddressBookView{ViewRevision: msg.GetViewRevision(), Raw: raw}
 }
 
 // AddressBookInvalidationFromProto decodes an address-book invalidation event.
@@ -125,6 +128,7 @@ func AddressBookInvalidationFromProto(msg *authv1.AddressBookViewInvalidated) mo
 	if ts := msg.GetInvalidatedAt(); ts != nil {
 		out.InvalidatedAt = ts.AsTime().UTC().Format(time.RFC3339Nano)
 	}
+	out.ViewRevision = msg.GetViewRevision()
 	return out
 }
 

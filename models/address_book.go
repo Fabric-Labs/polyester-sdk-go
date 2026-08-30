@@ -37,11 +37,13 @@ type AddressBooksList struct {
 type AddressBookViewInvalidation struct {
 	Scope         string `json:"scope,omitempty"`
 	InvalidatedAt string `json:"invalidated_at,omitempty"`
+	ViewRevision  uint64 `json:"view_revision,omitempty"`
 }
 
 // AddressBookView is a composed address book view.
 type AddressBookView struct {
-	Raw map[string]any `json:"raw"`
+	ViewRevision uint64         `json:"view_revision,omitempty"`
+	Raw          map[string]any `json:"raw"`
 }
 
 // WithdrawWhitelistView is withdraw whitelist state.

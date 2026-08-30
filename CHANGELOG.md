@@ -4,6 +4,13 @@
 
 ### Breaking
 
+- `TradingRateLimitRule.Tier` is now `VIPTier` (`json:"vip_tier,omitempty"`).
+- `TriggerEvent.Reason` is removed. Terminal reasons are typed
+  `CancelReason` / `FailureReason` on both `Trigger` and `TriggerEvent`.
+- `Trades.List` takes `afterMatchID *uint64`. When set, a resolved non-zero
+  `symbol_id` is required.
+- `AddressBook.GetView` takes `minimumViewRevision uint64` (0 omits the field).
+  `AddressBookView` and `AddressBookViewInvalidation` expose `ViewRevision`.
 - Connect is `symbol_id`-only except GetSpotConfig. Public methods still accept
   display `symbol` strings, but the SDK resolves them through the spot catalog
   and fails closed. Raw symbol filters are no longer forwarded on market
@@ -19,6 +26,15 @@
   display `Symbol`.
 - Decode of market overview, fees, and triggers no longer reads proto
   `GetSymbol()`; display `Symbol` is empty unless filled from catalogs.
+
+### Added
+
+- `Trades.List` `afterMatchID` cursor (`after_match_id`). Requires a resolved
+  non-zero `symbol_id`.
+- Typed trigger `cancel_reason` / `failure_reason` labels on `Trigger` and
+  `TriggerEvent` (proto oneof; unspecified/unset is empty).
+- Address-book `view_revision` on `GetView` / invalidation, plus optional
+  `minimumViewRevision` on `GetView`.
 
 ### Docs
 - README links the sibling

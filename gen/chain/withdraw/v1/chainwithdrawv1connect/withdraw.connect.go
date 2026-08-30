@@ -52,8 +52,9 @@ type WithdrawServiceClient interface {
 	// Create or return one durable withdraw from Trading.
 	CreateTradingWithdraw(context.Context, *connect.Request[v1.CreateTradingWithdrawRequest]) (*connect.Response[v1.CreateTradingWithdrawResponse], error)
 	// Create or return one wallet/JWT withdraw from Trading.
-	// Own-account Trading to Funding accepts recent MFA; external, cross-owner,
-	// and delegated movements require a fresh single-use step-up.
+	// Root-owner Trading to Funding and root-owner withdrawals to explicitly
+	// whitelisted external destinations accept recent MFA. Other external,
+	// cross-owner, and delegated movements require a fresh single-use step-up.
 	CreateWalletTradingWithdraw(context.Context, *connect.Request[v1.CreateWalletTradingWithdrawRequest]) (*connect.Response[v1.CreateWalletTradingWithdrawResponse], error)
 }
 
@@ -119,8 +120,9 @@ type WithdrawServiceHandler interface {
 	// Create or return one durable withdraw from Trading.
 	CreateTradingWithdraw(context.Context, *connect.Request[v1.CreateTradingWithdrawRequest]) (*connect.Response[v1.CreateTradingWithdrawResponse], error)
 	// Create or return one wallet/JWT withdraw from Trading.
-	// Own-account Trading to Funding accepts recent MFA; external, cross-owner,
-	// and delegated movements require a fresh single-use step-up.
+	// Root-owner Trading to Funding and root-owner withdrawals to explicitly
+	// whitelisted external destinations accept recent MFA. Other external,
+	// cross-owner, and delegated movements require a fresh single-use step-up.
 	CreateWalletTradingWithdraw(context.Context, *connect.Request[v1.CreateWalletTradingWithdrawRequest]) (*connect.Response[v1.CreateWalletTradingWithdrawResponse], error)
 }
 

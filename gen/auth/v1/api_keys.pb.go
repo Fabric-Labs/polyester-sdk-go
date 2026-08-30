@@ -407,11 +407,12 @@ func (x *CreateApiKeyResponse) GetApiKey() *ApiKey {
 	return nil
 }
 
-// ListApiKeysRequest lists non-revoked API keys owned by the caller.
+// ListApiKeysRequest lists non-revoked API keys visible to the caller.
 type ListApiKeysRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Optional filter: only keys scoped to this sub-account (opaque ID). If unset,
-	// all non-revoked keys owned by the caller are returned.
+	// Optional filter: only keys scoped to this sub-account (opaque ID). The
+	// caller must own or administer the sub-account. If unset, only non-revoked
+	// keys owned by the caller are returned.
 	SubaccountId  *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -584,7 +585,7 @@ func (*DeleteApiKeyResponse) Descriptor() ([]byte, []int) {
 	return file_auth_v1_api_keys_proto_rawDescGZIP(), []int{6}
 }
 
-// GetApiKeyRequest returns a single API key owned by the caller's account.
+// GetApiKeyRequest returns one API key visible to its owner or a sub-account admin.
 type GetApiKeyRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Opaque API key identifier, formatted as "ak_" followed by 32 lowercase hex
@@ -631,7 +632,7 @@ func (x *GetApiKeyRequest) GetKeyId() string {
 	return ""
 }
 
-// GetApiKeyResponse returns one API key owned by the caller.
+// GetApiKeyResponse returns one API key visible to the caller.
 type GetApiKeyResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Matching API key metadata.
@@ -964,14 +965,14 @@ const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\n" +
 	"\x06ACTIVE\x10\x01\x12\v\n" +
 	"\aREVOKED\x10\x02\x12\f\n" +
-	"\bDISABLED\x10\x032\xf3\b\n" +
+	"\bDISABLED\x10\x032\xb8\t\n" +
 	"\rApiKeyService\x12\xe9\x01\n" +
 	"\fCreateApiKey\x12\x1c.auth.v1.CreateApiKeyRequest\x1a\x1d.auth.v1.CreateApiKeyResponse\"\x9b\x01\xbaGx\n" +
-	"\fAuth Service\x12\x0eCreate API Key\x1aXCreate a new API key for the caller account, including public key material and metadata.\x98\xb5\x18\x02\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v1/auth/api-keys\x12\xea\x01\n" +
-	"\vListApiKeys\x12\x1b.auth.v1.ListApiKeysRequest\x1a\x1c.auth.v1.ListApiKeysResponse\"\x9f\x01\xbaG\x82\x01\n" +
-	"\fAuth Service\x12\rList API Keys\x1acList non-revoked API keys for the caller account, newest first, optionally filtered by sub-account.\x82\xd3\xe4\x93\x02\x13\x12\x11/v1/auth/api-keys\x12\xbc\x01\n" +
-	"\tGetApiKey\x12\x19.auth.v1.GetApiKeyRequest\x1a\x1a.auth.v1.GetApiKeyResponse\"x\xbaGS\n" +
-	"\fAuth Service\x12\vGet API Key\x1a6Retrieve a single API key owned by the caller account.\x82\xd3\xe4\x93\x02\x1c\x12\x1a/v1/auth/api-keys/{key_id}\x12\xde\x01\n" +
+	"\fAuth Service\x12\x0eCreate API Key\x1aXCreate a new API key for the caller account, including public key material and metadata.\x98\xb5\x18\x02\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v1/auth/api-keys\x12\xfb\x01\n" +
+	"\vListApiKeys\x12\x1b.auth.v1.ListApiKeysRequest\x1a\x1c.auth.v1.ListApiKeysResponse\"\xb0\x01\xbaG\x93\x01\n" +
+	"\fAuth Service\x12\rList API Keys\x1atList non-revoked API keys for the caller account, or for a sub-account the caller owns or administers, newest first.\x82\xd3\xe4\x93\x02\x13\x12\x11/v1/auth/api-keys\x12\xf0\x01\n" +
+	"\tGetApiKey\x12\x19.auth.v1.GetApiKeyRequest\x1a\x1a.auth.v1.GetApiKeyResponse\"\xab\x01\xbaG\x85\x01\n" +
+	"\fAuth Service\x12\vGet API Key\x1ahRetrieve a single API key owned by the caller account or scoped to a sub-account the caller administers.\x82\xd3\xe4\x93\x02\x1c\x12\x1a/v1/auth/api-keys/{key_id}\x12\xde\x01\n" +
 	"\fDeleteApiKey\x12\x1c.auth.v1.DeleteApiKeyRequest\x1a\x1d.auth.v1.DeleteApiKeyResponse\"\x90\x01\xbaGg\n" +
 	"\fAuth Service\x12\x0eDelete API Key\x1aGRevoke an API key owned by the caller account. Revocation is permanent.\x98\xb5\x18\x02\x82\xd3\xe4\x93\x02\x1c*\x1a/v1/auth/api-keys/{key_id}\x12\xe8\x01\n" +
 	"\fUpdateApiKey\x12\x1c.auth.v1.UpdateApiKeyRequest\x1a\x1d.auth.v1.UpdateApiKeyResponse\"\x9a\x01\xbaGn\n" +
