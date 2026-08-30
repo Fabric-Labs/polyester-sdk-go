@@ -3192,10 +3192,13 @@ type BatchCreateOrdersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target sub-account numeric ID. When omitted, uses caller's root account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
-	// Top-level idempotency key for the batch request.
+	// Required idempotency key for the entire ordered batch. Reusing it with the
+	// same payload returns the original outcome; reusing it with another payload
+	// is rejected.
 	RequestId string `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	// Orders to create (max 20). Every item uses the same OrderIntent contract as
-	// single create.
+	// single create, but client_order_id remains optional because request_id is
+	// the idempotency boundary for the ordered batch.
 	Items         []*OrderIntent `protobuf:"bytes,3,rep,name=items,proto3" json:"items,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -3361,8 +3364,8 @@ type ModifyOrderRequest struct {
 	Behavior ModifyBehavior `protobuf:"varint,8,opt,name=behavior,proto3,enum=orders.v1.ModifyBehavior" json:"behavior,omitempty"`
 	// Optional new client order id when replace path is taken.
 	NewClientOrderId string `protobuf:"bytes,9,opt,name=new_client_order_id,json=newClientOrderId,proto3" json:"new_client_order_id,omitempty"`
-	// Trading symbol numeric identifier. Required so API-key market policy can
-	// be enforced before forwarding; AAS verifies it against the target order.
+	// Trading symbol numeric identifier. Required for API-key market policy and
+	// must match the target order.
 	SymbolId      uint32 `protobuf:"varint,10,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -4488,11 +4491,11 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x0fclient_order_id\x18\x01 \x01(\tR\rclientOrderId\x12<\n" +
 	"\baccepted\x18\x02 \x01(\v2\x1e.orders.v1.BatchCreateAcceptedH\x00R\baccepted\x12<\n" +
 	"\brejected\x18\x03 \x01(\v2\x1e.orders.v1.BatchCreateRejectedH\x00R\brejectedB\x10\n" +
-	"\aoutcome\x12\x05\xbaH\x02\b\x01\"\xcf\x01\n" +
+	"\aoutcome\x12\x05\xbaH\x02\b\x01\"\xd2\x01\n" +
 	"\x18BatchCreateOrdersRequest\x12(\n" +
-	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12=\n" +
+	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12@\n" +
 	"\n" +
-	"request_id\x18\x02 \x01(\tB\x1e\xbaH\x1br\x19\x10\x01\x18@2\x13^[A-Za-z0-9._:/-]+$R\trequestId\x128\n" +
+	"request_id\x18\x02 \x01(\tB!\xe0A\x02\xbaH\x1br\x19\x10\x01\x18@2\x13^[A-Za-z0-9._:/-]+$R\trequestId\x128\n" +
 	"\x05items\x18\x03 \x03(\v2\x16.orders.v1.OrderIntentB\n" +
 	"\xbaH\a\x92\x01\x04\b\x01\x10\x14R\x05itemsB\x10\n" +
 	"\x0e_subaccount_id\"\xe6\x01\n" +

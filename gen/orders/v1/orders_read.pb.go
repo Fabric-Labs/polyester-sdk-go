@@ -789,8 +789,8 @@ type Order struct {
 	FeeAsset FeeAsset `protobuf:"varint,10,opt,name=fee_asset,json=feeAsset,proto3,enum=orders.v1.FeeAsset" json:"fee_asset,omitempty"`
 	// True if the order was submitted as post-only (maker-only).
 	PostOnly bool `protobuf:"varint,11,opt,name=post_only,json=postOnly,proto3" json:"post_only,omitempty"`
-	// Original order quantity scaled by the pair's base_quantity_scale from
-	// GetSpotConfig for symbol_id.
+	// Current accepted total order quantity, updated by successful modifies,
+	// scaled by the pair's base_quantity_scale from GetSpotConfig for symbol_id.
 	OrigQtyScaled int64 `protobuf:"varint,12,opt,name=orig_qty_scaled,json=origQtyScaled,proto3" json:"orig_qty_scaled,omitempty"`
 	// Cumulative filled quantity scaled by the pair's base_quantity_scale from
 	// GetSpotConfig for symbol_id.
@@ -1689,7 +1689,11 @@ type GetUserTradesRequest struct {
 	// Opaque keyset cursor from a previous response. The cursor is exclusive and
 	// bound to the authenticated account, sub-account scope, filters, time range,
 	// and sort order.
-	PageToken     string `protobuf:"bytes,13,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	PageToken string `protobuf:"bytes,13,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	// Return only durable fills whose per-symbol match ID is greater than this
+	// value. Subscribe to the execution WebSocket before calling this method and
+	// de-duplicate overlapping results by (symbol_id, match_id, order_id).
+	AfterMatchId  *uint64 `protobuf:"varint,14,opt,name=after_match_id,json=afterMatchId,proto3,oneof" json:"after_match_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1771,6 +1775,13 @@ func (x *GetUserTradesRequest) GetPageToken() string {
 		return x.PageToken
 	}
 	return ""
+}
+
+func (x *GetUserTradesRequest) GetAfterMatchId() uint64 {
+	if x != nil && x.AfterMatchId != nil {
+		return *x.AfterMatchId
+	}
+	return 0
 }
 
 // GetUserTradesResponse returns user trade fills and an optional next-page cursor.
@@ -2421,7 +2432,7 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\v_trigger_id\"u\n" +
 	"\x17GetOrderHistoryResponse\x12(\n" +
 	"\x06orders\x18\x01 \x03(\v2\x10.orders.v1.OrderR\x06orders\x120\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xb2\x04\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\x8c\x06\n" +
 	"\x14GetUserTradesRequest\x128\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01\x12'\n" +
 	"\tsymbol_id\x18\x02 \x01(\rB\n" +
@@ -2433,13 +2444,16 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\x05limit\x18\f \x01(\rB\n" +
 	"\xbaH\a*\x05\x18\xe8\a(\x01H\x03R\x05limit\x88\x01\x01\x12'\n" +
 	"\n" +
-	"page_token\x18\r \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken:\xb7\x01\xbaH\xb3\x01\x1a\xb0\x01\n" +
-	"\"user_trades_bin.ordered_time_range\x122start_ts_ns must be <= end_ts_ns when both are set\x1aV!has(this.start_ts_ns) || !has(this.end_ts_ns) || (this.start_ts_ns <= this.end_ts_ns)B\x10\n" +
+	"page_token\x18\r \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken\x122\n" +
+	"\x0eafter_match_id\x18\x0e \x01(\x04B\a\xbaH\x042\x02 \x00H\x04R\fafterMatchId\x88\x01\x01:\xca\x02\xbaH\xc6\x02\x1a\xb0\x01\n" +
+	"\"user_trades_bin.ordered_time_range\x122start_ts_ns must be <= end_ts_ns when both are set\x1aV!has(this.start_ts_ns) || !has(this.end_ts_ns) || (this.start_ts_ns <= this.end_ts_ns)\x1a\x90\x01\n" +
+	"+user_trades_bin.after_match_requires_symbol\x120symbol_id is required when after_match_id is set\x1a/!has(this.after_match_id) || this.symbol_id > 0B\x10\n" +
 	"\x0e_subaccount_idB\x0e\n" +
 	"\f_start_ts_nsB\f\n" +
 	"\n" +
 	"_end_ts_nsB\b\n" +
-	"\x06_limit\"w\n" +
+	"\x06_limitB\x11\n" +
+	"\x0f_after_match_id\"w\n" +
 	"\x15GetUserTradesResponse\x12,\n" +
 	"\x06trades\x18\x01 \x03(\v2\x14.orders.v1.UserTradeR\x06trades\x120\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\x99\x03\n" +

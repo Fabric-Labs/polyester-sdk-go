@@ -3795,9 +3795,13 @@ type GetAddressBookViewRequest struct {
 	SubaccountId uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
 	// Maximum number of recent destinations to return. Defaults to 200 when
 	// omitted; maximum is 200.
-	Limit         uint32 `protobuf:"varint,6,opt,name=limit,proto3" json:"limit,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Limit uint32 `protobuf:"varint,6,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Minimum revision observed in AddressBookViewInvalidated. When set, the
+	// server waits for its local projection to reach this revision instead of
+	// returning an older view.
+	MinimumViewRevision uint64 `protobuf:"varint,7,opt,name=minimum_view_revision,json=minimumViewRevision,proto3" json:"minimum_view_revision,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *GetAddressBookViewRequest) Reset() {
@@ -3844,6 +3848,13 @@ func (x *GetAddressBookViewRequest) GetLimit() uint32 {
 	return 0
 }
 
+func (x *GetAddressBookViewRequest) GetMinimumViewRevision() uint64 {
+	if x != nil {
+		return x.MinimumViewRevision
+	}
+	return 0
+}
+
 type GetAddressBookViewResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Address books visible to the caller.
@@ -3859,8 +3870,10 @@ type GetAddressBookViewResponse struct {
 	// True when more recent destinations exist than were returned. This bounded
 	// aggregate view does not provide continuation.
 	RecentDestinationsTruncated bool `protobuf:"varint,6,opt,name=recent_destinations_truncated,json=recentDestinationsTruncated,proto3" json:"recent_destinations_truncated,omitempty"`
-	unknownFields               protoimpl.UnknownFields
-	sizeCache                   protoimpl.SizeCache
+	// Revision of the complete scope projection returned by this response.
+	ViewRevision  uint64 `protobuf:"varint,7,opt,name=view_revision,json=viewRevision,proto3" json:"view_revision,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetAddressBookViewResponse) Reset() {
@@ -3935,6 +3948,13 @@ func (x *GetAddressBookViewResponse) GetRecentDestinationsTruncated() bool {
 	return false
 }
 
+func (x *GetAddressBookViewResponse) GetViewRevision() uint64 {
+	if x != nil {
+		return x.ViewRevision
+	}
+	return 0
+}
+
 // AddressBookViewInvalidated notifies clients to refetch the address-book aggregate view.
 type AddressBookViewInvalidated struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -3942,6 +3962,9 @@ type AddressBookViewInvalidated struct {
 	Scope *AccountScopeRef `protobuf:"bytes,1,opt,name=scope,proto3" json:"scope,omitempty"`
 	// Time the view was invalidated.
 	InvalidatedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=invalidated_at,json=invalidatedAt,proto3" json:"invalidated_at,omitempty"`
+	// Revision that GetAddressBookView must reach before the invalidation is
+	// considered satisfied.
+	ViewRevision  uint64 `protobuf:"varint,3,opt,name=view_revision,json=viewRevision,proto3" json:"view_revision,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3988,6 +4011,13 @@ func (x *AddressBookViewInvalidated) GetInvalidatedAt() *timestamppb.Timestamp {
 		return x.InvalidatedAt
 	}
 	return nil
+}
+
+func (x *AddressBookViewInvalidated) GetViewRevision() uint64 {
+	if x != nil {
+		return x.ViewRevision
+	}
+	return 0
 }
 
 var File_auth_v1_address_book_proto protoreflect.FileDescriptor
@@ -4276,20 +4306,23 @@ const file_auth_v1_address_book_proto_rawDesc = "" +
 	"\x1fGetWithdrawWhitelistViewRequest\x126\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\"V\n" +
 	" GetWithdrawWhitelistViewResponse\x122\n" +
-	"\x04view\x18\x01 \x01(\v2\x1e.auth.v1.WithdrawWhitelistViewR\x04view\"s\n" +
+	"\x04view\x18\x01 \x01(\v2\x1e.auth.v1.WithdrawWhitelistViewR\x04view\"\xa7\x01\n" +
 	"\x19GetAddressBookViewRequest\x126\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12\x1e\n" +
-	"\x05limit\x18\x06 \x01(\rB\b\xbaH\x05*\x03\x18\xc8\x01R\x05limit\"\xa7\x03\n" +
+	"\x05limit\x18\x06 \x01(\rB\b\xbaH\x05*\x03\x18\xc8\x01R\x05limit\x122\n" +
+	"\x15minimum_view_revision\x18\a \x01(\x04R\x13minimumViewRevision\"\xcc\x03\n" +
 	"\x1aGetAddressBookViewResponse\x12*\n" +
 	"\x05books\x18\x01 \x03(\v2\x14.auth.v1.AddressBookR\x05books\x129\n" +
 	"\aentries\x18\x02 \x01(\v2\x1f.auth.v1.AddressBookEntriesViewR\aentries\x12[\n" +
 	"\x13recent_destinations\x18\x03 \x01(\v2*.auth.v1.AddressBookRecentDestinationsViewR\x12recentDestinations\x122\n" +
 	"\x04tags\x18\x04 \x03(\v2\x1e.auth.v1.AddressBookTagSummaryR\x04tags\x12M\n" +
 	"\x12withdraw_whitelist\x18\x05 \x01(\v2\x1e.auth.v1.WithdrawWhitelistViewR\x11withdrawWhitelist\x12B\n" +
-	"\x1drecent_destinations_truncated\x18\x06 \x01(\bR\x1brecentDestinationsTruncated\"\x8f\x01\n" +
+	"\x1drecent_destinations_truncated\x18\x06 \x01(\bR\x1brecentDestinationsTruncated\x12#\n" +
+	"\rview_revision\x18\a \x01(\x04R\fviewRevision\"\xbd\x01\n" +
 	"\x1aAddressBookViewInvalidated\x12.\n" +
 	"\x05scope\x18\x01 \x01(\v2\x18.auth.v1.AccountScopeRefR\x05scope\x12A\n" +
-	"\x0einvalidated_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\rinvalidatedAt*O\n" +
+	"\x0einvalidated_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\rinvalidatedAt\x12,\n" +
+	"\rview_revision\x18\x03 \x01(\x04B\a\xbaH\x042\x02 \x00R\fviewRevision*O\n" +
 	"\x10AccountScopeType\x12\x15\n" +
 	"\x11SCOPE_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -4313,26 +4346,26 @@ const file_auth_v1_address_book_proto_rawDesc = "" +
 	"\fDEPOSIT_FROM\x10\x01\x12\x0f\n" +
 	"\vWITHDRAW_TO\x10\x02\x12\x1a\n" +
 	"\x16INTERNAL_TRANSFER_FROM\x10\x03\x12\x18\n" +
-	"\x14INTERNAL_TRANSFER_TO\x10\x042\xff\x1d\n" +
+	"\x14INTERNAL_TRANSFER_TO\x10\x042\xfb \n" +
 	"\x12AddressBookService\x12\xe0\x01\n" +
 	"\x10ListAddressBooks\x12 .auth.v1.ListAddressBooksRequest\x1a!.auth.v1.ListAddressBooksResponse\"\x86\x01\xbaGe\n" +
 	"\fAddress Book\x12\x12List Address Books\x1aAList the root and subaccount address books visible to the caller.\x82\xd3\xe4\x93\x02\x18\x12\x16/v1/auth/address-books\x12\x88\x02\n" +
 	"\x16ListAddressBookEntries\x12&.auth.v1.ListAddressBookEntriesRequest\x1a'.auth.v1.ListAddressBookEntriesResponse\"\x9c\x01\xbaGt\n" +
-	"\fAddress Book\x12\x19List Address Book Entries\x1aIList saved address-book entries for one visible root or subaccount scope.\x82\xd3\xe4\x93\x02\x1f\x12\x1d/v1/auth/address-book-entries\x12\x92\x02\n" +
-	"\x16CreateAddressBookEntry\x12&.auth.v1.CreateAddressBookEntryRequest\x1a'.auth.v1.CreateAddressBookEntryResponse\"\xa6\x01\xbaGw\n" +
-	"\fAddress Book\x12\x19Create Address Book Entry\x1aLCreate one saved address-book entry in the selected root or subaccount book.\x98\xb5\x18\x01\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/v1/auth/address-book-entries\x12\x99\x02\n" +
-	"\x16UpdateAddressBookEntry\x12&.auth.v1.UpdateAddressBookEntryRequest\x1a'.auth.v1.UpdateAddressBookEntryResponse\"\xad\x01\xbaGf\n" +
-	"\fAddress Book\x12\x19Update Address Book Entry\x1a;Update the label, note, or tags for one address-book entry.\x98\xb5\x18\x01\x82\xd3\xe4\x93\x02::\x01*25/v1/auth/address-book-entries/{address_book_entry_id}\x12\x98\x02\n" +
-	"\x16DeleteAddressBookEntry\x12&.auth.v1.DeleteAddressBookEntryRequest\x1a'.auth.v1.DeleteAddressBookEntryResponse\"\xac\x01\xbaGh\n" +
-	"\fAddress Book\x12\x19Delete Address Book Entry\x1a=Delete one address-book entry from the selected address book.\x98\xb5\x18\x01\x82\xd3\xe4\x93\x027*5/v1/auth/address-book-entries/{address_book_entry_id}\x12\xa4\x02\n" +
-	"\x14CopyAddressBookEntry\x12$.auth.v1.CopyAddressBookEntryRequest\x1a%.auth.v1.CopyAddressBookEntryResponse\"\xbe\x01\xbaGr\n" +
-	"\fAddress Book\x12\x17Copy Address Book Entry\x1aICopy one address-book entry into another visible root or subaccount book.\x98\xb5\x18\x01\x82\xd3\xe4\x93\x02?:\x01*\":/v1/auth/address-book-entries/{address_book_entry_id}:copy\x12\xfa\x01\n" +
-	"\x14CreateAddressBookTag\x12$.auth.v1.CreateAddressBookTagRequest\x1a%.auth.v1.CreateAddressBookTagResponse\"\x94\x01\xbaGh\n" +
-	"\fAddress Book\x12\x17Create Address Book Tag\x1a?Create one tag in the selected root or subaccount address book.\x98\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1f:\x01*\"\x1a/v1/auth/address-book-tags\x12\xdf\x01\n" +
-	"\x14UpdateAddressBookTag\x12$.auth.v1.UpdateAddressBookTagRequest\x1a%.auth.v1.UpdateAddressBookTagResponse\"z\xbaGE\n" +
-	"\fAddress Book\x12\x17Update Address Book Tag\x1a\x1cUpdate one address-book tag.\x98\xb5\x18\x01\x82\xd3\xe4\x93\x02(:\x01*2#/v1/auth/address-book-tags/{tag_id}\x12\xf8\x01\n" +
-	"\x14DeleteAddressBookTag\x12$.auth.v1.DeleteAddressBookTagRequest\x1a%.auth.v1.DeleteAddressBookTagResponse\"\x92\x01\xbaG`\n" +
-	"\fAddress Book\x12\x17Delete Address Book Tag\x1a7Delete one address-book tag and detach it from entries.\x98\xb5\x18\x01\x82\xd3\xe4\x93\x02%*#/v1/auth/address-book-tags/{tag_id}\x12\xb5\x02\n" +
+	"\fAddress Book\x12\x19List Address Book Entries\x1aIList saved address-book entries for one visible root or subaccount scope.\x82\xd3\xe4\x93\x02\x1f\x12\x1d/v1/auth/address-book-entries\x12\xf4\x02\n" +
+	"\x16CreateAddressBookEntry\x12&.auth.v1.CreateAddressBookEntryRequest\x1a'.auth.v1.CreateAddressBookEntryResponse\"\x88\x02\xbaG\xd8\x01\n" +
+	"\fAddress Book\x12\x19Create Address Book Entry\x1a\xac\x01Create one saved address-book entry in the selected root or subaccount book. Interactive callers with enrolled MFA need recent assurance; API keys need MANAGE_ADDRESS_BOOK.\x98\xb5\x18\x03\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/v1/auth/address-book-entries\x12\xfb\x02\n" +
+	"\x16UpdateAddressBookEntry\x12&.auth.v1.UpdateAddressBookEntryRequest\x1a'.auth.v1.UpdateAddressBookEntryResponse\"\x8f\x02\xbaG\xc7\x01\n" +
+	"\fAddress Book\x12\x19Update Address Book Entry\x1a\x9b\x01Update the label, note, or tags for one address-book entry. Interactive callers with enrolled MFA need recent assurance; API keys need MANAGE_ADDRESS_BOOK.\x98\xb5\x18\x03\x82\xd3\xe4\x93\x02::\x01*25/v1/auth/address-book-entries/{address_book_entry_id}\x12\xfa\x02\n" +
+	"\x16DeleteAddressBookEntry\x12&.auth.v1.DeleteAddressBookEntryRequest\x1a'.auth.v1.DeleteAddressBookEntryResponse\"\x8e\x02\xbaG\xc9\x01\n" +
+	"\fAddress Book\x12\x19Delete Address Book Entry\x1a\x9d\x01Delete one address-book entry from the selected address book. Interactive callers with enrolled MFA need recent assurance; API keys need MANAGE_ADDRESS_BOOK.\x98\xb5\x18\x03\x82\xd3\xe4\x93\x027*5/v1/auth/address-book-entries/{address_book_entry_id}\x12\x86\x03\n" +
+	"\x14CopyAddressBookEntry\x12$.auth.v1.CopyAddressBookEntryRequest\x1a%.auth.v1.CopyAddressBookEntryResponse\"\xa0\x02\xbaG\xd3\x01\n" +
+	"\fAddress Book\x12\x17Copy Address Book Entry\x1a\xa9\x01Copy one address-book entry into another visible root or subaccount book. Interactive callers with enrolled MFA need recent assurance; API keys need MANAGE_ADDRESS_BOOK.\x98\xb5\x18\x03\x82\xd3\xe4\x93\x02?:\x01*\":/v1/auth/address-book-entries/{address_book_entry_id}:copy\x12\xf6\x01\n" +
+	"\x14CreateAddressBookTag\x12$.auth.v1.CreateAddressBookTagRequest\x1a%.auth.v1.CreateAddressBookTagResponse\"\x90\x01\xbaGh\n" +
+	"\fAddress Book\x12\x17Create Address Book Tag\x1a?Create one tag in the selected root or subaccount address book.\x82\xd3\xe4\x93\x02\x1f:\x01*\"\x1a/v1/auth/address-book-tags\x12\xdb\x01\n" +
+	"\x14UpdateAddressBookTag\x12$.auth.v1.UpdateAddressBookTagRequest\x1a%.auth.v1.UpdateAddressBookTagResponse\"v\xbaGE\n" +
+	"\fAddress Book\x12\x17Update Address Book Tag\x1a\x1cUpdate one address-book tag.\x82\xd3\xe4\x93\x02(:\x01*2#/v1/auth/address-book-tags/{tag_id}\x12\xf4\x01\n" +
+	"\x14DeleteAddressBookTag\x12$.auth.v1.DeleteAddressBookTagRequest\x1a%.auth.v1.DeleteAddressBookTagResponse\"\x8e\x01\xbaG`\n" +
+	"\fAddress Book\x12\x17Delete Address Book Tag\x1a7Delete one address-book tag and detach it from entries.\x82\xd3\xe4\x93\x02%*#/v1/auth/address-book-tags/{tag_id}\x12\xb5\x02\n" +
 	"\x1aListTransferCounterparties\x12*.auth.v1.ListTransferCounterpartiesRequest\x1a+.auth.v1.ListTransferCounterpartiesResponse\"\xbd\x01\xbaG\x91\x01\n" +
 	"\fAddress Book\x12\x1cList Transfer Counterparties\x1acList recent transfer counterparties, including destinations that are not saved in the address book.\x82\xd3\xe4\x93\x02\"\x12 /v1/auth/transfer-counterparties\x12\x95\x02\n" +
 	"\x18ListTransferDestinations\x12(.auth.v1.ListTransferDestinationsRequest\x1a).auth.v1.ListTransferDestinationsResponse\"\xa3\x01\xbaGz\n" +
