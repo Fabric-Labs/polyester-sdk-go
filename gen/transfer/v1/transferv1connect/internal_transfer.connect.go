@@ -41,6 +41,9 @@ const (
 // InternalTransferServiceClient is a client for the transfer.v1.InternalTransferService service.
 type InternalTransferServiceClient interface {
 	// Create or return one accepted Trading to Trading transfer.
+	// Root-owner same-owner transfers and root-owner transfers to explicitly
+	// whitelisted destinations accept recent MFA; delegated and other
+	// interactive transfers require fresh step-up.
 	CreateInternalTransfer(context.Context, *connect.Request[v1.CreateInternalTransferRequest]) (*connect.Response[v1.CreateInternalTransferResponse], error)
 }
 
@@ -78,6 +81,9 @@ func (c *internalTransferServiceClient) CreateInternalTransfer(ctx context.Conte
 // service.
 type InternalTransferServiceHandler interface {
 	// Create or return one accepted Trading to Trading transfer.
+	// Root-owner same-owner transfers and root-owner transfers to explicitly
+	// whitelisted destinations accept recent MFA; delegated and other
+	// interactive transfers require fresh step-up.
 	CreateInternalTransfer(context.Context, *connect.Request[v1.CreateInternalTransferRequest]) (*connect.Response[v1.CreateInternalTransferResponse], error)
 }
 

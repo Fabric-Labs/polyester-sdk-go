@@ -58,6 +58,25 @@ func TestTagFromCreateProtoMapsFields(t *testing.T) {
 	}
 }
 
+func TestAddressBookViewFromProtoMapsViewRevision(t *testing.T) {
+	got := AddressBookViewFromProto(&authv1.GetAddressBookViewResponse{ViewRevision: 17})
+	if got.ViewRevision != 17 {
+		t.Fatalf("view_revision=%d", got.ViewRevision)
+	}
+	if got.Raw == nil {
+		t.Fatal("expected raw view map")
+	}
+}
+
+func TestAddressBookInvalidationFromProtoMapsViewRevision(t *testing.T) {
+	got := AddressBookInvalidationFromProto(&authv1.AddressBookViewInvalidated{
+		ViewRevision: 9,
+	})
+	if got.ViewRevision != 9 {
+		t.Fatalf("view_revision=%d", got.ViewRevision)
+	}
+}
+
 func assertContract(t *testing.T, err error, operation string) {
 	t.Helper()
 	var contractErr *sdkerrors.ResponseContractError

@@ -59,6 +59,7 @@ var triggerEventTypeLabels = map[triggersv1.TriggerEventType]string{
 	triggersv1.TriggerEventType_EVENT_FIRED:    "fired",
 	triggersv1.TriggerEventType_EVENT_CANCELED: "canceled",
 	triggersv1.TriggerEventType_EVENT_UPDATED:  "updated",
+	triggersv1.TriggerEventType_EVENT_FAILED:   "failed",
 }
 
 var triggerEventTypeFromLabel = map[string]triggersv1.TriggerEventType{
@@ -66,6 +67,7 @@ var triggerEventTypeFromLabel = map[string]triggersv1.TriggerEventType{
 	"canceled":  triggersv1.TriggerEventType_EVENT_CANCELED,
 	"cancelled": triggersv1.TriggerEventType_EVENT_CANCELED,
 	"updated":   triggersv1.TriggerEventType_EVENT_UPDATED,
+	"failed":    triggersv1.TriggerEventType_EVENT_FAILED,
 }
 
 // TriggerEventTypeLabel maps proto trigger event type to SDK output labels.
@@ -86,9 +88,21 @@ func TriggerEventTypeFromLabel(label string) (triggersv1.TriggerEventType, error
 		return eventType, nil
 	}
 	return triggersv1.TriggerEventType_EVENT_UNSPECIFIED, fmt.Errorf(
-		"invalid trigger event type %q; expected one of: fired, canceled, updated",
+		"invalid trigger event type %q; expected one of: fired, canceled, updated, failed",
 		label,
 	)
+}
+
+// TriggerCancelReasonLabel maps proto cancel reason to a friendly label.
+// Unspecified (0) and unset decode as "".
+func TriggerCancelReasonLabel(reason triggersv1.TriggerCancelReason) string {
+	return codecs.ProtoEnumName(reason, reason.Number())
+}
+
+// TriggerFailureReasonLabel maps proto failure reason to a friendly label.
+// Unspecified (0) and unset decode as "".
+func TriggerFailureReasonLabel(reason triggersv1.TriggerFailureReason) string {
+	return codecs.ProtoEnumName(reason, reason.Number())
 }
 
 // TriggerTypeLabel maps proto trigger type to SDK output labels.
@@ -340,6 +354,7 @@ func TriggerFromProto(msg *triggersv1.Trigger) models.Trigger {
 	if msg.ParentOrderId != nil {
 		parentOrderID = codecs.FormatUint64ID(msg.GetParentOrderId())
 	}
+	cancelReason, failureReason := triggerReasonsFromTrigger(msg)
 	return models.Trigger{
 		TriggerID:               codecs.FormatUint64ID(msg.GetTriggerId()),
 		SubaccountID:            codecs.FormatUint64ID(msg.GetSubaccountId()),
@@ -362,6 +377,8 @@ func TriggerFromProto(msg *triggersv1.Trigger) models.Trigger {
 		UpdatedAt:               timestampTime(msg.GetUpdatedAt()),
 		ArmedAt:                 timestampTime(msg.GetArmedAt()),
 		CompletedAt:             timestampTime(msg.GetCompletedAt()),
+		CancelReason:            cancelReason,
+		FailureReason:           failureReason,
 		Details:                 details,
 	}
 }
@@ -448,16 +465,46 @@ func TriggerEventMessageFromProto(e *triggersv1.TriggerEvent) models.TriggerEven
 	if e.GetSubaccountId() != 0 {
 		subaccountID = codecs.FormatUint64ID(e.GetSubaccountId())
 	}
+	cancelReason, failureReason := triggerReasonsFromEvent(e)
 	return models.TriggerEvent{
-		TriggerID:    codecs.FormatUint64ID(e.GetTriggerId()),
-		SubaccountID: subaccountID,
-		SymbolID:     e.GetSymbolId(),
-		TriggerType:  TriggerTypeLabel(e.GetTriggerType()),
-		EventType:    TriggerEventTypeLabel(e.GetEventType()),
-		TsNs:         tsNs,
-		ChildSeq:     e.GetChildSeq(),
-		ChildOrderID: childOrderID,
-		FirePrice:    codecs.DecodePriceTicks(e.GetFirePriceTicks(), ""),
-		Reason:       e.GetReason(),
+		TriggerID:     codecs.FormatUint64ID(e.GetTriggerId()),
+		SubaccountID:  subaccountID,
+		SymbolID:      e.GetSymbolId(),
+		TriggerType:   TriggerTypeLabel(e.GetTriggerType()),
+		EventType:     TriggerEventTypeLabel(e.GetEventType()),
+		TsNs:          tsNs,
+		ChildSeq:      e.GetChildSeq(),
+		ChildOrderID:  childOrderID,
+		FirePrice:     codecs.DecodePriceTicks(e.GetFirePriceTicks(), ""),
+		CancelReason:  cancelReason,
+		FailureReason: failureReason,
+	}
+}
+
+func triggerReasonsFromTrigger(msg *triggersv1.Trigger) (string, string) {
+	if msg == nil {
+		return "", ""
+	}
+	switch msg.GetTerminalReason().(type) {
+	case *triggersv1.Trigger_CancelReason:
+		return TriggerCancelReasonLabel(msg.GetCancelReason()), ""
+	case *triggersv1.Trigger_FailureReason:
+		return "", TriggerFailureReasonLabel(msg.GetFailureReason())
+	default:
+		return "", ""
+	}
+}
+
+func triggerReasonsFromEvent(msg *triggersv1.TriggerEvent) (string, string) {
+	if msg == nil {
+		return "", ""
+	}
+	switch msg.GetTerminalReason().(type) {
+	case *triggersv1.TriggerEvent_CancelReason:
+		return TriggerCancelReasonLabel(msg.GetCancelReason()), ""
+	case *triggersv1.TriggerEvent_FailureReason:
+		return "", TriggerFailureReasonLabel(msg.GetFailureReason())
+	default:
+		return "", ""
 	}
 }

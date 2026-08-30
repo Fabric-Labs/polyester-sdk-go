@@ -25,6 +25,8 @@ const (
 	SubaccountViewServiceName = "auth.v1.SubaccountViewService"
 	// SubaccountServiceName is the fully-qualified name of the SubaccountService service.
 	SubaccountServiceName = "auth.v1.SubaccountService"
+	// SubaccountRoleServiceName is the fully-qualified name of the SubaccountRoleService service.
+	SubaccountRoleServiceName = "auth.v1.SubaccountRoleService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -71,6 +73,12 @@ const (
 	// SubaccountServiceRespondSubaccountInviteProcedure is the fully-qualified name of the
 	// SubaccountService's RespondSubaccountInvite RPC.
 	SubaccountServiceRespondSubaccountInviteProcedure = "/auth.v1.SubaccountService/RespondSubaccountInvite"
+	// SubaccountRoleServiceListSubaccountRolesProcedure is the fully-qualified name of the
+	// SubaccountRoleService's ListSubaccountRoles RPC.
+	SubaccountRoleServiceListSubaccountRolesProcedure = "/auth.v1.SubaccountRoleService/ListSubaccountRoles"
+	// SubaccountRoleServiceGetEffectiveSubaccountPermissionsProcedure is the fully-qualified name of
+	// the SubaccountRoleService's GetEffectiveSubaccountPermissions RPC.
+	SubaccountRoleServiceGetEffectiveSubaccountPermissionsProcedure = "/auth.v1.SubaccountRoleService/GetEffectiveSubaccountPermissions"
 )
 
 // SubaccountViewServiceClient is a client for the auth.v1.SubaccountViewService service.
@@ -183,7 +191,7 @@ type SubaccountServiceClient interface {
 	UpdateSubaccount(context.Context, *connect.Request[v1.UpdateSubaccountRequest]) (*connect.Response[v1.UpdateSubaccountResponse], error)
 	// Toggle the delegated member MFA requirement for one sub-account (owner only).
 	SetSubaccountMemberMFARequirement(context.Context, *connect.Request[v1.SetSubaccountMemberMFARequirementRequest]) (*connect.Response[v1.SetSubaccountMemberMFARequirementResponse], error)
-	// List members for a sub-account (owner/admin only).
+	// List current members for a sub-account visible to any current member.
 	ListSubaccountMembers(context.Context, *connect.Request[v1.ListSubaccountMembersRequest]) (*connect.Response[v1.ListSubaccountMembersResponse], error)
 	// Remove a member from a sub-account (owner/admin only).
 	RemoveSubaccountMember(context.Context, *connect.Request[v1.RemoveSubaccountMemberRequest]) (*connect.Response[v1.RemoveSubaccountMemberResponse], error)
@@ -191,9 +199,10 @@ type SubaccountServiceClient interface {
 	UpdateSubaccountMemberRole(context.Context, *connect.Request[v1.UpdateSubaccountMemberRoleRequest]) (*connect.Response[v1.UpdateSubaccountMemberRoleResponse], error)
 	// Invite a member to a sub-account.
 	InviteSubaccountMember(context.Context, *connect.Request[v1.InviteSubaccountMemberRequest]) (*connect.Response[v1.InviteSubaccountMemberResponse], error)
-	// List incoming/outgoing sub-account invitations.
+	// List incoming invitations and invitations for administered sub-accounts.
 	ListSubaccountInvites(context.Context, *connect.Request[v1.ListSubaccountInvitesRequest]) (*connect.Response[v1.ListSubaccountInvitesResponse], error)
-	// Accept/decline an invite (grantee) or cancel an invite (inviter).
+	// Accept or decline an invite as the grantee, or cancel it as a current owner or admin.
+	// Acceptance requires an enrolled factor and a recently MFA-elevated session when the subaccount requires member MFA.
 	RespondSubaccountInvite(context.Context, *connect.Request[v1.RespondSubaccountInviteRequest]) (*connect.Response[v1.RespondSubaccountInviteResponse], error)
 }
 
@@ -346,7 +355,7 @@ type SubaccountServiceHandler interface {
 	UpdateSubaccount(context.Context, *connect.Request[v1.UpdateSubaccountRequest]) (*connect.Response[v1.UpdateSubaccountResponse], error)
 	// Toggle the delegated member MFA requirement for one sub-account (owner only).
 	SetSubaccountMemberMFARequirement(context.Context, *connect.Request[v1.SetSubaccountMemberMFARequirementRequest]) (*connect.Response[v1.SetSubaccountMemberMFARequirementResponse], error)
-	// List members for a sub-account (owner/admin only).
+	// List current members for a sub-account visible to any current member.
 	ListSubaccountMembers(context.Context, *connect.Request[v1.ListSubaccountMembersRequest]) (*connect.Response[v1.ListSubaccountMembersResponse], error)
 	// Remove a member from a sub-account (owner/admin only).
 	RemoveSubaccountMember(context.Context, *connect.Request[v1.RemoveSubaccountMemberRequest]) (*connect.Response[v1.RemoveSubaccountMemberResponse], error)
@@ -354,9 +363,10 @@ type SubaccountServiceHandler interface {
 	UpdateSubaccountMemberRole(context.Context, *connect.Request[v1.UpdateSubaccountMemberRoleRequest]) (*connect.Response[v1.UpdateSubaccountMemberRoleResponse], error)
 	// Invite a member to a sub-account.
 	InviteSubaccountMember(context.Context, *connect.Request[v1.InviteSubaccountMemberRequest]) (*connect.Response[v1.InviteSubaccountMemberResponse], error)
-	// List incoming/outgoing sub-account invitations.
+	// List incoming invitations and invitations for administered sub-accounts.
 	ListSubaccountInvites(context.Context, *connect.Request[v1.ListSubaccountInvitesRequest]) (*connect.Response[v1.ListSubaccountInvitesResponse], error)
-	// Accept/decline an invite (grantee) or cancel an invite (inviter).
+	// Accept or decline an invite as the grantee, or cancel it as a current owner or admin.
+	// Acceptance requires an enrolled factor and a recently MFA-elevated session when the subaccount requires member MFA.
 	RespondSubaccountInvite(context.Context, *connect.Request[v1.RespondSubaccountInviteRequest]) (*connect.Response[v1.RespondSubaccountInviteResponse], error)
 }
 
@@ -496,4 +506,105 @@ func (UnimplementedSubaccountServiceHandler) ListSubaccountInvites(context.Conte
 
 func (UnimplementedSubaccountServiceHandler) RespondSubaccountInvite(context.Context, *connect.Request[v1.RespondSubaccountInviteRequest]) (*connect.Response[v1.RespondSubaccountInviteResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.SubaccountService.RespondSubaccountInvite is not implemented"))
+}
+
+// SubaccountRoleServiceClient is a client for the auth.v1.SubaccountRoleService service.
+type SubaccountRoleServiceClient interface {
+	// List the authoritative built-in role and permission catalog. This metadata is public.
+	ListSubaccountRoles(context.Context, *connect.Request[v1.ListSubaccountRolesRequest]) (*connect.Response[v1.ListSubaccountRolesResponse], error)
+	// Return the authenticated caller's effective permissions for one sub-account.
+	GetEffectiveSubaccountPermissions(context.Context, *connect.Request[v1.GetEffectiveSubaccountPermissionsRequest]) (*connect.Response[v1.GetEffectiveSubaccountPermissionsResponse], error)
+}
+
+// NewSubaccountRoleServiceClient constructs a client for the auth.v1.SubaccountRoleService service.
+// By default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped
+// responses, and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
+// connect.WithGRPC() or connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewSubaccountRoleServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) SubaccountRoleServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	subaccountRoleServiceMethods := v1.File_auth_v1_subaccounts_proto.Services().ByName("SubaccountRoleService").Methods()
+	return &subaccountRoleServiceClient{
+		listSubaccountRoles: connect.NewClient[v1.ListSubaccountRolesRequest, v1.ListSubaccountRolesResponse](
+			httpClient,
+			baseURL+SubaccountRoleServiceListSubaccountRolesProcedure,
+			connect.WithSchema(subaccountRoleServiceMethods.ByName("ListSubaccountRoles")),
+			connect.WithClientOptions(opts...),
+		),
+		getEffectiveSubaccountPermissions: connect.NewClient[v1.GetEffectiveSubaccountPermissionsRequest, v1.GetEffectiveSubaccountPermissionsResponse](
+			httpClient,
+			baseURL+SubaccountRoleServiceGetEffectiveSubaccountPermissionsProcedure,
+			connect.WithSchema(subaccountRoleServiceMethods.ByName("GetEffectiveSubaccountPermissions")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// subaccountRoleServiceClient implements SubaccountRoleServiceClient.
+type subaccountRoleServiceClient struct {
+	listSubaccountRoles               *connect.Client[v1.ListSubaccountRolesRequest, v1.ListSubaccountRolesResponse]
+	getEffectiveSubaccountPermissions *connect.Client[v1.GetEffectiveSubaccountPermissionsRequest, v1.GetEffectiveSubaccountPermissionsResponse]
+}
+
+// ListSubaccountRoles calls auth.v1.SubaccountRoleService.ListSubaccountRoles.
+func (c *subaccountRoleServiceClient) ListSubaccountRoles(ctx context.Context, req *connect.Request[v1.ListSubaccountRolesRequest]) (*connect.Response[v1.ListSubaccountRolesResponse], error) {
+	return c.listSubaccountRoles.CallUnary(ctx, req)
+}
+
+// GetEffectiveSubaccountPermissions calls
+// auth.v1.SubaccountRoleService.GetEffectiveSubaccountPermissions.
+func (c *subaccountRoleServiceClient) GetEffectiveSubaccountPermissions(ctx context.Context, req *connect.Request[v1.GetEffectiveSubaccountPermissionsRequest]) (*connect.Response[v1.GetEffectiveSubaccountPermissionsResponse], error) {
+	return c.getEffectiveSubaccountPermissions.CallUnary(ctx, req)
+}
+
+// SubaccountRoleServiceHandler is an implementation of the auth.v1.SubaccountRoleService service.
+type SubaccountRoleServiceHandler interface {
+	// List the authoritative built-in role and permission catalog. This metadata is public.
+	ListSubaccountRoles(context.Context, *connect.Request[v1.ListSubaccountRolesRequest]) (*connect.Response[v1.ListSubaccountRolesResponse], error)
+	// Return the authenticated caller's effective permissions for one sub-account.
+	GetEffectiveSubaccountPermissions(context.Context, *connect.Request[v1.GetEffectiveSubaccountPermissionsRequest]) (*connect.Response[v1.GetEffectiveSubaccountPermissionsResponse], error)
+}
+
+// NewSubaccountRoleServiceHandler builds an HTTP handler from the service implementation. It
+// returns the path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewSubaccountRoleServiceHandler(svc SubaccountRoleServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	subaccountRoleServiceMethods := v1.File_auth_v1_subaccounts_proto.Services().ByName("SubaccountRoleService").Methods()
+	subaccountRoleServiceListSubaccountRolesHandler := connect.NewUnaryHandler(
+		SubaccountRoleServiceListSubaccountRolesProcedure,
+		svc.ListSubaccountRoles,
+		connect.WithSchema(subaccountRoleServiceMethods.ByName("ListSubaccountRoles")),
+		connect.WithHandlerOptions(opts...),
+	)
+	subaccountRoleServiceGetEffectiveSubaccountPermissionsHandler := connect.NewUnaryHandler(
+		SubaccountRoleServiceGetEffectiveSubaccountPermissionsProcedure,
+		svc.GetEffectiveSubaccountPermissions,
+		connect.WithSchema(subaccountRoleServiceMethods.ByName("GetEffectiveSubaccountPermissions")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/auth.v1.SubaccountRoleService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case SubaccountRoleServiceListSubaccountRolesProcedure:
+			subaccountRoleServiceListSubaccountRolesHandler.ServeHTTP(w, r)
+		case SubaccountRoleServiceGetEffectiveSubaccountPermissionsProcedure:
+			subaccountRoleServiceGetEffectiveSubaccountPermissionsHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedSubaccountRoleServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedSubaccountRoleServiceHandler struct{}
+
+func (UnimplementedSubaccountRoleServiceHandler) ListSubaccountRoles(context.Context, *connect.Request[v1.ListSubaccountRolesRequest]) (*connect.Response[v1.ListSubaccountRolesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.SubaccountRoleService.ListSubaccountRoles is not implemented"))
+}
+
+func (UnimplementedSubaccountRoleServiceHandler) GetEffectiveSubaccountPermissions(context.Context, *connect.Request[v1.GetEffectiveSubaccountPermissionsRequest]) (*connect.Response[v1.GetEffectiveSubaccountPermissionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.SubaccountRoleService.GetEffectiveSubaccountPermissions is not implemented"))
 }

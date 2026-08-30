@@ -5,7 +5,7 @@ import "time"
 // TradingRateLimitRule is a weighted placement or cancellation quota for one VIP tier.
 type TradingRateLimitRule struct {
 	PolicyClass string `json:"policy_class,omitempty"`
-	Tier        uint32 `json:"tier,omitempty"`
+	VIPTier     uint32 `json:"vip_tier,omitempty"`
 	QuotaWeight uint64 `json:"quota_weight,omitempty"`
 	PeriodMs    uint64 `json:"period_ms,omitempty"`
 	BurstWeight uint64 `json:"burst_weight,omitempty"`

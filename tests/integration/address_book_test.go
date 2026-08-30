@@ -32,7 +32,7 @@ func TestAddressBookGetView(t *testing.T) {
 	defer cleanup()
 
 	view := testutil.CallOptional(t, "address_book.get_view", func() (models.AddressBookView, error) {
-		return client.AddressBook.GetView(ctx, nil, nil, 10)
+		return client.AddressBook.GetView(ctx, nil, nil, 10, 0)
 	})
 	if view.Raw == nil {
 		t.Fatal("expected address book view")
@@ -47,7 +47,7 @@ func TestAddressBookCreateEntryNewTagsAndAppend(t *testing.T) {
 		return client.AddressBook.ListBooks(ctx)
 	})
 	_ = testutil.CallOptional(t, "address_book.get_view", func() (models.AddressBookView, error) {
-		return client.AddressBook.GetView(ctx, nil, nil, 10)
+		return client.AddressBook.GetView(ctx, nil, nil, 10, 0)
 	})
 
 	chainID := liveExternalChainID(t, client, ctx)

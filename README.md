@@ -61,7 +61,9 @@ Full cross-language comparison:
 Address-book writes (`CreateEntry` / `UpdateEntry` / `DeleteEntry` and tag
 create/update/delete) are wrapped. `new_tags` creates and attaches tags in the
 same protected update; when `tag_ids` is omitted, current tags are preserved
-and the new tags are appended. Twitter social-verification handles accept an
+and the new tags are appended. `GetView(..., minimumViewRevision)` omits the
+revision when it is 0; the view and invalidation payloads include
+`view_revision`. Twitter social-verification handles accept an
 optional leading `@` and are forwarded as-is.
 
 Rows marked **Yes** mean that an SDK wrapper exists; deployment authorization
@@ -389,6 +391,10 @@ percents per listed symbol (optional `symbolID` filter). That is the live effect
 surface, not a guaranteed quote of every future fill. The completed user-trade record still
 owns the exact charge.
 
+`Trades.List(..., afterMatchID)` is a per-symbol cursor. When `afterMatchID` is
+set, pass a display `symbol` or `symbolID`; the SDK fails closed if the symbol
+cannot be resolved to a non-zero `symbol_id`.
+
 ## VIP, spot fees, and trading rate limits
 
 Public catalog reads need no credentials. Authenticated VIP status, effective spot fees, and
@@ -396,7 +402,8 @@ account trading limits require an API key. `GetVIPStatus` has no subaccount sele
 API-key callers receive the owning root group only. USD amounts and fee percents are decimal
 strings. Optional qualification metrics, timestamps, and next-tier thresholds stay omitted
 when unset. `policy_class` uses full protobuf enum names
-(`TRADING_RATE_LIMIT_CLASS_PLACE` / `_CANCEL`).
+(`TRADING_RATE_LIMIT_CLASS_PLACE` / `_CANCEL`). Rate-limit rules expose
+`VIPTier` (`json:"vip_tier"`), matching the proto field rename.
 
 ```go
 tiers, err := client.VIP.ListVIPTiers(ctx)
@@ -429,7 +436,9 @@ triggers expose `ParentOrderID` when present.
 `Orders.ListOpen` / `Orders.ListHistory` accept an optional trailing
 `triggerID` to return only child orders created by that trigger (TWAP/ladder
 slices). Trigger-event `FirePrice` is empty for time-scheduled TWAP slice fires
-(`fire_price_ticks` is optional on the wire).
+(`fire_price_ticks` is optional on the wire). Terminal triggers/events expose
+typed `CancelReason` / `FailureReason` labels (empty when the proto oneof is
+unset or unspecified).
 
 ## Balances: funding vs trading
 

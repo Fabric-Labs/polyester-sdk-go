@@ -18,7 +18,7 @@ func TradingRateLimitRuleFromProto(msg *ratelimitv1.TradingRateLimitRule) models
 			int32(msg.GetPolicyClass()),
 			"UNKNOWN_TRADING_RATE_LIMIT_CLASS",
 		),
-		Tier:        msg.GetTier(),
+		VIPTier:     msg.GetVipTier(),
 		QuotaWeight: msg.GetQuotaWeight(),
 		PeriodMs:    msg.GetPeriodMs(),
 		BurstWeight: msg.GetBurstWeight(),

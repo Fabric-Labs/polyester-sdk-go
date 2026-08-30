@@ -152,12 +152,14 @@ func TestTriggerEventsListFromProto(t *testing.T) {
 			SubaccountId:   9,
 			SymbolId:       2,
 			TriggerType:    triggersv1.TriggerType_TAKE_PROFIT,
-			EventType:      triggersv1.TriggerEventType_EVENT_FIRED,
+			EventType:      triggersv1.TriggerEventType_EVENT_CANCELED,
 			TsNs:           123,
 			ChildSeq:       3,
 			ChildOrderId:   77,
 			FirePriceTicks: int64Ptr(100),
-			Reason:         "hit",
+			TerminalReason: &triggersv1.TriggerEvent_CancelReason{
+				CancelReason: triggersv1.TriggerCancelReason_TRIGGER_CANCEL_REASON_USER_REQUEST,
+			},
 		}},
 		NextPageToken: "evt-page-2",
 	}
@@ -166,13 +168,13 @@ func TestTriggerEventsListFromProto(t *testing.T) {
 		t.Fatalf("result=%+v", result)
 	}
 	ev := result.Events[0]
-	if ev.EventType != "fired" || ev.TriggerType != "take_profit" {
+	if ev.EventType != "canceled" || ev.TriggerType != "take_profit" {
 		t.Fatalf("labels=%+v", ev)
 	}
 	if ev.SubaccountID != codecs.FormatUint64ID(9) || ev.ChildOrderID != codecs.FormatUint64ID(77) {
 		t.Fatalf("ids=%+v", ev)
 	}
-	if ev.ChildSeq != 3 || ev.FirePrice.Ticks() != 100 || ev.Reason != "hit" {
+	if ev.ChildSeq != 3 || ev.FirePrice.Ticks() != 100 || ev.CancelReason != "user_request" || ev.FailureReason != "" {
 		t.Fatalf("detail=%+v", ev)
 	}
 }
@@ -194,6 +196,39 @@ func TestGetTriggerFromProto(t *testing.T) {
 	trigger := decode.GetTriggerFromProto(msg)
 	if trigger == nil || trigger.TriggerID != codecs.FormatUint64ID(3) {
 		t.Fatalf("trigger=%+v", trigger)
+	}
+}
+
+func TestTriggerEventFailureReasonAndUnspecified(t *testing.T) {
+	failed := decode.TriggerEventMessageFromProto(&triggersv1.TriggerEvent{
+		TriggerId: 2,
+		EventType: triggersv1.TriggerEventType_EVENT_FAILED,
+		TerminalReason: &triggersv1.TriggerEvent_FailureReason{
+			FailureReason: triggersv1.TriggerFailureReason_TRIGGER_FAILURE_REASON_INSUFFICIENT_FUNDS,
+		},
+	})
+	if failed.EventType != "failed" || failed.FailureReason != "insufficient_funds" || failed.CancelReason != "" {
+		t.Fatalf("failed=%+v", failed)
+	}
+	unspecified := decode.TriggerEventMessageFromProto(&triggersv1.TriggerEvent{
+		TriggerId: 3,
+		EventType: triggersv1.TriggerEventType_EVENT_CANCELED,
+		TerminalReason: &triggersv1.TriggerEvent_CancelReason{
+			CancelReason: triggersv1.TriggerCancelReason_TRIGGER_CANCEL_REASON_UNSPECIFIED,
+		},
+	})
+	if unspecified.CancelReason != "" || unspecified.FailureReason != "" {
+		t.Fatalf("unspecified=%+v", unspecified)
+	}
+	armed := decode.TriggerFromProto(&triggersv1.Trigger{
+		TriggerId: 4,
+		Status:    triggersv1.TriggerStatus_STATUS_ARMED,
+		TerminalReason: &triggersv1.Trigger_FailureReason{
+			FailureReason: triggersv1.TriggerFailureReason_TRIGGER_FAILURE_REASON_MARKET_HALTED,
+		},
+	})
+	if armed.FailureReason != "market_halted" || armed.CancelReason != "" {
+		t.Fatalf("trigger=%+v", armed)
 	}
 }
 

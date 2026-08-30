@@ -622,8 +622,14 @@ type FinishTOTPEnrollmentResponse struct {
 	Factor *MFAFactor `protobuf:"bytes,1,opt,name=factor,proto3" json:"factor,omitempty"`
 	// One-time recovery codes generated for the account. Store these securely; they are only returned in this response.
 	RecoveryCodes []string `protobuf:"bytes,2,rep,name=recovery_codes,json=recoveryCodes,proto3" json:"recovery_codes,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// MFA-elevated session details after successful enrollment.
+	Session *SessionInfo `protobuf:"bytes,3,opt,name=session,proto3" json:"session,omitempty"`
+	// MFA-elevated session token issued after successful enrollment.
+	AccessToken string `protobuf:"bytes,4,opt,name=access_token,json=accessToken,proto3" json:"access_token,omitempty"`
+	// Time when access_token expires.
+	AccessTokenExpiresAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=access_token_expires_at,json=accessTokenExpiresAt,proto3" json:"access_token_expires_at,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *FinishTOTPEnrollmentResponse) Reset() {
@@ -666,6 +672,27 @@ func (x *FinishTOTPEnrollmentResponse) GetFactor() *MFAFactor {
 func (x *FinishTOTPEnrollmentResponse) GetRecoveryCodes() []string {
 	if x != nil {
 		return x.RecoveryCodes
+	}
+	return nil
+}
+
+func (x *FinishTOTPEnrollmentResponse) GetSession() *SessionInfo {
+	if x != nil {
+		return x.Session
+	}
+	return nil
+}
+
+func (x *FinishTOTPEnrollmentResponse) GetAccessToken() string {
+	if x != nil {
+		return x.AccessToken
+	}
+	return ""
+}
+
+func (x *FinishTOTPEnrollmentResponse) GetAccessTokenExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.AccessTokenExpiresAt
 	}
 	return nil
 }
@@ -842,8 +869,14 @@ type FinishPasskeyEnrollmentResponse struct {
 	Factor *MFAFactor `protobuf:"bytes,1,opt,name=factor,proto3" json:"factor,omitempty"`
 	// One-time recovery codes generated for the account. Store these securely; they are only returned in this response.
 	RecoveryCodes []string `protobuf:"bytes,2,rep,name=recovery_codes,json=recoveryCodes,proto3" json:"recovery_codes,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// MFA-elevated session details after successful enrollment.
+	Session *SessionInfo `protobuf:"bytes,3,opt,name=session,proto3" json:"session,omitempty"`
+	// MFA-elevated session token issued after successful enrollment.
+	AccessToken string `protobuf:"bytes,4,opt,name=access_token,json=accessToken,proto3" json:"access_token,omitempty"`
+	// Time when access_token expires.
+	AccessTokenExpiresAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=access_token_expires_at,json=accessTokenExpiresAt,proto3" json:"access_token_expires_at,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *FinishPasskeyEnrollmentResponse) Reset() {
@@ -886,6 +919,27 @@ func (x *FinishPasskeyEnrollmentResponse) GetFactor() *MFAFactor {
 func (x *FinishPasskeyEnrollmentResponse) GetRecoveryCodes() []string {
 	if x != nil {
 		return x.RecoveryCodes
+	}
+	return nil
+}
+
+func (x *FinishPasskeyEnrollmentResponse) GetSession() *SessionInfo {
+	if x != nil {
+		return x.Session
+	}
+	return nil
+}
+
+func (x *FinishPasskeyEnrollmentResponse) GetAccessToken() string {
+	if x != nil {
+		return x.AccessToken
+	}
+	return ""
+}
+
+func (x *FinishPasskeyEnrollmentResponse) GetAccessTokenExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.AccessTokenExpiresAt
 	}
 	return nil
 }
@@ -1177,11 +1231,11 @@ func (x *VerifyRecoveryCodeChallengeRequest) GetRecoveryCode() string {
 // Response returned after an MFA challenge is completed.
 type CompleteMFAChallengeResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Session assurance details after completing the challenge.
+	// MFA-elevated session details after completing the challenge.
 	Session *SessionInfo `protobuf:"bytes,1,opt,name=session,proto3" json:"session,omitempty"`
-	// MFA-elevated session token returned for session-elevation challenges. Empty for fresh step-up challenges.
+	// MFA-elevated session token returned after every successful challenge.
 	AccessToken string `protobuf:"bytes,2,opt,name=access_token,json=accessToken,proto3" json:"access_token,omitempty"`
-	// Time when access_token expires. Empty when no access_token is returned.
+	// Time when access_token expires.
 	AccessTokenExpiresAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=access_token_expires_at,json=accessTokenExpiresAt,proto3" json:"access_token_expires_at,omitempty"`
 	// Fresh step-up token returned for fresh step-up challenges. Empty for session-elevation challenges.
 	StepUpToken string `protobuf:"bytes,4,opt,name=step_up_token,json=stepUpToken,proto3" json:"step_up_token,omitempty"`
@@ -1934,10 +1988,13 @@ const file_auth_v1_mfa_proto_rawDesc = "" +
 	"expires_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\x90\x01\n" +
 	"\x1bFinishTOTPEnrollmentRequest\x12E\n" +
 	"\renrollment_id\x18\x01 \x01(\tB \xe0A\x02\xbaH\x1ar\x18\x10\x01\x18@2\x12^mfa_[a-f0-9]{32}$R\fenrollmentId\x12*\n" +
-	"\x04code\x18\x02 \x01(\tB\x16\xe0A\x02\xbaH\x10r\x0e2\f^[0-9]{6,8}$R\x04code\"v\n" +
+	"\x04code\x18\x02 \x01(\tB\x16\xe0A\x02\xbaH\x10r\x0e2\f^[0-9]{6,8}$R\x04code\"\xa1\x02\n" +
 	"\x1cFinishTOTPEnrollmentResponse\x12*\n" +
 	"\x06factor\x18\x01 \x01(\v2\x12.auth.v1.MFAFactorR\x06factor\x12*\n" +
-	"\x0erecovery_codes\x18\x02 \x03(\tB\x03\xe0A\x03R\rrecoveryCodes\"?\n" +
+	"\x0erecovery_codes\x18\x02 \x03(\tB\x03\xe0A\x03R\rrecoveryCodes\x12.\n" +
+	"\asession\x18\x03 \x01(\v2\x14.auth.v1.SessionInfoR\asession\x12&\n" +
+	"\faccess_token\x18\x04 \x01(\tB\x03\xe0A\x03R\vaccessToken\x12Q\n" +
+	"\x17access_token_expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x14accessTokenExpiresAt\"?\n" +
 	"\x1dBeginPasskeyEnrollmentRequest\x12\x1e\n" +
 	"\x05label\x18\x01 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x05label\"\xd7\x01\n" +
 	"\x1eBeginPasskeyEnrollmentResponse\x12B\n" +
@@ -1950,10 +2007,13 @@ const file_auth_v1_mfa_proto_rawDesc = "" +
 	"\renrollment_id\x18\x01 \x01(\tB \xe0A\x02\xbaH\x1ar\x18\x10\x01\x18@2\x12^mfa_[a-f0-9]{32}$R\fenrollmentId\x12<\n" +
 	"\n" +
 	"credential\x18\x02 \x01(\v2\x17.google.protobuf.StructB\x03\xe0A\x02R\n" +
-	"credential\"y\n" +
+	"credential\"\xa4\x02\n" +
 	"\x1fFinishPasskeyEnrollmentResponse\x12*\n" +
 	"\x06factor\x18\x01 \x01(\v2\x12.auth.v1.MFAFactorR\x06factor\x12*\n" +
-	"\x0erecovery_codes\x18\x02 \x03(\tB\x03\xe0A\x03R\rrecoveryCodes\"a\n" +
+	"\x0erecovery_codes\x18\x02 \x03(\tB\x03\xe0A\x03R\rrecoveryCodes\x12.\n" +
+	"\asession\x18\x03 \x01(\v2\x14.auth.v1.SessionInfoR\asession\x12&\n" +
+	"\faccess_token\x18\x04 \x01(\tB\x03\xe0A\x03R\vaccessToken\x12Q\n" +
+	"\x17access_token_expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x14accessTokenExpiresAt\"a\n" +
 	"\x18BeginMFAChallengeRequest\x12E\n" +
 	"\apurpose\x18\x01 \x01(\x0e2\x1c.auth.v1.MFAChallengePurposeB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\apurpose\"\xaf\x02\n" +
 	"\x19BeginMFAChallengeResponse\x12@\n" +
@@ -2130,55 +2190,59 @@ var file_auth_v1_mfa_proto_depIdxs = []int32{
 	4,  // 5: auth.v1.ListMFAFactorsResponse.factors:type_name -> auth.v1.MFAFactor
 	33, // 6: auth.v1.BeginTOTPEnrollmentResponse.expires_at:type_name -> google.protobuf.Timestamp
 	4,  // 7: auth.v1.FinishTOTPEnrollmentResponse.factor:type_name -> auth.v1.MFAFactor
-	34, // 8: auth.v1.BeginPasskeyEnrollmentResponse.public_key:type_name -> google.protobuf.Struct
-	33, // 9: auth.v1.BeginPasskeyEnrollmentResponse.expires_at:type_name -> google.protobuf.Timestamp
-	34, // 10: auth.v1.FinishPasskeyEnrollmentRequest.credential:type_name -> google.protobuf.Struct
-	4,  // 11: auth.v1.FinishPasskeyEnrollmentResponse.factor:type_name -> auth.v1.MFAFactor
-	2,  // 12: auth.v1.BeginMFAChallengeRequest.purpose:type_name -> auth.v1.MFAChallengePurpose
-	1,  // 13: auth.v1.BeginMFAChallengeResponse.allowed_factor_types:type_name -> auth.v1.MFAFactorType
-	34, // 14: auth.v1.BeginMFAChallengeResponse.public_key:type_name -> google.protobuf.Struct
-	33, // 15: auth.v1.BeginMFAChallengeResponse.expires_at:type_name -> google.protobuf.Timestamp
-	34, // 16: auth.v1.FinishPasskeyChallengeRequest.credential:type_name -> google.protobuf.Struct
-	3,  // 17: auth.v1.CompleteMFAChallengeResponse.session:type_name -> auth.v1.SessionInfo
-	33, // 18: auth.v1.CompleteMFAChallengeResponse.access_token_expires_at:type_name -> google.protobuf.Timestamp
-	33, // 19: auth.v1.CompleteMFAChallengeResponse.step_up_expires_at:type_name -> google.protobuf.Timestamp
-	33, // 20: auth.v1.ClaimFreshStepUpResponse.claim_expires_at:type_name -> google.protobuf.Timestamp
-	4,  // 21: auth.v1.UpdateMFAFactorResponse.factor:type_name -> auth.v1.MFAFactor
-	5,  // 22: auth.v1.MFAService.ListMFAFactors:input_type -> auth.v1.ListMFAFactorsRequest
-	7,  // 23: auth.v1.MFAService.BeginTOTPEnrollment:input_type -> auth.v1.BeginTOTPEnrollmentRequest
-	9,  // 24: auth.v1.MFAService.FinishTOTPEnrollment:input_type -> auth.v1.FinishTOTPEnrollmentRequest
-	11, // 25: auth.v1.MFAService.BeginPasskeyEnrollment:input_type -> auth.v1.BeginPasskeyEnrollmentRequest
-	13, // 26: auth.v1.MFAService.FinishPasskeyEnrollment:input_type -> auth.v1.FinishPasskeyEnrollmentRequest
-	15, // 27: auth.v1.MFAService.BeginMFAChallenge:input_type -> auth.v1.BeginMFAChallengeRequest
-	17, // 28: auth.v1.MFAService.VerifyTOTPChallenge:input_type -> auth.v1.VerifyTOTPChallengeRequest
-	18, // 29: auth.v1.MFAService.FinishPasskeyChallenge:input_type -> auth.v1.FinishPasskeyChallengeRequest
-	19, // 30: auth.v1.MFAService.VerifyRecoveryCodeChallenge:input_type -> auth.v1.VerifyRecoveryCodeChallengeRequest
-	27, // 31: auth.v1.MFAService.UpdateMFAFactor:input_type -> auth.v1.UpdateMFAFactorRequest
-	29, // 32: auth.v1.MFAService.DeleteMFAFactor:input_type -> auth.v1.DeleteMFAFactorRequest
-	31, // 33: auth.v1.MFAService.RegenerateRecoveryCodes:input_type -> auth.v1.RegenerateRecoveryCodesRequest
-	21, // 34: auth.v1.MFAService.ClaimFreshStepUp:input_type -> auth.v1.ClaimFreshStepUpRequest
-	23, // 35: auth.v1.MFAService.ConsumeFreshStepUp:input_type -> auth.v1.ConsumeFreshStepUpRequest
-	25, // 36: auth.v1.MFAService.ReleaseFreshStepUp:input_type -> auth.v1.ReleaseFreshStepUpRequest
-	6,  // 37: auth.v1.MFAService.ListMFAFactors:output_type -> auth.v1.ListMFAFactorsResponse
-	8,  // 38: auth.v1.MFAService.BeginTOTPEnrollment:output_type -> auth.v1.BeginTOTPEnrollmentResponse
-	10, // 39: auth.v1.MFAService.FinishTOTPEnrollment:output_type -> auth.v1.FinishTOTPEnrollmentResponse
-	12, // 40: auth.v1.MFAService.BeginPasskeyEnrollment:output_type -> auth.v1.BeginPasskeyEnrollmentResponse
-	14, // 41: auth.v1.MFAService.FinishPasskeyEnrollment:output_type -> auth.v1.FinishPasskeyEnrollmentResponse
-	16, // 42: auth.v1.MFAService.BeginMFAChallenge:output_type -> auth.v1.BeginMFAChallengeResponse
-	20, // 43: auth.v1.MFAService.VerifyTOTPChallenge:output_type -> auth.v1.CompleteMFAChallengeResponse
-	20, // 44: auth.v1.MFAService.FinishPasskeyChallenge:output_type -> auth.v1.CompleteMFAChallengeResponse
-	20, // 45: auth.v1.MFAService.VerifyRecoveryCodeChallenge:output_type -> auth.v1.CompleteMFAChallengeResponse
-	28, // 46: auth.v1.MFAService.UpdateMFAFactor:output_type -> auth.v1.UpdateMFAFactorResponse
-	30, // 47: auth.v1.MFAService.DeleteMFAFactor:output_type -> auth.v1.DeleteMFAFactorResponse
-	32, // 48: auth.v1.MFAService.RegenerateRecoveryCodes:output_type -> auth.v1.RegenerateRecoveryCodesResponse
-	22, // 49: auth.v1.MFAService.ClaimFreshStepUp:output_type -> auth.v1.ClaimFreshStepUpResponse
-	24, // 50: auth.v1.MFAService.ConsumeFreshStepUp:output_type -> auth.v1.ConsumeFreshStepUpResponse
-	26, // 51: auth.v1.MFAService.ReleaseFreshStepUp:output_type -> auth.v1.ReleaseFreshStepUpResponse
-	37, // [37:52] is the sub-list for method output_type
-	22, // [22:37] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	3,  // 8: auth.v1.FinishTOTPEnrollmentResponse.session:type_name -> auth.v1.SessionInfo
+	33, // 9: auth.v1.FinishTOTPEnrollmentResponse.access_token_expires_at:type_name -> google.protobuf.Timestamp
+	34, // 10: auth.v1.BeginPasskeyEnrollmentResponse.public_key:type_name -> google.protobuf.Struct
+	33, // 11: auth.v1.BeginPasskeyEnrollmentResponse.expires_at:type_name -> google.protobuf.Timestamp
+	34, // 12: auth.v1.FinishPasskeyEnrollmentRequest.credential:type_name -> google.protobuf.Struct
+	4,  // 13: auth.v1.FinishPasskeyEnrollmentResponse.factor:type_name -> auth.v1.MFAFactor
+	3,  // 14: auth.v1.FinishPasskeyEnrollmentResponse.session:type_name -> auth.v1.SessionInfo
+	33, // 15: auth.v1.FinishPasskeyEnrollmentResponse.access_token_expires_at:type_name -> google.protobuf.Timestamp
+	2,  // 16: auth.v1.BeginMFAChallengeRequest.purpose:type_name -> auth.v1.MFAChallengePurpose
+	1,  // 17: auth.v1.BeginMFAChallengeResponse.allowed_factor_types:type_name -> auth.v1.MFAFactorType
+	34, // 18: auth.v1.BeginMFAChallengeResponse.public_key:type_name -> google.protobuf.Struct
+	33, // 19: auth.v1.BeginMFAChallengeResponse.expires_at:type_name -> google.protobuf.Timestamp
+	34, // 20: auth.v1.FinishPasskeyChallengeRequest.credential:type_name -> google.protobuf.Struct
+	3,  // 21: auth.v1.CompleteMFAChallengeResponse.session:type_name -> auth.v1.SessionInfo
+	33, // 22: auth.v1.CompleteMFAChallengeResponse.access_token_expires_at:type_name -> google.protobuf.Timestamp
+	33, // 23: auth.v1.CompleteMFAChallengeResponse.step_up_expires_at:type_name -> google.protobuf.Timestamp
+	33, // 24: auth.v1.ClaimFreshStepUpResponse.claim_expires_at:type_name -> google.protobuf.Timestamp
+	4,  // 25: auth.v1.UpdateMFAFactorResponse.factor:type_name -> auth.v1.MFAFactor
+	5,  // 26: auth.v1.MFAService.ListMFAFactors:input_type -> auth.v1.ListMFAFactorsRequest
+	7,  // 27: auth.v1.MFAService.BeginTOTPEnrollment:input_type -> auth.v1.BeginTOTPEnrollmentRequest
+	9,  // 28: auth.v1.MFAService.FinishTOTPEnrollment:input_type -> auth.v1.FinishTOTPEnrollmentRequest
+	11, // 29: auth.v1.MFAService.BeginPasskeyEnrollment:input_type -> auth.v1.BeginPasskeyEnrollmentRequest
+	13, // 30: auth.v1.MFAService.FinishPasskeyEnrollment:input_type -> auth.v1.FinishPasskeyEnrollmentRequest
+	15, // 31: auth.v1.MFAService.BeginMFAChallenge:input_type -> auth.v1.BeginMFAChallengeRequest
+	17, // 32: auth.v1.MFAService.VerifyTOTPChallenge:input_type -> auth.v1.VerifyTOTPChallengeRequest
+	18, // 33: auth.v1.MFAService.FinishPasskeyChallenge:input_type -> auth.v1.FinishPasskeyChallengeRequest
+	19, // 34: auth.v1.MFAService.VerifyRecoveryCodeChallenge:input_type -> auth.v1.VerifyRecoveryCodeChallengeRequest
+	27, // 35: auth.v1.MFAService.UpdateMFAFactor:input_type -> auth.v1.UpdateMFAFactorRequest
+	29, // 36: auth.v1.MFAService.DeleteMFAFactor:input_type -> auth.v1.DeleteMFAFactorRequest
+	31, // 37: auth.v1.MFAService.RegenerateRecoveryCodes:input_type -> auth.v1.RegenerateRecoveryCodesRequest
+	21, // 38: auth.v1.MFAService.ClaimFreshStepUp:input_type -> auth.v1.ClaimFreshStepUpRequest
+	23, // 39: auth.v1.MFAService.ConsumeFreshStepUp:input_type -> auth.v1.ConsumeFreshStepUpRequest
+	25, // 40: auth.v1.MFAService.ReleaseFreshStepUp:input_type -> auth.v1.ReleaseFreshStepUpRequest
+	6,  // 41: auth.v1.MFAService.ListMFAFactors:output_type -> auth.v1.ListMFAFactorsResponse
+	8,  // 42: auth.v1.MFAService.BeginTOTPEnrollment:output_type -> auth.v1.BeginTOTPEnrollmentResponse
+	10, // 43: auth.v1.MFAService.FinishTOTPEnrollment:output_type -> auth.v1.FinishTOTPEnrollmentResponse
+	12, // 44: auth.v1.MFAService.BeginPasskeyEnrollment:output_type -> auth.v1.BeginPasskeyEnrollmentResponse
+	14, // 45: auth.v1.MFAService.FinishPasskeyEnrollment:output_type -> auth.v1.FinishPasskeyEnrollmentResponse
+	16, // 46: auth.v1.MFAService.BeginMFAChallenge:output_type -> auth.v1.BeginMFAChallengeResponse
+	20, // 47: auth.v1.MFAService.VerifyTOTPChallenge:output_type -> auth.v1.CompleteMFAChallengeResponse
+	20, // 48: auth.v1.MFAService.FinishPasskeyChallenge:output_type -> auth.v1.CompleteMFAChallengeResponse
+	20, // 49: auth.v1.MFAService.VerifyRecoveryCodeChallenge:output_type -> auth.v1.CompleteMFAChallengeResponse
+	28, // 50: auth.v1.MFAService.UpdateMFAFactor:output_type -> auth.v1.UpdateMFAFactorResponse
+	30, // 51: auth.v1.MFAService.DeleteMFAFactor:output_type -> auth.v1.DeleteMFAFactorResponse
+	32, // 52: auth.v1.MFAService.RegenerateRecoveryCodes:output_type -> auth.v1.RegenerateRecoveryCodesResponse
+	22, // 53: auth.v1.MFAService.ClaimFreshStepUp:output_type -> auth.v1.ClaimFreshStepUpResponse
+	24, // 54: auth.v1.MFAService.ConsumeFreshStepUp:output_type -> auth.v1.ConsumeFreshStepUpResponse
+	26, // 55: auth.v1.MFAService.ReleaseFreshStepUp:output_type -> auth.v1.ReleaseFreshStepUpResponse
+	41, // [41:56] is the sub-list for method output_type
+	26, // [26:41] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_mfa_proto_init() }
