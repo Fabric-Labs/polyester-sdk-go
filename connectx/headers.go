@@ -9,7 +9,9 @@ const (
 
 	ProtocolVersion  = "1"
 	JSONContentType  = "application/json"
-	ProtoContentType = "application/connect+proto"
+	// ProtoContentType is the Connect unary binary media type.
+	// Streaming envelopes use application/connect+proto instead.
+	ProtoContentType = "application/proto"
 )
 
 // ContentType returns the Connect Content-Type header value.
