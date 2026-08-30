@@ -99,6 +99,12 @@ cd polyester-sdk-go
 go test ./...
 ```
 
+## Examples
+
+Runnable cookbook examples live in the sibling repo
+[`polyester-examples-go`](https://github.com/Fabric-Labs/polyester-examples-go)
+(REST market data, realtime streams, decimal + scaled-int order paths, and bots).
+
 ## Quick start
 
 Create an API key in the Polyester app (**API** in the sidebar). Copy the key id
@@ -123,7 +129,7 @@ import (
 )
 
 func main() {
-	accountID := "RLxqJGUDg92" // Profile → Account ID
+	accountID := "YOUR_ACCOUNT_ID" // Profile → Account ID
 	client, err := polyester.New(polyester.Config{
 		APIKeyID:         "ak_...",
 		APIPrivateKey:    "...", // 64-char hex secret from API key creation
@@ -158,7 +164,7 @@ func main() {
 | --- | --- | --- |
 | API key id | **API** → create or view key | `APIKeyID` |
 | API private key | Shown once when the key is created | `APIPrivateKey` |
-| Account ID | **Profile** → **Account ID** (e.g. `RLxqJGUDg92`) | `DefaultAccountID` |
+| Account ID | **Profile** → **Account ID** | `DefaultAccountID` |
 
 Pass credentials on `polyester.Config` / `polyester.New`. The SDK does not
 implicitly read environment variables unless you call `FromEnv`.
@@ -196,7 +202,7 @@ order code plus field/rule/message metadata on `ValidationError`.
 **Recommended: explicit config**
 
 ```go
-accountID := "RLxqJGUDg92"
+accountID := "YOUR_ACCOUNT_ID"
 client, err := polyester.New(polyester.Config{
 	APIKeyID:         "ak_...",
 	APIPrivateKey:    "...",
@@ -260,7 +266,7 @@ unless the request's `amount_scale` / `quantity_scale` is explicit. Prefer
 ```go
 import "github.com/Fabric-Labs/polyester-sdk-go/models"
 
-symbol := "BNB-USDT"
+symbol := "BTC-USDT"
 tif := "gtc"
 clientOrderID := "my-bot-001"
 price := models.PriceFromDecimal("100")
@@ -528,8 +534,7 @@ if current != nil {
 }
 _ = trades
 
-bnb := "BNB-USDT"
-sub, err := client.MarketData.SubscribeTrades(ctx, &bnb, nil)
+sub, err := client.MarketData.SubscribeTrades(ctx, &symbol, nil)
 if err != nil {
 	log.Fatal(err)
 }
@@ -625,7 +630,7 @@ in-flight refresh work and the replacement socket.
 import "github.com/Fabric-Labs/polyester-sdk-go/services"
 
 ob, err := client.Orderbook.CreateSubscription(ctx, services.CreateSubscriptionOptions{
-	Symbol: "ETH-USDT",
+	Symbol: "BTC-USDT",
 	Depth:  50,
 })
 if err != nil {
