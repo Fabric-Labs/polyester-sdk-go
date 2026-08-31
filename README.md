@@ -5,7 +5,7 @@ and automation. Parity with `polyester-sdk-python` and `polyester-sdk-rust`
 using the checked-in `gen/` protobuf bundle (no local proto generation for
 normal development).
 
-**Status:** Alpha (`v0.1.0a44`). Proprietary license (not open source).
+**Status:** Alpha (`v0.1.0a45`). Proprietary license (not open source).
 API-key only; no browser login or session MFA.
 
 Requires a recent Go toolchain (see `go.mod`).
@@ -84,7 +84,7 @@ attached TP/SL/trailing create/modify.
 ```bash
 GOPRIVATE='github.com/Fabric-Labs/*' \
 GONOSUMDB='github.com/Fabric-Labs/*' \
-go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a44
+go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0a45
 ```
 
 The repository is currently private. GitHub access and authenticated Git credentials are

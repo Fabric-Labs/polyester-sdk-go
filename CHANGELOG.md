@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.0a45
+
+Git tag: `v0.1.0a45`.
+
 ### Breaking
 
 - `TradingRateLimitRule.Tier` is now `VIPTier` (`json:"vip_tier,omitempty"`).
