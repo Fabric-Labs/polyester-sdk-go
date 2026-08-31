@@ -51,6 +51,14 @@ func TestOrderFromProtoMapsEnumsAndIDs(t *testing.T) {
 	}
 }
 
+func TestOrderOrigQtyIsCurrentAcceptedTotal(t *testing.T) {
+	before := decode.OrderFromProto(&orderv1.Order{OrderId: 1, SymbolId: 3, OrigQtyScaled: 100, LeavesQtyScaled: 100})
+	after := decode.OrderFromProto(&orderv1.Order{OrderId: 1, SymbolId: 3, OrigQtyScaled: 150, LeavesQtyScaled: 150})
+	if before.OrigQty.Scaled() != 100 || after.OrigQty.Scaled() != 150 {
+		t.Fatalf("orig_qty before=%+v after=%+v", before.OrigQty, after.OrigQty)
+	}
+}
+
 func TestOrderFromProtoMapsAttachedRisk(t *testing.T) {
 	msg := &orderv1.Order{
 		OrderId:  1,

@@ -151,6 +151,9 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 		case opts.MaxSlippageTicks != nil:
 			trailing.MaxSlippage = &triggersv1.TrailingStopTrigger_MaxSlippageTicks{MaxSlippageTicks: *opts.MaxSlippageTicks}
 		case opts.MaxSlippageBps != nil:
+			if err := validateSlippageBps(*opts.MaxSlippageBps, false); err != nil {
+				return nil, err
+			}
 			trailing.MaxSlippage = &triggersv1.TrailingStopTrigger_MaxSlippageBps{MaxSlippageBps: *opts.MaxSlippageBps}
 		}
 		intent.Strategy = &triggersv1.TriggerIntent_TrailingStop{TrailingStop: trailing}
@@ -268,7 +271,24 @@ func conditionalChildToProto(orderType, tif string, limitPrice *models.PriceInpu
 	}
 }
 
+// MaxSlippageBpsLimit is the product-wide trigger/order slippage BPS cap.
+const MaxSlippageBpsLimit int32 = 10_000
+
+func validateSlippageBps(bps int32, allowClear bool) error {
+	if allowClear && bps == 0 {
+		return nil
+	}
+	if bps < 1 || bps > MaxSlippageBpsLimit {
+		return &errors.ValidationError{Msg: "max_slippage_bps must be between 1 and 10000"}
+	}
+	return nil
+}
+
 // ModifyTriggerOptions carries optional trigger patch fields.
+//
+// Omitted ActivationPrice / MaxSlippage* preserve the current values.
+// Send an explicit zero (PriceFromTicksInt(0) or *int32(0)) to clear an
+// existing activation price or maximum-slippage cap.
 type ModifyTriggerOptions struct {
 	TriggerPrice          *models.PriceInput
 	LimitPrice            *models.PriceInput
@@ -333,6 +353,9 @@ func ModifyTriggerToProto(triggerID string, symbolID uint32, subAccountID *strin
 		req.MaxSlippage = &triggersv1.ModifyTriggerRequest_MaxSlippageTicks{MaxSlippageTicks: *opts.MaxSlippageTicks}
 	}
 	if opts.MaxSlippageBps != nil {
+		if err := validateSlippageBps(*opts.MaxSlippageBps, true); err != nil {
+			return nil, err
+		}
 		req.MaxSlippage = &triggersv1.ModifyTriggerRequest_MaxSlippageBps{MaxSlippageBps: *opts.MaxSlippageBps}
 	}
 	return req, nil

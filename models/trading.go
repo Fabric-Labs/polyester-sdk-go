@@ -4,22 +4,26 @@ import "time"
 
 // Order is a normalized open or historical order.
 type Order struct {
-	OrderID       string     `json:"order_id"`
-	SymbolID      uint32     `json:"symbol_id"`
-	ClientOrderID string     `json:"client_order_id,omitempty"`
-	Side          string     `json:"side,omitempty"`
-	Status        string     `json:"status,omitempty"`
-	OrderType     string     `json:"order_type,omitempty"`
-	TIF           string     `json:"tif,omitempty"`
-	OrigQty       QtyScaled  `json:"orig_qty,omitempty"`
-	CumQty        QtyScaled  `json:"cum_qty,omitempty"`
-	LeavesQty     QtyScaled  `json:"leaves_qty,omitempty"`
-	Price         PriceTicks `json:"price,omitempty"`
-	AvgPx         PriceTicks `json:"avg_px,omitempty"`
-	CreatedTsNs   string     `json:"created_ts_ns,omitempty"`
-	Version       uint32     `json:"version,omitempty"`
-	PostOnly      bool       `json:"post_only,omitempty"`
-	FeeAsset      string     `json:"fee_asset,omitempty"`
+	OrderID       string `json:"order_id"`
+	SymbolID      uint32 `json:"symbol_id"`
+	ClientOrderID string `json:"client_order_id,omitempty"`
+	Side          string `json:"side,omitempty"`
+	Status        string `json:"status,omitempty"`
+	OrderType     string `json:"order_type,omitempty"`
+	TIF           string `json:"tif,omitempty"`
+	// OrigQty is the current accepted total quantity. A successful modify
+	// updates it to the amended total; retain the first submitted quantity
+	// separately if you need it. CumQty is cumulative fills; LeavesQty is
+	// remaining working quantity.
+	OrigQty     QtyScaled  `json:"orig_qty,omitempty"`
+	CumQty      QtyScaled  `json:"cum_qty,omitempty"`
+	LeavesQty   QtyScaled  `json:"leaves_qty,omitempty"`
+	Price       PriceTicks `json:"price,omitempty"`
+	AvgPx       PriceTicks `json:"avg_px,omitempty"`
+	CreatedTsNs string     `json:"created_ts_ns,omitempty"`
+	Version     uint32     `json:"version,omitempty"`
+	PostOnly    bool       `json:"post_only,omitempty"`
+	FeeAsset    string     `json:"fee_asset,omitempty"`
 	// SubmittedMaxQuoteDebitScaled is populated for quote-budget sized orders.
 	SubmittedMaxQuoteDebitScaled string        `json:"submitted_max_quote_debit_scaled,omitempty"`
 	AttachedRisk                 *AttachedRisk `json:"attached_risk,omitempty"`
@@ -327,16 +331,31 @@ type HoldsList struct {
 	Holds []Hold `json:"holds"`
 }
 
+// TransferSide is one display side of a ledger transfer.
+//
+// Kind is a snake_case label (funding_account, trading_account,
+// external_address, private_counterparty, fee_account, system_account).
+// ChainID is the Zipper ChainConfig.chain_id for EXTERNAL_ADDRESS sides, not
+// a network-native identifier such as an EIP-155 chain ID.
+type TransferSide struct {
+	Kind      string  `json:"kind,omitempty"`
+	AccountID string  `json:"account_id,omitempty"`
+	Address   string  `json:"address,omitempty"`
+	ChainID   *uint32 `json:"chain_id,omitempty"`
+}
+
 // LedgerTransfer is a ledger transfer row.
 type LedgerTransfer struct {
-	AssetID      uint32 `json:"asset_id,omitempty"`
-	Amount       string `json:"amount,omitempty"`
-	TransferType int    `json:"transfer_type,omitempty"`
-	AccountCode  int    `json:"account_code,omitempty"`
-	Timestamp    int64  `json:"timestamp,omitempty"`
-	Pending      bool   `json:"pending,omitempty"`
-	TxID         string `json:"tx_id,omitempty"`
-	IsDebit      bool   `json:"is_debit,omitempty"`
+	AssetID      uint32        `json:"asset_id,omitempty"`
+	Amount       string        `json:"amount,omitempty"`
+	TransferType int           `json:"transfer_type,omitempty"`
+	AccountCode  int           `json:"account_code,omitempty"`
+	Timestamp    int64         `json:"timestamp,omitempty"`
+	Pending      bool          `json:"pending,omitempty"`
+	TxID         string        `json:"tx_id,omitempty"`
+	IsDebit      bool          `json:"is_debit,omitempty"`
+	Source       *TransferSide `json:"source,omitempty"`
+	Destination  *TransferSide `json:"destination,omitempty"`
 }
 
 // TransfersList holds ledger transfers.

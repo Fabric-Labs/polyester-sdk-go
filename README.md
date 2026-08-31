@@ -295,7 +295,9 @@ transport/server failure, and reuse that same id on retry / reconciliation -
 without it you cannot safely tell whether the first attempt admitted the order.
 Client order ids accept 1 to 36 ASCII letters, digits, `.`, `_`, `:`, `/`, and
 `-`. Batch create, cancel, and replace accept at most 20 items (rejected locally
-before encoding). Treat a cancel response as an admission acknowledgement and
+before encoding). `BatchCreate` always sends `request_id` (caller value or a
+generated `batch-create-*` key); that batch-level id is the idempotency
+boundary, so per-item `ClientOrderID` may be omitted. Treat a cancel response as an admission acknowledgement and
 reconcile with `ListOpen` before releasing local state.
 
 Use **decimal strings** for human-facing `qty` / `price` inputs. Do **not** pass
@@ -321,6 +323,7 @@ _, err = client.Orders.Create(ctx, models.CreateOrderRequest{
 	Qty: models.QtyFromScaled(qty), Price: &price, PostOnly: true,
 }, nil)
 // Reads expose immutable getters: order.Price.Ticks(), order.OrigQty.Scaled()
+// OrigQty is the current accepted total and changes after a successful modify.
 ```
 
 Compatible values from fills/books can be passed back into writes when the
@@ -438,6 +441,12 @@ Standalone `trailing_stop` creates remain sell-only; the wire
 `TrailingStopTrigger` carries `side`, and list/get projections use that side
 (attached trailing stops may be buy or sell, opposite the parent). Attached
 triggers expose `ParentOrderID` when present.
+
+When modifying a trigger, omit `ActivationPrice` / `MaxSlippageTicks` /
+`MaxSlippageBps` to preserve the current values. Send an explicit zero
+(`PriceFromTicksInt(0)` or `*int32(0)`) to clear an existing activation
+price or maximum-slippage cap. Create/modify `MaxSlippageBps` must be 1–10000;
+modify still accepts `0` to clear.
 
 `Orders.ListOpen` / `Orders.ListHistory` accept an optional trailing
 `triggerID` to return only child orders created by that trigger (TWAP/ladder
