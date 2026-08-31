@@ -1235,7 +1235,11 @@ type TransferSide struct {
 	// external-chain wallet address from lifecycle correlation; for identifiable
 	// Polyester accounts this is a Polyester smart-account address.
 	// May be empty until the corresponding lifecycle details are available.
-	Address       string `protobuf:"bytes,3,opt,name=address,proto3" json:"address,omitempty"`
+	Address string `protobuf:"bytes,3,opt,name=address,proto3" json:"address,omitempty"`
+	// PolyChain-registered external network identifier for EXTERNAL_ADDRESS.
+	// This matches chain.zipper.v1.ChainConfig.chain_id and is not the chain's
+	// native identifier (for example, an EIP-155 id) or the Polyester chain id.
+	ChainId       *uint32 `protobuf:"varint,4,opt,name=chain_id,json=chainId,proto3,oneof" json:"chain_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1289,6 +1293,13 @@ func (x *TransferSide) GetAddress() string {
 		return x.Address
 	}
 	return ""
+}
+
+func (x *TransferSide) GetChainId() uint32 {
+	if x != nil && x.ChainId != nil {
+		return *x.ChainId
+	}
+	return 0
 }
 
 // TransferRow describes one debit or credit leg of a ledger transfer.
@@ -1813,13 +1824,15 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"\n" +
 	"page_token\x18\t \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken:\xb1\x01\xbaH\xad\x01\x1a\xaa\x01\n" +
 	"$list_transfers.timestamp_range_valid\x120ts_max_us must be >= ts_min_us when both are set\x1aPthis.ts_min_us == 0u || this.ts_max_us == 0u || this.ts_max_us >= this.ts_min_usB\x10\n" +
-	"\x0e_subaccount_id\"\x91\x01\n" +
+	"\x0e_subaccount_id\"\xbe\x01\n" +
 	"\fTransferSide\x124\n" +
 	"\x04kind\x18\x01 \x01(\x0e2 .ledger.read.v1.TransferSideKindR\x04kind\x12\"\n" +
 	"\n" +
 	"account_id\x18\x02 \x01(\x06H\x00R\taccountId\x88\x01\x01\x12\x18\n" +
-	"\aaddress\x18\x03 \x01(\tR\aaddressB\r\n" +
-	"\v_account_id\"\xf6\x03\n" +
+	"\aaddress\x18\x03 \x01(\tR\aaddress\x12\x1e\n" +
+	"\bchain_id\x18\x04 \x01(\rH\x01R\achainId\x88\x01\x01B\r\n" +
+	"\v_account_idB\v\n" +
+	"\t_chain_id\"\xf6\x03\n" +
 	"\vTransferRow\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\rR\aassetId\x126\n" +
 	"\n" +

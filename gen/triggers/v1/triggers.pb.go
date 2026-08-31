@@ -2389,9 +2389,11 @@ type ModifyTriggerRequest struct {
 	//	*ModifyTriggerRequest_TrailingDistanceTicks
 	//	*ModifyTriggerRequest_TrailingDistanceBps
 	TrailingDistance isModifyTriggerRequest_TrailingDistance `protobuf_oneof:"trailing_distance"`
-	// Updated activation price in quote units scaled by 1e6.
+	// Updated activation price in quote units scaled by 1e6. Set to zero to
+	// clear an existing activation price; omit to leave it unchanged.
 	ActivationPriceTicks *int64 `protobuf:"varint,14,opt,name=activation_price_ticks,json=activationPriceTicks,proto3,oneof" json:"activation_price_ticks,omitempty"`
-	// Optional price protection.
+	// Optional price protection. Select either field with a zero value to clear
+	// an existing max-slippage cap; omit the oneof to leave it unchanged.
 	//
 	// Types that are valid to be assigned to MaxSlippage:
 	//
@@ -2547,12 +2549,14 @@ type isModifyTriggerRequest_MaxSlippage interface {
 }
 
 type ModifyTriggerRequest_MaxSlippageTicks struct {
-	// Updated maximum allowed slippage as a price delta in 1e-6 quote-unit ticks.
+	// Updated maximum allowed slippage as a price delta in 1e-6 quote-unit
+	// ticks. Set to zero to clear the cap.
 	MaxSlippageTicks int32 `protobuf:"varint,15,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
 }
 
 type ModifyTriggerRequest_MaxSlippageBps struct {
-	// Updated maximum allowed slippage in basis points (1 bp = 0.01%).
+	// Updated maximum allowed slippage in basis points (1 bp = 0.01%). Set to
+	// zero to clear the cap.
 	MaxSlippageBps int32 `protobuf:"varint,16,opt,name=max_slippage_bps,json=maxSlippageBps,proto3,oneof"`
 }
 
