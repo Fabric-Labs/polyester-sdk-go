@@ -44,6 +44,13 @@
 - Compatibility coverage for unary content type, codec body bytes, and
   API-key signatures on binary and ProtoJSON wire formats.
 
+### Docs
+- README links the sibling
+  [`polyester-examples-go`](https://github.com/Fabric-Labs/polyester-examples-go)
+  cookbook near the top.
+- README examples use placeholder `YOUR_ACCOUNT_ID` and `BTC-USDT`
+  instead of a live Account ID and `BNB-USDT`.
+
 ## 0.1.0a44
 
 Git tag: `v0.1.0a44`.
