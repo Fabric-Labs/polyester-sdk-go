@@ -47,6 +47,14 @@
   current values and sends explicit zero to clear them. Create/modify reject
   `max_slippage_bps` outside 1–10000; modify still accepts `0` to clear.
 
+### Fixed
+- Unary Connect `Content-Type` is `application/proto` rather than the
+  streaming `application/connect+proto` value.
+
+### Testing
+- Compatibility coverage for unary content type, codec body bytes, and
+  API-key signatures on binary and ProtoJSON wire formats.
+
 ### Docs
 - README links the sibling
   [`polyester-examples-go`](https://github.com/Fabric-Labs/polyester-examples-go)
