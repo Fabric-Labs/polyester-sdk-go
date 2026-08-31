@@ -789,8 +789,8 @@ type Order struct {
 	FeeAsset FeeAsset `protobuf:"varint,10,opt,name=fee_asset,json=feeAsset,proto3,enum=orders.v1.FeeAsset" json:"fee_asset,omitempty"`
 	// True if the order was submitted as post-only (maker-only).
 	PostOnly bool `protobuf:"varint,11,opt,name=post_only,json=postOnly,proto3" json:"post_only,omitempty"`
-	// Original order quantity scaled by the pair's base_quantity_scale from
-	// GetSpotConfig for symbol_id.
+	// Current accepted total order quantity, updated by successful modifies,
+	// scaled by the pair's base_quantity_scale from GetSpotConfig for symbol_id.
 	OrigQtyScaled int64 `protobuf:"varint,12,opt,name=orig_qty_scaled,json=origQtyScaled,proto3" json:"orig_qty_scaled,omitempty"`
 	// Cumulative filled quantity scaled by the pair's base_quantity_scale from
 	// GetSpotConfig for symbol_id.

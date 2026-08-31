@@ -44,6 +44,26 @@ func TestBatchCreateOrdersToProto(t *testing.T) {
 	}
 }
 
+func TestBatchCreateGeneratesRequestIDAndAllowsOmittedItemClientOrderID(t *testing.T) {
+	symbol := "BTC-USD"
+	sid := uint32(1)
+	tif := "gtc"
+	price := models.PriceFromDecimal("50000")
+	items := []models.CreateOrderRequest{
+		{Symbol: &symbol, SymbolID: &sid, Side: "buy", OrderType: "limit", TIF: &tif, Qty: models.QtyFromDecimal("0.1"), Price: &price},
+	}
+	proto, err := BatchCreateOrdersToProto(items, nil, nil, false, 8, 6)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if proto.RequestId == "" {
+		t.Fatal("batch create must send a non-empty request_id")
+	}
+	if proto.Items[0].ClientOrderId != "" {
+		t.Fatalf("item client_order_id should stay omitted: %q", proto.Items[0].ClientOrderId)
+	}
+}
+
 func TestBatchCreateOrdersRequiresItems(t *testing.T) {
 	_, err := BatchCreateOrdersToProto(nil, nil, nil, false, 8, 6)
 	if err == nil {

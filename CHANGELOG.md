@@ -29,12 +29,23 @@
 
 ### Added
 
+- `LedgerTransfer.Source` / `Destination` (`TransferSide`) including optional
+  `ChainID` for external-address sides. This is the Zipper
+  `ChainConfig.chain_id`, not an EIP-155 or Polyester chain id.
 - `Trades.List` `afterMatchID` cursor (`after_match_id`). Requires a resolved
   non-zero `symbol_id`.
 - Typed trigger `cancel_reason` / `failure_reason` labels on `Trigger` and
   `TriggerEvent` (proto oneof; unspecified/unset is empty).
 - Address-book `view_revision` on `GetView` / invalidation, plus optional
   `minimumViewRevision` on `GetView`.
+
+### Changed
+- `Order.OrigQty` is documented as the current accepted total (updates after
+  a successful modify). `BatchCreate` `request_id` is the batch idempotency
+  key; item `client_order_id` remains optional.
+- Trigger modify omits `activation_price` / `max_slippage_*` to preserve
+  current values and sends explicit zero to clear them. Create/modify reject
+  `max_slippage_bps` outside 1–10000; modify still accepts `0` to clear.
 
 ### Fixed
 - Unary Connect `Content-Type` is `application/proto` rather than the

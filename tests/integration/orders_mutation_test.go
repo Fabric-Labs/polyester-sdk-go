@@ -74,6 +74,9 @@ func TestOrderRoundTripMutation(t *testing.T) {
 	if detail.Order == nil || detail.Order.ClientOrderID != clientOrderID {
 		t.Fatalf("detail=%+v", detail.Order)
 	}
+	if detail.Order.OrigQty.Scaled() <= 0 {
+		t.Fatalf("expected current accepted orig_qty, got %+v", detail.Order.OrigQty)
+	}
 
 	defer func() {
 		_, _ = client.Orders.CancelAll(ctx, nil, nil, &symbol, nil, false, nil)
