@@ -36,6 +36,14 @@
 - Address-book `view_revision` on `GetView` / invalidation, plus optional
   `minimumViewRevision` on `GetView`.
 
+### Fixed
+- Unary Connect `Content-Type` is `application/proto` rather than the
+  streaming `application/connect+proto` value.
+
+### Testing
+- Compatibility coverage for unary content type, codec body bytes, and
+  API-key signatures on binary and ProtoJSON wire formats.
+
 ### Docs
 - README links the sibling
   [`polyester-examples-go`](https://github.com/Fabric-Labs/polyester-examples-go)
