@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.0a46
+
+Git tag: `v0.1.0a46`.
+
 ### Added
 - Attached-risk take-profit, stop-loss, and trailing-stop models expose typed
   per-leg runtime state: status, armed/terminal nanosecond timestamps, trigger
