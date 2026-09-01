@@ -90,6 +90,48 @@ func TestApplyDeltaRejectsInvalidSequencesWithoutMutating(t *testing.T) {
 	}
 }
 
+func TestApplyDeltaResetSequenceSafety(t *testing.T) {
+	tests := []struct {
+		name        string
+		start       string
+		end         string
+		wantSeq     int
+		wantRefresh bool
+		wantOldBook bool
+	}{
+		{name: "stale", start: "95", end: "96", wantSeq: 100, wantOldBook: true},
+		{name: "equal", start: "100", end: "100", wantSeq: 100, wantOldBook: true},
+		{name: "overlap with newer end", start: "99", end: "101", wantSeq: 101},
+		{name: "newer", start: "101", end: "102", wantSeq: 102},
+		{name: "malformed", start: "bad", end: "102", wantSeq: 100, wantRefresh: true, wantOldBook: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			bids := BookSide{100: 5}
+			asks := BookSide{200: 3}
+			seq, needsRefresh := ApplyDelta(bids, asks, 100, models.OrderBookDeltaUpdate{
+				BookSeqStart: tc.start,
+				BookSeqEnd:   tc.end,
+				Reset:        true,
+				Bids:         []models.PriceQtyPair{{PriceTicks: 101, QtyScaled: 7}},
+				Asks:         []models.PriceQtyPair{{PriceTicks: 201, QtyScaled: 4}},
+			})
+			if seq != tc.wantSeq || needsRefresh != tc.wantRefresh {
+				t.Fatalf("seq=%d refresh=%v want seq=%d refresh=%v", seq, needsRefresh, tc.wantSeq, tc.wantRefresh)
+			}
+			if tc.wantOldBook {
+				if len(bids) != 1 || bids[100] != 5 || len(asks) != 1 || asks[200] != 3 {
+					t.Fatalf("stale/invalid reset mutated book: bids=%v asks=%v", bids, asks)
+				}
+				return
+			}
+			if len(bids) != 1 || bids[101] != 7 || len(asks) != 1 || asks[201] != 4 {
+				t.Fatalf("accepted reset did not atomically replace book: bids=%v asks=%v", bids, asks)
+			}
+		})
+	}
+}
+
 func TestLevelsFromProtoLevelsRejectsMissingFields(t *testing.T) {
 	for _, level := range []*orderbookv1.PriceLevel{
 		{PriceTicks: 0, QtyScaled: 1},

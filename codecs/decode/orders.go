@@ -42,15 +42,54 @@ func OrderFromProto(msg *orderv1.Order) models.Order {
 	}
 }
 
-// riskLegFromChild projects an attached take-profit/stop-loss policy onto the
-// flat public RiskLeg. The child execution determines order_type/limit_price.
-// TriggerPriceSource is no longer part of the policy wire and is left empty.
-func riskLegFromChild(triggerPriceTicks int64, child *orderv1.RiskExecution) *models.RiskLeg {
-	if triggerPriceTicks == 0 {
+func attachedRiskLegStateFromProto(state *orderv1.AttachedRiskLegState) *models.AttachedRiskLegState {
+	if !hasMeaningfulAttachedRiskLegState(state) {
+		return nil
+	}
+	out := &models.AttachedRiskLegState{}
+	if status := state.GetStatus(); status != orderv1.AttachedRiskLegState_STATUS_UNSPECIFIED {
+		out.Status = strings.ToLower(status.String())
+	}
+	if state.GetArmedTsNs() != 0 {
+		out.ArmedTsNs = strconv.FormatUint(state.GetArmedTsNs(), 10)
+	}
+	if state.GetTerminalTsNs() != 0 {
+		out.TerminalTsNs = strconv.FormatUint(state.GetTerminalTsNs(), 10)
+	}
+	if state.TriggerId != nil && state.GetTriggerId() != 0 {
+		out.TriggerID = codecs.FormatUint64ID(state.GetTriggerId())
+	}
+	if state.ChildOrderId != nil && state.GetChildOrderId() != 0 {
+		out.ChildOrderID = codecs.FormatUint64ID(state.GetChildOrderId())
+	}
+	return out
+}
+
+func hasMeaningfulAttachedRiskLegState(state *orderv1.AttachedRiskLegState) bool {
+	return state != nil &&
+		(state.GetStatus() != orderv1.AttachedRiskLegState_STATUS_UNSPECIFIED ||
+			state.GetArmedTsNs() != 0 ||
+			state.GetTerminalTsNs() != 0 ||
+			(state.TriggerId != nil && state.GetTriggerId() != 0) ||
+			(state.ChildOrderId != nil && state.GetChildOrderId() != 0))
+}
+
+// riskLegFromChild projects an attached take-profit/stop-loss policy and its
+// runtime state onto the public RiskLeg. The child execution determines
+// order_type/limit_price. TriggerPriceSource is no longer part of the policy
+// wire and is left empty.
+func riskLegFromChild(triggerPriceTicks int64, child *orderv1.RiskExecution, state *orderv1.AttachedRiskLegState, policyUsable bool) *models.RiskLeg {
+	if !policyUsable && !hasMeaningfulAttachedRiskLegState(state) {
 		return nil
 	}
 	leg := &models.RiskLeg{
-		TriggerPrice: codecs.DecodePriceTicks(triggerPriceTicks, ""),
+		State: attachedRiskLegStateFromProto(state),
+	}
+	if !policyUsable {
+		return leg
+	}
+	if triggerPriceTicks > 0 {
+		leg.TriggerPrice = codecs.DecodePriceTicks(triggerPriceTicks, "")
 	}
 	if child != nil {
 		switch {
@@ -64,37 +103,43 @@ func riskLegFromChild(triggerPriceTicks int64, child *orderv1.RiskExecution) *mo
 	return leg
 }
 
-func riskLegFromTakeProfit(policy *orderv1.TakeProfitPolicy) *models.RiskLeg {
+func riskLegFromTakeProfit(policy *orderv1.TakeProfitPolicy, state *orderv1.AttachedRiskLegState) *models.RiskLeg {
 	if policy == nil {
-		return nil
+		return riskLegFromChild(0, nil, state, false)
 	}
-	return riskLegFromChild(policy.GetTriggerPriceTicks(), policy.GetChild())
+	return riskLegFromChild(policy.GetTriggerPriceTicks(), policy.GetChild(), state, policy.GetTriggerPriceTicks() > 0)
 }
 
-func riskLegFromStopLoss(policy *orderv1.StopLossPolicy) *models.RiskLeg {
+func riskLegFromStopLoss(policy *orderv1.StopLossPolicy, state *orderv1.AttachedRiskLegState) *models.RiskLeg {
 	if policy == nil {
-		return nil
+		return riskLegFromChild(0, nil, state, false)
 	}
-	return riskLegFromChild(policy.GetTriggerPriceTicks(), policy.GetChild())
+	return riskLegFromChild(policy.GetTriggerPriceTicks(), policy.GetChild(), state, policy.GetTriggerPriceTicks() > 0)
 }
 
-func trailingStopFromPolicy(policy *orderv1.TrailingStopPolicy) *models.TrailingStop {
+func trailingStopFromPolicy(policy *orderv1.TrailingStopPolicy, state *orderv1.AttachedRiskLegState) *models.TrailingStop {
 	if policy == nil {
-		return nil
+		if !hasMeaningfulAttachedRiskLegState(state) {
+			return nil
+		}
+		return &models.TrailingStop{State: attachedRiskLegStateFromProto(state)}
 	}
 	distanceTicks := policy.GetTrailingDistanceTicks()
 	distanceBps := policy.GetTrailingDistanceBps()
-	// Missing or non-positive distance is not a usable trailing stop; omit
-	// rather than fabricating a zero-distance stop.
-	if distanceTicks <= 0 && distanceBps <= 0 {
+	policyUsable := distanceTicks > 0 || distanceBps > 0
+	if !policyUsable && !hasMeaningfulAttachedRiskLegState(state) {
 		return nil
 	}
 	// OrderType/TriggerPriceSource were dropped from the trailing-stop policy
 	// wire; the child is an implicit market execution.
 	out := &models.TrailingStop{
-		DistanceTicks: distanceTicks,
-		DistanceBps:   distanceBps,
+		State: attachedRiskLegStateFromProto(state),
 	}
+	if !policyUsable {
+		return out
+	}
+	out.DistanceTicks = distanceTicks
+	out.DistanceBps = distanceBps
 	if ticks := policy.GetMaxSlippageTicks(); ticks > 0 {
 		out.MaxSlippageTicks = ticks
 	}
@@ -113,18 +158,15 @@ func attachedRiskFromProto(msg *orderv1.AttachedRisk) *models.AttachedRisk {
 	}
 	var takeProfit *models.RiskLeg
 	if tp := msg.GetTakeProfit(); tp != nil {
-		takeProfit = riskLegFromTakeProfit(tp.GetPolicy())
+		takeProfit = riskLegFromTakeProfit(tp.GetPolicy(), tp.GetState())
 	}
 	var trailingStop *models.TrailingStop
 	if ts := msg.GetTrailingStop(); ts != nil {
-		trailingStop = trailingStopFromPolicy(ts.GetPolicy())
+		trailingStop = trailingStopFromPolicy(ts.GetPolicy(), ts.GetState())
 	}
 	var stopLoss *models.RiskLeg
-	// Match TS: when trailing is present, stop-loss is suppressed.
-	if trailingStop == nil {
-		if sl := msg.GetStopLoss(); sl != nil {
-			stopLoss = riskLegFromStopLoss(sl.GetPolicy())
-		}
+	if sl := msg.GetStopLoss(); sl != nil {
+		stopLoss = riskLegFromStopLoss(sl.GetPolicy(), sl.GetState())
 	}
 	if takeProfit == nil && stopLoss == nil && trailingStop == nil {
 		return nil

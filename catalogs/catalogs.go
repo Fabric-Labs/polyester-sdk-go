@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"reflect"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
@@ -53,12 +55,17 @@ func (m *Manager) ZipperConfig() map[string]any {
 // Oversized u64 IDs/scales and scales above MaxProtocolScale are rejected
 // (no silent truncation into uint32/int).
 func (m *Manager) HydrateSpotConfig(config map[string]any) error {
-	if err := validateSpotConfig(config); err != nil {
+	clonedValue, err := cloneCatalogValue(config)
+	if err != nil {
+		return err
+	}
+	cloned := clonedValue.(map[string]any)
+	if err := validateSpotConfig(cloned); err != nil {
 		return err
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.SpotConfig = config
+	m.SpotConfig = cloned
 	return nil
 }
 
@@ -71,14 +78,19 @@ func (m *Manager) HydrateZipperConfig(config any) error {
 	case *models.DepositWithdrawConfig:
 		return m.HydrateDepositWithdrawConfig(c)
 	case map[string]any:
-		if err := validateZipperRaw(c); err != nil {
+		clonedValue, err := cloneCatalogValue(c)
+		if err != nil {
+			return err
+		}
+		cloned := clonedValue.(map[string]any)
+		if err := validateZipperRaw(cloned); err != nil {
 			return err
 		}
 		m.mu.Lock()
 		defer m.mu.Unlock()
 		m.DepositWithdrawConfig = nil
 		m.Zipper = nil
-		m.legacyZipperRaw = c
+		m.legacyZipperRaw = cloned
 		return nil
 	default:
 		return &errors.ValidationError{Msg: "unsupported zipper config type"}
@@ -87,15 +99,191 @@ func (m *Manager) HydrateZipperConfig(config any) error {
 
 // HydrateDepositWithdrawConfig stores typed deposit/withdraw config.
 func (m *Manager) HydrateDepositWithdrawConfig(config *models.DepositWithdrawConfig) error {
-	if err := validateDepositWithdrawConfig(config); err != nil {
+	cloned, err := cloneDepositWithdrawConfig(config)
+	if err != nil {
+		return err
+	}
+	if err := validateDepositWithdrawConfig(cloned); err != nil {
 		return err
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.DepositWithdrawConfig = config
-	m.Zipper = BuildZipperCatalogData(config)
+	m.DepositWithdrawConfig = cloned
+	m.Zipper = BuildZipperCatalogData(cloned)
 	m.legacyZipperRaw = nil
 	return nil
+}
+
+func cloneDepositWithdrawConfig(config *models.DepositWithdrawConfig) (*models.DepositWithdrawConfig, error) {
+	if config == nil {
+		return nil, nil
+	}
+	cloned, err := cloneCatalogValue(config)
+	if err != nil {
+		return nil, err
+	}
+	return cloned.(*models.DepositWithdrawConfig), nil
+}
+
+type cloneVisit struct {
+	kind reflect.Kind
+	typ  reflect.Type
+	ptr  uintptr
+	len  int
+	cap  int
+}
+
+// cloneCatalogValue recursively copies JSON-shaped pointers, maps, slices,
+// arrays, and structs with exported fields while preserving concrete Go types
+// and reference topology. Known immutable time.Time values are also allowed.
+func cloneCatalogValue(value any) (any, error) {
+	if value == nil {
+		return nil, nil
+	}
+	cloned, err := cloneCatalogReflect(reflect.ValueOf(value), make(map[cloneVisit]reflect.Value), "$")
+	if err != nil {
+		return nil, err
+	}
+	return cloned.Interface(), nil
+}
+
+func cloneCatalogReflect(value reflect.Value, visited map[cloneVisit]reflect.Value, path string) (reflect.Value, error) {
+	if !value.IsValid() {
+		return value, nil
+	}
+	switch value.Kind() {
+	case reflect.Interface:
+		if value.IsNil() {
+			return reflect.Zero(value.Type()), nil
+		}
+		cloned, err := cloneCatalogReflect(value.Elem(), visited, path)
+		if err != nil {
+			return reflect.Value{}, err
+		}
+		out := reflect.New(value.Type()).Elem()
+		out.Set(cloned)
+		return out, nil
+	case reflect.Pointer:
+		if value.IsNil() {
+			return reflect.Zero(value.Type()), nil
+		}
+		visit := cloneReferenceVisit(value)
+		if cloned, ok := visited[visit]; ok {
+			return cloned, nil
+		}
+		out := reflect.New(value.Type().Elem())
+		visited[visit] = out
+		cloned, err := cloneCatalogReflect(value.Elem(), visited, path)
+		if err != nil {
+			return reflect.Value{}, err
+		}
+		out.Elem().Set(cloned)
+		return out, nil
+	case reflect.Map:
+		if value.IsNil() {
+			return reflect.Zero(value.Type()), nil
+		}
+		visit := cloneReferenceVisit(value)
+		if cloned, ok := visited[visit]; ok {
+			return cloned, nil
+		}
+		out := reflect.MakeMapWithSize(value.Type(), value.Len())
+		visited[visit] = out
+		iter := value.MapRange()
+		for iter.Next() {
+			entryPath := cloneMapEntryPath(path, iter.Key())
+			key, err := cloneCatalogReflect(iter.Key(), visited, entryPath)
+			if err != nil {
+				return reflect.Value{}, err
+			}
+			entry, err := cloneCatalogReflect(iter.Value(), visited, entryPath)
+			if err != nil {
+				return reflect.Value{}, err
+			}
+			out.SetMapIndex(key, entry)
+		}
+		return out, nil
+	case reflect.Slice:
+		if value.IsNil() {
+			return reflect.Zero(value.Type()), nil
+		}
+		visit := cloneReferenceVisit(value)
+		if cloned, ok := visited[visit]; ok {
+			return cloned, nil
+		}
+		out := reflect.MakeSlice(value.Type(), value.Len(), value.Len())
+		visited[visit] = out
+		for i := 0; i < value.Len(); i++ {
+			cloned, err := cloneCatalogReflect(value.Index(i), visited, fmt.Sprintf("%s[%d]", path, i))
+			if err != nil {
+				return reflect.Value{}, err
+			}
+			out.Index(i).Set(cloned)
+		}
+		return out, nil
+	case reflect.Array:
+		out := reflect.New(value.Type()).Elem()
+		for i := 0; i < value.Len(); i++ {
+			cloned, err := cloneCatalogReflect(value.Index(i), visited, fmt.Sprintf("%s[%d]", path, i))
+			if err != nil {
+				return reflect.Value{}, err
+			}
+			out.Index(i).Set(cloned)
+		}
+		return out, nil
+	case reflect.Struct:
+		if safelyCopyableImmutableStruct(value.Type()) {
+			return value, nil
+		}
+		for i := 0; i < value.NumField(); i++ {
+			if value.Type().Field(i).PkgPath != "" {
+				return reflect.Value{}, &errors.ValidationError{
+					Msg: fmt.Sprintf(
+						"catalog value at %s uses struct type %s with unexported fields; raw catalog values must be JSON-shaped",
+						path,
+						value.Type(),
+					),
+				}
+			}
+		}
+		out := reflect.New(value.Type()).Elem()
+		for i := 0; i < value.NumField(); i++ {
+			fieldInfo := value.Type().Field(i)
+			fieldPath := path + "." + fieldInfo.Name
+			cloned, err := cloneCatalogReflect(value.Field(i), visited, fieldPath)
+			if err != nil {
+				return reflect.Value{}, err
+			}
+			out.Field(i).Set(cloned)
+		}
+		return out, nil
+	default:
+		return value, nil
+	}
+}
+
+func cloneMapEntryPath(path string, key reflect.Value) string {
+	if key.Kind() == reflect.String {
+		return path + "." + key.String()
+	}
+	return path + "[key]"
+}
+
+func safelyCopyableImmutableStruct(typ reflect.Type) bool {
+	return typ == reflect.TypeFor[time.Time]()
+}
+
+func cloneReferenceVisit(value reflect.Value) cloneVisit {
+	visit := cloneVisit{
+		kind: value.Kind(),
+		typ:  value.Type(),
+		ptr:  value.Pointer(),
+	}
+	if value.Kind() == reflect.Slice {
+		visit.len = value.Len()
+		visit.cap = value.Cap()
+	}
+	return visit
 }
 
 // SymbolIDForSymbol resolves symbol id from spot config.

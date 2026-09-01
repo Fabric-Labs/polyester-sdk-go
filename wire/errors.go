@@ -102,6 +102,13 @@ func MapConnectError(err error) error {
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return &sdkerrors.TransportError{Msg: err.Error()}
 	}
+	// Connect may wrap an interceptor-returned SDK error before it reaches the
+	// service layer. Preserve client-side signing/authentication failures
+	// instead of reclassifying them as transport or unknown API failures.
+	var authErr *sdkerrors.AuthError
+	if errors.As(err, &authErr) {
+		return authErr
+	}
 	var connectErr *connect.Error
 	if !errors.As(err, &connectErr) {
 		return &sdkerrors.TransportError{Msg: err.Error()}

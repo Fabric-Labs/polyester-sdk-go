@@ -136,6 +136,9 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 		case opts.TrailingDistanceTicks != nil:
 			trailing.TrailingDistance = &triggersv1.TrailingStopTrigger_TrailingDistanceTicks{TrailingDistanceTicks: *opts.TrailingDistanceTicks}
 		case opts.TrailingDistanceBps != nil:
+			if err := validateBps("trailing_distance_bps", *opts.TrailingDistanceBps, false); err != nil {
+				return nil, err
+			}
 			trailing.TrailingDistance = &triggersv1.TrailingStopTrigger_TrailingDistanceBps{TrailingDistanceBps: *opts.TrailingDistanceBps}
 		default:
 			return nil, &errors.ValidationError{Msg: "trailing_stop requires trailing_distance_ticks or trailing_distance_bps"}
@@ -196,12 +199,14 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 			}
 		}
 		ladder := &triggersv1.LadderTrigger{Side: sideEnum, PostOnly: postOnly}
+		var hasMin, hasMax bool
 		if opts.LadderPriceMin != nil && opts.LadderPriceMin.IsSet() {
 			ticks, err := ResolvePriceTicks(*opts.LadderPriceMin, "ladder_price_min", symbol)
 			if err != nil {
 				return nil, err
 			}
 			ladder.PriceMinTicks = ticks
+			hasMin = true
 		}
 		if opts.LadderPriceMax != nil && opts.LadderPriceMax.IsSet() {
 			ticks, err := ResolvePriceTicks(*opts.LadderPriceMax, "ladder_price_max", symbol)
@@ -209,6 +214,10 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 				return nil, err
 			}
 			ladder.PriceMaxTicks = ticks
+			hasMax = true
+		}
+		if hasMin && hasMax && ladder.PriceMinTicks >= ladder.PriceMaxTicks {
+			return nil, &errors.ValidationError{Msg: "ladder_price_min must be strictly less than ladder_price_max"}
 		}
 		if opts.LadderLevels != nil {
 			ladder.Levels = *opts.LadderLevels
@@ -275,11 +284,15 @@ func conditionalChildToProto(orderType, tif string, limitPrice *models.PriceInpu
 const MaxSlippageBpsLimit int32 = 10_000
 
 func validateSlippageBps(bps int32, allowClear bool) error {
+	return validateBps("max_slippage_bps", bps, allowClear)
+}
+
+func validateBps(field string, bps int32, allowClear bool) error {
 	if allowClear && bps == 0 {
 		return nil
 	}
 	if bps < 1 || bps > MaxSlippageBpsLimit {
-		return &errors.ValidationError{Msg: "max_slippage_bps must be between 1 and 10000"}
+		return &errors.ValidationError{Msg: field + " must be between 1 and 10000"}
 	}
 	return nil
 }
@@ -340,6 +353,9 @@ func ModifyTriggerToProto(triggerID string, symbolID uint32, subAccountID *strin
 		req.TrailingDistance = &triggersv1.ModifyTriggerRequest_TrailingDistanceTicks{TrailingDistanceTicks: *opts.TrailingDistanceTicks}
 	}
 	if opts.TrailingDistanceBps != nil {
+		if err := validateBps("trailing_distance_bps", *opts.TrailingDistanceBps, false); err != nil {
+			return nil, err
+		}
 		req.TrailingDistance = &triggersv1.ModifyTriggerRequest_TrailingDistanceBps{TrailingDistanceBps: *opts.TrailingDistanceBps}
 	}
 	if opts.ActivationPrice != nil && opts.ActivationPrice.IsSet() {

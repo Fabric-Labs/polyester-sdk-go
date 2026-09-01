@@ -29,31 +29,46 @@ type Order struct {
 	AttachedRisk                 *AttachedRisk `json:"attached_risk,omitempty"`
 }
 
-// RiskLeg is a take-profit or stop-loss attached-risk policy.
+// RiskLeg is a take-profit or stop-loss attached-risk projection. Policy
+// fields remain zero when the response includes runtime state only.
 type RiskLeg struct {
-	TriggerPrice       PriceTicks `json:"trigger_price,omitempty"`
-	TriggerPriceSource string     `json:"trigger_price_source,omitempty"`
-	OrderType          string     `json:"order_type,omitempty"`
-	LimitPrice         PriceTicks `json:"limit_price,omitempty"`
+	TriggerPrice       PriceTicks            `json:"trigger_price,omitempty"`
+	TriggerPriceSource string                `json:"trigger_price_source,omitempty"`
+	OrderType          string                `json:"order_type,omitempty"`
+	LimitPrice         PriceTicks            `json:"limit_price,omitempty"`
+	State              *AttachedRiskLegState `json:"state,omitempty"`
+}
+
+// AttachedRiskLegState is the runtime state and child linkage for one
+// parent-order attached-risk leg. Nanosecond timestamps and public IDs use the
+// same string representation as other trading read models.
+type AttachedRiskLegState struct {
+	Status       string `json:"status,omitempty"`
+	ArmedTsNs    string `json:"armed_ts_ns,omitempty"`
+	TerminalTsNs string `json:"terminal_ts_ns,omitempty"`
+	TriggerID    string `json:"trigger_id,omitempty"`
+	ChildOrderID string `json:"child_order_id,omitempty"`
 }
 
 // TrailingStop is a trailing-stop attached-risk policy projection.
 //
-// Decode omits the leg when distance is missing/non-positive. TriggerPriceSource
-// and OrderType are not on the trailing-stop wire (child is always market /
-// last trade) and remain empty on decode. Order create currently refuses
-// attached_risk; use Rust/Python for attached trailing create/modify.
+// Decode preserves a leg when it has a positive trailing distance or meaningful
+// runtime state; policy fields remain zero when only state was requested.
+// TriggerPriceSource and OrderType are not on the trailing-stop wire (child is
+// always market / last trade) and remain empty on decode. Order create currently
+// refuses attached_risk; use Rust/Python for attached trailing create/modify.
 type TrailingStop struct {
-	DistanceTicks      int64      `json:"distance_ticks,omitempty"`
-	DistanceBps        int32      `json:"distance_bps,omitempty"`
-	MaxSlippageTicks   int32      `json:"max_slippage_ticks,omitempty"`
-	MaxSlippageBps     int32      `json:"max_slippage_bps,omitempty"`
-	ActivationPrice    PriceTicks `json:"activation_price,omitempty"`
-	TriggerPriceSource string     `json:"trigger_price_source,omitempty"`
-	OrderType          string     `json:"order_type,omitempty"`
+	DistanceTicks      int64                 `json:"distance_ticks,omitempty"`
+	DistanceBps        int32                 `json:"distance_bps,omitempty"`
+	MaxSlippageTicks   int32                 `json:"max_slippage_ticks,omitempty"`
+	MaxSlippageBps     int32                 `json:"max_slippage_bps,omitempty"`
+	ActivationPrice    PriceTicks            `json:"activation_price,omitempty"`
+	TriggerPriceSource string                `json:"trigger_price_source,omitempty"`
+	OrderType          string                `json:"order_type,omitempty"`
+	State              *AttachedRiskLegState `json:"state,omitempty"`
 }
 
-// AttachedRisk is the parent-side attached risk policy (no runtime leg state).
+// AttachedRisk is the parent-side attached risk policy and per-leg runtime state.
 type AttachedRisk struct {
 	TakeProfit   *RiskLeg      `json:"take_profit,omitempty"`
 	StopLoss     *RiskLeg      `json:"stop_loss,omitempty"`

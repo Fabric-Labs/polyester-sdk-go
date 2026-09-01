@@ -139,15 +139,14 @@ func ApplyDelta(bids, asks BookSide, currentBookSeq int, delta models.OrderBookD
 	if startErr != nil || endErr != nil || seqStart < 0 || seqEnd < seqStart {
 		return currentBookSeq, true
 	}
-	comparisonSeq := currentBookSeq
-	if delta.Reset {
-		comparisonSeq = 0
-	}
-	if comparisonSeq != 0 && seqStart > comparisonSeq+1 {
-		return currentBookSeq, true
-	}
-	if !delta.Reset && seqEnd <= currentBookSeq {
+	// A reset may replace the current snapshot only when it advances the
+	// sequence. Validate this before clearing either side so buffered stale or
+	// equal resets cannot rewind a newer snapshot.
+	if seqEnd <= currentBookSeq {
 		return currentBookSeq, false
+	}
+	if !delta.Reset && currentBookSeq != 0 && seqStart > currentBookSeq+1 {
+		return currentBookSeq, true
 	}
 	if delta.Reset {
 		clear(bids)
