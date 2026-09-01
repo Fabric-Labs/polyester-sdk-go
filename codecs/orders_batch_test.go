@@ -1,8 +1,10 @@
 package codecs
 
 import (
+	"errors"
 	"testing"
 
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
@@ -61,6 +63,43 @@ func TestBatchCreateGeneratesRequestIDAndAllowsOmittedItemClientOrderID(t *testi
 	}
 	if proto.Items[0].ClientOrderId != "" {
 		t.Fatalf("item client_order_id should stay omitted: %q", proto.Items[0].ClientOrderId)
+	}
+}
+
+func TestBatchCreateRejectsDuplicateNonEmptyClientOrderIDs(t *testing.T) {
+	symbol := "BTC-USD"
+	sid := uint32(1)
+	tif := "gtc"
+	price := models.PriceFromDecimal("50000")
+	order := func(clientOrderID *string) models.CreateOrderRequest {
+		return models.CreateOrderRequest{
+			Symbol: &symbol, SymbolID: &sid, Side: "buy", OrderType: "limit", TIF: &tif,
+			Qty: models.QtyFromDecimal("0.1"), Price: &price, ClientOrderID: clientOrderID,
+		}
+	}
+
+	duplicate := "duplicate-id"
+	_, err := BatchCreateOrdersToProto(
+		[]models.CreateOrderRequest{order(&duplicate), order(&duplicate)},
+		nil, nil, false, 8, 6,
+	)
+	var validationErr *sdkerrors.ValidationError
+	if !errors.As(err, &validationErr) {
+		t.Fatalf("duplicate non-empty client_order_id: want ValidationError, got %T: %v", err, err)
+	}
+
+	empty := ""
+	first, second := "first-id", "second-id"
+	for name, items := range map[string][]models.CreateOrderRequest{
+		"omitted":  {order(nil), order(nil)},
+		"empty":    {order(&empty), order(&empty)},
+		"distinct": {order(&first), order(&second)},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := BatchCreateOrdersToProto(items, nil, nil, false, 8, 6); err != nil {
+				t.Fatalf("allowed client_order_id combination rejected: %v", err)
+			}
+		})
 	}
 }
 

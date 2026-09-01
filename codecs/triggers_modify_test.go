@@ -2,6 +2,7 @@ package codecs
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
@@ -70,6 +71,70 @@ func TestTriggerSlippageBpsCap(t *testing.T) {
 	zero := int32(0)
 	if _, err := ModifyTriggerToProto("1", 7, nil, ModifyTriggerOptions{MaxSlippageBps: &zero}); err != nil {
 		t.Fatalf("modify zero must clear, not reject: %v", err)
+	}
+}
+
+func TestTrailingDistanceBpsRange(t *testing.T) {
+	for _, value := range []int32{0, 10_001, -1} {
+		t.Run(fmt.Sprintf("create_%d", value), func(t *testing.T) {
+			_, err := CreateTriggerToProto(
+				1, "BTC-USDT", "trailing_stop", nil, "sell", models.QtyFromDecimal("0.1"),
+				"market", nil, "", "", nil, nil, false, 8,
+				CreateTriggerOptions{TrailingDistanceBps: &value},
+			)
+			var validationErr *sdkerrors.ValidationError
+			if !errors.As(err, &validationErr) {
+				t.Fatalf("trailing_distance_bps=%d: want ValidationError, got %T: %v", value, err, err)
+			}
+		})
+	}
+	for _, value := range []int32{-1, 0, 10_001} {
+		t.Run(fmt.Sprintf("modify_%d", value), func(t *testing.T) {
+			_, err := ModifyTriggerToProto("1", 7, nil, ModifyTriggerOptions{TrailingDistanceBps: &value})
+			var validationErr *sdkerrors.ValidationError
+			if !errors.As(err, &validationErr) {
+				t.Fatalf("trailing_distance_bps=%d: want ValidationError, got %T: %v", value, err, err)
+			}
+		})
+	}
+	for _, value := range []int32{1, 10_000} {
+		t.Run(fmt.Sprintf("boundary_%d", value), func(t *testing.T) {
+			if _, err := CreateTriggerToProto(
+				1, "BTC-USDT", "trailing_stop", nil, "sell", models.QtyFromDecimal("0.1"),
+				"market", nil, "", "", nil, nil, false, 8,
+				CreateTriggerOptions{TrailingDistanceBps: &value},
+			); err != nil {
+				t.Fatalf("create trailing_distance_bps=%d rejected: %v", value, err)
+			}
+			if _, err := ModifyTriggerToProto("1", 7, nil, ModifyTriggerOptions{TrailingDistanceBps: &value}); err != nil {
+				t.Fatalf("modify trailing_distance_bps=%d rejected: %v", value, err)
+			}
+		})
+	}
+}
+
+func TestLadderRequiresPriceMinStrictlyBelowMax(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		min  string
+		max  string
+	}{
+		{name: "equal", min: "100", max: "100"},
+		{name: "inverted", min: "101", max: "100"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			minPrice := models.PriceFromDecimal(tc.min)
+			maxPrice := models.PriceFromDecimal(tc.max)
+			_, err := CreateTriggerToProto(
+				1, "BTC-USDT", "ladder", nil, "buy", models.QtyFromDecimal("0.1"),
+				"limit", nil, "", "", nil, nil, false, 8,
+				CreateTriggerOptions{LadderPriceMin: &minPrice, LadderPriceMax: &maxPrice},
+			)
+			var validationErr *sdkerrors.ValidationError
+			if !errors.As(err, &validationErr) {
+				t.Fatalf("min=%s max=%s: want ValidationError, got %T: %v", tc.min, tc.max, err, err)
+			}
+		})
 	}
 }
 

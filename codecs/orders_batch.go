@@ -46,10 +46,19 @@ func BatchCreateOrdersToProto(items []models.CreateOrderRequest, subAccountID *s
 		}
 		proto.SubaccountId = &sub
 	}
+	seenClientOrderIDs := make(map[string]struct{}, len(items))
 	for _, item := range items {
 		encoded, err := OrderIntentToProto(item, quantityScale, quoteQuantityScale)
 		if err != nil {
 			return nil, err
+		}
+		if encoded.ClientOrderId != "" {
+			if _, duplicate := seenClientOrderIDs[encoded.ClientOrderId]; duplicate {
+				return nil, &errors.ValidationError{
+					Msg: fmt.Sprintf("batch_create contains duplicate client_order_id %q", encoded.ClientOrderId),
+				}
+			}
+			seenClientOrderIDs[encoded.ClientOrderId] = struct{}{}
 		}
 		proto.Items = append(proto.Items, encoded)
 	}

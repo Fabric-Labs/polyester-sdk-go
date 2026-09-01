@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/hex"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +15,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	"github.com/Fabric-Labs/polyester-sdk-go/connectx"
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1/authv1connect"
 	"google.golang.org/protobuf/proto"
@@ -158,5 +160,49 @@ func TestAuthenticatedUnarySignsTransmittedCodecBytes(t *testing.T) {
 				t.Fatal("signature does not cover the transmitted request body")
 			}
 		})
+	}
+}
+
+func TestSigningFailureMapsToAuthError(t *testing.T) {
+	_, private, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Fatal("signing failure must happen before network I/O")
+	}))
+	t.Cleanup(srv.Close)
+
+	interceptor := NewAPIKeyInterceptor(
+		&auth.Credentials{KeyID: "ak_test", PrivateKey: private},
+		"://malformed-signing-base",
+		connectx.WireBinary,
+	)
+	client := authv1connect.NewAuthServiceClient(
+		srv.Client(),
+		srv.URL,
+		connect.WithInterceptors(interceptor),
+	)
+	_, callErr := client.GetNonce(context.Background(), connect.NewRequest(&authv1.GetNonceRequest{
+		SmartAccountAddress: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+	}))
+	if callErr == nil {
+		t.Fatal("expected signing failure")
+	}
+	var originalAuthErr *sdkerrors.AuthError
+	if !errors.As(callErr, &originalAuthErr) {
+		t.Fatalf("Connect call did not retain signing cause: %T (%v)", callErr, callErr)
+	}
+	mapped := MapError(callErr)
+	var authErr *sdkerrors.AuthError
+	if !errors.As(mapped, &authErr) {
+		t.Fatalf("signing failure mapped to %T (%v), want *errors.AuthError", mapped, mapped)
+	}
+	if authErr != originalAuthErr {
+		t.Fatal("MapError replaced the original signing failure instead of preserving its cause")
+	}
+	var apiErr *sdkerrors.APIError
+	if errors.As(mapped, &apiErr) {
+		t.Fatalf("signing failure must not map to APIError: %+v", apiErr)
 	}
 }

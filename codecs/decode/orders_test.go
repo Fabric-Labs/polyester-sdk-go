@@ -1,6 +1,7 @@
 package decode_test
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -11,6 +12,7 @@ import (
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	ratelimitv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/ratelimit/v1"
 	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
+	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -60,6 +62,9 @@ func TestOrderOrigQtyIsCurrentAcceptedTotal(t *testing.T) {
 }
 
 func TestOrderFromProtoMapsAttachedRisk(t *testing.T) {
+	tpTriggerID, tpChildOrderID := uint64(101), uint64(201)
+	slTriggerID, slChildOrderID := uint64(102), uint64(202)
+	trailingTriggerID := uint64(103)
 	msg := &orderv1.Order{
 		OrderId:  1,
 		SymbolId: 1,
@@ -72,6 +77,28 @@ func TestOrderFromProtoMapsAttachedRisk(t *testing.T) {
 						Execution: &orderv1.RiskExecution_MarketIoc{MarketIoc: &orderv1.RiskMarketIoc{}},
 					},
 				},
+				State: &orderv1.AttachedRiskLegState{
+					Status:       orderv1.AttachedRiskLegState_COMPLETED,
+					ArmedTsNs:    1_700_000_000_000_000_001,
+					TerminalTsNs: 1_700_000_000_000_000_002,
+					TriggerId:    &tpTriggerID,
+					ChildOrderId: &tpChildOrderID,
+				},
+			},
+			StopLoss: &orderv1.AttachedRiskStopLoss{
+				Policy: &orderv1.StopLossPolicy{
+					TriggerPriceTicks: 4500,
+					Child: &orderv1.RiskExecution{
+						Execution: &orderv1.RiskExecution_MarketIoc{MarketIoc: &orderv1.RiskMarketIoc{}},
+					},
+				},
+				State: &orderv1.AttachedRiskLegState{
+					Status:       orderv1.AttachedRiskLegState_FAILED,
+					ArmedTsNs:    1_700_000_000_000_000_003,
+					TerminalTsNs: 1_700_000_000_000_000_004,
+					TriggerId:    &slTriggerID,
+					ChildOrderId: &slChildOrderID,
+				},
 			},
 			TrailingStop: &orderv1.AttachedRiskTrailingStop{
 				Policy: &orderv1.TrailingStopPolicy{
@@ -83,6 +110,11 @@ func TestOrderFromProtoMapsAttachedRisk(t *testing.T) {
 						MaxSlippageTicks: 10,
 					},
 				},
+				State: &orderv1.AttachedRiskLegState{
+					Status:    orderv1.AttachedRiskLegState_ARMED,
+					ArmedTsNs: 1_700_000_000_000_000_005,
+					TriggerId: &trailingTriggerID,
+				},
 			},
 			Oco: true,
 		},
@@ -92,14 +124,26 @@ func TestOrderFromProtoMapsAttachedRisk(t *testing.T) {
 		t.Fatal("expected attached_risk")
 	}
 	risk := order.AttachedRisk
-	if !risk.Oco || risk.TakeProfit == nil || risk.TrailingStop == nil {
+	if !risk.Oco || risk.TakeProfit == nil || risk.StopLoss == nil || risk.TrailingStop == nil {
 		t.Fatalf("risk=%+v", risk)
-	}
-	if risk.StopLoss != nil {
-		t.Fatalf("stop_loss should be suppressed when trailing present: %+v", risk.StopLoss)
 	}
 	if risk.TakeProfit.TriggerPrice.Ticks() != 6000 || risk.TakeProfit.OrderType != "market" {
 		t.Fatalf("take_profit=%+v", risk.TakeProfit)
+	}
+	if risk.StopLoss.TriggerPrice.Ticks() != 4500 || risk.StopLoss.OrderType != "market" {
+		t.Fatalf("stop_loss=%+v", risk.StopLoss)
+	}
+	if risk.TakeProfit.State == nil || risk.TakeProfit.State.Status != "completed" ||
+		risk.TakeProfit.State.ArmedTsNs != "1700000000000000001" ||
+		risk.TakeProfit.State.TerminalTsNs != "1700000000000000002" ||
+		risk.TakeProfit.State.TriggerID != codecs.FormatUint64ID(101) ||
+		risk.TakeProfit.State.ChildOrderID != codecs.FormatUint64ID(201) {
+		t.Fatalf("take_profit state=%+v", risk.TakeProfit.State)
+	}
+	if risk.StopLoss.State == nil || risk.StopLoss.State.Status != "failed" ||
+		risk.StopLoss.State.TriggerID != codecs.FormatUint64ID(102) ||
+		risk.StopLoss.State.ChildOrderID != codecs.FormatUint64ID(202) {
+		t.Fatalf("stop_loss state=%+v", risk.StopLoss.State)
 	}
 	if risk.TrailingStop.DistanceBps != 25 || risk.TrailingStop.MaxSlippageTicks != 10 {
 		t.Fatalf("trailing=%+v", risk.TrailingStop)
@@ -107,9 +151,158 @@ func TestOrderFromProtoMapsAttachedRisk(t *testing.T) {
 	if risk.TrailingStop.ActivationPrice.Ticks() != 5500 {
 		t.Fatalf("trailing=%+v", risk.TrailingStop)
 	}
+	if risk.TrailingStop.State == nil || risk.TrailingStop.State.Status != "armed" ||
+		risk.TrailingStop.State.ArmedTsNs != "1700000000000000005" ||
+		risk.TrailingStop.State.TriggerID != codecs.FormatUint64ID(103) {
+		t.Fatalf("trailing state=%+v", risk.TrailingStop.State)
+	}
+
+	encoded, err := json.Marshal(risk)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var projected map[string]any
+	if err := json.Unmarshal(encoded, &projected); err != nil {
+		t.Fatal(err)
+	}
+	assertState := func(leg, status, armed, terminal, triggerID, childOrderID string) {
+		t.Helper()
+		legValue, ok := projected[leg].(map[string]any)
+		if !ok {
+			t.Fatalf("%s missing from attached risk JSON: %s", leg, encoded)
+		}
+		state, ok := legValue["state"].(map[string]any)
+		if !ok {
+			t.Fatalf("%s runtime state missing from attached risk JSON: %s", leg, encoded)
+		}
+		for key, want := range map[string]string{
+			"status": status, "armed_ts_ns": armed, "terminal_ts_ns": terminal,
+			"trigger_id": triggerID, "child_order_id": childOrderID,
+		} {
+			if want == "" {
+				if _, exists := state[key]; exists {
+					t.Fatalf("%s.%s=%v want omitted", leg, key, state[key])
+				}
+				continue
+			}
+			if got, _ := state[key].(string); got != want {
+				t.Fatalf("%s.%s=%v want %q; JSON=%s", leg, key, state[key], want, encoded)
+			}
+		}
+	}
+	assertState("take_profit", "completed", "1700000000000000001", "1700000000000000002", codecs.FormatUint64ID(101), codecs.FormatUint64ID(201))
+	assertState("stop_loss", "failed", "1700000000000000003", "1700000000000000004", codecs.FormatUint64ID(102), codecs.FormatUint64ID(202))
+	assertState("trailing_stop", "armed", "1700000000000000005", "", codecs.FormatUint64ID(103), "")
 }
 
-func TestOrderFromProtoOmitsTrailingStopWithoutDistance(t *testing.T) {
+func TestOrderFromProtoMapsStateOnlyAttachedRiskLegs(t *testing.T) {
+	tpTriggerID, tpChildOrderID := uint64(301), uint64(401)
+	slTriggerID, slChildOrderID := uint64(302), uint64(402)
+	trailingTriggerID, trailingChildOrderID := uint64(303), uint64(403)
+	order := decode.OrderFromProto(&orderv1.Order{
+		OrderId:  2,
+		SymbolId: 1,
+		AttachedRisk: &orderv1.AttachedRisk{
+			TakeProfit: &orderv1.AttachedRiskTakeProfit{
+				State: &orderv1.AttachedRiskLegState{
+					Status:       orderv1.AttachedRiskLegState_COMPLETED,
+					ArmedTsNs:    1_700_000_000_000_000_011,
+					TerminalTsNs: 1_700_000_000_000_000_012,
+					TriggerId:    &tpTriggerID,
+					ChildOrderId: &tpChildOrderID,
+				},
+			},
+			StopLoss: &orderv1.AttachedRiskStopLoss{
+				State: &orderv1.AttachedRiskLegState{
+					Status:       orderv1.AttachedRiskLegState_FAILED,
+					ArmedTsNs:    1_700_000_000_000_000_013,
+					TerminalTsNs: 1_700_000_000_000_000_014,
+					TriggerId:    &slTriggerID,
+					ChildOrderId: &slChildOrderID,
+				},
+			},
+			TrailingStop: &orderv1.AttachedRiskTrailingStop{
+				State: &orderv1.AttachedRiskLegState{
+					Status:       orderv1.AttachedRiskLegState_RUNNING,
+					ArmedTsNs:    1_700_000_000_000_000_015,
+					TerminalTsNs: 1_700_000_000_000_000_016,
+					TriggerId:    &trailingTriggerID,
+					ChildOrderId: &trailingChildOrderID,
+				},
+			},
+			Oco: true,
+		},
+	})
+	if order.AttachedRisk == nil {
+		t.Fatal("state-only attached risk was omitted")
+	}
+	risk := order.AttachedRisk
+	if !risk.Oco || risk.TakeProfit == nil || risk.StopLoss == nil || risk.TrailingStop == nil {
+		t.Fatalf("state-only legs were not preserved together: %+v", risk)
+	}
+	assertState := func(name string, state *models.AttachedRiskLegState, status, armed, terminal string, triggerID, childOrderID uint64) {
+		t.Helper()
+		if state == nil ||
+			state.Status != status ||
+			state.ArmedTsNs != armed ||
+			state.TerminalTsNs != terminal ||
+			state.TriggerID != codecs.FormatUint64ID(triggerID) ||
+			state.ChildOrderID != codecs.FormatUint64ID(childOrderID) {
+			t.Fatalf("%s state=%+v", name, state)
+		}
+	}
+	assertState("take_profit", risk.TakeProfit.State, "completed", "1700000000000000011", "1700000000000000012", 301, 401)
+	assertState("stop_loss", risk.StopLoss.State, "failed", "1700000000000000013", "1700000000000000014", 302, 402)
+	assertState("trailing_stop", risk.TrailingStop.State, "running", "1700000000000000015", "1700000000000000016", 303, 403)
+
+	if risk.TakeProfit.TriggerPrice.Ticks() != 0 || risk.TakeProfit.OrderType != "" ||
+		risk.TakeProfit.LimitPrice.Ticks() != 0 ||
+		risk.StopLoss.TriggerPrice.Ticks() != 0 || risk.StopLoss.OrderType != "" ||
+		risk.StopLoss.LimitPrice.Ticks() != 0 {
+		t.Fatalf("state-only TP/SL fabricated policy fields: tp=%+v sl=%+v", risk.TakeProfit, risk.StopLoss)
+	}
+	if risk.TrailingStop.DistanceTicks != 0 || risk.TrailingStop.DistanceBps != 0 ||
+		risk.TrailingStop.MaxSlippageTicks != 0 || risk.TrailingStop.MaxSlippageBps != 0 ||
+		risk.TrailingStop.ActivationPrice.Ticks() != 0 ||
+		risk.TrailingStop.TriggerPriceSource != "" || risk.TrailingStop.OrderType != "" {
+		t.Fatalf("state-only trailing leg fabricated policy fields: %+v", risk.TrailingStop)
+	}
+}
+
+func TestOrderFromProtoOmitsEmptyPolicyWrappers(t *testing.T) {
+	order := decode.OrderFromProto(&orderv1.Order{
+		OrderId:  3,
+		SymbolId: 1,
+		AttachedRisk: &orderv1.AttachedRisk{
+			TakeProfit: &orderv1.AttachedRiskTakeProfit{Policy: &orderv1.TakeProfitPolicy{}},
+			StopLoss:   &orderv1.AttachedRiskStopLoss{Policy: &orderv1.StopLossPolicy{}},
+			TrailingStop: &orderv1.AttachedRiskTrailingStop{
+				Policy: &orderv1.TrailingStopPolicy{},
+			},
+		},
+	})
+	if order.AttachedRisk != nil {
+		t.Fatalf("unusable policy wrappers must be omitted: %+v", order.AttachedRisk)
+	}
+}
+
+func TestOrderFromProtoOmitsEmptyStateWrappers(t *testing.T) {
+	emptyState := &orderv1.AttachedRiskLegState{}
+	order := decode.OrderFromProto(&orderv1.Order{
+		OrderId:  3,
+		SymbolId: 1,
+		AttachedRisk: &orderv1.AttachedRisk{
+			TakeProfit:   &orderv1.AttachedRiskTakeProfit{State: emptyState},
+			StopLoss:     &orderv1.AttachedRiskStopLoss{State: emptyState},
+			TrailingStop: &orderv1.AttachedRiskTrailingStop{State: emptyState},
+		},
+	})
+	if order.AttachedRisk != nil {
+		t.Fatalf("empty state wrappers must be omitted: %+v", order.AttachedRisk)
+	}
+}
+
+func TestOrderFromProtoOmitsTrailingPolicyWithoutDistance(t *testing.T) {
 	msg := &orderv1.Order{
 		OrderId:  3,
 		SymbolId: 1,
@@ -117,13 +310,47 @@ func TestOrderFromProtoOmitsTrailingStopWithoutDistance(t *testing.T) {
 			TrailingStop: &orderv1.AttachedRiskTrailingStop{
 				Policy: &orderv1.TrailingStopPolicy{
 					ActivationPriceTicks: 5500,
+					MaxSlippage: &orderv1.TrailingStopPolicy_MaxSlippageBps{
+						MaxSlippageBps: 25,
+					},
 				},
 			},
 		},
 	}
 	order := decode.OrderFromProto(msg)
 	if order.AttachedRisk != nil {
-		t.Fatalf("expected attached_risk omitted when trailing distance missing, got %+v", order.AttachedRisk)
+		t.Fatalf("trailing policy without positive distance must be omitted: %+v", order.AttachedRisk)
+	}
+}
+
+func TestOrderFromProtoPreservesUsablePolicyOnlyLegs(t *testing.T) {
+	order := decode.OrderFromProto(&orderv1.Order{
+		OrderId:  4,
+		SymbolId: 1,
+		AttachedRisk: &orderv1.AttachedRisk{
+			TakeProfit: &orderv1.AttachedRiskTakeProfit{Policy: &orderv1.TakeProfitPolicy{
+				TriggerPriceTicks: 6000,
+			}},
+			StopLoss: &orderv1.AttachedRiskStopLoss{Policy: &orderv1.StopLossPolicy{
+				TriggerPriceTicks: 4500,
+			}},
+			TrailingStop: &orderv1.AttachedRiskTrailingStop{Policy: &orderv1.TrailingStopPolicy{
+				TrailingDistance: &orderv1.TrailingStopPolicy_TrailingDistanceBps{
+					TrailingDistanceBps: 25,
+				},
+			}},
+		},
+	})
+	if order.AttachedRisk == nil ||
+		order.AttachedRisk.TakeProfit == nil ||
+		order.AttachedRisk.StopLoss == nil ||
+		order.AttachedRisk.TrailingStop == nil {
+		t.Fatalf("usable policy-only legs were omitted: %+v", order.AttachedRisk)
+	}
+	if order.AttachedRisk.TakeProfit.TriggerPrice.Ticks() != 6000 ||
+		order.AttachedRisk.StopLoss.TriggerPrice.Ticks() != 4500 ||
+		order.AttachedRisk.TrailingStop.DistanceBps != 25 {
+		t.Fatalf("usable policy-only fields were not preserved: %+v", order.AttachedRisk)
 	}
 }
 

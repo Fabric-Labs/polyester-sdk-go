@@ -76,8 +76,13 @@ completed. Treat a structured permission denial as non-transient and update the
 API-key policy before retrying.
 
 **Attached risk:** order create/modify do **not** accept `AttachedRisk` input
-(decode-only via `Orders.Get(..., includeAttachedRisk)`). Use Rust/Python for
-attached TP/SL/trailing create/modify.
+(decode-only via order get/list methods). Use Rust/Python for attached
+TP/SL/trailing create/modify. When requested, each decoded leg exposes typed
+runtime `State` (`Status`, nanosecond armed/terminal timestamps, `TriggerID`,
+and `ChildOrderID`). A leg is retained when it has meaningful runtime state or
+a usable policy (positive TP/SL trigger price or positive trailing distance);
+empty/malformed policy wrappers are omitted. State-only responses leave policy
+fields empty. Valid stop loss and trailing legs are both retained together.
 
 ## Install
 
@@ -226,6 +231,14 @@ client, err := polyester.New(polyester.Config{
 
 `polyester.New` never implicitly reads `os.Environ`.
 
+`Config.APIURL` must be an absolute `http` or `https` base URL. Paths (including
+local `httptest` server paths) are supported, but query/fragment delimiters
+(including bare `?` or `#`) are rejected before any Connect client or signing
+URL is constructed. Percent-escaped `?` / `#` path content remains valid.
+HTTP(S) proxy bases may include URL userinfo; `Config.String` and `GoString`
+omit URL userinfo and replace malformed URLs with a neutral placeholder so
+credentials are not exposed in formatted configuration.
+
 **Scripts and local tests only:** `polyester.FromEnv()` loads
 `POLYESTER_API_KEY_ID`, `POLYESTER_API_PRIVATE_KEY`, and optionally
 `POLYESTER_ACCOUNT_ID`. It does not read API or WebSocket URL environment
@@ -246,7 +259,11 @@ if err := client.WaitForCatalogs(ctx); err != nil {
 hydration is enabled, it returns an error if spot/Zipper hydration failed or
 catalogs are unusable (use `CatalogsLastError()` to inspect). Typed Zipper
 hydration is available via `client.Catalogs.HydrateZipperConfig(cfg)` /
-`HydrateDepositWithdrawConfig`.
+`HydrateDepositWithdrawConfig`. Hydration rejects ancillary struct values with
+unexported fields: generic raw snapshots must be JSON-shaped rather than
+lock/no-copy-bearing Go values. `time.Time` is the explicit immutable exception;
+ordinary maps, slices, pointers, cycles, and JSON-compatible aliases remain
+supported.
 
 Public methods may still accept display `symbol` strings. The SDK resolves them
 through the spot catalog and fails closed on unknown symbols. Connect requests
@@ -297,7 +314,8 @@ Client order ids accept 1 to 36 ASCII letters, digits, `.`, `_`, `:`, `/`, and
 `-`. Batch create, cancel, and replace accept at most 20 items (rejected locally
 before encoding). `BatchCreate` always sends `request_id` (caller value or a
 generated `batch-create-*` key); that batch-level id is the idempotency
-boundary, so per-item `ClientOrderID` may be omitted. Treat a cancel response as an admission acknowledgement and
+boundary, so per-item `ClientOrderID` may be omitted. Duplicate non-empty
+per-item client order ids in one batch are rejected locally. Treat a cancel response as an admission acknowledgement and
 reconcile with `ListOpen` before releasing local state.
 
 Use **decimal strings** for human-facing `qty` / `price` inputs. Do **not** pass
@@ -432,10 +450,11 @@ Unknown values return an error (they do not silently return an empty list).
 Response `Status` uses the same labels (British spelling `cancelled`).
 
 `Orders.Get(..., includeAttachedRisk)` returns policy data on
-`Order.AttachedRisk`. `Order` also exposes `PostOnly`. Decoded attached trailing
-stops require a positive distance; missing/non-positive distance is omitted
-rather than projected as a zero stop. Order create still rejects
-`AttachedRisk` input (use Rust/Python for attached trailing create/modify).
+`Order.AttachedRisk`. `Order` also exposes `PostOnly`. With
+`includeAttachedRiskState=true`, runtime legs remain available even when
+`includeAttachedRisk=false`; absent policy fields stay zero/empty. Order create
+still rejects `AttachedRisk` input (use Rust/Python for attached trailing
+create/modify).
 
 Standalone `trailing_stop` creates remain sell-only; the wire
 `TrailingStopTrigger` carries `side`, and list/get projections use that side
@@ -447,6 +466,9 @@ When modifying a trigger, omit `ActivationPrice` / `MaxSlippageTicks` /
 (`PriceFromTicksInt(0)` or `*int32(0)`) to clear an existing activation
 price or maximum-slippage cap. Create/modify `MaxSlippageBps` must be 1–10000;
 modify still accepts `0` to clear.
+Create/modify `TrailingDistanceBps` must also be 1–10000; zero does not clear a
+trailing distance. Ladder creation requires the resolved minimum price ticks
+to be strictly less than the maximum.
 
 `Orders.ListOpen` / `Orders.ListHistory` accept an optional trailing
 `triggerID` to return only child orders created by that trigger (TWAP/ladder

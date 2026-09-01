@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+### Added
+- Attached-risk take-profit, stop-loss, and trailing-stop models expose typed
+  per-leg runtime state: status, armed/terminal nanosecond timestamps, trigger
+  id, and child order id.
+
+### Fixed
+- Batch create rejects duplicate non-empty per-item client order ids while
+  continuing to allow omitted ids.
+- Attached-risk decode retains stop loss when trailing stop is also present.
+- Attached-risk decode constructs each typed leg from meaningful runtime state
+  or a usable policy, including state-only responses; empty or unusable policy
+  wrappers are omitted and absent policy fields remain empty.
+- Stale/equal orderbook reset deltas no longer clear or rewind a newer snapshot.
+- Trigger create/modify validates `trailing_distance_bps` in 1–10000, and
+  ladder create requires resolved minimum ticks to be below maximum ticks.
+- Client-side Connect signing failures remain `errors.AuthError` with their
+  original typed cause instead of becoming a generic transport/API error.
+- Client construction rejects non-absolute/non-HTTP API bases and API bases
+  containing query/fragment delimiters, including bare `?` or `#`, while
+  preserving previously supported HTTP(S) proxy URLs with userinfo. Formatted
+  configuration omits URL userinfo and fails closed to a neutral placeholder
+  for malformed URLs.
+- Catalog hydration cycle-safely deep-clones caller-owned pointers, maps, and
+  slices before publishing validated snapshots. Generic raw snapshots reject
+  structs with unexported lock/no-copy state; `time.Time` remains explicitly
+  supported.
+
 ## 0.1.0a45
 
 Git tag: `v0.1.0a45`.

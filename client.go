@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"github.com/Fabric-Labs/polyester-sdk-go/realtime"
 	"github.com/Fabric-Labs/polyester-sdk-go/services"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
@@ -43,13 +45,29 @@ func (c Config) String() string {
 	}
 	return fmt.Sprintf(
 		"Config{APIKeyID:%q APIPrivateKey:%q APIURL:%q WSURL:%q Timeout:%s WireFormat:%q HydrateCatalogs:%t}",
-		c.APIKeyID, key, c.APIURL, c.WSURL, c.Timeout, c.WireFormat, c.HydrateCatalogs,
+		c.APIKeyID, key, redactURLUserinfo(c.APIURL), redactURLUserinfo(c.WSURL), c.Timeout, c.WireFormat, c.HydrateCatalogs,
 	)
 }
 
 // GoString redacts the API private key for %#v formatting.
 func (c Config) GoString() string {
 	return c.String()
+}
+
+func redactURLUserinfo(raw string) string {
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return "[REDACTED INVALID URL]"
+	}
+	if parsed.Opaque != "" ||
+		(parsed.Host == "" && (parsed.Scheme != "" || strings.Contains(raw, "@"))) {
+		return "[REDACTED INVALID URL]"
+	}
+	if parsed.User == nil {
+		return raw
+	}
+	parsed.User = nil
+	return parsed.String()
 }
 
 // Client is the root Polyester SDK entrypoint.
@@ -104,6 +122,9 @@ type Client struct {
 func New(cfg Config) (*Client, error) {
 	if cfg.APIURL == "" {
 		cfg.APIURL = DefaultAPIURL
+	}
+	if err := validateAPIBaseURL(cfg.APIURL); err != nil {
+		return nil, err
 	}
 	if cfg.WSURL == "" {
 		cfg.WSURL = DefaultWSURL
@@ -184,6 +205,31 @@ func New(cfg Config) (*Client, error) {
 		close(client.catalogHydrationDone)
 	}
 	return client, nil
+}
+
+func validateAPIBaseURL(raw string) error {
+	if raw != strings.TrimSpace(raw) {
+		return &sdkerrors.ValidationError{Msg: "APIURL must not contain surrounding whitespace"}
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil ||
+		(parsed.Scheme != "http" && parsed.Scheme != "https") ||
+		parsed.Host == "" ||
+		parsed.Hostname() == "" ||
+		parsed.Opaque != "" {
+		return &sdkerrors.ValidationError{Msg: "APIURL must be an absolute HTTP(S) base URL"}
+	}
+	// url.Parse intentionally discards an empty fragment and represents a bare
+	// query delimiter only through ForceQuery. Check the original text so no
+	// literal delimiter can remain for Connect to append a procedure after.
+	// Percent-escaped path content such as %3F and %23 remains legal.
+	if strings.Contains(raw, "?") {
+		return &sdkerrors.ValidationError{Msg: "APIURL base must not contain a query string"}
+	}
+	if strings.Contains(raw, "#") {
+		return &sdkerrors.ValidationError{Msg: "APIURL base must not contain a fragment"}
+	}
+	return nil
 }
 
 // FromEnv creates a client using POLYESTER_* environment variables.
