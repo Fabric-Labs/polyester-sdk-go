@@ -42,6 +42,12 @@ const (
 	// ProfileServiceGetUsernameHistoryProcedure is the fully-qualified name of the ProfileService's
 	// GetUsernameHistory RPC.
 	ProfileServiceGetUsernameHistoryProcedure = "/auth.v1.ProfileService/GetUsernameHistory"
+	// ProfileServiceGenerateUsernameOptionsProcedure is the fully-qualified name of the
+	// ProfileService's GenerateUsernameOptions RPC.
+	ProfileServiceGenerateUsernameOptionsProcedure = "/auth.v1.ProfileService/GenerateUsernameOptions"
+	// ProfileServiceClaimGeneratedUsernameProcedure is the fully-qualified name of the ProfileService's
+	// ClaimGeneratedUsername RPC.
+	ProfileServiceClaimGeneratedUsernameProcedure = "/auth.v1.ProfileService/ClaimGeneratedUsername"
 )
 
 // ProfileServiceClient is a client for the auth.v1.ProfileService service.
@@ -54,6 +60,12 @@ type ProfileServiceClient interface {
 	// Get recent username history for the caller, newest first. Returns at most
 	// 20 entries.
 	GetUsernameHistory(context.Context, *connect.Request[v1.GetUsernameHistoryRequest]) (*connect.Response[v1.GetUsernameHistoryResponse], error)
+	// Generate five random username options for an account that has never
+	// claimed a username. Calling this method again returns a fresh set.
+	GenerateUsernameOptions(context.Context, *connect.Request[v1.GenerateUsernameOptionsRequest]) (*connect.Response[v1.GenerateUsernameOptionsResponse], error)
+	// Claim one username by its position in a valid generated offer. The
+	// selected value comes from the offer and cannot be supplied directly.
+	ClaimGeneratedUsername(context.Context, *connect.Request[v1.ClaimGeneratedUsernameRequest]) (*connect.Response[v1.UserProfile], error)
 }
 
 // NewProfileServiceClient constructs a client for the auth.v1.ProfileService service. By default,
@@ -85,14 +97,28 @@ func NewProfileServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(profileServiceMethods.ByName("GetUsernameHistory")),
 			connect.WithClientOptions(opts...),
 		),
+		generateUsernameOptions: connect.NewClient[v1.GenerateUsernameOptionsRequest, v1.GenerateUsernameOptionsResponse](
+			httpClient,
+			baseURL+ProfileServiceGenerateUsernameOptionsProcedure,
+			connect.WithSchema(profileServiceMethods.ByName("GenerateUsernameOptions")),
+			connect.WithClientOptions(opts...),
+		),
+		claimGeneratedUsername: connect.NewClient[v1.ClaimGeneratedUsernameRequest, v1.UserProfile](
+			httpClient,
+			baseURL+ProfileServiceClaimGeneratedUsernameProcedure,
+			connect.WithSchema(profileServiceMethods.ByName("ClaimGeneratedUsername")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // profileServiceClient implements ProfileServiceClient.
 type profileServiceClient struct {
-	getProfile         *connect.Client[v1.GetProfileRequest, v1.UserProfile]
-	updateProfile      *connect.Client[v1.UserProfilePatch, v1.UserProfile]
-	getUsernameHistory *connect.Client[v1.GetUsernameHistoryRequest, v1.GetUsernameHistoryResponse]
+	getProfile              *connect.Client[v1.GetProfileRequest, v1.UserProfile]
+	updateProfile           *connect.Client[v1.UserProfilePatch, v1.UserProfile]
+	getUsernameHistory      *connect.Client[v1.GetUsernameHistoryRequest, v1.GetUsernameHistoryResponse]
+	generateUsernameOptions *connect.Client[v1.GenerateUsernameOptionsRequest, v1.GenerateUsernameOptionsResponse]
+	claimGeneratedUsername  *connect.Client[v1.ClaimGeneratedUsernameRequest, v1.UserProfile]
 }
 
 // GetProfile calls auth.v1.ProfileService.GetProfile.
@@ -110,6 +136,16 @@ func (c *profileServiceClient) GetUsernameHistory(ctx context.Context, req *conn
 	return c.getUsernameHistory.CallUnary(ctx, req)
 }
 
+// GenerateUsernameOptions calls auth.v1.ProfileService.GenerateUsernameOptions.
+func (c *profileServiceClient) GenerateUsernameOptions(ctx context.Context, req *connect.Request[v1.GenerateUsernameOptionsRequest]) (*connect.Response[v1.GenerateUsernameOptionsResponse], error) {
+	return c.generateUsernameOptions.CallUnary(ctx, req)
+}
+
+// ClaimGeneratedUsername calls auth.v1.ProfileService.ClaimGeneratedUsername.
+func (c *profileServiceClient) ClaimGeneratedUsername(ctx context.Context, req *connect.Request[v1.ClaimGeneratedUsernameRequest]) (*connect.Response[v1.UserProfile], error) {
+	return c.claimGeneratedUsername.CallUnary(ctx, req)
+}
+
 // ProfileServiceHandler is an implementation of the auth.v1.ProfileService service.
 type ProfileServiceHandler interface {
 	// Get the caller's profile.
@@ -120,6 +156,12 @@ type ProfileServiceHandler interface {
 	// Get recent username history for the caller, newest first. Returns at most
 	// 20 entries.
 	GetUsernameHistory(context.Context, *connect.Request[v1.GetUsernameHistoryRequest]) (*connect.Response[v1.GetUsernameHistoryResponse], error)
+	// Generate five random username options for an account that has never
+	// claimed a username. Calling this method again returns a fresh set.
+	GenerateUsernameOptions(context.Context, *connect.Request[v1.GenerateUsernameOptionsRequest]) (*connect.Response[v1.GenerateUsernameOptionsResponse], error)
+	// Claim one username by its position in a valid generated offer. The
+	// selected value comes from the offer and cannot be supplied directly.
+	ClaimGeneratedUsername(context.Context, *connect.Request[v1.ClaimGeneratedUsernameRequest]) (*connect.Response[v1.UserProfile], error)
 }
 
 // NewProfileServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -147,6 +189,18 @@ func NewProfileServiceHandler(svc ProfileServiceHandler, opts ...connect.Handler
 		connect.WithSchema(profileServiceMethods.ByName("GetUsernameHistory")),
 		connect.WithHandlerOptions(opts...),
 	)
+	profileServiceGenerateUsernameOptionsHandler := connect.NewUnaryHandler(
+		ProfileServiceGenerateUsernameOptionsProcedure,
+		svc.GenerateUsernameOptions,
+		connect.WithSchema(profileServiceMethods.ByName("GenerateUsernameOptions")),
+		connect.WithHandlerOptions(opts...),
+	)
+	profileServiceClaimGeneratedUsernameHandler := connect.NewUnaryHandler(
+		ProfileServiceClaimGeneratedUsernameProcedure,
+		svc.ClaimGeneratedUsername,
+		connect.WithSchema(profileServiceMethods.ByName("ClaimGeneratedUsername")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/auth.v1.ProfileService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ProfileServiceGetProfileProcedure:
@@ -155,6 +209,10 @@ func NewProfileServiceHandler(svc ProfileServiceHandler, opts ...connect.Handler
 			profileServiceUpdateProfileHandler.ServeHTTP(w, r)
 		case ProfileServiceGetUsernameHistoryProcedure:
 			profileServiceGetUsernameHistoryHandler.ServeHTTP(w, r)
+		case ProfileServiceGenerateUsernameOptionsProcedure:
+			profileServiceGenerateUsernameOptionsHandler.ServeHTTP(w, r)
+		case ProfileServiceClaimGeneratedUsernameProcedure:
+			profileServiceClaimGeneratedUsernameHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -174,4 +232,12 @@ func (UnimplementedProfileServiceHandler) UpdateProfile(context.Context, *connec
 
 func (UnimplementedProfileServiceHandler) GetUsernameHistory(context.Context, *connect.Request[v1.GetUsernameHistoryRequest]) (*connect.Response[v1.GetUsernameHistoryResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.ProfileService.GetUsernameHistory is not implemented"))
+}
+
+func (UnimplementedProfileServiceHandler) GenerateUsernameOptions(context.Context, *connect.Request[v1.GenerateUsernameOptionsRequest]) (*connect.Response[v1.GenerateUsernameOptionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.ProfileService.GenerateUsernameOptions is not implemented"))
+}
+
+func (UnimplementedProfileServiceHandler) ClaimGeneratedUsername(context.Context, *connect.Request[v1.ClaimGeneratedUsernameRequest]) (*connect.Response[v1.UserProfile], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.ProfileService.ClaimGeneratedUsername is not implemented"))
 }

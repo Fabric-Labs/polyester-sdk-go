@@ -26,6 +26,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Side identifies whether an order buys or sells the base asset.
 type Side int32
 
 const (
@@ -78,6 +79,7 @@ func (Side) EnumDescriptor() ([]byte, []int) {
 	return file_orders_v1_orders_proto_rawDescGZIP(), []int{0}
 }
 
+// OrderType identifies whether an order uses limit-price or market execution.
 type OrderType int32
 
 const (
@@ -130,6 +132,8 @@ func (OrderType) EnumDescriptor() ([]byte, []int) {
 	return file_orders_v1_orders_proto_rawDescGZIP(), []int{1}
 }
 
+// TimeInForce controls how long an order may remain active and whether it must
+// fill completely.
 type TimeInForce int32
 
 const (
@@ -239,6 +243,8 @@ func (FeeAsset) EnumDescriptor() ([]byte, []int) {
 	return file_orders_v1_orders_proto_rawDescGZIP(), []int{3}
 }
 
+// SelfTradePreventionMode controls which orders expire when they would trade
+// against another order from the same account.
 type SelfTradePreventionMode int32
 
 const (
@@ -333,9 +339,11 @@ const (
 	ErrorCode_ERROR_CODE_UPSTREAM_ERROR ErrorCode = 14
 	// Requested fee asset is not allowed for this order.
 	ErrorCode_ERROR_CODE_FEE_ASSET_NOT_ALLOWED ErrorCode = 15
-	// Additional domain-specific codes used by the Orders API.
-	ErrorCode_ERROR_CODE_PAIR_DISABLED  ErrorCode = 16
-	ErrorCode_ERROR_CODE_ORDER_UNKNOWN  ErrorCode = 17
+	// Pair is disabled and does not accept orders.
+	ErrorCode_ERROR_CODE_PAIR_DISABLED ErrorCode = 16
+	// Referenced order could not be resolved.
+	ErrorCode_ERROR_CODE_ORDER_UNKNOWN ErrorCode = 17
+	// Order processing failed because of an unexpected error.
 	ErrorCode_ERROR_CODE_INTERNAL_ERROR ErrorCode = 18
 	// Sub-account is present but not in an active state (disabled, deleted,
 	// etc.).

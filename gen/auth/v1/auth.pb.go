@@ -562,8 +562,10 @@ type MeResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Root account identifier (opaque ID).
 	AccountId uint64 `protobuf:"fixed64,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	// When present, indicates the request is authenticated via an API key.
-	ApiKeyId *uint64 `protobuf:"fixed64,10,opt,name=api_key_id,json=apiKeyId,proto3,oneof" json:"api_key_id,omitempty"`
+	// Stable public identifier of the API key that authenticated this request,
+	// formatted as "ak_" followed by 32 lowercase hexadecimal characters.
+	// Absent when the request was not authenticated with an API key.
+	ApiKeyId *string `protobuf:"bytes,10,opt,name=api_key_id,json=apiKeyId,proto3,oneof" json:"api_key_id,omitempty"`
 	// Optional current username for the root account (empty if not set).
 	Username string `protobuf:"bytes,11,opt,name=username,proto3" json:"username,omitempty"`
 	// Root smart-account EVM address, formatted as 0x plus 40 hex characters.
@@ -612,11 +614,11 @@ func (x *MeResponse) GetAccountId() uint64 {
 	return 0
 }
 
-func (x *MeResponse) GetApiKeyId() uint64 {
+func (x *MeResponse) GetApiKeyId() string {
 	if x != nil && x.ApiKeyId != nil {
 		return *x.ApiKeyId
 	}
-	return 0
+	return ""
 }
 
 func (x *MeResponse) GetUsername() string {
@@ -726,14 +728,14 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	" \x01(\x06R\taccountId\x12\x1a\n" +
 	"\busername\x18\r \x01(\tR\busername\x12.\n" +
 	"\asession\x18\x14 \x01(\v2\x14.auth.v1.SessionInfoR\asession\"\v\n" +
-	"\tMeRequest\"\xe6\x01\n" +
+	"\tMeRequest\"\x80\x02\n" +
 	"\n" +
 	"MeResponse\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x01 \x01(\x06R\taccountId\x12!\n" +
+	"account_id\x18\x01 \x01(\x06R\taccountId\x12;\n" +
 	"\n" +
 	"api_key_id\x18\n" +
-	" \x01(\x06H\x00R\bapiKeyId\x88\x01\x01\x12\x1a\n" +
+	" \x01(\tB\x18\xbaH\x15r\x132\x11^ak_[a-f0-9]{32}$H\x00R\bapiKeyId\x88\x01\x01\x12\x1a\n" +
 	"\busername\x18\v \x01(\tR\busername\x12;\n" +
 	"\x1aroot_smart_account_address\x18\f \x01(\tR\x17rootSmartAccountAddress\x12.\n" +
 	"\asession\x18\x14 \x01(\v2\x14.auth.v1.SessionInfoR\asessionB\r\n" +
