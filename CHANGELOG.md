@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.0a47
+
+Git tag: `v0.1.0a47`.
+
 ### Breaking
 - `MeResult.APIKeyID` is the public `ak_` + 32-hex string from `MeResponse.api_key_id`,
   not a formatted numeric ID. It is empty when the call was not API-key authenticated.
