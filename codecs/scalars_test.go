@@ -157,3 +157,21 @@ func TestParseAndFormatQtyScaled(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+func TestParseQtyScaledAcceptsTrailingZerosBeyondScale(t *testing.T) {
+	// POLY-4685: extra zeros past scale are padding, not extra precision.
+	got, err := ParseQtyScaled("1.500000000", 8, "qty")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := ParseQtyScaled("1.5", 8, "qty")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want || got != 150_000_000 {
+		t.Fatalf("got %d want 150000000", got)
+	}
+	if _, err := ParseQtyScaled("1.500000001", 8, "qty"); err == nil {
+		t.Fatal("expected reject for non-zero extra digit")
+	}
+}
