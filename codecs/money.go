@@ -283,6 +283,7 @@ func decimalToScaledBig(raw string, scale int, fieldName string) (*big.Int, erro
 	if err != nil {
 		return nil, err
 	}
+	text = trimTrailingFracZeros(text)
 	intPart, fracPart, _ := strings.Cut(text, ".")
 	if len(fracPart) > scale {
 		return nil, &errors.ValidationError{
@@ -306,6 +307,21 @@ func normalizeStrictDecimal(raw, fieldName string) (string, error) {
 		return "", &errors.ValidationError{Msg: fieldName + " must be a valid decimal string"}
 	}
 	return text, nil
+}
+
+func trimTrailingFracZeros(raw string) string {
+	intPart, fracPart, ok := strings.Cut(raw, ".")
+	if !ok {
+		return raw
+	}
+	fracPart = strings.TrimRight(fracPart, "0")
+	if fracPart == "" {
+		if intPart == "" {
+			return "0"
+		}
+		return intPart
+	}
+	return intPart + "." + fracPart
 }
 
 func itoa(n int) string {
