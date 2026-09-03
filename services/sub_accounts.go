@@ -63,7 +63,11 @@ func (s *SubAccountsService) Get(ctx context.Context, account AccountScope, subA
 	if parsed == nil {
 		return models.GetSubaccountResult{}, &errors.ValidationError{Msg: "sub_account_id is required"}
 	}
-	req := &authv1.GetSubaccountRequest{SubaccountId: *parsed, IncludeApiKeys: includeAPIKeys, IncludeMembers: includeMembers, IncludeInvites: includeInvites, IncludePolicy: includePolicy, IncludeBalances: includeBalances, InvitesDirection: invitesDirection}
+	direction, err := codecs.InviteDirectionFromLabel(invitesDirection)
+	if err != nil {
+		return models.GetSubaccountResult{}, err
+	}
+	req := &authv1.GetSubaccountRequest{SubaccountId: *parsed, IncludeApiKeys: includeAPIKeys, IncludeMembers: includeMembers, IncludeInvites: includeInvites, IncludePolicy: includePolicy, IncludeBalances: includeBalances, InvitesDirection: direction}
 	return UnaryAuth(ctx, s.transport, s.viewClient().GetSubaccount, req, decode.GetSubaccountFromProto)
 }
 
@@ -76,7 +80,11 @@ func (s *SubAccountsService) ListMembers(ctx context.Context, account AccountSco
 }
 
 func (s *SubAccountsService) ListInvites(ctx context.Context, direction string) (models.SubAccountInvitesList, error) {
-	return UnaryAuth(ctx, s.transport, s.writeClient().ListSubaccountInvites, &authv1.ListSubaccountInvitesRequest{Direction: direction}, decode.SubaccountInvitesListFromProto)
+	parsedDirection, err := codecs.InviteDirectionFromLabel(direction)
+	if err != nil {
+		return models.SubAccountInvitesList{}, err
+	}
+	return UnaryAuth(ctx, s.transport, s.writeClient().ListSubaccountInvites, &authv1.ListSubaccountInvitesRequest{Direction: parsedDirection}, decode.SubaccountInvitesListFromProto)
 }
 
 func (s *SubAccountsService) ListActivity(ctx context.Context, account AccountScope, subAccountID *string, limit int, pageToken *string) (models.SubAccountActivityList, error) {

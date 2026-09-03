@@ -1,6 +1,8 @@
 package decode
 
 import (
+	"strings"
+
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
@@ -13,8 +15,8 @@ func MeFromProto(msg *authv1.MeResponse) models.MeResult {
 		AccountID: codecs.FormatUint64ID(msg.GetAccountId()),
 		Session:   session,
 	}
-	if msg.GetApiKeyId() != 0 {
-		out.APIKeyID = codecs.FormatUint64ID(msg.GetApiKeyId())
+	if id := strings.TrimSpace(msg.GetApiKeyId()); id != "" {
+		out.APIKeyID = id
 	}
 	if msg.GetUsername() != "" {
 		out.Username = msg.GetUsername()

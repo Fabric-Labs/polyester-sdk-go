@@ -308,10 +308,20 @@ func OrderMutationFromProto(msg *orderv1.CreateOrderResponse) (models.OrderMutat
 
 // OrderMutationFromCancel decodes cancel response.
 func OrderMutationFromCancel(msg *orderv1.CancelOrderResponse) (models.OrderMutationResult, error) {
-	if msg.GetOrderId() == 0 || strings.TrimSpace(msg.GetStatus()) == "" {
+	status := cancelOrderStatusName(msg.GetStatus())
+	if msg.GetOrderId() == 0 || status == "" {
 		return models.OrderMutationResult{}, &sdkerrors.ResponseContractError{Operation: "CancelOrder", Msg: "missing order_id or status"}
 	}
-	return orderMutation(msg.GetStatus(), msg.GetOrderId(), ""), nil
+	return orderMutation(status, msg.GetOrderId(), ""), nil
+}
+
+func cancelOrderStatusName(status orderv1.CancelOrderResponse_Status) string {
+	switch status {
+	case orderv1.CancelOrderResponse_ACCEPTED:
+		return "accepted"
+	default:
+		return ""
+	}
 }
 
 func orderMutation(status string, orderID uint64, clientOrderID string) models.OrderMutationResult {
@@ -426,26 +436,36 @@ func modifyActionName(v orderv1.ModifyActionTaken) string {
 
 // CancelAllFromProto decodes cancel all response.
 func CancelAllFromProto(msg *orderv1.CancelAllOrdersResponse) (models.CancelAllOrdersResult, error) {
-	status := strings.TrimSpace(msg.GetStatus())
-	if status == "" ||
-		!strings.EqualFold(status, "submitted") && !strings.EqualFold(status, "dry_run") {
+	status := cancelAllStatusName(msg.GetStatus())
+	if status == "" {
 		return models.CancelAllOrdersResult{}, &sdkerrors.ResponseContractError{Operation: "CancelAllOrders",
-			Msg: fmt.Sprintf("invalid CancelAllOrders response: unknown status %q", msg.GetStatus()),
+			Msg: fmt.Sprintf("invalid CancelAllOrders response: unknown status %d", msg.GetStatus()),
 		}
 	}
 	matched, submitted, failed := msg.GetMatchedOrders(), msg.GetSubmittedCancels(), msg.GetFailedCancels()
-	if strings.EqualFold(status, "submitted") && uint64(submitted)+uint64(failed) != uint64(matched) {
+	if status == "submitted" && uint64(submitted)+uint64(failed) != uint64(matched) {
 		return models.CancelAllOrdersResult{}, &sdkerrors.ResponseContractError{Operation: "CancelAllOrders", Msg: "submitted and failed counts do not equal matched_orders"}
 	}
-	if strings.EqualFold(status, "dry_run") && (submitted != 0 || failed != 0) {
+	if status == "dry_run" && (submitted != 0 || failed != 0) {
 		return models.CancelAllOrdersResult{}, &sdkerrors.ResponseContractError{Operation: "CancelAllOrders", Msg: "dry_run reported submitted or failed cancels"}
 	}
 	return models.CancelAllOrdersResult{
-		Status:           msg.GetStatus(),
+		Status:           status,
 		MatchedOrders:    int(msg.GetMatchedOrders()),
 		SubmittedCancels: int(msg.GetSubmittedCancels()),
 		FailedCancels:    int(msg.GetFailedCancels()),
 	}, nil
+}
+
+func cancelAllStatusName(status orderv1.CancelAllOrdersResponse_Status) string {
+	switch status {
+	case orderv1.CancelAllOrdersResponse_SUBMITTED:
+		return "submitted"
+	case orderv1.CancelAllOrdersResponse_DRY_RUN:
+		return "dry_run"
+	default:
+		return ""
+	}
 }
 
 // BatchReplaceFromProto decodes batch replace admission receipt.
@@ -678,14 +698,15 @@ func BatchCancelFromProto(msg *orderv1.BatchCancelOrdersResponse) (models.BatchC
 	decodedAccepted := 0
 	decodedRejected := 0
 	for _, item := range msg.GetResults() {
-		switch strings.ToLower(item.GetStatus()) {
+		status := batchCancelItemStatusName(item.GetStatus())
+		switch status {
 		case "accepted":
 			decodedAccepted++
 		case "rejected":
 			decodedRejected++
 		default:
 			return models.BatchCancelOrdersResult{}, &sdkerrors.ResponseContractError{Operation: "BatchCancelOrders",
-				Msg: fmt.Sprintf("batch cancel response has unknown status: %q", item.GetStatus()),
+				Msg: fmt.Sprintf("batch cancel response has unknown status: %d", item.GetStatus()),
 			}
 		}
 		var rateLimit *models.RateLimitDetail
@@ -693,7 +714,7 @@ func BatchCancelFromProto(msg *orderv1.BatchCancelOrdersResponse) (models.BatchC
 			rateLimit = RateLimitDetailFromProto(errDetail.GetRateLimit())
 		}
 		results = append(results, models.BatchCancelResultItem{
-			Status:        item.GetStatus(),
+			Status:        status,
 			OrderID:       codecs.FormatUint64ID(item.GetOrderId()),
 			ClientOrderID: item.GetClientOrderId(),
 			Code:          item.GetCode(),
@@ -718,16 +739,37 @@ func BatchCancelFromProto(msg *orderv1.BatchCancelOrdersResponse) (models.BatchC
 
 // CancelAllAfterFromProto decodes cancel-all-after response.
 func CancelAllAfterFromProto(msg *orderv1.CancelAllAfterResponse) (models.CancelAllAfterResult, error) {
-	status := strings.TrimSpace(msg.GetStatus())
-	if status == "" ||
-		!strings.EqualFold(status, "armed") && !strings.EqualFold(status, "disabled") {
+	status := cancelAllAfterStatusName(msg.GetStatus())
+	if status == "" {
 		return models.CancelAllAfterResult{}, &sdkerrors.ResponseContractError{Operation: "CancelAllAfter",
-			Msg: fmt.Sprintf("invalid CancelAllAfter response: unknown status %q", msg.GetStatus()),
+			Msg: fmt.Sprintf("invalid CancelAllAfter response: unknown status %d", msg.GetStatus()),
 		}
 	}
 	return models.CancelAllAfterResult{
-		Status:              msg.GetStatus(),
+		Status:              status,
 		EffectiveTimeoutSec: int(msg.GetEffectiveTimeoutSec()),
 		ExpiresAtTsNs:       strconv.FormatUint(msg.GetExpiresAtTsNs(), 10),
 	}, nil
+}
+
+func cancelAllAfterStatusName(status orderv1.CancelAllAfterResponse_Status) string {
+	switch status {
+	case orderv1.CancelAllAfterResponse_ARMED:
+		return "armed"
+	case orderv1.CancelAllAfterResponse_DISABLED:
+		return "disabled"
+	default:
+		return ""
+	}
+}
+
+func batchCancelItemStatusName(status orderv1.BatchCancelResultItem_Status) string {
+	switch status {
+	case orderv1.BatchCancelResultItem_ACCEPTED:
+		return "accepted"
+	case orderv1.BatchCancelResultItem_REJECTED:
+		return "rejected"
+	default:
+		return ""
+	}
 }
