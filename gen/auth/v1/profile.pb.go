@@ -646,6 +646,163 @@ func (x *GetUsernameHistoryResponse) GetHistory() []*UsernameHistoryEntry {
 	return nil
 }
 
+// GenerateUsernameOptionsRequest requests a fresh set of generated usernames.
+type GenerateUsernameOptionsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GenerateUsernameOptionsRequest) Reset() {
+	*x = GenerateUsernameOptionsRequest{}
+	mi := &file_auth_v1_profile_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GenerateUsernameOptionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GenerateUsernameOptionsRequest) ProtoMessage() {}
+
+func (x *GenerateUsernameOptionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_profile_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GenerateUsernameOptionsRequest.ProtoReflect.Descriptor instead.
+func (*GenerateUsernameOptionsRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_profile_proto_rawDescGZIP(), []int{8}
+}
+
+// GenerateUsernameOptionsResponse contains five generated usernames that the
+// caller may claim before the offer expires.
+type GenerateUsernameOptionsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Five distinct generated usernames available when this offer was created.
+	Usernames []string `protobuf:"bytes,1,rep,name=usernames,proto3" json:"usernames,omitempty"`
+	// Opaque proof required to claim one of the returned usernames.
+	OfferToken string `protobuf:"bytes,2,opt,name=offer_token,json=offerToken,proto3" json:"offer_token,omitempty"`
+	// Time in UTC after which this offer can no longer be claimed.
+	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GenerateUsernameOptionsResponse) Reset() {
+	*x = GenerateUsernameOptionsResponse{}
+	mi := &file_auth_v1_profile_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GenerateUsernameOptionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GenerateUsernameOptionsResponse) ProtoMessage() {}
+
+func (x *GenerateUsernameOptionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_profile_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GenerateUsernameOptionsResponse.ProtoReflect.Descriptor instead.
+func (*GenerateUsernameOptionsResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_profile_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *GenerateUsernameOptionsResponse) GetUsernames() []string {
+	if x != nil {
+		return x.Usernames
+	}
+	return nil
+}
+
+func (x *GenerateUsernameOptionsResponse) GetOfferToken() string {
+	if x != nil {
+		return x.OfferToken
+	}
+	return ""
+}
+
+func (x *GenerateUsernameOptionsResponse) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+// ClaimGeneratedUsernameRequest selects one username from a generated offer.
+type ClaimGeneratedUsernameRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Opaque proof returned with the generated username options.
+	OfferToken string `protobuf:"bytes,1,opt,name=offer_token,json=offerToken,proto3" json:"offer_token,omitempty"`
+	// Zero-based position in the five returned username options.
+	OptionIndex   uint32 `protobuf:"varint,2,opt,name=option_index,json=optionIndex,proto3" json:"option_index,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ClaimGeneratedUsernameRequest) Reset() {
+	*x = ClaimGeneratedUsernameRequest{}
+	mi := &file_auth_v1_profile_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClaimGeneratedUsernameRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClaimGeneratedUsernameRequest) ProtoMessage() {}
+
+func (x *ClaimGeneratedUsernameRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_profile_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClaimGeneratedUsernameRequest.ProtoReflect.Descriptor instead.
+func (*ClaimGeneratedUsernameRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_profile_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ClaimGeneratedUsernameRequest) GetOfferToken() string {
+	if x != nil {
+		return x.OfferToken
+	}
+	return ""
+}
+
+func (x *ClaimGeneratedUsernameRequest) GetOptionIndex() uint32 {
+	if x != nil {
+		return x.OptionIndex
+	}
+	return 0
+}
+
 var File_auth_v1_profile_proto protoreflect.FileDescriptor
 
 const file_auth_v1_profile_proto_rawDesc = "" +
@@ -704,13 +861,25 @@ const file_auth_v1_profile_proto_rawDesc = "" +
 	"\x06set_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05setAt\"\x1b\n" +
 	"\x19GetUsernameHistoryRequest\"U\n" +
 	"\x1aGetUsernameHistoryResponse\x127\n" +
-	"\ahistory\x18\x01 \x03(\v2\x1d.auth.v1.UsernameHistoryEntryR\ahistory*\x9b\x01\n" +
+	"\ahistory\x18\x01 \x03(\v2\x1d.auth.v1.UsernameHistoryEntryR\ahistory\" \n" +
+	"\x1eGenerateUsernameOptionsRequest\"\x9b\x01\n" +
+	"\x1fGenerateUsernameOptionsResponse\x12\x1c\n" +
+	"\tusernames\x18\x01 \x03(\tR\tusernames\x12\x1f\n" +
+	"\voffer_token\x18\x02 \x01(\tR\n" +
+	"offerToken\x129\n" +
+	"\n" +
+	"expires_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"x\n" +
+	"\x1dClaimGeneratedUsernameRequest\x12+\n" +
+	"\voffer_token\x18\x01 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80 R\n" +
+	"offerToken\x12*\n" +
+	"\foption_index\x18\x02 \x01(\rB\a\xbaH\x04*\x02\x10\x05R\voptionIndex*\x9b\x01\n" +
 	"\x10ProfileErrorCode\x12\x17\n" +
 	"\x13PROFILE_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15PROFILE_INVALID_FIELD\x10\x01\x12\x1a\n" +
 	"\x16PROFILE_FIELD_TOO_LONG\x10\x02\x12\x17\n" +
 	"\x13PROFILE_URL_INVALID\x10\x03\x12\x1e\n" +
-	"\x1aPROFILE_URL_SCHEME_INVALID\x10\x042\xc1\x05\n" +
+	"\x1aPROFILE_URL_SCHEME_INVALID\x10\x042\xe9\t\n" +
 	"\x0eProfileService\x12\x96\x01\n" +
 	"\n" +
 	"GetProfile\x12\x1a.auth.v1.GetProfileRequest\x1a\x14.auth.v1.UserProfile\"V\xbaG;\n" +
@@ -718,7 +887,11 @@ const file_auth_v1_profile_proto_rawDesc = "" +
 	"\rUpdateProfile\x12\x19.auth.v1.UserProfilePatch\x1a\x14.auth.v1.UserProfile\"\xba\x01\xbaG\x9b\x01\n" +
 	"\fAuth Service\x12\x0eUpdate Profile\x1a{Update the caller's mutable profile fields. Omitted fields are unchanged; present empty strings clear optional text fields.\x82\xd3\xe4\x93\x02\x15:\x01*2\x10/v1/auth/profile\x12\x95\x02\n" +
 	"\x12GetUsernameHistory\x12\".auth.v1.GetUsernameHistoryRequest\x1a#.auth.v1.GetUsernameHistoryResponse\"\xb5\x01\xbaG\x88\x01\n" +
-	"\fAuth Service\x12\x14Get Username History\x1abRetrieve recent username history entries for the caller, newest first. Returns at most 20 entries.\x82\xd3\xe4\x93\x02#\x12!/v1/auth/profile/username-historyB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
+	"\fAuth Service\x12\x14Get Username History\x1abRetrieve recent username history entries for the caller, newest first. Returns at most 20 entries.\x82\xd3\xe4\x93\x02#\x12!/v1/auth/profile/username-history\x12\xaa\x02\n" +
+	"\x17GenerateUsernameOptions\x12'.auth.v1.GenerateUsernameOptionsRequest\x1a(.auth.v1.GenerateUsernameOptionsResponse\"\xbb\x01\xbaG\x82\x01\n" +
+	"\fAuth Service\x12\x19Generate Username Options\x1aWGenerate five random username options for an account that has never claimed a username.\x82\xd3\xe4\x93\x02/:\x01*\"*/v1/auth/profile/username-options:generate\x12\xf8\x01\n" +
+	"\x16ClaimGeneratedUsername\x12&.auth.v1.ClaimGeneratedUsernameRequest\x1a\x14.auth.v1.UserProfile\"\x9f\x01\xbaGh\n" +
+	"\fAuth Service\x12\x18Claim Generated Username\x1a>Claim one username by its position in a valid generated offer.\x82\xd3\xe4\x93\x02.:\x01*\")/v1/auth/profile/username:claim-generatedB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
 
 var (
 	file_auth_v1_profile_proto_rawDescOnce sync.Once
@@ -733,36 +906,44 @@ func file_auth_v1_profile_proto_rawDescGZIP() []byte {
 }
 
 var file_auth_v1_profile_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_auth_v1_profile_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_auth_v1_profile_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_auth_v1_profile_proto_goTypes = []any{
-	(ProfileErrorCode)(0),              // 0: auth.v1.ProfileErrorCode
-	(*AccountIdentity)(nil),            // 1: auth.v1.AccountIdentity
-	(*UserProfile)(nil),                // 2: auth.v1.UserProfile
-	(*UserProfilePatch)(nil),           // 3: auth.v1.UserProfilePatch
-	(*GetProfileRequest)(nil),          // 4: auth.v1.GetProfileRequest
-	(*ProfileErrorDetail)(nil),         // 5: auth.v1.ProfileErrorDetail
-	(*UsernameHistoryEntry)(nil),       // 6: auth.v1.UsernameHistoryEntry
-	(*GetUsernameHistoryRequest)(nil),  // 7: auth.v1.GetUsernameHistoryRequest
-	(*GetUsernameHistoryResponse)(nil), // 8: auth.v1.GetUsernameHistoryResponse
-	(*timestamppb.Timestamp)(nil),      // 9: google.protobuf.Timestamp
+	(ProfileErrorCode)(0),                   // 0: auth.v1.ProfileErrorCode
+	(*AccountIdentity)(nil),                 // 1: auth.v1.AccountIdentity
+	(*UserProfile)(nil),                     // 2: auth.v1.UserProfile
+	(*UserProfilePatch)(nil),                // 3: auth.v1.UserProfilePatch
+	(*GetProfileRequest)(nil),               // 4: auth.v1.GetProfileRequest
+	(*ProfileErrorDetail)(nil),              // 5: auth.v1.ProfileErrorDetail
+	(*UsernameHistoryEntry)(nil),            // 6: auth.v1.UsernameHistoryEntry
+	(*GetUsernameHistoryRequest)(nil),       // 7: auth.v1.GetUsernameHistoryRequest
+	(*GetUsernameHistoryResponse)(nil),      // 8: auth.v1.GetUsernameHistoryResponse
+	(*GenerateUsernameOptionsRequest)(nil),  // 9: auth.v1.GenerateUsernameOptionsRequest
+	(*GenerateUsernameOptionsResponse)(nil), // 10: auth.v1.GenerateUsernameOptionsResponse
+	(*ClaimGeneratedUsernameRequest)(nil),   // 11: auth.v1.ClaimGeneratedUsernameRequest
+	(*timestamppb.Timestamp)(nil),           // 12: google.protobuf.Timestamp
 }
 var file_auth_v1_profile_proto_depIdxs = []int32{
-	9, // 0: auth.v1.UserProfile.created_at:type_name -> google.protobuf.Timestamp
-	9, // 1: auth.v1.UserProfile.next_username_change_at:type_name -> google.protobuf.Timestamp
-	0, // 2: auth.v1.ProfileErrorDetail.code:type_name -> auth.v1.ProfileErrorCode
-	9, // 3: auth.v1.UsernameHistoryEntry.set_at:type_name -> google.protobuf.Timestamp
-	6, // 4: auth.v1.GetUsernameHistoryResponse.history:type_name -> auth.v1.UsernameHistoryEntry
-	4, // 5: auth.v1.ProfileService.GetProfile:input_type -> auth.v1.GetProfileRequest
-	3, // 6: auth.v1.ProfileService.UpdateProfile:input_type -> auth.v1.UserProfilePatch
-	7, // 7: auth.v1.ProfileService.GetUsernameHistory:input_type -> auth.v1.GetUsernameHistoryRequest
-	2, // 8: auth.v1.ProfileService.GetProfile:output_type -> auth.v1.UserProfile
-	2, // 9: auth.v1.ProfileService.UpdateProfile:output_type -> auth.v1.UserProfile
-	8, // 10: auth.v1.ProfileService.GetUsernameHistory:output_type -> auth.v1.GetUsernameHistoryResponse
-	8, // [8:11] is the sub-list for method output_type
-	5, // [5:8] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	12, // 0: auth.v1.UserProfile.created_at:type_name -> google.protobuf.Timestamp
+	12, // 1: auth.v1.UserProfile.next_username_change_at:type_name -> google.protobuf.Timestamp
+	0,  // 2: auth.v1.ProfileErrorDetail.code:type_name -> auth.v1.ProfileErrorCode
+	12, // 3: auth.v1.UsernameHistoryEntry.set_at:type_name -> google.protobuf.Timestamp
+	6,  // 4: auth.v1.GetUsernameHistoryResponse.history:type_name -> auth.v1.UsernameHistoryEntry
+	12, // 5: auth.v1.GenerateUsernameOptionsResponse.expires_at:type_name -> google.protobuf.Timestamp
+	4,  // 6: auth.v1.ProfileService.GetProfile:input_type -> auth.v1.GetProfileRequest
+	3,  // 7: auth.v1.ProfileService.UpdateProfile:input_type -> auth.v1.UserProfilePatch
+	7,  // 8: auth.v1.ProfileService.GetUsernameHistory:input_type -> auth.v1.GetUsernameHistoryRequest
+	9,  // 9: auth.v1.ProfileService.GenerateUsernameOptions:input_type -> auth.v1.GenerateUsernameOptionsRequest
+	11, // 10: auth.v1.ProfileService.ClaimGeneratedUsername:input_type -> auth.v1.ClaimGeneratedUsernameRequest
+	2,  // 11: auth.v1.ProfileService.GetProfile:output_type -> auth.v1.UserProfile
+	2,  // 12: auth.v1.ProfileService.UpdateProfile:output_type -> auth.v1.UserProfile
+	8,  // 13: auth.v1.ProfileService.GetUsernameHistory:output_type -> auth.v1.GetUsernameHistoryResponse
+	10, // 14: auth.v1.ProfileService.GenerateUsernameOptions:output_type -> auth.v1.GenerateUsernameOptionsResponse
+	2,  // 15: auth.v1.ProfileService.ClaimGeneratedUsername:output_type -> auth.v1.UserProfile
+	11, // [11:16] is the sub-list for method output_type
+	6,  // [6:11] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_profile_proto_init() }
@@ -777,7 +958,7 @@ func file_auth_v1_profile_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_profile_proto_rawDesc), len(file_auth_v1_profile_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   8,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

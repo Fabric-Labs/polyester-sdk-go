@@ -83,6 +83,59 @@ func (ResolveHint) EnumDescriptor() ([]byte, []int) {
 	return file_auth_v1_resolve_proto_rawDescGZIP(), []int{0}
 }
 
+// Category of account that owns the resolved smart-account address.
+type ResolvedAccount_Kind int32
+
+const (
+	// Account kind was not provided.
+	ResolvedAccount_KIND_UNSPECIFIED ResolvedAccount_Kind = 0
+	// Root account.
+	ResolvedAccount_ROOT ResolvedAccount_Kind = 1
+	// Sub-account.
+	ResolvedAccount_SUB ResolvedAccount_Kind = 2
+)
+
+// Enum value maps for ResolvedAccount_Kind.
+var (
+	ResolvedAccount_Kind_name = map[int32]string{
+		0: "KIND_UNSPECIFIED",
+		1: "ROOT",
+		2: "SUB",
+	}
+	ResolvedAccount_Kind_value = map[string]int32{
+		"KIND_UNSPECIFIED": 0,
+		"ROOT":             1,
+		"SUB":              2,
+	}
+)
+
+func (x ResolvedAccount_Kind) Enum() *ResolvedAccount_Kind {
+	p := new(ResolvedAccount_Kind)
+	*p = x
+	return p
+}
+
+func (x ResolvedAccount_Kind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ResolvedAccount_Kind) Descriptor() protoreflect.EnumDescriptor {
+	return file_auth_v1_resolve_proto_enumTypes[1].Descriptor()
+}
+
+func (ResolvedAccount_Kind) Type() protoreflect.EnumType {
+	return &file_auth_v1_resolve_proto_enumTypes[1]
+}
+
+func (x ResolvedAccount_Kind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ResolvedAccount_Kind.Descriptor instead.
+func (ResolvedAccount_Kind) EnumDescriptor() ([]byte, []int) {
+	return file_auth_v1_resolve_proto_rawDescGZIP(), []int{0, 0}
+}
+
 // ResolvedAccount represents a lightweight view of a destination account for
 // sharing or internal transfers.
 type ResolvedAccount struct {
@@ -91,12 +144,12 @@ type ResolvedAccount struct {
 	// will receive the transfer, whether it belongs to a root account or a
 	// sub-account.
 	SmartAccountAddress string `protobuf:"bytes,1,opt,name=smart_account_address,json=smartAccountAddress,proto3" json:"smart_account_address,omitempty"`
-	// Kind of account that owns this address: "root" or "sub".
-	Kind string `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	// Category of account that owns this address.
+	Kind ResolvedAccount_Kind `protobuf:"varint,2,opt,name=kind,proto3,enum=auth.v1.ResolvedAccount_Kind" json:"kind,omitempty"`
 	// Root account username for the result. For sub-account results, this is the
 	// parent root account username. Empty means the root account has no username.
 	RootUsername string `protobuf:"bytes,3,opt,name=root_username,json=rootUsername,proto3" json:"root_username,omitempty"`
-	// Optional sub-account label when kind == "sub".
+	// Optional sub-account label when kind is SUB.
 	SubaccountLabel string `protobuf:"bytes,4,opt,name=subaccount_label,json=subaccountLabel,proto3" json:"subaccount_label,omitempty"`
 	// Target account identifier (opaque ID). For root results this is an account
 	// ID; for sub-account results this is a sub-account ID.
@@ -142,11 +195,11 @@ func (x *ResolvedAccount) GetSmartAccountAddress() string {
 	return ""
 }
 
-func (x *ResolvedAccount) GetKind() string {
+func (x *ResolvedAccount) GetKind() ResolvedAccount_Kind {
 	if x != nil {
 		return x.Kind
 	}
-	return ""
+	return ResolvedAccount_KIND_UNSPECIFIED
 }
 
 func (x *ResolvedAccount) GetRootUsername() string {
@@ -295,14 +348,18 @@ var File_auth_v1_resolve_proto protoreflect.FileDescriptor
 
 const file_auth_v1_resolve_proto_rawDesc = "" +
 	"\n" +
-	"\x15auth/v1/resolve.proto\x12\aauth.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\"\xc8\x01\n" +
+	"\x15auth/v1/resolve.proto\x12\aauth.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\"\xa2\x02\n" +
 	"\x0fResolvedAccount\x122\n" +
-	"\x15smart_account_address\x18\x01 \x01(\tR\x13smartAccountAddress\x12\x12\n" +
-	"\x04kind\x18\x02 \x01(\tR\x04kind\x12#\n" +
+	"\x15smart_account_address\x18\x01 \x01(\tR\x13smartAccountAddress\x12;\n" +
+	"\x04kind\x18\x02 \x01(\x0e2\x1d.auth.v1.ResolvedAccount.KindB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04kind\x12#\n" +
 	"\rroot_username\x18\x03 \x01(\tR\frootUsername\x12)\n" +
 	"\x10subaccount_label\x18\x04 \x01(\tR\x0fsubaccountLabel\x12\x1d\n" +
 	"\n" +
-	"account_id\x18\x05 \x01(\x06R\taccountId\"\xa1\x01\n" +
+	"account_id\x18\x05 \x01(\x06R\taccountId\"/\n" +
+	"\x04Kind\x12\x14\n" +
+	"\x10KIND_UNSPECIFIED\x10\x00\x12\b\n" +
+	"\x04ROOT\x10\x01\x12\a\n" +
+	"\x03SUB\x10\x02\"\xa1\x01\n" +
 	"\x15ResolveAccountRequest\x12#\n" +
 	"\x05query\x18\x01 \x01(\tB\r\xe0A\x02\xbaH\ar\x05\x10\x01\x18\x80\x01R\x05query\x122\n" +
 	"\x04hint\x18\x02 \x01(\x0e2\x14.auth.v1.ResolveHintB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04hint\x12/\n" +
@@ -330,24 +387,26 @@ func file_auth_v1_resolve_proto_rawDescGZIP() []byte {
 	return file_auth_v1_resolve_proto_rawDescData
 }
 
-var file_auth_v1_resolve_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_auth_v1_resolve_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_auth_v1_resolve_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_auth_v1_resolve_proto_goTypes = []any{
 	(ResolveHint)(0),               // 0: auth.v1.ResolveHint
-	(*ResolvedAccount)(nil),        // 1: auth.v1.ResolvedAccount
-	(*ResolveAccountRequest)(nil),  // 2: auth.v1.ResolveAccountRequest
-	(*ResolveAccountResponse)(nil), // 3: auth.v1.ResolveAccountResponse
+	(ResolvedAccount_Kind)(0),      // 1: auth.v1.ResolvedAccount.Kind
+	(*ResolvedAccount)(nil),        // 2: auth.v1.ResolvedAccount
+	(*ResolveAccountRequest)(nil),  // 3: auth.v1.ResolveAccountRequest
+	(*ResolveAccountResponse)(nil), // 4: auth.v1.ResolveAccountResponse
 }
 var file_auth_v1_resolve_proto_depIdxs = []int32{
-	0, // 0: auth.v1.ResolveAccountRequest.hint:type_name -> auth.v1.ResolveHint
-	1, // 1: auth.v1.ResolveAccountResponse.matches:type_name -> auth.v1.ResolvedAccount
-	2, // 2: auth.v1.ResolveService.ResolveAccount:input_type -> auth.v1.ResolveAccountRequest
-	3, // 3: auth.v1.ResolveService.ResolveAccount:output_type -> auth.v1.ResolveAccountResponse
-	3, // [3:4] is the sub-list for method output_type
-	2, // [2:3] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	1, // 0: auth.v1.ResolvedAccount.kind:type_name -> auth.v1.ResolvedAccount.Kind
+	0, // 1: auth.v1.ResolveAccountRequest.hint:type_name -> auth.v1.ResolveHint
+	2, // 2: auth.v1.ResolveAccountResponse.matches:type_name -> auth.v1.ResolvedAccount
+	3, // 3: auth.v1.ResolveService.ResolveAccount:input_type -> auth.v1.ResolveAccountRequest
+	4, // 4: auth.v1.ResolveService.ResolveAccount:output_type -> auth.v1.ResolveAccountResponse
+	4, // [4:5] is the sub-list for method output_type
+	3, // [3:4] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_resolve_proto_init() }
@@ -360,7 +419,7 @@ func file_auth_v1_resolve_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_resolve_proto_rawDesc), len(file_auth_v1_resolve_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      2,
 			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   1,

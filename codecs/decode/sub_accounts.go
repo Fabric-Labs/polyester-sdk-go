@@ -1,6 +1,7 @@
 package decode
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -8,6 +9,19 @@ import (
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
+
+func subaccountStatusName(status authv1.SubaccountStatus) string {
+	switch status {
+	case authv1.SubaccountStatus_SUBACCOUNT_STATUS_ACTIVE:
+		return "active"
+	case authv1.SubaccountStatus_SUBACCOUNT_STATUS_DISABLED:
+		return "disabled"
+	case authv1.SubaccountStatus_SUBACCOUNT_STATUS_UNSPECIFIED:
+		return ""
+	default:
+		return fmt.Sprintf("UNKNOWN(%d)", status)
+	}
+}
 
 func subAccount(msg *authv1.Subaccount) models.SubAccount {
 	if msg == nil {
@@ -22,7 +36,7 @@ func subAccount(msg *authv1.Subaccount) models.SubAccount {
 		SubaccountID:        codecs.FormatUint64ID(msg.GetId()),
 		Label:               msg.GetLabel(),
 		SmartAccountAddress: msg.GetSmartAccountAddress(),
-		Status:              msg.GetStatus(),
+		Status:              subaccountStatusName(msg.GetStatus()),
 		Revision:            msg.GetRevision(),
 		UpdatedAt:           updatedAt,
 	}

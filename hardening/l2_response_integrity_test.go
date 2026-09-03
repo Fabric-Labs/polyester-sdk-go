@@ -30,7 +30,7 @@ type inconsistentBatchCancelHandler struct {
 
 func (*inconsistentBatchCancelHandler) BatchCancelOrders(context.Context, *connect.Request[orderv1.BatchCancelOrdersRequest]) (*connect.Response[orderv1.BatchCancelOrdersResponse], error) {
 	return connect.NewResponse(&orderv1.BatchCancelOrdersResponse{
-		Results:       []*orderv1.BatchCancelResultItem{{Status: "accepted", OrderId: 9}},
+		Results:       []*orderv1.BatchCancelResultItem{{Status: orderv1.BatchCancelResultItem_ACCEPTED, OrderId: 9}},
 		AcceptedCount: 0,
 		RejectedCount: 1,
 	}), nil

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "sdk": "go",
-  "generatedAt": "2026-08-31T15:27:03Z",
-  "publicDescriptorSha256": "5caf4f8f3ba5394e70940899f127b6df998bfaccad4e20692f4ae01712ff3989",
+  "generatedAt": "2026-09-03T03:05:34Z",
+  "publicDescriptorSha256": "0b122b7bbafb96ef62b9f55cb0cc3c5c49a1b2e71dd6fc54c26bf45734aa217c",
   "capabilities": [
     {
       "id": "market_data",

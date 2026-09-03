@@ -550,12 +550,12 @@ func TestPreviewOrderFromProtoRejectsMissingEvaluatedAt(t *testing.T) {
 }
 
 func TestOrderMutationFromProtoCancelOmitsClientOrderID(t *testing.T) {
-	msg := &orderv1.CancelOrderResponse{Status: "cancelled", OrderId: 42}
+	msg := &orderv1.CancelOrderResponse{Status: orderv1.CancelOrderResponse_ACCEPTED, OrderId: 42}
 	result, err := decode.OrderMutationFromCancel(msg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Status != "cancelled" || result.OrderID != codecs.FormatUint64ID(42) || result.ClientOrderID != "" {
+	if result.Status != "accepted" || result.OrderID != codecs.FormatUint64ID(42) || result.ClientOrderID != "" {
 		t.Fatalf("result=%+v", result)
 	}
 }
@@ -607,7 +607,7 @@ func TestBatchCreateRejectsCountMismatch(t *testing.T) {
 
 func TestBatchCancelRejectsCountMismatchAndUnknownStatus(t *testing.T) {
 	_, err := decode.BatchCancelFromProto(&orderv1.BatchCancelOrdersResponse{
-		Results:       []*orderv1.BatchCancelResultItem{{Status: "accepted"}},
+		Results:       []*orderv1.BatchCancelResultItem{{Status: orderv1.BatchCancelResultItem_ACCEPTED}},
 		RejectedCount: 1,
 	})
 	var contractErr *sdkerrors.ResponseContractError
@@ -616,7 +616,7 @@ func TestBatchCancelRejectsCountMismatchAndUnknownStatus(t *testing.T) {
 	}
 
 	_, err = decode.BatchCancelFromProto(&orderv1.BatchCancelOrdersResponse{
-		Results:       []*orderv1.BatchCancelResultItem{{Status: "maybe"}},
+		Results:       []*orderv1.BatchCancelResultItem{{Status: orderv1.BatchCancelResultItem_Status(99)}},
 		AcceptedCount: 1,
 	})
 	if !errors.As(err, &contractErr) {
@@ -690,7 +690,7 @@ func TestBatchReplaceStatusRejectsCountMismatch(t *testing.T) {
 
 func TestCancelAllRequiresKnownStatus(t *testing.T) {
 	result, err := decode.CancelAllFromProto(&orderv1.CancelAllOrdersResponse{
-		Status:           "submitted",
+		Status:           orderv1.CancelAllOrdersResponse_SUBMITTED,
 		MatchedOrders:    3,
 		SubmittedCancels: 2,
 		FailedCancels:    1,
@@ -701,21 +701,24 @@ func TestCancelAllRequiresKnownStatus(t *testing.T) {
 	if result.Status != "submitted" || result.FailedCancels != 1 {
 		t.Fatalf("result=%+v", result)
 	}
-	if _, err := decode.CancelAllFromProto(&orderv1.CancelAllOrdersResponse{Status: "dry_run"}); err != nil {
+	if _, err := decode.CancelAllFromProto(&orderv1.CancelAllOrdersResponse{Status: orderv1.CancelAllOrdersResponse_DRY_RUN}); err != nil {
 		t.Fatal(err)
 	}
-	for _, status := range []string{"", "ok", "maybe", "accepted"} {
+	for _, status := range []orderv1.CancelAllOrdersResponse_Status{
+		orderv1.CancelAllOrdersResponse_STATUS_UNSPECIFIED,
+		orderv1.CancelAllOrdersResponse_Status(99),
+	} {
 		_, err := decode.CancelAllFromProto(&orderv1.CancelAllOrdersResponse{Status: status, MatchedOrders: 1})
 		var contractErr *sdkerrors.ResponseContractError
 		if !errors.As(err, &contractErr) {
-			t.Fatalf("status %q: expected ResponseContractError, got %T: %v", status, err, err)
+			t.Fatalf("status %v: expected ResponseContractError, got %T: %v", status, err, err)
 		}
 	}
 }
 
 func TestCancelAllAfterRequiresKnownStatus(t *testing.T) {
 	result, err := decode.CancelAllAfterFromProto(&orderv1.CancelAllAfterResponse{
-		Status:              "armed",
+		Status:              orderv1.CancelAllAfterResponse_ARMED,
 		EffectiveTimeoutSec: 30,
 		ExpiresAtTsNs:       99,
 	})
@@ -725,14 +728,17 @@ func TestCancelAllAfterRequiresKnownStatus(t *testing.T) {
 	if result.Status != "armed" || result.EffectiveTimeoutSec != 30 || result.ExpiresAtTsNs != "99" {
 		t.Fatalf("result=%+v", result)
 	}
-	if _, err := decode.CancelAllAfterFromProto(&orderv1.CancelAllAfterResponse{Status: "disabled"}); err != nil {
+	if _, err := decode.CancelAllAfterFromProto(&orderv1.CancelAllAfterResponse{Status: orderv1.CancelAllAfterResponse_DISABLED}); err != nil {
 		t.Fatal(err)
 	}
-	for _, status := range []string{"", "ok", "submitted", "maybe"} {
+	for _, status := range []orderv1.CancelAllAfterResponse_Status{
+		orderv1.CancelAllAfterResponse_STATUS_UNSPECIFIED,
+		orderv1.CancelAllAfterResponse_Status(99),
+	} {
 		_, err := decode.CancelAllAfterFromProto(&orderv1.CancelAllAfterResponse{Status: status, EffectiveTimeoutSec: 10})
 		var contractErr *sdkerrors.ResponseContractError
 		if !errors.As(err, &contractErr) {
-			t.Fatalf("status %q: expected ResponseContractError, got %T: %v", status, err, err)
+			t.Fatalf("status %v: expected ResponseContractError, got %T: %v", status, err, err)
 		}
 	}
 }
