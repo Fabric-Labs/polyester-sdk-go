@@ -9,7 +9,7 @@ Git tag: `v0.1.0a48`.
 ### Fixed
 - Qty/price strings with trailing zeros past scale are accepted when the
   value is exact after trim. `"1.500000000"` at scale 8 matches `"1.5"`;
-  `"1.500000001"` still rejects (POLY-4685).
+  `"1.500000001"` still rejects.
 
 ## 0.1.0a47
 
