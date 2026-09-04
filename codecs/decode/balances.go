@@ -53,18 +53,33 @@ func BalanceHistoryFromProto(msg *ledgerrdv1.GetBalanceHistoryResponse) models.B
 func EquityHistoryFromProto(msg *ledgerrdv1.GetEquityHistorySeriesResponse) models.EquityHistory {
 	series := make([]models.EquityHistorySeries, 0, len(msg.GetSeries()))
 	for _, s := range msg.GetSeries() {
-		row := models.EquityHistorySeries{EquityQ: append([]int64(nil), s.GetEquityQ()...)}
-		if a := s.GetAccount(); a != nil {
+		series = append(series, equityHistorySeriesFromProto(s))
+	}
+	return models.EquityHistory{Range: balanceRangeLabels[msg.GetRange()], Bucket: msg.GetBucket(), StartTsSec: int64(msg.GetStartTsSec()), EndTsSec: int64(msg.GetEndTsSec()), QuoteAsset: msg.GetQuoteAsset(), Points: int(msg.GetPoints()), Series: series}
+}
+
+func equityHistorySeriesFromProto(s *ledgerrdv1.EquitySeries) models.EquityHistorySeries {
+	row := models.EquityHistorySeries{EquityQ: append([]int64(nil), s.GetEquityQ()...)}
+	switch grouping := s.GetGrouping().(type) {
+	case *ledgerrdv1.EquitySeries_Account:
+		if a := grouping.Account; a != nil {
 			row.AccountCode = uint32(a.GetAccountCode())
 			row.AccountName = a.GetName()
 		}
-		if a := s.GetAsset(); a != nil {
+	case *ledgerrdv1.EquitySeries_Asset:
+		if a := grouping.Asset; a != nil {
 			row.AssetID = a.GetId()
 			row.AssetSymbol = a.GetSymbol()
 		}
-		series = append(series, row)
+	case *ledgerrdv1.EquitySeries_PortfolioAccount:
+		if a := grouping.PortfolioAccount; a != nil {
+			if a.AccountId != nil {
+				row.PortfolioAccountID = codecs.FormatUint64ID(*a.AccountId)
+			}
+			row.PortfolioRemaining = a.GetRemaining()
+		}
 	}
-	return models.EquityHistory{Range: balanceRangeLabels[msg.GetRange()], Bucket: msg.GetBucket(), StartTsSec: int64(msg.GetStartTsSec()), EndTsSec: int64(msg.GetEndTsSec()), QuoteAsset: msg.GetQuoteAsset(), Points: int(msg.GetPoints()), Series: series}
+	return row
 }
 
 func HoldFromProto(msg *ledgerrdv1.HoldRow) models.Hold {

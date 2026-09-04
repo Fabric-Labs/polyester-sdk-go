@@ -825,6 +825,62 @@ func (x *AssetGrouping) GetSymbol() string {
 	return ""
 }
 
+// Logical account grouping used by root portfolio equity history.
+type PortfolioAccountGrouping struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public account or subaccount ID. Its encoded entity type distinguishes
+	// the master account from an owned subaccount. Omitted for Remaining.
+	AccountId *uint64 `protobuf:"fixed64,1,opt,name=account_id,json=accountId,proto3,oneof" json:"account_id,omitempty"`
+	// True when this series combines all non-selected owned subaccounts.
+	Remaining     bool `protobuf:"varint,2,opt,name=remaining,proto3" json:"remaining,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PortfolioAccountGrouping) Reset() {
+	*x = PortfolioAccountGrouping{}
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PortfolioAccountGrouping) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PortfolioAccountGrouping) ProtoMessage() {}
+
+func (x *PortfolioAccountGrouping) ProtoReflect() protoreflect.Message {
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PortfolioAccountGrouping.ProtoReflect.Descriptor instead.
+func (*PortfolioAccountGrouping) Descriptor() ([]byte, []int) {
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *PortfolioAccountGrouping) GetAccountId() uint64 {
+	if x != nil && x.AccountId != nil {
+		return *x.AccountId
+	}
+	return 0
+}
+
+func (x *PortfolioAccountGrouping) GetRemaining() bool {
+	if x != nil {
+		return x.Remaining
+	}
+	return false
+}
+
 // Equity history in USDT (or BTC via client-side conversion using btc_prices).
 // Values are derived from per-asset balances and market prices (close ticks).
 type GetEquityHistorySeriesRequest struct {
@@ -846,7 +902,7 @@ type GetEquityHistorySeriesRequest struct {
 
 func (x *GetEquityHistorySeriesRequest) Reset() {
 	*x = GetEquityHistorySeriesRequest{}
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[8]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -858,7 +914,7 @@ func (x *GetEquityHistorySeriesRequest) String() string {
 func (*GetEquityHistorySeriesRequest) ProtoMessage() {}
 
 func (x *GetEquityHistorySeriesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[8]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -871,7 +927,7 @@ func (x *GetEquityHistorySeriesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEquityHistorySeriesRequest.ProtoReflect.Descriptor instead.
 func (*GetEquityHistorySeriesRequest) Descriptor() ([]byte, []int) {
-	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{8}
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetEquityHistorySeriesRequest) GetSubaccountId() uint64 {
@@ -906,12 +962,13 @@ func (x *GetEquityHistorySeriesRequest) GetGroupBy() EquityGroupBy {
 // REST renders decimal strings from these values.
 type EquitySeries struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Grouping identifier: either account or asset, depending on request group_by.
+	// Grouping identifier. The serving RPC documents which grouping is returned.
 	//
 	// Types that are valid to be assigned to Grouping:
 	//
 	//	*EquitySeries_Account
 	//	*EquitySeries_Asset
+	//	*EquitySeries_PortfolioAccount
 	Grouping isEquitySeries_Grouping `protobuf_oneof:"grouping"`
 	// Equity in quote currency (USDT) scaled by 1e4 (4 decimals).
 	// Values align 1:1 with timestamps.
@@ -922,7 +979,7 @@ type EquitySeries struct {
 
 func (x *EquitySeries) Reset() {
 	*x = EquitySeries{}
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[9]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -934,7 +991,7 @@ func (x *EquitySeries) String() string {
 func (*EquitySeries) ProtoMessage() {}
 
 func (x *EquitySeries) ProtoReflect() protoreflect.Message {
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[9]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -947,7 +1004,7 @@ func (x *EquitySeries) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EquitySeries.ProtoReflect.Descriptor instead.
 func (*EquitySeries) Descriptor() ([]byte, []int) {
-	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{9}
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *EquitySeries) GetGrouping() isEquitySeries_Grouping {
@@ -975,6 +1032,15 @@ func (x *EquitySeries) GetAsset() *AssetGrouping {
 	return nil
 }
 
+func (x *EquitySeries) GetPortfolioAccount() *PortfolioAccountGrouping {
+	if x != nil {
+		if x, ok := x.Grouping.(*EquitySeries_PortfolioAccount); ok {
+			return x.PortfolioAccount
+		}
+	}
+	return nil
+}
+
 func (x *EquitySeries) GetEquityQ() []int64 {
 	if x != nil {
 		return x.EquityQ
@@ -994,9 +1060,15 @@ type EquitySeries_Asset struct {
 	Asset *AssetGrouping `protobuf:"bytes,3,opt,name=asset,proto3,oneof"` // set when group_by = ASSET
 }
 
+type EquitySeries_PortfolioAccount struct {
+	PortfolioAccount *PortfolioAccountGrouping `protobuf:"bytes,4,opt,name=portfolio_account,json=portfolioAccount,proto3,oneof"` // set for root portfolio history
+}
+
 func (*EquitySeries_Account) isEquitySeries_Grouping() {}
 
 func (*EquitySeries_Asset) isEquitySeries_Grouping() {}
+
+func (*EquitySeries_PortfolioAccount) isEquitySeries_Grouping() {}
 
 // GetEquityHistorySeriesResponse returns aligned equity chart series.
 type GetEquityHistorySeriesResponse struct {
@@ -1024,7 +1096,7 @@ type GetEquityHistorySeriesResponse struct {
 
 func (x *GetEquityHistorySeriesResponse) Reset() {
 	*x = GetEquityHistorySeriesResponse{}
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[10]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1036,7 +1108,7 @@ func (x *GetEquityHistorySeriesResponse) String() string {
 func (*GetEquityHistorySeriesResponse) ProtoMessage() {}
 
 func (x *GetEquityHistorySeriesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[10]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1049,7 +1121,7 @@ func (x *GetEquityHistorySeriesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEquityHistorySeriesResponse.ProtoReflect.Descriptor instead.
 func (*GetEquityHistorySeriesResponse) Descriptor() ([]byte, []int) {
-	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{10}
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetEquityHistorySeriesResponse) GetRange() BalanceRange {
@@ -1108,6 +1180,415 @@ func (x *GetEquityHistorySeriesResponse) GetBtcPricesQ() []int64 {
 	return nil
 }
 
+// Requests root portfolio equity history.
+type GetPortfolioEquityHistorySeriesRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// History window to return. When unset/UNSPECIFIED, defaults to 1D.
+	Range         BalanceRange `protobuf:"varint,1,opt,name=range,proto3,enum=ledger.read.v1.BalanceRange" json:"range,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPortfolioEquityHistorySeriesRequest) Reset() {
+	*x = GetPortfolioEquityHistorySeriesRequest{}
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPortfolioEquityHistorySeriesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPortfolioEquityHistorySeriesRequest) ProtoMessage() {}
+
+func (x *GetPortfolioEquityHistorySeriesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPortfolioEquityHistorySeriesRequest.ProtoReflect.Descriptor instead.
+func (*GetPortfolioEquityHistorySeriesRequest) Descriptor() ([]byte, []int) {
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *GetPortfolioEquityHistorySeriesRequest) GetRange() BalanceRange {
+	if x != nil {
+		return x.Range
+	}
+	return BalanceRange_RANGE_UNSPECIFIED
+}
+
+// Root portfolio equity history with aligned, implicit timestamps.
+type GetPortfolioEquityHistorySeriesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Resolved history window.
+	Range BalanceRange `protobuf:"varint,1,opt,name=range,proto3,enum=ledger.read.v1.BalanceRange" json:"range,omitempty"`
+	// Sampling interval between points, such as "5m" or "1h".
+	Bucket string `protobuf:"bytes,2,opt,name=bucket,proto3" json:"bucket,omitempty"`
+	// First point timestamp in seconds since epoch (UTC).
+	StartTsSec uint32 `protobuf:"fixed32,3,opt,name=start_ts_sec,json=startTsSec,proto3" json:"start_ts_sec,omitempty"`
+	// Last point timestamp in seconds since epoch (UTC).
+	EndTsSec uint32 `protobuf:"fixed32,4,opt,name=end_ts_sec,json=endTsSec,proto3" json:"end_ts_sec,omitempty"`
+	// Human-readable quote asset symbol (always "USDT").
+	QuoteAsset string `protobuf:"bytes,5,opt,name=quote_asset,json=quoteAsset,proto3" json:"quote_asset,omitempty"`
+	// Number of aligned points in each returned series.
+	Points uint32 `protobuf:"varint,6,opt,name=points,proto3" json:"points,omitempty"`
+	// Master account first, followed by up to nine owned subaccounts ordered by
+	// current equity descending, then Remaining when other subaccounts exist.
+	Series []*EquitySeries `protobuf:"bytes,7,rep,name=series,proto3" json:"series,omitempty"`
+	// BTC-USDT close price at each timestamp, scaled by 1e6 (same as price_ticks).
+	// Enables client-side conversion to BTC denomination without refetch.
+	BtcPricesQ    []int64 `protobuf:"varint,8,rep,packed,name=btc_prices_q,json=btcPricesQ,proto3" json:"btc_prices_q,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPortfolioEquityHistorySeriesResponse) Reset() {
+	*x = GetPortfolioEquityHistorySeriesResponse{}
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPortfolioEquityHistorySeriesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPortfolioEquityHistorySeriesResponse) ProtoMessage() {}
+
+func (x *GetPortfolioEquityHistorySeriesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPortfolioEquityHistorySeriesResponse.ProtoReflect.Descriptor instead.
+func (*GetPortfolioEquityHistorySeriesResponse) Descriptor() ([]byte, []int) {
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *GetPortfolioEquityHistorySeriesResponse) GetRange() BalanceRange {
+	if x != nil {
+		return x.Range
+	}
+	return BalanceRange_RANGE_UNSPECIFIED
+}
+
+func (x *GetPortfolioEquityHistorySeriesResponse) GetBucket() string {
+	if x != nil {
+		return x.Bucket
+	}
+	return ""
+}
+
+func (x *GetPortfolioEquityHistorySeriesResponse) GetStartTsSec() uint32 {
+	if x != nil {
+		return x.StartTsSec
+	}
+	return 0
+}
+
+func (x *GetPortfolioEquityHistorySeriesResponse) GetEndTsSec() uint32 {
+	if x != nil {
+		return x.EndTsSec
+	}
+	return 0
+}
+
+func (x *GetPortfolioEquityHistorySeriesResponse) GetQuoteAsset() string {
+	if x != nil {
+		return x.QuoteAsset
+	}
+	return ""
+}
+
+func (x *GetPortfolioEquityHistorySeriesResponse) GetPoints() uint32 {
+	if x != nil {
+		return x.Points
+	}
+	return 0
+}
+
+func (x *GetPortfolioEquityHistorySeriesResponse) GetSeries() []*EquitySeries {
+	if x != nil {
+		return x.Series
+	}
+	return nil
+}
+
+func (x *GetPortfolioEquityHistorySeriesResponse) GetBtcPricesQ() []int64 {
+	if x != nil {
+		return x.BtcPricesQ
+	}
+	return nil
+}
+
+// Current equity for one logical account in the root portfolio.
+type PortfolioAccountEquity struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public master-account or subaccount ID.
+	AccountId uint64 `protobuf:"fixed64,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	// Current equity in USDT scaled by 1e4 (4 decimals).
+	EquityQ int64 `protobuf:"zigzag64,2,opt,name=equity_q,json=equityQ,proto3" json:"equity_q,omitempty"`
+	// Up to three assets with the highest current equity value, ordered highest
+	// first. Assets without a current value are omitted.
+	TopAssetIds   []uint32 `protobuf:"varint,3,rep,packed,name=top_asset_ids,json=topAssetIds,proto3" json:"top_asset_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PortfolioAccountEquity) Reset() {
+	*x = PortfolioAccountEquity{}
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PortfolioAccountEquity) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PortfolioAccountEquity) ProtoMessage() {}
+
+func (x *PortfolioAccountEquity) ProtoReflect() protoreflect.Message {
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PortfolioAccountEquity.ProtoReflect.Descriptor instead.
+func (*PortfolioAccountEquity) Descriptor() ([]byte, []int) {
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *PortfolioAccountEquity) GetAccountId() uint64 {
+	if x != nil {
+		return x.AccountId
+	}
+	return 0
+}
+
+func (x *PortfolioAccountEquity) GetEquityQ() int64 {
+	if x != nil {
+		return x.EquityQ
+	}
+	return 0
+}
+
+func (x *PortfolioAccountEquity) GetTopAssetIds() []uint32 {
+	if x != nil {
+		return x.TopAssetIds
+	}
+	return nil
+}
+
+// Current aggregate balance and equity for one asset in the root portfolio.
+type PortfolioAssetEquity struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public unified asset ID.
+	AssetId uint32 `protobuf:"varint,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	// Combined Funding and Trading balance in asset units scaled by 1e7
+	// (7 decimals).
+	BalanceQ uint64 `protobuf:"varint,2,opt,name=balance_q,json=balanceQ,proto3" json:"balance_q,omitempty"`
+	// Current equity in USDT scaled by 1e4 (4 decimals).
+	EquityQ       int64 `protobuf:"zigzag64,3,opt,name=equity_q,json=equityQ,proto3" json:"equity_q,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PortfolioAssetEquity) Reset() {
+	*x = PortfolioAssetEquity{}
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PortfolioAssetEquity) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PortfolioAssetEquity) ProtoMessage() {}
+
+func (x *PortfolioAssetEquity) ProtoReflect() protoreflect.Message {
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PortfolioAssetEquity.ProtoReflect.Descriptor instead.
+func (*PortfolioAssetEquity) Descriptor() ([]byte, []int) {
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *PortfolioAssetEquity) GetAssetId() uint32 {
+	if x != nil {
+		return x.AssetId
+	}
+	return 0
+}
+
+func (x *PortfolioAssetEquity) GetBalanceQ() uint64 {
+	if x != nil {
+		return x.BalanceQ
+	}
+	return 0
+}
+
+func (x *PortfolioAssetEquity) GetEquityQ() int64 {
+	if x != nil {
+		return x.EquityQ
+	}
+	return 0
+}
+
+// Requests a current root portfolio equity snapshot.
+type GetPortfolioEquitySnapshotRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPortfolioEquitySnapshotRequest) Reset() {
+	*x = GetPortfolioEquitySnapshotRequest{}
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPortfolioEquitySnapshotRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPortfolioEquitySnapshotRequest) ProtoMessage() {}
+
+func (x *GetPortfolioEquitySnapshotRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPortfolioEquitySnapshotRequest.ProtoReflect.Descriptor instead.
+func (*GetPortfolioEquitySnapshotRequest) Descriptor() ([]byte, []int) {
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{16}
+}
+
+// Current root portfolio equity, grouped by logical account and asset.
+type GetPortfolioEquitySnapshotResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Human-readable quote asset symbol (always "USDT").
+	QuoteAsset string `protobuf:"bytes,1,opt,name=quote_asset,json=quoteAsset,proto3" json:"quote_asset,omitempty"`
+	// Current equity across the master account and all owned subaccounts in USDT,
+	// scaled by 1e4 (4 decimals).
+	TotalEquityQ int64 `protobuf:"zigzag64,2,opt,name=total_equity_q,json=totalEquityQ,proto3" json:"total_equity_q,omitempty"`
+	// Master account first, followed by every owned subaccount ordered by current
+	// equity descending and public ID ascending for ties.
+	Accounts []*PortfolioAccountEquity `protobuf:"bytes,3,rep,name=accounts,proto3" json:"accounts,omitempty"`
+	// Non-zero asset balances ordered by current equity descending and public
+	// asset ID ascending for ties.
+	Assets []*PortfolioAssetEquity `protobuf:"bytes,4,rep,name=assets,proto3" json:"assets,omitempty"`
+	// Current BTC-USDT price scaled by 1e6. Zero when unavailable.
+	BtcPriceQ     int64 `protobuf:"varint,5,opt,name=btc_price_q,json=btcPriceQ,proto3" json:"btc_price_q,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPortfolioEquitySnapshotResponse) Reset() {
+	*x = GetPortfolioEquitySnapshotResponse{}
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPortfolioEquitySnapshotResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPortfolioEquitySnapshotResponse) ProtoMessage() {}
+
+func (x *GetPortfolioEquitySnapshotResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPortfolioEquitySnapshotResponse.ProtoReflect.Descriptor instead.
+func (*GetPortfolioEquitySnapshotResponse) Descriptor() ([]byte, []int) {
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *GetPortfolioEquitySnapshotResponse) GetQuoteAsset() string {
+	if x != nil {
+		return x.QuoteAsset
+	}
+	return ""
+}
+
+func (x *GetPortfolioEquitySnapshotResponse) GetTotalEquityQ() int64 {
+	if x != nil {
+		return x.TotalEquityQ
+	}
+	return 0
+}
+
+func (x *GetPortfolioEquitySnapshotResponse) GetAccounts() []*PortfolioAccountEquity {
+	if x != nil {
+		return x.Accounts
+	}
+	return nil
+}
+
+func (x *GetPortfolioEquitySnapshotResponse) GetAssets() []*PortfolioAssetEquity {
+	if x != nil {
+		return x.Assets
+	}
+	return nil
+}
+
+func (x *GetPortfolioEquitySnapshotResponse) GetBtcPriceQ() int64 {
+	if x != nil {
+		return x.BtcPriceQ
+	}
+	return 0
+}
+
 type ListTransfersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional sub-account to scope transfers to. If omitted, transfers are
@@ -1139,7 +1620,7 @@ type ListTransfersRequest struct {
 
 func (x *ListTransfersRequest) Reset() {
 	*x = ListTransfersRequest{}
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[11]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1151,7 +1632,7 @@ func (x *ListTransfersRequest) String() string {
 func (*ListTransfersRequest) ProtoMessage() {}
 
 func (x *ListTransfersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[11]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1164,7 +1645,7 @@ func (x *ListTransfersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTransfersRequest.ProtoReflect.Descriptor instead.
 func (*ListTransfersRequest) Descriptor() ([]byte, []int) {
-	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{11}
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ListTransfersRequest) GetSubaccountId() uint64 {
@@ -1246,7 +1727,7 @@ type TransferSide struct {
 
 func (x *TransferSide) Reset() {
 	*x = TransferSide{}
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[12]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1258,7 +1739,7 @@ func (x *TransferSide) String() string {
 func (*TransferSide) ProtoMessage() {}
 
 func (x *TransferSide) ProtoReflect() protoreflect.Message {
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[12]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1271,7 +1752,7 @@ func (x *TransferSide) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransferSide.ProtoReflect.Descriptor instead.
 func (*TransferSide) Descriptor() ([]byte, []int) {
-	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{12}
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *TransferSide) GetKind() TransferSideKind {
@@ -1336,7 +1817,7 @@ type TransferRow struct {
 
 func (x *TransferRow) Reset() {
 	*x = TransferRow{}
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[13]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1348,7 +1829,7 @@ func (x *TransferRow) String() string {
 func (*TransferRow) ProtoMessage() {}
 
 func (x *TransferRow) ProtoReflect() protoreflect.Message {
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[13]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1361,7 +1842,7 @@ func (x *TransferRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransferRow.ProtoReflect.Descriptor instead.
 func (*TransferRow) Descriptor() ([]byte, []int) {
-	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{13}
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *TransferRow) GetAssetId() uint32 {
@@ -1454,7 +1935,7 @@ type ListTransfersResponse struct {
 
 func (x *ListTransfersResponse) Reset() {
 	*x = ListTransfersResponse{}
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[14]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1466,7 +1947,7 @@ func (x *ListTransfersResponse) String() string {
 func (*ListTransfersResponse) ProtoMessage() {}
 
 func (x *ListTransfersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[14]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1479,7 +1960,7 @@ func (x *ListTransfersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTransfersResponse.ProtoReflect.Descriptor instead.
 func (*ListTransfersResponse) Descriptor() ([]byte, []int) {
-	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{14}
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ListTransfersResponse) GetTransfers() []*TransferRow {
@@ -1515,7 +1996,7 @@ type ListHoldsRequest struct {
 
 func (x *ListHoldsRequest) Reset() {
 	*x = ListHoldsRequest{}
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[15]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1527,7 +2008,7 @@ func (x *ListHoldsRequest) String() string {
 func (*ListHoldsRequest) ProtoMessage() {}
 
 func (x *ListHoldsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[15]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1540,7 +2021,7 @@ func (x *ListHoldsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListHoldsRequest.ProtoReflect.Descriptor instead.
 func (*ListHoldsRequest) Descriptor() ([]byte, []int) {
-	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{15}
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ListHoldsRequest) GetSubaccountId() uint64 {
@@ -1587,7 +2068,7 @@ type HoldRow struct {
 
 func (x *HoldRow) Reset() {
 	*x = HoldRow{}
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[16]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1599,7 +2080,7 @@ func (x *HoldRow) String() string {
 func (*HoldRow) ProtoMessage() {}
 
 func (x *HoldRow) ProtoReflect() protoreflect.Message {
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[16]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1612,7 +2093,7 @@ func (x *HoldRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HoldRow.ProtoReflect.Descriptor instead.
 func (*HoldRow) Descriptor() ([]byte, []int) {
-	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{16}
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *HoldRow) GetHoldId() uint64 {
@@ -1655,7 +2136,7 @@ type ListHoldsResponse struct {
 
 func (x *ListHoldsResponse) Reset() {
 	*x = ListHoldsResponse{}
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[17]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1667,7 +2148,7 @@ func (x *ListHoldsResponse) String() string {
 func (*ListHoldsResponse) ProtoMessage() {}
 
 func (x *ListHoldsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[17]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1680,7 +2161,7 @@ func (x *ListHoldsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListHoldsResponse.ProtoReflect.Descriptor instead.
 func (*ListHoldsResponse) Descriptor() ([]byte, []int) {
-	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{17}
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ListHoldsResponse) GetHolds() []*HoldRow {
@@ -1709,7 +2190,7 @@ type ErrorDetail struct {
 
 func (x *ErrorDetail) Reset() {
 	*x = ErrorDetail{}
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[18]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1721,7 +2202,7 @@ func (x *ErrorDetail) String() string {
 func (*ErrorDetail) ProtoMessage() {}
 
 func (x *ErrorDetail) ProtoReflect() protoreflect.Message {
-	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[18]
+	mi := &file_ledger_read_v1_ledger_read_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1734,7 +2215,7 @@ func (x *ErrorDetail) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ErrorDetail.ProtoReflect.Descriptor instead.
 func (*ErrorDetail) Descriptor() ([]byte, []int) {
-	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{18}
+	return file_ledger_read_v1_ledger_read_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ErrorDetail) GetCode() ErrorCode {
@@ -1786,16 +2267,22 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"\x04name\x18\x02 \x01(\tR\x04name\"7\n" +
 	"\rAssetGrouping\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x16\n" +
-	"\x06symbol\x18\x02 \x01(\tR\x06symbol\"\x90\x02\n" +
+	"\x06symbol\x18\x02 \x01(\tR\x06symbol\"k\n" +
+	"\x18PortfolioAccountGrouping\x12\"\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\x06H\x00R\taccountId\x88\x01\x01\x12\x1c\n" +
+	"\tremaining\x18\x02 \x01(\bR\tremainingB\r\n" +
+	"\v_account_id\"\x90\x02\n" +
 	"\x1dGetEquityHistorySeriesRequest\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12<\n" +
 	"\x05range\x18\x02 \x01(\x0e2\x1c.ledger.read.v1.BalanceRangeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x05range\x12;\n" +
 	"\raccount_codes\x18\x04 \x03(\x0e2\x16.ledger.v1.AccountCodeR\faccountCodes\x128\n" +
 	"\bgroup_by\x18\x05 \x01(\x0e2\x1d.ledger.read.v1.EquityGroupByR\agroupByB\x10\n" +
-	"\x0e_subaccount_id\"\xa9\x01\n" +
+	"\x0e_subaccount_id\"\x82\x02\n" +
 	"\fEquitySeries\x12;\n" +
 	"\aaccount\x18\x01 \x01(\v2\x1f.ledger.read.v1.AccountGroupingH\x00R\aaccount\x125\n" +
-	"\x05asset\x18\x03 \x01(\v2\x1d.ledger.read.v1.AssetGroupingH\x00R\x05asset\x12\x19\n" +
+	"\x05asset\x18\x03 \x01(\v2\x1d.ledger.read.v1.AssetGroupingH\x00R\x05asset\x12W\n" +
+	"\x11portfolio_account\x18\x04 \x01(\v2(.ledger.read.v1.PortfolioAccountGroupingH\x00R\x10portfolioAccount\x12\x19\n" +
 	"\bequity_q\x18\x02 \x03(\x12R\aequityQB\n" +
 	"\n" +
 	"\bgrouping\"\xbd\x02\n" +
@@ -1812,7 +2299,39 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"\x06series\x18\b \x03(\v2\x1c.ledger.read.v1.EquitySeriesR\x06series\x12 \n" +
 	"\fbtc_prices_q\x18\n" +
 	" \x03(\x03R\n" +
-	"btcPricesQ\"\x83\x04\n" +
+	"btcPricesQ\"f\n" +
+	"&GetPortfolioEquityHistorySeriesRequest\x12<\n" +
+	"\x05range\x18\x01 \x01(\x0e2\x1c.ledger.read.v1.BalanceRangeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x05range\"\xc6\x02\n" +
+	"'GetPortfolioEquityHistorySeriesResponse\x122\n" +
+	"\x05range\x18\x01 \x01(\x0e2\x1c.ledger.read.v1.BalanceRangeR\x05range\x12\x16\n" +
+	"\x06bucket\x18\x02 \x01(\tR\x06bucket\x12 \n" +
+	"\fstart_ts_sec\x18\x03 \x01(\aR\n" +
+	"startTsSec\x12\x1c\n" +
+	"\n" +
+	"end_ts_sec\x18\x04 \x01(\aR\bendTsSec\x12\x1f\n" +
+	"\vquote_asset\x18\x05 \x01(\tR\n" +
+	"quoteAsset\x12\x16\n" +
+	"\x06points\x18\x06 \x01(\rR\x06points\x124\n" +
+	"\x06series\x18\a \x03(\v2\x1c.ledger.read.v1.EquitySeriesR\x06series\x12 \n" +
+	"\fbtc_prices_q\x18\b \x03(\x03R\n" +
+	"btcPricesQ\"\x80\x01\n" +
+	"\x16PortfolioAccountEquity\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\x06R\taccountId\x12\x19\n" +
+	"\bequity_q\x18\x02 \x01(\x12R\aequityQ\x12,\n" +
+	"\rtop_asset_ids\x18\x03 \x03(\rB\b\xbaH\x05\x92\x01\x02\x10\x03R\vtopAssetIds\"i\n" +
+	"\x14PortfolioAssetEquity\x12\x19\n" +
+	"\basset_id\x18\x01 \x01(\rR\aassetId\x12\x1b\n" +
+	"\tbalance_q\x18\x02 \x01(\x04R\bbalanceQ\x12\x19\n" +
+	"\bequity_q\x18\x03 \x01(\x12R\aequityQ\"#\n" +
+	"!GetPortfolioEquitySnapshotRequest\"\x8d\x02\n" +
+	"\"GetPortfolioEquitySnapshotResponse\x12\x1f\n" +
+	"\vquote_asset\x18\x01 \x01(\tR\n" +
+	"quoteAsset\x12$\n" +
+	"\x0etotal_equity_q\x18\x02 \x01(\x12R\ftotalEquityQ\x12B\n" +
+	"\baccounts\x18\x03 \x03(\v2&.ledger.read.v1.PortfolioAccountEquityR\baccounts\x12<\n" +
+	"\x06assets\x18\x04 \x03(\v2$.ledger.read.v1.PortfolioAssetEquityR\x06assets\x12\x1e\n" +
+	"\vbtc_price_q\x18\x05 \x01(\x03R\tbtcPriceQ\"\x83\x04\n" +
 	"\x14ListTransfersRequest\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12\x1e\n" +
 	"\x05limit\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xe8\aR\x05limit\x12\x1a\n" +
@@ -1901,10 +2420,12 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"(ERROR_CODE_WALLET_RESOLUTION_UNAVAILABLE\x10\b\x12\x1f\n" +
 	"\x1bERROR_CODE_WALLET_NOT_FOUND\x10\t\x12\x1d\n" +
 	"\x19ERROR_CODE_UPSTREAM_ERROR\x10\n" +
-	"2\x88\x04\n" +
+	"2\xa7\x06\n" +
 	"\x11LedgerReadService\x12j\n" +
 	"\x11GetBalanceHistory\x12(.ledger.read.v1.GetBalanceHistoryRequest\x1a).ledger.read.v1.GetBalanceHistoryResponse\"\x00\x12y\n" +
-	"\x16GetEquityHistorySeries\x12-.ledger.read.v1.GetEquityHistorySeriesRequest\x1a..ledger.read.v1.GetEquityHistorySeriesResponse\"\x00\x12^\n" +
+	"\x16GetEquityHistorySeries\x12-.ledger.read.v1.GetEquityHistorySeriesRequest\x1a..ledger.read.v1.GetEquityHistorySeriesResponse\"\x00\x12\x94\x01\n" +
+	"\x1fGetPortfolioEquityHistorySeries\x126.ledger.read.v1.GetPortfolioEquityHistorySeriesRequest\x1a7.ledger.read.v1.GetPortfolioEquityHistorySeriesResponse\"\x00\x12\x85\x01\n" +
+	"\x1aGetPortfolioEquitySnapshot\x121.ledger.read.v1.GetPortfolioEquitySnapshotRequest\x1a2.ledger.read.v1.GetPortfolioEquitySnapshotResponse\"\x00\x12^\n" +
 	"\rListTransfers\x12$.ledger.read.v1.ListTransfersRequest\x1a%.ledger.read.v1.ListTransfersResponse\"\x00\x12R\n" +
 	"\tListHolds\x12 .ledger.read.v1.ListHoldsRequest\x1a!.ledger.read.v1.ListHoldsResponse\"\x00\x12X\n" +
 	"\vGetBalances\x12\".ledger.read.v1.GetBalancesRequest\x1a#.ledger.read.v1.GetBalancesResponse\"\x00B\x8d\x01\xbaGC:A\n" +
@@ -1923,80 +2444,97 @@ func file_ledger_read_v1_ledger_read_proto_rawDescGZIP() []byte {
 }
 
 var file_ledger_read_v1_ledger_read_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_ledger_read_v1_ledger_read_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_ledger_read_v1_ledger_read_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_ledger_read_v1_ledger_read_proto_goTypes = []any{
-	(BalanceRange)(0),                      // 0: ledger.read.v1.BalanceRange
-	(EquityGroupBy)(0),                     // 1: ledger.read.v1.EquityGroupBy
-	(TransferSideKind)(0),                  // 2: ledger.read.v1.TransferSideKind
-	(ErrorCode)(0),                         // 3: ledger.read.v1.ErrorCode
-	(*GetBalancesRequest)(nil),             // 4: ledger.read.v1.GetBalancesRequest
-	(*AssetBalance)(nil),                   // 5: ledger.read.v1.AssetBalance
-	(*GetBalancesResponse)(nil),            // 6: ledger.read.v1.GetBalancesResponse
-	(*GetBalanceHistoryRequest)(nil),       // 7: ledger.read.v1.GetBalanceHistoryRequest
-	(*BalanceSeries)(nil),                  // 8: ledger.read.v1.BalanceSeries
-	(*GetBalanceHistoryResponse)(nil),      // 9: ledger.read.v1.GetBalanceHistoryResponse
-	(*AccountGrouping)(nil),                // 10: ledger.read.v1.AccountGrouping
-	(*AssetGrouping)(nil),                  // 11: ledger.read.v1.AssetGrouping
-	(*GetEquityHistorySeriesRequest)(nil),  // 12: ledger.read.v1.GetEquityHistorySeriesRequest
-	(*EquitySeries)(nil),                   // 13: ledger.read.v1.EquitySeries
-	(*GetEquityHistorySeriesResponse)(nil), // 14: ledger.read.v1.GetEquityHistorySeriesResponse
-	(*ListTransfersRequest)(nil),           // 15: ledger.read.v1.ListTransfersRequest
-	(*TransferSide)(nil),                   // 16: ledger.read.v1.TransferSide
-	(*TransferRow)(nil),                    // 17: ledger.read.v1.TransferRow
-	(*ListTransfersResponse)(nil),          // 18: ledger.read.v1.ListTransfersResponse
-	(*ListHoldsRequest)(nil),               // 19: ledger.read.v1.ListHoldsRequest
-	(*HoldRow)(nil),                        // 20: ledger.read.v1.HoldRow
-	(*ListHoldsResponse)(nil),              // 21: ledger.read.v1.ListHoldsResponse
-	(*ErrorDetail)(nil),                    // 22: ledger.read.v1.ErrorDetail
-	(*v1.U128)(nil),                        // 23: polyester.type.v1.U128
-	(v11.AccountCode)(0),                   // 24: ledger.v1.AccountCode
-	(v11.TransferCode)(0),                  // 25: ledger.v1.TransferCode
+	(BalanceRange)(0),                               // 0: ledger.read.v1.BalanceRange
+	(EquityGroupBy)(0),                              // 1: ledger.read.v1.EquityGroupBy
+	(TransferSideKind)(0),                           // 2: ledger.read.v1.TransferSideKind
+	(ErrorCode)(0),                                  // 3: ledger.read.v1.ErrorCode
+	(*GetBalancesRequest)(nil),                      // 4: ledger.read.v1.GetBalancesRequest
+	(*AssetBalance)(nil),                            // 5: ledger.read.v1.AssetBalance
+	(*GetBalancesResponse)(nil),                     // 6: ledger.read.v1.GetBalancesResponse
+	(*GetBalanceHistoryRequest)(nil),                // 7: ledger.read.v1.GetBalanceHistoryRequest
+	(*BalanceSeries)(nil),                           // 8: ledger.read.v1.BalanceSeries
+	(*GetBalanceHistoryResponse)(nil),               // 9: ledger.read.v1.GetBalanceHistoryResponse
+	(*AccountGrouping)(nil),                         // 10: ledger.read.v1.AccountGrouping
+	(*AssetGrouping)(nil),                           // 11: ledger.read.v1.AssetGrouping
+	(*PortfolioAccountGrouping)(nil),                // 12: ledger.read.v1.PortfolioAccountGrouping
+	(*GetEquityHistorySeriesRequest)(nil),           // 13: ledger.read.v1.GetEquityHistorySeriesRequest
+	(*EquitySeries)(nil),                            // 14: ledger.read.v1.EquitySeries
+	(*GetEquityHistorySeriesResponse)(nil),          // 15: ledger.read.v1.GetEquityHistorySeriesResponse
+	(*GetPortfolioEquityHistorySeriesRequest)(nil),  // 16: ledger.read.v1.GetPortfolioEquityHistorySeriesRequest
+	(*GetPortfolioEquityHistorySeriesResponse)(nil), // 17: ledger.read.v1.GetPortfolioEquityHistorySeriesResponse
+	(*PortfolioAccountEquity)(nil),                  // 18: ledger.read.v1.PortfolioAccountEquity
+	(*PortfolioAssetEquity)(nil),                    // 19: ledger.read.v1.PortfolioAssetEquity
+	(*GetPortfolioEquitySnapshotRequest)(nil),       // 20: ledger.read.v1.GetPortfolioEquitySnapshotRequest
+	(*GetPortfolioEquitySnapshotResponse)(nil),      // 21: ledger.read.v1.GetPortfolioEquitySnapshotResponse
+	(*ListTransfersRequest)(nil),                    // 22: ledger.read.v1.ListTransfersRequest
+	(*TransferSide)(nil),                            // 23: ledger.read.v1.TransferSide
+	(*TransferRow)(nil),                             // 24: ledger.read.v1.TransferRow
+	(*ListTransfersResponse)(nil),                   // 25: ledger.read.v1.ListTransfersResponse
+	(*ListHoldsRequest)(nil),                        // 26: ledger.read.v1.ListHoldsRequest
+	(*HoldRow)(nil),                                 // 27: ledger.read.v1.HoldRow
+	(*ListHoldsResponse)(nil),                       // 28: ledger.read.v1.ListHoldsResponse
+	(*ErrorDetail)(nil),                             // 29: ledger.read.v1.ErrorDetail
+	(*v1.U128)(nil),                                 // 30: polyester.type.v1.U128
+	(v11.AccountCode)(0),                            // 31: ledger.v1.AccountCode
+	(v11.TransferCode)(0),                           // 32: ledger.v1.TransferCode
 }
 var file_ledger_read_v1_ledger_read_proto_depIdxs = []int32{
-	23, // 0: ledger.read.v1.AssetBalance.trading:type_name -> polyester.type.v1.U128
-	23, // 1: ledger.read.v1.AssetBalance.funding:type_name -> polyester.type.v1.U128
-	23, // 2: ledger.read.v1.AssetBalance.reserved:type_name -> polyester.type.v1.U128
-	23, // 3: ledger.read.v1.AssetBalance.available:type_name -> polyester.type.v1.U128
+	30, // 0: ledger.read.v1.AssetBalance.trading:type_name -> polyester.type.v1.U128
+	30, // 1: ledger.read.v1.AssetBalance.funding:type_name -> polyester.type.v1.U128
+	30, // 2: ledger.read.v1.AssetBalance.reserved:type_name -> polyester.type.v1.U128
+	30, // 3: ledger.read.v1.AssetBalance.available:type_name -> polyester.type.v1.U128
 	5,  // 4: ledger.read.v1.GetBalancesResponse.balances:type_name -> ledger.read.v1.AssetBalance
 	0,  // 5: ledger.read.v1.GetBalanceHistoryRequest.range:type_name -> ledger.read.v1.BalanceRange
-	24, // 6: ledger.read.v1.GetBalanceHistoryRequest.account_codes:type_name -> ledger.v1.AccountCode
-	24, // 7: ledger.read.v1.BalanceSeries.account_code:type_name -> ledger.v1.AccountCode
+	31, // 6: ledger.read.v1.GetBalanceHistoryRequest.account_codes:type_name -> ledger.v1.AccountCode
+	31, // 7: ledger.read.v1.BalanceSeries.account_code:type_name -> ledger.v1.AccountCode
 	0,  // 8: ledger.read.v1.GetBalanceHistoryResponse.range:type_name -> ledger.read.v1.BalanceRange
 	8,  // 9: ledger.read.v1.GetBalanceHistoryResponse.series:type_name -> ledger.read.v1.BalanceSeries
 	0,  // 10: ledger.read.v1.GetEquityHistorySeriesRequest.range:type_name -> ledger.read.v1.BalanceRange
-	24, // 11: ledger.read.v1.GetEquityHistorySeriesRequest.account_codes:type_name -> ledger.v1.AccountCode
+	31, // 11: ledger.read.v1.GetEquityHistorySeriesRequest.account_codes:type_name -> ledger.v1.AccountCode
 	1,  // 12: ledger.read.v1.GetEquityHistorySeriesRequest.group_by:type_name -> ledger.read.v1.EquityGroupBy
 	10, // 13: ledger.read.v1.EquitySeries.account:type_name -> ledger.read.v1.AccountGrouping
 	11, // 14: ledger.read.v1.EquitySeries.asset:type_name -> ledger.read.v1.AssetGrouping
-	0,  // 15: ledger.read.v1.GetEquityHistorySeriesResponse.range:type_name -> ledger.read.v1.BalanceRange
-	13, // 16: ledger.read.v1.GetEquityHistorySeriesResponse.series:type_name -> ledger.read.v1.EquitySeries
-	25, // 17: ledger.read.v1.ListTransfersRequest.transfer_code:type_name -> ledger.v1.TransferCode
-	2,  // 18: ledger.read.v1.TransferSide.kind:type_name -> ledger.read.v1.TransferSideKind
-	23, // 19: ledger.read.v1.TransferRow.amount_e18:type_name -> polyester.type.v1.U128
-	25, // 20: ledger.read.v1.TransferRow.transfer_code:type_name -> ledger.v1.TransferCode
-	24, // 21: ledger.read.v1.TransferRow.account_code:type_name -> ledger.v1.AccountCode
-	23, // 22: ledger.read.v1.TransferRow.balance_after_e18:type_name -> polyester.type.v1.U128
-	16, // 23: ledger.read.v1.TransferRow.source:type_name -> ledger.read.v1.TransferSide
-	16, // 24: ledger.read.v1.TransferRow.destination:type_name -> ledger.read.v1.TransferSide
-	17, // 25: ledger.read.v1.ListTransfersResponse.transfers:type_name -> ledger.read.v1.TransferRow
-	23, // 26: ledger.read.v1.HoldRow.amount_reserved_e18:type_name -> polyester.type.v1.U128
-	20, // 27: ledger.read.v1.ListHoldsResponse.holds:type_name -> ledger.read.v1.HoldRow
-	3,  // 28: ledger.read.v1.ErrorDetail.code:type_name -> ledger.read.v1.ErrorCode
-	7,  // 29: ledger.read.v1.LedgerReadService.GetBalanceHistory:input_type -> ledger.read.v1.GetBalanceHistoryRequest
-	12, // 30: ledger.read.v1.LedgerReadService.GetEquityHistorySeries:input_type -> ledger.read.v1.GetEquityHistorySeriesRequest
-	15, // 31: ledger.read.v1.LedgerReadService.ListTransfers:input_type -> ledger.read.v1.ListTransfersRequest
-	19, // 32: ledger.read.v1.LedgerReadService.ListHolds:input_type -> ledger.read.v1.ListHoldsRequest
-	4,  // 33: ledger.read.v1.LedgerReadService.GetBalances:input_type -> ledger.read.v1.GetBalancesRequest
-	9,  // 34: ledger.read.v1.LedgerReadService.GetBalanceHistory:output_type -> ledger.read.v1.GetBalanceHistoryResponse
-	14, // 35: ledger.read.v1.LedgerReadService.GetEquityHistorySeries:output_type -> ledger.read.v1.GetEquityHistorySeriesResponse
-	18, // 36: ledger.read.v1.LedgerReadService.ListTransfers:output_type -> ledger.read.v1.ListTransfersResponse
-	21, // 37: ledger.read.v1.LedgerReadService.ListHolds:output_type -> ledger.read.v1.ListHoldsResponse
-	6,  // 38: ledger.read.v1.LedgerReadService.GetBalances:output_type -> ledger.read.v1.GetBalancesResponse
-	34, // [34:39] is the sub-list for method output_type
-	29, // [29:34] is the sub-list for method input_type
-	29, // [29:29] is the sub-list for extension type_name
-	29, // [29:29] is the sub-list for extension extendee
-	0,  // [0:29] is the sub-list for field type_name
+	12, // 15: ledger.read.v1.EquitySeries.portfolio_account:type_name -> ledger.read.v1.PortfolioAccountGrouping
+	0,  // 16: ledger.read.v1.GetEquityHistorySeriesResponse.range:type_name -> ledger.read.v1.BalanceRange
+	14, // 17: ledger.read.v1.GetEquityHistorySeriesResponse.series:type_name -> ledger.read.v1.EquitySeries
+	0,  // 18: ledger.read.v1.GetPortfolioEquityHistorySeriesRequest.range:type_name -> ledger.read.v1.BalanceRange
+	0,  // 19: ledger.read.v1.GetPortfolioEquityHistorySeriesResponse.range:type_name -> ledger.read.v1.BalanceRange
+	14, // 20: ledger.read.v1.GetPortfolioEquityHistorySeriesResponse.series:type_name -> ledger.read.v1.EquitySeries
+	18, // 21: ledger.read.v1.GetPortfolioEquitySnapshotResponse.accounts:type_name -> ledger.read.v1.PortfolioAccountEquity
+	19, // 22: ledger.read.v1.GetPortfolioEquitySnapshotResponse.assets:type_name -> ledger.read.v1.PortfolioAssetEquity
+	32, // 23: ledger.read.v1.ListTransfersRequest.transfer_code:type_name -> ledger.v1.TransferCode
+	2,  // 24: ledger.read.v1.TransferSide.kind:type_name -> ledger.read.v1.TransferSideKind
+	30, // 25: ledger.read.v1.TransferRow.amount_e18:type_name -> polyester.type.v1.U128
+	32, // 26: ledger.read.v1.TransferRow.transfer_code:type_name -> ledger.v1.TransferCode
+	31, // 27: ledger.read.v1.TransferRow.account_code:type_name -> ledger.v1.AccountCode
+	30, // 28: ledger.read.v1.TransferRow.balance_after_e18:type_name -> polyester.type.v1.U128
+	23, // 29: ledger.read.v1.TransferRow.source:type_name -> ledger.read.v1.TransferSide
+	23, // 30: ledger.read.v1.TransferRow.destination:type_name -> ledger.read.v1.TransferSide
+	24, // 31: ledger.read.v1.ListTransfersResponse.transfers:type_name -> ledger.read.v1.TransferRow
+	30, // 32: ledger.read.v1.HoldRow.amount_reserved_e18:type_name -> polyester.type.v1.U128
+	27, // 33: ledger.read.v1.ListHoldsResponse.holds:type_name -> ledger.read.v1.HoldRow
+	3,  // 34: ledger.read.v1.ErrorDetail.code:type_name -> ledger.read.v1.ErrorCode
+	7,  // 35: ledger.read.v1.LedgerReadService.GetBalanceHistory:input_type -> ledger.read.v1.GetBalanceHistoryRequest
+	13, // 36: ledger.read.v1.LedgerReadService.GetEquityHistorySeries:input_type -> ledger.read.v1.GetEquityHistorySeriesRequest
+	16, // 37: ledger.read.v1.LedgerReadService.GetPortfolioEquityHistorySeries:input_type -> ledger.read.v1.GetPortfolioEquityHistorySeriesRequest
+	20, // 38: ledger.read.v1.LedgerReadService.GetPortfolioEquitySnapshot:input_type -> ledger.read.v1.GetPortfolioEquitySnapshotRequest
+	22, // 39: ledger.read.v1.LedgerReadService.ListTransfers:input_type -> ledger.read.v1.ListTransfersRequest
+	26, // 40: ledger.read.v1.LedgerReadService.ListHolds:input_type -> ledger.read.v1.ListHoldsRequest
+	4,  // 41: ledger.read.v1.LedgerReadService.GetBalances:input_type -> ledger.read.v1.GetBalancesRequest
+	9,  // 42: ledger.read.v1.LedgerReadService.GetBalanceHistory:output_type -> ledger.read.v1.GetBalanceHistoryResponse
+	15, // 43: ledger.read.v1.LedgerReadService.GetEquityHistorySeries:output_type -> ledger.read.v1.GetEquityHistorySeriesResponse
+	17, // 44: ledger.read.v1.LedgerReadService.GetPortfolioEquityHistorySeries:output_type -> ledger.read.v1.GetPortfolioEquityHistorySeriesResponse
+	21, // 45: ledger.read.v1.LedgerReadService.GetPortfolioEquitySnapshot:output_type -> ledger.read.v1.GetPortfolioEquitySnapshotResponse
+	25, // 46: ledger.read.v1.LedgerReadService.ListTransfers:output_type -> ledger.read.v1.ListTransfersResponse
+	28, // 47: ledger.read.v1.LedgerReadService.ListHolds:output_type -> ledger.read.v1.ListHoldsResponse
+	6,  // 48: ledger.read.v1.LedgerReadService.GetBalances:output_type -> ledger.read.v1.GetBalancesResponse
+	42, // [42:49] is the sub-list for method output_type
+	35, // [35:42] is the sub-list for method input_type
+	35, // [35:35] is the sub-list for extension type_name
+	35, // [35:35] is the sub-list for extension extendee
+	0,  // [0:35] is the sub-list for field type_name
 }
 
 func init() { file_ledger_read_v1_ledger_read_proto_init() }
@@ -2007,20 +2545,22 @@ func file_ledger_read_v1_ledger_read_proto_init() {
 	file_ledger_read_v1_ledger_read_proto_msgTypes[0].OneofWrappers = []any{}
 	file_ledger_read_v1_ledger_read_proto_msgTypes[3].OneofWrappers = []any{}
 	file_ledger_read_v1_ledger_read_proto_msgTypes[8].OneofWrappers = []any{}
-	file_ledger_read_v1_ledger_read_proto_msgTypes[9].OneofWrappers = []any{
+	file_ledger_read_v1_ledger_read_proto_msgTypes[9].OneofWrappers = []any{}
+	file_ledger_read_v1_ledger_read_proto_msgTypes[10].OneofWrappers = []any{
 		(*EquitySeries_Account)(nil),
 		(*EquitySeries_Asset)(nil),
+		(*EquitySeries_PortfolioAccount)(nil),
 	}
-	file_ledger_read_v1_ledger_read_proto_msgTypes[11].OneofWrappers = []any{}
-	file_ledger_read_v1_ledger_read_proto_msgTypes[12].OneofWrappers = []any{}
-	file_ledger_read_v1_ledger_read_proto_msgTypes[15].OneofWrappers = []any{}
+	file_ledger_read_v1_ledger_read_proto_msgTypes[18].OneofWrappers = []any{}
+	file_ledger_read_v1_ledger_read_proto_msgTypes[19].OneofWrappers = []any{}
+	file_ledger_read_v1_ledger_read_proto_msgTypes[22].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ledger_read_v1_ledger_read_proto_rawDesc), len(file_ledger_read_v1_ledger_read_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   19,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
