@@ -39,6 +39,12 @@ const (
 	// LedgerReadServiceGetEquityHistorySeriesProcedure is the fully-qualified name of the
 	// LedgerReadService's GetEquityHistorySeries RPC.
 	LedgerReadServiceGetEquityHistorySeriesProcedure = "/ledger.read.v1.LedgerReadService/GetEquityHistorySeries"
+	// LedgerReadServiceGetPortfolioEquityHistorySeriesProcedure is the fully-qualified name of the
+	// LedgerReadService's GetPortfolioEquityHistorySeries RPC.
+	LedgerReadServiceGetPortfolioEquityHistorySeriesProcedure = "/ledger.read.v1.LedgerReadService/GetPortfolioEquityHistorySeries"
+	// LedgerReadServiceGetPortfolioEquitySnapshotProcedure is the fully-qualified name of the
+	// LedgerReadService's GetPortfolioEquitySnapshot RPC.
+	LedgerReadServiceGetPortfolioEquitySnapshotProcedure = "/ledger.read.v1.LedgerReadService/GetPortfolioEquitySnapshot"
 	// LedgerReadServiceListTransfersProcedure is the fully-qualified name of the LedgerReadService's
 	// ListTransfers RPC.
 	LedgerReadServiceListTransfersProcedure = "/ledger.read.v1.LedgerReadService/ListTransfers"
@@ -58,6 +64,14 @@ type LedgerReadServiceClient interface {
 	// Retrieve equity history as columnar series data.
 	// Supports optional subaccount, range, account-code filtering, and grouping by account or asset.
 	GetEquityHistorySeries(context.Context, *connect.Request[v1.GetEquityHistorySeriesRequest]) (*connect.Response[v1.GetEquityHistorySeriesResponse], error)
+	// Retrieve root portfolio equity history as master, top owned subaccounts,
+	// and an aggregate of the remaining owned subaccounts. Requires an
+	// interactive root-account session; API keys are not supported.
+	GetPortfolioEquityHistorySeries(context.Context, *connect.Request[v1.GetPortfolioEquityHistorySeriesRequest]) (*connect.Response[v1.GetPortfolioEquityHistorySeriesResponse], error)
+	// Retrieve current root portfolio equity grouped by logical account and
+	// asset. Requires an interactive root-account session; API keys are not
+	// supported.
+	GetPortfolioEquitySnapshot(context.Context, *connect.Request[v1.GetPortfolioEquitySnapshotRequest]) (*connect.Response[v1.GetPortfolioEquitySnapshotResponse], error)
 	// List finalized transfer history for an account.
 	// Supports optional subaccount, asset, ordering, and cursor filters.
 	ListTransfers(context.Context, *connect.Request[v1.ListTransfersRequest]) (*connect.Response[v1.ListTransfersResponse], error)
@@ -91,6 +105,18 @@ func NewLedgerReadServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(ledgerReadServiceMethods.ByName("GetEquityHistorySeries")),
 			connect.WithClientOptions(opts...),
 		),
+		getPortfolioEquityHistorySeries: connect.NewClient[v1.GetPortfolioEquityHistorySeriesRequest, v1.GetPortfolioEquityHistorySeriesResponse](
+			httpClient,
+			baseURL+LedgerReadServiceGetPortfolioEquityHistorySeriesProcedure,
+			connect.WithSchema(ledgerReadServiceMethods.ByName("GetPortfolioEquityHistorySeries")),
+			connect.WithClientOptions(opts...),
+		),
+		getPortfolioEquitySnapshot: connect.NewClient[v1.GetPortfolioEquitySnapshotRequest, v1.GetPortfolioEquitySnapshotResponse](
+			httpClient,
+			baseURL+LedgerReadServiceGetPortfolioEquitySnapshotProcedure,
+			connect.WithSchema(ledgerReadServiceMethods.ByName("GetPortfolioEquitySnapshot")),
+			connect.WithClientOptions(opts...),
+		),
 		listTransfers: connect.NewClient[v1.ListTransfersRequest, v1.ListTransfersResponse](
 			httpClient,
 			baseURL+LedgerReadServiceListTransfersProcedure,
@@ -114,11 +140,13 @@ func NewLedgerReadServiceClient(httpClient connect.HTTPClient, baseURL string, o
 
 // ledgerReadServiceClient implements LedgerReadServiceClient.
 type ledgerReadServiceClient struct {
-	getBalanceHistory      *connect.Client[v1.GetBalanceHistoryRequest, v1.GetBalanceHistoryResponse]
-	getEquityHistorySeries *connect.Client[v1.GetEquityHistorySeriesRequest, v1.GetEquityHistorySeriesResponse]
-	listTransfers          *connect.Client[v1.ListTransfersRequest, v1.ListTransfersResponse]
-	listHolds              *connect.Client[v1.ListHoldsRequest, v1.ListHoldsResponse]
-	getBalances            *connect.Client[v1.GetBalancesRequest, v1.GetBalancesResponse]
+	getBalanceHistory               *connect.Client[v1.GetBalanceHistoryRequest, v1.GetBalanceHistoryResponse]
+	getEquityHistorySeries          *connect.Client[v1.GetEquityHistorySeriesRequest, v1.GetEquityHistorySeriesResponse]
+	getPortfolioEquityHistorySeries *connect.Client[v1.GetPortfolioEquityHistorySeriesRequest, v1.GetPortfolioEquityHistorySeriesResponse]
+	getPortfolioEquitySnapshot      *connect.Client[v1.GetPortfolioEquitySnapshotRequest, v1.GetPortfolioEquitySnapshotResponse]
+	listTransfers                   *connect.Client[v1.ListTransfersRequest, v1.ListTransfersResponse]
+	listHolds                       *connect.Client[v1.ListHoldsRequest, v1.ListHoldsResponse]
+	getBalances                     *connect.Client[v1.GetBalancesRequest, v1.GetBalancesResponse]
 }
 
 // GetBalanceHistory calls ledger.read.v1.LedgerReadService.GetBalanceHistory.
@@ -129,6 +157,17 @@ func (c *ledgerReadServiceClient) GetBalanceHistory(ctx context.Context, req *co
 // GetEquityHistorySeries calls ledger.read.v1.LedgerReadService.GetEquityHistorySeries.
 func (c *ledgerReadServiceClient) GetEquityHistorySeries(ctx context.Context, req *connect.Request[v1.GetEquityHistorySeriesRequest]) (*connect.Response[v1.GetEquityHistorySeriesResponse], error) {
 	return c.getEquityHistorySeries.CallUnary(ctx, req)
+}
+
+// GetPortfolioEquityHistorySeries calls
+// ledger.read.v1.LedgerReadService.GetPortfolioEquityHistorySeries.
+func (c *ledgerReadServiceClient) GetPortfolioEquityHistorySeries(ctx context.Context, req *connect.Request[v1.GetPortfolioEquityHistorySeriesRequest]) (*connect.Response[v1.GetPortfolioEquityHistorySeriesResponse], error) {
+	return c.getPortfolioEquityHistorySeries.CallUnary(ctx, req)
+}
+
+// GetPortfolioEquitySnapshot calls ledger.read.v1.LedgerReadService.GetPortfolioEquitySnapshot.
+func (c *ledgerReadServiceClient) GetPortfolioEquitySnapshot(ctx context.Context, req *connect.Request[v1.GetPortfolioEquitySnapshotRequest]) (*connect.Response[v1.GetPortfolioEquitySnapshotResponse], error) {
+	return c.getPortfolioEquitySnapshot.CallUnary(ctx, req)
 }
 
 // ListTransfers calls ledger.read.v1.LedgerReadService.ListTransfers.
@@ -154,6 +193,14 @@ type LedgerReadServiceHandler interface {
 	// Retrieve equity history as columnar series data.
 	// Supports optional subaccount, range, account-code filtering, and grouping by account or asset.
 	GetEquityHistorySeries(context.Context, *connect.Request[v1.GetEquityHistorySeriesRequest]) (*connect.Response[v1.GetEquityHistorySeriesResponse], error)
+	// Retrieve root portfolio equity history as master, top owned subaccounts,
+	// and an aggregate of the remaining owned subaccounts. Requires an
+	// interactive root-account session; API keys are not supported.
+	GetPortfolioEquityHistorySeries(context.Context, *connect.Request[v1.GetPortfolioEquityHistorySeriesRequest]) (*connect.Response[v1.GetPortfolioEquityHistorySeriesResponse], error)
+	// Retrieve current root portfolio equity grouped by logical account and
+	// asset. Requires an interactive root-account session; API keys are not
+	// supported.
+	GetPortfolioEquitySnapshot(context.Context, *connect.Request[v1.GetPortfolioEquitySnapshotRequest]) (*connect.Response[v1.GetPortfolioEquitySnapshotResponse], error)
 	// List finalized transfer history for an account.
 	// Supports optional subaccount, asset, ordering, and cursor filters.
 	ListTransfers(context.Context, *connect.Request[v1.ListTransfersRequest]) (*connect.Response[v1.ListTransfersResponse], error)
@@ -183,6 +230,18 @@ func NewLedgerReadServiceHandler(svc LedgerReadServiceHandler, opts ...connect.H
 		connect.WithSchema(ledgerReadServiceMethods.ByName("GetEquityHistorySeries")),
 		connect.WithHandlerOptions(opts...),
 	)
+	ledgerReadServiceGetPortfolioEquityHistorySeriesHandler := connect.NewUnaryHandler(
+		LedgerReadServiceGetPortfolioEquityHistorySeriesProcedure,
+		svc.GetPortfolioEquityHistorySeries,
+		connect.WithSchema(ledgerReadServiceMethods.ByName("GetPortfolioEquityHistorySeries")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ledgerReadServiceGetPortfolioEquitySnapshotHandler := connect.NewUnaryHandler(
+		LedgerReadServiceGetPortfolioEquitySnapshotProcedure,
+		svc.GetPortfolioEquitySnapshot,
+		connect.WithSchema(ledgerReadServiceMethods.ByName("GetPortfolioEquitySnapshot")),
+		connect.WithHandlerOptions(opts...),
+	)
 	ledgerReadServiceListTransfersHandler := connect.NewUnaryHandler(
 		LedgerReadServiceListTransfersProcedure,
 		svc.ListTransfers,
@@ -207,6 +266,10 @@ func NewLedgerReadServiceHandler(svc LedgerReadServiceHandler, opts ...connect.H
 			ledgerReadServiceGetBalanceHistoryHandler.ServeHTTP(w, r)
 		case LedgerReadServiceGetEquityHistorySeriesProcedure:
 			ledgerReadServiceGetEquityHistorySeriesHandler.ServeHTTP(w, r)
+		case LedgerReadServiceGetPortfolioEquityHistorySeriesProcedure:
+			ledgerReadServiceGetPortfolioEquityHistorySeriesHandler.ServeHTTP(w, r)
+		case LedgerReadServiceGetPortfolioEquitySnapshotProcedure:
+			ledgerReadServiceGetPortfolioEquitySnapshotHandler.ServeHTTP(w, r)
 		case LedgerReadServiceListTransfersProcedure:
 			ledgerReadServiceListTransfersHandler.ServeHTTP(w, r)
 		case LedgerReadServiceListHoldsProcedure:
@@ -228,6 +291,14 @@ func (UnimplementedLedgerReadServiceHandler) GetBalanceHistory(context.Context, 
 
 func (UnimplementedLedgerReadServiceHandler) GetEquityHistorySeries(context.Context, *connect.Request[v1.GetEquityHistorySeriesRequest]) (*connect.Response[v1.GetEquityHistorySeriesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ledger.read.v1.LedgerReadService.GetEquityHistorySeries is not implemented"))
+}
+
+func (UnimplementedLedgerReadServiceHandler) GetPortfolioEquityHistorySeries(context.Context, *connect.Request[v1.GetPortfolioEquityHistorySeriesRequest]) (*connect.Response[v1.GetPortfolioEquityHistorySeriesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ledger.read.v1.LedgerReadService.GetPortfolioEquityHistorySeries is not implemented"))
+}
+
+func (UnimplementedLedgerReadServiceHandler) GetPortfolioEquitySnapshot(context.Context, *connect.Request[v1.GetPortfolioEquitySnapshotRequest]) (*connect.Response[v1.GetPortfolioEquitySnapshotResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ledger.read.v1.LedgerReadService.GetPortfolioEquitySnapshot is not implemented"))
 }
 
 func (UnimplementedLedgerReadServiceHandler) ListTransfers(context.Context, *connect.Request[v1.ListTransfersRequest]) (*connect.Response[v1.ListTransfersResponse], error) {
