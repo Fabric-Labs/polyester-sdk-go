@@ -315,11 +315,13 @@ type BalanceHistory struct {
 
 // EquityHistorySeries is one equity history series.
 type EquityHistorySeries struct {
-	AccountCode uint32  `json:"account_code,omitempty"`
-	AccountName string  `json:"account_name,omitempty"`
-	AssetID     uint32  `json:"asset_id,omitempty"`
-	AssetSymbol string  `json:"asset_symbol,omitempty"`
-	EquityQ     []int64 `json:"equity_q"`
+	AccountCode        uint32  `json:"account_code,omitempty"`
+	AccountName        string  `json:"account_name,omitempty"`
+	AssetID            uint32  `json:"asset_id,omitempty"`
+	AssetSymbol        string  `json:"asset_symbol,omitempty"`
+	PortfolioAccountID string  `json:"portfolio_account_id,omitempty"`
+	PortfolioRemaining bool    `json:"portfolio_remaining,omitempty"`
+	EquityQ            []int64 `json:"equity_q"`
 }
 
 // EquityHistory is equity history response.

@@ -73,6 +73,48 @@ func TestEquityHistoryFromProto(t *testing.T) {
 	if result.Series[0].AccountCode != 5 || result.Series[0].AccountName != "Trading" {
 		t.Fatalf("series=%+v", result.Series[0])
 	}
+	if result.Series[0].PortfolioAccountID != "" || result.Series[0].PortfolioRemaining {
+		t.Fatalf("account grouping leaked portfolio fields: %+v", result.Series[0])
+	}
+}
+
+func TestEquityHistoryFromProtoPortfolioAccount(t *testing.T) {
+	accountID := uint64(42)
+	msg := &ledgerrdv1.GetEquityHistorySeriesResponse{
+		Range:      ledgerrdv1.BalanceRange_DAY_7,
+		QuoteAsset: "USDT",
+		Points:     2,
+		Series: []*ledgerrdv1.EquitySeries{
+			{
+				Grouping: &ledgerrdv1.EquitySeries_PortfolioAccount{
+					PortfolioAccount: &ledgerrdv1.PortfolioAccountGrouping{AccountId: &accountID},
+				},
+				EquityQ: []int64{100, 200},
+			},
+			{
+				Grouping: &ledgerrdv1.EquitySeries_PortfolioAccount{
+					PortfolioAccount: &ledgerrdv1.PortfolioAccountGrouping{Remaining: true},
+				},
+				EquityQ: []int64{10, 20},
+			},
+		},
+	}
+	result := decode.EquityHistoryFromProto(msg)
+	if len(result.Series) != 2 {
+		t.Fatalf("series=%+v", result.Series)
+	}
+	if result.Series[0].PortfolioAccountID != codecs.FormatUint64ID(42) {
+		t.Fatalf("named portfolio id=%q", result.Series[0].PortfolioAccountID)
+	}
+	if result.Series[0].PortfolioRemaining || result.Series[0].AccountCode != 0 {
+		t.Fatalf("named series=%+v", result.Series[0])
+	}
+	if result.Series[1].PortfolioAccountID != "" || !result.Series[1].PortfolioRemaining {
+		t.Fatalf("remaining series=%+v", result.Series[1])
+	}
+	if result.Series[0].EquityQ[0] != 100 || result.Series[1].EquityQ[1] != 20 {
+		t.Fatalf("equity_q not preserved: %+v", result.Series)
+	}
 }
 
 func TestHoldsListFromProto(t *testing.T) {

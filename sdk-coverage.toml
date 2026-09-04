@@ -73,3 +73,11 @@ reason = "Address book copy is not wrapped in the API-key SDK."
 [[allowlist]]
 service = "auth.v1.SubaccountRoleService"
 reason = "Subaccount role catalog RPCs are JWT/session-only; outside the API-key SDK surface."
+
+[[allowlist]]
+procedure = "/ledger.read.v1.LedgerReadService/GetPortfolioEquityHistorySeries"
+reason = "Root portfolio equity history requires an interactive root-account session; API keys and subaccount-scoped sessions are not supported."
+
+[[allowlist]]
+procedure = "/ledger.read.v1.LedgerReadService/GetPortfolioEquitySnapshot"
+reason = "Root portfolio equity snapshot requires an interactive root-account session; API keys and subaccount-scoped sessions are not supported."
