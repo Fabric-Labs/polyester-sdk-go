@@ -26,6 +26,220 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// ErrorCode identifies stable, machine-readable Withdraw API errors.
+// Values mirror the REST problem+json code field.
+type ErrorCode int32
+
+const (
+	// No domain error code was provided.
+	ErrorCode_ERROR_CODE_UNSPECIFIED ErrorCode = 0
+	// The source account does not have enough available Trading balance.
+	ErrorCode_ERROR_CODE_INSUFFICIENT_FUNDS ErrorCode = 1
+	// Request payload or one of its fields is invalid.
+	ErrorCode_ERROR_CODE_INVALID_REQUEST ErrorCode = 2
+	// Caller is not authenticated.
+	ErrorCode_ERROR_CODE_UNAUTHENTICATED ErrorCode = 3
+	// Caller is not permitted to perform the withdraw operation.
+	ErrorCode_ERROR_CODE_PERMISSION_DENIED ErrorCode = 4
+	// Request exceeded the applicable admission rate limit.
+	ErrorCode_ERROR_CODE_RATE_LIMIT_EXCEEDED ErrorCode = 5
+	// A required dependency is temporarily unavailable.
+	ErrorCode_ERROR_CODE_SERVICE_UNAVAILABLE ErrorCode = 6
+	// The request failed because of an unexpected server error.
+	ErrorCode_ERROR_CODE_INTERNAL_ERROR ErrorCode = 7
+	// The selected subaccount identifier is invalid.
+	ErrorCode_ERROR_CODE_INVALID_SUBACCOUNT_ID ErrorCode = 8
+	// The selected subaccount does not exist.
+	ErrorCode_ERROR_CODE_SUBACCOUNT_NOT_FOUND ErrorCode = 9
+	// The requested withdraw action is invalid for this endpoint.
+	ErrorCode_ERROR_CODE_INVALID_ACTION ErrorCode = 10
+	// The requested ledger is not supported for withdrawals.
+	ErrorCode_ERROR_CODE_UNSUPPORTED_LEDGER ErrorCode = 11
+	// The requested asset or withdraw route is not supported.
+	ErrorCode_ERROR_CODE_UNSUPPORTED_ASSET ErrorCode = 12
+	// The withdraw amount is invalid.
+	ErrorCode_ERROR_CODE_INVALID_AMOUNT ErrorCode = 13
+	// The destination chain is invalid.
+	ErrorCode_ERROR_CODE_INVALID_DESTINATION_CHAIN ErrorCode = 14
+	// The destination address is invalid.
+	ErrorCode_ERROR_CODE_INVALID_DESTINATION_ADDRESS ErrorCode = 15
+	// The external destination is not whitelisted.
+	ErrorCode_ERROR_CODE_EXTERNAL_DESTINATION_NOT_WHITELISTED ErrorCode = 16
+	// The internal funding recipient is not whitelisted.
+	ErrorCode_ERROR_CODE_INTERNAL_RECIPIENT_NOT_WHITELISTED ErrorCode = 17
+	// The withdraw amount is below the configured minimum including fees.
+	ErrorCode_ERROR_CODE_AMOUNT_BELOW_MINIMUM ErrorCode = 18
+	// The withdraw amount exceeds the available zipped-asset supply.
+	ErrorCode_ERROR_CODE_AMOUNT_EXCEEDS_SUPPLY ErrorCode = 19
+	// The source smart-account address is unavailable.
+	ErrorCode_ERROR_CODE_SOURCE_SMART_ACCOUNT_UNAVAILABLE ErrorCode = 20
+	// The required payload signature is missing.
+	ErrorCode_ERROR_CODE_SIGNATURE_REQUIRED ErrorCode = 21
+	// The requested signature scheme is unsupported.
+	ErrorCode_ERROR_CODE_SIGNATURE_SCHEME_UNSUPPORTED ErrorCode = 22
+	// The wallet supplied as signer is invalid.
+	ErrorCode_ERROR_CODE_SIGNER_WALLET_INVALID ErrorCode = 23
+	// Wallet authorization binding verification failed.
+	ErrorCode_ERROR_CODE_WALLET_BINDING_INVALID ErrorCode = 24
+	// Wallet authorization binding does not cover the requested scope.
+	ErrorCode_ERROR_CODE_WALLET_BINDING_SCOPE_MISMATCH ErrorCode = 25
+	// Wallet authorization binding does not match the signer.
+	ErrorCode_ERROR_CODE_WALLET_BINDING_SIGNER_MISMATCH ErrorCode = 26
+	// The API key could not be resolved.
+	ErrorCode_ERROR_CODE_API_KEY_NOT_FOUND ErrorCode = 27
+	// API-key authorization binding verification failed.
+	ErrorCode_ERROR_CODE_API_KEY_BINDING_INVALID ErrorCode = 28
+	// API-key authorization binding does not cover the requested scope.
+	ErrorCode_ERROR_CODE_API_KEY_BINDING_SCOPE_MISMATCH ErrorCode = 29
+	// API-key authorization binding does not match the configured public key.
+	ErrorCode_ERROR_CODE_API_KEY_BINDING_PUBLIC_KEY_MISMATCH ErrorCode = 30
+	// The idempotency key was reused with different request data.
+	ErrorCode_ERROR_CODE_IDEMPOTENCY_CONFLICT ErrorCode = 31
+	// The funds lock conflicts with an existing or finalized reservation.
+	ErrorCode_ERROR_CODE_FUNDS_LOCK_CONFLICT ErrorCode = 32
+	// The authoritative capital view is not ready or is stale.
+	ErrorCode_ERROR_CODE_CAPITAL_VIEW_UNAVAILABLE ErrorCode = 33
+	// Required chain or contract metadata is unavailable.
+	ErrorCode_ERROR_CODE_CHAIN_METADATA_UNAVAILABLE ErrorCode = 34
+	// Required network fee data is unavailable.
+	ErrorCode_ERROR_CODE_FEE_UNAVAILABLE ErrorCode = 35
+	// Required zipped-asset supply data is unavailable.
+	ErrorCode_ERROR_CODE_SUPPLY_UNAVAILABLE ErrorCode = 36
+	// Fresh step-up verification is temporarily unavailable.
+	ErrorCode_ERROR_CODE_STEP_UP_UNAVAILABLE ErrorCode = 37
+	// Destination validation is temporarily unavailable.
+	ErrorCode_ERROR_CODE_DESTINATION_VALIDATION_UNAVAILABLE ErrorCode = 38
+	// The account shard cannot currently accept fund movement.
+	ErrorCode_ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE ErrorCode = 39
+	// A required precondition was not satisfied.
+	ErrorCode_ERROR_CODE_FAILED_PRECONDITION ErrorCode = 40
+	// The requested resource was not found.
+	ErrorCode_ERROR_CODE_NOT_FOUND ErrorCode = 41
+	// The request conflicts with existing state.
+	ErrorCode_ERROR_CODE_CONFLICT ErrorCode = 42
+)
+
+// Enum value maps for ErrorCode.
+var (
+	ErrorCode_name = map[int32]string{
+		0:  "ERROR_CODE_UNSPECIFIED",
+		1:  "ERROR_CODE_INSUFFICIENT_FUNDS",
+		2:  "ERROR_CODE_INVALID_REQUEST",
+		3:  "ERROR_CODE_UNAUTHENTICATED",
+		4:  "ERROR_CODE_PERMISSION_DENIED",
+		5:  "ERROR_CODE_RATE_LIMIT_EXCEEDED",
+		6:  "ERROR_CODE_SERVICE_UNAVAILABLE",
+		7:  "ERROR_CODE_INTERNAL_ERROR",
+		8:  "ERROR_CODE_INVALID_SUBACCOUNT_ID",
+		9:  "ERROR_CODE_SUBACCOUNT_NOT_FOUND",
+		10: "ERROR_CODE_INVALID_ACTION",
+		11: "ERROR_CODE_UNSUPPORTED_LEDGER",
+		12: "ERROR_CODE_UNSUPPORTED_ASSET",
+		13: "ERROR_CODE_INVALID_AMOUNT",
+		14: "ERROR_CODE_INVALID_DESTINATION_CHAIN",
+		15: "ERROR_CODE_INVALID_DESTINATION_ADDRESS",
+		16: "ERROR_CODE_EXTERNAL_DESTINATION_NOT_WHITELISTED",
+		17: "ERROR_CODE_INTERNAL_RECIPIENT_NOT_WHITELISTED",
+		18: "ERROR_CODE_AMOUNT_BELOW_MINIMUM",
+		19: "ERROR_CODE_AMOUNT_EXCEEDS_SUPPLY",
+		20: "ERROR_CODE_SOURCE_SMART_ACCOUNT_UNAVAILABLE",
+		21: "ERROR_CODE_SIGNATURE_REQUIRED",
+		22: "ERROR_CODE_SIGNATURE_SCHEME_UNSUPPORTED",
+		23: "ERROR_CODE_SIGNER_WALLET_INVALID",
+		24: "ERROR_CODE_WALLET_BINDING_INVALID",
+		25: "ERROR_CODE_WALLET_BINDING_SCOPE_MISMATCH",
+		26: "ERROR_CODE_WALLET_BINDING_SIGNER_MISMATCH",
+		27: "ERROR_CODE_API_KEY_NOT_FOUND",
+		28: "ERROR_CODE_API_KEY_BINDING_INVALID",
+		29: "ERROR_CODE_API_KEY_BINDING_SCOPE_MISMATCH",
+		30: "ERROR_CODE_API_KEY_BINDING_PUBLIC_KEY_MISMATCH",
+		31: "ERROR_CODE_IDEMPOTENCY_CONFLICT",
+		32: "ERROR_CODE_FUNDS_LOCK_CONFLICT",
+		33: "ERROR_CODE_CAPITAL_VIEW_UNAVAILABLE",
+		34: "ERROR_CODE_CHAIN_METADATA_UNAVAILABLE",
+		35: "ERROR_CODE_FEE_UNAVAILABLE",
+		36: "ERROR_CODE_SUPPLY_UNAVAILABLE",
+		37: "ERROR_CODE_STEP_UP_UNAVAILABLE",
+		38: "ERROR_CODE_DESTINATION_VALIDATION_UNAVAILABLE",
+		39: "ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE",
+		40: "ERROR_CODE_FAILED_PRECONDITION",
+		41: "ERROR_CODE_NOT_FOUND",
+		42: "ERROR_CODE_CONFLICT",
+	}
+	ErrorCode_value = map[string]int32{
+		"ERROR_CODE_UNSPECIFIED":                          0,
+		"ERROR_CODE_INSUFFICIENT_FUNDS":                   1,
+		"ERROR_CODE_INVALID_REQUEST":                      2,
+		"ERROR_CODE_UNAUTHENTICATED":                      3,
+		"ERROR_CODE_PERMISSION_DENIED":                    4,
+		"ERROR_CODE_RATE_LIMIT_EXCEEDED":                  5,
+		"ERROR_CODE_SERVICE_UNAVAILABLE":                  6,
+		"ERROR_CODE_INTERNAL_ERROR":                       7,
+		"ERROR_CODE_INVALID_SUBACCOUNT_ID":                8,
+		"ERROR_CODE_SUBACCOUNT_NOT_FOUND":                 9,
+		"ERROR_CODE_INVALID_ACTION":                       10,
+		"ERROR_CODE_UNSUPPORTED_LEDGER":                   11,
+		"ERROR_CODE_UNSUPPORTED_ASSET":                    12,
+		"ERROR_CODE_INVALID_AMOUNT":                       13,
+		"ERROR_CODE_INVALID_DESTINATION_CHAIN":            14,
+		"ERROR_CODE_INVALID_DESTINATION_ADDRESS":          15,
+		"ERROR_CODE_EXTERNAL_DESTINATION_NOT_WHITELISTED": 16,
+		"ERROR_CODE_INTERNAL_RECIPIENT_NOT_WHITELISTED":   17,
+		"ERROR_CODE_AMOUNT_BELOW_MINIMUM":                 18,
+		"ERROR_CODE_AMOUNT_EXCEEDS_SUPPLY":                19,
+		"ERROR_CODE_SOURCE_SMART_ACCOUNT_UNAVAILABLE":     20,
+		"ERROR_CODE_SIGNATURE_REQUIRED":                   21,
+		"ERROR_CODE_SIGNATURE_SCHEME_UNSUPPORTED":         22,
+		"ERROR_CODE_SIGNER_WALLET_INVALID":                23,
+		"ERROR_CODE_WALLET_BINDING_INVALID":               24,
+		"ERROR_CODE_WALLET_BINDING_SCOPE_MISMATCH":        25,
+		"ERROR_CODE_WALLET_BINDING_SIGNER_MISMATCH":       26,
+		"ERROR_CODE_API_KEY_NOT_FOUND":                    27,
+		"ERROR_CODE_API_KEY_BINDING_INVALID":              28,
+		"ERROR_CODE_API_KEY_BINDING_SCOPE_MISMATCH":       29,
+		"ERROR_CODE_API_KEY_BINDING_PUBLIC_KEY_MISMATCH":  30,
+		"ERROR_CODE_IDEMPOTENCY_CONFLICT":                 31,
+		"ERROR_CODE_FUNDS_LOCK_CONFLICT":                  32,
+		"ERROR_CODE_CAPITAL_VIEW_UNAVAILABLE":             33,
+		"ERROR_CODE_CHAIN_METADATA_UNAVAILABLE":           34,
+		"ERROR_CODE_FEE_UNAVAILABLE":                      35,
+		"ERROR_CODE_SUPPLY_UNAVAILABLE":                   36,
+		"ERROR_CODE_STEP_UP_UNAVAILABLE":                  37,
+		"ERROR_CODE_DESTINATION_VALIDATION_UNAVAILABLE":   38,
+		"ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE":            39,
+		"ERROR_CODE_FAILED_PRECONDITION":                  40,
+		"ERROR_CODE_NOT_FOUND":                            41,
+		"ERROR_CODE_CONFLICT":                             42,
+	}
+)
+
+func (x ErrorCode) Enum() *ErrorCode {
+	p := new(ErrorCode)
+	*p = x
+	return p
+}
+
+func (x ErrorCode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ErrorCode) Descriptor() protoreflect.EnumDescriptor {
+	return file_chain_withdraw_v1_withdraw_proto_enumTypes[0].Descriptor()
+}
+
+func (ErrorCode) Type() protoreflect.EnumType {
+	return &file_chain_withdraw_v1_withdraw_proto_enumTypes[0]
+}
+
+func (x ErrorCode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ErrorCode.Descriptor instead.
+func (ErrorCode) EnumDescriptor() ([]byte, []int) {
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{0}
+}
+
 // TradingWithdrawAction identifies where funds should move from Trading.
 type TradingWithdrawAction int32
 
@@ -60,11 +274,11 @@ func (x TradingWithdrawAction) String() string {
 }
 
 func (TradingWithdrawAction) Descriptor() protoreflect.EnumDescriptor {
-	return file_chain_withdraw_v1_withdraw_proto_enumTypes[0].Descriptor()
+	return file_chain_withdraw_v1_withdraw_proto_enumTypes[1].Descriptor()
 }
 
 func (TradingWithdrawAction) Type() protoreflect.EnumType {
-	return &file_chain_withdraw_v1_withdraw_proto_enumTypes[0]
+	return &file_chain_withdraw_v1_withdraw_proto_enumTypes[1]
 }
 
 func (x TradingWithdrawAction) Number() protoreflect.EnumNumber {
@@ -73,7 +287,7 @@ func (x TradingWithdrawAction) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use TradingWithdrawAction.Descriptor instead.
 func (TradingWithdrawAction) EnumDescriptor() ([]byte, []int) {
-	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{0}
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{1}
 }
 
 // WithdrawDestinationValidationCode identifies the public outcome of an
@@ -131,11 +345,11 @@ func (x WithdrawDestinationValidationCode) String() string {
 }
 
 func (WithdrawDestinationValidationCode) Descriptor() protoreflect.EnumDescriptor {
-	return file_chain_withdraw_v1_withdraw_proto_enumTypes[1].Descriptor()
+	return file_chain_withdraw_v1_withdraw_proto_enumTypes[2].Descriptor()
 }
 
 func (WithdrawDestinationValidationCode) Type() protoreflect.EnumType {
-	return &file_chain_withdraw_v1_withdraw_proto_enumTypes[1]
+	return &file_chain_withdraw_v1_withdraw_proto_enumTypes[2]
 }
 
 func (x WithdrawDestinationValidationCode) Number() protoreflect.EnumNumber {
@@ -144,7 +358,7 @@ func (x WithdrawDestinationValidationCode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use WithdrawDestinationValidationCode.Descriptor instead.
 func (WithdrawDestinationValidationCode) EnumDescriptor() ([]byte, []int) {
-	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{1}
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{2}
 }
 
 // CreateTradingWithdrawResponse returns the accepted durable intent identifier
@@ -243,6 +457,52 @@ func (x *CreateWalletTradingWithdrawResponse) GetIntentId() string {
 	return ""
 }
 
+// ErrorDetail is attached to ConnectRPC errors for structured error handling.
+type ErrorDetail struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable error code matching the REST problem+json code field.
+	Code          ErrorCode `protobuf:"varint,1,opt,name=code,proto3,enum=chain.withdraw.v1.ErrorCode" json:"code,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ErrorDetail) Reset() {
+	*x = ErrorDetail{}
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ErrorDetail) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ErrorDetail) ProtoMessage() {}
+
+func (x *ErrorDetail) ProtoReflect() protoreflect.Message {
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ErrorDetail.ProtoReflect.Descriptor instead.
+func (*ErrorDetail) Descriptor() ([]byte, []int) {
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ErrorDetail) GetCode() ErrorCode {
+	if x != nil {
+		return x.Code
+	}
+	return ErrorCode_ERROR_CODE_UNSPECIFIED
+}
+
 // TradingWithdrawIntentPayload is the client-signed typed withdraw request.
 // Account scope and backend intent ids are derived server-side.
 type TradingWithdrawIntentPayload struct {
@@ -279,7 +539,7 @@ type TradingWithdrawIntentPayload struct {
 
 func (x *TradingWithdrawIntentPayload) Reset() {
 	*x = TradingWithdrawIntentPayload{}
-	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[2]
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -291,7 +551,7 @@ func (x *TradingWithdrawIntentPayload) String() string {
 func (*TradingWithdrawIntentPayload) ProtoMessage() {}
 
 func (x *TradingWithdrawIntentPayload) ProtoReflect() protoreflect.Message {
-	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[2]
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -304,7 +564,7 @@ func (x *TradingWithdrawIntentPayload) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TradingWithdrawIntentPayload.ProtoReflect.Descriptor instead.
 func (*TradingWithdrawIntentPayload) Descriptor() ([]byte, []int) {
-	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{2}
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *TradingWithdrawIntentPayload) GetAction() TradingWithdrawAction {
@@ -377,7 +637,7 @@ type CreateTradingWithdrawRequest struct {
 
 func (x *CreateTradingWithdrawRequest) Reset() {
 	*x = CreateTradingWithdrawRequest{}
-	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[3]
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -389,7 +649,7 @@ func (x *CreateTradingWithdrawRequest) String() string {
 func (*CreateTradingWithdrawRequest) ProtoMessage() {}
 
 func (x *CreateTradingWithdrawRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[3]
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -402,7 +662,7 @@ func (x *CreateTradingWithdrawRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateTradingWithdrawRequest.ProtoReflect.Descriptor instead.
 func (*CreateTradingWithdrawRequest) Descriptor() ([]byte, []int) {
-	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{3}
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *CreateTradingWithdrawRequest) GetPayload() *TradingWithdrawIntentPayload {
@@ -437,7 +697,7 @@ type CreateWalletTradingWithdrawRequest struct {
 
 func (x *CreateWalletTradingWithdrawRequest) Reset() {
 	*x = CreateWalletTradingWithdrawRequest{}
-	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[4]
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -449,7 +709,7 @@ func (x *CreateWalletTradingWithdrawRequest) String() string {
 func (*CreateWalletTradingWithdrawRequest) ProtoMessage() {}
 
 func (x *CreateWalletTradingWithdrawRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[4]
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -462,7 +722,7 @@ func (x *CreateWalletTradingWithdrawRequest) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use CreateWalletTradingWithdrawRequest.ProtoReflect.Descriptor instead.
 func (*CreateWalletTradingWithdrawRequest) Descriptor() ([]byte, []int) {
-	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{4}
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CreateWalletTradingWithdrawRequest) GetPayload() *TradingWithdrawIntentPayload {
@@ -507,7 +767,7 @@ type ValidateWithdrawDestinationRequest struct {
 
 func (x *ValidateWithdrawDestinationRequest) Reset() {
 	*x = ValidateWithdrawDestinationRequest{}
-	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[5]
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -519,7 +779,7 @@ func (x *ValidateWithdrawDestinationRequest) String() string {
 func (*ValidateWithdrawDestinationRequest) ProtoMessage() {}
 
 func (x *ValidateWithdrawDestinationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[5]
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -532,7 +792,7 @@ func (x *ValidateWithdrawDestinationRequest) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use ValidateWithdrawDestinationRequest.ProtoReflect.Descriptor instead.
 func (*ValidateWithdrawDestinationRequest) Descriptor() ([]byte, []int) {
-	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{5}
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ValidateWithdrawDestinationRequest) GetDestinationChainId() uint64 {
@@ -567,7 +827,7 @@ type ValidateWithdrawDestinationResponse struct {
 
 func (x *ValidateWithdrawDestinationResponse) Reset() {
 	*x = ValidateWithdrawDestinationResponse{}
-	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[6]
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -579,7 +839,7 @@ func (x *ValidateWithdrawDestinationResponse) String() string {
 func (*ValidateWithdrawDestinationResponse) ProtoMessage() {}
 
 func (x *ValidateWithdrawDestinationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[6]
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -592,7 +852,7 @@ func (x *ValidateWithdrawDestinationResponse) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use ValidateWithdrawDestinationResponse.ProtoReflect.Descriptor instead.
 func (*ValidateWithdrawDestinationResponse) Descriptor() ([]byte, []int) {
-	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{6}
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ValidateWithdrawDestinationResponse) GetValid() bool {
@@ -631,7 +891,9 @@ const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"\x1dCreateTradingWithdrawResponse\x12\x1b\n" +
 	"\tintent_id\x18\x01 \x01(\tR\bintentId\"B\n" +
 	"#CreateWalletTradingWithdrawResponse\x12\x1b\n" +
-	"\tintent_id\x18\x01 \x01(\tR\bintentId\"\xcd\x03\n" +
+	"\tintent_id\x18\x01 \x01(\tR\bintentId\"?\n" +
+	"\vErrorDetail\x120\n" +
+	"\x04code\x18\x01 \x01(\x0e2\x1c.chain.withdraw.v1.ErrorCodeR\x04code\"\xcd\x03\n" +
 	"\x1cTradingWithdrawIntentPayload\x12L\n" +
 	"\x06action\x18\x01 \x01(\x0e2(.chain.withdraw.v1.TradingWithdrawActionB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x06action\x12\"\n" +
@@ -658,7 +920,52 @@ const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"\x05valid\x18\x01 \x01(\bR\x05valid\x12H\n" +
 	"\x04code\x18\x02 \x01(\x0e24.chain.withdraw.v1.WithdrawDestinationValidationCodeR\x04code\x12\x18\n" +
 	"\amessage\x18\x03 \x01(\tR\amessage\x12B\n" +
-	"\x1dcanonical_destination_address\x18\x04 \x01(\tR\x1bcanonicalDestinationAddress*V\n" +
+	"\x1dcanonical_destination_address\x18\x04 \x01(\tR\x1bcanonicalDestinationAddress*\xfa\f\n" +
+	"\tErrorCode\x12\x1a\n" +
+	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12!\n" +
+	"\x1dERROR_CODE_INSUFFICIENT_FUNDS\x10\x01\x12\x1e\n" +
+	"\x1aERROR_CODE_INVALID_REQUEST\x10\x02\x12\x1e\n" +
+	"\x1aERROR_CODE_UNAUTHENTICATED\x10\x03\x12 \n" +
+	"\x1cERROR_CODE_PERMISSION_DENIED\x10\x04\x12\"\n" +
+	"\x1eERROR_CODE_RATE_LIMIT_EXCEEDED\x10\x05\x12\"\n" +
+	"\x1eERROR_CODE_SERVICE_UNAVAILABLE\x10\x06\x12\x1d\n" +
+	"\x19ERROR_CODE_INTERNAL_ERROR\x10\a\x12$\n" +
+	" ERROR_CODE_INVALID_SUBACCOUNT_ID\x10\b\x12#\n" +
+	"\x1fERROR_CODE_SUBACCOUNT_NOT_FOUND\x10\t\x12\x1d\n" +
+	"\x19ERROR_CODE_INVALID_ACTION\x10\n" +
+	"\x12!\n" +
+	"\x1dERROR_CODE_UNSUPPORTED_LEDGER\x10\v\x12 \n" +
+	"\x1cERROR_CODE_UNSUPPORTED_ASSET\x10\f\x12\x1d\n" +
+	"\x19ERROR_CODE_INVALID_AMOUNT\x10\r\x12(\n" +
+	"$ERROR_CODE_INVALID_DESTINATION_CHAIN\x10\x0e\x12*\n" +
+	"&ERROR_CODE_INVALID_DESTINATION_ADDRESS\x10\x0f\x123\n" +
+	"/ERROR_CODE_EXTERNAL_DESTINATION_NOT_WHITELISTED\x10\x10\x121\n" +
+	"-ERROR_CODE_INTERNAL_RECIPIENT_NOT_WHITELISTED\x10\x11\x12#\n" +
+	"\x1fERROR_CODE_AMOUNT_BELOW_MINIMUM\x10\x12\x12$\n" +
+	" ERROR_CODE_AMOUNT_EXCEEDS_SUPPLY\x10\x13\x12/\n" +
+	"+ERROR_CODE_SOURCE_SMART_ACCOUNT_UNAVAILABLE\x10\x14\x12!\n" +
+	"\x1dERROR_CODE_SIGNATURE_REQUIRED\x10\x15\x12+\n" +
+	"'ERROR_CODE_SIGNATURE_SCHEME_UNSUPPORTED\x10\x16\x12$\n" +
+	" ERROR_CODE_SIGNER_WALLET_INVALID\x10\x17\x12%\n" +
+	"!ERROR_CODE_WALLET_BINDING_INVALID\x10\x18\x12,\n" +
+	"(ERROR_CODE_WALLET_BINDING_SCOPE_MISMATCH\x10\x19\x12-\n" +
+	")ERROR_CODE_WALLET_BINDING_SIGNER_MISMATCH\x10\x1a\x12 \n" +
+	"\x1cERROR_CODE_API_KEY_NOT_FOUND\x10\x1b\x12&\n" +
+	"\"ERROR_CODE_API_KEY_BINDING_INVALID\x10\x1c\x12-\n" +
+	")ERROR_CODE_API_KEY_BINDING_SCOPE_MISMATCH\x10\x1d\x122\n" +
+	".ERROR_CODE_API_KEY_BINDING_PUBLIC_KEY_MISMATCH\x10\x1e\x12#\n" +
+	"\x1fERROR_CODE_IDEMPOTENCY_CONFLICT\x10\x1f\x12\"\n" +
+	"\x1eERROR_CODE_FUNDS_LOCK_CONFLICT\x10 \x12'\n" +
+	"#ERROR_CODE_CAPITAL_VIEW_UNAVAILABLE\x10!\x12)\n" +
+	"%ERROR_CODE_CHAIN_METADATA_UNAVAILABLE\x10\"\x12\x1e\n" +
+	"\x1aERROR_CODE_FEE_UNAVAILABLE\x10#\x12!\n" +
+	"\x1dERROR_CODE_SUPPLY_UNAVAILABLE\x10$\x12\"\n" +
+	"\x1eERROR_CODE_STEP_UP_UNAVAILABLE\x10%\x121\n" +
+	"-ERROR_CODE_DESTINATION_VALIDATION_UNAVAILABLE\x10&\x12(\n" +
+	"$ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE\x10'\x12\"\n" +
+	"\x1eERROR_CODE_FAILED_PRECONDITION\x10(\x12\x18\n" +
+	"\x14ERROR_CODE_NOT_FOUND\x10)\x12\x17\n" +
+	"\x13ERROR_CODE_CONFLICT\x10**V\n" +
 	"\x15TradingWithdrawAction\x12\x16\n" +
 	"\x12ACTION_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -693,38 +1000,41 @@ func file_chain_withdraw_v1_withdraw_proto_rawDescGZIP() []byte {
 	return file_chain_withdraw_v1_withdraw_proto_rawDescData
 }
 
-var file_chain_withdraw_v1_withdraw_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_chain_withdraw_v1_withdraw_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_chain_withdraw_v1_withdraw_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_chain_withdraw_v1_withdraw_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_chain_withdraw_v1_withdraw_proto_goTypes = []any{
-	(TradingWithdrawAction)(0),                  // 0: chain.withdraw.v1.TradingWithdrawAction
-	(WithdrawDestinationValidationCode)(0),      // 1: chain.withdraw.v1.WithdrawDestinationValidationCode
-	(*CreateTradingWithdrawResponse)(nil),       // 2: chain.withdraw.v1.CreateTradingWithdrawResponse
-	(*CreateWalletTradingWithdrawResponse)(nil), // 3: chain.withdraw.v1.CreateWalletTradingWithdrawResponse
-	(*TradingWithdrawIntentPayload)(nil),        // 4: chain.withdraw.v1.TradingWithdrawIntentPayload
-	(*CreateTradingWithdrawRequest)(nil),        // 5: chain.withdraw.v1.CreateTradingWithdrawRequest
-	(*CreateWalletTradingWithdrawRequest)(nil),  // 6: chain.withdraw.v1.CreateWalletTradingWithdrawRequest
-	(*ValidateWithdrawDestinationRequest)(nil),  // 7: chain.withdraw.v1.ValidateWithdrawDestinationRequest
-	(*ValidateWithdrawDestinationResponse)(nil), // 8: chain.withdraw.v1.ValidateWithdrawDestinationResponse
-	(*v1.U128)(nil), // 9: polyester.type.v1.U128
+	(ErrorCode)(0),                              // 0: chain.withdraw.v1.ErrorCode
+	(TradingWithdrawAction)(0),                  // 1: chain.withdraw.v1.TradingWithdrawAction
+	(WithdrawDestinationValidationCode)(0),      // 2: chain.withdraw.v1.WithdrawDestinationValidationCode
+	(*CreateTradingWithdrawResponse)(nil),       // 3: chain.withdraw.v1.CreateTradingWithdrawResponse
+	(*CreateWalletTradingWithdrawResponse)(nil), // 4: chain.withdraw.v1.CreateWalletTradingWithdrawResponse
+	(*ErrorDetail)(nil),                         // 5: chain.withdraw.v1.ErrorDetail
+	(*TradingWithdrawIntentPayload)(nil),        // 6: chain.withdraw.v1.TradingWithdrawIntentPayload
+	(*CreateTradingWithdrawRequest)(nil),        // 7: chain.withdraw.v1.CreateTradingWithdrawRequest
+	(*CreateWalletTradingWithdrawRequest)(nil),  // 8: chain.withdraw.v1.CreateWalletTradingWithdrawRequest
+	(*ValidateWithdrawDestinationRequest)(nil),  // 9: chain.withdraw.v1.ValidateWithdrawDestinationRequest
+	(*ValidateWithdrawDestinationResponse)(nil), // 10: chain.withdraw.v1.ValidateWithdrawDestinationResponse
+	(*v1.U128)(nil),                             // 11: polyester.type.v1.U128
 }
 var file_chain_withdraw_v1_withdraw_proto_depIdxs = []int32{
-	0, // 0: chain.withdraw.v1.TradingWithdrawIntentPayload.action:type_name -> chain.withdraw.v1.TradingWithdrawAction
-	9, // 1: chain.withdraw.v1.TradingWithdrawIntentPayload.amount_e18:type_name -> polyester.type.v1.U128
-	9, // 2: chain.withdraw.v1.TradingWithdrawIntentPayload.nonce:type_name -> polyester.type.v1.U128
-	4, // 3: chain.withdraw.v1.CreateTradingWithdrawRequest.payload:type_name -> chain.withdraw.v1.TradingWithdrawIntentPayload
-	4, // 4: chain.withdraw.v1.CreateWalletTradingWithdrawRequest.payload:type_name -> chain.withdraw.v1.TradingWithdrawIntentPayload
-	1, // 5: chain.withdraw.v1.ValidateWithdrawDestinationResponse.code:type_name -> chain.withdraw.v1.WithdrawDestinationValidationCode
-	7, // 6: chain.withdraw.v1.WithdrawService.ValidateWithdrawDestination:input_type -> chain.withdraw.v1.ValidateWithdrawDestinationRequest
-	5, // 7: chain.withdraw.v1.WithdrawService.CreateTradingWithdraw:input_type -> chain.withdraw.v1.CreateTradingWithdrawRequest
-	6, // 8: chain.withdraw.v1.WithdrawService.CreateWalletTradingWithdraw:input_type -> chain.withdraw.v1.CreateWalletTradingWithdrawRequest
-	8, // 9: chain.withdraw.v1.WithdrawService.ValidateWithdrawDestination:output_type -> chain.withdraw.v1.ValidateWithdrawDestinationResponse
-	2, // 10: chain.withdraw.v1.WithdrawService.CreateTradingWithdraw:output_type -> chain.withdraw.v1.CreateTradingWithdrawResponse
-	3, // 11: chain.withdraw.v1.WithdrawService.CreateWalletTradingWithdraw:output_type -> chain.withdraw.v1.CreateWalletTradingWithdrawResponse
-	9, // [9:12] is the sub-list for method output_type
-	6, // [6:9] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	0,  // 0: chain.withdraw.v1.ErrorDetail.code:type_name -> chain.withdraw.v1.ErrorCode
+	1,  // 1: chain.withdraw.v1.TradingWithdrawIntentPayload.action:type_name -> chain.withdraw.v1.TradingWithdrawAction
+	11, // 2: chain.withdraw.v1.TradingWithdrawIntentPayload.amount_e18:type_name -> polyester.type.v1.U128
+	11, // 3: chain.withdraw.v1.TradingWithdrawIntentPayload.nonce:type_name -> polyester.type.v1.U128
+	6,  // 4: chain.withdraw.v1.CreateTradingWithdrawRequest.payload:type_name -> chain.withdraw.v1.TradingWithdrawIntentPayload
+	6,  // 5: chain.withdraw.v1.CreateWalletTradingWithdrawRequest.payload:type_name -> chain.withdraw.v1.TradingWithdrawIntentPayload
+	2,  // 6: chain.withdraw.v1.ValidateWithdrawDestinationResponse.code:type_name -> chain.withdraw.v1.WithdrawDestinationValidationCode
+	9,  // 7: chain.withdraw.v1.WithdrawService.ValidateWithdrawDestination:input_type -> chain.withdraw.v1.ValidateWithdrawDestinationRequest
+	7,  // 8: chain.withdraw.v1.WithdrawService.CreateTradingWithdraw:input_type -> chain.withdraw.v1.CreateTradingWithdrawRequest
+	8,  // 9: chain.withdraw.v1.WithdrawService.CreateWalletTradingWithdraw:input_type -> chain.withdraw.v1.CreateWalletTradingWithdrawRequest
+	10, // 10: chain.withdraw.v1.WithdrawService.ValidateWithdrawDestination:output_type -> chain.withdraw.v1.ValidateWithdrawDestinationResponse
+	3,  // 11: chain.withdraw.v1.WithdrawService.CreateTradingWithdraw:output_type -> chain.withdraw.v1.CreateTradingWithdrawResponse
+	4,  // 12: chain.withdraw.v1.WithdrawService.CreateWalletTradingWithdraw:output_type -> chain.withdraw.v1.CreateWalletTradingWithdrawResponse
+	10, // [10:13] is the sub-list for method output_type
+	7,  // [7:10] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_chain_withdraw_v1_withdraw_proto_init() }
@@ -737,8 +1047,8 @@ func file_chain_withdraw_v1_withdraw_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chain_withdraw_v1_withdraw_proto_rawDesc), len(file_chain_withdraw_v1_withdraw_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   7,
+			NumEnums:      3,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
