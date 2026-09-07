@@ -3430,12 +3430,12 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\rGetSubaccount\x12\x1d.auth.v1.GetSubaccountRequest\x1a\x1e.auth.v1.GetSubaccountResponse\"\xe5\x01\xbaG\xb5\x01\n" +
 	"\fAuth Service\x12\x13Get Subaccount View\x1a\x8f\x01Return a single payload containing the sub-account and requested related read models, such as members, API keys, invites, policy, and balances.\x82\xd3\xe4\x93\x02&\x12$/v1/auth/subaccounts/{subaccount_id}\x12\x87\x02\n" +
 	"\x16ListSubaccountActivity\x12$.auth.v1.ListSubaccountEventsRequest\x1a%.auth.v1.ListSubaccountEventsResponse\"\x9f\x01\xbaGi\n" +
-	"\fAuth Service\x12\x18List Subaccount Activity\x1a?List audit and activity events for a sub-account, newest first.\x82\xd3\xe4\x93\x02-\x12+/v1/auth/subaccounts/{subaccount_id}/events2\xdb\x16\n" +
+	"\fAuth Service\x12\x18List Subaccount Activity\x1a?List audit and activity events for a sub-account, newest first.\x82\xd3\xe4\x93\x02-\x12+/v1/auth/subaccounts/{subaccount_id}/events2\x95\x17\n" +
 	"\x11SubaccountService\x12\xe7\x01\n" +
 	"\x0fListSubaccounts\x12\x1f.auth.v1.ListSubaccountsRequest\x1a .auth.v1.ListSubaccountsResponse\"\x90\x01\xbaGq\n" +
-	"\fAuth Service\x12\x10List Subaccounts\x1aOList sub-accounts owned by or shared with the caller, including role and label.\x82\xd3\xe4\x93\x02\x16\x12\x14/v1/auth/subaccounts\x12\xd7\x01\n" +
-	"\x10CreateSubaccount\x12 .auth.v1.CreateSubaccountRequest\x1a!.auth.v1.CreateSubaccountResponse\"~\xbaG\\\n" +
-	"\fAuth Service\x12\x11Create Subaccount\x1a9Create a new sub-account under the caller's root account.\x82\xd3\xe4\x93\x02\x19:\x01*\"\x14/v1/auth/subaccounts\x12\xf8\x01\n" +
+	"\fAuth Service\x12\x10List Subaccounts\x1aOList sub-accounts owned by or shared with the caller, including role and label.\x82\xd3\xe4\x93\x02\x16\x12\x14/v1/auth/subaccounts\x12\x91\x02\n" +
+	"\x10CreateSubaccount\x12 .auth.v1.CreateSubaccountRequest\x1a!.auth.v1.CreateSubaccountResponse\"\xb7\x01\xbaG\x94\x01\n" +
+	"\fAuth Service\x12\x11Create Subaccount\x1aqCreate a new sub-account under the caller's root account. Requires the caller to have accepted the current terms.\x82\xd3\xe4\x93\x02\x19:\x01*\"\x14/v1/auth/subaccounts\x12\xf8\x01\n" +
 	"\x10UpdateSubaccount\x12 .auth.v1.UpdateSubaccountRequest\x1a!.auth.v1.UpdateSubaccountResponse\"\x9e\x01\xbaGl\n" +
 	"\fAuth Service\x12\x11Update Subaccount\x1aIUpdate mutable sub-account fields such as label, icon, color, and status.\x82\xd3\xe4\x93\x02):\x01*2$/v1/auth/subaccounts/{subaccount_id}\x12\xe4\x02\n" +
 	"!SetSubaccountMemberMFARequirement\x121.auth.v1.SetSubaccountMemberMFARequirementRequest\x1a2.auth.v1.SetSubaccountMemberMFARequirementResponse\"\xd7\x01\xbaG\x95\x01\n" +

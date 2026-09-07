@@ -185,7 +185,9 @@ func (UnimplementedSubaccountViewServiceHandler) ListSubaccountActivity(context.
 type SubaccountServiceClient interface {
 	// List sub-accounts owned by or shared with the caller.
 	ListSubaccounts(context.Context, *connect.Request[v1.ListSubaccountsRequest]) (*connect.Response[v1.ListSubaccountsResponse], error)
-	// Create a new sub-account under the caller's root account.
+	// Create a new sub-account under the caller's root account. Requires current
+	// terms acceptance; otherwise FailedPrecondition with AUTH_TERMS_NOT_ACCEPTED
+	// is returned.
 	CreateSubaccount(context.Context, *connect.Request[v1.CreateSubaccountRequest]) (*connect.Response[v1.CreateSubaccountResponse], error)
 	// Update mutable sub-account fields (label/status/icon/color).
 	UpdateSubaccount(context.Context, *connect.Request[v1.UpdateSubaccountRequest]) (*connect.Response[v1.UpdateSubaccountResponse], error)
@@ -349,7 +351,9 @@ func (c *subaccountServiceClient) RespondSubaccountInvite(ctx context.Context, r
 type SubaccountServiceHandler interface {
 	// List sub-accounts owned by or shared with the caller.
 	ListSubaccounts(context.Context, *connect.Request[v1.ListSubaccountsRequest]) (*connect.Response[v1.ListSubaccountsResponse], error)
-	// Create a new sub-account under the caller's root account.
+	// Create a new sub-account under the caller's root account. Requires current
+	// terms acceptance; otherwise FailedPrecondition with AUTH_TERMS_NOT_ACCEPTED
+	// is returned.
 	CreateSubaccount(context.Context, *connect.Request[v1.CreateSubaccountRequest]) (*connect.Response[v1.CreateSubaccountResponse], error)
 	// Update mutable sub-account fields (label/status/icon/color).
 	UpdateSubaccount(context.Context, *connect.Request[v1.UpdateSubaccountRequest]) (*connect.Response[v1.UpdateSubaccountResponse], error)

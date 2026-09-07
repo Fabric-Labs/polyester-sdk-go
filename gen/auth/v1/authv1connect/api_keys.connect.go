@@ -52,7 +52,9 @@ const (
 // ApiKeyServiceClient is a client for the auth.v1.ApiKeyService service.
 type ApiKeyServiceClient interface {
 	// Create a new API key for the caller. Account security settings may require
-	// MFA enrollment or a fresh step-up proof.
+	// MFA enrollment or a fresh step-up proof. The acting caller's root account
+	// must have accepted the current terms, including when targeting a shared
+	// subaccount; otherwise FailedPrecondition with AUTH_TERMS_NOT_ACCEPTED is returned.
 	CreateApiKey(context.Context, *connect.Request[v1.CreateApiKeyRequest]) (*connect.Response[v1.CreateApiKeyResponse], error)
 	// List non-revoked API keys visible to the caller, newest first.
 	ListApiKeys(context.Context, *connect.Request[v1.ListApiKeysRequest]) (*connect.Response[v1.ListApiKeysResponse], error)
@@ -146,7 +148,9 @@ func (c *apiKeyServiceClient) UpdateApiKey(ctx context.Context, req *connect.Req
 // ApiKeyServiceHandler is an implementation of the auth.v1.ApiKeyService service.
 type ApiKeyServiceHandler interface {
 	// Create a new API key for the caller. Account security settings may require
-	// MFA enrollment or a fresh step-up proof.
+	// MFA enrollment or a fresh step-up proof. The acting caller's root account
+	// must have accepted the current terms, including when targeting a shared
+	// subaccount; otherwise FailedPrecondition with AUTH_TERMS_NOT_ACCEPTED is returned.
 	CreateApiKey(context.Context, *connect.Request[v1.CreateApiKeyRequest]) (*connect.Response[v1.CreateApiKeyResponse], error)
 	// List non-revoked API keys visible to the caller, newest first.
 	ListApiKeys(context.Context, *connect.Request[v1.ListApiKeysRequest]) (*connect.Response[v1.ListApiKeysResponse], error)

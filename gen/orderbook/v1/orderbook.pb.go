@@ -219,16 +219,18 @@ func (x *PriceLevel) GetQtyScaled() int64 {
 }
 
 // GetOrderBookResponse is a depth snapshot for the binary (protobuf) API (scaled integers).
-// REST surfaces expose decimal strings via DTO conversion.
+// REST surfaces expose decimal strings via DTO conversion. A configured symbol
+// without an initialized book returns a successful snapshot with sequence zero
+// and empty bid and ask collections.
 type GetOrderBookResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Numeric symbol identifier (client resolves to symbol string).
 	SymbolId uint32 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Monotonic book sequence for this symbol.
 	BookSeq uint64 `protobuf:"varint,2,opt,name=book_seq,json=bookSeq,proto3" json:"book_seq,omitempty"`
-	// Best bid first; descending price.
+	// Best bid first; descending price. Empty when there is no current liquidity.
 	Bids []*PriceLevel `protobuf:"bytes,3,rep,name=bids,proto3" json:"bids,omitempty"`
-	// Best ask first; ascending price.
+	// Best ask first; ascending price. Empty when there is no current liquidity.
 	Asks []*PriceLevel `protobuf:"bytes,4,rep,name=asks,proto3" json:"asks,omitempty"`
 	// Timestamp associated with this snapshot (best-effort).
 	Ts            *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=ts,proto3" json:"ts,omitempty"`

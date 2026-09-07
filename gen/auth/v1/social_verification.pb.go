@@ -641,10 +641,12 @@ func (x *GetSocialVerificationRequest) GetProvider() SocialProvider {
 }
 
 // GetSocialVerificationResponse contains the caller's current social
-// verification state for one provider.
+// verification state for one provider. A successful response with verification
+// absent means the caller has not started verification for that provider.
 type GetSocialVerificationResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Current verification state for the requested provider.
+	// Current verification state for the requested provider. Absent when no
+	// verification has been started.
 	Verification  *SocialVerification `protobuf:"bytes,1,opt,name=verification,proto3" json:"verification,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
