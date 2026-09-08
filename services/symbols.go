@@ -38,3 +38,77 @@ func ResolveOptionalSymbolID(catalogs *catalogs.Manager, symbol *string, symbolI
 	trimmed := strings.TrimSpace(*symbol)
 	return ResolveSymbolID(catalogs, &trimmed, nil, label)
 }
+
+const maxCancelAllSymbolIDs = 100
+
+// ResolveCancelAllSymbolIDs resolves cancel-all Connect symbol_ids.
+// Empty means all symbols. Duplicates are ignored. At most 100 positive IDs
+// are accepted. symbol, symbols, and symbolIDs are mutually exclusive once
+// any of them selects at least one pair.
+func ResolveCancelAllSymbolIDs(catalogs *catalogs.Manager, symbol *string, symbols []string, symbolIDs []uint32, label string) ([]uint32, error) {
+	normalizedSymbol := ""
+	if symbol != nil {
+		normalizedSymbol = strings.TrimSpace(*symbol)
+	}
+	normalizedSymbols := make([]string, 0, len(symbols))
+	for _, item := range symbols {
+		trimmed := strings.TrimSpace(item)
+		if trimmed == "" {
+			continue
+		}
+		normalizedSymbols = append(normalizedSymbols, trimmed)
+	}
+
+	selected := 0
+	if normalizedSymbol != "" {
+		selected++
+	}
+	if len(normalizedSymbols) > 0 {
+		selected++
+	}
+	if len(symbolIDs) > 0 {
+		selected++
+	}
+	if selected > 1 {
+		return nil, &errors.ValidationError{Msg: label + " accepts only one of symbol, symbols, or symbol_ids"}
+	}
+
+	resolved := make([]uint32, 0, len(symbolIDs)+len(normalizedSymbols)+1)
+	switch {
+	case len(symbolIDs) > 0:
+		for _, id := range symbolIDs {
+			if id == 0 {
+				return nil, &errors.ValidationError{Msg: label + " symbol_ids must be positive"}
+			}
+			resolved = append(resolved, id)
+		}
+	case normalizedSymbol != "":
+		id, err := ResolveSymbolID(catalogs, &normalizedSymbol, nil, label+" symbol")
+		if err != nil {
+			return nil, err
+		}
+		resolved = append(resolved, id)
+	default:
+		for _, item := range normalizedSymbols {
+			id, err := ResolveSymbolID(catalogs, &item, nil, label+" symbols")
+			if err != nil {
+				return nil, err
+			}
+			resolved = append(resolved, id)
+		}
+	}
+
+	unique := make([]uint32, 0, len(resolved))
+	seen := make(map[uint32]struct{}, len(resolved))
+	for _, id := range resolved {
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		unique = append(unique, id)
+	}
+	if len(unique) > maxCancelAllSymbolIDs {
+		return nil, &errors.ValidationError{Msg: label + " accepts at most 100 symbol_ids"}
+	}
+	return unique, nil
+}

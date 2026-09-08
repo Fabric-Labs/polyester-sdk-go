@@ -174,7 +174,19 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 		}
 		switch strings.ToLower(orderType) {
 		case "market":
-			twap.Execution = &triggersv1.TwapTrigger_MarketIoc{MarketIoc: &triggersv1.TwapMarketIoc{}}
+			ioc := &triggersv1.TwapMarketIoc{}
+			switch {
+			case opts.MaxSlippageTicks != nil && opts.MaxSlippageBps != nil:
+				return nil, &errors.ValidationError{Msg: "twap market_ioc allows at most one of max_slippage_ticks or max_slippage_bps"}
+			case opts.MaxSlippageTicks != nil:
+				ioc.MaxSlippage = &triggersv1.TwapMarketIoc_MaxSlippageTicks{MaxSlippageTicks: *opts.MaxSlippageTicks}
+			case opts.MaxSlippageBps != nil:
+				if err := validateSlippageBps(*opts.MaxSlippageBps, false); err != nil {
+					return nil, err
+				}
+				ioc.MaxSlippage = &triggersv1.TwapMarketIoc_MaxSlippageBps{MaxSlippageBps: *opts.MaxSlippageBps}
+			}
+			twap.Execution = &triggersv1.TwapTrigger_MarketIoc{MarketIoc: ioc}
 		case "limit":
 			if limitPrice == nil || !limitPrice.IsSet() {
 				return nil, &errors.ValidationError{Msg: "twap limit slices require limit_price"}

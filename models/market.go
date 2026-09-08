@@ -2,14 +2,15 @@ package models
 
 // Candle is one OHLCV candle.
 type Candle struct {
-	TsSec     int64  `json:"ts_sec,omitempty"`
-	Open      string `json:"open,omitempty"`
-	High      string `json:"high,omitempty"`
-	Low       string `json:"low,omitempty"`
-	Close     string `json:"close,omitempty"`
-	Volume    string `json:"volume,omitempty"`
-	SymbolID  uint32 `json:"symbol_id,omitempty"`
-	Timeframe string `json:"timeframe,omitempty"`
+	TsSec       int64  `json:"ts_sec,omitempty"`
+	Open        string `json:"open,omitempty"`
+	High        string `json:"high,omitempty"`
+	Low         string `json:"low,omitempty"`
+	Close       string `json:"close,omitempty"`
+	Volume      string `json:"volume,omitempty"`
+	QuoteVolume string `json:"quote_volume,omitempty"`
+	SymbolID    uint32 `json:"symbol_id,omitempty"`
+	Timeframe   string `json:"timeframe,omitempty"`
 }
 
 // CandlesResult holds candle rows.
@@ -38,14 +39,34 @@ type MarketTradesResult struct {
 
 // MarketOverviewEntry is one market overview row.
 type MarketOverviewEntry struct {
-	SymbolID   uint32     `json:"symbol_id"`
-	Symbol     string     `json:"symbol,omitempty"`
-	LastPrice  PriceTicks `json:"last_price,omitempty"`
-	IndexPrice PriceTicks `json:"index_price,omitempty"`
+	SymbolID             uint32     `json:"symbol_id"`
+	Symbol               string     `json:"symbol,omitempty"`
+	LastPrice            PriceTicks `json:"last_price,omitempty"`
+	IndexPrice           PriceTicks `json:"index_price,omitempty"`
+	Volume24HBaseScaled  *string    `json:"volume_24h_base_scaled,omitempty"`
+	Volume24HQuoteScaled *string    `json:"volume_24h_quote_scaled,omitempty"`
+	Volume24HUsdScaled   *string    `json:"volume_24h_usd_scaled,omitempty"`
 }
 
 // MarketOverviewList holds overview rows.
 type MarketOverviewList struct {
 	Markets       []MarketOverviewEntry `json:"markets"`
 	NextPageToken string                `json:"next_page_token,omitempty"`
+}
+
+// SpotPairVolumeSeries is one pair's trailing-24h USD volume samples.
+type SpotPairVolumeSeries struct {
+	SymbolID        uint32  `json:"symbol_id"`
+	Symbol          string  `json:"symbol,omitempty"`
+	VolumeUsdScaled []int64 `json:"volume_usd_scaled"`
+}
+
+// SpotVolumeHistory is the columnar GetSpotVolumeHistory response.
+type SpotVolumeHistory struct {
+	Bucket               string                 `json:"bucket,omitempty"`
+	StartTsSec           uint32                 `json:"start_ts_sec,omitempty"`
+	EndTsSec             uint32                 `json:"end_ts_sec,omitempty"`
+	Points               uint32                 `json:"points,omitempty"`
+	Pairs                []SpotPairVolumeSeries `json:"pairs"`
+	TotalVolumeUsdScaled []int64                `json:"total_volume_usd_scaled"`
 }

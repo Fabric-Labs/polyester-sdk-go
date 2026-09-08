@@ -54,16 +54,15 @@ func TestOptionalSymbolFiltersFailClosedAndOmitEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cancel-all encode failed: %v", err)
 	}
-	if proto.GetSymbolId() != 0 {
-		t.Fatalf("omitted filter should encode symbol_id=0, got %d", proto.GetSymbolId())
+	if len(proto.GetSymbolIds()) != 0 {
+		t.Fatalf("omitted filter should encode empty symbol_ids, got %v", proto.GetSymbolIds())
 	}
-	id := uint32(1)
-	proto, err = codecs.CancelAllOrdersToProto(nil, &id, nil, true, nil)
+	proto, err = codecs.CancelAllOrdersToProto(nil, []uint32{1}, nil, true, nil)
 	if err != nil {
 		t.Fatalf("cancel-all encode failed: %v", err)
 	}
-	if proto.GetSymbolId() != 1 {
-		t.Fatalf("symbol_id not encoded: got %d", proto.GetSymbolId())
+	if got := proto.GetSymbolIds(); len(got) != 1 || got[0] != 1 {
+		t.Fatalf("symbol_ids not encoded: got %v", got)
 	}
 }
 
@@ -79,6 +78,26 @@ func TestResolveSymbolIDStillFailsClosedForWireSymbolIDPaths(t *testing.T) {
 	got, err := ResolveSymbolID(manager, nil, &id, "list_history")
 	if err != nil || got != 1 {
 		t.Fatalf("explicit symbol_id resolve got=%d err=%v", got, err)
+	}
+}
+
+func TestResolveCancelAllSymbolIDsIsMutuallyExclusive(t *testing.T) {
+	manager := auditCatalog(t)
+	known := "BTC-USDT"
+	got, err := ResolveCancelAllSymbolIDs(manager, &known, nil, nil, "orders.cancel_all")
+	if err != nil || len(got) != 1 || got[0] != 1 {
+		t.Fatalf("symbol resolve got=%v err=%v", got, err)
+	}
+	got, err = ResolveCancelAllSymbolIDs(manager, nil, []string{"BTC-USDT", "BTC-USDT"}, nil, "orders.cancel_all")
+	if err != nil || len(got) != 1 || got[0] != 1 {
+		t.Fatalf("symbols dedupe got=%v err=%v", got, err)
+	}
+	got, err = ResolveCancelAllSymbolIDs(manager, nil, nil, []uint32{2, 2, 5}, "orders.cancel_all")
+	if err != nil || len(got) != 2 || got[0] != 2 || got[1] != 5 {
+		t.Fatalf("symbol_ids got=%v err=%v", got, err)
+	}
+	if _, err = ResolveCancelAllSymbolIDs(manager, &known, nil, []uint32{2}, "orders.cancel_all"); err == nil {
+		t.Fatal("expected mutually exclusive validation error")
 	}
 }
 
