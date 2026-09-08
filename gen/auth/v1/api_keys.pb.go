@@ -965,10 +965,10 @@ const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\n" +
 	"\x06ACTIVE\x10\x01\x12\v\n" +
 	"\aREVOKED\x10\x02\x12\f\n" +
-	"\bDISABLED\x10\x032\xb8\t\n" +
-	"\rApiKeyService\x12\xe9\x01\n" +
-	"\fCreateApiKey\x12\x1c.auth.v1.CreateApiKeyRequest\x1a\x1d.auth.v1.CreateApiKeyResponse\"\x9b\x01\xbaGx\n" +
-	"\fAuth Service\x12\x0eCreate API Key\x1aXCreate a new API key for the caller account, including public key material and metadata.\x98\xb5\x18\x02\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v1/auth/api-keys\x12\xfb\x01\n" +
+	"\bDISABLED\x10\x032\xf9\t\n" +
+	"\rApiKeyService\x12\xaa\x02\n" +
+	"\fCreateApiKey\x12\x1c.auth.v1.CreateApiKeyRequest\x1a\x1d.auth.v1.CreateApiKeyResponse\"\xdc\x01\xbaG\xb8\x01\n" +
+	"\fAuth Service\x12\x0eCreate API Key\x1a\x97\x01Create a new API key for the caller account, including public key material and metadata. Requires the acting caller to have accepted the current terms.\x98\xb5\x18\x02\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v1/auth/api-keys\x12\xfb\x01\n" +
 	"\vListApiKeys\x12\x1b.auth.v1.ListApiKeysRequest\x1a\x1c.auth.v1.ListApiKeysResponse\"\xb0\x01\xbaG\x93\x01\n" +
 	"\fAuth Service\x12\rList API Keys\x1atList non-revoked API keys for the caller account, or for a sub-account the caller owns or administers, newest first.\x82\xd3\xe4\x93\x02\x13\x12\x11/v1/auth/api-keys\x12\xf0\x01\n" +
 	"\tGetApiKey\x12\x19.auth.v1.GetApiKeyRequest\x1a\x1a.auth.v1.GetApiKeyResponse\"\xab\x01\xbaG\x85\x01\n" +

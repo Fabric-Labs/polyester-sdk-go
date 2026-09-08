@@ -44,7 +44,10 @@ const (
 // DepositAddressServiceClient is a client for the chain.deposit.v1.DepositAddressService service.
 type DepositAddressServiceClient interface {
 	// Create or return the assigned deposit address for one target and source
-	// chain.
+	// chain. The acting caller's root account must have accepted the current
+	// terms, including requests using an API key or targeting a shared subaccount.
+	// Otherwise FailedPrecondition is returned. Listing and using existing deposit
+	// addresses remain available without acceptance.
 	CreateDepositAddress(context.Context, *connect.Request[v1.CreateDepositAddressRequest]) (*connect.Response[v1.CreateDepositAddressResponse], error)
 	// List known deposit addresses for one target. Results are served from
 	// Polyester-owned state rather than a live upstream read.
@@ -97,7 +100,10 @@ func (c *depositAddressServiceClient) ListDepositAddresses(ctx context.Context, 
 // service.
 type DepositAddressServiceHandler interface {
 	// Create or return the assigned deposit address for one target and source
-	// chain.
+	// chain. The acting caller's root account must have accepted the current
+	// terms, including requests using an API key or targeting a shared subaccount.
+	// Otherwise FailedPrecondition is returned. Listing and using existing deposit
+	// addresses remain available without acceptance.
 	CreateDepositAddress(context.Context, *connect.Request[v1.CreateDepositAddressRequest]) (*connect.Response[v1.CreateDepositAddressResponse], error)
 	// List known deposit addresses for one target. Results are served from
 	// Polyester-owned state rather than a live upstream read.

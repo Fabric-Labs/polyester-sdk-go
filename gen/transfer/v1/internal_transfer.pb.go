@@ -26,6 +26,160 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// ErrorCode identifies stable, machine-readable Internal Transfer API errors.
+// Values mirror the REST problem+json code field.
+type ErrorCode int32
+
+const (
+	// No domain error code was provided.
+	ErrorCode_ERROR_CODE_UNSPECIFIED ErrorCode = 0
+	// The source account does not have enough available Trading balance.
+	ErrorCode_ERROR_CODE_INSUFFICIENT_FUNDS ErrorCode = 1
+	// Request payload or one of its fields is invalid.
+	ErrorCode_ERROR_CODE_INVALID_REQUEST ErrorCode = 2
+	// Caller is not authenticated.
+	ErrorCode_ERROR_CODE_UNAUTHENTICATED ErrorCode = 3
+	// Caller is not permitted to create the transfer.
+	ErrorCode_ERROR_CODE_PERMISSION_DENIED ErrorCode = 4
+	// Request exceeded the applicable admission rate limit.
+	ErrorCode_ERROR_CODE_RATE_LIMIT_EXCEEDED ErrorCode = 5
+	// A required dependency is temporarily unavailable.
+	ErrorCode_ERROR_CODE_SERVICE_UNAVAILABLE ErrorCode = 6
+	// The request failed because of an unexpected server error.
+	ErrorCode_ERROR_CODE_INTERNAL_ERROR ErrorCode = 7
+	// The selected subaccount identifier is invalid.
+	ErrorCode_ERROR_CODE_INVALID_SUBACCOUNT_ID ErrorCode = 8
+	// The selected subaccount does not exist.
+	ErrorCode_ERROR_CODE_SUBACCOUNT_NOT_FOUND ErrorCode = 9
+	// The source subaccount is not active.
+	ErrorCode_ERROR_CODE_SOURCE_ACCOUNT_INACTIVE ErrorCode = 10
+	// The requested asset is not supported for internal transfers.
+	ErrorCode_ERROR_CODE_UNSUPPORTED_ASSET ErrorCode = 11
+	// The transfer amount is invalid.
+	ErrorCode_ERROR_CODE_INVALID_AMOUNT ErrorCode = 12
+	// The destination identifier is invalid.
+	ErrorCode_ERROR_CODE_INVALID_DESTINATION ErrorCode = 13
+	// The destination account or smart account could not be found.
+	ErrorCode_ERROR_CODE_DESTINATION_NOT_FOUND ErrorCode = 14
+	// The destination subaccount is not active.
+	ErrorCode_ERROR_CODE_DESTINATION_INACTIVE ErrorCode = 15
+	// Source and destination resolve to the same account.
+	ErrorCode_ERROR_CODE_SAME_SOURCE_DESTINATION ErrorCode = 16
+	// The destination is not present on the caller's internal whitelist.
+	ErrorCode_ERROR_CODE_DESTINATION_NOT_WHITELISTED ErrorCode = 17
+	// A required source or destination smart-account address is unavailable.
+	ErrorCode_ERROR_CODE_SMART_ACCOUNT_UNAVAILABLE ErrorCode = 18
+	// Fresh step-up verification is temporarily unavailable.
+	ErrorCode_ERROR_CODE_STEP_UP_UNAVAILABLE ErrorCode = 19
+	// The idempotency key was reused with different request data.
+	ErrorCode_ERROR_CODE_IDEMPOTENCY_CONFLICT ErrorCode = 20
+	// The funds lock conflicts with an existing or finalized reservation.
+	ErrorCode_ERROR_CODE_FUNDS_LOCK_CONFLICT ErrorCode = 21
+	// The authoritative capital view is not ready or is stale.
+	ErrorCode_ERROR_CODE_CAPITAL_VIEW_UNAVAILABLE ErrorCode = 22
+	// The account shard cannot currently accept fund movement.
+	ErrorCode_ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE ErrorCode = 23
+	// A required account or API-key policy rejected the transfer.
+	ErrorCode_ERROR_CODE_POLICY_DENIED ErrorCode = 24
+	// A required precondition was not satisfied.
+	ErrorCode_ERROR_CODE_FAILED_PRECONDITION ErrorCode = 25
+	// The requested resource was not found.
+	ErrorCode_ERROR_CODE_NOT_FOUND ErrorCode = 26
+	// The request conflicts with existing state.
+	ErrorCode_ERROR_CODE_CONFLICT ErrorCode = 27
+)
+
+// Enum value maps for ErrorCode.
+var (
+	ErrorCode_name = map[int32]string{
+		0:  "ERROR_CODE_UNSPECIFIED",
+		1:  "ERROR_CODE_INSUFFICIENT_FUNDS",
+		2:  "ERROR_CODE_INVALID_REQUEST",
+		3:  "ERROR_CODE_UNAUTHENTICATED",
+		4:  "ERROR_CODE_PERMISSION_DENIED",
+		5:  "ERROR_CODE_RATE_LIMIT_EXCEEDED",
+		6:  "ERROR_CODE_SERVICE_UNAVAILABLE",
+		7:  "ERROR_CODE_INTERNAL_ERROR",
+		8:  "ERROR_CODE_INVALID_SUBACCOUNT_ID",
+		9:  "ERROR_CODE_SUBACCOUNT_NOT_FOUND",
+		10: "ERROR_CODE_SOURCE_ACCOUNT_INACTIVE",
+		11: "ERROR_CODE_UNSUPPORTED_ASSET",
+		12: "ERROR_CODE_INVALID_AMOUNT",
+		13: "ERROR_CODE_INVALID_DESTINATION",
+		14: "ERROR_CODE_DESTINATION_NOT_FOUND",
+		15: "ERROR_CODE_DESTINATION_INACTIVE",
+		16: "ERROR_CODE_SAME_SOURCE_DESTINATION",
+		17: "ERROR_CODE_DESTINATION_NOT_WHITELISTED",
+		18: "ERROR_CODE_SMART_ACCOUNT_UNAVAILABLE",
+		19: "ERROR_CODE_STEP_UP_UNAVAILABLE",
+		20: "ERROR_CODE_IDEMPOTENCY_CONFLICT",
+		21: "ERROR_CODE_FUNDS_LOCK_CONFLICT",
+		22: "ERROR_CODE_CAPITAL_VIEW_UNAVAILABLE",
+		23: "ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE",
+		24: "ERROR_CODE_POLICY_DENIED",
+		25: "ERROR_CODE_FAILED_PRECONDITION",
+		26: "ERROR_CODE_NOT_FOUND",
+		27: "ERROR_CODE_CONFLICT",
+	}
+	ErrorCode_value = map[string]int32{
+		"ERROR_CODE_UNSPECIFIED":                 0,
+		"ERROR_CODE_INSUFFICIENT_FUNDS":          1,
+		"ERROR_CODE_INVALID_REQUEST":             2,
+		"ERROR_CODE_UNAUTHENTICATED":             3,
+		"ERROR_CODE_PERMISSION_DENIED":           4,
+		"ERROR_CODE_RATE_LIMIT_EXCEEDED":         5,
+		"ERROR_CODE_SERVICE_UNAVAILABLE":         6,
+		"ERROR_CODE_INTERNAL_ERROR":              7,
+		"ERROR_CODE_INVALID_SUBACCOUNT_ID":       8,
+		"ERROR_CODE_SUBACCOUNT_NOT_FOUND":        9,
+		"ERROR_CODE_SOURCE_ACCOUNT_INACTIVE":     10,
+		"ERROR_CODE_UNSUPPORTED_ASSET":           11,
+		"ERROR_CODE_INVALID_AMOUNT":              12,
+		"ERROR_CODE_INVALID_DESTINATION":         13,
+		"ERROR_CODE_DESTINATION_NOT_FOUND":       14,
+		"ERROR_CODE_DESTINATION_INACTIVE":        15,
+		"ERROR_CODE_SAME_SOURCE_DESTINATION":     16,
+		"ERROR_CODE_DESTINATION_NOT_WHITELISTED": 17,
+		"ERROR_CODE_SMART_ACCOUNT_UNAVAILABLE":   18,
+		"ERROR_CODE_STEP_UP_UNAVAILABLE":         19,
+		"ERROR_CODE_IDEMPOTENCY_CONFLICT":        20,
+		"ERROR_CODE_FUNDS_LOCK_CONFLICT":         21,
+		"ERROR_CODE_CAPITAL_VIEW_UNAVAILABLE":    22,
+		"ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE":   23,
+		"ERROR_CODE_POLICY_DENIED":               24,
+		"ERROR_CODE_FAILED_PRECONDITION":         25,
+		"ERROR_CODE_NOT_FOUND":                   26,
+		"ERROR_CODE_CONFLICT":                    27,
+	}
+)
+
+func (x ErrorCode) Enum() *ErrorCode {
+	p := new(ErrorCode)
+	*p = x
+	return p
+}
+
+func (x ErrorCode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ErrorCode) Descriptor() protoreflect.EnumDescriptor {
+	return file_transfer_v1_internal_transfer_proto_enumTypes[0].Descriptor()
+}
+
+func (ErrorCode) Type() protoreflect.EnumType {
+	return &file_transfer_v1_internal_transfer_proto_enumTypes[0]
+}
+
+func (x ErrorCode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ErrorCode.Descriptor instead.
+func (ErrorCode) EnumDescriptor() ([]byte, []int) {
+	return file_transfer_v1_internal_transfer_proto_rawDescGZIP(), []int{0}
+}
+
 // InternalTransferStatus is the public user-facing status for an internal
 // transfer request.
 type InternalTransferStatus int32
@@ -68,11 +222,11 @@ func (x InternalTransferStatus) String() string {
 }
 
 func (InternalTransferStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_transfer_v1_internal_transfer_proto_enumTypes[0].Descriptor()
+	return file_transfer_v1_internal_transfer_proto_enumTypes[1].Descriptor()
 }
 
 func (InternalTransferStatus) Type() protoreflect.EnumType {
-	return &file_transfer_v1_internal_transfer_proto_enumTypes[0]
+	return &file_transfer_v1_internal_transfer_proto_enumTypes[1]
 }
 
 func (x InternalTransferStatus) Number() protoreflect.EnumNumber {
@@ -81,7 +235,7 @@ func (x InternalTransferStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use InternalTransferStatus.Descriptor instead.
 func (InternalTransferStatus) EnumDescriptor() ([]byte, []int) {
-	return file_transfer_v1_internal_transfer_proto_rawDescGZIP(), []int{0}
+	return file_transfer_v1_internal_transfer_proto_rawDescGZIP(), []int{1}
 }
 
 // CreateInternalTransferRequest creates or returns one accepted Trading
@@ -293,6 +447,52 @@ func (x *ResolvedDestination) GetSmartAccountAddress() string {
 	return ""
 }
 
+// ErrorDetail is attached to ConnectRPC errors for structured error handling.
+type ErrorDetail struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable error code matching the REST problem+json code field.
+	Code          ErrorCode `protobuf:"varint,1,opt,name=code,proto3,enum=transfer.v1.ErrorCode" json:"code,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ErrorDetail) Reset() {
+	*x = ErrorDetail{}
+	mi := &file_transfer_v1_internal_transfer_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ErrorDetail) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ErrorDetail) ProtoMessage() {}
+
+func (x *ErrorDetail) ProtoReflect() protoreflect.Message {
+	mi := &file_transfer_v1_internal_transfer_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ErrorDetail.ProtoReflect.Descriptor instead.
+func (*ErrorDetail) Descriptor() ([]byte, []int) {
+	return file_transfer_v1_internal_transfer_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ErrorDetail) GetCode() ErrorCode {
+	if x != nil {
+		return x.Code
+	}
+	return ErrorCode_ERROR_CODE_UNSPECIFIED
+}
+
 // CreateInternalTransferResponse returns the accepted request and transfer
 // identifiers for later correlation.
 type CreateInternalTransferResponse struct {
@@ -321,7 +521,7 @@ type CreateInternalTransferResponse struct {
 
 func (x *CreateInternalTransferResponse) Reset() {
 	*x = CreateInternalTransferResponse{}
-	mi := &file_transfer_v1_internal_transfer_proto_msgTypes[2]
+	mi := &file_transfer_v1_internal_transfer_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -333,7 +533,7 @@ func (x *CreateInternalTransferResponse) String() string {
 func (*CreateInternalTransferResponse) ProtoMessage() {}
 
 func (x *CreateInternalTransferResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_transfer_v1_internal_transfer_proto_msgTypes[2]
+	mi := &file_transfer_v1_internal_transfer_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -346,7 +546,7 @@ func (x *CreateInternalTransferResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateInternalTransferResponse.ProtoReflect.Descriptor instead.
 func (*CreateInternalTransferResponse) Descriptor() ([]byte, []int) {
-	return file_transfer_v1_internal_transfer_proto_rawDescGZIP(), []int{2}
+	return file_transfer_v1_internal_transfer_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *CreateInternalTransferResponse) GetRequestId() string {
@@ -432,7 +632,9 @@ const file_transfer_v1_internal_transfer_proto_rawDesc = "" +
 	"\x13ResolvedDestination\x123\n" +
 	"\x16root_account_public_id\x18\x01 \x01(\tR\x13rootAccountPublicId\x120\n" +
 	"\x14subaccount_public_id\x18\x02 \x01(\tR\x12subaccountPublicId\x122\n" +
-	"\x15smart_account_address\x18\x03 \x01(\tR\x13smartAccountAddress\"\x9c\x03\n" +
+	"\x15smart_account_address\x18\x03 \x01(\tR\x13smartAccountAddress\"9\n" +
+	"\vErrorDetail\x12*\n" +
+	"\x04code\x18\x01 \x01(\x0e2\x16.transfer.v1.ErrorCodeR\x04code\"\x9c\x03\n" +
 	"\x1eCreateInternalTransferResponse\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x12\x1f\n" +
@@ -447,7 +649,37 @@ const file_transfer_v1_internal_transfer_proto_rawDesc = "" +
 	"\n" +
 	"amount_e18\x18\a \x01(\v2\x17.polyester.type.v1.U128R\tamountE18\x12B\n" +
 	"\vdestination\x18\b \x01(\v2 .transfer.v1.ResolvedDestinationR\vdestination\x12;\n" +
-	"\x06status\x18\t \x01(\x0e2#.transfer.v1.InternalTransferStatusR\x06status*\xb5\x01\n" +
+	"\x06status\x18\t \x01(\x0e2#.transfer.v1.InternalTransferStatusR\x06status*\xe9\a\n" +
+	"\tErrorCode\x12\x1a\n" +
+	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12!\n" +
+	"\x1dERROR_CODE_INSUFFICIENT_FUNDS\x10\x01\x12\x1e\n" +
+	"\x1aERROR_CODE_INVALID_REQUEST\x10\x02\x12\x1e\n" +
+	"\x1aERROR_CODE_UNAUTHENTICATED\x10\x03\x12 \n" +
+	"\x1cERROR_CODE_PERMISSION_DENIED\x10\x04\x12\"\n" +
+	"\x1eERROR_CODE_RATE_LIMIT_EXCEEDED\x10\x05\x12\"\n" +
+	"\x1eERROR_CODE_SERVICE_UNAVAILABLE\x10\x06\x12\x1d\n" +
+	"\x19ERROR_CODE_INTERNAL_ERROR\x10\a\x12$\n" +
+	" ERROR_CODE_INVALID_SUBACCOUNT_ID\x10\b\x12#\n" +
+	"\x1fERROR_CODE_SUBACCOUNT_NOT_FOUND\x10\t\x12&\n" +
+	"\"ERROR_CODE_SOURCE_ACCOUNT_INACTIVE\x10\n" +
+	"\x12 \n" +
+	"\x1cERROR_CODE_UNSUPPORTED_ASSET\x10\v\x12\x1d\n" +
+	"\x19ERROR_CODE_INVALID_AMOUNT\x10\f\x12\"\n" +
+	"\x1eERROR_CODE_INVALID_DESTINATION\x10\r\x12$\n" +
+	" ERROR_CODE_DESTINATION_NOT_FOUND\x10\x0e\x12#\n" +
+	"\x1fERROR_CODE_DESTINATION_INACTIVE\x10\x0f\x12&\n" +
+	"\"ERROR_CODE_SAME_SOURCE_DESTINATION\x10\x10\x12*\n" +
+	"&ERROR_CODE_DESTINATION_NOT_WHITELISTED\x10\x11\x12(\n" +
+	"$ERROR_CODE_SMART_ACCOUNT_UNAVAILABLE\x10\x12\x12\"\n" +
+	"\x1eERROR_CODE_STEP_UP_UNAVAILABLE\x10\x13\x12#\n" +
+	"\x1fERROR_CODE_IDEMPOTENCY_CONFLICT\x10\x14\x12\"\n" +
+	"\x1eERROR_CODE_FUNDS_LOCK_CONFLICT\x10\x15\x12'\n" +
+	"#ERROR_CODE_CAPITAL_VIEW_UNAVAILABLE\x10\x16\x12(\n" +
+	"$ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE\x10\x17\x12\x1c\n" +
+	"\x18ERROR_CODE_POLICY_DENIED\x10\x18\x12\"\n" +
+	"\x1eERROR_CODE_FAILED_PRECONDITION\x10\x19\x12\x18\n" +
+	"\x14ERROR_CODE_NOT_FOUND\x10\x1a\x12\x17\n" +
+	"\x13ERROR_CODE_CONFLICT\x10\x1b*\xb5\x01\n" +
 	"\x16InternalTransferStatus\x12(\n" +
 	"$INTERNAL_TRANSFER_STATUS_UNSPECIFIED\x10\x00\x12%\n" +
 	"!INTERNAL_TRANSFER_STATUS_ACCEPTED\x10\x01\x12%\n" +
@@ -470,27 +702,30 @@ func file_transfer_v1_internal_transfer_proto_rawDescGZIP() []byte {
 	return file_transfer_v1_internal_transfer_proto_rawDescData
 }
 
-var file_transfer_v1_internal_transfer_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_transfer_v1_internal_transfer_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_transfer_v1_internal_transfer_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_transfer_v1_internal_transfer_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_transfer_v1_internal_transfer_proto_goTypes = []any{
-	(InternalTransferStatus)(0),            // 0: transfer.v1.InternalTransferStatus
-	(*CreateInternalTransferRequest)(nil),  // 1: transfer.v1.CreateInternalTransferRequest
-	(*ResolvedDestination)(nil),            // 2: transfer.v1.ResolvedDestination
-	(*CreateInternalTransferResponse)(nil), // 3: transfer.v1.CreateInternalTransferResponse
-	(*v1.U128)(nil),                        // 4: polyester.type.v1.U128
+	(ErrorCode)(0),                         // 0: transfer.v1.ErrorCode
+	(InternalTransferStatus)(0),            // 1: transfer.v1.InternalTransferStatus
+	(*CreateInternalTransferRequest)(nil),  // 2: transfer.v1.CreateInternalTransferRequest
+	(*ResolvedDestination)(nil),            // 3: transfer.v1.ResolvedDestination
+	(*ErrorDetail)(nil),                    // 4: transfer.v1.ErrorDetail
+	(*CreateInternalTransferResponse)(nil), // 5: transfer.v1.CreateInternalTransferResponse
+	(*v1.U128)(nil),                        // 6: polyester.type.v1.U128
 }
 var file_transfer_v1_internal_transfer_proto_depIdxs = []int32{
-	4, // 0: transfer.v1.CreateInternalTransferRequest.amount_e18:type_name -> polyester.type.v1.U128
-	4, // 1: transfer.v1.CreateInternalTransferResponse.amount_e18:type_name -> polyester.type.v1.U128
-	2, // 2: transfer.v1.CreateInternalTransferResponse.destination:type_name -> transfer.v1.ResolvedDestination
-	0, // 3: transfer.v1.CreateInternalTransferResponse.status:type_name -> transfer.v1.InternalTransferStatus
-	1, // 4: transfer.v1.InternalTransferService.CreateInternalTransfer:input_type -> transfer.v1.CreateInternalTransferRequest
-	3, // 5: transfer.v1.InternalTransferService.CreateInternalTransfer:output_type -> transfer.v1.CreateInternalTransferResponse
-	5, // [5:6] is the sub-list for method output_type
-	4, // [4:5] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	6, // 0: transfer.v1.CreateInternalTransferRequest.amount_e18:type_name -> polyester.type.v1.U128
+	0, // 1: transfer.v1.ErrorDetail.code:type_name -> transfer.v1.ErrorCode
+	6, // 2: transfer.v1.CreateInternalTransferResponse.amount_e18:type_name -> polyester.type.v1.U128
+	3, // 3: transfer.v1.CreateInternalTransferResponse.destination:type_name -> transfer.v1.ResolvedDestination
+	1, // 4: transfer.v1.CreateInternalTransferResponse.status:type_name -> transfer.v1.InternalTransferStatus
+	2, // 5: transfer.v1.InternalTransferService.CreateInternalTransfer:input_type -> transfer.v1.CreateInternalTransferRequest
+	5, // 6: transfer.v1.InternalTransferService.CreateInternalTransfer:output_type -> transfer.v1.CreateInternalTransferResponse
+	6, // [6:7] is the sub-list for method output_type
+	5, // [5:6] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_transfer_v1_internal_transfer_proto_init() }
@@ -508,8 +743,8 @@ func file_transfer_v1_internal_transfer_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_transfer_v1_internal_transfer_proto_rawDesc), len(file_transfer_v1_internal_transfer_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   3,
+			NumEnums:      2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

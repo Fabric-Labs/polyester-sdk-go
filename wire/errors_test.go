@@ -7,8 +7,10 @@ import (
 	"connectrpc.com/connect"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
+	withdrawv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/withdraw/v1"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	ratelimitv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/ratelimit/v1"
+	transferv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1"
 )
 
 func TestMapConnectErrorSurfacesAuthRevisionConflict(t *testing.T) {
@@ -208,6 +210,66 @@ func TestMapConnectErrorSurfacesStableMFACodes(t *testing.T) {
 				t.Fatalf("AuthErrorCode=%q", sdkerrors.AuthErrorCode(mapped))
 			}
 		})
+	}
+}
+
+func TestMapConnectErrorSurfacesWithdrawAndTransferDetails(t *testing.T) {
+	withdrawErr := connect.NewError(connect.CodeFailedPrecondition, errors.New("insufficient"))
+	withdrawDetail, err := connect.NewErrorDetail(&withdrawv1.ErrorDetail{
+		Code: withdrawv1.ErrorCode_ERROR_CODE_INSUFFICIENT_FUNDS,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	withdrawErr.AddDetail(withdrawDetail)
+	mapped := MapConnectError(withdrawErr)
+	apiErr, ok := mapped.(*sdkerrors.APIError)
+	if !ok {
+		t.Fatalf("withdraw mapped=%T %#v", mapped, mapped)
+	}
+	if apiErr.Code != "ERROR_CODE_INSUFFICIENT_FUNDS" {
+		t.Fatalf("withdraw code=%q", apiErr.Code)
+	}
+
+	transferErr := connect.NewError(connect.CodePermissionDenied, errors.New("denied"))
+	transferDetail, err := connect.NewErrorDetail(&transferv1.ErrorDetail{
+		Code: transferv1.ErrorCode_ERROR_CODE_PERMISSION_DENIED,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	transferErr.AddDetail(transferDetail)
+	mapped = MapConnectError(transferErr)
+	if _, ok := mapped.(*sdkerrors.AuthError); !ok {
+		t.Fatalf("transfer mapped=%T %#v", mapped, mapped)
+	}
+
+	expiredErr := connect.NewError(connect.CodeFailedPrecondition, errors.New("expired"))
+	expiredDetail, err := connect.NewErrorDetail(&orderv1.ErrorDetail{
+		Code: orderv1.ErrorCode_ERROR_CODE_CANCEL_REQUEST_EXPIRED,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	expiredErr.AddDetail(expiredDetail)
+	mapped = MapConnectError(expiredErr)
+	apiErr, ok = mapped.(*sdkerrors.APIError)
+	if !ok || apiErr.Code != "ERROR_CODE_CANCEL_REQUEST_EXPIRED" {
+		t.Fatalf("expired mapped=%T %#v", mapped, mapped)
+	}
+}
+
+func TestMapConnectErrorSurfacesAuthTermsNotAccepted(t *testing.T) {
+	mapped := mapAuthDetail(t, authv1.AuthErrorCode_AUTH_TERMS_NOT_ACCEPTED, "terms")
+	apiErr, ok := mapped.(*sdkerrors.APIError)
+	if !ok {
+		t.Fatalf("mapped=%T %#v", mapped, mapped)
+	}
+	if apiErr.Code != "AUTH_TERMS_NOT_ACCEPTED" {
+		t.Fatalf("code=%q", apiErr.Code)
+	}
+	if apiErr.Msg != "terms" {
+		t.Fatalf("msg=%q", apiErr.Msg)
 	}
 }
 

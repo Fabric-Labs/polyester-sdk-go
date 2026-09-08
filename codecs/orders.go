@@ -304,16 +304,34 @@ func ModifyOrderToProto(
 	return proto, nil
 }
 
+const maxCancelAllSymbolIDs = 100
+
 // CancelAllOrdersToProto encodes cancel-all request.
-// symbolID 0 (or nil) means all symbols.
-func CancelAllOrdersToProto(subAccountID *string, symbolID *uint32, side *string, dryRun bool, requestID *string) (*orderv1.CancelAllOrdersRequest, error) {
+// An empty symbolIDs slice means all symbols.
+func CancelAllOrdersToProto(subAccountID *string, symbolIDs []uint32, side *string, dryRun bool, requestID *string) (*orderv1.CancelAllOrdersRequest, error) {
 	resolvedRequestID, err := coalesceRequestID(requestID, "cancel-all")
 	if err != nil {
 		return nil, err
 	}
+	unique := make([]uint32, 0, len(symbolIDs))
+	seen := make(map[uint32]struct{}, len(symbolIDs))
+	for _, id := range symbolIDs {
+		if id == 0 {
+			return nil, &errors.ValidationError{Msg: "cancel_all symbol_ids must be positive"}
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		unique = append(unique, id)
+	}
+	if len(unique) > maxCancelAllSymbolIDs {
+		return nil, &errors.ValidationError{Msg: "cancel_all accepts at most 100 symbol_ids"}
+	}
 	proto := &orderv1.CancelAllOrdersRequest{
 		RequestId: resolvedRequestID,
 		DryRun:    dryRun,
+		SymbolIds: unique,
 	}
 	if subAccountID != nil {
 		sub, err := IDToInt(*subAccountID, "sub_account_id")
@@ -321,9 +339,6 @@ func CancelAllOrdersToProto(subAccountID *string, symbolID *uint32, side *string
 			return nil, err
 		}
 		proto.SubaccountId = &sub
-	}
-	if symbolID != nil {
-		proto.SymbolId = *symbolID
 	}
 	if side != nil {
 		s, ok := orderSideToProto[strings.ToLower(*side)]

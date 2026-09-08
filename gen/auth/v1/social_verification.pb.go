@@ -216,16 +216,17 @@ type SocialVerification struct {
 	Id int64 `protobuf:"varint,12,opt,name=id,proto3" json:"id,omitempty"`
 	// Provider account being verified.
 	Provider SocialProvider `protobuf:"varint,1,opt,name=provider,proto3,enum=auth.v1.SocialProvider" json:"provider,omitempty"`
-	// Method used for this verification. If unspecified at start time, profile
-	// verification is used.
+	// Method used for this verification. If unspecified at start time, the
+	// provider default is used.
 	Method SocialVerificationMethod `protobuf:"varint,11,opt,name=method,proto3,enum=auth.v1.SocialVerificationMethod" json:"method,omitempty"`
 	// Provider handle being verified. Handles are returned lowercase and without
 	// a leading "@".
 	Handle string `protobuf:"bytes,2,opt,name=handle,proto3" json:"handle,omitempty"`
 	// Stable provider-side user identifier. Empty until verification succeeds.
 	ProviderUserId string `protobuf:"bytes,3,opt,name=provider_user_id,json=providerUserId,proto3" json:"provider_user_id,omitempty"`
-	// Challenge code the user must place according to the verification method.
-	// Codes start with "poly_" and expire after 15 minutes.
+	// Challenge code the user must submit according to the verification method.
+	// Discord codes are returned only when a challenge is issued. Codes expire
+	// after 15 minutes.
 	ChallengeCode string `protobuf:"bytes,13,opt,name=challenge_code,json=challengeCode,proto3" json:"challenge_code,omitempty"`
 	// Current verification status.
 	Status SocialVerificationStatus `protobuf:"varint,4,opt,name=status,proto3,enum=auth.v1.SocialVerificationStatus" json:"status,omitempty"`
@@ -373,11 +374,12 @@ type StartSocialVerificationRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Provider account to verify.
 	Provider SocialProvider `protobuf:"varint,1,opt,name=provider,proto3,enum=auth.v1.SocialProvider" json:"provider,omitempty"`
-	// Verification method. If unspecified, profile verification is used.
+	// Verification method. If unspecified, profile verification is used for
+	// X/Twitter and channel verification is used for Discord.
 	Method SocialVerificationMethod `protobuf:"varint,3,opt,name=method,proto3,enum=auth.v1.SocialVerificationMethod" json:"method,omitempty"`
-	// Provider handle the user claims. A leading "@" is accepted and removed.
-	// X/Twitter handles must be 1 to 15 letters, digits, or underscores.
-	// Other provider handles can be up to 64 characters.
+	// Provider handle the user claims. Required for X/Twitter and omitted for
+	// Discord, where the authenticated bot supplies the provider identity.
+	// A leading "@" is accepted and removed from X/Twitter handles.
 	Handle        string `protobuf:"bytes,2,opt,name=handle,proto3" json:"handle,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -437,7 +439,8 @@ func (x *StartSocialVerificationRequest) GetHandle() string {
 // Response returned after starting social account verification.
 type StartSocialVerificationResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Challenge code the user must place according to the verification method.
+	// Newly issued challenge code the user must submit according to the
+	// verification method.
 	ChallengeCode string `protobuf:"bytes,1,opt,name=challenge_code,json=challengeCode,proto3" json:"challenge_code,omitempty"`
 	// Time in UTC when the challenge code expires. Social verification challenges
 	// expire after 15 minutes.
@@ -641,10 +644,12 @@ func (x *GetSocialVerificationRequest) GetProvider() SocialProvider {
 }
 
 // GetSocialVerificationResponse contains the caller's current social
-// verification state for one provider.
+// verification state for one provider. A successful response with verification
+// absent means the caller has not started verification for that provider.
 type GetSocialVerificationResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Current verification state for the requested provider.
+	// Current verification state for the requested provider. Absent when no
+	// verification has been started.
 	Verification  *SocialVerification `protobuf:"bytes,1,opt,name=verification,proto3" json:"verification,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -710,13 +715,15 @@ const file_auth_v1_social_verification_proto_rawDesc = "" +
 	"last_error\x18\n" +
 	" \x01(\tR\tlastError\x129\n" +
 	"\n" +
-	"updated_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xf7\x03\n" +
+	"updated_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xf5\x05\n" +
 	"\x1eStartSocialVerificationRequest\x12B\n" +
 	"\bprovider\x18\x01 \x01(\x0e2\x17.auth.v1.SocialProviderB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\bprovider\x12C\n" +
-	"\x06method\x18\x03 \x01(\x0e2!.auth.v1.SocialVerificationMethodB\b\xbaH\x05\x82\x01\x02\x10\x01R\x06method\x12\x91\x01\n" +
-	"\x06handle\x18\x02 \x01(\tBy\xe0A\x02\xbaHs\xba\x01j\n" +
-	"\x18handle.no_angle_brackets\x12\"handle must not contain '<' or '>'\x1a*!this.contains('<') && !this.contains('>')r\x04\x10\x01\x18@R\x06handle:\xb7\x01\xbaH\xb3\x01\x1a\xb0\x01\n" +
-	"\x15twitter_handle_format\x12Ltwitter handle must be 1-15 chars [A-Za-z0-9_], optionally prefixed with '@'\x1aIthis.provider != 1 ? true : this.handle.matches('^@?[A-Za-z0-9_]{1,15}$')\"\xc4\x01\n" +
+	"\x06method\x18\x03 \x01(\x0e2!.auth.v1.SocialVerificationMethodB\b\xbaH\x05\x82\x01\x02\x10\x01R\x06method\x12\x8c\x01\n" +
+	"\x06handle\x18\x02 \x01(\tBt\xbaHq\xba\x01j\n" +
+	"\x18handle.no_angle_brackets\x12\"handle must not contain '<' or '>'\x1a*!this.contains('<') && !this.contains('>')r\x02\x18@R\x06handle:\xba\x03\xbaH\xb6\x03\x1a\xb0\x01\n" +
+	"\x15twitter_handle_format\x12Ltwitter handle must be 1-15 chars [A-Za-z0-9_], optionally prefixed with '@'\x1aIthis.provider != 1 ? true : this.handle.matches('^@?[A-Za-z0-9_]{1,15}$')\x1av\n" +
+	"\x16discord_handle_omitted\x12-discord verification does not accept a handle\x1a-this.provider != 2 ? true : this.handle == ''\x1a\x88\x01\n" +
+	"\x16discord_channel_method\x12,discord verification uses the channel method\x1a@this.provider != 2 ? true : this.method == 0 || this.method == 2\"\xc4\x01\n" +
 	"\x1fStartSocialVerificationResponse\x12%\n" +
 	"\x0echallenge_code\x18\x01 \x01(\tR\rchallengeCode\x129\n" +
 	"\n" +
@@ -747,10 +754,10 @@ const file_auth_v1_social_verification_proto_rawDesc = "" +
 	"\x12METHOD_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eMETHOD_PROFILE\x10\x01\x12\x12\n" +
 	"\x0eMETHOD_CHANNEL\x10\x02\x12\r\n" +
-	"\tMETHOD_DM\x10\x032\xb8\x06\n" +
-	"\x19SocialVerificationService\x12\x91\x02\n" +
-	"\x17StartSocialVerification\x12'.auth.v1.StartSocialVerificationRequest\x1a(.auth.v1.StartSocialVerificationResponse\"\xa2\x01\xbaGr\n" +
-	"\fAuth Service\x12\x19Start Social Verification\x1aGIssue a challenge code for the caller to place in the provider account.\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/auth/social/verification:start\x12\x8f\x02\n" +
+	"\tMETHOD_DM\x10\x032\xd2\x06\n" +
+	"\x19SocialVerificationService\x12\xab\x02\n" +
+	"\x17StartSocialVerification\x12'.auth.v1.StartSocialVerificationRequest\x1a(.auth.v1.StartSocialVerificationResponse\"\xbc\x01\xbaG\x8b\x01\n" +
+	"\fAuth Service\x12\x19Start Social Verification\x1a`Issue a challenge code for the caller to submit through the provider-specific verification flow.\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/auth/social/verification:start\x12\x8f\x02\n" +
 	"\x17SocialVerificationReady\x12'.auth.v1.SocialVerificationReadyRequest\x1a(.auth.v1.SocialVerificationReadyResponse\"\xa0\x01\xbaGp\n" +
 	"\fAuth Service\x12\x1eMark Social Verification Ready\x1a@Mark verification as ready and request a provider account check.\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/auth/social/verification:ready\x12\xf4\x01\n" +
 	"\x15GetSocialVerification\x12%.auth.v1.GetSocialVerificationRequest\x1a&.auth.v1.GetSocialVerificationResponse\"\x8b\x01\xbaGd\n" +

@@ -723,7 +723,7 @@ func (x *GetCandlesColumnsRequest) GetPageToken() string {
 // CandlePoint is one OHLCV bucket represented with scaled integers.
 //
 // REST responses render these values as decimal strings in tuple order:
-// [ts_sec, open, high, low, close, volume].
+// [ts_sec, open, high, low, close, volume, quote_volume].
 type CandlePoint struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Candle bucket start timestamp, in seconds since epoch (UTC).
@@ -741,7 +741,10 @@ type CandlePoint struct {
 	Volume int64 `protobuf:"varint,6,opt,name=volume,proto3" json:"volume,omitempty"`
 	// True only for WebSocket terminal updates of a closed bucket.
 	// Historical API rows and current open-candle rows set this to false.
-	IsClosed      bool `protobuf:"varint,7,opt,name=is_closed,json=isClosed,proto3" json:"is_closed,omitempty"`
+	IsClosed bool `protobuf:"varint,7,opt,name=is_closed,json=isClosed,proto3" json:"is_closed,omitempty"`
+	// Exact traded quote-asset volume as a human-readable decimal string.
+	// This is sum(execution price × execution quantity), not close × base volume.
+	QuoteVolume   string `protobuf:"bytes,8,opt,name=quote_volume,json=quoteVolume,proto3" json:"quote_volume,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -823,6 +826,13 @@ func (x *CandlePoint) GetIsClosed() bool {
 		return x.IsClosed
 	}
 	return false
+}
+
+func (x *CandlePoint) GetQuoteVolume() string {
+	if x != nil {
+		return x.QuoteVolume
+	}
+	return ""
 }
 
 // GetCandlesResponse contains OHLCV candles for one spot market and timeframe.
@@ -951,6 +961,8 @@ type GetCandlesColumnsResponse struct {
 	ReferenceVolume []int64 `protobuf:"varint,14,rep,packed,name=reference_volume,json=referenceVolume,proto3" json:"reference_volume,omitempty"`
 	// Opaque cursor for the next page. Empty when no more results exist.
 	NextPageToken string `protobuf:"bytes,15,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	// Exact traded quote-asset volumes, oldest-first and aligned with ts_sec.
+	QuoteVolume   []string `protobuf:"bytes,16,rep,name=quote_volume,json=quoteVolume,proto3" json:"quote_volume,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1090,6 +1102,13 @@ func (x *GetCandlesColumnsResponse) GetNextPageToken() string {
 	return ""
 }
 
+func (x *GetCandlesColumnsResponse) GetQuoteVolume() []string {
+	if x != nil {
+		return x.QuoteVolume
+	}
+	return nil
+}
+
 // Candle represents a single OHLCV bucket for a symbol and timeframe.
 type Candle struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
@@ -1102,7 +1121,9 @@ type Candle struct {
 	Close     int64                  `protobuf:"varint,7,opt,name=close,proto3" json:"close,omitempty"`                                      // closing price in quote units scaled by 1e6
 	// Traded base-asset quantity scaled by the pair's base_quantity_scale from
 	// GetSpotConfig.
-	Volume        int64 `protobuf:"varint,8,opt,name=volume,proto3" json:"volume,omitempty"`
+	Volume int64 `protobuf:"varint,8,opt,name=volume,proto3" json:"volume,omitempty"`
+	// Exact traded quote-asset volume as a human-readable decimal string.
+	QuoteVolume   string `protobuf:"bytes,9,opt,name=quote_volume,json=quoteVolume,proto3" json:"quote_volume,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1191,6 +1212,13 @@ func (x *Candle) GetVolume() int64 {
 		return x.Volume
 	}
 	return 0
+}
+
+func (x *Candle) GetQuoteVolume() string {
+	if x != nil {
+		return x.QuoteVolume
+	}
+	return ""
 }
 
 // AssetConfig describes one spot asset returned by GetSpotConfig.
@@ -1688,7 +1716,7 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\n" +
 	"page_token\x18\b \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken:\xab\x03\xbaH\xa7\x03\x1a\xaa\x01\n" +
 	"$get_candles_columns.time_range_valid\x120end_time must be >= start_time when both are set\x1aP!has(this.start_time) || !has(this.end_time) || this.end_time >= this.start_time\x1a\xf7\x01\n" +
-	"#get_candles_columns.time_not_future\x12Estart_time and end_time must not be more than 5 minutes in the future\x1a\x88\x01(!has(this.start_time) || this.start_time <= now + duration('300s')) && (!has(this.end_time) || this.end_time <= now + duration('300s'))\"\xa9\x01\n" +
+	"#get_candles_columns.time_not_future\x12Estart_time and end_time must not be more than 5 minutes in the future\x1a\x88\x01(!has(this.start_time) || this.start_time <= now + duration('300s')) && (!has(this.end_time) || this.end_time <= now + duration('300s'))\"\xcc\x01\n" +
 	"\vCandlePoint\x12\x15\n" +
 	"\x06ts_sec\x18\x01 \x01(\x04R\x05tsSec\x12\x12\n" +
 	"\x04open\x18\x02 \x01(\x03R\x04open\x12\x12\n" +
@@ -1696,13 +1724,14 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\x03low\x18\x04 \x01(\x03R\x03low\x12\x14\n" +
 	"\x05close\x18\x05 \x01(\x03R\x05close\x12\x16\n" +
 	"\x06volume\x18\x06 \x01(\x03R\x06volume\x12\x1b\n" +
-	"\tis_closed\x18\a \x01(\bR\bisClosed\"\x9a\x02\n" +
+	"\tis_closed\x18\a \x01(\bR\bisClosed\x12!\n" +
+	"\fquote_volume\x18\b \x01(\tR\vquoteVolume\"\x9a\x02\n" +
 	"\x12GetCandlesResponse\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x126\n" +
 	"\ttimeframe\x18\x02 \x01(\x0e2\x18.marketdata.v1.TimeframeR\ttimeframe\x124\n" +
 	"\acandles\x18\x03 \x03(\v2\x1a.marketdata.v1.CandlePointR\acandles\x12G\n" +
 	"\x11reference_candles\x18\x04 \x03(\v2\x1a.marketdata.v1.CandlePointR\x10referenceCandles\x120\n" +
-	"\x0fnext_page_token\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\x92\x04\n" +
+	"\x0fnext_page_token\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xb5\x04\n" +
 	"\x19GetCandlesColumnsResponse\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x126\n" +
 	"\ttimeframe\x18\x02 \x01(\x0e2\x18.marketdata.v1.TimeframeR\ttimeframe\x12\x15\n" +
@@ -1719,7 +1748,8 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\rreference_low\x18\f \x03(\x03R\freferenceLow\x12'\n" +
 	"\x0freference_close\x18\r \x03(\x03R\x0ereferenceClose\x12)\n" +
 	"\x10reference_volume\x18\x0e \x03(\x03R\x0freferenceVolume\x120\n" +
-	"\x0fnext_page_token\x18\x0f \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xdc\x01\n" +
+	"\x0fnext_page_token\x18\x0f \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\x12!\n" +
+	"\fquote_volume\x18\x10 \x03(\tR\vquoteVolume\"\xff\x01\n" +
 	"\x06Candle\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x126\n" +
 	"\ttimeframe\x18\x02 \x01(\x0e2\x18.marketdata.v1.TimeframeR\ttimeframe\x12\x15\n" +
@@ -1728,7 +1758,8 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\x04high\x18\x05 \x01(\x03R\x04high\x12\x10\n" +
 	"\x03low\x18\x06 \x01(\x03R\x03low\x12\x14\n" +
 	"\x05close\x18\a \x01(\x03R\x05close\x12\x16\n" +
-	"\x06volume\x18\b \x01(\x03R\x06volume\"\xb7\x01\n" +
+	"\x06volume\x18\b \x01(\x03R\x06volume\x12!\n" +
+	"\fquote_volume\x18\t \x01(\tR\vquoteVolume\"\xb7\x01\n" +
 	"\vAssetConfig\x12\x14\n" +
 	"\x05asset\x18\x01 \x01(\tR\x05asset\x12\x1b\n" +
 	"\tledger_id\x18\x02 \x01(\rR\bledgerId\x12\x12\n" +

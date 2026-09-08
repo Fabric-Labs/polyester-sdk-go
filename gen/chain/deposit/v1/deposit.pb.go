@@ -307,10 +307,10 @@ const file_chain_deposit_v1_deposit_proto_rawDesc = "" +
 	"\bchain_id\x18\x02 \x01(\rB\n" +
 	"\xbaH\a\xd8\x01\x01*\x02 \x00R\achainId\"m\n" +
 	"\x1cListDepositAddressesResponse\x12M\n" +
-	"\x11deposit_addresses\x18\x01 \x03(\v2 .chain.deposit.v1.DepositAddressR\x10depositAddresses2\xc1\x04\n" +
-	"\x15DepositAddressService\x12\xa5\x02\n" +
-	"\x14CreateDepositAddress\x12-.chain.deposit.v1.CreateDepositAddressRequest\x1a..chain.deposit.v1.CreateDepositAddressResponse\"\xad\x01\xbaG\x83\x01\n" +
-	"\x11Deposit Addresses\x12\x16Create Deposit Address\x1aVCreate or return the assigned deposit address for one account target and source chain.\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/v1/chain/deposit-addresses\x12\xff\x01\n" +
+	"\x11deposit_addresses\x18\x01 \x03(\v2 .chain.deposit.v1.DepositAddressR\x10depositAddresses2\xb1\x05\n" +
+	"\x15DepositAddressService\x12\x95\x03\n" +
+	"\x14CreateDepositAddress\x12-.chain.deposit.v1.CreateDepositAddressRequest\x1a..chain.deposit.v1.CreateDepositAddressResponse\"\x9d\x02\xbaG\xf3\x01\n" +
+	"\x11Deposit Addresses\x12\x16Create Deposit Address\x1a\xc5\x01Create or return the assigned deposit address for one account target and source chain. Requires the acting caller's root account to have accepted the current terms, including when using an API key.\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/v1/chain/deposit-addresses\x12\xff\x01\n" +
 	"\x14ListDepositAddresses\x12-.chain.deposit.v1.ListDepositAddressesRequest\x1a..chain.deposit.v1.ListDepositAddressesResponse\"\x87\x01\xbaGa\n" +
 	"\x11Deposit Addresses\x12\x16List Deposit Addresses\x1a4List known deposit addresses for one account target.\x82\xd3\xe4\x93\x02\x1d\x12\x1b/v1/chain/deposit-addressesB\xaf\x01\xbaG_:]\n" +
 	"\x11Deposit Addresses\x12HCreate and list deposit addresses for a Polyester account or subaccount.ZKgithub.com/Fabric-Labs/polyester-sdk-go/gen/chain/deposit/v1;chaindepositv1b\x06proto3"

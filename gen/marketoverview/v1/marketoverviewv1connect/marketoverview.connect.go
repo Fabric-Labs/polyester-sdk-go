@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// MarketOverviewServiceGetSpotVolumeHistoryProcedure is the fully-qualified name of the
+	// MarketOverviewService's GetSpotVolumeHistory RPC.
+	MarketOverviewServiceGetSpotVolumeHistoryProcedure = "/marketoverview.v1.MarketOverviewService/GetSpotVolumeHistory"
 	// MarketOverviewServiceListMarketOverviewProcedure is the fully-qualified name of the
 	// MarketOverviewService's ListMarketOverview RPC.
 	MarketOverviewServiceListMarketOverviewProcedure = "/marketoverview.v1.MarketOverviewService/ListMarketOverview"
@@ -40,6 +43,9 @@ const (
 
 // MarketOverviewServiceClient is a client for the marketoverview.v1.MarketOverviewService service.
 type MarketOverviewServiceClient interface {
+	// Get aligned pair-level and total trailing-24h USD volume, sampled every
+	// 15 minutes over the latest day. Unavailable valuations fail the request.
+	GetSpotVolumeHistory(context.Context, *connect.Request[v1.GetSpotVolumeHistoryRequest]) (*connect.Response[v1.GetSpotVolumeHistoryResponse], error)
 	ListMarketOverview(context.Context, *connect.Request[v1.ListMarketOverviewRequest]) (*connect.Response[v1.ListMarketOverviewResponse], error)
 }
 
@@ -54,6 +60,12 @@ func NewMarketOverviewServiceClient(httpClient connect.HTTPClient, baseURL strin
 	baseURL = strings.TrimRight(baseURL, "/")
 	marketOverviewServiceMethods := v1.File_marketoverview_v1_marketoverview_proto.Services().ByName("MarketOverviewService").Methods()
 	return &marketOverviewServiceClient{
+		getSpotVolumeHistory: connect.NewClient[v1.GetSpotVolumeHistoryRequest, v1.GetSpotVolumeHistoryResponse](
+			httpClient,
+			baseURL+MarketOverviewServiceGetSpotVolumeHistoryProcedure,
+			connect.WithSchema(marketOverviewServiceMethods.ByName("GetSpotVolumeHistory")),
+			connect.WithClientOptions(opts...),
+		),
 		listMarketOverview: connect.NewClient[v1.ListMarketOverviewRequest, v1.ListMarketOverviewResponse](
 			httpClient,
 			baseURL+MarketOverviewServiceListMarketOverviewProcedure,
@@ -65,7 +77,13 @@ func NewMarketOverviewServiceClient(httpClient connect.HTTPClient, baseURL strin
 
 // marketOverviewServiceClient implements MarketOverviewServiceClient.
 type marketOverviewServiceClient struct {
-	listMarketOverview *connect.Client[v1.ListMarketOverviewRequest, v1.ListMarketOverviewResponse]
+	getSpotVolumeHistory *connect.Client[v1.GetSpotVolumeHistoryRequest, v1.GetSpotVolumeHistoryResponse]
+	listMarketOverview   *connect.Client[v1.ListMarketOverviewRequest, v1.ListMarketOverviewResponse]
+}
+
+// GetSpotVolumeHistory calls marketoverview.v1.MarketOverviewService.GetSpotVolumeHistory.
+func (c *marketOverviewServiceClient) GetSpotVolumeHistory(ctx context.Context, req *connect.Request[v1.GetSpotVolumeHistoryRequest]) (*connect.Response[v1.GetSpotVolumeHistoryResponse], error) {
+	return c.getSpotVolumeHistory.CallUnary(ctx, req)
 }
 
 // ListMarketOverview calls marketoverview.v1.MarketOverviewService.ListMarketOverview.
@@ -76,6 +94,9 @@ func (c *marketOverviewServiceClient) ListMarketOverview(ctx context.Context, re
 // MarketOverviewServiceHandler is an implementation of the marketoverview.v1.MarketOverviewService
 // service.
 type MarketOverviewServiceHandler interface {
+	// Get aligned pair-level and total trailing-24h USD volume, sampled every
+	// 15 minutes over the latest day. Unavailable valuations fail the request.
+	GetSpotVolumeHistory(context.Context, *connect.Request[v1.GetSpotVolumeHistoryRequest]) (*connect.Response[v1.GetSpotVolumeHistoryResponse], error)
 	ListMarketOverview(context.Context, *connect.Request[v1.ListMarketOverviewRequest]) (*connect.Response[v1.ListMarketOverviewResponse], error)
 }
 
@@ -86,6 +107,12 @@ type MarketOverviewServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewMarketOverviewServiceHandler(svc MarketOverviewServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	marketOverviewServiceMethods := v1.File_marketoverview_v1_marketoverview_proto.Services().ByName("MarketOverviewService").Methods()
+	marketOverviewServiceGetSpotVolumeHistoryHandler := connect.NewUnaryHandler(
+		MarketOverviewServiceGetSpotVolumeHistoryProcedure,
+		svc.GetSpotVolumeHistory,
+		connect.WithSchema(marketOverviewServiceMethods.ByName("GetSpotVolumeHistory")),
+		connect.WithHandlerOptions(opts...),
+	)
 	marketOverviewServiceListMarketOverviewHandler := connect.NewUnaryHandler(
 		MarketOverviewServiceListMarketOverviewProcedure,
 		svc.ListMarketOverview,
@@ -94,6 +121,8 @@ func NewMarketOverviewServiceHandler(svc MarketOverviewServiceHandler, opts ...c
 	)
 	return "/marketoverview.v1.MarketOverviewService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case MarketOverviewServiceGetSpotVolumeHistoryProcedure:
+			marketOverviewServiceGetSpotVolumeHistoryHandler.ServeHTTP(w, r)
 		case MarketOverviewServiceListMarketOverviewProcedure:
 			marketOverviewServiceListMarketOverviewHandler.ServeHTTP(w, r)
 		default:
@@ -104,6 +133,10 @@ func NewMarketOverviewServiceHandler(svc MarketOverviewServiceHandler, opts ...c
 
 // UnimplementedMarketOverviewServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedMarketOverviewServiceHandler struct{}
+
+func (UnimplementedMarketOverviewServiceHandler) GetSpotVolumeHistory(context.Context, *connect.Request[v1.GetSpotVolumeHistoryRequest]) (*connect.Response[v1.GetSpotVolumeHistoryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("marketoverview.v1.MarketOverviewService.GetSpotVolumeHistory is not implemented"))
+}
 
 func (UnimplementedMarketOverviewServiceHandler) ListMarketOverview(context.Context, *connect.Request[v1.ListMarketOverviewRequest]) (*connect.Response[v1.ListMarketOverviewResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("marketoverview.v1.MarketOverviewService.ListMarketOverview is not implemented"))

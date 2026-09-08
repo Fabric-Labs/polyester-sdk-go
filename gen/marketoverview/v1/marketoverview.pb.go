@@ -93,9 +93,8 @@ const (
 	MarketOrderBy_MARKET_ORDER_BY_UNSPECIFIED MarketOrderBy = 0
 	// Sort by absolute 24h change (basis points).
 	MarketOrderBy_ORDER_BY_CHANGE_24H_BPS MarketOrderBy = 1
-	// Sort by 24h quote volume scaled by the pair's quote_quantity_scale from
-	// GetSpotConfig.
-	MarketOrderBy_ORDER_BY_VOLUME_24H_QUOTE MarketOrderBy = 2
+	// Sort by canonical USD 24h volume. Unvalued markets sort last in either direction.
+	MarketOrderBy_ORDER_BY_VOLUME_24H_USD MarketOrderBy = 2
 	// Sort by last price in quote units scaled by 1e6.
 	MarketOrderBy_ORDER_BY_LAST_PRICE MarketOrderBy = 3
 	// Sort by listing time (new listings first).
@@ -107,14 +106,14 @@ var (
 	MarketOrderBy_name = map[int32]string{
 		0: "MARKET_ORDER_BY_UNSPECIFIED",
 		1: "ORDER_BY_CHANGE_24H_BPS",
-		2: "ORDER_BY_VOLUME_24H_QUOTE",
+		2: "ORDER_BY_VOLUME_24H_USD",
 		3: "ORDER_BY_LAST_PRICE",
 		4: "ORDER_BY_DATE_ADDED",
 	}
 	MarketOrderBy_value = map[string]int32{
 		"MARKET_ORDER_BY_UNSPECIFIED": 0,
 		"ORDER_BY_CHANGE_24H_BPS":     1,
-		"ORDER_BY_VOLUME_24H_QUOTE":   2,
+		"ORDER_BY_VOLUME_24H_USD":     2,
 		"ORDER_BY_LAST_PRICE":         3,
 		"ORDER_BY_DATE_ADDED":         4,
 	}
@@ -375,11 +374,17 @@ type MarketOverview struct {
 	// Lowest traded price in the 24h window, in quote units scaled by 1e6.
 	Low_24HTicks int64 `protobuf:"varint,7,opt,name=low_24h_ticks,json=low24hTicks,proto3" json:"low_24h_ticks,omitempty"`
 	// Rolling 24h base volume scaled by the pair's base_quantity_scale from
-	// GetSpotConfig.
-	Volume_24HBaseScaled int64 `protobuf:"varint,8,opt,name=volume_24h_base_scaled,json=volume24hBaseScaled,proto3" json:"volume_24h_base_scaled,omitempty"`
+	// GetSpotConfig. Omitted if the amount exceeds the signed 64-bit range.
+	Volume_24HBaseScaled *int64 `protobuf:"varint,8,opt,name=volume_24h_base_scaled,json=volume24hBaseScaled,proto3,oneof" json:"volume_24h_base_scaled,omitempty"`
 	// Rolling 24h quote volume scaled by the pair's quote_quantity_scale from
-	// GetSpotConfig.
-	Volume_24HQuoteScaled int64 `protobuf:"varint,14,opt,name=volume_24h_quote_scaled,json=volume24hQuoteScaled,proto3" json:"volume_24h_quote_scaled,omitempty"`
+	// GetSpotConfig. Omitted if the amount exceeds the signed 64-bit range.
+	Volume_24HQuoteScaled *int64 `protobuf:"varint,14,opt,name=volume_24h_quote_scaled,json=volume24hQuoteScaled,proto3,oneof" json:"volume_24h_quote_scaled,omitempty"`
+	// Rolling 24h USD volume, scaled by 1e6 (one unit is 0.000001 USD).
+	// Omitted if any contributing volume cannot be valued reliably. Quote volumes
+	// use execution prices; USD conversion uses historical quarter-hour marks.
+	// Covers the 24 hours ending at the latest completed UTC minute.
+	// Refreshed every 15 seconds after completed minutes become available.
+	Volume_24HUsdScaled *int64 `protobuf:"varint,17,opt,name=volume_24h_usd_scaled,json=volume24hUsdScaled,proto3,oneof" json:"volume_24h_usd_scaled,omitempty"`
 	// Listing timestamp in nanoseconds since epoch.
 	ListedTsNs uint64 `protobuf:"varint,15,opt,name=listed_ts_ns,json=listedTsNs,proto3" json:"listed_ts_ns,omitempty"`
 	// Current best bid price in quote units scaled by 1e6.
@@ -474,15 +479,22 @@ func (x *MarketOverview) GetLow_24HTicks() int64 {
 }
 
 func (x *MarketOverview) GetVolume_24HBaseScaled() int64 {
-	if x != nil {
-		return x.Volume_24HBaseScaled
+	if x != nil && x.Volume_24HBaseScaled != nil {
+		return *x.Volume_24HBaseScaled
 	}
 	return 0
 }
 
 func (x *MarketOverview) GetVolume_24HQuoteScaled() int64 {
-	if x != nil {
-		return x.Volume_24HQuoteScaled
+	if x != nil && x.Volume_24HQuoteScaled != nil {
+		return *x.Volume_24HQuoteScaled
+	}
+	return 0
+}
+
+func (x *MarketOverview) GetVolume_24HUsdScaled() int64 {
+	if x != nil && x.Volume_24HUsdScaled != nil {
+		return *x.Volume_24HUsdScaled
 	}
 	return 0
 }
@@ -548,7 +560,7 @@ type ListMarketOverviewRequest struct {
 	// bound to symbol IDs, sort key, and sort direction. Sparkline options
 	// affect only response enrichment and may change between pages.
 	PageToken string `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
-	// Sort key. When unset/UNSPECIFIED, defaults to 24h quote volume.
+	// Sort key. When unset/UNSPECIFIED, defaults to descending 24h USD volume.
 	OrderBy MarketOrderBy `protobuf:"varint,4,opt,name=order_by,json=orderBy,proto3,enum=marketoverview.v1.MarketOrderBy" json:"order_by,omitempty"`
 	// Sort direction (DESC=newest/highest first).
 	Sort SortDirection `protobuf:"varint,5,opt,name=sort,proto3,enum=marketoverview.v1.SortDirection" json:"sort,omitempty"`
@@ -750,6 +762,213 @@ func (x *MarketOverviewBatch) GetTsNs() uint64 {
 	return 0
 }
 
+// A finite spot-volume chart request; no pagination or arbitrary time range.
+type GetSpotVolumeHistoryRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Pair IDs from GetSpotConfig; empty selects every configured pair separately.
+	// At most 2000 distinct positive IDs. Unknown IDs are rejected. If the full
+	// universe exceeds 2000 pairs, specify a filter; results are never truncated.
+	SymbolId      []uint32 `protobuf:"varint,1,rep,packed,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSpotVolumeHistoryRequest) Reset() {
+	*x = GetSpotVolumeHistoryRequest{}
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSpotVolumeHistoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSpotVolumeHistoryRequest) ProtoMessage() {}
+
+func (x *GetSpotVolumeHistoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSpotVolumeHistoryRequest.ProtoReflect.Descriptor instead.
+func (*GetSpotVolumeHistoryRequest) Descriptor() ([]byte, []int) {
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *GetSpotVolumeHistoryRequest) GetSymbolId() []uint32 {
+	if x != nil {
+		return x.SymbolId
+	}
+	return nil
+}
+
+// One pair appears exactly once, regardless of its base and quote assets.
+// REST renders the scaled amounts as decimal strings in volumeUsd.
+type SpotPairVolumeSeries struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable numeric pair ID; clients may group these series by base asset.
+	SymbolId uint32 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
+	// Trailing-24h USD amounts scaled by 1e6, oldest first. Exactly points values,
+	// aligned with the shared response grid. Zero means no executed trades in
+	// the window. USD values round down once per contributing 15-minute bucket.
+	VolumeUsdScaled []int64 `protobuf:"zigzag64,2,rep,packed,name=volume_usd_scaled,json=volumeUsdScaled,proto3" json:"volume_usd_scaled,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *SpotPairVolumeSeries) Reset() {
+	*x = SpotPairVolumeSeries{}
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SpotPairVolumeSeries) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SpotPairVolumeSeries) ProtoMessage() {}
+
+func (x *SpotPairVolumeSeries) ProtoReflect() protoreflect.Message {
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SpotPairVolumeSeries.ProtoReflect.Descriptor instead.
+func (*SpotPairVolumeSeries) Descriptor() ([]byte, []int) {
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *SpotPairVolumeSeries) GetSymbolId() uint32 {
+	if x != nil {
+		return x.SymbolId
+	}
+	return 0
+}
+
+func (x *SpotPairVolumeSeries) GetVolumeUsdScaled() []int64 {
+	if x != nil {
+		return x.VolumeUsdScaled
+	}
+	return nil
+}
+
+// Aligned columnar trailing-24h USD series over the most recent 24 hours.
+// The grid always contains 97 samples ending at the latest completed UTC
+// quarter-hour. Index i maps to start_ts_sec + i * 900 seconds. Each sample
+// covers [sample time - 24h, sample time); only the preceding 48 hours contribute.
+// USD conversion uses the latest trustworthy quote/USD mark at or before each
+// bucket's start. Stablecoin quotes also require historical USD prices.
+// If any contributing trade cannot be valued, or a USD amount overflows,
+// the RPC fails as unavailable; partial or zero-filled valuations are not returned.
+// Intervals without executed trades are zero. Results may be reused for 15 seconds.
+type GetSpotVolumeHistoryResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Sampling interval between points; currently always "15m".
+	Bucket string `protobuf:"bytes,1,opt,name=bucket,proto3" json:"bucket,omitempty"`
+	// First sample timestamp in seconds since Unix epoch (UTC), inclusive.
+	StartTsSec uint32 `protobuf:"fixed32,2,opt,name=start_ts_sec,json=startTsSec,proto3" json:"start_ts_sec,omitempty"`
+	// Last sample timestamp in seconds since Unix epoch (UTC), inclusive.
+	EndTsSec uint32 `protobuf:"fixed32,3,opt,name=end_ts_sec,json=endTsSec,proto3" json:"end_ts_sec,omitempty"`
+	// Number of aligned values in every pair array and the total array; always 97.
+	Points uint32 `protobuf:"varint,4,opt,name=points,proto3" json:"points,omitempty"`
+	// Pairs ordered by ascending symbol_id; at most 2000, each included once.
+	Pairs []*SpotPairVolumeSeries `protobuf:"bytes,5,rep,name=pairs,proto3" json:"pairs,omitempty"`
+	// Sum across selected pairs, USD scaled by 1e6. Exactly points values,
+	// oldest first. REST renders decimal strings in totalVolumeUsd.
+	// Do not sum overlapping trailing-24h samples to obtain period traded volume.
+	TotalVolumeUsdScaled []int64 `protobuf:"zigzag64,6,rep,packed,name=total_volume_usd_scaled,json=totalVolumeUsdScaled,proto3" json:"total_volume_usd_scaled,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *GetSpotVolumeHistoryResponse) Reset() {
+	*x = GetSpotVolumeHistoryResponse{}
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSpotVolumeHistoryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSpotVolumeHistoryResponse) ProtoMessage() {}
+
+func (x *GetSpotVolumeHistoryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSpotVolumeHistoryResponse.ProtoReflect.Descriptor instead.
+func (*GetSpotVolumeHistoryResponse) Descriptor() ([]byte, []int) {
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GetSpotVolumeHistoryResponse) GetBucket() string {
+	if x != nil {
+		return x.Bucket
+	}
+	return ""
+}
+
+func (x *GetSpotVolumeHistoryResponse) GetStartTsSec() uint32 {
+	if x != nil {
+		return x.StartTsSec
+	}
+	return 0
+}
+
+func (x *GetSpotVolumeHistoryResponse) GetEndTsSec() uint32 {
+	if x != nil {
+		return x.EndTsSec
+	}
+	return 0
+}
+
+func (x *GetSpotVolumeHistoryResponse) GetPoints() uint32 {
+	if x != nil {
+		return x.Points
+	}
+	return 0
+}
+
+func (x *GetSpotVolumeHistoryResponse) GetPairs() []*SpotPairVolumeSeries {
+	if x != nil {
+		return x.Pairs
+	}
+	return nil
+}
+
+func (x *GetSpotVolumeHistoryResponse) GetTotalVolumeUsdScaled() []int64 {
+	if x != nil {
+		return x.TotalVolumeUsdScaled
+	}
+	return nil
+}
+
 var File_marketoverview_v1_marketoverview_proto protoreflect.FileDescriptor
 
 const file_marketoverview_v1_marketoverview_proto_rawDesc = "" +
@@ -760,16 +979,17 @@ const file_marketoverview_v1_marketoverview_proto_rawDesc = "" +
 	"\tSparkline\x12J\n" +
 	"\binterval\x18\x01 \x01(\x0e2$.marketoverview.v1.SparklineIntervalB\b\xbaH\x05\x82\x01\x02\x10\x01R\binterval\x12\x1f\n" +
 	"\vclose_ticks\x18\x02 \x03(\x03R\n" +
-	"closeTicks\"\x92\x05\n" +
+	"closeTicks\"\xa5\x06\n" +
 	"\x0eMarketOverview\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x12(\n" +
 	"\x10last_price_ticks\x18\x03 \x01(\x03R\x0elastPriceTicks\x12'\n" +
 	"\x10last_trade_ts_ns\x18\x04 \x01(\x04R\rlastTradeTsNs\x12$\n" +
 	"\x0echange_24h_bps\x18\x05 \x01(\x05R\fchange24hBps\x12$\n" +
 	"\x0ehigh_24h_ticks\x18\x06 \x01(\x03R\fhigh24hTicks\x12\"\n" +
-	"\rlow_24h_ticks\x18\a \x01(\x03R\vlow24hTicks\x123\n" +
-	"\x16volume_24h_base_scaled\x18\b \x01(\x03R\x13volume24hBaseScaled\x125\n" +
-	"\x17volume_24h_quote_scaled\x18\x0e \x01(\x03R\x14volume24hQuoteScaled\x12 \n" +
+	"\rlow_24h_ticks\x18\a \x01(\x03R\vlow24hTicks\x128\n" +
+	"\x16volume_24h_base_scaled\x18\b \x01(\x03H\x00R\x13volume24hBaseScaled\x88\x01\x01\x12:\n" +
+	"\x17volume_24h_quote_scaled\x18\x0e \x01(\x03H\x01R\x14volume24hQuoteScaled\x88\x01\x01\x126\n" +
+	"\x15volume_24h_usd_scaled\x18\x11 \x01(\x03H\x02R\x12volume24hUsdScaled\x88\x01\x01\x12 \n" +
 	"\flisted_ts_ns\x18\x0f \x01(\x04R\n" +
 	"listedTsNs\x12$\n" +
 	"\x0ebest_bid_ticks\x18\t \x01(\x03R\fbestBidTicks\x12-\n" +
@@ -780,7 +1000,10 @@ const file_marketoverview_v1_marketoverview_proto_rawDesc = "" +
 	"\n" +
 	"sparklines\x18\r \x03(\v2\x1c.marketoverview.v1.SparklineR\n" +
 	"sparklines\x12*\n" +
-	"\x11index_price_ticks\x18\x10 \x01(\x03R\x0findexPriceTicks\"\xb0\x03\n" +
+	"\x11index_price_ticks\x18\x10 \x01(\x03R\x0findexPriceTicksB\x19\n" +
+	"\x17_volume_24h_base_scaledB\x1a\n" +
+	"\x18_volume_24h_quote_scaledB\x18\n" +
+	"\x16_volume_24h_usd_scaled\"\xb0\x03\n" +
 	"\x19ListMarketOverviewRequest\x12.\n" +
 	"\tsymbol_id\x18\x01 \x03(\rB\x11\xbaH\x0e\x92\x01\v\x10\xd0\x0f\x18\x01\"\x04*\x02 \x00R\bsymbolId\x12\x1e\n" +
 	"\x05limit\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xd0\x0fR\x05limit\x12'\n" +
@@ -796,17 +1019,31 @@ const file_marketoverview_v1_marketoverview_proto_rawDesc = "" +
 	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"g\n" +
 	"\x13MarketOverviewBatch\x12;\n" +
 	"\amarkets\x18\x01 \x03(\v2!.marketoverview.v1.MarketOverviewR\amarkets\x12\x13\n" +
-	"\x05ts_ns\x18\x02 \x01(\x04R\x04tsNs*\x80\x01\n" +
+	"\x05ts_ns\x18\x02 \x01(\x04R\x04tsNs\"M\n" +
+	"\x1bGetSpotVolumeHistoryRequest\x12.\n" +
+	"\tsymbol_id\x18\x01 \x03(\rB\x11\xbaH\x0e\x92\x01\v\x10\xd0\x0f\x18\x01\"\x04*\x02 \x00R\bsymbolId\"_\n" +
+	"\x14SpotPairVolumeSeries\x12\x1b\n" +
+	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x12*\n" +
+	"\x11volume_usd_scaled\x18\x02 \x03(\x12R\x0fvolumeUsdScaled\"\x84\x02\n" +
+	"\x1cGetSpotVolumeHistoryResponse\x12\x16\n" +
+	"\x06bucket\x18\x01 \x01(\tR\x06bucket\x12 \n" +
+	"\fstart_ts_sec\x18\x02 \x01(\aR\n" +
+	"startTsSec\x12\x1c\n" +
+	"\n" +
+	"end_ts_sec\x18\x03 \x01(\aR\bendTsSec\x12\x16\n" +
+	"\x06points\x18\x04 \x01(\rR\x06points\x12=\n" +
+	"\x05pairs\x18\x05 \x03(\v2'.marketoverview.v1.SpotPairVolumeSeriesR\x05pairs\x125\n" +
+	"\x17total_volume_usd_scaled\x18\x06 \x03(\x12R\x14totalVolumeUsdScaled*\x80\x01\n" +
 	"\x11SparklineInterval\x12\"\n" +
 	"\x1eSPARKLINE_INTERVAL_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fSPARKLINE_1H\x10\x01\x12\x11\n" +
 	"\rSPARKLINE_24H\x10\x02\x12\x10\n" +
 	"\fSPARKLINE_1W\x10\x03\x12\x10\n" +
-	"\fSPARKLINE_1M\x10\x04*\x9e\x01\n" +
+	"\fSPARKLINE_1M\x10\x04*\x9c\x01\n" +
 	"\rMarketOrderBy\x12\x1f\n" +
 	"\x1bMARKET_ORDER_BY_UNSPECIFIED\x10\x00\x12\x1b\n" +
-	"\x17ORDER_BY_CHANGE_24H_BPS\x10\x01\x12\x1d\n" +
-	"\x19ORDER_BY_VOLUME_24H_QUOTE\x10\x02\x12\x17\n" +
+	"\x17ORDER_BY_CHANGE_24H_BPS\x10\x01\x12\x1b\n" +
+	"\x17ORDER_BY_VOLUME_24H_USD\x10\x02\x12\x17\n" +
 	"\x13ORDER_BY_LAST_PRICE\x10\x03\x12\x17\n" +
 	"\x13ORDER_BY_DATE_ADDED\x10\x04*L\n" +
 	"\rSortDirection\x12\x1e\n" +
@@ -819,8 +1056,10 @@ const file_marketoverview_v1_marketoverview_proto_rawDesc = "" +
 	"\x1bERROR_CODE_INVALID_ARGUMENT\x10\x02\x12\x18\n" +
 	"\x14ERROR_CODE_NOT_FOUND\x10\x03\x12\x1a\n" +
 	"\x16ERROR_CODE_UNAVAILABLE\x10\x04\x12\x1d\n" +
-	"\x19ERROR_CODE_UPSTREAM_ERROR\x10\x052\xe6\x02\n" +
-	"\x15MarketOverviewService\x12\xcc\x02\n" +
+	"\x19ERROR_CODE_UPSTREAM_ERROR\x10\x052\xdd\x05\n" +
+	"\x15MarketOverviewService\x12\xf4\x02\n" +
+	"\x14GetSpotVolumeHistory\x12..marketoverview.v1.GetSpotVolumeHistoryRequest\x1a/.marketoverview.v1.GetSpotVolumeHistoryResponse\"\xfa\x01\xbaG\xcb\x01\n" +
+	"\x17Market Overview Service\x12\x17Get Spot Volume History\x1a\x96\x01Get aligned columnar pair-level and total trailing-24h USD volume at 15-minute intervals over the latest day. Unavailable valuations fail the request.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02!\x12\x1f/v1/spot/markets/volume-history\x12\xcc\x02\n" +
 	"\x12ListMarketOverview\x12,.marketoverview.v1.ListMarketOverviewRequest\x1a-.marketoverview.v1.ListMarketOverviewResponse\"\xd8\x01\xbaG\xaf\x01\n" +
 	"\x17Market Overview Service\x12\x15List Market Overviews\x1a}List ticker-style market overview rows with optional sparklines. Supports symbol filtering, sorting, and pagination controls.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/spot/markets/overviewB\xc8\x01\xbaGu:s\n" +
 	"\x17Market Overview Service\x12XPublic read surface for per-market overview (ticker-like) stats and optional sparklines.ZNgithub.com/Fabric-Labs/polyester-sdk-go/gen/marketoverview/v1;marketoverviewv1b\x06proto3"
@@ -838,35 +1077,41 @@ func file_marketoverview_v1_marketoverview_proto_rawDescGZIP() []byte {
 }
 
 var file_marketoverview_v1_marketoverview_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_marketoverview_v1_marketoverview_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_marketoverview_v1_marketoverview_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_marketoverview_v1_marketoverview_proto_goTypes = []any{
-	(SparklineInterval)(0),             // 0: marketoverview.v1.SparklineInterval
-	(MarketOrderBy)(0),                 // 1: marketoverview.v1.MarketOrderBy
-	(SortDirection)(0),                 // 2: marketoverview.v1.SortDirection
-	(ErrorCode)(0),                     // 3: marketoverview.v1.ErrorCode
-	(*ErrorDetail)(nil),                // 4: marketoverview.v1.ErrorDetail
-	(*Sparkline)(nil),                  // 5: marketoverview.v1.Sparkline
-	(*MarketOverview)(nil),             // 6: marketoverview.v1.MarketOverview
-	(*ListMarketOverviewRequest)(nil),  // 7: marketoverview.v1.ListMarketOverviewRequest
-	(*ListMarketOverviewResponse)(nil), // 8: marketoverview.v1.ListMarketOverviewResponse
-	(*MarketOverviewBatch)(nil),        // 9: marketoverview.v1.MarketOverviewBatch
+	(SparklineInterval)(0),               // 0: marketoverview.v1.SparklineInterval
+	(MarketOrderBy)(0),                   // 1: marketoverview.v1.MarketOrderBy
+	(SortDirection)(0),                   // 2: marketoverview.v1.SortDirection
+	(ErrorCode)(0),                       // 3: marketoverview.v1.ErrorCode
+	(*ErrorDetail)(nil),                  // 4: marketoverview.v1.ErrorDetail
+	(*Sparkline)(nil),                    // 5: marketoverview.v1.Sparkline
+	(*MarketOverview)(nil),               // 6: marketoverview.v1.MarketOverview
+	(*ListMarketOverviewRequest)(nil),    // 7: marketoverview.v1.ListMarketOverviewRequest
+	(*ListMarketOverviewResponse)(nil),   // 8: marketoverview.v1.ListMarketOverviewResponse
+	(*MarketOverviewBatch)(nil),          // 9: marketoverview.v1.MarketOverviewBatch
+	(*GetSpotVolumeHistoryRequest)(nil),  // 10: marketoverview.v1.GetSpotVolumeHistoryRequest
+	(*SpotPairVolumeSeries)(nil),         // 11: marketoverview.v1.SpotPairVolumeSeries
+	(*GetSpotVolumeHistoryResponse)(nil), // 12: marketoverview.v1.GetSpotVolumeHistoryResponse
 }
 var file_marketoverview_v1_marketoverview_proto_depIdxs = []int32{
-	3, // 0: marketoverview.v1.ErrorDetail.code:type_name -> marketoverview.v1.ErrorCode
-	0, // 1: marketoverview.v1.Sparkline.interval:type_name -> marketoverview.v1.SparklineInterval
-	5, // 2: marketoverview.v1.MarketOverview.sparklines:type_name -> marketoverview.v1.Sparkline
-	1, // 3: marketoverview.v1.ListMarketOverviewRequest.order_by:type_name -> marketoverview.v1.MarketOrderBy
-	2, // 4: marketoverview.v1.ListMarketOverviewRequest.sort:type_name -> marketoverview.v1.SortDirection
-	0, // 5: marketoverview.v1.ListMarketOverviewRequest.sparkline_intervals:type_name -> marketoverview.v1.SparklineInterval
-	6, // 6: marketoverview.v1.ListMarketOverviewResponse.markets:type_name -> marketoverview.v1.MarketOverview
-	6, // 7: marketoverview.v1.MarketOverviewBatch.markets:type_name -> marketoverview.v1.MarketOverview
-	7, // 8: marketoverview.v1.MarketOverviewService.ListMarketOverview:input_type -> marketoverview.v1.ListMarketOverviewRequest
-	8, // 9: marketoverview.v1.MarketOverviewService.ListMarketOverview:output_type -> marketoverview.v1.ListMarketOverviewResponse
-	9, // [9:10] is the sub-list for method output_type
-	8, // [8:9] is the sub-list for method input_type
-	8, // [8:8] is the sub-list for extension type_name
-	8, // [8:8] is the sub-list for extension extendee
-	0, // [0:8] is the sub-list for field type_name
+	3,  // 0: marketoverview.v1.ErrorDetail.code:type_name -> marketoverview.v1.ErrorCode
+	0,  // 1: marketoverview.v1.Sparkline.interval:type_name -> marketoverview.v1.SparklineInterval
+	5,  // 2: marketoverview.v1.MarketOverview.sparklines:type_name -> marketoverview.v1.Sparkline
+	1,  // 3: marketoverview.v1.ListMarketOverviewRequest.order_by:type_name -> marketoverview.v1.MarketOrderBy
+	2,  // 4: marketoverview.v1.ListMarketOverviewRequest.sort:type_name -> marketoverview.v1.SortDirection
+	0,  // 5: marketoverview.v1.ListMarketOverviewRequest.sparkline_intervals:type_name -> marketoverview.v1.SparklineInterval
+	6,  // 6: marketoverview.v1.ListMarketOverviewResponse.markets:type_name -> marketoverview.v1.MarketOverview
+	6,  // 7: marketoverview.v1.MarketOverviewBatch.markets:type_name -> marketoverview.v1.MarketOverview
+	11, // 8: marketoverview.v1.GetSpotVolumeHistoryResponse.pairs:type_name -> marketoverview.v1.SpotPairVolumeSeries
+	10, // 9: marketoverview.v1.MarketOverviewService.GetSpotVolumeHistory:input_type -> marketoverview.v1.GetSpotVolumeHistoryRequest
+	7,  // 10: marketoverview.v1.MarketOverviewService.ListMarketOverview:input_type -> marketoverview.v1.ListMarketOverviewRequest
+	12, // 11: marketoverview.v1.MarketOverviewService.GetSpotVolumeHistory:output_type -> marketoverview.v1.GetSpotVolumeHistoryResponse
+	8,  // 12: marketoverview.v1.MarketOverviewService.ListMarketOverview:output_type -> marketoverview.v1.ListMarketOverviewResponse
+	11, // [11:13] is the sub-list for method output_type
+	9,  // [9:11] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_marketoverview_v1_marketoverview_proto_init() }
@@ -874,13 +1119,14 @@ func file_marketoverview_v1_marketoverview_proto_init() {
 	if File_marketoverview_v1_marketoverview_proto != nil {
 		return
 	}
+	file_marketoverview_v1_marketoverview_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_marketoverview_v1_marketoverview_proto_rawDesc), len(file_marketoverview_v1_marketoverview_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   6,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

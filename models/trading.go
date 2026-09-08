@@ -502,6 +502,7 @@ type TriggerDetails struct {
 	LadderPriceMax     PriceTicks `json:"ladder_price_max,omitempty"`
 	LadderLevels       int32      `json:"ladder_levels,omitempty"`
 	LadderDistribution string     `json:"ladder_distribution,omitempty"`
+	ExecutedLevels     int32      `json:"executed_levels,omitempty"`
 }
 
 // TriggersList lists triggers.

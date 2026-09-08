@@ -6,6 +6,7 @@ import (
 
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
+	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	marketoverviewv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketoverview/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/marketoverview/v1/marketoverviewv1connect"
 	mosub "github.com/Fabric-Labs/polyester-sdk-go/marketoverview"
@@ -50,6 +51,60 @@ func (s *MarketOverviewService) List(ctx context.Context, symbols []string, limi
 	}
 	return UnaryPublic(ctx, s.transport, s.client().ListMarketOverview, req, func(msg *marketoverviewv1.ListMarketOverviewResponse) models.MarketOverviewList {
 		return decode.MarketOverviewListFromProto(msg, s.catalogs)
+	})
+}
+
+const maxSpotVolumeHistorySymbolIDs = 2000
+
+// GetSpotVolumeHistory returns trailing 24-hour USD volume samples.
+// Omit both filters to select every configured pair. At most 2,000 distinct
+// positive pair IDs are accepted. Do not sum the overlapping samples.
+func (s *MarketOverviewService) GetSpotVolumeHistory(ctx context.Context, symbols []string, symbolIDs []uint32) (models.SpotVolumeHistory, error) {
+	if len(symbols) > 0 && len(symbolIDs) > 0 {
+		return models.SpotVolumeHistory{}, &errors.ValidationError{
+			Msg: "market_overview.get_spot_volume_history accepts only one of symbols or symbol_ids",
+		}
+	}
+	resolved := make([]uint32, 0, len(symbolIDs)+len(symbols))
+	seen := make(map[uint32]struct{}, len(symbolIDs)+len(symbols))
+	if len(symbolIDs) > 0 {
+		for _, id := range symbolIDs {
+			if id == 0 {
+				return models.SpotVolumeHistory{}, &errors.ValidationError{
+					Msg: "market_overview.get_spot_volume_history symbol_ids must be positive",
+				}
+			}
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			seen[id] = struct{}{}
+			resolved = append(resolved, id)
+		}
+	} else {
+		for _, symbol := range symbols {
+			trimmed := strings.TrimSpace(symbol)
+			if trimmed == "" {
+				continue
+			}
+			id, err := ResolveSymbolID(s.catalogs, &trimmed, nil, "market_overview.get_spot_volume_history symbols")
+			if err != nil {
+				return models.SpotVolumeHistory{}, err
+			}
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			seen[id] = struct{}{}
+			resolved = append(resolved, id)
+		}
+	}
+	if len(resolved) > maxSpotVolumeHistorySymbolIDs {
+		return models.SpotVolumeHistory{}, &errors.ValidationError{
+			Msg: "market_overview.get_spot_volume_history accepts at most 2000 symbol_ids",
+		}
+	}
+	req := &marketoverviewv1.GetSpotVolumeHistoryRequest{SymbolId: resolved}
+	return UnaryPublic(ctx, s.transport, s.client().GetSpotVolumeHistory, req, func(msg *marketoverviewv1.GetSpotVolumeHistoryResponse) models.SpotVolumeHistory {
+		return decode.SpotVolumeHistoryFromProto(msg, s.catalogs)
 	})
 }
 

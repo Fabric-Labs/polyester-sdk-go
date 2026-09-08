@@ -239,12 +239,16 @@ func triggerDetailsFromProto(msg *triggersv1.Trigger) *models.TriggerDetails {
 			Case:               "ladder",
 			LadderLevels:       ladder.GetLadderLevels(),
 			LadderDistribution: ladderDistributionLabel(ladder.GetLadderDistribution()),
+			ExecutedLevels:     ladder.GetExecutedLevels(),
 		}
 		if ladder.GetLadderPriceMinTicks() > 0 {
 			out.LadderPriceMin = codecs.DecodePriceTicks(ladder.GetLadderPriceMinTicks(), symbol)
 		}
 		if ladder.GetLadderPriceMaxTicks() > 0 {
 			out.LadderPriceMax = codecs.DecodePriceTicks(ladder.GetLadderPriceMaxTicks(), symbol)
+		}
+		if ladder.GetExecutedQtyScaled() != 0 {
+			out.ExecutedQty = codecs.DecodeQtyScaled(ladder.GetExecutedQtyScaled(), -1, symbol, &sid)
 		}
 		return out
 	default:

@@ -11,8 +11,10 @@ import (
 	"connectrpc.com/connect"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
+	withdrawv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/withdraw/v1"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	ratelimitv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/ratelimit/v1"
+	transferv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/useragent"
 )
 
@@ -150,6 +152,29 @@ func MapConnectError(err error) error {
 				}
 				return &sdkerrors.ValidationError{Msg: msg, Code: code, Metadata: metadata}
 			}
+			if isAuthLikeErrorCode(code) {
+				return &sdkerrors.AuthError{Msg: msg, Code: code}
+			}
+			return &sdkerrors.APIError{Msg: msg, Code: code}
+		}
+		if withdrawDetail, ok := value.(*withdrawv1.ErrorDetail); ok {
+			code := withdrawDetail.GetCode().String()
+			if code == withdrawv1.ErrorCode_ERROR_CODE_RATE_LIMIT_EXCEEDED.String() {
+				return rateLimitError(msg, nil, headerRetry)
+			}
+			if isAuthLikeErrorCode(code) {
+				return &sdkerrors.AuthError{Msg: msg, Code: code}
+			}
+			return &sdkerrors.APIError{Msg: msg, Code: code}
+		}
+		if transferDetail, ok := value.(*transferv1.ErrorDetail); ok {
+			code := transferDetail.GetCode().String()
+			if code == transferv1.ErrorCode_ERROR_CODE_RATE_LIMIT_EXCEEDED.String() {
+				return rateLimitError(msg, nil, headerRetry)
+			}
+			if isAuthLikeErrorCode(code) {
+				return &sdkerrors.AuthError{Msg: msg, Code: code}
+			}
 			return &sdkerrors.APIError{Msg: msg, Code: code}
 		}
 	}
@@ -173,4 +198,12 @@ func MapConnectError(err error) error {
 		}
 	}
 	return &sdkerrors.APIError{Msg: msg, Code: connectErr.Code().String()}
+}
+
+func isAuthLikeErrorCode(code string) bool {
+	return strings.Contains(code, "UNAUTHENTICATED") ||
+		strings.Contains(code, "PERMISSION") ||
+		strings.Contains(code, "API_KEY") ||
+		strings.Contains(code, "WALLET_BINDING") ||
+		strings.Contains(code, "POLICY")
 }

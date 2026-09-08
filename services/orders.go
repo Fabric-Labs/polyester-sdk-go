@@ -291,21 +291,40 @@ func (s *OrdersService) Modify(ctx context.Context, account AccountScope, symbol
 	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().ModifyOrder, protoReq, decode.ModifyOrderFromProto)
 }
 
-// CancelAll cancels all matching orders.
+// CancelAllParams is the expanded cancel-all filter set.
+// Symbol, Symbols, and SymbolIDs are mutually exclusive once any selects a pair.
+type CancelAllParams struct {
+	SubAccountID *string
+	Symbol       *string
+	Symbols      []string
+	SymbolIDs    []uint32
+	Side         *string
+	DryRun       bool
+	RequestID    *string
+}
+
+// CancelAll cancels all matching orders. Empty symbol matches every pair.
 func (s *OrdersService) CancelAll(ctx context.Context, account AccountScope, subAccountID, symbol, side *string, dryRun bool, requestID *string) (models.CancelAllOrdersResult, error) {
-	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
+	return s.CancelAllWith(ctx, account, CancelAllParams{
+		SubAccountID: subAccountID,
+		Symbol:       symbol,
+		Side:         side,
+		DryRun:       dryRun,
+		RequestID:    requestID,
+	})
+}
+
+// CancelAllWith cancels matching orders for one or more pairs.
+func (s *OrdersService) CancelAllWith(ctx context.Context, account AccountScope, params CancelAllParams) (models.CancelAllOrdersResult, error) {
+	sub, err := s.scoped.ResolveSubAccountID(params.SubAccountID, account)
 	if err != nil {
 		return models.CancelAllOrdersResult{}, err
 	}
-	resolvedSymbolID, err := ResolveOptionalSymbolID(s.catalogs, symbol, nil, "orders.cancel_all")
+	symbolIDs, err := ResolveCancelAllSymbolIDs(s.catalogs, params.Symbol, params.Symbols, params.SymbolIDs, "orders.cancel_all")
 	if err != nil {
 		return models.CancelAllOrdersResult{}, err
 	}
-	var symbolID *uint32
-	if resolvedSymbolID != 0 {
-		symbolID = uint32Ptr(resolvedSymbolID)
-	}
-	protoReq, err := codecs.CancelAllOrdersToProto(sub, symbolID, side, dryRun, requestID)
+	protoReq, err := codecs.CancelAllOrdersToProto(sub, symbolIDs, params.Side, params.DryRun, params.RequestID)
 	if err != nil {
 		return models.CancelAllOrdersResult{}, err
 	}
