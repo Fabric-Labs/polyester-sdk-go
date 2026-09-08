@@ -454,6 +454,8 @@ const (
 	ErrorCode_ERROR_CODE_POLICY_SPOT_READ_DENY ErrorCode = 71
 	// API key policy does not allow reading spot data.
 	ErrorCode_ERROR_CODE_API_KEY_SPOT_READ_DENY ErrorCode = 72
+	// The cancel request exceeded its bounded internal replay window.
+	ErrorCode_ERROR_CODE_CANCEL_REQUEST_EXPIRED ErrorCode = 73
 )
 
 // Enum value maps for ErrorCode.
@@ -529,6 +531,7 @@ var (
 		70: "ERROR_CODE_SUBACCOUNT_READ_FORBIDDEN",
 		71: "ERROR_CODE_POLICY_SPOT_READ_DENY",
 		72: "ERROR_CODE_API_KEY_SPOT_READ_DENY",
+		73: "ERROR_CODE_CANCEL_REQUEST_EXPIRED",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_CODE_UNSPECIFIED":                          0,
@@ -601,6 +604,7 @@ var (
 		"ERROR_CODE_SUBACCOUNT_READ_FORBIDDEN":            70,
 		"ERROR_CODE_POLICY_SPOT_READ_DENY":                71,
 		"ERROR_CODE_API_KEY_SPOT_READ_DENY":               72,
+		"ERROR_CODE_CANCEL_REQUEST_EXPIRED":               73,
 	}
 )
 
@@ -2832,14 +2836,16 @@ type CancelAllOrdersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target sub-account numeric ID. When omitted, uses caller's root account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
-	// Symbol ID filter. When set, only orders on this symbol are canceled.
-	// When zero, all symbols are canceled.
-	SymbolId uint32 `protobuf:"varint,2,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
+	// Optional trading-pair IDs from GetSpotConfig. Empty matches all symbols.
+	// At most 100 positive IDs; duplicates are ignored and ordering is immaterial.
+	SymbolIds []uint32 `protobuf:"varint,2,rep,packed,name=symbol_ids,json=symbolIds,proto3" json:"symbol_ids,omitempty"`
 	// Side filter. When set, only orders on this side are canceled.
 	Side Side `protobuf:"varint,3,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
 	// If true, return matched counts without actually canceling.
 	DryRun bool `protobuf:"varint,4,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
-	// Idempotency key (required).
+	// Idempotency key (required). Reuse the same key and criteria for retries.
+	// Completed results are retained for at least two minutes. Use a fresh key
+	// for a new cancellation; do not reuse a key after its replay window.
 	RequestId     string `protobuf:"bytes,6,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2882,11 +2888,11 @@ func (x *CancelAllOrdersRequest) GetSubaccountId() uint64 {
 	return 0
 }
 
-func (x *CancelAllOrdersRequest) GetSymbolId() uint32 {
+func (x *CancelAllOrdersRequest) GetSymbolIds() []uint32 {
 	if x != nil {
-		return x.SymbolId
+		return x.SymbolIds
 	}
-	return 0
+	return nil
 }
 
 func (x *CancelAllOrdersRequest) GetSide() Side {
@@ -4659,11 +4665,11 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x03oco\x18\x04 \x01(\bR\x03oco:\xdb\x01\xbaH\xd7\x01\x1a\xd4\x01\n" +
 	"(risk_policy.oco_requires_tp_and_one_stop\x12Noco requires take_profit and exactly one stop leg (stop_loss or trailing_stop)\x1aX!this.oco || (has(this.take_profit) && (has(this.stop_loss) != has(this.trailing_stop)))B\n" +
 	"\n" +
-	"\bstop_leg\"\x84\x02\n" +
+	"\bstop_leg\"\x8a\x02\n" +
 	"\x16CancelAllOrdersRequest\x12(\n" +
-	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12'\n" +
-	"\tsymbol_id\x18\x02 \x01(\rB\n" +
-	"\xbaH\a\xd8\x01\x01*\x02 \x00R\bsymbolId\x12-\n" +
+	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12-\n" +
+	"\n" +
+	"symbol_ids\x18\x02 \x03(\rB\x0e\xbaH\v\x92\x01\b\x10d\"\x04*\x02 \x00R\tsymbolIds\x12-\n" +
 	"\x04side\x18\x03 \x01(\x0e2\x0f.orders.v1.SideB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04side\x12\x17\n" +
 	"\adry_run\x18\x04 \x01(\bR\x06dryRun\x12=\n" +
 	"\n" +
@@ -4854,7 +4860,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"&SELF_TRADE_PREVENTION_MODE_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fEXPIRE_MAKER\x10\x01\x12\x10\n" +
 	"\fEXPIRE_TAKER\x10\x02\x12\x0f\n" +
-	"\vEXPIRE_BOTH\x10\x03*\xae\x13\n" +
+	"\vEXPIRE_BOTH\x10\x03*\xd5\x13\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16ERROR_CODE_BAD_REQUEST\x10\x01\x12\x1f\n" +
@@ -4926,7 +4932,8 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x1eERROR_CODE_RATE_LIMIT_EXCEEDED\x10E\x12(\n" +
 	"$ERROR_CODE_SUBACCOUNT_READ_FORBIDDEN\x10F\x12$\n" +
 	" ERROR_CODE_POLICY_SPOT_READ_DENY\x10G\x12%\n" +
-	"!ERROR_CODE_API_KEY_SPOT_READ_DENY\x10H*k\n" +
+	"!ERROR_CODE_API_KEY_SPOT_READ_DENY\x10H\x12%\n" +
+	"!ERROR_CODE_CANCEL_REQUEST_EXPIRED\x10I*k\n" +
 	"\x12TriggerPriceSource\x12$\n" +
 	" TRIGGER_PRICE_SOURCE_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +

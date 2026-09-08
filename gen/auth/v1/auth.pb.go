@@ -109,6 +109,8 @@ const (
 	AuthErrorCode_AUTH_MFA_LAST_FACTOR_REQUIRED AuthErrorCode = 39
 	// An unexpected internal failure prevented the auth mutation from completing.
 	AuthErrorCode_AUTH_INTERNAL_ERROR AuthErrorCode = 40
+	// The caller has not explicitly accepted the currently required terms.
+	AuthErrorCode_AUTH_TERMS_NOT_ACCEPTED AuthErrorCode = 41
 )
 
 // Enum value maps for AuthErrorCode.
@@ -154,6 +156,7 @@ var (
 		38: "AUTH_MFA_ELEVATION_REQUIRED",
 		39: "AUTH_MFA_LAST_FACTOR_REQUIRED",
 		40: "AUTH_INTERNAL_ERROR",
+		41: "AUTH_TERMS_NOT_ACCEPTED",
 	}
 	AuthErrorCode_value = map[string]int32{
 		"AUTH_UNSPECIFIED":                       0,
@@ -196,6 +199,7 @@ var (
 		"AUTH_MFA_ELEVATION_REQUIRED":            38,
 		"AUTH_MFA_LAST_FACTOR_REQUIRED":          39,
 		"AUTH_INTERNAL_ERROR":                    40,
+		"AUTH_TERMS_NOT_ACCEPTED":                41,
 	}
 )
 
@@ -697,6 +701,81 @@ func (x *AuthErrorDetail) GetMessage() string {
 	return ""
 }
 
+// AcceptTermsRequest records explicit consent to the currently required terms.
+type AcceptTermsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AcceptTermsRequest) Reset() {
+	*x = AcceptTermsRequest{}
+	mi := &file_auth_v1_auth_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AcceptTermsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AcceptTermsRequest) ProtoMessage() {}
+
+func (x *AcceptTermsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_auth_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AcceptTermsRequest.ProtoReflect.Descriptor instead.
+func (*AcceptTermsRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{7}
+}
+
+// AcceptTermsResponse confirms acceptance. Repeated acceptance of the current
+// version succeeds and preserves the first acceptance time.
+type AcceptTermsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AcceptTermsResponse) Reset() {
+	*x = AcceptTermsResponse{}
+	mi := &file_auth_v1_auth_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AcceptTermsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AcceptTermsResponse) ProtoMessage() {}
+
+func (x *AcceptTermsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_auth_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AcceptTermsResponse.ProtoReflect.Descriptor instead.
+func (*AcceptTermsResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{8}
+}
+
 var File_auth_v1_auth_proto protoreflect.FileDescriptor
 
 const file_auth_v1_auth_proto_rawDesc = "" +
@@ -742,7 +821,10 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\v_api_key_id\"W\n" +
 	"\x0fAuthErrorDetail\x12*\n" +
 	"\x04code\x18\x01 \x01(\x0e2\x16.auth.v1.AuthErrorCodeR\x04code\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage*\xe8\t\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\x14\n" +
+	"\x12AcceptTermsRequest\"\x15\n" +
+	"\x13AcceptTermsResponse*\x85\n" +
+	"\n" +
 	"\rAuthErrorCode\x12\x14\n" +
 	"\x10AUTH_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15AUTH_USERNAME_INVALID\x10\x01\x12\x17\n" +
@@ -784,12 +866,15 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x16AUTH_REVISION_CONFLICT\x10%\x12\x1f\n" +
 	"\x1bAUTH_MFA_ELEVATION_REQUIRED\x10&\x12!\n" +
 	"\x1dAUTH_MFA_LAST_FACTOR_REQUIRED\x10'\x12\x17\n" +
-	"\x13AUTH_INTERNAL_ERROR\x10(2\x95\x05\n" +
+	"\x13AUTH_INTERNAL_ERROR\x10(\x12\x1b\n" +
+	"\x17AUTH_TERMS_NOT_ACCEPTED\x10)2\xda\a\n" +
 	"\vAuthService\x12\xbd\x01\n" +
 	"\bGetNonce\x12\x18.auth.v1.GetNonceRequest\x1a\x19.auth.v1.GetNonceResponse\"|\xbaG`\n" +
-	"\fAuth Service\x12\x16Get Wallet Login Nonce\x1a8Retrieve a short-lived nonce for wallet-signature login.\x82\xd3\xe4\x93\x02\x13:\x01*\"\x0e/v1/auth/nonce\x12\xeb\x01\n" +
-	"\x0fLoginWithWallet\x12\x1f.auth.v1.LoginWithWalletRequest\x1a .auth.v1.LoginWithWalletResponse\"\x94\x01\xbaGq\n" +
-	"\fAuth Service\x12\x11Login With Wallet\x1aNVerify a signed wallet nonce and issue an access token for the caller account.\x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/v1/auth/login/wallet\x12\xd7\x01\n" +
+	"\fAuth Service\x12\x16Get Wallet Login Nonce\x1a8Retrieve a short-lived nonce for wallet-signature login.\x82\xd3\xe4\x93\x02\x13:\x01*\"\x0e/v1/auth/nonce\x12\x88\x02\n" +
+	"\x0fLoginWithWallet\x12\x1f.auth.v1.LoginWithWalletRequest\x1a .auth.v1.LoginWithWalletResponse\"\xb1\x01\xbaG\x8d\x01\n" +
+	"\fAuth Service\x12\x11Login With Wallet\x1ajVerify a signed wallet nonce and issue an access token for the caller account. This does not accept terms.\x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/v1/auth/login/wallet\x12\xa5\x02\n" +
+	"\vAcceptTerms\x12\x1b.auth.v1.AcceptTermsRequest\x1a\x1c.auth.v1.AcceptTermsResponse\"\xda\x01\xbaG\xb3\x01\n" +
+	"\fAuth Service\x12\fAccept Terms\x1a\x94\x01Explicitly accept the currently required terms for the caller's root account. Requires an interactive JWT without MFA. Repeated acceptance succeeds.\x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/v1/auth/terms/accept\x90\x02\x02\x12\xd7\x01\n" +
 	"\x02Me\x12\x12.auth.v1.MeRequest\x1a\x13.auth.v1.MeResponse\"\xa7\x01\xbaG\x90\x01\n" +
 	"\fAuth Service\x12\x10Get Auth Context\x1anRetrieve the caller auth context, including account identity, API key identity, and session assurance details.\x82\xd3\xe4\x93\x02\r\x12\v/v1/auth/meB\x90\x01\xbaGQ:O\n" +
 	"\fAuth Service\x12?Authentication, accounts, sub-accounts, and API key management.Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
@@ -807,7 +892,7 @@ func file_auth_v1_auth_proto_rawDescGZIP() []byte {
 }
 
 var file_auth_v1_auth_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_auth_v1_auth_proto_goTypes = []any{
 	(AuthErrorCode)(0),              // 0: auth.v1.AuthErrorCode
 	(*GetNonceRequest)(nil),         // 1: auth.v1.GetNonceRequest
@@ -817,26 +902,30 @@ var file_auth_v1_auth_proto_goTypes = []any{
 	(*MeRequest)(nil),               // 5: auth.v1.MeRequest
 	(*MeResponse)(nil),              // 6: auth.v1.MeResponse
 	(*AuthErrorDetail)(nil),         // 7: auth.v1.AuthErrorDetail
-	(*timestamppb.Timestamp)(nil),   // 8: google.protobuf.Timestamp
-	(*SessionInfo)(nil),             // 9: auth.v1.SessionInfo
+	(*AcceptTermsRequest)(nil),      // 8: auth.v1.AcceptTermsRequest
+	(*AcceptTermsResponse)(nil),     // 9: auth.v1.AcceptTermsResponse
+	(*timestamppb.Timestamp)(nil),   // 10: google.protobuf.Timestamp
+	(*SessionInfo)(nil),             // 11: auth.v1.SessionInfo
 }
 var file_auth_v1_auth_proto_depIdxs = []int32{
-	8, // 0: auth.v1.GetNonceResponse.expires_at:type_name -> google.protobuf.Timestamp
-	8, // 1: auth.v1.LoginWithWalletResponse.expires_at:type_name -> google.protobuf.Timestamp
-	9, // 2: auth.v1.LoginWithWalletResponse.session:type_name -> auth.v1.SessionInfo
-	9, // 3: auth.v1.MeResponse.session:type_name -> auth.v1.SessionInfo
-	0, // 4: auth.v1.AuthErrorDetail.code:type_name -> auth.v1.AuthErrorCode
-	1, // 5: auth.v1.AuthService.GetNonce:input_type -> auth.v1.GetNonceRequest
-	3, // 6: auth.v1.AuthService.LoginWithWallet:input_type -> auth.v1.LoginWithWalletRequest
-	5, // 7: auth.v1.AuthService.Me:input_type -> auth.v1.MeRequest
-	2, // 8: auth.v1.AuthService.GetNonce:output_type -> auth.v1.GetNonceResponse
-	4, // 9: auth.v1.AuthService.LoginWithWallet:output_type -> auth.v1.LoginWithWalletResponse
-	6, // 10: auth.v1.AuthService.Me:output_type -> auth.v1.MeResponse
-	8, // [8:11] is the sub-list for method output_type
-	5, // [5:8] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	10, // 0: auth.v1.GetNonceResponse.expires_at:type_name -> google.protobuf.Timestamp
+	10, // 1: auth.v1.LoginWithWalletResponse.expires_at:type_name -> google.protobuf.Timestamp
+	11, // 2: auth.v1.LoginWithWalletResponse.session:type_name -> auth.v1.SessionInfo
+	11, // 3: auth.v1.MeResponse.session:type_name -> auth.v1.SessionInfo
+	0,  // 4: auth.v1.AuthErrorDetail.code:type_name -> auth.v1.AuthErrorCode
+	1,  // 5: auth.v1.AuthService.GetNonce:input_type -> auth.v1.GetNonceRequest
+	3,  // 6: auth.v1.AuthService.LoginWithWallet:input_type -> auth.v1.LoginWithWalletRequest
+	8,  // 7: auth.v1.AuthService.AcceptTerms:input_type -> auth.v1.AcceptTermsRequest
+	5,  // 8: auth.v1.AuthService.Me:input_type -> auth.v1.MeRequest
+	2,  // 9: auth.v1.AuthService.GetNonce:output_type -> auth.v1.GetNonceResponse
+	4,  // 10: auth.v1.AuthService.LoginWithWallet:output_type -> auth.v1.LoginWithWalletResponse
+	9,  // 11: auth.v1.AuthService.AcceptTerms:output_type -> auth.v1.AcceptTermsResponse
+	6,  // 12: auth.v1.AuthService.Me:output_type -> auth.v1.MeResponse
+	9,  // [9:13] is the sub-list for method output_type
+	5,  // [5:9] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_auth_proto_init() }
@@ -852,7 +941,7 @@ func file_auth_v1_auth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_auth_proto_rawDesc), len(file_auth_v1_auth_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   7,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

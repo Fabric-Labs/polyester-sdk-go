@@ -192,8 +192,11 @@ type UserProfile struct {
 	VipTier int32 `protobuf:"varint,7,opt,name=vip_tier,json=vipTier,proto3" json:"vip_tier,omitempty"`
 	// Whether this account is currently allowed to claim/change a username.
 	UsernameUnlocked bool `protobuf:"varint,11,opt,name=username_unlocked,json=usernameUnlocked,proto3" json:"username_unlocked,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Whether the caller's root account explicitly accepted the currently required terms.
+	// False for new or existing accounts without current acceptance.
+	CurrentTermsAccepted bool `protobuf:"varint,13,opt,name=current_terms_accepted,json=currentTermsAccepted,proto3" json:"current_terms_accepted,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *UserProfile) Reset() {
@@ -306,6 +309,13 @@ func (x *UserProfile) GetVipTier() int32 {
 func (x *UserProfile) GetUsernameUnlocked() bool {
 	if x != nil {
 		return x.UsernameUnlocked
+	}
+	return false
+}
+
+func (x *UserProfile) GetCurrentTermsAccepted() bool {
+	if x != nil {
+		return x.CurrentTermsAccepted
 	}
 	return false
 }
@@ -814,7 +824,7 @@ const file_auth_v1_profile_proto_rawDesc = "" +
 	"\busername\x18\x02 \x01(\tB\"\xbaH\x1f\xd8\x01\x01r\x1a\x18 2\x16^[a-zA-Z0-9_.-]{3,32}$R\busername\x12'\n" +
 	"\n" +
 	"avatar_url\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\tavatarUrl\x12D\n" +
-	"\x1aroot_smart_account_address\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x18@R\x17rootSmartAccountAddress\"\xc7\x04\n" +
+	"\x1aroot_smart_account_address\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x18@R\x17rootSmartAccountAddress\"\xfd\x04\n" +
 	"\vUserProfile\x12>\n" +
 	"\busername\x18\x01 \x01(\tB\"\xbaH\x1f\xd8\x01\x01r\x1a\x18 2\x16^[a-zA-Z0-9_.-]{3,32}$R\busername\x12\x1a\n" +
 	"\x03bio\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\x03bio\x12%\n" +
@@ -830,7 +840,8 @@ const file_auth_v1_profile_proto_rawDesc = "" +
 	"created_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12Q\n" +
 	"\x17next_username_change_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x14nextUsernameChangeAt\x12\x19\n" +
 	"\bvip_tier\x18\a \x01(\x05R\avipTier\x12+\n" +
-	"\x11username_unlocked\x18\v \x01(\bR\x10usernameUnlocked\"\x8d\n" +
+	"\x11username_unlocked\x18\v \x01(\bR\x10usernameUnlocked\x124\n" +
+	"\x16current_terms_accepted\x18\r \x01(\bR\x14currentTermsAccepted\"\x8d\n" +
 	"\n" +
 	"\x10UserProfilePatch\x12\xd0\x01\n" +
 	"\busername\x18\x01 \x01(\tB\xae\x01\xbaH\xaa\x01\xba\x01\xa6\x01\n" +

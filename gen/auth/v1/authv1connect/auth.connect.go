@@ -38,6 +38,8 @@ const (
 	// AuthServiceLoginWithWalletProcedure is the fully-qualified name of the AuthService's
 	// LoginWithWallet RPC.
 	AuthServiceLoginWithWalletProcedure = "/auth.v1.AuthService/LoginWithWallet"
+	// AuthServiceAcceptTermsProcedure is the fully-qualified name of the AuthService's AcceptTerms RPC.
+	AuthServiceAcceptTermsProcedure = "/auth.v1.AuthService/AcceptTerms"
 	// AuthServiceMeProcedure is the fully-qualified name of the AuthService's Me RPC.
 	AuthServiceMeProcedure = "/auth.v1.AuthService/Me"
 )
@@ -46,8 +48,15 @@ const (
 type AuthServiceClient interface {
 	// Get a short-lived login nonce.
 	GetNonce(context.Context, *connect.Request[v1.GetNonceRequest]) (*connect.Response[v1.GetNonceResponse], error)
-	// Verify a signed nonce and issue an access token.
+	// Verify a signed nonce and issue an access token. Login and account creation
+	// do not accept terms; explicit consent is recorded only by AcceptTerms.
 	LoginWithWallet(context.Context, *connect.Request[v1.LoginWithWalletRequest]) (*connect.Response[v1.LoginWithWalletResponse], error)
+	// Explicitly accept the currently required terms for the caller's root account.
+	// Requires an interactive JWT session; API keys are not allowed. No MFA is
+	// required. Login, trading, reads, and use of existing resources remain available
+	// without acceptance. Only CreateSubaccount, CreateApiKey, and
+	// CreateDepositAddress require acceptance of the current version.
+	AcceptTerms(context.Context, *connect.Request[v1.AcceptTermsRequest]) (*connect.Response[v1.AcceptTermsResponse], error)
 	// Return the caller's current auth context.
 	Me(context.Context, *connect.Request[v1.MeRequest]) (*connect.Response[v1.MeResponse], error)
 }
@@ -75,6 +84,13 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(authServiceMethods.ByName("LoginWithWallet")),
 			connect.WithClientOptions(opts...),
 		),
+		acceptTerms: connect.NewClient[v1.AcceptTermsRequest, v1.AcceptTermsResponse](
+			httpClient,
+			baseURL+AuthServiceAcceptTermsProcedure,
+			connect.WithSchema(authServiceMethods.ByName("AcceptTerms")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
 		me: connect.NewClient[v1.MeRequest, v1.MeResponse](
 			httpClient,
 			baseURL+AuthServiceMeProcedure,
@@ -88,6 +104,7 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 type authServiceClient struct {
 	getNonce        *connect.Client[v1.GetNonceRequest, v1.GetNonceResponse]
 	loginWithWallet *connect.Client[v1.LoginWithWalletRequest, v1.LoginWithWalletResponse]
+	acceptTerms     *connect.Client[v1.AcceptTermsRequest, v1.AcceptTermsResponse]
 	me              *connect.Client[v1.MeRequest, v1.MeResponse]
 }
 
@@ -101,6 +118,11 @@ func (c *authServiceClient) LoginWithWallet(ctx context.Context, req *connect.Re
 	return c.loginWithWallet.CallUnary(ctx, req)
 }
 
+// AcceptTerms calls auth.v1.AuthService.AcceptTerms.
+func (c *authServiceClient) AcceptTerms(ctx context.Context, req *connect.Request[v1.AcceptTermsRequest]) (*connect.Response[v1.AcceptTermsResponse], error) {
+	return c.acceptTerms.CallUnary(ctx, req)
+}
+
 // Me calls auth.v1.AuthService.Me.
 func (c *authServiceClient) Me(ctx context.Context, req *connect.Request[v1.MeRequest]) (*connect.Response[v1.MeResponse], error) {
 	return c.me.CallUnary(ctx, req)
@@ -110,8 +132,15 @@ func (c *authServiceClient) Me(ctx context.Context, req *connect.Request[v1.MeRe
 type AuthServiceHandler interface {
 	// Get a short-lived login nonce.
 	GetNonce(context.Context, *connect.Request[v1.GetNonceRequest]) (*connect.Response[v1.GetNonceResponse], error)
-	// Verify a signed nonce and issue an access token.
+	// Verify a signed nonce and issue an access token. Login and account creation
+	// do not accept terms; explicit consent is recorded only by AcceptTerms.
 	LoginWithWallet(context.Context, *connect.Request[v1.LoginWithWalletRequest]) (*connect.Response[v1.LoginWithWalletResponse], error)
+	// Explicitly accept the currently required terms for the caller's root account.
+	// Requires an interactive JWT session; API keys are not allowed. No MFA is
+	// required. Login, trading, reads, and use of existing resources remain available
+	// without acceptance. Only CreateSubaccount, CreateApiKey, and
+	// CreateDepositAddress require acceptance of the current version.
+	AcceptTerms(context.Context, *connect.Request[v1.AcceptTermsRequest]) (*connect.Response[v1.AcceptTermsResponse], error)
 	// Return the caller's current auth context.
 	Me(context.Context, *connect.Request[v1.MeRequest]) (*connect.Response[v1.MeResponse], error)
 }
@@ -135,6 +164,13 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(authServiceMethods.ByName("LoginWithWallet")),
 		connect.WithHandlerOptions(opts...),
 	)
+	authServiceAcceptTermsHandler := connect.NewUnaryHandler(
+		AuthServiceAcceptTermsProcedure,
+		svc.AcceptTerms,
+		connect.WithSchema(authServiceMethods.ByName("AcceptTerms")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
 	authServiceMeHandler := connect.NewUnaryHandler(
 		AuthServiceMeProcedure,
 		svc.Me,
@@ -147,6 +183,8 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 			authServiceGetNonceHandler.ServeHTTP(w, r)
 		case AuthServiceLoginWithWalletProcedure:
 			authServiceLoginWithWalletHandler.ServeHTTP(w, r)
+		case AuthServiceAcceptTermsProcedure:
+			authServiceAcceptTermsHandler.ServeHTTP(w, r)
 		case AuthServiceMeProcedure:
 			authServiceMeHandler.ServeHTTP(w, r)
 		default:
@@ -164,6 +202,10 @@ func (UnimplementedAuthServiceHandler) GetNonce(context.Context, *connect.Reques
 
 func (UnimplementedAuthServiceHandler) LoginWithWallet(context.Context, *connect.Request[v1.LoginWithWalletRequest]) (*connect.Response[v1.LoginWithWalletResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.LoginWithWallet is not implemented"))
+}
+
+func (UnimplementedAuthServiceHandler) AcceptTerms(context.Context, *connect.Request[v1.AcceptTermsRequest]) (*connect.Response[v1.AcceptTermsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.AcceptTerms is not implemented"))
 }
 
 func (UnimplementedAuthServiceHandler) Me(context.Context, *connect.Request[v1.MeRequest]) (*connect.Response[v1.MeResponse], error) {

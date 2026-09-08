@@ -1075,7 +1075,17 @@ func (*TrailingStopTrigger_MaxSlippageBps) isTrailingStopTrigger_MaxSlippage() {
 
 // TwapMarketIoc configures server-priced market-IOC slices.
 type TwapMarketIoc struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional protection for each slice, relative to the server-side reference
+	// price at that slice's admission. If omitted, each slice uses the pair's
+	// default market slippage. This does not bound price movement over the whole
+	// TWAP duration or guarantee that every slice fills.
+	//
+	// Types that are valid to be assigned to MaxSlippage:
+	//
+	//	*TwapMarketIoc_MaxSlippageTicks
+	//	*TwapMarketIoc_MaxSlippageBps
+	MaxSlippage   isTwapMarketIoc_MaxSlippage `protobuf_oneof:"max_slippage"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1109,6 +1119,49 @@ func (x *TwapMarketIoc) ProtoReflect() protoreflect.Message {
 func (*TwapMarketIoc) Descriptor() ([]byte, []int) {
 	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{7}
 }
+
+func (x *TwapMarketIoc) GetMaxSlippage() isTwapMarketIoc_MaxSlippage {
+	if x != nil {
+		return x.MaxSlippage
+	}
+	return nil
+}
+
+func (x *TwapMarketIoc) GetMaxSlippageTicks() int32 {
+	if x != nil {
+		if x, ok := x.MaxSlippage.(*TwapMarketIoc_MaxSlippageTicks); ok {
+			return x.MaxSlippageTicks
+		}
+	}
+	return 0
+}
+
+func (x *TwapMarketIoc) GetMaxSlippageBps() int32 {
+	if x != nil {
+		if x, ok := x.MaxSlippage.(*TwapMarketIoc_MaxSlippageBps); ok {
+			return x.MaxSlippageBps
+		}
+	}
+	return 0
+}
+
+type isTwapMarketIoc_MaxSlippage interface {
+	isTwapMarketIoc_MaxSlippage()
+}
+
+type TwapMarketIoc_MaxSlippageTicks struct {
+	// Maximum adverse price delta per slice in 1e-6 quote-unit ticks.
+	MaxSlippageTicks int32 `protobuf:"varint,1,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
+}
+
+type TwapMarketIoc_MaxSlippageBps struct {
+	// Maximum adverse price movement per slice in basis points (1 bp = 0.01%).
+	MaxSlippageBps int32 `protobuf:"varint,2,opt,name=max_slippage_bps,json=maxSlippageBps,proto3,oneof"`
+}
+
+func (*TwapMarketIoc_MaxSlippageTicks) isTwapMarketIoc_MaxSlippage() {}
+
+func (*TwapMarketIoc_MaxSlippageBps) isTwapMarketIoc_MaxSlippage() {}
 
 // TwapLimitGtc configures one resting limit slice at a time. A previous open
 // slice is canceled before the next interval.
@@ -3172,7 +3225,7 @@ func (x *TwapDetails) GetExecutedQtyScaled() int64 {
 	return 0
 }
 
-// LadderDetails contains configuration for LADDER triggers.
+// LadderDetails contains configuration and aggregate execution progress for LADDER triggers.
 type LadderDetails struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Minimum price in quote units scaled by 1e6 for the ladder range.
@@ -3183,8 +3236,16 @@ type LadderDetails struct {
 	LadderLevels int32 `protobuf:"varint,3,opt,name=ladder_levels,json=ladderLevels,proto3" json:"ladder_levels,omitempty"`
 	// Quantity distribution across ladder levels.
 	LadderDistribution LadderDistribution `protobuf:"varint,4,opt,name=ladder_distribution,json=ladderDistribution,proto3,enum=triggers.v1.LadderDistribution" json:"ladder_distribution,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Cumulative filled child-order base quantity scaled by the pair's
+	// base_quantity_scale from GetSpotConfig. Zero means no quantity executed,
+	// including when the parent completed because all children were canceled.
+	ExecutedQtyScaled int64 `protobuf:"varint,5,opt,name=executed_qty_scaled,json=executedQtyScaled,proto3" json:"executed_qty_scaled,omitempty"`
+	// Number of distinct ladder levels with at least one fill. A partially
+	// filled level counts once, including across replacement child orders.
+	// This is not the number of fully filled levels.
+	ExecutedLevels int32 `protobuf:"varint,6,opt,name=executed_levels,json=executedLevels,proto3" json:"executed_levels,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *LadderDetails) Reset() {
@@ -3243,6 +3304,20 @@ func (x *LadderDetails) GetLadderDistribution() LadderDistribution {
 		return x.LadderDistribution
 	}
 	return LadderDistribution_LADDER_DISTRIBUTION_UNSPECIFIED
+}
+
+func (x *LadderDetails) GetExecutedQtyScaled() int64 {
+	if x != nil {
+		return x.ExecutedQtyScaled
+	}
+	return 0
+}
+
+func (x *LadderDetails) GetExecutedLevels() int32 {
+	if x != nil {
+		return x.ExecutedLevels
+	}
+	return 0
 }
 
 // Trigger represents current trigger configuration, lifecycle state, and
@@ -3678,8 +3753,12 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x04side\x18\x06 \x01(\x0e2\x0f.orders.v1.SideB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04sideB\x1a\n" +
 	"\x11trailing_distance\x12\x05\xbaH\x02\b\x01B\x0e\n" +
-	"\fmax_slippage\"\x0f\n" +
-	"\rTwapMarketIoc\"8\n" +
+	"\fmax_slippage\"\x90\x01\n" +
+	"\rTwapMarketIoc\x127\n" +
+	"\x12max_slippage_ticks\x18\x01 \x01(\x05B\a\xbaH\x04\x1a\x02 \x00H\x00R\x10maxSlippageTicks\x126\n" +
+	"\x10max_slippage_bps\x18\x02 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\x90N \x00H\x00R\x0emaxSlippageBpsB\x0e\n" +
+	"\fmax_slippage\"8\n" +
 	"\fTwapLimitGtc\x12(\n" +
 	"\vprice_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\n" +
 	"priceTicks\"\xd5\x03\n" +
@@ -3868,12 +3947,14 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\tslice_idx\x18\x04 \x01(\x05R\bsliceIdx\x12\x1f\n" +
 	"\vslice_count\x18\x05 \x01(\x05R\n" +
 	"sliceCount\x12.\n" +
-	"\x13executed_qty_scaled\x18\x06 \x01(\x03R\x11executedQtyScaled\"\xf0\x01\n" +
+	"\x13executed_qty_scaled\x18\x06 \x01(\x03R\x11executedQtyScaled\"\xc9\x02\n" +
 	"\rLadderDetails\x123\n" +
 	"\x16ladder_price_min_ticks\x18\x01 \x01(\x03R\x13ladderPriceMinTicks\x123\n" +
 	"\x16ladder_price_max_ticks\x18\x02 \x01(\x03R\x13ladderPriceMaxTicks\x12#\n" +
 	"\rladder_levels\x18\x03 \x01(\x05R\fladderLevels\x12P\n" +
-	"\x13ladder_distribution\x18\x04 \x01(\x0e2\x1f.triggers.v1.LadderDistributionR\x12ladderDistribution\"\x90\v\n" +
+	"\x13ladder_distribution\x18\x04 \x01(\x0e2\x1f.triggers.v1.LadderDistributionR\x12ladderDistribution\x12.\n" +
+	"\x13executed_qty_scaled\x18\x05 \x01(\x03R\x11executedQtyScaled\x12'\n" +
+	"\x0fexecuted_levels\x18\x06 \x01(\x05R\x0eexecutedLevels\"\x90\v\n" +
 	"\aTrigger\x12\x1d\n" +
 	"\n" +
 	"trigger_id\x18\x01 \x01(\x06R\ttriggerId\x12#\n" +
@@ -4170,6 +4251,10 @@ func file_triggers_v1_triggers_proto_init() {
 		(*TrailingStopTrigger_TrailingDistanceBps)(nil),
 		(*TrailingStopTrigger_MaxSlippageTicks)(nil),
 		(*TrailingStopTrigger_MaxSlippageBps)(nil),
+	}
+	file_triggers_v1_triggers_proto_msgTypes[7].OneofWrappers = []any{
+		(*TwapMarketIoc_MaxSlippageTicks)(nil),
+		(*TwapMarketIoc_MaxSlippageBps)(nil),
 	}
 	file_triggers_v1_triggers_proto_msgTypes[9].OneofWrappers = []any{
 		(*TwapTrigger_MarketIoc)(nil),
