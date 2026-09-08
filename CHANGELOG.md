@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.0a50
+
+Git tag: `v0.1.0a50`.
+
 ### Breaking
 - `Orders.CancelAll` now sends repeated Connect `symbol_ids` instead of a
   single `symbol_id`. The existing `CancelAll` signature still accepts one
