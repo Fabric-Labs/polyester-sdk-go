@@ -69,11 +69,14 @@ func IsPermissionDenied(err error) bool {
 	msg := strings.ToLower(err.Error())
 	permissionish := strings.Contains(msg, "permission denied") ||
 		strings.Contains(msg, "permission_denied") ||
+		strings.Contains(msg, "write denied") ||
 		strings.Contains(msg, "http 403")
 
 	var auth *sdkerrors.AuthError
 	if errors.As(err, &auth) {
-		return permissionish || strings.EqualFold(auth.Code, "permission_denied")
+		return permissionish ||
+			auth.Status == 403 ||
+			strings.EqualFold(auth.Code, "permission_denied")
 	}
 	var api *sdkerrors.APIError
 	if errors.As(err, &api) {

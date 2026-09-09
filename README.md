@@ -307,9 +307,13 @@ _, err = client.Orders.Cancel(ctx, nil, models.OrderKeyByClientID(clientOrderID)
 ```
 
 `ClientOrderID` is **optional** (matches the API). Omit it for one-shot creates.
-**Set a stable non-empty value when you may retry** after an ambiguous
-transport/server failure, and reuse that same id on retry / reconciliation -
-without it you cannot safely tell whether the first attempt admitted the order.
+**Set a stable non-empty value when you may need to reconcile** after an
+ambiguous transport/server failure. Without it you cannot tell whether the
+first attempt admitted the order. After an unknown outcome, look up that id
+(`Get` / `ListOpen`) before creating again. A second create with the same id
+is rejected (`CONFLICT_DUPLICATE_CLIENT_ORDER_ID`) even when the payload
+matches. Only create again with that id if reconciliation shows the first
+attempt did not admit.
 Client order ids accept 1 to 36 ASCII letters, digits, `.`, `_`, `:`, `/`, and
 `-`. Batch create, cancel, and replace accept at most 20 items (rejected locally
 before encoding). `BatchCreate` always sends `request_id` (caller value or a

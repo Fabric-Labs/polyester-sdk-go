@@ -182,8 +182,10 @@ func MapConnectError(err error) error {
 		return &sdkerrors.TransportError{Msg: useragent.Cloudflare1010Message()}
 	}
 	switch connectErr.Code() {
-	case connect.CodeUnauthenticated, connect.CodePermissionDenied:
-		return &sdkerrors.AuthError{Msg: msg}
+	case connect.CodeUnauthenticated:
+		return &sdkerrors.AuthError{Msg: msg, Code: "unauthenticated", Status: 401}
+	case connect.CodePermissionDenied:
+		return &sdkerrors.AuthError{Msg: msg, Code: "permission_denied", Status: 403}
 	case connect.CodeUnavailable, connect.CodeInternal:
 		return &sdkerrors.ServerError{Msg: msg}
 	case connect.CodeResourceExhausted:

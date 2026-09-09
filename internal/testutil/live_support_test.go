@@ -43,8 +43,17 @@ func TestIsPermissionDenied(t *testing.T) {
 	if !testutil.IsPermissionDenied(&sdkerrors.APIError{Code: "permission_denied", Msg: "missing address-book"}) {
 		t.Fatal("expected permission denied api error")
 	}
+	if !testutil.IsPermissionDenied(&sdkerrors.AuthError{Msg: "address book write denied"}) {
+		t.Fatal("expected address-book write deny to classify as permission denied")
+	}
+	if !testutil.IsPermissionDenied(&sdkerrors.AuthError{Msg: "address book write denied", Code: "permission_denied", Status: 403}) {
+		t.Fatal("expected Connect permission_denied AuthError")
+	}
 	if testutil.IsPermissionDenied(&sdkerrors.AuthError{Msg: "missing Authorization header"}) {
 		t.Fatal("unexpected permission denied")
+	}
+	if testutil.JWTSessionOnly(&sdkerrors.AuthError{Msg: "address book write denied", Code: "permission_denied", Status: 403}) {
+		t.Fatal("address-book write deny is a missing scope, not JWT-only")
 	}
 }
 

@@ -72,6 +72,23 @@ func TestMapConnectErrorNeverReturnsEmptyAuthMessage(t *testing.T) {
 	if authErr.Msg == "" {
 		t.Fatal("expected non-empty auth error message")
 	}
+	if authErr.Code != "unauthenticated" || authErr.Status != 401 {
+		t.Fatalf("unauthenticated code=%q status=%d", authErr.Code, authErr.Status)
+	}
+}
+
+func TestMapConnectErrorStampsPermissionDeniedCode(t *testing.T) {
+	mapped := MapConnectError(connect.NewError(connect.CodePermissionDenied, errors.New("address book write denied")))
+	authErr, ok := mapped.(*sdkerrors.AuthError)
+	if !ok {
+		t.Fatalf("mapped=%T %#v", mapped, mapped)
+	}
+	if authErr.Msg != "address book write denied" {
+		t.Fatalf("msg=%q", authErr.Msg)
+	}
+	if authErr.Code != "permission_denied" || authErr.Status != 403 {
+		t.Fatalf("permission_denied code=%q status=%d", authErr.Code, authErr.Status)
+	}
 }
 
 func TestMapConnectErrorSurfacesRetryAfter(t *testing.T) {

@@ -17,8 +17,10 @@ type CreateOrderRequest struct {
 	MaxQuoteDebitScaled QtyInput    `json:"max_quote_debit_scaled"`
 	Price               *PriceInput `json:"price,omitempty"`
 	SubAccountID        *string     `json:"sub_account_id,omitempty"`
-	// ClientOrderID is optional. Set a stable non-empty value when you may retry
-	// after an ambiguous failure, and reuse that same id on retry/reconciliation.
+	// ClientOrderID is optional. Set a stable non-empty value so you can
+	// reconcile after an ambiguous failure. Look up that id before creating
+	// again; a second create with the same id is always a conflict if the
+	// first attempt admitted.
 	ClientOrderID *string        `json:"client_order_id,omitempty"`
 	PostOnly      bool           `json:"post_only,omitempty"`
 	ExpiresAt     *string        `json:"expires_at,omitempty"`

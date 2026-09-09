@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Changed
+- Connect `PermissionDenied` / `Unauthenticated` now stamp `AuthError.Code`
+  and `Status` (`permission_denied`/403, `unauthenticated`/401) so live
+  helpers treat messages like `address book write denied` as a missing
+  API-key scope instead of a hard failure.
+- Document that a reused `ClientOrderID` on create is a conflict after the
+  first admission (`CONFLICT_DUPLICATE_CLIENT_ORDER_ID`). Reconcile with
+  `Get` / `ListOpen` before creating again.
+- Bump `go-ethereum` to v1.17.5, `gnark-crypto` to v0.21.0, and
+  `golang.org/x/sys` to v0.48.0 so the September 2026 dependency scan
+  findings close. The module `go` line is now 1.26 because `x/sys`
+  v0.48.0 requires it. `golang.org/x/crypto` dropped out of the module
+  graph with the Geth upgrade (it was only pulled for unused SSH code).
+
 ## 0.1.0a50
 
 Git tag: `v0.1.0a50`.
