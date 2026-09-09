@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Changed
+- CI compiles golangci-lint v2.6.2 with the module Go 1.26 toolchain. The
+  prebuilt binary was built with Go 1.25 and cannot lint this module.
 - Connect `PermissionDenied` / `Unauthenticated` now stamp `AuthError.Code`
   and `Status` (`permission_denied`/403, `unauthenticated`/401) so live
   helpers treat messages like `address book write denied` as a missing

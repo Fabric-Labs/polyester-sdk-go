@@ -79,8 +79,11 @@ jobs:
       - name: golangci-lint
         # verify:false skips remote JSON Schema fetch from golangci-lint.run
         # (flaky timeouts). Invalid config still fails at `golangci-lint run`.
+        # goinstall compiles the linter with the go.mod toolchain (1.26). The
+        # prebuilt v2.6.2 binary was built with Go 1.25 and refuses to lint.
         uses: golangci/golangci-lint-action@v9
         with:
           version: v2.6.2
+          install-mode: goinstall
           verify: false
           args: --timeout=5m
