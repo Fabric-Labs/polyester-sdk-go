@@ -10,8 +10,7 @@ import (
 
 func DepositWithdrawConfigFromProto(msg *zipperv1.GetDepositWithdrawConfigResponse) models.DepositWithdrawConfig {
 	cfg := models.DepositWithdrawConfig{
-		PolyesterChainID: msg.GetPolyesterChainId(),
-		TsMs:             int64(msg.GetTsSec()) * 1000,
+		TsMs: int64(msg.GetTsSec()) * 1000,
 	}
 	for _, c := range msg.GetChains() {
 		cfg.Chains = append(cfg.Chains, models.ZipperChainConfig{

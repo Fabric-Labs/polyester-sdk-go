@@ -773,7 +773,8 @@ type Order struct {
 	OrderId uint64 `protobuf:"fixed64,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
 	// Trading symbol numeric identifier.
 	SymbolId uint32 `protobuf:"varint,3,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
-	// Client-provided id for idempotency/correlation (may be empty).
+	// Client-provided, account-scoped identifier for correlation, lookup, and
+	// cancellation. Empty when none was supplied.
 	ClientOrderId string `protobuf:"bytes,4,opt,name=client_order_id,json=clientOrderId,proto3" json:"client_order_id,omitempty"`
 	// Order side.
 	Side Side `protobuf:"varint,5,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`

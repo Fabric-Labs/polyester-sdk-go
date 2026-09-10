@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Breaking
+- `DepositWithdrawConfig.PolyesterChainID` is removed. The zipper config
+  no longer publishes a dedicated Polyester chain id.
+
+### Added
+- `MarketOverview.GetCurrencyConversionConfig` and
+  `GetCurrencyConversionRates` wrap the public currency-conversion RPCs.
+  Fiat `UnitsPerUsdE8` is currency units per 1 USD at 1e8 scale (USD
+  identity is 100_000_000). Stablecoin `UsdPerUnitE8` is observed USD
+  per unit at the same scale. A missing fiat snapshot or omitted
+  stablecoin is unobserved, not zero. Rates fail with unavailable
+  (HTTP 503) before any observation exists. Fraction digits are
+  presentation defaults, not rate precision.
+
 ### Changed
 - CI compiles golangci-lint v2.6.2 with the module Go 1.26 toolchain. The
   prebuilt binary was built with Go 1.25 and cannot lint this module.

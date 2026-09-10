@@ -33,6 +33,12 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// MarketOverviewServiceGetCurrencyConversionConfigProcedure is the fully-qualified name of the
+	// MarketOverviewService's GetCurrencyConversionConfig RPC.
+	MarketOverviewServiceGetCurrencyConversionConfigProcedure = "/marketoverview.v1.MarketOverviewService/GetCurrencyConversionConfig"
+	// MarketOverviewServiceGetCurrencyConversionRatesProcedure is the fully-qualified name of the
+	// MarketOverviewService's GetCurrencyConversionRates RPC.
+	MarketOverviewServiceGetCurrencyConversionRatesProcedure = "/marketoverview.v1.MarketOverviewService/GetCurrencyConversionRates"
 	// MarketOverviewServiceGetSpotVolumeHistoryProcedure is the fully-qualified name of the
 	// MarketOverviewService's GetSpotVolumeHistory RPC.
 	MarketOverviewServiceGetSpotVolumeHistoryProcedure = "/marketoverview.v1.MarketOverviewService/GetSpotVolumeHistory"
@@ -43,6 +49,11 @@ const (
 
 // MarketOverviewServiceClient is a client for the marketoverview.v1.MarketOverviewService service.
 type MarketOverviewServiceClient interface {
+	// Get supported fiat and stablecoin display metadata with default English names,
+	// symbols, and fraction digits. Clients may localize presentation.
+	GetCurrencyConversionConfig(context.Context, *connect.Request[v1.GetCurrencyConversionConfigRequest]) (*connect.Response[v1.GetCurrencyConversionConfigResponse], error)
+	// Get fiat units per USD and USD per stablecoin unit, grouped with source freshness.
+	GetCurrencyConversionRates(context.Context, *connect.Request[v1.GetCurrencyConversionRatesRequest]) (*connect.Response[v1.GetCurrencyConversionRatesResponse], error)
 	// Get aligned pair-level and total trailing-24h USD volume, sampled every
 	// 15 minutes over the latest day. Unavailable valuations fail the request.
 	GetSpotVolumeHistory(context.Context, *connect.Request[v1.GetSpotVolumeHistoryRequest]) (*connect.Response[v1.GetSpotVolumeHistoryResponse], error)
@@ -60,6 +71,18 @@ func NewMarketOverviewServiceClient(httpClient connect.HTTPClient, baseURL strin
 	baseURL = strings.TrimRight(baseURL, "/")
 	marketOverviewServiceMethods := v1.File_marketoverview_v1_marketoverview_proto.Services().ByName("MarketOverviewService").Methods()
 	return &marketOverviewServiceClient{
+		getCurrencyConversionConfig: connect.NewClient[v1.GetCurrencyConversionConfigRequest, v1.GetCurrencyConversionConfigResponse](
+			httpClient,
+			baseURL+MarketOverviewServiceGetCurrencyConversionConfigProcedure,
+			connect.WithSchema(marketOverviewServiceMethods.ByName("GetCurrencyConversionConfig")),
+			connect.WithClientOptions(opts...),
+		),
+		getCurrencyConversionRates: connect.NewClient[v1.GetCurrencyConversionRatesRequest, v1.GetCurrencyConversionRatesResponse](
+			httpClient,
+			baseURL+MarketOverviewServiceGetCurrencyConversionRatesProcedure,
+			connect.WithSchema(marketOverviewServiceMethods.ByName("GetCurrencyConversionRates")),
+			connect.WithClientOptions(opts...),
+		),
 		getSpotVolumeHistory: connect.NewClient[v1.GetSpotVolumeHistoryRequest, v1.GetSpotVolumeHistoryResponse](
 			httpClient,
 			baseURL+MarketOverviewServiceGetSpotVolumeHistoryProcedure,
@@ -77,8 +100,22 @@ func NewMarketOverviewServiceClient(httpClient connect.HTTPClient, baseURL strin
 
 // marketOverviewServiceClient implements MarketOverviewServiceClient.
 type marketOverviewServiceClient struct {
-	getSpotVolumeHistory *connect.Client[v1.GetSpotVolumeHistoryRequest, v1.GetSpotVolumeHistoryResponse]
-	listMarketOverview   *connect.Client[v1.ListMarketOverviewRequest, v1.ListMarketOverviewResponse]
+	getCurrencyConversionConfig *connect.Client[v1.GetCurrencyConversionConfigRequest, v1.GetCurrencyConversionConfigResponse]
+	getCurrencyConversionRates  *connect.Client[v1.GetCurrencyConversionRatesRequest, v1.GetCurrencyConversionRatesResponse]
+	getSpotVolumeHistory        *connect.Client[v1.GetSpotVolumeHistoryRequest, v1.GetSpotVolumeHistoryResponse]
+	listMarketOverview          *connect.Client[v1.ListMarketOverviewRequest, v1.ListMarketOverviewResponse]
+}
+
+// GetCurrencyConversionConfig calls
+// marketoverview.v1.MarketOverviewService.GetCurrencyConversionConfig.
+func (c *marketOverviewServiceClient) GetCurrencyConversionConfig(ctx context.Context, req *connect.Request[v1.GetCurrencyConversionConfigRequest]) (*connect.Response[v1.GetCurrencyConversionConfigResponse], error) {
+	return c.getCurrencyConversionConfig.CallUnary(ctx, req)
+}
+
+// GetCurrencyConversionRates calls
+// marketoverview.v1.MarketOverviewService.GetCurrencyConversionRates.
+func (c *marketOverviewServiceClient) GetCurrencyConversionRates(ctx context.Context, req *connect.Request[v1.GetCurrencyConversionRatesRequest]) (*connect.Response[v1.GetCurrencyConversionRatesResponse], error) {
+	return c.getCurrencyConversionRates.CallUnary(ctx, req)
 }
 
 // GetSpotVolumeHistory calls marketoverview.v1.MarketOverviewService.GetSpotVolumeHistory.
@@ -94,6 +131,11 @@ func (c *marketOverviewServiceClient) ListMarketOverview(ctx context.Context, re
 // MarketOverviewServiceHandler is an implementation of the marketoverview.v1.MarketOverviewService
 // service.
 type MarketOverviewServiceHandler interface {
+	// Get supported fiat and stablecoin display metadata with default English names,
+	// symbols, and fraction digits. Clients may localize presentation.
+	GetCurrencyConversionConfig(context.Context, *connect.Request[v1.GetCurrencyConversionConfigRequest]) (*connect.Response[v1.GetCurrencyConversionConfigResponse], error)
+	// Get fiat units per USD and USD per stablecoin unit, grouped with source freshness.
+	GetCurrencyConversionRates(context.Context, *connect.Request[v1.GetCurrencyConversionRatesRequest]) (*connect.Response[v1.GetCurrencyConversionRatesResponse], error)
 	// Get aligned pair-level and total trailing-24h USD volume, sampled every
 	// 15 minutes over the latest day. Unavailable valuations fail the request.
 	GetSpotVolumeHistory(context.Context, *connect.Request[v1.GetSpotVolumeHistoryRequest]) (*connect.Response[v1.GetSpotVolumeHistoryResponse], error)
@@ -107,6 +149,18 @@ type MarketOverviewServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewMarketOverviewServiceHandler(svc MarketOverviewServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	marketOverviewServiceMethods := v1.File_marketoverview_v1_marketoverview_proto.Services().ByName("MarketOverviewService").Methods()
+	marketOverviewServiceGetCurrencyConversionConfigHandler := connect.NewUnaryHandler(
+		MarketOverviewServiceGetCurrencyConversionConfigProcedure,
+		svc.GetCurrencyConversionConfig,
+		connect.WithSchema(marketOverviewServiceMethods.ByName("GetCurrencyConversionConfig")),
+		connect.WithHandlerOptions(opts...),
+	)
+	marketOverviewServiceGetCurrencyConversionRatesHandler := connect.NewUnaryHandler(
+		MarketOverviewServiceGetCurrencyConversionRatesProcedure,
+		svc.GetCurrencyConversionRates,
+		connect.WithSchema(marketOverviewServiceMethods.ByName("GetCurrencyConversionRates")),
+		connect.WithHandlerOptions(opts...),
+	)
 	marketOverviewServiceGetSpotVolumeHistoryHandler := connect.NewUnaryHandler(
 		MarketOverviewServiceGetSpotVolumeHistoryProcedure,
 		svc.GetSpotVolumeHistory,
@@ -121,6 +175,10 @@ func NewMarketOverviewServiceHandler(svc MarketOverviewServiceHandler, opts ...c
 	)
 	return "/marketoverview.v1.MarketOverviewService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case MarketOverviewServiceGetCurrencyConversionConfigProcedure:
+			marketOverviewServiceGetCurrencyConversionConfigHandler.ServeHTTP(w, r)
+		case MarketOverviewServiceGetCurrencyConversionRatesProcedure:
+			marketOverviewServiceGetCurrencyConversionRatesHandler.ServeHTTP(w, r)
 		case MarketOverviewServiceGetSpotVolumeHistoryProcedure:
 			marketOverviewServiceGetSpotVolumeHistoryHandler.ServeHTTP(w, r)
 		case MarketOverviewServiceListMarketOverviewProcedure:
@@ -133,6 +191,14 @@ func NewMarketOverviewServiceHandler(svc MarketOverviewServiceHandler, opts ...c
 
 // UnimplementedMarketOverviewServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedMarketOverviewServiceHandler struct{}
+
+func (UnimplementedMarketOverviewServiceHandler) GetCurrencyConversionConfig(context.Context, *connect.Request[v1.GetCurrencyConversionConfigRequest]) (*connect.Response[v1.GetCurrencyConversionConfigResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("marketoverview.v1.MarketOverviewService.GetCurrencyConversionConfig is not implemented"))
+}
+
+func (UnimplementedMarketOverviewServiceHandler) GetCurrencyConversionRates(context.Context, *connect.Request[v1.GetCurrencyConversionRatesRequest]) (*connect.Response[v1.GetCurrencyConversionRatesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("marketoverview.v1.MarketOverviewService.GetCurrencyConversionRates is not implemented"))
+}
 
 func (UnimplementedMarketOverviewServiceHandler) GetSpotVolumeHistory(context.Context, *connect.Request[v1.GetSpotVolumeHistoryRequest]) (*connect.Response[v1.GetSpotVolumeHistoryResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("marketoverview.v1.MarketOverviewService.GetSpotVolumeHistory is not implemented"))

@@ -45,9 +45,8 @@ func (m *Manager) ZipperConfig() map[string]any {
 	return map[string]any{
 		"chains":           cfg.Chains,
 		"assets":           cfg.Assets,
-		"contracts":        cfg.Contracts,
-		"polyesterChainId": cfg.PolyesterChainID,
-		"tsSec":            cfg.TsMs / 1000,
+		"contracts": cfg.Contracts,
+		"tsSec":     cfg.TsMs / 1000,
 	}
 }
 

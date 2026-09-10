@@ -102,11 +102,6 @@ func liveExternalChainID(t *testing.T, client *polyester.Client, ctx context.Con
 		return client.Zipper.GetDepositWithdrawConfig(ctx)
 	})
 	for _, c := range cfg.Chains {
-		if c.ChainID != 0 && (cfg.PolyesterChainID == 0 || c.ChainID != cfg.PolyesterChainID) {
-			return c.ChainID
-		}
-	}
-	for _, c := range cfg.Chains {
 		if c.ChainID != 0 {
 			return c.ChainID
 		}

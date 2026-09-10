@@ -95,9 +95,8 @@ type ZipperCatalogData struct {
 type DepositWithdrawConfig struct {
 	Chains           []ZipperChainConfig         `json:"chains,omitempty"`
 	Assets           []ZipperAssetConfig         `json:"assets,omitempty"`
-	Contracts        []ZipperChainContractConfig `json:"contracts,omitempty"`
-	PolyesterChainID uint32                      `json:"polyester_chain_id,omitempty"`
-	TsMs             int64                       `json:"ts_ms,omitempty"`
+	Contracts []ZipperChainContractConfig `json:"contracts,omitempty"`
+	TsMs      int64                       `json:"ts_ms,omitempty"`
 }
 
 // ZippedAssetSupplyUpdate is a supply patch row.

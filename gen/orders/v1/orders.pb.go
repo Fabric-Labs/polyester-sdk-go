@@ -1450,7 +1450,10 @@ type OrderIntent struct {
 	//	*OrderIntent_LimitIoc
 	//	*OrderIntent_LimitFok
 	Execution isOrderIntent_Execution `protobuf_oneof:"execution"`
-	// Optional client order identifier for idempotency.
+	// Optional account-scoped identifier for correlation, lookup, and cancellation.
+	// While this identifier is retained, reuse returns
+	// CONFLICT_DUPLICATE_CLIENT_ORDER_ID, even for identical input, a rejected
+	// request, or a terminal order. CreateOrder does not replay the earlier result.
 	ClientOrderId string `protobuf:"bytes,20,opt,name=client_order_id,json=clientOrderId,proto3" json:"client_order_id,omitempty"`
 	// Asset charged for fees. Defaults to QUOTE. BASE is available only for BUY
 	// orders; SELL orders must use QUOTE.
@@ -3415,12 +3418,12 @@ type BatchCreateOrdersRequest struct {
 	// Target sub-account numeric ID. When omitted, uses caller's root account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Required idempotency key for the entire ordered batch. Reusing it with the
-	// same payload returns the original outcome; reusing it with another payload
-	// is rejected.
+	// same payload replays the original per-item results; reusing it with a
+	// different payload returns CONFLICT_IDEMPOTENCY_KEY_REUSE.
 	RequestId string `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	// Orders to create (max 20). Every item uses the same OrderIntent contract as
-	// single create, but client_order_id remains optional because request_id is
-	// the idempotency boundary for the ordered batch.
+	// Orders to create (max 20). client_order_id is optional per item. For a new
+	// request_id, a reused client_order_id rejects only that item with
+	// CONFLICT_DUPLICATE_CLIENT_ORDER_ID; other valid items continue.
 	Items         []*OrderIntent `protobuf:"bytes,3,rep,name=items,proto3" json:"items,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
