@@ -380,10 +380,9 @@ type MarketOverview struct {
 	// GetSpotConfig. Omitted if the amount exceeds the signed 64-bit range.
 	Volume_24HQuoteScaled *int64 `protobuf:"varint,14,opt,name=volume_24h_quote_scaled,json=volume24hQuoteScaled,proto3,oneof" json:"volume_24h_quote_scaled,omitempty"`
 	// Rolling 24h USD volume, scaled by 1e6 (one unit is 0.000001 USD).
-	// Omitted if any contributing volume cannot be valued reliably. Quote volumes
-	// use execution prices; USD conversion uses historical quarter-hour marks.
-	// Covers the 24 hours ending at the latest completed UTC minute.
-	// Refreshed every 15 seconds after completed minutes become available.
+	// Applies the current quote/USD conversion to the rolling quote volume.
+	// When conversion is unavailable, USDT and USDC are valued at USD parity.
+	// Omitted for other quote assets when a current conversion is unavailable.
 	Volume_24HUsdScaled *int64 `protobuf:"varint,17,opt,name=volume_24h_usd_scaled,json=volume24hUsdScaled,proto3,oneof" json:"volume_24h_usd_scaled,omitempty"`
 	// Listing timestamp in nanoseconds since epoch.
 	ListedTsNs uint64 `protobuf:"varint,15,opt,name=listed_ts_ns,json=listedTsNs,proto3" json:"listed_ts_ns,omitempty"`
@@ -872,8 +871,8 @@ func (x *SpotPairVolumeSeries) GetVolumeUsdScaled() []int64 {
 // The grid always contains 97 samples ending at the latest completed UTC
 // quarter-hour. Index i maps to start_ts_sec + i * 900 seconds. Each sample
 // covers [sample time - 24h, sample time); only the preceding 48 hours contribute.
-// USD conversion uses the latest trustworthy quote/USD mark at or before each
-// bucket's start. Stablecoin quotes also require historical USD prices.
+// USD conversion uses historical quote/USD prices at each completed bucket
+// boundary. When conversion is unavailable, USDT and USDC are valued at USD parity.
 // If any contributing trade cannot be valued, or a USD amount overflows,
 // the RPC fails as unavailable; partial or zero-filled valuations are not returned.
 // Intervals without executed trades are zero. Results may be reused for 15 seconds.
@@ -969,6 +968,470 @@ func (x *GetSpotVolumeHistoryResponse) GetTotalVolumeUsdScaled() []int64 {
 	return nil
 }
 
+// CurrencyMetadata supplies stable defaults for display conversion. Clients may
+// localize names, symbols, and number formatting for the user's locale.
+type CurrencyMetadata struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Uppercase currency or stablecoin code, such as EUR or USDT.
+	Code string `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	// Default English display name.
+	DefaultEnglishName string `protobuf:"bytes,2,opt,name=default_english_name,json=defaultEnglishName,proto3" json:"default_english_name,omitempty"`
+	// Default English display symbol; the code is used where no distinct symbol exists.
+	Symbol string `protobuf:"bytes,3,opt,name=symbol,proto3" json:"symbol,omitempty"`
+	// Default display fraction digits, including zero for currencies such as JPY.
+	// This is a formatting default, not rate precision, token decimals, or cash rounding.
+	// Stablecoins use two display fraction digits.
+	FractionDigits uint32 `protobuf:"varint,4,opt,name=fraction_digits,json=fractionDigits,proto3" json:"fraction_digits,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CurrencyMetadata) Reset() {
+	*x = CurrencyMetadata{}
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CurrencyMetadata) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CurrencyMetadata) ProtoMessage() {}
+
+func (x *CurrencyMetadata) ProtoReflect() protoreflect.Message {
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CurrencyMetadata.ProtoReflect.Descriptor instead.
+func (*CurrencyMetadata) Descriptor() ([]byte, []int) {
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *CurrencyMetadata) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *CurrencyMetadata) GetDefaultEnglishName() string {
+	if x != nil {
+		return x.DefaultEnglishName
+	}
+	return ""
+}
+
+func (x *CurrencyMetadata) GetSymbol() string {
+	if x != nil {
+		return x.Symbol
+	}
+	return ""
+}
+
+func (x *CurrencyMetadata) GetFractionDigits() uint32 {
+	if x != nil {
+		return x.FractionDigits
+	}
+	return 0
+}
+
+// GetCurrencyConversionConfigRequest has no parameters.
+type GetCurrencyConversionConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCurrencyConversionConfigRequest) Reset() {
+	*x = GetCurrencyConversionConfigRequest{}
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCurrencyConversionConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCurrencyConversionConfigRequest) ProtoMessage() {}
+
+func (x *GetCurrencyConversionConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCurrencyConversionConfigRequest.ProtoReflect.Descriptor instead.
+func (*GetCurrencyConversionConfigRequest) Descriptor() ([]byte, []int) {
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{10}
+}
+
+// GetCurrencyConversionConfigResponse contains finite, cacheable display metadata.
+// It remains available before any rates have been observed.
+type GetCurrencyConversionConfigResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Supported fiat currencies, including USD, ordered by code.
+	Fiat []*CurrencyMetadata `protobuf:"bytes,1,rep,name=fiat,proto3" json:"fiat,omitempty"`
+	// Supported stablecoins (USDC and USDT), ordered by code.
+	Stablecoins   []*CurrencyMetadata `protobuf:"bytes,2,rep,name=stablecoins,proto3" json:"stablecoins,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCurrencyConversionConfigResponse) Reset() {
+	*x = GetCurrencyConversionConfigResponse{}
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCurrencyConversionConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCurrencyConversionConfigResponse) ProtoMessage() {}
+
+func (x *GetCurrencyConversionConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCurrencyConversionConfigResponse.ProtoReflect.Descriptor instead.
+func (*GetCurrencyConversionConfigResponse) Descriptor() ([]byte, []int) {
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *GetCurrencyConversionConfigResponse) GetFiat() []*CurrencyMetadata {
+	if x != nil {
+		return x.Fiat
+	}
+	return nil
+}
+
+func (x *GetCurrencyConversionConfigResponse) GetStablecoins() []*CurrencyMetadata {
+	if x != nil {
+		return x.Stablecoins
+	}
+	return nil
+}
+
+// FiatConversionRate states the fiat currency units equal to one US dollar.
+type FiatConversionRate struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Supported fiat currency code.
+	Code string `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	// Fiat currency units per 1 USD, scaled by 1e8. USD has the identity value 1e8.
+	UnitsPerUsdE8 int64 `protobuf:"varint,2,opt,name=units_per_usd_e8,json=unitsPerUsdE8,proto3" json:"units_per_usd_e8,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FiatConversionRate) Reset() {
+	*x = FiatConversionRate{}
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FiatConversionRate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FiatConversionRate) ProtoMessage() {}
+
+func (x *FiatConversionRate) ProtoReflect() protoreflect.Message {
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FiatConversionRate.ProtoReflect.Descriptor instead.
+func (*FiatConversionRate) Descriptor() ([]byte, []int) {
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *FiatConversionRate) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *FiatConversionRate) GetUnitsPerUsdE8() int64 {
+	if x != nil {
+		return x.UnitsPerUsdE8
+	}
+	return 0
+}
+
+// FiatConversionSnapshot contains all supported fiat rates from one observation.
+type FiatConversionSnapshot struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Complete fiat rates, including USD, ordered by code.
+	Rates []*FiatConversionRate `protobuf:"bytes,1,rep,name=rates,proto3" json:"rates,omitempty"`
+	// Shared source observation time in seconds since the Unix epoch (UTC).
+	SourceTsSec uint64 `protobuf:"varint,2,opt,name=source_ts_sec,json=sourceTsSec,proto3" json:"source_ts_sec,omitempty"`
+	// True once the source observation is at least two hours old.
+	Stale         bool `protobuf:"varint,3,opt,name=stale,proto3" json:"stale,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FiatConversionSnapshot) Reset() {
+	*x = FiatConversionSnapshot{}
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FiatConversionSnapshot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FiatConversionSnapshot) ProtoMessage() {}
+
+func (x *FiatConversionSnapshot) ProtoReflect() protoreflect.Message {
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FiatConversionSnapshot.ProtoReflect.Descriptor instead.
+func (*FiatConversionSnapshot) Descriptor() ([]byte, []int) {
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *FiatConversionSnapshot) GetRates() []*FiatConversionRate {
+	if x != nil {
+		return x.Rates
+	}
+	return nil
+}
+
+func (x *FiatConversionSnapshot) GetSourceTsSec() uint64 {
+	if x != nil {
+		return x.SourceTsSec
+	}
+	return 0
+}
+
+func (x *FiatConversionSnapshot) GetStale() bool {
+	if x != nil {
+		return x.Stale
+	}
+	return false
+}
+
+// StablecoinConversionRate states the observed USD value of one stablecoin unit.
+type StablecoinConversionRate struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Supported stablecoin code (USDC or USDT).
+	Code string `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	// USD per 1 stablecoin unit, scaled by 1e8. This is an observed price, not a fixed peg.
+	UsdPerUnitE8 int64 `protobuf:"varint,2,opt,name=usd_per_unit_e8,json=usdPerUnitE8,proto3" json:"usd_per_unit_e8,omitempty"`
+	// This stablecoin's source observation time in seconds since the Unix epoch (UTC).
+	SourceTsSec uint64 `protobuf:"varint,3,opt,name=source_ts_sec,json=sourceTsSec,proto3" json:"source_ts_sec,omitempty"`
+	// True once this stablecoin's source observation is at least five seconds old.
+	Stale         bool `protobuf:"varint,4,opt,name=stale,proto3" json:"stale,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StablecoinConversionRate) Reset() {
+	*x = StablecoinConversionRate{}
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StablecoinConversionRate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StablecoinConversionRate) ProtoMessage() {}
+
+func (x *StablecoinConversionRate) ProtoReflect() protoreflect.Message {
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StablecoinConversionRate.ProtoReflect.Descriptor instead.
+func (*StablecoinConversionRate) Descriptor() ([]byte, []int) {
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *StablecoinConversionRate) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *StablecoinConversionRate) GetUsdPerUnitE8() int64 {
+	if x != nil {
+		return x.UsdPerUnitE8
+	}
+	return 0
+}
+
+func (x *StablecoinConversionRate) GetSourceTsSec() uint64 {
+	if x != nil {
+		return x.SourceTsSec
+	}
+	return 0
+}
+
+func (x *StablecoinConversionRate) GetStale() bool {
+	if x != nil {
+		return x.Stale
+	}
+	return false
+}
+
+// GetCurrencyConversionRatesRequest has no parameters.
+type GetCurrencyConversionRatesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCurrencyConversionRatesRequest) Reset() {
+	*x = GetCurrencyConversionRatesRequest{}
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCurrencyConversionRatesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCurrencyConversionRatesRequest) ProtoMessage() {}
+
+func (x *GetCurrencyConversionRatesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCurrencyConversionRatesRequest.ProtoReflect.Descriptor instead.
+func (*GetCurrencyConversionRatesRequest) Descriptor() ([]byte, []int) {
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{15}
+}
+
+// GetCurrencyConversionRatesResponse groups rates by their USD conversion direction.
+// Last-known observations remain available with staleness indicated. Before any
+// observation is available, the request fails with unavailable (HTTP 503).
+type GetCurrencyConversionRatesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Complete fiat snapshot; absent until a complete snapshot has been observed.
+	Fiat *FiatConversionSnapshot `protobuf:"bytes,1,opt,name=fiat,proto3" json:"fiat,omitempty"`
+	// Observed stablecoin rates ordered by code. Unobserved stablecoins are omitted.
+	Stablecoins []*StablecoinConversionRate `protobuf:"bytes,2,rep,name=stablecoins,proto3" json:"stablecoins,omitempty"`
+	// Response construction time in seconds since the Unix epoch (UTC).
+	SnapshotTsSec uint64 `protobuf:"varint,3,opt,name=snapshot_ts_sec,json=snapshotTsSec,proto3" json:"snapshot_ts_sec,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCurrencyConversionRatesResponse) Reset() {
+	*x = GetCurrencyConversionRatesResponse{}
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCurrencyConversionRatesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCurrencyConversionRatesResponse) ProtoMessage() {}
+
+func (x *GetCurrencyConversionRatesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCurrencyConversionRatesResponse.ProtoReflect.Descriptor instead.
+func (*GetCurrencyConversionRatesResponse) Descriptor() ([]byte, []int) {
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetCurrencyConversionRatesResponse) GetFiat() *FiatConversionSnapshot {
+	if x != nil {
+		return x.Fiat
+	}
+	return nil
+}
+
+func (x *GetCurrencyConversionRatesResponse) GetStablecoins() []*StablecoinConversionRate {
+	if x != nil {
+		return x.Stablecoins
+	}
+	return nil
+}
+
+func (x *GetCurrencyConversionRatesResponse) GetSnapshotTsSec() uint64 {
+	if x != nil {
+		return x.SnapshotTsSec
+	}
+	return 0
+}
+
 var File_marketoverview_v1_marketoverview_proto protoreflect.FileDescriptor
 
 const file_marketoverview_v1_marketoverview_proto_rawDesc = "" +
@@ -1033,7 +1496,33 @@ const file_marketoverview_v1_marketoverview_proto_rawDesc = "" +
 	"end_ts_sec\x18\x03 \x01(\aR\bendTsSec\x12\x16\n" +
 	"\x06points\x18\x04 \x01(\rR\x06points\x12=\n" +
 	"\x05pairs\x18\x05 \x03(\v2'.marketoverview.v1.SpotPairVolumeSeriesR\x05pairs\x125\n" +
-	"\x17total_volume_usd_scaled\x18\x06 \x03(\x12R\x14totalVolumeUsdScaled*\x80\x01\n" +
+	"\x17total_volume_usd_scaled\x18\x06 \x03(\x12R\x14totalVolumeUsdScaled\"\x99\x01\n" +
+	"\x10CurrencyMetadata\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\tR\x04code\x120\n" +
+	"\x14default_english_name\x18\x02 \x01(\tR\x12defaultEnglishName\x12\x16\n" +
+	"\x06symbol\x18\x03 \x01(\tR\x06symbol\x12'\n" +
+	"\x0ffraction_digits\x18\x04 \x01(\rR\x0efractionDigits\"$\n" +
+	"\"GetCurrencyConversionConfigRequest\"\xa5\x01\n" +
+	"#GetCurrencyConversionConfigResponse\x127\n" +
+	"\x04fiat\x18\x01 \x03(\v2#.marketoverview.v1.CurrencyMetadataR\x04fiat\x12E\n" +
+	"\vstablecoins\x18\x02 \x03(\v2#.marketoverview.v1.CurrencyMetadataR\vstablecoins\"Q\n" +
+	"\x12FiatConversionRate\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\tR\x04code\x12'\n" +
+	"\x10units_per_usd_e8\x18\x02 \x01(\x03R\runitsPerUsdE8\"\x8f\x01\n" +
+	"\x16FiatConversionSnapshot\x12;\n" +
+	"\x05rates\x18\x01 \x03(\v2%.marketoverview.v1.FiatConversionRateR\x05rates\x12\"\n" +
+	"\rsource_ts_sec\x18\x02 \x01(\x04R\vsourceTsSec\x12\x14\n" +
+	"\x05stale\x18\x03 \x01(\bR\x05stale\"\x8f\x01\n" +
+	"\x18StablecoinConversionRate\x12\x12\n" +
+	"\x04code\x18\x01 \x01(\tR\x04code\x12%\n" +
+	"\x0fusd_per_unit_e8\x18\x02 \x01(\x03R\fusdPerUnitE8\x12\"\n" +
+	"\rsource_ts_sec\x18\x03 \x01(\x04R\vsourceTsSec\x12\x14\n" +
+	"\x05stale\x18\x04 \x01(\bR\x05stale\"#\n" +
+	"!GetCurrencyConversionRatesRequest\"\xda\x01\n" +
+	"\"GetCurrencyConversionRatesResponse\x12=\n" +
+	"\x04fiat\x18\x01 \x01(\v2).marketoverview.v1.FiatConversionSnapshotR\x04fiat\x12M\n" +
+	"\vstablecoins\x18\x02 \x03(\v2+.marketoverview.v1.StablecoinConversionRateR\vstablecoins\x12&\n" +
+	"\x0fsnapshot_ts_sec\x18\x03 \x01(\x04R\rsnapshotTsSec*\x80\x01\n" +
 	"\x11SparklineInterval\x12\"\n" +
 	"\x1eSPARKLINE_INTERVAL_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fSPARKLINE_1H\x10\x01\x12\x11\n" +
@@ -1056,8 +1545,12 @@ const file_marketoverview_v1_marketoverview_proto_rawDesc = "" +
 	"\x1bERROR_CODE_INVALID_ARGUMENT\x10\x02\x12\x18\n" +
 	"\x14ERROR_CODE_NOT_FOUND\x10\x03\x12\x1a\n" +
 	"\x16ERROR_CODE_UNAVAILABLE\x10\x04\x12\x1d\n" +
-	"\x19ERROR_CODE_UPSTREAM_ERROR\x10\x052\xdd\x05\n" +
-	"\x15MarketOverviewService\x12\xf4\x02\n" +
+	"\x19ERROR_CODE_UPSTREAM_ERROR\x10\x052\xbe\v\n" +
+	"\x15MarketOverviewService\x12\x8f\x03\n" +
+	"\x1bGetCurrencyConversionConfig\x125.marketoverview.v1.GetCurrencyConversionConfigRequest\x1a6.marketoverview.v1.GetCurrencyConversionConfigResponse\"\x80\x02\xbaG\xcb\x01\n" +
+	"\x17Market Overview Service\x12\x1eGet Currency Conversion Config\x1a\x8f\x01Get supported fiat and stablecoin display metadata with default English names, symbols, and fraction digits. Clients may localize presentation.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02'\x12%/v1/market/currency-conversion/config\x12\xcc\x02\n" +
+	"\x1aGetCurrencyConversionRates\x124.marketoverview.v1.GetCurrencyConversionRatesRequest\x1a5.marketoverview.v1.GetCurrencyConversionRatesResponse\"\xc0\x01\xbaG\x8c\x01\n" +
+	"\x17Market Overview Service\x12\x1dGet Currency Conversion Rates\x1aRGet fiat units per USD and USD per stablecoin unit, grouped with source freshness.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02&\x12$/v1/market/currency-conversion/rates\x12\xf4\x02\n" +
 	"\x14GetSpotVolumeHistory\x12..marketoverview.v1.GetSpotVolumeHistoryRequest\x1a/.marketoverview.v1.GetSpotVolumeHistoryResponse\"\xfa\x01\xbaG\xcb\x01\n" +
 	"\x17Market Overview Service\x12\x17Get Spot Volume History\x1a\x96\x01Get aligned columnar pair-level and total trailing-24h USD volume at 15-minute intervals over the latest day. Unavailable valuations fail the request.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02!\x12\x1f/v1/spot/markets/volume-history\x12\xcc\x02\n" +
 	"\x12ListMarketOverview\x12,.marketoverview.v1.ListMarketOverviewRequest\x1a-.marketoverview.v1.ListMarketOverviewResponse\"\xd8\x01\xbaG\xaf\x01\n" +
@@ -1077,21 +1570,29 @@ func file_marketoverview_v1_marketoverview_proto_rawDescGZIP() []byte {
 }
 
 var file_marketoverview_v1_marketoverview_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_marketoverview_v1_marketoverview_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_marketoverview_v1_marketoverview_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_marketoverview_v1_marketoverview_proto_goTypes = []any{
-	(SparklineInterval)(0),               // 0: marketoverview.v1.SparklineInterval
-	(MarketOrderBy)(0),                   // 1: marketoverview.v1.MarketOrderBy
-	(SortDirection)(0),                   // 2: marketoverview.v1.SortDirection
-	(ErrorCode)(0),                       // 3: marketoverview.v1.ErrorCode
-	(*ErrorDetail)(nil),                  // 4: marketoverview.v1.ErrorDetail
-	(*Sparkline)(nil),                    // 5: marketoverview.v1.Sparkline
-	(*MarketOverview)(nil),               // 6: marketoverview.v1.MarketOverview
-	(*ListMarketOverviewRequest)(nil),    // 7: marketoverview.v1.ListMarketOverviewRequest
-	(*ListMarketOverviewResponse)(nil),   // 8: marketoverview.v1.ListMarketOverviewResponse
-	(*MarketOverviewBatch)(nil),          // 9: marketoverview.v1.MarketOverviewBatch
-	(*GetSpotVolumeHistoryRequest)(nil),  // 10: marketoverview.v1.GetSpotVolumeHistoryRequest
-	(*SpotPairVolumeSeries)(nil),         // 11: marketoverview.v1.SpotPairVolumeSeries
-	(*GetSpotVolumeHistoryResponse)(nil), // 12: marketoverview.v1.GetSpotVolumeHistoryResponse
+	(SparklineInterval)(0),                      // 0: marketoverview.v1.SparklineInterval
+	(MarketOrderBy)(0),                          // 1: marketoverview.v1.MarketOrderBy
+	(SortDirection)(0),                          // 2: marketoverview.v1.SortDirection
+	(ErrorCode)(0),                              // 3: marketoverview.v1.ErrorCode
+	(*ErrorDetail)(nil),                         // 4: marketoverview.v1.ErrorDetail
+	(*Sparkline)(nil),                           // 5: marketoverview.v1.Sparkline
+	(*MarketOverview)(nil),                      // 6: marketoverview.v1.MarketOverview
+	(*ListMarketOverviewRequest)(nil),           // 7: marketoverview.v1.ListMarketOverviewRequest
+	(*ListMarketOverviewResponse)(nil),          // 8: marketoverview.v1.ListMarketOverviewResponse
+	(*MarketOverviewBatch)(nil),                 // 9: marketoverview.v1.MarketOverviewBatch
+	(*GetSpotVolumeHistoryRequest)(nil),         // 10: marketoverview.v1.GetSpotVolumeHistoryRequest
+	(*SpotPairVolumeSeries)(nil),                // 11: marketoverview.v1.SpotPairVolumeSeries
+	(*GetSpotVolumeHistoryResponse)(nil),        // 12: marketoverview.v1.GetSpotVolumeHistoryResponse
+	(*CurrencyMetadata)(nil),                    // 13: marketoverview.v1.CurrencyMetadata
+	(*GetCurrencyConversionConfigRequest)(nil),  // 14: marketoverview.v1.GetCurrencyConversionConfigRequest
+	(*GetCurrencyConversionConfigResponse)(nil), // 15: marketoverview.v1.GetCurrencyConversionConfigResponse
+	(*FiatConversionRate)(nil),                  // 16: marketoverview.v1.FiatConversionRate
+	(*FiatConversionSnapshot)(nil),              // 17: marketoverview.v1.FiatConversionSnapshot
+	(*StablecoinConversionRate)(nil),            // 18: marketoverview.v1.StablecoinConversionRate
+	(*GetCurrencyConversionRatesRequest)(nil),   // 19: marketoverview.v1.GetCurrencyConversionRatesRequest
+	(*GetCurrencyConversionRatesResponse)(nil),  // 20: marketoverview.v1.GetCurrencyConversionRatesResponse
 }
 var file_marketoverview_v1_marketoverview_proto_depIdxs = []int32{
 	3,  // 0: marketoverview.v1.ErrorDetail.code:type_name -> marketoverview.v1.ErrorCode
@@ -1103,15 +1604,24 @@ var file_marketoverview_v1_marketoverview_proto_depIdxs = []int32{
 	6,  // 6: marketoverview.v1.ListMarketOverviewResponse.markets:type_name -> marketoverview.v1.MarketOverview
 	6,  // 7: marketoverview.v1.MarketOverviewBatch.markets:type_name -> marketoverview.v1.MarketOverview
 	11, // 8: marketoverview.v1.GetSpotVolumeHistoryResponse.pairs:type_name -> marketoverview.v1.SpotPairVolumeSeries
-	10, // 9: marketoverview.v1.MarketOverviewService.GetSpotVolumeHistory:input_type -> marketoverview.v1.GetSpotVolumeHistoryRequest
-	7,  // 10: marketoverview.v1.MarketOverviewService.ListMarketOverview:input_type -> marketoverview.v1.ListMarketOverviewRequest
-	12, // 11: marketoverview.v1.MarketOverviewService.GetSpotVolumeHistory:output_type -> marketoverview.v1.GetSpotVolumeHistoryResponse
-	8,  // 12: marketoverview.v1.MarketOverviewService.ListMarketOverview:output_type -> marketoverview.v1.ListMarketOverviewResponse
-	11, // [11:13] is the sub-list for method output_type
-	9,  // [9:11] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	13, // 9: marketoverview.v1.GetCurrencyConversionConfigResponse.fiat:type_name -> marketoverview.v1.CurrencyMetadata
+	13, // 10: marketoverview.v1.GetCurrencyConversionConfigResponse.stablecoins:type_name -> marketoverview.v1.CurrencyMetadata
+	16, // 11: marketoverview.v1.FiatConversionSnapshot.rates:type_name -> marketoverview.v1.FiatConversionRate
+	17, // 12: marketoverview.v1.GetCurrencyConversionRatesResponse.fiat:type_name -> marketoverview.v1.FiatConversionSnapshot
+	18, // 13: marketoverview.v1.GetCurrencyConversionRatesResponse.stablecoins:type_name -> marketoverview.v1.StablecoinConversionRate
+	14, // 14: marketoverview.v1.MarketOverviewService.GetCurrencyConversionConfig:input_type -> marketoverview.v1.GetCurrencyConversionConfigRequest
+	19, // 15: marketoverview.v1.MarketOverviewService.GetCurrencyConversionRates:input_type -> marketoverview.v1.GetCurrencyConversionRatesRequest
+	10, // 16: marketoverview.v1.MarketOverviewService.GetSpotVolumeHistory:input_type -> marketoverview.v1.GetSpotVolumeHistoryRequest
+	7,  // 17: marketoverview.v1.MarketOverviewService.ListMarketOverview:input_type -> marketoverview.v1.ListMarketOverviewRequest
+	15, // 18: marketoverview.v1.MarketOverviewService.GetCurrencyConversionConfig:output_type -> marketoverview.v1.GetCurrencyConversionConfigResponse
+	20, // 19: marketoverview.v1.MarketOverviewService.GetCurrencyConversionRates:output_type -> marketoverview.v1.GetCurrencyConversionRatesResponse
+	12, // 20: marketoverview.v1.MarketOverviewService.GetSpotVolumeHistory:output_type -> marketoverview.v1.GetSpotVolumeHistoryResponse
+	8,  // 21: marketoverview.v1.MarketOverviewService.ListMarketOverview:output_type -> marketoverview.v1.ListMarketOverviewResponse
+	18, // [18:22] is the sub-list for method output_type
+	14, // [14:18] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_marketoverview_v1_marketoverview_proto_init() }
@@ -1126,7 +1636,7 @@ func file_marketoverview_v1_marketoverview_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_marketoverview_v1_marketoverview_proto_rawDesc), len(file_marketoverview_v1_marketoverview_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   9,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

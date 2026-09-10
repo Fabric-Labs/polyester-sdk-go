@@ -653,8 +653,6 @@ type GetDepositWithdrawConfigResponse struct {
 	Assets []*AssetConfig `protobuf:"bytes,2,rep,name=assets,proto3" json:"assets,omitempty"`
 	// Snapshot generation timestamp (seconds since epoch, UTC).
 	TsSec uint64 `protobuf:"varint,3,opt,name=ts_sec,json=tsSec,proto3" json:"ts_sec,omitempty"`
-	// Polyester chain id used by all zToken addresses in `assets.variants`.
-	PolyesterChainId uint32 `protobuf:"varint,4,opt,name=polyester_chain_id,json=polyesterChainId,proto3" json:"polyester_chain_id,omitempty"`
 	// Active Polyester-chain contracts ordered by contract name.
 	Contracts     []*ChainContractConfig `protobuf:"bytes,5,rep,name=contracts,proto3" json:"contracts,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -708,13 +706,6 @@ func (x *GetDepositWithdrawConfigResponse) GetAssets() []*AssetConfig {
 func (x *GetDepositWithdrawConfigResponse) GetTsSec() uint64 {
 	if x != nil {
 		return x.TsSec
-	}
-	return 0
-}
-
-func (x *GetDepositWithdrawConfigResponse) GetPolyesterChainId() uint32 {
-	if x != nil {
-		return x.PolyesterChainId
 	}
 	return 0
 }
@@ -780,12 +771,11 @@ const file_chain_zipper_v1_zipper_proto_rawDesc = "" +
 	"\x04type\x18\x03 \x01(\tR\x04type\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x18\n" +
 	"\aversion\x18\x05 \x01(\rR\aversion\"!\n" +
-	"\x1fGetDepositWithdrawConfigRequest\"\x97\x02\n" +
+	"\x1fGetDepositWithdrawConfigRequest\"\xe9\x01\n" +
 	" GetDepositWithdrawConfigResponse\x124\n" +
 	"\x06chains\x18\x01 \x03(\v2\x1c.chain.zipper.v1.ChainConfigR\x06chains\x124\n" +
 	"\x06assets\x18\x02 \x03(\v2\x1c.chain.zipper.v1.AssetConfigR\x06assets\x12\x15\n" +
-	"\x06ts_sec\x18\x03 \x01(\x04R\x05tsSec\x12,\n" +
-	"\x12polyester_chain_id\x18\x04 \x01(\rR\x10polyesterChainId\x12B\n" +
+	"\x06ts_sec\x18\x03 \x01(\x04R\x05tsSec\x12B\n" +
 	"\tcontracts\x18\x05 \x03(\v2$.chain.zipper.v1.ChainContractConfigR\tcontracts2\xd9\x02\n" +
 	"\rZipperService\x12\xc7\x02\n" +
 	"\x18GetDepositWithdrawConfig\x120.chain.zipper.v1.GetDepositWithdrawConfigRequest\x1a1.chain.zipper.v1.GetDepositWithdrawConfigResponse\"\xc5\x01\xbaG\x94\x01\n" +
