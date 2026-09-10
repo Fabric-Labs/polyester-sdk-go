@@ -130,6 +130,54 @@ func TestSpotVolumeHistoryFromProto(t *testing.T) {
 	}
 }
 
+func TestCurrencyConversionConfigFromProto(t *testing.T) {
+	result := CurrencyConversionConfigFromProto(&marketoverviewv1.GetCurrencyConversionConfigResponse{
+		Fiat: []*marketoverviewv1.CurrencyMetadata{{
+			Code: "EUR", DefaultEnglishName: "Euro", Symbol: "€", FractionDigits: 2,
+		}},
+		Stablecoins: []*marketoverviewv1.CurrencyMetadata{{
+			Code: "USDT", DefaultEnglishName: "Tether", Symbol: "USDT", FractionDigits: 2,
+		}},
+	})
+	if len(result.Fiat) != 1 || result.Fiat[0].Code != "EUR" || result.Fiat[0].Symbol != "€" {
+		t.Fatalf("fiat=%+v", result.Fiat)
+	}
+	if len(result.Stablecoins) != 1 || result.Stablecoins[0].Code != "USDT" {
+		t.Fatalf("stablecoins=%+v", result.Stablecoins)
+	}
+}
+
+func TestCurrencyConversionRatesPreserveE8AndAbsentFiat(t *testing.T) {
+	present := CurrencyConversionRatesFromProto(&marketoverviewv1.GetCurrencyConversionRatesResponse{
+		Fiat: &marketoverviewv1.FiatConversionSnapshot{
+			Rates: []*marketoverviewv1.FiatConversionRate{
+				{Code: "USD", UnitsPerUsdE8: 100_000_000},
+				{Code: "EUR", UnitsPerUsdE8: 92_000_000},
+			},
+			SourceTsSec: 1_700_000_000,
+			Stale:       true,
+		},
+		Stablecoins: []*marketoverviewv1.StablecoinConversionRate{{
+			Code: "USDT", UsdPerUnitE8: 99_990_000, SourceTsSec: 1_700_000_005,
+		}},
+		SnapshotTsSec: 1_700_000_010,
+	})
+	if present.Fiat == nil || !present.Fiat.Stale || len(present.Fiat.Rates) != 2 {
+		t.Fatalf("fiat=%+v", present.Fiat)
+	}
+	if present.Fiat.Rates[0].UnitsPerUsdE8 != 100_000_000 {
+		t.Fatalf("usd e8=%d", present.Fiat.Rates[0].UnitsPerUsdE8)
+	}
+	if len(present.Stablecoins) != 1 || present.Stablecoins[0].UsdPerUnitE8 != 99_990_000 {
+		t.Fatalf("stablecoins=%+v", present.Stablecoins)
+	}
+
+	absent := CurrencyConversionRatesFromProto(&marketoverviewv1.GetCurrencyConversionRatesResponse{SnapshotTsSec: 7})
+	if absent.Fiat != nil || len(absent.Stablecoins) != 0 || absent.SnapshotTsSec != 7 {
+		t.Fatalf("absent=%+v", absent)
+	}
+}
+
 func TestEmptyOrderbookWithZeroSequenceIsSuccess(t *testing.T) {
 	result, err := OrderbookFromProto(&orderbookv1.GetOrderBookResponse{SymbolId: 1, BookSeq: 0}, "BTC-USDT", 50, 8)
 	if err != nil {

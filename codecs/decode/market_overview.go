@@ -70,3 +70,74 @@ func SpotVolumeHistoryFromProto(msg *marketoverviewv1.GetSpotVolumeHistoryRespon
 		TotalVolumeUsdScaled: append([]int64(nil), msg.GetTotalVolumeUsdScaled()...),
 	}
 }
+
+func CurrencyMetadataFromProto(m *marketoverviewv1.CurrencyMetadata) models.CurrencyMetadata {
+	if m == nil {
+		return models.CurrencyMetadata{}
+	}
+	return models.CurrencyMetadata{
+		Code:               m.GetCode(),
+		DefaultEnglishName: m.GetDefaultEnglishName(),
+		Symbol:             m.GetSymbol(),
+		FractionDigits:     m.GetFractionDigits(),
+	}
+}
+
+func CurrencyConversionConfigFromProto(msg *marketoverviewv1.GetCurrencyConversionConfigResponse) models.CurrencyConversionConfig {
+	if msg == nil {
+		return models.CurrencyConversionConfig{}
+	}
+	fiat := make([]models.CurrencyMetadata, 0, len(msg.GetFiat()))
+	for _, item := range msg.GetFiat() {
+		fiat = append(fiat, CurrencyMetadataFromProto(item))
+	}
+	stablecoins := make([]models.CurrencyMetadata, 0, len(msg.GetStablecoins()))
+	for _, item := range msg.GetStablecoins() {
+		stablecoins = append(stablecoins, CurrencyMetadataFromProto(item))
+	}
+	return models.CurrencyConversionConfig{Fiat: fiat, Stablecoins: stablecoins}
+}
+
+func FiatConversionSnapshotFromProto(msg *marketoverviewv1.FiatConversionSnapshot) *models.FiatConversionSnapshot {
+	if msg == nil {
+		return nil
+	}
+	rates := make([]models.FiatConversionRate, 0, len(msg.GetRates()))
+	for _, item := range msg.GetRates() {
+		if item == nil {
+			continue
+		}
+		rates = append(rates, models.FiatConversionRate{
+			Code:          item.GetCode(),
+			UnitsPerUsdE8: item.GetUnitsPerUsdE8(),
+		})
+	}
+	return &models.FiatConversionSnapshot{
+		Rates:       rates,
+		SourceTsSec: msg.GetSourceTsSec(),
+		Stale:       msg.GetStale(),
+	}
+}
+
+func CurrencyConversionRatesFromProto(msg *marketoverviewv1.GetCurrencyConversionRatesResponse) models.CurrencyConversionRates {
+	if msg == nil {
+		return models.CurrencyConversionRates{}
+	}
+	stablecoins := make([]models.StablecoinConversionRate, 0, len(msg.GetStablecoins()))
+	for _, item := range msg.GetStablecoins() {
+		if item == nil {
+			continue
+		}
+		stablecoins = append(stablecoins, models.StablecoinConversionRate{
+			Code:         item.GetCode(),
+			UsdPerUnitE8: item.GetUsdPerUnitE8(),
+			SourceTsSec:  item.GetSourceTsSec(),
+			Stale:        item.GetStale(),
+		})
+	}
+	return models.CurrencyConversionRates{
+		Fiat:          FiatConversionSnapshotFromProto(msg.GetFiat()),
+		Stablecoins:   stablecoins,
+		SnapshotTsSec: msg.GetSnapshotTsSec(),
+	}
+}

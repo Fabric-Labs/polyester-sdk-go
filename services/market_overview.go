@@ -108,6 +108,23 @@ func (s *MarketOverviewService) GetSpotVolumeHistory(ctx context.Context, symbol
 	})
 }
 
+// GetCurrencyConversionConfig returns supported fiat and stablecoin display metadata.
+// Entries are ordered by code. Names, symbols, and fraction digits are
+// presentation defaults; fraction digits do not specify rate precision.
+// Configuration remains available before rates are observed.
+func (s *MarketOverviewService) GetCurrencyConversionConfig(ctx context.Context) (models.CurrencyConversionConfig, error) {
+	return UnaryPublic(ctx, s.transport, s.client().GetCurrencyConversionConfig, &marketoverviewv1.GetCurrencyConversionConfigRequest{}, decode.CurrencyConversionConfigFromProto)
+}
+
+// GetCurrencyConversionRates returns fiat units per USD and USD per stablecoin unit.
+// Fiat UnitsPerUsdE8 is currency units per 1 USD at 1e8 scale (USD identity is
+// 100_000_000). Stablecoin UsdPerUnitE8 is observed USD per unit at the same
+// scale. A missing fiat snapshot or omitted stablecoin is unobserved, not zero.
+// The request fails with unavailable (HTTP 503) before any observation exists.
+func (s *MarketOverviewService) GetCurrencyConversionRates(ctx context.Context) (models.CurrencyConversionRates, error) {
+	return UnaryPublic(ctx, s.transport, s.client().GetCurrencyConversionRates, &marketoverviewv1.GetCurrencyConversionRatesRequest{}, decode.CurrencyConversionRatesFromProto)
+}
+
 // CreateSubscriptionOptions configures a managed market overview subscription.
 type MarketOverviewCreateSubscriptionOptions struct {
 	Symbols           []string
