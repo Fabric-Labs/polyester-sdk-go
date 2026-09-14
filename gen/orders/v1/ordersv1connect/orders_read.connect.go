@@ -59,9 +59,11 @@ type OrdersReadServiceClient interface {
 	// Supports optional subaccount, trigger, symbol, side, status, and time-range filters with cursor pagination.
 	GetOrderHistory(context.Context, *connect.Request[v1.GetOrderHistoryRequest]) (*connect.Response[v1.GetOrderHistoryResponse], error)
 	// Retrieve per-user trade fills for an account.
-	// Supports optional subaccount, symbol, side, and time-range filters with cursor pagination.
+	// Supports exact physical-order or logical-lineage scope, an inclusive generation
+	// cutoff, and subaccount, symbol, side and time filters with cursor pagination.
 	GetUserTrades(context.Context, *connect.Request[v1.GetUserTradesRequest]) (*connect.Response[v1.GetUserTradesResponse], error)
-	// Retrieve a single order by order ID or client order ID, including related user trades and ledger transfers.
+	// Retrieve order state and a bounded page of its lineage executions by order or client order ID.
+	// Use GetUserTrades for paginated execution history and optional settlement legs.
 	// Recent accepted orders may wait briefly for read availability; retry UNAVAILABLE with the same lookup key.
 	GetOrder(context.Context, *connect.Request[v1.GetOrderRequest]) (*connect.Response[v1.GetOrderResponse], error)
 	// Retrieve durable execution status for one admitted batch replacement.
@@ -155,9 +157,11 @@ type OrdersReadServiceHandler interface {
 	// Supports optional subaccount, trigger, symbol, side, status, and time-range filters with cursor pagination.
 	GetOrderHistory(context.Context, *connect.Request[v1.GetOrderHistoryRequest]) (*connect.Response[v1.GetOrderHistoryResponse], error)
 	// Retrieve per-user trade fills for an account.
-	// Supports optional subaccount, symbol, side, and time-range filters with cursor pagination.
+	// Supports exact physical-order or logical-lineage scope, an inclusive generation
+	// cutoff, and subaccount, symbol, side and time filters with cursor pagination.
 	GetUserTrades(context.Context, *connect.Request[v1.GetUserTradesRequest]) (*connect.Response[v1.GetUserTradesResponse], error)
-	// Retrieve a single order by order ID or client order ID, including related user trades and ledger transfers.
+	// Retrieve order state and a bounded page of its lineage executions by order or client order ID.
+	// Use GetUserTrades for paginated execution history and optional settlement legs.
 	// Recent accepted orders may wait briefly for read availability; retry UNAVAILABLE with the same lookup key.
 	GetOrder(context.Context, *connect.Request[v1.GetOrderRequest]) (*connect.Response[v1.GetOrderResponse], error)
 	// Retrieve durable execution status for one admitted batch replacement.
