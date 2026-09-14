@@ -976,7 +976,8 @@ type CurrencyMetadata struct {
 	Code string `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
 	// Default English display name.
 	DefaultEnglishName string `protobuf:"bytes,2,opt,name=default_english_name,json=defaultEnglishName,proto3" json:"default_english_name,omitempty"`
-	// Default English display symbol; the code is used where no distinct symbol exists.
+	// Representative local display symbol; multiple currencies may share a symbol.
+	// Uses the code when the selected local display data has no distinct visible symbol.
 	Symbol string `protobuf:"bytes,3,opt,name=symbol,proto3" json:"symbol,omitempty"`
 	// Default display fraction digits, including zero for currencies such as JPY.
 	// This is a formatting default, not rate precision, token decimals, or cash rounding.

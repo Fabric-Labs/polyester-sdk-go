@@ -1408,17 +1408,13 @@ type CreateSubaccountRequest struct {
 	Color string `protobuf:"bytes,8,opt,name=color,proto3" json:"color,omitempty"`
 	// Smart Account EVM address for the new sub-account.
 	SmartAccountAddress string `protobuf:"bytes,2,opt,name=smart_account_address,json=smartAccountAddress,proto3" json:"smart_account_address,omitempty"`
-	// Auth challenge nonce returned by GetNonce for this smart account. This is
-	// not the smart-account derivation salt nonce.
-	Nonce string `protobuf:"bytes,3,opt,name=nonce,proto3" json:"nonce,omitempty"`
-	// Signature over the canonical login message containing the nonce.
-	Signature string `protobuf:"bytes,4,opt,name=signature,proto3" json:"signature,omitempty"`
-	// Optional primary wallet address supplied by the client. Sub-account ownership is proven by the Smart Account signature.
-	PrimaryWalletAddress *string `protobuf:"bytes,5,opt,name=primary_wallet_address,json=primaryWalletAddress,proto3,oneof" json:"primary_wallet_address,omitempty"`
-	// Optional provider hint supplied by the client. Sub-account creation does not depend on this value.
-	WalletProvider string `protobuf:"bytes,6,opt,name=wallet_provider,json=walletProvider,proto3" json:"wallet_provider,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Exact EIP-4361 message returned by CreateWalletChallenge for the
+	// CREATE_SUBACCOUNT purpose.
+	Message string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	// Signature over message using EIP-191 personal_sign semantics.
+	Signature     string `protobuf:"bytes,4,opt,name=signature,proto3" json:"signature,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateSubaccountRequest) Reset() {
@@ -1479,9 +1475,9 @@ func (x *CreateSubaccountRequest) GetSmartAccountAddress() string {
 	return ""
 }
 
-func (x *CreateSubaccountRequest) GetNonce() string {
+func (x *CreateSubaccountRequest) GetMessage() string {
 	if x != nil {
-		return x.Nonce
+		return x.Message
 	}
 	return ""
 }
@@ -1489,20 +1485,6 @@ func (x *CreateSubaccountRequest) GetNonce() string {
 func (x *CreateSubaccountRequest) GetSignature() string {
 	if x != nil {
 		return x.Signature
-	}
-	return ""
-}
-
-func (x *CreateSubaccountRequest) GetPrimaryWalletAddress() string {
-	if x != nil && x.PrimaryWalletAddress != nil {
-		return *x.PrimaryWalletAddress
-	}
-	return ""
-}
-
-func (x *CreateSubaccountRequest) GetWalletProvider() string {
-	if x != nil {
-		return x.WalletProvider
 	}
 	return ""
 }
@@ -3201,20 +3183,16 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x16ListSubaccountsRequest\"u\n" +
 	"\x17ListSubaccountsResponse\x125\n" +
 	"\vsubaccounts\x18\x01 \x03(\v2\x13.auth.v1.SubaccountR\vsubaccounts\x12#\n" +
-	"\rtotal_created\x18\x02 \x01(\rR\ftotalCreated\"\x87\x05\n" +
+	"\rtotal_created\x18\x02 \x01(\rR\ftotalCreated\"\xc2\x03\n" +
 	"\x17CreateSubaccountRequest\x12\x93\x01\n" +
 	"\x05label\x18\x01 \x01(\tB}\xbaHz\xba\x01h\n" +
 	"\x17label.no_angle_brackets\x12!label must not contain '<' or '>'\x1a*!this.contains('<') && !this.contains('>')r\r\x18@\x92\x02\bTreasuryR\x05label\x12\x1b\n" +
 	"\x04icon\x18\a \x01(\tB\a\xbaH\x04r\x02\x18 R\x04icon\x12\x1d\n" +
 	"\x05color\x18\b \x01(\tB\a\xbaH\x04r\x02\x18 R\x05color\x12\x81\x01\n" +
-	"\x15smart_account_address\x18\x02 \x01(\tBM\xe0A\x02\xbaHGrE2\x13^0x[0-9a-fA-F]{40}$\x98\x01*\x92\x02*0x0000000000000000000000000000000000000000R\x13smartAccountAddress\x12 \n" +
-	"\x05nonce\x18\x03 \x01(\tB\n" +
-	"\xe0A\x02\xbaH\x04r\x02\x10\x01R\x05nonce\x12(\n" +
+	"\x15smart_account_address\x18\x02 \x01(\tBM\xe0A\x02\xbaHGrE2\x13^0x[0-9a-fA-F]{40}$\x98\x01*\x92\x02*0x0000000000000000000000000000000000000000R\x13smartAccountAddress\x12'\n" +
+	"\amessage\x18\x03 \x01(\tB\r\xe0A\x02\xbaH\ar\x05\x10\x01(\x80 R\amessage\x12(\n" +
 	"\tsignature\x18\x04 \x01(\tB\n" +
-	"\xe0A\x02\xbaH\x04r\x02\x10\x01R\tsignature\x12\x85\x01\n" +
-	"\x16primary_wallet_address\x18\x05 \x01(\tBJ\xbaHGrE2\x13^0x[0-9a-fA-F]{40}$\x98\x01*\x92\x02*0x0000000000000000000000000000000000000000H\x00R\x14primaryWalletAddress\x88\x01\x01\x12'\n" +
-	"\x0fwallet_provider\x18\x06 \x01(\tR\x0ewalletProviderB\x19\n" +
-	"\x17_primary_wallet_address\"\xb9\x01\n" +
+	"\xe0A\x02\xbaH\x04r\x02\x10\x01R\tsignature\"\xb9\x01\n" +
 	"\x18CreateSubaccountResponse\x12#\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\x12#\n" +
 	"\rtotal_created\x18\x02 \x01(\rR\ftotalCreated\x127\n" +
@@ -3611,7 +3589,6 @@ func file_auth_v1_subaccounts_proto_init() {
 	file_auth_v1_api_keys_proto_init()
 	file_auth_v1_policies_proto_init()
 	file_auth_v1_subaccounts_proto_msgTypes[7].OneofWrappers = []any{}
-	file_auth_v1_subaccounts_proto_msgTypes[10].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
