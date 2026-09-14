@@ -39,6 +39,34 @@ func OrderFromProto(msg *orderv1.Order) models.Order {
 			msg.SubmittedMaxQuoteDebitScaled,
 		),
 		AttachedRisk: attachedRiskFromProto(msg.GetAttachedRisk()),
+		Lineage:      orderLineageFromProto(msg.GetLineage()),
+	}
+}
+
+func orderLineageFromProto(msg *orderv1.OrderLineage) *models.OrderLineage {
+	if msg == nil || (msg.GetId() == 0 && msg.GetGeneration() == 0) {
+		return nil
+	}
+	return &models.OrderLineage{
+		ID:         codecs.FormatUint64ID(msg.GetId()),
+		Generation: msg.GetGeneration(),
+	}
+}
+
+func orderTransferFromProto(msg *orderv1.OrderTransfer) models.OrderTransfer {
+	if msg == nil {
+		return models.OrderTransfer{}
+	}
+	return models.OrderTransfer{
+		MatchID:      strconv.FormatUint(msg.GetMatchId(), 10),
+		SymbolID:     msg.GetSymbolId(),
+		AssetID:      msg.GetAssetId(),
+		AmountE18:    u128(msg.GetAmountE18()),
+		IsDebit:      msg.GetIsDebit(),
+		TransferCode: int32(msg.GetTransferCode()),
+		AccountCode:  int32(msg.GetAccountCode()),
+		TsNs:         strconv.FormatUint(msg.GetTsNs(), 10),
+		TxID:         msg.GetTxId(),
 	}
 }
 
@@ -235,6 +263,7 @@ func UserTradeFromProto(msg *orderv1.UserTrade) models.UserTrade {
 		ReferralShareAmountE18: u128(msg.GetReferralShareAmountE18()),
 		TsNs:                   strconv.FormatUint(msg.GetTsNs(), 10),
 		FeeIsRebate:            msg.GetFeeIsRebate(),
+		Lineage:                orderLineageFromProto(msg.GetLineage()),
 	}
 }
 
@@ -272,7 +301,15 @@ func UserTradesListFromProto(msg *orderv1.GetUserTradesResponse) models.UserTrad
 	for _, t := range msg.GetTrades() {
 		trades = append(trades, UserTradeFromProto(t))
 	}
-	return models.UserTradesList{Trades: trades, NextPageToken: msg.GetNextPageToken()}
+	transfers := make([]models.OrderTransfer, 0, len(msg.GetTransfers()))
+	for _, item := range msg.GetTransfers() {
+		transfers = append(transfers, orderTransferFromProto(item))
+	}
+	return models.UserTradesList{
+		Trades:        trades,
+		Transfers:     transfers,
+		NextPageToken: msg.GetNextPageToken(),
+	}
 }
 
 // GetOrderFromProto decodes get order response.
@@ -286,7 +323,16 @@ func GetOrderFromProto(msg *orderv1.GetOrderResponse) models.GetOrderResult {
 	for _, t := range msg.GetTrades() {
 		trades = append(trades, UserTradeFromProto(t))
 	}
-	return models.GetOrderResult{Order: order, Trades: trades}
+	transfers := make([]models.OrderTransfer, 0, len(msg.GetTransfers()))
+	for _, item := range msg.GetTransfers() {
+		transfers = append(transfers, orderTransferFromProto(item))
+	}
+	return models.GetOrderResult{
+		Order:         order,
+		Trades:        trades,
+		Transfers:     transfers,
+		NextPageToken: msg.GetNextPageToken(),
+	}
 }
 
 // OrderMutationFromProto decodes order mutation response.

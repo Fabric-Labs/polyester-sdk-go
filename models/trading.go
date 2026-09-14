@@ -13,8 +13,9 @@ type Order struct {
 	TIF           string `json:"tif,omitempty"`
 	// OrigQty is the current accepted total quantity. A successful modify
 	// updates it to the amended total; retain the first submitted quantity
-	// separately if you need it. CumQty is cumulative fills; LeavesQty is
-	// remaining working quantity.
+	// separately if you need it. CumQty and AvgPx are cumulative execution
+	// values across the lineage through the returned generation, not values
+	// limited to one physical order. LeavesQty is remaining working quantity.
 	OrigQty     QtyScaled  `json:"orig_qty,omitempty"`
 	CumQty      QtyScaled  `json:"cum_qty,omitempty"`
 	LeavesQty   QtyScaled  `json:"leaves_qty,omitempty"`
@@ -27,6 +28,28 @@ type Order struct {
 	// SubmittedMaxQuoteDebitScaled is populated for quote-budget sized orders.
 	SubmittedMaxQuoteDebitScaled string        `json:"submitted_max_quote_debit_scaled,omitempty"`
 	AttachedRisk                 *AttachedRisk `json:"attached_risk,omitempty"`
+	Lineage                      *OrderLineage `json:"lineage,omitempty"`
+}
+
+// OrderLineage is the stable replacement-chain identity for an order or fill.
+// ID is the first generation's public order ID. Generation is one-based.
+type OrderLineage struct {
+	ID         string `json:"id,omitempty"`
+	Generation uint32 `json:"generation,omitempty"`
+}
+
+// OrderTransfer is a settlement leg linked to a match on an order or trades page.
+// Identify a match by (SymbolID, MatchID). Deduplicate repeated legs by TxID.
+type OrderTransfer struct {
+	MatchID      string `json:"match_id,omitempty"`
+	SymbolID     uint32 `json:"symbol_id,omitempty"`
+	AssetID      uint32 `json:"asset_id,omitempty"`
+	AmountE18    string `json:"amount_e18,omitempty"`
+	IsDebit      bool   `json:"is_debit,omitempty"`
+	TransferCode int32  `json:"transfer_code,omitempty"`
+	AccountCode  int32  `json:"account_code,omitempty"`
+	TsNs         string `json:"ts_ns,omitempty"`
+	TxID         string `json:"tx_id,omitempty"`
 }
 
 // RiskLeg is a take-profit or stop-loss attached-risk projection. Policy
@@ -119,10 +142,20 @@ type PreviewOrderResult struct {
 	EvaluatedAtMs         int64             `json:"evaluated_at_ms,omitempty"`
 }
 
-// GetOrderResult includes order detail and related fills.
+// GetOrderResult includes order detail and a page of lineage executions.
 type GetOrderResult struct {
-	Order  *Order      `json:"order,omitempty"`
-	Trades []UserTrade `json:"trades,omitempty"`
+	Order         *Order          `json:"order,omitempty"`
+	Trades        []UserTrade     `json:"trades,omitempty"`
+	Transfers     []OrderTransfer `json:"transfers,omitempty"`
+	NextPageToken string          `json:"next_page_token,omitempty"`
+}
+
+// GetOrderOptions are optional GetOrder pagination and history flags.
+// Execution history defaults to enabled on the server when IncludeExecutionHistory is nil.
+type GetOrderOptions struct {
+	IncludeExecutionHistory *bool
+	Limit                   *uint32
+	PageToken               *string
 }
 
 // UserTrade is a user fill record.
@@ -140,13 +173,24 @@ type UserTrade struct {
 	TsNs                   string     `json:"ts_ns,omitempty"`
 	// FeeIsRebate is true when fee_amount_e18 is a rebate credit instead of a fee debit.
 	// Proto3 omits false, so sparse wire encoding only sets this when a rebate was earned.
-	FeeIsRebate bool `json:"fee_is_rebate,omitempty"`
+	FeeIsRebate bool          `json:"fee_is_rebate,omitempty"`
+	Lineage     *OrderLineage `json:"lineage,omitempty"`
 }
 
 // UserTradesList holds paginated user trades.
 type UserTradesList struct {
-	Trades        []UserTrade `json:"trades"`
-	NextPageToken string      `json:"next_page_token,omitempty"`
+	Trades        []UserTrade     `json:"trades"`
+	Transfers     []OrderTransfer `json:"transfers,omitempty"`
+	NextPageToken string          `json:"next_page_token,omitempty"`
+}
+
+// ListUserTradesOptions are optional GetUserTrades execution-scope filters.
+// OrderID and LineageID are mutually exclusive. ThroughGeneration requires LineageID.
+type ListUserTradesOptions struct {
+	OrderID           *string
+	LineageID         *string
+	ThroughGeneration *uint32
+	IncludeTransfers  bool
 }
 
 // ModifyOrderResult is returned from order modify RPCs.

@@ -9,6 +9,14 @@
   client / chain-helper default.
 
 ### Added
+- Paginated order lineage history: `Order.Lineage` / `UserTrade.Lineage`
+  (`ID` + one-based `Generation`), `GetOrderResult.Transfers` /
+  `NextPageToken`, and `UserTradesList.Transfers`. `Orders.Get` accepts
+  optional `GetOrderOptions` (`IncludeExecutionHistory`, `Limit`,
+  `PageToken`). `Trades.List` accepts optional `ListUserTradesOptions`
+  (`OrderID` XOR `LineageID`, `ThroughGeneration`, `IncludeTransfers`).
+  `WaitForOrderTradesComplete` pages execution history; an empty page is
+  not a settlement watermark. `CumQty` / `AvgPx` are lineage-cumulative.
 - First-class `Config.Environment` / `polyester.DevnetEnvironment` /
   `TestnetEnvironment`. `CreateEnvironment` and `Environment.WithURLs` support
   custom / VPC endpoints. `FromEnv` reads `POLYESTER_ENV=devnet|testnet` and

@@ -389,6 +389,43 @@ func TestGetOrderFromProtoIncludesTrades(t *testing.T) {
 	}
 }
 
+func TestGetOrderFromProtoIncludesLineageTransfersAndPageToken(t *testing.T) {
+	msg := &orderv1.GetOrderResponse{
+		Order: &orderv1.Order{
+			OrderId:  11,
+			SymbolId: 2,
+			Lineage:  &orderv1.OrderLineage{Id: 7, Generation: 2},
+		},
+		Trades: []*orderv1.UserTrade{{
+			SymbolId: 2, MatchId: 99, OrderId: 7,
+			Lineage: &orderv1.OrderLineage{Id: 7, Generation: 1},
+		}},
+		Transfers: []*orderv1.OrderTransfer{{
+			MatchId: 99, SymbolId: 2, AssetId: 1,
+			AmountE18: &typev1.U128{Lo: 8},
+			IsDebit:   true,
+			TxId:      "tx-1",
+		}},
+		NextPageToken: "page-2",
+	}
+	result := decode.GetOrderFromProto(msg)
+	if result.Order == nil || result.Order.Lineage == nil {
+		t.Fatalf("order lineage missing: %+v", result.Order)
+	}
+	if result.Order.Lineage.ID != codecs.FormatUint64ID(7) || result.Order.Lineage.Generation != 2 {
+		t.Fatalf("order lineage=%+v", result.Order.Lineage)
+	}
+	if len(result.Trades) != 1 || result.Trades[0].Lineage == nil || result.Trades[0].Lineage.Generation != 1 {
+		t.Fatalf("trade lineage=%+v", result.Trades)
+	}
+	if len(result.Transfers) != 1 || result.Transfers[0].TxID != "tx-1" || result.Transfers[0].AmountE18 != "8" {
+		t.Fatalf("transfers=%+v", result.Transfers)
+	}
+	if result.NextPageToken != "page-2" {
+		t.Fatalf("next_page_token=%q", result.NextPageToken)
+	}
+}
+
 func TestModifyOrderFromProtoActionTakenEnum(t *testing.T) {
 	msg := &orderv1.ModifyOrderResponse{
 		ActionTaken:  orderv1.ModifyActionTaken_AMENDED,
