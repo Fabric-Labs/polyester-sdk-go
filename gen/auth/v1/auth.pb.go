@@ -25,6 +25,59 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Purpose for a server-issued wallet challenge.
+type WalletChallengePurpose int32
+
+const (
+	// No wallet challenge purpose was specified.
+	WalletChallengePurpose_WALLET_PROOF_UNSPECIFIED WalletChallengePurpose = 0
+	// Authenticate the wallet and create a Polyester session.
+	WalletChallengePurpose_LOGIN WalletChallengePurpose = 1
+	// Prove control of a new smart account before creating a sub-account.
+	WalletChallengePurpose_CREATE_SUBACCOUNT WalletChallengePurpose = 2
+)
+
+// Enum value maps for WalletChallengePurpose.
+var (
+	WalletChallengePurpose_name = map[int32]string{
+		0: "WALLET_PROOF_UNSPECIFIED",
+		1: "LOGIN",
+		2: "CREATE_SUBACCOUNT",
+	}
+	WalletChallengePurpose_value = map[string]int32{
+		"WALLET_PROOF_UNSPECIFIED": 0,
+		"LOGIN":                    1,
+		"CREATE_SUBACCOUNT":        2,
+	}
+)
+
+func (x WalletChallengePurpose) Enum() *WalletChallengePurpose {
+	p := new(WalletChallengePurpose)
+	*p = x
+	return p
+}
+
+func (x WalletChallengePurpose) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (WalletChallengePurpose) Descriptor() protoreflect.EnumDescriptor {
+	return file_auth_v1_auth_proto_enumTypes[0].Descriptor()
+}
+
+func (WalletChallengePurpose) Type() protoreflect.EnumType {
+	return &file_auth_v1_auth_proto_enumTypes[0]
+}
+
+func (x WalletChallengePurpose) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use WalletChallengePurpose.Descriptor instead.
+func (WalletChallengePurpose) EnumDescriptor() ([]byte, []int) {
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{0}
+}
+
 // High-level error codes for authentication and account-domain failures.
 type AuthErrorCode int32
 
@@ -214,11 +267,11 @@ func (x AuthErrorCode) String() string {
 }
 
 func (AuthErrorCode) Descriptor() protoreflect.EnumDescriptor {
-	return file_auth_v1_auth_proto_enumTypes[0].Descriptor()
+	return file_auth_v1_auth_proto_enumTypes[1].Descriptor()
 }
 
 func (AuthErrorCode) Type() protoreflect.EnumType {
-	return &file_auth_v1_auth_proto_enumTypes[0]
+	return &file_auth_v1_auth_proto_enumTypes[1]
 }
 
 func (x AuthErrorCode) Number() protoreflect.EnumNumber {
@@ -227,33 +280,41 @@ func (x AuthErrorCode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use AuthErrorCode.Descriptor instead.
 func (AuthErrorCode) EnumDescriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{0}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{1}
 }
 
-// GetNonceRequest requests a short-lived login nonce for a smart-account
-// address. The wallet must sign a message containing this nonce before login.
-type GetNonceRequest struct {
+// CreateWalletChallengeRequest requests a short-lived EIP-4361 message whose
+// exact UTF-8 bytes must be signed by the wallet.
+type CreateWalletChallengeRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Smart-account EVM address, formatted as 0x plus 40 hex characters.
+	// Smart-account EVM address being authenticated, formatted as 0x plus 40 hex characters.
 	SmartAccountAddress string `protobuf:"bytes,1,opt,name=smart_account_address,json=smartAccountAddress,proto3" json:"smart_account_address,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// EVM address selected in the wallet and written into the EIP-4361 message.
+	// For CREATE_SUBACCOUNT, this must equal smart_account_address.
+	SignerAddress string `protobuf:"bytes,2,opt,name=signer_address,json=signerAddress,proto3" json:"signer_address,omitempty"`
+	// Browser origin URI requesting the signature, including scheme and optional
+	// port but no path, query, fragment, or user information.
+	Uri string `protobuf:"bytes,3,opt,name=uri,proto3" json:"uri,omitempty"`
+	// Operation for which the challenge may be consumed.
+	Purpose       WalletChallengePurpose `protobuf:"varint,4,opt,name=purpose,proto3,enum=auth.v1.WalletChallengePurpose" json:"purpose,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetNonceRequest) Reset() {
-	*x = GetNonceRequest{}
+func (x *CreateWalletChallengeRequest) Reset() {
+	*x = CreateWalletChallengeRequest{}
 	mi := &file_auth_v1_auth_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetNonceRequest) String() string {
+func (x *CreateWalletChallengeRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetNonceRequest) ProtoMessage() {}
+func (*CreateWalletChallengeRequest) ProtoMessage() {}
 
-func (x *GetNonceRequest) ProtoReflect() protoreflect.Message {
+func (x *CreateWalletChallengeRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_auth_v1_auth_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -265,44 +326,65 @@ func (x *GetNonceRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetNonceRequest.ProtoReflect.Descriptor instead.
-func (*GetNonceRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use CreateWalletChallengeRequest.ProtoReflect.Descriptor instead.
+func (*CreateWalletChallengeRequest) Descriptor() ([]byte, []int) {
 	return file_auth_v1_auth_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *GetNonceRequest) GetSmartAccountAddress() string {
+func (x *CreateWalletChallengeRequest) GetSmartAccountAddress() string {
 	if x != nil {
 		return x.SmartAccountAddress
 	}
 	return ""
 }
 
-// GetNonceResponse contains the nonce that must be signed for wallet login.
-type GetNonceResponse struct {
+func (x *CreateWalletChallengeRequest) GetSignerAddress() string {
+	if x != nil {
+		return x.SignerAddress
+	}
+	return ""
+}
+
+func (x *CreateWalletChallengeRequest) GetUri() string {
+	if x != nil {
+		return x.Uri
+	}
+	return ""
+}
+
+func (x *CreateWalletChallengeRequest) GetPurpose() WalletChallengePurpose {
+	if x != nil {
+		return x.Purpose
+	}
+	return WalletChallengePurpose_WALLET_PROOF_UNSPECIFIED
+}
+
+// CreateWalletChallengeResponse contains the canonical EIP-4361 message.
+type CreateWalletChallengeResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Random login nonce. The nonce is single-purpose and is replaced by each new
-	// nonce request for the same smart-account address.
-	Nonce string `protobuf:"bytes,1,opt,name=nonce,proto3" json:"nonce,omitempty"`
-	// Time in UTC when the nonce expires. Login nonces expire after 5 minutes.
+	// Canonical EIP-4361 message. Sign these UTF-8 bytes exactly once with
+	// personal_sign; do not hash, alter, or reconstruct the message.
+	Message string `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	// Time in UTC when the challenge expires. Wallet challenges expire after 5 minutes.
 	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetNonceResponse) Reset() {
-	*x = GetNonceResponse{}
+func (x *CreateWalletChallengeResponse) Reset() {
+	*x = CreateWalletChallengeResponse{}
 	mi := &file_auth_v1_auth_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetNonceResponse) String() string {
+func (x *CreateWalletChallengeResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetNonceResponse) ProtoMessage() {}
+func (*CreateWalletChallengeResponse) ProtoMessage() {}
 
-func (x *GetNonceResponse) ProtoReflect() protoreflect.Message {
+func (x *CreateWalletChallengeResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_auth_v1_auth_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -314,35 +396,33 @@ func (x *GetNonceResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetNonceResponse.ProtoReflect.Descriptor instead.
-func (*GetNonceResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use CreateWalletChallengeResponse.ProtoReflect.Descriptor instead.
+func (*CreateWalletChallengeResponse) Descriptor() ([]byte, []int) {
 	return file_auth_v1_auth_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *GetNonceResponse) GetNonce() string {
+func (x *CreateWalletChallengeResponse) GetMessage() string {
 	if x != nil {
-		return x.Nonce
+		return x.Message
 	}
 	return ""
 }
 
-func (x *GetNonceResponse) GetExpiresAt() *timestamppb.Timestamp {
+func (x *CreateWalletChallengeResponse) GetExpiresAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.ExpiresAt
 	}
 	return nil
 }
 
-// LoginWithWalletRequest completes smart-account wallet login using a signed
-// nonce.
+// LoginWithWalletRequest completes smart-account wallet login using the exact
+// server-issued EIP-4361 message and its signature.
 type LoginWithWalletRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Smart-account EVM address that produced the signature, formatted as 0x plus
-	// 40 hex characters.
+	// Smart-account EVM address bound into the challenge resource, formatted as
+	// 0x plus 40 hex characters.
 	SmartAccountAddress string `protobuf:"bytes,1,opt,name=smart_account_address,json=smartAccountAddress,proto3" json:"smart_account_address,omitempty"`
-	// Nonce returned by GetNonce. The nonce must be unused and not expired.
-	Nonce string `protobuf:"bytes,2,opt,name=nonce,proto3" json:"nonce,omitempty"`
-	// Signature over the canonical login message containing the nonce. Maximum
+	// Signature over message using EIP-191 personal_sign semantics. Maximum
 	// length is 8192 characters to support universal wallet signatures.
 	Signature string `protobuf:"bytes,3,opt,name=signature,proto3" json:"signature,omitempty"`
 	// Optional user-agent string for account security and audit displays. Maximum
@@ -351,14 +431,13 @@ type LoginWithWalletRequest struct {
 	// Optional caller IP address for account security and audit displays. Maximum
 	// length is 64 characters.
 	Ip string `protobuf:"bytes,5,opt,name=ip,proto3" json:"ip,omitempty"`
-	// Optional primary wallet address that controls this smart account, formatted
-	// as 0x plus 40 hex characters. This value is metadata and is not used for
-	// signature verification.
-	PrimaryWalletAddress string `protobuf:"bytes,6,opt,name=primary_wallet_address,json=primaryWalletAddress,proto3" json:"primary_wallet_address,omitempty"`
-	// Optional provider hint for the primary wallet. Maximum length is 32 characters.
+	// Optional provider hint for the signing wallet. Maximum length is 32 characters.
 	WalletProvider string `protobuf:"bytes,7,opt,name=wallet_provider,json=walletProvider,proto3" json:"wallet_provider,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Exact EIP-4361 message returned by CreateWalletChallenge. Maximum length is
+	// 4096 UTF-8 bytes.
+	Message       string `protobuf:"bytes,8,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *LoginWithWalletRequest) Reset() {
@@ -398,13 +477,6 @@ func (x *LoginWithWalletRequest) GetSmartAccountAddress() string {
 	return ""
 }
 
-func (x *LoginWithWalletRequest) GetNonce() string {
-	if x != nil {
-		return x.Nonce
-	}
-	return ""
-}
-
 func (x *LoginWithWalletRequest) GetSignature() string {
 	if x != nil {
 		return x.Signature
@@ -426,16 +498,16 @@ func (x *LoginWithWalletRequest) GetIp() string {
 	return ""
 }
 
-func (x *LoginWithWalletRequest) GetPrimaryWalletAddress() string {
+func (x *LoginWithWalletRequest) GetWalletProvider() string {
 	if x != nil {
-		return x.PrimaryWalletAddress
+		return x.WalletProvider
 	}
 	return ""
 }
 
-func (x *LoginWithWalletRequest) GetWalletProvider() string {
+func (x *LoginWithWalletRequest) GetMessage() string {
 	if x != nil {
-		return x.WalletProvider
+		return x.Message
 	}
 	return ""
 }
@@ -780,24 +852,26 @@ var File_auth_v1_auth_proto protoreflect.FileDescriptor
 
 const file_auth_v1_auth_proto_rawDesc = "" +
 	"\n" +
-	"\x12auth/v1/auth.proto\x12\aauth.v1\x1a\x11auth/v1/mfa.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"d\n" +
-	"\x0fGetNonceRequest\x12Q\n" +
-	"\x15smart_account_address\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x152\x13^0x[0-9a-fA-F]{40}$R\x13smartAccountAddress\"c\n" +
-	"\x10GetNonceResponse\x12\x14\n" +
-	"\x05nonce\x18\x01 \x01(\tR\x05nonce\x129\n" +
+	"\x12auth/v1/auth.proto\x12\aauth.v1\x1a\x11auth/v1/mfa.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa2\x02\n" +
+	"\x1cCreateWalletChallengeRequest\x12Q\n" +
+	"\x15smart_account_address\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x152\x13^0x[0-9a-fA-F]{40}$R\x13smartAccountAddress\x12D\n" +
+	"\x0esigner_address\x18\x02 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x152\x13^0x[0-9a-fA-F]{40}$R\rsignerAddress\x12\x1f\n" +
+	"\x03uri\x18\x03 \x01(\tB\r\xe0A\x02\xbaH\ar\x05\x10\x01\x18\x80\x10R\x03uri\x12H\n" +
+	"\apurpose\x18\x04 \x01(\x0e2\x1f.auth.v1.WalletChallengePurposeB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\apurpose\"t\n" +
+	"\x1dCreateWalletChallengeResponse\x12\x18\n" +
+	"\amessage\x18\x01 \x01(\tR\amessage\x129\n" +
 	"\n" +
-	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\x8c\x03\n" +
+	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\xbb\x02\n" +
 	"\x16LoginWithWalletRequest\x12Q\n" +
-	"\x15smart_account_address\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x152\x13^0x[0-9a-fA-F]{40}$R\x13smartAccountAddress\x12#\n" +
-	"\x05nonce\x18\x02 \x01(\tB\r\xe0A\x02\xbaH\ar\x05\x10\x01\x18\x80\x02R\x05nonce\x12+\n" +
+	"\x15smart_account_address\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x152\x13^0x[0-9a-fA-F]{40}$R\x13smartAccountAddress\x12+\n" +
 	"\tsignature\x18\x03 \x01(\tB\r\xe0A\x02\xbaH\ar\x05\x10\x01\x18\x80@R\tsignature\x12'\n" +
 	"\n" +
 	"user_agent\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tuserAgent\x12\x1a\n" +
 	"\x02ip\x18\x05 \x01(\tB\n" +
-	"\xbaH\a\xd8\x01\x01r\x02\x18@R\x02ip\x12S\n" +
-	"\x16primary_wallet_address\x18\x06 \x01(\tB\x1d\xbaH\x1a\xd8\x01\x01r\x152\x13^0x[0-9a-fA-F]{40}$R\x14primaryWalletAddress\x123\n" +
+	"\xbaH\a\xd8\x01\x01r\x02\x18@R\x02ip\x123\n" +
 	"\x0fwallet_provider\x18\a \x01(\tB\n" +
-	"\xbaH\a\xd8\x01\x01r\x02\x18 R\x0ewalletProvider\"\xe2\x01\n" +
+	"\xbaH\a\xd8\x01\x01r\x02\x18 R\x0ewalletProvider\x12'\n" +
+	"\amessage\x18\b \x01(\tB\r\xe0A\x02\xbaH\ar\x05\x10\x01(\x80 R\amessage\"\xe2\x01\n" +
 	"\x17LoginWithWalletResponse\x12!\n" +
 	"\faccess_token\x18\x01 \x01(\tR\vaccessToken\x129\n" +
 	"\n" +
@@ -823,7 +897,11 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x04code\x18\x01 \x01(\x0e2\x16.auth.v1.AuthErrorCodeR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"\x14\n" +
 	"\x12AcceptTermsRequest\"\x15\n" +
-	"\x13AcceptTermsResponse*\x85\n" +
+	"\x13AcceptTermsResponse*X\n" +
+	"\x16WalletChallengePurpose\x12\x1c\n" +
+	"\x18WALLET_PROOF_UNSPECIFIED\x10\x00\x12\t\n" +
+	"\x05LOGIN\x10\x01\x12\x15\n" +
+	"\x11CREATE_SUBACCOUNT\x10\x02*\x85\n" +
 	"\n" +
 	"\rAuthErrorCode\x12\x14\n" +
 	"\x10AUTH_UNSPECIFIED\x10\x00\x12\x19\n" +
@@ -867,12 +945,12 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x1bAUTH_MFA_ELEVATION_REQUIRED\x10&\x12!\n" +
 	"\x1dAUTH_MFA_LAST_FACTOR_REQUIRED\x10'\x12\x17\n" +
 	"\x13AUTH_INTERNAL_ERROR\x10(\x12\x1b\n" +
-	"\x17AUTH_TERMS_NOT_ACCEPTED\x10)2\xda\a\n" +
-	"\vAuthService\x12\xbd\x01\n" +
-	"\bGetNonce\x12\x18.auth.v1.GetNonceRequest\x1a\x19.auth.v1.GetNonceResponse\"|\xbaG`\n" +
-	"\fAuth Service\x12\x16Get Wallet Login Nonce\x1a8Retrieve a short-lived nonce for wallet-signature login.\x82\xd3\xe4\x93\x02\x13:\x01*\"\x0e/v1/auth/nonce\x12\x88\x02\n" +
-	"\x0fLoginWithWallet\x12\x1f.auth.v1.LoginWithWalletRequest\x1a .auth.v1.LoginWithWalletResponse\"\xb1\x01\xbaG\x8d\x01\n" +
-	"\fAuth Service\x12\x11Login With Wallet\x1ajVerify a signed wallet nonce and issue an access token for the caller account. This does not accept terms.\x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/v1/auth/login/wallet\x12\xa5\x02\n" +
+	"\x17AUTH_TERMS_NOT_ACCEPTED\x10)2\xb6\b\n" +
+	"\vAuthService\x12\x87\x02\n" +
+	"\x15CreateWalletChallenge\x12%.auth.v1.CreateWalletChallengeRequest\x1a&.auth.v1.CreateWalletChallengeResponse\"\x9e\x01\xbaGw\n" +
+	"\fAuth Service\x12\x17Create Wallet Challenge\x1aNCreate a short-lived EIP-4361 message for wallet login or smart-account proof.\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/v1/auth/wallet-challenge\x12\x9a\x02\n" +
+	"\x0fLoginWithWallet\x12\x1f.auth.v1.LoginWithWalletRequest\x1a .auth.v1.LoginWithWalletResponse\"\xc3\x01\xbaG\x9f\x01\n" +
+	"\fAuth Service\x12\x11Login With Wallet\x1a|Verify a server-issued EIP-4361 wallet message and issue an access token for the caller account. This does not accept terms.\x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/v1/auth/login/wallet\x12\xa5\x02\n" +
 	"\vAcceptTerms\x12\x1b.auth.v1.AcceptTermsRequest\x1a\x1c.auth.v1.AcceptTermsResponse\"\xda\x01\xbaG\xb3\x01\n" +
 	"\fAuth Service\x12\fAccept Terms\x1a\x94\x01Explicitly accept the currently required terms for the caller's root account. Requires an interactive JWT without MFA. Repeated acceptance succeeds.\x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/v1/auth/terms/accept\x90\x02\x02\x12\xd7\x01\n" +
 	"\x02Me\x12\x12.auth.v1.MeRequest\x1a\x13.auth.v1.MeResponse\"\xa7\x01\xbaG\x90\x01\n" +
@@ -891,41 +969,43 @@ func file_auth_v1_auth_proto_rawDescGZIP() []byte {
 	return file_auth_v1_auth_proto_rawDescData
 }
 
-var file_auth_v1_auth_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_auth_v1_auth_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_auth_v1_auth_proto_goTypes = []any{
-	(AuthErrorCode)(0),              // 0: auth.v1.AuthErrorCode
-	(*GetNonceRequest)(nil),         // 1: auth.v1.GetNonceRequest
-	(*GetNonceResponse)(nil),        // 2: auth.v1.GetNonceResponse
-	(*LoginWithWalletRequest)(nil),  // 3: auth.v1.LoginWithWalletRequest
-	(*LoginWithWalletResponse)(nil), // 4: auth.v1.LoginWithWalletResponse
-	(*MeRequest)(nil),               // 5: auth.v1.MeRequest
-	(*MeResponse)(nil),              // 6: auth.v1.MeResponse
-	(*AuthErrorDetail)(nil),         // 7: auth.v1.AuthErrorDetail
-	(*AcceptTermsRequest)(nil),      // 8: auth.v1.AcceptTermsRequest
-	(*AcceptTermsResponse)(nil),     // 9: auth.v1.AcceptTermsResponse
-	(*timestamppb.Timestamp)(nil),   // 10: google.protobuf.Timestamp
-	(*SessionInfo)(nil),             // 11: auth.v1.SessionInfo
+	(WalletChallengePurpose)(0),           // 0: auth.v1.WalletChallengePurpose
+	(AuthErrorCode)(0),                    // 1: auth.v1.AuthErrorCode
+	(*CreateWalletChallengeRequest)(nil),  // 2: auth.v1.CreateWalletChallengeRequest
+	(*CreateWalletChallengeResponse)(nil), // 3: auth.v1.CreateWalletChallengeResponse
+	(*LoginWithWalletRequest)(nil),        // 4: auth.v1.LoginWithWalletRequest
+	(*LoginWithWalletResponse)(nil),       // 5: auth.v1.LoginWithWalletResponse
+	(*MeRequest)(nil),                     // 6: auth.v1.MeRequest
+	(*MeResponse)(nil),                    // 7: auth.v1.MeResponse
+	(*AuthErrorDetail)(nil),               // 8: auth.v1.AuthErrorDetail
+	(*AcceptTermsRequest)(nil),            // 9: auth.v1.AcceptTermsRequest
+	(*AcceptTermsResponse)(nil),           // 10: auth.v1.AcceptTermsResponse
+	(*timestamppb.Timestamp)(nil),         // 11: google.protobuf.Timestamp
+	(*SessionInfo)(nil),                   // 12: auth.v1.SessionInfo
 }
 var file_auth_v1_auth_proto_depIdxs = []int32{
-	10, // 0: auth.v1.GetNonceResponse.expires_at:type_name -> google.protobuf.Timestamp
-	10, // 1: auth.v1.LoginWithWalletResponse.expires_at:type_name -> google.protobuf.Timestamp
-	11, // 2: auth.v1.LoginWithWalletResponse.session:type_name -> auth.v1.SessionInfo
-	11, // 3: auth.v1.MeResponse.session:type_name -> auth.v1.SessionInfo
-	0,  // 4: auth.v1.AuthErrorDetail.code:type_name -> auth.v1.AuthErrorCode
-	1,  // 5: auth.v1.AuthService.GetNonce:input_type -> auth.v1.GetNonceRequest
-	3,  // 6: auth.v1.AuthService.LoginWithWallet:input_type -> auth.v1.LoginWithWalletRequest
-	8,  // 7: auth.v1.AuthService.AcceptTerms:input_type -> auth.v1.AcceptTermsRequest
-	5,  // 8: auth.v1.AuthService.Me:input_type -> auth.v1.MeRequest
-	2,  // 9: auth.v1.AuthService.GetNonce:output_type -> auth.v1.GetNonceResponse
-	4,  // 10: auth.v1.AuthService.LoginWithWallet:output_type -> auth.v1.LoginWithWalletResponse
-	9,  // 11: auth.v1.AuthService.AcceptTerms:output_type -> auth.v1.AcceptTermsResponse
-	6,  // 12: auth.v1.AuthService.Me:output_type -> auth.v1.MeResponse
-	9,  // [9:13] is the sub-list for method output_type
-	5,  // [5:9] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	0,  // 0: auth.v1.CreateWalletChallengeRequest.purpose:type_name -> auth.v1.WalletChallengePurpose
+	11, // 1: auth.v1.CreateWalletChallengeResponse.expires_at:type_name -> google.protobuf.Timestamp
+	11, // 2: auth.v1.LoginWithWalletResponse.expires_at:type_name -> google.protobuf.Timestamp
+	12, // 3: auth.v1.LoginWithWalletResponse.session:type_name -> auth.v1.SessionInfo
+	12, // 4: auth.v1.MeResponse.session:type_name -> auth.v1.SessionInfo
+	1,  // 5: auth.v1.AuthErrorDetail.code:type_name -> auth.v1.AuthErrorCode
+	2,  // 6: auth.v1.AuthService.CreateWalletChallenge:input_type -> auth.v1.CreateWalletChallengeRequest
+	4,  // 7: auth.v1.AuthService.LoginWithWallet:input_type -> auth.v1.LoginWithWalletRequest
+	9,  // 8: auth.v1.AuthService.AcceptTerms:input_type -> auth.v1.AcceptTermsRequest
+	6,  // 9: auth.v1.AuthService.Me:input_type -> auth.v1.MeRequest
+	3,  // 10: auth.v1.AuthService.CreateWalletChallenge:output_type -> auth.v1.CreateWalletChallengeResponse
+	5,  // 11: auth.v1.AuthService.LoginWithWallet:output_type -> auth.v1.LoginWithWalletResponse
+	10, // 12: auth.v1.AuthService.AcceptTerms:output_type -> auth.v1.AcceptTermsResponse
+	7,  // 13: auth.v1.AuthService.Me:output_type -> auth.v1.MeResponse
+	10, // [10:14] is the sub-list for method output_type
+	6,  // [6:10] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_auth_proto_init() }
@@ -940,7 +1020,7 @@ func file_auth_v1_auth_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_auth_proto_rawDesc), len(file_auth_v1_auth_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      2,
 			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,

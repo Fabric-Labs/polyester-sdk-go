@@ -33,8 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// AuthServiceGetNonceProcedure is the fully-qualified name of the AuthService's GetNonce RPC.
-	AuthServiceGetNonceProcedure = "/auth.v1.AuthService/GetNonce"
+	// AuthServiceCreateWalletChallengeProcedure is the fully-qualified name of the AuthService's
+	// CreateWalletChallenge RPC.
+	AuthServiceCreateWalletChallengeProcedure = "/auth.v1.AuthService/CreateWalletChallenge"
 	// AuthServiceLoginWithWalletProcedure is the fully-qualified name of the AuthService's
 	// LoginWithWallet RPC.
 	AuthServiceLoginWithWalletProcedure = "/auth.v1.AuthService/LoginWithWallet"
@@ -46,9 +47,9 @@ const (
 
 // AuthServiceClient is a client for the auth.v1.AuthService service.
 type AuthServiceClient interface {
-	// Get a short-lived login nonce.
-	GetNonce(context.Context, *connect.Request[v1.GetNonceRequest]) (*connect.Response[v1.GetNonceResponse], error)
-	// Verify a signed nonce and issue an access token. Login and account creation
+	// Create a short-lived EIP-4361 wallet challenge.
+	CreateWalletChallenge(context.Context, *connect.Request[v1.CreateWalletChallengeRequest]) (*connect.Response[v1.CreateWalletChallengeResponse], error)
+	// Verify a signed EIP-4361 message and issue an access token. Login and account creation
 	// do not accept terms; explicit consent is recorded only by AcceptTerms.
 	LoginWithWallet(context.Context, *connect.Request[v1.LoginWithWalletRequest]) (*connect.Response[v1.LoginWithWalletResponse], error)
 	// Explicitly accept the currently required terms for the caller's root account.
@@ -72,10 +73,10 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 	baseURL = strings.TrimRight(baseURL, "/")
 	authServiceMethods := v1.File_auth_v1_auth_proto.Services().ByName("AuthService").Methods()
 	return &authServiceClient{
-		getNonce: connect.NewClient[v1.GetNonceRequest, v1.GetNonceResponse](
+		createWalletChallenge: connect.NewClient[v1.CreateWalletChallengeRequest, v1.CreateWalletChallengeResponse](
 			httpClient,
-			baseURL+AuthServiceGetNonceProcedure,
-			connect.WithSchema(authServiceMethods.ByName("GetNonce")),
+			baseURL+AuthServiceCreateWalletChallengeProcedure,
+			connect.WithSchema(authServiceMethods.ByName("CreateWalletChallenge")),
 			connect.WithClientOptions(opts...),
 		),
 		loginWithWallet: connect.NewClient[v1.LoginWithWalletRequest, v1.LoginWithWalletResponse](
@@ -102,15 +103,15 @@ func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 
 // authServiceClient implements AuthServiceClient.
 type authServiceClient struct {
-	getNonce        *connect.Client[v1.GetNonceRequest, v1.GetNonceResponse]
-	loginWithWallet *connect.Client[v1.LoginWithWalletRequest, v1.LoginWithWalletResponse]
-	acceptTerms     *connect.Client[v1.AcceptTermsRequest, v1.AcceptTermsResponse]
-	me              *connect.Client[v1.MeRequest, v1.MeResponse]
+	createWalletChallenge *connect.Client[v1.CreateWalletChallengeRequest, v1.CreateWalletChallengeResponse]
+	loginWithWallet       *connect.Client[v1.LoginWithWalletRequest, v1.LoginWithWalletResponse]
+	acceptTerms           *connect.Client[v1.AcceptTermsRequest, v1.AcceptTermsResponse]
+	me                    *connect.Client[v1.MeRequest, v1.MeResponse]
 }
 
-// GetNonce calls auth.v1.AuthService.GetNonce.
-func (c *authServiceClient) GetNonce(ctx context.Context, req *connect.Request[v1.GetNonceRequest]) (*connect.Response[v1.GetNonceResponse], error) {
-	return c.getNonce.CallUnary(ctx, req)
+// CreateWalletChallenge calls auth.v1.AuthService.CreateWalletChallenge.
+func (c *authServiceClient) CreateWalletChallenge(ctx context.Context, req *connect.Request[v1.CreateWalletChallengeRequest]) (*connect.Response[v1.CreateWalletChallengeResponse], error) {
+	return c.createWalletChallenge.CallUnary(ctx, req)
 }
 
 // LoginWithWallet calls auth.v1.AuthService.LoginWithWallet.
@@ -130,9 +131,9 @@ func (c *authServiceClient) Me(ctx context.Context, req *connect.Request[v1.MeRe
 
 // AuthServiceHandler is an implementation of the auth.v1.AuthService service.
 type AuthServiceHandler interface {
-	// Get a short-lived login nonce.
-	GetNonce(context.Context, *connect.Request[v1.GetNonceRequest]) (*connect.Response[v1.GetNonceResponse], error)
-	// Verify a signed nonce and issue an access token. Login and account creation
+	// Create a short-lived EIP-4361 wallet challenge.
+	CreateWalletChallenge(context.Context, *connect.Request[v1.CreateWalletChallengeRequest]) (*connect.Response[v1.CreateWalletChallengeResponse], error)
+	// Verify a signed EIP-4361 message and issue an access token. Login and account creation
 	// do not accept terms; explicit consent is recorded only by AcceptTerms.
 	LoginWithWallet(context.Context, *connect.Request[v1.LoginWithWalletRequest]) (*connect.Response[v1.LoginWithWalletResponse], error)
 	// Explicitly accept the currently required terms for the caller's root account.
@@ -152,10 +153,10 @@ type AuthServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	authServiceMethods := v1.File_auth_v1_auth_proto.Services().ByName("AuthService").Methods()
-	authServiceGetNonceHandler := connect.NewUnaryHandler(
-		AuthServiceGetNonceProcedure,
-		svc.GetNonce,
-		connect.WithSchema(authServiceMethods.ByName("GetNonce")),
+	authServiceCreateWalletChallengeHandler := connect.NewUnaryHandler(
+		AuthServiceCreateWalletChallengeProcedure,
+		svc.CreateWalletChallenge,
+		connect.WithSchema(authServiceMethods.ByName("CreateWalletChallenge")),
 		connect.WithHandlerOptions(opts...),
 	)
 	authServiceLoginWithWalletHandler := connect.NewUnaryHandler(
@@ -179,8 +180,8 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 	)
 	return "/auth.v1.AuthService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case AuthServiceGetNonceProcedure:
-			authServiceGetNonceHandler.ServeHTTP(w, r)
+		case AuthServiceCreateWalletChallengeProcedure:
+			authServiceCreateWalletChallengeHandler.ServeHTTP(w, r)
 		case AuthServiceLoginWithWalletProcedure:
 			authServiceLoginWithWalletHandler.ServeHTTP(w, r)
 		case AuthServiceAcceptTermsProcedure:
@@ -196,8 +197,8 @@ func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption
 // UnimplementedAuthServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedAuthServiceHandler struct{}
 
-func (UnimplementedAuthServiceHandler) GetNonce(context.Context, *connect.Request[v1.GetNonceRequest]) (*connect.Response[v1.GetNonceResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.GetNonce is not implemented"))
+func (UnimplementedAuthServiceHandler) CreateWalletChallenge(context.Context, *connect.Request[v1.CreateWalletChallengeRequest]) (*connect.Response[v1.CreateWalletChallengeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.AuthService.CreateWalletChallenge is not implemented"))
 }
 
 func (UnimplementedAuthServiceHandler) LoginWithWallet(context.Context, *connect.Request[v1.LoginWithWalletRequest]) (*connect.Response[v1.LoginWithWalletResponse], error) {
