@@ -24,7 +24,7 @@ type ZipperFeeQuote struct {
 // QuoteZipperFee quotes Zipper network fee via feeFactory.getFee(uint16,address).
 //
 // Use the returned Fee (or a small buffer above it) as maxFee for
-// EncodeFundingWithdrawToChain. When env or rpc is nil, PolyesterTestnetEnvironment
+// EncodeFundingWithdrawToChain. When env or rpc is nil, PolyesterDevnetEnvironment
 // and its RPC URL are used.
 func QuoteZipperFee(
 	chainID uint16,
@@ -45,7 +45,7 @@ func QuoteZipperFee(
 	}
 
 	if env == nil {
-		env = &PolyesterTestnetEnvironment
+		env = &PolyesterDevnetEnvironment
 	}
 	client := rpc
 	if client == nil {

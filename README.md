@@ -136,6 +136,7 @@ import (
 func main() {
 	accountID := "YOUR_ACCOUNT_ID" // Profile → Account ID
 	client, err := polyester.New(polyester.Config{
+		Environment:      &polyester.DevnetEnvironment,
 		APIKeyID:         "ak_...",
 		APIPrivateKey:    "...", // 64-char hex secret from API key creation
 		DefaultAccountID: &accountID,
@@ -239,11 +240,17 @@ HTTP(S) proxy bases may include URL userinfo; `Config.String` and `GoString`
 omit URL userinfo and replace malformed URLs with a neutral placeholder so
 credentials are not exposed in formatted configuration.
 
+Pass `Config.Environment` so API, websocket, RPC, and contract pins stay
+together. `DevnetEnvironment` is the `New` default. `TestnetEnvironment` targets
+public testnet (`api-testnet.polyester.com`, chain `888169`). Custom / VPC
+endpoints use `CreateEnvironment` or `Environment.WithURLs`. `APIURL` / `WSURL`
+remain as transport overrides.
+
 **Scripts and local tests only:** `polyester.FromEnv()` loads
-`POLYESTER_API_KEY_ID`, `POLYESTER_API_PRIVATE_KEY`, and optionally
-`POLYESTER_ACCOUNT_ID`. It does not read API or WebSocket URL environment
-variables; pass an override function if you need non-default endpoints. This is
-a convenience helper, not the primary integration pattern.
+`POLYESTER_API_KEY_ID`, `POLYESTER_API_PRIVATE_KEY`, optionally
+`POLYESTER_ACCOUNT_ID`, `POLYESTER_ENV=devnet|testnet`, and optional
+`POLYESTER_API_URL` / `POLYESTER_WS_URL` overrides. This is a convenience
+helper, not the primary integration pattern.
 
 `FromEnv` enables spot and Zipper catalog hydration. The zero value used by
 `New` disables it, so set `HydrateCatalogs: true` explicitly when using decimal
@@ -511,7 +518,7 @@ SDK notes:
 ```go
 account, err := chain.NewSmartAccount(ownerPrivateKeyHex, nil, nil)
 call, err := chain.EncodeTradingGatewayDeposit(
-    chain.PolyesterTestnetEnvironment.Contracts.TradingGatewayAddress,
+    chain.PolyesterDevnetEnvironment.Contracts.TradingGatewayAddress,
     uAssetID, quantityScaled,
 )
 receipt, err := account.SendCalls([]chain.ChainCall{call}, true, 60*time.Second)
@@ -714,6 +721,9 @@ Credentialed live tests use `//go:build integration` and need API keys in
 `POLYESTER_ACCOUNT_ID`, `POLYESTER_API_URL`).
 
 ```bash
+# Named-environment pins vs live Zipper catalog (no API key)
+go test -tags=integration ./tests/integration -run 'PinsMatchLiveZipperCatalog'
+
 set -a && source .env && set +a
 make test-integration
 # A7 release gate (executed/skipped/failed counts + min executed floor):

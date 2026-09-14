@@ -82,7 +82,7 @@ func TestFundingToTradingUserOp(t *testing.T) {
 		t.Fatal(err)
 	}
 	call, err := chain.EncodeTradingGatewayDeposit(
-		chain.PolyesterTestnetEnvironment.Contracts.TradingGatewayAddress,
+		chain.PolyesterDevnetEnvironment.Contracts.TradingGatewayAddress,
 		asset.UAssetID,
 		qty,
 	)
@@ -181,7 +181,7 @@ func TestFundingWithdrawToChainUserOp(t *testing.T) {
 	fee, err := chain.QuoteZipperFee(
 		chainID,
 		variant.ZToken.Address,
-		chain.PolyesterTestnetEnvironment.Contracts.ZipperEndpointAddress,
+		chain.PolyesterDevnetEnvironment.Contracts.ZipperEndpointAddress,
 		nil,
 		nil,
 	)
@@ -198,7 +198,7 @@ func TestFundingWithdrawToChainUserOp(t *testing.T) {
 		t.Fatal(err)
 	}
 	call, err := chain.EncodeFundingWithdrawToChain(
-		chain.PolyesterTestnetEnvironment.Contracts.FundingAccountAddress,
+		chain.PolyesterDevnetEnvironment.Contracts.FundingAccountAddress,
 		chainID,
 		variant.ZToken.Address,
 		chain.EncodeWithdrawDestination(dest, caseSensitive),

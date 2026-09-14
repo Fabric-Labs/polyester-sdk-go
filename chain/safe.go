@@ -60,7 +60,7 @@ func PredictSafeAddressWithData(opts PredictSafeAddressOptions) (*PredictedSafe,
 	if len(opts.Owners) == 0 {
 		return nil, fmt.Errorf("owners must be non-empty")
 	}
-	env := PolyesterTestnetEnvironment
+	env := PolyesterDevnetEnvironment
 	if opts.Environment != nil {
 		env = *opts.Environment
 	}
