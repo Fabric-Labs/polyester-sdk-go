@@ -21,6 +21,15 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+func challengeRequest() *authv1.CreateWalletChallengeRequest {
+	return &authv1.CreateWalletChallengeRequest{
+		SmartAccountAddress: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		SignerAddress:       "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Uri:                 "https://example.test",
+		Purpose:             authv1.WalletChallengePurpose_LOGIN,
+	}
+}
+
 func TestAPIKeyInterceptorSetsSignatureHeaders(t *testing.T) {
 	_, private, err := ed25519.GenerateKey(nil)
 	if err != nil {
@@ -43,7 +52,7 @@ func TestAPIKeyInterceptorSetsSignatureHeaders(t *testing.T) {
 }
 
 func TestEncodeWireBodyJSONDiffersFromBinary(t *testing.T) {
-	msg := &authv1.GetNonceRequest{SmartAccountAddress: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+	msg := challengeRequest()
 	bin, err := encodeWireBody(msg, connectx.WireBinary)
 	if err != nil {
 		t.Fatal(err)
@@ -65,7 +74,7 @@ func TestAuthenticatedUnarySignsTransmittedCodecBytes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	req := &authv1.GetNonceRequest{SmartAccountAddress: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+	req := challengeRequest()
 	cases := []struct {
 		name        string
 		wire        connectx.WireFormat
@@ -105,7 +114,7 @@ func TestAuthenticatedUnarySignsTransmittedCodecBytes(t *testing.T) {
 					_, _ = w.Write([]byte("{}"))
 					return
 				}
-				out, err := proto.Marshal(&authv1.GetNonceResponse{})
+				out, err := proto.Marshal(&authv1.CreateWalletChallengeResponse{})
 				if err != nil {
 					t.Errorf("marshal response: %v", err)
 					http.Error(w, "marshal", http.StatusInternalServerError)
@@ -121,7 +130,7 @@ func TestAuthenticatedUnarySignsTransmittedCodecBytes(t *testing.T) {
 				WireFormat: tc.wire,
 			}, &auth.Credentials{KeyID: "ak_test", PrivateKey: private}, srv.Client())
 			client := authv1connect.NewAuthServiceClient(factory.HTTP, factory.Config.APIURL, factory.ConnectOptions(true)...)
-			if _, err := client.GetNonce(context.Background(), connect.NewRequest(req)); err != nil {
+			if _, err := client.CreateWalletChallenge(context.Background(), connect.NewRequest(req)); err != nil {
 				t.Fatal(err)
 			}
 
@@ -135,7 +144,7 @@ func TestAuthenticatedUnarySignsTransmittedCodecBytes(t *testing.T) {
 			if gotKeyID != "ak_test" {
 				t.Fatalf("key id %q", gotKeyID)
 			}
-			if gotPath != authv1connect.AuthServiceGetNonceProcedure {
+			if gotPath != authv1connect.AuthServiceCreateWalletChallengeProcedure {
 				t.Fatalf("path %q", gotPath)
 			}
 
@@ -183,9 +192,7 @@ func TestSigningFailureMapsToAuthError(t *testing.T) {
 		srv.URL,
 		connect.WithInterceptors(interceptor),
 	)
-	_, callErr := client.GetNonce(context.Background(), connect.NewRequest(&authv1.GetNonceRequest{
-		SmartAccountAddress: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-	}))
+	_, callErr := client.CreateWalletChallenge(context.Background(), connect.NewRequest(challengeRequest()))
 	if callErr == nil {
 		t.Fatal("expected signing failure")
 	}
