@@ -19,8 +19,25 @@ func TestNewUsesDefaults(t *testing.T) {
 	if client.APIURL != DefaultAPIURL {
 		t.Fatalf("api url: %s", client.APIURL)
 	}
+	if client.Environment.Name != DevnetEnvironment.Name {
+		t.Fatalf("environment=%s", client.Environment.Name)
+	}
 	if client.Orderbook == nil || client.MarketData == nil {
 		t.Fatal("expected service tree")
+	}
+}
+
+func TestNewUsesNamedEnvironment(t *testing.T) {
+	client, err := New(Config{Environment: &TestnetEnvironment, HydrateCatalogs: false})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+	if client.APIURL != TestnetEnvironment.APIURL {
+		t.Fatalf("api url: %s", client.APIURL)
+	}
+	if client.Environment.ChainID != 888169 {
+		t.Fatalf("chain=%d", client.Environment.ChainID)
 	}
 }
 

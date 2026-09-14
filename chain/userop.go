@@ -58,7 +58,7 @@ type SmartAccount struct {
 }
 
 // NewSmartAccount creates a SmartAccount from an owner private key hex.
-// environment may be nil (defaults to PolyesterTestnetEnvironment).
+// environment may be nil (defaults to PolyesterDevnetEnvironment).
 // saltNonce may be nil (defaults to 0).
 func NewSmartAccount(ownerPrivateKey string, environment *PolyesterChainEnvironment, saltNonce *big.Int) (*SmartAccount, error) {
 	keyHex := strings.TrimPrefix(strings.TrimSpace(ownerPrivateKey), "0x")
@@ -70,7 +70,7 @@ func NewSmartAccount(ownerPrivateKey string, environment *PolyesterChainEnvironm
 	if err != nil {
 		return nil, fmt.Errorf("invalid owner private key: %w", err)
 	}
-	env := PolyesterTestnetEnvironment
+	env := PolyesterDevnetEnvironment
 	if environment != nil {
 		env = *environment
 	}

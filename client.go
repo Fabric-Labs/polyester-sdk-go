@@ -12,19 +12,21 @@ import (
 
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
+	"github.com/Fabric-Labs/polyester-sdk-go/chain"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"github.com/Fabric-Labs/polyester-sdk-go/realtime"
 	"github.com/Fabric-Labs/polyester-sdk-go/services"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
 )
 
-const (
-	DefaultAPIURL = "https://api-devnet.polyester.ai"
-	DefaultWSURL  = "wss://api-devnet.polyester.ai"
+var (
+	DefaultAPIURL = chain.PolyesterDevnetEnvironment.APIURL
+	DefaultWSURL  = chain.PolyesterDevnetEnvironment.WebsocketURL
 )
 
 // Config configures a Polyester client.
 type Config struct {
+	Environment         *chain.PolyesterEnvironment
 	APIKeyID            string
 	APIPrivateKey       string
 	APIURL              string
@@ -43,9 +45,13 @@ func (c Config) String() string {
 	if key != "" {
 		key = "[REDACTED]"
 	}
+	envName := ""
+	if c.Environment != nil {
+		envName = c.Environment.Name
+	}
 	return fmt.Sprintf(
-		"Config{APIKeyID:%q APIPrivateKey:%q APIURL:%q WSURL:%q Timeout:%s WireFormat:%q HydrateCatalogs:%t}",
-		c.APIKeyID, key, redactURLUserinfo(c.APIURL), redactURLUserinfo(c.WSURL), c.Timeout, c.WireFormat, c.HydrateCatalogs,
+		"Config{Environment:%q APIKeyID:%q APIPrivateKey:%q APIURL:%q WSURL:%q Timeout:%s WireFormat:%q HydrateCatalogs:%t}",
+		envName, c.APIKeyID, key, redactURLUserinfo(c.APIURL), redactURLUserinfo(c.WSURL), c.Timeout, c.WireFormat, c.HydrateCatalogs,
 	)
 }
 
@@ -72,6 +78,7 @@ func redactURLUserinfo(raw string) string {
 
 // Client is the root Polyester SDK entrypoint.
 type Client struct {
+	Environment         chain.PolyesterEnvironment
 	APIURL              string
 	WSURL               string
 	DefaultSubAccountID *string
@@ -120,14 +127,22 @@ type Client struct {
 
 // New creates a Polyester client.
 func New(cfg Config) (*Client, error) {
+	env := chain.PolyesterDevnetEnvironment
+	if cfg.Environment != nil {
+		parsed, err := chain.ParsePolyesterEnvironment(*cfg.Environment)
+		if err != nil {
+			return nil, err
+		}
+		env = parsed
+	}
 	if cfg.APIURL == "" {
-		cfg.APIURL = DefaultAPIURL
+		cfg.APIURL = env.APIURL
 	}
 	if err := validateAPIBaseURL(cfg.APIURL); err != nil {
 		return nil, err
 	}
 	if cfg.WSURL == "" {
-		cfg.WSURL = DefaultWSURL
+		cfg.WSURL = env.WebsocketURL
 	}
 	if cfg.Timeout <= 0 {
 		cfg.Timeout = 10 * time.Second
@@ -156,6 +171,7 @@ func New(cfg Config) (*Client, error) {
 
 	catalogHydrationDone := make(chan struct{})
 	client := &Client{
+		Environment:          env,
 		APIURL:               cfg.APIURL,
 		WSURL:                cfg.WSURL,
 		DefaultSubAccountID:  cfg.DefaultSubAccountID,
@@ -243,6 +259,19 @@ func FromEnv(overrides ...func(*Config)) (*Client, error) {
 	}
 	if accountID := auth.AccountIDFromEnv(); accountID != "" {
 		cfg.DefaultAccountID = &accountID
+	}
+	if envName := strings.TrimSpace(os.Getenv(chain.EnvNameEnv)); envName != "" {
+		env, err := chain.EnvironmentFromName(envName)
+		if err != nil {
+			return nil, err
+		}
+		cfg.Environment = &env
+	}
+	if apiURL := strings.TrimSpace(os.Getenv("POLYESTER_API_URL")); apiURL != "" {
+		cfg.APIURL = apiURL
+	}
+	if wsURL := strings.TrimSpace(os.Getenv("POLYESTER_WS_URL")); wsURL != "" {
+		cfg.WSURL = wsURL
 	}
 	for _, override := range overrides {
 		if override != nil {
