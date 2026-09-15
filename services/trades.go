@@ -30,12 +30,48 @@ func (s *TradesService) client() ordersv1connect.OrdersReadServiceClient {
 	return ordersv1connect.NewOrdersReadServiceClient(s.transport.HTTP, s.transport.Config.APIURL, s.transport.ConnectOptions(true)...)
 }
 
-func (s *TradesService) List(ctx context.Context, account AccountScope, subAccountID, symbol *string, symbolID *uint32, limit int, pageToken *string, afterMatchID *uint64) (models.UserTradesList, error) {
+func (s *TradesService) List(ctx context.Context, account AccountScope, subAccountID, symbol *string, symbolID *uint32, limit int, pageToken *string, afterMatchID *uint64, opts ...models.ListUserTradesOptions) (models.UserTradesList, error) {
+	var options models.ListUserTradesOptions
+	if len(opts) > 1 {
+		return models.UserTradesList{}, &errors.ValidationError{Msg: "trades.List accepts at most one ListUserTradesOptions value"}
+	}
+	if len(opts) == 1 {
+		options = opts[0]
+	}
+	if options.OrderID != nil && options.LineageID != nil {
+		return models.UserTradesList{}, &errors.ValidationError{Msg: "trades.List order_id and lineage_id are mutually exclusive"}
+	}
+	if options.ThroughGeneration != nil && options.LineageID == nil {
+		return models.UserTradesList{}, &errors.ValidationError{Msg: "trades.List through_generation requires lineage_id"}
+	}
+	if options.ThroughGeneration != nil && *options.ThroughGeneration == 0 {
+		return models.UserTradesList{}, &errors.ValidationError{Msg: "trades.List through_generation must be a positive integer"}
+	}
 	parsedLimit, err := PaginationLimit(limit, "limit")
 	if err != nil {
 		return models.UserTradesList{}, err
 	}
 	req := &orderv1.GetUserTradesRequest{Limit: uint32Ptr(parsedLimit)}
+	if options.OrderID != nil {
+		id, err := codecs.IDToInt(*options.OrderID, "order_id")
+		if err != nil {
+			return models.UserTradesList{}, err
+		}
+		req.ExecutionScope = &orderv1.GetUserTradesRequest_OrderId{OrderId: id}
+	}
+	if options.LineageID != nil {
+		id, err := codecs.IDToInt(*options.LineageID, "lineage_id")
+		if err != nil {
+			return models.UserTradesList{}, err
+		}
+		req.ExecutionScope = &orderv1.GetUserTradesRequest_LineageId{LineageId: id}
+	}
+	if options.ThroughGeneration != nil {
+		req.ThroughGeneration = options.ThroughGeneration
+	}
+	if options.IncludeTransfers {
+		req.IncludeTransfers = true
+	}
 	if afterMatchID != nil {
 		resolved, err := ResolveSymbolID(s.catalogs, symbol, symbolID, "trades.list")
 		if err != nil {

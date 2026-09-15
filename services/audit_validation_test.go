@@ -184,3 +184,43 @@ func TestPairConstraintsTreatZeroOptionalRulesAsUnset(t *testing.T) {
 		t.Fatalf("scale hydration broken with zero optional minima: scale=%d ok=%v", scale, ok)
 	}
 }
+
+func TestTradesListOrderAndLineageAreMutuallyExclusive(t *testing.T) {
+	service := NewTradesService(nil, auditCatalog(t), nil, nil, nil)
+	orderID, lineageID := "1", "2"
+	_, err := service.List(context.Background(), nil, nil, nil, nil, 5, nil, nil, models.ListUserTradesOptions{
+		OrderID:   &orderID,
+		LineageID: &lineageID,
+	})
+	if err == nil {
+		t.Fatal("expected mutually exclusive validation error")
+	}
+	var validation *sdkerrors.ValidationError
+	if !errors.As(err, &validation) {
+		t.Fatalf("err=%v", err)
+	}
+}
+
+func TestTradesListThroughGenerationRequiresLineageID(t *testing.T) {
+	service := NewTradesService(nil, auditCatalog(t), nil, nil, nil)
+	gen := uint32(1)
+	_, err := service.List(context.Background(), nil, nil, nil, nil, 5, nil, nil, models.ListUserTradesOptions{
+		ThroughGeneration: &gen,
+	})
+	if err == nil {
+		t.Fatal("expected through_generation validation error")
+	}
+}
+
+func TestOrdersGetRejectsPaginationWithoutExecutionHistory(t *testing.T) {
+	service := NewOrdersService(nil, auditCatalog(t), nil, nil, nil, nil, nil)
+	include := false
+	limit := uint32(10)
+	_, err := service.Get(context.Background(), nil, models.OrderKeyByID("11"), nil, false, false, models.GetOrderOptions{
+		IncludeExecutionHistory: &include,
+		Limit:                   &limit,
+	})
+	if err == nil {
+		t.Fatal("expected pagination validation error")
+	}
+}

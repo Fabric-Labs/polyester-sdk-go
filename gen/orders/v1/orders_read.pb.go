@@ -766,6 +766,62 @@ func (x *AttachedRisk) GetOco() bool {
 	return false
 }
 
+// OrderLineage identifies a logical order and one of its accepted generations.
+type OrderLineage struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable logical-order ID: the first generation's public order ID.
+	// Replace preserves this ID; an independent new order starts a new lineage.
+	Id uint64 `protobuf:"fixed64,1,opt,name=id,proto3" json:"id,omitempty"`
+	// One-based replacement generation, distinct from per-order state version.
+	Generation    uint32 `protobuf:"varint,2,opt,name=generation,proto3" json:"generation,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OrderLineage) Reset() {
+	*x = OrderLineage{}
+	mi := &file_orders_v1_orders_read_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OrderLineage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OrderLineage) ProtoMessage() {}
+
+func (x *OrderLineage) ProtoReflect() protoreflect.Message {
+	mi := &file_orders_v1_orders_read_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OrderLineage.ProtoReflect.Descriptor instead.
+func (*OrderLineage) Descriptor() ([]byte, []int) {
+	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *OrderLineage) GetId() uint64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *OrderLineage) GetGeneration() uint32 {
+	if x != nil {
+		return x.Generation
+	}
+	return 0
+}
+
 // Order is the Connect-facing order view with compact binary fields.
 type Order struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -793,13 +849,14 @@ type Order struct {
 	// Current accepted total order quantity, updated by successful modifies,
 	// scaled by the pair's base_quantity_scale from GetSpotConfig for symbol_id.
 	OrigQtyScaled int64 `protobuf:"varint,12,opt,name=orig_qty_scaled,json=origQtyScaled,proto3" json:"orig_qty_scaled,omitempty"`
-	// Cumulative filled quantity scaled by the pair's base_quantity_scale from
-	// GetSpotConfig for symbol_id.
+	// Cumulative filled quantity across the lineage through this generation,
+	// scaled by the pair's base_quantity_scale from GetSpotConfig for symbol_id.
 	CumQtyScaled int64 `protobuf:"varint,13,opt,name=cum_qty_scaled,json=cumQtyScaled,proto3" json:"cum_qty_scaled,omitempty"`
 	// Remaining working quantity scaled by the pair's base_quantity_scale from
 	// GetSpotConfig for symbol_id. Zero for terminal orders.
 	LeavesQtyScaled int64 `protobuf:"varint,20,opt,name=leaves_qty_scaled,json=leavesQtyScaled,proto3" json:"leaves_qty_scaled,omitempty"`
-	// Average fill price in quote units scaled by 1e6. Zero if no fills.
+	// Average execution price across the lineage through this generation,
+	// in quote units scaled by 1e6. Zero if no fills.
 	AvgPriceTicks int64 `protobuf:"varint,14,opt,name=avg_price_ticks,json=avgPriceTicks,proto3" json:"avg_price_ticks,omitempty"`
 	// Limit price in quote units scaled by 1e6. Zero for MARKET orders.
 	PriceTicks int64 `protobuf:"varint,15,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
@@ -833,13 +890,15 @@ type Order struct {
 	// quote_quantity_scale from GetSpotConfig. Present only when that sizing
 	// method was submitted.
 	SubmittedMaxQuoteDebitScaled *int64 `protobuf:"varint,28,opt,name=submitted_max_quote_debit_scaled,json=submittedMaxQuoteDebitScaled,proto3,oneof" json:"submitted_max_quote_debit_scaled,omitempty"`
-	unknownFields                protoimpl.UnknownFields
-	sizeCache                    protoimpl.SizeCache
+	// Logical-order identity and requested generation. Always populated by order reads.
+	Lineage       *OrderLineage `protobuf:"bytes,31,opt,name=lineage,proto3" json:"lineage,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Order) Reset() {
 	*x = Order{}
-	mi := &file_orders_v1_orders_read_proto_msgTypes[6]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -851,7 +910,7 @@ func (x *Order) String() string {
 func (*Order) ProtoMessage() {}
 
 func (x *Order) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_read_proto_msgTypes[6]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -864,7 +923,7 @@ func (x *Order) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Order.ProtoReflect.Descriptor instead.
 func (*Order) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{6}
+	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Order) GetOrderId() uint64 {
@@ -1056,6 +1115,13 @@ func (x *Order) GetSubmittedMaxQuoteDebitScaled() int64 {
 	return 0
 }
 
+func (x *Order) GetLineage() *OrderLineage {
+	if x != nil {
+		return x.Lineage
+	}
+	return nil
+}
+
 // UserTrade is the Connect-facing per-user trade fill view.
 type UserTrade struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1083,14 +1149,17 @@ type UserTrade struct {
 	// Execution timestamp in nanoseconds since epoch.
 	TsNs uint64 `protobuf:"varint,13,opt,name=ts_ns,json=tsNs,proto3" json:"ts_ns,omitempty"`
 	// Whether this fill earned a rebate instead of paying a fee.
-	FeeIsRebate   bool `protobuf:"varint,14,opt,name=fee_is_rebate,json=feeIsRebate,proto3" json:"fee_is_rebate,omitempty"`
+	FeeIsRebate bool `protobuf:"varint,14,opt,name=fee_is_rebate,json=feeIsRebate,proto3" json:"fee_is_rebate,omitempty"`
+	// Logical-order identity and the generation that executed this fill.
+	// Always populated by execution reads; order_id retains its original identity.
+	Lineage       *OrderLineage `protobuf:"bytes,17,opt,name=lineage,proto3" json:"lineage,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UserTrade) Reset() {
 	*x = UserTrade{}
-	mi := &file_orders_v1_orders_read_proto_msgTypes[7]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1102,7 +1171,7 @@ func (x *UserTrade) String() string {
 func (*UserTrade) ProtoMessage() {}
 
 func (x *UserTrade) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_read_proto_msgTypes[7]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1115,7 +1184,7 @@ func (x *UserTrade) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserTrade.ProtoReflect.Descriptor instead.
 func (*UserTrade) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{7}
+	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *UserTrade) GetSymbolId() uint32 {
@@ -1202,11 +1271,20 @@ func (x *UserTrade) GetFeeIsRebate() bool {
 	return false
 }
 
+func (x *UserTrade) GetLineage() *OrderLineage {
+	if x != nil {
+		return x.Lineage
+	}
+	return nil
+}
+
 // OrderTransfer is the Connect-facing minimal per-leg transfer view.
 type OrderTransfer struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Match identifier that linked this transfer to an execution.
+	// Match identifier that linked this transfer to an execution, scoped by symbol_id.
 	MatchId uint64 `protobuf:"varint,1,opt,name=match_id,json=matchId,proto3" json:"match_id,omitempty"`
+	// Market of the execution; together with match_id identifies its match.
+	SymbolId uint32 `protobuf:"varint,10,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Asset identifier for the transferred asset.
 	AssetId uint32 `protobuf:"varint,2,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
 	// Transfer amount at fixed 18-decimal ledger scale.
@@ -1227,7 +1305,7 @@ type OrderTransfer struct {
 
 func (x *OrderTransfer) Reset() {
 	*x = OrderTransfer{}
-	mi := &file_orders_v1_orders_read_proto_msgTypes[8]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1239,7 +1317,7 @@ func (x *OrderTransfer) String() string {
 func (*OrderTransfer) ProtoMessage() {}
 
 func (x *OrderTransfer) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_read_proto_msgTypes[8]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1252,12 +1330,19 @@ func (x *OrderTransfer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OrderTransfer.ProtoReflect.Descriptor instead.
 func (*OrderTransfer) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{8}
+	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *OrderTransfer) GetMatchId() uint64 {
 	if x != nil {
 		return x.MatchId
+	}
+	return 0
+}
+
+func (x *OrderTransfer) GetSymbolId() uint32 {
+	if x != nil {
+		return x.SymbolId
 	}
 	return 0
 }
@@ -1339,7 +1424,7 @@ type GetOpenOrdersRequest struct {
 
 func (x *GetOpenOrdersRequest) Reset() {
 	*x = GetOpenOrdersRequest{}
-	mi := &file_orders_v1_orders_read_proto_msgTypes[9]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1351,7 +1436,7 @@ func (x *GetOpenOrdersRequest) String() string {
 func (*GetOpenOrdersRequest) ProtoMessage() {}
 
 func (x *GetOpenOrdersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_read_proto_msgTypes[9]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1364,7 +1449,7 @@ func (x *GetOpenOrdersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOpenOrdersRequest.ProtoReflect.Descriptor instead.
 func (*GetOpenOrdersRequest) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{9}
+	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetOpenOrdersRequest) GetSubaccountId() uint64 {
@@ -1436,7 +1521,7 @@ type GetOpenOrdersResponse struct {
 
 func (x *GetOpenOrdersResponse) Reset() {
 	*x = GetOpenOrdersResponse{}
-	mi := &file_orders_v1_orders_read_proto_msgTypes[10]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1448,7 +1533,7 @@ func (x *GetOpenOrdersResponse) String() string {
 func (*GetOpenOrdersResponse) ProtoMessage() {}
 
 func (x *GetOpenOrdersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_read_proto_msgTypes[10]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1461,7 +1546,7 @@ func (x *GetOpenOrdersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOpenOrdersResponse.ProtoReflect.Descriptor instead.
 func (*GetOpenOrdersResponse) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{10}
+	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetOpenOrdersResponse) GetOrders() []*Order {
@@ -1512,7 +1597,7 @@ type GetOrderHistoryRequest struct {
 
 func (x *GetOrderHistoryRequest) Reset() {
 	*x = GetOrderHistoryRequest{}
-	mi := &file_orders_v1_orders_read_proto_msgTypes[11]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1524,7 +1609,7 @@ func (x *GetOrderHistoryRequest) String() string {
 func (*GetOrderHistoryRequest) ProtoMessage() {}
 
 func (x *GetOrderHistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_read_proto_msgTypes[11]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1537,7 +1622,7 @@ func (x *GetOrderHistoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOrderHistoryRequest.ProtoReflect.Descriptor instead.
 func (*GetOrderHistoryRequest) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{11}
+	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetOrderHistoryRequest) GetSubaccountId() uint64 {
@@ -1630,7 +1715,7 @@ type GetOrderHistoryResponse struct {
 
 func (x *GetOrderHistoryResponse) Reset() {
 	*x = GetOrderHistoryResponse{}
-	mi := &file_orders_v1_orders_read_proto_msgTypes[12]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1642,7 +1727,7 @@ func (x *GetOrderHistoryResponse) String() string {
 func (*GetOrderHistoryResponse) ProtoMessage() {}
 
 func (x *GetOrderHistoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_read_proto_msgTypes[12]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1655,7 +1740,7 @@ func (x *GetOrderHistoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOrderHistoryResponse.ProtoReflect.Descriptor instead.
 func (*GetOrderHistoryResponse) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{12}
+	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetOrderHistoryResponse) GetOrders() []*Order {
@@ -1694,14 +1779,26 @@ type GetUserTradesRequest struct {
 	// Return only durable fills whose per-symbol match ID is greater than this
 	// value. Subscribe to the execution WebSocket before calling this method and
 	// de-duplicate overlapping results by (symbol_id, match_id, order_id).
-	AfterMatchId  *uint64 `protobuf:"varint,14,opt,name=after_match_id,json=afterMatchId,proto3,oneof" json:"after_match_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	AfterMatchId *uint64 `protobuf:"varint,14,opt,name=after_match_id,json=afterMatchId,proto3,oneof" json:"after_match_id,omitempty"`
+	// Optional execution scope. Omitting it returns all matching account fills.
+	//
+	// Types that are valid to be assigned to ExecutionScope:
+	//
+	//	*GetUserTradesRequest_OrderId
+	//	*GetUserTradesRequest_LineageId
+	ExecutionScope isGetUserTradesRequest_ExecutionScope `protobuf_oneof:"execution_scope"`
+	// Inclusive generation ceiling. Does not freeze an actively filling generation.
+	ThroughGeneration *uint32 `protobuf:"varint,17,opt,name=through_generation,json=throughGeneration,proto3,oneof" json:"through_generation,omitempty"`
+	// Include account settlement legs linked to matches on this page.
+	// Legs may repeat across pages when two fills share a match; deduplicate by tx_id.
+	IncludeTransfers bool `protobuf:"varint,18,opt,name=include_transfers,json=includeTransfers,proto3" json:"include_transfers,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *GetUserTradesRequest) Reset() {
 	*x = GetUserTradesRequest{}
-	mi := &file_orders_v1_orders_read_proto_msgTypes[13]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1713,7 +1810,7 @@ func (x *GetUserTradesRequest) String() string {
 func (*GetUserTradesRequest) ProtoMessage() {}
 
 func (x *GetUserTradesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_read_proto_msgTypes[13]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1726,7 +1823,7 @@ func (x *GetUserTradesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserTradesRequest.ProtoReflect.Descriptor instead.
 func (*GetUserTradesRequest) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{13}
+	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetUserTradesRequest) GetSubaccountId() uint64 {
@@ -1785,20 +1882,80 @@ func (x *GetUserTradesRequest) GetAfterMatchId() uint64 {
 	return 0
 }
 
+func (x *GetUserTradesRequest) GetExecutionScope() isGetUserTradesRequest_ExecutionScope {
+	if x != nil {
+		return x.ExecutionScope
+	}
+	return nil
+}
+
+func (x *GetUserTradesRequest) GetOrderId() uint64 {
+	if x != nil {
+		if x, ok := x.ExecutionScope.(*GetUserTradesRequest_OrderId); ok {
+			return x.OrderId
+		}
+	}
+	return 0
+}
+
+func (x *GetUserTradesRequest) GetLineageId() uint64 {
+	if x != nil {
+		if x, ok := x.ExecutionScope.(*GetUserTradesRequest_LineageId); ok {
+			return x.LineageId
+		}
+	}
+	return 0
+}
+
+func (x *GetUserTradesRequest) GetThroughGeneration() uint32 {
+	if x != nil && x.ThroughGeneration != nil {
+		return *x.ThroughGeneration
+	}
+	return 0
+}
+
+func (x *GetUserTradesRequest) GetIncludeTransfers() bool {
+	if x != nil {
+		return x.IncludeTransfers
+	}
+	return false
+}
+
+type isGetUserTradesRequest_ExecutionScope interface {
+	isGetUserTradesRequest_ExecutionScope()
+}
+
+type GetUserTradesRequest_OrderId struct {
+	// Exactly this physical order's executions; never includes predecessors.
+	OrderId uint64 `protobuf:"fixed64,15,opt,name=order_id,json=orderId,proto3,oneof"`
+}
+
+type GetUserTradesRequest_LineageId struct {
+	// Executions across this logical order's accepted generations.
+	LineageId uint64 `protobuf:"fixed64,16,opt,name=lineage_id,json=lineageId,proto3,oneof"`
+}
+
+func (*GetUserTradesRequest_OrderId) isGetUserTradesRequest_ExecutionScope() {}
+
+func (*GetUserTradesRequest_LineageId) isGetUserTradesRequest_ExecutionScope() {}
+
 // GetUserTradesResponse returns user trade fills and an optional next-page cursor.
 type GetUserTradesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Trades ordered newest-first.
+	// Trades ordered by timestamp, symbol, match and physical order, descending.
+	// Projection is eventual: an empty page is not proof of order-state reconciliation.
 	Trades []*UserTrade `protobuf:"bytes,1,rep,name=trades,proto3" json:"trades,omitempty"`
 	// Opaque cursor for the next page. Empty when no more results exist.
 	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	// Settlement legs for matches represented on this page, when requested.
+	Transfers     []*OrderTransfer `protobuf:"bytes,3,rep,name=transfers,proto3" json:"transfers,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetUserTradesResponse) Reset() {
 	*x = GetUserTradesResponse{}
-	mi := &file_orders_v1_orders_read_proto_msgTypes[14]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1810,7 +1967,7 @@ func (x *GetUserTradesResponse) String() string {
 func (*GetUserTradesResponse) ProtoMessage() {}
 
 func (x *GetUserTradesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_read_proto_msgTypes[14]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1823,7 +1980,7 @@ func (x *GetUserTradesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserTradesResponse.ProtoReflect.Descriptor instead.
 func (*GetUserTradesResponse) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{14}
+	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetUserTradesResponse) GetTrades() []*UserTrade {
@@ -1840,7 +1997,14 @@ func (x *GetUserTradesResponse) GetNextPageToken() string {
 	return ""
 }
 
-// GetOrderRequest retrieves a single order and related execution context.
+func (x *GetUserTradesResponse) GetTransfers() []*OrderTransfer {
+	if x != nil {
+		return x.Transfers
+	}
+	return nil
+}
+
+// GetOrderRequest retrieves one physical order and a bounded page of its lineage executions.
 type GetOrderRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target sub-account numeric ID. When omitted, uses caller's root account.
@@ -1856,13 +2020,21 @@ type GetOrderRequest struct {
 	IncludeAttachedRisk *bool `protobuf:"varint,10,opt,name=include_attached_risk,json=includeAttachedRisk,proto3,oneof" json:"include_attached_risk,omitempty"`
 	// Include attached-risk state details in response.order (defaults to false when unset).
 	IncludeAttachedRiskState *bool `protobuf:"varint,11,opt,name=include_attached_risk_state,json=includeAttachedRiskState,proto3,oneof" json:"include_attached_risk_state,omitempty"`
-	unknownFields            protoimpl.UnknownFields
-	sizeCache                protoimpl.SizeCache
+	// Include a page of lineage trades and their settlement transfers (default true).
+	// Set false for state-only polling; limit and page_token must then be omitted.
+	IncludeExecutionHistory *bool `protobuf:"varint,12,opt,name=include_execution_history,json=includeExecutionHistory,proto3,oneof" json:"include_execution_history,omitempty"`
+	// Maximum executions to return (1-1000, default 100).
+	Limit *uint32 `protobuf:"varint,13,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
+	// Execution cursor from this order's previous response. Use order_id rather
+	// than a reused client_order_id to keep the requested generation stable.
+	PageToken     string `protobuf:"bytes,14,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetOrderRequest) Reset() {
 	*x = GetOrderRequest{}
-	mi := &file_orders_v1_orders_read_proto_msgTypes[15]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1874,7 +2046,7 @@ func (x *GetOrderRequest) String() string {
 func (*GetOrderRequest) ProtoMessage() {}
 
 func (x *GetOrderRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_read_proto_msgTypes[15]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1887,7 +2059,7 @@ func (x *GetOrderRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOrderRequest.ProtoReflect.Descriptor instead.
 func (*GetOrderRequest) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{15}
+	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GetOrderRequest) GetSubaccountId() uint64 {
@@ -1936,6 +2108,27 @@ func (x *GetOrderRequest) GetIncludeAttachedRiskState() bool {
 	return false
 }
 
+func (x *GetOrderRequest) GetIncludeExecutionHistory() bool {
+	if x != nil && x.IncludeExecutionHistory != nil {
+		return *x.IncludeExecutionHistory
+	}
+	return false
+}
+
+func (x *GetOrderRequest) GetLimit() uint32 {
+	if x != nil && x.Limit != nil {
+		return *x.Limit
+	}
+	return 0
+}
+
+func (x *GetOrderRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
 type isGetOrderRequest_Key interface {
 	isGetOrderRequest_Key()
 }
@@ -1954,22 +2147,29 @@ func (*GetOrderRequest_OrderId) isGetOrderRequest_Key() {}
 
 func (*GetOrderRequest_ClientOrderId) isGetOrderRequest_Key() {}
 
-// GetOrderResponse returns the order plus related trades and transfer legs.
+// GetOrderResponse returns order details and a bounded execution page.
+// Order state, trades and transfers are eventually consistent;
+// one page's execution quantities need not equal the order's cumulative quantity.
 type GetOrderResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Requested order, if found.
 	Order *Order `protobuf:"bytes,1,opt,name=order,proto3" json:"order,omitempty"`
-	// User trade fills for the order, ordered newest-first.
+	// Lineage executions through the requested generation, newest first, retaining
+	// original executing order IDs. Omitted when execution history is disabled.
 	Trades []*UserTrade `protobuf:"bytes,2,rep,name=trades,proto3" json:"trades,omitempty"`
-	// Transfer legs linked to the order's matches, ordered newest-first.
-	Transfers     []*OrderTransfer `protobuf:"bytes,3,rep,name=transfers,proto3" json:"transfers,omitempty"`
+	// Account settlement legs for matches on this page. Deduplicate by tx_id when
+	// multiple execution pages contain legs of the same match.
+	Transfers []*OrderTransfer `protobuf:"bytes,3,rep,name=transfers,proto3" json:"transfers,omitempty"`
+	// Cursor for the next execution page. Empty when no further rows are visible;
+	// this is not a settlement or order-state reconciliation watermark.
+	NextPageToken string `protobuf:"bytes,6,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetOrderResponse) Reset() {
 	*x = GetOrderResponse{}
-	mi := &file_orders_v1_orders_read_proto_msgTypes[16]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1981,7 +2181,7 @@ func (x *GetOrderResponse) String() string {
 func (*GetOrderResponse) ProtoMessage() {}
 
 func (x *GetOrderResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_read_proto_msgTypes[16]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1994,7 +2194,7 @@ func (x *GetOrderResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetOrderResponse.ProtoReflect.Descriptor instead.
 func (*GetOrderResponse) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{16}
+	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetOrderResponse) GetOrder() *Order {
@@ -2018,6 +2218,13 @@ func (x *GetOrderResponse) GetTransfers() []*OrderTransfer {
 	return nil
 }
 
+func (x *GetOrderResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
 // GetBatchReplaceStatusRequest retrieves one admitted batch by server identity.
 type GetBatchReplaceStatusRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -2031,7 +2238,7 @@ type GetBatchReplaceStatusRequest struct {
 
 func (x *GetBatchReplaceStatusRequest) Reset() {
 	*x = GetBatchReplaceStatusRequest{}
-	mi := &file_orders_v1_orders_read_proto_msgTypes[17]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2043,7 +2250,7 @@ func (x *GetBatchReplaceStatusRequest) String() string {
 func (*GetBatchReplaceStatusRequest) ProtoMessage() {}
 
 func (x *GetBatchReplaceStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_read_proto_msgTypes[17]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2056,7 +2263,7 @@ func (x *GetBatchReplaceStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBatchReplaceStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetBatchReplaceStatusRequest) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{17}
+	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GetBatchReplaceStatusRequest) GetSubaccountId() uint64 {
@@ -2096,7 +2303,7 @@ type BatchReplaceStatusItem struct {
 
 func (x *BatchReplaceStatusItem) Reset() {
 	*x = BatchReplaceStatusItem{}
-	mi := &file_orders_v1_orders_read_proto_msgTypes[18]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2108,7 +2315,7 @@ func (x *BatchReplaceStatusItem) String() string {
 func (*BatchReplaceStatusItem) ProtoMessage() {}
 
 func (x *BatchReplaceStatusItem) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_read_proto_msgTypes[18]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2121,7 +2328,7 @@ func (x *BatchReplaceStatusItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchReplaceStatusItem.ProtoReflect.Descriptor instead.
 func (*BatchReplaceStatusItem) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{18}
+	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *BatchReplaceStatusItem) GetItemIndex() uint32 {
@@ -2196,7 +2403,7 @@ type GetBatchReplaceStatusResponse struct {
 
 func (x *GetBatchReplaceStatusResponse) Reset() {
 	*x = GetBatchReplaceStatusResponse{}
-	mi := &file_orders_v1_orders_read_proto_msgTypes[19]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2208,7 +2415,7 @@ func (x *GetBatchReplaceStatusResponse) String() string {
 func (*GetBatchReplaceStatusResponse) ProtoMessage() {}
 
 func (x *GetBatchReplaceStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_orders_v1_orders_read_proto_msgTypes[19]
+	mi := &file_orders_v1_orders_read_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2221,7 +2428,7 @@ func (x *GetBatchReplaceStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBatchReplaceStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetBatchReplaceStatusResponse) Descriptor() ([]byte, []int) {
-	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{19}
+	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GetBatchReplaceStatusResponse) GetBatchRequestId() uint64 {
@@ -2322,8 +2529,12 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"takeProfit\x12<\n" +
 	"\tstop_loss\x18\x02 \x01(\v2\x1f.orders.v1.AttachedRiskStopLossR\bstopLoss\x12H\n" +
 	"\rtrailing_stop\x18\x03 \x01(\v2#.orders.v1.AttachedRiskTrailingStopR\ftrailingStop\x12\x10\n" +
-	"\x03oco\x18\x04 \x01(\bR\x03oco\"\xd4\n" +
+	"\x03oco\x18\x04 \x01(\bR\x03oco\"W\n" +
+	"\fOrderLineage\x12\x1e\n" +
+	"\x02id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x02id\x12'\n" +
 	"\n" +
+	"generation\x18\x02 \x01(\rB\a\xbaH\x04*\x02 \x00R\n" +
+	"generation\"\xab\v\n" +
 	"\x05Order\x12\x19\n" +
 	"\border_id\x18\x01 \x01(\x06R\aorderId\x12\x1b\n" +
 	"\tsymbol_id\x18\x03 \x01(\rR\bsymbolId\x12D\n" +
@@ -2355,8 +2566,11 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\aversion\x18\x1a \x01(\rB\r\xbaH\n" +
 	"*\b\x18\xff\xff\xff\xff\a(\x01R\aversion\x12(\n" +
 	"\x10batch_request_id\x18\x1b \x01(\x06R\x0ebatchRequestId\x12K\n" +
-	" submitted_max_quote_debit_scaled\x18\x1c \x01(\x03H\x00R\x1csubmittedMaxQuoteDebitScaled\x88\x01\x01B#\n" +
-	"!_submitted_max_quote_debit_scaled\"\xe6\x03\n" +
+	" submitted_max_quote_debit_scaled\x18\x1c \x01(\x03H\x00R\x1csubmittedMaxQuoteDebitScaled\x88\x01\x01\x121\n" +
+	"\alineage\x18\x1f \x01(\v2\x17.orders.v1.OrderLineageR\alineageB#\n" +
+	"!_submitted_max_quote_debit_scaledJ\x04\b\x1d\x10\x1eJ\x04\b\x1e\x10\x1fR\n" +
+	"lineage_idR\n" +
+	"generation\"\xbd\x04\n" +
 	"\tUserTrade\x12\x1b\n" +
 	"\tsymbol_id\x18\x02 \x01(\rR\bsymbolId\x12\x19\n" +
 	"\bmatch_id\x18\x03 \x01(\x04R\amatchId\x12\x19\n" +
@@ -2372,9 +2586,14 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	" \x01(\x0e2\x13.orders.v1.FeeAssetR\bfeeAsset\x12R\n" +
 	"\x19referral_share_amount_e18\x18\f \x01(\v2\x17.polyester.type.v1.U128R\x16referralShareAmountE18\x12\x13\n" +
 	"\x05ts_ns\x18\r \x01(\x04R\x04tsNs\x12\"\n" +
-	"\rfee_is_rebate\x18\x0e \x01(\bR\vfeeIsRebate\"\xbb\x02\n" +
+	"\rfee_is_rebate\x18\x0e \x01(\bR\vfeeIsRebate\x121\n" +
+	"\alineage\x18\x11 \x01(\v2\x17.orders.v1.OrderLineageR\alineageJ\x04\b\x0f\x10\x10J\x04\b\x10\x10\x11R\n" +
+	"lineage_idR\n" +
+	"generation\"\xd8\x02\n" +
 	"\rOrderTransfer\x12\x19\n" +
-	"\bmatch_id\x18\x01 \x01(\x04R\amatchId\x12\x19\n" +
+	"\bmatch_id\x18\x01 \x01(\x04R\amatchId\x12\x1b\n" +
+	"\tsymbol_id\x18\n" +
+	" \x01(\rR\bsymbolId\x12\x19\n" +
 	"\basset_id\x18\x02 \x01(\rR\aassetId\x126\n" +
 	"\n" +
 	"amount_e18\x18\x03 \x01(\v2\x17.polyester.type.v1.U128R\tamountE18\x12\x19\n" +
@@ -2433,46 +2652,64 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\v_trigger_id\"u\n" +
 	"\x17GetOrderHistoryResponse\x12(\n" +
 	"\x06orders\x18\x01 \x03(\v2\x10.orders.v1.OrderR\x06orders\x120\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\x8c\x06\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\x95\t\n" +
 	"\x14GetUserTradesRequest\x128\n" +
-	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01\x12'\n" +
+	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x01R\fsubaccountId\x88\x01\x01\x12'\n" +
 	"\tsymbol_id\x18\x02 \x01(\rB\n" +
 	"\xbaH\a\xd8\x01\x01*\x02 \x00R\bsymbolId\x12-\n" +
 	"\x04side\x18\x03 \x01(\x0e2\x0f.orders.v1.SideB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04side\x12#\n" +
 	"\vstart_ts_ns\x18\n" +
-	" \x01(\x04H\x01R\tstartTsNs\x88\x01\x01\x12\x1f\n" +
-	"\tend_ts_ns\x18\v \x01(\x04H\x02R\aendTsNs\x88\x01\x01\x12%\n" +
+	" \x01(\x04H\x02R\tstartTsNs\x88\x01\x01\x12\x1f\n" +
+	"\tend_ts_ns\x18\v \x01(\x04H\x03R\aendTsNs\x88\x01\x01\x12%\n" +
 	"\x05limit\x18\f \x01(\rB\n" +
-	"\xbaH\a*\x05\x18\xe8\a(\x01H\x03R\x05limit\x88\x01\x01\x12'\n" +
+	"\xbaH\a*\x05\x18\xe8\a(\x01H\x04R\x05limit\x88\x01\x01\x12'\n" +
 	"\n" +
 	"page_token\x18\r \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken\x122\n" +
-	"\x0eafter_match_id\x18\x0e \x01(\x04B\a\xbaH\x042\x02 \x00H\x04R\fafterMatchId\x88\x01\x01:\xca\x02\xbaH\xc6\x02\x1a\xb0\x01\n" +
+	"\x0eafter_match_id\x18\x0e \x01(\x04B\a\xbaH\x042\x02 \x00H\x05R\fafterMatchId\x88\x01\x01\x12+\n" +
+	"\border_id\x18\x0f \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\aorderId\x12/\n" +
+	"\n" +
+	"lineage_id\x18\x10 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\tlineageId\x12;\n" +
+	"\x12through_generation\x18\x11 \x01(\rB\a\xbaH\x04*\x02 \x00H\x06R\x11throughGeneration\x88\x01\x01\x12+\n" +
+	"\x11include_transfers\x18\x12 \x01(\bR\x10includeTransfers:\xe1\x03\xbaH\xdd\x03\x1a\xb0\x01\n" +
 	"\"user_trades_bin.ordered_time_range\x122start_ts_ns must be <= end_ts_ns when both are set\x1aV!has(this.start_ts_ns) || !has(this.end_ts_ns) || (this.start_ts_ns <= this.end_ts_ns)\x1a\x90\x01\n" +
-	"+user_trades_bin.after_match_requires_symbol\x120symbol_id is required when after_match_id is set\x1a/!has(this.after_match_id) || this.symbol_id > 0B\x10\n" +
+	"+user_trades_bin.after_match_requires_symbol\x120symbol_id is required when after_match_id is set\x1a/!has(this.after_match_id) || this.symbol_id > 0\x1a\x94\x01\n" +
+	"+user_trades_bin.generation_requires_lineage\x12.lineage_id is required with through_generation\x1a5!has(this.through_generation) || has(this.lineage_id)B\x11\n" +
+	"\x0fexecution_scopeB\x10\n" +
 	"\x0e_subaccount_idB\x0e\n" +
 	"\f_start_ts_nsB\f\n" +
 	"\n" +
 	"_end_ts_nsB\b\n" +
 	"\x06_limitB\x11\n" +
-	"\x0f_after_match_id\"w\n" +
+	"\x0f_after_match_idB\x15\n" +
+	"\x13_through_generation\"\xaf\x01\n" +
 	"\x15GetUserTradesResponse\x12,\n" +
 	"\x06trades\x18\x01 \x03(\v2\x14.orders.v1.UserTradeR\x06trades\x120\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\x99\x03\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\x126\n" +
+	"\ttransfers\x18\x03 \x03(\v2\x18.orders.v1.OrderTransferR\ttransfers\"\xa3\x06\n" +
 	"\x0fGetOrderRequest\x128\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x01R\fsubaccountId\x88\x01\x01\x12+\n" +
 	"\border_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\aorderId\x12H\n" +
 	"\x0fclient_order_id\x18\x03 \x01(\tB\x1e\xbaH\x1br\x19\x10\x01\x18$2\x13^[A-Za-z0-9._:/-]+$H\x00R\rclientOrderId\x127\n" +
 	"\x15include_attached_risk\x18\n" +
 	" \x01(\bH\x02R\x13includeAttachedRisk\x88\x01\x01\x12B\n" +
-	"\x1binclude_attached_risk_state\x18\v \x01(\bH\x03R\x18includeAttachedRiskState\x88\x01\x01B\f\n" +
+	"\x1binclude_attached_risk_state\x18\v \x01(\bH\x03R\x18includeAttachedRiskState\x88\x01\x01\x12?\n" +
+	"\x19include_execution_history\x18\f \x01(\bH\x04R\x17includeExecutionHistory\x88\x01\x01\x12%\n" +
+	"\x05limit\x18\r \x01(\rB\n" +
+	"\xbaH\a*\x05\x18\xe8\a(\x01H\x05R\x05limit\x88\x01\x01\x12'\n" +
+	"\n" +
+	"page_token\x18\x0e \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken:\xce\x01\xbaH\xca\x01\x1a\xc7\x01\n" +
+	"\x1cget_order.history_pagination\x120execution history must be enabled for pagination\x1au!has(this.include_execution_history) || this.include_execution_history || (!has(this.limit) && this.page_token == '')B\f\n" +
 	"\x03key\x12\x05\xbaH\x02\b\x01B\x10\n" +
 	"\x0e_subaccount_idB\x18\n" +
 	"\x16_include_attached_riskB\x1e\n" +
-	"\x1c_include_attached_risk_state\"\xa0\x01\n" +
+	"\x1c_include_attached_risk_stateB\x1c\n" +
+	"\x1a_include_execution_historyB\b\n" +
+	"\x06_limit\"\xd2\x01\n" +
 	"\x10GetOrderResponse\x12&\n" +
 	"\x05order\x18\x01 \x01(\v2\x10.orders.v1.OrderR\x05order\x12,\n" +
 	"\x06trades\x18\x02 \x03(\v2\x14.orders.v1.UserTradeR\x06trades\x126\n" +
-	"\ttransfers\x18\x03 \x03(\v2\x18.orders.v1.OrderTransferR\ttransfers\"\xa4\x01\n" +
+	"\ttransfers\x18\x03 \x03(\v2\x18.orders.v1.OrderTransferR\ttransfers\x120\n" +
+	"\x0fnext_page_token\x18\x06 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xa4\x01\n" +
 	"\x1cGetBatchReplaceStatusRequest\x128\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01\x128\n" +
 	"\x10batch_request_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x0ebatchRequestIdB\x10\n" +
@@ -2546,7 +2783,7 @@ func file_orders_v1_orders_read_proto_rawDescGZIP() []byte {
 }
 
 var file_orders_v1_orders_read_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_orders_v1_orders_read_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_orders_v1_orders_read_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_orders_v1_orders_read_proto_goTypes = []any{
 	(OrderStatus)(0),                      // 0: orders.v1.OrderStatus
 	(BatchReplacePhase)(0),                // 1: orders.v1.BatchReplacePhase
@@ -2559,90 +2796,94 @@ var file_orders_v1_orders_read_proto_goTypes = []any{
 	(*AttachedRiskStopLoss)(nil),          // 8: orders.v1.AttachedRiskStopLoss
 	(*AttachedRiskTrailingStop)(nil),      // 9: orders.v1.AttachedRiskTrailingStop
 	(*AttachedRisk)(nil),                  // 10: orders.v1.AttachedRisk
-	(*Order)(nil),                         // 11: orders.v1.Order
-	(*UserTrade)(nil),                     // 12: orders.v1.UserTrade
-	(*OrderTransfer)(nil),                 // 13: orders.v1.OrderTransfer
-	(*GetOpenOrdersRequest)(nil),          // 14: orders.v1.GetOpenOrdersRequest
-	(*GetOpenOrdersResponse)(nil),         // 15: orders.v1.GetOpenOrdersResponse
-	(*GetOrderHistoryRequest)(nil),        // 16: orders.v1.GetOrderHistoryRequest
-	(*GetOrderHistoryResponse)(nil),       // 17: orders.v1.GetOrderHistoryResponse
-	(*GetUserTradesRequest)(nil),          // 18: orders.v1.GetUserTradesRequest
-	(*GetUserTradesResponse)(nil),         // 19: orders.v1.GetUserTradesResponse
-	(*GetOrderRequest)(nil),               // 20: orders.v1.GetOrderRequest
-	(*GetOrderResponse)(nil),              // 21: orders.v1.GetOrderResponse
-	(*GetBatchReplaceStatusRequest)(nil),  // 22: orders.v1.GetBatchReplaceStatusRequest
-	(*BatchReplaceStatusItem)(nil),        // 23: orders.v1.BatchReplaceStatusItem
-	(*GetBatchReplaceStatusResponse)(nil), // 24: orders.v1.GetBatchReplaceStatusResponse
-	(*TakeProfitPolicy)(nil),              // 25: orders.v1.TakeProfitPolicy
-	(*StopLossPolicy)(nil),                // 26: orders.v1.StopLossPolicy
-	(*TrailingStopPolicy)(nil),            // 27: orders.v1.TrailingStopPolicy
-	(Side)(0),                             // 28: orders.v1.Side
-	(OrderType)(0),                        // 29: orders.v1.OrderType
-	(TimeInForce)(0),                      // 30: orders.v1.TimeInForce
-	(SelfTradePreventionMode)(0),          // 31: orders.v1.SelfTradePreventionMode
-	(FeeAsset)(0),                         // 32: orders.v1.FeeAsset
-	(*v1.U128)(nil),                       // 33: polyester.type.v1.U128
-	(v11.TransferCode)(0),                 // 34: ledger.v1.TransferCode
-	(v11.AccountCode)(0),                  // 35: ledger.v1.AccountCode
-	(BatchReplaceAdmissionStatus)(0),      // 36: orders.v1.BatchReplaceAdmissionStatus
+	(*OrderLineage)(nil),                  // 11: orders.v1.OrderLineage
+	(*Order)(nil),                         // 12: orders.v1.Order
+	(*UserTrade)(nil),                     // 13: orders.v1.UserTrade
+	(*OrderTransfer)(nil),                 // 14: orders.v1.OrderTransfer
+	(*GetOpenOrdersRequest)(nil),          // 15: orders.v1.GetOpenOrdersRequest
+	(*GetOpenOrdersResponse)(nil),         // 16: orders.v1.GetOpenOrdersResponse
+	(*GetOrderHistoryRequest)(nil),        // 17: orders.v1.GetOrderHistoryRequest
+	(*GetOrderHistoryResponse)(nil),       // 18: orders.v1.GetOrderHistoryResponse
+	(*GetUserTradesRequest)(nil),          // 19: orders.v1.GetUserTradesRequest
+	(*GetUserTradesResponse)(nil),         // 20: orders.v1.GetUserTradesResponse
+	(*GetOrderRequest)(nil),               // 21: orders.v1.GetOrderRequest
+	(*GetOrderResponse)(nil),              // 22: orders.v1.GetOrderResponse
+	(*GetBatchReplaceStatusRequest)(nil),  // 23: orders.v1.GetBatchReplaceStatusRequest
+	(*BatchReplaceStatusItem)(nil),        // 24: orders.v1.BatchReplaceStatusItem
+	(*GetBatchReplaceStatusResponse)(nil), // 25: orders.v1.GetBatchReplaceStatusResponse
+	(*TakeProfitPolicy)(nil),              // 26: orders.v1.TakeProfitPolicy
+	(*StopLossPolicy)(nil),                // 27: orders.v1.StopLossPolicy
+	(*TrailingStopPolicy)(nil),            // 28: orders.v1.TrailingStopPolicy
+	(Side)(0),                             // 29: orders.v1.Side
+	(OrderType)(0),                        // 30: orders.v1.OrderType
+	(TimeInForce)(0),                      // 31: orders.v1.TimeInForce
+	(SelfTradePreventionMode)(0),          // 32: orders.v1.SelfTradePreventionMode
+	(FeeAsset)(0),                         // 33: orders.v1.FeeAsset
+	(*v1.U128)(nil),                       // 34: polyester.type.v1.U128
+	(v11.TransferCode)(0),                 // 35: ledger.v1.TransferCode
+	(v11.AccountCode)(0),                  // 36: ledger.v1.AccountCode
+	(BatchReplaceAdmissionStatus)(0),      // 37: orders.v1.BatchReplaceAdmissionStatus
 }
 var file_orders_v1_orders_read_proto_depIdxs = []int32{
 	2,  // 0: orders.v1.OrderOrigin.scope:type_name -> orders.v1.OrderOriginScope
 	3,  // 1: orders.v1.OrderOrigin.trigger_type:type_name -> orders.v1.OrderTriggerType
 	4,  // 2: orders.v1.AttachedRiskLegState.status:type_name -> orders.v1.AttachedRiskLegState.Status
-	25, // 3: orders.v1.AttachedRiskTakeProfit.policy:type_name -> orders.v1.TakeProfitPolicy
+	26, // 3: orders.v1.AttachedRiskTakeProfit.policy:type_name -> orders.v1.TakeProfitPolicy
 	6,  // 4: orders.v1.AttachedRiskTakeProfit.state:type_name -> orders.v1.AttachedRiskLegState
-	26, // 5: orders.v1.AttachedRiskStopLoss.policy:type_name -> orders.v1.StopLossPolicy
+	27, // 5: orders.v1.AttachedRiskStopLoss.policy:type_name -> orders.v1.StopLossPolicy
 	6,  // 6: orders.v1.AttachedRiskStopLoss.state:type_name -> orders.v1.AttachedRiskLegState
-	27, // 7: orders.v1.AttachedRiskTrailingStop.policy:type_name -> orders.v1.TrailingStopPolicy
+	28, // 7: orders.v1.AttachedRiskTrailingStop.policy:type_name -> orders.v1.TrailingStopPolicy
 	6,  // 8: orders.v1.AttachedRiskTrailingStop.state:type_name -> orders.v1.AttachedRiskLegState
 	7,  // 9: orders.v1.AttachedRisk.take_profit:type_name -> orders.v1.AttachedRiskTakeProfit
 	8,  // 10: orders.v1.AttachedRisk.stop_loss:type_name -> orders.v1.AttachedRiskStopLoss
 	9,  // 11: orders.v1.AttachedRisk.trailing_stop:type_name -> orders.v1.AttachedRiskTrailingStop
-	28, // 12: orders.v1.Order.side:type_name -> orders.v1.Side
+	29, // 12: orders.v1.Order.side:type_name -> orders.v1.Side
 	0,  // 13: orders.v1.Order.status:type_name -> orders.v1.OrderStatus
-	29, // 14: orders.v1.Order.order_type:type_name -> orders.v1.OrderType
-	30, // 15: orders.v1.Order.time_in_force:type_name -> orders.v1.TimeInForce
-	31, // 16: orders.v1.Order.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
-	32, // 17: orders.v1.Order.fee_asset:type_name -> orders.v1.FeeAsset
+	30, // 14: orders.v1.Order.order_type:type_name -> orders.v1.OrderType
+	31, // 15: orders.v1.Order.time_in_force:type_name -> orders.v1.TimeInForce
+	32, // 16: orders.v1.Order.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
+	33, // 17: orders.v1.Order.fee_asset:type_name -> orders.v1.FeeAsset
 	10, // 18: orders.v1.Order.attached_risk:type_name -> orders.v1.AttachedRisk
 	5,  // 19: orders.v1.Order.origin:type_name -> orders.v1.OrderOrigin
-	28, // 20: orders.v1.UserTrade.side:type_name -> orders.v1.Side
-	33, // 21: orders.v1.UserTrade.fee_amount_e18:type_name -> polyester.type.v1.U128
-	32, // 22: orders.v1.UserTrade.fee_asset:type_name -> orders.v1.FeeAsset
-	33, // 23: orders.v1.UserTrade.referral_share_amount_e18:type_name -> polyester.type.v1.U128
-	33, // 24: orders.v1.OrderTransfer.amount_e18:type_name -> polyester.type.v1.U128
-	34, // 25: orders.v1.OrderTransfer.transfer_code:type_name -> ledger.v1.TransferCode
-	35, // 26: orders.v1.OrderTransfer.account_code:type_name -> ledger.v1.AccountCode
-	28, // 27: orders.v1.GetOpenOrdersRequest.side:type_name -> orders.v1.Side
-	11, // 28: orders.v1.GetOpenOrdersResponse.orders:type_name -> orders.v1.Order
-	28, // 29: orders.v1.GetOrderHistoryRequest.side:type_name -> orders.v1.Side
-	0,  // 30: orders.v1.GetOrderHistoryRequest.status:type_name -> orders.v1.OrderStatus
-	11, // 31: orders.v1.GetOrderHistoryResponse.orders:type_name -> orders.v1.Order
-	28, // 32: orders.v1.GetUserTradesRequest.side:type_name -> orders.v1.Side
-	12, // 33: orders.v1.GetUserTradesResponse.trades:type_name -> orders.v1.UserTrade
-	11, // 34: orders.v1.GetOrderResponse.order:type_name -> orders.v1.Order
-	12, // 35: orders.v1.GetOrderResponse.trades:type_name -> orders.v1.UserTrade
-	13, // 36: orders.v1.GetOrderResponse.transfers:type_name -> orders.v1.OrderTransfer
-	1,  // 37: orders.v1.BatchReplaceStatusItem.phase:type_name -> orders.v1.BatchReplacePhase
-	0,  // 38: orders.v1.BatchReplaceStatusItem.order_status:type_name -> orders.v1.OrderStatus
-	36, // 39: orders.v1.GetBatchReplaceStatusResponse.admission_status:type_name -> orders.v1.BatchReplaceAdmissionStatus
-	23, // 40: orders.v1.GetBatchReplaceStatusResponse.items:type_name -> orders.v1.BatchReplaceStatusItem
-	14, // 41: orders.v1.OrdersReadService.GetOpenOrders:input_type -> orders.v1.GetOpenOrdersRequest
-	16, // 42: orders.v1.OrdersReadService.GetOrderHistory:input_type -> orders.v1.GetOrderHistoryRequest
-	18, // 43: orders.v1.OrdersReadService.GetUserTrades:input_type -> orders.v1.GetUserTradesRequest
-	20, // 44: orders.v1.OrdersReadService.GetOrder:input_type -> orders.v1.GetOrderRequest
-	22, // 45: orders.v1.OrdersReadService.GetBatchReplaceStatus:input_type -> orders.v1.GetBatchReplaceStatusRequest
-	15, // 46: orders.v1.OrdersReadService.GetOpenOrders:output_type -> orders.v1.GetOpenOrdersResponse
-	17, // 47: orders.v1.OrdersReadService.GetOrderHistory:output_type -> orders.v1.GetOrderHistoryResponse
-	19, // 48: orders.v1.OrdersReadService.GetUserTrades:output_type -> orders.v1.GetUserTradesResponse
-	21, // 49: orders.v1.OrdersReadService.GetOrder:output_type -> orders.v1.GetOrderResponse
-	24, // 50: orders.v1.OrdersReadService.GetBatchReplaceStatus:output_type -> orders.v1.GetBatchReplaceStatusResponse
-	46, // [46:51] is the sub-list for method output_type
-	41, // [41:46] is the sub-list for method input_type
-	41, // [41:41] is the sub-list for extension type_name
-	41, // [41:41] is the sub-list for extension extendee
-	0,  // [0:41] is the sub-list for field type_name
+	11, // 20: orders.v1.Order.lineage:type_name -> orders.v1.OrderLineage
+	29, // 21: orders.v1.UserTrade.side:type_name -> orders.v1.Side
+	34, // 22: orders.v1.UserTrade.fee_amount_e18:type_name -> polyester.type.v1.U128
+	33, // 23: orders.v1.UserTrade.fee_asset:type_name -> orders.v1.FeeAsset
+	34, // 24: orders.v1.UserTrade.referral_share_amount_e18:type_name -> polyester.type.v1.U128
+	11, // 25: orders.v1.UserTrade.lineage:type_name -> orders.v1.OrderLineage
+	34, // 26: orders.v1.OrderTransfer.amount_e18:type_name -> polyester.type.v1.U128
+	35, // 27: orders.v1.OrderTransfer.transfer_code:type_name -> ledger.v1.TransferCode
+	36, // 28: orders.v1.OrderTransfer.account_code:type_name -> ledger.v1.AccountCode
+	29, // 29: orders.v1.GetOpenOrdersRequest.side:type_name -> orders.v1.Side
+	12, // 30: orders.v1.GetOpenOrdersResponse.orders:type_name -> orders.v1.Order
+	29, // 31: orders.v1.GetOrderHistoryRequest.side:type_name -> orders.v1.Side
+	0,  // 32: orders.v1.GetOrderHistoryRequest.status:type_name -> orders.v1.OrderStatus
+	12, // 33: orders.v1.GetOrderHistoryResponse.orders:type_name -> orders.v1.Order
+	29, // 34: orders.v1.GetUserTradesRequest.side:type_name -> orders.v1.Side
+	13, // 35: orders.v1.GetUserTradesResponse.trades:type_name -> orders.v1.UserTrade
+	14, // 36: orders.v1.GetUserTradesResponse.transfers:type_name -> orders.v1.OrderTransfer
+	12, // 37: orders.v1.GetOrderResponse.order:type_name -> orders.v1.Order
+	13, // 38: orders.v1.GetOrderResponse.trades:type_name -> orders.v1.UserTrade
+	14, // 39: orders.v1.GetOrderResponse.transfers:type_name -> orders.v1.OrderTransfer
+	1,  // 40: orders.v1.BatchReplaceStatusItem.phase:type_name -> orders.v1.BatchReplacePhase
+	0,  // 41: orders.v1.BatchReplaceStatusItem.order_status:type_name -> orders.v1.OrderStatus
+	37, // 42: orders.v1.GetBatchReplaceStatusResponse.admission_status:type_name -> orders.v1.BatchReplaceAdmissionStatus
+	24, // 43: orders.v1.GetBatchReplaceStatusResponse.items:type_name -> orders.v1.BatchReplaceStatusItem
+	15, // 44: orders.v1.OrdersReadService.GetOpenOrders:input_type -> orders.v1.GetOpenOrdersRequest
+	17, // 45: orders.v1.OrdersReadService.GetOrderHistory:input_type -> orders.v1.GetOrderHistoryRequest
+	19, // 46: orders.v1.OrdersReadService.GetUserTrades:input_type -> orders.v1.GetUserTradesRequest
+	21, // 47: orders.v1.OrdersReadService.GetOrder:input_type -> orders.v1.GetOrderRequest
+	23, // 48: orders.v1.OrdersReadService.GetBatchReplaceStatus:input_type -> orders.v1.GetBatchReplaceStatusRequest
+	16, // 49: orders.v1.OrdersReadService.GetOpenOrders:output_type -> orders.v1.GetOpenOrdersResponse
+	18, // 50: orders.v1.OrdersReadService.GetOrderHistory:output_type -> orders.v1.GetOrderHistoryResponse
+	20, // 51: orders.v1.OrdersReadService.GetUserTrades:output_type -> orders.v1.GetUserTradesResponse
+	22, // 52: orders.v1.OrdersReadService.GetOrder:output_type -> orders.v1.GetOrderResponse
+	25, // 53: orders.v1.OrdersReadService.GetBatchReplaceStatus:output_type -> orders.v1.GetBatchReplaceStatusResponse
+	49, // [49:54] is the sub-list for method output_type
+	44, // [44:49] is the sub-list for method input_type
+	44, // [44:44] is the sub-list for extension type_name
+	44, // [44:44] is the sub-list for extension extendee
+	0,  // [0:44] is the sub-list for field type_name
 }
 
 func init() { file_orders_v1_orders_read_proto_init() }
@@ -2653,22 +2894,25 @@ func file_orders_v1_orders_read_proto_init() {
 	file_orders_v1_orders_proto_init()
 	file_orders_v1_orders_read_proto_msgTypes[0].OneofWrappers = []any{}
 	file_orders_v1_orders_read_proto_msgTypes[1].OneofWrappers = []any{}
-	file_orders_v1_orders_read_proto_msgTypes[6].OneofWrappers = []any{}
-	file_orders_v1_orders_read_proto_msgTypes[9].OneofWrappers = []any{}
-	file_orders_v1_orders_read_proto_msgTypes[11].OneofWrappers = []any{}
-	file_orders_v1_orders_read_proto_msgTypes[13].OneofWrappers = []any{}
-	file_orders_v1_orders_read_proto_msgTypes[15].OneofWrappers = []any{
+	file_orders_v1_orders_read_proto_msgTypes[7].OneofWrappers = []any{}
+	file_orders_v1_orders_read_proto_msgTypes[10].OneofWrappers = []any{}
+	file_orders_v1_orders_read_proto_msgTypes[12].OneofWrappers = []any{}
+	file_orders_v1_orders_read_proto_msgTypes[14].OneofWrappers = []any{
+		(*GetUserTradesRequest_OrderId)(nil),
+		(*GetUserTradesRequest_LineageId)(nil),
+	}
+	file_orders_v1_orders_read_proto_msgTypes[16].OneofWrappers = []any{
 		(*GetOrderRequest_OrderId)(nil),
 		(*GetOrderRequest_ClientOrderId)(nil),
 	}
-	file_orders_v1_orders_read_proto_msgTypes[17].OneofWrappers = []any{}
+	file_orders_v1_orders_read_proto_msgTypes[18].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orders_v1_orders_read_proto_rawDesc), len(file_orders_v1_orders_read_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   20,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

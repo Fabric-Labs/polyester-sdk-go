@@ -140,10 +140,32 @@ func (s *OrdersService) ListHistory(ctx context.Context, account AccountScope, s
 	return UnaryAuth(ctx, s.transport, s.readClient().GetOrderHistory, req, decode.OrdersListFromHistory)
 }
 
-// Get returns one order.
-func (s *OrdersService) Get(ctx context.Context, account AccountScope, key models.OrderKey, subAccountID *string, includeAttachedRisk, includeAttachedRiskState bool) (models.GetOrderResult, error) {
+// Get returns one order and an optional page of lineage execution history.
+// Execution history defaults to enabled on the server. Pass
+// IncludeExecutionHistory=false for state-only polling and omit Limit/PageToken.
+func (s *OrdersService) Get(ctx context.Context, account AccountScope, key models.OrderKey, subAccountID *string, includeAttachedRisk, includeAttachedRiskState bool, opts ...models.GetOrderOptions) (models.GetOrderResult, error) {
+	var options models.GetOrderOptions
+	if len(opts) > 1 {
+		return models.GetOrderResult{}, &sdkerrors.ValidationError{Msg: "orders.Get accepts at most one GetOrderOptions value"}
+	}
+	if len(opts) == 1 {
+		options = opts[0]
+	}
+	if options.IncludeExecutionHistory != nil && !*options.IncludeExecutionHistory &&
+		(options.Limit != nil || (options.PageToken != nil && *options.PageToken != "")) {
+		return models.GetOrderResult{}, &sdkerrors.ValidationError{Msg: "orders.Get limit and page_token require include_execution_history"}
+	}
 	req := &orderv1.GetOrderRequest{
 		IncludeAttachedRisk: boolPtr(includeAttachedRisk), IncludeAttachedRiskState: boolPtr(includeAttachedRiskState),
+	}
+	if options.IncludeExecutionHistory != nil {
+		req.IncludeExecutionHistory = options.IncludeExecutionHistory
+	}
+	if options.Limit != nil {
+		req.Limit = options.Limit
+	}
+	if options.PageToken != nil {
+		req.PageToken = *options.PageToken
 	}
 	if err := s.scoped.ApplyOptionalSubaccountIDPtr(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.GetOrderResult{}, err
@@ -470,7 +492,7 @@ func (s *OrdersService) WaitForOrderTradesComplete(
 		if err := ctx.Err(); err != nil {
 			return last, err
 		}
-		detail, err := s.Get(ctx, account, key, subAccountID, false, false)
+		detail, err := s.getOrderExecutionPages(ctx, account, key, subAccountID)
 		if err != nil {
 			return last, err
 		}
@@ -493,6 +515,42 @@ func (s *OrdersService) WaitForOrderTradesComplete(
 			return last, ctx.Err()
 		case <-time.After(100 * time.Millisecond):
 		}
+	}
+}
+
+func (s *OrdersService) getOrderExecutionPages(
+	ctx context.Context,
+	account AccountScope,
+	key models.OrderKey,
+	subAccountID *string,
+) (models.GetOrderResult, error) {
+	includeHistory := true
+	var pageToken *string
+	var trades []models.UserTrade
+	var transfers []models.OrderTransfer
+	var order *models.Order
+	for {
+		page, err := s.Get(ctx, account, key, subAccountID, false, false, models.GetOrderOptions{
+			IncludeExecutionHistory: &includeHistory,
+			PageToken:               pageToken,
+		})
+		if err != nil {
+			return models.GetOrderResult{}, err
+		}
+		if page.Order != nil {
+			order = page.Order
+		}
+		trades = append(trades, page.Trades...)
+		transfers = append(transfers, page.Transfers...)
+		if page.NextPageToken == "" {
+			return models.GetOrderResult{
+				Order:     order,
+				Trades:    trades,
+				Transfers: transfers,
+			}, nil
+		}
+		token := page.NextPageToken
+		pageToken = &token
 	}
 }
 
