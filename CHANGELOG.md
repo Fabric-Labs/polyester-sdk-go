@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.0a52
+
+Git tag: `v0.1.0a52`.
+
 ### Breaking
 - `chain.PolyesterTestnetEnvironment` is now public testnet
   (`api-testnet.polyester.com`, chain `888169`). The previous preset (devnet
