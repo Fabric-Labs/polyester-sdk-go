@@ -2,11 +2,13 @@ package codecs
 
 import (
 	"strings"
+	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var (
@@ -23,7 +25,41 @@ var (
 		"quote": orderv1.FeeAsset_QUOTE,
 		"base":  orderv1.FeeAsset_BASE,
 	}
+	gtdMinOffset = time.Second
+	gtdMaxOffset = 30 * 24 * time.Hour
 )
+
+func parseGTDExpireAt(value string, now time.Time) (*timestamppb.Timestamp, error) {
+	text := strings.TrimSpace(value)
+	if text == "" {
+		return nil, &errors.ValidationError{Msg: "tif='gtd' requires expires_at"}
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, text)
+	if err != nil {
+		parsed, err = time.Parse(time.RFC3339, text)
+	}
+	if err != nil {
+		return nil, &errors.ValidationError{Msg: "expires_at must be an RFC3339 UTC timestamp"}
+	}
+	parsed = parsed.UTC()
+	delta := parsed.Sub(now.UTC())
+	if delta < gtdMinOffset || delta > gtdMaxOffset {
+		return nil, &errors.ValidationError{Msg: "expires_at must be between 1 second and 30 days after validation"}
+	}
+	return timestamppb.New(parsed), nil
+}
+
+// FormatExpireAt encodes a proto timestamp as RFC3339 UTC, or empty when unset.
+func FormatExpireAt(ts *timestamppb.Timestamp) string {
+	if ts == nil || !ts.IsValid() {
+		return ""
+	}
+	t := ts.AsTime().UTC()
+	if t.Nanosecond() == 0 {
+		return t.Format(time.RFC3339)
+	}
+	return t.Format(time.RFC3339Nano)
+}
 
 // ParseOptionalSubaccountID parses optional subaccount id to uint64.
 func ParseOptionalSubaccountID(value *string) (*uint64, error) {
@@ -151,13 +187,19 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale, quoteQuant
 	tif := ""
 	if req.TIF != nil {
 		tif = strings.ToLower(*req.TIF)
-		if tif != "gtc" && tif != "ioc" && tif != "fok" {
-			return nil, &errors.ValidationError{Msg: "tif must be one of 'gtc', 'ioc', or 'fok'"}
+		if tif != "gtc" && tif != "ioc" && tif != "fok" && tif != "gtd" {
+			return nil, &errors.ValidationError{Msg: "tif must be one of 'gtc', 'ioc', 'fok', or 'gtd'"}
 		}
+	}
+	if req.ExpiresAt != nil && strings.TrimSpace(*req.ExpiresAt) != "" && tif != "gtd" {
+		return nil, &errors.ValidationError{Msg: "expires_at is only valid for limit GTD orders"}
 	}
 
 	switch orderType {
 	case "market":
+		if tif == "gtd" {
+			return nil, &errors.ValidationError{Msg: "tif='gtd' is only valid for limit orders"}
+		}
 		if req.PostOnly {
 			return nil, &errors.ValidationError{Msg: "post_only is not supported for market orders"}
 		}
@@ -190,6 +232,20 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale, quoteQuant
 				return nil, &errors.ValidationError{Msg: "post_only is not supported for fok limit orders"}
 			}
 			intent.Execution = &orderv1.OrderIntent_LimitFok{LimitFok: &orderv1.LimitFok{PriceTicks: priceTicks}}
+		case "gtd":
+			expires := ""
+			if req.ExpiresAt != nil {
+				expires = *req.ExpiresAt
+			}
+			expireAt, err := parseGTDExpireAt(expires, time.Now())
+			if err != nil {
+				return nil, err
+			}
+			intent.Execution = &orderv1.OrderIntent_LimitGtd{LimitGtd: &orderv1.LimitGtd{
+				PriceTicks: priceTicks,
+				PostOnly:   req.PostOnly,
+				ExpireAt:   expireAt,
+			}}
 		default: // gtc or unspecified
 			intent.Execution = &orderv1.OrderIntent_LimitGtc{LimitGtc: &orderv1.LimitGtc{PriceTicks: priceTicks, PostOnly: req.PostOnly}}
 		}

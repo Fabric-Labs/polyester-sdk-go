@@ -29,6 +29,8 @@ type Order struct {
 	SubmittedMaxQuoteDebitScaled string        `json:"submitted_max_quote_debit_scaled,omitempty"`
 	AttachedRisk                 *AttachedRisk `json:"attached_risk,omitempty"`
 	Lineage                      *OrderLineage `json:"lineage,omitempty"`
+	// ExpireAt is the RFC3339 UTC expiry for GTD orders. Empty for every other TIF.
+	ExpireAt string `json:"expire_at,omitempty"`
 }
 
 // OrderLineage is the stable replacement-chain identity for an order or fill.
