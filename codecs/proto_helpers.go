@@ -87,6 +87,8 @@ func TimeInForceName(v orderv1.TimeInForce) string {
 		return "ioc"
 	case orderv1.TimeInForce_FOK:
 		return "fok"
+	case orderv1.TimeInForce_GTD:
+		return "gtd"
 	default:
 		return ""
 	}

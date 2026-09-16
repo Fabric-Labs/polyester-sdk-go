@@ -21,10 +21,12 @@ type CreateOrderRequest struct {
 	// reconcile after an ambiguous failure. Look up that id before creating
 	// again; a second create with the same id is always a conflict if the
 	// first attempt admitted.
-	ClientOrderID *string        `json:"client_order_id,omitempty"`
-	PostOnly      bool           `json:"post_only,omitempty"`
-	ExpiresAt     *string        `json:"expires_at,omitempty"`
-	AttachedRisk  map[string]any `json:"attached_risk,omitempty"`
+	ClientOrderID *string `json:"client_order_id,omitempty"`
+	PostOnly      bool    `json:"post_only,omitempty"`
+	// ExpiresAt is required RFC3339 UTC when TIF is "gtd"; rejected otherwise.
+	// Maps to proto LimitGtd.expire_at (1 second–30 days after validation).
+	ExpiresAt    *string        `json:"expires_at,omitempty"`
+	AttachedRisk map[string]any `json:"attached_risk,omitempty"`
 	// MarketClientRefPrice is the client-supplied reference price for MARKET orders.
 	MarketClientRefPrice *PriceInput `json:"market_client_ref_price,omitempty"`
 	// FeeAsset selects the fee asset: "quote" (default) or "base". Base fees

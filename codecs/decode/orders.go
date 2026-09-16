@@ -40,6 +40,7 @@ func OrderFromProto(msg *orderv1.Order) models.Order {
 		),
 		AttachedRisk: attachedRiskFromProto(msg.GetAttachedRisk()),
 		Lineage:      orderLineageFromProto(msg.GetLineage()),
+		ExpireAt:     codecs.FormatExpireAt(msg.GetExpireAt()),
 	}
 }
 

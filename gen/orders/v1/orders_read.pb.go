@@ -12,6 +12,7 @@ import (
 	v1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -891,7 +892,12 @@ type Order struct {
 	// method was submitted.
 	SubmittedMaxQuoteDebitScaled *int64 `protobuf:"varint,28,opt,name=submitted_max_quote_debit_scaled,json=submittedMaxQuoteDebitScaled,proto3,oneof" json:"submitted_max_quote_debit_scaled,omitempty"`
 	// Logical-order identity and requested generation. Always populated by order reads.
-	Lineage       *OrderLineage `protobuf:"bytes,31,opt,name=lineage,proto3" json:"lineage,omitempty"`
+	Lineage *OrderLineage `protobuf:"bytes,31,opt,name=lineage,proto3" json:"lineage,omitempty"`
+	// Exact UTC expiry time for GTD orders, within the supported signed
+	// Unix-nanosecond range from 1677-09-21T00:12:43.145224193Z through
+	// 2262-04-11T23:47:16.854775807Z. Omitted for all other time-in-force policies.
+	// The order cannot execute when the current time equals this value.
+	ExpireAt      *timestamppb.Timestamp `protobuf:"bytes,32,opt,name=expire_at,json=expireAt,proto3" json:"expire_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1118,6 +1124,13 @@ func (x *Order) GetSubmittedMaxQuoteDebitScaled() int64 {
 func (x *Order) GetLineage() *OrderLineage {
 	if x != nil {
 		return x.Lineage
+	}
+	return nil
+}
+
+func (x *Order) GetExpireAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpireAt
 	}
 	return nil
 }
@@ -2484,7 +2497,7 @@ var File_orders_v1_orders_read_proto protoreflect.FileDescriptor
 
 const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\n" +
-	"\x1borders/v1/orders_read.proto\x12\torders.v1\x1a\x1bbuf/validate/validate.proto\x1a\x17ledger/v1/catalog.proto\x1a\x16orders/v1/orders.proto\x1a\x1cpolyester/type/v1/u128.proto\"\xa5\x02\n" +
+	"\x1borders/v1/orders_read.proto\x12\torders.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17ledger/v1/catalog.proto\x1a\x16orders/v1/orders.proto\x1a\x1cpolyester/type/v1/u128.proto\"\xa5\x02\n" +
 	"\vOrderOrigin\x12;\n" +
 	"\x05scope\x18\x01 \x01(\x0e2\x1b.orders.v1.OrderOriginScopeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x05scope\x12H\n" +
 	"\ftrigger_type\x18\x02 \x01(\x0e2\x1b.orders.v1.OrderTriggerTypeB\b\xbaH\x05\x82\x01\x02\x10\x01R\vtriggerType\x12\"\n" +
@@ -2534,7 +2547,7 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x02id\x12'\n" +
 	"\n" +
 	"generation\x18\x02 \x01(\rB\a\xbaH\x04*\x02 \x00R\n" +
-	"generation\"\xab\v\n" +
+	"generation\"\xe4\v\n" +
 	"\x05Order\x12\x19\n" +
 	"\border_id\x18\x01 \x01(\x06R\aorderId\x12\x1b\n" +
 	"\tsymbol_id\x18\x03 \x01(\rR\bsymbolId\x12D\n" +
@@ -2567,7 +2580,8 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"*\b\x18\xff\xff\xff\xff\a(\x01R\aversion\x12(\n" +
 	"\x10batch_request_id\x18\x1b \x01(\x06R\x0ebatchRequestId\x12K\n" +
 	" submitted_max_quote_debit_scaled\x18\x1c \x01(\x03H\x00R\x1csubmittedMaxQuoteDebitScaled\x88\x01\x01\x121\n" +
-	"\alineage\x18\x1f \x01(\v2\x17.orders.v1.OrderLineageR\alineageB#\n" +
+	"\alineage\x18\x1f \x01(\v2\x17.orders.v1.OrderLineageR\alineage\x127\n" +
+	"\texpire_at\x18  \x01(\v2\x1a.google.protobuf.TimestampR\bexpireAtB#\n" +
 	"!_submitted_max_quote_debit_scaledJ\x04\b\x1d\x10\x1eJ\x04\b\x1e\x10\x1fR\n" +
 	"lineage_idR\n" +
 	"generation\"\xbd\x04\n" +
@@ -2819,10 +2833,11 @@ var file_orders_v1_orders_read_proto_goTypes = []any{
 	(TimeInForce)(0),                      // 31: orders.v1.TimeInForce
 	(SelfTradePreventionMode)(0),          // 32: orders.v1.SelfTradePreventionMode
 	(FeeAsset)(0),                         // 33: orders.v1.FeeAsset
-	(*v1.U128)(nil),                       // 34: polyester.type.v1.U128
-	(v11.TransferCode)(0),                 // 35: ledger.v1.TransferCode
-	(v11.AccountCode)(0),                  // 36: ledger.v1.AccountCode
-	(BatchReplaceAdmissionStatus)(0),      // 37: orders.v1.BatchReplaceAdmissionStatus
+	(*timestamppb.Timestamp)(nil),         // 34: google.protobuf.Timestamp
+	(*v1.U128)(nil),                       // 35: polyester.type.v1.U128
+	(v11.TransferCode)(0),                 // 36: ledger.v1.TransferCode
+	(v11.AccountCode)(0),                  // 37: ledger.v1.AccountCode
+	(BatchReplaceAdmissionStatus)(0),      // 38: orders.v1.BatchReplaceAdmissionStatus
 }
 var file_orders_v1_orders_read_proto_depIdxs = []int32{
 	2,  // 0: orders.v1.OrderOrigin.scope:type_name -> orders.v1.OrderOriginScope
@@ -2846,44 +2861,45 @@ var file_orders_v1_orders_read_proto_depIdxs = []int32{
 	10, // 18: orders.v1.Order.attached_risk:type_name -> orders.v1.AttachedRisk
 	5,  // 19: orders.v1.Order.origin:type_name -> orders.v1.OrderOrigin
 	11, // 20: orders.v1.Order.lineage:type_name -> orders.v1.OrderLineage
-	29, // 21: orders.v1.UserTrade.side:type_name -> orders.v1.Side
-	34, // 22: orders.v1.UserTrade.fee_amount_e18:type_name -> polyester.type.v1.U128
-	33, // 23: orders.v1.UserTrade.fee_asset:type_name -> orders.v1.FeeAsset
-	34, // 24: orders.v1.UserTrade.referral_share_amount_e18:type_name -> polyester.type.v1.U128
-	11, // 25: orders.v1.UserTrade.lineage:type_name -> orders.v1.OrderLineage
-	34, // 26: orders.v1.OrderTransfer.amount_e18:type_name -> polyester.type.v1.U128
-	35, // 27: orders.v1.OrderTransfer.transfer_code:type_name -> ledger.v1.TransferCode
-	36, // 28: orders.v1.OrderTransfer.account_code:type_name -> ledger.v1.AccountCode
-	29, // 29: orders.v1.GetOpenOrdersRequest.side:type_name -> orders.v1.Side
-	12, // 30: orders.v1.GetOpenOrdersResponse.orders:type_name -> orders.v1.Order
-	29, // 31: orders.v1.GetOrderHistoryRequest.side:type_name -> orders.v1.Side
-	0,  // 32: orders.v1.GetOrderHistoryRequest.status:type_name -> orders.v1.OrderStatus
-	12, // 33: orders.v1.GetOrderHistoryResponse.orders:type_name -> orders.v1.Order
-	29, // 34: orders.v1.GetUserTradesRequest.side:type_name -> orders.v1.Side
-	13, // 35: orders.v1.GetUserTradesResponse.trades:type_name -> orders.v1.UserTrade
-	14, // 36: orders.v1.GetUserTradesResponse.transfers:type_name -> orders.v1.OrderTransfer
-	12, // 37: orders.v1.GetOrderResponse.order:type_name -> orders.v1.Order
-	13, // 38: orders.v1.GetOrderResponse.trades:type_name -> orders.v1.UserTrade
-	14, // 39: orders.v1.GetOrderResponse.transfers:type_name -> orders.v1.OrderTransfer
-	1,  // 40: orders.v1.BatchReplaceStatusItem.phase:type_name -> orders.v1.BatchReplacePhase
-	0,  // 41: orders.v1.BatchReplaceStatusItem.order_status:type_name -> orders.v1.OrderStatus
-	37, // 42: orders.v1.GetBatchReplaceStatusResponse.admission_status:type_name -> orders.v1.BatchReplaceAdmissionStatus
-	24, // 43: orders.v1.GetBatchReplaceStatusResponse.items:type_name -> orders.v1.BatchReplaceStatusItem
-	15, // 44: orders.v1.OrdersReadService.GetOpenOrders:input_type -> orders.v1.GetOpenOrdersRequest
-	17, // 45: orders.v1.OrdersReadService.GetOrderHistory:input_type -> orders.v1.GetOrderHistoryRequest
-	19, // 46: orders.v1.OrdersReadService.GetUserTrades:input_type -> orders.v1.GetUserTradesRequest
-	21, // 47: orders.v1.OrdersReadService.GetOrder:input_type -> orders.v1.GetOrderRequest
-	23, // 48: orders.v1.OrdersReadService.GetBatchReplaceStatus:input_type -> orders.v1.GetBatchReplaceStatusRequest
-	16, // 49: orders.v1.OrdersReadService.GetOpenOrders:output_type -> orders.v1.GetOpenOrdersResponse
-	18, // 50: orders.v1.OrdersReadService.GetOrderHistory:output_type -> orders.v1.GetOrderHistoryResponse
-	20, // 51: orders.v1.OrdersReadService.GetUserTrades:output_type -> orders.v1.GetUserTradesResponse
-	22, // 52: orders.v1.OrdersReadService.GetOrder:output_type -> orders.v1.GetOrderResponse
-	25, // 53: orders.v1.OrdersReadService.GetBatchReplaceStatus:output_type -> orders.v1.GetBatchReplaceStatusResponse
-	49, // [49:54] is the sub-list for method output_type
-	44, // [44:49] is the sub-list for method input_type
-	44, // [44:44] is the sub-list for extension type_name
-	44, // [44:44] is the sub-list for extension extendee
-	0,  // [0:44] is the sub-list for field type_name
+	34, // 21: orders.v1.Order.expire_at:type_name -> google.protobuf.Timestamp
+	29, // 22: orders.v1.UserTrade.side:type_name -> orders.v1.Side
+	35, // 23: orders.v1.UserTrade.fee_amount_e18:type_name -> polyester.type.v1.U128
+	33, // 24: orders.v1.UserTrade.fee_asset:type_name -> orders.v1.FeeAsset
+	35, // 25: orders.v1.UserTrade.referral_share_amount_e18:type_name -> polyester.type.v1.U128
+	11, // 26: orders.v1.UserTrade.lineage:type_name -> orders.v1.OrderLineage
+	35, // 27: orders.v1.OrderTransfer.amount_e18:type_name -> polyester.type.v1.U128
+	36, // 28: orders.v1.OrderTransfer.transfer_code:type_name -> ledger.v1.TransferCode
+	37, // 29: orders.v1.OrderTransfer.account_code:type_name -> ledger.v1.AccountCode
+	29, // 30: orders.v1.GetOpenOrdersRequest.side:type_name -> orders.v1.Side
+	12, // 31: orders.v1.GetOpenOrdersResponse.orders:type_name -> orders.v1.Order
+	29, // 32: orders.v1.GetOrderHistoryRequest.side:type_name -> orders.v1.Side
+	0,  // 33: orders.v1.GetOrderHistoryRequest.status:type_name -> orders.v1.OrderStatus
+	12, // 34: orders.v1.GetOrderHistoryResponse.orders:type_name -> orders.v1.Order
+	29, // 35: orders.v1.GetUserTradesRequest.side:type_name -> orders.v1.Side
+	13, // 36: orders.v1.GetUserTradesResponse.trades:type_name -> orders.v1.UserTrade
+	14, // 37: orders.v1.GetUserTradesResponse.transfers:type_name -> orders.v1.OrderTransfer
+	12, // 38: orders.v1.GetOrderResponse.order:type_name -> orders.v1.Order
+	13, // 39: orders.v1.GetOrderResponse.trades:type_name -> orders.v1.UserTrade
+	14, // 40: orders.v1.GetOrderResponse.transfers:type_name -> orders.v1.OrderTransfer
+	1,  // 41: orders.v1.BatchReplaceStatusItem.phase:type_name -> orders.v1.BatchReplacePhase
+	0,  // 42: orders.v1.BatchReplaceStatusItem.order_status:type_name -> orders.v1.OrderStatus
+	38, // 43: orders.v1.GetBatchReplaceStatusResponse.admission_status:type_name -> orders.v1.BatchReplaceAdmissionStatus
+	24, // 44: orders.v1.GetBatchReplaceStatusResponse.items:type_name -> orders.v1.BatchReplaceStatusItem
+	15, // 45: orders.v1.OrdersReadService.GetOpenOrders:input_type -> orders.v1.GetOpenOrdersRequest
+	17, // 46: orders.v1.OrdersReadService.GetOrderHistory:input_type -> orders.v1.GetOrderHistoryRequest
+	19, // 47: orders.v1.OrdersReadService.GetUserTrades:input_type -> orders.v1.GetUserTradesRequest
+	21, // 48: orders.v1.OrdersReadService.GetOrder:input_type -> orders.v1.GetOrderRequest
+	23, // 49: orders.v1.OrdersReadService.GetBatchReplaceStatus:input_type -> orders.v1.GetBatchReplaceStatusRequest
+	16, // 50: orders.v1.OrdersReadService.GetOpenOrders:output_type -> orders.v1.GetOpenOrdersResponse
+	18, // 51: orders.v1.OrdersReadService.GetOrderHistory:output_type -> orders.v1.GetOrderHistoryResponse
+	20, // 52: orders.v1.OrdersReadService.GetUserTrades:output_type -> orders.v1.GetUserTradesResponse
+	22, // 53: orders.v1.OrdersReadService.GetOrder:output_type -> orders.v1.GetOrderResponse
+	25, // 54: orders.v1.OrdersReadService.GetBatchReplaceStatus:output_type -> orders.v1.GetBatchReplaceStatusResponse
+	50, // [50:55] is the sub-list for method output_type
+	45, // [45:50] is the sub-list for method input_type
+	45, // [45:45] is the sub-list for extension type_name
+	45, // [45:45] is the sub-list for extension extendee
+	0,  // [0:45] is the sub-list for field type_name
 }
 
 func init() { file_orders_v1_orders_read_proto_init() }

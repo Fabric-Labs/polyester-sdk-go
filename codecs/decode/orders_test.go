@@ -40,6 +40,9 @@ func TestOrderFromProtoMapsEnumsAndIDs(t *testing.T) {
 	if order.Side != "buy" || order.Status != "working" || order.OrderType != "limit" || order.TIF != "gtc" {
 		t.Fatalf("order=%+v", order)
 	}
+	if order.ExpireAt != "" {
+		t.Fatalf("expire_at should be empty for non-GTD, got %q", order.ExpireAt)
+	}
 	if order.OrigQty.Scaled() != 100 {
 		t.Fatalf("orig_qty=%+v", order.OrigQty)
 	}
@@ -50,6 +53,22 @@ func TestOrderFromProtoMapsEnumsAndIDs(t *testing.T) {
 	order = decode.OrderFromProto(msg)
 	if order.Version != 7 {
 		t.Fatalf("version=%d", order.Version)
+	}
+}
+
+func TestOrderFromProtoMapsGTDExpireAt(t *testing.T) {
+	msg := &orderv1.Order{
+		OrderId:     42,
+		SymbolId:    3,
+		TimeInForce: orderv1.TimeInForce_GTD,
+		ExpireAt:    timestamppb.New(time.Unix(1_700_000_000, 0).UTC()),
+	}
+	order := decode.OrderFromProto(msg)
+	if order.TIF != "gtd" {
+		t.Fatalf("tif=%q", order.TIF)
+	}
+	if order.ExpireAt != "2023-11-14T22:13:20Z" {
+		t.Fatalf("expire_at=%q", order.ExpireAt)
 	}
 }
 
