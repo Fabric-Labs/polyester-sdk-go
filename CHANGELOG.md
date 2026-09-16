@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.0a53
+
+Git tag: `v0.1.0a53`.
+
 ### Added
 - Limit GTD orders: `tif="gtd"` plus required RFC3339 UTC `expires_at`
   encode `OrderIntent.limit_gtd` (price, optional `post_only`, 1s–30d
