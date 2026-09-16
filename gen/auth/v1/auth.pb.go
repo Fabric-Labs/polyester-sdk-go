@@ -289,8 +289,10 @@ type CreateWalletChallengeRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Smart-account EVM address being authenticated, formatted as 0x plus 40 hex characters.
 	SmartAccountAddress string `protobuf:"bytes,1,opt,name=smart_account_address,json=smartAccountAddress,proto3" json:"smart_account_address,omitempty"`
-	// EVM address selected in the wallet and written into the EIP-4361 message.
-	// For CREATE_SUBACCOUNT, this must equal smart_account_address.
+	// Address whose signature authorizes the challenge and that is written into
+	// the EIP-4361 message. For LOGIN, this must be an EOA that controls the
+	// target smart account. For CREATE_SUBACCOUNT, this must equal
+	// smart_account_address.
 	SignerAddress string `protobuf:"bytes,2,opt,name=signer_address,json=signerAddress,proto3" json:"signer_address,omitempty"`
 	// Browser origin URI requesting the signature, including scheme and optional
 	// port but no path, query, fragment, or user information.
@@ -422,8 +424,9 @@ type LoginWithWalletRequest struct {
 	// Smart-account EVM address bound into the challenge resource, formatted as
 	// 0x plus 40 hex characters.
 	SmartAccountAddress string `protobuf:"bytes,1,opt,name=smart_account_address,json=smartAccountAddress,proto3" json:"smart_account_address,omitempty"`
-	// Signature over message using EIP-191 personal_sign semantics. Maximum
-	// length is 8192 characters to support universal wallet signatures.
+	// EOA signature over message using EIP-191 personal_sign semantics. A valid
+	// value is 65 bytes of hexadecimal with an optional 0x prefix. Requests are
+	// limited to 8192 characters.
 	Signature string `protobuf:"bytes,3,opt,name=signature,proto3" json:"signature,omitempty"`
 	// Optional user-agent string for account security and audit displays. Maximum
 	// length is 512 characters.
