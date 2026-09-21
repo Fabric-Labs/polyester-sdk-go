@@ -397,7 +397,10 @@ quote-budget orders, `SubmittedMaxQuoteDebitScaled`.
 
 Market orders are IOC and enforce a slippage-derived execution boundary. See
 [Market Order Price Protection](https://polyester.ai/developer-docs/shared-concepts/market-order-price-protection)
-before overriding market slippage controls.
+before overriding pair defaults. Set at most one of `MaxSlippageBps`
+(1–10000) or `MaxSlippageTicks` on a market `CreateOrderRequest`. Omit both
+to keep the pair default. The fields are rejected on limit orders and if
+both are supplied.
 
 ### Batch replace reconciliation
 

@@ -216,8 +216,14 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale, quoteQuant
 			}
 			market.ClientRefPriceTicks = ticks
 		}
+		if err := applyMarketMaxSlippage(market, req.MaxSlippageTicks, req.MaxSlippageBps); err != nil {
+			return nil, err
+		}
 		intent.Execution = &orderv1.OrderIntent_MarketIoc{MarketIoc: market}
 	case "limit":
+		if req.MaxSlippageTicks != nil || req.MaxSlippageBps != nil {
+			return nil, &errors.ValidationError{Msg: "max_slippage_ticks and max_slippage_bps are only valid for market orders"}
+		}
 		if !hasPrice {
 			return nil, &errors.ValidationError{Msg: "limit orders require price"}
 		}
@@ -254,6 +260,25 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale, quoteQuant
 		return nil, &errors.ValidationError{Msg: "max_quote_debit_scaled is only valid for buy market or limit IOC orders"}
 	}
 	return intent, nil
+}
+
+func applyMarketMaxSlippage(market *orderv1.MarketIoc, ticks, bps *int32) error {
+	if ticks != nil && bps != nil {
+		return &errors.ValidationError{Msg: "market_ioc allows at most one of max_slippage_ticks or max_slippage_bps"}
+	}
+	if ticks != nil {
+		if *ticks <= 0 {
+			return &errors.ValidationError{Msg: "max_slippage_ticks must be positive"}
+		}
+		market.MaxSlippage = &orderv1.MarketIoc_MaxSlippageTicks{MaxSlippageTicks: *ticks}
+	}
+	if bps != nil {
+		if err := validateSlippageBps(*bps, false); err != nil {
+			return err
+		}
+		market.MaxSlippage = &orderv1.MarketIoc_MaxSlippageBps{MaxSlippageBps: *bps}
+	}
+	return nil
 }
 
 // PreviewOrderToProto encodes the preview request from the same public input
