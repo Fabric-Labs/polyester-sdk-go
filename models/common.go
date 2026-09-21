@@ -32,6 +32,11 @@ type CreateOrderRequest struct {
 	// FeeAsset selects the fee asset: "quote" (default) or "base". Base fees
 	// are valid only for BUY orders.
 	FeeAsset *string `json:"fee_asset,omitempty"`
+	// MaxSlippageTicks and MaxSlippageBps are mutually exclusive market-IOC
+	// execution protections. Omit both to keep pair defaults. Rejected on
+	// limit orders. MaxSlippageBps must be 1–10000; ticks must be positive.
+	MaxSlippageTicks *int32 `json:"max_slippage_ticks,omitempty"`
+	MaxSlippageBps   *int32 `json:"max_slippage_bps,omitempty"`
 }
 
 // BatchReplaceItem is one item in orders.batch_replace.
