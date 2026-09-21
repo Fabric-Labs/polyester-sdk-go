@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.0a54
+
+Git tag: `v0.1.0a54`.
+
 ### Added
 - Market-order create/preview now expose `MaxSlippageBps` or
   `MaxSlippageTicks` and serialize the chosen override onto
