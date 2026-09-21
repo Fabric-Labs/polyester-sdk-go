@@ -8,6 +8,7 @@ package authv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
 	_ "github.com/google/gnostic/openapiv3"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -348,7 +349,7 @@ var File_auth_v1_resolve_proto protoreflect.FileDescriptor
 
 const file_auth_v1_resolve_proto_rawDesc = "" +
 	"\n" +
-	"\x15auth/v1/resolve.proto\x12\aauth.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\"\xa2\x02\n" +
+	"\x15auth/v1/resolve.proto\x12\aauth.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1bpolyester/api/options.proto\"\xa2\x02\n" +
 	"\x0fResolvedAccount\x122\n" +
 	"\x15smart_account_address\x18\x01 \x01(\tR\x13smartAccountAddress\x12;\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x1d.auth.v1.ResolvedAccount.KindB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04kind\x12#\n" +
@@ -370,10 +371,10 @@ const file_auth_v1_resolve_proto_rawDesc = "" +
 	"\x18RESOLVE_HINT_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\bUSERNAME\x10\x01\x12\x06\n" +
 	"\x02ID\x10\x02\x12\x11\n" +
-	"\rSMART_ACCOUNT\x10\x032\x91\x02\n" +
-	"\x0eResolveService\x12\xfe\x01\n" +
-	"\x0eResolveAccount\x12\x1e.auth.v1.ResolveAccountRequest\x1a\x1f.auth.v1.ResolveAccountResponse\"\xaa\x01\xbaG\x85\x01\n" +
-	"\fAuth Service\x12\x0fResolve Account\x1adResolve an account by username, account ID, or smart-account address for transfer and sharing flows.\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/auth/accounts:resolveB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
+	"\rSMART_ACCOUNT\x10\x032\x96\x02\n" +
+	"\x0eResolveService\x12\x83\x02\n" +
+	"\x0eResolveAccount\x12\x1e.auth.v1.ResolveAccountRequest\x1a\x1f.auth.v1.ResolveAccountResponse\"\xaf\x01\xbaG\x85\x01\n" +
+	"\fAuth Service\x12\x0fResolve Account\x1adResolve an account by username, account ID, or smart-account address for transfer and sharing flows.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/auth/accounts:resolveB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
 
 var (
 	file_auth_v1_resolve_proto_rawDescOnce sync.Once

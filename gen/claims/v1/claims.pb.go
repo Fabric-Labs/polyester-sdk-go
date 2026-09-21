@@ -7,6 +7,7 @@
 package claimsv1
 
 import (
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
 	v1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	_ "github.com/google/gnostic/openapiv3"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
@@ -24,6 +25,96 @@ const (
 	// Verify that runtime/protoimpl is sufficiently up-to-date.
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
+
+// ErrorCode identifies stable, machine-readable Claims API errors.
+// Values mirror the REST problem+json code field after removing ERROR_CODE_.
+type ErrorCode int32
+
+const (
+	// No domain error code was provided.
+	ErrorCode_ERROR_CODE_UNSPECIFIED ErrorCode = 0
+	// The claim reward is temporarily unavailable. Please try again later.
+	ErrorCode_ERROR_CODE_CLAIM_TEMPORARILY_UNAVAILABLE ErrorCode = 1
+	// A valid session is required. API keys cannot access claims.
+	ErrorCode_ERROR_CODE_UNAUTHENTICATED ErrorCode = 2
+	// The applicable request rate limit was exceeded.
+	ErrorCode_ERROR_CODE_RATE_LIMIT_EXCEEDED ErrorCode = 3
+	// No reward is available for the current UTC day.
+	ErrorCode_ERROR_CODE_CLAIM_UNAVAILABLE ErrorCode = 4
+	// The request encountered concurrent claim activity. Retry the request.
+	ErrorCode_ERROR_CODE_CONFLICT ErrorCode = 5
+	// The request payload is invalid.
+	ErrorCode_ERROR_CODE_INVALID_REQUEST ErrorCode = 6
+	// The REST request body exceeds the 1 KiB limit.
+	ErrorCode_ERROR_CODE_REQUEST_TOO_LARGE ErrorCode = 7
+	// The service is temporarily unable to complete the request.
+	ErrorCode_ERROR_CODE_SERVICE_UNAVAILABLE ErrorCode = 8
+	// The request failed because of an unexpected server error.
+	ErrorCode_ERROR_CODE_INTERNAL_ERROR ErrorCode = 9
+	// The claim request was not permitted.
+	ErrorCode_ERROR_CODE_PERMISSION_DENIED ErrorCode = 10
+	// A required condition for completing the claim was not satisfied.
+	ErrorCode_ERROR_CODE_FAILED_PRECONDITION ErrorCode = 11
+)
+
+// Enum value maps for ErrorCode.
+var (
+	ErrorCode_name = map[int32]string{
+		0:  "ERROR_CODE_UNSPECIFIED",
+		1:  "ERROR_CODE_CLAIM_TEMPORARILY_UNAVAILABLE",
+		2:  "ERROR_CODE_UNAUTHENTICATED",
+		3:  "ERROR_CODE_RATE_LIMIT_EXCEEDED",
+		4:  "ERROR_CODE_CLAIM_UNAVAILABLE",
+		5:  "ERROR_CODE_CONFLICT",
+		6:  "ERROR_CODE_INVALID_REQUEST",
+		7:  "ERROR_CODE_REQUEST_TOO_LARGE",
+		8:  "ERROR_CODE_SERVICE_UNAVAILABLE",
+		9:  "ERROR_CODE_INTERNAL_ERROR",
+		10: "ERROR_CODE_PERMISSION_DENIED",
+		11: "ERROR_CODE_FAILED_PRECONDITION",
+	}
+	ErrorCode_value = map[string]int32{
+		"ERROR_CODE_UNSPECIFIED":                   0,
+		"ERROR_CODE_CLAIM_TEMPORARILY_UNAVAILABLE": 1,
+		"ERROR_CODE_UNAUTHENTICATED":               2,
+		"ERROR_CODE_RATE_LIMIT_EXCEEDED":           3,
+		"ERROR_CODE_CLAIM_UNAVAILABLE":             4,
+		"ERROR_CODE_CONFLICT":                      5,
+		"ERROR_CODE_INVALID_REQUEST":               6,
+		"ERROR_CODE_REQUEST_TOO_LARGE":             7,
+		"ERROR_CODE_SERVICE_UNAVAILABLE":           8,
+		"ERROR_CODE_INTERNAL_ERROR":                9,
+		"ERROR_CODE_PERMISSION_DENIED":             10,
+		"ERROR_CODE_FAILED_PRECONDITION":           11,
+	}
+)
+
+func (x ErrorCode) Enum() *ErrorCode {
+	p := new(ErrorCode)
+	*p = x
+	return p
+}
+
+func (x ErrorCode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ErrorCode) Descriptor() protoreflect.EnumDescriptor {
+	return file_claims_v1_claims_proto_enumTypes[0].Descriptor()
+}
+
+func (ErrorCode) Type() protoreflect.EnumType {
+	return &file_claims_v1_claims_proto_enumTypes[0]
+}
+
+func (x ErrorCode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ErrorCode.Descriptor instead.
+func (ErrorCode) EnumDescriptor() ([]byte, []int) {
+	return file_claims_v1_claims_proto_rawDescGZIP(), []int{0}
+}
 
 // ClaimPolicy controls how often a recipient may claim from a campaign.
 type ClaimPolicy int32
@@ -58,11 +149,11 @@ func (x ClaimPolicy) String() string {
 }
 
 func (ClaimPolicy) Descriptor() protoreflect.EnumDescriptor {
-	return file_claims_v1_claims_proto_enumTypes[0].Descriptor()
+	return file_claims_v1_claims_proto_enumTypes[1].Descriptor()
 }
 
 func (ClaimPolicy) Type() protoreflect.EnumType {
-	return &file_claims_v1_claims_proto_enumTypes[0]
+	return &file_claims_v1_claims_proto_enumTypes[1]
 }
 
 func (x ClaimPolicy) Number() protoreflect.EnumNumber {
@@ -71,7 +162,7 @@ func (x ClaimPolicy) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ClaimPolicy.Descriptor instead.
 func (ClaimPolicy) EnumDescriptor() ([]byte, []int) {
-	return file_claims_v1_claims_proto_rawDescGZIP(), []int{0}
+	return file_claims_v1_claims_proto_rawDescGZIP(), []int{1}
 }
 
 // DailyClaimState describes today's claim.
@@ -119,11 +210,11 @@ func (x DailyClaimState) String() string {
 }
 
 func (DailyClaimState) Descriptor() protoreflect.EnumDescriptor {
-	return file_claims_v1_claims_proto_enumTypes[1].Descriptor()
+	return file_claims_v1_claims_proto_enumTypes[2].Descriptor()
 }
 
 func (DailyClaimState) Type() protoreflect.EnumType {
-	return &file_claims_v1_claims_proto_enumTypes[1]
+	return &file_claims_v1_claims_proto_enumTypes[2]
 }
 
 func (x DailyClaimState) Number() protoreflect.EnumNumber {
@@ -132,7 +223,57 @@ func (x DailyClaimState) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use DailyClaimState.Descriptor instead.
 func (DailyClaimState) EnumDescriptor() ([]byte, []int) {
-	return file_claims_v1_claims_proto_rawDescGZIP(), []int{1}
+	return file_claims_v1_claims_proto_rawDescGZIP(), []int{2}
+}
+
+// ErrorDetail is attached to ConnectRPC errors for structured error handling.
+// Application errors use these codes, with REST spelling defined above.
+// Cancellation and deadline errors use their transport codes without this detail.
+// Protocol decoding, routing, readiness, and network failures may occur before
+// application error handling and are not guaranteed to include this detail.
+type ErrorDetail struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable error code matching the REST problem+json code field.
+	Code          ErrorCode `protobuf:"varint,1,opt,name=code,proto3,enum=claims.v1.ErrorCode" json:"code,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ErrorDetail) Reset() {
+	*x = ErrorDetail{}
+	mi := &file_claims_v1_claims_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ErrorDetail) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ErrorDetail) ProtoMessage() {}
+
+func (x *ErrorDetail) ProtoReflect() protoreflect.Message {
+	mi := &file_claims_v1_claims_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ErrorDetail.ProtoReflect.Descriptor instead.
+func (*ErrorDetail) Descriptor() ([]byte, []int) {
+	return file_claims_v1_claims_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *ErrorDetail) GetCode() ErrorCode {
+	if x != nil {
+		return x.Code
+	}
+	return ErrorCode_ERROR_CODE_UNSPECIFIED
 }
 
 // ClaimCampaign identifies the campaign associated with a reward or claim.
@@ -152,7 +293,7 @@ type ClaimCampaign struct {
 
 func (x *ClaimCampaign) Reset() {
 	*x = ClaimCampaign{}
-	mi := &file_claims_v1_claims_proto_msgTypes[0]
+	mi := &file_claims_v1_claims_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -164,7 +305,7 @@ func (x *ClaimCampaign) String() string {
 func (*ClaimCampaign) ProtoMessage() {}
 
 func (x *ClaimCampaign) ProtoReflect() protoreflect.Message {
-	mi := &file_claims_v1_claims_proto_msgTypes[0]
+	mi := &file_claims_v1_claims_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -177,7 +318,7 @@ func (x *ClaimCampaign) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClaimCampaign.ProtoReflect.Descriptor instead.
 func (*ClaimCampaign) Descriptor() ([]byte, []int) {
-	return file_claims_v1_claims_proto_rawDescGZIP(), []int{0}
+	return file_claims_v1_claims_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *ClaimCampaign) GetCampaignId() string {
@@ -223,7 +364,7 @@ type DailyClaimReward struct {
 
 func (x *DailyClaimReward) Reset() {
 	*x = DailyClaimReward{}
-	mi := &file_claims_v1_claims_proto_msgTypes[1]
+	mi := &file_claims_v1_claims_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -235,7 +376,7 @@ func (x *DailyClaimReward) String() string {
 func (*DailyClaimReward) ProtoMessage() {}
 
 func (x *DailyClaimReward) ProtoReflect() protoreflect.Message {
-	mi := &file_claims_v1_claims_proto_msgTypes[1]
+	mi := &file_claims_v1_claims_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -248,7 +389,7 @@ func (x *DailyClaimReward) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DailyClaimReward.ProtoReflect.Descriptor instead.
 func (*DailyClaimReward) Descriptor() ([]byte, []int) {
-	return file_claims_v1_claims_proto_rawDescGZIP(), []int{1}
+	return file_claims_v1_claims_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *DailyClaimReward) GetAssetId() uint32 {
@@ -281,7 +422,7 @@ type GetDailyClaimStatusRequest struct {
 
 func (x *GetDailyClaimStatusRequest) Reset() {
 	*x = GetDailyClaimStatusRequest{}
-	mi := &file_claims_v1_claims_proto_msgTypes[2]
+	mi := &file_claims_v1_claims_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -293,7 +434,7 @@ func (x *GetDailyClaimStatusRequest) String() string {
 func (*GetDailyClaimStatusRequest) ProtoMessage() {}
 
 func (x *GetDailyClaimStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_claims_v1_claims_proto_msgTypes[2]
+	mi := &file_claims_v1_claims_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -306,7 +447,7 @@ func (x *GetDailyClaimStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDailyClaimStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetDailyClaimStatusRequest) Descriptor() ([]byte, []int) {
-	return file_claims_v1_claims_proto_rawDescGZIP(), []int{2}
+	return file_claims_v1_claims_proto_rawDescGZIP(), []int{3}
 }
 
 // GetDailyClaimStatusResponse contains the reward and claim status for the current UTC day.
@@ -328,7 +469,7 @@ type GetDailyClaimStatusResponse struct {
 
 func (x *GetDailyClaimStatusResponse) Reset() {
 	*x = GetDailyClaimStatusResponse{}
-	mi := &file_claims_v1_claims_proto_msgTypes[3]
+	mi := &file_claims_v1_claims_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -340,7 +481,7 @@ func (x *GetDailyClaimStatusResponse) String() string {
 func (*GetDailyClaimStatusResponse) ProtoMessage() {}
 
 func (x *GetDailyClaimStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_claims_v1_claims_proto_msgTypes[3]
+	mi := &file_claims_v1_claims_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -353,7 +494,7 @@ func (x *GetDailyClaimStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDailyClaimStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetDailyClaimStatusResponse) Descriptor() ([]byte, []int) {
-	return file_claims_v1_claims_proto_rawDescGZIP(), []int{3}
+	return file_claims_v1_claims_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetDailyClaimStatusResponse) GetState() DailyClaimState {
@@ -400,7 +541,7 @@ type ClaimDailyRewardRequest struct {
 
 func (x *ClaimDailyRewardRequest) Reset() {
 	*x = ClaimDailyRewardRequest{}
-	mi := &file_claims_v1_claims_proto_msgTypes[4]
+	mi := &file_claims_v1_claims_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -412,7 +553,7 @@ func (x *ClaimDailyRewardRequest) String() string {
 func (*ClaimDailyRewardRequest) ProtoMessage() {}
 
 func (x *ClaimDailyRewardRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_claims_v1_claims_proto_msgTypes[4]
+	mi := &file_claims_v1_claims_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -425,7 +566,7 @@ func (x *ClaimDailyRewardRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClaimDailyRewardRequest.ProtoReflect.Descriptor instead.
 func (*ClaimDailyRewardRequest) Descriptor() ([]byte, []int) {
-	return file_claims_v1_claims_proto_rawDescGZIP(), []int{4}
+	return file_claims_v1_claims_proto_rawDescGZIP(), []int{5}
 }
 
 // DailyClaimTransfer identifies the transfer created for one claimed asset.
@@ -441,7 +582,7 @@ type DailyClaimTransfer struct {
 
 func (x *DailyClaimTransfer) Reset() {
 	*x = DailyClaimTransfer{}
-	mi := &file_claims_v1_claims_proto_msgTypes[5]
+	mi := &file_claims_v1_claims_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -453,7 +594,7 @@ func (x *DailyClaimTransfer) String() string {
 func (*DailyClaimTransfer) ProtoMessage() {}
 
 func (x *DailyClaimTransfer) ProtoReflect() protoreflect.Message {
-	mi := &file_claims_v1_claims_proto_msgTypes[5]
+	mi := &file_claims_v1_claims_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -466,7 +607,7 @@ func (x *DailyClaimTransfer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DailyClaimTransfer.ProtoReflect.Descriptor instead.
 func (*DailyClaimTransfer) Descriptor() ([]byte, []int) {
-	return file_claims_v1_claims_proto_rawDescGZIP(), []int{5}
+	return file_claims_v1_claims_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *DailyClaimTransfer) GetAssetId() uint32 {
@@ -506,7 +647,7 @@ type ClaimDailyRewardResponse struct {
 
 func (x *ClaimDailyRewardResponse) Reset() {
 	*x = ClaimDailyRewardResponse{}
-	mi := &file_claims_v1_claims_proto_msgTypes[6]
+	mi := &file_claims_v1_claims_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -518,7 +659,7 @@ func (x *ClaimDailyRewardResponse) String() string {
 func (*ClaimDailyRewardResponse) ProtoMessage() {}
 
 func (x *ClaimDailyRewardResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_claims_v1_claims_proto_msgTypes[6]
+	mi := &file_claims_v1_claims_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -531,7 +672,7 @@ func (x *ClaimDailyRewardResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClaimDailyRewardResponse.ProtoReflect.Descriptor instead.
 func (*ClaimDailyRewardResponse) Descriptor() ([]byte, []int) {
-	return file_claims_v1_claims_proto_rawDescGZIP(), []int{6}
+	return file_claims_v1_claims_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ClaimDailyRewardResponse) GetClaimId() string {
@@ -587,7 +728,9 @@ var File_claims_v1_claims_proto protoreflect.FileDescriptor
 
 const file_claims_v1_claims_proto_rawDesc = "" +
 	"\n" +
-	"\x16claims/v1/claims.proto\x12\tclaims.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cpolyester/type/v1/u128.proto\"\xa1\x01\n" +
+	"\x16claims/v1/claims.proto\x12\tclaims.v1\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\x1a\x1cpolyester/type/v1/u128.proto\"7\n" +
+	"\vErrorDetail\x12(\n" +
+	"\x04code\x18\x01 \x01(\x0e2\x14.claims.v1.ErrorCodeR\x04code\"\xa1\x01\n" +
 	"\rClaimCampaign\x12\x1f\n" +
 	"\vcampaign_id\x18\x01 \x01(\tR\n" +
 	"campaignId\x12\x12\n" +
@@ -620,7 +763,21 @@ const file_claims_v1_claims_proto_rawDesc = "" +
 	"\arewards\x18\x04 \x03(\v2\x1b.claims.v1.DailyClaimRewardR\arewards\x12;\n" +
 	"\ttransfers\x18\x05 \x03(\v2\x1d.claims.v1.DailyClaimTransferR\ttransfers\x125\n" +
 	"\breset_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\aresetAt\x124\n" +
-	"\bcampaign\x18\a \x01(\v2\x18.claims.v1.ClaimCampaignR\bcampaign*4\n" +
+	"\bcampaign\x18\a \x01(\v2\x18.claims.v1.ClaimCampaignR\bcampaign*\x9f\x03\n" +
+	"\tErrorCode\x12\x1a\n" +
+	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12,\n" +
+	"(ERROR_CODE_CLAIM_TEMPORARILY_UNAVAILABLE\x10\x01\x12\x1e\n" +
+	"\x1aERROR_CODE_UNAUTHENTICATED\x10\x02\x12\"\n" +
+	"\x1eERROR_CODE_RATE_LIMIT_EXCEEDED\x10\x03\x12 \n" +
+	"\x1cERROR_CODE_CLAIM_UNAVAILABLE\x10\x04\x12\x17\n" +
+	"\x13ERROR_CODE_CONFLICT\x10\x05\x12\x1e\n" +
+	"\x1aERROR_CODE_INVALID_REQUEST\x10\x06\x12 \n" +
+	"\x1cERROR_CODE_REQUEST_TOO_LARGE\x10\a\x12\"\n" +
+	"\x1eERROR_CODE_SERVICE_UNAVAILABLE\x10\b\x12\x1d\n" +
+	"\x19ERROR_CODE_INTERNAL_ERROR\x10\t\x12 \n" +
+	"\x1cERROR_CODE_PERMISSION_DENIED\x10\n" +
+	"\x12\"\n" +
+	"\x1eERROR_CODE_FAILED_PRECONDITION\x10\v*4\n" +
 	"\vClaimPolicy\x12\x16\n" +
 	"\x12POLICY_UNSPECIFIED\x10\x00\x12\r\n" +
 	"\tUTC_DAILY\x10\x01*}\n" +
@@ -629,12 +786,12 @@ const file_claims_v1_claims_proto_rawDesc = "" +
 	"\x0fCLAIM_AVAILABLE\x10\x01\x12\x14\n" +
 	"\x10CLAIM_PROCESSING\x10\x02\x12\x11\n" +
 	"\rCLAIM_CLAIMED\x10\x03\x12\x15\n" +
-	"\x11CLAIM_UNAVAILABLE\x10\x042\xd8\x05\n" +
-	"\rClaimsService\x12\xd6\x02\n" +
-	"\x13GetDailyClaimStatus\x12%.claims.v1.GetDailyClaimStatusRequest\x1a&.claims.v1.GetDailyClaimStatusResponse\"\xef\x01\xbaG\xcc\x01\n" +
-	"\vDaily Claim\x12\x16Get Daily Claim Status\x1a\xa4\x01Get today's reward and claim status for the authenticated root account. Requires a session JWT; API keys are not accepted. Future reward schedules are not returned.\x82\xd3\xe4\x93\x02\x19\x12\x17/v1/trading/daily-claim\x12\xed\x02\n" +
-	"\x10ClaimDailyReward\x12\".claims.v1.ClaimDailyRewardRequest\x1a#.claims.v1.ClaimDailyRewardResponse\"\x8f\x02\xbaG\xe3\x01\n" +
-	"\vDaily Claim\x12\x12Claim Daily Reward\x1a\xbf\x01Claim today's reward once for the authenticated root account. Requires a session JWT; API keys are not accepted. All reward assets are transferred together, and retries return the same claim.\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/v1/trading/daily-claim/claimB\x8b\x01\xbaGH:F\n" +
+	"\x11CLAIM_UNAVAILABLE\x10\x042\xe2\x05\n" +
+	"\rClaimsService\x12\xdb\x02\n" +
+	"\x13GetDailyClaimStatus\x12%.claims.v1.GetDailyClaimStatusRequest\x1a&.claims.v1.GetDailyClaimStatusResponse\"\xf4\x01\xbaG\xcc\x01\n" +
+	"\vDaily Claim\x12\x16Get Daily Claim Status\x1a\xa4\x01Get today's reward and claim status for the authenticated root account. Requires a session JWT; API keys are not accepted. Future reward schedules are not returned.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x19\x12\x17/v1/trading/daily-claim\x12\xf2\x02\n" +
+	"\x10ClaimDailyReward\x12\".claims.v1.ClaimDailyRewardRequest\x1a#.claims.v1.ClaimDailyRewardResponse\"\x94\x02\xbaG\xe3\x01\n" +
+	"\vDaily Claim\x12\x12Claim Daily Reward\x1a\xbf\x01Claim today's reward once for the authenticated root account. Requires a session JWT; API keys are not accepted. All reward assets are transferred together, and retries return the same claim.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/v1/trading/daily-claim/claimB\x8b\x01\xbaGH:F\n" +
 	"\vDaily Claim\x127Daily campaign rewards for authenticated root accounts.Z>github.com/Fabric-Labs/polyester-sdk-go/gen/claims/v1;claimsv1b\x06proto3"
 
 var (
@@ -649,43 +806,46 @@ func file_claims_v1_claims_proto_rawDescGZIP() []byte {
 	return file_claims_v1_claims_proto_rawDescData
 }
 
-var file_claims_v1_claims_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_claims_v1_claims_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_claims_v1_claims_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_claims_v1_claims_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_claims_v1_claims_proto_goTypes = []any{
-	(ClaimPolicy)(0),                    // 0: claims.v1.ClaimPolicy
-	(DailyClaimState)(0),                // 1: claims.v1.DailyClaimState
-	(*ClaimCampaign)(nil),               // 2: claims.v1.ClaimCampaign
-	(*DailyClaimReward)(nil),            // 3: claims.v1.DailyClaimReward
-	(*GetDailyClaimStatusRequest)(nil),  // 4: claims.v1.GetDailyClaimStatusRequest
-	(*GetDailyClaimStatusResponse)(nil), // 5: claims.v1.GetDailyClaimStatusResponse
-	(*ClaimDailyRewardRequest)(nil),     // 6: claims.v1.ClaimDailyRewardRequest
-	(*DailyClaimTransfer)(nil),          // 7: claims.v1.DailyClaimTransfer
-	(*ClaimDailyRewardResponse)(nil),    // 8: claims.v1.ClaimDailyRewardResponse
-	(*v1.U128)(nil),                     // 9: polyester.type.v1.U128
-	(*timestamppb.Timestamp)(nil),       // 10: google.protobuf.Timestamp
+	(ErrorCode)(0),                      // 0: claims.v1.ErrorCode
+	(ClaimPolicy)(0),                    // 1: claims.v1.ClaimPolicy
+	(DailyClaimState)(0),                // 2: claims.v1.DailyClaimState
+	(*ErrorDetail)(nil),                 // 3: claims.v1.ErrorDetail
+	(*ClaimCampaign)(nil),               // 4: claims.v1.ClaimCampaign
+	(*DailyClaimReward)(nil),            // 5: claims.v1.DailyClaimReward
+	(*GetDailyClaimStatusRequest)(nil),  // 6: claims.v1.GetDailyClaimStatusRequest
+	(*GetDailyClaimStatusResponse)(nil), // 7: claims.v1.GetDailyClaimStatusResponse
+	(*ClaimDailyRewardRequest)(nil),     // 8: claims.v1.ClaimDailyRewardRequest
+	(*DailyClaimTransfer)(nil),          // 9: claims.v1.DailyClaimTransfer
+	(*ClaimDailyRewardResponse)(nil),    // 10: claims.v1.ClaimDailyRewardResponse
+	(*v1.U128)(nil),                     // 11: polyester.type.v1.U128
+	(*timestamppb.Timestamp)(nil),       // 12: google.protobuf.Timestamp
 }
 var file_claims_v1_claims_proto_depIdxs = []int32{
-	0,  // 0: claims.v1.ClaimCampaign.claim_policy:type_name -> claims.v1.ClaimPolicy
-	9,  // 1: claims.v1.DailyClaimReward.amount_e18:type_name -> polyester.type.v1.U128
-	1,  // 2: claims.v1.GetDailyClaimStatusResponse.state:type_name -> claims.v1.DailyClaimState
-	10, // 3: claims.v1.GetDailyClaimStatusResponse.reset_at:type_name -> google.protobuf.Timestamp
-	3,  // 4: claims.v1.GetDailyClaimStatusResponse.rewards:type_name -> claims.v1.DailyClaimReward
-	2,  // 5: claims.v1.GetDailyClaimStatusResponse.campaign:type_name -> claims.v1.ClaimCampaign
-	1,  // 6: claims.v1.ClaimDailyRewardResponse.state:type_name -> claims.v1.DailyClaimState
-	10, // 7: claims.v1.ClaimDailyRewardResponse.claimed_at:type_name -> google.protobuf.Timestamp
-	3,  // 8: claims.v1.ClaimDailyRewardResponse.rewards:type_name -> claims.v1.DailyClaimReward
-	7,  // 9: claims.v1.ClaimDailyRewardResponse.transfers:type_name -> claims.v1.DailyClaimTransfer
-	10, // 10: claims.v1.ClaimDailyRewardResponse.reset_at:type_name -> google.protobuf.Timestamp
-	2,  // 11: claims.v1.ClaimDailyRewardResponse.campaign:type_name -> claims.v1.ClaimCampaign
-	4,  // 12: claims.v1.ClaimsService.GetDailyClaimStatus:input_type -> claims.v1.GetDailyClaimStatusRequest
-	6,  // 13: claims.v1.ClaimsService.ClaimDailyReward:input_type -> claims.v1.ClaimDailyRewardRequest
-	5,  // 14: claims.v1.ClaimsService.GetDailyClaimStatus:output_type -> claims.v1.GetDailyClaimStatusResponse
-	8,  // 15: claims.v1.ClaimsService.ClaimDailyReward:output_type -> claims.v1.ClaimDailyRewardResponse
-	14, // [14:16] is the sub-list for method output_type
-	12, // [12:14] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	0,  // 0: claims.v1.ErrorDetail.code:type_name -> claims.v1.ErrorCode
+	1,  // 1: claims.v1.ClaimCampaign.claim_policy:type_name -> claims.v1.ClaimPolicy
+	11, // 2: claims.v1.DailyClaimReward.amount_e18:type_name -> polyester.type.v1.U128
+	2,  // 3: claims.v1.GetDailyClaimStatusResponse.state:type_name -> claims.v1.DailyClaimState
+	12, // 4: claims.v1.GetDailyClaimStatusResponse.reset_at:type_name -> google.protobuf.Timestamp
+	5,  // 5: claims.v1.GetDailyClaimStatusResponse.rewards:type_name -> claims.v1.DailyClaimReward
+	4,  // 6: claims.v1.GetDailyClaimStatusResponse.campaign:type_name -> claims.v1.ClaimCampaign
+	2,  // 7: claims.v1.ClaimDailyRewardResponse.state:type_name -> claims.v1.DailyClaimState
+	12, // 8: claims.v1.ClaimDailyRewardResponse.claimed_at:type_name -> google.protobuf.Timestamp
+	5,  // 9: claims.v1.ClaimDailyRewardResponse.rewards:type_name -> claims.v1.DailyClaimReward
+	9,  // 10: claims.v1.ClaimDailyRewardResponse.transfers:type_name -> claims.v1.DailyClaimTransfer
+	12, // 11: claims.v1.ClaimDailyRewardResponse.reset_at:type_name -> google.protobuf.Timestamp
+	4,  // 12: claims.v1.ClaimDailyRewardResponse.campaign:type_name -> claims.v1.ClaimCampaign
+	6,  // 13: claims.v1.ClaimsService.GetDailyClaimStatus:input_type -> claims.v1.GetDailyClaimStatusRequest
+	8,  // 14: claims.v1.ClaimsService.ClaimDailyReward:input_type -> claims.v1.ClaimDailyRewardRequest
+	7,  // 15: claims.v1.ClaimsService.GetDailyClaimStatus:output_type -> claims.v1.GetDailyClaimStatusResponse
+	10, // 16: claims.v1.ClaimsService.ClaimDailyReward:output_type -> claims.v1.ClaimDailyRewardResponse
+	15, // [15:17] is the sub-list for method output_type
+	13, // [13:15] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_claims_v1_claims_proto_init() }
@@ -698,8 +858,8 @@ func file_claims_v1_claims_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_claims_v1_claims_proto_rawDesc), len(file_claims_v1_claims_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   7,
+			NumEnums:      3,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

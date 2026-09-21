@@ -43,6 +43,10 @@ procedure = "/auth.v1.SubaccountService/CreateSubaccount"
 reason = "Subaccount create requires JWT/session auth."
 
 [[allowlist]]
+procedure = "/auth.v1.SubaccountService/CreateSubaccountChallenge"
+reason = "Subaccount create requires JWT/session auth."
+
+[[allowlist]]
 procedure = "/auth.v1.SubaccountService/UpdateSubaccount"
 reason = "Subaccount update/delete requires JWT/session auth."
 

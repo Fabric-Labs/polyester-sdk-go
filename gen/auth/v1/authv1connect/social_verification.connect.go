@@ -50,6 +50,9 @@ type SocialVerificationServiceClient interface {
 	// Start or restart social verification by issuing a new challenge code.
 	StartSocialVerification(context.Context, *connect.Request[v1.StartSocialVerificationRequest]) (*connect.Response[v1.StartSocialVerificationResponse], error)
 	// Mark a verification as ready after the challenge code has been placed.
+	// AUTH_RESOURCE_NOT_FOUND means no verification exists; start one first.
+	// AUTH_SOCIAL_VERIFICATION_EXPIRED means the challenge window passed; start a new verification, then mark it ready again.
+	// AUTH_SOCIAL_VERIFICATION_INVALID_STATE means Ready is not valid in the current state; call GetSocialVerification for the current status.
 	SocialVerificationReady(context.Context, *connect.Request[v1.SocialVerificationReadyRequest]) (*connect.Response[v1.SocialVerificationReadyResponse], error)
 	// Get current verification status for the caller.
 	GetSocialVerification(context.Context, *connect.Request[v1.GetSocialVerificationRequest]) (*connect.Response[v1.GetSocialVerificationResponse], error)
@@ -115,6 +118,9 @@ type SocialVerificationServiceHandler interface {
 	// Start or restart social verification by issuing a new challenge code.
 	StartSocialVerification(context.Context, *connect.Request[v1.StartSocialVerificationRequest]) (*connect.Response[v1.StartSocialVerificationResponse], error)
 	// Mark a verification as ready after the challenge code has been placed.
+	// AUTH_RESOURCE_NOT_FOUND means no verification exists; start one first.
+	// AUTH_SOCIAL_VERIFICATION_EXPIRED means the challenge window passed; start a new verification, then mark it ready again.
+	// AUTH_SOCIAL_VERIFICATION_INVALID_STATE means Ready is not valid in the current state; call GetSocialVerification for the current status.
 	SocialVerificationReady(context.Context, *connect.Request[v1.SocialVerificationReadyRequest]) (*connect.Response[v1.SocialVerificationReadyResponse], error)
 	// Get current verification status for the caller.
 	GetSocialVerification(context.Context, *connect.Request[v1.GetSocialVerificationRequest]) (*connect.Response[v1.GetSocialVerificationResponse], error)

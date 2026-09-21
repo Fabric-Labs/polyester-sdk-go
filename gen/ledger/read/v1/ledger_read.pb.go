@@ -9,6 +9,7 @@ package ledgerrdv1
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	v11 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/v1"
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
 	v1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	_ "github.com/google/gnostic/openapiv3"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -2229,7 +2230,7 @@ var File_ledger_read_v1_ledger_read_proto protoreflect.FileDescriptor
 
 const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"\n" +
-	" ledger/read/v1/ledger_read.proto\x12\x0eledger.read.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x17ledger/v1/catalog.proto\x1a\x1cpolyester/type/v1/u128.proto\"P\n" +
+	" ledger/read/v1/ledger_read.proto\x12\x0eledger.read.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x17ledger/v1/catalog.proto\x1a\x1bpolyester/api/options.proto\x1a\x1cpolyester/type/v1/u128.proto\"P\n" +
 	"\x12GetBalancesRequest\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
 	"\x0e_subaccount_id\"\xd1\x02\n" +
@@ -2420,12 +2421,12 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"(ERROR_CODE_WALLET_RESOLUTION_UNAVAILABLE\x10\b\x12\x1f\n" +
 	"\x1bERROR_CODE_WALLET_NOT_FOUND\x10\t\x12\x1d\n" +
 	"\x19ERROR_CODE_UPSTREAM_ERROR\x10\n" +
-	"2\xa7\x06\n" +
+	"2\xb1\x06\n" +
 	"\x11LedgerReadService\x12j\n" +
 	"\x11GetBalanceHistory\x12(.ledger.read.v1.GetBalanceHistoryRequest\x1a).ledger.read.v1.GetBalanceHistoryResponse\"\x00\x12y\n" +
-	"\x16GetEquityHistorySeries\x12-.ledger.read.v1.GetEquityHistorySeriesRequest\x1a..ledger.read.v1.GetEquityHistorySeriesResponse\"\x00\x12\x94\x01\n" +
-	"\x1fGetPortfolioEquityHistorySeries\x126.ledger.read.v1.GetPortfolioEquityHistorySeriesRequest\x1a7.ledger.read.v1.GetPortfolioEquityHistorySeriesResponse\"\x00\x12\x85\x01\n" +
-	"\x1aGetPortfolioEquitySnapshot\x121.ledger.read.v1.GetPortfolioEquitySnapshotRequest\x1a2.ledger.read.v1.GetPortfolioEquitySnapshotResponse\"\x00\x12^\n" +
+	"\x16GetEquityHistorySeries\x12-.ledger.read.v1.GetEquityHistorySeriesRequest\x1a..ledger.read.v1.GetEquityHistorySeriesResponse\"\x00\x12\x99\x01\n" +
+	"\x1fGetPortfolioEquityHistorySeries\x126.ledger.read.v1.GetPortfolioEquityHistorySeriesRequest\x1a7.ledger.read.v1.GetPortfolioEquityHistorySeriesResponse\"\x05\xa2\xb5\x18\x01\x01\x12\x8a\x01\n" +
+	"\x1aGetPortfolioEquitySnapshot\x121.ledger.read.v1.GetPortfolioEquitySnapshotRequest\x1a2.ledger.read.v1.GetPortfolioEquitySnapshotResponse\"\x05\xa2\xb5\x18\x01\x01\x12^\n" +
 	"\rListTransfers\x12$.ledger.read.v1.ListTransfersRequest\x1a%.ledger.read.v1.ListTransfersResponse\"\x00\x12R\n" +
 	"\tListHolds\x12 .ledger.read.v1.ListHoldsRequest\x1a!.ledger.read.v1.ListHoldsResponse\"\x00\x12X\n" +
 	"\vGetBalances\x12\".ledger.read.v1.GetBalancesRequest\x1a#.ledger.read.v1.GetBalancesResponse\"\x00B\x8d\x01\xbaGC:A\n" +

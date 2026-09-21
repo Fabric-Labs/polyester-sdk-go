@@ -52,11 +52,10 @@ type AuthServiceClient interface {
 	// Verify a signed EIP-4361 message and issue an access token. Login and account creation
 	// do not accept terms; explicit consent is recorded only by AcceptTerms.
 	LoginWithWallet(context.Context, *connect.Request[v1.LoginWithWalletRequest]) (*connect.Response[v1.LoginWithWalletResponse], error)
-	// Explicitly accept the currently required terms for the caller's root account.
-	// Requires an interactive JWT session; API keys are not allowed. No MFA is
-	// required. Login, trading, reads, and use of existing resources remain available
-	// without acceptance. Only CreateSubaccount, CreateApiKey, and
-	// CreateDepositAddress require acceptance of the current version.
+	// Explicitly accept the terms that apply to the caller's root account.
+	// Requires an interactive JWT session; API keys are not allowed. Login, trading,
+	// reads, and use of existing resources remain available without acceptance.
+	// Acceptance is required before creating a subaccount, API key, or deposit address.
 	AcceptTerms(context.Context, *connect.Request[v1.AcceptTermsRequest]) (*connect.Response[v1.AcceptTermsResponse], error)
 	// Return the caller's current auth context.
 	Me(context.Context, *connect.Request[v1.MeRequest]) (*connect.Response[v1.MeResponse], error)
@@ -136,11 +135,10 @@ type AuthServiceHandler interface {
 	// Verify a signed EIP-4361 message and issue an access token. Login and account creation
 	// do not accept terms; explicit consent is recorded only by AcceptTerms.
 	LoginWithWallet(context.Context, *connect.Request[v1.LoginWithWalletRequest]) (*connect.Response[v1.LoginWithWalletResponse], error)
-	// Explicitly accept the currently required terms for the caller's root account.
-	// Requires an interactive JWT session; API keys are not allowed. No MFA is
-	// required. Login, trading, reads, and use of existing resources remain available
-	// without acceptance. Only CreateSubaccount, CreateApiKey, and
-	// CreateDepositAddress require acceptance of the current version.
+	// Explicitly accept the terms that apply to the caller's root account.
+	// Requires an interactive JWT session; API keys are not allowed. Login, trading,
+	// reads, and use of existing resources remain available without acceptance.
+	// Acceptance is required before creating a subaccount, API key, or deposit address.
 	AcceptTerms(context.Context, *connect.Request[v1.AcceptTermsRequest]) (*connect.Response[v1.AcceptTermsResponse], error)
 	// Return the caller's current auth context.
 	Me(context.Context, *connect.Request[v1.MeRequest]) (*connect.Response[v1.MeResponse], error)

@@ -46,6 +46,9 @@ const (
 	// SubaccountServiceListSubaccountsProcedure is the fully-qualified name of the SubaccountService's
 	// ListSubaccounts RPC.
 	SubaccountServiceListSubaccountsProcedure = "/auth.v1.SubaccountService/ListSubaccounts"
+	// SubaccountServiceCreateSubaccountChallengeProcedure is the fully-qualified name of the
+	// SubaccountService's CreateSubaccountChallenge RPC.
+	SubaccountServiceCreateSubaccountChallengeProcedure = "/auth.v1.SubaccountService/CreateSubaccountChallenge"
 	// SubaccountServiceCreateSubaccountProcedure is the fully-qualified name of the SubaccountService's
 	// CreateSubaccount RPC.
 	SubaccountServiceCreateSubaccountProcedure = "/auth.v1.SubaccountService/CreateSubaccount"
@@ -185,6 +188,9 @@ func (UnimplementedSubaccountViewServiceHandler) ListSubaccountActivity(context.
 type SubaccountServiceClient interface {
 	// List sub-accounts owned by or shared with the caller.
 	ListSubaccounts(context.Context, *connect.Request[v1.ListSubaccountsRequest]) (*connect.Response[v1.ListSubaccountsResponse], error)
+	// Request the canonical next smart account and a short-lived account-control
+	// authorization bound to the authenticated root and selected owner wallet.
+	CreateSubaccountChallenge(context.Context, *connect.Request[v1.CreateSubaccountChallengeRequest]) (*connect.Response[v1.CreateSubaccountChallengeResponse], error)
 	// Create a new sub-account under the caller's root account. Requires current
 	// terms acceptance; otherwise FailedPrecondition with AUTH_TERMS_NOT_ACCEPTED
 	// is returned.
@@ -223,6 +229,12 @@ func NewSubaccountServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			httpClient,
 			baseURL+SubaccountServiceListSubaccountsProcedure,
 			connect.WithSchema(subaccountServiceMethods.ByName("ListSubaccounts")),
+			connect.WithClientOptions(opts...),
+		),
+		createSubaccountChallenge: connect.NewClient[v1.CreateSubaccountChallengeRequest, v1.CreateSubaccountChallengeResponse](
+			httpClient,
+			baseURL+SubaccountServiceCreateSubaccountChallengeProcedure,
+			connect.WithSchema(subaccountServiceMethods.ByName("CreateSubaccountChallenge")),
 			connect.WithClientOptions(opts...),
 		),
 		createSubaccount: connect.NewClient[v1.CreateSubaccountRequest, v1.CreateSubaccountResponse](
@@ -285,6 +297,7 @@ func NewSubaccountServiceClient(httpClient connect.HTTPClient, baseURL string, o
 // subaccountServiceClient implements SubaccountServiceClient.
 type subaccountServiceClient struct {
 	listSubaccounts                   *connect.Client[v1.ListSubaccountsRequest, v1.ListSubaccountsResponse]
+	createSubaccountChallenge         *connect.Client[v1.CreateSubaccountChallengeRequest, v1.CreateSubaccountChallengeResponse]
 	createSubaccount                  *connect.Client[v1.CreateSubaccountRequest, v1.CreateSubaccountResponse]
 	updateSubaccount                  *connect.Client[v1.UpdateSubaccountRequest, v1.UpdateSubaccountResponse]
 	setSubaccountMemberMFARequirement *connect.Client[v1.SetSubaccountMemberMFARequirementRequest, v1.SetSubaccountMemberMFARequirementResponse]
@@ -299,6 +312,11 @@ type subaccountServiceClient struct {
 // ListSubaccounts calls auth.v1.SubaccountService.ListSubaccounts.
 func (c *subaccountServiceClient) ListSubaccounts(ctx context.Context, req *connect.Request[v1.ListSubaccountsRequest]) (*connect.Response[v1.ListSubaccountsResponse], error) {
 	return c.listSubaccounts.CallUnary(ctx, req)
+}
+
+// CreateSubaccountChallenge calls auth.v1.SubaccountService.CreateSubaccountChallenge.
+func (c *subaccountServiceClient) CreateSubaccountChallenge(ctx context.Context, req *connect.Request[v1.CreateSubaccountChallengeRequest]) (*connect.Response[v1.CreateSubaccountChallengeResponse], error) {
+	return c.createSubaccountChallenge.CallUnary(ctx, req)
 }
 
 // CreateSubaccount calls auth.v1.SubaccountService.CreateSubaccount.
@@ -351,6 +369,9 @@ func (c *subaccountServiceClient) RespondSubaccountInvite(ctx context.Context, r
 type SubaccountServiceHandler interface {
 	// List sub-accounts owned by or shared with the caller.
 	ListSubaccounts(context.Context, *connect.Request[v1.ListSubaccountsRequest]) (*connect.Response[v1.ListSubaccountsResponse], error)
+	// Request the canonical next smart account and a short-lived account-control
+	// authorization bound to the authenticated root and selected owner wallet.
+	CreateSubaccountChallenge(context.Context, *connect.Request[v1.CreateSubaccountChallengeRequest]) (*connect.Response[v1.CreateSubaccountChallengeResponse], error)
 	// Create a new sub-account under the caller's root account. Requires current
 	// terms acceptance; otherwise FailedPrecondition with AUTH_TERMS_NOT_ACCEPTED
 	// is returned.
@@ -385,6 +406,12 @@ func NewSubaccountServiceHandler(svc SubaccountServiceHandler, opts ...connect.H
 		SubaccountServiceListSubaccountsProcedure,
 		svc.ListSubaccounts,
 		connect.WithSchema(subaccountServiceMethods.ByName("ListSubaccounts")),
+		connect.WithHandlerOptions(opts...),
+	)
+	subaccountServiceCreateSubaccountChallengeHandler := connect.NewUnaryHandler(
+		SubaccountServiceCreateSubaccountChallengeProcedure,
+		svc.CreateSubaccountChallenge,
+		connect.WithSchema(subaccountServiceMethods.ByName("CreateSubaccountChallenge")),
 		connect.WithHandlerOptions(opts...),
 	)
 	subaccountServiceCreateSubaccountHandler := connect.NewUnaryHandler(
@@ -445,6 +472,8 @@ func NewSubaccountServiceHandler(svc SubaccountServiceHandler, opts ...connect.H
 		switch r.URL.Path {
 		case SubaccountServiceListSubaccountsProcedure:
 			subaccountServiceListSubaccountsHandler.ServeHTTP(w, r)
+		case SubaccountServiceCreateSubaccountChallengeProcedure:
+			subaccountServiceCreateSubaccountChallengeHandler.ServeHTTP(w, r)
 		case SubaccountServiceCreateSubaccountProcedure:
 			subaccountServiceCreateSubaccountHandler.ServeHTTP(w, r)
 		case SubaccountServiceUpdateSubaccountProcedure:
@@ -474,6 +503,10 @@ type UnimplementedSubaccountServiceHandler struct{}
 
 func (UnimplementedSubaccountServiceHandler) ListSubaccounts(context.Context, *connect.Request[v1.ListSubaccountsRequest]) (*connect.Response[v1.ListSubaccountsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.SubaccountService.ListSubaccounts is not implemented"))
+}
+
+func (UnimplementedSubaccountServiceHandler) CreateSubaccountChallenge(context.Context, *connect.Request[v1.CreateSubaccountChallengeRequest]) (*connect.Response[v1.CreateSubaccountChallengeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.SubaccountService.CreateSubaccountChallenge is not implemented"))
 }
 
 func (UnimplementedSubaccountServiceHandler) CreateSubaccount(context.Context, *connect.Request[v1.CreateSubaccountRequest]) (*connect.Response[v1.CreateSubaccountResponse], error) {
