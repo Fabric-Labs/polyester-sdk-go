@@ -853,6 +853,12 @@ type Order struct {
 	// Cumulative filled quantity across the lineage through this generation,
 	// scaled by the pair's base_quantity_scale from GetSpotConfig for symbol_id.
 	CumQtyScaled int64 `protobuf:"varint,13,opt,name=cum_qty_scaled,json=cumQtyScaled,proto3" json:"cum_qty_scaled,omitempty"`
+	// Cumulative filled base quantity inherited from predecessors when this
+	// replacement was accepted, scaled by the pair's base_quantity_scale from
+	// GetSpotConfig for symbol_id. Zero for the original order and immutable
+	// within a generation. cum_qty_scaled minus this value is the quantity
+	// executed by this generation, not the quantity new to a client session.
+	InheritedCumQtyScaled int64 `protobuf:"varint,33,opt,name=inherited_cum_qty_scaled,json=inheritedCumQtyScaled,proto3" json:"inherited_cum_qty_scaled,omitempty"`
 	// Remaining working quantity scaled by the pair's base_quantity_scale from
 	// GetSpotConfig for symbol_id. Zero for terminal orders.
 	LeavesQtyScaled int64 `protobuf:"varint,20,opt,name=leaves_qty_scaled,json=leavesQtyScaled,proto3" json:"leaves_qty_scaled,omitempty"`
@@ -1012,6 +1018,13 @@ func (x *Order) GetOrigQtyScaled() int64 {
 func (x *Order) GetCumQtyScaled() int64 {
 	if x != nil {
 		return x.CumQtyScaled
+	}
+	return 0
+}
+
+func (x *Order) GetInheritedCumQtyScaled() int64 {
+	if x != nil {
+		return x.InheritedCumQtyScaled
 	}
 	return 0
 }
@@ -2547,7 +2560,7 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x02id\x12'\n" +
 	"\n" +
 	"generation\x18\x02 \x01(\rB\a\xbaH\x04*\x02 \x00R\n" +
-	"generation\"\xe4\v\n" +
+	"generation\"\x9d\f\n" +
 	"\x05Order\x12\x19\n" +
 	"\border_id\x18\x01 \x01(\x06R\aorderId\x12\x1b\n" +
 	"\tsymbol_id\x18\x03 \x01(\rR\bsymbolId\x12D\n" +
@@ -2562,7 +2575,8 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	" \x01(\x0e2\x13.orders.v1.FeeAssetR\bfeeAsset\x12\x1b\n" +
 	"\tpost_only\x18\v \x01(\bR\bpostOnly\x12&\n" +
 	"\x0forig_qty_scaled\x18\f \x01(\x03R\rorigQtyScaled\x12$\n" +
-	"\x0ecum_qty_scaled\x18\r \x01(\x03R\fcumQtyScaled\x12*\n" +
+	"\x0ecum_qty_scaled\x18\r \x01(\x03R\fcumQtyScaled\x127\n" +
+	"\x18inherited_cum_qty_scaled\x18! \x01(\x03R\x15inheritedCumQtyScaled\x12*\n" +
 	"\x11leaves_qty_scaled\x18\x14 \x01(\x03R\x0fleavesQtyScaled\x12&\n" +
 	"\x0favg_price_ticks\x18\x0e \x01(\x03R\ravgPriceTicks\x12\x1f\n" +
 	"\vprice_ticks\x18\x0f \x01(\x03R\n" +

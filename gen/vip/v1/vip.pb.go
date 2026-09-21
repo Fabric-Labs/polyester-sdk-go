@@ -531,13 +531,13 @@ const file_vip_v1_vip_proto_rawDesc = "" +
 	"\x0f_effective_fromB\x0f\n" +
 	"\r_evaluated_atB\x10\n" +
 	"\x0e_metrics_as_ofB\x17\n" +
-	"\x15_next_tier_thresholds2\xa0\x03\n" +
+	"\x15_next_tier_thresholds2\xa5\x03\n" +
 	"\n" +
 	"VIPService\x12\xc1\x01\n" +
 	"\fListVIPTiers\x12\x1b.vip.v1.ListVIPTiersRequest\x1a\x1c.vip.v1.ListVIPTiersResponse\"v\xbaGZ\n" +
-	"\vVIP Service\x12\x0eList VIP Tiers\x1a9List the complete active VIP0 through VIP10 tier catalog.Z\x00\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x0f\x12\r/v1/vip/tiers\x12\xcd\x01\n" +
-	"\fGetVIPStatus\x12\x1b.vip.v1.GetVIPStatusRequest\x1a\x1c.vip.v1.GetVIPStatusResponse\"\x81\x01\xbaGh\n" +
-	"\vVIP Service\x12\x0eGet VIP Status\x1aIGet VIP qualification status for the authenticated caller's root account.\x82\xd3\xe4\x93\x02\x10\x12\x0e/v1/vip/statusB\xa1\x01\xbaGd:b\n" +
+	"\vVIP Service\x12\x0eList VIP Tiers\x1a9List the complete active VIP0 through VIP10 tier catalog.Z\x00\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x0f\x12\r/v1/vip/tiers\x12\xd2\x01\n" +
+	"\fGetVIPStatus\x12\x1b.vip.v1.GetVIPStatusRequest\x1a\x1c.vip.v1.GetVIPStatusResponse\"\x86\x01\xbaGh\n" +
+	"\vVIP Service\x12\x0eGet VIP Status\x1aIGet VIP qualification status for the authenticated caller's root account.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x10\x12\x0e/v1/vip/statusB\xa1\x01\xbaGd:b\n" +
 	"\vVIP Service\x12SPublic VIP tier reference data and authenticated root-account qualification status.Z8github.com/Fabric-Labs/polyester-sdk-go/gen/vip/v1;vipv1b\x06proto3"
 
 var (

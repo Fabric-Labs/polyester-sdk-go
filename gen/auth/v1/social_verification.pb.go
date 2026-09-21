@@ -8,6 +8,7 @@ package authv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
 	_ "github.com/google/gnostic/openapiv3"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -696,7 +697,7 @@ var File_auth_v1_social_verification_proto protoreflect.FileDescriptor
 
 const file_auth_v1_social_verification_proto_rawDesc = "" +
 	"\n" +
-	"!auth/v1/social_verification.proto\x12\aauth.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe5\x04\n" +
+	"!auth/v1/social_verification.proto\x12\aauth.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\xe5\x04\n" +
 	"\x12SocialVerification\x12\x0e\n" +
 	"\x02id\x18\f \x01(\x03R\x02id\x123\n" +
 	"\bprovider\x18\x01 \x01(\x0e2\x17.auth.v1.SocialProviderR\bprovider\x129\n" +
@@ -754,14 +755,14 @@ const file_auth_v1_social_verification_proto_rawDesc = "" +
 	"\x12METHOD_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eMETHOD_PROFILE\x10\x01\x12\x12\n" +
 	"\x0eMETHOD_CHANNEL\x10\x02\x12\r\n" +
-	"\tMETHOD_DM\x10\x032\xd2\x06\n" +
-	"\x19SocialVerificationService\x12\xab\x02\n" +
-	"\x17StartSocialVerification\x12'.auth.v1.StartSocialVerificationRequest\x1a(.auth.v1.StartSocialVerificationResponse\"\xbc\x01\xbaG\x8b\x01\n" +
-	"\fAuth Service\x12\x19Start Social Verification\x1a`Issue a challenge code for the caller to submit through the provider-specific verification flow.\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/auth/social/verification:start\x12\x8f\x02\n" +
-	"\x17SocialVerificationReady\x12'.auth.v1.SocialVerificationReadyRequest\x1a(.auth.v1.SocialVerificationReadyResponse\"\xa0\x01\xbaGp\n" +
-	"\fAuth Service\x12\x1eMark Social Verification Ready\x1a@Mark verification as ready and request a provider account check.\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/auth/social/verification:ready\x12\xf4\x01\n" +
-	"\x15GetSocialVerification\x12%.auth.v1.GetSocialVerificationRequest\x1a&.auth.v1.GetSocialVerificationResponse\"\x8b\x01\xbaGd\n" +
-	"\fAuth Service\x12\x17Get Social Verification\x1a;Retrieve current social verification status for the caller.\x82\xd3\xe4\x93\x02\x1e\x12\x1c/v1/auth/social/verificationB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
+	"\tMETHOD_DM\x10\x032\x9d\b\n" +
+	"\x19SocialVerificationService\x12\xb0\x02\n" +
+	"\x17StartSocialVerification\x12'.auth.v1.StartSocialVerificationRequest\x1a(.auth.v1.StartSocialVerificationResponse\"\xc1\x01\xbaG\x8b\x01\n" +
+	"\fAuth Service\x12\x19Start Social Verification\x1a`Issue a challenge code for the caller to submit through the provider-specific verification flow.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/auth/social/verification:start\x12\xd0\x03\n" +
+	"\x17SocialVerificationReady\x12'.auth.v1.SocialVerificationReadyRequest\x1a(.auth.v1.SocialVerificationReadyResponse\"\xe1\x02\xbaG\xab\x02\n" +
+	"\fAuth Service\x12\x1eMark Social Verification Ready\x1a\xfa\x01Mark verification as ready and request a provider account check. AUTH_SOCIAL_VERIFICATION_EXPIRED means start a new challenge. AUTH_SOCIAL_VERIFICATION_INVALID_STATE means Ready is not valid in the current state; use GetSocialVerification for status.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/auth/social/verification:ready\x12\xf9\x01\n" +
+	"\x15GetSocialVerification\x12%.auth.v1.GetSocialVerificationRequest\x1a&.auth.v1.GetSocialVerificationResponse\"\x90\x01\xbaGd\n" +
+	"\fAuth Service\x12\x17Get Social Verification\x1a;Retrieve current social verification status for the caller.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1e\x12\x1c/v1/auth/social/verificationB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
 
 var (
 	file_auth_v1_social_verification_proto_rawDescOnce sync.Once

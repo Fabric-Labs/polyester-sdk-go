@@ -8,6 +8,7 @@ package authv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
 	_ "github.com/google/gnostic/openapiv3"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -192,8 +193,8 @@ type UserProfile struct {
 	VipTier int32 `protobuf:"varint,7,opt,name=vip_tier,json=vipTier,proto3" json:"vip_tier,omitempty"`
 	// Whether this account is currently allowed to claim/change a username.
 	UsernameUnlocked bool `protobuf:"varint,11,opt,name=username_unlocked,json=usernameUnlocked,proto3" json:"username_unlocked,omitempty"`
-	// Whether the caller's root account explicitly accepted the currently required terms.
-	// False for new or existing accounts without current acceptance.
+	// Whether the caller's root account accepted the terms required for restricted actions.
+	// False when the required terms have not been accepted.
 	CurrentTermsAccepted bool `protobuf:"varint,13,opt,name=current_terms_accepted,json=currentTermsAccepted,proto3" json:"current_terms_accepted,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
@@ -817,7 +818,7 @@ var File_auth_v1_profile_proto protoreflect.FileDescriptor
 
 const file_auth_v1_profile_proto_rawDesc = "" +
 	"\n" +
-	"\x15auth/v1/profile.proto\x12\aauth.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xdf\x01\n" +
+	"\x15auth/v1/profile.proto\x12\aauth.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\xdf\x01\n" +
 	"\x0fAccountIdentity\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\x06R\taccountId\x12>\n" +
@@ -890,19 +891,20 @@ const file_auth_v1_profile_proto_rawDesc = "" +
 	"\x15PROFILE_INVALID_FIELD\x10\x01\x12\x1a\n" +
 	"\x16PROFILE_FIELD_TOO_LONG\x10\x02\x12\x17\n" +
 	"\x13PROFILE_URL_INVALID\x10\x03\x12\x1e\n" +
-	"\x1aPROFILE_URL_SCHEME_INVALID\x10\x042\xe9\t\n" +
-	"\x0eProfileService\x12\x96\x01\n" +
+	"\x1aPROFILE_URL_SCHEME_INVALID\x10\x042\x82\n" +
 	"\n" +
-	"GetProfile\x12\x1a.auth.v1.GetProfileRequest\x1a\x14.auth.v1.UserProfile\"V\xbaG;\n" +
-	"\fAuth Service\x12\vGet Profile\x1a\x1eRetrieve the caller's profile.\x82\xd3\xe4\x93\x02\x12\x12\x10/v1/auth/profile\x12\xfd\x01\n" +
-	"\rUpdateProfile\x12\x19.auth.v1.UserProfilePatch\x1a\x14.auth.v1.UserProfile\"\xba\x01\xbaG\x9b\x01\n" +
-	"\fAuth Service\x12\x0eUpdate Profile\x1a{Update the caller's mutable profile fields. Omitted fields are unchanged; present empty strings clear optional text fields.\x82\xd3\xe4\x93\x02\x15:\x01*2\x10/v1/auth/profile\x12\x95\x02\n" +
-	"\x12GetUsernameHistory\x12\".auth.v1.GetUsernameHistoryRequest\x1a#.auth.v1.GetUsernameHistoryResponse\"\xb5\x01\xbaG\x88\x01\n" +
-	"\fAuth Service\x12\x14Get Username History\x1abRetrieve recent username history entries for the caller, newest first. Returns at most 20 entries.\x82\xd3\xe4\x93\x02#\x12!/v1/auth/profile/username-history\x12\xaa\x02\n" +
-	"\x17GenerateUsernameOptions\x12'.auth.v1.GenerateUsernameOptionsRequest\x1a(.auth.v1.GenerateUsernameOptionsResponse\"\xbb\x01\xbaG\x82\x01\n" +
-	"\fAuth Service\x12\x19Generate Username Options\x1aWGenerate five random username options for an account that has never claimed a username.\x82\xd3\xe4\x93\x02/:\x01*\"*/v1/auth/profile/username-options:generate\x12\xf8\x01\n" +
-	"\x16ClaimGeneratedUsername\x12&.auth.v1.ClaimGeneratedUsernameRequest\x1a\x14.auth.v1.UserProfile\"\x9f\x01\xbaGh\n" +
-	"\fAuth Service\x12\x18Claim Generated Username\x1a>Claim one username by its position in a valid generated offer.\x82\xd3\xe4\x93\x02.:\x01*\")/v1/auth/profile/username:claim-generatedB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
+	"\x0eProfileService\x12\x9b\x01\n" +
+	"\n" +
+	"GetProfile\x12\x1a.auth.v1.GetProfileRequest\x1a\x14.auth.v1.UserProfile\"[\xbaG;\n" +
+	"\fAuth Service\x12\vGet Profile\x1a\x1eRetrieve the caller's profile.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x12\x12\x10/v1/auth/profile\x12\x82\x02\n" +
+	"\rUpdateProfile\x12\x19.auth.v1.UserProfilePatch\x1a\x14.auth.v1.UserProfile\"\xbf\x01\xbaG\x9b\x01\n" +
+	"\fAuth Service\x12\x0eUpdate Profile\x1a{Update the caller's mutable profile fields. Omitted fields are unchanged; present empty strings clear optional text fields.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x15:\x01*2\x10/v1/auth/profile\x12\x9a\x02\n" +
+	"\x12GetUsernameHistory\x12\".auth.v1.GetUsernameHistoryRequest\x1a#.auth.v1.GetUsernameHistoryResponse\"\xba\x01\xbaG\x88\x01\n" +
+	"\fAuth Service\x12\x14Get Username History\x1abRetrieve recent username history entries for the caller, newest first. Returns at most 20 entries.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02#\x12!/v1/auth/profile/username-history\x12\xaf\x02\n" +
+	"\x17GenerateUsernameOptions\x12'.auth.v1.GenerateUsernameOptionsRequest\x1a(.auth.v1.GenerateUsernameOptionsResponse\"\xc0\x01\xbaG\x82\x01\n" +
+	"\fAuth Service\x12\x19Generate Username Options\x1aWGenerate five random username options for an account that has never claimed a username.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02/:\x01*\"*/v1/auth/profile/username-options:generate\x12\xfd\x01\n" +
+	"\x16ClaimGeneratedUsername\x12&.auth.v1.ClaimGeneratedUsernameRequest\x1a\x14.auth.v1.UserProfile\"\xa4\x01\xbaGh\n" +
+	"\fAuth Service\x12\x18Claim Generated Username\x1a>Claim one username by its position in a valid generated offer.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02.:\x01*\")/v1/auth/profile/username:claim-generatedB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
 
 var (
 	file_auth_v1_profile_proto_rawDescOnce sync.Once

@@ -8,6 +8,7 @@ package authv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
 	_ "github.com/google/gnostic/openapiv3"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -33,8 +34,6 @@ const (
 	WalletChallengePurpose_WALLET_PROOF_UNSPECIFIED WalletChallengePurpose = 0
 	// Authenticate the wallet and create a Polyester session.
 	WalletChallengePurpose_LOGIN WalletChallengePurpose = 1
-	// Prove control of a new smart account before creating a sub-account.
-	WalletChallengePurpose_CREATE_SUBACCOUNT WalletChallengePurpose = 2
 )
 
 // Enum value maps for WalletChallengePurpose.
@@ -42,12 +41,10 @@ var (
 	WalletChallengePurpose_name = map[int32]string{
 		0: "WALLET_PROOF_UNSPECIFIED",
 		1: "LOGIN",
-		2: "CREATE_SUBACCOUNT",
 	}
 	WalletChallengePurpose_value = map[string]int32{
 		"WALLET_PROOF_UNSPECIFIED": 0,
 		"LOGIN":                    1,
-		"CREATE_SUBACCOUNT":        2,
 	}
 )
 
@@ -162,8 +159,14 @@ const (
 	AuthErrorCode_AUTH_MFA_LAST_FACTOR_REQUIRED AuthErrorCode = 39
 	// An unexpected internal failure prevented the auth mutation from completing.
 	AuthErrorCode_AUTH_INTERNAL_ERROR AuthErrorCode = 40
-	// The caller has not explicitly accepted the currently required terms.
+	// The caller has not accepted the terms required for this action.
 	AuthErrorCode_AUTH_TERMS_NOT_ACCEPTED AuthErrorCode = 41
+	// Social verification challenge expired. Start a new verification, then mark it ready again.
+	AuthErrorCode_AUTH_SOCIAL_VERIFICATION_EXPIRED AuthErrorCode = 42
+	// Social verification cannot accept a ready mark in its current state.
+	AuthErrorCode_AUTH_SOCIAL_VERIFICATION_INVALID_STATE AuthErrorCode = 43
+	// Sub-account authorization is expired, replaced, replayed, or invalid.
+	AuthErrorCode_AUTH_SUBACCOUNT_CHALLENGE_INVALID AuthErrorCode = 44
 )
 
 // Enum value maps for AuthErrorCode.
@@ -210,6 +213,9 @@ var (
 		39: "AUTH_MFA_LAST_FACTOR_REQUIRED",
 		40: "AUTH_INTERNAL_ERROR",
 		41: "AUTH_TERMS_NOT_ACCEPTED",
+		42: "AUTH_SOCIAL_VERIFICATION_EXPIRED",
+		43: "AUTH_SOCIAL_VERIFICATION_INVALID_STATE",
+		44: "AUTH_SUBACCOUNT_CHALLENGE_INVALID",
 	}
 	AuthErrorCode_value = map[string]int32{
 		"AUTH_UNSPECIFIED":                       0,
@@ -253,6 +259,9 @@ var (
 		"AUTH_MFA_LAST_FACTOR_REQUIRED":          39,
 		"AUTH_INTERNAL_ERROR":                    40,
 		"AUTH_TERMS_NOT_ACCEPTED":                41,
+		"AUTH_SOCIAL_VERIFICATION_EXPIRED":       42,
+		"AUTH_SOCIAL_VERIFICATION_INVALID_STATE": 43,
+		"AUTH_SUBACCOUNT_CHALLENGE_INVALID":      44,
 	}
 )
 
@@ -290,14 +299,12 @@ type CreateWalletChallengeRequest struct {
 	// Smart-account EVM address being authenticated, formatted as 0x plus 40 hex characters.
 	SmartAccountAddress string `protobuf:"bytes,1,opt,name=smart_account_address,json=smartAccountAddress,proto3" json:"smart_account_address,omitempty"`
 	// Address whose signature authorizes the challenge and that is written into
-	// the EIP-4361 message. For LOGIN, this must be an EOA that controls the
-	// target smart account. For CREATE_SUBACCOUNT, this must equal
-	// smart_account_address.
+	// the EIP-4361 message. This must be an EOA that controls the target smart account.
 	SignerAddress string `protobuf:"bytes,2,opt,name=signer_address,json=signerAddress,proto3" json:"signer_address,omitempty"`
 	// Browser origin URI requesting the signature, including scheme and optional
 	// port but no path, query, fragment, or user information.
 	Uri string `protobuf:"bytes,3,opt,name=uri,proto3" json:"uri,omitempty"`
-	// Operation for which the challenge may be consumed.
+	// Operation for which the challenge may be consumed. Must be LOGIN.
 	Purpose       WalletChallengePurpose `protobuf:"varint,4,opt,name=purpose,proto3,enum=auth.v1.WalletChallengePurpose" json:"purpose,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -776,7 +783,7 @@ func (x *AuthErrorDetail) GetMessage() string {
 	return ""
 }
 
-// AcceptTermsRequest records explicit consent to the currently required terms.
+// AcceptTermsRequest records explicit consent to the terms that apply to the caller's root account.
 type AcceptTermsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -813,8 +820,8 @@ func (*AcceptTermsRequest) Descriptor() ([]byte, []int) {
 	return file_auth_v1_auth_proto_rawDescGZIP(), []int{7}
 }
 
-// AcceptTermsResponse confirms acceptance. Repeated acceptance of the current
-// version succeeds and preserves the first acceptance time.
+// AcceptTermsResponse confirms acceptance. Repeated requests succeed and
+// preserve the first acceptance time.
 type AcceptTermsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -855,7 +862,7 @@ var File_auth_v1_auth_proto protoreflect.FileDescriptor
 
 const file_auth_v1_auth_proto_rawDesc = "" +
 	"\n" +
-	"\x12auth/v1/auth.proto\x12\aauth.v1\x1a\x11auth/v1/mfa.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa2\x02\n" +
+	"\x12auth/v1/auth.proto\x12\aauth.v1\x1a\x11auth/v1/mfa.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\xa2\x02\n" +
 	"\x1cCreateWalletChallengeRequest\x12Q\n" +
 	"\x15smart_account_address\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x152\x13^0x[0-9a-fA-F]{40}$R\x13smartAccountAddress\x12D\n" +
 	"\x0esigner_address\x18\x02 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x152\x13^0x[0-9a-fA-F]{40}$R\rsignerAddress\x12\x1f\n" +
@@ -900,11 +907,10 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x04code\x18\x01 \x01(\x0e2\x16.auth.v1.AuthErrorCodeR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"\x14\n" +
 	"\x12AcceptTermsRequest\"\x15\n" +
-	"\x13AcceptTermsResponse*X\n" +
+	"\x13AcceptTermsResponse*Z\n" +
 	"\x16WalletChallengePurpose\x12\x1c\n" +
 	"\x18WALLET_PROOF_UNSPECIFIED\x10\x00\x12\t\n" +
-	"\x05LOGIN\x10\x01\x12\x15\n" +
-	"\x11CREATE_SUBACCOUNT\x10\x02*\x85\n" +
+	"\x05LOGIN\x10\x01\"\x04\b\x02\x10\x02*\x11CREATE_SUBACCOUNT*\xfe\n" +
 	"\n" +
 	"\rAuthErrorCode\x12\x14\n" +
 	"\x10AUTH_UNSPECIFIED\x10\x00\x12\x19\n" +
@@ -948,14 +954,17 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x1bAUTH_MFA_ELEVATION_REQUIRED\x10&\x12!\n" +
 	"\x1dAUTH_MFA_LAST_FACTOR_REQUIRED\x10'\x12\x17\n" +
 	"\x13AUTH_INTERNAL_ERROR\x10(\x12\x1b\n" +
-	"\x17AUTH_TERMS_NOT_ACCEPTED\x10)2\xb6\b\n" +
-	"\vAuthService\x12\x87\x02\n" +
-	"\x15CreateWalletChallenge\x12%.auth.v1.CreateWalletChallengeRequest\x1a&.auth.v1.CreateWalletChallengeResponse\"\x9e\x01\xbaGw\n" +
-	"\fAuth Service\x12\x17Create Wallet Challenge\x1aNCreate a short-lived EIP-4361 message for wallet login or smart-account proof.\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/v1/auth/wallet-challenge\x12\x9a\x02\n" +
-	"\x0fLoginWithWallet\x12\x1f.auth.v1.LoginWithWalletRequest\x1a .auth.v1.LoginWithWalletResponse\"\xc3\x01\xbaG\x9f\x01\n" +
-	"\fAuth Service\x12\x11Login With Wallet\x1a|Verify a server-issued EIP-4361 wallet message and issue an access token for the caller account. This does not accept terms.\x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/v1/auth/login/wallet\x12\xa5\x02\n" +
-	"\vAcceptTerms\x12\x1b.auth.v1.AcceptTermsRequest\x1a\x1c.auth.v1.AcceptTermsResponse\"\xda\x01\xbaG\xb3\x01\n" +
-	"\fAuth Service\x12\fAccept Terms\x1a\x94\x01Explicitly accept the currently required terms for the caller's root account. Requires an interactive JWT without MFA. Repeated acceptance succeeds.\x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/v1/auth/terms/accept\x90\x02\x02\x12\xd7\x01\n" +
+	"\x17AUTH_TERMS_NOT_ACCEPTED\x10)\x12$\n" +
+	" AUTH_SOCIAL_VERIFICATION_EXPIRED\x10*\x12*\n" +
+	"&AUTH_SOCIAL_VERIFICATION_INVALID_STATE\x10+\x12%\n" +
+	"!AUTH_SUBACCOUNT_CHALLENGE_INVALID\x10,2\x93\b\n" +
+	"\vAuthService\x12\xf4\x01\n" +
+	"\x15CreateWalletChallenge\x12%.auth.v1.CreateWalletChallengeRequest\x1a&.auth.v1.CreateWalletChallengeResponse\"\x8b\x01\xbaG`\n" +
+	"\fAuth Service\x12\x17Create Wallet Challenge\x1a7Create a short-lived EIP-4361 message for wallet login.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/v1/auth/wallet-challenge\x12\x9e\x02\n" +
+	"\x0fLoginWithWallet\x12\x1f.auth.v1.LoginWithWalletRequest\x1a .auth.v1.LoginWithWalletResponse\"\xc7\x01\xbaG\x9f\x01\n" +
+	"\fAuth Service\x12\x11Login With Wallet\x1a|Verify a server-issued EIP-4361 wallet message and issue an access token for the caller account. This does not accept terms.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/v1/auth/login/wallet\x12\x91\x02\n" +
+	"\vAcceptTerms\x12\x1b.auth.v1.AcceptTermsRequest\x1a\x1c.auth.v1.AcceptTermsResponse\"\xc6\x01\xbaG\x9a\x01\n" +
+	"\fAuth Service\x12\fAccept Terms\x1a|Explicitly accept the terms that apply to the caller's root account. Requires an interactive JWT. Repeated requests succeed.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/v1/auth/terms/accept\x90\x02\x02\x12\xd7\x01\n" +
 	"\x02Me\x12\x12.auth.v1.MeRequest\x1a\x13.auth.v1.MeResponse\"\xa7\x01\xbaG\x90\x01\n" +
 	"\fAuth Service\x12\x10Get Auth Context\x1anRetrieve the caller auth context, including account identity, API key identity, and session assurance details.\x82\xd3\xe4\x93\x02\r\x12\v/v1/auth/meB\x90\x01\xbaGQ:O\n" +
 	"\fAuth Service\x12?Authentication, accounts, sub-accounts, and API key management.Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
