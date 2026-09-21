@@ -373,8 +373,9 @@ type MarketOverview struct {
 	High_24HTicks int64 `protobuf:"varint,6,opt,name=high_24h_ticks,json=high24hTicks,proto3" json:"high_24h_ticks,omitempty"`
 	// Lowest traded price in the 24h window, in quote units scaled by 1e6.
 	Low_24HTicks int64 `protobuf:"varint,7,opt,name=low_24h_ticks,json=low24hTicks,proto3" json:"low_24h_ticks,omitempty"`
-	// Rolling 24h base volume scaled by the pair's base_quantity_scale from
-	// GetSpotConfig. Omitted if the amount exceeds the signed 64-bit range.
+	// Rolling 24h base volume scaled by the base asset's
+	// market_data_volume_scale from GetSpotConfig. Omitted if the amount exceeds
+	// the signed 64-bit range.
 	Volume_24HBaseScaled *int64 `protobuf:"varint,8,opt,name=volume_24h_base_scaled,json=volume24hBaseScaled,proto3,oneof" json:"volume_24h_base_scaled,omitempty"`
 	// Rolling 24h quote volume scaled by the pair's quote_quantity_scale from
 	// GetSpotConfig. Omitted if the amount exceeds the signed 64-bit range.
