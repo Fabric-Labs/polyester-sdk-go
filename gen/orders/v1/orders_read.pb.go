@@ -100,13 +100,13 @@ type BatchReplacePhase int32
 const (
 	// Phase is unavailable.
 	BatchReplacePhase_BATCH_REPLACE_PHASE_UNSPECIFIED BatchReplacePhase = 0
-	// The replacement was admitted and handed to execution.
+	// The operation was admitted and handed to execution, including cancel-only outcomes.
 	BatchReplacePhase_BATCH_REPLACE_PHASE_ADMITTED BatchReplacePhase = 1
 	// The successor order is active.
 	BatchReplacePhase_BATCH_REPLACE_PHASE_WORKING BatchReplacePhase = 2
 	// The replacement was rejected.
 	BatchReplacePhase_BATCH_REPLACE_PHASE_REJECTED BatchReplacePhase = 3
-	// The successor reached a terminal order state.
+	// The successor, or original order for a cancel-only outcome, reached a terminal state.
 	BatchReplacePhase_BATCH_REPLACE_PHASE_TERMINAL BatchReplacePhase = 4
 )
 
@@ -2315,14 +2315,17 @@ type BatchReplaceStatusItem struct {
 	Phase BatchReplacePhase `protobuf:"varint,2,opt,name=phase,proto3,enum=orders.v1.BatchReplacePhase" json:"phase,omitempty"`
 	// Original order targeted by the replacement.
 	OldOrderId uint64 `protobuf:"fixed64,3,opt,name=old_order_id,json=oldOrderId,proto3" json:"old_order_id,omitempty"`
-	// Assigned successor order ID. Zero when rejected before assignment.
+	// Assigned successor order ID. Zero for cancel-only outcomes or rejection before assignment.
 	ReplacementOrderId uint64 `protobuf:"fixed64,4,opt,name=replacement_order_id,json=replacementOrderId,proto3" json:"replacement_order_id,omitempty"`
-	// Current successor order status when available.
+	// Current successor status, or original order status for a cancel-only outcome, when available.
 	OrderStatus OrderStatus `protobuf:"varint,5,opt,name=order_status,json=orderStatus,proto3,enum=orders.v1.OrderStatus" json:"order_status,omitempty"`
 	// Stable rejection or terminal error code. Empty when none.
 	Code string `protobuf:"bytes,6,opt,name=code,proto3" json:"code,omitempty"`
 	// Latest status timestamp in nanoseconds since epoch.
-	UpdatedTsNs   uint64 `protobuf:"varint,7,opt,name=updated_ts_ns,json=updatedTsNs,proto3" json:"updated_ts_ns,omitempty"`
+	UpdatedTsNs uint64 `protobuf:"varint,7,opt,name=updated_ts_ns,json=updatedTsNs,proto3" json:"updated_ts_ns,omitempty"`
+	// REPLACED admits a successor. AMENDED is cancel-only: no successor exists and
+	// order_status describes old_order_id. Unspecified for rejected items.
+	ActionTaken   ModifyActionTaken `protobuf:"varint,8,opt,name=action_taken,json=actionTaken,proto3,enum=orders.v1.ModifyActionTaken" json:"action_taken,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2404,6 +2407,13 @@ func (x *BatchReplaceStatusItem) GetUpdatedTsNs() uint64 {
 		return x.UpdatedTsNs
 	}
 	return 0
+}
+
+func (x *BatchReplaceStatusItem) GetActionTaken() ModifyActionTaken {
+	if x != nil {
+		return x.ActionTaken
+	}
+	return ModifyActionTaken_MODIFY_ACTION_UNSPECIFIED
 }
 
 // GetBatchReplaceStatusResponse returns durable batch and per-item finality.
@@ -2741,7 +2751,7 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\x1cGetBatchReplaceStatusRequest\x128\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01\x128\n" +
 	"\x10batch_request_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x0ebatchRequestIdB\x10\n" +
-	"\x0e_subaccount_id\"\xb2\x02\n" +
+	"\x0e_subaccount_id\"\xf3\x02\n" +
 	"\x16BatchReplaceStatusItem\x12\x1d\n" +
 	"\n" +
 	"item_index\x18\x01 \x01(\rR\titemIndex\x122\n" +
@@ -2751,7 +2761,8 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\x14replacement_order_id\x18\x04 \x01(\x06R\x12replacementOrderId\x129\n" +
 	"\forder_status\x18\x05 \x01(\x0e2\x16.orders.v1.OrderStatusR\vorderStatus\x12\x12\n" +
 	"\x04code\x18\x06 \x01(\tR\x04code\x12\"\n" +
-	"\rupdated_ts_ns\x18\a \x01(\x04R\vupdatedTsNs\"\xed\x02\n" +
+	"\rupdated_ts_ns\x18\a \x01(\x04R\vupdatedTsNs\x12?\n" +
+	"\faction_taken\x18\b \x01(\x0e2\x1c.orders.v1.ModifyActionTakenR\vactionTaken\"\xed\x02\n" +
 	"\x1dGetBatchReplaceStatusResponse\x12(\n" +
 	"\x10batch_request_id\x18\x01 \x01(\x06R\x0ebatchRequestId\x12Q\n" +
 	"\x10admission_status\x18\x02 \x01(\x0e2&.orders.v1.BatchReplaceAdmissionStatusR\x0fadmissionStatus\x127\n" +
@@ -2851,7 +2862,8 @@ var file_orders_v1_orders_read_proto_goTypes = []any{
 	(*v1.U128)(nil),                       // 35: polyester.type.v1.U128
 	(v11.TransferCode)(0),                 // 36: ledger.v1.TransferCode
 	(v11.AccountCode)(0),                  // 37: ledger.v1.AccountCode
-	(BatchReplaceAdmissionStatus)(0),      // 38: orders.v1.BatchReplaceAdmissionStatus
+	(ModifyActionTaken)(0),                // 38: orders.v1.ModifyActionTaken
+	(BatchReplaceAdmissionStatus)(0),      // 39: orders.v1.BatchReplaceAdmissionStatus
 }
 var file_orders_v1_orders_read_proto_depIdxs = []int32{
 	2,  // 0: orders.v1.OrderOrigin.scope:type_name -> orders.v1.OrderOriginScope
@@ -2897,23 +2909,24 @@ var file_orders_v1_orders_read_proto_depIdxs = []int32{
 	14, // 40: orders.v1.GetOrderResponse.transfers:type_name -> orders.v1.OrderTransfer
 	1,  // 41: orders.v1.BatchReplaceStatusItem.phase:type_name -> orders.v1.BatchReplacePhase
 	0,  // 42: orders.v1.BatchReplaceStatusItem.order_status:type_name -> orders.v1.OrderStatus
-	38, // 43: orders.v1.GetBatchReplaceStatusResponse.admission_status:type_name -> orders.v1.BatchReplaceAdmissionStatus
-	24, // 44: orders.v1.GetBatchReplaceStatusResponse.items:type_name -> orders.v1.BatchReplaceStatusItem
-	15, // 45: orders.v1.OrdersReadService.GetOpenOrders:input_type -> orders.v1.GetOpenOrdersRequest
-	17, // 46: orders.v1.OrdersReadService.GetOrderHistory:input_type -> orders.v1.GetOrderHistoryRequest
-	19, // 47: orders.v1.OrdersReadService.GetUserTrades:input_type -> orders.v1.GetUserTradesRequest
-	21, // 48: orders.v1.OrdersReadService.GetOrder:input_type -> orders.v1.GetOrderRequest
-	23, // 49: orders.v1.OrdersReadService.GetBatchReplaceStatus:input_type -> orders.v1.GetBatchReplaceStatusRequest
-	16, // 50: orders.v1.OrdersReadService.GetOpenOrders:output_type -> orders.v1.GetOpenOrdersResponse
-	18, // 51: orders.v1.OrdersReadService.GetOrderHistory:output_type -> orders.v1.GetOrderHistoryResponse
-	20, // 52: orders.v1.OrdersReadService.GetUserTrades:output_type -> orders.v1.GetUserTradesResponse
-	22, // 53: orders.v1.OrdersReadService.GetOrder:output_type -> orders.v1.GetOrderResponse
-	25, // 54: orders.v1.OrdersReadService.GetBatchReplaceStatus:output_type -> orders.v1.GetBatchReplaceStatusResponse
-	50, // [50:55] is the sub-list for method output_type
-	45, // [45:50] is the sub-list for method input_type
-	45, // [45:45] is the sub-list for extension type_name
-	45, // [45:45] is the sub-list for extension extendee
-	0,  // [0:45] is the sub-list for field type_name
+	38, // 43: orders.v1.BatchReplaceStatusItem.action_taken:type_name -> orders.v1.ModifyActionTaken
+	39, // 44: orders.v1.GetBatchReplaceStatusResponse.admission_status:type_name -> orders.v1.BatchReplaceAdmissionStatus
+	24, // 45: orders.v1.GetBatchReplaceStatusResponse.items:type_name -> orders.v1.BatchReplaceStatusItem
+	15, // 46: orders.v1.OrdersReadService.GetOpenOrders:input_type -> orders.v1.GetOpenOrdersRequest
+	17, // 47: orders.v1.OrdersReadService.GetOrderHistory:input_type -> orders.v1.GetOrderHistoryRequest
+	19, // 48: orders.v1.OrdersReadService.GetUserTrades:input_type -> orders.v1.GetUserTradesRequest
+	21, // 49: orders.v1.OrdersReadService.GetOrder:input_type -> orders.v1.GetOrderRequest
+	23, // 50: orders.v1.OrdersReadService.GetBatchReplaceStatus:input_type -> orders.v1.GetBatchReplaceStatusRequest
+	16, // 51: orders.v1.OrdersReadService.GetOpenOrders:output_type -> orders.v1.GetOpenOrdersResponse
+	18, // 52: orders.v1.OrdersReadService.GetOrderHistory:output_type -> orders.v1.GetOrderHistoryResponse
+	20, // 53: orders.v1.OrdersReadService.GetUserTrades:output_type -> orders.v1.GetUserTradesResponse
+	22, // 54: orders.v1.OrdersReadService.GetOrder:output_type -> orders.v1.GetOrderResponse
+	25, // 55: orders.v1.OrdersReadService.GetBatchReplaceStatus:output_type -> orders.v1.GetBatchReplaceStatusResponse
+	51, // [51:56] is the sub-list for method output_type
+	46, // [46:51] is the sub-list for method input_type
+	46, // [46:46] is the sub-list for extension type_name
+	46, // [46:46] is the sub-list for extension extendee
+	0,  // [0:46] is the sub-list for field type_name
 }
 
 func init() { file_orders_v1_orders_read_proto_init() }

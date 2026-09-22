@@ -871,7 +871,7 @@ type BatchReplaceAdmissionStatus int32
 const (
 	// Admission status is unavailable.
 	BatchReplaceAdmissionStatus_BATCH_REPLACE_ADMISSION_STATUS_UNSPECIFIED BatchReplaceAdmissionStatus = 0
-	// Every requested replacement was admitted.
+	// Every requested operation was admitted, including cancel-only outcomes.
 	BatchReplaceAdmissionStatus_BATCH_REPLACE_ADMISSION_STATUS_ADMITTED BatchReplaceAdmissionStatus = 1
 	// Some requested replacements were admitted and others were rejected.
 	BatchReplaceAdmissionStatus_BATCH_REPLACE_ADMISSION_STATUS_PARTIALLY_ADMITTED BatchReplaceAdmissionStatus = 2
@@ -928,7 +928,7 @@ type BatchReplaceItemAdmissionStatus int32
 const (
 	// Item admission status is unavailable.
 	BatchReplaceItemAdmissionStatus_BATCH_REPLACE_ITEM_ADMISSION_STATUS_UNSPECIFIED BatchReplaceItemAdmissionStatus = 0
-	// The replacement was admitted and handed to execution.
+	// The operation was admitted and handed to execution. Check action_taken for cancel-only outcomes.
 	BatchReplaceItemAdmissionStatus_BATCH_REPLACE_ITEM_ADMISSION_STATUS_ADMITTED BatchReplaceItemAdmissionStatus = 1
 	// The replacement was rejected before execution handoff.
 	BatchReplaceItemAdmissionStatus_BATCH_REPLACE_ITEM_ADMISSION_STATUS_REJECTED BatchReplaceItemAdmissionStatus = 2
@@ -1524,8 +1524,9 @@ type OrderIntent struct {
 	Execution isOrderIntent_Execution `protobuf_oneof:"execution"`
 	// Optional account-scoped identifier for correlation, lookup, and cancellation.
 	// While this identifier is retained, reuse returns
-	// CONFLICT_DUPLICATE_CLIENT_ORDER_ID, even for identical input, a rejected
-	// request, or a terminal order. CreateOrder does not replay the earlier result.
+	// CONFLICT_DUPLICATE_CLIENT_ORDER_ID for every new submission, even with the
+	// same payload. This identifier enables GetOrder reconciliation after a
+	// timeout; it does not provide exact replay.
 	ClientOrderId string `protobuf:"bytes,20,opt,name=client_order_id,json=clientOrderId,proto3" json:"client_order_id,omitempty"`
 	// Asset charged for fees. Defaults to QUOTE. BASE is available only for BUY
 	// orders; SELL orders must use QUOTE.
@@ -1746,7 +1747,11 @@ func (*OrderIntent_LimitFok) isOrderIntent_Execution() {}
 
 func (*OrderIntent_LimitGtd) isOrderIntent_Execution() {}
 
-// CreateOrderRequest submits one order intent for admission.
+// CreateOrderRequest submits one independent order intent for admission.
+// Single creates do not provide exact replay and are not automatically retried
+// after an ambiguous transport timeout. Supply client_order_id to reconcile
+// through GetOrder; without it, a lost acknowledgement may leave the outcome
+// unknown. An immediate lookup miss does not prove that admission failed.
 type CreateOrderRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target sub-account numeric ID. When omitted, uses caller's root account.
@@ -3505,9 +3510,10 @@ type BatchCreateOrdersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target sub-account numeric ID. When omitted, uses caller's root account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
-	// Required idempotency key for the entire ordered batch. Reusing it with the
-	// same payload replays the original per-item results; reusing it with a
-	// different payload returns CONFLICT_IDEMPOTENCY_KEY_REUSE.
+	// Required account-scoped idempotency key for the entire ordered batch.
+	// Reusing it with the same payload within 15 minutes replays the original
+	// per-item results and timestamp. Reusing it with a different payload during
+	// that window returns CONFLICT_IDEMPOTENCY_KEY_REUSE.
 	RequestId string `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	// Orders to create (max 20). client_order_id is optional per item. For a new
 	// request_id, a reused client_order_id rejects only that item with
@@ -4062,14 +4068,18 @@ type BatchReplaceAdmissionItem struct {
 	Status BatchReplaceItemAdmissionStatus `protobuf:"varint,2,opt,name=status,proto3,enum=orders.v1.BatchReplaceItemAdmissionStatus" json:"status,omitempty"`
 	// Original order targeted by the replacement.
 	OldOrderId uint64 `protobuf:"fixed64,3,opt,name=old_order_id,json=oldOrderId,proto3" json:"old_order_id,omitempty"`
-	// Assigned successor order ID. Zero when rejected before assignment.
+	// Assigned successor order ID. Zero for cancel-only outcomes or rejection before assignment.
 	ReplacementOrderId uint64 `protobuf:"fixed64,4,opt,name=replacement_order_id,json=replacementOrderId,proto3" json:"replacement_order_id,omitempty"`
 	// Client order ID assigned to the successor when available.
 	ClientOrderId string `protobuf:"bytes,5,opt,name=client_order_id,json=clientOrderId,proto3" json:"client_order_id,omitempty"`
 	// Stable rejection code. Empty for admitted items.
 	Code string `protobuf:"bytes,6,opt,name=code,proto3" json:"code,omitempty"`
 	// Structured rejection details. Present for rate-limit guidance and other typed failures.
-	Error         *ErrorDetail `protobuf:"bytes,7,opt,name=error,proto3" json:"error,omitempty"`
+	Error *ErrorDetail `protobuf:"bytes,7,opt,name=error,proto3" json:"error,omitempty"`
+	// REPLACED admits a successor. AMENDED cancels the original order's remaining quantity
+	// without a successor; keep tracking old_order_id until its terminal state is confirmed.
+	// Unspecified for rejected items.
+	ActionTaken   ModifyActionTaken `protobuf:"varint,8,opt,name=action_taken,json=actionTaken,proto3,enum=orders.v1.ModifyActionTaken" json:"action_taken,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4151,6 +4161,13 @@ func (x *BatchReplaceAdmissionItem) GetError() *ErrorDetail {
 		return x.Error
 	}
 	return nil
+}
+
+func (x *BatchReplaceAdmissionItem) GetActionTaken() ModifyActionTaken {
+	if x != nil {
+		return x.ActionTaken
+	}
+	return ModifyActionTaken_MODIFY_ACTION_UNSPECIFIED
 }
 
 // BatchReplaceOrdersRequest replaces same-symbol orders as one quote refresh.
@@ -4879,7 +4896,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"!batch_replace_item.patch_required\x12$at least one patch field must be set\x1aThas(this.new_price_ticks) || has(this.new_qty_scaled) || has(this.new_attached_risk)B\f\n" +
 	"\x03key\x12\x05\xbaH\x02\b\x01B\x12\n" +
 	"\x10_new_price_ticksB\x11\n" +
-	"\x0f_new_qty_scaled\"\xbc\x02\n" +
+	"\x0f_new_qty_scaled\"\xfd\x02\n" +
 	"\x19BatchReplaceAdmissionItem\x12\x1d\n" +
 	"\n" +
 	"item_index\x18\x01 \x01(\rR\titemIndex\x12B\n" +
@@ -4889,7 +4906,8 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x14replacement_order_id\x18\x04 \x01(\x06R\x12replacementOrderId\x12&\n" +
 	"\x0fclient_order_id\x18\x05 \x01(\tR\rclientOrderId\x12\x12\n" +
 	"\x04code\x18\x06 \x01(\tR\x04code\x12,\n" +
-	"\x05error\x18\a \x01(\v2\x16.orders.v1.ErrorDetailR\x05error\"\xc3\x03\n" +
+	"\x05error\x18\a \x01(\v2\x16.orders.v1.ErrorDetailR\x05error\x12?\n" +
+	"\faction_taken\x18\b \x01(\x0e2\x1c.orders.v1.ModifyActionTakenR\vactionTaken\"\xc3\x03\n" +
 	"\x19BatchReplaceOrdersRequest\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12$\n" +
 	"\tsymbol_id\x18\x02 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\x12=\n" +
@@ -5205,38 +5223,39 @@ var file_orders_v1_orders_proto_depIdxs = []int32{
 	36, // 43: orders.v1.BatchReplaceOrderItem.new_attached_risk:type_name -> orders.v1.RiskPolicy
 	11, // 44: orders.v1.BatchReplaceAdmissionItem.status:type_name -> orders.v1.BatchReplaceItemAdmissionStatus
 	29, // 45: orders.v1.BatchReplaceAdmissionItem.error:type_name -> orders.v1.ErrorDetail
-	48, // 46: orders.v1.BatchReplaceOrdersRequest.items:type_name -> orders.v1.BatchReplaceOrderItem
-	10, // 47: orders.v1.BatchReplaceOrdersResponse.status:type_name -> orders.v1.BatchReplaceAdmissionStatus
-	49, // 48: orders.v1.BatchReplaceOrdersResponse.results:type_name -> orders.v1.BatchReplaceAdmissionItem
-	56, // 49: orders.v1.BatchReplaceOrdersResponse.accepted_ts:type_name -> google.protobuf.Timestamp
-	15, // 50: orders.v1.BatchCancelResultItem.status:type_name -> orders.v1.BatchCancelResultItem.Status
-	29, // 51: orders.v1.BatchCancelResultItem.error:type_name -> orders.v1.ErrorDetail
-	52, // 52: orders.v1.BatchCancelOrdersRequest.items:type_name -> orders.v1.BatchCancelItem
-	53, // 53: orders.v1.BatchCancelOrdersResponse.results:type_name -> orders.v1.BatchCancelResultItem
-	56, // 54: orders.v1.BatchCancelOrdersResponse.ts:type_name -> google.protobuf.Timestamp
-	24, // 55: orders.v1.OrdersService.PreviewOrder:input_type -> orders.v1.PreviewOrderRequest
-	22, // 56: orders.v1.OrdersService.CreateOrder:input_type -> orders.v1.CreateOrderRequest
-	26, // 57: orders.v1.OrdersService.CancelOrder:input_type -> orders.v1.CancelOrderRequest
-	37, // 58: orders.v1.OrdersService.CancelAllOrders:input_type -> orders.v1.CancelAllOrdersRequest
-	39, // 59: orders.v1.OrdersService.CancelAllAfter:input_type -> orders.v1.CancelAllAfterRequest
-	44, // 60: orders.v1.OrdersService.BatchCreateOrders:input_type -> orders.v1.BatchCreateOrdersRequest
-	46, // 61: orders.v1.OrdersService.ModifyOrder:input_type -> orders.v1.ModifyOrderRequest
-	50, // 62: orders.v1.OrdersService.BatchReplaceOrders:input_type -> orders.v1.BatchReplaceOrdersRequest
-	54, // 63: orders.v1.OrdersService.BatchCancelOrders:input_type -> orders.v1.BatchCancelOrdersRequest
-	25, // 64: orders.v1.OrdersService.PreviewOrder:output_type -> orders.v1.PreviewOrderResponse
-	23, // 65: orders.v1.OrdersService.CreateOrder:output_type -> orders.v1.CreateOrderResponse
-	27, // 66: orders.v1.OrdersService.CancelOrder:output_type -> orders.v1.CancelOrderResponse
-	38, // 67: orders.v1.OrdersService.CancelAllOrders:output_type -> orders.v1.CancelAllOrdersResponse
-	40, // 68: orders.v1.OrdersService.CancelAllAfter:output_type -> orders.v1.CancelAllAfterResponse
-	45, // 69: orders.v1.OrdersService.BatchCreateOrders:output_type -> orders.v1.BatchCreateOrdersResponse
-	47, // 70: orders.v1.OrdersService.ModifyOrder:output_type -> orders.v1.ModifyOrderResponse
-	51, // 71: orders.v1.OrdersService.BatchReplaceOrders:output_type -> orders.v1.BatchReplaceOrdersResponse
-	55, // 72: orders.v1.OrdersService.BatchCancelOrders:output_type -> orders.v1.BatchCancelOrdersResponse
-	64, // [64:73] is the sub-list for method output_type
-	55, // [55:64] is the sub-list for method input_type
-	55, // [55:55] is the sub-list for extension type_name
-	55, // [55:55] is the sub-list for extension extendee
-	0,  // [0:55] is the sub-list for field type_name
+	9,  // 46: orders.v1.BatchReplaceAdmissionItem.action_taken:type_name -> orders.v1.ModifyActionTaken
+	48, // 47: orders.v1.BatchReplaceOrdersRequest.items:type_name -> orders.v1.BatchReplaceOrderItem
+	10, // 48: orders.v1.BatchReplaceOrdersResponse.status:type_name -> orders.v1.BatchReplaceAdmissionStatus
+	49, // 49: orders.v1.BatchReplaceOrdersResponse.results:type_name -> orders.v1.BatchReplaceAdmissionItem
+	56, // 50: orders.v1.BatchReplaceOrdersResponse.accepted_ts:type_name -> google.protobuf.Timestamp
+	15, // 51: orders.v1.BatchCancelResultItem.status:type_name -> orders.v1.BatchCancelResultItem.Status
+	29, // 52: orders.v1.BatchCancelResultItem.error:type_name -> orders.v1.ErrorDetail
+	52, // 53: orders.v1.BatchCancelOrdersRequest.items:type_name -> orders.v1.BatchCancelItem
+	53, // 54: orders.v1.BatchCancelOrdersResponse.results:type_name -> orders.v1.BatchCancelResultItem
+	56, // 55: orders.v1.BatchCancelOrdersResponse.ts:type_name -> google.protobuf.Timestamp
+	24, // 56: orders.v1.OrdersService.PreviewOrder:input_type -> orders.v1.PreviewOrderRequest
+	22, // 57: orders.v1.OrdersService.CreateOrder:input_type -> orders.v1.CreateOrderRequest
+	26, // 58: orders.v1.OrdersService.CancelOrder:input_type -> orders.v1.CancelOrderRequest
+	37, // 59: orders.v1.OrdersService.CancelAllOrders:input_type -> orders.v1.CancelAllOrdersRequest
+	39, // 60: orders.v1.OrdersService.CancelAllAfter:input_type -> orders.v1.CancelAllAfterRequest
+	44, // 61: orders.v1.OrdersService.BatchCreateOrders:input_type -> orders.v1.BatchCreateOrdersRequest
+	46, // 62: orders.v1.OrdersService.ModifyOrder:input_type -> orders.v1.ModifyOrderRequest
+	50, // 63: orders.v1.OrdersService.BatchReplaceOrders:input_type -> orders.v1.BatchReplaceOrdersRequest
+	54, // 64: orders.v1.OrdersService.BatchCancelOrders:input_type -> orders.v1.BatchCancelOrdersRequest
+	25, // 65: orders.v1.OrdersService.PreviewOrder:output_type -> orders.v1.PreviewOrderResponse
+	23, // 66: orders.v1.OrdersService.CreateOrder:output_type -> orders.v1.CreateOrderResponse
+	27, // 67: orders.v1.OrdersService.CancelOrder:output_type -> orders.v1.CancelOrderResponse
+	38, // 68: orders.v1.OrdersService.CancelAllOrders:output_type -> orders.v1.CancelAllOrdersResponse
+	40, // 69: orders.v1.OrdersService.CancelAllAfter:output_type -> orders.v1.CancelAllAfterResponse
+	45, // 70: orders.v1.OrdersService.BatchCreateOrders:output_type -> orders.v1.BatchCreateOrdersResponse
+	47, // 71: orders.v1.OrdersService.ModifyOrder:output_type -> orders.v1.ModifyOrderResponse
+	51, // 72: orders.v1.OrdersService.BatchReplaceOrders:output_type -> orders.v1.BatchReplaceOrdersResponse
+	55, // 73: orders.v1.OrdersService.BatchCancelOrders:output_type -> orders.v1.BatchCancelOrdersResponse
+	65, // [65:74] is the sub-list for method output_type
+	56, // [56:65] is the sub-list for method input_type
+	56, // [56:56] is the sub-list for extension type_name
+	56, // [56:56] is the sub-list for extension extendee
+	0,  // [0:56] is the sub-list for field type_name
 }
 
 func init() { file_orders_v1_orders_proto_init() }
