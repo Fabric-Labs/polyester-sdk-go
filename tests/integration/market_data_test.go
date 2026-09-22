@@ -54,6 +54,57 @@ func TestGetTrades(t *testing.T) {
 	}
 }
 
+func TestCanonicalMarketDataScales(t *testing.T) {
+	client, ctx, cleanup := testutil.RequireLiveClient(t)
+	defer cleanup()
+
+	result := testutil.CallRequired(t, "market_data.get_spot_config", func() (models.SpotConfig, error) {
+		return client.MarketData.GetSpotConfig(ctx)
+	})
+	assets, _ := result.Raw["assets"].([]any)
+	if len(assets) == 0 {
+		t.Fatal("expected spot assets")
+	}
+	for _, item := range assets {
+		asset, _ := item.(map[string]any)
+		scale, ok := asset["market_data_volume_scale"].(float64)
+		if !ok || scale < 0 || scale > 18 {
+			t.Fatalf("asset market_data_volume_scale=%#v", asset)
+		}
+	}
+	pairs, _ := result.Raw["pairs"].([]any)
+	for _, item := range pairs {
+		pair, _ := item.(map[string]any)
+		scale, ok := pair["reference_price_scale"].(float64)
+		if !ok || scale < 0 || scale > 18 {
+			t.Fatalf("pair reference_price_scale=%#v", pair)
+		}
+	}
+
+	symbol := testutil.SmokeSymbol(t, client, ctx)
+	candles := testutil.CallRequired(t, "market_data.get_candles", func() (models.CandlesResult, error) {
+		return client.MarketData.GetCandles(ctx, &symbol, nil, "1m", 5, nil, nil, false)
+	})
+	for _, candle := range candles.Candles {
+		if _, err := strconv.ParseFloat(candle.Volume, 64); err != nil {
+			t.Fatalf("volume %q: %v", candle.Volume, err)
+		}
+	}
+	withReference := testutil.CallRequired(t, "market_data.get_candles_with_reference", func() (models.CandlesResult, error) {
+		return client.MarketData.GetCandlesWithReference(ctx, &symbol, nil, "1m", 5, nil, nil, false, true)
+	})
+	for _, candle := range withReference.ReferenceCandles {
+		for _, price := range []string{candle.Open, candle.High, candle.Low, candle.Close, candle.Volume} {
+			if price == "" {
+				continue
+			}
+			if _, err := strconv.ParseFloat(price, 64); err != nil {
+				t.Fatalf("reference value %q: %v", price, err)
+			}
+		}
+	}
+}
+
 func TestGetCandles(t *testing.T) {
 	client, ctx, cleanup := testutil.RequireLiveClient(t)
 	defer cleanup()

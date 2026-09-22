@@ -15,10 +15,11 @@ type Candle struct {
 
 // CandlesResult holds candle rows.
 type CandlesResult struct {
-	SymbolID      uint32   `json:"symbol_id,omitempty"`
-	Timeframe     string   `json:"timeframe,omitempty"`
-	Candles       []Candle `json:"candles"`
-	NextPageToken string   `json:"next_page_token,omitempty"`
+	SymbolID         uint32   `json:"symbol_id,omitempty"`
+	Timeframe        string   `json:"timeframe,omitempty"`
+	Candles          []Candle `json:"candles"`
+	ReferenceCandles []Candle `json:"reference_candles,omitempty"`
+	NextPageToken    string   `json:"next_page_token,omitempty"`
 }
 
 // MarketTrade is a public market trade.
@@ -44,6 +45,7 @@ type MarketOverviewEntry struct {
 	LastPrice            PriceTicks `json:"last_price,omitempty"`
 	IndexPrice           PriceTicks `json:"index_price,omitempty"`
 	Volume24HBaseScaled  *string    `json:"volume_24h_base_scaled,omitempty"`
+	Volume24HBase        *string    `json:"volume_24h_base,omitempty"`
 	Volume24HQuoteScaled *string    `json:"volume_24h_quote_scaled,omitempty"`
 	Volume24HUsdScaled   *string    `json:"volume_24h_usd_scaled,omitempty"`
 }

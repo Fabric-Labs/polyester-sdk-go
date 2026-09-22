@@ -72,7 +72,7 @@ func TestCandlePointPreservesQuoteVolume(t *testing.T) {
 		Close:       []int64{1_500_000},
 		Volume:      []int64{10},
 		QuoteVolume: []string{"150.25"},
-	}, 8)
+	}, 8, 6)
 	if err != nil {
 		t.Fatal(err)
 	}

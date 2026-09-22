@@ -74,12 +74,24 @@ func (s *MarketDataService) GetTrades(ctx context.Context, symbol *string, symbo
 // GetCandles returns OHLCV candles newest-first. When includeIncomplete is true,
 // the open candle, if present, is prepended.
 func (s *MarketDataService) GetCandles(ctx context.Context, symbol *string, symbolID *uint32, timeframe string, limit int, start, end *time.Time, includeIncomplete bool) (models.CandlesResult, error) {
-	req, scale, err := s.buildCandlesRequest(symbol, symbolID, timeframe, limit, start, end, includeIncomplete, nil, false)
+	return s.GetCandlesWithReference(ctx, symbol, symbolID, timeframe, limit, start, end, includeIncomplete, false)
+}
+
+// GetCandlesWithReference returns OHLCV candles and, when includeReference is
+// true, composite reference candles. Primary OHLC stays on scale 6. Reference
+// OHLC uses the pair reference_price_scale. Base volume uses the base asset
+// market_data_volume_scale.
+func (s *MarketDataService) GetCandlesWithReference(ctx context.Context, symbol *string, symbolID *uint32, timeframe string, limit int, start, end *time.Time, includeIncomplete bool, includeReference bool) (models.CandlesResult, error) {
+	req, scale, refScale, err := s.buildCandlesRequest(symbol, symbolID, timeframe, limit, start, end, includeIncomplete, nil, includeReference)
 	if err != nil {
 		return models.CandlesResult{}, err
 	}
-	return UnaryPublic(ctx, s.transport, s.client().GetCandles, req, func(msg *marketdatav1.GetCandlesResponse) models.CandlesResult {
-		return decode.CandlesFromProto(msg, scale)
+	return UnaryPublicDecoded(ctx, s.transport, s.client().GetCandles, req, func(msg *marketdatav1.GetCandlesResponse) (models.CandlesResult, error) {
+		priceScale, err := referencePriceScaleForDecode(refScale, len(msg.GetReferenceCandles()) > 0, req.SymbolId)
+		if err != nil {
+			return models.CandlesResult{}, err
+		}
+		return decode.CandlesFromProto(msg, scale, priceScale)
 	})
 }
 
@@ -103,7 +115,13 @@ func currentCandle(candles []models.Candle) models.Candle {
 
 // GetCandlesColumns returns OHLCV candles in columnar wire form, decoded to rows.
 func (s *MarketDataService) GetCandlesColumns(ctx context.Context, symbol *string, symbolID *uint32, timeframe string, limit int, start, end *time.Time, includeIncomplete bool, pageToken *string) (models.CandlesResult, error) {
-	base, scale, err := s.buildCandlesRequest(symbol, symbolID, timeframe, limit, start, end, includeIncomplete, pageToken, false)
+	return s.GetCandlesColumnsWithReference(ctx, symbol, symbolID, timeframe, limit, start, end, includeIncomplete, pageToken, false)
+}
+
+// GetCandlesColumnsWithReference returns columnar OHLCV decoded to rows, including
+// reference candles when includeReference is true.
+func (s *MarketDataService) GetCandlesColumnsWithReference(ctx context.Context, symbol *string, symbolID *uint32, timeframe string, limit int, start, end *time.Time, includeIncomplete bool, pageToken *string, includeReference bool) (models.CandlesResult, error) {
+	base, scale, refScale, err := s.buildCandlesRequest(symbol, symbolID, timeframe, limit, start, end, includeIncomplete, pageToken, includeReference)
 	if err != nil {
 		return models.CandlesResult{}, err
 	}
@@ -113,14 +131,21 @@ func (s *MarketDataService) GetCandlesColumns(ctx context.Context, symbol *strin
 		IncludeReference: base.IncludeReference, PageToken: base.PageToken,
 	}
 	return UnaryPublicDecoded(ctx, s.transport, s.client().GetCandlesColumns, req, func(msg *marketdatav1.GetCandlesColumnsResponse) (models.CandlesResult, error) {
-		return decode.CandlesColumnsFromProto(msg, scale)
+		hasReference := len(msg.GetReferenceTsSec()) > 0 || len(msg.GetReferenceOpen()) > 0 ||
+			len(msg.GetReferenceHigh()) > 0 || len(msg.GetReferenceLow()) > 0 ||
+			len(msg.GetReferenceClose()) > 0 || len(msg.GetReferenceVolume()) > 0
+		priceScale, err := referencePriceScaleForDecode(refScale, hasReference, req.SymbolId)
+		if err != nil {
+			return models.CandlesResult{}, err
+		}
+		return decode.CandlesColumnsFromProto(msg, scale, priceScale)
 	})
 }
 
-func (s *MarketDataService) buildCandlesRequest(symbol *string, symbolID *uint32, timeframe string, limit int, start, end *time.Time, includeIncomplete bool, pageToken *string, includeReference bool) (*marketdatav1.GetCandlesRequest, int, error) {
+func (s *MarketDataService) buildCandlesRequest(symbol *string, symbolID *uint32, timeframe string, limit int, start, end *time.Time, includeIncomplete bool, pageToken *string, includeReference bool) (*marketdatav1.GetCandlesRequest, int, int, error) {
 	resolved, err := ResolveSymbolID(s.catalogs, symbol, symbolID, "get_candles")
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, 0, err
 	}
 	name := timeframeAliases[timeframe]
 	if name == "" {
@@ -129,7 +154,7 @@ func (s *MarketDataService) buildCandlesRequest(symbol *string, symbolID *uint32
 	if v, ok := marketdatav1.Timeframe_value[name]; ok {
 		parsedLimit, err := PaginationLimit(limit, "limit")
 		if err != nil {
-			return nil, 0, err
+			return nil, 0, 0, err
 		}
 		req := &marketdatav1.GetCandlesRequest{SymbolId: resolved, Timeframe: marketdatav1.Timeframe(v), Limit: parsedLimit, IncludeIncomplete: includeIncomplete, IncludeReference: includeReference}
 		if start != nil {
@@ -141,13 +166,25 @@ func (s *MarketDataService) buildCandlesRequest(symbol *string, symbolID *uint32
 		if pageToken != nil {
 			req.PageToken = *pageToken
 		}
-		scale, err := s.requireQuantityScale(resolved, "candle volume")
+		scale, err := s.requireMarketDataVolumeScale(resolved, "candle volume")
 		if err != nil {
-			return nil, 0, err
+			return nil, 0, 0, err
 		}
-		return req, scale, nil
+		refScale, refOK := 0, false
+		if s.catalogs != nil {
+			refScale, refOK = s.catalogs.ReferencePriceScaleForSymbolID(resolved)
+		}
+		if includeReference && !refOK {
+			return nil, 0, 0, &errors.ValidationError{
+				Msg: fmt.Sprintf("candle reference prices require reference_price_scale for symbol_id %d", resolved),
+			}
+		}
+		if !refOK {
+			refScale = -1
+		}
+		return req, scale, refScale, nil
 	}
-	return nil, 0, &errors.ValidationError{Msg: "Unknown candle timeframe; use aliases like '1m', '1h', '1d'"}
+	return nil, 0, 0, &errors.ValidationError{Msg: "Unknown candle timeframe; use aliases like '1m', '1h', '1d'"}
 }
 
 func (s *MarketDataService) SubscribeTrades(ctx context.Context, symbol *string, symbolID *uint32) (*realtime.Subscription[models.MarketTrade], error) {
@@ -172,13 +209,36 @@ func (s *MarketDataService) SubscribeCandles(ctx context.Context, symbol *string
 	if err != nil {
 		return nil, err
 	}
-	volumeScale, err := s.requireQuantityScale(resolved, "candle volume")
+	volumeScale, err := s.requireMarketDataVolumeScale(resolved, "candle volume")
 	if err != nil {
 		return nil, err
 	}
 	channel := fmt.Sprintf("public:spot:market:candles:%s:%d:proto", channelTimeframe, resolved)
 	decodeFn := decode.CandlePointFromBytes(resolved, channelTimeframe, volumeScale)
 	return SubscribePublicProto(ctx, s.realtime, channel, decodeFn)
+}
+
+func referencePriceScaleForDecode(scale int, hasReference bool, symbolID uint32) (int, error) {
+	if scale >= 0 {
+		return scale, nil
+	}
+	if hasReference {
+		return 0, &errors.ValidationError{
+			Msg: fmt.Sprintf("candle reference prices require reference_price_scale for symbol_id %d", symbolID),
+		}
+	}
+	return 0, nil
+}
+
+func (s *MarketDataService) requireMarketDataVolumeScale(symbolID uint32, label string) (int, error) {
+	if s.catalogs != nil {
+		if scale, ok := s.catalogs.MarketDataVolumeScaleForSymbolID(symbolID); ok {
+			return scale, nil
+		}
+	}
+	return 0, &errors.ValidationError{
+		Msg: fmt.Sprintf("%s requires a hydrated market_data_volume_scale for symbol_id %d", label, symbolID),
+	}
 }
 
 func (s *MarketDataService) requireQuantityScale(symbolID uint32, label string) (int, error) {

@@ -89,10 +89,16 @@ type misalignedCandlesHandler struct {
 
 func (*misalignedCandlesHandler) GetSpotConfig(context.Context, *connect.Request[marketdatav1.GetSpotConfigRequest]) (*connect.Response[marketdatav1.GetSpotConfigResponse], error) {
 	return connect.NewResponse(&marketdatav1.GetSpotConfigResponse{
+		Assets: []*marketdatav1.AssetConfig{{
+			Asset:                 "BTC",
+			MarketDataVolumeScale: 8,
+		}},
 		Pairs: []*marketdatav1.PairConfig{{
-			Symbol:            "BTC-USDT",
-			SymbolId:          1,
-			BaseQuantityScale: 8,
+			Symbol:              "BTC-USDT",
+			SymbolId:            1,
+			BaseAsset:           "BTC",
+			BaseQuantityScale:   8,
+			ReferencePriceScale: 6,
 		}},
 	}), nil
 }

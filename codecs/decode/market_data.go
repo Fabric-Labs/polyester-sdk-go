@@ -18,6 +18,20 @@ func SpotConfigFromProto(msg *marketdatav1.GetSpotConfigResponse) models.SpotCon
 	}
 	// proto3 omits scalar zeroes during proto-JSON conversion. Scale zero is
 	// valid, so restore the typed wire value instead of treating it as missing.
+	if assets, ok := raw["assets"].([]any); ok {
+		for i, typed := range msg.GetAssets() {
+			if i >= len(assets) {
+				break
+			}
+			if asset, ok := assets[i].(map[string]any); ok {
+				// proto3 omits scalar zeroes. Scale zero is valid for public
+				// candle and market-overview base volume.
+				delete(asset, "market_data_volume_scale")
+				delete(asset, "marketDataVolumeScale")
+				asset["market_data_volume_scale"] = float64(typed.GetMarketDataVolumeScale())
+			}
+		}
+	}
 	if pairs, ok := raw["pairs"].([]any); ok {
 		for i, typed := range msg.GetPairs() {
 			if i >= len(pairs) {
@@ -30,6 +44,9 @@ func SpotConfigFromProto(msg *marketdatav1.GetSpotConfigResponse) models.SpotCon
 				delete(pair, "quote_quantity_scale")
 				delete(pair, "quoteQuantityScale")
 				pair["quote_quantity_scale"] = float64(typed.GetQuoteQuantityScale())
+				delete(pair, "reference_price_scale")
+				delete(pair, "referencePriceScale")
+				pair["reference_price_scale"] = float64(typed.GetReferencePriceScale())
 			}
 		}
 	}
@@ -53,18 +70,54 @@ func MarketTradesFromProto(msg *marketdatav1.GetTradesResponse, quantityScale in
 	return models.MarketTradesResult{Trades: out, NextPageToken: msg.GetNextPageToken()}
 }
 
-func CandlesFromProto(msg *marketdatav1.GetCandlesResponse, volumeScale int) models.CandlesResult {
+func CandlesFromProto(msg *marketdatav1.GetCandlesResponse, volumeScale int, referencePriceScale int) (models.CandlesResult, error) {
+	if err := codecs.ValidateProtocolScale(volumeScale); err != nil {
+		return models.CandlesResult{}, err
+	}
 	out := make([]models.Candle, 0, len(msg.GetCandles()))
 	for _, c := range msg.GetCandles() {
-		out = append(out, models.Candle{
-			TsSec: int64(c.GetTsSec()),
-			Open:  codecs.FormatPriceTicks(c.GetOpen()), High: codecs.FormatPriceTicks(c.GetHigh()),
-			Low: codecs.FormatPriceTicks(c.GetLow()), Close: codecs.FormatPriceTicks(c.GetClose()),
-			Volume:      formatQtyScaledOrEmpty(c.GetVolume(), volumeScale),
-			QuoteVolume: c.GetQuoteVolume(),
-		})
+		out = append(out, candleFromPoint(c, volumeScale, codecs.PriceTickScale, true))
 	}
-	return models.CandlesResult{Candles: out}
+	reference, err := candlesFromPoints(msg.GetReferenceCandles(), volumeScale, referencePriceScale, false)
+	if err != nil {
+		return models.CandlesResult{}, err
+	}
+	return models.CandlesResult{Candles: out, ReferenceCandles: reference}, nil
+}
+
+func candlesFromPoints(points []*marketdatav1.CandlePoint, volumeScale int, priceScale int, primary bool) ([]models.Candle, error) {
+	if len(points) == 0 {
+		return nil, nil
+	}
+	if err := codecs.ValidateProtocolScale(priceScale); err != nil {
+		return nil, err
+	}
+	out := make([]models.Candle, 0, len(points))
+	for _, point := range points {
+		out = append(out, candleFromPoint(point, volumeScale, priceScale, primary))
+	}
+	return out, nil
+}
+
+func candleFromPoint(point *marketdatav1.CandlePoint, volumeScale int, priceScale int, primary bool) models.Candle {
+	if point == nil {
+		return models.Candle{}
+	}
+	formatPrice := func(ticks int64) string {
+		if primary {
+			return codecs.FormatPriceTicks(ticks)
+		}
+		return formatQtyScaledOrEmpty(ticks, priceScale)
+	}
+	return models.Candle{
+		TsSec:       int64(point.GetTsSec()),
+		Open:        formatPrice(point.GetOpen()),
+		High:        formatPrice(point.GetHigh()),
+		Low:         formatPrice(point.GetLow()),
+		Close:       formatPrice(point.GetClose()),
+		Volume:      formatQtyScaledOrEmpty(point.GetVolume(), volumeScale),
+		QuoteVolume: point.GetQuoteVolume(),
+	}
 }
 
 var timeframeLabels = map[marketdatav1.Timeframe]string{
@@ -77,7 +130,12 @@ var timeframeLabels = map[marketdatav1.Timeframe]string{
 }
 
 // CandlesColumnsFromProto decodes columnar candle responses into rows.
-func CandlesColumnsFromProto(msg *marketdatav1.GetCandlesColumnsResponse, volumeScale int) (models.CandlesResult, error) {
+// Primary OHLC stays on price scale 6. Reference OHLC uses referencePriceScale.
+// Both volume series use the base asset market_data_volume_scale.
+func CandlesColumnsFromProto(msg *marketdatav1.GetCandlesColumnsResponse, volumeScale int, referencePriceScale int) (models.CandlesResult, error) {
+	if err := codecs.ValidateProtocolScale(volumeScale); err != nil {
+		return models.CandlesResult{}, err
+	}
 	rows := len(msg.GetTsSec())
 	quoteVolumes := msg.GetQuoteVolume()
 	if len(msg.GetOpen()) != rows || len(msg.GetHigh()) != rows ||
@@ -88,6 +146,10 @@ func CandlesColumnsFromProto(msg *marketdatav1.GetCandlesColumnsResponse, volume
 			rows, len(msg.GetOpen()), len(msg.GetHigh()), len(msg.GetLow()),
 			len(msg.GetClose()), len(msg.GetVolume()), len(quoteVolumes),
 		)}
+	}
+	reference, err := referenceCandlesFromColumns(msg, volumeScale, referencePriceScale)
+	if err != nil {
+		return models.CandlesResult{}, err
 	}
 	out := make([]models.Candle, 0, len(msg.GetTsSec()))
 	for i, ts := range msg.GetTsSec() {
@@ -108,8 +170,40 @@ func CandlesColumnsFromProto(msg *marketdatav1.GetCandlesColumnsResponse, volume
 	}
 	tf := timeframeLabels[msg.GetTimeframe()]
 	return models.CandlesResult{
-		SymbolID: msg.GetSymbolId(), Timeframe: tf, Candles: out, NextPageToken: msg.GetNextPageToken(),
+		SymbolID: msg.GetSymbolId(), Timeframe: tf, Candles: out, ReferenceCandles: reference, NextPageToken: msg.GetNextPageToken(),
 	}, nil
+}
+
+func referenceCandlesFromColumns(msg *marketdatav1.GetCandlesColumnsResponse, volumeScale int, referencePriceScale int) ([]models.Candle, error) {
+	rows := len(msg.GetReferenceTsSec())
+	if rows == 0 && len(msg.GetReferenceOpen()) == 0 && len(msg.GetReferenceHigh()) == 0 &&
+		len(msg.GetReferenceLow()) == 0 && len(msg.GetReferenceClose()) == 0 && len(msg.GetReferenceVolume()) == 0 {
+		return nil, nil
+	}
+	if len(msg.GetReferenceOpen()) != rows || len(msg.GetReferenceHigh()) != rows ||
+		len(msg.GetReferenceLow()) != rows || len(msg.GetReferenceClose()) != rows ||
+		len(msg.GetReferenceVolume()) != rows {
+		return nil, &sdkerrors.TransportError{Msg: fmt.Sprintf(
+			"invalid GetCandlesColumns reference lengths: reference_ts_sec=%d reference_open=%d reference_high=%d reference_low=%d reference_close=%d reference_volume=%d",
+			rows, len(msg.GetReferenceOpen()), len(msg.GetReferenceHigh()), len(msg.GetReferenceLow()),
+			len(msg.GetReferenceClose()), len(msg.GetReferenceVolume()),
+		)}
+	}
+	if err := codecs.ValidateProtocolScale(referencePriceScale); err != nil {
+		return nil, err
+	}
+	out := make([]models.Candle, 0, rows)
+	for i, ts := range msg.GetReferenceTsSec() {
+		out = append(out, models.Candle{
+			TsSec:  int64(ts),
+			Open:   formatQtyScaledOrEmpty(msg.GetReferenceOpen()[i], referencePriceScale),
+			High:   formatQtyScaledOrEmpty(msg.GetReferenceHigh()[i], referencePriceScale),
+			Low:    formatQtyScaledOrEmpty(msg.GetReferenceLow()[i], referencePriceScale),
+			Close:  formatQtyScaledOrEmpty(msg.GetReferenceClose()[i], referencePriceScale),
+			Volume: formatQtyScaledOrEmpty(msg.GetReferenceVolume()[i], volumeScale),
+		})
+	}
+	return out, nil
 }
 
 // CandlePointFromProto decodes one candle point publication.
