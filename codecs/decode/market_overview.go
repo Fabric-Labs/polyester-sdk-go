@@ -17,6 +17,21 @@ func optionalVolumeScaledString(value *int64) *string {
 	return &formatted
 }
 
+func decodedBaseVolume(value *int64, symbolID uint32, cats *catalogs.Manager) *string {
+	if value == nil || cats == nil {
+		return nil
+	}
+	scale, ok := cats.MarketDataVolumeScaleForSymbolID(symbolID)
+	if !ok {
+		return nil
+	}
+	formatted := formatQtyScaledOrEmpty(*value, scale)
+	if formatted == "" {
+		return nil
+	}
+	return &formatted
+}
+
 func MarketOverviewEntryFromProto(m *marketoverviewv1.MarketOverview, cats *catalogs.Manager) models.MarketOverviewEntry {
 	if m == nil {
 		return models.MarketOverviewEntry{}
@@ -26,6 +41,7 @@ func MarketOverviewEntryFromProto(m *marketoverviewv1.MarketOverview, cats *cata
 		SymbolID:             m.GetSymbolId(),
 		Symbol:               symbol,
 		Volume24HBaseScaled:  optionalVolumeScaledString(m.Volume_24HBaseScaled),
+		Volume24HBase:        decodedBaseVolume(m.Volume_24HBaseScaled, m.GetSymbolId(), cats),
 		Volume24HQuoteScaled: optionalVolumeScaledString(m.Volume_24HQuoteScaled),
 		Volume24HUsdScaled:   optionalVolumeScaledString(m.Volume_24HUsdScaled),
 	}

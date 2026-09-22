@@ -728,16 +728,17 @@ type CandlePoint struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Candle bucket start timestamp, in seconds since epoch (UTC).
 	TsSec uint64 `protobuf:"varint,1,opt,name=ts_sec,json=tsSec,proto3" json:"ts_sec,omitempty"`
-	// Opening price in quote units scaled by 1e6.
+	// Opening price in quote units. Primary candles use scale 6; composite
+	// reference candles use the pair's reference_price_scale from GetSpotConfig.
 	Open int64 `protobuf:"varint,2,opt,name=open,proto3" json:"open,omitempty"`
-	// Highest traded price in quote units scaled by 1e6.
+	// Highest traded price, using the same scale as open.
 	High int64 `protobuf:"varint,3,opt,name=high,proto3" json:"high,omitempty"`
-	// Lowest traded price in quote units scaled by 1e6.
+	// Lowest traded price, using the same scale as open.
 	Low int64 `protobuf:"varint,4,opt,name=low,proto3" json:"low,omitempty"`
-	// Closing price in quote units scaled by 1e6.
+	// Closing price, using the same scale as open.
 	Close int64 `protobuf:"varint,5,opt,name=close,proto3" json:"close,omitempty"`
-	// Traded base-asset quantity scaled by the market's base asset quantity_scale
-	// from GetSpotConfig.
+	// Traded base-asset quantity scaled by the base asset's
+	// market_data_volume_scale from GetSpotConfig.
 	Volume int64 `protobuf:"varint,6,opt,name=volume,proto3" json:"volume,omitempty"`
 	// True only for WebSocket terminal updates of a closed bucket.
 	// Historical API rows and current open-candle rows set this to false.
@@ -934,30 +935,34 @@ type GetCandlesColumnsResponse struct {
 	Timeframe Timeframe `protobuf:"varint,2,opt,name=timeframe,proto3,enum=marketdata.v1.Timeframe" json:"timeframe,omitempty"`
 	// Candle bucket start timestamps (seconds since epoch, UTC).
 	TsSec []uint64 `protobuf:"varint,3,rep,packed,name=ts_sec,json=tsSec,proto3" json:"ts_sec,omitempty"`
-	// Opening prices in quote units scaled by 1e6.
+	// Opening primary-market prices use scale 6. Reference prices use the pair's
+	// reference_price_scale from GetSpotConfig.
 	Open []int64 `protobuf:"varint,4,rep,packed,name=open,proto3" json:"open,omitempty"`
-	// Highest traded prices in quote units scaled by 1e6.
+	// Highest primary-market prices use scale 6. Reference prices use the pair's
+	// reference_price_scale from GetSpotConfig.
 	High []int64 `protobuf:"varint,5,rep,packed,name=high,proto3" json:"high,omitempty"`
-	// Lowest traded prices in quote units scaled by 1e6.
+	// Lowest primary-market prices use scale 6. Reference prices use the pair's
+	// reference_price_scale from GetSpotConfig.
 	Low []int64 `protobuf:"varint,6,rep,packed,name=low,proto3" json:"low,omitempty"`
-	// Closing prices in quote units scaled by 1e6.
+	// Closing primary-market prices use scale 6. Reference prices use the pair's
+	// reference_price_scale from GetSpotConfig.
 	Close []int64 `protobuf:"varint,7,rep,packed,name=close,proto3" json:"close,omitempty"`
-	// Traded base-asset quantities scaled by the pair's base_quantity_scale from
-	// GetSpotConfig.
+	// Traded base-asset quantities scaled by the base asset's
+	// market_data_volume_scale from GetSpotConfig.
 	Volume []int64 `protobuf:"varint,8,rep,packed,name=volume,proto3" json:"volume,omitempty"`
 	// Reference candle series in columnar form (same ordering as ts_sec: oldest-first).
 	// Only populated when request.include_reference=true.
 	ReferenceTsSec []uint64 `protobuf:"varint,9,rep,packed,name=reference_ts_sec,json=referenceTsSec,proto3" json:"reference_ts_sec,omitempty"`
-	// Reference opening prices in quote units scaled by 1e6.
+	// Reference opening prices use the pair's reference_price_scale.
 	ReferenceOpen []int64 `protobuf:"varint,10,rep,packed,name=reference_open,json=referenceOpen,proto3" json:"reference_open,omitempty"`
-	// Reference high prices in quote units scaled by 1e6.
+	// Reference high prices use the pair's reference_price_scale.
 	ReferenceHigh []int64 `protobuf:"varint,11,rep,packed,name=reference_high,json=referenceHigh,proto3" json:"reference_high,omitempty"`
-	// Reference low prices in quote units scaled by 1e6.
+	// Reference low prices use the pair's reference_price_scale.
 	ReferenceLow []int64 `protobuf:"varint,12,rep,packed,name=reference_low,json=referenceLow,proto3" json:"reference_low,omitempty"`
-	// Reference closing prices in quote units scaled by 1e6.
+	// Reference closing prices use the pair's reference_price_scale.
 	ReferenceClose []int64 `protobuf:"varint,13,rep,packed,name=reference_close,json=referenceClose,proto3" json:"reference_close,omitempty"`
-	// Reference traded base-asset quantities scaled by the pair's
-	// base_quantity_scale from GetSpotConfig.
+	// Reference traded base-asset quantities use the base asset's
+	// market_data_volume_scale from GetSpotConfig.
 	ReferenceVolume []int64 `protobuf:"varint,14,rep,packed,name=reference_volume,json=referenceVolume,proto3" json:"reference_volume,omitempty"`
 	// Opaque cursor for the next page. Empty when no more results exist.
 	NextPageToken string `protobuf:"bytes,15,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
@@ -1115,12 +1120,12 @@ type Candle struct {
 	SymbolId  uint32                 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`                // numeric spot market identifier
 	Timeframe Timeframe              `protobuf:"varint,2,opt,name=timeframe,proto3,enum=marketdata.v1.Timeframe" json:"timeframe,omitempty"` // timeframe of this candle
 	TsSec     uint64                 `protobuf:"varint,3,opt,name=ts_sec,json=tsSec,proto3" json:"ts_sec,omitempty"`                         // bucket start timestamp (seconds since epoch, UTC)
-	Open      int64                  `protobuf:"varint,4,opt,name=open,proto3" json:"open,omitempty"`                                        // opening price in quote units scaled by 1e6
-	High      int64                  `protobuf:"varint,5,opt,name=high,proto3" json:"high,omitempty"`                                        // highest traded price in quote units scaled by 1e6
-	Low       int64                  `protobuf:"varint,6,opt,name=low,proto3" json:"low,omitempty"`                                          // lowest traded price in quote units scaled by 1e6
-	Close     int64                  `protobuf:"varint,7,opt,name=close,proto3" json:"close,omitempty"`                                      // closing price in quote units scaled by 1e6
-	// Traded base-asset quantity scaled by the pair's base_quantity_scale from
-	// GetSpotConfig.
+	Open      int64                  `protobuf:"varint,4,opt,name=open,proto3" json:"open,omitempty"`                                        // opening primary-market price in scale 6
+	High      int64                  `protobuf:"varint,5,opt,name=high,proto3" json:"high,omitempty"`                                        // highest primary-market price in scale 6
+	Low       int64                  `protobuf:"varint,6,opt,name=low,proto3" json:"low,omitempty"`                                          // lowest primary-market price in scale 6
+	Close     int64                  `protobuf:"varint,7,opt,name=close,proto3" json:"close,omitempty"`                                      // closing primary-market price in scale 6
+	// Traded base-asset quantity scaled by the base asset's
+	// market_data_volume_scale from GetSpotConfig.
 	Volume int64 `protobuf:"varint,8,opt,name=volume,proto3" json:"volume,omitempty"`
 	// Exact traded quote-asset volume as a human-readable decimal string.
 	QuoteVolume   string `protobuf:"bytes,9,opt,name=quote_volume,json=quoteVolume,proto3" json:"quote_volume,omitempty"`
@@ -1236,8 +1241,10 @@ type AssetConfig struct {
 	// A scale of 8 means one whole asset is represented as 100000000 in scaled
 	// integer fields such as qty_scaled.
 	QuantityScale uint32 `protobuf:"varint,5,opt,name=quantity_scale,json=quantityScale,proto3" json:"quantity_scale,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Integer scale for public candle and market-overview base volume (0..18).
+	MarketDataVolumeScale uint32 `protobuf:"varint,6,opt,name=market_data_volume_scale,json=marketDataVolumeScale,proto3" json:"market_data_volume_scale,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *AssetConfig) Reset() {
@@ -1301,6 +1308,13 @@ func (x *AssetConfig) GetQuantityDisplayDecimals() uint32 {
 func (x *AssetConfig) GetQuantityScale() uint32 {
 	if x != nil {
 		return x.QuantityScale
+	}
+	return 0
+}
+
+func (x *AssetConfig) GetMarketDataVolumeScale() uint32 {
+	if x != nil {
+		return x.MarketDataVolumeScale
 	}
 	return 0
 }
@@ -1400,8 +1414,11 @@ type PairConfig struct {
 	// price for MARKET orders, in basis points (1 bp = 0.01%), when client
 	// reference pricing is used.
 	MaxClientRefDriftBps int32 `protobuf:"varint,18,opt,name=max_client_ref_drift_bps,json=maxClientRefDriftBps,proto3" json:"max_client_ref_drift_bps,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Integer scale for composite reference prices in candle responses (0..18).
+	// Primary market and execution prices continue to use scale 6.
+	ReferencePriceScale uint32 `protobuf:"varint,19,opt,name=reference_price_scale,json=referencePriceScale,proto3" json:"reference_price_scale,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *PairConfig) Reset() {
@@ -1556,6 +1573,13 @@ func (x *PairConfig) GetDefaultMarketSlippageBpsSell() int32 {
 func (x *PairConfig) GetMaxClientRefDriftBps() int32 {
 	if x != nil {
 		return x.MaxClientRefDriftBps
+	}
+	return 0
+}
+
+func (x *PairConfig) GetReferencePriceScale() uint32 {
+	if x != nil {
+		return x.ReferencePriceScale
 	}
 	return 0
 }
@@ -1759,15 +1783,16 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\x03low\x18\x06 \x01(\x03R\x03low\x12\x14\n" +
 	"\x05close\x18\a \x01(\x03R\x05close\x12\x16\n" +
 	"\x06volume\x18\b \x01(\x03R\x06volume\x12!\n" +
-	"\fquote_volume\x18\t \x01(\tR\vquoteVolume\"\xb7\x01\n" +
+	"\fquote_volume\x18\t \x01(\tR\vquoteVolume\"\xf0\x01\n" +
 	"\vAssetConfig\x12\x14\n" +
 	"\x05asset\x18\x01 \x01(\tR\x05asset\x12\x1b\n" +
 	"\tledger_id\x18\x02 \x01(\rR\bledgerId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12:\n" +
 	"\x19quantity_display_decimals\x18\x04 \x01(\rR\x17quantityDisplayDecimals\x12%\n" +
-	"\x0equantity_scale\x18\x05 \x01(\rR\rquantityScale\"N\n" +
+	"\x0equantity_scale\x18\x05 \x01(\rR\rquantityScale\x127\n" +
+	"\x18market_data_volume_scale\x18\x06 \x01(\rR\x15marketDataVolumeScale\"N\n" +
 	"\x14PairMarketdataConfig\x126\n" +
-	"\x17orderbook_price_buckets\x18\x01 \x03(\x01R\x15orderbookPriceBuckets\"\xdb\x06\n" +
+	"\x17orderbook_price_buckets\x18\x01 \x03(\x01R\x15orderbookPriceBuckets\"\x8f\a\n" +
 	"\n" +
 	"PairConfig\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x12\x16\n" +
@@ -1794,7 +1819,8 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\x06status\x18\x0f \x01(\x0e2\x19.marketdata.v1.PairStatusR\x06status\x12D\n" +
 	"\x1fdefault_market_slippage_bps_buy\x18\x10 \x01(\x05R\x1bdefaultMarketSlippageBpsBuy\x12F\n" +
 	" default_market_slippage_bps_sell\x18\x11 \x01(\x05R\x1cdefaultMarketSlippageBpsSell\x126\n" +
-	"\x18max_client_ref_drift_bps\x18\x12 \x01(\x05R\x14maxClientRefDriftBps\"\x16\n" +
+	"\x18max_client_ref_drift_bps\x18\x12 \x01(\x05R\x14maxClientRefDriftBps\x122\n" +
+	"\x15reference_price_scale\x18\x13 \x01(\rR\x13referencePriceScale\"\x16\n" +
 	"\x14GetSpotConfigRequest\"\x93\x01\n" +
 	"\x15GetSpotConfigResponse\x122\n" +
 	"\x06assets\x18\x01 \x03(\v2\x1a.marketdata.v1.AssetConfigR\x06assets\x12/\n" +

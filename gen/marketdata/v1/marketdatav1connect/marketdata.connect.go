@@ -58,8 +58,10 @@ type MarketDataServiceClient interface {
 	// current open candle inclusion, and optional composite reference candles.
 	GetCandles(context.Context, *connect.Request[v1.GetCandlesRequest]) (*connect.Response[v1.GetCandlesResponse], error)
 	// GetCandlesColumns returns OHLCV candles in a columnar representation optimized for charting.
-	// This method is intended for ConnectRPC clients and returns scaled integers:
-	// OHLC prices use 1e6 quote-unit scale, and volumes use base_quantity_scale.
+	// This method is intended for ConnectRPC clients and returns scaled integers.
+	// Primary OHLC prices use scale 6, reference OHLC prices use the pair's
+	// reference_price_scale, and volumes use the base asset's
+	// market_data_volume_scale from GetSpotConfig.
 	GetCandlesColumns(context.Context, *connect.Request[v1.GetCandlesColumnsRequest]) (*connect.Response[v1.GetCandlesColumnsResponse], error)
 	// Retrieve a cacheable snapshot of spot assets and pairs, including precision and trading constraints.
 	GetSpotConfig(context.Context, *connect.Request[v1.GetSpotConfigRequest]) (*connect.Response[v1.GetSpotConfigResponse], error)
@@ -142,8 +144,10 @@ type MarketDataServiceHandler interface {
 	// current open candle inclusion, and optional composite reference candles.
 	GetCandles(context.Context, *connect.Request[v1.GetCandlesRequest]) (*connect.Response[v1.GetCandlesResponse], error)
 	// GetCandlesColumns returns OHLCV candles in a columnar representation optimized for charting.
-	// This method is intended for ConnectRPC clients and returns scaled integers:
-	// OHLC prices use 1e6 quote-unit scale, and volumes use base_quantity_scale.
+	// This method is intended for ConnectRPC clients and returns scaled integers.
+	// Primary OHLC prices use scale 6, reference OHLC prices use the pair's
+	// reference_price_scale, and volumes use the base asset's
+	// market_data_volume_scale from GetSpotConfig.
 	GetCandlesColumns(context.Context, *connect.Request[v1.GetCandlesColumnsRequest]) (*connect.Response[v1.GetCandlesColumnsResponse], error)
 	// Retrieve a cacheable snapshot of spot assets and pairs, including precision and trading constraints.
 	GetSpotConfig(context.Context, *connect.Request[v1.GetSpotConfigRequest]) (*connect.Response[v1.GetSpotConfigResponse], error)

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Changed
+- Candle and market-overview base volume now use the base asset
+  `market_data_volume_scale` from `GetSpotConfig`. Primary candle prices
+  stay on scale 6.
+- Composite reference-candle OHLC uses the pair `reference_price_scale`.
+  `GetCandlesWithReference` and `GetCandlesColumnsWithReference` request
+  that series. `MarketOverviewEntry.Volume24HBase` is the decoded decimal
+  when the catalog scale is known; `Volume24HBaseScaled` stays the integer.
+
 ## 0.1.0a54
 
 Git tag: `v0.1.0a54`.

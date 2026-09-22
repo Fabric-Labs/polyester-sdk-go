@@ -43,8 +43,8 @@ func (m *Manager) ZipperConfig() map[string]any {
 	}
 	cfg := m.DepositWithdrawConfig
 	return map[string]any{
-		"chains":           cfg.Chains,
-		"assets":           cfg.Assets,
+		"chains":    cfg.Chains,
+		"assets":    cfg.Assets,
 		"contracts": cfg.Contracts,
 		"tsSec":     cfg.TsMs / 1000,
 	}
@@ -417,6 +417,67 @@ func (m *Manager) QuoteQuantityScaleForSymbolID(symbolID uint32) (scale int, ok 
 		}
 	}
 	return 0, false
+}
+
+// MarketDataVolumeScaleForSymbolID returns the base asset's public candle and
+// market-overview volume scale. ok is false when the pair, base asset, or scale
+// is missing. Zero is valid and reported as ok.
+func (m *Manager) MarketDataVolumeScaleForSymbolID(symbolID uint32) (scale int, ok bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	pair := m.pairForSymbolIDLocked(symbolID)
+	if pair == nil {
+		return 0, false
+	}
+	base := stringField(pair, "base_asset", "baseAsset")
+	if base == "" {
+		return 0, false
+	}
+	for _, asset := range m.assetsLocked() {
+		code := stringField(asset, "asset")
+		if code != base {
+			continue
+		}
+		return intField(asset, "market_data_volume_scale", "marketDataVolumeScale")
+	}
+	return 0, false
+}
+
+// ReferencePriceScaleForSymbolID returns the pair scale for composite reference
+// candle prices. Primary market prices stay on scale 6. ok is false when the
+// pair or scale is missing. Zero is valid and reported as ok.
+func (m *Manager) ReferencePriceScaleForSymbolID(symbolID uint32) (scale int, ok bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	pair := m.pairForSymbolIDLocked(symbolID)
+	if pair == nil {
+		return 0, false
+	}
+	return intField(pair, "reference_price_scale", "referencePriceScale")
+}
+
+func (m *Manager) pairForSymbolIDLocked(symbolID uint32) map[string]any {
+	for _, pair := range m.pairsLocked() {
+		id := intish(pair["symbol_id"])
+		if id == nil {
+			id = intish(pair["symbolId"])
+		}
+		if id != nil && *id == symbolID {
+			return pair
+		}
+	}
+	return nil
+}
+
+func (m *Manager) assetsLocked() []map[string]any {
+	raw, _ := m.SpotConfig["assets"].([]any)
+	out := make([]map[string]any, 0, len(raw))
+	for _, item := range raw {
+		if asset, ok := item.(map[string]any); ok {
+			out = append(out, asset)
+		}
+	}
+	return out
 }
 
 // PairConstraintsForSymbol returns exact, parsed trading constraints for symbol.
