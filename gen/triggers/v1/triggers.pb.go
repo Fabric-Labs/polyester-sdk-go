@@ -592,7 +592,7 @@ func (*TriggerMarketIoc) Descriptor() ([]byte, []int) {
 // TriggerLimitGtc configures a resting limit child.
 type TriggerLimitGtc struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Limit price in quote units scaled by 1e6.
+	// Limit price in quote units scaled by 1e9.
 	PriceTicks int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	// Reject instead of taking liquidity.
 	PostOnly      bool `protobuf:"varint,2,opt,name=post_only,json=postOnly,proto3" json:"post_only,omitempty"`
@@ -647,7 +647,7 @@ func (x *TriggerLimitGtc) GetPostOnly() bool {
 // TriggerLimitIoc configures an immediate-or-cancel limit child.
 type TriggerLimitIoc struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Limit price in quote units scaled by 1e6.
+	// Limit price in quote units scaled by 1e9.
 	PriceTicks    int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -693,7 +693,7 @@ func (x *TriggerLimitIoc) GetPriceTicks() int64 {
 // TriggerLimitFok configures a fill-or-kill limit child.
 type TriggerLimitFok struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Limit price in quote units scaled by 1e6.
+	// Limit price in quote units scaled by 1e9.
 	PriceTicks    int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -859,7 +859,7 @@ func (*ConditionalChildExecution_LimitFok) isConditionalChildExecution_Execution
 // ConditionalTrigger configures a standalone stop-loss or take-profit.
 type ConditionalTrigger struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Trigger threshold in quote units scaled by 1e6.
+	// Trigger threshold in quote units scaled by 1e9.
 	TriggerPriceTicks int64 `protobuf:"varint,1,opt,name=trigger_price_ticks,json=triggerPriceTicks,proto3" json:"trigger_price_ticks,omitempty"`
 	// Child order side.
 	Side v1.Side `protobuf:"varint,2,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
@@ -932,7 +932,7 @@ type TrailingStopTrigger struct {
 	//	*TrailingStopTrigger_TrailingDistanceTicks
 	//	*TrailingStopTrigger_TrailingDistanceBps
 	TrailingDistance isTrailingStopTrigger_TrailingDistance `protobuf_oneof:"trailing_distance"`
-	// Optional activation price in quote units scaled by 1e6.
+	// Optional activation price in quote units scaled by 1e9.
 	ActivationPriceTicks int64 `protobuf:"varint,3,opt,name=activation_price_ticks,json=activationPriceTicks,proto3" json:"activation_price_ticks,omitempty"`
 	// Optional protection applied when the market child fires.
 	//
@@ -1046,7 +1046,7 @@ type isTrailingStopTrigger_TrailingDistance interface {
 }
 
 type TrailingStopTrigger_TrailingDistanceTicks struct {
-	// Distance as a price delta in 1e-6 quote-unit ticks.
+	// Distance as a price delta in 1e-9 quote-unit ticks.
 	TrailingDistanceTicks int64 `protobuf:"varint,1,opt,name=trailing_distance_ticks,json=trailingDistanceTicks,proto3,oneof"`
 }
 
@@ -1064,7 +1064,7 @@ type isTrailingStopTrigger_MaxSlippage interface {
 }
 
 type TrailingStopTrigger_MaxSlippageTicks struct {
-	// Maximum slippage as a price delta in 1e-6 quote-unit ticks.
+	// Maximum slippage as a price delta in 1e-9 quote-unit ticks.
 	MaxSlippageTicks int32 `protobuf:"varint,4,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
 }
 
@@ -1154,7 +1154,7 @@ type isTwapMarketIoc_MaxSlippage interface {
 }
 
 type TwapMarketIoc_MaxSlippageTicks struct {
-	// Maximum adverse price delta per slice in 1e-6 quote-unit ticks.
+	// Maximum adverse price delta per slice in 1e-9 quote-unit ticks.
 	MaxSlippageTicks int32 `protobuf:"varint,1,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
 }
 
@@ -1171,7 +1171,7 @@ func (*TwapMarketIoc_MaxSlippageBps) isTwapMarketIoc_MaxSlippage() {}
 // slice is canceled before the next interval.
 type TwapLimitGtc struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Slice limit price in quote units scaled by 1e6.
+	// Slice limit price in quote units scaled by 1e9.
 	PriceTicks    int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1334,9 +1334,9 @@ type LadderTrigger struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Child side.
 	Side v1.Side `protobuf:"varint,1,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
-	// Minimum generated level price in quote units scaled by 1e6.
+	// Minimum generated level price in quote units scaled by 1e9.
 	PriceMinTicks int64 `protobuf:"varint,2,opt,name=price_min_ticks,json=priceMinTicks,proto3" json:"price_min_ticks,omitempty"`
-	// Maximum generated level price in quote units scaled by 1e6.
+	// Maximum generated level price in quote units scaled by 1e9.
 	PriceMaxTicks int64 `protobuf:"varint,3,opt,name=price_max_ticks,json=priceMaxTicks,proto3" json:"price_max_ticks,omitempty"`
 	// Number of linearly distributed levels.
 	Levels int32 `protobuf:"varint,4,opt,name=levels,proto3" json:"levels,omitempty"`
@@ -2090,7 +2090,7 @@ type TriggerEvent struct {
 	// Child order ID created by this event, if any.
 	ChildOrderId uint64 `protobuf:"fixed64,12,opt,name=child_order_id,json=childOrderId,proto3" json:"child_order_id,omitempty"`
 	// Price that caused a conditional trigger to fire, in quote units scaled by
-	// 1e6. Absent for time-scheduled triggers such as TWAP.
+	// 1e9. Absent for time-scheduled triggers such as TWAP.
 	FirePriceTicks *int64 `protobuf:"varint,13,opt,name=fire_price_ticks,json=firePriceTicks,proto3,oneof" json:"fire_price_ticks,omitempty"`
 	// Terminal reason for canceled or failed events. Other event types leave it unset.
 	//
@@ -2435,9 +2435,9 @@ type ModifyTriggerRequest struct {
 	SymbolId uint32 `protobuf:"varint,3,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Patch fields for safe price, trailing-distance, and slippage edits.
 	// For stop/take-profit:
-	// Updated trigger price in quote units scaled by 1e6.
+	// Updated trigger price in quote units scaled by 1e9.
 	TriggerPriceTicks *int64 `protobuf:"varint,10,opt,name=trigger_price_ticks,json=triggerPriceTicks,proto3,oneof" json:"trigger_price_ticks,omitempty"`
-	// Updated limit price in quote units scaled by 1e6 for LIMIT child orders.
+	// Updated limit price in quote units scaled by 1e9 for LIMIT child orders.
 	LimitPriceTicks *int64 `protobuf:"varint,11,opt,name=limit_price_ticks,json=limitPriceTicks,proto3,oneof" json:"limit_price_ticks,omitempty"`
 	// For trailing stop:
 	//
@@ -2446,7 +2446,7 @@ type ModifyTriggerRequest struct {
 	//	*ModifyTriggerRequest_TrailingDistanceTicks
 	//	*ModifyTriggerRequest_TrailingDistanceBps
 	TrailingDistance isModifyTriggerRequest_TrailingDistance `protobuf_oneof:"trailing_distance"`
-	// Updated activation price in quote units scaled by 1e6. Set to zero to
+	// Updated activation price in quote units scaled by 1e9. Set to zero to
 	// clear an existing activation price; omit to leave it unchanged.
 	ActivationPriceTicks *int64 `protobuf:"varint,14,opt,name=activation_price_ticks,json=activationPriceTicks,proto3,oneof" json:"activation_price_ticks,omitempty"`
 	// Optional price protection. Select either field with a zero value to clear
@@ -2588,7 +2588,7 @@ type isModifyTriggerRequest_TrailingDistance interface {
 }
 
 type ModifyTriggerRequest_TrailingDistanceTicks struct {
-	// Updated trailing distance as a price delta in 1e-6 quote-unit ticks.
+	// Updated trailing distance as a price delta in 1e-9 quote-unit ticks.
 	TrailingDistanceTicks int64 `protobuf:"varint,12,opt,name=trailing_distance_ticks,json=trailingDistanceTicks,proto3,oneof"`
 }
 
@@ -2606,7 +2606,7 @@ type isModifyTriggerRequest_MaxSlippage interface {
 }
 
 type ModifyTriggerRequest_MaxSlippageTicks struct {
-	// Updated maximum allowed slippage as a price delta in 1e-6 quote-unit
+	// Updated maximum allowed slippage as a price delta in 1e-9 quote-unit
 	// ticks. Set to zero to clear the cap.
 	MaxSlippageTicks int32 `protobuf:"varint,15,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
 }
@@ -2963,7 +2963,7 @@ func (x *ResumeTriggerResponse) GetTsNs() uint64 {
 // StopDetails contains configuration for STOP_LOSS and TAKE_PROFIT triggers.
 type StopDetails struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Trigger threshold price in quote units scaled by 1e6.
+	// Trigger threshold price in quote units scaled by 1e9.
 	TriggerPriceTicks int64 `protobuf:"varint,1,opt,name=trigger_price_ticks,json=triggerPriceTicks,proto3" json:"trigger_price_ticks,omitempty"`
 	// Price source used for trigger evaluation.
 	TriggerPriceSource v1.TriggerPriceSource `protobuf:"varint,2,opt,name=trigger_price_source,json=triggerPriceSource,proto3,enum=orders.v1.TriggerPriceSource" json:"trigger_price_source,omitempty"`
@@ -3028,18 +3028,18 @@ func (x *StopDetails) GetTriggerDirection() v1.TriggerDirection {
 // triggers.
 type TrailingDetails struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Trailing distance as a price delta in 1e-6 quote-unit ticks.
+	// Trailing distance as a price delta in 1e-9 quote-unit ticks.
 	TrailingDistanceTicks int64 `protobuf:"varint,1,opt,name=trailing_distance_ticks,json=trailingDistanceTicks,proto3" json:"trailing_distance_ticks,omitempty"`
 	// Optional activation price: trailing only starts after this price is
-	// reached. Expressed in quote units scaled by 1e6.
+	// reached. Expressed in quote units scaled by 1e9.
 	ActivationPriceTicks int64 `protobuf:"varint,2,opt,name=activation_price_ticks,json=activationPriceTicks,proto3" json:"activation_price_ticks,omitempty"`
-	// Current peak price in quote units scaled by 1e6 for sell trailing stops.
+	// Current peak price in quote units scaled by 1e9 for sell trailing stops.
 	PeakPriceTicks int64 `protobuf:"varint,3,opt,name=peak_price_ticks,json=peakPriceTicks,proto3" json:"peak_price_ticks,omitempty"`
-	// Current trough price in quote units scaled by 1e6 for buy trailing stops.
+	// Current trough price in quote units scaled by 1e9 for buy trailing stops.
 	TroughPriceTicks int64 `protobuf:"varint,4,opt,name=trough_price_ticks,json=troughPriceTicks,proto3" json:"trough_price_ticks,omitempty"`
 	// Trailing distance in basis points (1 bp = 0.01%).
 	TrailingDistanceBps int32 `protobuf:"varint,5,opt,name=trailing_distance_bps,json=trailingDistanceBps,proto3" json:"trailing_distance_bps,omitempty"`
-	// Optional maximum allowed slippage as a price delta in 1e-6 quote-unit ticks.
+	// Optional maximum allowed slippage as a price delta in 1e-9 quote-unit ticks.
 	MaxSlippageTicks int32 `protobuf:"varint,6,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3" json:"max_slippage_ticks,omitempty"`
 	// Optional maximum allowed slippage in basis points (1 bp = 0.01%).
 	MaxSlippageBps int32 `protobuf:"varint,7,opt,name=max_slippage_bps,json=maxSlippageBps,proto3" json:"max_slippage_bps,omitempty"`
@@ -3049,7 +3049,7 @@ type TrailingDetails struct {
 	// Direction the price must cross to fire the trigger. Fixed for the lifetime
 	// of the trigger and exposed for completeness.
 	TriggerDirection v1.TriggerDirection `protobuf:"varint,9,opt,name=trigger_direction,json=triggerDirection,proto3,enum=orders.v1.TriggerDirection" json:"trigger_direction,omitempty"`
-	// Current trailing trigger threshold in quote units scaled by 1e6. This is
+	// Current trailing trigger threshold in quote units scaled by 1e9. This is
 	// evaluator-authored runtime state and moves when the peak or trough changes.
 	// It is absent until the trailing trigger is armed and a positive threshold exists.
 	TriggerPriceTicks *int64 `protobuf:"varint,10,opt,name=trigger_price_ticks,json=triggerPriceTicks,proto3,oneof" json:"trigger_price_ticks,omitempty"`
@@ -3243,9 +3243,9 @@ func (x *TwapDetails) GetExecutedQtyScaled() int64 {
 // LadderDetails contains configuration and aggregate execution progress for LADDER triggers.
 type LadderDetails struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Minimum price in quote units scaled by 1e6 for the ladder range.
+	// Minimum price in quote units scaled by 1e9 for the ladder range.
 	LadderPriceMinTicks int64 `protobuf:"varint,1,opt,name=ladder_price_min_ticks,json=ladderPriceMinTicks,proto3" json:"ladder_price_min_ticks,omitempty"`
-	// Maximum price in quote units scaled by 1e6 for the ladder range.
+	// Maximum price in quote units scaled by 1e9 for the ladder range.
 	LadderPriceMaxTicks int64 `protobuf:"varint,2,opt,name=ladder_price_max_ticks,json=ladderPriceMaxTicks,proto3" json:"ladder_price_max_ticks,omitempty"`
 	// Number of price levels in the ladder.
 	LadderLevels int32 `protobuf:"varint,3,opt,name=ladder_levels,json=ladderLevels,proto3" json:"ladder_levels,omitempty"`

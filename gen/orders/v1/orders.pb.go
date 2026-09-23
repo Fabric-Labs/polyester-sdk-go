@@ -1194,7 +1194,7 @@ type MarketIoc struct {
 	//	*MarketIoc_MaxSlippageTicks
 	//	*MarketIoc_MaxSlippageBps
 	MaxSlippage isMarketIoc_MaxSlippage `protobuf_oneof:"max_slippage"`
-	// Optional client reference price in quote units scaled by 1e6. When
+	// Optional client reference price in quote units scaled by 1e9. When
 	// omitted, admission uses server-side reference pricing.
 	ClientRefPriceTicks int64 `protobuf:"varint,3,opt,name=client_ref_price_ticks,json=clientRefPriceTicks,proto3" json:"client_ref_price_ticks,omitempty"`
 	unknownFields       protoimpl.UnknownFields
@@ -1268,7 +1268,7 @@ type isMarketIoc_MaxSlippage interface {
 }
 
 type MarketIoc_MaxSlippageTicks struct {
-	// Maximum allowed slippage as a price delta in 1e-6 quote-unit ticks.
+	// Maximum allowed slippage as a price delta in 1e-9 quote-unit ticks.
 	MaxSlippageTicks int32 `protobuf:"varint,1,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
 }
 
@@ -1284,7 +1284,7 @@ func (*MarketIoc_MaxSlippageBps) isMarketIoc_MaxSlippage() {}
 // LimitGtc configures a good-til-canceled limit order.
 type LimitGtc struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Limit price in quote units scaled by 1e6.
+	// Limit price in quote units scaled by 1e9.
 	PriceTicks int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	// Reject the order instead of taking liquidity. Post-only is available only
 	// on this resting limit-order variant.
@@ -1341,7 +1341,7 @@ func (x *LimitGtc) GetPostOnly() bool {
 // exact expiry time.
 type LimitGtd struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Limit price in quote units scaled by 1e6.
+	// Limit price in quote units scaled by 1e9.
 	PriceTicks int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	// Reject the order instead of taking liquidity.
 	PostOnly bool `protobuf:"varint,2,opt,name=post_only,json=postOnly,proto3" json:"post_only,omitempty"`
@@ -1407,7 +1407,7 @@ func (x *LimitGtd) GetExpireAt() *timestamppb.Timestamp {
 // LimitIoc configures an immediate-or-cancel limit order.
 type LimitIoc struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Limit price in quote units scaled by 1e6.
+	// Limit price in quote units scaled by 1e9.
 	PriceTicks    int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1453,7 +1453,7 @@ func (x *LimitIoc) GetPriceTicks() int64 {
 // LimitFok configures a fill-or-kill limit order.
 type LimitFok struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Limit price in quote units scaled by 1e6.
+	// Limit price in quote units scaled by 1e9.
 	PriceTicks    int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2001,7 +2001,7 @@ type PreviewOrderResponse struct {
 	// Gross base quantity resolved for execution, scaled by the pair's
 	// base_quantity_scale from GetSpotConfig. Present when sizing was resolved.
 	ResolvedBaseQtyScaled *int64 `protobuf:"varint,3,opt,name=resolved_base_qty_scaled,json=resolvedBaseQtyScaled,proto3,oneof" json:"resolved_base_qty_scaled,omitempty"`
-	// Protective execution boundary in quote units scaled by 1e6. This is not an
+	// Protective execution boundary in quote units scaled by 1e9. This is not an
 	// expected fill price. Present when price protection was resolved.
 	ProtectedPriceBoundTicks *int64 `protobuf:"varint,4,opt,name=protected_price_bound_ticks,json=protectedPriceBoundTicks,proto3,oneof" json:"protected_price_bound_ticks,omitempty"`
 	// Time at which this admission evaluation completed.
@@ -2422,7 +2422,7 @@ func (*RiskMarketIoc) Descriptor() ([]byte, []int) {
 // child. Attached risk legs do not support post-only.
 type RiskLimitGtc struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Limit price in quote units scaled by 1e6.
+	// Limit price in quote units scaled by 1e9.
 	PriceTicks    int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2555,7 +2555,7 @@ func (*RiskExecution_LimitGtc) isRiskExecution_Execution() {}
 // last trade price, arms after the parent fills, and submits the selected child.
 type TakeProfitPolicy struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Trigger price in quote units scaled by 1e6.
+	// Trigger price in quote units scaled by 1e9.
 	TriggerPriceTicks int64 `protobuf:"varint,1,opt,name=trigger_price_ticks,json=triggerPriceTicks,proto3" json:"trigger_price_ticks,omitempty"`
 	// Child execution when the threshold is crossed.
 	Child         *RiskExecution `protobuf:"bytes,2,opt,name=child,proto3" json:"child,omitempty"`
@@ -2611,7 +2611,7 @@ func (x *TakeProfitPolicy) GetChild() *RiskExecution {
 // trade price, arms after the parent fills, and submits the selected child.
 type StopLossPolicy struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Trigger price in quote units scaled by 1e6.
+	// Trigger price in quote units scaled by 1e9.
 	TriggerPriceTicks int64 `protobuf:"varint,1,opt,name=trigger_price_ticks,json=triggerPriceTicks,proto3" json:"trigger_price_ticks,omitempty"`
 	// Child execution when the threshold is crossed.
 	Child         *RiskExecution `protobuf:"bytes,2,opt,name=child,proto3" json:"child,omitempty"`
@@ -2688,7 +2688,7 @@ type TrailingStopPolicy struct {
 	MaxSlippage isTrailingStopPolicy_MaxSlippage `protobuf_oneof:"max_slippage"`
 	// Optional activation price: trailing only starts after this price is
 	// reached. If omitted, trailing starts immediately after the parent order
-	// fills. Expressed in quote units scaled by 1e6.
+	// fills. Expressed in quote units scaled by 1e9.
 	ActivationPriceTicks int64 `protobuf:"varint,3,opt,name=activation_price_ticks,json=activationPriceTicks,proto3" json:"activation_price_ticks,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
@@ -2786,7 +2786,7 @@ type isTrailingStopPolicy_TrailingDistance interface {
 }
 
 type TrailingStopPolicy_TrailingDistanceTicks struct {
-	// Trailing distance as a price delta in 1e-6 quote-unit ticks.
+	// Trailing distance as a price delta in 1e-9 quote-unit ticks.
 	TrailingDistanceTicks int64 `protobuf:"varint,1,opt,name=trailing_distance_ticks,json=trailingDistanceTicks,proto3,oneof"`
 }
 
@@ -2804,7 +2804,7 @@ type isTrailingStopPolicy_MaxSlippage interface {
 }
 
 type TrailingStopPolicy_MaxSlippageTicks struct {
-	// Maximum allowed slippage as a price delta in 1e-6 quote-unit ticks.
+	// Maximum allowed slippage as a price delta in 1e-9 quote-unit ticks.
 	MaxSlippageTicks int32 `protobuf:"varint,6,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
 }
 
@@ -3671,7 +3671,7 @@ type ModifyOrderRequest struct {
 	// Idempotency key (required).
 	RequestId string `protobuf:"bytes,4,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	// Patch fields (presence-based).
-	// New limit price in quote units scaled by 1e6. Required for price changes.
+	// New limit price in quote units scaled by 1e9. Required for price changes.
 	NewPriceTicks *int64 `protobuf:"varint,5,opt,name=new_price_ticks,json=newPriceTicks,proto3,oneof" json:"new_price_ticks,omitempty"`
 	// Target total quantity after modify/replace, scaled by the pair's
 	// base_quantity_scale from GetSpotConfig.
@@ -3945,7 +3945,7 @@ type BatchReplaceOrderItem struct {
 	//	*BatchReplaceOrderItem_OrderId
 	//	*BatchReplaceOrderItem_ClientOrderId
 	Key isBatchReplaceOrderItem_Key `protobuf_oneof:"key"`
-	// New limit price in quote units scaled by 1e6.
+	// New limit price in quote units scaled by 1e9.
 	NewPriceTicks *int64 `protobuf:"varint,3,opt,name=new_price_ticks,json=newPriceTicks,proto3,oneof" json:"new_price_ticks,omitempty"`
 	// Target total quantity after modify/replace, scaled by the pair's
 	// base_quantity_scale from GetSpotConfig.

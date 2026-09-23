@@ -863,9 +863,9 @@ type Order struct {
 	// GetSpotConfig for symbol_id. Zero for terminal orders.
 	LeavesQtyScaled int64 `protobuf:"varint,20,opt,name=leaves_qty_scaled,json=leavesQtyScaled,proto3" json:"leaves_qty_scaled,omitempty"`
 	// Average execution price across the lineage through this generation,
-	// in quote units scaled by 1e6. Zero if no fills.
+	// in quote units scaled by 1e9. Zero if no fills.
 	AvgPriceTicks int64 `protobuf:"varint,14,opt,name=avg_price_ticks,json=avgPriceTicks,proto3" json:"avg_price_ticks,omitempty"`
-	// Limit price in quote units scaled by 1e6. Zero for MARKET orders.
+	// Limit price in quote units scaled by 1e9. Zero for MARKET orders.
 	PriceTicks int64 `protobuf:"varint,15,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	// Creation timestamp in nanoseconds since epoch (UTC).
 	CreatedTsNs uint64 `protobuf:"varint,16,opt,name=created_ts_ns,json=createdTsNs,proto3" json:"created_ts_ns,omitempty"`
@@ -882,9 +882,9 @@ type Order struct {
 	// Runtime lineage metadata (why the order exists and what generated it).
 	Origin *OrderOrigin `protobuf:"bytes,22,opt,name=origin,proto3" json:"origin,omitempty"`
 	// Optional client-side reference price used for MARKET slippage protection,
-	// in quote units scaled by 1e6.
+	// in quote units scaled by 1e9.
 	MarketClientRefPriceTicks int64 `protobuf:"varint,23,opt,name=market_client_ref_price_ticks,json=marketClientRefPriceTicks,proto3" json:"market_client_ref_price_ticks,omitempty"`
-	// Optional MARKET max slippage as a price delta in 1e-6 quote-unit ticks.
+	// Optional MARKET max slippage as a price delta in 1e-9 quote-unit ticks.
 	MarketMaxSlippageTicks int32 `protobuf:"varint,24,opt,name=market_max_slippage_ticks,json=marketMaxSlippageTicks,proto3" json:"market_max_slippage_ticks,omitempty"`
 	// Optional MARKET max slippage in basis points (1 bp = 0.01%).
 	MarketMaxSlippageBps int32 `protobuf:"varint,25,opt,name=market_max_slippage_bps,json=marketMaxSlippageBps,proto3" json:"market_max_slippage_bps,omitempty"`
@@ -1161,7 +1161,7 @@ type UserTrade struct {
 	Side Side `protobuf:"varint,5,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
 	// True if this fill was maker-side.
 	IsMaker bool `protobuf:"varint,6,opt,name=is_maker,json=isMaker,proto3" json:"is_maker,omitempty"`
-	// Execution price in quote units scaled by 1e6.
+	// Execution price in quote units scaled by 1e9.
 	PriceTicks int64 `protobuf:"varint,7,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	// Executed quantity scaled by the pair's base_quantity_scale from
 	// GetSpotConfig for symbol_id.

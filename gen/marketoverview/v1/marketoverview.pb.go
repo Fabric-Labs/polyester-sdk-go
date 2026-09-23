@@ -95,7 +95,7 @@ const (
 	MarketOrderBy_ORDER_BY_CHANGE_24H_BPS MarketOrderBy = 1
 	// Sort by canonical USD 24h volume. Unvalued markets sort last in either direction.
 	MarketOrderBy_ORDER_BY_VOLUME_24H_USD MarketOrderBy = 2
-	// Sort by last price in quote units scaled by 1e6.
+	// Sort by last price in quote units scaled by 1e9.
 	MarketOrderBy_ORDER_BY_LAST_PRICE MarketOrderBy = 3
 	// Sort by listing time (new listings first).
 	MarketOrderBy_ORDER_BY_DATE_ADDED MarketOrderBy = 4
@@ -308,7 +308,7 @@ type Sparkline struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Time range and sampling resolution represented by these close prices.
 	Interval SparklineInterval `protobuf:"varint,1,opt,name=interval,proto3,enum=marketoverview.v1.SparklineInterval" json:"interval,omitempty"`
-	// Newest-first close prices in quote units scaled by 1e6.
+	// Newest-first close prices in quote units scaled by 1e9.
 	CloseTicks    []int64 `protobuf:"varint,2,rep,packed,name=close_ticks,json=closeTicks,proto3" json:"close_ticks,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -362,16 +362,16 @@ type MarketOverview struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Numeric spot market identifier.
 	SymbolId uint32 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
-	// Last traded price in quote units scaled by 1e6.
+	// Last traded price in quote units scaled by 1e9.
 	LastPriceTicks int64 `protobuf:"varint,3,opt,name=last_price_ticks,json=lastPriceTicks,proto3" json:"last_price_ticks,omitempty"`
 	// Last trade timestamp in nanoseconds since epoch.
 	LastTradeTsNs uint64 `protobuf:"varint,4,opt,name=last_trade_ts_ns,json=lastTradeTsNs,proto3" json:"last_trade_ts_ns,omitempty"`
 	// Rolling 24h change expressed in basis points (bp). Example: +123 = +1.23%.
 	Change_24HBps int32 `protobuf:"varint,5,opt,name=change_24h_bps,json=change24hBps,proto3" json:"change_24h_bps,omitempty"`
 	// Rolling 24h stats.
-	// Highest traded price in the 24h window, in quote units scaled by 1e6.
+	// Highest traded price in the 24h window, in quote units scaled by 1e9.
 	High_24HTicks int64 `protobuf:"varint,6,opt,name=high_24h_ticks,json=high24hTicks,proto3" json:"high_24h_ticks,omitempty"`
-	// Lowest traded price in the 24h window, in quote units scaled by 1e6.
+	// Lowest traded price in the 24h window, in quote units scaled by 1e9.
 	Low_24HTicks int64 `protobuf:"varint,7,opt,name=low_24h_ticks,json=low24hTicks,proto3" json:"low_24h_ticks,omitempty"`
 	// Rolling 24h base volume scaled by the base asset's
 	// market_data_volume_scale from GetSpotConfig. Omitted if the amount exceeds
@@ -387,19 +387,19 @@ type MarketOverview struct {
 	Volume_24HUsdScaled *int64 `protobuf:"varint,17,opt,name=volume_24h_usd_scaled,json=volume24hUsdScaled,proto3,oneof" json:"volume_24h_usd_scaled,omitempty"`
 	// Listing timestamp in nanoseconds since epoch.
 	ListedTsNs uint64 `protobuf:"varint,15,opt,name=listed_ts_ns,json=listedTsNs,proto3" json:"listed_ts_ns,omitempty"`
-	// Current best bid price in quote units scaled by 1e6.
+	// Current best bid price in quote units scaled by 1e9.
 	BestBidTicks int64 `protobuf:"varint,9,opt,name=best_bid_ticks,json=bestBidTicks,proto3" json:"best_bid_ticks,omitempty"`
 	// Best bid quantity scaled by the pair's base_quantity_scale from
 	// GetSpotConfig.
 	BestBidQtyScaled int64 `protobuf:"varint,10,opt,name=best_bid_qty_scaled,json=bestBidQtyScaled,proto3" json:"best_bid_qty_scaled,omitempty"`
-	// Current best ask price in quote units scaled by 1e6.
+	// Current best ask price in quote units scaled by 1e9.
 	BestAskTicks int64 `protobuf:"varint,11,opt,name=best_ask_ticks,json=bestAskTicks,proto3" json:"best_ask_ticks,omitempty"`
 	// Best ask quantity scaled by the pair's base_quantity_scale from
 	// GetSpotConfig.
 	BestAskQtyScaled int64 `protobuf:"varint,12,opt,name=best_ask_qty_scaled,json=bestAskQtyScaled,proto3" json:"best_ask_qty_scaled,omitempty"`
 	// Optional sparklines (requested explicitly).
 	Sparklines []*Sparkline `protobuf:"bytes,13,rep,name=sparklines,proto3" json:"sparklines,omitempty"`
-	// Current multi-venue index price in quote units scaled by 1e6.
+	// Current multi-venue index price in quote units scaled by 1e9.
 	// Zero when no fresh, valid index price is available.
 	IndexPriceTicks int64 `protobuf:"varint,16,opt,name=index_price_ticks,json=indexPriceTicks,proto3" json:"index_price_ticks,omitempty"`
 	unknownFields   protoimpl.UnknownFields
