@@ -1016,7 +1016,7 @@ func (x *TrailingStopTrigger) GetMaxSlippage() isTrailingStopTrigger_MaxSlippage
 	return nil
 }
 
-func (x *TrailingStopTrigger) GetMaxSlippageTicks() int32 {
+func (x *TrailingStopTrigger) GetMaxSlippageTicks() int64 {
 	if x != nil {
 		if x, ok := x.MaxSlippage.(*TrailingStopTrigger_MaxSlippageTicks); ok {
 			return x.MaxSlippageTicks
@@ -1064,8 +1064,8 @@ type isTrailingStopTrigger_MaxSlippage interface {
 }
 
 type TrailingStopTrigger_MaxSlippageTicks struct {
-	// Maximum slippage as a price delta in 1e-9 quote-unit ticks.
-	MaxSlippageTicks int32 `protobuf:"varint,4,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
+	// Positive maximum absolute price delta in Q9 execution-price ticks (1 tick = 1e-9 quote units).
+	MaxSlippageTicks int64 `protobuf:"varint,4,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
 }
 
 type TrailingStopTrigger_MaxSlippageBps struct {
@@ -1131,7 +1131,7 @@ func (x *TwapMarketIoc) GetMaxSlippage() isTwapMarketIoc_MaxSlippage {
 	return nil
 }
 
-func (x *TwapMarketIoc) GetMaxSlippageTicks() int32 {
+func (x *TwapMarketIoc) GetMaxSlippageTicks() int64 {
 	if x != nil {
 		if x, ok := x.MaxSlippage.(*TwapMarketIoc_MaxSlippageTicks); ok {
 			return x.MaxSlippageTicks
@@ -1154,8 +1154,8 @@ type isTwapMarketIoc_MaxSlippage interface {
 }
 
 type TwapMarketIoc_MaxSlippageTicks struct {
-	// Maximum adverse price delta per slice in 1e-9 quote-unit ticks.
-	MaxSlippageTicks int32 `protobuf:"varint,1,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
+	// Positive maximum absolute price delta per slice in Q9 execution-price ticks (1 tick = 1e-9 quote units).
+	MaxSlippageTicks int64 `protobuf:"varint,1,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
 }
 
 type TwapMarketIoc_MaxSlippageBps struct {
@@ -2565,7 +2565,7 @@ func (x *ModifyTriggerRequest) GetMaxSlippage() isModifyTriggerRequest_MaxSlippa
 	return nil
 }
 
-func (x *ModifyTriggerRequest) GetMaxSlippageTicks() int32 {
+func (x *ModifyTriggerRequest) GetMaxSlippageTicks() int64 {
 	if x != nil {
 		if x, ok := x.MaxSlippage.(*ModifyTriggerRequest_MaxSlippageTicks); ok {
 			return x.MaxSlippageTicks
@@ -2606,9 +2606,9 @@ type isModifyTriggerRequest_MaxSlippage interface {
 }
 
 type ModifyTriggerRequest_MaxSlippageTicks struct {
-	// Updated maximum allowed slippage as a price delta in 1e-9 quote-unit
-	// ticks. Set to zero to clear the cap.
-	MaxSlippageTicks int32 `protobuf:"varint,15,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
+	// Non-negative maximum absolute price delta in Q9 execution-price ticks
+	// (1 tick = 1e-9 quote units). Set to zero to clear the cap.
+	MaxSlippageTicks int64 `protobuf:"varint,15,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
 }
 
 type ModifyTriggerRequest_MaxSlippageBps struct {
@@ -3039,8 +3039,9 @@ type TrailingDetails struct {
 	TroughPriceTicks int64 `protobuf:"varint,4,opt,name=trough_price_ticks,json=troughPriceTicks,proto3" json:"trough_price_ticks,omitempty"`
 	// Trailing distance in basis points (1 bp = 0.01%).
 	TrailingDistanceBps int32 `protobuf:"varint,5,opt,name=trailing_distance_bps,json=trailingDistanceBps,proto3" json:"trailing_distance_bps,omitempty"`
-	// Optional maximum allowed slippage as a price delta in 1e-9 quote-unit ticks.
-	MaxSlippageTicks int32 `protobuf:"varint,6,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3" json:"max_slippage_ticks,omitempty"`
+	// Non-negative maximum absolute price delta in Q9 execution-price ticks
+	// (1 tick = 1e-9 quote units). Zero means no absolute cap is configured.
+	MaxSlippageTicks int64 `protobuf:"varint,6,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3" json:"max_slippage_ticks,omitempty"`
 	// Optional maximum allowed slippage in basis points (1 bp = 0.01%).
 	MaxSlippageBps int32 `protobuf:"varint,7,opt,name=max_slippage_bps,json=maxSlippageBps,proto3" json:"max_slippage_bps,omitempty"`
 	// Price source used for trigger evaluation. Fixed for the lifetime of the
@@ -3122,7 +3123,7 @@ func (x *TrailingDetails) GetTrailingDistanceBps() int32 {
 	return 0
 }
 
-func (x *TrailingDetails) GetMaxSlippageTicks() int32 {
+func (x *TrailingDetails) GetMaxSlippageTicks() int64 {
 	if x != nil {
 		return x.MaxSlippageTicks
 	}
@@ -3762,7 +3763,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\xbaH\a\x1a\x05\x18\x90N \x00H\x00R\x13trailingDistanceBps\x12@\n" +
 	"\x16activation_price_ticks\x18\x03 \x01(\x03B\n" +
 	"\xbaH\a\xd8\x01\x01\"\x02 \x00R\x14activationPriceTicks\x127\n" +
-	"\x12max_slippage_ticks\x18\x04 \x01(\x05B\a\xbaH\x04\x1a\x02 \x00H\x01R\x10maxSlippageTicks\x126\n" +
+	"\x12max_slippage_ticks\x18\x04 \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x01R\x10maxSlippageTicks\x126\n" +
 	"\x10max_slippage_bps\x18\x05 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\x90N \x00H\x01R\x0emaxSlippageBps\x12/\n" +
 	"\x04side\x18\x06 \x01(\x0e2\x0f.orders.v1.SideB\n" +
@@ -3770,7 +3771,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x11trailing_distance\x12\x05\xbaH\x02\b\x01B\x0e\n" +
 	"\fmax_slippage\"\x90\x01\n" +
 	"\rTwapMarketIoc\x127\n" +
-	"\x12max_slippage_ticks\x18\x01 \x01(\x05B\a\xbaH\x04\x1a\x02 \x00H\x00R\x10maxSlippageTicks\x126\n" +
+	"\x12max_slippage_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x00R\x10maxSlippageTicks\x126\n" +
 	"\x10max_slippage_bps\x18\x02 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\x90N \x00H\x00R\x0emaxSlippageBpsB\x0e\n" +
 	"\fmax_slippage\"8\n" +
@@ -3903,7 +3904,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x15trailing_distance_bps\x18\r \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\x90N(\x01H\x00R\x13trailingDistanceBps\x12B\n" +
 	"\x16activation_price_ticks\x18\x0e \x01(\x03B\a\xbaH\x04\"\x02(\x00H\x05R\x14activationPriceTicks\x88\x01\x01\x127\n" +
-	"\x12max_slippage_ticks\x18\x0f \x01(\x05B\a\xbaH\x04\x1a\x02(\x00H\x01R\x10maxSlippageTicks\x126\n" +
+	"\x12max_slippage_ticks\x18\x0f \x01(\x03B\a\xbaH\x04\"\x02(\x00H\x01R\x10maxSlippageTicks\x126\n" +
 	"\x10max_slippage_bps\x18\x10 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\x90N(\x00H\x01R\x0emaxSlippageBpsB\x13\n" +
 	"\x11trailing_distanceB\x0e\n" +
@@ -3952,7 +3953,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x10peak_price_ticks\x18\x03 \x01(\x03R\x0epeakPriceTicks\x12,\n" +
 	"\x12trough_price_ticks\x18\x04 \x01(\x03R\x10troughPriceTicks\x122\n" +
 	"\x15trailing_distance_bps\x18\x05 \x01(\x05R\x13trailingDistanceBps\x12,\n" +
-	"\x12max_slippage_ticks\x18\x06 \x01(\x05R\x10maxSlippageTicks\x12(\n" +
+	"\x12max_slippage_ticks\x18\x06 \x01(\x03R\x10maxSlippageTicks\x12(\n" +
 	"\x10max_slippage_bps\x18\a \x01(\x05R\x0emaxSlippageBps\x12O\n" +
 	"\x14trigger_price_source\x18\b \x01(\x0e2\x1d.orders.v1.TriggerPriceSourceR\x12triggerPriceSource\x12H\n" +
 	"\x11trigger_direction\x18\t \x01(\x0e2\x1b.orders.v1.TriggerDirectionR\x10triggerDirection\x12<\n" +

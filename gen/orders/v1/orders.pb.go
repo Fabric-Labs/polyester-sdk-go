@@ -1238,7 +1238,7 @@ func (x *MarketIoc) GetMaxSlippage() isMarketIoc_MaxSlippage {
 	return nil
 }
 
-func (x *MarketIoc) GetMaxSlippageTicks() int32 {
+func (x *MarketIoc) GetMaxSlippageTicks() int64 {
 	if x != nil {
 		if x, ok := x.MaxSlippage.(*MarketIoc_MaxSlippageTicks); ok {
 			return x.MaxSlippageTicks
@@ -1268,8 +1268,8 @@ type isMarketIoc_MaxSlippage interface {
 }
 
 type MarketIoc_MaxSlippageTicks struct {
-	// Maximum allowed slippage as a price delta in 1e-9 quote-unit ticks.
-	MaxSlippageTicks int32 `protobuf:"varint,1,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
+	// Positive maximum absolute price delta in Q9 execution-price ticks (1 tick = 1e-9 quote units).
+	MaxSlippageTicks int64 `protobuf:"varint,1,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
 }
 
 type MarketIoc_MaxSlippageBps struct {
@@ -2756,7 +2756,7 @@ func (x *TrailingStopPolicy) GetMaxSlippage() isTrailingStopPolicy_MaxSlippage {
 	return nil
 }
 
-func (x *TrailingStopPolicy) GetMaxSlippageTicks() int32 {
+func (x *TrailingStopPolicy) GetMaxSlippageTicks() int64 {
 	if x != nil {
 		if x, ok := x.MaxSlippage.(*TrailingStopPolicy_MaxSlippageTicks); ok {
 			return x.MaxSlippageTicks
@@ -2804,8 +2804,8 @@ type isTrailingStopPolicy_MaxSlippage interface {
 }
 
 type TrailingStopPolicy_MaxSlippageTicks struct {
-	// Maximum allowed slippage as a price delta in 1e-9 quote-unit ticks.
-	MaxSlippageTicks int32 `protobuf:"varint,6,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
+	// Positive maximum absolute price delta in Q9 execution-price ticks (1 tick = 1e-9 quote units).
+	MaxSlippageTicks int64 `protobuf:"varint,6,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
 }
 
 type TrailingStopPolicy_MaxSlippageBps struct {
@@ -4641,7 +4641,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\n" +
 	"\x16orders/v1/orders.proto\x12\torders.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\"polyester/ratelimit/v1/types.proto\"\xcd\x01\n" +
 	"\tMarketIoc\x127\n" +
-	"\x12max_slippage_ticks\x18\x01 \x01(\x05B\a\xbaH\x04\x1a\x02 \x00H\x00R\x10maxSlippageTicks\x126\n" +
+	"\x12max_slippage_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x00R\x10maxSlippageTicks\x126\n" +
 	"\x10max_slippage_bps\x18\x02 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\x90N \x00H\x00R\x0emaxSlippageBps\x12?\n" +
 	"\x16client_ref_price_ticks\x18\x03 \x01(\x03B\n" +
@@ -4765,7 +4765,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x17trailing_distance_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x00R\x15trailingDistanceTicks\x12@\n" +
 	"\x15trailing_distance_bps\x18\x02 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\x90N \x00H\x00R\x13trailingDistanceBps\x127\n" +
-	"\x12max_slippage_ticks\x18\x06 \x01(\x05B\a\xbaH\x04\x1a\x02 \x00H\x01R\x10maxSlippageTicks\x126\n" +
+	"\x12max_slippage_ticks\x18\x06 \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x01R\x10maxSlippageTicks\x126\n" +
 	"\x10max_slippage_bps\x18\a \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\x90N \x00H\x01R\x0emaxSlippageBps\x124\n" +
 	"\x16activation_price_ticks\x18\x03 \x01(\x03R\x14activationPriceTicksB\x13\n" +

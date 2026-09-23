@@ -884,8 +884,9 @@ type Order struct {
 	// Optional client-side reference price used for MARKET slippage protection,
 	// in quote units scaled by 1e9.
 	MarketClientRefPriceTicks int64 `protobuf:"varint,23,opt,name=market_client_ref_price_ticks,json=marketClientRefPriceTicks,proto3" json:"market_client_ref_price_ticks,omitempty"`
-	// Optional MARKET max slippage as a price delta in 1e-9 quote-unit ticks.
-	MarketMaxSlippageTicks int32 `protobuf:"varint,24,opt,name=market_max_slippage_ticks,json=marketMaxSlippageTicks,proto3" json:"market_max_slippage_ticks,omitempty"`
+	// Non-negative MARKET maximum absolute price delta in Q9 execution-price ticks
+	// (1 tick = 1e-9 quote units). Zero means no absolute cap is configured.
+	MarketMaxSlippageTicks int64 `protobuf:"varint,24,opt,name=market_max_slippage_ticks,json=marketMaxSlippageTicks,proto3" json:"market_max_slippage_ticks,omitempty"`
 	// Optional MARKET max slippage in basis points (1 bp = 0.01%).
 	MarketMaxSlippageBps int32 `protobuf:"varint,25,opt,name=market_max_slippage_bps,json=marketMaxSlippageBps,proto3" json:"market_max_slippage_bps,omitempty"`
 	// Per-order state version. Starts at 1 and increases for every published
@@ -1099,7 +1100,7 @@ func (x *Order) GetMarketClientRefPriceTicks() int64 {
 	return 0
 }
 
-func (x *Order) GetMarketMaxSlippageTicks() int32 {
+func (x *Order) GetMarketMaxSlippageTicks() int64 {
 	if x != nil {
 		return x.MarketMaxSlippageTicks
 	}
@@ -2598,7 +2599,7 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\rattached_risk\x18\x15 \x01(\v2\x17.orders.v1.AttachedRiskR\fattachedRisk\x12.\n" +
 	"\x06origin\x18\x16 \x01(\v2\x16.orders.v1.OrderOriginR\x06origin\x12@\n" +
 	"\x1dmarket_client_ref_price_ticks\x18\x17 \x01(\x03R\x19marketClientRefPriceTicks\x129\n" +
-	"\x19market_max_slippage_ticks\x18\x18 \x01(\x05R\x16marketMaxSlippageTicks\x125\n" +
+	"\x19market_max_slippage_ticks\x18\x18 \x01(\x03R\x16marketMaxSlippageTicks\x125\n" +
 	"\x17market_max_slippage_bps\x18\x19 \x01(\x05R\x14marketMaxSlippageBps\x12'\n" +
 	"\aversion\x18\x1a \x01(\rB\r\xbaH\n" +
 	"*\b\x18\xff\xff\xff\xff\a(\x01R\aversion\x12(\n" +
