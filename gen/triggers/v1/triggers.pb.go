@@ -178,6 +178,8 @@ const (
 	TriggerEventType_EVENT_UPDATED TriggerEventType = 3
 	// Trigger became terminal after its next child order could not be admitted.
 	TriggerEventType_EVENT_FAILED TriggerEventType = 4
+	// A standalone trailing trigger's activation condition was satisfied and tracking began.
+	TriggerEventType_EVENT_ACTIVATED TriggerEventType = 5
 )
 
 // Enum value maps for TriggerEventType.
@@ -188,6 +190,7 @@ var (
 		2: "EVENT_CANCELED",
 		3: "EVENT_UPDATED",
 		4: "EVENT_FAILED",
+		5: "EVENT_ACTIVATED",
 	}
 	TriggerEventType_value = map[string]int32{
 		"EVENT_UNSPECIFIED": 0,
@@ -195,6 +198,7 @@ var (
 		"EVENT_CANCELED":    2,
 		"EVENT_UPDATED":     3,
 		"EVENT_FAILED":      4,
+		"EVENT_ACTIVATED":   5,
 	}
 )
 
@@ -3045,8 +3049,12 @@ type TrailingDetails struct {
 	// Direction the price must cross to fire the trigger. Fixed for the lifetime
 	// of the trigger and exposed for completeness.
 	TriggerDirection v1.TriggerDirection `protobuf:"varint,9,opt,name=trigger_direction,json=triggerDirection,proto3,enum=orders.v1.TriggerDirection" json:"trigger_direction,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Current trailing trigger threshold in quote units scaled by 1e6. This is
+	// evaluator-authored runtime state and moves when the peak or trough changes.
+	// It is absent until the trailing trigger is armed and a positive threshold exists.
+	TriggerPriceTicks *int64 `protobuf:"varint,10,opt,name=trigger_price_ticks,json=triggerPriceTicks,proto3,oneof" json:"trigger_price_ticks,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *TrailingDetails) Reset() {
@@ -3140,6 +3148,13 @@ func (x *TrailingDetails) GetTriggerDirection() v1.TriggerDirection {
 		return x.TriggerDirection
 	}
 	return v1.TriggerDirection(0)
+}
+
+func (x *TrailingDetails) GetTriggerPriceTicks() int64 {
+	if x != nil && x.TriggerPriceTicks != nil {
+		return *x.TriggerPriceTicks
+	}
+	return 0
 }
 
 // TwapDetails contains configuration and runtime state for TWAP triggers.
@@ -3930,7 +3945,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\vStopDetails\x12.\n" +
 	"\x13trigger_price_ticks\x18\x01 \x01(\x03R\x11triggerPriceTicks\x12O\n" +
 	"\x14trigger_price_source\x18\x02 \x01(\x0e2\x1d.orders.v1.TriggerPriceSourceR\x12triggerPriceSource\x12H\n" +
-	"\x11trigger_direction\x18\x03 \x01(\x0e2\x1b.orders.v1.TriggerDirectionR\x10triggerDirection\"\xfe\x03\n" +
+	"\x11trigger_direction\x18\x03 \x01(\x0e2\x1b.orders.v1.TriggerDirectionR\x10triggerDirection\"\xd4\x04\n" +
 	"\x0fTrailingDetails\x126\n" +
 	"\x17trailing_distance_ticks\x18\x01 \x01(\x03R\x15trailingDistanceTicks\x124\n" +
 	"\x16activation_price_ticks\x18\x02 \x01(\x03R\x14activationPriceTicks\x12(\n" +
@@ -3940,7 +3955,10 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x12max_slippage_ticks\x18\x06 \x01(\x05R\x10maxSlippageTicks\x12(\n" +
 	"\x10max_slippage_bps\x18\a \x01(\x05R\x0emaxSlippageBps\x12O\n" +
 	"\x14trigger_price_source\x18\b \x01(\x0e2\x1d.orders.v1.TriggerPriceSourceR\x12triggerPriceSource\x12H\n" +
-	"\x11trigger_direction\x18\t \x01(\x0e2\x1b.orders.v1.TriggerDirectionR\x10triggerDirection\"\xda\x01\n" +
+	"\x11trigger_direction\x18\t \x01(\x0e2\x1b.orders.v1.TriggerDirectionR\x10triggerDirection\x12<\n" +
+	"\x13trigger_price_ticks\x18\n" +
+	" \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x00R\x11triggerPriceTicks\x88\x01\x01B\x16\n" +
+	"\x14_trigger_price_ticks\"\xda\x01\n" +
 	"\vTwapDetails\x12(\n" +
 	"\x10twap_duration_ms\x18\x01 \x01(\x03R\x0etwapDurationMs\x123\n" +
 	"\x16twap_slice_interval_ms\x18\x02 \x01(\x03R\x13twapSliceIntervalMs\x12\x1b\n" +
@@ -4006,13 +4024,14 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x10STATUS_COMPLETED\x10\x04\x12\x13\n" +
 	"\x0fSTATUS_CANCELED\x10\x05\x12\x11\n" +
 	"\rSTATUS_FAILED\x10\x06\x12\x11\n" +
-	"\rSTATUS_PAUSED\x10\a*s\n" +
+	"\rSTATUS_PAUSED\x10\a*\x88\x01\n" +
 	"\x10TriggerEventType\x12\x15\n" +
 	"\x11EVENT_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vEVENT_FIRED\x10\x01\x12\x12\n" +
 	"\x0eEVENT_CANCELED\x10\x02\x12\x11\n" +
 	"\rEVENT_UPDATED\x10\x03\x12\x10\n" +
-	"\fEVENT_FAILED\x10\x04*\x91\x02\n" +
+	"\fEVENT_FAILED\x10\x04\x12\x13\n" +
+	"\x0fEVENT_ACTIVATED\x10\x05*\x91\x02\n" +
 	"\x13TriggerCancelReason\x12%\n" +
 	"!TRIGGER_CANCEL_REASON_UNSPECIFIED\x10\x00\x12&\n" +
 	"\"TRIGGER_CANCEL_REASON_USER_REQUEST\x10\x01\x12\x1d\n" +
@@ -4284,6 +4303,7 @@ func file_triggers_v1_triggers_proto_init() {
 	}
 	file_triggers_v1_triggers_proto_msgTypes[25].OneofWrappers = []any{}
 	file_triggers_v1_triggers_proto_msgTypes[27].OneofWrappers = []any{}
+	file_triggers_v1_triggers_proto_msgTypes[30].OneofWrappers = []any{}
 	file_triggers_v1_triggers_proto_msgTypes[33].OneofWrappers = []any{
 		(*Trigger_CancelReason)(nil),
 		(*Trigger_FailureReason)(nil),
