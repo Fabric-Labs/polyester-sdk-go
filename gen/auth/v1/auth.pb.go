@@ -167,6 +167,8 @@ const (
 	AuthErrorCode_AUTH_SOCIAL_VERIFICATION_INVALID_STATE AuthErrorCode = 43
 	// Sub-account authorization is expired, replaced, replayed, or invalid.
 	AuthErrorCode_AUTH_SUBACCOUNT_CHALLENGE_INVALID AuthErrorCode = 44
+	// Social account is already linked to another Polyester account.
+	AuthErrorCode_AUTH_SOCIAL_ACCOUNT_ALREADY_LINKED AuthErrorCode = 45
 )
 
 // Enum value maps for AuthErrorCode.
@@ -216,6 +218,7 @@ var (
 		42: "AUTH_SOCIAL_VERIFICATION_EXPIRED",
 		43: "AUTH_SOCIAL_VERIFICATION_INVALID_STATE",
 		44: "AUTH_SUBACCOUNT_CHALLENGE_INVALID",
+		45: "AUTH_SOCIAL_ACCOUNT_ALREADY_LINKED",
 	}
 	AuthErrorCode_value = map[string]int32{
 		"AUTH_UNSPECIFIED":                       0,
@@ -262,6 +265,7 @@ var (
 		"AUTH_SOCIAL_VERIFICATION_EXPIRED":       42,
 		"AUTH_SOCIAL_VERIFICATION_INVALID_STATE": 43,
 		"AUTH_SUBACCOUNT_CHALLENGE_INVALID":      44,
+		"AUTH_SOCIAL_ACCOUNT_ALREADY_LINKED":     45,
 	}
 )
 
@@ -910,8 +914,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x13AcceptTermsResponse*Z\n" +
 	"\x16WalletChallengePurpose\x12\x1c\n" +
 	"\x18WALLET_PROOF_UNSPECIFIED\x10\x00\x12\t\n" +
-	"\x05LOGIN\x10\x01\"\x04\b\x02\x10\x02*\x11CREATE_SUBACCOUNT*\xfe\n" +
-	"\n" +
+	"\x05LOGIN\x10\x01\"\x04\b\x02\x10\x02*\x11CREATE_SUBACCOUNT*\xa6\v\n" +
 	"\rAuthErrorCode\x12\x14\n" +
 	"\x10AUTH_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15AUTH_USERNAME_INVALID\x10\x01\x12\x17\n" +
@@ -957,7 +960,8 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x17AUTH_TERMS_NOT_ACCEPTED\x10)\x12$\n" +
 	" AUTH_SOCIAL_VERIFICATION_EXPIRED\x10*\x12*\n" +
 	"&AUTH_SOCIAL_VERIFICATION_INVALID_STATE\x10+\x12%\n" +
-	"!AUTH_SUBACCOUNT_CHALLENGE_INVALID\x10,2\x93\b\n" +
+	"!AUTH_SUBACCOUNT_CHALLENGE_INVALID\x10,\x12&\n" +
+	"\"AUTH_SOCIAL_ACCOUNT_ALREADY_LINKED\x10-2\x93\b\n" +
 	"\vAuthService\x12\xf4\x01\n" +
 	"\x15CreateWalletChallenge\x12%.auth.v1.CreateWalletChallengeRequest\x1a&.auth.v1.CreateWalletChallengeResponse\"\x8b\x01\xbaG`\n" +
 	"\fAuth Service\x12\x17Create Wallet Challenge\x1a7Create a short-lived EIP-4361 message for wallet login.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/v1/auth/wallet-challenge\x12\x9e\x02\n" +
