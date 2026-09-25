@@ -1808,13 +1808,15 @@ type GetUserTradesRequest struct {
 	// de-duplicate overlapping results by (symbol_id, match_id, order_id).
 	AfterMatchId *uint64 `protobuf:"varint,14,opt,name=after_match_id,json=afterMatchId,proto3,oneof" json:"after_match_id,omitempty"`
 	// Optional execution scope. Omitting it returns all matching account fills.
+	// order_id and lineage_id are mutually exclusive.
 	//
 	// Types that are valid to be assigned to ExecutionScope:
 	//
 	//	*GetUserTradesRequest_OrderId
 	//	*GetUserTradesRequest_LineageId
 	ExecutionScope isGetUserTradesRequest_ExecutionScope `protobuf_oneof:"execution_scope"`
-	// Inclusive generation ceiling. Does not freeze an actively filling generation.
+	// Inclusive generation ceiling; requires lineage_id.
+	// Does not freeze an actively filling generation.
 	ThroughGeneration *uint32 `protobuf:"varint,17,opt,name=through_generation,json=throughGeneration,proto3,oneof" json:"through_generation,omitempty"`
 	// Include account settlement legs linked to matches on this page.
 	// Legs may repeat across pages when two fills share a match; deduplicate by tx_id.
