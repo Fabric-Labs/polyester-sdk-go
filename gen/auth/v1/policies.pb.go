@@ -36,9 +36,11 @@ const (
 	// No policy action selected. An empty API-key action list grants no access;
 	// sub-account policies retain their mandatory read-only actions.
 	PolicyAction_UNSPECIFIED PolicyAction = 0
-	// Allow placing and modifying spot orders and triggers, including reading
-	// spot orders and trades. Cancellation and pausing remain available as
-	// safety actions.
+	// Allow all spot order mutations: create, modify, replace, cancel, batch
+	// operations, live cancel-all, and arming or disabling cancel-all-after.
+	// Includes reading spot orders and trades and placing or modifying triggers.
+	// Authorized cancellation remains available when trading activity is disabled;
+	// this does not grant mutation access to a read-only API key.
 	PolicyAction_TRADE_SPOT PolicyAction = 1
 	// Allow internal transfers between sub-accounts or linked Polyester accounts,
 	// including reading internal transfer history.
@@ -48,7 +50,8 @@ const (
 	PolicyAction_EXTERNAL_WITHDRAW PolicyAction = 4
 	// Allow reading balances and equity for a sub-account or API key.
 	PolicyAction_READ_BALANCES PolicyAction = 5
-	// Allow reading spot orders and trades (no write).
+	// Allow reading spot orders and trades, subscriptions, and cancel-all dry-run.
+	// Strictly non-mutating: cancellation and cancel-all-after changes require TRADE_SPOT.
 	PolicyAction_READ_SPOT PolicyAction = 6
 	// Allow reading internal transfer history.
 	PolicyAction_READ_INTERNAL_TRANSFERS PolicyAction = 8
@@ -328,7 +331,7 @@ type SubaccountPolicyView struct {
 	MaxOpenOrders uint32 `protobuf:"varint,14,opt,name=max_open_orders,json=maxOpenOrders,proto3" json:"max_open_orders,omitempty"`
 	// When true, new orders and exposure-increasing order or trigger changes are
 	// rejected regardless of other settings. Existing orders and triggers may
-	// still be canceled or paused.
+	// still be canceled or paused by an otherwise authorized caller.
 	TradingHalted bool `protobuf:"varint,23,opt,name=trading_halted,json=tradingHalted,proto3" json:"trading_halted,omitempty"`
 	// When true, this policy is write-protected and requires an elevated approval
 	// flow to modify it.
@@ -725,7 +728,7 @@ type SubaccountPolicySpec struct {
 	MaxOpenOrders uint32 `protobuf:"varint,14,opt,name=max_open_orders,json=maxOpenOrders,proto3" json:"max_open_orders,omitempty"`
 	// When true, new orders and exposure-increasing order or trigger changes are
 	// rejected regardless of other settings. Existing orders and triggers may
-	// still be canceled or paused.
+	// still be canceled or paused by an otherwise authorized caller.
 	TradingHalted bool `protobuf:"varint,21,opt,name=trading_halted,json=tradingHalted,proto3" json:"trading_halted,omitempty"`
 	// When true, the policy is write-protected and requires an elevated mutation path.
 	Locked bool `protobuf:"varint,25,opt,name=locked,proto3" json:"locked,omitempty"`

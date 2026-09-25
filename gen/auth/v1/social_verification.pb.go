@@ -242,6 +242,9 @@ type SocialVerification struct {
 	// Last verification error, if the most recent check failed. Empty when there
 	// is no recorded error.
 	LastError string `protobuf:"bytes,10,opt,name=last_error,json=lastError,proto3" json:"last_error,omitempty"`
+	// Stable machine-readable error code for the current failed verification.
+	// AUTH_UNSPECIFIED when no typed error applies.
+	ErrorCode AuthErrorCode `protobuf:"varint,16,opt,name=error_code,json=errorCode,proto3,enum=auth.v1.AuthErrorCode" json:"error_code,omitempty"`
 	// Time in UTC when this verification state last changed.
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -360,6 +363,13 @@ func (x *SocialVerification) GetLastError() string {
 		return x.LastError
 	}
 	return ""
+}
+
+func (x *SocialVerification) GetErrorCode() AuthErrorCode {
+	if x != nil {
+		return x.ErrorCode
+	}
+	return AuthErrorCode_AUTH_UNSPECIFIED
 }
 
 func (x *SocialVerification) GetUpdatedAt() *timestamppb.Timestamp {
@@ -697,7 +707,7 @@ var File_auth_v1_social_verification_proto protoreflect.FileDescriptor
 
 const file_auth_v1_social_verification_proto_rawDesc = "" +
 	"\n" +
-	"!auth/v1/social_verification.proto\x12\aauth.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\xe5\x04\n" +
+	"!auth/v1/social_verification.proto\x12\aauth.v1\x1a\x12auth/v1/auth.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\x9c\x05\n" +
 	"\x12SocialVerification\x12\x0e\n" +
 	"\x02id\x18\f \x01(\x03R\x02id\x123\n" +
 	"\bprovider\x18\x01 \x01(\x0e2\x17.auth.v1.SocialProviderR\bprovider\x129\n" +
@@ -714,7 +724,9 @@ const file_auth_v1_social_verification_proto_rawDesc = "" +
 	"\battempts\x18\t \x01(\x05R\battempts\x12\x1d\n" +
 	"\n" +
 	"last_error\x18\n" +
-	" \x01(\tR\tlastError\x129\n" +
+	" \x01(\tR\tlastError\x125\n" +
+	"\n" +
+	"error_code\x18\x10 \x01(\x0e2\x16.auth.v1.AuthErrorCodeR\terrorCode\x129\n" +
 	"\n" +
 	"updated_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xf5\x05\n" +
 	"\x1eStartSocialVerificationRequest\x12B\n" +
@@ -755,14 +767,14 @@ const file_auth_v1_social_verification_proto_rawDesc = "" +
 	"\x12METHOD_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eMETHOD_PROFILE\x10\x01\x12\x12\n" +
 	"\x0eMETHOD_CHANNEL\x10\x02\x12\r\n" +
-	"\tMETHOD_DM\x10\x032\x9d\b\n" +
+	"\tMETHOD_DM\x10\x032\xb8\b\n" +
 	"\x19SocialVerificationService\x12\xb0\x02\n" +
 	"\x17StartSocialVerification\x12'.auth.v1.StartSocialVerificationRequest\x1a(.auth.v1.StartSocialVerificationResponse\"\xc1\x01\xbaG\x8b\x01\n" +
 	"\fAuth Service\x12\x19Start Social Verification\x1a`Issue a challenge code for the caller to submit through the provider-specific verification flow.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/auth/social/verification:start\x12\xd0\x03\n" +
 	"\x17SocialVerificationReady\x12'.auth.v1.SocialVerificationReadyRequest\x1a(.auth.v1.SocialVerificationReadyResponse\"\xe1\x02\xbaG\xab\x02\n" +
-	"\fAuth Service\x12\x1eMark Social Verification Ready\x1a\xfa\x01Mark verification as ready and request a provider account check. AUTH_SOCIAL_VERIFICATION_EXPIRED means start a new challenge. AUTH_SOCIAL_VERIFICATION_INVALID_STATE means Ready is not valid in the current state; use GetSocialVerification for status.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/auth/social/verification:ready\x12\xf9\x01\n" +
-	"\x15GetSocialVerification\x12%.auth.v1.GetSocialVerificationRequest\x1a&.auth.v1.GetSocialVerificationResponse\"\x90\x01\xbaGd\n" +
-	"\fAuth Service\x12\x17Get Social Verification\x1a;Retrieve current social verification status for the caller.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1e\x12\x1c/v1/auth/social/verificationB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
+	"\fAuth Service\x12\x1eMark Social Verification Ready\x1a\xfa\x01Mark verification as ready and request a provider account check. AUTH_SOCIAL_VERIFICATION_EXPIRED means start a new challenge. AUTH_SOCIAL_VERIFICATION_INVALID_STATE means Ready is not valid in the current state; use GetSocialVerification for status.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/auth/social/verification:ready\x12\x94\x02\n" +
+	"\x15GetSocialVerification\x12%.auth.v1.GetSocialVerificationRequest\x1a&.auth.v1.GetSocialVerificationResponse\"\xab\x01\xbaG\x7f\n" +
+	"\fAuth Service\x12\x17Get Social Verification\x1aVRetrieve current social verification status and any typed failure code for the caller.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1e\x12\x1c/v1/auth/social/verificationB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
 
 var (
 	file_auth_v1_social_verification_proto_rawDescOnce sync.Once
@@ -790,6 +802,7 @@ var file_auth_v1_social_verification_proto_goTypes = []any{
 	(*GetSocialVerificationRequest)(nil),    // 8: auth.v1.GetSocialVerificationRequest
 	(*GetSocialVerificationResponse)(nil),   // 9: auth.v1.GetSocialVerificationResponse
 	(*timestamppb.Timestamp)(nil),           // 10: google.protobuf.Timestamp
+	(AuthErrorCode)(0),                      // 11: auth.v1.AuthErrorCode
 }
 var file_auth_v1_social_verification_proto_depIdxs = []int32{
 	0,  // 0: auth.v1.SocialVerification.provider:type_name -> auth.v1.SocialProvider
@@ -798,26 +811,27 @@ var file_auth_v1_social_verification_proto_depIdxs = []int32{
 	10, // 3: auth.v1.SocialVerification.requested_at:type_name -> google.protobuf.Timestamp
 	10, // 4: auth.v1.SocialVerification.expires_at:type_name -> google.protobuf.Timestamp
 	10, // 5: auth.v1.SocialVerification.verified_at:type_name -> google.protobuf.Timestamp
-	10, // 6: auth.v1.SocialVerification.updated_at:type_name -> google.protobuf.Timestamp
-	0,  // 7: auth.v1.StartSocialVerificationRequest.provider:type_name -> auth.v1.SocialProvider
-	2,  // 8: auth.v1.StartSocialVerificationRequest.method:type_name -> auth.v1.SocialVerificationMethod
-	10, // 9: auth.v1.StartSocialVerificationResponse.expires_at:type_name -> google.protobuf.Timestamp
-	3,  // 10: auth.v1.StartSocialVerificationResponse.verification:type_name -> auth.v1.SocialVerification
-	0,  // 11: auth.v1.SocialVerificationReadyRequest.provider:type_name -> auth.v1.SocialProvider
-	3,  // 12: auth.v1.SocialVerificationReadyResponse.verification:type_name -> auth.v1.SocialVerification
-	0,  // 13: auth.v1.GetSocialVerificationRequest.provider:type_name -> auth.v1.SocialProvider
-	3,  // 14: auth.v1.GetSocialVerificationResponse.verification:type_name -> auth.v1.SocialVerification
-	4,  // 15: auth.v1.SocialVerificationService.StartSocialVerification:input_type -> auth.v1.StartSocialVerificationRequest
-	6,  // 16: auth.v1.SocialVerificationService.SocialVerificationReady:input_type -> auth.v1.SocialVerificationReadyRequest
-	8,  // 17: auth.v1.SocialVerificationService.GetSocialVerification:input_type -> auth.v1.GetSocialVerificationRequest
-	5,  // 18: auth.v1.SocialVerificationService.StartSocialVerification:output_type -> auth.v1.StartSocialVerificationResponse
-	7,  // 19: auth.v1.SocialVerificationService.SocialVerificationReady:output_type -> auth.v1.SocialVerificationReadyResponse
-	9,  // 20: auth.v1.SocialVerificationService.GetSocialVerification:output_type -> auth.v1.GetSocialVerificationResponse
-	18, // [18:21] is the sub-list for method output_type
-	15, // [15:18] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	11, // 6: auth.v1.SocialVerification.error_code:type_name -> auth.v1.AuthErrorCode
+	10, // 7: auth.v1.SocialVerification.updated_at:type_name -> google.protobuf.Timestamp
+	0,  // 8: auth.v1.StartSocialVerificationRequest.provider:type_name -> auth.v1.SocialProvider
+	2,  // 9: auth.v1.StartSocialVerificationRequest.method:type_name -> auth.v1.SocialVerificationMethod
+	10, // 10: auth.v1.StartSocialVerificationResponse.expires_at:type_name -> google.protobuf.Timestamp
+	3,  // 11: auth.v1.StartSocialVerificationResponse.verification:type_name -> auth.v1.SocialVerification
+	0,  // 12: auth.v1.SocialVerificationReadyRequest.provider:type_name -> auth.v1.SocialProvider
+	3,  // 13: auth.v1.SocialVerificationReadyResponse.verification:type_name -> auth.v1.SocialVerification
+	0,  // 14: auth.v1.GetSocialVerificationRequest.provider:type_name -> auth.v1.SocialProvider
+	3,  // 15: auth.v1.GetSocialVerificationResponse.verification:type_name -> auth.v1.SocialVerification
+	4,  // 16: auth.v1.SocialVerificationService.StartSocialVerification:input_type -> auth.v1.StartSocialVerificationRequest
+	6,  // 17: auth.v1.SocialVerificationService.SocialVerificationReady:input_type -> auth.v1.SocialVerificationReadyRequest
+	8,  // 18: auth.v1.SocialVerificationService.GetSocialVerification:input_type -> auth.v1.GetSocialVerificationRequest
+	5,  // 19: auth.v1.SocialVerificationService.StartSocialVerification:output_type -> auth.v1.StartSocialVerificationResponse
+	7,  // 20: auth.v1.SocialVerificationService.SocialVerificationReady:output_type -> auth.v1.SocialVerificationReadyResponse
+	9,  // 21: auth.v1.SocialVerificationService.GetSocialVerification:output_type -> auth.v1.GetSocialVerificationResponse
+	19, // [19:22] is the sub-list for method output_type
+	16, // [16:19] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_social_verification_proto_init() }
@@ -825,6 +839,7 @@ func file_auth_v1_social_verification_proto_init() {
 	if File_auth_v1_social_verification_proto != nil {
 		return
 	}
+	file_auth_v1_auth_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
