@@ -371,7 +371,7 @@ func (x *GetOrderbookHeatmapRequest) GetQuantityMode() HeatmapQuantityMode {
 // - price_ticks[i] <-> qty_scaled[i]
 type HeatmapLevels struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Price levels in quote units scaled by 1e6.
+	// Price levels in quote units scaled by 1e9.
 	PriceTicks []int64 `protobuf:"varint,1,rep,packed,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	// Quantity at each price level according to quantity_mode, scaled by the
 	// pair's base_quantity_scale from GetSpotConfig.
@@ -430,7 +430,7 @@ func (x *HeatmapLevels) GetQtyScaled() []int64 {
 // Delete semantics: qty_scaled[i] = 0 means delete level at price_ticks[i].
 type HeatmapDeltaLevels struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Price levels in quote units scaled by 1e6.
+	// Price levels in quote units scaled by 1e9.
 	PriceTicks []int64 `protobuf:"varint,1,rep,packed,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	// Quantity at each price level, scaled by the pair's base_quantity_scale from
 	// GetSpotConfig. A zero value deletes the level at the matching price_ticks
@@ -489,11 +489,11 @@ type HeatmapKeyframe struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Snapshot timestamp (seconds since epoch, UTC).
 	TsSec uint64 `protobuf:"varint,1,opt,name=ts_sec,json=tsSec,proto3" json:"ts_sec,omitempty"`
-	// Best bid price in quote units scaled by 1e6.
+	// Best bid price in quote units scaled by 1e9.
 	BestBidTicks int64 `protobuf:"varint,2,opt,name=best_bid_ticks,json=bestBidTicks,proto3" json:"best_bid_ticks,omitempty"`
-	// Best ask price in quote units scaled by 1e6.
+	// Best ask price in quote units scaled by 1e9.
 	BestAskTicks int64 `protobuf:"varint,3,opt,name=best_ask_ticks,json=bestAskTicks,proto3" json:"best_ask_ticks,omitempty"`
-	// Mid price in quote units scaled by 1e6.
+	// Mid price in quote units scaled by 1e9.
 	MidTicks int64 `protobuf:"varint,4,opt,name=mid_ticks,json=midTicks,proto3" json:"mid_ticks,omitempty"`
 	// Complete bid-side levels at the snapshot.
 	Bids *HeatmapLevels `protobuf:"bytes,5,opt,name=bids,proto3" json:"bids,omitempty"`
@@ -700,7 +700,7 @@ type HeatmapLiveBucket struct {
 	BookSeqEnd uint64 `protobuf:"varint,9,opt,name=book_seq_end,json=bookSeqEnd,proto3" json:"book_seq_end,omitempty"`
 	// Quantity semantics for qty_scaled in bids and asks.
 	QuantityMode HeatmapQuantityMode `protobuf:"varint,10,opt,name=quantity_mode,json=quantityMode,proto3,enum=marketdata.v1.HeatmapQuantityMode" json:"quantity_mode,omitempty"`
-	// Effective bin stride for this symbol as a price delta in 1e-6 quote-unit
+	// Effective bin stride for this symbol as a price delta in 1e-9 quote-unit
 	// ticks.
 	EffectiveBinTicks uint64 `protobuf:"varint,11,opt,name=effective_bin_ticks,json=effectiveBinTicks,proto3" json:"effective_bin_ticks,omitempty"`
 	unknownFields     protoimpl.UnknownFields

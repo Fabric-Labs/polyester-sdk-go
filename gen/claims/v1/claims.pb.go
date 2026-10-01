@@ -55,6 +55,8 @@ const (
 	ErrorCode_ERROR_CODE_PERMISSION_DENIED ErrorCode = 10
 	// A required condition for completing the claim was not satisfied.
 	ErrorCode_ERROR_CODE_FAILED_PRECONDITION ErrorCode = 11
+	// Verify an X or Discord account before claiming a reward.
+	ErrorCode_ERROR_CODE_SOCIAL_VERIFICATION_REQUIRED ErrorCode = 12
 )
 
 // Enum value maps for ErrorCode.
@@ -72,6 +74,7 @@ var (
 		9:  "ERROR_CODE_INTERNAL_ERROR",
 		10: "ERROR_CODE_PERMISSION_DENIED",
 		11: "ERROR_CODE_FAILED_PRECONDITION",
+		12: "ERROR_CODE_SOCIAL_VERIFICATION_REQUIRED",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_CODE_UNSPECIFIED":                   0,
@@ -86,6 +89,7 @@ var (
 		"ERROR_CODE_INTERNAL_ERROR":                9,
 		"ERROR_CODE_PERMISSION_DENIED":             10,
 		"ERROR_CODE_FAILED_PRECONDITION":           11,
+		"ERROR_CODE_SOCIAL_VERIFICATION_REQUIRED":  12,
 	}
 )
 
@@ -763,7 +767,7 @@ const file_claims_v1_claims_proto_rawDesc = "" +
 	"\arewards\x18\x04 \x03(\v2\x1b.claims.v1.DailyClaimRewardR\arewards\x12;\n" +
 	"\ttransfers\x18\x05 \x03(\v2\x1d.claims.v1.DailyClaimTransferR\ttransfers\x125\n" +
 	"\breset_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\aresetAt\x124\n" +
-	"\bcampaign\x18\a \x01(\v2\x18.claims.v1.ClaimCampaignR\bcampaign*\x9f\x03\n" +
+	"\bcampaign\x18\a \x01(\v2\x18.claims.v1.ClaimCampaignR\bcampaign*\xcc\x03\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12,\n" +
 	"(ERROR_CODE_CLAIM_TEMPORARILY_UNAVAILABLE\x10\x01\x12\x1e\n" +
@@ -777,7 +781,8 @@ const file_claims_v1_claims_proto_rawDesc = "" +
 	"\x19ERROR_CODE_INTERNAL_ERROR\x10\t\x12 \n" +
 	"\x1cERROR_CODE_PERMISSION_DENIED\x10\n" +
 	"\x12\"\n" +
-	"\x1eERROR_CODE_FAILED_PRECONDITION\x10\v*4\n" +
+	"\x1eERROR_CODE_FAILED_PRECONDITION\x10\v\x12+\n" +
+	"'ERROR_CODE_SOCIAL_VERIFICATION_REQUIRED\x10\f*4\n" +
 	"\vClaimPolicy\x12\x16\n" +
 	"\x12POLICY_UNSPECIFIED\x10\x00\x12\r\n" +
 	"\tUTC_DAILY\x10\x01*}\n" +

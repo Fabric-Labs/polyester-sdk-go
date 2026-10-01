@@ -1088,7 +1088,7 @@ type GetEquityHistorySeriesResponse struct {
 	Points uint32 `protobuf:"varint,7,opt,name=points,proto3" json:"points,omitempty"`
 	// Equity series ordered by grouping identifier ascending.
 	Series []*EquitySeries `protobuf:"bytes,8,rep,name=series,proto3" json:"series,omitempty"`
-	// BTC-USDT close price at each timestamp, scaled by 1e6 (same as price_ticks).
+	// BTC-USDT close price at each timestamp, scaled by 1e9 (same as price_ticks).
 	// Enables client-side conversion to BTC denomination without refetch.
 	BtcPricesQ    []int64 `protobuf:"varint,10,rep,packed,name=btc_prices_q,json=btcPricesQ,proto3" json:"btc_prices_q,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1245,7 +1245,7 @@ type GetPortfolioEquityHistorySeriesResponse struct {
 	// Master account first, followed by up to nine owned subaccounts ordered by
 	// current equity descending, then Remaining when other subaccounts exist.
 	Series []*EquitySeries `protobuf:"bytes,7,rep,name=series,proto3" json:"series,omitempty"`
-	// BTC-USDT close price at each timestamp, scaled by 1e6 (same as price_ticks).
+	// BTC-USDT close price at each timestamp, scaled by 1e9 (same as price_ticks).
 	// Enables client-side conversion to BTC denomination without refetch.
 	BtcPricesQ    []int64 `protobuf:"varint,8,rep,packed,name=btc_prices_q,json=btcPricesQ,proto3" json:"btc_prices_q,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1519,7 +1519,7 @@ type GetPortfolioEquitySnapshotResponse struct {
 	// Non-zero asset balances ordered by current equity descending and public
 	// asset ID ascending for ties.
 	Assets []*PortfolioAssetEquity `protobuf:"bytes,4,rep,name=assets,proto3" json:"assets,omitempty"`
-	// Current BTC-USDT price scaled by 1e6. Zero when unavailable.
+	// Current BTC-USDT price scaled by 1e9. Zero when unavailable.
 	BtcPriceQ     int64 `protobuf:"varint,5,opt,name=btc_price_q,json=btcPriceQ,proto3" json:"btc_price_q,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

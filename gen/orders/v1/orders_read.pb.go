@@ -100,13 +100,13 @@ type BatchReplacePhase int32
 const (
 	// Phase is unavailable.
 	BatchReplacePhase_BATCH_REPLACE_PHASE_UNSPECIFIED BatchReplacePhase = 0
-	// The replacement was admitted and handed to execution.
+	// The operation was admitted and handed to execution, including cancel-only outcomes.
 	BatchReplacePhase_BATCH_REPLACE_PHASE_ADMITTED BatchReplacePhase = 1
 	// The successor order is active.
 	BatchReplacePhase_BATCH_REPLACE_PHASE_WORKING BatchReplacePhase = 2
 	// The replacement was rejected.
 	BatchReplacePhase_BATCH_REPLACE_PHASE_REJECTED BatchReplacePhase = 3
-	// The successor reached a terminal order state.
+	// The successor, or original order for a cancel-only outcome, reached a terminal state.
 	BatchReplacePhase_BATCH_REPLACE_PHASE_TERMINAL BatchReplacePhase = 4
 )
 
@@ -863,9 +863,9 @@ type Order struct {
 	// GetSpotConfig for symbol_id. Zero for terminal orders.
 	LeavesQtyScaled int64 `protobuf:"varint,20,opt,name=leaves_qty_scaled,json=leavesQtyScaled,proto3" json:"leaves_qty_scaled,omitempty"`
 	// Average execution price across the lineage through this generation,
-	// in quote units scaled by 1e6. Zero if no fills.
+	// in quote units scaled by 1e9. Zero if no fills.
 	AvgPriceTicks int64 `protobuf:"varint,14,opt,name=avg_price_ticks,json=avgPriceTicks,proto3" json:"avg_price_ticks,omitempty"`
-	// Limit price in quote units scaled by 1e6. Zero for MARKET orders.
+	// Limit price in quote units scaled by 1e9. Zero for MARKET orders.
 	PriceTicks int64 `protobuf:"varint,15,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	// Creation timestamp in nanoseconds since epoch (UTC).
 	CreatedTsNs uint64 `protobuf:"varint,16,opt,name=created_ts_ns,json=createdTsNs,proto3" json:"created_ts_ns,omitempty"`
@@ -882,10 +882,11 @@ type Order struct {
 	// Runtime lineage metadata (why the order exists and what generated it).
 	Origin *OrderOrigin `protobuf:"bytes,22,opt,name=origin,proto3" json:"origin,omitempty"`
 	// Optional client-side reference price used for MARKET slippage protection,
-	// in quote units scaled by 1e6.
+	// in quote units scaled by 1e9.
 	MarketClientRefPriceTicks int64 `protobuf:"varint,23,opt,name=market_client_ref_price_ticks,json=marketClientRefPriceTicks,proto3" json:"market_client_ref_price_ticks,omitempty"`
-	// Optional MARKET max slippage as a price delta in 1e-6 quote-unit ticks.
-	MarketMaxSlippageTicks int32 `protobuf:"varint,24,opt,name=market_max_slippage_ticks,json=marketMaxSlippageTicks,proto3" json:"market_max_slippage_ticks,omitempty"`
+	// Non-negative MARKET maximum absolute price delta in Q9 execution-price ticks
+	// (1 tick = 1e-9 quote units). Zero means no absolute cap is configured.
+	MarketMaxSlippageTicks int64 `protobuf:"varint,24,opt,name=market_max_slippage_ticks,json=marketMaxSlippageTicks,proto3" json:"market_max_slippage_ticks,omitempty"`
 	// Optional MARKET max slippage in basis points (1 bp = 0.01%).
 	MarketMaxSlippageBps int32 `protobuf:"varint,25,opt,name=market_max_slippage_bps,json=marketMaxSlippageBps,proto3" json:"market_max_slippage_bps,omitempty"`
 	// Per-order state version. Starts at 1 and increases for every published
@@ -1099,7 +1100,7 @@ func (x *Order) GetMarketClientRefPriceTicks() int64 {
 	return 0
 }
 
-func (x *Order) GetMarketMaxSlippageTicks() int32 {
+func (x *Order) GetMarketMaxSlippageTicks() int64 {
 	if x != nil {
 		return x.MarketMaxSlippageTicks
 	}
@@ -1161,7 +1162,7 @@ type UserTrade struct {
 	Side Side `protobuf:"varint,5,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
 	// True if this fill was maker-side.
 	IsMaker bool `protobuf:"varint,6,opt,name=is_maker,json=isMaker,proto3" json:"is_maker,omitempty"`
-	// Execution price in quote units scaled by 1e6.
+	// Execution price in quote units scaled by 1e9.
 	PriceTicks int64 `protobuf:"varint,7,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	// Executed quantity scaled by the pair's base_quantity_scale from
 	// GetSpotConfig for symbol_id.
@@ -1807,13 +1808,15 @@ type GetUserTradesRequest struct {
 	// de-duplicate overlapping results by (symbol_id, match_id, order_id).
 	AfterMatchId *uint64 `protobuf:"varint,14,opt,name=after_match_id,json=afterMatchId,proto3,oneof" json:"after_match_id,omitempty"`
 	// Optional execution scope. Omitting it returns all matching account fills.
+	// order_id and lineage_id are mutually exclusive.
 	//
 	// Types that are valid to be assigned to ExecutionScope:
 	//
 	//	*GetUserTradesRequest_OrderId
 	//	*GetUserTradesRequest_LineageId
 	ExecutionScope isGetUserTradesRequest_ExecutionScope `protobuf_oneof:"execution_scope"`
-	// Inclusive generation ceiling. Does not freeze an actively filling generation.
+	// Inclusive generation ceiling; requires lineage_id.
+	// Does not freeze an actively filling generation.
 	ThroughGeneration *uint32 `protobuf:"varint,17,opt,name=through_generation,json=throughGeneration,proto3,oneof" json:"through_generation,omitempty"`
 	// Include account settlement legs linked to matches on this page.
 	// Legs may repeat across pages when two fills share a match; deduplicate by tx_id.
@@ -2315,14 +2318,17 @@ type BatchReplaceStatusItem struct {
 	Phase BatchReplacePhase `protobuf:"varint,2,opt,name=phase,proto3,enum=orders.v1.BatchReplacePhase" json:"phase,omitempty"`
 	// Original order targeted by the replacement.
 	OldOrderId uint64 `protobuf:"fixed64,3,opt,name=old_order_id,json=oldOrderId,proto3" json:"old_order_id,omitempty"`
-	// Assigned successor order ID. Zero when rejected before assignment.
+	// Assigned successor order ID. Zero for cancel-only outcomes or rejection before assignment.
 	ReplacementOrderId uint64 `protobuf:"fixed64,4,opt,name=replacement_order_id,json=replacementOrderId,proto3" json:"replacement_order_id,omitempty"`
-	// Current successor order status when available.
+	// Current successor status, or original order status for a cancel-only outcome, when available.
 	OrderStatus OrderStatus `protobuf:"varint,5,opt,name=order_status,json=orderStatus,proto3,enum=orders.v1.OrderStatus" json:"order_status,omitempty"`
 	// Stable rejection or terminal error code. Empty when none.
 	Code string `protobuf:"bytes,6,opt,name=code,proto3" json:"code,omitempty"`
 	// Latest status timestamp in nanoseconds since epoch.
-	UpdatedTsNs   uint64 `protobuf:"varint,7,opt,name=updated_ts_ns,json=updatedTsNs,proto3" json:"updated_ts_ns,omitempty"`
+	UpdatedTsNs uint64 `protobuf:"varint,7,opt,name=updated_ts_ns,json=updatedTsNs,proto3" json:"updated_ts_ns,omitempty"`
+	// REPLACED admits a successor. AMENDED is cancel-only: no successor exists and
+	// order_status describes old_order_id. Unspecified for rejected items.
+	ActionTaken   ModifyActionTaken `protobuf:"varint,8,opt,name=action_taken,json=actionTaken,proto3,enum=orders.v1.ModifyActionTaken" json:"action_taken,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2404,6 +2410,13 @@ func (x *BatchReplaceStatusItem) GetUpdatedTsNs() uint64 {
 		return x.UpdatedTsNs
 	}
 	return 0
+}
+
+func (x *BatchReplaceStatusItem) GetActionTaken() ModifyActionTaken {
+	if x != nil {
+		return x.ActionTaken
+	}
+	return ModifyActionTaken_MODIFY_ACTION_UNSPECIFIED
 }
 
 // GetBatchReplaceStatusResponse returns durable batch and per-item finality.
@@ -2588,7 +2601,7 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\rattached_risk\x18\x15 \x01(\v2\x17.orders.v1.AttachedRiskR\fattachedRisk\x12.\n" +
 	"\x06origin\x18\x16 \x01(\v2\x16.orders.v1.OrderOriginR\x06origin\x12@\n" +
 	"\x1dmarket_client_ref_price_ticks\x18\x17 \x01(\x03R\x19marketClientRefPriceTicks\x129\n" +
-	"\x19market_max_slippage_ticks\x18\x18 \x01(\x05R\x16marketMaxSlippageTicks\x125\n" +
+	"\x19market_max_slippage_ticks\x18\x18 \x01(\x03R\x16marketMaxSlippageTicks\x125\n" +
 	"\x17market_max_slippage_bps\x18\x19 \x01(\x05R\x14marketMaxSlippageBps\x12'\n" +
 	"\aversion\x18\x1a \x01(\rB\r\xbaH\n" +
 	"*\b\x18\xff\xff\xff\xff\a(\x01R\aversion\x12(\n" +
@@ -2741,7 +2754,7 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\x1cGetBatchReplaceStatusRequest\x128\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01\x128\n" +
 	"\x10batch_request_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x0ebatchRequestIdB\x10\n" +
-	"\x0e_subaccount_id\"\xb2\x02\n" +
+	"\x0e_subaccount_id\"\xf3\x02\n" +
 	"\x16BatchReplaceStatusItem\x12\x1d\n" +
 	"\n" +
 	"item_index\x18\x01 \x01(\rR\titemIndex\x122\n" +
@@ -2751,7 +2764,8 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\x14replacement_order_id\x18\x04 \x01(\x06R\x12replacementOrderId\x129\n" +
 	"\forder_status\x18\x05 \x01(\x0e2\x16.orders.v1.OrderStatusR\vorderStatus\x12\x12\n" +
 	"\x04code\x18\x06 \x01(\tR\x04code\x12\"\n" +
-	"\rupdated_ts_ns\x18\a \x01(\x04R\vupdatedTsNs\"\xed\x02\n" +
+	"\rupdated_ts_ns\x18\a \x01(\x04R\vupdatedTsNs\x12?\n" +
+	"\faction_taken\x18\b \x01(\x0e2\x1c.orders.v1.ModifyActionTakenR\vactionTaken\"\xed\x02\n" +
 	"\x1dGetBatchReplaceStatusResponse\x12(\n" +
 	"\x10batch_request_id\x18\x01 \x01(\x06R\x0ebatchRequestId\x12Q\n" +
 	"\x10admission_status\x18\x02 \x01(\x0e2&.orders.v1.BatchReplaceAdmissionStatusR\x0fadmissionStatus\x127\n" +
@@ -2851,7 +2865,8 @@ var file_orders_v1_orders_read_proto_goTypes = []any{
 	(*v1.U128)(nil),                       // 35: polyester.type.v1.U128
 	(v11.TransferCode)(0),                 // 36: ledger.v1.TransferCode
 	(v11.AccountCode)(0),                  // 37: ledger.v1.AccountCode
-	(BatchReplaceAdmissionStatus)(0),      // 38: orders.v1.BatchReplaceAdmissionStatus
+	(ModifyActionTaken)(0),                // 38: orders.v1.ModifyActionTaken
+	(BatchReplaceAdmissionStatus)(0),      // 39: orders.v1.BatchReplaceAdmissionStatus
 }
 var file_orders_v1_orders_read_proto_depIdxs = []int32{
 	2,  // 0: orders.v1.OrderOrigin.scope:type_name -> orders.v1.OrderOriginScope
@@ -2897,23 +2912,24 @@ var file_orders_v1_orders_read_proto_depIdxs = []int32{
 	14, // 40: orders.v1.GetOrderResponse.transfers:type_name -> orders.v1.OrderTransfer
 	1,  // 41: orders.v1.BatchReplaceStatusItem.phase:type_name -> orders.v1.BatchReplacePhase
 	0,  // 42: orders.v1.BatchReplaceStatusItem.order_status:type_name -> orders.v1.OrderStatus
-	38, // 43: orders.v1.GetBatchReplaceStatusResponse.admission_status:type_name -> orders.v1.BatchReplaceAdmissionStatus
-	24, // 44: orders.v1.GetBatchReplaceStatusResponse.items:type_name -> orders.v1.BatchReplaceStatusItem
-	15, // 45: orders.v1.OrdersReadService.GetOpenOrders:input_type -> orders.v1.GetOpenOrdersRequest
-	17, // 46: orders.v1.OrdersReadService.GetOrderHistory:input_type -> orders.v1.GetOrderHistoryRequest
-	19, // 47: orders.v1.OrdersReadService.GetUserTrades:input_type -> orders.v1.GetUserTradesRequest
-	21, // 48: orders.v1.OrdersReadService.GetOrder:input_type -> orders.v1.GetOrderRequest
-	23, // 49: orders.v1.OrdersReadService.GetBatchReplaceStatus:input_type -> orders.v1.GetBatchReplaceStatusRequest
-	16, // 50: orders.v1.OrdersReadService.GetOpenOrders:output_type -> orders.v1.GetOpenOrdersResponse
-	18, // 51: orders.v1.OrdersReadService.GetOrderHistory:output_type -> orders.v1.GetOrderHistoryResponse
-	20, // 52: orders.v1.OrdersReadService.GetUserTrades:output_type -> orders.v1.GetUserTradesResponse
-	22, // 53: orders.v1.OrdersReadService.GetOrder:output_type -> orders.v1.GetOrderResponse
-	25, // 54: orders.v1.OrdersReadService.GetBatchReplaceStatus:output_type -> orders.v1.GetBatchReplaceStatusResponse
-	50, // [50:55] is the sub-list for method output_type
-	45, // [45:50] is the sub-list for method input_type
-	45, // [45:45] is the sub-list for extension type_name
-	45, // [45:45] is the sub-list for extension extendee
-	0,  // [0:45] is the sub-list for field type_name
+	38, // 43: orders.v1.BatchReplaceStatusItem.action_taken:type_name -> orders.v1.ModifyActionTaken
+	39, // 44: orders.v1.GetBatchReplaceStatusResponse.admission_status:type_name -> orders.v1.BatchReplaceAdmissionStatus
+	24, // 45: orders.v1.GetBatchReplaceStatusResponse.items:type_name -> orders.v1.BatchReplaceStatusItem
+	15, // 46: orders.v1.OrdersReadService.GetOpenOrders:input_type -> orders.v1.GetOpenOrdersRequest
+	17, // 47: orders.v1.OrdersReadService.GetOrderHistory:input_type -> orders.v1.GetOrderHistoryRequest
+	19, // 48: orders.v1.OrdersReadService.GetUserTrades:input_type -> orders.v1.GetUserTradesRequest
+	21, // 49: orders.v1.OrdersReadService.GetOrder:input_type -> orders.v1.GetOrderRequest
+	23, // 50: orders.v1.OrdersReadService.GetBatchReplaceStatus:input_type -> orders.v1.GetBatchReplaceStatusRequest
+	16, // 51: orders.v1.OrdersReadService.GetOpenOrders:output_type -> orders.v1.GetOpenOrdersResponse
+	18, // 52: orders.v1.OrdersReadService.GetOrderHistory:output_type -> orders.v1.GetOrderHistoryResponse
+	20, // 53: orders.v1.OrdersReadService.GetUserTrades:output_type -> orders.v1.GetUserTradesResponse
+	22, // 54: orders.v1.OrdersReadService.GetOrder:output_type -> orders.v1.GetOrderResponse
+	25, // 55: orders.v1.OrdersReadService.GetBatchReplaceStatus:output_type -> orders.v1.GetBatchReplaceStatusResponse
+	51, // [51:56] is the sub-list for method output_type
+	46, // [46:51] is the sub-list for method input_type
+	46, // [46:46] is the sub-list for extension type_name
+	46, // [46:46] is the sub-list for extension extendee
+	0,  // [0:46] is the sub-list for field type_name
 }
 
 func init() { file_orders_v1_orders_read_proto_init() }

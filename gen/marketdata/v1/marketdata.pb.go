@@ -333,7 +333,7 @@ type MarketTrade struct {
 	// True when the taker/aggressor bought the base asset; false when the
 	// taker/aggressor sold the base asset.
 	IsBuy bool `protobuf:"varint,3,opt,name=is_buy,json=isBuy,proto3" json:"is_buy,omitempty"`
-	// Trade price in quote-asset units scaled by 1e6.
+	// Trade price in quote-asset units scaled by 1e9.
 	PriceTicks int64 `protobuf:"varint,4,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	// Traded base-asset quantity scaled by the pair's base_quantity_scale from
 	// GetSpotConfig.
@@ -728,7 +728,7 @@ type CandlePoint struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Candle bucket start timestamp, in seconds since epoch (UTC).
 	TsSec uint64 `protobuf:"varint,1,opt,name=ts_sec,json=tsSec,proto3" json:"ts_sec,omitempty"`
-	// Opening price in quote units. Primary candles use scale 6; composite
+	// Opening price in quote units. Primary candles use scale 9; composite
 	// reference candles use the pair's reference_price_scale from GetSpotConfig.
 	Open int64 `protobuf:"varint,2,opt,name=open,proto3" json:"open,omitempty"`
 	// Highest traded price, using the same scale as open.
@@ -935,16 +935,16 @@ type GetCandlesColumnsResponse struct {
 	Timeframe Timeframe `protobuf:"varint,2,opt,name=timeframe,proto3,enum=marketdata.v1.Timeframe" json:"timeframe,omitempty"`
 	// Candle bucket start timestamps (seconds since epoch, UTC).
 	TsSec []uint64 `protobuf:"varint,3,rep,packed,name=ts_sec,json=tsSec,proto3" json:"ts_sec,omitempty"`
-	// Opening primary-market prices use scale 6. Reference prices use the pair's
+	// Opening primary-market prices use scale 9. Reference prices use the pair's
 	// reference_price_scale from GetSpotConfig.
 	Open []int64 `protobuf:"varint,4,rep,packed,name=open,proto3" json:"open,omitempty"`
-	// Highest primary-market prices use scale 6. Reference prices use the pair's
+	// Highest primary-market prices use scale 9. Reference prices use the pair's
 	// reference_price_scale from GetSpotConfig.
 	High []int64 `protobuf:"varint,5,rep,packed,name=high,proto3" json:"high,omitempty"`
-	// Lowest primary-market prices use scale 6. Reference prices use the pair's
+	// Lowest primary-market prices use scale 9. Reference prices use the pair's
 	// reference_price_scale from GetSpotConfig.
 	Low []int64 `protobuf:"varint,6,rep,packed,name=low,proto3" json:"low,omitempty"`
-	// Closing primary-market prices use scale 6. Reference prices use the pair's
+	// Closing primary-market prices use scale 9. Reference prices use the pair's
 	// reference_price_scale from GetSpotConfig.
 	Close []int64 `protobuf:"varint,7,rep,packed,name=close,proto3" json:"close,omitempty"`
 	// Traded base-asset quantities scaled by the base asset's
@@ -1120,10 +1120,10 @@ type Candle struct {
 	SymbolId  uint32                 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`                // numeric spot market identifier
 	Timeframe Timeframe              `protobuf:"varint,2,opt,name=timeframe,proto3,enum=marketdata.v1.Timeframe" json:"timeframe,omitempty"` // timeframe of this candle
 	TsSec     uint64                 `protobuf:"varint,3,opt,name=ts_sec,json=tsSec,proto3" json:"ts_sec,omitempty"`                         // bucket start timestamp (seconds since epoch, UTC)
-	Open      int64                  `protobuf:"varint,4,opt,name=open,proto3" json:"open,omitempty"`                                        // opening primary-market price in scale 6
-	High      int64                  `protobuf:"varint,5,opt,name=high,proto3" json:"high,omitempty"`                                        // highest primary-market price in scale 6
-	Low       int64                  `protobuf:"varint,6,opt,name=low,proto3" json:"low,omitempty"`                                          // lowest primary-market price in scale 6
-	Close     int64                  `protobuf:"varint,7,opt,name=close,proto3" json:"close,omitempty"`                                      // closing primary-market price in scale 6
+	Open      int64                  `protobuf:"varint,4,opt,name=open,proto3" json:"open,omitempty"`                                        // opening primary-market price in scale 9
+	High      int64                  `protobuf:"varint,5,opt,name=high,proto3" json:"high,omitempty"`                                        // highest primary-market price in scale 9
+	Low       int64                  `protobuf:"varint,6,opt,name=low,proto3" json:"low,omitempty"`                                          // lowest primary-market price in scale 9
+	Close     int64                  `protobuf:"varint,7,opt,name=close,proto3" json:"close,omitempty"`                                      // closing primary-market price in scale 9
 	// Traded base-asset quantity scaled by the base asset's
 	// market_data_volume_scale from GetSpotConfig.
 	Volume int64 `protobuf:"varint,8,opt,name=volume,proto3" json:"volume,omitempty"`
@@ -1378,7 +1378,7 @@ type PairConfig struct {
 	// Quote asset code. For BTC-USDT, this is "USDT".
 	QuoteAsset string `protobuf:"bytes,4,opt,name=quote_asset,json=quoteAsset,proto3" json:"quote_asset,omitempty"`
 	// Minimum allowed price increment as a decimal string in quote-asset units.
-	// Prices use 6 decimal places in scaled integer fields; for example "0.01"
+	// Prices use 9 decimal places in scaled integer fields; for example "0.01"
 	// means orders must be priced in 0.01 quote-asset increments.
 	TickSize string `protobuf:"bytes,5,opt,name=tick_size,json=tickSize,proto3" json:"tick_size,omitempty"`
 	// Minimum allowed quantity increment as a decimal string in base-asset units.
@@ -1415,7 +1415,7 @@ type PairConfig struct {
 	// reference pricing is used.
 	MaxClientRefDriftBps int32 `protobuf:"varint,18,opt,name=max_client_ref_drift_bps,json=maxClientRefDriftBps,proto3" json:"max_client_ref_drift_bps,omitempty"`
 	// Integer scale for composite reference prices in candle responses (0..18).
-	// Primary market and execution prices continue to use scale 6.
+	// Primary market and execution prices use the fixed scale 9.
 	ReferencePriceScale uint32 `protobuf:"varint,19,opt,name=reference_price_scale,json=referencePriceScale,proto3" json:"reference_price_scale,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache

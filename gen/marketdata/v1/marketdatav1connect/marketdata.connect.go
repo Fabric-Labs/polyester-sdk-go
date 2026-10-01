@@ -59,7 +59,7 @@ type MarketDataServiceClient interface {
 	GetCandles(context.Context, *connect.Request[v1.GetCandlesRequest]) (*connect.Response[v1.GetCandlesResponse], error)
 	// GetCandlesColumns returns OHLCV candles in a columnar representation optimized for charting.
 	// This method is intended for ConnectRPC clients and returns scaled integers.
-	// Primary OHLC prices use scale 6, reference OHLC prices use the pair's
+	// Primary OHLC prices use scale 9, reference OHLC prices use the pair's
 	// reference_price_scale, and volumes use the base asset's
 	// market_data_volume_scale from GetSpotConfig.
 	GetCandlesColumns(context.Context, *connect.Request[v1.GetCandlesColumnsRequest]) (*connect.Response[v1.GetCandlesColumnsResponse], error)
@@ -145,7 +145,7 @@ type MarketDataServiceHandler interface {
 	GetCandles(context.Context, *connect.Request[v1.GetCandlesRequest]) (*connect.Response[v1.GetCandlesResponse], error)
 	// GetCandlesColumns returns OHLCV candles in a columnar representation optimized for charting.
 	// This method is intended for ConnectRPC clients and returns scaled integers.
-	// Primary OHLC prices use scale 6, reference OHLC prices use the pair's
+	// Primary OHLC prices use scale 9, reference OHLC prices use the pair's
 	// reference_price_scale, and volumes use the base asset's
 	// market_data_volume_scale from GetSpotConfig.
 	GetCandlesColumns(context.Context, *connect.Request[v1.GetCandlesColumnsRequest]) (*connect.Response[v1.GetCandlesColumnsResponse], error)
