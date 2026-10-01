@@ -135,7 +135,7 @@ func (RewardFulfillmentState) EnumDescriptor() ([]byte, []int) {
 	return file_rewards_v1_rewards_proto_rawDescGZIP(), []int{1}
 }
 
-// RewardAward is a published immutable award for the authenticated root account.
+// RewardAward contains immutable published terms and current delivery details for the authenticated root account.
 type RewardAward struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable opaque award identifier.
@@ -153,7 +153,15 @@ type RewardAward struct {
 	// Current delivery state.
 	FulfillmentState RewardFulfillmentState `protobuf:"varint,7,opt,name=fulfillment_state,json=fulfillmentState,proto3,enum=rewards.v1.RewardFulfillmentState" json:"fulfillment_state,omitempty"`
 	// Publication time.
-	PublishedAt   *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=published_at,json=publishedAt,proto3" json:"published_at,omitempty"`
+	PublishedAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=published_at,json=publishedAt,proto3" json:"published_at,omitempty"`
+	// Campaign payout network. Interpret destination_address in this network.
+	Network string `protobuf:"bytes,9,opt,name=network,proto3" json:"network,omitempty"`
+	// Current fulfillment revision for optimistic concurrency.
+	FulfillmentRevision uint64 `protobuf:"varint,10,opt,name=fulfillment_revision,json=fulfillmentRevision,proto3" json:"fulfillment_revision,omitempty"`
+	// Recipient payout destination once submitted. Empty until provided.
+	DestinationAddress string `protobuf:"bytes,11,opt,name=destination_address,json=destinationAddress,proto3" json:"destination_address,omitempty"`
+	// External transaction identifier once staff records delivery. Empty until delivered.
+	TransactionId string `protobuf:"bytes,12,opt,name=transaction_id,json=transactionId,proto3" json:"transaction_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -244,6 +252,153 @@ func (x *RewardAward) GetPublishedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *RewardAward) GetNetwork() string {
+	if x != nil {
+		return x.Network
+	}
+	return ""
+}
+
+func (x *RewardAward) GetFulfillmentRevision() uint64 {
+	if x != nil {
+		return x.FulfillmentRevision
+	}
+	return 0
+}
+
+func (x *RewardAward) GetDestinationAddress() string {
+	if x != nil {
+		return x.DestinationAddress
+	}
+	return ""
+}
+
+func (x *RewardAward) GetTransactionId() string {
+	if x != nil {
+		return x.TransactionId
+	}
+	return ""
+}
+
+// SetMyRewardDestinationRequest records the authenticated recipient's payout destination.
+type SetMyRewardDestinationRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Award owned by the authenticated root account.
+	AwardId string `protobuf:"bytes,1,opt,name=award_id,json=awardId,proto3" json:"award_id,omitempty"`
+	// Destination address interpreted according to the award campaign's network.
+	DestinationAddress string `protobuf:"bytes,2,opt,name=destination_address,json=destinationAddress,proto3" json:"destination_address,omitempty"`
+	// Fulfillment revision observed by the recipient.
+	ExpectedRevision uint64 `protobuf:"varint,3,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	// Client-generated idempotency identifier. Maximum 128 characters.
+	RequestId     string `protobuf:"bytes,4,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetMyRewardDestinationRequest) Reset() {
+	*x = SetMyRewardDestinationRequest{}
+	mi := &file_rewards_v1_rewards_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetMyRewardDestinationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetMyRewardDestinationRequest) ProtoMessage() {}
+
+func (x *SetMyRewardDestinationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rewards_v1_rewards_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetMyRewardDestinationRequest.ProtoReflect.Descriptor instead.
+func (*SetMyRewardDestinationRequest) Descriptor() ([]byte, []int) {
+	return file_rewards_v1_rewards_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *SetMyRewardDestinationRequest) GetAwardId() string {
+	if x != nil {
+		return x.AwardId
+	}
+	return ""
+}
+
+func (x *SetMyRewardDestinationRequest) GetDestinationAddress() string {
+	if x != nil {
+		return x.DestinationAddress
+	}
+	return ""
+}
+
+func (x *SetMyRewardDestinationRequest) GetExpectedRevision() uint64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+func (x *SetMyRewardDestinationRequest) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+// SetMyRewardDestinationResponse returns the updated award.
+type SetMyRewardDestinationResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Award with the persisted destination and updated fulfillment state.
+	Award         *RewardAward `protobuf:"bytes,1,opt,name=award,proto3" json:"award,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetMyRewardDestinationResponse) Reset() {
+	*x = SetMyRewardDestinationResponse{}
+	mi := &file_rewards_v1_rewards_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetMyRewardDestinationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetMyRewardDestinationResponse) ProtoMessage() {}
+
+func (x *SetMyRewardDestinationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rewards_v1_rewards_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetMyRewardDestinationResponse.ProtoReflect.Descriptor instead.
+func (*SetMyRewardDestinationResponse) Descriptor() ([]byte, []int) {
+	return file_rewards_v1_rewards_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SetMyRewardDestinationResponse) GetAward() *RewardAward {
+	if x != nil {
+		return x.Award
+	}
+	return nil
+}
+
 // ListMyRewardAwardsRequest requests a page of awards for the authenticated root account.
 type ListMyRewardAwardsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -257,7 +412,7 @@ type ListMyRewardAwardsRequest struct {
 
 func (x *ListMyRewardAwardsRequest) Reset() {
 	*x = ListMyRewardAwardsRequest{}
-	mi := &file_rewards_v1_rewards_proto_msgTypes[1]
+	mi := &file_rewards_v1_rewards_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -269,7 +424,7 @@ func (x *ListMyRewardAwardsRequest) String() string {
 func (*ListMyRewardAwardsRequest) ProtoMessage() {}
 
 func (x *ListMyRewardAwardsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rewards_v1_rewards_proto_msgTypes[1]
+	mi := &file_rewards_v1_rewards_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -282,7 +437,7 @@ func (x *ListMyRewardAwardsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMyRewardAwardsRequest.ProtoReflect.Descriptor instead.
 func (*ListMyRewardAwardsRequest) Descriptor() ([]byte, []int) {
-	return file_rewards_v1_rewards_proto_rawDescGZIP(), []int{1}
+	return file_rewards_v1_rewards_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ListMyRewardAwardsRequest) GetLimit() uint32 {
@@ -312,7 +467,7 @@ type ListMyRewardAwardsResponse struct {
 
 func (x *ListMyRewardAwardsResponse) Reset() {
 	*x = ListMyRewardAwardsResponse{}
-	mi := &file_rewards_v1_rewards_proto_msgTypes[2]
+	mi := &file_rewards_v1_rewards_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -324,7 +479,7 @@ func (x *ListMyRewardAwardsResponse) String() string {
 func (*ListMyRewardAwardsResponse) ProtoMessage() {}
 
 func (x *ListMyRewardAwardsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rewards_v1_rewards_proto_msgTypes[2]
+	mi := &file_rewards_v1_rewards_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -337,7 +492,7 @@ func (x *ListMyRewardAwardsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMyRewardAwardsResponse.ProtoReflect.Descriptor instead.
 func (*ListMyRewardAwardsResponse) Descriptor() ([]byte, []int) {
-	return file_rewards_v1_rewards_proto_rawDescGZIP(), []int{2}
+	return file_rewards_v1_rewards_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ListMyRewardAwardsResponse) GetAwards() []*RewardAward {
@@ -359,7 +514,7 @@ var File_rewards_v1_rewards_proto protoreflect.FileDescriptor
 const file_rewards_v1_rewards_proto_rawDesc = "" +
 	"\n" +
 	"\x18rewards/v1/rewards.proto\x12\n" +
-	"rewards.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\x99\x03\n" +
+	"rewards.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\xbe\x04\n" +
 	"\vRewardAward\x12\x19\n" +
 	"\baward_id\x18\x01 \x01(\tR\aawardId\x12\x1f\n" +
 	"\vcampaign_id\x18\x02 \x01(\tR\n" +
@@ -369,7 +524,23 @@ const file_rewards_v1_rewards_proto_rawDesc = "" +
 	"\x11amount_base_units\x18\x05 \x01(\tR\x0famountBaseUnits\x12R\n" +
 	"\x12fulfillment_method\x18\x06 \x01(\x0e2#.rewards.v1.RewardFulfillmentMethodR\x11fulfillmentMethod\x12O\n" +
 	"\x11fulfillment_state\x18\a \x01(\x0e2\".rewards.v1.RewardFulfillmentStateR\x10fulfillmentState\x12=\n" +
-	"\fpublished_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\vpublishedAt\"c\n" +
+	"\fpublished_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\vpublishedAt\x12\x18\n" +
+	"\anetwork\x18\t \x01(\tR\anetwork\x121\n" +
+	"\x14fulfillment_revision\x18\n" +
+	" \x01(\x04R\x13fulfillmentRevision\x12/\n" +
+	"\x13destination_address\x18\v \x01(\tR\x12destinationAddress\x12%\n" +
+	"\x0etransaction_id\x18\f \x01(\tR\rtransactionId\"\xe4\x01\n" +
+	"\x1dSetMyRewardDestinationRequest\x12%\n" +
+	"\baward_id\x18\x01 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\aawardId\x12;\n" +
+	"\x13destination_address\x18\x02 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x04R\x12destinationAddress\x124\n" +
+	"\x11expected_revision\x18\x03 \x01(\x04B\a\xbaH\x042\x02 \x00R\x10expectedRevision\x12)\n" +
+	"\n" +
+	"request_id\x18\x04 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\trequestId\"O\n" +
+	"\x1eSetMyRewardDestinationResponse\x12-\n" +
+	"\x05award\x18\x01 \x01(\v2\x17.rewards.v1.RewardAwardR\x05award\"c\n" +
 	"\x19ListMyRewardAwardsRequest\x12\x1d\n" +
 	"\x05limit\x18\x01 \x01(\rB\a\xbaH\x04*\x02\x18dR\x05limit\x12'\n" +
 	"\n" +
@@ -388,10 +559,12 @@ const file_rewards_v1_rewards_proto_rawDesc = "" +
 	"\x04PAID\x10\x03\x12\n" +
 	"\n" +
 	"\x06FAILED\x10\x04\x12\f\n" +
-	"\bCANCELED\x10\x052\xa0\x02\n" +
+	"\bCANCELED\x10\x052\xb8\x05\n" +
 	"\x15RewardCampaignService\x12\x86\x02\n" +
 	"\x12ListMyRewardAwards\x12%.rewards.v1.ListMyRewardAwardsRequest\x1a&.rewards.v1.ListMyRewardAwardsResponse\"\xa0\x01\xbaG~\n" +
-	"\aRewards\x12\x15List My Reward Awards\x1a\\List published campaign awards for the authenticated root account. Requires a session token.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x14\x12\x12/v1/rewards/awardsB\x8c\x01\xbaGG:E\n" +
+	"\aRewards\x12\x15List My Reward Awards\x1a\\List published campaign awards for the authenticated root account. Requires a session token.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x14\x12\x12/v1/rewards/awards\x12\x95\x03\n" +
+	"\x16SetMyRewardDestination\x12).rewards.v1.SetMyRewardDestinationRequest\x1a*.rewards.v1.SetMyRewardDestinationResponse\"\xa3\x02\xbaG\xe6\x01\n" +
+	"\aRewards\x12\x19Set My Reward Destination\x1a\xbf\x01Record a write-once payout destination for the authenticated recipient's award. Requires a session token and fresh step-up proof. This does not execute a transfer or mark the award delivered.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02.:\x01*\x1a)/v1/rewards/awards/{award_id}/destinationB\x8c\x01\xbaGG:E\n" +
 	"\aRewards\x12:Published campaign awards for authenticated root accounts.Z@github.com/Fabric-Labs/polyester-sdk-go/gen/rewards/v1;rewardsv1b\x06proto3"
 
 var (
@@ -407,27 +580,32 @@ func file_rewards_v1_rewards_proto_rawDescGZIP() []byte {
 }
 
 var file_rewards_v1_rewards_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_rewards_v1_rewards_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_rewards_v1_rewards_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_rewards_v1_rewards_proto_goTypes = []any{
-	(RewardFulfillmentMethod)(0),       // 0: rewards.v1.RewardFulfillmentMethod
-	(RewardFulfillmentState)(0),        // 1: rewards.v1.RewardFulfillmentState
-	(*RewardAward)(nil),                // 2: rewards.v1.RewardAward
-	(*ListMyRewardAwardsRequest)(nil),  // 3: rewards.v1.ListMyRewardAwardsRequest
-	(*ListMyRewardAwardsResponse)(nil), // 4: rewards.v1.ListMyRewardAwardsResponse
-	(*timestamppb.Timestamp)(nil),      // 5: google.protobuf.Timestamp
+	(RewardFulfillmentMethod)(0),           // 0: rewards.v1.RewardFulfillmentMethod
+	(RewardFulfillmentState)(0),            // 1: rewards.v1.RewardFulfillmentState
+	(*RewardAward)(nil),                    // 2: rewards.v1.RewardAward
+	(*SetMyRewardDestinationRequest)(nil),  // 3: rewards.v1.SetMyRewardDestinationRequest
+	(*SetMyRewardDestinationResponse)(nil), // 4: rewards.v1.SetMyRewardDestinationResponse
+	(*ListMyRewardAwardsRequest)(nil),      // 5: rewards.v1.ListMyRewardAwardsRequest
+	(*ListMyRewardAwardsResponse)(nil),     // 6: rewards.v1.ListMyRewardAwardsResponse
+	(*timestamppb.Timestamp)(nil),          // 7: google.protobuf.Timestamp
 }
 var file_rewards_v1_rewards_proto_depIdxs = []int32{
 	0, // 0: rewards.v1.RewardAward.fulfillment_method:type_name -> rewards.v1.RewardFulfillmentMethod
 	1, // 1: rewards.v1.RewardAward.fulfillment_state:type_name -> rewards.v1.RewardFulfillmentState
-	5, // 2: rewards.v1.RewardAward.published_at:type_name -> google.protobuf.Timestamp
-	2, // 3: rewards.v1.ListMyRewardAwardsResponse.awards:type_name -> rewards.v1.RewardAward
-	3, // 4: rewards.v1.RewardCampaignService.ListMyRewardAwards:input_type -> rewards.v1.ListMyRewardAwardsRequest
-	4, // 5: rewards.v1.RewardCampaignService.ListMyRewardAwards:output_type -> rewards.v1.ListMyRewardAwardsResponse
-	5, // [5:6] is the sub-list for method output_type
-	4, // [4:5] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	7, // 2: rewards.v1.RewardAward.published_at:type_name -> google.protobuf.Timestamp
+	2, // 3: rewards.v1.SetMyRewardDestinationResponse.award:type_name -> rewards.v1.RewardAward
+	2, // 4: rewards.v1.ListMyRewardAwardsResponse.awards:type_name -> rewards.v1.RewardAward
+	5, // 5: rewards.v1.RewardCampaignService.ListMyRewardAwards:input_type -> rewards.v1.ListMyRewardAwardsRequest
+	3, // 6: rewards.v1.RewardCampaignService.SetMyRewardDestination:input_type -> rewards.v1.SetMyRewardDestinationRequest
+	6, // 7: rewards.v1.RewardCampaignService.ListMyRewardAwards:output_type -> rewards.v1.ListMyRewardAwardsResponse
+	4, // 8: rewards.v1.RewardCampaignService.SetMyRewardDestination:output_type -> rewards.v1.SetMyRewardDestinationResponse
+	7, // [7:9] is the sub-list for method output_type
+	5, // [5:7] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_rewards_v1_rewards_proto_init() }
@@ -441,7 +619,7 @@ func file_rewards_v1_rewards_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_rewards_v1_rewards_proto_rawDesc), len(file_rewards_v1_rewards_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   3,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

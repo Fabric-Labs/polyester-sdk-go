@@ -36,12 +36,17 @@ const (
 	// RewardCampaignServiceListMyRewardAwardsProcedure is the fully-qualified name of the
 	// RewardCampaignService's ListMyRewardAwards RPC.
 	RewardCampaignServiceListMyRewardAwardsProcedure = "/rewards.v1.RewardCampaignService/ListMyRewardAwards"
+	// RewardCampaignServiceSetMyRewardDestinationProcedure is the fully-qualified name of the
+	// RewardCampaignService's SetMyRewardDestination RPC.
+	RewardCampaignServiceSetMyRewardDestinationProcedure = "/rewards.v1.RewardCampaignService/SetMyRewardDestination"
 )
 
 // RewardCampaignServiceClient is a client for the rewards.v1.RewardCampaignService service.
 type RewardCampaignServiceClient interface {
 	// List published awards for the authenticated root account, newest first.
 	ListMyRewardAwards(context.Context, *connect.Request[v1.ListMyRewardAwardsRequest]) (*connect.Response[v1.ListMyRewardAwardsResponse], error)
+	// Record a write-once external payout destination for an award owned by the authenticated root account.
+	SetMyRewardDestination(context.Context, *connect.Request[v1.SetMyRewardDestinationRequest]) (*connect.Response[v1.SetMyRewardDestinationResponse], error)
 }
 
 // NewRewardCampaignServiceClient constructs a client for the rewards.v1.RewardCampaignService
@@ -61,12 +66,19 @@ func NewRewardCampaignServiceClient(httpClient connect.HTTPClient, baseURL strin
 			connect.WithSchema(rewardCampaignServiceMethods.ByName("ListMyRewardAwards")),
 			connect.WithClientOptions(opts...),
 		),
+		setMyRewardDestination: connect.NewClient[v1.SetMyRewardDestinationRequest, v1.SetMyRewardDestinationResponse](
+			httpClient,
+			baseURL+RewardCampaignServiceSetMyRewardDestinationProcedure,
+			connect.WithSchema(rewardCampaignServiceMethods.ByName("SetMyRewardDestination")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // rewardCampaignServiceClient implements RewardCampaignServiceClient.
 type rewardCampaignServiceClient struct {
-	listMyRewardAwards *connect.Client[v1.ListMyRewardAwardsRequest, v1.ListMyRewardAwardsResponse]
+	listMyRewardAwards     *connect.Client[v1.ListMyRewardAwardsRequest, v1.ListMyRewardAwardsResponse]
+	setMyRewardDestination *connect.Client[v1.SetMyRewardDestinationRequest, v1.SetMyRewardDestinationResponse]
 }
 
 // ListMyRewardAwards calls rewards.v1.RewardCampaignService.ListMyRewardAwards.
@@ -74,11 +86,18 @@ func (c *rewardCampaignServiceClient) ListMyRewardAwards(ctx context.Context, re
 	return c.listMyRewardAwards.CallUnary(ctx, req)
 }
 
+// SetMyRewardDestination calls rewards.v1.RewardCampaignService.SetMyRewardDestination.
+func (c *rewardCampaignServiceClient) SetMyRewardDestination(ctx context.Context, req *connect.Request[v1.SetMyRewardDestinationRequest]) (*connect.Response[v1.SetMyRewardDestinationResponse], error) {
+	return c.setMyRewardDestination.CallUnary(ctx, req)
+}
+
 // RewardCampaignServiceHandler is an implementation of the rewards.v1.RewardCampaignService
 // service.
 type RewardCampaignServiceHandler interface {
 	// List published awards for the authenticated root account, newest first.
 	ListMyRewardAwards(context.Context, *connect.Request[v1.ListMyRewardAwardsRequest]) (*connect.Response[v1.ListMyRewardAwardsResponse], error)
+	// Record a write-once external payout destination for an award owned by the authenticated root account.
+	SetMyRewardDestination(context.Context, *connect.Request[v1.SetMyRewardDestinationRequest]) (*connect.Response[v1.SetMyRewardDestinationResponse], error)
 }
 
 // NewRewardCampaignServiceHandler builds an HTTP handler from the service implementation. It
@@ -94,10 +113,18 @@ func NewRewardCampaignServiceHandler(svc RewardCampaignServiceHandler, opts ...c
 		connect.WithSchema(rewardCampaignServiceMethods.ByName("ListMyRewardAwards")),
 		connect.WithHandlerOptions(opts...),
 	)
+	rewardCampaignServiceSetMyRewardDestinationHandler := connect.NewUnaryHandler(
+		RewardCampaignServiceSetMyRewardDestinationProcedure,
+		svc.SetMyRewardDestination,
+		connect.WithSchema(rewardCampaignServiceMethods.ByName("SetMyRewardDestination")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/rewards.v1.RewardCampaignService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case RewardCampaignServiceListMyRewardAwardsProcedure:
 			rewardCampaignServiceListMyRewardAwardsHandler.ServeHTTP(w, r)
+		case RewardCampaignServiceSetMyRewardDestinationProcedure:
+			rewardCampaignServiceSetMyRewardDestinationHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -109,4 +136,8 @@ type UnimplementedRewardCampaignServiceHandler struct{}
 
 func (UnimplementedRewardCampaignServiceHandler) ListMyRewardAwards(context.Context, *connect.Request[v1.ListMyRewardAwardsRequest]) (*connect.Response[v1.ListMyRewardAwardsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("rewards.v1.RewardCampaignService.ListMyRewardAwards is not implemented"))
+}
+
+func (UnimplementedRewardCampaignServiceHandler) SetMyRewardDestination(context.Context, *connect.Request[v1.SetMyRewardDestinationRequest]) (*connect.Response[v1.SetMyRewardDestinationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("rewards.v1.RewardCampaignService.SetMyRewardDestination is not implemented"))
 }
