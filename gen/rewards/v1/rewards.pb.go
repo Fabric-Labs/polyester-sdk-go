@@ -559,12 +559,12 @@ const file_rewards_v1_rewards_proto_rawDesc = "" +
 	"\x04PAID\x10\x03\x12\n" +
 	"\n" +
 	"\x06FAILED\x10\x04\x12\f\n" +
-	"\bCANCELED\x10\x052\xb8\x05\n" +
+	"\bCANCELED\x10\x052\xa0\x05\n" +
 	"\x15RewardCampaignService\x12\x86\x02\n" +
 	"\x12ListMyRewardAwards\x12%.rewards.v1.ListMyRewardAwardsRequest\x1a&.rewards.v1.ListMyRewardAwardsResponse\"\xa0\x01\xbaG~\n" +
-	"\aRewards\x12\x15List My Reward Awards\x1a\\List published campaign awards for the authenticated root account. Requires a session token.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x14\x12\x12/v1/rewards/awards\x12\x95\x03\n" +
-	"\x16SetMyRewardDestination\x12).rewards.v1.SetMyRewardDestinationRequest\x1a*.rewards.v1.SetMyRewardDestinationResponse\"\xa3\x02\xbaG\xe6\x01\n" +
-	"\aRewards\x12\x19Set My Reward Destination\x1a\xbf\x01Record a write-once payout destination for the authenticated recipient's award. Requires a session token and fresh step-up proof. This does not execute a transfer or mark the award delivered.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02.:\x01*\x1a)/v1/rewards/awards/{award_id}/destinationB\x8c\x01\xbaGG:E\n" +
+	"\aRewards\x12\x15List My Reward Awards\x1a\\List published campaign awards for the authenticated root account. Requires a session token.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x14\x12\x12/v1/rewards/awards\x12\xfd\x02\n" +
+	"\x16SetMyRewardDestination\x12).rewards.v1.SetMyRewardDestinationRequest\x1a*.rewards.v1.SetMyRewardDestinationResponse\"\x8b\x02\xbaG\xce\x01\n" +
+	"\aRewards\x12\x19Set My Reward Destination\x1a\xa7\x01Record a write-once payout destination for the authenticated recipient's award. Requires a session token. This does not execute a transfer or mark the award delivered.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02.:\x01*\x1a)/v1/rewards/awards/{award_id}/destinationB\x8c\x01\xbaGG:E\n" +
 	"\aRewards\x12:Published campaign awards for authenticated root accounts.Z@github.com/Fabric-Labs/polyester-sdk-go/gen/rewards/v1;rewardsv1b\x06proto3"
 
 var (
