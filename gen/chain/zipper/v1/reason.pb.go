@@ -109,6 +109,12 @@ const (
 	ZipperReasonCode_WITHDRAWAL_LIQUIDITY_INSUFFICIENT ZipperReasonCode = 3001
 	// Request address was classified as high risk.
 	ZipperReasonCode_COMPLIANCE_HIGH_RISK_ADDRESS ZipperReasonCode = 3002
+	// Deposit source address was blocked by compliance screening. The deposit
+	// is held for manual review.
+	ZipperReasonCode_COMPLIANCE_ADDRESS_BLOCKED ZipperReasonCode = 3003
+	// Deposit source address did not pass compliance screening. The deposit is
+	// eligible to be returned to its registered return address.
+	ZipperReasonCode_COMPLIANCE_ADDRESS_RETURN ZipperReasonCode = 3004
 	// Request verification was rejected without a more specific reason.
 	ZipperReasonCode_REQUEST_VERIFICATION_REJECTED ZipperReasonCode = 3901
 	// Request processing completed with a rejected result.
@@ -171,6 +177,8 @@ var (
 		2402: "XRP_WITHDRAWAL_DESTINATION_TAG_INVALID",
 		3001: "WITHDRAWAL_LIQUIDITY_INSUFFICIENT",
 		3002: "COMPLIANCE_HIGH_RISK_ADDRESS",
+		3003: "COMPLIANCE_ADDRESS_BLOCKED",
+		3004: "COMPLIANCE_ADDRESS_RETURN",
 		3901: "REQUEST_VERIFICATION_REJECTED",
 		3902: "REJECTED",
 		9000: "ERROR_UNMAPPED",
@@ -222,6 +230,8 @@ var (
 		"XRP_WITHDRAWAL_DESTINATION_TAG_INVALID": 2402,
 		"WITHDRAWAL_LIQUIDITY_INSUFFICIENT":      3001,
 		"COMPLIANCE_HIGH_RISK_ADDRESS":           3002,
+		"COMPLIANCE_ADDRESS_BLOCKED":             3003,
+		"COMPLIANCE_ADDRESS_RETURN":              3004,
 		"REQUEST_VERIFICATION_REJECTED":          3901,
 		"REJECTED":                               3902,
 		"ERROR_UNMAPPED":                         9000,
@@ -332,7 +342,7 @@ const file_chain_zipper_v1_reason_proto_rawDesc = "" +
 	"\x13ZipperReasonDetails\x125\n" +
 	"\x04code\x18\x01 \x01(\x0e2!.chain.zipper.v1.ZipperReasonCodeR\x04code\x12\x1b\n" +
 	"\treason_id\x18\x02 \x01(\tR\breasonId\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage*\x80\x0e\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage*\xc1\x0e\n" +
 	"\x10ZipperReasonCode\x12\x16\n" +
 	"\x12REASON_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x14DEPOSIT_WAIT_EXPIRED\x10\xe9\a\x12\x1b\n" +
@@ -381,7 +391,9 @@ const file_chain_zipper_v1_reason_proto_rawDesc = "" +
 	"&XRP_WITHDRAWAL_CLASSIC_ADDRESS_INVALID\x10\xe1\x12\x12+\n" +
 	"&XRP_WITHDRAWAL_DESTINATION_TAG_INVALID\x10\xe2\x12\x12&\n" +
 	"!WITHDRAWAL_LIQUIDITY_INSUFFICIENT\x10\xb9\x17\x12!\n" +
-	"\x1cCOMPLIANCE_HIGH_RISK_ADDRESS\x10\xba\x17\x12\"\n" +
+	"\x1cCOMPLIANCE_HIGH_RISK_ADDRESS\x10\xba\x17\x12\x1f\n" +
+	"\x1aCOMPLIANCE_ADDRESS_BLOCKED\x10\xbb\x17\x12\x1e\n" +
+	"\x19COMPLIANCE_ADDRESS_RETURN\x10\xbc\x17\x12\"\n" +
 	"\x1dREQUEST_VERIFICATION_REJECTED\x10\xbd\x1e\x12\r\n" +
 	"\bREJECTED\x10\xbe\x1e\x12\x13\n" +
 	"\x0eERROR_UNMAPPED\x10\xa8F\x12\x1e\n" +

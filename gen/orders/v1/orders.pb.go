@@ -329,7 +329,11 @@ const (
 	ErrorCode_ERROR_CODE_MIN_NOTIONAL ErrorCode = 7
 	// Quantity does not align with the pair step size.
 	ErrorCode_ERROR_CODE_QTY_STEP_SIZE ErrorCode = 8
-	// Client order ID is already in use for a different active order.
+	// Client order ID is already in use on this account, by an open order or by
+	// an order that ended recently; an ended order keeps its client order ID
+	// reserved for at least 15 minutes. Reuse returns this code even with the
+	// same payload. Use GetOrder to reconcile, then retry with a new client
+	// order ID.
 	ErrorCode_ERROR_CODE_CONFLICT_DUPLICATE_CLIENT_ORDER_ID ErrorCode = 9
 	// Service is temporarily unavailable.
 	ErrorCode_ERROR_CODE_UNAVAILABLE ErrorCode = 10
@@ -438,9 +442,15 @@ const (
 	ErrorCode_ERROR_CODE_TRIGGER_STATUS_INVALID ErrorCode = 45
 	// Trigger type/state does not support requested lifecycle operation.
 	ErrorCode_ERROR_CODE_TRIGGER_NOT_MODIFIABLE ErrorCode = 46
-	// Duplicate client trigger ID was reused with a different trigger payload.
+	// Client trigger ID is already used, either by a trigger with a different
+	// payload or by an earlier create that failed or was rolled back. List
+	// triggers to reconcile by client trigger ID, then retry with a new client
+	// trigger ID.
 	ErrorCode_ERROR_CODE_CONFLICT_DUPLICATE_CLIENT_TRIGGER_ID ErrorCode = 47
-	// Trailing-stop max slippage (ticks or bps) is invalid.
+	// Max slippage (ticks or bps) is out of range or leaves no valid execution
+	// price bound. Applies to market orders and to standalone and attached
+	// trailing stops, on create and on modify; for example, a 10000 bps cap on a
+	// market order or trailing stop that sells.
 	ErrorCode_ERROR_CODE_MAX_SLIPPAGE_INVALID ErrorCode = 48
 	// Client reference price is stale compared to server-side BBO/drift policy.
 	ErrorCode_ERROR_CODE_STALE_QUOTE ErrorCode = 65
@@ -2809,7 +2819,9 @@ type TrailingStopPolicy_MaxSlippageTicks struct {
 }
 
 type TrailingStopPolicy_MaxSlippageBps struct {
-	// Maximum allowed slippage in basis points (1 bp = 0.01%).
+	// Maximum allowed slippage in basis points (1 bp = 0.01%). A trailing stop
+	// that sells, which is the case when the parent order buys, accepts values
+	// below 10000; a 100% cap would leave it no positive price to sell at.
 	MaxSlippageBps int32 `protobuf:"varint,7,opt,name=max_slippage_bps,json=maxSlippageBps,proto3,oneof"`
 }
 
@@ -3017,11 +3029,19 @@ type CancelAllOrdersResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Cancel-all submission outcome.
 	Status CancelAllOrdersResponse_Status `protobuf:"varint,1,opt,name=status,proto3,enum=orders.v1.CancelAllOrdersResponse_Status" json:"status,omitempty"`
-	// Number of orders that matched the filter.
+	// Number of open orders that matched the filter when the request was
+	// accepted, including orders whose cancellation was already in progress.
+	// Orders placed after acceptance are not counted. Unless `dry_run` is set,
+	// equals `submitted_cancels` plus `failed_cancels`.
 	MatchedOrders uint32 `protobuf:"varint,2,opt,name=matched_orders,json=matchedOrders,proto3" json:"matched_orders,omitempty"`
-	// Number of cancel requests submitted for processing.
+	// Number of matched orders submitted for cancellation, including orders
+	// whose cancellation was already in progress. Each moves to `CANCELED`
+	// asynchronously after the response. Zero when `dry_run` is set.
 	SubmittedCancels uint32 `protobuf:"varint,3,opt,name=submitted_cancels,json=submittedCancels,proto3" json:"submitted_cancels,omitempty"`
-	// Number of cancels that could not be submitted (already canceled, etc.).
+	// Number of matched orders that could not be submitted for cancellation
+	// because the cancel-all could not be recorded for their symbol. This
+	// request does not cancel them; send a new cancel-all with a new
+	// `request_id` if they are still open. Zero when `dry_run` is set.
 	FailedCancels uint32 `protobuf:"varint,4,opt,name=failed_cancels,json=failedCancels,proto3" json:"failed_cancels,omitempty"`
 	// Server timestamp.
 	Ts *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=ts,proto3" json:"ts,omitempty"`
@@ -4066,9 +4086,11 @@ type BatchReplaceAdmissionItem struct {
 	ItemIndex uint32 `protobuf:"varint,1,opt,name=item_index,json=itemIndex,proto3" json:"item_index,omitempty"`
 	// Admission result for this item.
 	Status BatchReplaceItemAdmissionStatus `protobuf:"varint,2,opt,name=status,proto3,enum=orders.v1.BatchReplaceItemAdmissionStatus" json:"status,omitempty"`
-	// Original order targeted by the replacement.
+	// Original order targeted by the replacement: the requested order ID, or the
+	// order the requested client order ID names. Rejected items keep it too. Unset
+	// only when the requested client order ID names no order.
 	OldOrderId uint64 `protobuf:"fixed64,3,opt,name=old_order_id,json=oldOrderId,proto3" json:"old_order_id,omitempty"`
-	// Assigned successor order ID. Zero for cancel-only outcomes or rejection before assignment.
+	// Assigned successor order ID. Unset for cancel-only outcomes and rejected items.
 	ReplacementOrderId uint64 `protobuf:"fixed64,4,opt,name=replacement_order_id,json=replacementOrderId,proto3" json:"replacement_order_id,omitempty"`
 	// Client order ID assigned to the successor when available.
 	ClientOrderId string `protobuf:"bytes,5,opt,name=client_order_id,json=clientOrderId,proto3" json:"client_order_id,omitempty"`

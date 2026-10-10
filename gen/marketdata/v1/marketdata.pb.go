@@ -416,6 +416,59 @@ func (x *MarketTrade) GetTsNs() uint64 {
 	return 0
 }
 
+// MarketTradeBatch is one realtime publication on a symbol's public trade
+// stream: every trade queued for the stream when it was sent, at most 256 and
+// at most 64 KiB, in execution order.
+//
+// match_id identifies a trade. Apply trades in array order and in publication
+// order; a trade whose match_id was already received replaces the earlier copy.
+// When the subscription reports that missed publications could not be
+// recovered, reload recent trades over REST.
+type MarketTradeBatch struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Trades in execution order, oldest first. At least one trade.
+	Events        []*MarketTrade `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MarketTradeBatch) Reset() {
+	*x = MarketTradeBatch{}
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MarketTradeBatch) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MarketTradeBatch) ProtoMessage() {}
+
+func (x *MarketTradeBatch) ProtoReflect() protoreflect.Message {
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MarketTradeBatch.ProtoReflect.Descriptor instead.
+func (*MarketTradeBatch) Descriptor() ([]byte, []int) {
+	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *MarketTradeBatch) GetEvents() []*MarketTrade {
+	if x != nil {
+		return x.Events
+	}
+	return nil
+}
+
 // GetTradesResponse contains public trades for one spot market.
 type GetTradesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -430,7 +483,7 @@ type GetTradesResponse struct {
 
 func (x *GetTradesResponse) Reset() {
 	*x = GetTradesResponse{}
-	mi := &file_marketdata_v1_marketdata_proto_msgTypes[2]
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -442,7 +495,7 @@ func (x *GetTradesResponse) String() string {
 func (*GetTradesResponse) ProtoMessage() {}
 
 func (x *GetTradesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_marketdata_v1_marketdata_proto_msgTypes[2]
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -455,7 +508,7 @@ func (x *GetTradesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTradesResponse.ProtoReflect.Descriptor instead.
 func (*GetTradesResponse) Descriptor() ([]byte, []int) {
-	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{2}
+	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetTradesResponse) GetTrades() []*MarketTrade {
@@ -512,7 +565,7 @@ type GetCandlesRequest struct {
 
 func (x *GetCandlesRequest) Reset() {
 	*x = GetCandlesRequest{}
-	mi := &file_marketdata_v1_marketdata_proto_msgTypes[3]
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -524,7 +577,7 @@ func (x *GetCandlesRequest) String() string {
 func (*GetCandlesRequest) ProtoMessage() {}
 
 func (x *GetCandlesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_marketdata_v1_marketdata_proto_msgTypes[3]
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -537,7 +590,7 @@ func (x *GetCandlesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCandlesRequest.ProtoReflect.Descriptor instead.
 func (*GetCandlesRequest) Descriptor() ([]byte, []int) {
-	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{3}
+	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetCandlesRequest) GetSymbolId() uint32 {
@@ -636,7 +689,7 @@ type GetCandlesColumnsRequest struct {
 
 func (x *GetCandlesColumnsRequest) Reset() {
 	*x = GetCandlesColumnsRequest{}
-	mi := &file_marketdata_v1_marketdata_proto_msgTypes[4]
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -648,7 +701,7 @@ func (x *GetCandlesColumnsRequest) String() string {
 func (*GetCandlesColumnsRequest) ProtoMessage() {}
 
 func (x *GetCandlesColumnsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_marketdata_v1_marketdata_proto_msgTypes[4]
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -661,7 +714,7 @@ func (x *GetCandlesColumnsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCandlesColumnsRequest.ProtoReflect.Descriptor instead.
 func (*GetCandlesColumnsRequest) Descriptor() ([]byte, []int) {
-	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{4}
+	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetCandlesColumnsRequest) GetSymbolId() uint32 {
@@ -752,7 +805,7 @@ type CandlePoint struct {
 
 func (x *CandlePoint) Reset() {
 	*x = CandlePoint{}
-	mi := &file_marketdata_v1_marketdata_proto_msgTypes[5]
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -764,7 +817,7 @@ func (x *CandlePoint) String() string {
 func (*CandlePoint) ProtoMessage() {}
 
 func (x *CandlePoint) ProtoReflect() protoreflect.Message {
-	mi := &file_marketdata_v1_marketdata_proto_msgTypes[5]
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -777,7 +830,7 @@ func (x *CandlePoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CandlePoint.ProtoReflect.Descriptor instead.
 func (*CandlePoint) Descriptor() ([]byte, []int) {
-	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{5}
+	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *CandlePoint) GetTsSec() uint64 {
@@ -860,7 +913,7 @@ type GetCandlesResponse struct {
 
 func (x *GetCandlesResponse) Reset() {
 	*x = GetCandlesResponse{}
-	mi := &file_marketdata_v1_marketdata_proto_msgTypes[6]
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -872,7 +925,7 @@ func (x *GetCandlesResponse) String() string {
 func (*GetCandlesResponse) ProtoMessage() {}
 
 func (x *GetCandlesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_marketdata_v1_marketdata_proto_msgTypes[6]
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -885,7 +938,7 @@ func (x *GetCandlesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCandlesResponse.ProtoReflect.Descriptor instead.
 func (*GetCandlesResponse) Descriptor() ([]byte, []int) {
-	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{6}
+	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetCandlesResponse) GetSymbolId() uint32 {
@@ -974,7 +1027,7 @@ type GetCandlesColumnsResponse struct {
 
 func (x *GetCandlesColumnsResponse) Reset() {
 	*x = GetCandlesColumnsResponse{}
-	mi := &file_marketdata_v1_marketdata_proto_msgTypes[7]
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -986,7 +1039,7 @@ func (x *GetCandlesColumnsResponse) String() string {
 func (*GetCandlesColumnsResponse) ProtoMessage() {}
 
 func (x *GetCandlesColumnsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_marketdata_v1_marketdata_proto_msgTypes[7]
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -999,7 +1052,7 @@ func (x *GetCandlesColumnsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCandlesColumnsResponse.ProtoReflect.Descriptor instead.
 func (*GetCandlesColumnsResponse) Descriptor() ([]byte, []int) {
-	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{7}
+	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetCandlesColumnsResponse) GetSymbolId() uint32 {
@@ -1135,7 +1188,7 @@ type Candle struct {
 
 func (x *Candle) Reset() {
 	*x = Candle{}
-	mi := &file_marketdata_v1_marketdata_proto_msgTypes[8]
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1147,7 +1200,7 @@ func (x *Candle) String() string {
 func (*Candle) ProtoMessage() {}
 
 func (x *Candle) ProtoReflect() protoreflect.Message {
-	mi := &file_marketdata_v1_marketdata_proto_msgTypes[8]
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1160,7 +1213,7 @@ func (x *Candle) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Candle.ProtoReflect.Descriptor instead.
 func (*Candle) Descriptor() ([]byte, []int) {
-	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{8}
+	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Candle) GetSymbolId() uint32 {
@@ -1249,7 +1302,7 @@ type AssetConfig struct {
 
 func (x *AssetConfig) Reset() {
 	*x = AssetConfig{}
-	mi := &file_marketdata_v1_marketdata_proto_msgTypes[9]
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1261,7 +1314,7 @@ func (x *AssetConfig) String() string {
 func (*AssetConfig) ProtoMessage() {}
 
 func (x *AssetConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_marketdata_v1_marketdata_proto_msgTypes[9]
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1274,7 +1327,7 @@ func (x *AssetConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssetConfig.ProtoReflect.Descriptor instead.
 func (*AssetConfig) Descriptor() ([]byte, []int) {
-	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{9}
+	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *AssetConfig) GetAsset() string {
@@ -1331,7 +1384,7 @@ type PairMarketdataConfig struct {
 
 func (x *PairMarketdataConfig) Reset() {
 	*x = PairMarketdataConfig{}
-	mi := &file_marketdata_v1_marketdata_proto_msgTypes[10]
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1343,7 +1396,7 @@ func (x *PairMarketdataConfig) String() string {
 func (*PairMarketdataConfig) ProtoMessage() {}
 
 func (x *PairMarketdataConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_marketdata_v1_marketdata_proto_msgTypes[10]
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1356,7 +1409,7 @@ func (x *PairMarketdataConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PairMarketdataConfig.ProtoReflect.Descriptor instead.
 func (*PairMarketdataConfig) Descriptor() ([]byte, []int) {
-	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{10}
+	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *PairMarketdataConfig) GetOrderbookPriceBuckets() []float64 {
@@ -1423,7 +1476,7 @@ type PairConfig struct {
 
 func (x *PairConfig) Reset() {
 	*x = PairConfig{}
-	mi := &file_marketdata_v1_marketdata_proto_msgTypes[11]
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1435,7 +1488,7 @@ func (x *PairConfig) String() string {
 func (*PairConfig) ProtoMessage() {}
 
 func (x *PairConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_marketdata_v1_marketdata_proto_msgTypes[11]
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1448,7 +1501,7 @@ func (x *PairConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PairConfig.ProtoReflect.Descriptor instead.
 func (*PairConfig) Descriptor() ([]byte, []int) {
-	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{11}
+	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *PairConfig) GetSymbolId() uint32 {
@@ -1593,7 +1646,7 @@ type GetSpotConfigRequest struct {
 
 func (x *GetSpotConfigRequest) Reset() {
 	*x = GetSpotConfigRequest{}
-	mi := &file_marketdata_v1_marketdata_proto_msgTypes[12]
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1605,7 +1658,7 @@ func (x *GetSpotConfigRequest) String() string {
 func (*GetSpotConfigRequest) ProtoMessage() {}
 
 func (x *GetSpotConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_marketdata_v1_marketdata_proto_msgTypes[12]
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1618,7 +1671,7 @@ func (x *GetSpotConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSpotConfigRequest.ProtoReflect.Descriptor instead.
 func (*GetSpotConfigRequest) Descriptor() ([]byte, []int) {
-	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{12}
+	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{13}
 }
 
 // GetSpotConfigResponse contains a cacheable spot reference-data snapshot.
@@ -1636,7 +1689,7 @@ type GetSpotConfigResponse struct {
 
 func (x *GetSpotConfigResponse) Reset() {
 	*x = GetSpotConfigResponse{}
-	mi := &file_marketdata_v1_marketdata_proto_msgTypes[13]
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1648,7 +1701,7 @@ func (x *GetSpotConfigResponse) String() string {
 func (*GetSpotConfigResponse) ProtoMessage() {}
 
 func (x *GetSpotConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_marketdata_v1_marketdata_proto_msgTypes[13]
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1661,7 +1714,7 @@ func (x *GetSpotConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSpotConfigResponse.ProtoReflect.Descriptor instead.
 func (*GetSpotConfigResponse) Descriptor() ([]byte, []int) {
-	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{13}
+	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetSpotConfigResponse) GetAssets() []*AssetConfig {
@@ -1709,7 +1762,9 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"priceTicks\x12\x1d\n" +
 	"\n" +
 	"qty_scaled\x18\x05 \x01(\x03R\tqtyScaled\x12\x13\n" +
-	"\x05ts_ns\x18\x06 \x01(\x04R\x04tsNs\"y\n" +
+	"\x05ts_ns\x18\x06 \x01(\x04R\x04tsNs\"F\n" +
+	"\x10MarketTradeBatch\x122\n" +
+	"\x06events\x18\x01 \x03(\v2\x1a.marketdata.v1.MarketTradeR\x06events\"y\n" +
 	"\x11GetTradesResponse\x122\n" +
 	"\x06trades\x18\x01 \x03(\v2\x1a.marketdata.v1.MarketTradeR\x06trades\x120\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xb2\x06\n" +
@@ -1878,62 +1933,64 @@ func file_marketdata_v1_marketdata_proto_rawDescGZIP() []byte {
 }
 
 var file_marketdata_v1_marketdata_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_marketdata_v1_marketdata_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_marketdata_v1_marketdata_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_marketdata_v1_marketdata_proto_goTypes = []any{
 	(SideFilter)(0),                   // 0: marketdata.v1.SideFilter
 	(Timeframe)(0),                    // 1: marketdata.v1.Timeframe
 	(PairStatus)(0),                   // 2: marketdata.v1.PairStatus
 	(*GetTradesRequest)(nil),          // 3: marketdata.v1.GetTradesRequest
 	(*MarketTrade)(nil),               // 4: marketdata.v1.MarketTrade
-	(*GetTradesResponse)(nil),         // 5: marketdata.v1.GetTradesResponse
-	(*GetCandlesRequest)(nil),         // 6: marketdata.v1.GetCandlesRequest
-	(*GetCandlesColumnsRequest)(nil),  // 7: marketdata.v1.GetCandlesColumnsRequest
-	(*CandlePoint)(nil),               // 8: marketdata.v1.CandlePoint
-	(*GetCandlesResponse)(nil),        // 9: marketdata.v1.GetCandlesResponse
-	(*GetCandlesColumnsResponse)(nil), // 10: marketdata.v1.GetCandlesColumnsResponse
-	(*Candle)(nil),                    // 11: marketdata.v1.Candle
-	(*AssetConfig)(nil),               // 12: marketdata.v1.AssetConfig
-	(*PairMarketdataConfig)(nil),      // 13: marketdata.v1.PairMarketdataConfig
-	(*PairConfig)(nil),                // 14: marketdata.v1.PairConfig
-	(*GetSpotConfigRequest)(nil),      // 15: marketdata.v1.GetSpotConfigRequest
-	(*GetSpotConfigResponse)(nil),     // 16: marketdata.v1.GetSpotConfigResponse
-	(*timestamppb.Timestamp)(nil),     // 17: google.protobuf.Timestamp
+	(*MarketTradeBatch)(nil),          // 5: marketdata.v1.MarketTradeBatch
+	(*GetTradesResponse)(nil),         // 6: marketdata.v1.GetTradesResponse
+	(*GetCandlesRequest)(nil),         // 7: marketdata.v1.GetCandlesRequest
+	(*GetCandlesColumnsRequest)(nil),  // 8: marketdata.v1.GetCandlesColumnsRequest
+	(*CandlePoint)(nil),               // 9: marketdata.v1.CandlePoint
+	(*GetCandlesResponse)(nil),        // 10: marketdata.v1.GetCandlesResponse
+	(*GetCandlesColumnsResponse)(nil), // 11: marketdata.v1.GetCandlesColumnsResponse
+	(*Candle)(nil),                    // 12: marketdata.v1.Candle
+	(*AssetConfig)(nil),               // 13: marketdata.v1.AssetConfig
+	(*PairMarketdataConfig)(nil),      // 14: marketdata.v1.PairMarketdataConfig
+	(*PairConfig)(nil),                // 15: marketdata.v1.PairConfig
+	(*GetSpotConfigRequest)(nil),      // 16: marketdata.v1.GetSpotConfigRequest
+	(*GetSpotConfigResponse)(nil),     // 17: marketdata.v1.GetSpotConfigResponse
+	(*timestamppb.Timestamp)(nil),     // 18: google.protobuf.Timestamp
 }
 var file_marketdata_v1_marketdata_proto_depIdxs = []int32{
-	17, // 0: marketdata.v1.GetTradesRequest.start_time:type_name -> google.protobuf.Timestamp
-	17, // 1: marketdata.v1.GetTradesRequest.end_time:type_name -> google.protobuf.Timestamp
+	18, // 0: marketdata.v1.GetTradesRequest.start_time:type_name -> google.protobuf.Timestamp
+	18, // 1: marketdata.v1.GetTradesRequest.end_time:type_name -> google.protobuf.Timestamp
 	0,  // 2: marketdata.v1.GetTradesRequest.side:type_name -> marketdata.v1.SideFilter
-	4,  // 3: marketdata.v1.GetTradesResponse.trades:type_name -> marketdata.v1.MarketTrade
-	1,  // 4: marketdata.v1.GetCandlesRequest.timeframe:type_name -> marketdata.v1.Timeframe
-	17, // 5: marketdata.v1.GetCandlesRequest.start_time:type_name -> google.protobuf.Timestamp
-	17, // 6: marketdata.v1.GetCandlesRequest.end_time:type_name -> google.protobuf.Timestamp
-	1,  // 7: marketdata.v1.GetCandlesColumnsRequest.timeframe:type_name -> marketdata.v1.Timeframe
-	17, // 8: marketdata.v1.GetCandlesColumnsRequest.start_time:type_name -> google.protobuf.Timestamp
-	17, // 9: marketdata.v1.GetCandlesColumnsRequest.end_time:type_name -> google.protobuf.Timestamp
-	1,  // 10: marketdata.v1.GetCandlesResponse.timeframe:type_name -> marketdata.v1.Timeframe
-	8,  // 11: marketdata.v1.GetCandlesResponse.candles:type_name -> marketdata.v1.CandlePoint
-	8,  // 12: marketdata.v1.GetCandlesResponse.reference_candles:type_name -> marketdata.v1.CandlePoint
-	1,  // 13: marketdata.v1.GetCandlesColumnsResponse.timeframe:type_name -> marketdata.v1.Timeframe
-	1,  // 14: marketdata.v1.Candle.timeframe:type_name -> marketdata.v1.Timeframe
-	13, // 15: marketdata.v1.PairConfig.marketdata:type_name -> marketdata.v1.PairMarketdataConfig
-	17, // 16: marketdata.v1.PairConfig.listing_at:type_name -> google.protobuf.Timestamp
-	17, // 17: marketdata.v1.PairConfig.delisting_at:type_name -> google.protobuf.Timestamp
-	2,  // 18: marketdata.v1.PairConfig.status:type_name -> marketdata.v1.PairStatus
-	12, // 19: marketdata.v1.GetSpotConfigResponse.assets:type_name -> marketdata.v1.AssetConfig
-	14, // 20: marketdata.v1.GetSpotConfigResponse.pairs:type_name -> marketdata.v1.PairConfig
-	3,  // 21: marketdata.v1.MarketDataService.GetTrades:input_type -> marketdata.v1.GetTradesRequest
-	6,  // 22: marketdata.v1.MarketDataService.GetCandles:input_type -> marketdata.v1.GetCandlesRequest
-	7,  // 23: marketdata.v1.MarketDataService.GetCandlesColumns:input_type -> marketdata.v1.GetCandlesColumnsRequest
-	15, // 24: marketdata.v1.MarketDataService.GetSpotConfig:input_type -> marketdata.v1.GetSpotConfigRequest
-	5,  // 25: marketdata.v1.MarketDataService.GetTrades:output_type -> marketdata.v1.GetTradesResponse
-	9,  // 26: marketdata.v1.MarketDataService.GetCandles:output_type -> marketdata.v1.GetCandlesResponse
-	10, // 27: marketdata.v1.MarketDataService.GetCandlesColumns:output_type -> marketdata.v1.GetCandlesColumnsResponse
-	16, // 28: marketdata.v1.MarketDataService.GetSpotConfig:output_type -> marketdata.v1.GetSpotConfigResponse
-	25, // [25:29] is the sub-list for method output_type
-	21, // [21:25] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	4,  // 3: marketdata.v1.MarketTradeBatch.events:type_name -> marketdata.v1.MarketTrade
+	4,  // 4: marketdata.v1.GetTradesResponse.trades:type_name -> marketdata.v1.MarketTrade
+	1,  // 5: marketdata.v1.GetCandlesRequest.timeframe:type_name -> marketdata.v1.Timeframe
+	18, // 6: marketdata.v1.GetCandlesRequest.start_time:type_name -> google.protobuf.Timestamp
+	18, // 7: marketdata.v1.GetCandlesRequest.end_time:type_name -> google.protobuf.Timestamp
+	1,  // 8: marketdata.v1.GetCandlesColumnsRequest.timeframe:type_name -> marketdata.v1.Timeframe
+	18, // 9: marketdata.v1.GetCandlesColumnsRequest.start_time:type_name -> google.protobuf.Timestamp
+	18, // 10: marketdata.v1.GetCandlesColumnsRequest.end_time:type_name -> google.protobuf.Timestamp
+	1,  // 11: marketdata.v1.GetCandlesResponse.timeframe:type_name -> marketdata.v1.Timeframe
+	9,  // 12: marketdata.v1.GetCandlesResponse.candles:type_name -> marketdata.v1.CandlePoint
+	9,  // 13: marketdata.v1.GetCandlesResponse.reference_candles:type_name -> marketdata.v1.CandlePoint
+	1,  // 14: marketdata.v1.GetCandlesColumnsResponse.timeframe:type_name -> marketdata.v1.Timeframe
+	1,  // 15: marketdata.v1.Candle.timeframe:type_name -> marketdata.v1.Timeframe
+	14, // 16: marketdata.v1.PairConfig.marketdata:type_name -> marketdata.v1.PairMarketdataConfig
+	18, // 17: marketdata.v1.PairConfig.listing_at:type_name -> google.protobuf.Timestamp
+	18, // 18: marketdata.v1.PairConfig.delisting_at:type_name -> google.protobuf.Timestamp
+	2,  // 19: marketdata.v1.PairConfig.status:type_name -> marketdata.v1.PairStatus
+	13, // 20: marketdata.v1.GetSpotConfigResponse.assets:type_name -> marketdata.v1.AssetConfig
+	15, // 21: marketdata.v1.GetSpotConfigResponse.pairs:type_name -> marketdata.v1.PairConfig
+	3,  // 22: marketdata.v1.MarketDataService.GetTrades:input_type -> marketdata.v1.GetTradesRequest
+	7,  // 23: marketdata.v1.MarketDataService.GetCandles:input_type -> marketdata.v1.GetCandlesRequest
+	8,  // 24: marketdata.v1.MarketDataService.GetCandlesColumns:input_type -> marketdata.v1.GetCandlesColumnsRequest
+	16, // 25: marketdata.v1.MarketDataService.GetSpotConfig:input_type -> marketdata.v1.GetSpotConfigRequest
+	6,  // 26: marketdata.v1.MarketDataService.GetTrades:output_type -> marketdata.v1.GetTradesResponse
+	10, // 27: marketdata.v1.MarketDataService.GetCandles:output_type -> marketdata.v1.GetCandlesResponse
+	11, // 28: marketdata.v1.MarketDataService.GetCandlesColumns:output_type -> marketdata.v1.GetCandlesColumnsResponse
+	17, // 29: marketdata.v1.MarketDataService.GetSpotConfig:output_type -> marketdata.v1.GetSpotConfigResponse
+	26, // [26:30] is the sub-list for method output_type
+	22, // [22:26] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_marketdata_v1_marketdata_proto_init() }
@@ -1947,7 +2004,7 @@ func file_marketdata_v1_marketdata_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_marketdata_v1_marketdata_proto_rawDesc), len(file_marketdata_v1_marketdata_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   14,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

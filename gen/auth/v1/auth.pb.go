@@ -165,7 +165,8 @@ const (
 	AuthErrorCode_AUTH_SOCIAL_VERIFICATION_EXPIRED AuthErrorCode = 42
 	// Social verification cannot accept a ready mark in its current state.
 	AuthErrorCode_AUTH_SOCIAL_VERIFICATION_INVALID_STATE AuthErrorCode = 43
-	// Sub-account authorization is expired, replaced, replayed, or invalid.
+	// Sub-account authorization is expired, replaced, consumed, or has an invalid signature.
+	// Temporary verification failures return Unavailable; retry the same signed challenge.
 	AuthErrorCode_AUTH_SUBACCOUNT_CHALLENGE_INVALID AuthErrorCode = 44
 	// Social account is already linked to another Polyester account.
 	AuthErrorCode_AUTH_SOCIAL_ACCOUNT_ALREADY_LINKED AuthErrorCode = 45
