@@ -330,7 +330,7 @@ per-item client order ids in one batch are rejected locally. Treat a cancel resp
 reconcile with `ListOpen` before releasing local state.
 
 Use **decimal strings** for human-facing `qty` / `price` inputs. Do **not** pass
-floats. `PriceTicks.Ticks()` returns Polyester protocol price units (fixed 1e6),
+floats. `PriceTicks.Ticks()` returns Polyester protocol price units (fixed 1e9),
 not market tick-size alignment (server validates tick size).
 Pagination `limit` values never wrap during protobuf conversion: zero preserves
 each method's documented omitted/default behavior, while negative or uint32-
@@ -346,7 +346,7 @@ if !ok {
 	log.Fatal("base quantity scale is unavailable; wait for hydrated catalogs")
 }
 qty := models.MustQtyScaled(1_000_000).WithScale(scale).WithSymbol(symbol)
-price := models.PriceFromTicksInt(100_000_000) // 100.000000 at 1e6
+price := models.PriceFromTicksInt(100_000_000_000) // 100.000000000 at 1e9
 _, err = client.Orders.Create(ctx, models.CreateOrderRequest{
 	Symbol: &symbol, Side: "buy", OrderType: "limit", TIF: &tif,
 	Qty: models.QtyFromScaled(qty), Price: &price, PostOnly: true,

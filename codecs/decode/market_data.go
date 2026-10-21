@@ -130,7 +130,7 @@ var timeframeLabels = map[marketdatav1.Timeframe]string{
 }
 
 // CandlesColumnsFromProto decodes columnar candle responses into rows.
-// Primary OHLC stays on price scale 6. Reference OHLC uses referencePriceScale.
+// Primary OHLC uses the fixed Q9 price scale. Reference OHLC uses referencePriceScale.
 // Both volume series use the base asset market_data_volume_scale.
 func CandlesColumnsFromProto(msg *marketdatav1.GetCandlesColumnsResponse, volumeScale int, referencePriceScale int) (models.CandlesResult, error) {
 	if err := codecs.ValidateProtocolScale(volumeScale); err != nil {

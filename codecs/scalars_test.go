@@ -126,6 +126,37 @@ func TestParseAndFormatPriceTicks(t *testing.T) {
 	}
 }
 
+// TestPriceTicksMatchPublishedQ9Contract pins the published price contract:
+// one tick is 1e-9 quote units, and the PairConfig.tick_size example "0.01"
+// is 10,000,000 scaled ticks.
+func TestPriceTicksMatchPublishedQ9Contract(t *testing.T) {
+	if PriceTickScale != 9 {
+		t.Fatalf("PriceTickScale=%d want 9", PriceTickScale)
+	}
+	for _, tc := range []struct {
+		raw   string
+		ticks uint64
+	}{
+		{"0.000000001", 1},
+		{"0.01", 10_000_000},
+		{"65000.123456789", 65_000_123_456_789},
+	} {
+		ticks, err := ParsePriceTicks(tc.raw, "price")
+		if err != nil {
+			t.Fatalf("%q: %v", tc.raw, err)
+		}
+		if ticks != tc.ticks {
+			t.Fatalf("%q: ticks=%d want %d", tc.raw, ticks, tc.ticks)
+		}
+		if got := FormatPriceTicks(int64(ticks)); got != tc.raw {
+			t.Fatalf("%d: formatted %q want %q", ticks, got, tc.raw)
+		}
+	}
+	if _, err := ParsePriceTicks("0.0000000001", "price"); err == nil {
+		t.Fatal("expected sub-tick price to be rejected")
+	}
+}
+
 func TestParsePriceTicksRejectsTrailingDotAcceptsTrimmedWhitespace(t *testing.T) {
 	for _, raw := range []string{"65000.", "65.", "."} {
 		if _, err := ParsePriceTicks(raw, "price"); err == nil {
@@ -138,7 +169,7 @@ func TestParsePriceTicksRejectsTrailingDotAcceptsTrimmedWhitespace(t *testing.T)
 		if err != nil {
 			t.Fatalf("%q: %v", raw, err)
 		}
-		if ticks != 65_000_000_000 {
+		if ticks != 65_000_000_000_000 {
 			t.Fatalf("%q: ticks=%d", raw, ticks)
 		}
 	}

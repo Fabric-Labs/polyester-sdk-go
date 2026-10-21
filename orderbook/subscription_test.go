@@ -39,8 +39,8 @@ func TestManagedSubscriptionSurfacesStreamErrorsAndUpdatesBucket(t *testing.T) {
 	}
 
 	sub.SetBucket("0.01")
-	if bucket != 10_000 {
-		t.Fatalf("bucket ticks=%d want 10000", bucket)
+	if bucket != 10_000_000 {
+		t.Fatalf("bucket ticks=%d want 10000000", bucket)
 	}
 	sub.Close()
 }

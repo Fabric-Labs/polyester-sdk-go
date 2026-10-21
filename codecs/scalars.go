@@ -5,11 +5,12 @@ import (
 	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
+	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/mr-tron/base58"
 )
 
 const (
-	PriceTickScale = 6
+	PriceTickScale = models.PriceTickScale
 	Uint64Max      = ^uint64(0)
 	// MaxProtocolScale is the maximum accepted quantity/ledger scale for public
 	// formatters, parsers, and catalog hydration. Values above this are rejected
@@ -49,7 +50,7 @@ func ParsePriceTicks(raw, fieldName string) (uint64, error) {
 	return u, nil
 }
 
-// FormatPriceTicks formats int6 ticks as a decimal string.
+// FormatPriceTicks formats Q9 price ticks as a decimal string.
 func FormatPriceTicks(ticks int64) string {
 	neg := ticks < 0
 	if neg {

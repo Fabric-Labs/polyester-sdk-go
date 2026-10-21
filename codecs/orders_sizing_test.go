@@ -11,7 +11,7 @@ func TestOrderIntentSupportsBaseOrQuoteBudgetSizing(t *testing.T) {
 	symbol := "BTC-USDT"
 	sid := uint32(1)
 	tif := "ioc"
-	price := models.PriceFromTicksInt(50_000_000_000)
+	price := models.PriceFromTicksInt(50_000_000_000_000)
 	budget := models.QtyFromQuoteScaled(500, 6)
 	feeAsset := "base"
 
@@ -60,7 +60,7 @@ func TestOrderIntentRejectsAmbiguousOrInvalidQuoteBudgetSizing(t *testing.T) {
 	symbol := "BTC-USDT"
 	sid := uint32(1)
 	qty := models.QtyFromDecimal("1")
-	price := models.PriceFromTicksInt(50_000_000_000)
+	price := models.PriceFromTicksInt(50_000_000_000_000)
 	budget := models.QtyFromQuoteScaled(500, 6)
 	for _, req := range []models.CreateOrderRequest{
 		{Symbol: &symbol, SymbolID: &sid, Side: "buy", OrderType: "limit", Qty: qty, MaxQuoteDebitScaled: budget, Price: &price},
@@ -76,7 +76,7 @@ func TestOrderIntentRejectsQuoteBudgetScaleMismatch(t *testing.T) {
 	symbol := "BTC-USDT"
 	sid := uint32(1)
 	tif := "ioc"
-	price := models.PriceFromTicksInt(50_000_000_000)
+	price := models.PriceFromTicksInt(50_000_000_000_000)
 	budget := models.QtyFromQuoteScaled(5_000_000, 8)
 	_, err := OrderIntentToProto(models.CreateOrderRequest{
 		Symbol: &symbol, SymbolID: &sid, Side: "buy", OrderType: "limit", TIF: &tif,

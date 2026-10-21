@@ -38,7 +38,7 @@ func TestBatchCreateOrdersToProto(t *testing.T) {
 	if limitGtc == nil {
 		t.Fatalf("item0 expected limit_gtc execution: %+v", proto.Items[0])
 	}
-	if proto.Items[0].GetBaseQtyScaled() != 10_000_000 || limitGtc.GetPriceTicks() != 50_000_000_000 {
+	if proto.Items[0].GetBaseQtyScaled() != 10_000_000 || limitGtc.GetPriceTicks() != 50_000_000_000_000 {
 		t.Fatalf("item0 scales: qty=%d price=%d", proto.Items[0].GetBaseQtyScaled(), limitGtc.GetPriceTicks())
 	}
 	if proto.Items[1].GetMarketIoc() == nil {

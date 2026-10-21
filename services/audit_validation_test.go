@@ -176,7 +176,8 @@ func TestPairConstraintsTreatZeroOptionalRulesAsUnset(t *testing.T) {
 	if !ok {
 		t.Fatal("zero-valued optional protobuf constraints should remain usable")
 	}
-	if constraints.TickSizeTicks == 0 || constraints.StepSizeScaled == 0 ||
+	// The published tick_size example "0.01" is 10,000,000 Q9 price ticks.
+	if constraints.TickSizeTicks != 10_000_000 || constraints.StepSizeScaled == 0 ||
 		constraints.MinQtyScaled != 0 || constraints.MinNotionalComputable {
 		t.Fatalf("zero-valued optional constraints were enforced: %+v", constraints)
 	}
