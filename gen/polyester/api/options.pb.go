@@ -89,8 +89,8 @@ const (
 	AuthenticationMethod_SESSION_TOKEN AuthenticationMethod = 1
 	// A signed API key request.
 	AuthenticationMethod_API_KEY AuthenticationMethod = 2
-	// A broker API key, sent as a bearer token. Brokers receive it at
-	// onboarding; it is not an account API key.
+	// A broker API key, sent as a bearer token. A broker's members create it
+	// in the QuickSwap broker API; it is not an account API key.
 	AuthenticationMethod_BROKER_API_KEY AuthenticationMethod = 3
 )
 

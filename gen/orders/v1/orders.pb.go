@@ -470,6 +470,12 @@ const (
 	ErrorCode_ERROR_CODE_API_KEY_SPOT_READ_DENY ErrorCode = 72
 	// The cancel request exceeded its bounded internal replay window.
 	ErrorCode_ERROR_CODE_CANCEL_REQUEST_EXPIRED ErrorCode = 73
+	// Quantity is above the pair maximum: the market-order maximum for MARKET
+	// orders, the limit-order maximum otherwise (base units).
+	ErrorCode_ERROR_CODE_MAX_QTY ErrorCode = 74
+	// Order notional is above the pair maximum (quote units). A stricter
+	// sub-account policy cap returns POLICY_MAX_NOTIONAL instead.
+	ErrorCode_ERROR_CODE_MAX_NOTIONAL ErrorCode = 75
 )
 
 // Enum value maps for ErrorCode.
@@ -546,6 +552,8 @@ var (
 		71: "ERROR_CODE_POLICY_SPOT_READ_DENY",
 		72: "ERROR_CODE_API_KEY_SPOT_READ_DENY",
 		73: "ERROR_CODE_CANCEL_REQUEST_EXPIRED",
+		74: "ERROR_CODE_MAX_QTY",
+		75: "ERROR_CODE_MAX_NOTIONAL",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_CODE_UNSPECIFIED":                          0,
@@ -619,6 +627,8 @@ var (
 		"ERROR_CODE_POLICY_SPOT_READ_DENY":                71,
 		"ERROR_CODE_API_KEY_SPOT_READ_DENY":               72,
 		"ERROR_CODE_CANCEL_REQUEST_EXPIRED":               73,
+		"ERROR_CODE_MAX_QTY":                              74,
+		"ERROR_CODE_MAX_NOTIONAL":                         75,
 	}
 )
 
@@ -4999,7 +5009,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"&SELF_TRADE_PREVENTION_MODE_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fEXPIRE_MAKER\x10\x01\x12\x10\n" +
 	"\fEXPIRE_TAKER\x10\x02\x12\x0f\n" +
-	"\vEXPIRE_BOTH\x10\x03*\xd5\x13\n" +
+	"\vEXPIRE_BOTH\x10\x03*\x8a\x14\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16ERROR_CODE_BAD_REQUEST\x10\x01\x12\x1f\n" +
@@ -5072,7 +5082,9 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"$ERROR_CODE_SUBACCOUNT_READ_FORBIDDEN\x10F\x12$\n" +
 	" ERROR_CODE_POLICY_SPOT_READ_DENY\x10G\x12%\n" +
 	"!ERROR_CODE_API_KEY_SPOT_READ_DENY\x10H\x12%\n" +
-	"!ERROR_CODE_CANCEL_REQUEST_EXPIRED\x10I*k\n" +
+	"!ERROR_CODE_CANCEL_REQUEST_EXPIRED\x10I\x12\x16\n" +
+	"\x12ERROR_CODE_MAX_QTY\x10J\x12\x1b\n" +
+	"\x17ERROR_CODE_MAX_NOTIONAL\x10K*k\n" +
 	"\x12TriggerPriceSource\x12$\n" +
 	" TRIGGER_PRICE_SOURCE_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +

@@ -51,10 +51,13 @@ type QuickSwapServiceClient interface {
 	// address.
 	//
 	// Errors:
-	//   - INVALID_ARGUMENT: malformed request, AMOUNT_OUT_OF_RANGE or
-	//     DECIMALS_MISMATCH.
-	//   - FAILED_PRECONDITION: ROUTE_UNSUPPORTED or PROTECTION_UNACHIEVABLE.
+	//   - INVALID_ARGUMENT: malformed request, AMOUNT_OUT_OF_RANGE,
+	//     DECIMALS_MISMATCH or FEES_INVALID.
+	//   - FAILED_PRECONDITION: ROUTE_UNSUPPORTED, PROTECTION_UNACHIEVABLE or
+	//     AFFILIATE_VAULT_UNKNOWN.
 	//   - UNAVAILABLE: QUOTE_UNAVAILABLE; retry later.
+	//   - PERMISSION_DENIED: BROKER_DISABLED.
+	//   - RESOURCE_EXHAUSTED: BROKER_LIMIT, the quote request rate of the key.
 	//   - UNAUTHENTICATED: missing or invalid broker API key.
 	QuoteQuickSwap(context.Context, *connect.Request[v1.QuoteQuickSwapRequest]) (*connect.Response[v1.QuoteQuickSwapResponse], error)
 	// CreateQuickSwap creates the QuickSwap for idempotency_key, prices it and
@@ -66,15 +69,19 @@ type QuickSwapServiceClient interface {
 	// Errors:
 	//   - INVALID_ARGUMENT: malformed request, AMOUNT_OUT_OF_RANGE,
 	//     DECIMALS_MISMATCH, DESTINATION_ADDRESS_INVALID, RETURN_ADDRESS_INVALID,
-	//     REFUND_ADDRESS_INVALID, SOURCE_WALLET_INVALID or AFFILIATES_INVALID.
+	//     REFUND_ADDRESS_INVALID, SOURCE_WALLET_INVALID or FEES_INVALID.
 	//   - FAILED_PRECONDITION: ROUTE_UNSUPPORTED, PROTECTION_UNACHIEVABLE,
-	//     REFUND_ADDRESS_REQUIRED, or AFFILIATES_INVALID when affiliates are not
-	//     enabled for the broker; nothing is bound to the key.
+	//     REFUND_ADDRESS_REQUIRED or AFFILIATE_VAULT_UNKNOWN; nothing is bound to
+	//     the key.
 	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT; the original QuickSwap stands.
 	//   - UNAVAILABLE: ADDRESS_UNAVAILABLE; the QuickSwap is kept and gets its
 	//     address automatically; follow it with GetQuickSwap or the same request.
+	//   - ABORTED: ADDRESS_CONFLICT; the QuickSwap never gets an address; create
+	//     a new one with a new idempotency key.
 	//   - UNAVAILABLE, DEADLINE_EXCEEDED: unknown outcome or QUOTE_UNAVAILABLE;
 	//     retry the same request.
+	//   - PERMISSION_DENIED: BROKER_DISABLED; nothing is bound to the key.
+	//   - RESOURCE_EXHAUSTED: BROKER_LIMIT; nothing is bound to the key.
 	//   - UNAUTHENTICATED: missing or invalid broker API key.
 	CreateQuickSwap(context.Context, *connect.Request[v1.CreateQuickSwapRequest]) (*connect.Response[v1.CreateQuickSwapResponse], error)
 	// GetQuickSwap returns the current state of one QuickSwap by swap_id or by
@@ -83,6 +90,7 @@ type QuickSwapServiceClient interface {
 	// Errors:
 	// - INVALID_ARGUMENT: malformed selector.
 	// - NOT_FOUND: SWAP_NOT_FOUND.
+	// - RESOURCE_EXHAUSTED: BROKER_LIMIT, the read request rate of the key.
 	// - UNAUTHENTICATED: missing or invalid broker API key.
 	GetQuickSwap(context.Context, *connect.Request[v1.GetQuickSwapRequest]) (*connect.Response[v1.GetQuickSwapResponse], error)
 }
@@ -148,10 +156,13 @@ type QuickSwapServiceHandler interface {
 	// address.
 	//
 	// Errors:
-	//   - INVALID_ARGUMENT: malformed request, AMOUNT_OUT_OF_RANGE or
-	//     DECIMALS_MISMATCH.
-	//   - FAILED_PRECONDITION: ROUTE_UNSUPPORTED or PROTECTION_UNACHIEVABLE.
+	//   - INVALID_ARGUMENT: malformed request, AMOUNT_OUT_OF_RANGE,
+	//     DECIMALS_MISMATCH or FEES_INVALID.
+	//   - FAILED_PRECONDITION: ROUTE_UNSUPPORTED, PROTECTION_UNACHIEVABLE or
+	//     AFFILIATE_VAULT_UNKNOWN.
 	//   - UNAVAILABLE: QUOTE_UNAVAILABLE; retry later.
+	//   - PERMISSION_DENIED: BROKER_DISABLED.
+	//   - RESOURCE_EXHAUSTED: BROKER_LIMIT, the quote request rate of the key.
 	//   - UNAUTHENTICATED: missing or invalid broker API key.
 	QuoteQuickSwap(context.Context, *connect.Request[v1.QuoteQuickSwapRequest]) (*connect.Response[v1.QuoteQuickSwapResponse], error)
 	// CreateQuickSwap creates the QuickSwap for idempotency_key, prices it and
@@ -163,15 +174,19 @@ type QuickSwapServiceHandler interface {
 	// Errors:
 	//   - INVALID_ARGUMENT: malformed request, AMOUNT_OUT_OF_RANGE,
 	//     DECIMALS_MISMATCH, DESTINATION_ADDRESS_INVALID, RETURN_ADDRESS_INVALID,
-	//     REFUND_ADDRESS_INVALID, SOURCE_WALLET_INVALID or AFFILIATES_INVALID.
+	//     REFUND_ADDRESS_INVALID, SOURCE_WALLET_INVALID or FEES_INVALID.
 	//   - FAILED_PRECONDITION: ROUTE_UNSUPPORTED, PROTECTION_UNACHIEVABLE,
-	//     REFUND_ADDRESS_REQUIRED, or AFFILIATES_INVALID when affiliates are not
-	//     enabled for the broker; nothing is bound to the key.
+	//     REFUND_ADDRESS_REQUIRED or AFFILIATE_VAULT_UNKNOWN; nothing is bound to
+	//     the key.
 	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT; the original QuickSwap stands.
 	//   - UNAVAILABLE: ADDRESS_UNAVAILABLE; the QuickSwap is kept and gets its
 	//     address automatically; follow it with GetQuickSwap or the same request.
+	//   - ABORTED: ADDRESS_CONFLICT; the QuickSwap never gets an address; create
+	//     a new one with a new idempotency key.
 	//   - UNAVAILABLE, DEADLINE_EXCEEDED: unknown outcome or QUOTE_UNAVAILABLE;
 	//     retry the same request.
+	//   - PERMISSION_DENIED: BROKER_DISABLED; nothing is bound to the key.
+	//   - RESOURCE_EXHAUSTED: BROKER_LIMIT; nothing is bound to the key.
 	//   - UNAUTHENTICATED: missing or invalid broker API key.
 	CreateQuickSwap(context.Context, *connect.Request[v1.CreateQuickSwapRequest]) (*connect.Response[v1.CreateQuickSwapResponse], error)
 	// GetQuickSwap returns the current state of one QuickSwap by swap_id or by
@@ -180,6 +195,7 @@ type QuickSwapServiceHandler interface {
 	// Errors:
 	// - INVALID_ARGUMENT: malformed selector.
 	// - NOT_FOUND: SWAP_NOT_FOUND.
+	// - RESOURCE_EXHAUSTED: BROKER_LIMIT, the read request rate of the key.
 	// - UNAUTHENTICATED: missing or invalid broker API key.
 	GetQuickSwap(context.Context, *connect.Request[v1.GetQuickSwapRequest]) (*connect.Response[v1.GetQuickSwapResponse], error)
 }

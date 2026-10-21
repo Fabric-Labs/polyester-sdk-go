@@ -117,6 +117,9 @@ const (
 	ErrorCode_ERROR_CODE_NOT_FOUND ErrorCode = 41
 	// The request conflicts with existing state.
 	ErrorCode_ERROR_CODE_CONFLICT ErrorCode = 42
+	// The auto-withdraw schedule is invalid: a field its cadence needs is
+	// missing or out of range, or a field of another cadence is set.
+	ErrorCode_ERROR_CODE_INVALID_AUTO_WITHDRAW_SCHEDULE ErrorCode = 43
 )
 
 // Enum value maps for ErrorCode.
@@ -165,6 +168,7 @@ var (
 		40: "ERROR_CODE_FAILED_PRECONDITION",
 		41: "ERROR_CODE_NOT_FOUND",
 		42: "ERROR_CODE_CONFLICT",
+		43: "ERROR_CODE_INVALID_AUTO_WITHDRAW_SCHEDULE",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_CODE_UNSPECIFIED":                          0,
@@ -210,6 +214,7 @@ var (
 		"ERROR_CODE_FAILED_PRECONDITION":                  40,
 		"ERROR_CODE_NOT_FOUND":                            41,
 		"ERROR_CODE_CONFLICT":                             42,
+		"ERROR_CODE_INVALID_AUTO_WITHDRAW_SCHEDULE":       43,
 	}
 )
 
@@ -920,7 +925,7 @@ const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"\x05valid\x18\x01 \x01(\bR\x05valid\x12H\n" +
 	"\x04code\x18\x02 \x01(\x0e24.chain.withdraw.v1.WithdrawDestinationValidationCodeR\x04code\x12\x18\n" +
 	"\amessage\x18\x03 \x01(\tR\amessage\x12B\n" +
-	"\x1dcanonical_destination_address\x18\x04 \x01(\tR\x1bcanonicalDestinationAddress*\xfa\f\n" +
+	"\x1dcanonical_destination_address\x18\x04 \x01(\tR\x1bcanonicalDestinationAddress*\xa9\r\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12!\n" +
 	"\x1dERROR_CODE_INSUFFICIENT_FUNDS\x10\x01\x12\x1e\n" +
@@ -965,7 +970,8 @@ const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"$ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE\x10'\x12\"\n" +
 	"\x1eERROR_CODE_FAILED_PRECONDITION\x10(\x12\x18\n" +
 	"\x14ERROR_CODE_NOT_FOUND\x10)\x12\x17\n" +
-	"\x13ERROR_CODE_CONFLICT\x10**V\n" +
+	"\x13ERROR_CODE_CONFLICT\x10*\x12-\n" +
+	")ERROR_CODE_INVALID_AUTO_WITHDRAW_SCHEDULE\x10+*V\n" +
 	"\x15TradingWithdrawAction\x12\x16\n" +
 	"\x12ACTION_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
