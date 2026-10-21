@@ -39,7 +39,7 @@ type CreateTriggerOptions struct {
 	TrailingDistanceTicks   *int64
 	TrailingDistanceBps     *int32
 	ActivationPrice         *models.PriceInput
-	MaxSlippageTicks        *int32
+	MaxSlippageTicks        *int64
 	MaxSlippageBps          *int32
 	TwapDurationMs          *int64
 	TwapSliceIntervalMs     *int64
@@ -320,7 +320,7 @@ type ModifyTriggerOptions struct {
 	TrailingDistanceTicks *int64
 	TrailingDistanceBps   *int32
 	ActivationPrice       *models.PriceInput
-	MaxSlippageTicks      *int32
+	MaxSlippageTicks      *int64
 	MaxSlippageBps        *int32
 }
 

@@ -306,7 +306,7 @@ func TestTwapMarketIocAcceptsSlippage(t *testing.T) {
 	}
 
 	bps := int32(25)
-	ticks := int32(1)
+	ticks := int64(1)
 	duration := int64(600_000)
 	interval := int64(300_000)
 	createAndCancel(codecs.CreateTriggerOptions{

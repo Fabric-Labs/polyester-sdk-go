@@ -211,7 +211,7 @@ func triggerDetailsFromProto(msg *triggersv1.Trigger) *models.TriggerDetails {
 			out.TroughPrice = codecs.DecodePriceTicks(tr.GetTroughPriceTicks(), symbol)
 		}
 		if tr.GetMaxSlippageTicks() > 0 {
-			out.MaxSlippage = codecs.DecodePriceTicks(int64(tr.GetMaxSlippageTicks()), symbol)
+			out.MaxSlippage = codecs.DecodePriceTicks(tr.GetMaxSlippageTicks(), symbol)
 		}
 		return out
 	case *triggersv1.Trigger_TwapState:

@@ -15,7 +15,9 @@ import (
 
 func int32PtrLive(v int32) *int32 { return &v }
 
-func marketPreviewRequest(t *testing.T, symbol, qty, refPrice string, ticks, bps *int32) models.CreateOrderRequest {
+func int64PtrLive(v int64) *int64 { return &v }
+
+func marketPreviewRequest(t *testing.T, symbol, qty, refPrice string, ticks *int64, bps *int32) models.CreateOrderRequest {
 	t.Helper()
 	tif := "ioc"
 	return models.CreateOrderRequest{
@@ -78,7 +80,7 @@ func TestPreviewMarketIocAcceptsSlippageOverrides(t *testing.T) {
 	refPrice := testutil.MarketRefPrice(ctx, client, symbol, "buy", pair)
 	qty := testutil.MinBaseQtyForPair(pair, refPrice)
 
-	preview := func(label string, ticks, bps *int32) models.PreviewOrderResult {
+	preview := func(label string, ticks *int64, bps *int32) models.PreviewOrderResult {
 		t.Helper()
 		return testutil.CallOptional(t, label, func() (models.PreviewOrderResult, error) {
 			return client.Orders.Preview(ctx, marketPreviewRequest(t, symbol, qty, refPrice, ticks, bps), nil)
@@ -87,7 +89,7 @@ func TestPreviewMarketIocAcceptsSlippageOverrides(t *testing.T) {
 
 	unset := preview("orders.preview unset", nil, nil)
 	bps := preview("orders.preview max_slippage_bps=25", nil, int32PtrLive(25))
-	ticks := preview("orders.preview max_slippage_ticks=1", int32PtrLive(1), nil)
+	ticks := preview("orders.preview max_slippage_ticks=1", int64PtrLive(1), nil)
 	assertHostAcceptedSlippage(t, "unset", unset)
 	assertHostAcceptedSlippage(t, "bps", bps)
 	assertHostAcceptedSlippage(t, "ticks", ticks)
