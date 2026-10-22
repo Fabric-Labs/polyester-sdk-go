@@ -85,7 +85,7 @@ type AttachedRiskLegState struct {
 type TrailingStop struct {
 	DistanceTicks      int64                 `json:"distance_ticks,omitempty"`
 	DistanceBps        int32                 `json:"distance_bps,omitempty"`
-	MaxSlippageTicks   int32                 `json:"max_slippage_ticks,omitempty"`
+	MaxSlippageTicks   int64                 `json:"max_slippage_ticks,omitempty"`
 	MaxSlippageBps     int32                 `json:"max_slippage_bps,omitempty"`
 	ActivationPrice    PriceTicks            `json:"activation_price,omitempty"`
 	TriggerPriceSource string                `json:"trigger_price_source,omitempty"`

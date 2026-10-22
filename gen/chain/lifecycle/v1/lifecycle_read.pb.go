@@ -254,7 +254,7 @@ type FlowStep int32
 const (
 	// Step is not specified.
 	FlowStep_FLOW_STEP_UNSPECIFIED FlowStep = 0
-	// External-chain / relayer source tracking before Polyester can continue.
+	// External-chain source tracking before Polyester can continue.
 	FlowStep_FLOW_STEP_SOURCE FlowStep = 1
 	// Deposit-side mint and downstream crediting / transfer stage.
 	FlowStep_FLOW_STEP_TRANSFER FlowStep = 2

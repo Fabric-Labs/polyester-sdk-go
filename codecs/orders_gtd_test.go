@@ -13,7 +13,7 @@ func TestOrderIntentEncodesLimitGTD(t *testing.T) {
 	symbol := "BTC-USDT"
 	sid := uint32(1)
 	tif := "gtd"
-	price := models.PriceFromTicksInt(50_000_000_000)
+	price := models.PriceFromTicksInt(50_000_000_000_000)
 	expires := time.Now().UTC().Add(time.Hour).Truncate(time.Second).Format(time.RFC3339)
 	intent, err := OrderIntentToProto(models.CreateOrderRequest{
 		Symbol:    &symbol,
@@ -33,7 +33,7 @@ func TestOrderIntentEncodesLimitGTD(t *testing.T) {
 	if gtd == nil {
 		t.Fatalf("expected limit_gtd, got %+v", intent)
 	}
-	if gtd.GetPriceTicks() != 50_000_000_000 || !gtd.GetPostOnly() {
+	if gtd.GetPriceTicks() != 50_000_000_000_000 || !gtd.GetPostOnly() {
 		t.Fatalf("gtd=%+v", gtd)
 	}
 	if FormatExpireAt(gtd.GetExpireAt()) != expires {
@@ -45,7 +45,7 @@ func TestOrderIntentGTDRequiresExpiresAt(t *testing.T) {
 	symbol := "BTC-USDT"
 	sid := uint32(1)
 	tif := "gtd"
-	price := models.PriceFromTicksInt(50_000_000_000)
+	price := models.PriceFromTicksInt(50_000_000_000_000)
 	_, err := OrderIntentToProto(models.CreateOrderRequest{
 		Symbol:    &symbol,
 		SymbolID:  &sid,
@@ -64,7 +64,7 @@ func TestOrderIntentRejectsExpiresAtOutsideGTD(t *testing.T) {
 	symbol := "BTC-USDT"
 	sid := uint32(1)
 	tif := "gtc"
-	price := models.PriceFromTicksInt(50_000_000_000)
+	price := models.PriceFromTicksInt(50_000_000_000_000)
 	expires := time.Now().UTC().Add(time.Hour).Format(time.RFC3339)
 	_, err := OrderIntentToProto(models.CreateOrderRequest{
 		Symbol:    &symbol,
@@ -85,7 +85,7 @@ func TestOrderIntentRejectsGTDWindow(t *testing.T) {
 	symbol := "BTC-USDT"
 	sid := uint32(1)
 	tif := "gtd"
-	price := models.PriceFromTicksInt(50_000_000_000)
+	price := models.PriceFromTicksInt(50_000_000_000_000)
 	expires := time.Now().UTC().Add(31 * 24 * time.Hour).Format(time.RFC3339)
 	_, err := OrderIntentToProto(models.CreateOrderRequest{
 		Symbol:    &symbol,

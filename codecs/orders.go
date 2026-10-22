@@ -262,7 +262,7 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale, quoteQuant
 	return intent, nil
 }
 
-func applyMarketMaxSlippage(market *orderv1.MarketIoc, ticks, bps *int32) error {
+func applyMarketMaxSlippage(market *orderv1.MarketIoc, ticks *int64, bps *int32) error {
 	if ticks != nil && bps != nil {
 		return &errors.ValidationError{Msg: "market_ioc allows at most one of max_slippage_ticks or max_slippage_bps"}
 	}

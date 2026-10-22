@@ -444,7 +444,7 @@ func (m *Manager) MarketDataVolumeScaleForSymbolID(symbolID uint32) (scale int, 
 }
 
 // ReferencePriceScaleForSymbolID returns the pair scale for composite reference
-// candle prices. Primary market prices stay on scale 6. ok is false when the
+// candle prices. Primary market prices use the fixed Q9 price scale. ok is false when the
 // pair or scale is missing. Zero is valid and reported as ok.
 func (m *Manager) ReferencePriceScaleForSymbolID(symbolID uint32) (scale int, ok bool) {
 	m.mu.RLock()
@@ -525,7 +525,7 @@ func pairConstraints(pair map[string]any) (models.PairConstraints, bool) {
 	if symbol == "" || id == nil || !baseOK {
 		return models.PairConstraints{}, false
 	}
-	tickTicks, ok := optionalScaledDecimal(tick, 6, false)
+	tickTicks, ok := optionalScaledDecimal(tick, models.PriceTickScale, false)
 	if !ok {
 		return models.PairConstraints{}, false
 	}

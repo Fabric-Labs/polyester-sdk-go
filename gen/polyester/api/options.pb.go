@@ -89,6 +89,9 @@ const (
 	AuthenticationMethod_SESSION_TOKEN AuthenticationMethod = 1
 	// A signed API key request.
 	AuthenticationMethod_API_KEY AuthenticationMethod = 2
+	// A broker API key, sent as a bearer token. A broker's members create it
+	// in the QuickSwap broker API; it is not an account API key.
+	AuthenticationMethod_BROKER_API_KEY AuthenticationMethod = 3
 )
 
 // Enum value maps for AuthenticationMethod.
@@ -97,11 +100,13 @@ var (
 		0: "AUTH_UNSPECIFIED",
 		1: "SESSION_TOKEN",
 		2: "API_KEY",
+		3: "BROKER_API_KEY",
 	}
 	AuthenticationMethod_value = map[string]int32{
 		"AUTH_UNSPECIFIED": 0,
 		"SESSION_TOKEN":    1,
 		"API_KEY":          2,
+		"BROKER_API_KEY":   3,
 	}
 )
 
@@ -201,11 +206,12 @@ const file_polyester_api_options_proto_rawDesc = "" +
 	"\n" +
 	"MFA_RECENT\x10\x01\x12\x15\n" +
 	"\x11MFA_FRESH_STEP_UP\x10\x02\x12\x13\n" +
-	"\x0fMFA_CONDITIONAL\x10\x03*L\n" +
+	"\x0fMFA_CONDITIONAL\x10\x03*`\n" +
 	"\x14AuthenticationMethod\x12\x14\n" +
 	"\x10AUTH_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rSESSION_TOKEN\x10\x01\x12\v\n" +
-	"\aAPI_KEY\x10\x02:8\n" +
+	"\aAPI_KEY\x10\x02\x12\x12\n" +
+	"\x0eBROKER_API_KEY\x10\x03:8\n" +
 	"\x06public\x12\x1e.google.protobuf.MethodOptions\x18ц\x03 \x01(\bR\x06public:8\n" +
 	"\x06hidden\x12\x1e.google.protobuf.MethodOptions\x18҆\x03 \x01(\bR\x06hidden:h\n" +
 	"\x0fmfa_requirement\x12\x1e.google.protobuf.MethodOptions\x18ӆ\x03 \x01(\x0e2\x1d.polyester.api.MFARequirementR\x0emfaRequirement:|\n" +

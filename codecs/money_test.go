@@ -11,7 +11,7 @@ import (
 )
 
 func TestStrictDecimalRejectsExcessPrecision(t *testing.T) {
-	_, err := codecs.ResolvePriceTicks(models.PriceFromDecimal("50000.1234567"), "price", "")
+	_, err := codecs.ResolvePriceTicks(models.PriceFromDecimal("50000.1234567891"), "price", "")
 	if err == nil {
 		t.Fatal("expected precision error")
 	}
@@ -76,13 +76,13 @@ func TestAssetAmountRescalesExactlyToE18(t *testing.T) {
 
 func TestScaledPathPassThrough(t *testing.T) {
 	qty := models.MustQtyScaled(100_000).WithScale(8).WithSymbol("BTC-USD")
-	price := models.MustPriceTicks(50_000_000_000).WithSymbol("BTC-USD")
+	price := models.MustPriceTicks(50_000_000_000_000).WithSymbol("BTC-USD")
 	gotQty, err := codecs.ResolveQtyScaled(models.QtyFromScaled(qty), 8, "qty", "BTC-USD", nil)
 	if err != nil || gotQty != 100_000 {
 		t.Fatalf("qty=%d err=%v", gotQty, err)
 	}
 	gotPrice, err := codecs.ResolvePriceTicks(models.PriceFromTicks(price), "price", "BTC-USD")
-	if err != nil || gotPrice != 50_000_000_000 {
+	if err != nil || gotPrice != 50_000_000_000_000 {
 		t.Fatalf("price=%d err=%v", gotPrice, err)
 	}
 }
@@ -186,12 +186,12 @@ func TestCreateOrderAcceptsDecimalAndScaled(t *testing.T) {
 		t.Fatal(err)
 	}
 	intent := proto.GetOrder()
-	if intent.GetBaseQtyScaled() != 10_000_000 || intent.GetLimitGtc().GetPriceTicks() != 50_000_000_000 {
+	if intent.GetBaseQtyScaled() != 10_000_000 || intent.GetLimitGtc().GetPriceTicks() != 50_000_000_000_000 {
 		t.Fatalf("proto=%+v", proto)
 	}
 
 	scaledQty := models.MustQtyScaled(10_000_000).WithScale(8).WithSymbol("BTC-USD")
-	scaledPrice := models.PriceFromTicks(models.MustPriceTicks(50_000_000_000))
+	scaledPrice := models.PriceFromTicks(models.MustPriceTicks(50_000_000_000_000))
 	req2 := models.CreateOrderRequest{
 		Symbol: &symbol, SymbolID: &sid, Side: "buy", OrderType: "limit", TIF: &tif,
 		Qty: models.QtyFromScaled(scaledQty), Price: &scaledPrice,

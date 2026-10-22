@@ -55,6 +55,7 @@ type SocialVerificationServiceClient interface {
 	// AUTH_SOCIAL_VERIFICATION_INVALID_STATE means Ready is not valid in the current state; call GetSocialVerification for the current status.
 	SocialVerificationReady(context.Context, *connect.Request[v1.SocialVerificationReadyRequest]) (*connect.Response[v1.SocialVerificationReadyResponse], error)
 	// Get current verification status for the caller.
+	// A failed verification uses error_code for its machine-readable outcome.
 	GetSocialVerification(context.Context, *connect.Request[v1.GetSocialVerificationRequest]) (*connect.Response[v1.GetSocialVerificationResponse], error)
 }
 
@@ -123,6 +124,7 @@ type SocialVerificationServiceHandler interface {
 	// AUTH_SOCIAL_VERIFICATION_INVALID_STATE means Ready is not valid in the current state; call GetSocialVerification for the current status.
 	SocialVerificationReady(context.Context, *connect.Request[v1.SocialVerificationReadyRequest]) (*connect.Response[v1.SocialVerificationReadyResponse], error)
 	// Get current verification status for the caller.
+	// A failed verification uses error_code for its machine-readable outcome.
 	GetSocialVerification(context.Context, *connect.Request[v1.GetSocialVerificationRequest]) (*connect.Response[v1.GetSocialVerificationResponse], error)
 }
 

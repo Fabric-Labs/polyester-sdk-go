@@ -36,9 +36,11 @@ const (
 	// No policy action selected. An empty API-key action list grants no access;
 	// sub-account policies retain their mandatory read-only actions.
 	PolicyAction_UNSPECIFIED PolicyAction = 0
-	// Allow placing and modifying spot orders and triggers, including reading
-	// spot orders and trades. Cancellation and pausing remain available as
-	// safety actions.
+	// Allow all spot order mutations: create, modify, replace, cancel, batch
+	// operations, live cancel-all, and arming or disabling cancel-all-after.
+	// Includes reading spot orders and trades and placing or modifying triggers.
+	// Authorized cancellation remains available when trading activity is disabled;
+	// this does not grant mutation access to a read-only API key.
 	PolicyAction_TRADE_SPOT PolicyAction = 1
 	// Allow internal transfers between sub-accounts or linked Polyester accounts,
 	// including reading internal transfer history.
@@ -48,7 +50,8 @@ const (
 	PolicyAction_EXTERNAL_WITHDRAW PolicyAction = 4
 	// Allow reading balances and equity for a sub-account or API key.
 	PolicyAction_READ_BALANCES PolicyAction = 5
-	// Allow reading spot orders and trades (no write).
+	// Allow reading spot orders and trades, subscriptions, and cancel-all dry-run.
+	// Strictly non-mutating: cancellation and cancel-all-after changes require TRADE_SPOT.
 	PolicyAction_READ_SPOT PolicyAction = 6
 	// Allow reading internal transfer history.
 	PolicyAction_READ_INTERNAL_TRANSFERS PolicyAction = 8
@@ -57,6 +60,17 @@ const (
 	// Allow creating, updating, deleting, and copying saved destination entries,
 	// including reading the address book.
 	PolicyAction_MANAGE_ADDRESS_BOOK PolicyAction = 12
+	// Allow reading the auto-withdraw rule and its runs.
+	PolicyAction_READ_AUTO_WITHDRAW PolicyAction = 14
+	// Allow creating, changing, and disabling the auto-withdraw rule, including
+	// reading it. A rule pays value out, so changing one also requires
+	// EXTERNAL_WITHDRAW, and API keys can never change one.
+	PolicyAction_MANAGE_AUTO_WITHDRAW PolicyAction = 15
+	// Allow quoting, creating, and reading Swaps: market conversions of the
+	// account's own Trading balance from one asset into another. Each Swap places
+	// spot orders on the account's behalf, which also remain subject to the
+	// sub-account's spot trading policy.
+	PolicyAction_SWAP PolicyAction = 16
 )
 
 // Enum value maps for PolicyAction.
@@ -71,6 +85,9 @@ var (
 		8:  "READ_INTERNAL_TRANSFERS",
 		11: "READ_ADDRESS_BOOK",
 		12: "MANAGE_ADDRESS_BOOK",
+		14: "READ_AUTO_WITHDRAW",
+		15: "MANAGE_AUTO_WITHDRAW",
+		16: "SWAP",
 	}
 	PolicyAction_value = map[string]int32{
 		"UNSPECIFIED":             0,
@@ -82,6 +99,9 @@ var (
 		"READ_INTERNAL_TRANSFERS": 8,
 		"READ_ADDRESS_BOOK":       11,
 		"MANAGE_ADDRESS_BOOK":     12,
+		"READ_AUTO_WITHDRAW":      14,
+		"MANAGE_AUTO_WITHDRAW":    15,
+		"SWAP":                    16,
 	}
 )
 
@@ -328,7 +348,7 @@ type SubaccountPolicyView struct {
 	MaxOpenOrders uint32 `protobuf:"varint,14,opt,name=max_open_orders,json=maxOpenOrders,proto3" json:"max_open_orders,omitempty"`
 	// When true, new orders and exposure-increasing order or trigger changes are
 	// rejected regardless of other settings. Existing orders and triggers may
-	// still be canceled or paused.
+	// still be canceled or paused by an otherwise authorized caller.
 	TradingHalted bool `protobuf:"varint,23,opt,name=trading_halted,json=tradingHalted,proto3" json:"trading_halted,omitempty"`
 	// When true, this policy is write-protected and requires an elevated approval
 	// flow to modify it.
@@ -725,7 +745,7 @@ type SubaccountPolicySpec struct {
 	MaxOpenOrders uint32 `protobuf:"varint,14,opt,name=max_open_orders,json=maxOpenOrders,proto3" json:"max_open_orders,omitempty"`
 	// When true, new orders and exposure-increasing order or trigger changes are
 	// rejected regardless of other settings. Existing orders and triggers may
-	// still be canceled or paused.
+	// still be canceled or paused by an otherwise authorized caller.
 	TradingHalted bool `protobuf:"varint,21,opt,name=trading_halted,json=tradingHalted,proto3" json:"trading_halted,omitempty"`
 	// When true, the policy is write-protected and requires an elevated mutation path.
 	Locked bool `protobuf:"varint,25,opt,name=locked,proto3" json:"locked,omitempty"`
@@ -2221,7 +2241,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x16SetApiKeyPolicyRequest\x124\n" +
 	"\x06key_id\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x15\x10\x012\x11^ak_[a-f0-9]{32}$R\x05keyId\x12\x1b\n" +
 	"\tpolicy_id\x18\x02 \x01(\x06R\bpolicyId\"\x19\n" +
-	"\x17SetApiKeyPolicyResponse*\xce\x02\n" +
+	"\x17SetApiKeyPolicyResponse*\x8a\x03\n" +
 	"\fPolicyAction\x12\x0f\n" +
 	"\vUNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -2232,7 +2252,10 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\tREAD_SPOT\x10\x06\x12\x1b\n" +
 	"\x17READ_INTERNAL_TRANSFERS\x10\b\x12\x15\n" +
 	"\x11READ_ADDRESS_BOOK\x10\v\x12\x17\n" +
-	"\x13MANAGE_ADDRESS_BOOK\x10\f\"\x04\b\x02\x10\x02\"\x04\b\a\x10\a\"\x04\b\r\x10\r\"\x04\b\t\x10\t*\n" +
+	"\x13MANAGE_ADDRESS_BOOK\x10\f\x12\x16\n" +
+	"\x12READ_AUTO_WITHDRAW\x10\x0e\x12\x18\n" +
+	"\x14MANAGE_AUTO_WITHDRAW\x10\x0f\x12\b\n" +
+	"\x04SWAP\x10\x10\"\x04\b\x02\x10\x02\"\x04\b\a\x10\a\"\x04\b\r\x10\r\"\x04\b\t\x10\t*\n" +
 	"TRADE_PERP*\tREAD_PERP*\x1aREAD_TRANSFER_DESTINATIONS*\x1aMANAGE_TRANSFER_WHITELISTS*\x19READ_EXTERNAL_WITHDRAWALS2\x90\x18\n" +
 	"\rPolicyService\x12\xfd\x01\n" +
 	"\x16ListSubaccountPolicies\x12&.auth.v1.ListSubaccountPoliciesRequest\x1a'.auth.v1.ListSubaccountPoliciesResponse\"\x91\x01\xbaGd\n" +

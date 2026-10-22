@@ -56,10 +56,11 @@ func TriggerStatusFromLabel(label string) (triggersv1.TriggerStatus, error) {
 }
 
 var triggerEventTypeLabels = map[triggersv1.TriggerEventType]string{
-	triggersv1.TriggerEventType_EVENT_FIRED:    "fired",
-	triggersv1.TriggerEventType_EVENT_CANCELED: "canceled",
-	triggersv1.TriggerEventType_EVENT_UPDATED:  "updated",
-	triggersv1.TriggerEventType_EVENT_FAILED:   "failed",
+	triggersv1.TriggerEventType_EVENT_FIRED:     "fired",
+	triggersv1.TriggerEventType_EVENT_CANCELED:  "canceled",
+	triggersv1.TriggerEventType_EVENT_UPDATED:   "updated",
+	triggersv1.TriggerEventType_EVENT_FAILED:    "failed",
+	triggersv1.TriggerEventType_EVENT_ACTIVATED: "activated",
 }
 
 var triggerEventTypeFromLabel = map[string]triggersv1.TriggerEventType{
@@ -68,6 +69,7 @@ var triggerEventTypeFromLabel = map[string]triggersv1.TriggerEventType{
 	"cancelled": triggersv1.TriggerEventType_EVENT_CANCELED,
 	"updated":   triggersv1.TriggerEventType_EVENT_UPDATED,
 	"failed":    triggersv1.TriggerEventType_EVENT_FAILED,
+	"activated": triggersv1.TriggerEventType_EVENT_ACTIVATED,
 }
 
 // TriggerEventTypeLabel maps proto trigger event type to SDK output labels.
@@ -88,7 +90,7 @@ func TriggerEventTypeFromLabel(label string) (triggersv1.TriggerEventType, error
 		return eventType, nil
 	}
 	return triggersv1.TriggerEventType_EVENT_UNSPECIFIED, fmt.Errorf(
-		"invalid trigger event type %q; expected one of: fired, canceled, updated, failed",
+		"invalid trigger event type %q; expected one of: fired, canceled, updated, failed, activated",
 		label,
 	)
 }
@@ -211,7 +213,7 @@ func triggerDetailsFromProto(msg *triggersv1.Trigger) *models.TriggerDetails {
 			out.TroughPrice = codecs.DecodePriceTicks(tr.GetTroughPriceTicks(), symbol)
 		}
 		if tr.GetMaxSlippageTicks() > 0 {
-			out.MaxSlippage = codecs.DecodePriceTicks(int64(tr.GetMaxSlippageTicks()), symbol)
+			out.MaxSlippage = codecs.DecodePriceTicks(tr.GetMaxSlippageTicks(), symbol)
 		}
 		return out
 	case *triggersv1.Trigger_TwapState:

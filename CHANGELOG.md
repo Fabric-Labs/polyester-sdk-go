@@ -2,10 +2,24 @@
 
 ## Unreleased
 
+### Added
+- Trigger events label standalone trailing-stop activation as `activated`,
+  and `TriggerEventTypeFromLabel` accepts `activated` as a filter.
+
 ### Changed
+- **Breaking:** trading prices use 9 decimal places. `codecs.PriceTickScale`
+  and the new `models.PriceTickScale` are 9: one price tick is 1e-9 quote
+  units. This applies to order, trigger, trailing, activation, orderbook,
+  trade, candle, market-overview and tick-size values. Raw tick values
+  built for the previous 6-decimal scale are 1,000 times too small; scale
+  them by 1,000 or pass decimal strings. Market-overview USD amounts stay
+  at 1e6.
+- **Breaking:** `MaxSlippageTicks` on market orders, triggers, trigger
+  modifications and trailing-stop reads is `int64`, matching the 64-bit
+  price-delta field in the API.
 - Candle and market-overview base volume now use the base asset
   `market_data_volume_scale` from `GetSpotConfig`. Primary candle prices
-  stay on scale 6.
+  use the fixed 9-decimal price scale.
 - Composite reference-candle OHLC uses the pair `reference_price_scale`.
   `GetCandlesWithReference` and `GetCandlesColumnsWithReference` request
   that series. `MarketOverviewEntry.Volume24HBase` is the decoded decimal

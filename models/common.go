@@ -35,7 +35,7 @@ type CreateOrderRequest struct {
 	// MaxSlippageTicks and MaxSlippageBps are mutually exclusive market-IOC
 	// execution protections. Omit both to keep pair defaults. Rejected on
 	// limit orders. MaxSlippageBps must be 1–10000; ticks must be positive.
-	MaxSlippageTicks *int32 `json:"max_slippage_ticks,omitempty"`
+	MaxSlippageTicks *int64 `json:"max_slippage_ticks,omitempty"`
 	MaxSlippageBps   *int32 `json:"max_slippage_bps,omitempty"`
 }
 

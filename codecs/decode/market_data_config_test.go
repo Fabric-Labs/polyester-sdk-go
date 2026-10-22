@@ -66,7 +66,7 @@ func TestSpotConfigPreservesCanonicalMarketDataScales(t *testing.T) {
 func TestReferenceCandlesUseReferencePriceScale(t *testing.T) {
 	got, err := CandlesFromProto(&marketdatav1.GetCandlesResponse{
 		Candles: []*marketdatav1.CandlePoint{{
-			TsSec: 1, Open: 1_000_000, High: 1_000_000, Low: 1_000_000, Close: 1_000_000, Volume: 100_000_000,
+			TsSec: 1, Open: 1_000_000_000, High: 1_000_000_000, Low: 1_000_000_000, Close: 1_000_000_000, Volume: 100_000_000,
 		}},
 		ReferenceCandles: []*marketdatav1.CandlePoint{{
 			TsSec: 1, Open: 100_000_000, High: 100_000_000, Low: 100_000_000, Close: 100_000_000, Volume: 100_000_000,

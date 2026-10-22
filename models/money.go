@@ -20,9 +20,11 @@ const (
 	QuantityDomainLedgerE18  QuantityDomain = "ledger_e18"
 )
 
-const priceTickScale = 6
+// PriceTickScale is the fixed decimal scale of protocol prices: one tick is
+// 1e-9 quote units (Q9).
+const PriceTickScale = 9
 
-// PriceTicks is a resolved protocol price (protobuf price_ticks, fixed 1e6).
+// PriceTicks is a resolved protocol price (protobuf price_ticks, fixed 1e9).
 // Ticks are not market tick-size alignment; the server still validates tick size.
 type PriceTicks struct {
 	ticks  int64
@@ -48,7 +50,7 @@ func MustPriceTicks(ticks int64) PriceTicks {
 
 // Format returns the decimal string for this price.
 func (p PriceTicks) Format() string {
-	out, err := formatFixed(p.ticks, priceTickScale)
+	out, err := formatFixed(p.ticks, PriceTickScale)
 	if err != nil {
 		return "0"
 	}

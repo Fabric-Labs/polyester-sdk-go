@@ -298,7 +298,7 @@ type LifecycleSource int32
 
 const (
 	LifecycleSource_SOURCE_UNSPECIFIED LifecycleSource = 0
-	// Off-chain relayer or source-chain watcher.
+	// Source-chain observation of the external transaction.
 	LifecycleSource_SOURCE_RELAYER LifecycleSource = 1
 	// Polyester Chain contract event or other chain-owned lifecycle fact.
 	LifecycleSource_SOURCE_POLYESTER_CHAIN LifecycleSource = 2

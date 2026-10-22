@@ -208,6 +208,13 @@ const (
 	SubaccountPermission_SUBACCOUNT_PERMISSION_READ_GUARD_SIGNER_STATUS SubaccountPermission = 24
 	// Create, sign with, rotate, or export the sub-account Guard Signer wallet.
 	SubaccountPermission_SUBACCOUNT_PERMISSION_MANAGE_GUARD_SIGNER SubaccountPermission = 25
+	// View the sub-account's auto-withdraw rule and its runs.
+	SubaccountPermission_SUBACCOUNT_PERMISSION_READ_AUTO_WITHDRAW SubaccountPermission = 26
+	// Create, change, or disable the sub-account's auto-withdraw rule; requires
+	// fresh MFA and is never available to API keys.
+	SubaccountPermission_SUBACCOUNT_PERMISSION_MANAGE_AUTO_WITHDRAW SubaccountPermission = 27
+	// Quote, create, and view Swaps of the sub-account's Trading balance.
+	SubaccountPermission_SUBACCOUNT_PERMISSION_SWAP SubaccountPermission = 28
 )
 
 // Enum value maps for SubaccountPermission.
@@ -239,6 +246,9 @@ var (
 		23: "SUBACCOUNT_PERMISSION_READ_DEPOSIT_ADDRESSES",
 		24: "SUBACCOUNT_PERMISSION_READ_GUARD_SIGNER_STATUS",
 		25: "SUBACCOUNT_PERMISSION_MANAGE_GUARD_SIGNER",
+		26: "SUBACCOUNT_PERMISSION_READ_AUTO_WITHDRAW",
+		27: "SUBACCOUNT_PERMISSION_MANAGE_AUTO_WITHDRAW",
+		28: "SUBACCOUNT_PERMISSION_SWAP",
 	}
 	SubaccountPermission_value = map[string]int32{
 		"SUBACCOUNT_PERMISSION_UNSPECIFIED":                    0,
@@ -267,6 +277,9 @@ var (
 		"SUBACCOUNT_PERMISSION_READ_DEPOSIT_ADDRESSES":         23,
 		"SUBACCOUNT_PERMISSION_READ_GUARD_SIGNER_STATUS":       24,
 		"SUBACCOUNT_PERMISSION_MANAGE_GUARD_SIGNER":            25,
+		"SUBACCOUNT_PERMISSION_READ_AUTO_WITHDRAW":             26,
+		"SUBACCOUNT_PERMISSION_MANAGE_AUTO_WITHDRAW":           27,
+		"SUBACCOUNT_PERMISSION_SWAP":                           28,
 	}
 )
 
@@ -3476,7 +3489,8 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x10LEVERAGED_TRADER\x10\x03\x12\f\n" +
 	"\bTREASURY\x10\x04\x12\t\n" +
 	"\x05ADMIN\x10\x05\x12\t\n" +
-	"\x05OWNER\x10\x06*\xb3\t\n" +
+	"\x05OWNER\x10\x06*\xb1\n" +
+	"\n" +
 	"\x14SubaccountPermission\x12%\n" +
 	"!SUBACCOUNT_PERMISSION_UNSPECIFIED\x10\x00\x12)\n" +
 	"%SUBACCOUNT_PERMISSION_READ_SUBACCOUNT\x10\x01\x12+\n" +
@@ -3504,7 +3518,10 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	",SUBACCOUNT_PERMISSION_CREATE_DEPOSIT_ADDRESS\x10\x16\x120\n" +
 	",SUBACCOUNT_PERMISSION_READ_DEPOSIT_ADDRESSES\x10\x17\x122\n" +
 	".SUBACCOUNT_PERMISSION_READ_GUARD_SIGNER_STATUS\x10\x18\x12-\n" +
-	")SUBACCOUNT_PERMISSION_MANAGE_GUARD_SIGNER\x10\x19*\xde\x01\n" +
+	")SUBACCOUNT_PERMISSION_MANAGE_GUARD_SIGNER\x10\x19\x12,\n" +
+	"(SUBACCOUNT_PERMISSION_READ_AUTO_WITHDRAW\x10\x1a\x12.\n" +
+	"*SUBACCOUNT_PERMISSION_MANAGE_AUTO_WITHDRAW\x10\x1b\x12\x1e\n" +
+	"\x1aSUBACCOUNT_PERMISSION_SWAP\x10\x1c*\xde\x01\n" +
 	"\x16SubaccountInviteStatus\x12(\n" +
 	"$SUBACCOUNT_INVITE_STATUS_UNSPECIFIED\x10\x00\x12$\n" +
 	" SUBACCOUNT_INVITE_STATUS_PENDING\x10\x01\x12%\n" +

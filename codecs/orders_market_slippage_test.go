@@ -11,6 +11,8 @@ import (
 
 func int32Ptr(v int32) *int32 { return &v }
 
+func int64Ptr(v int64) *int64 { return &v }
+
 func marketCreateRequest(t *testing.T) models.CreateOrderRequest {
 	t.Helper()
 	symbol := "BTC-USDT"
@@ -56,13 +58,14 @@ func TestMarketIocSerializesMaxSlippageBps(t *testing.T) {
 
 func TestMarketIocSerializesMaxSlippageTicks(t *testing.T) {
 	req := marketCreateRequest(t)
-	req.MaxSlippageTicks = int32Ptr(10)
+	// 5 quote units at Q9 exceeds the int32 range the field used to have.
+	req.MaxSlippageTicks = int64Ptr(5_000_000_000)
 	proto, err := CreateOrderToProto(req, 8, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	market := proto.GetOrder().GetMarketIoc()
-	if market == nil || market.GetMaxSlippageTicks() != 10 {
+	if market == nil || market.GetMaxSlippageTicks() != 5_000_000_000 {
 		t.Fatalf("max_slippage_ticks=%d", market.GetMaxSlippageTicks())
 	}
 }
@@ -96,7 +99,7 @@ func TestMarketIocRejectsBpsOutOfRange(t *testing.T) {
 func TestMarketIocRejectsBothSlippageOverrides(t *testing.T) {
 	req := marketCreateRequest(t)
 	req.MaxSlippageBps = int32Ptr(25)
-	req.MaxSlippageTicks = int32Ptr(10)
+	req.MaxSlippageTicks = int64Ptr(10)
 	_, err := CreateOrderToProto(req, 8, 0)
 	if err == nil || !strings.Contains(err.Error(), "at most one of max_slippage_ticks or max_slippage_bps") {
 		t.Fatalf("unexpected error: %v", err)
@@ -105,7 +108,7 @@ func TestMarketIocRejectsBothSlippageOverrides(t *testing.T) {
 
 func TestMarketIocRejectsNonPositiveTicks(t *testing.T) {
 	req := marketCreateRequest(t)
-	req.MaxSlippageTicks = int32Ptr(0)
+	req.MaxSlippageTicks = int64Ptr(0)
 	_, err := CreateOrderToProto(req, 8, 0)
 	if err == nil || !strings.Contains(err.Error(), "max_slippage_ticks must be positive") {
 		t.Fatalf("unexpected error: %v", err)

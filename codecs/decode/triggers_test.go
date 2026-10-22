@@ -184,6 +184,13 @@ func TestTriggerEventTypeFromLabel(t *testing.T) {
 	if err != nil || et != triggersv1.TriggerEventType_EVENT_FIRED {
 		t.Fatalf("fired: %v %v", et, err)
 	}
+	et, err = decode.TriggerEventTypeFromLabel("activated")
+	if err != nil || et != triggersv1.TriggerEventType_EVENT_ACTIVATED {
+		t.Fatalf("activated: %v %v", et, err)
+	}
+	if label := decode.TriggerEventTypeLabel(triggersv1.TriggerEventType_EVENT_ACTIVATED); label != "activated" {
+		t.Fatalf("activated label=%q", label)
+	}
 	if _, err := decode.TriggerEventTypeFromLabel("nope"); err == nil {
 		t.Fatal("expected error for invalid event type")
 	}

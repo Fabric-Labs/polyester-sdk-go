@@ -165,7 +165,7 @@ func (x *GetOrderBookRequest) GetDepth() Depth {
 // REST surfaces expose decimal strings via DTO conversion.
 type PriceLevel struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Price in quote units scaled by 1e6.
+	// Price in quote units scaled by 1e9.
 	PriceTicks int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	// Quantity scaled by the pair's base_quantity_scale from GetSpotConfig.
 	QtyScaled     int64 `protobuf:"varint,2,opt,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`

@@ -78,7 +78,7 @@ func (s *MarketDataService) GetCandles(ctx context.Context, symbol *string, symb
 }
 
 // GetCandlesWithReference returns OHLCV candles and, when includeReference is
-// true, composite reference candles. Primary OHLC stays on scale 6. Reference
+// true, composite reference candles. Primary OHLC uses the fixed Q9 price scale. Reference
 // OHLC uses the pair reference_price_scale. Base volume uses the base asset
 // market_data_volume_scale.
 func (s *MarketDataService) GetCandlesWithReference(ctx context.Context, symbol *string, symbolID *uint32, timeframe string, limit int, start, end *time.Time, includeIncomplete bool, includeReference bool) (models.CandlesResult, error) {
