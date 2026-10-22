@@ -45,7 +45,7 @@ const (
 type ClaimsServiceClient interface {
 	// Get today's reward and claim status for the authenticated root account. Future reward schedules are not returned.
 	GetDailyClaimStatus(context.Context, *connect.Request[v1.GetDailyClaimStatusRequest]) (*connect.Response[v1.GetDailyClaimStatusResponse], error)
-	// Claim today's reward once for the authenticated root account. All reward assets are transferred together, and retries return the same claim.
+	// Claim today's reward once for the authenticated root account, paid to the root account or to a subaccount it owns. All reward assets are transferred together, and retries return the same claim.
 	ClaimDailyReward(context.Context, *connect.Request[v1.ClaimDailyRewardRequest]) (*connect.Response[v1.ClaimDailyRewardResponse], error)
 }
 
@@ -95,7 +95,7 @@ func (c *claimsServiceClient) ClaimDailyReward(ctx context.Context, req *connect
 type ClaimsServiceHandler interface {
 	// Get today's reward and claim status for the authenticated root account. Future reward schedules are not returned.
 	GetDailyClaimStatus(context.Context, *connect.Request[v1.GetDailyClaimStatusRequest]) (*connect.Response[v1.GetDailyClaimStatusResponse], error)
-	// Claim today's reward once for the authenticated root account. All reward assets are transferred together, and retries return the same claim.
+	// Claim today's reward once for the authenticated root account, paid to the root account or to a subaccount it owns. All reward assets are transferred together, and retries return the same claim.
 	ClaimDailyReward(context.Context, *connect.Request[v1.ClaimDailyRewardRequest]) (*connect.Response[v1.ClaimDailyRewardResponse], error)
 }
 
