@@ -703,7 +703,9 @@ type AttachedRisk struct {
 	StopLoss *AttachedRiskStopLoss `protobuf:"bytes,2,opt,name=stop_loss,json=stopLoss,proto3" json:"stop_loss,omitempty"`
 	// Trailing-stop leg, if configured or if state exists.
 	TrailingStop *AttachedRiskTrailingStop `protobuf:"bytes,3,opt,name=trailing_stop,json=trailingStop,proto3" json:"trailing_stop,omitempty"`
-	// True when the take-profit and stop leg are linked as one-cancels-the-other.
+	// True while both the take-profit and a stop leg (stop-loss or trailing
+	// stop) are present and linked as one-cancels-the-other. False once either
+	// leg is removed; a leg canceled because the other fired stays present.
 	Oco           bool `protobuf:"varint,4,opt,name=oco,proto3" json:"oco,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -877,7 +879,10 @@ type Order struct {
 	// Empty for non-terminal orders.
 	TerminalReason string `protobuf:"bytes,19,opt,name=terminal_reason,json=terminalReason,proto3" json:"terminal_reason,omitempty"`
 	// Attached risk controls + runtime state on the parent order.
-	// Empty when no attached risk exists.
+	// Empty when no attached risk exists. Order reads include it only when the
+	// request asks for it (include_attached_risk, include_attached_risk_state):
+	// an omission on request, never a removal. The private WebSocket always
+	// carries it in full, as a read asking for both does.
 	AttachedRisk *AttachedRisk `protobuf:"bytes,21,opt,name=attached_risk,json=attachedRisk,proto3" json:"attached_risk,omitempty"`
 	// Runtime lineage metadata (why the order exists and what generated it).
 	Origin *OrderOrigin `protobuf:"bytes,22,opt,name=origin,proto3" json:"origin,omitempty"`
@@ -889,8 +894,11 @@ type Order struct {
 	MarketMaxSlippageTicks int64 `protobuf:"varint,24,opt,name=market_max_slippage_ticks,json=marketMaxSlippageTicks,proto3" json:"market_max_slippage_ticks,omitempty"`
 	// Optional MARKET max slippage in basis points (1 bp = 0.01%).
 	MarketMaxSlippageBps int32 `protobuf:"varint,25,opt,name=market_max_slippage_bps,json=marketMaxSlippageBps,proto3" json:"market_max_slippage_bps,omitempty"`
-	// Per-order state version. Starts at 1 and increases for every published
-	// state change. Use this field to reconcile API and realtime updates.
+	// Per-order state version: 0 while the order is accepted but not yet on
+	// the book (status PENDING), then 1 from its first book state and higher
+	// for every later published state change. A higher version is always
+	// newer, and two copies of an order with the same version are identical,
+	// so use this field to reconcile API and realtime updates.
 	Version uint32 `protobuf:"varint,26,opt,name=version,proto3" json:"version,omitempty"`
 	// Batch-replace identity that admitted this order. Zero for other origins.
 	BatchRequestId uint64 `protobuf:"fixed64,27,opt,name=batch_request_id,json=batchRequestId,proto3" json:"batch_request_id,omitempty"`
@@ -2661,7 +2669,7 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\x19market_max_slippage_ticks\x18\x18 \x01(\x03R\x16marketMaxSlippageTicks\x125\n" +
 	"\x17market_max_slippage_bps\x18\x19 \x01(\x05R\x14marketMaxSlippageBps\x12'\n" +
 	"\aversion\x18\x1a \x01(\rB\r\xbaH\n" +
-	"*\b\x18\xff\xff\xff\xff\a(\x01R\aversion\x12(\n" +
+	"*\b\x18\xff\xff\xff\xff\a(\x00R\aversion\x12(\n" +
 	"\x10batch_request_id\x18\x1b \x01(\x06R\x0ebatchRequestId\x12K\n" +
 	" submitted_max_quote_debit_scaled\x18\x1c \x01(\x03H\x00R\x1csubmittedMaxQuoteDebitScaled\x88\x01\x01\x121\n" +
 	"\alineage\x18\x1f \x01(\v2\x17.orders.v1.OrderLineageR\alineage\x127\n" +
