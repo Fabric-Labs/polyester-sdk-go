@@ -120,6 +120,11 @@ const (
 	// The auto-withdraw schedule is invalid: a field its cadence needs is
 	// missing or out of range, or a field of another cadence is set.
 	ErrorCode_ERROR_CODE_INVALID_AUTO_WITHDRAW_SCHEDULE ErrorCode = 43
+	// The withdraw amount has more decimal places than the destination
+	// network's token supports (AssetChainVariant.source_decimals). Round
+	// amount_e18 down to a whole number of that token's smallest units before
+	// signing.
+	ErrorCode_ERROR_CODE_AMOUNT_EXCEEDS_ROUTE_PRECISION ErrorCode = 44
 )
 
 // Enum value maps for ErrorCode.
@@ -169,6 +174,7 @@ var (
 		41: "ERROR_CODE_NOT_FOUND",
 		42: "ERROR_CODE_CONFLICT",
 		43: "ERROR_CODE_INVALID_AUTO_WITHDRAW_SCHEDULE",
+		44: "ERROR_CODE_AMOUNT_EXCEEDS_ROUTE_PRECISION",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_CODE_UNSPECIFIED":                          0,
@@ -215,6 +221,7 @@ var (
 		"ERROR_CODE_NOT_FOUND":                            41,
 		"ERROR_CODE_CONFLICT":                             42,
 		"ERROR_CODE_INVALID_AUTO_WITHDRAW_SCHEDULE":       43,
+		"ERROR_CODE_AMOUNT_EXCEEDS_ROUTE_PRECISION":       44,
 	}
 )
 
@@ -520,7 +527,11 @@ type TradingWithdrawIntentPayload struct {
 	// External network id for TO_EXTERNAL_CHAIN. Omit for TO_FUNDING.
 	DestinationChainId uint64 `protobuf:"varint,3,opt,name=destination_chain_id,json=destinationChainId,proto3" json:"destination_chain_id,omitempty"`
 	// Withdraw amount in canonical 18-decimal unified asset units.
-	// For example, 0.5 is encoded as 500000000000000000.
+	// For example, 0.5 is encoded as 500000000000000000. For TO_EXTERNAL_CHAIN,
+	// it must be a whole number of the destination network token's smallest
+	// units: a multiple of 10^(18 - AssetChainVariant.source_decimals) when the
+	// token has fewer than 18 decimals. A finer amount is refused with
+	// ERROR_CODE_AMOUNT_EXCEEDS_ROUTE_PRECISION before any funds are reserved.
 	AmountE18 *v1.U128 `protobuf:"bytes,4,opt,name=amount_e18,json=amountE18,proto3" json:"amount_e18,omitempty"`
 	// Unix timestamp in seconds after which this signed user authorization is no
 	// longer accepted by the API. This is separate from the server-owned
@@ -925,7 +936,7 @@ const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"\x05valid\x18\x01 \x01(\bR\x05valid\x12H\n" +
 	"\x04code\x18\x02 \x01(\x0e24.chain.withdraw.v1.WithdrawDestinationValidationCodeR\x04code\x12\x18\n" +
 	"\amessage\x18\x03 \x01(\tR\amessage\x12B\n" +
-	"\x1dcanonical_destination_address\x18\x04 \x01(\tR\x1bcanonicalDestinationAddress*\xa9\r\n" +
+	"\x1dcanonical_destination_address\x18\x04 \x01(\tR\x1bcanonicalDestinationAddress*\xd8\r\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12!\n" +
 	"\x1dERROR_CODE_INSUFFICIENT_FUNDS\x10\x01\x12\x1e\n" +
@@ -971,7 +982,8 @@ const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"\x1eERROR_CODE_FAILED_PRECONDITION\x10(\x12\x18\n" +
 	"\x14ERROR_CODE_NOT_FOUND\x10)\x12\x17\n" +
 	"\x13ERROR_CODE_CONFLICT\x10*\x12-\n" +
-	")ERROR_CODE_INVALID_AUTO_WITHDRAW_SCHEDULE\x10+*V\n" +
+	")ERROR_CODE_INVALID_AUTO_WITHDRAW_SCHEDULE\x10+\x12-\n" +
+	")ERROR_CODE_AMOUNT_EXCEEDS_ROUTE_PRECISION\x10,*V\n" +
 	"\x15TradingWithdrawAction\x12\x16\n" +
 	"\x12ACTION_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +

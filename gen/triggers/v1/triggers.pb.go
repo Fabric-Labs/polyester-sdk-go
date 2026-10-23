@@ -360,6 +360,8 @@ const (
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_MAX_QUOTE_DEBIT_TOO_SMALL TriggerFailureReason = 24
 	// The applicable fee rate exceeded the maximum accepted by the trigger.
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_FEE_CEILING_EXCEEDED TriggerFailureReason = 25
+	// The child order's time in force was not accepted.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_INVALID_TIME_IN_FORCE TriggerFailureReason = 26
 	// The configured trigger price was invalid.
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_TRIGGER_PRICE_INVALID TriggerFailureReason = 40
 	// The selected trigger price source was not supported.
@@ -386,6 +388,111 @@ const (
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_POLICY_TRADING_HALTED TriggerFailureReason = 51
 	// The maximum slippage could not produce a valid execution price bound.
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_MAX_SLIPPAGE_INVALID TriggerFailureReason = 53
+	// The child order's identifier was already in use by another order.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_DUPLICATE_ORDER_ID TriggerFailureReason = 57
+	// The child order quantity was above the pair's maximum.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_MAX_QUANTITY TriggerFailureReason = 60
+	// The child order notional was above the pair's maximum.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_MAX_NOTIONAL TriggerFailureReason = 61
+	// The market took only post-only orders when the trigger fired.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_PAIR_POST_ONLY TriggerFailureReason = 62
+	// The account had its maximum number of open orders.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_MAX_OPEN_ORDERS_TOTAL TriggerFailureReason = 64
+	// The child order's self-trade prevention mode was not accepted.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_STP_MODE_NOT_ALLOWED TriggerFailureReason = 66
+	// The trading pair was busy with the account's earlier requests.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_PAIR_BACKLOGGED TriggerFailureReason = 67
+	// The market does not support a trigger of this shape, including a
+	// trailing stop whose child order is not a market order when it fires.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_MODE_NOT_SUPPORTED TriggerFailureReason = 68
+	// The market's reference quote was too old to price the market child order.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_MARKET_QUOTE_STALE TriggerFailureReason = 69
+	// The market's reference quote could not be used to price the market child
+	// order.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_MARKET_QUOTE_UNHEALTHY TriggerFailureReason = 70
+	// The trigger's quantity was not valid.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_QTY_INVALID TriggerFailureReason = 103
+	// The trigger's limit price was not valid.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_LIMIT_PRICE_INVALID TriggerFailureReason = 104
+	// The TWAP interval was not valid.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_TWAP_INTERVAL_INVALID TriggerFailureReason = 105
+	// The ladder's price range was too narrow for its number of levels.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_LADDER_RANGE_TOO_NARROW TriggerFailureReason = 106
+	// The ladder's number of levels was not valid.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_LADDER_LEVELS_INVALID TriggerFailureReason = 107
+	// The order carried more attached legs than allowed.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_ATTACHED_LEGS_EXCEEDED TriggerFailureReason = 108
+	// The market held its maximum number of price levels.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_PRICE_LEVELS_EXHAUSTED TriggerFailureReason = 109
+	// The account had too many filled orders whose settlement had not completed.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_SETTLEMENT_BACKLOGGED TriggerFailureReason = 110
+	// The account reserved its maximum number of client order IDs.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_CLIENT_ORDER_IDS_EXHAUSTED TriggerFailureReason = 111
+	// The child order's identifier was not valid.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_INVALID_ORDER_ID TriggerFailureReason = 112
+	// The child order's identifier was held by a different order.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_ORDER_ID_CONFLICT TriggerFailureReason = 113
+	// The child order's side was not valid.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_INVALID_SIDE TriggerFailureReason = 114
+	// The child order's type was not valid.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_INVALID_ORDER_TYPE TriggerFailureReason = 115
+	// The child order's self-trade prevention mode was not valid.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_INVALID_STP_MODE TriggerFailureReason = 116
+	// The child order's flags were not valid.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_INVALID_ORDER_FLAGS TriggerFailureReason = 117
+	// The child order would take the total quantity resting at its price past
+	// the most a price level can hold, even if some quantity still fits; it was
+	// not placed.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_PRICE_LEVEL_QUANTITY_LIMIT TriggerFailureReason = 121
+	// One of the trigger's child orders went past its planned quantity, so the
+	// trigger ended.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_CHILD_QTY_RAISE_NOT_ALLOWED TriggerFailureReason = 122
+	// The market held its maximum number of triggers.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_TRIGGERS_EXHAUSTED TriggerFailureReason = 140
+	// The account used every order identifier available to it in this market.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_ORDER_SEQUENCE_EXHAUSTED TriggerFailureReason = 144
+	// The fees that apply to the child order could not be determined.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_FEE_SCHEDULE_UNAVAILABLE TriggerFailureReason = 146
+	// The account's trading policy could not be evaluated.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_POLICY_UNAVAILABLE TriggerFailureReason = 148
+	// The trigger could not be installed on its market's current route.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_ACCOUNT_ROUTING_INVALID TriggerFailureReason = 164
+	// The client trigger ID was not valid.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_CLIENT_TRIGGER_ID_INVALID TriggerFailureReason = 165
+	// The trigger direction was not valid.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_TRIGGER_DIRECTION_INVALID TriggerFailureReason = 166
+	// The fee asset was not valid.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_FEE_ASSET_INVALID TriggerFailureReason = 167
+	// The trigger's maximum fee rate was not valid.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_FEE_CEILING_INVALID TriggerFailureReason = 168
+	// The trigger set a field that must be left unset.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_UNSUPPORTED_FIELD_SET TriggerFailureReason = 169
+	// The trigger could not fire again.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_TRIGGER_FIRE_LIMIT_REACHED TriggerFailureReason = 176
+	// The trigger's condition flags were not valid.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_CONDITION_FLAGS_INVALID TriggerFailureReason = 202
+	// The trigger set a condition parameter its condition does not take.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_CONDITION_PARAMETER_SET TriggerFailureReason = 203
+	// The trigger's slippage bound in ticks was not valid.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_SLIPPAGE_TICKS_INVALID TriggerFailureReason = 204
+	// The trigger's slippage bound in basis points was not valid.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_SLIPPAGE_BPS_INVALID TriggerFailureReason = 205
+	// The trigger set both slippage bounds where only one is accepted.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_SLIPPAGE_BOUNDS_CONFLICT TriggerFailureReason = 206
+	// The trigger set a slippage bound on a LIMIT child order.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_LIMIT_CHILD_SLIPPAGE_SET TriggerFailureReason = 207
+	// The venue could not admit the account to this market.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_NEW_ACCOUNT_CAPACITY_REACHED TriggerFailureReason = 216
+	// The trigger's order type isn't taken while the market is in an auction
+	// call.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_ORDER_TYPE_NOT_ALLOWED_IN_AUCTION TriggerFailureReason = 225
+	// The trigger's post-only order isn't taken while the market is in an auction
+	// call.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_POST_ONLY_NOT_ALLOWED_IN_AUCTION TriggerFailureReason = 226
+	// The market had no room for another TWAP order.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_TWAP_CAPACITY_REACHED TriggerFailureReason = 227
+	// The market's order limits weren't set yet when the trigger fired.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_ORDER_LIMITS_UNAVAILABLE TriggerFailureReason = 238
 	// The terminal state did not contain a failure reason.
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_MISSING_REASON_CODE TriggerFailureReason = 998
 	// An internal invariant or processing failure caused the trigger to fail.
@@ -421,6 +528,7 @@ var (
 		23:  "TRIGGER_FAILURE_REASON_INVALID_SIZING",
 		24:  "TRIGGER_FAILURE_REASON_MAX_QUOTE_DEBIT_TOO_SMALL",
 		25:  "TRIGGER_FAILURE_REASON_FEE_CEILING_EXCEEDED",
+		26:  "TRIGGER_FAILURE_REASON_INVALID_TIME_IN_FORCE",
 		40:  "TRIGGER_FAILURE_REASON_TRIGGER_PRICE_INVALID",
 		41:  "TRIGGER_FAILURE_REASON_TRIGGER_PRICE_SOURCE_UNSUPPORTED",
 		42:  "TRIGGER_FAILURE_REASON_TRAILING_DISTANCE_INVALID",
@@ -434,51 +542,150 @@ var (
 		50:  "TRIGGER_FAILURE_REASON_POLICY_MAX_OPEN_ORDERS",
 		51:  "TRIGGER_FAILURE_REASON_POLICY_TRADING_HALTED",
 		53:  "TRIGGER_FAILURE_REASON_MAX_SLIPPAGE_INVALID",
+		57:  "TRIGGER_FAILURE_REASON_DUPLICATE_ORDER_ID",
+		60:  "TRIGGER_FAILURE_REASON_MAX_QUANTITY",
+		61:  "TRIGGER_FAILURE_REASON_MAX_NOTIONAL",
+		62:  "TRIGGER_FAILURE_REASON_PAIR_POST_ONLY",
+		64:  "TRIGGER_FAILURE_REASON_MAX_OPEN_ORDERS_TOTAL",
+		66:  "TRIGGER_FAILURE_REASON_STP_MODE_NOT_ALLOWED",
+		67:  "TRIGGER_FAILURE_REASON_PAIR_BACKLOGGED",
+		68:  "TRIGGER_FAILURE_REASON_MODE_NOT_SUPPORTED",
+		69:  "TRIGGER_FAILURE_REASON_MARKET_QUOTE_STALE",
+		70:  "TRIGGER_FAILURE_REASON_MARKET_QUOTE_UNHEALTHY",
+		103: "TRIGGER_FAILURE_REASON_QTY_INVALID",
+		104: "TRIGGER_FAILURE_REASON_LIMIT_PRICE_INVALID",
+		105: "TRIGGER_FAILURE_REASON_TWAP_INTERVAL_INVALID",
+		106: "TRIGGER_FAILURE_REASON_LADDER_RANGE_TOO_NARROW",
+		107: "TRIGGER_FAILURE_REASON_LADDER_LEVELS_INVALID",
+		108: "TRIGGER_FAILURE_REASON_ATTACHED_LEGS_EXCEEDED",
+		109: "TRIGGER_FAILURE_REASON_PRICE_LEVELS_EXHAUSTED",
+		110: "TRIGGER_FAILURE_REASON_SETTLEMENT_BACKLOGGED",
+		111: "TRIGGER_FAILURE_REASON_CLIENT_ORDER_IDS_EXHAUSTED",
+		112: "TRIGGER_FAILURE_REASON_INVALID_ORDER_ID",
+		113: "TRIGGER_FAILURE_REASON_ORDER_ID_CONFLICT",
+		114: "TRIGGER_FAILURE_REASON_INVALID_SIDE",
+		115: "TRIGGER_FAILURE_REASON_INVALID_ORDER_TYPE",
+		116: "TRIGGER_FAILURE_REASON_INVALID_STP_MODE",
+		117: "TRIGGER_FAILURE_REASON_INVALID_ORDER_FLAGS",
+		121: "TRIGGER_FAILURE_REASON_PRICE_LEVEL_QUANTITY_LIMIT",
+		122: "TRIGGER_FAILURE_REASON_CHILD_QTY_RAISE_NOT_ALLOWED",
+		140: "TRIGGER_FAILURE_REASON_TRIGGERS_EXHAUSTED",
+		144: "TRIGGER_FAILURE_REASON_ORDER_SEQUENCE_EXHAUSTED",
+		146: "TRIGGER_FAILURE_REASON_FEE_SCHEDULE_UNAVAILABLE",
+		148: "TRIGGER_FAILURE_REASON_POLICY_UNAVAILABLE",
+		164: "TRIGGER_FAILURE_REASON_ACCOUNT_ROUTING_INVALID",
+		165: "TRIGGER_FAILURE_REASON_CLIENT_TRIGGER_ID_INVALID",
+		166: "TRIGGER_FAILURE_REASON_TRIGGER_DIRECTION_INVALID",
+		167: "TRIGGER_FAILURE_REASON_FEE_ASSET_INVALID",
+		168: "TRIGGER_FAILURE_REASON_FEE_CEILING_INVALID",
+		169: "TRIGGER_FAILURE_REASON_UNSUPPORTED_FIELD_SET",
+		176: "TRIGGER_FAILURE_REASON_TRIGGER_FIRE_LIMIT_REACHED",
+		202: "TRIGGER_FAILURE_REASON_CONDITION_FLAGS_INVALID",
+		203: "TRIGGER_FAILURE_REASON_CONDITION_PARAMETER_SET",
+		204: "TRIGGER_FAILURE_REASON_SLIPPAGE_TICKS_INVALID",
+		205: "TRIGGER_FAILURE_REASON_SLIPPAGE_BPS_INVALID",
+		206: "TRIGGER_FAILURE_REASON_SLIPPAGE_BOUNDS_CONFLICT",
+		207: "TRIGGER_FAILURE_REASON_LIMIT_CHILD_SLIPPAGE_SET",
+		216: "TRIGGER_FAILURE_REASON_NEW_ACCOUNT_CAPACITY_REACHED",
+		225: "TRIGGER_FAILURE_REASON_ORDER_TYPE_NOT_ALLOWED_IN_AUCTION",
+		226: "TRIGGER_FAILURE_REASON_POST_ONLY_NOT_ALLOWED_IN_AUCTION",
+		227: "TRIGGER_FAILURE_REASON_TWAP_CAPACITY_REACHED",
+		238: "TRIGGER_FAILURE_REASON_ORDER_LIMITS_UNAVAILABLE",
 		998: "TRIGGER_FAILURE_REASON_MISSING_REASON_CODE",
 		999: "TRIGGER_FAILURE_REASON_INTERNAL_ERROR",
 	}
 	TriggerFailureReason_value = map[string]int32{
-		"TRIGGER_FAILURE_REASON_UNSPECIFIED":                      0,
-		"TRIGGER_FAILURE_REASON_UNKNOWN_SYMBOL":                   1,
-		"TRIGGER_FAILURE_REASON_PAIR_DISABLED":                    2,
-		"TRIGGER_FAILURE_REASON_MIN_NOTIONAL":                     3,
-		"TRIGGER_FAILURE_REASON_TICK_SIZE":                        4,
-		"TRIGGER_FAILURE_REASON_INSUFFICIENT_FUNDS":               5,
-		"TRIGGER_FAILURE_REASON_RISK_LIMIT":                       6,
-		"TRIGGER_FAILURE_REASON_DUPLICATE_CLIENT_ID":              7,
-		"TRIGGER_FAILURE_REASON_MARKET_HALTED":                    8,
-		"TRIGGER_FAILURE_REASON_ENGINE_BUSY":                      9,
-		"TRIGGER_FAILURE_REASON_ACCOUNT_UNKNOWN":                  10,
-		"TRIGGER_FAILURE_REASON_ORDER_UNKNOWN":                    11,
-		"TRIGGER_FAILURE_REASON_POST_ONLY_CROSS":                  12,
-		"TRIGGER_FAILURE_REASON_REDUCE_ONLY_BLOCKED":              13,
-		"TRIGGER_FAILURE_REASON_PRICE_BAND_VIOLATION":             14,
-		"TRIGGER_FAILURE_REASON_MARKET_CAP_VIOLATION":             15,
-		"TRIGGER_FAILURE_REASON_EMPTY_BOOK":                       16,
-		"TRIGGER_FAILURE_REASON_FOK_INSUFFICIENT_LIQUIDITY":       17,
-		"TRIGGER_FAILURE_REASON_FEE_ASSET_NOT_ALLOWED":            18,
-		"TRIGGER_FAILURE_REASON_MARKET_PRICE_UNAVAILABLE":         19,
-		"TRIGGER_FAILURE_REASON_STALE_QUOTE":                      20,
-		"TRIGGER_FAILURE_REASON_MIN_QUANTITY":                     21,
-		"TRIGGER_FAILURE_REASON_STEP_SIZE":                        22,
-		"TRIGGER_FAILURE_REASON_INVALID_SIZING":                   23,
-		"TRIGGER_FAILURE_REASON_MAX_QUOTE_DEBIT_TOO_SMALL":        24,
-		"TRIGGER_FAILURE_REASON_FEE_CEILING_EXCEEDED":             25,
-		"TRIGGER_FAILURE_REASON_TRIGGER_PRICE_INVALID":            40,
-		"TRIGGER_FAILURE_REASON_TRIGGER_PRICE_SOURCE_UNSUPPORTED": 41,
-		"TRIGGER_FAILURE_REASON_TRAILING_DISTANCE_INVALID":        42,
-		"TRIGGER_FAILURE_REASON_MODIFICATION_REQUIRES_REPLACE":    43,
-		"TRIGGER_FAILURE_REASON_ORDER_ALREADY_TERMINAL":           44,
-		"TRIGGER_FAILURE_REASON_CONFLICT_IDEMPOTENCY_KEY_REUSE":   45,
-		"TRIGGER_FAILURE_REASON_RATE_LIMITED":                     46,
-		"TRIGGER_FAILURE_REASON_POLICY_SPOT_TRADE_DENY":           47,
-		"TRIGGER_FAILURE_REASON_POLICY_MARKET_DENY":               48,
-		"TRIGGER_FAILURE_REASON_POLICY_MAX_NOTIONAL":              49,
-		"TRIGGER_FAILURE_REASON_POLICY_MAX_OPEN_ORDERS":           50,
-		"TRIGGER_FAILURE_REASON_POLICY_TRADING_HALTED":            51,
-		"TRIGGER_FAILURE_REASON_MAX_SLIPPAGE_INVALID":             53,
-		"TRIGGER_FAILURE_REASON_MISSING_REASON_CODE":              998,
-		"TRIGGER_FAILURE_REASON_INTERNAL_ERROR":                   999,
+		"TRIGGER_FAILURE_REASON_UNSPECIFIED":                       0,
+		"TRIGGER_FAILURE_REASON_UNKNOWN_SYMBOL":                    1,
+		"TRIGGER_FAILURE_REASON_PAIR_DISABLED":                     2,
+		"TRIGGER_FAILURE_REASON_MIN_NOTIONAL":                      3,
+		"TRIGGER_FAILURE_REASON_TICK_SIZE":                         4,
+		"TRIGGER_FAILURE_REASON_INSUFFICIENT_FUNDS":                5,
+		"TRIGGER_FAILURE_REASON_RISK_LIMIT":                        6,
+		"TRIGGER_FAILURE_REASON_DUPLICATE_CLIENT_ID":               7,
+		"TRIGGER_FAILURE_REASON_MARKET_HALTED":                     8,
+		"TRIGGER_FAILURE_REASON_ENGINE_BUSY":                       9,
+		"TRIGGER_FAILURE_REASON_ACCOUNT_UNKNOWN":                   10,
+		"TRIGGER_FAILURE_REASON_ORDER_UNKNOWN":                     11,
+		"TRIGGER_FAILURE_REASON_POST_ONLY_CROSS":                   12,
+		"TRIGGER_FAILURE_REASON_REDUCE_ONLY_BLOCKED":               13,
+		"TRIGGER_FAILURE_REASON_PRICE_BAND_VIOLATION":              14,
+		"TRIGGER_FAILURE_REASON_MARKET_CAP_VIOLATION":              15,
+		"TRIGGER_FAILURE_REASON_EMPTY_BOOK":                        16,
+		"TRIGGER_FAILURE_REASON_FOK_INSUFFICIENT_LIQUIDITY":        17,
+		"TRIGGER_FAILURE_REASON_FEE_ASSET_NOT_ALLOWED":             18,
+		"TRIGGER_FAILURE_REASON_MARKET_PRICE_UNAVAILABLE":          19,
+		"TRIGGER_FAILURE_REASON_STALE_QUOTE":                       20,
+		"TRIGGER_FAILURE_REASON_MIN_QUANTITY":                      21,
+		"TRIGGER_FAILURE_REASON_STEP_SIZE":                         22,
+		"TRIGGER_FAILURE_REASON_INVALID_SIZING":                    23,
+		"TRIGGER_FAILURE_REASON_MAX_QUOTE_DEBIT_TOO_SMALL":         24,
+		"TRIGGER_FAILURE_REASON_FEE_CEILING_EXCEEDED":              25,
+		"TRIGGER_FAILURE_REASON_INVALID_TIME_IN_FORCE":             26,
+		"TRIGGER_FAILURE_REASON_TRIGGER_PRICE_INVALID":             40,
+		"TRIGGER_FAILURE_REASON_TRIGGER_PRICE_SOURCE_UNSUPPORTED":  41,
+		"TRIGGER_FAILURE_REASON_TRAILING_DISTANCE_INVALID":         42,
+		"TRIGGER_FAILURE_REASON_MODIFICATION_REQUIRES_REPLACE":     43,
+		"TRIGGER_FAILURE_REASON_ORDER_ALREADY_TERMINAL":            44,
+		"TRIGGER_FAILURE_REASON_CONFLICT_IDEMPOTENCY_KEY_REUSE":    45,
+		"TRIGGER_FAILURE_REASON_RATE_LIMITED":                      46,
+		"TRIGGER_FAILURE_REASON_POLICY_SPOT_TRADE_DENY":            47,
+		"TRIGGER_FAILURE_REASON_POLICY_MARKET_DENY":                48,
+		"TRIGGER_FAILURE_REASON_POLICY_MAX_NOTIONAL":               49,
+		"TRIGGER_FAILURE_REASON_POLICY_MAX_OPEN_ORDERS":            50,
+		"TRIGGER_FAILURE_REASON_POLICY_TRADING_HALTED":             51,
+		"TRIGGER_FAILURE_REASON_MAX_SLIPPAGE_INVALID":              53,
+		"TRIGGER_FAILURE_REASON_DUPLICATE_ORDER_ID":                57,
+		"TRIGGER_FAILURE_REASON_MAX_QUANTITY":                      60,
+		"TRIGGER_FAILURE_REASON_MAX_NOTIONAL":                      61,
+		"TRIGGER_FAILURE_REASON_PAIR_POST_ONLY":                    62,
+		"TRIGGER_FAILURE_REASON_MAX_OPEN_ORDERS_TOTAL":             64,
+		"TRIGGER_FAILURE_REASON_STP_MODE_NOT_ALLOWED":              66,
+		"TRIGGER_FAILURE_REASON_PAIR_BACKLOGGED":                   67,
+		"TRIGGER_FAILURE_REASON_MODE_NOT_SUPPORTED":                68,
+		"TRIGGER_FAILURE_REASON_MARKET_QUOTE_STALE":                69,
+		"TRIGGER_FAILURE_REASON_MARKET_QUOTE_UNHEALTHY":            70,
+		"TRIGGER_FAILURE_REASON_QTY_INVALID":                       103,
+		"TRIGGER_FAILURE_REASON_LIMIT_PRICE_INVALID":               104,
+		"TRIGGER_FAILURE_REASON_TWAP_INTERVAL_INVALID":             105,
+		"TRIGGER_FAILURE_REASON_LADDER_RANGE_TOO_NARROW":           106,
+		"TRIGGER_FAILURE_REASON_LADDER_LEVELS_INVALID":             107,
+		"TRIGGER_FAILURE_REASON_ATTACHED_LEGS_EXCEEDED":            108,
+		"TRIGGER_FAILURE_REASON_PRICE_LEVELS_EXHAUSTED":            109,
+		"TRIGGER_FAILURE_REASON_SETTLEMENT_BACKLOGGED":             110,
+		"TRIGGER_FAILURE_REASON_CLIENT_ORDER_IDS_EXHAUSTED":        111,
+		"TRIGGER_FAILURE_REASON_INVALID_ORDER_ID":                  112,
+		"TRIGGER_FAILURE_REASON_ORDER_ID_CONFLICT":                 113,
+		"TRIGGER_FAILURE_REASON_INVALID_SIDE":                      114,
+		"TRIGGER_FAILURE_REASON_INVALID_ORDER_TYPE":                115,
+		"TRIGGER_FAILURE_REASON_INVALID_STP_MODE":                  116,
+		"TRIGGER_FAILURE_REASON_INVALID_ORDER_FLAGS":               117,
+		"TRIGGER_FAILURE_REASON_PRICE_LEVEL_QUANTITY_LIMIT":        121,
+		"TRIGGER_FAILURE_REASON_CHILD_QTY_RAISE_NOT_ALLOWED":       122,
+		"TRIGGER_FAILURE_REASON_TRIGGERS_EXHAUSTED":                140,
+		"TRIGGER_FAILURE_REASON_ORDER_SEQUENCE_EXHAUSTED":          144,
+		"TRIGGER_FAILURE_REASON_FEE_SCHEDULE_UNAVAILABLE":          146,
+		"TRIGGER_FAILURE_REASON_POLICY_UNAVAILABLE":                148,
+		"TRIGGER_FAILURE_REASON_ACCOUNT_ROUTING_INVALID":           164,
+		"TRIGGER_FAILURE_REASON_CLIENT_TRIGGER_ID_INVALID":         165,
+		"TRIGGER_FAILURE_REASON_TRIGGER_DIRECTION_INVALID":         166,
+		"TRIGGER_FAILURE_REASON_FEE_ASSET_INVALID":                 167,
+		"TRIGGER_FAILURE_REASON_FEE_CEILING_INVALID":               168,
+		"TRIGGER_FAILURE_REASON_UNSUPPORTED_FIELD_SET":             169,
+		"TRIGGER_FAILURE_REASON_TRIGGER_FIRE_LIMIT_REACHED":        176,
+		"TRIGGER_FAILURE_REASON_CONDITION_FLAGS_INVALID":           202,
+		"TRIGGER_FAILURE_REASON_CONDITION_PARAMETER_SET":           203,
+		"TRIGGER_FAILURE_REASON_SLIPPAGE_TICKS_INVALID":            204,
+		"TRIGGER_FAILURE_REASON_SLIPPAGE_BPS_INVALID":              205,
+		"TRIGGER_FAILURE_REASON_SLIPPAGE_BOUNDS_CONFLICT":          206,
+		"TRIGGER_FAILURE_REASON_LIMIT_CHILD_SLIPPAGE_SET":          207,
+		"TRIGGER_FAILURE_REASON_NEW_ACCOUNT_CAPACITY_REACHED":      216,
+		"TRIGGER_FAILURE_REASON_ORDER_TYPE_NOT_ALLOWED_IN_AUCTION": 225,
+		"TRIGGER_FAILURE_REASON_POST_ONLY_NOT_ALLOWED_IN_AUCTION":  226,
+		"TRIGGER_FAILURE_REASON_TWAP_CAPACITY_REACHED":             227,
+		"TRIGGER_FAILURE_REASON_ORDER_LIMITS_UNAVAILABLE":          238,
+		"TRIGGER_FAILURE_REASON_MISSING_REASON_CODE":               998,
+		"TRIGGER_FAILURE_REASON_INTERNAL_ERROR":                    999,
 	}
 )
 
@@ -1442,6 +1649,8 @@ type TriggerIntent struct {
 	// with the identical intent returns the same trigger. After a create fails
 	// with INTERNAL_ERROR, the ID may already be used: a retry then returns
 	// CONFLICT_DUPLICATE_CLIENT_TRIGGER_ID and needs a new client trigger ID.
+	// At most 36 bytes in UTF-8 (36 ASCII characters); longer IDs are rejected
+	// with INVALID_ARGUMENT.
 	ClientTriggerId string `protobuf:"bytes,5,opt,name=client_trigger_id,json=clientTriggerId,proto3" json:"client_trigger_id,omitempty"`
 	// Required trigger strategy.
 	//
@@ -3873,7 +4082,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x0fprice_max_ticks\x18\x03 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\rpriceMaxTicks\x12!\n" +
 	"\x06levels\x18\x04 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x02R\x06levels\x12\x1b\n" +
 	"\tpost_only\x18\x05 \x01(\bR\bpostOnly:~\xbaH{\x1ay\n" +
-	"\x14ladder_trigger.range\x124price_max_ticks must be greater than price_min_ticks\x1a+this.price_max_ticks > this.price_min_ticks\"\x88\x05\n" +
+	"\x14ladder_trigger.range\x124price_max_ticks must be greater than price_min_ticks\x1a+this.price_max_ticks > this.price_min_ticks\"\x8a\x05\n" +
 	"\rTriggerIntent\x12'\n" +
 	"\tsymbol_id\x18\x01 \x01(\rB\n" +
 	"\xe0A\x02\xbaH\x04*\x02 \x00R\bsymbolId\x12)\n" +
@@ -3881,9 +4090,8 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"qty_scaled\x18\x02 \x01(\x03B\n" +
 	"\xe0A\x02\xbaH\x04\"\x02 \x00R\tqtyScaled\x12:\n" +
 	"\tfee_asset\x18\x03 \x01(\x0e2\x13.orders.v1.FeeAssetB\b\xbaH\x05\x82\x01\x02\x10\x01R\bfeeAsset\x12i\n" +
-	"\x1aself_trade_prevention_mode\x18\x04 \x01(\x0e2\".orders.v1.SelfTradePreventionModeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x17selfTradePreventionMode\x126\n" +
-	"\x11client_trigger_id\x18\x05 \x01(\tB\n" +
-	"\xe0A\x02\xbaH\x04r\x02\x10\x01R\x0fclientTriggerId\x12>\n" +
+	"\x1aself_trade_prevention_mode\x18\x04 \x01(\x0e2\".orders.v1.SelfTradePreventionModeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x17selfTradePreventionMode\x128\n" +
+	"\x11client_trigger_id\x18\x05 \x01(\tB\f\xe0A\x02\xbaH\x06r\x04\x10\x01($R\x0fclientTriggerId\x12>\n" +
 	"\tstop_loss\x18\n" +
 	" \x01(\v2\x1f.triggers.v1.ConditionalTriggerH\x00R\bstopLoss\x12B\n" +
 	"\vtake_profit\x18\v \x01(\v2\x1f.triggers.v1.ConditionalTriggerH\x00R\n" +
@@ -4119,7 +4327,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"-TRIGGER_CANCEL_REASON_PARENT_CANCELED_NO_FILL\x10\x03\x12/\n" +
 	"+TRIGGER_CANCEL_REASON_SELF_TRADE_PREVENTION\x10\x04\x12.\n" +
 	")TRIGGER_CANCEL_REASON_MISSING_REASON_CODE\x10\xe6\a\x12)\n" +
-	"$TRIGGER_CANCEL_REASON_INTERNAL_ERROR\x10\xe7\a*\x97\x0f\n" +
+	"$TRIGGER_CANCEL_REASON_INTERNAL_ERROR\x10\xe7\a*\xe9\"\n" +
 	"\x14TriggerFailureReason\x12&\n" +
 	"\"TRIGGER_FAILURE_REASON_UNSPECIFIED\x10\x00\x12)\n" +
 	"%TRIGGER_FAILURE_REASON_UNKNOWN_SYMBOL\x10\x01\x12(\n" +
@@ -4148,6 +4356,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"%TRIGGER_FAILURE_REASON_INVALID_SIZING\x10\x17\x124\n" +
 	"0TRIGGER_FAILURE_REASON_MAX_QUOTE_DEBIT_TOO_SMALL\x10\x18\x12/\n" +
 	"+TRIGGER_FAILURE_REASON_FEE_CEILING_EXCEEDED\x10\x19\x120\n" +
+	",TRIGGER_FAILURE_REASON_INVALID_TIME_IN_FORCE\x10\x1a\x120\n" +
 	",TRIGGER_FAILURE_REASON_TRIGGER_PRICE_INVALID\x10(\x12;\n" +
 	"7TRIGGER_FAILURE_REASON_TRIGGER_PRICE_SOURCE_UNSUPPORTED\x10)\x124\n" +
 	"0TRIGGER_FAILURE_REASON_TRAILING_DISTANCE_INVALID\x10*\x128\n" +
@@ -4160,7 +4369,56 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"*TRIGGER_FAILURE_REASON_POLICY_MAX_NOTIONAL\x101\x121\n" +
 	"-TRIGGER_FAILURE_REASON_POLICY_MAX_OPEN_ORDERS\x102\x120\n" +
 	",TRIGGER_FAILURE_REASON_POLICY_TRADING_HALTED\x103\x12/\n" +
-	"+TRIGGER_FAILURE_REASON_MAX_SLIPPAGE_INVALID\x105\x12/\n" +
+	"+TRIGGER_FAILURE_REASON_MAX_SLIPPAGE_INVALID\x105\x12-\n" +
+	")TRIGGER_FAILURE_REASON_DUPLICATE_ORDER_ID\x109\x12'\n" +
+	"#TRIGGER_FAILURE_REASON_MAX_QUANTITY\x10<\x12'\n" +
+	"#TRIGGER_FAILURE_REASON_MAX_NOTIONAL\x10=\x12)\n" +
+	"%TRIGGER_FAILURE_REASON_PAIR_POST_ONLY\x10>\x120\n" +
+	",TRIGGER_FAILURE_REASON_MAX_OPEN_ORDERS_TOTAL\x10@\x12/\n" +
+	"+TRIGGER_FAILURE_REASON_STP_MODE_NOT_ALLOWED\x10B\x12*\n" +
+	"&TRIGGER_FAILURE_REASON_PAIR_BACKLOGGED\x10C\x12-\n" +
+	")TRIGGER_FAILURE_REASON_MODE_NOT_SUPPORTED\x10D\x12-\n" +
+	")TRIGGER_FAILURE_REASON_MARKET_QUOTE_STALE\x10E\x121\n" +
+	"-TRIGGER_FAILURE_REASON_MARKET_QUOTE_UNHEALTHY\x10F\x12&\n" +
+	"\"TRIGGER_FAILURE_REASON_QTY_INVALID\x10g\x12.\n" +
+	"*TRIGGER_FAILURE_REASON_LIMIT_PRICE_INVALID\x10h\x120\n" +
+	",TRIGGER_FAILURE_REASON_TWAP_INTERVAL_INVALID\x10i\x122\n" +
+	".TRIGGER_FAILURE_REASON_LADDER_RANGE_TOO_NARROW\x10j\x120\n" +
+	",TRIGGER_FAILURE_REASON_LADDER_LEVELS_INVALID\x10k\x121\n" +
+	"-TRIGGER_FAILURE_REASON_ATTACHED_LEGS_EXCEEDED\x10l\x121\n" +
+	"-TRIGGER_FAILURE_REASON_PRICE_LEVELS_EXHAUSTED\x10m\x120\n" +
+	",TRIGGER_FAILURE_REASON_SETTLEMENT_BACKLOGGED\x10n\x125\n" +
+	"1TRIGGER_FAILURE_REASON_CLIENT_ORDER_IDS_EXHAUSTED\x10o\x12+\n" +
+	"'TRIGGER_FAILURE_REASON_INVALID_ORDER_ID\x10p\x12,\n" +
+	"(TRIGGER_FAILURE_REASON_ORDER_ID_CONFLICT\x10q\x12'\n" +
+	"#TRIGGER_FAILURE_REASON_INVALID_SIDE\x10r\x12-\n" +
+	")TRIGGER_FAILURE_REASON_INVALID_ORDER_TYPE\x10s\x12+\n" +
+	"'TRIGGER_FAILURE_REASON_INVALID_STP_MODE\x10t\x12.\n" +
+	"*TRIGGER_FAILURE_REASON_INVALID_ORDER_FLAGS\x10u\x125\n" +
+	"1TRIGGER_FAILURE_REASON_PRICE_LEVEL_QUANTITY_LIMIT\x10y\x126\n" +
+	"2TRIGGER_FAILURE_REASON_CHILD_QTY_RAISE_NOT_ALLOWED\x10z\x12.\n" +
+	")TRIGGER_FAILURE_REASON_TRIGGERS_EXHAUSTED\x10\x8c\x01\x124\n" +
+	"/TRIGGER_FAILURE_REASON_ORDER_SEQUENCE_EXHAUSTED\x10\x90\x01\x124\n" +
+	"/TRIGGER_FAILURE_REASON_FEE_SCHEDULE_UNAVAILABLE\x10\x92\x01\x12.\n" +
+	")TRIGGER_FAILURE_REASON_POLICY_UNAVAILABLE\x10\x94\x01\x123\n" +
+	".TRIGGER_FAILURE_REASON_ACCOUNT_ROUTING_INVALID\x10\xa4\x01\x125\n" +
+	"0TRIGGER_FAILURE_REASON_CLIENT_TRIGGER_ID_INVALID\x10\xa5\x01\x125\n" +
+	"0TRIGGER_FAILURE_REASON_TRIGGER_DIRECTION_INVALID\x10\xa6\x01\x12-\n" +
+	"(TRIGGER_FAILURE_REASON_FEE_ASSET_INVALID\x10\xa7\x01\x12/\n" +
+	"*TRIGGER_FAILURE_REASON_FEE_CEILING_INVALID\x10\xa8\x01\x121\n" +
+	",TRIGGER_FAILURE_REASON_UNSUPPORTED_FIELD_SET\x10\xa9\x01\x126\n" +
+	"1TRIGGER_FAILURE_REASON_TRIGGER_FIRE_LIMIT_REACHED\x10\xb0\x01\x123\n" +
+	".TRIGGER_FAILURE_REASON_CONDITION_FLAGS_INVALID\x10\xca\x01\x123\n" +
+	".TRIGGER_FAILURE_REASON_CONDITION_PARAMETER_SET\x10\xcb\x01\x122\n" +
+	"-TRIGGER_FAILURE_REASON_SLIPPAGE_TICKS_INVALID\x10\xcc\x01\x120\n" +
+	"+TRIGGER_FAILURE_REASON_SLIPPAGE_BPS_INVALID\x10\xcd\x01\x124\n" +
+	"/TRIGGER_FAILURE_REASON_SLIPPAGE_BOUNDS_CONFLICT\x10\xce\x01\x124\n" +
+	"/TRIGGER_FAILURE_REASON_LIMIT_CHILD_SLIPPAGE_SET\x10\xcf\x01\x128\n" +
+	"3TRIGGER_FAILURE_REASON_NEW_ACCOUNT_CAPACITY_REACHED\x10\xd8\x01\x12=\n" +
+	"8TRIGGER_FAILURE_REASON_ORDER_TYPE_NOT_ALLOWED_IN_AUCTION\x10\xe1\x01\x12<\n" +
+	"7TRIGGER_FAILURE_REASON_POST_ONLY_NOT_ALLOWED_IN_AUCTION\x10\xe2\x01\x121\n" +
+	",TRIGGER_FAILURE_REASON_TWAP_CAPACITY_REACHED\x10\xe3\x01\x124\n" +
+	"/TRIGGER_FAILURE_REASON_ORDER_LIMITS_UNAVAILABLE\x10\xee\x01\x12/\n" +
 	"*TRIGGER_FAILURE_REASON_MISSING_REASON_CODE\x10\xe6\a\x12*\n" +
 	"%TRIGGER_FAILURE_REASON_INTERNAL_ERROR\x10\xe7\a*l\n" +
 	"\x12LadderDistribution\x12#\n" +

@@ -436,8 +436,6 @@ const (
 	ErrorCode_ERROR_CODE_TRAILING_DISTANCE_INVALID ErrorCode = 42
 	// Trigger not found (for cancel/get operations).
 	ErrorCode_ERROR_CODE_TRIGGER_NOT_FOUND ErrorCode = 43
-	// Trigger cannot be canceled in current state.
-	ErrorCode_ERROR_CODE_TRIGGER_CANCEL_REJECTED ErrorCode = 44
 	// Trigger status does not allow requested lifecycle operation.
 	ErrorCode_ERROR_CODE_TRIGGER_STATUS_INVALID ErrorCode = 45
 	// Trigger type/state does not support requested lifecycle operation.
@@ -476,159 +474,645 @@ const (
 	// Order notional is above the pair maximum (quote units). A stricter
 	// sub-account policy cap returns POLICY_MAX_NOTIONAL instead.
 	ErrorCode_ERROR_CODE_MAX_NOTIONAL ErrorCode = 75
+	// The replacement total quantity is at or below the order's filled
+	// quantity: the order ended at its filled quantity and no replacement order
+	// was created.
+	ErrorCode_ERROR_CODE_QTY_AT_OR_BELOW_FILLED ErrorCode = 76
+	// The trading gateway that took the request is misconfigured for the order
+	// service behind it. An operator must correct it; retrying does not help.
+	ErrorCode_ERROR_CODE_GATEWAY_MISCONFIGURED ErrorCode = 77
+	// The order identifier or the replacement order identifier is not valid.
+	ErrorCode_ERROR_CODE_INVALID_ORDER_ID ErrorCode = 80
+	// The quantity of a trigger's child order, a TWAP slice or a ladder order
+	// can't be raised above its planned quantity. Nothing changed.
+	ErrorCode_ERROR_CODE_CHILD_QTY_RAISE_NOT_ALLOWED ErrorCode = 81
+	// Attached take-profit, stop-loss or trailing legs can't be applied here:
+	// this market takes none, an attached trailing stop isn't offered yet, or
+	// the modify changes them together with the order's price, quantity, client
+	// order ID or a replace. Nothing changed.
+	ErrorCode_ERROR_CODE_ATTACHED_RISK_NOT_SUPPORTED ErrorCode = 82
+	// The account has too many filled or ended orders whose settlement has not
+	// completed yet. Nothing changed; the request is accepted again once settlement
+	// catches up.
+	ErrorCode_ERROR_CODE_SETTLEMENT_BACKLOGGED ErrorCode = 84
+	// The order would take the total quantity resting at its price past the
+	// most a price level can hold, even if some quantity still fits. Nothing
+	// changed: a new order was not placed, a modified order keeps resting as it
+	// was, and the other orders at that price are unchanged. Another price or a
+	// smaller quantity, or the same order once less quantity rests at that
+	// price, is accepted.
+	ErrorCode_ERROR_CODE_PRICE_LEVEL_QUANTITY_LIMIT ErrorCode = 127
+	// The market order carried no client reference price, and the pair's reference
+	// quote (top of book) was older than its freshness bound when the order was
+	// admitted.
+	ErrorCode_ERROR_CODE_MARKET_QUOTE_STALE ErrorCode = 200
+	// The market order carried no client reference price, and the pair's reference
+	// quote could not be used to price it, for example because it postdated the
+	// order or carried an invalid price.
+	ErrorCode_ERROR_CODE_MARKET_QUOTE_UNHEALTHY ErrorCode = 201
+	// The time in force, or its expiry time, is not accepted for this order or for
+	// a trigger's child order type.
+	ErrorCode_ERROR_CODE_INVALID_TIME_IN_FORCE ErrorCode = 202
+	// The request carried QuickSwap terms that the account or market does not
+	// accept.
+	ErrorCode_ERROR_CODE_QUICKSWAP_NOT_PERMITTED ErrorCode = 203
+	// The order identifier assigned to the request is already in use by another
+	// order of the market. Nothing changed.
+	ErrorCode_ERROR_CODE_DUPLICATE_ORDER_ID ErrorCode = 204
+	// The account has reached its maximum number of open orders across all markets.
+	// A stricter sub-account policy cap returns POLICY_MAX_OPEN_ORDERS instead.
+	ErrorCode_ERROR_CODE_MAX_OPEN_ORDERS_TOTAL ErrorCode = 205
+	// The self-trade prevention mode is not one the venue accepts for this order.
+	ErrorCode_ERROR_CODE_STP_MODE_NOT_ALLOWED ErrorCode = 206
+	// The trading pair is busy with the account's earlier requests, so this one was
+	// not admitted and nothing was reserved. Retry shortly.
+	ErrorCode_ERROR_CODE_PAIR_BACKLOGGED ErrorCode = 207
+	// The order book of the market holds its maximum number of distinct price
+	// levels, so an order at a new price cannot rest. Nothing changed.
+	ErrorCode_ERROR_CODE_PRICE_LEVELS_EXHAUSTED ErrorCode = 208
+	// The account reserves its maximum number of client order IDs, including those
+	// of recently ended orders. Retry once they expire, or send the request without
+	// a client order ID.
+	ErrorCode_ERROR_CODE_CLIENT_ORDER_IDS_EXHAUSTED ErrorCode = 209
+	// The order identifier is held by a different, earlier order, so the request
+	// was not applied. Nothing changed.
+	ErrorCode_ERROR_CODE_ORDER_ID_CONFLICT ErrorCode = 210
+	// The order side, or a trigger's child order side, is not a known side.
+	ErrorCode_ERROR_CODE_INVALID_SIDE ErrorCode = 211
+	// The order type, or a trigger's child order type, is not a known order type.
+	ErrorCode_ERROR_CODE_INVALID_ORDER_TYPE ErrorCode = 212
+	// The self-trade prevention mode is not a known mode.
+	ErrorCode_ERROR_CODE_INVALID_STP_MODE ErrorCode = 213
+	// An order flag is unknown, or not accepted with this order type or time in
+	// force, or on a trigger's child order.
+	ErrorCode_ERROR_CODE_INVALID_ORDER_FLAGS ErrorCode = 214
+	// Another item of the same batch was invalid, so this item was not applied
+	// either. Nothing in the batch changed.
+	ErrorCode_ERROR_CODE_BATCH_OTHER_ITEM_INVALID ErrorCode = 215
+	// The replacement order identifier equals the identifier of the order it
+	// replaces.
+	ErrorCode_ERROR_CODE_REPLACE_ONTO_OWN_ID ErrorCode = 216
+	// The client order ID is longer than 36 bytes or otherwise not valid.
+	ErrorCode_ERROR_CODE_INVALID_CLIENT_ORDER_ID ErrorCode = 217
+	// The account used every order identifier available to it in this market.
+	// Retrying does not help; contact support.
+	ErrorCode_ERROR_CODE_ORDER_SEQUENCE_EXHAUSTED ErrorCode = 218
+	// The order handling mode is not a known or accepted mode.
+	ErrorCode_ERROR_CODE_INVALID_HANDLING_MODE ErrorCode = 219
+	// The fees that apply to the order cannot be determined right now, so it was
+	// not admitted. Retry later.
+	ErrorCode_ERROR_CODE_FEE_SCHEDULE_UNAVAILABLE ErrorCode = 220
+	// The account's trading policy cannot be evaluated right now, so the order was
+	// not admitted. Retry later.
+	ErrorCode_ERROR_CODE_POLICY_UNAVAILABLE ErrorCode = 221
+	// The cancel-all-after timeout is neither 0, which disarms it, nor between 10
+	// and 120 seconds.
+	ErrorCode_ERROR_CODE_CANCEL_ALL_AFTER_TIMEOUT_INVALID ErrorCode = 222
+	// The cancel-all request named more than 100 symbols.
+	ErrorCode_ERROR_CODE_CANCEL_SCOPE_TOO_LARGE ErrorCode = 223
+	// No usable rate-limit policy applies to the account right now, so the request
+	// was refused rather than admitted unlimited. Retry later.
+	ErrorCode_ERROR_CODE_RATE_LIMIT_POLICY_UNAVAILABLE ErrorCode = 224
+	// The venue-wide admission rate that the account shares with other accounts is
+	// exhausted. The account's own limit was not reached; retry shortly.
+	ErrorCode_ERROR_CODE_SYSTEM_RATE_LIMITED ErrorCode = 225
+	// An earlier amend or replace of the order has not completed yet. Retry once it
+	// completes.
+	ErrorCode_ERROR_CODE_ORDER_MODIFY_IN_PROGRESS ErrorCode = 226
+	// The order, or the replace that created it, has not been placed on the book
+	// yet, so it cannot be modified. Retry shortly.
+	ErrorCode_ERROR_CODE_ORDER_PLACEMENT_PENDING ErrorCode = 227
+	// The modify behavior is not a known behavior.
+	ErrorCode_ERROR_CODE_INVALID_MODIFY_BEHAVIOR ErrorCode = 228
+	// An item of the batch modify did not use the REPLACE_ONLY behavior, so the
+	// batch was refused.
+	ErrorCode_ERROR_CODE_BATCH_REPLACE_ONLY_REQUIRED ErrorCode = 229
+	// An item of the batch modify named no symbol, another symbol than the batch's
+	// first item, or an order on another symbol, so the batch was refused.
+	ErrorCode_ERROR_CODE_BATCH_SINGLE_SYMBOL_REQUIRED ErrorCode = 230
+	// The account keeps its maximum number of recent modify or batch requests for
+	// duplicate detection. Retry once earlier ones expire.
+	ErrorCode_ERROR_CODE_REQUEST_RECEIPTS_EXHAUSTED ErrorCode = 231
+	// The cancel-all or cancel-all-after request carried an intent identifier of
+	// zero.
+	ErrorCode_ERROR_CODE_INTENT_ID_INVALID ErrorCode = 232
+	// The cancel-all request's dry-run flag was neither 0 nor 1.
+	ErrorCode_ERROR_CODE_DRY_RUN_INVALID ErrorCode = 233
+	// A cancel-all-after is already due to fire, and the re-arm's scope does not
+	// cover every symbol of the pending one.
+	ErrorCode_ERROR_CODE_CANCEL_ALL_AFTER_SCOPE_CONFLICT ErrorCode = 234
+	// The venue holds its maximum number of account access records, so an account
+	// trading this market for the first time cannot be admitted. Retry later.
+	ErrorCode_ERROR_CODE_NEW_ACCOUNT_CAPACITY_REACHED ErrorCode = 235
+	// The modify patched the trigger's child limit price or price mode, which the
+	// trigger does not accept.
+	ErrorCode_ERROR_CODE_TRIGGER_CHILD_PRICE_NOT_MODIFIABLE ErrorCode = 236
+	// The trigger reached its last modification. Nothing changed; cancel it and
+	// create a new trigger instead.
+	ErrorCode_ERROR_CODE_TRIGGER_GENERATIONS_EXHAUSTED ErrorCode = 237
+	// The account has its maximum number of trigger changes whose outcome is still
+	// pending. Retry shortly.
+	ErrorCode_ERROR_CODE_TRIGGER_CONTROL_SHARE_EXHAUSTED ErrorCode = 238
+	// The venue's capacity for pending trigger changes is exhausted across
+	// accounts. Retry shortly.
+	ErrorCode_ERROR_CODE_TRIGGER_CONTROLS_BUSY ErrorCode = 239
+	// The trigger type is valid but not supported on this venue yet.
+	ErrorCode_ERROR_CODE_TRIGGER_TYPE_NOT_SUPPORTED ErrorCode = 240
+	// The trigger type is not a known type.
+	ErrorCode_ERROR_CODE_INVALID_TRIGGER_TYPE ErrorCode = 241
+	// The trigger direction is neither ABOVE nor BELOW.
+	ErrorCode_ERROR_CODE_TRIGGER_DIRECTION_INVALID ErrorCode = 242
+	// The trigger's child order quantity is not positive.
+	ErrorCode_ERROR_CODE_TRIGGER_QTY_INVALID ErrorCode = 243
+	// A buy trigger's child order is not a LIMIT order; its funds are reserved at
+	// the limit price.
+	ErrorCode_ERROR_CODE_TRIGGER_BUY_REQUIRES_LIMIT ErrorCode = 244
+	// The account's trading route is not configured for triggers, so the trigger
+	// was not admitted. Contact support if it persists.
+	ErrorCode_ERROR_CODE_ACCOUNT_ROUTING_INVALID ErrorCode = 245
+	// The account has its maximum number of live and recently ended triggers.
+	ErrorCode_ERROR_CODE_TRIGGER_LIMIT_EXCEEDED ErrorCode = 246
+	// An earlier change of the trigger has not completed yet. Retry once it
+	// completes.
+	ErrorCode_ERROR_CODE_TRIGGER_CONTROL_IN_PROGRESS ErrorCode = 247
+	// The trigger modify named no field to change.
+	ErrorCode_ERROR_CODE_TRIGGER_PATCH_EMPTY ErrorCode = 248
+	// The client trigger ID is empty, longer than 36 bytes or otherwise not valid.
+	ErrorCode_ERROR_CODE_CLIENT_TRIGGER_ID_INVALID ErrorCode = 249
+	// The trailing trigger's activation price is not positive or not on the pair's
+	// tick.
+	ErrorCode_ERROR_CODE_TRIGGER_ACTIVATION_PRICE_INVALID ErrorCode = 250
+	// The trigger's slippage bound in ticks is not valid for its child order.
+	ErrorCode_ERROR_CODE_SLIPPAGE_TICKS_INVALID ErrorCode = 251
+	// The trigger's slippage bound in basis points is not valid for its child
+	// order.
+	ErrorCode_ERROR_CODE_SLIPPAGE_BPS_INVALID ErrorCode = 252
+	// The trigger change was not confirmed within its time bound. Its outcome is
+	// unknown and it may still apply; read the trigger before retrying.
+	ErrorCode_ERROR_CODE_TRIGGER_CONTROL_OUTCOME_UNKNOWN ErrorCode = 253
+	// The venue holds its maximum number of triggers across accounts right now.
+	// Retry later.
+	ErrorCode_ERROR_CODE_TRIGGER_CAPACITY_REACHED ErrorCode = 254
+	// The venue's capacity for fund reservations is exhausted right now, so the
+	// trigger's child order could not be reserved. Retry later.
+	ErrorCode_ERROR_CODE_RESERVATION_CAPACITY_REACHED ErrorCode = 255
+	// The venue's capacity for reserved client order IDs is exhausted right now, so
+	// the trigger's child order could not reserve one. Retry later.
+	ErrorCode_ERROR_CODE_CLIENT_ORDER_ID_CAPACITY_REACHED ErrorCode = 256
+	// The account's open orders and triggers hold its maximum number of fund
+	// reservations.
+	ErrorCode_ERROR_CODE_ACCOUNT_RESERVATION_LIMIT_REACHED ErrorCode = 257
+	// The requested trigger operation is not a known operation.
+	ErrorCode_ERROR_CODE_INVALID_TRIGGER_CONTROL ErrorCode = 258
+	// A trigger operation other than modify carried field changes.
+	ErrorCode_ERROR_CODE_TRIGGER_PATCH_NOT_ALLOWED ErrorCode = 259
+	// The trigger modify named a field that is not known.
+	ErrorCode_ERROR_CODE_TRIGGER_PATCH_FIELD_UNKNOWN ErrorCode = 260
+	// The trigger modify carried a value for a field its change mask does not name.
+	ErrorCode_ERROR_CODE_TRIGGER_PATCH_VALUE_UNMASKED ErrorCode = 261
+	// The trigger modify's price mode is not a known mode.
+	ErrorCode_ERROR_CODE_TRIGGER_PATCH_PRICE_MODE_INVALID ErrorCode = 262
+	// New orders, changes and trigger orders on this account are suspended until
+	// a balance issue is resolved; cancels still work. Nothing changed.
+	ErrorCode_ERROR_CODE_ACCOUNT_ORDERS_SUSPENDED ErrorCode = 263
+	// A standalone trailing stop must sell; a standalone buy trailing stop is not
+	// supported. Attached trailing stops take the side opposite their parent.
+	ErrorCode_ERROR_CODE_TRAILING_SIDE_NOT_SUPPORTED ErrorCode = 264
+	// A trailing stop's child order must be a MARKET order.
+	ErrorCode_ERROR_CODE_TRAILING_CHILD_NOT_MARKET ErrorCode = 265
+	// The TWAP duration is shorter than 1 second or longer than about 292 years,
+	// the longest the venue's clock represents.
+	ErrorCode_ERROR_CODE_TWAP_DURATION_INVALID ErrorCode = 266
+	// The TWAP sets a slippage bound, but its slices are LIMIT orders, which take
+	// none.
+	ErrorCode_ERROR_CODE_LIMIT_CHILD_SLIPPAGE_SET ErrorCode = 267
+	// The slippage bound is given both in ticks and in basis points; give only one.
+	ErrorCode_ERROR_CODE_SLIPPAGE_BOUNDS_CONFLICT ErrorCode = 268
+	// The TWAP slice interval is shorter than 100 milliseconds or longer than its
+	// duration.
+	ErrorCode_ERROR_CODE_TWAP_INTERVAL_INVALID ErrorCode = 269
+	// One of the ladder's orders can't be placed, so the ladder was not created.
+	// Nothing changed.
+	ErrorCode_ERROR_CODE_LADDER_LEVEL_REJECTED ErrorCode = 270
+	// The ladder's price range is too narrow to place its orders at least one
+	// price tick apart.
+	ErrorCode_ERROR_CODE_LADDER_RANGE_TOO_NARROW ErrorCode = 271
+	// A ladder places from 2 to 100 orders.
+	ErrorCode_ERROR_CODE_LADDER_LEVELS_INVALID ErrorCode = 272
+	// This market's order limits aren't set yet, so it can't take new orders.
+	ErrorCode_ERROR_CODE_ORDER_LIMITS_UNAVAILABLE ErrorCode = 273
+	// This market is in an auction call and takes only limit orders that rest
+	// without crossing the book; market, immediate-or-cancel and fill-or-kill
+	// orders are refused. Nothing changed.
+	ErrorCode_ERROR_CODE_ORDER_TYPE_NOT_ALLOWED_IN_AUCTION ErrorCode = 274
+	// This market is in an auction call; new post-only orders are refused.
+	// Nothing changed.
+	ErrorCode_ERROR_CODE_POST_ONLY_NOT_ALLOWED_IN_AUCTION ErrorCode = 275
+	// The request's QuickSwap fee details are incomplete: a fee schedule needs a
+	// broker, and a broker or broker fee terms need a fee schedule.
+	ErrorCode_ERROR_CODE_QUICKSWAP_FEE_DETAILS_INCOMPLETE ErrorCode = 276
+	// The requested QuickSwap fee schedule doesn't price this market.
+	ErrorCode_ERROR_CODE_QUICKSWAP_MARKET_NOT_PRICED ErrorCode = 277
+	// The broker fee terms belong to another broker.
+	ErrorCode_ERROR_CODE_QUICKSWAP_BROKER_FEE_TERMS_MISMATCH ErrorCode = 278
+	// A QuickSwap fee would be paid into the account placing the order.
+	ErrorCode_ERROR_CODE_QUICKSWAP_FEE_RECIPIENT_IS_PAYER ErrorCode = 279
+	// The broker fee terms aren't available yet; retry shortly.
+	ErrorCode_ERROR_CODE_QUICKSWAP_BROKER_FEE_TERMS_UNAVAILABLE ErrorCode = 280
+	// The broker's fee account isn't available yet; retry shortly.
+	ErrorCode_ERROR_CODE_QUICKSWAP_BROKER_ACCOUNT_UNAVAILABLE ErrorCode = 281
+	// QuickSwap isn't enabled for this account's trading.
+	ErrorCode_ERROR_CODE_QUICKSWAP_DISABLED ErrorCode = 282
+	// QuickSwap orders can't carry take-profit or stop-loss legs.
+	ErrorCode_ERROR_CODE_QUICKSWAP_ATTACHED_RISK_NOT_ALLOWED ErrorCode = 283
+	// QuickSwap orders can't be amended or replaced.
+	ErrorCode_ERROR_CODE_QUICKSWAP_ORDER_NOT_MODIFIABLE ErrorCode = 284
+	// The QuickSwap fees together would exceed the order's value.
+	ErrorCode_ERROR_CODE_QUICKSWAP_FEE_TOTAL_TOO_HIGH ErrorCode = 285
+	// The broker fee terms are invalid and can't be used.
+	ErrorCode_ERROR_CODE_QUICKSWAP_BROKER_FEE_TERMS_INVALID ErrorCode = 286
+	// The broker's QuickSwap setup is invalid and can't be used.
+	ErrorCode_ERROR_CODE_QUICKSWAP_BROKER_INVALID ErrorCode = 287
+	// The QuickSwap fee schedule is invalid and can't be used.
+	ErrorCode_ERROR_CODE_QUICKSWAP_FEE_SCHEDULE_INVALID ErrorCode = 288
+	// The QuickSwap fee for this market is invalid and can't be used.
+	ErrorCode_ERROR_CODE_QUICKSWAP_MARKET_FEE_INVALID ErrorCode = 289
+	// QuickSwap's setup is invalid, so QuickSwap orders can't be placed.
+	ErrorCode_ERROR_CODE_QUICKSWAP_SETUP_INVALID ErrorCode = 290
+	// QuickSwap's capacity for fee settings is reached; this order can't be
+	// placed.
+	ErrorCode_ERROR_CODE_QUICKSWAP_CAPACITY_REACHED ErrorCode = 291
+	// An exit order placed by one of the order's attached take-profit or stop
+	// legs is still working, so attached legs can't be added now. Nothing
+	// changed; retry once the exit completes.
+	ErrorCode_ERROR_CODE_ATTACHED_EXIT_WORKING ErrorCode = 292
+	// The account already has the most triggers one account may have on this
+	// market, attached take-profit, stop-loss and trailing legs included.
+	// Nothing changed; retry once one of them ends.
+	ErrorCode_ERROR_CODE_MARKET_TRIGGER_LIMIT_EXCEEDED ErrorCode = 293
+	// The account already has the most TWAP orders one account may have on
+	// this market. Nothing changed; retry once one of them ends.
+	ErrorCode_ERROR_CODE_MARKET_TWAP_LIMIT_EXCEEDED ErrorCode = 294
+	// The account already has the most ladder orders one account may have on
+	// this market. Nothing changed; retry once one of them ends.
+	ErrorCode_ERROR_CODE_MARKET_LADDER_LIMIT_EXCEEDED ErrorCode = 295
 )
 
 // Enum value maps for ErrorCode.
 var (
 	ErrorCode_name = map[int32]string{
-		0:  "ERROR_CODE_UNSPECIFIED",
-		1:  "ERROR_CODE_BAD_REQUEST",
-		2:  "ERROR_CODE_INVALID_ARGUMENT",
-		3:  "ERROR_CODE_INSUFFICIENT_FUNDS",
-		4:  "ERROR_CODE_UNKNOWN_SYMBOL",
-		5:  "ERROR_CODE_BAD_PRICE",
-		6:  "ERROR_CODE_BAD_QTY",
-		7:  "ERROR_CODE_MIN_NOTIONAL",
-		8:  "ERROR_CODE_QTY_STEP_SIZE",
-		9:  "ERROR_CODE_CONFLICT_DUPLICATE_CLIENT_ORDER_ID",
-		10: "ERROR_CODE_UNAVAILABLE",
-		11: "ERROR_CODE_UNAUTHENTICATED",
-		12: "ERROR_CODE_PERMISSION_DENIED",
-		13: "ERROR_CODE_NOT_FOUND",
-		14: "ERROR_CODE_UPSTREAM_ERROR",
-		15: "ERROR_CODE_FEE_ASSET_NOT_ALLOWED",
-		16: "ERROR_CODE_PAIR_DISABLED",
-		17: "ERROR_CODE_ORDER_UNKNOWN",
-		18: "ERROR_CODE_INTERNAL_ERROR",
-		19: "ERROR_CODE_SUBACCOUNT_INACTIVE",
-		20: "ERROR_CODE_POLICY_MARKET_DENY",
-		21: "ERROR_CODE_POLICY_MAX_NOTIONAL",
-		22: "ERROR_CODE_POLICY_TRADING_HALTED",
-		23: "ERROR_CODE_POLICY_SPOT_TRADE_DENY",
-		24: "ERROR_CODE_API_KEY_ROOT_SCOPE_ONLY",
-		25: "ERROR_CODE_API_KEY_SUB_SCOPE_ONLY",
-		26: "ERROR_CODE_API_KEY_SUBACCOUNT_MISMATCH",
-		27: "ERROR_CODE_API_KEY_POLICY_REQUIRED",
-		28: "ERROR_CODE_API_KEY_UNKNOWN",
-		29: "ERROR_CODE_API_KEY_MARKET_DENY",
-		30: "ERROR_CODE_PRICE_TICK_SIZE",
-		31: "ERROR_CODE_MIN_QTY",
-		32: "ERROR_CODE_POST_ONLY_LIMIT_ONLY",
-		33: "ERROR_CODE_BATCH_TOO_LARGE",
-		34: "ERROR_CODE_POLICY_MAX_OPEN_ORDERS",
-		35: "ERROR_CODE_MODIFICATION_REQUIRES_REPLACE",
-		36: "ERROR_CODE_CONFLICT_IDEMPOTENCY_KEY_REUSE",
-		37: "ERROR_CODE_MARKET_PRICE_UNAVAILABLE",
-		50: "ERROR_CODE_PAIR_NOT_LISTED_YET",
-		51: "ERROR_CODE_PAIR_DELISTED",
-		52: "ERROR_CODE_PAIR_CANCEL_ONLY",
-		53: "ERROR_CODE_PAIR_POST_ONLY",
-		54: "ERROR_CODE_PAIR_REDUCE_ONLY",
-		55: "ERROR_CODE_RISK_LIMIT",
-		56: "ERROR_CODE_MARKET_HALTED",
-		57: "ERROR_CODE_ACCOUNT_UNKNOWN",
-		58: "ERROR_CODE_POST_ONLY_CROSS",
-		59: "ERROR_CODE_REDUCE_ONLY_BLOCKED",
-		60: "ERROR_CODE_PRICE_BAND_VIOLATION",
-		61: "ERROR_CODE_MARKET_CAP_VIOLATION",
-		62: "ERROR_CODE_EMPTY_BOOK",
-		63: "ERROR_CODE_FOK_INSUFFICIENT_LIQUIDITY",
-		64: "ERROR_CODE_ORDER_ALREADY_TERMINAL",
-		40: "ERROR_CODE_TRIGGER_PRICE_INVALID",
-		41: "ERROR_CODE_TRIGGER_PRICE_SOURCE_UNSUPPORTED",
-		42: "ERROR_CODE_TRAILING_DISTANCE_INVALID",
-		43: "ERROR_CODE_TRIGGER_NOT_FOUND",
-		44: "ERROR_CODE_TRIGGER_CANCEL_REJECTED",
-		45: "ERROR_CODE_TRIGGER_STATUS_INVALID",
-		46: "ERROR_CODE_TRIGGER_NOT_MODIFIABLE",
-		47: "ERROR_CODE_CONFLICT_DUPLICATE_CLIENT_TRIGGER_ID",
-		48: "ERROR_CODE_MAX_SLIPPAGE_INVALID",
-		65: "ERROR_CODE_STALE_QUOTE",
-		66: "ERROR_CODE_VALIDATION_ERROR",
-		67: "ERROR_CODE_OVERLOADED",
-		68: "ERROR_CODE_MAX_QUOTE_DEBIT_TOO_SMALL",
-		69: "ERROR_CODE_RATE_LIMIT_EXCEEDED",
-		70: "ERROR_CODE_SUBACCOUNT_READ_FORBIDDEN",
-		71: "ERROR_CODE_POLICY_SPOT_READ_DENY",
-		72: "ERROR_CODE_API_KEY_SPOT_READ_DENY",
-		73: "ERROR_CODE_CANCEL_REQUEST_EXPIRED",
-		74: "ERROR_CODE_MAX_QTY",
-		75: "ERROR_CODE_MAX_NOTIONAL",
+		0:   "ERROR_CODE_UNSPECIFIED",
+		1:   "ERROR_CODE_BAD_REQUEST",
+		2:   "ERROR_CODE_INVALID_ARGUMENT",
+		3:   "ERROR_CODE_INSUFFICIENT_FUNDS",
+		4:   "ERROR_CODE_UNKNOWN_SYMBOL",
+		5:   "ERROR_CODE_BAD_PRICE",
+		6:   "ERROR_CODE_BAD_QTY",
+		7:   "ERROR_CODE_MIN_NOTIONAL",
+		8:   "ERROR_CODE_QTY_STEP_SIZE",
+		9:   "ERROR_CODE_CONFLICT_DUPLICATE_CLIENT_ORDER_ID",
+		10:  "ERROR_CODE_UNAVAILABLE",
+		11:  "ERROR_CODE_UNAUTHENTICATED",
+		12:  "ERROR_CODE_PERMISSION_DENIED",
+		13:  "ERROR_CODE_NOT_FOUND",
+		14:  "ERROR_CODE_UPSTREAM_ERROR",
+		15:  "ERROR_CODE_FEE_ASSET_NOT_ALLOWED",
+		16:  "ERROR_CODE_PAIR_DISABLED",
+		17:  "ERROR_CODE_ORDER_UNKNOWN",
+		18:  "ERROR_CODE_INTERNAL_ERROR",
+		19:  "ERROR_CODE_SUBACCOUNT_INACTIVE",
+		20:  "ERROR_CODE_POLICY_MARKET_DENY",
+		21:  "ERROR_CODE_POLICY_MAX_NOTIONAL",
+		22:  "ERROR_CODE_POLICY_TRADING_HALTED",
+		23:  "ERROR_CODE_POLICY_SPOT_TRADE_DENY",
+		24:  "ERROR_CODE_API_KEY_ROOT_SCOPE_ONLY",
+		25:  "ERROR_CODE_API_KEY_SUB_SCOPE_ONLY",
+		26:  "ERROR_CODE_API_KEY_SUBACCOUNT_MISMATCH",
+		27:  "ERROR_CODE_API_KEY_POLICY_REQUIRED",
+		28:  "ERROR_CODE_API_KEY_UNKNOWN",
+		29:  "ERROR_CODE_API_KEY_MARKET_DENY",
+		30:  "ERROR_CODE_PRICE_TICK_SIZE",
+		31:  "ERROR_CODE_MIN_QTY",
+		32:  "ERROR_CODE_POST_ONLY_LIMIT_ONLY",
+		33:  "ERROR_CODE_BATCH_TOO_LARGE",
+		34:  "ERROR_CODE_POLICY_MAX_OPEN_ORDERS",
+		35:  "ERROR_CODE_MODIFICATION_REQUIRES_REPLACE",
+		36:  "ERROR_CODE_CONFLICT_IDEMPOTENCY_KEY_REUSE",
+		37:  "ERROR_CODE_MARKET_PRICE_UNAVAILABLE",
+		50:  "ERROR_CODE_PAIR_NOT_LISTED_YET",
+		51:  "ERROR_CODE_PAIR_DELISTED",
+		52:  "ERROR_CODE_PAIR_CANCEL_ONLY",
+		53:  "ERROR_CODE_PAIR_POST_ONLY",
+		54:  "ERROR_CODE_PAIR_REDUCE_ONLY",
+		55:  "ERROR_CODE_RISK_LIMIT",
+		56:  "ERROR_CODE_MARKET_HALTED",
+		57:  "ERROR_CODE_ACCOUNT_UNKNOWN",
+		58:  "ERROR_CODE_POST_ONLY_CROSS",
+		59:  "ERROR_CODE_REDUCE_ONLY_BLOCKED",
+		60:  "ERROR_CODE_PRICE_BAND_VIOLATION",
+		61:  "ERROR_CODE_MARKET_CAP_VIOLATION",
+		62:  "ERROR_CODE_EMPTY_BOOK",
+		63:  "ERROR_CODE_FOK_INSUFFICIENT_LIQUIDITY",
+		64:  "ERROR_CODE_ORDER_ALREADY_TERMINAL",
+		40:  "ERROR_CODE_TRIGGER_PRICE_INVALID",
+		41:  "ERROR_CODE_TRIGGER_PRICE_SOURCE_UNSUPPORTED",
+		42:  "ERROR_CODE_TRAILING_DISTANCE_INVALID",
+		43:  "ERROR_CODE_TRIGGER_NOT_FOUND",
+		45:  "ERROR_CODE_TRIGGER_STATUS_INVALID",
+		46:  "ERROR_CODE_TRIGGER_NOT_MODIFIABLE",
+		47:  "ERROR_CODE_CONFLICT_DUPLICATE_CLIENT_TRIGGER_ID",
+		48:  "ERROR_CODE_MAX_SLIPPAGE_INVALID",
+		65:  "ERROR_CODE_STALE_QUOTE",
+		66:  "ERROR_CODE_VALIDATION_ERROR",
+		67:  "ERROR_CODE_OVERLOADED",
+		68:  "ERROR_CODE_MAX_QUOTE_DEBIT_TOO_SMALL",
+		69:  "ERROR_CODE_RATE_LIMIT_EXCEEDED",
+		70:  "ERROR_CODE_SUBACCOUNT_READ_FORBIDDEN",
+		71:  "ERROR_CODE_POLICY_SPOT_READ_DENY",
+		72:  "ERROR_CODE_API_KEY_SPOT_READ_DENY",
+		73:  "ERROR_CODE_CANCEL_REQUEST_EXPIRED",
+		74:  "ERROR_CODE_MAX_QTY",
+		75:  "ERROR_CODE_MAX_NOTIONAL",
+		76:  "ERROR_CODE_QTY_AT_OR_BELOW_FILLED",
+		77:  "ERROR_CODE_GATEWAY_MISCONFIGURED",
+		80:  "ERROR_CODE_INVALID_ORDER_ID",
+		81:  "ERROR_CODE_CHILD_QTY_RAISE_NOT_ALLOWED",
+		82:  "ERROR_CODE_ATTACHED_RISK_NOT_SUPPORTED",
+		84:  "ERROR_CODE_SETTLEMENT_BACKLOGGED",
+		127: "ERROR_CODE_PRICE_LEVEL_QUANTITY_LIMIT",
+		200: "ERROR_CODE_MARKET_QUOTE_STALE",
+		201: "ERROR_CODE_MARKET_QUOTE_UNHEALTHY",
+		202: "ERROR_CODE_INVALID_TIME_IN_FORCE",
+		203: "ERROR_CODE_QUICKSWAP_NOT_PERMITTED",
+		204: "ERROR_CODE_DUPLICATE_ORDER_ID",
+		205: "ERROR_CODE_MAX_OPEN_ORDERS_TOTAL",
+		206: "ERROR_CODE_STP_MODE_NOT_ALLOWED",
+		207: "ERROR_CODE_PAIR_BACKLOGGED",
+		208: "ERROR_CODE_PRICE_LEVELS_EXHAUSTED",
+		209: "ERROR_CODE_CLIENT_ORDER_IDS_EXHAUSTED",
+		210: "ERROR_CODE_ORDER_ID_CONFLICT",
+		211: "ERROR_CODE_INVALID_SIDE",
+		212: "ERROR_CODE_INVALID_ORDER_TYPE",
+		213: "ERROR_CODE_INVALID_STP_MODE",
+		214: "ERROR_CODE_INVALID_ORDER_FLAGS",
+		215: "ERROR_CODE_BATCH_OTHER_ITEM_INVALID",
+		216: "ERROR_CODE_REPLACE_ONTO_OWN_ID",
+		217: "ERROR_CODE_INVALID_CLIENT_ORDER_ID",
+		218: "ERROR_CODE_ORDER_SEQUENCE_EXHAUSTED",
+		219: "ERROR_CODE_INVALID_HANDLING_MODE",
+		220: "ERROR_CODE_FEE_SCHEDULE_UNAVAILABLE",
+		221: "ERROR_CODE_POLICY_UNAVAILABLE",
+		222: "ERROR_CODE_CANCEL_ALL_AFTER_TIMEOUT_INVALID",
+		223: "ERROR_CODE_CANCEL_SCOPE_TOO_LARGE",
+		224: "ERROR_CODE_RATE_LIMIT_POLICY_UNAVAILABLE",
+		225: "ERROR_CODE_SYSTEM_RATE_LIMITED",
+		226: "ERROR_CODE_ORDER_MODIFY_IN_PROGRESS",
+		227: "ERROR_CODE_ORDER_PLACEMENT_PENDING",
+		228: "ERROR_CODE_INVALID_MODIFY_BEHAVIOR",
+		229: "ERROR_CODE_BATCH_REPLACE_ONLY_REQUIRED",
+		230: "ERROR_CODE_BATCH_SINGLE_SYMBOL_REQUIRED",
+		231: "ERROR_CODE_REQUEST_RECEIPTS_EXHAUSTED",
+		232: "ERROR_CODE_INTENT_ID_INVALID",
+		233: "ERROR_CODE_DRY_RUN_INVALID",
+		234: "ERROR_CODE_CANCEL_ALL_AFTER_SCOPE_CONFLICT",
+		235: "ERROR_CODE_NEW_ACCOUNT_CAPACITY_REACHED",
+		236: "ERROR_CODE_TRIGGER_CHILD_PRICE_NOT_MODIFIABLE",
+		237: "ERROR_CODE_TRIGGER_GENERATIONS_EXHAUSTED",
+		238: "ERROR_CODE_TRIGGER_CONTROL_SHARE_EXHAUSTED",
+		239: "ERROR_CODE_TRIGGER_CONTROLS_BUSY",
+		240: "ERROR_CODE_TRIGGER_TYPE_NOT_SUPPORTED",
+		241: "ERROR_CODE_INVALID_TRIGGER_TYPE",
+		242: "ERROR_CODE_TRIGGER_DIRECTION_INVALID",
+		243: "ERROR_CODE_TRIGGER_QTY_INVALID",
+		244: "ERROR_CODE_TRIGGER_BUY_REQUIRES_LIMIT",
+		245: "ERROR_CODE_ACCOUNT_ROUTING_INVALID",
+		246: "ERROR_CODE_TRIGGER_LIMIT_EXCEEDED",
+		247: "ERROR_CODE_TRIGGER_CONTROL_IN_PROGRESS",
+		248: "ERROR_CODE_TRIGGER_PATCH_EMPTY",
+		249: "ERROR_CODE_CLIENT_TRIGGER_ID_INVALID",
+		250: "ERROR_CODE_TRIGGER_ACTIVATION_PRICE_INVALID",
+		251: "ERROR_CODE_SLIPPAGE_TICKS_INVALID",
+		252: "ERROR_CODE_SLIPPAGE_BPS_INVALID",
+		253: "ERROR_CODE_TRIGGER_CONTROL_OUTCOME_UNKNOWN",
+		254: "ERROR_CODE_TRIGGER_CAPACITY_REACHED",
+		255: "ERROR_CODE_RESERVATION_CAPACITY_REACHED",
+		256: "ERROR_CODE_CLIENT_ORDER_ID_CAPACITY_REACHED",
+		257: "ERROR_CODE_ACCOUNT_RESERVATION_LIMIT_REACHED",
+		258: "ERROR_CODE_INVALID_TRIGGER_CONTROL",
+		259: "ERROR_CODE_TRIGGER_PATCH_NOT_ALLOWED",
+		260: "ERROR_CODE_TRIGGER_PATCH_FIELD_UNKNOWN",
+		261: "ERROR_CODE_TRIGGER_PATCH_VALUE_UNMASKED",
+		262: "ERROR_CODE_TRIGGER_PATCH_PRICE_MODE_INVALID",
+		263: "ERROR_CODE_ACCOUNT_ORDERS_SUSPENDED",
+		264: "ERROR_CODE_TRAILING_SIDE_NOT_SUPPORTED",
+		265: "ERROR_CODE_TRAILING_CHILD_NOT_MARKET",
+		266: "ERROR_CODE_TWAP_DURATION_INVALID",
+		267: "ERROR_CODE_LIMIT_CHILD_SLIPPAGE_SET",
+		268: "ERROR_CODE_SLIPPAGE_BOUNDS_CONFLICT",
+		269: "ERROR_CODE_TWAP_INTERVAL_INVALID",
+		270: "ERROR_CODE_LADDER_LEVEL_REJECTED",
+		271: "ERROR_CODE_LADDER_RANGE_TOO_NARROW",
+		272: "ERROR_CODE_LADDER_LEVELS_INVALID",
+		273: "ERROR_CODE_ORDER_LIMITS_UNAVAILABLE",
+		274: "ERROR_CODE_ORDER_TYPE_NOT_ALLOWED_IN_AUCTION",
+		275: "ERROR_CODE_POST_ONLY_NOT_ALLOWED_IN_AUCTION",
+		276: "ERROR_CODE_QUICKSWAP_FEE_DETAILS_INCOMPLETE",
+		277: "ERROR_CODE_QUICKSWAP_MARKET_NOT_PRICED",
+		278: "ERROR_CODE_QUICKSWAP_BROKER_FEE_TERMS_MISMATCH",
+		279: "ERROR_CODE_QUICKSWAP_FEE_RECIPIENT_IS_PAYER",
+		280: "ERROR_CODE_QUICKSWAP_BROKER_FEE_TERMS_UNAVAILABLE",
+		281: "ERROR_CODE_QUICKSWAP_BROKER_ACCOUNT_UNAVAILABLE",
+		282: "ERROR_CODE_QUICKSWAP_DISABLED",
+		283: "ERROR_CODE_QUICKSWAP_ATTACHED_RISK_NOT_ALLOWED",
+		284: "ERROR_CODE_QUICKSWAP_ORDER_NOT_MODIFIABLE",
+		285: "ERROR_CODE_QUICKSWAP_FEE_TOTAL_TOO_HIGH",
+		286: "ERROR_CODE_QUICKSWAP_BROKER_FEE_TERMS_INVALID",
+		287: "ERROR_CODE_QUICKSWAP_BROKER_INVALID",
+		288: "ERROR_CODE_QUICKSWAP_FEE_SCHEDULE_INVALID",
+		289: "ERROR_CODE_QUICKSWAP_MARKET_FEE_INVALID",
+		290: "ERROR_CODE_QUICKSWAP_SETUP_INVALID",
+		291: "ERROR_CODE_QUICKSWAP_CAPACITY_REACHED",
+		292: "ERROR_CODE_ATTACHED_EXIT_WORKING",
+		293: "ERROR_CODE_MARKET_TRIGGER_LIMIT_EXCEEDED",
+		294: "ERROR_CODE_MARKET_TWAP_LIMIT_EXCEEDED",
+		295: "ERROR_CODE_MARKET_LADDER_LIMIT_EXCEEDED",
 	}
 	ErrorCode_value = map[string]int32{
-		"ERROR_CODE_UNSPECIFIED":                          0,
-		"ERROR_CODE_BAD_REQUEST":                          1,
-		"ERROR_CODE_INVALID_ARGUMENT":                     2,
-		"ERROR_CODE_INSUFFICIENT_FUNDS":                   3,
-		"ERROR_CODE_UNKNOWN_SYMBOL":                       4,
-		"ERROR_CODE_BAD_PRICE":                            5,
-		"ERROR_CODE_BAD_QTY":                              6,
-		"ERROR_CODE_MIN_NOTIONAL":                         7,
-		"ERROR_CODE_QTY_STEP_SIZE":                        8,
-		"ERROR_CODE_CONFLICT_DUPLICATE_CLIENT_ORDER_ID":   9,
-		"ERROR_CODE_UNAVAILABLE":                          10,
-		"ERROR_CODE_UNAUTHENTICATED":                      11,
-		"ERROR_CODE_PERMISSION_DENIED":                    12,
-		"ERROR_CODE_NOT_FOUND":                            13,
-		"ERROR_CODE_UPSTREAM_ERROR":                       14,
-		"ERROR_CODE_FEE_ASSET_NOT_ALLOWED":                15,
-		"ERROR_CODE_PAIR_DISABLED":                        16,
-		"ERROR_CODE_ORDER_UNKNOWN":                        17,
-		"ERROR_CODE_INTERNAL_ERROR":                       18,
-		"ERROR_CODE_SUBACCOUNT_INACTIVE":                  19,
-		"ERROR_CODE_POLICY_MARKET_DENY":                   20,
-		"ERROR_CODE_POLICY_MAX_NOTIONAL":                  21,
-		"ERROR_CODE_POLICY_TRADING_HALTED":                22,
-		"ERROR_CODE_POLICY_SPOT_TRADE_DENY":               23,
-		"ERROR_CODE_API_KEY_ROOT_SCOPE_ONLY":              24,
-		"ERROR_CODE_API_KEY_SUB_SCOPE_ONLY":               25,
-		"ERROR_CODE_API_KEY_SUBACCOUNT_MISMATCH":          26,
-		"ERROR_CODE_API_KEY_POLICY_REQUIRED":              27,
-		"ERROR_CODE_API_KEY_UNKNOWN":                      28,
-		"ERROR_CODE_API_KEY_MARKET_DENY":                  29,
-		"ERROR_CODE_PRICE_TICK_SIZE":                      30,
-		"ERROR_CODE_MIN_QTY":                              31,
-		"ERROR_CODE_POST_ONLY_LIMIT_ONLY":                 32,
-		"ERROR_CODE_BATCH_TOO_LARGE":                      33,
-		"ERROR_CODE_POLICY_MAX_OPEN_ORDERS":               34,
-		"ERROR_CODE_MODIFICATION_REQUIRES_REPLACE":        35,
-		"ERROR_CODE_CONFLICT_IDEMPOTENCY_KEY_REUSE":       36,
-		"ERROR_CODE_MARKET_PRICE_UNAVAILABLE":             37,
-		"ERROR_CODE_PAIR_NOT_LISTED_YET":                  50,
-		"ERROR_CODE_PAIR_DELISTED":                        51,
-		"ERROR_CODE_PAIR_CANCEL_ONLY":                     52,
-		"ERROR_CODE_PAIR_POST_ONLY":                       53,
-		"ERROR_CODE_PAIR_REDUCE_ONLY":                     54,
-		"ERROR_CODE_RISK_LIMIT":                           55,
-		"ERROR_CODE_MARKET_HALTED":                        56,
-		"ERROR_CODE_ACCOUNT_UNKNOWN":                      57,
-		"ERROR_CODE_POST_ONLY_CROSS":                      58,
-		"ERROR_CODE_REDUCE_ONLY_BLOCKED":                  59,
-		"ERROR_CODE_PRICE_BAND_VIOLATION":                 60,
-		"ERROR_CODE_MARKET_CAP_VIOLATION":                 61,
-		"ERROR_CODE_EMPTY_BOOK":                           62,
-		"ERROR_CODE_FOK_INSUFFICIENT_LIQUIDITY":           63,
-		"ERROR_CODE_ORDER_ALREADY_TERMINAL":               64,
-		"ERROR_CODE_TRIGGER_PRICE_INVALID":                40,
-		"ERROR_CODE_TRIGGER_PRICE_SOURCE_UNSUPPORTED":     41,
-		"ERROR_CODE_TRAILING_DISTANCE_INVALID":            42,
-		"ERROR_CODE_TRIGGER_NOT_FOUND":                    43,
-		"ERROR_CODE_TRIGGER_CANCEL_REJECTED":              44,
-		"ERROR_CODE_TRIGGER_STATUS_INVALID":               45,
-		"ERROR_CODE_TRIGGER_NOT_MODIFIABLE":               46,
-		"ERROR_CODE_CONFLICT_DUPLICATE_CLIENT_TRIGGER_ID": 47,
-		"ERROR_CODE_MAX_SLIPPAGE_INVALID":                 48,
-		"ERROR_CODE_STALE_QUOTE":                          65,
-		"ERROR_CODE_VALIDATION_ERROR":                     66,
-		"ERROR_CODE_OVERLOADED":                           67,
-		"ERROR_CODE_MAX_QUOTE_DEBIT_TOO_SMALL":            68,
-		"ERROR_CODE_RATE_LIMIT_EXCEEDED":                  69,
-		"ERROR_CODE_SUBACCOUNT_READ_FORBIDDEN":            70,
-		"ERROR_CODE_POLICY_SPOT_READ_DENY":                71,
-		"ERROR_CODE_API_KEY_SPOT_READ_DENY":               72,
-		"ERROR_CODE_CANCEL_REQUEST_EXPIRED":               73,
-		"ERROR_CODE_MAX_QTY":                              74,
-		"ERROR_CODE_MAX_NOTIONAL":                         75,
+		"ERROR_CODE_UNSPECIFIED":                            0,
+		"ERROR_CODE_BAD_REQUEST":                            1,
+		"ERROR_CODE_INVALID_ARGUMENT":                       2,
+		"ERROR_CODE_INSUFFICIENT_FUNDS":                     3,
+		"ERROR_CODE_UNKNOWN_SYMBOL":                         4,
+		"ERROR_CODE_BAD_PRICE":                              5,
+		"ERROR_CODE_BAD_QTY":                                6,
+		"ERROR_CODE_MIN_NOTIONAL":                           7,
+		"ERROR_CODE_QTY_STEP_SIZE":                          8,
+		"ERROR_CODE_CONFLICT_DUPLICATE_CLIENT_ORDER_ID":     9,
+		"ERROR_CODE_UNAVAILABLE":                            10,
+		"ERROR_CODE_UNAUTHENTICATED":                        11,
+		"ERROR_CODE_PERMISSION_DENIED":                      12,
+		"ERROR_CODE_NOT_FOUND":                              13,
+		"ERROR_CODE_UPSTREAM_ERROR":                         14,
+		"ERROR_CODE_FEE_ASSET_NOT_ALLOWED":                  15,
+		"ERROR_CODE_PAIR_DISABLED":                          16,
+		"ERROR_CODE_ORDER_UNKNOWN":                          17,
+		"ERROR_CODE_INTERNAL_ERROR":                         18,
+		"ERROR_CODE_SUBACCOUNT_INACTIVE":                    19,
+		"ERROR_CODE_POLICY_MARKET_DENY":                     20,
+		"ERROR_CODE_POLICY_MAX_NOTIONAL":                    21,
+		"ERROR_CODE_POLICY_TRADING_HALTED":                  22,
+		"ERROR_CODE_POLICY_SPOT_TRADE_DENY":                 23,
+		"ERROR_CODE_API_KEY_ROOT_SCOPE_ONLY":                24,
+		"ERROR_CODE_API_KEY_SUB_SCOPE_ONLY":                 25,
+		"ERROR_CODE_API_KEY_SUBACCOUNT_MISMATCH":            26,
+		"ERROR_CODE_API_KEY_POLICY_REQUIRED":                27,
+		"ERROR_CODE_API_KEY_UNKNOWN":                        28,
+		"ERROR_CODE_API_KEY_MARKET_DENY":                    29,
+		"ERROR_CODE_PRICE_TICK_SIZE":                        30,
+		"ERROR_CODE_MIN_QTY":                                31,
+		"ERROR_CODE_POST_ONLY_LIMIT_ONLY":                   32,
+		"ERROR_CODE_BATCH_TOO_LARGE":                        33,
+		"ERROR_CODE_POLICY_MAX_OPEN_ORDERS":                 34,
+		"ERROR_CODE_MODIFICATION_REQUIRES_REPLACE":          35,
+		"ERROR_CODE_CONFLICT_IDEMPOTENCY_KEY_REUSE":         36,
+		"ERROR_CODE_MARKET_PRICE_UNAVAILABLE":               37,
+		"ERROR_CODE_PAIR_NOT_LISTED_YET":                    50,
+		"ERROR_CODE_PAIR_DELISTED":                          51,
+		"ERROR_CODE_PAIR_CANCEL_ONLY":                       52,
+		"ERROR_CODE_PAIR_POST_ONLY":                         53,
+		"ERROR_CODE_PAIR_REDUCE_ONLY":                       54,
+		"ERROR_CODE_RISK_LIMIT":                             55,
+		"ERROR_CODE_MARKET_HALTED":                          56,
+		"ERROR_CODE_ACCOUNT_UNKNOWN":                        57,
+		"ERROR_CODE_POST_ONLY_CROSS":                        58,
+		"ERROR_CODE_REDUCE_ONLY_BLOCKED":                    59,
+		"ERROR_CODE_PRICE_BAND_VIOLATION":                   60,
+		"ERROR_CODE_MARKET_CAP_VIOLATION":                   61,
+		"ERROR_CODE_EMPTY_BOOK":                             62,
+		"ERROR_CODE_FOK_INSUFFICIENT_LIQUIDITY":             63,
+		"ERROR_CODE_ORDER_ALREADY_TERMINAL":                 64,
+		"ERROR_CODE_TRIGGER_PRICE_INVALID":                  40,
+		"ERROR_CODE_TRIGGER_PRICE_SOURCE_UNSUPPORTED":       41,
+		"ERROR_CODE_TRAILING_DISTANCE_INVALID":              42,
+		"ERROR_CODE_TRIGGER_NOT_FOUND":                      43,
+		"ERROR_CODE_TRIGGER_STATUS_INVALID":                 45,
+		"ERROR_CODE_TRIGGER_NOT_MODIFIABLE":                 46,
+		"ERROR_CODE_CONFLICT_DUPLICATE_CLIENT_TRIGGER_ID":   47,
+		"ERROR_CODE_MAX_SLIPPAGE_INVALID":                   48,
+		"ERROR_CODE_STALE_QUOTE":                            65,
+		"ERROR_CODE_VALIDATION_ERROR":                       66,
+		"ERROR_CODE_OVERLOADED":                             67,
+		"ERROR_CODE_MAX_QUOTE_DEBIT_TOO_SMALL":              68,
+		"ERROR_CODE_RATE_LIMIT_EXCEEDED":                    69,
+		"ERROR_CODE_SUBACCOUNT_READ_FORBIDDEN":              70,
+		"ERROR_CODE_POLICY_SPOT_READ_DENY":                  71,
+		"ERROR_CODE_API_KEY_SPOT_READ_DENY":                 72,
+		"ERROR_CODE_CANCEL_REQUEST_EXPIRED":                 73,
+		"ERROR_CODE_MAX_QTY":                                74,
+		"ERROR_CODE_MAX_NOTIONAL":                           75,
+		"ERROR_CODE_QTY_AT_OR_BELOW_FILLED":                 76,
+		"ERROR_CODE_GATEWAY_MISCONFIGURED":                  77,
+		"ERROR_CODE_INVALID_ORDER_ID":                       80,
+		"ERROR_CODE_CHILD_QTY_RAISE_NOT_ALLOWED":            81,
+		"ERROR_CODE_ATTACHED_RISK_NOT_SUPPORTED":            82,
+		"ERROR_CODE_SETTLEMENT_BACKLOGGED":                  84,
+		"ERROR_CODE_PRICE_LEVEL_QUANTITY_LIMIT":             127,
+		"ERROR_CODE_MARKET_QUOTE_STALE":                     200,
+		"ERROR_CODE_MARKET_QUOTE_UNHEALTHY":                 201,
+		"ERROR_CODE_INVALID_TIME_IN_FORCE":                  202,
+		"ERROR_CODE_QUICKSWAP_NOT_PERMITTED":                203,
+		"ERROR_CODE_DUPLICATE_ORDER_ID":                     204,
+		"ERROR_CODE_MAX_OPEN_ORDERS_TOTAL":                  205,
+		"ERROR_CODE_STP_MODE_NOT_ALLOWED":                   206,
+		"ERROR_CODE_PAIR_BACKLOGGED":                        207,
+		"ERROR_CODE_PRICE_LEVELS_EXHAUSTED":                 208,
+		"ERROR_CODE_CLIENT_ORDER_IDS_EXHAUSTED":             209,
+		"ERROR_CODE_ORDER_ID_CONFLICT":                      210,
+		"ERROR_CODE_INVALID_SIDE":                           211,
+		"ERROR_CODE_INVALID_ORDER_TYPE":                     212,
+		"ERROR_CODE_INVALID_STP_MODE":                       213,
+		"ERROR_CODE_INVALID_ORDER_FLAGS":                    214,
+		"ERROR_CODE_BATCH_OTHER_ITEM_INVALID":               215,
+		"ERROR_CODE_REPLACE_ONTO_OWN_ID":                    216,
+		"ERROR_CODE_INVALID_CLIENT_ORDER_ID":                217,
+		"ERROR_CODE_ORDER_SEQUENCE_EXHAUSTED":               218,
+		"ERROR_CODE_INVALID_HANDLING_MODE":                  219,
+		"ERROR_CODE_FEE_SCHEDULE_UNAVAILABLE":               220,
+		"ERROR_CODE_POLICY_UNAVAILABLE":                     221,
+		"ERROR_CODE_CANCEL_ALL_AFTER_TIMEOUT_INVALID":       222,
+		"ERROR_CODE_CANCEL_SCOPE_TOO_LARGE":                 223,
+		"ERROR_CODE_RATE_LIMIT_POLICY_UNAVAILABLE":          224,
+		"ERROR_CODE_SYSTEM_RATE_LIMITED":                    225,
+		"ERROR_CODE_ORDER_MODIFY_IN_PROGRESS":               226,
+		"ERROR_CODE_ORDER_PLACEMENT_PENDING":                227,
+		"ERROR_CODE_INVALID_MODIFY_BEHAVIOR":                228,
+		"ERROR_CODE_BATCH_REPLACE_ONLY_REQUIRED":            229,
+		"ERROR_CODE_BATCH_SINGLE_SYMBOL_REQUIRED":           230,
+		"ERROR_CODE_REQUEST_RECEIPTS_EXHAUSTED":             231,
+		"ERROR_CODE_INTENT_ID_INVALID":                      232,
+		"ERROR_CODE_DRY_RUN_INVALID":                        233,
+		"ERROR_CODE_CANCEL_ALL_AFTER_SCOPE_CONFLICT":        234,
+		"ERROR_CODE_NEW_ACCOUNT_CAPACITY_REACHED":           235,
+		"ERROR_CODE_TRIGGER_CHILD_PRICE_NOT_MODIFIABLE":     236,
+		"ERROR_CODE_TRIGGER_GENERATIONS_EXHAUSTED":          237,
+		"ERROR_CODE_TRIGGER_CONTROL_SHARE_EXHAUSTED":        238,
+		"ERROR_CODE_TRIGGER_CONTROLS_BUSY":                  239,
+		"ERROR_CODE_TRIGGER_TYPE_NOT_SUPPORTED":             240,
+		"ERROR_CODE_INVALID_TRIGGER_TYPE":                   241,
+		"ERROR_CODE_TRIGGER_DIRECTION_INVALID":              242,
+		"ERROR_CODE_TRIGGER_QTY_INVALID":                    243,
+		"ERROR_CODE_TRIGGER_BUY_REQUIRES_LIMIT":             244,
+		"ERROR_CODE_ACCOUNT_ROUTING_INVALID":                245,
+		"ERROR_CODE_TRIGGER_LIMIT_EXCEEDED":                 246,
+		"ERROR_CODE_TRIGGER_CONTROL_IN_PROGRESS":            247,
+		"ERROR_CODE_TRIGGER_PATCH_EMPTY":                    248,
+		"ERROR_CODE_CLIENT_TRIGGER_ID_INVALID":              249,
+		"ERROR_CODE_TRIGGER_ACTIVATION_PRICE_INVALID":       250,
+		"ERROR_CODE_SLIPPAGE_TICKS_INVALID":                 251,
+		"ERROR_CODE_SLIPPAGE_BPS_INVALID":                   252,
+		"ERROR_CODE_TRIGGER_CONTROL_OUTCOME_UNKNOWN":        253,
+		"ERROR_CODE_TRIGGER_CAPACITY_REACHED":               254,
+		"ERROR_CODE_RESERVATION_CAPACITY_REACHED":           255,
+		"ERROR_CODE_CLIENT_ORDER_ID_CAPACITY_REACHED":       256,
+		"ERROR_CODE_ACCOUNT_RESERVATION_LIMIT_REACHED":      257,
+		"ERROR_CODE_INVALID_TRIGGER_CONTROL":                258,
+		"ERROR_CODE_TRIGGER_PATCH_NOT_ALLOWED":              259,
+		"ERROR_CODE_TRIGGER_PATCH_FIELD_UNKNOWN":            260,
+		"ERROR_CODE_TRIGGER_PATCH_VALUE_UNMASKED":           261,
+		"ERROR_CODE_TRIGGER_PATCH_PRICE_MODE_INVALID":       262,
+		"ERROR_CODE_ACCOUNT_ORDERS_SUSPENDED":               263,
+		"ERROR_CODE_TRAILING_SIDE_NOT_SUPPORTED":            264,
+		"ERROR_CODE_TRAILING_CHILD_NOT_MARKET":              265,
+		"ERROR_CODE_TWAP_DURATION_INVALID":                  266,
+		"ERROR_CODE_LIMIT_CHILD_SLIPPAGE_SET":               267,
+		"ERROR_CODE_SLIPPAGE_BOUNDS_CONFLICT":               268,
+		"ERROR_CODE_TWAP_INTERVAL_INVALID":                  269,
+		"ERROR_CODE_LADDER_LEVEL_REJECTED":                  270,
+		"ERROR_CODE_LADDER_RANGE_TOO_NARROW":                271,
+		"ERROR_CODE_LADDER_LEVELS_INVALID":                  272,
+		"ERROR_CODE_ORDER_LIMITS_UNAVAILABLE":               273,
+		"ERROR_CODE_ORDER_TYPE_NOT_ALLOWED_IN_AUCTION":      274,
+		"ERROR_CODE_POST_ONLY_NOT_ALLOWED_IN_AUCTION":       275,
+		"ERROR_CODE_QUICKSWAP_FEE_DETAILS_INCOMPLETE":       276,
+		"ERROR_CODE_QUICKSWAP_MARKET_NOT_PRICED":            277,
+		"ERROR_CODE_QUICKSWAP_BROKER_FEE_TERMS_MISMATCH":    278,
+		"ERROR_CODE_QUICKSWAP_FEE_RECIPIENT_IS_PAYER":       279,
+		"ERROR_CODE_QUICKSWAP_BROKER_FEE_TERMS_UNAVAILABLE": 280,
+		"ERROR_CODE_QUICKSWAP_BROKER_ACCOUNT_UNAVAILABLE":   281,
+		"ERROR_CODE_QUICKSWAP_DISABLED":                     282,
+		"ERROR_CODE_QUICKSWAP_ATTACHED_RISK_NOT_ALLOWED":    283,
+		"ERROR_CODE_QUICKSWAP_ORDER_NOT_MODIFIABLE":         284,
+		"ERROR_CODE_QUICKSWAP_FEE_TOTAL_TOO_HIGH":           285,
+		"ERROR_CODE_QUICKSWAP_BROKER_FEE_TERMS_INVALID":     286,
+		"ERROR_CODE_QUICKSWAP_BROKER_INVALID":               287,
+		"ERROR_CODE_QUICKSWAP_FEE_SCHEDULE_INVALID":         288,
+		"ERROR_CODE_QUICKSWAP_MARKET_FEE_INVALID":           289,
+		"ERROR_CODE_QUICKSWAP_SETUP_INVALID":                290,
+		"ERROR_CODE_QUICKSWAP_CAPACITY_REACHED":             291,
+		"ERROR_CODE_ATTACHED_EXIT_WORKING":                  292,
+		"ERROR_CODE_MARKET_TRIGGER_LIMIT_EXCEEDED":          293,
+		"ERROR_CODE_MARKET_TWAP_LIMIT_EXCEEDED":             294,
+		"ERROR_CODE_MARKET_LADDER_LIMIT_EXCEEDED":           295,
 	}
 )
 
@@ -5009,7 +5493,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"&SELF_TRADE_PREVENTION_MODE_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fEXPIRE_MAKER\x10\x01\x12\x10\n" +
 	"\fEXPIRE_TAKER\x10\x02\x12\x0f\n" +
-	"\vEXPIRE_BOTH\x10\x03*\x8a\x14\n" +
+	"\vEXPIRE_BOTH\x10\x03*\xb86\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16ERROR_CODE_BAD_REQUEST\x10\x01\x12\x1f\n" +
@@ -5068,8 +5552,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	" ERROR_CODE_TRIGGER_PRICE_INVALID\x10(\x12/\n" +
 	"+ERROR_CODE_TRIGGER_PRICE_SOURCE_UNSUPPORTED\x10)\x12(\n" +
 	"$ERROR_CODE_TRAILING_DISTANCE_INVALID\x10*\x12 \n" +
-	"\x1cERROR_CODE_TRIGGER_NOT_FOUND\x10+\x12&\n" +
-	"\"ERROR_CODE_TRIGGER_CANCEL_REJECTED\x10,\x12%\n" +
+	"\x1cERROR_CODE_TRIGGER_NOT_FOUND\x10+\x12%\n" +
 	"!ERROR_CODE_TRIGGER_STATUS_INVALID\x10-\x12%\n" +
 	"!ERROR_CODE_TRIGGER_NOT_MODIFIABLE\x10.\x123\n" +
 	"/ERROR_CODE_CONFLICT_DUPLICATE_CLIENT_TRIGGER_ID\x10/\x12#\n" +
@@ -5084,7 +5567,110 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"!ERROR_CODE_API_KEY_SPOT_READ_DENY\x10H\x12%\n" +
 	"!ERROR_CODE_CANCEL_REQUEST_EXPIRED\x10I\x12\x16\n" +
 	"\x12ERROR_CODE_MAX_QTY\x10J\x12\x1b\n" +
-	"\x17ERROR_CODE_MAX_NOTIONAL\x10K*k\n" +
+	"\x17ERROR_CODE_MAX_NOTIONAL\x10K\x12%\n" +
+	"!ERROR_CODE_QTY_AT_OR_BELOW_FILLED\x10L\x12$\n" +
+	" ERROR_CODE_GATEWAY_MISCONFIGURED\x10M\x12\x1f\n" +
+	"\x1bERROR_CODE_INVALID_ORDER_ID\x10P\x12*\n" +
+	"&ERROR_CODE_CHILD_QTY_RAISE_NOT_ALLOWED\x10Q\x12*\n" +
+	"&ERROR_CODE_ATTACHED_RISK_NOT_SUPPORTED\x10R\x12$\n" +
+	" ERROR_CODE_SETTLEMENT_BACKLOGGED\x10T\x12)\n" +
+	"%ERROR_CODE_PRICE_LEVEL_QUANTITY_LIMIT\x10\x7f\x12\"\n" +
+	"\x1dERROR_CODE_MARKET_QUOTE_STALE\x10\xc8\x01\x12&\n" +
+	"!ERROR_CODE_MARKET_QUOTE_UNHEALTHY\x10\xc9\x01\x12%\n" +
+	" ERROR_CODE_INVALID_TIME_IN_FORCE\x10\xca\x01\x12'\n" +
+	"\"ERROR_CODE_QUICKSWAP_NOT_PERMITTED\x10\xcb\x01\x12\"\n" +
+	"\x1dERROR_CODE_DUPLICATE_ORDER_ID\x10\xcc\x01\x12%\n" +
+	" ERROR_CODE_MAX_OPEN_ORDERS_TOTAL\x10\xcd\x01\x12$\n" +
+	"\x1fERROR_CODE_STP_MODE_NOT_ALLOWED\x10\xce\x01\x12\x1f\n" +
+	"\x1aERROR_CODE_PAIR_BACKLOGGED\x10\xcf\x01\x12&\n" +
+	"!ERROR_CODE_PRICE_LEVELS_EXHAUSTED\x10\xd0\x01\x12*\n" +
+	"%ERROR_CODE_CLIENT_ORDER_IDS_EXHAUSTED\x10\xd1\x01\x12!\n" +
+	"\x1cERROR_CODE_ORDER_ID_CONFLICT\x10\xd2\x01\x12\x1c\n" +
+	"\x17ERROR_CODE_INVALID_SIDE\x10\xd3\x01\x12\"\n" +
+	"\x1dERROR_CODE_INVALID_ORDER_TYPE\x10\xd4\x01\x12 \n" +
+	"\x1bERROR_CODE_INVALID_STP_MODE\x10\xd5\x01\x12#\n" +
+	"\x1eERROR_CODE_INVALID_ORDER_FLAGS\x10\xd6\x01\x12(\n" +
+	"#ERROR_CODE_BATCH_OTHER_ITEM_INVALID\x10\xd7\x01\x12#\n" +
+	"\x1eERROR_CODE_REPLACE_ONTO_OWN_ID\x10\xd8\x01\x12'\n" +
+	"\"ERROR_CODE_INVALID_CLIENT_ORDER_ID\x10\xd9\x01\x12(\n" +
+	"#ERROR_CODE_ORDER_SEQUENCE_EXHAUSTED\x10\xda\x01\x12%\n" +
+	" ERROR_CODE_INVALID_HANDLING_MODE\x10\xdb\x01\x12(\n" +
+	"#ERROR_CODE_FEE_SCHEDULE_UNAVAILABLE\x10\xdc\x01\x12\"\n" +
+	"\x1dERROR_CODE_POLICY_UNAVAILABLE\x10\xdd\x01\x120\n" +
+	"+ERROR_CODE_CANCEL_ALL_AFTER_TIMEOUT_INVALID\x10\xde\x01\x12&\n" +
+	"!ERROR_CODE_CANCEL_SCOPE_TOO_LARGE\x10\xdf\x01\x12-\n" +
+	"(ERROR_CODE_RATE_LIMIT_POLICY_UNAVAILABLE\x10\xe0\x01\x12#\n" +
+	"\x1eERROR_CODE_SYSTEM_RATE_LIMITED\x10\xe1\x01\x12(\n" +
+	"#ERROR_CODE_ORDER_MODIFY_IN_PROGRESS\x10\xe2\x01\x12'\n" +
+	"\"ERROR_CODE_ORDER_PLACEMENT_PENDING\x10\xe3\x01\x12'\n" +
+	"\"ERROR_CODE_INVALID_MODIFY_BEHAVIOR\x10\xe4\x01\x12+\n" +
+	"&ERROR_CODE_BATCH_REPLACE_ONLY_REQUIRED\x10\xe5\x01\x12,\n" +
+	"'ERROR_CODE_BATCH_SINGLE_SYMBOL_REQUIRED\x10\xe6\x01\x12*\n" +
+	"%ERROR_CODE_REQUEST_RECEIPTS_EXHAUSTED\x10\xe7\x01\x12!\n" +
+	"\x1cERROR_CODE_INTENT_ID_INVALID\x10\xe8\x01\x12\x1f\n" +
+	"\x1aERROR_CODE_DRY_RUN_INVALID\x10\xe9\x01\x12/\n" +
+	"*ERROR_CODE_CANCEL_ALL_AFTER_SCOPE_CONFLICT\x10\xea\x01\x12,\n" +
+	"'ERROR_CODE_NEW_ACCOUNT_CAPACITY_REACHED\x10\xeb\x01\x122\n" +
+	"-ERROR_CODE_TRIGGER_CHILD_PRICE_NOT_MODIFIABLE\x10\xec\x01\x12-\n" +
+	"(ERROR_CODE_TRIGGER_GENERATIONS_EXHAUSTED\x10\xed\x01\x12/\n" +
+	"*ERROR_CODE_TRIGGER_CONTROL_SHARE_EXHAUSTED\x10\xee\x01\x12%\n" +
+	" ERROR_CODE_TRIGGER_CONTROLS_BUSY\x10\xef\x01\x12*\n" +
+	"%ERROR_CODE_TRIGGER_TYPE_NOT_SUPPORTED\x10\xf0\x01\x12$\n" +
+	"\x1fERROR_CODE_INVALID_TRIGGER_TYPE\x10\xf1\x01\x12)\n" +
+	"$ERROR_CODE_TRIGGER_DIRECTION_INVALID\x10\xf2\x01\x12#\n" +
+	"\x1eERROR_CODE_TRIGGER_QTY_INVALID\x10\xf3\x01\x12*\n" +
+	"%ERROR_CODE_TRIGGER_BUY_REQUIRES_LIMIT\x10\xf4\x01\x12'\n" +
+	"\"ERROR_CODE_ACCOUNT_ROUTING_INVALID\x10\xf5\x01\x12&\n" +
+	"!ERROR_CODE_TRIGGER_LIMIT_EXCEEDED\x10\xf6\x01\x12+\n" +
+	"&ERROR_CODE_TRIGGER_CONTROL_IN_PROGRESS\x10\xf7\x01\x12#\n" +
+	"\x1eERROR_CODE_TRIGGER_PATCH_EMPTY\x10\xf8\x01\x12)\n" +
+	"$ERROR_CODE_CLIENT_TRIGGER_ID_INVALID\x10\xf9\x01\x120\n" +
+	"+ERROR_CODE_TRIGGER_ACTIVATION_PRICE_INVALID\x10\xfa\x01\x12&\n" +
+	"!ERROR_CODE_SLIPPAGE_TICKS_INVALID\x10\xfb\x01\x12$\n" +
+	"\x1fERROR_CODE_SLIPPAGE_BPS_INVALID\x10\xfc\x01\x12/\n" +
+	"*ERROR_CODE_TRIGGER_CONTROL_OUTCOME_UNKNOWN\x10\xfd\x01\x12(\n" +
+	"#ERROR_CODE_TRIGGER_CAPACITY_REACHED\x10\xfe\x01\x12,\n" +
+	"'ERROR_CODE_RESERVATION_CAPACITY_REACHED\x10\xff\x01\x120\n" +
+	"+ERROR_CODE_CLIENT_ORDER_ID_CAPACITY_REACHED\x10\x80\x02\x121\n" +
+	",ERROR_CODE_ACCOUNT_RESERVATION_LIMIT_REACHED\x10\x81\x02\x12'\n" +
+	"\"ERROR_CODE_INVALID_TRIGGER_CONTROL\x10\x82\x02\x12)\n" +
+	"$ERROR_CODE_TRIGGER_PATCH_NOT_ALLOWED\x10\x83\x02\x12+\n" +
+	"&ERROR_CODE_TRIGGER_PATCH_FIELD_UNKNOWN\x10\x84\x02\x12,\n" +
+	"'ERROR_CODE_TRIGGER_PATCH_VALUE_UNMASKED\x10\x85\x02\x120\n" +
+	"+ERROR_CODE_TRIGGER_PATCH_PRICE_MODE_INVALID\x10\x86\x02\x12(\n" +
+	"#ERROR_CODE_ACCOUNT_ORDERS_SUSPENDED\x10\x87\x02\x12+\n" +
+	"&ERROR_CODE_TRAILING_SIDE_NOT_SUPPORTED\x10\x88\x02\x12)\n" +
+	"$ERROR_CODE_TRAILING_CHILD_NOT_MARKET\x10\x89\x02\x12%\n" +
+	" ERROR_CODE_TWAP_DURATION_INVALID\x10\x8a\x02\x12(\n" +
+	"#ERROR_CODE_LIMIT_CHILD_SLIPPAGE_SET\x10\x8b\x02\x12(\n" +
+	"#ERROR_CODE_SLIPPAGE_BOUNDS_CONFLICT\x10\x8c\x02\x12%\n" +
+	" ERROR_CODE_TWAP_INTERVAL_INVALID\x10\x8d\x02\x12%\n" +
+	" ERROR_CODE_LADDER_LEVEL_REJECTED\x10\x8e\x02\x12'\n" +
+	"\"ERROR_CODE_LADDER_RANGE_TOO_NARROW\x10\x8f\x02\x12%\n" +
+	" ERROR_CODE_LADDER_LEVELS_INVALID\x10\x90\x02\x12(\n" +
+	"#ERROR_CODE_ORDER_LIMITS_UNAVAILABLE\x10\x91\x02\x121\n" +
+	",ERROR_CODE_ORDER_TYPE_NOT_ALLOWED_IN_AUCTION\x10\x92\x02\x120\n" +
+	"+ERROR_CODE_POST_ONLY_NOT_ALLOWED_IN_AUCTION\x10\x93\x02\x120\n" +
+	"+ERROR_CODE_QUICKSWAP_FEE_DETAILS_INCOMPLETE\x10\x94\x02\x12+\n" +
+	"&ERROR_CODE_QUICKSWAP_MARKET_NOT_PRICED\x10\x95\x02\x123\n" +
+	".ERROR_CODE_QUICKSWAP_BROKER_FEE_TERMS_MISMATCH\x10\x96\x02\x120\n" +
+	"+ERROR_CODE_QUICKSWAP_FEE_RECIPIENT_IS_PAYER\x10\x97\x02\x126\n" +
+	"1ERROR_CODE_QUICKSWAP_BROKER_FEE_TERMS_UNAVAILABLE\x10\x98\x02\x124\n" +
+	"/ERROR_CODE_QUICKSWAP_BROKER_ACCOUNT_UNAVAILABLE\x10\x99\x02\x12\"\n" +
+	"\x1dERROR_CODE_QUICKSWAP_DISABLED\x10\x9a\x02\x123\n" +
+	".ERROR_CODE_QUICKSWAP_ATTACHED_RISK_NOT_ALLOWED\x10\x9b\x02\x12.\n" +
+	")ERROR_CODE_QUICKSWAP_ORDER_NOT_MODIFIABLE\x10\x9c\x02\x12,\n" +
+	"'ERROR_CODE_QUICKSWAP_FEE_TOTAL_TOO_HIGH\x10\x9d\x02\x122\n" +
+	"-ERROR_CODE_QUICKSWAP_BROKER_FEE_TERMS_INVALID\x10\x9e\x02\x12(\n" +
+	"#ERROR_CODE_QUICKSWAP_BROKER_INVALID\x10\x9f\x02\x12.\n" +
+	")ERROR_CODE_QUICKSWAP_FEE_SCHEDULE_INVALID\x10\xa0\x02\x12,\n" +
+	"'ERROR_CODE_QUICKSWAP_MARKET_FEE_INVALID\x10\xa1\x02\x12'\n" +
+	"\"ERROR_CODE_QUICKSWAP_SETUP_INVALID\x10\xa2\x02\x12*\n" +
+	"%ERROR_CODE_QUICKSWAP_CAPACITY_REACHED\x10\xa3\x02\x12%\n" +
+	" ERROR_CODE_ATTACHED_EXIT_WORKING\x10\xa4\x02\x12-\n" +
+	"(ERROR_CODE_MARKET_TRIGGER_LIMIT_EXCEEDED\x10\xa5\x02\x12*\n" +
+	"%ERROR_CODE_MARKET_TWAP_LIMIT_EXCEEDED\x10\xa6\x02\x12,\n" +
+	"'ERROR_CODE_MARKET_LADDER_LIMIT_EXCEEDED\x10\xa7\x02\"\x04\b,\x10,*\"ERROR_CODE_TRIGGER_CANCEL_REJECTED*k\n" +
 	"\x12TriggerPriceSource\x12$\n" +
 	" TRIGGER_PRICE_SOURCE_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
