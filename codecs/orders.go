@@ -116,9 +116,6 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale, quoteQuant
 	if req.SymbolID == nil || *req.SymbolID == 0 {
 		return nil, &errors.ValidationError{Msg: "orders.create requires a resolved non-zero symbol_id"}
 	}
-	if req.AttachedRisk != nil {
-		return nil, &errors.ValidationError{Msg: "attached_risk is not supported by the current Go order input; refusing to discard it"}
-	}
 	side, ok := orderSideToProto[strings.ToLower(req.Side)]
 	if !ok {
 		return nil, &errors.ValidationError{Msg: "side must be 'buy' or 'sell'"}
@@ -259,6 +256,11 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale, quoteQuant
 	if hasQuoteBudget && orderType == "limit" && tif != "ioc" {
 		return nil, &errors.ValidationError{Msg: "max_quote_debit_scaled is only valid for buy market or limit IOC orders"}
 	}
+	risk, err := RiskPolicyToProto(req.AttachedRisk, "attached_risk", symbol)
+	if err != nil {
+		return nil, err
+	}
+	intent.AttachedRisk = risk
 	return intent, nil
 }
 
@@ -326,6 +328,7 @@ func ModifyOrderToProto(
 	requestID *string,
 	newPrice *models.PriceInput,
 	newQty *models.QtyInput,
+	newAttachedRisk *models.AttachedRiskInput,
 	behavior *string,
 	newClientOrderID *string,
 	quantityScale int,
@@ -333,7 +336,7 @@ func ModifyOrderToProto(
 	if symbolID == 0 {
 		return nil, &errors.ValidationError{Msg: "modify requires a resolved non-zero symbol_id"}
 	}
-	if (newPrice == nil || !newPrice.IsSet()) && (newQty == nil || !newQty.IsSet()) {
+	if (newPrice == nil || !newPrice.IsSet()) && (newQty == nil || !newQty.IsSet()) && newAttachedRisk == nil {
 		return nil, &errors.ValidationError{Msg: "modify requires new_price, new_qty, and/or new_attached_risk"}
 	}
 	resolvedRequestID, err := coalesceRequestID(requestID, "mod")
@@ -368,6 +371,11 @@ func ModifyOrderToProto(
 		}
 		proto.NewQtyScaled = &qty
 	}
+	risk, err := RiskPolicyToProto(newAttachedRisk, "new_attached_risk", symbol)
+	if err != nil {
+		return nil, err
+	}
+	proto.NewAttachedRisk = risk
 	if behavior != nil {
 		b, ok := modifyBehaviorToProto[strings.ToLower(*behavior)]
 		if !ok {

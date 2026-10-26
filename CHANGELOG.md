@@ -3,10 +3,17 @@
 ## Unreleased
 
 ### Added
+- Orders accept attached take-profit, stop-loss, trailing-stop and OCO
+  policies: `CreateOrderRequest.AttachedRisk`, the new `Orders.ModifyWith`
+  (`ModifyParams.NewAttachedRisk`), and `BatchReplaceItem.NewAttachedRisk`
+  take a typed `models.AttachedRiskInput`. Create and modify results expose
+  the configured legs' trigger IDs.
 - Trigger events label standalone trailing-stop activation as `activated`,
   and `TriggerEventTypeFromLabel` accepts `activated` as a filter.
 
 ### Changed
+- **Breaking:** `CreateOrderRequest.AttachedRisk` is `*models.AttachedRiskInput`
+  instead of `map[string]any`; the map was always rejected.
 - **Breaking:** trading prices use 9 decimal places. `codecs.PriceTickScale`
   and the new `models.PriceTickScale` are 9: one price tick is 1e-9 quote
   units. This applies to order, trigger, trailing, activation, orderbook,

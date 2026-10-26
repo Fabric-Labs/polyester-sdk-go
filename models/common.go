@@ -25,8 +25,10 @@ type CreateOrderRequest struct {
 	PostOnly      bool    `json:"post_only,omitempty"`
 	// ExpiresAt is required RFC3339 UTC when TIF is "gtd"; rejected otherwise.
 	// Maps to proto LimitGtd.expire_at (1 second–30 days after validation).
-	ExpiresAt    *string        `json:"expires_at,omitempty"`
-	AttachedRisk map[string]any `json:"attached_risk,omitempty"`
+	ExpiresAt *string `json:"expires_at,omitempty"`
+	// AttachedRisk optionally attaches take-profit, stop-loss or trailing-stop
+	// legs that arm after the order fills.
+	AttachedRisk *AttachedRiskInput `json:"attached_risk,omitempty"`
 	// MarketClientRefPrice is the client-supplied reference price for MARKET orders.
 	MarketClientRefPrice *PriceInput `json:"market_client_ref_price,omitempty"`
 	// FeeAsset selects the fee asset: "quote" (default) or "base". Base fees
@@ -45,6 +47,8 @@ type BatchReplaceItem struct {
 	NewPrice         *PriceInput `json:"new_price,omitempty"`
 	NewQty           *QtyInput   `json:"new_qty,omitempty"`
 	NewClientOrderID *string     `json:"new_client_order_id,omitempty"`
+	// NewAttachedRisk replaces the order's attached risk policy.
+	NewAttachedRisk *AttachedRiskInput `json:"new_attached_risk,omitempty"`
 }
 
 // BatchCancelItem is one item in orders.batch_cancel.

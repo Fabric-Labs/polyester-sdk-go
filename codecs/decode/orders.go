@@ -350,7 +350,22 @@ func OrderMutationFromProto(msg *orderv1.CreateOrderResponse) (models.OrderMutat
 		result.ResolvedBaseQty = qtyFromScaled(value)
 	}
 	result.SubmittedMaxQuoteDebitScaled = optionalScaledString(msg.SubmittedMaxQuoteDebitScaled)
+	result.AttachedRiskTriggerIDs = attachedRiskTriggerIDs(msg.TakeProfitTriggerId, msg.StopLossTriggerId, msg.TrailingStopTriggerId)
 	return result, nil
+}
+
+func attachedRiskTriggerIDs(takeProfit, stopLoss, trailingStop *uint64) models.AttachedRiskTriggerIDs {
+	format := func(id *uint64) string {
+		if id == nil || *id == 0 {
+			return ""
+		}
+		return codecs.FormatUint64ID(*id)
+	}
+	return models.AttachedRiskTriggerIDs{
+		TakeProfitTriggerID:   format(takeProfit),
+		StopLossTriggerID:     format(stopLoss),
+		TrailingStopTriggerID: format(trailingStop),
+	}
 }
 
 // OrderMutationFromCancel decodes cancel response.
@@ -467,6 +482,9 @@ func ModifyOrderFromProto(msg *orderv1.ModifyOrderResponse) (models.ModifyOrderR
 		OldOrderID:   codecs.FormatUint64ID(msg.GetOldOrderId()),
 		FinalOrderID: codecs.FormatUint64ID(msg.GetFinalOrderId()),
 		Code:         msg.GetCode(),
+		AttachedRiskTriggerIDs: attachedRiskTriggerIDs(
+			msg.TakeProfitTriggerId, msg.StopLossTriggerId, msg.TrailingStopTriggerId,
+		),
 	}, nil
 }
 

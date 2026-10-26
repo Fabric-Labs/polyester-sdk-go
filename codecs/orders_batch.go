@@ -125,8 +125,8 @@ func BatchReplaceItemToProto(item models.BatchReplaceItem, quantityScale int) (*
 	if !item.Key.IsSet() {
 		return nil, &errors.ValidationError{Msg: "each batch item requires an OrderKey (OrderKeyByID or OrderKeyByClientID)"}
 	}
-	if (item.NewPrice == nil || !item.NewPrice.IsSet()) && (item.NewQty == nil || !item.NewQty.IsSet()) {
-		return nil, &errors.ValidationError{Msg: "each batch item requires new_price and/or new_qty"}
+	if (item.NewPrice == nil || !item.NewPrice.IsSet()) && (item.NewQty == nil || !item.NewQty.IsSet()) && item.NewAttachedRisk == nil {
+		return nil, &errors.ValidationError{Msg: "each batch item requires new_price, new_qty, and/or new_attached_risk"}
 	}
 	proto := &orderv1.BatchReplaceOrderItem{}
 	if orderID, ok := item.Key.OrderID(); ok {
@@ -157,6 +157,11 @@ func BatchReplaceItemToProto(item models.BatchReplaceItem, quantityScale int) (*
 		}
 		proto.NewQtyScaled = &qty
 	}
+	risk, err := RiskPolicyToProto(item.NewAttachedRisk, "new_attached_risk", "")
+	if err != nil {
+		return nil, err
+	}
+	proto.NewAttachedRisk = risk
 	validatedNewID, err := optionalClientID(item.NewClientOrderID, "new_client_order_id")
 	if err != nil {
 		return nil, err
