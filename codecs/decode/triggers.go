@@ -278,13 +278,16 @@ func triggerConfigProjection(msg *triggersv1.Trigger) (triggerType, side, orderT
 		}
 	case *triggersv1.Trigger_TrailingStop:
 		// Trailing stop fires an IOC child on the configured side. A buy's
-		// limit_price_ticks is its maximum price, projected as LimitPrice.
+		// limit_price_ticks is its maximum price: its child is an IOC limit
+		// at that price, projected as LimitPrice. A sell's child is a market
+		// IOC; its optional cap is exposed as MaxSlippage/MaxSlippageBps.
 		triggerType = "trailing_stop"
 		orderType = "market"
 		tif = "ioc"
 		if t := cfg.TrailingStop; t != nil {
 			side = codecs.OrderSideName(t.GetSide())
 			if t.GetLimitPriceTicks() > 0 {
+				orderType = "limit"
 				limitPrice = codecs.DecodePriceTicks(t.GetLimitPriceTicks(), symbol)
 			}
 		}

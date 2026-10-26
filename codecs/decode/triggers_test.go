@@ -111,6 +111,10 @@ func TestTriggerFromProtoProjectsBuyTrailingStopMaximumPriceAndTrough(t *testing
 	if trigger.TriggerType != "trailing_stop" || trigger.Side != "buy" {
 		t.Fatalf("type=%q side=%q", trigger.TriggerType, trigger.Side)
 	}
+	// A buy's child is an IOC limit at its maximum price.
+	if trigger.OrderType != "limit" || trigger.TimeInForce != "ioc" {
+		t.Fatalf("buy child order_type=%q tif=%q, want limit/ioc", trigger.OrderType, trigger.TimeInForce)
+	}
 	if trigger.LimitPrice.Ticks() != 65_000_500_000_000 || trigger.LimitPrice.Format() != "65000.5" {
 		t.Fatalf("maximum price ticks=%d format=%q", trigger.LimitPrice.Ticks(), trigger.LimitPrice.Format())
 	}
@@ -124,8 +128,8 @@ func TestTriggerFromProtoProjectsBuyTrailingStopMaximumPriceAndTrough(t *testing
 	// A sell has no maximum price.
 	msg.GetTrailingStop().Side = orderv1.Side_SELL
 	msg.GetTrailingStop().LimitPriceTicks = 0
-	if sell := decode.TriggerFromProto(msg); sell.Side != "sell" || sell.LimitPrice.Ticks() != 0 {
-		t.Fatalf("sell side=%q limit=%d", sell.Side, sell.LimitPrice.Ticks())
+	if sell := decode.TriggerFromProto(msg); sell.Side != "sell" || sell.LimitPrice.Ticks() != 0 || sell.OrderType != "market" || sell.TimeInForce != "ioc" {
+		t.Fatalf("sell side=%q limit=%d order_type=%q tif=%q", sell.Side, sell.LimitPrice.Ticks(), sell.OrderType, sell.TimeInForce)
 	}
 }
 

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Fixed
+- Trigger reads report a buy trailing stop's child as `OrderType` `limit`
+  (time in force `ioc`) at its maximum price, as the server places it;
+  v0.1.0a55 reported `market`.
+
 ## 0.1.0a55
 
 Git tag: `v0.1.0a55`.
