@@ -674,6 +674,7 @@ if err != nil {
 defer sub.Close()
 
 orders := map[string]models.Order{}
+ready := false
 for event := range sub.Messages() {
 	switch e := event.(type) {
 	case realtime.OrderStreamConnected:
@@ -684,6 +685,10 @@ for event := range sub.Messages() {
 		for _, o := range e.Orders {
 			orders[o.OrderID] = o
 		}
+	case realtime.OrderReady:
+		// Everything acknowledged before the subscribe is now reflected:
+		// an order missing from `orders` can be trusted to be gone.
+		ready = true
 	case realtime.OrderUnit:
 		for _, o := range e.Orders {
 			if cur, ok := orders[o.OrderID]; !ok || o.Version > cur.Version {
@@ -701,9 +706,12 @@ for event := range sub.Messages() {
 				fmt.Println("command answered", ev.Outcome.Kind, ev.Outcome.Reason)
 			}
 		}
+		// Before ready, an order absent from the map may still exist.
+		fmt.Println("live orders", len(orders), "complete", ready)
 	case realtime.OrderStale:
 		log.Printf("account view stale=%v %s", e.Stale, e.Reason)
 	case realtime.OrderStreamDisconnected:
+		ready = false // until the replacement subscription reports OrderReady
 		log.Print("order stream disconnected; resuming")
 	case realtime.OrderStreamError:
 		log.Printf("order stream error: %v", e.Err)
@@ -720,6 +728,14 @@ if err := sub.Err(); err != nil {
   rejected, replaced, attached risk) plus answers to commands that changed no
   order (amend, cancel or replace rejected, rejected, cancel-all done). Keep
   the copy of an order with the higher `Version`; equal versions are identical.
+- **Ready.** `OrderReady` comes once the stream reflects at least every
+  acknowledgement given before the subscribe, including every order read
+  made before it. Wait for it before trusting that an order missing from the
+  stream does not exist. To combine with a REST read: read open orders,
+  subscribe, wait for `OrderReady`, then merge both by `Version` (the higher
+  wins). It comes once per server subscription, so again after each
+  resubscribe or reconnect; a subscription that joins an account already
+  ready gets it right after its `OrderSnapshot`.
 - **Resume.** Sequence gaps, expiring connect and subscribe tokens, heartbeat
   loss (3 s) and reconnects (0.5 s doubling to 10 s, with jitter) are handled
   for you, resuming from the last applied position. When the server cannot

@@ -893,3 +893,77 @@ func TestSubscribeOrdersValidatesInput(t *testing.T) {
 		}
 	}
 }
+
+func readyFrame() *privatewsv1.ServerMessage {
+	return &privatewsv1.ServerMessage{Frame: &privatewsv1.ServerMessage_Ready{Ready: &privatewsv1.Ready{}}}
+}
+
+func TestPrivateOrdersReadyDeliveredAfterSnapshotOncePerSubscription(t *testing.T) {
+	f := newFakePrivateServer(t)
+	c := newTestOrderClient(t, f, testTiming())
+	sub, ws := connectOrders(t, f, c)
+	seq := ws.snapshot(t, "s1", 1, "c1", testOrder(1, 1))
+	ws.send(t, "s1", seq+1, readyFrame())
+
+	expectEvent[OrderSnapshot](t, sub)
+	expectEvent[OrderReady](t, sub)
+
+	// A repeated ready on the same server subscription (after a sync, say) is not delivered again.
+	ws.send(t, "s1", seq+2, readyFrame())
+	ws.send(t, "s1", seq+3, unitFrame("c2", []*orderv1.Order{testOrder(1, 2)}, nil))
+	expectEvent[OrderUnit](t, sub)
+	expectNoEvent(t, sub, 50*time.Millisecond)
+}
+
+func TestPrivateOrdersReadyAgainAfterReconnect(t *testing.T) {
+	f := newFakePrivateServer(t)
+	c := newTestOrderClient(t, f, testTiming())
+	sub, ws := connectOrders(t, f, c)
+	seq := ws.snapshot(t, "s1", 1, "c1", testOrder(1, 1))
+	ws.send(t, "s1", seq+1, readyFrame())
+	expectEvent[OrderSnapshot](t, sub)
+	expectEvent[OrderReady](t, sub)
+
+	ws.closeWith(1001)
+	expectEvent[OrderStreamDisconnected](t, sub)
+	second := f.accept(t)
+	second.expectAuth(t)
+	request := second.expectSubscribe(t)
+	if request.GetCursor() != "c1" {
+		t.Fatalf("reconnect cursor %q, want c1", request.GetCursor())
+	}
+	// A late joiner while the replacement is not ready yet gets no OrderReady.
+	late := subscribeOrders(t, c, testAccount)
+	if snapshot := expectEvent[OrderSnapshot](t, late); !reflect.DeepEqual(orderIDs(snapshot.Orders), ids(1)) {
+		t.Fatalf("late snapshot %v", orderIDs(snapshot.Orders))
+	}
+	expectNoEvent(t, late, 50*time.Millisecond)
+
+	// Resumed from the cursor: no snapshot, then ready again.
+	second.confirm(t, "s2", request)
+	expectEvent[OrderStreamConnected](t, sub)
+	expectEvent[OrderStreamConnected](t, late)
+	second.send(t, "s2", 1, readyFrame())
+	expectEvent[OrderReady](t, sub)
+	expectEvent[OrderReady](t, late)
+}
+
+func TestPrivateOrdersLateJoinerGetsSnapshotThenReady(t *testing.T) {
+	f := newFakePrivateServer(t)
+	c := newTestOrderClient(t, f, testTiming())
+	first, ws := connectOrders(t, f, c)
+	seq := ws.snapshot(t, "s1", 1, "c1", testOrder(1, 1), testOrder(2, 1))
+	ws.send(t, "s1", seq+1, readyFrame())
+	expectEvent[OrderSnapshot](t, first)
+	expectEvent[OrderReady](t, first)
+
+	late := subscribeOrders(t, c, testAccount)
+	expectEvent[OrderStreamConnected](t, late)
+	if snapshot := expectEvent[OrderSnapshot](t, late); !reflect.DeepEqual(orderIDs(snapshot.Orders), ids(1, 2)) {
+		t.Fatalf("late snapshot %v", orderIDs(snapshot.Orders))
+	}
+	expectEvent[OrderReady](t, late)
+	expectNoEvent(t, late, 50*time.Millisecond)
+	expectNoEvent(t, first, 0)
+	ws.expectNone(t, 50*time.Millisecond)
+}

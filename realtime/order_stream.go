@@ -12,7 +12,7 @@ import (
 
 // OrderStreamEvent is one delivery on an account's private order stream. It
 // is one of OrderStreamConnected, OrderStreamDisconnected, OrderSnapshot,
-// OrderUnit, OrderStale and OrderStreamError. Events are shared by every
+// OrderReady, OrderUnit, OrderStale and OrderStreamError. Events are shared by every
 // subscription of the same account: treat them as read-only.
 type OrderStreamEvent interface {
 	isOrderStreamEvent()
@@ -35,6 +35,15 @@ type OrderStreamDisconnected struct{}
 type OrderSnapshot struct {
 	Orders []models.Order
 }
+
+// OrderReady reports that the subscription reached the account's read
+// boundary, sampled when the server received the subscribe. From then on the
+// stream reflects at least every acknowledgement given before it, including
+// every order read made before it: wait for OrderReady before trusting that
+// an order missing from the stream does not exist. It comes once per server
+// subscription, so again after each resubscribe or reconnect. A subscription
+// that joins one already ready gets it right after its OrderSnapshot.
+type OrderReady struct{}
 
 // OrderUnit is one change, applied whole.
 type OrderUnit struct {
@@ -66,6 +75,7 @@ type OrderStreamError struct {
 func (OrderStreamConnected) isOrderStreamEvent()    {}
 func (OrderStreamDisconnected) isOrderStreamEvent() {}
 func (OrderSnapshot) isOrderStreamEvent()           {}
+func (OrderReady) isOrderStreamEvent()              {}
 func (OrderUnit) isOrderStreamEvent()               {}
 func (OrderStale) isOrderStreamEvent()              {}
 func (OrderStreamError) isOrderStreamEvent()        {}
@@ -74,10 +84,12 @@ func (OrderStreamError) isOrderStreamEvent()        {}
 // (/v1/ws/private). accountID is the account's public ID.
 //
 // It returns at once; the first event is OrderStreamConnected, then an
-// OrderSnapshot, then OrderUnit changes. One connection carries every account
-// of this client, and subscriptions of the same account share one server
-// subscription: a later one starts from the current state. Sequence gaps,
-// expiring tokens and reconnects resume from the last applied position.
+// OrderSnapshot, OrderReady once the stream covers every acknowledgement
+// given before the subscribe, and OrderUnit changes. One connection carries
+// every account of this client, and subscriptions of the same account share
+// one server subscription: a later one starts from the current state.
+// Sequence gaps, expiring tokens and reconnects resume from the last applied
+// position.
 //
 // The subscription ends, closing Messages with Err set, when the server
 // refuses it (for example FORBIDDEN), when the API key is refused, on close

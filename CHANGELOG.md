@@ -13,9 +13,12 @@
 - `realtime.Client.SubscribeOrders` streams an account's orders over the
   private WebSocket (`/v1/ws/private`, subprotocol `polyester.v1.proto`).
   It delivers typed `realtime.OrderStreamEvent` values: `OrderSnapshot`
-  (the full live view, installed whole), `OrderUnit` (changed orders,
-  removed order IDs, and order events and command outcomes as
-  `models.OrderUnitEvent`), `OrderStale`, `OrderStreamConnected`,
+  (the full live view, installed whole), `OrderReady` (the stream reflects
+  every acknowledgement given before the subscribe; wait for it before
+  trusting that a missing order does not exist; once per server
+  subscription, so again after a resubscribe or reconnect), `OrderUnit`
+  (changed orders, removed order IDs, and order events and command outcomes
+  as `models.OrderUnitEvent`), `OrderStale`, `OrderStreamConnected`,
   `OrderStreamDisconnected` and `OrderStreamError`. Sequence gaps, expiring
   tokens, heartbeat loss and reconnects resume from the last applied
   position; subscriptions of the same account share one server

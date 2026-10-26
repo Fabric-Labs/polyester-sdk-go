@@ -121,6 +121,9 @@ type orderStreamSub struct {
 	state       subState
 	stale       bool
 	staleReason string
+	// ready: the server subscription reached the account's read boundary
+	// sampled at subscribe. Reset with every new server subscription.
+	ready bool
 	// retries counts subscribe attempts since the subscription last
 	// delivered data; it drives the resubscribe backoff.
 	retries    int
@@ -217,6 +220,9 @@ func (p *privateOrderStream) catchUp(s *orderStreamSub, c *orderConsumer) {
 	}
 	if s.orders != nil {
 		p.offer(s, c, OrderSnapshot{Orders: sortedOrders(s.orders)})
+	}
+	if s.ready {
+		p.offer(s, c, OrderReady{})
 	}
 	if s.stale {
 		p.offer(s, c, OrderStale{Stale: true, Reason: s.staleReason})
@@ -562,6 +568,7 @@ func (p *privateOrderStream) resubscribe(conn *privateConn, s *orderStreamSub) {
 	}
 	s.sub = ""
 	s.seq = 0
+	s.ready = false
 	s.staging = false
 	s.staged = nil
 	if s.retries > 0 {
@@ -651,6 +658,7 @@ func (p *privateOrderStream) onFrame(conn *privateConn, messageType int, data []
 		s := request.s
 		s.sub = msg.GetSub()
 		s.seq = 0
+		s.ready = false
 		p.bySub[s.sub] = s
 		if s.state != subConnected {
 			s.state = subConnected
@@ -745,6 +753,10 @@ func (p *privateOrderStream) onFrame(conn *privateConn, messageType int, data []
 	case *privatewsv1.ServerMessage_Ready:
 		// A resumed subscription on a quiet account delivers no data, only this.
 		s.retries = 0
+		if !s.ready {
+			s.ready = true
+			p.deliver(s, OrderReady{})
+		}
 	case *privatewsv1.ServerMessage_ResyncRequired:
 		// The snapshot that follows replaces the state; nothing in between is delivered.
 		s.staging = false
@@ -880,6 +892,7 @@ func (p *privateOrderStream) detach() {
 		p.clearRetry(s)
 		s.sub = ""
 		s.seq = 0
+		s.ready = false
 		s.staging = false
 		s.staged = nil
 	}
