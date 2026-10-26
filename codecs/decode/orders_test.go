@@ -3,6 +3,7 @@ package decode_test
 import (
 	"encoding/json"
 	"errors"
+	"reflect"
 	"testing"
 	"time"
 
@@ -769,6 +770,40 @@ func TestCancelAllRequiresKnownStatus(t *testing.T) {
 		if !errors.As(err, &contractErr) {
 			t.Fatalf("status %v: expected ResponseContractError, got %T: %v", status, err, err)
 		}
+	}
+}
+
+func TestCancelAllExposesCancelledOrders(t *testing.T) {
+	result, err := decode.CancelAllFromProto(&orderv1.CancelAllOrdersResponse{
+		Status:           orderv1.CancelAllOrdersResponse_SUBMITTED,
+		MatchedOrders:    250,
+		SubmittedCancels: 250,
+		CancelledOrders: []*orderv1.CancelledOrder{
+			{OrderId: 11, ClientOrderId: "grid-1"},
+			{OrderId: 12},
+		},
+		TotalCancelled: 250,
+		Truncated:      true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []models.CancelledOrder{
+		{OrderID: codecs.FormatUint64ID(11), ClientOrderID: "grid-1"},
+		{OrderID: codecs.FormatUint64ID(12)},
+	}
+	if !reflect.DeepEqual(result.CancelledOrders, want) || result.TotalCancelled != 250 || !result.Truncated {
+		t.Fatalf("result=%+v", result)
+	}
+
+	_, err = decode.CancelAllFromProto(&orderv1.CancelAllOrdersResponse{
+		Status:          orderv1.CancelAllOrdersResponse_DRY_RUN,
+		MatchedOrders:   1,
+		CancelledOrders: []*orderv1.CancelledOrder{{OrderId: 11}},
+	})
+	var contractErr *sdkerrors.ResponseContractError
+	if !errors.As(err, &contractErr) {
+		t.Fatalf("dry run listing cancelled orders: want ResponseContractError, got %v", err)
 	}
 }
 

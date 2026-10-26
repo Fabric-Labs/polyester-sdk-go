@@ -1,6 +1,7 @@
 package decode
 
 import (
+	"fmt"
 	vipv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/vip/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
@@ -78,5 +79,25 @@ func VIPStatusFromProto(msg *vipv1.GetVIPStatusResponse) models.VIPStatus {
 		decoded := NextVIPTierThresholdsFromProto(next)
 		out.NextTierThresholds = &decoded
 	}
+	out.SettledVolumeQuality = vipMetricQualityFromProto(msg.GetSettledVolumeQuality())
+	out.AverageAopQuality = vipMetricQualityFromProto(msg.GetAverageAopQuality())
 	return out
+}
+
+func vipMetricQualityFromProto(msg *vipv1.VIPMetricQuality) *models.VIPMetricQuality {
+	if msg == nil {
+		return nil
+	}
+	status := ""
+	switch msg.GetStatus() {
+	case vipv1.VIPMetricStatus_COMPLETE:
+		status = "complete"
+	case vipv1.VIPMetricStatus_PRICE_UNAVAILABLE:
+		status = "price_unavailable"
+	case vipv1.VIPMetricStatus_INCOMPLETE_HISTORY:
+		status = "incomplete_history"
+	default:
+		status = fmt.Sprintf("unknown(%d)", msg.GetStatus())
+	}
+	return &models.VIPMetricQuality{Status: status, IncompleteHours: msg.GetIncompleteHours()}
 }

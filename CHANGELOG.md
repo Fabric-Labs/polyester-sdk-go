@@ -33,6 +33,30 @@
 - `errors.RealtimeError` carries `Code` (the server's request error, for
   example `FORBIDDEN`) and `CloseCode` (for example 4403) for the private
   order stream.
+- Standalone trailing stops can buy. `Triggers.Create` with
+  `trigger_type` `trailing_stop` accepts `side` `buy`; its `limitPrice` is
+  the buy's maximum price, the most the child pays per unit, encoded at 9
+  decimal places. It is required for a buy, must be positive and at least
+  the activation price. Trigger reads project a buy's maximum price as
+  `Trigger.LimitPrice`; `Trigger.Side` and `Details.TroughPrice` show the
+  side and the lowest price since arming.
+- Stop-loss and take-profit market children carry a slippage cap:
+  `CreateTriggerOptions.MaxSlippageTicks` or `MaxSlippageBps` is encoded on
+  the market child (previously it was dropped and the pair default
+  applied). At most one may be set; a buy accepts 1 to 10000 bps, a sell 1
+  to 9999; a limit child refuses a cap. Get, list and the trigger stream
+  expose it as `Trigger.MaxSlippage` / `Trigger.MaxSlippageBps`. A buy
+  stop-loss or take-profit may use a market child.
+- `Orders.CancelAll` returns `CancelledOrders` (order ID and client order
+  ID, oldest first, at most 200), `TotalCancelled` and `Truncated`.
+- `MarketData.GetTradesAfter` walks a symbol's trades gap-free by match ID
+  and returns `CompleteThroughTradeID`, `NextAfterTradeID` and `EpochEnds`.
+- `VIPStatus.SettledVolumeQuality` and `AverageAopQuality` report how
+  complete each rolling 30-day metric is.
+- `errors.MutationOutcomeUnknown` reports true for
+  `ERROR_CODE_ORDER_CANCEL_OUTCOME_UNKNOWN` and
+  `ERROR_CODE_ORDER_MODIFY_OUTCOME_UNKNOWN`; `errors.IsRetryable` reports
+  true for them and for `ERROR_CODE_ACCOUNT_REPAIRING`.
 
 ### Fixed
 - Account-scoped subscriptions given no account ID now use the client's
@@ -57,6 +81,14 @@
   batch-replace progress.
 - **Breaking:** `decode.OrderFromBytes`, the decoder of the retired order
   realtime publications, is removed. Use `decode.OrderFromProto`.
+- A sell `trailing_stop` create given a `limitPrice` is refused with a
+  validation error instead of ignoring it: only a buy has a maximum price.
+- Trigger create and modify refuse both `MaxSlippageTicks` and
+  `MaxSlippageBps` together (previously one silently won), and a trailing
+  stop's `MaxSlippageBps` is limited to 1 to 9999 on either side.
+- **Breaking:** `codecs.ModifyTriggerOptions.LimitPrice` is removed: a
+  trigger's child limit price is fixed at create, and the server refuses
+  any change to it. Cancel the trigger and create a new one instead.
 - **Breaking:** trading prices use 9 decimal places. `codecs.PriceTickScale`
   and the new `models.PriceTickScale` are 9: one price tick is 1e-9 quote
   units. This applies to order, trigger, trailing, activation, orderbook,

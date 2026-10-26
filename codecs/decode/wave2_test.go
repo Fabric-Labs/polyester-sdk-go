@@ -1,6 +1,7 @@
 package decode_test
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	orderbookv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1"
 	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	transferv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1"
+	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -145,5 +147,28 @@ func TestOrderbookFromProto(t *testing.T) {
 		if _, err := decode.OrderbookFromProto(msg, "BTC-USD", 1, 8); err == nil {
 			t.Fatalf("expected malformed level rejection: %+v", level)
 		}
+	}
+}
+
+// An empty backfill page still moves the walk forward: its cursors and epoch
+// ends must decode even when it carries no trades.
+func TestMarketTradesFromProtoEmptyBackfillPageKeepsCursors(t *testing.T) {
+	result := decode.MarketTradesFromProto(&marketdatav1.GetTradesResponse{
+		CompleteThroughTradeId: 2_199_023_255_552,
+		NextAfterTradeId:       2_199_023_255_552,
+		EpochEnds: []*marketdatav1.TradeEpochEnd{
+			{Epoch: 1, LastTradeId: 1_099_511_627_800},
+			{Epoch: 2, LastTradeId: 1_099_511_627_776},
+		},
+	}, 8)
+	if len(result.Trades) != 0 {
+		t.Fatalf("trades %+v", result.Trades)
+	}
+	if result.CompleteThroughTradeID != "2199023255552" || result.NextAfterTradeID != "2199023255552" {
+		t.Fatalf("cursors %q %q", result.CompleteThroughTradeID, result.NextAfterTradeID)
+	}
+	want := []models.TradeEpochEnd{{Epoch: 1, LastTradeID: "1099511627800"}, {Epoch: 2, LastTradeID: "1099511627776"}}
+	if !reflect.DeepEqual(result.EpochEnds, want) {
+		t.Fatalf("epoch ends %+v", result.EpochEnds)
 	}
 }

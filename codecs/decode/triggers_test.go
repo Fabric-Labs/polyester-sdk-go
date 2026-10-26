@@ -7,6 +7,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	triggersv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestTriggerFromProtoMapsStopPrice(t *testing.T) {
@@ -79,6 +80,84 @@ func TestTriggerFromProtoProjectsTrailingStopSideAndParent(t *testing.T) {
 	}
 	if trigger.ParentOrderID != codecs.FormatUint64ID(99) {
 		t.Fatalf("parent_order_id=%q", trigger.ParentOrderID)
+	}
+}
+
+func TestTriggerFromProtoProjectsBuyTrailingStopMaximumPriceAndTrough(t *testing.T) {
+	msg := &triggersv1.Trigger{
+		TriggerId: 22,
+		SymbolId:  1,
+		Status:    triggersv1.TriggerStatus_STATUS_ARMED,
+		QtyScaled: 10_000_000,
+		Configuration: &triggersv1.Trigger_TrailingStop{
+			TrailingStop: &triggersv1.TrailingStopTrigger{
+				TrailingDistance: &triggersv1.TrailingStopTrigger_TrailingDistanceBps{
+					TrailingDistanceBps: 50,
+				},
+				ActivationPriceTicks: 60_000_000_000_000,
+				Side:                 orderv1.Side_BUY,
+				LimitPriceTicks:      65_000_500_000_000,
+			},
+		},
+		RuntimeDetails: &triggersv1.Trigger_Trailing{
+			Trailing: &triggersv1.TrailingDetails{
+				TrailingDistanceBps:  50,
+				ActivationPriceTicks: 60_000_000_000_000,
+				TroughPriceTicks:     59_000_250_000_000,
+			},
+		},
+	}
+	trigger := decode.TriggerFromProto(msg)
+	if trigger.TriggerType != "trailing_stop" || trigger.Side != "buy" {
+		t.Fatalf("type=%q side=%q", trigger.TriggerType, trigger.Side)
+	}
+	if trigger.LimitPrice.Ticks() != 65_000_500_000_000 || trigger.LimitPrice.Format() != "65000.5" {
+		t.Fatalf("maximum price ticks=%d format=%q", trigger.LimitPrice.Ticks(), trigger.LimitPrice.Format())
+	}
+	if trigger.Details == nil || trigger.Details.Case != "trailing" {
+		t.Fatalf("details=%+v", trigger.Details)
+	}
+	if trigger.Details.TroughPrice.Ticks() != 59_000_250_000_000 || trigger.Details.PeakPrice.Ticks() != 0 {
+		t.Fatalf("trough=%d peak=%d", trigger.Details.TroughPrice.Ticks(), trigger.Details.PeakPrice.Ticks())
+	}
+
+	// A sell has no maximum price.
+	msg.GetTrailingStop().Side = orderv1.Side_SELL
+	msg.GetTrailingStop().LimitPriceTicks = 0
+	if sell := decode.TriggerFromProto(msg); sell.Side != "sell" || sell.LimitPrice.Ticks() != 0 {
+		t.Fatalf("sell side=%q limit=%d", sell.Side, sell.LimitPrice.Ticks())
+	}
+}
+
+func TestTriggerFromProtoProjectsMarketChildSlippageCap(t *testing.T) {
+	stop := func(ioc *triggersv1.TriggerMarketIoc) *triggersv1.Trigger {
+		return &triggersv1.Trigger{
+			TriggerId: 23,
+			SymbolId:  1,
+			Configuration: &triggersv1.Trigger_StopLoss{StopLoss: &triggersv1.ConditionalTrigger{
+				TriggerPriceTicks: 58_000_000_000_000,
+				Side:              orderv1.Side_BUY,
+				Child: &triggersv1.ConditionalChildExecution{
+					Execution: &triggersv1.ConditionalChildExecution_MarketIoc{MarketIoc: ioc},
+				},
+			}},
+		}
+	}
+	ticks := decode.TriggerFromProto(stop(&triggersv1.TriggerMarketIoc{
+		MaxSlippage: &triggersv1.TriggerMarketIoc_MaxSlippageTicks{MaxSlippageTicks: 250_000_000_000},
+	}))
+	if ticks.Side != "buy" || ticks.OrderType != "market" || ticks.MaxSlippage.Ticks() != 250_000_000_000 || ticks.MaxSlippageBps != 0 {
+		t.Fatalf("ticks cap: side=%q type=%q cap=%d bps=%d", ticks.Side, ticks.OrderType, ticks.MaxSlippage.Ticks(), ticks.MaxSlippageBps)
+	}
+	bps := decode.TriggerFromProto(stop(&triggersv1.TriggerMarketIoc{
+		MaxSlippage: &triggersv1.TriggerMarketIoc_MaxSlippageBps{MaxSlippageBps: 75},
+	}))
+	if bps.MaxSlippageBps != 75 || bps.MaxSlippage.Ticks() != 0 {
+		t.Fatalf("bps cap: %d / %d", bps.MaxSlippageBps, bps.MaxSlippage.Ticks())
+	}
+	none := decode.TriggerFromProto(stop(&triggersv1.TriggerMarketIoc{}))
+	if none.MaxSlippageBps != 0 || none.MaxSlippage.Ticks() != 0 {
+		t.Fatalf("uncapped: %+v", none)
 	}
 }
 
@@ -258,3 +337,47 @@ func TestTriggerEventAbsentFirePrice(t *testing.T) {
 }
 
 func int64Ptr(v int64) *int64 { return &v }
+
+// Two stop-losses that differ only in their market child's cap must not decode
+// identically on any read path: get, list and the trigger stream.
+func TestTriggerReadPathsDistinguishMarketChildCaps(t *testing.T) {
+	stop := func(bps int32) *triggersv1.Trigger {
+		return &triggersv1.Trigger{
+			TriggerId: 31,
+			SymbolId:  1,
+			Configuration: &triggersv1.Trigger_StopLoss{StopLoss: &triggersv1.ConditionalTrigger{
+				TriggerPriceTicks: 58_000_000_000_000,
+				Side:              orderv1.Side_SELL,
+				Child: &triggersv1.ConditionalChildExecution{
+					Execution: &triggersv1.ConditionalChildExecution_MarketIoc{MarketIoc: &triggersv1.TriggerMarketIoc{
+						MaxSlippage: &triggersv1.TriggerMarketIoc_MaxSlippageBps{MaxSlippageBps: bps},
+					}},
+				},
+			}},
+		}
+	}
+	paths := map[string]func(*triggersv1.Trigger) int32{
+		"get": func(msg *triggersv1.Trigger) int32 {
+			return decode.GetTriggerFromProto(&triggersv1.GetTriggerResponse{Trigger: msg}).MaxSlippageBps
+		},
+		"list": func(msg *triggersv1.Trigger) int32 {
+			return decode.TriggersListFromProto(&triggersv1.ListTriggersResponse{Triggers: []*triggersv1.Trigger{msg}}).Triggers[0].MaxSlippageBps
+		},
+		"stream": func(msg *triggersv1.Trigger) int32 {
+			payload, err := proto.Marshal(msg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			decoded, err := decode.TriggerFromBytes(payload)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return decoded.MaxSlippageBps
+		},
+	}
+	for name, read := range paths {
+		if ten, fifty := read(stop(10)), read(stop(50)); ten != 10 || fifty != 50 {
+			t.Fatalf("%s: 10 bps decoded as %d, 50 bps as %d", name, ten, fifty)
+		}
+	}
+}

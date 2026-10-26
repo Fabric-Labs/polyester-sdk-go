@@ -327,6 +327,12 @@ first attempt admitted the order. After an unknown outcome, look up that id
 is rejected (`CONFLICT_DUPLICATE_CLIENT_ORDER_ID`) even when the payload
 matches. Only create again with that id if reconciliation shows the first
 attempt did not admit.
+A cancel or modify that the server sent but could not confirm in time fails
+with `ERROR_CODE_ORDER_CANCEL_OUTCOME_UNKNOWN` or
+`ERROR_CODE_ORDER_MODIFY_OUTCOME_UNKNOWN`: `errors.MutationOutcomeUnknown`
+reports true, so read the order back before retrying.
+`ERROR_CODE_ACCOUNT_REPAIRING` changed nothing and `errors.IsRetryable`
+reports true: try again shortly.
 Client order ids accept 1 to 36 ASCII letters, digits, `.`, `_`, `:`, `/`, and
 `-`. Batch create, cancel, and replace accept at most 20 items (rejected locally
 before encoding). `BatchCreate` always sends `request_id` (caller value or a
@@ -334,6 +340,12 @@ generated `batch-create-*` key); that batch-level id is the idempotency
 boundary, so per-item `ClientOrderID` may be omitted. Duplicate non-empty
 per-item client order ids in one batch are rejected locally. Treat a cancel response as an admission acknowledgement and
 reconcile with `ListOpen` before releasing local state.
+
+`Orders.CancelAll` returns `CancelledOrders` (order ID and client order ID),
+the orders whose cancellation was requested, oldest first and at most 200,
+with `TotalCancelled` and `Truncated` when more were canceled. Each moves to
+`canceled` asynchronously; the order stream and order reads report every
+one. A dry run lists none.
 
 Use **decimal strings** for human-facing `qty` / `price` inputs. Do **not** pass
 floats. `PriceTicks.Ticks()` returns Polyester protocol price units (fixed 1e9),
@@ -448,7 +460,9 @@ Public catalog reads need no credentials. Authenticated VIP status, effective sp
 account trading limits require an API key. `GetVIPStatus` has no subaccount selector: JWT and
 API-key callers receive the owning root group only. USD amounts and fee percents are decimal
 strings. Optional qualification metrics, timestamps, and next-tier thresholds stay omitted
-when unset. `policy_class` uses full protobuf enum names
+when unset. `SettledVolumeQuality` and `AverageAopQuality` report how complete each rolling
+30-day metric is (`complete`, `price_unavailable` or `incomplete_history`, with
+`IncompleteHours`). `policy_class` uses full protobuf enum names
 (`TRADING_RATE_LIMIT_CLASS_PLACE` / `_CANCEL`). Rate-limit rules expose
 `VIPTier` (`json:"vip_tier"`), matching the proto field rename.
 
@@ -495,13 +509,50 @@ _, err = client.Orders.ModifyWith(ctx, nil, services.ModifyParams{
 })
 ```
 
-Standalone `trailing_stop` creates remain sell-only; the wire
-`TrailingStopTrigger` carries `side`, and list/get projections use that side
-(attached trailing stops may be buy or sell, opposite the parent). Attached
-triggers expose `ParentOrderID` when present.
+Standalone `trailing_stop` creates accept `side` `sell` or `buy`. A sell
+trails the highest price since arming (`Details.PeakPrice`) and fires on a
+fall; a buy trails the lowest (`Details.TroughPrice`) and fires on a rise. A
+buy requires `limitPrice`, its maximum price: the most the child pays per
+unit, which also sizes the funds set aside for it. It must be at least the
+activation price, or the last trade price when there is none, and a rise
+that fires above it still fires, with the child filling only at or below
+it. A sell refuses `limitPrice`.
+
+```go
+maxPrice := models.PriceFromDecimal("65000")
+distanceBps := int32(100) // 1%
+trigger, err := client.Triggers.Create(ctx, nil, "BTC-USDT", "trailing_stop",
+	nil, "buy", models.QtyFromDecimal("0.01"), "market", &maxPrice, "", "",
+	nil, nil, false, codecs.CreateTriggerOptions{TrailingDistanceBps: &distanceBps})
+```
+
+List/get projections use the wire side (attached trailing stops may be buy
+or sell, opposite the parent); a buy's maximum price reads back as
+`Trigger.LimitPrice`. Attached triggers expose `ParentOrderID` when present.
+
+Stop-loss and take-profit triggers on either side may use a market or a
+limit child. A market child accepts an optional slippage cap, either
+`MaxSlippageTicks` or `MaxSlippageBps` in `CreateTriggerOptions`: it fills
+only within that cap of the price that fired it, and a buy reserves its funds
+at the trigger price raised by the cap. Without a cap the pair's default
+market slippage applies. Setting both, or a cap on a limit child, is refused.
+A buy market child accepts 1 to 10000 bps; a sell, and a trailing stop on
+either side, 1 to 9999. Get, list and the trigger stream expose the cap as
+`Trigger.MaxSlippage` / `Trigger.MaxSlippageBps`.
+
+```go
+triggerPrice := models.PriceFromDecimal("58000")
+capBps := int32(50) // 0.5%
+stop, err := client.Triggers.Create(ctx, nil, "BTC-USDT", "stop_loss",
+	&triggerPrice, "sell", models.QtyFromDecimal("0.01"), "market", nil, "", "",
+	nil, nil, false, codecs.CreateTriggerOptions{MaxSlippageBps: &capBps})
+```
 
 When modifying a trigger, omit `ActivationPrice` / `MaxSlippageTicks` /
-`MaxSlippageBps` to preserve the current values. Send an explicit zero
+`MaxSlippageBps` to preserve the current values. The cap of a trailing stop or
+of a market-child stop-loss or take-profit can be changed; a cleared cap on a
+market child falls back to the pair default. A child's limit price is fixed
+at create: cancel the trigger and create a new one to change it. Send an explicit zero
 (`PriceFromTicksInt(0)` or `*int32(0)`) to clear an existing activation
 price or maximum-slippage cap. Create/modify `MaxSlippageBps` must be 1–10000;
 modify still accepts `0` to clear.
@@ -598,6 +649,10 @@ symbol := "BTC-USDT"
 candles, err := client.MarketData.GetCandles(ctx, &symbol, nil, "1m", 50, nil, nil, false)
 current, err := client.MarketData.GetCurrentCandle(ctx, &symbol, nil, "1m")
 trades, err := client.MarketData.GetTrades(ctx, &symbol, nil, 20, nil)
+// Gap-free backfill, ascending by match ID: start at "0", then pass each
+// page's NextAfterTradeID; when it does not move, retry later with backoff.
+page, err := client.MarketData.GetTradesAfter(ctx, &symbol, nil, "0", 1000)
+_ = page.NextAfterTradeID
 _ = candles
 if current != nil {
 	_ = *current

@@ -67,7 +67,20 @@ func MarketTradesFromProto(msg *marketdatav1.GetTradesResponse, quantityScale in
 			TsNs:  strconv.FormatUint(t.GetTsNs(), 10), Side: side,
 		})
 	}
-	return models.MarketTradesResult{Trades: out, NextPageToken: msg.GetNextPageToken()}
+	result := models.MarketTradesResult{Trades: out, NextPageToken: msg.GetNextPageToken()}
+	if id := msg.GetCompleteThroughTradeId(); id != 0 {
+		result.CompleteThroughTradeID = strconv.FormatUint(id, 10)
+	}
+	if id := msg.GetNextAfterTradeId(); id != 0 {
+		result.NextAfterTradeID = strconv.FormatUint(id, 10)
+	}
+	for _, end := range msg.GetEpochEnds() {
+		result.EpochEnds = append(result.EpochEnds, models.TradeEpochEnd{
+			Epoch:       end.GetEpoch(),
+			LastTradeID: strconv.FormatUint(end.GetLastTradeId(), 10),
+		})
+	}
+	return result
 }
 
 func CandlesFromProto(msg *marketdatav1.GetCandlesResponse, volumeScale int, referencePriceScale int) (models.CandlesResult, error) {
