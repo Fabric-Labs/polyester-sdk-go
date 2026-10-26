@@ -35,8 +35,9 @@ type MarketTrade struct {
 // MarketTradesResult holds public trades.
 //
 // CompleteThroughTradeID, NextAfterTradeID and EpochEnds are set only by
-// MarketData.GetTradesAfter (gap-free backfill); trade IDs are decimal match
-// IDs, as in MarketTrade.MatchID.
+// MarketData.GetTradesAfter (gap-free backfill), where both watermarks are
+// always decimal match IDs, "0" included; trade IDs are formatted as in
+// MarketTrade.MatchID.
 type MarketTradesResult struct {
 	Trades        []MarketTrade `json:"trades"`
 	NextPageToken string        `json:"next_page_token,omitempty"`

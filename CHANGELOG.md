@@ -51,6 +51,8 @@
   ID, oldest first, at most 200), `TotalCancelled` and `Truncated`.
 - `MarketData.GetTradesAfter` walks a symbol's trades gap-free by match ID
   and returns `CompleteThroughTradeID`, `NextAfterTradeID` and `EpochEnds`.
+  Start at `"0"`; both watermarks are always decimal match IDs, `"0"`
+  included, so an empty first page's cursor is valid for the retry.
 - `VIPStatus.SettledVolumeQuality` and `AverageAopQuality` report how
   complete each rolling 30-day metric is.
 - `errors.MutationOutcomeUnknown` reports true for

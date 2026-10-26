@@ -99,7 +99,7 @@ func (s *MarketDataService) GetTradesAfter(ctx context.Context, symbol *string, 
 	}
 	req := &marketdatav1.GetTradesRequest{SymbolId: resolved, Limit: parsedLimit, AfterTradeId: &after}
 	return UnaryPublic(ctx, s.transport, s.client().GetTrades, req, func(msg *marketdatav1.GetTradesResponse) models.MarketTradesResult {
-		return decode.MarketTradesFromProto(msg, scale)
+		return decode.MarketTradesBackfillFromProto(msg, scale)
 	})
 }
 

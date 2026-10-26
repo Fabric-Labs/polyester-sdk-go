@@ -67,13 +67,17 @@ func MarketTradesFromProto(msg *marketdatav1.GetTradesResponse, quantityScale in
 			TsNs:  strconv.FormatUint(t.GetTsNs(), 10), Side: side,
 		})
 	}
-	result := models.MarketTradesResult{Trades: out, NextPageToken: msg.GetNextPageToken()}
-	if id := msg.GetCompleteThroughTradeId(); id != 0 {
-		result.CompleteThroughTradeID = strconv.FormatUint(id, 10)
-	}
-	if id := msg.GetNextAfterTradeId(); id != 0 {
-		result.NextAfterTradeID = strconv.FormatUint(id, 10)
-	}
+	return models.MarketTradesResult{Trades: out, NextPageToken: msg.GetNextPageToken()}
+}
+
+// MarketTradesBackfillFromProto decodes a GetTrades response to an
+// after_trade_id request. Both watermarks are always set as decimals, "0"
+// included: an initial backfill with nothing available yet answers
+// next_after_trade_id 0, which is the cursor of the retry.
+func MarketTradesBackfillFromProto(msg *marketdatav1.GetTradesResponse, quantityScale int) models.MarketTradesResult {
+	result := MarketTradesFromProto(msg, quantityScale)
+	result.CompleteThroughTradeID = strconv.FormatUint(msg.GetCompleteThroughTradeId(), 10)
+	result.NextAfterTradeID = strconv.FormatUint(msg.GetNextAfterTradeId(), 10)
 	for _, end := range msg.GetEpochEnds() {
 		result.EpochEnds = append(result.EpochEnds, models.TradeEpochEnd{
 			Epoch:       end.GetEpoch(),

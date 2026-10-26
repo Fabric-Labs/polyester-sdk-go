@@ -45,8 +45,8 @@ func (h *tradesAfterHandler) GetTrades(_ context.Context, req *connect.Request[m
 	}), nil
 }
 
-func TestL2GetTradesAfterSendsCursorAndDecodesBackfill(t *testing.T) {
-	handler := &tradesAfterHandler{}
+func newTradesAfterClient(t *testing.T, handler marketdatav1connect.MarketDataServiceHandler) *polyester.Client {
+	t.Helper()
 	mux := http.NewServeMux()
 	path, h := marketdatav1connect.NewMarketDataServiceHandler(handler)
 	mux.Handle(path, h)
@@ -69,6 +69,12 @@ func TestL2GetTradesAfterSendsCursorAndDecodesBackfill(t *testing.T) {
 	if err := client.WaitForCatalogs(context.Background()); err != nil {
 		t.Fatal(err)
 	}
+	return client
+}
+
+func TestL2GetTradesAfterSendsCursorAndDecodesBackfill(t *testing.T) {
+	handler := &tradesAfterHandler{}
+	client := newTradesAfterClient(t, handler)
 
 	symbol := "ETH-USDT"
 	for _, bad := range []string{"", "abc", "-1"} {
@@ -102,5 +108,52 @@ func TestL2GetTradesAfterSendsCursorAndDecodesBackfill(t *testing.T) {
 	}
 	if !reflect.DeepEqual(result.EpochEnds, []models.TradeEpochEnd{{Epoch: 1, LastTradeID: "1099511627775"}}) {
 		t.Fatalf("epoch ends %+v", result.EpochEnds)
+	}
+}
+
+// zeroBackfillHandler answers every backfill with an empty page whose
+// watermarks are both 0: nothing is available yet.
+type zeroBackfillHandler struct {
+	tradesAfterHandler
+}
+
+func (h *zeroBackfillHandler) GetTrades(_ context.Context, req *connect.Request[marketdatav1.GetTradesRequest]) (*connect.Response[marketdatav1.GetTradesResponse], error) {
+	h.mu.Lock()
+	h.requests = append(h.requests, req.Msg)
+	h.mu.Unlock()
+	return connect.NewResponse(&marketdatav1.GetTradesResponse{}), nil
+}
+
+// An initial backfill with nothing available returns next_after_trade_id=0,
+// equal to the request: the returned cursor must work for the retry.
+func TestL2GetTradesAfterZeroWatermarksRoundTrip(t *testing.T) {
+	handler := &zeroBackfillHandler{}
+	client := newTradesAfterClient(t, handler)
+	symbol := "ETH-USDT"
+
+	first, err := client.MarketData.GetTradesAfter(context.Background(), &symbol, nil, "0", 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(first.Trades) != 0 || first.NextAfterTradeID != "0" || first.CompleteThroughTradeID != "0" {
+		t.Fatalf("first page %+v, want no trades and zero watermarks", first)
+	}
+	second, err := client.MarketData.GetTradesAfter(context.Background(), &symbol, nil, first.NextAfterTradeID, 100)
+	if err != nil {
+		t.Fatalf("retry with the returned cursor %q: %v", first.NextAfterTradeID, err)
+	}
+	if second.NextAfterTradeID != "0" {
+		t.Fatalf("second page %+v", second)
+	}
+	handler.mu.Lock()
+	requests := handler.requests
+	handler.mu.Unlock()
+	if len(requests) != 2 {
+		t.Fatalf("GetTrades calls=%d, want 2", len(requests))
+	}
+	for i, req := range requests {
+		if req.AfterTradeId == nil || req.GetAfterTradeId() != 0 {
+			t.Fatalf("call %d after_trade_id=%v, want an explicit 0", i, req.AfterTradeId)
+		}
 	}
 }
