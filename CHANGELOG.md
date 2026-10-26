@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.0-alpha.56
+
+Git tag: `v0.1.0-alpha.56`.
+
+### Changed
+- Release tags now use Go module versions (`v0.1.0-alpha.56`), so
+  `go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0-alpha.56` records
+  that version. Earlier tags such as `v0.1.0a55` resolve to pseudo-versions.
+
 ### Fixed
 - Trigger reads report a buy trailing stop's child as `OrderType` `limit`
   (time in force `ioc`) at its maximum price, as the server places it;
