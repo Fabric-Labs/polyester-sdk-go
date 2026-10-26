@@ -158,7 +158,16 @@ func (e *RouteNotFoundError) Error() string {
 func (e *RouteNotFoundError) Is(target error) bool { return target == ErrPolyester }
 
 // RealtimeError indicates realtime connection or decode failures.
-type RealtimeError struct{ Msg string }
+//
+// On the private order stream, Code names the server's request error (for
+// example "FORBIDDEN" or "TOO_MANY_SUBSCRIPTIONS") and CloseCode is the
+// WebSocket close code that ended the stream (for example 4403). Both are
+// empty for other realtime failures.
+type RealtimeError struct {
+	Msg       string
+	Code      string
+	CloseCode int
+}
 
 func (e *RealtimeError) Error() string        { return e.Msg }
 func (e *RealtimeError) Is(target error) bool { return target == ErrPolyester }

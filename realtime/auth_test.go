@@ -23,7 +23,7 @@ func TestContentLengthExceedsLimit(t *testing.T) {
 
 func TestUnauthenticatedPrivateSubscribeFailsBeforeDial(t *testing.T) {
 	client := NewClient("ws://127.0.0.1:1", "http://127.0.0.1:1", nil, nil, 1)
-	_, err := SubscribeProto(context.Background(), client, "private:spot:orders:1:proto", func([]byte) (struct{}, error) {
+	_, err := SubscribeProto(context.Background(), client, "private:ledger:balances:1:proto", func([]byte) (struct{}, error) {
 		return struct{}{}, nil
 	})
 	var authErr *sdkerrors.AuthError

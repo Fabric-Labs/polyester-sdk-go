@@ -110,15 +110,6 @@ func LedgerTransferFromBytes(payload []byte) (models.LedgerTransfer, error) {
 	return TransferRowFromProto(&msg), nil
 }
 
-// OrderFromBytes parses an order publication.
-func OrderFromBytes(payload []byte) (models.Order, error) {
-	var msg orderv1.Order
-	if err := unmarshalProto(payload, &msg); err != nil {
-		return models.Order{}, err
-	}
-	return OrderFromProto(&msg), nil
-}
-
 // TriggerFromBytes parses a trigger publication.
 func TriggerFromBytes(payload []byte) (models.Trigger, error) {
 	var msg triggersv1.Trigger

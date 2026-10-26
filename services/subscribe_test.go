@@ -12,6 +12,18 @@ func TestResolveAccountIDRequiresValue(t *testing.T) {
 	}
 }
 
+func TestResolveAccountIDDereferencesDefault(t *testing.T) {
+	account := "8X"
+	got, err := ResolveAccountID(nil, &account)
+	if err != nil || got != account {
+		t.Fatalf("ResolveAccountID(nil, &%q) = %q, %v", account, got, err)
+	}
+	var none *string
+	if _, err := ResolveAccountID(none, none); err == nil {
+		t.Fatal("expected validation error for nil pointers")
+	}
+}
+
 func TestSubscribePublicProtoRequiresRealtime(t *testing.T) {
 	_, err := SubscribePublicProto(context.TODO(), nil, "public:identity:updates:proto", func([]byte) (struct{}, error) {
 		return struct{}{}, nil

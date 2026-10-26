@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/testutil"
+	"github.com/Fabric-Labs/polyester-sdk-go/realtime"
 )
 
 const realtimeHeartbeatHold = 35 * time.Second
@@ -58,7 +59,7 @@ func TestPublicTradesSubscriptionSurvivesCentrifugoPing(t *testing.T) {
 	}
 }
 
-func TestOrdersSubscribeReceivesConnectionOptional(t *testing.T) {
+func TestOrdersSubscribeReceivesSnapshot(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping realtime subscription in short mode")
 	}
@@ -83,14 +84,21 @@ func TestOrdersSubscribeReceivesConnectionOptional(t *testing.T) {
 	waitCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
 
-	select {
-	case <-waitCtx.Done():
-	case <-sub.Done():
-		t.Skip("orders.subscribe closed without publications (no order activity)")
-	case _, ok := <-sub.Messages():
-		if !ok {
-			t.Skip("orders.subscribe closed without publications (no order activity)")
+	// The private order stream confirms the subscription, then sends a snapshot.
+	for {
+		select {
+		case <-waitCtx.Done():
+			t.Fatal("orders.subscribe sent no snapshot within 8s")
+		case event, ok := <-sub.Messages():
+			if !ok {
+				if testutil.IsPermissionDenied(sub.Err()) {
+					testutil.SoftSkipf(t, "orders.subscribe permission denied: %v", sub.Err())
+				}
+				t.Fatalf("orders.subscribe ended: %v", sub.Err())
+			}
+			if _, ok := event.(realtime.OrderSnapshot); ok {
+				return
+			}
 		}
-	case <-time.After(5 * time.Second):
 	}
 }

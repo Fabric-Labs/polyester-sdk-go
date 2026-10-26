@@ -500,9 +500,24 @@ func (s *OrdersService) GetBatchReplaceStatus(ctx context.Context, account Accou
 	return UnaryAuthDecoded(ctx, s.transport, s.readClient().GetBatchReplaceStatus, req, decode.BatchReplaceStatusFromProto)
 }
 
-// Subscribe streams private order updates for an account.
-func (s *OrdersService) Subscribe(ctx context.Context, accountID any) (*realtime.Subscription[models.Order], error) {
-	return SubscribeAccountProto(ctx, s.realtime, "private:spot:orders:{account_id}:proto", accountID, s.defaultAccountID, decode.OrderFromBytes)
+// Subscribe streams an account's orders over the private WebSocket until the
+// subscription is closed or ctx is canceled. accountID defaults to the
+// client's account ID.
+//
+// Events arrive on Messages(): OrderStreamConnected, then an OrderSnapshot of
+// the live view, then OrderUnit changes, plus OrderStale, OrderStreamDisconnected
+// and OrderStreamError. Orders decode to the same models.Order as the order
+// reads; keep the copy with the higher Version. Gaps, expiring tokens and
+// reconnects resume from the last applied position.
+func (s *OrdersService) Subscribe(ctx context.Context, accountID any) (*realtime.Subscription[realtime.OrderStreamEvent], error) {
+	if err := requireRealtime(s.realtime); err != nil {
+		return nil, err
+	}
+	resolved, err := ResolveAccountID(accountID, s.defaultAccountID)
+	if err != nil {
+		return nil, err
+	}
+	return s.realtime.SubscribeOrders(ctx, resolved)
 }
 
 // WaitForOrderTradesComplete polls GetOrder until the sum of returned trade

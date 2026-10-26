@@ -32,17 +32,22 @@ func terminalRealtime(message string) error {
 	return &terminalRealtimeError{err: &sdkerrors.RealtimeError{Msg: message}}
 }
 
-// Client connects to Centrifugo for public and private protobuf channels.
+// Client connects to Centrifugo for public and private protobuf channels, and
+// to the private WebSocket for account order streams (SubscribeOrders).
 type Client struct {
 	wsURL       string
 	apiURL      string
 	credentials *auth.Credentials
 	http        *http.Client
 	maxQueue    int
+	// privateTiming is the private order stream's protocol timing.
+	privateTiming privateStreamTiming
 
 	mu     sync.Mutex
 	subs   []func()
 	closed bool
+	// orders carries every account order stream; created on first use.
+	orders *privateOrderStream
 }
 
 // NewClient creates a realtime client.
@@ -53,11 +58,12 @@ func NewClient(wsURL string, apiURL string, credentials *auth.Credentials, httpC
 		httpClient = useragent.WrapClient(httpClient)
 	}
 	return &Client{
-		wsURL:       normalizeWSURL(wsURL),
-		apiURL:      apiURL,
-		credentials: credentials,
-		http:        httpClient,
-		maxQueue:    maxQueue,
+		wsURL:         normalizeWSURL(wsURL),
+		apiURL:        apiURL,
+		credentials:   credentials,
+		http:          httpClient,
+		maxQueue:      maxQueue,
+		privateTiming: defaultPrivateStreamTiming,
 	}
 }
 

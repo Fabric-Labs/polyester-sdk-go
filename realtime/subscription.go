@@ -13,9 +13,12 @@ import (
 // enqueue fails the subscription with QueueOverflowError instead of silently
 // dropping updates.
 //
-// After a transport reconnect the subscription is re-established without a
-// server-side resume cursor. Resubscribes()/TakeResubscribed() signal that gap:
-// publications may have been lost between disconnect and the new subscribe.
+// After a transport reconnect a Centrifugo subscription is re-established
+// without a server-side resume cursor. Resubscribes()/TakeResubscribed()
+// signal that gap: publications may have been lost between disconnect and the
+// new subscribe. The private order stream (Client.SubscribeOrders) resumes
+// from its cursor instead and reports reconnects as events; a gap it cannot
+// resume arrives as a new OrderSnapshot.
 //
 // Close cancels the subscription context and waits until the run loop has
 // fully stopped (websocket teardown included).
