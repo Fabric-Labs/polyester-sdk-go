@@ -77,6 +77,9 @@ func TestAttachedOCORoundTrip(t *testing.T) {
 		t.Fatalf("modify result=%+v", modified)
 	}
 	t.Logf("modify action=%s old=%s final=%s trigger IDs=%+v", modified.ActionTaken, modified.OldOrderID, modified.FinalOrderID, modified.AttachedRiskTriggerIDs)
+	if modified.TakeProfitTriggerID == "" || modified.StopLossTriggerID == "" || modified.TrailingStopTriggerID != "" {
+		t.Fatalf("modify trigger IDs=%+v", modified.AttachedRiskTriggerIDs)
+	}
 	requireOCO(t, ctx, client, modified.FinalOrderID, alignDown(parent*3, tick), alignDown(parent/3, tick),
 		modified.TakeProfitTriggerID, modified.StopLossTriggerID)
 
@@ -102,7 +105,7 @@ func ocoInput(takeProfitTicks, stopLossTicks int64) *models.AttachedRiskInput {
 }
 
 // requireOCO polls the order until it reports the expected attached legs. Leg
-// trigger IDs, when the write result carried them, must match the read.
+// trigger IDs, which the write result must carry, must match the read.
 func requireOCO(t *testing.T, ctx context.Context, client *polyester.Client, orderID string, takeProfitTicks, stopLossTicks int64, takeProfitID, stopLossID string) {
 	t.Helper()
 	include := false
@@ -140,7 +143,10 @@ func requireLegTrigger(t *testing.T, leg string, state *models.AttachedRiskLegSt
 	if state == nil || state.TriggerID == "" {
 		t.Fatalf("%s state missing trigger ID: %+v", leg, state)
 	}
-	if writeID != "" && state.TriggerID != writeID {
+	if writeID == "" {
+		t.Fatalf("%s: write result carried no trigger ID", leg)
+	}
+	if state.TriggerID != writeID {
 		t.Fatalf("%s trigger ID read=%s write=%s", leg, state.TriggerID, writeID)
 	}
 }

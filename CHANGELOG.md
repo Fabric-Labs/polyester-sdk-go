@@ -19,6 +19,10 @@
 ### Changed
 - **Breaking:** `CreateOrderRequest.AttachedRisk` is `*models.AttachedRiskInput`
   instead of `map[string]any`; the map was always rejected.
+- **Breaking:** `codecs.ModifyOrderToProto` takes a new `newAttachedRisk
+  *models.AttachedRiskInput` parameter after `newQty`, and
+  `codecs.BatchReplaceItemToProto` encodes `BatchReplaceItem.NewAttachedRisk`.
+  Pass `nil` to keep an order's attached risk unchanged.
 - **Breaking:** trading prices use 9 decimal places. `codecs.PriceTickScale`
   and the new `models.PriceTickScale` are 9: one price tick is 1e-9 quote
   units. This applies to order, trigger, trailing, activation, orderbook,

@@ -6,32 +6,60 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
+	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
+func idPtr(v uint64) *uint64 { return &v }
+
 func TestCreateAndModifyResultsCarryAttachedRiskTriggerIDs(t *testing.T) {
-	tp, sl := uint64(41), uint64(42)
+	all := models.AttachedRiskTriggerIDs{
+		TakeProfitTriggerID:   codecs.FormatUint64ID(41),
+		StopLossTriggerID:     codecs.FormatUint64ID(42),
+		TrailingStopTriggerID: codecs.FormatUint64ID(43),
+	}
 	created, err := decode.OrderMutationFromProto(&orderv1.CreateOrderResponse{
-		OrderId:             7,
-		TakeProfitTriggerId: &tp,
-		StopLossTriggerId:   &sl,
+		OrderId:               7,
+		TakeProfitTriggerId:   idPtr(41),
+		StopLossTriggerId:     idPtr(42),
+		TrailingStopTriggerId: idPtr(43),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if created.TakeProfitTriggerID != codecs.FormatUint64ID(tp) || created.StopLossTriggerID != codecs.FormatUint64ID(sl) || created.TrailingStopTriggerID != "" {
-		t.Fatalf("created=%+v", created)
+	if created.AttachedRiskTriggerIDs != all {
+		t.Fatalf("create trigger IDs=%+v want %+v", created.AttachedRiskTriggerIDs, all)
 	}
-	trailing := uint64(43)
 	modified, err := decode.ModifyOrderFromProto(&orderv1.ModifyOrderResponse{
 		ActionTaken:           orderv1.ModifyActionTaken_AMENDED,
 		OldOrderId:            7,
 		FinalOrderId:          7,
-		TrailingStopTriggerId: &trailing,
+		TakeProfitTriggerId:   idPtr(41),
+		StopLossTriggerId:     idPtr(42),
+		TrailingStopTriggerId: idPtr(43),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if modified.TrailingStopTriggerID != codecs.FormatUint64ID(trailing) || modified.TakeProfitTriggerID != "" || modified.StopLossTriggerID != "" {
-		t.Fatalf("modified=%+v", modified)
+	if modified.AttachedRiskTriggerIDs != all {
+		t.Fatalf("modify trigger IDs=%+v want %+v", modified.AttachedRiskTriggerIDs, all)
+	}
+}
+
+func TestResultsOmitUnconfiguredLegTriggerIDs(t *testing.T) {
+	created, err := decode.OrderMutationFromProto(&orderv1.CreateOrderResponse{OrderId: 7, StopLossTriggerId: idPtr(0)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.AttachedRiskTriggerIDs != (models.AttachedRiskTriggerIDs{}) {
+		t.Fatalf("create trigger IDs=%+v want none", created.AttachedRiskTriggerIDs)
+	}
+	modified, err := decode.ModifyOrderFromProto(&orderv1.ModifyOrderResponse{
+		ActionTaken: orderv1.ModifyActionTaken_REPLACED, OldOrderId: 7, FinalOrderId: 8,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if modified.AttachedRiskTriggerIDs != (models.AttachedRiskTriggerIDs{}) {
+		t.Fatalf("modify trigger IDs=%+v want none", modified.AttachedRiskTriggerIDs)
 	}
 }
