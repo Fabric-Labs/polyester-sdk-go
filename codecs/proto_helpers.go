@@ -1,6 +1,7 @@
 package codecs
 
 import (
+	"fmt"
 	"math/big"
 	"strings"
 
@@ -43,7 +44,12 @@ func ProtoEnumName(enum protoreflect.Enum, value protoreflect.EnumNumber) string
 	if value == 0 {
 		return ""
 	}
-	name := string(enum.Descriptor().Values().ByNumber(value).Name())
+	desc := enum.Descriptor().Values().ByNumber(value)
+	if desc == nil {
+		// A value newer than this SDK's generated code.
+		return fmt.Sprintf("unknown(%d)", value)
+	}
+	name := string(desc.Name())
 	lower := strings.ToLower(name)
 	for _, prefix := range enumPrefixes {
 		p := strings.ToLower(prefix)
