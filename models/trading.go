@@ -214,11 +214,24 @@ type ModifyOrderResult struct {
 }
 
 // CancelAllOrdersResult summarizes cancel-all.
+//
+// CancelledOrders lists the orders whose cancellation was requested, oldest
+// first, at most 200; Truncated is true when TotalCancelled counts more. The
+// order stream and order reads report every one. Both are empty for a dry run.
 type CancelAllOrdersResult struct {
-	Status           string `json:"status,omitempty"`
-	MatchedOrders    int    `json:"matched_orders,omitempty"`
-	SubmittedCancels int    `json:"submitted_cancels,omitempty"`
-	FailedCancels    int    `json:"failed_cancels,omitempty"`
+	Status           string           `json:"status,omitempty"`
+	MatchedOrders    int              `json:"matched_orders,omitempty"`
+	SubmittedCancels int              `json:"submitted_cancels,omitempty"`
+	FailedCancels    int              `json:"failed_cancels,omitempty"`
+	CancelledOrders  []CancelledOrder `json:"cancelled_orders,omitempty"`
+	TotalCancelled   int              `json:"total_cancelled,omitempty"`
+	Truncated        bool             `json:"truncated,omitempty"`
+}
+
+// CancelledOrder is one order a cancel-all requested to cancel.
+type CancelledOrder struct {
+	OrderID       string `json:"order_id"`
+	ClientOrderID string `json:"client_order_id,omitempty"`
 }
 
 // BatchReplaceAdmissionItem is one admission outcome from batch_replace.
@@ -500,6 +513,15 @@ type LifecycleFlowsList struct {
 }
 
 // Trigger is a conditional order trigger.
+//
+// For a trailing stop, Side is the child's side: a sell trails the peak
+// (Details.PeakPrice) and a buy trails the trough (Details.TroughPrice).
+// LimitPrice is then a buy's maximum price, the most its child pays per
+// unit; it is empty for a sell.
+//
+// For a stop-loss or take-profit with a market child, MaxSlippage (ticks) or
+// MaxSlippageBps is the child's slippage cap; both are zero when the pair's
+// default market slippage applies. A trailing stop's cap is in Details.
 type Trigger struct {
 	TriggerID               string          `json:"trigger_id,omitempty"`
 	SubaccountID            string          `json:"subaccount_id,omitempty"`
@@ -517,6 +539,8 @@ type Trigger struct {
 	SelfTradePreventionMode string          `json:"self_trade_prevention_mode,omitempty"`
 	PostOnly                bool            `json:"post_only,omitempty"`
 	TriggerPrice            PriceTicks      `json:"trigger_price,omitempty"`
+	MaxSlippage             PriceTicks      `json:"max_slippage,omitempty"`
+	MaxSlippageBps          int32           `json:"max_slippage_bps,omitempty"`
 	ClientTriggerID         string          `json:"client_trigger_id,omitempty"`
 	CreatedAt               *time.Time      `json:"created_at,omitempty"`
 	UpdatedAt               *time.Time      `json:"updated_at,omitempty"`

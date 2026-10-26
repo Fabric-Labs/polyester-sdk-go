@@ -1,9 +1,11 @@
 package decode_test
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	chaindepositv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/deposit/v1"
@@ -13,6 +15,7 @@ import (
 	orderbookv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1"
 	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	transferv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1"
+	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -145,5 +148,45 @@ func TestOrderbookFromProto(t *testing.T) {
 		if _, err := decode.OrderbookFromProto(msg, "BTC-USD", 1, 8); err == nil {
 			t.Fatalf("expected malformed level rejection: %+v", level)
 		}
+	}
+}
+
+// An empty backfill page still moves the walk forward: its cursors and epoch
+// ends must decode even when it carries no trades.
+func TestMarketTradesBackfillEmptyPageKeepsCursors(t *testing.T) {
+	result := decode.MarketTradesBackfillFromProto(&marketdatav1.GetTradesResponse{
+		CompleteThroughTradeId: 2_199_023_255_552,
+		NextAfterTradeId:       2_199_023_255_552,
+		EpochEnds: []*marketdatav1.TradeEpochEnd{
+			{Epoch: 1, LastTradeId: 1_099_511_627_800},
+			{Epoch: 2, LastTradeId: 1_099_511_627_776},
+		},
+	}, 8)
+	if len(result.Trades) != 0 {
+		t.Fatalf("trades %+v", result.Trades)
+	}
+	if result.CompleteThroughTradeID != "2199023255552" || result.NextAfterTradeID != "2199023255552" {
+		t.Fatalf("cursors %q %q", result.CompleteThroughTradeID, result.NextAfterTradeID)
+	}
+	want := []models.TradeEpochEnd{{Epoch: 1, LastTradeID: "1099511627800"}, {Epoch: 2, LastTradeID: "1099511627776"}}
+	if !reflect.DeepEqual(result.EpochEnds, want) {
+		t.Fatalf("epoch ends %+v", result.EpochEnds)
+	}
+}
+
+// Adapted from the review repro: an initial backfill with nothing available
+// answers both watermarks 0, and the returned cursor must be usable as the
+// next after_trade_id.
+func TestMarketTradesBackfillZeroWatermarks(t *testing.T) {
+	got := decode.MarketTradesBackfillFromProto(&marketdatav1.GetTradesResponse{}, 8)
+	if got.NextAfterTradeID != "0" || got.CompleteThroughTradeID != "0" {
+		t.Fatalf("backfill watermarks next=%q complete=%q, want decimal zero", got.NextAfterTradeID, got.CompleteThroughTradeID)
+	}
+	if _, err := codecs.ParseRequiredUint64Decimal(got.NextAfterTradeID, "after_trade_id"); err != nil {
+		t.Fatalf("returned next cursor cannot be used for the next GetTradesAfter: %v", err)
+	}
+	// A plain page-token read carries no backfill watermarks.
+	if plain := decode.MarketTradesFromProto(&marketdatav1.GetTradesResponse{}, 8); plain.NextAfterTradeID != "" || plain.CompleteThroughTradeID != "" {
+		t.Fatalf("page-token read reported watermarks %+v", plain)
 	}
 }

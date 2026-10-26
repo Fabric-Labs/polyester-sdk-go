@@ -277,13 +277,16 @@ func triggerConfigProjection(msg *triggersv1.Trigger) (triggerType, side, orderT
 			triggerPrice = codecs.DecodePriceTicks(cfg.TakeProfit.GetTriggerPriceTicks(), symbol)
 		}
 	case *triggersv1.Trigger_TrailingStop:
-		// Trailing stop fires a market-IOC child; side is on the wire config
-		// (standalone historically SELL; attached may be either side).
+		// Trailing stop fires an IOC child on the configured side. A buy's
+		// limit_price_ticks is its maximum price, projected as LimitPrice.
 		triggerType = "trailing_stop"
 		orderType = "market"
 		tif = "ioc"
 		if t := cfg.TrailingStop; t != nil {
 			side = codecs.OrderSideName(t.GetSide())
+			if t.GetLimitPriceTicks() > 0 {
+				limitPrice = codecs.DecodePriceTicks(t.GetLimitPriceTicks(), symbol)
+			}
 		}
 	case *triggersv1.Trigger_Twap:
 		triggerType = "twap"
@@ -309,6 +312,23 @@ func triggerConfigProjection(msg *triggersv1.Trigger) (triggerType, side, orderT
 		}
 	}
 	return
+}
+
+// marketChildSlippage returns a stop-loss or take-profit market child's
+// slippage cap; zero when none is set and the pair default applies.
+func marketChildSlippage(msg *triggersv1.Trigger) (ticks models.PriceTicks, bps int32) {
+	var cond *triggersv1.ConditionalTrigger
+	switch cfg := msg.GetConfiguration().(type) {
+	case *triggersv1.Trigger_StopLoss:
+		cond = cfg.StopLoss
+	case *triggersv1.Trigger_TakeProfit:
+		cond = cfg.TakeProfit
+	}
+	ioc := cond.GetChild().GetMarketIoc()
+	if ioc.GetMaxSlippageTicks() > 0 {
+		ticks = codecs.DecodePriceTicks(ioc.GetMaxSlippageTicks(), "")
+	}
+	return ticks, ioc.GetMaxSlippageBps()
 }
 
 // conditionalChildProjection derives flat child fields from a stop-loss /
@@ -361,6 +381,7 @@ func TriggerFromProto(msg *triggersv1.Trigger) models.Trigger {
 		parentOrderID = codecs.FormatUint64ID(msg.GetParentOrderId())
 	}
 	cancelReason, failureReason := triggerReasonsFromTrigger(msg)
+	maxSlippage, maxSlippageBps := marketChildSlippage(msg)
 	return models.Trigger{
 		TriggerID:               codecs.FormatUint64ID(msg.GetTriggerId()),
 		SubaccountID:            codecs.FormatUint64ID(msg.GetSubaccountId()),
@@ -378,6 +399,8 @@ func TriggerFromProto(msg *triggersv1.Trigger) models.Trigger {
 		PostOnly:                postOnly,
 		LimitPrice:              limitPrice,
 		TriggerPrice:            triggerPrice,
+		MaxSlippage:             maxSlippage,
+		MaxSlippageBps:          maxSlippageBps,
 		ClientTriggerID:         msg.GetClientTriggerId(),
 		CreatedAt:               timestampTime(msg.GetCreatedAt()),
 		UpdatedAt:               timestampTime(msg.GetUpdatedAt()),

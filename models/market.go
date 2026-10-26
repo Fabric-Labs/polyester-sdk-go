@@ -33,9 +33,32 @@ type MarketTrade struct {
 }
 
 // MarketTradesResult holds public trades.
+//
+// CompleteThroughTradeID, NextAfterTradeID and EpochEnds are set only by
+// MarketData.GetTradesAfter (gap-free backfill), where both watermarks are
+// always decimal match IDs, "0" included; trade IDs are formatted as in
+// MarketTrade.MatchID.
 type MarketTradesResult struct {
 	Trades        []MarketTrade `json:"trades"`
 	NextPageToken string        `json:"next_page_token,omitempty"`
+	// CompleteThroughTradeID: every trade of the symbol with a match ID at
+	// or below it exists and is returned by the backfill. It only grows.
+	CompleteThroughTradeID string `json:"complete_through_trade_id,omitempty"`
+	// NextAfterTradeID is the afterTradeID of the next call; it never moves
+	// backwards. Equal to the request's, nothing newer is available yet:
+	// retry later with backoff.
+	NextAfterTradeID string `json:"next_after_trade_id,omitempty"`
+	// EpochEnds lists, ascending, every epoch that ended between the
+	// request's afterTradeID and NextAfterTradeID, both inclusive.
+	EpochEnds []TradeEpochEnd `json:"epoch_ends,omitempty"`
+}
+
+// TradeEpochEnd marks the end of a trade epoch in a gap-free backfill.
+type TradeEpochEnd struct {
+	Epoch uint64 `json:"epoch"`
+	// LastTradeID is the match ID of the epoch's last trade, or
+	// (epoch-1) * 2^40 when the epoch ended without trades.
+	LastTradeID string `json:"last_trade_id"`
 }
 
 // MarketOverviewEntry is one market overview row.

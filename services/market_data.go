@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	marketdatav1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1"
@@ -68,6 +69,37 @@ func (s *MarketDataService) GetTrades(ctx context.Context, symbol *string, symbo
 	}
 	return UnaryPublic(ctx, s.transport, s.client().GetTrades, req, func(msg *marketdatav1.GetTradesResponse) models.MarketTradesResult {
 		return decode.MarketTradesFromProto(msg, scale)
+	})
+}
+
+// GetTradesAfter walks a symbol's public trades gap-free: the trades with a
+// match ID greater than afterTradeID (a decimal match ID; "0" starts from the
+// symbol's first trade), ascending, up to limit, and only up to the result's
+// CompleteThroughTradeID. Pass the result's NextAfterTradeID to the next
+// call; when it equals afterTradeID, nothing newer is available yet, so
+// retry later with backoff. The walk crosses epoch ends without a gap and
+// reports them in EpochEnds. It cannot be combined with GetTrades' page
+// token, time range or side filter.
+func (s *MarketDataService) GetTradesAfter(ctx context.Context, symbol *string, symbolID *uint32, afterTradeID string, limit int) (models.MarketTradesResult, error) {
+	after, err := codecs.ParseRequiredUint64Decimal(afterTradeID, "after_trade_id")
+	if err != nil {
+		return models.MarketTradesResult{}, err
+	}
+	resolved, err := ResolveSymbolID(s.catalogs, symbol, symbolID, "get_trades_after")
+	if err != nil {
+		return models.MarketTradesResult{}, err
+	}
+	scale, err := s.requireQuantityScale(resolved, "get_trades_after")
+	if err != nil {
+		return models.MarketTradesResult{}, err
+	}
+	parsedLimit, err := PaginationLimit(limit, "limit")
+	if err != nil {
+		return models.MarketTradesResult{}, err
+	}
+	req := &marketdatav1.GetTradesRequest{SymbolId: resolved, Limit: parsedLimit, AfterTradeId: &after}
+	return UnaryPublic(ctx, s.transport, s.client().GetTrades, req, func(msg *marketdatav1.GetTradesResponse) models.MarketTradesResult {
+		return decode.MarketTradesBackfillFromProto(msg, scale)
 	})
 }
 

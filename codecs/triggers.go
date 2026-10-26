@@ -107,7 +107,7 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 			}
 			triggerTicks = parsed
 		}
-		child, err := conditionalChildToProto(orderType, tif, limitPrice, symbol, postOnly)
+		child, err := conditionalChildToProto(orderType, tif, limitPrice, symbol, postOnly, sideEnum, opts.MaxSlippageTicks, opts.MaxSlippageBps)
 		if err != nil {
 			return nil, err
 		}
@@ -122,16 +122,30 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 			intent.Strategy = &triggersv1.TriggerIntent_TakeProfit{TakeProfit: cond}
 		}
 	case "trailing_stop":
-		// Standalone trailing stops currently support SELL market-IOC children.
-		// Wire TrailingStopTrigger carries side (attached stops may use either).
+		// A sell trails the peak and fires on a fall; a buy trails the trough
+		// and fires on a rise, and limit_price is its maximum price: the most
+		// its child pays per unit, which also sizes the reserved funds.
 		sideEnum, ok := orderSideToProto[strings.ToLower(side)]
 		if !ok {
 			return nil, &errors.ValidationError{Msg: "side must be buy or sell"}
 		}
-		if sideEnum != orderv1.Side_SELL {
-			return nil, &errors.ValidationError{Msg: "trailing_stop only supports side=sell"}
-		}
 		trailing := &triggersv1.TrailingStopTrigger{Side: sideEnum}
+		hasLimitPrice := limitPrice != nil && limitPrice.IsSet()
+		switch {
+		case sideEnum == orderv1.Side_BUY && !hasLimitPrice:
+			return nil, &errors.ValidationError{Msg: "trailing_stop with side=buy requires limit_price, the maximum price the child pays"}
+		case sideEnum == orderv1.Side_SELL && hasLimitPrice:
+			return nil, &errors.ValidationError{Msg: "trailing_stop with side=sell does not accept limit_price; only a buy has a maximum price"}
+		case hasLimitPrice:
+			ticks, err := ResolvePriceTicks(*limitPrice, "limit_price", symbol)
+			if err != nil {
+				return nil, err
+			}
+			if ticks <= 0 {
+				return nil, &errors.ValidationError{Msg: "limit_price must be positive"}
+			}
+			trailing.LimitPriceTicks = ticks
+		}
 		switch {
 		case opts.TrailingDistanceTicks != nil:
 			trailing.TrailingDistance = &triggersv1.TrailingStopTrigger_TrailingDistanceTicks{TrailingDistanceTicks: *opts.TrailingDistanceTicks}
@@ -150,14 +164,19 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 			}
 			trailing.ActivationPriceTicks = ticks
 		}
+		if trailing.LimitPriceTicks > 0 && trailing.ActivationPriceTicks > trailing.LimitPriceTicks {
+			return nil, &errors.ValidationError{Msg: "trailing_stop limit_price must be at least activation_price"}
+		}
+		// A trailing stop takes no 100% cap on either side.
+		ticks, bps, err := createSlippageCap(opts.MaxSlippageTicks, opts.MaxSlippageBps, MaxSlippageBpsLimit-1)
+		if err != nil {
+			return nil, err
+		}
 		switch {
-		case opts.MaxSlippageTicks != nil:
-			trailing.MaxSlippage = &triggersv1.TrailingStopTrigger_MaxSlippageTicks{MaxSlippageTicks: *opts.MaxSlippageTicks}
-		case opts.MaxSlippageBps != nil:
-			if err := validateSlippageBps(*opts.MaxSlippageBps, false); err != nil {
-				return nil, err
-			}
-			trailing.MaxSlippage = &triggersv1.TrailingStopTrigger_MaxSlippageBps{MaxSlippageBps: *opts.MaxSlippageBps}
+		case ticks != nil:
+			trailing.MaxSlippage = &triggersv1.TrailingStopTrigger_MaxSlippageTicks{MaxSlippageTicks: *ticks}
+		case bps != nil:
+			trailing.MaxSlippage = &triggersv1.TrailingStopTrigger_MaxSlippageBps{MaxSlippageBps: *bps}
 		}
 		intent.Strategy = &triggersv1.TriggerIntent_TrailingStop{TrailingStop: trailing}
 	case "twap":
@@ -249,17 +268,37 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 }
 
 // conditionalChildToProto maps flat (order_type, tif, limit_price, post_only)
-// params onto a stop-loss / take-profit child execution variant.
-func conditionalChildToProto(orderType, tif string, limitPrice *models.PriceInput, symbol string, postOnly bool) (*triggersv1.ConditionalChildExecution, error) {
+// params onto a stop-loss / take-profit child execution variant. A market
+// child carries the optional slippage cap; either side may use any child.
+func conditionalChildToProto(orderType, tif string, limitPrice *models.PriceInput, symbol string, postOnly bool, side orderv1.Side, maxSlippageTicks *int64, maxSlippageBps *int32) (*triggersv1.ConditionalChildExecution, error) {
 	switch strings.ToLower(orderType) {
 	case "market":
 		if postOnly {
 			return nil, &errors.ValidationError{Msg: "post_only is only valid for limit GTC executions"}
 		}
+		// A 100% cap would leave a sell no positive price.
+		maxBps := MaxSlippageBpsLimit
+		if side == orderv1.Side_SELL {
+			maxBps--
+		}
+		ticks, bps, err := createSlippageCap(maxSlippageTicks, maxSlippageBps, maxBps)
+		if err != nil {
+			return nil, err
+		}
+		ioc := &triggersv1.TriggerMarketIoc{}
+		switch {
+		case ticks != nil:
+			ioc.MaxSlippage = &triggersv1.TriggerMarketIoc_MaxSlippageTicks{MaxSlippageTicks: *ticks}
+		case bps != nil:
+			ioc.MaxSlippage = &triggersv1.TriggerMarketIoc_MaxSlippageBps{MaxSlippageBps: *bps}
+		}
 		return &triggersv1.ConditionalChildExecution{
-			Execution: &triggersv1.ConditionalChildExecution_MarketIoc{MarketIoc: &triggersv1.TriggerMarketIoc{}},
+			Execution: &triggersv1.ConditionalChildExecution_MarketIoc{MarketIoc: ioc},
 		}, nil
 	case "limit":
+		if maxSlippageTicks != nil || maxSlippageBps != nil {
+			return nil, &errors.ValidationError{Msg: "max_slippage_ticks and max_slippage_bps apply only to market children; a limit child is bounded by limit_price"}
+		}
 		if limitPrice == nil || !limitPrice.IsSet() {
 			return nil, &errors.ValidationError{Msg: "limit trigger requires limit_price"}
 		}
@@ -295,6 +334,20 @@ func conditionalChildToProto(orderType, tif string, limitPrice *models.PriceInpu
 // MaxSlippageBpsLimit is the product-wide trigger/order slippage BPS cap.
 const MaxSlippageBpsLimit int32 = 10_000
 
+// createSlippageCap validates an optional create-time slippage cap: at most
+// one of ticks or bps, ticks positive, bps from 1 to maxBps.
+func createSlippageCap(ticks *int64, bps *int32, maxBps int32) (*int64, *int32, error) {
+	switch {
+	case ticks != nil && bps != nil:
+		return nil, nil, &errors.ValidationError{Msg: "set at most one of max_slippage_ticks or max_slippage_bps"}
+	case ticks != nil && *ticks <= 0:
+		return nil, nil, &errors.ValidationError{Msg: "max_slippage_ticks must be positive"}
+	case bps != nil && (*bps < 1 || *bps > maxBps):
+		return nil, nil, &errors.ValidationError{Msg: fmt.Sprintf("max_slippage_bps must be between 1 and %d", maxBps)}
+	}
+	return ticks, bps, nil
+}
+
 func validateSlippageBps(bps int32, allowClear bool) error {
 	return validateBps("max_slippage_bps", bps, allowClear)
 }
@@ -309,14 +362,16 @@ func validateBps(field string, bps int32, allowClear bool) error {
 	return nil
 }
 
-// ModifyTriggerOptions carries optional trigger patch fields.
+// ModifyTriggerOptions carries optional trigger patch fields. A child's
+// limit price is fixed at create: cancel and create a new trigger to change
+// it. MaxSlippage* applies to trailing stops and to stop-loss or take-profit
+// triggers with a market child.
 //
 // Omitted ActivationPrice / MaxSlippage* preserve the current values.
 // Send an explicit zero (PriceFromTicksInt(0) or *int32(0)) to clear an
 // existing activation price or maximum-slippage cap.
 type ModifyTriggerOptions struct {
 	TriggerPrice          *models.PriceInput
-	LimitPrice            *models.PriceInput
 	TrailingDistanceTicks *int64
 	TrailingDistanceBps   *int32
 	ActivationPrice       *models.PriceInput
@@ -329,11 +384,16 @@ func ModifyTriggerToProto(triggerID string, symbolID uint32, subAccountID *strin
 		return nil, &errors.ValidationError{Msg: "triggers.modify requires a resolved non-zero symbol_id"}
 	}
 	if (opts.TriggerPrice == nil || !opts.TriggerPrice.IsSet()) &&
-		(opts.LimitPrice == nil || !opts.LimitPrice.IsSet()) &&
 		opts.TrailingDistanceTicks == nil && opts.TrailingDistanceBps == nil &&
 		(opts.ActivationPrice == nil || !opts.ActivationPrice.IsSet()) &&
 		opts.MaxSlippageTicks == nil && opts.MaxSlippageBps == nil {
-		return nil, &errors.ValidationError{Msg: "modify requires at least one of trigger_price, limit_price, trailing_distance_ticks, trailing_distance_bps, activation_price, max_slippage_ticks, or max_slippage_bps"}
+		return nil, &errors.ValidationError{Msg: "modify requires at least one of trigger_price, trailing_distance_ticks, trailing_distance_bps, activation_price, max_slippage_ticks, or max_slippage_bps"}
+	}
+	if opts.MaxSlippageTicks != nil && opts.MaxSlippageBps != nil {
+		return nil, &errors.ValidationError{Msg: "set at most one of max_slippage_ticks or max_slippage_bps"}
+	}
+	if opts.TrailingDistanceTicks != nil && opts.TrailingDistanceBps != nil {
+		return nil, &errors.ValidationError{Msg: "set at most one of trailing_distance_ticks or trailing_distance_bps"}
 	}
 	id, err := IDToInt(triggerID, "trigger_id")
 	if err != nil {
@@ -354,13 +414,6 @@ func ModifyTriggerToProto(triggerID string, symbolID uint32, subAccountID *strin
 		}
 		req.TriggerPriceTicks = &ticks
 	}
-	if opts.LimitPrice != nil && opts.LimitPrice.IsSet() {
-		ticks, err := ResolvePriceTicks(*opts.LimitPrice, "limit_price", "")
-		if err != nil {
-			return nil, err
-		}
-		req.LimitPriceTicks = &ticks
-	}
 	if opts.TrailingDistanceTicks != nil {
 		req.TrailingDistance = &triggersv1.ModifyTriggerRequest_TrailingDistanceTicks{TrailingDistanceTicks: *opts.TrailingDistanceTicks}
 	}
@@ -378,6 +431,9 @@ func ModifyTriggerToProto(triggerID string, symbolID uint32, subAccountID *strin
 		req.ActivationPriceTicks = &ticks
 	}
 	if opts.MaxSlippageTicks != nil {
+		if *opts.MaxSlippageTicks < 0 {
+			return nil, &errors.ValidationError{Msg: "max_slippage_ticks must not be negative; send 0 to clear the cap"}
+		}
 		req.MaxSlippage = &triggersv1.ModifyTriggerRequest_MaxSlippageTicks{MaxSlippageTicks: *opts.MaxSlippageTicks}
 	}
 	if opts.MaxSlippageBps != nil {

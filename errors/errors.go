@@ -193,18 +193,40 @@ func IsRetryable(err error) bool {
 	var transportErr *TransportError
 	var rateLimitErr *RateLimitError
 	var serverErr *ServerError
+	code := apiErrorCode(err)
 	return errors.As(err, &transportErr) ||
 		errors.As(err, &rateLimitErr) ||
-		errors.As(err, &serverErr)
+		errors.As(err, &serverErr) ||
+		outcomeUnknownCodes[code] ||
+		code == "ERROR_CODE_ACCOUNT_REPAIRING"
 }
 
 // MutationOutcomeUnknown reports whether the server may have applied a failed
-// mutation before the error became visible to the caller.
+// mutation before the error became visible to the caller. It includes an
+// order cancel or modify that was sent but not confirmed in time
+// (ERROR_CODE_ORDER_CANCEL_OUTCOME_UNKNOWN, ERROR_CODE_ORDER_MODIFY_OUTCOME_UNKNOWN):
+// read the order back before retrying.
 func MutationOutcomeUnknown(err error) bool {
 	var transportErr *TransportError
 	var serverErr *ServerError
 	var contractErr *ResponseContractError
 	return errors.As(err, &transportErr) ||
 		errors.As(err, &serverErr) ||
-		errors.As(err, &contractErr)
+		errors.As(err, &contractErr) ||
+		outcomeUnknownCodes[apiErrorCode(err)]
+}
+
+// outcomeUnknownCodes are order error codes for a mutation that was sent but
+// not confirmed in time; it may still apply.
+var outcomeUnknownCodes = map[string]bool{
+	"ERROR_CODE_ORDER_CANCEL_OUTCOME_UNKNOWN": true,
+	"ERROR_CODE_ORDER_MODIFY_OUTCOME_UNKNOWN": true,
+}
+
+func apiErrorCode(err error) string {
+	var apiErr *APIError
+	if errors.As(err, &apiErr) {
+		return apiErr.Code
+	}
+	return ""
 }

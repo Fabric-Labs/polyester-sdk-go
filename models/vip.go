@@ -39,4 +39,19 @@ type VIPStatus struct {
 	EvaluatedAt         *time.Time             `json:"evaluated_at,omitempty"`
 	MetricsAsOf         *time.Time             `json:"metrics_as_of,omitempty"`
 	NextTierThresholds  *NextVIPTierThresholds `json:"next_tier_thresholds,omitempty"`
+	// SettledVolumeQuality and AverageAopQuality explain how complete the
+	// rolling 30-day metrics are; nil when the server reports none.
+	SettledVolumeQuality *VIPMetricQuality `json:"settled_volume_quality,omitempty"`
+	AverageAopQuality    *VIPMetricQuality `json:"average_aop_quality,omitempty"`
+}
+
+// VIPMetricQuality is the completeness of one rolling 30-day VIP metric.
+type VIPMetricQuality struct {
+	// Status is "complete", "price_unavailable" (some hours lack a USD
+	// reference price; those contributions are not estimated) or
+	// "incomplete_history" (some hours are missing or incomplete).
+	Status string `json:"status"`
+	// IncompleteHours counts the missing or incomplete hourly buckets of the
+	// 720-hour window; zero when Status is "complete".
+	IncompleteHours uint32 `json:"incomplete_hours"`
 }

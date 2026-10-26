@@ -112,3 +112,23 @@ func TestVIPStatusSurfacesNextTierAndMetrics(t *testing.T) {
 		t.Fatalf("metrics_as_of=%v", status.MetricsAsOf)
 	}
 }
+
+func TestVIPStatusFromProtoMetricQuality(t *testing.T) {
+	status := decode.VIPStatusFromProto(&vipv1.GetVIPStatusResponse{
+		Tier: 2,
+		SettledVolumeQuality: &vipv1.VIPMetricQuality{
+			Status:          vipv1.VIPMetricStatus_PRICE_UNAVAILABLE,
+			IncompleteHours: 3,
+		},
+		AverageAopQuality: &vipv1.VIPMetricQuality{Status: vipv1.VIPMetricStatus_COMPLETE},
+	})
+	if q := status.SettledVolumeQuality; q == nil || q.Status != "price_unavailable" || q.IncompleteHours != 3 {
+		t.Fatalf("settled volume quality %+v", q)
+	}
+	if q := status.AverageAopQuality; q == nil || q.Status != "complete" || q.IncompleteHours != 0 {
+		t.Fatalf("average AOP quality %+v", q)
+	}
+	if none := decode.VIPStatusFromProto(&vipv1.GetVIPStatusResponse{}); none.SettledVolumeQuality != nil || none.AverageAopQuality != nil {
+		t.Fatalf("absent quality must stay nil: %+v", none)
+	}
+}

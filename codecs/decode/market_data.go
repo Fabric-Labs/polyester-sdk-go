@@ -70,6 +70,23 @@ func MarketTradesFromProto(msg *marketdatav1.GetTradesResponse, quantityScale in
 	return models.MarketTradesResult{Trades: out, NextPageToken: msg.GetNextPageToken()}
 }
 
+// MarketTradesBackfillFromProto decodes a GetTrades response to an
+// after_trade_id request. Both watermarks are always set as decimals, "0"
+// included: an initial backfill with nothing available yet answers
+// next_after_trade_id 0, which is the cursor of the retry.
+func MarketTradesBackfillFromProto(msg *marketdatav1.GetTradesResponse, quantityScale int) models.MarketTradesResult {
+	result := MarketTradesFromProto(msg, quantityScale)
+	result.CompleteThroughTradeID = strconv.FormatUint(msg.GetCompleteThroughTradeId(), 10)
+	result.NextAfterTradeID = strconv.FormatUint(msg.GetNextAfterTradeId(), 10)
+	for _, end := range msg.GetEpochEnds() {
+		result.EpochEnds = append(result.EpochEnds, models.TradeEpochEnd{
+			Epoch:       end.GetEpoch(),
+			LastTradeID: strconv.FormatUint(end.GetLastTradeId(), 10),
+		})
+	}
+	return result
+}
+
 func CandlesFromProto(msg *marketdatav1.GetCandlesResponse, volumeScale int, referencePriceScale int) (models.CandlesResult, error) {
 	if err := codecs.ValidateProtocolScale(volumeScale); err != nil {
 		return models.CandlesResult{}, err

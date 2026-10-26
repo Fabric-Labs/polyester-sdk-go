@@ -303,3 +303,16 @@ func mapAuthDetail(t *testing.T, code authv1.AuthErrorCode, message string) erro
 	connectErr.AddDetail(detail)
 	return MapConnectError(connectErr)
 }
+
+func TestMapConnectErrorOrderOutcomeUnknownRequiresReconciliation(t *testing.T) {
+	connectErr := connect.NewError(connect.CodeDeadlineExceeded, errors.New("cancel not confirmed in time"))
+	detail, err := connect.NewErrorDetail(&orderv1.ErrorDetail{Code: orderv1.ErrorCode_ERROR_CODE_ORDER_CANCEL_OUTCOME_UNKNOWN})
+	if err != nil {
+		t.Fatal(err)
+	}
+	connectErr.AddDetail(detail)
+	mapped := MapConnectError(connectErr)
+	if !sdkerrors.MutationOutcomeUnknown(mapped) {
+		t.Fatalf("mapped=%T %v must report an unknown mutation outcome", mapped, mapped)
+	}
+}

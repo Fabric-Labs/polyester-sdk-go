@@ -25,7 +25,7 @@ func TestModifyTriggerOmitsUnsetFieldsAndClearsWithZero(t *testing.T) {
 	if req.GetMaxSlippageBps() != 0 || req.MaxSlippage == nil {
 		t.Fatalf("max_slippage=%+v", req.MaxSlippage)
 	}
-	if req.TriggerPriceTicks != nil || req.LimitPriceTicks != nil {
+	if req.TriggerPriceTicks != nil || req.LimitPriceTicks != nil { // limit price is never sent
 		t.Fatalf("omitted fields must stay unset: %+v", req)
 	}
 
@@ -42,13 +42,14 @@ func TestModifyTriggerOmitsUnsetFieldsAndClearsWithZero(t *testing.T) {
 
 func TestTriggerSlippageBpsCap(t *testing.T) {
 	distance := int32(100)
-	ok := int32(10000)
+	// A trailing stop takes 1 to 9999 bps on either side: a 100% cap is refused.
+	ok := int32(9999)
 	if _, err := CreateTriggerToProto(
 		1, "BTC-USDT", "trailing_stop", nil, "sell", models.QtyFromDecimal("0.1"),
 		"market", nil, "", "", nil, nil, false, 8,
 		CreateTriggerOptions{TrailingDistanceBps: &distance, MaxSlippageBps: &ok},
 	); err != nil {
-		t.Fatalf("10000 bps should be accepted: %v", err)
+		t.Fatalf("9999 bps should be accepted: %v", err)
 	}
 	tooHigh := int32(10001)
 	_, err := CreateTriggerToProto(

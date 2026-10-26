@@ -514,14 +514,24 @@ func CancelAllFromProto(msg *orderv1.CancelAllOrdersResponse) (models.CancelAllO
 	if status == "submitted" && uint64(submitted)+uint64(failed) != uint64(matched) {
 		return models.CancelAllOrdersResult{}, &sdkerrors.ResponseContractError{Operation: "CancelAllOrders", Msg: "submitted and failed counts do not equal matched_orders"}
 	}
-	if status == "dry_run" && (submitted != 0 || failed != 0) {
-		return models.CancelAllOrdersResult{}, &sdkerrors.ResponseContractError{Operation: "CancelAllOrders", Msg: "dry_run reported submitted or failed cancels"}
+	if status == "dry_run" && (submitted != 0 || failed != 0 || msg.GetTotalCancelled() != 0 || len(msg.GetCancelledOrders()) != 0) {
+		return models.CancelAllOrdersResult{}, &sdkerrors.ResponseContractError{Operation: "CancelAllOrders", Msg: "dry_run reported submitted, failed or cancelled orders"}
+	}
+	var cancelled []models.CancelledOrder
+	for _, order := range msg.GetCancelledOrders() {
+		cancelled = append(cancelled, models.CancelledOrder{
+			OrderID:       codecs.FormatUint64ID(order.GetOrderId()),
+			ClientOrderID: order.GetClientOrderId(),
+		})
 	}
 	return models.CancelAllOrdersResult{
 		Status:           status,
 		MatchedOrders:    int(msg.GetMatchedOrders()),
 		SubmittedCancels: int(msg.GetSubmittedCancels()),
 		FailedCancels:    int(msg.GetFailedCancels()),
+		CancelledOrders:  cancelled,
+		TotalCancelled:   int(msg.GetTotalCancelled()),
+		Truncated:        msg.GetTruncated(),
 	}, nil
 }
 
