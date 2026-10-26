@@ -31,7 +31,7 @@ func TestL2TokenHeadersThenStalledBodyTimesOutViaSubscribeProto(t *testing.T) {
 	rt := newRT(ws.WSURL(), httpSrv.BaseURL(), testCreds(t), timeout)
 	ctx := context.Background()
 	started := time.Now()
-	_, err := realtime.SubscribeProto(ctx, rt, "private:spot:orders:acct:proto", identityDecode)
+	_, err := realtime.SubscribeProto(ctx, rt, "private:ledger:balances:acct:proto", identityDecode)
 	elapsed := time.Since(started)
 	if err == nil {
 		t.Fatal("stalled token body must fail")
@@ -61,7 +61,7 @@ func TestL2TokenNoHeadersTimesOutViaSubscribeProto(t *testing.T) {
 
 	rt := newRT(ws.WSURL(), httpSrv.BaseURL(), testCreds(t), timeout)
 	started := time.Now()
-	_, err := realtime.SubscribeProto(context.Background(), rt, "private:spot:orders:acct:proto", identityDecode)
+	_, err := realtime.SubscribeProto(context.Background(), rt, "private:ledger:balances:acct:proto", identityDecode)
 	elapsed := time.Since(started)
 	if err == nil {
 		t.Fatal("no-headers token fetch must fail")
@@ -96,7 +96,7 @@ func TestL2TokenSlowDripExceedsTotalDeadlineViaSubscribeProto(t *testing.T) {
 
 	rt := newRT(ws.WSURL(), httpSrv.BaseURL(), testCreds(t), timeout)
 	started := time.Now()
-	_, err := realtime.SubscribeProto(context.Background(), rt, "private:spot:orders:acct:proto", identityDecode)
+	_, err := realtime.SubscribeProto(context.Background(), rt, "private:ledger:balances:acct:proto", identityDecode)
 	elapsed := time.Since(started)
 	if err == nil {
 		t.Fatal("slow-drip token body must fail via total deadline")
@@ -128,7 +128,7 @@ func TestL2TokenContentLength65537RejectedViaSubscribeProto(t *testing.T) {
 	t.Cleanup(ws.Close)
 
 	rt := newRT(ws.WSURL(), httpSrv.BaseURL(), testCreds(t), 2*time.Second)
-	_, err := realtime.SubscribeProto(context.Background(), rt, "private:spot:orders:acct:proto", identityDecode)
+	_, err := realtime.SubscribeProto(context.Background(), rt, "private:ledger:balances:acct:proto", identityDecode)
 	if err == nil {
 		t.Fatal("oversized Content-Length must be rejected")
 	}
@@ -152,7 +152,7 @@ func TestL2TokenChunkedOversizedRejectedViaSubscribeProto(t *testing.T) {
 	t.Cleanup(ws.Close)
 
 	rt := newRT(ws.WSURL(), httpSrv.BaseURL(), testCreds(t), 2*time.Second)
-	_, err := realtime.SubscribeProto(context.Background(), rt, "private:spot:orders:acct:proto", identityDecode)
+	_, err := realtime.SubscribeProto(context.Background(), rt, "private:ledger:balances:acct:proto", identityDecode)
 	if err == nil {
 		t.Fatal("chunked >64KiB must be rejected")
 	}
@@ -176,7 +176,7 @@ func TestL2TokenEmptyTokenRejectedViaSubscribeProto(t *testing.T) {
 	t.Cleanup(ws.Close)
 
 	rt := newRT(ws.WSURL(), httpSrv.BaseURL(), testCreds(t), 2*time.Second)
-	_, err := realtime.SubscribeProto(context.Background(), rt, "private:spot:orders:acct:proto", identityDecode)
+	_, err := realtime.SubscribeProto(context.Background(), rt, "private:ledger:balances:acct:proto", identityDecode)
 	if err == nil {
 		t.Fatal("empty token must be rejected")
 	}
@@ -200,7 +200,7 @@ func TestL2TokenMalformedJSONRejectedViaSubscribeProto(t *testing.T) {
 	t.Cleanup(ws.Close)
 
 	rt := newRT(ws.WSURL(), httpSrv.BaseURL(), testCreds(t), 2*time.Second)
-	_, err := realtime.SubscribeProto(context.Background(), rt, "private:spot:orders:acct:proto", identityDecode)
+	_, err := realtime.SubscribeProto(context.Background(), rt, "private:ledger:balances:acct:proto", identityDecode)
 	if err == nil {
 		t.Fatal("malformed JSON must be rejected")
 	}
@@ -271,7 +271,7 @@ func TestL2CancelDuringTokenBodyStallNoOrphan(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	errCh := make(chan error, 1)
 	go func() {
-		_, err := realtime.SubscribeProto(ctx, rt, "private:spot:orders:acct:proto", identityDecode)
+		_, err := realtime.SubscribeProto(ctx, rt, "private:ledger:balances:acct:proto", identityDecode)
 		errCh <- err
 	}()
 

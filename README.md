@@ -71,9 +71,10 @@ still applies. In particular, whiteboard/social-verification, address-book
 writes, and some layout/polychart routes may require a JWT session or may not
 be mounted.
 Private streams require an Account ID and the corresponding API-key permission.
-A successful subscribe call means the token exchange and realtime handshake
-completed. Treat a structured permission denial as non-transient and update the
-API-key policy before retrying.
+For Centrifugo channels, a successful subscribe call means the token exchange
+and realtime handshake completed. `Orders.Subscribe` returns at once and reports
+the handshake as events (see [Realtime](#realtime)). Treat a structured
+permission denial as non-transient and update the API-key policy before retrying.
 
 **Attached risk:** set `CreateOrderRequest.AttachedRisk`,
 `ModifyParams.NewAttachedRisk` (`Orders.ModifyWith`), or
@@ -647,33 +648,119 @@ for markets := range mo.Updates() {
 
 ## Realtime
 
-Realtime is binary-only. The client negotiates the `centrifuge-protobuf`
-WebSocket subprotocol, sends binary length-delimited Centrifugo commands, and
-decodes protobuf publication payloads from `:proto` channels. ConnectRPC's
+Realtime is binary-only. Centrifugo channels negotiate the `centrifuge-protobuf`
+WebSocket subprotocol, send binary length-delimited Centrifugo commands, and
+decode protobuf publication payloads from `:proto` channels. ConnectRPC's
 optional JSON wire mode does not apply to realtime. Incoming WebSocket messages
 and protobuf record/field lengths are capped at 8 MiB.
 
-Raw Centrifugo subscriptions return a typed channel:
+### Live orders
+
+`Orders.Subscribe` streams an account's orders over the private WebSocket
+(`/v1/ws/private` on the API host, `wss://` for `https://`, subprotocol
+`polyester.v1.proto`). Orders decode to the same `models.Order` as the order
+reads. Events arrive on `Messages()`; switch on their type:
 
 ```go
-sub, err := client.Orders.Subscribe(ctx, nil)
+import (
+	"github.com/Fabric-Labs/polyester-sdk-go/models"
+	"github.com/Fabric-Labs/polyester-sdk-go/realtime"
+)
+
+sub, err := client.Orders.Subscribe(ctx, nil) // nil: the client's DefaultAccountID
 if err != nil {
 	log.Fatal(err)
 }
 defer sub.Close()
 
-for order := range sub.Messages() {
-	fmt.Println(order.OrderID, order.Status)
+orders := map[string]models.Order{}
+ready := false
+for event := range sub.Messages() {
+	switch e := event.(type) {
+	case realtime.OrderStreamConnected:
+		log.Print("order stream connected")
+	case realtime.OrderSnapshot:
+		// The full live view: replace local state.
+		clear(orders)
+		for _, o := range e.Orders {
+			orders[o.OrderID] = o
+		}
+	case realtime.OrderReady:
+		// Everything acknowledged before the subscribe is now reflected:
+		// an order missing from `orders` can be trusted to be gone.
+		ready = true
+	case realtime.OrderUnit:
+		for _, o := range e.Orders {
+			if cur, ok := orders[o.OrderID]; !ok || o.Version > cur.Version {
+				orders[o.OrderID] = o
+			}
+		}
+		for _, id := range e.RemovedOrderIDs {
+			delete(orders, id) // left the live view; not a cancellation
+		}
+		for _, ev := range e.Events {
+			if ev.Order != nil && ev.Order.Fill != nil {
+				fmt.Println("fill", ev.Order.OrderID, ev.Order.Fill.MatchID)
+			}
+			if ev.Outcome != nil {
+				fmt.Println("command answered", ev.Outcome.Kind, ev.Outcome.Reason)
+			}
+		}
+		// Before ready, an order absent from the map may still exist.
+		fmt.Println("live orders", len(orders), "complete", ready)
+	case realtime.OrderStale:
+		log.Printf("account view stale=%v %s", e.Stale, e.Reason)
+	case realtime.OrderStreamDisconnected:
+		ready = false // until the replacement subscription reports OrderReady
+		log.Print("order stream disconnected; resuming")
+	case realtime.OrderStreamError:
+		log.Printf("order stream error: %v", e.Err)
+	}
+}
+if err := sub.Err(); err != nil {
+	log.Printf("order stream ended: %v", err)
 }
 ```
 
-Private order-stream quantities are raw scaled integers, and
-`order.OrigQty.Scale()`, `order.CumQty.Scale()`, and `order.LeavesQty.Scale()` may be
-`nil`. Bots must resolve the base quantity scale from hydrated catalogs using
-`order.SymbolID` (or the symbol when available) before formatting or reusing a
-quantity. Never invent a fallback scale.
+- **Snapshot, then units.** A snapshot is installed whole, after its last
+  page. Each unit is one change: the changed orders (complete), removed order
+  IDs, and the events that caused it (accepted, filled with the fill, canceled,
+  rejected, replaced, attached risk) plus answers to commands that changed no
+  order (amend, cancel or replace rejected, rejected, cancel-all done). Keep
+  the copy of an order with the higher `Version`; equal versions are identical.
+- **Ready.** `OrderReady` comes once the stream reflects at least every
+  acknowledgement given before the subscribe, including every order read
+  made before it. Wait for it before trusting that an order missing from the
+  stream does not exist. To combine with a REST read: read open orders,
+  subscribe, wait for `OrderReady`, then merge both by `Version` (the higher
+  wins). It comes once per server subscription, so again after each
+  resubscribe or reconnect; a subscription that joins an account already
+  ready gets it right after its `OrderSnapshot`.
+- **Resume.** Sequence gaps, expiring connect and subscribe tokens, heartbeat
+  loss (3 s) and reconnects (0.5 s doubling to 10 s, with jitter) are handled
+  for you, resuming from the last applied position. When the server cannot
+  resume, a new `OrderSnapshot` replaces the state; the events in between are
+  not delivered, and fills stay readable from trade history.
+- **Sharing.** One connection carries every account of the client, and
+  subscriptions of the same account share one server subscription. A later
+  subscription starts from the current state.
+- **Ending.** The stream ends, closing `Messages()` with `Err()` set, when the
+  server refuses the subscription (`RealtimeError.Code`, for example
+  `FORBIDDEN`), when the API key is refused, on close codes 4400 and 4403
+  (`RealtimeError.CloseCode`), or with `QueueOverflowError` when the consumer
+  falls behind. `Close` (or canceling `ctx`) stops it; after the last
+  subscription closes, `Close` returns once the connection and its
+  goroutines have stopped.
 
-Private auth policy streams decode `ApiPolicyView` / `SubaccountPolicyView` snapshots:
+Order quantities are raw scaled integers, and `order.OrigQty.Scale()`,
+`order.CumQty.Scale()`, and `order.LeavesQty.Scale()` may be `nil`. Bots must
+resolve the base quantity scale from hydrated catalogs using `order.SymbolID`
+before formatting or reusing a quantity. Never invent a fallback scale.
+
+### Other private streams
+
+Raw Centrifugo subscriptions return a typed channel. Private auth policy
+streams decode `ApiPolicyView` / `SubaccountPolicyView` snapshots:
 
 ```go
 apiPolicies, err := client.Policies.SubscribeAPIPolicies(ctx, nil)
@@ -689,7 +776,7 @@ if err != nil {
 defer subPolicies.Close()
 ```
 
-Managed snapshot-then-stream helpers:
+### Managed snapshot-then-stream
 
 Snapshot retries retain buffered publications until a successful refresh merges
 them exactly once. Recovery-buffer overflow fails closed, and `Close` cancels
@@ -774,7 +861,7 @@ account.
 |------|---------|
 | `client.go` | Root `Client`, `New`, `FromEnv`, service tree |
 | `services/` | Typed unary RPC + subscribe helpers |
-| `realtime/` | Centrifugo client, snapshot-then-stream |
+| `realtime/` | Centrifugo client, private order stream, snapshot-then-stream |
 | `orderbook/` | Local book merge + managed subscription |
 | `codecs/` | Request encoding, scalar helpers, decode |
 | `gen/` | Checked-in Connect + protobuf generated code |

@@ -152,6 +152,11 @@ func stringish(v any) string {
 	switch t := v.(type) {
 	case string:
 		return t
+	case *string:
+		if t == nil {
+			return ""
+		}
+		return *t
 	case int:
 		return strconv.Itoa(t)
 	case int64:

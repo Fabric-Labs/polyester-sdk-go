@@ -10,8 +10,29 @@
   the configured legs' trigger IDs.
 - Trigger events label standalone trailing-stop activation as `activated`,
   and `TriggerEventTypeFromLabel` accepts `activated` as a filter.
+- `realtime.Client.SubscribeOrders` streams an account's orders over the
+  private WebSocket (`/v1/ws/private`, subprotocol `polyester.v1.proto`).
+  It delivers typed `realtime.OrderStreamEvent` values: `OrderSnapshot`
+  (the full live view, installed whole), `OrderReady` (the stream reflects
+  every acknowledgement given before the subscribe; wait for it before
+  trusting that a missing order does not exist; once per server
+  subscription, so again after a resubscribe or reconnect), `OrderUnit`
+  (changed orders, removed order IDs, and order events and command outcomes
+  as `models.OrderUnitEvent`), `OrderStale`, `OrderStreamConnected`,
+  `OrderStreamDisconnected` and `OrderStreamError`. Sequence gaps, expiring
+  tokens, heartbeat loss and reconnects resume from the last applied
+  position; subscriptions of the same account share one server
+  subscription.
+- `realtime.ErrClientClosed` is returned by `SubscribeOrders` (and
+  `Orders.Subscribe`) after `Client.Close`. A `Close` that races a
+  subscribe closes the new stream.
+- `errors.RealtimeError` carries `Code` (the server's request error, for
+  example `FORBIDDEN`) and `CloseCode` (for example 4403) for the private
+  order stream.
 
 ### Fixed
+- Account-scoped subscriptions given no account ID now use the client's
+  `DefaultAccountID` value instead of formatting its pointer.
 - Order reads no longer report an attached-risk leg whose state is
   `not_configured`; the server sends that state for a leg the order
   does not have.
@@ -23,6 +44,15 @@
   *models.AttachedRiskInput` parameter after `newQty`, and
   `codecs.BatchReplaceItemToProto` encodes `BatchReplaceItem.NewAttachedRisk`.
   Pass `nil` to keep an order's attached risk unchanged.
+- **Breaking:** `Orders.Subscribe` uses the private WebSocket and returns
+  `*realtime.Subscription[realtime.OrderStreamEvent]` instead of
+  `*realtime.Subscription[models.Order]`. It returns at once and reports the
+  handshake as `OrderStreamConnected`. The previous order realtime channels,
+  including the batch-replace order channel, are retired; use
+  `Orders.GetBatchReplaceStatus` and the order stream's revisions for
+  batch-replace progress.
+- **Breaking:** `decode.OrderFromBytes`, the decoder of the retired order
+  realtime publications, is removed. Use `decode.OrderFromProto`.
 - **Breaking:** trading prices use 9 decimal places. `codecs.PriceTickScale`
   and the new `models.PriceTickScale` are 9: one price tick is 1e-9 quote
   units. This applies to order, trigger, trailing, activation, orderbook,
