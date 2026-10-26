@@ -2,9 +2,51 @@
 
 ## Unreleased
 
-### Fixed
-- Labels for enum values newer than this SDK version (for example a new
-  trigger failure reason) read `unknown(<n>)` instead of panicking.
+## 0.1.0a55
+
+Git tag: `v0.1.0a55`.
+
+### Changed
+- **Breaking:** `CreateOrderRequest.AttachedRisk` is `*models.AttachedRiskInput`
+  instead of `map[string]any`; the map was always rejected.
+- **Breaking:** `codecs.ModifyOrderToProto` takes a new `newAttachedRisk
+  *models.AttachedRiskInput` parameter after `newQty`, and
+  `codecs.BatchReplaceItemToProto` encodes `BatchReplaceItem.NewAttachedRisk`.
+  Pass `nil` to keep an order's attached risk unchanged.
+- **Breaking:** `Orders.Subscribe` uses the private WebSocket and returns
+  `*realtime.Subscription[realtime.OrderStreamEvent]` instead of
+  `*realtime.Subscription[models.Order]`. It returns at once and reports the
+  handshake as `OrderStreamConnected`. The previous order realtime channels,
+  including the batch-replace order channel, are retired; use
+  `Orders.GetBatchReplaceStatus` and the order stream's revisions for
+  batch-replace progress.
+- **Breaking:** `decode.OrderFromBytes`, the decoder of the retired order
+  realtime publications, is removed. Use `decode.OrderFromProto`.
+- A sell `trailing_stop` create given a `limitPrice` is refused with a
+  validation error instead of ignoring it: only a buy has a maximum price.
+- Trigger create and modify refuse both `MaxSlippageTicks` and
+  `MaxSlippageBps` together (previously one silently won), and a trailing
+  stop's `MaxSlippageBps` is limited to 1 to 9999 on either side.
+- **Breaking:** `codecs.ModifyTriggerOptions.LimitPrice` is removed: a
+  trigger's child limit price is fixed at create, and the server refuses
+  any change to it. Cancel the trigger and create a new one instead.
+- **Breaking:** trading prices use 9 decimal places. `codecs.PriceTickScale`
+  and the new `models.PriceTickScale` are 9: one price tick is 1e-9 quote
+  units. This applies to order, trigger, trailing, activation, orderbook,
+  trade, candle, market-overview and tick-size values. Raw tick values
+  built for the previous 6-decimal scale are 1,000 times too small; scale
+  them by 1,000 or pass decimal strings. Market-overview USD amounts stay
+  at 1e6.
+- **Breaking:** `MaxSlippageTicks` on market orders, triggers, trigger
+  modifications and trailing-stop reads is `int64`, matching the 64-bit
+  price-delta field in the API.
+- Candle and market-overview base volume now use the base asset
+  `market_data_volume_scale` from `GetSpotConfig`. Primary candle prices
+  use the fixed 9-decimal price scale.
+- Composite reference-candle OHLC uses the pair `reference_price_scale`.
+  `GetCandlesWithReference` and `GetCandlesColumnsWithReference` request
+  that series. `MarketOverviewEntry.Volume24HBase` is the decoded decimal
+  when the catalog scale is known; `Volume24HBaseScaled` stays the integer.
 
 ### Added
 - Orders accept attached take-profit, stop-loss, trailing-stop and OCO
@@ -61,53 +103,13 @@
   true for them and for `ERROR_CODE_ACCOUNT_REPAIRING`.
 
 ### Fixed
+- Labels for enum values newer than this SDK version (for example a new
+  trigger failure reason) read `unknown(<n>)` instead of panicking.
 - Account-scoped subscriptions given no account ID now use the client's
   `DefaultAccountID` value instead of formatting its pointer.
 - Order reads no longer report an attached-risk leg whose state is
   `not_configured`; the server sends that state for a leg the order
   does not have.
-
-### Changed
-- **Breaking:** `CreateOrderRequest.AttachedRisk` is `*models.AttachedRiskInput`
-  instead of `map[string]any`; the map was always rejected.
-- **Breaking:** `codecs.ModifyOrderToProto` takes a new `newAttachedRisk
-  *models.AttachedRiskInput` parameter after `newQty`, and
-  `codecs.BatchReplaceItemToProto` encodes `BatchReplaceItem.NewAttachedRisk`.
-  Pass `nil` to keep an order's attached risk unchanged.
-- **Breaking:** `Orders.Subscribe` uses the private WebSocket and returns
-  `*realtime.Subscription[realtime.OrderStreamEvent]` instead of
-  `*realtime.Subscription[models.Order]`. It returns at once and reports the
-  handshake as `OrderStreamConnected`. The previous order realtime channels,
-  including the batch-replace order channel, are retired; use
-  `Orders.GetBatchReplaceStatus` and the order stream's revisions for
-  batch-replace progress.
-- **Breaking:** `decode.OrderFromBytes`, the decoder of the retired order
-  realtime publications, is removed. Use `decode.OrderFromProto`.
-- A sell `trailing_stop` create given a `limitPrice` is refused with a
-  validation error instead of ignoring it: only a buy has a maximum price.
-- Trigger create and modify refuse both `MaxSlippageTicks` and
-  `MaxSlippageBps` together (previously one silently won), and a trailing
-  stop's `MaxSlippageBps` is limited to 1 to 9999 on either side.
-- **Breaking:** `codecs.ModifyTriggerOptions.LimitPrice` is removed: a
-  trigger's child limit price is fixed at create, and the server refuses
-  any change to it. Cancel the trigger and create a new one instead.
-- **Breaking:** trading prices use 9 decimal places. `codecs.PriceTickScale`
-  and the new `models.PriceTickScale` are 9: one price tick is 1e-9 quote
-  units. This applies to order, trigger, trailing, activation, orderbook,
-  trade, candle, market-overview and tick-size values. Raw tick values
-  built for the previous 6-decimal scale are 1,000 times too small; scale
-  them by 1,000 or pass decimal strings. Market-overview USD amounts stay
-  at 1e6.
-- **Breaking:** `MaxSlippageTicks` on market orders, triggers, trigger
-  modifications and trailing-stop reads is `int64`, matching the 64-bit
-  price-delta field in the API.
-- Candle and market-overview base volume now use the base asset
-  `market_data_volume_scale` from `GetSpotConfig`. Primary candle prices
-  use the fixed 9-decimal price scale.
-- Composite reference-candle OHLC uses the pair `reference_price_scale`.
-  `GetCandlesWithReference` and `GetCandlesColumnsWithReference` request
-  that series. `MarketOverviewEntry.Volume24HBase` is the decoded decimal
-  when the catalog scale is known; `Volume24HBaseScaled` stays the integer.
 
 ## 0.1.0a54
 
