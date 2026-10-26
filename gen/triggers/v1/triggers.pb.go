@@ -108,8 +108,9 @@ const (
 	// canceled or failed instead.
 	TriggerStatus_STATUS_COMPLETED TriggerStatus = 4
 	// Trigger was canceled. The cancel reason states why, for example a user
-	// request, a linked one-cancels-the-other trigger, self-trade prevention, or,
-	// for a ladder, the cancellation of its child orders.
+	// request, another attached leg's exit closing its parent's position,
+	// self-trade prevention, or, for a ladder, the cancellation of its child
+	// orders.
 	TriggerStatus_STATUS_CANCELED TriggerStatus = 5
 	// Trigger failed (for example, reservation failure, child order rejection).
 	TriggerStatus_STATUS_FAILED TriggerStatus = 6
@@ -241,7 +242,8 @@ const (
 	TriggerCancelReason_TRIGGER_CANCEL_REASON_UNSPECIFIED TriggerCancelReason = 0
 	// The user explicitly canceled the trigger.
 	TriggerCancelReason_TRIGGER_CANCEL_REASON_USER_REQUEST TriggerCancelReason = 1
-	// A linked one-cancels-the-other trigger fired.
+	// An attached leg ended because its parent order is terminal and another of
+	// the parent's legs made the last exit, leaving no position to protect.
 	TriggerCancelReason_TRIGGER_CANCEL_REASON_OCO TriggerCancelReason = 2
 	// The parent order ended without a fill, so its attached trigger was canceled.
 	TriggerCancelReason_TRIGGER_CANCEL_REASON_PARENT_CANCELED_NO_FILL TriggerCancelReason = 3
@@ -412,7 +414,9 @@ const (
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_MARKET_QUOTE_UNHEALTHY TriggerFailureReason = 70
 	// The trigger's quantity was not valid.
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_QTY_INVALID TriggerFailureReason = 103
-	// The trigger's limit price was not valid.
+	// The trigger's limit price was not valid, including a buy trailing stop's
+	// maximum price below the last trade price when it was placed without an
+	// activation price.
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_LIMIT_PRICE_INVALID TriggerFailureReason = 104
 	// The TWAP interval was not valid.
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_TWAP_INTERVAL_INVALID TriggerFailureReason = 105
@@ -491,6 +495,9 @@ const (
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_POST_ONLY_NOT_ALLOWED_IN_AUCTION TriggerFailureReason = 226
 	// The market had no room for another TWAP order.
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_TWAP_CAPACITY_REACHED TriggerFailureReason = 227
+	// The trigger's child order did not match the order the trigger requested,
+	// so the trigger failed and the child order was canceled.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_CHILD_ORDER_INCONSISTENT TriggerFailureReason = 235
 	// The market's order limits weren't set yet when the trigger fired.
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_ORDER_LIMITS_UNAVAILABLE TriggerFailureReason = 238
 	// The terminal state did not contain a failure reason.
@@ -590,6 +597,7 @@ var (
 		225: "TRIGGER_FAILURE_REASON_ORDER_TYPE_NOT_ALLOWED_IN_AUCTION",
 		226: "TRIGGER_FAILURE_REASON_POST_ONLY_NOT_ALLOWED_IN_AUCTION",
 		227: "TRIGGER_FAILURE_REASON_TWAP_CAPACITY_REACHED",
+		235: "TRIGGER_FAILURE_REASON_CHILD_ORDER_INCONSISTENT",
 		238: "TRIGGER_FAILURE_REASON_ORDER_LIMITS_UNAVAILABLE",
 		998: "TRIGGER_FAILURE_REASON_MISSING_REASON_CODE",
 		999: "TRIGGER_FAILURE_REASON_INTERNAL_ERROR",
@@ -683,6 +691,7 @@ var (
 		"TRIGGER_FAILURE_REASON_ORDER_TYPE_NOT_ALLOWED_IN_AUCTION": 225,
 		"TRIGGER_FAILURE_REASON_POST_ONLY_NOT_ALLOWED_IN_AUCTION":  226,
 		"TRIGGER_FAILURE_REASON_TWAP_CAPACITY_REACHED":             227,
+		"TRIGGER_FAILURE_REASON_CHILD_ORDER_INCONSISTENT":          235,
 		"TRIGGER_FAILURE_REASON_ORDER_LIMITS_UNAVAILABLE":          238,
 		"TRIGGER_FAILURE_REASON_MISSING_REASON_CODE":               998,
 		"TRIGGER_FAILURE_REASON_INTERNAL_ERROR":                    999,
@@ -773,9 +782,23 @@ func (LadderDistribution) EnumDescriptor() ([]byte, []int) {
 	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{5}
 }
 
-// TriggerMarketIoc configures an immediate market child.
+// TriggerMarketIoc configures an immediate market child. When the trigger
+// fires, the child is protected like a market order: it fills only within its
+// slippage cap of the price that fired it. A market child with a cap never
+// fills worse than the cap; on a gap past it, it may fill partly or not at all.
+// A buy reserves its funds when it is created, at the trigger price raised by
+// the cap, and its child never buys above that price.
 type TriggerMarketIoc struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional slippage cap. If omitted, the pair's default market slippage for
+	// the child's side applies, as for a market order. It can be changed with
+	// ModifyTrigger while the trigger is live.
+	//
+	// Types that are valid to be assigned to MaxSlippage:
+	//
+	//	*TriggerMarketIoc_MaxSlippageTicks
+	//	*TriggerMarketIoc_MaxSlippageBps
+	MaxSlippage   isTriggerMarketIoc_MaxSlippage `protobuf_oneof:"max_slippage"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -809,6 +832,51 @@ func (x *TriggerMarketIoc) ProtoReflect() protoreflect.Message {
 func (*TriggerMarketIoc) Descriptor() ([]byte, []int) {
 	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{0}
 }
+
+func (x *TriggerMarketIoc) GetMaxSlippage() isTriggerMarketIoc_MaxSlippage {
+	if x != nil {
+		return x.MaxSlippage
+	}
+	return nil
+}
+
+func (x *TriggerMarketIoc) GetMaxSlippageTicks() int64 {
+	if x != nil {
+		if x, ok := x.MaxSlippage.(*TriggerMarketIoc_MaxSlippageTicks); ok {
+			return x.MaxSlippageTicks
+		}
+	}
+	return 0
+}
+
+func (x *TriggerMarketIoc) GetMaxSlippageBps() int32 {
+	if x != nil {
+		if x, ok := x.MaxSlippage.(*TriggerMarketIoc_MaxSlippageBps); ok {
+			return x.MaxSlippageBps
+		}
+	}
+	return 0
+}
+
+type isTriggerMarketIoc_MaxSlippage interface {
+	isTriggerMarketIoc_MaxSlippage()
+}
+
+type TriggerMarketIoc_MaxSlippageTicks struct {
+	// Positive maximum absolute price delta in Q9 execution-price ticks (1 tick = 1e-9 quote units).
+	MaxSlippageTicks int64 `protobuf:"varint,1,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
+}
+
+type TriggerMarketIoc_MaxSlippageBps struct {
+	// Maximum allowed slippage in basis points (1 bp = 0.01%). A sell child
+	// accepts values below 10000; a 100% cap would leave it no positive price
+	// to sell at.
+	MaxSlippageBps int32 `protobuf:"varint,2,opt,name=max_slippage_bps,json=maxSlippageBps,proto3,oneof"`
+}
+
+func (*TriggerMarketIoc_MaxSlippageTicks) isTriggerMarketIoc_MaxSlippage() {}
+
+func (*TriggerMarketIoc_MaxSlippageBps) isTriggerMarketIoc_MaxSlippage() {}
 
 // TriggerLimitGtc configures a resting limit child.
 type TriggerLimitGtc struct {
@@ -958,7 +1026,7 @@ func (x *TriggerLimitFok) GetPriceTicks() int64 {
 }
 
 // ConditionalChildExecution selects the child submitted by a stop-loss or
-// take-profit trigger. BUY market children are not supported in spot.
+// take-profit trigger. Either side may use any child.
 type ConditionalChildExecution struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Execution:
@@ -1141,8 +1209,14 @@ func (x *ConditionalTrigger) GetChild() *ConditionalChildExecution {
 	return nil
 }
 
-// TrailingStopTrigger configures a spot trailing-stop strategy.
-// Standalone triggers currently support SELL market-IOC children. Attached
+// TrailingStopTrigger configures a spot trailing-stop strategy. A trailing
+// stop that sells tracks the highest price since it activated and fires a
+// market IOC child when the price falls the trailing distance from it. A
+// trailing stop that buys tracks the lowest price since it activated and
+// fires when the price rises the trailing distance from it; its child is an
+// IOC limit order at its maximum price, or at its slippage cap above the fire
+// price when that is lower, so it never buys above the maximum price. Without
+// an activation price, tracking starts when the trigger is placed. Attached
 // trailing stops may use either side, opposite their parent order.
 type TrailingStopTrigger struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1155,7 +1229,9 @@ type TrailingStopTrigger struct {
 	TrailingDistance isTrailingStopTrigger_TrailingDistance `protobuf_oneof:"trailing_distance"`
 	// Optional activation price in quote units scaled by 1e9.
 	ActivationPriceTicks int64 `protobuf:"varint,3,opt,name=activation_price_ticks,json=activationPriceTicks,proto3" json:"activation_price_ticks,omitempty"`
-	// Optional protection applied when the market child fires.
+	// Optional protection applied when the child fires: the child becomes an
+	// IOC limit order this far below the fire price for a sell, or above it
+	// for a buy, never above a buy's maximum price.
 	//
 	// Types that are valid to be assigned to MaxSlippage:
 	//
@@ -1163,9 +1239,16 @@ type TrailingStopTrigger struct {
 	//	*TrailingStopTrigger_MaxSlippageBps
 	MaxSlippage isTrailingStopTrigger_MaxSlippage `protobuf_oneof:"max_slippage"`
 	// Child order side.
-	Side          v1.Side `protobuf:"varint,6,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Side v1.Side `protobuf:"varint,6,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
+	// Maximum price of a trailing stop that buys, in quote units scaled by 1e9:
+	// the most its child pays per unit. Required when `side` is BUY and set
+	// aside for it with the child's fee; at least the activation price, or at
+	// least the last trade price when no activation price is set. A rise that
+	// fires above it still fires, and the child fills only at or below it. Must
+	// be unset when `side` is SELL. Fixed at create.
+	LimitPriceTicks int64 `protobuf:"varint,7,opt,name=limit_price_ticks,json=limitPriceTicks,proto3" json:"limit_price_ticks,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *TrailingStopTrigger) Reset() {
@@ -1262,6 +1345,13 @@ func (x *TrailingStopTrigger) GetSide() v1.Side {
 	return v1.Side(0)
 }
 
+func (x *TrailingStopTrigger) GetLimitPriceTicks() int64 {
+	if x != nil {
+		return x.LimitPriceTicks
+	}
+	return 0
+}
+
 type isTrailingStopTrigger_TrailingDistance interface {
 	isTrailingStopTrigger_TrailingDistance()
 }
@@ -1290,9 +1380,9 @@ type TrailingStopTrigger_MaxSlippageTicks struct {
 }
 
 type TrailingStopTrigger_MaxSlippageBps struct {
-	// Maximum slippage in basis points (1 bp = 0.01%). A trailing stop that
-	// sells accepts values below 10000; a 100% cap would leave it no positive
-	// price to sell at.
+	// Maximum slippage in basis points (1 bp = 0.01%). Values below 10000
+	// are accepted; a 100% cap would leave a trailing stop that sells no
+	// positive price to sell at.
 	MaxSlippageBps int32 `protobuf:"varint,5,opt,name=max_slippage_bps,json=maxSlippageBps,proto3,oneof"`
 }
 
@@ -1798,7 +1888,7 @@ type TriggerIntent_TakeProfit struct {
 }
 
 type TriggerIntent_TrailingStop struct {
-	// SELL market-IOC trailing stop.
+	// Trailing stop: a market-IOC sell or a maximum-price IOC buy.
 	TrailingStop *TrailingStopTrigger `protobuf:"bytes,12,opt,name=trailing_stop,json=trailingStop,proto3,oneof"`
 }
 
@@ -2721,7 +2811,11 @@ type ModifyTriggerRequest struct {
 	// For stop/take-profit:
 	// Updated trigger price in quote units scaled by 1e9.
 	TriggerPriceTicks *int64 `protobuf:"varint,10,opt,name=trigger_price_ticks,json=triggerPriceTicks,proto3,oneof" json:"trigger_price_ticks,omitempty"`
-	// Updated limit price in quote units scaled by 1e9 for LIMIT child orders.
+	// Not modifiable: a trigger's child limit price is fixed at create. Setting
+	// this field rejects the whole request with
+	// ERROR_CODE_TRIGGER_CHILD_PRICE_NOT_MODIFIABLE (InvalidArgument, HTTP 400)
+	// and leaves the trigger unchanged; cancel the trigger and create a new one
+	// to change the child limit price.
 	LimitPriceTicks *int64 `protobuf:"varint,11,opt,name=limit_price_ticks,json=limitPriceTicks,proto3,oneof" json:"limit_price_ticks,omitempty"`
 	// For trailing stop:
 	//
@@ -2733,8 +2827,13 @@ type ModifyTriggerRequest struct {
 	// Updated activation price in quote units scaled by 1e9. Set to zero to
 	// clear an existing activation price; omit to leave it unchanged.
 	ActivationPriceTicks *int64 `protobuf:"varint,14,opt,name=activation_price_ticks,json=activationPriceTicks,proto3,oneof" json:"activation_price_ticks,omitempty"`
+	// For a trailing stop, or a stop-loss or take-profit with a market child:
 	// Optional price protection. Select either field with a zero value to clear
-	// an existing max-slippage cap; omit the oneof to leave it unchanged.
+	// an existing max-slippage cap; omit the oneof to leave it unchanged. A
+	// cleared cap on a market child falls back to the pair's default market
+	// slippage. Changing the trigger price or the cap of a buy with a market
+	// child re-sizes its reserved funds; a change that needs more funds than
+	// are available is rejected and leaves the trigger unchanged.
 	//
 	// Types that are valid to be assigned to MaxSlippage:
 	//
@@ -2897,8 +2996,12 @@ type ModifyTriggerRequest_MaxSlippageTicks struct {
 
 type ModifyTriggerRequest_MaxSlippageBps struct {
 	// Updated maximum allowed slippage in basis points (1 bp = 0.01%). Set to
-	// zero to clear the cap. A trailing stop that sells accepts values below
-	// 10000; a 100% cap would leave it no positive price to sell at.
+	// zero to clear the cap. A buy stop-loss or take-profit with a market
+	// child accepts 1 to 10000, as at creation. A trailing stop on either
+	// side, and a sell stop-loss or take-profit, accept 1 to 9999: 10000 is
+	// rejected with ERROR_CODE_MAX_SLIPPAGE_INVALID, because a 100% cap would
+	// leave a sell no positive price, and a trailing stop takes none on
+	// either side.
 	MaxSlippageBps int32 `protobuf:"varint,16,opt,name=max_slippage_bps,json=maxSlippageBps,proto3,oneof"`
 }
 
@@ -3678,7 +3781,9 @@ type Trigger struct {
 	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,62,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	// Timestamp when the trigger became armed.
 	ArmedAt *timestamppb.Timestamp `protobuf:"bytes,63,opt,name=armed_at,json=armedAt,proto3" json:"armed_at,omitempty"`
-	// Timestamp when the trigger reached a terminal successful state.
+	// Instant the trigger became terminal, matching its terminal event timestamp.
+	// Set for completed, canceled (for any reason), or failed triggers,
+	// including terminal expiry or rejection. Absent while the trigger is live.
 	CompletedAt   *timestamppb.Timestamp `protobuf:"bytes,64,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -4018,8 +4123,12 @@ var File_triggers_v1_triggers_proto protoreflect.FileDescriptor
 
 const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\n" +
-	"\x1atriggers/v1/triggers.proto\x12\vtriggers.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16orders/v1/orders.proto\"\x12\n" +
-	"\x10TriggerMarketIoc\"X\n" +
+	"\x1atriggers/v1/triggers.proto\x12\vtriggers.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16orders/v1/orders.proto\"\x93\x01\n" +
+	"\x10TriggerMarketIoc\x127\n" +
+	"\x12max_slippage_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x00R\x10maxSlippageTicks\x126\n" +
+	"\x10max_slippage_bps\x18\x02 \x01(\x05B\n" +
+	"\xbaH\a\x1a\x05\x18\x90N \x00H\x00R\x0emaxSlippageBpsB\x0e\n" +
+	"\fmax_slippage\"X\n" +
 	"\x0fTriggerLimitGtc\x12(\n" +
 	"\vprice_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\n" +
 	"priceTicks\x12\x1b\n" +
@@ -4036,13 +4145,12 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\tlimit_gtc\x18\x02 \x01(\v2\x1c.triggers.v1.TriggerLimitGtcH\x00R\blimitGtc\x12;\n" +
 	"\tlimit_ioc\x18\x03 \x01(\v2\x1c.triggers.v1.TriggerLimitIocH\x00R\blimitIoc\x12;\n" +
 	"\tlimit_fok\x18\x04 \x01(\v2\x1c.triggers.v1.TriggerLimitFokH\x00R\blimitFokB\x12\n" +
-	"\texecution\x12\x05\xbaH\x02\b\x01\"\xe3\x02\n" +
+	"\texecution\x12\x05\xbaH\x02\b\x01\"\xc4\x01\n" +
 	"\x12ConditionalTrigger\x127\n" +
 	"\x13trigger_price_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x11triggerPriceTicks\x12/\n" +
 	"\x04side\x18\x02 \x01(\x0e2\x0f.orders.v1.SideB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04side\x12D\n" +
-	"\x05child\x18\x03 \x01(\v2&.triggers.v1.ConditionalChildExecutionB\x06\xbaH\x03\xc8\x01\x01R\x05child:\x9c\x01\xbaH\x98\x01\x1a\x95\x01\n" +
-	"&conditional_trigger.buy_requires_limit\x12<BUY stop-loss and take-profit triggers require a limit child\x1a-this.side != 1 || !has(this.child.market_ioc)\"\xaa\x03\n" +
+	"\x05child\x18\x03 \x01(\v2&.triggers.v1.ConditionalChildExecutionB\x06\xbaH\x03\xc8\x01\x01R\x05child\"\xe2\x03\n" +
 	"\x13TrailingStopTrigger\x12A\n" +
 	"\x17trailing_distance_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x00R\x15trailingDistanceTicks\x12@\n" +
 	"\x15trailing_distance_bps\x18\x02 \x01(\x05B\n" +
@@ -4053,7 +4161,9 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x10max_slippage_bps\x18\x05 \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\x90N \x00H\x01R\x0emaxSlippageBps\x12/\n" +
 	"\x04side\x18\x06 \x01(\x0e2\x0f.orders.v1.SideB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04sideB\x1a\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04side\x126\n" +
+	"\x11limit_price_ticks\x18\a \x01(\x03B\n" +
+	"\xbaH\a\xd8\x01\x01\"\x02 \x00R\x0flimitPriceTicksB\x1a\n" +
 	"\x11trailing_distance\x12\x05\xbaH\x02\b\x01B\x0e\n" +
 	"\fmax_slippage\"\x90\x01\n" +
 	"\rTwapMarketIoc\x127\n" +
@@ -4327,7 +4437,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"-TRIGGER_CANCEL_REASON_PARENT_CANCELED_NO_FILL\x10\x03\x12/\n" +
 	"+TRIGGER_CANCEL_REASON_SELF_TRADE_PREVENTION\x10\x04\x12.\n" +
 	")TRIGGER_CANCEL_REASON_MISSING_REASON_CODE\x10\xe6\a\x12)\n" +
-	"$TRIGGER_CANCEL_REASON_INTERNAL_ERROR\x10\xe7\a*\xe9\"\n" +
+	"$TRIGGER_CANCEL_REASON_INTERNAL_ERROR\x10\xe7\a*\x9f#\n" +
 	"\x14TriggerFailureReason\x12&\n" +
 	"\"TRIGGER_FAILURE_REASON_UNSPECIFIED\x10\x00\x12)\n" +
 	"%TRIGGER_FAILURE_REASON_UNKNOWN_SYMBOL\x10\x01\x12(\n" +
@@ -4418,6 +4528,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"8TRIGGER_FAILURE_REASON_ORDER_TYPE_NOT_ALLOWED_IN_AUCTION\x10\xe1\x01\x12<\n" +
 	"7TRIGGER_FAILURE_REASON_POST_ONLY_NOT_ALLOWED_IN_AUCTION\x10\xe2\x01\x121\n" +
 	",TRIGGER_FAILURE_REASON_TWAP_CAPACITY_REACHED\x10\xe3\x01\x124\n" +
+	"/TRIGGER_FAILURE_REASON_CHILD_ORDER_INCONSISTENT\x10\xeb\x01\x124\n" +
 	"/TRIGGER_FAILURE_REASON_ORDER_LIMITS_UNAVAILABLE\x10\xee\x01\x12/\n" +
 	"*TRIGGER_FAILURE_REASON_MISSING_REASON_CODE\x10\xe6\a\x12*\n" +
 	"%TRIGGER_FAILURE_REASON_INTERNAL_ERROR\x10\xe7\a*l\n" +
@@ -4600,6 +4711,10 @@ func init() { file_triggers_v1_triggers_proto_init() }
 func file_triggers_v1_triggers_proto_init() {
 	if File_triggers_v1_triggers_proto != nil {
 		return
+	}
+	file_triggers_v1_triggers_proto_msgTypes[0].OneofWrappers = []any{
+		(*TriggerMarketIoc_MaxSlippageTicks)(nil),
+		(*TriggerMarketIoc_MaxSlippageBps)(nil),
 	}
 	file_triggers_v1_triggers_proto_msgTypes[4].OneofWrappers = []any{
 		(*ConditionalChildExecution_MarketIoc)(nil),

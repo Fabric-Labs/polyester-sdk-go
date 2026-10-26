@@ -51,7 +51,9 @@ const (
 type MarketDataServiceClient interface {
 	// Retrieve recent public trades for a spot market.
 	// Results are ordered newest-first and support optional aggressor side,
-	// inclusive time-range, and opaque keyset pagination filters.
+	// inclusive time-range, and opaque keyset pagination filters. With
+	// after_trade_id, it walks the symbol's trades by trade identifier,
+	// oldest first and gap-free, to backfill trades missed on a live stream.
 	GetTrades(context.Context, *connect.Request[v1.GetTradesRequest]) (*connect.Response[v1.GetTradesResponse], error)
 	// Retrieve OHLCV candles for a spot market and timeframe.
 	// Results are ordered newest-first and support inclusive time bounds, optional
@@ -137,7 +139,9 @@ func (c *marketDataServiceClient) GetSpotConfig(ctx context.Context, req *connec
 type MarketDataServiceHandler interface {
 	// Retrieve recent public trades for a spot market.
 	// Results are ordered newest-first and support optional aggressor side,
-	// inclusive time-range, and opaque keyset pagination filters.
+	// inclusive time-range, and opaque keyset pagination filters. With
+	// after_trade_id, it walks the symbol's trades by trade identifier,
+	// oldest first and gap-free, to backfill trades missed on a live stream.
 	GetTrades(context.Context, *connect.Request[v1.GetTradesRequest]) (*connect.Response[v1.GetTradesResponse], error)
 	// Retrieve OHLCV candles for a spot market and timeframe.
 	// Results are ordered newest-first and support inclusive time bounds, optional

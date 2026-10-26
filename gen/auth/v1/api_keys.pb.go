@@ -9,6 +9,7 @@ package authv1
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api/validation/v1"
 	_ "github.com/google/gnostic/openapiv3"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -108,8 +109,9 @@ type ApiKey struct {
 	PolicyId *uint64 `protobuf:"fixed64,8,opt,name=policy_id,json=policyId,proto3,oneof" json:"policy_id,omitempty"`
 	// Time in UTC when this key was created.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,20,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	// Last time in UTC when this key authenticated a request. Omitted when the
-	// key has not been used.
+	// Approximate last time in UTC when this key authenticated a request,
+	// recorded at most about once a minute; it may lag recent use by a few
+	// minutes. Omitted when no use has been recorded.
 	LastUsedAt *timestamppb.Timestamp `protobuf:"bytes,21,opt,name=last_used_at,json=lastUsedAt,proto3" json:"last_used_at,omitempty"`
 	// Ed25519 public key bytes associated with this API key. The private key or
 	// seed is never returned by the API.
@@ -270,7 +272,8 @@ func (x *ApiKey) GetRevision() uint64 {
 // pair locally and submit only the public key.
 type CreateApiKeyRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Human-readable label for the key. Required; 1 to 64 characters.
+	// Human-readable label for the key. Required; 1 to 64 characters, and must
+	// not contain '<' or '>'.
 	Label string `protobuf:"bytes,1,opt,name=label,proto3" json:"label,omitempty"`
 	// Optional sub-account to scope this key to (opaque ID). If unset, the key is
 	// root-level.
@@ -682,6 +685,7 @@ func (x *GetApiKeyResponse) GetApiKey() *ApiKey {
 type ApiKeyUpdateSpec struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Human-friendly label for the key. Empty clears the label when selected.
+	// Must not contain '<' or '>'.
 	Label string `protobuf:"bytes,1,opt,name=label,proto3" json:"label,omitempty"`
 	// User-chosen icon/emoji for UI display. Empty clears the icon when selected.
 	Icon string `protobuf:"bytes,2,opt,name=icon,proto3" json:"icon,omitempty"`
@@ -893,7 +897,7 @@ var File_auth_v1_api_keys_proto protoreflect.FileDescriptor
 
 const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\n" +
-	"\x16auth/v1/api_keys.proto\x12\aauth.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\xbf\x05\n" +
+	"\x16auth/v1/api_keys.proto\x12\aauth.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\x1a9polyester/api/validation/v1/predefined_string_rules.proto\"\xbf\x05\n" +
 	"\x06ApiKey\x12/\n" +
 	"\x06key_id\x18\x02 \x01(\tB\x18\xbaH\x15r\x132\x11^ak_[a-f0-9]{32}$R\x05keyId\x12\x14\n" +
 	"\x05label\x18\x03 \x01(\tR\x05label\x12\x1b\n" +
@@ -917,9 +921,10 @@ const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\brevision\x18\x1a \x01(\x04R\brevisionB\x10\n" +
 	"\x0e_subaccount_idB\f\n" +
 	"\n" +
-	"_policy_id\"\xa1\x02\n" +
-	"\x13CreateApiKeyRequest\x12\"\n" +
-	"\x05label\x18\x01 \x01(\tB\f\xe0A\x02\xbaH\x06r\x04\x10\x01\x18@R\x05label\x12(\n" +
+	"_policy_id\"\xa5\x02\n" +
+	"\x13CreateApiKeyRequest\x12&\n" +
+	"\x05label\x18\x01 \x01(\tB\x10\xe0A\x02\xbaH\n" +
+	"r\b\x98\xb5\x18\x01\x10\x01\x18@R\x05label\x12(\n" +
 	"\rsubaccount_id\x18\x03 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12\x1b\n" +
 	"\x04icon\x18\x06 \x01(\tB\a\xbaH\x04r\x02\x18 R\x04icon\x12\x1d\n" +
 	"\x05color\x18\a \x01(\tB\a\xbaH\x04r\x02\x18 R\x05color\x124\n" +
@@ -940,9 +945,9 @@ const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\x10GetApiKeyRequest\x124\n" +
 	"\x06key_id\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x15\x10\x012\x11^ak_[a-f0-9]{32}$R\x05keyId\"=\n" +
 	"\x11GetApiKeyResponse\x12(\n" +
-	"\aapi_key\x18\x01 \x01(\v2\x0f.auth.v1.ApiKeyR\x06apiKey\"\xdc\x03\n" +
-	"\x10ApiKeyUpdateSpec\x12\x1d\n" +
-	"\x05label\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18@R\x05label\x12\x1b\n" +
+	"\aapi_key\x18\x01 \x01(\v2\x0f.auth.v1.ApiKeyR\x06apiKey\"\xe0\x03\n" +
+	"\x10ApiKeyUpdateSpec\x12!\n" +
+	"\x05label\x18\x01 \x01(\tB\v\xbaH\br\x06\x98\xb5\x18\x01\x18@R\x05label\x12\x1b\n" +
 	"\x04icon\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18 R\x04icon\x12\x1d\n" +
 	"\x05color\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18 R\x05color\x129\n" +
 	"\x06status\x18\x04 \x01(\x0e2\x15.auth.v1.ApiKeyStatusB\n" +

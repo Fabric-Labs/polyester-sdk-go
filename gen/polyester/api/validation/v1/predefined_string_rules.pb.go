@@ -46,6 +46,14 @@ var file_polyester_api_validation_v1_predefined_string_rules_proto_extTypes = []
 		Tag:           "varint,50002,opt,name=chain_tx_identifier",
 		Filename:      "polyester/api/validation/v1/predefined_string_rules.proto",
 	},
+	{
+		ExtendedType:  (*validate.StringRules)(nil),
+		ExtensionType: (*bool)(nil),
+		Field:         50003,
+		Name:          "polyester.api.validation.v1.display_label",
+		Tag:           "varint,50003,opt,name=display_label",
+		Filename:      "polyester/api/validation/v1/predefined_string_rules.proto",
+	},
 }
 
 // Extension fields to validate.StringRules.
@@ -62,6 +70,11 @@ var (
 	//
 	// optional bool chain_tx_identifier = 50002;
 	E_ChainTxIdentifier = &file_polyester_api_validation_v1_predefined_string_rules_proto_extTypes[2]
+	// Validates a user-chosen display label, such as an API key or sub-account
+	// label. Labels must not contain '<' or '>'.
+	//
+	// optional bool display_label = 50003;
+	E_DisplayLabel = &file_polyester_api_validation_v1_predefined_string_rules_proto_extTypes[3]
 )
 
 var File_polyester_api_validation_v1_predefined_string_rules_proto protoreflect.FileDescriptor
@@ -78,7 +91,10 @@ const file_polyester_api_validation_v1_predefined_string_rules_proto_rawDesc = "
 	"evmAddress:\xfe\x02\n" +
 	"\x13chain_tx_identifier\x12\x19.buf.validate.StringRules\x18҆\x03 \x01(\bB\xb0\x02\xc2H\xac\x02\n" +
 	"\xa9\x02\n" +
-	"\x1astring.chain_tx_identifier\x12Ltransaction identifier must be a valid EVM hash or chain-native printable id\x1a\xbc\x01(this.size() == 66 && this.matches('^0x[0-9a-fA-F]{64}$'))|| (this.size() > 0 && this.size() <= 256 && !this.startsWith('0x') && !this.startsWith('0X') && this.matches('^[\\\\x21-\\\\x7e]+$'))R\x11chainTxIdentifierBVZTgithub.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api/validation/v1;validationv1"
+	"\x1astring.chain_tx_identifier\x12Ltransaction identifier must be a valid EVM hash or chain-native printable id\x1a\xbc\x01(this.size() == 66 && this.matches('^0x[0-9a-fA-F]{64}$'))|| (this.size() > 0 && this.size() <= 256 && !this.startsWith('0x') && !this.startsWith('0X') && this.matches('^[\\\\x21-\\\\x7e]+$'))R\x11chainTxIdentifier:\xaf\x01\n" +
+	"\rdisplay_label\x12\x19.buf.validate.StringRules\x18ӆ\x03 \x01(\bBm\xc2Hj\n" +
+	"h\n" +
+	"\x17label.no_angle_brackets\x12!label must not contain '<' or '>'\x1a*!this.contains('<') && !this.contains('>')R\fdisplayLabelBVZTgithub.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api/validation/v1;validationv1"
 
 var file_polyester_api_validation_v1_predefined_string_rules_proto_goTypes = []any{
 	(*validate.StringRules)(nil), // 0: buf.validate.StringRules
@@ -87,10 +103,11 @@ var file_polyester_api_validation_v1_predefined_string_rules_proto_depIdxs = []i
 	0, // 0: polyester.api.validation.v1.external_chain_address_text:extendee -> buf.validate.StringRules
 	0, // 1: polyester.api.validation.v1.evm_address:extendee -> buf.validate.StringRules
 	0, // 2: polyester.api.validation.v1.chain_tx_identifier:extendee -> buf.validate.StringRules
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	0, // [0:3] is the sub-list for extension extendee
+	0, // 3: polyester.api.validation.v1.display_label:extendee -> buf.validate.StringRules
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	0, // [0:4] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
 }
 
@@ -106,7 +123,7 @@ func file_polyester_api_validation_v1_predefined_string_rules_proto_init() {
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_polyester_api_validation_v1_predefined_string_rules_proto_rawDesc), len(file_polyester_api_validation_v1_predefined_string_rules_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   0,
-			NumExtensions: 3,
+			NumExtensions: 4,
 			NumServices:   0,
 		},
 		GoTypes:           file_polyester_api_validation_v1_predefined_string_rules_proto_goTypes,

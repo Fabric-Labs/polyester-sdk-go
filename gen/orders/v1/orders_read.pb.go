@@ -703,9 +703,10 @@ type AttachedRisk struct {
 	StopLoss *AttachedRiskStopLoss `protobuf:"bytes,2,opt,name=stop_loss,json=stopLoss,proto3" json:"stop_loss,omitempty"`
 	// Trailing-stop leg, if configured or if state exists.
 	TrailingStop *AttachedRiskTrailingStop `protobuf:"bytes,3,opt,name=trailing_stop,json=trailingStop,proto3" json:"trailing_stop,omitempty"`
-	// True while both the take-profit and a stop leg (stop-loss or trailing
-	// stop) are present and linked as one-cancels-the-other. False once either
-	// leg is removed; a leg canceled because the other fired stays present.
+	// True while the parent's legs were placed with oco and both the
+	// take-profit and a stop leg (stop-loss or trailing stop) are present.
+	// False once either leg is removed. A leg that ended, including one
+	// canceled with TRIGGER_CANCEL_REASON_OCO, stays present.
 	Oco           bool `protobuf:"varint,4,opt,name=oco,proto3" json:"oco,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2320,6 +2321,8 @@ func (x *GetOrderResponse) GetNextPageToken() string {
 }
 
 // GetBatchReplaceStatusRequest retrieves one admitted batch by server identity.
+// Batch admission replay lasts 60 seconds from acceptance. If status is
+// unavailable, reconcile the individual orders; absence does not prove rejection.
 type GetBatchReplaceStatusRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target sub-account numeric ID. When omitted, uses caller's root account.

@@ -76,8 +76,9 @@ type QuickSwapServiceClient interface {
 	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT; the original QuickSwap stands.
 	//   - UNAVAILABLE: ADDRESS_UNAVAILABLE; the QuickSwap is kept and gets its
 	//     address automatically; follow it with GetQuickSwap or the same request.
-	//   - ABORTED: ADDRESS_CONFLICT; the QuickSwap never gets an address; create
-	//     a new one with a new idempotency key.
+	//   - ABORTED: ADDRESS_CONFLICT; the QuickSwap never gets an address and is
+	//     EXPIRED (DEPOSIT_ADDRESS_CONFLICT); every repeat returns this error;
+	//     create a new one with a new idempotency key.
 	//   - UNAVAILABLE, DEADLINE_EXCEEDED: unknown outcome or QUOTE_UNAVAILABLE;
 	//     retry the same request.
 	//   - PERMISSION_DENIED: BROKER_DISABLED; nothing is bound to the key.
@@ -181,8 +182,9 @@ type QuickSwapServiceHandler interface {
 	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT; the original QuickSwap stands.
 	//   - UNAVAILABLE: ADDRESS_UNAVAILABLE; the QuickSwap is kept and gets its
 	//     address automatically; follow it with GetQuickSwap or the same request.
-	//   - ABORTED: ADDRESS_CONFLICT; the QuickSwap never gets an address; create
-	//     a new one with a new idempotency key.
+	//   - ABORTED: ADDRESS_CONFLICT; the QuickSwap never gets an address and is
+	//     EXPIRED (DEPOSIT_ADDRESS_CONFLICT); every repeat returns this error;
+	//     create a new one with a new idempotency key.
 	//   - UNAVAILABLE, DEADLINE_EXCEEDED: unknown outcome or QUOTE_UNAVAILABLE;
 	//     retry the same request.
 	//   - PERMISSION_DENIED: BROKER_DISABLED; nothing is bound to the key.

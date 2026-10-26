@@ -62,6 +62,8 @@ const (
 	ErrorCode_ERROR_CODE_SUBACCOUNT_NOT_FOUND ErrorCode = 13
 	// The selected subaccount is owned by the authenticated root account but is not active.
 	ErrorCode_ERROR_CODE_SUBACCOUNT_INACTIVE ErrorCode = 14
+	// Reward payouts for this campaign are paused. Today's claim is kept and paid automatically once payouts resume.
+	ErrorCode_ERROR_CODE_CLAIM_PAYOUT_UNAVAILABLE ErrorCode = 15
 )
 
 // Enum value maps for ErrorCode.
@@ -82,6 +84,7 @@ var (
 		12: "ERROR_CODE_SOCIAL_VERIFICATION_REQUIRED",
 		13: "ERROR_CODE_SUBACCOUNT_NOT_FOUND",
 		14: "ERROR_CODE_SUBACCOUNT_INACTIVE",
+		15: "ERROR_CODE_CLAIM_PAYOUT_UNAVAILABLE",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_CODE_UNSPECIFIED":                   0,
@@ -99,6 +102,7 @@ var (
 		"ERROR_CODE_SOCIAL_VERIFICATION_REQUIRED":  12,
 		"ERROR_CODE_SUBACCOUNT_NOT_FOUND":          13,
 		"ERROR_CODE_SUBACCOUNT_INACTIVE":           14,
+		"ERROR_CODE_CLAIM_PAYOUT_UNAVAILABLE":      15,
 	}
 )
 
@@ -192,6 +196,9 @@ const (
 	DailyClaimState_CLAIM_CLAIMED DailyClaimState = 3
 	// No reward is active for the current UTC day.
 	DailyClaimState_CLAIM_UNAVAILABLE DailyClaimState = 4
+	// Today's claim is recorded but its payout is delayed. It is retried and paid automatically;
+	// the payout delay reason gives the cause.
+	DailyClaimState_CLAIM_PAYOUT_DELAYED DailyClaimState = 5
 )
 
 // Enum value maps for DailyClaimState.
@@ -202,13 +209,15 @@ var (
 		2: "CLAIM_PROCESSING",
 		3: "CLAIM_CLAIMED",
 		4: "CLAIM_UNAVAILABLE",
+		5: "CLAIM_PAYOUT_DELAYED",
 	}
 	DailyClaimState_value = map[string]int32{
-		"CLAIM_UNSPECIFIED": 0,
-		"CLAIM_AVAILABLE":   1,
-		"CLAIM_PROCESSING":  2,
-		"CLAIM_CLAIMED":     3,
-		"CLAIM_UNAVAILABLE": 4,
+		"CLAIM_UNSPECIFIED":    0,
+		"CLAIM_AVAILABLE":      1,
+		"CLAIM_PROCESSING":     2,
+		"CLAIM_CLAIMED":        3,
+		"CLAIM_UNAVAILABLE":    4,
+		"CLAIM_PAYOUT_DELAYED": 5,
 	}
 )
 
@@ -478,9 +487,13 @@ type GetDailyClaimStatusResponse struct {
 	Campaign *ClaimCampaign `protobuf:"bytes,5,opt,name=campaign,proto3" json:"campaign,omitempty"`
 	// Subaccount public id that receives today's claimed reward. Zero or omitted when no claim
 	// has been created yet or when the reward is paid to the root account.
-	SubaccountId  uint64 `protobuf:"fixed64,6,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	SubaccountId uint64 `protobuf:"fixed64,6,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
+	// Why the payout of today's claim is delayed: the claim reward is temporarily unavailable, or
+	// reward payouts for this campaign are paused. Set only while the state is payout delayed;
+	// unspecified or omitted otherwise.
+	PayoutDelayReason ErrorCode `protobuf:"varint,7,opt,name=payout_delay_reason,json=payoutDelayReason,proto3,enum=claims.v1.ErrorCode" json:"payout_delay_reason,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *GetDailyClaimStatusResponse) Reset() {
@@ -553,6 +566,13 @@ func (x *GetDailyClaimStatusResponse) GetSubaccountId() uint64 {
 		return x.SubaccountId
 	}
 	return 0
+}
+
+func (x *GetDailyClaimStatusResponse) GetPayoutDelayReason() ErrorCode {
+	if x != nil {
+		return x.PayoutDelayReason
+	}
+	return ErrorCode_ERROR_CODE_UNSPECIFIED
 }
 
 // ClaimDailyRewardRequest claims today's reward for the authenticated root account.
@@ -788,14 +808,15 @@ const file_claims_v1_claims_proto_rawDesc = "" +
 	"asset_code\x18\x02 \x01(\tR\tassetCode\x126\n" +
 	"\n" +
 	"amount_e18\x18\x03 \x01(\v2\x17.polyester.type.v1.U128R\tamountE18\"\x1c\n" +
-	"\x1aGetDailyClaimStatusRequest\"\xb3\x02\n" +
+	"\x1aGetDailyClaimStatusRequest\"\xf9\x02\n" +
 	"\x1bGetDailyClaimStatusResponse\x120\n" +
 	"\x05state\x18\x01 \x01(\x0e2\x1a.claims.v1.DailyClaimStateR\x05state\x125\n" +
 	"\breset_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\aresetAt\x125\n" +
 	"\arewards\x18\x03 \x03(\v2\x1b.claims.v1.DailyClaimRewardR\arewards\x12\x19\n" +
 	"\bclaim_id\x18\x04 \x01(\tR\aclaimId\x124\n" +
 	"\bcampaign\x18\x05 \x01(\v2\x18.claims.v1.ClaimCampaignR\bcampaign\x12#\n" +
-	"\rsubaccount_id\x18\x06 \x01(\x06R\fsubaccountId\"Q\n" +
+	"\rsubaccount_id\x18\x06 \x01(\x06R\fsubaccountId\x12D\n" +
+	"\x13payout_delay_reason\x18\a \x01(\x0e2\x14.claims.v1.ErrorCodeR\x11payoutDelayReason\"Q\n" +
 	"\x17ClaimDailyRewardRequest\x126\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\"P\n" +
 	"\x12DailyClaimTransfer\x12\x19\n" +
@@ -811,7 +832,7 @@ const file_claims_v1_claims_proto_rawDesc = "" +
 	"\ttransfers\x18\x05 \x03(\v2\x1d.claims.v1.DailyClaimTransferR\ttransfers\x125\n" +
 	"\breset_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\aresetAt\x124\n" +
 	"\bcampaign\x18\a \x01(\v2\x18.claims.v1.ClaimCampaignR\bcampaign\x12#\n" +
-	"\rsubaccount_id\x18\b \x01(\x06R\fsubaccountId*\x95\x04\n" +
+	"\rsubaccount_id\x18\b \x01(\x06R\fsubaccountId*\xbe\x04\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12,\n" +
 	"(ERROR_CODE_CLAIM_TEMPORARILY_UNAVAILABLE\x10\x01\x12\x1e\n" +
@@ -828,16 +849,18 @@ const file_claims_v1_claims_proto_rawDesc = "" +
 	"\x1eERROR_CODE_FAILED_PRECONDITION\x10\v\x12+\n" +
 	"'ERROR_CODE_SOCIAL_VERIFICATION_REQUIRED\x10\f\x12#\n" +
 	"\x1fERROR_CODE_SUBACCOUNT_NOT_FOUND\x10\r\x12\"\n" +
-	"\x1eERROR_CODE_SUBACCOUNT_INACTIVE\x10\x0e*4\n" +
+	"\x1eERROR_CODE_SUBACCOUNT_INACTIVE\x10\x0e\x12'\n" +
+	"#ERROR_CODE_CLAIM_PAYOUT_UNAVAILABLE\x10\x0f*4\n" +
 	"\vClaimPolicy\x12\x16\n" +
 	"\x12POLICY_UNSPECIFIED\x10\x00\x12\r\n" +
-	"\tUTC_DAILY\x10\x01*}\n" +
+	"\tUTC_DAILY\x10\x01*\x97\x01\n" +
 	"\x0fDailyClaimState\x12\x15\n" +
 	"\x11CLAIM_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fCLAIM_AVAILABLE\x10\x01\x12\x14\n" +
 	"\x10CLAIM_PROCESSING\x10\x02\x12\x11\n" +
 	"\rCLAIM_CLAIMED\x10\x03\x12\x15\n" +
-	"\x11CLAIM_UNAVAILABLE\x10\x042\xa7\x06\n" +
+	"\x11CLAIM_UNAVAILABLE\x10\x04\x12\x18\n" +
+	"\x14CLAIM_PAYOUT_DELAYED\x10\x052\xa7\x06\n" +
 	"\rClaimsService\x12\xdb\x02\n" +
 	"\x13GetDailyClaimStatus\x12%.claims.v1.GetDailyClaimStatusRequest\x1a&.claims.v1.GetDailyClaimStatusResponse\"\xf4\x01\xbaG\xcc\x01\n" +
 	"\vDaily Claim\x12\x16Get Daily Claim Status\x1a\xa4\x01Get today's reward and claim status for the authenticated root account. Requires a session JWT; API keys are not accepted. Future reward schedules are not returned.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x19\x12\x17/v1/trading/daily-claim\x12\xb7\x03\n" +
@@ -882,21 +905,22 @@ var file_claims_v1_claims_proto_depIdxs = []int32{
 	12, // 4: claims.v1.GetDailyClaimStatusResponse.reset_at:type_name -> google.protobuf.Timestamp
 	5,  // 5: claims.v1.GetDailyClaimStatusResponse.rewards:type_name -> claims.v1.DailyClaimReward
 	4,  // 6: claims.v1.GetDailyClaimStatusResponse.campaign:type_name -> claims.v1.ClaimCampaign
-	2,  // 7: claims.v1.ClaimDailyRewardResponse.state:type_name -> claims.v1.DailyClaimState
-	12, // 8: claims.v1.ClaimDailyRewardResponse.claimed_at:type_name -> google.protobuf.Timestamp
-	5,  // 9: claims.v1.ClaimDailyRewardResponse.rewards:type_name -> claims.v1.DailyClaimReward
-	9,  // 10: claims.v1.ClaimDailyRewardResponse.transfers:type_name -> claims.v1.DailyClaimTransfer
-	12, // 11: claims.v1.ClaimDailyRewardResponse.reset_at:type_name -> google.protobuf.Timestamp
-	4,  // 12: claims.v1.ClaimDailyRewardResponse.campaign:type_name -> claims.v1.ClaimCampaign
-	6,  // 13: claims.v1.ClaimsService.GetDailyClaimStatus:input_type -> claims.v1.GetDailyClaimStatusRequest
-	8,  // 14: claims.v1.ClaimsService.ClaimDailyReward:input_type -> claims.v1.ClaimDailyRewardRequest
-	7,  // 15: claims.v1.ClaimsService.GetDailyClaimStatus:output_type -> claims.v1.GetDailyClaimStatusResponse
-	10, // 16: claims.v1.ClaimsService.ClaimDailyReward:output_type -> claims.v1.ClaimDailyRewardResponse
-	15, // [15:17] is the sub-list for method output_type
-	13, // [13:15] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	0,  // 7: claims.v1.GetDailyClaimStatusResponse.payout_delay_reason:type_name -> claims.v1.ErrorCode
+	2,  // 8: claims.v1.ClaimDailyRewardResponse.state:type_name -> claims.v1.DailyClaimState
+	12, // 9: claims.v1.ClaimDailyRewardResponse.claimed_at:type_name -> google.protobuf.Timestamp
+	5,  // 10: claims.v1.ClaimDailyRewardResponse.rewards:type_name -> claims.v1.DailyClaimReward
+	9,  // 11: claims.v1.ClaimDailyRewardResponse.transfers:type_name -> claims.v1.DailyClaimTransfer
+	12, // 12: claims.v1.ClaimDailyRewardResponse.reset_at:type_name -> google.protobuf.Timestamp
+	4,  // 13: claims.v1.ClaimDailyRewardResponse.campaign:type_name -> claims.v1.ClaimCampaign
+	6,  // 14: claims.v1.ClaimsService.GetDailyClaimStatus:input_type -> claims.v1.GetDailyClaimStatusRequest
+	8,  // 15: claims.v1.ClaimsService.ClaimDailyReward:input_type -> claims.v1.ClaimDailyRewardRequest
+	7,  // 16: claims.v1.ClaimsService.GetDailyClaimStatus:output_type -> claims.v1.GetDailyClaimStatusResponse
+	10, // 17: claims.v1.ClaimsService.ClaimDailyReward:output_type -> claims.v1.ClaimDailyRewardResponse
+	16, // [16:18] is the sub-list for method output_type
+	14, // [14:16] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_claims_v1_claims_proto_init() }
