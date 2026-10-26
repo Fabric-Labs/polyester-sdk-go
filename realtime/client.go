@@ -88,6 +88,12 @@ func (c *Client) trackSubscription(closeFn func()) (untrack func()) {
 	if c.closed {
 		return func() {}
 	}
+	return c.trackSubscriptionLocked(closeFn)
+}
+
+// trackSubscriptionLocked registers closeFn for Close; c.mu must be held and
+// the client open.
+func (c *Client) trackSubscriptionLocked(closeFn func()) (untrack func()) {
 	c.subs = append(c.subs, closeFn)
 	idx := len(c.subs) - 1
 	return func() {

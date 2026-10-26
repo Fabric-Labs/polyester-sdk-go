@@ -23,6 +23,9 @@
   tokens, heartbeat loss and reconnects resume from the last applied
   position; subscriptions of the same account share one server
   subscription.
+- `realtime.ErrClientClosed` is returned by `SubscribeOrders` (and
+  `Orders.Subscribe`) after `Client.Close`. A `Close` that races a
+  subscribe closes the new stream.
 - `errors.RealtimeError` carries `Code` (the server's request error, for
   example `FORBIDDEN`) and `CloseCode` (for example 4403) for the private
   order stream.

@@ -118,7 +118,7 @@ func (c *Client) SubscribeOrders(ctx context.Context, accountID string) (*Subscr
 	c.mu.Lock()
 	if c.closed {
 		c.mu.Unlock()
-		return nil, &sdkerrors.RealtimeError{Msg: "Realtime client is closed"}
+		return nil, ErrClientClosed
 	}
 	if c.orders == nil {
 		c.orders = newPrivateOrderStream(privateStreamConfig{
@@ -133,16 +133,23 @@ func (c *Client) SubscribeOrders(ctx context.Context, accountID string) (*Subscr
 			timing:   c.privateTiming,
 		})
 	}
-	stream := c.orders
+	if testHookSubscribeOrdersRegistering != nil {
+		testHookSubscribeOrdersRegistering()
+	}
+	// Registered under the lock Close takes: a Close either comes first and
+	// this returns ErrClientClosed, or comes after and closes this stream.
+	sub := c.orders.subscribe(ctx, account)
+	untrack := c.trackSubscriptionLocked(func() { sub.Close() })
 	c.mu.Unlock()
-
-	sub := stream.subscribe(ctx, account)
-	untrack := c.trackSubscription(func() { sub.Close() })
 	sub.mu.Lock()
 	sub.untrack = untrack
 	sub.mu.Unlock()
 	return sub, nil
 }
+
+// testHookSubscribeOrdersRegistering, when set by a test, runs between
+// SubscribeOrders' closed check and its registration.
+var testHookSubscribeOrdersRegistering func()
 
 // privateWSURL is the API URL with https → wss (http → ws) and the private
 // WebSocket path.
@@ -169,3 +176,6 @@ func privateWSURL(apiURL string) (string, error) {
 	u.Fragment = ""
 	return u.String(), nil
 }
+
+// ErrClientClosed is returned by SubscribeOrders after Client.Close.
+var ErrClientClosed error = &sdkerrors.RealtimeError{Msg: "Realtime client is closed"}

@@ -362,7 +362,9 @@ func noPrivateStreamGoroutines() (bool, string) {
 	buf := make([]byte, 1<<20)
 	stacks := string(buf[:runtime.Stack(buf, true)])
 	for _, g := range strings.Split(stacks, "\n\n") {
-		if strings.Contains(g, "(*privateOrderStream)") {
+		// A goroutine inside its deferred WaitGroup.Done has finished: the
+		// wait in Close already counted it, and it is only unwinding.
+		if strings.Contains(g, "(*privateOrderStream)") && !strings.Contains(g, "sync.(*WaitGroup).Done(") {
 			return false, g
 		}
 	}
@@ -863,7 +865,9 @@ func TestPrivateOrdersSlowConsumerFailsWithQueueOverflow(t *testing.T) {
 	ws := f.accept(t)
 	ws.expectAuth(t)
 	ws.confirm(t, "s1", ws.expectSubscribe(t))
-	for seq := uint64(1); seq <= 3; seq++ {
+	// Connected and the first unit fill the queue of 2; the second overflows,
+	// and the client then leaves, so the server writes nothing after it.
+	for seq := uint64(1); seq <= 2; seq++ {
 		ws.send(t, "s1", seq, unitFrame(fmt.Sprint("c", seq), nil, nil))
 	}
 	if got := ws.expectUnsubscribe(t).GetSub(); got != "s1" {
@@ -966,4 +970,121 @@ func TestPrivateOrdersLateJoinerGetsSnapshotThenReady(t *testing.T) {
 	expectNoEvent(t, late, 50*time.Millisecond)
 	expectNoEvent(t, first, 0)
 	ws.expectNone(t, 50*time.Millisecond)
+}
+
+// A Close that runs while SubscribeOrders is between its closed check and its
+// registration must not leave an untracked live stream behind.
+func TestPrivateOrdersCloseDuringSubscribeTearsTheStreamDown(t *testing.T) {
+	f := newFakePrivateServer(t)
+	c := newTestOrderClient(t, f, testTiming())
+	reached := make(chan struct{})
+	release := make(chan struct{})
+	testHookSubscribeOrdersRegistering = func() {
+		close(reached)
+		<-release
+	}
+	t.Cleanup(func() { testHookSubscribeOrdersRegistering = nil })
+
+	type result struct {
+		sub *Subscription[OrderStreamEvent]
+		err error
+	}
+	subscribed := make(chan result, 1)
+	go func() {
+		sub, err := c.SubscribeOrders(context.Background(), codecs.FormatID(testAccount))
+		subscribed <- result{sub, err}
+	}()
+	<-reached
+	closed := make(chan struct{})
+	go func() {
+		c.Close()
+		close(closed)
+	}()
+	// Close cannot finish before the subscription it must close is registered.
+	select {
+	case <-closed:
+		t.Fatal("Close returned while a subscription was registering")
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(release)
+	<-closed
+	r := <-subscribed
+
+	var realtimeErr *sdkerrors.RealtimeError
+	switch {
+	case r.err != nil:
+		if !errors.Is(r.err, ErrClientClosed) || !errors.As(r.err, &realtimeErr) {
+			t.Fatalf("SubscribeOrders error %v, want ErrClientClosed", r.err)
+		}
+	default:
+		select {
+		case <-r.sub.Done():
+		case <-time.After(testWait):
+			t.Fatal("subscription registered during Close is still live")
+		}
+	}
+	waitNoPrivateStreamGoroutines(t)
+	if _, err := c.SubscribeOrders(context.Background(), codecs.FormatID(testAccount)); !errors.Is(err, ErrClientClosed) {
+		t.Fatalf("SubscribeOrders after Close: %v, want ErrClientClosed", err)
+	}
+}
+
+// Adapted from the review repro: SubscribeOrders is held inside the stream
+// (past its closed check, before registration) while Close runs. Close must
+// wait for the registration and then close the new stream.
+func TestPrivateOrdersCloseWhileSubscribeHoldsTheStream(t *testing.T) {
+	f := newFakePrivateServer(t)
+	c := newTestOrderClient(t, f, testTiming())
+	c.orders = newPrivateOrderStream(privateStreamConfig{
+		url:                 strings.Replace(f.srv.URL, "http://", "ws://", 1) + "/v1/ws/private",
+		fetchConnectToken:   func(context.Context) (string, error) { return "connect", nil },
+		fetchSubscribeToken: func(context.Context, string) (string, error) { return "subscribe", nil },
+		maxQueue:            100,
+		timing:              testTiming(),
+	})
+	c.orders.mu.Lock()
+	result := make(chan *Subscription[OrderStreamEvent], 1)
+	go func() {
+		sub, err := c.SubscribeOrders(context.Background(), codecs.FormatID(testAccount))
+		if err != nil {
+			result <- nil
+			return
+		}
+		result <- sub
+	}()
+	deadline := time.Now().Add(testWait)
+	for {
+		buf := make([]byte, 1<<20)
+		if strings.Contains(string(buf[:runtime.Stack(buf, true)]), "(*privateOrderStream).subscribe(") {
+			break
+		}
+		if time.Now().After(deadline) {
+			c.orders.mu.Unlock()
+			t.Fatal("SubscribeOrders did not reach the stream")
+		}
+		runtime.Gosched()
+	}
+	closed := make(chan struct{})
+	go func() {
+		c.Close()
+		close(closed)
+	}()
+	select {
+	case <-closed:
+		c.orders.mu.Unlock()
+		t.Fatal("Close returned while a subscription was registering")
+	case <-time.After(50 * time.Millisecond):
+	}
+	c.orders.mu.Unlock()
+	<-closed
+	sub := <-result
+	if sub == nil {
+		t.Fatal("SubscribeOrders that passed its closed check failed")
+	}
+	select {
+	case <-sub.Done():
+	case <-time.After(testWait):
+		t.Fatal("Client.Close returned, but the concurrent SubscribeOrders left a live stream")
+	}
+	waitNoPrivateStreamGoroutines(t)
 }
