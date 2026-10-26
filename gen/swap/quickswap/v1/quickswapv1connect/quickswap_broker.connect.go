@@ -84,6 +84,9 @@ const (
 	// QuickSwapBrokerServiceListQuickSwapsProcedure is the fully-qualified name of the
 	// QuickSwapBrokerService's ListQuickSwaps RPC.
 	QuickSwapBrokerServiceListQuickSwapsProcedure = "/swap.quickswap.v1.QuickSwapBrokerService/ListQuickSwaps"
+	// QuickSwapBrokerServiceGetQuickSwapProcedure is the fully-qualified name of the
+	// QuickSwapBrokerService's GetQuickSwap RPC.
+	QuickSwapBrokerServiceGetQuickSwapProcedure = "/swap.quickswap.v1.QuickSwapBrokerService/GetQuickSwap"
 	// QuickSwapBrokerServiceGetFeeTotalsProcedure is the fully-qualified name of the
 	// QuickSwapBrokerService's GetFeeTotals RPC.
 	QuickSwapBrokerServiceGetFeeTotalsProcedure = "/swap.quickswap.v1.QuickSwapBrokerService/GetFeeTotals"
@@ -225,6 +228,13 @@ type QuickSwapBrokerServiceClient interface {
 	//   - INVALID_ARGUMENT: a page_token from another broker, other filters or
 	//     malformed.
 	ListQuickSwaps(context.Context, *connect.Request[v1.ListQuickSwapsRequest]) (*connect.Response[v1.ListQuickSwapsResponse], error)
+	// GetQuickSwap returns the full detail of one of the broker's QuickSwaps,
+	// including its addresses, quote, progress, requested and charged fees.
+	// Every broker member role can read it with a session token.
+	//
+	// Errors:
+	// - NOT_FOUND: BROKER_NOT_FOUND or SWAP_NOT_FOUND, including another broker's swap.
+	GetQuickSwap(context.Context, *connect.Request[v1.QuickSwapBrokerServiceGetQuickSwapRequest]) (*connect.Response[v1.QuickSwapBrokerServiceGetQuickSwapResponse], error)
 	// GetFeeTotals totals the broker and affiliate fees charged to the
 	// broker's QuickSwaps in a window, per asset, by vault, day or month.
 	//
@@ -356,6 +366,12 @@ func NewQuickSwapBrokerServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(quickSwapBrokerServiceMethods.ByName("ListQuickSwaps")),
 			connect.WithClientOptions(opts...),
 		),
+		getQuickSwap: connect.NewClient[v1.QuickSwapBrokerServiceGetQuickSwapRequest, v1.QuickSwapBrokerServiceGetQuickSwapResponse](
+			httpClient,
+			baseURL+QuickSwapBrokerServiceGetQuickSwapProcedure,
+			connect.WithSchema(quickSwapBrokerServiceMethods.ByName("GetQuickSwap")),
+			connect.WithClientOptions(opts...),
+		),
 		getFeeTotals: connect.NewClient[v1.GetFeeTotalsRequest, v1.GetFeeTotalsResponse](
 			httpClient,
 			baseURL+QuickSwapBrokerServiceGetFeeTotalsProcedure,
@@ -390,6 +406,7 @@ type quickSwapBrokerServiceClient struct {
 	getVault             *connect.Client[v1.GetVaultRequest, v1.GetVaultResponse]
 	setVaultStatus       *connect.Client[v1.SetVaultStatusRequest, v1.SetVaultStatusResponse]
 	listQuickSwaps       *connect.Client[v1.ListQuickSwapsRequest, v1.ListQuickSwapsResponse]
+	getQuickSwap         *connect.Client[v1.QuickSwapBrokerServiceGetQuickSwapRequest, v1.QuickSwapBrokerServiceGetQuickSwapResponse]
 	getFeeTotals         *connect.Client[v1.GetFeeTotalsRequest, v1.GetFeeTotalsResponse]
 	getBrokerStats       *connect.Client[v1.GetBrokerStatsRequest, v1.GetBrokerStatsResponse]
 }
@@ -477,6 +494,11 @@ func (c *quickSwapBrokerServiceClient) SetVaultStatus(ctx context.Context, req *
 // ListQuickSwaps calls swap.quickswap.v1.QuickSwapBrokerService.ListQuickSwaps.
 func (c *quickSwapBrokerServiceClient) ListQuickSwaps(ctx context.Context, req *connect.Request[v1.ListQuickSwapsRequest]) (*connect.Response[v1.ListQuickSwapsResponse], error) {
 	return c.listQuickSwaps.CallUnary(ctx, req)
+}
+
+// GetQuickSwap calls swap.quickswap.v1.QuickSwapBrokerService.GetQuickSwap.
+func (c *quickSwapBrokerServiceClient) GetQuickSwap(ctx context.Context, req *connect.Request[v1.QuickSwapBrokerServiceGetQuickSwapRequest]) (*connect.Response[v1.QuickSwapBrokerServiceGetQuickSwapResponse], error) {
+	return c.getQuickSwap.CallUnary(ctx, req)
 }
 
 // GetFeeTotals calls swap.quickswap.v1.QuickSwapBrokerService.GetFeeTotals.
@@ -622,6 +644,13 @@ type QuickSwapBrokerServiceHandler interface {
 	//   - INVALID_ARGUMENT: a page_token from another broker, other filters or
 	//     malformed.
 	ListQuickSwaps(context.Context, *connect.Request[v1.ListQuickSwapsRequest]) (*connect.Response[v1.ListQuickSwapsResponse], error)
+	// GetQuickSwap returns the full detail of one of the broker's QuickSwaps,
+	// including its addresses, quote, progress, requested and charged fees.
+	// Every broker member role can read it with a session token.
+	//
+	// Errors:
+	// - NOT_FOUND: BROKER_NOT_FOUND or SWAP_NOT_FOUND, including another broker's swap.
+	GetQuickSwap(context.Context, *connect.Request[v1.QuickSwapBrokerServiceGetQuickSwapRequest]) (*connect.Response[v1.QuickSwapBrokerServiceGetQuickSwapResponse], error)
 	// GetFeeTotals totals the broker and affiliate fees charged to the
 	// broker's QuickSwaps in a window, per asset, by vault, day or month.
 	//
@@ -749,6 +778,12 @@ func NewQuickSwapBrokerServiceHandler(svc QuickSwapBrokerServiceHandler, opts ..
 		connect.WithSchema(quickSwapBrokerServiceMethods.ByName("ListQuickSwaps")),
 		connect.WithHandlerOptions(opts...),
 	)
+	quickSwapBrokerServiceGetQuickSwapHandler := connect.NewUnaryHandler(
+		QuickSwapBrokerServiceGetQuickSwapProcedure,
+		svc.GetQuickSwap,
+		connect.WithSchema(quickSwapBrokerServiceMethods.ByName("GetQuickSwap")),
+		connect.WithHandlerOptions(opts...),
+	)
 	quickSwapBrokerServiceGetFeeTotalsHandler := connect.NewUnaryHandler(
 		QuickSwapBrokerServiceGetFeeTotalsProcedure,
 		svc.GetFeeTotals,
@@ -797,6 +832,8 @@ func NewQuickSwapBrokerServiceHandler(svc QuickSwapBrokerServiceHandler, opts ..
 			quickSwapBrokerServiceSetVaultStatusHandler.ServeHTTP(w, r)
 		case QuickSwapBrokerServiceListQuickSwapsProcedure:
 			quickSwapBrokerServiceListQuickSwapsHandler.ServeHTTP(w, r)
+		case QuickSwapBrokerServiceGetQuickSwapProcedure:
+			quickSwapBrokerServiceGetQuickSwapHandler.ServeHTTP(w, r)
 		case QuickSwapBrokerServiceGetFeeTotalsProcedure:
 			quickSwapBrokerServiceGetFeeTotalsHandler.ServeHTTP(w, r)
 		case QuickSwapBrokerServiceGetBrokerStatsProcedure:
@@ -876,6 +913,10 @@ func (UnimplementedQuickSwapBrokerServiceHandler) SetVaultStatus(context.Context
 
 func (UnimplementedQuickSwapBrokerServiceHandler) ListQuickSwaps(context.Context, *connect.Request[v1.ListQuickSwapsRequest]) (*connect.Response[v1.ListQuickSwapsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swap.quickswap.v1.QuickSwapBrokerService.ListQuickSwaps is not implemented"))
+}
+
+func (UnimplementedQuickSwapBrokerServiceHandler) GetQuickSwap(context.Context, *connect.Request[v1.QuickSwapBrokerServiceGetQuickSwapRequest]) (*connect.Response[v1.QuickSwapBrokerServiceGetQuickSwapResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swap.quickswap.v1.QuickSwapBrokerService.GetQuickSwap is not implemented"))
 }
 
 func (UnimplementedQuickSwapBrokerServiceHandler) GetFeeTotals(context.Context, *connect.Request[v1.GetFeeTotalsRequest]) (*connect.Response[v1.GetFeeTotalsResponse], error) {

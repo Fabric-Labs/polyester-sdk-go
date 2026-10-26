@@ -76,7 +76,9 @@ type OrdersServiceClient interface {
 	// order IDs.
 	CancelOrder(context.Context, *connect.Request[v1.CancelOrderRequest]) (*connect.Response[v1.CancelOrderResponse], error)
 	// Cancels all matching open orders for an account (kill switch).
-	// Evaluates matching orders from a consistent snapshot at request start.
+	// Evaluates matching orders from a consistent snapshot at request start and
+	// requests cancellation of every one, however many match. The response
+	// lists up to 200 of them, oldest first, with the total count.
 	// Final state is confirmed via the order update stream or read path.
 	CancelAllOrders(context.Context, *connect.Request[v1.CancelAllOrdersRequest]) (*connect.Response[v1.CancelAllOrdersResponse], error)
 	// Set cancel-all-after (dead-man switch).
@@ -234,7 +236,9 @@ type OrdersServiceHandler interface {
 	// order IDs.
 	CancelOrder(context.Context, *connect.Request[v1.CancelOrderRequest]) (*connect.Response[v1.CancelOrderResponse], error)
 	// Cancels all matching open orders for an account (kill switch).
-	// Evaluates matching orders from a consistent snapshot at request start.
+	// Evaluates matching orders from a consistent snapshot at request start and
+	// requests cancellation of every one, however many match. The response
+	// lists up to 200 of them, oldest first, with the total count.
 	// Final state is confirmed via the order update stream or read path.
 	CancelAllOrders(context.Context, *connect.Request[v1.CancelAllOrdersRequest]) (*connect.Response[v1.CancelAllOrdersResponse], error)
 	// Set cancel-all-after (dead-man switch).

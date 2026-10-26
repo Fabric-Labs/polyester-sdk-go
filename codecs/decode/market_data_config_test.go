@@ -97,3 +97,25 @@ func TestCandlesColumnsRejectsShortParallelArrays(t *testing.T) {
 		t.Fatalf("expected TransportError, got %T: %v", err, err)
 	}
 }
+
+func TestCandlesColumnsLabelEveryPublishedTimeframe(t *testing.T) {
+	for tf, want := range map[marketdatav1.Timeframe]string{
+		marketdatav1.Timeframe_SEC_1: "1s", marketdatav1.Timeframe_MIN_1: "1m", marketdatav1.Timeframe_MIN_3: "3m",
+		marketdatav1.Timeframe_MIN_5: "5m", marketdatav1.Timeframe_MIN_15: "15m", marketdatav1.Timeframe_MIN_30: "30m",
+		marketdatav1.Timeframe_HOUR_1: "1h", marketdatav1.Timeframe_HOUR_2: "2h", marketdatav1.Timeframe_HOUR_4: "4h",
+		marketdatav1.Timeframe_HOUR_6: "6h", marketdatav1.Timeframe_HOUR_8: "8h", marketdatav1.Timeframe_HOUR_12: "12h",
+		marketdatav1.Timeframe_DAY_1: "1d", marketdatav1.Timeframe_DAY_3: "3d", marketdatav1.Timeframe_WEEK_1: "1w",
+		marketdatav1.Timeframe_MONTH_1: "1mo",
+	} {
+		got, err := CandlesColumnsFromProto(&marketdatav1.GetCandlesColumnsResponse{SymbolId: 1, Timeframe: tf}, 6, 8)
+		if err != nil {
+			t.Fatalf("%s: %v", tf, err)
+		}
+		if got.Timeframe != want {
+			t.Fatalf("%s decoded as %q, want %q", tf, got.Timeframe, want)
+		}
+	}
+	if n := len(marketdatav1.Timeframe_name) - 1; n != 16 {
+		t.Fatalf("contract has %d timeframes; label every new one here and in timeframeLabels", n)
+	}
+}

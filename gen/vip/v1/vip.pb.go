@@ -26,6 +26,67 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// VIPMetricStatus describes how complete one rolling 30-day qualification
+// metric is.
+type VIPMetricStatus int32
+
+const (
+	// No metric status was specified.
+	VIPMetricStatus_METRIC_UNSPECIFIED VIPMetricStatus = 0
+	// Every hour in the rolling window has complete evidence.
+	VIPMetricStatus_COMPLETE VIPMetricStatus = 1
+	// Every hour in the rolling window is present, but some hours contain
+	// executions or holdings without an admissible USD reference price at the
+	// required time. Those contributions are not estimated.
+	VIPMetricStatus_PRICE_UNAVAILABLE VIPMetricStatus = 2
+	// Some hours in the rolling window are missing or contain other incomplete
+	// evidence.
+	VIPMetricStatus_INCOMPLETE_HISTORY VIPMetricStatus = 3
+)
+
+// Enum value maps for VIPMetricStatus.
+var (
+	VIPMetricStatus_name = map[int32]string{
+		0: "METRIC_UNSPECIFIED",
+		1: "COMPLETE",
+		2: "PRICE_UNAVAILABLE",
+		3: "INCOMPLETE_HISTORY",
+	}
+	VIPMetricStatus_value = map[string]int32{
+		"METRIC_UNSPECIFIED": 0,
+		"COMPLETE":           1,
+		"PRICE_UNAVAILABLE":  2,
+		"INCOMPLETE_HISTORY": 3,
+	}
+)
+
+func (x VIPMetricStatus) Enum() *VIPMetricStatus {
+	p := new(VIPMetricStatus)
+	*p = x
+	return p
+}
+
+func (x VIPMetricStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (VIPMetricStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_vip_v1_vip_proto_enumTypes[0].Descriptor()
+}
+
+func (VIPMetricStatus) Type() protoreflect.EnumType {
+	return &file_vip_v1_vip_proto_enumTypes[0]
+}
+
+func (x VIPMetricStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use VIPMetricStatus.Descriptor instead.
+func (VIPMetricStatus) EnumDescriptor() ([]byte, []int) {
+	return file_vip_v1_vip_proto_rawDescGZIP(), []int{0}
+}
+
 // VIPTier describes one row in a complete VIP0 through VIP10 policy catalog.
 type VIPTier struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -296,6 +357,63 @@ func (x *NextVIPTierThresholds) GetAopThresholdUsd() string {
 	return ""
 }
 
+// VIPMetricQuality explains the completeness of one rolling 30-day
+// qualification metric.
+type VIPMetricQuality struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Completeness status of the metric.
+	Status VIPMetricStatus `protobuf:"varint,1,opt,name=status,proto3,enum=vip.v1.VIPMetricStatus" json:"status,omitempty"`
+	// Number of hourly buckets in the rolling 720-hour window that are missing
+	// or incomplete. Zero when status is COMPLETE.
+	IncompleteHours uint32 `protobuf:"varint,2,opt,name=incomplete_hours,json=incompleteHours,proto3" json:"incomplete_hours,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *VIPMetricQuality) Reset() {
+	*x = VIPMetricQuality{}
+	mi := &file_vip_v1_vip_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VIPMetricQuality) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VIPMetricQuality) ProtoMessage() {}
+
+func (x *VIPMetricQuality) ProtoReflect() protoreflect.Message {
+	mi := &file_vip_v1_vip_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VIPMetricQuality.ProtoReflect.Descriptor instead.
+func (*VIPMetricQuality) Descriptor() ([]byte, []int) {
+	return file_vip_v1_vip_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *VIPMetricQuality) GetStatus() VIPMetricStatus {
+	if x != nil {
+		return x.Status
+	}
+	return VIPMetricStatus_METRIC_UNSPECIFIED
+}
+
+func (x *VIPMetricQuality) GetIncompleteHours() uint32 {
+	if x != nil {
+		return x.IncompleteHours
+	}
+	return 0
+}
+
 // GetVIPStatusRequest requests VIP status for the authenticated caller's root
 // account. All subaccounts inherit that root status, so this request has no
 // subaccount selector.
@@ -307,7 +425,7 @@ type GetVIPStatusRequest struct {
 
 func (x *GetVIPStatusRequest) Reset() {
 	*x = GetVIPStatusRequest{}
-	mi := &file_vip_v1_vip_proto_msgTypes[4]
+	mi := &file_vip_v1_vip_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -319,7 +437,7 @@ func (x *GetVIPStatusRequest) String() string {
 func (*GetVIPStatusRequest) ProtoMessage() {}
 
 func (x *GetVIPStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_vip_v1_vip_proto_msgTypes[4]
+	mi := &file_vip_v1_vip_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -332,7 +450,7 @@ func (x *GetVIPStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetVIPStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetVIPStatusRequest) Descriptor() ([]byte, []int) {
-	return file_vip_v1_vip_proto_rawDescGZIP(), []int{4}
+	return file_vip_v1_vip_proto_rawDescGZIP(), []int{5}
 }
 
 // GetVIPStatusResponse contains the authenticated caller-root VIP assignment
@@ -348,12 +466,15 @@ type GetVIPStatusResponse struct {
 	// range 0 through 10.
 	AopTier uint32 `protobuf:"varint,3,opt,name=aop_tier,json=aopTier,proto3" json:"aop_tier,omitempty"`
 	// Rolling 30-day settled spot volume in USD, encoded as a non-negative
-	// base-10 decimal string without separators or a currency symbol. Omitted
-	// when complete qualification metrics are unavailable for the assignment.
+	// base-10 decimal string without separators or a currency symbol. When
+	// settled_volume_quality.status is PRICE_UNAVAILABLE, this is a lower bound
+	// that excludes executions without an admissible USD reference price.
+	// Omitted when settled_volume_quality is omitted or its status is
+	// INCOMPLETE_HISTORY.
 	SettledVolume_30DUsd *string `protobuf:"bytes,4,opt,name=settled_volume_30d_usd,json=settledVolume30dUsd,proto3,oneof" json:"settled_volume_30d_usd,omitempty"`
 	// Rolling 30-day average portfolio value in USD, encoded as a non-negative
 	// base-10 decimal string without separators or a currency symbol. Omitted
-	// when complete qualification metrics are unavailable for the assignment.
+	// unless average_aop_quality.status is COMPLETE.
 	AverageAop_30DUsd *string `protobuf:"bytes,5,opt,name=average_aop_30d_usd,json=averageAop30dUsd,proto3,oneof" json:"average_aop_30d_usd,omitempty"`
 	// Positive identifier of the VIP policy used for this assignment.
 	PolicyVersion uint64 `protobuf:"varint,6,opt,name=policy_version,json=policyVersion,proto3" json:"policy_version,omitempty"`
@@ -366,18 +487,29 @@ type GetVIPStatusResponse struct {
 	// new account is using the default VIP0 tier.
 	EvaluatedAt *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=evaluated_at,json=evaluatedAt,proto3,oneof" json:"evaluated_at,omitempty"`
 	// UTC cutoff of the rolling metrics used for this assignment. Omitted when
-	// complete qualification metrics are unavailable.
+	// neither settled_volume_30d_usd nor average_aop_30d_usd is present.
 	MetricsAsOf *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=metrics_as_of,json=metricsAsOf,proto3,oneof" json:"metrics_as_of,omitempty"`
 	// Entry thresholds for the tier immediately above the effective tier.
 	// Omitted when the effective tier is VIP10.
 	NextTierThresholds *NextVIPTierThresholds `protobuf:"bytes,11,opt,name=next_tier_thresholds,json=nextTierThresholds,proto3,oneof" json:"next_tier_thresholds,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Completeness of the rolling 30-day settled spot volume. An incomplete
+	// volume metric can raise the volume tier when its proven lower bound meets
+	// a higher threshold, but it never lowers the tier. Omitted when the
+	// assignment carries no automatic qualification evidence, such as the
+	// default VIP0 tier of a new account.
+	SettledVolumeQuality *VIPMetricQuality `protobuf:"bytes,12,opt,name=settled_volume_quality,json=settledVolumeQuality,proto3" json:"settled_volume_quality,omitempty"`
+	// Completeness of the rolling 30-day average portfolio value. An incomplete
+	// average portfolio value keeps its previous tier. Omitted when the
+	// assignment carries no automatic qualification evidence, such as the
+	// default VIP0 tier of a new account.
+	AverageAopQuality *VIPMetricQuality `protobuf:"bytes,13,opt,name=average_aop_quality,json=averageAopQuality,proto3" json:"average_aop_quality,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *GetVIPStatusResponse) Reset() {
 	*x = GetVIPStatusResponse{}
-	mi := &file_vip_v1_vip_proto_msgTypes[5]
+	mi := &file_vip_v1_vip_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -389,7 +521,7 @@ func (x *GetVIPStatusResponse) String() string {
 func (*GetVIPStatusResponse) ProtoMessage() {}
 
 func (x *GetVIPStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_vip_v1_vip_proto_msgTypes[5]
+	mi := &file_vip_v1_vip_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -402,7 +534,7 @@ func (x *GetVIPStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetVIPStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetVIPStatusResponse) Descriptor() ([]byte, []int) {
-	return file_vip_v1_vip_proto_rawDescGZIP(), []int{5}
+	return file_vip_v1_vip_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GetVIPStatusResponse) GetTier() uint32 {
@@ -482,6 +614,20 @@ func (x *GetVIPStatusResponse) GetNextTierThresholds() *NextVIPTierThresholds {
 	return nil
 }
 
+func (x *GetVIPStatusResponse) GetSettledVolumeQuality() *VIPMetricQuality {
+	if x != nil {
+		return x.SettledVolumeQuality
+	}
+	return nil
+}
+
+func (x *GetVIPStatusResponse) GetAverageAopQuality() *VIPMetricQuality {
+	if x != nil {
+		return x.AverageAopQuality
+	}
+	return nil
+}
+
 var File_vip_v1_vip_proto protoreflect.FileDescriptor
 
 const file_vip_v1_vip_proto_rawDesc = "" +
@@ -507,8 +653,12 @@ const file_vip_v1_vip_proto_rawDesc = "" +
 	"\x04tier\x18\x01 \x01(\rB\t\xbaH\x06*\x04\x18\n" +
 	"(\x01R\x04tier\x12d\n" +
 	"\x14volume_threshold_usd\x18\x02 \x01(\tB2\xbaH/r-\x10\x01\x18(2'^(0|[1-9][0-9]{0,20})([.][0-9]{1,18})?$R\x12volumeThresholdUsd\x12l\n" +
-	"\x11aop_threshold_usd\x18\x03 \x01(\tB@\xbaH=r;\x10\x01\x18(25^(0[.][0-9]{1,18}|[1-9][0-9]{0,20}([.][0-9]{1,18})?)$R\x0faopThresholdUsd\"\x15\n" +
-	"\x13GetVIPStatusRequest\"\x88\a\n" +
+	"\x11aop_threshold_usd\x18\x03 \x01(\tB@\xbaH=r;\x10\x01\x18(25^(0[.][0-9]{1,18}|[1-9][0-9]{0,20}([.][0-9]{1,18})?)$R\x0faopThresholdUsd\"\x84\x01\n" +
+	"\x10VIPMetricQuality\x12;\n" +
+	"\x06status\x18\x01 \x01(\x0e2\x17.vip.v1.VIPMetricStatusB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x06status\x123\n" +
+	"\x10incomplete_hours\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xd0\x05R\x0fincompleteHours\"\x15\n" +
+	"\x13GetVIPStatusRequest\"\xa2\b\n" +
 	"\x14GetVIPStatusResponse\x12\x1b\n" +
 	"\x04tier\x18\x01 \x01(\rB\a\xbaH\x04*\x02\x18\n" +
 	"R\x04tier\x12(\n" +
@@ -525,13 +675,20 @@ const file_vip_v1_vip_proto_rawDesc = "" +
 	"\fevaluated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampH\x03R\vevaluatedAt\x88\x01\x01\x12C\n" +
 	"\rmetrics_as_of\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampH\x04R\vmetricsAsOf\x88\x01\x01\x12T\n" +
-	"\x14next_tier_thresholds\x18\v \x01(\v2\x1d.vip.v1.NextVIPTierThresholdsH\x05R\x12nextTierThresholds\x88\x01\x01B\x19\n" +
+	"\x14next_tier_thresholds\x18\v \x01(\v2\x1d.vip.v1.NextVIPTierThresholdsH\x05R\x12nextTierThresholds\x88\x01\x01\x12N\n" +
+	"\x16settled_volume_quality\x18\f \x01(\v2\x18.vip.v1.VIPMetricQualityR\x14settledVolumeQuality\x12H\n" +
+	"\x13average_aop_quality\x18\r \x01(\v2\x18.vip.v1.VIPMetricQualityR\x11averageAopQualityB\x19\n" +
 	"\x17_settled_volume_30d_usdB\x16\n" +
 	"\x14_average_aop_30d_usdB\x11\n" +
 	"\x0f_effective_fromB\x0f\n" +
 	"\r_evaluated_atB\x10\n" +
 	"\x0e_metrics_as_ofB\x17\n" +
-	"\x15_next_tier_thresholds2\xa5\x03\n" +
+	"\x15_next_tier_thresholds*f\n" +
+	"\x0fVIPMetricStatus\x12\x16\n" +
+	"\x12METRIC_UNSPECIFIED\x10\x00\x12\f\n" +
+	"\bCOMPLETE\x10\x01\x12\x15\n" +
+	"\x11PRICE_UNAVAILABLE\x10\x02\x12\x16\n" +
+	"\x12INCOMPLETE_HISTORY\x10\x032\xa5\x03\n" +
 	"\n" +
 	"VIPService\x12\xc1\x01\n" +
 	"\fListVIPTiers\x12\x1b.vip.v1.ListVIPTiersRequest\x1a\x1c.vip.v1.ListVIPTiersResponse\"v\xbaGZ\n" +
@@ -552,33 +709,39 @@ func file_vip_v1_vip_proto_rawDescGZIP() []byte {
 	return file_vip_v1_vip_proto_rawDescData
 }
 
-var file_vip_v1_vip_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_vip_v1_vip_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_vip_v1_vip_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_vip_v1_vip_proto_goTypes = []any{
-	(*VIPTier)(nil),               // 0: vip.v1.VIPTier
-	(*ListVIPTiersRequest)(nil),   // 1: vip.v1.ListVIPTiersRequest
-	(*ListVIPTiersResponse)(nil),  // 2: vip.v1.ListVIPTiersResponse
-	(*NextVIPTierThresholds)(nil), // 3: vip.v1.NextVIPTierThresholds
-	(*GetVIPStatusRequest)(nil),   // 4: vip.v1.GetVIPStatusRequest
-	(*GetVIPStatusResponse)(nil),  // 5: vip.v1.GetVIPStatusResponse
-	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
+	(VIPMetricStatus)(0),          // 0: vip.v1.VIPMetricStatus
+	(*VIPTier)(nil),               // 1: vip.v1.VIPTier
+	(*ListVIPTiersRequest)(nil),   // 2: vip.v1.ListVIPTiersRequest
+	(*ListVIPTiersResponse)(nil),  // 3: vip.v1.ListVIPTiersResponse
+	(*NextVIPTierThresholds)(nil), // 4: vip.v1.NextVIPTierThresholds
+	(*VIPMetricQuality)(nil),      // 5: vip.v1.VIPMetricQuality
+	(*GetVIPStatusRequest)(nil),   // 6: vip.v1.GetVIPStatusRequest
+	(*GetVIPStatusResponse)(nil),  // 7: vip.v1.GetVIPStatusResponse
+	(*timestamppb.Timestamp)(nil), // 8: google.protobuf.Timestamp
 }
 var file_vip_v1_vip_proto_depIdxs = []int32{
-	6, // 0: vip.v1.ListVIPTiersResponse.effective_from:type_name -> google.protobuf.Timestamp
-	0, // 1: vip.v1.ListVIPTiersResponse.tiers:type_name -> vip.v1.VIPTier
-	6, // 2: vip.v1.GetVIPStatusResponse.policy_effective_from:type_name -> google.protobuf.Timestamp
-	6, // 3: vip.v1.GetVIPStatusResponse.effective_from:type_name -> google.protobuf.Timestamp
-	6, // 4: vip.v1.GetVIPStatusResponse.evaluated_at:type_name -> google.protobuf.Timestamp
-	6, // 5: vip.v1.GetVIPStatusResponse.metrics_as_of:type_name -> google.protobuf.Timestamp
-	3, // 6: vip.v1.GetVIPStatusResponse.next_tier_thresholds:type_name -> vip.v1.NextVIPTierThresholds
-	1, // 7: vip.v1.VIPService.ListVIPTiers:input_type -> vip.v1.ListVIPTiersRequest
-	4, // 8: vip.v1.VIPService.GetVIPStatus:input_type -> vip.v1.GetVIPStatusRequest
-	2, // 9: vip.v1.VIPService.ListVIPTiers:output_type -> vip.v1.ListVIPTiersResponse
-	5, // 10: vip.v1.VIPService.GetVIPStatus:output_type -> vip.v1.GetVIPStatusResponse
-	9, // [9:11] is the sub-list for method output_type
-	7, // [7:9] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	8,  // 0: vip.v1.ListVIPTiersResponse.effective_from:type_name -> google.protobuf.Timestamp
+	1,  // 1: vip.v1.ListVIPTiersResponse.tiers:type_name -> vip.v1.VIPTier
+	0,  // 2: vip.v1.VIPMetricQuality.status:type_name -> vip.v1.VIPMetricStatus
+	8,  // 3: vip.v1.GetVIPStatusResponse.policy_effective_from:type_name -> google.protobuf.Timestamp
+	8,  // 4: vip.v1.GetVIPStatusResponse.effective_from:type_name -> google.protobuf.Timestamp
+	8,  // 5: vip.v1.GetVIPStatusResponse.evaluated_at:type_name -> google.protobuf.Timestamp
+	8,  // 6: vip.v1.GetVIPStatusResponse.metrics_as_of:type_name -> google.protobuf.Timestamp
+	4,  // 7: vip.v1.GetVIPStatusResponse.next_tier_thresholds:type_name -> vip.v1.NextVIPTierThresholds
+	5,  // 8: vip.v1.GetVIPStatusResponse.settled_volume_quality:type_name -> vip.v1.VIPMetricQuality
+	5,  // 9: vip.v1.GetVIPStatusResponse.average_aop_quality:type_name -> vip.v1.VIPMetricQuality
+	2,  // 10: vip.v1.VIPService.ListVIPTiers:input_type -> vip.v1.ListVIPTiersRequest
+	6,  // 11: vip.v1.VIPService.GetVIPStatus:input_type -> vip.v1.GetVIPStatusRequest
+	3,  // 12: vip.v1.VIPService.ListVIPTiers:output_type -> vip.v1.ListVIPTiersResponse
+	7,  // 13: vip.v1.VIPService.GetVIPStatus:output_type -> vip.v1.GetVIPStatusResponse
+	12, // [12:14] is the sub-list for method output_type
+	10, // [10:12] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_vip_v1_vip_proto_init() }
@@ -587,19 +750,20 @@ func file_vip_v1_vip_proto_init() {
 		return
 	}
 	file_vip_v1_vip_proto_msgTypes[0].OneofWrappers = []any{}
-	file_vip_v1_vip_proto_msgTypes[5].OneofWrappers = []any{}
+	file_vip_v1_vip_proto_msgTypes[6].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vip_v1_vip_proto_rawDesc), len(file_vip_v1_vip_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   6,
+			NumEnums:      1,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_vip_v1_vip_proto_goTypes,
 		DependencyIndexes: file_vip_v1_vip_proto_depIdxs,
+		EnumInfos:         file_vip_v1_vip_proto_enumTypes,
 		MessageInfos:      file_vip_v1_vip_proto_msgTypes,
 	}.Build()
 	File_vip_v1_vip_proto = out.File

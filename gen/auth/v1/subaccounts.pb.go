@@ -10,6 +10,7 @@ import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	v1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api/validation/v1"
 	_ "github.com/google/gnostic/openapiv3"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -3278,7 +3279,7 @@ var File_auth_v1_subaccounts_proto protoreflect.FileDescriptor
 
 const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\n" +
-	"\x19auth/v1/subaccounts.proto\x12\aauth.v1\x1a\x16auth/v1/api_keys.proto\x1a\x16auth/v1/policies.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a ledger/read/v1/ledger_read.proto\x1a\x1bpolyester/api/options.proto\"\xf6\x01\n" +
+	"\x19auth/v1/subaccounts.proto\x12\aauth.v1\x1a\x16auth/v1/api_keys.proto\x1a\x16auth/v1/policies.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a ledger/read/v1/ledger_read.proto\x1a\x1bpolyester/api/options.proto\x1a9polyester/api/validation/v1/predefined_string_rules.proto\"\xf6\x01\n" +
 	"\x1eSubaccountPermissionDefinition\x12I\n" +
 	"\n" +
 	"permission\x18\x01 \x01(\x0e2\x1d.auth.v1.SubaccountPermissionB\n" +
@@ -3346,10 +3347,9 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x18smart_account_salt_nonce\x18\x03 \x01(\rR\x15smartAccountSaltNonce\x129\n" +
 	"\n" +
 	"expires_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12,\n" +
-	"\x12polyester_chain_id\x18\x05 \x01(\x04R\x10polyesterChainId\"\xc5\x03\n" +
-	"\x17CreateSubaccountRequest\x12\x93\x01\n" +
-	"\x05label\x18\x01 \x01(\tB}\xbaHz\xba\x01h\n" +
-	"\x17label.no_angle_brackets\x12!label must not contain '<' or '>'\x1a*!this.contains('<') && !this.contains('>')r\r\x18@\x92\x02\bTreasuryR\x05label\x12\x1b\n" +
+	"\x12polyester_chain_id\x18\x05 \x01(\x04R\x10polyesterChainId\"\xdd\x02\n" +
+	"\x17CreateSubaccountRequest\x12,\n" +
+	"\x05label\x18\x01 \x01(\tB\x16\xbaH\x13r\x11\x98\xb5\x18\x01\x18@\x92\x02\bTreasuryR\x05label\x12\x1b\n" +
 	"\x04icon\x18\a \x01(\tB\a\xbaH\x04r\x02\x18 R\x04icon\x12\x1d\n" +
 	"\x05color\x18\b \x01(\tB\a\xbaH\x04r\x02\x18 R\x05color\x12\x81\x01\n" +
 	"\x15smart_account_address\x18\x02 \x01(\tBM\xe0A\x02\xbaHGrE2\x13^0x[0-9a-fA-F]{40}$\x98\x01*\x92\x02*0x0000000000000000000000000000000000000000R\x13smartAccountAddress\x12'\n" +
@@ -3359,10 +3359,9 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\x12#\n" +
 	"\rtotal_created\x18\x02 \x01(\rR\ftotalCreated\x127\n" +
 	"\x18smart_account_salt_nonce\x18\x03 \x01(\rR\x15smartAccountSaltNonce\x12\x1a\n" +
-	"\brevision\x18\x04 \x01(\x04R\brevision\"\xa5\x02\n" +
-	"\x14SubaccountUpdateSpec\x12\x93\x01\n" +
-	"\x05label\x18\x01 \x01(\tB}\xbaHz\xba\x01h\n" +
-	"\x17label.no_angle_brackets\x12!label must not contain '<' or '>'\x1a*!this.contains('<') && !this.contains('>')r\r\x18@\x92\x02\bTreasuryR\x05label\x12\x1b\n" +
+	"\brevision\x18\x04 \x01(\x04R\brevision\"\xbd\x01\n" +
+	"\x14SubaccountUpdateSpec\x12,\n" +
+	"\x05label\x18\x01 \x01(\tB\x16\xbaH\x13r\x11\x98\xb5\x18\x01\x18@\x92\x02\bTreasuryR\x05label\x12\x1b\n" +
 	"\x04icon\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18 R\x04icon\x12\x1d\n" +
 	"\x05color\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18 R\x05color\x12;\n" +
 	"\x06status\x18\x04 \x01(\x0e2\x19.auth.v1.SubaccountStatusB\b\xbaH\x05\x82\x01\x02\x10\x01R\x06status\"\x9c\x02\n" +

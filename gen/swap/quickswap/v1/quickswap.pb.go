@@ -348,6 +348,23 @@ const (
 	// for it. Its withdrawal is NOT_SENT with the amount in unsent_amount.
 	// Other withdrawals are unaffected.
 	QuickSwapReason_REFUND_BELOW_MINIMUM QuickSwapReason = 21
+	// The QuickSwap could not be issued a deposit address and never gets one:
+	// it is EXPIRED without deposit_instructions, and nothing can be deposited
+	// to it. Create a new QuickSwap with a new idempotency key, and report the
+	// swap_id to Polyester broker support.
+	QuickSwapReason_DEPOSIT_ADDRESS_CONFLICT QuickSwapReason = 22
+	// The address already accepted its one eligible deposit; this deposit is
+	// returned to return_address and never executes.
+	QuickSwapReason_DEPOSIT_ADDRESS_ALREADY_USED QuickSwapReason = 23
+	// The address was retired; this observed deposit is returned and never executes.
+	QuickSwapReason_DEPOSIT_ADDRESS_RETIRED QuickSwapReason = 24
+	// The address had not been issued when this deposit was observed; it never executes.
+	QuickSwapReason_DEPOSIT_ADDRESS_NOT_ISSUED QuickSwapReason = 25
+	// On a two-leg route, intermediate funds were below the smallest order the
+	// second leg's market accepts, so they could not be converted to the
+	// destination asset; they are refunded to refund_address. Shown on the
+	// payout statuses that follow.
+	QuickSwapReason_INTERMEDIATE_BELOW_MINIMUM QuickSwapReason = 26
 )
 
 // Enum value maps for QuickSwapReason.
@@ -367,22 +384,32 @@ var (
 		17: "OUTCOME_RECONCILING",
 		20: "SOURCE_SCREENING_BLOCKED",
 		21: "REFUND_BELOW_MINIMUM",
+		22: "DEPOSIT_ADDRESS_CONFLICT",
+		23: "DEPOSIT_ADDRESS_ALREADY_USED",
+		24: "DEPOSIT_ADDRESS_RETIRED",
+		25: "DEPOSIT_ADDRESS_NOT_ISSUED",
+		26: "INTERMEDIATE_BELOW_MINIMUM",
 	}
 	QuickSwapReason_value = map[string]int32{
-		"REASON_UNSPECIFIED":         0,
-		"SOURCE_SCREENING_FAILED":    1,
-		"CAPACITY_UNAVAILABLE":       4,
-		"PROTECTION_NOT_MET":         7,
-		"EXECUTION_DEADLINE_REACHED": 8,
-		"LATE_DEPOSIT":               9,
-		"DEPOSIT_BELOW_MINIMUM":      11,
-		"DEPOSIT_ABOVE_MAXIMUM":      12,
-		"WRONG_ASSET":                13,
-		"FUNDING_WINDOW_ENDED":       15,
-		"WITHDRAWAL_FAILED":          16,
-		"OUTCOME_RECONCILING":        17,
-		"SOURCE_SCREENING_BLOCKED":   20,
-		"REFUND_BELOW_MINIMUM":       21,
+		"REASON_UNSPECIFIED":           0,
+		"SOURCE_SCREENING_FAILED":      1,
+		"CAPACITY_UNAVAILABLE":         4,
+		"PROTECTION_NOT_MET":           7,
+		"EXECUTION_DEADLINE_REACHED":   8,
+		"LATE_DEPOSIT":                 9,
+		"DEPOSIT_BELOW_MINIMUM":        11,
+		"DEPOSIT_ABOVE_MAXIMUM":        12,
+		"WRONG_ASSET":                  13,
+		"FUNDING_WINDOW_ENDED":         15,
+		"WITHDRAWAL_FAILED":            16,
+		"OUTCOME_RECONCILING":          17,
+		"SOURCE_SCREENING_BLOCKED":     20,
+		"REFUND_BELOW_MINIMUM":         21,
+		"DEPOSIT_ADDRESS_CONFLICT":     22,
+		"DEPOSIT_ADDRESS_ALREADY_USED": 23,
+		"DEPOSIT_ADDRESS_RETIRED":      24,
+		"DEPOSIT_ADDRESS_NOT_ISSUED":   25,
+		"INTERMEDIATE_BELOW_MINIMUM":   26,
 	}
 )
 
@@ -551,11 +578,12 @@ func (WithdrawalState) EnumDescriptor() ([]byte, []int) {
 //
 // Flow: ALLOCATING → AWAITING_DEPOSIT → (WAITING_FOR_CAPACITY |
 // PREPARING_DEPOSIT | CONFIRMING) → CREDITED → EXECUTING (skipped for a
-// bridge) → PAYING_OUT | REFUNDING | RETURNING → a terminal status. HELD can
-// be entered from any non-terminal status and is not terminal. The terminal
-// statuses are COMPLETED, REFUNDED, RETURNED and EXPIRED; a terminal status
-// never changes. Accept status values added later; is_terminal is
-// authoritative.
+// bridge) → PAYING_OUT | REFUNDING | RETURNING → a terminal status. A
+// QuickSwap that cannot be issued a deposit address goes from ALLOCATING
+// straight to EXPIRED (DEPOSIT_ADDRESS_CONFLICT). HELD can be entered from
+// any non-terminal status and is not terminal. The terminal statuses are
+// COMPLETED, REFUNDED, RETURNED and EXPIRED; a terminal status never
+// changes. Accept status values added later; is_terminal is authoritative.
 type QuickSwapStatus int32
 
 const (
@@ -604,7 +632,9 @@ const (
 	// Terminal: every withdrawal is final and all are RETURN (FINALIZED or
 	// NOT_SENT).
 	QuickSwapStatus_RETURNED QuickSwapStatus = 15
-	// Terminal: the funding window ended without an eligible deposit.
+	// Terminal: the funding window ended without an eligible deposit
+	// (FUNDING_WINDOW_ENDED), or the QuickSwap never got a deposit address
+	// (DEPOSIT_ADDRESS_CONFLICT).
 	QuickSwapStatus_EXPIRED QuickSwapStatus = 16
 )
 
@@ -768,9 +798,9 @@ const (
 	// broker support with the swap_id.
 	ErrorCode_STATS_INCOMPLETE ErrorCode = 33
 	// The QuickSwap (swap_id in the error) cannot be issued a deposit address
-	// and never gets one, so nothing can be deposited to it. Create a new
-	// QuickSwap with a new idempotency key, and report the swap_id to Polyester
-	// broker support.
+	// and never gets one, so nothing can be deposited to it; it is EXPIRED with
+	// reason DEPOSIT_ADDRESS_CONFLICT. Create a new QuickSwap with a new
+	// idempotency key, and report the swap_id to Polyester broker support.
 	ErrorCode_ADDRESS_CONFLICT ErrorCode = 34
 )
 
@@ -1064,7 +1094,20 @@ func (*MarketExecution) Descriptor() ([]byte, []int) {
 	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{2}
 }
 
-// TwapExecution spreads execution evenly over a duration.
+// TwapExecution spreads execution evenly over a duration, one slice per
+// slot. Slot k starts k slice intervals after execution starts. Each slice
+// trades what is left of the credited deposit over the slots left, and is
+// protected by the quote's min_rate on what it trades. A slice is sent only
+// within its slot: a slot missed is skipped, never sent late. On a two-leg
+// route, each slice's second leg converts that slice's intermediate funds
+// before the next slice. Intermediate funds below the smallest order the
+// second leg's market accepts do not end the TWAP: they are added to the
+// next slice's conversion, and what is still unconverted when execution
+// ends is refunded to refund_address (INTERMEDIATE_BELOW_MINIMUM). Only the
+// second leg's market closing ends a TWAP early. A TWAP needs a larger
+// deposit than a market execution, since every slice must be a valid order
+// (see QuickSwapQuote.min_deposit_amount). A bridge takes market execution
+// only.
 type TwapExecution struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Total execution duration in milliseconds, from 60000 (1 minute) to
@@ -1452,7 +1495,8 @@ type QuickSwapQuote struct {
 	// network's minimum
 	// (AssetChainVariant.deposit_min_amount in the config), and differs from
 	// ErrorDetail.min_deposit_amount, the smallest deposit that currently
-	// quotes.
+	// quotes. For a TWAP it is the slice count times the smallest deposit one
+	// slice takes, and at least a market execution's minimum.
 	MinDepositAmount *TokenAmount `protobuf:"bytes,5,opt,name=min_deposit_amount,json=minDepositAmount,proto3" json:"min_deposit_amount,omitempty"`
 	// Largest deposit that is eligible to execute, in source token units,
 	// compared with the deposit before its network fee. Fixed when the
@@ -1662,10 +1706,13 @@ type DepositInstructions struct {
 	AddressRetiresAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=address_retires_at,json=addressRetiresAt,proto3" json:"address_retires_at,omitempty"`
 	// Current lifecycle state of the address.
 	AddressState DepositAddressState `protobuf:"varint,7,opt,name=address_state,json=addressState,proto3,enum=swap.quickswap.v1.DepositAddressState" json:"address_state,omitempty"`
-	// A native-coin deposit (for example ETH) needs at least this gas limit, in
-	// gas units; a plain 21000-gas transfer is not enough and fails without
-	// depositing. Unused gas is refunded, so a higher limit is safe. Zero for
-	// token deposits and non-EVM networks.
+	// Recommended gas limit, in gas units, for native-coin deposits on EVM
+	// networks: 250000. Polyester does not enforce this limit. On some networks,
+	// depositing to an address that has never received funds requires far more
+	// than 21000 gas. If the limit is too low, the transaction fails on chain
+	// without depositing funds, and the network fee is still charged. Use at
+	// least the recommended limit. Unused gas is not charged. Zero for token
+	// deposits and non-EVM networks.
 	MinNativeGasLimit uint64 `protobuf:"varint,8,opt,name=min_native_gas_limit,json=minNativeGasLimit,proto3" json:"min_native_gas_limit,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
@@ -1930,9 +1977,12 @@ type ExecutionProgress struct {
 	// the refund route's token units; unset for a direct route and a bridge.
 	IntermediateRemainder *TokenAmount `protobuf:"bytes,4,opt,name=intermediate_remainder,json=intermediateRemainder,proto3" json:"intermediate_remainder,omitempty"`
 	// Completed slices: a market execution's one slice completes when
-	// execution finishes. Zero for a bridge.
+	// execution finishes; a TWAP slice completes once it has traded and is
+	// over, so a slot that traded nothing or was skipped never completes.
+	// Zero for a bridge.
 	CompletedSlices uint32 `protobuf:"varint,5,opt,name=completed_slices,json=completedSlices,proto3" json:"completed_slices,omitempty"`
-	// Planned slices: a market execution has one once it is planned. Zero
+	// Planned slices: a market execution has one once it is planned; a TWAP
+	// has its slice count, duration_ms over slice_interval_ms rounded up. Zero
 	// until then, and for a bridge, which trades nothing.
 	TotalSlices uint32 `protobuf:"varint,6,opt,name=total_slices,json=totalSlices,proto3" json:"total_slices,omitempty"`
 	// When execution started.
@@ -2245,7 +2295,9 @@ type QuickSwap struct {
 	// added later. Polling can stop at a terminal status. A terminal status
 	// never changes. Shortly after it, address_retires_at can still move later,
 	// and withdrawal details can be corrected as documented on Withdrawal;
-	// another deposit reaching the address also shows. Read it again if the end
+	// another deposit reaching the address also shows as RETURN_ONLY. Returns
+	// made directly for such deposits are not yet reported in
+	// withdrawals; RETURN_ONLY does not confirm a completed return. Read again if the end
 	// user reports such a deposit or needs the final retirement time.
 	IsTerminal bool `protobuf:"varint,5,opt,name=is_terminal,json=isTerminal,proto3" json:"is_terminal,omitempty"`
 	// Accepted economic terms.
@@ -2270,7 +2322,9 @@ type QuickSwap struct {
 	RefundMemo string `protobuf:"bytes,13,opt,name=refund_memo,json=refundMemo,proto3" json:"refund_memo,omitempty"`
 	// Quote and protection fixed at creation. Not refreshed on retries.
 	Quote *QuickSwapQuote `protobuf:"bytes,14,opt,name=quote,proto3" json:"quote,omitempty"`
-	// Where and until when to deposit; absent while ALLOCATING.
+	// Where and until when to deposit; absent while ALLOCATING and on a
+	// QuickSwap that never got an address (EXPIRED with
+	// DEPOSIT_ADDRESS_CONFLICT).
 	DepositInstructions *DepositInstructions `protobuf:"bytes,15,opt,name=deposit_instructions,json=depositInstructions,proto3" json:"deposit_instructions,omitempty"`
 	// Risk screening.
 	Screening *Screening `protobuf:"bytes,16,opt,name=screening,proto3" json:"screening,omitempty"`
@@ -2292,8 +2346,9 @@ type QuickSwap struct {
 	// When status became terminal; unset while not terminal.
 	TerminalAt *timestamppb.Timestamp `protobuf:"bytes,25,opt,name=terminal_at,json=terminalAt,proto3" json:"terminal_at,omitempty"`
 	// Monotonic state version: a snapshot with a lower version is older. Zero
-	// while ALLOCATING; 1 once the deposit address is issued
-	// (AWAITING_DEPOSIT); every later change increments it.
+	// while ALLOCATING; 1 once the deposit address is issued (AWAITING_DEPOSIT)
+	// or allocation ends without one (EXPIRED with DEPOSIT_ADDRESS_CONFLICT);
+	// every later change increments it.
 	Version uint64 `protobuf:"varint,26,opt,name=version,proto3" json:"version,omitempty"`
 	// Fee schedule version fixed at creation. Every execution or bridge payout
 	// of this QuickSwap is charged that version's service fees, whatever later
@@ -3523,7 +3578,7 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\bELIGIBLE\x10\x02\x12\x0f\n" +
 	"\vRETURN_ONLY\x10\x03\x12\v\n" +
 	"\aON_HOLD\x10\x04\x12\x13\n" +
-	"\x0fMANUAL_RECOVERY\x10\x05*\xbc\x04\n" +
+	"\x0fMANUAL_RECOVERY\x10\x05*\xd9\x05\n" +
 	"\x0fQuickSwapReason\x12\x16\n" +
 	"\x12REASON_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17SOURCE_SCREENING_FAILED\x10\x01\x12\x18\n" +
@@ -3538,7 +3593,12 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\x11WITHDRAWAL_FAILED\x10\x10\x12\x17\n" +
 	"\x13OUTCOME_RECONCILING\x10\x11\x12\x1c\n" +
 	"\x18SOURCE_SCREENING_BLOCKED\x10\x14\x12\x18\n" +
-	"\x14REFUND_BELOW_MINIMUM\x10\x15\"\x04\b\x02\x10\x02\"\x04\b\x03\x10\x03\"\x04\b\x05\x10\x05\"\x04\b\x06\x10\x06\"\x04\b\n" +
+	"\x14REFUND_BELOW_MINIMUM\x10\x15\x12\x1c\n" +
+	"\x18DEPOSIT_ADDRESS_CONFLICT\x10\x16\x12 \n" +
+	"\x1cDEPOSIT_ADDRESS_ALREADY_USED\x10\x17\x12\x1b\n" +
+	"\x17DEPOSIT_ADDRESS_RETIRED\x10\x18\x12\x1e\n" +
+	"\x1aDEPOSIT_ADDRESS_NOT_ISSUED\x10\x19\x12\x1e\n" +
+	"\x1aINTERMEDIATE_BELOW_MINIMUM\x10\x1a\"\x04\b\x02\x10\x02\"\x04\b\x03\x10\x03\"\x04\b\x05\x10\x05\"\x04\b\x06\x10\x06\"\x04\b\n" +
 	"\x10\n" +
 	"\"\x04\b\x0e\x10\x0e\"\x04\b\x12\x10\x12\"\x04\b\x13\x10\x13*\x0fSOURCE_MISMATCH*\x10SOURCE_AMBIGUOUS*\x15CAPACITY_WAIT_EXPIRED*\x14PREPARATION_RETRYING*\x12ADDITIONAL_DEPOSIT*\x13CANCELLED_BY_BROKER*\x0eRETURN_BLOCKED*\x0eAFTER_DELETION*O\n" +
 	"\x0eWithdrawalRole\x12\x14\n" +
