@@ -31,6 +31,8 @@
   order stream.
 
 ### Fixed
+- Account-scoped subscriptions given no account ID now use the client's
+  `DefaultAccountID` value instead of formatting its pointer.
 - Order reads no longer report an attached-risk leg whose state is
   `not_configured`; the server sends that state for a leg the order
   does not have.
@@ -68,10 +70,6 @@
   `GetCandlesWithReference` and `GetCandlesColumnsWithReference` request
   that series. `MarketOverviewEntry.Volume24HBase` is the decoded decimal
   when the catalog scale is known; `Volume24HBaseScaled` stays the integer.
-
-### Fixed
-- Account-scoped subscriptions given no account ID now use the client's
-  `DefaultAccountID` value instead of formatting its pointer.
 
 ## 0.1.0a54
 
