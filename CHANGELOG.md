@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+- Labels for enum values newer than this SDK version (for example a new
+  trigger failure reason) read `unknown(<n>)` instead of panicking.
+
 ### Added
 - Orders accept attached take-profit, stop-loss, trailing-stop and OCO
   policies: `CreateOrderRequest.AttachedRisk`, the new `Orders.ModifyWith`
