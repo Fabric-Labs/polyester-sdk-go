@@ -75,9 +75,14 @@ A successful subscribe call means the token exchange and realtime handshake
 completed. Treat a structured permission denial as non-transient and update the
 API-key policy before retrying.
 
-**Attached risk:** order create/modify do **not** accept `AttachedRisk` input
-(decode-only via order get/list methods). Use Rust/Python for attached
-TP/SL/trailing create/modify. When requested, each decoded leg exposes typed
+**Attached risk:** set `CreateOrderRequest.AttachedRisk`,
+`ModifyParams.NewAttachedRisk` (`Orders.ModifyWith`), or
+`BatchReplaceItem.NewAttachedRisk` to a `models.AttachedRiskInput` with a
+take-profit and/or one stop leg (stop-loss or trailing stop); `OCO: true`
+requires a take-profit and a stop leg. A leg without `LimitPrice` exits with a
+market child; with `LimitPrice` it rests a GTC limit child. A modify replaces
+the order's whole attached policy. Create and modify results carry the
+configured legs' trigger IDs. When requested, each decoded leg exposes typed
 runtime `State` (`Status`, nanosecond armed/terminal timestamps, `TriggerID`,
 and `ChildOrderID`). A leg is retained when it has meaningful runtime state or
 a usable policy (positive TP/SL trigger price or positive trailing distance);
@@ -466,9 +471,28 @@ Response `Status` uses the same labels (British spelling `cancelled`).
 `Orders.Get(..., includeAttachedRisk)` returns policy data on
 `Order.AttachedRisk`. `Order` also exposes `PostOnly`. With
 `includeAttachedRiskState=true`, runtime legs remain available even when
-`includeAttachedRisk=false`; absent policy fields stay zero/empty. Order create
-still rejects `AttachedRisk` input (use Rust/Python for attached trailing
-create/modify).
+`includeAttachedRisk=false`; absent policy fields stay zero/empty.
+
+```go
+oco := &models.AttachedRiskInput{
+    TakeProfit: &models.RiskLegInput{TriggerPrice: models.PriceFromDecimal("72000")},
+    StopLoss:   &models.RiskLegInput{TriggerPrice: models.PriceFromDecimal("58000")},
+    OCO:        true,
+}
+created, err := client.Orders.Create(ctx, models.CreateOrderRequest{
+    Symbol: &symbol, Side: "buy", OrderType: "limit",
+    Qty: models.QtyFromDecimal("0.001"), Price: &price, AttachedRisk: oco,
+}, nil)
+// created.TakeProfitTriggerID, created.StopLossTriggerID
+_, err = client.Orders.ModifyWith(ctx, nil, services.ModifyParams{
+    Symbol: symbol, Key: models.OrderKeyByID(created.OrderID),
+    NewAttachedRisk: &models.AttachedRiskInput{
+        TakeProfit: &models.RiskLegInput{TriggerPrice: models.PriceFromDecimal("74000")},
+        StopLoss:   &models.RiskLegInput{TriggerPrice: models.PriceFromDecimal("57000")},
+        OCO:        true,
+    },
+})
+```
 
 Standalone `trailing_stop` creates remain sell-only; the wire
 `TrailingStopTrigger` carries `side`, and list/get projections use that side

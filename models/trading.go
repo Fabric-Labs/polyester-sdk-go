@@ -80,8 +80,8 @@ type AttachedRiskLegState struct {
 // Decode preserves a leg when it has a positive trailing distance or meaningful
 // runtime state; policy fields remain zero when only state was requested.
 // TriggerPriceSource and OrderType are not on the trailing-stop wire (child is
-// always market / last trade) and remain empty on decode. Order create currently
-// refuses attached_risk; use Rust/Python for attached trailing create/modify.
+// always market / last trade) and remain empty on decode. Write attached risk
+// with AttachedRiskInput.
 type TrailingStop struct {
 	DistanceTicks      int64                 `json:"distance_ticks,omitempty"`
 	DistanceBps        int32                 `json:"distance_bps,omitempty"`
@@ -115,6 +115,15 @@ type OrderMutationResult struct {
 	ResolvedBaseQtyScaled        string     `json:"resolved_base_qty_scaled,omitempty"`
 	ResolvedBaseQty              *QtyScaled `json:"resolved_base_qty,omitempty"`
 	SubmittedMaxQuoteDebitScaled string     `json:"submitted_max_quote_debit_scaled,omitempty"`
+	AttachedRiskTriggerIDs
+}
+
+// AttachedRiskTriggerIDs are the trigger IDs of an order's attached risk legs,
+// present only for configured legs.
+type AttachedRiskTriggerIDs struct {
+	TakeProfitTriggerID   string `json:"take_profit_trigger_id,omitempty"`
+	StopLossTriggerID     string `json:"stop_loss_trigger_id,omitempty"`
+	TrailingStopTriggerID string `json:"trailing_stop_trigger_id,omitempty"`
 }
 
 // OrderFieldViolation is one field-level validation failure on an order intent.
@@ -201,6 +210,7 @@ type ModifyOrderResult struct {
 	OldOrderID   string `json:"old_order_id,omitempty"`
 	FinalOrderID string `json:"final_order_id,omitempty"`
 	Code         string `json:"code,omitempty"`
+	AttachedRiskTriggerIDs
 }
 
 // CancelAllOrdersResult summarizes cancel-all.

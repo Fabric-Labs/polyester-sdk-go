@@ -798,3 +798,37 @@ func TestCancelAllAfterRequiresKnownStatus(t *testing.T) {
 		}
 	}
 }
+
+func TestOrderFromProtoOmitsNotConfiguredAttachedRiskLegs(t *testing.T) {
+	notConfigured := &orderv1.AttachedRiskLegState{Status: orderv1.AttachedRiskLegState_NOT_CONFIGURED}
+	triggerID := uint64(5584097434927106)
+	order := decode.OrderFromProto(&orderv1.Order{
+		OrderId: 7,
+		AttachedRisk: &orderv1.AttachedRisk{
+			TakeProfit: &orderv1.AttachedRiskTakeProfit{
+				Policy: &orderv1.TakeProfitPolicy{
+					TriggerPriceTicks: 2000000000000,
+					Child:             &orderv1.RiskExecution{Execution: &orderv1.RiskExecution_MarketIoc{MarketIoc: &orderv1.RiskMarketIoc{}}},
+				},
+				State: &orderv1.AttachedRiskLegState{Status: orderv1.AttachedRiskLegState_CREATED, TriggerId: &triggerID},
+			},
+			StopLoss:     &orderv1.AttachedRiskStopLoss{State: notConfigured},
+			TrailingStop: &orderv1.AttachedRiskTrailingStop{State: notConfigured},
+			Oco:          true,
+		},
+	})
+	risk := order.AttachedRisk
+	if risk == nil || risk.TakeProfit == nil {
+		t.Fatalf("configured take-profit missing: %+v", risk)
+	}
+	if risk.StopLoss != nil || risk.TrailingStop != nil {
+		t.Fatalf("NOT_CONFIGURED legs decoded as legs: stop_loss=%+v trailing_stop=%+v", risk.StopLoss, risk.TrailingStop)
+	}
+	onlyUnconfigured := decode.OrderFromProto(&orderv1.Order{
+		OrderId:      8,
+		AttachedRisk: &orderv1.AttachedRisk{TrailingStop: &orderv1.AttachedRiskTrailingStop{State: notConfigured}},
+	})
+	if onlyUnconfigured.AttachedRisk != nil {
+		t.Fatalf("all-unconfigured attached risk decoded: %+v", onlyUnconfigured.AttachedRisk)
+	}
+}

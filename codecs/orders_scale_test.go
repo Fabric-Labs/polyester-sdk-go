@@ -97,7 +97,7 @@ func TestModifyOrderDecimalQtyNilSymbolValidationError(t *testing.T) {
 		t.Fatal("expected QuantityScaleForSymbol error")
 	}
 	qty := models.QtyFromDecimal("0.25")
-	_, err = ModifyOrderToProto("BTC-USD", 1, models.OrderKeyByID("100"), nil, nil, nil, &qty, nil, nil, scale)
+	_, err = ModifyOrderToProto("BTC-USD", 1, models.OrderKeyByID("100"), nil, nil, nil, &qty, nil, nil, nil, scale)
 	if err == nil {
 		t.Fatal("expected ValidationError for decimal qty without catalog+symbol scale")
 	}

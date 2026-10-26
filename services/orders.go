@@ -289,15 +289,46 @@ func (s *OrdersService) Cancel(ctx context.Context, account AccountScope, key mo
 	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().CancelOrder, req, decode.OrderMutationFromCancel)
 }
 
-// Modify modifies an open order.
+// Modify modifies an open order's price and/or quantity. Use ModifyWith to
+// also replace the order's attached risk.
 func (s *OrdersService) Modify(ctx context.Context, account AccountScope, symbol string, key models.OrderKey, subAccountID, requestID *string, newPrice *models.PriceInput, newQty *models.QtyInput, behavior, newClientOrderID *string) (models.ModifyOrderResult, error) {
+	return s.ModifyWith(ctx, account, ModifyParams{
+		Symbol:           symbol,
+		Key:              key,
+		SubAccountID:     subAccountID,
+		RequestID:        requestID,
+		NewPrice:         newPrice,
+		NewQty:           newQty,
+		Behavior:         behavior,
+		NewClientOrderID: newClientOrderID,
+	})
+}
+
+// ModifyParams is the expanded modify input. Set at least one of NewPrice,
+// NewQty, or NewAttachedRisk. NewAttachedRisk replaces the order's attached
+// take-profit, stop-loss, or trailing-stop policy.
+type ModifyParams struct {
+	Symbol           string
+	Key              models.OrderKey
+	SubAccountID     *string
+	RequestID        *string
+	NewPrice         *models.PriceInput
+	NewQty           *models.QtyInput
+	NewAttachedRisk  *models.AttachedRiskInput
+	Behavior         *string
+	NewClientOrderID *string
+}
+
+// ModifyWith modifies an open order from the expanded parameter set.
+func (s *OrdersService) ModifyWith(ctx context.Context, account AccountScope, params ModifyParams) (models.ModifyOrderResult, error) {
 	if err := s.ensureCatalogs(ctx); err != nil {
 		return models.ModifyOrderResult{}, err
 	}
-	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
+	sub, err := s.scoped.ResolveSubAccountID(params.SubAccountID, account)
 	if err != nil {
 		return models.ModifyOrderResult{}, err
 	}
+	symbol := params.Symbol
 	resolvedSymbolID, err := ResolveSymbolID(s.catalogs, &symbol, nil, "orders.modify")
 	if err != nil {
 		return models.ModifyOrderResult{}, err
@@ -306,7 +337,10 @@ func (s *OrdersService) Modify(ctx context.Context, account AccountScope, symbol
 	if err != nil {
 		return models.ModifyOrderResult{}, err
 	}
-	protoReq, err := codecs.ModifyOrderToProto(symbol, resolvedSymbolID, key, sub, requestID, newPrice, newQty, behavior, newClientOrderID, scale)
+	protoReq, err := codecs.ModifyOrderToProto(
+		symbol, resolvedSymbolID, params.Key, sub, params.RequestID,
+		params.NewPrice, params.NewQty, params.NewAttachedRisk, params.Behavior, params.NewClientOrderID, scale,
+	)
 	if err != nil {
 		return models.ModifyOrderResult{}, err
 	}
