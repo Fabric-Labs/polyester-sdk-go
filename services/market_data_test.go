@@ -39,3 +39,12 @@ func TestCurrentCandleSelectsFirstNewestRow(t *testing.T) {
 		t.Fatalf("currentCandle() = %+v, want first/newest row", got)
 	}
 }
+
+func TestResolveCandleChannelTimeframeAcceptsPublishedIntervals(t *testing.T) {
+	for alias, want := range map[string]string{"3m": "3m", "MIN_3": "3m", "2h": "2h", "HOUR_6": "6h", "8h": "8h", "DAY_3": "3d"} {
+		got, err := resolveCandleChannelTimeframe(alias)
+		if err != nil || got != want {
+			t.Fatalf("resolveCandleChannelTimeframe(%q) = %q, %v; want %q", alias, got, err, want)
+		}
+	}
+}

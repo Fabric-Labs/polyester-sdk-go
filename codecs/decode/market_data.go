@@ -126,7 +126,9 @@ var timeframeLabels = map[marketdatav1.Timeframe]string{
 	marketdatav1.Timeframe_MIN_30: "30m", marketdatav1.Timeframe_HOUR_1: "1h",
 	marketdatav1.Timeframe_HOUR_4: "4h", marketdatav1.Timeframe_HOUR_12: "12h",
 	marketdatav1.Timeframe_DAY_1: "1d", marketdatav1.Timeframe_WEEK_1: "1w",
-	marketdatav1.Timeframe_MONTH_1: "1mo",
+	marketdatav1.Timeframe_MONTH_1: "1mo", marketdatav1.Timeframe_MIN_3: "3m",
+	marketdatav1.Timeframe_HOUR_2: "2h", marketdatav1.Timeframe_HOUR_6: "6h",
+	marketdatav1.Timeframe_HOUR_8: "8h", marketdatav1.Timeframe_DAY_3: "3d",
 }
 
 // CandlesColumnsFromProto decodes columnar candle responses into rows.
