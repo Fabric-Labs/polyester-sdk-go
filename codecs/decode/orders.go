@@ -94,8 +94,11 @@ func attachedRiskLegStateFromProto(state *orderv1.AttachedRiskLegState) *models.
 	return out
 }
 
+// hasMeaningfulAttachedRiskLegState reports whether a leg's runtime state
+// describes a configured leg. NOT_CONFIGURED means the parent has no such leg.
 func hasMeaningfulAttachedRiskLegState(state *orderv1.AttachedRiskLegState) bool {
 	return state != nil &&
+		state.GetStatus() != orderv1.AttachedRiskLegState_NOT_CONFIGURED &&
 		(state.GetStatus() != orderv1.AttachedRiskLegState_STATUS_UNSPECIFIED ||
 			state.GetArmedTsNs() != 0 ||
 			state.GetTerminalTsNs() != 0 ||

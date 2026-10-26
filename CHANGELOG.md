@@ -11,6 +11,11 @@
 - Trigger events label standalone trailing-stop activation as `activated`,
   and `TriggerEventTypeFromLabel` accepts `activated` as a filter.
 
+### Fixed
+- Order reads no longer report an attached-risk leg whose state is
+  `not_configured`; the server sends that state for a leg the order
+  does not have.
+
 ### Changed
 - **Breaking:** `CreateOrderRequest.AttachedRisk` is `*models.AttachedRiskInput`
   instead of `map[string]any`; the map was always rejected.
