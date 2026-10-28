@@ -330,8 +330,8 @@ func mustEnvironment(params CreateEnvironmentParams) PolyesterEnvironment {
 // plus zipper catalog extras (funding / guard / zipper endpoint).
 var PolyesterDevnetEnvironment = mustEnvironment(CreateEnvironmentParams{
 	Name:         "polyester-devnet",
-	APIURL:       "https://api-devnet.polyester.ai",
-	WebsocketURL: "wss://api-devnet.polyester.ai",
+	APIURL:       "https://api.devnet.polyester.com",
+	WebsocketURL: "wss://api.devnet.polyester.com",
 	RPCURL:       "https://rpc.polyester.tech",
 	ChainID:      888168,
 	ChainName:    "Polyester Chain Devnet",
@@ -365,8 +365,8 @@ var PolyesterDevnetEnvironment = mustEnvironment(CreateEnvironmentParams{
 // plus zipper catalog extras.
 var PolyesterTestnetEnvironment = mustEnvironment(CreateEnvironmentParams{
 	Name:         "polyester-testnet",
-	APIURL:       "https://api-testnet.polyester.com",
-	WebsocketURL: "wss://api-testnet.polyester.com",
+	APIURL:       "https://api.testnet.polyester.com",
+	WebsocketURL: "wss://api.testnet.polyester.com",
 	RPCURL:       "https://rpc.polyester.live",
 	ChainID:      888169,
 	ChainName:    "Polyester Chain Testnet",

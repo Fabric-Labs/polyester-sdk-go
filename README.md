@@ -248,7 +248,7 @@ credentials are not exposed in formatted configuration.
 
 Pass `Config.Environment` so API, websocket, RPC, and contract pins stay
 together. `DevnetEnvironment` is the `New` default. `TestnetEnvironment` targets
-public testnet (`api-testnet.polyester.com`, chain `888169`). Custom / VPC
+public testnet (`api.testnet.polyester.com`, chain `888169`). Custom / VPC
 endpoints use `CreateEnvironment` or `Environment.WithURLs`. `APIURL` / `WSURL`
 remain as transport overrides.
 
