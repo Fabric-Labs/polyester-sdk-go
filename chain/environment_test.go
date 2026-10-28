@@ -7,8 +7,8 @@ func TestDevnetPresetMatchesTypeScriptAndZipperExtras(t *testing.T) {
 	if env.Name != "polyester-devnet" {
 		t.Fatalf("name=%s", env.Name)
 	}
-	if env.APIURL != "https://api-devnet.polyester.ai" || env.ChainID != 888168 {
-		t.Fatalf("devnet urls/chain: %s %d", env.APIURL, env.ChainID)
+	if env.APIURL != "https://api.devnet.polyester.com" || env.WebsocketURL != "wss://api.devnet.polyester.com" || env.ChainID != 888168 {
+		t.Fatalf("devnet urls/chain: %s %s %d", env.APIURL, env.WebsocketURL, env.ChainID)
 	}
 	if env.Contracts.TradingGatewayAddress != "0xD3fecf5D39131e23b6B0f872cA0a21c8A5a30932" {
 		t.Fatalf("trading gateway=%s", env.Contracts.TradingGatewayAddress)
@@ -23,8 +23,8 @@ func TestTestnetPresetMatchesTypeScriptAndZipperExtras(t *testing.T) {
 	if env.Name != "polyester-testnet" || env.ChainID != 888169 {
 		t.Fatalf("testnet %s %d", env.Name, env.ChainID)
 	}
-	if env.APIURL != "https://api-testnet.polyester.com" {
-		t.Fatalf("api=%s", env.APIURL)
+	if env.APIURL != "https://api.testnet.polyester.com" || env.WebsocketURL != "wss://api.testnet.polyester.com" {
+		t.Fatalf("urls: %s %s", env.APIURL, env.WebsocketURL)
 	}
 	if env.Contracts.TradingGatewayAddress != "0x20ef1BCeE69D73Ce1649E688dAA9A7AcF441f0EE" {
 		t.Fatalf("trading gateway=%s", env.Contracts.TradingGatewayAddress)
