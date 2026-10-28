@@ -37,8 +37,8 @@ func WireFormatFromString(value string) connectx.WireFormat {
 // DefaultConfig returns devnet defaults.
 func DefaultConfig() Config {
 	return Config{
-		APIURL:     "https://api-devnet.polyester.ai",
-		WSURL:      "wss://api-devnet.polyester.ai",
+		APIURL:     "https://api.devnet.polyester.com",
+		WSURL:      "wss://api.devnet.polyester.com",
 		Timeout:    10 * time.Second,
 		WireFormat: connectx.WireBinary,
 	}

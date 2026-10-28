@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Fixed
+- `TestnetEnvironment` and `EnvironmentFromName("testnet")` now use
+  `https://api.testnet.polyester.com` and `wss://api.testnet.polyester.com`.
+  Earlier versions pointed at `api-testnet.polyester.com`, which does not
+  exist, so every testnet call failed with a DNS error. The devnet preset and
+  `transport.DefaultConfig` now use the documented `api.devnet.polyester.com`
+  host.
+
 ## 0.1.0-alpha.56
 
 Git tag: `v0.1.0-alpha.56`.

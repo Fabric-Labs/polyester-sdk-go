@@ -8,7 +8,7 @@ type Environment = chain.PolyesterEnvironment
 var (
 	// DevnetEnvironment is the default client / chain-helper network.
 	DevnetEnvironment = chain.PolyesterDevnetEnvironment
-	// TestnetEnvironment is public testnet (api-testnet.polyester.com, chain 888169).
+	// TestnetEnvironment is public testnet (api.testnet.polyester.com, chain 888169).
 	TestnetEnvironment = chain.PolyesterTestnetEnvironment
 )
 
