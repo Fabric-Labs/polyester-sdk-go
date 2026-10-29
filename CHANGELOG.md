@@ -2,7 +2,45 @@
 
 ## Unreleased
 
+### Added
+- Attached take-profit, stop-loss and trailing-stop legs and standalone
+  stop-loss, take-profit and trailing-stop triggers can watch the market's
+  index price: set `RiskLegInput.TriggerPriceSource` or
+  `TrailingStopInput.TriggerPriceSource`, or pass `triggerPriceSource` to
+  `Triggers.Create`, as `"index"` (or `"last"`, the default when empty).
+  Other values are refused with a validation error. Order reads now report
+  each attached leg's `TriggerPriceSource` with the same labels, so a leg
+  read back can be sent again unchanged.
+- `CancelAllOrdersResult.ListingStatus`: `included`, or
+  `not_retained_read_open_orders` on a retry with the same request ID within
+  120 seconds, which returns the original counts with an empty
+  `CancelledOrders`. An empty retried list does not mean nothing was
+  canceled; read open orders for current state.
+- `CancelAllAfterResult.EffectiveScope` (`models.DeadManSwitchScope`: account
+  ID, symbol ID and side) describes the armed switch; nil when disabled.
+- `GetOrderResult.ExecutionsComplete` is true when the order's trades across
+  every page add up to its filled quantity, and false while a recent
+  execution is still being recorded.
+- `LifecycleFlowSummary.IsDelayed` is true when an open flow has made no
+  progress for well beyond its expected step time.
+- `realtime.OrderStale.OrderIDs` names the orders that are temporarily not
+  current when `Reason` is `order_unavailable`; the rest of the view stays
+  current and units keep arriving. A later `OrderStale` replaces the reason
+  and IDs, and consumers that join a running subscription receive them.
+- `errors.AuthCodeTemporarilyUnavailable` (`AUTH_TEMPORARILY_UNAVAILABLE`).
+
+### Changed
+- `errors.MutationOutcomeUnknown` reports true for
+  `ERROR_CODE_ORDER_CREATE_OUTCOME_UNKNOWN` and
+  `ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN`: a create sent but not
+  confirmed in time may have been accepted, so read the order or trigger back
+  before retrying.
+- `errors.IsRetryable` reports true for `AUTH_TEMPORARILY_UNAVAILABLE`: the
+  request changed nothing; retry the same request.
+
 ### Fixed
+- The lifecycle reason `DEPOSIT_SOURCE_NOT_CONFIRMED` reads as
+  `deposit_source_not_confirmed` instead of `unknown_reason_400`.
 - `TestnetEnvironment` and `EnvironmentFromName("testnet")` now use
   `https://api.testnet.polyester.com` and `wss://api.testnet.polyester.com`.
   Earlier versions pointed at `api-testnet.polyester.com`, which does not

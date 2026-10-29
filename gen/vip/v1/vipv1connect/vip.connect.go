@@ -43,6 +43,7 @@ const (
 type VIPServiceClient interface {
 	// List the complete active VIP0 through VIP10 tier catalog in ascending tier
 	// order.
+	// This public, caller-independent catalog supports cacheable ConnectRPC GET.
 	ListVIPTiers(context.Context, *connect.Request[v1.ListVIPTiersRequest]) (*connect.Response[v1.ListVIPTiersResponse], error)
 	// Get VIP qualification status for the authenticated caller's root account.
 	GetVIPStatus(context.Context, *connect.Request[v1.GetVIPStatusRequest]) (*connect.Response[v1.GetVIPStatusResponse], error)
@@ -63,6 +64,7 @@ func NewVIPServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			httpClient,
 			baseURL+VIPServiceListVIPTiersProcedure,
 			connect.WithSchema(vIPServiceMethods.ByName("ListVIPTiers")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		getVIPStatus: connect.NewClient[v1.GetVIPStatusRequest, v1.GetVIPStatusResponse](
@@ -94,6 +96,7 @@ func (c *vIPServiceClient) GetVIPStatus(ctx context.Context, req *connect.Reques
 type VIPServiceHandler interface {
 	// List the complete active VIP0 through VIP10 tier catalog in ascending tier
 	// order.
+	// This public, caller-independent catalog supports cacheable ConnectRPC GET.
 	ListVIPTiers(context.Context, *connect.Request[v1.ListVIPTiersRequest]) (*connect.Response[v1.ListVIPTiersResponse], error)
 	// Get VIP qualification status for the authenticated caller's root account.
 	GetVIPStatus(context.Context, *connect.Request[v1.GetVIPStatusRequest]) (*connect.Response[v1.GetVIPStatusResponse], error)
@@ -110,6 +113,7 @@ func NewVIPServiceHandler(svc VIPServiceHandler, opts ...connect.HandlerOption) 
 		VIPServiceListVIPTiersProcedure,
 		svc.ListVIPTiers,
 		connect.WithSchema(vIPServiceMethods.ByName("ListVIPTiers")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	vIPServiceGetVIPStatusHandler := connect.NewUnaryHandler(

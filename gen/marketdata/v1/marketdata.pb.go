@@ -192,6 +192,9 @@ const (
 	PairStatus_PAIR_STATUS_POST_ONLY PairStatus = 4
 	// New spot orders are blocked by reduce-only policy.
 	PairStatus_PAIR_STATUS_REDUCE_ONLY PairStatus = 5
+	// Trading is halted: only cancellations are accepted, and new orders are
+	// rejected with MARKET_HALTED.
+	PairStatus_PAIR_STATUS_HALTED PairStatus = 6
 )
 
 // Enum value maps for PairStatus.
@@ -203,6 +206,7 @@ var (
 		3: "PAIR_STATUS_CANCEL_ONLY",
 		4: "PAIR_STATUS_POST_ONLY",
 		5: "PAIR_STATUS_REDUCE_ONLY",
+		6: "PAIR_STATUS_HALTED",
 	}
 	PairStatus_value = map[string]int32{
 		"PAIR_STATUS_UNSPECIFIED": 0,
@@ -211,6 +215,7 @@ var (
 		"PAIR_STATUS_CANCEL_ONLY": 3,
 		"PAIR_STATUS_POST_ONLY":   4,
 		"PAIR_STATUS_REDUCE_ONLY": 5,
+		"PAIR_STATUS_HALTED":      6,
 	}
 )
 
@@ -916,18 +921,27 @@ func (x *GetCandlesColumnsRequest) GetPageToken() string {
 
 // CandlePoint is one OHLCV bucket represented with scaled integers.
 //
+// A primary candle opens at the previous candle's close, so consecutive
+// candles join at every timeframe; a market's first candle opens at its first
+// trade. High and low include the open. A bucket without trades is flat at
+// the previous close with zero volume.
+//
 // REST responses render these values as decimal strings in tuple order:
 // [ts_sec, open, high, low, close, volume, quote_volume].
 type CandlePoint struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Candle bucket start timestamp, in seconds since epoch (UTC).
 	TsSec uint64 `protobuf:"varint,1,opt,name=ts_sec,json=tsSec,proto3" json:"ts_sec,omitempty"`
-	// Opening price in quote units. Primary candles use scale 9; composite
-	// reference candles use the pair's reference_price_scale from GetSpotConfig.
+	// Opening price in quote units: for a primary candle, the previous
+	// candle's close, or the first trade for a market's first candle. Primary
+	// candles use scale 9; composite reference candles use the pair's
+	// reference_price_scale from GetSpotConfig.
 	Open int64 `protobuf:"varint,2,opt,name=open,proto3" json:"open,omitempty"`
-	// Highest traded price, using the same scale as open.
+	// Highest price in the bucket, including the open, using the same scale as
+	// open.
 	High int64 `protobuf:"varint,3,opt,name=high,proto3" json:"high,omitempty"`
-	// Lowest traded price, using the same scale as open.
+	// Lowest price in the bucket, including the open, using the same scale as
+	// open.
 	Low int64 `protobuf:"varint,4,opt,name=low,proto3" json:"low,omitempty"`
 	// Closing price, using the same scale as open.
 	Close int64 `protobuf:"varint,5,opt,name=close,proto3" json:"close,omitempty"`
@@ -1129,14 +1143,15 @@ type GetCandlesColumnsResponse struct {
 	Timeframe Timeframe `protobuf:"varint,2,opt,name=timeframe,proto3,enum=marketdata.v1.Timeframe" json:"timeframe,omitempty"`
 	// Candle bucket start timestamps (seconds since epoch, UTC).
 	TsSec []uint64 `protobuf:"varint,3,rep,packed,name=ts_sec,json=tsSec,proto3" json:"ts_sec,omitempty"`
-	// Opening primary-market prices use scale 9. Reference prices use the pair's
-	// reference_price_scale from GetSpotConfig.
+	// Opening primary-market prices use scale 9: each is the previous candle's
+	// close, or the first trade for a market's first candle. Reference prices
+	// use the pair's reference_price_scale from GetSpotConfig.
 	Open []int64 `protobuf:"varint,4,rep,packed,name=open,proto3" json:"open,omitempty"`
-	// Highest primary-market prices use scale 9. Reference prices use the pair's
-	// reference_price_scale from GetSpotConfig.
+	// Highest primary-market prices, including the open, use scale 9. Reference
+	// prices use the pair's reference_price_scale from GetSpotConfig.
 	High []int64 `protobuf:"varint,5,rep,packed,name=high,proto3" json:"high,omitempty"`
-	// Lowest primary-market prices use scale 9. Reference prices use the pair's
-	// reference_price_scale from GetSpotConfig.
+	// Lowest primary-market prices, including the open, use scale 9. Reference
+	// prices use the pair's reference_price_scale from GetSpotConfig.
 	Low []int64 `protobuf:"varint,6,rep,packed,name=low,proto3" json:"low,omitempty"`
 	// Closing primary-market prices use scale 9. Reference prices use the pair's
 	// reference_price_scale from GetSpotConfig.
@@ -1314,10 +1329,12 @@ type Candle struct {
 	SymbolId  uint32                 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`                // numeric spot market identifier
 	Timeframe Timeframe              `protobuf:"varint,2,opt,name=timeframe,proto3,enum=marketdata.v1.Timeframe" json:"timeframe,omitempty"` // timeframe of this candle
 	TsSec     uint64                 `protobuf:"varint,3,opt,name=ts_sec,json=tsSec,proto3" json:"ts_sec,omitempty"`                         // bucket start timestamp (seconds since epoch, UTC)
-	Open      int64                  `protobuf:"varint,4,opt,name=open,proto3" json:"open,omitempty"`                                        // opening primary-market price in scale 9
-	High      int64                  `protobuf:"varint,5,opt,name=high,proto3" json:"high,omitempty"`                                        // highest primary-market price in scale 9
-	Low       int64                  `protobuf:"varint,6,opt,name=low,proto3" json:"low,omitempty"`                                          // lowest primary-market price in scale 9
-	Close     int64                  `protobuf:"varint,7,opt,name=close,proto3" json:"close,omitempty"`                                      // closing primary-market price in scale 9
+	// Opening primary-market price in scale 9: the previous candle's close, or
+	// the first trade for a market's first candle.
+	Open  int64 `protobuf:"varint,4,opt,name=open,proto3" json:"open,omitempty"`
+	High  int64 `protobuf:"varint,5,opt,name=high,proto3" json:"high,omitempty"`   // highest primary-market price in scale 9, including the open
+	Low   int64 `protobuf:"varint,6,opt,name=low,proto3" json:"low,omitempty"`     // lowest primary-market price in scale 9, including the open
+	Close int64 `protobuf:"varint,7,opt,name=close,proto3" json:"close,omitempty"` // closing primary-market price in scale 9
 	// Traded base-asset quantity scaled by the base asset's
 	// market_data_volume_scale from GetSpotConfig.
 	Volume int64 `protobuf:"varint,8,opt,name=volume,proto3" json:"volume,omitempty"`
@@ -2063,7 +2080,7 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\n" +
 	"\x06WEEK_1\x10\n" +
 	"\x12\v\n" +
-	"\aMONTH_1\x10\v*\xb1\x01\n" +
+	"\aMONTH_1\x10\v*\xc9\x01\n" +
 	"\n" +
 	"PairStatus\x12\x1b\n" +
 	"\x17PAIR_STATUS_UNSPECIFIED\x10\x00\x12\x17\n" +
@@ -2071,7 +2088,8 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\x14PAIR_STATUS_DISABLED\x10\x02\x12\x1b\n" +
 	"\x17PAIR_STATUS_CANCEL_ONLY\x10\x03\x12\x19\n" +
 	"\x15PAIR_STATUS_POST_ONLY\x10\x04\x12\x1b\n" +
-	"\x17PAIR_STATUS_REDUCE_ONLY\x10\x052\x96\x03\n" +
+	"\x17PAIR_STATUS_REDUCE_ONLY\x10\x05\x12\x16\n" +
+	"\x12PAIR_STATUS_HALTED\x10\x062\x96\x03\n" +
 	"\x11MarketDataService\x12T\n" +
 	"\tGetTrades\x12\x1f.marketdata.v1.GetTradesRequest\x1a .marketdata.v1.GetTradesResponse\"\x04\x88\xb5\x18\x01\x12W\n" +
 	"\n" +

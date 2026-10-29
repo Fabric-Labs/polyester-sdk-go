@@ -327,12 +327,15 @@ first attempt admitted the order. After an unknown outcome, look up that id
 is rejected (`CONFLICT_DUPLICATE_CLIENT_ORDER_ID`) even when the payload
 matches. Only create again with that id if reconciliation shows the first
 attempt did not admit.
-A cancel or modify that the server sent but could not confirm in time fails
-with `ERROR_CODE_ORDER_CANCEL_OUTCOME_UNKNOWN` or
-`ERROR_CODE_ORDER_MODIFY_OUTCOME_UNKNOWN`: `errors.MutationOutcomeUnknown`
-reports true, so read the order back before retrying.
-`ERROR_CODE_ACCOUNT_REPAIRING` changed nothing and `errors.IsRetryable`
-reports true: try again shortly.
+A create, cancel or modify that the server sent but could not confirm in time
+fails with `ERROR_CODE_ORDER_CREATE_OUTCOME_UNKNOWN`,
+`ERROR_CODE_ORDER_CANCEL_OUTCOME_UNKNOWN` or
+`ERROR_CODE_ORDER_MODIFY_OUTCOME_UNKNOWN`, and a trigger create with
+`ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN`: the order or trigger may exist.
+`errors.MutationOutcomeUnknown` reports true, so read it back (by client order
+ID or client trigger ID) before retrying.
+`ERROR_CODE_ACCOUNT_REPAIRING` and `AUTH_TEMPORARILY_UNAVAILABLE` changed
+nothing and `errors.IsRetryable` reports true: retry the same request shortly.
 Client order ids accept 1 to 36 ASCII letters, digits, `.`, `_`, `:`, `/`, and
 `-`. Batch create, cancel, and replace accept at most 20 items (rejected locally
 before encoding). `BatchCreate` always sends `request_id` (caller value or a
@@ -345,7 +348,12 @@ reconcile with `ListOpen` before releasing local state.
 the orders whose cancellation was requested, oldest first and at most 200,
 with `TotalCancelled` and `Truncated` when more were canceled. Each moves to
 `canceled` asynchronously; the order stream and order reads report every
-one. A dry run lists none.
+one. A dry run lists none. Retrying with the same request ID within 120
+seconds returns the original status and counts with an empty
+`CancelledOrders` and `ListingStatus` `not_retained_read_open_orders`
+(`included` otherwise): the empty list does not mean nothing was canceled.
+Read open orders for current state. `Orders.CancelAllAfter` reports the
+armed switch's scope as `EffectiveScope` (nil when disabled).
 
 Use **decimal strings** for human-facing `qty` / `price` inputs. Do **not** pass
 floats. `PriceTicks.Ticks()` returns Polyester protocol price units (fixed 1e9),
@@ -498,6 +506,15 @@ created, err := client.Orders.Create(ctx, models.CreateOrderRequest{
     Symbol: &symbol, Side: "buy", OrderType: "limit",
     Qty: models.QtyFromDecimal("0.001"), Price: &price, AttachedRisk: oco,
 }, nil)
+```
+
+Each leg watches the last traded price by default. Set `TriggerPriceSource`
+to `"index"` on a `RiskLegInput` or `TrailingStopInput` to watch the market's
+index price instead; on a market without an index price the order is
+rejected. Reads report the source with the same labels (`"last"`,
+`"index"`), so a leg read back can be sent again unchanged.
+
+```go
 // created.TakeProfitTriggerID, created.StopLossTriggerID
 _, err = client.Orders.ModifyWith(ctx, nil, services.ModifyParams{
     Symbol: symbol, Key: models.OrderKeyByID(created.OrderID),
@@ -514,7 +531,7 @@ trails the highest price since arming (`Details.PeakPrice`) and fires on a
 fall; a buy trails the lowest (`Details.TroughPrice`) and fires on a rise. A
 buy requires `limitPrice`, its maximum price: the most the child pays per
 unit, which also sizes the funds set aside for it. It must be at least the
-activation price, or the last trade price when there is none, and a rise
+activation price, or the price it watches when there is none, and a rise
 that fires above it still fires, with the child filling only at or below
 it. A sell refuses `limitPrice`.
 
@@ -525,6 +542,12 @@ trigger, err := client.Triggers.Create(ctx, nil, "BTC-USDT", "trailing_stop",
 	nil, "buy", models.QtyFromDecimal("0.01"), "market", &maxPrice, "", "",
 	nil, nil, false, codecs.CreateTriggerOptions{TrailingDistanceBps: &distanceBps})
 ```
+
+Stop-loss, take-profit and trailing-stop creates take `triggerPriceSource`:
+`"last"` (the default when empty) watches the last traded price and
+`"index"` the market's index price, where a market without one fails the
+trigger with `index_price_unavailable`. It is fixed at create and reads back
+as `Details.TriggerPriceSource`.
 
 List/get projections use the wire side (attached trailing stops may be buy
 or sell, opposite the parent); a buy's maximum price reads back as
@@ -764,7 +787,8 @@ for event := range sub.Messages() {
 		// Before ready, an order absent from the map may still exist.
 		fmt.Println("live orders", len(orders), "complete", ready)
 	case realtime.OrderStale:
-		log.Printf("account view stale=%v %s", e.Stale, e.Reason)
+		// With reason order_unavailable only e.OrderIDs are behind.
+		log.Printf("account view stale=%v %s %v", e.Stale, e.Reason, e.OrderIDs)
 	case realtime.OrderStreamDisconnected:
 		ready = false // until the replacement subscription reports OrderReady
 		log.Print("order stream disconnected; resuming")

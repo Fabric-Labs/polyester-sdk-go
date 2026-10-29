@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -115,4 +116,23 @@ func TriggerPriceSourceName(v orderv1.TriggerPriceSource) string {
 	default:
 		return ""
 	}
+}
+
+var triggerPriceSourceToProtoMap = map[string]orderv1.TriggerPriceSource{
+	"last":  orderv1.TriggerPriceSource_LAST_PRICE,
+	"index": orderv1.TriggerPriceSource_INDEX_PRICE,
+	"mark":  orderv1.TriggerPriceSource_MARK_PRICE,
+}
+
+// triggerPriceSourceToProto parses a TriggerPriceSourceName label. Empty
+// sends nothing, which the server reads as the last traded price.
+func triggerPriceSourceToProto(label, fieldName string) (orderv1.TriggerPriceSource, error) {
+	if label == "" {
+		return orderv1.TriggerPriceSource_TRIGGER_PRICE_SOURCE_UNSPECIFIED, nil
+	}
+	source, ok := triggerPriceSourceToProtoMap[strings.ToLower(label)]
+	if !ok {
+		return orderv1.TriggerPriceSource_TRIGGER_PRICE_SOURCE_UNSPECIFIED, &errors.ValidationError{Msg: fieldName + " must be last, index, or mark"}
+	}
+	return source, nil
 }

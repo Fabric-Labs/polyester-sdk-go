@@ -108,6 +108,10 @@ const (
 	LifecycleReason_TRADING_WITHDRAW_CONTRACT_REVERTED LifecycleReason = 301
 	// A trading withdrawal could not be submitted because execution failed.
 	LifecycleReason_TRADING_WITHDRAW_EXECUTION_FAILED LifecycleReason = 302
+	// The deposit's source transaction was not confirmed on its chain within the
+	// time the chain keeps an unconfirmed transaction pending. The deposit
+	// resumes and completes if the transaction confirms later.
+	LifecycleReason_DEPOSIT_SOURCE_NOT_CONFIRMED LifecycleReason = 400
 )
 
 // Enum value maps for LifecycleReason.
@@ -126,6 +130,7 @@ var (
 		300: "TRADING_WITHDRAW_POLICY_DENIED",
 		301: "TRADING_WITHDRAW_CONTRACT_REVERTED",
 		302: "TRADING_WITHDRAW_EXECUTION_FAILED",
+		400: "DEPOSIT_SOURCE_NOT_CONFIRMED",
 	}
 	LifecycleReason_value = map[string]int32{
 		"REASON_UNSPECIFIED":                       0,
@@ -141,6 +146,7 @@ var (
 		"TRADING_WITHDRAW_POLICY_DENIED":           300,
 		"TRADING_WITHDRAW_CONTRACT_REVERTED":       301,
 		"TRADING_WITHDRAW_EXECUTION_FAILED":        302,
+		"DEPOSIT_SOURCE_NOT_CONFIRMED":             400,
 	}
 )
 
@@ -306,6 +312,10 @@ const (
 	LifecycleSource_SOURCE_EXECUTOR LifecycleSource = 3
 	// Off-chain ledger posting or settlement fact.
 	LifecycleSource_SOURCE_LEDGER LifecycleSource = 4
+	// Lifecycle tracking itself, for an outcome it concludes when expected
+	// progress does not arrive in time, such as an unconfirmed deposit source
+	// transaction.
+	LifecycleSource_SOURCE_LIFECYCLE LifecycleSource = 5
 )
 
 // Enum value maps for LifecycleSource.
@@ -316,6 +326,7 @@ var (
 		2: "SOURCE_POLYESTER_CHAIN",
 		3: "SOURCE_EXECUTOR",
 		4: "SOURCE_LEDGER",
+		5: "SOURCE_LIFECYCLE",
 	}
 	LifecycleSource_value = map[string]int32{
 		"SOURCE_UNSPECIFIED":     0,
@@ -323,6 +334,7 @@ var (
 		"SOURCE_POLYESTER_CHAIN": 2,
 		"SOURCE_EXECUTOR":        3,
 		"SOURCE_LEDGER":          4,
+		"SOURCE_LIFECYCLE":       5,
 	}
 )
 
@@ -580,7 +592,7 @@ const file_chain_lifecycle_v1_types_proto_rawDesc = "" +
 	"\x10RequestFeeStatus\x12\"\n" +
 	"\x1eREQUEST_FEE_STATUS_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19REQUEST_FEE_STATUS_LOCKED\x10\x01\x12\x1e\n" +
-	"\x1aREQUEST_FEE_STATUS_SETTLED\x10\x02*\xf2\x03\n" +
+	"\x1aREQUEST_FEE_STATUS_SETTLED\x10\x02*\x95\x04\n" +
 	"\x0fLifecycleReason\x12\x16\n" +
 	"\x12REASON_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aZIPPER_VALIDATION_REJECTED\x10e\x12\x1d\n" +
@@ -594,7 +606,8 @@ const file_chain_lifecycle_v1_types_proto_rawDesc = "" +
 	"(LEDGER_MIRROR_TRANSFER_ID_ALREADY_FAILED\x10\xcc\x01\x12#\n" +
 	"\x1eTRADING_WITHDRAW_POLICY_DENIED\x10\xac\x02\x12'\n" +
 	"\"TRADING_WITHDRAW_CONTRACT_REVERTED\x10\xad\x02\x12&\n" +
-	"!TRADING_WITHDRAW_EXECUTION_FAILED\x10\xae\x02*X\n" +
+	"!TRADING_WITHDRAW_EXECUTION_FAILED\x10\xae\x02\x12!\n" +
+	"\x1cDEPOSIT_SOURCE_NOT_CONFIRMED\x10\x90\x03*X\n" +
 	"\bFlowKind\x12\x14\n" +
 	"\x10KIND_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fKIND_DEPOSIT\x10\x01\x12\x11\n" +
@@ -607,13 +620,14 @@ const file_chain_lifecycle_v1_types_proto_rawDesc = "" +
 	"\rDOMAIN_ZIPPER\x10\x02\x12\x12\n" +
 	"\x0eDOMAIN_FUNDING\x10\x03\x12\x12\n" +
 	"\x0eDOMAIN_TRADING\x10\x04\x12\x12\n" +
-	"\x0eDOMAIN_LENDING\x10\x05*\x81\x01\n" +
+	"\x0eDOMAIN_LENDING\x10\x05*\x97\x01\n" +
 	"\x0fLifecycleSource\x12\x16\n" +
 	"\x12SOURCE_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eSOURCE_RELAYER\x10\x01\x12\x1a\n" +
 	"\x16SOURCE_POLYESTER_CHAIN\x10\x02\x12\x13\n" +
 	"\x0fSOURCE_EXECUTOR\x10\x03\x12\x11\n" +
-	"\rSOURCE_LEDGER\x10\x04*\xc7\x01\n" +
+	"\rSOURCE_LEDGER\x10\x04\x12\x14\n" +
+	"\x10SOURCE_LIFECYCLE\x10\x05*\xc7\x01\n" +
 	"\tFlowState\x12\x15\n" +
 	"\x11STATE_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14STATE_PENDING_SOURCE\x10\x01\x12!\n" +

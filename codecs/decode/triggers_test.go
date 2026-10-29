@@ -385,3 +385,57 @@ func TestTriggerReadPathsDistinguishMarketChildCaps(t *testing.T) {
 		}
 	}
 }
+
+func TestTriggerTerminalReasonsNameNewValues(t *testing.T) {
+	cancels := []struct {
+		reason triggersv1.TriggerCancelReason
+		want   string
+	}{
+		{triggersv1.TriggerCancelReason_TRIGGER_CANCEL_REASON_ACCOUNT_REPAIR, "account_repair"},
+		{triggersv1.TriggerCancelReason_TRIGGER_CANCEL_REASON_PAIR_DRAIN_TRIGGER, "pair_drain_trigger"},
+		{triggersv1.TriggerCancelReason_TRIGGER_CANCEL_REASON_PAIR_DRAIN_TWAP, "pair_drain_twap"},
+		{triggersv1.TriggerCancelReason_TRIGGER_CANCEL_REASON_PAIR_DRAIN_LADDER, "pair_drain_ladder"},
+		{triggersv1.TriggerCancelReason_TRIGGER_CANCEL_REASON_PAIR_DRAIN_ATTACHED_LEG, "pair_drain_attached_leg"},
+	}
+	for _, tc := range cancels {
+		t.Run(tc.want, func(t *testing.T) {
+			event := decode.TriggerEventMessageFromProto(&triggersv1.TriggerEvent{
+				TriggerId:      1,
+				EventType:      triggersv1.TriggerEventType_EVENT_CANCELED,
+				TerminalReason: &triggersv1.TriggerEvent_CancelReason{CancelReason: tc.reason},
+			})
+			trigger := decode.TriggerFromProto(&triggersv1.Trigger{
+				TriggerId:      1,
+				Status:         triggersv1.TriggerStatus_STATUS_CANCELED,
+				TerminalReason: &triggersv1.Trigger_CancelReason{CancelReason: tc.reason},
+			})
+			if event.CancelReason != tc.want || trigger.CancelReason != tc.want {
+				t.Fatalf("event=%q trigger=%q want %q", event.CancelReason, trigger.CancelReason, tc.want)
+			}
+		})
+	}
+	failures := []struct {
+		reason triggersv1.TriggerFailureReason
+		want   string
+	}{
+		{triggersv1.TriggerFailureReason_TRIGGER_FAILURE_REASON_INDEX_PRICE_UNAVAILABLE, "index_price_unavailable"},
+		{triggersv1.TriggerFailureReason_TRIGGER_FAILURE_REASON_TRIGGER_WOULD_TRIGGER_IMMEDIATELY, "trigger_would_trigger_immediately"},
+	}
+	for _, tc := range failures {
+		t.Run(tc.want, func(t *testing.T) {
+			event := decode.TriggerEventMessageFromProto(&triggersv1.TriggerEvent{
+				TriggerId:      1,
+				EventType:      triggersv1.TriggerEventType_EVENT_FAILED,
+				TerminalReason: &triggersv1.TriggerEvent_FailureReason{FailureReason: tc.reason},
+			})
+			trigger := decode.TriggerFromProto(&triggersv1.Trigger{
+				TriggerId:      1,
+				Status:         triggersv1.TriggerStatus_STATUS_FAILED,
+				TerminalReason: &triggersv1.Trigger_FailureReason{FailureReason: tc.reason},
+			})
+			if event.FailureReason != tc.want || trigger.FailureReason != tc.want {
+				t.Fatalf("event=%q trigger=%q want %q", event.FailureReason, trigger.FailureReason, tc.want)
+			}
+		})
+	}
+}

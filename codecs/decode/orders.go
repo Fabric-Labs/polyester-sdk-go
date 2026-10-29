@@ -108,9 +108,8 @@ func hasMeaningfulAttachedRiskLegState(state *orderv1.AttachedRiskLegState) bool
 
 // riskLegFromChild projects an attached take-profit/stop-loss policy and its
 // runtime state onto the public RiskLeg. The child execution determines
-// order_type/limit_price. TriggerPriceSource is no longer part of the policy
-// wire and is left empty.
-func riskLegFromChild(triggerPriceTicks int64, child *orderv1.RiskExecution, state *orderv1.AttachedRiskLegState, policyUsable bool) *models.RiskLeg {
+// order_type/limit_price.
+func riskLegFromChild(triggerPriceTicks int64, source orderv1.TriggerPriceSource, child *orderv1.RiskExecution, state *orderv1.AttachedRiskLegState, policyUsable bool) *models.RiskLeg {
 	if !policyUsable && !hasMeaningfulAttachedRiskLegState(state) {
 		return nil
 	}
@@ -123,6 +122,7 @@ func riskLegFromChild(triggerPriceTicks int64, child *orderv1.RiskExecution, sta
 	if triggerPriceTicks > 0 {
 		leg.TriggerPrice = codecs.DecodePriceTicks(triggerPriceTicks, "")
 	}
+	leg.TriggerPriceSource = codecs.TriggerPriceSourceName(source)
 	if child != nil {
 		switch {
 		case child.GetMarketIoc() != nil:
@@ -137,16 +137,16 @@ func riskLegFromChild(triggerPriceTicks int64, child *orderv1.RiskExecution, sta
 
 func riskLegFromTakeProfit(policy *orderv1.TakeProfitPolicy, state *orderv1.AttachedRiskLegState) *models.RiskLeg {
 	if policy == nil {
-		return riskLegFromChild(0, nil, state, false)
+		return riskLegFromChild(0, 0, nil, state, false)
 	}
-	return riskLegFromChild(policy.GetTriggerPriceTicks(), policy.GetChild(), state, policy.GetTriggerPriceTicks() > 0)
+	return riskLegFromChild(policy.GetTriggerPriceTicks(), policy.GetTriggerPriceSource(), policy.GetChild(), state, policy.GetTriggerPriceTicks() > 0)
 }
 
 func riskLegFromStopLoss(policy *orderv1.StopLossPolicy, state *orderv1.AttachedRiskLegState) *models.RiskLeg {
 	if policy == nil {
-		return riskLegFromChild(0, nil, state, false)
+		return riskLegFromChild(0, 0, nil, state, false)
 	}
-	return riskLegFromChild(policy.GetTriggerPriceTicks(), policy.GetChild(), state, policy.GetTriggerPriceTicks() > 0)
+	return riskLegFromChild(policy.GetTriggerPriceTicks(), policy.GetTriggerPriceSource(), policy.GetChild(), state, policy.GetTriggerPriceTicks() > 0)
 }
 
 func trailingStopFromPolicy(policy *orderv1.TrailingStopPolicy, state *orderv1.AttachedRiskLegState) *models.TrailingStop {
@@ -162,8 +162,8 @@ func trailingStopFromPolicy(policy *orderv1.TrailingStopPolicy, state *orderv1.A
 	if !policyUsable && !hasMeaningfulAttachedRiskLegState(state) {
 		return nil
 	}
-	// OrderType/TriggerPriceSource were dropped from the trailing-stop policy
-	// wire; the child is an implicit market execution.
+	// OrderType is not on the trailing-stop policy wire; the child is an
+	// implicit market execution.
 	out := &models.TrailingStop{
 		State: attachedRiskLegStateFromProto(state),
 	}
@@ -181,6 +181,7 @@ func trailingStopFromPolicy(policy *orderv1.TrailingStopPolicy, state *orderv1.A
 	if policy.GetActivationPriceTicks() > 0 {
 		out.ActivationPrice = codecs.DecodePriceTicks(policy.GetActivationPriceTicks(), "")
 	}
+	out.TriggerPriceSource = codecs.TriggerPriceSourceName(policy.GetTriggerPriceSource())
 	return out
 }
 
@@ -332,10 +333,11 @@ func GetOrderFromProto(msg *orderv1.GetOrderResponse) models.GetOrderResult {
 		transfers = append(transfers, orderTransferFromProto(item))
 	}
 	return models.GetOrderResult{
-		Order:         order,
-		Trades:        trades,
-		Transfers:     transfers,
-		NextPageToken: msg.GetNextPageToken(),
+		Order:              order,
+		Trades:             trades,
+		Transfers:          transfers,
+		NextPageToken:      msg.GetNextPageToken(),
+		ExecutionsComplete: msg.GetExecutionsComplete(),
 	}
 }
 
@@ -532,6 +534,7 @@ func CancelAllFromProto(msg *orderv1.CancelAllOrdersResponse) (models.CancelAllO
 		CancelledOrders:  cancelled,
 		TotalCancelled:   int(msg.GetTotalCancelled()),
 		Truncated:        msg.GetTruncated(),
+		ListingStatus:    cancelAllListingStatusName(msg.GetListingStatus()),
 	}, nil
 }
 
@@ -543,6 +546,19 @@ func cancelAllStatusName(status orderv1.CancelAllOrdersResponse_Status) string {
 		return "dry_run"
 	default:
 		return ""
+	}
+}
+
+func cancelAllListingStatusName(status orderv1.CancelAllOrdersResponse_ListingStatus) string {
+	switch status {
+	case orderv1.CancelAllOrdersResponse_LISTING_UNSPECIFIED:
+		return ""
+	case orderv1.CancelAllOrdersResponse_INCLUDED:
+		return "included"
+	case orderv1.CancelAllOrdersResponse_NOT_RETAINED_READ_OPEN_ORDERS:
+		return "not_retained_read_open_orders"
+	default:
+		return fmt.Sprintf("unknown(%d)", status)
 	}
 }
 
@@ -827,7 +843,19 @@ func CancelAllAfterFromProto(msg *orderv1.CancelAllAfterResponse) (models.Cancel
 		Status:              status,
 		EffectiveTimeoutSec: int(msg.GetEffectiveTimeoutSec()),
 		ExpiresAtTsNs:       strconv.FormatUint(msg.GetExpiresAtTsNs(), 10),
+		EffectiveScope:      deadManSwitchScopeFromProto(msg.GetEffectiveScope()),
 	}, nil
+}
+
+func deadManSwitchScopeFromProto(msg *orderv1.DeadManSwitchScope) *models.DeadManSwitchScope {
+	if msg == nil {
+		return nil
+	}
+	return &models.DeadManSwitchScope{
+		AccountID: codecs.FormatUint64ID(msg.GetAccountId()),
+		SymbolID:  msg.GetSymbolId(),
+		Side:      codecs.OrderSideName(msg.GetSide()),
+	}
 }
 
 func cancelAllAfterStatusName(status orderv1.CancelAllAfterResponse_Status) string {

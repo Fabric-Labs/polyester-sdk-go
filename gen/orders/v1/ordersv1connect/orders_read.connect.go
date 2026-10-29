@@ -54,9 +54,15 @@ const (
 type OrdersReadServiceClient interface {
 	// Retrieve non-terminal orders for an account.
 	// Supports optional subaccount, trigger, symbol, and side filters with cursor pagination.
+	// While the current state of an order in scope is temporarily unavailable, the call
+	// fails with a retryable UNAVAILABLE rather than omitting the order or returning a
+	// stale state; retry the same request.
 	GetOpenOrders(context.Context, *connect.Request[v1.GetOpenOrdersRequest]) (*connect.Response[v1.GetOpenOrdersResponse], error)
 	// Retrieve terminal order history for an account.
 	// Supports optional subaccount, trigger, symbol, side, status, and time-range filters with cursor pagination.
+	// While the current state of an order on the page is temporarily unavailable, the call
+	// fails with a retryable UNAVAILABLE rather than returning a stale state; retry the
+	// same request.
 	GetOrderHistory(context.Context, *connect.Request[v1.GetOrderHistoryRequest]) (*connect.Response[v1.GetOrderHistoryResponse], error)
 	// Retrieve per-user trade fills for an account.
 	// Supports exact physical-order or logical-lineage scope, an inclusive generation
@@ -152,9 +158,15 @@ func (c *ordersReadServiceClient) GetBatchReplaceStatus(ctx context.Context, req
 type OrdersReadServiceHandler interface {
 	// Retrieve non-terminal orders for an account.
 	// Supports optional subaccount, trigger, symbol, and side filters with cursor pagination.
+	// While the current state of an order in scope is temporarily unavailable, the call
+	// fails with a retryable UNAVAILABLE rather than omitting the order or returning a
+	// stale state; retry the same request.
 	GetOpenOrders(context.Context, *connect.Request[v1.GetOpenOrdersRequest]) (*connect.Response[v1.GetOpenOrdersResponse], error)
 	// Retrieve terminal order history for an account.
 	// Supports optional subaccount, trigger, symbol, side, status, and time-range filters with cursor pagination.
+	// While the current state of an order on the page is temporarily unavailable, the call
+	// fails with a retryable UNAVAILABLE rather than returning a stale state; retry the
+	// same request.
 	GetOrderHistory(context.Context, *connect.Request[v1.GetOrderHistoryRequest]) (*connect.Response[v1.GetOrderHistoryResponse], error)
 	// Retrieve per-user trade fills for an account.
 	// Supports exact physical-order or logical-lineage scope, an inclusive generation

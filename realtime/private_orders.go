@@ -121,6 +121,8 @@ type orderStreamSub struct {
 	state       subState
 	stale       bool
 	staleReason string
+	// staleOrderIDs are the orders an order_unavailable names.
+	staleOrderIDs []string
 	// ready: the server subscription reached the account's read boundary
 	// sampled at subscribe. Reset with every new server subscription.
 	ready bool
@@ -225,7 +227,7 @@ func (p *privateOrderStream) catchUp(s *orderStreamSub, c *orderConsumer) {
 		p.offer(s, c, OrderReady{})
 	}
 	if s.stale {
-		p.offer(s, c, OrderStale{Stale: true, Reason: s.staleReason})
+		p.offer(s, c, OrderStale{Stale: true, Reason: s.staleReason, OrderIDs: s.staleOrderIDs})
 	}
 }
 
@@ -668,6 +670,7 @@ func (p *privateOrderStream) onFrame(conn *privateConn, messageType int, data []
 		if s.stale {
 			s.stale = false
 			s.staleReason = ""
+			s.staleOrderIDs = nil
 			p.deliver(s, OrderStale{Stale: false})
 		}
 		return
@@ -762,12 +765,18 @@ func (p *privateOrderStream) onFrame(conn *privateConn, messageType int, data []
 		s.staging = false
 		s.staged = nil
 	case *privatewsv1.ServerMessage_Unavailable:
+		// A later Unavailable replaces the earlier reason and order IDs.
 		s.stale = true
 		s.staleReason = unavailableReason(frame.Unavailable.GetReason())
-		p.deliver(s, OrderStale{Stale: true, Reason: s.staleReason})
+		s.staleOrderIDs = nil
+		for _, id := range frame.Unavailable.GetOrderIds() {
+			s.staleOrderIDs = append(s.staleOrderIDs, codecs.FormatUint64ID(id))
+		}
+		p.deliver(s, OrderStale{Stale: true, Reason: s.staleReason, OrderIDs: s.staleOrderIDs})
 	case *privatewsv1.ServerMessage_Available:
 		s.stale = false
 		s.staleReason = ""
+		s.staleOrderIDs = nil
 		p.deliver(s, OrderStale{Stale: false})
 	case *privatewsv1.ServerMessage_SubscribeExpiring:
 		p.refresh(conn, s)
