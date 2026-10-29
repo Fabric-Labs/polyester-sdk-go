@@ -119,3 +119,21 @@ func TestCandlesColumnsLabelEveryPublishedTimeframe(t *testing.T) {
 		t.Fatalf("contract has %d timeframes; label every new one here and in timeframeLabels", n)
 	}
 }
+
+func TestSpotConfigNamesHaltedPairStatus(t *testing.T) {
+	got := SpotConfigFromProto(&marketdatav1.GetSpotConfigResponse{
+		Pairs: []*marketdatav1.PairConfig{{
+			Symbol:   "BTC-USDT",
+			SymbolId: 1,
+			Status:   marketdatav1.PairStatus_PAIR_STATUS_HALTED,
+		}},
+	})
+	pairs, _ := got.Raw["pairs"].([]any)
+	if len(pairs) != 1 {
+		t.Fatalf("pairs=%#v", got.Raw["pairs"])
+	}
+	pair, _ := pairs[0].(map[string]any)
+	if pair["status"] != "PAIR_STATUS_HALTED" {
+		t.Fatalf("status=%#v", pair["status"])
+	}
+}

@@ -316,3 +316,44 @@ func TestMapConnectErrorOrderOutcomeUnknownRequiresReconciliation(t *testing.T) 
 		t.Fatalf("mapped=%T %v must report an unknown mutation outcome", mapped, mapped)
 	}
 }
+
+func TestMapConnectErrorCreateOutcomeUnknownRequiresReconciliation(t *testing.T) {
+	for _, code := range []orderv1.ErrorCode{
+		orderv1.ErrorCode_ERROR_CODE_ORDER_CREATE_OUTCOME_UNKNOWN,
+		orderv1.ErrorCode_ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN,
+	} {
+		t.Run(code.String(), func(t *testing.T) {
+			connectErr := connect.NewError(connect.CodeDeadlineExceeded, errors.New("create not confirmed in time"))
+			detail, err := connect.NewErrorDetail(&orderv1.ErrorDetail{Code: code})
+			if err != nil {
+				t.Fatal(err)
+			}
+			connectErr.AddDetail(detail)
+			mapped := MapConnectError(connectErr)
+			apiErr, ok := mapped.(*sdkerrors.APIError)
+			if !ok || apiErr.Code != code.String() {
+				t.Fatalf("mapped=%T %#v", mapped, mapped)
+			}
+			if !sdkerrors.MutationOutcomeUnknown(mapped) {
+				t.Fatalf("%s must report an unknown mutation outcome", code)
+			}
+			if !sdkerrors.IsRetryable(mapped) {
+				t.Fatalf("%s may be retried after reconciliation", code)
+			}
+		})
+	}
+}
+
+func TestMapConnectErrorAuthTemporarilyUnavailableIsRetryable(t *testing.T) {
+	mapped := mapAuthDetail(t, authv1.AuthErrorCode_AUTH_TEMPORARILY_UNAVAILABLE, "try again")
+	apiErr, ok := mapped.(*sdkerrors.APIError)
+	if !ok || apiErr.Code != sdkerrors.AuthCodeTemporarilyUnavailable {
+		t.Fatalf("mapped=%T %#v", mapped, mapped)
+	}
+	if !sdkerrors.IsRetryable(mapped) {
+		t.Fatal("AUTH_TEMPORARILY_UNAVAILABLE changed nothing and is retryable")
+	}
+	if sdkerrors.MutationOutcomeUnknown(mapped) {
+		t.Fatal("AUTH_TEMPORARILY_UNAVAILABLE changed nothing; the outcome is known")
+	}
+}

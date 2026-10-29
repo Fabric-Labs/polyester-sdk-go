@@ -89,10 +89,6 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 		intent.SelfTradePreventionMode = mode
 	}
 
-	// triggerPriceSource is no longer part of the create wire contract; it is
-	// evaluated server-side. Accept and ignore for API compatibility.
-	_ = triggerPriceSource
-
 	switch typeKey {
 	case "stop_loss", "take_profit":
 		sideEnum, ok := orderSideToProto[strings.ToLower(side)]
@@ -111,10 +107,15 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 		if err != nil {
 			return nil, err
 		}
+		source, err := triggerPriceSourceToProto(triggerPriceSource, "trigger_price_source")
+		if err != nil {
+			return nil, err
+		}
 		cond := &triggersv1.ConditionalTrigger{
-			TriggerPriceTicks: triggerTicks,
-			Side:              sideEnum,
-			Child:             child,
+			TriggerPriceTicks:  triggerTicks,
+			Side:               sideEnum,
+			Child:              child,
+			TriggerPriceSource: source,
 		}
 		if typeKey == "stop_loss" {
 			intent.Strategy = &triggersv1.TriggerIntent_StopLoss{StopLoss: cond}
@@ -129,7 +130,11 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 		if !ok {
 			return nil, &errors.ValidationError{Msg: "side must be buy or sell"}
 		}
-		trailing := &triggersv1.TrailingStopTrigger{Side: sideEnum}
+		source, err := triggerPriceSourceToProto(triggerPriceSource, "trigger_price_source")
+		if err != nil {
+			return nil, err
+		}
+		trailing := &triggersv1.TrailingStopTrigger{Side: sideEnum, TriggerPriceSource: source}
 		hasLimitPrice := limitPrice != nil && limitPrice.IsSet()
 		switch {
 		case sideEnum == orderv1.Side_BUY && !hasLimitPrice:

@@ -61,9 +61,17 @@ type OrderUnit struct {
 // OrderStale reports that the account's live view is temporarily behind
 // (Stale true, with the server's Reason such as "view_behind") or caught up
 // again (Stale false). The subscription stays open and recovers by itself.
+//
+// With Reason "order_unavailable", only the orders in OrderIDs are not
+// current: their last delivered state is earlier (an order may have none yet).
+// The rest of the view is current and units keep arriving. OrderIDs is empty
+// for every other reason, which covers the whole view. A later OrderStale
+// replaces the earlier reason and IDs; Stale false means every order is
+// current again.
 type OrderStale struct {
-	Stale  bool
-	Reason string
+	Stale    bool
+	Reason   string
+	OrderIDs []string
 }
 
 // OrderStreamError reports an error. The stream keeps running unless the

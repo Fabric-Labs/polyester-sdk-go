@@ -56,6 +56,8 @@ type OrderTransfer struct {
 
 // RiskLeg is a take-profit or stop-loss attached-risk projection. Policy
 // fields remain zero when the response includes runtime state only.
+// TriggerPriceSource is the price the leg watches ("last" or "index"; empty
+// when the server did not name one, which watches the last traded price).
 type RiskLeg struct {
 	TriggerPrice       PriceTicks            `json:"trigger_price,omitempty"`
 	TriggerPriceSource string                `json:"trigger_price_source,omitempty"`
@@ -79,9 +81,10 @@ type AttachedRiskLegState struct {
 //
 // Decode preserves a leg when it has a positive trailing distance or meaningful
 // runtime state; policy fields remain zero when only state was requested.
-// TriggerPriceSource and OrderType are not on the trailing-stop wire (child is
-// always market / last trade) and remain empty on decode. Write attached risk
-// with AttachedRiskInput.
+// TriggerPriceSource is the price the leg watches ("last" or "index"; empty
+// when the server did not name one, which watches the last traded price).
+// OrderType is not on the trailing-stop wire (the child is a market order) and
+// remains empty on decode. Write attached risk with AttachedRiskInput.
 type TrailingStop struct {
 	DistanceTicks      int64                 `json:"distance_ticks,omitempty"`
 	DistanceBps        int32                 `json:"distance_bps,omitempty"`
@@ -154,11 +157,19 @@ type PreviewOrderResult struct {
 }
 
 // GetOrderResult includes order detail and a page of lineage executions.
+//
+// The order shows a fill as soon as it executes; its trades are recorded
+// shortly after. ExecutionsComplete is true when the order's trades across
+// every page add up to its filled quantity. While it is false a recent
+// execution is still being recorded: Trades lists those recorded so far and a
+// later read returns the rest. It is always false when execution history is
+// not included.
 type GetOrderResult struct {
-	Order         *Order          `json:"order,omitempty"`
-	Trades        []UserTrade     `json:"trades,omitempty"`
-	Transfers     []OrderTransfer `json:"transfers,omitempty"`
-	NextPageToken string          `json:"next_page_token,omitempty"`
+	Order              *Order          `json:"order,omitempty"`
+	Trades             []UserTrade     `json:"trades,omitempty"`
+	Transfers          []OrderTransfer `json:"transfers,omitempty"`
+	NextPageToken      string          `json:"next_page_token,omitempty"`
+	ExecutionsComplete bool            `json:"executions_complete,omitempty"`
 }
 
 // GetOrderOptions are optional GetOrder pagination and history flags.
@@ -218,6 +229,13 @@ type ModifyOrderResult struct {
 // CancelledOrders lists the orders whose cancellation was requested, oldest
 // first, at most 200; Truncated is true when TotalCancelled counts more. The
 // order stream and order reads report every one. Both are empty for a dry run.
+//
+// ListingStatus is "included" when CancelledOrders is the listing, possibly
+// empty. A retry with the same request ID within 120 seconds returns the
+// original status and counts with an empty CancelledOrders and ListingStatus
+// "not_retained_read_open_orders": the empty list does not mean nothing was
+// canceled, and the retry requests no new cancellations. Read open orders for
+// current state. An unknown value reads "unknown(<n>)".
 type CancelAllOrdersResult struct {
 	Status           string           `json:"status,omitempty"`
 	MatchedOrders    int              `json:"matched_orders,omitempty"`
@@ -226,6 +244,7 @@ type CancelAllOrdersResult struct {
 	CancelledOrders  []CancelledOrder `json:"cancelled_orders,omitempty"`
 	TotalCancelled   int              `json:"total_cancelled,omitempty"`
 	Truncated        bool             `json:"truncated,omitempty"`
+	ListingStatus    string           `json:"listing_status,omitempty"`
 }
 
 // CancelledOrder is one order a cancel-all requested to cancel.
@@ -341,10 +360,24 @@ type BatchCancelOrdersResult struct {
 }
 
 // CancelAllAfterResult is returned from cancel-all-after.
+//
+// EffectiveScope is the recorded scope of the armed switch; nil when the
+// switch is disabled.
 type CancelAllAfterResult struct {
-	Status              string `json:"status,omitempty"`
-	EffectiveTimeoutSec int    `json:"effective_timeout_sec,omitempty"`
-	ExpiresAtTsNs       string `json:"expires_at_ts_ns,omitempty"`
+	Status              string              `json:"status,omitempty"`
+	EffectiveTimeoutSec int                 `json:"effective_timeout_sec,omitempty"`
+	ExpiresAtTsNs       string              `json:"expires_at_ts_ns,omitempty"`
+	EffectiveScope      *DeadManSwitchScope `json:"effective_scope,omitempty"`
+}
+
+// DeadManSwitchScope is the scope an armed dead-man switch cancels on
+// expiry: the account's working orders, including working child orders.
+// Waiting triggers stay active. SymbolID 0 means every symbol and an empty
+// Side means both sides.
+type DeadManSwitchScope struct {
+	AccountID string `json:"account_id,omitempty"`
+	SymbolID  uint32 `json:"symbol_id,omitempty"`
+	Side      string `json:"side,omitempty"`
 }
 
 // AssetBalance is a ledger balance row.
@@ -494,12 +527,18 @@ type ZipperReasonDetails struct {
 }
 
 // LifecycleFlowSummary is a lifecycle flow header.
+//
+// IsDelayed is true when an open flow has made no progress for well beyond
+// the expected time of its current step: show it as delayed. The flow still
+// completes normally once progress resumes. It is always false for terminal
+// flows and for transaction lookups, which do not report it.
 type LifecycleFlowSummary struct {
 	IntentID            string               `json:"intent_id"`
 	FlowKind            string               `json:"flow_kind,omitempty"`
 	LatestStep          string               `json:"latest_step,omitempty"`
 	IsOpen              bool                 `json:"is_open,omitempty"`
 	IsTerminal          bool                 `json:"is_terminal,omitempty"`
+	IsDelayed           bool                 `json:"is_delayed,omitempty"`
 	OwnerAccountID      string               `json:"owner_account_id,omitempty"`
 	SmartAccountAddress string               `json:"smart_account_address,omitempty"`
 	LifecycleReason     string               `json:"lifecycle_reason,omitempty"`

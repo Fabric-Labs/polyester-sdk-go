@@ -41,6 +41,8 @@ func lifecycleReasonLabel(code lifecyclev1.LifecycleReason) string {
 		return "trading_withdraw_contract_reverted"
 	case lifecyclev1.LifecycleReason_TRADING_WITHDRAW_EXECUTION_FAILED:
 		return "trading_withdraw_execution_failed"
+	case lifecyclev1.LifecycleReason_DEPOSIT_SOURCE_NOT_CONFIRMED:
+		return "deposit_source_not_confirmed"
 	default:
 		return fmt.Sprintf("unknown_reason_%d", int32(code))
 	}
@@ -113,6 +115,7 @@ func flowSummary(msg *lifecyclev1.FlowSummaryView) models.LifecycleFlowSummary {
 		LatestStep:          flowStepLabel(msg.GetCurrentStep()),
 		IsOpen:              msg.GetIsOpen(),
 		IsTerminal:          msg.GetIsTerminal(),
+		IsDelayed:           msg.GetIsDelayed(),
 		OwnerAccountID:      codecs.FormatUint64ID(msg.GetOwnerAccountId()),
 		SmartAccountAddress: msg.GetSmartAccountAddress(),
 		LifecycleReason:     lifecycleReasonLabel(msg.GetLifecycleReason()),

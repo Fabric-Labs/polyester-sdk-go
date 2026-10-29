@@ -8,7 +8,7 @@ import (
 // ErrPolyester is the root sentinel for SDK errors.
 var ErrPolyester = errors.New("polyester")
 
-// Stable auth.v1.AuthErrorDetail codes used for MFA control flow.
+// Stable auth.v1.AuthErrorDetail codes used for MFA control flow and retries.
 // Prefer these over ConnectError message text.
 const (
 	AuthCodeMFANotEnrolled        = "AUTH_MFA_NOT_ENROLLED"
@@ -16,6 +16,9 @@ const (
 	AuthCodeMFAElevationRequired  = "AUTH_MFA_ELEVATION_REQUIRED"
 	AuthCodeMFALastFactorRequired = "AUTH_MFA_LAST_FACTOR_REQUIRED"
 	AuthCodeInternalError         = "AUTH_INTERNAL_ERROR"
+	// AuthCodeTemporarilyUnavailable: the request changed nothing; retry the
+	// same request.
+	AuthCodeTemporarilyUnavailable = "AUTH_TEMPORARILY_UNAVAILABLE"
 )
 
 // AuthErrorCode returns the structured auth.v1.AuthErrorDetail code when err is
@@ -186,6 +189,8 @@ func (e *QueueOverflowError) Error() string {
 func (e *QueueOverflowError) Is(target error) bool { return target == ErrPolyester }
 
 // IsRetryable reports whether retrying may succeed after backoff.
+// AUTH_TEMPORARILY_UNAVAILABLE and ERROR_CODE_ACCOUNT_REPAIRING changed
+// nothing: retry the same request.
 //
 // It does not guarantee that a mutation was not applied. Preserve the same
 // idempotency key and reconcile first when MutationOutcomeUnknown is true.
@@ -198,14 +203,17 @@ func IsRetryable(err error) bool {
 		errors.As(err, &rateLimitErr) ||
 		errors.As(err, &serverErr) ||
 		outcomeUnknownCodes[code] ||
-		code == "ERROR_CODE_ACCOUNT_REPAIRING"
+		code == "ERROR_CODE_ACCOUNT_REPAIRING" ||
+		code == AuthCodeTemporarilyUnavailable
 }
 
 // MutationOutcomeUnknown reports whether the server may have applied a failed
 // mutation before the error became visible to the caller. It includes an
-// order cancel or modify that was sent but not confirmed in time
-// (ERROR_CODE_ORDER_CANCEL_OUTCOME_UNKNOWN, ERROR_CODE_ORDER_MODIFY_OUTCOME_UNKNOWN):
-// read the order back before retrying.
+// order create, cancel or modify and a trigger create that was sent but not
+// confirmed in time (ERROR_CODE_ORDER_CREATE_OUTCOME_UNKNOWN,
+// ERROR_CODE_ORDER_CANCEL_OUTCOME_UNKNOWN, ERROR_CODE_ORDER_MODIFY_OUTCOME_UNKNOWN,
+// ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN): read the order or trigger back
+// before retrying.
 func MutationOutcomeUnknown(err error) bool {
 	var transportErr *TransportError
 	var serverErr *ServerError
@@ -219,8 +227,10 @@ func MutationOutcomeUnknown(err error) bool {
 // outcomeUnknownCodes are order error codes for a mutation that was sent but
 // not confirmed in time; it may still apply.
 var outcomeUnknownCodes = map[string]bool{
-	"ERROR_CODE_ORDER_CANCEL_OUTCOME_UNKNOWN": true,
-	"ERROR_CODE_ORDER_MODIFY_OUTCOME_UNKNOWN": true,
+	"ERROR_CODE_ORDER_CREATE_OUTCOME_UNKNOWN":   true,
+	"ERROR_CODE_ORDER_CANCEL_OUTCOME_UNKNOWN":   true,
+	"ERROR_CODE_ORDER_MODIFY_OUTCOME_UNKNOWN":   true,
+	"ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN": true,
 }
 
 func apiErrorCode(err error) string {

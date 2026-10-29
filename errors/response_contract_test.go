@@ -13,7 +13,12 @@ func TestResponseContractIsOutcomeUnknownButNotRetryable(t *testing.T) {
 }
 
 func TestOrderOutcomeUnknownCodesRequireReconciliation(t *testing.T) {
-	for _, code := range []string{"ERROR_CODE_ORDER_CANCEL_OUTCOME_UNKNOWN", "ERROR_CODE_ORDER_MODIFY_OUTCOME_UNKNOWN"} {
+	for _, code := range []string{
+		"ERROR_CODE_ORDER_CREATE_OUTCOME_UNKNOWN",
+		"ERROR_CODE_ORDER_CANCEL_OUTCOME_UNKNOWN",
+		"ERROR_CODE_ORDER_MODIFY_OUTCOME_UNKNOWN",
+		"ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN",
+	} {
 		err := &APIError{Msg: "not confirmed in time", Code: code}
 		if !MutationOutcomeUnknown(err) {
 			t.Fatalf("%s must require reading the order back", code)
@@ -25,6 +30,10 @@ func TestOrderOutcomeUnknownCodesRequireReconciliation(t *testing.T) {
 	repairing := &APIError{Msg: "try again shortly", Code: "ERROR_CODE_ACCOUNT_REPAIRING"}
 	if !IsRetryable(repairing) || MutationOutcomeUnknown(repairing) {
 		t.Fatal("ERROR_CODE_ACCOUNT_REPAIRING changed nothing and is retryable")
+	}
+	authUnavailable := &APIError{Msg: "try again", Code: AuthCodeTemporarilyUnavailable}
+	if !IsRetryable(authUnavailable) || MutationOutcomeUnknown(authUnavailable) {
+		t.Fatal("AUTH_TEMPORARILY_UNAVAILABLE changed nothing and is retryable")
 	}
 	orderRepairing := &APIError{Msg: "order being canceled", Code: "ERROR_CODE_ORDER_REPAIRING"}
 	if IsRetryable(orderRepairing) || MutationOutcomeUnknown(orderRepairing) {

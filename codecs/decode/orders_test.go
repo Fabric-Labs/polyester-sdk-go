@@ -867,3 +867,147 @@ func TestOrderFromProtoOmitsNotConfiguredAttachedRiskLegs(t *testing.T) {
 		t.Fatalf("all-unconfigured attached risk decoded: %+v", onlyUnconfigured.AttachedRisk)
 	}
 }
+
+func TestCancelAllDecodesListingStatus(t *testing.T) {
+	cases := []struct {
+		status orderv1.CancelAllOrdersResponse_ListingStatus
+		want   string
+	}{
+		{orderv1.CancelAllOrdersResponse_LISTING_UNSPECIFIED, ""},
+		{orderv1.CancelAllOrdersResponse_INCLUDED, "included"},
+		{orderv1.CancelAllOrdersResponse_NOT_RETAINED_READ_OPEN_ORDERS, "not_retained_read_open_orders"},
+		{orderv1.CancelAllOrdersResponse_ListingStatus(9), "unknown(9)"},
+	}
+	for _, tc := range cases {
+		result, err := decode.CancelAllFromProto(&orderv1.CancelAllOrdersResponse{
+			Status:           orderv1.CancelAllOrdersResponse_SUBMITTED,
+			MatchedOrders:    3,
+			SubmittedCancels: 3,
+			TotalCancelled:   3,
+			ListingStatus:    tc.status,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if result.ListingStatus != tc.want {
+			t.Fatalf("listing status %v = %q want %q", tc.status, result.ListingStatus, tc.want)
+		}
+	}
+
+	// A retry keeps the original counts but no listing.
+	retried, err := decode.CancelAllFromProto(&orderv1.CancelAllOrdersResponse{
+		Status:           orderv1.CancelAllOrdersResponse_SUBMITTED,
+		MatchedOrders:    3,
+		SubmittedCancels: 3,
+		TotalCancelled:   3,
+		ListingStatus:    orderv1.CancelAllOrdersResponse_NOT_RETAINED_READ_OPEN_ORDERS,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(retried.CancelledOrders) != 0 || retried.TotalCancelled != 3 || retried.SubmittedCancels != 3 {
+		t.Fatalf("retried=%+v", retried)
+	}
+}
+
+func TestCancelAllAfterDecodesEffectiveScope(t *testing.T) {
+	armed, err := decode.CancelAllAfterFromProto(&orderv1.CancelAllAfterResponse{
+		Status:              orderv1.CancelAllAfterResponse_ARMED,
+		EffectiveTimeoutSec: 30,
+		ExpiresAtTsNs:       99,
+		EffectiveScope: &orderv1.DeadManSwitchScope{
+			AccountId: 42,
+			SymbolId:  7,
+			Side:      orderv1.Side_SELL,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := &models.DeadManSwitchScope{AccountID: codecs.FormatUint64ID(42), SymbolID: 7, Side: "sell"}
+	if !reflect.DeepEqual(armed.EffectiveScope, want) {
+		t.Fatalf("scope=%+v want %+v", armed.EffectiveScope, want)
+	}
+
+	allSymbols, err := decode.CancelAllAfterFromProto(&orderv1.CancelAllAfterResponse{
+		Status:         orderv1.CancelAllAfterResponse_ARMED,
+		EffectiveScope: &orderv1.DeadManSwitchScope{AccountId: 42},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want = &models.DeadManSwitchScope{AccountID: codecs.FormatUint64ID(42)}
+	if !reflect.DeepEqual(allSymbols.EffectiveScope, want) {
+		t.Fatalf("scope=%+v want %+v", allSymbols.EffectiveScope, want)
+	}
+
+	disabled, err := decode.CancelAllAfterFromProto(&orderv1.CancelAllAfterResponse{Status: orderv1.CancelAllAfterResponse_DISABLED})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if disabled.EffectiveScope != nil {
+		t.Fatalf("disabled scope=%+v", disabled.EffectiveScope)
+	}
+}
+
+func TestGetOrderFromProtoDecodesExecutionsComplete(t *testing.T) {
+	for _, complete := range []bool{true, false} {
+		result := decode.GetOrderFromProto(&orderv1.GetOrderResponse{
+			Order:              &orderv1.Order{OrderId: 7, SymbolId: 2},
+			ExecutionsComplete: complete,
+		})
+		if result.ExecutionsComplete != complete {
+			t.Fatalf("executions_complete=%v want %v", result.ExecutionsComplete, complete)
+		}
+	}
+}
+
+func TestOrderFromProtoDecodesAttachedRiskTriggerPriceSource(t *testing.T) {
+	marketChild := &orderv1.RiskExecution{
+		Execution: &orderv1.RiskExecution_MarketIoc{MarketIoc: &orderv1.RiskMarketIoc{}},
+	}
+	order := decode.OrderFromProto(&orderv1.Order{
+		OrderId:  1,
+		SymbolId: 1,
+		AttachedRisk: &orderv1.AttachedRisk{
+			TakeProfit: &orderv1.AttachedRiskTakeProfit{Policy: &orderv1.TakeProfitPolicy{
+				TriggerPriceTicks:  6000,
+				Child:              marketChild,
+				TriggerPriceSource: orderv1.TriggerPriceSource_INDEX_PRICE,
+			}},
+			StopLoss: &orderv1.AttachedRiskStopLoss{Policy: &orderv1.StopLossPolicy{
+				TriggerPriceTicks:  4500,
+				Child:              marketChild,
+				TriggerPriceSource: orderv1.TriggerPriceSource_LAST_PRICE,
+			}},
+			TrailingStop: &orderv1.AttachedRiskTrailingStop{Policy: &orderv1.TrailingStopPolicy{
+				TrailingDistance:   &orderv1.TrailingStopPolicy_TrailingDistanceBps{TrailingDistanceBps: 25},
+				TriggerPriceSource: orderv1.TriggerPriceSource_INDEX_PRICE,
+			}},
+		},
+	})
+	risk := order.AttachedRisk
+	if risk == nil || risk.TakeProfit == nil || risk.StopLoss == nil || risk.TrailingStop == nil {
+		t.Fatalf("risk=%+v", risk)
+	}
+	if risk.TakeProfit.TriggerPriceSource != "index" || risk.StopLoss.TriggerPriceSource != "last" ||
+		risk.TrailingStop.TriggerPriceSource != "index" {
+		t.Fatalf("sources tp=%q sl=%q trailing=%q",
+			risk.TakeProfit.TriggerPriceSource, risk.StopLoss.TriggerPriceSource, risk.TrailingStop.TriggerPriceSource)
+	}
+
+	unnamed := decode.OrderFromProto(&orderv1.Order{
+		OrderId:  2,
+		SymbolId: 1,
+		AttachedRisk: &orderv1.AttachedRisk{
+			StopLoss: &orderv1.AttachedRiskStopLoss{Policy: &orderv1.StopLossPolicy{
+				TriggerPriceTicks: 4500,
+				Child:             marketChild,
+			}},
+		},
+	})
+	if unnamed.AttachedRisk == nil || unnamed.AttachedRisk.StopLoss == nil ||
+		unnamed.AttachedRisk.StopLoss.TriggerPriceSource != "" {
+		t.Fatalf("unnamed source=%+v", unnamed.AttachedRisk)
+	}
+}

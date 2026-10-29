@@ -617,6 +617,64 @@ func TestPrivateOrdersUnavailableAndAvailableSetStale(t *testing.T) {
 	}
 }
 
+func TestPrivateOrdersOrderUnavailableNamesOrders(t *testing.T) {
+	f := newFakePrivateServer(t)
+	c := newTestOrderClient(t, f, testTiming())
+	sub, ws := connectOrders(t, f, c)
+	seq := ws.snapshot(t, "s1", 1, "c1", testOrder(1, 1), testOrder(2, 1))
+	expectEvent[OrderSnapshot](t, sub)
+
+	seq++
+	ws.send(t, "s1", seq, &privatewsv1.ServerMessage{Frame: &privatewsv1.ServerMessage_Unavailable{
+		Unavailable: &privatewsv1.Unavailable{Reason: privatewsv1.UnavailableReason_ORDER_UNAVAILABLE, OrderIds: []uint64{1, 2}},
+	}})
+	if stale := expectEvent[OrderStale](t, sub); !stale.Stale || stale.Reason != "order_unavailable" ||
+		!reflect.DeepEqual(stale.OrderIDs, ids(1, 2)) {
+		t.Fatalf("stale %#v", stale)
+	}
+
+	// A later Unavailable replaces the earlier reason and IDs.
+	seq++
+	ws.send(t, "s1", seq, &privatewsv1.ServerMessage{Frame: &privatewsv1.ServerMessage_Unavailable{
+		Unavailable: &privatewsv1.Unavailable{Reason: privatewsv1.UnavailableReason_ORDER_UNAVAILABLE, OrderIds: []uint64{2}},
+	}})
+	if stale := expectEvent[OrderStale](t, sub); !stale.Stale || !reflect.DeepEqual(stale.OrderIDs, ids(2)) {
+		t.Fatalf("stale %#v", stale)
+	}
+
+	// A consumer that joins now gets the current reason and IDs.
+	late := subscribeOrders(t, c, testAccount)
+	expectEvent[OrderStreamConnected](t, late)
+	expectEvent[OrderSnapshot](t, late)
+	if stale := expectEvent[OrderStale](t, late); !stale.Stale || stale.Reason != "order_unavailable" ||
+		!reflect.DeepEqual(stale.OrderIDs, ids(2)) {
+		t.Fatalf("late stale %#v", stale)
+	}
+
+	// A whole-view reason carries no IDs.
+	seq++
+	ws.send(t, "s1", seq, &privatewsv1.ServerMessage{Frame: &privatewsv1.ServerMessage_Unavailable{
+		Unavailable: &privatewsv1.Unavailable{Reason: privatewsv1.UnavailableReason_VIEW_BEHIND},
+	}})
+	for _, s := range []*Subscription[OrderStreamEvent]{sub, late} {
+		if stale := expectEvent[OrderStale](t, s); !stale.Stale || stale.Reason != "view_behind" || len(stale.OrderIDs) != 0 {
+			t.Fatalf("stale %#v", stale)
+		}
+	}
+
+	seq++
+	ws.send(t, "s1", seq, &privatewsv1.ServerMessage{Frame: &privatewsv1.ServerMessage_Available{Available: &privatewsv1.Available{}}})
+	for _, s := range []*Subscription[OrderStreamEvent]{sub, late} {
+		if stale := expectEvent[OrderStale](t, s); stale.Stale || len(stale.OrderIDs) != 0 {
+			t.Fatalf("stale %#v", stale)
+		}
+	}
+	after := subscribeOrders(t, c, testAccount)
+	expectEvent[OrderStreamConnected](t, after)
+	expectEvent[OrderSnapshot](t, after)
+	expectNoEvent(t, after, 50*time.Millisecond)
+}
+
 func TestPrivateOrdersSubscribeExpiringRefreshesSubscribeToken(t *testing.T) {
 	f := newFakePrivateServer(t)
 	c := newTestOrderClient(t, f, testTiming())

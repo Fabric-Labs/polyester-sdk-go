@@ -25,18 +25,18 @@ func RiskPolicyToProto(in *models.AttachedRiskInput, fieldName, symbol string) (
 	}
 	policy := &orderv1.RiskPolicy{Oco: in.OCO}
 	if in.TakeProfit != nil {
-		ticks, child, err := riskLegToProto(*in.TakeProfit, fieldName+".take_profit", symbol)
+		ticks, source, child, err := riskLegToProto(*in.TakeProfit, fieldName+".take_profit", symbol)
 		if err != nil {
 			return nil, err
 		}
-		policy.TakeProfit = &orderv1.TakeProfitPolicy{TriggerPriceTicks: ticks, Child: child}
+		policy.TakeProfit = &orderv1.TakeProfitPolicy{TriggerPriceTicks: ticks, TriggerPriceSource: source, Child: child}
 	}
 	if in.StopLoss != nil {
-		ticks, child, err := riskLegToProto(*in.StopLoss, fieldName+".stop_loss", symbol)
+		ticks, source, child, err := riskLegToProto(*in.StopLoss, fieldName+".stop_loss", symbol)
 		if err != nil {
 			return nil, err
 		}
-		policy.StopLeg = &orderv1.RiskPolicy_StopLoss{StopLoss: &orderv1.StopLossPolicy{TriggerPriceTicks: ticks, Child: child}}
+		policy.StopLeg = &orderv1.RiskPolicy_StopLoss{StopLoss: &orderv1.StopLossPolicy{TriggerPriceTicks: ticks, TriggerPriceSource: source, Child: child}}
 	}
 	if in.TrailingStop != nil {
 		trailing, err := trailingStopToProto(*in.TrailingStop, fieldName+".trailing_stop", symbol)
@@ -48,19 +48,23 @@ func RiskPolicyToProto(in *models.AttachedRiskInput, fieldName, symbol string) (
 	return policy, nil
 }
 
-func riskLegToProto(leg models.RiskLegInput, fieldName, symbol string) (int64, *orderv1.RiskExecution, error) {
+func riskLegToProto(leg models.RiskLegInput, fieldName, symbol string) (int64, orderv1.TriggerPriceSource, *orderv1.RiskExecution, error) {
 	trigger, err := positivePriceTicks(leg.TriggerPrice, fieldName+".trigger_price", symbol)
 	if err != nil {
-		return 0, nil, err
+		return 0, 0, nil, err
+	}
+	source, err := triggerPriceSourceToProto(leg.TriggerPriceSource, fieldName+".trigger_price_source")
+	if err != nil {
+		return 0, 0, nil, err
 	}
 	if leg.LimitPrice == nil {
-		return trigger, &orderv1.RiskExecution{Execution: &orderv1.RiskExecution_MarketIoc{MarketIoc: &orderv1.RiskMarketIoc{}}}, nil
+		return trigger, source, &orderv1.RiskExecution{Execution: &orderv1.RiskExecution_MarketIoc{MarketIoc: &orderv1.RiskMarketIoc{}}}, nil
 	}
 	limit, err := positivePriceTicks(*leg.LimitPrice, fieldName+".limit_price", symbol)
 	if err != nil {
-		return 0, nil, err
+		return 0, 0, nil, err
 	}
-	return trigger, &orderv1.RiskExecution{Execution: &orderv1.RiskExecution_LimitGtc{LimitGtc: &orderv1.RiskLimitGtc{PriceTicks: limit}}}, nil
+	return trigger, source, &orderv1.RiskExecution{Execution: &orderv1.RiskExecution_LimitGtc{LimitGtc: &orderv1.RiskLimitGtc{PriceTicks: limit}}}, nil
 }
 
 func trailingStopToProto(in models.TrailingStopInput, fieldName, symbol string) (*orderv1.TrailingStopPolicy, error) {
@@ -101,6 +105,11 @@ func trailingStopToProto(in models.TrailingStopInput, fieldName, symbol string) 
 		}
 		out.ActivationPriceTicks = ticks
 	}
+	source, err := triggerPriceSourceToProto(in.TriggerPriceSource, fieldName+".trigger_price_source")
+	if err != nil {
+		return nil, err
+	}
+	out.TriggerPriceSource = source
 	return out, nil
 }
 

@@ -135,3 +135,22 @@ func TestFlowByTxResponseReturnsAllMatches(t *testing.T) {
 		t.Fatalf("result=%+v", result)
 	}
 }
+
+func TestDepositSourceNotConfirmedReasonAndDelayedFlow(t *testing.T) {
+	flow := decode.FlowSummaryMessageFromProto(&lifecyclev1.FlowSummaryView{
+		FlowId:          "flow-delayed",
+		FlowKind:        lifecyclev1.FlowKind_KIND_DEPOSIT,
+		IsOpen:          true,
+		IsDelayed:       true,
+		LifecycleReason: lifecyclev1.LifecycleReason_DEPOSIT_SOURCE_NOT_CONFIRMED,
+	})
+	if flow.LifecycleReason != "deposit_source_not_confirmed" || !flow.IsDelayed {
+		t.Fatalf("flow=%+v", flow)
+	}
+	listed := decode.FlowsListFromProto(&lifecyclev1.ListFlowsResponse{
+		Flows: []*lifecyclev1.FlowSummaryView{{FlowId: "flow-delayed", IsOpen: true, IsDelayed: true}},
+	})
+	if len(listed.Flows) != 1 || !listed.Flows[0].IsDelayed {
+		t.Fatalf("listed=%+v", listed)
+	}
+}
