@@ -72,7 +72,7 @@ func (Channel) EnumDescriptor() ([]byte, []int) {
 	return file_privatews_v1_private_ws_proto_rawDescGZIP(), []int{0}
 }
 
-// UnavailableReason names why an account's live view is behind.
+// UnavailableReason names why an account's live view is not current.
 type UnavailableReason int32
 
 const (
@@ -86,6 +86,11 @@ const (
 	UnavailableReason_FAILOVER UnavailableReason = 3
 	// The read fence could not be established for now.
 	UnavailableReason_BOUNDARY_UNAVAILABLE UnavailableReason = 4
+	// The current state of the orders that `order_ids` names is temporarily
+	// unknown. Their rows, when the snapshot or a unit carried one, show an
+	// earlier state; an order may have no row yet. The rest of the account's
+	// view is current, and units keep arriving.
+	UnavailableReason_ORDER_UNAVAILABLE UnavailableReason = 5
 )
 
 // Enum value maps for UnavailableReason.
@@ -96,6 +101,7 @@ var (
 		2: "NOT_READY",
 		3: "FAILOVER",
 		4: "BOUNDARY_UNAVAILABLE",
+		5: "ORDER_UNAVAILABLE",
 	}
 	UnavailableReason_value = map[string]int32{
 		"UNAVAILABLE_REASON_UNSPECIFIED": 0,
@@ -103,6 +109,7 @@ var (
 		"NOT_READY":                      2,
 		"FAILOVER":                       3,
 		"BOUNDARY_UNAVAILABLE":           4,
+		"ORDER_UNAVAILABLE":              5,
 	}
 )
 
@@ -1390,12 +1397,13 @@ type ServerMessage_ResyncRequired struct {
 }
 
 type ServerMessage_Unavailable struct {
-	// The account's live view is behind for now.
+	// The account's live view, or some of its orders, is not current for
+	// now.
 	Unavailable *Unavailable `protobuf:"bytes,24,opt,name=unavailable,proto3,oneof"`
 }
 
 type ServerMessage_Available struct {
-	// The account's live view caught up again after Unavailable.
+	// The account's live view is current again after Unavailable.
 	Available *Available `protobuf:"bytes,25,opt,name=available,proto3,oneof"`
 }
 
@@ -1946,6 +1954,8 @@ type Unit struct {
 	Orders []*v1.Order `protobuf:"bytes,3,rep,name=orders,proto3" json:"orders,omitempty"`
 	// Public IDs of orders that left the live view: ended orders now kept in
 	// history, or orders that never got past admission. Not a cancellation.
+	// An order that ends in this unit and leaves with it is also in `orders`,
+	// with its final revision: apply `orders` first, then these removals.
 	RemovedOrderIds []uint64 `protobuf:"fixed64,4,rep,packed,name=removed_order_ids,json=removedOrderIds,proto3" json:"removed_order_ids,omitempty"`
 	// What caused the change, in order. Never coalesced.
 	Events        []*UnitEvent `protobuf:"bytes,5,rep,name=events,proto3" json:"events,omitempty"`
@@ -2197,15 +2207,20 @@ func (x *ResyncRequired) GetReason() ResyncRequired_Reason {
 	return ResyncRequired_REASON_UNSPECIFIED
 }
 
-// Unavailable says the account's live view is behind for now. Show it as
-// stale until Available. The subscription stays and always recovers by
-// itself; the client does nothing.
+// Unavailable says the account's live view, or some of its orders, is not
+// current for now. Show what it names as stale until Available. A later
+// Unavailable replaces this one's reason and `order_ids`. The subscription
+// stays and always recovers by itself; the client does nothing.
 // Ready and Synced may still arrive meanwhile: they describe the position
 // already delivered, which is unchanged.
 type Unavailable struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Why.
-	Reason        UnavailableReason `protobuf:"varint,1,opt,name=reason,proto3,enum=privatews.v1.UnavailableReason" json:"reason,omitempty"`
+	Reason UnavailableReason `protobuf:"varint,1,opt,name=reason,proto3,enum=privatews.v1.UnavailableReason" json:"reason,omitempty"`
+	// For ORDER_UNAVAILABLE: the public IDs of the orders whose current state
+	// is unknown, ascending. Empty for every other reason, which covers the
+	// whole view.
+	OrderIds      []uint64 `protobuf:"fixed64,2,rep,packed,name=order_ids,json=orderIds,proto3" json:"order_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2247,7 +2262,15 @@ func (x *Unavailable) GetReason() UnavailableReason {
 	return UnavailableReason_UNAVAILABLE_REASON_UNSPECIFIED
 }
 
-// Available says the account's live view caught up after Unavailable.
+func (x *Unavailable) GetOrderIds() []uint64 {
+	if x != nil {
+		return x.OrderIds
+	}
+	return nil
+}
+
+// Available says the account's live view is current again after
+// Unavailable: every order it holds shows its current state.
 type Available struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -2895,9 +2918,10 @@ const file_privatews_v1_private_ws_proto_rawDesc = "" +
 	"\x12REASON_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eCURSOR_UNKNOWN\x10\x01\x12\x12\n" +
 	"\x0eCURSOR_EXPIRED\x10\x02\x12\x11\n" +
-	"\rHISTORY_RESET\x10\x03\"F\n" +
+	"\rHISTORY_RESET\x10\x03\"c\n" +
 	"\vUnavailable\x127\n" +
-	"\x06reason\x18\x01 \x01(\x0e2\x1f.privatews.v1.UnavailableReasonR\x06reason\"\v\n" +
+	"\x06reason\x18\x01 \x01(\x0e2\x1f.privatews.v1.UnavailableReasonR\x06reason\x12\x1b\n" +
+	"\torder_ids\x18\x02 \x03(\x06R\borderIds\"\v\n" +
 	"\tAvailable\"\x86\x02\n" +
 	"\fRequestError\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x123\n" +
@@ -2968,13 +2992,14 @@ const file_privatews_v1_private_ws_proto_rawDesc = "" +
 	"\aChannel\x12\x17\n" +
 	"\x13CHANNEL_UNSPECIFIED\x10\x00\x12\n" +
 	"\n" +
-	"\x06ORDERS\x10\x01*\x7f\n" +
+	"\x06ORDERS\x10\x01*\x96\x01\n" +
 	"\x11UnavailableReason\x12\"\n" +
 	"\x1eUNAVAILABLE_REASON_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vVIEW_BEHIND\x10\x01\x12\r\n" +
 	"\tNOT_READY\x10\x02\x12\f\n" +
 	"\bFAILOVER\x10\x03\x12\x18\n" +
-	"\x14BOUNDARY_UNAVAILABLE\x10\x04BFZDgithub.com/Fabric-Labs/polyester-sdk-go/gen/privatews/v1;privatewsv1b\x06proto3"
+	"\x14BOUNDARY_UNAVAILABLE\x10\x04\x12\x15\n" +
+	"\x11ORDER_UNAVAILABLE\x10\x05BFZDgithub.com/Fabric-Labs/polyester-sdk-go/gen/privatews/v1;privatewsv1b\x06proto3"
 
 var (
 	file_privatews_v1_private_ws_proto_rawDescOnce sync.Once

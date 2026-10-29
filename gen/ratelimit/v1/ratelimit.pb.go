@@ -426,10 +426,10 @@ const file_ratelimit_v1_ratelimit_proto_rawDesc = "" +
 	"\x15TradingRateLimitClass\x12(\n" +
 	"$TRADING_RATE_LIMIT_CLASS_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eTRADING_RATE_LIMIT_CLASS_PLACE\x10\x01\x12#\n" +
-	"\x1fTRADING_RATE_LIMIT_CLASS_CANCEL\x10\x022\xc3\x04\n" +
-	"\x10RateLimitService\x12\x90\x02\n" +
-	"\x12GetRateLimitConfig\x12'.ratelimit.v1.GetRateLimitConfigRequest\x1a(.ratelimit.v1.GetRateLimitConfigResponse\"\xa6\x01\xbaG\x87\x01\n" +
-	"\x12Rate Limit Service\x12\x15Get Rate Limit Config\x1aXGet the complete active placement and cancellation quota catalog for VIP0 through VIP10.Z\x00\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x11\x12\x0f/v1/rate-limits\x12\x9b\x02\n" +
+	"\x1fTRADING_RATE_LIMIT_CLASS_CANCEL\x10\x022\xc6\x04\n" +
+	"\x10RateLimitService\x12\x93\x02\n" +
+	"\x12GetRateLimitConfig\x12'.ratelimit.v1.GetRateLimitConfigRequest\x1a(.ratelimit.v1.GetRateLimitConfigResponse\"\xa9\x01\xbaG\x87\x01\n" +
+	"\x12Rate Limit Service\x12\x15Get Rate Limit Config\x1aXGet the complete active placement and cancellation quota catalog for VIP0 through VIP10.Z\x00\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x11\x12\x0f/v1/rate-limits\x90\x02\x01\x12\x9b\x02\n" +
 	"\x14GetTradingRateLimits\x12).ratelimit.v1.GetTradingRateLimitsRequest\x1a*.ratelimit.v1.GetTradingRateLimitsResponse\"\xab\x01\xbaG\x88\x01\n" +
 	"\x12Rate Limit Service\x12\x17Get Trading Rate Limits\x1aYGet the effective placement and cancellation limits for the authenticated account target.\x82\xd3\xe4\x93\x02\x19\x12\x17/v1/trading/rate-limitsB\xb0\x01\xbaGg:e\n" +
 	"\x12Rate Limit Service\x12OPublic trading quota reference data and authenticated effective trading limits.ZDgithub.com/Fabric-Labs/polyester-sdk-go/gen/ratelimit/v1;ratelimitv1b\x06proto3"

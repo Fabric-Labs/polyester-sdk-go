@@ -45,6 +45,7 @@ const (
 type RateLimitServiceClient interface {
 	// Get the complete active placement and cancellation quota catalog for
 	// VIP0 through VIP10.
+	// This public, caller-independent catalog supports cacheable ConnectRPC GET.
 	GetRateLimitConfig(context.Context, *connect.Request[v1.GetRateLimitConfigRequest]) (*connect.Response[v1.GetRateLimitConfigResponse], error)
 	// Get the effective placement and cancellation limits for the authenticated
 	// caller's root account or selected subaccount.
@@ -66,6 +67,7 @@ func NewRateLimitServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+RateLimitServiceGetRateLimitConfigProcedure,
 			connect.WithSchema(rateLimitServiceMethods.ByName("GetRateLimitConfig")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		getTradingRateLimits: connect.NewClient[v1.GetTradingRateLimitsRequest, v1.GetTradingRateLimitsResponse](
@@ -97,6 +99,7 @@ func (c *rateLimitServiceClient) GetTradingRateLimits(ctx context.Context, req *
 type RateLimitServiceHandler interface {
 	// Get the complete active placement and cancellation quota catalog for
 	// VIP0 through VIP10.
+	// This public, caller-independent catalog supports cacheable ConnectRPC GET.
 	GetRateLimitConfig(context.Context, *connect.Request[v1.GetRateLimitConfigRequest]) (*connect.Response[v1.GetRateLimitConfigResponse], error)
 	// Get the effective placement and cancellation limits for the authenticated
 	// caller's root account or selected subaccount.
@@ -114,6 +117,7 @@ func NewRateLimitServiceHandler(svc RateLimitServiceHandler, opts ...connect.Han
 		RateLimitServiceGetRateLimitConfigProcedure,
 		svc.GetRateLimitConfig,
 		connect.WithSchema(rateLimitServiceMethods.ByName("GetRateLimitConfig")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	rateLimitServiceGetTradingRateLimitsHandler := connect.NewUnaryHandler(

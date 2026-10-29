@@ -1232,10 +1232,16 @@ type FlowSummaryView struct {
 	// Progress-bar timeline for list/header UI. This timeline may include a
 	// current derived step that is ahead of the latest factual observed step.
 	ProgressTimeline []*FlowTimelineItemView `protobuf:"bytes,26,rep,name=progress_timeline,json=progressTimeline,proto3" json:"progress_timeline,omitempty"`
-	// Estimated Unix completion timestamp in milliseconds.
+	// Estimated Unix completion timestamp in milliseconds. Zero while
+	// `is_delayed` is true, because no reliable estimate exists then.
 	EstimatedCompletionUnixMs uint64 `protobuf:"varint,27,opt,name=estimated_completion_unix_ms,json=estimatedCompletionUnixMs,proto3" json:"estimated_completion_unix_ms,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
+	// True when an open flow has made no progress for well beyond the expected
+	// time of its current step. Show the flow as delayed instead of an ETA; it
+	// still completes normally once progress resumes. Always false for terminal
+	// flows.
+	IsDelayed     bool `protobuf:"varint,36,opt,name=is_delayed,json=isDelayed,proto3" json:"is_delayed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *FlowSummaryView) Reset() {
@@ -1471,6 +1477,13 @@ func (x *FlowSummaryView) GetEstimatedCompletionUnixMs() uint64 {
 	return 0
 }
 
+func (x *FlowSummaryView) GetIsDelayed() bool {
+	if x != nil {
+		return x.IsDelayed
+	}
+	return false
+}
+
 // FlowSummaryProgressView describes progress within the current visible step.
 type FlowSummaryProgressView struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1610,6 +1623,14 @@ type FlowStepView struct {
 	RequestFee *RequestFee `protobuf:"bytes,24,opt,name=request_fee,json=requestFee,proto3" json:"request_fee,omitempty"`
 	// Transaction reference most relevant to this step.
 	MilestoneTxRef string `protobuf:"bytes,11,opt,name=milestone_tx_ref,json=milestoneTxRef,proto3" json:"milestone_tx_ref,omitempty"`
+	// Chain that holds `milestone_tx_ref`, as the `chain_id` of a chain returned
+	// by `GetDepositWithdrawConfig`, the same id space as `polyester_chain_id`.
+	// Link the transaction with that chain's `explorer_url`. Polyester Chain
+	// transactions name Polyester Chain, a deposit's source-chain transaction
+	// names its source chain, and a withdrawal's delivery transaction names its
+	// destination chain. Zero when `milestone_tx_ref` is empty or is not a chain
+	// transaction, such as a ledger settlement identifier.
+	MilestoneTxChainId uint32 `protobuf:"varint,26,opt,name=milestone_tx_chain_id,json=milestoneTxChainId,proto3" json:"milestone_tx_chain_id,omitempty"`
 	// Source that produced this visible step.
 	LifecycleSource LifecycleSource `protobuf:"varint,12,opt,name=lifecycle_source,json=lifecycleSource,proto3,enum=chain.lifecycle.v1.LifecycleSource" json:"lifecycle_source,omitempty"`
 	// Product-facing reason for failed, dropped, or otherwise notable steps.
@@ -1721,6 +1742,13 @@ func (x *FlowStepView) GetMilestoneTxRef() string {
 	return ""
 }
 
+func (x *FlowStepView) GetMilestoneTxChainId() uint32 {
+	if x != nil {
+		return x.MilestoneTxChainId
+	}
+	return 0
+}
+
 func (x *FlowStepView) GetLifecycleSource() LifecycleSource {
 	if x != nil {
 		return x.LifecycleSource
@@ -1819,6 +1847,10 @@ type FlowStepActivityView struct {
 	Sequence uint32 `protobuf:"varint,1,opt,name=sequence,proto3" json:"sequence,omitempty"`
 	// Transaction reference associated with this activity.
 	TxRef string `protobuf:"bytes,2,opt,name=tx_ref,json=txRef,proto3" json:"tx_ref,omitempty"`
+	// Chain that holds `tx_ref`, with the meaning of
+	// `FlowStepView.milestone_tx_chain_id`. Zero when `tx_ref` is empty or is not
+	// a chain transaction.
+	TxChainId uint32 `protobuf:"varint,17,opt,name=tx_chain_id,json=txChainId,proto3" json:"tx_chain_id,omitempty"`
 	// Activity occurrence timestamp in milliseconds since epoch (UTC).
 	OccurredAtUnixMs uint64 `protobuf:"varint,3,opt,name=occurred_at_unix_ms,json=occurredAtUnixMs,proto3" json:"occurred_at_unix_ms,omitempty"`
 	// Source that produced this activity.
@@ -1895,6 +1927,13 @@ func (x *FlowStepActivityView) GetTxRef() string {
 		return x.TxRef
 	}
 	return ""
+}
+
+func (x *FlowStepActivityView) GetTxChainId() uint32 {
+	if x != nil {
+		return x.TxChainId
+	}
+	return 0
 }
 
 func (x *FlowStepActivityView) GetOccurredAtUnixMs() uint64 {
@@ -2203,7 +2242,7 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\x15ListFlowsByTxResponse\x12\x17\n" +
 	"\atx_hash\x18\x01 \x01(\tR\x06txHash\x12=\n" +
 	"\amatches\x18\x02 \x03(\v2#.chain.lifecycle.v1.FlowTxMatchViewR\amatches\x120\n" +
-	"\x0fnext_page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\x8e\r\n" +
+	"\x0fnext_page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xad\r\n" +
 	"\x0fFlowSummaryView\x12(\n" +
 	"\x10owner_account_id\x18\x01 \x01(\x06R\x0eownerAccountId\x12@\n" +
 	"\x15smart_account_address\x18\" \x01(\tB\f\xbaH\t\xd8\x01\x01r\x04\x88\xb5\x18\x01R\x13smartAccountAddress\x12\x17\n" +
@@ -2236,7 +2275,9 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\x15current_step_sequence\x18\x18 \x01(\rR\x13currentStepSequence\x12V\n" +
 	"\x10current_progress\x18\x19 \x01(\v2+.chain.lifecycle.v1.FlowSummaryProgressViewR\x0fcurrentProgress\x12U\n" +
 	"\x11progress_timeline\x18\x1a \x03(\v2(.chain.lifecycle.v1.FlowTimelineItemViewR\x10progressTimeline\x12?\n" +
-	"\x1cestimated_completion_unix_ms\x18\x1b \x01(\x04R\x19estimatedCompletionUnixMsR\vreason_codeR\x0ereason_details\"\xe5\x03\n" +
+	"\x1cestimated_completion_unix_ms\x18\x1b \x01(\x04R\x19estimatedCompletionUnixMs\x12\x1d\n" +
+	"\n" +
+	"is_delayed\x18$ \x01(\bR\tisDelayedR\vreason_codeR\x0ereason_details\"\xe5\x03\n" +
 	"\x17FlowSummaryProgressView\x12C\n" +
 	"\x1fcurrent_step_started_at_unix_ms\x18\x01 \x01(\x04R\x1acurrentStepStartedAtUnixMs\x12H\n" +
 	"!current_step_expected_duration_ms\x18\x02 \x01(\x04R\x1dcurrentStepExpectedDurationMs\x123\n" +
@@ -2247,7 +2288,7 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\x0fvalidator_count\x18\t \x01(\rR\x0evalidatorCount\x12-\n" +
 	"\x12required_approvals\x18\n" +
 	" \x01(\rR\x11requiredApprovals\x12/\n" +
-	"\x13required_rejections\x18\v \x01(\rR\x12requiredRejections\"\xe6\b\n" +
+	"\x13required_rejections\x18\v \x01(\rR\x12requiredRejections\"\x99\t\n" +
 	"\fFlowStepView\x12\x1a\n" +
 	"\bsequence\x18\x01 \x01(\rR\bsequence\x120\n" +
 	"\x04step\x18\x03 \x01(\x0e2\x1c.chain.lifecycle.v1.FlowStepR\x04step\x129\n" +
@@ -2257,7 +2298,8 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"amount_e18\x18\t \x01(\v2\x17.polyester.type.v1.U128R\tamountE18\x12?\n" +
 	"\vrequest_fee\x18\x18 \x01(\v2\x1e.chain.lifecycle.v1.RequestFeeR\n" +
 	"requestFee\x12(\n" +
-	"\x10milestone_tx_ref\x18\v \x01(\tR\x0emilestoneTxRef\x12N\n" +
+	"\x10milestone_tx_ref\x18\v \x01(\tR\x0emilestoneTxRef\x121\n" +
+	"\x15milestone_tx_chain_id\x18\x1a \x01(\rR\x12milestoneTxChainId\x12N\n" +
 	"\x10lifecycle_source\x18\f \x01(\x0e2#.chain.lifecycle.v1.LifecycleSourceR\x0flifecycleSource\x12N\n" +
 	"\x10lifecycle_reason\x18\r \x01(\x0e2#.chain.lifecycle.v1.LifecycleReasonR\x0flifecycleReason\x12I\n" +
 	"\rzipper_reason\x18\x19 \x01(\v2$.chain.zipper.v1.ZipperReasonDetailsR\fzipperReason\x123\n" +
@@ -2272,10 +2314,11 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\x1cblock_time_moving_average_ms\x18\x14 \x01(\x04R\x18blockTimeMovingAverageMs\x12H\n" +
 	"\n" +
 	"activities\x18\x15 \x03(\v2(.chain.lifecycle.v1.FlowStepActivityViewR\n" +
-	"activitiesR\vreason_codeR\x0ereason_details\"\xe1\x06\n" +
+	"activitiesR\vreason_codeR\x0ereason_details\"\x81\a\n" +
 	"\x14FlowStepActivityView\x12\x1a\n" +
 	"\bsequence\x18\x01 \x01(\rR\bsequence\x12\x15\n" +
-	"\x06tx_ref\x18\x02 \x01(\tR\x05txRef\x12-\n" +
+	"\x06tx_ref\x18\x02 \x01(\tR\x05txRef\x12\x1e\n" +
+	"\vtx_chain_id\x18\x11 \x01(\rR\ttxChainId\x12-\n" +
 	"\x13occurred_at_unix_ms\x18\x03 \x01(\x04R\x10occurredAtUnixMs\x12N\n" +
 	"\x10lifecycle_source\x18\x04 \x01(\x0e2#.chain.lifecycle.v1.LifecycleSourceR\x0flifecycleSource\x12N\n" +
 	"\x10lifecycle_reason\x18\x05 \x01(\x0e2#.chain.lifecycle.v1.LifecycleReasonR\x0flifecycleReason\x12I\n" +

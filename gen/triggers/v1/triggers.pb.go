@@ -251,6 +251,23 @@ const (
 	// no child order was canceled by the user, and the first child order to be
 	// canceled was canceled by self-trade prevention.
 	TriggerCancelReason_TRIGGER_CANCEL_REASON_SELF_TRADE_PREVENTION TriggerCancelReason = 4
+	// Ended by the exchange while it recovered your account. The account's
+	// open orders on the market were canceled at the same time; place new
+	// orders and triggers once the account trades again.
+	TriggerCancelReason_TRIGGER_CANCEL_REASON_ACCOUNT_REPAIR TriggerCancelReason = 8
+	// The market was disabled: the exchange ended the stop-loss, take-profit or
+	// trailing stop and released its reserved funds. The market's open orders
+	// were canceled at the same time.
+	TriggerCancelReason_TRIGGER_CANCEL_REASON_PAIR_DRAIN_TRIGGER TriggerCancelReason = 9
+	// The market was disabled: the exchange ended the TWAP and canceled its
+	// resting slice, releasing its reserved funds.
+	TriggerCancelReason_TRIGGER_CANCEL_REASON_PAIR_DRAIN_TWAP TriggerCancelReason = 10
+	// The market was disabled: the exchange ended the ladder and canceled its
+	// resting levels, releasing their reserved funds.
+	TriggerCancelReason_TRIGGER_CANCEL_REASON_PAIR_DRAIN_LADDER TriggerCancelReason = 11
+	// The market was disabled: the exchange ended the order's attached
+	// take-profit or stop-loss and canceled the order and its working exit.
+	TriggerCancelReason_TRIGGER_CANCEL_REASON_PAIR_DRAIN_ATTACHED_LEG TriggerCancelReason = 12
 	// The terminal state did not contain a cancellation reason.
 	TriggerCancelReason_TRIGGER_CANCEL_REASON_MISSING_REASON_CODE TriggerCancelReason = 998
 	// An internal invariant or processing failure canceled the trigger.
@@ -265,6 +282,11 @@ var (
 		2:   "TRIGGER_CANCEL_REASON_OCO",
 		3:   "TRIGGER_CANCEL_REASON_PARENT_CANCELED_NO_FILL",
 		4:   "TRIGGER_CANCEL_REASON_SELF_TRADE_PREVENTION",
+		8:   "TRIGGER_CANCEL_REASON_ACCOUNT_REPAIR",
+		9:   "TRIGGER_CANCEL_REASON_PAIR_DRAIN_TRIGGER",
+		10:  "TRIGGER_CANCEL_REASON_PAIR_DRAIN_TWAP",
+		11:  "TRIGGER_CANCEL_REASON_PAIR_DRAIN_LADDER",
+		12:  "TRIGGER_CANCEL_REASON_PAIR_DRAIN_ATTACHED_LEG",
 		998: "TRIGGER_CANCEL_REASON_MISSING_REASON_CODE",
 		999: "TRIGGER_CANCEL_REASON_INTERNAL_ERROR",
 	}
@@ -274,6 +296,11 @@ var (
 		"TRIGGER_CANCEL_REASON_OCO":                     2,
 		"TRIGGER_CANCEL_REASON_PARENT_CANCELED_NO_FILL": 3,
 		"TRIGGER_CANCEL_REASON_SELF_TRADE_PREVENTION":   4,
+		"TRIGGER_CANCEL_REASON_ACCOUNT_REPAIR":          8,
+		"TRIGGER_CANCEL_REASON_PAIR_DRAIN_TRIGGER":      9,
+		"TRIGGER_CANCEL_REASON_PAIR_DRAIN_TWAP":         10,
+		"TRIGGER_CANCEL_REASON_PAIR_DRAIN_LADDER":       11,
+		"TRIGGER_CANCEL_REASON_PAIR_DRAIN_ATTACHED_LEG": 12,
 		"TRIGGER_CANCEL_REASON_MISSING_REASON_CODE":     998,
 		"TRIGGER_CANCEL_REASON_INTERNAL_ERROR":          999,
 	}
@@ -415,8 +442,8 @@ const (
 	// The trigger's quantity was not valid.
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_QTY_INVALID TriggerFailureReason = 103
 	// The trigger's limit price was not valid, including a buy trailing stop's
-	// maximum price below the last trade price when it was placed without an
-	// activation price.
+	// maximum price below the price it watches (the last traded price or the
+	// index price) when it was placed without an activation price.
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_LIMIT_PRICE_INVALID TriggerFailureReason = 104
 	// The TWAP interval was not valid.
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_TWAP_INTERVAL_INVALID TriggerFailureReason = 105
@@ -500,6 +527,14 @@ const (
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_CHILD_ORDER_INCONSISTENT TriggerFailureReason = 235
 	// The market's order limits weren't set yet when the trigger fired.
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_ORDER_LIMITS_UNAVAILABLE TriggerFailureReason = 238
+	// The trigger watches the index price and the market has no index price.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_INDEX_PRICE_UNAVAILABLE TriggerFailureReason = 241
+	// The trigger price was already reached by the price the trigger watches
+	// when the trigger was submitted (at or past it), so the trigger would have
+	// fired at once. It never armed and sent no order; its reserved funds were
+	// released. A price that reaches the trigger price after submission fires
+	// the trigger normally.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_TRIGGER_WOULD_TRIGGER_IMMEDIATELY TriggerFailureReason = 244
 	// The terminal state did not contain a failure reason.
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_MISSING_REASON_CODE TriggerFailureReason = 998
 	// An internal invariant or processing failure caused the trigger to fail.
@@ -599,6 +634,8 @@ var (
 		227: "TRIGGER_FAILURE_REASON_TWAP_CAPACITY_REACHED",
 		235: "TRIGGER_FAILURE_REASON_CHILD_ORDER_INCONSISTENT",
 		238: "TRIGGER_FAILURE_REASON_ORDER_LIMITS_UNAVAILABLE",
+		241: "TRIGGER_FAILURE_REASON_INDEX_PRICE_UNAVAILABLE",
+		244: "TRIGGER_FAILURE_REASON_TRIGGER_WOULD_TRIGGER_IMMEDIATELY",
 		998: "TRIGGER_FAILURE_REASON_MISSING_REASON_CODE",
 		999: "TRIGGER_FAILURE_REASON_INTERNAL_ERROR",
 	}
@@ -693,6 +730,8 @@ var (
 		"TRIGGER_FAILURE_REASON_TWAP_CAPACITY_REACHED":             227,
 		"TRIGGER_FAILURE_REASON_CHILD_ORDER_INCONSISTENT":          235,
 		"TRIGGER_FAILURE_REASON_ORDER_LIMITS_UNAVAILABLE":          238,
+		"TRIGGER_FAILURE_REASON_INDEX_PRICE_UNAVAILABLE":           241,
+		"TRIGGER_FAILURE_REASON_TRIGGER_WOULD_TRIGGER_IMMEDIATELY": 244,
 		"TRIGGER_FAILURE_REASON_MISSING_REASON_CODE":               998,
 		"TRIGGER_FAILURE_REASON_INTERNAL_ERROR":                    999,
 	}
@@ -1153,9 +1192,16 @@ type ConditionalTrigger struct {
 	// Child order side.
 	Side v1.Side `protobuf:"varint,2,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
 	// Child execution.
-	Child         *ConditionalChildExecution `protobuf:"bytes,3,opt,name=child,proto3" json:"child,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Child *ConditionalChildExecution `protobuf:"bytes,3,opt,name=child,proto3" json:"child,omitempty"`
+	// Price the trigger watches. Unspecified or LAST_PRICE watches the last
+	// traded price. INDEX_PRICE watches the market's index price; a market
+	// without an index price fails the trigger with
+	// TRIGGER_FAILURE_REASON_INDEX_PRICE_UNAVAILABLE. MARK_PRICE is not
+	// supported. Fixed at create: to change it, cancel the trigger and create a
+	// new one.
+	TriggerPriceSource v1.TriggerPriceSource `protobuf:"varint,4,opt,name=trigger_price_source,json=triggerPriceSource,proto3,enum=orders.v1.TriggerPriceSource" json:"trigger_price_source,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ConditionalTrigger) Reset() {
@@ -1209,6 +1255,13 @@ func (x *ConditionalTrigger) GetChild() *ConditionalChildExecution {
 	return nil
 }
 
+func (x *ConditionalTrigger) GetTriggerPriceSource() v1.TriggerPriceSource {
+	if x != nil {
+		return x.TriggerPriceSource
+	}
+	return v1.TriggerPriceSource(0)
+}
+
 // TrailingStopTrigger configures a spot trailing-stop strategy. A trailing
 // stop that sells tracks the highest price since it activated and fires a
 // market IOC child when the price falls the trailing distance from it. A
@@ -1243,12 +1296,20 @@ type TrailingStopTrigger struct {
 	// Maximum price of a trailing stop that buys, in quote units scaled by 1e9:
 	// the most its child pays per unit. Required when `side` is BUY and set
 	// aside for it with the child's fee; at least the activation price, or at
-	// least the last trade price when no activation price is set. A rise that
-	// fires above it still fires, and the child fills only at or below it. Must
-	// be unset when `side` is SELL. Fixed at create.
+	// least the price it watches (trigger_price_source) when no activation price
+	// is set. A rise that fires above it still fires, and the child fills only
+	// at or below it. Must be unset when `side` is SELL. Fixed at create.
 	LimitPriceTicks int64 `protobuf:"varint,7,opt,name=limit_price_ticks,json=limitPriceTicks,proto3" json:"limit_price_ticks,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Price the trailing stop watches: its activation, its peak or trough and
+	// its fire all follow this price. Unspecified or LAST_PRICE watches the last
+	// traded price. INDEX_PRICE watches the market's index price; a market
+	// without an index price fails the trigger with
+	// TRIGGER_FAILURE_REASON_INDEX_PRICE_UNAVAILABLE. MARK_PRICE is not
+	// supported. Fixed at create: to change it, cancel the trigger and create a
+	// new one.
+	TriggerPriceSource v1.TriggerPriceSource `protobuf:"varint,8,opt,name=trigger_price_source,json=triggerPriceSource,proto3,enum=orders.v1.TriggerPriceSource" json:"trigger_price_source,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *TrailingStopTrigger) Reset() {
@@ -1350,6 +1411,13 @@ func (x *TrailingStopTrigger) GetLimitPriceTicks() int64 {
 		return x.LimitPriceTicks
 	}
 	return 0
+}
+
+func (x *TrailingStopTrigger) GetTriggerPriceSource() v1.TriggerPriceSource {
+	if x != nil {
+		return x.TriggerPriceSource
+	}
+	return v1.TriggerPriceSource(0)
 }
 
 type isTrailingStopTrigger_TrailingDistance interface {
@@ -1532,9 +1600,10 @@ type TwapTrigger struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Child side.
 	Side v1.Side `protobuf:"varint,1,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
-	// Total execution duration in milliseconds.
+	// Total execution duration in milliseconds, at least 1000.
 	DurationMs int64 `protobuf:"varint,2,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
-	// Interval between slices in milliseconds.
+	// Interval between slices in milliseconds, at least 100 and at most
+	// duration_ms.
 	SliceIntervalMs int64 `protobuf:"varint,3,opt,name=slice_interval_ms,json=sliceIntervalMs,proto3" json:"slice_interval_ms,omitempty"`
 	// Proven slice execution behavior.
 	//
@@ -1733,10 +1802,18 @@ type TriggerIntent struct {
 	QtyScaled int64 `protobuf:"varint,2,opt,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`
 	// Fee asset for BUY children. SELL children must use QUOTE.
 	FeeAsset v1.FeeAsset `protobuf:"varint,3,opt,name=fee_asset,json=feeAsset,proto3,enum=orders.v1.FeeAsset" json:"fee_asset,omitempty"`
-	// Child self-trade prevention mode. Defaults to EXPIRE_MAKER.
+	// Child self-trade prevention mode against orders of the same root account,
+	// including all its subaccounts. Defaults to EXPIRE_MAKER.
 	SelfTradePreventionMode v1.SelfTradePreventionMode `protobuf:"varint,4,opt,name=self_trade_prevention_mode,json=selfTradePreventionMode,proto3,enum=orders.v1.SelfTradePreventionMode" json:"self_trade_prevention_mode,omitempty"`
-	// Client-provided trigger ID for idempotency. Retrying an accepted create
-	// with the identical intent returns the same trigger. After a create fails
+	// Client-provided trigger ID for idempotency, unique per sub-account, pair
+	// and trigger type. While the trigger is active and for 60 seconds after it
+	// reaches a terminal status, retrying the create with the identical intent
+	// returns the same trigger, and a different intent with the same ID returns
+	// CONFLICT_DUPLICATE_CLIENT_TRIGGER_ID. After those 60 seconds the ID is
+	// free: a create that uses it is a new intent and creates a new trigger. To
+	// learn the outcome of an earlier create after that window, read the
+	// triggers with ListTriggers, which return each trigger's
+	// client_trigger_id, instead of retrying the create. After a create fails
 	// with INTERNAL_ERROR, the ID may already be used: a retry then returns
 	// CONFLICT_DUPLICATE_CLIENT_TRIGGER_ID and needs a new client trigger ID.
 	// At most 36 bytes in UTF-8 (36 ASCII characters); longer IDs are rejected
@@ -1913,6 +1990,10 @@ func (*TriggerIntent_Twap) isTriggerIntent_Strategy() {}
 func (*TriggerIntent_Ladder) isTriggerIntent_Strategy() {}
 
 // CreateTriggerRequest submits one standalone trigger intent for admission.
+// A create sent but not confirmed in time fails with
+// TRIGGER_CREATE_OUTCOME_UNKNOWN: the trigger may have been created, so read
+// the triggers for its client_trigger_id before retrying. UNAVAILABLE means
+// the trigger was not created.
 type CreateTriggerRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target sub-account. When omitted, uses the caller's root account.
@@ -2804,8 +2885,11 @@ type ModifyTriggerRequest struct {
 	TriggerId uint64 `protobuf:"fixed64,1,opt,name=trigger_id,json=triggerId,proto3" json:"trigger_id,omitempty"`
 	// Optional sub-account for authorization.
 	SubaccountId *uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
-	// Trading symbol numeric identifier. Required for API-key market policy and
-	// must match the stored trigger.
+	// Optional trading symbol numeric identifier. Zero or omitted means the
+	// trigger's own pair. When set, it must be the trigger's pair: another pair
+	// is rejected with ERROR_CODE_UNKNOWN_SYMBOL and leaves the trigger
+	// unchanged. An API key limited to specific markets must name the trigger's
+	// pair.
 	SymbolId uint32 `protobuf:"varint,3,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Patch fields for safe price, trailing-distance, and slippage edits.
 	// For stop/take-profit:
@@ -3217,8 +3301,11 @@ type ResumeTriggerRequest struct {
 	TriggerId uint64 `protobuf:"fixed64,1,opt,name=trigger_id,json=triggerId,proto3" json:"trigger_id,omitempty"`
 	// Optional sub-account for authorization.
 	SubaccountId *uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
-	// Trading symbol numeric identifier. Required for API-key market policy and
-	// must match the stored trigger.
+	// Optional trading symbol numeric identifier. Zero or omitted means the
+	// trigger's own pair. When set, it must be the trigger's pair: another pair
+	// is rejected with ERROR_CODE_UNKNOWN_SYMBOL and leaves the trigger
+	// unchanged. An API key limited to specific markets must name the trigger's
+	// pair.
 	SymbolId      uint32 `protobuf:"varint,3,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -4145,12 +4232,13 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\tlimit_gtc\x18\x02 \x01(\v2\x1c.triggers.v1.TriggerLimitGtcH\x00R\blimitGtc\x12;\n" +
 	"\tlimit_ioc\x18\x03 \x01(\v2\x1c.triggers.v1.TriggerLimitIocH\x00R\blimitIoc\x12;\n" +
 	"\tlimit_fok\x18\x04 \x01(\v2\x1c.triggers.v1.TriggerLimitFokH\x00R\blimitFokB\x12\n" +
-	"\texecution\x12\x05\xbaH\x02\b\x01\"\xc4\x01\n" +
+	"\texecution\x12\x05\xbaH\x02\b\x01\"\x9f\x02\n" +
 	"\x12ConditionalTrigger\x127\n" +
 	"\x13trigger_price_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x11triggerPriceTicks\x12/\n" +
 	"\x04side\x18\x02 \x01(\x0e2\x0f.orders.v1.SideB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04side\x12D\n" +
-	"\x05child\x18\x03 \x01(\v2&.triggers.v1.ConditionalChildExecutionB\x06\xbaH\x03\xc8\x01\x01R\x05child\"\xe2\x03\n" +
+	"\x05child\x18\x03 \x01(\v2&.triggers.v1.ConditionalChildExecutionB\x06\xbaH\x03\xc8\x01\x01R\x05child\x12Y\n" +
+	"\x14trigger_price_source\x18\x04 \x01(\x0e2\x1d.orders.v1.TriggerPriceSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\x12triggerPriceSource\"\xbd\x04\n" +
 	"\x13TrailingStopTrigger\x12A\n" +
 	"\x17trailing_distance_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x00R\x15trailingDistanceTicks\x12@\n" +
 	"\x15trailing_distance_bps\x18\x02 \x01(\x05B\n" +
@@ -4163,7 +4251,8 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x04side\x18\x06 \x01(\x0e2\x0f.orders.v1.SideB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04side\x126\n" +
 	"\x11limit_price_ticks\x18\a \x01(\x03B\n" +
-	"\xbaH\a\xd8\x01\x01\"\x02 \x00R\x0flimitPriceTicksB\x1a\n" +
+	"\xbaH\a\xd8\x01\x01\"\x02 \x00R\x0flimitPriceTicks\x12Y\n" +
+	"\x14trigger_price_source\x18\b \x01(\x0e2\x1d.orders.v1.TriggerPriceSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\x12triggerPriceSourceB\x1a\n" +
 	"\x11trailing_distance\x12\x05\xbaH\x02\b\x01B\x0e\n" +
 	"\fmax_slippage\"\x90\x01\n" +
 	"\rTwapMarketIoc\x127\n" +
@@ -4173,17 +4262,17 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\fmax_slippage\"8\n" +
 	"\fTwapLimitGtc\x12(\n" +
 	"\vprice_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\n" +
-	"priceTicks\"\xd5\x03\n" +
+	"priceTicks\"\xa0\x03\n" +
 	"\vTwapTrigger\x12/\n" +
 	"\x04side\x18\x01 \x01(\x0e2\x0f.orders.v1.SideB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04side\x12\x1f\n" +
-	"\vduration_ms\x18\x02 \x01(\x03R\n" +
-	"durationMs\x12*\n" +
-	"\x11slice_interval_ms\x18\x03 \x01(\x03R\x0fsliceIntervalMs\x12;\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04side\x12)\n" +
+	"\vduration_ms\x18\x02 \x01(\x03B\b\xbaH\x05\"\x03(\xe8\aR\n" +
+	"durationMs\x123\n" +
+	"\x11slice_interval_ms\x18\x03 \x01(\x03B\a\xbaH\x04\"\x02(dR\x0fsliceIntervalMs\x12;\n" +
 	"\n" +
 	"market_ioc\x18\x04 \x01(\v2\x1a.triggers.v1.TwapMarketIocH\x00R\tmarketIoc\x128\n" +
-	"\tlimit_gtc\x18\x05 \x01(\v2\x19.triggers.v1.TwapLimitGtcH\x00R\blimitGtc:\xbc\x01\xbaH\xb8\x01\x1a\xb5\x01\n" +
-	"\x13twap_trigger.window\x125slice_interval_ms must be between 100 and duration_ms\x1agthis.duration_ms >= 1000 && this.slice_interval_ms >= 100 && this.slice_interval_ms <= this.duration_msB\x12\n" +
+	"\tlimit_gtc\x18\x05 \x01(\v2\x19.triggers.v1.TwapLimitGtcH\x00R\blimitGtc:u\xbaHr\x1ap\n" +
+	"\x13twap_trigger.window\x12-slice_interval_ms must not exceed duration_ms\x1a*this.slice_interval_ms <= this.duration_msB\x12\n" +
 	"\texecution\x12\x05\xbaH\x02\b\x01\"\xe2\x02\n" +
 	"\rLadderTrigger\x12/\n" +
 	"\x04side\x18\x01 \x01(\x0e2\x0f.orders.v1.SideB\n" +
@@ -4287,13 +4376,12 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"trigger_id\x18\x01 \x01(\x06R\ttriggerId\x122\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x1a.triggers.v1.TriggerStatusR\x06status\x12*\n" +
 	"\x02ts\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x02ts\x12\x13\n" +
-	"\x05ts_ns\x18\x04 \x01(\x04R\x04tsNs\"\xc1\x05\n" +
+	"\x05ts_ns\x18\x04 \x01(\x04R\x04tsNs\"\xb5\x05\n" +
 	"\x14ModifyTriggerRequest\x12-\n" +
 	"\n" +
 	"trigger_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\ttriggerId\x12(\n" +
-	"\rsubaccount_id\x18\x02 \x01(\x06H\x02R\fsubaccountId\x88\x01\x01\x12'\n" +
-	"\tsymbol_id\x18\x03 \x01(\rB\n" +
-	"\xe0A\x02\xbaH\x04*\x02 \x00R\bsymbolId\x12<\n" +
+	"\rsubaccount_id\x18\x02 \x01(\x06H\x02R\fsubaccountId\x88\x01\x01\x12\x1b\n" +
+	"\tsymbol_id\x18\x03 \x01(\rR\bsymbolId\x12<\n" +
 	"\x13trigger_price_ticks\x18\n" +
 	" \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x03R\x11triggerPriceTicks\x88\x01\x01\x12/\n" +
 	"\x11limit_price_ticks\x18\v \x01(\x03H\x04R\x0flimitPriceTicks\x88\x01\x01\x12A\n" +
@@ -4326,13 +4414,12 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"trigger_id\x18\x01 \x01(\x06R\ttriggerId\x122\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x1a.triggers.v1.TriggerStatusR\x06status\x12*\n" +
 	"\x02ts\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x02ts\x12\x13\n" +
-	"\x05ts_ns\x18\x04 \x01(\x04R\x04tsNs\"\xaa\x01\n" +
+	"\x05ts_ns\x18\x04 \x01(\x04R\x04tsNs\"\x9e\x01\n" +
 	"\x14ResumeTriggerRequest\x12-\n" +
 	"\n" +
 	"trigger_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\ttriggerId\x12(\n" +
-	"\rsubaccount_id\x18\x02 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12'\n" +
-	"\tsymbol_id\x18\x03 \x01(\rB\n" +
-	"\xe0A\x02\xbaH\x04*\x02 \x00R\bsymbolIdB\x10\n" +
+	"\rsubaccount_id\x18\x02 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12\x1b\n" +
+	"\tsymbol_id\x18\x03 \x01(\rR\bsymbolIdB\x10\n" +
 	"\x0e_subaccount_id\"\xab\x01\n" +
 	"\x15ResumeTriggerResponse\x12\x1d\n" +
 	"\n" +
@@ -4429,15 +4516,21 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x0eEVENT_CANCELED\x10\x02\x12\x11\n" +
 	"\rEVENT_UPDATED\x10\x03\x12\x10\n" +
 	"\fEVENT_FAILED\x10\x04\x12\x13\n" +
-	"\x0fEVENT_ACTIVATED\x10\x05*\xc2\x02\n" +
+	"\x0fEVENT_ACTIVATED\x10\x05*\xa5\x04\n" +
 	"\x13TriggerCancelReason\x12%\n" +
 	"!TRIGGER_CANCEL_REASON_UNSPECIFIED\x10\x00\x12&\n" +
 	"\"TRIGGER_CANCEL_REASON_USER_REQUEST\x10\x01\x12\x1d\n" +
 	"\x19TRIGGER_CANCEL_REASON_OCO\x10\x02\x121\n" +
 	"-TRIGGER_CANCEL_REASON_PARENT_CANCELED_NO_FILL\x10\x03\x12/\n" +
-	"+TRIGGER_CANCEL_REASON_SELF_TRADE_PREVENTION\x10\x04\x12.\n" +
+	"+TRIGGER_CANCEL_REASON_SELF_TRADE_PREVENTION\x10\x04\x12(\n" +
+	"$TRIGGER_CANCEL_REASON_ACCOUNT_REPAIR\x10\b\x12,\n" +
+	"(TRIGGER_CANCEL_REASON_PAIR_DRAIN_TRIGGER\x10\t\x12)\n" +
+	"%TRIGGER_CANCEL_REASON_PAIR_DRAIN_TWAP\x10\n" +
+	"\x12+\n" +
+	"'TRIGGER_CANCEL_REASON_PAIR_DRAIN_LADDER\x10\v\x121\n" +
+	"-TRIGGER_CANCEL_REASON_PAIR_DRAIN_ATTACHED_LEG\x10\f\x12.\n" +
 	")TRIGGER_CANCEL_REASON_MISSING_REASON_CODE\x10\xe6\a\x12)\n" +
-	"$TRIGGER_CANCEL_REASON_INTERNAL_ERROR\x10\xe7\a*\x9f#\n" +
+	"$TRIGGER_CANCEL_REASON_INTERNAL_ERROR\x10\xe7\a*\x93$\n" +
 	"\x14TriggerFailureReason\x12&\n" +
 	"\"TRIGGER_FAILURE_REASON_UNSPECIFIED\x10\x00\x12)\n" +
 	"%TRIGGER_FAILURE_REASON_UNKNOWN_SYMBOL\x10\x01\x12(\n" +
@@ -4529,7 +4622,9 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"7TRIGGER_FAILURE_REASON_POST_ONLY_NOT_ALLOWED_IN_AUCTION\x10\xe2\x01\x121\n" +
 	",TRIGGER_FAILURE_REASON_TWAP_CAPACITY_REACHED\x10\xe3\x01\x124\n" +
 	"/TRIGGER_FAILURE_REASON_CHILD_ORDER_INCONSISTENT\x10\xeb\x01\x124\n" +
-	"/TRIGGER_FAILURE_REASON_ORDER_LIMITS_UNAVAILABLE\x10\xee\x01\x12/\n" +
+	"/TRIGGER_FAILURE_REASON_ORDER_LIMITS_UNAVAILABLE\x10\xee\x01\x123\n" +
+	".TRIGGER_FAILURE_REASON_INDEX_PRICE_UNAVAILABLE\x10\xf1\x01\x12=\n" +
+	"8TRIGGER_FAILURE_REASON_TRIGGER_WOULD_TRIGGER_IMMEDIATELY\x10\xf4\x01\x12/\n" +
 	"*TRIGGER_FAILURE_REASON_MISSING_REASON_CODE\x10\xe6\a\x12*\n" +
 	"%TRIGGER_FAILURE_REASON_INTERNAL_ERROR\x10\xe7\a*l\n" +
 	"\x12LadderDistribution\x12#\n" +
@@ -4615,10 +4710,10 @@ var file_triggers_v1_triggers_proto_goTypes = []any{
 	(*LadderDetails)(nil),             // 39: triggers.v1.LadderDetails
 	(*Trigger)(nil),                   // 40: triggers.v1.Trigger
 	(v1.Side)(0),                      // 41: orders.v1.Side
-	(v1.FeeAsset)(0),                  // 42: orders.v1.FeeAsset
-	(v1.SelfTradePreventionMode)(0),   // 43: orders.v1.SelfTradePreventionMode
-	(*timestamppb.Timestamp)(nil),     // 44: google.protobuf.Timestamp
-	(v1.TriggerPriceSource)(0),        // 45: orders.v1.TriggerPriceSource
+	(v1.TriggerPriceSource)(0),        // 42: orders.v1.TriggerPriceSource
+	(v1.FeeAsset)(0),                  // 43: orders.v1.FeeAsset
+	(v1.SelfTradePreventionMode)(0),   // 44: orders.v1.SelfTradePreventionMode
+	(*timestamppb.Timestamp)(nil),     // 45: google.protobuf.Timestamp
 	(v1.TriggerDirection)(0),          // 46: orders.v1.TriggerDirection
 }
 var file_triggers_v1_triggers_proto_depIdxs = []int32{
@@ -4628,83 +4723,85 @@ var file_triggers_v1_triggers_proto_depIdxs = []int32{
 	9,  // 3: triggers.v1.ConditionalChildExecution.limit_fok:type_name -> triggers.v1.TriggerLimitFok
 	41, // 4: triggers.v1.ConditionalTrigger.side:type_name -> orders.v1.Side
 	10, // 5: triggers.v1.ConditionalTrigger.child:type_name -> triggers.v1.ConditionalChildExecution
-	41, // 6: triggers.v1.TrailingStopTrigger.side:type_name -> orders.v1.Side
-	41, // 7: triggers.v1.TwapTrigger.side:type_name -> orders.v1.Side
-	13, // 8: triggers.v1.TwapTrigger.market_ioc:type_name -> triggers.v1.TwapMarketIoc
-	14, // 9: triggers.v1.TwapTrigger.limit_gtc:type_name -> triggers.v1.TwapLimitGtc
-	41, // 10: triggers.v1.LadderTrigger.side:type_name -> orders.v1.Side
-	42, // 11: triggers.v1.TriggerIntent.fee_asset:type_name -> orders.v1.FeeAsset
-	43, // 12: triggers.v1.TriggerIntent.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
-	11, // 13: triggers.v1.TriggerIntent.stop_loss:type_name -> triggers.v1.ConditionalTrigger
-	11, // 14: triggers.v1.TriggerIntent.take_profit:type_name -> triggers.v1.ConditionalTrigger
-	12, // 15: triggers.v1.TriggerIntent.trailing_stop:type_name -> triggers.v1.TrailingStopTrigger
-	15, // 16: triggers.v1.TriggerIntent.twap:type_name -> triggers.v1.TwapTrigger
-	16, // 17: triggers.v1.TriggerIntent.ladder:type_name -> triggers.v1.LadderTrigger
-	17, // 18: triggers.v1.CreateTriggerRequest.trigger:type_name -> triggers.v1.TriggerIntent
-	44, // 19: triggers.v1.CreateTriggerResponse.accepted_at:type_name -> google.protobuf.Timestamp
-	40, // 20: triggers.v1.GetTriggerResponse.trigger:type_name -> triggers.v1.Trigger
-	1,  // 21: triggers.v1.ListTriggersRequest.status:type_name -> triggers.v1.TriggerStatus
-	0,  // 22: triggers.v1.ListTriggersRequest.trigger_type:type_name -> triggers.v1.TriggerType
-	40, // 23: triggers.v1.ListTriggersResponse.triggers:type_name -> triggers.v1.Trigger
-	2,  // 24: triggers.v1.ListTriggerEventsRequest.event_type:type_name -> triggers.v1.TriggerEventType
-	0,  // 25: triggers.v1.TriggerEvent.trigger_type:type_name -> triggers.v1.TriggerType
-	2,  // 26: triggers.v1.TriggerEvent.event_type:type_name -> triggers.v1.TriggerEventType
-	3,  // 27: triggers.v1.TriggerEvent.cancel_reason:type_name -> triggers.v1.TriggerCancelReason
-	4,  // 28: triggers.v1.TriggerEvent.failure_reason:type_name -> triggers.v1.TriggerFailureReason
-	25, // 29: triggers.v1.TriggerEventBatch.events:type_name -> triggers.v1.TriggerEvent
-	25, // 30: triggers.v1.ListTriggerEventsResponse.events:type_name -> triggers.v1.TriggerEvent
-	1,  // 31: triggers.v1.CancelTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
-	44, // 32: triggers.v1.CancelTriggerResponse.ts:type_name -> google.protobuf.Timestamp
-	1,  // 33: triggers.v1.ModifyTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
-	44, // 34: triggers.v1.ModifyTriggerResponse.ts:type_name -> google.protobuf.Timestamp
-	1,  // 35: triggers.v1.PauseTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
-	44, // 36: triggers.v1.PauseTriggerResponse.ts:type_name -> google.protobuf.Timestamp
-	1,  // 37: triggers.v1.ResumeTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
-	44, // 38: triggers.v1.ResumeTriggerResponse.ts:type_name -> google.protobuf.Timestamp
-	45, // 39: triggers.v1.StopDetails.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
-	46, // 40: triggers.v1.StopDetails.trigger_direction:type_name -> orders.v1.TriggerDirection
-	45, // 41: triggers.v1.TrailingDetails.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
-	46, // 42: triggers.v1.TrailingDetails.trigger_direction:type_name -> orders.v1.TriggerDirection
-	5,  // 43: triggers.v1.LadderDetails.ladder_distribution:type_name -> triggers.v1.LadderDistribution
-	1,  // 44: triggers.v1.Trigger.status:type_name -> triggers.v1.TriggerStatus
-	3,  // 45: triggers.v1.Trigger.cancel_reason:type_name -> triggers.v1.TriggerCancelReason
-	4,  // 46: triggers.v1.Trigger.failure_reason:type_name -> triggers.v1.TriggerFailureReason
-	42, // 47: triggers.v1.Trigger.fee_asset:type_name -> orders.v1.FeeAsset
-	43, // 48: triggers.v1.Trigger.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
-	11, // 49: triggers.v1.Trigger.stop_loss:type_name -> triggers.v1.ConditionalTrigger
-	11, // 50: triggers.v1.Trigger.take_profit:type_name -> triggers.v1.ConditionalTrigger
-	12, // 51: triggers.v1.Trigger.trailing_stop:type_name -> triggers.v1.TrailingStopTrigger
-	15, // 52: triggers.v1.Trigger.twap:type_name -> triggers.v1.TwapTrigger
-	16, // 53: triggers.v1.Trigger.ladder:type_name -> triggers.v1.LadderTrigger
-	36, // 54: triggers.v1.Trigger.stop:type_name -> triggers.v1.StopDetails
-	37, // 55: triggers.v1.Trigger.trailing:type_name -> triggers.v1.TrailingDetails
-	38, // 56: triggers.v1.Trigger.twap_state:type_name -> triggers.v1.TwapDetails
-	39, // 57: triggers.v1.Trigger.ladder_state:type_name -> triggers.v1.LadderDetails
-	44, // 58: triggers.v1.Trigger.created_at:type_name -> google.protobuf.Timestamp
-	44, // 59: triggers.v1.Trigger.updated_at:type_name -> google.protobuf.Timestamp
-	44, // 60: triggers.v1.Trigger.armed_at:type_name -> google.protobuf.Timestamp
-	44, // 61: triggers.v1.Trigger.completed_at:type_name -> google.protobuf.Timestamp
-	18, // 62: triggers.v1.TriggersService.CreateTrigger:input_type -> triggers.v1.CreateTriggerRequest
-	20, // 63: triggers.v1.TriggersService.GetTrigger:input_type -> triggers.v1.GetTriggerRequest
-	22, // 64: triggers.v1.TriggersService.ListTriggers:input_type -> triggers.v1.ListTriggersRequest
-	24, // 65: triggers.v1.TriggersService.ListTriggerEvents:input_type -> triggers.v1.ListTriggerEventsRequest
-	28, // 66: triggers.v1.TriggersService.CancelTrigger:input_type -> triggers.v1.CancelTriggerRequest
-	30, // 67: triggers.v1.TriggersService.ModifyTrigger:input_type -> triggers.v1.ModifyTriggerRequest
-	32, // 68: triggers.v1.TriggersService.PauseTrigger:input_type -> triggers.v1.PauseTriggerRequest
-	34, // 69: triggers.v1.TriggersService.ResumeTrigger:input_type -> triggers.v1.ResumeTriggerRequest
-	19, // 70: triggers.v1.TriggersService.CreateTrigger:output_type -> triggers.v1.CreateTriggerResponse
-	21, // 71: triggers.v1.TriggersService.GetTrigger:output_type -> triggers.v1.GetTriggerResponse
-	23, // 72: triggers.v1.TriggersService.ListTriggers:output_type -> triggers.v1.ListTriggersResponse
-	27, // 73: triggers.v1.TriggersService.ListTriggerEvents:output_type -> triggers.v1.ListTriggerEventsResponse
-	29, // 74: triggers.v1.TriggersService.CancelTrigger:output_type -> triggers.v1.CancelTriggerResponse
-	31, // 75: triggers.v1.TriggersService.ModifyTrigger:output_type -> triggers.v1.ModifyTriggerResponse
-	33, // 76: triggers.v1.TriggersService.PauseTrigger:output_type -> triggers.v1.PauseTriggerResponse
-	35, // 77: triggers.v1.TriggersService.ResumeTrigger:output_type -> triggers.v1.ResumeTriggerResponse
-	70, // [70:78] is the sub-list for method output_type
-	62, // [62:70] is the sub-list for method input_type
-	62, // [62:62] is the sub-list for extension type_name
-	62, // [62:62] is the sub-list for extension extendee
-	0,  // [0:62] is the sub-list for field type_name
+	42, // 6: triggers.v1.ConditionalTrigger.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
+	41, // 7: triggers.v1.TrailingStopTrigger.side:type_name -> orders.v1.Side
+	42, // 8: triggers.v1.TrailingStopTrigger.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
+	41, // 9: triggers.v1.TwapTrigger.side:type_name -> orders.v1.Side
+	13, // 10: triggers.v1.TwapTrigger.market_ioc:type_name -> triggers.v1.TwapMarketIoc
+	14, // 11: triggers.v1.TwapTrigger.limit_gtc:type_name -> triggers.v1.TwapLimitGtc
+	41, // 12: triggers.v1.LadderTrigger.side:type_name -> orders.v1.Side
+	43, // 13: triggers.v1.TriggerIntent.fee_asset:type_name -> orders.v1.FeeAsset
+	44, // 14: triggers.v1.TriggerIntent.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
+	11, // 15: triggers.v1.TriggerIntent.stop_loss:type_name -> triggers.v1.ConditionalTrigger
+	11, // 16: triggers.v1.TriggerIntent.take_profit:type_name -> triggers.v1.ConditionalTrigger
+	12, // 17: triggers.v1.TriggerIntent.trailing_stop:type_name -> triggers.v1.TrailingStopTrigger
+	15, // 18: triggers.v1.TriggerIntent.twap:type_name -> triggers.v1.TwapTrigger
+	16, // 19: triggers.v1.TriggerIntent.ladder:type_name -> triggers.v1.LadderTrigger
+	17, // 20: triggers.v1.CreateTriggerRequest.trigger:type_name -> triggers.v1.TriggerIntent
+	45, // 21: triggers.v1.CreateTriggerResponse.accepted_at:type_name -> google.protobuf.Timestamp
+	40, // 22: triggers.v1.GetTriggerResponse.trigger:type_name -> triggers.v1.Trigger
+	1,  // 23: triggers.v1.ListTriggersRequest.status:type_name -> triggers.v1.TriggerStatus
+	0,  // 24: triggers.v1.ListTriggersRequest.trigger_type:type_name -> triggers.v1.TriggerType
+	40, // 25: triggers.v1.ListTriggersResponse.triggers:type_name -> triggers.v1.Trigger
+	2,  // 26: triggers.v1.ListTriggerEventsRequest.event_type:type_name -> triggers.v1.TriggerEventType
+	0,  // 27: triggers.v1.TriggerEvent.trigger_type:type_name -> triggers.v1.TriggerType
+	2,  // 28: triggers.v1.TriggerEvent.event_type:type_name -> triggers.v1.TriggerEventType
+	3,  // 29: triggers.v1.TriggerEvent.cancel_reason:type_name -> triggers.v1.TriggerCancelReason
+	4,  // 30: triggers.v1.TriggerEvent.failure_reason:type_name -> triggers.v1.TriggerFailureReason
+	25, // 31: triggers.v1.TriggerEventBatch.events:type_name -> triggers.v1.TriggerEvent
+	25, // 32: triggers.v1.ListTriggerEventsResponse.events:type_name -> triggers.v1.TriggerEvent
+	1,  // 33: triggers.v1.CancelTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
+	45, // 34: triggers.v1.CancelTriggerResponse.ts:type_name -> google.protobuf.Timestamp
+	1,  // 35: triggers.v1.ModifyTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
+	45, // 36: triggers.v1.ModifyTriggerResponse.ts:type_name -> google.protobuf.Timestamp
+	1,  // 37: triggers.v1.PauseTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
+	45, // 38: triggers.v1.PauseTriggerResponse.ts:type_name -> google.protobuf.Timestamp
+	1,  // 39: triggers.v1.ResumeTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
+	45, // 40: triggers.v1.ResumeTriggerResponse.ts:type_name -> google.protobuf.Timestamp
+	42, // 41: triggers.v1.StopDetails.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
+	46, // 42: triggers.v1.StopDetails.trigger_direction:type_name -> orders.v1.TriggerDirection
+	42, // 43: triggers.v1.TrailingDetails.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
+	46, // 44: triggers.v1.TrailingDetails.trigger_direction:type_name -> orders.v1.TriggerDirection
+	5,  // 45: triggers.v1.LadderDetails.ladder_distribution:type_name -> triggers.v1.LadderDistribution
+	1,  // 46: triggers.v1.Trigger.status:type_name -> triggers.v1.TriggerStatus
+	3,  // 47: triggers.v1.Trigger.cancel_reason:type_name -> triggers.v1.TriggerCancelReason
+	4,  // 48: triggers.v1.Trigger.failure_reason:type_name -> triggers.v1.TriggerFailureReason
+	43, // 49: triggers.v1.Trigger.fee_asset:type_name -> orders.v1.FeeAsset
+	44, // 50: triggers.v1.Trigger.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
+	11, // 51: triggers.v1.Trigger.stop_loss:type_name -> triggers.v1.ConditionalTrigger
+	11, // 52: triggers.v1.Trigger.take_profit:type_name -> triggers.v1.ConditionalTrigger
+	12, // 53: triggers.v1.Trigger.trailing_stop:type_name -> triggers.v1.TrailingStopTrigger
+	15, // 54: triggers.v1.Trigger.twap:type_name -> triggers.v1.TwapTrigger
+	16, // 55: triggers.v1.Trigger.ladder:type_name -> triggers.v1.LadderTrigger
+	36, // 56: triggers.v1.Trigger.stop:type_name -> triggers.v1.StopDetails
+	37, // 57: triggers.v1.Trigger.trailing:type_name -> triggers.v1.TrailingDetails
+	38, // 58: triggers.v1.Trigger.twap_state:type_name -> triggers.v1.TwapDetails
+	39, // 59: triggers.v1.Trigger.ladder_state:type_name -> triggers.v1.LadderDetails
+	45, // 60: triggers.v1.Trigger.created_at:type_name -> google.protobuf.Timestamp
+	45, // 61: triggers.v1.Trigger.updated_at:type_name -> google.protobuf.Timestamp
+	45, // 62: triggers.v1.Trigger.armed_at:type_name -> google.protobuf.Timestamp
+	45, // 63: triggers.v1.Trigger.completed_at:type_name -> google.protobuf.Timestamp
+	18, // 64: triggers.v1.TriggersService.CreateTrigger:input_type -> triggers.v1.CreateTriggerRequest
+	20, // 65: triggers.v1.TriggersService.GetTrigger:input_type -> triggers.v1.GetTriggerRequest
+	22, // 66: triggers.v1.TriggersService.ListTriggers:input_type -> triggers.v1.ListTriggersRequest
+	24, // 67: triggers.v1.TriggersService.ListTriggerEvents:input_type -> triggers.v1.ListTriggerEventsRequest
+	28, // 68: triggers.v1.TriggersService.CancelTrigger:input_type -> triggers.v1.CancelTriggerRequest
+	30, // 69: triggers.v1.TriggersService.ModifyTrigger:input_type -> triggers.v1.ModifyTriggerRequest
+	32, // 70: triggers.v1.TriggersService.PauseTrigger:input_type -> triggers.v1.PauseTriggerRequest
+	34, // 71: triggers.v1.TriggersService.ResumeTrigger:input_type -> triggers.v1.ResumeTriggerRequest
+	19, // 72: triggers.v1.TriggersService.CreateTrigger:output_type -> triggers.v1.CreateTriggerResponse
+	21, // 73: triggers.v1.TriggersService.GetTrigger:output_type -> triggers.v1.GetTriggerResponse
+	23, // 74: triggers.v1.TriggersService.ListTriggers:output_type -> triggers.v1.ListTriggersResponse
+	27, // 75: triggers.v1.TriggersService.ListTriggerEvents:output_type -> triggers.v1.ListTriggerEventsResponse
+	29, // 76: triggers.v1.TriggersService.CancelTrigger:output_type -> triggers.v1.CancelTriggerResponse
+	31, // 77: triggers.v1.TriggersService.ModifyTrigger:output_type -> triggers.v1.ModifyTriggerResponse
+	33, // 78: triggers.v1.TriggersService.PauseTrigger:output_type -> triggers.v1.PauseTriggerResponse
+	35, // 79: triggers.v1.TriggersService.ResumeTrigger:output_type -> triggers.v1.ResumeTriggerResponse
+	72, // [72:80] is the sub-list for method output_type
+	64, // [64:72] is the sub-list for method input_type
+	64, // [64:64] is the sub-list for extension type_name
+	64, // [64:64] is the sub-list for extension extendee
+	0,  // [0:64] is the sub-list for field type_name
 }
 
 func init() { file_triggers_v1_triggers_proto_init() }

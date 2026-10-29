@@ -2243,8 +2243,10 @@ func (*GetOrderRequest_OrderId) isGetOrderRequest_Key() {}
 func (*GetOrderRequest_ClientOrderId) isGetOrderRequest_Key() {}
 
 // GetOrderResponse returns order details and a bounded execution page.
-// Order state, trades and transfers are eventually consistent;
-// one page's execution quantities need not equal the order's cumulative quantity.
+// The order shows a fill as soon as it executes; its trades are recorded
+// shortly after. executions_complete says whether the trades already account
+// for every execution the order shows. Transfers are eventually consistent and
+// can trail the trades they settle.
 type GetOrderResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Requested order, if found.
@@ -2258,8 +2260,14 @@ type GetOrderResponse struct {
 	// Cursor for the next execution page. Empty when no further rows are visible;
 	// this is not a settlement or order-state reconciliation watermark.
 	NextPageToken string `protobuf:"bytes,6,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// True when the order's trades through its generation, across every page,
+	// add up exactly to its cum_qty_scaled. False while a recent execution is
+	// still being recorded: trades then lists the executions recorded so far,
+	// and a later read returns the rest. Always false when execution history is
+	// not included.
+	ExecutionsComplete bool `protobuf:"varint,7,opt,name=executions_complete,json=executionsComplete,proto3" json:"executions_complete,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *GetOrderResponse) Reset() {
@@ -2318,6 +2326,13 @@ func (x *GetOrderResponse) GetNextPageToken() string {
 		return x.NextPageToken
 	}
 	return ""
+}
+
+func (x *GetOrderResponse) GetExecutionsComplete() bool {
+	if x != nil {
+		return x.ExecutionsComplete
+	}
+	return false
 }
 
 // GetBatchReplaceStatusRequest retrieves one admitted batch by server identity.
@@ -2815,12 +2830,13 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\x16_include_attached_riskB\x1e\n" +
 	"\x1c_include_attached_risk_stateB\x1c\n" +
 	"\x1a_include_execution_historyB\b\n" +
-	"\x06_limit\"\xd2\x01\n" +
+	"\x06_limit\"\x83\x02\n" +
 	"\x10GetOrderResponse\x12&\n" +
 	"\x05order\x18\x01 \x01(\v2\x10.orders.v1.OrderR\x05order\x12,\n" +
 	"\x06trades\x18\x02 \x03(\v2\x14.orders.v1.UserTradeR\x06trades\x126\n" +
 	"\ttransfers\x18\x03 \x03(\v2\x18.orders.v1.OrderTransferR\ttransfers\x120\n" +
-	"\x0fnext_page_token\x18\x06 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xa4\x01\n" +
+	"\x0fnext_page_token\x18\x06 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\x12/\n" +
+	"\x13executions_complete\x18\a \x01(\bR\x12executionsComplete\"\xa4\x01\n" +
 	"\x1cGetBatchReplaceStatusRequest\x128\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01\x128\n" +
 	"\x10batch_request_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x0ebatchRequestIdB\x10\n" +

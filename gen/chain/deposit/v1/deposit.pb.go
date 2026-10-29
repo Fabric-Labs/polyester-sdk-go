@@ -191,8 +191,9 @@ type ListDepositAddressesRequest struct {
 	// root account is used as the target account.
 	SubaccountId uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
 	// Optional PolyChain-registered source chain id filter. When omitted, the
-	// response returns all known deposit addresses for the selected target,
-	// ordered by ascending chain id.
+	// response returns the known deposit addresses for the selected target on
+	// chains that currently accept deposits, ordered by ascending chain id. A
+	// chain whose deposits are unavailable returns FailedPrecondition.
 	ChainId       uint32 `protobuf:"varint,2,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -243,7 +244,8 @@ func (x *ListDepositAddressesRequest) GetChainId() uint32 {
 }
 
 // ListDepositAddressesResponse returns the known deposit addresses for the
-// selected target, ordered by ascending chain id.
+// selected target on chains that currently accept deposits, ordered by
+// ascending chain id.
 type ListDepositAddressesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Known deposit addresses for the selected target.

@@ -47,10 +47,12 @@ type DepositAddressServiceClient interface {
 	// chain. The acting caller's root account must have accepted the current
 	// terms, including requests using an API key or targeting a shared subaccount.
 	// Otherwise FailedPrecondition is returned. Listing and using existing deposit
-	// addresses remain available without acceptance.
+	// addresses remain available without acceptance. FailedPrecondition is also
+	// returned when deposits on the requested chain are unavailable.
 	CreateDepositAddress(context.Context, *connect.Request[v1.CreateDepositAddressRequest]) (*connect.Response[v1.CreateDepositAddressResponse], error)
-	// List known deposit addresses for one target. Results are served from
-	// Polyester-owned state rather than a live upstream read.
+	// List known deposit addresses for one target on chains that currently
+	// accept deposits. Results are served from Polyester-owned state rather than
+	// a live upstream read.
 	ListDepositAddresses(context.Context, *connect.Request[v1.ListDepositAddressesRequest]) (*connect.Response[v1.ListDepositAddressesResponse], error)
 }
 
@@ -103,10 +105,12 @@ type DepositAddressServiceHandler interface {
 	// chain. The acting caller's root account must have accepted the current
 	// terms, including requests using an API key or targeting a shared subaccount.
 	// Otherwise FailedPrecondition is returned. Listing and using existing deposit
-	// addresses remain available without acceptance.
+	// addresses remain available without acceptance. FailedPrecondition is also
+	// returned when deposits on the requested chain are unavailable.
 	CreateDepositAddress(context.Context, *connect.Request[v1.CreateDepositAddressRequest]) (*connect.Response[v1.CreateDepositAddressResponse], error)
-	// List known deposit addresses for one target. Results are served from
-	// Polyester-owned state rather than a live upstream read.
+	// List known deposit addresses for one target on chains that currently
+	// accept deposits. Results are served from Polyester-owned state rather than
+	// a live upstream read.
 	ListDepositAddresses(context.Context, *connect.Request[v1.ListDepositAddressesRequest]) (*connect.Response[v1.ListDepositAddressesResponse], error)
 }
 
