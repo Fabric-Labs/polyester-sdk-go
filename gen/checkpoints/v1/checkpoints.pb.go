@@ -888,10 +888,15 @@ type AssetAmount struct {
 	Amount string `protobuf:"bytes,2,opt,name=amount,proto3" json:"amount,omitempty"`
 	// USD value, encoded as a base-10 decimal string without separators or a
 	// currency symbol. Omitted when the asset had no USD price at the required
-	// time.
-	Usd           *string `protobuf:"bytes,3,opt,name=usd,proto3,oneof" json:"usd,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// time, and always when excluded_from_value is true.
+	Usd *string `protobuf:"bytes,3,opt,name=usd,proto3,oneof" json:"usd,omitempty"`
+	// True when the asset does not count toward account value, for example a
+	// test token that cannot be traded. It is listed by amount only, has no
+	// USD value and is left out of every USD total, which it never makes
+	// approximate or omitted.
+	ExcludedFromValue bool `protobuf:"varint,4,opt,name=excluded_from_value,json=excludedFromValue,proto3" json:"excluded_from_value,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *AssetAmount) Reset() {
@@ -945,15 +950,24 @@ func (x *AssetAmount) GetUsd() string {
 	return ""
 }
 
+func (x *AssetAmount) GetExcludedFromValue() bool {
+	if x != nil {
+		return x.ExcludedFromValue
+	}
+	return false
+}
+
 // FlowTotal counts operations and sums their USD values, each valued when it
 // happened.
 type FlowTotal struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Number of operations.
-	Count uint64 `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
-	// USD total, encoded as a non-negative base-10 decimal string without
-	// separators or a currency symbol. Omitted when any operation had no USD
+	// Number of operations, including operations in assets excluded from
 	// value.
+	Count uint64 `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
+	// USD total over assets that count toward account value, encoded as a
+	// non-negative base-10 decimal string without separators or a currency
+	// symbol. Assets excluded from value add nothing. Omitted when any other
+	// operation had no USD value.
 	Usd           *string `protobuf:"bytes,2,opt,name=usd,proto3,oneof" json:"usd,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1077,7 +1091,7 @@ type FundingFlowSummary struct {
 	// a known chain are counted only in count.
 	Chains []*ChainFlow `protobuf:"bytes,2,rep,name=chains,proto3" json:"chains,omitempty"`
 	// Totals per asset, by asset ascending, each valued in USD when it was
-	// made.
+	// made. Assets excluded from value are listed by amount only.
 	Amounts       []*AssetAmount `protobuf:"bytes,3,rep,name=amounts,proto3" json:"amounts,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1134,7 +1148,8 @@ func (x *FundingFlowSummary) GetAmounts() []*AssetAmount {
 	return nil
 }
 
-// FundingDay is the deposit and withdrawal value of one UTC day.
+// FundingDay is the deposit and withdrawal value of one UTC day, over assets
+// that count toward account value; assets excluded from value add nothing.
 type FundingDay struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// UTC date, formatted as YYYY-MM-DD.
@@ -1298,10 +1313,12 @@ type Checkpoint struct {
 	// recorded value are absent; draw them as gaps, not zero.
 	PortfolioValue []*PortfolioValuePoint `protobuf:"bytes,38,rep,name=portfolio_value,json=portfolioValue,proto3" json:"portfolio_value,omitempty"`
 	// Trading balance per asset at the end of the season, valued in USD at that
-	// time. Shown for the record only.
+	// time; assets excluded from value are listed by amount only. Shown for
+	// the record only.
 	TradingBalances []*AssetAmount `protobuf:"bytes,39,rep,name=trading_balances,json=tradingBalances,proto3" json:"trading_balances,omitempty"`
 	// Funding balance per asset at the end of the season, valued in USD at that
-	// time. Shown for the record only.
+	// time; assets excluded from value are listed by amount only. Shown for
+	// the record only.
 	FundingBalances []*AssetAmount `protobuf:"bytes,40,rep,name=funding_balances,json=fundingBalances,proto3" json:"funding_balances,omitempty"`
 	// Successful deposits.
 	Deposits *FundingFlowSummary `protobuf:"bytes,41,opt,name=deposits,proto3" json:"deposits,omitempty"`
@@ -1319,24 +1336,27 @@ type Checkpoint struct {
 	// Daily claims collected.
 	DailyClaims uint64 `protobuf:"varint,47,opt,name=daily_claims,json=dailyClaims,proto3" json:"daily_claims,omitempty"`
 	// Daily claim totals per asset, by asset ascending, each valued in USD
-	// when it was paid.
+	// when it was paid. Assets excluded from value are listed by amount only.
 	DailyClaimAmounts []*AssetAmount `protobuf:"bytes,48,rep,name=daily_claim_amounts,json=dailyClaimAmounts,proto3" json:"daily_claim_amounts,omitempty"`
 	// USD value brought in during the season: daily claim payouts, deposits
-	// and transfers in, each valued when it happened. Encoded as a
-	// non-negative base-10 decimal string without separators or a currency
-	// symbol. Omitted when any part had no USD value.
+	// and transfers in, each valued when it happened, over assets that count
+	// toward account value; assets excluded from value add nothing. Encoded as
+	// a non-negative base-10 decimal string without separators or a currency
+	// symbol. Omitted when any other part had no USD value.
 	InflowUsd *string `protobuf:"bytes,49,opt,name=inflow_usd,json=inflowUsd,proto3,oneof" json:"inflow_usd,omitempty"`
 	// USD value taken out during the season: withdrawals and transfers out,
-	// each valued when it happened. Encoded as a non-negative base-10 decimal
-	// string without separators or a currency symbol. Omitted when any part had
-	// no USD value.
+	// each valued when it happened, over assets that count toward account
+	// value; assets excluded from value add nothing. Encoded as a non-negative
+	// base-10 decimal string without separators or a currency symbol. Omitted
+	// when any other part had no USD value.
 	OutflowUsd *string `protobuf:"bytes,50,opt,name=outflow_usd,json=outflowUsd,proto3,oneof" json:"outflow_usd,omitempty"`
 	// inflow_usd minus outflow_usd, encoded as a base-10 decimal string that
 	// may be negative. Omitted when either is omitted.
 	NetInflowUsd *string `protobuf:"bytes,51,opt,name=net_inflow_usd,json=netInflowUsd,proto3,oneof" json:"net_inflow_usd,omitempty"`
-	// USD value of all trading and funding balances at the end of the season,
-	// encoded as a base-10 decimal string. Omitted when any balance had no USD
-	// value.
+	// USD value of all trading and funding balances at the end of the season
+	// that count toward account value, encoded as a base-10 decimal string.
+	// Assets excluded from value add nothing. Omitted when any other balance
+	// had no USD value.
 	FinalValueUsd *string `protobuf:"bytes,52,opt,name=final_value_usd,json=finalValueUsd,proto3,oneof" json:"final_value_usd,omitempty"`
 	// Season result: final_value_usd minus net_inflow_usd, encoded as a base-10
 	// decimal string that may be negative. Omitted when either is omitted.
@@ -1914,11 +1934,12 @@ const file_checkpoints_v1_checkpoints_proto_rawDesc = "" +
 	"\vEarnedBadge\x12A\n" +
 	"\x05badge\x18\x01 \x01(\x0e2\x1f.checkpoints.v1.CheckpointBadgeB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x05badge\x12?\n" +
-	"\tearned_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\bearnedAt\"Z\n" +
+	"\tearned_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\bearnedAt\"\x8a\x01\n" +
 	"\vAssetAmount\x12\x14\n" +
 	"\x05asset\x18\x01 \x01(\tR\x05asset\x12\x16\n" +
 	"\x06amount\x18\x02 \x01(\tR\x06amount\x12\x15\n" +
-	"\x03usd\x18\x03 \x01(\tH\x00R\x03usd\x88\x01\x01B\x06\n" +
+	"\x03usd\x18\x03 \x01(\tH\x00R\x03usd\x88\x01\x01\x12.\n" +
+	"\x13excluded_from_value\x18\x04 \x01(\bR\x11excludedFromValueB\x06\n" +
 	"\x04_usd\"@\n" +
 	"\tFlowTotal\x12\x14\n" +
 	"\x05count\x18\x01 \x01(\x04R\x05count\x12\x15\n" +
