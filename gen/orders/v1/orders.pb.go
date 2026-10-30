@@ -802,6 +802,12 @@ const (
 	// it may have been created; read the triggers for its client trigger ID
 	// before retrying.
 	ErrorCode_ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN ErrorCode = 304
+	// The account has reached its maximum number of resting orders in this
+	// market. Good-till-cancelled and good-till-date orders count until they
+	// end; immediate-or-cancel, fill-or-kill and market orders never count, and
+	// a replace keeps its order's place. Nothing changed; cancel a resting order
+	// in this market first.
+	ErrorCode_ERROR_CODE_MAX_OPEN_ORDERS_PER_PAIR ErrorCode = 306
 )
 
 // Enum value maps for ErrorCode.
@@ -991,6 +997,7 @@ var (
 		302: "ERROR_CODE_TRIGGER_WOULD_TRIGGER_IMMEDIATELY",
 		303: "ERROR_CODE_ORDER_CREATE_OUTCOME_UNKNOWN",
 		304: "ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN",
+		306: "ERROR_CODE_MAX_OPEN_ORDERS_PER_PAIR",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_CODE_UNSPECIFIED":                            0,
@@ -1177,6 +1184,7 @@ var (
 		"ERROR_CODE_TRIGGER_WOULD_TRIGGER_IMMEDIATELY":      302,
 		"ERROR_CODE_ORDER_CREATE_OUTCOME_UNKNOWN":           303,
 		"ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN":         304,
+		"ERROR_CODE_MAX_OPEN_ORDERS_PER_PAIR":               306,
 	}
 )
 
@@ -2958,9 +2966,14 @@ type ErrorDetail struct {
 	// Field-level validation failures. Empty for non-validation domain errors.
 	Violations []*FieldViolation `protobuf:"bytes,2,rep,name=violations,proto3" json:"violations,omitempty"`
 	// Structured quota state. Present only for rate-limit rejections.
-	RateLimit     *v1.RateLimitDetail `protobuf:"bytes,3,opt,name=rate_limit,json=rateLimit,proto3" json:"rate_limit,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	RateLimit *v1.RateLimitDetail `protobuf:"bytes,3,opt,name=rate_limit,json=rateLimit,proto3" json:"rate_limit,omitempty"`
+	// Public order ID holding this account's client order ID when a create is
+	// rejected with CONFLICT_DUPLICATE_CLIENT_ORDER_ID. Present only when an
+	// existing holder is known; omitted for duplicates rejected within the same
+	// batch before an order is assigned. Use GetOrder to obtain its current state.
+	ExistingOrderId *uint64 `protobuf:"fixed64,4,opt,name=existing_order_id,json=existingOrderId,proto3,oneof" json:"existing_order_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ErrorDetail) Reset() {
@@ -3012,6 +3025,13 @@ func (x *ErrorDetail) GetRateLimit() *v1.RateLimitDetail {
 		return x.RateLimit
 	}
 	return nil
+}
+
+func (x *ErrorDetail) GetExistingOrderId() uint64 {
+	if x != nil && x.ExistingOrderId != nil {
+		return *x.ExistingOrderId
+	}
+	return 0
 }
 
 // RiskMarketIoc configures an attached risk leg that submits a market child
@@ -5651,14 +5671,16 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\n" +
 	"field_path\x18\x01 \x01(\tR\tfieldPath\x12\x17\n" +
 	"\arule_id\x18\x02 \x01(\tR\x06ruleId\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\"\xba\x01\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"\x81\x02\n" +
 	"\vErrorDetail\x12(\n" +
 	"\x04code\x18\x01 \x01(\x0e2\x14.orders.v1.ErrorCodeR\x04code\x129\n" +
 	"\n" +
 	"violations\x18\x02 \x03(\v2\x19.orders.v1.FieldViolationR\n" +
 	"violations\x12F\n" +
 	"\n" +
-	"rate_limit\x18\x03 \x01(\v2'.polyester.ratelimit.v1.RateLimitDetailR\trateLimit\"\x0f\n" +
+	"rate_limit\x18\x03 \x01(\v2'.polyester.ratelimit.v1.RateLimitDetailR\trateLimit\x12/\n" +
+	"\x11existing_order_id\x18\x04 \x01(\x06H\x00R\x0fexistingOrderId\x88\x01\x01B\x14\n" +
+	"\x12_existing_order_id\"\x0f\n" +
 	"\rRiskMarketIoc\"8\n" +
 	"\fRiskLimitGtc\x12(\n" +
 	"\vprice_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\n" +
@@ -5911,7 +5933,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"&SELF_TRADE_PREVENTION_MODE_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fEXPIRE_MAKER\x10\x01\x12\x10\n" +
 	"\fEXPIRE_TAKER\x10\x02\x12\x0f\n" +
-	"\vEXPIRE_BOTH\x10\x03*\xc79\n" +
+	"\vEXPIRE_BOTH\x10\x03*\xf19\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16ERROR_CODE_BAD_REQUEST\x10\x01\x12\x1f\n" +
@@ -6097,7 +6119,8 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x1cERROR_CODE_ACCOUNT_REPAIRING\x10\xac\x02\x121\n" +
 	",ERROR_CODE_TRIGGER_WOULD_TRIGGER_IMMEDIATELY\x10\xae\x02\x12,\n" +
 	"'ERROR_CODE_ORDER_CREATE_OUTCOME_UNKNOWN\x10\xaf\x02\x12.\n" +
-	")ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN\x10\xb0\x02\"\x04\b,\x10,*\"ERROR_CODE_TRIGGER_CANCEL_REJECTED*k\n" +
+	")ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN\x10\xb0\x02\x12(\n" +
+	"#ERROR_CODE_MAX_OPEN_ORDERS_PER_PAIR\x10\xb2\x02\"\x04\b,\x10,*\"ERROR_CODE_TRIGGER_CANCEL_REJECTED*k\n" +
 	"\x12TriggerPriceSource\x12$\n" +
 	" TRIGGER_PRICE_SOURCE_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -6341,6 +6364,7 @@ func file_orders_v1_orders_proto_init() {
 		(*CancelOrderRequest_OrderId)(nil),
 		(*CancelOrderRequest_ClientOrderId)(nil),
 	}
+	file_orders_v1_orders_proto_msgTypes[13].OneofWrappers = []any{}
 	file_orders_v1_orders_proto_msgTypes[16].OneofWrappers = []any{
 		(*RiskExecution_MarketIoc)(nil),
 		(*RiskExecution_LimitGtc)(nil),

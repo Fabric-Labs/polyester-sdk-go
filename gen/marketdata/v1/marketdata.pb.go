@@ -1628,8 +1628,31 @@ type PairConfig struct {
 	// Integer scale for composite reference prices in candle responses (0..18).
 	// Primary market and execution prices use the fixed scale 9.
 	ReferencePriceScale uint32 `protobuf:"varint,19,opt,name=reference_price_scale,json=referencePriceScale,proto3" json:"reference_price_scale,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// Largest quantity of one limit order, as a decimal string in base-asset
+	// units. A replace is checked on its new total less the quantity already
+	// filled. An order above it is rejected with MAX_QTY. Absent when the pair
+	// has no maximum.
+	MaxLimitQtyBase *string `protobuf:"bytes,20,opt,name=max_limit_qty_base,json=maxLimitQtyBase,proto3,oneof" json:"max_limit_qty_base,omitempty"`
+	// Largest quantity of one market order, as a decimal string in base-asset
+	// units. A market order sized by quote amount is checked once converted to
+	// base. An order above it is rejected with MAX_QTY. Absent when the pair
+	// has no maximum.
+	MaxMarketQtyBase *string `protobuf:"bytes,21,opt,name=max_market_qty_base,json=maxMarketQtyBase,proto3,oneof" json:"max_market_qty_base,omitempty"`
+	// Largest notional of one order, as a decimal string in quote-asset units:
+	// its quantity times its limit price, or times its protection price for a
+	// market order, compared exactly with no rounding. An order above it is
+	// rejected with MAX_NOTIONAL. Absent when the pair has no maximum.
+	MaxOrderNotionalQuote *string `protobuf:"bytes,22,opt,name=max_order_notional_quote,json=maxOrderNotionalQuote,proto3,oneof" json:"max_order_notional_quote,omitempty"`
+	// The venue's default limit on resting orders a typical account may hold on
+	// this pair at once: good-till-cancelled and good-till-date orders that have
+	// not ended. Immediate-or-cancel, fill-or-kill and market orders never
+	// count, and a replaced order keeps its place. An order past it is rejected
+	// with MAX_OPEN_ORDERS_PER_PAIR. An account may have a lower limit of its
+	// own; that is not part of this public configuration and would be returned
+	// by an account-scoped read.
+	MaxOpenOrdersPerPair uint32 `protobuf:"varint,23,opt,name=max_open_orders_per_pair,json=maxOpenOrdersPerPair,proto3" json:"max_open_orders_per_pair,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *PairConfig) Reset() {
@@ -1795,6 +1818,34 @@ func (x *PairConfig) GetReferencePriceScale() uint32 {
 	return 0
 }
 
+func (x *PairConfig) GetMaxLimitQtyBase() string {
+	if x != nil && x.MaxLimitQtyBase != nil {
+		return *x.MaxLimitQtyBase
+	}
+	return ""
+}
+
+func (x *PairConfig) GetMaxMarketQtyBase() string {
+	if x != nil && x.MaxMarketQtyBase != nil {
+		return *x.MaxMarketQtyBase
+	}
+	return ""
+}
+
+func (x *PairConfig) GetMaxOrderNotionalQuote() string {
+	if x != nil && x.MaxOrderNotionalQuote != nil {
+		return *x.MaxOrderNotionalQuote
+	}
+	return ""
+}
+
+func (x *PairConfig) GetMaxOpenOrdersPerPair() uint32 {
+	if x != nil {
+		return x.MaxOpenOrdersPerPair
+	}
+	return 0
+}
+
 // GetSpotConfigRequest has no parameters.
 type GetSpotConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1840,9 +1891,18 @@ type GetSpotConfigResponse struct {
 	// Pairs ordered by symbol in ascending alphabetical order.
 	Pairs []*PairConfig `protobuf:"bytes,2,rep,name=pairs,proto3" json:"pairs,omitempty"`
 	// Snapshot generation timestamp, in seconds since the Unix epoch (UTC).
-	TsSec         uint64 `protobuf:"varint,3,opt,name=ts_sec,json=tsSec,proto3" json:"ts_sec,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	TsSec uint64 `protobuf:"varint,3,opt,name=ts_sec,json=tsSec,proto3" json:"ts_sec,omitempty"`
+	// The venue's default limit on resting orders a typical account may hold
+	// across all pairs together: good-till-cancelled and good-till-date orders
+	// that have not ended. Immediate-or-cancel, fill-or-kill and market orders
+	// never count, and a replaced order keeps its place. An order past it is
+	// rejected with MAX_OPEN_ORDERS_TOTAL. Each pair's own limit is
+	// PairConfig.max_open_orders_per_pair. An account may have a lower limit of
+	// its own; that is not part of this public configuration and would be
+	// returned by an account-scoped read.
+	MaxOpenOrdersTotal uint32 `protobuf:"varint,4,opt,name=max_open_orders_total,json=maxOpenOrdersTotal,proto3" json:"max_open_orders_total,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *GetSpotConfigResponse) Reset() {
@@ -1892,6 +1952,13 @@ func (x *GetSpotConfigResponse) GetPairs() []*PairConfig {
 func (x *GetSpotConfigResponse) GetTsSec() uint64 {
 	if x != nil {
 		return x.TsSec
+	}
+	return 0
+}
+
+func (x *GetSpotConfigResponse) GetMaxOpenOrdersTotal() uint32 {
+	if x != nil {
+		return x.MaxOpenOrdersTotal
 	}
 	return 0
 }
@@ -2015,7 +2082,7 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\x0equantity_scale\x18\x05 \x01(\rR\rquantityScale\x127\n" +
 	"\x18market_data_volume_scale\x18\x06 \x01(\rR\x15marketDataVolumeScale\"N\n" +
 	"\x14PairMarketdataConfig\x126\n" +
-	"\x17orderbook_price_buckets\x18\x01 \x03(\x01R\x15orderbookPriceBuckets\"\x8f\a\n" +
+	"\x17orderbook_price_buckets\x18\x01 \x03(\x01R\x15orderbookPriceBuckets\"\xb7\t\n" +
 	"\n" +
 	"PairConfig\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x12\x16\n" +
@@ -2043,12 +2110,20 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\x1fdefault_market_slippage_bps_buy\x18\x10 \x01(\x05R\x1bdefaultMarketSlippageBpsBuy\x12F\n" +
 	" default_market_slippage_bps_sell\x18\x11 \x01(\x05R\x1cdefaultMarketSlippageBpsSell\x126\n" +
 	"\x18max_client_ref_drift_bps\x18\x12 \x01(\x05R\x14maxClientRefDriftBps\x122\n" +
-	"\x15reference_price_scale\x18\x13 \x01(\rR\x13referencePriceScale\"\x16\n" +
-	"\x14GetSpotConfigRequest\"\x93\x01\n" +
+	"\x15reference_price_scale\x18\x13 \x01(\rR\x13referencePriceScale\x120\n" +
+	"\x12max_limit_qty_base\x18\x14 \x01(\tH\x00R\x0fmaxLimitQtyBase\x88\x01\x01\x122\n" +
+	"\x13max_market_qty_base\x18\x15 \x01(\tH\x01R\x10maxMarketQtyBase\x88\x01\x01\x12<\n" +
+	"\x18max_order_notional_quote\x18\x16 \x01(\tH\x02R\x15maxOrderNotionalQuote\x88\x01\x01\x126\n" +
+	"\x18max_open_orders_per_pair\x18\x17 \x01(\rR\x14maxOpenOrdersPerPairB\x15\n" +
+	"\x13_max_limit_qty_baseB\x16\n" +
+	"\x14_max_market_qty_baseB\x1b\n" +
+	"\x19_max_order_notional_quote\"\x16\n" +
+	"\x14GetSpotConfigRequest\"\xc6\x01\n" +
 	"\x15GetSpotConfigResponse\x122\n" +
 	"\x06assets\x18\x01 \x03(\v2\x1a.marketdata.v1.AssetConfigR\x06assets\x12/\n" +
 	"\x05pairs\x18\x02 \x03(\v2\x19.marketdata.v1.PairConfigR\x05pairs\x12\x15\n" +
-	"\x06ts_sec\x18\x03 \x01(\x04R\x05tsSec*5\n" +
+	"\x06ts_sec\x18\x03 \x01(\x04R\x05tsSec\x121\n" +
+	"\x15max_open_orders_total\x18\x04 \x01(\rR\x12maxOpenOrdersTotal*5\n" +
 	"\n" +
 	"SideFilter\x12\x14\n" +
 	"\x10SIDE_UNSPECIFIED\x10\x00\x12\a\n" +
@@ -2178,6 +2253,7 @@ func file_marketdata_v1_marketdata_proto_init() {
 		return
 	}
 	file_marketdata_v1_marketdata_proto_msgTypes[0].OneofWrappers = []any{}
+	file_marketdata_v1_marketdata_proto_msgTypes[13].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
