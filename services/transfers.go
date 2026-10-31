@@ -49,5 +49,5 @@ func (s *TransfersService) List(ctx context.Context, account AccountScope, subAc
 }
 
 func (s *TransfersService) Subscribe(ctx context.Context, accountID any) (*realtime.Subscription[models.LedgerTransfer], error) {
-	return SubscribeAccountProto(ctx, s.realtime, "private:ledger:transfers:{account_id}:proto", accountID, s.defaultAccountID, decode.LedgerTransferFromBytes)
+	return SubscribeAccountProtoBatch(ctx, s.realtime, "private:ledger:transfers:{account_id}:proto", accountID, s.defaultAccountID, decode.LedgerTransferBatchFromBytes)
 }

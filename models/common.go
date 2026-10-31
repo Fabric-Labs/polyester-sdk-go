@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 // CreateOrderRequest is the SDK input for orders.create.
 type CreateOrderRequest struct {
 	Symbol    *string `json:"symbol,omitempty"`
@@ -77,9 +79,82 @@ type ApiData struct {
 	Raw map[string]any `json:"raw"`
 }
 
-// SpotConfig holds the raw spot pair catalog payload.
+// SpotConfig is the venue's spot asset and pair catalog.
 type SpotConfig struct {
+	// Assets ordered by asset code.
+	Assets []SpotAsset `json:"assets"`
+	// Pairs ordered by symbol.
+	Pairs []SpotPair `json:"pairs"`
+	// MaxOpenOrdersTotal is the venue's default limit on resting orders
+	// (good-till-cancelled and good-till-date) a typical account may hold
+	// across all pairs together. An account may have a lower limit of its own.
+	// Orders past it are rejected with ERROR_CODE_MAX_OPEN_ORDERS_TOTAL. Zero
+	// when not published.
+	MaxOpenOrdersTotal uint32 `json:"max_open_orders_total"`
+	// TsSec is the snapshot generation time in Unix seconds.
+	TsSec uint64 `json:"ts_sec"`
+	// Raw is the proto-JSON payload that Catalogs.HydrateSpotConfig accepts.
 	Raw map[string]any `json:"raw"`
+}
+
+// SpotAsset describes one spot asset.
+type SpotAsset struct {
+	Asset                   string `json:"asset"`
+	LedgerID                uint32 `json:"ledger_id"`
+	Name                    string `json:"name"`
+	QuantityDisplayDecimals uint32 `json:"quantity_display_decimals"`
+	// QuantityScale is the decimal scale of this asset's quantities and
+	// balances.
+	QuantityScale int `json:"quantity_scale"`
+	// MarketDataVolumeScale is the scale of public candle and market-overview
+	// base volume.
+	MarketDataVolumeScale int `json:"market_data_volume_scale"`
+}
+
+// SpotPair describes one spot trading pair and its order rules. Decimal
+// strings are in base-asset (quantity) or quote-asset (notional) units.
+type SpotPair struct {
+	SymbolID            uint32 `json:"symbol_id"`
+	Symbol              string `json:"symbol"`
+	BaseAsset           string `json:"base_asset"`
+	QuoteAsset          string `json:"quote_asset"`
+	TickSize            string `json:"tick_size"`
+	StepSize            string `json:"step_size"`
+	MinNotionalQuote    string `json:"min_notional_quote"`
+	MinQtyBase          string `json:"min_qty_base"`
+	AllowBuyFeeFromBase bool   `json:"allow_buy_fee_from_base"`
+	BaseQuantityScale   int    `json:"base_quantity_scale"`
+	QuoteQuantityScale  int    `json:"quote_quantity_scale"`
+	// ReferencePriceScale is the scale of composite reference candle prices.
+	// Trading prices use the fixed scale 9.
+	ReferencePriceScale   int        `json:"reference_price_scale"`
+	OrderbookPriceBuckets []float64  `json:"orderbook_price_buckets,omitempty"`
+	ListingAt             *time.Time `json:"listing_at,omitempty"`
+	DelistingAt           *time.Time `json:"delisting_at,omitempty"`
+	// Status is enabled, disabled, cancel_only, post_only, reduce_only, halted,
+	// or unknown.
+	Status                       string `json:"status"`
+	DefaultMarketSlippageBpsBuy  int32  `json:"default_market_slippage_bps_buy"`
+	DefaultMarketSlippageBpsSell int32  `json:"default_market_slippage_bps_sell"`
+	MaxClientRefDriftBps         int32  `json:"max_client_ref_drift_bps"`
+	// MaxLimitQtyBase is the largest quantity of one limit order; a replace is
+	// checked on its new total less the quantity already filled. Larger orders
+	// are rejected with ERROR_CODE_MAX_QTY. Empty when the pair has no maximum.
+	MaxLimitQtyBase string `json:"max_limit_qty_base,omitempty"`
+	// MaxMarketQtyBase is the largest quantity of one market order, after a
+	// quote-sized order is converted to base. Empty when the pair has no
+	// maximum.
+	MaxMarketQtyBase string `json:"max_market_qty_base,omitempty"`
+	// MaxOrderNotionalQuote is the largest notional of one order: quantity
+	// times limit price, or times protection price for a market order. Larger
+	// orders are rejected with ERROR_CODE_MAX_NOTIONAL. Empty when the pair has
+	// no maximum.
+	MaxOrderNotionalQuote string `json:"max_order_notional_quote,omitempty"`
+	// MaxOpenOrdersPerPair is the venue's default limit on resting orders a
+	// typical account may hold on this pair. An account may have a lower
+	// limit of its own. Orders past it are rejected with
+	// ERROR_CODE_MAX_OPEN_ORDERS_PER_PAIR. Zero when not published.
+	MaxOpenOrdersPerPair uint32 `json:"max_open_orders_per_pair"`
 }
 
 // PairConstraints is the deterministic, parsed trading-rule view for one spot
@@ -98,4 +173,23 @@ type PairConstraints struct {
 	MinQtyScaled          int64  `json:"min_qty_scaled"`
 	MinNotionalQuote      string `json:"min_notional_quote"`
 	MinNotionalComputable bool   `json:"min_notional_computable"`
+	// MaxLimitQtyBase is the largest quantity of one limit order; empty (and
+	// MaxLimitQtyScaled zero) when the pair has no maximum.
+	MaxLimitQtyBase   string `json:"max_limit_qty_base,omitempty"`
+	MaxLimitQtyScaled int64  `json:"max_limit_qty_scaled,omitempty"`
+	// MaxMarketQtyBase is the largest quantity of one market order; empty (and
+	// MaxMarketQtyScaled zero) when the pair has no maximum.
+	MaxMarketQtyBase   string `json:"max_market_qty_base,omitempty"`
+	MaxMarketQtyScaled int64  `json:"max_market_qty_scaled,omitempty"`
+	// MaxOrderNotionalQuote is the largest notional of one order in quote
+	// units; empty when the pair has no maximum.
+	MaxOrderNotionalQuote string `json:"max_order_notional_quote,omitempty"`
+	// MaxOpenOrdersPerPair is the venue's default resting-order limit for a
+	// typical account on this pair; zero when not published. An account may
+	// have a lower limit of its own.
+	MaxOpenOrdersPerPair uint32 `json:"max_open_orders_per_pair,omitempty"`
+	// MaxQuoteSlippage is the largest absolute max-slippage an order accepts,
+	// in quote units: the int64 ceiling of Q9 price ticks.
+	MaxQuoteSlippage      string `json:"max_quote_slippage"`
+	MaxQuoteSlippageTicks int64  `json:"max_quote_slippage_ticks"`
 }

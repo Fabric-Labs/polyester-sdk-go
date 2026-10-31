@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/big"
 	"reflect"
+	"regexp"
 	"strconv"
 	"sync"
 	"time"
@@ -522,6 +523,9 @@ func pairConstraints(pair map[string]any) (models.PairConstraints, bool) {
 	step := stringField(pair, "step_size", "stepSize")
 	minQty := stringField(pair, "min_qty_base", "minQtyBase")
 	minNotional := stringField(pair, "min_notional_quote", "minNotionalQuote")
+	maxLimitQty := stringField(pair, "max_limit_qty_base", "maxLimitQtyBase")
+	maxMarketQty := stringField(pair, "max_market_qty_base", "maxMarketQtyBase")
+	maxNotional := stringField(pair, "max_order_notional_quote", "maxOrderNotionalQuote")
 	if symbol == "" || id == nil || !baseOK {
 		return models.PairConstraints{}, false
 	}
@@ -535,6 +539,18 @@ func pairConstraints(pair map[string]any) (models.PairConstraints, bool) {
 	}
 	minQtyScaled, ok := optionalScaledDecimal(minQty, baseScale, true)
 	if !ok {
+		return models.PairConstraints{}, false
+	}
+	maxLimitQtyScaled, ok := optionalScaledDecimal(maxLimitQty, baseScale, true)
+	if !ok || !unsignedDecimal(maxLimitQty) {
+		return models.PairConstraints{}, false
+	}
+	maxMarketQtyScaled, ok := optionalScaledDecimal(maxMarketQty, baseScale, true)
+	if !ok || !unsignedDecimal(maxMarketQty) || !unsignedDecimal(maxNotional) {
+		return models.PairConstraints{}, false
+	}
+	maxOpenOrders, _, err := requiredU32Field(pair, "max_open_orders_per_pair", "maxOpenOrdersPerPair")
+	if err != nil {
 		return models.PairConstraints{}, false
 	}
 	minNotionalComputable := false
@@ -562,7 +578,39 @@ func pairConstraints(pair map[string]any) (models.PairConstraints, bool) {
 		MinQtyScaled:          minQtyScaled,
 		MinNotionalQuote:      minNotional,
 		MinNotionalComputable: minNotionalComputable,
+		MaxLimitQtyBase:       maxLimitQty,
+		MaxLimitQtyScaled:     maxLimitQtyScaled,
+		MaxMarketQtyBase:      maxMarketQty,
+		MaxMarketQtyScaled:    maxMarketQtyScaled,
+		MaxOrderNotionalQuote: maxNotional,
+		MaxOpenOrdersPerPair:  maxOpenOrders,
+		MaxQuoteSlippage:      maxQuoteSlippage,
+		MaxQuoteSlippageTicks: math.MaxInt64,
 	}, true
+}
+
+// maxQuoteSlippage is math.MaxInt64 Q9 price ticks as a decimal.
+const maxQuoteSlippage = "9223372036.854775807"
+
+var unsignedDecimalPattern = regexp.MustCompile(`^\d+(\.\d+)?$`)
+
+// unsignedDecimal reports whether an optional order limit is absent or an
+// unsigned decimal string, the published limit format.
+func unsignedDecimal(raw string) bool {
+	return raw == "" || unsignedDecimalPattern.MatchString(raw)
+}
+
+// MaxOpenOrdersTotal returns the venue's default resting-order limit for a
+// typical account across all pairs, or zero when the catalog does not
+// publish one. An account may have a lower limit of its own.
+func (m *Manager) MaxOpenOrdersTotal() uint32 {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	total, _, err := requiredU32Field(m.SpotConfig, "max_open_orders_total", "maxOpenOrdersTotal")
+	if err != nil {
+		return 0
+	}
+	return total
 }
 
 func optionalScaledDecimal(raw string, scale int, zeroIsUnset bool) (int64, bool) {
