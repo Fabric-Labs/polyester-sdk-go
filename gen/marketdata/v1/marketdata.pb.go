@@ -1651,8 +1651,15 @@ type PairConfig struct {
 	// own; that is not part of this public configuration and would be returned
 	// by an account-scoped read.
 	MaxOpenOrdersPerPair uint32 `protobuf:"varint,23,opt,name=max_open_orders_per_pair,json=maxOpenOrdersPerPair,proto3" json:"max_open_orders_per_pair,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Largest notional of one market order, as a decimal string in quote-asset
+	// units, compared exactly with no rounding. A market order is valued at the
+	// top of the price range it may trade in: a buy at its protection price and
+	// a sell at its reference price, the touch or the client's reference price,
+	// before slippage. An order above it is rejected with MAX_NOTIONAL. Absent
+	// when the pair has no maximum.
+	MaxMarketNotionalQuote *string `protobuf:"bytes,24,opt,name=max_market_notional_quote,json=maxMarketNotionalQuote,proto3,oneof" json:"max_market_notional_quote,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *PairConfig) Reset() {
@@ -1844,6 +1851,13 @@ func (x *PairConfig) GetMaxOpenOrdersPerPair() uint32 {
 		return x.MaxOpenOrdersPerPair
 	}
 	return 0
+}
+
+func (x *PairConfig) GetMaxMarketNotionalQuote() string {
+	if x != nil && x.MaxMarketNotionalQuote != nil {
+		return *x.MaxMarketNotionalQuote
+	}
+	return ""
 }
 
 // GetSpotConfigRequest has no parameters.
@@ -2082,7 +2096,8 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\x0equantity_scale\x18\x05 \x01(\rR\rquantityScale\x127\n" +
 	"\x18market_data_volume_scale\x18\x06 \x01(\rR\x15marketDataVolumeScale\"N\n" +
 	"\x14PairMarketdataConfig\x126\n" +
-	"\x17orderbook_price_buckets\x18\x01 \x03(\x01R\x15orderbookPriceBuckets\"\xb7\t\n" +
+	"\x17orderbook_price_buckets\x18\x01 \x03(\x01R\x15orderbookPriceBuckets\"\x95\n" +
+	"\n" +
 	"\n" +
 	"PairConfig\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x12\x16\n" +
@@ -2114,10 +2129,12 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\x12max_limit_qty_base\x18\x14 \x01(\tH\x00R\x0fmaxLimitQtyBase\x88\x01\x01\x122\n" +
 	"\x13max_market_qty_base\x18\x15 \x01(\tH\x01R\x10maxMarketQtyBase\x88\x01\x01\x12<\n" +
 	"\x18max_order_notional_quote\x18\x16 \x01(\tH\x02R\x15maxOrderNotionalQuote\x88\x01\x01\x126\n" +
-	"\x18max_open_orders_per_pair\x18\x17 \x01(\rR\x14maxOpenOrdersPerPairB\x15\n" +
+	"\x18max_open_orders_per_pair\x18\x17 \x01(\rR\x14maxOpenOrdersPerPair\x12>\n" +
+	"\x19max_market_notional_quote\x18\x18 \x01(\tH\x03R\x16maxMarketNotionalQuote\x88\x01\x01B\x15\n" +
 	"\x13_max_limit_qty_baseB\x16\n" +
 	"\x14_max_market_qty_baseB\x1b\n" +
-	"\x19_max_order_notional_quote\"\x16\n" +
+	"\x19_max_order_notional_quoteB\x1c\n" +
+	"\x1a_max_market_notional_quote\"\x16\n" +
 	"\x14GetSpotConfigRequest\"\xc6\x01\n" +
 	"\x15GetSpotConfigResponse\x122\n" +
 	"\x06assets\x18\x01 \x03(\v2\x1a.marketdata.v1.AssetConfigR\x06assets\x12/\n" +
