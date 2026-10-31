@@ -112,6 +112,7 @@ func spotPairFromProto(pair *marketdatav1.PairConfig) (models.SpotPair, error) {
 		{"max_limit_qty_base", pair.MaxLimitQtyBase, &out.MaxLimitQtyBase},
 		{"max_market_qty_base", pair.MaxMarketQtyBase, &out.MaxMarketQtyBase},
 		{"max_order_notional_quote", pair.MaxOrderNotionalQuote, &out.MaxOrderNotionalQuote},
+		{"max_market_notional_quote", pair.MaxMarketNotionalQuote, &out.MaxMarketNotionalQuote},
 	} {
 		if limit.value == nil {
 			continue

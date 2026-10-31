@@ -32,6 +32,7 @@ func TestSpotConfigFromProtoTypesEveryField(t *testing.T) {
 			MaxLimitQtyBase:              proto.String("100"),
 			MaxMarketQtyBase:             proto.String("10.5"),
 			MaxOrderNotionalQuote:        proto.String("1000000"),
+			MaxMarketNotionalQuote:       proto.String("250000.5"),
 			MaxOpenOrdersPerPair:         200,
 		}},
 		TsSec:              1_700_000_000,
@@ -60,7 +61,7 @@ func TestSpotConfigFromProtoTypesEveryField(t *testing.T) {
 		t.Fatalf("listing=%v delisting=%v", pair.ListingAt, pair.DelistingAt)
 	}
 	if pair.MaxLimitQtyBase != "100" || pair.MaxMarketQtyBase != "10.5" || pair.MaxOrderNotionalQuote != "1000000" ||
-		pair.MaxOpenOrdersPerPair != 200 {
+		pair.MaxMarketNotionalQuote != "250000.5" || pair.MaxOpenOrdersPerPair != 200 {
 		t.Fatalf("limits=%+v", pair)
 	}
 	// Catalog hydration still reads the proto-JSON payload.
@@ -78,17 +79,19 @@ func TestSpotConfigFromProtoLeavesAbsentLimitsUnset(t *testing.T) {
 	}
 	pair := got.Pairs[0]
 	if pair.MaxLimitQtyBase != "" || pair.MaxMarketQtyBase != "" || pair.MaxOrderNotionalQuote != "" ||
-		pair.MaxOpenOrdersPerPair != 0 || got.MaxOpenOrdersTotal != 0 || pair.Status != "unknown" {
+		pair.MaxMarketNotionalQuote != "" || pair.MaxOpenOrdersPerPair != 0 || got.MaxOpenOrdersTotal != 0 || pair.Status != "unknown" {
 		t.Fatalf("pair=%+v total=%d", pair, got.MaxOpenOrdersTotal)
 	}
 }
 
 func TestSpotConfigFromProtoRejectsMalformedLimits(t *testing.T) {
 	for name, pair := range map[string]*marketdatav1.PairConfig{
-		"limit qty":   {SymbolId: 1, Symbol: "BTC-USDT", MaxLimitQtyBase: proto.String("-1")},
-		"market qty":  {SymbolId: 1, Symbol: "BTC-USDT", MaxMarketQtyBase: proto.String("1e3")},
-		"notional":    {SymbolId: 1, Symbol: "BTC-USDT", MaxOrderNotionalQuote: proto.String("")},
-		"trailing dp": {SymbolId: 1, Symbol: "BTC-USDT", MaxLimitQtyBase: proto.String("1.")},
+		"limit qty":                {SymbolId: 1, Symbol: "BTC-USDT", MaxLimitQtyBase: proto.String("-1")},
+		"market qty":               {SymbolId: 1, Symbol: "BTC-USDT", MaxMarketQtyBase: proto.String("1e3")},
+		"notional":                 {SymbolId: 1, Symbol: "BTC-USDT", MaxOrderNotionalQuote: proto.String("")},
+		"trailing dp":              {SymbolId: 1, Symbol: "BTC-USDT", MaxLimitQtyBase: proto.String("1.")},
+		"market notional empty":    {SymbolId: 1, Symbol: "BTC-USDT", MaxMarketNotionalQuote: proto.String("")},
+		"market notional negative": {SymbolId: 1, Symbol: "BTC-USDT", MaxMarketNotionalQuote: proto.String("-5")},
 	} {
 		_, err := SpotConfigFromProto(&marketdatav1.GetSpotConfigResponse{Pairs: []*marketdatav1.PairConfig{pair}})
 		var transportErr *sdkerrors.TransportError

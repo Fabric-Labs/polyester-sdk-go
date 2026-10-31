@@ -526,6 +526,7 @@ func pairConstraints(pair map[string]any) (models.PairConstraints, bool) {
 	maxLimitQty := stringField(pair, "max_limit_qty_base", "maxLimitQtyBase")
 	maxMarketQty := stringField(pair, "max_market_qty_base", "maxMarketQtyBase")
 	maxNotional := stringField(pair, "max_order_notional_quote", "maxOrderNotionalQuote")
+	maxMarketNotional := stringField(pair, "max_market_notional_quote", "maxMarketNotionalQuote")
 	if symbol == "" || id == nil || !baseOK {
 		return models.PairConstraints{}, false
 	}
@@ -546,7 +547,8 @@ func pairConstraints(pair map[string]any) (models.PairConstraints, bool) {
 		return models.PairConstraints{}, false
 	}
 	maxMarketQtyScaled, ok := optionalScaledDecimal(maxMarketQty, baseScale, true)
-	if !ok || !unsignedDecimal(maxMarketQty) || !unsignedDecimal(maxNotional) {
+	if !ok || !unsignedDecimal(maxMarketQty) || !unsignedDecimal(maxNotional) ||
+		!unsignedDecimal(maxMarketNotional) {
 		return models.PairConstraints{}, false
 	}
 	maxOpenOrders, _, err := requiredU32Field(pair, "max_open_orders_per_pair", "maxOpenOrdersPerPair")
@@ -566,26 +568,27 @@ func pairConstraints(pair map[string]any) (models.PairConstraints, bool) {
 		}
 	}
 	return models.PairConstraints{
-		Symbol:                symbol,
-		SymbolID:              *id,
-		BaseQuantityScale:     baseScale,
-		QuoteQuantityScale:    quoteScale,
-		TickSize:              tick,
-		TickSizeTicks:         tickTicks,
-		StepSize:              step,
-		StepSizeScaled:        stepScaled,
-		MinQtyBase:            minQty,
-		MinQtyScaled:          minQtyScaled,
-		MinNotionalQuote:      minNotional,
-		MinNotionalComputable: minNotionalComputable,
-		MaxLimitQtyBase:       maxLimitQty,
-		MaxLimitQtyScaled:     maxLimitQtyScaled,
-		MaxMarketQtyBase:      maxMarketQty,
-		MaxMarketQtyScaled:    maxMarketQtyScaled,
-		MaxOrderNotionalQuote: maxNotional,
-		MaxOpenOrdersPerPair:  maxOpenOrders,
-		MaxQuoteSlippage:      maxQuoteSlippage,
-		MaxQuoteSlippageTicks: math.MaxInt64,
+		Symbol:                 symbol,
+		SymbolID:               *id,
+		BaseQuantityScale:      baseScale,
+		QuoteQuantityScale:     quoteScale,
+		TickSize:               tick,
+		TickSizeTicks:          tickTicks,
+		StepSize:               step,
+		StepSizeScaled:         stepScaled,
+		MinQtyBase:             minQty,
+		MinQtyScaled:           minQtyScaled,
+		MinNotionalQuote:       minNotional,
+		MinNotionalComputable:  minNotionalComputable,
+		MaxLimitQtyBase:        maxLimitQty,
+		MaxLimitQtyScaled:      maxLimitQtyScaled,
+		MaxMarketQtyBase:       maxMarketQty,
+		MaxMarketQtyScaled:     maxMarketQtyScaled,
+		MaxOrderNotionalQuote:  maxNotional,
+		MaxMarketNotionalQuote: maxMarketNotional,
+		MaxOpenOrdersPerPair:   maxOpenOrders,
+		MaxQuoteSlippage:       maxQuoteSlippage,
+		MaxQuoteSlippageTicks:  math.MaxInt64,
 	}, true
 }
 

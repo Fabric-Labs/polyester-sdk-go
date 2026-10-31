@@ -289,7 +289,9 @@ server-side.
 as `halted`, default slippage) and the order limits. `MaxLimitQtyBase`,
 `MaxMarketQtyBase` and `MaxOrderNotionalQuote` are decimal strings, empty when
 the pair has no maximum; larger orders are rejected with `ERROR_CODE_MAX_QTY`
-or `ERROR_CODE_MAX_NOTIONAL`. `MaxOpenOrdersPerPair` and the config's
+or `ERROR_CODE_MAX_NOTIONAL`. `MaxMarketNotionalQuote` caps one market
+order's notional, valued at a buy's protection price or a sell's reference
+price (empty means no cap, not zero). `MaxOpenOrdersPerPair` and the config's
 `MaxOpenOrdersTotal` are the venue's default resting-order limits for a
 typical account (an account may have a lower one); zero when not published. A
 malformed response is an error, never an empty config. `SpotConfig.Raw` is the
@@ -970,8 +972,9 @@ python3 scripts/check_sdk_coverage.py
 python3 scripts/check_sdk_coverage.py --write-capabilities  # refresh JSON + README table
 ```
 
-CI also refreshes `sdk-capabilities.json` and the README capability table on the
-same branch when they drift (same-repo PRs / pushes to `main`).
+CI checks that `sdk-capabilities.json` and the README capability table are
+current and fails when they are stale; it never commits them. Run
+`--write-capabilities` and commit the result.
 
 Unit / public-smoke tests run offline (no API keys):
 

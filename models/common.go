@@ -155,6 +155,12 @@ type SpotPair struct {
 	// limit of its own. Orders past it are rejected with
 	// ERROR_CODE_MAX_OPEN_ORDERS_PER_PAIR. Zero when not published.
 	MaxOpenOrdersPerPair uint32 `json:"max_open_orders_per_pair"`
+	// MaxMarketNotionalQuote is the largest notional of one market order in
+	// quote units. A market order is valued at the top of its band: a buy at
+	// its protection price, a sell at its reference price. Larger orders are
+	// rejected with ERROR_CODE_MAX_NOTIONAL. Empty when the pair has no
+	// maximum.
+	MaxMarketNotionalQuote string `json:"max_market_notional_quote,omitempty"`
 }
 
 // PairConstraints is the deterministic, parsed trading-rule view for one spot
@@ -184,6 +190,10 @@ type PairConstraints struct {
 	// MaxOrderNotionalQuote is the largest notional of one order in quote
 	// units; empty when the pair has no maximum.
 	MaxOrderNotionalQuote string `json:"max_order_notional_quote,omitempty"`
+	// MaxMarketNotionalQuote is the largest notional of one market order in
+	// quote units, valued at the top of its band; empty when the pair has no
+	// maximum.
+	MaxMarketNotionalQuote string `json:"max_market_notional_quote,omitempty"`
 	// MaxOpenOrdersPerPair is the venue's default resting-order limit for a
 	// typical account on this pair; zero when not published. An account may
 	// have a lower limit of its own.
