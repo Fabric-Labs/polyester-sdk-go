@@ -3,6 +3,9 @@ package errors
 import (
 	"errors"
 	"strconv"
+	"strings"
+
+	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 )
 
 // ErrPolyester is the root sentinel for SDK errors.
@@ -194,26 +197,28 @@ func (e *QueueOverflowError) Is(target error) bool { return target == ErrPolyest
 //
 // It does not guarantee that a mutation was not applied. Preserve the same
 // idempotency key and reconcile first when MutationOutcomeUnknown is true.
+// An order error code ending in _OUTCOME_UNKNOWN is not retryable: read the
+// order or trigger back before sending it again.
 func IsRetryable(err error) bool {
 	var transportErr *TransportError
 	var rateLimitErr *RateLimitError
 	var serverErr *ServerError
 	code := apiErrorCode(err)
+	if outcomeUnknownCodes[code] {
+		return false
+	}
 	return errors.As(err, &transportErr) ||
 		errors.As(err, &rateLimitErr) ||
 		errors.As(err, &serverErr) ||
-		outcomeUnknownCodes[code] ||
 		code == "ERROR_CODE_ACCOUNT_REPAIRING" ||
 		code == AuthCodeTemporarilyUnavailable
 }
 
 // MutationOutcomeUnknown reports whether the server may have applied a failed
-// mutation before the error became visible to the caller. It includes an
-// order create, cancel or modify and a trigger create that was sent but not
-// confirmed in time (ERROR_CODE_ORDER_CREATE_OUTCOME_UNKNOWN,
-// ERROR_CODE_ORDER_CANCEL_OUTCOME_UNKNOWN, ERROR_CODE_ORDER_MODIFY_OUTCOME_UNKNOWN,
-// ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN): read the order or trigger back
-// before retrying.
+// mutation before the error became visible to the caller. It includes every
+// order error code ending in _OUTCOME_UNKNOWN: an order create, cancel or
+// modify, or a trigger create, cancel, pause, resume or modify, that was sent
+// but not confirmed in time. Read the order or trigger back before retrying.
 func MutationOutcomeUnknown(err error) bool {
 	var transportErr *TransportError
 	var serverErr *ServerError
@@ -225,13 +230,18 @@ func MutationOutcomeUnknown(err error) bool {
 }
 
 // outcomeUnknownCodes are order error codes for a mutation that was sent but
-// not confirmed in time; it may still apply.
-var outcomeUnknownCodes = map[string]bool{
-	"ERROR_CODE_ORDER_CREATE_OUTCOME_UNKNOWN":   true,
-	"ERROR_CODE_ORDER_CANCEL_OUTCOME_UNKNOWN":   true,
-	"ERROR_CODE_ORDER_MODIFY_OUTCOME_UNKNOWN":   true,
-	"ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN": true,
-}
+// not confirmed in time; it may still apply. They are the generated orders.v1
+// ErrorCode names ending in _OUTCOME_UNKNOWN, so a new code is covered on
+// regeneration.
+var outcomeUnknownCodes = func() map[string]bool {
+	codes := make(map[string]bool)
+	for _, name := range orderv1.ErrorCode_name {
+		if strings.HasSuffix(name, "_OUTCOME_UNKNOWN") {
+			codes[name] = true
+		}
+	}
+	return codes
+}()
 
 func apiErrorCode(err error) string {
 	var apiErr *APIError

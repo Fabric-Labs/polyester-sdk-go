@@ -5,7 +5,9 @@ and automation. Parity with `polyester-sdk-python` and `polyester-sdk-rust`
 using the checked-in `gen/` protobuf bundle (no local proto generation for
 normal development).
 
-**Status:** Alpha (`v0.1.0-alpha.56`). Proprietary license (not open source).
+**Status:** `v0.2.0`, pre-1.0: a minor release may change the API. The Go,
+Python and Rust SDKs share one version number and are released together.
+Proprietary license (not open source).
 API-key only; no browser login or session MFA.
 
 Requires a recent Go toolchain (see `go.mod`).
@@ -55,7 +57,7 @@ Rows marked **No** are intentional for API-key SDKs (use the TypeScript
 browser client for wallet login and session MFA).
 
 Full cross-language comparison:
-[SDK capability matrix](https://polyester.ai/docs/developer-docs/getting-started/sdk-capability-matrix).
+[SDK capability matrix](https://polyester.com/docs/developer-docs/getting-started/sdk-capability-matrix).
 <!-- sdk-capabilities:end -->
 
 Address-book writes (`CreateEntry` / `UpdateEntry` / `DeleteEntry` and tag
@@ -93,14 +95,8 @@ fields empty. Valid stop loss and trailing legs are both retained together.
 ## Install
 
 ```bash
-GOPRIVATE='github.com/Fabric-Labs/*' \
-GONOSUMDB='github.com/Fabric-Labs/*' \
-go get github.com/Fabric-Labs/polyester-sdk-go@v0.1.0-alpha.56
+go get github.com/Fabric-Labs/polyester-sdk-go@v0.2.0
 ```
-
-The repository is currently private. GitHub access and authenticated Git credentials are
-required; the private-module variables keep the public Go proxy and checksum database out of
-the resolution path.
 
 For development from a git checkout:
 
@@ -330,10 +326,14 @@ attempt did not admit.
 A create, cancel or modify that the server sent but could not confirm in time
 fails with `ERROR_CODE_ORDER_CREATE_OUTCOME_UNKNOWN`,
 `ERROR_CODE_ORDER_CANCEL_OUTCOME_UNKNOWN` or
-`ERROR_CODE_ORDER_MODIFY_OUTCOME_UNKNOWN`, and a trigger create with
-`ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN`: the order or trigger may exist.
-`errors.MutationOutcomeUnknown` reports true, so read it back (by client order
-ID or client trigger ID) before retrying.
+`ERROR_CODE_ORDER_MODIFY_OUTCOME_UNKNOWN`, a trigger create with
+`ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN`, and a trigger cancel, pause,
+resume or modify with `ERROR_CODE_TRIGGER_CONTROL_OUTCOME_UNKNOWN`: the change
+may still apply.
+For every order error code ending in `_OUTCOME_UNKNOWN`,
+`errors.MutationOutcomeUnknown` reports true and `errors.IsRetryable` reports
+false: read the order or trigger back (by client order ID or client trigger
+ID) before sending it again.
 `ERROR_CODE_ACCOUNT_REPAIRING` and `AUTH_TEMPORARILY_UNAVAILABLE` changed
 nothing and `errors.IsRetryable` reports true: retry the same request shortly.
 Client order ids accept 1 to 36 ASCII letters, digits, `.`, `_`, `:`, `/`, and
@@ -422,7 +422,7 @@ order submission. Create results expose `ResolvedBaseQtyScaled` and, for
 quote-budget orders, `SubmittedMaxQuoteDebitScaled`.
 
 Market orders are IOC and enforce a slippage-derived execution boundary. See
-[Market Order Price Protection](https://polyester.ai/developer-docs/shared-concepts/market-order-price-protection)
+[Market Order Price Protection](https://polyester.com/docs/developer-docs/shared-concepts/market-order-price-protection)
 before overriding pair defaults. Set at most one of `MaxSlippageBps`
 (1–10000) or `MaxSlippageTicks` on a market `CreateOrderRequest`. Omit both
 to keep the pair default. The fields are rejected on limit orders and if
@@ -464,9 +464,12 @@ cannot be resolved to a non-zero `symbol_id`.
 
 ## VIP, spot fees, and trading rate limits
 
-Public catalog reads need no credentials. Authenticated VIP status, effective spot fees, and
-account trading limits require an API key. `GetVIPStatus` has no subaccount selector: JWT and
-API-key callers receive the owning root group only. USD amounts and fee percents are decimal
+Public catalog reads (`ListVIPTiers`) need no credentials. Effective spot fees
+(`Fees.GetSpotFeeRates`) and account trading limits (`RateLimits.GetTradingRateLimits`) work
+with an API key. `GetVIPStatus` requires a signed-in website session: the API refuses API-key
+callers with `permission_denied` ("API keys cannot read private VIP metrics"), so it always
+fails from this SDK. For a session caller it has no subaccount selector and reports the owning
+root group only. USD amounts and fee percents are decimal
 strings. Optional qualification metrics, timestamps, and next-tier thresholds stay omitted
 when unset. `SettledVolumeQuality` and `AverageAopQuality` report how complete each rolling
 30-day metric is (`complete`, `price_unavailable` or `incomplete_history`, with

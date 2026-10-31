@@ -321,6 +321,7 @@ func TestMapConnectErrorCreateOutcomeUnknownRequiresReconciliation(t *testing.T)
 	for _, code := range []orderv1.ErrorCode{
 		orderv1.ErrorCode_ERROR_CODE_ORDER_CREATE_OUTCOME_UNKNOWN,
 		orderv1.ErrorCode_ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN,
+		orderv1.ErrorCode_ERROR_CODE_TRIGGER_CONTROL_OUTCOME_UNKNOWN,
 	} {
 		t.Run(code.String(), func(t *testing.T) {
 			connectErr := connect.NewError(connect.CodeDeadlineExceeded, errors.New("create not confirmed in time"))
@@ -337,8 +338,8 @@ func TestMapConnectErrorCreateOutcomeUnknownRequiresReconciliation(t *testing.T)
 			if !sdkerrors.MutationOutcomeUnknown(mapped) {
 				t.Fatalf("%s must report an unknown mutation outcome", code)
 			}
-			if !sdkerrors.IsRetryable(mapped) {
-				t.Fatalf("%s may be retried after reconciliation", code)
+			if sdkerrors.IsRetryable(mapped) {
+				t.Fatalf("%s must not be retried before reconciliation", code)
 			}
 		})
 	}
