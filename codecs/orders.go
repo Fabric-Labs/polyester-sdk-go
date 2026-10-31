@@ -213,7 +213,7 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale, quoteQuant
 			}
 			market.ClientRefPriceTicks = ticks
 		}
-		if err := applyMarketMaxSlippage(market, req.MaxSlippageTicks, req.MaxSlippageBps); err != nil {
+		if err := applyMarketMaxSlippage(market, side, req.MaxSlippageTicks, req.MaxSlippageBps); err != nil {
 			return nil, err
 		}
 		intent.Execution = &orderv1.OrderIntent_MarketIoc{MarketIoc: market}
@@ -264,7 +264,7 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale, quoteQuant
 	return intent, nil
 }
 
-func applyMarketMaxSlippage(market *orderv1.MarketIoc, ticks *int64, bps *int32) error {
+func applyMarketMaxSlippage(market *orderv1.MarketIoc, side orderv1.Side, ticks *int64, bps *int32) error {
 	if ticks != nil && bps != nil {
 		return &errors.ValidationError{Msg: "market_ioc allows at most one of max_slippage_ticks or max_slippage_bps"}
 	}
@@ -275,7 +275,11 @@ func applyMarketMaxSlippage(market *orderv1.MarketIoc, ticks *int64, bps *int32)
 		market.MaxSlippage = &orderv1.MarketIoc_MaxSlippageTicks{MaxSlippageTicks: *ticks}
 	}
 	if bps != nil {
-		if err := validateSlippageBps(*bps, false); err != nil {
+		maxBps := MaxSlippageBpsLimit
+		if side == orderv1.Side_SELL {
+			maxBps = MaxSellingSlippageBps
+		}
+		if err := validateBpsAtMost("max_slippage_bps", *bps, false, maxBps); err != nil {
 			return err
 		}
 		market.MaxSlippage = &orderv1.MarketIoc_MaxSlippageBps{MaxSlippageBps: *bps}

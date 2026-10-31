@@ -4,7 +4,6 @@ import (
 	"strconv"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
-	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	lifecyclev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/lifecycle/v1"
@@ -92,22 +91,34 @@ func AssetBalanceFromBytes(payload []byte) (models.AssetBalance, error) {
 	return AssetBalanceFromProto(&msg), nil
 }
 
-// UserTradeFromBytes parses a private user trade publication.
-func UserTradeFromBytes(payload []byte) (models.UserTrade, error) {
-	var msg orderv1.UserTrade
+// UserTradeBatchFromBytes parses a private user trade publication: a batch
+// of fills, oldest first per trading symbol. (match_id, order_id) identifies a
+// fill; a repeated identity replaces the earlier copy.
+func UserTradeBatchFromBytes(payload []byte) ([]models.UserTrade, error) {
+	var msg orderv1.UserTradeBatch
 	if err := unmarshalProto(payload, &msg); err != nil {
-		return models.UserTrade{}, err
+		return nil, err
 	}
-	return UserTradeFromProto(&msg), nil
+	out := make([]models.UserTrade, 0, len(msg.GetEvents()))
+	for _, trade := range msg.GetEvents() {
+		out = append(out, UserTradeFromProto(trade))
+	}
+	return out, nil
 }
 
-// LedgerTransferFromBytes parses a ledger transfer publication.
-func LedgerTransferFromBytes(payload []byte) (models.LedgerTransfer, error) {
-	var msg ledgerrdv1.TransferRow
+// LedgerTransferBatchFromBytes parses a ledger transfer publication: a batch
+// of transfer legs, oldest first. (transfer_id, account_code, is_debit)
+// identifies a leg; a repeated identity replaces the earlier copy.
+func LedgerTransferBatchFromBytes(payload []byte) ([]models.LedgerTransfer, error) {
+	var msg ledgerrdv1.TransferRowBatch
 	if err := unmarshalProto(payload, &msg); err != nil {
-		return models.LedgerTransfer{}, err
+		return nil, err
 	}
-	return TransferRowFromProto(&msg), nil
+	out := make([]models.LedgerTransfer, 0, len(msg.GetEvents()))
+	for _, row := range msg.GetEvents() {
+		out = append(out, TransferRowFromProto(row))
+	}
+	return out, nil
 }
 
 // TriggerFromBytes parses a trigger publication.
@@ -119,13 +130,19 @@ func TriggerFromBytes(payload []byte) (models.Trigger, error) {
 	return TriggerFromProto(&msg), nil
 }
 
-// TriggerEventFromBytes parses a trigger event publication.
-func TriggerEventFromBytes(payload []byte) (models.TriggerEvent, error) {
-	var msg triggersv1.TriggerEvent
+// TriggerEventBatchFromBytes parses a trigger event publication: a batch of
+// events, oldest first per trading symbol. (trigger_id, event_type, child_seq,
+// ts_ns) identifies an event; a repeated identity replaces the earlier copy.
+func TriggerEventBatchFromBytes(payload []byte) ([]models.TriggerEvent, error) {
+	var msg triggersv1.TriggerEventBatch
 	if err := unmarshalProto(payload, &msg); err != nil {
-		return models.TriggerEvent{}, err
+		return nil, err
 	}
-	return TriggerEventMessageFromProto(&msg), nil
+	out := make([]models.TriggerEvent, 0, len(msg.GetEvents()))
+	for _, event := range msg.GetEvents() {
+		out = append(out, TriggerEventMessageFromProto(event))
+	}
+	return out, nil
 }
 
 // ApiKeyFromBytes parses an API key publication.
@@ -214,25 +231,19 @@ func AddressBookInvalidationFromBytes(payload []byte) (models.AddressBookViewInv
 	return AddressBookInvalidationFromProto(&msg), nil
 }
 
-// MarketTradeFromBytes parses a public market trade publication.
-func MarketTradeFromBytes(quantityScale int) func([]byte) (models.MarketTrade, error) {
-	return func(payload []byte) (models.MarketTrade, error) {
-		var msg marketdatav1.MarketTrade
+// MarketTradeBatchFromBytes returns a decoder for public market trade
+// publications: a batch of trades in execution order, oldest first.
+func MarketTradeBatchFromBytes(quantityScale int) func([]byte) ([]models.MarketTrade, error) {
+	return func(payload []byte) ([]models.MarketTrade, error) {
+		var msg marketdatav1.MarketTradeBatch
 		if err := unmarshalProto(payload, &msg); err != nil {
-			return models.MarketTrade{}, err
+			return nil, err
 		}
-		side := "sell"
-		if msg.GetIsBuy() {
-			side = "buy"
+		out := make([]models.MarketTrade, 0, len(msg.GetEvents()))
+		for _, trade := range msg.GetEvents() {
+			out = append(out, marketTradeFromProto(trade, quantityScale))
 		}
-		return models.MarketTrade{
-			SymbolID: msg.GetSymbolId(),
-			MatchID:  strconv.FormatUint(msg.GetMatchId(), 10),
-			Price:    codecs.DecodePriceTicks(msg.GetPriceTicks(), ""),
-			Qty:      codecs.DecodeQtyScaled(msg.GetQtyScaled(), quantityScale, "", nil),
-			TsNs:     strconv.FormatUint(msg.GetTsNs(), 10),
-			Side:     side,
-		}, nil
+		return out, nil
 	}
 }
 

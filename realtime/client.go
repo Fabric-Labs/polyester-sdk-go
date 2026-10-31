@@ -137,6 +137,14 @@ func SubscribeProto[T any](ctx context.Context, c *Client, channel string, decod
 	return SubscribeProtoWithOptions(ctx, c, channel, decode, nil)
 }
 
+// SubscribeProtoBatch subscribes to a protobuf Centrifugo channel whose
+// publications each carry a batch of events. decode returns the events of one
+// publication in order; each arrives as its own message. A publication that
+// does not decode fails the subscription, as with SubscribeProto.
+func SubscribeProtoBatch[T any](ctx context.Context, c *Client, channel string, decode func([]byte) ([]T, error)) (*Subscription[T], error) {
+	return subscribeProto(ctx, c, channel, decode, nil)
+}
+
 // SubscribeProtoWithOptions subscribes with optional reconnect control.
 //
 // It waits for the Centrifugo connect/subscribe handshake (including private
@@ -147,6 +155,22 @@ func SubscribeProtoWithOptions[T any](
 	c *Client,
 	channel string,
 	decode func([]byte) (T, error),
+	opts *SubscribeProtoOptions,
+) (*Subscription[T], error) {
+	return subscribeProto(ctx, c, channel, func(payload []byte) ([]T, error) {
+		item, err := decode(payload)
+		if err != nil {
+			return nil, err
+		}
+		return []T{item}, nil
+	}, opts)
+}
+
+func subscribeProto[T any](
+	ctx context.Context,
+	c *Client,
+	channel string,
+	decode func([]byte) ([]T, error),
 	opts *SubscribeProtoOptions,
 ) (*Subscription[T], error) {
 	if c == nil {
@@ -241,7 +265,7 @@ func runSubscriptionOnce[T any](
 	ctx context.Context,
 	c *Client,
 	channel string,
-	decode func([]byte) (T, error),
+	decode func([]byte) ([]T, error),
 	sub *Subscription[T],
 	onReady func(),
 ) error {
@@ -331,15 +355,17 @@ func runSubscriptionOnce[T any](
 					return &sdkerrors.RealtimeError{Msg: err.Error()}
 				}
 			case incomingPublication:
-				item, err := decode(message.data)
+				items, err := decode(message.data)
 				if err != nil {
 					return terminalRealtime("invalid realtime publication: " + err.Error())
 				}
-				if !sub.enqueue(item) {
-					if err := sub.Err(); err != nil {
-						return err
+				for _, item := range items {
+					if !sub.enqueue(item) {
+						if err := sub.Err(); err != nil {
+							return err
+						}
+						return ctx.Err()
 					}
-					return ctx.Err()
 				}
 			case incomingReply:
 				if message.err != nil {

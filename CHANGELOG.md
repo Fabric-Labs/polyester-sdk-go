@@ -1,5 +1,73 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- `MarketData.GetSpotConfig` returns a typed `models.SpotConfig`: `Assets`
+  (`models.SpotAsset`), `Pairs` (`models.SpotPair`: IDs, assets, scales, tick
+  and step size, minimums, orderbook buckets, listing times, status labels
+  such as `halted`, default slippage and reference drift), `TsSec` and the
+  order limits. Each pair has `MaxLimitQtyBase`, `MaxMarketQtyBase` and
+  `MaxOrderNotionalQuote` (decimal strings, empty when the pair has no
+  maximum) and `MaxOpenOrdersPerPair`; the config has `MaxOpenOrdersTotal`.
+  The open-order counts are the venue's defaults for a typical account, zero
+  when not published; an account may have a lower limit of its own. `Raw`
+  remains the proto-JSON payload `Catalogs.HydrateSpotConfig` accepts.
+- `PairConstraints` exposes the same limits (`MaxLimitQtyBase` /
+  `MaxLimitQtyScaled`, `MaxMarketQtyBase` / `MaxMarketQtyScaled`,
+  `MaxOrderNotionalQuote`, `MaxOpenOrdersPerPair`) and `MaxQuoteSlippage` /
+  `MaxQuoteSlippageTicks`, the largest absolute slippage cap an order
+  accepts. `Catalogs.MaxOpenOrdersTotal()` returns the account-wide default.
+  A malformed limit makes the constraints unavailable rather than guessed.
+- `Order.InheritedCumQty`: the filled quantity a replacement order inherited
+  from its predecessors; `CumQty` minus it is what that generation executed.
+- `BatchReplaceAdmissionItem.ActionTaken` and
+  `BatchReplaceStatusItem.ActionTaken`: `replaced` when a successor was
+  admitted, `amended` for a cancel-only outcome with no successor.
+- `APIError.ExistingOrderID` and `BatchCreateResultItem.ExistingOrderID` name
+  the order already holding the client order ID on a
+  `ERROR_CODE_CONFLICT_DUPLICATE_CLIENT_ORDER_ID` rejection, when known.
+- `errors.TimestampSkewError` for the API-key `TIMESTAMP_SKEW` rejection,
+  whether sent as a Connect error or as the gateway's JSON or problem JSON
+  body (`{"code":"TIMESTAMP_SKEW"}`). It carries the HTTP status.
+  `errors.IsRetryable` reports true: the request changed nothing and a retry
+  signs it again.
+- `errors.NotImplementedError` for Connect `unimplemented` and bare HTTP 501
+  responses. A bare 404 is still `errors.RouteNotFoundError`.
+- `LedgerTransfer.TransferID`: the unsigned 128-bit decimal transfer ID both
+  legs of a transfer share.
+- A trailing stop's `TriggerDetails.TriggerPrice` is its current threshold
+  once armed.
+- `realtime.SubscribeProtoBatch`, `services.SubscribePublicProtoBatch` and
+  `services.SubscribeAccountProtoBatch` subscribe to channels whose
+  publications batch events.
+
+### Changed
+- **Breaking:** `MarketData.SubscribeTrades`, `Trades.Subscribe`,
+  `Transfers.Subscribe` and `Triggers.SubscribeEvents` decode the batched
+  publications the realtime channels now send and emit each event in order.
+  Previously a batch decoded as a single event and the rest were lost. The
+  single-event decoders `decode.MarketTradeFromBytes`,
+  `decode.UserTradeFromBytes`, `decode.LedgerTransferFromBytes` and
+  `decode.TriggerEventFromBytes` are replaced by `MarketTradeBatchFromBytes`,
+  `UserTradeBatchFromBytes`, `LedgerTransferBatchFromBytes` and
+  `TriggerEventBatchFromBytes`.
+- **Breaking:** `decode.SpotConfigFromProto` returns an error for a response
+  it cannot decode instead of an empty config; `GetSpotConfig` returns it.
+- **Breaking:** Connect `unimplemented` responses map to
+  `errors.NotImplementedError` instead of `errors.APIError` with code
+  `unimplemented`.
+- `MarketOverview.CreateSubscription` with `Symbols` drops other markets from
+  live and buffered publications too, not only from the snapshot.
+- `Triggers.Modify` and `Triggers.Resume` no longer require a symbol. Pass nil
+  for `symbol` and `symbolID` to target the trigger's own market; a symbol,
+  when set, must be that market. An API key limited to specific markets must
+  still pass it.
+- A sell market order accepts `MaxSlippageBps` 1 to 9999; a buy still accepts
+  10000. An attached trailing stop accepts 1 to 9999 on either side, and
+  `Triggers.Modify` accepts 1 to 9999 (0 still clears). The backend rejects
+  10000 on these with `MAX_SLIPPAGE_INVALID`.
+
 ## 0.2.0
 
 Git tag: `v0.2.0`. Covers every change since `v0.1.0-alpha.56`.

@@ -2,6 +2,7 @@ package decode
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
@@ -11,10 +12,13 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/wire"
 )
 
-func SpotConfigFromProto(msg *marketdatav1.GetSpotConfigResponse) models.SpotConfig {
+// SpotConfigFromProto decodes the spot catalog. Order limits must be
+// unsigned decimal strings; a malformed response is an error, never an empty
+// catalog.
+func SpotConfigFromProto(msg *marketdatav1.GetSpotConfigResponse) (models.SpotConfig, error) {
 	raw, err := wire.ProtoToMap(msg)
 	if err != nil {
-		return models.SpotConfig{}
+		return models.SpotConfig{}, spotConfigError("encode: " + err.Error())
 	}
 	// proto3 omits scalar zeroes during proto-JSON conversion. Scale zero is
 	// valid, so restore the typed wire value instead of treating it as missing.
@@ -50,24 +54,122 @@ func SpotConfigFromProto(msg *marketdatav1.GetSpotConfigResponse) models.SpotCon
 			}
 		}
 	}
-	return models.SpotConfig{Raw: raw}
+	out := models.SpotConfig{
+		Assets:             make([]models.SpotAsset, 0, len(msg.GetAssets())),
+		Pairs:              make([]models.SpotPair, 0, len(msg.GetPairs())),
+		MaxOpenOrdersTotal: msg.GetMaxOpenOrdersTotal(),
+		TsSec:              msg.GetTsSec(),
+		Raw:                raw,
+	}
+	for _, asset := range msg.GetAssets() {
+		out.Assets = append(out.Assets, models.SpotAsset{
+			Asset:                   asset.GetAsset(),
+			LedgerID:                asset.GetLedgerId(),
+			Name:                    asset.GetName(),
+			QuantityDisplayDecimals: asset.GetQuantityDisplayDecimals(),
+			QuantityScale:           int(asset.GetQuantityScale()),
+			MarketDataVolumeScale:   int(asset.GetMarketDataVolumeScale()),
+		})
+	}
+	for _, pair := range msg.GetPairs() {
+		decoded, err := spotPairFromProto(pair)
+		if err != nil {
+			return models.SpotConfig{}, err
+		}
+		out.Pairs = append(out.Pairs, decoded)
+	}
+	return out, nil
+}
+
+func spotPairFromProto(pair *marketdatav1.PairConfig) (models.SpotPair, error) {
+	out := models.SpotPair{
+		SymbolID:                     pair.GetSymbolId(),
+		Symbol:                       pair.GetSymbol(),
+		BaseAsset:                    pair.GetBaseAsset(),
+		QuoteAsset:                   pair.GetQuoteAsset(),
+		TickSize:                     pair.GetTickSize(),
+		StepSize:                     pair.GetStepSize(),
+		MinNotionalQuote:             pair.GetMinNotionalQuote(),
+		MinQtyBase:                   pair.GetMinQtyBase(),
+		AllowBuyFeeFromBase:          pair.GetAllowBuyFeeFromBase(),
+		BaseQuantityScale:            int(pair.GetBaseQuantityScale()),
+		QuoteQuantityScale:           int(pair.GetQuoteQuantityScale()),
+		ReferencePriceScale:          int(pair.GetReferencePriceScale()),
+		OrderbookPriceBuckets:        pair.GetMarketdata().GetOrderbookPriceBuckets(),
+		ListingAt:                    timestampTime(pair.GetListingAt()),
+		DelistingAt:                  timestampTime(pair.GetDelistingAt()),
+		Status:                       pairStatusLabel(pair.GetStatus()),
+		DefaultMarketSlippageBpsBuy:  pair.GetDefaultMarketSlippageBpsBuy(),
+		DefaultMarketSlippageBpsSell: pair.GetDefaultMarketSlippageBpsSell(),
+		MaxClientRefDriftBps:         pair.GetMaxClientRefDriftBps(),
+		MaxOpenOrdersPerPair:         pair.GetMaxOpenOrdersPerPair(),
+	}
+	for _, limit := range []struct {
+		name  string
+		value *string
+		dest  *string
+	}{
+		{"max_limit_qty_base", pair.MaxLimitQtyBase, &out.MaxLimitQtyBase},
+		{"max_market_qty_base", pair.MaxMarketQtyBase, &out.MaxMarketQtyBase},
+		{"max_order_notional_quote", pair.MaxOrderNotionalQuote, &out.MaxOrderNotionalQuote},
+	} {
+		if limit.value == nil {
+			continue
+		}
+		if !unsignedDecimalPattern.MatchString(*limit.value) {
+			return models.SpotPair{}, spotConfigError(fmt.Sprintf(
+				"pair %s %s is not an unsigned decimal: %q", pair.GetSymbol(), limit.name, *limit.value,
+			))
+		}
+		*limit.dest = *limit.value
+	}
+	return out, nil
+}
+
+var unsignedDecimalPattern = regexp.MustCompile(`^\d+(\.\d+)?$`)
+
+func spotConfigError(msg string) error {
+	return &sdkerrors.TransportError{Msg: "GetSpotConfig response: " + msg}
+}
+
+func pairStatusLabel(status marketdatav1.PairStatus) string {
+	switch status {
+	case marketdatav1.PairStatus_PAIR_STATUS_ENABLED:
+		return "enabled"
+	case marketdatav1.PairStatus_PAIR_STATUS_DISABLED:
+		return "disabled"
+	case marketdatav1.PairStatus_PAIR_STATUS_CANCEL_ONLY:
+		return "cancel_only"
+	case marketdatav1.PairStatus_PAIR_STATUS_POST_ONLY:
+		return "post_only"
+	case marketdatav1.PairStatus_PAIR_STATUS_REDUCE_ONLY:
+		return "reduce_only"
+	case marketdatav1.PairStatus_PAIR_STATUS_HALTED:
+		return "halted"
+	default:
+		return "unknown"
+	}
 }
 
 func MarketTradesFromProto(msg *marketdatav1.GetTradesResponse, quantityScale int) models.MarketTradesResult {
 	out := make([]models.MarketTrade, 0, len(msg.GetTrades()))
 	for _, t := range msg.GetTrades() {
-		side := "sell"
-		if t.GetIsBuy() {
-			side = "buy"
-		}
-		out = append(out, models.MarketTrade{
-			SymbolID: t.GetSymbolId(), MatchID: strconv.FormatUint(t.GetMatchId(), 10),
-			Price: codecs.DecodePriceTicks(t.GetPriceTicks(), ""),
-			Qty:   codecs.DecodeQtyScaled(t.GetQtyScaled(), quantityScale, "", nil),
-			TsNs:  strconv.FormatUint(t.GetTsNs(), 10), Side: side,
-		})
+		out = append(out, marketTradeFromProto(t, quantityScale))
 	}
 	return models.MarketTradesResult{Trades: out, NextPageToken: msg.GetNextPageToken()}
+}
+
+func marketTradeFromProto(t *marketdatav1.MarketTrade, quantityScale int) models.MarketTrade {
+	side := "sell"
+	if t.GetIsBuy() {
+		side = "buy"
+	}
+	return models.MarketTrade{
+		SymbolID: t.GetSymbolId(), MatchID: strconv.FormatUint(t.GetMatchId(), 10),
+		Price: codecs.DecodePriceTicks(t.GetPriceTicks(), ""),
+		Qty:   codecs.DecodeQtyScaled(t.GetQtyScaled(), quantityScale, "", nil),
+		TsNs:  strconv.FormatUint(t.GetTsNs(), 10), Side: side,
+	}
 }
 
 // MarketTradesBackfillFromProto decodes a GetTrades response to an

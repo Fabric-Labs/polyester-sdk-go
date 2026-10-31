@@ -68,6 +68,7 @@ func TransferRowFromProto(t *ledgerrdv1.TransferRow) models.LedgerTransfer {
 		return models.LedgerTransfer{}
 	}
 	return models.LedgerTransfer{
+		TransferID:   t.GetTransferId(),
 		AssetID:      t.GetAssetId(),
 		Amount:       u128(t.GetAmountE18()),
 		TransferType: int(t.GetTransferCode()),

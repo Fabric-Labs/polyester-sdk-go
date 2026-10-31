@@ -1,5 +1,7 @@
 # Polyester Go SDK
 
+Go SDK for the Polyester API with generated protobuf types and ConnectRPC clients.
+
 Official Go SDK for Polyester APIs, built for trading bots, backend services,
 and automation. Parity with `polyester-sdk-python` and `polyester-sdk-rust`
 using the checked-in `gen/` protobuf bundle (no local proto generation for
@@ -279,7 +281,34 @@ through the spot catalog and fails closed on unknown symbols. Connect requests
 send `symbol_id` only (GetSpotConfig still accepts both). Empty or omitted
 symbol filters mean all symbols (`symbol_id = 0`). Use
 `Catalogs.PairConstraintsForSymbol` (or `PairConstraintsForSymbolID`) to inspect
-tick size, quantity step, and minimums; order admission stays server-side.
+tick size, quantity step, minimums and order limits; order admission stays
+server-side.
+
+`MarketData.GetSpotConfig` returns a typed `models.SpotConfig`: `Assets`,
+`Pairs` (symbol, IDs, scales, tick and step size, minimums, status labels such
+as `halted`, default slippage) and the order limits. `MaxLimitQtyBase`,
+`MaxMarketQtyBase` and `MaxOrderNotionalQuote` are decimal strings, empty when
+the pair has no maximum; larger orders are rejected with `ERROR_CODE_MAX_QTY`
+or `ERROR_CODE_MAX_NOTIONAL`. `MaxOpenOrdersPerPair` and the config's
+`MaxOpenOrdersTotal` are the venue's default resting-order limits for a
+typical account (an account may have a lower one); zero when not published. A
+malformed response is an error, never an empty config. `SpotConfig.Raw` is the
+proto-JSON payload `Catalogs.HydrateSpotConfig` accepts. Hydrated catalogs
+expose the same limits on `PairConstraints` (with scaled base quantities) and
+`Catalogs.MaxOpenOrdersTotal()`.
+
+```go
+cfg, err := client.MarketData.GetSpotConfig(ctx)
+if err != nil {
+	log.Fatal(err)
+}
+for _, pair := range cfg.Pairs {
+	fmt.Println(pair.Symbol, pair.Status, pair.MaxLimitQtyBase, pair.MaxOpenOrdersPerPair)
+}
+if limits, ok := client.Catalogs.PairConstraintsForSymbol("BTC-USDT"); ok {
+	fmt.Println(limits.MaxMarketQtyScaled, limits.MaxOrderNotionalQuote)
+}
+```
 
 Scaled bot inputs (`PriceFromTicks`, `QtyFromScaled`, `AssetAmountFromScaled`)
 must carry their source scale. An `AssetAmount` constructed without scale is
@@ -336,6 +365,12 @@ false: read the order or trigger back (by client order ID or client trigger
 ID) before sending it again.
 `ERROR_CODE_ACCOUNT_REPAIRING` and `AUTH_TEMPORARILY_UNAVAILABLE` changed
 nothing and `errors.IsRetryable` reports true: retry the same request shortly.
+`errors.TimestampSkewError` (`TIMESTAMP_SKEW`) means the API-key signature
+timestamp fell outside the server's window, for example after waiting in a
+large concurrent burst or with a drifting clock. It changed nothing and is
+retryable: a retry signs again. Bound concurrency or fix the clock if it
+recurs. `errors.NotImplementedError` (Connect `unimplemented` or HTTP 501)
+means the server does not offer the operation; retrying does not help.
 Client order ids accept 1 to 36 ASCII letters, digits, `.`, `_`, `:`, `/`, and
 `-`. Batch create, cancel, and replace accept at most 20 items (rejected locally
 before encoding). `BatchCreate` always sends `request_id` (caller value or a
@@ -423,10 +458,13 @@ quote-budget orders, `SubmittedMaxQuoteDebitScaled`.
 
 Market orders are IOC and enforce a slippage-derived execution boundary. See
 [Market Order Price Protection](https://polyester.com/docs/developer-docs/shared-concepts/market-order-price-protection)
-before overriding pair defaults. Set at most one of `MaxSlippageBps`
-(1–10000) or `MaxSlippageTicks` on a market `CreateOrderRequest`. Omit both
-to keep the pair default. The fields are rejected on limit orders and if
-both are supplied.
+before overriding pair defaults. Set at most one of `MaxSlippageBps` or
+`MaxSlippageTicks` on a market `CreateOrderRequest`. `MaxSlippageBps` is 1–10000
+for a buy and 1–9999 for a sell: a 100% cap would leave a sell no positive
+price. An attached trailing stop takes 1–9999 on either side. Omit both to keep
+the pair default. The fields are rejected on limit orders and if both are
+supplied. `PairConstraints.MaxQuoteSlippage` is the largest absolute cap
+`MaxSlippageTicks` accepts.
 
 ### Batch replace reconciliation
 
@@ -438,6 +476,19 @@ contains a stale predecessor `OldOrderID` and its successor
 true when every item is `working`, `rejected`, or `terminal`; `working` only
 means the successor is live. Reuse the same caller-owned `requestID` when
 retrying the same logical batch after an ambiguous failure.
+
+Admission and status items carry `ActionTaken`: `replaced` when a successor was
+admitted, or `amended` for a cancel-only outcome with no successor. For an
+amended item keep tracking `OldOrderID` until its terminal state is confirmed.
+A replacement order's `InheritedCumQty` is the filled quantity it inherited
+from its predecessors; `CumQty` minus `InheritedCumQty` is what that generation
+executed.
+
+A create rejected with `ERROR_CODE_CONFLICT_DUPLICATE_CLIENT_ORDER_ID` names
+the order already holding the client order ID, when the server knows it:
+`APIError.ExistingOrderID` for `Orders.Create`, and
+`BatchCreateResultItem.ExistingOrderID` for a rejected batch item (empty for a
+duplicate within the same batch). Read it with `Orders.Get`.
 
 Your API key needs a policy that allows trading. Spot orders spend **trading**
 balance (see below).
@@ -580,10 +631,16 @@ of a market-child stop-loss or take-profit can be changed; a cleared cap on a
 market child falls back to the pair default. A child's limit price is fixed
 at create: cancel the trigger and create a new one to change it. Send an explicit zero
 (`PriceFromTicksInt(0)` or `*int32(0)`) to clear an existing activation
-price or maximum-slippage cap. Create/modify `MaxSlippageBps` must be 1–10000;
-modify still accepts `0` to clear.
-Create/modify `TrailingDistanceBps` must also be 1–10000; zero does not clear a
-trailing distance. Ladder creation requires the resolved minimum price ticks
+price or maximum-slippage cap. Modify `MaxSlippageBps` must be 1–9999 (the
+patch does not say which leg it changes, so it takes the sell and trailing-stop
+cap; a buy market child's 10000 is set at create) and still accepts `0` to
+clear.
+Create/modify `TrailingDistanceBps` must be 1–10000; zero does not clear a
+trailing distance. `Triggers.Modify` and `Triggers.Resume` take an optional
+symbol: pass nil for both `symbol` and `symbolID` to target the trigger's own
+market, or set one, which must be that market. An API key limited to specific
+markets must still pass it. A trailing stop's `Details.TriggerPrice` is its
+current threshold once armed; it moves with the peak or trough. Ladder creation requires the resolved minimum price ticks
 to be strictly less than the maximum.
 
 `Orders.ListOpen` / `Orders.ListHistory` accept an optional trailing
@@ -702,11 +759,21 @@ if err := sub.Err(); err != nil {
 }
 ```
 
+Public trades, user fills (`Trades.Subscribe`), ledger transfers
+(`Transfers.Subscribe`) and trigger events (`Triggers.SubscribeEvents`) arrive
+from the server in batches; each subscription emits every event of a batch, in
+order, as its own message. A repeated identity replaces the earlier copy:
+`(MatchID, OrderID)` for a fill, `(TransferID, AccountCode, IsDebit)` for a
+transfer leg, and `(TriggerID, EventType, ChildSeq, TsNs)` for a trigger event.
+`LedgerTransfer.TransferID` is the unsigned 128-bit decimal ID both legs of a
+transfer share.
+
 `GetCandles` returns rows newest-first. With incomplete candles enabled, the
 open candle is prepended; `GetCurrentCandle` therefore returns the first row, or
 `nil` when no candle rows exist.
 
-Merged market overview stream (snapshot + live updates):
+Merged market overview stream (snapshot + live updates). With `Symbols` set,
+only those markets are emitted, from the snapshot and from live updates:
 
 ```go
 import "github.com/Fabric-Labs/polyester-sdk-go/services"

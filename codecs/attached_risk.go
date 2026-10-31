@@ -93,7 +93,8 @@ func trailingStopToProto(in models.TrailingStopInput, fieldName, symbol string) 
 		out.MaxSlippage = &orderv1.TrailingStopPolicy_MaxSlippageTicks{MaxSlippageTicks: *in.MaxSlippageTicks}
 	}
 	if in.MaxSlippageBps != nil {
-		if err := validateBps(fieldName+".max_slippage_bps", *in.MaxSlippageBps, false); err != nil {
+		// An attached trailing stop takes no 100% cap on either parent side.
+		if err := validateBpsAtMost(fieldName+".max_slippage_bps", *in.MaxSlippageBps, false, MaxSellingSlippageBps); err != nil {
 			return nil, err
 		}
 		out.MaxSlippage = &orderv1.TrailingStopPolicy_MaxSlippageBps{MaxSlippageBps: *in.MaxSlippageBps}

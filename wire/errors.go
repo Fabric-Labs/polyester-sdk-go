@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	withdrawv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/withdraw/v1"
@@ -111,11 +112,21 @@ func MapConnectError(err error) error {
 	if errors.As(err, &authErr) {
 		return authErr
 	}
+	var skewErr *sdkerrors.TimestampSkewError
+	if errors.As(err, &skewErr) {
+		return skewErr
+	}
 	var connectErr *connect.Error
 	if !errors.As(err, &connectErr) {
 		return &sdkerrors.TransportError{Msg: err.Error()}
 	}
 	headerRetry := retryAfterSeconds(connectErr)
+	if connectErr.Message() == TimestampSkewCode {
+		return &sdkerrors.TimestampSkewError{
+			Msg:    "API key timestamp is outside the allowed skew window",
+			Status: connectHTTPStatus(connectErr.Code()),
+		}
+	}
 	msg := connectErr.Message()
 	if strings.TrimSpace(msg) == "" {
 		msg = emptyErrorMessage
@@ -155,7 +166,11 @@ func MapConnectError(err error) error {
 			if isAuthLikeErrorCode(code) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
 			}
-			return &sdkerrors.APIError{Msg: msg, Code: code}
+			apiErr := &sdkerrors.APIError{Msg: msg, Code: code}
+			if orderDetail.ExistingOrderId != nil {
+				apiErr.ExistingOrderID = codecs.FormatUint64ID(orderDetail.GetExistingOrderId())
+			}
+			return apiErr
 		}
 		if withdrawDetail, ok := value.(*withdrawv1.ErrorDetail); ok {
 			code := withdrawDetail.GetCode().String()
@@ -198,8 +213,32 @@ func MapConnectError(err error) error {
 		if _, ok := routeNotFoundMessages[strings.ToLower(strings.TrimSpace(msg))]; ok {
 			return &sdkerrors.RouteNotFoundError{}
 		}
+		return &sdkerrors.NotImplementedError{Msg: msg}
+	case connect.CodeUnknown:
+		// Connect reports a non-Connect HTTP error body by its status line
+		// and maps 501 to unknown.
+		if strings.HasPrefix(msg, "501 ") {
+			return &sdkerrors.NotImplementedError{Msg: msg}
+		}
 	}
 	return &sdkerrors.APIError{Msg: msg, Code: connectErr.Code().String()}
+}
+
+// TimestampSkewCode is the API-key authentication code for a signature
+// timestamp outside the server's skew window.
+const TimestampSkewCode = "TIMESTAMP_SKEW"
+
+func connectHTTPStatus(code connect.Code) int {
+	switch code {
+	case connect.CodeUnauthenticated:
+		return 401
+	case connect.CodePermissionDenied:
+		return 403
+	case connect.CodeInvalidArgument:
+		return 400
+	default:
+		return 0
+	}
 }
 
 func isAuthLikeErrorCode(code string) bool {

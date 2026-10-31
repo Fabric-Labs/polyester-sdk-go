@@ -105,5 +105,5 @@ func (s *TradesService) List(ctx context.Context, account AccountScope, subAccou
 }
 
 func (s *TradesService) Subscribe(ctx context.Context, accountID any) (*realtime.Subscription[models.UserTrade], error) {
-	return SubscribeAccountProto(ctx, s.realtime, "private:spot:trades:{account_id}:proto", accountID, s.defaultAccountID, decode.UserTradeFromBytes)
+	return SubscribeAccountProtoBatch(ctx, s.realtime, "private:spot:trades:{account_id}:proto", accountID, s.defaultAccountID, decode.UserTradeBatchFromBytes)
 }

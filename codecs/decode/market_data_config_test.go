@@ -9,7 +9,7 @@ import (
 )
 
 func TestSpotConfigFromProtoPreservesValidZeroQuantityScale(t *testing.T) {
-	got := SpotConfigFromProto(&marketdatav1.GetSpotConfigResponse{
+	got, err := SpotConfigFromProto(&marketdatav1.GetSpotConfigResponse{
 		Pairs: []*marketdatav1.PairConfig{{
 			Symbol:             "WHOLE-USDT",
 			SymbolId:           9,
@@ -17,6 +17,9 @@ func TestSpotConfigFromProtoPreservesValidZeroQuantityScale(t *testing.T) {
 			QuoteQuantityScale: 0,
 		}},
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	pairs, ok := got.Raw["pairs"].([]any)
 	if !ok || len(pairs) != 1 {
@@ -38,7 +41,7 @@ func TestSpotConfigFromProtoPreservesValidZeroQuantityScale(t *testing.T) {
 }
 
 func TestSpotConfigPreservesCanonicalMarketDataScales(t *testing.T) {
-	got := SpotConfigFromProto(&marketdatav1.GetSpotConfigResponse{
+	got, err := SpotConfigFromProto(&marketdatav1.GetSpotConfigResponse{
 		Assets: []*marketdatav1.AssetConfig{{
 			Asset:                 "BTC",
 			MarketDataVolumeScale: 0,
@@ -51,6 +54,9 @@ func TestSpotConfigPreservesCanonicalMarketDataScales(t *testing.T) {
 			ReferencePriceScale: 8,
 		}},
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	assets, _ := got.Raw["assets"].([]any)
 	asset, _ := assets[0].(map[string]any)
 	if scale, exists := asset["market_data_volume_scale"]; !exists || scale != float64(0) {
@@ -121,19 +127,17 @@ func TestCandlesColumnsLabelEveryPublishedTimeframe(t *testing.T) {
 }
 
 func TestSpotConfigNamesHaltedPairStatus(t *testing.T) {
-	got := SpotConfigFromProto(&marketdatav1.GetSpotConfigResponse{
+	got, err := SpotConfigFromProto(&marketdatav1.GetSpotConfigResponse{
 		Pairs: []*marketdatav1.PairConfig{{
 			Symbol:   "BTC-USDT",
 			SymbolId: 1,
 			Status:   marketdatav1.PairStatus_PAIR_STATUS_HALTED,
 		}},
 	})
-	pairs, _ := got.Raw["pairs"].([]any)
-	if len(pairs) != 1 {
-		t.Fatalf("pairs=%#v", got.Raw["pairs"])
+	if err != nil {
+		t.Fatal(err)
 	}
-	pair, _ := pairs[0].(map[string]any)
-	if pair["status"] != "PAIR_STATUS_HALTED" {
-		t.Fatalf("status=%#v", pair["status"])
+	if len(got.Pairs) != 1 || got.Pairs[0].Status != "halted" {
+		t.Fatalf("pairs=%+v", got.Pairs)
 	}
 }

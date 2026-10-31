@@ -126,10 +126,35 @@ type APIError struct {
 	Msg      string
 	Code     string
 	Metadata map[string]string
+	// ExistingOrderID is the order already holding the client order ID on an
+	// ERROR_CODE_CONFLICT_DUPLICATE_CLIENT_ORDER_ID rejection, when the server
+	// knows it. Read it with Orders.Get for its current state.
+	ExistingOrderID string
 }
 
 func (e *APIError) Error() string        { return e.Msg }
 func (e *APIError) Is(target error) bool { return target == ErrPolyester }
+
+// TimestampSkewError indicates that the API-key signature timestamp fell
+// outside the server's skew window (TIMESTAMP_SKEW), for example because the
+// request waited too long in a large concurrent burst or the local clock
+// drifted. The request changed nothing: retrying signs it again with a fresh
+// timestamp. Bound concurrency or correct the clock if it recurs.
+type TimestampSkewError struct {
+	Msg    string
+	Status int // HTTP status, usually 401
+}
+
+func (e *TimestampSkewError) Error() string        { return e.Msg }
+func (e *TimestampSkewError) Is(target error) bool { return target == ErrPolyester }
+
+// NotImplementedError indicates that the server does not implement the
+// requested operation (Connect unimplemented or HTTP 501). Retrying does not
+// help.
+type NotImplementedError struct{ Msg string }
+
+func (e *NotImplementedError) Error() string        { return e.Msg }
+func (e *NotImplementedError) Is(target error) bool { return target == ErrPolyester }
 
 // ResponseContractError indicates that a successful mutation response violated
 // the documented wire contract. The mutation may already have been applied, so
@@ -192,8 +217,8 @@ func (e *QueueOverflowError) Error() string {
 func (e *QueueOverflowError) Is(target error) bool { return target == ErrPolyester }
 
 // IsRetryable reports whether retrying may succeed after backoff.
-// AUTH_TEMPORARILY_UNAVAILABLE and ERROR_CODE_ACCOUNT_REPAIRING changed
-// nothing: retry the same request.
+// AUTH_TEMPORARILY_UNAVAILABLE, ERROR_CODE_ACCOUNT_REPAIRING and
+// TimestampSkewError changed nothing: retry the same request.
 //
 // It does not guarantee that a mutation was not applied. Preserve the same
 // idempotency key and reconcile first when MutationOutcomeUnknown is true.
@@ -203,6 +228,7 @@ func IsRetryable(err error) bool {
 	var transportErr *TransportError
 	var rateLimitErr *RateLimitError
 	var serverErr *ServerError
+	var skewErr *TimestampSkewError
 	code := apiErrorCode(err)
 	if outcomeUnknownCodes[code] {
 		return false
@@ -210,6 +236,7 @@ func IsRetryable(err error) bool {
 	return errors.As(err, &transportErr) ||
 		errors.As(err, &rateLimitErr) ||
 		errors.As(err, &serverErr) ||
+		errors.As(err, &skewErr) ||
 		code == "ERROR_CODE_ACCOUNT_REPAIRING" ||
 		code == AuthCodeTemporarilyUnavailable
 }

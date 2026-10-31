@@ -57,7 +57,7 @@ func NewFactory(cfg Config, creds *auth.Credentials, httpClient *http.Client) *F
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: cfg.Timeout}
 	}
-	httpClient = useragent.WrapClient(httpClient)
+	httpClient = wrapTimestampSkew(useragent.WrapClient(httpClient))
 	f := &Factory{
 		Config:      cfg,
 		Credentials: creds,

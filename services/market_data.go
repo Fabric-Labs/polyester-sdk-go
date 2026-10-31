@@ -47,7 +47,7 @@ func (s *MarketDataService) client() marketdatav1connect.MarketDataServiceClient
 }
 
 func (s *MarketDataService) GetSpotConfig(ctx context.Context) (models.SpotConfig, error) {
-	return UnaryPublic(ctx, s.transport, s.client().GetSpotConfig, &marketdatav1.GetSpotConfigRequest{}, decode.SpotConfigFromProto)
+	return UnaryPublicDecoded(ctx, s.transport, s.client().GetSpotConfig, &marketdatav1.GetSpotConfigRequest{}, decode.SpotConfigFromProto)
 }
 
 func (s *MarketDataService) GetTrades(ctx context.Context, symbol *string, symbolID *uint32, limit int, pageToken *string) (models.MarketTradesResult, error) {
@@ -229,7 +229,7 @@ func (s *MarketDataService) SubscribeTrades(ctx context.Context, symbol *string,
 		return nil, err
 	}
 	channel := fmt.Sprintf("public:spot:market:trades:%d:proto", resolved)
-	return SubscribePublicProto(ctx, s.realtime, channel, decode.MarketTradeFromBytes(scale))
+	return SubscribePublicProtoBatch(ctx, s.realtime, channel, decode.MarketTradeBatchFromBytes(scale))
 }
 
 func (s *MarketDataService) SubscribeCandles(ctx context.Context, symbol *string, symbolID *uint32, timeframe string) (*realtime.Subscription[models.Candle], error) {
