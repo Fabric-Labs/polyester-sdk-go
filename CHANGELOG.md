@@ -1,6 +1,31 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
+
+Git tag: `v0.3.0`. Released 2026-10-31.
+
+**What a trading bot gains.** Trade, fill, transfer and trigger-event streams
+now deliver every event; before, all but one event of each batch was lost.
+`MarketData.GetSpotConfig` returns a typed config with each pair's order
+limits, including the new cap on one market order's notional, so a bot can
+size orders before it sends them. Rejections say more: a duplicate client
+order ID names the order that already holds it, a clock-skew rejection is the
+retryable `errors.TimestampSkewError`, and an unsupported call is
+`errors.NotImplementedError`. Replacement orders report the quantity they
+inherited, and slippage caps match what the API accepts.
+
+This release works on devnet today, and on testnet after testnet's next
+upgrade, which brings the new private order stream.
+
+**Breaking changes**
+- The batched trade, fill, transfer and trigger-event streams emit each event,
+  and the single-event decoders (`decode.MarketTradeFromBytes`,
+  `UserTradeFromBytes`, `LedgerTransferFromBytes`, `TriggerEventFromBytes`)
+  are replaced by their `...BatchFromBytes` versions.
+- `decode.SpotConfigFromProto` and `GetSpotConfig` return an error for a spot
+  config they cannot decode instead of an empty config.
+- Connect `unimplemented` maps to `errors.NotImplementedError` instead of
+  `errors.APIError`.
 
 ### Added
 - `SpotPair.MaxMarketNotionalQuote` and `PairConstraints.MaxMarketNotionalQuote`:
