@@ -7,7 +7,7 @@ and automation. Parity with `polyester-sdk-python` and `polyester-sdk-rust`
 using the checked-in `gen/` protobuf bundle (no local proto generation for
 normal development).
 
-**Status:** `v0.2.0`, pre-1.0: a minor release may change the API. The Go,
+**Status:** `v0.3.0`, pre-1.0: a minor release may change the API. The Go,
 Python and Rust SDKs share one version number and are released together.
 Proprietary license (not open source).
 API-key only; no browser login or session MFA.
@@ -97,7 +97,7 @@ fields empty. Valid stop loss and trailing legs are both retained together.
 ## Install
 
 ```bash
-go get github.com/Fabric-Labs/polyester-sdk-go@v0.2.0
+go get github.com/Fabric-Labs/polyester-sdk-go@v0.3.0
 ```
 
 For development from a git checkout:
