@@ -12,6 +12,10 @@ import (
 
 const product = "polyester-sdk-go"
 
+// modulePath is this SDK's Go module path, used to find its version in the
+// importing binary's build info.
+const modulePath = "github.com/Fabric-Labs/polyester-sdk-go"
+
 // Header is the canonical User-Agent header name.
 const Header = "User-Agent"
 
@@ -26,10 +30,33 @@ func String() string {
 
 func moduleVersion() string {
 	info, ok := debug.ReadBuildInfo()
-	if !ok || info == nil {
+	if !ok {
 		return ""
 	}
-	version := strings.TrimSpace(info.Main.Version)
+	return sdkVersion(info)
+}
+
+// sdkVersion returns the SDK module version recorded in info: the dependency
+// entry when the SDK is imported by an application, or the main module when
+// the SDK itself is built. It never reports the importing application's version.
+func sdkVersion(info *debug.BuildInfo) string {
+	if info == nil {
+		return ""
+	}
+	module := &info.Main
+	if info.Main.Path != modulePath {
+		module = nil
+		for _, dep := range info.Deps {
+			if dep != nil && dep.Path == modulePath {
+				module = dep
+				break
+			}
+		}
+	}
+	if module == nil {
+		return ""
+	}
+	version := strings.TrimSpace(module.Version)
 	if version == "" || version == "(devel)" {
 		return ""
 	}

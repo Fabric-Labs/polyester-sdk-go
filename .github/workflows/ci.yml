@@ -7,7 +7,7 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   go:
@@ -16,10 +16,6 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          # Branch tip on main so the optional capability commit can push; PRs stay detached.
-          ref: ${{ github.event_name == 'push' && github.ref_name || github.sha }}
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -37,25 +33,10 @@ jobs:
       - name: Public disclosure (README / CHANGELOG)
         run: python3 scripts/check_public_disclosure.py
 
-      # Capability artifacts: refresh + optional bot commit only on main (never on PRs).
-      - name: Refresh SDK capability artifacts
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: python3 scripts/check_sdk_coverage.py --write-capabilities
-
-      - name: Commit capability artifacts if changed
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add sdk-capabilities.json README.md
-          if git diff --staged --quiet; then
-            echo "capability artifacts unchanged"
-            exit 0
-          fi
-          git commit -m "chore: refresh sdk-capabilities and README table"
-          git push
-
-      - name: SDK Connect coverage
+      # Fails when an RPC is unwrapped and not allowlisted, or when the
+      # committed sdk-capabilities.json or README capability table is stale.
+      # Refresh both locally with --write-capabilities and commit them.
+      - name: SDK Connect coverage and capability artifacts
         run: python3 scripts/check_sdk_coverage.py
 
       - name: Refresh public capability matrix

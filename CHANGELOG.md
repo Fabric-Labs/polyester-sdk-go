@@ -1,6 +1,18 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
+
+Git tag: `v0.2.0`. Covers every change since `v0.1.0-alpha.56`.
+
+### Versioning
+- The Go, Python and Rust SDKs now share one version number and are released
+  together, starting at `0.2.0`. Versions are plain SemVer: Go tags are
+  `vMAJOR.MINOR.PATCH` (`v0.2.0`), with no `alpha`/`a` suffix. Until `1.0.0`
+  a minor release may change the API; a patch release does not.
+- Install with `go get github.com/Fabric-Labs/polyester-sdk-go@v0.2.0`. The
+  repository is public, so `GOPRIVATE` / `GONOSUMDB` settings are no longer
+  needed. The older `v0.1.0aNN` tags were never valid Go module versions;
+  `v0.1.0-alpha.56` is the previous release.
 
 ### Added
 - Attached take-profit, stop-loss and trailing-stop legs and standalone
@@ -29,12 +41,30 @@
   and IDs, and consumers that join a running subscription receive them.
 - `errors.AuthCodeTemporarilyUnavailable` (`AUTH_TEMPORARILY_UNAVAILABLE`).
 
+- Spot config pairs carry the venue's per-order limits in `SpotConfig.Raw`:
+  `max_limit_qty_base`, `max_market_qty_base`, `max_order_notional_quote`
+  (each absent when the pair has no maximum) and `max_open_orders_per_pair`.
+  Orders past the open-order limit are rejected with
+  `ERROR_CODE_MAX_OPEN_ORDERS_PER_PAIR`.
+
 ### Changed
-- `errors.MutationOutcomeUnknown` reports true for
-  `ERROR_CODE_ORDER_CREATE_OUTCOME_UNKNOWN` and
-  `ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN`: a create sent but not
-  confirmed in time may have been accepted, so read the order or trigger back
-  before retrying.
+- **Breaking:** `errors.IsRetryable` reports false for every order error code
+  ending in `_OUTCOME_UNKNOWN` (`ERROR_CODE_ORDER_CREATE_OUTCOME_UNKNOWN`,
+  `ERROR_CODE_ORDER_CANCEL_OUTCOME_UNKNOWN`,
+  `ERROR_CODE_ORDER_MODIFY_OUTCOME_UNKNOWN`,
+  `ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN`,
+  `ERROR_CODE_TRIGGER_CONTROL_OUTCOME_UNKNOWN`). It reported true for the
+  order cancel and modify codes in `v0.1.0-alpha.56`. The change may still
+  apply, so a blind retry can place a second order: read the order or trigger
+  back first. This matches the TypeScript SDK.
+- `errors.MutationOutcomeUnknown` reports true for every order error code
+  ending in `_OUTCOME_UNKNOWN`, read from the generated `orders.v1` codes, so
+  a code added to the API is covered when the SDK is regenerated. New in this
+  release: `ERROR_CODE_ORDER_CREATE_OUTCOME_UNKNOWN`,
+  `ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN` (a create sent but not confirmed
+  in time may have been accepted) and
+  `ERROR_CODE_TRIGGER_CONTROL_OUTCOME_UNKNOWN` (a trigger cancel, pause,
+  resume or modify).
 - `errors.IsRetryable` reports true for `AUTH_TEMPORARILY_UNAVAILABLE`: the
   request changed nothing; retry the same request.
 
@@ -46,7 +76,15 @@
   Earlier versions pointed at `api-testnet.polyester.com`, which does not
   exist, so every testnet call failed with a DNS error. The devnet preset and
   `transport.DefaultConfig` now use the documented `api.devnet.polyester.com`
-  host.
+  host instead of `api-devnet.polyester.ai`.
+- The README no longer claims `VIP.GetVIPStatus` works with an API key: the
+  API refuses API-key callers with `permission_denied`. VIP tiers, effective
+  spot fees and trading rate limits do work with an API key.
+- The `User-Agent` header reports this SDK's module version
+  (`polyester-sdk-go/v0.2.0`). Earlier versions reported the version of the
+  application that imported the SDK.
+- README documentation links point at the public developer docs on
+  `polyester.com`.
 
 ## 0.1.0-alpha.56
 
@@ -931,7 +969,7 @@ Git tag: `v0.1.0a25`.
 - Connect RPC coverage gate no longer commits dashboard reports under `docs/`; CI fails on unexpected gaps only (`sdk-coverage.toml` + `scripts/check_sdk_coverage.py`)
 
 ### Docs
-- README `Supported surface` table is generated from `sdk-capabilities.json` (`--write-capabilities`); links to the public [SDK capability matrix](https://polyester.ai/docs/developer-docs/getting-started/sdk-capability-matrix)
+- README `Supported surface` table is generated from `sdk-capabilities.json` (`--write-capabilities`); links to the public [SDK capability matrix](https://polyester.com/docs/developer-docs/getting-started/sdk-capability-matrix)
 - README expanded toward Python parity (credentials, auth patterns, orders, balances, market data, realtime)
 - CI auto-commits refreshed `sdk-capabilities.json` + README capability table when they drift (same-repo)
 - README documents on-chain Funding UserOps (caller-supplied owner EOA → derive Polyester Safe) vs Trading withdraw RPCs; realtime overflow / reconnect recovery contract
