@@ -68,6 +68,9 @@
   `Triggers.Modify` accepts 1 to 9999 (0 still clears). The backend rejects
   10000 on these with `MAX_SLIPPAGE_INVALID`.
 
+### Internal
+- `sdk-capabilities.json` no longer carries `publicDescriptorSha256` or `generatedAt`, so a proto publication that only changes `gen/` and `manifest.json` no longer makes it stale; `manifest.json` stays the single source of the descriptor hash.
+
 ## 0.2.0
 
 Git tag: `v0.2.0`. Covers every change since `v0.1.0-alpha.56`.
