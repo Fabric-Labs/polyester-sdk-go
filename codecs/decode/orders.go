@@ -26,15 +26,16 @@ func OrderFromProto(msg *orderv1.Order) models.Order {
 		OrderType:     codecs.OrderTypeName(msg.GetOrderType()),
 		TIF:           codecs.TimeInForceName(msg.GetTimeInForce()),
 		// Current accepted total; changes after a successful modify.
-		OrigQty:     codecs.DecodeQtyScaled(msg.GetOrigQtyScaled(), -1, "", &sid),
-		CumQty:      codecs.DecodeQtyScaled(msg.GetCumQtyScaled(), -1, "", &sid),
-		LeavesQty:   codecs.DecodeQtyScaled(msg.GetLeavesQtyScaled(), -1, "", &sid),
-		Price:       codecs.DecodePriceTicks(msg.GetPriceTicks(), ""),
-		AvgPx:       codecs.DecodePriceTicks(msg.GetAvgPriceTicks(), ""),
-		CreatedTsNs: strconv.FormatUint(msg.GetCreatedTsNs(), 10),
-		Version:     msg.GetVersion(),
-		PostOnly:    msg.GetPostOnly(),
-		FeeAsset:    feeAssetName(msg.GetFeeAsset()),
+		OrigQty:         codecs.DecodeQtyScaled(msg.GetOrigQtyScaled(), -1, "", &sid),
+		CumQty:          codecs.DecodeQtyScaled(msg.GetCumQtyScaled(), -1, "", &sid),
+		InheritedCumQty: codecs.DecodeQtyScaled(msg.GetInheritedCumQtyScaled(), -1, "", &sid),
+		LeavesQty:       codecs.DecodeQtyScaled(msg.GetLeavesQtyScaled(), -1, "", &sid),
+		Price:           codecs.DecodePriceTicks(msg.GetPriceTicks(), ""),
+		AvgPx:           codecs.DecodePriceTicks(msg.GetAvgPriceTicks(), ""),
+		CreatedTsNs:     strconv.FormatUint(msg.GetCreatedTsNs(), 10),
+		Version:         msg.GetVersion(),
+		PostOnly:        msg.GetPostOnly(),
+		FeeAsset:        feeAssetName(msg.GetFeeAsset()),
 		SubmittedMaxQuoteDebitScaled: optionalScaledString(
 			msg.SubmittedMaxQuoteDebitScaled,
 		),
@@ -603,6 +604,7 @@ func BatchReplaceFromProto(msg *orderv1.BatchReplaceOrdersResponse) (models.Batc
 			ReplacementOrderID: codecs.FormatUint64ID(item.GetReplacementOrderId()),
 			ClientOrderID:      item.GetClientOrderId(),
 			Code:               item.GetCode(),
+			ActionTaken:        modifyActionName(item.GetActionTaken()),
 			RateLimit:          rateLimit,
 		})
 	}
@@ -666,6 +668,7 @@ func BatchReplaceStatusFromProto(msg *orderv1.GetBatchReplaceStatusResponse) (mo
 			OrderStatus:        orderStatusName(item.GetOrderStatus()),
 			Code:               item.GetCode(),
 			UpdatedTsNs:        item.GetUpdatedTsNs(),
+			ActionTaken:        modifyActionName(item.GetActionTaken()),
 		})
 	}
 	accepted := int(msg.GetAcceptedCount())
@@ -758,6 +761,9 @@ func BatchCreateFromProto(msg *orderv1.BatchCreateOrdersResponse) (models.BatchC
 					out.Code = fmt.Sprintf("UNKNOWN_ERROR_CODE(%d)", raw)
 				}
 				out.RateLimit = RateLimitDetailFromProto(err.GetRateLimit())
+				if err.ExistingOrderId != nil {
+					out.ExistingOrderID = codecs.FormatUint64ID(err.GetExistingOrderId())
+				}
 			} else {
 				out.Code = "ERROR_CODE_UNSPECIFIED"
 			}

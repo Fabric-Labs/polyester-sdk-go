@@ -135,9 +135,30 @@ type MarketOverviewCreateSubscriptionOptions struct {
 }
 
 // CreateSubscription starts snapshot-then-stream market overview merging.
+// With Symbols set, only those markets are emitted, from the snapshot and from
+// live and buffered publications alike.
 func (s *MarketOverviewService) CreateSubscription(ctx context.Context, opts MarketOverviewCreateSubscriptionOptions) (*mosub.Subscription, error) {
 	if err := requireRealtime(s.realtime); err != nil {
 		return nil, err
+	}
+	selected := map[uint32]struct{}{}
+	for _, symbol := range opts.Symbols {
+		trimmed := strings.TrimSpace(symbol)
+		if trimmed == "" {
+			continue
+		}
+		id, err := ResolveSymbolID(s.catalogs, &trimmed, nil, "market_overview.create_subscription")
+		if err != nil {
+			return nil, err
+		}
+		selected[id] = struct{}{}
+	}
+	matches := func(row models.MarketOverviewEntry) bool {
+		if len(selected) == 0 {
+			return true
+		}
+		_, ok := selected[row.SymbolID]
+		return ok
 	}
 	limit := opts.Limit
 	if limit == 0 {
@@ -162,7 +183,9 @@ func (s *MarketOverviewService) CreateSubscription(ctx context.Context, opts Mar
 
 	applyRows := func(rows []models.MarketOverviewEntry) {
 		for _, row := range rows {
-			bySymbolID[row.SymbolID] = row
+			if matches(row) {
+				bySymbolID[row.SymbolID] = row
+			}
 		}
 	}
 
@@ -175,7 +198,16 @@ func (s *MarketOverviewService) CreateSubscription(ctx context.Context, opts Mar
 			return s.List(fetchCtx, opts.Symbols, limit, "", opts.IncludeSparklines)
 		},
 		ReadPublication: func(batch models.MarketOverviewList) []models.MarketOverviewList {
-			return []models.MarketOverviewList{batch}
+			markets := make([]models.MarketOverviewEntry, 0, len(batch.Markets))
+			for _, row := range batch.Markets {
+				if matches(row) {
+					markets = append(markets, row)
+				}
+			}
+			if len(markets) == 0 {
+				return nil
+			}
+			return []models.MarketOverviewList{{Markets: markets}}
 		},
 		ApplySnapshot: func(snapshot models.MarketOverviewList, buffered []models.MarketOverviewList) {
 			clear(bySymbolID)

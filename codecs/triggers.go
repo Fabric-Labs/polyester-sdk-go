@@ -173,7 +173,7 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 			return nil, &errors.ValidationError{Msg: "trailing_stop limit_price must be at least activation_price"}
 		}
 		// A trailing stop takes no 100% cap on either side.
-		ticks, bps, err := createSlippageCap(opts.MaxSlippageTicks, opts.MaxSlippageBps, MaxSlippageBpsLimit-1)
+		ticks, bps, err := createSlippageCap(opts.MaxSlippageTicks, opts.MaxSlippageBps, MaxSellingSlippageBps)
 		if err != nil {
 			return nil, err
 		}
@@ -281,10 +281,9 @@ func conditionalChildToProto(orderType, tif string, limitPrice *models.PriceInpu
 		if postOnly {
 			return nil, &errors.ValidationError{Msg: "post_only is only valid for limit GTC executions"}
 		}
-		// A 100% cap would leave a sell no positive price.
 		maxBps := MaxSlippageBpsLimit
 		if side == orderv1.Side_SELL {
-			maxBps--
+			maxBps = MaxSellingSlippageBps
 		}
 		ticks, bps, err := createSlippageCap(maxSlippageTicks, maxSlippageBps, maxBps)
 		if err != nil {
@@ -358,14 +357,22 @@ func validateSlippageBps(bps int32, allowClear bool) error {
 }
 
 func validateBps(field string, bps int32, allowClear bool) error {
+	return validateBpsAtMost(field, bps, allowClear, MaxSlippageBpsLimit)
+}
+
+func validateBpsAtMost(field string, bps int32, allowClear bool, maxBps int32) error {
 	if allowClear && bps == 0 {
 		return nil
 	}
-	if bps < 1 || bps > MaxSlippageBpsLimit {
-		return &errors.ValidationError{Msg: field + " must be between 1 and 10000"}
+	if bps < 1 || bps > maxBps {
+		return &errors.ValidationError{Msg: fmt.Sprintf("%s must be between 1 and %d", field, maxBps)}
 	}
 	return nil
 }
+
+// MaxSellingSlippageBps caps the bps slippage of anything that sells and of
+// every trailing stop: a 100% cap would leave a sell no positive price.
+const MaxSellingSlippageBps = MaxSlippageBpsLimit - 1
 
 // ModifyTriggerOptions carries optional trigger patch fields. A child's
 // limit price is fixed at create: cancel and create a new trigger to change
@@ -384,10 +391,9 @@ type ModifyTriggerOptions struct {
 	MaxSlippageBps        *int32
 }
 
+// ModifyTriggerToProto encodes a trigger patch. A zero symbolID targets the
+// trigger's own market.
 func ModifyTriggerToProto(triggerID string, symbolID uint32, subAccountID *string, opts ModifyTriggerOptions) (*triggersv1.ModifyTriggerRequest, error) {
-	if symbolID == 0 {
-		return nil, &errors.ValidationError{Msg: "triggers.modify requires a resolved non-zero symbol_id"}
-	}
 	if (opts.TriggerPrice == nil || !opts.TriggerPrice.IsSet()) &&
 		opts.TrailingDistanceTicks == nil && opts.TrailingDistanceBps == nil &&
 		(opts.ActivationPrice == nil || !opts.ActivationPrice.IsSet()) &&
@@ -442,7 +448,10 @@ func ModifyTriggerToProto(triggerID string, symbolID uint32, subAccountID *strin
 		req.MaxSlippage = &triggersv1.ModifyTriggerRequest_MaxSlippageTicks{MaxSlippageTicks: *opts.MaxSlippageTicks}
 	}
 	if opts.MaxSlippageBps != nil {
-		if err := validateSlippageBps(*opts.MaxSlippageBps, true); err != nil {
+		// The patch does not say which leg it modifies, so it takes the cap
+		// shared by trailing stops and sells; a buy market child's 10000 bps
+		// is set at create.
+		if err := validateBpsAtMost("max_slippage_bps", *opts.MaxSlippageBps, true, MaxSellingSlippageBps); err != nil {
 			return nil, err
 		}
 		req.MaxSlippage = &triggersv1.ModifyTriggerRequest_MaxSlippageBps{MaxSlippageBps: *opts.MaxSlippageBps}

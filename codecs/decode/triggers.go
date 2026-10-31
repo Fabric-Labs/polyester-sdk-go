@@ -215,6 +215,11 @@ func triggerDetailsFromProto(msg *triggersv1.Trigger) *models.TriggerDetails {
 		if tr.GetMaxSlippageTicks() > 0 {
 			out.MaxSlippage = codecs.DecodePriceTicks(tr.GetMaxSlippageTicks(), symbol)
 		}
+		// The current threshold moves with the peak or trough; absent until
+		// the trigger is armed.
+		if tr.GetTriggerPriceTicks() > 0 {
+			out.TriggerPrice = codecs.DecodePriceTicks(tr.GetTriggerPriceTicks(), symbol)
+		}
 		return out
 	case *triggersv1.Trigger_TwapState:
 		twap := d.TwapState

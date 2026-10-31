@@ -16,15 +16,19 @@ type Order struct {
 	// separately if you need it. CumQty and AvgPx are cumulative execution
 	// values across the lineage through the returned generation, not values
 	// limited to one physical order. LeavesQty is remaining working quantity.
-	OrigQty     QtyScaled  `json:"orig_qty,omitempty"`
-	CumQty      QtyScaled  `json:"cum_qty,omitempty"`
-	LeavesQty   QtyScaled  `json:"leaves_qty,omitempty"`
-	Price       PriceTicks `json:"price,omitempty"`
-	AvgPx       PriceTicks `json:"avg_px,omitempty"`
-	CreatedTsNs string     `json:"created_ts_ns,omitempty"`
-	Version     uint32     `json:"version,omitempty"`
-	PostOnly    bool       `json:"post_only,omitempty"`
-	FeeAsset    string     `json:"fee_asset,omitempty"`
+	OrigQty QtyScaled `json:"orig_qty,omitempty"`
+	CumQty  QtyScaled `json:"cum_qty,omitempty"`
+	// InheritedCumQty is the filled quantity a replacement inherited from its
+	// predecessors when it was accepted; zero for an original order. CumQty
+	// minus InheritedCumQty is what this generation executed.
+	InheritedCumQty QtyScaled  `json:"inherited_cum_qty,omitempty"`
+	LeavesQty       QtyScaled  `json:"leaves_qty,omitempty"`
+	Price           PriceTicks `json:"price,omitempty"`
+	AvgPx           PriceTicks `json:"avg_px,omitempty"`
+	CreatedTsNs     string     `json:"created_ts_ns,omitempty"`
+	Version         uint32     `json:"version,omitempty"`
+	PostOnly        bool       `json:"post_only,omitempty"`
+	FeeAsset        string     `json:"fee_asset,omitempty"`
 	// SubmittedMaxQuoteDebitScaled is populated for quote-budget sized orders.
 	SubmittedMaxQuoteDebitScaled string        `json:"submitted_max_quote_debit_scaled,omitempty"`
 	AttachedRisk                 *AttachedRisk `json:"attached_risk,omitempty"`
@@ -261,6 +265,10 @@ type BatchReplaceAdmissionItem struct {
 	ReplacementOrderID string `json:"replacement_order_id,omitempty"`
 	ClientOrderID      string `json:"client_order_id,omitempty"`
 	Code               string `json:"code,omitempty"`
+	// ActionTaken is replaced when a successor order was admitted, or amended
+	// for a cancel-only outcome with no successor: keep tracking OldOrderID
+	// until its terminal state is confirmed. Empty for rejected items.
+	ActionTaken string `json:"action_taken,omitempty"`
 	// RateLimit is set when ErrorDetail.rate_limit is present on rejection.
 	RateLimit *RateLimitDetail `json:"rate_limit,omitempty"`
 }
@@ -284,6 +292,10 @@ type BatchReplaceStatusItem struct {
 	OrderStatus        string `json:"order_status,omitempty"`
 	Code               string `json:"code,omitempty"`
 	UpdatedTsNs        uint64 `json:"updated_ts_ns,omitempty"`
+	// ActionTaken is replaced when a successor exists, or amended for a
+	// cancel-only outcome where OrderStatus describes OldOrderID. Empty for
+	// rejected items.
+	ActionTaken string `json:"action_taken,omitempty"`
 }
 
 // BatchReplaceStatusResult is the durable batch status from get_batch_replace_status.
@@ -331,6 +343,10 @@ type BatchCreateResultItem struct {
 	OrderID       string `json:"order_id,omitempty"`
 	ClientOrderID string `json:"client_order_id,omitempty"`
 	Code          string `json:"code,omitempty"`
+	// ExistingOrderID is the order already holding ClientOrderID on an
+	// ERROR_CODE_CONFLICT_DUPLICATE_CLIENT_ORDER_ID rejection, when known. It
+	// is empty for duplicates rejected within the same batch.
+	ExistingOrderID string `json:"existing_order_id,omitempty"`
 	// RateLimit is set when ErrorDetail.rate_limit is present on rejection.
 	RateLimit *RateLimitDetail `json:"rate_limit,omitempty"`
 }
@@ -465,6 +481,9 @@ type TransferSide struct {
 
 // LedgerTransfer is a ledger transfer row.
 type LedgerTransfer struct {
+	// TransferID is the unsigned 128-bit decimal transfer identity shared by
+	// both legs of one transfer. Empty when the server did not send one.
+	TransferID   string        `json:"transfer_id,omitempty"`
 	AssetID      uint32        `json:"asset_id,omitempty"`
 	Amount       string        `json:"amount,omitempty"`
 	TransferType int           `json:"transfer_type,omitempty"`
@@ -595,7 +614,8 @@ type Trigger struct {
 type TriggerDetails struct {
 	Case string `json:"case"`
 
-	// stop
+	// stop; on trailing, the current threshold once armed (it moves with the
+	// peak or trough)
 	TriggerPrice       PriceTicks `json:"trigger_price,omitempty"`
 	TriggerPriceSource string     `json:"trigger_price_source,omitempty"`
 	TriggerDirection   string     `json:"trigger_direction,omitempty"`

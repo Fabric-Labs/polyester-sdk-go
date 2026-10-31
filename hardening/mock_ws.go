@@ -187,6 +187,53 @@ func SpawnCentrifugoDisconnectThenPublish(active *atomic.Int64, pubCh <-chan []b
 	})
 }
 
+// SpawnCentrifugoPublish acknowledges connect + subscribe, then sends each
+// payload from pubCh as a publication on the same connection.
+func SpawnCentrifugoPublish(active *atomic.Int64, pubCh <-chan []byte) *MockWSServer {
+	if active == nil {
+		active = &atomic.Int64{}
+	}
+	return spawnWS(active, func(conn *websocket.Conn, active *atomic.Int64, connects *atomic.Int64) {
+		connects.Add(1)
+		active.Add(1)
+		defer active.Add(-1)
+		for replies := 0; replies < 2; {
+			messageType, _, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+			if messageType == websocket.BinaryMessage {
+				replies++
+				if err := conn.WriteMessage(websocket.BinaryMessage, CentrifugoOKReply(uint32(replies))); err != nil {
+					return
+				}
+			}
+		}
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			for {
+				if _, _, err := conn.ReadMessage(); err != nil {
+					return
+				}
+			}
+		}()
+		for {
+			select {
+			case <-done:
+				return
+			case payload, ok := <-pubCh:
+				if !ok {
+					return
+				}
+				if err := conn.WriteMessage(websocket.BinaryMessage, CentrifugoPublication(payload)); err != nil {
+					return
+				}
+			}
+		}
+	})
+}
+
 func spawnWS(active *atomic.Int64, handle func(*websocket.Conn, *atomic.Int64, *atomic.Int64)) *MockWSServer {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

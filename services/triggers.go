@@ -172,12 +172,15 @@ func (s *TriggersService) Pause(ctx context.Context, account AccountScope, trigg
 	return UnaryAuth(ctx, s.transport, s.client().PauseTrigger, req, decode.TriggerMutationFromPause)
 }
 
+// Resume resumes a paused trigger. symbol and symbolID are optional: omitted,
+// the request targets the trigger's own market; when set, it must be that
+// market. An API key limited to specific markets must pass one.
 func (s *TriggersService) Resume(ctx context.Context, account AccountScope, triggerID string, subAccountID, symbol *string, symbolID *uint32) (models.TriggerMutationResult, error) {
 	id, err := codecs.IDToInt(triggerID, "trigger_id")
 	if err != nil {
 		return models.TriggerMutationResult{}, err
 	}
-	resolvedSymbolID, err := ResolveSymbolID(s.catalogs, symbol, symbolID, "triggers.resume")
+	resolvedSymbolID, err := ResolveOptionalSymbolID(s.catalogs, symbol, symbolID, "triggers.resume")
 	if err != nil {
 		return models.TriggerMutationResult{}, err
 	}
@@ -194,12 +197,13 @@ func (s *TriggersService) Resume(ctx context.Context, account AccountScope, trig
 	return UnaryAuth(ctx, s.transport, s.client().ResumeTrigger, req, decode.TriggerMutationFromResume)
 }
 
+// Modify patches a trigger. symbol and symbolID are optional, as for Resume.
 func (s *TriggersService) Modify(ctx context.Context, account AccountScope, triggerID string, subAccountID, symbol *string, symbolID *uint32, opts codecs.ModifyTriggerOptions) (models.TriggerMutationResult, error) {
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {
 		return models.TriggerMutationResult{}, err
 	}
-	resolvedSymbolID, err := ResolveSymbolID(s.catalogs, symbol, symbolID, "triggers.modify")
+	resolvedSymbolID, err := ResolveOptionalSymbolID(s.catalogs, symbol, symbolID, "triggers.modify")
 	if err != nil {
 		return models.TriggerMutationResult{}, err
 	}
@@ -247,5 +251,5 @@ func (s *TriggersService) Subscribe(ctx context.Context, accountID any) (*realti
 }
 
 func (s *TriggersService) SubscribeEvents(ctx context.Context, accountID any) (*realtime.Subscription[models.TriggerEvent], error) {
-	return SubscribeAccountProto(ctx, s.realtime, "private:spot:triggers:events:{account_id}:proto", accountID, s.defaultAccountID, decode.TriggerEventFromBytes)
+	return SubscribeAccountProtoBatch(ctx, s.realtime, "private:spot:triggers:events:{account_id}:proto", accountID, s.defaultAccountID, decode.TriggerEventBatchFromBytes)
 }
