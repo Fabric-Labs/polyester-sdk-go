@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- `SpotPair.MaxMarketNotionalQuote` and `PairConstraints.MaxMarketNotionalQuote`:
+  the largest notional of one market order in quote units, valued at a buy's
+  protection price or a sell's reference price. Larger orders are rejected
+  with `ERROR_CODE_MAX_NOTIONAL`. Empty when the pair has no cap; a malformed
+  value fails the spot config decode and makes the constraints unavailable.
 - `MarketData.GetSpotConfig` returns a typed `models.SpotConfig`: `Assets`
   (`models.SpotAsset`), `Pairs` (`models.SpotPair`: IDs, assets, scales, tick
   and step size, minimums, orderbook buckets, listing times, status labels
