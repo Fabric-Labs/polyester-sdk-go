@@ -456,7 +456,10 @@ const (
 	ErrorCode_ERROR_CODE_STALE_QUOTE ErrorCode = 65
 	// Request failed structural or cross-field validation.
 	ErrorCode_ERROR_CODE_VALIDATION_ERROR ErrorCode = 66
-	// This edge is at its bounded concurrent BatchReplace admission capacity.
+	// The account already has its maximum order requests in flight; nothing was
+	// admitted. ConnectRPC returns RESOURCE_EXHAUSTED (HTTP 429); REST returns
+	// HTTP 503. No Retry-After or RateLimit-* headers are supplied. Retry after
+	// one of the outstanding requests completes.
 	ErrorCode_ERROR_CODE_OVERLOADED ErrorCode = 67
 	// The all-in quote budget cannot resolve one valid step-aligned base quantity.
 	ErrorCode_ERROR_CODE_MAX_QUOTE_DEBIT_TOO_SMALL ErrorCode = 68
