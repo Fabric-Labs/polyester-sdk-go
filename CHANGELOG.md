@@ -7,13 +7,60 @@
   because those APIs are no longer part of the public API.
 - `codecs.BoardAudienceFromLabel` and `codecs.BoardRoleFromLabel` are
   removed with them.
+- The generated `orders.v1.Order` loses `TerminalReasonCode` and
+  `TerminalReason`, and the generated `privatews.v1.OrderEvent` loses
+  `ReasonCode`. Their numbers used the matching engine's own numbering, which
+  collides with `ErrorCode`. Read the typed `RejectReason`
+  (`orders.v1.ErrorCode`) and `CancelReason` (`orders.v1.CancelReason`)
+  instead, or the decoded labels below.
 - `models.OrderEvent.ReasonCode` is replaced by `RejectReason` and
   `CancelReason`. A rejected order's event names its refusal as the order
   write API does (for example `POST_ONLY_CROSS`). A canceled order's event
-  names why it ended (for example `USER_REQUEST`), and so does the replaced
-  event of the order a replace ended (`REPLACED`). Both are empty otherwise.
+  names why it ended (for example `user_request`), and so does the replaced
+  event of the order a replace ended (`replaced`). Both are empty otherwise.
 - `SubAccounts.Get` no longer takes `includeBalances`: a sub-account read no
   longer returns balances. Read them with `Balances.List` and the sub-account ID.
+
+### Added
+- `Order.RejectReason` and `Order.CancelReason`, on order reads and on the
+  private order stream's snapshot and unit orders. A rejected order's
+  `RejectReason` is the `ErrorCode` name the order write API returns for the
+  same refusal, without its `ERROR_CODE_` prefix. A canceled order's
+  `CancelReason` is a lowercase label such as `user_request`, `ioc_remainder`,
+  `stp_expire_maker`, `replaced`, `gtd_expired` or `account_repair`. Both
+  are empty for every other status. A value newer than this SDK decodes as
+  `UNKNOWN_ERROR_CODE(N)` or `unknown(N)`.
+- `decode.OrderCancelReasonLabel` names an `orders.v1.CancelReason`.
+- `OrderbookData.Available`, from `Orderbook.Get` and managed order book
+  subscriptions. False means the book is being built or was invalidated: its
+  levels are unknown, not empty, so request the snapshot again later. An
+  environment that does not serve this release yet reports false for every
+  book.
+- `Trigger.Version`: 1 for a trigger's first state, higher for every later
+  state change. Keep the copy with the highest version.
+- New order error codes surface as `errors.APIError` with that code. Each
+  has a known outcome: `errors.IsRetryable` and
+  `errors.MutationOutcomeUnknown` are false, so do not resend the same
+  request unchanged.
+  - `ERROR_CODE_ATTACHED_LEGS_EXCEEDED`: the order already carries every
+    attached leg it may hold, so another attached leg was refused.
+  - `ERROR_CODE_FEE_ASSET_INVALID`: the trigger's fee asset was not valid.
+  - `ERROR_CODE_FEE_CEILING_INVALID`: the trigger's maximum fee rate was not
+    valid.
+  - `ERROR_CODE_UNSUPPORTED_FIELD_SET`: the trigger set a field that must be
+    left unset.
+  - `ERROR_CODE_TRIGGER_FIRE_LIMIT_REACHED`: the trigger could not fire
+    again.
+  - `ERROR_CODE_CONDITION_FLAGS_INVALID`: the trigger's condition flags were
+    not valid.
+  - `ERROR_CODE_CONDITION_PARAMETER_SET`: the trigger set a condition
+    parameter its condition does not take.
+  - `ERROR_CODE_TWAP_CAPACITY_REACHED`: the market had no room for another
+    TWAP order. It is a capacity refusal, not a rate limit.
+  - `ERROR_CODE_CHILD_ORDER_INCONSISTENT`: the trigger's child order did not
+    match the order the trigger requested, so the trigger failed and its
+    child order was canceled. Read the trigger and the child order to see
+    their final state.
 
 ## 0.3.0
 

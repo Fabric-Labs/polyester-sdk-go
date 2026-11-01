@@ -101,9 +101,13 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		bids           = orderbook.BookSide{}
 		asks           = orderbook.BookSide{}
 		currentBookSeq int
-		bucketTicks    = orderbook.ParseBucketTicks(opts.Bucket)
-		subscription   *orderbook.Subscription
-		stream         *realtime.SnapshotThenStream[models.OrderbookData, models.OrderBookDeltaUpdate]
+		// bookAvailable is the last snapshot's Available: false means the
+		// book was being built or invalidated, so its merged levels are not
+		// known to be complete.
+		bookAvailable bool
+		bucketTicks   = orderbook.ParseBucketTicks(opts.Bucket)
+		subscription  *orderbook.Subscription
+		stream        *realtime.SnapshotThenStream[models.OrderbookData, models.OrderBookDeltaUpdate]
 	)
 
 	emit := func() {
@@ -113,6 +117,7 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 			return
 		}
 		data, err := orderbook.BuildOrderbookData(symbol, wsDepth, currentBookSeq, bids, asks, bucketTicks, quantityScale)
+		data.Available = bookAvailable
 		localSub := subscription
 		mu.Unlock()
 		if err != nil {
@@ -170,8 +175,11 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 				bids = nextBids
 				asks = nextAsks
 				currentBookSeq = int(msg.GetBookSeq())
+				bookAvailable = msg.GetAvailable()
+				data, err := orderbook.BuildOrderbookData(symbol, wsDepth, currentBookSeq, bids, asks, bucketTicks, quantityScale)
+				data.Available = bookAvailable
 				mu.Unlock()
-				return orderbook.BuildOrderbookData(symbol, wsDepth, currentBookSeq, bids, asks, bucketTicks, quantityScale)
+				return data, err
 			})
 		},
 		ReadPublication: func(delta models.OrderBookDeltaUpdate) []models.OrderBookDeltaUpdate {

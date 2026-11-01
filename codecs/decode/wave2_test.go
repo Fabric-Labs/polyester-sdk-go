@@ -121,17 +121,30 @@ func TestMarketOverviewListFromProto(t *testing.T) {
 	}
 }
 
+// A book being built or invalidated is unknown, not empty: Available is false
+// and the sides carry no levels.
+func TestOrderbookFromProtoUnavailableBookIsUnknown(t *testing.T) {
+	result, err := decode.OrderbookFromProto(&orderbookv1.GetOrderBookResponse{SymbolId: 1, BookSeq: 7}, "BTC-USD", 50, 8)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Available || len(result.Bids) != 0 || len(result.Asks) != 0 || result.BookSeq != "7" {
+		t.Fatalf("book=%+v", result)
+	}
+}
+
 func TestOrderbookFromProto(t *testing.T) {
 	msg := &orderbookv1.GetOrderBookResponse{
-		BookSeq: 42,
-		Bids:    []*orderbookv1.PriceLevel{{PriceTicks: 100, QtyScaled: 50}},
-		Asks:    []*orderbookv1.PriceLevel{{PriceTicks: 101, QtyScaled: 25}},
+		BookSeq:   42,
+		Bids:      []*orderbookv1.PriceLevel{{PriceTicks: 100, QtyScaled: 50}},
+		Asks:      []*orderbookv1.PriceLevel{{PriceTicks: 101, QtyScaled: 25}},
+		Available: true,
 	}
 	result, err := decode.OrderbookFromProto(msg, "BTC-USD", 50, 8)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.BookSeq != "42" || len(result.Bids) != 1 || len(result.Asks) != 1 {
+	if result.BookSeq != "42" || len(result.Bids) != 1 || len(result.Asks) != 1 || !result.Available {
 		t.Fatalf("book=%+v", result)
 	}
 	if result.Bids[0].Price.Ticks() != 100 || result.Bids[0].Qty.Scaled() != 50 {

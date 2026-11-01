@@ -417,6 +417,7 @@ func TriggerFromProto(msg *triggersv1.Trigger) models.Trigger {
 		CancelReason:            cancelReason,
 		FailureReason:           failureReason,
 		Details:                 details,
+		Version:                 msg.GetVersion(),
 	}
 }
 

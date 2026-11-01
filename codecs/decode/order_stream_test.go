@@ -20,6 +20,8 @@ func TestOrderEventReasons(t *testing.T) {
 		orderEvent(&privatewsv1.OrderEvent{OrderId: 3, Kind: privatewsv1.OrderEvent_REPLACED, CancelReason: orderv1.CancelReason_CANCEL_REASON_REPLACED, ReplacementOrderId: 4}),
 		orderEvent(&privatewsv1.OrderEvent{OrderId: 5, Kind: privatewsv1.OrderEvent_ACCEPTED}),
 		orderEvent(&privatewsv1.OrderEvent{OrderId: 6, Kind: privatewsv1.OrderEvent_CANCELED, CancelReason: orderv1.CancelReason(999)}),
+		orderEvent(&privatewsv1.OrderEvent{OrderId: 7, Kind: privatewsv1.OrderEvent_REJECTED, RejectReason: orderv1.ErrorCode(9999)}),
+		orderEvent(&privatewsv1.OrderEvent{OrderId: 8, Kind: privatewsv1.OrderEvent_CANCELED, CancelReason: orderv1.CancelReason_CANCEL_REASON_STP_EXPIRE_MAKER}),
 	}, nil)
 	want := []struct {
 		kind   models.OrderEventKind
@@ -27,10 +29,12 @@ func TestOrderEventReasons(t *testing.T) {
 		cancel string
 	}{
 		{models.OrderEventRejected, "POST_ONLY_CROSS", ""},
-		{models.OrderEventCanceled, "", "USER_REQUEST"},
-		{models.OrderEventReplaced, "", "REPLACED"},
+		{models.OrderEventCanceled, "", "user_request"},
+		{models.OrderEventReplaced, "", "replaced"},
 		{models.OrderEventAccepted, "", ""},
-		{models.OrderEventCanceled, "", "UNKNOWN_CANCEL_REASON(999)"},
+		{models.OrderEventCanceled, "", "unknown(999)"},
+		{models.OrderEventRejected, "UNKNOWN_ERROR_CODE(9999)", ""},
+		{models.OrderEventCanceled, "", "stp_expire_maker"},
 	}
 	if len(events) != len(want) {
 		t.Fatalf("got %d events, want %d", len(events), len(want))

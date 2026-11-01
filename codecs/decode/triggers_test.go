@@ -439,3 +439,17 @@ func TestTriggerTerminalReasonsNameNewValues(t *testing.T) {
 		})
 	}
 }
+
+func TestTriggerFromProtoDecodesVersion(t *testing.T) {
+	if got := decode.TriggerFromProto(&triggersv1.Trigger{TriggerId: 7, Version: 3}).Version; got != 3 {
+		t.Fatalf("version=%d, want 3", got)
+	}
+	// A server that predates trigger versions sends none.
+	if got := decode.TriggerFromProto(&triggersv1.Trigger{TriggerId: 7}).Version; got != 0 {
+		t.Fatalf("version=%d, want 0", got)
+	}
+	list := decode.TriggersListFromProto(&triggersv1.ListTriggersResponse{Triggers: []*triggersv1.Trigger{{TriggerId: 7, Version: 5}}})
+	if len(list.Triggers) != 1 || list.Triggers[0].Version != 5 {
+		t.Fatalf("list=%+v", list)
+	}
+}

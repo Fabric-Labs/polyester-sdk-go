@@ -3,7 +3,6 @@ package decode
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
@@ -43,12 +42,8 @@ func orderEventFromProto(msg *privatewsv1.OrderEvent, orders []*orderv1.Order) *
 		Version: msg.GetVersion(),
 		Kind:    orderEventKind(msg.GetKind()),
 	}
-	if reason := msg.GetRejectReason(); reason != orderv1.ErrorCode_ERROR_CODE_UNSPECIFIED {
-		event.RejectReason = errorCodeName(reason)
-	}
-	if reason := msg.GetCancelReason(); reason != orderv1.CancelReason_CANCEL_REASON_UNSPECIFIED {
-		event.CancelReason = cancelReasonName(reason)
-	}
+	event.RejectReason = orderRejectReasonLabel(msg.GetRejectReason())
+	event.CancelReason = OrderCancelReasonLabel(msg.GetCancelReason())
 	if id := msg.GetReplacementOrderId(); id != 0 {
 		event.ReplacementOrderID = codecs.FormatUint64ID(id)
 	}
@@ -123,13 +118,6 @@ func commandOutcomeKind(kind privatewsv1.CommandOutcome_Kind) models.OrderComman
 	default:
 		return models.OrderCommandOutcomeKind(fmt.Sprintf("unknown(%d)", kind))
 	}
-}
-
-func cancelReasonName(reason orderv1.CancelReason) string {
-	if name, ok := orderv1.CancelReason_name[int32(reason)]; ok {
-		return strings.TrimPrefix(name, "CANCEL_REASON_")
-	}
-	return fmt.Sprintf("UNKNOWN_CANCEL_REASON(%d)", int32(reason))
 }
 
 func fillRole(role privatewsv1.Fill_Role) string {

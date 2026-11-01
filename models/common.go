@@ -72,6 +72,11 @@ type OrderbookData struct {
 	BookSeq string           `json:"book_seq"`
 	Bids    []OrderbookLevel `json:"bids"`
 	Asks    []OrderbookLevel `json:"asks"`
+	// Available is true when the book is current: Bids and Asks are its
+	// levels and an empty side means no liquidity. False while the book is
+	// being built or after it was invalidated: its levels are unknown, not
+	// empty. Request the snapshot again later.
+	Available bool `json:"available"`
 }
 
 // ApiData is an escape hatch for responses not yet modeled.
