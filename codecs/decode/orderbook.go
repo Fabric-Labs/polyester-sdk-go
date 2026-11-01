@@ -19,11 +19,12 @@ func OrderbookFromProto(msg *orderbookv1.GetOrderBookResponse, symbol string, de
 		return models.OrderbookData{}, err
 	}
 	return models.OrderbookData{
-		Symbol:  symbol,
-		Depth:   depth,
-		BookSeq: strconv.FormatUint(msg.GetBookSeq(), 10),
-		Bids:    bids,
-		Asks:    asks,
+		Symbol:    symbol,
+		Depth:     depth,
+		BookSeq:   strconv.FormatUint(msg.GetBookSeq(), 10),
+		Bids:      bids,
+		Asks:      asks,
+		Available: msg.GetAvailable(),
 	}, nil
 }
 

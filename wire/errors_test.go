@@ -358,3 +358,44 @@ func TestMapConnectErrorAuthTemporarilyUnavailableIsRetryable(t *testing.T) {
 		t.Fatal("AUTH_TEMPORARILY_UNAVAILABLE changed nothing; the outcome is known")
 	}
 }
+
+// The trigger and attached-leg refusals added with the typed order reasons
+// change nothing and say no retry helps: they surface as their own order
+// error code, are not retryable, and their outcome is known.
+func TestMapConnectErrorNewOrderRefusalCodesAreFinal(t *testing.T) {
+	for _, tc := range []struct {
+		code       orderv1.ErrorCode
+		connectErr connect.Code
+	}{
+		{orderv1.ErrorCode_ERROR_CODE_ATTACHED_LEGS_EXCEEDED, connect.CodeFailedPrecondition},
+		{orderv1.ErrorCode_ERROR_CODE_FEE_ASSET_INVALID, connect.CodeInvalidArgument},
+		{orderv1.ErrorCode_ERROR_CODE_FEE_CEILING_INVALID, connect.CodeInvalidArgument},
+		{orderv1.ErrorCode_ERROR_CODE_UNSUPPORTED_FIELD_SET, connect.CodeInvalidArgument},
+		{orderv1.ErrorCode_ERROR_CODE_TRIGGER_FIRE_LIMIT_REACHED, connect.CodeFailedPrecondition},
+		{orderv1.ErrorCode_ERROR_CODE_CONDITION_FLAGS_INVALID, connect.CodeInvalidArgument},
+		{orderv1.ErrorCode_ERROR_CODE_CONDITION_PARAMETER_SET, connect.CodeInvalidArgument},
+		// A capacity refusal is not a rate limit, even on RESOURCE_EXHAUSTED.
+		{orderv1.ErrorCode_ERROR_CODE_TWAP_CAPACITY_REACHED, connect.CodeResourceExhausted},
+		{orderv1.ErrorCode_ERROR_CODE_CHILD_ORDER_INCONSISTENT, connect.CodeFailedPrecondition},
+	} {
+		t.Run(tc.code.String(), func(t *testing.T) {
+			connectErr := connect.NewError(tc.connectErr, errors.New("refused"))
+			detail, err := connect.NewErrorDetail(&orderv1.ErrorDetail{Code: tc.code})
+			if err != nil {
+				t.Fatal(err)
+			}
+			connectErr.AddDetail(detail)
+			mapped := MapConnectError(connectErr)
+			apiErr, ok := mapped.(*sdkerrors.APIError)
+			if !ok || apiErr.Code != tc.code.String() {
+				t.Fatalf("mapped=%T %#v", mapped, mapped)
+			}
+			if sdkerrors.IsRetryable(mapped) {
+				t.Fatalf("%s must not be retryable", tc.code)
+			}
+			if sdkerrors.MutationOutcomeUnknown(mapped) {
+				t.Fatalf("%s changed nothing; the outcome is known", tc.code)
+			}
+		})
+	}
+}

@@ -42,7 +42,25 @@ func OrderFromProto(msg *orderv1.Order) models.Order {
 		AttachedRisk: attachedRiskFromProto(msg.GetAttachedRisk()),
 		Lineage:      orderLineageFromProto(msg.GetLineage()),
 		ExpireAt:     codecs.FormatExpireAt(msg.GetExpireAt()),
+		RejectReason: orderRejectReasonLabel(msg.GetRejectReason()),
+		CancelReason: OrderCancelReasonLabel(msg.GetCancelReason()),
 	}
+}
+
+// OrderCancelReasonLabel names why a canceled order ended, for example
+// "user_request". Unspecified (0) and unset decode as "", and a reason newer
+// than this SDK as "unknown(N)".
+func OrderCancelReasonLabel(reason orderv1.CancelReason) string {
+	return codecs.ProtoEnumName(reason, reason.Number())
+}
+
+// orderRejectReasonLabel names a rejected order's refusal as the order write
+// API names it. Unspecified (0) and unset decode as "".
+func orderRejectReasonLabel(code orderv1.ErrorCode) string {
+	if code == orderv1.ErrorCode_ERROR_CODE_UNSPECIFIED {
+		return ""
+	}
+	return errorCodeName(code)
 }
 
 func orderLineageFromProto(msg *orderv1.OrderLineage) *models.OrderLineage {

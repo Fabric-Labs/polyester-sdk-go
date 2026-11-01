@@ -526,6 +526,46 @@ func TestPrivateOrdersUnitDecodesOrdersRemovalsAndEvents(t *testing.T) {
 	}
 }
 
+// The snapshot's and a unit's orders carry their typed end reasons, and so do
+// the unit's order events, including the REPLACED event of the order a
+// replace ended.
+func TestPrivateOrdersDecodeTypedEndReasons(t *testing.T) {
+	f := newFakePrivateServer(t)
+	c := newTestOrderClient(t, f, testTiming())
+	sub, ws := connectOrders(t, f, c)
+
+	rejected := testOrder(1, 1)
+	rejected.Status = orderv1.OrderStatus_REJECTED
+	rejected.RejectReason = orderv1.ErrorCode_ERROR_CODE_POST_ONLY_CROSS
+	seq := ws.snapshot(t, "s1", 1, "c1", rejected, testOrder(2, 1))
+	snapshot := expectEvent[OrderSnapshot](t, sub)
+	if len(snapshot.Orders) != 2 || snapshot.Orders[0].RejectReason != "POST_ONLY_CROSS" || snapshot.Orders[0].CancelReason != "" ||
+		snapshot.Orders[1].RejectReason != "" || snapshot.Orders[1].CancelReason != "" {
+		t.Fatalf("snapshot orders %#v", snapshot.Orders)
+	}
+
+	replaced := testOrder(2, 2)
+	replaced.Status = orderv1.OrderStatus_CANCELED
+	replaced.CancelReason = orderv1.CancelReason_CANCEL_REASON_REPLACED
+	ws.send(t, "s1", seq+1, unitFrame("c2", []*orderv1.Order{replaced}, nil,
+		&privatewsv1.UnitEvent{Kind: &privatewsv1.UnitEvent_Order{Order: &privatewsv1.OrderEvent{
+			OrderId: 2, Version: 2, Kind: privatewsv1.OrderEvent_REPLACED,
+			CancelReason: orderv1.CancelReason_CANCEL_REASON_REPLACED, ReplacementOrderId: 3,
+		}}},
+	))
+	unit := expectEvent[OrderUnit](t, sub)
+	if len(unit.Orders) != 1 || unit.Orders[0].CancelReason != "replaced" || unit.Orders[0].RejectReason != "" {
+		t.Fatalf("unit orders %#v", unit.Orders)
+	}
+	if len(unit.Events) != 1 || unit.Events[0].Order == nil {
+		t.Fatalf("events %#v", unit.Events)
+	}
+	if event := unit.Events[0].Order; event.Kind != models.OrderEventReplaced || event.CancelReason != "replaced" ||
+		event.RejectReason != "" || event.ReplacementOrderID != codecs.FormatID(3) {
+		t.Fatalf("order event %#v", event)
+	}
+}
+
 func TestPrivateOrdersSeqGapResubscribesFromCursor(t *testing.T) {
 	f := newFakePrivateServer(t)
 	c := newTestOrderClient(t, f, testTiming())

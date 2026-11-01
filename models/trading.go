@@ -35,6 +35,13 @@ type Order struct {
 	Lineage                      *OrderLineage `json:"lineage,omitempty"`
 	// ExpireAt is the RFC3339 UTC expiry for GTD orders. Empty for every other TIF.
 	ExpireAt string `json:"expire_at,omitempty"`
+	// RejectReason is why a rejected order was refused, named as the order
+	// write API names the same refusal (for example "POST_ONLY_CROSS"). Empty
+	// for every other status.
+	RejectReason string `json:"reject_reason,omitempty"`
+	// CancelReason is why a canceled order ended (for example "user_request"
+	// or "replaced"). Empty for every other status.
+	CancelReason string `json:"cancel_reason,omitempty"`
 }
 
 // OrderLineage is the stable replacement-chain identity for an order or fill.
@@ -607,6 +614,10 @@ type Trigger struct {
 	CancelReason            string          `json:"cancel_reason,omitempty"`
 	FailureReason           string          `json:"failure_reason,omitempty"`
 	Details                 *TriggerDetails `json:"details,omitempty"`
+	// Version is 1 for the trigger's first state and higher for every later
+	// state change. Keep the copy with the highest version across reads and
+	// realtime updates. Zero from a server that predates trigger versions.
+	Version uint32 `json:"version,omitempty"`
 }
 
 // TriggerDetails is a discriminated trigger strategy payload.

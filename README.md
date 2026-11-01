@@ -344,6 +344,17 @@ fmt.Println(result.Status, result.OrderID)
 _, err = client.Orders.Cancel(ctx, nil, models.OrderKeyByClientID(clientOrderID), &symbol, nil, nil)
 ```
 
+An order read says why the order ended. A `rejected` order's `RejectReason`
+names its refusal as the order write API does, for example `POST_ONLY_CROSS`
+or `INSUFFICIENT_FUNDS` (the `ERROR_CODE_` name without its prefix). A
+`canceled` order's `CancelReason` is one of `user_request`, `ioc_remainder`,
+`market_remainder`, `stp_expire_maker`, `stp_expire_taker`, `stp_expire_both`,
+`replaced`, `gtd_expired`, `qty_at_or_below_filled`, `pair_drain`,
+`attached_risk_refused`, `cancel_all_after`, `account_repair`,
+`twap_rollover`, `strategy_cancel` or `system`. Both are empty for every other
+status. A value newer than this SDK decodes as `UNKNOWN_ERROR_CODE(N)` or
+`unknown(N)`; treat it as a generic refusal or cancel.
+
 `ClientOrderID` is **optional** (matches the API). Omit it for one-shot creates.
 **Set a stable non-empty value when you may need to reconcile** after an
 ambiguous transport/server failure. Without it you cannot tell whether the
@@ -650,6 +661,11 @@ slices). Trigger-event `FirePrice` is empty for time-scheduled TWAP slice fires
 typed `CancelReason` / `FailureReason` labels (empty when the proto oneof is
 unset or unspecified).
 
+`Trigger.Version` is 1 for a trigger's first state and higher for every later
+state change. Across list reads and realtime updates, keep the copy with the
+highest version and ignore one whose version is not higher than the copy you
+hold. It is 0 from a server that predates trigger versions.
+
 ## Balances: funding vs trading
 
 Ledger balances have separate **funding** and **trading** buckets per asset.
@@ -877,6 +893,10 @@ if err := sub.Err(); err != nil {
   rejected, replaced, attached risk) plus answers to commands that changed no
   order (amend, cancel or replace rejected, rejected, cancel-all done). Keep
   the copy of an order with the higher `Version`; equal versions are identical.
+- **End reasons.** Orders carry `RejectReason` and `CancelReason` as the
+  order reads do. A rejected event's `RejectReason` and a canceled event's
+  `CancelReason` use the same labels; the replaced event of the order a
+  replace ended has `CancelReason` `replaced` and its `ReplacementOrderID`.
 - **Ready.** `OrderReady` comes once the stream reflects at least every
   acknowledgement given before the subscribe, including every order read
   made before it. Wait for it before trusting that an order missing from the
@@ -947,9 +967,19 @@ ob.SetOnError(func(err error) {
 })
 
 for book := range ob.Updates() {
-	fmt.Println(book.BookSeq, len(book.Bids))
+	fmt.Println(book.BookSeq, book.Available, len(book.Bids))
 }
 ```
+
+`OrderbookData.Available` is true when the book is current: its sides are its
+levels, and an empty side means no liquidity. It is false while the market's
+book is being built or after it was invalidated: its levels are unknown, not
+empty, so request the snapshot again later (`Orderbook.Get`, or
+`RefreshSnapshot` on a managed subscription) instead of reading empty sides as
+no liquidity. A managed subscription carries its last snapshot's value, and
+reports false for the book it renders before its first snapshot. An
+environment that does not serve this release yet reports false for every
+book.
 
 ## Development
 
