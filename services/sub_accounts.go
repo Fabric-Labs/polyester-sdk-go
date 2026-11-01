@@ -51,7 +51,7 @@ func (s *SubAccountsService) List(ctx context.Context) (models.SubAccountsList, 
 	return UnaryAuth(ctx, s.transport, s.writeClient().ListSubaccounts, &authv1.ListSubaccountsRequest{}, decode.SubaccountsListFromProto)
 }
 
-func (s *SubAccountsService) Get(ctx context.Context, account AccountScope, subAccountID *string, includeAPIKeys, includeMembers, includeInvites, includePolicy, includeBalances bool, invitesDirection string) (models.GetSubaccountResult, error) {
+func (s *SubAccountsService) Get(ctx context.Context, account AccountScope, subAccountID *string, includeAPIKeys, includeMembers, includeInvites, includePolicy bool, invitesDirection string) (models.GetSubaccountResult, error) {
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {
 		return models.GetSubaccountResult{}, err
@@ -67,7 +67,7 @@ func (s *SubAccountsService) Get(ctx context.Context, account AccountScope, subA
 	if err != nil {
 		return models.GetSubaccountResult{}, err
 	}
-	req := &authv1.GetSubaccountRequest{SubaccountId: *parsed, IncludeApiKeys: includeAPIKeys, IncludeMembers: includeMembers, IncludeInvites: includeInvites, IncludePolicy: includePolicy, IncludeBalances: includeBalances, InvitesDirection: direction}
+	req := &authv1.GetSubaccountRequest{SubaccountId: *parsed, IncludeApiKeys: includeAPIKeys, IncludeMembers: includeMembers, IncludeInvites: includeInvites, IncludePolicy: includePolicy, InvitesDirection: direction}
 	return UnaryAuth(ctx, s.transport, s.viewClient().GetSubaccount, req, decode.GetSubaccountFromProto)
 }
 

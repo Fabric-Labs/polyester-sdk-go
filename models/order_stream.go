@@ -19,9 +19,13 @@ type OrderEvent struct {
 	// Version is the order's version after the event.
 	Version uint32         `json:"version"`
 	Kind    OrderEventKind `json:"kind"`
-	// ReasonCode is the order's terminal reason code for canceled, rejected
-	// and replaced events; 0 otherwise.
-	ReasonCode uint32 `json:"reason_code,omitempty"`
+	// RejectReason is why a rejected order was refused, as the order write API
+	// names the same refusal (for example "POST_ONLY_CROSS"). Empty otherwise.
+	RejectReason string `json:"reject_reason,omitempty"`
+	// CancelReason is why a canceled order ended (for example "USER_REQUEST").
+	// It is also set on the replaced event of the order a replace ended, as
+	// "REPLACED". Empty otherwise.
+	CancelReason string `json:"cancel_reason,omitempty"`
 	// ReplacementOrderID is the successor's public ID for replaced events.
 	ReplacementOrderID string `json:"replacement_order_id,omitempty"`
 	// Fill is set for filled events.

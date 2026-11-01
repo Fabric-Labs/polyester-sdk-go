@@ -5,6 +5,15 @@
 **Breaking changes**
 - `Client.Whiteboard`, `Client.Polychart` and `Client.Layout` are removed,
   because those APIs are no longer part of the public API.
+- `codecs.BoardAudienceFromLabel` and `codecs.BoardRoleFromLabel` are
+  removed with them.
+- `models.OrderEvent.ReasonCode` is replaced by `RejectReason` and
+  `CancelReason`. A rejected order's event names its refusal as the order
+  write API does (for example `POST_ONLY_CROSS`). A canceled order's event
+  names why it ended (for example `USER_REQUEST`), and so does the replaced
+  event of the order a replace ended (`REPLACED`). Both are empty otherwise.
+- `SubAccounts.Get` no longer takes `includeBalances`: a sub-account read no
+  longer returns balances. Read them with `Balances.List` and the sub-account ID.
 
 ## 0.3.0
 
