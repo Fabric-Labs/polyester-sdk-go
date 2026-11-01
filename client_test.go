@@ -231,8 +231,8 @@ func TestClientExposesDocumentedServices(t *testing.T) {
 		"Auth", "ChainAnalytics", "MarketData", "Candles", "MarketOverview",
 		"Zipper", "Heatmap", "Lifecycle", "Balances", "Orderbook", "Orders", "Trades",
 		"Triggers", "Transfers", "InternalTransfers", "Deposit", "APIKeys", "Policies",
-		"SubAccounts", "AddressBook", "SocialVerification", "Whiteboard",
-		"Polychart", "Layout", "GuardSigner", "VIP", "Fees", "RateLimits",
+		"SubAccounts", "AddressBook", "SocialVerification",
+		"GuardSigner", "VIP", "Fees", "RateLimits",
 		"Withdraw", "TradingWithdraws", "Realtime",
 	}
 	v := reflect.ValueOf(client).Elem()

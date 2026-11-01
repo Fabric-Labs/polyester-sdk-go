@@ -29,24 +29,3 @@ func TestGuardSignerGetStatusOptional(t *testing.T) {
 		return client.GuardSigner.GetStatus(ctx, nil, nil)
 	})
 }
-
-func TestLayoutGetLayoutsOptional(t *testing.T) {
-	client, ctx, cleanup := testutil.RequireLiveClient(t)
-	defer cleanup()
-
-	data := testutil.CallOptional(t, "layout.get_layouts", func() (models.ApiData, error) {
-		return client.Layout.GetLayouts(ctx, 5, "")
-	})
-	if len(data.Raw) == 0 {
-		t.Skip("layout service returned empty payload on devnet")
-	}
-}
-
-func TestPolychartGetMarketLayersOptional(t *testing.T) {
-	client, ctx, cleanup := testutil.RequireLiveClient(t)
-	defer cleanup()
-
-	_ = testutil.CallOptional(t, "polychart.get_market_layers", func() (models.ApiData, error) {
-		return client.Polychart.GetMarketLayers(ctx, 1)
-	})
-}
