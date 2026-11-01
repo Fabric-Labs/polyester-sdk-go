@@ -58,7 +58,8 @@ const (
 	// Allow reading saved, recent, and whitelisted address-book destinations.
 	PolicyAction_READ_ADDRESS_BOOK PolicyAction = 11
 	// Allow creating, updating, deleting, and copying saved destination entries,
-	// including reading the address book.
+	// including reading the address book. Address-book writes accept only a
+	// session token, so on an API-key policy this grants address-book reads only.
 	PolicyAction_MANAGE_ADDRESS_BOOK PolicyAction = 12
 	// Allow reading the auto-withdraw rule and its runs.
 	PolicyAction_READ_AUTO_WITHDRAW PolicyAction = 14

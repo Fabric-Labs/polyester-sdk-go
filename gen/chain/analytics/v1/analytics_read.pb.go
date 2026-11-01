@@ -8,6 +8,7 @@ package chainanalyticsv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
 	_ "github.com/google/gnostic/openapiv3"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -710,7 +711,7 @@ var File_chain_analytics_v1_analytics_read_proto protoreflect.FileDescriptor
 
 const file_chain_analytics_v1_analytics_read_proto_rawDesc = "" +
 	"\n" +
-	"'chain/analytics/v1/analytics_read.proto\x12\x12chain.analytics.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\"\xd8\f\n" +
+	"'chain/analytics/v1/analytics_read.proto\x12\x12chain.analytics.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1bpolyester/api/options.proto\"\xd8\f\n" +
 	"\x1bGetZippedAssetSupplyRequest\x12/\n" +
 	"\x0fzipped_asset_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\rzippedAssetId\x12G\n" +
 	"\x05range\x18\x02 \x01(\x0e2'.chain.analytics.v1.ChainAnalyticsRangeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x05range\x12L\n" +
@@ -798,14 +799,14 @@ const file_chain_analytics_v1_analytics_read_proto_rawDesc = "" +
 	"\n" +
 	"\x06DAY_90\x10\x04\x12\v\n" +
 	"\aDAY_180\x10\x05\x12\v\n" +
-	"\aDAY_365\x10\x062\xe7\x06\n" +
-	"\x15ChainAnalyticsService\x12\x8d\x02\n" +
-	"\x14GetZippedAssetSupply\x12/.chain.analytics.v1.GetZippedAssetSupplyRequest\x1a0.chain.analytics.v1.GetZippedAssetSupplyResponse\"\x91\x01\xbaG_\n" +
-	"\x0fChain Analytics\x12\x17Get Zipped Asset Supply\x1a3Get route-scoped zipped asset supply chart columns.\x82\xd3\xe4\x93\x02)\x12'/v1/chain/analytics/zipped-asset-supply\x12\xa3\x02\n" +
-	"\x19GetZippedAssetSupplyGroup\x124.chain.analytics.v1.GetZippedAssetSupplyGroupRequest\x1a5.chain.analytics.v1.GetZippedAssetSupplyGroupResponse\"\x98\x01\xbaG`\n" +
-	"\x0fChain Analytics\x12\x1dGet Zipped Asset Supply Group\x1a.Get grouped zipped asset supply chart columns.\x82\xd3\xe4\x93\x02/\x12-/v1/chain/analytics/zipped-asset-supply/group\x12\x97\x02\n" +
-	"\x17GetUnifiedAssetBalances\x122.chain.analytics.v1.GetUnifiedAssetBalancesRequest\x1a3.chain.analytics.v1.GetUnifiedAssetBalancesResponse\"\x92\x01\xbaG]\n" +
-	"\x0fChain Analytics\x12\x1aGet Unified Asset Balances\x1a.Get unified asset total balance chart columns.\x82\xd3\xe4\x93\x02,\x12*/v1/chain/analytics/unified-asset-balancesB\x92\x01\xbaG>:<\n" +
+	"\aDAY_365\x10\x062\xf3\x06\n" +
+	"\x15ChainAnalyticsService\x12\x91\x02\n" +
+	"\x14GetZippedAssetSupply\x12/.chain.analytics.v1.GetZippedAssetSupplyRequest\x1a0.chain.analytics.v1.GetZippedAssetSupplyResponse\"\x95\x01\xbaG_\n" +
+	"\x0fChain Analytics\x12\x17Get Zipped Asset Supply\x1a3Get route-scoped zipped asset supply chart columns.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02)\x12'/v1/chain/analytics/zipped-asset-supply\x12\xa7\x02\n" +
+	"\x19GetZippedAssetSupplyGroup\x124.chain.analytics.v1.GetZippedAssetSupplyGroupRequest\x1a5.chain.analytics.v1.GetZippedAssetSupplyGroupResponse\"\x9c\x01\xbaG`\n" +
+	"\x0fChain Analytics\x12\x1dGet Zipped Asset Supply Group\x1a.Get grouped zipped asset supply chart columns.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02/\x12-/v1/chain/analytics/zipped-asset-supply/group\x12\x9b\x02\n" +
+	"\x17GetUnifiedAssetBalances\x122.chain.analytics.v1.GetUnifiedAssetBalancesRequest\x1a3.chain.analytics.v1.GetUnifiedAssetBalancesResponse\"\x96\x01\xbaG]\n" +
+	"\x0fChain Analytics\x12\x1aGet Unified Asset Balances\x1a.Get unified asset total balance chart columns.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02,\x12*/v1/chain/analytics/unified-asset-balancesB\x92\x01\xbaG>:<\n" +
 	"\x0fChain Analytics\x12)Read public chain analytics chart series.ZOgithub.com/Fabric-Labs/polyester-sdk-go/gen/chain/analytics/v1;chainanalyticsv1b\x06proto3"
 
 var (

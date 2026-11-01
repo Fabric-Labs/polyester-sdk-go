@@ -33,7 +33,7 @@ func TestSubAccountsGetWhenPresent(t *testing.T) {
 	}
 	subID := listed.Subaccounts[0].SubaccountID
 	result := testutil.CallRequired(t, "sub_accounts.get", func() (models.GetSubaccountResult, error) {
-		return client.SubAccounts.Get(ctx, subID, nil, false, true, false, false, false, "")
+		return client.SubAccounts.Get(ctx, subID, nil, false, true, false, false, "")
 	})
 	if result.Subaccount == nil || result.Subaccount.SubaccountID != subID {
 		t.Fatalf("subaccount=%+v want id=%s", result.Subaccount, subID)

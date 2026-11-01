@@ -8,6 +8,7 @@ package ordersv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
 	v1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/ratelimit/v1"
 	_ "github.com/google/gnostic/openapiv3"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
@@ -592,8 +593,8 @@ const (
 	// An item of the batch modify did not use the REPLACE_ONLY behavior, so the
 	// batch was refused.
 	ErrorCode_ERROR_CODE_BATCH_REPLACE_ONLY_REQUIRED ErrorCode = 229
-	// An item of the batch modify named no symbol, another symbol than the batch's
-	// first item, or an order on another symbol, so the batch was refused.
+	// An item of the batch modify named no symbol, or another symbol than the
+	// batch's first item, so the batch was refused.
 	ErrorCode_ERROR_CODE_BATCH_SINGLE_SYMBOL_REQUIRED ErrorCode = 230
 	// The account keeps its maximum number of recent modify or batch requests for
 	// duplicate detection. Retry once earlier ones expire.
@@ -811,6 +812,26 @@ const (
 	// a replace keeps its order's place. Nothing changed; cancel a resting order
 	// in this market first.
 	ErrorCode_ERROR_CODE_MAX_OPEN_ORDERS_PER_PAIR ErrorCode = 306
+	// The order already carries every attached leg it may hold, so another
+	// attached leg was refused.
+	ErrorCode_ERROR_CODE_ATTACHED_LEGS_EXCEEDED ErrorCode = 86
+	// The trigger's fee asset was not valid.
+	ErrorCode_ERROR_CODE_FEE_ASSET_INVALID ErrorCode = 87
+	// The trigger's maximum fee rate was not valid.
+	ErrorCode_ERROR_CODE_FEE_CEILING_INVALID ErrorCode = 88
+	// The trigger set a field that must be left unset.
+	ErrorCode_ERROR_CODE_UNSUPPORTED_FIELD_SET ErrorCode = 89
+	// The trigger could not fire again.
+	ErrorCode_ERROR_CODE_TRIGGER_FIRE_LIMIT_REACHED ErrorCode = 90
+	// The trigger's condition flags were not valid.
+	ErrorCode_ERROR_CODE_CONDITION_FLAGS_INVALID ErrorCode = 91
+	// The trigger set a condition parameter its condition does not take.
+	ErrorCode_ERROR_CODE_CONDITION_PARAMETER_SET ErrorCode = 92
+	// The market had no room for another TWAP order.
+	ErrorCode_ERROR_CODE_TWAP_CAPACITY_REACHED ErrorCode = 93
+	// The trigger's child order did not match the order the trigger requested,
+	// so the trigger failed and the child order was canceled.
+	ErrorCode_ERROR_CODE_CHILD_ORDER_INCONSISTENT ErrorCode = 94
 )
 
 // Enum value maps for ErrorCode.
@@ -1001,6 +1022,15 @@ var (
 		303: "ERROR_CODE_ORDER_CREATE_OUTCOME_UNKNOWN",
 		304: "ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN",
 		306: "ERROR_CODE_MAX_OPEN_ORDERS_PER_PAIR",
+		86:  "ERROR_CODE_ATTACHED_LEGS_EXCEEDED",
+		87:  "ERROR_CODE_FEE_ASSET_INVALID",
+		88:  "ERROR_CODE_FEE_CEILING_INVALID",
+		89:  "ERROR_CODE_UNSUPPORTED_FIELD_SET",
+		90:  "ERROR_CODE_TRIGGER_FIRE_LIMIT_REACHED",
+		91:  "ERROR_CODE_CONDITION_FLAGS_INVALID",
+		92:  "ERROR_CODE_CONDITION_PARAMETER_SET",
+		93:  "ERROR_CODE_TWAP_CAPACITY_REACHED",
+		94:  "ERROR_CODE_CHILD_ORDER_INCONSISTENT",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_CODE_UNSPECIFIED":                            0,
@@ -1188,6 +1218,15 @@ var (
 		"ERROR_CODE_ORDER_CREATE_OUTCOME_UNKNOWN":           303,
 		"ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN":         304,
 		"ERROR_CODE_MAX_OPEN_ORDERS_PER_PAIR":               306,
+		"ERROR_CODE_ATTACHED_LEGS_EXCEEDED":                 86,
+		"ERROR_CODE_FEE_ASSET_INVALID":                      87,
+		"ERROR_CODE_FEE_CEILING_INVALID":                    88,
+		"ERROR_CODE_UNSUPPORTED_FIELD_SET":                  89,
+		"ERROR_CODE_TRIGGER_FIRE_LIMIT_REACHED":             90,
+		"ERROR_CODE_CONDITION_FLAGS_INVALID":                91,
+		"ERROR_CODE_CONDITION_PARAMETER_SET":                92,
+		"ERROR_CODE_TWAP_CAPACITY_REACHED":                  93,
+		"ERROR_CODE_CHILD_ORDER_INCONSISTENT":               94,
 	}
 )
 
@@ -2728,7 +2767,9 @@ type CancelOrderRequest struct {
 	//	*CancelOrderRequest_OrderId
 	//	*CancelOrderRequest_ClientOrderId
 	Key isCancelOrderRequest_Key `protobuf_oneof:"key"`
-	// Optional symbol_id for routing; when omitted, resolved from order directory.
+	// Optional trading symbol numeric identifier. When set, it must match the
+	// order's symbol, or the order is reported unknown (ERROR_CODE_ORDER_UNKNOWN)
+	// and nothing is canceled. When omitted, the order's own symbol is used.
 	SymbolId uint32 `protobuf:"varint,3,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Target sub-account numeric ID. When omitted, uses caller's root account.
 	SubaccountId  *uint64 `protobuf:"fixed64,4,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
@@ -5111,7 +5152,8 @@ type BatchReplaceOrdersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target sub-account numeric ID. When omitted, uses caller's root account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
-	// Trading symbol shared by every replacement.
+	// Trading symbol shared by every replacement. An item whose order is on
+	// another symbol is refused alone as an unknown order.
 	SymbolId uint32 `protobuf:"varint,2,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Client idempotency key (required).
 	RequestId string `protobuf:"bytes,3,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
@@ -5286,7 +5328,9 @@ type BatchCancelItem struct {
 	OrderId uint64 `protobuf:"fixed64,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
 	// Client order ID. Exactly one of order_id or client_order_id.
 	ClientOrderId string `protobuf:"bytes,2,opt,name=client_order_id,json=clientOrderId,proto3" json:"client_order_id,omitempty"`
-	// Optional symbol routing hint.
+	// Optional trading symbol numeric identifier. When set, it must match the
+	// order's symbol, or the item is refused as an unknown order. When omitted,
+	// the order's own symbol is used.
 	SymbolId      uint32 `protobuf:"varint,3,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -5575,7 +5619,7 @@ var File_orders_v1_orders_proto protoreflect.FileDescriptor
 
 const file_orders_v1_orders_proto_rawDesc = "" +
 	"\n" +
-	"\x16orders/v1/orders.proto\x12\torders.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\"polyester/ratelimit/v1/types.proto\"\xcd\x01\n" +
+	"\x16orders/v1/orders.proto\x12\torders.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\x1a\"polyester/ratelimit/v1/types.proto\"\xcd\x01\n" +
 	"\tMarketIoc\x127\n" +
 	"\x12max_slippage_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x00R\x10maxSlippageTicks\x126\n" +
 	"\x10max_slippage_bps\x18\x02 \x01(\x05B\n" +
@@ -5936,7 +5980,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"&SELF_TRADE_PREVENTION_MODE_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fEXPIRE_MAKER\x10\x01\x12\x10\n" +
 	"\fEXPIRE_TAKER\x10\x02\x12\x0f\n" +
-	"\vEXPIRE_BOTH\x10\x03*\xf19\n" +
+	"\vEXPIRE_BOTH\x10\x03*\xce<\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16ERROR_CODE_BAD_REQUEST\x10\x01\x12\x1f\n" +
@@ -6123,7 +6167,16 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	",ERROR_CODE_TRIGGER_WOULD_TRIGGER_IMMEDIATELY\x10\xae\x02\x12,\n" +
 	"'ERROR_CODE_ORDER_CREATE_OUTCOME_UNKNOWN\x10\xaf\x02\x12.\n" +
 	")ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN\x10\xb0\x02\x12(\n" +
-	"#ERROR_CODE_MAX_OPEN_ORDERS_PER_PAIR\x10\xb2\x02\"\x04\b,\x10,*\"ERROR_CODE_TRIGGER_CANCEL_REJECTED*k\n" +
+	"#ERROR_CODE_MAX_OPEN_ORDERS_PER_PAIR\x10\xb2\x02\x12%\n" +
+	"!ERROR_CODE_ATTACHED_LEGS_EXCEEDED\x10V\x12 \n" +
+	"\x1cERROR_CODE_FEE_ASSET_INVALID\x10W\x12\"\n" +
+	"\x1eERROR_CODE_FEE_CEILING_INVALID\x10X\x12$\n" +
+	" ERROR_CODE_UNSUPPORTED_FIELD_SET\x10Y\x12)\n" +
+	"%ERROR_CODE_TRIGGER_FIRE_LIMIT_REACHED\x10Z\x12&\n" +
+	"\"ERROR_CODE_CONDITION_FLAGS_INVALID\x10[\x12&\n" +
+	"\"ERROR_CODE_CONDITION_PARAMETER_SET\x10\\\x12$\n" +
+	" ERROR_CODE_TWAP_CAPACITY_REACHED\x10]\x12'\n" +
+	"#ERROR_CODE_CHILD_ORDER_INCONSISTENT\x10^\"\x04\b,\x10,*\"ERROR_CODE_TRIGGER_CANCEL_REJECTED*k\n" +
 	"\x12TriggerPriceSource\x12$\n" +
 	" TRIGGER_PRICE_SOURCE_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -6153,26 +6206,26 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x1fBatchReplaceItemAdmissionStatus\x123\n" +
 	"/BATCH_REPLACE_ITEM_ADMISSION_STATUS_UNSPECIFIED\x10\x00\x120\n" +
 	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_ADMITTED\x10\x01\x120\n" +
-	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_REJECTED\x10\x022\x80\x14\n" +
-	"\rOrdersService\x12\x94\x02\n" +
-	"\fPreviewOrder\x12\x1e.orders.v1.PreviewOrderRequest\x1a\x1f.orders.v1.PreviewOrderResponse\"\xc2\x01\xbaG\xbe\x01\n" +
-	"\x0eOrders Service\x12\rPreview Order\x1a\x9c\x01Check current order eligibility and available balance without creating an order or reservation. Returns resolved sizing and price protection when available.\x12\xaa\x02\n" +
-	"\vCreateOrder\x12\x1d.orders.v1.CreateOrderRequest\x1a\x1e.orders.v1.CreateOrderResponse\"\xdb\x01\xbaG\xd7\x01\n" +
-	"\x0eOrders Service\x12\fCreate Order\x1a\xb6\x01Create a single order with side, type, quantity, and optional price fields. Supports optional client order IDs and attached risk instructions (take-profit, stop-loss, trailing stop).\x12\xde\x01\n" +
-	"\vCancelOrder\x12\x1d.orders.v1.CancelOrderRequest\x1a\x1e.orders.v1.CancelOrderResponse\"\x8f\x01\xbaG\x8b\x01\n" +
-	"\x0eOrders Service\x12\fCancel Order\x1akCancel a single open order by order ID or client order ID. Supports optional subaccount and symbol scoping.\x12\xbe\x02\n" +
-	"\x0fCancelAllOrders\x12!.orders.v1.CancelAllOrdersRequest\x1a\".orders.v1.CancelAllOrdersResponse\"\xe3\x01\xbaG\xdf\x01\n" +
-	"\x0eOrders Service\x12\x11Cancel All Orders\x1a\xb9\x01Cancel all matching open orders for an account. Supports optional symbol and side filters plus dry-run preview. Returns up to 200 canceled order IDs, oldest first, with the total count.\x12\xa0\x02\n" +
-	"\x0eCancelAllAfter\x12 .orders.v1.CancelAllAfterRequest\x1a!.orders.v1.CancelAllAfterResponse\"\xc8\x01\xbaG\xc4\x01\n" +
-	"\x0eOrders Service\x12\"Cancel All After (Dead-Man Switch)\x1a\x8d\x01Set or disable a dead-man switch timeout for automatic cancel-all. Supports optional symbol and side scope with idempotent heartbeat refresh.\x12\x9f\x02\n" +
-	"\x11BatchCreateOrders\x12#.orders.v1.BatchCreateOrdersRequest\x1a$.orders.v1.BatchCreateOrdersResponse\"\xbe\x01\xbaG\xba\x01\n" +
-	"\x0eOrders Service\x12\x13Batch Create Orders\x1a\x92\x01Create up to 20 orders in a single request with per-item results. Supports mixed symbols, attached risk payloads, and optional partial acceptance.\x12\x92\x02\n" +
-	"\vModifyOrder\x12\x1d.orders.v1.ModifyOrderRequest\x1a\x1e.orders.v1.ModifyOrderResponse\"\xc3\x01\xbaG\xbf\x01\n" +
-	"\x0eOrders Service\x12\fModify Order\x1a\x9e\x01Modify a single open order by order ID or client order ID. Supports amend-or-replace behavior policies, price and quantity updates, and attached risk updates.\x12\x98\x02\n" +
-	"\x12BatchReplaceOrders\x12$.orders.v1.BatchReplaceOrdersRequest\x1a%.orders.v1.BatchReplaceOrdersResponse\"\xb4\x01\xbaG\xb0\x01\n" +
-	"\x0eOrders Service\x12\x14Batch Replace Orders\x1a\x87\x01Replace up to 50 orders for one symbol as a quote refresh. Returns an admission receipt for status and private realtime reconciliation.\x12\x93\x02\n" +
-	"\x11BatchCancelOrders\x12#.orders.v1.BatchCancelOrdersRequest\x1a$.orders.v1.BatchCancelOrdersResponse\"\xb2\x01\xbaG\xae\x01\n" +
-	"\x0eOrders Service\x12\x13Batch Cancel Orders\x1a\x86\x01Cancel up to 50 orders by order ID or client order ID in one request. Returns per-item accept or reject results with aggregate counts.B\x8d\x01\xbaGJ:H\n" +
+	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_REJECTED\x10\x022\xb6\x14\n" +
+	"\rOrdersService\x12\x9a\x02\n" +
+	"\fPreviewOrder\x12\x1e.orders.v1.PreviewOrderRequest\x1a\x1f.orders.v1.PreviewOrderResponse\"\xc8\x01\xbaG\xbe\x01\n" +
+	"\x0eOrders Service\x12\rPreview Order\x1a\x9c\x01Check current order eligibility and available balance without creating an order or reservation. Returns resolved sizing and price protection when available.\xa2\xb5\x18\x02\x01\x02\x12\xb0\x02\n" +
+	"\vCreateOrder\x12\x1d.orders.v1.CreateOrderRequest\x1a\x1e.orders.v1.CreateOrderResponse\"\xe1\x01\xbaG\xd7\x01\n" +
+	"\x0eOrders Service\x12\fCreate Order\x1a\xb6\x01Create a single order with side, type, quantity, and optional price fields. Supports optional client order IDs and attached risk instructions (take-profit, stop-loss, trailing stop).\xa2\xb5\x18\x02\x01\x02\x12\xe4\x01\n" +
+	"\vCancelOrder\x12\x1d.orders.v1.CancelOrderRequest\x1a\x1e.orders.v1.CancelOrderResponse\"\x95\x01\xbaG\x8b\x01\n" +
+	"\x0eOrders Service\x12\fCancel Order\x1akCancel a single open order by order ID or client order ID. Supports optional subaccount and symbol scoping.\xa2\xb5\x18\x02\x01\x02\x12\xc4\x02\n" +
+	"\x0fCancelAllOrders\x12!.orders.v1.CancelAllOrdersRequest\x1a\".orders.v1.CancelAllOrdersResponse\"\xe9\x01\xbaG\xdf\x01\n" +
+	"\x0eOrders Service\x12\x11Cancel All Orders\x1a\xb9\x01Cancel all matching open orders for an account. Supports optional symbol and side filters plus dry-run preview. Returns up to 200 canceled order IDs, oldest first, with the total count.\xa2\xb5\x18\x02\x01\x02\x12\xa6\x02\n" +
+	"\x0eCancelAllAfter\x12 .orders.v1.CancelAllAfterRequest\x1a!.orders.v1.CancelAllAfterResponse\"\xce\x01\xbaG\xc4\x01\n" +
+	"\x0eOrders Service\x12\"Cancel All After (Dead-Man Switch)\x1a\x8d\x01Set or disable a dead-man switch timeout for automatic cancel-all. Supports optional symbol and side scope with idempotent heartbeat refresh.\xa2\xb5\x18\x02\x01\x02\x12\xa5\x02\n" +
+	"\x11BatchCreateOrders\x12#.orders.v1.BatchCreateOrdersRequest\x1a$.orders.v1.BatchCreateOrdersResponse\"\xc4\x01\xbaG\xba\x01\n" +
+	"\x0eOrders Service\x12\x13Batch Create Orders\x1a\x92\x01Create up to 20 orders in a single request with per-item results. Supports mixed symbols, attached risk payloads, and optional partial acceptance.\xa2\xb5\x18\x02\x01\x02\x12\x98\x02\n" +
+	"\vModifyOrder\x12\x1d.orders.v1.ModifyOrderRequest\x1a\x1e.orders.v1.ModifyOrderResponse\"\xc9\x01\xbaG\xbf\x01\n" +
+	"\x0eOrders Service\x12\fModify Order\x1a\x9e\x01Modify a single open order by order ID or client order ID. Supports amend-or-replace behavior policies, price and quantity updates, and attached risk updates.\xa2\xb5\x18\x02\x01\x02\x12\x9e\x02\n" +
+	"\x12BatchReplaceOrders\x12$.orders.v1.BatchReplaceOrdersRequest\x1a%.orders.v1.BatchReplaceOrdersResponse\"\xba\x01\xbaG\xb0\x01\n" +
+	"\x0eOrders Service\x12\x14Batch Replace Orders\x1a\x87\x01Replace up to 50 orders for one symbol as a quote refresh. Returns an admission receipt for status and private realtime reconciliation.\xa2\xb5\x18\x02\x01\x02\x12\x99\x02\n" +
+	"\x11BatchCancelOrders\x12#.orders.v1.BatchCancelOrdersRequest\x1a$.orders.v1.BatchCancelOrdersResponse\"\xb8\x01\xbaG\xae\x01\n" +
+	"\x0eOrders Service\x12\x13Batch Cancel Orders\x1a\x86\x01Cancel up to 50 orders by order ID or client order ID in one request. Returns per-item accept or reject results with aggregate counts.\xa2\xb5\x18\x02\x01\x02B\x8d\x01\xbaGJ:H\n" +
 	"\x0eOrders Service\x126Public write surface for placing and canceling orders.Z>github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1;ordersv1b\x06proto3"
 
 var (

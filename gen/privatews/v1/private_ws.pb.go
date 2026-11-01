@@ -2560,9 +2560,14 @@ type OrderEvent struct {
 	Version uint32 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
 	// What happened.
 	Kind OrderEvent_Kind `protobuf:"varint,3,opt,name=kind,proto3,enum=privatews.v1.OrderEvent_Kind" json:"kind,omitempty"`
-	// For CANCELED, REJECTED and REPLACED: the reason code, as the order's
-	// terminal_reason_code; 0 otherwise.
-	ReasonCode uint32 `protobuf:"varint,4,opt,name=reason_code,json=reasonCode,proto3" json:"reason_code,omitempty"`
+	// For REJECTED: why the order was refused, as the order's reject_reason and
+	// the Orders API's error for the same refusal. Not set otherwise; the JSON
+	// encoding then omits it.
+	RejectReason v1.ErrorCode `protobuf:"varint,7,opt,name=reject_reason,json=rejectReason,proto3,enum=orders.v1.ErrorCode" json:"reject_reason,omitempty"`
+	// For CANCELED, and for the REPLACED of the order a replace ended: why the
+	// order ended, as the order's cancel_reason. Not set otherwise, including
+	// the REPLACED that installs the successor; the JSON encoding then omits it.
+	CancelReason v1.CancelReason `protobuf:"varint,8,opt,name=cancel_reason,json=cancelReason,proto3,enum=orders.v1.CancelReason" json:"cancel_reason,omitempty"`
 	// For REPLACED: the successor's public ID; 0 otherwise.
 	ReplacementOrderId uint64 `protobuf:"fixed64,5,opt,name=replacement_order_id,json=replacementOrderId,proto3" json:"replacement_order_id,omitempty"`
 	// For FILLED: the fill.
@@ -2622,11 +2627,18 @@ func (x *OrderEvent) GetKind() OrderEvent_Kind {
 	return OrderEvent_KIND_UNSPECIFIED
 }
 
-func (x *OrderEvent) GetReasonCode() uint32 {
+func (x *OrderEvent) GetRejectReason() v1.ErrorCode {
 	if x != nil {
-		return x.ReasonCode
+		return x.RejectReason
 	}
-	return 0
+	return v1.ErrorCode(0)
+}
+
+func (x *OrderEvent) GetCancelReason() v1.CancelReason {
+	if x != nil {
+		return x.CancelReason
+	}
+	return v1.CancelReason(0)
 }
 
 func (x *OrderEvent) GetReplacementOrderId() uint64 {
@@ -2944,14 +2956,14 @@ const file_privatews_v1_private_ws_proto_rawDesc = "" +
 	"\tUnitEvent\x120\n" +
 	"\x05order\x18\x01 \x01(\v2\x18.privatews.v1.OrderEventH\x00R\x05order\x128\n" +
 	"\aoutcome\x18\x02 \x01(\v2\x1c.privatews.v1.CommandOutcomeH\x00R\aoutcomeB\x06\n" +
-	"\x04kind\"\xe4\x02\n" +
+	"\x04kind\"\xcf\x03\n" +
 	"\n" +
 	"OrderEvent\x12\x19\n" +
 	"\border_id\x18\x01 \x01(\x06R\aorderId\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\rR\aversion\x121\n" +
-	"\x04kind\x18\x03 \x01(\x0e2\x1d.privatews.v1.OrderEvent.KindR\x04kind\x12\x1f\n" +
-	"\vreason_code\x18\x04 \x01(\rR\n" +
-	"reasonCode\x120\n" +
+	"\x04kind\x18\x03 \x01(\x0e2\x1d.privatews.v1.OrderEvent.KindR\x04kind\x129\n" +
+	"\rreject_reason\x18\a \x01(\x0e2\x14.orders.v1.ErrorCodeR\frejectReason\x12<\n" +
+	"\rcancel_reason\x18\b \x01(\x0e2\x17.orders.v1.CancelReasonR\fcancelReason\x120\n" +
 	"\x14replacement_order_id\x18\x05 \x01(\x06R\x12replacementOrderId\x12&\n" +
 	"\x04fill\x18\x06 \x01(\v2\x12.privatews.v1.FillR\x04fill\"s\n" +
 	"\x04Kind\x12\x14\n" +
@@ -2962,7 +2974,7 @@ const file_privatews_v1_private_ws_proto_rawDesc = "" +
 	"\bCANCELED\x10\x03\x12\f\n" +
 	"\bREJECTED\x10\x04\x12\f\n" +
 	"\bREPLACED\x10\x05\x12\x11\n" +
-	"\rATTACHED_RISK\x10\x06\"\xdc\x01\n" +
+	"\rATTACHED_RISK\x10\x06J\x04\b\x04\x10\x05R\vreason_code\"\xdc\x01\n" +
 	"\x04Fill\x12\x19\n" +
 	"\bmatch_id\x18\x01 \x01(\x04R\amatchId\x12\x18\n" +
 	"\aordinal\x18\x02 \x01(\rR\aordinal\x12+\n" +
@@ -3057,6 +3069,7 @@ var file_privatews_v1_private_ws_proto_goTypes = []any{
 	(*CommandOutcome)(nil),     // 38: privatews.v1.CommandOutcome
 	(*v1.Order)(nil),           // 39: orders.v1.Order
 	(v1.ErrorCode)(0),          // 40: orders.v1.ErrorCode
+	(v1.CancelReason)(0),       // 41: orders.v1.CancelReason
 }
 var file_privatews_v1_private_ws_proto_depIdxs = []int32{
 	9,  // 0: privatews.v1.ClientMessage.auth:type_name -> privatews.v1.Auth
@@ -3095,15 +3108,17 @@ var file_privatews_v1_private_ws_proto_depIdxs = []int32{
 	36, // 33: privatews.v1.UnitEvent.order:type_name -> privatews.v1.OrderEvent
 	38, // 34: privatews.v1.UnitEvent.outcome:type_name -> privatews.v1.CommandOutcome
 	5,  // 35: privatews.v1.OrderEvent.kind:type_name -> privatews.v1.OrderEvent.Kind
-	37, // 36: privatews.v1.OrderEvent.fill:type_name -> privatews.v1.Fill
-	6,  // 37: privatews.v1.Fill.role:type_name -> privatews.v1.Fill.Role
-	7,  // 38: privatews.v1.CommandOutcome.kind:type_name -> privatews.v1.CommandOutcome.Kind
-	40, // 39: privatews.v1.CommandOutcome.reason:type_name -> orders.v1.ErrorCode
-	40, // [40:40] is the sub-list for method output_type
-	40, // [40:40] is the sub-list for method input_type
-	40, // [40:40] is the sub-list for extension type_name
-	40, // [40:40] is the sub-list for extension extendee
-	0,  // [0:40] is the sub-list for field type_name
+	40, // 36: privatews.v1.OrderEvent.reject_reason:type_name -> orders.v1.ErrorCode
+	41, // 37: privatews.v1.OrderEvent.cancel_reason:type_name -> orders.v1.CancelReason
+	37, // 38: privatews.v1.OrderEvent.fill:type_name -> privatews.v1.Fill
+	6,  // 39: privatews.v1.Fill.role:type_name -> privatews.v1.Fill.Role
+	7,  // 40: privatews.v1.CommandOutcome.kind:type_name -> privatews.v1.CommandOutcome.Kind
+	40, // 41: privatews.v1.CommandOutcome.reason:type_name -> orders.v1.ErrorCode
+	42, // [42:42] is the sub-list for method output_type
+	42, // [42:42] is the sub-list for method input_type
+	42, // [42:42] is the sub-list for extension type_name
+	42, // [42:42] is the sub-list for extension extendee
+	0,  // [0:42] is the sub-list for field type_name
 }
 
 func init() { file_privatews_v1_private_ws_proto_init() }

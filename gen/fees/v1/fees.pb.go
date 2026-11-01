@@ -8,6 +8,7 @@ package feesv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
 	_ "github.com/google/gnostic/openapiv3"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -212,7 +213,7 @@ var File_fees_v1_fees_proto protoreflect.FileDescriptor
 
 const file_fees_v1_fees_proto_rawDesc = "" +
 	"\n" +
-	"\x12fees/v1/fees.proto\x12\afees.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\"\xb9\x02\n" +
+	"\x12fees/v1/fees.proto\x12\afees.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1bpolyester/api/options.proto\"\xb9\x02\n" +
 	"\vSpotFeeRate\x12$\n" +
 	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\x12p\n" +
 	"\x16maker_fee_rate_percent\x18\x03 \x01(\tB;\xbaH8r6\x10\x01\x18\x0e20^-?(100([.]0+)?|([0-9]|[1-9][0-9])([.][0-9]+)?)$R\x13makerFeeRatePercent\x12n\n" +
@@ -225,11 +226,11 @@ const file_fees_v1_fees_proto_rawDesc = "" +
 	"\x10d\x18\x01\"\x04*\x02 \x00R\bsymbolIdB\x10\n" +
 	"\x0e_subaccount_id\"L\n" +
 	"\x17GetSpotFeeRatesResponse\x121\n" +
-	"\tfee_rates\x18\x01 \x03(\v2\x14.fees.v1.SpotFeeRateR\bfeeRates2\xf3\x01\n" +
+	"\tfee_rates\x18\x01 \x03(\v2\x14.fees.v1.SpotFeeRateR\bfeeRates2\xf9\x01\n" +
 	"\n" +
-	"FeeService\x12\xe4\x01\n" +
-	"\x0fGetSpotFeeRates\x12\x1f.fees.v1.GetSpotFeeRatesRequest\x1a .fees.v1.GetSpotFeeRatesResponse\"\x8d\x01\xbaGp\n" +
-	"\vFee Service\x12\x12Get Spot Fee Rates\x1aMGet effective maker and taker fee rates for the authenticated account target.\x82\xd3\xe4\x93\x02\x14\x12\x12/v1/spot/fee-ratesB\x7f\xbaG@:>\n" +
+	"FeeService\x12\xea\x01\n" +
+	"\x0fGetSpotFeeRates\x12\x1f.fees.v1.GetSpotFeeRatesRequest\x1a .fees.v1.GetSpotFeeRatesResponse\"\x93\x01\xbaGp\n" +
+	"\vFee Service\x12\x12Get Spot Fee Rates\x1aMGet effective maker and taker fee rates for the authenticated account target.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x14\x12\x12/v1/spot/fee-ratesB\x7f\xbaG@:>\n" +
 	"\vFee Service\x12/Authenticated effective spot trading fee rates.Z:github.com/Fabric-Labs/polyester-sdk-go/gen/fees/v1;feesv1b\x06proto3"
 
 var (

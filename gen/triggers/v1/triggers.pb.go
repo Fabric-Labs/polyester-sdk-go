@@ -9,6 +9,7 @@ package triggersv1
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	v1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
 	_ "github.com/google/gnostic/openapiv3"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -2884,6 +2885,8 @@ func (x *CancelTriggerResponse) GetTsNs() uint64 {
 }
 
 // ModifyTriggerRequest applies a limited patch to an existing trigger.
+// Supported for stop-loss, take-profit and trailing-stop triggers; ladder and
+// TWAP triggers support only cancel and answer TRIGGER_NOT_MODIFIABLE.
 type ModifyTriggerRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Trigger ID to modify.
@@ -3171,7 +3174,9 @@ func (x *ModifyTriggerResponse) GetTsNs() uint64 {
 	return 0
 }
 
-// PauseTriggerRequest pauses an active trigger by ID.
+// PauseTriggerRequest pauses an active trigger by ID. Supported for
+// stop-loss, take-profit and trailing-stop triggers; ladder and TWAP triggers
+// support only cancel and answer TRIGGER_NOT_MODIFIABLE.
 type PauseTriggerRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Trigger ID to pause.
@@ -3299,7 +3304,9 @@ func (x *PauseTriggerResponse) GetTsNs() uint64 {
 	return 0
 }
 
-// ResumeTriggerRequest resumes a paused trigger by ID.
+// ResumeTriggerRequest resumes a paused trigger by ID. Supported for
+// stop-loss, take-profit and trailing-stop triggers; ladder and TWAP triggers
+// support only cancel and answer TRIGGER_NOT_MODIFIABLE.
 type ResumeTriggerRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Trigger ID to resume.
@@ -3876,7 +3883,17 @@ type Trigger struct {
 	// Instant the trigger became terminal, matching its terminal event timestamp.
 	// Set for completed, canceled (for any reason), or failed triggers,
 	// including terminal expiry or rejection. Absent while the trigger is live.
-	CompletedAt   *timestamppb.Timestamp `protobuf:"bytes,64,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
+	CompletedAt *timestamppb.Timestamp `protobuf:"bytes,64,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
+	// Per-trigger state version: 1 for the trigger's first state, then higher
+	// for every later published state change, whether a request or the market
+	// caused it. A higher version is always newer, and two copies of a trigger
+	// with the same version show the same state. GetTrigger, ListTriggers and
+	// realtime trigger updates carry the same version for the same state. List
+	// results can briefly lag realtime updates, and after a reconnect or a
+	// service recovery a realtime update can repeat an earlier state, so keep
+	// the copy of each trigger with the highest version and ignore any copy
+	// whose version is not higher than the one you hold.
+	Version       uint32 `protobuf:"varint,65,opt,name=version,proto3" json:"version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4122,6 +4139,13 @@ func (x *Trigger) GetCompletedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Trigger) GetVersion() uint32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
 type isTrigger_TerminalReason interface {
 	isTrigger_TerminalReason()
 }
@@ -4215,7 +4239,7 @@ var File_triggers_v1_triggers_proto protoreflect.FileDescriptor
 
 const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\n" +
-	"\x1atriggers/v1/triggers.proto\x12\vtriggers.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16orders/v1/orders.proto\"\x93\x01\n" +
+	"\x1atriggers/v1/triggers.proto\x12\vtriggers.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x16orders/v1/orders.proto\x1a\x1bpolyester/api/options.proto\"\x93\x01\n" +
 	"\x10TriggerMarketIoc\x127\n" +
 	"\x12max_slippage_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x00R\x10maxSlippageTicks\x126\n" +
 	"\x10max_slippage_bps\x18\x02 \x01(\x05B\n" +
@@ -4462,7 +4486,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\rladder_levels\x18\x03 \x01(\x05R\fladderLevels\x12P\n" +
 	"\x13ladder_distribution\x18\x04 \x01(\x0e2\x1f.triggers.v1.LadderDistributionR\x12ladderDistribution\x12.\n" +
 	"\x13executed_qty_scaled\x18\x05 \x01(\x03R\x11executedQtyScaled\x12'\n" +
-	"\x0fexecuted_levels\x18\x06 \x01(\x05R\x0eexecutedLevels\"\x90\v\n" +
+	"\x0fexecuted_levels\x18\x06 \x01(\x05R\x0eexecutedLevels\"\xaa\v\n" +
 	"\aTrigger\x12\x1d\n" +
 	"\n" +
 	"trigger_id\x18\x01 \x01(\x06R\ttriggerId\x12#\n" +
@@ -4493,7 +4517,8 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18> \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x125\n" +
 	"\barmed_at\x18? \x01(\v2\x1a.google.protobuf.TimestampR\aarmedAt\x12=\n" +
-	"\fcompleted_at\x18@ \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAtB\x11\n" +
+	"\fcompleted_at\x18@ \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\x12\x18\n" +
+	"\aversion\x18A \x01(\rR\aversionB\x11\n" +
 	"\x0fterminal_reasonB\x0f\n" +
 	"\rconfigurationB\x11\n" +
 	"\x0fruntime_detailsB\x12\n" +
@@ -4638,25 +4663,25 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\n" +
 	"\x06LINEAR\x10\x01\x12\r\n" +
 	"\tGEOMETRIC\x10\x02\x12\x16\n" +
-	"\x12WEIGHTED_FAVORABLE\x10\x032\xe4\x0f\n" +
-	"\x0fTriggersService\x12\xfc\x01\n" +
-	"\rCreateTrigger\x12!.triggers.v1.CreateTriggerRequest\x1a\".triggers.v1.CreateTriggerResponse\"\xa3\x01\xbaG\x88\x01\n" +
-	"\x10Triggers Service\x12\x0eCreate Trigger\x1adCreate a standalone trigger order. Supports stop, trailing, TWAP, and ladder trigger configurations.\x82\xd3\xe4\x93\x02\x11:\x01*\"\f/v1/triggers\x12\xf6\x01\n" +
+	"\x12WEIGHTED_FAVORABLE\x10\x032\xcd\x13\n" +
+	"\x0fTriggersService\x12\x82\x02\n" +
+	"\rCreateTrigger\x12!.triggers.v1.CreateTriggerRequest\x1a\".triggers.v1.CreateTriggerResponse\"\xa9\x01\xbaG\x88\x01\n" +
+	"\x10Triggers Service\x12\x0eCreate Trigger\x1adCreate a standalone trigger order. Supports stop, trailing, TWAP, and ladder trigger configurations.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x11:\x01*\"\f/v1/triggers\x12\xfc\x01\n" +
 	"\n" +
-	"GetTrigger\x12\x1e.triggers.v1.GetTriggerRequest\x1a\x1f.triggers.v1.GetTriggerResponse\"\xa6\x01\xbaG\x81\x01\n" +
-	"\x10Triggers Service\x12\vGet Trigger\x1a`Retrieve a single trigger by trigger ID, including lifecycle state and strategy-specific fields.\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/triggers/{trigger_id}\x12\xe4\x01\n" +
-	"\fListTriggers\x12 .triggers.v1.ListTriggersRequest\x1a!.triggers.v1.ListTriggersResponse\"\x8e\x01\xbaGw\n" +
-	"\x10Triggers Service\x12\rList Triggers\x1aTList triggers for an account with optional symbol, status, and trigger-type filters.\x82\xd3\xe4\x93\x02\x0e\x12\f/v1/triggers\x12\xcc\x02\n" +
-	"\x11ListTriggerEvents\x12%.triggers.v1.ListTriggerEventsRequest\x1a&.triggers.v1.ListTriggerEventsResponse\"\xe7\x01\xbaG\xbb\x01\n" +
-	"\x10Triggers Service\x12\x13List Trigger Events\x1a\x91\x01List append-only trigger events for a trigger, including child-order actions, with optional event-category filtering and reverse-time pagination.\x82\xd3\xe4\x93\x02\"\x12 /v1/triggers/{trigger_id}/events\x12\xe2\x01\n" +
-	"\rCancelTrigger\x12!.triggers.v1.CancelTriggerRequest\x1a\".triggers.v1.CancelTriggerResponse\"\x89\x01\xbaGe\n" +
-	"\x10Triggers Service\x12\x0eCancel Trigger\x1aACancel a trigger by trigger ID and release its reserved quantity.\x82\xd3\xe4\x93\x02\x1b*\x19/v1/triggers/{trigger_id}\x12\x8f\x02\n" +
-	"\rModifyTrigger\x12!.triggers.v1.ModifyTriggerRequest\x1a\".triggers.v1.ModifyTriggerResponse\"\xb6\x01\xbaG\x8e\x01\n" +
-	"\x10Triggers Service\x12\x0eModify Trigger\x1ajModify a trigger by trigger ID using a limited patch for trigger pricing and trailing/slippage parameters.\x82\xd3\xe4\x93\x02\x1e:\x01*\x1a\x19/v1/triggers/{trigger_id}\x12\xd8\x01\n" +
-	"\fPauseTrigger\x12 .triggers.v1.PauseTriggerRequest\x1a!.triggers.v1.PauseTriggerResponse\"\x82\x01\xbaGU\n" +
-	"\x10Triggers Service\x12\rPause Trigger\x1a2Pause a trigger by trigger ID without deleting it.\x82\xd3\xe4\x93\x02$:\x01*\"\x1f/v1/triggers/{trigger_id}/pause\x12\xd0\x01\n" +
-	"\rResumeTrigger\x12!.triggers.v1.ResumeTriggerRequest\x1a\".triggers.v1.ResumeTriggerResponse\"x\xbaGJ\n" +
-	"\x10Triggers Service\x12\x0eResume Trigger\x1a&Resume a paused trigger by trigger ID.\x82\xd3\xe4\x93\x02%:\x01*\" /v1/triggers/{trigger_id}/resumeB\xa9\x01\xbaGb:`\n" +
+	"GetTrigger\x12\x1e.triggers.v1.GetTriggerRequest\x1a\x1f.triggers.v1.GetTriggerResponse\"\xac\x01\xbaG\x81\x01\n" +
+	"\x10Triggers Service\x12\vGet Trigger\x1a`Retrieve a single trigger by trigger ID, including lifecycle state and strategy-specific fields.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/triggers/{trigger_id}\x12\xea\x01\n" +
+	"\fListTriggers\x12 .triggers.v1.ListTriggersRequest\x1a!.triggers.v1.ListTriggersResponse\"\x94\x01\xbaGw\n" +
+	"\x10Triggers Service\x12\rList Triggers\x1aTList triggers for an account with optional symbol, status, and trigger-type filters.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x0e\x12\f/v1/triggers\x12\xd2\x02\n" +
+	"\x11ListTriggerEvents\x12%.triggers.v1.ListTriggerEventsRequest\x1a&.triggers.v1.ListTriggerEventsResponse\"\xed\x01\xbaG\xbb\x01\n" +
+	"\x10Triggers Service\x12\x13List Trigger Events\x1a\x91\x01List append-only trigger events for a trigger, including child-order actions, with optional event-category filtering and reverse-time pagination.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\"\x12 /v1/triggers/{trigger_id}/events\x12\xe8\x01\n" +
+	"\rCancelTrigger\x12!.triggers.v1.CancelTriggerRequest\x1a\".triggers.v1.CancelTriggerResponse\"\x8f\x01\xbaGe\n" +
+	"\x10Triggers Service\x12\x0eCancel Trigger\x1aACancel a trigger by trigger ID and release its reserved quantity.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1b*\x19/v1/triggers/{trigger_id}\x12\xa7\x03\n" +
+	"\rModifyTrigger\x12!.triggers.v1.ModifyTriggerRequest\x1a\".triggers.v1.ModifyTriggerResponse\"\xce\x02\xbaG\xa0\x02\n" +
+	"\x10Triggers Service\x12\x0eModify Trigger\x1a\xfb\x01Modify a trigger by trigger ID using a limited patch for trigger pricing and trailing/slippage parameters. Supported for stop-loss, take-profit and trailing-stop triggers; ladder and TWAP triggers support only cancel and answer TRIGGER_NOT_MODIFIABLE.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1e:\x01*\x1a\x19/v1/triggers/{trigger_id}\x12\xf1\x02\n" +
+	"\fPauseTrigger\x12 .triggers.v1.PauseTriggerRequest\x1a!.triggers.v1.PauseTriggerResponse\"\x9b\x02\xbaG\xe7\x01\n" +
+	"\x10Triggers Service\x12\rPause Trigger\x1a\xc3\x01Pause a trigger by trigger ID without deleting it. Supported for stop-loss, take-profit and trailing-stop triggers; ladder and TWAP triggers support only cancel and answer TRIGGER_NOT_MODIFIABLE.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02$:\x01*\"\x1f/v1/triggers/{trigger_id}/pause\x12\xea\x02\n" +
+	"\rResumeTrigger\x12!.triggers.v1.ResumeTriggerRequest\x1a\".triggers.v1.ResumeTriggerResponse\"\x91\x02\xbaG\xdc\x01\n" +
+	"\x10Triggers Service\x12\x0eResume Trigger\x1a\xb7\x01Resume a paused trigger by trigger ID. Supported for stop-loss, take-profit and trailing-stop triggers; ladder and TWAP triggers support only cancel and answer TRIGGER_NOT_MODIFIABLE.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02%:\x01*\" /v1/triggers/{trigger_id}/resumeB\xa9\x01\xbaGb:`\n" +
 	"\x10Triggers Service\x12LPublic surface for managing standalone triggers (Stop orders, TWAP, Ladder).ZBgithub.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1;triggersv1b\x06proto3"
 
 var (

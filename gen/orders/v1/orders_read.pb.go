@@ -9,6 +9,7 @@ package ordersv1
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	v11 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/v1"
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
 	v1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -94,6 +95,130 @@ func (OrderStatus) EnumDescriptor() ([]byte, []int) {
 	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{0}
 }
 
+// CancelReason is why a CANCELED order ended. A cancel is no error: a
+// refused order is REJECTED and names its refusal with an ErrorCode instead.
+// Fills before the cancel stand, and the order's remaining reserved funds are
+// released.
+type CancelReason int32
+
+const (
+	// The order is not canceled.
+	CancelReason_CANCEL_REASON_UNSPECIFIED CancelReason = 0
+	// A cancel the account sent: a cancel, a batch cancel or a cancel-all.
+	CancelReason_CANCEL_REASON_USER_REQUEST CancelReason = 1
+	// The unfilled remainder of an immediate-or-cancel order.
+	CancelReason_CANCEL_REASON_IOC_REMAINDER CancelReason = 2
+	// The unfilled remainder of a market order: the book ran out, or the next
+	// price was past the order's protection price.
+	CancelReason_CANCEL_REASON_MARKET_REMAINDER CancelReason = 3
+	// Self-trade prevention canceled this resting order when an order of the
+	// same account would have matched it.
+	CancelReason_CANCEL_REASON_STP_EXPIRE_MAKER CancelReason = 4
+	// Self-trade prevention canceled this incoming order instead of matching a
+	// resting order of the same account.
+	CancelReason_CANCEL_REASON_STP_EXPIRE_TAKER CancelReason = 5
+	// Self-trade prevention canceled both this order and the order of the same
+	// account it would have matched.
+	CancelReason_CANCEL_REASON_STP_EXPIRE_BOTH CancelReason = 6
+	// A replace ended this order and created its successor.
+	CancelReason_CANCEL_REASON_REPLACED CancelReason = 7
+	// A good-till-date order reached its expiry time.
+	CancelReason_CANCEL_REASON_GTD_EXPIRED CancelReason = 8
+	// An amend or replace set the order's total quantity at or below its filled
+	// quantity, so the order ended at its filled quantity.
+	CancelReason_CANCEL_REASON_QTY_AT_OR_BELOW_FILLED CancelReason = 9
+	// The market was disabled: the exchange canceled its resting orders.
+	CancelReason_CANCEL_REASON_PAIR_DRAIN CancelReason = 10
+	// The market refused one of the order's attached take-profit, stop-loss or
+	// trailing-stop legs, so the order's remainder and its other legs were
+	// canceled.
+	CancelReason_CANCEL_REASON_ATTACHED_RISK_REFUSED CancelReason = 11
+	// The account's cancel-all-after timer reached its deadline without a
+	// heartbeat.
+	CancelReason_CANCEL_REASON_CANCEL_ALL_AFTER CancelReason = 12
+	// Canceled by the exchange while it recovered the account. Place new orders
+	// once the account trades again.
+	CancelReason_CANCEL_REASON_ACCOUNT_REPAIR CancelReason = 13
+	// A TWAP slice its TWAP canceled at the next slice's due time; its unfilled
+	// remainder moves to the TWAP's later slices.
+	CancelReason_CANCEL_REASON_TWAP_ROLLOVER CancelReason = 14
+	// An order a trigger placed, such as a TWAP slice, a ladder level, a stop's
+	// child or an attached leg's exit, canceled because its trigger ended or
+	// another leg took over the exit.
+	CancelReason_CANCEL_REASON_STRATEGY_CANCEL CancelReason = 15
+	// The exchange canceled the order for a reason it does not name.
+	CancelReason_CANCEL_REASON_SYSTEM CancelReason = 16
+)
+
+// Enum value maps for CancelReason.
+var (
+	CancelReason_name = map[int32]string{
+		0:  "CANCEL_REASON_UNSPECIFIED",
+		1:  "CANCEL_REASON_USER_REQUEST",
+		2:  "CANCEL_REASON_IOC_REMAINDER",
+		3:  "CANCEL_REASON_MARKET_REMAINDER",
+		4:  "CANCEL_REASON_STP_EXPIRE_MAKER",
+		5:  "CANCEL_REASON_STP_EXPIRE_TAKER",
+		6:  "CANCEL_REASON_STP_EXPIRE_BOTH",
+		7:  "CANCEL_REASON_REPLACED",
+		8:  "CANCEL_REASON_GTD_EXPIRED",
+		9:  "CANCEL_REASON_QTY_AT_OR_BELOW_FILLED",
+		10: "CANCEL_REASON_PAIR_DRAIN",
+		11: "CANCEL_REASON_ATTACHED_RISK_REFUSED",
+		12: "CANCEL_REASON_CANCEL_ALL_AFTER",
+		13: "CANCEL_REASON_ACCOUNT_REPAIR",
+		14: "CANCEL_REASON_TWAP_ROLLOVER",
+		15: "CANCEL_REASON_STRATEGY_CANCEL",
+		16: "CANCEL_REASON_SYSTEM",
+	}
+	CancelReason_value = map[string]int32{
+		"CANCEL_REASON_UNSPECIFIED":            0,
+		"CANCEL_REASON_USER_REQUEST":           1,
+		"CANCEL_REASON_IOC_REMAINDER":          2,
+		"CANCEL_REASON_MARKET_REMAINDER":       3,
+		"CANCEL_REASON_STP_EXPIRE_MAKER":       4,
+		"CANCEL_REASON_STP_EXPIRE_TAKER":       5,
+		"CANCEL_REASON_STP_EXPIRE_BOTH":        6,
+		"CANCEL_REASON_REPLACED":               7,
+		"CANCEL_REASON_GTD_EXPIRED":            8,
+		"CANCEL_REASON_QTY_AT_OR_BELOW_FILLED": 9,
+		"CANCEL_REASON_PAIR_DRAIN":             10,
+		"CANCEL_REASON_ATTACHED_RISK_REFUSED":  11,
+		"CANCEL_REASON_CANCEL_ALL_AFTER":       12,
+		"CANCEL_REASON_ACCOUNT_REPAIR":         13,
+		"CANCEL_REASON_TWAP_ROLLOVER":          14,
+		"CANCEL_REASON_STRATEGY_CANCEL":        15,
+		"CANCEL_REASON_SYSTEM":                 16,
+	}
+)
+
+func (x CancelReason) Enum() *CancelReason {
+	p := new(CancelReason)
+	*p = x
+	return p
+}
+
+func (x CancelReason) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (CancelReason) Descriptor() protoreflect.EnumDescriptor {
+	return file_orders_v1_orders_read_proto_enumTypes[1].Descriptor()
+}
+
+func (CancelReason) Type() protoreflect.EnumType {
+	return &file_orders_v1_orders_read_proto_enumTypes[1]
+}
+
+func (x CancelReason) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use CancelReason.Descriptor instead.
+func (CancelReason) EnumDescriptor() ([]byte, []int) {
+	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{1}
+}
+
 // BatchReplacePhase is the recoverable execution phase for one replacement.
 type BatchReplacePhase int32
 
@@ -139,11 +264,11 @@ func (x BatchReplacePhase) String() string {
 }
 
 func (BatchReplacePhase) Descriptor() protoreflect.EnumDescriptor {
-	return file_orders_v1_orders_read_proto_enumTypes[1].Descriptor()
+	return file_orders_v1_orders_read_proto_enumTypes[2].Descriptor()
 }
 
 func (BatchReplacePhase) Type() protoreflect.EnumType {
-	return &file_orders_v1_orders_read_proto_enumTypes[1]
+	return &file_orders_v1_orders_read_proto_enumTypes[2]
 }
 
 func (x BatchReplacePhase) Number() protoreflect.EnumNumber {
@@ -152,7 +277,7 @@ func (x BatchReplacePhase) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use BatchReplacePhase.Descriptor instead.
 func (BatchReplacePhase) EnumDescriptor() ([]byte, []int) {
-	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{1}
+	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{2}
 }
 
 // OrderOriginScope captures broad origin classes for an order.
@@ -200,11 +325,11 @@ func (x OrderOriginScope) String() string {
 }
 
 func (OrderOriginScope) Descriptor() protoreflect.EnumDescriptor {
-	return file_orders_v1_orders_read_proto_enumTypes[2].Descriptor()
+	return file_orders_v1_orders_read_proto_enumTypes[3].Descriptor()
 }
 
 func (OrderOriginScope) Type() protoreflect.EnumType {
-	return &file_orders_v1_orders_read_proto_enumTypes[2]
+	return &file_orders_v1_orders_read_proto_enumTypes[3]
 }
 
 func (x OrderOriginScope) Number() protoreflect.EnumNumber {
@@ -213,7 +338,7 @@ func (x OrderOriginScope) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use OrderOriginScope.Descriptor instead.
 func (OrderOriginScope) EnumDescriptor() ([]byte, []int) {
-	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{2}
+	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{3}
 }
 
 // OrderTriggerType captures the trigger strategy that generated the order.
@@ -265,11 +390,11 @@ func (x OrderTriggerType) String() string {
 }
 
 func (OrderTriggerType) Descriptor() protoreflect.EnumDescriptor {
-	return file_orders_v1_orders_read_proto_enumTypes[3].Descriptor()
+	return file_orders_v1_orders_read_proto_enumTypes[4].Descriptor()
 }
 
 func (OrderTriggerType) Type() protoreflect.EnumType {
-	return &file_orders_v1_orders_read_proto_enumTypes[3]
+	return &file_orders_v1_orders_read_proto_enumTypes[4]
 }
 
 func (x OrderTriggerType) Number() protoreflect.EnumNumber {
@@ -278,7 +403,7 @@ func (x OrderTriggerType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use OrderTriggerType.Descriptor instead.
 func (OrderTriggerType) EnumDescriptor() ([]byte, []int) {
-	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{3}
+	return file_orders_v1_orders_read_proto_rawDescGZIP(), []int{4}
 }
 
 // Runtime lifecycle for an attached-risk trigger leg.
@@ -342,11 +467,11 @@ func (x AttachedRiskLegState_Status) String() string {
 }
 
 func (AttachedRiskLegState_Status) Descriptor() protoreflect.EnumDescriptor {
-	return file_orders_v1_orders_read_proto_enumTypes[4].Descriptor()
+	return file_orders_v1_orders_read_proto_enumTypes[5].Descriptor()
 }
 
 func (AttachedRiskLegState_Status) Type() protoreflect.EnumType {
-	return &file_orders_v1_orders_read_proto_enumTypes[4]
+	return &file_orders_v1_orders_read_proto_enumTypes[5]
 }
 
 func (x AttachedRiskLegState_Status) Number() protoreflect.EnumNumber {
@@ -874,11 +999,13 @@ type Order struct {
 	CreatedTsNs uint64 `protobuf:"varint,16,opt,name=created_ts_ns,json=createdTsNs,proto3" json:"created_ts_ns,omitempty"`
 	// Terminal timestamp in nanoseconds since epoch (UTC). Zero for open orders.
 	TerminalTsNs uint64 `protobuf:"varint,17,opt,name=terminal_ts_ns,json=terminalTsNs,proto3" json:"terminal_ts_ns,omitempty"`
-	// Terminal reason code for canceled/rejected orders. Zero for non-terminal orders.
-	TerminalReasonCode uint32 `protobuf:"varint,18,opt,name=terminal_reason_code,json=terminalReasonCode,proto3" json:"terminal_reason_code,omitempty"`
-	// Stable string for terminal_reason_code (e.g. "POST_ONLY_CROSS", "USER_REQUEST").
-	// Empty for non-terminal orders.
-	TerminalReason string `protobuf:"bytes,19,opt,name=terminal_reason,json=terminalReason,proto3" json:"terminal_reason,omitempty"`
+	// For a REJECTED order, why it was refused: the same error code the Orders
+	// API returns for the same refusal. Not set for every other status; JSON and
+	// REST responses then omit it.
+	RejectReason ErrorCode `protobuf:"varint,34,opt,name=reject_reason,json=rejectReason,proto3,enum=orders.v1.ErrorCode" json:"reject_reason,omitempty"`
+	// For a CANCELED order, why it ended. Not set for every other status; JSON
+	// and REST responses then omit it.
+	CancelReason CancelReason `protobuf:"varint,35,opt,name=cancel_reason,json=cancelReason,proto3,enum=orders.v1.CancelReason" json:"cancel_reason,omitempty"`
 	// Attached risk controls + runtime state on the parent order.
 	// Empty when no attached risk exists. Order reads include it only when the
 	// request asks for it (include_attached_risk, include_attached_risk_state):
@@ -1074,18 +1201,18 @@ func (x *Order) GetTerminalTsNs() uint64 {
 	return 0
 }
 
-func (x *Order) GetTerminalReasonCode() uint32 {
+func (x *Order) GetRejectReason() ErrorCode {
 	if x != nil {
-		return x.TerminalReasonCode
+		return x.RejectReason
 	}
-	return 0
+	return ErrorCode_ERROR_CODE_UNSPECIFIED
 }
 
-func (x *Order) GetTerminalReason() string {
+func (x *Order) GetCancelReason() CancelReason {
 	if x != nil {
-		return x.TerminalReason
+		return x.CancelReason
 	}
-	return ""
+	return CancelReason_CANCEL_REASON_UNSPECIFIED
 }
 
 func (x *Order) GetAttachedRisk() *AttachedRisk {
@@ -2606,7 +2733,7 @@ var File_orders_v1_orders_read_proto protoreflect.FileDescriptor
 
 const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\n" +
-	"\x1borders/v1/orders_read.proto\x12\torders.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17ledger/v1/catalog.proto\x1a\x16orders/v1/orders.proto\x1a\x1cpolyester/type/v1/u128.proto\"\xa5\x02\n" +
+	"\x1borders/v1/orders_read.proto\x12\torders.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17ledger/v1/catalog.proto\x1a\x16orders/v1/orders.proto\x1a\x1bpolyester/api/options.proto\x1a\x1cpolyester/type/v1/u128.proto\"\xa5\x02\n" +
 	"\vOrderOrigin\x12;\n" +
 	"\x05scope\x18\x01 \x01(\x0e2\x1b.orders.v1.OrderOriginScopeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x05scope\x12H\n" +
 	"\ftrigger_type\x18\x02 \x01(\x0e2\x1b.orders.v1.OrderTriggerTypeB\b\xbaH\x05\x82\x01\x02\x10\x01R\vtriggerType\x12\"\n" +
@@ -2656,7 +2783,7 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x02id\x12'\n" +
 	"\n" +
 	"generation\x18\x02 \x01(\rB\a\xbaH\x04*\x02 \x00R\n" +
-	"generation\"\x9d\f\n" +
+	"generation\"\xee\f\n" +
 	"\x05Order\x12\x19\n" +
 	"\border_id\x18\x01 \x01(\x06R\aorderId\x12\x1b\n" +
 	"\tsymbol_id\x18\x03 \x01(\rR\bsymbolId\x12D\n" +
@@ -2678,9 +2805,9 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\vprice_ticks\x18\x0f \x01(\x03R\n" +
 	"priceTicks\x12\"\n" +
 	"\rcreated_ts_ns\x18\x10 \x01(\x04R\vcreatedTsNs\x12$\n" +
-	"\x0eterminal_ts_ns\x18\x11 \x01(\x04R\fterminalTsNs\x120\n" +
-	"\x14terminal_reason_code\x18\x12 \x01(\rR\x12terminalReasonCode\x12'\n" +
-	"\x0fterminal_reason\x18\x13 \x01(\tR\x0eterminalReason\x12<\n" +
+	"\x0eterminal_ts_ns\x18\x11 \x01(\x04R\fterminalTsNs\x129\n" +
+	"\rreject_reason\x18\" \x01(\x0e2\x14.orders.v1.ErrorCodeR\frejectReason\x12<\n" +
+	"\rcancel_reason\x18# \x01(\x0e2\x17.orders.v1.CancelReasonR\fcancelReason\x12<\n" +
 	"\rattached_risk\x18\x15 \x01(\v2\x17.orders.v1.AttachedRiskR\fattachedRisk\x12.\n" +
 	"\x06origin\x18\x16 \x01(\v2\x16.orders.v1.OrderOriginR\x06origin\x12@\n" +
 	"\x1dmarket_client_ref_price_ticks\x18\x17 \x01(\x03R\x19marketClientRefPriceTicks\x129\n" +
@@ -2692,7 +2819,7 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	" submitted_max_quote_debit_scaled\x18\x1c \x01(\x03H\x00R\x1csubmittedMaxQuoteDebitScaled\x88\x01\x01\x121\n" +
 	"\alineage\x18\x1f \x01(\v2\x17.orders.v1.OrderLineageR\alineage\x127\n" +
 	"\texpire_at\x18  \x01(\v2\x1a.google.protobuf.TimestampR\bexpireAtB#\n" +
-	"!_submitted_max_quote_debit_scaledJ\x04\b\x1d\x10\x1eJ\x04\b\x1e\x10\x1fR\n" +
+	"!_submitted_max_quote_debit_scaledJ\x04\b\x12\x10\x13J\x04\b\x13\x10\x14J\x04\b\x1d\x10\x1eJ\x04\b\x1e\x10\x1fR\x14terminal_reason_codeR\x0fterminal_reasonR\n" +
 	"lineage_idR\n" +
 	"generation\"\xbd\x04\n" +
 	"\tUserTrade\x12\x1b\n" +
@@ -2868,7 +2995,26 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\n" +
 	"\x06FILLED\x10\x04\x12\f\n" +
 	"\bCANCELED\x10\x05\x12\f\n" +
-	"\bREJECTED\x10\x06*\xbf\x01\n" +
+	"\bREJECTED\x10\x06*\xcd\x04\n" +
+	"\fCancelReason\x12\x1d\n" +
+	"\x19CANCEL_REASON_UNSPECIFIED\x10\x00\x12\x1e\n" +
+	"\x1aCANCEL_REASON_USER_REQUEST\x10\x01\x12\x1f\n" +
+	"\x1bCANCEL_REASON_IOC_REMAINDER\x10\x02\x12\"\n" +
+	"\x1eCANCEL_REASON_MARKET_REMAINDER\x10\x03\x12\"\n" +
+	"\x1eCANCEL_REASON_STP_EXPIRE_MAKER\x10\x04\x12\"\n" +
+	"\x1eCANCEL_REASON_STP_EXPIRE_TAKER\x10\x05\x12!\n" +
+	"\x1dCANCEL_REASON_STP_EXPIRE_BOTH\x10\x06\x12\x1a\n" +
+	"\x16CANCEL_REASON_REPLACED\x10\a\x12\x1d\n" +
+	"\x19CANCEL_REASON_GTD_EXPIRED\x10\b\x12(\n" +
+	"$CANCEL_REASON_QTY_AT_OR_BELOW_FILLED\x10\t\x12\x1c\n" +
+	"\x18CANCEL_REASON_PAIR_DRAIN\x10\n" +
+	"\x12'\n" +
+	"#CANCEL_REASON_ATTACHED_RISK_REFUSED\x10\v\x12\"\n" +
+	"\x1eCANCEL_REASON_CANCEL_ALL_AFTER\x10\f\x12 \n" +
+	"\x1cCANCEL_REASON_ACCOUNT_REPAIR\x10\r\x12\x1f\n" +
+	"\x1bCANCEL_REASON_TWAP_ROLLOVER\x10\x0e\x12!\n" +
+	"\x1dCANCEL_REASON_STRATEGY_CANCEL\x10\x0f\x12\x18\n" +
+	"\x14CANCEL_REASON_SYSTEM\x10\x10*\xbf\x01\n" +
 	"\x11BatchReplacePhase\x12#\n" +
 	"\x1fBATCH_REPLACE_PHASE_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cBATCH_REPLACE_PHASE_ADMITTED\x10\x01\x12\x1f\n" +
@@ -2890,12 +3036,12 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\rTRAILING_STOP\x10\x03\x12\b\n" +
 	"\x04TWAP\x10\x04\x12\n" +
 	"\n" +
-	"\x06LADDER\x10\x052\xd0\x03\n" +
-	"\x11OrdersReadService\x12T\n" +
-	"\rGetOpenOrders\x12\x1f.orders.v1.GetOpenOrdersRequest\x1a .orders.v1.GetOpenOrdersResponse\"\x00\x12Z\n" +
-	"\x0fGetOrderHistory\x12!.orders.v1.GetOrderHistoryRequest\x1a\".orders.v1.GetOrderHistoryResponse\"\x00\x12T\n" +
-	"\rGetUserTrades\x12\x1f.orders.v1.GetUserTradesRequest\x1a .orders.v1.GetUserTradesResponse\"\x00\x12E\n" +
-	"\bGetOrder\x12\x1a.orders.v1.GetOrderRequest\x1a\x1b.orders.v1.GetOrderResponse\"\x00\x12l\n" +
+	"\x06LADDER\x10\x052\xe8\x03\n" +
+	"\x11OrdersReadService\x12Z\n" +
+	"\rGetOpenOrders\x12\x1f.orders.v1.GetOpenOrdersRequest\x1a .orders.v1.GetOpenOrdersResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x12`\n" +
+	"\x0fGetOrderHistory\x12!.orders.v1.GetOrderHistoryRequest\x1a\".orders.v1.GetOrderHistoryResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x12Z\n" +
+	"\rGetUserTrades\x12\x1f.orders.v1.GetUserTradesRequest\x1a .orders.v1.GetUserTradesResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x12K\n" +
+	"\bGetOrder\x12\x1a.orders.v1.GetOrderRequest\x1a\x1b.orders.v1.GetOrderResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x12l\n" +
 	"\x15GetBatchReplaceStatus\x12'.orders.v1.GetBatchReplaceStatusRequest\x1a(.orders.v1.GetBatchReplaceStatusResponse\"\x00B@Z>github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1;ordersv1b\x06proto3"
 
 var (
@@ -2910,114 +3056,118 @@ func file_orders_v1_orders_read_proto_rawDescGZIP() []byte {
 	return file_orders_v1_orders_read_proto_rawDescData
 }
 
-var file_orders_v1_orders_read_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
+var file_orders_v1_orders_read_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
 var file_orders_v1_orders_read_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_orders_v1_orders_read_proto_goTypes = []any{
 	(OrderStatus)(0),                      // 0: orders.v1.OrderStatus
-	(BatchReplacePhase)(0),                // 1: orders.v1.BatchReplacePhase
-	(OrderOriginScope)(0),                 // 2: orders.v1.OrderOriginScope
-	(OrderTriggerType)(0),                 // 3: orders.v1.OrderTriggerType
-	(AttachedRiskLegState_Status)(0),      // 4: orders.v1.AttachedRiskLegState.Status
-	(*OrderOrigin)(nil),                   // 5: orders.v1.OrderOrigin
-	(*AttachedRiskLegState)(nil),          // 6: orders.v1.AttachedRiskLegState
-	(*AttachedRiskTakeProfit)(nil),        // 7: orders.v1.AttachedRiskTakeProfit
-	(*AttachedRiskStopLoss)(nil),          // 8: orders.v1.AttachedRiskStopLoss
-	(*AttachedRiskTrailingStop)(nil),      // 9: orders.v1.AttachedRiskTrailingStop
-	(*AttachedRisk)(nil),                  // 10: orders.v1.AttachedRisk
-	(*OrderLineage)(nil),                  // 11: orders.v1.OrderLineage
-	(*Order)(nil),                         // 12: orders.v1.Order
-	(*UserTrade)(nil),                     // 13: orders.v1.UserTrade
-	(*UserTradeBatch)(nil),                // 14: orders.v1.UserTradeBatch
-	(*OrderTransfer)(nil),                 // 15: orders.v1.OrderTransfer
-	(*GetOpenOrdersRequest)(nil),          // 16: orders.v1.GetOpenOrdersRequest
-	(*GetOpenOrdersResponse)(nil),         // 17: orders.v1.GetOpenOrdersResponse
-	(*GetOrderHistoryRequest)(nil),        // 18: orders.v1.GetOrderHistoryRequest
-	(*GetOrderHistoryResponse)(nil),       // 19: orders.v1.GetOrderHistoryResponse
-	(*GetUserTradesRequest)(nil),          // 20: orders.v1.GetUserTradesRequest
-	(*GetUserTradesResponse)(nil),         // 21: orders.v1.GetUserTradesResponse
-	(*GetOrderRequest)(nil),               // 22: orders.v1.GetOrderRequest
-	(*GetOrderResponse)(nil),              // 23: orders.v1.GetOrderResponse
-	(*GetBatchReplaceStatusRequest)(nil),  // 24: orders.v1.GetBatchReplaceStatusRequest
-	(*BatchReplaceStatusItem)(nil),        // 25: orders.v1.BatchReplaceStatusItem
-	(*GetBatchReplaceStatusResponse)(nil), // 26: orders.v1.GetBatchReplaceStatusResponse
-	(*TakeProfitPolicy)(nil),              // 27: orders.v1.TakeProfitPolicy
-	(*StopLossPolicy)(nil),                // 28: orders.v1.StopLossPolicy
-	(*TrailingStopPolicy)(nil),            // 29: orders.v1.TrailingStopPolicy
-	(Side)(0),                             // 30: orders.v1.Side
-	(OrderType)(0),                        // 31: orders.v1.OrderType
-	(TimeInForce)(0),                      // 32: orders.v1.TimeInForce
-	(SelfTradePreventionMode)(0),          // 33: orders.v1.SelfTradePreventionMode
-	(FeeAsset)(0),                         // 34: orders.v1.FeeAsset
-	(*timestamppb.Timestamp)(nil),         // 35: google.protobuf.Timestamp
-	(*v1.U128)(nil),                       // 36: polyester.type.v1.U128
-	(v11.TransferCode)(0),                 // 37: ledger.v1.TransferCode
-	(v11.AccountCode)(0),                  // 38: ledger.v1.AccountCode
-	(ModifyActionTaken)(0),                // 39: orders.v1.ModifyActionTaken
-	(BatchReplaceAdmissionStatus)(0),      // 40: orders.v1.BatchReplaceAdmissionStatus
+	(CancelReason)(0),                     // 1: orders.v1.CancelReason
+	(BatchReplacePhase)(0),                // 2: orders.v1.BatchReplacePhase
+	(OrderOriginScope)(0),                 // 3: orders.v1.OrderOriginScope
+	(OrderTriggerType)(0),                 // 4: orders.v1.OrderTriggerType
+	(AttachedRiskLegState_Status)(0),      // 5: orders.v1.AttachedRiskLegState.Status
+	(*OrderOrigin)(nil),                   // 6: orders.v1.OrderOrigin
+	(*AttachedRiskLegState)(nil),          // 7: orders.v1.AttachedRiskLegState
+	(*AttachedRiskTakeProfit)(nil),        // 8: orders.v1.AttachedRiskTakeProfit
+	(*AttachedRiskStopLoss)(nil),          // 9: orders.v1.AttachedRiskStopLoss
+	(*AttachedRiskTrailingStop)(nil),      // 10: orders.v1.AttachedRiskTrailingStop
+	(*AttachedRisk)(nil),                  // 11: orders.v1.AttachedRisk
+	(*OrderLineage)(nil),                  // 12: orders.v1.OrderLineage
+	(*Order)(nil),                         // 13: orders.v1.Order
+	(*UserTrade)(nil),                     // 14: orders.v1.UserTrade
+	(*UserTradeBatch)(nil),                // 15: orders.v1.UserTradeBatch
+	(*OrderTransfer)(nil),                 // 16: orders.v1.OrderTransfer
+	(*GetOpenOrdersRequest)(nil),          // 17: orders.v1.GetOpenOrdersRequest
+	(*GetOpenOrdersResponse)(nil),         // 18: orders.v1.GetOpenOrdersResponse
+	(*GetOrderHistoryRequest)(nil),        // 19: orders.v1.GetOrderHistoryRequest
+	(*GetOrderHistoryResponse)(nil),       // 20: orders.v1.GetOrderHistoryResponse
+	(*GetUserTradesRequest)(nil),          // 21: orders.v1.GetUserTradesRequest
+	(*GetUserTradesResponse)(nil),         // 22: orders.v1.GetUserTradesResponse
+	(*GetOrderRequest)(nil),               // 23: orders.v1.GetOrderRequest
+	(*GetOrderResponse)(nil),              // 24: orders.v1.GetOrderResponse
+	(*GetBatchReplaceStatusRequest)(nil),  // 25: orders.v1.GetBatchReplaceStatusRequest
+	(*BatchReplaceStatusItem)(nil),        // 26: orders.v1.BatchReplaceStatusItem
+	(*GetBatchReplaceStatusResponse)(nil), // 27: orders.v1.GetBatchReplaceStatusResponse
+	(*TakeProfitPolicy)(nil),              // 28: orders.v1.TakeProfitPolicy
+	(*StopLossPolicy)(nil),                // 29: orders.v1.StopLossPolicy
+	(*TrailingStopPolicy)(nil),            // 30: orders.v1.TrailingStopPolicy
+	(Side)(0),                             // 31: orders.v1.Side
+	(OrderType)(0),                        // 32: orders.v1.OrderType
+	(TimeInForce)(0),                      // 33: orders.v1.TimeInForce
+	(SelfTradePreventionMode)(0),          // 34: orders.v1.SelfTradePreventionMode
+	(FeeAsset)(0),                         // 35: orders.v1.FeeAsset
+	(ErrorCode)(0),                        // 36: orders.v1.ErrorCode
+	(*timestamppb.Timestamp)(nil),         // 37: google.protobuf.Timestamp
+	(*v1.U128)(nil),                       // 38: polyester.type.v1.U128
+	(v11.TransferCode)(0),                 // 39: ledger.v1.TransferCode
+	(v11.AccountCode)(0),                  // 40: ledger.v1.AccountCode
+	(ModifyActionTaken)(0),                // 41: orders.v1.ModifyActionTaken
+	(BatchReplaceAdmissionStatus)(0),      // 42: orders.v1.BatchReplaceAdmissionStatus
 }
 var file_orders_v1_orders_read_proto_depIdxs = []int32{
-	2,  // 0: orders.v1.OrderOrigin.scope:type_name -> orders.v1.OrderOriginScope
-	3,  // 1: orders.v1.OrderOrigin.trigger_type:type_name -> orders.v1.OrderTriggerType
-	4,  // 2: orders.v1.AttachedRiskLegState.status:type_name -> orders.v1.AttachedRiskLegState.Status
-	27, // 3: orders.v1.AttachedRiskTakeProfit.policy:type_name -> orders.v1.TakeProfitPolicy
-	6,  // 4: orders.v1.AttachedRiskTakeProfit.state:type_name -> orders.v1.AttachedRiskLegState
-	28, // 5: orders.v1.AttachedRiskStopLoss.policy:type_name -> orders.v1.StopLossPolicy
-	6,  // 6: orders.v1.AttachedRiskStopLoss.state:type_name -> orders.v1.AttachedRiskLegState
-	29, // 7: orders.v1.AttachedRiskTrailingStop.policy:type_name -> orders.v1.TrailingStopPolicy
-	6,  // 8: orders.v1.AttachedRiskTrailingStop.state:type_name -> orders.v1.AttachedRiskLegState
-	7,  // 9: orders.v1.AttachedRisk.take_profit:type_name -> orders.v1.AttachedRiskTakeProfit
-	8,  // 10: orders.v1.AttachedRisk.stop_loss:type_name -> orders.v1.AttachedRiskStopLoss
-	9,  // 11: orders.v1.AttachedRisk.trailing_stop:type_name -> orders.v1.AttachedRiskTrailingStop
-	30, // 12: orders.v1.Order.side:type_name -> orders.v1.Side
+	3,  // 0: orders.v1.OrderOrigin.scope:type_name -> orders.v1.OrderOriginScope
+	4,  // 1: orders.v1.OrderOrigin.trigger_type:type_name -> orders.v1.OrderTriggerType
+	5,  // 2: orders.v1.AttachedRiskLegState.status:type_name -> orders.v1.AttachedRiskLegState.Status
+	28, // 3: orders.v1.AttachedRiskTakeProfit.policy:type_name -> orders.v1.TakeProfitPolicy
+	7,  // 4: orders.v1.AttachedRiskTakeProfit.state:type_name -> orders.v1.AttachedRiskLegState
+	29, // 5: orders.v1.AttachedRiskStopLoss.policy:type_name -> orders.v1.StopLossPolicy
+	7,  // 6: orders.v1.AttachedRiskStopLoss.state:type_name -> orders.v1.AttachedRiskLegState
+	30, // 7: orders.v1.AttachedRiskTrailingStop.policy:type_name -> orders.v1.TrailingStopPolicy
+	7,  // 8: orders.v1.AttachedRiskTrailingStop.state:type_name -> orders.v1.AttachedRiskLegState
+	8,  // 9: orders.v1.AttachedRisk.take_profit:type_name -> orders.v1.AttachedRiskTakeProfit
+	9,  // 10: orders.v1.AttachedRisk.stop_loss:type_name -> orders.v1.AttachedRiskStopLoss
+	10, // 11: orders.v1.AttachedRisk.trailing_stop:type_name -> orders.v1.AttachedRiskTrailingStop
+	31, // 12: orders.v1.Order.side:type_name -> orders.v1.Side
 	0,  // 13: orders.v1.Order.status:type_name -> orders.v1.OrderStatus
-	31, // 14: orders.v1.Order.order_type:type_name -> orders.v1.OrderType
-	32, // 15: orders.v1.Order.time_in_force:type_name -> orders.v1.TimeInForce
-	33, // 16: orders.v1.Order.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
-	34, // 17: orders.v1.Order.fee_asset:type_name -> orders.v1.FeeAsset
-	10, // 18: orders.v1.Order.attached_risk:type_name -> orders.v1.AttachedRisk
-	5,  // 19: orders.v1.Order.origin:type_name -> orders.v1.OrderOrigin
-	11, // 20: orders.v1.Order.lineage:type_name -> orders.v1.OrderLineage
-	35, // 21: orders.v1.Order.expire_at:type_name -> google.protobuf.Timestamp
-	30, // 22: orders.v1.UserTrade.side:type_name -> orders.v1.Side
-	36, // 23: orders.v1.UserTrade.fee_amount_e18:type_name -> polyester.type.v1.U128
-	34, // 24: orders.v1.UserTrade.fee_asset:type_name -> orders.v1.FeeAsset
-	36, // 25: orders.v1.UserTrade.referral_share_amount_e18:type_name -> polyester.type.v1.U128
-	11, // 26: orders.v1.UserTrade.lineage:type_name -> orders.v1.OrderLineage
-	13, // 27: orders.v1.UserTradeBatch.events:type_name -> orders.v1.UserTrade
-	36, // 28: orders.v1.OrderTransfer.amount_e18:type_name -> polyester.type.v1.U128
-	37, // 29: orders.v1.OrderTransfer.transfer_code:type_name -> ledger.v1.TransferCode
-	38, // 30: orders.v1.OrderTransfer.account_code:type_name -> ledger.v1.AccountCode
-	30, // 31: orders.v1.GetOpenOrdersRequest.side:type_name -> orders.v1.Side
-	12, // 32: orders.v1.GetOpenOrdersResponse.orders:type_name -> orders.v1.Order
-	30, // 33: orders.v1.GetOrderHistoryRequest.side:type_name -> orders.v1.Side
-	0,  // 34: orders.v1.GetOrderHistoryRequest.status:type_name -> orders.v1.OrderStatus
-	12, // 35: orders.v1.GetOrderHistoryResponse.orders:type_name -> orders.v1.Order
-	30, // 36: orders.v1.GetUserTradesRequest.side:type_name -> orders.v1.Side
-	13, // 37: orders.v1.GetUserTradesResponse.trades:type_name -> orders.v1.UserTrade
-	15, // 38: orders.v1.GetUserTradesResponse.transfers:type_name -> orders.v1.OrderTransfer
-	12, // 39: orders.v1.GetOrderResponse.order:type_name -> orders.v1.Order
-	13, // 40: orders.v1.GetOrderResponse.trades:type_name -> orders.v1.UserTrade
-	15, // 41: orders.v1.GetOrderResponse.transfers:type_name -> orders.v1.OrderTransfer
-	1,  // 42: orders.v1.BatchReplaceStatusItem.phase:type_name -> orders.v1.BatchReplacePhase
-	0,  // 43: orders.v1.BatchReplaceStatusItem.order_status:type_name -> orders.v1.OrderStatus
-	39, // 44: orders.v1.BatchReplaceStatusItem.action_taken:type_name -> orders.v1.ModifyActionTaken
-	40, // 45: orders.v1.GetBatchReplaceStatusResponse.admission_status:type_name -> orders.v1.BatchReplaceAdmissionStatus
-	25, // 46: orders.v1.GetBatchReplaceStatusResponse.items:type_name -> orders.v1.BatchReplaceStatusItem
-	16, // 47: orders.v1.OrdersReadService.GetOpenOrders:input_type -> orders.v1.GetOpenOrdersRequest
-	18, // 48: orders.v1.OrdersReadService.GetOrderHistory:input_type -> orders.v1.GetOrderHistoryRequest
-	20, // 49: orders.v1.OrdersReadService.GetUserTrades:input_type -> orders.v1.GetUserTradesRequest
-	22, // 50: orders.v1.OrdersReadService.GetOrder:input_type -> orders.v1.GetOrderRequest
-	24, // 51: orders.v1.OrdersReadService.GetBatchReplaceStatus:input_type -> orders.v1.GetBatchReplaceStatusRequest
-	17, // 52: orders.v1.OrdersReadService.GetOpenOrders:output_type -> orders.v1.GetOpenOrdersResponse
-	19, // 53: orders.v1.OrdersReadService.GetOrderHistory:output_type -> orders.v1.GetOrderHistoryResponse
-	21, // 54: orders.v1.OrdersReadService.GetUserTrades:output_type -> orders.v1.GetUserTradesResponse
-	23, // 55: orders.v1.OrdersReadService.GetOrder:output_type -> orders.v1.GetOrderResponse
-	26, // 56: orders.v1.OrdersReadService.GetBatchReplaceStatus:output_type -> orders.v1.GetBatchReplaceStatusResponse
-	52, // [52:57] is the sub-list for method output_type
-	47, // [47:52] is the sub-list for method input_type
-	47, // [47:47] is the sub-list for extension type_name
-	47, // [47:47] is the sub-list for extension extendee
-	0,  // [0:47] is the sub-list for field type_name
+	32, // 14: orders.v1.Order.order_type:type_name -> orders.v1.OrderType
+	33, // 15: orders.v1.Order.time_in_force:type_name -> orders.v1.TimeInForce
+	34, // 16: orders.v1.Order.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
+	35, // 17: orders.v1.Order.fee_asset:type_name -> orders.v1.FeeAsset
+	36, // 18: orders.v1.Order.reject_reason:type_name -> orders.v1.ErrorCode
+	1,  // 19: orders.v1.Order.cancel_reason:type_name -> orders.v1.CancelReason
+	11, // 20: orders.v1.Order.attached_risk:type_name -> orders.v1.AttachedRisk
+	6,  // 21: orders.v1.Order.origin:type_name -> orders.v1.OrderOrigin
+	12, // 22: orders.v1.Order.lineage:type_name -> orders.v1.OrderLineage
+	37, // 23: orders.v1.Order.expire_at:type_name -> google.protobuf.Timestamp
+	31, // 24: orders.v1.UserTrade.side:type_name -> orders.v1.Side
+	38, // 25: orders.v1.UserTrade.fee_amount_e18:type_name -> polyester.type.v1.U128
+	35, // 26: orders.v1.UserTrade.fee_asset:type_name -> orders.v1.FeeAsset
+	38, // 27: orders.v1.UserTrade.referral_share_amount_e18:type_name -> polyester.type.v1.U128
+	12, // 28: orders.v1.UserTrade.lineage:type_name -> orders.v1.OrderLineage
+	14, // 29: orders.v1.UserTradeBatch.events:type_name -> orders.v1.UserTrade
+	38, // 30: orders.v1.OrderTransfer.amount_e18:type_name -> polyester.type.v1.U128
+	39, // 31: orders.v1.OrderTransfer.transfer_code:type_name -> ledger.v1.TransferCode
+	40, // 32: orders.v1.OrderTransfer.account_code:type_name -> ledger.v1.AccountCode
+	31, // 33: orders.v1.GetOpenOrdersRequest.side:type_name -> orders.v1.Side
+	13, // 34: orders.v1.GetOpenOrdersResponse.orders:type_name -> orders.v1.Order
+	31, // 35: orders.v1.GetOrderHistoryRequest.side:type_name -> orders.v1.Side
+	0,  // 36: orders.v1.GetOrderHistoryRequest.status:type_name -> orders.v1.OrderStatus
+	13, // 37: orders.v1.GetOrderHistoryResponse.orders:type_name -> orders.v1.Order
+	31, // 38: orders.v1.GetUserTradesRequest.side:type_name -> orders.v1.Side
+	14, // 39: orders.v1.GetUserTradesResponse.trades:type_name -> orders.v1.UserTrade
+	16, // 40: orders.v1.GetUserTradesResponse.transfers:type_name -> orders.v1.OrderTransfer
+	13, // 41: orders.v1.GetOrderResponse.order:type_name -> orders.v1.Order
+	14, // 42: orders.v1.GetOrderResponse.trades:type_name -> orders.v1.UserTrade
+	16, // 43: orders.v1.GetOrderResponse.transfers:type_name -> orders.v1.OrderTransfer
+	2,  // 44: orders.v1.BatchReplaceStatusItem.phase:type_name -> orders.v1.BatchReplacePhase
+	0,  // 45: orders.v1.BatchReplaceStatusItem.order_status:type_name -> orders.v1.OrderStatus
+	41, // 46: orders.v1.BatchReplaceStatusItem.action_taken:type_name -> orders.v1.ModifyActionTaken
+	42, // 47: orders.v1.GetBatchReplaceStatusResponse.admission_status:type_name -> orders.v1.BatchReplaceAdmissionStatus
+	26, // 48: orders.v1.GetBatchReplaceStatusResponse.items:type_name -> orders.v1.BatchReplaceStatusItem
+	17, // 49: orders.v1.OrdersReadService.GetOpenOrders:input_type -> orders.v1.GetOpenOrdersRequest
+	19, // 50: orders.v1.OrdersReadService.GetOrderHistory:input_type -> orders.v1.GetOrderHistoryRequest
+	21, // 51: orders.v1.OrdersReadService.GetUserTrades:input_type -> orders.v1.GetUserTradesRequest
+	23, // 52: orders.v1.OrdersReadService.GetOrder:input_type -> orders.v1.GetOrderRequest
+	25, // 53: orders.v1.OrdersReadService.GetBatchReplaceStatus:input_type -> orders.v1.GetBatchReplaceStatusRequest
+	18, // 54: orders.v1.OrdersReadService.GetOpenOrders:output_type -> orders.v1.GetOpenOrdersResponse
+	20, // 55: orders.v1.OrdersReadService.GetOrderHistory:output_type -> orders.v1.GetOrderHistoryResponse
+	22, // 56: orders.v1.OrdersReadService.GetUserTrades:output_type -> orders.v1.GetUserTradesResponse
+	24, // 57: orders.v1.OrdersReadService.GetOrder:output_type -> orders.v1.GetOrderResponse
+	27, // 58: orders.v1.OrdersReadService.GetBatchReplaceStatus:output_type -> orders.v1.GetBatchReplaceStatusResponse
+	54, // [54:59] is the sub-list for method output_type
+	49, // [49:54] is the sub-list for method input_type
+	49, // [49:49] is the sub-list for extension type_name
+	49, // [49:49] is the sub-list for extension extendee
+	0,  // [0:49] is the sub-list for field type_name
 }
 
 func init() { file_orders_v1_orders_read_proto_init() }
@@ -3045,7 +3195,7 @@ func file_orders_v1_orders_read_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orders_v1_orders_read_proto_rawDesc), len(file_orders_v1_orders_read_proto_rawDesc)),
-			NumEnums:      5,
+			NumEnums:      6,
 			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
