@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+**Breaking changes**
+- `Client.Whiteboard`, `Client.Polychart` and `Client.Layout` are removed,
+  because those APIs are no longer part of the public API.
+
 ## 0.3.0
 
 Git tag: `v0.3.0`. Released 2026-10-31.

@@ -48,7 +48,6 @@ Requires a recent Go toolchain (see `go.mod`).
 | Zipper deposit-withdraw config | Yes |
 | Chain analytics | Yes |
 | Lifecycle flows | Yes |
-| Polychart / layout / whiteboard | Yes |
 | Realtime account and market streams | Yes |
 | Reference catalogs + wait-for-ready | Yes |
 | Qty / price decimal + scaled-int inputs | Yes |
@@ -71,9 +70,8 @@ revision when it is 0; the view and invalidation payloads include
 optional leading `@` and are forwarded as-is.
 
 Rows marked **Yes** mean that an SDK wrapper exists; deployment authorization
-still applies. In particular, whiteboard/social-verification, address-book
-writes, and some layout/polychart routes may require a JWT session or may not
-be mounted.
+still applies. In particular, social-verification and address-book writes may
+require a JWT session or may not be mounted.
 Private streams require an Account ID and the corresponding API-key permission.
 For Centrifugo channels, a successful subscribe call means the token exchange
 and realtime handshake completed. `Orders.Subscribe` returns at once and reports

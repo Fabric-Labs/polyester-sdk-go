@@ -108,9 +108,6 @@ type Client struct {
 	SubAccounts        *services.SubAccountsService
 	AddressBook        *services.AddressBookService
 	SocialVerification *services.SocialVerificationService
-	Whiteboard         *services.WhiteboardService
-	Polychart          *services.PolychartService
-	Layout             *services.LayoutService
 	GuardSigner        *services.GuardSignerService
 	VIP                *services.VIPService
 	Fees               *services.FeeService
@@ -197,9 +194,6 @@ func New(cfg Config) (*Client, error) {
 		SubAccounts:          services.NewSubAccountsService(factory, cfg.DefaultSubAccountID, rt, defaultAccountID),
 		AddressBook:          services.NewAddressBookService(factory, cfg.DefaultSubAccountID, rt, defaultAccountID),
 		SocialVerification:   services.NewSocialVerificationService(factory),
-		Whiteboard:           services.NewWhiteboardService(factory),
-		Polychart:            services.NewPolychartService(factory),
-		Layout:               services.NewLayoutService(factory),
 		GuardSigner:          services.NewGuardSignerService(factory, cfg.DefaultSubAccountID),
 		VIP:                  services.NewVIPService(factory),
 		Fees:                 services.NewFeeService(factory, cats, cfg.DefaultSubAccountID),

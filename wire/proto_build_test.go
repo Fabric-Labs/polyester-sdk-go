@@ -3,16 +3,16 @@ package wire_test
 import (
 	"testing"
 
-	layoutv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/layout/v1"
+	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/wire"
 )
 
 func TestMessageFromMap(t *testing.T) {
-	msg := &layoutv1.Layout{}
-	if err := wire.MessageFromMap(msg, map[string]any{"name": "test-layout"}); err != nil {
+	msg := &typev1.U128{}
+	if err := wire.MessageFromMap(msg, map[string]any{"lo": 7}); err != nil {
 		t.Fatal(err)
 	}
-	if msg.GetName() != "test-layout" {
-		t.Fatalf("name=%q", msg.GetName())
+	if msg.GetLo() != 7 {
+		t.Fatalf("lo=%d", msg.GetLo())
 	}
 }
