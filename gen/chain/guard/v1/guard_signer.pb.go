@@ -10,7 +10,6 @@ import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
 	_ "github.com/google/gnostic/openapiv3"
-	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -1165,7 +1164,7 @@ var File_chain_guard_v1_guard_signer_proto protoreflect.FileDescriptor
 
 const file_chain_guard_v1_guard_signer_proto_rawDesc = "" +
 	"\n" +
-	"!chain/guard/v1/guard_signer.proto\x12\x0echain.guard.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1bpolyester/api/options.proto\"\xc9\x01\n" +
+	"!chain/guard/v1/guard_signer.proto\x12\x0echain.guard.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1bpolyester/api/options.proto\"\xc9\x01\n" +
 	"\x11GuardSignerStatus\x12%\n" +
 	"\x0esigner_address\x18\x01 \x01(\tR\rsignerAddress\x124\n" +
 	"\x16onchain_signer_address\x18\x02 \x01(\tR\x14onchainSignerAddress\x12 \n" +
@@ -1232,20 +1231,20 @@ const file_chain_guard_v1_guard_signer_proto_rawDesc = "" +
 	"2PROTECTED_ACTION_FUNDING_REMOVE_EXTERNAL_WHITELIST\x10\x03\x123\n" +
 	"/PROTECTED_ACTION_FUNDING_ADD_INTERNAL_WHITELIST\x10\x04\x126\n" +
 	"2PROTECTED_ACTION_FUNDING_REMOVE_INTERNAL_WHITELIST\x10\x05\x12<\n" +
-	"8PROTECTED_ACTION_FUNDING_SET_INTERNAL_WHITELIST_REQUIRED\x10\x062\xec\r\n" +
-	"\x12GuardSignerService\x12\x97\x02\n" +
-	"\x17CreateGuardSignerWallet\x12..chain.guard.v1.CreateGuardSignerWalletRequest\x1a/.chain.guard.v1.CreateGuardSignerWalletResponse\"\x9a\x01\xbaGn\n" +
-	"\fGuard Signer\x12\x1aCreate Guard Signer Wallet\x1aBCreate a guard signer wallet for one authenticated account target.\x82\xd3\xe4\x93\x02#:\x01*\"\x1e/v1/chain/guard-signer/wallets\x12\xef\x01\n" +
-	"\x14GetGuardSignerStatus\x12+.chain.guard.v1.GetGuardSignerStatusRequest\x1a,.chain.guard.v1.GetGuardSignerStatusResponse\"|\xbaGT\n" +
-	"\fGuard Signer\x12\x17Get Guard Signer Status\x1a+Return stored and live guard signer status.\x82\xd3\xe4\x93\x02\x1f\x12\x1d/v1/chain/guard-signer/status\x12\x8d\x02\n" +
-	"\x13SignProtectedAction\x12*.chain.guard.v1.SignProtectedActionRequest\x1a+.chain.guard.v1.SignProtectedActionResponse\"\x9c\x01\xbaGe\n" +
-	"\fGuard Signer\x12\x15Sign Protected Action\x1a>Create an approval signature for a supported protected action.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02%:\x01*\" /v1/chain/guard-signer/approvals\x12\xc9\x02\n" +
-	"\x19BatchSignProtectedActions\x120.chain.guard.v1.BatchSignProtectedActionsRequest\x1a1.chain.guard.v1.BatchSignProtectedActionsResponse\"\xc6\x01\xbaG\x88\x01\n" +
-	"\fGuard Signer\x12\x1cBatch Sign Protected Actions\x1aZCreate ordered approval signatures for a batched SmartAccount protected action submission.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02+:\x01*\"&/v1/chain/guard-signer/approvals:batch\x12\xb8\x02\n" +
-	"\x17RotateGuardSignerWallet\x12..chain.guard.v1.RotateGuardSignerWalletRequest\x1a/.chain.guard.v1.RotateGuardSignerWalletResponse\"\xbb\x01\xbaG\x7f\n" +
-	"\fGuard Signer\x12\x1aRotate Guard Signer Wallet\x1aSGenerate a backend-managed replacement signer and return the rotateSigner approval.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02*:\x01*\"%/v1/chain/guard-signer/wallets:rotate\x12\xb2\x02\n" +
-	"\x17ExportGuardSignerWallet\x12..chain.guard.v1.ExportGuardSignerWalletRequest\x1a/.chain.guard.v1.ExportGuardSignerWalletResponse\"\xb5\x01\xbaGy\n" +
-	"\fGuard Signer\x12\x1aExport Guard Signer Wallet\x1aMExport guard signer key material after owner authorization and fresh step-up.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02*:\x01*\"%/v1/chain/guard-signer/wallets:exportB\xba\x01\xbaGn:l\n" +
+	"8PROTECTED_ACTION_FUNDING_SET_INTERNAL_WHITELIST_REQUIRED\x10\x062\xeb\v\n" +
+	"\x12GuardSignerService\x12\xf2\x01\n" +
+	"\x17CreateGuardSignerWallet\x12..chain.guard.v1.CreateGuardSignerWalletRequest\x1a/.chain.guard.v1.CreateGuardSignerWalletResponse\"v\xbaGn\n" +
+	"\fGuard Signer\x12\x1aCreate Guard Signer Wallet\x1aBCreate a guard signer wallet for one authenticated account target.\xa2\xb5\x18\x01\x01\x12\xd0\x01\n" +
+	"\x14GetGuardSignerStatus\x12+.chain.guard.v1.GetGuardSignerStatusRequest\x1a,.chain.guard.v1.GetGuardSignerStatusResponse\"]\xbaGT\n" +
+	"\fGuard Signer\x12\x17Get Guard Signer Status\x1a+Return stored and live guard signer status.\xa2\xb5\x18\x02\x01\x02\x12\xe1\x01\n" +
+	"\x13SignProtectedAction\x12*.chain.guard.v1.SignProtectedActionRequest\x1a+.chain.guard.v1.SignProtectedActionResponse\"q\xbaGe\n" +
+	"\fGuard Signer\x12\x15Sign Protected Action\x1a>Create an approval signature for a supported protected action.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x12\x98\x02\n" +
+	"\x19BatchSignProtectedActions\x120.chain.guard.v1.BatchSignProtectedActionsRequest\x1a1.chain.guard.v1.BatchSignProtectedActionsResponse\"\x95\x01\xbaG\x88\x01\n" +
+	"\fGuard Signer\x12\x1cBatch Sign Protected Actions\x1aZCreate ordered approval signatures for a batched SmartAccount protected action submission.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x12\x88\x02\n" +
+	"\x17RotateGuardSignerWallet\x12..chain.guard.v1.RotateGuardSignerWalletRequest\x1a/.chain.guard.v1.RotateGuardSignerWalletResponse\"\x8b\x01\xbaG\x7f\n" +
+	"\fGuard Signer\x12\x1aRotate Guard Signer Wallet\x1aSGenerate a backend-managed replacement signer and return the rotateSigner approval.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x12\x82\x02\n" +
+	"\x17ExportGuardSignerWallet\x12..chain.guard.v1.ExportGuardSignerWalletRequest\x1a/.chain.guard.v1.ExportGuardSignerWalletResponse\"\x85\x01\xbaGy\n" +
+	"\fGuard Signer\x12\x1aExport Guard Signer Wallet\x1aMExport guard signer key material after owner authorization and fresh step-up.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01B\xba\x01\xbaGn:l\n" +
 	"\fGuard Signer\x12\\Manage guard signer wallets and approval signatures for protected Polyester account actions.ZGgithub.com/Fabric-Labs/polyester-sdk-go/gen/chain/guard/v1;chainguardv1b\x06proto3"
 
 var (

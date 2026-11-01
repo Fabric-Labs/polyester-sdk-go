@@ -219,20 +219,28 @@ func (x *PriceLevel) GetQtyScaled() int64 {
 
 // GetOrderBookResponse is a depth snapshot for the binary (protobuf) API (scaled integers).
 // REST surfaces expose decimal strings via DTO conversion. A configured symbol
-// without an initialized book returns a successful snapshot with sequence zero
-// and empty bid and ask collections.
+// whose book is being built, or was invalidated, returns a successful snapshot
+// with available false and no levels: its book is unknown, not empty. Read
+// available before treating empty sides as no liquidity.
 type GetOrderBookResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Numeric symbol identifier (client resolves to symbol string).
 	SymbolId uint32 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Monotonic book sequence for this symbol.
 	BookSeq uint64 `protobuf:"varint,2,opt,name=book_seq,json=bookSeq,proto3" json:"book_seq,omitempty"`
-	// Best bid first; descending price. Empty when there is no current liquidity.
+	// Best bid first; descending price. When available is true, empty means no
+	// current liquidity; when it is false, always empty.
 	Bids []*PriceLevel `protobuf:"bytes,3,rep,name=bids,proto3" json:"bids,omitempty"`
-	// Best ask first; ascending price. Empty when there is no current liquidity.
+	// Best ask first; ascending price. When available is true, empty means no
+	// current liquidity; when it is false, always empty.
 	Asks []*PriceLevel `protobuf:"bytes,4,rep,name=asks,proto3" json:"asks,omitempty"`
 	// Timestamp associated with this snapshot (best-effort).
-	Ts            *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=ts,proto3" json:"ts,omitempty"`
+	Ts *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=ts,proto3" json:"ts,omitempty"`
+	// True when the book is current: bids and asks are its levels, and empty
+	// sides mean no liquidity. False while the book is being built or after it
+	// was invalidated: its levels are unknown, not empty, and the response
+	// carries none. Request the snapshot again later.
+	Available     bool `protobuf:"varint,6,opt,name=available,proto3" json:"available,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -300,6 +308,13 @@ func (x *GetOrderBookResponse) GetTs() *timestamppb.Timestamp {
 		return x.Ts
 	}
 	return nil
+}
+
+func (x *GetOrderBookResponse) GetAvailable() bool {
+	if x != nil {
+		return x.Available
+	}
+	return false
 }
 
 // OrderBookDelta is an incremental update to the orderbook state.
@@ -430,13 +445,14 @@ const file_orderbook_v1_orderbook_proto_rawDesc = "" +
 	"\vprice_ticks\x18\x01 \x01(\x03R\n" +
 	"priceTicks\x12\x1d\n" +
 	"\n" +
-	"qty_scaled\x18\x02 \x01(\x03R\tqtyScaled\"\xd6\x01\n" +
+	"qty_scaled\x18\x02 \x01(\x03R\tqtyScaled\"\xf4\x01\n" +
 	"\x14GetOrderBookResponse\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x12\x19\n" +
 	"\bbook_seq\x18\x02 \x01(\x04R\abookSeq\x12,\n" +
 	"\x04bids\x18\x03 \x03(\v2\x18.orderbook.v1.PriceLevelR\x04bids\x12,\n" +
 	"\x04asks\x18\x04 \x03(\v2\x18.orderbook.v1.PriceLevelR\x04asks\x12*\n" +
-	"\x02ts\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x02ts\"\x93\x02\n" +
+	"\x02ts\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x02ts\x12\x1c\n" +
+	"\tavailable\x18\x06 \x01(\bR\tavailable\"\x93\x02\n" +
 	"\x0eOrderBookDelta\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x12$\n" +
 	"\x0ebook_seq_start\x18\x02 \x01(\x04R\fbookSeqStart\x12 \n" +

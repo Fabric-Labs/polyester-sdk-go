@@ -4346,36 +4346,36 @@ const file_auth_v1_address_book_proto_rawDesc = "" +
 	"\fDEPOSIT_FROM\x10\x01\x12\x0f\n" +
 	"\vWITHDRAW_TO\x10\x02\x12\x1a\n" +
 	"\x16INTERNAL_TRANSFER_FROM\x10\x03\x12\x18\n" +
-	"\x14INTERNAL_TRANSFER_TO\x10\x042\xfb \n" +
-	"\x12AddressBookService\x12\xe0\x01\n" +
-	"\x10ListAddressBooks\x12 .auth.v1.ListAddressBooksRequest\x1a!.auth.v1.ListAddressBooksResponse\"\x86\x01\xbaGe\n" +
-	"\fAddress Book\x12\x12List Address Books\x1aAList the root and subaccount address books visible to the caller.\x82\xd3\xe4\x93\x02\x18\x12\x16/v1/auth/address-books\x12\x88\x02\n" +
-	"\x16ListAddressBookEntries\x12&.auth.v1.ListAddressBookEntriesRequest\x1a'.auth.v1.ListAddressBookEntriesResponse\"\x9c\x01\xbaGt\n" +
-	"\fAddress Book\x12\x19List Address Book Entries\x1aIList saved address-book entries for one visible root or subaccount scope.\x82\xd3\xe4\x93\x02\x1f\x12\x1d/v1/auth/address-book-entries\x12\xf4\x02\n" +
-	"\x16CreateAddressBookEntry\x12&.auth.v1.CreateAddressBookEntryRequest\x1a'.auth.v1.CreateAddressBookEntryResponse\"\x88\x02\xbaG\xd8\x01\n" +
-	"\fAddress Book\x12\x19Create Address Book Entry\x1a\xac\x01Create one saved address-book entry in the selected root or subaccount book. Interactive callers with enrolled MFA need recent assurance; API keys need MANAGE_ADDRESS_BOOK.\x98\xb5\x18\x03\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/v1/auth/address-book-entries\x12\xfb\x02\n" +
-	"\x16UpdateAddressBookEntry\x12&.auth.v1.UpdateAddressBookEntryRequest\x1a'.auth.v1.UpdateAddressBookEntryResponse\"\x8f\x02\xbaG\xc7\x01\n" +
-	"\fAddress Book\x12\x19Update Address Book Entry\x1a\x9b\x01Update the label, note, or tags for one address-book entry. Interactive callers with enrolled MFA need recent assurance; API keys need MANAGE_ADDRESS_BOOK.\x98\xb5\x18\x03\x82\xd3\xe4\x93\x02::\x01*25/v1/auth/address-book-entries/{address_book_entry_id}\x12\xfa\x02\n" +
-	"\x16DeleteAddressBookEntry\x12&.auth.v1.DeleteAddressBookEntryRequest\x1a'.auth.v1.DeleteAddressBookEntryResponse\"\x8e\x02\xbaG\xc9\x01\n" +
-	"\fAddress Book\x12\x19Delete Address Book Entry\x1a\x9d\x01Delete one address-book entry from the selected address book. Interactive callers with enrolled MFA need recent assurance; API keys need MANAGE_ADDRESS_BOOK.\x98\xb5\x18\x03\x82\xd3\xe4\x93\x027*5/v1/auth/address-book-entries/{address_book_entry_id}\x12\x86\x03\n" +
-	"\x14CopyAddressBookEntry\x12$.auth.v1.CopyAddressBookEntryRequest\x1a%.auth.v1.CopyAddressBookEntryResponse\"\xa0\x02\xbaG\xd3\x01\n" +
-	"\fAddress Book\x12\x17Copy Address Book Entry\x1a\xa9\x01Copy one address-book entry into another visible root or subaccount book. Interactive callers with enrolled MFA need recent assurance; API keys need MANAGE_ADDRESS_BOOK.\x98\xb5\x18\x03\x82\xd3\xe4\x93\x02?:\x01*\":/v1/auth/address-book-entries/{address_book_entry_id}:copy\x12\xf6\x01\n" +
-	"\x14CreateAddressBookTag\x12$.auth.v1.CreateAddressBookTagRequest\x1a%.auth.v1.CreateAddressBookTagResponse\"\x90\x01\xbaGh\n" +
-	"\fAddress Book\x12\x17Create Address Book Tag\x1a?Create one tag in the selected root or subaccount address book.\x82\xd3\xe4\x93\x02\x1f:\x01*\"\x1a/v1/auth/address-book-tags\x12\xdb\x01\n" +
-	"\x14UpdateAddressBookTag\x12$.auth.v1.UpdateAddressBookTagRequest\x1a%.auth.v1.UpdateAddressBookTagResponse\"v\xbaGE\n" +
-	"\fAddress Book\x12\x17Update Address Book Tag\x1a\x1cUpdate one address-book tag.\x82\xd3\xe4\x93\x02(:\x01*2#/v1/auth/address-book-tags/{tag_id}\x12\xf4\x01\n" +
-	"\x14DeleteAddressBookTag\x12$.auth.v1.DeleteAddressBookTagRequest\x1a%.auth.v1.DeleteAddressBookTagResponse\"\x8e\x01\xbaG`\n" +
-	"\fAddress Book\x12\x17Delete Address Book Tag\x1a7Delete one address-book tag and detach it from entries.\x82\xd3\xe4\x93\x02%*#/v1/auth/address-book-tags/{tag_id}\x12\xb5\x02\n" +
-	"\x1aListTransferCounterparties\x12*.auth.v1.ListTransferCounterpartiesRequest\x1a+.auth.v1.ListTransferCounterpartiesResponse\"\xbd\x01\xbaG\x91\x01\n" +
-	"\fAddress Book\x12\x1cList Transfer Counterparties\x1acList recent transfer counterparties, including destinations that are not saved in the address book.\x82\xd3\xe4\x93\x02\"\x12 /v1/auth/transfer-counterparties\x12\x95\x02\n" +
-	"\x18ListTransferDestinations\x12(.auth.v1.ListTransferDestinationsRequest\x1a).auth.v1.ListTransferDestinationsResponse\"\xa3\x01\xbaGz\n" +
-	"\fAddress Book\x12\x1aList Transfer Destinations\x1aNList saved and whitelisted transfer destinations for one visible address book.\x82\xd3\xe4\x93\x02 \x12\x1e/v1/auth/transfer-destinations\x12\xbd\x02\n" +
-	"$ListInternalTransferWhitelistEntries\x124.auth.v1.ListInternalTransferWhitelistEntriesRequest\x1a5.auth.v1.ListInternalTransferWhitelistEntriesResponse\"\xa7\x01\xbaGx\n" +
-	"\fAddress Book\x12 List Internal Transfer Whitelist\x1aFList internal transfer whitelist entries for one visible address book.\x82\xd3\xe4\x93\x02&\x12$/v1/auth/internal-transfer-whitelist\x12\x8b\x02\n" +
-	"\x18GetWithdrawWhitelistView\x12(.auth.v1.GetWithdrawWhitelistViewRequest\x1a).auth.v1.GetWithdrawWhitelistViewResponse\"\x99\x01\xbaGs\n" +
-	"\fAddress Book\x12\x1bGet Withdraw Whitelist View\x1aFGet external withdrawal whitelist status for one visible address book.\x82\xd3\xe4\x93\x02\x1d\x12\x1b/v1/auth/withdraw-whitelist\x12\x8f\x02\n" +
-	"\x12GetAddressBookView\x12\".auth.v1.GetAddressBookViewRequest\x1a#.auth.v1.GetAddressBookViewResponse\"\xaf\x01\xbaG\x8e\x01\n" +
-	"\fAddress Book\x12\x15Get Address Book View\x1agGet address books, saved destinations, recent destinations, tags, and whitelist status in one response.\x82\xd3\xe4\x93\x02\x17\x12\x15/v1/auth/address-bookB\xcc\x01\xbaG\x8c\x01:\x89\x01\n" +
+	"\x14INTERNAL_TRANSFER_TO\x10\x042\xe0 \n" +
+	"\x12AddressBookService\x12\xe6\x01\n" +
+	"\x10ListAddressBooks\x12 .auth.v1.ListAddressBooksRequest\x1a!.auth.v1.ListAddressBooksResponse\"\x8c\x01\xbaGe\n" +
+	"\fAddress Book\x12\x12List Address Books\x1aAList the root and subaccount address books visible to the caller.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x18\x12\x16/v1/auth/address-books\x12\x8e\x02\n" +
+	"\x16ListAddressBookEntries\x12&.auth.v1.ListAddressBookEntriesRequest\x1a'.auth.v1.ListAddressBookEntriesResponse\"\xa2\x01\xbaGt\n" +
+	"\fAddress Book\x12\x19List Address Book Entries\x1aIList saved address-book entries for one visible root or subaccount scope.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1f\x12\x1d/v1/auth/address-book-entries\x12\xdf\x02\n" +
+	"\x16CreateAddressBookEntry\x12&.auth.v1.CreateAddressBookEntryRequest\x1a'.auth.v1.CreateAddressBookEntryResponse\"\xf3\x01\xbaG\xbe\x01\n" +
+	"\fAddress Book\x12\x19Create Address Book Entry\x1a\x92\x01Create one saved address-book entry in the selected root or subaccount book. Session tokens only; callers with enrolled MFA need recent assurance.\x98\xb5\x18\x03\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/v1/auth/address-book-entries\x12\xe6\x02\n" +
+	"\x16UpdateAddressBookEntry\x12&.auth.v1.UpdateAddressBookEntryRequest\x1a'.auth.v1.UpdateAddressBookEntryResponse\"\xfa\x01\xbaG\xad\x01\n" +
+	"\fAddress Book\x12\x19Update Address Book Entry\x1a\x81\x01Update the label, note, or tags for one address-book entry. Session tokens only; callers with enrolled MFA need recent assurance.\x98\xb5\x18\x03\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02::\x01*25/v1/auth/address-book-entries/{address_book_entry_id}\x12\xe5\x02\n" +
+	"\x16DeleteAddressBookEntry\x12&.auth.v1.DeleteAddressBookEntryRequest\x1a'.auth.v1.DeleteAddressBookEntryResponse\"\xf9\x01\xbaG\xaf\x01\n" +
+	"\fAddress Book\x12\x19Delete Address Book Entry\x1a\x83\x01Delete one address-book entry from the selected address book. Session tokens only; callers with enrolled MFA need recent assurance.\x98\xb5\x18\x03\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x027*5/v1/auth/address-book-entries/{address_book_entry_id}\x12\xf1\x02\n" +
+	"\x14CopyAddressBookEntry\x12$.auth.v1.CopyAddressBookEntryRequest\x1a%.auth.v1.CopyAddressBookEntryResponse\"\x8b\x02\xbaG\xb9\x01\n" +
+	"\fAddress Book\x12\x17Copy Address Book Entry\x1a\x8f\x01Copy one address-book entry into another visible root or subaccount book. Session tokens only; callers with enrolled MFA need recent assurance.\x98\xb5\x18\x03\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02?:\x01*\":/v1/auth/address-book-entries/{address_book_entry_id}:copy\x12\xfb\x01\n" +
+	"\x14CreateAddressBookTag\x12$.auth.v1.CreateAddressBookTagRequest\x1a%.auth.v1.CreateAddressBookTagResponse\"\x95\x01\xbaGh\n" +
+	"\fAddress Book\x12\x17Create Address Book Tag\x1a?Create one tag in the selected root or subaccount address book.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1f:\x01*\"\x1a/v1/auth/address-book-tags\x12\xe0\x01\n" +
+	"\x14UpdateAddressBookTag\x12$.auth.v1.UpdateAddressBookTagRequest\x1a%.auth.v1.UpdateAddressBookTagResponse\"{\xbaGE\n" +
+	"\fAddress Book\x12\x17Update Address Book Tag\x1a\x1cUpdate one address-book tag.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02(:\x01*2#/v1/auth/address-book-tags/{tag_id}\x12\xf9\x01\n" +
+	"\x14DeleteAddressBookTag\x12$.auth.v1.DeleteAddressBookTagRequest\x1a%.auth.v1.DeleteAddressBookTagResponse\"\x93\x01\xbaG`\n" +
+	"\fAddress Book\x12\x17Delete Address Book Tag\x1a7Delete one address-book tag and detach it from entries.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02%*#/v1/auth/address-book-tags/{tag_id}\x12\xbb\x02\n" +
+	"\x1aListTransferCounterparties\x12*.auth.v1.ListTransferCounterpartiesRequest\x1a+.auth.v1.ListTransferCounterpartiesResponse\"\xc3\x01\xbaG\x91\x01\n" +
+	"\fAddress Book\x12\x1cList Transfer Counterparties\x1acList recent transfer counterparties, including destinations that are not saved in the address book.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\"\x12 /v1/auth/transfer-counterparties\x12\x9b\x02\n" +
+	"\x18ListTransferDestinations\x12(.auth.v1.ListTransferDestinationsRequest\x1a).auth.v1.ListTransferDestinationsResponse\"\xa9\x01\xbaGz\n" +
+	"\fAddress Book\x12\x1aList Transfer Destinations\x1aNList saved and whitelisted transfer destinations for one visible address book.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02 \x12\x1e/v1/auth/transfer-destinations\x12\xc3\x02\n" +
+	"$ListInternalTransferWhitelistEntries\x124.auth.v1.ListInternalTransferWhitelistEntriesRequest\x1a5.auth.v1.ListInternalTransferWhitelistEntriesResponse\"\xad\x01\xbaGx\n" +
+	"\fAddress Book\x12 List Internal Transfer Whitelist\x1aFList internal transfer whitelist entries for one visible address book.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02&\x12$/v1/auth/internal-transfer-whitelist\x12\x91\x02\n" +
+	"\x18GetWithdrawWhitelistView\x12(.auth.v1.GetWithdrawWhitelistViewRequest\x1a).auth.v1.GetWithdrawWhitelistViewResponse\"\x9f\x01\xbaGs\n" +
+	"\fAddress Book\x12\x1bGet Withdraw Whitelist View\x1aFGet external withdrawal whitelist status for one visible address book.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1d\x12\x1b/v1/auth/withdraw-whitelist\x12\x95\x02\n" +
+	"\x12GetAddressBookView\x12\".auth.v1.GetAddressBookViewRequest\x1a#.auth.v1.GetAddressBookViewResponse\"\xb5\x01\xbaG\x8e\x01\n" +
+	"\fAddress Book\x12\x15Get Address Book View\x1agGet address books, saved destinations, recent destinations, tags, and whitelist status in one response.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x17\x12\x15/v1/auth/address-bookB\xcc\x01\xbaG\x8c\x01:\x89\x01\n" +
 	"\fAddress Book\x12ySaved transfer destinations, recent counterparties, and whitelist status for external withdrawals and internal transfers.Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
 
 var (

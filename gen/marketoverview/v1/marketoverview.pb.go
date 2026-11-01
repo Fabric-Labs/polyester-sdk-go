@@ -385,7 +385,8 @@ type MarketOverview struct {
 	// When conversion is unavailable, USDT and USDC are valued at USD parity.
 	// Omitted for other quote assets when a current conversion is unavailable.
 	Volume_24HUsdScaled *int64 `protobuf:"varint,17,opt,name=volume_24h_usd_scaled,json=volume24hUsdScaled,proto3,oneof" json:"volume_24h_usd_scaled,omitempty"`
-	// Listing timestamp in nanoseconds since epoch.
+	// Listing timestamp in nanoseconds since epoch. 0 when the pair has no
+	// listing time.
 	ListedTsNs uint64 `protobuf:"varint,15,opt,name=listed_ts_ns,json=listedTsNs,proto3" json:"listed_ts_ns,omitempty"`
 	// Current best bid price in quote units scaled by 1e9.
 	BestBidTicks int64 `protobuf:"varint,9,opt,name=best_bid_ticks,json=bestBidTicks,proto3" json:"best_bid_ticks,omitempty"`

@@ -8,6 +8,7 @@ package chaindepositv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
 	_ "github.com/google/gnostic/openapiv3"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -295,7 +296,7 @@ var File_chain_deposit_v1_deposit_proto protoreflect.FileDescriptor
 
 const file_chain_deposit_v1_deposit_proto_rawDesc = "" +
 	"\n" +
-	"\x1echain/deposit/v1/deposit.proto\x12\x10chain.deposit.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\"T\n" +
+	"\x1echain/deposit/v1/deposit.proto\x12\x10chain.deposit.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1bpolyester/api/options.proto\"T\n" +
 	"\x0eDepositAddress\x12\x19\n" +
 	"\bchain_id\x18\x01 \x01(\rR\achainId\x12'\n" +
 	"\x0fdeposit_address\x18\x02 \x01(\tR\x0edepositAddress\"y\n" +
@@ -309,12 +310,12 @@ const file_chain_deposit_v1_deposit_proto_rawDesc = "" +
 	"\bchain_id\x18\x02 \x01(\rB\n" +
 	"\xbaH\a\xd8\x01\x01*\x02 \x00R\achainId\"m\n" +
 	"\x1cListDepositAddressesResponse\x12M\n" +
-	"\x11deposit_addresses\x18\x01 \x03(\v2 .chain.deposit.v1.DepositAddressR\x10depositAddresses2\xb1\x05\n" +
-	"\x15DepositAddressService\x12\x95\x03\n" +
-	"\x14CreateDepositAddress\x12-.chain.deposit.v1.CreateDepositAddressRequest\x1a..chain.deposit.v1.CreateDepositAddressResponse\"\x9d\x02\xbaG\xf3\x01\n" +
-	"\x11Deposit Addresses\x12\x16Create Deposit Address\x1a\xc5\x01Create or return the assigned deposit address for one account target and source chain. Requires the acting caller's root account to have accepted the current terms, including when using an API key.\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/v1/chain/deposit-addresses\x12\xff\x01\n" +
-	"\x14ListDepositAddresses\x12-.chain.deposit.v1.ListDepositAddressesRequest\x1a..chain.deposit.v1.ListDepositAddressesResponse\"\x87\x01\xbaGa\n" +
-	"\x11Deposit Addresses\x12\x16List Deposit Addresses\x1a4List known deposit addresses for one account target.\x82\xd3\xe4\x93\x02\x1d\x12\x1b/v1/chain/deposit-addressesB\xaf\x01\xbaG_:]\n" +
+	"\x11deposit_addresses\x18\x01 \x03(\v2 .chain.deposit.v1.DepositAddressR\x10depositAddresses2\xbd\x05\n" +
+	"\x15DepositAddressService\x12\x9b\x03\n" +
+	"\x14CreateDepositAddress\x12-.chain.deposit.v1.CreateDepositAddressRequest\x1a..chain.deposit.v1.CreateDepositAddressResponse\"\xa3\x02\xbaG\xf3\x01\n" +
+	"\x11Deposit Addresses\x12\x16Create Deposit Address\x1a\xc5\x01Create or return the assigned deposit address for one account target and source chain. Requires the acting caller's root account to have accepted the current terms, including when using an API key.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/v1/chain/deposit-addresses\x12\x85\x02\n" +
+	"\x14ListDepositAddresses\x12-.chain.deposit.v1.ListDepositAddressesRequest\x1a..chain.deposit.v1.ListDepositAddressesResponse\"\x8d\x01\xbaGa\n" +
+	"\x11Deposit Addresses\x12\x16List Deposit Addresses\x1a4List known deposit addresses for one account target.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1d\x12\x1b/v1/chain/deposit-addressesB\xaf\x01\xbaG_:]\n" +
 	"\x11Deposit Addresses\x12HCreate and list deposit addresses for a Polyester account or subaccount.ZKgithub.com/Fabric-Labs/polyester-sdk-go/gen/chain/deposit/v1;chaindepositv1b\x06proto3"
 
 var (

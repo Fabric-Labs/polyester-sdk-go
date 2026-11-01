@@ -967,16 +967,16 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"&AUTH_SOCIAL_VERIFICATION_INVALID_STATE\x10+\x12%\n" +
 	"!AUTH_SUBACCOUNT_CHALLENGE_INVALID\x10,\x12&\n" +
 	"\"AUTH_SOCIAL_ACCOUNT_ALREADY_LINKED\x10-\x12 \n" +
-	"\x1cAUTH_TEMPORARILY_UNAVAILABLE\x10.2\x93\b\n" +
+	"\x1cAUTH_TEMPORARILY_UNAVAILABLE\x10.2\x99\b\n" +
 	"\vAuthService\x12\xf4\x01\n" +
 	"\x15CreateWalletChallenge\x12%.auth.v1.CreateWalletChallengeRequest\x1a&.auth.v1.CreateWalletChallengeResponse\"\x8b\x01\xbaG`\n" +
 	"\fAuth Service\x12\x17Create Wallet Challenge\x1a7Create a short-lived EIP-4361 message for wallet login.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/v1/auth/wallet-challenge\x12\x9e\x02\n" +
 	"\x0fLoginWithWallet\x12\x1f.auth.v1.LoginWithWalletRequest\x1a .auth.v1.LoginWithWalletResponse\"\xc7\x01\xbaG\x9f\x01\n" +
 	"\fAuth Service\x12\x11Login With Wallet\x1a|Verify a server-issued EIP-4361 wallet message and issue an access token for the caller account. This does not accept terms.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/v1/auth/login/wallet\x12\x91\x02\n" +
 	"\vAcceptTerms\x12\x1b.auth.v1.AcceptTermsRequest\x1a\x1c.auth.v1.AcceptTermsResponse\"\xc6\x01\xbaG\x9a\x01\n" +
-	"\fAuth Service\x12\fAccept Terms\x1a|Explicitly accept the terms that apply to the caller's root account. Requires an interactive JWT. Repeated requests succeed.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/v1/auth/terms/accept\x90\x02\x02\x12\xd7\x01\n" +
-	"\x02Me\x12\x12.auth.v1.MeRequest\x1a\x13.auth.v1.MeResponse\"\xa7\x01\xbaG\x90\x01\n" +
-	"\fAuth Service\x12\x10Get Auth Context\x1anRetrieve the caller auth context, including account identity, API key identity, and session assurance details.\x82\xd3\xe4\x93\x02\r\x12\v/v1/auth/meB\x90\x01\xbaGQ:O\n" +
+	"\fAuth Service\x12\fAccept Terms\x1a|Explicitly accept the terms that apply to the caller's root account. Requires an interactive JWT. Repeated requests succeed.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/v1/auth/terms/accept\x90\x02\x02\x12\xdd\x01\n" +
+	"\x02Me\x12\x12.auth.v1.MeRequest\x1a\x13.auth.v1.MeResponse\"\xad\x01\xbaG\x90\x01\n" +
+	"\fAuth Service\x12\x10Get Auth Context\x1anRetrieve the caller auth context, including account identity, API key identity, and session assurance details.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\r\x12\v/v1/auth/meB\x90\x01\xbaGQ:O\n" +
 	"\fAuth Service\x12?Authentication, accounts, sub-accounts, and API key management.Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
 
 var (
