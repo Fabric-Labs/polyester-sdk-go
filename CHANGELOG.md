@@ -38,13 +38,29 @@
   book.
 - `Trigger.Version`: 1 for a trigger's first state, higher for every later
   state change. Keep the copy with the highest version.
-- The order error codes `ERROR_CODE_ATTACHED_LEGS_EXCEEDED`,
-  `FEE_ASSET_INVALID`, `FEE_CEILING_INVALID`, `UNSUPPORTED_FIELD_SET`,
-  `TRIGGER_FIRE_LIMIT_REACHED`, `CONDITION_FLAGS_INVALID`,
-  `CONDITION_PARAMETER_SET`, `TWAP_CAPACITY_REACHED` and
-  `CHILD_ORDER_INCONSISTENT` surface as `errors.APIError` with that code.
-  None is retryable, and each leaves nothing changed. `TWAP_CAPACITY_REACHED`
-  is a capacity refusal, not a rate limit.
+- New order error codes surface as `errors.APIError` with that code. Each
+  has a known outcome: `errors.IsRetryable` and
+  `errors.MutationOutcomeUnknown` are false, so do not resend the same
+  request unchanged.
+  - `ERROR_CODE_ATTACHED_LEGS_EXCEEDED`: the order already carries every
+    attached leg it may hold, so another attached leg was refused.
+  - `ERROR_CODE_FEE_ASSET_INVALID`: the trigger's fee asset was not valid.
+  - `ERROR_CODE_FEE_CEILING_INVALID`: the trigger's maximum fee rate was not
+    valid.
+  - `ERROR_CODE_UNSUPPORTED_FIELD_SET`: the trigger set a field that must be
+    left unset.
+  - `ERROR_CODE_TRIGGER_FIRE_LIMIT_REACHED`: the trigger could not fire
+    again.
+  - `ERROR_CODE_CONDITION_FLAGS_INVALID`: the trigger's condition flags were
+    not valid.
+  - `ERROR_CODE_CONDITION_PARAMETER_SET`: the trigger set a condition
+    parameter its condition does not take.
+  - `ERROR_CODE_TWAP_CAPACITY_REACHED`: the market had no room for another
+    TWAP order. It is a capacity refusal, not a rate limit.
+  - `ERROR_CODE_CHILD_ORDER_INCONSISTENT`: the trigger's child order did not
+    match the order the trigger requested, so the trigger failed and its
+    child order was canceled. Read the trigger and the child order to see
+    their final state.
 
 ## 0.3.0
 
