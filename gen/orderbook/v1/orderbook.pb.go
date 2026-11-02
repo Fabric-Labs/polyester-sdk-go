@@ -473,10 +473,11 @@ const file_orderbook_v1_orderbook_proto_rawDesc = "" +
 	"\tDEPTH_200\x10\a\x12\r\n" +
 	"\tDEPTH_500\x10\b\x12\x0e\n" +
 	"\n" +
-	"DEPTH_1000\x10\t2\x95\x02\n" +
+	"DEPTH_1000\x10\t2\xa5\x02\n" +
 	"\x10OrderbookService\x12\x80\x02\n" +
 	"\fGetOrderBook\x12!.orderbook.v1.GetOrderBookRequest\x1a\".orderbook.v1.GetOrderBookResponse\"\xa8\x01\xbaG\xa0\x01\n" +
-	"\x11Orderbook Service\x12\x0eGet Order Book\x1a{Retrieve a spot order book depth snapshot for a symbol. Supports selectable depth per side and returns best bid/ask levels.\x88\xb5\x18\x01B\x97\x01\xbaGN:L\n" +
+	"\x11Orderbook Service\x12\x0eGet Order Book\x1a{Retrieve a spot order book depth snapshot for a symbol. Supports selectable depth per side and returns best bid/ask levels.\x88\xb5\x18\x01\x1a\x0e\x8a\xb5\x18\n" +
+	"marketdataB\x97\x01\xbaGN:L\n" +
 	"\x11Orderbook Service\x127Public read surface for spot orderbook depth snapshots.ZDgithub.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1;orderbookv1b\x06proto3"
 
 var (

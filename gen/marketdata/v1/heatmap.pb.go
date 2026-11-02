@@ -1116,9 +1116,10 @@ const file_marketdata_v1_heatmap_proto_rawDesc = "" +
 	"\x13HeatmapQuantityMode\x12\x18\n" +
 	"\x14QTY_MODE_UNSPECIFIED\x10\x00\x12\t\n" +
 	"\x05CLOSE\x10\x01\x12\b\n" +
-	"\x04PEAK\x10\x022\x84\x01\n" +
+	"\x04PEAK\x10\x022\x94\x01\n" +
 	"\x0eHeatmapService\x12r\n" +
-	"\x13GetOrderbookHeatmap\x12).marketdata.v1.GetOrderbookHeatmapRequest\x1a*.marketdata.v1.GetOrderbookHeatmapResponse\"\x04\x88\xb5\x18\x01BHZFgithub.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1;marketdatav1b\x06proto3"
+	"\x13GetOrderbookHeatmap\x12).marketdata.v1.GetOrderbookHeatmapRequest\x1a*.marketdata.v1.GetOrderbookHeatmapResponse\"\x04\x88\xb5\x18\x01\x1a\x0e\x8a\xb5\x18\n" +
+	"marketdataBHZFgithub.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1;marketdatav1b\x06proto3"
 
 var (
 	file_marketdata_v1_heatmap_proto_rawDescOnce sync.Once

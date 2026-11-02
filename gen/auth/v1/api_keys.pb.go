@@ -970,7 +970,7 @@ const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\n" +
 	"\x06ACTIVE\x10\x01\x12\v\n" +
 	"\aREVOKED\x10\x02\x12\f\n" +
-	"\bDISABLED\x10\x032\x92\n" +
+	"\bDISABLED\x10\x032\x9f\n" +
 	"\n" +
 	"\rApiKeyService\x12\xaf\x02\n" +
 	"\fCreateApiKey\x12\x1c.auth.v1.CreateApiKeyRequest\x1a\x1d.auth.v1.CreateApiKeyResponse\"\xe1\x01\xbaG\xb8\x01\n" +
@@ -982,7 +982,7 @@ const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\fDeleteApiKey\x12\x1c.auth.v1.DeleteApiKeyRequest\x1a\x1d.auth.v1.DeleteApiKeyResponse\"\x95\x01\xbaGg\n" +
 	"\fAuth Service\x12\x0eDelete API Key\x1aGRevoke an API key owned by the caller account. Revocation is permanent.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1c*\x1a/v1/auth/api-keys/{key_id}\x12\xed\x01\n" +
 	"\fUpdateApiKey\x12\x1c.auth.v1.UpdateApiKeyRequest\x1a\x1d.auth.v1.UpdateApiKeyResponse\"\x9f\x01\xbaGn\n" +
-	"\fAuth Service\x12\x0eUpdate API Key\x1aNUpdate mutable API key fields, including label, status, whitelist, and expiry.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1f:\x01*2\x1a/v1/auth/api-keys/{key_id}B<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
+	"\fAuth Service\x12\x0eUpdate API Key\x1aNUpdate mutable API key fields, including label, status, whitelist, and expiry.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1f:\x01*2\x1a/v1/auth/api-keys/{key_id}\x1a\v\x8a\xb5\x18\aaccountB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
 
 var (
 	file_auth_v1_api_keys_proto_rawDescOnce sync.Once

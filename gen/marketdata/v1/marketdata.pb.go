@@ -2181,13 +2181,14 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\x17PAIR_STATUS_CANCEL_ONLY\x10\x03\x12\x19\n" +
 	"\x15PAIR_STATUS_POST_ONLY\x10\x04\x12\x1b\n" +
 	"\x17PAIR_STATUS_REDUCE_ONLY\x10\x05\x12\x16\n" +
-	"\x12PAIR_STATUS_HALTED\x10\x062\x96\x03\n" +
+	"\x12PAIR_STATUS_HALTED\x10\x062\xa6\x03\n" +
 	"\x11MarketDataService\x12T\n" +
 	"\tGetTrades\x12\x1f.marketdata.v1.GetTradesRequest\x1a .marketdata.v1.GetTradesResponse\"\x04\x88\xb5\x18\x01\x12W\n" +
 	"\n" +
 	"GetCandles\x12 .marketdata.v1.GetCandlesRequest\x1a!.marketdata.v1.GetCandlesResponse\"\x04\x88\xb5\x18\x01\x12p\n" +
 	"\x11GetCandlesColumns\x12'.marketdata.v1.GetCandlesColumnsRequest\x1a(.marketdata.v1.GetCandlesColumnsResponse\"\b\x88\xb5\x18\x01\x90\xb5\x18\x01\x12`\n" +
-	"\rGetSpotConfig\x12#.marketdata.v1.GetSpotConfigRequest\x1a$.marketdata.v1.GetSpotConfigResponse\"\x04\x88\xb5\x18\x01BHZFgithub.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1;marketdatav1b\x06proto3"
+	"\rGetSpotConfig\x12#.marketdata.v1.GetSpotConfigRequest\x1a$.marketdata.v1.GetSpotConfigResponse\"\x04\x88\xb5\x18\x01\x1a\x0e\x8a\xb5\x18\n" +
+	"marketdataBHZFgithub.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1;marketdatav1b\x06proto3"
 
 var (
 	file_marketdata_v1_marketdata_proto_rawDescOnce sync.Once

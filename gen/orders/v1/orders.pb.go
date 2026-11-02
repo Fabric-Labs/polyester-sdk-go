@@ -6257,7 +6257,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x1fBatchReplaceItemAdmissionStatus\x123\n" +
 	"/BATCH_REPLACE_ITEM_ADMISSION_STATUS_UNSPECIFIED\x10\x00\x120\n" +
 	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_ADMITTED\x10\x01\x120\n" +
-	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_REJECTED\x10\x022\xa4\x16\n" +
+	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_REJECTED\x10\x022\xb1\x16\n" +
 	"\rOrdersService\x12\x9a\x02\n" +
 	"\fPreviewOrder\x12\x1e.orders.v1.PreviewOrderRequest\x1a\x1f.orders.v1.PreviewOrderResponse\"\xc8\x01\xbaG\xbe\x01\n" +
 	"\x0eOrders Service\x12\rPreview Order\x1a\x9c\x01Check current order eligibility and available balance without creating an order or reservation. Returns resolved sizing and price protection when available.\xa2\xb5\x18\x02\x01\x02\x12\xb0\x02\n" +
@@ -6276,7 +6276,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x12BatchReplaceOrders\x12$.orders.v1.BatchReplaceOrdersRequest\x1a%.orders.v1.BatchReplaceOrdersResponse\"\xa8\x03\xbaG\x9e\x03\n" +
 	"\x0eOrders Service\x12\x14Batch Replace Orders\x1a\xf5\x02Modify up to 50 orders for one symbol as a quote refresh. Each item amends its order in place, keeping its order ID and queue priority, when it keeps the price, does not raise the total quantity and keeps the client order ID; otherwise it replaces the order with a successor under a new order ID. Returns an admission receipt for status and private realtime reconciliation.\xa2\xb5\x18\x02\x01\x02\x12\x99\x02\n" +
 	"\x11BatchCancelOrders\x12#.orders.v1.BatchCancelOrdersRequest\x1a$.orders.v1.BatchCancelOrdersResponse\"\xb8\x01\xbaG\xae\x01\n" +
-	"\x0eOrders Service\x12\x13Batch Cancel Orders\x1a\x86\x01Cancel up to 50 orders by order ID or client order ID in one request. Returns per-item accept or reject results with aggregate counts.\xa2\xb5\x18\x02\x01\x02B\x8d\x01\xbaGJ:H\n" +
+	"\x0eOrders Service\x12\x13Batch Cancel Orders\x1a\x86\x01Cancel up to 50 orders by order ID or client order ID in one request. Returns per-item accept or reject results with aggregate counts.\xa2\xb5\x18\x02\x01\x02\x1a\v\x8a\xb5\x18\atradingB\x8d\x01\xbaGJ:H\n" +
 	"\x0eOrders Service\x126Public write surface for placing and canceling orders.Z>github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1;ordersv1b\x06proto3"
 
 var (

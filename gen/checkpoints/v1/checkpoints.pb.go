@@ -2093,10 +2093,10 @@ const file_checkpoints_v1_checkpoints_proto_rawDesc = "" +
 	"\x10TRADING_BALANCES\x10\r\x12\x14\n" +
 	"\x10FUNDING_BALANCES\x10\x0e\x12\r\n" +
 	"\tTRANSFERS\x10\x0f\x12\x11\n" +
-	"\rSEASON_RESULT\x10\x102\xcc\x02\n" +
+	"\rSEASON_RESULT\x10\x102\xd9\x02\n" +
 	"\x11CheckpointService\x12\xb6\x02\n" +
 	"\x11ListMyCheckpoints\x12(.checkpoints.v1.ListMyCheckpointsRequest\x1a).checkpoints.v1.ListMyCheckpointsResponse\"\xcb\x01\xbaG\xa8\x01\n" +
-	"\x12Checkpoint Service\x12\x13List My Checkpoints\x1a}List every checkpoint of the authenticated caller's root account, newest first. Checkpoints are private to the account owner.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x11\x12\x0f/v1/checkpoints\x90\x02\x01B\xa6\x01\xbaGY:W\n" +
+	"\x12Checkpoint Service\x12\x13List My Checkpoints\x1a}List every checkpoint of the authenticated caller's root account, newest first. Checkpoints are private to the account owner.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x11\x12\x0f/v1/checkpoints\x90\x02\x01\x1a\v\x8a\xb5\x18\atestnetB\xa6\x01\xbaGY:W\n" +
 	"\x12Checkpoint Service\x12AFrozen testnet season recaps, readable only by the account owner.ZHgithub.com/Fabric-Labs/polyester-sdk-go/gen/checkpoints/v1;checkpointsv1b\x06proto3"
 
 var (

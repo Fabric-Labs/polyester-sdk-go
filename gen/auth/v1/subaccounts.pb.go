@@ -3569,12 +3569,12 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x1bACTIVITY_SOURCE_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13ACTIVITY_SOURCE_WEB\x10\x01\x12\x1a\n" +
 	"\x16ACTIVITY_SOURCE_MOBILE\x10\x02\x12\x17\n" +
-	"\x13ACTIVITY_SOURCE_API\x10\x032\xdc\x04\n" +
+	"\x13ACTIVITY_SOURCE_API\x10\x032\xe9\x04\n" +
 	"\x15SubaccountViewService\x12\xb2\x02\n" +
 	"\rGetSubaccount\x12\x1d.auth.v1.GetSubaccountRequest\x1a\x1e.auth.v1.GetSubaccountResponse\"\xe1\x01\xbaG\xab\x01\n" +
 	"\fAuth Service\x12\x13Get Subaccount View\x1a\x85\x01Return a single payload containing the sub-account and requested related read models, such as members, API keys, invites, and policy.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02&\x12$/v1/auth/subaccounts/{subaccount_id}\x12\x8d\x02\n" +
 	"\x16ListSubaccountActivity\x12$.auth.v1.ListSubaccountEventsRequest\x1a%.auth.v1.ListSubaccountEventsResponse\"\xa5\x01\xbaGi\n" +
-	"\fAuth Service\x12\x18List Subaccount Activity\x1a?List audit and activity events for a sub-account, newest first.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02-\x12+/v1/auth/subaccounts/{subaccount_id}/events2\xff\x19\n" +
+	"\fAuth Service\x12\x18List Subaccount Activity\x1a?List audit and activity events for a sub-account, newest first.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02-\x12+/v1/auth/subaccounts/{subaccount_id}/events\x1a\v\x8a\xb5\x18\aaccount2\x8c\x1a\n" +
 	"\x11SubaccountService\x12\xed\x01\n" +
 	"\x0fListSubaccounts\x12\x1f.auth.v1.ListSubaccountsRequest\x1a .auth.v1.ListSubaccountsResponse\"\x96\x01\xbaGq\n" +
 	"\fAuth Service\x12\x10List Subaccounts\x1aOList sub-accounts owned by or shared with the caller, including role and label.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x16\x12\x14/v1/auth/subaccounts\x12\xb3\x02\n" +
@@ -3597,12 +3597,12 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x15ListSubaccountInvites\x12%.auth.v1.ListSubaccountInvitesRequest\x1a&.auth.v1.ListSubaccountInvitesResponse\"\xb5\x01\xbaG\x87\x01\n" +
 	"\fAuth Service\x12\x17List Subaccount Invites\x1a^List incoming invitations and all invitations for sub-accounts the caller owns or administers.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1e\x12\x1c/v1/auth/subaccounts:invites\x12\xac\x03\n" +
 	"\x17RespondSubaccountInvite\x12'.auth.v1.RespondSubaccountInviteRequest\x1a(.auth.v1.RespondSubaccountInviteResponse\"\xbd\x02\xbaG\xf5\x01\n" +
-	"\fAuth Service\x12\x19Respond Subaccount Invite\x1a\xc9\x01Accept or decline an invite as grantee, or cancel it as an authorized owner or admin. Acceptance requires an enrolled factor and a recently MFA-elevated session when the subaccount requires member MFA.\x98\xb5\x18\x03\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x025:\x01*\"0/v1/auth/subaccounts/invites/{invite_id}:respond2\xe2\x05\n" +
+	"\fAuth Service\x12\x19Respond Subaccount Invite\x1a\xc9\x01Accept or decline an invite as grantee, or cancel it as an authorized owner or admin. Acceptance requires an enrolled factor and a recently MFA-elevated session when the subaccount requires member MFA.\x98\xb5\x18\x03\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x025:\x01*\"0/v1/auth/subaccounts/invites/{invite_id}:respond\x1a\v\x8a\xb5\x18\aaccount2\xef\x05\n" +
 	"\x15SubaccountRoleService\x12\x9b\x02\n" +
 	"\x13ListSubaccountRoles\x12#.auth.v1.ListSubaccountRolesRequest\x1a$.auth.v1.ListSubaccountRolesResponse\"\xb8\x01\xbaG\x8f\x01\n" +
 	"\fAuth Service\x12\x15List Subaccount Roles\x1ahList every built-in sub-account role and the exact permission definitions used by backend authorization.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/auth/subaccount-roles\x12\xaa\x03\n" +
 	"!GetEffectiveSubaccountPermissions\x121.auth.v1.GetEffectiveSubaccountPermissionsRequest\x1a2.auth.v1.GetEffectiveSubaccountPermissionsResponse\"\x9d\x02\xbaG\xdc\x01\n" +
-	"\fAuth Service\x12$Get Effective Subaccount Permissions\x1a\xa5\x01Return permissions granted by the caller's current role after applying the attached sub-account policy. Contextual checks such as MFA and resource state still apply.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x022\x120/v1/auth/subaccounts/{subaccount_id}/permissionsB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
+	"\fAuth Service\x12$Get Effective Subaccount Permissions\x1a\xa5\x01Return permissions granted by the caller's current role after applying the attached sub-account policy. Contextual checks such as MFA and resource state still apply.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x022\x120/v1/auth/subaccounts/{subaccount_id}/permissions\x1a\v\x8a\xb5\x18\aaccountB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
 
 var (
 	file_auth_v1_subaccounts_proto_rawDescOnce sync.Once

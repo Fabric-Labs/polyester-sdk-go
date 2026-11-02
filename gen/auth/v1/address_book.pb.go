@@ -4346,7 +4346,7 @@ const file_auth_v1_address_book_proto_rawDesc = "" +
 	"\fDEPOSIT_FROM\x10\x01\x12\x0f\n" +
 	"\vWITHDRAW_TO\x10\x02\x12\x1a\n" +
 	"\x16INTERNAL_TRANSFER_FROM\x10\x03\x12\x18\n" +
-	"\x14INTERNAL_TRANSFER_TO\x10\x042\xe0 \n" +
+	"\x14INTERNAL_TRANSFER_TO\x10\x042\xed \n" +
 	"\x12AddressBookService\x12\xe6\x01\n" +
 	"\x10ListAddressBooks\x12 .auth.v1.ListAddressBooksRequest\x1a!.auth.v1.ListAddressBooksResponse\"\x8c\x01\xbaGe\n" +
 	"\fAddress Book\x12\x12List Address Books\x1aAList the root and subaccount address books visible to the caller.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x18\x12\x16/v1/auth/address-books\x12\x8e\x02\n" +
@@ -4375,7 +4375,7 @@ const file_auth_v1_address_book_proto_rawDesc = "" +
 	"\x18GetWithdrawWhitelistView\x12(.auth.v1.GetWithdrawWhitelistViewRequest\x1a).auth.v1.GetWithdrawWhitelistViewResponse\"\x9f\x01\xbaGs\n" +
 	"\fAddress Book\x12\x1bGet Withdraw Whitelist View\x1aFGet external withdrawal whitelist status for one visible address book.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1d\x12\x1b/v1/auth/withdraw-whitelist\x12\x95\x02\n" +
 	"\x12GetAddressBookView\x12\".auth.v1.GetAddressBookViewRequest\x1a#.auth.v1.GetAddressBookViewResponse\"\xb5\x01\xbaG\x8e\x01\n" +
-	"\fAddress Book\x12\x15Get Address Book View\x1agGet address books, saved destinations, recent destinations, tags, and whitelist status in one response.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x17\x12\x15/v1/auth/address-bookB\xcc\x01\xbaG\x8c\x01:\x89\x01\n" +
+	"\fAddress Book\x12\x15Get Address Book View\x1agGet address books, saved destinations, recent destinations, tags, and whitelist status in one response.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x17\x12\x15/v1/auth/address-book\x1a\v\x8a\xb5\x18\aaccountB\xcc\x01\xbaG\x8c\x01:\x89\x01\n" +
 	"\fAddress Book\x12ySaved transfer destinations, recent counterparties, and whitelist status for external withdrawals and internal transfers.Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
 
 var (

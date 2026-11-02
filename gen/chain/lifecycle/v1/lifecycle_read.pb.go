@@ -2385,7 +2385,7 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\x1bTIMELINE_STATUS_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19TIMELINE_STATUS_COMPLETED\x10\x01\x12\x1b\n" +
 	"\x17TIMELINE_STATUS_CURRENT\x10\x02\x12\x1b\n" +
-	"\x17TIMELINE_STATUS_PLANNED\x10\x032\xbf\x05\n" +
+	"\x17TIMELINE_STATUS_PLANNED\x10\x032\xca\x05\n" +
 	"\x14LifecycleReadService\x12\xcf\x01\n" +
 	"\vGetFlowById\x12&.chain.lifecycle.v1.GetFlowByIdRequest\x1a#.chain.lifecycle.v1.GetFlowResponse\"s\xbaGK\n" +
 	"\tLifecycle\x12\x0eGet Flow By Id\x1a.Retrieve one lifecycle flow by public flow id.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/chain/flows/{flow_id}\x12\xde\x01\n" +
@@ -2393,7 +2393,7 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\tLifecycle\x12\n" +
 	"List Flows\x1aLList lifecycle flows with optional account, chain, asset, and state filters.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x11\x12\x0f/v1/chain/flows\x12\xf3\x01\n" +
 	"\rListFlowsByTx\x12(.chain.lifecycle.v1.ListFlowsByTxRequest\x1a).chain.lifecycle.v1.ListFlowsByTxResponse\"\x8c\x01\xbaGV\n" +
-	"\tLifecycle\x12\x10List Flows By Tx\x1a7List lifecycle flows that reference a transaction hash.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02)\x12'/v1/chain/flows/by-tx/{tx_hash}/matchesB\x94\x01\xbaG@:>\n" +
+	"\tLifecycle\x12\x10List Flows By Tx\x1a7List lifecycle flows that reference a transaction hash.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02)\x12'/v1/chain/flows/by-tx/{tx_hash}/matches\x1a\t\x8a\xb5\x18\x05chainB\x94\x01\xbaG@:>\n" +
 	"\tLifecycle\x121Read lifecycle flow state, history, and progress.ZOgithub.com/Fabric-Labs/polyester-sdk-go/gen/chain/lifecycle/v1;chainlifecyclev1b\x06proto3"
 
 var (

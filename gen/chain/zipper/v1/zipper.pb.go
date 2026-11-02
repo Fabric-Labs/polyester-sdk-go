@@ -776,10 +776,10 @@ const file_chain_zipper_v1_zipper_proto_rawDesc = "" +
 	"\x06chains\x18\x01 \x03(\v2\x1c.chain.zipper.v1.ChainConfigR\x06chains\x124\n" +
 	"\x06assets\x18\x02 \x03(\v2\x1c.chain.zipper.v1.AssetConfigR\x06assets\x12\x15\n" +
 	"\x06ts_sec\x18\x03 \x01(\x04R\x05tsSec\x12B\n" +
-	"\tcontracts\x18\x05 \x03(\v2$.chain.zipper.v1.ChainContractConfigR\tcontracts2\xd9\x02\n" +
+	"\tcontracts\x18\x05 \x03(\v2$.chain.zipper.v1.ChainContractConfigR\tcontracts2\xe4\x02\n" +
 	"\rZipperService\x12\xc7\x02\n" +
 	"\x18GetDepositWithdrawConfig\x120.chain.zipper.v1.GetDepositWithdrawConfigRequest\x1a1.chain.zipper.v1.GetDepositWithdrawConfigResponse\"\xc5\x01\xbaG\x94\x01\n" +
-	"\x12Deposit & Withdraw\x12\x1dGet Deposit & Withdraw Config\x1a_Retrieve the supported chains and unified assets for Zipper-powered deposit and withdraw flows.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02#\x12!/v1/chain/deposit-withdraw/configB\xbe\x01\xbaGp:n\n" +
+	"\x12Deposit & Withdraw\x12\x1dGet Deposit & Withdraw Config\x1a_Retrieve the supported chains and unified assets for Zipper-powered deposit and withdraw flows.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02#\x12!/v1/chain/deposit-withdraw/config\x1a\t\x8a\xb5\x18\x05chainB\xbe\x01\xbaGp:n\n" +
 	"\x12Deposit & Withdraw\x12XPublic Zipper-powered surface for deposit and withdraw chain configuration in Polyester.ZIgithub.com/Fabric-Labs/polyester-sdk-go/gen/chain/zipper/v1;chainzipperv1b\x06proto3"
 
 var (

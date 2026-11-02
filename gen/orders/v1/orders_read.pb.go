@@ -148,6 +148,10 @@ const (
 	CancelReason_CANCEL_REASON_STRATEGY_CANCEL CancelReason = 15
 	// The exchange canceled the order for a reason it does not name.
 	CancelReason_CANCEL_REASON_SYSTEM CancelReason = 16
+	// The market was halted: the exchange canceled every open order of the
+	// market. Fills before the cancel stand. The market refuses new orders until
+	// it trades again.
+	CancelReason_CANCEL_REASON_MARKET_HALTED CancelReason = 17
 )
 
 // Enum value maps for CancelReason.
@@ -170,6 +174,7 @@ var (
 		14: "CANCEL_REASON_TWAP_ROLLOVER",
 		15: "CANCEL_REASON_STRATEGY_CANCEL",
 		16: "CANCEL_REASON_SYSTEM",
+		17: "CANCEL_REASON_MARKET_HALTED",
 	}
 	CancelReason_value = map[string]int32{
 		"CANCEL_REASON_UNSPECIFIED":            0,
@@ -189,6 +194,7 @@ var (
 		"CANCEL_REASON_TWAP_ROLLOVER":          14,
 		"CANCEL_REASON_STRATEGY_CANCEL":        15,
 		"CANCEL_REASON_SYSTEM":                 16,
+		"CANCEL_REASON_MARKET_HALTED":          17,
 	}
 )
 
@@ -2996,7 +3002,7 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\n" +
 	"\x06FILLED\x10\x04\x12\f\n" +
 	"\bCANCELED\x10\x05\x12\f\n" +
-	"\bREJECTED\x10\x06*\xcd\x04\n" +
+	"\bREJECTED\x10\x06*\xee\x04\n" +
 	"\fCancelReason\x12\x1d\n" +
 	"\x19CANCEL_REASON_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aCANCEL_REASON_USER_REQUEST\x10\x01\x12\x1f\n" +
@@ -3015,7 +3021,8 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\x1cCANCEL_REASON_ACCOUNT_REPAIR\x10\r\x12\x1f\n" +
 	"\x1bCANCEL_REASON_TWAP_ROLLOVER\x10\x0e\x12!\n" +
 	"\x1dCANCEL_REASON_STRATEGY_CANCEL\x10\x0f\x12\x18\n" +
-	"\x14CANCEL_REASON_SYSTEM\x10\x10*\xbf\x01\n" +
+	"\x14CANCEL_REASON_SYSTEM\x10\x10\x12\x1f\n" +
+	"\x1bCANCEL_REASON_MARKET_HALTED\x10\x11*\xbf\x01\n" +
 	"\x11BatchReplacePhase\x12#\n" +
 	"\x1fBATCH_REPLACE_PHASE_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cBATCH_REPLACE_PHASE_ADMITTED\x10\x01\x12\x1f\n" +
@@ -3037,13 +3044,13 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\rTRAILING_STOP\x10\x03\x12\b\n" +
 	"\x04TWAP\x10\x04\x12\n" +
 	"\n" +
-	"\x06LADDER\x10\x052\xe8\x03\n" +
+	"\x06LADDER\x10\x052\xf5\x03\n" +
 	"\x11OrdersReadService\x12Z\n" +
 	"\rGetOpenOrders\x12\x1f.orders.v1.GetOpenOrdersRequest\x1a .orders.v1.GetOpenOrdersResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x12`\n" +
 	"\x0fGetOrderHistory\x12!.orders.v1.GetOrderHistoryRequest\x1a\".orders.v1.GetOrderHistoryResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x12Z\n" +
 	"\rGetUserTrades\x12\x1f.orders.v1.GetUserTradesRequest\x1a .orders.v1.GetUserTradesResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x12K\n" +
 	"\bGetOrder\x12\x1a.orders.v1.GetOrderRequest\x1a\x1b.orders.v1.GetOrderResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x12l\n" +
-	"\x15GetBatchReplaceStatus\x12'.orders.v1.GetBatchReplaceStatusRequest\x1a(.orders.v1.GetBatchReplaceStatusResponse\"\x00B@Z>github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1;ordersv1b\x06proto3"
+	"\x15GetBatchReplaceStatus\x12'.orders.v1.GetBatchReplaceStatusRequest\x1a(.orders.v1.GetBatchReplaceStatusResponse\"\x00\x1a\v\x8a\xb5\x18\atradingB@Z>github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1;ordersv1b\x06proto3"
 
 var (
 	file_orders_v1_orders_read_proto_rawDescOnce sync.Once

@@ -3911,7 +3911,7 @@ const file_swap_quickswap_v1_quickswap_broker_proto_rawDesc = "" +
 	"\vStatsPeriod\x12\x16\n" +
 	"\x12PERIOD_UNSPECIFIED\x10\x00\x12\a\n" +
 	"\x03DAY\x10\x01\x12\t\n" +
-	"\x05MONTH\x10\x022\x9f \n" +
+	"\x05MONTH\x10\x022\xae \n" +
 	"\x16QuickSwapBrokerService\x12\xc5\x01\n" +
 	"\tGetBroker\x12#.swap.quickswap.v1.GetBrokerRequest\x1a$.swap.quickswap.v1.GetBrokerResponse\"m\xbaGd\n" +
 	"\x10QuickSwap Broker\x12\n" +
@@ -3954,7 +3954,7 @@ const file_swap_quickswap_v1_quickswap_broker_proto_rawDesc = "" +
 	"\fGetFeeTotals\x12&.swap.quickswap.v1.GetFeeTotalsRequest\x1a'.swap.quickswap.v1.GetFeeTotalsResponse\"\x88\x01\xbaG\x7f\n" +
 	"\x10QuickSwap Broker\x12\x0eGet fee totals\x1a[Total the broker and affiliate fees charged in a window, per asset, by vault, day or month.\xa2\xb5\x18\x02\x03\x01\x12\xf9\x01\n" +
 	"\x0eGetBrokerStats\x12(.swap.quickswap.v1.GetBrokerStatsRequest\x1a).swap.quickswap.v1.GetBrokerStatsResponse\"\x91\x01\xbaG\x87\x01\n" +
-	"\x10QuickSwap Broker\x12\x10Get broker stats\x1aaRead the broker's QuickSwaps by status, deposits, payouts and fees in a window, per day or month.\xa2\xb5\x18\x02\x03\x01B\xef\x01\xbaG\xa0\x01:\x9d\x01\n" +
+	"\x10QuickSwap Broker\x12\x10Get broker stats\x1aaRead the broker's QuickSwaps by status, deposits, payouts and fees in a window, per day or month.\xa2\xb5\x18\x02\x03\x01\x1a\r\x8a\xb5\x18\tquickswapB\xef\x01\xbaG\xa0\x01:\x9d\x01\n" +
 	"\x10QuickSwap Broker\x12\x88\x01Self-service administration of a QuickSwap broker org: affiliate vaults, API keys and members, and reporting on its QuickSwaps and fees.ZIgithub.com/Fabric-Labs/polyester-sdk-go/gen/swap/quickswap/v1;quickswapv1b\x06proto3"
 
 var (

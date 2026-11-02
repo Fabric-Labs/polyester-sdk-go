@@ -3679,7 +3679,7 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\x10STATS_INCOMPLETE\x10!\x12\x14\n" +
 	"\x10ADDRESS_CONFLICT\x10\"\"\x04\b\t\x10\t\"\x04\b\n" +
 	"\x10\n" +
-	"\"\x04\b\x10\x10\x10\"\x04\b\x11\x10\x11*\x19SOURCE_SCREENING_REJECTED*\x15SCREENING_UNAVAILABLE*\x0fNOT_CANCELLABLE*\x12AFFILIATES_INVALID2\xc2\x05\n" +
+	"\"\x04\b\x10\x10\x10\"\x04\b\x11\x10\x11*\x19SOURCE_SCREENING_REJECTED*\x15SCREENING_UNAVAILABLE*\x0fNOT_CANCELLABLE*\x12AFFILIATES_INVALID2\xd1\x05\n" +
 	"\x10QuickSwapService\x12\xdf\x01\n" +
 	"\x0eQuoteQuickSwap\x12(.swap.quickswap.v1.QuoteQuickSwapRequest\x1a).swap.quickswap.v1.QuoteQuickSwapResponse\"x\xbaGp\n" +
 	"\tQuickSwap\x12\x0fQuote QuickSwap\x1a:Price QuickSwap terms without reserving a deposit address.Z\x16\n" +
@@ -3692,7 +3692,7 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\fGetQuickSwap\x12&.swap.quickswap.v1.GetQuickSwapRequest\x1a'.swap.quickswap.v1.GetQuickSwapResponse\"r\xbaGj\n" +
 	"\tQuickSwap\x12\rGet QuickSwap\x1a6Get one QuickSwap by identifier or by idempotency key.Z\x16\n" +
 	"\x14\n" +
-	"\x10BrokerApiKeyAuth\x12\x00\xa2\xb5\x18\x01\x03B\xa0\x01\xbaGR:P\n" +
+	"\x10BrokerApiKeyAuth\x12\x00\xa2\xb5\x18\x01\x03\x1a\r\x8a\xb5\x18\tquickswapB\xa0\x01\xbaGR:P\n" +
 	"\tQuickSwap\x12CBroker-only swaps of an external deposit into external withdrawals.ZIgithub.com/Fabric-Labs/polyester-sdk-go/gen/swap/quickswap/v1;quickswapv1b\x06proto3"
 
 var (

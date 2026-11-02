@@ -891,7 +891,7 @@ const file_auth_v1_profile_proto_rawDesc = "" +
 	"\x15PROFILE_INVALID_FIELD\x10\x01\x12\x1a\n" +
 	"\x16PROFILE_FIELD_TOO_LONG\x10\x02\x12\x17\n" +
 	"\x13PROFILE_URL_INVALID\x10\x03\x12\x1e\n" +
-	"\x1aPROFILE_URL_SCHEME_INVALID\x10\x042\x82\n" +
+	"\x1aPROFILE_URL_SCHEME_INVALID\x10\x042\x8f\n" +
 	"\n" +
 	"\x0eProfileService\x12\x9b\x01\n" +
 	"\n" +
@@ -904,7 +904,7 @@ const file_auth_v1_profile_proto_rawDesc = "" +
 	"\x17GenerateUsernameOptions\x12'.auth.v1.GenerateUsernameOptionsRequest\x1a(.auth.v1.GenerateUsernameOptionsResponse\"\xc0\x01\xbaG\x82\x01\n" +
 	"\fAuth Service\x12\x19Generate Username Options\x1aWGenerate five random username options for an account that has never claimed a username.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02/:\x01*\"*/v1/auth/profile/username-options:generate\x12\xfd\x01\n" +
 	"\x16ClaimGeneratedUsername\x12&.auth.v1.ClaimGeneratedUsernameRequest\x1a\x14.auth.v1.UserProfile\"\xa4\x01\xbaGh\n" +
-	"\fAuth Service\x12\x18Claim Generated Username\x1a>Claim one username by its position in a valid generated offer.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02.:\x01*\")/v1/auth/profile/username:claim-generatedB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
+	"\fAuth Service\x12\x18Claim Generated Username\x1a>Claim one username by its position in a valid generated offer.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02.:\x01*\")/v1/auth/profile/username:claim-generated\x1a\v\x8a\xb5\x18\aaccountB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
 
 var (
 	file_auth_v1_profile_proto_rawDescOnce sync.Once

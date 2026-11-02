@@ -2257,7 +2257,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x12READ_AUTO_WITHDRAW\x10\x0e\x12\x18\n" +
 	"\x14MANAGE_AUTO_WITHDRAW\x10\x0f\x12\b\n" +
 	"\x04SWAP\x10\x10\"\x04\b\x02\x10\x02\"\x04\b\a\x10\a\"\x04\b\r\x10\r\"\x04\b\t\x10\t*\n" +
-	"TRADE_PERP*\tREAD_PERP*\x1aREAD_TRANSFER_DESTINATIONS*\x1aMANAGE_TRANSFER_WHITELISTS*\x19READ_EXTERNAL_WITHDRAWALS2\x90\x18\n" +
+	"TRADE_PERP*\tREAD_PERP*\x1aREAD_TRANSFER_DESTINATIONS*\x1aMANAGE_TRANSFER_WHITELISTS*\x19READ_EXTERNAL_WITHDRAWALS2\x9d\x18\n" +
 	"\rPolicyService\x12\xfd\x01\n" +
 	"\x16ListSubaccountPolicies\x12&.auth.v1.ListSubaccountPoliciesRequest\x1a'.auth.v1.ListSubaccountPoliciesResponse\"\x91\x01\xbaGd\n" +
 	"\fAuth Service\x12\x18List Subaccount Policies\x1a:List sub-account policy templates available to the caller.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1f\x12\x1d/v1/auth/policies/subaccounts\x12\xfe\x01\n" +
@@ -2282,7 +2282,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x0fDeleteApiPolicy\x12\x1f.auth.v1.DeleteApiPolicyRequest\x1a .auth.v1.DeleteApiPolicyResponse\"\xa2\x01\xbaGh\n" +
 	"\fAuth Service\x12\x15Delete API Key Policy\x1aADelete an existing API key policy template when it is not in use.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02(*&/v1/auth/policies/api-keys/{policy_id}\x12\xe8\x01\n" +
 	"\x0fSetApiKeyPolicy\x12\x1f.auth.v1.SetApiKeyPolicyRequest\x1a .auth.v1.SetApiKeyPolicyResponse\"\x91\x01\xbaGY\n" +
-	"\fAuth Service\x12\x12Set API Key Policy\x1a5Attach or clear an API key policy for the target key.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02&:\x01*2!/v1/auth/api-keys/{key_id}/policyB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
+	"\fAuth Service\x12\x12Set API Key Policy\x1a5Attach or clear an API key policy for the target key.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02&:\x01*2!/v1/auth/api-keys/{key_id}/policy\x1a\v\x8a\xb5\x18\aaccountB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
 
 var (
 	file_auth_v1_policies_proto_rawDescOnce sync.Once
