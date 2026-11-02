@@ -102,12 +102,17 @@ func (s *ChangelogService) ActionRequiredSince(ctx context.Context, since time.T
 }
 
 // paginate yields every item of fetch's pages, starting from token, until a
-// page has no next token. A next token equal to the one just sent would loop
-// forever, so it ends iteration with a contract error.
+// page has no next token. A next token already requested in this iteration
+// would cycle forever, so it ends iteration with a contract error.
 func paginate[T any](token string, fetch func(token string) ([]T, string, error)) iter.Seq2[T, error] {
 	return func(yield func(T, error) bool) {
 		var zero T
+		token := token
+		requested := map[string]struct{}{}
 		for {
+			if token != "" {
+				requested[token] = struct{}{}
+			}
 			items, next, err := fetch(token)
 			if err != nil {
 				yield(zero, err)
@@ -121,8 +126,8 @@ func paginate[T any](token string, fetch func(token string) ([]T, string, error)
 			if next == "" {
 				return
 			}
-			if next == token {
-				yield(zero, &sdkerrors.ResponseContractError{Msg: "next_page_token repeats the request's page_token"})
+			if _, seen := requested[next]; seen {
+				yield(zero, &sdkerrors.ResponseContractError{Msg: "next_page_token repeats an earlier page_token"})
 				return
 			}
 			token = next

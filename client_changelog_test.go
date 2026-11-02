@@ -32,6 +32,9 @@ type fakeChangelog struct {
 	changesCalls  []*changelogv1.ListChangesRequest
 	authHeaderSet bool
 	repeatToken   bool
+	// cycleTokens, when set, replaces every ListPosts next_page_token in
+	// order: a server whose tokens cycle back to an earlier page.
+	cycleTokens []string
 }
 
 func (f *fakeChangelog) sawHeaders(h http.Header) {
@@ -69,6 +72,10 @@ func (f *fakeChangelog) ListPosts(_ context.Context, req *connect.Request[change
 	summaries := make([]*changelogv1.PostSummary, 0, len(f.posts))
 	for _, post := range f.posts {
 		summaries = append(summaries, post.GetSummary())
+	}
+	if f.cycleTokens != nil {
+		next := f.cycleTokens[(len(f.postsCalls)-1)%len(f.cycleTokens)]
+		return connect.NewResponse(&changelogv1.ListPostsResponse{Posts: summaries[:1], NextPageToken: next}), nil
 	}
 	items, next, err := page(summaries, req.Msg.GetPageToken(), req.Msg.GetLimit(), 20)
 	if err != nil {
@@ -268,6 +275,52 @@ func TestChangelogPostsRejectsARepeatedPageToken(t *testing.T) {
 	}
 	if count != 4 {
 		t.Fatalf("yielded %d posts before the error, want 4", count)
+	}
+}
+
+func TestChangelogPostsRejectsATokenCycle(t *testing.T) {
+	for name, tc := range map[string]struct {
+		start  string
+		cycle  []string
+		calls  []string
+		yields int
+	}{
+		// "" -> A -> B -> A: A recurs after two pages.
+		"two tokens": {cycle: []string{"A", "B", "A"}, calls: []string{"", "A", "B"}, yields: 3},
+		// "" -> A -> B -> C -> B.
+		"three tokens": {cycle: []string{"A", "B", "C", "B"}, calls: []string{"", "A", "B", "C"}, yields: 4},
+		// The caller's starting token counts: S -> A -> S.
+		"starting token": {start: "S", cycle: []string{"A", "S"}, calls: []string{"S", "A"}, yields: 2},
+	} {
+		t.Run(name, func(t *testing.T) {
+			fake := newFakeChangelog(5)
+			fake.cycleTokens = tc.cycle
+			client := newPublicChangelogClient(t, fake)
+
+			var got error
+			count := 0
+			for _, err := range client.Changelog.Posts(context.Background(), models.ListChangelogPostsOptions{PageToken: tc.start}) {
+				if err != nil {
+					got = err
+					break
+				}
+				count++
+			}
+			var contractErr *sdkerrors.ResponseContractError
+			if !stderrors.As(got, &contractErr) {
+				t.Fatalf("err = %v, want ResponseContractError", got)
+			}
+			if count != tc.yields {
+				t.Fatalf("yielded %d posts, want %d", count, tc.yields)
+			}
+			calls := make([]string, 0, len(fake.postsCalls))
+			for _, req := range fake.postsCalls {
+				calls = append(calls, req.GetPageToken())
+			}
+			if !reflect.DeepEqual(calls, tc.calls) {
+				t.Fatalf("page tokens sent = %q, want %q", calls, tc.calls)
+			}
+		})
 	}
 }
 
