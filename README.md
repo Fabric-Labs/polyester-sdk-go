@@ -8,7 +8,8 @@ using the checked-in `gen/` protobuf bundle (no local proto generation for
 normal development).
 
 **Status:** `v0.5.1`, pre-1.0: a minor release may change the API. The Go,
-Python and Rust SDKs share one version number and are released together.
+Python and Rust SDKs are released together. Their versions match unless a
+change breaks only one SDK's API: Go `v0.5.1` is the release of Rust `0.6.0`.
 Proprietary license (not open source).
 API-key only; no browser login or session MFA.
 
