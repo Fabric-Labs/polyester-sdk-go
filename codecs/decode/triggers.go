@@ -61,6 +61,7 @@ var triggerEventTypeLabels = map[triggersv1.TriggerEventType]string{
 	triggersv1.TriggerEventType_EVENT_UPDATED:   "updated",
 	triggersv1.TriggerEventType_EVENT_FAILED:    "failed",
 	triggersv1.TriggerEventType_EVENT_ACTIVATED: "activated",
+	triggersv1.TriggerEventType_EVENT_ARMED:     "armed",
 }
 
 var triggerEventTypeFromLabel = map[string]triggersv1.TriggerEventType{
@@ -70,6 +71,7 @@ var triggerEventTypeFromLabel = map[string]triggersv1.TriggerEventType{
 	"updated":   triggersv1.TriggerEventType_EVENT_UPDATED,
 	"failed":    triggersv1.TriggerEventType_EVENT_FAILED,
 	"activated": triggersv1.TriggerEventType_EVENT_ACTIVATED,
+	"armed":     triggersv1.TriggerEventType_EVENT_ARMED,
 }
 
 // TriggerEventTypeLabel maps proto trigger event type to SDK output labels.
@@ -90,7 +92,7 @@ func TriggerEventTypeFromLabel(label string) (triggersv1.TriggerEventType, error
 		return eventType, nil
 	}
 	return triggersv1.TriggerEventType_EVENT_UNSPECIFIED, fmt.Errorf(
-		"invalid trigger event type %q; expected one of: fired, canceled, updated, failed, activated",
+		"invalid trigger event type %q; expected one of: fired, canceled, updated, failed, activated, armed",
 		label,
 	)
 }
