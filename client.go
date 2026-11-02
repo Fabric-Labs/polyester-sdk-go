@@ -110,6 +110,7 @@ type Client struct {
 	SocialVerification *services.SocialVerificationService
 	GuardSigner        *services.GuardSignerService
 	VIP                *services.VIPService
+	Changelog          *services.ChangelogService
 	Fees               *services.FeeService
 	RateLimits         *services.RateLimitService
 	Withdraw           *services.WithdrawService
@@ -196,6 +197,7 @@ func New(cfg Config) (*Client, error) {
 		SocialVerification:   services.NewSocialVerificationService(factory),
 		GuardSigner:          services.NewGuardSignerService(factory, cfg.DefaultSubAccountID),
 		VIP:                  services.NewVIPService(factory),
+		Changelog:            services.NewChangelogService(factory),
 		Fees:                 services.NewFeeService(factory, cats, cfg.DefaultSubAccountID),
 		RateLimits:           services.NewRateLimitService(factory, cfg.DefaultSubAccountID),
 		Withdraw:             services.NewWithdrawService(factory, cfg.DefaultSubAccountID),

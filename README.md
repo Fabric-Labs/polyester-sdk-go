@@ -38,6 +38,7 @@ Requires a recent Go toolchain (see `go.mod`).
 | VIP tiers + status | Yes |
 | Spot fee rates | Yes |
 | Trading rate limits | Yes |
+| Product changelog (posts + changes) | Yes |
 | Balances, holds, equity history | Yes |
 | Orders (create, cancel, modify, batch, cancel-all) | Yes |
 | User trades | Yes |
@@ -549,6 +550,46 @@ status, err := client.VIP.GetVIPStatus(ctx)
 fees, err := client.Fees.GetSpotFeeRates(ctx, nil, nil, nil)
 catalog, err := client.RateLimits.GetRateLimitConfig(ctx)
 limits, err := client.RateLimits.GetTradingRateLimits(ctx, nil, nil)
+```
+
+## Product changelog API
+
+`client.Changelog` reads the product changelog published for the environment the
+client points at (devnet, testnet, ...). It is public and read-only: it needs no API
+key, and the server rate-limits it per client address.
+
+- `ListPosts` returns one page of post summaries, newest first, with change counts by
+  kind. `Posts` iterates over every page.
+- `GetPost(ctx, slug)` returns one full post with its sections and changes. A slug is
+  the post's coverage cutoff date, `YYYY-MM-DD`; a second or third post on the same day
+  gets `-2` or `-3`. An unknown slug fails with `*errors.APIError` whose `Code` is
+  `not_found`.
+- `ListChanges` returns one page of changes across posts, each with its post slug,
+  publication time and section heading. `Changes` iterates over every page. Filters
+  on different fields combine with AND; values within one field combine with OR.
+  `StartTime` is inclusive and `EndTime` exclusive; an `EndTime` not after `StartTime`
+  fails with `*errors.ValidationError` (`invalid_argument`).
+- `BreakingChangesSince(ctx, t)` and `ActionRequiredSince(ctx, t)` return every
+  breaking or action-required change published at or after `t`, newest post first.
+
+Categories, audiences and surfaces are lowercase labels with constants in `models`
+(`models.ChangelogCategoryBreakingChange`, `models.ChangelogSurfaceAPI`, ...). A value
+newer than this SDK reads as `unknown(<n>)` instead of failing. `Change.ID` is the
+change's base58 public ID. The service returns `Unavailable` (`*errors.ServerError`)
+while it is starting.
+
+```go
+for post, err := range client.Changelog.Posts(ctx, models.ListChangelogPostsOptions{}) {
+    if err != nil {
+        return err
+    }
+    fmt.Println(post.Slug, post.Title, post.BreakingChangeCount)
+}
+post, err := client.Changelog.GetPost(ctx, "2026-09-24")
+breaking, err := client.Changelog.BreakingChangesSince(ctx, time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC))
+for _, entry := range breaking {
+    fmt.Println(entry.PostSlug, entry.Change.ID, entry.Change.Title, entry.Change.MigrationGuidance)
+}
 ```
 
 ## Triggers

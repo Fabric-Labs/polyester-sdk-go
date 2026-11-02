@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+**What a trading bot gains.** A bot can read the product changelog of the
+environment it trades on, with no API key, and find the breaking or
+action-required changes published since it last looked.
+
+**Breaking changes**
+- None in the SDK API.
+
+### Added
+- `client.Changelog` wraps the public `changelog.v1.ChangelogService`.
+  `ListPosts`, `GetPost` and `ListChanges` return typed
+  `models.ChangelogPostSummary`, `ChangelogPost`, `ChangelogSection`,
+  `ChangelogChange` and `ChangelogChangeEntry` values. `Posts` and `Changes`
+  iterate over every page, and `BreakingChangesSince` and
+  `ActionRequiredSince` collect the matching changes published since a time.
+  Categories, audiences and surfaces are lowercase labels, and a value newer
+  than the SDK reads as `unknown(<n>)`. Change IDs are base58. An unknown slug
+  fails with `*errors.APIError` code `not_found`.
+
 ## 0.5.1
 
 Git tag: `v0.5.1`. Released 2026-11-02.
