@@ -93,3 +93,15 @@ func TestLargeJSONErrorBodyReachesConnectIntact(t *testing.T) {
 		t.Fatalf("err=%T len=%d", err, len(err.Error()))
 	}
 }
+
+func TestOwnerRoleLockedProblemMapsToTypedError(t *testing.T) {
+	err := callMeAgainst(t, http.StatusPreconditionFailed, "application/problem+json",
+		`{"status":412,"code":"AUTH_SUBACCOUNT_OWNER_ROLE_LOCKED","title":"Subaccount Owner Role Locked"}`)
+	var locked *sdkerrors.SubaccountOwnerRoleLockedError
+	if !errors.As(err, &locked) || locked.Status != http.StatusPreconditionFailed {
+		t.Fatalf("err=%T %v", err, err)
+	}
+	if sdkerrors.AuthErrorCode(err) != sdkerrors.AuthCodeSubaccountOwnerRoleLocked || sdkerrors.IsRetryable(err) {
+		t.Fatalf("err=%v", err)
+	}
+}

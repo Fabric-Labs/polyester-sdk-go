@@ -116,6 +116,10 @@ func MapConnectError(err error) error {
 	if errors.As(err, &skewErr) {
 		return skewErr
 	}
+	var ownerLockedErr *sdkerrors.SubaccountOwnerRoleLockedError
+	if errors.As(err, &ownerLockedErr) {
+		return ownerLockedErr
+	}
 	var connectErr *connect.Error
 	if !errors.As(err, &connectErr) {
 		return &sdkerrors.TransportError{Msg: err.Error()}
@@ -141,6 +145,9 @@ func MapConnectError(err error) error {
 			detailMsg := authDetail.GetMessage()
 			if detailMsg == "" {
 				detailMsg = msg
+			}
+			if authDetail.GetCode() == authv1.AuthErrorCode_AUTH_SUBACCOUNT_OWNER_ROLE_LOCKED {
+				return &sdkerrors.SubaccountOwnerRoleLockedError{Msg: detailMsg}
 			}
 			return &sdkerrors.APIError{Msg: detailMsg, Code: codeName}
 		}

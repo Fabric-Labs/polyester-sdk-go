@@ -399,3 +399,40 @@ func TestMapConnectErrorNewOrderRefusalCodesAreFinal(t *testing.T) {
 		})
 	}
 }
+
+// Member calls that target the sub-account's owner answer failed_precondition
+// with AUTH_SUBACCOUNT_OWNER_ROLE_LOCKED. The typed error keeps the auth code
+// readable through *APIError, and it is final.
+func TestMapConnectErrorTypesSubaccountOwnerRoleLocked(t *testing.T) {
+	connectErr := connect.NewError(connect.CodeFailedPrecondition, errors.New("owner role is locked"))
+	detail, err := connect.NewErrorDetail(&authv1.AuthErrorDetail{
+		Code:    authv1.AuthErrorCode_AUTH_SUBACCOUNT_OWNER_ROLE_LOCKED,
+		Message: "The owner's role can't be changed",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	connectErr.AddDetail(detail)
+	mapped := MapConnectError(connectErr)
+
+	var locked *sdkerrors.SubaccountOwnerRoleLockedError
+	if !errors.As(mapped, &locked) || !sdkerrors.IsSubaccountOwnerRoleLocked(mapped) {
+		t.Fatalf("mapped=%T %v", mapped, mapped)
+	}
+	if locked.Msg != "The owner's role can't be changed" {
+		t.Fatalf("msg=%q", locked.Msg)
+	}
+	var apiErr *sdkerrors.APIError
+	if !errors.As(mapped, &apiErr) || apiErr.Code != sdkerrors.AuthCodeSubaccountOwnerRoleLocked {
+		t.Fatalf("APIError view=%#v", apiErr)
+	}
+	if sdkerrors.AuthErrorCode(mapped) != "AUTH_SUBACCOUNT_OWNER_ROLE_LOCKED" {
+		t.Fatalf("auth code=%q", sdkerrors.AuthErrorCode(mapped))
+	}
+	if !errors.Is(mapped, sdkerrors.ErrPolyester) || sdkerrors.IsRetryable(mapped) || sdkerrors.MutationOutcomeUnknown(mapped) {
+		t.Fatal("owner role lock is a final polyester error")
+	}
+	if sdkerrors.IsSubaccountOwnerRoleLocked(mapAuthDetail(t, authv1.AuthErrorCode_AUTH_REVISION_CONFLICT, "x")) {
+		t.Fatal("other auth codes are not the owner role lock")
+	}
+}

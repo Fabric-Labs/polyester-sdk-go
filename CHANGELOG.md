@@ -4,10 +4,17 @@
 
 **What a trading bot gains.** A bot can read the product changelog of the
 environment it trades on, with no API key, and find the breaking or
-action-required changes published since it last looked.
+action-required changes published since it last looked. It can wait for a
+batch replace to settle and see which items the market refused after
+admission, read a trigger back right after changing it, and tell a market halt
+from other cancels.
 
 **Breaking changes**
-- None in the SDK API.
+- A sub-account owner-role refusal is `*errors.SubaccountOwnerRoleLockedError`
+  rather than `*errors.APIError`. `errors.As` with `*errors.APIError` and
+  `errors.AuthErrorCode` still match it; a direct type assertion does not.
+- A batch replace status item with no successor reports an empty
+  `ReplacementOrderID` instead of `"0"`.
 
 ### Added
 - `client.Changelog` wraps the public `changelog.v1.ChangelogService`.
@@ -19,6 +26,37 @@ action-required changes published since it last looked.
   Categories, audiences and surfaces are lowercase labels, and a value newer
   than the SDK reads as `unknown(<n>)`. Change IDs are base58. An unknown slug
   fails with `*errors.APIError` code `not_found`.
+- `Orders.WaitBatchReplace` polls `GetBatchReplaceStatus` until no item is
+  `admitted`, through the not found a new batch's status reads for a few
+  seconds after admission, and stops at the 60-second status window with
+  `*errors.BatchReplaceWindowExpiredError` and the last status: reconcile the
+  orders with order reads then.
+- `BatchReplaceStatusItem.ErrorCode` names an item's refusal as the
+  `orders.v1` error code a single modify returns (`ERROR_CODE_POST_ONLY_CROSS`
+  for `Code` `POST_ONLY_CROSS`); a code newer than the SDK is kept as sent.
+- Market halts: orders the halt cancels read `CancelReason` `market_halted`
+  (`CANCEL_REASON_MARKET_HALTED`, 17) on order reads and the order stream, and
+  triggers it ends read `CancelReason` `market_halted`
+  (`TRIGGER_CANCEL_REASON_MARKET_HALTED`, 13) on trigger reads, events and
+  streams. A trigger refused after a halt reads `FailureReason`
+  `unknown(212)` until the server reports `market_halted`.
+- `*errors.SubaccountOwnerRoleLockedError` and
+  `errors.IsSubaccountOwnerRoleLocked`: a sub-account member call that targets
+  the owner (`AUTH_SUBACCOUNT_OWNER_ROLE_LOCKED`, Connect
+  `failed_precondition` or REST 412). It unwraps to `*errors.APIError`, so
+  `errors.AuthErrorCode` still reads the code; a direct type assertion to
+  `*errors.APIError` no longer matches it.
+
+### Changed
+- `Triggers.Get` and `Triggers.List` retry `UNAVAILABLE` (HTTP 503) with the
+  same request, from 25 ms doubling up to 500 ms, for about 2 s. Trigger reads
+  answer it until they reflect an answered modify, pause or resume.
+
+### Fixed
+- `Orders.GetBatchReplaceStatus` no longer fails with
+  `*errors.ResponseContractError` when an item was admitted and then refused
+  when applied. Servers now report such an item `rejected` with its code while
+  the admission counts still count it as accepted.
 
 ## 0.5.1
 

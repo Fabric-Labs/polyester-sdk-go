@@ -62,6 +62,9 @@ func (s *TriggersService) client() triggersv1connect.TriggersServiceClient {
 	return triggersv1connect.NewTriggersServiceClient(s.transport.HTTP, s.transport.Config.APIURL, s.transport.ConnectOptions(true)...)
 }
 
+// List reads triggers. It retries UNAVAILABLE with the same request for
+// about 2 s (25 ms, doubling, capped at 500 ms): trigger reads answer it until
+// they reflect every answered trigger change.
 func (s *TriggersService) List(ctx context.Context, account AccountScope, subAccountID, symbol *string, status []string, limit int, pageToken *string) (models.TriggersList, error) {
 	parsedLimit, err := PaginationLimit(limit, "limit")
 	if err != nil {
@@ -92,9 +95,12 @@ func (s *TriggersService) List(ctx context.Context, account AccountScope, subAcc
 		}
 		req.Status = append(req.Status, st)
 	}
-	return UnaryAuth(ctx, s.transport, s.client().ListTriggers, req, decode.TriggersListFromProto)
+	return UnaryAuth(ctx, s.transport, retryUnavailable(triggerReadRetry, s.client().ListTriggers), req, decode.TriggersListFromProto)
 }
 
+// Get reads one trigger. Like List, it retries a catching-up UNAVAILABLE
+// with the same request for about 2 s, so a read after an answered Modify,
+// Pause or Resume returns the trigger as changed.
 func (s *TriggersService) Get(ctx context.Context, account AccountScope, triggerID string, subAccountID *string) (*models.Trigger, error) {
 	id, err := codecs.IDToInt(triggerID, "trigger_id")
 	if err != nil {
@@ -110,7 +116,7 @@ func (s *TriggersService) Get(ctx context.Context, account AccountScope, trigger
 	} else if parsed != nil {
 		req.SubaccountId = parsed
 	}
-	return UnaryAuth(ctx, s.transport, s.client().GetTrigger, req, decode.GetTriggerFromProto)
+	return UnaryAuth(ctx, s.transport, retryUnavailable(triggerReadRetry, s.client().GetTrigger), req, decode.GetTriggerFromProto)
 }
 
 func (s *TriggersService) Create(ctx context.Context, account AccountScope, symbol, triggerType string, triggerPrice *models.PriceInput, side string, qty models.QtyInput, orderType string, limitPrice *models.PriceInput, triggerPriceSource, tif string, subAccountID *string, clientTriggerID *string, postOnly bool, opts codecs.CreateTriggerOptions) (models.TriggerMutationResult, error) {

@@ -39,6 +39,11 @@ func (h *triggerControlHandler) ResumeTrigger(_ context.Context, req *connect.Re
 
 func newTriggerControlService(t *testing.T, handler *triggerControlHandler) *TriggersService {
 	t.Helper()
+	return newTriggerControlServiceWith(t, handler)
+}
+
+func newTriggerControlServiceWith(t *testing.T, handler triggersv1connect.TriggersServiceHandler) *TriggersService {
+	t.Helper()
 	mux := http.NewServeMux()
 	path, h := triggersv1connect.NewTriggersServiceHandler(handler)
 	mux.Handle(path, h)

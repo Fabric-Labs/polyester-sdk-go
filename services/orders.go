@@ -2,9 +2,11 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
@@ -498,6 +500,80 @@ func (s *OrdersService) GetBatchReplaceStatus(ctx context.Context, account Accou
 		return models.BatchReplaceStatusResult{}, err
 	}
 	return UnaryAuthDecoded(ctx, s.transport, s.readClient().GetBatchReplaceStatus, req, decode.BatchReplaceStatusFromProto)
+}
+
+// batchReplaceStatusWindow is how long GetBatchReplaceStatus keeps a batch's
+// status, from its acceptance.
+var batchReplaceStatusWindow = 60 * time.Second
+
+// batchReplacePoll is the wait between WaitBatchReplace status reads.
+var batchReplacePoll = unavailableRetry{first: 50 * time.Millisecond, max: 500 * time.Millisecond}
+
+// WaitBatchReplace polls GetBatchReplaceStatus until no item is still
+// admitted, that is until each is working, rejected or terminal, and returns
+// that status. Waits start at 50 ms and double up to 500 ms. A read answered
+// not found, UNAVAILABLE or another 5xx is polled again: a batch's status can
+// take a few seconds after admission to become readable.
+//
+// A rejected item changed nothing, including one admitted and then refused
+// when applied: its order keeps OldOrderID, and Code and ErrorCode name the
+// refusal. Only a status item's ReplacementOrderID, or an order read, proves
+// a successor order; the planned ID in BatchReplace's admission answer does
+// not.
+//
+// The status is kept for 60 s from the batch's acceptance. When that window
+// ends with an item still admitted, WaitBatchReplace returns the last status
+// with *errors.BatchReplaceWindowExpiredError: reconcile the orders with order
+// reads. Bound the wait further with ctx.
+func (s *OrdersService) WaitBatchReplace(ctx context.Context, account AccountScope, batchRequestID string, subAccountID *string) (models.BatchReplaceStatusResult, error) {
+	deadline := time.Now().Add(batchReplaceStatusWindow)
+	delay := batchReplacePoll.first
+	var last models.BatchReplaceStatusResult
+	for {
+		status, err := s.GetBatchReplaceStatus(ctx, account, batchRequestID, subAccountID)
+		switch {
+		case err == nil:
+			last = status
+			if status.AcceptedTsNs != 0 {
+				deadline = time.Unix(0, int64(status.AcceptedTsNs)).Add(batchReplaceStatusWindow)
+			}
+			if models.IsBatchReplaceSettled(status) {
+				return status, nil
+			}
+		case readUnavailable(err) || batchStatusNotFound(err):
+			// Not readable yet: a new batch's status can read not found
+			// for a few seconds after admission. Read again within the
+			// window.
+		default:
+			return last, err
+		}
+		if time.Now().Add(delay).After(deadline) {
+			return last, &sdkerrors.BatchReplaceWindowExpiredError{BatchRequestID: batchRequestID}
+		}
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return last, ctx.Err()
+		case <-timer.C:
+		}
+		delay = min(2*delay, batchReplacePoll.max)
+	}
+}
+
+// batchStatusNotFound reports a status read answered not found.
+func batchStatusNotFound(err error) bool {
+	var apiErr *sdkerrors.APIError
+	return errors.As(err, &apiErr) &&
+		(apiErr.Code == connect.CodeNotFound.String() || apiErr.Code == orderv1.ErrorCode_ERROR_CODE_NOT_FOUND.String())
+}
+
+// readUnavailable reports a read answered UNAVAILABLE or with another 5xx.
+func readUnavailable(err error) bool {
+	var serverErr *sdkerrors.ServerError
+	var apiErr *sdkerrors.APIError
+	return errors.As(err, &serverErr) ||
+		(errors.As(err, &apiErr) && apiErr.Code == orderv1.ErrorCode_ERROR_CODE_UNAVAILABLE.String())
 }
 
 // Subscribe streams an account's orders over the private WebSocket until the

@@ -291,14 +291,26 @@ type BatchReplaceOrdersResult struct {
 }
 
 // BatchReplaceStatusItem is one recoverable execution status from get_batch_replace_status.
+//
+// A rejected item changed nothing: its order keeps OldOrderID, its previous
+// price and quantity, and no replacement order exists. This includes an item
+// admitted and then refused when applied, for example a post-only order moved
+// to a crossing price.
 type BatchReplaceStatusItem struct {
-	ItemIndex          uint32 `json:"item_index"`
-	Phase              string `json:"phase"`
-	OldOrderID         string `json:"old_order_id,omitempty"`
+	ItemIndex  uint32 `json:"item_index"`
+	Phase      string `json:"phase"`
+	OldOrderID string `json:"old_order_id,omitempty"`
+	// ReplacementOrderID is the successor order, empty when none exists.
 	ReplacementOrderID string `json:"replacement_order_id,omitempty"`
 	OrderStatus        string `json:"order_status,omitempty"`
-	Code               string `json:"code,omitempty"`
-	UpdatedTsNs        uint64 `json:"updated_ts_ns,omitempty"`
+	// Code is the refusal or terminal code as sent, without the ERROR_CODE_
+	// prefix, for example POST_ONLY_CROSS.
+	Code string `json:"code,omitempty"`
+	// ErrorCode is Code as the orders.v1 ErrorCode name a single ModifyOrder
+	// returns, for example ERROR_CODE_POST_ONLY_CROSS. A code newer than this
+	// SDK is kept as sent.
+	ErrorCode   string `json:"error_code,omitempty"`
+	UpdatedTsNs uint64 `json:"updated_ts_ns,omitempty"`
 	// ActionTaken is replaced when a successor exists, or amended for a
 	// cancel-only outcome where OrderStatus describes OldOrderID. Empty for
 	// rejected items.
