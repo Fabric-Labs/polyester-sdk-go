@@ -232,7 +232,7 @@ func TestClientExposesDocumentedServices(t *testing.T) {
 		"Zipper", "Heatmap", "Lifecycle", "Balances", "Orderbook", "Orders", "Trades",
 		"Triggers", "Transfers", "InternalTransfers", "Deposit", "APIKeys", "Policies",
 		"SubAccounts", "AddressBook", "SocialVerification",
-		"GuardSigner", "VIP", "Fees", "RateLimits",
+		"GuardSigner", "VIP", "Changelog", "Fees", "RateLimits",
 		"Withdraw", "TradingWithdraws", "Realtime",
 	}
 	v := reflect.ValueOf(client).Elem()
