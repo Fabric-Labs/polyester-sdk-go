@@ -7,7 +7,7 @@ and automation. Parity with `polyester-sdk-python` and `polyester-sdk-rust`
 using the checked-in `gen/` protobuf bundle (no local proto generation for
 normal development).
 
-**Status:** `v0.5.0`, pre-1.0: a minor release may change the API. The Go,
+**Status:** `v0.5.1`, pre-1.0: a minor release may change the API. The Go,
 Python and Rust SDKs share one version number and are released together.
 Proprietary license (not open source).
 API-key only; no browser login or session MFA.
@@ -83,7 +83,10 @@ permission denial as non-transient and update the API-key policy before retrying
 `BatchReplaceItem.NewAttachedRisk` to a `models.AttachedRiskInput` with a
 take-profit and/or one stop leg (stop-loss or trailing stop); `OCO: true`
 requires a take-profit and a stop leg. A leg without `LimitPrice` exits with a
-market child; with `LimitPrice` it rests a GTC limit child. A modify replaces
+market child; with `LimitPrice` it rests a GTC limit child. A trailing stop
+on a sell order buys back, so `TrailingStopInput.LimitPrice`, the most its exit
+pays per unit, is required there (at least `ActivationPrice` when set); a buy
+order's trailing stop takes none. A modify replaces
 the order's whole attached policy. Create and modify results carry the
 configured legs' trigger IDs. When requested, each decoded leg exposes typed
 runtime `State` (`Status`, nanosecond armed/terminal timestamps, `TriggerID`,
@@ -95,7 +98,7 @@ fields empty. Valid stop loss and trailing legs are both retained together.
 ## Install
 
 ```bash
-go get github.com/Fabric-Labs/polyester-sdk-go@v0.5.0
+go get github.com/Fabric-Labs/polyester-sdk-go@v0.5.1
 ```
 
 For development from a git checkout:
