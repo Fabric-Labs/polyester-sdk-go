@@ -147,7 +147,7 @@ const (
 	CheckpointField_FUNDING_BALANCES CheckpointField = 14
 	// Transfers in and out between this account and other accounts.
 	CheckpointField_TRANSFERS CheckpointField = 15
-	// Season inflow, outflow, final value and season result.
+	// Season inflow, outflow, opening value, final value and season result.
 	CheckpointField_SEASON_RESULT CheckpointField = 16
 )
 
@@ -1358,8 +1358,17 @@ type Checkpoint struct {
 	// Assets excluded from value add nothing. Omitted when any other balance
 	// had no USD value.
 	FinalValueUsd *string `protobuf:"bytes,52,opt,name=final_value_usd,json=finalValueUsd,proto3,oneof" json:"final_value_usd,omitempty"`
-	// Season result: final_value_usd minus net_inflow_usd, encoded as a base-10
-	// decimal string that may be negative. Omitted when either is omitted.
+	// USD value of the funding balances restored to the account when the
+	// season opened, valued at the end of the season like final_value_usd,
+	// over assets that count toward account value; assets excluded from value
+	// add nothing. Encoded as a non-negative base-10 decimal string without
+	// separators or a currency symbol; "0" when the season opened with no
+	// balances. Omitted when a restored balance had no USD value.
+	OpeningValueUsd *string `protobuf:"bytes,56,opt,name=opening_value_usd,json=openingValueUsd,proto3,oneof" json:"opening_value_usd,omitempty"`
+	// Season result: final_value_usd minus opening_value_usd minus
+	// net_inflow_usd, encoded as a base-10 decimal string that may be negative.
+	// Price moves on restored holdings are not counted as result. Omitted when
+	// any of them is omitted.
 	SeasonResultUsd *string `protobuf:"bytes,53,opt,name=season_result_usd,json=seasonResultUsd,proto3,oneof" json:"season_result_usd,omitempty"`
 	// Subaccounts of the account.
 	Subaccounts uint64 `protobuf:"varint,54,opt,name=subaccounts,proto3" json:"subaccounts,omitempty"`
@@ -1764,6 +1773,13 @@ func (x *Checkpoint) GetFinalValueUsd() string {
 	return ""
 }
 
+func (x *Checkpoint) GetOpeningValueUsd() string {
+	if x != nil && x.OpeningValueUsd != nil {
+		return *x.OpeningValueUsd
+	}
+	return ""
+}
+
 func (x *Checkpoint) GetSeasonResultUsd() string {
 	if x != nil && x.SeasonResultUsd != nil {
 		return *x.SeasonResultUsd
@@ -1961,7 +1977,7 @@ const file_checkpoints_v1_checkpoints_proto_rawDesc = "" +
 	"depositUsd\x88\x01\x01\x12*\n" +
 	"\x0ewithdrawal_usd\x18\x03 \x01(\tH\x01R\rwithdrawalUsd\x88\x01\x01B\x0e\n" +
 	"\f_deposit_usdB\x11\n" +
-	"\x0f_withdrawal_usd\"\x9f\x17\n" +
+	"\x0f_withdrawal_usd\"\xe6\x17\n" +
 	"\n" +
 	"Checkpoint\x12\x1f\n" +
 	"\x06number\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\x06number\x12E\n" +
@@ -2028,7 +2044,8 @@ const file_checkpoints_v1_checkpoints_proto_rawDesc = "" +
 	"outflowUsd\x88\x01\x01\x12)\n" +
 	"\x0enet_inflow_usd\x183 \x01(\tH\x05R\fnetInflowUsd\x88\x01\x01\x12+\n" +
 	"\x0ffinal_value_usd\x184 \x01(\tH\x06R\rfinalValueUsd\x88\x01\x01\x12/\n" +
-	"\x11season_result_usd\x185 \x01(\tH\aR\x0fseasonResultUsd\x88\x01\x01\x12 \n" +
+	"\x11opening_value_usd\x188 \x01(\tH\aR\x0fopeningValueUsd\x88\x01\x01\x12/\n" +
+	"\x11season_result_usd\x185 \x01(\tH\bR\x0fseasonResultUsd\x88\x01\x01\x12 \n" +
 	"\vsubaccounts\x186 \x01(\x04R\vsubaccounts\x12?\n" +
 	"\n" +
 	"incomplete\x187 \x03(\x0e2\x1f.checkpoints.v1.CheckpointFieldR\n" +
@@ -2040,6 +2057,7 @@ const file_checkpoints_v1_checkpoints_proto_rawDesc = "" +
 	"\f_outflow_usdB\x11\n" +
 	"\x0f_net_inflow_usdB\x12\n" +
 	"\x10_final_value_usdB\x14\n" +
+	"\x12_opening_value_usdB\x14\n" +
 	"\x12_season_result_usd\"f\n" +
 	"\x18ListMyCheckpointsRequest\x128\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +

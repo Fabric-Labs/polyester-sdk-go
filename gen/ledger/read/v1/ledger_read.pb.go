@@ -229,6 +229,8 @@ const (
 	ErrorCode_ERROR_CODE_WALLET_NOT_FOUND              ErrorCode = 9
 	// Upstream dependency error (e.g., transfers store, wallet resolver).
 	ErrorCode_ERROR_CODE_UPSTREAM_ERROR ErrorCode = 10
+	// subaccount_id is zero or not an encoded public subaccount identifier.
+	ErrorCode_ERROR_CODE_INVALID_SUBACCOUNT_ID ErrorCode = 11
 )
 
 // Enum value maps for ErrorCode.
@@ -245,6 +247,7 @@ var (
 		8:  "ERROR_CODE_WALLET_RESOLUTION_UNAVAILABLE",
 		9:  "ERROR_CODE_WALLET_NOT_FOUND",
 		10: "ERROR_CODE_UPSTREAM_ERROR",
+		11: "ERROR_CODE_INVALID_SUBACCOUNT_ID",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_CODE_UNSPECIFIED":                   0,
@@ -258,6 +261,7 @@ var (
 		"ERROR_CODE_WALLET_RESOLUTION_UNAVAILABLE": 8,
 		"ERROR_CODE_WALLET_NOT_FOUND":              9,
 		"ERROR_CODE_UPSTREAM_ERROR":                10,
+		"ERROR_CODE_INVALID_SUBACCOUNT_ID":         11,
 	}
 )
 
@@ -2479,7 +2483,7 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"\x10EXTERNAL_ADDRESS\x10\x03\x12\x18\n" +
 	"\x14PRIVATE_COUNTERPARTY\x10\x04\x12\x0f\n" +
 	"\vFEE_ACCOUNT\x10\x05\x12\x12\n" +
-	"\x0eSYSTEM_ACCOUNT\x10\x06*\xf2\x02\n" +
+	"\x0eSYSTEM_ACCOUNT\x10\x06*\x98\x03\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16ERROR_CODE_BAD_REQUEST\x10\x01\x12\x1e\n" +
@@ -2492,7 +2496,8 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"(ERROR_CODE_WALLET_RESOLUTION_UNAVAILABLE\x10\b\x12\x1f\n" +
 	"\x1bERROR_CODE_WALLET_NOT_FOUND\x10\t\x12\x1d\n" +
 	"\x19ERROR_CODE_UPSTREAM_ERROR\x10\n" +
-	"2\xc9\x06\n" +
+	"\x12$\n" +
+	" ERROR_CODE_INVALID_SUBACCOUNT_ID\x10\v2\xc9\x06\n" +
 	"\x11LedgerReadService\x12p\n" +
 	"\x11GetBalanceHistory\x12(.ledger.read.v1.GetBalanceHistoryRequest\x1a).ledger.read.v1.GetBalanceHistoryResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x12\x7f\n" +
 	"\x16GetEquityHistorySeries\x12-.ledger.read.v1.GetEquityHistorySeriesRequest\x1a..ledger.read.v1.GetEquityHistorySeriesResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x12\x99\x01\n" +

@@ -1139,7 +1139,8 @@ type Subaccount struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Sub-account identifier (opaque ID).
 	Id uint64 `protobuf:"fixed64,1,opt,name=id,proto3" json:"id,omitempty"`
-	// Role of the current caller on this sub-account.
+	// Role of the current caller on this sub-account. SUBACCOUNT_ROLE_UNSPECIFIED
+	// when removed is true.
 	Role SubaccountRole `protobuf:"varint,2,opt,name=role,proto3,enum=auth.v1.SubaccountRole" json:"role,omitempty"`
 	// Optional human-readable label for this sub-account.
 	Label string `protobuf:"bytes,3,opt,name=label,proto3" json:"label,omitempty"`
@@ -1171,11 +1172,24 @@ type Subaccount struct {
 	SmartAccountSaltNonce *uint32 `protobuf:"varint,13,opt,name=smart_account_salt_nonce,json=smartAccountSaltNonce,proto3,oneof" json:"smart_account_salt_nonce,omitempty"`
 	// Time in UTC when this sub-account's configuration was last changed. For the
 	// same sub-account, later is fresher, equal is an idempotent replay, and
-	// earlier is stale. Equal timestamps with different configuration indicate
-	// an invariant failure.
+	// earlier is stale. Equal timestamps with different configuration, other
+	// than role and removed, indicate an invariant failure.
 	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	// Monotonic resource revision used for conditional updates.
-	Revision      uint64 `protobuf:"varint,15,opt,name=revision,proto3" json:"revision,omitempty"`
+	Revision uint64 `protobuf:"varint,15,opt,name=revision,proto3" json:"revision,omitempty"`
+	// True when the caller no longer has access to this sub-account, for
+	// example after its owner removed the caller as a member: remove the
+	// sub-account from the caller's list. Only real-time updates set it;
+	// responses list only sub-accounts the caller can access. A change of the
+	// caller's role or access does not change revision or updated_at, so
+	// real-time updates deliver such changes in order and each one applies as
+	// it arrives. Ending access also ends the caller's subscriptions to this
+	// sub-account's real-time channels, and can, rarely, also end a
+	// subscription made after access was granted again. When the server ends a
+	// subscription to one of this sub-account's channels while the latest
+	// update lists this sub-account with a role and removed false, subscribe
+	// again: access is checked again on subscribe.
+	Removed       bool `protobuf:"varint,16,opt,name=removed,proto3" json:"removed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1313,6 +1327,13 @@ func (x *Subaccount) GetRevision() uint64 {
 		return x.Revision
 	}
 	return 0
+}
+
+func (x *Subaccount) GetRemoved() bool {
+	if x != nil {
+		return x.Removed
+	}
+	return false
 }
 
 // Request to list sub-accounts owned by or shared with the caller.
@@ -3293,7 +3314,7 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x14subaccount_policy_id\x18\x03 \x01(\x06R\x12subaccountPolicyId\"p\n" +
 	"\x12SubaccountRoleView\x12#\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\x125\n" +
-	"\x04role\x18\x02 \x01(\x0e2\x17.auth.v1.SubaccountRoleB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04role\"\xcc\x05\n" +
+	"\x04role\x18\x02 \x01(\x0e2\x17.auth.v1.SubaccountRoleB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04role\"\xe6\x05\n" +
 	"\n" +
 	"Subaccount\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x06R\x02id\x125\n" +
@@ -3313,7 +3334,8 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x18smart_account_salt_nonce\x18\r \x01(\rH\x00R\x15smartAccountSaltNonce\x88\x01\x01\x129\n" +
 	"\n" +
 	"updated_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1a\n" +
-	"\brevision\x18\x0f \x01(\x04R\brevisionB\x1b\n" +
+	"\brevision\x18\x0f \x01(\x04R\brevision\x12\x18\n" +
+	"\aremoved\x18\x10 \x01(\bR\aremovedB\x1b\n" +
 	"\x19_smart_account_salt_nonce\"\x18\n" +
 	"\x16ListSubaccountsRequest\"u\n" +
 	"\x17ListSubaccountsResponse\x125\n" +

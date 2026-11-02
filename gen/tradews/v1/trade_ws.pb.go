@@ -209,8 +209,9 @@ type ClientFrame_BatchCreateOrders struct {
 
 type ClientFrame_BatchReplaceOrders struct {
 	// Batch replace command using the public Orders API request contract: up
-	// to 50 replacements of orders on one trading pair, under the same
-	// request_id idempotency as the Orders API.
+	// to 50 orders on one trading pair, each amended in place or replaced as
+	// the Orders API decides, under the same request_id idempotency as the
+	// Orders API.
 	BatchReplaceOrders *v1.BatchReplaceOrdersRequest `protobuf:"bytes,16,opt,name=batch_replace_orders,json=batchReplaceOrders,proto3,oneof"`
 }
 
