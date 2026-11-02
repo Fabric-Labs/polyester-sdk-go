@@ -461,8 +461,10 @@ type ListMyRewardAwardsResponse struct {
 	Awards []*RewardAward `protobuf:"bytes,1,rep,name=awards,proto3" json:"awards,omitempty"`
 	// Opaque continuation token. Empty when no more results exist.
 	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// True while a campaign can still publish new awards, or while one of this account's awards is awaiting a destination, ready for payout, or failed and may be retried. When false, repeated polling cannot return new awards or award changes until a new campaign is created; check again on the next page load or focus.
+	AwardsMayChange bool `protobuf:"varint,3,opt,name=awards_may_change,json=awardsMayChange,proto3" json:"awards_may_change,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ListMyRewardAwardsResponse) Reset() {
@@ -509,6 +511,13 @@ func (x *ListMyRewardAwardsResponse) GetNextPageToken() string {
 	return ""
 }
 
+func (x *ListMyRewardAwardsResponse) GetAwardsMayChange() bool {
+	if x != nil {
+		return x.AwardsMayChange
+	}
+	return false
+}
+
 var File_rewards_v1_rewards_proto protoreflect.FileDescriptor
 
 const file_rewards_v1_rewards_proto_rawDesc = "" +
@@ -544,10 +553,11 @@ const file_rewards_v1_rewards_proto_rawDesc = "" +
 	"\x19ListMyRewardAwardsRequest\x12\x1d\n" +
 	"\x05limit\x18\x01 \x01(\rB\a\xbaH\x04*\x02\x18dR\x05limit\x12'\n" +
 	"\n" +
-	"page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\tpageToken\"u\n" +
+	"page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\tpageToken\"\xa1\x01\n" +
 	"\x1aListMyRewardAwardsResponse\x12/\n" +
 	"\x06awards\x18\x01 \x03(\v2\x17.rewards.v1.RewardAwardR\x06awards\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken*]\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12*\n" +
+	"\x11awards_may_change\x18\x03 \x01(\bR\x0fawardsMayChange*]\n" +
 	"\x17RewardFulfillmentMethod\x12\x16\n" +
 	"\x12METHOD_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10EXTERNAL_TESTNET\x10\x01\x12\x14\n" +

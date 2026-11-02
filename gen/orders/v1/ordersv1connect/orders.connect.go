@@ -88,7 +88,8 @@ type OrdersServiceClient interface {
 	BatchCreateOrders(context.Context, *connect.Request[v1.BatchCreateOrdersRequest]) (*connect.Response[v1.BatchCreateOrdersResponse], error)
 	// Modifies an existing order using explicit behavior policy.
 	ModifyOrder(context.Context, *connect.Request[v1.ModifyOrderRequest]) (*connect.Response[v1.ModifyOrderResponse], error)
-	// Replaces same-symbol orders and returns after authoritative admission.
+	// Amends or replaces same-symbol orders and returns after authoritative
+	// admission.
 	BatchReplaceOrders(context.Context, *connect.Request[v1.BatchReplaceOrdersRequest]) (*connect.Response[v1.BatchReplaceOrdersResponse], error)
 	// Cancels multiple orders by explicit ID in a single request.
 	// Per-item results are returned; partial success is the default.
@@ -248,7 +249,8 @@ type OrdersServiceHandler interface {
 	BatchCreateOrders(context.Context, *connect.Request[v1.BatchCreateOrdersRequest]) (*connect.Response[v1.BatchCreateOrdersResponse], error)
 	// Modifies an existing order using explicit behavior policy.
 	ModifyOrder(context.Context, *connect.Request[v1.ModifyOrderRequest]) (*connect.Response[v1.ModifyOrderResponse], error)
-	// Replaces same-symbol orders and returns after authoritative admission.
+	// Amends or replaces same-symbol orders and returns after authoritative
+	// admission.
 	BatchReplaceOrders(context.Context, *connect.Request[v1.BatchReplaceOrdersRequest]) (*connect.Response[v1.BatchReplaceOrdersResponse], error)
 	// Cancels multiple orders by explicit ID in a single request.
 	// Per-item results are returned; partial success is the default.

@@ -173,6 +173,10 @@ const (
 	// A fill netted less than the accepted minimum rate. The Swap failed closed:
 	// the amounts show exactly what was traded and received.
 	SwapReason_MINIMUM_NOT_MET SwapReason = 8
+	// The order bought the market's maximum order quantity and stopped there;
+	// the rest of the amount stays on the account, unspent. The market's depth
+	// or maximum changed after the quote, which never quotes past it.
+	SwapReason_MAX_ORDER_QUANTITY SwapReason = 9
 )
 
 // Enum value maps for SwapReason.
@@ -187,6 +191,7 @@ var (
 		6: "ORDER_REJECTED",
 		7: "EXPIRED",
 		8: "MINIMUM_NOT_MET",
+		9: "MAX_ORDER_QUANTITY",
 	}
 	SwapReason_value = map[string]int32{
 		"REASON_UNSPECIFIED":      0,
@@ -198,6 +203,7 @@ var (
 		"ORDER_REJECTED":          6,
 		"EXPIRED":                 7,
 		"MINIMUM_NOT_MET":         8,
+		"MAX_ORDER_QUANTITY":      9,
 	}
 )
 
@@ -616,7 +622,10 @@ type SwapQuote struct {
 	Terms *SwapTerms `protobuf:"bytes,1,opt,name=terms,proto3" json:"terms,omitempty"`
 	// Markets the Swap would trade on, in order. A direct Swap has one.
 	Legs []*SwapQuoteLeg `protobuf:"bytes,2,rep,name=legs,proto3" json:"legs,omitempty"`
-	// Estimated destination amount after fees, in 18-decimal units.
+	// Estimated destination amount after fees, in 18-decimal units, at current
+	// order-book depth. A buy spends the whole source amount at the prices
+	// available up to its price limit; what the book cannot fill within the
+	// limit stays in the account.
 	ExpectedAmountOutE18 *v1.U128 `protobuf:"bytes,3,opt,name=expected_amount_out_e18,json=expectedAmountOutE18,proto3" json:"expected_amount_out_e18,omitempty"`
 	// Minimum destination amount after fees at the requested slippage, in
 	// 18-decimal units. Create the Swap with this value (or another accepted
@@ -1382,8 +1391,10 @@ type ErrorDetail struct {
 	// AMOUNT_OUT_OF_RANGE only: the smallest amount that currently quotes, in
 	// 18-decimal units of the source asset. Guidance, not a guarantee.
 	MinAmountE18 *v1.U128 `protobuf:"bytes,3,opt,name=min_amount_e18,json=minAmountE18,proto3" json:"min_amount_e18,omitempty"`
-	// AMOUNT_OUT_OF_RANGE only: the largest amount current depth absorbs, in
-	// 18-decimal units of the source asset.
+	// AMOUNT_OUT_OF_RANGE only: the largest amount current depth absorbs in one
+	// order within the market's maximum order quantity, in 18-decimal units of
+	// the source asset. A buy above it would buy more than the maximum order
+	// quantity, so it is refused rather than partly executed.
 	MaxAmountE18  *v1.U128 `protobuf:"bytes,4,opt,name=max_amount_e18,json=maxAmountE18,proto3" json:"max_amount_e18,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1544,7 +1555,7 @@ const file_swap_v1_swap_proto_rawDesc = "" +
 	"\x13PARTIALLY_COMPLETED\x10\x03\x12\n" +
 	"\n" +
 	"\x06FAILED\x10\x04\x12\x0f\n" +
-	"\vRECONCILING\x10\x05*\xd1\x01\n" +
+	"\vRECONCILING\x10\x05*\xe9\x01\n" +
 	"\n" +
 	"SwapReason\x12\x16\n" +
 	"\x12REASON_UNSPECIFIED\x10\x00\x12\x18\n" +
@@ -1555,7 +1566,8 @@ const file_swap_v1_swap_proto_rawDesc = "" +
 	"\fRATE_LIMITED\x10\x05\x12\x12\n" +
 	"\x0eORDER_REJECTED\x10\x06\x12\v\n" +
 	"\aEXPIRED\x10\a\x12\x13\n" +
-	"\x0fMINIMUM_NOT_MET\x10\b*v\n" +
+	"\x0fMINIMUM_NOT_MET\x10\b\x12\x16\n" +
+	"\x12MAX_ORDER_QUANTITY\x10\t*v\n" +
 	"\x0fSwapOrderStatus\x12\x1c\n" +
 	"\x18ORDER_STATUS_UNSPECIFIED\x10\x00\x12\v\n" +
 	"\aPLACING\x10\x01\x12\n" +

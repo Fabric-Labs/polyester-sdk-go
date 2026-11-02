@@ -104,16 +104,22 @@ const (
 	TriggerStatus_STATUS_ARMED TriggerStatus = 2
 	// Trigger is actively executing (for example, TWAP slices in progress).
 	TriggerStatus_STATUS_RUNNING TriggerStatus = 3
-	// Trigger completed successfully. A ladder completes only when every child
-	// order filled; a ladder whose child orders were canceled or rejected ends
-	// canceled or failed instead.
+	// Trigger completed. A ladder completes once none of its child orders
+	// remains open and at least one of them was placed on the book, however
+	// each placed child order then ended: filled, canceled, or canceled by
+	// self-trade prevention. Some of its child orders may have been rejected.
+	// Completed does not mean the ladder filled: its executed quantity and
+	// executed levels state what filled, and each child order's own status
+	// states how it ended.
 	TriggerStatus_STATUS_COMPLETED TriggerStatus = 4
 	// Trigger was canceled. The cancel reason states why, for example a user
-	// request, another attached leg's exit closing its parent's position,
-	// self-trade prevention, or, for a ladder, the cancellation of its child
-	// orders.
+	// request or another attached leg's exit closing its parent's position. A
+	// ladder is canceled only when the ladder itself is canceled; canceling
+	// its child orders does not cancel it.
 	TriggerStatus_STATUS_CANCELED TriggerStatus = 5
 	// Trigger failed (for example, reservation failure, child order rejection).
+	// A ladder fails when every child order was rejected before it was placed
+	// on the book; the failure reason is the first rejected child order's.
 	TriggerStatus_STATUS_FAILED TriggerStatus = 6
 	// Trigger is paused (user-initiated, can be resumed).
 	TriggerStatus_STATUS_PAUSED TriggerStatus = 7
@@ -184,8 +190,16 @@ const (
 	TriggerEventType_EVENT_UPDATED TriggerEventType = 3
 	// Trigger became terminal after its next child order could not be admitted.
 	TriggerEventType_EVENT_FAILED TriggerEventType = 4
-	// A standalone trailing trigger's activation condition was satisfied and tracking began.
+	// A trailing stop's activation condition was satisfied and tracking began,
+	// for a standalone or an attached trailing stop.
 	TriggerEventType_EVENT_ACTIVATED TriggerEventType = 5
+	// An attached take-profit, stop-loss or trailing stop started protecting
+	// its parent order's filled quantity, once, when the parent's first fill
+	// made it live (or at its resume, when it was paused before that fill).
+	// Later fills that resize it, and later pauses and resumes, do not repeat
+	// it. An attached trailing stop still reports EVENT_ACTIVATED when it
+	// starts tracking.
+	TriggerEventType_EVENT_ARMED TriggerEventType = 6
 )
 
 // Enum value maps for TriggerEventType.
@@ -197,6 +211,7 @@ var (
 		3: "EVENT_UPDATED",
 		4: "EVENT_FAILED",
 		5: "EVENT_ACTIVATED",
+		6: "EVENT_ARMED",
 	}
 	TriggerEventType_value = map[string]int32{
 		"EVENT_UNSPECIFIED": 0,
@@ -205,6 +220,7 @@ var (
 		"EVENT_UPDATED":     3,
 		"EVENT_FAILED":      4,
 		"EVENT_ACTIVATED":   5,
+		"EVENT_ARMED":       6,
 	}
 )
 
@@ -248,9 +264,7 @@ const (
 	TriggerCancelReason_TRIGGER_CANCEL_REASON_OCO TriggerCancelReason = 2
 	// The parent order ended without a fill, so its attached trigger was canceled.
 	TriggerCancelReason_TRIGGER_CANCEL_REASON_PARENT_CANCELED_NO_FILL TriggerCancelReason = 3
-	// Self-trade prevention canceled the trigger's child orders. For a ladder,
-	// no child order was canceled by the user, and the first child order to be
-	// canceled was canceled by self-trade prevention.
+	// Self-trade prevention canceled the trigger's child orders.
 	TriggerCancelReason_TRIGGER_CANCEL_REASON_SELF_TRADE_PREVENTION TriggerCancelReason = 4
 	// Ended by the exchange while it recovered your account. The account's
 	// open orders on the market were canceled at the same time; place new
@@ -2494,8 +2508,11 @@ type TriggerEvent struct {
 	ChildSeq int32 `protobuf:"varint,11,opt,name=child_seq,json=childSeq,proto3" json:"child_seq,omitempty"`
 	// Child order ID created by this event, if any.
 	ChildOrderId uint64 `protobuf:"fixed64,12,opt,name=child_order_id,json=childOrderId,proto3" json:"child_order_id,omitempty"`
-	// Price that caused a conditional trigger to fire, in quote units scaled by
-	// 1e9. Absent for time-scheduled triggers such as TWAP.
+	// Price that fired the trigger: for a stop-loss or take-profit, the price
+	// that crossed its trigger price; for a trailing stop, its trailing trigger
+	// threshold when it fired; for a ladder, the level's price. A market child
+	// order's slippage cap is measured from it. In quote units scaled by 1e9.
+	// Absent for time-scheduled triggers such as TWAP.
 	FirePriceTicks *int64 `protobuf:"varint,13,opt,name=fire_price_ticks,json=firePriceTicks,proto3,oneof" json:"fire_price_ticks,omitempty"`
 	// Terminal reason for canceled or failed events. Other event types leave it unset.
 	//
@@ -2894,10 +2911,11 @@ type ModifyTriggerRequest struct {
 	// Optional sub-account for authorization.
 	SubaccountId *uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Optional trading symbol numeric identifier. Zero or omitted means the
-	// trigger's own pair. When set, it must be the trigger's pair: another pair
-	// is rejected with ERROR_CODE_UNKNOWN_SYMBOL and leaves the trigger
-	// unchanged. An API key limited to specific markets must name the trigger's
-	// pair.
+	// trigger's own pair. When set, it must be the trigger's pair: another
+	// listed pair is rejected with ERROR_CODE_TRIGGER_SYMBOL_MISMATCH, and a
+	// pair that is not listed with ERROR_CODE_UNKNOWN_SYMBOL; either leaves the
+	// trigger unchanged. An API key limited to specific markets must name the
+	// trigger's pair.
 	SymbolId uint32 `protobuf:"varint,3,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Patch fields for safe price, trailing-distance, and slippage edits.
 	// For stop/take-profit:
@@ -3314,10 +3332,11 @@ type ResumeTriggerRequest struct {
 	// Optional sub-account for authorization.
 	SubaccountId *uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Optional trading symbol numeric identifier. Zero or omitted means the
-	// trigger's own pair. When set, it must be the trigger's pair: another pair
-	// is rejected with ERROR_CODE_UNKNOWN_SYMBOL and leaves the trigger
-	// unchanged. An API key limited to specific markets must name the trigger's
-	// pair.
+	// trigger's own pair. When set, it must be the trigger's pair: another
+	// listed pair is rejected with ERROR_CODE_TRIGGER_SYMBOL_MISMATCH, and a
+	// pair that is not listed with ERROR_CODE_UNKNOWN_SYMBOL; either leaves the
+	// trigger unchanged. An API key limited to specific markets must name the
+	// trigger's pair.
 	SymbolId      uint32 `protobuf:"varint,3,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -4539,14 +4558,15 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x10STATUS_COMPLETED\x10\x04\x12\x13\n" +
 	"\x0fSTATUS_CANCELED\x10\x05\x12\x11\n" +
 	"\rSTATUS_FAILED\x10\x06\x12\x11\n" +
-	"\rSTATUS_PAUSED\x10\a*\x88\x01\n" +
+	"\rSTATUS_PAUSED\x10\a*\x99\x01\n" +
 	"\x10TriggerEventType\x12\x15\n" +
 	"\x11EVENT_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vEVENT_FIRED\x10\x01\x12\x12\n" +
 	"\x0eEVENT_CANCELED\x10\x02\x12\x11\n" +
 	"\rEVENT_UPDATED\x10\x03\x12\x10\n" +
 	"\fEVENT_FAILED\x10\x04\x12\x13\n" +
-	"\x0fEVENT_ACTIVATED\x10\x05*\xa5\x04\n" +
+	"\x0fEVENT_ACTIVATED\x10\x05\x12\x0f\n" +
+	"\vEVENT_ARMED\x10\x06*\xa5\x04\n" +
 	"\x13TriggerCancelReason\x12%\n" +
 	"!TRIGGER_CANCEL_REASON_UNSPECIFIED\x10\x00\x12&\n" +
 	"\"TRIGGER_CANCEL_REASON_USER_REQUEST\x10\x01\x12\x1d\n" +

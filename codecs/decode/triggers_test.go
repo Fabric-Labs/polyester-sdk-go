@@ -274,8 +274,25 @@ func TestTriggerEventTypeFromLabel(t *testing.T) {
 	if label := decode.TriggerEventTypeLabel(triggersv1.TriggerEventType_EVENT_ACTIVATED); label != "activated" {
 		t.Fatalf("activated label=%q", label)
 	}
+	et, err = decode.TriggerEventTypeFromLabel("armed")
+	if err != nil || et != triggersv1.TriggerEventType_EVENT_ARMED {
+		t.Fatalf("armed: %v %v", et, err)
+	}
 	if _, err := decode.TriggerEventTypeFromLabel("nope"); err == nil {
 		t.Fatal("expected error for invalid event type")
+	}
+}
+
+func TestTriggerEventsListFromProtoArmed(t *testing.T) {
+	result := decode.TriggerEventsListFromProto(&triggersv1.ListTriggerEventsResponse{
+		Events: []*triggersv1.TriggerEvent{{
+			TriggerId:   5,
+			TriggerType: triggersv1.TriggerType_TAKE_PROFIT,
+			EventType:   triggersv1.TriggerEventType_EVENT_ARMED,
+		}},
+	})
+	if len(result.Events) != 1 || result.Events[0].EventType != "armed" {
+		t.Fatalf("result=%+v", result)
 	}
 }
 

@@ -225,13 +225,13 @@ type BatchReplacePhase int32
 const (
 	// Phase is unavailable.
 	BatchReplacePhase_BATCH_REPLACE_PHASE_UNSPECIFIED BatchReplacePhase = 0
-	// The operation was admitted and handed to execution, including cancel-only outcomes.
+	// The operation was admitted and handed to execution, amended items included.
 	BatchReplacePhase_BATCH_REPLACE_PHASE_ADMITTED BatchReplacePhase = 1
-	// The successor order is active.
+	// The successor order, or the amended order, is active.
 	BatchReplacePhase_BATCH_REPLACE_PHASE_WORKING BatchReplacePhase = 2
 	// The replacement was rejected.
 	BatchReplacePhase_BATCH_REPLACE_PHASE_REJECTED BatchReplacePhase = 3
-	// The successor, or original order for a cancel-only outcome, reached a terminal state.
+	// The successor, or the amended order, reached a terminal state.
 	BatchReplacePhase_BATCH_REPLACE_PHASE_TERMINAL BatchReplacePhase = 4
 )
 
@@ -494,7 +494,8 @@ type OrderOrigin struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Broad class describing how the order was created.
 	Scope OrderOriginScope `protobuf:"varint,1,opt,name=scope,proto3,enum=orders.v1.OrderOriginScope" json:"scope,omitempty"`
-	// Trigger strategy that created this order, or unspecified for direct orders.
+	// Trigger strategy that created this order. Not set for direct orders; JSON
+	// and REST responses then omit it.
 	TriggerType OrderTriggerType `protobuf:"varint,2,opt,name=trigger_type,json=triggerType,proto3,enum=orders.v1.OrderTriggerType" json:"trigger_type,omitempty"`
 	// Trigger identifier when the order was created by a trigger.
 	TriggerId *uint64 `protobuf:"fixed64,3,opt,name=trigger_id,json=triggerId,proto3,oneof" json:"trigger_id,omitempty"`
@@ -2528,16 +2529,16 @@ type BatchReplaceStatusItem struct {
 	Phase BatchReplacePhase `protobuf:"varint,2,opt,name=phase,proto3,enum=orders.v1.BatchReplacePhase" json:"phase,omitempty"`
 	// Original order targeted by the replacement.
 	OldOrderId uint64 `protobuf:"fixed64,3,opt,name=old_order_id,json=oldOrderId,proto3" json:"old_order_id,omitempty"`
-	// Assigned successor order ID. Zero for cancel-only outcomes or rejection before assignment.
+	// Assigned successor order ID. Zero for an amended item or rejection before assignment.
 	ReplacementOrderId uint64 `protobuf:"fixed64,4,opt,name=replacement_order_id,json=replacementOrderId,proto3" json:"replacement_order_id,omitempty"`
-	// Current successor status, or original order status for a cancel-only outcome, when available.
+	// Current successor status, or the amended order's status, when available.
 	OrderStatus OrderStatus `protobuf:"varint,5,opt,name=order_status,json=orderStatus,proto3,enum=orders.v1.OrderStatus" json:"order_status,omitempty"`
 	// Stable rejection or terminal error code. Empty when none.
 	Code string `protobuf:"bytes,6,opt,name=code,proto3" json:"code,omitempty"`
 	// Latest status timestamp in nanoseconds since epoch.
 	UpdatedTsNs uint64 `protobuf:"varint,7,opt,name=updated_ts_ns,json=updatedTsNs,proto3" json:"updated_ts_ns,omitempty"`
-	// REPLACED admits a successor. AMENDED is cancel-only: no successor exists and
-	// order_status describes old_order_id. Unspecified for rejected items.
+	// REPLACED admits a successor. AMENDED keeps the order under old_order_id with
+	// no successor, and order_status describes it. Unspecified for rejected items.
 	ActionTaken   ModifyActionTaken `protobuf:"varint,8,opt,name=action_taken,json=actionTaken,proto3,enum=orders.v1.ModifyActionTaken" json:"action_taken,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

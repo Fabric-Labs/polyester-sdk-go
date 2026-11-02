@@ -590,8 +590,8 @@ const (
 	ErrorCode_ERROR_CODE_ORDER_PLACEMENT_PENDING ErrorCode = 227
 	// The modify behavior is not a known behavior.
 	ErrorCode_ERROR_CODE_INVALID_MODIFY_BEHAVIOR ErrorCode = 228
-	// An item of the batch modify did not use the REPLACE_ONLY behavior, so the
-	// batch was refused.
+	// No longer returned: each BatchReplaceOrders item follows ModifyOrder's
+	// default amend-or-replace rule. The value stays reserved.
 	ErrorCode_ERROR_CODE_BATCH_REPLACE_ONLY_REQUIRED ErrorCode = 229
 	// An item of the batch modify named no symbol, or another symbol than the
 	// batch's first item, so the batch was refused.
@@ -806,6 +806,10 @@ const (
 	// it may have been created; read the triggers for its client trigger ID
 	// before retrying.
 	ErrorCode_ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN ErrorCode = 304
+	// The request names a listed trading pair other than the trigger's own, so
+	// it was refused. Nothing changed; name the trigger's own pair, or omit the
+	// symbol. A pair that is not listed is ERROR_CODE_UNKNOWN_SYMBOL.
+	ErrorCode_ERROR_CODE_TRIGGER_SYMBOL_MISMATCH ErrorCode = 305
 	// The account has reached its maximum number of resting orders in this
 	// market. Good-till-cancelled and good-till-date orders count until they
 	// end; immediate-or-cancel, fill-or-kill and market orders never count, and
@@ -813,7 +817,8 @@ const (
 	// in this market first.
 	ErrorCode_ERROR_CODE_MAX_OPEN_ORDERS_PER_PAIR ErrorCode = 306
 	// The order already carries every attached leg it may hold, so another
-	// attached leg was refused.
+	// attached leg was refused. Legs being cancelled count until they end:
+	// retry once they have ended.
 	ErrorCode_ERROR_CODE_ATTACHED_LEGS_EXCEEDED ErrorCode = 86
 	// The trigger's fee asset was not valid.
 	ErrorCode_ERROR_CODE_FEE_ASSET_INVALID ErrorCode = 87
@@ -1021,6 +1026,7 @@ var (
 		302: "ERROR_CODE_TRIGGER_WOULD_TRIGGER_IMMEDIATELY",
 		303: "ERROR_CODE_ORDER_CREATE_OUTCOME_UNKNOWN",
 		304: "ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN",
+		305: "ERROR_CODE_TRIGGER_SYMBOL_MISMATCH",
 		306: "ERROR_CODE_MAX_OPEN_ORDERS_PER_PAIR",
 		86:  "ERROR_CODE_ATTACHED_LEGS_EXCEEDED",
 		87:  "ERROR_CODE_FEE_ASSET_INVALID",
@@ -1217,6 +1223,7 @@ var (
 		"ERROR_CODE_TRIGGER_WOULD_TRIGGER_IMMEDIATELY":      302,
 		"ERROR_CODE_ORDER_CREATE_OUTCOME_UNKNOWN":           303,
 		"ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN":         304,
+		"ERROR_CODE_TRIGGER_SYMBOL_MISMATCH":                305,
 		"ERROR_CODE_MAX_OPEN_ORDERS_PER_PAIR":               306,
 		"ERROR_CODE_ATTACHED_LEGS_EXCEEDED":                 86,
 		"ERROR_CODE_FEE_ASSET_INVALID":                      87,
@@ -1492,7 +1499,7 @@ type BatchReplaceAdmissionStatus int32
 const (
 	// Admission status is unavailable.
 	BatchReplaceAdmissionStatus_BATCH_REPLACE_ADMISSION_STATUS_UNSPECIFIED BatchReplaceAdmissionStatus = 0
-	// Every requested operation was admitted, including cancel-only outcomes.
+	// Every requested operation was admitted, amended items included.
 	BatchReplaceAdmissionStatus_BATCH_REPLACE_ADMISSION_STATUS_ADMITTED BatchReplaceAdmissionStatus = 1
 	// Some requested replacements were admitted and others were rejected.
 	BatchReplaceAdmissionStatus_BATCH_REPLACE_ADMISSION_STATUS_PARTIALLY_ADMITTED BatchReplaceAdmissionStatus = 2
@@ -1549,7 +1556,8 @@ type BatchReplaceItemAdmissionStatus int32
 const (
 	// Item admission status is unavailable.
 	BatchReplaceItemAdmissionStatus_BATCH_REPLACE_ITEM_ADMISSION_STATUS_UNSPECIFIED BatchReplaceItemAdmissionStatus = 0
-	// The operation was admitted and handed to execution. Check action_taken for cancel-only outcomes.
+	// The operation was admitted and handed to execution. action_taken tells whether
+	// the order was amended under its own order ID or replaced by a successor.
 	BatchReplaceItemAdmissionStatus_BATCH_REPLACE_ITEM_ADMISSION_STATUS_ADMITTED BatchReplaceItemAdmissionStatus = 1
 	// The replacement was rejected before execution handoff.
 	BatchReplaceItemAdmissionStatus_BATCH_REPLACE_ITEM_ADMISSION_STATUS_REJECTED BatchReplaceItemAdmissionStatus = 2
@@ -3429,8 +3437,15 @@ type TrailingStopPolicy struct {
 	// order and its legs unchanged. MARK_PRICE is not supported. A modify naming
 	// another source replaces the leg.
 	TriggerPriceSource TriggerPriceSource `protobuf:"varint,8,opt,name=trigger_price_source,json=triggerPriceSource,proto3,enum=orders.v1.TriggerPriceSource" json:"trigger_price_source,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Maximum price of a trailing stop that buys back, in quote units scaled by
+	// 1e9: the most its exit pays per unit, at which the quote it may spend is
+	// reserved with the exit's fee. Required when the parent order sells, so
+	// the trailing stop buys; must be unset when the parent order buys. A rise
+	// that fires above it still fires, and the exit fills only at or below it.
+	// Changing it with ModifyOrder replaces the leg.
+	LimitPriceTicks int64 `protobuf:"varint,4,opt,name=limit_price_ticks,json=limitPriceTicks,proto3" json:"limit_price_ticks,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *TrailingStopPolicy) Reset() {
@@ -3527,6 +3542,13 @@ func (x *TrailingStopPolicy) GetTriggerPriceSource() TriggerPriceSource {
 	return TriggerPriceSource_TRIGGER_PRICE_SOURCE_UNSPECIFIED
 }
 
+func (x *TrailingStopPolicy) GetLimitPriceTicks() int64 {
+	if x != nil {
+		return x.LimitPriceTicks
+	}
+	return 0
+}
+
 type isTrailingStopPolicy_TrailingDistance interface {
 	isTrailingStopPolicy_TrailingDistance()
 }
@@ -3587,6 +3609,18 @@ func (*TrailingStopPolicy_MaxSlippageBps) isTrailingStopPolicy_MaxSlippage() {}
 // fill, the legs are canceled with
 // TRIGGER_CANCEL_REASON_PARENT_CANCELED_NO_FILL. If no exit ran and the
 // parent's whole fill is below one step, the legs fail.
+//
+// The legs reserve what their exits would sell or spend, once for both legs:
+// the base a sell exit sells, as each parent fill settles, and the quote a
+// buy-back may spend at its legs' highest maximum price. A buy-back is
+// reserved from the order's creation for the part of that cost the sale
+// itself may not return, so an order whose balance cannot cover it is
+// rejected with ERROR_CODE_INSUFFICIENT_FUNDS. The reserve shows in the
+// balance's reserved amount, and an exit uses it when it is submitted. While
+// the legs protect a position, orders and withdrawals that would use the
+// reserved funds are rejected with ERROR_CODE_INSUFFICIENT_FUNDS: reduce or
+// cancel the legs first. What the legs no longer need is released as they
+// change and in full when they end.
 type RiskPolicy struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional take-profit configuration.
@@ -4085,7 +4119,8 @@ type DeadManSwitchScope struct {
 	AccountId uint64 `protobuf:"fixed64,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	// Symbol ID whose orders are canceled. Zero or omitted means all symbols.
 	SymbolId uint32 `protobuf:"varint,2,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
-	// Order side that is canceled. SIDE_UNSPECIFIED or omitted means both sides.
+	// Order side that is canceled. Not set means both sides; JSON and REST
+	// responses then omit it.
 	Side          Side `protobuf:"varint,3,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -4910,7 +4945,14 @@ func (x *ModifyOrderResponse) GetTsNs() uint64 {
 	return 0
 }
 
-// BatchReplaceOrderItem identifies one replacement inside a quote-refresh batch.
+// BatchReplaceOrderItem identifies one order to modify inside a quote-refresh
+// batch. Each item follows ModifyOrder's default AMEND_OR_REPLACE rule: an item
+// that keeps the order's price (new_price_ticks unset or equal to it), does not
+// raise its total quantity and keeps its client order ID amends the order in
+// place, under the same order ID and with its queue priority kept. A new
+// price, a larger total quantity or a new client order ID replaces it with a
+// successor order under a new order ID, with its queue priority reset. To
+// force a replacement, use ModifyOrder with REPLACE_ONLY.
 type BatchReplaceOrderItem struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Key:
@@ -4925,7 +4967,8 @@ type BatchReplaceOrderItem struct {
 	NewQtyScaled *int64 `protobuf:"varint,4,opt,name=new_qty_scaled,json=newQtyScaled,proto3,oneof" json:"new_qty_scaled,omitempty"`
 	// Replacement attached-risk policy for the order.
 	NewAttachedRisk *RiskPolicy `protobuf:"bytes,5,opt,name=new_attached_risk,json=newAttachedRisk,proto3" json:"new_attached_risk,omitempty"`
-	// Optional new client order id when replace path is taken.
+	// Optional client order ID for the successor. A value other than the order's
+	// client order ID makes the item a replacement.
 	NewClientOrderId string `protobuf:"bytes,6,opt,name=new_client_order_id,json=newClientOrderId,proto3" json:"new_client_order_id,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
@@ -5043,17 +5086,21 @@ type BatchReplaceAdmissionItem struct {
 	// order the requested client order ID names. Rejected items keep it too. Unset
 	// only when the requested client order ID names no order.
 	OldOrderId uint64 `protobuf:"fixed64,3,opt,name=old_order_id,json=oldOrderId,proto3" json:"old_order_id,omitempty"`
-	// Assigned successor order ID. Unset for cancel-only outcomes and rejected items.
+	// Assigned successor order ID, for a REPLACED item only. Unset for an AMENDED
+	// item, whose order keeps old_order_id, and for rejected items.
 	ReplacementOrderId uint64 `protobuf:"fixed64,4,opt,name=replacement_order_id,json=replacementOrderId,proto3" json:"replacement_order_id,omitempty"`
-	// Client order ID assigned to the successor when available.
+	// Client order ID assigned to the successor, for a REPLACED item only.
 	ClientOrderId string `protobuf:"bytes,5,opt,name=client_order_id,json=clientOrderId,proto3" json:"client_order_id,omitempty"`
 	// Stable rejection code. Empty for admitted items.
 	Code string `protobuf:"bytes,6,opt,name=code,proto3" json:"code,omitempty"`
 	// Structured rejection details. Present for rate-limit guidance and other typed failures.
 	Error *ErrorDetail `protobuf:"bytes,7,opt,name=error,proto3" json:"error,omitempty"`
-	// REPLACED admits a successor. AMENDED cancels the original order's remaining quantity
-	// without a successor; keep tracking old_order_id until its terminal state is confirmed.
-	// Unspecified for rejected items.
+	// REPLACED admits a successor under replacement_order_id, with queue priority
+	// reset. AMENDED keeps the order under old_order_id with no successor: the
+	// order is amended in place and keeps its queue priority, or, when the new
+	// total quantity is at or below its filled quantity, ends at its filled
+	// quantity. Keep tracking old_order_id for an AMENDED item. Not set for
+	// rejected items; JSON and REST responses then omit it.
 	ActionTaken   ModifyActionTaken `protobuf:"varint,8,opt,name=action_taken,json=actionTaken,proto3,enum=orders.v1.ModifyActionTaken" json:"action_taken,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -5145,7 +5192,8 @@ func (x *BatchReplaceAdmissionItem) GetActionTaken() ModifyActionTaken {
 	return ModifyActionTaken_MODIFY_ACTION_UNSPECIFIED
 }
 
-// BatchReplaceOrdersRequest replaces same-symbol orders as one quote refresh.
+// BatchReplaceOrdersRequest modifies same-symbol orders as one quote refresh:
+// each item is amended in place or replaced as ModifyOrder decides by default.
 // Identical retries replay the admission result for 60 seconds from acceptance;
 // a different payload under the same key conflicts. Use a fresh key for a new batch.
 type BatchReplaceOrdersRequest struct {
@@ -5744,7 +5792,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x0eStopLossPolicy\x127\n" +
 	"\x13trigger_price_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x11triggerPriceTicks\x126\n" +
 	"\x05child\x18\x02 \x01(\v2\x18.orders.v1.RiskExecutionB\x06\xbaH\x03\xc8\x01\x01R\x05child\x12Y\n" +
-	"\x14trigger_price_source\x18\x03 \x01(\x0e2\x1d.orders.v1.TriggerPriceSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\x12triggerPriceSource\"\xc0\x03\n" +
+	"\x14trigger_price_source\x18\x03 \x01(\x0e2\x1d.orders.v1.TriggerPriceSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\x12triggerPriceSource\"\xf8\x03\n" +
 	"\x12TrailingStopPolicy\x12A\n" +
 	"\x17trailing_distance_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x00R\x15trailingDistanceTicks\x12@\n" +
 	"\x15trailing_distance_bps\x18\x02 \x01(\x05B\n" +
@@ -5753,7 +5801,9 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x10max_slippage_bps\x18\a \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\x90N \x00H\x01R\x0emaxSlippageBps\x124\n" +
 	"\x16activation_price_ticks\x18\x03 \x01(\x03R\x14activationPriceTicks\x12Y\n" +
-	"\x14trigger_price_source\x18\b \x01(\x0e2\x1d.orders.v1.TriggerPriceSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\x12triggerPriceSourceB\x13\n" +
+	"\x14trigger_price_source\x18\b \x01(\x0e2\x1d.orders.v1.TriggerPriceSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\x12triggerPriceSource\x126\n" +
+	"\x11limit_price_ticks\x18\x04 \x01(\x03B\n" +
+	"\xbaH\a\xd8\x01\x01\"\x02 \x00R\x0flimitPriceTicksB\x13\n" +
 	"\x11trailing_distanceB\x0e\n" +
 	"\fmax_slippage\"\xc6\x03\n" +
 	"\n" +
@@ -5980,7 +6030,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"&SELF_TRADE_PREVENTION_MODE_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fEXPIRE_MAKER\x10\x01\x12\x10\n" +
 	"\fEXPIRE_TAKER\x10\x02\x12\x0f\n" +
-	"\vEXPIRE_BOTH\x10\x03*\xce<\n" +
+	"\vEXPIRE_BOTH\x10\x03*\xf7<\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16ERROR_CODE_BAD_REQUEST\x10\x01\x12\x1f\n" +
@@ -6166,7 +6216,8 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x1cERROR_CODE_ACCOUNT_REPAIRING\x10\xac\x02\x121\n" +
 	",ERROR_CODE_TRIGGER_WOULD_TRIGGER_IMMEDIATELY\x10\xae\x02\x12,\n" +
 	"'ERROR_CODE_ORDER_CREATE_OUTCOME_UNKNOWN\x10\xaf\x02\x12.\n" +
-	")ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN\x10\xb0\x02\x12(\n" +
+	")ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN\x10\xb0\x02\x12'\n" +
+	"\"ERROR_CODE_TRIGGER_SYMBOL_MISMATCH\x10\xb1\x02\x12(\n" +
 	"#ERROR_CODE_MAX_OPEN_ORDERS_PER_PAIR\x10\xb2\x02\x12%\n" +
 	"!ERROR_CODE_ATTACHED_LEGS_EXCEEDED\x10V\x12 \n" +
 	"\x1cERROR_CODE_FEE_ASSET_INVALID\x10W\x12\"\n" +
@@ -6206,7 +6257,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x1fBatchReplaceItemAdmissionStatus\x123\n" +
 	"/BATCH_REPLACE_ITEM_ADMISSION_STATUS_UNSPECIFIED\x10\x00\x120\n" +
 	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_ADMITTED\x10\x01\x120\n" +
-	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_REJECTED\x10\x022\xb6\x14\n" +
+	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_REJECTED\x10\x022\xa4\x16\n" +
 	"\rOrdersService\x12\x9a\x02\n" +
 	"\fPreviewOrder\x12\x1e.orders.v1.PreviewOrderRequest\x1a\x1f.orders.v1.PreviewOrderResponse\"\xc8\x01\xbaG\xbe\x01\n" +
 	"\x0eOrders Service\x12\rPreview Order\x1a\x9c\x01Check current order eligibility and available balance without creating an order or reservation. Returns resolved sizing and price protection when available.\xa2\xb5\x18\x02\x01\x02\x12\xb0\x02\n" +
@@ -6221,9 +6272,9 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x11BatchCreateOrders\x12#.orders.v1.BatchCreateOrdersRequest\x1a$.orders.v1.BatchCreateOrdersResponse\"\xc4\x01\xbaG\xba\x01\n" +
 	"\x0eOrders Service\x12\x13Batch Create Orders\x1a\x92\x01Create up to 20 orders in a single request with per-item results. Supports mixed symbols, attached risk payloads, and optional partial acceptance.\xa2\xb5\x18\x02\x01\x02\x12\x98\x02\n" +
 	"\vModifyOrder\x12\x1d.orders.v1.ModifyOrderRequest\x1a\x1e.orders.v1.ModifyOrderResponse\"\xc9\x01\xbaG\xbf\x01\n" +
-	"\x0eOrders Service\x12\fModify Order\x1a\x9e\x01Modify a single open order by order ID or client order ID. Supports amend-or-replace behavior policies, price and quantity updates, and attached risk updates.\xa2\xb5\x18\x02\x01\x02\x12\x9e\x02\n" +
-	"\x12BatchReplaceOrders\x12$.orders.v1.BatchReplaceOrdersRequest\x1a%.orders.v1.BatchReplaceOrdersResponse\"\xba\x01\xbaG\xb0\x01\n" +
-	"\x0eOrders Service\x12\x14Batch Replace Orders\x1a\x87\x01Replace up to 50 orders for one symbol as a quote refresh. Returns an admission receipt for status and private realtime reconciliation.\xa2\xb5\x18\x02\x01\x02\x12\x99\x02\n" +
+	"\x0eOrders Service\x12\fModify Order\x1a\x9e\x01Modify a single open order by order ID or client order ID. Supports amend-or-replace behavior policies, price and quantity updates, and attached risk updates.\xa2\xb5\x18\x02\x01\x02\x12\x8c\x04\n" +
+	"\x12BatchReplaceOrders\x12$.orders.v1.BatchReplaceOrdersRequest\x1a%.orders.v1.BatchReplaceOrdersResponse\"\xa8\x03\xbaG\x9e\x03\n" +
+	"\x0eOrders Service\x12\x14Batch Replace Orders\x1a\xf5\x02Modify up to 50 orders for one symbol as a quote refresh. Each item amends its order in place, keeping its order ID and queue priority, when it keeps the price, does not raise the total quantity and keeps the client order ID; otherwise it replaces the order with a successor under a new order ID. Returns an admission receipt for status and private realtime reconciliation.\xa2\xb5\x18\x02\x01\x02\x12\x99\x02\n" +
 	"\x11BatchCancelOrders\x12#.orders.v1.BatchCancelOrdersRequest\x1a$.orders.v1.BatchCancelOrdersResponse\"\xb8\x01\xbaG\xae\x01\n" +
 	"\x0eOrders Service\x12\x13Batch Cancel Orders\x1a\x86\x01Cancel up to 50 orders by order ID or client order ID in one request. Returns per-item accept or reject results with aggregate counts.\xa2\xb5\x18\x02\x01\x02B\x8d\x01\xbaGJ:H\n" +
 	"\x0eOrders Service\x126Public write surface for placing and canceling orders.Z>github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1;ordersv1b\x06proto3"
