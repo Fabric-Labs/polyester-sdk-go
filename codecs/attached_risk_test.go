@@ -184,3 +184,97 @@ func TestBatchReplaceEncodesAttachedRiskOnlyItem(t *testing.T) {
 		t.Fatalf("stop leg=%T", item.GetNewAttachedRisk().GetStopLeg())
 	}
 }
+
+func sellWithAttachedTrailing(trailing *models.TrailingStopInput) models.CreateOrderRequest {
+	symbolID := uint32(2)
+	price := models.PriceFromDecimal("2420")
+	return models.CreateOrderRequest{
+		SymbolID:     &symbolID,
+		Side:         "sell",
+		OrderType:    "limit",
+		Qty:          models.QtyFromScaledInt(2315),
+		Price:        &price,
+		AttachedRisk: &models.AttachedRiskInput{TrailingStop: trailing},
+	}
+}
+
+func TestCreateOrderSendsAttachedTrailingBuyBackLimit(t *testing.T) {
+	trailing := &models.TrailingStopInput{
+		DistanceBps:     ptr(int32(150)),
+		ActivationPrice: ptr(models.PriceFromDecimal("2300")),
+		LimitPrice:      ptr(models.PriceFromDecimal("2500.123456789")),
+	}
+	req, err := CreateOrderToProto(sellWithAttachedTrailing(trailing), 6, 6)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := req.GetOrder().GetAttachedRisk().GetTrailingStop()
+	if got.GetLimitPriceTicks() != 2500123456789 || got.GetActivationPriceTicks() != 2300000000000 {
+		t.Fatalf("trailing=%v", got)
+	}
+	batch, err := BatchCreateOrdersToProto([]models.CreateOrderRequest{sellWithAttachedTrailing(trailing)}, nil, ptr("batch-1"), false, 6, 6)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if batch.GetItems()[0].GetAttachedRisk().GetTrailingStop().GetLimitPriceTicks() != 2500123456789 {
+		t.Fatalf("batch item=%v", batch.GetItems()[0])
+	}
+}
+
+func TestAttachedTrailingLimitFollowsParentSide(t *testing.T) {
+	cases := map[string]struct {
+		side     string
+		trailing *models.TrailingStopInput
+		want     string
+	}{
+		"sell parent without limit": {"sell", &models.TrailingStopInput{DistanceBps: ptr(int32(150))},
+			"attached_risk.trailing_stop.limit_price is required when the parent order sells"},
+		"buy parent with limit": {"buy", &models.TrailingStopInput{DistanceBps: ptr(int32(150)), LimitPrice: ptr(models.PriceFromDecimal("2500"))},
+			"attached_risk.trailing_stop.limit_price must be unset when the parent order buys"},
+		"zero limit": {"sell", &models.TrailingStopInput{DistanceBps: ptr(int32(150)), LimitPrice: ptr(models.PriceFromDecimal("0"))},
+			"attached_risk.trailing_stop.limit_price must be positive"},
+		"limit below activation": {"sell", &models.TrailingStopInput{
+			DistanceBps:     ptr(int32(150)),
+			ActivationPrice: ptr(models.PriceFromDecimal("2600")),
+			LimitPrice:      ptr(models.PriceFromDecimal("2500")),
+		}, "attached_risk.trailing_stop.limit_price must be at least activation_price"},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			req := sellWithAttachedTrailing(tc.trailing)
+			req.Side = tc.side
+			_, err := CreateOrderToProto(req, 6, 6)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("err=%v want %q", err, tc.want)
+			}
+		})
+	}
+}
+
+func TestModifyAndBatchReplacePassAttachedTrailingLimit(t *testing.T) {
+	risk := &models.AttachedRiskInput{TrailingStop: &models.TrailingStopInput{
+		DistanceBps: ptr(int32(150)),
+		LimitPrice:  ptr(models.PriceFromDecimal("185.5")),
+	}}
+	req, err := ModifyOrderToProto("SOL-USDT", 3, models.OrderKeyByID("100"), nil, nil, nil, nil, risk, nil, nil, 6)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if req.GetNewAttachedRisk().GetTrailingStop().GetLimitPriceTicks() != 185500000000 {
+		t.Fatalf("modify=%v", req.GetNewAttachedRisk())
+	}
+	batch, err := BatchReplaceOrdersToProto([]models.BatchReplaceItem{{Key: models.OrderKeyByID("100"), NewAttachedRisk: risk}}, 3, nil, ptr("batch-1"), 6)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if batch.GetItems()[0].GetNewAttachedRisk().GetTrailingStop().GetLimitPriceTicks() != 185500000000 {
+		t.Fatalf("batch replace=%v", batch.GetItems()[0])
+	}
+	// The order's side is unknown here, so the server judges the side rule;
+	// the price checks still apply.
+	risk.TrailingStop.ActivationPrice = ptr(models.PriceFromDecimal("190"))
+	_, err = ModifyOrderToProto("SOL-USDT", 3, models.OrderKeyByID("100"), nil, nil, nil, nil, risk, nil, nil, 6)
+	if err == nil || !strings.Contains(err.Error(), "new_attached_risk.trailing_stop.limit_price must be at least activation_price") {
+		t.Fatalf("err=%v", err)
+	}
+}
