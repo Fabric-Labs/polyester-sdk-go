@@ -662,8 +662,7 @@ func BatchReplaceStatusFromProto(msg *orderv1.GetBatchReplaceStatusResponse) (mo
 		}
 	}
 	items := make([]models.BatchReplaceStatusItem, 0, len(msg.GetItems()))
-	decodedAccepted := 0
-	decodedRejected := 0
+	rejectedPhases := 0
 	for _, item := range msg.GetItems() {
 		phase := batchReplacePhaseName(item.GetPhase())
 		if phase == "" {
@@ -672,31 +671,36 @@ func BatchReplaceStatusFromProto(msg *orderv1.GetBatchReplaceStatusResponse) (mo
 				Msg:       fmt.Sprintf("unknown batch replace phase: %d", item.GetPhase()),
 			}
 		}
-		switch phase {
-		case "rejected":
-			decodedRejected++
-		case "admitted", "working", "terminal":
-			decodedAccepted++
+		if phase == "rejected" {
+			rejectedPhases++
+		}
+		replacementOrderID := ""
+		if item.GetReplacementOrderId() != 0 {
+			replacementOrderID = codecs.FormatUint64ID(item.GetReplacementOrderId())
 		}
 		items = append(items, models.BatchReplaceStatusItem{
 			ItemIndex:          item.GetItemIndex(),
 			Phase:              phase,
 			OldOrderID:         codecs.FormatUint64ID(item.GetOldOrderId()),
-			ReplacementOrderID: codecs.FormatUint64ID(item.GetReplacementOrderId()),
+			ReplacementOrderID: replacementOrderID,
 			OrderStatus:        orderStatusName(item.GetOrderStatus()),
 			Code:               item.GetCode(),
+			ErrorCode:          batchReplaceErrorCode(item.GetCode()),
 			UpdatedTsNs:        item.GetUpdatedTsNs(),
 			ActionTaken:        modifyActionName(item.GetActionTaken()),
 		})
 	}
+	// The counts describe admission. An item admitted and then refused when
+	// applied reads rejected but still counts as accepted, so only the
+	// admission rejections bound the rejected phases.
 	accepted := int(msg.GetAcceptedCount())
 	rejected := int(msg.GetRejectedCount())
-	if accepted != decodedAccepted || rejected != decodedRejected || accepted+rejected != len(items) {
+	if rejected > rejectedPhases || accepted+rejected != len(items) {
 		return models.BatchReplaceStatusResult{}, &sdkerrors.ResponseContractError{
 			Operation: "GetBatchReplaceStatus",
 			Msg: fmt.Sprintf(
-				"batch replace status counts do not match decoded phases: accepted=%d/%d rejected=%d/%d items=%d",
-				accepted, decodedAccepted, rejected, decodedRejected, len(items),
+				"batch replace status counts do not match decoded phases: accepted=%d rejected=%d rejected_phases=%d items=%d",
+				accepted, rejected, rejectedPhases, len(items),
 			),
 		}
 	}
@@ -709,6 +713,19 @@ func BatchReplaceStatusFromProto(msg *orderv1.GetBatchReplaceStatusResponse) (mo
 		AcceptedTsNs:    msg.GetAcceptedTsNs(),
 		UpdatedTsNs:     msg.GetUpdatedTsNs(),
 	}, nil
+}
+
+// batchReplaceErrorCode names a status item's code as the orders.v1 ErrorCode
+// a single ModifyOrder returns for the same refusal. The wire code drops the
+// ERROR_CODE_ prefix; a code newer than this SDK is kept as sent.
+func batchReplaceErrorCode(code string) string {
+	if code == "" {
+		return ""
+	}
+	if _, ok := orderv1.ErrorCode_value["ERROR_CODE_"+code]; ok {
+		return "ERROR_CODE_" + code
+	}
+	return code
 }
 
 func batchReplaceAdmissionStatusName(v orderv1.BatchReplaceAdmissionStatus) string {

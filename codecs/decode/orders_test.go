@@ -731,17 +731,73 @@ func TestBatchReplaceStatusDecodesPhases(t *testing.T) {
 }
 
 func TestBatchReplaceStatusRejectsCountMismatch(t *testing.T) {
-	_, err := decode.BatchReplaceStatusFromProto(&orderv1.GetBatchReplaceStatusResponse{
-		BatchRequestId:  7,
-		AdmissionStatus: orderv1.BatchReplaceAdmissionStatus_BATCH_REPLACE_ADMISSION_STATUS_ADMITTED,
-		Items: []*orderv1.BatchReplaceStatusItem{
-			{ItemIndex: 0, Phase: orderv1.BatchReplacePhase_BATCH_REPLACE_PHASE_REJECTED},
+	cases := map[string]*orderv1.GetBatchReplaceStatusResponse{
+		// An item rejected at admission never reads as live.
+		"rejected at admission but working": {
+			BatchRequestId:  7,
+			AdmissionStatus: orderv1.BatchReplaceAdmissionStatus_BATCH_REPLACE_ADMISSION_STATUS_REJECTED,
+			Items: []*orderv1.BatchReplaceStatusItem{
+				{ItemIndex: 0, Phase: orderv1.BatchReplacePhase_BATCH_REPLACE_PHASE_WORKING},
+			},
+			RejectedCount: 1,
 		},
-		AcceptedCount: 1,
+		"counts do not cover the items": {
+			BatchRequestId:  7,
+			AdmissionStatus: orderv1.BatchReplaceAdmissionStatus_BATCH_REPLACE_ADMISSION_STATUS_ADMITTED,
+			Items: []*orderv1.BatchReplaceStatusItem{
+				{ItemIndex: 0, Phase: orderv1.BatchReplacePhase_BATCH_REPLACE_PHASE_WORKING},
+				{ItemIndex: 1, Phase: orderv1.BatchReplacePhase_BATCH_REPLACE_PHASE_WORKING},
+			},
+			AcceptedCount: 1,
+		},
+	}
+	for name, msg := range cases {
+		_, err := decode.BatchReplaceStatusFromProto(msg)
+		var contractErr *sdkerrors.ResponseContractError
+		if !errors.As(err, &contractErr) {
+			t.Fatalf("%s: expected ResponseContractError for count mismatch, got %T: %v", name, err, err)
+		}
+	}
+}
+
+// An item admitted and then refused when applied reads REJECTED with the
+// refusal's code, while the admission counts still count it as accepted.
+func TestBatchReplaceStatusDecodesRefusalAfterAdmission(t *testing.T) {
+	result, err := decode.BatchReplaceStatusFromProto(&orderv1.GetBatchReplaceStatusResponse{
+		BatchRequestId:  7,
+		AdmissionStatus: orderv1.BatchReplaceAdmissionStatus_BATCH_REPLACE_ADMISSION_STATUS_PARTIALLY_ADMITTED,
+		Items: []*orderv1.BatchReplaceStatusItem{
+			{ItemIndex: 0, Phase: orderv1.BatchReplacePhase_BATCH_REPLACE_PHASE_REJECTED, OldOrderId: 1, Code: "POST_ONLY_CROSS"},
+			{ItemIndex: 1, Phase: orderv1.BatchReplacePhase_BATCH_REPLACE_PHASE_REJECTED, OldOrderId: 2, Code: "SOME_FUTURE_CODE"},
+			{ItemIndex: 2, Phase: orderv1.BatchReplacePhase_BATCH_REPLACE_PHASE_REJECTED, OldOrderId: 3, Code: "PRICE_LEVELS_EXHAUSTED"},
+			{ItemIndex: 3, Phase: orderv1.BatchReplacePhase_BATCH_REPLACE_PHASE_WORKING, OldOrderId: 4, ReplacementOrderId: 5, ActionTaken: orderv1.ModifyActionTaken_REPLACED},
+		},
+		AcceptedCount: 3,
+		RejectedCount: 1,
 	})
-	var contractErr *sdkerrors.ResponseContractError
-	if !errors.As(err, &contractErr) {
-		t.Fatalf("expected ResponseContractError for count mismatch, got %T: %v", err, err)
+	if err != nil {
+		t.Fatal(err)
+	}
+	refused := result.Items[0]
+	if refused.Phase != "rejected" || refused.Code != "POST_ONLY_CROSS" || refused.ErrorCode != "ERROR_CODE_POST_ONLY_CROSS" {
+		t.Fatalf("refused item=%+v", refused)
+	}
+	// The refused modify created no order: no replacement ID, and the old
+	// order is unchanged.
+	if refused.ReplacementOrderID != "" || refused.OldOrderID == "" {
+		t.Fatalf("refused item IDs=%+v", refused)
+	}
+	if unknown := result.Items[1]; unknown.Code != "SOME_FUTURE_CODE" || unknown.ErrorCode != "SOME_FUTURE_CODE" {
+		t.Fatalf("unknown code item=%+v", unknown)
+	}
+	if result.Items[2].ErrorCode != "ERROR_CODE_PRICE_LEVELS_EXHAUSTED" {
+		t.Fatalf("price levels item=%+v", result.Items[2])
+	}
+	if working := result.Items[3]; working.ErrorCode != "" || working.ReplacementOrderID == "" {
+		t.Fatalf("working item=%+v", working)
+	}
+	if !models.IsBatchReplaceSettled(result) {
+		t.Fatal("rejected and working items are settled")
 	}
 }
 

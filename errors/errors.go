@@ -22,6 +22,9 @@ const (
 	// AuthCodeTemporarilyUnavailable: the request changed nothing; retry the
 	// same request.
 	AuthCodeTemporarilyUnavailable = "AUTH_TEMPORARILY_UNAVAILABLE"
+	// AuthCodeSubaccountOwnerRoleLocked: a member call targeted the
+	// sub-account's owner. See SubaccountOwnerRoleLockedError.
+	AuthCodeSubaccountOwnerRoleLocked = "AUTH_SUBACCOUNT_OWNER_ROLE_LOCKED"
 )
 
 // AuthErrorCode returns the structured auth.v1.AuthErrorDetail code when err is
@@ -82,6 +85,36 @@ func (e *AuthError) Error() string {
 	return "auth error"
 }
 func (e *AuthError) Is(target error) bool { return target == ErrPolyester }
+
+// SubaccountOwnerRoleLockedError indicates that a sub-account member call
+// targeted the sub-account's owner (AUTH_SUBACCOUNT_OWNER_ROLE_LOCKED): the
+// owner cannot be invited, have their role changed or be removed. The request
+// changed nothing, and retrying does not help. Show "The owner's role can't be
+// changed", and don't offer these actions for the member whose role is OWNER.
+//
+// It unwraps to an *APIError with that code, so AuthErrorCode reads it.
+type SubaccountOwnerRoleLockedError struct {
+	Msg    string
+	Status int // HTTP status when sourced from a REST problem body (412)
+}
+
+func (e *SubaccountOwnerRoleLockedError) Error() string {
+	if e == nil || e.Msg == "" {
+		return "the sub-account owner's role can't be changed"
+	}
+	return e.Msg
+}
+func (e *SubaccountOwnerRoleLockedError) Is(target error) bool { return target == ErrPolyester }
+func (e *SubaccountOwnerRoleLockedError) Unwrap() error {
+	return &APIError{Msg: e.Error(), Code: AuthCodeSubaccountOwnerRoleLocked}
+}
+
+// IsSubaccountOwnerRoleLocked reports whether err refuses a member call that
+// targeted the sub-account's owner (AUTH_SUBACCOUNT_OWNER_ROLE_LOCKED).
+func IsSubaccountOwnerRoleLocked(err error) bool {
+	var locked *SubaccountOwnerRoleLockedError
+	return errors.As(err, &locked)
+}
 
 // ValidationError indicates invalid SDK input or a concrete server-side
 // validation rejection. Code and Metadata are populated when structured wire
@@ -174,6 +207,20 @@ func (e *ResponseContractError) Error() string {
 	return e.Operation + " response contract violation: " + e.Msg
 }
 func (e *ResponseContractError) Is(target error) bool { return target == ErrPolyester }
+
+// BatchReplaceWindowExpiredError indicates that a batch replace's 60-second
+// status window ended while an item still read admitted. After the window, a
+// status read proves nothing (not found does not mean rejected): reconcile the
+// orders themselves with order reads, keyed by each item's old order ID.
+type BatchReplaceWindowExpiredError struct {
+	BatchRequestID string
+}
+
+func (e *BatchReplaceWindowExpiredError) Error() string {
+	return "batch replace " + e.BatchRequestID +
+		" still has admitted items at the end of its 60 s status window; reconcile its orders with order reads"
+}
+func (e *BatchReplaceWindowExpiredError) Is(target error) bool { return target == ErrPolyester }
 
 // RouteNotFoundError indicates the gateway has no route for an RPC.
 type RouteNotFoundError struct{ Procedure string }

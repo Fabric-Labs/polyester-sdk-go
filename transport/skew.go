@@ -12,13 +12,16 @@ import (
 )
 
 // maxErrorBodyBytes bounds how much of an error body is inspected for a
-// TIMESTAMP_SKEW code.
+// gateway code.
 const maxErrorBodyBytes = 64 * 1024
 
-// timestampSkewRoundTripper reports an API-key TIMESTAMP_SKEW rejection as
-// *errors.TimestampSkewError. The gateway answers it with a JSON (or problem
-// JSON) body {"code":"TIMESTAMP_SKEW"} that is not a Connect error, so
-// Connect would discard the code and surface a bare HTTP 401.
+// timestampSkewRoundTripper reports gateway answers whose JSON (or problem
+// JSON) body is not a Connect error, so Connect would discard their code and
+// surface a bare HTTP status:
+//   - an API-key {"code":"TIMESTAMP_SKEW"} rejection as
+//     *errors.TimestampSkewError;
+//   - a 412 {"code":"AUTH_SUBACCOUNT_OWNER_ROLE_LOCKED"} problem as
+//     *errors.SubaccountOwnerRoleLockedError.
 type timestampSkewRoundTripper struct {
 	base http.RoundTripper
 }
@@ -40,14 +43,27 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	}
 	// Connect error codes are lowercase names, so this never matches one.
 	var detail struct {
-		Code string `json:"code"`
+		Code   string `json:"code"`
+		Detail string `json:"detail"`
+		Title  string `json:"title"`
 	}
-	if json.Unmarshal(body, &detail) == nil && detail.Code == wire.TimestampSkewCode {
+	if json.Unmarshal(body, &detail) != nil {
+		return resp, nil
+	}
+	switch detail.Code {
+	case wire.TimestampSkewCode:
 		_ = resp.Body.Close()
 		return nil, &sdkerrors.TimestampSkewError{
 			Msg:    "API key timestamp is outside the allowed skew window",
 			Status: resp.StatusCode,
 		}
+	case sdkerrors.AuthCodeSubaccountOwnerRoleLocked:
+		_ = resp.Body.Close()
+		msg := detail.Detail
+		if msg == "" {
+			msg = detail.Title
+		}
+		return nil, &sdkerrors.SubaccountOwnerRoleLockedError{Msg: msg, Status: resp.StatusCode}
 	}
 	return resp, nil
 }

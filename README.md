@@ -387,6 +387,14 @@ large concurrent burst or with a drifting clock. It changed nothing and is
 retryable: a retry signs again. Bound concurrency or fix the clock if it
 recurs. `errors.NotImplementedError` (Connect `unimplemented` or HTTP 501)
 means the server does not offer the operation; retrying does not help.
+`errors.SubaccountOwnerRoleLockedError` (`AUTH_SUBACCOUNT_OWNER_ROLE_LOCKED`,
+Connect `failed_precondition` or REST 412) refuses a sub-account member call
+that targets the sub-account's owner: inviting the owner, accepting an invite
+granted to the owner, changing the owner's role or removing the owner. It
+changed nothing and is not retryable; `errors.IsSubaccountOwnerRoleLocked`
+tests for it, and `errors.AuthErrorCode` still reads its code. Show "The
+owner's role can't be changed", and don't offer these actions for the member
+whose role is `OWNER`.
 Client order ids accept 1 to 36 ASCII letters, digits, `.`, `_`, `:`, `/`, and
 `-`. Batch create, cancel, and replace accept at most 20 items (rejected locally
 before encoding). `BatchCreate` always sends `request_id` (caller value or a
@@ -484,18 +492,58 @@ supplied. `PairConstraints.MaxQuoteSlippage` is the largest absolute cap
 
 ### Batch replace reconciliation
 
-`Orders.BatchReplace` returns admission, not execution finality. Each item
-contains a stale predecessor `OldOrderID` and its successor
-`ReplacementOrderID`. Persist the returned `BatchRequestID`, and poll
-`Orders.GetBatchReplaceStatus` to reconcile successor IDs and item phases.
-`models.BatchReplaceStatusSettled` / `models.IsBatchReplaceSettled` returns
-true when every item is `working`, `rejected`, or `terminal`; `working` only
-means the successor is live. Reuse the same caller-owned `requestID` when
-retrying the same logical batch after an ambiguous failure.
+`Orders.BatchReplace` modifies up to 20 orders on one pair, each admitted or
+rejected on its own, and returns admission, not execution finality. Each item
+amends or replaces its order. An item that keeps the order's price, does not
+raise its total quantity and keeps its client order ID amends the order in
+place, under the same order ID and with its queue priority kept. A new price, a
+larger total quantity or a new client order ID replaces the order with a
+successor under a new order ID, with its queue priority reset. A new total
+quantity at or below the filled quantity ends the order at its filled
+quantity, with no successor.
 
-Admission and status items carry `ActionTaken`: `replaced` when a successor was
-admitted, or `amended` for a cancel-only outcome with no successor. For an
-amended item keep tracking `OldOrderID` until its terminal state is confirmed.
+Persist the returned `BatchRequestID`, then call `Orders.WaitBatchReplace`. It
+polls `Orders.GetBatchReplaceStatus` (50 ms, doubling up to 500 ms) until no
+item is `admitted`, that is until each is `working`, `rejected` or `terminal`,
+and returns that status; `working` only means the order is live. A batch's
+status can read not found for a few seconds after admission, so the wait polls
+through not found and `UNAVAILABLE`.
+`models.IsBatchReplaceSettled` tests the same condition on one status read.
+An item can be admitted and then refused when applied, for example a post-only
+order moved to a price that would cross: it reads `rejected`, changed nothing,
+and its order keeps `OldOrderID` with its previous price and quantity.
+`Code` is the refusal as sent (`POST_ONLY_CROSS`), and `ErrorCode` is the
+`orders.v1` name a single modify returns (`ERROR_CODE_POST_ONLY_CROSS`; a code
+newer than the SDK is kept as sent). The admission counts still count such an
+item as accepted.
+
+The admission answer's `ReplacementOrderID` is the planned successor, not proof
+of an order: only a status item's `ReplacementOrderID` or an order read
+confirms one. The status is kept for 60 seconds from acceptance. When that
+window ends with an item still `admitted`, `WaitBatchReplace` returns the last
+status and `*errors.BatchReplaceWindowExpiredError`, even when a status read is
+still in flight; a later status read proves nothing, so reconcile the orders
+with order reads. Cancel `ctx`, or give it an earlier deadline, to stop
+waiting sooner: that returns `ctx.Err()`. Reuse the same caller-owned
+`requestID` when retrying the same logical batch after an ambiguous failure.
+
+```go
+admitted, err := client.Orders.BatchReplace(ctx, nil, items, "BTC-USDT", nil, &requestID)
+if err != nil {
+	return err
+}
+status, err := client.Orders.WaitBatchReplace(ctx, nil, admitted.BatchRequestID, nil)
+for _, item := range status.Items {
+	if item.Phase == "rejected" {
+		log.Printf("item %d refused: %s", item.ItemIndex, item.ErrorCode)
+	}
+}
+```
+
+Admitted and status items carry `ActionTaken`: `replaced` when a successor
+took the order's place, or `amended` when the order kept `OldOrderID` (amended
+in place, or ended at its filled quantity). For an amended item keep tracking
+`OldOrderID`.
 A replacement order's `InheritedCumQty` is the filled quantity it inherited
 from its predecessors; `CumQty` minus `InheritedCumQty` is what that generation
 executed.
@@ -600,6 +648,19 @@ for _, entry := range breaking {
 
 Unknown values return an error (they do not silently return an empty list).
 Response `Status` uses the same labels (British spelling `cancelled`).
+
+`Triggers.Get` and `Triggers.List` retry `UNAVAILABLE` (HTTP 503) with the
+same request: 25 ms, doubling up to 500 ms, for about 2 s, then return the
+error. Once `Modify`, `Pause` or `Resume` has answered, these reads return the
+trigger as changed, or `UNAVAILABLE` until they can, so a read right after the
+change never returns its previous state.
+
+A market halt cancels the market's open orders with `CancelReason`
+`market_halted` and ends its open triggers with `CancelReason` `market_halted`.
+An order the halted market refuses after admission ends `REJECTED` with
+`RejectReason` `MARKET_HALTED`. A trigger it refuses after admission ends
+`failed`; its `FailureReason` reads `unknown(212)` until the server reports
+`market_halted`.
 
 `Orders.Get(..., includeAttachedRisk)` returns policy data on
 `Order.AttachedRisk`. `Order` also exposes `PostOnly`. With
