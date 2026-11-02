@@ -260,6 +260,9 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale, quoteQuant
 	if err != nil {
 		return nil, err
 	}
+	if err := validateTrailingLimitForSide(risk, side, "attached_risk"); err != nil {
+		return nil, err
+	}
 	intent.AttachedRisk = risk
 	return intent, nil
 }

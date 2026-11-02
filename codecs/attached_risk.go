@@ -106,6 +106,16 @@ func trailingStopToProto(in models.TrailingStopInput, fieldName, symbol string) 
 		}
 		out.ActivationPriceTicks = ticks
 	}
+	if in.LimitPrice != nil && in.LimitPrice.IsSet() {
+		ticks, err := positivePriceTicks(*in.LimitPrice, fieldName+".limit_price", symbol)
+		if err != nil {
+			return nil, err
+		}
+		if out.ActivationPriceTicks > ticks {
+			return nil, &errors.ValidationError{Msg: fieldName + ".limit_price must be at least activation_price"}
+		}
+		out.LimitPriceTicks = ticks
+	}
 	source, err := triggerPriceSourceToProto(in.TriggerPriceSource, fieldName+".trigger_price_source")
 	if err != nil {
 		return nil, err
@@ -123,4 +133,22 @@ func positivePriceTicks(in models.PriceInput, fieldName, symbol string) (int64, 
 		return 0, &errors.ValidationError{Msg: fieldName + " must be positive"}
 	}
 	return ticks, nil
+}
+
+// validateTrailingLimitForSide applies the parent-side rule of an attached
+// trailing stop's buy-back limit: a sell parent's trailing stop buys back and
+// needs its maximum price, while a buy parent's sells and takes none. Paths
+// that do not know the parent's side leave this rule to the server.
+func validateTrailingLimitForSide(policy *orderv1.RiskPolicy, side orderv1.Side, fieldName string) error {
+	trailing := policy.GetTrailingStop()
+	if trailing == nil {
+		return nil
+	}
+	switch {
+	case side == orderv1.Side_SELL && trailing.GetLimitPriceTicks() == 0:
+		return &errors.ValidationError{Msg: fieldName + ".trailing_stop.limit_price is required when the parent order sells: the maximum price its buy-back pays"}
+	case side == orderv1.Side_BUY && trailing.GetLimitPriceTicks() != 0:
+		return &errors.ValidationError{Msg: fieldName + ".trailing_stop.limit_price must be unset when the parent order buys"}
+	}
+	return nil
 }

@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.5.1
+
+Git tag: `v0.5.1`. Released 2026-11-02.
+
+**What a trading bot gains.** A sell order can carry an attached trailing
+stop again. On a sell order the trailing stop buys back, and the server now
+requires its maximum buy-back price; `TrailingStopInput.LimitPrice` sends it.
+
+**Breaking changes**
+- None in the SDK API.
+
+### Fixed
+- `TrailingStopInput.LimitPrice` sets an attached trailing stop's buy-back
+  limit price, the most its exit pays per unit, which also sizes the funds it
+  reserves. A sell order's attached trailing stop requires it, and a buy
+  order's must leave it nil; creates, previews and batch creates check this
+  before sending. It must be positive and at least `ActivationPrice` when both
+  are set. Modify and batch replace send it as given, and the server applies
+  the side rule there. Order reads do not return it yet.
+
 ## 0.5.0
 
 Git tag: `v0.5.0`. Released 2026-11-02.

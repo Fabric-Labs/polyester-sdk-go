@@ -33,11 +33,18 @@ type RiskLegInput struct {
 // MaxSlippageBps. ActivationPrice, when set, delays trailing until the price
 // is reached. TriggerPriceSource names the price it watches and trails, as
 // on RiskLegInput.
+//
+// LimitPrice is the maximum price of a trailing stop that buys back: the
+// most its exit pays per unit, which also sizes the funds it reserves. It is
+// required when the parent order sells, must be at least ActivationPrice when
+// both are set, and must be nil when the parent order buys. A rise that fires
+// above it still fires; the exit fills only at or below it.
 type TrailingStopInput struct {
 	DistanceTicks      *int64      `json:"distance_ticks,omitempty"`
 	DistanceBps        *int32      `json:"distance_bps,omitempty"`
 	MaxSlippageTicks   *int64      `json:"max_slippage_ticks,omitempty"`
 	MaxSlippageBps     *int32      `json:"max_slippage_bps,omitempty"`
 	ActivationPrice    *PriceInput `json:"activation_price,omitempty"`
+	LimitPrice         *PriceInput `json:"limit_price,omitempty"`
 	TriggerPriceSource string      `json:"trigger_price_source,omitempty"`
 }
