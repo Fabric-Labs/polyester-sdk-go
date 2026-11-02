@@ -1,8 +1,39 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
+
+Git tag: `v0.4.0`. Released 2026-11-02.
+
+**What a trading bot gains.** An order now says why it ended, in the same
+words everywhere. A rejected order's `RejectReason` is the error code the
+order write API returns for the same refusal, and a canceled order's
+`CancelReason` says why it was canceled, on order reads and on the private
+order stream alike. Before, the numeric reason used the matching engine's own
+numbering, which clashed with the API's error codes. `OrderbookData.Available`
+tells a bot when a book's levels are unknown rather than empty, so it does not
+quote into a book that is being rebuilt. `Trigger.Version` picks out the
+newest copy of a trigger, and nine new error codes are final refusals: the
+request did not apply, so do not resend it unchanged.
+
+This release works on devnet now, and on testnet after testnet's next upgrade.
+
+**Reason labels in this SDK.** `RejectReason` is the `orders.v1.ErrorCode`
+name without its `ERROR_CODE_` prefix, for example `POST_ONLY_CROSS`.
+`CancelReason` is the `orders.v1.CancelReason` name without its
+`CANCEL_REASON_` prefix, in lowercase, for example `user_request`. The Python
+and Rust SDKs format these labels differently.
 
 **Breaking changes**
+- `Client.Whiteboard`, `Client.Polychart` and `Client.Layout` are removed,
+  with `codecs.BoardAudienceFromLabel` and `codecs.BoardRoleFromLabel`.
+- The generated `orders.v1.Order` loses `TerminalReasonCode` and
+  `TerminalReason`, and the generated `privatews.v1.OrderEvent` loses
+  `ReasonCode`. Read `RejectReason` and `CancelReason` instead.
+- `models.OrderEvent.ReasonCode` is replaced by `RejectReason` and
+  `CancelReason`.
+- `SubAccounts.Get` no longer takes `includeBalances`.
+
+### Breaking
 - `Client.Whiteboard`, `Client.Polychart` and `Client.Layout` are removed,
   because those APIs are no longer part of the public API.
 - `codecs.BoardAudienceFromLabel` and `codecs.BoardRoleFromLabel` are
