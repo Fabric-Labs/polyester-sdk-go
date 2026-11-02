@@ -1501,12 +1501,12 @@ const file_chain_withdraw_v1_auto_withdraw_proto_rawDesc = "" +
 	"\x0eSTEP_SUBMITTED\x10\x03\x12\x12\n" +
 	"\x0eSTEP_COMPLETED\x10\x04\x12\x0f\n" +
 	"\vSTEP_FAILED\x10\x05\x12\x10\n" +
-	"\fSTEP_SKIPPED\x10\x062\x93\x04\n" +
+	"\fSTEP_SKIPPED\x10\x062\x9e\x04\n" +
 	"\x13AutoWithdrawService\x12\x7f\n" +
 	"\x13SetAutoWithdrawRule\x12-.chain.withdraw.v1.SetAutoWithdrawRuleRequest\x1a..chain.withdraw.v1.SetAutoWithdrawRuleResponse\"\t\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x12\x8b\x01\n" +
 	"\x17DisableAutoWithdrawRule\x121.chain.withdraw.v1.DisableAutoWithdrawRuleRequest\x1a2.chain.withdraw.v1.DisableAutoWithdrawRuleResponse\"\t\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x12t\n" +
 	"\x13GetAutoWithdrawRule\x12-.chain.withdraw.v1.GetAutoWithdrawRuleRequest\x1a..chain.withdraw.v1.GetAutoWithdrawRuleResponse\x12w\n" +
-	"\x14ListAutoWithdrawRuns\x12..chain.withdraw.v1.ListAutoWithdrawRunsRequest\x1a/.chain.withdraw.v1.ListAutoWithdrawRunsResponseBOZMgithub.com/Fabric-Labs/polyester-sdk-go/gen/chain/withdraw/v1;chainwithdrawv1b\x06proto3"
+	"\x14ListAutoWithdrawRuns\x12..chain.withdraw.v1.ListAutoWithdrawRunsRequest\x1a/.chain.withdraw.v1.ListAutoWithdrawRunsResponse\x1a\t\x8a\xb5\x18\x05chainBOZMgithub.com/Fabric-Labs/polyester-sdk-go/gen/chain/withdraw/v1;chainwithdrawv1b\x06proto3"
 
 var (
 	file_chain_withdraw_v1_auto_withdraw_proto_rawDescOnce sync.Once

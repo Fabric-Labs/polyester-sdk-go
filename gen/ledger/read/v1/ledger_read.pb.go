@@ -2497,7 +2497,7 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"\x1bERROR_CODE_WALLET_NOT_FOUND\x10\t\x12\x1d\n" +
 	"\x19ERROR_CODE_UPSTREAM_ERROR\x10\n" +
 	"\x12$\n" +
-	" ERROR_CODE_INVALID_SUBACCOUNT_ID\x10\v2\xc9\x06\n" +
+	" ERROR_CODE_INVALID_SUBACCOUNT_ID\x10\v2\xd6\x06\n" +
 	"\x11LedgerReadService\x12p\n" +
 	"\x11GetBalanceHistory\x12(.ledger.read.v1.GetBalanceHistoryRequest\x1a).ledger.read.v1.GetBalanceHistoryResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x12\x7f\n" +
 	"\x16GetEquityHistorySeries\x12-.ledger.read.v1.GetEquityHistorySeriesRequest\x1a..ledger.read.v1.GetEquityHistorySeriesResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x12\x99\x01\n" +
@@ -2505,7 +2505,7 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"\x1aGetPortfolioEquitySnapshot\x121.ledger.read.v1.GetPortfolioEquitySnapshotRequest\x1a2.ledger.read.v1.GetPortfolioEquitySnapshotResponse\"\x05\xa2\xb5\x18\x01\x01\x12d\n" +
 	"\rListTransfers\x12$.ledger.read.v1.ListTransfersRequest\x1a%.ledger.read.v1.ListTransfersResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x12R\n" +
 	"\tListHolds\x12 .ledger.read.v1.ListHoldsRequest\x1a!.ledger.read.v1.ListHoldsResponse\"\x00\x12^\n" +
-	"\vGetBalances\x12\".ledger.read.v1.GetBalancesRequest\x1a#.ledger.read.v1.GetBalancesResponse\"\x06\xa2\xb5\x18\x02\x01\x02B\x8d\x01\xbaGC:A\n" +
+	"\vGetBalances\x12\".ledger.read.v1.GetBalancesRequest\x1a#.ledger.read.v1.GetBalancesResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x1a\v\x8a\xb5\x18\aaccountB\x8d\x01\xbaGC:A\n" +
 	"\vLedger Read\x122Read endpoints for balances, transfers, and holds.ZEgithub.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1;ledgerrdv1b\x06proto3"
 
 var (

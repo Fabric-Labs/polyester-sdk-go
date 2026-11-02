@@ -1213,14 +1213,14 @@ const file_changelog_v1_changelog_proto_rawDesc = "" +
 	"\rSortDirection\x12\x1e\n" +
 	"\x1aSORT_DIRECTION_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\bSORT_ASC\x10\x01\x12\r\n" +
-	"\tSORT_DESC\x10\x022\xfe\x03\n" +
+	"\tSORT_DESC\x10\x022\x8d\x04\n" +
 	"\x10ChangelogService\x12\x9e\x01\n" +
 	"\tListPosts\x12\x1e.changelog.v1.ListPostsRequest\x1a\x1f.changelog.v1.ListPostsResponse\"P\xbaG+\n" +
 	"\x11Changelog Service\x12\x14List Changelog PostsZ\x00\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x15\x12\x13/v1/changelog/posts\x90\x02\x01\x12\x9d\x01\n" +
 	"\aGetPost\x12\x1c.changelog.v1.GetPostRequest\x1a\x1d.changelog.v1.GetPostResponse\"U\xbaG)\n" +
 	"\x11Changelog Service\x12\x12Get Changelog PostZ\x00\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1c\x12\x1a/v1/changelog/posts/{slug}\x90\x02\x01\x12\xa8\x01\n" +
 	"\vListChanges\x12 .changelog.v1.ListChangesRequest\x1a!.changelog.v1.ListChangesResponse\"T\xbaG-\n" +
-	"\x11Changelog Service\x12\x16List Changelog ChangesZ\x00\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x17\x12\x15/v1/changelog/changes\x90\x02\x01B\xb5\x01\xbaGl:j\n" +
+	"\x11Changelog Service\x12\x16List Changelog ChangesZ\x00\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x17\x12\x15/v1/changelog/changes\x90\x02\x01\x1a\r\x8a\xb5\x18\tchangelogB\xb5\x01\xbaGl:j\n" +
 	"\x11Changelog Service\x12UPublished product changelog of this environment: posts and the changes they announce.ZDgithub.com/Fabric-Labs/polyester-sdk-go/gen/changelog/v1;changelogv1b\x06proto3"
 
 var (

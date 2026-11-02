@@ -371,10 +371,10 @@ const file_auth_v1_resolve_proto_rawDesc = "" +
 	"\x18RESOLVE_HINT_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\bUSERNAME\x10\x01\x12\x06\n" +
 	"\x02ID\x10\x02\x12\x11\n" +
-	"\rSMART_ACCOUNT\x10\x032\x96\x02\n" +
+	"\rSMART_ACCOUNT\x10\x032\xa3\x02\n" +
 	"\x0eResolveService\x12\x83\x02\n" +
 	"\x0eResolveAccount\x12\x1e.auth.v1.ResolveAccountRequest\x1a\x1f.auth.v1.ResolveAccountResponse\"\xaf\x01\xbaG\x85\x01\n" +
-	"\fAuth Service\x12\x0fResolve Account\x1adResolve an account by username, account ID, or smart-account address for transfer and sharing flows.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/auth/accounts:resolveB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
+	"\fAuth Service\x12\x0fResolve Account\x1adResolve an account by username, account ID, or smart-account address for transfer and sharing flows.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/auth/accounts:resolve\x1a\v\x8a\xb5\x18\aaccountB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
 
 var (
 	file_auth_v1_resolve_proto_rawDescOnce sync.Once

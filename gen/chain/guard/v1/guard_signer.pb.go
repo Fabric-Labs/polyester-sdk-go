@@ -1231,7 +1231,7 @@ const file_chain_guard_v1_guard_signer_proto_rawDesc = "" +
 	"2PROTECTED_ACTION_FUNDING_REMOVE_EXTERNAL_WHITELIST\x10\x03\x123\n" +
 	"/PROTECTED_ACTION_FUNDING_ADD_INTERNAL_WHITELIST\x10\x04\x126\n" +
 	"2PROTECTED_ACTION_FUNDING_REMOVE_INTERNAL_WHITELIST\x10\x05\x12<\n" +
-	"8PROTECTED_ACTION_FUNDING_SET_INTERNAL_WHITELIST_REQUIRED\x10\x062\xeb\v\n" +
+	"8PROTECTED_ACTION_FUNDING_SET_INTERNAL_WHITELIST_REQUIRED\x10\x062\xf6\v\n" +
 	"\x12GuardSignerService\x12\xf2\x01\n" +
 	"\x17CreateGuardSignerWallet\x12..chain.guard.v1.CreateGuardSignerWalletRequest\x1a/.chain.guard.v1.CreateGuardSignerWalletResponse\"v\xbaGn\n" +
 	"\fGuard Signer\x12\x1aCreate Guard Signer Wallet\x1aBCreate a guard signer wallet for one authenticated account target.\xa2\xb5\x18\x01\x01\x12\xd0\x01\n" +
@@ -1244,7 +1244,7 @@ const file_chain_guard_v1_guard_signer_proto_rawDesc = "" +
 	"\x17RotateGuardSignerWallet\x12..chain.guard.v1.RotateGuardSignerWalletRequest\x1a/.chain.guard.v1.RotateGuardSignerWalletResponse\"\x8b\x01\xbaG\x7f\n" +
 	"\fGuard Signer\x12\x1aRotate Guard Signer Wallet\x1aSGenerate a backend-managed replacement signer and return the rotateSigner approval.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x12\x82\x02\n" +
 	"\x17ExportGuardSignerWallet\x12..chain.guard.v1.ExportGuardSignerWalletRequest\x1a/.chain.guard.v1.ExportGuardSignerWalletResponse\"\x85\x01\xbaGy\n" +
-	"\fGuard Signer\x12\x1aExport Guard Signer Wallet\x1aMExport guard signer key material after owner authorization and fresh step-up.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01B\xba\x01\xbaGn:l\n" +
+	"\fGuard Signer\x12\x1aExport Guard Signer Wallet\x1aMExport guard signer key material after owner authorization and fresh step-up.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x1a\t\x8a\xb5\x18\x05chainB\xba\x01\xbaGn:l\n" +
 	"\fGuard Signer\x12\\Manage guard signer wallets and approval signatures for protected Polyester account actions.ZGgithub.com/Fabric-Labs/polyester-sdk-go/gen/chain/guard/v1;chainguardv1b\x06proto3"
 
 var (

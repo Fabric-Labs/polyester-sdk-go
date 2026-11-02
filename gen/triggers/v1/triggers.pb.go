@@ -283,6 +283,11 @@ const (
 	// The market was disabled: the exchange ended the order's attached
 	// take-profit or stop-loss and canceled the order and its working exit.
 	TriggerCancelReason_TRIGGER_CANCEL_REASON_PAIR_DRAIN_ATTACHED_LEG TriggerCancelReason = 12
+	// The market was halted: the exchange ended every open trigger of the
+	// market, attached take-profit and stop-loss included, and released its
+	// reserved funds. The market's open orders were canceled at the same time.
+	// The market refuses new triggers until it trades again.
+	TriggerCancelReason_TRIGGER_CANCEL_REASON_MARKET_HALTED TriggerCancelReason = 13
 	// The terminal state did not contain a cancellation reason.
 	TriggerCancelReason_TRIGGER_CANCEL_REASON_MISSING_REASON_CODE TriggerCancelReason = 998
 	// An internal invariant or processing failure canceled the trigger.
@@ -302,6 +307,7 @@ var (
 		10:  "TRIGGER_CANCEL_REASON_PAIR_DRAIN_TWAP",
 		11:  "TRIGGER_CANCEL_REASON_PAIR_DRAIN_LADDER",
 		12:  "TRIGGER_CANCEL_REASON_PAIR_DRAIN_ATTACHED_LEG",
+		13:  "TRIGGER_CANCEL_REASON_MARKET_HALTED",
 		998: "TRIGGER_CANCEL_REASON_MISSING_REASON_CODE",
 		999: "TRIGGER_CANCEL_REASON_INTERNAL_ERROR",
 	}
@@ -316,6 +322,7 @@ var (
 		"TRIGGER_CANCEL_REASON_PAIR_DRAIN_TWAP":         10,
 		"TRIGGER_CANCEL_REASON_PAIR_DRAIN_LADDER":       11,
 		"TRIGGER_CANCEL_REASON_PAIR_DRAIN_ATTACHED_LEG": 12,
+		"TRIGGER_CANCEL_REASON_MARKET_HALTED":           13,
 		"TRIGGER_CANCEL_REASON_MISSING_REASON_CODE":     998,
 		"TRIGGER_CANCEL_REASON_INTERNAL_ERROR":          999,
 	}
@@ -4566,7 +4573,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\rEVENT_UPDATED\x10\x03\x12\x10\n" +
 	"\fEVENT_FAILED\x10\x04\x12\x13\n" +
 	"\x0fEVENT_ACTIVATED\x10\x05\x12\x0f\n" +
-	"\vEVENT_ARMED\x10\x06*\xa5\x04\n" +
+	"\vEVENT_ARMED\x10\x06*\xce\x04\n" +
 	"\x13TriggerCancelReason\x12%\n" +
 	"!TRIGGER_CANCEL_REASON_UNSPECIFIED\x10\x00\x12&\n" +
 	"\"TRIGGER_CANCEL_REASON_USER_REQUEST\x10\x01\x12\x1d\n" +
@@ -4578,7 +4585,8 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"%TRIGGER_CANCEL_REASON_PAIR_DRAIN_TWAP\x10\n" +
 	"\x12+\n" +
 	"'TRIGGER_CANCEL_REASON_PAIR_DRAIN_LADDER\x10\v\x121\n" +
-	"-TRIGGER_CANCEL_REASON_PAIR_DRAIN_ATTACHED_LEG\x10\f\x12.\n" +
+	"-TRIGGER_CANCEL_REASON_PAIR_DRAIN_ATTACHED_LEG\x10\f\x12'\n" +
+	"#TRIGGER_CANCEL_REASON_MARKET_HALTED\x10\r\x12.\n" +
 	")TRIGGER_CANCEL_REASON_MISSING_REASON_CODE\x10\xe6\a\x12)\n" +
 	"$TRIGGER_CANCEL_REASON_INTERNAL_ERROR\x10\xe7\a*\xc8$\n" +
 	"\x14TriggerFailureReason\x12&\n" +
@@ -4683,7 +4691,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\n" +
 	"\x06LINEAR\x10\x01\x12\r\n" +
 	"\tGEOMETRIC\x10\x02\x12\x16\n" +
-	"\x12WEIGHTED_FAVORABLE\x10\x032\xcd\x13\n" +
+	"\x12WEIGHTED_FAVORABLE\x10\x032\xda\x13\n" +
 	"\x0fTriggersService\x12\x82\x02\n" +
 	"\rCreateTrigger\x12!.triggers.v1.CreateTriggerRequest\x1a\".triggers.v1.CreateTriggerResponse\"\xa9\x01\xbaG\x88\x01\n" +
 	"\x10Triggers Service\x12\x0eCreate Trigger\x1adCreate a standalone trigger order. Supports stop, trailing, TWAP, and ladder trigger configurations.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x11:\x01*\"\f/v1/triggers\x12\xfc\x01\n" +
@@ -4701,7 +4709,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\fPauseTrigger\x12 .triggers.v1.PauseTriggerRequest\x1a!.triggers.v1.PauseTriggerResponse\"\x9b\x02\xbaG\xe7\x01\n" +
 	"\x10Triggers Service\x12\rPause Trigger\x1a\xc3\x01Pause a trigger by trigger ID without deleting it. Supported for stop-loss, take-profit and trailing-stop triggers; ladder and TWAP triggers support only cancel and answer TRIGGER_NOT_MODIFIABLE.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02$:\x01*\"\x1f/v1/triggers/{trigger_id}/pause\x12\xea\x02\n" +
 	"\rResumeTrigger\x12!.triggers.v1.ResumeTriggerRequest\x1a\".triggers.v1.ResumeTriggerResponse\"\x91\x02\xbaG\xdc\x01\n" +
-	"\x10Triggers Service\x12\x0eResume Trigger\x1a\xb7\x01Resume a paused trigger by trigger ID. Supported for stop-loss, take-profit and trailing-stop triggers; ladder and TWAP triggers support only cancel and answer TRIGGER_NOT_MODIFIABLE.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02%:\x01*\" /v1/triggers/{trigger_id}/resumeB\xa9\x01\xbaGb:`\n" +
+	"\x10Triggers Service\x12\x0eResume Trigger\x1a\xb7\x01Resume a paused trigger by trigger ID. Supported for stop-loss, take-profit and trailing-stop triggers; ladder and TWAP triggers support only cancel and answer TRIGGER_NOT_MODIFIABLE.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02%:\x01*\" /v1/triggers/{trigger_id}/resume\x1a\v\x8a\xb5\x18\atradingB\xa9\x01\xbaGb:`\n" +
 	"\x10Triggers Service\x12LPublic surface for managing standalone triggers (Stop orders, TWAP, Ladder).ZBgithub.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1;triggersv1b\x06proto3"
 
 var (

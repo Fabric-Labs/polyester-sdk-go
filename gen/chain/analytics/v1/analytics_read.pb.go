@@ -799,14 +799,14 @@ const file_chain_analytics_v1_analytics_read_proto_rawDesc = "" +
 	"\n" +
 	"\x06DAY_90\x10\x04\x12\v\n" +
 	"\aDAY_180\x10\x05\x12\v\n" +
-	"\aDAY_365\x10\x062\xf3\x06\n" +
+	"\aDAY_365\x10\x062\xfe\x06\n" +
 	"\x15ChainAnalyticsService\x12\x91\x02\n" +
 	"\x14GetZippedAssetSupply\x12/.chain.analytics.v1.GetZippedAssetSupplyRequest\x1a0.chain.analytics.v1.GetZippedAssetSupplyResponse\"\x95\x01\xbaG_\n" +
 	"\x0fChain Analytics\x12\x17Get Zipped Asset Supply\x1a3Get route-scoped zipped asset supply chart columns.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02)\x12'/v1/chain/analytics/zipped-asset-supply\x12\xa7\x02\n" +
 	"\x19GetZippedAssetSupplyGroup\x124.chain.analytics.v1.GetZippedAssetSupplyGroupRequest\x1a5.chain.analytics.v1.GetZippedAssetSupplyGroupResponse\"\x9c\x01\xbaG`\n" +
 	"\x0fChain Analytics\x12\x1dGet Zipped Asset Supply Group\x1a.Get grouped zipped asset supply chart columns.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02/\x12-/v1/chain/analytics/zipped-asset-supply/group\x12\x9b\x02\n" +
 	"\x17GetUnifiedAssetBalances\x122.chain.analytics.v1.GetUnifiedAssetBalancesRequest\x1a3.chain.analytics.v1.GetUnifiedAssetBalancesResponse\"\x96\x01\xbaG]\n" +
-	"\x0fChain Analytics\x12\x1aGet Unified Asset Balances\x1a.Get unified asset total balance chart columns.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02,\x12*/v1/chain/analytics/unified-asset-balancesB\x92\x01\xbaG>:<\n" +
+	"\x0fChain Analytics\x12\x1aGet Unified Asset Balances\x1a.Get unified asset total balance chart columns.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02,\x12*/v1/chain/analytics/unified-asset-balances\x1a\t\x8a\xb5\x18\x05chainB\x92\x01\xbaG>:<\n" +
 	"\x0fChain Analytics\x12)Read public chain analytics chart series.ZOgithub.com/Fabric-Labs/polyester-sdk-go/gen/chain/analytics/v1;chainanalyticsv1b\x06proto3"
 
 var (

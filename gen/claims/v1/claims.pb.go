@@ -860,12 +860,12 @@ const file_claims_v1_claims_proto_rawDesc = "" +
 	"\x10CLAIM_PROCESSING\x10\x02\x12\x11\n" +
 	"\rCLAIM_CLAIMED\x10\x03\x12\x15\n" +
 	"\x11CLAIM_UNAVAILABLE\x10\x04\x12\x18\n" +
-	"\x14CLAIM_PAYOUT_DELAYED\x10\x052\xa7\x06\n" +
+	"\x14CLAIM_PAYOUT_DELAYED\x10\x052\xb4\x06\n" +
 	"\rClaimsService\x12\xdb\x02\n" +
 	"\x13GetDailyClaimStatus\x12%.claims.v1.GetDailyClaimStatusRequest\x1a&.claims.v1.GetDailyClaimStatusResponse\"\xf4\x01\xbaG\xcc\x01\n" +
 	"\vDaily Claim\x12\x16Get Daily Claim Status\x1a\xa4\x01Get today's reward and claim status for the authenticated root account. Requires a session JWT; API keys are not accepted. Future reward schedules are not returned.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x19\x12\x17/v1/trading/daily-claim\x12\xb7\x03\n" +
 	"\x10ClaimDailyReward\x12\".claims.v1.ClaimDailyRewardRequest\x1a#.claims.v1.ClaimDailyRewardResponse\"\xd9\x02\xbaG\xa8\x02\n" +
-	"\vDaily Claim\x12\x12Claim Daily Reward\x1a\x84\x02Claim today's reward once for the authenticated root account, paid to the root account or to a subaccount it owns. Requires a session JWT; API keys are not accepted. All reward assets are transferred together, and retries return the same claim and destination.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/v1/trading/daily-claim/claimB\xc4\x01\xbaG\x80\x01:~\n" +
+	"\vDaily Claim\x12\x12Claim Daily Reward\x1a\x84\x02Claim today's reward once for the authenticated root account, paid to the root account or to a subaccount it owns. Requires a session JWT; API keys are not accepted. All reward assets are transferred together, and retries return the same claim and destination.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/v1/trading/daily-claim/claim\x1a\v\x8a\xb5\x18\atestnetB\xc4\x01\xbaG\x80\x01:~\n" +
 	"\vDaily Claim\x12oDaily campaign rewards for authenticated root accounts, payable to the root account or to a subaccount it owns.Z>github.com/Fabric-Labs/polyester-sdk-go/gen/claims/v1;claimsv1b\x06proto3"
 
 var (

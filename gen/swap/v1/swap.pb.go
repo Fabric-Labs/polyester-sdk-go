@@ -1592,7 +1592,7 @@ const file_swap_v1_swap_proto_rawDesc = "" +
 	"\x12\x16\n" +
 	"\x12SWAP_NOT_PERMITTED\x10\v\x12\x17\n" +
 	"\x13SERVICE_UNAVAILABLE\x10\f\x12\x19\n" +
-	"\x15DIRECTION_UNSUPPORTED\x10\r2\x95\x04\n" +
+	"\x15DIRECTION_UNSUPPORTED\x10\r2\xa2\x04\n" +
 	"\vSwapService\x12\xaa\x01\n" +
 	"\tQuoteSwap\x12\x19.swap.v1.QuoteSwapRequest\x1a\x1a.swap.v1.QuoteSwapResponse\"f\xbaG]\n" +
 	"\x04Swap\x12\n" +
@@ -1601,7 +1601,7 @@ const file_swap_v1_swap_proto_rawDesc = "" +
 	"CreateSwap\x12\x1a.swap.v1.CreateSwapRequest\x1a\x1b.swap.v1.CreateSwapResponse\"\x83\x01\xbaGz\n" +
 	"\x04Swap\x12\vCreate Swap\x1aeCreate and execute a Swap of the account's Trading balance, or return the Swap of an idempotency key.\xa2\xb5\x18\x02\x01\x02\x12\x8a\x01\n" +
 	"\aGetSwap\x12\x17.swap.v1.GetSwapRequest\x1a\x18.swap.v1.GetSwapResponse\"L\xbaGC\n" +
-	"\x04Swap\x12\bGet Swap\x1a1Get one Swap by identifier or by idempotency key.\xa2\xb5\x18\x02\x01\x02B\xa5\x01\xbaGf:d\n" +
+	"\x04Swap\x12\bGet Swap\x1a1Get one Swap by identifier or by idempotency key.\xa2\xb5\x18\x02\x01\x02\x1a\v\x8a\xb5\x18\atradingB\xa5\x01\xbaGf:d\n" +
 	"\x04Swap\x12\\Convert one asset of an account's Trading balance into another through the spot order books.Z:github.com/Fabric-Labs/polyester-sdk-go/gen/swap/v1;swapv1b\x06proto3"
 
 var (

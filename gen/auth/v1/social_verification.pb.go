@@ -767,14 +767,14 @@ const file_auth_v1_social_verification_proto_rawDesc = "" +
 	"\x12METHOD_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eMETHOD_PROFILE\x10\x01\x12\x12\n" +
 	"\x0eMETHOD_CHANNEL\x10\x02\x12\r\n" +
-	"\tMETHOD_DM\x10\x032\xb8\b\n" +
+	"\tMETHOD_DM\x10\x032\xc5\b\n" +
 	"\x19SocialVerificationService\x12\xb0\x02\n" +
 	"\x17StartSocialVerification\x12'.auth.v1.StartSocialVerificationRequest\x1a(.auth.v1.StartSocialVerificationResponse\"\xc1\x01\xbaG\x8b\x01\n" +
 	"\fAuth Service\x12\x19Start Social Verification\x1a`Issue a challenge code for the caller to submit through the provider-specific verification flow.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/auth/social/verification:start\x12\xd0\x03\n" +
 	"\x17SocialVerificationReady\x12'.auth.v1.SocialVerificationReadyRequest\x1a(.auth.v1.SocialVerificationReadyResponse\"\xe1\x02\xbaG\xab\x02\n" +
 	"\fAuth Service\x12\x1eMark Social Verification Ready\x1a\xfa\x01Mark verification as ready and request a provider account check. AUTH_SOCIAL_VERIFICATION_EXPIRED means start a new challenge. AUTH_SOCIAL_VERIFICATION_INVALID_STATE means Ready is not valid in the current state; use GetSocialVerification for status.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/auth/social/verification:ready\x12\x94\x02\n" +
 	"\x15GetSocialVerification\x12%.auth.v1.GetSocialVerificationRequest\x1a&.auth.v1.GetSocialVerificationResponse\"\xab\x01\xbaG\x7f\n" +
-	"\fAuth Service\x12\x17Get Social Verification\x1aVRetrieve current social verification status and any typed failure code for the caller.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1e\x12\x1c/v1/auth/social/verificationB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
+	"\fAuth Service\x12\x17Get Social Verification\x1aVRetrieve current social verification status and any typed failure code for the caller.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1e\x12\x1c/v1/auth/social/verification\x1a\v\x8a\xb5\x18\aaccountB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
 
 var (
 	file_auth_v1_social_verification_proto_rawDescOnce sync.Once

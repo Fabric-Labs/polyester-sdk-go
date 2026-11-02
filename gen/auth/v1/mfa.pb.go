@@ -2099,7 +2099,7 @@ const file_auth_v1_mfa_proto_rawDesc = "" +
 	"\x13MFAChallengePurpose\x12%\n" +
 	"!MFA_CHALLENGE_PURPOSE_UNSPECIFIED\x10\x00\x12+\n" +
 	"'MFA_CHALLENGE_PURPOSE_SESSION_ELEVATION\x10\x01\x12'\n" +
-	"#MFA_CHALLENGE_PURPOSE_FRESH_STEP_UP\x10\x022\xf1\x1a\n" +
+	"#MFA_CHALLENGE_PURPOSE_FRESH_STEP_UP\x10\x022\xfe\x1a\n" +
 	"\n" +
 	"MFAService\x12\xd7\x01\n" +
 	"\x0eListMFAFactors\x12\x1e.auth.v1.ListMFAFactorsRequest\x1a\x1f.auth.v1.ListMFAFactorsResponse\"\x83\x01\xbaG_\n" +
@@ -2128,7 +2128,7 @@ const file_auth_v1_mfa_proto_rawDesc = "" +
 	"\fAuth Service\x12\x19Regenerate Recovery Codes\x1a2Rotate recovery codes after a fresh step-up check.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02+:\x01*\"&/v1/auth/mfa/recovery-codes:regenerate\x12^\n" +
 	"\x10ClaimFreshStepUp\x12 .auth.v1.ClaimFreshStepUpRequest\x1a!.auth.v1.ClaimFreshStepUpResponse\"\x05\xa2\xb5\x18\x01\x01\x12d\n" +
 	"\x12ConsumeFreshStepUp\x12\".auth.v1.ConsumeFreshStepUpRequest\x1a#.auth.v1.ConsumeFreshStepUpResponse\"\x05\xa2\xb5\x18\x01\x01\x12d\n" +
-	"\x12ReleaseFreshStepUp\x12\".auth.v1.ReleaseFreshStepUpRequest\x1a#.auth.v1.ReleaseFreshStepUpResponse\"\x05\xa2\xb5\x18\x01\x01B<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
+	"\x12ReleaseFreshStepUp\x12\".auth.v1.ReleaseFreshStepUpRequest\x1a#.auth.v1.ReleaseFreshStepUpResponse\"\x05\xa2\xb5\x18\x01\x01\x1a\v\x8a\xb5\x18\aaccountB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
 
 var (
 	file_auth_v1_mfa_proto_rawDescOnce sync.Once

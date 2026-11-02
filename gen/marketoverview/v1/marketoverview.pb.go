@@ -1548,7 +1548,7 @@ const file_marketoverview_v1_marketoverview_proto_rawDesc = "" +
 	"\x1bERROR_CODE_INVALID_ARGUMENT\x10\x02\x12\x18\n" +
 	"\x14ERROR_CODE_NOT_FOUND\x10\x03\x12\x1a\n" +
 	"\x16ERROR_CODE_UNAVAILABLE\x10\x04\x12\x1d\n" +
-	"\x19ERROR_CODE_UPSTREAM_ERROR\x10\x052\xbe\v\n" +
+	"\x19ERROR_CODE_UPSTREAM_ERROR\x10\x052\xce\v\n" +
 	"\x15MarketOverviewService\x12\x8f\x03\n" +
 	"\x1bGetCurrencyConversionConfig\x125.marketoverview.v1.GetCurrencyConversionConfigRequest\x1a6.marketoverview.v1.GetCurrencyConversionConfigResponse\"\x80\x02\xbaG\xcb\x01\n" +
 	"\x17Market Overview Service\x12\x1eGet Currency Conversion Config\x1a\x8f\x01Get supported fiat and stablecoin display metadata with default English names, symbols, and fraction digits. Clients may localize presentation.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02'\x12%/v1/market/currency-conversion/config\x12\xcc\x02\n" +
@@ -1557,7 +1557,8 @@ const file_marketoverview_v1_marketoverview_proto_rawDesc = "" +
 	"\x14GetSpotVolumeHistory\x12..marketoverview.v1.GetSpotVolumeHistoryRequest\x1a/.marketoverview.v1.GetSpotVolumeHistoryResponse\"\xfa\x01\xbaG\xcb\x01\n" +
 	"\x17Market Overview Service\x12\x17Get Spot Volume History\x1a\x96\x01Get aligned columnar pair-level and total trailing-24h USD volume at 15-minute intervals over the latest day. Unavailable valuations fail the request.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02!\x12\x1f/v1/spot/markets/volume-history\x12\xcc\x02\n" +
 	"\x12ListMarketOverview\x12,.marketoverview.v1.ListMarketOverviewRequest\x1a-.marketoverview.v1.ListMarketOverviewResponse\"\xd8\x01\xbaG\xaf\x01\n" +
-	"\x17Market Overview Service\x12\x15List Market Overviews\x1a}List ticker-style market overview rows with optional sparklines. Supports symbol filtering, sorting, and pagination controls.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/spot/markets/overviewB\xc8\x01\xbaGu:s\n" +
+	"\x17Market Overview Service\x12\x15List Market Overviews\x1a}List ticker-style market overview rows with optional sparklines. Supports symbol filtering, sorting, and pagination controls.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/spot/markets/overview\x1a\x0e\x8a\xb5\x18\n" +
+	"marketdataB\xc8\x01\xbaGu:s\n" +
 	"\x17Market Overview Service\x12XPublic read surface for per-market overview (ticker-like) stats and optional sparklines.ZNgithub.com/Fabric-Labs/polyester-sdk-go/gen/marketoverview/v1;marketoverviewv1b\x06proto3"
 
 var (

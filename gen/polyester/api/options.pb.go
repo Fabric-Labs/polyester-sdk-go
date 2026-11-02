@@ -170,6 +170,14 @@ var file_polyester_api_options_proto_extTypes = []protoimpl.ExtensionInfo{
 		Tag:           "varint,50004,rep,packed,name=authentication_methods,enum=polyester.api.AuthenticationMethod",
 		Filename:      "polyester/api/options.proto",
 	},
+	{
+		ExtendedType:  (*descriptorpb.ServiceOptions)(nil),
+		ExtensionType: (*string)(nil),
+		Field:         50001,
+		Name:          "polyester.api.docs_group",
+		Tag:           "bytes,50001,opt,name=docs_group",
+		Filename:      "polyester/api/options.proto",
+	},
 }
 
 // Extension fields to descriptorpb.MethodOptions.
@@ -179,7 +187,6 @@ var (
 	// optional bool public = 50001;
 	E_Public = &file_polyester_api_options_proto_extTypes[0]
 	// When true, this RPC is excluded from generated docs artifacts (nav/connect/openapi).
-	// Use this for internal-only helper RPCs (e.g. intra-service calls).
 	//
 	// optional bool hidden = 50002;
 	E_Hidden = &file_polyester_api_options_proto_extTypes[1]
@@ -194,6 +201,16 @@ var (
 	//
 	// repeated polyester.api.AuthenticationMethod authentication_methods = 50004;
 	E_AuthenticationMethods = &file_polyester_api_options_proto_extTypes[3]
+)
+
+// Extension fields to descriptorpb.ServiceOptions.
+var (
+	// Identifier of the API reference section that lists this service, such as
+	// "trading", "account", "chain", "marketdata", "quickswap", "rewards",
+	// "changelog" or "testnet". This metadata does not affect runtime payloads.
+	//
+	// optional string docs_group = 50001;
+	E_DocsGroup = &file_polyester_api_options_proto_extTypes[4]
 )
 
 var File_polyester_api_options_proto protoreflect.FileDescriptor
@@ -215,7 +232,9 @@ const file_polyester_api_options_proto_rawDesc = "" +
 	"\x06public\x12\x1e.google.protobuf.MethodOptions\x18ц\x03 \x01(\bR\x06public:8\n" +
 	"\x06hidden\x12\x1e.google.protobuf.MethodOptions\x18҆\x03 \x01(\bR\x06hidden:h\n" +
 	"\x0fmfa_requirement\x12\x1e.google.protobuf.MethodOptions\x18ӆ\x03 \x01(\x0e2\x1d.polyester.api.MFARequirementR\x0emfaRequirement:|\n" +
-	"\x16authentication_methods\x12\x1e.google.protobuf.MethodOptions\x18Ԇ\x03 \x03(\x0e2#.polyester.api.AuthenticationMethodR\x15authenticationMethodsBJZHgithub.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api;polyesterapiv1b\x06proto3"
+	"\x16authentication_methods\x12\x1e.google.protobuf.MethodOptions\x18Ԇ\x03 \x03(\x0e2#.polyester.api.AuthenticationMethodR\x15authenticationMethods:@\n" +
+	"\n" +
+	"docs_group\x12\x1f.google.protobuf.ServiceOptions\x18ц\x03 \x01(\tR\tdocsGroupBJZHgithub.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api;polyesterapiv1b\x06proto3"
 
 var (
 	file_polyester_api_options_proto_rawDescOnce sync.Once
@@ -231,21 +250,23 @@ func file_polyester_api_options_proto_rawDescGZIP() []byte {
 
 var file_polyester_api_options_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_polyester_api_options_proto_goTypes = []any{
-	(MFARequirement)(0),                // 0: polyester.api.MFARequirement
-	(AuthenticationMethod)(0),          // 1: polyester.api.AuthenticationMethod
-	(*descriptorpb.MethodOptions)(nil), // 2: google.protobuf.MethodOptions
+	(MFARequirement)(0),                 // 0: polyester.api.MFARequirement
+	(AuthenticationMethod)(0),           // 1: polyester.api.AuthenticationMethod
+	(*descriptorpb.MethodOptions)(nil),  // 2: google.protobuf.MethodOptions
+	(*descriptorpb.ServiceOptions)(nil), // 3: google.protobuf.ServiceOptions
 }
 var file_polyester_api_options_proto_depIdxs = []int32{
 	2, // 0: polyester.api.public:extendee -> google.protobuf.MethodOptions
 	2, // 1: polyester.api.hidden:extendee -> google.protobuf.MethodOptions
 	2, // 2: polyester.api.mfa_requirement:extendee -> google.protobuf.MethodOptions
 	2, // 3: polyester.api.authentication_methods:extendee -> google.protobuf.MethodOptions
-	0, // 4: polyester.api.mfa_requirement:type_name -> polyester.api.MFARequirement
-	1, // 5: polyester.api.authentication_methods:type_name -> polyester.api.AuthenticationMethod
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	4, // [4:6] is the sub-list for extension type_name
-	0, // [0:4] is the sub-list for extension extendee
+	3, // 4: polyester.api.docs_group:extendee -> google.protobuf.ServiceOptions
+	0, // 5: polyester.api.mfa_requirement:type_name -> polyester.api.MFARequirement
+	1, // 6: polyester.api.authentication_methods:type_name -> polyester.api.AuthenticationMethod
+	7, // [7:7] is the sub-list for method output_type
+	7, // [7:7] is the sub-list for method input_type
+	5, // [5:7] is the sub-list for extension type_name
+	0, // [0:5] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
 }
 
@@ -261,7 +282,7 @@ func file_polyester_api_options_proto_init() {
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_polyester_api_options_proto_rawDesc), len(file_polyester_api_options_proto_rawDesc)),
 			NumEnums:      2,
 			NumMessages:   0,
-			NumExtensions: 4,
+			NumExtensions: 5,
 			NumServices:   0,
 		},
 		GoTypes:           file_polyester_api_options_proto_goTypes,
