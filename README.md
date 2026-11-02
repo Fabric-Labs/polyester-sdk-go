@@ -521,8 +521,10 @@ The admission answer's `ReplacementOrderID` is the planned successor, not proof
 of an order: only a status item's `ReplacementOrderID` or an order read
 confirms one. The status is kept for 60 seconds from acceptance. When that
 window ends with an item still `admitted`, `WaitBatchReplace` returns the last
-status and `*errors.BatchReplaceWindowExpiredError`; a later status read proves
-nothing, so reconcile the orders with order reads. Reuse the same caller-owned
+status and `*errors.BatchReplaceWindowExpiredError`, even when a status read is
+still in flight; a later status read proves nothing, so reconcile the orders
+with order reads. Cancel `ctx`, or give it an earlier deadline, to stop
+waiting sooner: that returns `ctx.Err()`. Reuse the same caller-owned
 `requestID` when retrying the same logical batch after an ambiguous failure.
 
 ```go

@@ -164,3 +164,83 @@ func TestWaitBatchReplaceSurfacesOtherErrors(t *testing.T) {
 		t.Fatalf("polls=%d", handler.calls)
 	}
 }
+
+func slowly(delay time.Duration, next func() (*orderv1.GetBatchReplaceStatusResponse, error)) func() (*orderv1.GetBatchReplaceStatusResponse, error) {
+	return func() (*orderv1.GetBatchReplaceStatusResponse, error) {
+		time.Sleep(delay)
+		return next()
+	}
+}
+
+// A status read still in flight when the window ends is abandoned: the wait
+// does not outlast the window it promises.
+func TestWaitBatchReplaceBoundsAnInFlightReadByTheWindow(t *testing.T) {
+	acceptedAt := time.Now().Add(-59700 * time.Millisecond)
+	handler := &batchStatusHandler{responses: []func() (*orderv1.GetBatchReplaceStatusResponse, error){
+		batchStatus(acceptedAt, orderv1.BatchReplacePhase_BATCH_REPLACE_PHASE_ADMITTED, ""),
+		slowly(1500*time.Millisecond, batchStatus(acceptedAt, orderv1.BatchReplacePhase_BATCH_REPLACE_PHASE_WORKING, "")),
+	}}
+	service := newBatchStatusService(t, handler)
+
+	started := time.Now()
+	status, err := service.WaitBatchReplace(context.Background(), nil, codecs.FormatID(77), nil)
+	elapsed := time.Since(started)
+	var expired *sdkerrors.BatchReplaceWindowExpiredError
+	if !errors.As(err, &expired) {
+		t.Fatalf("err=%T %v", err, err)
+	}
+	if elapsed > time.Second {
+		t.Fatalf("returned after %s, past the window", elapsed)
+	}
+	if len(status.Items) != 2 || status.Items[1].Phase != "admitted" {
+		t.Fatalf("last status=%+v", status)
+	}
+}
+
+// The caller's cancellation of an in-flight read stays a cancellation.
+func TestWaitBatchReplaceKeepsCallerCancellation(t *testing.T) {
+	handler := &batchStatusHandler{responses: []func() (*orderv1.GetBatchReplaceStatusResponse, error){
+		slowly(time.Second, batchStatus(time.Now(), orderv1.BatchReplacePhase_BATCH_REPLACE_PHASE_ADMITTED, "")),
+	}}
+	service := newBatchStatusService(t, handler)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	started := time.Now()
+	_, err := service.WaitBatchReplace(ctx, nil, codecs.FormatID(77), nil)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("err=%T %v", err, err)
+	}
+	var expired *sdkerrors.BatchReplaceWindowExpiredError
+	if errors.As(err, &expired) {
+		t.Fatal("the caller's deadline is not the status window")
+	}
+	if elapsed := time.Since(started); elapsed > 600*time.Millisecond {
+		t.Fatalf("returned after %s", elapsed)
+	}
+}
+
+func TestWaitBatchReplaceStopsAtTheWindowWhileUnavailable(t *testing.T) {
+	acceptedAt := time.Now().Add(-59700 * time.Millisecond)
+	handler := &batchStatusHandler{responses: []func() (*orderv1.GetBatchReplaceStatusResponse, error){
+		batchStatus(acceptedAt, orderv1.BatchReplacePhase_BATCH_REPLACE_PHASE_ADMITTED, ""),
+		func() (*orderv1.GetBatchReplaceStatusResponse, error) {
+			return nil, connect.NewError(connect.CodeUnavailable, errors.New("catching up"))
+		},
+	}}
+	service := newBatchStatusService(t, handler)
+
+	status, err := service.WaitBatchReplace(context.Background(), nil, codecs.FormatID(77), nil)
+	var expired *sdkerrors.BatchReplaceWindowExpiredError
+	if !errors.As(err, &expired) {
+		t.Fatalf("err=%T %v", err, err)
+	}
+	if len(status.Items) != 2 || status.Items[1].Phase != "admitted" {
+		t.Fatalf("last status=%+v", status)
+	}
+	handler.mu.Lock()
+	defer handler.mu.Unlock()
+	if handler.calls < 3 {
+		t.Fatalf("polls=%d", handler.calls)
+	}
+}

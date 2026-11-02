@@ -524,14 +524,25 @@ var batchReplacePoll = unavailableRetry{first: 50 * time.Millisecond, max: 500 *
 // The status is kept for 60 s from the batch's acceptance. When that window
 // ends with an item still admitted, WaitBatchReplace returns the last status
 // with *errors.BatchReplaceWindowExpiredError: reconcile the orders with order
-// reads. Bound the wait further with ctx.
+// reads. A read still in flight when the window ends is abandoned. Bound the
+// wait further with ctx; its cancellation or deadline returns ctx.Err().
 func (s *OrdersService) WaitBatchReplace(ctx context.Context, account AccountScope, batchRequestID string, subAccountID *string) (models.BatchReplaceStatusResult, error) {
 	deadline := time.Now().Add(batchReplaceStatusWindow)
 	delay := batchReplacePoll.first
 	var last models.BatchReplaceStatusResult
 	for {
-		status, err := s.GetBatchReplaceStatus(ctx, account, batchRequestID, subAccountID)
+		// Bound the read itself by the window: a slow answer must not keep
+		// the wait past it.
+		readCtx, cancelRead := context.WithDeadline(ctx, deadline)
+		status, err := s.GetBatchReplaceStatus(readCtx, account, batchRequestID, subAccountID)
+		readExpired := readCtx.Err() != nil
+		cancelRead()
 		switch {
+		case ctx.Err() != nil:
+			// The caller canceled the wait or its own deadline passed.
+			return last, ctx.Err()
+		case err != nil && readExpired:
+			return last, &sdkerrors.BatchReplaceWindowExpiredError{BatchRequestID: batchRequestID}
 		case err == nil:
 			last = status
 			if status.AcceptedTsNs != 0 {

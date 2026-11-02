@@ -28,9 +28,10 @@ from other cancels.
   fails with `*errors.APIError` code `not_found`.
 - `Orders.WaitBatchReplace` polls `GetBatchReplaceStatus` until no item is
   `admitted`, through the not found a new batch's status reads for a few
-  seconds after admission, and stops at the 60-second status window with
-  `*errors.BatchReplaceWindowExpiredError` and the last status: reconcile the
-  orders with order reads then.
+  seconds after admission, and stops at the 60-second status window, even
+  with a status read in flight, with `*errors.BatchReplaceWindowExpiredError`
+  and the last status: reconcile the orders with order reads then. A canceled
+  or expired `ctx` returns `ctx.Err()`.
 - `BatchReplaceStatusItem.ErrorCode` names an item's refusal as the
   `orders.v1` error code a single modify returns (`ERROR_CODE_POST_ONLY_CROSS`
   for `Code` `POST_ONLY_CROSS`); a code newer than the SDK is kept as sent.
