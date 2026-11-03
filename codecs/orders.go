@@ -171,6 +171,13 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale, quoteQuant
 		}
 		intent.FeeAsset = feeAsset
 	}
+	if req.SelfTradePreventionMode != nil {
+		mode, ok := selfTradePreventionModeToProto[strings.ToLower(*req.SelfTradePreventionMode)]
+		if !ok {
+			return nil, &errors.ValidationError{Msg: "self_trade_prevention_mode must be expire_taker, expire_maker, or expire_both"}
+		}
+		intent.SelfTradePreventionMode = mode
+	}
 
 	hasPrice := req.Price != nil && req.Price.IsSet()
 	var priceTicks int64

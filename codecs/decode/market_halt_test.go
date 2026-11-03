@@ -61,15 +61,39 @@ func TestMarketHaltReasonsLabelOnReadsAndStreams(t *testing.T) {
 	}
 }
 
-// A trigger the halted market refuses after admission reads failure_reason
-// 212, a value with no name, until the server reports
-// TRIGGER_FAILURE_REASON_MARKET_HALTED. The read still decodes.
-func TestTriggerFailedByHaltWithUnnamedReasonStillDecodes(t *testing.T) {
+// A trigger the halted market refuses reads TRIGGER_FAILURE_REASON_MARKET_HALTED
+// (8), on the failed trigger, its failed event and a refused fire alike. A
+// failure reason newer than this SDK still decodes.
+func TestTriggerRefusedByHaltReadsMarketHalted(t *testing.T) {
+	halted := triggersv1.TriggerFailureReason_TRIGGER_FAILURE_REASON_MARKET_HALTED
+	if halted != 8 {
+		t.Fatal("generated market-halt failure reason number changed")
+	}
 	trigger := decode.TriggerFromProto(&triggersv1.Trigger{
 		TriggerId: 6, Status: triggersv1.TriggerStatus_STATUS_FAILED,
-		TerminalReason: &triggersv1.Trigger_FailureReason{FailureReason: triggersv1.TriggerFailureReason(212)},
+		TerminalReason: &triggersv1.Trigger_FailureReason{FailureReason: halted},
 	})
-	if trigger.Status != "failed" || trigger.FailureReason != "unknown(212)" {
+	if trigger.Status != "failed" || trigger.FailureReason != "market_halted" {
 		t.Fatalf("trigger=%+v", trigger)
+	}
+	failed := decode.TriggerEventMessageFromProto(&triggersv1.TriggerEvent{
+		TriggerId: 6, EventType: triggersv1.TriggerEventType_EVENT_FAILED,
+		TerminalReason: &triggersv1.TriggerEvent_FailureReason{FailureReason: halted},
+	})
+	if failed.FailureReason != "market_halted" || failed.FireRefusalReason != "" {
+		t.Fatalf("failed event=%+v", failed)
+	}
+	refused := decode.TriggerEventMessageFromProto(&triggersv1.TriggerEvent{
+		TriggerId: 6, EventType: triggersv1.TriggerEventType_EVENT_FIRE_REFUSED, FireRefusalReason: &halted,
+	})
+	if refused.FireRefusalReason != "market_halted" || refused.FailureReason != "" {
+		t.Fatalf("refused event=%+v", refused)
+	}
+	unknown := decode.TriggerFromProto(&triggersv1.Trigger{
+		TriggerId: 7, Status: triggersv1.TriggerStatus_STATUS_FAILED,
+		TerminalReason: &triggersv1.Trigger_FailureReason{FailureReason: triggersv1.TriggerFailureReason(777)},
+	})
+	if unknown.Status != "failed" || unknown.FailureReason != "unknown(777)" {
+		t.Fatalf("unknown=%+v", unknown)
 	}
 }

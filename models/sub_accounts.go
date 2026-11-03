@@ -20,6 +20,9 @@ type SubAccountsList struct {
 // GetSubaccountResult is a detailed subaccount view.
 type GetSubaccountResult struct {
 	Subaccount *SubAccount `json:"subaccount,omitempty"`
+	// Balances are the sub-account's current balances, in the shape of
+	// Balances.List. Nil unless SubAccounts.Get was asked for them.
+	Balances *BalancesList `json:"balances,omitempty"`
 }
 
 // CreateSubaccountResult is create subaccount outcome.

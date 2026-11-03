@@ -51,7 +51,14 @@ func (s *SubAccountsService) List(ctx context.Context) (models.SubAccountsList, 
 	return UnaryAuth(ctx, s.transport, s.writeClient().ListSubaccounts, &authv1.ListSubaccountsRequest{}, decode.SubaccountsListFromProto)
 }
 
-func (s *SubAccountsService) Get(ctx context.Context, account AccountScope, subAccountID *string, includeAPIKeys, includeMembers, includeInvites, includePolicy bool, invitesDirection string) (models.GetSubaccountResult, error) {
+// Get reads the sub-account's aggregated view. includeBalances also returns
+// its current balances in Balances, in the shape of Balances.List. That needs
+// the READ_BALANCES action on the sub-account (its role, its attached policy
+// and, for an API key, the key's policy), or the call fails with
+// PermissionDenied (AUTH_SUBACCOUNT_ACCESS_DENIED). When balances cannot be
+// read right now it fails with AUTH_TEMPORARILY_UNAVAILABLE, which
+// errors.IsRetryable reports: retry, or read without balances.
+func (s *SubAccountsService) Get(ctx context.Context, account AccountScope, subAccountID *string, includeAPIKeys, includeMembers, includeInvites, includePolicy, includeBalances bool, invitesDirection string) (models.GetSubaccountResult, error) {
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {
 		return models.GetSubaccountResult{}, err
@@ -67,7 +74,7 @@ func (s *SubAccountsService) Get(ctx context.Context, account AccountScope, subA
 	if err != nil {
 		return models.GetSubaccountResult{}, err
 	}
-	req := &authv1.GetSubaccountRequest{SubaccountId: *parsed, IncludeApiKeys: includeAPIKeys, IncludeMembers: includeMembers, IncludeInvites: includeInvites, IncludePolicy: includePolicy, InvitesDirection: direction}
+	req := &authv1.GetSubaccountRequest{SubaccountId: *parsed, IncludeApiKeys: includeAPIKeys, IncludeMembers: includeMembers, IncludeInvites: includeInvites, IncludePolicy: includePolicy, IncludeBalances: includeBalances, InvitesDirection: direction}
 	return UnaryAuth(ctx, s.transport, s.viewClient().GetSubaccount, req, decode.GetSubaccountFromProto)
 }
 
