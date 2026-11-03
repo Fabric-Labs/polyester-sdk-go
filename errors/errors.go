@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 )
 
@@ -25,16 +26,77 @@ const (
 	// AuthCodeSubaccountOwnerRoleLocked: a member call targeted the
 	// sub-account's owner. See SubaccountOwnerRoleLockedError.
 	AuthCodeSubaccountOwnerRoleLocked = "AUTH_SUBACCOUNT_OWNER_ROLE_LOCKED"
+	// AuthCodeAuthenticationRequired: the request carried no credentials, or
+	// a missing, malformed or expired session token (REST UNAUTHENTICATED).
+	AuthCodeAuthenticationRequired = "AUTH_AUTHENTICATION_REQUIRED"
+	// AuthCodeSessionKindNotAllowed: the method accepts only a session token
+	// and the request carried an account API key. See SessionRequiredError.
+	AuthCodeSessionKindNotAllowed = "AUTH_SESSION_KIND_NOT_ALLOWED"
 )
 
-// AuthErrorCode returns the structured auth.v1.AuthErrorDetail code when err is
-// an *APIError that carries one. Otherwise it returns "".
+// API-key refusals (auth.v1.AuthErrorCode). Order reads, order and trigger
+// writes and balance reads answer them on Connect as unauthenticated with an
+// auth.v1.AuthErrorDetail; REST problem bodies name them without the AUTH_
+// prefix. Only AuthCodeTimestampSkew is retryable, as TimestampSkewError; the
+// others need a change by the caller.
+const (
+	// AuthCodeSignatureInvalid: the signature does not verify, or the key is unknown.
+	AuthCodeSignatureInvalid = "AUTH_SIGNATURE_INVALID"
+	// AuthCodeTimestampSkew: the request timestamp is malformed or too far
+	// from the server clock. Maps to TimestampSkewError.
+	AuthCodeTimestampSkew = "AUTH_TIMESTAMP_SKEW"
+	// AuthCodeMissingHeaders: the timestamp or signature header is missing.
+	AuthCodeMissingHeaders = "AUTH_MISSING_HEADERS"
+	// AuthCodeKeyExpired: the API key has expired.
+	AuthCodeKeyExpired = "AUTH_KEY_EXPIRED"
+	// AuthCodeKeyDisabled: the API key is disabled or revoked.
+	AuthCodeKeyDisabled = "AUTH_KEY_DISABLED"
+	// AuthCodeIPNotAllowed: the key's IP allowlist does not include the
+	// request's source address.
+	AuthCodeIPNotAllowed = "AUTH_IP_NOT_ALLOWED"
+	// AuthCodeAPIKeyNotAccepted: the API does not accept API keys.
+	AuthCodeAPIKeyNotAccepted = "AUTH_API_KEY_NOT_ACCEPTED"
+)
+
+// AuthErrorCode returns the auth.v1.AuthErrorCode name of err, such as
+// "AUTH_SIGNATURE_INVALID", or "" when err carries no auth reason. It reads
+// the Connect auth.v1.AuthErrorDetail code and the REST problem code alike: a
+// REST code gains the AUTH_ prefix ("IP_NOT_ALLOWED" reads
+// "AUTH_IP_NOT_ALLOWED"), and REST "UNAUTHENTICATED" reads
+// "AUTH_AUTHENTICATION_REQUIRED". A TimestampSkewError reads
+// "AUTH_TIMESTAMP_SKEW" and a SessionRequiredError
+// "AUTH_SESSION_KIND_NOT_ALLOWED". Compare with the AuthCode* constants.
 func AuthErrorCode(err error) string {
-	var apiErr *APIError
-	if !errors.As(err, &apiErr) {
-		return ""
+	var skewErr *TimestampSkewError
+	if errors.As(err, &skewErr) {
+		return AuthCodeTimestampSkew
 	}
-	return apiErr.Code
+	var apiErr *APIError
+	if errors.As(err, &apiErr) {
+		if code := authCodeName(apiErr.Code); code != "" {
+			return code
+		}
+	}
+	var authErr *AuthError
+	if errors.As(err, &authErr) {
+		return authCodeName(authErr.Code)
+	}
+	return ""
+}
+
+// authCodeName names code as an auth.v1.AuthErrorCode: an AUTH_ code as sent,
+// a REST code with the AUTH_ prefix when the contract knows it.
+func authCodeName(code string) string {
+	switch {
+	case code == "UNAUTHENTICATED":
+		return AuthCodeAuthenticationRequired
+	case strings.HasPrefix(code, "AUTH_"):
+		return code
+	}
+	if _, ok := authv1.AuthErrorCode_value["AUTH_"+code]; ok && code != "" && code != "UNSPECIFIED" {
+		return "AUTH_" + code
+	}
+	return ""
 }
 
 // IsMFAEnrollmentRequired reports whether err requires MFA enrollment before
@@ -116,17 +178,90 @@ func IsSubaccountOwnerRoleLocked(err error) bool {
 	return errors.As(err, &locked)
 }
 
+// SessionRequiredError indicates that the method accepts only an interactive
+// session (a session token) and the request carried an account API key
+// (AUTH_SESSION_KIND_NOT_ALLOWED: Connect permission_denied with an
+// auth.v1.AuthErrorDetail, REST 403). Every session-only method answers it
+// the same way, for example withdraw, auto-withdraw rule writes, portfolio
+// equity reads and VIP status. The request changed nothing, and retrying with
+// the same credentials does not help: this SDK signs with API keys, so call
+// the method from a signed-in session instead.
+//
+// It unwraps to an *APIError with that code, so AuthErrorCode reads it.
+type SessionRequiredError struct {
+	Msg    string
+	Status int // HTTP status when sourced from a REST problem body (403)
+}
+
+func (e *SessionRequiredError) Error() string {
+	if e == nil || e.Msg == "" {
+		return "interactive session required"
+	}
+	return e.Msg
+}
+func (e *SessionRequiredError) Is(target error) bool { return target == ErrPolyester }
+func (e *SessionRequiredError) Unwrap() error {
+	return &APIError{Msg: e.Error(), Code: AuthCodeSessionKindNotAllowed}
+}
+
+// IsSessionRequired reports whether err refuses an API key on a method that
+// accepts only a session token (AUTH_SESSION_KIND_NOT_ALLOWED).
+func IsSessionRequired(err error) bool {
+	var required *SessionRequiredError
+	return errors.As(err, &required)
+}
+
+// FieldViolation names one request field a client must fix. FieldPath is the
+// path of the transport that answered: Connect names proto fields
+// ("order.base_qty_scaled", "items[1].new_attached_risk.trailing_stop.limit_price_ticks"),
+// REST names its JSON fields ("order.baseQty"). Branch on the error code, and
+// on RuleID within it; Message is human-readable only.
+type FieldViolation struct {
+	FieldPath string `json:"field_path,omitempty"`
+	RuleID    string `json:"rule_id,omitempty"`
+	Message   string `json:"message,omitempty"`
+}
+
 // ValidationError indicates invalid SDK input or a concrete server-side
 // validation rejection. Code and Metadata are populated when structured wire
-// details are available.
+// details are available. Violations lists the fields to fix, from an order
+// ErrorDetail, buf.validate violations, a REST problem body or the SDK's own
+// checks; Metadata carries the same violations as violation.N.field_path,
+// violation.N.rule_id and violation.N.message.
 type ValidationError struct {
-	Msg      string
-	Code     string
-	Metadata map[string]string
+	Msg        string
+	Code       string
+	Metadata   map[string]string
+	Violations []FieldViolation
 }
 
 func (e *ValidationError) Error() string        { return e.Msg }
 func (e *ValidationError) Is(target error) bool { return target == ErrPolyester }
+
+// Violations returns the field violations err carries, or nil.
+func Violations(err error) []FieldViolation {
+	var validationErr *ValidationError
+	if !errors.As(err, &validationErr) || len(validationErr.Violations) == 0 {
+		return nil
+	}
+	return append([]FieldViolation(nil), validationErr.Violations...)
+}
+
+// ViolationMetadata renders violations as violation.N.field_path,
+// violation.N.rule_id and violation.N.message entries.
+func ViolationMetadata(violations []FieldViolation) map[string]string {
+	if len(violations) == 0 {
+		return nil
+	}
+	metadata := make(map[string]string, len(violations)*3)
+	for i, violation := range violations {
+		prefix := "violation." + strconv.Itoa(i) + "."
+		metadata[prefix+"field_path"] = violation.FieldPath
+		metadata[prefix+"rule_id"] = violation.RuleID
+		metadata[prefix+"message"] = violation.Message
+	}
+	return metadata
+}
 
 // TransportError indicates network or timeout failures.
 type TransportError struct{ Msg string }
@@ -317,10 +452,23 @@ var outcomeUnknownCodes = func() map[string]bool {
 	return codes
 }()
 
+// IsOrderAlreadyTerminal reports whether a cancel (or another order change)
+// was refused because the order has already ended
+// (ERROR_CODE_ORDER_ALREADY_TERMINAL): filled, expired or canceled, by this
+// cancel or otherwise. A repeat of a cancel that ended the order answers it
+// too. Treat it as "already done" and read the order for how it ended.
+func IsOrderAlreadyTerminal(err error) bool {
+	return err != nil && apiErrorCode(err) == orderv1.ErrorCode_ERROR_CODE_ORDER_ALREADY_TERMINAL.String()
+}
+
 func apiErrorCode(err error) string {
 	var apiErr *APIError
 	if errors.As(err, &apiErr) {
 		return apiErr.Code
+	}
+	var validationErr *ValidationError
+	if errors.As(err, &validationErr) {
+		return validationErr.Code
 	}
 	return ""
 }

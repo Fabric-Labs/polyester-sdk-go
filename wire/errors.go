@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	"connectrpc.com/connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
@@ -120,6 +121,14 @@ func MapConnectError(err error) error {
 	if errors.As(err, &ownerLockedErr) {
 		return ownerLockedErr
 	}
+	var sessionErr *sdkerrors.SessionRequiredError
+	if errors.As(err, &sessionErr) {
+		return sessionErr
+	}
+	var problemErr *sdkerrors.ValidationError
+	if errors.As(err, &problemErr) {
+		return problemErr
+	}
 	var connectErr *connect.Error
 	if !errors.As(err, &connectErr) {
 		return &sdkerrors.TransportError{Msg: err.Error()}
@@ -146,8 +155,16 @@ func MapConnectError(err error) error {
 			if detailMsg == "" {
 				detailMsg = msg
 			}
-			if authDetail.GetCode() == authv1.AuthErrorCode_AUTH_SUBACCOUNT_OWNER_ROLE_LOCKED {
+			switch authDetail.GetCode() {
+			case authv1.AuthErrorCode_AUTH_SUBACCOUNT_OWNER_ROLE_LOCKED:
 				return &sdkerrors.SubaccountOwnerRoleLockedError{Msg: detailMsg}
+			case authv1.AuthErrorCode_AUTH_SESSION_KIND_NOT_ALLOWED:
+				return &sdkerrors.SessionRequiredError{Msg: detailMsg}
+			case authv1.AuthErrorCode_AUTH_TIMESTAMP_SKEW:
+				return &sdkerrors.TimestampSkewError{Msg: detailMsg, Status: connectHTTPStatus(connectErr.Code())}
+			}
+			if apiKeyRefusalCodes[authDetail.GetCode()] {
+				return &sdkerrors.AuthError{Msg: detailMsg, Code: codeName, Status: connectHTTPStatus(connectErr.Code())}
 			}
 			return &sdkerrors.APIError{Msg: detailMsg, Code: codeName}
 		}
@@ -161,14 +178,17 @@ func MapConnectError(err error) error {
 			}
 			code := orderDetail.GetCode().String()
 			if len(orderDetail.GetViolations()) > 0 {
-				metadata := make(map[string]string, len(orderDetail.GetViolations())*2)
-				for i, violation := range orderDetail.GetViolations() {
-					prefix := fmt.Sprintf("violation.%d.", i)
-					metadata[prefix+"field_path"] = violation.GetFieldPath()
-					metadata[prefix+"rule_id"] = violation.GetRuleId()
-					metadata[prefix+"message"] = violation.GetMessage()
+				violations := make([]sdkerrors.FieldViolation, 0, len(orderDetail.GetViolations()))
+				for _, violation := range orderDetail.GetViolations() {
+					violations = append(violations, sdkerrors.FieldViolation{
+						FieldPath: violation.GetFieldPath(),
+						RuleID:    violation.GetRuleId(),
+						Message:   violation.GetMessage(),
+					})
 				}
-				return &sdkerrors.ValidationError{Msg: msg, Code: code, Metadata: metadata}
+				return &sdkerrors.ValidationError{
+					Msg: msg, Code: code, Metadata: sdkerrors.ViolationMetadata(violations), Violations: violations,
+				}
 			}
 			if isAuthLikeErrorCode(code) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
@@ -178,6 +198,19 @@ func MapConnectError(err error) error {
 				apiErr.ExistingOrderID = codecs.FormatUint64ID(orderDetail.GetExistingOrderId())
 			}
 			return apiErr
+		}
+		if requestViolations, ok := value.(*validate.Violations); ok && len(requestViolations.GetViolations()) > 0 {
+			violations := make([]sdkerrors.FieldViolation, 0, len(requestViolations.GetViolations()))
+			for _, violation := range requestViolations.GetViolations() {
+				violations = append(violations, sdkerrors.FieldViolation{
+					FieldPath: protovalidateFieldPath(violation.GetField()),
+					RuleID:    violation.GetRuleId(),
+					Message:   violation.GetMessage(),
+				})
+			}
+			return &sdkerrors.ValidationError{
+				Msg: msg, Code: connectErr.Code().String(), Metadata: sdkerrors.ViolationMetadata(violations), Violations: violations,
+			}
 		}
 		if withdrawDetail, ok := value.(*withdrawv1.ErrorDetail); ok {
 			code := withdrawDetail.GetCode().String()
@@ -229,6 +262,43 @@ func MapConnectError(err error) error {
 		}
 	}
 	return &sdkerrors.APIError{Msg: msg, Code: connectErr.Code().String()}
+}
+
+// apiKeyRefusalCodes are the auth.v1 reasons an API key's credentials were
+// refused, other than AUTH_TIMESTAMP_SKEW (a TimestampSkewError). They map to
+// *AuthError, as the bare unauthenticated answer that preceded them did.
+var apiKeyRefusalCodes = map[authv1.AuthErrorCode]bool{
+	authv1.AuthErrorCode_AUTH_SIGNATURE_INVALID:    true,
+	authv1.AuthErrorCode_AUTH_MISSING_HEADERS:      true,
+	authv1.AuthErrorCode_AUTH_KEY_EXPIRED:          true,
+	authv1.AuthErrorCode_AUTH_KEY_DISABLED:         true,
+	authv1.AuthErrorCode_AUTH_IP_NOT_ALLOWED:       true,
+	authv1.AuthErrorCode_AUTH_API_KEY_NOT_ACCEPTED: true,
+}
+
+// protovalidateFieldPath renders a buf.validate field path the way order
+// ErrorDetail violations name fields: "items[2].limit_gtc.price_ticks".
+func protovalidateFieldPath(path *validate.FieldPath) string {
+	var b strings.Builder
+	for _, element := range path.GetElements() {
+		if b.Len() > 0 {
+			b.WriteByte('.')
+		}
+		b.WriteString(element.GetFieldName())
+		switch subscript := element.GetSubscript().(type) {
+		case *validate.FieldPathElement_Index:
+			fmt.Fprintf(&b, "[%d]", subscript.Index)
+		case *validate.FieldPathElement_BoolKey:
+			fmt.Fprintf(&b, "[%t]", subscript.BoolKey)
+		case *validate.FieldPathElement_IntKey:
+			fmt.Fprintf(&b, "[%d]", subscript.IntKey)
+		case *validate.FieldPathElement_UintKey:
+			fmt.Fprintf(&b, "[%d]", subscript.UintKey)
+		case *validate.FieldPathElement_StringKey:
+			fmt.Fprintf(&b, "[%q]", subscript.StringKey)
+		}
+	}
+	return b.String()
 }
 
 // TimestampSkewCode is the API-key authentication code for a signature

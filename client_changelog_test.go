@@ -496,3 +496,57 @@ func TestChangelogListChangesRejectsLabelsItCannotSend(t *testing.T) {
 		t.Fatalf("invalid options reached the server %d times", len(fake.changesCalls))
 	}
 }
+
+// Sections name their product area, the new market data, QuickSwap and
+// rewards surfaces read as labels, and an area newer than the SDK stays
+// readable.
+func TestChangelogSectionsNameTheirSurface(t *testing.T) {
+	fake := newFakeChangelog(1)
+	post := fake.posts[0]
+	post.Sections[0].Surface = changelogv1.Surface_MARKET_DATA
+	post.Sections[0].Changes[0].Surfaces = []changelogv1.Surface{
+		changelogv1.Surface_MARKET_DATA, changelogv1.Surface_QUICKSWAP, changelogv1.Surface_REWARDS,
+	}
+	post.Sections = append(post.Sections,
+		&changelogv1.Section{Heading: "Changes that need your attention"},
+		&changelogv1.Section{Heading: "Later", Surface: changelogv1.Surface(88)},
+	)
+	client := newPublicChangelogClient(t, fake)
+
+	got, err := client.Changelog.GetPost(context.Background(), "2026-10-31")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Sections[0].Surface != models.ChangelogSurfaceMarketData || got.Sections[1].Surface != "" ||
+		got.Sections[2].Surface != "unknown(88)" {
+		t.Fatalf("sections = %+v", got.Sections)
+	}
+	if !reflect.DeepEqual(got.Sections[0].Changes[0].Surfaces, []string{
+		models.ChangelogSurfaceMarketData, models.ChangelogSurfaceQuickSwap, models.ChangelogSurfaceRewards,
+	}) {
+		t.Fatalf("surfaces = %v", got.Sections[0].Changes[0].Surfaces)
+	}
+
+	if _, err := client.Changelog.ListChanges(context.Background(), models.ListChangelogChangesOptions{
+		Surfaces: []string{models.ChangelogSurfaceQuickSwap, models.ChangelogSurfaceRewards},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if req := fake.changesCalls[0]; !reflect.DeepEqual(req.GetSurfaces(), []changelogv1.Surface{changelogv1.Surface_QUICKSWAP, changelogv1.Surface_REWARDS}) {
+		t.Fatalf("request surfaces = %v", req.GetSurfaces())
+	}
+}
+
+func TestChangelogListChangesAcceptsAtMostTenSurfaces(t *testing.T) {
+	fake := newFakeChangelog(1)
+	client := newPublicChangelogClient(t, fake)
+	surfaces := make([]string, 11)
+	for i := range surfaces {
+		surfaces[i] = models.ChangelogSurfaceTrading
+	}
+	_, err := client.Changelog.ListChanges(context.Background(), models.ListChangelogChangesOptions{Surfaces: surfaces})
+	var validationErr *sdkerrors.ValidationError
+	if !stderrors.As(err, &validationErr) || len(fake.changesCalls) != 0 {
+		t.Fatalf("err = %v, calls = %d", err, len(fake.changesCalls))
+	}
+}

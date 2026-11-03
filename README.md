@@ -387,6 +387,47 @@ large concurrent burst or with a drifting clock. It changed nothing and is
 retryable: a retry signs again. Bound concurrency or fix the clock if it
 recurs. `errors.NotImplementedError` (Connect `unimplemented` or HTTP 501)
 means the server does not offer the operation; retrying does not help.
+`errors.AuthErrorCode(err)` names why credentials or a session were refused,
+the same way for both transports: it reads the Connect
+`auth.v1.AuthErrorDetail` code and a REST problem `code` with the `AUTH_`
+prefix added (`UNAUTHENTICATED` reads `AUTH_AUTHENTICATION_REQUIRED`). An
+API key refused by order reads, order and trigger writes or balance reads is
+an `*errors.AuthError` whose code is one of `errors.AuthCodeSignatureInvalid`,
+`AuthCodeMissingHeaders`, `AuthCodeKeyExpired`, `AuthCodeKeyDisabled`,
+`AuthCodeIPNotAllowed` or `AuthCodeAPIKeyNotAccepted`; none is retryable
+without a change by the caller (fix the signature, the key, or the calling
+address). `AUTH_TIMESTAMP_SKEW` is the retryable `errors.TimestampSkewError`
+above, from either transport.
+
+```go
+switch errors.AuthErrorCode(err) {
+case errors.AuthCodeTimestampSkew:
+	// Retry: the SDK signs again with a fresh timestamp.
+case errors.AuthCodeIPNotAllowed:
+	// Call from an address on the key's allowlist.
+}
+```
+
+`errors.SessionRequiredError` (`AUTH_SESSION_KIND_NOT_ALLOWED`, Connect
+`permission_denied` or REST 403, "interactive session required") refuses an
+API key on a method that accepts only a session token, on every service:
+withdraw and auto-withdraw rule writes, portfolio equity reads, VIP status,
+checkpoints and guard signer methods. `errors.IsSessionRequired` tests for
+it; it changed nothing and is not retryable with an API key. It unwraps to
+`*errors.APIError`, so a direct type assertion to `*errors.APIError` no longer
+matches it. A withdraw-service refusal of an API key whose policy lacks an
+action keeps its server message, which names the action to grant, for
+example "api key policy does not allow READ_AUTO_WITHDRAW".
+
+Order refusals name the fields to fix: `errors.Violations(err)` returns the
+`errors.FieldViolation`s (`FieldPath`, `RuleID`, `Message`) of a
+`*errors.ValidationError`, from the order `ErrorDetail`, from request
+validation (`buf.validate.Violations`) or from a REST problem's
+`violations`. Paths are those of the transport that answered: Connect names
+proto fields (`order.base_qty_scaled`), REST its JSON fields
+(`order.baseQty`). Branch on the code, and on `RuleID` within it.
+`models.OrderFieldViolation` in preview and batch results is the same type.
+
 `errors.SubaccountOwnerRoleLockedError` (`AUTH_SUBACCOUNT_OWNER_ROLE_LOCKED`,
 Connect `failed_precondition` or REST 412) refuses a sub-account member call
 that targets the sub-account's owner: inviting the owner, accepting an invite
@@ -413,6 +454,26 @@ seconds returns the original status and counts with an empty
 (`included` otherwise): the empty list does not mean nothing was canceled.
 Read open orders for current state. `Orders.CancelAllAfter` reports the
 armed switch's scope as `EffectiveScope` (nil when disabled).
+
+`Orders.CancelAll` and the dead-man switch (`Orders.CancelAllAfter`) cancel
+open orders, never triggers. The open orders triggers placed (a TWAP's
+working slice, a ladder's levels, a fired stop's order, an attached leg's
+working exit) are canceled like any other, but untriggered stops stay armed,
+TWAPs keep running and paused triggers stay paused, with their reserved
+funds. `MatchedOrders` counts orders only. `client.StopAllTrading(ctx,
+account, services.StopAllTradingScope{...})` stops all automated trading in
+scope: it lists the live triggers (created, armed, running, paused, every
+page), cancels each, then cancels all orders, in that order so an order a
+trigger places before its cancel is still canceled. A failed trigger cancel
+is listed in `FailedTriggers` and returned as an error after the cancel-all.
+
+A cancel of an order that has already ended, a repeat of the cancel that
+ended it included, fails with `ERROR_CODE_ORDER_ALREADY_TERMINAL`:
+`errors.IsOrderAlreadyTerminal(err)` reports it. Treat it as already done and
+read the order for how it ended. A retry by client order ID more than a
+minute after the order ended may read `ERROR_CODE_ORDER_UNKNOWN`, so cancel by
+order ID once you have it. Every cancel, repeats included, counts against
+the cancel rate limit.
 
 Use **decimal strings** for human-facing `qty` / `price` inputs. Do **not** pass
 floats. `PriceTicks.Ticks()` returns Polyester protocol price units (fixed 1e9),
@@ -479,6 +540,41 @@ the intent. Preview is not deployed on every API host, so handle an
 unimplemented/not-found response and do not make Preview a prerequisite for
 order submission. Create results expose `ResolvedBaseQtyScaled` and, for
 quote-budget orders, `SubmittedMaxQuoteDebitScaled`.
+
+Order reads carry exact execution totals as unsigned decimal integer strings,
+never floats. `Order.AvgPriceE18` is the average execution price scaled by
+1e18 (`Order.AvgPrice()` formats it, `"0"` with no fills); `AvgPx` keeps the
+same average rounded down to 1e-9. `Order.CumNotional` is the fills' quote
+amount before fees, scaled by 10^(9 + the pair's base quantity scale)
+(`CumQuote(baseScale)` formats it). `Order.FeeTotal` (`AmountE18` at 18
+decimals in `FeeAsset`, `IsRebate`, `Qty`) is set on order history and
+single-order reads with execution history, nil on open-order reads and
+stream updates. For a buy sized by a quote amount, `QuoteUsed(baseScale)` and
+`QuoteUnspent(baseScale, quoteScale)` say how much of the amount the fills
+used, fee included, and how much was left; both report false until
+`FeeTotal.Qty` equals `CumQty`, because a fill's fee is recorded shortly
+after it executes. A quote-amount buy that spent its amount ends `filled`;
+`market_remainder` and `ioc_remainder` cancels mean the book or the price
+limit stopped it first.
+
+```go
+baseScale, _ := client.Catalogs.BaseQuantityScaleForSymbol(symbol)
+quoteScale, _ := client.Catalogs.QuoteQuantityScaleForSymbol(symbol)
+detail, err := client.Orders.Get(ctx, nil, models.OrderKeyByID(orderID), nil, false, false)
+if used, ok := detail.Order.QuoteUsed(baseScale); ok {
+	unspent, _ := detail.Order.QuoteUnspent(baseScale, quoteScale)
+	fmt.Println("used", used, "unspent", unspent)
+}
+```
+
+An attached trailing stop's `LimitPrice` is checked before sending on
+creates, previews and batch creates, and refused with the server's code and
+violation on `order.attached_risk.trailing_stop.limit_price_ticks`: set on a
+buy parent `ERROR_CODE_BAD_PRICE` (`sell_unset`), missing on a sell parent
+`ERROR_CODE_TRIGGER_BUY_REQUIRES_LIMIT` (`buy_required`), below
+`ActivationPrice` `ERROR_CODE_BAD_PRICE` (`buy_at_least_activation`). Modify
+and batch replace send it as given; the server applies the side rule and
+answers `ERROR_CODE_BAD_PRICE` with no violation.
 
 Market orders are IOC and enforce a slippage-derived execution boundary. See
 [Market Order Price Protection](https://polyester.com/docs/developer-docs/shared-concepts/market-order-price-protection)
@@ -622,7 +718,10 @@ key, and the server rate-limits it per client address.
 
 Categories, audiences and surfaces are lowercase labels with constants in `models`
 (`models.ChangelogCategoryBreakingChange`, `models.ChangelogSurfaceAPI`, ...). A value
-newer than this SDK reads as `unknown(<n>)` instead of failing. `Change.ID` is the
+newer than this SDK reads as `unknown(<n>)` instead of failing. Surfaces include
+`market_data`, `quickswap` and `rewards`, and `ChangelogSection.Surface` names the
+product area a section covers (empty for a section tied to none, such as the changes
+that need your attention). `ListChanges` accepts at most 10 surfaces. `Change.ID` is the
 change's base58 public ID. The service returns `Unavailable` (`*errors.ServerError`)
 while it is starting.
 
@@ -766,6 +865,20 @@ slices). Trigger-event `FirePrice` is empty for time-scheduled TWAP slice fires
 (`fire_price_ticks` is optional on the wire). Terminal triggers/events expose
 typed `CancelReason` / `FailureReason` labels (empty when the proto oneof is
 unset or unspecified).
+
+A trigger's events include `fire_refused`: a fire whose order was refused
+while the trigger stayed live. It is not terminal, so the trigger keeps its
+`armed` or `running` status; read `Trigger.Status` rather than inferring it
+from the last event. `FireRefusalReason` says why, with the `FailureReason`
+labels: `market_halted` or `post_only_cross` (it waits for the next price
+through its trigger price), `min_notional`, `min_quantity` or `step_size`
+(the order would have been below the market's minimum; it fires again once
+the position changes), `rate_limited` or `account_repairing` (it fires again
+shortly). `ChildSeq` is the refused attempt, so a later `fired` event names a
+higher one; `ChildOrderID` is empty. A refusal that ends the trigger is still
+a `failed` event with `FailureReason`. `Triggers.ListEvents` filters on
+`fire_refused`, and an event type or reason newer than this SDK reads as
+`unknown(<n>)`.
 
 `Trigger.Version` is 1 for a trigger's first state and higher for every later
 state change. Across list reads and realtime updates, keep the copy with the

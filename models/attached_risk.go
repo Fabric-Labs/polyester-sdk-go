@@ -39,6 +39,15 @@ type RiskLegInput struct {
 // required when the parent order sells, must be at least ActivationPrice when
 // both are set, and must be nil when the parent order buys. A rise that fires
 // above it still fires; the exit fills only at or below it.
+//
+// Creates, previews and batch creates check it before sending and refuse it
+// as the server does, with a *errors.ValidationError whose Code and
+// violation name the field order.attached_risk.trailing_stop.limit_price_ticks:
+// set on a buy parent ERROR_CODE_BAD_PRICE (rule sell_unset), missing on a
+// sell parent ERROR_CODE_TRIGGER_BUY_REQUIRES_LIMIT (buy_required), below
+// ActivationPrice ERROR_CODE_BAD_PRICE (buy_at_least_activation). Modify and
+// batch replace send it as given: the server applies the side rule there and
+// answers ERROR_CODE_BAD_PRICE with no violation.
 type TrailingStopInput struct {
 	DistanceTicks      *int64      `json:"distance_ticks,omitempty"`
 	DistanceBps        *int32      `json:"distance_bps,omitempty"`

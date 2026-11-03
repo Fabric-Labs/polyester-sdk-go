@@ -1,6 +1,10 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"github.com/Fabric-Labs/polyester-sdk-go/errors"
+)
 
 // Order is a normalized open or historical order.
 type Order struct {
@@ -42,6 +46,36 @@ type Order struct {
 	// CancelReason is why a canceled order ended (for example "user_request"
 	// or "replaced"). Empty for every other status.
 	CancelReason string `json:"cancel_reason,omitempty"`
+	// AvgPriceE18 is the exact average execution price across the lineage
+	// through this generation, in quote units scaled by 1e18, as an unsigned
+	// decimal integer string: the executed quote amount divided by CumQty,
+	// rounded half to even. "0" with no fills. AvgPx is the same average
+	// rounded down to 1e-9; prefer AvgPrice, which formats this one.
+	AvgPriceE18 string `json:"avg_price_e18,omitempty"`
+	// CumNotional is the exact quote amount of the fills across the lineage
+	// through this generation, before fees, as an unsigned decimal integer
+	// string in quote units scaled by 10^(9 + the pair's base_quantity_scale).
+	// "0" with no fills. Format it with CumQuote.
+	CumNotional string `json:"cum_notional,omitempty"`
+	// FeeTotal is the total fee of those fills, net of rebates, in FeeAsset.
+	// Order history reads and single-order reads with execution history (the
+	// default) carry it; open-order reads, single-order reads without
+	// execution history and order stream updates leave it nil.
+	FeeTotal *OrderFeeTotal `json:"fee_total,omitempty"`
+}
+
+// OrderFeeTotal is the net fee of an order's fills in the order's FeeAsset.
+// A fill's fee is recorded shortly after the fill executes, so the total can
+// trail the order's fills: it covers them all once Qty equals the order's
+// CumQty.
+type OrderFeeTotal struct {
+	// AmountE18 is the net fee magnitude scaled by 1e18, as an unsigned
+	// decimal integer string, with the same conversion as UserTrade.FeeAmountE18.
+	AmountE18 string `json:"amount_e18"`
+	// IsRebate is true when rebates exceed fees, so AmountE18 was credited.
+	IsRebate bool `json:"is_rebate,omitempty"`
+	// Qty is the executed quantity of the fills the total covers.
+	Qty QtyScaled `json:"qty"`
 }
 
 // OrderLineage is the stable replacement-chain identity for an order or fill.
@@ -140,12 +174,10 @@ type AttachedRiskTriggerIDs struct {
 	TrailingStopTriggerID string `json:"trailing_stop_trigger_id,omitempty"`
 }
 
-// OrderFieldViolation is one field-level validation failure on an order intent.
-type OrderFieldViolation struct {
-	FieldPath string `json:"field_path,omitempty"`
-	RuleID    string `json:"rule_id,omitempty"`
-	Message   string `json:"message,omitempty"`
-}
+// OrderFieldViolation is one field-level validation failure on an order
+// intent. It is errors.FieldViolation, the type order errors carry, so preview
+// and batch rejections and refused requests read the same.
+type OrderFieldViolation = errors.FieldViolation
 
 // OrderErrorDetail is a typed order rejection with optional field violations.
 type OrderErrorDetail struct {
@@ -681,6 +713,19 @@ type TriggerMutationResult struct {
 }
 
 // TriggerEvent is a trigger lifecycle event.
+//
+// EventType "fire_refused" records a fire whose order was refused while the
+// trigger stayed live: the market's or system's state (for example
+// FireRefusalReason "market_halted" or "post_only_cross"; it waits for the
+// next price through its trigger price), a remaining position below the
+// market's minimums ("min_notional", "min_quantity", "step_size"; it fires
+// again once the position changes), or "rate_limited" / "account_repairing"
+// (it fires again shortly). It is not terminal: the trigger keeps its status,
+// so read Trigger.Status rather than inferring it from the last event.
+// ChildSeq is the refused attempt (a later fire takes a higher one),
+// ChildOrderID is empty and CancelReason / FailureReason stay empty. A refusal
+// that ends the trigger is a "failed" event with FailureReason instead.
+// Event types and reasons newer than this SDK read as "unknown(<n>)".
 type TriggerEvent struct {
 	TriggerID     string     `json:"trigger_id,omitempty"`
 	SubaccountID  string     `json:"subaccount_id,omitempty"`
@@ -693,6 +738,9 @@ type TriggerEvent struct {
 	FirePrice     PriceTicks `json:"fire_price,omitempty"`
 	CancelReason  string     `json:"cancel_reason,omitempty"`
 	FailureReason string     `json:"failure_reason,omitempty"`
+	// FireRefusalReason is why a "fire_refused" event's order was refused,
+	// with the FailureReason labels. Empty on every other event.
+	FireRefusalReason string `json:"fire_refusal_reason,omitempty"`
 }
 
 // TriggerEventsList lists trigger events.

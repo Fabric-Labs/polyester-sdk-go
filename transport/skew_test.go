@@ -105,3 +105,58 @@ func TestOwnerRoleLockedProblemMapsToTypedError(t *testing.T) {
 		t.Fatalf("err=%v", err)
 	}
 }
+
+// REST problem bodies name the auth reason without the AUTH_ prefix;
+// AuthErrorCode reads them as the auth.v1 code Connect answers.
+func TestAuthProblemCodesReadAsAuthErrorCodes(t *testing.T) {
+	for body, want := range map[string]string{
+		`{"status":401,"code":"SIGNATURE_INVALID","detail":"API key signature is invalid"}`: sdkerrors.AuthCodeSignatureInvalid,
+		`{"status":401,"code":"IP_NOT_ALLOWED","detail":"API key signature is invalid"}`:    sdkerrors.AuthCodeIPNotAllowed,
+		`{"status":401,"code":"UNAUTHENTICATED","detail":"API key signature is invalid"}`:   sdkerrors.AuthCodeAuthenticationRequired,
+	} {
+		err := callMeAgainst(t, http.StatusUnauthorized, "application/problem+json", body)
+		var authErr *sdkerrors.AuthError
+		if !errors.As(err, &authErr) || authErr.Status != http.StatusUnauthorized || authErr.Msg != "API key signature is invalid" {
+			t.Fatalf("%s: err=%T %v", want, err, err)
+		}
+		if sdkerrors.AuthErrorCode(err) != want || sdkerrors.IsRetryable(err) {
+			t.Fatalf("%s: code=%q", want, sdkerrors.AuthErrorCode(err))
+		}
+	}
+}
+
+func TestSessionKindProblemMapsToSessionRequired(t *testing.T) {
+	err := callMeAgainst(t, http.StatusForbidden, "application/problem+json",
+		`{"type":"https://polyester.dev/problems/auth-session-kind-not-allowed","title":"Interactive Session Required","status":403,"detail":"interactive session required","code":"AUTH_SESSION_KIND_NOT_ALLOWED"}`)
+	var required *sdkerrors.SessionRequiredError
+	if !errors.As(err, &required) || required.Status != http.StatusForbidden || required.Msg != "interactive session required" {
+		t.Fatalf("err=%T %v", err, err)
+	}
+	if sdkerrors.AuthErrorCode(err) != sdkerrors.AuthCodeSessionKindNotAllowed || sdkerrors.IsRetryable(err) {
+		t.Fatalf("code=%q", sdkerrors.AuthErrorCode(err))
+	}
+}
+
+func TestPermissionDeniedProblemKeepsItsDetail(t *testing.T) {
+	err := callMeAgainst(t, http.StatusForbidden, "application/problem+json",
+		`{"status":403,"code":"PERMISSION_DENIED","detail":"api key policy does not allow EXTERNAL_WITHDRAW"}`)
+	var authErr *sdkerrors.AuthError
+	if !errors.As(err, &authErr) || authErr.Error() != "api key policy does not allow EXTERNAL_WITHDRAW" ||
+		authErr.Code != "PERMISSION_DENIED" || authErr.Status != http.StatusForbidden {
+		t.Fatalf("err=%T %v", err, err)
+	}
+}
+
+func TestProblemViolationsSurfaceOnValidationError(t *testing.T) {
+	err := callMeAgainst(t, http.StatusBadRequest, "application/problem+json",
+		`{"status":400,"code":"QTY_STEP_SIZE","detail":"Quantity must align with the step size.",`+
+			`"violations":[{"fieldPath":"order.baseQty","ruleId":"step_size","message":"quantity does not align with the pair step size"}]}`)
+	var validationErr *sdkerrors.ValidationError
+	if !errors.As(err, &validationErr) || validationErr.Code != "QTY_STEP_SIZE" || validationErr.Msg != "Quantity must align with the step size." {
+		t.Fatalf("err=%T %v", err, err)
+	}
+	got := sdkerrors.Violations(err)
+	if len(got) != 1 || got[0].FieldPath != "order.baseQty" || got[0].RuleID != "step_size" {
+		t.Fatalf("violations=%#v", got)
+	}
+}
