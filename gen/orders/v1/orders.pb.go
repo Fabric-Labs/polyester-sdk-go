@@ -816,6 +816,13 @@ const (
 	// a replace keeps its order's place. Nothing changed; cancel a resting order
 	// in this market first.
 	ErrorCode_ERROR_CODE_MAX_OPEN_ORDERS_PER_PAIR ErrorCode = 306
+	// Self-trade prevention expired the order of an attached take-profit,
+	// stop-loss or trailing stop because it would have traded with another of
+	// the account's resting orders. It is reported as the trigger's fire refusal
+	// reason, never as the answer to a request: the attached order stays active
+	// and fires again at a new trade at or beyond its trigger price, or once the
+	// other order is no longer at the best price.
+	ErrorCode_ERROR_CODE_SELF_TRADE_PREVENTED ErrorCode = 307
 	// The order already carries every attached leg it may hold, so another
 	// attached leg was refused. Legs being cancelled count until they end:
 	// retry once they have ended.
@@ -1028,6 +1035,7 @@ var (
 		304: "ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN",
 		305: "ERROR_CODE_TRIGGER_SYMBOL_MISMATCH",
 		306: "ERROR_CODE_MAX_OPEN_ORDERS_PER_PAIR",
+		307: "ERROR_CODE_SELF_TRADE_PREVENTED",
 		86:  "ERROR_CODE_ATTACHED_LEGS_EXCEEDED",
 		87:  "ERROR_CODE_FEE_ASSET_INVALID",
 		88:  "ERROR_CODE_FEE_CEILING_INVALID",
@@ -1225,6 +1233,7 @@ var (
 		"ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN":         304,
 		"ERROR_CODE_TRIGGER_SYMBOL_MISMATCH":                305,
 		"ERROR_CODE_MAX_OPEN_ORDERS_PER_PAIR":               306,
+		"ERROR_CODE_SELF_TRADE_PREVENTED":                   307,
 		"ERROR_CODE_ATTACHED_LEGS_EXCEEDED":                 86,
 		"ERROR_CODE_FEE_ASSET_INVALID":                      87,
 		"ERROR_CODE_FEE_CEILING_INVALID":                    88,
@@ -2388,7 +2397,8 @@ type OrderIntent_MaxQuoteDebitScaled struct {
 	// from GetSpotConfig. Valid only for BUY market IOC and BUY limit IOC.
 	// The order spends up to this amount at the prices it fills at. Once what
 	// is left buys no further quantity step, it ends FILLED; if the book or
-	// its price limit stops it first, its remainder is canceled.
+	// its price limit stops it first, its remainder is canceled. It can carry
+	// attached_risk: the legs protect the quantity it actually buys.
 	MaxQuoteDebitScaled int64 `protobuf:"varint,4,opt,name=max_quote_debit_scaled,json=maxQuoteDebitScaled,proto3,oneof"`
 }
 
@@ -3596,6 +3606,11 @@ func (*TrailingStopPolicy_MaxSlippageBps) isTrailingStopPolicy_MaxSlippage() {}
 // RiskPolicy defines optional risk controls (take-profit, stop-loss or
 // trailing stop) attached to an order. The legs protect the parent order's
 // filled position: they arm as the parent fills and follow its later fills.
+// A buy sized by max_quote_debit_scaled has no fixed quantity: its legs
+// protect what its fills buy. When the order is created, each leg's exit is
+// checked against the pair's minimums at the quantity the whole amount buys
+// at the order's limit price, or a market order's maximum slippage price:
+// the least it buys if it spends the amount.
 //
 // The legs of one parent share that position, whether or not oco is set, and
 // only one exit works at a time. The first leg whose condition is met submits
@@ -6043,7 +6058,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"&SELF_TRADE_PREVENTION_MODE_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fEXPIRE_MAKER\x10\x01\x12\x10\n" +
 	"\fEXPIRE_TAKER\x10\x02\x12\x0f\n" +
-	"\vEXPIRE_BOTH\x10\x03*\xf7<\n" +
+	"\vEXPIRE_BOTH\x10\x03*\x9d=\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16ERROR_CODE_BAD_REQUEST\x10\x01\x12\x1f\n" +
@@ -6231,7 +6246,8 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"'ERROR_CODE_ORDER_CREATE_OUTCOME_UNKNOWN\x10\xaf\x02\x12.\n" +
 	")ERROR_CODE_TRIGGER_CREATE_OUTCOME_UNKNOWN\x10\xb0\x02\x12'\n" +
 	"\"ERROR_CODE_TRIGGER_SYMBOL_MISMATCH\x10\xb1\x02\x12(\n" +
-	"#ERROR_CODE_MAX_OPEN_ORDERS_PER_PAIR\x10\xb2\x02\x12%\n" +
+	"#ERROR_CODE_MAX_OPEN_ORDERS_PER_PAIR\x10\xb2\x02\x12$\n" +
+	"\x1fERROR_CODE_SELF_TRADE_PREVENTED\x10\xb3\x02\x12%\n" +
 	"!ERROR_CODE_ATTACHED_LEGS_EXCEEDED\x10V\x12 \n" +
 	"\x1cERROR_CODE_FEE_ASSET_INVALID\x10W\x12\"\n" +
 	"\x1eERROR_CODE_FEE_CEILING_INVALID\x10X\x12$\n" +

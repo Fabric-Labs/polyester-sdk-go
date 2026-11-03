@@ -160,6 +160,11 @@ const (
 	// market. Fills before the cancel stand. The market refuses new orders until
 	// it trades again.
 	CancelReason_CANCEL_REASON_MARKET_HALTED CancelReason = 17
+	// The order's attached take-profit, stop-loss or trailing stop fired while
+	// the order still rested: the exchange canceled the order's unfilled
+	// remainder before placing the attached order, so the two never trade with
+	// each other. Fills before the cancel stand.
+	CancelReason_CANCEL_REASON_ATTACHED_EXIT_FIRED CancelReason = 18
 )
 
 // Enum value maps for CancelReason.
@@ -183,6 +188,7 @@ var (
 		15: "CANCEL_REASON_STRATEGY_CANCEL",
 		16: "CANCEL_REASON_SYSTEM",
 		17: "CANCEL_REASON_MARKET_HALTED",
+		18: "CANCEL_REASON_ATTACHED_EXIT_FIRED",
 	}
 	CancelReason_value = map[string]int32{
 		"CANCEL_REASON_UNSPECIFIED":            0,
@@ -203,6 +209,7 @@ var (
 		"CANCEL_REASON_STRATEGY_CANCEL":        15,
 		"CANCEL_REASON_SYSTEM":                 16,
 		"CANCEL_REASON_MARKET_HALTED":          17,
+		"CANCEL_REASON_ATTACHED_EXIT_FIRED":    18,
 	}
 )
 
@@ -3144,7 +3151,7 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\n" +
 	"\x06FILLED\x10\x04\x12\f\n" +
 	"\bCANCELED\x10\x05\x12\f\n" +
-	"\bREJECTED\x10\x06*\xee\x04\n" +
+	"\bREJECTED\x10\x06*\x95\x05\n" +
 	"\fCancelReason\x12\x1d\n" +
 	"\x19CANCEL_REASON_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aCANCEL_REASON_USER_REQUEST\x10\x01\x12\x1f\n" +
@@ -3164,7 +3171,8 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\x1bCANCEL_REASON_TWAP_ROLLOVER\x10\x0e\x12!\n" +
 	"\x1dCANCEL_REASON_STRATEGY_CANCEL\x10\x0f\x12\x18\n" +
 	"\x14CANCEL_REASON_SYSTEM\x10\x10\x12\x1f\n" +
-	"\x1bCANCEL_REASON_MARKET_HALTED\x10\x11*\xbf\x01\n" +
+	"\x1bCANCEL_REASON_MARKET_HALTED\x10\x11\x12%\n" +
+	"!CANCEL_REASON_ATTACHED_EXIT_FIRED\x10\x12*\xbf\x01\n" +
 	"\x11BatchReplacePhase\x12#\n" +
 	"\x1fBATCH_REPLACE_PHASE_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cBATCH_REPLACE_PHASE_ADMITTED\x10\x01\x12\x1f\n" +
