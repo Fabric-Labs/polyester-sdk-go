@@ -453,7 +453,8 @@ type ExternalWithdrawAddress struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// External network identifier for the destination address.
 	PolychainChainId uint32 `protobuf:"varint,1,opt,name=polychain_chain_id,json=polychainChainId,proto3" json:"polychain_chain_id,omitempty"`
-	// Destination address on the selected external network.
+	// Destination address on the selected external network: 1-256 characters,
+	// without whitespace or angle brackets.
 	Address       string `protobuf:"bytes,2,opt,name=address,proto3" json:"address,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -981,7 +982,8 @@ type ExternalAddressBookEntry struct {
 	WhitelistStatus DestinationWhitelistStatus `protobuf:"varint,6,opt,name=whitelist_status,json=whitelistStatus,proto3,enum=auth.v1.DestinationWhitelistStatus" json:"whitelist_status,omitempty"`
 	// External network identifier for the destination address.
 	PolychainChainId uint32 `protobuf:"varint,7,opt,name=polychain_chain_id,json=polychainChainId,proto3" json:"polychain_chain_id,omitempty"`
-	// Destination address on the selected external network.
+	// Destination address on the selected external network: 1-256 characters,
+	// without whitespace or angle brackets.
 	Address string `protobuf:"bytes,8,opt,name=address,proto3" json:"address,omitempty"`
 	// Time this entry was created, as a UTC timestamp.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
@@ -1506,7 +1508,8 @@ type ExternalRecentDestination struct {
 	LastSeenAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=last_seen_at,json=lastSeenAt,proto3" json:"last_seen_at,omitempty"`
 	// External network identifier for the destination address.
 	PolychainChainId uint32 `protobuf:"varint,7,opt,name=polychain_chain_id,json=polychainChainId,proto3" json:"polychain_chain_id,omitempty"`
-	// Destination address on the selected external network.
+	// Destination address on the selected external network: 1-256 characters,
+	// without whitespace or angle brackets.
 	Address       string `protobuf:"bytes,8,opt,name=address,proto3" json:"address,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

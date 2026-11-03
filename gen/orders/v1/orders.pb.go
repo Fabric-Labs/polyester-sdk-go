@@ -2386,6 +2386,9 @@ type OrderIntent_BaseQtyScaled struct {
 type OrderIntent_MaxQuoteDebitScaled struct {
 	// Hard all-in quote debit limit scaled by the pair's quote_quantity_scale
 	// from GetSpotConfig. Valid only for BUY market IOC and BUY limit IOC.
+	// The order spends up to this amount at the prices it fills at. Once what
+	// is left buys no further quantity step, it ends FILLED; if the book or
+	// its price limit stops it first, its remainder is canceled.
 	MaxQuoteDebitScaled int64 `protobuf:"varint,4,opt,name=max_quote_debit_scaled,json=maxQuoteDebitScaled,proto3,oneof"`
 }
 
@@ -2777,7 +2780,9 @@ type CancelOrderRequest struct {
 	Key isCancelOrderRequest_Key `protobuf_oneof:"key"`
 	// Optional trading symbol numeric identifier. When set, it must match the
 	// order's symbol, or the order is reported unknown (ERROR_CODE_ORDER_UNKNOWN)
-	// and nothing is canceled. When omitted, the order's own symbol is used.
+	// and nothing is canceled. An order that ended a while ago may instead be
+	// reported ended (ERROR_CODE_ORDER_ALREADY_TERMINAL). When omitted, the
+	// order's own symbol is used.
 	SymbolId uint32 `protobuf:"varint,3,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Target sub-account numeric ID. When omitted, uses caller's root account.
 	SubaccountId  *uint64 `protobuf:"fixed64,4,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
@@ -3736,6 +3741,9 @@ func (*RiskPolicy_StopLoss) isRiskPolicy_StopLeg() {}
 func (*RiskPolicy_TrailingStop) isRiskPolicy_StopLeg() {}
 
 // CancelAllOrdersRequest cancels all matching open orders for an account.
+// It cancels orders only, never triggers: see CancelAllOrders for what
+// happens to stop-loss, take-profit and trailing stops, TWAPs, ladders and
+// attached legs, and how to stop them too.
 type CancelAllOrdersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target sub-account numeric ID. When omitted, uses caller's root account.
@@ -3885,9 +3893,10 @@ type CancelAllOrdersResponse struct {
 	// Cancel-all submission outcome.
 	Status CancelAllOrdersResponse_Status `protobuf:"varint,1,opt,name=status,proto3,enum=orders.v1.CancelAllOrdersResponse_Status" json:"status,omitempty"`
 	// Number of open orders that matched the filter when the request was
-	// accepted, including orders whose cancellation was already in progress.
-	// Orders placed after acceptance are not counted. Unless `dry_run` is set,
-	// equals `submitted_cancels` plus `failed_cancels`.
+	// accepted, including orders whose cancellation was already in progress
+	// and open orders that triggers placed. Triggers themselves are never
+	// counted. Orders placed after acceptance are not counted. Unless
+	// `dry_run` is set, equals `submitted_cancels` plus `failed_cancels`.
 	MatchedOrders uint32 `protobuf:"varint,2,opt,name=matched_orders,json=matchedOrders,proto3" json:"matched_orders,omitempty"`
 	// Number of matched orders submitted for cancellation, including orders
 	// whose cancellation was already in progress. Each moves to `CANCELED`
@@ -4026,6 +4035,8 @@ func (x *CancelAllOrdersResponse) GetListingStatus() CancelAllOrdersResponse_Lis
 }
 
 // CancelAllAfterRequest arms/disables a dead-man switch for automatic cancel-all.
+// When the switch fires, it cancels what a CancelAllOrders with the same
+// scope cancels: open orders, never triggers. See CancelAllAfter.
 type CancelAllAfterRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target sub-account numeric ID. When omitted, uses caller's root account.
@@ -4111,8 +4122,10 @@ func (x *CancelAllAfterRequest) GetRequestId() string {
 }
 
 // DeadManSwitchScope describes the recorded scope of an armed dead-man switch.
-// Expiry cancels working orders in this scope, including working child orders.
-// Waiting triggers remain active and may create further orders.
+// Expiry cancels working orders in this scope, including orders that
+// triggers placed. It cancels no trigger: armed stop-loss, take-profit and
+// trailing stops and running TWAPs remain active and may create further
+// orders after expiry. Cancel them with TriggersService.CancelTrigger.
 type DeadManSwitchScope struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Public ID of the account or sub-account whose orders are canceled.
@@ -6257,18 +6270,18 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x1fBatchReplaceItemAdmissionStatus\x123\n" +
 	"/BATCH_REPLACE_ITEM_ADMISSION_STATUS_UNSPECIFIED\x10\x00\x120\n" +
 	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_ADMITTED\x10\x01\x120\n" +
-	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_REJECTED\x10\x022\xb1\x16\n" +
+	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_REJECTED\x10\x022\x89\x1a\n" +
 	"\rOrdersService\x12\x9a\x02\n" +
 	"\fPreviewOrder\x12\x1e.orders.v1.PreviewOrderRequest\x1a\x1f.orders.v1.PreviewOrderResponse\"\xc8\x01\xbaG\xbe\x01\n" +
 	"\x0eOrders Service\x12\rPreview Order\x1a\x9c\x01Check current order eligibility and available balance without creating an order or reservation. Returns resolved sizing and price protection when available.\xa2\xb5\x18\x02\x01\x02\x12\xb0\x02\n" +
 	"\vCreateOrder\x12\x1d.orders.v1.CreateOrderRequest\x1a\x1e.orders.v1.CreateOrderResponse\"\xe1\x01\xbaG\xd7\x01\n" +
 	"\x0eOrders Service\x12\fCreate Order\x1a\xb6\x01Create a single order with side, type, quantity, and optional price fields. Supports optional client order IDs and attached risk instructions (take-profit, stop-loss, trailing stop).\xa2\xb5\x18\x02\x01\x02\x12\xe4\x01\n" +
 	"\vCancelOrder\x12\x1d.orders.v1.CancelOrderRequest\x1a\x1e.orders.v1.CancelOrderResponse\"\x95\x01\xbaG\x8b\x01\n" +
-	"\x0eOrders Service\x12\fCancel Order\x1akCancel a single open order by order ID or client order ID. Supports optional subaccount and symbol scoping.\xa2\xb5\x18\x02\x01\x02\x12\xc4\x02\n" +
-	"\x0fCancelAllOrders\x12!.orders.v1.CancelAllOrdersRequest\x1a\".orders.v1.CancelAllOrdersResponse\"\xe9\x01\xbaG\xdf\x01\n" +
-	"\x0eOrders Service\x12\x11Cancel All Orders\x1a\xb9\x01Cancel all matching open orders for an account. Supports optional symbol and side filters plus dry-run preview. Returns up to 200 canceled order IDs, oldest first, with the total count.\xa2\xb5\x18\x02\x01\x02\x12\xa6\x02\n" +
-	"\x0eCancelAllAfter\x12 .orders.v1.CancelAllAfterRequest\x1a!.orders.v1.CancelAllAfterResponse\"\xce\x01\xbaG\xc4\x01\n" +
-	"\x0eOrders Service\x12\"Cancel All After (Dead-Man Switch)\x1a\x8d\x01Set or disable a dead-man switch timeout for automatic cancel-all. Supports optional symbol and side scope with idempotent heartbeat refresh.\xa2\xb5\x18\x02\x01\x02\x12\xa5\x02\n" +
+	"\x0eOrders Service\x12\fCancel Order\x1akCancel a single open order by order ID or client order ID. Supports optional subaccount and symbol scoping.\xa2\xb5\x18\x02\x01\x02\x12\xab\x04\n" +
+	"\x0fCancelAllOrders\x12!.orders.v1.CancelAllOrdersRequest\x1a\".orders.v1.CancelAllOrdersResponse\"\xd0\x03\xbaG\xc6\x03\n" +
+	"\x0eOrders Service\x12\x11Cancel All Orders\x1a\xa0\x03Cancel all matching open orders for an account. Supports optional symbol and side filters plus dry-run preview. Returns up to 200 canceled order IDs, oldest first, with the total count. Cancels orders only, including open orders placed by triggers, never the triggers: armed stop-loss, take-profit and trailing stops and running TWAPs stay active and can place new orders afterwards. Cancel them with Cancel Trigger.\xa2\xb5\x18\x02\x01\x02\x12\x97\x04\n" +
+	"\x0eCancelAllAfter\x12 .orders.v1.CancelAllAfterRequest\x1a!.orders.v1.CancelAllAfterResponse\"\xbf\x03\xbaG\xb5\x03\n" +
+	"\x0eOrders Service\x12\"Cancel All After (Dead-Man Switch)\x1a\xfe\x02Set or disable a dead-man switch timeout for automatic cancel-all. Supports optional symbol and side scope with idempotent heartbeat refresh. On expiry it cancels open orders in scope, including orders placed by triggers, but never the triggers: armed stop-loss, take-profit and trailing stops and running TWAPs stay active and can place new orders. Cancel them with Cancel Trigger.\xa2\xb5\x18\x02\x01\x02\x12\xa5\x02\n" +
 	"\x11BatchCreateOrders\x12#.orders.v1.BatchCreateOrdersRequest\x1a$.orders.v1.BatchCreateOrdersResponse\"\xc4\x01\xbaG\xba\x01\n" +
 	"\x0eOrders Service\x12\x13Batch Create Orders\x1a\x92\x01Create up to 20 orders in a single request with per-item results. Supports mixed symbols, attached risk payloads, and optional partial acceptance.\xa2\xb5\x18\x02\x01\x02\x12\x98\x02\n" +
 	"\vModifyOrder\x12\x1d.orders.v1.ModifyOrderRequest\x1a\x1e.orders.v1.ModifyOrderResponse\"\xc9\x01\xbaG\xbf\x01\n" +

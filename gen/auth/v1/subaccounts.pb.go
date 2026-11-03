@@ -1583,7 +1583,8 @@ type CreateSubaccountRequest struct {
 	Color string `protobuf:"bytes,8,opt,name=color,proto3" json:"color,omitempty"`
 	// Smart Account EVM address for the new sub-account.
 	SmartAccountAddress string `protobuf:"bytes,2,opt,name=smart_account_address,json=smartAccountAddress,proto3" json:"smart_account_address,omitempty"`
-	// Exact EIP-191 authorization returned by CreateSubaccountChallenge.
+	// Exact EIP-191 authorization returned by CreateSubaccountChallenge. Maximum
+	// length is 4096 UTF-8 bytes.
 	Message string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
 	// Smart-account signature over message using EIP-191 personal_sign semantics.
 	// Deployed ERC-1271 and counterfactual ERC-6492 signatures are supported.
@@ -3064,7 +3065,8 @@ type ActivityEvent struct {
 	UserAgent string `protobuf:"bytes,7,opt,name=user_agent,json=userAgent,proto3" json:"user_agent,omitempty"`
 	// Account that performed the action (opaque ID).
 	ActorAccountId uint64 `protobuf:"fixed64,8,opt,name=actor_account_id,json=actorAccountId,proto3" json:"actor_account_id,omitempty"`
-	// Structured event details as a JSON string. Maximum 64 KiB.
+	// Structured event details as a JSON string. Maximum 64 KiB (65536 UTF-8
+	// bytes).
 	PayloadJson   string `protobuf:"bytes,9,opt,name=payload_json,json=payloadJson,proto3" json:"payload_json,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

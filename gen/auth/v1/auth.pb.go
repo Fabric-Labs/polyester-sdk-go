@@ -175,6 +175,25 @@ const (
 	// The account owns this sub-account. An owner cannot be invited to it, and member role
 	// changes and member removal do not apply to the owner.
 	AuthErrorCode_AUTH_SUBACCOUNT_OWNER_ROLE_LOCKED AuthErrorCode = 47
+	// The API key request signature does not verify against the request, or the key is unknown.
+	// The REST problem code is SIGNATURE_INVALID.
+	AuthErrorCode_AUTH_SIGNATURE_INVALID AuthErrorCode = 48
+	// The API key request timestamp is malformed or too far from the server clock. Sync the
+	// clock, then sign the request again. The REST problem code is TIMESTAMP_SKEW.
+	AuthErrorCode_AUTH_TIMESTAMP_SKEW AuthErrorCode = 49
+	// The API key request lacks its timestamp or signature header. The REST problem code is
+	// MISSING_HEADERS.
+	AuthErrorCode_AUTH_MISSING_HEADERS AuthErrorCode = 50
+	// The API key has expired. The REST problem code is KEY_EXPIRED.
+	AuthErrorCode_AUTH_KEY_EXPIRED AuthErrorCode = 51
+	// The API key is disabled or revoked. The REST problem code is KEY_DISABLED.
+	AuthErrorCode_AUTH_KEY_DISABLED AuthErrorCode = 52
+	// The API key's IP allowlist does not include the request's source address. The REST
+	// problem code is IP_NOT_ALLOWED.
+	AuthErrorCode_AUTH_IP_NOT_ALLOWED AuthErrorCode = 53
+	// This API does not accept API keys; authenticate with a session token. The REST problem
+	// code is API_KEY_NOT_ACCEPTED.
+	AuthErrorCode_AUTH_API_KEY_NOT_ACCEPTED AuthErrorCode = 54
 )
 
 // Enum value maps for AuthErrorCode.
@@ -227,6 +246,13 @@ var (
 		45: "AUTH_SOCIAL_ACCOUNT_ALREADY_LINKED",
 		46: "AUTH_TEMPORARILY_UNAVAILABLE",
 		47: "AUTH_SUBACCOUNT_OWNER_ROLE_LOCKED",
+		48: "AUTH_SIGNATURE_INVALID",
+		49: "AUTH_TIMESTAMP_SKEW",
+		50: "AUTH_MISSING_HEADERS",
+		51: "AUTH_KEY_EXPIRED",
+		52: "AUTH_KEY_DISABLED",
+		53: "AUTH_IP_NOT_ALLOWED",
+		54: "AUTH_API_KEY_NOT_ACCEPTED",
 	}
 	AuthErrorCode_value = map[string]int32{
 		"AUTH_UNSPECIFIED":                       0,
@@ -276,6 +302,13 @@ var (
 		"AUTH_SOCIAL_ACCOUNT_ALREADY_LINKED":     45,
 		"AUTH_TEMPORARILY_UNAVAILABLE":           46,
 		"AUTH_SUBACCOUNT_OWNER_ROLE_LOCKED":      47,
+		"AUTH_SIGNATURE_INVALID":                 48,
+		"AUTH_TIMESTAMP_SKEW":                    49,
+		"AUTH_MISSING_HEADERS":                   50,
+		"AUTH_KEY_EXPIRED":                       51,
+		"AUTH_KEY_DISABLED":                      52,
+		"AUTH_IP_NOT_ALLOWED":                    53,
+		"AUTH_API_KEY_NOT_ACCEPTED":              54,
 	}
 )
 
@@ -924,7 +957,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x13AcceptTermsResponse*Z\n" +
 	"\x16WalletChallengePurpose\x12\x1c\n" +
 	"\x18WALLET_PROOF_UNSPECIFIED\x10\x00\x12\t\n" +
-	"\x05LOGIN\x10\x01\"\x04\b\x02\x10\x02*\x11CREATE_SUBACCOUNT*\xef\v\n" +
+	"\x05LOGIN\x10\x01\"\x04\b\x02\x10\x02*\x11CREATE_SUBACCOUNT*\xa3\r\n" +
 	"\rAuthErrorCode\x12\x14\n" +
 	"\x10AUTH_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15AUTH_USERNAME_INVALID\x10\x01\x12\x17\n" +
@@ -973,7 +1006,14 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"!AUTH_SUBACCOUNT_CHALLENGE_INVALID\x10,\x12&\n" +
 	"\"AUTH_SOCIAL_ACCOUNT_ALREADY_LINKED\x10-\x12 \n" +
 	"\x1cAUTH_TEMPORARILY_UNAVAILABLE\x10.\x12%\n" +
-	"!AUTH_SUBACCOUNT_OWNER_ROLE_LOCKED\x10/2\xa6\b\n" +
+	"!AUTH_SUBACCOUNT_OWNER_ROLE_LOCKED\x10/\x12\x1a\n" +
+	"\x16AUTH_SIGNATURE_INVALID\x100\x12\x17\n" +
+	"\x13AUTH_TIMESTAMP_SKEW\x101\x12\x18\n" +
+	"\x14AUTH_MISSING_HEADERS\x102\x12\x14\n" +
+	"\x10AUTH_KEY_EXPIRED\x103\x12\x15\n" +
+	"\x11AUTH_KEY_DISABLED\x104\x12\x17\n" +
+	"\x13AUTH_IP_NOT_ALLOWED\x105\x12\x1d\n" +
+	"\x19AUTH_API_KEY_NOT_ACCEPTED\x1062\xa6\b\n" +
 	"\vAuthService\x12\xf4\x01\n" +
 	"\x15CreateWalletChallenge\x12%.auth.v1.CreateWalletChallengeRequest\x1a&.auth.v1.CreateWalletChallengeResponse\"\x8b\x01\xbaG`\n" +
 	"\fAuth Service\x12\x17Create Wallet Challenge\x1a7Create a short-lived EIP-4361 message for wallet login.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/v1/auth/wallet-challenge\x12\x9e\x02\n" +

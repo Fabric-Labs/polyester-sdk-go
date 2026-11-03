@@ -58,8 +58,20 @@ type AutoWithdrawServiceClient interface {
 	// rights on the account and a fresh single-use step-up.
 	DisableAutoWithdrawRule(context.Context, *connect.Request[v1.DisableAutoWithdrawRuleRequest]) (*connect.Response[v1.DisableAutoWithdrawRuleResponse], error)
 	// Read the account's latest rule version.
+	//
+	// An API key needs READ_AUTO_WITHDRAW in its policy and reads only its own
+	// account. Both refusals answer PERMISSION_DENIED: a key whose policy lacks
+	// the action gets "api key policy does not allow READ_AUTO_WITHDRAW", and a
+	// key that names an account other than its own, such as a root-account key
+	// naming a subaccount, gets "api key target scope mismatch".
 	GetAutoWithdrawRule(context.Context, *connect.Request[v1.GetAutoWithdrawRuleRequest]) (*connect.Response[v1.GetAutoWithdrawRuleResponse], error)
 	// List the account's auto-withdraw runs with their payouts, newest first.
+	//
+	// An API key needs READ_AUTO_WITHDRAW in its policy and reads only its own
+	// account. Both refusals answer PERMISSION_DENIED: a key whose policy lacks
+	// the action gets "api key policy does not allow READ_AUTO_WITHDRAW", and a
+	// key that names an account other than its own, such as a root-account key
+	// naming a subaccount, gets "api key target scope mismatch".
 	ListAutoWithdrawRuns(context.Context, *connect.Request[v1.ListAutoWithdrawRunsRequest]) (*connect.Response[v1.ListAutoWithdrawRunsResponse], error)
 }
 
@@ -141,8 +153,20 @@ type AutoWithdrawServiceHandler interface {
 	// rights on the account and a fresh single-use step-up.
 	DisableAutoWithdrawRule(context.Context, *connect.Request[v1.DisableAutoWithdrawRuleRequest]) (*connect.Response[v1.DisableAutoWithdrawRuleResponse], error)
 	// Read the account's latest rule version.
+	//
+	// An API key needs READ_AUTO_WITHDRAW in its policy and reads only its own
+	// account. Both refusals answer PERMISSION_DENIED: a key whose policy lacks
+	// the action gets "api key policy does not allow READ_AUTO_WITHDRAW", and a
+	// key that names an account other than its own, such as a root-account key
+	// naming a subaccount, gets "api key target scope mismatch".
 	GetAutoWithdrawRule(context.Context, *connect.Request[v1.GetAutoWithdrawRuleRequest]) (*connect.Response[v1.GetAutoWithdrawRuleResponse], error)
 	// List the account's auto-withdraw runs with their payouts, newest first.
+	//
+	// An API key needs READ_AUTO_WITHDRAW in its policy and reads only its own
+	// account. Both refusals answer PERMISSION_DENIED: a key whose policy lacks
+	// the action gets "api key policy does not allow READ_AUTO_WITHDRAW", and a
+	// key that names an account other than its own, such as a root-account key
+	// naming a subaccount, gets "api key target scope mismatch".
 	ListAutoWithdrawRuns(context.Context, *connect.Request[v1.ListAutoWithdrawRunsRequest]) (*connect.Response[v1.ListAutoWithdrawRunsResponse], error)
 }
 
