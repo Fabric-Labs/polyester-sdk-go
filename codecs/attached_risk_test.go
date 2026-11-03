@@ -233,8 +233,9 @@ func TestAttachedTrailingLimitFollowsParentSide(t *testing.T) {
 			"attached_risk.trailing_stop.limit_price is required when the parent order sells"},
 		"buy parent with limit": {"buy", &models.TrailingStopInput{DistanceBps: ptr(int32(150)), LimitPrice: ptr(models.PriceFromDecimal("2500"))},
 			"attached_risk.trailing_stop.limit_price must be unset when the parent order buys"},
+		// A zero maximum is no maximum, so a selling parent is refused for lacking one.
 		"zero limit": {"sell", &models.TrailingStopInput{DistanceBps: ptr(int32(150)), LimitPrice: ptr(models.PriceFromDecimal("0"))},
-			"attached_risk.trailing_stop.limit_price must be positive"},
+			"attached_risk.trailing_stop.limit_price is required when the parent order sells"},
 		"limit below activation": {"sell", &models.TrailingStopInput{
 			DistanceBps:     ptr(int32(150)),
 			ActivationPrice: ptr(models.PriceFromDecimal("2600")),
@@ -293,6 +294,9 @@ func TestAttachedTrailingLimitChecksUseServerCodes(t *testing.T) {
 		rule     string
 	}{
 		"sell parent without limit": {"sell", &models.TrailingStopInput{DistanceBps: ptr(int32(150))},
+			"ERROR_CODE_TRIGGER_BUY_REQUIRES_LIMIT", "buy_required"},
+		// A zero maximum is no maximum: the side rule decides.
+		"sell parent with zero limit": {"sell", &models.TrailingStopInput{DistanceBps: ptr(int32(150)), LimitPrice: ptr(models.PriceFromDecimal("0"))},
 			"ERROR_CODE_TRIGGER_BUY_REQUIRES_LIMIT", "buy_required"},
 		"buy parent with limit": {"buy", &models.TrailingStopInput{DistanceBps: ptr(int32(150)), LimitPrice: ptr(models.PriceFromDecimal("2500"))},
 			"ERROR_CODE_BAD_PRICE", "sell_unset"},

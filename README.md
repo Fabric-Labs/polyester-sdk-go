@@ -570,8 +570,8 @@ if used, ok := detail.Order.QuoteUsed(baseScale); ok {
 An attached trailing stop's `LimitPrice` is checked before sending on
 creates, previews and batch creates, and refused with the server's code and
 violation on `order.attached_risk.trailing_stop.limit_price_ticks`: set on a
-buy parent `ERROR_CODE_BAD_PRICE` (`sell_unset`), missing on a sell parent
-`ERROR_CODE_TRIGGER_BUY_REQUIRES_LIMIT` (`buy_required`), below
+buy parent `ERROR_CODE_BAD_PRICE` (`sell_unset`), missing or zero on a sell
+parent `ERROR_CODE_TRIGGER_BUY_REQUIRES_LIMIT` (`buy_required`), below
 `ActivationPrice` `ERROR_CODE_BAD_PRICE` (`buy_at_least_activation`). Modify
 and batch replace send it as given; the server applies the side rule and
 answers `ERROR_CODE_BAD_PRICE` with no violation.

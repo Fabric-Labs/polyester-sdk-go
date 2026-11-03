@@ -109,15 +109,24 @@ func trailingStopToProto(in models.TrailingStopInput, fieldName, symbol string) 
 		out.ActivationPriceTicks = ticks
 	}
 	if in.LimitPrice != nil && in.LimitPrice.IsSet() {
-		ticks, err := positivePriceTicks(*in.LimitPrice, fieldName+".limit_price", symbol)
+		ticks, err := ResolvePriceTicks(*in.LimitPrice, fieldName+".limit_price", symbol)
 		if err != nil {
 			return nil, err
 		}
-		if out.ActivationPriceTicks > ticks {
+		// A zero maximum is no maximum on the wire. Where the parent's side is
+		// known (create, preview, batch create) the side rule then decides: a
+		// selling parent needs one (TRIGGER_BUY_REQUIRES_LIMIT, buy_required).
+		sideRuleDecides := ticks == 0 && strings.HasPrefix(fieldName, "attached_risk.")
+		switch {
+		case sideRuleDecides:
+		case ticks <= 0:
+			return nil, &errors.ValidationError{Msg: fieldName + ".limit_price must be positive"}
+		case out.ActivationPriceTicks > ticks:
 			return nil, trailingLimitError(fieldName, orderv1.ErrorCode_ERROR_CODE_BAD_PRICE, "buy_at_least_activation",
 				fieldName+".limit_price must be at least activation_price")
+		default:
+			out.LimitPriceTicks = ticks
 		}
-		out.LimitPriceTicks = ticks
 	}
 	source, err := triggerPriceSourceToProto(in.TriggerPriceSource, fieldName+".trigger_price_source")
 	if err != nil {

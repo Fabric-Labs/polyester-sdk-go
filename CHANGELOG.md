@@ -115,8 +115,10 @@ refused on either transport, and stop all automated trading in one call.
   batch create refuse with the server's code, rule ID and field
   (`order.attached_risk.trailing_stop.limit_price_ticks`):
   `ERROR_CODE_BAD_PRICE` (`sell_unset`, `buy_at_least_activation`) and
-  `ERROR_CODE_TRIGGER_BUY_REQUIRES_LIMIT` (`buy_required`). Messages are
-  unchanged.
+  `ERROR_CODE_TRIGGER_BUY_REQUIRES_LIMIT` (`buy_required`). A zero
+  `LimitPrice` is no maximum: a sell parent is refused with
+  `buy_required` (it was a generic "must be positive" error with no code).
+  Other messages are unchanged.
 - A trigger event type newer than this SDK reads as `unknown(<n>)` instead of
   its bare number.
 - Docs: `Orders.CancelAll` and `CancelAllAfter` state that triggers stay
