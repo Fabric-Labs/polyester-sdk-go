@@ -21,7 +21,13 @@ const maxErrorBodyBytes = 64 * 1024
 //   - an API-key {"code":"TIMESTAMP_SKEW"} rejection as
 //     *errors.TimestampSkewError;
 //   - a 412 {"code":"AUTH_SUBACCOUNT_OWNER_ROLE_LOCKED"} problem as
-//     *errors.SubaccountOwnerRoleLockedError.
+//     *errors.SubaccountOwnerRoleLockedError;
+//   - a 403 {"code":"AUTH_SESSION_KIND_NOT_ALLOWED"} problem as
+//     *errors.SessionRequiredError;
+//   - an API-key refusal ({"code":"SIGNATURE_INVALID"}, "IP_NOT_ALLOWED",
+//     "UNAUTHENTICATED", ...) or a {"code":"PERMISSION_DENIED"} problem as
+//     *errors.AuthError with the problem's code and detail;
+//   - a problem that lists field violations as *errors.ValidationError.
 type timestampSkewRoundTripper struct {
 	base http.RoundTripper
 }
@@ -43,29 +49,51 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	}
 	// Connect error codes are lowercase names, so this never matches one.
 	var detail struct {
-		Code   string `json:"code"`
-		Detail string `json:"detail"`
-		Title  string `json:"title"`
+		Code       string `json:"code"`
+		Detail     string `json:"detail"`
+		Title      string `json:"title"`
+		Violations []struct {
+			FieldPath string `json:"fieldPath"`
+			RuleID    string `json:"ruleId"`
+			Message   string `json:"message"`
+		} `json:"violations"`
 	}
 	if json.Unmarshal(body, &detail) != nil {
 		return resp, nil
 	}
-	switch detail.Code {
-	case wire.TimestampSkewCode:
-		_ = resp.Body.Close()
-		return nil, &sdkerrors.TimestampSkewError{
+	msg := detail.Detail
+	if msg == "" {
+		msg = detail.Title
+	}
+	var mapped error
+	switch {
+	case detail.Code == wire.TimestampSkewCode || detail.Code == sdkerrors.AuthCodeTimestampSkew:
+		mapped = &sdkerrors.TimestampSkewError{
 			Msg:    "API key timestamp is outside the allowed skew window",
 			Status: resp.StatusCode,
 		}
-	case sdkerrors.AuthCodeSubaccountOwnerRoleLocked:
-		_ = resp.Body.Close()
-		msg := detail.Detail
-		if msg == "" {
-			msg = detail.Title
+	case detail.Code == sdkerrors.AuthCodeSubaccountOwnerRoleLocked:
+		mapped = &sdkerrors.SubaccountOwnerRoleLockedError{Msg: msg, Status: resp.StatusCode}
+	case detail.Code == sdkerrors.AuthCodeSessionKindNotAllowed:
+		mapped = &sdkerrors.SessionRequiredError{Msg: msg, Status: resp.StatusCode}
+	case (resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden) &&
+		(detail.Code == "PERMISSION_DENIED" || sdkerrors.AuthErrorCode(&sdkerrors.AuthError{Code: detail.Code}) != ""):
+		mapped = &sdkerrors.AuthError{Msg: msg, Code: detail.Code, Status: resp.StatusCode}
+	case len(detail.Violations) > 0 && detail.Code != "":
+		violations := make([]sdkerrors.FieldViolation, 0, len(detail.Violations))
+		for _, violation := range detail.Violations {
+			violations = append(violations, sdkerrors.FieldViolation{
+				FieldPath: violation.FieldPath, RuleID: violation.RuleID, Message: violation.Message,
+			})
 		}
-		return nil, &sdkerrors.SubaccountOwnerRoleLockedError{Msg: msg, Status: resp.StatusCode}
+		mapped = &sdkerrors.ValidationError{
+			Msg: msg, Code: detail.Code, Metadata: sdkerrors.ViolationMetadata(violations), Violations: violations,
+		}
+	default:
+		return resp, nil
 	}
-	return resp, nil
+	_ = resp.Body.Close()
+	return nil, mapped
 }
 
 type prefixedBody struct {

@@ -7,7 +7,9 @@ environment it trades on, with no API key, and find the breaking or
 action-required changes published since it last looked. It can wait for a
 batch replace to settle and see which items the market refused after
 admission, read a trigger back right after changing it, and tell a market halt
-from other cancels.
+from other cancels. It can see why a trigger's fire placed no order, read an
+order's exact average price, quote used and fees, tell why an API key was
+refused on either transport, and stop all automated trading in one call.
 
 **Breaking changes**
 - A sub-account owner-role refusal is `*errors.SubaccountOwnerRoleLockedError`
@@ -15,6 +17,13 @@ from other cancels.
   `errors.AuthErrorCode` still match it; a direct type assertion does not.
 - A batch replace status item with no successor reports an empty
   `ReplacementOrderID` instead of `"0"`.
+- A session-only method refusing an API key (`AUTH_SESSION_KIND_NOT_ALLOWED`)
+  is `*errors.SessionRequiredError` rather than `*errors.APIError`.
+  `errors.As` with `*errors.APIError` and `errors.AuthErrorCode` still match
+  it; a direct type assertion does not.
+- `errors.AuthErrorCode` returns only auth reasons (`AUTH_*`). It used to
+  return any `*errors.APIError` code, such as an order `ERROR_CODE_*` or a
+  Connect `not_found`; read `APIError.Code` for those.
 
 ### Added
 - `client.Changelog` wraps the public `changelog.v1.ChangelogService`.
@@ -48,7 +57,73 @@ from other cancels.
   `errors.AuthErrorCode` still reads the code; a direct type assertion to
   `*errors.APIError` no longer matches it.
 
+- Trigger events `fire_refused` (`EVENT_FIRE_REFUSED`): a fire whose order
+  was refused while the trigger stayed live, for the market's state, a
+  position below the market's minimums, a rate limit or an account repair.
+  It is not terminal. `TriggerEvent.FireRefusalReason` says why, with the
+  `FailureReason` labels, which gain `account_repairing`. Decoded on
+  `Triggers.ListEvents` and the trigger event stream; `ListEvents` filters on
+  `fire_refused`.
+- `errors.AuthErrorCode` reads the auth reason of either transport: the
+  Connect `auth.v1.AuthErrorDetail` code, or a REST problem `code` with the
+  `AUTH_` prefix added (`UNAUTHENTICATED` reads
+  `AUTH_AUTHENTICATION_REQUIRED`). Constants for the new API-key refusals:
+  `errors.AuthCodeSignatureInvalid`, `AuthCodeTimestampSkew`,
+  `AuthCodeMissingHeaders`, `AuthCodeKeyExpired`, `AuthCodeKeyDisabled`,
+  `AuthCodeIPNotAllowed`, `AuthCodeAPIKeyNotAccepted`, plus
+  `AuthCodeAuthenticationRequired` and `AuthCodeSessionKindNotAllowed`.
+- `*errors.SessionRequiredError` and `errors.IsSessionRequired`: an API key on
+  a method that accepts only a session token, on every service (Connect
+  `permission_denied` with `AUTH_SESSION_KIND_NOT_ALLOWED`, REST 403).
+- `errors.FieldViolation` and `errors.Violations(err)`: the fields an order
+  refusal names, from the order `ErrorDetail`, from request validation
+  (`buf.validate.Violations`, which the SDK used to drop) or from a REST
+  problem's `violations`. `ValidationError.Violations` holds them;
+  `Metadata` keeps its `violation.N.*` entries. `models.OrderFieldViolation`
+  is now an alias of `errors.FieldViolation`.
+- `Order.AvgPriceE18` and `Order.AvgPrice()`: the exact average execution
+  price at 18 decimals. `Order.CumNotional` and `Order.CumQuote(baseScale)`:
+  the exact quote amount of the fills. `Order.FeeTotal`
+  (`models.OrderFeeTotal`): the fills' net fee, set on history and
+  single-order reads with execution history. `Order.QuoteUsed(baseScale)` and
+  `Order.QuoteUnspent(baseScale, quoteScale)` say how much of a quote-amount
+  buy was used, fee included, once the fee total covers every fill.
+- `errors.IsOrderAlreadyTerminal`: a cancel of an order that has already
+  ended, which a repeat of the cancel that ended it now also answers.
+- `client.StopAllTrading` (`services.StopAllTrading`): cancels every live
+  trigger in scope (created, armed, running, paused, every page), then all
+  open orders. `Orders.CancelAll` and the dead-man switch cancel open orders
+  only, never triggers.
+- Changelog surfaces `market_data`, `quickswap` and `rewards`
+  (`models.ChangelogSurfaceMarketData`, `ChangelogSurfaceQuickSwap`,
+  `ChangelogSurfaceRewards`), and `ChangelogSection.Surface`, the product area
+  a section covers. `ListChanges` refuses more than 10 surfaces before
+  sending.
+
 ### Changed
+- A Connect API-key refusal with `AUTH_TIMESTAMP_SKEW` is the retryable
+  `*errors.TimestampSkewError`, as the gateway's `TIMESTAMP_SKEW` answer is.
+  The other API-key refusals (`AUTH_SIGNATURE_INVALID`, `AUTH_IP_NOT_ALLOWED`,
+  ...) are `*errors.AuthError` with that code and the server's message, as
+  the bare `unauthenticated` they replace was; they are not retryable.
+- A REST problem body answering a Connect call keeps its `detail` and `code`:
+  API-key refusals and `PERMISSION_DENIED` read as `*errors.AuthError`
+  (for example "api key policy does not allow READ_AUTO_WITHDRAW", which names
+  the policy action to grant), and a problem with `violations` as
+  `*errors.ValidationError`. They used to read as a bare HTTP status.
+- The attached trailing stop's `LimitPrice` checks on create, preview and
+  batch create refuse with the server's code, rule ID and field
+  (`order.attached_risk.trailing_stop.limit_price_ticks`):
+  `ERROR_CODE_BAD_PRICE` (`sell_unset`, `buy_at_least_activation`) and
+  `ERROR_CODE_TRIGGER_BUY_REQUIRES_LIMIT` (`buy_required`). A zero
+  `LimitPrice` is no maximum: a sell parent is refused with
+  `buy_required` (it was a generic "must be positive" error with no code).
+  Other messages are unchanged.
+- A trigger event type newer than this SDK reads as `unknown(<n>)` instead of
+  its bare number.
+- Docs: `Orders.CancelAll` and `CancelAllAfter` state that triggers stay
+  live; modify and batch replace inputs state that the server applies the
+  trailing stop's side rule.
 - `Triggers.Get` and `Triggers.List` retry `UNAVAILABLE` (HTTP 503) with the
   same request, from 25 ms doubling up to 500 ms, for about 2 s. Trigger reads
   answer it until they reflect an answered modify, pause or resume.

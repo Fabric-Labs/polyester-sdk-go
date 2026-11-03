@@ -1,9 +1,11 @@
 package codecs
 
 import (
+	stderrors "errors"
 	"strings"
 	"testing"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
@@ -231,8 +233,9 @@ func TestAttachedTrailingLimitFollowsParentSide(t *testing.T) {
 			"attached_risk.trailing_stop.limit_price is required when the parent order sells"},
 		"buy parent with limit": {"buy", &models.TrailingStopInput{DistanceBps: ptr(int32(150)), LimitPrice: ptr(models.PriceFromDecimal("2500"))},
 			"attached_risk.trailing_stop.limit_price must be unset when the parent order buys"},
+		// A zero maximum is no maximum, so a selling parent is refused for lacking one.
 		"zero limit": {"sell", &models.TrailingStopInput{DistanceBps: ptr(int32(150)), LimitPrice: ptr(models.PriceFromDecimal("0"))},
-			"attached_risk.trailing_stop.limit_price must be positive"},
+			"attached_risk.trailing_stop.limit_price is required when the parent order sells"},
 		"limit below activation": {"sell", &models.TrailingStopInput{
 			DistanceBps:     ptr(int32(150)),
 			ActivationPrice: ptr(models.PriceFromDecimal("2600")),
@@ -276,5 +279,68 @@ func TestModifyAndBatchReplacePassAttachedTrailingLimit(t *testing.T) {
 	_, err = ModifyOrderToProto("SOL-USDT", 3, models.OrderKeyByID("100"), nil, nil, nil, nil, risk, nil, nil, 6)
 	if err == nil || !strings.Contains(err.Error(), "new_attached_risk.trailing_stop.limit_price must be at least activation_price") {
 		t.Fatalf("err=%v", err)
+	}
+}
+
+// The SDK refuses a wrong attached trailing maximum with the code, rule and
+// field the server answers, so client-side and server-side refusals read the
+// same.
+func TestAttachedTrailingLimitChecksUseServerCodes(t *testing.T) {
+	const createPath = "order.attached_risk.trailing_stop.limit_price_ticks"
+	cases := map[string]struct {
+		side     string
+		trailing *models.TrailingStopInput
+		code     string
+		rule     string
+	}{
+		"sell parent without limit": {"sell", &models.TrailingStopInput{DistanceBps: ptr(int32(150))},
+			"ERROR_CODE_TRIGGER_BUY_REQUIRES_LIMIT", "buy_required"},
+		// A zero maximum is no maximum: the side rule decides.
+		"sell parent with zero limit": {"sell", &models.TrailingStopInput{DistanceBps: ptr(int32(150)), LimitPrice: ptr(models.PriceFromDecimal("0"))},
+			"ERROR_CODE_TRIGGER_BUY_REQUIRES_LIMIT", "buy_required"},
+		"buy parent with limit": {"buy", &models.TrailingStopInput{DistanceBps: ptr(int32(150)), LimitPrice: ptr(models.PriceFromDecimal("2500"))},
+			"ERROR_CODE_BAD_PRICE", "sell_unset"},
+		"limit below activation": {"sell", &models.TrailingStopInput{
+			DistanceBps:     ptr(int32(150)),
+			ActivationPrice: ptr(models.PriceFromDecimal("2600")),
+			LimitPrice:      ptr(models.PriceFromDecimal("2500")),
+		}, "ERROR_CODE_BAD_PRICE", "buy_at_least_activation"},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			req := sellWithAttachedTrailing(tc.trailing)
+			req.Side = tc.side
+			for _, encode := range []func() error{
+				func() error { _, err := CreateOrderToProto(req, 6, 6); return err },
+				func() error {
+					_, err := BatchCreateOrdersToProto([]models.CreateOrderRequest{req}, nil, ptr("batch-1"), false, 6, 6)
+					return err
+				},
+			} {
+				err := encode()
+				var validationErr *errors.ValidationError
+				if !stderrors.As(err, &validationErr) || validationErr.Code != tc.code {
+					t.Fatalf("err=%#v want code %s", err, tc.code)
+				}
+				violations := errors.Violations(err)
+				if len(violations) != 1 || violations[0].FieldPath != createPath || violations[0].RuleID != tc.rule {
+					t.Fatalf("violations=%#v", violations)
+				}
+				if validationErr.Metadata["violation.0.rule_id"] != tc.rule {
+					t.Fatalf("metadata=%v", validationErr.Metadata)
+				}
+			}
+		})
+	}
+	risk := &models.AttachedRiskInput{TrailingStop: &models.TrailingStopInput{
+		DistanceBps:     ptr(int32(150)),
+		ActivationPrice: ptr(models.PriceFromDecimal("190")),
+		LimitPrice:      ptr(models.PriceFromDecimal("185.5")),
+	}}
+	_, err := ModifyOrderToProto("SOL-USDT", 3, models.OrderKeyByID("100"), nil, nil, nil, nil, risk, nil, nil, 6)
+	violations := errors.Violations(err)
+	if len(violations) != 1 || violations[0].FieldPath != "new_attached_risk.trailing_stop.limit_price_ticks" ||
+		violations[0].RuleID != "buy_at_least_activation" {
+		t.Fatalf("modify violations=%#v", violations)
 	}
 }

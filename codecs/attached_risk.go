@@ -1,6 +1,8 @@
 package codecs
 
 import (
+	"strings"
+
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
@@ -107,14 +109,24 @@ func trailingStopToProto(in models.TrailingStopInput, fieldName, symbol string) 
 		out.ActivationPriceTicks = ticks
 	}
 	if in.LimitPrice != nil && in.LimitPrice.IsSet() {
-		ticks, err := positivePriceTicks(*in.LimitPrice, fieldName+".limit_price", symbol)
+		ticks, err := ResolvePriceTicks(*in.LimitPrice, fieldName+".limit_price", symbol)
 		if err != nil {
 			return nil, err
 		}
-		if out.ActivationPriceTicks > ticks {
-			return nil, &errors.ValidationError{Msg: fieldName + ".limit_price must be at least activation_price"}
+		// A zero maximum is no maximum on the wire. Where the parent's side is
+		// known (create, preview, batch create) the side rule then decides: a
+		// selling parent needs one (TRIGGER_BUY_REQUIRES_LIMIT, buy_required).
+		sideRuleDecides := ticks == 0 && strings.HasPrefix(fieldName, "attached_risk.")
+		switch {
+		case sideRuleDecides:
+		case ticks <= 0:
+			return nil, &errors.ValidationError{Msg: fieldName + ".limit_price must be positive"}
+		case out.ActivationPriceTicks > ticks:
+			return nil, trailingLimitError(fieldName, orderv1.ErrorCode_ERROR_CODE_BAD_PRICE, "buy_at_least_activation",
+				fieldName+".limit_price must be at least activation_price")
+		default:
+			out.LimitPriceTicks = ticks
 		}
-		out.LimitPriceTicks = ticks
 	}
 	source, err := triggerPriceSourceToProto(in.TriggerPriceSource, fieldName+".trigger_price_source")
 	if err != nil {
@@ -146,9 +158,30 @@ func validateTrailingLimitForSide(policy *orderv1.RiskPolicy, side orderv1.Side,
 	}
 	switch {
 	case side == orderv1.Side_SELL && trailing.GetLimitPriceTicks() == 0:
-		return &errors.ValidationError{Msg: fieldName + ".trailing_stop.limit_price is required when the parent order sells: the maximum price its buy-back pays"}
+		return trailingLimitError(fieldName+".trailing_stop", orderv1.ErrorCode_ERROR_CODE_TRIGGER_BUY_REQUIRES_LIMIT, "buy_required",
+			fieldName+".trailing_stop.limit_price is required when the parent order sells: the maximum price its buy-back pays")
 	case side == orderv1.Side_BUY && trailing.GetLimitPriceTicks() != 0:
-		return &errors.ValidationError{Msg: fieldName + ".trailing_stop.limit_price must be unset when the parent order buys"}
+		return trailingLimitError(fieldName+".trailing_stop", orderv1.ErrorCode_ERROR_CODE_BAD_PRICE, "sell_unset",
+			fieldName+".trailing_stop.limit_price must be unset when the parent order buys")
 	}
 	return nil
+}
+
+// trailingLimitError refuses an attached trailing stop's buy-back maximum with
+// the code, rule ID and Connect field path the server answers for it.
+// fieldName is "attached_risk.trailing_stop" (create, preview, batch create:
+// the field sits under the request's order) or
+// "new_attached_risk.trailing_stop" (modify, batch replace).
+func trailingLimitError(fieldName string, code orderv1.ErrorCode, ruleID, msg string) error {
+	path := fieldName + ".limit_price_ticks"
+	if strings.HasPrefix(fieldName, "attached_risk.") {
+		path = "order." + path
+	}
+	violations := []errors.FieldViolation{{FieldPath: path, RuleID: ruleID, Message: msg}}
+	return &errors.ValidationError{
+		Msg:        msg,
+		Code:       code.String(),
+		Metadata:   errors.ViolationMetadata(violations),
+		Violations: violations,
+	}
 }

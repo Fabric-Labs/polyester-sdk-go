@@ -264,7 +264,13 @@ func (s *OrdersService) Preview(ctx context.Context, req models.CreateOrderReque
 	})
 }
 
-// Cancel cancels an order.
+// Cancel cancels an order. A cancel of an order that has already ended,
+// including a repeat of the cancel that ended it, fails with
+// ERROR_CODE_ORDER_ALREADY_TERMINAL (errors.IsOrderAlreadyTerminal): treat it
+// as already done and read the order for how it ended. A retry by client
+// order ID more than a minute after the order ended may read
+// ERROR_CODE_ORDER_UNKNOWN; cancel by order ID once you have it. Every cancel,
+// a repeat included, counts against the cancel rate limit.
 func (s *OrdersService) Cancel(ctx context.Context, account AccountScope, key models.OrderKey, symbol *string, symbolID *uint32, subAccountID *string) (models.OrderMutationResult, error) {
 	if symbol != nil && symbolID != nil {
 		return models.OrderMutationResult{}, &sdkerrors.ValidationError{Msg: "cancel accepts symbol or symbol_id, not both"}
@@ -308,7 +314,9 @@ func (s *OrdersService) Modify(ctx context.Context, account AccountScope, symbol
 
 // ModifyParams is the expanded modify input. Set at least one of NewPrice,
 // NewQty, or NewAttachedRisk. NewAttachedRisk replaces the order's attached
-// take-profit, stop-loss, or trailing-stop policy.
+// take-profit, stop-loss, or trailing-stop policy. A trailing stop's
+// LimitPrice is sent as given: the server knows the order's side, applies the
+// side rule and answers ERROR_CODE_BAD_PRICE with no violation.
 type ModifyParams struct {
 	Symbol           string
 	Key              models.OrderKey
@@ -362,6 +370,12 @@ type CancelAllParams struct {
 }
 
 // CancelAll cancels all matching orders. Empty symbol matches every pair.
+// It cancels open orders only, never triggers: the open orders triggers
+// placed (a TWAP's working slice, a ladder's levels, a fired stop's order, an
+// attached leg's working exit) are canceled like any other, while the
+// triggers stay live and keep their reserved funds. MatchedOrders counts
+// orders, never triggers. To stop all automated trading, use
+// StopAllTrading, which cancels the triggers first.
 func (s *OrdersService) CancelAll(ctx context.Context, account AccountScope, subAccountID, symbol, side *string, dryRun bool, requestID *string) (models.CancelAllOrdersResult, error) {
 	return s.CancelAllWith(ctx, account, CancelAllParams{
 		SubAccountID: subAccountID,
@@ -389,7 +403,10 @@ func (s *OrdersService) CancelAllWith(ctx context.Context, account AccountScope,
 	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().CancelAllOrders, protoReq, decode.CancelAllFromProto)
 }
 
-// CancelAllAfter arms cancel-all-after.
+// CancelAllAfter arms cancel-all-after (the dead-man switch). When it fires
+// it cancels open orders in scope, never triggers: a client that stopped
+// still has its triggers live. Cancel them with Triggers.Cancel, or use
+// StopAllTrading.
 func (s *OrdersService) CancelAllAfter(ctx context.Context, account AccountScope, timeoutSec int, subAccountID, symbol, side, requestID *string) (models.CancelAllAfterResult, error) {
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {

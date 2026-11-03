@@ -92,6 +92,7 @@ func ChangelogPostFromProto(msg *changelogv1.GetPostResponse) (models.ChangelogP
 		}
 		sections = append(sections, models.ChangelogSection{
 			Heading: section.GetHeading(),
+			Surface: codecs.ProtoEnumName(section.GetSurface(), section.GetSurface().Number()),
 			Summary: cloneOptionalString(section.Summary),
 			Changes: changes,
 		})

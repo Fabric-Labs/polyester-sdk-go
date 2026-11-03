@@ -44,6 +44,22 @@ func OrderFromProto(msg *orderv1.Order) models.Order {
 		ExpireAt:     codecs.FormatExpireAt(msg.GetExpireAt()),
 		RejectReason: orderRejectReasonLabel(msg.GetRejectReason()),
 		CancelReason: OrderCancelReasonLabel(msg.GetCancelReason()),
+		AvgPriceE18:  u128(msg.GetAvgPriceE18()),
+		CumNotional:  u128(msg.GetCumNotional()),
+		FeeTotal:     orderFeeTotalFromProto(msg.GetFeeTotal(), sid),
+	}
+}
+
+// orderFeeTotalFromProto decodes an order's fee total; nil when the read
+// carries none.
+func orderFeeTotalFromProto(msg *orderv1.OrderFeeTotal, symbolID uint32) *models.OrderFeeTotal {
+	if msg == nil {
+		return nil
+	}
+	return &models.OrderFeeTotal{
+		AmountE18: u128(msg.GetAmountE18()),
+		IsRebate:  msg.GetIsRebate(),
+		Qty:       codecs.DecodeQtyScaled(msg.GetQtyScaled(), -1, "", &symbolID),
 	}
 }
 

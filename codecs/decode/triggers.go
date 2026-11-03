@@ -62,25 +62,32 @@ var triggerEventTypeLabels = map[triggersv1.TriggerEventType]string{
 	triggersv1.TriggerEventType_EVENT_FAILED:    "failed",
 	triggersv1.TriggerEventType_EVENT_ACTIVATED: "activated",
 	triggersv1.TriggerEventType_EVENT_ARMED:     "armed",
+	// Not terminal: the trigger stays armed or running.
+	triggersv1.TriggerEventType_EVENT_FIRE_REFUSED: "fire_refused",
 }
 
 var triggerEventTypeFromLabel = map[string]triggersv1.TriggerEventType{
-	"fired":     triggersv1.TriggerEventType_EVENT_FIRED,
-	"canceled":  triggersv1.TriggerEventType_EVENT_CANCELED,
-	"cancelled": triggersv1.TriggerEventType_EVENT_CANCELED,
-	"updated":   triggersv1.TriggerEventType_EVENT_UPDATED,
-	"failed":    triggersv1.TriggerEventType_EVENT_FAILED,
-	"activated": triggersv1.TriggerEventType_EVENT_ACTIVATED,
-	"armed":     triggersv1.TriggerEventType_EVENT_ARMED,
+	"fired":        triggersv1.TriggerEventType_EVENT_FIRED,
+	"canceled":     triggersv1.TriggerEventType_EVENT_CANCELED,
+	"cancelled":    triggersv1.TriggerEventType_EVENT_CANCELED,
+	"updated":      triggersv1.TriggerEventType_EVENT_UPDATED,
+	"failed":       triggersv1.TriggerEventType_EVENT_FAILED,
+	"activated":    triggersv1.TriggerEventType_EVENT_ACTIVATED,
+	"armed":        triggersv1.TriggerEventType_EVENT_ARMED,
+	"fire_refused": triggersv1.TriggerEventType_EVENT_FIRE_REFUSED,
 }
 
 // TriggerEventTypeLabel maps proto trigger event type to SDK output labels.
+// Unspecified decodes as "", and a type newer than this SDK as "unknown(N)".
 func TriggerEventTypeLabel(eventType triggersv1.TriggerEventType) string {
 	if label, ok := triggerEventTypeLabels[eventType]; ok {
 		return label
 	}
 	if eventType == triggersv1.TriggerEventType_EVENT_UNSPECIFIED {
 		return ""
+	}
+	if _, known := triggersv1.TriggerEventType_name[int32(eventType)]; !known {
+		return fmt.Sprintf("unknown(%d)", eventType)
 	}
 	return strings.ToLower(strings.TrimPrefix(eventType.String(), "EVENT_"))
 }
@@ -92,7 +99,7 @@ func TriggerEventTypeFromLabel(label string) (triggersv1.TriggerEventType, error
 		return eventType, nil
 	}
 	return triggersv1.TriggerEventType_EVENT_UNSPECIFIED, fmt.Errorf(
-		"invalid trigger event type %q; expected one of: fired, canceled, updated, failed, activated, armed",
+		"invalid trigger event type %q; expected one of: fired, canceled, updated, failed, activated, armed, fire_refused",
 		label,
 	)
 }
@@ -506,6 +513,10 @@ func TriggerEventMessageFromProto(e *triggersv1.TriggerEvent) models.TriggerEven
 		subaccountID = codecs.FormatUint64ID(e.GetSubaccountId())
 	}
 	cancelReason, failureReason := triggerReasonsFromEvent(e)
+	fireRefusalReason := ""
+	if e.FireRefusalReason != nil {
+		fireRefusalReason = TriggerFailureReasonLabel(e.GetFireRefusalReason())
+	}
 	return models.TriggerEvent{
 		TriggerID:     codecs.FormatUint64ID(e.GetTriggerId()),
 		SubaccountID:  subaccountID,
@@ -518,6 +529,8 @@ func TriggerEventMessageFromProto(e *triggersv1.TriggerEvent) models.TriggerEven
 		FirePrice:     codecs.DecodePriceTicks(e.GetFirePriceTicks(), ""),
 		CancelReason:  cancelReason,
 		FailureReason: failureReason,
+		// Set only on fire_refused, outside the terminal_reason oneof.
+		FireRefusalReason: fireRefusalReason,
 	}
 }
 

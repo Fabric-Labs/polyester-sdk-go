@@ -30,6 +30,14 @@ const (
 	ChangelogSurfaceExplorer      = "explorer"
 	ChangelogSurfaceDocumentation = "documentation"
 	ChangelogSurfacePlatform      = "platform"
+	// ChangelogSurfaceMarketData covers prices, candles, the order book,
+	// heatmaps and market overviews.
+	ChangelogSurfaceMarketData = "market_data"
+	// ChangelogSurfaceQuickSwap covers the QuickSwap swap app.
+	ChangelogSurfaceQuickSwap = "quickswap"
+	// ChangelogSurfaceRewards covers daily claims, campaigns, VIP tiers and
+	// fee discounts.
+	ChangelogSurfaceRewards = "rewards"
 )
 
 // ChangelogChange is one product change in a changelog post.
@@ -48,7 +56,12 @@ type ChangelogChange struct {
 
 // ChangelogSection groups a post's changes under one heading.
 type ChangelogSection struct {
-	Heading string            `json:"heading"`
+	Heading string `json:"heading"`
+	// Surface is the product area the section covers, a ChangelogSurface*
+	// label; empty for a section tied to no one area, such as the changes
+	// that need your attention. It does not change which changes
+	// ListChanges matches: filter on ChangelogChange.Surfaces.
+	Surface string            `json:"surface,omitempty"`
 	Summary *string           `json:"summary,omitempty"`
 	Changes []ChangelogChange `json:"changes"`
 }
@@ -112,7 +125,7 @@ type ListChangelogChangesOptions struct {
 	Categories []string
 	// ActionRequired keeps only changes whose action_required matches.
 	ActionRequired *bool
-	// Surfaces are ChangelogSurface* labels.
+	// Surfaces are ChangelogSurface* labels, at most 10.
 	Surfaces []string
 	// Audiences are ChangelogAudience* labels. Changes addressed to all users
 	// always match.

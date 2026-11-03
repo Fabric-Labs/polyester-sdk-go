@@ -327,6 +327,13 @@ func (c *Client) WaitForCatalogs(ctx context.Context) error {
 	}
 }
 
+// StopAllTrading cancels every live trigger in scope, then all open orders in
+// scope; see services.StopAllTrading. Orders.CancelAll and the dead-man
+// switch cancel open orders only, never triggers.
+func (c *Client) StopAllTrading(ctx context.Context, account services.AccountScope, scope services.StopAllTradingScope) (services.StopAllTradingResult, error) {
+	return services.StopAllTrading(ctx, c.Triggers, c.Orders, account, scope)
+}
+
 // Close releases client resources, including tracked realtime subscriptions.
 func (c *Client) Close() error {
 	c.closeOnce.Do(func() {
