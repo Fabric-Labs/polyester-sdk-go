@@ -367,6 +367,11 @@ type MarketOverview struct {
 	// Last trade timestamp in nanoseconds since epoch.
 	LastTradeTsNs uint64 `protobuf:"varint,4,opt,name=last_trade_ts_ns,json=lastTradeTsNs,proto3" json:"last_trade_ts_ns,omitempty"`
 	// Rolling 24h change expressed in basis points (bp). Example: +123 = +1.23%.
+	// Measured from the 24h open to the last price, at minute granularity: the
+	// 24h open is the price at the start of the minute that contains the time
+	// 24h ago or, for a market that first traded later, its first trade. 0 when
+	// the market has no trade yet (its last trade timestamp is 0 too) and until
+	// its first minute of trading has ended.
 	Change_24HBps int32 `protobuf:"varint,5,opt,name=change_24h_bps,json=change24hBps,proto3" json:"change_24h_bps,omitempty"`
 	// Rolling 24h stats.
 	// Highest traded price in the 24h window, in quote units scaled by 1e9.

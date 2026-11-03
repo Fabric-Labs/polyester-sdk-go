@@ -69,7 +69,14 @@ type TriggersServiceClient interface {
 	ListTriggers(context.Context, *connect.Request[v1.ListTriggersRequest]) (*connect.Response[v1.ListTriggersResponse], error)
 	// List trigger events (append-only history).
 	ListTriggerEvents(context.Context, *connect.Request[v1.ListTriggerEventsRequest]) (*connect.Response[v1.ListTriggerEventsResponse], error)
-	// Cancel a trigger.
+	// Cancel a trigger: a standalone stop-loss, take-profit, trailing stop,
+	// TWAP or ladder, or an order's attached leg. Canceling a TWAP or a ladder
+	// also cancels its open child orders.
+	// OrdersService.CancelAllOrders and the dead-man switch
+	// (OrdersService.CancelAllAfter) cancel open orders only, never triggers:
+	// after either, armed stops and running TWAPs can still place orders. To
+	// stop them, cancel each live trigger with this method; ListTriggers lists
+	// them.
 	CancelTrigger(context.Context, *connect.Request[v1.CancelTriggerRequest]) (*connect.Response[v1.CancelTriggerResponse], error)
 	// Modify a trigger (limited patch).
 	ModifyTrigger(context.Context, *connect.Request[v1.ModifyTriggerRequest]) (*connect.Response[v1.ModifyTriggerResponse], error)
@@ -203,7 +210,14 @@ type TriggersServiceHandler interface {
 	ListTriggers(context.Context, *connect.Request[v1.ListTriggersRequest]) (*connect.Response[v1.ListTriggersResponse], error)
 	// List trigger events (append-only history).
 	ListTriggerEvents(context.Context, *connect.Request[v1.ListTriggerEventsRequest]) (*connect.Response[v1.ListTriggerEventsResponse], error)
-	// Cancel a trigger.
+	// Cancel a trigger: a standalone stop-loss, take-profit, trailing stop,
+	// TWAP or ladder, or an order's attached leg. Canceling a TWAP or a ladder
+	// also cancels its open child orders.
+	// OrdersService.CancelAllOrders and the dead-man switch
+	// (OrdersService.CancelAllAfter) cancel open orders only, never triggers:
+	// after either, armed stops and running TWAPs can still place orders. To
+	// stop them, cancel each live trigger with this method; ListTriggers lists
+	// them.
 	CancelTrigger(context.Context, *connect.Request[v1.CancelTriggerRequest]) (*connect.Response[v1.CancelTriggerResponse], error)
 	// Modify a trigger (limited patch).
 	ModifyTrigger(context.Context, *connect.Request[v1.ModifyTriggerRequest]) (*connect.Response[v1.ModifyTriggerResponse], error)

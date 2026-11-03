@@ -2922,17 +2922,19 @@ type CreateQuickSwapRequest struct {
 	// Economic terms.
 	Terms *QuickSwapTerms `protobuf:"bytes,2,opt,name=terms,proto3" json:"terms,omitempty"`
 	// Recipient of the swap output on the destination network, in its native
-	// text form without memo.
+	// text form without memo: 1-256 UTF-8 bytes.
 	DestinationAddress string `protobuf:"bytes,3,opt,name=destination_address,json=destinationAddress,proto3" json:"destination_address,omitempty"`
 	// Destination tag or memo for destination_address. Required when the
-	// destination network needs one; must be empty otherwise.
+	// destination network needs one; must be empty otherwise. At most 128 UTF-8
+	// bytes.
 	DestinationMemo string `protobuf:"bytes,4,opt,name=destination_memo,json=destinationMemo,proto3" json:"destination_memo,omitempty"`
 	// Recipient of returned source funds on the source network, in its native
-	// text form without memo. Deposits that are not accepted, and source funds
-	// that are not traded, go here; never to an observed sender.
+	// text form without memo: 1-256 UTF-8 bytes. Deposits that are not
+	// accepted, and source funds that are not traded, go here; never to an
+	// observed sender.
 	ReturnAddress string `protobuf:"bytes,5,opt,name=return_address,json=returnAddress,proto3" json:"return_address,omitempty"`
 	// Destination tag or memo for return_address. Required when the source
-	// network needs one; must be empty otherwise.
+	// network needs one; must be empty otherwise. At most 128 UTF-8 bytes.
 	ReturnMemo string `protobuf:"bytes,6,opt,name=return_memo,json=returnMemo,proto3" json:"return_memo,omitempty"`
 	// Refund route for the intermediate asset of a two-leg route: an
 	// AssetChainVariant.zipped_asset_id of the asset whose AssetConfig.ledger_id
@@ -2942,14 +2944,14 @@ type CreateQuickSwapRequest struct {
 	// and unused otherwise.
 	RefundZippedAssetId uint32 `protobuf:"varint,7,opt,name=refund_zipped_asset_id,json=refundZippedAssetId,proto3" json:"refund_zipped_asset_id,omitempty"`
 	// Recipient of refunded intermediate asset on the refund route's network,
-	// in its native text form without memo.
+	// in its native text form without memo. At most 256 UTF-8 bytes.
 	RefundAddress string `protobuf:"bytes,8,opt,name=refund_address,json=refundAddress,proto3" json:"refund_address,omitempty"`
 	// Destination tag or memo for refund_address. Required when the refund
-	// network needs one; must be empty otherwise.
+	// network needs one; must be empty otherwise. At most 128 UTF-8 bytes.
 	RefundMemo string `protobuf:"bytes,9,opt,name=refund_memo,json=refundMemo,proto3" json:"refund_memo,omitempty"`
 	// Optional source wallet the end user will deposit from, for brokers that
-	// know it in advance. It must be a valid address on the source network and
-	// is shown on the QuickSwap.
+	// know it in advance. It must be a valid address on the source network, at
+	// most 256 UTF-8 bytes, and is shown on the QuickSwap.
 	SourceWallet string `protobuf:"bytes,10,opt,name=source_wallet,json=sourceWallet,proto3" json:"source_wallet,omitempty"`
 	// Affiliate fees, each charged on top and credited to its affiliate vault:
 	// at most three distinct vaults. Fixed at creation with broker_bps.

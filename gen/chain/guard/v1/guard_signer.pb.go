@@ -186,7 +186,7 @@ type GuardApproval struct {
 	NonceSpace uint64 `protobuf:"varint,1,opt,name=nonce_space,json=nonceSpace,proto3" json:"nonce_space,omitempty"`
 	// Deadline as a unix timestamp in seconds, derived from chain time.
 	DeadlineUnix uint64 `protobuf:"varint,2,opt,name=deadline_unix,json=deadlineUnix,proto3" json:"deadline_unix,omitempty"`
-	// EIP-712 signature over the guard approval message.
+	// EIP-712 signature over the guard approval message. Must not be empty.
 	Signature     []byte `protobuf:"bytes,3,opt,name=signature,proto3" json:"signature,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

@@ -152,9 +152,10 @@ func (Audience) EnumDescriptor() ([]byte, []int) {
 type Surface int32
 
 const (
-	// Not set. Never returned.
+	// Not set. Never in Change.surfaces; Section.surface carries it for a section
+	// not tied to one area.
 	Surface_SURFACE_UNSPECIFIED Surface = 0
-	// Trading.
+	// Orders, triggers and protective orders, and order outcomes.
 	Surface_TRADING Surface = 1
 	// Deposits, withdrawals and transfers.
 	Surface_FUNDING Surface = 2
@@ -168,19 +169,28 @@ const (
 	Surface_DOCUMENTATION Surface = 6
 	// Platform-wide behavior.
 	Surface_PLATFORM Surface = 7
+	// Market data: prices, candles, order book, heatmaps and market overviews.
+	Surface_MARKET_DATA Surface = 8
+	// The QuickSwap swap app.
+	Surface_QUICKSWAP Surface = 9
+	// Rewards: daily claims, campaigns, VIP tiers and fee discounts.
+	Surface_REWARDS Surface = 10
 )
 
 // Enum value maps for Surface.
 var (
 	Surface_name = map[int32]string{
-		0: "SURFACE_UNSPECIFIED",
-		1: "TRADING",
-		2: "FUNDING",
-		3: "ACCOUNTS",
-		4: "API",
-		5: "EXPLORER",
-		6: "DOCUMENTATION",
-		7: "PLATFORM",
+		0:  "SURFACE_UNSPECIFIED",
+		1:  "TRADING",
+		2:  "FUNDING",
+		3:  "ACCOUNTS",
+		4:  "API",
+		5:  "EXPLORER",
+		6:  "DOCUMENTATION",
+		7:  "PLATFORM",
+		8:  "MARKET_DATA",
+		9:  "QUICKSWAP",
+		10: "REWARDS",
 	}
 	Surface_value = map[string]int32{
 		"SURFACE_UNSPECIFIED": 0,
@@ -191,6 +201,9 @@ var (
 		"EXPLORER":            5,
 		"DOCUMENTATION":       6,
 		"PLATFORM":            7,
+		"MARKET_DATA":         8,
+		"QUICKSWAP":           9,
+		"REWARDS":             10,
 	}
 )
 
@@ -400,7 +413,10 @@ type Section struct {
 	// Section summary. Omitted when absent.
 	Summary *string `protobuf:"bytes,2,opt,name=summary,proto3,oneof" json:"summary,omitempty"`
 	// Changes in publication order.
-	Changes       []*Change `protobuf:"bytes,3,rep,name=changes,proto3" json:"changes,omitempty"`
+	Changes []*Change `protobuf:"bytes,3,rep,name=changes,proto3" json:"changes,omitempty"`
+	// Product area of the section. SURFACE_UNSPECIFIED for sections not tied to
+	// one area (for example changes that need your attention, or general).
+	Surface       Surface `protobuf:"varint,4,opt,name=surface,proto3,enum=changelog.v1.Surface" json:"surface,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -454,6 +470,13 @@ func (x *Section) GetChanges() []*Change {
 		return x.Changes
 	}
 	return nil
+}
+
+func (x *Section) GetSurface() Surface {
+	if x != nil {
+		return x.Surface
+	}
+	return Surface_SURFACE_UNSPECIFIED
 }
 
 // PostSummary describes one published post without its changes.
@@ -1127,11 +1150,12 @@ const file_changelog_v1_changelog_proto_rawDesc = "" +
 	"\bsurfaces\x18\t \x03(\x0e2\x15.changelog.v1.SurfaceR\bsurfacesB\n" +
 	"\n" +
 	"\b_detailsB\x15\n" +
-	"\x13_migration_guidance\"~\n" +
+	"\x13_migration_guidance\"\xaf\x01\n" +
 	"\aSection\x12\x18\n" +
 	"\aheading\x18\x01 \x01(\tR\aheading\x12\x1d\n" +
 	"\asummary\x18\x02 \x01(\tH\x00R\asummary\x88\x01\x01\x12.\n" +
-	"\achanges\x18\x03 \x03(\v2\x14.changelog.v1.ChangeR\achangesB\n" +
+	"\achanges\x18\x03 \x03(\v2\x14.changelog.v1.ChangeR\achanges\x12/\n" +
+	"\asurface\x18\x04 \x01(\x0e2\x15.changelog.v1.SurfaceR\asurfaceB\n" +
 	"\n" +
 	"\b_summary\"\xe7\x03\n" +
 	"\vPostSummary\x12\x12\n" +
@@ -1167,7 +1191,8 @@ const file_changelog_v1_changelog_proto_rawDesc = "" +
 	"categories\x18\x01 \x03(\x0e2\x1c.changelog.v1.ChangeCategoryB\x13\xbaH\x10\x92\x01\r\x10\x04\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\n" +
 	"categories\x12,\n" +
 	"\x0faction_required\x18\x02 \x01(\bH\x00R\x0eactionRequired\x88\x01\x01\x12F\n" +
-	"\bsurfaces\x18\x03 \x03(\x0e2\x15.changelog.v1.SurfaceB\x13\xbaH\x10\x92\x01\r\x10\a\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\bsurfaces\x12I\n" +
+	"\bsurfaces\x18\x03 \x03(\x0e2\x15.changelog.v1.SurfaceB\x13\xbaH\x10\x92\x01\r\x10\n" +
+	"\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\bsurfaces\x12I\n" +
 	"\taudiences\x18\x04 \x03(\x0e2\x16.changelog.v1.AudienceB\x13\xbaH\x10\x92\x01\r\x10\x04\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\taudiences\x129\n" +
 	"\n" +
 	"start_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
@@ -1200,7 +1225,7 @@ const file_changelog_v1_changelog_proto_rawDesc = "" +
 	"\aTRADERS\x10\x02\x12\x11\n" +
 	"\rMARKET_MAKERS\x10\x03\x12\x0e\n" +
 	"\n" +
-	"DEVELOPERS\x10\x04*\x82\x01\n" +
+	"DEVELOPERS\x10\x04*\xaf\x01\n" +
 	"\aSurface\x12\x17\n" +
 	"\x13SURFACE_UNSPECIFIED\x10\x00\x12\v\n" +
 	"\aTRADING\x10\x01\x12\v\n" +
@@ -1209,7 +1234,11 @@ const file_changelog_v1_changelog_proto_rawDesc = "" +
 	"\x03API\x10\x04\x12\f\n" +
 	"\bEXPLORER\x10\x05\x12\x11\n" +
 	"\rDOCUMENTATION\x10\x06\x12\f\n" +
-	"\bPLATFORM\x10\a*L\n" +
+	"\bPLATFORM\x10\a\x12\x0f\n" +
+	"\vMARKET_DATA\x10\b\x12\r\n" +
+	"\tQUICKSWAP\x10\t\x12\v\n" +
+	"\aREWARDS\x10\n" +
+	"*L\n" +
 	"\rSortDirection\x12\x1e\n" +
 	"\x1aSORT_DIRECTION_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\bSORT_ASC\x10\x01\x12\r\n" +
@@ -1260,32 +1289,33 @@ var file_changelog_v1_changelog_proto_depIdxs = []int32{
 	1,  // 1: changelog.v1.Change.audiences:type_name -> changelog.v1.Audience
 	2,  // 2: changelog.v1.Change.surfaces:type_name -> changelog.v1.Surface
 	4,  // 3: changelog.v1.Section.changes:type_name -> changelog.v1.Change
-	15, // 4: changelog.v1.PostSummary.published_at:type_name -> google.protobuf.Timestamp
-	15, // 5: changelog.v1.PostSummary.coverage_cutoff:type_name -> google.protobuf.Timestamp
-	6,  // 6: changelog.v1.Post.summary:type_name -> changelog.v1.PostSummary
-	5,  // 7: changelog.v1.Post.sections:type_name -> changelog.v1.Section
-	6,  // 8: changelog.v1.ListPostsResponse.posts:type_name -> changelog.v1.PostSummary
-	7,  // 9: changelog.v1.GetPostResponse.post:type_name -> changelog.v1.Post
-	0,  // 10: changelog.v1.ListChangesRequest.categories:type_name -> changelog.v1.ChangeCategory
-	2,  // 11: changelog.v1.ListChangesRequest.surfaces:type_name -> changelog.v1.Surface
-	1,  // 12: changelog.v1.ListChangesRequest.audiences:type_name -> changelog.v1.Audience
-	15, // 13: changelog.v1.ListChangesRequest.start_time:type_name -> google.protobuf.Timestamp
-	15, // 14: changelog.v1.ListChangesRequest.end_time:type_name -> google.protobuf.Timestamp
-	3,  // 15: changelog.v1.ListChangesRequest.sort:type_name -> changelog.v1.SortDirection
-	4,  // 16: changelog.v1.ChangeEntry.change:type_name -> changelog.v1.Change
-	15, // 17: changelog.v1.ChangeEntry.published_at:type_name -> google.protobuf.Timestamp
-	13, // 18: changelog.v1.ListChangesResponse.changes:type_name -> changelog.v1.ChangeEntry
-	8,  // 19: changelog.v1.ChangelogService.ListPosts:input_type -> changelog.v1.ListPostsRequest
-	10, // 20: changelog.v1.ChangelogService.GetPost:input_type -> changelog.v1.GetPostRequest
-	12, // 21: changelog.v1.ChangelogService.ListChanges:input_type -> changelog.v1.ListChangesRequest
-	9,  // 22: changelog.v1.ChangelogService.ListPosts:output_type -> changelog.v1.ListPostsResponse
-	11, // 23: changelog.v1.ChangelogService.GetPost:output_type -> changelog.v1.GetPostResponse
-	14, // 24: changelog.v1.ChangelogService.ListChanges:output_type -> changelog.v1.ListChangesResponse
-	22, // [22:25] is the sub-list for method output_type
-	19, // [19:22] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	2,  // 4: changelog.v1.Section.surface:type_name -> changelog.v1.Surface
+	15, // 5: changelog.v1.PostSummary.published_at:type_name -> google.protobuf.Timestamp
+	15, // 6: changelog.v1.PostSummary.coverage_cutoff:type_name -> google.protobuf.Timestamp
+	6,  // 7: changelog.v1.Post.summary:type_name -> changelog.v1.PostSummary
+	5,  // 8: changelog.v1.Post.sections:type_name -> changelog.v1.Section
+	6,  // 9: changelog.v1.ListPostsResponse.posts:type_name -> changelog.v1.PostSummary
+	7,  // 10: changelog.v1.GetPostResponse.post:type_name -> changelog.v1.Post
+	0,  // 11: changelog.v1.ListChangesRequest.categories:type_name -> changelog.v1.ChangeCategory
+	2,  // 12: changelog.v1.ListChangesRequest.surfaces:type_name -> changelog.v1.Surface
+	1,  // 13: changelog.v1.ListChangesRequest.audiences:type_name -> changelog.v1.Audience
+	15, // 14: changelog.v1.ListChangesRequest.start_time:type_name -> google.protobuf.Timestamp
+	15, // 15: changelog.v1.ListChangesRequest.end_time:type_name -> google.protobuf.Timestamp
+	3,  // 16: changelog.v1.ListChangesRequest.sort:type_name -> changelog.v1.SortDirection
+	4,  // 17: changelog.v1.ChangeEntry.change:type_name -> changelog.v1.Change
+	15, // 18: changelog.v1.ChangeEntry.published_at:type_name -> google.protobuf.Timestamp
+	13, // 19: changelog.v1.ListChangesResponse.changes:type_name -> changelog.v1.ChangeEntry
+	8,  // 20: changelog.v1.ChangelogService.ListPosts:input_type -> changelog.v1.ListPostsRequest
+	10, // 21: changelog.v1.ChangelogService.GetPost:input_type -> changelog.v1.GetPostRequest
+	12, // 22: changelog.v1.ChangelogService.ListChanges:input_type -> changelog.v1.ListChangesRequest
+	9,  // 23: changelog.v1.ChangelogService.ListPosts:output_type -> changelog.v1.ListPostsResponse
+	11, // 24: changelog.v1.ChangelogService.GetPost:output_type -> changelog.v1.GetPostResponse
+	14, // 25: changelog.v1.ChangelogService.ListChanges:output_type -> changelog.v1.ListChangesResponse
+	23, // [23:26] is the sub-list for method output_type
+	20, // [20:23] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_changelog_v1_changelog_proto_init() }

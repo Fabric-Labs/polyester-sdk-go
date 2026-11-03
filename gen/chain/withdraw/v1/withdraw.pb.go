@@ -646,6 +646,7 @@ type CreateTradingWithdrawRequest struct {
 	// Client-signed withdraw details.
 	Payload *TradingWithdrawIntentPayload `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"`
 	// User/API signature over deterministic TradingWithdrawIntentPayload bytes.
+	// Must not be empty.
 	PayloadSignature []byte `protobuf:"bytes,2,opt,name=payload_signature,json=payloadSignature,proto3" json:"payload_signature,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
@@ -705,7 +706,8 @@ type CreateWalletTradingWithdrawRequest struct {
 	SubaccountId uint64 `protobuf:"varint,2,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
 	// Wallet address that produced payload_signature.
 	SignerWallet string `protobuf:"bytes,3,opt,name=signer_wallet,json=signerWallet,proto3" json:"signer_wallet,omitempty"`
-	// Wallet EIP-191 personal_sign signature over the canonical withdraw authorization message.
+	// Wallet EIP-191 personal_sign signature over the canonical withdraw
+	// authorization message. Must not be empty.
 	PayloadSignature []byte `protobuf:"bytes,4,opt,name=payload_signature,json=payloadSignature,proto3" json:"payload_signature,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
