@@ -26,7 +26,9 @@ func (o Order) AvgPrice() string {
 
 // CumQuote formats CumNotional as an exact decimal quote amount, as REST
 // cumQuote. baseQuantityScale is the pair's base_quantity_scale
-// (catalogs.Manager.BaseQuantityScaleForSymbol). "0" with no fills.
+// (catalogs.Manager.BaseQuantityScaleForSymbol). "0" with no fills. It is
+// exactly the quote the fills settled when baseQuantityScale is at most 9;
+// above that it can exceed the settled quote by less than 1e-18 per fill.
 func (o Order) CumQuote(baseQuantityScale int) (string, error) {
 	value, ok := parseUnsigned(o.CumNotional)
 	if !ok {
@@ -41,6 +43,9 @@ func (o Order) CumQuote(baseQuantityScale int) (string, error) {
 // CumNotional only. ok is false until FeeTotal covers every fill (FeeTotal
 // set and its Qty equal to CumQty): read the order again later, with
 // execution history. baseQuantityScale is the pair's base_quantity_scale.
+// Like CumQuote it is exact when baseQuantityScale is at most 9; above that
+// it can exceed the settled debit by less than 1e-18 per fill, so allow that
+// difference when reconciling it against a balance change.
 func (o Order) QuoteUsed(baseQuantityScale int) (string, bool) {
 	used, scale, ok := o.quoteUsed(baseQuantityScale)
 	if !ok {

@@ -347,7 +347,13 @@ func MinBaseQtyForPair(pair map[string]any, price string) string {
 	if units < 1 {
 		units = 1
 	}
-	return strconv.FormatFloat(units*stepF, 'f', -1, 64)
+	// Format at the step's precision: units*stepF can carry binary noise
+	// (0.10000099999999999) that the pair's base scale refuses.
+	decimals := 0
+	if dot := strings.IndexByte(stepStr, '.'); dot >= 0 {
+		decimals = len(strings.TrimRight(stepStr[dot+1:], "0"))
+	}
+	return strconv.FormatFloat(units*stepF, 'f', decimals, 64)
 }
 
 func decimalString(values ...any) string {

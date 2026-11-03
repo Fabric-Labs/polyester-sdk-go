@@ -55,7 +55,12 @@ func SubaccountsListFromProto(msg *authv1.ListSubaccountsResponse) models.SubAcc
 
 func GetSubaccountFromProto(msg *authv1.GetSubaccountResponse) models.GetSubaccountResult {
 	s := subAccount(msg.GetSubaccount())
-	return models.GetSubaccountResult{Subaccount: &s}
+	out := models.GetSubaccountResult{Subaccount: &s}
+	if msg.GetBalances() != nil {
+		balances := BalancesListFromProto(msg.GetBalances())
+		out.Balances = &balances
+	}
+	return out
 }
 
 func SubaccountMembersListFromProto(msg *authv1.ListSubaccountMembersResponse) models.SubAccountMembersList {

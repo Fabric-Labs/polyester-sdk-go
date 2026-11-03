@@ -36,6 +36,9 @@ func OrderFromProto(msg *orderv1.Order) models.Order {
 		Version:         msg.GetVersion(),
 		PostOnly:        msg.GetPostOnly(),
 		FeeAsset:        feeAssetName(msg.GetFeeAsset()),
+		SelfTradePreventionMode: codecs.ProtoEnumName(
+			msg.GetSelfTradePreventionMode(), msg.GetSelfTradePreventionMode().Number(),
+		),
 		SubmittedMaxQuoteDebitScaled: optionalScaledString(
 			msg.SubmittedMaxQuoteDebitScaled,
 		),

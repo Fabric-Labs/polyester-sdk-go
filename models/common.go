@@ -41,6 +41,14 @@ type CreateOrderRequest struct {
 	// limit orders. MaxSlippageBps must be 1–10000; ticks must be positive.
 	MaxSlippageTicks *int64 `json:"max_slippage_ticks,omitempty"`
 	MaxSlippageBps   *int32 `json:"max_slippage_bps,omitempty"`
+	// SelfTradePreventionMode is "expire_maker", "expire_taker" or
+	// "expire_both"; nil leaves the server default, expire_maker. It also
+	// governs the order's attached take-profit, stop-loss and trailing stop
+	// orders: those never trade with the order they protect, and one that
+	// self-trade prevention expires against another of the account's resting
+	// orders leaves its leg live (a "fire_refused" trigger event with
+	// FireRefusalReason "self_trade_prevented").
+	SelfTradePreventionMode *string `json:"self_trade_prevention_mode,omitempty"`
 }
 
 // BatchReplaceItem is one item in orders.batch_replace.

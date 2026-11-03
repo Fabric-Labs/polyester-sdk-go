@@ -33,6 +33,10 @@ type Order struct {
 	Version         uint32     `json:"version,omitempty"`
 	PostOnly        bool       `json:"post_only,omitempty"`
 	FeeAsset        string     `json:"fee_asset,omitempty"`
+	// SelfTradePreventionMode is "expire_maker", "expire_taker" or
+	// "expire_both"; empty when the server does not report it, and
+	// "unknown(N)" for a mode newer than this SDK.
+	SelfTradePreventionMode string `json:"self_trade_prevention_mode,omitempty"`
 	// SubmittedMaxQuoteDebitScaled is populated for quote-budget sized orders.
 	SubmittedMaxQuoteDebitScaled string        `json:"submitted_max_quote_debit_scaled,omitempty"`
 	AttachedRisk                 *AttachedRisk `json:"attached_risk,omitempty"`
@@ -43,8 +47,10 @@ type Order struct {
 	// write API names the same refusal (for example "POST_ONLY_CROSS"). Empty
 	// for every other status.
 	RejectReason string `json:"reject_reason,omitempty"`
-	// CancelReason is why a canceled order ended (for example "user_request"
-	// or "replaced"). Empty for every other status.
+	// CancelReason is why a canceled order ended (for example "user_request",
+	// "replaced", or "attached_exit_fired": its take-profit, stop-loss or
+	// trailing stop fired while it still rested, so its unfilled rest was
+	// canceled first). Empty for every other status.
 	CancelReason string `json:"cancel_reason,omitempty"`
 	// AvgPriceE18 is the exact average execution price across the lineage
 	// through this generation, in quote units scaled by 1e18, as an unsigned
@@ -55,7 +61,10 @@ type Order struct {
 	// CumNotional is the exact quote amount of the fills across the lineage
 	// through this generation, before fees, as an unsigned decimal integer
 	// string in quote units scaled by 10^(9 + the pair's base_quantity_scale).
-	// "0" with no fills. Format it with CumQuote.
+	// "0" with no fills. Format it with CumQuote. Each fill settles its quote
+	// rounded down to 18 decimals, so CumNotional is exactly the settled quote
+	// when base_quantity_scale is at most 9; above that it can exceed the
+	// settled quote by less than 1e-18 per fill.
 	CumNotional string `json:"cum_notional,omitempty"`
 	// FeeTotal is the total fee of those fills, net of rebates, in FeeAsset.
 	// Order history reads and single-order reads with execution history (the
@@ -720,10 +729,16 @@ type TriggerMutationResult struct {
 // next price through its trigger price), a remaining position below the
 // market's minimums ("min_notional", "min_quantity", "step_size"; it fires
 // again once the position changes), or "rate_limited" / "account_repairing"
-// (it fires again shortly). It is not terminal: the trigger keeps its status,
-// so read Trigger.Status rather than inferring it from the last event.
-// ChildSeq is the refused attempt (a later fire takes a higher one),
-// ChildOrderID is empty and CancelReason / FailureReason stay empty. A refusal
+// (it fires again shortly), or "self_trade_prevented": self-trade prevention
+// expired an attached take-profit, stop-loss or trailing stop order against
+// another of the account's resting orders (it fires again at a new trade at
+// or beyond its trigger price, or once that order is gone or no longer at the
+// best price). It is not terminal: the trigger keeps its status, so read
+// Trigger.Status rather than inferring it from the last event. ChildSeq is
+// the refused attempt (a later fire takes a higher one). For
+// "self_trade_prevented" that attempt placed an order, which ended canceled
+// with CancelReason "stp_expire_taker" or "stp_expire_both"; for every other
+// reason it placed none. CancelReason / FailureReason stay empty. A refusal
 // that ends the trigger is a "failed" event with FailureReason instead.
 // Event types and reasons newer than this SDK read as "unknown(<n>)".
 type TriggerEvent struct {

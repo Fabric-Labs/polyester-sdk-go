@@ -96,6 +96,20 @@ and `ChildOrderID`). A leg is retained when it has meaningful runtime state or
 a usable policy (positive TP/SL trigger price or positive trailing distance);
 empty/malformed policy wrappers are omitted. State-only responses leave policy
 fields empty. Valid stop loss and trailing legs are both retained together.
+A buy sized by a quote amount (`MaxQuoteDebitScaled`) takes attached risk too:
+the server checks each leg against the pair's minimums at the quantity the
+amount buys at the order's price limit, and the legs then protect what the
+fills bought.
+
+Attached exits never trade with the order they protect. When a leg fires
+while its order still rests, the order's unfilled rest is canceled first
+(`CancelReason` `attached_exit_fired`; earlier fills stand). The order's
+`CreateOrderRequest.SelfTradePreventionMode` (`expire_maker`, the default,
+`expire_taker` or `expire_both`) also applies to its attached exits' orders.
+When self-trade prevention expires one of those against another of the
+account's resting orders, the leg stays `armed` and its trigger records one
+`fire_refused` event with `FireRefusalReason` `self_trade_prevented`.
+`Order.SelfTradePreventionMode` reads the mode back.
 
 ## Install
 
@@ -356,7 +370,9 @@ or `INSUFFICIENT_FUNDS` (the `ERROR_CODE_` name without its prefix). A
 `market_remainder`, `stp_expire_maker`, `stp_expire_taker`, `stp_expire_both`,
 `replaced`, `gtd_expired`, `qty_at_or_below_filled`, `pair_drain`,
 `attached_risk_refused`, `cancel_all_after`, `account_repair`,
-`twap_rollover`, `strategy_cancel` or `system`. Both are empty for every other
+`twap_rollover`, `strategy_cancel`, `market_halted`, `attached_exit_fired`
+(its take-profit, stop-loss or trailing stop fired while it still rested) or
+`system`. Both are empty for every other
 status. A value newer than this SDK decodes as `UNKNOWN_ERROR_CODE(N)` or
 `unknown(N)`; treat it as a generic refusal or cancel.
 
@@ -553,7 +569,10 @@ stream updates. For a buy sized by a quote amount, `QuoteUsed(baseScale)` and
 `QuoteUnspent(baseScale, quoteScale)` say how much of the amount the fills
 used, fee included, and how much was left; both report false until
 `FeeTotal.Qty` equals `CumQty`, because a fill's fee is recorded shortly
-after it executes. A quote-amount buy that spent its amount ends `filled`;
+after it executes. Each fill settles its quote rounded down to 18 decimals, so
+`CumNotional`, `CumQuote` and `QuoteUsed` are exactly what the fills settled
+when the pair's base quantity scale is at most 9; above that they can exceed
+the settled quote by less than 1e-18 per fill. A quote-amount buy that spent its amount ends `filled`;
 `market_remainder` and `ioc_remainder` cancels mean the book or the price
 limit stopped it first.
 
@@ -758,8 +777,9 @@ A market halt cancels the market's open orders with `CancelReason`
 `market_halted` and ends its open triggers with `CancelReason` `market_halted`.
 An order the halted market refuses after admission ends `REJECTED` with
 `RejectReason` `MARKET_HALTED`. A trigger it refuses after admission ends
-`failed`; its `FailureReason` reads `unknown(212)` until the server reports
-`market_halted`.
+`failed` with `FailureReason` `market_halted`, as do the attached legs of an
+order refused this way; a fire it refuses while the trigger stays live is a
+`fire_refused` event with `FireRefusalReason` `market_halted`.
 
 `Orders.Get(..., includeAttachedRisk)` returns policy data on
 `Order.AttachedRisk`. `Order` also exposes `PostOnly`. With
@@ -874,8 +894,13 @@ labels: `market_halted` or `post_only_cross` (it waits for the next price
 through its trigger price), `min_notional`, `min_quantity` or `step_size`
 (the order would have been below the market's minimum; it fires again once
 the position changes), `rate_limited` or `account_repairing` (it fires again
-shortly). `ChildSeq` is the refused attempt, so a later `fired` event names a
-higher one; `ChildOrderID` is empty. A refusal that ends the trigger is still
+shortly), or `self_trade_prevented` (self-trade prevention expired an
+attached exit's order against another of the account's resting orders; it
+fires again at a new trade at or beyond its trigger price, or once that order
+is gone or no longer at the best price). `ChildSeq` is the refused attempt, so
+a later `fired` event names a higher one. For `self_trade_prevented` that
+attempt placed an order, canceled with `stp_expire_taker` or
+`stp_expire_both`; for every other reason it placed none. A refusal that ends the trigger is still
 a `failed` event with `FailureReason`. `Triggers.ListEvents` filters on
 `fire_refused`, and an event type or reason newer than this SDK reads as
 `unknown(<n>)`.
@@ -954,6 +979,26 @@ for _, bal := range balances.Balances {
 		log.Fatal(err)
 	}
 	fmt.Println(funding, trading)
+}
+```
+
+`SubAccounts.Get` with `includeBalances` also returns the sub-account's
+current balances in `Balances`, in the same shape (nil when not asked). It
+needs the `READ_BALANCES` action on the sub-account, or fails with
+PermissionDenied (`AUTH_SUBACCOUNT_ACCESS_DENIED`); a root-scoped API key
+cannot read a sub-account's balances. When balances cannot be read right now
+it fails with `AUTH_TEMPORARILY_UNAVAILABLE`, which `errors.IsRetryable`
+reports.
+
+```go
+// account, subAccountID, includeAPIKeys, includeMembers, includeInvites,
+// includePolicy, includeBalances, invitesDirection
+view, err := client.SubAccounts.Get(ctx, nil, &subAccountID, false, false, false, false, true, "")
+if err != nil {
+	log.Fatal(err)
+}
+for _, bal := range view.Balances.Balances {
+	fmt.Println(bal.AssetID, bal.Available)
 }
 ```
 

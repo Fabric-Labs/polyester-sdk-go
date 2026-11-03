@@ -24,6 +24,10 @@ refused on either transport, and stop all automated trading in one call.
 - `errors.AuthErrorCode` returns only auth reasons (`AUTH_*`). It used to
   return any `*errors.APIError` code, such as an order `ERROR_CODE_*` or a
   Connect `not_found`; read `APIError.Code` for those.
+- `SubAccounts.Get` takes `includeBalances` again, after `includePolicy`:
+  `Get(ctx, account, subAccountID, includeAPIKeys, includeMembers,
+  includeInvites, includePolicy, includeBalances, invitesDirection)`. Pass
+  `false` to keep the previous behavior.
 
 ### Added
 - `client.Changelog` wraps the public `changelog.v1.ChangelogService`.
@@ -100,7 +104,35 @@ refused on either transport, and stop all automated trading in one call.
   a section covers. `ListChanges` refuses more than 10 surfaces before
   sending.
 
+- `SubAccounts.Get` with `includeBalances` returns the sub-account's current
+  balances in `GetSubaccountResult.Balances`, a `models.BalancesList` as
+  `Balances.List` returns. It is nil when not asked for. It needs the
+  `READ_BALANCES` action on the sub-account or fails with PermissionDenied;
+  when balances cannot be read right now it fails with the retryable
+  `AUTH_TEMPORARILY_UNAVAILABLE`.
+- `CreateOrderRequest.SelfTradePreventionMode` (`expire_maker`, the server
+  default, `expire_taker` or `expire_both`) on create, preview and batch
+  create. It applies to the order's attached take-profit, stop-loss and
+  trailing stop orders as well. An unknown mode is refused before sending.
+  `Order.SelfTradePreventionMode` reads it back, and a mode newer than this
+  SDK reads as `unknown(<n>)`.
+- Attached exits never trade with the order they protect: an order whose
+  exit fired while it still rested ends canceled with `CancelReason`
+  `attached_exit_fired`, and an exit order that self-trade prevention expired
+  against another of the account's resting orders is a `fire_refused` trigger
+  event with `FireRefusalReason` `self_trade_prevented`, whose `ChildSeq`
+  names that order; the leg stays armed. `RejectReason` and order error codes
+  read the new `SELF_TRADE_PREVENTED` code, which no request is answered with.
+
 ### Changed
+- A trigger the halted market refuses reads `FailureReason` (and a refused
+  fire `FireRefusalReason`) `market_halted` on servers on this contract; it
+  used to read `unknown(212)`. The SDK has no special case for 212, and any
+  unknown reason still reads as `unknown(<n>)`.
+- Docs: a buy sized by a quote amount takes attached risk (no SDK guard ever
+  refused it). `Order.CumNotional`, `CumQuote` and `QuoteUsed` are exact when
+  the pair's base quantity scale is at most 9, and can exceed the settled
+  quote by less than 1e-18 per fill above that.
 - A Connect API-key refusal with `AUTH_TIMESTAMP_SKEW` is the retryable
   `*errors.TimestampSkewError`, as the gateway's `TIMESTAMP_SKEW` answer is.
   The other API-key refusals (`AUTH_SIGNATURE_INVALID`, `AUTH_IP_NOT_ALLOWED`,
