@@ -208,11 +208,18 @@ const (
 	// attached take-profit, stop-loss or trailing stop waits for the next price
 	// through its trigger price, or, refused because its order would be below
 	// the market's minimums, waits until its position changes; a trigger
-	// refused for a rate limit or an account repair fires again shortly. Not
+	// refused for a rate limit or an account repair fires again shortly. An
+	// attached take-profit, stop-loss or trailing stop whose order self-trade
+	// prevention expired against another of the account's resting orders stays
+	// live too (TRIGGER_FAILURE_REASON_SELF_TRADE_PREVENTED), reported once
+	// while that order blocks it; it fires again at a new trade at or beyond its
+	// trigger price, or once the other order is no longer at the best price. Not
 	// terminal: the trigger keeps its
 	// status. child_seq names the refused attempt, which placed no child order,
 	// and fire_refusal_reason says why; the next fire takes the next child_seq.
-	// A refusal that ends the trigger is EVENT_FAILED instead.
+	// With TRIGGER_FAILURE_REASON_SELF_TRADE_PREVENTED, child_seq names the
+	// expired child order instead, which was placed and canceled by self-trade
+	// prevention. A refusal that ends the trigger is EVENT_FAILED instead.
 	TriggerEventType_EVENT_FIRE_REFUSED TriggerEventType = 7
 )
 
@@ -582,6 +589,13 @@ const (
 	// released. A price that reaches the trigger price after submission fires
 	// the trigger normally.
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_TRIGGER_WOULD_TRIGGER_IMMEDIATELY TriggerFailureReason = 244
+	// Self-trade prevention expired the order of an attached take-profit,
+	// stop-loss or trailing stop because it would have traded with another of
+	// the account's resting orders. Reported only as a fire refusal reason
+	// (EVENT_FIRE_REFUSED): the attached order stays active and fires again at a
+	// new trade at or beyond its trigger price, or once the other order is no
+	// longer at the best price.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_SELF_TRADE_PREVENTED TriggerFailureReason = 249
 	// The terminal state did not contain a failure reason.
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_MISSING_REASON_CODE TriggerFailureReason = 998
 	// An internal invariant or processing failure caused the trigger to fail.
@@ -685,6 +699,7 @@ var (
 		239: "TRIGGER_FAILURE_REASON_ACCOUNT_REPAIRING",
 		241: "TRIGGER_FAILURE_REASON_INDEX_PRICE_UNAVAILABLE",
 		244: "TRIGGER_FAILURE_REASON_TRIGGER_WOULD_TRIGGER_IMMEDIATELY",
+		249: "TRIGGER_FAILURE_REASON_SELF_TRADE_PREVENTED",
 		998: "TRIGGER_FAILURE_REASON_MISSING_REASON_CODE",
 		999: "TRIGGER_FAILURE_REASON_INTERNAL_ERROR",
 	}
@@ -783,6 +798,7 @@ var (
 		"TRIGGER_FAILURE_REASON_ACCOUNT_REPAIRING":                 239,
 		"TRIGGER_FAILURE_REASON_INDEX_PRICE_UNAVAILABLE":           241,
 		"TRIGGER_FAILURE_REASON_TRIGGER_WOULD_TRIGGER_IMMEDIATELY": 244,
+		"TRIGGER_FAILURE_REASON_SELF_TRADE_PREVENTED":              249,
 		"TRIGGER_FAILURE_REASON_MISSING_REASON_CODE":               998,
 		"TRIGGER_FAILURE_REASON_INTERNAL_ERROR":                    999,
 	}
@@ -4625,7 +4641,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"-TRIGGER_CANCEL_REASON_PAIR_DRAIN_ATTACHED_LEG\x10\f\x12'\n" +
 	"#TRIGGER_CANCEL_REASON_MARKET_HALTED\x10\r\x12.\n" +
 	")TRIGGER_CANCEL_REASON_MISSING_REASON_CODE\x10\xe6\a\x12)\n" +
-	"$TRIGGER_CANCEL_REASON_INTERNAL_ERROR\x10\xe7\a*\xf7$\n" +
+	"$TRIGGER_CANCEL_REASON_INTERNAL_ERROR\x10\xe7\a*\xa9%\n" +
 	"\x14TriggerFailureReason\x12&\n" +
 	"\"TRIGGER_FAILURE_REASON_UNSPECIFIED\x10\x00\x12)\n" +
 	"%TRIGGER_FAILURE_REASON_UNKNOWN_SYMBOL\x10\x01\x12(\n" +
@@ -4721,7 +4737,8 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"/TRIGGER_FAILURE_REASON_ORDER_LIMITS_UNAVAILABLE\x10\xee\x01\x12-\n" +
 	"(TRIGGER_FAILURE_REASON_ACCOUNT_REPAIRING\x10\xef\x01\x123\n" +
 	".TRIGGER_FAILURE_REASON_INDEX_PRICE_UNAVAILABLE\x10\xf1\x01\x12=\n" +
-	"8TRIGGER_FAILURE_REASON_TRIGGER_WOULD_TRIGGER_IMMEDIATELY\x10\xf4\x01\x12/\n" +
+	"8TRIGGER_FAILURE_REASON_TRIGGER_WOULD_TRIGGER_IMMEDIATELY\x10\xf4\x01\x120\n" +
+	"+TRIGGER_FAILURE_REASON_SELF_TRADE_PREVENTED\x10\xf9\x01\x12/\n" +
 	"*TRIGGER_FAILURE_REASON_MISSING_REASON_CODE\x10\xe6\a\x12*\n" +
 	"%TRIGGER_FAILURE_REASON_INTERNAL_ERROR\x10\xe7\a*l\n" +
 	"\x12LadderDistribution\x12#\n" +
