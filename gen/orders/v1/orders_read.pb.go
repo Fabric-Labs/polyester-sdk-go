@@ -26,7 +26,8 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// OrderStatus is specific to the read API (write API uses simple "accepted" status string).
+// OrderStatus describes the order's execution lifecycle state on read surfaces.
+// CreateOrder acknowledges admission without returning execution status.
 type OrderStatus int32
 
 const (
@@ -119,14 +120,17 @@ const (
 	// (max_quote_debit_scaled) that spends that amount, so that what is left
 	// buys no further quantity step, ends FILLED instead.
 	CancelReason_CANCEL_REASON_MARKET_REMAINDER CancelReason = 3
-	// Self-trade prevention canceled this resting order when an order of the
-	// same account would have matched it.
+	// Self-trade prevention canceled this resting order when an incoming order
+	// belonging to the same root account, including another subaccount of that
+	// root, would have matched it.
 	CancelReason_CANCEL_REASON_STP_EXPIRE_MAKER CancelReason = 4
 	// Self-trade prevention canceled this incoming order instead of matching a
-	// resting order of the same account.
+	// resting order belonging to the same root account, including another
+	// subaccount of that root.
 	CancelReason_CANCEL_REASON_STP_EXPIRE_TAKER CancelReason = 5
-	// Self-trade prevention canceled both this order and the order of the same
-	// account it would have matched.
+	// Self-trade prevention canceled both this order and the order belonging to
+	// the same root account, including another subaccount of that root, that it
+	// would have matched.
 	CancelReason_CANCEL_REASON_STP_EXPIRE_BOTH CancelReason = 6
 	// A replace ended this order and created its successor.
 	CancelReason_CANCEL_REASON_REPLACED CancelReason = 7
@@ -1150,9 +1154,9 @@ type Order struct {
 	MarketMaxSlippageBps int32 `protobuf:"varint,25,opt,name=market_max_slippage_bps,json=marketMaxSlippageBps,proto3" json:"market_max_slippage_bps,omitempty"`
 	// Per-order state version: 0 while the order is accepted but not yet on
 	// the book (status PENDING), then 1 from its first book state and higher
-	// for every later published state change. A higher version is always
-	// newer, and two copies of an order with the same version are identical,
-	// so use this field to reconcile API and realtime updates.
+	// for every later published execution-state change. Higher values identify
+	// newer execution state. Fee totals and requested enrichments are not covered
+	// by this version and may differ between responses with the same version.
 	Version uint32 `protobuf:"varint,26,opt,name=version,proto3" json:"version,omitempty"`
 	// Batch-replace identity that admitted this order. Zero for other origins.
 	BatchRequestId uint64 `protobuf:"fixed64,27,opt,name=batch_request_id,json=batchRequestId,proto3" json:"batch_request_id,omitempty"`
@@ -1764,7 +1768,9 @@ func (x *OrderTransfer) GetTxId() string {
 // GetOpenOrdersRequest lists currently non-terminal orders for an account.
 type GetOpenOrdersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Target sub-account numeric ID. When omitted, uses caller's root account.
+	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
+	// use their bound subaccount; other callers use their authenticated root
+	// account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Optional filter by symbol_id values. Empty means all symbols.
 	SymbolId []uint32 `protobuf:"varint,2,rep,packed,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
@@ -1931,7 +1937,9 @@ func (x *GetOpenOrdersResponse) GetNextPageToken() string {
 // GetOrderHistoryRequest lists terminal orders for an account.
 type GetOrderHistoryRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Target sub-account numeric ID. When omitted, uses caller's root account.
+	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
+	// use their bound subaccount; other callers use their authenticated root
+	// account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Optional filter by symbol_id values. Empty means all symbols.
 	SymbolId []uint32 `protobuf:"varint,2,rep,packed,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
@@ -2127,7 +2135,9 @@ func (x *GetOrderHistoryResponse) GetNextPageToken() string {
 // GetUserTradesRequest lists trade fills for an account.
 type GetUserTradesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Target sub-account numeric ID. When omitted, uses caller's root account.
+	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
+	// use their bound subaccount; other callers use their authenticated root
+	// account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Optional filter by symbol_id.
 	SymbolId uint32 `protobuf:"varint,2,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
@@ -2376,7 +2386,9 @@ func (x *GetUserTradesResponse) GetTransfers() []*OrderTransfer {
 // GetOrderRequest retrieves one physical order and a bounded page of its lineage executions.
 type GetOrderRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Target sub-account numeric ID. When omitted, uses caller's root account.
+	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
+	// use their bound subaccount; other callers use their authenticated root
+	// account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Order lookup key. Exactly one identifier is required.
 	//
@@ -2614,7 +2626,9 @@ func (x *GetOrderResponse) GetExecutionsComplete() bool {
 // unavailable, reconcile the individual orders; absence does not prove rejection.
 type GetBatchReplaceStatusRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Target sub-account numeric ID. When omitted, uses caller's root account.
+	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
+	// use their bound subaccount; other callers use their authenticated root
+	// account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Server-issued batch identity from BatchReplaceOrders.
 	BatchRequestId uint64 `protobuf:"fixed64,2,opt,name=batch_request_id,json=batchRequestId,proto3" json:"batch_request_id,omitempty"`
@@ -2936,7 +2950,7 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"amount_e18\x18\x01 \x01(\v2\x17.polyester.type.v1.U128R\tamountE18\x12\x1b\n" +
 	"\tis_rebate\x18\x02 \x01(\bR\bisRebate\x12\x1d\n" +
 	"\n" +
-	"qty_scaled\x18\x03 \x01(\x03R\tqtyScaled\"\x9e\x0e\n" +
+	"qty_scaled\x18\x03 \x01(\x03R\tqtyScaled\"\xc7\r\n" +
 	"\x05Order\x12\x19\n" +
 	"\border_id\x18\x01 \x01(\x06R\aorderId\x12\x1b\n" +
 	"\tsymbol_id\x18\x03 \x01(\rR\bsymbolId\x12D\n" +
@@ -2975,9 +2989,7 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	" submitted_max_quote_debit_scaled\x18\x1c \x01(\x03H\x00R\x1csubmittedMaxQuoteDebitScaled\x88\x01\x01\x121\n" +
 	"\alineage\x18\x1f \x01(\v2\x17.orders.v1.OrderLineageR\alineage\x127\n" +
 	"\texpire_at\x18  \x01(\v2\x1a.google.protobuf.TimestampR\bexpireAtB#\n" +
-	"!_submitted_max_quote_debit_scaledJ\x04\b\x12\x10\x13J\x04\b\x13\x10\x14J\x04\b\x1d\x10\x1eJ\x04\b\x1e\x10\x1fR\x14terminal_reason_codeR\x0fterminal_reasonR\n" +
-	"lineage_idR\n" +
-	"generation\"\xbd\x04\n" +
+	"!_submitted_max_quote_debit_scaled\"\x99\x04\n" +
 	"\tUserTrade\x12\x1b\n" +
 	"\tsymbol_id\x18\x02 \x01(\rR\bsymbolId\x12\x19\n" +
 	"\bmatch_id\x18\x03 \x01(\x04R\amatchId\x12\x19\n" +
@@ -2994,9 +3006,7 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\x19referral_share_amount_e18\x18\f \x01(\v2\x17.polyester.type.v1.U128R\x16referralShareAmountE18\x12\x13\n" +
 	"\x05ts_ns\x18\r \x01(\x04R\x04tsNs\x12\"\n" +
 	"\rfee_is_rebate\x18\x0e \x01(\bR\vfeeIsRebate\x121\n" +
-	"\alineage\x18\x11 \x01(\v2\x17.orders.v1.OrderLineageR\alineageJ\x04\b\x0f\x10\x10J\x04\b\x10\x10\x11R\n" +
-	"lineage_idR\n" +
-	"generation\">\n" +
+	"\alineage\x18\x11 \x01(\v2\x17.orders.v1.OrderLineageR\alineage\">\n" +
 	"\x0eUserTradeBatch\x12,\n" +
 	"\x06events\x18\x01 \x03(\v2\x14.orders.v1.UserTradeR\x06events\"\xd8\x02\n" +
 	"\rOrderTransfer\x12\x19\n" +

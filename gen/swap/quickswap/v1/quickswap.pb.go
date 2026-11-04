@@ -3404,9 +3404,9 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\tquoted_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\bquotedAt\x129\n" +
 	"\n" +
 	"expires_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\x98\x01\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"0\n" +
 	"\tScreening\x12#\n" +
-	"\rsource_wallet\x18\x02 \x01(\tR\fsourceWalletJ\x04\b\x01\x10\x02J\x04\b\x03\x10\bR\x04modeR\fwallet_stateR\rdeposit_stateR\x19observed_source_addressesR\x0fsource_mismatchR\vscreened_at\"\xb6\x03\n" +
+	"\rsource_wallet\x18\x02 \x01(\tR\fsourceWallet\"\xb6\x03\n" +
 	"\x13DepositInstructions\x12\x18\n" +
 	"\aaddress\x18\x01 \x01(\tR\aaddress\x12\x12\n" +
 	"\x04memo\x18\x02 \x01(\tR\x04memo\x12&\n" +
@@ -3415,7 +3415,7 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\x12funding_expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x10fundingExpiresAt\x12H\n" +
 	"\x12address_retires_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x10addressRetiresAt\x12K\n" +
 	"\raddress_state\x18\a \x01(\x0e2&.swap.quickswap.v1.DepositAddressStateR\faddressState\x12/\n" +
-	"\x14min_native_gas_limit\x18\b \x01(\x04R\x11minNativeGasLimit\"\xec\x04\n" +
+	"\x14min_native_gas_limit\x18\b \x01(\x04R\x11minNativeGasLimit\"\xbd\x04\n" +
 	"\aDeposit\x12\x14\n" +
 	"\x05index\x18\x01 \x01(\rR\x05index\x12\x17\n" +
 	"\atx_hash\x18\x02 \x01(\tR\x06txHash\x12.\n" +
@@ -3431,7 +3431,7 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"detectedAt\x12;\n" +
 	"\vcredited_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"creditedAt\x12\x17\n" +
-	"\aflow_id\x18\x0e \x01(\tR\x06flowIdJ\x04\b\x06\x10\aJ\x04\b\a\x10\bR\x10source_addressesR\x0fscreening_state\"\xb7\x04\n" +
+	"\aflow_id\x18\x0e \x01(\tR\x06flowId\"\xb7\x04\n" +
 	"\x11ExecutionProgress\x12A\n" +
 	"\finput_amount\x18\x01 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\vinputAmount\x12E\n" +
 	"\x0eexecuted_input\x18\x02 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\rexecutedInput\x12C\n" +
@@ -3461,7 +3461,7 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\fsubmitted_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\vsubmittedAt\x12=\n" +
 	"\ffinalized_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\vfinalizedAt\x12\x17\n" +
 	"\aflow_id\x18\r \x01(\tR\x06flowId\x12C\n" +
-	"\runsent_amount\x18\x0e \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\funsentAmount\"\xda\v\n" +
+	"\runsent_amount\x18\x0e \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\funsentAmount\"\xa8\v\n" +
 	"\tQuickSwap\x12\x17\n" +
 	"\aswap_id\x18\x01 \x01(\x06R\x06swapId\x12'\n" +
 	"\x0fidempotency_key\x18\x02 \x01(\tR\x0eidempotencyKey\x12:\n" +
@@ -3497,8 +3497,7 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\aversion\x18\x1a \x01(\x04R\aversion\x120\n" +
 	"\x14fee_schedule_version\x18\x1c \x01(\x04R\x12feeScheduleVersion\x124\n" +
 	"\x04fees\x18\x1d \x01(\v2 .swap.quickswap.v1.RequestedFeesR\x04fees\x12@\n" +
-	"\fcharged_fees\x18\x1e \x03(\v2\x1d.swap.quickswap.v1.ChargedFeeR\vchargedFeesJ\x04\b\x13\x10\x14J\x04\b\x1b\x10\x1cR\x18capacity_wait_expires_atR\n" +
-	"affiliates\"q\n" +
+	"\fcharged_fees\x18\x1e \x03(\v2\x1d.swap.quickswap.v1.ChargedFeeR\vchargedFees\"q\n" +
 	"\rRequestedFees\x12\x1d\n" +
 	"\n" +
 	"broker_bps\x18\x01 \x01(\rR\tbrokerBps\x12A\n" +
@@ -3588,7 +3587,7 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\bELIGIBLE\x10\x02\x12\x0f\n" +
 	"\vRETURN_ONLY\x10\x03\x12\v\n" +
 	"\aON_HOLD\x10\x04\x12\x13\n" +
-	"\x0fMANUAL_RECOVERY\x10\x05*\xd9\x05\n" +
+	"\x0fMANUAL_RECOVERY\x10\x05*\x90\x04\n" +
 	"\x0fQuickSwapReason\x12\x16\n" +
 	"\x12REASON_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17SOURCE_SCREENING_FAILED\x10\x01\x12\x18\n" +
@@ -3608,9 +3607,7 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\x1cDEPOSIT_ADDRESS_ALREADY_USED\x10\x17\x12\x1b\n" +
 	"\x17DEPOSIT_ADDRESS_RETIRED\x10\x18\x12\x1e\n" +
 	"\x1aDEPOSIT_ADDRESS_NOT_ISSUED\x10\x19\x12\x1e\n" +
-	"\x1aINTERMEDIATE_BELOW_MINIMUM\x10\x1a\"\x04\b\x02\x10\x02\"\x04\b\x03\x10\x03\"\x04\b\x05\x10\x05\"\x04\b\x06\x10\x06\"\x04\b\n" +
-	"\x10\n" +
-	"\"\x04\b\x0e\x10\x0e\"\x04\b\x12\x10\x12\"\x04\b\x13\x10\x13*\x0fSOURCE_MISMATCH*\x10SOURCE_AMBIGUOUS*\x15CAPACITY_WAIT_EXPIRED*\x14PREPARATION_RETRYING*\x12ADDITIONAL_DEPOSIT*\x13CANCELLED_BY_BROKER*\x0eRETURN_BLOCKED*\x0eAFTER_DELETION*O\n" +
+	"\x1aINTERMEDIATE_BELOW_MINIMUM\x10\x1a*O\n" +
 	"\x0eWithdrawalRole\x12\x14\n" +
 	"\x10ROLE_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vDESTINATION\x10\x01\x12\n" +
@@ -3626,7 +3623,7 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\tFINALIZED\x10\x03\x12\n" +
 	"\n" +
 	"\x06FAILED\x10\x04\x12\f\n" +
-	"\bNOT_SENT\x10\x05*\xbf\x02\n" +
+	"\bNOT_SENT\x10\x05*\x9d\x02\n" +
 	"\x0fQuickSwapStatus\x12\x16\n" +
 	"\x12STATUS_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -3647,7 +3644,7 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\tCOMPLETED\x10\r\x12\f\n" +
 	"\bREFUNDED\x10\x0e\x12\f\n" +
 	"\bRETURNED\x10\x0f\x12\v\n" +
-	"\aEXPIRED\x10\x10\"\x04\b\x01\x10\x01\"\x04\b\x11\x10\x11*\tSCREENING*\tCANCELLED*\xbf\x06\n" +
+	"\aEXPIRED\x10\x10*\xd0\x05\n" +
 	"\tErrorCode\x12\x15\n" +
 	"\x11ERROR_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11ROUTE_UNSUPPORTED\x10\x01\x12\x17\n" +
@@ -3679,9 +3676,7 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\x10INVITE_NOT_FOUND\x10\x1f\x12\x10\n" +
 	"\fFEES_INVALID\x10 \x12\x14\n" +
 	"\x10STATS_INCOMPLETE\x10!\x12\x14\n" +
-	"\x10ADDRESS_CONFLICT\x10\"\"\x04\b\t\x10\t\"\x04\b\n" +
-	"\x10\n" +
-	"\"\x04\b\x10\x10\x10\"\x04\b\x11\x10\x11*\x19SOURCE_SCREENING_REJECTED*\x15SCREENING_UNAVAILABLE*\x0fNOT_CANCELLABLE*\x12AFFILIATES_INVALID2\xd1\x05\n" +
+	"\x10ADDRESS_CONFLICT\x10\"2\xd1\x05\n" +
 	"\x10QuickSwapService\x12\xdf\x01\n" +
 	"\x0eQuoteQuickSwap\x12(.swap.quickswap.v1.QuoteQuickSwapRequest\x1a).swap.quickswap.v1.QuoteQuickSwapResponse\"x\xbaGp\n" +
 	"\tQuickSwap\x12\x0fQuote QuickSwap\x1a:Price QuickSwap terms without reserving a deposit address.Z\x16\n" +

@@ -2214,7 +2214,7 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\x10account_selector\"\x80\x01\n" +
 	"\x11ListFlowsResponse\x129\n" +
 	"\x05flows\x18\x01 \x03(\v2#.chain.lifecycle.v1.FlowSummaryViewR\x05flows\x120\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xb5\b\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\x98\b\n" +
 	"\x0fFlowTxMatchView\x12\x17\n" +
 	"\aflow_id\x18\x01 \x01(\tR\x06flowId\x129\n" +
 	"\tflow_kind\x18\x03 \x01(\x0e2\x1c.chain.lifecycle.v1.FlowKindR\bflowKind\x12$\n" +
@@ -2238,11 +2238,11 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\x18last_activity_at_unix_ms\x18\x12 \x01(\x04R\x14lastActivityAtUnixMs\x12(\n" +
 	"\x10owner_account_id\x18\x13 \x01(\x06R\x0eownerAccountId\x122\n" +
 	"\x15smart_account_address\x18\x14 \x01(\tR\x13smartAccountAddress\x12I\n" +
-	"\rzipper_reason\x18\x15 \x01(\v2$.chain.zipper.v1.ZipperReasonDetailsR\fzipperReasonR\vreason_codeR\x0ereason_details\"\xa1\x01\n" +
+	"\rzipper_reason\x18\x15 \x01(\v2$.chain.zipper.v1.ZipperReasonDetailsR\fzipperReason\"\xa1\x01\n" +
 	"\x15ListFlowsByTxResponse\x12\x17\n" +
 	"\atx_hash\x18\x01 \x01(\tR\x06txHash\x12=\n" +
 	"\amatches\x18\x02 \x03(\v2#.chain.lifecycle.v1.FlowTxMatchViewR\amatches\x120\n" +
-	"\x0fnext_page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xad\r\n" +
+	"\x0fnext_page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\x90\r\n" +
 	"\x0fFlowSummaryView\x12(\n" +
 	"\x10owner_account_id\x18\x01 \x01(\x06R\x0eownerAccountId\x12@\n" +
 	"\x15smart_account_address\x18\" \x01(\tB\f\xbaH\t\xd8\x01\x01r\x04\x88\xb5\x18\x01R\x13smartAccountAddress\x12\x17\n" +
@@ -2277,7 +2277,7 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\x11progress_timeline\x18\x1a \x03(\v2(.chain.lifecycle.v1.FlowTimelineItemViewR\x10progressTimeline\x12?\n" +
 	"\x1cestimated_completion_unix_ms\x18\x1b \x01(\x04R\x19estimatedCompletionUnixMs\x12\x1d\n" +
 	"\n" +
-	"is_delayed\x18$ \x01(\bR\tisDelayedR\vreason_codeR\x0ereason_details\"\xe5\x03\n" +
+	"is_delayed\x18$ \x01(\bR\tisDelayed\"\xe5\x03\n" +
 	"\x17FlowSummaryProgressView\x12C\n" +
 	"\x1fcurrent_step_started_at_unix_ms\x18\x01 \x01(\x04R\x1acurrentStepStartedAtUnixMs\x12H\n" +
 	"!current_step_expected_duration_ms\x18\x02 \x01(\x04R\x1dcurrentStepExpectedDurationMs\x123\n" +
@@ -2288,7 +2288,7 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\x0fvalidator_count\x18\t \x01(\rR\x0evalidatorCount\x12-\n" +
 	"\x12required_approvals\x18\n" +
 	" \x01(\rR\x11requiredApprovals\x12/\n" +
-	"\x13required_rejections\x18\v \x01(\rR\x12requiredRejections\"\x99\t\n" +
+	"\x13required_rejections\x18\v \x01(\rR\x12requiredRejections\"\xfc\b\n" +
 	"\fFlowStepView\x12\x1a\n" +
 	"\bsequence\x18\x01 \x01(\rR\bsequence\x120\n" +
 	"\x04step\x18\x03 \x01(\x0e2\x1c.chain.lifecycle.v1.FlowStepR\x04step\x129\n" +
@@ -2314,7 +2314,7 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\x1cblock_time_moving_average_ms\x18\x14 \x01(\x04R\x18blockTimeMovingAverageMs\x12H\n" +
 	"\n" +
 	"activities\x18\x15 \x03(\v2(.chain.lifecycle.v1.FlowStepActivityViewR\n" +
-	"activitiesR\vreason_codeR\x0ereason_details\"\x81\a\n" +
+	"activities\"\xe4\x06\n" +
 	"\x14FlowStepActivityView\x12\x1a\n" +
 	"\bsequence\x18\x01 \x01(\rR\bsequence\x12\x15\n" +
 	"\x06tx_ref\x18\x02 \x01(\tR\x05txRef\x12\x1e\n" +
@@ -2334,7 +2334,7 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\x13required_rejections\x18\r \x01(\rR\x12requiredRejections\x126\n" +
 	"\n" +
 	"amount_e18\x18\x0e \x01(\v2\x17.polyester.type.v1.U128R\tamountE18\x12,\n" +
-	"\x12ledger_transfer_id\x18\x0f \x01(\tR\x10ledgerTransferIdR\vreason_codeR\x0ereason_details\"\xd6\x01\n" +
+	"\x12ledger_transfer_id\x18\x0f \x01(\tR\x10ledgerTransferId\"\xd6\x01\n" +
 	"\x14FlowTimelineItemView\x12\x1a\n" +
 	"\bsequence\x18\x01 \x01(\rR\bsequence\x120\n" +
 	"\x04step\x18\x02 \x01(\x0e2\x1c.chain.lifecycle.v1.FlowStepR\x04step\x12>\n" +

@@ -138,7 +138,8 @@ func (OrderType) EnumDescriptor() ([]byte, []int) {
 type TimeInForce int32
 
 const (
-	// Time-in-force was not provided; create requests default to GTC.
+	// Time-in-force was not provided. Create requests must select an execution
+	// variant, which determines time-in-force.
 	TimeInForce_TIME_IN_FORCE_UNSPECIFIED TimeInForce = 0
 	// Good-til-canceled.
 	TimeInForce_GTC TimeInForce = 1
@@ -383,7 +384,7 @@ const (
 	// API key policy does not allow trading this market, even though the
 	// sub-account policy does.
 	ErrorCode_ERROR_CODE_API_KEY_MARKET_DENY ErrorCode = 29
-	// Price must align with the pair tick size (LIMIT orders).
+	// Price must align with the pair tick size, including trigger and activation prices.
 	ErrorCode_ERROR_CODE_PRICE_TICK_SIZE ErrorCode = 30
 	// Quantity is below the pair minimum quantity (base units).
 	ErrorCode_ERROR_CODE_MIN_QTY ErrorCode = 31
@@ -788,12 +789,16 @@ const (
 	// back in line, so new orders, changes and trigger orders are paused for a
 	// short time. Nothing changed; cancels still work. Try again shortly.
 	ErrorCode_ERROR_CODE_ACCOUNT_REPAIRING ErrorCode = 300
-	// The new trigger price of a stop-loss or take-profit is already reached by
-	// the price the trigger watches (at or past it), so the trigger would fire at
-	// once and send its order. Nothing changed; the trigger keeps its previous
-	// trigger price. Returned by ModifyTrigger, and by an order modify that moves
-	// an attached take-profit or stop-loss of an order with a fill. Choose a
-	// trigger price the market has not reached.
+	// The change would act on the trigger at once. The new trigger price of a
+	// stop-loss or take-profit, or the trigger price a new trailing distance
+	// gives an activated trailing stop, is already reached by the price the
+	// trigger watches (at or past it), so the trigger would fire at once and send
+	// its order; or the new activation price of a trailing stop not yet
+	// activated is already reached by that price, so it would activate at once.
+	// Nothing changed; the trigger keeps its previous settings. Returned by
+	// ModifyTrigger, and by an order modify that moves an attached take-profit,
+	// stop-loss or trailing stop of an order with a fill. Choose a price the
+	// market has not reached.
 	ErrorCode_ERROR_CODE_TRIGGER_WOULD_TRIGGER_IMMEDIATELY ErrorCode = 302
 	// The order was sent but not confirmed in time. Its outcome is unknown and
 	// it may have been accepted; read the order by its client order ID, or read
@@ -819,9 +824,10 @@ const (
 	// Self-trade prevention expired the order of an attached take-profit,
 	// stop-loss or trailing stop because it would have traded with another of
 	// the account's resting orders. It is reported as the trigger's fire refusal
-	// reason, never as the answer to a request: the attached order stays active
-	// and fires again at a new trade at or beyond its trigger price, or once the
-	// other order is no longer at the best price.
+	// reason, never as the answer to a request: the attached order stays active.
+	// New trades and price updates do not fire it while the other order is first
+	// in line at the best price; once that order is gone or no longer first
+	// there, it fires again if its trigger condition still holds.
 	ErrorCode_ERROR_CODE_SELF_TRADE_PREVENTED ErrorCode = 307
 	// The order already carries every attached leg it may hold, so another
 	// attached leg was refused. Legs being cancelled count until they end:
@@ -2455,7 +2461,9 @@ func (*OrderIntent_LimitGtd) isOrderIntent_Execution() {}
 // back before retrying. UNAVAILABLE means the order was not accepted.
 type CreateOrderRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Target sub-account numeric ID. When omitted, uses caller's root account.
+	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
+	// use their bound subaccount; other callers use their authenticated root
+	// account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Order to admit.
 	Order         *OrderIntent `protobuf:"bytes,2,opt,name=order,proto3" json:"order,omitempty"`
@@ -2635,7 +2643,9 @@ func (x *CreateOrderResponse) GetTrailingStopTriggerId() uint64 {
 // creates no order, hold, reservation, or client-order-ID claim.
 type PreviewOrderRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Target sub-account numeric ID. When omitted, uses caller's root account.
+	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
+	// use their bound subaccount; other callers use their authenticated root
+	// account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Order intent to evaluate without submitting it.
 	Order         *OrderIntent `protobuf:"bytes,2,opt,name=order,proto3" json:"order,omitempty"`
@@ -2794,7 +2804,9 @@ type CancelOrderRequest struct {
 	// reported ended (ERROR_CODE_ORDER_ALREADY_TERMINAL). When omitted, the
 	// order's own symbol is used.
 	SymbolId uint32 `protobuf:"varint,3,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
-	// Target sub-account numeric ID. When omitted, uses caller's root account.
+	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
+	// use their bound subaccount; other callers use their authenticated root
+	// account.
 	SubaccountId  *uint64 `protobuf:"fixed64,4,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -3428,11 +3440,12 @@ type TrailingStopPolicy struct {
 	//	*TrailingStopPolicy_TrailingDistanceTicks
 	//	*TrailingStopPolicy_TrailingDistanceBps
 	TrailingDistance isTrailingStopPolicy_TrailingDistance `protobuf_oneof:"trailing_distance"`
-	// Optional price protection. If set, when the trailing stop triggers we place
-	// an IOC LIMIT order at stop_price ± max_slippage (instead of an unprotected
-	// MARKET order).
-	//
-	// Exactly one of these should be set (or neither for unprotected behavior).
+	// Optional slippage override for the trailing-stop child. When set, the
+	// child uses an IOC limit bounded by this delta from the trigger price and,
+	// for a buy, by limit_price_ticks. When omitted, a market child uses the
+	// pair's default market slippage for its side, or 200 basis points if no
+	// positive default is configured. A buy child remains bounded by
+	// limit_price_ticks. Set at most one of these fields.
 	//
 	// Types that are valid to be assigned to MaxSlippage:
 	//
@@ -3761,7 +3774,9 @@ func (*RiskPolicy_TrailingStop) isRiskPolicy_StopLeg() {}
 // attached legs, and how to stop them too.
 type CancelAllOrdersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Target sub-account numeric ID. When omitted, uses caller's root account.
+	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
+	// use their bound subaccount; other callers use their authenticated root
+	// account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Optional trading-pair IDs from GetSpotConfig. Empty matches all symbols.
 	// At most 100 positive IDs; duplicates are ignored and ordering is immaterial.
@@ -3913,9 +3928,10 @@ type CancelAllOrdersResponse struct {
 	// counted. Orders placed after acceptance are not counted. Unless
 	// `dry_run` is set, equals `submitted_cancels` plus `failed_cancels`.
 	MatchedOrders uint32 `protobuf:"varint,2,opt,name=matched_orders,json=matchedOrders,proto3" json:"matched_orders,omitempty"`
-	// Number of matched orders submitted for cancellation, including orders
-	// whose cancellation was already in progress. Each moves to `CANCELED`
-	// asynchronously after the response. Zero when `dry_run` is set.
+	// Number of matched orders for which cancellation was requested, including
+	// orders whose cancellation was already in progress. Observe order updates or
+	// reads for final outcomes; orders may execute before cancellation takes
+	// effect. Zero when `dry_run` is set.
 	SubmittedCancels uint32 `protobuf:"varint,3,opt,name=submitted_cancels,json=submittedCancels,proto3" json:"submitted_cancels,omitempty"`
 	// Number of matched orders that could not be submitted for cancellation
 	// because the cancel-all could not be recorded for their symbol. This
@@ -4054,7 +4070,9 @@ func (x *CancelAllOrdersResponse) GetListingStatus() CancelAllOrdersResponse_Lis
 // scope cancels: open orders, never triggers. See CancelAllAfter.
 type CancelAllAfterRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Target sub-account numeric ID. When omitted, uses caller's root account.
+	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
+	// use their bound subaccount; other callers use their authenticated root
+	// account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Heartbeat timeout in seconds.
 	// - 0 disables the dead-man switch for this account.
@@ -4536,7 +4554,9 @@ func (*BatchCreateResultItem_Rejected) isBatchCreateResultItem_Outcome() {}
 // BatchCreateOrdersRequest places multiple orders in one request.
 type BatchCreateOrdersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Target sub-account numeric ID. When omitted, uses caller's root account.
+	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
+	// use their bound subaccount; other callers use their authenticated root
+	// account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Required account-scoped idempotency key for the entire ordered batch.
 	// Reusing it with the same payload within 15 minutes returns each decided
@@ -4691,7 +4711,9 @@ func (x *BatchCreateOrdersResponse) GetTsNs() uint64 {
 // ModifyOrderRequest updates an existing order using policy-driven amend/replace behavior.
 type ModifyOrderRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Target sub-account numeric ID. When omitted, uses caller's root account.
+	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
+	// use their bound subaccount; other callers use their authenticated root
+	// account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Target key.
 	//
@@ -5226,7 +5248,9 @@ func (x *BatchReplaceAdmissionItem) GetActionTaken() ModifyActionTaken {
 // a different payload under the same key conflicts. Use a fresh key for a new batch.
 type BatchReplaceOrdersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Target sub-account numeric ID. When omitted, uses caller's root account.
+	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
+	// use their bound subaccount; other callers use their authenticated root
+	// account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Trading symbol shared by every replacement. An item whose order is on
 	// another symbol is refused alone as an unknown order.
@@ -5548,7 +5572,9 @@ func (x *BatchCancelResultItem) GetError() *ErrorDetail {
 // BatchCancelOrdersRequest cancels multiple orders by explicit ID.
 type BatchCancelOrdersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Target sub-account numeric ID. When omitted, uses caller's root account.
+	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
+	// use their bound subaccount; other callers use their authenticated root
+	// account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Idempotency key (required).
 	RequestId string `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
@@ -6058,7 +6084,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"&SELF_TRADE_PREVENTION_MODE_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fEXPIRE_MAKER\x10\x01\x12\x10\n" +
 	"\fEXPIRE_TAKER\x10\x02\x12\x0f\n" +
-	"\vEXPIRE_BOTH\x10\x03*\x9d=\n" +
+	"\vEXPIRE_BOTH\x10\x03*\xf3<\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16ERROR_CODE_BAD_REQUEST\x10\x01\x12\x1f\n" +
@@ -6256,7 +6282,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\"ERROR_CODE_CONDITION_FLAGS_INVALID\x10[\x12&\n" +
 	"\"ERROR_CODE_CONDITION_PARAMETER_SET\x10\\\x12$\n" +
 	" ERROR_CODE_TWAP_CAPACITY_REACHED\x10]\x12'\n" +
-	"#ERROR_CODE_CHILD_ORDER_INCONSISTENT\x10^\"\x04\b,\x10,*\"ERROR_CODE_TRIGGER_CANCEL_REJECTED*k\n" +
+	"#ERROR_CODE_CHILD_ORDER_INCONSISTENT\x10^*k\n" +
 	"\x12TriggerPriceSource\x12$\n" +
 	" TRIGGER_PRICE_SOURCE_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +

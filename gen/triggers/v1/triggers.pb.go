@@ -115,11 +115,11 @@ const (
 	// Trigger was canceled. The cancel reason states why, for example a user
 	// request or another attached leg's exit closing its parent's position. A
 	// ladder is canceled when the ladder itself is canceled. A ladder whose
-	// child orders were canceled with none filled, for example one by one, with
-	// a cancel-all or by the dead man's switch, is canceled too, with a user
+	// child orders the user canceled with none filled, one by one, with a
+	// cancel-all or by the dead man's switch, is canceled too, with a user
 	// request reason, once none of them remains open. A ladder whose child
-	// orders were canceled only by self-trade prevention, with none filled,
-	// completes instead.
+	// orders were canceled only by self-trade prevention, or by the exchange
+	// while it recovered the account, with none filled, completes instead.
 	TriggerStatus_STATUS_CANCELED TriggerStatus = 5
 	// Trigger failed (for example, reservation failure, child order rejection).
 	// A ladder fails when every child order was rejected before it was placed
@@ -212,11 +212,12 @@ const (
 	// attached take-profit, stop-loss or trailing stop whose order self-trade
 	// prevention expired against another of the account's resting orders stays
 	// live too (TRIGGER_FAILURE_REASON_SELF_TRADE_PREVENTED), reported once
-	// while that order blocks it; it fires again at a new trade at or beyond its
-	// trigger price, or once the other order is no longer at the best price. Not
-	// terminal: the trigger keeps its
-	// status. child_seq names the refused attempt, which placed no child order,
-	// and fire_refusal_reason says why; the next fire takes the next child_seq.
+	// while that order blocks it. New trades and price updates do not fire it
+	// while the other order is first in line at the best price; once that order
+	// is gone or no longer first there, it fires again if its trigger condition
+	// still holds. Not terminal: the trigger keeps its status. child_seq names
+	// the refused attempt, which placed no child order, and fire_refusal_reason
+	// says why; the next fire takes the next child_seq.
 	// With TRIGGER_FAILURE_REASON_SELF_TRADE_PREVENTED, child_seq names the
 	// expired child order instead, which was placed and canceled by self-trade
 	// prevention. A refusal that ends the trigger is EVENT_FAILED instead.
@@ -583,18 +584,19 @@ const (
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_ACCOUNT_REPAIRING TriggerFailureReason = 239
 	// The trigger watches the index price and the market has no index price.
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_INDEX_PRICE_UNAVAILABLE TriggerFailureReason = 241
-	// The trigger price was already reached by the price the trigger watches
-	// when the trigger was submitted (at or past it), so the trigger would have
-	// fired at once. It never armed and sent no order; its reserved funds were
-	// released. A price that reaches the trigger price after submission fires
-	// the trigger normally.
+	// The trigger price, or a trailing stop's activation price, was already
+	// reached by the price the trigger watches when the trigger was submitted
+	// (at or past it), so the trigger would have fired or activated at once. It
+	// never armed and sent no order; its reserved funds were released. A price
+	// that reaches it after submission fires or activates the trigger normally.
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_TRIGGER_WOULD_TRIGGER_IMMEDIATELY TriggerFailureReason = 244
 	// Self-trade prevention expired the order of an attached take-profit,
 	// stop-loss or trailing stop because it would have traded with another of
 	// the account's resting orders. Reported only as a fire refusal reason
-	// (EVENT_FIRE_REFUSED): the attached order stays active and fires again at a
-	// new trade at or beyond its trigger price, or once the other order is no
-	// longer at the best price.
+	// (EVENT_FIRE_REFUSED): the attached order stays active. New trades and price
+	// updates do not fire it while the other order is first in line at the best
+	// price; once that order is gone or no longer first there, it fires again if
+	// its trigger condition still holds.
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_SELF_TRADE_PREVENTED TriggerFailureReason = 249
 	// The terminal state did not contain a failure reason.
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_MISSING_REASON_CODE TriggerFailureReason = 998
@@ -1860,7 +1862,7 @@ func (x *LadderTrigger) GetPostOnly() bool {
 	return false
 }
 
-// TriggerIntent contains one standalone trigger's immutable configuration.
+// TriggerIntent contains one standalone trigger's initial configuration.
 type TriggerIntent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable numeric pair ID from GetSpotConfig.
@@ -2063,7 +2065,9 @@ func (*TriggerIntent_Ladder) isTriggerIntent_Strategy() {}
 // the trigger was not created.
 type CreateTriggerRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Target sub-account. When omitted, uses the caller's root account.
+	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
+	// use their bound subaccount; other callers use their authenticated root
+	// account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Trigger to admit.
 	Trigger       *TriggerIntent `protobuf:"bytes,2,opt,name=trigger,proto3" json:"trigger,omitempty"`
@@ -2194,7 +2198,9 @@ type GetTriggerRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Trigger ID to retrieve.
 	TriggerId uint64 `protobuf:"fixed64,1,opt,name=trigger_id,json=triggerId,proto3" json:"trigger_id,omitempty"`
-	// Optional sub-account for authorization.
+	// Optional public subaccount ID for authorization. When omitted,
+	// subaccount-scoped API keys use their bound subaccount; other callers use
+	// their authenticated root account.
 	SubaccountId  *uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2293,8 +2299,9 @@ func (x *GetTriggerResponse) GetTrigger() *Trigger {
 // ListTriggersRequest lists triggers for an account.
 type ListTriggersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Optional sub-account to list triggers for. When empty or omitted, uses the
-	// caller's root account.
+	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
+	// use their bound subaccount; other callers use their authenticated root
+	// account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Optional filter by stable numeric pair ID. Zero means all symbols.
 	SymbolId uint32 `protobuf:"varint,2,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
@@ -2454,8 +2461,9 @@ type ListTriggerEventsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Trigger ID to list events for.
 	TriggerId uint64 `protobuf:"fixed64,1,opt,name=trigger_id,json=triggerId,proto3" json:"trigger_id,omitempty"`
-	// Optional sub-account (authorization). When empty or omitted, uses the
-	// caller's root account.
+	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
+	// use their bound subaccount; other callers use their authenticated root
+	// account.
 	SubaccountId *uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Maximum number of events to return. Defaults to 100 when omitted; maximum
 	// is 1000.
@@ -2835,7 +2843,9 @@ type CancelTriggerRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Trigger ID to cancel.
 	TriggerId uint64 `protobuf:"fixed64,1,opt,name=trigger_id,json=triggerId,proto3" json:"trigger_id,omitempty"`
-	// Optional sub-account for authorization.
+	// Optional public subaccount ID for authorization. When omitted,
+	// subaccount-scoped API keys use their bound subaccount; other callers use
+	// their authenticated root account.
 	SubaccountId  *uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2965,7 +2975,9 @@ type ModifyTriggerRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Trigger ID to modify.
 	TriggerId uint64 `protobuf:"fixed64,1,opt,name=trigger_id,json=triggerId,proto3" json:"trigger_id,omitempty"`
-	// Optional sub-account for authorization.
+	// Optional public subaccount ID for authorization. When omitted,
+	// subaccount-scoped API keys use their bound subaccount; other callers use
+	// their authenticated root account.
 	SubaccountId *uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Optional trading symbol numeric identifier. Zero or omitted means the
 	// trigger's own pair. When set, it must be the trigger's pair: another
@@ -3256,7 +3268,9 @@ type PauseTriggerRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Trigger ID to pause.
 	TriggerId uint64 `protobuf:"fixed64,1,opt,name=trigger_id,json=triggerId,proto3" json:"trigger_id,omitempty"`
-	// Optional sub-account for authorization.
+	// Optional public subaccount ID for authorization. When omitted,
+	// subaccount-scoped API keys use their bound subaccount; other callers use
+	// their authenticated root account.
 	SubaccountId  *uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -3386,7 +3400,9 @@ type ResumeTriggerRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Trigger ID to resume.
 	TriggerId uint64 `protobuf:"fixed64,1,opt,name=trigger_id,json=triggerId,proto3" json:"trigger_id,omitempty"`
-	// Optional sub-account for authorization.
+	// Optional public subaccount ID for authorization. When omitted,
+	// subaccount-scoped API keys use their bound subaccount; other callers use
+	// their authenticated root account.
 	SubaccountId *uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Optional trading symbol numeric identifier. Zero or omitted means the
 	// trigger's own pair. When set, it must be the trigger's pair: another
@@ -3928,8 +3944,9 @@ type Trigger struct {
 	FeeAsset v1.FeeAsset `protobuf:"varint,21,opt,name=fee_asset,json=feeAsset,proto3,enum=orders.v1.FeeAsset" json:"fee_asset,omitempty"`
 	// Self-trade prevention mode for child orders.
 	SelfTradePreventionMode v1.SelfTradePreventionMode `protobuf:"varint,22,opt,name=self_trade_prevention_mode,json=selfTradePreventionMode,proto3,enum=orders.v1.SelfTradePreventionMode" json:"self_trade_prevention_mode,omitempty"`
-	// Immutable strategy configuration. The selected variant is the trigger
-	// category and uses the same shape accepted by CreateTrigger.
+	// Current strategy configuration, including successfully applied
+	// modifications. The selected variant identifies the trigger category and
+	// uses the same shape accepted by CreateTrigger.
 	//
 	// Types that are valid to be assigned to Configuration:
 	//

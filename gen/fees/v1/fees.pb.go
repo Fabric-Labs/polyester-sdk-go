@@ -13,6 +13,7 @@ import (
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -25,20 +26,54 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// SpotFeeRate describes the effective maker and taker rates for one spot
-// market and account target.
+// SpotFeeRate describes, for one spot market and account target, the
+// effective maker and taker rates, the rates an order reserves its fee at,
+// and the components the effective rates are computed from.
 type SpotFeeRate struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable numeric spot market identifier.
 	SymbolId uint32 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Effective maker fee rate encoded as a base-10 percentage string without a
-	// percent sign. Values are between -100 and 100 inclusive.
+	// percent sign. Values are between -100 and 100 inclusive. It is computed
+	// from breakdown as SpotFeeRateBreakdown describes.
 	MakerFeeRatePercent string `protobuf:"bytes,3,opt,name=maker_fee_rate_percent,json=makerFeeRatePercent,proto3" json:"maker_fee_rate_percent,omitempty"`
 	// Effective taker fee rate encoded as a non-negative base-10 percentage
-	// string without a percent sign. Values are between 0 and 100 inclusive.
+	// string without a percent sign. Values are between 0 and 100 inclusive. It
+	// is computed from breakdown as SpotFeeRateBreakdown describes.
 	TakerFeeRatePercent string `protobuf:"bytes,4,opt,name=taker_fee_rate_percent,json=takerFeeRatePercent,proto3" json:"taker_fee_rate_percent,omitempty"`
 	// VIP tier used to resolve these rates, in the inclusive range 0 through 10.
-	VipTier       uint32 `protobuf:"varint,5,opt,name=vip_tier,json=vipTier,proto3" json:"vip_tier,omitempty"`
+	VipTier uint32 `protobuf:"varint,5,opt,name=vip_tier,json=vipTier,proto3" json:"vip_tier,omitempty"`
+	// Fee rate a new order on this market reserves its fee at when the fee is
+	// paid in the quote asset, encoded as a non-negative base-10 percentage
+	// string without a percent sign, between 0 and 100 inclusive. It is the
+	// highest maker or taker rate of every VIP tier under the fee schedule in
+	// force on this market, so it is at least the effective rates and
+	// discounts never lower it. A buy limit order that pays its fee in the
+	// quote asset reserves N + F, computed in units of 10^-18 of the quote
+	// asset whatever the quote asset's own decimals: N is its price times its
+	// quantity rounded up to 10^-18, and F is N times this rate rounded up to
+	// 10^-18. It has sufficient quote balance when N + F is at most the
+	// available quote balance, compared in the same 10^-18 units; other order
+	// validation and market limits still apply. A post-only limit order
+	// reserves at post_only_reserve_fee_rate_percent instead, and a buy sized
+	// by a quote amount reserves at the lower of this rate and
+	// taker_fee_rate_percent. Fills charge the effective rate, and the rest of
+	// the reserve is released as the order fills or ends.
+	ReserveFeeRatePercent string `protobuf:"bytes,6,opt,name=reserve_fee_rate_percent,json=reserveFeeRatePercent,proto3" json:"reserve_fee_rate_percent,omitempty"`
+	// Fee rate a new post-only limit order on this market reserves its fee at
+	// when the fee is paid in the quote asset, encoded as a non-negative
+	// base-10 percentage string without a percent sign, between 0 and 100
+	// inclusive: the highest maker rate of every VIP tier under the fee
+	// schedule in force on this market, as reserve_fee_rate_percent describes.
+	PostOnlyReserveFeeRatePercent string `protobuf:"bytes,7,opt,name=post_only_reserve_fee_rate_percent,json=postOnlyReserveFeeRatePercent,proto3" json:"post_only_reserve_fee_rate_percent,omitempty"`
+	// Components of the effective maker and taker rates in force.
+	Breakdown *SpotFeeRateBreakdown `protobuf:"bytes,8,opt,name=breakdown,proto3" json:"breakdown,omitempty"`
+	// Earliest scheduled time at which a component of these rates starts or
+	// ends: a fee schedule or discount in breakdown ending, or a VIP tier, fee
+	// policy, fee schedule or discount not yet in force starting. The effective
+	// and reserve rates can change then, or stay the same. Omitted when no
+	// change is scheduled.
+	NextChangeAt  *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=next_change_at,json=nextChangeAt,proto3,oneof" json:"next_change_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -101,12 +136,321 @@ func (x *SpotFeeRate) GetVipTier() uint32 {
 	return 0
 }
 
+func (x *SpotFeeRate) GetReserveFeeRatePercent() string {
+	if x != nil {
+		return x.ReserveFeeRatePercent
+	}
+	return ""
+}
+
+func (x *SpotFeeRate) GetPostOnlyReserveFeeRatePercent() string {
+	if x != nil {
+		return x.PostOnlyReserveFeeRatePercent
+	}
+	return ""
+}
+
+func (x *SpotFeeRate) GetBreakdown() *SpotFeeRateBreakdown {
+	if x != nil {
+		return x.Breakdown
+	}
+	return nil
+}
+
+func (x *SpotFeeRate) GetNextChangeAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.NextChangeAt
+	}
+	return nil
+}
+
+// SpotFeeRateBreakdown lists the components of one market's effective fee
+// rates in force. A client reproduces maker_fee_rate_percent and
+// taker_fee_rate_percent exactly by applying the steps below to the maker
+// and the taker rate separately, in this order, in integer arithmetic. Work
+// in units of 0.0000001 percent: write every rate as an integer R, the
+// percentage times 10,000,000. Write every multiplier and discount as an
+// integer M or D, the percentage times 100. trunc(x / 10000) divides and
+// rounds toward zero.
+//
+//  1. Start from the VIP tier rate: R = tier_maker_fee_rate_percent or
+//     tier_taker_fee_rate_percent.
+//  2. When market_multiplier is set, multiply by it:
+//     R = trunc((R × M + 5000) / 10000).
+//  3. When R is above 0, let D be the highest maker or taker discount of
+//     account_discounts, 0 when the list is empty. When D is above 0, apply
+//     it: R = trunc((R × (10000 − D) + 5000) / 10000).
+//  4. When R is above 0 and referral_discount is set with a maker or taker
+//     discount D above 0, apply it the same way:
+//     R = trunc((R × (10000 − D) + 5000) / 10000).
+//
+// The result is the effective rate times 10,000,000. The steps multiply: a
+// 10% account discount and a 20% referral discount on a 0.1% rate leave
+// 0.1% × 0.9 × 0.8 = 0.072%. A negative maker rate is a rebate, which only
+// the multiplier scales.
+type SpotFeeRateBreakdown struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Maker fee rate of the account's VIP tier under the fee policy in force,
+	// before the market multiplier and discounts, encoded as a base-10
+	// percentage string without a percent sign. Values are between -100 and
+	// 100 inclusive; a negative rate is a rebate.
+	TierMakerFeeRatePercent string `protobuf:"bytes,1,opt,name=tier_maker_fee_rate_percent,json=tierMakerFeeRatePercent,proto3" json:"tier_maker_fee_rate_percent,omitempty"`
+	// Taker fee rate of the account's VIP tier under the fee policy in force,
+	// before the market multiplier and discounts, encoded as a non-negative
+	// base-10 percentage string without a percent sign, between 0 and 100
+	// inclusive.
+	TierTakerFeeRatePercent string `protobuf:"bytes,2,opt,name=tier_taker_fee_rate_percent,json=tierTakerFeeRatePercent,proto3" json:"tier_taker_fee_rate_percent,omitempty"`
+	// Fee schedule multipliers in force on this market. Omitted when none is
+	// in force, which leaves the tier rates unchanged.
+	MarketMultiplier *SpotFeeMultiplier `protobuf:"bytes,3,opt,name=market_multiplier,json=marketMultiplier,proto3,oneof" json:"market_multiplier,omitempty"`
+	// Account discounts in force on this market, in no particular order. The
+	// highest maker discount and the highest taker discount apply, each
+	// possibly from a different discount.
+	AccountDiscounts []*SpotFeeDiscount `protobuf:"bytes,4,rep,name=account_discounts,json=accountDiscounts,proto3" json:"account_discounts,omitempty"`
+	// Referral discount in force for the account. Omitted when none is in
+	// force.
+	ReferralDiscount *SpotFeeDiscount `protobuf:"bytes,5,opt,name=referral_discount,json=referralDiscount,proto3,oneof" json:"referral_discount,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *SpotFeeRateBreakdown) Reset() {
+	*x = SpotFeeRateBreakdown{}
+	mi := &file_fees_v1_fees_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SpotFeeRateBreakdown) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SpotFeeRateBreakdown) ProtoMessage() {}
+
+func (x *SpotFeeRateBreakdown) ProtoReflect() protoreflect.Message {
+	mi := &file_fees_v1_fees_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SpotFeeRateBreakdown.ProtoReflect.Descriptor instead.
+func (*SpotFeeRateBreakdown) Descriptor() ([]byte, []int) {
+	return file_fees_v1_fees_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *SpotFeeRateBreakdown) GetTierMakerFeeRatePercent() string {
+	if x != nil {
+		return x.TierMakerFeeRatePercent
+	}
+	return ""
+}
+
+func (x *SpotFeeRateBreakdown) GetTierTakerFeeRatePercent() string {
+	if x != nil {
+		return x.TierTakerFeeRatePercent
+	}
+	return ""
+}
+
+func (x *SpotFeeRateBreakdown) GetMarketMultiplier() *SpotFeeMultiplier {
+	if x != nil {
+		return x.MarketMultiplier
+	}
+	return nil
+}
+
+func (x *SpotFeeRateBreakdown) GetAccountDiscounts() []*SpotFeeDiscount {
+	if x != nil {
+		return x.AccountDiscounts
+	}
+	return nil
+}
+
+func (x *SpotFeeRateBreakdown) GetReferralDiscount() *SpotFeeDiscount {
+	if x != nil {
+		return x.ReferralDiscount
+	}
+	return nil
+}
+
+// SpotFeeMultiplier is the fee schedule of one market, which scales the VIP
+// tier rates.
+type SpotFeeMultiplier struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Maker rate multiplier encoded as a base-10 percentage string without a
+	// percent sign, between 0 and 100 inclusive with at most two decimals.
+	MakerMultiplierPercent string `protobuf:"bytes,1,opt,name=maker_multiplier_percent,json=makerMultiplierPercent,proto3" json:"maker_multiplier_percent,omitempty"`
+	// Taker rate multiplier encoded as a base-10 percentage string without a
+	// percent sign, between 0 and 100 inclusive with at most two decimals.
+	TakerMultiplierPercent string `protobuf:"bytes,2,opt,name=taker_multiplier_percent,json=takerMultiplierPercent,proto3" json:"taker_multiplier_percent,omitempty"`
+	// Time from which the fee schedule is in force, inclusive.
+	EffectiveFrom *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=effective_from,json=effectiveFrom,proto3" json:"effective_from,omitempty"`
+	// Time at which the fee schedule ends, exclusive. Omitted when it has no
+	// scheduled end.
+	EffectiveTo   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=effective_to,json=effectiveTo,proto3,oneof" json:"effective_to,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SpotFeeMultiplier) Reset() {
+	*x = SpotFeeMultiplier{}
+	mi := &file_fees_v1_fees_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SpotFeeMultiplier) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SpotFeeMultiplier) ProtoMessage() {}
+
+func (x *SpotFeeMultiplier) ProtoReflect() protoreflect.Message {
+	mi := &file_fees_v1_fees_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SpotFeeMultiplier.ProtoReflect.Descriptor instead.
+func (*SpotFeeMultiplier) Descriptor() ([]byte, []int) {
+	return file_fees_v1_fees_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SpotFeeMultiplier) GetMakerMultiplierPercent() string {
+	if x != nil {
+		return x.MakerMultiplierPercent
+	}
+	return ""
+}
+
+func (x *SpotFeeMultiplier) GetTakerMultiplierPercent() string {
+	if x != nil {
+		return x.TakerMultiplierPercent
+	}
+	return ""
+}
+
+func (x *SpotFeeMultiplier) GetEffectiveFrom() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EffectiveFrom
+	}
+	return nil
+}
+
+func (x *SpotFeeMultiplier) GetEffectiveTo() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EffectiveTo
+	}
+	return nil
+}
+
+// SpotFeeDiscount is one fee discount of the account's.
+type SpotFeeDiscount struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Maker fee discount encoded as a base-10 percentage string without a
+	// percent sign, with at most two decimals. It lowers a positive maker rate
+	// only.
+	MakerDiscountPercent string `protobuf:"bytes,1,opt,name=maker_discount_percent,json=makerDiscountPercent,proto3" json:"maker_discount_percent,omitempty"`
+	// Taker fee discount encoded as a base-10 percentage string without a
+	// percent sign, with at most two decimals.
+	TakerDiscountPercent string `protobuf:"bytes,2,opt,name=taker_discount_percent,json=takerDiscountPercent,proto3" json:"taker_discount_percent,omitempty"`
+	// True when the discount applies to every spot market; false when it
+	// applies to selected markets, this one included. A referral discount
+	// always applies to every spot market.
+	AllMarkets bool `protobuf:"varint,3,opt,name=all_markets,json=allMarkets,proto3" json:"all_markets,omitempty"`
+	// Time from which the discount is in force, inclusive.
+	EffectiveFrom *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=effective_from,json=effectiveFrom,proto3" json:"effective_from,omitempty"`
+	// Time at which the discount ends, exclusive. Omitted when it has no
+	// scheduled end.
+	EffectiveTo   *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=effective_to,json=effectiveTo,proto3,oneof" json:"effective_to,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SpotFeeDiscount) Reset() {
+	*x = SpotFeeDiscount{}
+	mi := &file_fees_v1_fees_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SpotFeeDiscount) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SpotFeeDiscount) ProtoMessage() {}
+
+func (x *SpotFeeDiscount) ProtoReflect() protoreflect.Message {
+	mi := &file_fees_v1_fees_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SpotFeeDiscount.ProtoReflect.Descriptor instead.
+func (*SpotFeeDiscount) Descriptor() ([]byte, []int) {
+	return file_fees_v1_fees_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SpotFeeDiscount) GetMakerDiscountPercent() string {
+	if x != nil {
+		return x.MakerDiscountPercent
+	}
+	return ""
+}
+
+func (x *SpotFeeDiscount) GetTakerDiscountPercent() string {
+	if x != nil {
+		return x.TakerDiscountPercent
+	}
+	return ""
+}
+
+func (x *SpotFeeDiscount) GetAllMarkets() bool {
+	if x != nil {
+		return x.AllMarkets
+	}
+	return false
+}
+
+func (x *SpotFeeDiscount) GetEffectiveFrom() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EffectiveFrom
+	}
+	return nil
+}
+
+func (x *SpotFeeDiscount) GetEffectiveTo() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EffectiveTo
+	}
+	return nil
+}
+
 // GetSpotFeeRatesRequest requests effective spot fee rates for one account
 // target and an optional set of markets.
 type GetSpotFeeRatesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Optional subaccount public identifier. When omitted, the authenticated
-	// caller's root account is used.
+	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
+	// use their bound subaccount; other callers use their authenticated root
+	// account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Optional unique spot market identifier filter. When empty, all currently
 	// listed, non-disabled spot markets are returned. At most 100 identifiers
@@ -118,7 +462,7 @@ type GetSpotFeeRatesRequest struct {
 
 func (x *GetSpotFeeRatesRequest) Reset() {
 	*x = GetSpotFeeRatesRequest{}
-	mi := &file_fees_v1_fees_proto_msgTypes[1]
+	mi := &file_fees_v1_fees_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -130,7 +474,7 @@ func (x *GetSpotFeeRatesRequest) String() string {
 func (*GetSpotFeeRatesRequest) ProtoMessage() {}
 
 func (x *GetSpotFeeRatesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_fees_v1_fees_proto_msgTypes[1]
+	mi := &file_fees_v1_fees_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -143,7 +487,7 @@ func (x *GetSpotFeeRatesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSpotFeeRatesRequest.ProtoReflect.Descriptor instead.
 func (*GetSpotFeeRatesRequest) Descriptor() ([]byte, []int) {
-	return file_fees_v1_fees_proto_rawDescGZIP(), []int{1}
+	return file_fees_v1_fees_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetSpotFeeRatesRequest) GetSubaccountId() uint64 {
@@ -160,8 +504,8 @@ func (x *GetSpotFeeRatesRequest) GetSymbolId() []uint32 {
 	return nil
 }
 
-// GetSpotFeeRatesResponse contains effective spot fee rates ordered by numeric
-// market identifier ascending.
+// GetSpotFeeRatesResponse contains spot fee rates ordered by numeric market
+// identifier ascending.
 type GetSpotFeeRatesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Effective spot fee rows ordered by symbol_id ascending. The result is a
@@ -174,7 +518,7 @@ type GetSpotFeeRatesResponse struct {
 
 func (x *GetSpotFeeRatesResponse) Reset() {
 	*x = GetSpotFeeRatesResponse{}
-	mi := &file_fees_v1_fees_proto_msgTypes[2]
+	mi := &file_fees_v1_fees_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -186,7 +530,7 @@ func (x *GetSpotFeeRatesResponse) String() string {
 func (*GetSpotFeeRatesResponse) ProtoMessage() {}
 
 func (x *GetSpotFeeRatesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_fees_v1_fees_proto_msgTypes[2]
+	mi := &file_fees_v1_fees_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -199,7 +543,7 @@ func (x *GetSpotFeeRatesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSpotFeeRatesResponse.ProtoReflect.Descriptor instead.
 func (*GetSpotFeeRatesResponse) Descriptor() ([]byte, []int) {
-	return file_fees_v1_fees_proto_rawDescGZIP(), []int{2}
+	return file_fees_v1_fees_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetSpotFeeRatesResponse) GetFeeRates() []*SpotFeeRate {
@@ -213,24 +557,51 @@ var File_fees_v1_fees_proto protoreflect.FileDescriptor
 
 const file_fees_v1_fees_proto_rawDesc = "" +
 	"\n" +
-	"\x12fees/v1/fees.proto\x12\afees.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1bpolyester/api/options.proto\"\xb9\x02\n" +
+	"\x12fees/v1/fees.proto\x12\afees.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\xd3\x05\n" +
 	"\vSpotFeeRate\x12$\n" +
 	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\x12p\n" +
 	"\x16maker_fee_rate_percent\x18\x03 \x01(\tB;\xbaH8r6\x10\x01\x18\x0e20^-?(100([.]0+)?|([0-9]|[1-9][0-9])([.][0-9]+)?)$R\x13makerFeeRatePercent\x12n\n" +
 	"\x16taker_fee_rate_percent\x18\x04 \x01(\tB9\xbaH6r4\x10\x01\x18\r2.^(100([.]0+)?|([0-9]|[1-9][0-9])([.][0-9]+)?)$R\x13takerFeeRatePercent\x12\"\n" +
 	"\bvip_tier\x18\x05 \x01(\rB\a\xbaH\x04*\x02\x18\n" +
-	"R\avipTier\"\x93\x01\n" +
+	"R\avipTier\x12r\n" +
+	"\x18reserve_fee_rate_percent\x18\x06 \x01(\tB9\xbaH6r4\x10\x01\x18\r2.^(100([.]0+)?|([0-9]|[1-9][0-9])([.][0-9]+)?)$R\x15reserveFeeRatePercent\x12\x84\x01\n" +
+	"\"post_only_reserve_fee_rate_percent\x18\a \x01(\tB9\xbaH6r4\x10\x01\x18\r2.^(100([.]0+)?|([0-9]|[1-9][0-9])([.][0-9]+)?)$R\x1dpostOnlyReserveFeeRatePercent\x12C\n" +
+	"\tbreakdown\x18\b \x01(\v2\x1d.fees.v1.SpotFeeRateBreakdownB\x06\xbaH\x03\xc8\x01\x01R\tbreakdown\x12E\n" +
+	"\x0enext_change_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampH\x00R\fnextChangeAt\x88\x01\x01B\x11\n" +
+	"\x0f_next_change_at\"\x97\x04\n" +
+	"\x14SpotFeeRateBreakdown\x12y\n" +
+	"\x1btier_maker_fee_rate_percent\x18\x01 \x01(\tB;\xbaH8r6\x10\x01\x18\x0e20^-?(100([.]0+)?|([0-9]|[1-9][0-9])([.][0-9]+)?)$R\x17tierMakerFeeRatePercent\x12w\n" +
+	"\x1btier_taker_fee_rate_percent\x18\x02 \x01(\tB9\xbaH6r4\x10\x01\x18\r2.^(100([.]0+)?|([0-9]|[1-9][0-9])([.][0-9]+)?)$R\x17tierTakerFeeRatePercent\x12L\n" +
+	"\x11market_multiplier\x18\x03 \x01(\v2\x1a.fees.v1.SpotFeeMultiplierH\x00R\x10marketMultiplier\x88\x01\x01\x12E\n" +
+	"\x11account_discounts\x18\x04 \x03(\v2\x18.fees.v1.SpotFeeDiscountR\x10accountDiscounts\x12J\n" +
+	"\x11referral_discount\x18\x05 \x01(\v2\x18.fees.v1.SpotFeeDiscountH\x01R\x10referralDiscount\x88\x01\x01B\x14\n" +
+	"\x12_market_multiplierB\x14\n" +
+	"\x12_referral_discount\"\x95\x03\n" +
+	"\x11SpotFeeMultiplier\x12o\n" +
+	"\x18maker_multiplier_percent\x18\x01 \x01(\tB5\xbaH2r0\x10\x01\x18\x062*^(100|([0-9]|[1-9][0-9])([.][0-9]{1,2})?)$R\x16makerMultiplierPercent\x12o\n" +
+	"\x18taker_multiplier_percent\x18\x02 \x01(\tB5\xbaH2r0\x10\x01\x18\x062*^(100|([0-9]|[1-9][0-9])([.][0-9]{1,2})?)$R\x16takerMultiplierPercent\x12I\n" +
+	"\x0eeffective_from\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\reffectiveFrom\x12B\n" +
+	"\feffective_to\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\veffectiveTo\x88\x01\x01B\x0f\n" +
+	"\r_effective_to\"\x8c\x03\n" +
+	"\x0fSpotFeeDiscount\x12[\n" +
+	"\x16maker_discount_percent\x18\x01 \x01(\tB%\xbaH\"r \x10\x01\x18\x182\x1a^-?[0-9]+([.][0-9]{1,2})?$R\x14makerDiscountPercent\x12[\n" +
+	"\x16taker_discount_percent\x18\x02 \x01(\tB%\xbaH\"r \x10\x01\x18\x182\x1a^-?[0-9]+([.][0-9]{1,2})?$R\x14takerDiscountPercent\x12\x1f\n" +
+	"\vall_markets\x18\x03 \x01(\bR\n" +
+	"allMarkets\x12I\n" +
+	"\x0eeffective_from\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\reffectiveFrom\x12B\n" +
+	"\feffective_to\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\veffectiveTo\x88\x01\x01B\x0f\n" +
+	"\r_effective_to\"\x93\x01\n" +
 	"\x16GetSpotFeeRatesRequest\x128\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01\x12-\n" +
 	"\tsymbol_id\x18\x02 \x03(\rB\x10\xbaH\r\x92\x01\n" +
 	"\x10d\x18\x01\"\x04*\x02 \x00R\bsymbolIdB\x10\n" +
 	"\x0e_subaccount_id\"L\n" +
 	"\x17GetSpotFeeRatesResponse\x121\n" +
-	"\tfee_rates\x18\x01 \x03(\v2\x14.fees.v1.SpotFeeRateR\bfeeRates2\x86\x02\n" +
+	"\tfee_rates\x18\x01 \x03(\v2\x14.fees.v1.SpotFeeRateR\bfeeRates2\xdb\x02\n" +
 	"\n" +
-	"FeeService\x12\xea\x01\n" +
-	"\x0fGetSpotFeeRates\x12\x1f.fees.v1.GetSpotFeeRatesRequest\x1a .fees.v1.GetSpotFeeRatesResponse\"\x93\x01\xbaGp\n" +
-	"\vFee Service\x12\x12Get Spot Fee Rates\x1aMGet effective maker and taker fee rates for the authenticated account target.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x14\x12\x12/v1/spot/fee-rates\x1a\v\x8a\xb5\x18\atradingB\x7f\xbaG@:>\n" +
+	"FeeService\x12\xbf\x02\n" +
+	"\x0fGetSpotFeeRates\x12\x1f.fees.v1.GetSpotFeeRatesRequest\x1a .fees.v1.GetSpotFeeRatesResponse\"\xe8\x01\xbaG\xc4\x01\n" +
+	"\vFee Service\x12\x12Get Spot Fee Rates\x1a\xa0\x01Get effective maker and taker fee rates, the rates an order reserves its fee at, and the components of the effective rates for the authenticated account target.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x14\x12\x12/v1/spot/fee-rates\x1a\v\x8a\xb5\x18\atradingB\x7f\xbaG@:>\n" +
 	"\vFee Service\x12/Authenticated effective spot trading fee rates.Z:github.com/Fabric-Labs/polyester-sdk-go/gen/fees/v1;feesv1b\x06proto3"
 
 var (
@@ -245,21 +616,34 @@ func file_fees_v1_fees_proto_rawDescGZIP() []byte {
 	return file_fees_v1_fees_proto_rawDescData
 }
 
-var file_fees_v1_fees_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_fees_v1_fees_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_fees_v1_fees_proto_goTypes = []any{
 	(*SpotFeeRate)(nil),             // 0: fees.v1.SpotFeeRate
-	(*GetSpotFeeRatesRequest)(nil),  // 1: fees.v1.GetSpotFeeRatesRequest
-	(*GetSpotFeeRatesResponse)(nil), // 2: fees.v1.GetSpotFeeRatesResponse
+	(*SpotFeeRateBreakdown)(nil),    // 1: fees.v1.SpotFeeRateBreakdown
+	(*SpotFeeMultiplier)(nil),       // 2: fees.v1.SpotFeeMultiplier
+	(*SpotFeeDiscount)(nil),         // 3: fees.v1.SpotFeeDiscount
+	(*GetSpotFeeRatesRequest)(nil),  // 4: fees.v1.GetSpotFeeRatesRequest
+	(*GetSpotFeeRatesResponse)(nil), // 5: fees.v1.GetSpotFeeRatesResponse
+	(*timestamppb.Timestamp)(nil),   // 6: google.protobuf.Timestamp
 }
 var file_fees_v1_fees_proto_depIdxs = []int32{
-	0, // 0: fees.v1.GetSpotFeeRatesResponse.fee_rates:type_name -> fees.v1.SpotFeeRate
-	1, // 1: fees.v1.FeeService.GetSpotFeeRates:input_type -> fees.v1.GetSpotFeeRatesRequest
-	2, // 2: fees.v1.FeeService.GetSpotFeeRates:output_type -> fees.v1.GetSpotFeeRatesResponse
-	2, // [2:3] is the sub-list for method output_type
-	1, // [1:2] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	1,  // 0: fees.v1.SpotFeeRate.breakdown:type_name -> fees.v1.SpotFeeRateBreakdown
+	6,  // 1: fees.v1.SpotFeeRate.next_change_at:type_name -> google.protobuf.Timestamp
+	2,  // 2: fees.v1.SpotFeeRateBreakdown.market_multiplier:type_name -> fees.v1.SpotFeeMultiplier
+	3,  // 3: fees.v1.SpotFeeRateBreakdown.account_discounts:type_name -> fees.v1.SpotFeeDiscount
+	3,  // 4: fees.v1.SpotFeeRateBreakdown.referral_discount:type_name -> fees.v1.SpotFeeDiscount
+	6,  // 5: fees.v1.SpotFeeMultiplier.effective_from:type_name -> google.protobuf.Timestamp
+	6,  // 6: fees.v1.SpotFeeMultiplier.effective_to:type_name -> google.protobuf.Timestamp
+	6,  // 7: fees.v1.SpotFeeDiscount.effective_from:type_name -> google.protobuf.Timestamp
+	6,  // 8: fees.v1.SpotFeeDiscount.effective_to:type_name -> google.protobuf.Timestamp
+	0,  // 9: fees.v1.GetSpotFeeRatesResponse.fee_rates:type_name -> fees.v1.SpotFeeRate
+	4,  // 10: fees.v1.FeeService.GetSpotFeeRates:input_type -> fees.v1.GetSpotFeeRatesRequest
+	5,  // 11: fees.v1.FeeService.GetSpotFeeRates:output_type -> fees.v1.GetSpotFeeRatesResponse
+	11, // [11:12] is the sub-list for method output_type
+	10, // [10:11] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_fees_v1_fees_proto_init() }
@@ -267,14 +651,18 @@ func file_fees_v1_fees_proto_init() {
 	if File_fees_v1_fees_proto != nil {
 		return
 	}
+	file_fees_v1_fees_proto_msgTypes[0].OneofWrappers = []any{}
 	file_fees_v1_fees_proto_msgTypes[1].OneofWrappers = []any{}
+	file_fees_v1_fees_proto_msgTypes[2].OneofWrappers = []any{}
+	file_fees_v1_fees_proto_msgTypes[3].OneofWrappers = []any{}
+	file_fees_v1_fees_proto_msgTypes[4].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_fees_v1_fees_proto_rawDesc), len(file_fees_v1_fees_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

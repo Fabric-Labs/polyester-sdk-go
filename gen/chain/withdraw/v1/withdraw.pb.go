@@ -109,7 +109,7 @@ const (
 	ErrorCode_ERROR_CODE_STEP_UP_UNAVAILABLE ErrorCode = 37
 	// Destination validation is temporarily unavailable.
 	ErrorCode_ERROR_CODE_DESTINATION_VALIDATION_UNAVAILABLE ErrorCode = 38
-	// The account shard cannot currently accept fund movement.
+	// Funds movement for this account is temporarily unavailable. Retry later.
 	ErrorCode_ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE ErrorCode = 39
 	// A required precondition was not satisfied.
 	ErrorCode_ERROR_CODE_FAILED_PRECONDITION ErrorCode = 40
