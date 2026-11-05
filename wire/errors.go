@@ -133,6 +133,10 @@ func MapConnectError(err error) error {
 	if errors.As(err, &problemErr) {
 		return problemErr
 	}
+	var apiErr *sdkerrors.APIError
+	if errors.As(err, &apiErr) {
+		return apiErr
+	}
 	var connectErr *connect.Error
 	if !errors.As(err, &connectErr) {
 		return &sdkerrors.TransportError{Msg: err.Error()}

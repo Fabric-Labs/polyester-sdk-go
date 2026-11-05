@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
+	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/wire"
 )
 
@@ -67,6 +68,17 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	}
 	var mapped error
 	switch {
+	case strings.HasSuffix(detail.Code, "_OUTCOME_UNKNOWN"):
+		// A timed-out mutation may still apply. Preserve the same API error
+		// as a Connect ErrorDetail before considering temporary HTTP failures.
+		code := detail.Code
+		if _, ok := orderv1.ErrorCode_value["ERROR_CODE_"+code]; ok {
+			code = "ERROR_CODE_" + code
+		}
+		if msg == "" {
+			msg = detail.Code
+		}
+		mapped = &sdkerrors.APIError{Msg: msg, Code: code}
 	case (resp.StatusCode == http.StatusBadGateway || resp.StatusCode == http.StatusServiceUnavailable) &&
 		detail.Code != "" && detail.Code == strings.ToUpper(detail.Code):
 		// REST problem codes are uppercase; lowercase Connect error bodies
