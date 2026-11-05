@@ -288,7 +288,11 @@ func (e *RateLimitError) Error() string        { return e.Msg }
 func (e *RateLimitError) Is(target error) bool { return target == ErrPolyester }
 
 // ServerError indicates a server-side 5xx failure.
-type ServerError struct{ Msg string }
+type ServerError struct {
+	Msg    string
+	Code   string // Structured service code, when supplied.
+	Status int    // HTTP status corresponding to the failure, when known.
+}
 
 func (e *ServerError) Error() string        { return e.Msg }
 func (e *ServerError) Is(target error) bool { return target == ErrPolyester }

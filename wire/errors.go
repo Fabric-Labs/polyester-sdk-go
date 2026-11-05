@@ -113,6 +113,10 @@ func MapConnectError(err error) error {
 	if errors.As(err, &authErr) {
 		return authErr
 	}
+	var serverErr *sdkerrors.ServerError
+	if errors.As(err, &serverErr) {
+		return serverErr
+	}
 	var skewErr *sdkerrors.TimestampSkewError
 	if errors.As(err, &skewErr) {
 		return skewErr
@@ -177,6 +181,10 @@ func MapConnectError(err error) error {
 				return rateLimitError(msg, rl, headerRetry)
 			}
 			code := orderDetail.GetCode().String()
+			// Backoff hints and unknown mutation outcomes take precedence.
+			if connectErr.Code() == connect.CodeUnavailable && !strings.HasSuffix(code, "_OUTCOME_UNKNOWN") {
+				return &sdkerrors.ServerError{Msg: msg, Code: code, Status: 503}
+			}
 			if len(orderDetail.GetViolations()) > 0 {
 				violations := make([]sdkerrors.FieldViolation, 0, len(orderDetail.GetViolations()))
 				for _, violation := range orderDetail.GetViolations() {
@@ -217,6 +225,9 @@ func MapConnectError(err error) error {
 			if code == withdrawv1.ErrorCode_ERROR_CODE_RATE_LIMIT_EXCEEDED.String() {
 				return rateLimitError(msg, nil, headerRetry)
 			}
+			if connectErr.Code() == connect.CodeUnavailable {
+				return &sdkerrors.ServerError{Msg: msg, Code: code, Status: 503}
+			}
 			if isAuthLikeErrorCode(code) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
 			}
@@ -226,6 +237,9 @@ func MapConnectError(err error) error {
 			code := transferDetail.GetCode().String()
 			if code == transferv1.ErrorCode_ERROR_CODE_RATE_LIMIT_EXCEEDED.String() {
 				return rateLimitError(msg, nil, headerRetry)
+			}
+			if connectErr.Code() == connect.CodeUnavailable {
+				return &sdkerrors.ServerError{Msg: msg, Code: code, Status: 503}
 			}
 			if isAuthLikeErrorCode(code) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}

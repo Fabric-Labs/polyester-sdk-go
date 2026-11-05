@@ -123,8 +123,8 @@ func TestTriggerReadRetryGivesUpAfterItsBudget(t *testing.T) {
 	started := time.Now()
 	_, err := service.Get(context.Background(), nil, codecs.FormatID(9), nil)
 	elapsed := time.Since(started)
-	var apiErr *sdkerrors.APIError
-	if !errors.As(err, &apiErr) || apiErr.Code != "ERROR_CODE_UNAVAILABLE" {
+	var serverErr *sdkerrors.ServerError
+	if !errors.As(err, &serverErr) || serverErr.Code != "ERROR_CODE_UNAVAILABLE" || !sdkerrors.IsRetryable(err) {
 		t.Fatalf("err=%T %v", err, err)
 	}
 	// 25 ms doubling to a 500 ms cap: the waits add up to 1.775 s, the

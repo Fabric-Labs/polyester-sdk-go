@@ -67,6 +67,14 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	}
 	var mapped error
 	switch {
+	case (resp.StatusCode == http.StatusBadGateway || resp.StatusCode == http.StatusServiceUnavailable) &&
+		detail.Code != "" && detail.Code == strings.ToUpper(detail.Code):
+		// REST problem codes are uppercase; lowercase Connect error bodies
+		// remain with Connect's decoder. Preserve the REST code and status.
+		if msg == "" {
+			msg = detail.Code
+		}
+		mapped = &sdkerrors.ServerError{Msg: msg, Code: detail.Code, Status: resp.StatusCode}
 	case detail.Code == wire.TimestampSkewCode || detail.Code == sdkerrors.AuthCodeTimestampSkew:
 		mapped = &sdkerrors.TimestampSkewError{
 			Msg:    "API key timestamp is outside the allowed skew window",
