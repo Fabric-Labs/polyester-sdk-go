@@ -172,6 +172,11 @@ func MapConnectError(err error) error {
 			return rateLimitError(msg, rateLimitDetailFromProto(rl), headerRetry)
 		}
 		if orderDetail, ok := value.(*orderv1.ErrorDetail); ok {
+			// Policy lookup outages are not policy denials. Some unavailable
+			// codes are permanent preconditions, so also check the Connect code.
+			if connectErr.Code() == connect.CodeUnavailable && strings.HasSuffix(orderDetail.GetCode().String(), "_UNAVAILABLE") {
+				return &sdkerrors.ServerError{Msg: msg, Code: orderDetail.GetCode().String(), Status: 503}
+			}
 			rl := rateLimitDetailFromProto(orderDetail.GetRateLimit())
 			if rl != nil || orderDetail.GetCode() == orderv1.ErrorCode_ERROR_CODE_RATE_LIMIT_EXCEEDED {
 				return rateLimitError(msg, rl, headerRetry)
