@@ -2,6 +2,7 @@ package transport
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -170,5 +171,27 @@ func TestGatewayAuthProblemPreservesMetadata(t *testing.T) {
 	problem := authErr.Problem
 	if problem.Code != "UNAUTHENTICATED" || problem.Status != 401 || problem.Detail != "" || problem.Type != "https://polyester.dev/problems/unauthenticated" {
 		t.Fatalf("problem=%+v", problem)
+	}
+}
+
+func TestGatewayProblemTypeDerivedFromCode(t *testing.T) {
+	for _, suppliedType := range []string{"", "https://polyester.dev/problems/AUTH_SESSION_KIND_NOT_ALLOWED"} {
+		body := map[string]any{"code": "AUTH_SESSION_KIND_NOT_ALLOWED", "detail": "", "status": 403}
+		if suppliedType != "" {
+			body["type"] = suppliedType
+		}
+		encoded, err := json.Marshal(body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = callMeAgainst(t, 403, "application/problem+json", string(encoded))
+		var required *sdkerrors.SessionRequiredError
+		if !errors.As(err, &required) || required.Problem == nil {
+			t.Fatalf("problem missing: %T %v", err, err)
+		}
+		problem := required.Problem
+		if problem.Code != "AUTH_SESSION_KIND_NOT_ALLOWED" || problem.Status != 403 || problem.Detail != "" || problem.Type != "https://polyester.dev/problems/auth-session-kind-not-allowed" {
+			t.Fatalf("supplied type %q: problem=%+v", suppliedType, problem)
+		}
 	}
 }

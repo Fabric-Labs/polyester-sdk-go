@@ -94,23 +94,30 @@ func TestFetchRTTokenMaps401ToAuthError(t *testing.T) {
 
 func TestRealtimeProblemPreservesMetadata(t *testing.T) {
 	for _, status := range []int{401, 403} {
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/problem+json")
-			w.WriteHeader(status)
-			_, _ = w.Write([]byte(`{"type":"https://polyester.dev/problems/permission-denied","code":"PERMISSION_DENIED","detail":"","status":403}`))
-		}))
-		_, err := fetchRTToken(context.Background(), srv.Client(), testCreds(t), srv.URL, "token")
-		srv.Close()
-		var authErr *sdkerrors.AuthError
-		if !errors.As(err, &authErr) {
-			t.Fatalf("error=%T %v", err, err)
-		}
-		raw, _ := json.Marshal(authErr)
-		var data map[string]any
-		_ = json.Unmarshal(raw, &data)
-		problem, ok := data["Problem"].(map[string]any)
-		if !ok || problem["code"] != "PERMISSION_DENIED" || problem["detail"] != "" || problem["status"] != float64(status) || problem["type"] != "https://polyester.dev/problems/permission-denied" {
-			t.Fatalf("problem metadata lost: %s", raw)
+		for _, suppliedType := range []string{"", "https://polyester.dev/problems/AUTH_SESSION_KIND_NOT_ALLOWED", "https://polyester.dev/problems/auth-session-kind-not-allowed"} {
+			body := map[string]any{"code": "AUTH_SESSION_KIND_NOT_ALLOWED", "detail": "", "status": 403}
+			if suppliedType != "" {
+				body["type"] = suppliedType
+			}
+			encoded, err := json.Marshal(body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/problem+json")
+				w.WriteHeader(status)
+				_, _ = w.Write(encoded)
+			}))
+			_, err = fetchRTToken(context.Background(), srv.Client(), testCreds(t), srv.URL, "token")
+			srv.Close()
+			var authErr *sdkerrors.AuthError
+			if !errors.As(err, &authErr) {
+				t.Fatalf("error=%T %v", err, err)
+			}
+			problem := authErr.Problem
+			if problem == nil || problem.Code != "AUTH_SESSION_KIND_NOT_ALLOWED" || problem.Detail != "" || problem.Status != status || problem.Type != "https://polyester.dev/problems/auth-session-kind-not-allowed" {
+				t.Fatalf("supplied type %q: problem metadata lost: %+v", suppliedType, problem)
+			}
 		}
 	}
 }

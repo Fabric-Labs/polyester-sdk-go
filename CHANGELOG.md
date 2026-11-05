@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **Breaking:** a trailing stop created with an activation price already
+  reached now ends `FAILED` with
+  `TRIGGER_FAILURE_REASON_TRIGGER_WOULD_TRIGGER_IMMEDIATELY` (244).
+  `ModifyTrigger` and order modifies that would make a trailing stop act at
+  once are refused with `ERROR_CODE_TRIGGER_WOULD_TRIGGER_IMMEDIATELY` (302),
+  leaving the existing state unchanged. To start trailing from the market,
+  clear the activation price with a present zero.
 - **Breaking:** remove the public holds-list method, hold models and decoders.
   Read aggregate held trading funds from each asset's `reserved` balance in
   the balances API. Individual hold IDs and expiry times have no replacement.

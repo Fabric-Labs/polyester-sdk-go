@@ -295,7 +295,6 @@ func (e *ServerError) Is(target error) bool { return target == ErrPolyester }
 
 // APIError indicates a structured Connect/API error.
 type APIError struct {
-	Problem  *HTTPProblem // REST metadata, when supplied by the server.
 	Msg      string
 	Code     string
 	Metadata map[string]string
