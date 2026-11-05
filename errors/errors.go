@@ -421,7 +421,7 @@ func IsRetryable(err error) bool {
 	var serverErr *ServerError
 	var skewErr *TimestampSkewError
 	code := apiErrorCode(err)
-	if outcomeUnknownCodes[code] {
+	if isOutcomeUnknownCode(code) {
 		return false
 	}
 	return errors.As(err, &transportErr) ||
@@ -444,22 +444,14 @@ func MutationOutcomeUnknown(err error) bool {
 	return errors.As(err, &transportErr) ||
 		errors.As(err, &serverErr) ||
 		errors.As(err, &contractErr) ||
-		outcomeUnknownCodes[apiErrorCode(err)]
+		isOutcomeUnknownCode(apiErrorCode(err))
 }
 
-// outcomeUnknownCodes are order error codes for a mutation that was sent but
-// not confirmed in time; it may still apply. They are the generated orders.v1
-// ErrorCode names ending in _OUTCOME_UNKNOWN, so a new code is covered on
-// regeneration.
-var outcomeUnknownCodes = func() map[string]bool {
-	codes := make(map[string]bool)
-	for _, name := range orderv1.ErrorCode_name {
-		if strings.HasSuffix(name, "_OUTCOME_UNKNOWN") {
-			codes[name] = true
-		}
-	}
-	return codes
-}()
+// isOutcomeUnknownCode recognises a mutation outcome by its code suffix,
+// including codes introduced by a newer server before SDK regeneration.
+func isOutcomeUnknownCode(code string) bool {
+	return strings.HasSuffix(code, "_OUTCOME_UNKNOWN")
+}
 
 // IsOrderAlreadyTerminal reports whether a cancel (or another order change)
 // was refused because the order has already ended
