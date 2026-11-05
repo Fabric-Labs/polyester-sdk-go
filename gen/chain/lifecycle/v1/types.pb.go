@@ -578,10 +578,10 @@ var File_chain_lifecycle_v1_types_proto protoreflect.FileDescriptor
 
 const file_chain_lifecycle_v1_types_proto_rawDesc = "" +
 	"\n" +
-	"\x1echain/lifecycle/v1/types.proto\x12\x12chain.lifecycle.v1\x1a\x1cpolyester/type/v1/u128.proto\"b\n" +
+	"\x1echain/lifecycle/v1/types.proto\x12\x12chain.lifecycle.v1\x1a\x1cpolyester/type/v1/u128.proto\"\\\n" +
 	"\bAssetIds\x12&\n" +
 	"\x0fzipped_asset_id\x18\x01 \x01(\rR\rzippedAssetId\x12(\n" +
-	"\x10unified_asset_id\x18\x03 \x01(\rR\x0eunifiedAssetIdJ\x04\b\x02\x10\x03\"\xea\x01\n" +
+	"\x10unified_asset_id\x18\x03 \x01(\rR\x0eunifiedAssetId\"\xea\x01\n" +
 	"\n" +
 	"RequestFee\x129\n" +
 	"\tasset_ids\x18\x01 \x01(\v2\x1c.chain.lifecycle.v1.AssetIdsR\bassetIds\x126\n" +

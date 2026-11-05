@@ -77,7 +77,7 @@ const (
 	ErrorCode_ERROR_CODE_FUNDS_LOCK_CONFLICT ErrorCode = 21
 	// The authoritative capital view is not ready or is stale.
 	ErrorCode_ERROR_CODE_CAPITAL_VIEW_UNAVAILABLE ErrorCode = 22
-	// The account shard cannot currently accept fund movement.
+	// Funds movement for this account is temporarily unavailable. Retry later.
 	ErrorCode_ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE ErrorCode = 23
 	// A required account or API-key policy rejected the transfer.
 	ErrorCode_ERROR_CODE_POLICY_DENIED ErrorCode = 24
@@ -242,8 +242,9 @@ func (InternalTransferStatus) EnumDescriptor() ([]byte, []int) {
 // to Trading internal transfer for the authenticated source account.
 type CreateInternalTransferRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Optional source subaccount public id. When omitted, the authenticated
-	// caller's root account is used as the source account.
+	// Optional source public subaccount ID. When omitted, subaccount-scoped API
+	// keys use their bound subaccount; other callers use their authenticated
+	// root account.
 	SubaccountId uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
 	// Types that are valid to be assigned to Destination:
 	//

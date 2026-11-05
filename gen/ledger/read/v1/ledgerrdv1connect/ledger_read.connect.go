@@ -48,9 +48,6 @@ const (
 	// LedgerReadServiceListTransfersProcedure is the fully-qualified name of the LedgerReadService's
 	// ListTransfers RPC.
 	LedgerReadServiceListTransfersProcedure = "/ledger.read.v1.LedgerReadService/ListTransfers"
-	// LedgerReadServiceListHoldsProcedure is the fully-qualified name of the LedgerReadService's
-	// ListHolds RPC.
-	LedgerReadServiceListHoldsProcedure = "/ledger.read.v1.LedgerReadService/ListHolds"
 	// LedgerReadServiceGetBalancesProcedure is the fully-qualified name of the LedgerReadService's
 	// GetBalances RPC.
 	LedgerReadServiceGetBalancesProcedure = "/ledger.read.v1.LedgerReadService/GetBalances"
@@ -73,10 +70,8 @@ type LedgerReadServiceClient interface {
 	// supported.
 	GetPortfolioEquitySnapshot(context.Context, *connect.Request[v1.GetPortfolioEquitySnapshotRequest]) (*connect.Response[v1.GetPortfolioEquitySnapshotResponse], error)
 	// List finalized transfer history for an account.
-	// Supports optional subaccount, asset, ordering, and cursor filters.
+	// Supports optional subaccount, asset, inclusive time-bound, ordering, and cursor filters.
 	ListTransfers(context.Context, *connect.Request[v1.ListTransfersRequest]) (*connect.Response[v1.ListTransfersResponse], error)
-	// ListHolds returns pending holds with integer amounts (u128) and asset ids.
-	ListHolds(context.Context, *connect.Request[v1.ListHoldsRequest]) (*connect.Response[v1.ListHoldsResponse], error)
 	// Retrieve the latest balances for an account.
 	// Supports optional subaccount scoping and returns asset symbols with decimal amounts on REST.
 	GetBalances(context.Context, *connect.Request[v1.GetBalancesRequest]) (*connect.Response[v1.GetBalancesResponse], error)
@@ -123,12 +118,6 @@ func NewLedgerReadServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(ledgerReadServiceMethods.ByName("ListTransfers")),
 			connect.WithClientOptions(opts...),
 		),
-		listHolds: connect.NewClient[v1.ListHoldsRequest, v1.ListHoldsResponse](
-			httpClient,
-			baseURL+LedgerReadServiceListHoldsProcedure,
-			connect.WithSchema(ledgerReadServiceMethods.ByName("ListHolds")),
-			connect.WithClientOptions(opts...),
-		),
 		getBalances: connect.NewClient[v1.GetBalancesRequest, v1.GetBalancesResponse](
 			httpClient,
 			baseURL+LedgerReadServiceGetBalancesProcedure,
@@ -145,7 +134,6 @@ type ledgerReadServiceClient struct {
 	getPortfolioEquityHistorySeries *connect.Client[v1.GetPortfolioEquityHistorySeriesRequest, v1.GetPortfolioEquityHistorySeriesResponse]
 	getPortfolioEquitySnapshot      *connect.Client[v1.GetPortfolioEquitySnapshotRequest, v1.GetPortfolioEquitySnapshotResponse]
 	listTransfers                   *connect.Client[v1.ListTransfersRequest, v1.ListTransfersResponse]
-	listHolds                       *connect.Client[v1.ListHoldsRequest, v1.ListHoldsResponse]
 	getBalances                     *connect.Client[v1.GetBalancesRequest, v1.GetBalancesResponse]
 }
 
@@ -175,11 +163,6 @@ func (c *ledgerReadServiceClient) ListTransfers(ctx context.Context, req *connec
 	return c.listTransfers.CallUnary(ctx, req)
 }
 
-// ListHolds calls ledger.read.v1.LedgerReadService.ListHolds.
-func (c *ledgerReadServiceClient) ListHolds(ctx context.Context, req *connect.Request[v1.ListHoldsRequest]) (*connect.Response[v1.ListHoldsResponse], error) {
-	return c.listHolds.CallUnary(ctx, req)
-}
-
 // GetBalances calls ledger.read.v1.LedgerReadService.GetBalances.
 func (c *ledgerReadServiceClient) GetBalances(ctx context.Context, req *connect.Request[v1.GetBalancesRequest]) (*connect.Response[v1.GetBalancesResponse], error) {
 	return c.getBalances.CallUnary(ctx, req)
@@ -202,10 +185,8 @@ type LedgerReadServiceHandler interface {
 	// supported.
 	GetPortfolioEquitySnapshot(context.Context, *connect.Request[v1.GetPortfolioEquitySnapshotRequest]) (*connect.Response[v1.GetPortfolioEquitySnapshotResponse], error)
 	// List finalized transfer history for an account.
-	// Supports optional subaccount, asset, ordering, and cursor filters.
+	// Supports optional subaccount, asset, inclusive time-bound, ordering, and cursor filters.
 	ListTransfers(context.Context, *connect.Request[v1.ListTransfersRequest]) (*connect.Response[v1.ListTransfersResponse], error)
-	// ListHolds returns pending holds with integer amounts (u128) and asset ids.
-	ListHolds(context.Context, *connect.Request[v1.ListHoldsRequest]) (*connect.Response[v1.ListHoldsResponse], error)
 	// Retrieve the latest balances for an account.
 	// Supports optional subaccount scoping and returns asset symbols with decimal amounts on REST.
 	GetBalances(context.Context, *connect.Request[v1.GetBalancesRequest]) (*connect.Response[v1.GetBalancesResponse], error)
@@ -248,12 +229,6 @@ func NewLedgerReadServiceHandler(svc LedgerReadServiceHandler, opts ...connect.H
 		connect.WithSchema(ledgerReadServiceMethods.ByName("ListTransfers")),
 		connect.WithHandlerOptions(opts...),
 	)
-	ledgerReadServiceListHoldsHandler := connect.NewUnaryHandler(
-		LedgerReadServiceListHoldsProcedure,
-		svc.ListHolds,
-		connect.WithSchema(ledgerReadServiceMethods.ByName("ListHolds")),
-		connect.WithHandlerOptions(opts...),
-	)
 	ledgerReadServiceGetBalancesHandler := connect.NewUnaryHandler(
 		LedgerReadServiceGetBalancesProcedure,
 		svc.GetBalances,
@@ -272,8 +247,6 @@ func NewLedgerReadServiceHandler(svc LedgerReadServiceHandler, opts ...connect.H
 			ledgerReadServiceGetPortfolioEquitySnapshotHandler.ServeHTTP(w, r)
 		case LedgerReadServiceListTransfersProcedure:
 			ledgerReadServiceListTransfersHandler.ServeHTTP(w, r)
-		case LedgerReadServiceListHoldsProcedure:
-			ledgerReadServiceListHoldsHandler.ServeHTTP(w, r)
 		case LedgerReadServiceGetBalancesProcedure:
 			ledgerReadServiceGetBalancesHandler.ServeHTTP(w, r)
 		default:
@@ -303,10 +276,6 @@ func (UnimplementedLedgerReadServiceHandler) GetPortfolioEquitySnapshot(context.
 
 func (UnimplementedLedgerReadServiceHandler) ListTransfers(context.Context, *connect.Request[v1.ListTransfersRequest]) (*connect.Response[v1.ListTransfersResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ledger.read.v1.LedgerReadService.ListTransfers is not implemented"))
-}
-
-func (UnimplementedLedgerReadServiceHandler) ListHolds(context.Context, *connect.Request[v1.ListHoldsRequest]) (*connect.Response[v1.ListHoldsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ledger.read.v1.LedgerReadService.ListHolds is not implemented"))
 }
 
 func (UnimplementedLedgerReadServiceHandler) GetBalances(context.Context, *connect.Request[v1.GetBalancesRequest]) (*connect.Response[v1.GetBalancesResponse], error) {

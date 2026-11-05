@@ -49,15 +49,3 @@ func TestBalancesGetBalanceHistory(t *testing.T) {
 		}
 	}
 }
-
-func TestBalancesListHoldsOptional(t *testing.T) {
-	client, ctx, cleanup := testutil.RequireLiveClient(t)
-	defer cleanup()
-
-	result := testutil.CallOptional(t, "balances.list_holds", func() (models.HoldsList, error) {
-		return client.Balances.ListHolds(ctx, nil, nil, 5, false)
-	})
-	if result.Holds == nil {
-		t.Fatal("expected holds list")
-	}
-}

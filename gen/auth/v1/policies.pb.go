@@ -2114,7 +2114,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x12SpotMarketSelector\x12$\n" +
 	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\"-\n" +
 	"\x0eSpotMarketRule\x12\x1b\n" +
-	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\"\xd3\b\n" +
+	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\"\x9a\x06\n" +
 	"\x14SubaccountPolicyView\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x06R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -2137,7 +2137,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"created_at\x18\x14 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1a\n" +
-	"\brevision\x18\x1e \x01(\x04R\brevisionJ\x04\b\x05\x10\x06J\x04\b\a\x10\bJ\x04\b\f\x10\rJ\x04\b\x0f\x10\x14J\x04\b\x16\x10\x17J\x04\b\x18\x10\x1bR\fperp_marketsR\x11perp_market_scopeR\x13global_notional_capR\x12max_open_positionsR\x16global_perp_leverage_xR!daily_internal_transfer_out_limitR\x14daily_withdraw_limitR\x1binternal_transfers_own_onlyR\x1aenforce_withdraw_whitelistR\x10liquidation_onlyR\x10daily_loss_limitR\x1bintraday_drawdown_limit_bps\"k\n" +
+	"\brevision\x18\x1e \x01(\x04R\brevision\"k\n" +
 	"\x1dListSubaccountPoliciesRequest\x128\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
 	"\x0e_subaccount_id\"[\n" +
@@ -2148,7 +2148,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\rsubaccount_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
 	"\x0e_subaccount_id\"T\n" +
 	"\x1bGetSubaccountPolicyResponse\x125\n" +
-	"\x06policy\x18\x01 \x01(\v2\x1d.auth.v1.SubaccountPolicyViewR\x06policy\"\x9f\t\n" +
+	"\x06policy\x18\x01 \x01(\v2\x1d.auth.v1.SubaccountPolicyViewR\x06policy\"\xec\x06\n" +
 	"\x14SubaccountPolicySpec\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18@R\x04name\x12*\n" +
 	"\vdescription\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\vdescription\x12>\n" +
@@ -2163,7 +2163,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\n" +
 	"expires_at\x18\x1b \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt:\xa9\x02\xbaH\xa5\x02\x1a\xa7\x01\n" +
 	"\x1fspot_allowlist_requires_markets\x12Bspot_markets must be non-empty when spot_market_scope is ALLOWLIST\x1a@this.spot_market_scope != 2 ? true : size(this.spot_markets) > 0\x1ay\n" +
-	"\x13spot_markets_unique\x122spot_markets must not contain duplicate symbol IDs\x1a.this.spot_markets.map(m, m.symbol_id).unique()J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\f\x10\rJ\x04\b\x0f\x10\x15J\x04\b\x16\x10\x19R\fperp_marketsR\x11perp_market_scopeR\x13global_notional_capR\x12max_open_positionsR\x16global_perp_leverage_xR!daily_internal_transfer_out_limitR\x14daily_withdraw_limitR\x1binternal_transfers_own_onlyR\x1aenforce_withdraw_whitelistR\x10liquidation_onlyR\x10daily_loss_limitR\x1bintraday_drawdown_limit_bps\"\xad\x01\n" +
+	"\x13spot_markets_unique\x122spot_markets must not contain duplicate symbol IDs\x1a.this.spot_markets.map(m, m.symbol_id).unique()\"\xad\x01\n" +
 	"\x1dCreateSubaccountPolicyRequest\x12@\n" +
 	"\x06policy\x18\x01 \x01(\v2\x1d.auth.v1.SubaccountPolicySpecB\t\xe0A\x02\xbaH\x03\xc8\x01\x01R\x06policy\x128\n" +
 	"\rsubaccount_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
@@ -2185,7 +2185,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x1aSetSubaccountPolicyRequest\x123\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12\x1b\n" +
 	"\tpolicy_id\x18\x02 \x01(\x06R\bpolicyId\"\x1d\n" +
-	"\x1bSetSubaccountPolicyResponse\"\x96\x05\n" +
+	"\x1bSetSubaccountPolicyResponse\"\x8a\x04\n" +
 	"\rApiPolicyView\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x06R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -2200,7 +2200,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"created_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\x16 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1a\n" +
-	"\brevision\x18\x17 \x01(\x04R\brevisionJ\x04\b\x05\x10\x06J\x04\b\b\x10\tJ\x04\b\r\x10\x0eJ\x04\b\x11\x10\x12J\x04\b\x12\x10\x13R\fperp_marketsR\x11perp_market_scopeR!daily_internal_transfer_out_limitR\x14daily_withdraw_limitR\x12max_order_notional\"Y\n" +
+	"\brevision\x18\x17 \x01(\x04R\brevision\"Y\n" +
 	"\x16ListApiPoliciesRequest\x124\n" +
 	"\x06key_id\x18\x01 \x01(\tB\x18\xbaH\x15r\x132\x11^ak_[a-f0-9]{32}$H\x00R\x05keyId\x88\x01\x01B\t\n" +
 	"\a_key_id\"M\n" +
@@ -2211,7 +2211,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x06key_id\x18\x02 \x01(\tB\x18\xbaH\x15r\x132\x11^ak_[a-f0-9]{32}$H\x00R\x05keyId\x88\x01\x01B\t\n" +
 	"\a_key_id\"F\n" +
 	"\x14GetApiPolicyResponse\x12.\n" +
-	"\x06policy\x18\x01 \x01(\v2\x16.auth.v1.ApiPolicyViewR\x06policy\"\x89\x06\n" +
+	"\x06policy\x18\x01 \x01(\v2\x16.auth.v1.ApiPolicyViewR\x06policy\"\xfd\x04\n" +
 	"\rApiPolicySpec\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18@R\x04name\x12*\n" +
 	"\vdescription\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\vdescription\x12>\n" +
@@ -2221,7 +2221,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\vis_template\x18\x13 \x01(\bR\n" +
 	"isTemplate:\xa9\x02\xbaH\xa5\x02\x1a\xa7\x01\n" +
 	"\x1fspot_allowlist_requires_markets\x12Bspot_markets must be non-empty when spot_market_scope is ALLOWLIST\x1a@this.spot_market_scope != 2 ? true : size(this.spot_markets) > 0\x1ay\n" +
-	"\x13spot_markets_unique\x122spot_markets must not contain duplicate symbol IDs\x1a.this.spot_markets.map(m, m.symbol_id).unique()J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\r\x10\x0eJ\x04\b\x11\x10\x12J\x04\b\x12\x10\x13R\fperp_marketsR\x11perp_market_scopeR!daily_internal_transfer_out_limitR\x14daily_withdraw_limitR\x12max_order_notional\"\x99\x01\n" +
+	"\x13spot_markets_unique\x122spot_markets must not contain duplicate symbol IDs\x1a.this.spot_markets.map(m, m.symbol_id).unique()\"\x99\x01\n" +
 	"\x16CreateApiPolicyRequest\x129\n" +
 	"\x06policy\x18\x01 \x01(\v2\x16.auth.v1.ApiPolicySpecB\t\xe0A\x02\xbaH\x03\xc8\x01\x01R\x06policy\x12D\n" +
 	"\x10assign_to_key_id\x18\x02 \x01(\tB\x1b\xbaH\x18r\x162\x14^$|^ak_[a-f0-9]{32}$R\rassignToKeyId\"I\n" +
@@ -2242,7 +2242,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x16SetApiKeyPolicyRequest\x124\n" +
 	"\x06key_id\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x15\x10\x012\x11^ak_[a-f0-9]{32}$R\x05keyId\x12\x1b\n" +
 	"\tpolicy_id\x18\x02 \x01(\x06R\bpolicyId\"\x19\n" +
-	"\x17SetApiKeyPolicyResponse*\x8a\x03\n" +
+	"\x17SetApiKeyPolicyResponse*\x88\x02\n" +
 	"\fPolicyAction\x12\x0f\n" +
 	"\vUNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -2256,8 +2256,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x13MANAGE_ADDRESS_BOOK\x10\f\x12\x16\n" +
 	"\x12READ_AUTO_WITHDRAW\x10\x0e\x12\x18\n" +
 	"\x14MANAGE_AUTO_WITHDRAW\x10\x0f\x12\b\n" +
-	"\x04SWAP\x10\x10\"\x04\b\x02\x10\x02\"\x04\b\a\x10\a\"\x04\b\r\x10\r\"\x04\b\t\x10\t*\n" +
-	"TRADE_PERP*\tREAD_PERP*\x1aREAD_TRANSFER_DESTINATIONS*\x1aMANAGE_TRANSFER_WHITELISTS*\x19READ_EXTERNAL_WITHDRAWALS2\x9d\x18\n" +
+	"\x04SWAP\x10\x102\x9d\x18\n" +
 	"\rPolicyService\x12\xfd\x01\n" +
 	"\x16ListSubaccountPolicies\x12&.auth.v1.ListSubaccountPoliciesRequest\x1a'.auth.v1.ListSubaccountPoliciesResponse\"\x91\x01\xbaGd\n" +
 	"\fAuth Service\x12\x18List Subaccount Policies\x1a:List sub-account policy templates available to the caller.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1f\x12\x1d/v1/auth/policies/subaccounts\x12\xfe\x01\n" +

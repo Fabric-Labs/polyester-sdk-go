@@ -954,10 +954,10 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x04code\x18\x01 \x01(\x0e2\x16.auth.v1.AuthErrorCodeR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\"\x14\n" +
 	"\x12AcceptTermsRequest\"\x15\n" +
-	"\x13AcceptTermsResponse*Z\n" +
+	"\x13AcceptTermsResponse*A\n" +
 	"\x16WalletChallengePurpose\x12\x1c\n" +
 	"\x18WALLET_PROOF_UNSPECIFIED\x10\x00\x12\t\n" +
-	"\x05LOGIN\x10\x01\"\x04\b\x02\x10\x02*\x11CREATE_SUBACCOUNT*\xa3\r\n" +
+	"\x05LOGIN\x10\x01*\xa3\r\n" +
 	"\rAuthErrorCode\x12\x14\n" +
 	"\x10AUTH_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15AUTH_USERNAME_INVALID\x10\x01\x12\x17\n" +

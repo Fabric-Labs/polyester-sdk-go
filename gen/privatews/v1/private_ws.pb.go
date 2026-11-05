@@ -2956,7 +2956,7 @@ const file_privatews_v1_private_ws_proto_rawDesc = "" +
 	"\tUnitEvent\x120\n" +
 	"\x05order\x18\x01 \x01(\v2\x18.privatews.v1.OrderEventH\x00R\x05order\x128\n" +
 	"\aoutcome\x18\x02 \x01(\v2\x1c.privatews.v1.CommandOutcomeH\x00R\aoutcomeB\x06\n" +
-	"\x04kind\"\xcf\x03\n" +
+	"\x04kind\"\xbc\x03\n" +
 	"\n" +
 	"OrderEvent\x12\x19\n" +
 	"\border_id\x18\x01 \x01(\x06R\aorderId\x12\x18\n" +
@@ -2974,7 +2974,7 @@ const file_privatews_v1_private_ws_proto_rawDesc = "" +
 	"\bCANCELED\x10\x03\x12\f\n" +
 	"\bREJECTED\x10\x04\x12\f\n" +
 	"\bREPLACED\x10\x05\x12\x11\n" +
-	"\rATTACHED_RISK\x10\x06J\x04\b\x04\x10\x05R\vreason_code\"\xdc\x01\n" +
+	"\rATTACHED_RISK\x10\x06\"\xdc\x01\n" +
 	"\x04Fill\x12\x19\n" +
 	"\bmatch_id\x18\x01 \x01(\x04R\amatchId\x12\x18\n" +
 	"\aordinal\x18\x02 \x01(\rR\aordinal\x12+\n" +

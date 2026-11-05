@@ -20,7 +20,7 @@ import (
 // TestMarketBuySellRoundtrip is a self-contained fixture:
 // market BUY → carry net received base qty → market SELL that exact qty →
 // assert terminal fills, residual base zero, no residual open test orders,
-// and holds reconciled when list_holds is mounted.
+// and reserved balances reconciled.
 func TestMarketBuySellRoundtrip(t *testing.T) {
 	testutil.RequireFunded(t)
 	testutil.RequireMutation(t)
@@ -266,8 +266,7 @@ func TestMarketBuySellRoundtrip(t *testing.T) {
 		t.Fatalf("residual base position not zero: before=%s after=%s", baseBefore, baseAfter)
 	}
 
-	// Reserved balances are the required reconciliation signal even when the
-	// optional detailed list_holds route is not mounted.
+	// Reserved balances are the public reconciliation signal.
 	baseReservedAfter := testutil.ReservedBalance(after, *baseAssetID)
 	if baseReservedAfter.Cmp(baseReservedBefore) != 0 {
 		t.Fatalf("base reserved not reconciled: before=%s after=%s", baseReservedBefore, baseReservedAfter)
@@ -279,13 +278,6 @@ func TestMarketBuySellRoundtrip(t *testing.T) {
 		}
 	}
 
-	_, holdsErr := client.Balances.ListHolds(ctx, nil, nil, 20, false)
-	if holdsErr != nil && !testutil.RouteUnavailable(holdsErr) {
-		if testutil.StrictLiveEnabled() {
-			t.Fatalf("list_holds after roundtrip: %v", holdsErr)
-		}
-		t.Logf("holds reconcile skipped: %v", holdsErr)
-	}
 }
 
 func cancelOpenTestOrders(t *testing.T, ctx context.Context, client *polyester.Client, symbol string, cids map[string]struct{}, label string) {

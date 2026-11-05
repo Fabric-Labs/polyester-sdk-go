@@ -84,8 +84,9 @@ func (x *DepositAddress) GetDepositAddress() string {
 // selected account target and chain.
 type CreateDepositAddressRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Optional subaccount public id. When omitted, the authenticated caller's
-	// root account is used as the target account.
+	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
+	// use their bound subaccount; other callers use their authenticated root
+	// account.
 	SubaccountId uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
 	// PolyChain-registered source chain id to assign the deposit address for.
 	ChainId       uint32 `protobuf:"varint,2,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
@@ -188,8 +189,9 @@ func (x *CreateDepositAddressResponse) GetDepositAddress() *DepositAddress {
 // account target.
 type ListDepositAddressesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Optional subaccount public id. When omitted, the authenticated caller's
-	// root account is used as the target account.
+	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
+	// use their bound subaccount; other callers use their authenticated root
+	// account.
 	SubaccountId uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
 	// Optional PolyChain-registered source chain id filter. When omitted, the
 	// response returns the known deposit addresses for the selected target on

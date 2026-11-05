@@ -67,7 +67,10 @@ type TriggersServiceClient interface {
 	GetTrigger(context.Context, *connect.Request[v1.GetTriggerRequest]) (*connect.Response[v1.GetTriggerResponse], error)
 	// List triggers for a sub-account with optional filters.
 	ListTriggers(context.Context, *connect.Request[v1.ListTriggersRequest]) (*connect.Response[v1.ListTriggersResponse], error)
-	// List trigger events (append-only history).
+	// List trigger events (append-only history). A trigger the caller cannot
+	// read (no such trigger, another account's, or one outside the selected
+	// sub-account) answers NOT_FOUND, as GetTrigger does. A trigger the caller
+	// can read that has no event yet answers an empty list.
 	ListTriggerEvents(context.Context, *connect.Request[v1.ListTriggerEventsRequest]) (*connect.Response[v1.ListTriggerEventsResponse], error)
 	// Cancel a trigger: a standalone stop-loss, take-profit, trailing stop,
 	// TWAP or ladder, or an order's attached leg. Canceling a TWAP or a ladder
@@ -208,7 +211,10 @@ type TriggersServiceHandler interface {
 	GetTrigger(context.Context, *connect.Request[v1.GetTriggerRequest]) (*connect.Response[v1.GetTriggerResponse], error)
 	// List triggers for a sub-account with optional filters.
 	ListTriggers(context.Context, *connect.Request[v1.ListTriggersRequest]) (*connect.Response[v1.ListTriggersResponse], error)
-	// List trigger events (append-only history).
+	// List trigger events (append-only history). A trigger the caller cannot
+	// read (no such trigger, another account's, or one outside the selected
+	// sub-account) answers NOT_FOUND, as GetTrigger does. A trigger the caller
+	// can read that has no event yet answers an empty list.
 	ListTriggerEvents(context.Context, *connect.Request[v1.ListTriggerEventsRequest]) (*connect.Response[v1.ListTriggerEventsResponse], error)
 	// Cancel a trigger: a standalone stop-loss, take-profit, trailing stop,
 	// TWAP or ladder, or an order's attached leg. Canceling a TWAP or a ladder

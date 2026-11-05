@@ -92,6 +92,19 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	default:
 		return resp, nil
 	}
+	problem := sdkerrors.DecodeHTTPProblem(body, resp.StatusCode)
+	switch e := mapped.(type) {
+	case *sdkerrors.AuthError:
+		e.Problem = problem
+	case *sdkerrors.TimestampSkewError:
+		e.Problem = problem
+	case *sdkerrors.SessionRequiredError:
+		e.Problem = problem
+	case *sdkerrors.SubaccountOwnerRoleLockedError:
+		e.Problem = problem
+	case *sdkerrors.ValidationError:
+		e.Problem = problem
+	}
 	_ = resp.Body.Close()
 	return nil, mapped
 }

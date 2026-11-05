@@ -797,7 +797,8 @@ func (x *GetCandlesRequest) GetPageToken() string {
 
 // GetCandlesColumnsRequest selects a spot market candle series for columnar output.
 //
-// The response is ordered oldest-first for efficient chart ingestion. When both
+// Each response page is ordered oldest-first. Pagination selects the newest
+// eligible closed candles first and continues toward older candles. When both
 // start_time and end_time are set, both bounds are inclusive.
 type GetCandlesColumnsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -815,9 +816,8 @@ type GetCandlesColumnsRequest struct {
 	// Must be greater than or equal to start_time when both are set, and must not
 	// be more than 5 minutes in the future.
 	EndTime *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
-	// Include the current open candle when it is available and inside the
-	// requested range.
-	// The open candle is prepended to the newest-first candle list and does not
+	// Include the current open candle when available and inside the requested
+	// range. It appears last in the oldest-first response columns and does not
 	// count toward the closed-candle limit.
 	IncludeIncomplete bool `protobuf:"varint,6,opt,name=include_incomplete,json=includeIncomplete,proto3" json:"include_incomplete,omitempty"`
 	// Include the composite reference market candle series for the same market,
@@ -825,9 +825,9 @@ type GetCandlesColumnsRequest struct {
 	// The reference series can be empty when no reference series is available for
 	// the requested timeframe.
 	IncludeReference bool `protobuf:"varint,7,opt,name=include_reference,json=includeReference,proto3" json:"include_reference,omitempty"`
-	// Opaque keyset cursor from a previous response. The cursor is exclusive and
-	// bound to symbol, timeframe, time bounds, and oldest-first candle ordering.
-	// Inclusion flags and columnar response shape may change between pages.
+	// Opaque exclusive keyset cursor for older closed candles, bound to symbol,
+	// timeframe, and time bounds. Columns within each page are ordered oldest-first.
+	// Inclusion flags and response shape may change between pages.
 	PageToken     string `protobuf:"bytes,8,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1134,7 +1134,8 @@ func (x *GetCandlesResponse) GetNextPageToken() string {
 // GetCandlesColumnsResponse returns the same candle series as GetCandles but in columnar form.
 // This is optimized for charting clients that ingest arrays of each field (binary only).
 //
-// Ordering: values are returned oldest-first (ascending ts_sec).
+// Ordering: values within each page are oldest-first (ascending ts_sec).
+// Continuation pages contain older candles.
 type GetCandlesColumnsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Numeric spot market identifier.
@@ -1448,9 +1449,10 @@ type AssetConfig struct {
 	Name string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	// Suggested decimal precision for displaying user-facing asset amounts.
 	QuantityDisplayDecimals uint32 `protobuf:"varint,4,opt,name=quantity_display_decimals,json=quantityDisplayDecimals,proto3" json:"quantity_display_decimals,omitempty"`
-	// Integer scale for quantities and balances in this asset (0..18).
-	// A scale of 8 means one whole asset is represented as 100000000 in scaled
-	// integer fields such as qty_scaled.
+	// Decimal scale (0..18) for this asset's order quantities and other fields
+	// that explicitly reference quantity_scale. A scale of 8 represents one whole
+	// asset as 100000000 in those fields. Account balance amounts use fixed
+	// 18-decimal units independently of this value.
 	QuantityScale uint32 `protobuf:"varint,5,opt,name=quantity_scale,json=quantityScale,proto3" json:"quantity_scale,omitempty"`
 	// Integer scale for public candle and market-overview base volume (0..18).
 	MarketDataVolumeScale uint32 `protobuf:"varint,6,opt,name=market_data_volume_scale,json=marketDataVolumeScale,proto3" json:"market_data_volume_scale,omitempty"`
@@ -1638,10 +1640,11 @@ type PairConfig struct {
 	// base. An order above it is rejected with MAX_QTY. Absent when the pair
 	// has no maximum.
 	MaxMarketQtyBase *string `protobuf:"bytes,21,opt,name=max_market_qty_base,json=maxMarketQtyBase,proto3,oneof" json:"max_market_qty_base,omitempty"`
-	// Largest notional of one order, as a decimal string in quote-asset units:
-	// its quantity times its limit price, or times its protection price for a
-	// market order, compared exactly with no rounding. An order above it is
-	// rejected with MAX_NOTIONAL. Absent when the pair has no maximum.
+	// Maximum per-order notional as a decimal string in quote-asset units.
+	// Base-sized orders are checked using quantity times limit price, or market
+	// protection price, without rounding. For quote-sized buys, the entire all-in
+	// maximum quote debit must also fit this maximum. Exceeding it returns
+	// MAX_NOTIONAL. Absent when no maximum is configured.
 	MaxOrderNotionalQuote *string `protobuf:"bytes,22,opt,name=max_order_notional_quote,json=maxOrderNotionalQuote,proto3,oneof" json:"max_order_notional_quote,omitempty"`
 	// The venue's default limit on resting orders a typical account may hold on
 	// this pair at once: good-till-cancelled and good-till-date orders that have
@@ -1651,12 +1654,12 @@ type PairConfig struct {
 	// own; that is not part of this public configuration and would be returned
 	// by an account-scoped read.
 	MaxOpenOrdersPerPair uint32 `protobuf:"varint,23,opt,name=max_open_orders_per_pair,json=maxOpenOrdersPerPair,proto3" json:"max_open_orders_per_pair,omitempty"`
-	// Largest notional of one market order, as a decimal string in quote-asset
-	// units, compared exactly with no rounding. A market order is valued at the
-	// top of the price range it may trade in: a buy at its protection price and
-	// a sell at its reference price, the touch or the client's reference price,
-	// before slippage. An order above it is rejected with MAX_NOTIONAL. Absent
-	// when the pair has no maximum.
+	// Additional maximum notional for market orders as a decimal string in
+	// quote-asset units. Base-sized market orders are valued at the buy protection
+	// price or the sell reference price before slippage, without rounding. For
+	// quote-sized market buys, the entire all-in maximum quote debit must also fit
+	// this maximum. Exceeding it returns MAX_NOTIONAL. Absent when no maximum is
+	// configured.
 	MaxMarketNotionalQuote *string `protobuf:"bytes,24,opt,name=max_market_notional_quote,json=maxMarketNotionalQuote,proto3,oneof" json:"max_market_notional_quote,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache

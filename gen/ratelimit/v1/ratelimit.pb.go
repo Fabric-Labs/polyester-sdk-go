@@ -273,8 +273,9 @@ func (x *GetRateLimitConfigResponse) GetRules() []*TradingRateLimitRule {
 // account target.
 type GetTradingRateLimitsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Optional subaccount public identifier. When omitted, the authenticated
-	// caller's root account is used.
+	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
+	// use their bound subaccount; other callers use their authenticated root
+	// account.
 	SubaccountId  *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

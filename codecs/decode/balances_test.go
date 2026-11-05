@@ -7,7 +7,6 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
 	ledgerrdv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
 	ledgerv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/v1"
-	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 )
 
 func TestAssetBalanceFromProtoPreservesComponentRevisions(t *testing.T) {
@@ -114,26 +113,5 @@ func TestEquityHistoryFromProtoPortfolioAccount(t *testing.T) {
 	}
 	if result.Series[0].EquityQ[0] != 100 || result.Series[1].EquityQ[1] != 20 {
 		t.Fatalf("equity_q not preserved: %+v", result.Series)
-	}
-}
-
-func TestHoldsListFromProto(t *testing.T) {
-	msg := &ledgerrdv1.ListHoldsResponse{
-		Holds: []*ledgerrdv1.HoldRow{{
-			HoldId:            42,
-			AssetId:           1,
-			AmountReservedE18: &typev1.U128{Lo: 500},
-			ExpiresAtNs:       1_700_000_000_000,
-		}},
-	}
-	result := decode.HoldsListFromProto(msg)
-	if len(result.Holds) != 1 {
-		t.Fatalf("holds=%+v", result.Holds)
-	}
-	if result.Holds[0].HoldID != codecs.FormatUint64ID(42) {
-		t.Fatalf("hold_id=%q", result.Holds[0].HoldID)
-	}
-	if result.Holds[0].AmountReserved != "500" {
-		t.Fatalf("amount_reserved=%q", result.Holds[0].AmountReserved)
 	}
 }

@@ -39,7 +39,7 @@ Requires a recent Go toolchain (see `go.mod`).
 | Spot fee rates | Yes |
 | Trading rate limits | Yes |
 | Product changelog (posts + changes) | Yes |
-| Balances, holds, equity history | Yes |
+| Balances and equity history | Yes |
 | Orders (create, cancel, modify, batch, cancel-all) | Yes |
 | User trades | Yes |
 | Triggers | Yes |
@@ -688,6 +688,17 @@ percents per listed symbol (optional `symbolID` filter). That is the live effect
 surface, not a guaranteed quote of every future fill. The completed user-trade record still
 owns the exact charge.
 
+Rows also expose `ReserveFeeRatePercent`, `PostOnlyReserveFeeRatePercent`,
+`NextChangeAt` and `Breakdown`. Size buys with the reserve rate, using the
+post-only reserve rate for post-only orders; effective maker/taker rates
+apply to fills. Refetch rates at `NextChangeAt` when present. `Breakdown`
+contains tier rates, a market multiplier, account discounts and a referral
+discount. Optional components and times may be absent; absent account
+discounts decode as an empty slice.
+
+See the [contract migration notes](docs/contract-748066a.md) for the full
+fee model and exact integer budgeting guidance.
+
 `Trades.List(..., afterMatchID)` is a per-symbol cursor. When `afterMatchID` is
 set, pass a display `symbol` or `symbolID`; the SDK fails closed if the symbol
 cannot be resolved to a non-zero `symbol_id`.
@@ -860,6 +871,18 @@ stop, err := client.Triggers.Create(ctx, nil, "BTC-USDT", "stop_loss",
 	&triggerPrice, "sell", models.QtyFromDecimal("0.01"), "market", nil, "", "",
 	nil, nil, false, codecs.CreateTriggerOptions{MaxSlippageBps: &capBps})
 ```
+
+`Triggers.ListEvents` returns the same not-found error as `Triggers.Get`
+for an unreadable trigger. It retries catching-up `UNAVAILABLE` responses
+with the same bounded policy and request as trigger reads.
+
+A trailing stop created with an activation price the market has already
+reached now ends `FAILED` with reason
+`TRIGGER_FAILURE_REASON_TRIGGER_WOULD_TRIGGER_IMMEDIATELY` (244).
+`ModifyTrigger` and order modifies that would make it act at once are refused
+with `ERROR_CODE_TRIGGER_WOULD_TRIGGER_IMMEDIATELY` (302), leaving the
+existing state unchanged. To start trailing from the market, clear the
+activation price with a present zero.
 
 When modifying a trigger, omit `ActivationPrice` / `MaxSlippageTicks` /
 `MaxSlippageBps` to preserve the current values. The cap of a trailing stop or

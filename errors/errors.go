@@ -125,6 +125,7 @@ func IsMFALastFactorRequired(err error) bool {
 
 // AuthError indicates missing or invalid credentials / permissions.
 type AuthError struct {
+	Problem  *HTTPProblem // REST metadata, when supplied by the server.
 	Msg      string
 	Status   int    // HTTP status when sourced from an HTTP exchange (e.g. 401/403)
 	Label    string // backward-compatible endpoint/procedure label
@@ -156,8 +157,9 @@ func (e *AuthError) Is(target error) bool { return target == ErrPolyester }
 //
 // It unwraps to an *APIError with that code, so AuthErrorCode reads it.
 type SubaccountOwnerRoleLockedError struct {
-	Msg    string
-	Status int // HTTP status when sourced from a REST problem body (412)
+	Problem *HTTPProblem // REST metadata, when supplied by the server.
+	Msg     string
+	Status  int // HTTP status when sourced from a REST problem body (412)
 }
 
 func (e *SubaccountOwnerRoleLockedError) Error() string {
@@ -189,8 +191,9 @@ func IsSubaccountOwnerRoleLocked(err error) bool {
 //
 // It unwraps to an *APIError with that code, so AuthErrorCode reads it.
 type SessionRequiredError struct {
-	Msg    string
-	Status int // HTTP status when sourced from a REST problem body (403)
+	Problem *HTTPProblem // REST metadata, when supplied by the server.
+	Msg     string
+	Status  int // HTTP status when sourced from a REST problem body (403)
 }
 
 func (e *SessionRequiredError) Error() string {
@@ -229,6 +232,7 @@ type FieldViolation struct {
 // checks; Metadata carries the same violations as violation.N.field_path,
 // violation.N.rule_id and violation.N.message.
 type ValidationError struct {
+	Problem    *HTTPProblem // REST metadata, when supplied by the server.
 	Msg        string
 	Code       string
 	Metadata   map[string]string
@@ -309,8 +313,9 @@ func (e *APIError) Is(target error) bool { return target == ErrPolyester }
 // drifted. The request changed nothing: retrying signs it again with a fresh
 // timestamp. Bound concurrency or correct the clock if it recurs.
 type TimestampSkewError struct {
-	Msg    string
-	Status int // HTTP status, usually 401
+	Problem *HTTPProblem // REST metadata, when supplied by the server.
+	Msg     string
+	Status  int // HTTP status, usually 401
 }
 
 func (e *TimestampSkewError) Error() string        { return e.Msg }

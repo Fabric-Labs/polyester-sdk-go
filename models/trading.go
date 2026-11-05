@@ -513,19 +513,6 @@ type EquityHistory struct {
 	Series     []EquityHistorySeries `json:"series"`
 }
 
-// Hold is an open ledger hold.
-type Hold struct {
-	HoldID         string `json:"hold_id"`
-	AssetID        uint32 `json:"asset_id"`
-	AmountReserved string `json:"amount_reserved,omitempty"`
-	ExpiresAtNs    string `json:"expires_at_ns,omitempty"`
-}
-
-// HoldsList holds open holds.
-type HoldsList struct {
-	Holds []Hold `json:"holds"`
-}
-
 // TransferSide is one display side of a ledger transfer.
 //
 // Kind is a snake_case label (funding_account, trading_account,
