@@ -691,6 +691,9 @@ func (s *OrdersService) getOrderExecutionPages(
 			return models.GetOrderResult{}, err
 		}
 		if page.Order != nil {
+			if page.Order.OrderID != "" {
+				key = models.OrderKeyByID(page.Order.OrderID)
+			}
 			order = page.Order
 		}
 		trades = append(trades, page.Trades...)

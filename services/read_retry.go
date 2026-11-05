@@ -17,7 +17,7 @@ type unavailableRetry struct {
 	budget time.Duration
 }
 
-// triggerReadRetry is the default retry of GetTrigger and ListTriggers. Once
+// triggerReadRetry is the default retry of GetTrigger, ListTriggers and ListTriggerEvents. Once
 // ModifyTrigger, PauseTrigger or ResumeTrigger has answered, these reads
 // return the trigger as changed, or UNAVAILABLE until they can.
 var triggerReadRetry = unavailableRetry{

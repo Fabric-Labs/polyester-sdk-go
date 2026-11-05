@@ -1,7 +1,6 @@
 package decode
 
 import (
-	"strconv"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	ledgerrdv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
@@ -80,16 +79,4 @@ func equityHistorySeriesFromProto(s *ledgerrdv1.EquitySeries) models.EquityHisto
 		}
 	}
 	return row
-}
-
-func HoldFromProto(msg *ledgerrdv1.HoldRow) models.Hold {
-	return models.Hold{HoldID: codecs.FormatUint64ID(msg.GetHoldId()), AssetID: msg.GetAssetId(), AmountReserved: u128(msg.GetAmountReservedE18()), ExpiresAtNs: strconv.FormatUint(msg.GetExpiresAtNs(), 10)}
-}
-
-func HoldsListFromProto(msg *ledgerrdv1.ListHoldsResponse) models.HoldsList {
-	out := make([]models.Hold, 0, len(msg.GetHolds()))
-	for _, h := range msg.GetHolds() {
-		out = append(out, HoldFromProto(h))
-	}
-	return models.HoldsList{Holds: out}
 }

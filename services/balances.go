@@ -87,24 +87,6 @@ func (s *BalancesService) GetEquityHistory(ctx context.Context, account AccountS
 	return UnaryAuth(ctx, s.transport, s.client().GetEquityHistorySeries, req, decode.EquityHistoryFromProto)
 }
 
-func (s *BalancesService) ListHolds(ctx context.Context, account AccountScope, subAccountID *string, limit int, reversed bool) (models.HoldsList, error) {
-	parsedLimit, err := PaginationLimit(limit, "limit")
-	if err != nil {
-		return models.HoldsList{}, err
-	}
-	req := &ledgerrdv1.ListHoldsRequest{Limit: parsedLimit, Reversed: reversed}
-	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
-	if err != nil {
-		return models.HoldsList{}, err
-	}
-	if parsed, err := codecs.ParseOptionalSubaccountID(sub); err != nil {
-		return models.HoldsList{}, err
-	} else if parsed != nil {
-		req.SubaccountId = parsed
-	}
-	return UnaryAuth(ctx, s.transport, s.client().ListHolds, req, decode.HoldsListFromProto)
-}
-
 func accountCodesProto(codes []uint32) []ledgerv1.AccountCode {
 	if len(codes) == 0 {
 		return nil

@@ -2,6 +2,7 @@ package realtime
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -88,5 +89,28 @@ func TestFetchRTTokenMaps401ToAuthError(t *testing.T) {
 	}
 	if authErr.Code != "unauthenticated" {
 		t.Fatalf("code=%q", authErr.Code)
+	}
+}
+
+func TestRealtimeProblemPreservesMetadata(t *testing.T) {
+	for _, status := range []int{401, 403} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/problem+json")
+			w.WriteHeader(status)
+			_, _ = w.Write([]byte(`{"type":"https://polyester.dev/problems/permission-denied","code":"PERMISSION_DENIED","detail":"","status":403}`))
+		}))
+		_, err := fetchRTToken(context.Background(), srv.Client(), testCreds(t), srv.URL, "token")
+		srv.Close()
+		var authErr *sdkerrors.AuthError
+		if !errors.As(err, &authErr) {
+			t.Fatalf("error=%T %v", err, err)
+		}
+		raw, _ := json.Marshal(authErr)
+		var data map[string]any
+		_ = json.Unmarshal(raw, &data)
+		problem, ok := data["Problem"].(map[string]any)
+		if !ok || problem["code"] != "PERMISSION_DENIED" || problem["detail"] != "" || problem["status"] != float64(status) || problem["type"] != "https://polyester.dev/problems/permission-denied" {
+			t.Fatalf("problem metadata lost: %s", raw)
+		}
 	}
 }

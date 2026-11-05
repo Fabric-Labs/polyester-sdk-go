@@ -249,7 +249,7 @@ func (s *TriggersService) ListEvents(ctx context.Context, account AccountScope, 
 	if pageToken != nil && *pageToken != "" {
 		req.PageToken = *pageToken
 	}
-	return UnaryAuth(ctx, s.transport, s.client().ListTriggerEvents, req, decode.TriggerEventsListFromProto)
+	return UnaryAuth(ctx, s.transport, retryUnavailable(triggerReadRetry, s.client().ListTriggerEvents), req, decode.TriggerEventsListFromProto)
 }
 
 func (s *TriggersService) Subscribe(ctx context.Context, accountID any) (*realtime.Subscription[models.Trigger], error) {

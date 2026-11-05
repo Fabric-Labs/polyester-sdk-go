@@ -160,3 +160,15 @@ func TestProblemViolationsSurfaceOnValidationError(t *testing.T) {
 		t.Fatalf("violations=%#v", got)
 	}
 }
+
+func TestGatewayAuthProblemPreservesMetadata(t *testing.T) {
+	err := callMeAgainst(t, 401, "application/problem+json", `{"code":"UNAUTHENTICATED","status":401,"detail":"","type":"https://polyester.dev/problems/unauthenticated"}`)
+	var authErr *sdkerrors.AuthError
+	if !errors.As(err, &authErr) || authErr.Problem == nil {
+		t.Fatalf("problem missing: %T %v", err, err)
+	}
+	problem := authErr.Problem
+	if problem.Code != "UNAUTHENTICATED" || problem.Status != 401 || problem.Detail != "" || problem.Type != "https://polyester.dev/problems/unauthenticated" {
+		t.Fatalf("problem=%+v", problem)
+	}
+}

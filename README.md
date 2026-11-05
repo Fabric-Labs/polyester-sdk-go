@@ -1,5 +1,8 @@
 # Polyester Go SDK
 
+For the holds-list removal, reserve fee fields, trigger-event errors and REST
+problem metadata, see [the contract migration notes](docs/contract-748066a.md).
+
 Go SDK for the Polyester API with generated protobuf types and ConnectRPC clients.
 
 Official Go SDK for Polyester APIs, built for trading bots, backend services,

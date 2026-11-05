@@ -51,6 +51,7 @@ func truncateAuthBody(body []byte) string {
 
 func authHTTPError(status int, label string, body []byte) error {
 	truncated := truncateAuthBody(body)
+	problem := sdkerrors.DecodeHTTPProblem(body, status)
 	code := ""
 	serverMessage := ""
 	var payload map[string]any
@@ -70,7 +71,11 @@ func authHTTPError(status int, label string, body []byte) error {
 		}
 	}
 	detail := serverMessage
-	if detail == "" {
+	if problem != nil {
+		code = problem.Code
+		detail = problem.Detail
+	}
+	if detail == "" && problem == nil {
 		detail = truncated
 	}
 	msg := fmt.Sprintf("%s: HTTP %d, code %s", label, status, code)
@@ -79,6 +84,7 @@ func authHTTPError(status int, label string, body []byte) error {
 	}
 	return &sdkerrors.AuthError{
 		Msg:     msg,
+		Problem: problem,
 		Status:  status,
 		Label:   label,
 		Body:    truncated,

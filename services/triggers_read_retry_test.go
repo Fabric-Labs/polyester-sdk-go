@@ -24,6 +24,7 @@ type triggerReadHandler struct {
 	failCode    connect.Code
 	gets        []*triggersv1.GetTriggerRequest
 	lists       []*triggersv1.ListTriggersRequest
+	events      []*triggersv1.ListTriggerEventsRequest
 }
 
 func catchingUp() error {
@@ -162,5 +163,53 @@ func TestTriggerReadRetryStopsWhenCanceled(t *testing.T) {
 	}
 	if elapsed := time.Since(started); elapsed > time.Second {
 		t.Fatalf("cancellation took %s", elapsed)
+	}
+}
+
+func (h *triggerReadHandler) ListTriggerEvents(_ context.Context, req *connect.Request[triggersv1.ListTriggerEventsRequest]) (*connect.Response[triggersv1.ListTriggerEventsResponse], error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.events = append(h.events, proto.Clone(req.Msg).(*triggersv1.ListTriggerEventsRequest))
+	if err := h.answer(); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&triggersv1.ListTriggerEventsResponse{}), nil
+}
+func TestTriggerEventsRetryAndNotFound(t *testing.T) {
+	handler := &triggerReadHandler{unavailable: 2}
+	service := newTriggerReadService(t, handler)
+	sub, page, event := "12", "next-page", "fired"
+	result, err := service.ListEvents(context.Background(), nil, codecs.FormatID(9), &sub, 17, &event, &page)
+	if err != nil {
+		t.Fatalf("events read did not recover: %v", err)
+	}
+	if len(result.Events) != 0 {
+		t.Fatalf("events=%v", result.Events)
+	}
+	handler.mu.Lock()
+	if len(handler.events) != 3 {
+		t.Fatalf("events attempts=%d", len(handler.events))
+	}
+	first := handler.events[0]
+	if first.GetTriggerId() != 9 || first.GetSubaccountId() != 12 || first.GetLimit() != 17 || first.GetPageToken() != page || first.GetEventType() != triggersv1.TriggerEventType_EVENT_FIRED {
+		t.Fatalf("request=%v", first)
+	}
+	for _, req := range handler.events[1:] {
+		if !proto.Equal(first, req) {
+			t.Fatalf("retry changed request: %v", req)
+		}
+	}
+	handler.failCode = connect.CodeNotFound
+	handler.mu.Unlock()
+	_, getErr := service.Get(context.Background(), nil, codecs.FormatID(9), nil)
+	_, eventsErr := service.ListEvents(context.Background(), nil, codecs.FormatID(9), nil, 17, nil, nil)
+	var getAPI, eventsAPI *sdkerrors.APIError
+	if !errors.As(getErr, &getAPI) || !errors.As(eventsErr, &eventsAPI) || getAPI.Code != eventsAPI.Code || getAPI.Code != "not_found" {
+		t.Fatalf("get=%T %v events=%T %v", getErr, getErr, eventsErr, eventsErr)
+	}
+	handler.mu.Lock()
+	defer handler.mu.Unlock()
+	if len(handler.gets) != 1 || len(handler.events) != 4 {
+		t.Fatalf("not-found was retried: gets=%d events=%d", len(handler.gets), len(handler.events))
 	}
 }
