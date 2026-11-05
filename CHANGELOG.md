@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.6.1
+
+Git tag: `v0.6.1`. Released 2026-11-06.
 
 - Service-unavailable responses now raise retryable server errors on Connect
   for orders, withdrawals and internal transfers, matching REST. This includes
