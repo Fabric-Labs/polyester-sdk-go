@@ -43,3 +43,25 @@ func TestUnrecognisedREST504RemainsAmbiguousTransportFailure(t *testing.T) {
 		}
 	}
 }
+
+func TestRESTFutureOutcomeUnknownRemainsAmbiguous(t *testing.T) {
+	// An upgraded server can send a mutation code before the SDK regenerates.
+	for _, code := range []string{"TWAP_CREATE_OUTCOME_UNKNOWN", "ERROR_CODE_TWAP_CREATE_OUTCOME_UNKNOWN"} {
+		if _, known := orderv1.ErrorCode_value[code]; known {
+			t.Fatalf("fixture %q must be outside the generated enum", code)
+		}
+		for _, status := range []int{504, 503} {
+			t.Run(fmt.Sprintf("%s/%d", code, status), func(t *testing.T) {
+				err := callMeAgainst(t, status, "application/problem+json",
+					fmt.Sprintf(`{"code":%q,"detail":"read back first"}`, code))
+				api, ok := err.(*sdkerrors.APIError)
+				if !ok || sdkerrors.IsRetryable(err) || !sdkerrors.MutationOutcomeUnknown(err) {
+					t.Fatalf("class=%T retryable=%v outcomeUnknown=%v: %v", err, sdkerrors.IsRetryable(err), sdkerrors.MutationOutcomeUnknown(err), err)
+				}
+				if api.Code != code || api.Msg != "read back first" {
+					t.Fatalf("API error: %+v", api)
+				}
+			})
+		}
+	}
+}

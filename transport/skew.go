@@ -28,6 +28,8 @@ const maxErrorBodyBytes = 64 * 1024
 //   - an API-key refusal ({"code":"SIGNATURE_INVALID"}, "IP_NOT_ALLOWED",
 //     "UNAUTHENTICATED", ...) or a {"code":"PERMISSION_DENIED"} problem as
 //     *errors.AuthError with the problem's code and detail;
+//   - an outcome-unknown mutation problem as *errors.APIError, including
+//     codes introduced by a newer server before SDK regeneration;
 //   - a problem that lists field violations as *errors.ValidationError.
 type timestampSkewRoundTripper struct {
 	base http.RoundTripper
