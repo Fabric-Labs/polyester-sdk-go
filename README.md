@@ -7,9 +7,9 @@ and automation. Parity with `polyester-sdk-python` and `polyester-sdk-rust`
 using the checked-in `gen/` protobuf bundle (no local proto generation for
 normal development).
 
-**Status:** `v0.5.1`, pre-1.0: a minor release may change the API. The Go,
+**Status:** `v0.6.0`, pre-1.0: a minor release may change the API. The Go,
 Python and Rust SDKs are released together. Their versions match unless a
-change breaks only one SDK's API: Go `v0.5.1` is the release of Rust `0.6.0`.
+change breaks only one SDK's API: Go `v0.6.0` is the release of Rust `0.7.0`.
 Proprietary license (not open source).
 API-key only; no browser login or session MFA.
 
@@ -114,7 +114,7 @@ account's resting orders, the leg stays `armed` and its trigger records one
 ## Install
 
 ```bash
-go get github.com/Fabric-Labs/polyester-sdk-go@v0.5.1
+go get github.com/Fabric-Labs/polyester-sdk-go@v0.6.0
 ```
 
 For development from a git checkout:
@@ -689,9 +689,10 @@ surface, not a guaranteed quote of every future fill. The completed user-trade r
 owns the exact charge.
 
 Rows also expose `ReserveFeeRatePercent`, `PostOnlyReserveFeeRatePercent`,
-`NextChangeAt` and `Breakdown`. Size buys with the reserve rate, using the
-post-only reserve rate for post-only orders; effective maker/taker rates
-apply to fills. Refetch rates at `NextChangeAt` when present. `Breakdown`
+`NextChangeAt` and `Breakdown`. Size a buy limit order that pays its fee in
+the quote asset with the reserve rate, using the post-only reserve rate for a
+post-only order. A buy sized by a quote amount reserves at the lower of the
+reserve and taker rates. Effective maker/taker rates apply to fills. Refetch rates at `NextChangeAt` when present. `Breakdown`
 contains tier rates, a market multiplier, account discounts and a referral
 discount. Optional components and times may be absent; absent account
 discounts decode as an empty slice.
