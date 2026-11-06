@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+- Internal transfers now preserve a valid account or subaccount recipient
+  when an optional destination address is empty or whitespace.
+- Transfer history now rejects negative `since` timestamps with a validation
+  error before sending, instead of wrapping them into a large unsigned value.
+  Zero and positive values remain inclusive UTC epoch microsecond bounds.
+- **Breaking:** `CreateToFunding` and `CreateToExternalChain` now return a
+  `ValidationError` if `account` or `subAccountID` is supplied, including
+  `"main"`, `"active"` or a selector matching the API key's scope. These
+  arguments previously had no effect. Pass `nil` for both selectors and use
+  an API key bound to the intended source. Configured SDK defaults do not
+  route API-key withdrawals; wallet withdrawals still support account
+  selection and configured defaults.
+- Trailing-stop creation now rejects competing ticks and basis-point
+  trailing distances instead of silently keeping only ticks.
+
 ## 0.6.2
 
 Git tag: `v0.6.2`. Released 2026-11-06.

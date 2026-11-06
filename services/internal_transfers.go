@@ -39,14 +39,17 @@ func (s *InternalTransfersService) client() transferv1connect.InternalTransferSe
 }
 
 func (s *InternalTransfersService) Create(ctx context.Context, assetID uint32, quantity models.AssetAmountInput, idempotencyKey string, account AccountScope, subAccountID *string, destinationAccountID, destinationSubaccountID, destinationSmartAccountAddress *string, quantityScale *int) (models.InternalTransferResult, error) {
+	hasAccount := destinationAccountID != nil && strings.TrimSpace(*destinationAccountID) != ""
+	hasSubaccount := destinationSubaccountID != nil && strings.TrimSpace(*destinationSubaccountID) != ""
+	hasAddress := destinationSmartAccountAddress != nil && strings.TrimSpace(*destinationSmartAccountAddress) != ""
 	destinations := 0
-	if destinationAccountID != nil && strings.TrimSpace(*destinationAccountID) != "" {
+	if hasAccount {
 		destinations++
 	}
-	if destinationSubaccountID != nil && strings.TrimSpace(*destinationSubaccountID) != "" {
+	if hasSubaccount {
 		destinations++
 	}
-	if destinationSmartAccountAddress != nil && strings.TrimSpace(*destinationSmartAccountAddress) != "" {
+	if hasAddress {
 		destinations++
 	}
 	if destinations != 1 {
@@ -67,21 +70,20 @@ func (s *InternalTransfersService) Create(ctx context.Context, assetID uint32, q
 	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.InternalTransferResult{}, err
 	}
-	if destinationAccountID != nil {
+	switch {
+	case hasAccount:
 		id, err := codecs.IDToInt(*destinationAccountID, "destination_account_id")
 		if err != nil {
 			return models.InternalTransferResult{}, err
 		}
 		req.Destination = &transferv1.CreateInternalTransferRequest_DestinationAccountId{DestinationAccountId: id}
-	}
-	if destinationSubaccountID != nil {
+	case hasSubaccount:
 		id, err := codecs.IDToInt(*destinationSubaccountID, "destination_subaccount_id")
 		if err != nil {
 			return models.InternalTransferResult{}, err
 		}
 		req.Destination = &transferv1.CreateInternalTransferRequest_DestinationSubaccountId{DestinationSubaccountId: id}
-	}
-	if destinationSmartAccountAddress != nil {
+	case hasAddress:
 		req.Destination = &transferv1.CreateInternalTransferRequest_DestinationSmartAccountAddress{DestinationSmartAccountAddress: *destinationSmartAccountAddress}
 	}
 	return UnaryAuthDecoded(ctx, s.transport, s.client().CreateInternalTransfer, req, decode.InternalTransferFromProto)

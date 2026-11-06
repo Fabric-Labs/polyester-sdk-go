@@ -123,6 +123,9 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 			intent.Strategy = &triggersv1.TriggerIntent_TakeProfit{TakeProfit: cond}
 		}
 	case "trailing_stop":
+		if opts.TrailingDistanceTicks != nil && opts.TrailingDistanceBps != nil {
+			return nil, &errors.ValidationError{Msg: "set at most one of trailing_distance_ticks or trailing_distance_bps"}
+		}
 		// A sell trails the peak and fires on a fall; a buy trails the trough
 		// and fires on a rise, and limit_price is its maximum price: the most
 		// its child pays per unit, which also sizes the reserved funds.

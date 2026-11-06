@@ -5,6 +5,7 @@ import (
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
+	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	ledgerrdv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1/ledgerrdv1connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
@@ -43,6 +44,9 @@ func (s *TransfersService) List(ctx context.Context, account AccountScope, subAc
 		req.SubaccountId = parsed
 	}
 	if since != nil {
+		if *since < 0 {
+			return models.TransfersList{}, &errors.ValidationError{Msg: "since must be non-negative (UTC epoch microseconds)"}
+		}
 		req.TsMinUs = uint64(*since)
 	}
 	return UnaryAuth(ctx, s.transport, s.client().ListTransfers, req, decode.TransfersListFromProto)
