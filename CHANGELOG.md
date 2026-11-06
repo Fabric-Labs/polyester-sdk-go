@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Managed market overview streams finish after terminal failure, report the error, and let callers drain queued rows. Closing after consumer queue overflow no longer blocks.
+- Order books detect gaps after a sequence-zero snapshot and refetch before applying later deltas.
+- A full managed order book queue shuts down cleanly, preserves its error, and releases the connection.
+- Unknown market selectors report that catalog hydration is needed instead of a false name/ID conflict.
+- Realtime subscriptions preserve publications sent alongside or before the subscribe reply.
+- Managed order books finish their update stream after terminal failure and reject conflicting market name and ID selectors before connecting.
+
 ## 0.7.0
 
 Git tag: `v0.7.0`. Released 2026-11-06. Built on public contract `748066a`.
@@ -45,12 +54,6 @@ Git tag: `v0.7.0`. Released 2026-11-06. Built on public contract `748066a`.
   original range bounds unchanged.
 - Equity history now exposes `BTCPricesQ`: the returned BTC-USDT closes as
   integers scaled by 1e9, in timestamp order. An omitted series is an empty slice.
-- Order books detect gaps after a sequence-zero snapshot and refetch before applying later deltas.
-- A full managed order book queue shuts down cleanly, preserves its error, and releases the connection.
-- Unknown market selectors report that catalog hydration is needed instead of a false name/ID conflict.
-
-- Realtime subscriptions preserve publications sent alongside or before the subscribe reply.
-- Managed order books finish their update stream after terminal failure and reject conflicting market name and ID selectors before connecting.
 
 ## 0.6.2
 

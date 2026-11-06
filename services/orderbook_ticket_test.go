@@ -302,7 +302,7 @@ func TestTicket8512UnknownMatchingSelectorsRequireCatalogs(t *testing.T) {
 	if sub != nil {
 		sub.Close()
 	}
-	if err == nil || !strings.Contains(err.Error(), "wait_for_catalogs") {
+	if err == nil || !strings.Contains(err.Error(), "Client.WaitForCatalogs") {
 		t.Fatalf("expected hydration error, got %v", err)
 	}
 	if calls.Load() != 0 {
@@ -363,5 +363,22 @@ func TestTicket8511OverflowThenClose(t *testing.T) {
 	}
 	if count != 200 {
 		t.Fatalf("queued views lost: %d", count)
+	}
+}
+
+func TestTicket8512HydrationMessagesNameGoAPI(t *testing.T) {
+	svc, _, _, _ := bookTicketService(t, 1, true)
+	svc.catalogs = catalogs.NewManager()
+	// A legacy partial catalog can know the ID while still lacking its scale.
+	svc.catalogs.SpotConfig = map[string]any{"pairs": []any{
+		map[string]any{"symbol": "BTC-USDT", "symbol_id": 1},
+	}}
+	_, getErr := svc.Get(context.Background(), "BTC-USDT", 50)
+	_, subErr := svc.CreateSubscription(context.Background(), CreateSubscriptionOptions{Symbol: "BTC-USDT"})
+	for _, err := range []error{getErr, subErr} {
+		var typed *sdkerrors.ValidationError
+		if !errors.As(err, &typed) || !strings.Contains(err.Error(), "Client.WaitForCatalogs") {
+			t.Fatalf("expected Go hydration hint, got %v", err)
+		}
 	}
 }

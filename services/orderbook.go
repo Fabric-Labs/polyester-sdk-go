@@ -48,7 +48,7 @@ func (s *OrderbookService) Get(ctx context.Context, symbol string, depth int) (m
 	req := &orderbookv1.GetOrderBookRequest{SymbolId: symbolID, Depth: orderbookv1.Depth(v)}
 	scale, ok := s.catalogs.BaseQuantityScaleForSymbol(symbol)
 	if !ok {
-		return models.OrderbookData{}, &errors.ValidationError{Msg: fmt.Sprintf("orderbook decoding requires a hydrated catalog quantity scale for %q; call wait_for_catalogs or hydrate the spot catalog first", symbol)}
+		return models.OrderbookData{}, &errors.ValidationError{Msg: fmt.Sprintf("orderbook decoding requires a hydrated catalog quantity scale for %q; call Client.WaitForCatalogs(ctx) or hydrate the spot catalog first", symbol)}
 	}
 	return UnaryPublicDecoded(ctx, s.transport, s.client().GetOrderBook, req, func(msg *orderbookv1.GetOrderBookResponse) (models.OrderbookData, error) {
 		return decode.OrderbookFromProto(msg, symbol, depth, scale)
@@ -98,7 +98,7 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 
 	quantityScale, ok := s.catalogs.BaseQuantityScaleForSymbol(symbol)
 	if !ok {
-		return nil, &errors.ValidationError{Msg: fmt.Sprintf("orderbook decoding requires a hydrated catalog quantity scale for %q; call wait_for_catalogs or hydrate the spot catalog first", symbol)}
+		return nil, &errors.ValidationError{Msg: fmt.Sprintf("orderbook decoding requires a hydrated catalog quantity scale for %q; call Client.WaitForCatalogs(ctx) or hydrate the spot catalog first", symbol)}
 	}
 	var (
 		mu             sync.Mutex
