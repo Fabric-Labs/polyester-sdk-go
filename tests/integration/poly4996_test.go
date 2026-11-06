@@ -214,7 +214,7 @@ func TestCreateLadderDecodesExecutedFields(t *testing.T) {
 	clientID := testutil.UniqueClientOrderID("trg-ladder-exec")
 	created, createErr := client.Triggers.Create(
 		ctx, nil, symbol, "ladder", nil, "buy", models.QtyFromDecimal(totalQty), "limit",
-		&maxPrice, "", "", nil, &clientID, false, codecs.CreateTriggerOptions{
+		nil, "", "", nil, &clientID, false, codecs.CreateTriggerOptions{
 			LadderPriceMin:     &minPrice,
 			LadderPriceMax:     &maxPrice,
 			LadderLevels:       &levels,

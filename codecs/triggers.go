@@ -57,6 +57,9 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 	if _, ok := triggerTypeToProto[typeKey]; !ok {
 		return nil, &errors.ValidationError{Msg: "trigger_type must be stop_loss, take_profit, trailing_stop, twap, or ladder"}
 	}
+	if err := validateTriggerOptionApplicability(typeKey, triggerPrice, side, orderType, limitPrice, triggerPriceSource, tif, postOnly, opts); err != nil {
+		return nil, err
+	}
 	qtyScaled, err := ResolveQtyScaled(qty, quantityScale, "qty", symbol, &symbolID)
 	if err != nil {
 		return nil, err
@@ -273,6 +276,75 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 		req.SubaccountId = &sub
 	}
 	return req, nil
+}
+
+// validateTriggerOptionApplicability prevents flat options from disappearing
+// when a different strategy or a fixed child execution is selected.
+func validateTriggerOptionApplicability(kind string, triggerPrice *models.PriceInput, side, orderType string, limitPrice *models.PriceInput, source, tif string, postOnly bool, opts CreateTriggerOptions) error {
+	for _, option := range []struct {
+		present         bool
+		name, supported string
+	}{
+		{opts.TrailingDistanceTicks != nil, "trailing_distance_ticks", "trailing_stop"},
+		{opts.TrailingDistanceBps != nil, "trailing_distance_bps", "trailing_stop"},
+		{opts.ActivationPrice != nil && opts.ActivationPrice.IsSet(), "activation_price", "trailing_stop"},
+		{opts.TwapDurationMs != nil, "twap_duration_ms", "twap"},
+		{opts.TwapSliceIntervalMs != nil, "twap_slice_interval_ms", "twap"},
+		{opts.LadderPriceMin != nil && opts.LadderPriceMin.IsSet(), "ladder_price_min", "ladder"},
+		{opts.LadderPriceMax != nil && opts.LadderPriceMax.IsSet(), "ladder_price_max", "ladder"},
+		{opts.LadderLevels != nil, "ladder_levels", "ladder"},
+		{opts.LadderDistribution != nil, "ladder_distribution", "ladder"},
+	} {
+		if option.present && kind != option.supported {
+			return &errors.ValidationError{Msg: option.name + " applies only to " + option.supported}
+		}
+	}
+	if triggerPrice != nil && triggerPrice.IsSet() && kind != "stop_loss" && kind != "take_profit" {
+		return &errors.ValidationError{Msg: "trigger_price applies only to stop_loss or take_profit"}
+	}
+	if kind == "twap" || kind == "ladder" {
+		parsed, err := triggerPriceSourceToProto(source, "trigger_price_source")
+		if err != nil {
+			return err
+		}
+		if parsed != orderv1.TriggerPriceSource_TRIGGER_PRICE_SOURCE_UNSPECIFIED {
+			return &errors.ValidationError{Msg: "trigger_price_source applies only to stop_loss, take_profit or trailing_stop"}
+		}
+	}
+	orderType = strings.ToLower(orderType)
+	validOrderType := orderType == "market" || orderType == "limit"
+	if orderType == "" && (kind == "trailing_stop" || kind == "ladder") {
+		validOrderType = true
+	}
+	if !validOrderType {
+		return &errors.ValidationError{Msg: "order_type must be limit or market"}
+	}
+	if postOnly && (kind == "trailing_stop" || kind == "twap") {
+		return &errors.ValidationError{Msg: "post_only applies only to limit GTC stops or ladder"}
+	}
+	if limitPrice != nil && limitPrice.IsSet() && (kind == "ladder" || (kind != "trailing_stop" && orderType == "market")) {
+		return &errors.ValidationError{Msg: "limit_price applies only to limit children or a buy trailing_stop"}
+	}
+	if (kind == "ladder" || (kind == "twap" && orderType == "limit")) && (opts.MaxSlippageTicks != nil || opts.MaxSlippageBps != nil) {
+		return &errors.ValidationError{Msg: "max_slippage_ticks and max_slippage_bps apply only to market children or trailing_stop"}
+	}
+	tif = strings.ToLower(tif)
+	if tif != "" && tif != "gtc" && tif != "ioc" && tif != "fok" {
+		return &errors.ValidationError{Msg: "tif must be gtc, ioc or fok"}
+	}
+	// Empty leaves execution unspecified. Retain explicit gtc for compatibility;
+	// a fixed IOC execution also accepts ioc.
+	if kind == "ladder" || (kind == "twap" && orderType == "limit") {
+		if tif != "" && tif != "gtc" {
+			return &errors.ValidationError{Msg: "tif must be gtc for ladder or twap limit slices"}
+		}
+	} else if (kind == "trailing_stop" || orderType == "market") && tif == "fok" {
+		return &errors.ValidationError{Msg: "tif=fok applies only to stop_loss or take_profit limit children"}
+	}
+	if kind == "trailing_stop" && strings.EqualFold(side, "sell") && orderType == "limit" {
+		return &errors.ValidationError{Msg: "order_type=limit applies only to buy trailing_stop children"}
+	}
+	return nil
 }
 
 // conditionalChildToProto maps flat (order_type, tif, limit_price, post_only)
