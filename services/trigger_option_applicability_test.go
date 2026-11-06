@@ -114,7 +114,7 @@ func TestTriggerExecutionApplicability(t *testing.T) {
 	for _, kind := range []string{"stop_loss", "take_profit", "trailing_stop", "twap", "ladder"} {
 		for _, field := range []string{"trigger_price", "trigger_price_source", "post_only", "limit_price", "tif", "max_slippage_ticks", "max_slippage_bps"} {
 			for _, orderType := range []string{"market", "limit"} {
-				// Limit trailing sells have no limit child selector; covered by their fixed execution.
+				// The sell+limit refusal has a separate public-helper test below.
 				if kind == "trailing_stop" && orderType == "limit" {
 					continue
 				}
@@ -229,5 +229,104 @@ func TestTriggerExecutionApplicability(t *testing.T) {
 				})
 			}
 		}
+	}
+}
+
+func TestTriggerEmptyOrderTypeAndUnsetPrices(t *testing.T) {
+	cases := []struct {
+		name, kind, orderType, unset string
+		allowed                      bool
+	}{
+		{"trailing_empty_order_type", "trailing_stop", "", "", true},
+		{"ladder_empty_order_type", "ladder", "", "", true},
+		{"stop_empty_order_type", "stop_loss", "", "", false},
+		{"take_profit_empty_order_type", "take_profit", "", "", false},
+		{"twap_empty_order_type", "twap", "", "", false},
+		{"trailing_unset_trigger_price", "trailing_stop", "market", "trigger_price", true},
+		{"stop_unset_activation_price", "stop_loss", "market", "activation_price", true},
+		{"ladder_unset_limit_price", "ladder", "market", "limit_price", true},
+		{"stop_unset_ladder_price_min", "stop_loss", "market", "ladder_price_min", true},
+		{"stop_unset_ladder_price_max", "stop_loss", "market", "ladder_price_max", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := &optionCapture{}
+			s := newTriggerControlServiceWith(t, h)
+			opts := baseTriggerOptions(tc.kind)
+			var triggerPrice, limitPrice *models.PriceInput
+			unset := &models.PriceInput{}
+			switch tc.unset {
+			case "trigger_price":
+				triggerPrice = unset
+			case "activation_price":
+				opts.ActivationPrice = unset
+			case "limit_price":
+				limitPrice = unset
+			case "ladder_price_min":
+				opts.LadderPriceMin = unset
+			case "ladder_price_max":
+				opts.LadderPriceMax = unset
+			}
+			err := createWithOptions(s, tc.kind, triggerPrice, tc.orderType, limitPrice, "", "", false, opts)
+			h.mu.Lock()
+			defer h.mu.Unlock()
+			if !tc.allowed {
+				var validation *sdkerrors.ValidationError
+				if !errors.As(err, &validation) || !strings.Contains(err.Error(), "order_type") {
+					t.Fatalf("want order_type validation, got %v", err)
+				}
+				if len(h.requests) != 0 {
+					t.Fatalf("refusal sent %d requests", len(h.requests))
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(h.requests) != 1 {
+				t.Fatalf("want 1 request, got %d", len(h.requests))
+			}
+			intent := h.requests[0].GetTrigger().ProtoReflect()
+			strategy := intent.WhichOneof(intent.Descriptor().Oneofs().ByName("strategy"))
+			if strategy == nil || string(strategy.Name()) != tc.kind {
+				t.Fatalf("want %s strategy, got %v", tc.kind, strategy)
+			}
+		})
+	}
+}
+
+func TestTrailingStopSideExecutionAndBuyMaximum(t *testing.T) {
+	for _, tc := range []struct{ side, orderType string }{{"sell", "limit"}, {"buy", "limit"}, {"buy", "market"}} {
+		t.Run(tc.side+"/"+tc.orderType, func(t *testing.T) {
+			h := &optionCapture{}
+			s := newTriggerControlServiceWith(t, h)
+			var limit *models.PriceInput
+			if tc.side == "buy" {
+				limit = optionPtr(models.PriceFromDecimal("100"))
+			}
+			_, err := s.Create(context.Background(), nil, "BTC-USDT", "trailing_stop", nil, tc.side, models.QtyFromDecimal("0.01"), tc.orderType, limit, "", "", nil, nil, false, baseTriggerOptions("trailing_stop"))
+			h.mu.Lock()
+			defer h.mu.Unlock()
+			if tc.side == "sell" {
+				var validation *sdkerrors.ValidationError
+				if !errors.As(err, &validation) || !strings.Contains(err.Error(), "order_type=limit") {
+					t.Fatalf("want order_type=limit validation, got %v", err)
+				}
+				if len(h.requests) != 0 {
+					t.Fatalf("refusal sent %d requests", len(h.requests))
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(h.requests) != 1 {
+				t.Fatalf("want 1 request, got %d", len(h.requests))
+			}
+			trailing := h.requests[0].GetTrigger().GetTrailingStop()
+			if trailing == nil || trailing.GetLimitPriceTicks() != 100_000_000_000 {
+				t.Fatalf("maximum price lost: %v", trailing)
+			}
+		})
 	}
 }

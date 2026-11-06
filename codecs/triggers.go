@@ -287,11 +287,11 @@ func validateTriggerOptionApplicability(kind string, triggerPrice *models.PriceI
 	}{
 		{opts.TrailingDistanceTicks != nil, "trailing_distance_ticks", "trailing_stop"},
 		{opts.TrailingDistanceBps != nil, "trailing_distance_bps", "trailing_stop"},
-		{opts.ActivationPrice != nil, "activation_price", "trailing_stop"},
+		{opts.ActivationPrice != nil && opts.ActivationPrice.IsSet(), "activation_price", "trailing_stop"},
 		{opts.TwapDurationMs != nil, "twap_duration_ms", "twap"},
 		{opts.TwapSliceIntervalMs != nil, "twap_slice_interval_ms", "twap"},
-		{opts.LadderPriceMin != nil, "ladder_price_min", "ladder"},
-		{opts.LadderPriceMax != nil, "ladder_price_max", "ladder"},
+		{opts.LadderPriceMin != nil && opts.LadderPriceMin.IsSet(), "ladder_price_min", "ladder"},
+		{opts.LadderPriceMax != nil && opts.LadderPriceMax.IsSet(), "ladder_price_max", "ladder"},
 		{opts.LadderLevels != nil, "ladder_levels", "ladder"},
 		{opts.LadderDistribution != nil, "ladder_distribution", "ladder"},
 	} {
@@ -299,7 +299,7 @@ func validateTriggerOptionApplicability(kind string, triggerPrice *models.PriceI
 			return &errors.ValidationError{Msg: option.name + " applies only to " + option.supported}
 		}
 	}
-	if triggerPrice != nil && kind != "stop_loss" && kind != "take_profit" {
+	if triggerPrice != nil && triggerPrice.IsSet() && kind != "stop_loss" && kind != "take_profit" {
 		return &errors.ValidationError{Msg: "trigger_price applies only to stop_loss or take_profit"}
 	}
 	if kind == "twap" || kind == "ladder" {
@@ -312,13 +312,17 @@ func validateTriggerOptionApplicability(kind string, triggerPrice *models.PriceI
 		}
 	}
 	orderType = strings.ToLower(orderType)
-	if orderType != "market" && orderType != "limit" {
+	validOrderType := orderType == "market" || orderType == "limit"
+	if orderType == "" && (kind == "trailing_stop" || kind == "ladder") {
+		validOrderType = true
+	}
+	if !validOrderType {
 		return &errors.ValidationError{Msg: "order_type must be limit or market"}
 	}
 	if postOnly && (kind == "trailing_stop" || kind == "twap") {
 		return &errors.ValidationError{Msg: "post_only applies only to limit GTC stops or ladder"}
 	}
-	if limitPrice != nil && (kind == "ladder" || (kind != "trailing_stop" && orderType == "market")) {
+	if limitPrice != nil && limitPrice.IsSet() && (kind == "ladder" || (kind != "trailing_stop" && orderType == "market")) {
 		return &errors.ValidationError{Msg: "limit_price applies only to limit children or a buy trailing_stop"}
 	}
 	if (kind == "ladder" || (kind == "twap" && orderType == "limit")) && (opts.MaxSlippageTicks != nil || opts.MaxSlippageBps != nil) {
@@ -328,7 +332,8 @@ func validateTriggerOptionApplicability(kind string, triggerPrice *models.PriceI
 	if tif != "" && tif != "gtc" && tif != "ioc" && tif != "fok" {
 		return &errors.ValidationError{Msg: "tif must be gtc, ioc or fok"}
 	}
-	// Empty/gtc are the helper defaults; a fixed IOC execution also accepts ioc.
+	// Empty leaves execution unspecified. Retain explicit gtc for compatibility;
+	// a fixed IOC execution also accepts ioc.
 	if kind == "ladder" || (kind == "twap" && orderType == "limit") {
 		if tif != "" && tif != "gtc" {
 			return &errors.ValidationError{Msg: "tif must be gtc for ladder or twap limit slices"}
