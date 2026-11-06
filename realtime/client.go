@@ -67,7 +67,8 @@ func NewClient(wsURL string, apiURL string, credentials *auth.Credentials, httpC
 	}
 }
 
-// Close cancels all tracked subscriptions.
+// Close permanently closes the client and cancels all tracked subscriptions.
+// Create a new Client to subscribe again.
 func (c *Client) Close() {
 	if c == nil {
 		return
@@ -80,15 +81,6 @@ func (c *Client) Close() {
 	for _, closeFn := range subs {
 		closeFn()
 	}
-}
-
-func (c *Client) trackSubscription(closeFn func()) (untrack func()) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if c.closed {
-		return func() {}
-	}
-	return c.trackSubscriptionLocked(closeFn)
 }
 
 // trackSubscriptionLocked registers closeFn for Close; c.mu must be held and
@@ -185,12 +177,16 @@ func subscribeProto[T any](
 		}
 	}
 
+	c.mu.Lock()
+	if c.closed {
+		c.mu.Unlock()
+		return nil, ErrClientClosed
+	}
 	runCtx, cancel := context.WithCancel(ctx)
 	sub := newSubscription[T](c.maxQueue, cancel)
-	untrack := c.trackSubscription(func() { sub.Close() })
-	sub.mu.Lock()
-	sub.untrack = untrack
-	sub.mu.Unlock()
+	// Register while holding the lock Close takes, so it cannot miss this sub.
+	sub.untrack = c.trackSubscriptionLocked(func() { sub.Close() })
+	c.mu.Unlock()
 	reconnect := autoReconnectEnabled(opts)
 	readyCh := make(chan error, 1)
 	var readySent atomic.Bool

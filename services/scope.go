@@ -94,14 +94,11 @@ func optionalStringPtr(v any) *string {
 	}
 	switch t := v.(type) {
 	case *string:
-		if t == nil || *t == "" {
+		if t == nil {
 			return nil
 		}
 		return t
 	case string:
-		if t == "" {
-			return nil
-		}
 		s := t
 		return &s
 	default:

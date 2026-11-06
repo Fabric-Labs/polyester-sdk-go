@@ -185,5 +185,5 @@ func privateWSURL(apiURL string) (string, error) {
 	return u.String(), nil
 }
 
-// ErrClientClosed is returned by SubscribeOrders after Client.Close.
+// ErrClientClosed is returned when subscribing after Client.Close.
 var ErrClientClosed error = &sdkerrors.RealtimeError{Msg: "Realtime client is closed"}
