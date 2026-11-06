@@ -1,7 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.7.0
 
+Git tag: `v0.7.0`. Released 2026-11-06. Built on public contract `748066a`.
+
+- **Breaking:** trigger creation also refuses invalid `tif` and `order_type`
+  values on paths that never read them, and order writes refuse an empty symbol
+  sent with a valid symbol ID. These calls were accepted before.
 - **Breaking:** Batch create now checks each quantity against its destination pair's catalog
   scale. A mismatched explicit scale raises an error before the batch is sent.
   Create, batch create, modify and batch replace also refuse quantities tagged
