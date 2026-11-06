@@ -68,7 +68,7 @@ type CreateSubscriptionOptions struct {
 	OnReconnect func()
 	// OnSnapshotRefresh is called after a successful snapshot rebuild.
 	OnSnapshotRefresh func()
-	// OnError is called for transport, decode, snapshot, and terminal queue errors.
+	// OnError is called for transport, decode, snapshot, terminal queue and book render errors.
 	OnError func(error)
 }
 
@@ -125,9 +125,8 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		localSub := subscription
 		mu.Unlock()
 		if err != nil {
-			if opts.OnError != nil {
-				opts.OnError(err)
-			}
+			// The bad level stays in the book, so no later update can render it.
+			localSub.Fail(err)
 			return
 		}
 		if opts.OnEvent != nil {

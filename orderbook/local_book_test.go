@@ -184,3 +184,24 @@ func TestApplySideDeltaIgnoresNegativeLevels(t *testing.T) {
 		t.Fatalf("book=%v", book)
 	}
 }
+
+func TestBucketSideRefusesRawZeroPriceAndKeepsFlooredZeroBid(t *testing.T) {
+	for _, ticks := range []int{0, 10} {
+		for _, asks := range []bool{false, true} {
+			if _, err := BucketSide(BookSide{0: 9, 100: 1}, ticks, asks); err == nil {
+				t.Fatalf("raw zero price accepted: bucket=%d asks=%v", ticks, asks)
+			}
+			if _, err := BucketSide(BookSide{0: 0, 100: 1}, ticks, asks); err != nil {
+				t.Fatalf("zero quantity refused: bucket=%d asks=%v: %v", ticks, asks, err)
+			}
+		}
+	}
+	bids, err := BucketSide(BookSide{7: 3}, 10, false)
+	if err != nil || bids[0] != 3 {
+		t.Fatalf("floored bid=%v err=%v", bids, err)
+	}
+	asks, err := BucketSide(BookSide{7: 3}, 10, true)
+	if err != nil || asks[10] != 3 {
+		t.Fatalf("ceiling ask=%v err=%v", asks, err)
+	}
+}
