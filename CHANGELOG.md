@@ -23,6 +23,9 @@
 - Preserve market-overview and row-candle continuation tokens. Pass the returned
   token as the optional final argument to `MarketOverview.List`, `GetCandles`,
   or `GetCandlesWithReference` to read the next page.
+- Heatmap history now accepts its opaque token as the optional final `Get`
+  argument. Continuations omit a new default time window and keep any supplied
+  original range bounds unchanged.
 - Equity history now exposes `BTCPricesQ`: the returned BTC-USDT closes as
   integers scaled by 1e9, in timestamp order. An omitted series is an empty slice.
 

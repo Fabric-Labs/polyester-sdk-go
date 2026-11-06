@@ -31,7 +31,13 @@ func (s *HeatmapService) client() marketdatav1connect.HeatmapServiceClient {
 	return marketdatav1connect.NewHeatmapServiceClient(s.transport.HTTP, s.transport.Config.APIURL, s.transport.ConnectOptions(false)...)
 }
 
-func (s *HeatmapService) Get(ctx context.Context, symbol *string, symbolID *uint32, interval string, depth, limit int, quantityMode string, fromTsSec *int64, start, end *time.Time) (models.ApiData, error) {
+// Get reads heatmap history. Pass the returned opaque token as the optional
+// final argument with unchanged filters. A continuation omits the default time
+// window; any supplied range bounds are sent as given without adding current time.
+func (s *HeatmapService) Get(ctx context.Context, symbol *string, symbolID *uint32, interval string, depth, limit int, quantityMode string, fromTsSec *int64, start, end *time.Time, pageToken ...string) (models.ApiData, error) {
+	if len(pageToken) > 1 {
+		return models.ApiData{}, &errors.ValidationError{Msg: "at most one page token is allowed"}
+	}
 	resolved, err := ResolveSymbolID(s.catalogs, symbol, symbolID, "heatmap.get")
 	if err != nil {
 		return models.ApiData{}, err
@@ -62,24 +68,43 @@ func (s *HeatmapService) Get(ctx context.Context, symbol *string, symbolID *uint
 		return models.ApiData{}, err
 	}
 	req := &heatmapv1.GetOrderbookHeatmapRequest{SymbolId: resolved, Interval: heatmapv1.HeatmapInterval(intervalEnum), Depth: heatmapv1.HeatmapDepth(depthEnum), Limit: parsedLimit, QuantityMode: heatmapv1.HeatmapQuantityMode(qtyEnum)}
-	tr := &heatmapv1.HeatmapTimeRange{}
-	now := time.Now().UTC()
-	if fromTsSec != nil {
-		tr.StartTime = timestamppb.New(time.Unix(*fromTsSec, 0).UTC())
-		tr.EndTime = timestamppb.New(now)
-	} else {
-		e := now
-		if end != nil {
-			e = end.UTC()
-		}
-		st := e.Add(-5 * time.Minute)
-		if start != nil {
-			st = start.UTC()
-		}
-		tr.StartTime = timestamppb.New(st)
-		tr.EndTime = timestamppb.New(e)
+	if len(pageToken) == 1 {
+		req.PageToken = pageToken[0]
 	}
-	req.TimeRange = tr
+	if req.PageToken != "" {
+		if fromTsSec != nil || start != nil || end != nil {
+			tr := &heatmapv1.HeatmapTimeRange{}
+			if fromTsSec != nil {
+				tr.StartTime = timestamppb.New(time.Unix(*fromTsSec, 0).UTC())
+			} else if start != nil {
+				tr.StartTime = timestamppb.New(start.UTC())
+			}
+			if end != nil {
+				tr.EndTime = timestamppb.New(end.UTC())
+			}
+			req.TimeRange = tr
+		}
+	} else {
+		tr := &heatmapv1.HeatmapTimeRange{}
+		now := time.Now().UTC()
+		if fromTsSec != nil {
+			tr.StartTime = timestamppb.New(time.Unix(*fromTsSec, 0).UTC())
+			tr.EndTime = timestamppb.New(now)
+		} else {
+			e := now
+			if end != nil {
+				e = end.UTC()
+			}
+			st := e.Add(-5 * time.Minute)
+			if start != nil {
+				st = start.UTC()
+			}
+			tr.StartTime = timestamppb.New(st)
+			tr.EndTime = timestamppb.New(e)
+		}
+		req.TimeRange = tr
+	}
+
 	return UnaryPublic(ctx, s.transport, s.client().GetOrderbookHeatmap, req, func(msg *heatmapv1.GetOrderbookHeatmapResponse) models.ApiData {
 		return decode.APIDataFromProtoMust(msg)
 	})

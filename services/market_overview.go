@@ -32,6 +32,9 @@ func (s *MarketOverviewService) client() marketoverviewv1connect.MarketOverviewS
 	return marketoverviewv1connect.NewMarketOverviewServiceClient(s.transport.HTTP, s.transport.Config.APIURL, s.transport.ConnectOptions(false)...)
 }
 
+// List reads one overview page. The legacy string argument before
+// includeSparklines is ignored; pass the returned NextPageToken as the optional
+// final argument to continue with the same filters.
 func (s *MarketOverviewService) List(ctx context.Context, symbols []string, limit int, _ string, includeSparklines bool, pageToken ...string) (models.MarketOverviewList, error) {
 	parsedLimit, err := PaginationLimit(limit, "limit")
 	if err != nil {

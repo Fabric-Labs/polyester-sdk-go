@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"sync"
 	"testing"
 
@@ -202,6 +203,44 @@ func TestReadPreviewSymbolIDUsesCatalogScale(t *testing.T) {
 			defer h.mu.Unlock()
 			if len(h.calls) != 1 {
 				t.Fatalf("calls=%d", len(h.calls))
+			}
+		})
+	}
+}
+
+func (h *readPreservationHandler) GetEquityHistorySeries(_ context.Context, r *connect.Request[ledger.GetEquityHistorySeriesRequest]) (*connect.Response[ledger.GetEquityHistorySeriesResponse], error) {
+	_, n := h.record(r.Msg)
+	var prices []int64
+	if n == 1 {
+		prices = []int64{60000000000001, 61000000000009}
+	}
+	return connect.NewResponse(&ledger.GetEquityHistorySeriesResponse{Points: 2, StartTsSec: 100, EndTsSec: 400, Bucket: "5m", QuoteAsset: "USDT", Series: []*ledger.EquitySeries{{EquityQ: []int64{12345, -6789}}}, BtcPricesQ: prices}), nil
+}
+func TestReadPublicEquityBTCPricesAndOmittedControl(t *testing.T) {
+	for _, wire := range []string{"binary", "json"} {
+		t.Run(wire, func(t *testing.T) {
+			h := &readPreservationHandler{}
+			factory, cats := newReadPreservationServices(t, h, wire)
+			service := NewBalancesService(factory, cats, nil, nil, nil)
+			for _, prices := range [][]int64{{60000000000001, 61000000000009}, {}} {
+				result, err := service.GetEquityHistory(context.Background(), nil, "1d", nil, nil, "account")
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !reflect.DeepEqual(result.BTCPricesQ, prices) {
+					t.Fatalf("got %v want %v", result.BTCPricesQ, prices)
+				}
+				if result.Points != 2 || result.StartTsSec != 100 || result.EndTsSec != 400 || len(result.Series) != 1 || !reflect.DeepEqual(result.Series[0].EquityQ, []int64{12345, -6789}) {
+					t.Fatal(result)
+				}
+			}
+			h.mu.Lock()
+			defer h.mu.Unlock()
+			if len(h.calls) != 2 {
+				t.Fatalf("reads did not occur: %d", len(h.calls))
+			}
+			if !proto.Equal(h.calls[0], h.calls[1]) {
+				t.Fatal("control request changed")
 			}
 		})
 	}

@@ -54,29 +54,52 @@ func TestReadTransferOpaqueToken(t *testing.T) {
 }
 
 func TestReadEquityBTCPrices(t *testing.T) {
-	for _, prices := range [][]int64{{60000000000001, 61000000000009}, {}} {
-		raw := &ledger.GetEquityHistorySeriesResponse{StartTsSec: 100, EndTsSec: 400, Bucket: "5m", Points: 2, Series: []*ledger.EquitySeries{{EquityQ: []int64{12345, -6789}}}, BtcPricesQ: prices}
-		result := decode.EquityHistoryFromProto(raw)
-		if len(result.Series) != 1 || !reflect.DeepEqual(result.Series[0].EquityQ, []int64{12345, -6789}) {
-			t.Fatal(result)
-		}
-		b, err := json.Marshal(result)
-		if err != nil {
-			t.Fatal(err)
-		}
-		var fields map[string]json.RawMessage
-		if err = json.Unmarshal(b, &fields); err != nil {
-			t.Fatal(err)
-		}
-		var got []int64
-		if fields["btc_prices_q"] == nil {
-			t.Fatalf("BTC prices dropped: %s", b)
-		}
-		if err = json.Unmarshal(fields["btc_prices_q"], &got); err != nil {
-			t.Fatal(err)
-		}
-		if !reflect.DeepEqual(got, prices) {
-			t.Fatalf("got %v want %v", got, prices)
+	for _, jsonWire := range []bool{false, true} {
+		for _, prices := range [][]int64{{60000000000001, 61000000000009}, {}} {
+			raw := &ledger.GetEquityHistorySeriesResponse{StartTsSec: 100, EndTsSec: 400, Bucket: "5m", Points: 2, Series: []*ledger.EquitySeries{{EquityQ: []int64{12345, -6789}}}, BtcPricesQ: prices}
+			msg := &ledger.GetEquityHistorySeriesResponse{}
+			if jsonWire {
+				b, err := protojson.Marshal(raw)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err = protojson.Unmarshal(b, msg); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				b, err := proto.Marshal(raw)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err = proto.Unmarshal(b, msg); err != nil {
+					t.Fatal(err)
+				}
+			}
+			result := decode.EquityHistoryFromProto(msg)
+			if result.Points != 2 || result.StartTsSec != 100 || result.EndTsSec != 400 || len(result.Series) != 1 || !reflect.DeepEqual(result.Series[0].EquityQ, []int64{12345, -6789}) {
+				t.Fatal(result)
+			}
+			if !reflect.DeepEqual(result.BTCPricesQ, prices) {
+				t.Fatalf("got %v want %v", result.BTCPricesQ, prices)
+			}
+			b, err := json.Marshal(result)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var fields map[string]json.RawMessage
+			if err = json.Unmarshal(b, &fields); err != nil {
+				t.Fatal(err)
+			}
+			var got []int64
+			if fields["btc_prices_q"] == nil {
+				t.Fatalf("BTC prices dropped: %s", b)
+			}
+			if err = json.Unmarshal(fields["btc_prices_q"], &got); err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(got, prices) {
+				t.Fatalf("got %v want %v", got, prices)
+			}
 		}
 	}
 }
