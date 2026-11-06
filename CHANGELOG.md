@@ -16,6 +16,15 @@
   selection and configured defaults.
 - Trailing-stop creation now rejects competing ticks and basis-point
   trailing distances instead of silently keeping only ticks.
+- **Breaking:** transfer history now returns the opaque `NextPageToken` string
+  instead of an integer `NextCursor`. Pass it as the optional final argument to
+  `Transfers.List` with the same scope, filters and direction. An empty string
+  ends pagination. Existing calls without a token still read the first page.
+- Preserve market-overview and row-candle continuation tokens. Pass the returned
+  token as the optional final argument to `MarketOverview.List`, `GetCandles`,
+  or `GetCandlesWithReference` to read the next page.
+- Equity history now exposes `BTCPricesQ`: the returned BTC-USDT closes as
+  integers scaled by 1e9, in timestamp order. An omitted series is an empty slice.
 
 ## 0.6.2
 

@@ -511,6 +511,8 @@ type EquityHistory struct {
 	QuoteAsset string                `json:"quote_asset,omitempty"`
 	Points     int                   `json:"points,omitempty"`
 	Series     []EquityHistorySeries `json:"series"`
+	// Raw BTC-USDT closes scaled by 1e9, aligned to the implicit timestamps.
+	BTCPricesQ []int64 `json:"btc_prices_q"`
 }
 
 // TransferSide is one display side of a ledger transfer.
@@ -545,8 +547,9 @@ type LedgerTransfer struct {
 
 // TransfersList holds ledger transfers.
 type TransfersList struct {
-	Transfers  []LedgerTransfer `json:"transfers"`
-	NextCursor *int64           `json:"next_cursor,omitempty"`
+	Transfers []LedgerTransfer `json:"transfers"`
+	// Opaque continuation token; empty means the terminal page.
+	NextPageToken string `json:"next_page_token"`
 }
 
 // InternalTransferResult is an internal transfer outcome.

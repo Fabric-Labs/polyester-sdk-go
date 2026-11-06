@@ -105,16 +105,24 @@ func (s *MarketDataService) GetTradesAfter(ctx context.Context, symbol *string, 
 
 // GetCandles returns OHLCV candles newest-first. When includeIncomplete is true,
 // the open candle, if present, is prepended.
-func (s *MarketDataService) GetCandles(ctx context.Context, symbol *string, symbolID *uint32, timeframe string, limit int, start, end *time.Time, includeIncomplete bool) (models.CandlesResult, error) {
-	return s.GetCandlesWithReference(ctx, symbol, symbolID, timeframe, limit, start, end, includeIncomplete, false)
+func (s *MarketDataService) GetCandles(ctx context.Context, symbol *string, symbolID *uint32, timeframe string, limit int, start, end *time.Time, includeIncomplete bool, pageToken ...string) (models.CandlesResult, error) {
+	return s.GetCandlesWithReference(ctx, symbol, symbolID, timeframe, limit, start, end, includeIncomplete, false, pageToken...)
 }
 
 // GetCandlesWithReference returns OHLCV candles and, when includeReference is
 // true, composite reference candles. Primary OHLC uses the fixed Q9 price scale. Reference
 // OHLC uses the pair reference_price_scale. Base volume uses the base asset
 // market_data_volume_scale.
-func (s *MarketDataService) GetCandlesWithReference(ctx context.Context, symbol *string, symbolID *uint32, timeframe string, limit int, start, end *time.Time, includeIncomplete bool, includeReference bool) (models.CandlesResult, error) {
-	req, scale, refScale, err := s.buildCandlesRequest(symbol, symbolID, timeframe, limit, start, end, includeIncomplete, nil, includeReference)
+func (s *MarketDataService) GetCandlesWithReference(ctx context.Context, symbol *string, symbolID *uint32, timeframe string, limit int, start, end *time.Time, includeIncomplete bool, includeReference bool, pageToken ...string) (models.CandlesResult, error) {
+	if len(pageToken) > 1 {
+		return models.CandlesResult{}, &errors.ValidationError{Msg: "at most one page token is allowed"}
+	}
+	var token *string
+	if len(pageToken) == 1 {
+		token = &pageToken[0]
+	}
+
+	req, scale, refScale, err := s.buildCandlesRequest(symbol, symbolID, timeframe, limit, start, end, includeIncomplete, token, includeReference)
 	if err != nil {
 		return models.CandlesResult{}, err
 	}

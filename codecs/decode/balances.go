@@ -1,7 +1,6 @@
 package decode
 
 import (
-
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	ledgerrdv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
 	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
@@ -54,7 +53,7 @@ func EquityHistoryFromProto(msg *ledgerrdv1.GetEquityHistorySeriesResponse) mode
 	for _, s := range msg.GetSeries() {
 		series = append(series, equityHistorySeriesFromProto(s))
 	}
-	return models.EquityHistory{Range: balanceRangeLabels[msg.GetRange()], Bucket: msg.GetBucket(), StartTsSec: int64(msg.GetStartTsSec()), EndTsSec: int64(msg.GetEndTsSec()), QuoteAsset: msg.GetQuoteAsset(), Points: int(msg.GetPoints()), Series: series}
+	return models.EquityHistory{Range: balanceRangeLabels[msg.GetRange()], Bucket: msg.GetBucket(), StartTsSec: int64(msg.GetStartTsSec()), EndTsSec: int64(msg.GetEndTsSec()), QuoteAsset: msg.GetQuoteAsset(), Points: int(msg.GetPoints()), Series: series, BTCPricesQ: append([]int64{}, msg.GetBtcPricesQ()...)}
 }
 
 func equityHistorySeriesFromProto(s *ledgerrdv1.EquitySeries) models.EquityHistorySeries {
