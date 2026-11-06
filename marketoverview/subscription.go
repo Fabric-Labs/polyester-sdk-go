@@ -17,6 +17,7 @@ type Subscription struct {
 	updates   chan []models.MarketOverviewEntry
 	stream    *realtime.SnapshotThenStream[models.MarketOverviewList, models.MarketOverviewList]
 	closeOnce sync.Once
+	done      chan struct{}
 	closed    bool
 	mu        sync.Mutex
 	err       error
@@ -25,10 +26,21 @@ type Subscription struct {
 
 // NewSubscription creates a managed market overview subscription.
 func NewSubscription(stream *realtime.SnapshotThenStream[models.MarketOverviewList, models.MarketOverviewList]) *Subscription {
-	return &Subscription{
+	sub := &Subscription{
 		updates: make(chan []models.MarketOverviewEntry, 50),
+		done:    make(chan struct{}),
 		stream:  stream,
 	}
+	if stream != nil {
+		go func() {
+			select {
+			case <-stream.Done():
+				sub.closeUpdates()
+			case <-sub.done:
+			}
+		}()
+	}
+	return sub
 }
 
 // Updates returns merged overview rows.
@@ -68,14 +80,21 @@ func (s *Subscription) RefreshSnapshot(ctx context.Context) error {
 
 // Close stops the subscription.
 func (s *Subscription) Close() {
+	s.closeUpdates()
+	if s.stream != nil {
+		s.stream.Close()
+	}
+}
+
+func (s *Subscription) closeUpdates() {
 	s.closeOnce.Do(func() {
 		s.mu.Lock()
+		defer s.mu.Unlock()
 		s.closed = true
-		s.mu.Unlock()
-		if s.stream != nil {
-			s.stream.Close()
-		}
 		close(s.updates)
+		if s.done != nil {
+			close(s.done)
+		}
 	})
 }
 
@@ -101,8 +120,11 @@ func (s *Subscription) Enqueue(rows []models.MarketOverviewEntry) bool {
 		callback := s.onError
 		s.closed = true
 		s.mu.Unlock()
+		s.closeUpdates()
+		if s.stream != nil {
+			s.stream.Stop()
+		}
 		callErrorCallback(callback, err)
-		s.Close()
 		return false
 	}
 }

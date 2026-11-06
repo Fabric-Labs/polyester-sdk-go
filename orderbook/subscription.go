@@ -21,6 +21,7 @@ type Subscription struct {
 	emit      func()
 	setBucket func(int)
 	closeOnce sync.Once
+	done      chan struct{}
 	closed    bool
 	err       error
 	onError   func(error)
@@ -36,12 +37,23 @@ func NewSubscription(
 	if len(setBucket) > 0 {
 		setBucketFn = setBucket[0]
 	}
-	return &Subscription{
+	sub := &Subscription{
 		updates:   make(chan models.OrderbookData, 200),
+		done:      make(chan struct{}),
 		stream:    stream,
 		emit:      emit,
 		setBucket: setBucketFn,
 	}
+	if stream != nil {
+		go func() {
+			select {
+			case <-stream.Done():
+				sub.closeUpdates()
+			case <-sub.done:
+			}
+		}()
+	}
+	return sub
 }
 
 // Updates returns merged orderbook snapshots.
@@ -96,14 +108,21 @@ func (s *Subscription) RefreshSnapshot(ctx context.Context) error {
 
 // Close stops the subscription.
 func (s *Subscription) Close() {
+	s.closeUpdates()
+	if s.stream != nil {
+		s.stream.Close()
+	}
+}
+
+func (s *Subscription) closeUpdates() {
 	s.closeOnce.Do(func() {
 		s.mu.Lock()
+		defer s.mu.Unlock()
 		s.closed = true
-		s.mu.Unlock()
-		if s.stream != nil {
-			s.stream.Close()
-		}
 		close(s.updates)
+		if s.done != nil {
+			close(s.done)
+		}
 	})
 }
 
@@ -129,8 +148,11 @@ func (s *Subscription) Enqueue(data models.OrderbookData) bool {
 		callback := s.onError
 		s.closed = true
 		s.mu.Unlock()
+		s.closeUpdates()
+		if s.stream != nil {
+			s.stream.Stop()
+		}
 		callErrorCallback(callback, err)
-		s.Close()
 		return false
 	}
 }
