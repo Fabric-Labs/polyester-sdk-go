@@ -68,7 +68,7 @@ type CreateSubscriptionOptions struct {
 	OnReconnect func()
 	// OnSnapshotRefresh is called after a successful snapshot rebuild.
 	OnSnapshotRefresh func()
-	// OnError is called for transport, decode, snapshot, and terminal queue errors.
+	// OnError is called for transport, decode, snapshot, terminal queue and book render errors.
 	OnError func(error)
 }
 
@@ -116,7 +116,7 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 
 	emit := func() {
 		mu.Lock()
-		if subscription == nil {
+		if subscription == nil || subscription.Closed() {
 			mu.Unlock()
 			return
 		}
@@ -125,9 +125,8 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		localSub := subscription
 		mu.Unlock()
 		if err != nil {
-			if opts.OnError != nil {
-				opts.OnError(err)
-			}
+			// The bad level stays in the book, so no later update can render it.
+			localSub.Fail(err)
 			return
 		}
 		if opts.OnEvent != nil {
@@ -138,6 +137,11 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 
 	handleDelta := func(delta models.OrderBookDeltaUpdate) {
 		mu.Lock()
+		// A delta buffered behind a terminal failure must not change or render the book.
+		if subscription != nil && subscription.Closed() {
+			mu.Unlock()
+			return
+		}
 		newSeq, needsRefresh := orderbook.ApplyDelta(bids, asks, currentBookSeq, delta)
 		currentBookSeq = newSeq
 		localStream := stream

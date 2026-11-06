@@ -63,6 +63,9 @@ func BucketSide(book BookSide, bucketTicks int, asks bool) (BookSide, error) {
 			if qty < 0 {
 				return nil, &sdkerrors.ValidationError{Msg: "orderbook quantity must be non-negative"}
 			}
+			if price == 0 && qty > 0 {
+				return nil, &sdkerrors.ValidationError{Msg: "orderbook level has invalid or missing price"}
+			}
 		}
 		return book, nil
 	}
@@ -73,6 +76,10 @@ func BucketSide(book BookSide, bucketTicks int, asks bool) (BookSide, error) {
 		}
 		if qty <= 0 {
 			continue
+		}
+		// Only a positive raw bid may floor into the zero display boundary.
+		if price == 0 {
+			return nil, &sdkerrors.ValidationError{Msg: "orderbook level has invalid or missing price"}
 		}
 		floor, err := checkedMul(price/bucketTicks, bucketTicks)
 		if err != nil {
