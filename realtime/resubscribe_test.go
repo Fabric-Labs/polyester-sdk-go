@@ -680,6 +680,119 @@ func TestListedDecimalIDWithoutZeroDigit(t *testing.T) {
 	}
 }
 
+// awaitReservedSlot returns once the client has reserved the attempt slot after
+// the one the test occupied: the resume is now in its pacing wait.
+func awaitReservedSlot(t *testing.T, access *subaccountAccess, occupied time.Time) {
+	t.Helper()
+	hardening.WaitUntil(t, func() bool {
+		access.mu.Lock()
+		defer access.mu.Unlock()
+		return access.nextAttemptAt.After(occupied)
+	}, 5*time.Second)
+}
+
+// A removal that arrives while the access decision is waiting must win over an
+// older answer: the list while it is in flight, the pacing wait after it. The
+// removed false controls prove the same barriers still resume.
+func TestRemovalWhileDecidingStopsBeforeAnyToken(t *testing.T) {
+	const updates = subaccountsChannelPrefix + "root:proto"
+	for _, tc := range []struct {
+		name    string
+		barrier string
+		removed bool
+	}{
+		{"removed during list", "list", true},
+		{"still granted during list", "list", false},
+		{"removed during pacing", "pacing", true},
+		{"still granted during pacing", "pacing", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := newResumeServer(t)
+			client := s.client()
+			timing := fastResubscribeTiming
+			if tc.barrier == "pacing" {
+				timing.attemptSpacing = 400 * time.Millisecond
+			}
+			client.access = newSubaccountAccess(client, timing)
+			stream, err := SubscribeProto(context.Background(), client, updates, identity)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer stream.Close()
+			s.awaitSubscribed(updates)
+			channel := resumeChannel(testResumeSub)
+			sub, err := SubscribeProto(context.Background(), client, channel, identity)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer sub.Close()
+			s.awaitSubscribed(channel)
+			tokens := s.subTokens.Load()
+
+			release := make(chan struct{})
+			var once sync.Once
+			defer once.Do(func() { close(release) })
+			if tc.barrier == "list" {
+				body, _ := json.Marshal(map[string]any{"subaccounts": []map[string]any{{"id": codecs.FormatUint64ID(testResumeSub), "role": "VIEWER"}}})
+				held := func() (int, string) {
+					<-release
+					return http.StatusOK, string(body)
+				}
+				s.listed.Store(&held)
+			}
+			var occupied time.Time
+			if tc.barrier == "pacing" {
+				// Occupy the slot so the resume must wait for the next one.
+				client.access.reserveAttempt(time.Now())
+				client.access.mu.Lock()
+				occupied = client.access.nextAttemptAt
+				client.access.mu.Unlock()
+			}
+
+			s.endSubscription(channel)
+			if tc.barrier == "list" {
+				hardening.WaitUntil(t, func() bool { return s.listCalls.Load() == 1 }, 5*time.Second)
+			} else {
+				awaitReservedSlot(t, client.access, occupied)
+			}
+			if got := s.subTokens.Load(); got != tokens {
+				t.Fatalf("subscribe tokens = %d before the barrier opened, want %d", got, tokens)
+			}
+
+			update := &authv1.Subaccount{Id: testResumeSub, Role: authv1.SubaccountRole_VIEWER}
+			if tc.removed {
+				update = &authv1.Subaccount{Id: testResumeSub, Removed: true}
+			}
+			payload, err := proto.Marshal(update)
+			if err != nil {
+				t.Fatal(err)
+			}
+			s.push(updates, hardening.CentrifugoPublication(payload))
+			select {
+			case <-stream.Messages():
+			case <-time.After(5 * time.Second):
+				t.Fatal("update not delivered")
+			}
+			once.Do(func() { close(release) })
+
+			if !tc.removed {
+				s.awaitSubscribed(channel)
+				if got := s.subTokens.Load(); got != tokens+1 {
+					t.Fatalf("subscribe tokens = %d, want a fresh one", got)
+				}
+				return
+			}
+			ended := awaitEnded(t, sub, 5*time.Second)
+			if ended.Reason != sdkerrors.SubscriptionEndAccessRemoved {
+				t.Fatalf("ended = %+v", ended)
+			}
+			if got := s.subTokens.Load(); got != tokens {
+				t.Fatalf("subscribe tokens = %d, want none after the removal", got)
+			}
+		})
+	}
+}
+
 func TestSubaccountChannelID(t *testing.T) {
 	id := codecs.FormatID(testResumeSub)
 	for _, prefix := range subaccountChannelPrefixes {

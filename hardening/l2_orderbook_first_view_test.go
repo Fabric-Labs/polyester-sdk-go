@@ -238,3 +238,40 @@ func TestL2OrderbookServerUnsubscribeReleasesConsumers(t *testing.T) {
 		t.Fatal("error callback not called")
 	}
 }
+
+// A newer available snapshot makes a pending request for the old unavailable
+// one obsolete: it must not fire, or a failure there could end a healthy stream.
+func TestL2OrderbookAvailableSnapshotCancelsPendingRerequest(t *testing.T) {
+	var calls atomic.Int64
+	service := scriptedBookService(t, &calls, func(call int64) *orderbookv1.GetOrderBookResponse {
+		if call == 1 {
+			return unavailableBook(0)
+		}
+		return availableBook(10)
+	})
+	sub, err := service.CreateSubscription(context.Background(), services.CreateSubscriptionOptions{Symbol: "BTC-USDT", Depth: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sub.Close()
+	if view := nextBook(t, sub, 5*time.Second); view.Available {
+		t.Fatalf("first view %+v must be unavailable", view)
+	}
+	if err := sub.RefreshSnapshot(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if view := nextBook(t, sub, 5*time.Second); !view.Available {
+		t.Fatalf("refreshed view %+v must be available", view)
+	}
+	if got := calls.Load(); got != 2 {
+		t.Fatalf("snapshot requests = %d, want 2 before the old timer is due", got)
+	}
+	// Past the 1 s delay the unavailable snapshot scheduled.
+	time.Sleep(1500 * time.Millisecond)
+	if got := calls.Load(); got != 2 {
+		t.Fatalf("snapshot requests = %d: an obsolete request fired", got)
+	}
+	if sub.Err() != nil {
+		t.Fatalf("healthy stream has error %v", sub.Err())
+	}
+}

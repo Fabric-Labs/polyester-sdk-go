@@ -125,6 +125,9 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		lastViewUnavailable bool
 		recheckPending      bool
 		recheckDelay        = unavailableSnapshotInitialDelay
+		// recheckGeneration invalidates a scheduled request once a newer
+		// snapshot is available.
+		recheckGeneration uint64
 	)
 
 	emit := func() {
@@ -177,6 +180,8 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		mu.Lock()
 		if available {
 			recheckDelay = unavailableSnapshotInitialDelay
+			recheckPending = false
+			recheckGeneration++
 			mu.Unlock()
 			return
 		}
@@ -188,6 +193,7 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		delay := recheckDelay
 		recheckDelay = min(recheckDelay*2, unavailableSnapshotMaxDelay)
 		localStream := stream
+		generation := recheckGeneration
 		mu.Unlock()
 		go func() {
 			timer := time.NewTimer(delay)
@@ -200,6 +206,10 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 				return
 			}
 			mu.Lock()
+			if generation != recheckGeneration {
+				mu.Unlock()
+				return
+			}
 			recheckPending = false
 			mu.Unlock()
 			localStream.RequestSnapshotRefresh(ctx)

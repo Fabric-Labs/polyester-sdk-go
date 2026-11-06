@@ -216,10 +216,19 @@ func (a *subaccountAccess) awaitResume(ctx context.Context, channel string, atte
 			attempt.last = err
 			continue
 		}
+		// A removal that arrived during the read is newer than its answer.
+		if a.seenRemoved(id) {
+			return attempt.ended.stop(channel, sdkerrors.SubscriptionEndAccessRemoved, nil)
+		}
 		if _, ok := listed[id]; !ok {
 			return attempt.ended.stop(channel, sdkerrors.SubscriptionEndNotListed, nil)
 		}
-		sleepContext(ctx, a.reserveAttempt(time.Now()))
+		if !sleepContext(ctx, a.reserveAttempt(time.Now())) {
+			return nil
+		}
+		if a.seenRemoved(id) {
+			return attempt.ended.stop(channel, sdkerrors.SubscriptionEndAccessRemoved, nil)
+		}
 		return nil
 	}
 }
