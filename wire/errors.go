@@ -174,6 +174,9 @@ func MapConnectError(err error) error {
 			}
 		}
 	}
+	if strings.HasSuffix(strings.TrimSpace(msg), "_OUTCOME_UNKNOWN") && (outcome == nil || !strings.HasSuffix(outcome.GetCode().String(), "_OUTCOME_UNKNOWN")) {
+		return &sdkerrors.APIError{Msg: msg, Code: orderErrorCodeFromName(strings.TrimSpace(msg))}
+	}
 	if outcome != nil {
 		mapped := &sdkerrors.APIError{Msg: msg, Code: outcome.GetCode().String()}
 		if outcome.ExistingOrderId != nil {

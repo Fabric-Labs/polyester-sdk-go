@@ -203,3 +203,13 @@ func TestStandaloneBackoffNeverHidesUnknownOutcome(t *testing.T) {
 		}
 	}
 }
+
+func TestCodeOnlyUnknownPrecedesStandaloneBackoff(t *testing.T) {
+	delay := uint64(1250)
+	rate, _ := proto.Marshal(&ratelimitv1.RateLimitDetail{RetryAfterMs: &delay})
+	body, _ := json.Marshal(map[string]any{"code": "unavailable", "message": "ORDER_CREATE_OUTCOME_UNKNOWN", "details": []map[string]string{{"type": "polyester.ratelimit.v1.RateLimitDetail", "value": base64.StdEncoding.EncodeToString(rate)}}})
+	e := callMeAgainst(t, 503, "application/json", string(body))
+	if !sdkerrors.MutationOutcomeUnknown(e) || sdkerrors.IsRetryable(e) {
+		t.Fatalf("%T %+v", e, e)
+	}
+}
