@@ -53,6 +53,13 @@ func TestServiceUnavailableClassification(t *testing.T) {
 			}
 			err.AddDetail(detail)
 			mapped := MapConnectError(err)
+			if tc.name == "orders/ACCOUNT_ROUTING_INVALID" {
+				var api *sdkerrors.APIError
+				if !errors.As(mapped, &api) || api.Code != "ERROR_CODE_ACCOUNT_ROUTING_INVALID" || sdkerrors.IsRetryable(mapped) || sdkerrors.MutationOutcomeUnknown(mapped) {
+					t.Fatalf("%T %+v", mapped, mapped)
+				}
+				return
+			}
 			var server *sdkerrors.ServerError
 			var auth *sdkerrors.AuthError
 			if !errors.As(mapped, &server) || errors.As(mapped, &auth) {

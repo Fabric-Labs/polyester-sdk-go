@@ -359,10 +359,9 @@ func TestMapConnectErrorAuthTemporarilyUnavailableIsRetryable(t *testing.T) {
 	}
 }
 
-// The trigger and attached-leg refusals added with the typed order reasons
-// change nothing and say no retry helps: they surface as their own order
-// error code, are not retryable, and their outcome is known.
-func TestMapConnectErrorNewOrderRefusalCodesAreFinal(t *testing.T) {
+// Refusals retain their code and known outcome. TWAP capacity explicitly
+// permits a later retry; the other listed refusals require caller action.
+func TestMapConnectErrorOrderRefusalRetryGuidance(t *testing.T) {
 	for _, tc := range []struct {
 		code       orderv1.ErrorCode
 		connectErr connect.Code
@@ -374,7 +373,7 @@ func TestMapConnectErrorNewOrderRefusalCodesAreFinal(t *testing.T) {
 		{orderv1.ErrorCode_ERROR_CODE_TRIGGER_FIRE_LIMIT_REACHED, connect.CodeFailedPrecondition},
 		{orderv1.ErrorCode_ERROR_CODE_CONDITION_FLAGS_INVALID, connect.CodeInvalidArgument},
 		{orderv1.ErrorCode_ERROR_CODE_CONDITION_PARAMETER_SET, connect.CodeInvalidArgument},
-		// A capacity refusal is not a rate limit, even on RESOURCE_EXHAUSTED.
+		// TWAP capacity can recover and carries retry-later guidance.
 		{orderv1.ErrorCode_ERROR_CODE_TWAP_CAPACITY_REACHED, connect.CodeResourceExhausted},
 		{orderv1.ErrorCode_ERROR_CODE_CHILD_ORDER_INCONSISTENT, connect.CodeFailedPrecondition},
 	} {
@@ -386,6 +385,13 @@ func TestMapConnectErrorNewOrderRefusalCodesAreFinal(t *testing.T) {
 			}
 			connectErr.AddDetail(detail)
 			mapped := MapConnectError(connectErr)
+			if tc.code == orderv1.ErrorCode_ERROR_CODE_TWAP_CAPACITY_REACHED {
+				var rate *sdkerrors.RateLimitError
+				if !errors.As(mapped, &rate) || rate.Code != tc.code.String() || !sdkerrors.IsRetryable(mapped) || sdkerrors.MutationOutcomeUnknown(mapped) {
+					t.Fatalf("%T %+v", mapped, mapped)
+				}
+				return
+			}
 			apiErr, ok := mapped.(*sdkerrors.APIError)
 			if !ok || apiErr.Code != tc.code.String() {
 				t.Fatalf("mapped=%T %#v", mapped, mapped)

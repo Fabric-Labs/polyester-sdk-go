@@ -212,7 +212,7 @@ Credential copies for the same key share the process allocator. Timestamps can l
 by at most five seconds; larger bursts are backpressured instead of reusing a signature or drifting
 outside the API's 10-second freshness window.
 
-Connect `resource_exhausted` and HTTP 429 responses map to `errors.RateLimitError`. When the
+Recognized retry-later Connect `resource_exhausted` and REST admission-limit responses map to `errors.RateLimitError`. When the
 server attaches `polyester.ratelimit.v1.RateLimitDetail` (top-level Connect detail or nested under
 `orders.v1.ErrorDetail.rate_limit`), use `RateLimitError.Detail` for `policy_class`, `scope`,
 `operation_id`, and presence-aware quota fields. `RetryAfter` prefers `detail.retry_after_ms`,
@@ -397,17 +397,42 @@ false: read the order or trigger back (by client order ID or client trigger
 ID) before sending it again.
 
 The retry flag is always false when the mutation outcome is unknown. This includes
-bare Connect `unavailable` and `deadline_exceeded`, gateway 502/503 bodies and client
-timeouts. Read back after an unknown outcome; retry reads explicitly. Automatic
+bare Connect `unavailable`, `internal` and `deadline_exceeded`, gateway 502/503
+bodies, bare or HTML 429 responses and client timeouts. Read back after an unknown outcome; retry reads explicitly. Automatic
 trigger reads, status waits and snapshot refresh use read context and can retry these
 failures within their existing budgets. Creates are never automatically resent.
 
-A recognized order-service `UNAVAILABLE`, `FEE_SCHEDULE_UNAVAILABLE`,
-`POLICY_UNAVAILABLE` or `RATE_LIMIT_POLICY_UNAVAILABLE` code means admission was
-refused: outcome known and retryable. An HTTP status without that code does not
-establish refusal. `RATE_LIMIT_EXCEEDED` and `PRICE_LEVELS_EXHAUSTED` likewise mean
-nothing was admitted; retry after any server delay. Permanent resource-exhausted
-codes require caller action even when Connect sends their code only as its message.
+A typed `orders.v1.ErrorDetail` carrying `UNAVAILABLE` proves a known, retryable
+orders refusal. A bare REST `UNAVAILABLE` or a Connect message with only that
+name does not establish its source: outcome unknown and non-retryable. Specific
+refusals such as `FEE_SCHEDULE_UNAVAILABLE`, `POLICY_UNAVAILABLE` and
+`RATE_LIMIT_POLICY_UNAVAILABLE` are known and retryable on typed Connect,
+code-only Connect messages and recognized REST 503 problems. A REST 502 cannot
+establish these refusals. `QUICKSWAP_ACCOUNT_OWNER_UNKNOWN` means no order was
+placed and may retry; `ACCOUNT_ROUTING_INVALID` means the trigger was not admitted
+and requires the caller to correct its routing.
+
+`RATE_LIMIT_EXCEEDED`, `PRICE_LEVELS_EXHAUSTED` and retry-later capacity codes
+are known, retryable admission refusals; preserve and respect any server delay.
+The additional retry-later codes are:
+
+- `CLIENT_ORDER_IDS_EXHAUSTED`
+- `CLIENT_ORDER_ID_CAPACITY_REACHED`
+- `MARKET_LADDER_LIMIT_EXCEEDED`
+- `MARKET_TRIGGER_LIMIT_EXCEEDED`
+- `MARKET_TWAP_LIMIT_EXCEEDED`
+- `NEW_ACCOUNT_CAPACITY_REACHED`
+- `REQUEST_RECEIPTS_EXHAUSTED`
+- `RESERVATION_CAPACITY_REACHED`
+- `TRIGGER_CAPACITY_REACHED`
+- `TRIGGER_CONTROL_SHARE_EXHAUSTED`
+- `TWAP_CAPACITY_REACHED`
+
+These behave the same on REST, typed Connect and code-only Connect messages.
+The resource codes without retry guidance are `ORDER_SEQUENCE_EXHAUSTED`,
+`TRIGGER_FIRE_LIMIT_REACHED`, `QUICKSWAP_CAPACITY_REACHED`,
+`ACCOUNT_RESERVATION_LIMIT_REACHED` and `TRIGGER_LIMIT_EXCEEDED`: outcome known,
+non-retryable, including message-only responses.
 
 A plain REST gateway 504 returns `*errors.ServerError` with `Status == 504`:
 `errors.IsRetryable` is false and `errors.MutationOutcomeUnknown` is true.
@@ -808,7 +833,7 @@ for _, entry := range breaking {
 Unknown values return an error (they do not silently return an empty list).
 Response `Status` uses the same labels (British spelling `cancelled`).
 
-`Triggers.Get` and `Triggers.List` retry `UNAVAILABLE` (HTTP 503) with the
+`Triggers.Get` and `Triggers.List` retry `UNAVAILABLE` (HTTP 503) and `DEADLINE_EXCEEDED` with the
 same request: 25 ms, doubling up to 500 ms, for about 2 s, then return the
 error. Once `Modify`, `Pause` or `Resume` has answered, these reads return the
 trigger as changed, or `UNAVAILABLE` until they can, so a read right after the

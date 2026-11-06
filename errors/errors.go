@@ -290,9 +290,11 @@ func (e *RateLimitError) Is(target error) bool { return target == ErrPolyester }
 
 // ServerError indicates a server-side 5xx failure.
 type ServerError struct {
-	Msg    string
-	Code   string // Structured service code, when supplied.
-	Status int    // HTTP status corresponding to the failure, when known.
+	// AdmissionRefused is true only for a typed orders-service refusal.
+	AdmissionRefused bool
+	Msg              string
+	Code             string // Structured service code, when supplied.
+	Status           int    // HTTP status corresponding to the failure, when known.
 }
 
 func (e *ServerError) Error() string        { return e.Msg }
@@ -441,7 +443,7 @@ func MutationOutcomeUnknown(err error) bool {
 	var serverErr *ServerError
 	var contractErr *ResponseContractError
 	serverUnknown := errors.As(err, &serverErr)
-	if serverUnknown && (serverErr.Status == 502 || serverErr.Status == 503) && isKnownAdmissionRefusal(serverErr.Code) {
+	if serverUnknown && serverErr.Status == 503 && (serverErr.AdmissionRefused || isKnownAdmissionRefusal(serverErr.Code)) {
 		serverUnknown = false
 	}
 	return errors.As(err, &transportErr) || serverUnknown ||
@@ -479,7 +481,7 @@ func apiErrorCode(err error) string {
 // A bare status or an unrecognized service code does not establish this.
 func isKnownAdmissionRefusal(code string) bool {
 	switch strings.TrimPrefix(code, "ERROR_CODE_") {
-	case "UNAVAILABLE", "FEE_SCHEDULE_UNAVAILABLE", "POLICY_UNAVAILABLE", "RATE_LIMIT_POLICY_UNAVAILABLE", "PAIR_BACKLOGGED", "SETTLEMENT_BACKLOGGED", "ORDER_MODIFY_IN_PROGRESS", "ORDER_PLACEMENT_PENDING", "TRIGGER_CONTROLS_BUSY", "TRIGGER_CONTROL_IN_PROGRESS":
+	case "QUICKSWAP_ACCOUNT_OWNER_UNKNOWN", "FEE_SCHEDULE_UNAVAILABLE", "POLICY_UNAVAILABLE", "RATE_LIMIT_POLICY_UNAVAILABLE", "PAIR_BACKLOGGED", "SETTLEMENT_BACKLOGGED", "ORDER_MODIFY_IN_PROGRESS", "ORDER_PLACEMENT_PENDING", "TRIGGER_CONTROLS_BUSY", "TRIGGER_CONTROL_IN_PROGRESS":
 		return true
 	default:
 		return false
