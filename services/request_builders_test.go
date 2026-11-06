@@ -246,8 +246,8 @@ func TestPOLY8474WalletWithdrawStillRoutesScope(t *testing.T) {
 	}
 }
 
-func TestPOLY8471GoTransferSinceAlreadyUsesMicroseconds(t *testing.T) {
-	for _, since := range []*int64{nil, new(int64(0)), new(int64(1_793_922_052_911_123))} {
+func TestPOLY8471GoTransferSinceUsesMicroseconds(t *testing.T) {
+	for _, since := range []*int64{nil, new(int64(0)), new(int64(1_793_922_052_911_123)), new(int64(1<<63 - 1))} {
 		factory, requests := requestCaptureFactory(t)
 		_, err := NewTransfersService(factory, nil, nil, nil).List(context.Background(), nil, nil, 50, false, since)
 		if err != nil {
@@ -260,6 +260,17 @@ func TestPOLY8471GoTransferSinceAlreadyUsesMicroseconds(t *testing.T) {
 		}
 		if req.TsMinUs != want || req.TsMaxUs != 0 {
 			t.Fatalf("request=%v want ts_min_us=%d", req, want)
+		}
+	}
+}
+
+func TestPOLY8471NegativeSinceRejectedBeforeTransport(t *testing.T) {
+	for _, since := range []int64{-1, -1 << 63} {
+		factory, requests := requestCaptureFactory(t)
+		_, err := NewTransfersService(factory, nil, nil, nil).List(context.Background(), nil, nil, 50, false, &since)
+		var validation *sdkerrors.ValidationError
+		if !stderrors.As(err, &validation) || !strings.Contains(err.Error(), "since") || len(requests) != 0 {
+			t.Errorf("since=%d err=%v calls=%d", since, err, len(requests))
 		}
 	}
 }
