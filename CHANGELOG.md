@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Trigger reads return a definite REST refusal (`application/problem+json` at 400, 401, 403, 409, 412, 422 or 429, and `ACCOUNT_ROUTING_INVALID` at 503) on the first request with its typed reason, as they already did for a Connect error, instead of retrying it for two seconds. Real unavailability keeps its bounded retry.
+- A zero or negative attached trailing stop maximum on modify or batch replace now names what's wrong: `ValidationError` with `ERROR_CODE_TRIGGER_BUY_REQUIRES_LIMIT`, rule `buy_required`, and the `new_attached_risk.trailing_stop.limit_price_ticks` field. It was already refused before sending.
+- **Breaking:** A ledger refusal carrying `ledger.read.v1.ErrorDetail` now reports `APIError` with its specific code, such as `ERROR_CODE_INVALID_SUBACCOUNT_ID` (11), instead of a `ValidationError` with code `invalid_argument`. Migrate by branching on `APIError.Code`.
+- Shared signing vectors now cover escaped URL paths. Go already signed the decoded path, as the server verifies it.
 - **Breaking:** A live order-book delta with a zero or missing price and positive quantity now closes the managed stream with an invalid-price error at every bucket and depth, instead of showing it as a level; `BucketSide` and `BuildOrderbookData` refuse it too. Any other book render failure also ends the stream instead of leaving it open. Migration: when `Updates()` closes, check `Err()` and resubscribe.
 
 - **Breaking:** Bare REST `UNAVAILABLE` cannot establish an orders-service refusal: report outcome unknown and non-retryable. Only a typed `orders.v1.ErrorDetail` carrying `UNAVAILABLE` establishes a known, retryable refusal. Migration: read back after an unknown outcome; retry reads explicitly.

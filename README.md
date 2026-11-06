@@ -646,8 +646,11 @@ violation on `order.attached_risk.trailing_stop.limit_price_ticks`: set on a
 buy parent `ERROR_CODE_BAD_PRICE` (`sell_unset`), missing or zero on a sell
 parent `ERROR_CODE_TRIGGER_BUY_REQUIRES_LIMIT` (`buy_required`), below
 `ActivationPrice` `ERROR_CODE_BAD_PRICE` (`buy_at_least_activation`). Modify
-and batch replace send it as given; the server applies the side rule and
-answers `ERROR_CODE_BAD_PRICE` with no violation.
+and batch replace send a positive one as given; the server applies the side
+rule and answers `ERROR_CODE_BAD_PRICE` with no violation. They refuse a zero or
+negative one before sending, with `ERROR_CODE_TRIGGER_BUY_REQUIRES_LIMIT`
+(`buy_required`) on `new_attached_risk.trailing_stop.limit_price_ticks`: leave
+`LimitPrice` nil when the parent order buys.
 
 Market orders are IOC and enforce a slippage-derived execution boundary. See
 [Market Order Price Protection](https://polyester.com/docs/developer-docs/shared-concepts/market-order-price-protection)
@@ -982,6 +985,20 @@ attempt placed an order, canceled with `stp_expire_taker` or
 a `failed` event with `FailureReason`. `Triggers.ListEvents` filters on
 `fire_refused`, and an event type or reason newer than this SDK reads as
 `unknown(<n>)`.
+
+`TriggerEvent.EventType` is `fired`, `canceled`, `updated`, `failed`,
+`activated` (a trailing stop started tracking), `armed` (an attached
+take-profit, stop-loss or trailing stop started protecting its parent's filled
+quantity, once) or `fire_refused`. A ladder has no event types of its own: read
+its `Trigger.Status`, `completed`, `canceled` or `failed`. A completed ladder
+may not have filled: read its executed quantity and levels.
+
+A trigger change that names a listed pair other than the trigger's own is
+refused with `ERROR_CODE_TRIGGER_SYMBOL_MISMATCH` (305). Nothing changed: name
+the trigger's own pair or omit the symbol. A pair that is not listed is
+`ERROR_CODE_UNKNOWN_SYMBOL`. A balance or other ledger read given a zero or
+malformed sub-account ID is refused with the ledger code
+`ERROR_CODE_INVALID_SUBACCOUNT_ID` (11), read from `APIError.Code`.
 
 `Trigger.Version` is 1 for a trigger's first state and higher for every later
 state change. Across list reads and realtime updates, keep the copy with the

@@ -14,6 +14,7 @@ import (
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	withdrawv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/withdraw/v1"
+	ledgerrdv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	ratelimitv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/ratelimit/v1"
 	transferv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1"
@@ -262,6 +263,16 @@ func MapConnectError(err error) error {
 			if code == withdrawv1.ErrorCode_ERROR_CODE_RATE_LIMIT_EXCEEDED.String() {
 				return rateLimitError(msg, code, nil, headerRetry)
 			}
+			if connectErr.Code() == connect.CodeUnavailable {
+				return &sdkerrors.ServerError{Msg: msg, Code: code, Status: 503}
+			}
+			if isAuthLikeErrorCode(code) {
+				return &sdkerrors.AuthError{Msg: msg, Code: code}
+			}
+			return &sdkerrors.APIError{Msg: msg, Code: code}
+		}
+		if ledgerDetail, ok := value.(*ledgerrdv1.ErrorDetail); ok {
+			code := ledgerDetail.GetCode().String()
 			if connectErr.Code() == connect.CodeUnavailable {
 				return &sdkerrors.ServerError{Msg: msg, Code: code, Status: 503}
 			}
