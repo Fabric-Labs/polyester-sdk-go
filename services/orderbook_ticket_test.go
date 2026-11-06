@@ -313,31 +313,43 @@ func TestTicket8512UnknownMatchingSelectorsRequireCatalogs(t *testing.T) {
 func TestTicket8511OverflowThenClose(t *testing.T) {
 	svc, sends, _, _ := bookTicketService(t, 1, true)
 	failed := make(chan error, 1)
-	sub, err := svc.CreateSubscription(context.Background(), CreateSubscriptionOptions{Symbol: "BTC-USDT", OnError: func(err error) { failed <- err }})
+	events := make(chan models.OrderbookData, 2)
+	sub, err := svc.CreateSubscription(context.Background(), CreateSubscriptionOptions{
+		Symbol:  "BTC-USDT",
+		OnError: func(err error) { failed <- err },
+		OnEvent: func(data models.OrderbookData) { events <- data },
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	// No consumer: exceed the managed queue using real live publications.
-	stopFeeding := make(chan struct{})
-	defer close(stopFeeding)
-	go func() {
-		for seq := uint64(2); seq <= 259; seq++ {
-			select {
-			case sends <- bookTicketFrame(&ob.OrderBookDelta{BookSeqStart: seq, BookSeqEnd: seq}):
-			case <-stopFeeding:
-				return
-			}
+	// Keep the managed queue full while pacing transport delivery at the emit
+	// boundary. Otherwise a fast producer can overflow the raw transport first.
+	for _, expected := range []string{"0", "1"} {
+		view, ok := bookTicketNext(t, events)
+		if !ok || view.BookSeq != expected {
+			t.Fatalf("initial event: %+v", view)
 		}
-	}()
+	}
+	for seq := uint64(2); seq <= 200; seq++ {
+		sends <- bookTicketFrame(&ob.OrderBookDelta{BookSeqStart: seq, BookSeqEnd: seq})
+		view, ok := bookTicketNext(t, events)
+		if !ok || view.BookSeq != fmt.Sprint(seq) {
+			t.Fatalf("live event: %+v, expected %d", view, seq)
+		}
+	}
 	select {
 	case err = <-failed:
 	case <-time.After(10 * time.Second):
-		t.Fatal("overflow never occurred")
+		t.Fatal("managed overflow never occurred")
 	}
 	var overflow *sdkerrors.QueueOverflowError
 	if !errors.As(err, &overflow) || !errors.As(sub.Err(), &overflow) {
 		t.Fatalf("expected typed overflow: %v / %v", err, sub.Err())
 	}
+	if err.Error() != "orderbook subscription queue full; consumer too slow" {
+		t.Fatalf("wrong overflow boundary: %v", err)
+	}
+
 	closed := make(chan struct{})
 	go func() { sub.Close(); close(closed) }()
 	select {
