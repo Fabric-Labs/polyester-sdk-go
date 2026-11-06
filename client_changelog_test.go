@@ -4,7 +4,6 @@ import (
 	"context"
 	stderrors "errors"
 	"net/http"
-	"net/http/httptest"
 	"reflect"
 	"strconv"
 	"sync"
@@ -15,6 +14,7 @@ import (
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	changelogv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/changelog/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/changelog/v1/changelogv1connect"
+	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -197,7 +197,7 @@ func newPublicChangelogClient(t *testing.T, fake *fakeChangelog) *Client {
 	mux := http.NewServeMux()
 	path, handler := changelogv1connect.NewChangelogServiceHandler(fake)
 	mux.Handle(path, handler)
-	srv := httptest.NewServer(mux)
+	srv := hardening.NewTestServer(mux)
 	t.Cleanup(srv.Close)
 	client, err := New(Config{APIURL: srv.URL})
 	if err != nil {

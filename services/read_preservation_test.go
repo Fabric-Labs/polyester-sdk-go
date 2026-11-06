@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
 	"reflect"
 	"sync"
 	"testing"
@@ -20,6 +19,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/marketoverview/v1/marketoverviewv1connect"
 	orders "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1/ordersv1connect"
+	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
 	"google.golang.org/protobuf/proto"
@@ -72,7 +72,7 @@ func newReadPreservationServices(t *testing.T, h *readPreservationHandler, wire 
 	mux.Handle(path, handler)
 	path, handler = ordersv1connect.NewOrdersServiceHandler(h)
 	mux.Handle(path, handler)
-	server := httptest.NewServer(mux)
+	server := hardening.NewTestServer(mux)
 	t.Cleanup(server.Close)
 	creds, err := auth.LoadCredentials("ak_test", auth.GenerateEd25519Keypair().SecretKeyHex, false)
 	if err != nil {

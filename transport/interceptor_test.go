@@ -7,7 +7,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +17,7 @@ import (
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1/authv1connect"
+	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -94,7 +94,7 @@ func TestAuthenticatedUnarySignsTransmittedCodecBytes(t *testing.T) {
 				gotPath        string
 				gotMethod      string
 			)
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				gotMethod = r.Method
 				gotPath = r.URL.Path
 				gotContentType = r.Header.Get("Content-Type")
@@ -177,7 +177,7 @@ func TestSigningFailureMapsToAuthError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+	srv := hardening.NewTestServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		t.Fatal("signing failure must happen before network I/O")
 	}))
 	t.Cleanup(srv.Close)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"reflect"
 	"sync"
 	"testing"
@@ -16,6 +15,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1/ordersv1connect"
 	triggersv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1/triggersv1connect"
+	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
 )
 
@@ -73,7 +73,7 @@ func newStopAllServices(t *testing.T, server *stopAllServer) (*TriggersService, 
 	mux.Handle(triggersPath, triggersHandler)
 	ordersPath, ordersHandler := ordersv1connect.NewOrdersServiceHandler(server)
 	mux.Handle(ordersPath, ordersHandler)
-	srv := httptest.NewServer(mux)
+	srv := hardening.NewTestServer(mux)
 	t.Cleanup(srv.Close)
 	creds, err := auth.LoadCredentials("ak_test", auth.GenerateEd25519Keypair().SecretKeyHex, false)
 	if err != nil {

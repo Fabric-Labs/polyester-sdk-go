@@ -3,7 +3,6 @@ package hardening_test
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -37,7 +36,7 @@ func TestL2FilteredMarketOverviewSubscriptionDropsUnrelatedSymbols(t *testing.T)
 	mux := http.NewServeMux()
 	path, handler := marketoverviewv1connect.NewMarketOverviewServiceHandler(overviewSnapshotHandler{})
 	mux.Handle(path, handler)
-	api := httptest.NewServer(mux)
+	api := hardening.NewTestServer(mux)
 	t.Cleanup(api.Close)
 
 	cats := catalogs.NewManager()

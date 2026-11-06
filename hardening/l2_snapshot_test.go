@@ -15,7 +15,8 @@ import (
 func TestL2SnapshotThenStreamReconnectFailRetryThenMergeOnce(t *testing.T) {
 	var active atomic.Int64
 	pubCh := make(chan []byte, 4)
-	ws := hardening.SpawnCentrifugoDisconnectThenPublish(&active, pubCh)
+	disconnect := make(chan struct{})
+	ws := hardening.SpawnCentrifugoDisconnectThenPublish(&active, disconnect, pubCh)
 	t.Cleanup(ws.Close)
 
 	rt := newRT(ws.WSURL(), "", nil, 5*time.Second)
@@ -92,6 +93,7 @@ func TestL2SnapshotThenStreamReconnectFailRetryThenMergeOnce(t *testing.T) {
 	if !sts.IsReady() || sts.Err() != nil {
 		t.Fatalf("initial ready=%v err=%v", sts.IsReady(), sts.Err())
 	}
+	close(disconnect)
 
 	// Observe fail-closed surface for the first reconnect refresh (before retry wins).
 	hardening.WaitUntil(t, func() bool {

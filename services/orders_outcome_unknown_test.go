@@ -10,7 +10,6 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/realtime"
 	"google.golang.org/protobuf/proto"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -20,6 +19,8 @@ import (
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
+
+	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 )
 
 func TestOrderCreateNeverResendsUnknownOutcome(t *testing.T) {
@@ -39,7 +40,7 @@ func TestOrderCreateNeverResendsUnknownOutcome(t *testing.T) {
 		} {
 			t.Run(tc.contentType, func(t *testing.T) {
 				var calls atomic.Int32
-				srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					if r.URL.Path != "/orders.v1.OrdersService/CreateOrder" {
 						t.Errorf("unexpected path %s", r.URL.Path)
 					}
@@ -85,7 +86,7 @@ func TestGateway504ReadRetriesRemainSafe(t *testing.T) {
 			for _, operation := range []string{"trigger", "batch-status", "snapshot"} {
 				t.Run(operation, func(t *testing.T) {
 					var calls atomic.Int32
-					srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 						if calls.Add(1) == 1 {
 							if failure.status == 0 {
 								time.Sleep(200 * time.Millisecond)
@@ -160,7 +161,7 @@ func TestGateway504ReadRetriesRemainSafe(t *testing.T) {
 
 func TestClientTimeoutNeverReplaysCreate(t *testing.T) {
 	var calls atomic.Int32
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
 		time.Sleep(200 * time.Millisecond)
 	}))

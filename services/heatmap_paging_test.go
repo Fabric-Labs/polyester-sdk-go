@@ -7,10 +7,11 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1/marketdatav1connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
 	"google.golang.org/protobuf/proto"
-	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 )
 
 type heatmapPagingHandler struct {
@@ -35,7 +36,7 @@ func TestReadHeatmapOpaquePaging(t *testing.T) {
 			t.Run(wire+map[bool]string{true: "explicit", false: "default"}[explicit], func(t *testing.T) {
 				h := &heatmapPagingHandler{}
 				_, handler := marketdatav1connect.NewHeatmapServiceHandler(h)
-				server := httptest.NewServer(handler)
+				server := hardening.NewTestServer(handler)
 				defer server.Close()
 				cfg := transport.DefaultConfig()
 				cfg.APIURL = server.URL
@@ -94,7 +95,7 @@ func TestReadHeatmapTokenPartialBoundsStayExplicit(t *testing.T) {
 		t.Run(bound, func(t *testing.T) {
 			h := &heatmapPagingHandler{}
 			_, handler := marketdatav1connect.NewHeatmapServiceHandler(h)
-			server := httptest.NewServer(handler)
+			server := hardening.NewTestServer(handler)
 			defer server.Close()
 			cfg := transport.DefaultConfig()
 			cfg.APIURL = server.URL

@@ -194,7 +194,7 @@ func TestL2JSONRPC25ConcurrentReorderedResponsesSucceed(t *testing.T) {
 			go func(c net.Conn) {
 				buf := make([]byte, 64*1024)
 				n, err := c.Read(buf)
-				if err != nil || n == 0 {
+				if err != nil || n == 0 || hardening.IsPortProbe(buf[:n]) {
 					_ = c.Close()
 					return
 				}

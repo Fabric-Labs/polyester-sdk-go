@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -15,6 +14,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	ob "github.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1"
+	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/realtime"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
@@ -33,7 +33,7 @@ func bookTicketService(t *testing.T, seq uint64, available bool, wantID ...uint3
 	fail := new(atomic.Bool)
 	calls := new(atomic.Int32)
 	upgrader := websocket.Upgrader{Subprotocols: []string{"centrifuge-protobuf"}}
-	ws := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ws := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			return
@@ -62,7 +62,7 @@ func bookTicketService(t *testing.T, seq uint64, available bool, wantID ...uint3
 			}
 		}
 	}))
-	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpSrv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
 		body, err := io.ReadAll(r.Body)
 		if err != nil {

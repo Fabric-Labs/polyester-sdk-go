@@ -1,13 +1,35 @@
 package hardening
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"time"
 )
+
+// IsPortProbe reports whether a raw request is the `HEAD /` that a tool on the
+// host can send to any port it finds listening. The SDK never sends it, so a
+// mock does not count it or show it to a test.
+func IsPortProbe(request []byte) bool {
+	return bytes.HasPrefix(request, []byte("HEAD / "))
+}
+
+// NewTestServer is httptest.NewServer for a handler that should only see the
+// SDK's own requests: a port probe is answered without reaching handler.
+func NewTestServer(handler http.Handler) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodHead && r.URL.Path == "/" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		handler.ServeHTTP(w, r)
+	}))
+}
 
 // ParsedRequest is a minimal HTTP request line parse for mock handlers.
 type ParsedRequest struct {
@@ -96,17 +118,19 @@ func (s *MockHTTPServer) Close() {
 }
 
 func (s *MockHTTPServer) serve(conn net.Conn, handler func(ParsedRequest) HttpResponse) {
-	s.inFlight.Add(1)
-	defer func() {
-		s.inFlight.Add(-1)
-		_ = conn.Close()
-	}()
+	defer func() { _ = conn.Close() }()
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	buf := make([]byte, 16*1024)
 	n, err := conn.Read(buf)
 	if err != nil || n == 0 {
 		return
 	}
+	if IsPortProbe(buf[:n]) {
+		_, _ = io.WriteString(conn, "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+		return
+	}
+	s.inFlight.Add(1)
+	defer s.inFlight.Add(-1)
 	s.reqs.Add(1)
 	raw := string(buf[:n])
 	line, _, _ := strings.Cut(raw, "\r\n")

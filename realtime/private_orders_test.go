@@ -20,6 +20,7 @@ import (
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	privatewsv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/privatews/v1"
+	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/encoding/protowire"
@@ -75,7 +76,7 @@ func newFakePrivateServer(t *testing.T) *fakePrivateServer {
 		f.mu.Unlock()
 		f.conns <- fw
 	})
-	f.srv = httptest.NewServer(mux)
+	f.srv = hardening.NewTestServer(mux)
 	t.Cleanup(func() {
 		f.mu.Lock()
 		all := f.all
@@ -363,7 +364,12 @@ func noPrivateStreamGoroutines() (bool, string) {
 	stacks := string(buf[:runtime.Stack(buf, true)])
 	for _, g := range strings.Split(stacks, "\n\n") {
 		// A goroutine inside its deferred WaitGroup.Done has finished: the
-		// wait in Close already counted it, and it is only unwinding.
+		// wait in Close already counted it, and it is only unwinding. So has one
+		// whose top frame is goSession's wrapper: it no longer runs the session.
+		frames := strings.SplitN(g, "\n", 3)
+		if len(frames) > 1 && strings.Contains(frames[1], "(*privateOrderStream).goSession.func1(") {
+			continue
+		}
 		if strings.Contains(g, "(*privateOrderStream)") && !strings.Contains(g, "sync.(*WaitGroup).Done(") {
 			return false, g
 		}

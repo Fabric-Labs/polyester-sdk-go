@@ -4,7 +4,6 @@ import (
 	"context"
 	"math"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -21,6 +20,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1/marketdatav1connect"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1/ordersv1connect"
+	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
@@ -82,7 +82,7 @@ func TestL2ScaleHydrateWaitForCatalogsThenFormatAndOrderPath(t *testing.T) {
 	mux.Handle(zPath, zH)
 	writePath, writeH := ordersv1connect.NewOrdersServiceHandler(&ordersWriteCapture{calls: &createCalls})
 	mux.Handle(writePath, writeH)
-	srv := httptest.NewServer(mux)
+	srv := hardening.NewTestServer(mux)
 	t.Cleanup(srv.Close)
 
 	kp := auth.GenerateEd25519Keypair()

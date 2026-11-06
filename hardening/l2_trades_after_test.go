@@ -3,7 +3,6 @@ package hardening_test
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
 	"reflect"
 	"sync"
 	"testing"
@@ -16,6 +15,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/chain/zipper/v1/chainzipperv1connect"
 	marketdatav1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1/marketdatav1connect"
+	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
@@ -54,7 +54,7 @@ func newTradesAfterClient(t *testing.T, handler marketdatav1connect.MarketDataSe
 		return connect.NewResponse(&zipperv1.GetDepositWithdrawConfigResponse{}), nil
 	}})
 	mux.Handle(zPath, zH)
-	srv := httptest.NewServer(mux)
+	srv := hardening.NewTestServer(mux)
 	t.Cleanup(srv.Close)
 
 	kp := auth.GenerateEd25519Keypair()

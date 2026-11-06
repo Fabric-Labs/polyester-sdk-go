@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
 	"sync"
 	"testing"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1/authv1connect"
 	ledgerrdv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
 	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
+	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
 )
 
@@ -43,7 +43,7 @@ func TestSubAccountsGetRequestsBalancesOnlyWhenAsked(t *testing.T) {
 	mux := http.NewServeMux()
 	path, h := authv1connect.NewSubaccountViewServiceHandler(handler)
 	mux.Handle(path, h)
-	srv := httptest.NewServer(mux)
+	srv := hardening.NewTestServer(mux)
 	t.Cleanup(srv.Close)
 	creds, err := auth.LoadCredentials("ak_test", auth.GenerateEd25519Keypair().SecretKeyHex, false)
 	if err != nil {

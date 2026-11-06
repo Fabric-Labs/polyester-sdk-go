@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -21,6 +20,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1/marketdatav1connect"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1/ordersv1connect"
+	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
@@ -54,7 +54,7 @@ func TestL2BatchCancelRejectsInconsistentCountsThroughPublicService(t *testing.T
 	path, handler := ordersv1connect.NewOrdersServiceHandler(&inconsistentBatchCancelHandler{})
 	mux := http.NewServeMux()
 	mux.Handle(path, handler)
-	srv := httptest.NewServer(mux)
+	srv := hardening.NewTestServer(mux)
 	t.Cleanup(srv.Close)
 
 	kp := auth.GenerateEd25519Keypair()
@@ -136,7 +136,7 @@ func TestL2ColumnarCandlesRejectMisalignedColumnsThroughPublicService(t *testing
 	mux.Handle(path, handler)
 	zpath, zhandler := chainzipperv1connect.NewZipperServiceHandler(&validZipperCatalogHandler{})
 	mux.Handle(zpath, zhandler)
-	srv := httptest.NewServer(mux)
+	srv := hardening.NewTestServer(mux)
 	t.Cleanup(srv.Close)
 
 	client, err := polyester.New(polyester.Config{
@@ -169,7 +169,7 @@ func TestL2BatchReplaceRejectsInconsistentCountsThroughPublicService(t *testing.
 	mux.Handle(zpath, zhandler)
 	opath, ohandler := ordersv1connect.NewOrdersServiceHandler(&inconsistentBatchCancelHandler{})
 	mux.Handle(opath, ohandler)
-	srv := httptest.NewServer(mux)
+	srv := hardening.NewTestServer(mux)
 	t.Cleanup(srv.Close)
 
 	kp := auth.GenerateEd25519Keypair()
@@ -215,7 +215,7 @@ func TestL2CreateDepositAddressRejectsMissingEntityThroughPublicService(t *testi
 	path, handler := chaindepositv1connect.NewDepositAddressServiceHandler(&missingDepositAddressHandler{})
 	mux := http.NewServeMux()
 	mux.Handle(path, handler)
-	srv := httptest.NewServer(mux)
+	srv := hardening.NewTestServer(mux)
 	t.Cleanup(srv.Close)
 
 	kp := auth.GenerateEd25519Keypair()
@@ -257,7 +257,7 @@ func TestL2GetFlowByTxReturnsAllMatchesThroughPublicService(t *testing.T) {
 	path, handler := chainlifecyclev1connect.NewLifecycleReadServiceHandler(service)
 	mux := http.NewServeMux()
 	mux.Handle(path, handler)
-	srv := httptest.NewServer(mux)
+	srv := hardening.NewTestServer(mux)
 	t.Cleanup(srv.Close)
 
 	client, err := polyester.New(polyester.Config{
