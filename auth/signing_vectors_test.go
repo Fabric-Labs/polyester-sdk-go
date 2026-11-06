@@ -8,7 +8,7 @@ import (
 )
 
 // Identical fixtures live in Go, Python and Rust. Expected queries follow
-// server shared/pkg/auth/apikeys.go: decoded key/value sort, then RFC 3986 escape.
+// the server's canonicalization: decoded key/value bytes sorted, then RFC 3986 escaped.
 // Golden signatures use the public test seed 00..1f, timestamp 123, GET, no body.
 func TestServerQuerySigningVectors(t *testing.T) {
 	data, err := os.ReadFile("../testdata/signing_query_vectors.json")
