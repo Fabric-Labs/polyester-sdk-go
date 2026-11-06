@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"connectrpc.com/connect"
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	orders "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
@@ -142,6 +143,165 @@ func TestBatchCreateQuoteCatalogScalePerItem(t *testing.T) {
 	for _, item := range req.Items {
 		if item.GetMaxQuoteDebitScaled() != 16000 {
 			t.Fatal(req)
+		}
+	}
+}
+
+func (h *readPreservationHandler) ModifyOrder(_ context.Context, r *connect.Request[orders.ModifyOrderRequest]) (*connect.Response[orders.ModifyOrderResponse], error) {
+	h.record(r.Msg)
+	return connect.NewResponse(&orders.ModifyOrderResponse{OldOrderId: 42, FinalOrderId: 42, ActionTaken: 1}), nil
+}
+func (h *readPreservationHandler) BatchReplaceOrders(_ context.Context, r *connect.Request[orders.BatchReplaceOrdersRequest]) (*connect.Response[orders.BatchReplaceOrdersResponse], error) {
+	h.record(r.Msg)
+	return connect.NewResponse(&orders.BatchReplaceOrdersResponse{BatchRequestId: 42, Status: 1}), nil
+}
+func TestOrderWritesValidatePairIdentity(t *testing.T) {
+	for _, operation := range []string{"create_id", "create_name", "batch_create", "modify", "batch_replace"} {
+		for _, tag := range []string{"id", "symbol", "matching"} {
+			t.Run(operation+"/"+tag, func(t *testing.T) {
+				h := &readPreservationHandler{}
+				factory, cats := newReadPreservationServices(t, h, "binary")
+				service := NewOrdersService(factory, cats, nil, nil, nil, nil, nil)
+				qty := models.MustQtyScaled(16000).WithSymbolID(2)
+				if tag == "symbol" {
+					qty = models.MustQtyScaled(16000).WithSymbol("ETH-USDT")
+				}
+				if tag == "matching" {
+					qty = models.MustQtyScaled(16000).WithSymbolID(1).WithSymbol("BTC-USDT")
+				}
+				input := models.QtyFromScaled(qty)
+				price := models.PriceFromDecimal("100")
+				id := uint32(1)
+				symbol := "BTC-USDT"
+				req := models.CreateOrderRequest{SymbolID: &id, Side: "buy", OrderType: "limit", Qty: input, Price: &price}
+				var err error
+				switch operation {
+				case "create_id":
+					_, err = service.Create(context.Background(), req, nil)
+				case "create_name":
+					req.SymbolID = nil
+					req.Symbol = &symbol
+					_, err = service.Create(context.Background(), req, nil)
+				case "batch_create":
+					_, err = service.BatchCreate(context.Background(), nil, []models.CreateOrderRequest{req}, nil, nil, nil, false)
+				case "modify":
+					_, err = service.ModifyWith(context.Background(), nil, ModifyParams{Symbol: symbol, Key: models.OrderKeyByID("j"), NewQty: &input})
+				case "batch_replace":
+					_, err = service.BatchReplace(context.Background(), nil, []models.BatchReplaceItem{{Key: models.OrderKeyByID("j"), NewQty: &input}}, symbol, nil, nil)
+				}
+				if tag == "matching" {
+					if err != nil {
+						t.Fatal(err)
+					}
+					if len(h.calls) != 1 {
+						t.Fatal("missing matching write")
+					}
+				} else {
+					if err == nil || !strings.Contains(err.Error(), "mismatch") {
+						t.Fatalf("expected pair mismatch, got %v", err)
+					}
+					if len(h.calls) != 0 {
+						t.Fatal("mismatched pair sent")
+					}
+				}
+			})
+		}
+	}
+}
+func TestCreateRefusesConflictingPairSelectors(t *testing.T) {
+	for _, batch := range []bool{false, true} {
+		h := &readPreservationHandler{}
+		factory, cats := newReadPreservationServices(t, h, "binary")
+		service := NewOrdersService(factory, cats, nil, nil, nil, nil, nil)
+		id := uint32(1)
+		symbol := "ETH-USDT"
+		price := models.PriceFromDecimal("100")
+		req := models.CreateOrderRequest{SymbolID: &id, Symbol: &symbol, Side: "buy", OrderType: "limit", Qty: models.QtyFromDecimal("0.00016"), Price: &price}
+		var err error
+		if batch {
+			_, err = service.BatchCreate(context.Background(), nil, []models.CreateOrderRequest{req}, nil, nil, nil, false)
+		} else {
+			_, err = service.Create(context.Background(), req, nil)
+		}
+		if err == nil || !strings.Contains(err.Error(), "mismatch") {
+			t.Fatalf("expected pair mismatch, got %v", err)
+		}
+		if len(h.calls) != 0 {
+			t.Fatal("conflicting pair sent")
+		}
+	}
+}
+
+func TestTriggerQuantityIdentity(t *testing.T) {
+	for _, tag := range []string{"id", "symbol", "matching"} {
+		t.Run(tag, func(t *testing.T) {
+			factory, requests := requestCaptureFactory(t)
+			h := &readPreservationHandler{}
+			_, cats := newReadPreservationServices(t, h, "binary")
+			service := NewTriggersService(factory, cats, nil, nil, nil, nil, nil)
+			qty := models.MustQtyScaled(16000).WithSymbolID(2)
+			if tag == "symbol" {
+				qty = models.MustQtyScaled(16000).WithSymbol("ETH-USDT")
+			}
+			if tag == "matching" {
+				qty = models.MustQtyScaled(16000).WithSymbolID(1).WithSymbol("BTC-USDT")
+			}
+			price := models.PriceFromDecimal("100")
+			_, err := service.Create(context.Background(), nil, "BTC-USDT", "stop_loss", &price, "sell", models.QtyFromScaled(qty), "market", nil, "last", "gtc", nil, nil, false, codecs.CreateTriggerOptions{})
+			if tag == "matching" {
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(requests) != 1 {
+					t.Fatal("missing matching write")
+				}
+			} else {
+				if err == nil || !strings.Contains(err.Error(), "mismatch") {
+					t.Fatalf("expected pair mismatch, got %v", err)
+				}
+				if len(requests) != 0 {
+					t.Fatal("mismatched trigger sent")
+				}
+			}
+		})
+	}
+}
+func TestQuoteBudgetIdentity(t *testing.T) {
+	for _, tag := range []string{"id", "symbol", "matching"} {
+		for _, batch := range []bool{false, true} {
+			h := &readPreservationHandler{}
+			factory, cats := newReadPreservationServices(t, h, "binary")
+			service := NewOrdersService(factory, cats, nil, nil, nil, nil, nil)
+			budget := models.MustQtyQuoteScaled(16000, 6).WithSymbolID(2)
+			if tag == "symbol" {
+				budget = models.MustQtyQuoteScaled(16000, 6).WithSymbol("ETH-USDT")
+			}
+			if tag == "matching" {
+				budget = models.MustQtyQuoteScaled(16000, 6).WithSymbolID(1).WithSymbol("BTC-USDT")
+			}
+			id := uint32(1)
+			req := models.CreateOrderRequest{SymbolID: &id, Side: "buy", OrderType: "market", MaxQuoteDebitScaled: models.QtyFromScaled(budget)}
+			var err error
+			if batch {
+				_, err = service.BatchCreate(context.Background(), nil, []models.CreateOrderRequest{req}, nil, nil, nil, false)
+			} else {
+				_, err = service.Create(context.Background(), req, nil)
+			}
+			if tag == "matching" {
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(h.calls) != 1 {
+					t.Fatal("missing matching write")
+				}
+			} else {
+				if err == nil || !strings.Contains(err.Error(), "mismatch") {
+					t.Fatalf("expected pair mismatch, got %v", err)
+				}
+				if len(h.calls) != 0 {
+					t.Fatal("mismatched quote budget sent")
+				}
+			}
 		}
 	}
 }

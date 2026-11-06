@@ -503,7 +503,7 @@ func (s *OrdersService) BatchReplace(ctx context.Context, account AccountScope, 
 	if err != nil {
 		return models.BatchReplaceOrdersResult{}, err
 	}
-	protoReq, err := codecs.BatchReplaceOrdersToProto(items, symbolID, sub, requestID, scale)
+	protoReq, err := codecs.BatchReplaceOrdersToProto(items, symbolID, sub, requestID, scale, symbol)
 	if err != nil {
 		return models.BatchReplaceOrdersResult{}, err
 	}
@@ -731,11 +731,8 @@ func sumTradeQty(trades []models.UserTrade) int64 {
 }
 
 func resolveOrderSymbolID(c *catalogs.Manager, req *models.CreateOrderRequest, fallback *string, label string) error {
-	if req.SymbolID != nil && *req.SymbolID != 0 {
-		return nil
-	}
 	symbol := req.Symbol
-	if symbol == nil {
+	if symbol == nil && req.SymbolID == nil {
 		symbol = fallback
 	}
 	id, err := ResolveSymbolID(c, symbol, req.SymbolID, label)
@@ -745,7 +742,18 @@ func resolveOrderSymbolID(c *catalogs.Manager, req *models.CreateOrderRequest, f
 	if id == 0 {
 		return &sdkerrors.ValidationError{Msg: label + " requires a resolved non-zero symbol_id"}
 	}
+	if c == nil {
+		return &sdkerrors.ValidationError{Msg: label + " quantity scale is unavailable; hydrate catalogs"}
+	}
+	canonical := c.SymbolForSymbolID(id)
+	if canonical == nil {
+		return &sdkerrors.ValidationError{Msg: label + " quantity scale is unavailable for symbol_id; hydrate catalogs"}
+	}
+	if req.Symbol != nil && *req.Symbol != *canonical {
+		return &sdkerrors.ValidationError{Msg: label + " symbol mismatch: supplied symbol does not match symbol_id"}
+	}
 	req.SymbolID = &id
+	req.Symbol = canonical
 	return nil
 }
 

@@ -379,7 +379,7 @@ func ModifyOrderToProto(
 		proto.NewPriceTicks = &ticks
 	}
 	if newQty != nil && newQty.IsSet() {
-		qty, err := ResolveQtyScaled(*newQty, quantityScale, "new_qty", symbol, nil)
+		qty, err := ResolveQtyScaled(*newQty, quantityScale, "new_qty", symbol, &symbolID)
 		if err != nil {
 			return nil, err
 		}

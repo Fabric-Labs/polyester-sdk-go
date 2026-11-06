@@ -132,8 +132,18 @@ func BatchCancelOrdersToProto(items []models.BatchCancelItem, subAccountID *stri
 	return proto, nil
 }
 
+// OrderIdentity supplies the destination pair for typed money compatibility checks.
+type OrderIdentity struct {
+	Symbol   string
+	SymbolID *uint32
+}
+
 // BatchReplaceItemToProto encodes one batch replace item.
-func BatchReplaceItemToProto(item models.BatchReplaceItem, quantityScale int) (*orderv1.BatchReplaceOrderItem, error) {
+func BatchReplaceItemToProto(item models.BatchReplaceItem, quantityScale int, destination ...OrderIdentity) (*orderv1.BatchReplaceOrderItem, error) {
+	identity := OrderIdentity{}
+	if len(destination) > 0 {
+		identity = destination[0]
+	}
 	if !item.Key.IsSet() {
 		return nil, &errors.ValidationError{Msg: "each batch item requires an OrderKey (OrderKeyByID or OrderKeyByClientID)"}
 	}
@@ -156,20 +166,20 @@ func BatchReplaceItemToProto(item models.BatchReplaceItem, quantityScale int) (*
 		proto.Key = &orderv1.BatchReplaceOrderItem_ClientOrderId{ClientOrderId: validated}
 	}
 	if item.NewPrice != nil && item.NewPrice.IsSet() {
-		ticks, err := ResolvePriceTicks(*item.NewPrice, "new_price", "")
+		ticks, err := ResolvePriceTicks(*item.NewPrice, "new_price", identity.Symbol)
 		if err != nil {
 			return nil, err
 		}
 		proto.NewPriceTicks = &ticks
 	}
 	if item.NewQty != nil && item.NewQty.IsSet() {
-		qty, err := ResolveQtyScaled(*item.NewQty, quantityScale, "new_qty", "", nil)
+		qty, err := ResolveQtyScaled(*item.NewQty, quantityScale, "new_qty", identity.Symbol, identity.SymbolID)
 		if err != nil {
 			return nil, err
 		}
 		proto.NewQtyScaled = &qty
 	}
-	risk, err := RiskPolicyToProto(item.NewAttachedRisk, "new_attached_risk", "")
+	risk, err := RiskPolicyToProto(item.NewAttachedRisk, "new_attached_risk", identity.Symbol)
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +195,7 @@ func BatchReplaceItemToProto(item models.BatchReplaceItem, quantityScale int) (*
 }
 
 // BatchReplaceOrdersToProto encodes a batch replace request.
-func BatchReplaceOrdersToProto(items []models.BatchReplaceItem, symbolID uint32, subAccountID *string, requestID *string, quantityScale int) (*orderv1.BatchReplaceOrdersRequest, error) {
+func BatchReplaceOrdersToProto(items []models.BatchReplaceItem, symbolID uint32, subAccountID *string, requestID *string, quantityScale int, symbol ...string) (*orderv1.BatchReplaceOrdersRequest, error) {
 	if err := validateBatchSize("batch_replace", len(items)); err != nil {
 		return nil, err
 	}
@@ -208,7 +218,11 @@ func BatchReplaceOrdersToProto(items []models.BatchReplaceItem, symbolID uint32,
 		proto.SubaccountId = &sub
 	}
 	for _, item := range items {
-		encoded, err := BatchReplaceItemToProto(item, quantityScale)
+		identity := OrderIdentity{SymbolID: &symbolID}
+		if len(symbol) > 0 {
+			identity.Symbol = symbol[0]
+		}
+		encoded, err := BatchReplaceItemToProto(item, quantityScale, identity)
 		if err != nil {
 			return nil, err
 		}
