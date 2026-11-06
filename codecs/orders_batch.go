@@ -57,6 +57,9 @@ func BatchCreateOrdersToProto(items []models.CreateOrderRequest, subAccountID *s
 	}
 	seenClientOrderIDs := make(map[string]struct{}, len(items))
 	for i, item := range items {
+		if item.SubAccountID != nil {
+			return nil, &errors.ValidationError{Msg: "batch_create item sub_account_id is unsupported; use the batch-level subAccountID"}
+		}
 		if len(itemScales) != 0 {
 			quantityScale, quoteQuantityScale = itemScales[i].Base, itemScales[i].Quote
 		}

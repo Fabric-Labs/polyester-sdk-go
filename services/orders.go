@@ -183,20 +183,11 @@ func (s *OrdersService) Create(ctx context.Context, req models.CreateOrderReques
 	if err := s.ensureCatalogs(ctx); err != nil {
 		return models.OrderMutationResult{}, err
 	}
-	if account != nil {
-		sub, err := s.scoped.ResolveSubAccountID(nil, account)
-		if err != nil {
-			return models.OrderMutationResult{}, err
-		}
-		req.SubAccountID = sub
+	sub, err := s.scoped.ResolveSubAccountID(req.SubAccountID, account)
+	if err != nil {
+		return models.OrderMutationResult{}, err
 	}
-	if req.SubAccountID == nil {
-		sub, err := s.scoped.ResolveSubAccountID(nil, nil)
-		if err != nil {
-			return models.OrderMutationResult{}, err
-		}
-		req.SubAccountID = sub
-	}
+	req.SubAccountID = sub
 	if err := resolveOrderSymbolID(s.catalogs, &req, nil, "orders.create"); err != nil {
 		return models.OrderMutationResult{}, err
 	}
@@ -232,20 +223,11 @@ func (s *OrdersService) Preview(ctx context.Context, req models.CreateOrderReque
 	if err := s.ensureCatalogs(ctx); err != nil {
 		return models.PreviewOrderResult{}, err
 	}
-	if account != nil {
-		sub, err := s.scoped.ResolveSubAccountID(nil, account)
-		if err != nil {
-			return models.PreviewOrderResult{}, err
-		}
-		req.SubAccountID = sub
+	sub, err := s.scoped.ResolveSubAccountID(req.SubAccountID, account)
+	if err != nil {
+		return models.PreviewOrderResult{}, err
 	}
-	if req.SubAccountID == nil {
-		sub, err := s.scoped.ResolveSubAccountID(nil, nil)
-		if err != nil {
-			return models.PreviewOrderResult{}, err
-		}
-		req.SubAccountID = sub
-	}
+	req.SubAccountID = sub
 	if err := resolveOrderSymbolID(s.catalogs, &req, nil, "orders.preview"); err != nil {
 		return models.PreviewOrderResult{}, err
 	}
