@@ -217,7 +217,12 @@ func (s *WithdrawService) CreateAPIKeyToExternalChain(ctx context.Context, desti
 	return s.SubmitPrepared(ctx, prepared)
 }
 
+// CreateToFunding uses the authenticated API key's scope. Per-call account
+// selectors are rejected; the SDK default subaccount only routes wallet calls.
 func (s *WithdrawService) CreateToFunding(ctx context.Context, assetID uint32, quantity models.AssetAmountInput, payloadSignature []byte, idempotencyKey string, nonce string, deadlineTsSec *uint64, account AccountScope, subAccountID *string, destinationAddress string, amountScale int) (models.WithdrawIntentResult, error) {
+	if err := validateAPIKeyWithdrawScope(account, subAccountID); err != nil {
+		return models.WithdrawIntentResult{}, err
+	}
 	if len(payloadSignature) == 0 {
 		return models.WithdrawIntentResult{}, &errors.ValidationError{Msg: "payload_signature is required for trading withdraw"}
 	}
@@ -229,7 +234,11 @@ func (s *WithdrawService) CreateToFunding(ctx context.Context, assetID uint32, q
 	return s.createTradingWithdraw(ctx, req)
 }
 
+// CreateToExternalChain uses the API key's scope, with the same selector rules as CreateToFunding.
 func (s *WithdrawService) CreateToExternalChain(ctx context.Context, assetID uint32, quantity models.AssetAmountInput, payloadSignature []byte, destinationChainID uint64, destinationAddress string, idempotencyKey string, nonce string, deadlineTsSec *uint64, account AccountScope, subAccountID *string, amountScale int) (models.WithdrawIntentResult, error) {
+	if err := validateAPIKeyWithdrawScope(account, subAccountID); err != nil {
+		return models.WithdrawIntentResult{}, err
+	}
 	if len(payloadSignature) == 0 {
 		return models.WithdrawIntentResult{}, &errors.ValidationError{Msg: "payload_signature is required for trading withdraw"}
 	}
@@ -242,6 +251,13 @@ func (s *WithdrawService) CreateToExternalChain(ctx context.Context, assetID uin
 	}
 	req := &chainwithdrawv1.CreateTradingWithdrawRequest{Payload: payload, PayloadSignature: payloadSignature}
 	return s.createTradingWithdraw(ctx, req)
+}
+
+func validateAPIKeyWithdrawScope(account AccountScope, subAccountID *string) error {
+	if account != nil || subAccountID != nil {
+		return &errors.ValidationError{Msg: "API-key withdrawals use the authenticated key's scope; account and subAccountID selectors are unsupported. Omit them and use a key bound to the intended account, or use CreateWalletTradingWithdraw for wallet scope selection"}
+	}
+	return nil
 }
 
 // ValidateDestination checks one external-chain destination without creating a

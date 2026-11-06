@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- Internal transfers now preserve a valid account or subaccount recipient
+  when an optional destination address is empty or whitespace.
+- API-key withdrawal helpers now reject explicit account or subaccount
+  selectors before sending, instead of silently ignoring them. Omit selectors
+  and use an API key bound to the intended account or subaccount. Configured
+  SDK defaults do not route API-key withdrawals; wallet withdrawals still
+  support account selection and configured defaults.
+- Trailing-stop creation now rejects competing ticks and basis-point
+  trailing distances instead of silently keeping only ticks.
+
 ## 0.6.2
 
 Git tag: `v0.6.2`. Released 2026-11-06.

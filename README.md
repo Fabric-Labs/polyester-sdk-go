@@ -961,6 +961,13 @@ SDK notes:
   without creating a withdraw (create RPCs remain authoritative).
 - **Trading → trading (another account):** `client.InternalTransfers.Create(...)`.
 
+API-key withdrawals always use the authenticated key's bound account or
+subaccount. The SDK's default subaccount does not change that source.
+`CreateToFunding` and `CreateToExternalChain` reject explicit `account` or
+`subAccountID` arguments; pass `nil` for both and use a key bound to the
+intended source. `CreateWalletTradingWithdraw` supports explicit account
+selection and the configured default subaccount for wallet/JWT withdrawals.
+
 ```go
 account, err := chain.NewSmartAccount(ownerPrivateKeyHex, nil, nil)
 call, err := chain.EncodeTradingGatewayDeposit(
