@@ -46,7 +46,7 @@ func catalogServer(t *testing.T, spot spotHandler, zipper zipperHandler) *httpte
 	mux.Handle(path, h)
 	zpath, zh := chainzipperv1connect.NewZipperServiceHandler(&zipper)
 	mux.Handle(zpath, zh)
-	srv := httptest.NewServer(mux)
+	srv := hardening.NewTestServer(mux)
 	t.Cleanup(srv.Close)
 	return srv
 }
@@ -158,7 +158,7 @@ func TestL2WaitForCatalogsRejectsBadWireResponse(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if strings.Contains(r.URL.Path, "GetSpotConfig") {
 					w.Header().Set("Content-Type", "application/proto")
 					w.Header().Set("Content-Length", fmt.Sprint(len(tt.body)))

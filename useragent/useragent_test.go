@@ -3,10 +3,10 @@ package useragent_test
 import (
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/useragent"
 )
 
@@ -22,7 +22,7 @@ func TestStringIsPolyesterIdentity(t *testing.T) {
 
 func TestRoundTripperSetsUserAgent(t *testing.T) {
 	var got string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		got = r.Header.Get("User-Agent")
 		w.WriteHeader(http.StatusNoContent)
 	}))

@@ -10,12 +10,13 @@ import (
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1/authv1connect"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 )
 
 func TestAdmissionClassification(t *testing.T) {
@@ -101,7 +102,7 @@ func TestRESTAPIErrorKeepsProblem(t *testing.T) {
 func TestRESTAdmissionKeepsRetryDelay(t *testing.T) {
 	for _, code := range []string{"SYSTEM_RATE_LIMITED", "RATE_LIMIT_EXCEEDED", "PRICE_LEVELS_EXHAUSTED"} {
 		t.Run(code, func(t *testing.T) {
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.Header().Set("Content-Type", "application/problem+json")
 				w.Header().Set("Retry-After", "1.25")
 				w.WriteHeader(429)

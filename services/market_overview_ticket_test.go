@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -13,6 +12,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	overviewpb "github.com/Fabric-Labs/polyester-sdk-go/gen/marketoverview/v1"
+	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/realtime"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
@@ -32,7 +32,7 @@ func overviewTicketService(t *testing.T) (*MarketOverviewService, func([]byte), 
 	released := make(chan struct{})
 	conns := new(atomic.Int32)
 	upgrader := websocket.Upgrader{Subprotocols: []string{"centrifuge-protobuf"}}
-	ws := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	ws := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			return
@@ -72,7 +72,7 @@ func overviewTicketService(t *testing.T) (*MarketOverviewService, func([]byte), 
 			}
 		}
 	}))
-	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	httpSrv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/marketoverview.v1.MarketOverviewService/ListMarketOverview" {
 			http.NotFound(w, r)
 			return

@@ -134,10 +134,11 @@ func SpawnCentrifugoDisconnectAfterHandshake(active *atomic.Int64) *MockWSServer
 	})
 }
 
-// SpawnCentrifugoDisconnectThenPublish disconnects the first session after
-// handshake. Subsequent sessions stay up; after handshake they forward payloads
-// from pubCh as Centrifugo publication frames (and drain reads).
-func SpawnCentrifugoDisconnectThenPublish(active *atomic.Int64, pubCh <-chan []byte) *MockWSServer {
+// SpawnCentrifugoDisconnectThenPublish disconnects the first session once
+// disconnect is closed, so a test can observe the state before the drop.
+// Subsequent sessions stay up; after handshake they forward payloads from pubCh
+// as Centrifugo publication frames (and drain reads).
+func SpawnCentrifugoDisconnectThenPublish(active *atomic.Int64, disconnect <-chan struct{}, pubCh <-chan []byte) *MockWSServer {
 	if active == nil {
 		active = &atomic.Int64{}
 	}
@@ -158,10 +159,6 @@ func SpawnCentrifugoDisconnectThenPublish(active *atomic.Int64, pubCh <-chan []b
 				}
 			}
 		}
-		if n == 1 {
-			_ = conn.Close()
-			return
-		}
 		done := make(chan struct{})
 		go func() {
 			defer close(done)
@@ -171,6 +168,14 @@ func SpawnCentrifugoDisconnectThenPublish(active *atomic.Int64, pubCh <-chan []b
 				}
 			}
 		}()
+		if n == 1 {
+			select {
+			case <-disconnect:
+				_ = conn.Close()
+			case <-done:
+			}
+			return
+		}
 		for {
 			select {
 			case <-done:

@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/hex"
 	"net/http"
-	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/gorilla/websocket"
+
+	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 )
 
 func ticketPublication(data string) []byte {
@@ -35,7 +36,7 @@ func TestTicket8475SetupPreservesPublicationOrder(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			serverErr := make(chan error, 1)
 			upgrader := websocket.Upgrader{Subprotocols: []string{centrifugoProtobufSubprotocol}}
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				conn, err := upgrader.Upgrade(w, r, nil)
 				if err != nil {
 					serverErr <- err

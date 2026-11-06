@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
@@ -15,6 +14,7 @@ import (
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1/ordersv1connect"
+	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
 )
 
@@ -45,7 +45,7 @@ func newBatchStatusService(t *testing.T, handler *batchStatusHandler) *OrdersSer
 	mux := http.NewServeMux()
 	path, h := ordersv1connect.NewOrdersReadServiceHandler(handler)
 	mux.Handle(path, h)
-	srv := httptest.NewServer(mux)
+	srv := hardening.NewTestServer(mux)
 	t.Cleanup(srv.Close)
 	creds, err := auth.LoadCredentials("ak_test", auth.GenerateEd25519Keypair().SecretKeyHex, false)
 	if err != nil {

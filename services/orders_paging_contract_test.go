@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"net/http/httptest"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -10,6 +9,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1/ordersv1connect"
+	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
 )
@@ -32,7 +32,7 @@ func (h *executionPageHandler) GetOrder(_ context.Context, r *connect.Request[or
 func TestExecutionPagingPinsOrderGeneration(t *testing.T) {
 	handler := &executionPageHandler{}
 	_, h := ordersv1connect.NewOrdersReadServiceHandler(handler)
-	srv := httptest.NewServer(h)
+	srv := hardening.NewTestServer(h)
 	defer srv.Close()
 	creds, err := auth.LoadCredentials("ak_test", auth.GenerateEd25519Keypair().SecretKeyHex, false)
 	if err != nil {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
@@ -14,6 +13,7 @@ import (
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	privatewsv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/privatews/v1"
+	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/realtime"
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
@@ -77,7 +77,7 @@ func TestOrdersSubscribeUsesPrivateWebSocket(t *testing.T) {
 		write(&privatewsv1.ServerMessage{Sub: "s1", Seq: 3, Frame: &privatewsv1.ServerMessage_SnapshotEnd{SnapshotEnd: &privatewsv1.SnapshotEnd{Cursor: "c1", Count: 1}}})
 		read() // until the client leaves
 	})
-	srv := httptest.NewServer(mux)
+	srv := hardening.NewTestServer(mux)
 	defer srv.Close()
 
 	kp := auth.GenerateEd25519Keypair()

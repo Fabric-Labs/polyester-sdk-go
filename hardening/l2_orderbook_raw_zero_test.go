@@ -3,7 +3,6 @@ package hardening_test
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -55,7 +54,7 @@ func startRawZeroStream(t *testing.T, bucket string, depth int) rawZeroStream {
 	mux := http.NewServeMux()
 	path, handler := orderbookv1connect.NewOrderbookServiceHandler(rawZeroSnapshotHandler{})
 	mux.Handle(path, handler)
-	api := httptest.NewServer(mux)
+	api := hardening.NewTestServer(mux)
 	t.Cleanup(api.Close)
 
 	cats := catalogs.NewManager()
@@ -277,7 +276,7 @@ func TestL2OrderbookRawZeroBufferedDeltaStopsProcessingAfterFailure(t *testing.T
 	mux := http.NewServeMux()
 	path, handler := orderbookv1connect.NewOrderbookServiceHandler(snapshot)
 	mux.Handle(path, handler)
-	api := httptest.NewServer(mux)
+	api := hardening.NewTestServer(mux)
 	t.Cleanup(api.Close)
 
 	cats := catalogs.NewManager()

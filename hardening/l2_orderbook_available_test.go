@@ -3,7 +3,6 @@ package hardening_test
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -44,7 +43,7 @@ func TestL2OrderbookSubscriptionCarriesSnapshotAvailability(t *testing.T) {
 			mux := http.NewServeMux()
 			path, handler := orderbookv1connect.NewOrderbookServiceHandler(orderbookSnapshotHandler{available: available})
 			mux.Handle(path, handler)
-			api := httptest.NewServer(mux)
+			api := hardening.NewTestServer(mux)
 			t.Cleanup(api.Close)
 
 			cats := catalogs.NewManager()

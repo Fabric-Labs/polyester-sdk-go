@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -16,6 +15,7 @@ import (
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1/ordersv1connect"
 	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
+	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
@@ -57,7 +57,7 @@ func TestWaitForOrderTradesCompletePollsUntilSumMatches(t *testing.T) {
 	path, h := ordersv1connect.NewOrdersReadServiceHandler(handler)
 	mux.Handle(path, h)
 	var httpHits atomic.Int64
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		httpHits.Add(1)
 		mux.ServeHTTP(w, r)
 	}))
@@ -107,7 +107,7 @@ func TestWaitForOrderTradesCompletePollsUntilSumMatches(t *testing.T) {
 
 func TestCancelRejectsInvalidClientOrderIDBeforeTransport(t *testing.T) {
 	var httpHits atomic.Int64
-	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+	srv := hardening.NewTestServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		httpHits.Add(1)
 	}))
 	t.Cleanup(srv.Close)

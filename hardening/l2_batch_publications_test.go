@@ -3,7 +3,6 @@ package hardening_test
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -31,7 +30,7 @@ func newBatchStream(t *testing.T) *batchStream {
 	pubs := make(chan []byte, 4)
 	ws := hardening.SpawnCentrifugoPublish(nil, pubs)
 	t.Cleanup(ws.Close)
-	tokens := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	tokens := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"token":"t"}`))
 	}))

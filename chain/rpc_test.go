@@ -5,16 +5,17 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 )
 
 func TestJSONRPCValidResult(t *testing.T) {
 	var gotID int64
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req map[string]any
 		_ = json.NewDecoder(r.Body).Decode(&req)
 		gotID = int64(req["id"].(float64))
@@ -37,7 +38,7 @@ func TestJSONRPCValidResult(t *testing.T) {
 }
 
 func TestJSONRPCRejectsWrongVersion(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"jsonrpc":"1.0","id":1,"result":1}`))
 	}))
 	defer srv.Close()
@@ -48,7 +49,7 @@ func TestJSONRPCRejectsWrongVersion(t *testing.T) {
 }
 
 func TestJSONRPCRejectsIDMismatch(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":999,"result":1}`))
 	}))
 	defer srv.Close()
@@ -59,7 +60,7 @@ func TestJSONRPCRejectsIDMismatch(t *testing.T) {
 }
 
 func TestJSONRPCRejectsMissingResultAndError(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1}`))
 	}))
 	defer srv.Close()
@@ -70,7 +71,7 @@ func TestJSONRPCRejectsMissingResultAndError(t *testing.T) {
 }
 
 func TestJSONRPCRejectsBothResultAndError(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":1,"error":{"code":1,"message":"x"}}`))
 	}))
 	defer srv.Close()
@@ -81,7 +82,7 @@ func TestJSONRPCRejectsBothResultAndError(t *testing.T) {
 }
 
 func TestJSONRPCRejectsOversizedBody(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":"`))
 		_, _ = w.Write(make([]byte, MaxJSONRPCResponseBytes+16))
@@ -95,7 +96,7 @@ func TestJSONRPCRejectsOversizedBody(t *testing.T) {
 }
 
 func TestJSONRPCTimeoutCoversBodyStall(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		if f, ok := w.(http.Flusher); ok {
@@ -151,7 +152,7 @@ func TestJSONRPCNoHeadersTimesOut(t *testing.T) {
 
 func TestJSONRPCConcurrentReorderedOK(t *testing.T) {
 	var next atomic.Int64
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			ID int64 `json:"id"`
 		}

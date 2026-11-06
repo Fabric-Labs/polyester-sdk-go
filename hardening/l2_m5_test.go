@@ -3,7 +3,6 @@ package hardening_test
 import (
 	"context"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	ledgerrdv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1/ledgerrdv1connect"
 	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
+	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 )
 
 // 1.5 * 10^18 as ledger scaled integer (already scaled; must not be multiplied again).
@@ -57,7 +57,7 @@ func TestM5NamedBalanceDecodeNoDoubleScale(t *testing.T) {
 	mux := http.NewServeMux()
 	path, h := ledgerrdv1connect.NewLedgerReadServiceHandler(balancesFixture{})
 	mux.Handle(path, h)
-	srv := httptest.NewServer(mux)
+	srv := hardening.NewTestServer(mux)
 	t.Cleanup(srv.Close)
 
 	kp := auth.GenerateEd25519Keypair()

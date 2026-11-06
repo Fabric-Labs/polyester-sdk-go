@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
+	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 )
 
 func testCreds(t *testing.T) *auth.Credentials {
@@ -25,7 +25,7 @@ func testCreds(t *testing.T) *auth.Credentials {
 }
 
 func TestFetchRTTokenMaps403ToAuthError(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
 		_, _ = w.Write([]byte(`{"code":"permission_denied","message":"missing address_book permission"}`))
 	}))
@@ -67,7 +67,7 @@ func TestFetchRTTokenMaps403ToAuthError(t *testing.T) {
 }
 
 func TestFetchRTTokenMaps401ToAuthError(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		_, _ = w.Write([]byte(`unauthorized`))
 	}))
@@ -103,7 +103,7 @@ func TestRealtimeProblemPreservesMetadata(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/problem+json")
 				w.WriteHeader(status)
 				_, _ = w.Write(encoded)
