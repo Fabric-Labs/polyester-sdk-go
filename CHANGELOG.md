@@ -1,7 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.7.0
 
+Git tag: `v0.7.0`. Released 2026-11-06. Built on public contract `748066a`.
+
+- **Breaking:** trigger creation also refuses invalid `tif` and `order_type`
+  values on paths that never read them, and order writes refuse an empty symbol
+  sent with a valid symbol ID. These calls were accepted before.
 - **Breaking:** Batch create now checks each quantity against its destination pair's catalog
   scale. A mismatched explicit scale raises an error before the batch is sent.
   Create, batch create, modify and batch replace also refuse quantities tagged
@@ -16,7 +21,7 @@
 
 - Internal transfers now preserve a valid account or subaccount recipient
   when an optional destination address is empty or whitespace.
-- Transfer history now rejects negative `since` timestamps with a validation
+- **Breaking:** transfer history now rejects negative `since` timestamps with a validation
   error before sending, instead of wrapping them into a large unsigned value.
   Zero and positive values remain inclusive UTC epoch microsecond bounds.
 - **Breaking:** `CreateToFunding` and `CreateToExternalChain` now return a
@@ -26,7 +31,7 @@
   an API key bound to the intended source. Configured SDK defaults do not
   route API-key withdrawals; wallet withdrawals still support account
   selection and configured defaults.
-- Trailing-stop creation now rejects competing ticks and basis-point
+- **Breaking:** trailing-stop creation now rejects competing ticks and basis-point
   trailing distances instead of silently keeping only ticks.
 - **Breaking:** transfer history now returns the opaque `NextPageToken` string
   instead of an integer `NextCursor`. Pass it as the optional final argument to
