@@ -299,6 +299,7 @@ func (e *ServerError) Is(target error) bool { return target == ErrPolyester }
 
 // APIError indicates a structured Connect/API error.
 type APIError struct {
+	Problem  *HTTPProblem // REST metadata, when supplied by the server.
 	Msg      string
 	Code     string
 	Metadata map[string]string
@@ -413,6 +414,10 @@ func (e *QueueOverflowError) Is(target error) bool { return target == ErrPolyest
 //
 // It does not guarantee that a mutation was not applied. Preserve the same
 // idempotency key and reconcile first when MutationOutcomeUnknown is true.
+// A REST gateway 504 is non-retryable with outcome unknown even without a
+// recognized code. This classifier has no operation context: safe reads may
+// explicitly retry it; writes must read back first. A client order ID enables
+// reconciliation, not exact replay of a single create.
 // An order error code ending in _OUTCOME_UNKNOWN is not retryable: read the
 // order or trigger back before sending it again.
 func IsRetryable(err error) bool {
@@ -421,7 +426,7 @@ func IsRetryable(err error) bool {
 	var serverErr *ServerError
 	var skewErr *TimestampSkewError
 	code := apiErrorCode(err)
-	if isOutcomeUnknownCode(code) {
+	if isOutcomeUnknownCode(code) || (errors.As(err, &serverErr) && serverErr.Status == 504) {
 		return false
 	}
 	return errors.As(err, &transportErr) ||

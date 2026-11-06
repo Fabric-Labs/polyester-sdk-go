@@ -113,6 +113,10 @@ func MapConnectError(err error) error {
 	if errors.As(err, &authErr) {
 		return authErr
 	}
+	var rateLimitErr *sdkerrors.RateLimitError
+	if errors.As(err, &rateLimitErr) {
+		return rateLimitErr
+	}
 	var serverErr *sdkerrors.ServerError
 	if errors.As(err, &serverErr) {
 		return serverErr
@@ -181,7 +185,9 @@ func MapConnectError(err error) error {
 		}
 		if orderDetail, ok := value.(*orderv1.ErrorDetail); ok {
 			rl := rateLimitDetailFromProto(orderDetail.GetRateLimit())
-			if rl != nil || orderDetail.GetCode() == orderv1.ErrorCode_ERROR_CODE_RATE_LIMIT_EXCEEDED {
+			if rl != nil || orderDetail.GetCode() == orderv1.ErrorCode_ERROR_CODE_RATE_LIMIT_EXCEEDED ||
+				orderDetail.GetCode() == orderv1.ErrorCode_ERROR_CODE_OVERLOADED ||
+				orderDetail.GetCode() == orderv1.ErrorCode_ERROR_CODE_SYSTEM_RATE_LIMITED {
 				return rateLimitError(msg, rl, headerRetry)
 			}
 			code := orderDetail.GetCode().String()
@@ -253,6 +259,12 @@ func MapConnectError(err error) error {
 	}
 	if useragent.IsCloudflareBrowserBan(msg) {
 		return &sdkerrors.TransportError{Msg: useragent.Cloudflare1010Message()}
+	}
+	if strings.HasSuffix(msg, "_OUTCOME_UNKNOWN") {
+		return &sdkerrors.APIError{Msg: msg, Code: msg}
+	}
+	if connectErr.Code() == connect.CodeResourceExhausted && strings.TrimPrefix(msg, "ERROR_CODE_") == "ORDER_SEQUENCE_EXHAUSTED" {
+		return &sdkerrors.APIError{Msg: msg, Code: "ERROR_CODE_ORDER_SEQUENCE_EXHAUSTED"}
 	}
 	switch connectErr.Code() {
 	case connect.CodeUnauthenticated:

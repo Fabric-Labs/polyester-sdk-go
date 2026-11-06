@@ -35,10 +35,13 @@ func TestUnrecognisedREST504RemainsAmbiguousTransportFailure(t *testing.T) {
 	for _, tc := range []struct{ contentType, body string }{
 		{"text/html", "<html>Gateway Timeout</html>"},
 		{"application/problem+json", `{"code":"UNKNOWN_GATEWAY_FAILURE"}`},
+		{"application/problem+json", `{"code":"gateway_timeout"}`},
+		{"application/json", "{broken"},
+		{"text/plain", ""},
 	} {
 		err := callMeAgainst(t, 504, tc.contentType, tc.body)
 		var server *sdkerrors.ServerError
-		if !errors.As(err, &server) || !sdkerrors.IsRetryable(err) || !sdkerrors.MutationOutcomeUnknown(err) {
+		if !errors.As(err, &server) || sdkerrors.IsRetryable(err) || !sdkerrors.MutationOutcomeUnknown(err) {
 			t.Fatalf("class=%T retryable=%v outcomeUnknown=%v", err, sdkerrors.IsRetryable(err), sdkerrors.MutationOutcomeUnknown(err))
 		}
 	}

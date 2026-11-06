@@ -395,6 +395,19 @@ For every order error code ending in `_OUTCOME_UNKNOWN`,
 `errors.MutationOutcomeUnknown` reports true and `errors.IsRetryable` reports
 false: read the order or trigger back (by client order ID or client trigger
 ID) before sending it again.
+A plain REST gateway 504 returns `*errors.ServerError` with `Status == 504`:
+`errors.IsRetryable` is false and `errors.MutationOutcomeUnknown` is true.
+The classifier has no operation context. Reads may retry a 504 explicitly;
+writes read back first. A client order ID supports reconciliation, not exact
+replay of a single create. Without one, read open orders before deciding whether
+to submit again. The SDK never automatically resends a create; trigger/status
+reads and snapshot recovery keep their own safe read retries.
+`OVERLOADED` and `SYSTEM_RATE_LIMITED` are retryable admission refusals on
+Connect and REST, with no unknown mutation outcome. Respect `RetryAfter` when
+supplied; for `OVERLOADED`, wait for an outstanding request to complete.
+`ORDER_SEQUENCE_EXHAUSTED` is permanent; contact support instead of retrying.
+`APIError.Problem` retains REST code, actual HTTP status, canonical type and detail.
+
 `ERROR_CODE_ACCOUNT_REPAIRING` and `AUTH_TEMPORARILY_UNAVAILABLE` changed
 nothing and `errors.IsRetryable` reports true: retry the same request shortly.
 `errors.TimestampSkewError` (`TIMESTAMP_SKEW`) means the API-key signature
