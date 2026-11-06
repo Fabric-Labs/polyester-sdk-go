@@ -90,6 +90,10 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 	if resolvedSymbolID == nil || *resolvedSymbolID == 0 {
 		return nil, &errors.ValidationError{Msg: fmt.Sprintf("symbol_id is required for orderbook subscriptions (%q)", symbol)}
 	}
+	catalogID := s.catalogs.SymbolIDForSymbol(symbol)
+	if catalogID == nil || *catalogID != *resolvedSymbolID {
+		return nil, &errors.ValidationError{Msg: fmt.Sprintf("orderbook symbol %q does not match symbol_id %d", symbol, *resolvedSymbolID)}
+	}
 	channel := fmt.Sprintf("public:spot:orderbook:deltas:depth:%d:%d:proto", wsDepth, *resolvedSymbolID)
 
 	quantityScale, ok := s.catalogs.BaseQuantityScaleForSymbol(symbol)

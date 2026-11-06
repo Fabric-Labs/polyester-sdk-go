@@ -293,26 +293,27 @@ func runSubscriptionOnce[T any](
 		return &sdkerrors.RealtimeError{Msg: "server did not negotiate centrifuge-protobuf websocket subprotocol"}
 	}
 
+	var pending []incomingMessage
 	if isPrivateChannel(channel) {
 		token, err := fetchConnectionToken(ctx, c.http, c.credentials, c.apiURL)
 		if err != nil {
 			return err
 		}
-		if err := centrifugoConnect(ctx, conn, token); err != nil {
+		if err := centrifugoConnect(ctx, conn, token, &pending); err != nil {
 			return err
 		}
 		subToken, err := fetchSubscriptionToken(ctx, c.http, c.credentials, c.apiURL, channel)
 		if err != nil {
 			return err
 		}
-		if err := centrifugoSubscribe(ctx, conn, channel, subToken); err != nil {
+		if err := centrifugoSubscribe(ctx, conn, channel, subToken, &pending); err != nil {
 			return err
 		}
 	} else {
-		if err := centrifugoConnect(ctx, conn, ""); err != nil {
+		if err := centrifugoConnect(ctx, conn, "", &pending); err != nil {
 			return err
 		}
-		if err := centrifugoSubscribe(ctx, conn, channel, ""); err != nil {
+		if err := centrifugoSubscribe(ctx, conn, channel, "", &pending); err != nil {
 			return err
 		}
 	}
@@ -324,29 +325,33 @@ func runSubscriptionOnce[T any](
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		// Use a long read deadline so Centrifugo ping/pong can complete without
-		// retrying ReadMessage on a deadline-poisoned connection (gorilla/websocket).
-		_ = conn.SetReadDeadline(time.Now().Add(30 * time.Second))
-		messageType, raw, err := conn.ReadMessage()
-		if err != nil {
-			if ctx.Err() != nil {
-				return ctx.Err()
+		incoming := pending
+		pending = nil
+		if len(incoming) == 0 {
+			// Use a long read deadline so Centrifugo ping/pong can complete without
+			// retrying ReadMessage on a deadline-poisoned connection (gorilla/websocket).
+			_ = conn.SetReadDeadline(time.Now().Add(30 * time.Second))
+			messageType, raw, err := conn.ReadMessage()
+			if err != nil {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				if strings.Contains(strings.ToLower(err.Error()), "read limit") ||
+					websocket.IsCloseError(err, websocket.CloseMessageTooBig) {
+					return terminalRealtime(fmt.Sprintf(
+						"realtime message exceeds %d bytes",
+						MaxRealtimeMessageBytes,
+					))
+				}
+				return &sdkerrors.RealtimeError{Msg: err.Error()}
 			}
-			if strings.Contains(strings.ToLower(err.Error()), "read limit") ||
-				websocket.IsCloseError(err, websocket.CloseMessageTooBig) {
-				return terminalRealtime(fmt.Sprintf(
-					"realtime message exceeds %d bytes",
-					MaxRealtimeMessageBytes,
-				))
+			if messageType != websocket.BinaryMessage {
+				return terminalRealtime("received JSON text frame on protobuf websocket")
 			}
-			return &sdkerrors.RealtimeError{Msg: err.Error()}
-		}
-		if messageType != websocket.BinaryMessage {
-			return terminalRealtime("received JSON text frame on protobuf websocket")
-		}
-		incoming, err := decodeReplies(raw)
-		if err != nil {
-			return terminalRealtime("invalid realtime protobuf frame: " + err.Error())
+			incoming, err = decodeReplies(raw)
+			if err != nil {
+				return terminalRealtime("invalid realtime protobuf frame: " + err.Error())
+			}
 		}
 		for _, message := range incoming {
 			switch message.kind {
@@ -376,21 +381,21 @@ func runSubscriptionOnce[T any](
 	}
 }
 
-func centrifugoConnect(ctx context.Context, conn *websocket.Conn, token string) error {
+func centrifugoConnect(ctx context.Context, conn *websocket.Conn, token string, pending *[]incomingMessage) error {
 	if err := conn.WriteMessage(websocket.BinaryMessage, connectCommand(1, token)); err != nil {
 		return &sdkerrors.RealtimeError{Msg: err.Error()}
 	}
-	return readCentrifugoReply(ctx, conn, 1)
+	return readCentrifugoReply(ctx, conn, 1, pending)
 }
 
-func centrifugoSubscribe(ctx context.Context, conn *websocket.Conn, channel, token string) error {
+func centrifugoSubscribe(ctx context.Context, conn *websocket.Conn, channel, token string, pending *[]incomingMessage) error {
 	if err := conn.WriteMessage(websocket.BinaryMessage, subscribeCommand(2, channel, token)); err != nil {
 		return &sdkerrors.RealtimeError{Msg: err.Error()}
 	}
-	return readCentrifugoReply(ctx, conn, 2)
+	return readCentrifugoReply(ctx, conn, 2, pending)
 }
 
-func readCentrifugoReply(ctx context.Context, conn *websocket.Conn, expectedID uint32) error {
+func readCentrifugoReply(ctx context.Context, conn *websocket.Conn, expectedID uint32, pending *[]incomingMessage) error {
 	deadline, ok := ctx.Deadline()
 	if !ok {
 		deadline = time.Now().Add(10 * time.Second)
@@ -408,6 +413,7 @@ func readCentrifugoReply(ctx context.Context, conn *websocket.Conn, expectedID u
 		if err != nil {
 			return &sdkerrors.RealtimeError{Msg: err.Error()}
 		}
+		matched := false
 		for _, message := range incoming {
 			switch {
 			case message.kind == incomingPing:
@@ -417,8 +423,16 @@ func readCentrifugoReply(ctx context.Context, conn *websocket.Conn, expectedID u
 			case message.kind == incomingReply && message.id == expectedID && message.err != nil:
 				return centrifugoProtocolError(message.err)
 			case message.kind == incomingReply && message.id == expectedID:
-				return nil
+				matched = true
+			default:
+				if len(*pending) >= 200 {
+					return &sdkerrors.QueueOverflowError{Msg: "realtime setup buffer full"}
+				}
+				*pending = append(*pending, message)
 			}
+		}
+		if matched {
+			return nil
 		}
 	}
 }
@@ -706,6 +720,12 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) run(ctx context.Context) {
 			}
 		}()
 		if err := sub.Err(); err != nil {
+			var terminal *terminalRealtimeError
+			var overflow *sdkerrors.QueueOverflowError
+			if errors.As(err, &terminal) || errors.As(err, &overflow) {
+				s.failClosed(err)
+				return
+			}
 			s.setErr(err)
 		}
 
@@ -944,6 +964,9 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) Close() {
 		<-s.done
 	}
 }
+
+// Done closes when the stream worker has permanently stopped.
+func (s *SnapshotThenStream[TSnapshot, TPublication]) Done() <-chan struct{} { return s.done }
 
 // IsReady reports whether the initial snapshot has been applied.
 func (s *SnapshotThenStream[TSnapshot, TPublication]) IsReady() bool {

@@ -45,6 +45,8 @@ Git tag: `v0.7.0`. Released 2026-11-06. Built on public contract `748066a`.
   original range bounds unchanged.
 - Equity history now exposes `BTCPricesQ`: the returned BTC-USDT closes as
   integers scaled by 1e9, in timestamp order. An omitted series is an empty slice.
+- Realtime subscriptions preserve publications sent alongside or before the subscribe reply.
+- Managed order books finish their update stream after terminal failure and reject conflicting market name and ID selectors before connecting.
 
 ## 0.6.2
 
