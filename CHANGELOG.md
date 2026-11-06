@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed API-key request signing for repeated query parameters by sorting decoded values as well as keys before encoding. Requests such as `a=2&a=1` now match the server.
+
 - Internal transfers now preserve a valid account or subaccount recipient
   when an optional destination address is empty or whitespace.
 - Transfer history now rejects negative `since` timestamps with a validation

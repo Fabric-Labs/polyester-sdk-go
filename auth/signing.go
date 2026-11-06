@@ -11,7 +11,8 @@ import (
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 )
 
-// CanonicalQuery sorts and URL-encodes query parameters from rawURL.
+// CanonicalQuery sorts URL-decoded query parameters by key, then value, before
+// RFC 3986 encoding, matching the server's API-key canonicalization.
 func CanonicalQuery(rawURL string) (string, error) {
 	parsed, err := parseSigningURL(rawURL)
 	if err != nil {
@@ -25,6 +26,7 @@ func CanonicalQuery(rawURL string) (string, error) {
 	sort.Strings(keys)
 	pairs := make([]string, 0, len(keys))
 	for _, key := range keys {
+		sort.Strings(values[key])
 		for _, value := range values[key] {
 			pairs = append(pairs, queryComponentEscape(key)+"="+queryComponentEscape(value))
 		}
