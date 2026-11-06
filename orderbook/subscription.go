@@ -148,8 +148,11 @@ func (s *Subscription) Enqueue(data models.OrderbookData) bool {
 		callback := s.onError
 		s.closed = true
 		s.mu.Unlock()
+		s.closeUpdates()
+		if s.stream != nil {
+			s.stream.Stop()
+		}
 		callErrorCallback(callback, err)
-		s.Close()
 		return false
 	}
 }

@@ -951,8 +951,9 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) SetOnError(callback func(e
 	callErrorCallback(callback, err)
 }
 
-// Close stops the stream.
-func (s *SnapshotThenStream[TSnapshot, TPublication]) Close() {
+// Stop requests shutdown without waiting for the worker. It is safe to call
+// from publication callbacks running on the worker itself.
+func (s *SnapshotThenStream[TSnapshot, TPublication]) Stop() {
 	s.mu.Lock()
 	s.disposed = true
 	s.generation++
@@ -961,6 +962,16 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) Close() {
 	s.mu.Unlock()
 	if cancel != nil {
 		cancel()
+	}
+}
+
+// Close stops the stream and waits for its worker to exit.
+func (s *SnapshotThenStream[TSnapshot, TPublication]) Close() {
+	s.Stop()
+	s.mu.Lock()
+	started := s.cancel != nil
+	s.mu.Unlock()
+	if started {
 		<-s.done
 	}
 }

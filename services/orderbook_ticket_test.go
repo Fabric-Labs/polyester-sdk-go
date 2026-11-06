@@ -253,3 +253,103 @@ func TestTicket8512SelectorControlsKeepResetIdentityAndScale(t *testing.T) {
 		})
 	}
 }
+
+func TestTicket8510ZeroSequenceOrdering(t *testing.T) {
+	for _, mode := range []string{"gap", "contiguous", "reset"} {
+		t.Run(mode, func(t *testing.T) {
+			svc, sends, _, calls := bookTicketService(t, 0, true)
+			gaps := make(chan struct{}, 1)
+			sub, err := svc.CreateSubscription(context.Background(), CreateSubscriptionOptions{Symbol: "BTC-USDT", OnSequenceGap: func() { gaps <- struct{}{} }})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer sub.Close()
+			bookTicketNext(t, sub.Updates())
+			initial, _ := bookTicketNext(t, sub.Updates())
+			if initial.BookSeq != "0" {
+				t.Fatal(initial)
+			}
+			seq := uint64(5)
+			if mode == "contiguous" {
+				seq = 1
+			}
+			sends <- bookTicketFrame(&ob.OrderBookDelta{BookSeqStart: seq, BookSeqEnd: seq, Reset_: mode == "reset", Bids: []*ob.PriceLevel{{PriceTicks: 100, QtyScaled: 1}}})
+			view, ok := bookTicketNext(t, sub.Updates())
+			if !ok {
+				t.Fatal(sub.Err())
+			}
+			if mode == "gap" {
+				if view.BookSeq != "0" || len(view.Bids) != 0 || calls.Load() != 2 {
+					t.Fatalf("gap applied: view=%+v calls=%d", view, calls.Load())
+				}
+				select {
+				case <-gaps:
+				default:
+					t.Fatal("gap callback missing")
+				}
+			} else if view.BookSeq != fmt.Sprint(seq) || len(view.Bids) != 1 || calls.Load() != 1 {
+				t.Fatalf("control failed: %+v calls=%d", view, calls.Load())
+			}
+		})
+	}
+}
+
+func TestTicket8512UnknownMatchingSelectorsRequireCatalogs(t *testing.T) {
+	svc, _, _, calls := bookTicketService(t, 1, true)
+	svc.catalogs = catalogs.NewManager()
+	id := uint32(1)
+	sub, err := svc.CreateSubscription(context.Background(), CreateSubscriptionOptions{Symbol: "BTC-USDT", SymbolID: &id})
+	if sub != nil {
+		sub.Close()
+	}
+	if err == nil || !strings.Contains(err.Error(), "wait_for_catalogs") {
+		t.Fatalf("expected hydration error, got %v", err)
+	}
+	if calls.Load() != 0 {
+		t.Fatal("opened snapshot before validation")
+	}
+}
+
+func TestTicket8511OverflowThenClose(t *testing.T) {
+	svc, sends, _, _ := bookTicketService(t, 1, true)
+	failed := make(chan error, 1)
+	sub, err := svc.CreateSubscription(context.Background(), CreateSubscriptionOptions{Symbol: "BTC-USDT", OnError: func(err error) { failed <- err }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// No consumer: exceed the managed queue using real live publications.
+	stopFeeding := make(chan struct{})
+	defer close(stopFeeding)
+	go func() {
+		for seq := uint64(2); seq <= 259; seq++ {
+			select {
+			case sends <- bookTicketFrame(&ob.OrderBookDelta{BookSeqStart: seq, BookSeqEnd: seq}):
+			case <-stopFeeding:
+				return
+			}
+		}
+	}()
+	select {
+	case err = <-failed:
+	case <-time.After(10 * time.Second):
+		t.Fatal("overflow never occurred")
+	}
+	var overflow *sdkerrors.QueueOverflowError
+	if !errors.As(err, &overflow) || !errors.As(sub.Err(), &overflow) {
+		t.Fatalf("expected typed overflow: %v / %v", err, sub.Err())
+	}
+	closed := make(chan struct{})
+	go func() { sub.Close(); close(closed) }()
+	select {
+	case <-closed:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Close deadlocked after overflow")
+	}
+	count := 0
+	for range sub.Updates() {
+		count++
+	}
+	if count != 200 {
+		t.Fatalf("queued views lost: %d", count)
+	}
+}

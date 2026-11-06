@@ -145,7 +145,7 @@ func ApplyDelta(bids, asks BookSide, currentBookSeq int, delta models.OrderBookD
 	if seqEnd <= currentBookSeq {
 		return currentBookSeq, false
 	}
-	if !delta.Reset && currentBookSeq != 0 && seqStart > currentBookSeq+1 {
+	if !delta.Reset && seqStart > currentBookSeq+1 {
 		return currentBookSeq, true
 	}
 	if delta.Reset {
