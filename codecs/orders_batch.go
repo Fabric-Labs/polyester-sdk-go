@@ -23,11 +23,17 @@ func validateBatchSize(operation string, lenItems int) error {
 	return nil
 }
 
+// OrderScales holds the catalog scales of one batch item's destination pair.
+type OrderScales struct {
+	Base  int
+	Quote int
+}
+
 // BatchCreateOrdersToProto encodes a batch create request.
 //
 // The allowPartial argument is retained for API compatibility but is ignored:
 // the POLY-3701 wire contract removed the batch allow_partial field.
-func BatchCreateOrdersToProto(items []models.CreateOrderRequest, subAccountID *string, requestID *string, allowPartial bool, quantityScale, quoteQuantityScale int) (*orderv1.BatchCreateOrdersRequest, error) {
+func BatchCreateOrdersToProto(items []models.CreateOrderRequest, subAccountID *string, requestID *string, allowPartial bool, quantityScale, quoteQuantityScale int, itemScales ...OrderScales) (*orderv1.BatchCreateOrdersRequest, error) {
 	_ = allowPartial
 	if err := validateBatchSize("batch_create", len(items)); err != nil {
 		return nil, err
@@ -46,8 +52,14 @@ func BatchCreateOrdersToProto(items []models.CreateOrderRequest, subAccountID *s
 		}
 		proto.SubaccountId = &sub
 	}
+	if len(itemScales) != 0 && len(itemScales) != len(items) {
+		return nil, &errors.ValidationError{Msg: "batch_create requires scales for every item"}
+	}
 	seenClientOrderIDs := make(map[string]struct{}, len(items))
-	for _, item := range items {
+	for i, item := range items {
+		if len(itemScales) != 0 {
+			quantityScale, quoteQuantityScale = itemScales[i].Base, itemScales[i].Quote
+		}
 		encoded, err := OrderIntentToProto(item, quantityScale, quoteQuantityScale)
 		if err != nil {
 			return nil, err

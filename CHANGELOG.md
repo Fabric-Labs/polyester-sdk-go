@@ -1,6 +1,13 @@
 # Changelog
 
 ## Unreleased
+- **Breaking:** Batch create now checks each quantity against its destination pair's catalog
+  scale. A mismatched explicit scale raises an error before the batch is sent.
+  Migration: use each pair's catalog scale, or pass decimal quantities.
+
+- Batch create resolves base and quote-budget scales separately for each item.
+- Create results carry the catalog scale for resolved quantities.
+
 
 - Fixed API-key request signing for repeated query parameters by sorting decoded values as well as keys before encoding. Requests such as `a=2&a=1` now match the server.
 - **Breaking:** Trigger creation now rejects options that do not apply to the selected strategy or child execution before sending. Migration: remove incompatible options, or select the trigger type and execution that support them (use `trailing_stop` for trailing distances and activation price).
