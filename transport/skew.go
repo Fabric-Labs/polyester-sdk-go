@@ -3,10 +3,12 @@ package transport
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
 
+	"connectrpc.com/connect"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/wire"
@@ -41,7 +43,7 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		base = http.DefaultTransport
 	}
 	resp, err := base.RoundTrip(req)
-	if err != nil || resp.StatusCode < 400 || !isJSONContentType(resp.Header.Get("Content-Type")) {
+	if err != nil || resp.StatusCode < 400 || (resp.StatusCode != 504 && !isJSONContentType(resp.Header.Get("Content-Type"))) {
 		return resp, err
 	}
 	body, readErr := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyBytes))
@@ -61,7 +63,12 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 			Message   string `json:"message"`
 		} `json:"violations"`
 	}
-	if json.Unmarshal(body, &detail) != nil {
+	if json.Unmarshal(body, &detail) != nil && resp.StatusCode != 504 {
+		return resp, nil
+	}
+	// Connect's own code and detail decoder remains authoritative.
+	switch detail.Code {
+	case "canceled", "unknown", "invalid_argument", "deadline_exceeded", "not_found", "already_exists", "permission_denied", "resource_exhausted", "failed_precondition", "aborted", "out_of_range", "unimplemented", "internal", "unavailable", "data_loss", "unauthenticated":
 		return resp, nil
 	}
 	msg := detail.Detail
@@ -81,6 +88,25 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 			msg = detail.Code
 		}
 		mapped = &sdkerrors.APIError{Msg: msg, Code: code}
+	case detail.Code == "OVERLOADED" || detail.Code == "ERROR_CODE_OVERLOADED" || detail.Code == "SYSTEM_RATE_LIMITED" || detail.Code == "ERROR_CODE_SYSTEM_RATE_LIMITED":
+		connectErr := connect.NewError(connect.CodeResourceExhausted, errors.New(msg))
+		for name, values := range resp.Header {
+			connectErr.Meta()[name] = values
+		}
+		mapped = wire.MapConnectError(connectErr)
+		if rate, ok := mapped.(*sdkerrors.RateLimitError); ok {
+			rate.Code = "ERROR_CODE_" + strings.TrimPrefix(detail.Code, "ERROR_CODE_")
+		}
+	case detail.Code == "ORDER_SEQUENCE_EXHAUSTED" || detail.Code == "ERROR_CODE_ORDER_SEQUENCE_EXHAUSTED":
+		if msg == "" {
+			msg = detail.Code
+		}
+		mapped = &sdkerrors.APIError{Msg: msg, Code: "ERROR_CODE_ORDER_SEQUENCE_EXHAUSTED"}
+	case resp.StatusCode == 504:
+		if msg == "" {
+			msg = "Gateway Timeout"
+		}
+		mapped = &sdkerrors.ServerError{Msg: msg, Code: detail.Code, Status: 504}
 	case (resp.StatusCode == http.StatusBadGateway || resp.StatusCode == http.StatusServiceUnavailable) &&
 		detail.Code != "" && detail.Code == strings.ToUpper(detail.Code):
 		// REST problem codes are uppercase; lowercase Connect error bodies
@@ -116,6 +142,8 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	}
 	problem := sdkerrors.DecodeHTTPProblem(body, resp.StatusCode)
 	switch e := mapped.(type) {
+	case *sdkerrors.APIError:
+		e.Problem = problem
 	case *sdkerrors.AuthError:
 		e.Problem = problem
 	case *sdkerrors.TimestampSkewError:
