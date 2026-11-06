@@ -279,6 +279,7 @@ func (e *TransportError) Is(target error) bool { return target == ErrPolyester }
 // server attached it (Connect details or in-band order rejection). RetryAfter
 // prefers detail.retry_after_ms, then response headers.
 type RateLimitError struct {
+	Code       string // Structured service code; empty when none was supplied. Known order codes use ERROR_CODE_.
 	Msg        string
 	RetryAfter *float64
 	Detail     *RateLimitDetail
@@ -299,7 +300,7 @@ func (e *ServerError) Is(target error) bool { return target == ErrPolyester }
 
 // APIError indicates a structured Connect/API error.
 type APIError struct {
-	Problem  *HTTPProblem // REST metadata, when supplied by the server.
+	Problem  *HTTPProblem // REST metadata for outcome-unknown and ORDER_SEQUENCE_EXHAUSTED problems.
 	Msg      string
 	Code     string
 	Metadata map[string]string

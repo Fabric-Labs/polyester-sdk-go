@@ -86,13 +86,14 @@ func rateLimitDetailFromProto(msg *ratelimitv1.RateLimitDetail) *sdkerrors.RateL
 	return out
 }
 
-func rateLimitError(msg string, detail *sdkerrors.RateLimitDetail, headerRetry *float64) *sdkerrors.RateLimitError {
+func rateLimitError(msg string, code string, detail *sdkerrors.RateLimitDetail, headerRetry *float64) *sdkerrors.RateLimitError {
 	retryAfter := headerRetry
 	if seconds := detail.RetryAfterSeconds(); seconds != nil {
 		retryAfter = seconds
 	}
 	return &sdkerrors.RateLimitError{
 		Msg:        msg,
+		Code:       code,
 		RetryAfter: retryAfter,
 		Detail:     detail,
 	}
@@ -181,14 +182,14 @@ func MapConnectError(err error) error {
 			return &sdkerrors.APIError{Msg: detailMsg, Code: codeName}
 		}
 		if rl, ok := value.(*ratelimitv1.RateLimitDetail); ok {
-			return rateLimitError(msg, rateLimitDetailFromProto(rl), headerRetry)
+			return rateLimitError(msg, "", rateLimitDetailFromProto(rl), headerRetry)
 		}
 		if orderDetail, ok := value.(*orderv1.ErrorDetail); ok {
 			rl := rateLimitDetailFromProto(orderDetail.GetRateLimit())
 			if rl != nil || orderDetail.GetCode() == orderv1.ErrorCode_ERROR_CODE_RATE_LIMIT_EXCEEDED ||
 				orderDetail.GetCode() == orderv1.ErrorCode_ERROR_CODE_OVERLOADED ||
 				orderDetail.GetCode() == orderv1.ErrorCode_ERROR_CODE_SYSTEM_RATE_LIMITED {
-				return rateLimitError(msg, rl, headerRetry)
+				return rateLimitError(msg, orderDetail.GetCode().String(), rl, headerRetry)
 			}
 			code := orderDetail.GetCode().String()
 			// Backoff hints and unknown mutation outcomes take precedence.
@@ -233,7 +234,7 @@ func MapConnectError(err error) error {
 		if withdrawDetail, ok := value.(*withdrawv1.ErrorDetail); ok {
 			code := withdrawDetail.GetCode().String()
 			if code == withdrawv1.ErrorCode_ERROR_CODE_RATE_LIMIT_EXCEEDED.String() {
-				return rateLimitError(msg, nil, headerRetry)
+				return rateLimitError(msg, code, nil, headerRetry)
 			}
 			if connectErr.Code() == connect.CodeUnavailable {
 				return &sdkerrors.ServerError{Msg: msg, Code: code, Status: 503}
@@ -246,7 +247,7 @@ func MapConnectError(err error) error {
 		if transferDetail, ok := value.(*transferv1.ErrorDetail); ok {
 			code := transferDetail.GetCode().String()
 			if code == transferv1.ErrorCode_ERROR_CODE_RATE_LIMIT_EXCEEDED.String() {
-				return rateLimitError(msg, nil, headerRetry)
+				return rateLimitError(msg, code, nil, headerRetry)
 			}
 			if connectErr.Code() == connect.CodeUnavailable {
 				return &sdkerrors.ServerError{Msg: msg, Code: code, Status: 503}
@@ -261,7 +262,7 @@ func MapConnectError(err error) error {
 		return &sdkerrors.TransportError{Msg: useragent.Cloudflare1010Message()}
 	}
 	if strings.HasSuffix(msg, "_OUTCOME_UNKNOWN") {
-		return &sdkerrors.APIError{Msg: msg, Code: msg}
+		return &sdkerrors.APIError{Msg: msg, Code: orderErrorCodeFromName(msg)}
 	}
 	if connectErr.Code() == connect.CodeResourceExhausted && strings.TrimPrefix(msg, "ERROR_CODE_") == "ORDER_SEQUENCE_EXHAUSTED" {
 		return &sdkerrors.APIError{Msg: msg, Code: "ERROR_CODE_ORDER_SEQUENCE_EXHAUSTED"}
@@ -274,7 +275,11 @@ func MapConnectError(err error) error {
 	case connect.CodeUnavailable, connect.CodeInternal:
 		return &sdkerrors.ServerError{Msg: msg}
 	case connect.CodeResourceExhausted:
-		return rateLimitError(msg, nil, headerRetry)
+		code := orderErrorCodeFromName(msg)
+		if _, known := orderv1.ErrorCode_value[code]; !known {
+			code = ""
+		}
+		return rateLimitError(msg, code, nil, headerRetry)
 	case connect.CodeCanceled, connect.CodeDeadlineExceeded:
 		return &sdkerrors.TransportError{Msg: msg}
 	case connect.CodeInvalidArgument, connect.CodeFailedPrecondition, connect.CodeOutOfRange:
@@ -354,4 +359,12 @@ func isAuthLikeErrorCode(code string) bool {
 		strings.Contains(code, "API_KEY") ||
 		strings.Contains(code, "WALLET_BINDING") ||
 		strings.Contains(code, "POLICY")
+}
+
+// orderErrorCodeFromName normalizes known enum names and preserves future names.
+func orderErrorCodeFromName(code string) string {
+	if _, known := orderv1.ErrorCode_value["ERROR_CODE_"+code]; known {
+		return "ERROR_CODE_" + code
+	}
+	return code
 }

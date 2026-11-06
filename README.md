@@ -404,9 +404,11 @@ to submit again. The SDK never automatically resends a create; trigger/status
 reads and snapshot recovery keep their own safe read retries.
 `OVERLOADED` and `SYSTEM_RATE_LIMITED` are retryable admission refusals on
 Connect and REST, with no unknown mutation outcome. Respect `RetryAfter` when
-supplied; for `OVERLOADED`, wait for an outstanding request to complete.
+supplied. Branch on `RateLimitError.Code`: `ERROR_CODE_OVERLOADED` means wait for an
+outstanding request to complete; `ERROR_CODE_SYSTEM_RATE_LIMITED` names a venue-wide limit.
 `ORDER_SEQUENCE_EXHAUSTED` is permanent; contact support instead of retrying.
-`APIError.Problem` retains REST code, actual HTTP status, canonical type and detail.
+On REST outcome-unknown and `ORDER_SEQUENCE_EXHAUSTED` errors,
+`APIError.Problem` retains code, actual HTTP status, canonical type and detail.
 
 `ERROR_CODE_ACCOUNT_REPAIRING` and `AUTH_TEMPORARILY_UNAVAILABLE` changed
 nothing and `errors.IsRetryable` reports true: retry the same request shortly.

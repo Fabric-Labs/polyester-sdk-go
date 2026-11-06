@@ -46,6 +46,16 @@ func TestAdmissionClassification(t *testing.T) {
 					t.Fatal(err)
 				}
 				mapped := callMeAgainst(t, status, "application/json", string(raw))
+				actualCode := ""
+				switch e := mapped.(type) {
+				case *sdkerrors.APIError:
+					actualCode = e.Code
+				case *sdkerrors.RateLimitError:
+					actualCode = e.Code
+				}
+				if actualCode != "ERROR_CODE_"+tc.name {
+					t.Errorf("code=%q, want %q", actualCode, "ERROR_CODE_"+tc.name)
+				}
 				if sdkerrors.IsRetryable(mapped) != tc.retryable || sdkerrors.MutationOutcomeUnknown(mapped) {
 					t.Fatalf("error=%T %v retryable=%v unknown=%v", mapped, mapped, sdkerrors.IsRetryable(mapped), sdkerrors.MutationOutcomeUnknown(mapped))
 				}
@@ -55,10 +65,20 @@ func TestAdmissionClassification(t *testing.T) {
 }
 
 func TestFutureConnectOutcomeByName(t *testing.T) {
-	for _, code := range []string{"unavailable", "deadline_exceeded"} {
-		err := callMeAgainst(t, 504, "application/json", fmt.Sprintf(`{"code":%q,"message":"TWAP_CREATE_OUTCOME_UNKNOWN"}`, code))
-		if sdkerrors.IsRetryable(err) || !sdkerrors.MutationOutcomeUnknown(err) {
-			t.Errorf("error=%T %v retryable=%v unknown=%v", err, err, sdkerrors.IsRetryable(err), sdkerrors.MutationOutcomeUnknown(err))
+	for _, name := range []string{"ORDER_CREATE_OUTCOME_UNKNOWN", "ERROR_CODE_ORDER_CREATE_OUTCOME_UNKNOWN", "TWAP_CREATE_OUTCOME_UNKNOWN", "ERROR_CODE_TWAP_CREATE_OUTCOME_UNKNOWN"} {
+		expected := name
+		if name == "ORDER_CREATE_OUTCOME_UNKNOWN" {
+			expected = "ERROR_CODE_" + name
+		}
+		for _, code := range []string{"unavailable", "deadline_exceeded"} {
+			err := callMeAgainst(t, 504, "application/json", fmt.Sprintf(`{"code":%q,"details":[],"message":%q}`, code, name))
+			api, ok := err.(*sdkerrors.APIError)
+			if !ok || api.Code != expected {
+				t.Errorf("name=%s error=%+v expectedCode=%s", name, err, expected)
+			}
+			if sdkerrors.IsRetryable(err) || !sdkerrors.MutationOutcomeUnknown(err) {
+				t.Errorf("error=%T %v retryable=%v unknown=%v", err, err, sdkerrors.IsRetryable(err), sdkerrors.MutationOutcomeUnknown(err))
+			}
 		}
 	}
 }
@@ -95,5 +115,16 @@ func TestRESTAdmissionKeepsRetryDelay(t *testing.T) {
 	var rate *sdkerrors.RateLimitError
 	if !errors.As(mapped, &rate) || rate.RetryAfter == nil || *rate.RetryAfter != 1.25 {
 		t.Fatalf("rate delay lost: %T %+v", mapped, mapped)
+	}
+}
+
+func TestRESTSequenceExhaustedHasMessage(t *testing.T) {
+	err := callMeAgainst(t, 429, "application/problem+json", `{"code":"ORDER_SEQUENCE_EXHAUSTED"}`)
+	if err.Error() != "ORDER_SEQUENCE_EXHAUSTED" {
+		t.Fatalf("message=%q", err.Error())
+	}
+	api, ok := err.(*sdkerrors.APIError)
+	if !ok || api.Code != "ERROR_CODE_ORDER_SEQUENCE_EXHAUSTED" || api.Problem == nil {
+		t.Fatalf("error=%+v", err)
 	}
 }
