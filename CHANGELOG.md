@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Fixed API-key request signing for repeated query parameters by sorting decoded values as well as keys before encoding. Requests such as `a=2&a=1` now match the server.
+- **Breaking:** Trigger creation now rejects options that do not apply to the selected strategy or child execution before sending. Migration: remove incompatible options, or select the trigger type and execution that support them (use `trailing_stop` for trailing distances and activation price).
 
 - Internal transfers now preserve a valid account or subaccount recipient
   when an optional destination address is empty or whitespace.
