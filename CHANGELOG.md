@@ -13,6 +13,7 @@
 - **Breaking:** `APIError.Problem` now also retains REST refusal details at HTTP 400, 409, 412 and 422.
 - **Breaking:** Batch-create items now refuse any subaccount override instead of silently using the batch scope. Migration: remove each item's `SubAccountID` and pass the batch-level `subAccountID`.
 - **Breaking:** Order create and preview now refuse an account selector combined with any explicit subaccount override. Migration: pass either `account` or the request's `SubAccountID`.
+- **Breaking:** Batch guard signing now refuses a subaccount or account key on an action instead of silently ignoring it. Migration: remove the key and pass the batch-level `subAccountID`.
 
 - An explicit empty subaccount override now omits the subaccount field instead of silently selecting the configured default, including on writes. Omitted overrides and `account="main"` keep their existing routing.
 - **Breaking:** Empty overrides now fail where a subaccount is required, or when combined with an account selector. Migration: pass a nonempty subaccount, or omit the override to use the configured default.

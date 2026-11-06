@@ -3,6 +3,7 @@ package codecs
 import (
 	"strings"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	guardv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/guard/v1"
 )
 
@@ -51,6 +52,11 @@ func BatchProtectedActionFromMap(item map[string]any) (BatchProtectedActionInput
 	out := BatchProtectedActionInput{}
 	if item == nil {
 		return out, nil
+	}
+	for _, key := range []string{"sub_account_id", "subaccount_id", "subaccountId", "account"} {
+		if value, ok := item[key]; ok && value != nil {
+			return out, &errors.ValidationError{Msg: "batch sign action scope is unsupported; use the batch-level subAccountID"}
+		}
 	}
 	if v, ok := item["action"].(string); ok {
 		out.Action = v

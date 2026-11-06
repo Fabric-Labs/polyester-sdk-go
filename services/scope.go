@@ -103,7 +103,7 @@ func optionalStringPtr(v any) *string {
 		return &s
 	default:
 		s := strings.TrimSpace(fmt.Sprint(v))
-		if s == "" || s == "<nil>" {
+		if s == "<nil>" {
 			return nil
 		}
 		return &s
