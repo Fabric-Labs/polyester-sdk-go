@@ -75,9 +75,6 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	if msg == "" {
 		msg = detail.Title
 	}
-	if msg == "" {
-		msg = detail.Code
-	}
 	var mapped error
 	switch {
 	case strings.HasSuffix(detail.Code, "_OUTCOME_UNKNOWN"):
@@ -101,6 +98,9 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 			rate.Code = "ERROR_CODE_" + strings.TrimPrefix(detail.Code, "ERROR_CODE_")
 		}
 	case detail.Code == "ORDER_SEQUENCE_EXHAUSTED" || detail.Code == "ERROR_CODE_ORDER_SEQUENCE_EXHAUSTED":
+		if msg == "" {
+			msg = detail.Code
+		}
 		mapped = &sdkerrors.APIError{Msg: msg, Code: "ERROR_CODE_ORDER_SEQUENCE_EXHAUSTED"}
 	case resp.StatusCode == 504:
 		if msg == "" {

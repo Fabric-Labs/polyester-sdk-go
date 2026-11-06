@@ -128,3 +128,28 @@ func TestRESTSequenceExhaustedHasMessage(t *testing.T) {
 		t.Fatalf("error=%+v", err)
 	}
 }
+
+func TestRESTCodeOnlyMessagesKeepDefaults(t *testing.T) {
+	for _, tc := range []struct {
+		status int
+		code   string
+		want   string
+	}{
+		{403, "AUTH_SESSION_KIND_NOT_ALLOWED", "interactive session required"},
+		{412, "AUTH_SUBACCOUNT_OWNER_ROLE_LOCKED", "the sub-account owner's role can't be changed"},
+		{401, "SIGNATURE_INVALID", "auth error"},
+		{403, "PERMISSION_DENIED", "auth error"},
+		{504, "UPSTREAM_TIMEOUT", "Gateway Timeout"},
+		{503, "OVERLOADED", "request failed without server error details"},
+		{429, "SYSTEM_RATE_LIMITED", "request failed without server error details"},
+		{429, "ORDER_SEQUENCE_EXHAUSTED", "ORDER_SEQUENCE_EXHAUSTED"},
+		{504, "ORDER_CREATE_OUTCOME_UNKNOWN", "ORDER_CREATE_OUTCOME_UNKNOWN"},
+	} {
+		t.Run(tc.code, func(t *testing.T) {
+			err := callMeAgainst(t, tc.status, "application/problem+json", fmt.Sprintf(`{"code":%q}`, tc.code))
+			if err.Error() != tc.want {
+				t.Fatalf("message=%q, want %q", err.Error(), tc.want)
+			}
+		})
+	}
+}
