@@ -167,7 +167,34 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		e.Problem = problem
 	}
 	_ = resp.Body.Close()
-	return nil, mapped
+	return nil, roundTripError(mapped, resp.StatusCode)
+}
+
+// roundTripError hands a mapped answer to connect-go, which reports a plain
+// RoundTripper error as unavailable and keeps a *connect.Error's own code.
+// Read retry selects on that code, so a definite refusal carries the code of
+// its HTTP status and returns at once. A server failure or an unknown outcome
+// stays plain: reads may retry those from read context. Either way
+// wire.MapConnectError returns the typed error inside.
+func roundTripError(mapped error, status int) error {
+	var serverErr *sdkerrors.ServerError
+	if errors.As(mapped, &serverErr) || sdkerrors.MutationOutcomeUnknown(mapped) {
+		return mapped
+	}
+	code := connect.CodeFailedPrecondition
+	switch status {
+	case http.StatusBadRequest, http.StatusUnprocessableEntity:
+		code = connect.CodeInvalidArgument
+	case http.StatusUnauthorized:
+		code = connect.CodeUnauthenticated
+	case http.StatusForbidden:
+		code = connect.CodePermissionDenied
+	case http.StatusConflict:
+		code = connect.CodeAborted
+	case http.StatusTooManyRequests:
+		code = connect.CodeResourceExhausted
+	}
+	return connect.NewError(code, mapped)
 }
 
 type prefixedBody struct {

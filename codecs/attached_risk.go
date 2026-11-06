@@ -120,7 +120,10 @@ func trailingStopToProto(in models.TrailingStopInput, fieldName, symbol string) 
 		switch {
 		case sideRuleDecides:
 		case ticks <= 0:
-			return nil, &errors.ValidationError{Msg: fieldName + ".limit_price must be positive"}
+			// Modify and batch replace don't know the parent's side. Name both
+			// sides of the contract's rule instead of a bare positivity check.
+			return nil, trailingLimitError(fieldName, orderv1.ErrorCode_ERROR_CODE_TRIGGER_BUY_REQUIRES_LIMIT, "buy_required",
+				fieldName+".limit_price must be positive: it is the maximum price the buy-back pays, required when the parent order sells; leave it unset when the parent order buys")
 		case out.ActivationPriceTicks > ticks:
 			return nil, trailingLimitError(fieldName, orderv1.ErrorCode_ERROR_CODE_BAD_PRICE, "buy_at_least_activation",
 				fieldName+".limit_price must be at least activation_price")

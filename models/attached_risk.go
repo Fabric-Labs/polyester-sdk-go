@@ -46,8 +46,11 @@ type RiskLegInput struct {
 // set on a buy parent ERROR_CODE_BAD_PRICE (rule sell_unset), missing on a
 // sell parent ERROR_CODE_TRIGGER_BUY_REQUIRES_LIMIT (buy_required), below
 // ActivationPrice ERROR_CODE_BAD_PRICE (buy_at_least_activation). Modify and
-// batch replace send it as given: the server applies the side rule there and
-// answers ERROR_CODE_BAD_PRICE with no violation.
+// batch replace send a positive one as given: the server applies the side rule
+// there and answers ERROR_CODE_BAD_PRICE with no violation. They refuse a zero
+// or negative one before sending, with ERROR_CODE_TRIGGER_BUY_REQUIRES_LIMIT
+// (buy_required) on new_attached_risk.trailing_stop.limit_price_ticks: leave
+// LimitPrice nil when the parent order buys.
 type TrailingStopInput struct {
 	DistanceTicks      *int64      `json:"distance_ticks,omitempty"`
 	DistanceBps        *int32      `json:"distance_bps,omitempty"`

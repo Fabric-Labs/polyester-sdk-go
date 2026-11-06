@@ -57,9 +57,11 @@ type BatchReplaceItem struct {
 	NewPrice         *PriceInput `json:"new_price,omitempty"`
 	NewQty           *QtyInput   `json:"new_qty,omitempty"`
 	NewClientOrderID *string     `json:"new_client_order_id,omitempty"`
-	// NewAttachedRisk replaces the order's attached risk policy. A trailing
-	// stop's LimitPrice is sent as given: the server applies the parent-side
-	// rule and answers ERROR_CODE_BAD_PRICE with no violation.
+	// NewAttachedRisk replaces the order's attached risk policy. A positive
+	// trailing stop LimitPrice is sent as given: the server applies the
+	// parent-side rule and answers ERROR_CODE_BAD_PRICE with no violation. A zero
+	// or negative one is refused before sending, as on
+	// models.TrailingStopInput.
 	NewAttachedRisk *AttachedRiskInput `json:"new_attached_risk,omitempty"`
 }
 

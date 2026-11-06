@@ -400,7 +400,7 @@ func TestMapConnectErrorOrderRefusalRetryGuidance(t *testing.T) {
 				t.Fatalf("%s must not be retryable", tc.code)
 			}
 			if sdkerrors.MutationOutcomeUnknown(mapped) {
-				t.Fatalf("%s changed nothing; the outcome is known", tc.code)
+				t.Fatalf("%s is a contract-defined refusal; the outcome is known", tc.code)
 			}
 		})
 	}

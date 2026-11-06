@@ -313,9 +313,12 @@ type BatchReplaceAdmissionItem struct {
 	ReplacementOrderID string `json:"replacement_order_id,omitempty"`
 	ClientOrderID      string `json:"client_order_id,omitempty"`
 	Code               string `json:"code,omitempty"`
-	// ActionTaken is replaced when a successor order was admitted, or amended
-	// for a cancel-only outcome with no successor: keep tracking OldOrderID
-	// until its terminal state is confirmed. Empty for rejected items.
+	// ActionTaken is replaced when a successor order was admitted, with queue
+	// priority reset, or amended when the order keeps OldOrderID with no
+	// successor: amended in place with its queue priority kept, or, when the new
+	// total quantity is at or below its filled quantity, ended at its filled
+	// quantity. Keep tracking OldOrderID for an amended item. Empty for rejected
+	// items.
 	ActionTaken string `json:"action_taken,omitempty"`
 	// RateLimit is set when ErrorDetail.rate_limit is present on rejection.
 	RateLimit *RateLimitDetail `json:"rate_limit,omitempty"`
@@ -352,9 +355,9 @@ type BatchReplaceStatusItem struct {
 	// SDK is kept as sent.
 	ErrorCode   string `json:"error_code,omitempty"`
 	UpdatedTsNs uint64 `json:"updated_ts_ns,omitempty"`
-	// ActionTaken is replaced when a successor exists, or amended for a
-	// cancel-only outcome where OrderStatus describes OldOrderID. Empty for
-	// rejected items.
+	// ActionTaken is replaced when a successor exists, or amended when the
+	// order keeps OldOrderID with no successor, in place or ended at its filled
+	// quantity; OrderStatus then describes OldOrderID. Empty for rejected items.
 	ActionTaken string `json:"action_taken,omitempty"`
 }
 
@@ -712,6 +715,12 @@ type TriggerMutationResult struct {
 }
 
 // TriggerEvent is a trigger lifecycle event.
+//
+// EventType is fired, canceled, updated, failed, activated (a trailing stop
+// started tracking), armed (an attached take-profit, stop-loss or trailing
+// stop started protecting its parent's filled quantity, once) or fire_refused.
+// A type newer than this SDK reads as unknown(<n>). A ladder has no event types
+// of its own: read its Status, completed, canceled or failed.
 //
 // EventType "fire_refused" records a fire whose order was refused while the
 // trigger stayed live: the market's or system's state (for example
