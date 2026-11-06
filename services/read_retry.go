@@ -37,7 +37,7 @@ func retryUnavailable[Req any, Resp any](
 		attempt := req
 		for {
 			resp, err := call(ctx, attempt)
-			if err == nil || connect.CodeOf(err) != connect.CodeUnavailable {
+			if err == nil || ctx.Err() != nil || (connect.CodeOf(err) != connect.CodeUnavailable && connect.CodeOf(err) != connect.CodeDeadlineExceeded) {
 				return resp, err
 			}
 			if time.Since(started)+delay > policy.budget {

@@ -15,10 +15,15 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1/authv1connect"
 )
 
-func callMeAgainst(t *testing.T, status int, contentType, body string) error {
+func callMeAgainst(t *testing.T, status int, contentType, body string, headers ...map[string]string) error {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", contentType)
+		for _, values := range headers {
+			for k, v := range values {
+				w.Header().Set(k, v)
+			}
+		}
 		w.WriteHeader(status)
 		_, _ = w.Write([]byte(body))
 	}))

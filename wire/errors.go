@@ -157,6 +157,33 @@ func MapConnectError(err error) error {
 	if strings.TrimSpace(msg) == "" {
 		msg = emptyErrorMessage
 	}
+	// Business outcomes take precedence over standalone backoff details.
+	var outcome *orderv1.ErrorDetail
+	for _, detail := range connectErr.Details() {
+		value, err := detail.Value()
+		if err != nil {
+			continue
+		}
+		if order, ok := value.(*orderv1.ErrorDetail); ok {
+			if strings.HasSuffix(order.GetCode().String(), "_OUTCOME_UNKNOWN") {
+				outcome = order
+				break
+			}
+			if outcome == nil && isFinalResourceCode(order.GetCode().String()) {
+				outcome = order
+			}
+		}
+	}
+	if strings.HasSuffix(strings.TrimSpace(msg), "_OUTCOME_UNKNOWN") && (outcome == nil || !strings.HasSuffix(outcome.GetCode().String(), "_OUTCOME_UNKNOWN")) {
+		return &sdkerrors.APIError{Msg: msg, Code: orderErrorCodeFromName(strings.TrimSpace(msg))}
+	}
+	if outcome != nil {
+		mapped := &sdkerrors.APIError{Msg: msg, Code: outcome.GetCode().String()}
+		if outcome.ExistingOrderId != nil {
+			mapped.ExistingOrderID = codecs.FormatUint64ID(outcome.GetExistingOrderId())
+		}
+		return mapped
+	}
 	for _, detail := range connectErr.Details() {
 		value, valueErr := detail.Value()
 		if valueErr != nil {
@@ -185,18 +212,17 @@ func MapConnectError(err error) error {
 			return rateLimitError(msg, "", rateLimitDetailFromProto(rl), headerRetry)
 		}
 		if orderDetail, ok := value.(*orderv1.ErrorDetail); ok {
+			unknown := strings.HasSuffix(orderDetail.GetCode().String(), "_OUTCOME_UNKNOWN")
 			rl := rateLimitDetailFromProto(orderDetail.GetRateLimit())
-			if rl != nil || orderDetail.GetCode() == orderv1.ErrorCode_ERROR_CODE_RATE_LIMIT_EXCEEDED ||
-				orderDetail.GetCode() == orderv1.ErrorCode_ERROR_CODE_OVERLOADED ||
-				orderDetail.GetCode() == orderv1.ErrorCode_ERROR_CODE_SYSTEM_RATE_LIMITED {
+			if !unknown && (rl != nil || isRetryableAdmissionCode(orderDetail.GetCode().String())) {
 				return rateLimitError(msg, orderDetail.GetCode().String(), rl, headerRetry)
 			}
 			code := orderDetail.GetCode().String()
 			// Backoff hints and unknown mutation outcomes take precedence.
-			if connectErr.Code() == connect.CodeUnavailable && !strings.HasSuffix(code, "_OUTCOME_UNKNOWN") {
-				return &sdkerrors.ServerError{Msg: msg, Code: code, Status: 503}
+			if connectErr.Code() == connect.CodeUnavailable && !strings.HasSuffix(code, "_OUTCOME_UNKNOWN") && code != "ERROR_CODE_ACCOUNT_ROUTING_INVALID" {
+				return &sdkerrors.ServerError{Msg: msg, Code: code, Status: 503, AdmissionRefused: code == "ERROR_CODE_UNAVAILABLE"}
 			}
-			if len(orderDetail.GetViolations()) > 0 {
+			if len(orderDetail.GetViolations()) > 0 && !unknown {
 				violations := make([]sdkerrors.FieldViolation, 0, len(orderDetail.GetViolations()))
 				for _, violation := range orderDetail.GetViolations() {
 					violations = append(violations, sdkerrors.FieldViolation{
@@ -264,9 +290,22 @@ func MapConnectError(err error) error {
 	if strings.HasSuffix(msg, "_OUTCOME_UNKNOWN") {
 		return &sdkerrors.APIError{Msg: msg, Code: orderErrorCodeFromName(msg)}
 	}
-	if connectErr.Code() == connect.CodeResourceExhausted && strings.TrimPrefix(msg, "ERROR_CODE_") == "ORDER_SEQUENCE_EXHAUSTED" {
-		return &sdkerrors.APIError{Msg: msg, Code: "ERROR_CODE_ORDER_SEQUENCE_EXHAUSTED"}
+	namedCode := orderErrorCodeFromName(strings.TrimSpace(msg))
+	if connectErr.Code() == connect.CodeUnavailable && namedCode == "ERROR_CODE_ACCOUNT_ROUTING_INVALID" {
+		return &sdkerrors.APIError{Msg: msg, Code: namedCode}
 	}
+	if connectErr.Code() == connect.CodeUnavailable && isSpecificAdmissionRefusal(namedCode) {
+		return &sdkerrors.ServerError{Msg: msg, Code: namedCode, Status: 503}
+	}
+	if connectErr.Code() == connect.CodeResourceExhausted {
+		if isRetryableAdmissionCode(namedCode) {
+			return rateLimitError(msg, namedCode, nil, headerRetry)
+		}
+		if _, known := orderv1.ErrorCode_value[namedCode]; known || isServiceCodeMessage(strings.TrimSpace(msg)) {
+			return &sdkerrors.APIError{Msg: msg, Code: namedCode}
+		}
+	}
+
 	switch connectErr.Code() {
 	case connect.CodeUnauthenticated:
 		return &sdkerrors.AuthError{Msg: msg, Code: "unauthenticated", Status: 401}
@@ -367,4 +406,46 @@ func orderErrorCodeFromName(code string) string {
 		return "ERROR_CODE_" + code
 	}
 	return code
+}
+
+// Unrecognized code-only messages must not inherit generic quota retryability.
+func isServiceCodeMessage(msg string) bool {
+	if msg == "" || msg[0] < 'A' || msg[0] > 'Z' {
+		return false
+	}
+	for _, r := range msg[1:] {
+		switch {
+		case r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '_':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func isRetryableAdmissionCode(code string) bool {
+	switch strings.TrimPrefix(code, "ERROR_CODE_") {
+	case "OVERLOADED", "SYSTEM_RATE_LIMITED", "RATE_LIMIT_EXCEEDED", "PRICE_LEVELS_EXHAUSTED", "CLIENT_ORDER_IDS_EXHAUSTED", "CLIENT_ORDER_ID_CAPACITY_REACHED", "MARKET_LADDER_LIMIT_EXCEEDED", "MARKET_TRIGGER_LIMIT_EXCEEDED", "MARKET_TWAP_LIMIT_EXCEEDED", "NEW_ACCOUNT_CAPACITY_REACHED", "REQUEST_RECEIPTS_EXHAUSTED", "RESERVATION_CAPACITY_REACHED", "TRIGGER_CAPACITY_REACHED", "TRIGGER_CONTROL_SHARE_EXHAUSTED", "TWAP_CAPACITY_REACHED":
+		return true
+	default:
+		return false
+	}
+}
+
+func isSpecificAdmissionRefusal(code string) bool {
+	switch strings.TrimPrefix(code, "ERROR_CODE_") {
+	case "FEE_SCHEDULE_UNAVAILABLE", "POLICY_UNAVAILABLE", "RATE_LIMIT_POLICY_UNAVAILABLE", "PAIR_BACKLOGGED", "SETTLEMENT_BACKLOGGED", "ORDER_MODIFY_IN_PROGRESS", "ORDER_PLACEMENT_PENDING", "TRIGGER_CONTROLS_BUSY", "TRIGGER_CONTROL_IN_PROGRESS", "QUICKSWAP_ACCOUNT_OWNER_UNKNOWN":
+		return true
+	default:
+		return false
+	}
+}
+
+func isFinalResourceCode(code string) bool {
+	switch strings.TrimPrefix(code, "ERROR_CODE_") {
+	case "ORDER_SEQUENCE_EXHAUSTED", "TRIGGER_FIRE_LIMIT_REACHED", "QUICKSWAP_CAPACITY_REACHED", "ACCOUNT_RESERVATION_LIMIT_REACHED", "TRIGGER_LIMIT_EXCEEDED":
+		return true
+	default:
+		return false
+	}
 }

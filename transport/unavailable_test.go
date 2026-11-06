@@ -37,10 +37,21 @@ func TestRESTOrderUnavailableClassification(t *testing.T) {
 		code := tc.code
 		err := callMeAgainst(t, tc.status, "application/problem+json",
 			fmt.Sprintf("{\"code\":%q,\"status\":%d,\"detail\":\"retry later\"}", code, tc.status))
+		if code == "ACCOUNT_ROUTING_INVALID" {
+			var api *sdkerrors.APIError
+			if !errors.As(err, &api) || api.Code != "ERROR_CODE_ACCOUNT_ROUTING_INVALID" || sdkerrors.IsRetryable(err) || sdkerrors.MutationOutcomeUnknown(err) {
+				t.Fatalf("%T %+v", err, err)
+			}
+			continue
+		}
 		var server *sdkerrors.ServerError
 		var auth *sdkerrors.AuthError
-		if !errors.As(err, &server) || errors.As(err, &auth) || !sdkerrors.IsRetryable(err) {
+		if !errors.As(err, &server) || errors.As(err, &auth) {
 			t.Fatalf("%s mapped=%T retryable=%v: %v", code, err, sdkerrors.IsRetryable(err), err)
+		}
+		known := map[string]bool{"FEE_SCHEDULE_UNAVAILABLE": true, "POLICY_UNAVAILABLE": true, "RATE_LIMIT_POLICY_UNAVAILABLE": true, "PAIR_BACKLOGGED": true, "SETTLEMENT_BACKLOGGED": true, "ORDER_MODIFY_IN_PROGRESS": true, "ORDER_PLACEMENT_PENDING": true, "TRIGGER_CONTROLS_BUSY": true, "TRIGGER_CONTROL_IN_PROGRESS": true}[code]
+		if sdkerrors.IsRetryable(err) != known || sdkerrors.MutationOutcomeUnknown(err) == known {
+			t.Fatalf("%s retryable=%v unknown=%v", code, sdkerrors.IsRetryable(err), sdkerrors.MutationOutcomeUnknown(err))
 		}
 		if server.Code != code || server.Status != tc.status {
 			t.Fatalf("%s server code=%q status=%d", code, server.Code, server.Status)

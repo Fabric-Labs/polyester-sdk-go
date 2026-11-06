@@ -279,7 +279,7 @@ func (e *TransportError) Is(target error) bool { return target == ErrPolyester }
 // server attached it (Connect details or in-band order rejection). RetryAfter
 // prefers detail.retry_after_ms, then response headers.
 type RateLimitError struct {
-	Code       string // Structured service code; empty when none was supplied. Known order codes use ERROR_CODE_.
+	Code       string // Structured service code; empty without a service detail. Known order codes use ERROR_CODE_; an orders detail without a code uses ERROR_CODE_UNSPECIFIED.
 	Msg        string
 	RetryAfter *float64
 	Detail     *RateLimitDetail
@@ -290,9 +290,11 @@ func (e *RateLimitError) Is(target error) bool { return target == ErrPolyester }
 
 // ServerError indicates a server-side 5xx failure.
 type ServerError struct {
-	Msg    string
-	Code   string // Structured service code, when supplied.
-	Status int    // HTTP status corresponding to the failure, when known.
+	// AdmissionRefused is true only for a typed orders-service refusal.
+	AdmissionRefused bool
+	Msg              string
+	Code             string // Structured service code, when supplied.
+	Status           int    // HTTP status corresponding to the failure, when known.
 }
 
 func (e *ServerError) Error() string        { return e.Msg }
@@ -409,25 +411,18 @@ func (e *QueueOverflowError) Error() string {
 }
 func (e *QueueOverflowError) Is(target error) bool { return target == ErrPolyester }
 
-// IsRetryable reports whether retrying may succeed after backoff.
-// AUTH_TEMPORARILY_UNAVAILABLE, ERROR_CODE_ACCOUNT_REPAIRING and
-// TimestampSkewError changed nothing: retry the same request.
-//
-// It does not guarantee that a mutation was not applied. Preserve the same
-// idempotency key and reconcile first when MutationOutcomeUnknown is true.
-// A REST gateway 504 is non-retryable with outcome unknown even without a
-// recognized code. This classifier has no operation context: safe reads may
-// explicitly retry it; writes must read back first. A client order ID enables
-// reconciliation, not exact replay of a single create.
-// An order error code ending in _OUTCOME_UNKNOWN is not retryable: read the
-// order or trigger back before sending it again.
+// IsRetryable reports whether retrying may succeed with a known outcome.
+// Unknown mutation outcomes always return false, including bare server and
+// transport failures. Read back before sending a mutation again; safe reads
+// may retry explicitly. A client order ID enables lookup, not exact replay.
+// Explicit admission refusals, timestamp skew and account repairing may retry.
 func IsRetryable(err error) bool {
 	var transportErr *TransportError
 	var rateLimitErr *RateLimitError
 	var serverErr *ServerError
 	var skewErr *TimestampSkewError
 	code := apiErrorCode(err)
-	if isOutcomeUnknownCode(code) || (errors.As(err, &serverErr) && serverErr.Status == 504) {
+	if MutationOutcomeUnknown(err) {
 		return false
 	}
 	return errors.As(err, &transportErr) ||
@@ -447,10 +442,12 @@ func MutationOutcomeUnknown(err error) bool {
 	var transportErr *TransportError
 	var serverErr *ServerError
 	var contractErr *ResponseContractError
-	return errors.As(err, &transportErr) ||
-		errors.As(err, &serverErr) ||
-		errors.As(err, &contractErr) ||
-		isOutcomeUnknownCode(apiErrorCode(err))
+	serverUnknown := errors.As(err, &serverErr)
+	if serverUnknown && serverErr.Status == 503 && (serverErr.AdmissionRefused || isKnownAdmissionRefusal(serverErr.Code)) {
+		serverUnknown = false
+	}
+	return errors.As(err, &transportErr) || serverUnknown ||
+		errors.As(err, &contractErr) || isOutcomeUnknownCode(apiErrorCode(err))
 }
 
 // isOutcomeUnknownCode recognises a mutation outcome by its code suffix,
@@ -478,4 +475,15 @@ func apiErrorCode(err error) string {
 		return validationErr.Code
 	}
 	return ""
+}
+
+// isKnownAdmissionRefusal reports an explicit orders-service admission refusal.
+// A bare status or an unrecognized service code does not establish this.
+func isKnownAdmissionRefusal(code string) bool {
+	switch strings.TrimPrefix(code, "ERROR_CODE_") {
+	case "QUICKSWAP_ACCOUNT_OWNER_UNKNOWN", "FEE_SCHEDULE_UNAVAILABLE", "POLICY_UNAVAILABLE", "RATE_LIMIT_POLICY_UNAVAILABLE", "PAIR_BACKLOGGED", "SETTLEMENT_BACKLOGGED", "ORDER_MODIFY_IN_PROGRESS", "ORDER_PLACEMENT_PENDING", "TRIGGER_CONTROLS_BUSY", "TRIGGER_CONTROL_IN_PROGRESS":
+		return true
+	default:
+		return false
+	}
 }

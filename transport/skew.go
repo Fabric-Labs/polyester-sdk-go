@@ -88,7 +88,7 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 			msg = detail.Code
 		}
 		mapped = &sdkerrors.APIError{Msg: msg, Code: code}
-	case detail.Code == "OVERLOADED" || detail.Code == "ERROR_CODE_OVERLOADED" || detail.Code == "SYSTEM_RATE_LIMITED" || detail.Code == "ERROR_CODE_SYSTEM_RATE_LIMITED":
+	case isRetryableRESTAdmissionCode(detail.Code):
 		connectErr := connect.NewError(connect.CodeResourceExhausted, errors.New(msg))
 		for name, values := range resp.Header {
 			connectErr.Meta()[name] = values
@@ -107,6 +107,8 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 			msg = "Gateway Timeout"
 		}
 		mapped = &sdkerrors.ServerError{Msg: msg, Code: detail.Code, Status: 504}
+	case resp.StatusCode == http.StatusServiceUnavailable && strings.TrimPrefix(detail.Code, "ERROR_CODE_") == "ACCOUNT_ROUTING_INVALID":
+		mapped = &sdkerrors.APIError{Msg: msg, Code: "ERROR_CODE_ACCOUNT_ROUTING_INVALID"}
 	case (resp.StatusCode == http.StatusBadGateway || resp.StatusCode == http.StatusServiceUnavailable) &&
 		detail.Code != "" && detail.Code == strings.ToUpper(detail.Code):
 		// REST problem codes are uppercase; lowercase Connect error bodies
@@ -137,6 +139,15 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		mapped = &sdkerrors.ValidationError{
 			Msg: msg, Code: detail.Code, Metadata: sdkerrors.ViolationMetadata(violations), Violations: violations,
 		}
+	case detail.Code != "" && (resp.StatusCode == 400 || resp.StatusCode == 409 || resp.StatusCode == 412 || resp.StatusCode == 422 || resp.StatusCode == 429):
+		code := detail.Code
+		if _, ok := orderv1.ErrorCode_value["ERROR_CODE_"+code]; ok {
+			code = "ERROR_CODE_" + code
+		}
+		if msg == "" {
+			msg = detail.Code
+		}
+		mapped = &sdkerrors.APIError{Msg: msg, Code: code}
 	default:
 		return resp, nil
 	}
@@ -176,4 +187,13 @@ func wrapTimestampSkew(client *http.Client) *http.Client {
 	wrapped := *client
 	wrapped.Transport = timestampSkewRoundTripper{base: client.Transport}
 	return &wrapped
+}
+
+func isRetryableRESTAdmissionCode(code string) bool {
+	switch strings.TrimPrefix(code, "ERROR_CODE_") {
+	case "OVERLOADED", "SYSTEM_RATE_LIMITED", "RATE_LIMIT_EXCEEDED", "PRICE_LEVELS_EXHAUSTED", "CLIENT_ORDER_IDS_EXHAUSTED", "CLIENT_ORDER_ID_CAPACITY_REACHED", "MARKET_LADDER_LIMIT_EXCEEDED", "MARKET_TRIGGER_LIMIT_EXCEEDED", "MARKET_TWAP_LIMIT_EXCEEDED", "NEW_ACCOUNT_CAPACITY_REACHED", "REQUEST_RECEIPTS_EXHAUSTED", "RESERVATION_CAPACITY_REACHED", "TRIGGER_CAPACITY_REACHED", "TRIGGER_CONTROL_SHARE_EXHAUSTED", "TWAP_CAPACITY_REACHED":
+		return true
+	default:
+		return false
+	}
 }
