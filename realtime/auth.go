@@ -93,48 +93,58 @@ func authHTTPError(status int, label string, body []byte) error {
 	}
 }
 
-func fetchRTToken(ctx context.Context, httpClient *http.Client, creds *auth.Credentials, rawURL, label string) (string, error) {
+// signedGet performs one API-key-signed GET and returns a successful body.
+// 401 and 403 become AuthError; other failures are realtime or transport errors.
+func signedGet(ctx context.Context, httpClient *http.Client, creds *auth.Credentials, rawURL, label string, maxBytes int) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	headers, err := auth.SignRequest(creds, http.MethodGet, rawURL, nil, "")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
-	if contentLengthExceedsLimit(resp.Header, maxTokenResponseBytes) {
-		return "", &sdkerrors.RealtimeError{Msg: fmt.Sprintf("%s: response exceeds %d bytes", label, maxTokenResponseBytes)}
+	if contentLengthExceedsLimit(resp.Header, maxBytes) {
+		return nil, &sdkerrors.RealtimeError{Msg: fmt.Sprintf("%s: response exceeds %d bytes", label, maxBytes)}
 	}
-	limited := io.LimitReader(resp.Body, int64(maxTokenResponseBytes)+1)
+	limited := io.LimitReader(resp.Body, int64(maxBytes)+1)
 	body, err := io.ReadAll(limited)
 	if err != nil {
-		return "", &sdkerrors.RealtimeError{Msg: label + ": read body: " + err.Error()}
+		return nil, &sdkerrors.RealtimeError{Msg: label + ": read body: " + err.Error()}
 	}
-	if len(body) > maxTokenResponseBytes {
-		return "", &sdkerrors.RealtimeError{Msg: fmt.Sprintf("%s: response exceeds %d bytes", label, maxTokenResponseBytes)}
+	if len(body) > maxBytes {
+		return nil, &sdkerrors.RealtimeError{Msg: fmt.Sprintf("%s: response exceeds %d bytes", label, maxBytes)}
 	}
 	switch resp.StatusCode {
 	case http.StatusForbidden:
 		if useragent.IsCloudflareBrowserBan(string(body)) {
-			return "", &sdkerrors.TransportError{Msg: useragent.Cloudflare1010Message()}
+			return nil, &sdkerrors.TransportError{Msg: useragent.Cloudflare1010Message()}
 		}
 		fallthrough
 	case http.StatusUnauthorized:
 		authErr := authHTTPError(resp.StatusCode, label, body).(*sdkerrors.AuthError)
 		authErr.Endpoint = rawURL
 		authErr.Msg += " [" + rawURL + "]"
-		return "", authErr
+		return nil, authErr
 	}
 	if resp.StatusCode >= 400 {
-		return "", &sdkerrors.RealtimeError{Msg: fmt.Sprintf("%s: HTTP %d", label, resp.StatusCode)}
+		return nil, &sdkerrors.RealtimeError{Msg: fmt.Sprintf("%s: HTTP %d", label, resp.StatusCode)}
+	}
+	return body, nil
+}
+
+func fetchRTToken(ctx context.Context, httpClient *http.Client, creds *auth.Credentials, rawURL, label string) (string, error) {
+	body, err := signedGet(ctx, httpClient, creds, rawURL, label, maxTokenResponseBytes)
+	if err != nil {
+		return "", err
 	}
 	var payload struct {
 		Token string `json:"token"`

@@ -1275,13 +1275,16 @@ if err := sub.Err(); err != nil {
   loss (3 s) and reconnects (0.5 s doubling to 10 s, with jitter) are handled
   for you, resuming from the last applied position. When the server cannot
   resume, a new `OrderSnapshot` replaces the state; the events in between are
-  not delivered, and fills stay readable from trade history.
+  not delivered, and fills stay readable from trade history. A resubscribe the
+  server does not confirm within 30 s reports `OrderStreamError` and tries again
+  with backoff.
 - **Sharing.** One connection carries every account of the client, and
   subscriptions of the same account share one server subscription. A later
   subscription starts from the current state.
 - **Ending.** The stream ends, closing `Messages()` with `Err()` set, when the
   server refuses the subscription (`RealtimeError.Code`, for example
-  `FORBIDDEN`), when the API key is refused, on close codes 4400 and 4403
+  `FORBIDDEN`), when it does not confirm a new subscription within 30 s, when
+  the API key is refused, on close codes 4400 and 4403
   (`RealtimeError.CloseCode`), or with `QueueOverflowError` when the consumer
   falls behind. `Close` (or canceling `ctx`) stops it; after the last
   subscription closes, `Close` returns once the connection and its
@@ -1291,6 +1294,24 @@ Order quantities are raw scaled integers, and `order.OrigQty.Scale()`,
 `order.CumQty.Scale()`, and `order.LeavesQty.Scale()` may be `nil`. Bots must
 resolve the base quantity scale from hydrated catalogs using `order.SymbolID`
 before formatting or reusing a quantity. Never invent a fallback scale.
+
+### Subscriptions the server ends
+
+When the server ends a realtime subscription, `Messages()` delivers what is
+queued and closes, and `Err()` and the error callback report
+`*errors.SubscriptionEndedError` with the channel, the server's code and text,
+and `Reason`. The exception is a sub-account's balances, transfers, trades,
+triggers or lifecycle channel: the server can end one of those after access was
+granted again, so the SDK reads `ListSubaccounts` and, while the sub-account is
+listed with a role, subscribes again with a fresh token. `Resubscribes()` and
+`TakeResubscribed()` report the gap. It stops, with the reason, when a
+`removed` update for that sub-account arrived on this client, when the list no
+longer has it, when the list or the token is refused (`Cause` holds the
+refusal), or after 6 attempts that did not stay up for a minute. Requests are
+paced across the client, so many subscriptions ending together share one list
+read per second and at most five attempts per second. An API key bound to a
+sub-account sees that sub-account in the list; a root key cannot subscribe to a
+sub-account's channels.
 
 ### Other private streams
 
@@ -1342,9 +1363,13 @@ levels, and an empty side means no liquidity. It is false while the market's
 book is being built or after it was invalidated: its levels are unknown, not
 empty, so request the snapshot again later (`Orderbook.Get`, or
 `RefreshSnapshot` on a managed subscription) instead of reading empty sides as
-no liquidity. A managed subscription carries its last snapshot's value, and
-reports false for the book it renders before its first snapshot. An
-environment that does not serve this release yet reports false for every
+no liquidity. A managed subscription carries its last snapshot's value and
+requests an unavailable snapshot again by itself, after 1 s doubling to 8 s,
+until the book is available or the subscription stops; repeated unavailable
+answers add no update. Its first update is always the fetched snapshot. A
+market whose book stays unavailable keeps being requested once every 8 s, so a
+bot recovers by itself when the book comes back; close the subscription to stop.
+An environment that does not serve this release yet reports false for every
 book.
 
 ## Development

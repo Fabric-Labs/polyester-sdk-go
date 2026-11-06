@@ -42,6 +42,8 @@ type Client struct {
 	maxQueue    int
 	// privateTiming is the private order stream's protocol timing.
 	privateTiming privateStreamTiming
+	// access decides whether a subscription the server ended may resume.
+	access *subaccountAccess
 
 	mu     sync.Mutex
 	subs   []func()
@@ -57,7 +59,7 @@ func NewClient(wsURL string, apiURL string, credentials *auth.Credentials, httpC
 	} else {
 		httpClient = useragent.WrapClient(httpClient)
 	}
-	return &Client{
+	c := &Client{
 		wsURL:         normalizeWSURL(wsURL),
 		apiURL:        apiURL,
 		credentials:   credentials,
@@ -65,6 +67,8 @@ func NewClient(wsURL string, apiURL string, credentials *auth.Credentials, httpC
 		maxQueue:      maxQueue,
 		privateTiming: defaultPrivateStreamTiming,
 	}
+	c.access = newSubaccountAccess(c, defaultResubscribeTiming)
+	return c
 }
 
 // Close permanently closes the client and cancels all tracked subscriptions.
@@ -202,6 +206,7 @@ func subscribeProto[T any](
 		defer sub.markFinished()
 		defer sendReady(&sdkerrors.RealtimeError{Msg: "realtime subscription ended before handshake"})
 		var backoff reconnectBackoff
+		var resume *resubscribeAttempt
 		for {
 			if runCtx.Err() != nil {
 				return
@@ -210,6 +215,9 @@ func subscribeProto[T any](
 				backoff.reset()
 				n := handshakes.Add(1)
 				sub.noteHandshakeReady(n == 1)
+				if resume != nil {
+					resume.noteReady(time.Now())
+				}
 				sendReady(nil)
 			})
 			if err == nil || runCtx.Err() != nil {
@@ -223,6 +231,28 @@ func subscribeProto[T any](
 			if errors.As(err, &terminal) {
 				sub.fail(err)
 				return
+			}
+			var ended *serverUnsubscribedError
+			if errors.As(err, &ended) && !ended.temporary() {
+				if !reconnect {
+					sub.fail(ended.stop(channel, sdkerrors.SubscriptionEndNotResubscribable, nil))
+					return
+				}
+				resume = c.access.attemptAfter(resume, ended, time.Now())
+			}
+			if resume != nil && !resume.ready {
+				// The server ended this subscription: resume, or say why not.
+				resume.note(err)
+				var refused *sdkerrors.AuthError
+				if errors.As(err, &refused) {
+					sub.fail(resume.ended.stop(channel, sdkerrors.SubscriptionEndTokenRefused, err))
+					return
+				}
+				if stop := c.access.awaitResume(runCtx, channel, resume); stop != nil {
+					sub.fail(stop)
+					return
+				}
+				continue
 			}
 			// Match Rust: first handshake failure is terminal (no silent reconnect).
 			if !readySent.Load() {
@@ -316,6 +346,7 @@ func runSubscriptionOnce[T any](
 	if onReady != nil {
 		onReady()
 	}
+	subaccountsChannel := strings.HasPrefix(channel, subaccountsChannelPrefix)
 
 	for {
 		if ctx.Err() != nil {
@@ -356,6 +387,9 @@ func runSubscriptionOnce[T any](
 					return &sdkerrors.RealtimeError{Msg: err.Error()}
 				}
 			case incomingPublication:
+				if subaccountsChannel {
+					c.access.noteUpdate(message.data)
+				}
 				items, err := decode(message.data)
 				if err != nil {
 					return terminalRealtime("invalid realtime publication: " + err.Error())
@@ -367,6 +401,10 @@ func runSubscriptionOnce[T any](
 						}
 						return ctx.Err()
 					}
+				}
+			case incomingUnsubscribe:
+				if message.channel == "" || message.channel == channel {
+					return &serverUnsubscribedError{code: message.code, reason: message.reason}
 				}
 			case incomingReply:
 				if message.err != nil {
@@ -718,7 +756,8 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) run(ctx context.Context) {
 		if err := sub.Err(); err != nil {
 			var terminal *terminalRealtimeError
 			var overflow *sdkerrors.QueueOverflowError
-			if errors.As(err, &terminal) || errors.As(err, &overflow) {
+			var ended *sdkerrors.SubscriptionEndedError
+			if errors.As(err, &terminal) || errors.As(err, &overflow) || errors.As(err, &ended) {
 				s.failClosed(err)
 				return
 			}

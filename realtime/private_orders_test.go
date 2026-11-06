@@ -263,6 +263,8 @@ func testTiming() privateStreamTiming {
 		stableAfter:      time.Hour,
 		writeTimeout:     time.Second,
 		dialTimeout:      2 * time.Second,
+
+		subscribeAckTimeout: time.Minute,
 	}
 }
 
@@ -1191,4 +1193,130 @@ func TestPrivateOrdersCloseWhileSubscribeHoldsTheStream(t *testing.T) {
 		t.Fatal("Client.Close returned, but the concurrent SubscribeOrders left a live stream")
 	}
 	waitNoPrivateStreamGoroutines(t)
+}
+
+func sendHeartbeats(t *testing.T, ws *fakeWS, stop <-chan struct{}) {
+	t.Helper()
+	go func() {
+		ticker := time.NewTicker(20 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stop:
+				return
+			case <-ticker.C:
+				_ = ws.ws.WriteMessage(websocket.BinaryMessage, mustMarshalServerMessage(&privatewsv1.ServerMessage{
+					Frame: &privatewsv1.ServerMessage_Heartbeat{Heartbeat: &privatewsv1.Heartbeat{ServerTsNs: 1}},
+				}))
+			}
+		}
+	}()
+}
+
+func mustMarshalServerMessage(msg *privatewsv1.ServerMessage) []byte {
+	data, err := proto.Marshal(msg)
+	if err != nil {
+		panic(err)
+	}
+	return data
+}
+
+// Heartbeats keep the connection alive without answering a subscribe: a new
+// subscription the server never confirms ends with the reason.
+func TestPrivateOrdersUnconfirmedNewSubscriptionEnds(t *testing.T) {
+	f := newFakePrivateServer(t)
+	timing := testTiming()
+	timing.subscribeAckTimeout = 150 * time.Millisecond
+	c := newTestOrderClient(t, f, timing)
+	sub := subscribeOrders(t, c, testAccount)
+	ws := f.accept(t)
+	ws.expectAuth(t)
+	request := ws.expectSubscribe(t)
+	stop := make(chan struct{})
+	defer close(stop)
+	sendHeartbeats(t, ws, stop)
+
+	errored := expectEvent[OrderStreamError](t, sub)
+	if !strings.Contains(errored.Err.Error(), "not confirmed") {
+		t.Fatalf("error = %v", errored.Err)
+	}
+	expectEvent[OrderStreamDisconnected](t, sub)
+	expectEnded(t, sub)
+	if sub.Err() == nil || !strings.Contains(sub.Err().Error(), "not confirmed") {
+		t.Fatalf("Err() = %v", sub.Err())
+	}
+	if request.GetId() == "" {
+		t.Fatal("subscribe was not sent")
+	}
+}
+
+// A resubscribe on a confirmed stream the server never answers reports it and
+// subscribes again; a late answer to the old request is unsubscribed.
+func TestPrivateOrdersUnansweredResubscribeRetriesAndRecovers(t *testing.T) {
+	f := newFakePrivateServer(t)
+	timing := testTiming()
+	timing.subscribeAckTimeout = 150 * time.Millisecond
+	c := newTestOrderClient(t, f, timing)
+	sub, ws := connectOrders(t, f, c)
+
+	// A snapshot end with no snapshot makes a confirmed stream subscribe again.
+	ws.send(t, "s1", 1, &privatewsv1.ServerMessage{Frame: &privatewsv1.ServerMessage_SnapshotEnd{SnapshotEnd: &privatewsv1.SnapshotEnd{Cursor: "c1", Count: 1}}})
+	ws.expectUnsubscribe(t)
+	first := ws.expectSubscribe(t)
+	expectEvent[OrderStreamDisconnected](t, sub)
+	ws.send(t, "", 0, &privatewsv1.ServerMessage{Frame: &privatewsv1.ServerMessage_Heartbeat{Heartbeat: &privatewsv1.Heartbeat{ServerTsNs: 1}}})
+
+	errored := expectEvent[OrderStreamError](t, sub)
+	if !strings.Contains(errored.Err.Error(), "not confirmed") {
+		t.Fatalf("error = %v", errored.Err)
+	}
+	second := ws.expectSubscribe(t)
+	if second.GetId() == first.GetId() {
+		t.Fatal("retry must use a new request")
+	}
+	ws.confirm(t, "s2", second)
+	expectEvent[OrderStreamConnected](t, sub)
+	if sub.Err() != nil {
+		t.Fatalf("recovered stream has error %v", sub.Err())
+	}
+
+	ws.send(t, "late", 0, &privatewsv1.ServerMessage{Frame: &privatewsv1.ServerMessage_Subscribed{Subscribed: &privatewsv1.Subscribed{Id: first.GetId(), Account: testAccount}}})
+	if got := ws.expectUnsubscribe(t).GetSub(); got != "late" {
+		t.Fatalf("unsubscribed %q, want the late answer", got)
+	}
+}
+
+// A subscribe answered within the deadline stays up past it.
+func TestPrivateOrdersConfirmedSubscribeIsNotExpired(t *testing.T) {
+	f := newFakePrivateServer(t)
+	timing := testTiming()
+	timing.subscribeAckTimeout = 100 * time.Millisecond
+	c := newTestOrderClient(t, f, timing)
+	sub, ws := connectOrders(t, f, c)
+	expectNoEvent(t, sub, 300*time.Millisecond)
+	ws.expectNone(t, 10*time.Millisecond)
+	if sub.Err() != nil {
+		t.Fatalf("Err() = %v", sub.Err())
+	}
+}
+
+// Closing leaves no confirmation timer holding the run open.
+func TestPrivateOrdersCloseStopsAPendingConfirmationDeadline(t *testing.T) {
+	f := newFakePrivateServer(t)
+	c := newTestOrderClient(t, f, testTiming())
+	sub := subscribeOrders(t, c, testAccount)
+	ws := f.accept(t)
+	ws.expectAuth(t)
+	ws.expectSubscribe(t)
+	closed := make(chan struct{})
+	go func() {
+		sub.Close()
+		c.Close()
+		close(closed)
+	}()
+	select {
+	case <-closed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Close waited on the confirmation deadline")
+	}
 }
