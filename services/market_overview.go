@@ -32,12 +32,21 @@ func (s *MarketOverviewService) client() marketoverviewv1connect.MarketOverviewS
 	return marketoverviewv1connect.NewMarketOverviewServiceClient(s.transport.HTTP, s.transport.Config.APIURL, s.transport.ConnectOptions(false)...)
 }
 
-func (s *MarketOverviewService) List(ctx context.Context, symbols []string, limit int, _ string, includeSparklines bool) (models.MarketOverviewList, error) {
+// List reads one overview page. The legacy string argument before
+// includeSparklines is ignored; pass the returned NextPageToken as the optional
+// final argument to continue with the same filters.
+func (s *MarketOverviewService) List(ctx context.Context, symbols []string, limit int, _ string, includeSparklines bool, pageToken ...string) (models.MarketOverviewList, error) {
 	parsedLimit, err := PaginationLimit(limit, "limit")
 	if err != nil {
 		return models.MarketOverviewList{}, err
 	}
+	if len(pageToken) > 1 {
+		return models.MarketOverviewList{}, &errors.ValidationError{Msg: "at most one page token is allowed"}
+	}
 	req := &marketoverviewv1.ListMarketOverviewRequest{Limit: parsedLimit, IncludeSparklines: includeSparklines}
+	if len(pageToken) == 1 {
+		req.PageToken = pageToken[0]
+	}
 	for _, symbol := range symbols {
 		trimmed := strings.TrimSpace(symbol)
 		if trimmed == "" {

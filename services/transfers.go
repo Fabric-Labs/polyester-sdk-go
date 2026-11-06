@@ -28,12 +28,20 @@ func (s *TransfersService) client() ledgerrdv1connect.LedgerReadServiceClient {
 	return ledgerrdv1connect.NewLedgerReadServiceClient(s.transport.HTTP, s.transport.Config.APIURL, s.transport.ConnectOptions(true)...)
 }
 
-func (s *TransfersService) List(ctx context.Context, account AccountScope, subAccountID *string, limit int, reversed bool, since *int64) (models.TransfersList, error) {
+// List reads a page. Pass its opaque NextPageToken as the final argument to
+// continue with the same account, filters and direction. An empty token ends paging.
+func (s *TransfersService) List(ctx context.Context, account AccountScope, subAccountID *string, limit int, reversed bool, since *int64, pageToken ...string) (models.TransfersList, error) {
 	parsedLimit, err := PaginationLimit(limit, "limit")
 	if err != nil {
 		return models.TransfersList{}, err
 	}
+	if len(pageToken) > 1 {
+		return models.TransfersList{}, &errors.ValidationError{Msg: "at most one page token is allowed"}
+	}
 	req := &ledgerrdv1.ListTransfersRequest{Limit: parsedLimit, Reversed: reversed}
+	if len(pageToken) == 1 {
+		req.PageToken = pageToken[0]
+	}
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {
 		return models.TransfersList{}, err

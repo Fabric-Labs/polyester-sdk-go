@@ -59,7 +59,7 @@ func MarketOverviewListFromProto(msg *marketoverviewv1.ListMarketOverviewRespons
 	for _, m := range msg.GetMarkets() {
 		out = append(out, MarketOverviewEntryFromProto(m, cats))
 	}
-	return models.MarketOverviewList{Markets: out}
+	return models.MarketOverviewList{Markets: out, NextPageToken: msg.GetNextPageToken()}
 }
 
 func SpotVolumeHistoryFromProto(msg *marketoverviewv1.GetSpotVolumeHistoryResponse, cats *catalogs.Manager) models.SpotVolumeHistory {

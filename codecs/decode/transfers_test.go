@@ -76,7 +76,7 @@ func TestTransferSideFromProtoOmitsEmptyAndUnsetChainID(t *testing.T) {
 	}
 }
 
-func TestTransfersListFromProtoParsesCursor(t *testing.T) {
+func TestTransfersListFromProtoPreservesNumericToken(t *testing.T) {
 	msg := &ledgerrdv1.ListTransfersResponse{
 		Transfers:     []*ledgerrdv1.TransferRow{{AssetId: 1}},
 		NextPageToken: "12345",
@@ -85,7 +85,7 @@ func TestTransfersListFromProtoParsesCursor(t *testing.T) {
 	if len(result.Transfers) != 1 {
 		t.Fatalf("transfers=%+v", result.Transfers)
 	}
-	if result.NextCursor == nil || *result.NextCursor != 12345 {
-		t.Fatalf("next_cursor=%v", result.NextCursor)
+	if result.NextPageToken != "12345" {
+		t.Fatalf("next_page_token=%v", result.NextPageToken)
 	}
 }
