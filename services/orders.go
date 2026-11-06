@@ -212,7 +212,14 @@ func (s *OrdersService) Create(ctx context.Context, req models.CreateOrderReques
 	if err != nil {
 		return models.OrderMutationResult{}, err
 	}
-	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().CreateOrder, protoReq, decode.OrderMutationFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().CreateOrder, protoReq, func(msg *orderv1.CreateOrderResponse) (models.OrderMutationResult, error) {
+		result, err := decode.OrderMutationFromProto(msg)
+		if err == nil && result.ResolvedBaseQty != nil {
+			qty := result.ResolvedBaseQty.WithScale(scale).WithSymbolID(*req.SymbolID)
+			result.ResolvedBaseQty = &qty
+		}
+		return result, err
+	})
 }
 
 // Preview checks whether an order intent is currently admissible without
@@ -436,27 +443,25 @@ func (s *OrdersService) BatchCreate(ctx context.Context, account AccountScope, i
 	if err != nil {
 		return models.BatchCreateOrdersResult{}, err
 	}
-	for i := range items {
-		if err := resolveOrderSymbolID(s.catalogs, &items[i], symbol, "orders.batch_create"); err != nil {
+	// Resolve every scale from the ID that is actually sent for that item.
+	resolvedItems := append([]models.CreateOrderRequest(nil), items...)
+	itemScales := make([]codecs.OrderScales, len(items))
+	for i := range resolvedItems {
+		item := &resolvedItems[i]
+		if err := resolveOrderSymbolID(s.catalogs, item, symbol, "orders.batch_create"); err != nil {
 			return models.BatchCreateOrdersResult{}, err
 		}
-	}
-	scale, err := codecs.QuantityScaleForSymbol(s.catalogs, symbol)
-	if err != nil {
-		return models.BatchCreateOrdersResult{}, err
-	}
-	needsQuoteScale := false
-	for _, item := range items {
-		if item.MaxQuoteDebitScaled.IsSet() {
-			needsQuoteScale = true
-			break
+		base, err := quantityScaleForOrderWrite(s.catalogs, item.Symbol, item.SymbolID)
+		if err != nil {
+			return models.BatchCreateOrdersResult{}, err
 		}
+		quote, err := quoteQuantityScaleForOrderWrite(s.catalogs, item.Symbol, item.SymbolID, item.MaxQuoteDebitScaled.IsSet())
+		if err != nil {
+			return models.BatchCreateOrdersResult{}, err
+		}
+		itemScales[i] = codecs.OrderScales{Base: base, Quote: quote}
 	}
-	quoteScale, err := quoteQuantityScaleForOrderWrite(s.catalogs, symbol, nil, needsQuoteScale)
-	if err != nil {
-		return models.BatchCreateOrdersResult{}, err
-	}
-	protoReq, err := codecs.BatchCreateOrdersToProto(items, sub, requestID, allowPartial, scale, quoteScale)
+	protoReq, err := codecs.BatchCreateOrdersToProto(resolvedItems, sub, requestID, allowPartial, 0, 0, itemScales...)
 	if err != nil {
 		return models.BatchCreateOrdersResult{}, err
 	}
@@ -498,7 +503,7 @@ func (s *OrdersService) BatchReplace(ctx context.Context, account AccountScope, 
 	if err != nil {
 		return models.BatchReplaceOrdersResult{}, err
 	}
-	protoReq, err := codecs.BatchReplaceOrdersToProto(items, symbolID, sub, requestID, scale)
+	protoReq, err := codecs.BatchReplaceOrdersToProto(items, symbolID, sub, requestID, scale, symbol)
 	if err != nil {
 		return models.BatchReplaceOrdersResult{}, err
 	}
@@ -726,11 +731,8 @@ func sumTradeQty(trades []models.UserTrade) int64 {
 }
 
 func resolveOrderSymbolID(c *catalogs.Manager, req *models.CreateOrderRequest, fallback *string, label string) error {
-	if req.SymbolID != nil && *req.SymbolID != 0 {
-		return nil
-	}
 	symbol := req.Symbol
-	if symbol == nil {
+	if symbol == nil && req.SymbolID == nil {
 		symbol = fallback
 	}
 	id, err := ResolveSymbolID(c, symbol, req.SymbolID, label)
@@ -740,19 +742,30 @@ func resolveOrderSymbolID(c *catalogs.Manager, req *models.CreateOrderRequest, f
 	if id == 0 {
 		return &sdkerrors.ValidationError{Msg: label + " requires a resolved non-zero symbol_id"}
 	}
+	if c == nil {
+		return &sdkerrors.ValidationError{Msg: label + " quantity scale is unavailable; hydrate catalogs"}
+	}
+	canonical := c.SymbolForSymbolID(id)
+	if canonical == nil {
+		return &sdkerrors.ValidationError{Msg: label + " quantity scale is unavailable for symbol_id; hydrate catalogs"}
+	}
+	if req.Symbol != nil && *req.Symbol != *canonical {
+		return &sdkerrors.ValidationError{Msg: label + " symbol mismatch: supplied symbol does not match symbol_id"}
+	}
 	req.SymbolID = &id
+	req.Symbol = canonical
 	return nil
 }
 
 func quantityScaleForOrderWrite(c *catalogs.Manager, symbol *string, symbolID *uint32) (int, error) {
-	if symbol != nil && *symbol != "" {
+	if symbolID == nil {
 		return codecs.QuantityScaleForSymbol(c, symbol)
 	}
-	if c != nil && symbolID != nil {
+	if c != nil {
 		scale, ok := c.BaseQuantityScaleForSymbolID(*symbolID)
 		if !ok {
 			return 0, &sdkerrors.ValidationError{
-				Msg: "quantity scale for symbol_id is unavailable; call WaitForCatalogs before placing orders, or pass a scaled Quantity",
+				Msg: "quantity scale for symbol_id is unavailable; call WaitForCatalogs before placing orders",
 			}
 		}
 		return scale, nil
@@ -764,10 +777,10 @@ func quoteQuantityScaleForOrderWrite(c *catalogs.Manager, symbol *string, symbol
 	if !required {
 		return 0, nil
 	}
-	if symbol != nil && *symbol != "" {
+	if symbolID == nil {
 		return codecs.QuoteQuantityScaleForSymbol(c, symbol)
 	}
-	if c != nil && symbolID != nil {
+	if c != nil {
 		scale, ok := c.QuoteQuantityScaleForSymbolID(*symbolID)
 		if !ok {
 			return 0, &sdkerrors.ValidationError{
