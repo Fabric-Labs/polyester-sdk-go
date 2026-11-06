@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.7.1
+
+Git tag: `v0.7.1`. Released 2026-11-06. Built on public contract `748066a`.
 
 - Managed market overview streams finish after terminal failure, report the error, and let callers drain queued rows. Closing after consumer queue overflow no longer blocks.
 - Order books detect gaps after a sequence-zero snapshot and refetch before applying later deltas.
