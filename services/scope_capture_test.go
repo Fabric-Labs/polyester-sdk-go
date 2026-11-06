@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	stderrors "errors"
+	"fmt"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"io"
 	"net/http"
@@ -20,6 +21,59 @@ import (
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
+func scopeCaptureFactory(t *testing.T) (*transport.Factory, chan proto.Message) {
+	t.Helper()
+	captures := make(chan proto.Message, 10)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodHead {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "/")
+		if len(parts) != 2 {
+			t.Errorf("unexpected RPC path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		desc, err := protoregistry.GlobalFiles.FindDescriptorByName(protoreflect.FullName(parts[0]))
+		if err != nil {
+			t.Error(err)
+			http.Error(w, "unknown service", 500)
+			return
+		}
+		method := desc.(protoreflect.ServiceDescriptor).Methods().ByName(protoreflect.Name(parts[1]))
+		if method == nil {
+			t.Errorf("unknown method %s", parts[1])
+			http.Error(w, "unknown method", 500)
+			return
+		}
+		request := dynamicpb.NewMessage(method.Input())
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		if err = proto.Unmarshal(body, request); err != nil {
+			t.Error(err)
+			return
+		}
+		captures <- request
+		// Stop after request capture so response decoding cannot mask scope behavior.
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"code":"invalid_argument","message":"capture complete"}`))
+	}))
+	t.Cleanup(server.Close)
+	creds, err := auth.LoadCredentials("ak_local", auth.GenerateEd25519Keypair().SecretKeyHex, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg := transport.DefaultConfig()
+	cfg.APIURL = server.URL
+	factory := transport.NewFactory(cfg, creds, server.Client())
+	return factory, captures
+}
+
 func TestExplicitEmptyScopePublicRequests(t *testing.T) {
 	ptr := func(s string) *string { return &s }
 	for _, defaultID := range []uint64{42, 43} {
@@ -35,54 +89,7 @@ func TestExplicitEmptyScopePublicRequests(t *testing.T) {
 			{"explicit", nil, ptr(codecs.FormatID(44)), 44},
 		} {
 			t.Run(defaultSub+"/"+control.name, func(t *testing.T) {
-				captures := make(chan proto.Message, 1)
-				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					if r.Method == http.MethodHead {
-						w.WriteHeader(http.StatusNoContent)
-						return
-					}
-					parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "/")
-					if len(parts) != 2 {
-						t.Errorf("unexpected RPC path %s", r.URL.Path)
-						http.NotFound(w, r)
-						return
-					}
-					desc, err := protoregistry.GlobalFiles.FindDescriptorByName(protoreflect.FullName(parts[0]))
-					if err != nil {
-						t.Error(err)
-						http.Error(w, "unknown service", 500)
-						return
-					}
-					method := desc.(protoreflect.ServiceDescriptor).Methods().ByName(protoreflect.Name(parts[1]))
-					if method == nil {
-						t.Errorf("unknown method %s", parts[1])
-						http.Error(w, "unknown method", 500)
-						return
-					}
-					request := dynamicpb.NewMessage(method.Input())
-					body, err := io.ReadAll(r.Body)
-					if err != nil {
-						t.Error(err)
-						return
-					}
-					if err = proto.Unmarshal(body, request); err != nil {
-						t.Error(err)
-						return
-					}
-					captures <- request
-					// Stop after request capture so response decoding cannot mask scope behavior.
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusBadRequest)
-					_, _ = w.Write([]byte(`{"code":"invalid_argument","message":"capture complete"}`))
-				}))
-				defer server.Close()
-				creds, err := auth.LoadCredentials("ak_local", auth.GenerateEd25519Keypair().SecretKeyHex, false)
-				if err != nil {
-					t.Fatal(err)
-				}
-				cfg := transport.DefaultConfig()
-				cfg.APIURL = server.URL
-				factory := transport.NewFactory(cfg, creds, server.Client())
+				factory, captures := scopeCaptureFactory(t)
 				cats := auditCatalog(t)
 				balances := NewBalancesService(factory, cats, &defaultSub, nil, nil)
 				orders := NewOrdersService(factory, cats, &defaultSub, nil, nil, nil, nil)
@@ -92,10 +99,33 @@ func TestExplicitEmptyScopePublicRequests(t *testing.T) {
 				triggers := NewTriggersService(factory, cats, &defaultSub, nil, nil, nil, nil)
 				ctx := context.Background()
 				a, s := control.account, control.sub
+				intent := scopeOrder(s)
+				qty := models.QtyFromDecimal("0.01")
+				price := models.PriceFromDecimal("100")
+				key := models.OrderKeyByID(codecs.FormatID(9))
 				calls := map[string]func(){
-					"balances.List":      func() { _, _ = balances.List(ctx, a, s) },
-					"balances.History":   func() { _, _ = balances.GetBalanceHistory(ctx, a, "1d", s, 0, nil) },
-					"balances.Equity":    func() { _, _ = balances.GetEquityHistory(ctx, a, "1d", s, nil, "account") },
+					"balances.List":    func() { _, _ = balances.List(ctx, a, s) },
+					"balances.History": func() { _, _ = balances.GetBalanceHistory(ctx, a, "1d", s, 0, nil) },
+					"balances.Equity":  func() { _, _ = balances.GetEquityHistory(ctx, a, "1d", s, nil, "account") },
+					"orders.Create":    func() { _, _ = orders.Create(ctx, intent, a) },
+					"orders.Preview":   func() { _, _ = orders.Preview(ctx, intent, a) },
+					"orders.BatchCreate": func() {
+						_, _ = orders.BatchCreate(ctx, a, []models.CreateOrderRequest{scopeOrder(nil)}, s, nil, nil, false)
+					},
+					"orders.BatchCancel": func() { _, _ = orders.BatchCancel(ctx, a, []models.BatchCancelItem{{Key: key}}, s, nil) },
+					"orders.BatchReplace": func() {
+						_, _ = orders.BatchReplace(ctx, a, []models.BatchReplaceItem{{Key: key, NewQty: &qty}}, "BTC-USDT", s, nil)
+					},
+					"orders.Modify": func() { _, _ = orders.Modify(ctx, a, "BTC-USDT", key, s, nil, &price, nil, nil, nil) },
+					"orders.ModifyWith": func() {
+						_, _ = orders.ModifyWith(ctx, a, ModifyParams{Symbol: "BTC-USDT", Key: key, SubAccountID: s, NewPrice: &price})
+					},
+					"triggers.Create": func() {
+						_, _ = triggers.Create(ctx, a, "BTC-USDT", "trailing_stop", nil, "sell", qty, "market", nil, "", "gtc", s, nil, false, codecs.CreateTriggerOptions{TrailingDistanceBps: new(int32(100))})
+					},
+					"triggers.Modify": func() {
+						_, _ = triggers.Modify(ctx, a, codecs.FormatID(9), s, nil, nil, codecs.ModifyTriggerOptions{TrailingDistanceBps: new(int32(100))})
+					},
 					"orders.ListOpen":    func() { _, _ = orders.ListOpen(ctx, a, s, nil, nil, false, false, nil) },
 					"orders.ListHistory": func() { _, _ = orders.ListHistory(ctx, a, s, nil, nil, nil, 50, false, false, nil) },
 					"orders.Cancel":      func() { _, _ = orders.Cancel(ctx, a, models.OrderKeyByID(codecs.FormatID(9)), nil, nil, s) },
@@ -161,7 +191,8 @@ func TestExplicitEmptyScopePublicRequests(t *testing.T) {
 
 func TestExplicitEmptyRequiredSubaccount(t *testing.T) {
 	defaultSub, empty := codecs.FormatID(42), ""
-	service := NewSubAccountsService(nil, &defaultSub, nil, nil)
+	factory, captures := scopeCaptureFactory(t)
+	service := NewSubAccountsService(factory, &defaultSub, nil, nil)
 	ctx := context.Background()
 	calls := map[string]func() error{
 		"Get": func() error {
@@ -175,7 +206,11 @@ func TestExplicitEmptyRequiredSubaccount(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var validation *sdkerrors.ValidationError
 			if err := call(); !stderrors.As(err, &validation) {
-				t.Fatalf("got %v, want validation error for missing required subaccount", err)
+				t.Errorf("got %v, want validation error for missing required subaccount", err)
+			}
+			if len(captures) != 0 {
+				<-captures
+				t.Error("empty required subaccount reached transport")
 			}
 		})
 	}
@@ -193,5 +228,58 @@ func TestExplicitEmptyRequiredSubaccount(t *testing.T) {
 	sub, err := scoped.ResolveSubAccountID(omitted, nil)
 	if err != nil || sub == nil || *sub != defaultSub {
 		t.Fatalf("typed nil must use default: sub=%v err=%v", sub, err)
+	}
+}
+
+func scopeOrder(sub *string) models.CreateOrderRequest {
+	price := models.PriceFromDecimal("100")
+	return models.CreateOrderRequest{Symbol: new("BTC-USDT"), Side: "buy", OrderType: "limit", Price: &price, Qty: models.QtyFromDecimal("0.01"), SubAccountID: sub}
+}
+
+func TestOrderScopeConflicts(t *testing.T) {
+	for _, account := range []string{"main", "active"} {
+		for _, override := range []string{"", codecs.FormatID(44)} {
+			for _, preview := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/%q/preview=%t", account, override, preview), func(t *testing.T) {
+					factory, captures := scopeCaptureFactory(t)
+					defaultSub := codecs.FormatID(42)
+					orders := NewOrdersService(factory, auditCatalog(t), &defaultSub, nil, nil, nil, nil)
+					req := scopeOrder(&override)
+					var err error
+					if preview {
+						_, err = orders.Preview(context.Background(), req, account)
+					} else {
+						_, err = orders.Create(context.Background(), req, account)
+					}
+					var validation *sdkerrors.ValidationError
+					if !stderrors.As(err, &validation) {
+						t.Errorf("got %v, want scope conflict validation", err)
+					}
+					if len(captures) != 0 {
+						t.Error("conflicting override reached transport")
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestBatchCreateRefusesItemScope(t *testing.T) {
+	for _, override := range []string{"", codecs.FormatID(42), codecs.FormatID(44)} {
+		for _, top := range []*string{nil, new(""), new(codecs.FormatID(44))} {
+			t.Run(fmt.Sprintf("%q/top=%v", override, top), func(t *testing.T) {
+				factory, captures := scopeCaptureFactory(t)
+				defaultSub := codecs.FormatID(42)
+				orders := NewOrdersService(factory, auditCatalog(t), &defaultSub, nil, nil, nil, nil)
+				_, err := orders.BatchCreate(context.Background(), nil, []models.CreateOrderRequest{scopeOrder(nil), scopeOrder(&override)}, top, nil, nil, false)
+				var validation *sdkerrors.ValidationError
+				if !stderrors.As(err, &validation) {
+					t.Errorf("got %v, want item scope validation", err)
+				}
+				if len(captures) != 0 {
+					t.Error("item override reached transport")
+				}
+			})
+		}
 	}
 }
