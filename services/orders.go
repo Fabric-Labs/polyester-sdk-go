@@ -601,11 +601,12 @@ func batchStatusNotFound(err error) bool {
 		(apiErr.Code == connect.CodeNotFound.String() || apiErr.Code == orderv1.ErrorCode_ERROR_CODE_NOT_FOUND.String())
 }
 
-// readUnavailable reports a read answered UNAVAILABLE or with another 5xx.
+// readUnavailable reports a transient server or transport failure of a read.
 func readUnavailable(err error) bool {
 	var serverErr *sdkerrors.ServerError
+	var transportErr *sdkerrors.TransportError
 	var apiErr *sdkerrors.APIError
-	return errors.As(err, &serverErr) ||
+	return errors.As(err, &serverErr) || errors.As(err, &transportErr) ||
 		(errors.As(err, &apiErr) && apiErr.Code == orderv1.ErrorCode_ERROR_CODE_UNAVAILABLE.String())
 }
 

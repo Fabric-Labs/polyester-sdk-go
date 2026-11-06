@@ -191,8 +191,8 @@ func TestMapConnectErrorSurfacesTopLevelRateLimitDetail(t *testing.T) {
 
 func TestTransportRetryClassificationPreservesAmbiguity(t *testing.T) {
 	err := &sdkerrors.TransportError{Msg: "deadline exceeded"}
-	if !sdkerrors.IsRetryable(err) {
-		t.Fatal("transport error must be retryable")
+	if sdkerrors.IsRetryable(err) {
+		t.Fatal("transport error must require read-back")
 	}
 	if !sdkerrors.MutationOutcomeUnknown(err) {
 		t.Fatal("transport error must preserve unknown mutation outcome")

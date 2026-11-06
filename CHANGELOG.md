@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Breaking:** Unknown mutation outcomes are never retryable, including bare Connect unavailable/deadline failures, gateway 502/503 responses and client timeouts. Migration: read back after an unknown outcome; retry reads explicitly. Bounded trigger reads, status waits and snapshot recovery use read context; creates are never automatically resent.
+- **Breaking:** Structured order-service admission refusals now report outcome known while remaining retryable. This corrects the previous outcome-unknown result for `UNAVAILABLE`, `FEE_SCHEDULE_UNAVAILABLE`, `POLICY_UNAVAILABLE`, `RATE_LIMIT_POLICY_UNAVAILABLE` and other documented temporary admission refusals; unrecognized dependency failures remain ambiguous.
+- **Breaking:** REST validation refusals retain their service codes with outcome known and no retry, while timestamp skew and account repairing retain their explicit safe-retry guidance. REST `RATE_LIMIT_EXCEEDED` and `PRICE_LEVELS_EXHAUSTED` are known admission refusals with retry delays preserved. Message-only permanent Connect resource-exhausted codes now match typed details.
+- `APIError.Problem` now also retains REST refusal details at HTTP 400, 409, 412 and 422.
+
 - **Breaking:** A plain REST gateway 504 is now non-retryable with mutation outcome unknown. Reads may retry a 504 explicitly; writes read back first. A client order ID enables reconciliation, not exact replay of a single create. Automatic read retries remain operation-specific; creates are never automatically resent.
 - **Breaking:** `OVERLOADED` and `SYSTEM_RATE_LIMITED` now return `RateLimitError` instead of API/server errors on Connect and REST. They are retryable admission refusals with no unknown mutation outcome. The new `Code` field retains the service code; known order codes use the `ERROR_CODE_` prefix. Use keyed struct literals when constructing rate-limit errors. `ORDER_SEQUENCE_EXHAUSTED` remains a permanent refusal, including REST 429 and Connect responses without typed details. Supplied retry delays are preserved.
 - **Breaking:** A Connect message naming an `*_OUTCOME_UNKNOWN` code now classifies as non-retryable with outcome unknown, including codes introduced by a newer server. Known order names are normalized to `ERROR_CODE_…`; future names remain as sent.

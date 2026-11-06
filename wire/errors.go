@@ -185,10 +185,12 @@ func MapConnectError(err error) error {
 			return rateLimitError(msg, "", rateLimitDetailFromProto(rl), headerRetry)
 		}
 		if orderDetail, ok := value.(*orderv1.ErrorDetail); ok {
+			unknown := strings.HasSuffix(orderDetail.GetCode().String(), "_OUTCOME_UNKNOWN")
 			rl := rateLimitDetailFromProto(orderDetail.GetRateLimit())
-			if rl != nil || orderDetail.GetCode() == orderv1.ErrorCode_ERROR_CODE_RATE_LIMIT_EXCEEDED ||
+			if !unknown && (rl != nil || orderDetail.GetCode() == orderv1.ErrorCode_ERROR_CODE_RATE_LIMIT_EXCEEDED ||
 				orderDetail.GetCode() == orderv1.ErrorCode_ERROR_CODE_OVERLOADED ||
-				orderDetail.GetCode() == orderv1.ErrorCode_ERROR_CODE_SYSTEM_RATE_LIMITED {
+				orderDetail.GetCode() == orderv1.ErrorCode_ERROR_CODE_SYSTEM_RATE_LIMITED ||
+				orderDetail.GetCode() == orderv1.ErrorCode_ERROR_CODE_PRICE_LEVELS_EXHAUSTED) {
 				return rateLimitError(msg, orderDetail.GetCode().String(), rl, headerRetry)
 			}
 			code := orderDetail.GetCode().String()
@@ -196,7 +198,7 @@ func MapConnectError(err error) error {
 			if connectErr.Code() == connect.CodeUnavailable && !strings.HasSuffix(code, "_OUTCOME_UNKNOWN") {
 				return &sdkerrors.ServerError{Msg: msg, Code: code, Status: 503}
 			}
-			if len(orderDetail.GetViolations()) > 0 {
+			if len(orderDetail.GetViolations()) > 0 && !unknown {
 				violations := make([]sdkerrors.FieldViolation, 0, len(orderDetail.GetViolations()))
 				for _, violation := range orderDetail.GetViolations() {
 					violations = append(violations, sdkerrors.FieldViolation{
@@ -264,8 +266,11 @@ func MapConnectError(err error) error {
 	if strings.HasSuffix(msg, "_OUTCOME_UNKNOWN") {
 		return &sdkerrors.APIError{Msg: msg, Code: orderErrorCodeFromName(msg)}
 	}
-	if connectErr.Code() == connect.CodeResourceExhausted && strings.TrimPrefix(msg, "ERROR_CODE_") == "ORDER_SEQUENCE_EXHAUSTED" {
-		return &sdkerrors.APIError{Msg: msg, Code: "ERROR_CODE_ORDER_SEQUENCE_EXHAUSTED"}
+	namedCode := orderErrorCodeFromName(strings.TrimSpace(msg))
+	if connectErr.Code() == connect.CodeResourceExhausted {
+		if _, known := orderv1.ErrorCode_value[namedCode]; (known || isServiceCodeMessage(strings.TrimSpace(msg))) && namedCode != "ERROR_CODE_OVERLOADED" && namedCode != "ERROR_CODE_SYSTEM_RATE_LIMITED" && namedCode != "ERROR_CODE_RATE_LIMIT_EXCEEDED" && namedCode != "ERROR_CODE_PRICE_LEVELS_EXHAUSTED" {
+			return &sdkerrors.APIError{Msg: msg, Code: namedCode}
+		}
 	}
 	switch connectErr.Code() {
 	case connect.CodeUnauthenticated:
@@ -367,4 +372,19 @@ func orderErrorCodeFromName(code string) string {
 		return "ERROR_CODE_" + code
 	}
 	return code
+}
+
+// Unrecognized code-only messages must not inherit generic quota retryability.
+func isServiceCodeMessage(msg string) bool {
+	if msg == "" || msg[0] < 'A' || msg[0] > 'Z' {
+		return false
+	}
+	for _, r := range msg[1:] {
+		switch {
+		case r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '_':
+		default:
+			return false
+		}
+	}
+	return true
 }

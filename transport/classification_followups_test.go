@@ -99,22 +99,26 @@ func TestRESTAPIErrorKeepsProblem(t *testing.T) {
 }
 
 func TestRESTAdmissionKeepsRetryDelay(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/problem+json")
-		w.Header().Set("Retry-After", "1.25")
-		w.WriteHeader(429)
-		_, _ = w.Write([]byte(`{"code":"SYSTEM_RATE_LIMITED"}`))
-	}))
-	defer srv.Close()
-	cfg := DefaultConfig()
-	cfg.APIURL = srv.URL
-	factory := NewFactory(cfg, nil, nil)
-	client := authv1connect.NewAuthServiceClient(factory.HTTP, srv.URL, factory.ConnectOptions(false)...)
-	_, err := client.Me(context.Background(), connect.NewRequest(&authv1.MeRequest{}))
-	mapped := MapError(err)
-	var rate *sdkerrors.RateLimitError
-	if !errors.As(mapped, &rate) || rate.RetryAfter == nil || *rate.RetryAfter != 1.25 {
-		t.Fatalf("rate delay lost: %T %+v", mapped, mapped)
+	for _, code := range []string{"SYSTEM_RATE_LIMITED", "RATE_LIMIT_EXCEEDED", "PRICE_LEVELS_EXHAUSTED"} {
+		t.Run(code, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/problem+json")
+				w.Header().Set("Retry-After", "1.25")
+				w.WriteHeader(429)
+				_, _ = fmt.Fprintf(w, `{"code":%q}`, code)
+			}))
+			defer srv.Close()
+			cfg := DefaultConfig()
+			cfg.APIURL = srv.URL
+			factory := NewFactory(cfg, nil, nil)
+			client := authv1connect.NewAuthServiceClient(factory.HTTP, srv.URL, factory.ConnectOptions(false)...)
+			_, err := client.Me(context.Background(), connect.NewRequest(&authv1.MeRequest{}))
+			mapped := MapError(err)
+			var rate *sdkerrors.RateLimitError
+			if !errors.As(mapped, &rate) || rate.RetryAfter == nil || *rate.RetryAfter != 1.25 {
+				t.Fatalf("rate delay lost: %T %+v", mapped, mapped)
+			}
+		})
 	}
 }
 

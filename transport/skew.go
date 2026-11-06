@@ -88,7 +88,7 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 			msg = detail.Code
 		}
 		mapped = &sdkerrors.APIError{Msg: msg, Code: code}
-	case detail.Code == "OVERLOADED" || detail.Code == "ERROR_CODE_OVERLOADED" || detail.Code == "SYSTEM_RATE_LIMITED" || detail.Code == "ERROR_CODE_SYSTEM_RATE_LIMITED":
+	case isRetryableRESTAdmissionCode(detail.Code):
 		connectErr := connect.NewError(connect.CodeResourceExhausted, errors.New(msg))
 		for name, values := range resp.Header {
 			connectErr.Meta()[name] = values
@@ -137,6 +137,15 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		mapped = &sdkerrors.ValidationError{
 			Msg: msg, Code: detail.Code, Metadata: sdkerrors.ViolationMetadata(violations), Violations: violations,
 		}
+	case detail.Code != "" && (resp.StatusCode == 400 || resp.StatusCode == 409 || resp.StatusCode == 412 || resp.StatusCode == 422 || resp.StatusCode == 429):
+		code := detail.Code
+		if _, ok := orderv1.ErrorCode_value["ERROR_CODE_"+code]; ok {
+			code = "ERROR_CODE_" + code
+		}
+		if msg == "" {
+			msg = detail.Code
+		}
+		mapped = &sdkerrors.APIError{Msg: msg, Code: code}
 	default:
 		return resp, nil
 	}
@@ -176,4 +185,13 @@ func wrapTimestampSkew(client *http.Client) *http.Client {
 	wrapped := *client
 	wrapped.Transport = timestampSkewRoundTripper{base: client.Transport}
 	return &wrapped
+}
+
+func isRetryableRESTAdmissionCode(code string) bool {
+	switch strings.TrimPrefix(code, "ERROR_CODE_") {
+	case "OVERLOADED", "SYSTEM_RATE_LIMITED", "RATE_LIMIT_EXCEEDED", "PRICE_LEVELS_EXHAUSTED":
+		return true
+	default:
+		return false
+	}
 }

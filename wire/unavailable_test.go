@@ -55,11 +55,15 @@ func TestServiceUnavailableClassification(t *testing.T) {
 			mapped := MapConnectError(err)
 			var server *sdkerrors.ServerError
 			var auth *sdkerrors.AuthError
-			if !errors.As(mapped, &server) || errors.As(mapped, &auth) || !sdkerrors.IsRetryable(mapped) {
+			if !errors.As(mapped, &server) || errors.As(mapped, &auth) {
 				t.Fatalf("mapped=%T retryable=%v: %v", mapped, sdkerrors.IsRetryable(mapped), mapped)
 			}
 			code := tc.detail.ProtoReflect().Descriptor().Fields().ByName("code")
 			wantCode := string(code.Enum().Values().ByNumber(tc.detail.ProtoReflect().Get(code).Enum()).Name())
+			known := strings.HasPrefix(tc.name, "orders/") && tc.name != "orders/ACCOUNT_ROUTING_INVALID" && tc.name != "orders/UPSTREAM_ERROR"
+			if sdkerrors.IsRetryable(mapped) != known || sdkerrors.MutationOutcomeUnknown(mapped) == known {
+				t.Fatalf("retryable=%v unknown=%v for %s", sdkerrors.IsRetryable(mapped), sdkerrors.MutationOutcomeUnknown(mapped), wantCode)
+			}
 			if server.Code != wantCode || server.Status != 503 {
 				t.Fatalf("code=%q status=%d", server.Code, server.Status)
 			}

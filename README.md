@@ -395,6 +395,20 @@ For every order error code ending in `_OUTCOME_UNKNOWN`,
 `errors.MutationOutcomeUnknown` reports true and `errors.IsRetryable` reports
 false: read the order or trigger back (by client order ID or client trigger
 ID) before sending it again.
+
+The retry flag is always false when the mutation outcome is unknown. This includes
+bare Connect `unavailable` and `deadline_exceeded`, gateway 502/503 bodies and client
+timeouts. Read back after an unknown outcome; retry reads explicitly. Automatic
+trigger reads, status waits and snapshot refresh use read context and can retry these
+failures within their existing budgets. Creates are never automatically resent.
+
+A recognized order-service `UNAVAILABLE`, `FEE_SCHEDULE_UNAVAILABLE`,
+`POLICY_UNAVAILABLE` or `RATE_LIMIT_POLICY_UNAVAILABLE` code means admission was
+refused: outcome known and retryable. An HTTP status without that code does not
+establish refusal. `RATE_LIMIT_EXCEEDED` and `PRICE_LEVELS_EXHAUSTED` likewise mean
+nothing was admitted; retry after any server delay. Permanent resource-exhausted
+codes require caller action even when Connect sends their code only as its message.
+
 A plain REST gateway 504 returns `*errors.ServerError` with `Status == 504`:
 `errors.IsRetryable` is false and `errors.MutationOutcomeUnknown` is true.
 The classifier has no operation context. Reads may retry a 504 explicitly;
@@ -407,7 +421,7 @@ Connect and REST, with no unknown mutation outcome. Respect `RetryAfter` when
 supplied. Branch on `RateLimitError.Code`: `ERROR_CODE_OVERLOADED` means wait for an
 outstanding request to complete; `ERROR_CODE_SYSTEM_RATE_LIMITED` names a venue-wide limit.
 `ORDER_SEQUENCE_EXHAUSTED` is permanent; contact support instead of retrying.
-On REST outcome-unknown and `ORDER_SEQUENCE_EXHAUSTED` errors,
+On REST outcome-unknown and refusal errors (including HTTP 400, 409, 412 and 422),
 `APIError.Problem` retains code, actual HTTP status, canonical type and detail.
 
 `ERROR_CODE_ACCOUNT_REPAIRING` and `AUTH_TEMPORARILY_UNAVAILABLE` changed
