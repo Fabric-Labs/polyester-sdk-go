@@ -147,6 +147,13 @@ func (s *Subscription) Enqueue(data models.OrderbookData) bool {
 	}
 }
 
+// Closed reports whether the subscription has ended, by Close or a terminal error.
+func (s *Subscription) Closed() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.closed
+}
+
 // Fail ends the subscription with a terminal error: the error is retained for
 // Err, Updates closes and the error callback runs once. Later calls do nothing.
 func (s *Subscription) Fail(err error) {

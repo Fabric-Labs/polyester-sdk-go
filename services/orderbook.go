@@ -116,7 +116,7 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 
 	emit := func() {
 		mu.Lock()
-		if subscription == nil {
+		if subscription == nil || subscription.Closed() {
 			mu.Unlock()
 			return
 		}
@@ -137,6 +137,11 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 
 	handleDelta := func(delta models.OrderBookDeltaUpdate) {
 		mu.Lock()
+		// A delta buffered behind a terminal failure must not change or render the book.
+		if subscription != nil && subscription.Closed() {
+			mu.Unlock()
+			return
+		}
 		newSeq, needsRefresh := orderbook.ApplyDelta(bids, asks, currentBookSeq, delta)
 		currentBookSeq = newSeq
 		localStream := stream

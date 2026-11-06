@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -14,6 +15,7 @@ import (
 	orderbookv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1/orderbookv1connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
+	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/orderbook"
 	"github.com/Fabric-Labs/polyester-sdk-go/services"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
@@ -245,6 +247,125 @@ func TestL2OrderbookCoarseBucketKeepsFlooredZeroBid(t *testing.T) {
 			return
 		case <-deadline:
 			t.Fatalf("delta was never applied: %v", stream.sub.Err())
+		}
+	}
+}
+
+type delayedSnapshotHandler struct {
+	orderbookv1connect.UnimplementedOrderbookServiceHandler
+	started chan struct{}
+	release chan struct{}
+}
+
+func (h delayedSnapshotHandler) GetOrderBook(ctx context.Context, req *connect.Request[orderbookv1.GetOrderBookRequest]) (*connect.Response[orderbookv1.GetOrderBookResponse], error) {
+	close(h.started)
+	select {
+	case <-h.release:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	return rawZeroSnapshotHandler{}.GetOrderBook(ctx, req)
+}
+
+// A delta buffered behind the failing one must not be applied or delivered:
+// its removal would otherwise clear the bad level and report a healthy book.
+func TestL2OrderbookRawZeroBufferedDeltaStopsProcessingAfterFailure(t *testing.T) {
+	pubs := make(chan []byte, 4)
+	ws := hardening.SpawnCentrifugoPublish(nil, pubs)
+	t.Cleanup(ws.Close)
+	snapshot := delayedSnapshotHandler{started: make(chan struct{}), release: make(chan struct{})}
+	mux := http.NewServeMux()
+	path, handler := orderbookv1connect.NewOrderbookServiceHandler(snapshot)
+	mux.Handle(path, handler)
+	api := httptest.NewServer(mux)
+	t.Cleanup(api.Close)
+
+	cats := catalogs.NewManager()
+	if err := cats.HydrateSpotConfig(map[string]any{"pairs": []any{
+		map[string]any{"symbol": "DOGE-USDT", "symbol_id": float64(1), "base_quantity_scale": float64(8)},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	cfg := transport.DefaultConfig()
+	cfg.APIURL = api.URL
+	rt := newRT(ws.WSURL(), api.URL, nil, 5*time.Second)
+	t.Cleanup(rt.Close)
+	service := services.NewOrderbookService(transport.NewFactory(cfg, nil, nil), cats, rt)
+
+	var mu sync.Mutex
+	var seqs []string
+	var errorCount atomic.Int64
+	type result struct {
+		sub *orderbook.Subscription
+		err error
+	}
+	created := make(chan result, 1)
+	go func() {
+		sub, err := service.CreateSubscription(context.Background(), services.CreateSubscriptionOptions{
+			Symbol: "DOGE-USDT",
+			Depth:  10,
+			OnEvent: func(book models.OrderbookData) {
+				mu.Lock()
+				seqs = append(seqs, book.BookSeq)
+				mu.Unlock()
+			},
+			OnError: func(error) { errorCount.Add(1) },
+		})
+		created <- result{sub, err}
+	}()
+
+	select {
+	case <-snapshot.started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("snapshot was never requested")
+	}
+	for _, delta := range []*orderbookv1.OrderBookDelta{
+		{SymbolId: 1, BookSeqStart: 2, BookSeqEnd: 2, Bids: []*orderbookv1.PriceLevel{{QtyScaled: 9}}},
+		{SymbolId: 1, BookSeqStart: 3, BookSeqEnd: 3, Bids: []*orderbookv1.PriceLevel{{QtyScaled: 0}}},
+	} {
+		payload, err := proto.Marshal(delta)
+		if err != nil {
+			t.Fatal(err)
+		}
+		pubs <- payload
+	}
+	// Both publications must reach the stream's buffer before the snapshot completes.
+	time.Sleep(200 * time.Millisecond)
+	close(snapshot.release)
+
+	var outcome result
+	select {
+	case outcome = <-created:
+	case <-time.After(5 * time.Second):
+		t.Fatal("CreateSubscription did not return")
+	}
+	if outcome.err != nil {
+		t.Fatalf("CreateSubscription: %v", outcome.err)
+	}
+	t.Cleanup(outcome.sub.Close)
+	deadline := time.After(5 * time.Second)
+	for open := true; open; {
+		select {
+		case _, open = <-outcome.sub.Updates():
+		case <-deadline:
+			t.Fatalf("stream stayed open (Err=%v)", outcome.sub.Err())
+		}
+	}
+	outcome.sub.Close()
+	err := outcome.sub.Err()
+	if err == nil || !strings.Contains(err.Error(), "invalid or missing price") {
+		t.Fatalf("terminal error %v", err)
+	}
+	if got := errorCount.Load(); got != 1 {
+		t.Fatalf("OnError called %d times, want 1", got)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	// The snapshot alone would be delivered at sequence 1, so only a pre-snapshot
+	// render here proves both deltas really were buffered ahead of it.
+	for _, seq := range seqs {
+		if seq != "0" {
+			t.Fatalf("book delivered after the failure, or deltas not buffered: seqs=%v", seqs)
 		}
 	}
 }
