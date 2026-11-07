@@ -112,12 +112,9 @@ func (c *Client) SubscribeOrders(ctx context.Context, accountID string) (*Subscr
 	if c.credentials == nil {
 		return nil, &sdkerrors.AuthError{Msg: "Cannot subscribe to the private order stream without API-key credentials"}
 	}
-	account, err := codecs.IDToInt(accountID, "account_id")
+	account, err := codecs.ParseAccountID(accountID, "account_id")
 	if err != nil {
 		return nil, err
-	}
-	if account == 0 {
-		return nil, &sdkerrors.ValidationError{Msg: "account_id must be a non-zero public ID"}
 	}
 	wsURL, err := privateWSURL(c.apiURL)
 	if err != nil {

@@ -65,7 +65,8 @@ func ScopedSubAccountID(account AccountScope, subAccountID *string, defaultVal *
 // ResolveAccountID returns the public account ID from value, or from
 // defaultVal when value is unset (nil, a nil pointer or ""). Each may be a
 // public ID string, which is used as given, or a positive integer, which is
-// encoded as its public ID (42 is "j"). Any other value is a ValidationError.
+// encoded as its public ID (42 is "j"). A string that decodes to 0, such as
+// "1", "0" or "00", and any other value are a ValidationError.
 func ResolveAccountID(value any, defaultVal any) (string, error) {
 	for _, v := range []any{value, defaultVal} {
 		id, _, err := publicID(v, "account_id")
@@ -73,6 +74,9 @@ func ResolveAccountID(value any, defaultVal any) (string, error) {
 			return "", err
 		}
 		if id != "" {
+			if _, err := codecs.ParseAccountID(id, "account_id"); err != nil {
+				return "", err
+			}
 			return id, nil
 		}
 	}

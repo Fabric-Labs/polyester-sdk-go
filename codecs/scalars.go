@@ -154,6 +154,22 @@ func IDToInt(value string, label string) (uint64, error) {
 	return n.Uint64(), nil
 }
 
+// ParseAccountID decodes an account or sub-account ID as IDToInt does and
+// refuses one that decodes to 0. On the wire 0 is unset: a sub-account ID of
+// 0 is the main account, and an account ID of 0 names no account. So "1"
+// (FormatID(0)), "0" or "00" would address another account than the caller
+// named. Omit a sub-account ID to address the main account.
+func ParseAccountID(value string, label string) (uint64, error) {
+	id, err := IDToInt(value, label)
+	if err != nil {
+		return 0, err
+	}
+	if id == 0 {
+		return 0, &errors.ValidationError{Msg: label + " must be a non-zero public ID"}
+	}
+	return id, nil
+}
+
 // FormatID encodes a uint64 id as base58.
 func FormatID(value uint64) string {
 	if value == 0 {
