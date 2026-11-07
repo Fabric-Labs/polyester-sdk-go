@@ -5,12 +5,14 @@ import (
 	"errors"
 	"net/http"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 
 	"connectrpc.com/connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1/ordersv1connect"
 	triggersv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1"
@@ -28,13 +30,33 @@ type stopAllServer struct {
 	lists     []*triggersv1.ListTriggersRequest
 	cancelAll []*orderv1.CancelAllOrdersRequest
 	refuse    uint64
+	// tokens, when set, are the next page tokens of successive ListTriggers
+	// answers; an exhausted list ends the pagination.
+	tokens []string
 }
+
+// stopAllListCap stops a fixture that keeps paging, so a missed cycle fails
+// the test instead of hanging it.
+const stopAllListCap = 12
 
 func (s *stopAllServer) ListTriggers(_ context.Context, req *connect.Request[triggersv1.ListTriggersRequest]) (*connect.Response[triggersv1.ListTriggersResponse], error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.calls = append(s.calls, "list:"+req.Msg.GetPageToken())
 	s.lists = append(s.lists, req.Msg)
+	if s.tokens != nil {
+		if len(s.lists) > stopAllListCap {
+			return nil, connect.NewError(connect.CodeAborted, errors.New("fixture stopped a pagination loop"))
+		}
+		next := ""
+		if i := len(s.lists) - 1; i < len(s.tokens) {
+			next = s.tokens[i]
+		}
+		return connect.NewResponse(&triggersv1.ListTriggersResponse{
+			Triggers:      []*triggersv1.Trigger{{TriggerId: uint64(len(s.lists))}},
+			NextPageToken: next,
+		}), nil
+	}
 	if req.Msg.GetPageToken() == "" {
 		return connect.NewResponse(&triggersv1.ListTriggersResponse{
 			Triggers:      []*triggersv1.Trigger{{TriggerId: 1}, {TriggerId: 2}},
@@ -137,5 +159,68 @@ func TestStopAllTradingReportsTriggerCancelFailures(t *testing.T) {
 	if server.calls[len(server.calls)-1] != "cancel-all" || len(result.CanceledTriggers) != 2 ||
 		len(result.FailedTriggers) != 1 || result.FailedTriggers[0].TriggerID == "" || result.FailedTriggers[0].Err == nil {
 		t.Fatalf("calls = %v result = %+v", server.calls, result)
+	}
+}
+
+// A next page token seen earlier in the same run, not only the one just
+// sent, is a pagination cycle: StopAllTrading stops listing, cancels
+// nothing, and says so. A finite listing still cancels everything once.
+func TestStopAllTradingRefusesPaginationCycles(t *testing.T) {
+	// Each cycle repeats past the fixture cap, as a server stuck in a loop
+	// would; the names list the tokens StopAllTrading should read.
+	cycle := func(tokens ...string) []string {
+		out := append([]string(nil), tokens...)
+		repeated := tokens[len(tokens)-1]
+		first := 0
+		for tokens[first] != repeated {
+			first++
+		}
+		for len(out) < 2*stopAllListCap {
+			out = append(out, tokens[first+1:]...)
+		}
+		return out
+	}
+	cycles := map[string][]string{
+		"A,A":       cycle("A", "A"),
+		"A,B,A":     cycle("A", "B", "A"),
+		"A,B,C,A":   cycle("A", "B", "C", "A"),
+		"A,B,C,D,B": cycle("A", "B", "C", "D", "B"),
+	}
+	for name, tokens := range cycles {
+		t.Run(name, func(t *testing.T) {
+			server := &stopAllServer{tokens: tokens}
+			triggers, orders := newStopAllServices(t, server)
+
+			result, err := StopAllTrading(context.Background(), triggers, orders, nil, StopAllTradingScope{})
+			var contractErr *sdkerrors.ResponseContractError
+			if !errors.As(err, &contractErr) {
+				t.Fatalf("err = %T %v, want ResponseContractError; calls = %v", err, err, server.calls)
+			}
+			if !strings.Contains(err.Error(), "repeats an earlier page token") || !strings.Contains(err.Error(), "nothing was canceled") {
+				t.Fatalf("err = %v", err)
+			}
+			for _, call := range server.calls {
+				if !strings.HasPrefix(call, "list:") {
+					t.Fatalf("a cancel began after a pagination cycle: %v", server.calls)
+				}
+			}
+			if wantLists := len(strings.Split(name, ",")); len(server.lists) != wantLists {
+				t.Fatalf("lists = %d, want %d: %v", len(server.lists), wantLists, server.calls)
+			}
+			if len(result.CanceledTriggers) != 0 || len(result.FailedTriggers) != 0 || result.CancelAll.MatchedOrders != 0 {
+				t.Fatalf("result = %+v", result)
+			}
+		})
+	}
+
+	server := &stopAllServer{tokens: []string{"A", "B"}}
+	triggers, orders := newStopAllServices(t, server)
+	result, err := StopAllTrading(context.Background(), triggers, orders, nil, StopAllTradingScope{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"list:", "list:A", "list:B", "cancel-trigger", "cancel-trigger", "cancel-trigger", "cancel-all"}
+	if !reflect.DeepEqual(server.calls, want) || len(result.CanceledTriggers) != 3 {
+		t.Fatalf("calls = %v, want %v; result = %+v", server.calls, want, result)
 	}
 }

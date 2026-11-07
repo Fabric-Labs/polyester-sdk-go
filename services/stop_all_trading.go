@@ -50,11 +50,15 @@ type StopAllTradingResult struct {
 // A trigger whose cancel fails does not stop the others or the cancel-all: it
 // is listed in FailedTriggers and the returned error joins those failures.
 // A failed listing, a canceled ctx or a failed cancel-all returns at once
-// with what was done so far.
+// with what was done so far. A listing fails, before anything is canceled,
+// when ListTriggers answers with a page token it already sent in this run.
 func StopAllTrading(ctx context.Context, triggers *TriggersService, orders *OrdersService, account AccountScope, scope StopAllTradingScope) (StopAllTradingResult, error) {
 	var result StopAllTradingResult
 	var triggerIDs []string
 	seen := map[string]bool{}
+	// Every page token sent in this run: a server that answers with any of
+	// them again would page forever and the cancels would never start.
+	sentTokens := map[string]bool{}
 	var pageToken *string
 	for {
 		page, err := triggers.List(ctx, account, scope.SubAccountID, scope.Symbol, stopAllLiveTriggerStatuses, stopAllTriggerPageLimit, pageToken)
@@ -70,10 +74,14 @@ func StopAllTrading(ctx context.Context, triggers *TriggersService, orders *Orde
 		if page.NextPageToken == "" {
 			break
 		}
-		if pageToken != nil && *pageToken == page.NextPageToken {
-			return result, &sdkerrors.ResponseContractError{Operation: "ListTriggers", Msg: "next_page_token repeats the page_token"}
+		if sentTokens[page.NextPageToken] {
+			return result, &sdkerrors.ResponseContractError{
+				Operation: "ListTriggers",
+				Msg:       "next_page_token repeats an earlier page token; StopAllTrading stopped listing and nothing was canceled",
+			}
 		}
 		next := page.NextPageToken
+		sentTokens[next] = true
 		pageToken = &next
 	}
 	var failures []error

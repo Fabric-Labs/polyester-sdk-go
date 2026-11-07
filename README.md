@@ -547,6 +547,8 @@ scope: it lists the live triggers (created, armed, running, paused, every
 page), cancels each, then cancels all orders, in that order so an order a
 trigger places before its cancel is still canceled. A failed trigger cancel
 is listed in `FailedTriggers` and returned as an error after the cancel-all.
+A failed listing, including one whose page token repeats an earlier page,
+returns its error before anything is canceled.
 
 A cancel of an order that has already ended, a repeat of the cancel that
 ended it included, fails with `ERROR_CODE_ORDER_ALREADY_TERMINAL`:
