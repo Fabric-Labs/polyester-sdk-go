@@ -54,7 +54,7 @@ func (s *LifecycleService) ListFlows(ctx context.Context, limit int, pageToken *
 		}
 	}
 	if ownerAccountID != nil {
-		id, err := codecs.IDToInt(*ownerAccountID, "owner_account_id")
+		id, err := codecs.ParseAccountID(*ownerAccountID, "owner_account_id")
 		if err != nil {
 			return models.LifecycleFlowsList{}, err
 		}

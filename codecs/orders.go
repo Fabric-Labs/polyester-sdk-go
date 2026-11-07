@@ -63,12 +63,13 @@ func FormatExpireAt(ts *timestamppb.Timestamp) string {
 	return t.Format(time.RFC3339Nano)
 }
 
-// ParseOptionalSubaccountID parses optional subaccount id to uint64.
+// ParseOptionalSubaccountID parses an optional sub-account ID to uint64, nil
+// when unset. An ID that decodes to 0 is refused, as ParseAccountID does.
 func ParseOptionalSubaccountID(value *string) (*uint64, error) {
 	if value == nil || *value == "" {
 		return nil, nil
 	}
-	parsed, err := IDToInt(*value, "sub_account_id")
+	parsed, err := ParseAccountID(*value, "sub_account_id")
 	if err != nil {
 		return nil, err
 	}
@@ -309,7 +310,7 @@ func PreviewOrderToProto(req models.CreateOrderRequest, quantityScale, quoteQuan
 	}
 	proto := &orderv1.PreviewOrderRequest{Order: intent}
 	if req.SubAccountID != nil {
-		sub, err := IDToInt(*req.SubAccountID, "sub_account_id")
+		sub, err := ParseAccountID(*req.SubAccountID, "sub_account_id")
 		if err != nil {
 			return nil, err
 		}
@@ -326,7 +327,7 @@ func CreateOrderToProto(req models.CreateOrderRequest, quantityScale, quoteQuant
 	}
 	proto := &orderv1.CreateOrderRequest{Order: intent}
 	if req.SubAccountID != nil {
-		sub, err := IDToInt(*req.SubAccountID, "sub_account_id")
+		sub, err := ParseAccountID(*req.SubAccountID, "sub_account_id")
 		if err != nil {
 			return nil, err
 		}
@@ -367,7 +368,7 @@ func ModifyOrderToProto(
 		return nil, err
 	}
 	if subAccountID != nil {
-		sub, err := IDToInt(*subAccountID, "sub_account_id")
+		sub, err := ParseAccountID(*subAccountID, "sub_account_id")
 		if err != nil {
 			return nil, err
 		}
@@ -439,7 +440,7 @@ func CancelAllOrdersToProto(subAccountID *string, symbolIDs []uint32, side *stri
 		SymbolIds: unique,
 	}
 	if subAccountID != nil {
-		sub, err := IDToInt(*subAccountID, "sub_account_id")
+		sub, err := ParseAccountID(*subAccountID, "sub_account_id")
 		if err != nil {
 			return nil, err
 		}
@@ -472,7 +473,7 @@ func CancelAllAfterToProto(subAccountID *string, timeoutSec int, symbolID *uint3
 		TimeoutSec: uint32(timeoutSec),
 	}
 	if subAccountID != nil {
-		sub, err := IDToInt(*subAccountID, "sub_account_id")
+		sub, err := ParseAccountID(*subAccountID, "sub_account_id")
 		if err != nil {
 			return nil, err
 		}

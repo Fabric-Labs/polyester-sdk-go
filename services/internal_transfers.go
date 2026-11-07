@@ -72,13 +72,13 @@ func (s *InternalTransfersService) Create(ctx context.Context, assetID uint32, q
 	}
 	switch {
 	case hasAccount:
-		id, err := codecs.IDToInt(*destinationAccountID, "destination_account_id")
+		id, err := codecs.ParseAccountID(*destinationAccountID, "destination_account_id")
 		if err != nil {
 			return models.InternalTransferResult{}, err
 		}
 		req.Destination = &transferv1.CreateInternalTransferRequest_DestinationAccountId{DestinationAccountId: id}
 	case hasSubaccount:
-		id, err := codecs.IDToInt(*destinationSubaccountID, "destination_subaccount_id")
+		id, err := codecs.ParseAccountID(*destinationSubaccountID, "destination_subaccount_id")
 		if err != nil {
 			return models.InternalTransferResult{}, err
 		}
