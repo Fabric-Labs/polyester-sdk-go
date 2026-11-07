@@ -7,6 +7,7 @@ Git tag: `v0.9.0`. Released 2026-11-07. Built on public contract `748066a`.
 - `Orderbook.CreateSubscription` at a depth the server doesn't publish no longer goes silent after its first view. Depths 5, 10, 25 and 100, for example, were accepted by the server and got no updates, with no error. Any depth from 1 to 500 now subscribes to the smallest published depth that covers it (1, 20, 50, 200 or 500), takes its snapshot there, and trims each view to the depth you asked for. Sequence-gap, availability and bucket behaviour are unchanged, and a view can update when only levels outside it changed.
 - **Breaking:** `Orderbook.CreateSubscription` returns `*errors.ValidationError` before connecting for a depth above 500, which used to be clamped to 500 and report that depth, and for a negative depth, which used to mean 50. A depth of 0 still means 50. Migration: pass a depth from 1 to 500, or read a snapshot of up to 1000 levels with `Orderbook.Get`, which is unchanged.
 - **Breaking:** `Orderbook.SubscribeDeltas` returns `*errors.ValidationError` before connecting for any depth other than 1, 20, 50, 200 or 500, instead of subscribing to a stream that sends nothing or clamping to 1 or 500. Raw deltas can't be trimmed. Migration: pass a published depth, or use `Orderbook.CreateSubscription` for a book at any depth up to 500.
+- Added `codecs.OrderbookStreamDepths`, `codecs.OrderbookStreamTier` and `codecs.RequirePublishedStreamDepth`, the published stream depths and the checks the client uses.
 
 ## 0.8.0
 
