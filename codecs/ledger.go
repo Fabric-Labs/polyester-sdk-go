@@ -7,7 +7,7 @@ import (
 	ledgerrdv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
 )
 
-// LedgerScale is the default u128 ledger decimal scale.
+// LedgerScale is the fixed decimal scale of u128 ledger balance amounts.
 const LedgerScale = 18
 
 var balanceRangeToProto = map[string]ledgerrdv1.BalanceRange{
@@ -45,12 +45,10 @@ func ResolveEquityGroupBy(groupBy string) (ledgerrdv1.EquityGroupBy, error) {
 }
 
 // FormatLedgerU128 formats a ledger u128 wire decimal string.
-// Scale must be in [0, MaxProtocolScale] (0 defaults to LedgerScale). Larger
-// values return a ValidationError instead of allocating pathological padding.
+// Scale must be in [0, MaxProtocolScale]; 0 is a real scale (whole units), so
+// pass LedgerScale explicitly for 18-decimal balances. Out-of-range values
+// return a ValidationError instead of allocating pathological padding.
 func FormatLedgerU128(raw string, scale int) (string, error) {
-	if scale <= 0 {
-		scale = LedgerScale
-	}
 	if err := ValidateProtocolScale(scale); err != nil {
 		return "", err
 	}

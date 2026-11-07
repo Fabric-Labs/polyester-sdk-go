@@ -68,3 +68,42 @@ func TestQtyScaledFormatRejectsAboveMax(t *testing.T) {
 		t.Fatalf("want ValidationError, got %v", err)
 	}
 }
+
+func TestFormatLedgerU128HonoursZeroScale(t *testing.T) {
+	cases := []struct {
+		raw   string
+		scale int
+		want  string
+	}{
+		{"3582802", 0, "3582802"},
+		{"2232802", 0, "2232802"},
+		{"0", 0, "0"},
+		{"340282366920938463463374607431768211455", 0, "340282366920938463463374607431768211455"},
+		{"1500000", 6, "1.5"},
+		{"150000000", 8, "1.5"},
+		{"1500000000000000000", 18, "1.5"},
+	}
+	for _, tc := range cases {
+		got, err := FormatLedgerU128(tc.raw, tc.scale)
+		if err != nil || got != tc.want {
+			t.Errorf("FormatLedgerU128(%q, %d)=%q, %v want %q", tc.raw, tc.scale, got, err, tc.want)
+		}
+	}
+}
+
+func TestFormatLedgerU128RejectsNegativeScale(t *testing.T) {
+	if got, err := FormatLedgerU128("1", -1); err == nil {
+		t.Fatalf("negative scale formatted as %q; want validation error", got)
+	}
+}
+
+func TestStrToU128ProtoHonoursZeroScale(t *testing.T) {
+	got := StrToU128Proto("5", 0)
+	if got.GetHi() != 0 || got.GetLo() != 5 {
+		t.Fatalf("StrToU128Proto(5, 0)=%v want lo=5", got)
+	}
+	got = StrToU128Proto("1.5", 6)
+	if got.GetHi() != 0 || got.GetLo() != 1_500_000 {
+		t.Fatalf("StrToU128Proto(1.5, 6)=%v want lo=1500000", got)
+	}
+}
