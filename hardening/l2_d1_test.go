@@ -29,6 +29,7 @@ func (h *getOrderSeq) GetOrder(context.Context, *connect.Request[orderv1.GetOrde
 	order := &orderv1.Order{
 		OrderId:      1,
 		SymbolId:     1,
+		Status:       orderv1.OrderStatus_FILLED,
 		CumQtyScaled: 100,
 	}
 	if n == 1 {

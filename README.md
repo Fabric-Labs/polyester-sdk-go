@@ -663,6 +663,29 @@ if used, ok := detail.Order.QuoteUsed(baseScale); ok {
 }
 ```
 
+### Waiting for an order's trades
+
+An order shows a fill as soon as it executes; its trades are recorded shortly
+after. `Orders.WaitForOrderTradesComplete` polls `GetOrder`, every execution
+page included, until the order has ended (`Status` `filled`, `canceled` or
+`rejected`) and its trades add up to `CumQty`, then returns that read. It
+reports completion at the same point as the Python and Rust SDKs.
+`ExecutionsComplete` alone is not completion: it is also true for a working
+order whose fills so far are all recorded, for example after a partial fill.
+A working order keeps the wait polling until it ends or the timeout passes;
+the timeout returns the last read with an error that wraps
+`context.DeadlineExceeded`. To check the trades recorded so far on an order
+that is still working, read it with `Orders.Get` and compare its trades to
+`CumQty`.
+
+```go
+detail, err := client.Orders.WaitForOrderTradesComplete(ctx, nil, models.OrderKeyByID(orderID), nil, 20*time.Second)
+if err != nil {
+	return err
+}
+fmt.Println(detail.Order.Status, len(detail.Trades), "trades")
+```
+
 An attached trailing stop's `LimitPrice` is checked before sending on
 creates, previews and batch creates, and refused with the server's code and
 violation on `order.attached_risk.trailing_stop.limit_price_ticks`: set on a
