@@ -613,10 +613,20 @@ func (s *OrdersService) Subscribe(ctx context.Context, accountID any) (*realtime
 }
 
 // WaitForOrderTradesComplete polls GetOrder until the sum of returned trade
-// quantities equals the order's cumulative filled quantity, or the timeout elapses.
+// quantities equals the order's cumulative filled quantity, or the timeout
+// elapses. A timeout of zero or less waits 15 s.
 //
-// Trade projection can lag the order filled/cum qty fields (POLY-3750); use this
-// helper when fills must be fully projected before continuing.
+// Trade projection can lag the order filled/cum qty fields; use this helper
+// when fills must be fully projected before continuing. Each poll reads every
+// execution page, and the result carries the order, trades and transfers of
+// the last poll with that read's ExecutionsComplete.
+//
+// The timeout bounds the whole wait, page reads included: a read still in
+// flight when it passes is abandoned, and the wait returns the last poll's
+// result with an error that wraps context.DeadlineExceeded. A
+// next_page_token that repeats a page token of the same poll returns
+// *errors.ResponseContractError. A ctx cancellation or deadline returns
+// ctx.Err().
 func (s *OrdersService) WaitForOrderTradesComplete(
 	ctx context.Context,
 	account AccountScope,
@@ -628,37 +638,57 @@ func (s *OrdersService) WaitForOrderTradesComplete(
 		timeout = 15 * time.Second
 	}
 	deadline := time.Now().Add(timeout)
+	waitCtx, cancel := context.WithDeadline(ctx, deadline)
+	defer cancel()
+	// expired reports the wait's own deadline as passed. A page read it cuts
+	// short can fail before waitCtx says so: Connect sends the server the
+	// remaining time in whole milliseconds, so the server's copy of the
+	// deadline can pass up to 1 ms earlier.
+	expired := func() bool {
+		return waitCtx.Err() != nil || time.Until(deadline) < time.Millisecond
+	}
 	var last models.GetOrderResult
-	for {
-		if err := ctx.Err(); err != nil {
-			return last, err
+	timedOut := func() error {
+		cum := int64(0)
+		if last.Order != nil {
+			cum = last.Order.CumQty.Scaled()
 		}
-		detail, err := s.getOrderExecutionPages(ctx, account, key, subAccountID)
-		if err != nil {
+		return fmt.Errorf(
+			"order trades not complete within %s: cum_qty=%d trade_qty_sum=%d trades=%d: %w",
+			timeout, cum, sumTradeQty(last.Trades), len(last.Trades), context.DeadlineExceeded,
+		)
+	}
+	for {
+		detail, err := s.getOrderExecutionPages(waitCtx, account, key, subAccountID)
+		switch {
+		case ctx.Err() != nil:
+			return last, ctx.Err()
+		case err != nil && expired():
+			// The timeout cut a page read short.
+			return last, timedOut()
+		case err != nil:
 			return last, err
 		}
 		last = detail
 		if detail.Order != nil && orderTradesComplete(detail) {
 			return detail, nil
 		}
-		if time.Now().After(deadline) {
-			cum := int64(0)
-			if detail.Order != nil {
-				cum = detail.Order.CumQty.Scaled()
-			}
-			return last, fmt.Errorf(
-				"order trades not complete within %s: cum_qty=%d trade_qty_sum=%d trades=%d",
-				timeout, cum, sumTradeQty(detail.Trades), len(detail.Trades),
-			)
-		}
+		timer := time.NewTimer(100 * time.Millisecond)
 		select {
-		case <-ctx.Done():
-			return last, ctx.Err()
-		case <-time.After(100 * time.Millisecond):
+		case <-waitCtx.Done():
+			timer.Stop()
+			if ctx.Err() != nil {
+				return last, ctx.Err()
+			}
+			return last, timedOut()
+		case <-timer.C:
 		}
 	}
 }
 
+// getOrderExecutionPages reads one order with every page of its execution
+// history and returns the order, the trades and transfers of all pages, and
+// the final page's ExecutionsComplete.
 func (s *OrdersService) getOrderExecutionPages(
 	ctx context.Context,
 	account AccountScope,
@@ -670,6 +700,7 @@ func (s *OrdersService) getOrderExecutionPages(
 	var trades []models.UserTrade
 	var transfers []models.OrderTransfer
 	var order *models.Order
+	requested := map[string]bool{}
 	for {
 		page, err := s.Get(ctx, account, key, subAccountID, false, false, models.GetOrderOptions{
 			IncludeExecutionHistory: &includeHistory,
@@ -688,12 +719,20 @@ func (s *OrdersService) getOrderExecutionPages(
 		transfers = append(transfers, page.Transfers...)
 		if page.NextPageToken == "" {
 			return models.GetOrderResult{
-				Order:     order,
-				Trades:    trades,
-				Transfers: transfers,
+				Order:              order,
+				Trades:             trades,
+				Transfers:          transfers,
+				ExecutionsComplete: page.ExecutionsComplete,
 			}, nil
 		}
+		if requested[page.NextPageToken] {
+			return models.GetOrderResult{}, &sdkerrors.ResponseContractError{
+				Operation: "GetOrder",
+				Msg:       "next_page_token repeats an earlier page token",
+			}
+		}
 		token := page.NextPageToken
+		requested[token] = true
 		pageToken = &token
 	}
 }

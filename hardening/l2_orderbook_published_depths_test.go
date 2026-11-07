@@ -186,16 +186,19 @@ func (m *tierMarket) serveWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	channel := string(command[start : start+int(command[start-1])])
-	if err = conn.WriteMessage(websocket.BinaryMessage, hardening.CentrifugoOKReply(2)); err != nil {
+	// Register before acknowledging, as a real server does: the client acts
+	// as soon as the reply arrives, and a publication sent from then on
+	// must reach this connection.
+	entry := &tierConn{conn: conn}
+	m.mu.Lock()
+	m.conns[channel] = append(m.conns[channel], entry)
+	m.mu.Unlock()
+	if err = entry.write(hardening.CentrifugoOKReply(2)); err != nil {
 		return
 	}
 	if m.afterSubscribeReply != nil {
 		m.afterSubscribeReply()
 	}
-	entry := &tierConn{conn: conn}
-	m.mu.Lock()
-	m.conns[channel] = append(m.conns[channel], entry)
-	m.mu.Unlock()
 	m.subscribed <- channel
 	for {
 		if _, _, err = conn.ReadMessage(); err != nil {

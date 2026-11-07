@@ -456,7 +456,9 @@ func runWaitSchedule(t *testing.T, seed uint64) {
 			t.Fatalf("%s: unexpected contract error: %v", replay, err)
 		}
 	case isTradesWaitTimeout(err) && ctx.Err() == nil:
-		if s.outcome != "timeout" && time.Now().Before(deadline) {
+		// Connect sends the server the remaining time in whole
+		// milliseconds, so a read can time out up to 1 ms early.
+		if s.outcome != "timeout" && time.Now().Before(deadline.Add(-time.Millisecond)) {
 			t.Fatalf("%s: timed out after %s, before the deadline: %v", replay, elapsed, err)
 		}
 	default:

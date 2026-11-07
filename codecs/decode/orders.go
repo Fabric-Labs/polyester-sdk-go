@@ -33,6 +33,7 @@ func OrderFromProto(msg *orderv1.Order) models.Order {
 		Price:           codecs.DecodePriceTicks(msg.GetPriceTicks(), ""),
 		AvgPx:           codecs.DecodePriceTicks(msg.GetAvgPriceTicks(), ""),
 		CreatedTsNs:     strconv.FormatUint(msg.GetCreatedTsNs(), 10),
+		TerminalTsNs:    optionalTsNs(msg.GetTerminalTsNs()),
 		Version:         msg.GetVersion(),
 		PostOnly:        msg.GetPostOnly(),
 		FeeAsset:        feeAssetName(msg.GetFeeAsset()),
@@ -42,14 +43,18 @@ func OrderFromProto(msg *orderv1.Order) models.Order {
 		SubmittedMaxQuoteDebitScaled: optionalScaledString(
 			msg.SubmittedMaxQuoteDebitScaled,
 		),
-		AttachedRisk: attachedRiskFromProto(msg.GetAttachedRisk()),
-		Lineage:      orderLineageFromProto(msg.GetLineage()),
-		ExpireAt:     codecs.FormatExpireAt(msg.GetExpireAt()),
-		RejectReason: orderRejectReasonLabel(msg.GetRejectReason()),
-		CancelReason: OrderCancelReasonLabel(msg.GetCancelReason()),
-		AvgPriceE18:  u128(msg.GetAvgPriceE18()),
-		CumNotional:  u128(msg.GetCumNotional()),
-		FeeTotal:     orderFeeTotalFromProto(msg.GetFeeTotal(), sid),
+		AttachedRisk:         attachedRiskFromProto(msg.GetAttachedRisk()),
+		Lineage:              orderLineageFromProto(msg.GetLineage()),
+		Origin:               orderOriginFromProto(msg.GetOrigin()),
+		MarketClientRefPrice: optionalPriceTicks(msg.GetMarketClientRefPriceTicks()),
+		MarketMaxSlippage:    optionalPriceTicks(msg.GetMarketMaxSlippageTicks()),
+		MarketMaxSlippageBps: msg.GetMarketMaxSlippageBps(),
+		ExpireAt:             codecs.FormatExpireAt(msg.GetExpireAt()),
+		RejectReason:         orderRejectReasonLabel(msg.GetRejectReason()),
+		CancelReason:         OrderCancelReasonLabel(msg.GetCancelReason()),
+		AvgPriceE18:          u128(msg.GetAvgPriceE18()),
+		CumNotional:          u128(msg.GetCumNotional()),
+		FeeTotal:             orderFeeTotalFromProto(msg.GetFeeTotal(), sid),
 	}
 }
 
@@ -80,6 +85,44 @@ func orderRejectReasonLabel(code orderv1.ErrorCode) string {
 		return ""
 	}
 	return errorCodeName(code)
+}
+
+// optionalTsNs formats a Unix-nanosecond timestamp; "" when unset (zero).
+func optionalTsNs(tsNs uint64) string {
+	if tsNs == 0 {
+		return ""
+	}
+	return strconv.FormatUint(tsNs, 10)
+}
+
+// optionalPriceTicks decodes a price that zero (or less) leaves unset.
+func optionalPriceTicks(ticks int64) *models.PriceTicks {
+	if ticks <= 0 {
+		return nil
+	}
+	price := codecs.DecodePriceTicks(ticks, "")
+	return &price
+}
+
+func orderOriginFromProto(msg *orderv1.OrderOrigin) *models.OrderOrigin {
+	if msg == nil {
+		return nil
+	}
+	out := &models.OrderOrigin{
+		Scope:       codecs.ProtoEnumName(msg.GetScope(), msg.GetScope().Number()),
+		TriggerType: codecs.ProtoEnumName(msg.GetTriggerType(), msg.GetTriggerType().Number()),
+		ChildSeq:    msg.GetChildSeq(),
+	}
+	if msg.TriggerId != nil {
+		out.TriggerID = codecs.FormatUint64ID(msg.GetTriggerId())
+	}
+	if msg.ParentOrderId != nil {
+		out.ParentOrderID = codecs.FormatUint64ID(msg.GetParentOrderId())
+	}
+	if *out == (models.OrderOrigin{}) {
+		return nil
+	}
+	return out
 }
 
 func orderLineageFromProto(msg *orderv1.OrderLineage) *models.OrderLineage {

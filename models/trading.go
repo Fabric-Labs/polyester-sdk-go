@@ -30,9 +30,12 @@ type Order struct {
 	Price           PriceTicks `json:"price,omitempty"`
 	AvgPx           PriceTicks `json:"avg_px,omitempty"`
 	CreatedTsNs     string     `json:"created_ts_ns,omitempty"`
-	Version         uint32     `json:"version,omitempty"`
-	PostOnly        bool       `json:"post_only,omitempty"`
-	FeeAsset        string     `json:"fee_asset,omitempty"`
+	// TerminalTsNs is when the order became terminal, in nanoseconds since
+	// the Unix epoch (UTC) as a decimal string. Empty while the order is open.
+	TerminalTsNs string `json:"terminal_ts_ns,omitempty"`
+	Version      uint32 `json:"version,omitempty"`
+	PostOnly     bool   `json:"post_only,omitempty"`
+	FeeAsset     string `json:"fee_asset,omitempty"`
 	// SelfTradePreventionMode is "expire_maker", "expire_taker" or
 	// "expire_both"; empty when the server does not report it, and
 	// "unknown(N)" for a mode newer than this SDK.
@@ -41,6 +44,17 @@ type Order struct {
 	SubmittedMaxQuoteDebitScaled string        `json:"submitted_max_quote_debit_scaled,omitempty"`
 	AttachedRisk                 *AttachedRisk `json:"attached_risk,omitempty"`
 	Lineage                      *OrderLineage `json:"lineage,omitempty"`
+	// Origin is how the order was created: directly, or as the child of a
+	// trigger or attached-risk leg. Nil when the server does not report it.
+	Origin *OrderOrigin `json:"origin,omitempty"`
+	// MarketClientRefPrice is the reference price a MARKET order's
+	// slippage protection was measured from; nil when none was supplied.
+	MarketClientRefPrice *PriceTicks `json:"market_client_ref_price,omitempty"`
+	// MarketMaxSlippage (an absolute price distance) or MarketMaxSlippageBps
+	// is a MARKET order's maximum slippage. Nil and zero when the order has
+	// no cap of that form.
+	MarketMaxSlippage    *PriceTicks `json:"market_max_slippage,omitempty"`
+	MarketMaxSlippageBps int32       `json:"market_max_slippage_bps,omitempty"`
 	// ExpireAt is the RFC3339 UTC expiry for GTD orders. Empty for every other TIF.
 	ExpireAt string `json:"expire_at,omitempty"`
 	// RejectReason is why a rejected order was refused, named as the order
@@ -71,6 +85,24 @@ type Order struct {
 	// default) carry it; open-order reads, single-order reads without
 	// execution history and order stream updates leave it nil.
 	FeeTotal *OrderFeeTotal `json:"fee_total,omitempty"`
+}
+
+// OrderOrigin is how an order was created.
+//
+// Scope is "direct", "attached_risk", "standalone_trigger" or "system", and
+// "unknown(N)" for a scope newer than this SDK. TriggerType names the trigger
+// strategy that placed the order ("stop_loss", "take_profit",
+// "trailing_stop", "twap" or "ladder") and is empty for a direct order.
+// TriggerID is that trigger, ParentOrderID the parent order of an
+// attached-risk child, and ChildSeq the child's sequence number in a
+// multi-child strategy such as a TWAP; each is empty or zero when it does not
+// apply.
+type OrderOrigin struct {
+	Scope         string `json:"scope,omitempty"`
+	TriggerType   string `json:"trigger_type,omitempty"`
+	TriggerID     string `json:"trigger_id,omitempty"`
+	ParentOrderID string `json:"parent_order_id,omitempty"`
+	ChildSeq      uint32 `json:"child_seq,omitempty"`
 }
 
 // OrderFeeTotal is the net fee of an order's fills in the order's FeeAsset.
