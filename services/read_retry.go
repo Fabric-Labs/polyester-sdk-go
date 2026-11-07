@@ -37,8 +37,12 @@ func retryUnavailable[Req any, Resp any](
 		attempt := req
 		for {
 			resp, err := call(ctx, attempt)
-			if err == nil || ctx.Err() != nil || (connect.CodeOf(err) != connect.CodeUnavailable && connect.CodeOf(err) != connect.CodeDeadlineExceeded) {
+			if err == nil || (connect.CodeOf(err) != connect.CodeUnavailable && connect.CodeOf(err) != connect.CodeDeadlineExceeded) {
 				return resp, err
+			}
+			if ctx.Err() != nil {
+				// The answer would be retried; only the caller ended the read.
+				return nil, ctx.Err()
 			}
 			if time.Since(started)+delay > policy.budget {
 				return nil, err
