@@ -204,6 +204,7 @@ func (s *TriggersService) Resume(ctx context.Context, account AccountScope, trig
 }
 
 // Modify patches a trigger. symbol and symbolID are optional, as for Resume.
+// When either is given, a price bound to another market is refused.
 func (s *TriggersService) Modify(ctx context.Context, account AccountScope, triggerID string, subAccountID, symbol *string, symbolID *uint32, opts codecs.ModifyTriggerOptions) (models.TriggerMutationResult, error) {
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {
@@ -213,7 +214,17 @@ func (s *TriggersService) Modify(ctx context.Context, account AccountScope, trig
 	if err != nil {
 		return models.TriggerMutationResult{}, err
 	}
-	req, err := codecs.ModifyTriggerToProto(triggerID, resolvedSymbolID, sub, opts)
+	// The market's name is needed to refuse a price bound to another market.
+	market := ""
+	if resolvedSymbolID != 0 && s.catalogs != nil && hasBoundPrice(opts.TriggerPrice, opts.ActivationPrice) {
+		if err := s.ensureCatalogs(ctx); err != nil {
+			return models.TriggerMutationResult{}, err
+		}
+		if canonical := s.catalogs.SymbolForSymbolID(resolvedSymbolID); canonical != nil {
+			market = *canonical
+		}
+	}
+	req, err := codecs.ModifyTriggerToProto(triggerID, resolvedSymbolID, market, sub, opts)
 	if err != nil {
 		return models.TriggerMutationResult{}, err
 	}
@@ -258,4 +269,17 @@ func (s *TriggersService) Subscribe(ctx context.Context, accountID any) (*realti
 
 func (s *TriggersService) SubscribeEvents(ctx context.Context, accountID any) (*realtime.Subscription[models.TriggerEvent], error) {
 	return SubscribeAccountProtoBatch(ctx, s.realtime, "private:spot:triggers:events:{account_id}:proto", accountID, s.defaultAccountID, decode.TriggerEventBatchFromBytes)
+}
+
+// hasBoundPrice reports whether any price carries a market binding.
+func hasBoundPrice(prices ...*models.PriceInput) bool {
+	for _, price := range prices {
+		if price == nil {
+			continue
+		}
+		if ticks, ok := price.TicksValue(); ok && ticks.Symbol() != "" {
+			return true
+		}
+	}
+	return false
 }

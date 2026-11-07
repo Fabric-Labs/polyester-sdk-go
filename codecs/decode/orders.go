@@ -542,6 +542,15 @@ func modifyActionName(v orderv1.ModifyActionTaken) string {
 	}
 }
 
+// optionalOrderID formats an order ID the server may leave out: zero is no
+// order, so it stays empty instead of becoming "0".
+func optionalOrderID(id uint64) string {
+	if id == 0 {
+		return ""
+	}
+	return codecs.FormatID(id)
+}
+
 // CancelAllFromProto decodes cancel all response.
 func CancelAllFromProto(msg *orderv1.CancelAllOrdersResponse) (models.CancelAllOrdersResult, error) {
 	status := cancelAllStatusName(msg.GetStatus())
@@ -637,8 +646,8 @@ func BatchReplaceFromProto(msg *orderv1.BatchReplaceOrdersResponse) (models.Batc
 		results = append(results, models.BatchReplaceAdmissionItem{
 			ItemIndex:          item.GetItemIndex(),
 			Status:             itemStatus,
-			OldOrderID:         codecs.FormatUint64ID(item.GetOldOrderId()),
-			ReplacementOrderID: codecs.FormatUint64ID(item.GetReplacementOrderId()),
+			OldOrderID:         optionalOrderID(item.GetOldOrderId()),
+			ReplacementOrderID: optionalOrderID(item.GetReplacementOrderId()),
 			ClientOrderID:      item.GetClientOrderId(),
 			Code:               item.GetCode(),
 			ActionTaken:        modifyActionName(item.GetActionTaken()),

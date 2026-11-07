@@ -467,8 +467,9 @@ type ModifyTriggerOptions struct {
 }
 
 // ModifyTriggerToProto encodes a trigger patch. A zero symbolID targets the
-// trigger's own market.
-func ModifyTriggerToProto(triggerID string, symbolID uint32, subAccountID *string, opts ModifyTriggerOptions) (*triggersv1.ModifyTriggerRequest, error) {
+// trigger's own market. symbol is that market's name when known: a price bound
+// to another market is refused. Pass "" when the market is not known.
+func ModifyTriggerToProto(triggerID string, symbolID uint32, symbol string, subAccountID *string, opts ModifyTriggerOptions) (*triggersv1.ModifyTriggerRequest, error) {
 	if (opts.TriggerPrice == nil || !opts.TriggerPrice.IsSet()) &&
 		opts.TrailingDistanceTicks == nil && opts.TrailingDistanceBps == nil &&
 		(opts.ActivationPrice == nil || !opts.ActivationPrice.IsSet()) &&
@@ -494,7 +495,7 @@ func ModifyTriggerToProto(triggerID string, symbolID uint32, subAccountID *strin
 		req.SubaccountId = &sub
 	}
 	if opts.TriggerPrice != nil && opts.TriggerPrice.IsSet() {
-		ticks, err := ResolvePriceTicks(*opts.TriggerPrice, "trigger_price", "")
+		ticks, err := ResolvePriceTicks(*opts.TriggerPrice, "trigger_price", symbol)
 		if err != nil {
 			return nil, err
 		}
@@ -510,7 +511,7 @@ func ModifyTriggerToProto(triggerID string, symbolID uint32, subAccountID *strin
 		req.TrailingDistance = &triggersv1.ModifyTriggerRequest_TrailingDistanceBps{TrailingDistanceBps: *opts.TrailingDistanceBps}
 	}
 	if opts.ActivationPrice != nil && opts.ActivationPrice.IsSet() {
-		ticks, err := ResolvePriceTicks(*opts.ActivationPrice, "activation_price", "")
+		ticks, err := ResolvePriceTicks(*opts.ActivationPrice, "activation_price", symbol)
 		if err != nil {
 			return nil, err
 		}

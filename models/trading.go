@@ -307,8 +307,11 @@ type CancelledOrder struct {
 
 // BatchReplaceAdmissionItem is one admission outcome from batch_replace.
 type BatchReplaceAdmissionItem struct {
-	ItemIndex          uint32 `json:"item_index"`
-	Status             string `json:"status"`
+	ItemIndex uint32 `json:"item_index"`
+	Status    string `json:"status"`
+	// OldOrderID and ReplacementOrderID are empty when the server sent none:
+	// an amended or rejected item has no successor, and an item refused by
+	// client order ID may name no order.
 	OldOrderID         string `json:"old_order_id,omitempty"`
 	ReplacementOrderID string `json:"replacement_order_id,omitempty"`
 	ClientOrderID      string `json:"client_order_id,omitempty"`
