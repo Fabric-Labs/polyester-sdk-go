@@ -184,7 +184,7 @@ func TestL2OrderbookCloseStopsRerequests(t *testing.T) {
 // A managed order book the server ends releases its consumers with the typed
 // error, after delivering what is queued.
 func TestL2OrderbookServerUnsubscribeReleasesConsumers(t *testing.T) {
-	const channel = "public:spot:orderbook:deltas:depth:10:1:proto"
+	const channel = "public:spot:orderbook:deltas:depth:20:1:proto"
 	frames := make(chan []byte, 4)
 	ws := hardening.SpawnCentrifugoFrames(nil, frames)
 	t.Cleanup(ws.Close)

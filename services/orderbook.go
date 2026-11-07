@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"math"
 	"sync"
 	"time"
 
@@ -81,16 +80,24 @@ type CreateSubscriptionOptions struct {
 }
 
 // CreateSubscription starts snapshot-then-stream orderbook merging.
+//
+// opts.Depth is any level count from 1 to the deepest published stream tier, and
+// 0 means 50. The book rides the smallest tier covering it, snapshot included,
+// and each view is trimmed to it; a depth no tier covers is a ValidationError
+// before connecting.
 func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSubscriptionOptions) (*orderbook.Subscription, error) {
 	if err := requireRealtime(s.realtime); err != nil {
 		return nil, err
 	}
 	symbol := opts.Symbol
 	depth := opts.Depth
-	if depth <= 0 {
+	if depth == 0 {
 		depth = 50
 	}
-	wsDepth := int(math.Min(500, math.Max(1, float64(depth))))
+	streamDepth, err := codecs.OrderbookStreamTier(depth)
+	if err != nil {
+		return nil, err
+	}
 	resolvedSymbolID := opts.SymbolID
 	if resolvedSymbolID == nil {
 		resolvedSymbolID = s.catalogs.SymbolIDForSymbol(symbol)
@@ -102,7 +109,7 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 	if catalogID != nil && *catalogID != *resolvedSymbolID {
 		return nil, &errors.ValidationError{Msg: fmt.Sprintf("orderbook symbol %q does not match symbol_id %d", symbol, *resolvedSymbolID)}
 	}
-	channel := fmt.Sprintf("public:spot:orderbook:deltas:depth:%d:%d:proto", wsDepth, *resolvedSymbolID)
+	channel := fmt.Sprintf("public:spot:orderbook:deltas:depth:%d:%d:proto", streamDepth, *resolvedSymbolID)
 
 	quantityScale, ok := s.catalogs.BaseQuantityScaleForSymbol(symbol)
 	if !ok {
@@ -136,7 +143,7 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 			mu.Unlock()
 			return
 		}
-		data, err := orderbook.BuildOrderbookData(symbol, wsDepth, currentBookSeq, bids, asks, bucketTicks, quantityScale)
+		data, err := orderbook.BuildOrderbookData(symbol, depth, currentBookSeq, bids, asks, bucketTicks, quantityScale)
 		data.Available = bookAvailable
 		lastViewUnavailable = !bookAvailable
 		localSub := subscription
@@ -224,7 +231,9 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		OnSnapshotRefresh: opts.OnSnapshotRefresh,
 		OnError:           opts.OnError,
 		FetchSnapshot: func(fetchCtx context.Context) (models.OrderbookData, error) {
-			name := codecs.DepthToConnectEnum(wsDepth)
+			// At the tier, not the requested depth: deltas diff the tier's whole
+			// view, and a level promoted into a trimmed view must already be known.
+			name := codecs.DepthToConnectEnum(streamDepth)
 			v, ok := orderbookv1.Depth_value[name]
 			if !ok {
 				return models.OrderbookData{}, &errors.ValidationError{Msg: "unsupported orderbook depth"}
@@ -244,7 +253,7 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 				asks = nextAsks
 				currentBookSeq = int(msg.GetBookSeq())
 				bookAvailable = msg.GetAvailable()
-				data, err := orderbook.BuildOrderbookData(symbol, wsDepth, currentBookSeq, bids, asks, bucketTicks, quantityScale)
+				data, err := orderbook.BuildOrderbookData(symbol, depth, currentBookSeq, bids, asks, bucketTicks, quantityScale)
 				data.Available = bookAvailable
 				mu.Unlock()
 				return data, err
@@ -289,9 +298,14 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 	return subscription, nil
 }
 
+// SubscribeDeltas delivers the raw deltas of one published stream depth,
+// codecs.OrderbookStreamDepths; any other depth is a ValidationError.
 func (s *OrderbookService) SubscribeDeltas(ctx context.Context, symbolID uint32, depth int) (*realtime.Subscription[models.OrderBookDeltaUpdate], error) {
-	wsDepth := int(math.Min(500, math.Max(1, float64(depth))))
-	channel := fmt.Sprintf("public:spot:orderbook:deltas:depth:%d:%d:proto", wsDepth, symbolID)
+	streamDepth, err := codecs.RequirePublishedStreamDepth(depth)
+	if err != nil {
+		return nil, err
+	}
+	channel := fmt.Sprintf("public:spot:orderbook:deltas:depth:%d:%d:proto", streamDepth, symbolID)
 	return SubscribePublicProto(ctx, s.realtime, channel, decode.OrderbookDeltaFromBytes)
 }
 

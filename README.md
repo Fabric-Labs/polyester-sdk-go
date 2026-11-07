@@ -1366,6 +1366,21 @@ for book := range ob.Updates() {
 }
 ```
 
+`Orderbook.Get` takes the snapshot depths 1, 5, 10, 20, 50, 100, 200, 500 and 1000.
+The delta stream is published at fewer depths, 1, 20, 50, 200 and 500
+(`codecs.OrderbookStreamDepths()`), and the server accepts a subscribe at any other
+depth and then sends nothing on it, so the SDK does not subscribe there:
+
+- `Orderbook.CreateSubscription` with `Depth: 10` takes any depth from 1 to 500, and
+  0 means 50. It rides the smallest published depth that covers it, 20 here, with its
+  snapshot, and trims each view to 10 levels. Its update rate is that of the depth it
+  rides, and each published update adds a view, also when only levels outside yours
+  changed. With `Bucket`, levels are aggregated first and the depth then counts
+  buckets. A depth above 500, or below 0, is an `*errors.ValidationError` before
+  connecting; for more than 500 levels, read a snapshot with `Orderbook.Get`.
+- `Orderbook.SubscribeDeltas` delivers raw deltas, which can't be trimmed, so it takes
+  only a published depth and returns `*errors.ValidationError` for any other.
+
 `OrderbookData.Available` is true when the book is current: its sides are its
 levels, and an empty side means no liquidity. It is false while the market's
 book is being built or after it was invalidated: its levels are unknown, not
