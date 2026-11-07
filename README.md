@@ -528,8 +528,8 @@ tests for it, and `errors.AuthErrorCode` still reads its code. Show "The
 owner's role can't be changed", and don't offer these actions for the member
 whose role is `OWNER`.
 Client order ids accept 1 to 36 ASCII letters, digits, `.`, `_`, `:`, `/`, and
-`-`. Batch create, cancel, and replace accept at most 20 items (rejected locally
-before encoding). `BatchCreate` always sends `request_id` (caller value or a
+`-`. Batch create accepts at most 20 items, and batch cancel and replace at most
+50 (rejected locally before encoding). `BatchCreate` always sends `request_id` (caller value or a
 generated `batch-create-*` key); that batch-level id is the idempotency
 boundary, so per-item `ClientOrderID` may be omitted. Duplicate non-empty
 per-item client order ids in one batch are rejected locally. Treat a cancel response as an admission acknowledgement and
@@ -687,7 +687,7 @@ supplied. `PairConstraints.MaxQuoteSlippage` is the largest absolute cap
 
 ### Batch replace reconciliation
 
-`Orders.BatchReplace` modifies up to 20 orders on one pair, each admitted or
+`Orders.BatchReplace` modifies up to 50 orders on one pair, each admitted or
 rejected on its own, and returns admission, not execution finality. Each item
 amends or replaces its order. An item that keeps the order's price, does not
 raise its total quantity and keeps its client order ID amends the order in

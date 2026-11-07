@@ -44,10 +44,10 @@ func TestAttachedTrailingStopCapsSlippageAt9999BpsOnEitherSide(t *testing.T) {
 
 func TestTriggerModifyCapsSlippageAt9999Bps(t *testing.T) {
 	full := int32(10_000)
-	_, err := ModifyTriggerToProto("1", 7, nil, ModifyTriggerOptions{MaxSlippageBps: &full})
+	_, err := ModifyTriggerToProto("1", 7, "", nil, ModifyTriggerOptions{MaxSlippageBps: &full})
 	wantValidation(t, err, "between 1 and 9999")
 	ok := int32(9_999)
-	if _, err := ModifyTriggerToProto("1", 7, nil, ModifyTriggerOptions{MaxSlippageBps: &ok}); err != nil {
+	if _, err := ModifyTriggerToProto("1", 7, "", nil, ModifyTriggerOptions{MaxSlippageBps: &ok}); err != nil {
 		t.Fatalf("modify accepts 9999 bps: %v", err)
 	}
 }

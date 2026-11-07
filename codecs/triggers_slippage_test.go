@@ -135,14 +135,14 @@ func TestTrailingStopSlippageCapValidation(t *testing.T) {
 func TestModifyTriggerSlippageCap(t *testing.T) {
 	ticks := int64(5)
 	bps := int32(10)
-	_, err := ModifyTriggerToProto("1", 7, nil, ModifyTriggerOptions{MaxSlippageTicks: &ticks, MaxSlippageBps: &bps})
+	_, err := ModifyTriggerToProto("1", 7, "", nil, ModifyTriggerOptions{MaxSlippageTicks: &ticks, MaxSlippageBps: &bps})
 	wantValidation(t, err, "at most one of max_slippage_ticks or max_slippage_bps")
 
 	negative := int64(-1)
-	_, err = ModifyTriggerToProto("1", 7, nil, ModifyTriggerOptions{MaxSlippageTicks: &negative})
+	_, err = ModifyTriggerToProto("1", 7, "", nil, ModifyTriggerOptions{MaxSlippageTicks: &negative})
 	wantValidation(t, err, "must not be negative")
 
-	req, err := ModifyTriggerToProto("1", 7, nil, ModifyTriggerOptions{MaxSlippageTicks: &ticks})
+	req, err := ModifyTriggerToProto("1", 7, "", nil, ModifyTriggerOptions{MaxSlippageTicks: &ticks})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +172,7 @@ func TestSlippageTicksKeepInt64Range(t *testing.T) {
 	if ts := trailing.GetTrigger().GetTrailingStop(); ts.GetTrailingDistanceTicks() != distance || ts.GetMaxSlippageTicks() != large {
 		t.Fatalf("trailing %+v", ts)
 	}
-	mod, err := ModifyTriggerToProto("1", 7, nil, ModifyTriggerOptions{MaxSlippageTicks: &large})
+	mod, err := ModifyTriggerToProto("1", 7, "", nil, ModifyTriggerOptions{MaxSlippageTicks: &large})
 	if err != nil {
 		t.Fatal(err)
 	}

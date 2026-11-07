@@ -12,7 +12,7 @@ import (
 func TestModifyTriggerOmitsUnsetFieldsAndClearsWithZero(t *testing.T) {
 	zeroPrice := models.PriceFromTicksInt(0)
 	zeroBps := int32(0)
-	req, err := ModifyTriggerToProto("1", 7, nil, ModifyTriggerOptions{
+	req, err := ModifyTriggerToProto("1", 7, "", nil, ModifyTriggerOptions{
 		ActivationPrice: &zeroPrice,
 		MaxSlippageBps:  &zeroBps,
 	})
@@ -29,7 +29,7 @@ func TestModifyTriggerOmitsUnsetFieldsAndClearsWithZero(t *testing.T) {
 		t.Fatalf("omitted fields must stay unset: %+v", req)
 	}
 
-	preserve, err := ModifyTriggerToProto("1", 7, nil, ModifyTriggerOptions{
+	preserve, err := ModifyTriggerToProto("1", 7, "", nil, ModifyTriggerOptions{
 		TriggerPrice: pricePtr(models.PriceFromDecimal("101")),
 	})
 	if err != nil {
@@ -65,12 +65,12 @@ func TestTriggerSlippageBpsCap(t *testing.T) {
 		t.Fatalf("want ValidationError, got %T %v", err, err)
 	}
 
-	_, err = ModifyTriggerToProto("1", 7, nil, ModifyTriggerOptions{MaxSlippageBps: &tooHigh})
+	_, err = ModifyTriggerToProto("1", 7, "", nil, ModifyTriggerOptions{MaxSlippageBps: &tooHigh})
 	if err == nil {
 		t.Fatal("expected modify BPS cap rejection")
 	}
 	zero := int32(0)
-	if _, err := ModifyTriggerToProto("1", 7, nil, ModifyTriggerOptions{MaxSlippageBps: &zero}); err != nil {
+	if _, err := ModifyTriggerToProto("1", 7, "", nil, ModifyTriggerOptions{MaxSlippageBps: &zero}); err != nil {
 		t.Fatalf("modify zero must clear, not reject: %v", err)
 	}
 }
@@ -91,7 +91,7 @@ func TestTrailingDistanceBpsRange(t *testing.T) {
 	}
 	for _, value := range []int32{-1, 0, 10_001} {
 		t.Run(fmt.Sprintf("modify_%d", value), func(t *testing.T) {
-			_, err := ModifyTriggerToProto("1", 7, nil, ModifyTriggerOptions{TrailingDistanceBps: &value})
+			_, err := ModifyTriggerToProto("1", 7, "", nil, ModifyTriggerOptions{TrailingDistanceBps: &value})
 			var validationErr *sdkerrors.ValidationError
 			if !errors.As(err, &validationErr) {
 				t.Fatalf("trailing_distance_bps=%d: want ValidationError, got %T: %v", value, err, err)
@@ -107,7 +107,7 @@ func TestTrailingDistanceBpsRange(t *testing.T) {
 			); err != nil {
 				t.Fatalf("create trailing_distance_bps=%d rejected: %v", value, err)
 			}
-			if _, err := ModifyTriggerToProto("1", 7, nil, ModifyTriggerOptions{TrailingDistanceBps: &value}); err != nil {
+			if _, err := ModifyTriggerToProto("1", 7, "", nil, ModifyTriggerOptions{TrailingDistanceBps: &value}); err != nil {
 				t.Fatalf("modify trailing_distance_bps=%d rejected: %v", value, err)
 			}
 		})
