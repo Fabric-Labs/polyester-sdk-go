@@ -23,24 +23,39 @@ func StatusFromProto(msg *guardv1.GetGuardSignerStatusResponse) *models.GuardSig
 	return &models.GuardSignerStatus{SignerWallet: st.GetSignerAddress(), Status: status}
 }
 
+// GuardApprovalFromProto maps a signed approval, keeping the exact nonce space
+// and deadline that the signature covers.
+func GuardApprovalFromProto(a *guardv1.GuardApproval) models.GuardApproval {
+	return models.GuardApproval{
+		Signature:    hex.EncodeToString(a.GetSignature()),
+		NonceSpace:   a.GetNonceSpace(),
+		DeadlineUnix: a.GetDeadlineUnix(),
+	}
+}
+
 func SignProtectedActionFromProto(msg *guardv1.SignProtectedActionResponse) *models.GuardApproval {
 	if msg.GetApproval() == nil {
 		return nil
 	}
-	a := msg.GetApproval()
-	return &models.GuardApproval{Signature: hex.EncodeToString(a.GetSignature())}
+	approval := GuardApprovalFromProto(msg.GetApproval())
+	return &approval
 }
 
 func BatchSignFromProto(msg *guardv1.BatchSignProtectedActionsResponse) models.BatchSignProtectedActionsResult {
 	out := make([]models.GuardApproval, 0, len(msg.GetApprovals()))
 	for _, a := range msg.GetApprovals() {
-		out = append(out, models.GuardApproval{Signature: hex.EncodeToString(a.GetSignature())})
+		out = append(out, GuardApprovalFromProto(a))
 	}
 	return models.BatchSignProtectedActionsResult{Approvals: out}
 }
 
 func RotateWalletFromProto(msg *guardv1.RotateGuardSignerWalletResponse) models.RotateGuardSignerWalletResult {
-	return models.RotateGuardSignerWalletResult{SignerWallet: msg.GetNewSignerAddress()}
+	out := models.RotateGuardSignerWalletResult{SignerWallet: msg.GetNewSignerAddress()}
+	if msg.GetApproval() != nil {
+		approval := GuardApprovalFromProto(msg.GetApproval())
+		out.Approval = &approval
+	}
+	return out
 }
 
 func ExportWalletFromProto(msg *guardv1.ExportGuardSignerWalletResponse) models.ExportGuardSignerWalletResult {

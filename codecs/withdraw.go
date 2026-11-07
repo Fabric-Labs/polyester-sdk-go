@@ -50,9 +50,10 @@ func BigIntToU128Proto(n *big.Int) *typev1.U128 {
 }
 
 // StrToU128Proto scales a decimal string to U128 at the given scale.
+// Scale 0 is a real scale (whole units); an invalid scale yields zero.
 func StrToU128Proto(value string, scale int) *typev1.U128 {
-	if scale <= 0 {
-		scale = LedgerScale
+	if ValidateProtocolScale(scale) != nil {
+		return &typev1.U128{}
 	}
 	scaled, err := decimalToScaledBig(strings.TrimSpace(value), scale, "amount")
 	if err != nil {
