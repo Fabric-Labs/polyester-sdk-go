@@ -25,6 +25,7 @@ func SubscribePublicProtoBatch[T any](ctx context.Context, rt RealtimeClient, ch
 }
 
 // SubscribeAccountProto subscribes to a private account-scoped channel.
+// accountID resolves as in ResolveAccountID.
 func SubscribeAccountProto[T any](ctx context.Context, rt RealtimeClient, channelTemplate string, accountID any, defaultAccountID *string, decode func([]byte) (T, error)) (*realtime.Subscription[T], error) {
 	channel, err := accountChannel(rt, channelTemplate, accountID, defaultAccountID)
 	if err != nil {

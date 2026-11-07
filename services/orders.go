@@ -593,8 +593,9 @@ func readUnavailable(err error) bool {
 }
 
 // Subscribe streams an account's orders over the private WebSocket until the
-// subscription is closed or ctx is canceled. accountID defaults to the
-// client's account ID.
+// subscription is closed or ctx is canceled. accountID is a public ID string
+// or a positive integer, which is encoded as its public ID (42 is "j"), and
+// defaults to the client's account ID when nil or "".
 //
 // Events arrive on Messages(): OrderStreamConnected, then an OrderSnapshot of
 // the live view, then OrderUnit changes, plus OrderStale, OrderStreamDisconnected
