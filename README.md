@@ -76,7 +76,10 @@ still applies. In particular, social-verification and address-book writes may
 require a JWT session or may not be mounted.
 Private streams require an Account ID and the corresponding API-key permission.
 For Centrifugo channels, a successful subscribe call means the token exchange
-and realtime handshake completed. `Orders.Subscribe` returns at once and reports
+and realtime handshake completed. The connection and subscription tokens are
+renewed on the same connection before they expire; a renewal the API or the
+server refuses is reported through the error callback, and the subscription
+then resubscribes when the server ends it. `Orders.Subscribe` returns at once and reports
 the handshake as events (see [Realtime](#realtime)). Treat a structured
 permission denial as non-transient and update the API-key policy before retrying.
 
@@ -1156,7 +1159,10 @@ order, as its own message. A repeated identity replaces the earlier copy:
 `(MatchID, OrderID)` for a fill, `(TransferID, AccountCode, IsDebit)` for a
 transfer leg, and `(TriggerID, EventType, ChildSeq, TsNs)` for a trigger event.
 `LedgerTransfer.TransferID` is the unsigned 128-bit decimal ID both legs of a
-transfer share.
+transfer share. `LedgerTransfer.BalanceAfter` is the account bucket's balance
+after the transfer, an exact integer at the 18-decimal ledger scale like
+`Amount`, or nil when the server sends none. `LedgerTransfer.LinkID` is the
+decimal correlation ID of related legs, empty when there is none.
 
 `GetCandles` returns rows newest-first. With incomplete candles enabled, the
 open candle is prepended; `GetCurrentCandle` therefore returns the first row, or
