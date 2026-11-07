@@ -127,6 +127,10 @@ func MapConnectError(err error) error {
 	if errors.As(err, &skewErr) {
 		return skewErr
 	}
+	var notImplementedErr *sdkerrors.NotImplementedError
+	if errors.As(err, &notImplementedErr) {
+		return notImplementedErr
+	}
 	var ownerLockedErr *sdkerrors.SubaccountOwnerRoleLockedError
 	if errors.As(err, &ownerLockedErr) {
 		return ownerLockedErr
@@ -322,7 +326,9 @@ func MapConnectError(err error) error {
 		return &sdkerrors.AuthError{Msg: msg, Code: "unauthenticated", Status: 401}
 	case connect.CodePermissionDenied:
 		return &sdkerrors.AuthError{Msg: msg, Code: "permission_denied", Status: 403}
-	case connect.CodeUnavailable, connect.CodeInternal:
+	case connect.CodeUnavailable, connect.CodeInternal, connect.CodeUnknown, connect.CodeDataLoss:
+		// The contract never uses unknown or data_loss, and neither says a
+		// request was refused.
 		return &sdkerrors.ServerError{Msg: msg}
 	case connect.CodeResourceExhausted:
 		code := orderErrorCodeFromName(msg)
@@ -339,12 +345,6 @@ func MapConnectError(err error) error {
 			return &sdkerrors.RouteNotFoundError{}
 		}
 		return &sdkerrors.NotImplementedError{Msg: msg}
-	case connect.CodeUnknown:
-		// Connect reports a non-Connect HTTP error body by its status line
-		// and maps 501 to unknown.
-		if strings.HasPrefix(msg, "501 ") {
-			return &sdkerrors.NotImplementedError{Msg: msg}
-		}
 	}
 	return &sdkerrors.APIError{Msg: msg, Code: connectErr.Code().String()}
 }

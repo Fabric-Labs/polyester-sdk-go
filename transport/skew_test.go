@@ -1,7 +1,11 @@
 package transport
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -70,10 +74,10 @@ func TestConnectTimestampSkewMessageMapsToSkewError(t *testing.T) {
 	}
 }
 
-func TestBareHTTP501MapsToNotImplemented(t *testing.T) {
+func TestBareHTTP501ProvesNothingAboutAMutation(t *testing.T) {
 	err := callMeAgainst(t, http.StatusNotImplemented, "text/plain", "not implemented")
-	var notImplemented *sdkerrors.NotImplementedError
-	if !errors.As(err, &notImplemented) {
+	var server *sdkerrors.ServerError
+	if !errors.As(err, &server) || server.Status != http.StatusNotImplemented || sdkerrors.IsRetryable(err) || !sdkerrors.MutationOutcomeUnknown(err) {
 		t.Fatalf("err=%T %v", err, err)
 	}
 }
@@ -198,5 +202,98 @@ func TestGatewayProblemTypeDerivedFromCode(t *testing.T) {
 		if problem.Code != "AUTH_SESSION_KIND_NOT_ALLOWED" || problem.Status != 403 || problem.Detail != "" || problem.Type != "https://polyester.dev/problems/auth-session-kind-not-allowed" {
 			t.Fatalf("supplied type %q: problem=%+v", suppliedType, problem)
 		}
+	}
+}
+
+func gzipped(t *testing.T, body string) string {
+	t.Helper()
+	var buf bytes.Buffer
+	writer := gzip.NewWriter(&buf)
+	if _, err := writer.Write([]byte(body)); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return buf.String()
+}
+
+// Compression must not hide a code or invent one: each body classifies the same
+// with and without it.
+func TestCompressedErrorBodiesKeepTheirClassification(t *testing.T) {
+	const problem = "application/problem+json"
+	for _, tc := range []struct {
+		name, contentType, body string
+		status                  int
+		check                   func(error) bool
+	}{
+		{"connect refusal", "application/json", `{"code":"invalid_argument","message":"m"}`, 400, func(err error) bool {
+			var target *sdkerrors.ValidationError
+			return errors.As(err, &target) && target.Code == "invalid_argument"
+		}},
+		{"connect not found", "application/json", `{"code":"not_found","message":"m"}`, 404, func(err error) bool {
+			var target *sdkerrors.APIError
+			return errors.As(err, &target) && target.Code == "not_found"
+		}},
+		{"rest refusal", problem, `{"code":"BAD_PRICE","detail":"d"}`, 400, func(err error) bool {
+			var target *sdkerrors.APIError
+			return errors.As(err, &target) && target.Code == "ERROR_CODE_BAD_PRICE"
+		}},
+		{"gateway skew", "application/json", `{"code":"TIMESTAMP_SKEW"}`, 401, func(err error) bool {
+			var target *sdkerrors.TimestampSkewError
+			return errors.As(err, &target)
+		}},
+		{"no code", "application/json", `{"message":"m"}`, 500, func(err error) bool {
+			var target *sdkerrors.ServerError
+			return errors.As(err, &target) && target.Msg == "m" && sdkerrors.MutationOutcomeUnknown(err)
+		}},
+		{"unrecognised", problem, `{"code":"NOPE_NOT_A_CODE"}`, 500, func(err error) bool {
+			var target *sdkerrors.ServerError
+			return errors.As(err, &target) && target.Code == "NOPE_NOT_A_CODE" && sdkerrors.MutationOutcomeUnknown(err)
+		}},
+		{"bare 404", "text/plain", "404 page not found", 404, func(err error) bool {
+			var target *sdkerrors.RouteNotFoundError
+			return errors.As(err, &target)
+		}},
+	} {
+		for _, encoding := range []string{"identity", "gzip"} {
+			t.Run(tc.name+"/"+encoding, func(t *testing.T) {
+				body := tc.body
+				if encoding == "gzip" {
+					body = gzipped(t, tc.body)
+				}
+				err := callMeAgainst(t, tc.status, tc.contentType, body, map[string]string{"Content-Encoding": encoding})
+				if !tc.check(err) {
+					t.Fatalf("got %T %+v", err, err)
+				}
+			})
+		}
+	}
+}
+
+func TestLongCompressedConnectErrorReachesConnectIntact(t *testing.T) {
+	// Random hex barely compresses, so the compressed body also passes the
+	// inspected prefix.
+	random := make([]byte, maxErrorBodyBytes)
+	if _, err := rand.Read(random); err != nil {
+		t.Fatal(err)
+	}
+	message := hex.EncodeToString(random)
+	body := gzipped(t, `{"code":"invalid_argument","message":"`+message+`"}`)
+	if len(body) <= maxErrorBodyBytes {
+		t.Fatalf("fixture is %d bytes and must pass the inspected prefix", len(body))
+	}
+	err := callMeAgainst(t, 400, "application/json", body, map[string]string{"Content-Encoding": "gzip"})
+	var validation *sdkerrors.ValidationError
+	if !errors.As(err, &validation) || validation.Msg != message {
+		t.Fatalf("got %T", err)
+	}
+}
+
+func TestUndecodableEncodingProvesNothing(t *testing.T) {
+	err := callMeAgainst(t, 400, "application/json", `{"code":"BAD_PRICE"}`, map[string]string{"Content-Encoding": "br"})
+	var server *sdkerrors.ServerError
+	if !errors.As(err, &server) || server.Status != 400 || !sdkerrors.MutationOutcomeUnknown(err) {
+		t.Fatalf("got %T %+v", err, err)
 	}
 }

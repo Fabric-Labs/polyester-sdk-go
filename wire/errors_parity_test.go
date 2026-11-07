@@ -44,15 +44,14 @@ func TestMapConnectErrorTimestampSkewSurvivesConnectWrapping(t *testing.T) {
 }
 
 func TestMapConnectErrorUnimplementedIsNotImplemented(t *testing.T) {
-	for name, err := range map[string]error{
-		"connect unimplemented": connect.NewError(connect.CodeUnimplemented, errors.New("trigger ladders are not enabled")),
-		"bare HTTP 501":         connect.NewError(connect.CodeUnknown, errors.New("501 Not Implemented")),
-	} {
-		mapped := MapConnectError(err)
-		var notImplemented *sdkerrors.NotImplementedError
-		if !errors.As(mapped, &notImplemented) || sdkerrors.IsRetryable(mapped) {
-			t.Fatalf("%s: mapped=%T %v", name, mapped, mapped)
-		}
+	mapped := MapConnectError(connect.NewError(connect.CodeUnimplemented, errors.New("trigger ladders are not enabled")))
+	var notImplemented *sdkerrors.NotImplementedError
+	if !errors.As(mapped, &notImplemented) || sdkerrors.IsRetryable(mapped) {
+		t.Fatalf("mapped=%T %v", mapped, mapped)
+	}
+	var server *sdkerrors.ServerError
+	if mapped := MapConnectError(connect.NewError(connect.CodeUnknown, errors.New("501 Not Implemented"))); !errors.As(mapped, &server) {
+		t.Fatalf("Connect unknown must be a server error, got %T", mapped)
 	}
 	var routeErr *sdkerrors.RouteNotFoundError
 	if mapped := MapConnectError(connect.NewError(connect.CodeUnimplemented, errors.New("404 Not Found"))); !errors.As(mapped, &routeErr) {
