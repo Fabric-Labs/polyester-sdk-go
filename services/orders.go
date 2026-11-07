@@ -622,8 +622,9 @@ func (s *OrdersService) Subscribe(ctx context.Context, accountID any) (*realtime
 // the last poll with that read's ExecutionsComplete.
 //
 // The timeout bounds the whole wait, page reads included: a read still in
-// flight when it passes is abandoned, and the wait returns the last poll's
-// result with an error that wraps context.DeadlineExceeded. A
+// flight when it passes is abandoned, a read that finishes after it is no
+// success, and the wait returns the last poll's result with an error that
+// wraps context.DeadlineExceeded. A
 // next_page_token that repeats a page token of the same poll returns
 // *errors.ResponseContractError. A ctx cancellation or deadline returns
 // ctx.Err().
@@ -670,6 +671,11 @@ func (s *OrdersService) WaitForOrderTradesComplete(
 			return last, err
 		}
 		last = detail
+		// A read answered in time can still finish after the deadline: it
+		// is then the last result of a wait that timed out, not a success.
+		if !time.Now().Before(deadline) {
+			return last, timedOut()
+		}
 		if detail.Order != nil && orderTradesComplete(detail) {
 			return detail, nil
 		}
