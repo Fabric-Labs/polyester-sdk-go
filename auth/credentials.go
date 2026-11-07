@@ -19,18 +19,45 @@ const (
 	AccountIDEnv     = "POLYESTER_ACCOUNT_ID"
 )
 
-const redactedSecret = "[REDACTED]"
-
 // Credentials holds API-key authentication material.
 //
-// Formatting and encoding Credentials, as a value or a pointer, with fmt,
-// encoding/json, encoding/xml or log/slog redact PrivateKey; gob refuses to
-// encode them. fmt cannot call methods on unexported struct fields, so keep
-// Credentials in an exported field or behind a pointer when printing a struct
-// that holds them.
+// The private key sits behind an unexported pointer, so no printing or
+// encoding path can reach it: fmt prints the redacted form for every verb, as a
+// value, a pointer or through reflection such as an unexported struct field,
+// where it prints only an address; encoding/json, encoding/xml and log/slog
+// write [REDACTED]; gob refuses to encode Credentials. Build Credentials with
+// NewCredentials or LoadCredentials, and read the key with PrivateKey.
 type Credentials struct {
-	KeyID      string
-	PrivateKey ed25519.PrivateKey
+	KeyID string
+	// key holds the raw private key bytes as a Secret, whose pointer to a
+	// string is the one shape fmt never dereferences, even for invalid verbs.
+	key Secret
+}
+
+// NewCredentials returns credentials for an API key ID and its 64-byte Ed25519
+// private key. It copies privateKey.
+func NewCredentials(keyID string, privateKey ed25519.PrivateKey) (*Credentials, error) {
+	keyID = strings.TrimSpace(keyID)
+	if keyID == "" {
+		return nil, &errors.AuthError{Msg: "API key ID must not be empty"}
+	}
+	if len(privateKey) != ed25519.PrivateKeySize {
+		return nil, &errors.AuthError{Msg: "Ed25519 API private key must be exactly 64 bytes"}
+	}
+	return &Credentials{KeyID: keyID, key: NewSecret(string(privateKey))}, nil
+}
+
+// PrivateKey returns a copy of the Ed25519 private key, or nil when there is
+// none.
+func (c *Credentials) PrivateKey() ed25519.PrivateKey {
+	return c.privateKey()
+}
+
+func (c *Credentials) privateKey() ed25519.PrivateKey {
+	if c == nil || !c.key.IsSet() {
+		return nil
+	}
+	return ed25519.PrivateKey(c.key.Reveal())
 }
 
 // String redacts the private key.
@@ -68,7 +95,7 @@ type redactedCredentials struct {
 
 func (c Credentials) redacted() redactedCredentials {
 	private := ""
-	if len(c.PrivateKey) > 0 {
+	if c.key.IsSet() {
 		private = redactedSecret
 	}
 	return redactedCredentials{KeyID: c.KeyID, PrivateKey: private}
@@ -93,10 +120,11 @@ func (Credentials) GobEncode() ([]byte, error) {
 
 // SignPayload signs exact deterministic protobuf payload bytes.
 func (c *Credentials) SignPayload(payload []byte) ([]byte, error) {
-	if c == nil || len(c.PrivateKey) != ed25519.PrivateKeySize {
+	private := c.privateKey()
+	if len(private) != ed25519.PrivateKeySize {
 		return nil, &errors.AuthError{Msg: "valid API-key credentials are required to sign payload"}
 	}
-	return ed25519.Sign(c.PrivateKey, payload), nil
+	return ed25519.Sign(private, payload), nil
 }
 
 // LoadCredentials loads credentials from explicit values and optionally the environment.
@@ -125,7 +153,7 @@ func LoadCredentials(apiKeyID, apiPrivateKey string, fromEnv bool) (*Credentials
 	if err != nil {
 		return nil, err
 	}
-	return &Credentials{KeyID: keyID, PrivateKey: ed25519.NewKeyFromSeed(seed)}, nil
+	return NewCredentials(keyID, ed25519.NewKeyFromSeed(seed))
 }
 
 // NormalizePrivateKey accepts a 64-char hex Ed25519 seed.

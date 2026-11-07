@@ -27,18 +27,17 @@ var (
 	DefaultWSURL  = chain.PolyesterDevnetEnvironment.WebsocketURL
 )
 
-const redactedSecret = "[REDACTED]"
-
 // Config configures a Polyester client.
 //
-// Formatting and encoding a Config with fmt, encoding/json, encoding/xml or
-// log/slog redact APIPrivateKey; gob refuses to encode it. fmt cannot call
-// methods on unexported struct fields, so keep a Config in an exported field or
-// behind a pointer when printing a struct that holds it.
+// APIPrivateKey is an auth.Secret, so no printing or encoding path reveals it:
+// fmt prints [REDACTED] for every verb, also through reflection such as an
+// unexported struct field; encoding/json, encoding/xml and log/slog write
+// "[REDACTED]"; gob refuses to encode a Config. Decoding JSON still reads
+// APIPrivateKey.
 type Config struct {
 	Environment         *chain.PolyesterEnvironment
 	APIKeyID            string
-	APIPrivateKey       string
+	APIPrivateKey       auth.Secret
 	APIURL              string
 	WSURL               string
 	DefaultSubAccountID *string
@@ -51,10 +50,7 @@ type Config struct {
 
 // String redacts the API private key.
 func (c Config) String() string {
-	key := c.APIPrivateKey
-	if key != "" {
-		key = redactedSecret
-	}
+	key := c.APIPrivateKey.String()
 	envName := ""
 	if c.Environment != nil {
 		envName = c.Environment.Name
@@ -99,10 +95,7 @@ type redactedConfig struct {
 // redacted replaces the private key and URL userinfo, as String does. An
 // unset key stays empty.
 func (c Config) redacted() redactedConfig {
-	key := c.APIPrivateKey
-	if key != "" {
-		key = redactedSecret
-	}
+	key := c.APIPrivateKey.String()
 	return redactedConfig{
 		Environment:         c.Environment,
 		APIKeyID:            c.APIKeyID,
@@ -117,8 +110,9 @@ func (c Config) redacted() redactedConfig {
 	}
 }
 
-// MarshalJSON encodes Config with the API private key redacted. This also
-// covers log/slog's JSON handler. Decoding still reads APIPrivateKey.
+// MarshalJSON encodes Config with the API private key and URL userinfo
+// redacted. This also covers log/slog's JSON handler. Decoding still reads
+// APIPrivateKey.
 func (c Config) MarshalJSON() ([]byte, error) {
 	return json.Marshal(c.redacted())
 }
@@ -220,7 +214,7 @@ func New(cfg Config) (*Client, error) {
 		cfg.Timeout = 10 * time.Second
 	}
 	wireFormat := transport.WireFormatFromString(cfg.WireFormat)
-	creds, err := auth.LoadCredentials(cfg.APIKeyID, cfg.APIPrivateKey, false)
+	creds, err := auth.LoadCredentials(cfg.APIKeyID, cfg.APIPrivateKey.Reveal(), false)
 	if err != nil {
 		return nil, err
 	}
@@ -325,7 +319,7 @@ func FromEnv(overrides ...func(*Config)) (*Client, error) {
 		cfg.APIKeyID = id
 	}
 	if key := strings.TrimSpace(os.Getenv(auth.APIPrivateKeyEnv)); key != "" {
-		cfg.APIPrivateKey = key
+		cfg.APIPrivateKey = auth.NewSecret(key)
 	}
 	if accountID := auth.AccountIDFromEnv(); accountID != "" {
 		cfg.DefaultAccountID = &accountID

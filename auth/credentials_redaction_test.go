@@ -170,3 +170,36 @@ func TestCredentialsInUnexportedFieldDoesNotLeakPrivateKey(t *testing.T) {
 		}
 	}
 }
+
+func TestNewCredentialsValidatesAndCopiesTheKey(t *testing.T) {
+	private := ed25519.NewKeyFromSeed(syntheticSeed())
+	creds, err := NewCredentials(" key_redaction ", private)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if creds.KeyID != "key_redaction" {
+		t.Errorf("KeyID = %q", creds.KeyID)
+	}
+	private[0] ^= 0xff
+	if creds.PrivateKey()[0] == private[0] {
+		t.Error("NewCredentials must copy the key")
+	}
+	returned := creds.PrivateKey()
+	returned[1] ^= 0xff
+	if creds.PrivateKey()[1] == returned[1] {
+		t.Error("PrivateKey must return a copy")
+	}
+	if _, err := NewCredentials("", private); err == nil {
+		t.Error("an empty key ID must be refused")
+	}
+	if _, err := NewCredentials("key_redaction", private[:32]); err == nil {
+		t.Error("a key that is not 64 bytes must be refused")
+	}
+	var empty Credentials
+	if empty.PrivateKey() != nil {
+		t.Error("zero Credentials have no key")
+	}
+	if _, err := SignRequest(&empty, "GET", "https://api.example.test/x", nil, "1"); err == nil {
+		t.Error("signing without a key must fail instead of panicking")
+	}
+}

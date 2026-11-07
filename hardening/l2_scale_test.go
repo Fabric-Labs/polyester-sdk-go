@@ -89,7 +89,7 @@ func TestL2ScaleHydrateWaitForCatalogsThenFormatAndOrderPath(t *testing.T) {
 	client, err := polyester.New(polyester.Config{
 		APIURL:          srv.URL,
 		APIKeyID:        "ak_test",
-		APIPrivateKey:   kp.SecretKeyHex,
+		APIPrivateKey:   auth.NewSecret(kp.SecretKeyHex),
 		HydrateCatalogs: true,
 		Timeout:         5 * time.Second,
 	})

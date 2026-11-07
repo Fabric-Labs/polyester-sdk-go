@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	"github.com/Fabric-Labs/polyester-sdk-go/chain"
 )
 
@@ -27,7 +28,7 @@ func syntheticConfig() Config {
 	return Config{
 		Environment:      &env,
 		APIKeyID:         "key_redaction",
-		APIPrivateKey:    syntheticPrivateKeyHex,
+		APIPrivateKey:    auth.NewSecret(syntheticPrivateKeyHex),
 		APIURL:           "https://user:" + syntheticURLSecret + "@api.example.test",
 		WSURL:            "wss://ws.example.test",
 		DefaultAccountID: &account,
@@ -135,7 +136,7 @@ func TestConfigJSONDecodingStillReadsPrivateKey(t *testing.T) {
 	if err := json.Unmarshal([]byte(`{"APIKeyID":"key_redaction","APIPrivateKey":"`+syntheticPrivateKeyHex+`"}`), &cfg); err != nil {
 		t.Fatal(err)
 	}
-	if cfg.APIPrivateKey != syntheticPrivateKeyHex {
+	if cfg.APIPrivateKey.Reveal() != syntheticPrivateKeyHex {
 		t.Fatal("decoding a JSON config file must keep reading APIPrivateKey")
 	}
 }
