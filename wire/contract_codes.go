@@ -70,9 +70,55 @@ func isPlaceholderDetail(detail any) bool {
 	return false
 }
 
+// futureCodeLabel returns the label of a code this SDK's enum can't name, or ""
+// for any other detail. The detail's type shows that a service sent it, not what
+// the code means: it could be a future refusal or a future unknown outcome.
+func futureCodeLabel(detail any) string {
+	known := true
+	label := ""
+	switch d := detail.(type) {
+	case *authv1.AuthErrorDetail:
+		_, known = authv1.AuthErrorCode_name[int32(d.GetCode())]
+		label = d.GetCode().String()
+	case *orderv1.ErrorDetail:
+		_, known = orderv1.ErrorCode_name[int32(d.GetCode())]
+		label = d.GetCode().String()
+	case *withdrawv1.ErrorDetail:
+		_, known = withdrawv1.ErrorCode_name[int32(d.GetCode())]
+		label = d.GetCode().String()
+	case *transferv1.ErrorDetail:
+		_, known = transferv1.ErrorCode_name[int32(d.GetCode())]
+		label = d.GetCode().String()
+	case *ledgerrdv1.ErrorDetail:
+		_, known = ledgerrdv1.ErrorCode_name[int32(d.GetCode())]
+		label = d.GetCode().String()
+	}
+	if known {
+		return ""
+	}
+	return label
+}
+
+func hasFutureCode(detail any) bool { return futureCodeLabel(detail) != "" }
+
 // CarriesContractCode reports whether an encoded error detail is a service detail
-// that says something. One that is empty or undecodable proves nothing.
+// with a code this SDK can name. One that is empty or undecodable proves nothing.
 func CarriesContractCode(detailType string, value []byte) bool {
+	detail := decodeServiceDetail(detailType, value)
+	return detail != nil && !isPlaceholderDetail(detail) && !hasFutureCode(detail)
+}
+
+// FutureCodeLabel returns the label of an encoded detail's code when this SDK's
+// enum can't name it, or "". It is kept for diagnosis only.
+func FutureCodeLabel(detailType string, value []byte) string {
+	detail := decodeServiceDetail(detailType, value)
+	if detail == nil {
+		return ""
+	}
+	return futureCodeLabel(detail)
+}
+
+func decodeServiceDetail(detailType string, value []byte) proto.Message {
 	var detail proto.Message
 	switch detailType {
 	case "auth.v1.AuthErrorDetail":
@@ -90,12 +136,12 @@ func CarriesContractCode(detailType string, value []byte) bool {
 	case "buf.validate.Violations":
 		detail = &validate.Violations{}
 	default:
-		return false
+		return nil
 	}
 	if proto.Unmarshal(value, detail) != nil {
-		return false
+		return nil
 	}
-	return !isPlaceholderDetail(detail)
+	return detail
 }
 
 // IsRecognisedRESTCode reports whether the contract defines this REST problem

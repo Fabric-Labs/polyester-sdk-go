@@ -192,6 +192,7 @@ func MapConnectError(err error) error {
 	// A detail with no code says nothing about the outcome, but its field
 	// violations still name what to fix on a recognised Connect code.
 	var placeholderViolations []sdkerrors.FieldViolation
+	futureCode := ""
 	for _, detail := range connectErr.Details() {
 		value, valueErr := detail.Value()
 		if valueErr != nil {
@@ -206,6 +207,13 @@ func MapConnectError(err error) error {
 						Message:   violation.GetMessage(),
 					})
 				}
+			}
+			continue
+		}
+		// A code this SDK can't name stands only behind a recognised refusal.
+		if isServerFailureCode(connectErr.Code()) && hasFutureCode(value) {
+			if futureCode == "" {
+				futureCode = futureCodeLabel(value)
 			}
 			continue
 		}
@@ -348,7 +356,7 @@ func MapConnectError(err error) error {
 	case connect.CodeUnavailable, connect.CodeInternal, connect.CodeUnknown, connect.CodeDataLoss:
 		// The contract never uses unknown or data_loss, and neither says a
 		// request was refused.
-		return &sdkerrors.ServerError{Msg: msg}
+		return &sdkerrors.ServerError{Msg: msg, Code: futureCode}
 	case connect.CodeResourceExhausted:
 		code := orderErrorCodeFromName(messageCode)
 		if _, known := orderv1.ErrorCode_value[code]; !known {
@@ -368,6 +376,16 @@ func MapConnectError(err error) error {
 		return &sdkerrors.NotImplementedError{Msg: msg}
 	}
 	return &sdkerrors.APIError{Msg: msg, Code: connectErr.Code().String()}
+}
+
+// isServerFailureCode reports a Connect code that says the server failed, not
+// that it refused the request.
+func isServerFailureCode(code connect.Code) bool {
+	switch code {
+	case connect.CodeInternal, connect.CodeUnknown, connect.CodeDataLoss, connect.CodeCanceled, connect.CodeUnavailable, connect.CodeDeadlineExceeded:
+		return true
+	}
+	return false
 }
 
 // apiKeyRefusalCodes are the auth.v1 reasons an API key's credentials were

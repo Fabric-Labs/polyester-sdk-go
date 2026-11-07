@@ -592,3 +592,106 @@ func TestPlaceholderDetailKeepsFieldViolationsOnARecognisedCode(t *testing.T) {
 	calls, callErr = callWithErrorBody(t, "write", 500, detailBody("violations", "orders.v1.ErrorDetail", raw, ""), -1)
 	wantServerError(t, callErr, calls)
 }
+
+// futureCode is code 999999 in the first field of every coded detail: an enum
+// this SDK can't name. It could be a future refusal or a future unknown outcome.
+var futureCode = []byte{0x08, 0xBF, 0x84, 0x3D}
+
+var codedDetailTypes = serviceDetailTypeNames[:5]
+
+func TestFutureTypedCodeWithNoConnectCodeProvesNothing(t *testing.T) {
+	for _, detailType := range codedDetailTypes {
+		body := detailBody("future", detailType, futureCode, "")
+		for _, status := range []int{400, 404, 409, 500, 501, 520} {
+			eachOp(t, fmt.Sprintf("%s/%d", detailType, status), func(t *testing.T, op string) {
+				calls, err := callWithErrorBody(t, op, status, body, -1)
+				wantServerError(t, err, calls)
+				wantFutureLabel(t, err)
+			})
+		}
+	}
+}
+
+func wantFutureLabel(t *testing.T, err error) {
+	t.Helper()
+	var server *sdkerrors.ServerError
+	if errors.As(err, &server) && !strings.Contains(server.Code, "999999") {
+		t.Fatalf("label lost: %+v", server)
+	}
+}
+
+func TestReadOfAFutureTypedCodeOnAServerFailure(t *testing.T) {
+	for _, detailType := range codedDetailTypes {
+		for _, code := range []string{"internal", "unknown", "data_loss"} {
+			t.Run(detailType+"/"+code, func(t *testing.T) {
+				calls, err := callWithErrorBody(t, "read", 500, detailBody("future", detailType, futureCode, code), -1)
+				wantServerError(t, err, calls)
+				wantFutureLabel(t, err)
+			})
+		}
+		t.Run(detailType+"/unavailable", func(t *testing.T) {
+			calls, err := callWithErrorBody(t, "read", 503, detailBody("future", detailType, futureCode, "unavailable"), 2)
+			if err != nil || calls != 3 {
+				t.Fatalf("err=%v calls=%d, want a success on the third request", err, calls)
+			}
+		})
+	}
+}
+
+func TestFutureTypedCodeDoesNotTurnAServerFailureIntoARefusal(t *testing.T) {
+	for _, detailType := range codedDetailTypes {
+		for _, tc := range []struct {
+			status int
+			code   string
+		}{{500, "internal"}, {500, "unknown"}, {500, "data_loss"}, {500, "canceled"}, {503, "unavailable"}, {504, "deadline_exceeded"}} {
+			t.Run(fmt.Sprintf("%s/%s", detailType, tc.code), func(t *testing.T) {
+				calls, err := callWithErrorBody(t, "write", tc.status, detailBody("future", detailType, futureCode, tc.code), -1)
+				var api *sdkerrors.APIError
+				if errors.As(err, &api) {
+					t.Fatalf("got %T %+v", err, err)
+				}
+				wantFutureLabel(t, err)
+				assertErrorFlags(t, err, false, true)
+				if calls != 1 {
+					t.Fatalf("calls=%d", calls)
+				}
+			})
+		}
+	}
+}
+
+func TestFutureTypedCodeWithBackoffIsNotRetryableOnAServerFailure(t *testing.T) {
+	delay := uint64(1250)
+	backoff, err := proto.Marshal(&ratelimitv1.RateLimitDetail{RetryAfterMs: &delay})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Field 3 of orders.v1.ErrorDetail carries the backoff.
+	raw := append(append(append([]byte{}, futureCode...), 0x1A, byte(len(backoff))), backoff...)
+	for _, code := range []string{"", "internal"} {
+		t.Run("code="+code, func(t *testing.T) {
+			calls, callErr := callWithErrorBody(t, "write", 500, detailBody("future", "orders.v1.ErrorDetail", raw, code), -1)
+			wantServerError(t, callErr, calls)
+		})
+	}
+}
+
+func TestFutureTypedCodeKeepsItsLabelOnARecognisedRefusalControl(t *testing.T) {
+	for _, detailType := range codedDetailTypes {
+		for _, tc := range []struct {
+			status int
+			code   string
+		}{{400, "failed_precondition"}, {400, "invalid_argument"}, {409, "already_exists"}} {
+			t.Run(fmt.Sprintf("%s/%s", detailType, tc.code), func(t *testing.T) {
+				calls, err := callWithErrorBody(t, "write", tc.status, detailBody("future", detailType, futureCode, tc.code), -1)
+				if code := errorCodeOf(err); !strings.Contains(code, "999999") {
+					t.Fatalf("label lost: code=%q %T %+v", code, err, err)
+				}
+				assertErrorFlags(t, err, false, false)
+				if calls != 1 {
+					t.Fatalf("calls=%d", calls)
+				}
+			})
+		}
+	}
+}

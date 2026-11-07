@@ -96,10 +96,17 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		detail.Code = ""
 	}
 	hasServiceDetail := false
+	futureCode := ""
 	for _, item := range detail.Details {
 		value, decodeErr := base64.RawStdEncoding.DecodeString(strings.TrimRight(item.Value, "="))
-		if decodeErr == nil && wire.CarriesContractCode(item.Type, value) {
+		if decodeErr != nil {
+			continue
+		}
+		if wire.CarriesContractCode(item.Type, value) {
 			hasServiceDetail = true
+		}
+		if futureCode == "" {
+			futureCode = wire.FutureCodeLabel(item.Type, value)
 		}
 	}
 	// Connect's own code and detail decoder remains authoritative.
@@ -212,7 +219,7 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		// mutation was refused. The code is kept for diagnosis only.
 		mapped = &sdkerrors.ServerError{
 			Msg:    firstNonEmpty(msg, detail.Message, detail.Code, statusLine(resp.StatusCode)),
-			Code:   detail.Code,
+			Code:   firstNonEmpty(detail.Code, futureCode),
 			Status: resp.StatusCode,
 		}
 	}
