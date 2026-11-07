@@ -55,16 +55,13 @@ func ResolveQtyScaled(in models.QtyInput, scale int, fieldName, symbol string, s
 		return qty.Scaled(), nil
 	}
 	if dec, ok := in.Decimal(); ok {
-		if scale <= 0 {
+		// 0 is a real scale (whole units); only a negative scale is unknown.
+		if scale < 0 {
 			return 0, &errors.ValidationError{
 				Msg: fieldName + " requires known quantity scale (catalogs + symbol)",
 			}
 		}
-		u, err := ParseQtyScaled(dec, scale, fieldName)
-		if err != nil {
-			return 0, err
-		}
-		return int64(u), nil
+		return parseOrderQtyScaled(dec, scale, fieldName)
 	}
 	return 0, &errors.ValidationError{Msg: fieldName + " is required"}
 }
@@ -105,16 +102,22 @@ func ResolveQuoteQtyScaled(in models.QtyInput, scale int, fieldName, symbol stri
 				Msg: fieldName + " requires known quote quantity scale (catalogs + symbol)",
 			}
 		}
-		u, err := ParseQtyScaled(dec, scale, fieldName)
-		if err != nil {
-			return 0, err
-		}
-		if int64(u) <= 0 {
-			return 0, &errors.ValidationError{Msg: fieldName + " must be positive"}
-		}
-		return int64(u), nil
+		return parseOrderQtyScaled(dec, scale, fieldName)
 	}
 	return 0, &errors.ValidationError{Msg: fieldName + " is required"}
+}
+
+// parseOrderQtyScaled parses a decimal order quantity for an int64 wire field.
+// ParseQtyScaled returns up to uint64 at scale 18, which would wrap negative.
+func parseOrderQtyScaled(dec string, scale int, fieldName string) (int64, error) {
+	u, err := ParseQtyScaled(dec, scale, fieldName)
+	if err != nil {
+		return 0, err
+	}
+	if u > uint64(int64Max) {
+		return 0, &errors.ValidationError{Msg: fieldName + " exceeds int64 range"}
+	}
+	return int64(u), nil
 }
 
 // ResolveAssetAmountScaled resolves an AssetAmountInput to a big.Int scaled value.

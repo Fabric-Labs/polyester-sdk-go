@@ -29,12 +29,16 @@ func (o Order) AvgPrice() string {
 // (catalogs.Manager.BaseQuantityScaleForSymbol). "0" with no fills. It is
 // exactly the quote the fills settled when baseQuantityScale is at most 9;
 // above that it can exceed the settled quote by less than 1e-18 per fill.
+// baseQuantityScale must be from 0 to MaxProtocolScale.
 func (o Order) CumQuote(baseQuantityScale int) (string, error) {
+	if err := validateScale(baseQuantityScale); err != nil {
+		return "", err
+	}
 	value, ok := parseUnsigned(o.CumNotional)
 	if !ok {
 		value = new(big.Int)
 	}
-	return formatFixedBig(value, PriceTickScale+baseQuantityScale)
+	return formatScaledBig(value, PriceTickScale+baseQuantityScale), nil
 }
 
 // QuoteUsed is the quote amount the order's fills used, as an exact decimal:
@@ -51,8 +55,7 @@ func (o Order) QuoteUsed(baseQuantityScale int) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	out, err := formatFixedBig(used, scale)
-	return out, err == nil
+	return formatScaledBig(used, scale), true
 }
 
 // QuoteUnspent is what a buy sized by a quote amount did not use, as an exact
@@ -61,7 +64,7 @@ func (o Order) QuoteUsed(baseQuantityScale int) (string, bool) {
 // QuoteUsed is not known.
 func (o Order) QuoteUnspent(baseQuantityScale, quoteQuantityScale int) (string, bool) {
 	budget, ok := parseUnsigned(o.SubmittedMaxQuoteDebitScaled)
-	if !ok || quoteQuantityScale < 0 {
+	if !ok || validateScale(quoteQuantityScale) != nil {
 		return "", false
 	}
 	used, scale, ok := o.quoteUsed(baseQuantityScale)
@@ -73,13 +76,13 @@ func (o Order) QuoteUnspent(baseQuantityScale, quoteQuantityScale int) (string, 
 		scale = quoteQuantityScale
 	}
 	unspent := new(big.Int).Sub(rescale(budget, quoteQuantityScale, scale), used)
-	out, err := formatFixedBig(unspent, scale)
-	return out, err == nil
+	return formatScaledBig(unspent, scale), true
 }
 
-// quoteUsed returns the quote used as an integer at the returned scale.
+// quoteUsed returns the quote used as an integer at the returned scale, which
+// is up to MaxProtocolScale+PriceTickScale.
 func (o Order) quoteUsed(baseQuantityScale int) (*big.Int, int, bool) {
-	if baseQuantityScale < 0 || o.FeeTotal == nil || o.FeeTotal.Qty.Scaled() != o.CumQty.Scaled() {
+	if validateScale(baseQuantityScale) != nil || o.FeeTotal == nil || o.FeeTotal.Qty.Scaled() != o.CumQty.Scaled() {
 		return nil, 0, false
 	}
 	notional, ok := parseUnsigned(o.CumNotional)

@@ -2,6 +2,7 @@ package codecs
 
 import (
 	"math/big"
+	"strconv"
 	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
@@ -52,24 +53,7 @@ func ParsePriceTicks(raw, fieldName string) (uint64, error) {
 
 // FormatPriceTicks formats Q9 price ticks as a decimal string.
 func FormatPriceTicks(ticks int64) string {
-	neg := ticks < 0
-	if neg {
-		ticks = -ticks
-	}
-	digits := formatPadded(ticks, PriceTickScale+1)
-	head := strings.TrimLeft(digits[:len(digits)-PriceTickScale], "0")
-	if head == "" {
-		head = "0"
-	}
-	tail := strings.TrimRight(digits[len(digits)-PriceTickScale:], "0")
-	out := head
-	if tail != "" {
-		out += "." + tail
-	}
-	if neg {
-		return "-" + out
-	}
-	return out
+	return formatScaledInt64(ticks, PriceTickScale)
 }
 
 // ParseQtyScaled parses a decimal quantity at the given scale (strict; no rounding).
@@ -100,28 +84,32 @@ func FormatQtyScaled(qtyScaled int64, scale int) (string, error) {
 	if err := ValidateProtocolScale(scale); err != nil {
 		return "", err
 	}
-	if scale == 0 {
-		return formatInt(qtyScaled), nil
+	return formatScaledInt64(qtyScaled, scale), nil
+}
+
+// formatScaledInt64 formats n / 10^scale for a validated scale. The magnitude
+// is taken as uint64 so math.MinInt64, whose negation overflows, keeps one sign.
+func formatScaledInt64(n int64, scale int) string {
+	magnitude := uint64(n)
+	if n < 0 {
+		magnitude = -magnitude
 	}
-	neg := qtyScaled < 0
-	if neg {
-		qtyScaled = -qtyScaled
+	digits := strconv.FormatUint(magnitude, 10)
+	if scale > 0 {
+		if len(digits) <= scale {
+			digits = strings.Repeat("0", scale+1-len(digits)) + digits
+		}
+		head := digits[:len(digits)-scale]
+		if tail := strings.TrimRight(digits[len(digits)-scale:], "0"); tail != "" {
+			digits = head + "." + tail
+		} else {
+			digits = head
+		}
 	}
-	width := scale + 1
-	digits := formatPadded(qtyScaled, width)
-	head := strings.TrimLeft(digits[:len(digits)-scale], "0")
-	if head == "" {
-		head = "0"
+	if n < 0 {
+		return "-" + digits
 	}
-	tail := strings.TrimRight(digits[len(digits)-scale:], "0")
-	out := head
-	if tail != "" {
-		out += "." + tail
-	}
-	if neg {
-		return "-" + out, nil
-	}
-	return out, nil
+	return digits
 }
 
 // IDToInt parses base58 or decimal uint64 ids.
@@ -181,16 +169,4 @@ func isDecimal(s string) bool {
 		}
 	}
 	return len(s) > 0
-}
-
-func formatPadded(n int64, width int) string {
-	s := formatInt(n)
-	if len(s) >= width {
-		return s
-	}
-	return strings.Repeat("0", width-len(s)) + s
-}
-
-func formatInt(n int64) string {
-	return new(big.Int).SetInt64(n).String()
 }
