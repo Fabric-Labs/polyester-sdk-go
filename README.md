@@ -7,9 +7,9 @@ and automation. Parity with `polyester-sdk-python` and `polyester-sdk-rust`
 using the checked-in `gen/` protobuf bundle (no local proto generation for
 normal development).
 
-**Status:** `v0.7.1`, pre-1.0: a minor release may change the API. The Go,
+**Status:** `v0.8.0`, pre-1.0: a minor release may change the API. The Go,
 Python and Rust SDKs are released together. Their versions match unless a
-change breaks only one SDK's API: Go `v0.7.1` is the release of Rust `0.8.1`.
+change breaks only one SDK's API: Go `v0.8.0` is the release of Rust `0.9.0`.
 Proprietary license (not open source).
 API-key only; no browser login or session MFA.
 
@@ -114,7 +114,7 @@ account's resting orders, the leg stays `armed` and its trigger records one
 ## Install
 
 ```bash
-go get github.com/Fabric-Labs/polyester-sdk-go@v0.7.1
+go get github.com/Fabric-Labs/polyester-sdk-go@v0.8.0
 ```
 
 For development from a git checkout:
@@ -408,9 +408,8 @@ name does not establish its source: outcome unknown and non-retryable. Specific
 refusals such as `FEE_SCHEDULE_UNAVAILABLE`, `POLICY_UNAVAILABLE` and
 `RATE_LIMIT_POLICY_UNAVAILABLE` are known and retryable on typed Connect,
 code-only Connect messages and recognized REST 503 problems. A REST 502 cannot
-establish these refusals. `QUICKSWAP_ACCOUNT_OWNER_UNKNOWN` means no order was
-placed and may retry; `ACCOUNT_ROUTING_INVALID` means the trigger was not admitted
-and requires the caller to correct its routing.
+establish these refusals. `ACCOUNT_ROUTING_INVALID` means the trigger was not
+admitted; contact support if it persists.
 
 `RATE_LIMIT_EXCEEDED`, `PRICE_LEVELS_EXHAUSTED` and retry-later capacity codes
 are known, retryable admission refusals; preserve and respect any server delay.
@@ -462,7 +461,7 @@ or an edge, so it doesn't prove a request was refused. Only a 401 or 403 is a
 refusal on its status alone (`errors.AuthError`). Every other status returns
 `errors.ServerError` with `errors.MutationOutcomeUnknown` true and
 `errors.IsRetryable` false, and keeps any code it did send in `Code`; read back
-before sending a mutation again. Reads retry 429, 502, 503 and 504 for you. A
+before sending a mutation again. Trigger reads retry 429, 502, 503 and 504 for you; retry other reads yourself if you want to. A
 bare 404 stays `errors.RouteNotFoundError`, also with an unknown outcome. A
 well-formed but unrecognised code at HTTP 429 returns `errors.APIError`: known
 and not retryable.
