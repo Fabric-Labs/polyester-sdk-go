@@ -72,7 +72,30 @@ func (s *ChangelogService) Posts(ctx context.Context, opts models.ListChangelogP
 
 // Changes iterates over every change matching opts, fetching pages as
 // needed. Iteration stops at the first error.
+//
+// When a post is republished during the walk, the next page restarts at that
+// post's first change, so changes already yielded can come again. Each change
+// ID is yielded once per walk, as first received; read the post with GetPost
+// for its current wording.
 func (s *ChangelogService) Changes(ctx context.Context, opts models.ListChangelogChangesOptions) iter.Seq2[models.ChangelogChangeEntry, error] {
+	return func(yield func(models.ChangelogChangeEntry, error) bool) {
+		seen := map[string]struct{}{}
+		for entry, err := range s.changeWalk(ctx, opts) {
+			if err == nil {
+				if _, repeat := seen[entry.Change.ID]; repeat {
+					continue
+				}
+				seen[entry.Change.ID] = struct{}{}
+			}
+			if !yield(entry, err) {
+				return
+			}
+		}
+	}
+}
+
+// changeWalk yields every ListChanges entry of one walk, repeats included.
+func (s *ChangelogService) changeWalk(ctx context.Context, opts models.ListChangelogChangesOptions) iter.Seq2[models.ChangelogChangeEntry, error] {
 	return paginate(opts.PageToken, func(token string) ([]models.ChangelogChangeEntry, string, error) {
 		opts.PageToken = token
 		page, err := s.ListChanges(ctx, opts)
@@ -82,8 +105,14 @@ func (s *ChangelogService) Changes(ctx context.Context, opts models.ListChangelo
 
 // BreakingChangesSince returns every breaking change published at or after
 // since, newest post first.
+//
+// It filters on the post's first publication time, which a republication does
+// not move, so an edit to an older post is not reported: compare the
+// Revision of ListPosts summaries to find edited posts. A change met again
+// because its post was republished during the call is returned once, at its
+// first position, with the wording last received.
 func (s *ChangelogService) BreakingChangesSince(ctx context.Context, since time.Time) ([]models.ChangelogChangeEntry, error) {
-	return collect(s.Changes(ctx, models.ListChangelogChangesOptions{
+	return collectChanges(s.changeWalk(ctx, models.ListChangelogChangesOptions{
 		Categories: []string{models.ChangelogCategoryBreakingChange},
 		StartTime:  &since,
 		Limit:      changelogSincePageSize,
@@ -91,14 +120,34 @@ func (s *ChangelogService) BreakingChangesSince(ctx context.Context, since time.
 }
 
 // ActionRequiredSince returns every change that requires integrator action
-// published at or after since, newest post first.
+// published at or after since, newest post first. Republished posts are
+// handled as in BreakingChangesSince.
 func (s *ChangelogService) ActionRequiredSince(ctx context.Context, since time.Time) ([]models.ChangelogChangeEntry, error) {
 	actionRequired := true
-	return collect(s.Changes(ctx, models.ListChangelogChangesOptions{
+	return collectChanges(s.changeWalk(ctx, models.ListChangelogChangesOptions{
 		ActionRequired: &actionRequired,
 		StartTime:      &since,
 		Limit:          changelogSincePageSize,
 	}))
+}
+
+// collectChanges collects one walk, keeping one entry per change ID: a repeat
+// replaces the earlier entry in place, so the latest revision's wording wins.
+func collectChanges(seq iter.Seq2[models.ChangelogChangeEntry, error]) ([]models.ChangelogChangeEntry, error) {
+	out := []models.ChangelogChangeEntry{}
+	index := map[string]int{}
+	for entry, err := range seq {
+		if err != nil {
+			return nil, err
+		}
+		if i, repeat := index[entry.Change.ID]; repeat {
+			out[i] = entry
+			continue
+		}
+		index[entry.Change.ID] = len(out)
+		out = append(out, entry)
+	}
+	return out, nil
 }
 
 // paginate yields every item of fetch's pages, starting from token, until a
@@ -133,17 +182,6 @@ func paginate[T any](token string, fetch func(token string) ([]T, string, error)
 			token = next
 		}
 	}
-}
-
-func collect[T any](seq iter.Seq2[T, error]) ([]T, error) {
-	out := []T{}
-	for item, err := range seq {
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, item)
-	}
-	return out, nil
 }
 
 func listChangesRequest(opts models.ListChangelogChangesOptions) (*changelogv1.ListChangesRequest, error) {

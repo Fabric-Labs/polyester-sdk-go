@@ -68,13 +68,27 @@ type ChangelogSection struct {
 
 // ChangelogPostSummary is a changelog post without its sections, with change
 // counts by kind.
+//
+// A published post can be republished, for example to correct its copy or
+// withdraw a change. Its Slug, PublishedAt and its changes' IDs stay the same;
+// Revision and UpdatedAt tell the versions apart. To follow edits, compare
+// Revision with the one you hold and read the post again when it differs.
 type ChangelogPostSummary struct {
 	// Slug is the post's coverage cutoff date, YYYY-MM-DD, with a -2 or -3
-	// suffix for a later post on the same day.
-	Slug                string     `json:"slug"`
-	Title               string     `json:"title"`
-	Introduction        string     `json:"introduction"`
-	PublishedAt         *time.Time `json:"published_at,omitempty"`
+	// suffix for a later post on the same day. It never changes when the post
+	// is republished.
+	Slug         string `json:"slug"`
+	Title        string `json:"title"`
+	Introduction string `json:"introduction"`
+	// PublishedAt is the time of first publication. A republication does not
+	// move it.
+	PublishedAt *time.Time `json:"published_at,omitempty"`
+	// UpdatedAt is when the current revision was published; it equals
+	// PublishedAt for revision 1. Nil from a server that predates revisions.
+	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+	// Revision is the published revision, starting at 1 and increasing with
+	// each republication. 0 from a server that predates revisions.
+	Revision            uint32     `json:"revision"`
 	CoverageCutoff      *time.Time `json:"coverage_cutoff,omitempty"`
 	ChangeCount         uint32     `json:"change_count"`
 	BreakingChangeCount uint32     `json:"breaking_change_count"`
@@ -84,7 +98,7 @@ type ChangelogPostSummary struct {
 	BugFixCount         uint32     `json:"bug_fix_count"`
 }
 
-// ChangelogPost is one full changelog post.
+// ChangelogPost is one full changelog post at its current revision.
 type ChangelogPost struct {
 	ChangelogPostSummary
 	Sections []ChangelogSection `json:"sections"`

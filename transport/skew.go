@@ -38,6 +38,9 @@ var restCodeForm = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
 //   - an API-key refusal ({"code":"SIGNATURE_INVALID"}, "IP_NOT_ALLOWED",
 //     "UNAUTHENTICATED", ...) or a {"code":"PERMISSION_DENIED"} problem as
 //     *errors.AuthError with the problem's code and detail;
+//   - a retryable admission problem, such as a 429 RATE_LIMIT_EXCEEDED, as
+//     *errors.RateLimitError with the problem's rate_limit detail and the
+//     response's Retry-After;
 //   - an outcome-unknown mutation problem as *errors.APIError, including
 //     codes introduced by a newer server before SDK regeneration;
 //   - a problem that lists field violations as *errors.ValidationError;
@@ -80,6 +83,7 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 			Type  string `json:"type"`
 			Value string `json:"value"`
 		} `json:"details"`
+		RateLimit json.RawMessage `json:"rate_limit"`
 	}
 	if isJSON || resp.StatusCode == 504 {
 		if json.Unmarshal(decoded, &detail) != nil {
@@ -148,6 +152,12 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		mapped = wire.MapConnectError(connectErr)
 		if rate, ok := mapped.(*sdkerrors.RateLimitError); ok {
 			rate.Code = "ERROR_CODE_" + strings.TrimPrefix(detail.Code, "ERROR_CODE_")
+			if limit := problemRateLimit(detail.RateLimit); limit != nil {
+				rate.Detail = limit
+				if seconds := limit.RetryAfterSeconds(); seconds != nil {
+					rate.RetryAfter = seconds
+				}
+			}
 		}
 	case detail.Code == "ORDER_SEQUENCE_EXHAUSTED" || detail.Code == "ERROR_CODE_ORDER_SEQUENCE_EXHAUSTED":
 		if msg == "" {
@@ -363,5 +373,51 @@ func isRetryableRESTAdmissionCode(code string) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+// problemRateLimit reads the rate_limit object of a REST rate-limit problem.
+// Every field is optional: the gateway's own refusal sends only reason and
+// scope. Integers arrive as JSON strings or numbers; enum names are kept as
+// sent, including ones newer than this SDK. Anything that isn't an object
+// reads as no detail, and a field of the wrong type reads as absent.
+func problemRateLimit(raw json.RawMessage) *sdkerrors.RateLimitDetail {
+	var fields map[string]json.RawMessage
+	if len(raw) == 0 || json.Unmarshal(raw, &fields) != nil || fields == nil {
+		return nil
+	}
+	field := func(snake, camel string) json.RawMessage {
+		if value, ok := fields[snake]; ok {
+			return value
+		}
+		return fields[camel]
+	}
+	text := func(snake, camel string) string {
+		var value string
+		_ = json.Unmarshal(field(snake, camel), &value)
+		return value
+	}
+	integer := func(snake, camel string) *uint64 {
+		value := field(snake, camel)
+		var quoted string
+		if json.Unmarshal(value, &quoted) == nil {
+			value = json.RawMessage(quoted)
+		}
+		parsed, err := strconv.ParseUint(strings.TrimSpace(string(value)), 10, 64)
+		if err != nil {
+			return nil
+		}
+		return &parsed
+	}
+	return &sdkerrors.RateLimitDetail{
+		Reason:        text("reason", "reason"),
+		Limit:         integer("limit", "limit"),
+		Remaining:     integer("remaining", "remaining"),
+		RetryAfterMs:  integer("retry_after_ms", "retryAfterMs"),
+		PolicyVersion: integer("policy_version", "policyVersion"),
+		OperationID:   text("operation_id", "operationId"),
+		PolicyClass:   text("policy_class", "policyClass"),
+		Scope:         text("scope", "scope"),
+		RefillModel:   text("refill_model", "refillModel"),
 	}
 }
