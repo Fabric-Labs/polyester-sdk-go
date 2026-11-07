@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.12.0
+
+Git tag: `v0.12.0`. Released 2026-11-07. Built on public contract `1bf038e`.
 
 - `models.ChangelogPostSummary` (and so `models.ChangelogPost`) gains `Revision` and `UpdatedAt`, from `Changelog.ListPosts`, `Changelog.Posts` and `Changelog.GetPost` (and `decode.ChangelogPostSummaryFromProto`, `decode.ChangelogPostsPageFromProto` and `decode.ChangelogPostFromProto`). A published post can now be republished, for example to correct its copy or withdraw a change: `Revision` starts at 1 and increases with each republication, and `UpdatedAt` is when the current revision was published. Its `Slug`, `PublishedAt` and change IDs stay the same. A server that predates revisions sends neither: `Revision` reads 0 and `UpdatedAt` nil. To follow edits, read a post again when its `Revision` differs from the one you hold.
 - **Breaking:** `Changelog.Changes` yields each change ID once per walk, and `Changelog.BreakingChangesSince` and `Changelog.ActionRequiredSince` return each change once. When a post is republished while a walk pages through it, the next page restarts at that post's first change, so changes already received came again and were returned twice. `Changes` skips the repeat; the two helpers keep the change at its first position with the wording last received. The helpers still filter on first publication, which a republication does not move, so they don't report an edit to an older post. Migration: none, unless you counted repeats; compare `Revision` from `Changelog.Posts` to find edited posts.
