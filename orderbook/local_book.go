@@ -1,6 +1,7 @@
 package orderbook
 
 import (
+	"fmt"
 	"sort"
 	"strconv"
 
@@ -135,9 +136,11 @@ func ParseBucketTicks(bucket string) int {
 // ApplyDelta applies one delta and returns the new book sequence and whether a snapshot refresh is needed.
 func ApplyDelta(bids, asks BookSide, currentBookSeq int, delta models.OrderBookDeltaUpdate) (int, bool) {
 	// Reject the whole update atomically. Skipping corrupt rows while advancing
-	// the sequence permanently leaves stale quantity in the local book.
+	// the sequence permanently leaves stale quantity in the local book. A
+	// positive quantity at price zero is a level BucketSide refuses to render,
+	// so it is as malformed as a negative row.
 	for _, pair := range append(append([]models.PriceQtyPair{}, delta.Bids...), delta.Asks...) {
-		if pair.PriceTicks < 0 || pair.QtyScaled < 0 {
+		if pair.PriceTicks < 0 || pair.QtyScaled < 0 || (pair.PriceTicks == 0 && pair.QtyScaled > 0) {
 			return currentBookSeq, true
 		}
 	}
@@ -168,8 +171,12 @@ func ApplyDelta(bids, asks BookSide, currentBookSeq int, delta models.OrderBookD
 	return currentBookSeq, false
 }
 
-// BuildOrderbookData renders the current in-memory book.
+// BuildOrderbookData renders the current in-memory book with up to depth levels
+// per side; depth 0 renders no levels. A negative depth is a ValidationError.
 func BuildOrderbookData(symbol string, depth, bookSeq int, bids, asks BookSide, bucketTicks, quantityScale int) (models.OrderbookData, error) {
+	if depth < 0 {
+		return models.OrderbookData{}, &sdkerrors.ValidationError{Msg: fmt.Sprintf("orderbook depth must not be negative, got %d", depth)}
+	}
 	bidLevels, err := sideToLevels(bids, "bids", symbol, depth, bucketTicks, quantityScale)
 	if err != nil {
 		return models.OrderbookData{}, err

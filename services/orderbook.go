@@ -42,7 +42,15 @@ func (s *OrderbookService) client() orderbookv1connect.OrderbookServiceClient {
 	return orderbookv1connect.NewOrderbookServiceClient(s.transport.HTTP, s.transport.Config.APIURL, s.transport.ConnectOptions(false)...)
 }
 
+// Get reads a snapshot of symbol. depth is a snapshot depth (1, 5, 10, 20, 50,
+// 100, 200, 500 or 1000); any other depth from 1 to 1000 requests the smallest
+// one covering it, and 0 means 50. The result's Depth is the depth requested.
+// A depth below 0 or above 1000 is an *errors.ValidationError before any request.
 func (s *OrderbookService) Get(ctx context.Context, symbol string, depth int) (models.OrderbookData, error) {
+	depth, err := codecs.OrderbookSnapshotDepth(depth)
+	if err != nil {
+		return models.OrderbookData{}, err
+	}
 	name := codecs.DepthToConnectEnum(depth)
 	v, ok := orderbookv1.Depth_value[name]
 	if !ok {

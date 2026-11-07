@@ -13,7 +13,34 @@ import (
 // and then never sends anything on it.
 var orderbookStreamDepths = [...]int{1, 20, 50, 200, 500}
 
-const orderbookSnapshotMaxDepth = 1000
+// orderbookSnapshotDepths are the depths Orderbook.Get can request, ascending.
+var orderbookSnapshotDepths = [...]int{1, 5, 10, 20, 50, 100, 200, 500, 1000}
+
+const (
+	orderbookSnapshotMaxDepth     = 1000
+	orderbookSnapshotDefaultDepth = 50
+)
+
+// OrderbookSnapshotDepth returns the snapshot depth Orderbook.Get requests for
+// depth: depth itself when it is a snapshot depth, else the smallest one
+// covering it, so the snapshot never holds fewer levels than asked. 0 is the
+// default 50. A depth below 0 or above 1000 is a ValidationError.
+func OrderbookSnapshotDepth(depth int) (int, error) {
+	if depth == 0 {
+		return orderbookSnapshotDefaultDepth, nil
+	}
+	if depth < 0 {
+		return 0, &errors.ValidationError{Msg: fmt.Sprintf("orderbook snapshot depth must not be negative, got %d", depth)}
+	}
+	for _, tier := range orderbookSnapshotDepths {
+		if tier >= depth {
+			return tier, nil
+		}
+	}
+	return 0, &errors.ValidationError{Msg: fmt.Sprintf(
+		"orderbook snapshot depth %d is above the deepest snapshot depth (%d)", depth, orderbookSnapshotMaxDepth,
+	)}
+}
 
 // OrderbookStreamDepths returns the depths published on the delta stream, ascending.
 func OrderbookStreamDepths() []int {
