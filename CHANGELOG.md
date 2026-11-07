@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- A retried read whose context ends just as the server answers `unavailable` now returns the context's error, for which `errors.Is(err, context.Canceled)` or `errors.Is(err, context.DeadlineExceeded)` is true. It returned the server's retryable answer, for example `*errors.ServerError` "catching up", although that answer would have been retried and only the caller ended the read. Affected: `Triggers.Get`, `Triggers.List` and `Triggers.ListEvents`. A definite answer, such as not found, is still returned as the answer.
+
 ## 0.11.0
 
 Git tag: `v0.11.0`. Released 2026-11-07. Built on public contract `748066a`.
