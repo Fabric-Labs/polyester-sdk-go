@@ -550,3 +550,36 @@ func TestChangelogListChangesAcceptsAtMostTenSurfaces(t *testing.T) {
 		t.Fatalf("err = %v, calls = %d", err, len(fake.changesCalls))
 	}
 }
+
+// ListChanges sends its time bounds as exact UTC protobuf timestamps: a
+// pre-epoch fraction stays before the epoch, and the last representable
+// microsecond of year 9999 stays in year 9999.
+func TestChangelogListChangesSendsExactTimeBounds(t *testing.T) {
+	cases := []struct {
+		name  string
+		value time.Time
+		want  *timestamppb.Timestamp
+	}{
+		{"half a second before the epoch", time.Date(1969, 12, 31, 23, 59, 59, 500_000_000, time.UTC), &timestamppb.Timestamp{Seconds: -1, Nanos: 500_000_000}},
+		{"the epoch", time.Unix(0, 0), &timestamppb.Timestamp{}},
+		{"an ordinary date in another zone", time.Date(2026, 11, 7, 16, 30, 0, 123_456_000, time.FixedZone("UTC+2", 2*60*60)), &timestamppb.Timestamp{Seconds: 1794061800, Nanos: 123_456_000}},
+		{"the last microsecond of year 9999", time.Date(9999, 12, 31, 23, 59, 59, 999_999_000, time.UTC), &timestamppb.Timestamp{Seconds: 253402300799, Nanos: 999_999_000}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fake := newFakeChangelog(1)
+			client := newPublicChangelogClient(t, fake)
+			start := tc.value
+			_, _ = client.Changelog.ListChanges(context.Background(), models.ListChangelogChangesOptions{
+				StartTime: &start,
+				EndTime:   &start,
+			})
+			req := fake.changesCalls[0]
+			for name, got := range map[string]*timestamppb.Timestamp{"start_time": req.GetStartTime(), "end_time": req.GetEndTime()} {
+				if got.GetSeconds() != tc.want.GetSeconds() || got.GetNanos() != tc.want.GetNanos() || got.CheckValid() != nil {
+					t.Fatalf("%s = %v, want %v", name, got, tc.want)
+				}
+			}
+		})
+	}
+}

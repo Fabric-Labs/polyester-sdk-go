@@ -88,6 +88,9 @@ type tierMarket struct {
 
 	connections atomic.Int64
 	subscribed  chan string
+	// afterSubscribeReply, when set, runs once a subscribe is acknowledged:
+	// a server goroutine the scheduler is slow to resume.
+	afterSubscribeReply func()
 }
 
 func newTierMarket(levels int) *tierMarket {
@@ -183,13 +186,19 @@ func (m *tierMarket) serveWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	channel := string(command[start : start+int(command[start-1])])
-	if err = conn.WriteMessage(websocket.BinaryMessage, hardening.CentrifugoOKReply(2)); err != nil {
-		return
-	}
+	// Register before acknowledging, as a real server does: the client acts
+	// as soon as the reply arrives, and a publication sent from then on
+	// must reach this connection.
 	entry := &tierConn{conn: conn}
 	m.mu.Lock()
 	m.conns[channel] = append(m.conns[channel], entry)
 	m.mu.Unlock()
+	if err = entry.write(hardening.CentrifugoOKReply(2)); err != nil {
+		return
+	}
+	if m.afterSubscribeReply != nil {
+		m.afterSubscribeReply()
+	}
 	m.subscribed <- channel
 	for {
 		if _, _, err = conn.ReadMessage(); err != nil {
@@ -384,6 +393,20 @@ func assertSnapshots(t *testing.T, market *tierMarket, want ...string) {
 	t.Helper()
 	if got := market.snapshotRequests(); !slices.Equal(got, want) {
 		t.Fatalf("snapshot requests = %v, want %v", got, want)
+	}
+}
+
+// A subscriber receives every publication sent after its subscribe was
+// acknowledged, however late the server goroutine resumes: tests here publish
+// as soon as the first view arrives, and a lost delta makes them time out.
+func TestTierServerDeliversToASubscriberOnceAcknowledged(t *testing.T) {
+	service, market := newTierService(t, 600)
+	market.afterSubscribeReply = func() { time.Sleep(200 * time.Millisecond) }
+	sub := tierBook(t, service, services.CreateSubscriptionOptions{Depth: 10})
+	nextTierView(t, sub, "first view")
+	market.send(t, 20, tierDelta{start: 100, end: 101, bids: map[int64]int64{tierBestBid: 8}})
+	if view := nextTierView(t, sub, "view after a delta"); view.BookSeq != "101" || view.Bids[0].Qty.Scaled() != 8 {
+		t.Fatalf("seq %s qty %d", view.BookSeq, view.Bids[0].Qty.Scaled())
 	}
 }
 
