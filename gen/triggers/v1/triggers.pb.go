@@ -2900,7 +2900,7 @@ type CancelTriggerResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Trigger ID that was canceled.
 	TriggerId uint64 `protobuf:"fixed64,1,opt,name=trigger_id,json=triggerId,proto3" json:"trigger_id,omitempty"`
-	// Final status (should be STATUS_CANCELED).
+	// The trigger's status after the cancel, which is always canceled.
 	Status TriggerStatus `protobuf:"varint,2,opt,name=status,proto3,enum=triggers.v1.TriggerStatus" json:"status,omitempty"`
 	// Server timestamp.
 	Ts *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=ts,proto3" json:"ts,omitempty"`

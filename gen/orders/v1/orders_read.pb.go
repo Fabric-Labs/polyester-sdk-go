@@ -2621,9 +2621,16 @@ func (x *GetOrderResponse) GetExecutionsComplete() bool {
 	return false
 }
 
-// GetBatchReplaceStatusRequest retrieves one admitted batch by server identity.
-// Batch admission replay lasts 60 seconds from acceptance. If status is
-// unavailable, reconcile the individual orders; absence does not prove rejection.
+// GetBatchReplaceStatusRequest retrieves one accepted batch by server identity.
+// A batch's status is retained for 60 seconds from its acceptance, the same
+// time-limited window in which an identical retry replays its admission. It
+// is readable as soon as BatchReplaceOrders returns; each item's execution
+// phase then advances asynchronously. UNAVAILABLE means the status cannot be
+// established yet: retry the same request within the window. NOT_FOUND means
+// the account has no retained batch with this identity: none was accepted for
+// it, or the window ended. NOT_FOUND never proves that a replacement was
+// rejected. After the window, reconcile the individual orders, and never
+// submit an accepted batch again because its status is not found.
 type GetBatchReplaceStatusRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
@@ -2695,7 +2702,11 @@ type BatchReplaceStatusItem struct {
 	OrderStatus OrderStatus `protobuf:"varint,5,opt,name=order_status,json=orderStatus,proto3,enum=orders.v1.OrderStatus" json:"order_status,omitempty"`
 	// Stable rejection or terminal error code. Empty when none.
 	Code string `protobuf:"bytes,6,opt,name=code,proto3" json:"code,omitempty"`
-	// Latest status timestamp in nanoseconds since epoch.
+	// Latest status timestamp in nanoseconds since epoch. For an item refused
+	// after its admission, this is when the refusal was recorded, or a later
+	// time at which the service recovered and observed it, so two reads may
+	// show different times for the same refusal. Do not use it to identify the
+	// refusal.
 	UpdatedTsNs uint64 `protobuf:"varint,7,opt,name=updated_ts_ns,json=updatedTsNs,proto3" json:"updated_ts_ns,omitempty"`
 	// REPLACED admits a successor. AMENDED keeps the order under old_order_id with
 	// no successor, and order_status describes it. Unspecified for rejected items.
@@ -2790,7 +2801,8 @@ func (x *BatchReplaceStatusItem) GetActionTaken() ModifyActionTaken {
 	return ModifyActionTaken_MODIFY_ACTION_UNSPECIFIED
 }
 
-// GetBatchReplaceStatusResponse returns durable batch and per-item finality.
+// GetBatchReplaceStatusResponse returns a batch's admission and each item's
+// current execution phase.
 type GetBatchReplaceStatusResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Server-issued batch identity.
@@ -2805,7 +2817,9 @@ type GetBatchReplaceStatusResponse struct {
 	RejectedCount uint32 `protobuf:"varint,5,opt,name=rejected_count,json=rejectedCount,proto3" json:"rejected_count,omitempty"`
 	// Server acceptance timestamp in nanoseconds since epoch.
 	AcceptedTsNs uint64 `protobuf:"varint,6,opt,name=accepted_ts_ns,json=acceptedTsNs,proto3" json:"accepted_ts_ns,omitempty"`
-	// Latest batch status timestamp in nanoseconds since epoch.
+	// Latest batch status timestamp in nanoseconds since epoch: the latest of
+	// its acceptance and its items' update times, so it can show a recovery
+	// time as an item's can.
 	UpdatedTsNs   uint64 `protobuf:"varint,7,opt,name=updated_ts_ns,json=updatedTsNs,proto3" json:"updated_ts_ns,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
