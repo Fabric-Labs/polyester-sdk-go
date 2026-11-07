@@ -111,8 +111,12 @@ func (s *LifecycleService) ListFlowsByTx(ctx context.Context, txHash, lookupKind
 }
 
 func (s *LifecycleService) SubscribeOpenFlows(ctx context.Context, accountID any) (*realtime.Subscription[models.LifecycleFlowSummary], error) {
-	if id := stringish(accountID); id != "" {
-		return SubscribeAccountProto(ctx, s.realtime, "private:chain:lifecycle:flows:{account_id}:proto", accountID, nil, decode.FlowSummaryFromBytes)
+	id, _, err := publicID(accountID, "account_id")
+	if err != nil {
+		return nil, err
+	}
+	if id != "" {
+		return SubscribeAccountProto(ctx, s.realtime, "private:chain:lifecycle:flows:{account_id}:proto", id, nil, decode.FlowSummaryFromBytes)
 	}
 	return SubscribePublicProto(ctx, s.realtime, "public:chain:lifecycle:flows:proto", decode.FlowSummaryFromBytes)
 }

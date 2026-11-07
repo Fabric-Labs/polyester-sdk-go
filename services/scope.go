@@ -2,7 +2,8 @@ package services
 
 import (
 	"fmt"
-	"strconv"
+	"math/big"
+	"reflect"
 	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
@@ -61,15 +62,73 @@ func ScopedSubAccountID(account AccountScope, subAccountID *string, defaultVal *
 	}
 }
 
-// ResolveAccountID returns account_id from value or default.
+// ResolveAccountID returns the public account ID from value, or from
+// defaultVal when value is unset (nil, a nil pointer or ""). Each may be a
+// public ID string, which is used as given, or a positive integer, which is
+// encoded as its public ID (42 is "j"). Any other value is a ValidationError.
 func ResolveAccountID(value any, defaultVal any) (string, error) {
-	if s := stringish(value); s != "" {
-		return s, nil
-	}
-	if s := stringish(defaultVal); s != "" {
-		return s, nil
+	for _, v := range []any{value, defaultVal} {
+		id, _, err := publicID(v, "account_id")
+		if err != nil {
+			return "", err
+		}
+		if id != "" {
+			return id, nil
+		}
 	}
 	return "", &errors.ValidationError{Msg: "account_id is required; set POLYESTER_ACCOUNT_ID or pass account_id explicitly"}
+}
+
+// publicID returns the public ID text of an account or sub-account ID given
+// as a public ID string or a positive integer; set is false when value is nil
+// or a nil pointer. A string or *string is returned unchanged, and a named
+// string type trimmed. An integer is encoded with codecs.FormatID, never as
+// decimal text, which reads as the public ID of another account. Zero,
+// negative, out-of-range, bool and other values are refused.
+func publicID(value any, label string) (id string, set bool, err error) {
+	invalid := &errors.ValidationError{Msg: label + " must be a positive uint64 public ID"}
+	switch t := value.(type) {
+	case string:
+		return t, true, nil
+	case *string:
+		if t == nil {
+			return "", false, nil
+		}
+		return *t, true, nil
+	case *big.Int:
+		if t == nil {
+			return "", false, nil
+		}
+		if t.Sign() <= 0 || !t.IsUint64() {
+			return "", false, invalid
+		}
+		return codecs.FormatID(t.Uint64()), true, nil
+	}
+	v := reflect.ValueOf(value)
+	for v.Kind() == reflect.Pointer {
+		if v.IsNil() {
+			return "", false, nil
+		}
+		v = v.Elem()
+	}
+	switch v.Kind() {
+	case reflect.Invalid:
+		return "", false, nil
+	case reflect.String:
+		return strings.TrimSpace(v.String()), true, nil
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		if v.Int() <= 0 {
+			return "", false, invalid
+		}
+		return codecs.FormatID(uint64(v.Int())), true, nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		if v.Uint() == 0 {
+			return "", false, invalid
+		}
+		return codecs.FormatID(v.Uint()), true, nil
+	default:
+		return "", false, &errors.ValidationError{Msg: fmt.Sprintf("%s must be a public ID string or a positive integer, not %T", label, value)}
+	}
 }
 
 // LifecycleAccountFields extracts owner account fields from a proto-like message.
@@ -84,30 +143,18 @@ func LifecycleAccountFields(ownerAccountID uint64, smartAccountAddress string) m
 	return fields
 }
 
+// ResolveSubAccountID resolves the sub-account from subAccountID, a public ID
+// string or a positive integer (encoded as its public ID), or from account.
 func (s *ScopedSubAccount) ResolveSubAccountID(subAccountID any, account AccountScope) (*string, error) {
-	return ScopedSubAccountID(account, optionalStringPtr(subAccountID), s.DefaultSubAccountID)
-}
-
-func optionalStringPtr(v any) *string {
-	if v == nil {
-		return nil
+	id, set, err := publicID(subAccountID, "sub_account_id")
+	if err != nil {
+		return nil, err
 	}
-	switch t := v.(type) {
-	case *string:
-		if t == nil {
-			return nil
-		}
-		return t
-	case string:
-		s := t
-		return &s
-	default:
-		s := strings.TrimSpace(fmt.Sprint(v))
-		if s == "<nil>" {
-			return nil
-		}
-		return &s
+	var explicit *string
+	if set {
+		explicit = &id
 	}
+	return ScopedSubAccountID(account, explicit, s.DefaultSubAccountID)
 }
 
 // ApplyOptionalSubaccountID sets a plain uint64 subaccount field when scope resolves one.
@@ -140,31 +187,4 @@ func (s *ScopedSubAccount) ApplyOptionalSubaccountIDPtr(dst **uint64, account Ac
 		*dst = parsed
 	}
 	return nil
-}
-
-func stringish(v any) string {
-	if v == nil {
-		return ""
-	}
-	switch t := v.(type) {
-	case string:
-		return t
-	case *string:
-		if t == nil {
-			return ""
-		}
-		return *t
-	case int:
-		return strconv.Itoa(t)
-	case int64:
-		return strconv.FormatInt(t, 10)
-	case uint64:
-		return strconv.FormatUint(t, 10)
-	default:
-		s := fmt.Sprint(v)
-		if s == "<nil>" {
-			return ""
-		}
-		return s
-	}
 }
