@@ -72,7 +72,9 @@ type OrdersReadServiceClient interface {
 	// Use GetUserTrades for paginated execution history and optional settlement legs.
 	// Recent accepted orders may wait briefly for read availability; retry UNAVAILABLE with the same lookup key.
 	GetOrder(context.Context, *connect.Request[v1.GetOrderRequest]) (*connect.Response[v1.GetOrderResponse], error)
-	// Retrieve durable execution status for one admitted batch replacement.
+	// Retrieve the execution status of one accepted batch replacement, retained
+	// for 60 seconds from its acceptance. Retry UNAVAILABLE with the same
+	// request; NOT_FOUND means no retained batch, never a rejected replacement.
 	GetBatchReplaceStatus(context.Context, *connect.Request[v1.GetBatchReplaceStatusRequest]) (*connect.Response[v1.GetBatchReplaceStatusResponse], error)
 }
 
@@ -176,7 +178,9 @@ type OrdersReadServiceHandler interface {
 	// Use GetUserTrades for paginated execution history and optional settlement legs.
 	// Recent accepted orders may wait briefly for read availability; retry UNAVAILABLE with the same lookup key.
 	GetOrder(context.Context, *connect.Request[v1.GetOrderRequest]) (*connect.Response[v1.GetOrderResponse], error)
-	// Retrieve durable execution status for one admitted batch replacement.
+	// Retrieve the execution status of one accepted batch replacement, retained
+	// for 60 seconds from its acceptance. Retry UNAVAILABLE with the same
+	// request; NOT_FOUND means no retained batch, never a rejected replacement.
 	GetBatchReplaceStatus(context.Context, *connect.Request[v1.GetBatchReplaceStatusRequest]) (*connect.Response[v1.GetBatchReplaceStatusResponse], error)
 }
 

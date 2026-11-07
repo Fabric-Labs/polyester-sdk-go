@@ -47,9 +47,10 @@ const (
 // ChangelogServiceClient is a client for the changelog.v1.ChangelogService service.
 type ChangelogServiceClient interface {
 	// List published post summaries, newest first. Use limit 1 to poll for the
-	// latest post.
+	// latest post. To follow edits to published posts, compare each post's
+	// revision.
 	ListPosts(context.Context, *connect.Request[v1.ListPostsRequest]) (*connect.Response[v1.ListPostsResponse], error)
-	// Get one complete published post by slug.
+	// Get one complete published post by slug, at its current revision.
 	GetPost(context.Context, *connect.Request[v1.GetPostRequest]) (*connect.Response[v1.GetPostResponse], error)
 	// List changes across published posts, for example every breaking change
 	// since a given time.
@@ -116,9 +117,10 @@ func (c *changelogServiceClient) ListChanges(ctx context.Context, req *connect.R
 // ChangelogServiceHandler is an implementation of the changelog.v1.ChangelogService service.
 type ChangelogServiceHandler interface {
 	// List published post summaries, newest first. Use limit 1 to poll for the
-	// latest post.
+	// latest post. To follow edits to published posts, compare each post's
+	// revision.
 	ListPosts(context.Context, *connect.Request[v1.ListPostsRequest]) (*connect.Response[v1.ListPostsResponse], error)
-	// Get one complete published post by slug.
+	// Get one complete published post by slug, at its current revision.
 	GetPost(context.Context, *connect.Request[v1.GetPostRequest]) (*connect.Response[v1.GetPostResponse], error)
 	// List changes across published posts, for example every breaking change
 	// since a given time.

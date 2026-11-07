@@ -287,10 +287,11 @@ func (SortDirection) EnumDescriptor() ([]byte, []int) {
 	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{3}
 }
 
-// Change is one announced change. Published content never changes.
+// Change is one announced change. A republished post may reword or withdraw it.
 type Change struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Stable opaque 64-bit identifier, identical across environments.
+	// Stable opaque 64-bit identifier, identical across environments and across
+	// revisions of a post.
 	Id uint64 `protobuf:"fixed64,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Short title.
 	Title string `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
@@ -482,13 +483,14 @@ func (x *Section) GetSurface() Surface {
 // PostSummary describes one published post without its changes.
 type PostSummary struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Stable post identifier, unique within this environment.
+	// Stable post identifier, unique within this environment. It never changes
+	// when the post is republished.
 	Slug string `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
 	// Title.
 	Title string `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
 	// Introduction.
 	Introduction string `protobuf:"bytes,3,opt,name=introduction,proto3" json:"introduction,omitempty"`
-	// Publication time.
+	// Time of first publication. It never changes when the post is republished.
 	PublishedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=published_at,json=publishedAt,proto3" json:"published_at,omitempty"`
 	// Exclusive upper bound of the period covered. Omitted when unknown.
 	CoverageCutoff *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=coverage_cutoff,json=coverageCutoff,proto3" json:"coverage_cutoff,omitempty"`
@@ -503,7 +505,12 @@ type PostSummary struct {
 	// Exact number of IMPROVEMENT changes.
 	ImprovementCount uint32 `protobuf:"varint,10,opt,name=improvement_count,json=improvementCount,proto3" json:"improvement_count,omitempty"`
 	// Exact number of BUG_FIX changes.
-	BugFixCount   uint32 `protobuf:"varint,11,opt,name=bug_fix_count,json=bugFixCount,proto3" json:"bug_fix_count,omitempty"`
+	BugFixCount uint32 `protobuf:"varint,11,opt,name=bug_fix_count,json=bugFixCount,proto3" json:"bug_fix_count,omitempty"`
+	// When the current revision was published; equals published_at for revision 1.
+	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// Published revision, starting at 1. Each republication of the post, for
+	// example to correct its copy or withdraw a change, increments it.
+	Revision      uint32 `protobuf:"varint,13,opt,name=revision,proto3" json:"revision,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -615,7 +622,21 @@ func (x *PostSummary) GetBugFixCount() uint32 {
 	return 0
 }
 
-// Post is one complete published post.
+func (x *PostSummary) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+func (x *PostSummary) GetRevision() uint32 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+// Post is one complete published post at its current revision.
 type Post struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Post summary.
@@ -899,7 +920,10 @@ type ListChangesRequest struct {
 	// Maximum changes to return. 0 means the default of 100; maximum 500.
 	Limit uint32 `protobuf:"varint,9,opt,name=limit,proto3" json:"limit,omitempty"`
 	// Opaque, keyset-backed, exclusive cursor from a previous response. Reuse
-	// it only with the same filters, time bounds and sort.
+	// it only with the same filters, time bounds and sort. When the post it
+	// points into was republished since, paging restarts at the first change of
+	// that post's current revision, so changes of that post can appear again;
+	// match them by id.
 	PageToken     string `protobuf:"bytes,10,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1012,7 +1036,7 @@ type ChangeEntry struct {
 	Change *Change `protobuf:"bytes,1,opt,name=change,proto3" json:"change,omitempty"`
 	// Slug of the announcing post.
 	PostSlug string `protobuf:"bytes,2,opt,name=post_slug,json=postSlug,proto3" json:"post_slug,omitempty"`
-	// Publication time of the announcing post.
+	// Time of first publication of the announcing post.
 	PublishedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=published_at,json=publishedAt,proto3" json:"published_at,omitempty"`
 	// Heading of the section containing the change.
 	SectionHeading string `protobuf:"bytes,4,opt,name=section_heading,json=sectionHeading,proto3" json:"section_heading,omitempty"`
@@ -1157,7 +1181,7 @@ const file_changelog_v1_changelog_proto_rawDesc = "" +
 	"\achanges\x18\x03 \x03(\v2\x14.changelog.v1.ChangeR\achanges\x12/\n" +
 	"\asurface\x18\x04 \x01(\x0e2\x15.changelog.v1.SurfaceR\asurfaceB\n" +
 	"\n" +
-	"\b_summary\"\xe7\x03\n" +
+	"\b_summary\"\xbe\x04\n" +
 	"\vPostSummary\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\"\n" +
@@ -1170,7 +1194,10 @@ const file_changelog_v1_changelog_proto_rawDesc = "" +
 	"\x11new_feature_count\x18\t \x01(\rR\x0fnewFeatureCount\x12+\n" +
 	"\x11improvement_count\x18\n" +
 	" \x01(\rR\x10improvementCount\x12\"\n" +
-	"\rbug_fix_count\x18\v \x01(\rR\vbugFixCount\"n\n" +
+	"\rbug_fix_count\x18\v \x01(\rR\vbugFixCount\x129\n" +
+	"\n" +
+	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1a\n" +
+	"\brevision\x18\r \x01(\rR\brevision\"n\n" +
 	"\x04Post\x123\n" +
 	"\asummary\x18\x01 \x01(\v2\x19.changelog.v1.PostSummaryR\asummary\x121\n" +
 	"\bsections\x18\x02 \x03(\v2\x15.changelog.v1.SectionR\bsections\"Z\n" +
@@ -1292,30 +1319,31 @@ var file_changelog_v1_changelog_proto_depIdxs = []int32{
 	2,  // 4: changelog.v1.Section.surface:type_name -> changelog.v1.Surface
 	15, // 5: changelog.v1.PostSummary.published_at:type_name -> google.protobuf.Timestamp
 	15, // 6: changelog.v1.PostSummary.coverage_cutoff:type_name -> google.protobuf.Timestamp
-	6,  // 7: changelog.v1.Post.summary:type_name -> changelog.v1.PostSummary
-	5,  // 8: changelog.v1.Post.sections:type_name -> changelog.v1.Section
-	6,  // 9: changelog.v1.ListPostsResponse.posts:type_name -> changelog.v1.PostSummary
-	7,  // 10: changelog.v1.GetPostResponse.post:type_name -> changelog.v1.Post
-	0,  // 11: changelog.v1.ListChangesRequest.categories:type_name -> changelog.v1.ChangeCategory
-	2,  // 12: changelog.v1.ListChangesRequest.surfaces:type_name -> changelog.v1.Surface
-	1,  // 13: changelog.v1.ListChangesRequest.audiences:type_name -> changelog.v1.Audience
-	15, // 14: changelog.v1.ListChangesRequest.start_time:type_name -> google.protobuf.Timestamp
-	15, // 15: changelog.v1.ListChangesRequest.end_time:type_name -> google.protobuf.Timestamp
-	3,  // 16: changelog.v1.ListChangesRequest.sort:type_name -> changelog.v1.SortDirection
-	4,  // 17: changelog.v1.ChangeEntry.change:type_name -> changelog.v1.Change
-	15, // 18: changelog.v1.ChangeEntry.published_at:type_name -> google.protobuf.Timestamp
-	13, // 19: changelog.v1.ListChangesResponse.changes:type_name -> changelog.v1.ChangeEntry
-	8,  // 20: changelog.v1.ChangelogService.ListPosts:input_type -> changelog.v1.ListPostsRequest
-	10, // 21: changelog.v1.ChangelogService.GetPost:input_type -> changelog.v1.GetPostRequest
-	12, // 22: changelog.v1.ChangelogService.ListChanges:input_type -> changelog.v1.ListChangesRequest
-	9,  // 23: changelog.v1.ChangelogService.ListPosts:output_type -> changelog.v1.ListPostsResponse
-	11, // 24: changelog.v1.ChangelogService.GetPost:output_type -> changelog.v1.GetPostResponse
-	14, // 25: changelog.v1.ChangelogService.ListChanges:output_type -> changelog.v1.ListChangesResponse
-	23, // [23:26] is the sub-list for method output_type
-	20, // [20:23] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	15, // 7: changelog.v1.PostSummary.updated_at:type_name -> google.protobuf.Timestamp
+	6,  // 8: changelog.v1.Post.summary:type_name -> changelog.v1.PostSummary
+	5,  // 9: changelog.v1.Post.sections:type_name -> changelog.v1.Section
+	6,  // 10: changelog.v1.ListPostsResponse.posts:type_name -> changelog.v1.PostSummary
+	7,  // 11: changelog.v1.GetPostResponse.post:type_name -> changelog.v1.Post
+	0,  // 12: changelog.v1.ListChangesRequest.categories:type_name -> changelog.v1.ChangeCategory
+	2,  // 13: changelog.v1.ListChangesRequest.surfaces:type_name -> changelog.v1.Surface
+	1,  // 14: changelog.v1.ListChangesRequest.audiences:type_name -> changelog.v1.Audience
+	15, // 15: changelog.v1.ListChangesRequest.start_time:type_name -> google.protobuf.Timestamp
+	15, // 16: changelog.v1.ListChangesRequest.end_time:type_name -> google.protobuf.Timestamp
+	3,  // 17: changelog.v1.ListChangesRequest.sort:type_name -> changelog.v1.SortDirection
+	4,  // 18: changelog.v1.ChangeEntry.change:type_name -> changelog.v1.Change
+	15, // 19: changelog.v1.ChangeEntry.published_at:type_name -> google.protobuf.Timestamp
+	13, // 20: changelog.v1.ListChangesResponse.changes:type_name -> changelog.v1.ChangeEntry
+	8,  // 21: changelog.v1.ChangelogService.ListPosts:input_type -> changelog.v1.ListPostsRequest
+	10, // 22: changelog.v1.ChangelogService.GetPost:input_type -> changelog.v1.GetPostRequest
+	12, // 23: changelog.v1.ChangelogService.ListChanges:input_type -> changelog.v1.ListChangesRequest
+	9,  // 24: changelog.v1.ChangelogService.ListPosts:output_type -> changelog.v1.ListPostsResponse
+	11, // 25: changelog.v1.ChangelogService.GetPost:output_type -> changelog.v1.GetPostResponse
+	14, // 26: changelog.v1.ChangelogService.ListChanges:output_type -> changelog.v1.ListChangesResponse
+	24, // [24:27] is the sub-list for method output_type
+	21, // [21:24] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_changelog_v1_changelog_proto_init() }

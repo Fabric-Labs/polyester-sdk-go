@@ -194,6 +194,10 @@ const (
 	// This API does not accept API keys; authenticate with a session token. The REST problem
 	// code is API_KEY_NOT_ACCEPTED.
 	AuthErrorCode_AUTH_API_KEY_NOT_ACCEPTED AuthErrorCode = 54
+	// The wallet that signed this login is already linked to another account, so the
+	// submitted account address cannot be registered with it. Wallets are not moved between
+	// accounts. Log in with the account address this wallet already uses.
+	AuthErrorCode_AUTH_WALLET_ALREADY_LINKED AuthErrorCode = 55
 )
 
 // Enum value maps for AuthErrorCode.
@@ -253,6 +257,7 @@ var (
 		52: "AUTH_KEY_DISABLED",
 		53: "AUTH_IP_NOT_ALLOWED",
 		54: "AUTH_API_KEY_NOT_ACCEPTED",
+		55: "AUTH_WALLET_ALREADY_LINKED",
 	}
 	AuthErrorCode_value = map[string]int32{
 		"AUTH_UNSPECIFIED":                       0,
@@ -309,6 +314,7 @@ var (
 		"AUTH_KEY_DISABLED":                      52,
 		"AUTH_IP_NOT_ALLOWED":                    53,
 		"AUTH_API_KEY_NOT_ACCEPTED":              54,
+		"AUTH_WALLET_ALREADY_LINKED":             55,
 	}
 )
 
@@ -957,7 +963,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x13AcceptTermsResponse*A\n" +
 	"\x16WalletChallengePurpose\x12\x1c\n" +
 	"\x18WALLET_PROOF_UNSPECIFIED\x10\x00\x12\t\n" +
-	"\x05LOGIN\x10\x01*\xa3\r\n" +
+	"\x05LOGIN\x10\x01*\xc3\r\n" +
 	"\rAuthErrorCode\x12\x14\n" +
 	"\x10AUTH_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15AUTH_USERNAME_INVALID\x10\x01\x12\x17\n" +
@@ -1013,7 +1019,8 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x10AUTH_KEY_EXPIRED\x103\x12\x15\n" +
 	"\x11AUTH_KEY_DISABLED\x104\x12\x17\n" +
 	"\x13AUTH_IP_NOT_ALLOWED\x105\x12\x1d\n" +
-	"\x19AUTH_API_KEY_NOT_ACCEPTED\x1062\xa6\b\n" +
+	"\x19AUTH_API_KEY_NOT_ACCEPTED\x106\x12\x1e\n" +
+	"\x1aAUTH_WALLET_ALREADY_LINKED\x1072\xa6\b\n" +
 	"\vAuthService\x12\xf4\x01\n" +
 	"\x15CreateWalletChallenge\x12%.auth.v1.CreateWalletChallengeRequest\x1a&.auth.v1.CreateWalletChallengeResponse\"\x8b\x01\xbaG`\n" +
 	"\fAuth Service\x12\x17Create Wallet Challenge\x1a7Create a short-lived EIP-4361 message for wallet login.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/v1/auth/wallet-challenge\x12\x9e\x02\n" +
