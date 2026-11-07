@@ -145,3 +145,28 @@ func TestCredentialsGobEncodingIsRefused(t *testing.T) {
 		assertNoKeyMaterial(t, "gob "+name, out.Bytes())
 	}
 }
+
+// fmt cannot call methods on unexported struct fields, so Credentials must
+// hold the key where reflection-based printing cannot reach it.
+func TestCredentialsInUnexportedFieldDoesNotLeakPrivateKey(t *testing.T) {
+	creds := syntheticCredentials(t)
+	type holder struct {
+		name  string
+		creds Credentials
+	}
+	type deeper struct {
+		inner holder
+		list  []Credentials
+		byKey map[string]Credentials
+	}
+	subjects := map[string]any{
+		"unexported value":  holder{name: "app", creds: creds},
+		"unexported deeper": deeper{inner: holder{creds: creds}, list: []Credentials{creds}, byKey: map[string]Credentials{"k": creds}},
+		"pointer to holder": &holder{creds: creds},
+	}
+	for name, subject := range subjects {
+		for _, verb := range []string{"%v", "%+v", "%#v", "%s", "%q", "%x", "%X", "%d"} {
+			assertNoKeyMaterial(t, name+" "+verb, []byte(fmt.Sprintf(verb, subject)))
+		}
+	}
+}

@@ -170,3 +170,37 @@ func TestConfigGobEncodingIsRefused(t *testing.T) {
 		assertNoConfigSecrets(t, "gob "+name, out.Bytes())
 	}
 }
+
+// fmt cannot call methods on unexported struct fields, so Config must hold its
+// key where reflection-based printing cannot reach it.
+func TestConfigInUnexportedFieldDoesNotLeakPrivateKey(t *testing.T) {
+	cfg := syntheticConfig()
+	type holder struct {
+		name string
+		cfg  Config
+	}
+	type deeper struct {
+		inner holder
+		list  []Config
+		byKey map[string]Config
+	}
+	subjects := map[string]any{
+		"unexported value":  holder{name: "app", cfg: cfg},
+		"unexported deeper": deeper{inner: holder{cfg: cfg}, list: []Config{cfg}, byKey: map[string]Config{"k": cfg}},
+		"pointer to holder": &holder{cfg: cfg},
+	}
+	for name, subject := range subjects {
+		for _, verb := range []string{"%v", "%+v", "%#v", "%s", "%q", "%x", "%d"} {
+			rendered := fmt.Sprintf(verb, subject)
+			lower := strings.ToLower(rendered)
+			for marker, label := range map[string]string{
+				syntheticPrivateKeyHex[:16]:                            "key",
+				hex.EncodeToString([]byte(syntheticPrivateKeyHex[:8])): "key as hex text",
+			} {
+				if strings.Contains(lower, marker) {
+					t.Errorf("%s %s leaked %s", name, verb, label)
+				}
+			}
+		}
+	}
+}
