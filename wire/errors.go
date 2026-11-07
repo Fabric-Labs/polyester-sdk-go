@@ -189,9 +189,24 @@ func MapConnectError(err error) error {
 		}
 		return mapped
 	}
+	// A detail with no code says nothing about the outcome, but its field
+	// violations still name what to fix on a recognised Connect code.
+	var placeholderViolations []sdkerrors.FieldViolation
 	for _, detail := range connectErr.Details() {
 		value, valueErr := detail.Value()
 		if valueErr != nil {
+			continue
+		}
+		if isPlaceholderDetail(value) {
+			if orderDetail, ok := value.(*orderv1.ErrorDetail); ok {
+				for _, violation := range orderDetail.GetViolations() {
+					placeholderViolations = append(placeholderViolations, sdkerrors.FieldViolation{
+						FieldPath: violation.GetFieldPath(),
+						RuleID:    violation.GetRuleId(),
+						Message:   violation.GetMessage(),
+					})
+				}
+			}
 			continue
 		}
 		if authDetail, ok := value.(*authv1.AuthErrorDetail); ok {
@@ -305,7 +320,11 @@ func MapConnectError(err error) error {
 	if strings.HasSuffix(msg, "_OUTCOME_UNKNOWN") {
 		return &sdkerrors.APIError{Msg: msg, Code: orderErrorCodeFromName(msg)}
 	}
-	namedCode := orderErrorCodeFromName(strings.TrimSpace(msg))
+	messageCode := strings.TrimSpace(msg)
+	if IsPlaceholderCode(messageCode) {
+		messageCode = ""
+	}
+	namedCode := orderErrorCodeFromName(messageCode)
 	if connectErr.Code() == connect.CodeUnavailable && namedCode == "ERROR_CODE_ACCOUNT_ROUTING_INVALID" {
 		return &sdkerrors.APIError{Msg: msg, Code: namedCode}
 	}
@@ -316,7 +335,7 @@ func MapConnectError(err error) error {
 		if isRetryableAdmissionCode(namedCode) {
 			return rateLimitError(msg, namedCode, nil, headerRetry)
 		}
-		if _, known := orderv1.ErrorCode_value[namedCode]; known || isServiceCodeMessage(strings.TrimSpace(msg)) {
+		if _, known := orderv1.ErrorCode_value[namedCode]; known || isServiceCodeMessage(messageCode) {
 			return &sdkerrors.APIError{Msg: msg, Code: namedCode}
 		}
 	}
@@ -331,7 +350,7 @@ func MapConnectError(err error) error {
 		// request was refused.
 		return &sdkerrors.ServerError{Msg: msg}
 	case connect.CodeResourceExhausted:
-		code := orderErrorCodeFromName(msg)
+		code := orderErrorCodeFromName(messageCode)
 		if _, known := orderv1.ErrorCode_value[code]; !known {
 			code = ""
 		}
@@ -339,7 +358,9 @@ func MapConnectError(err error) error {
 	case connect.CodeCanceled, connect.CodeDeadlineExceeded:
 		return &sdkerrors.TransportError{Msg: msg}
 	case connect.CodeInvalidArgument, connect.CodeFailedPrecondition, connect.CodeOutOfRange:
-		return &sdkerrors.ValidationError{Msg: msg, Code: connectErr.Code().String()}
+		return &sdkerrors.ValidationError{
+			Msg: msg, Code: connectErr.Code().String(), Metadata: sdkerrors.ViolationMetadata(placeholderViolations), Violations: placeholderViolations,
+		}
 	case connect.CodeUnimplemented:
 		if _, ok := routeNotFoundMessages[strings.ToLower(strings.TrimSpace(msg))]; ok {
 			return &sdkerrors.RouteNotFoundError{}

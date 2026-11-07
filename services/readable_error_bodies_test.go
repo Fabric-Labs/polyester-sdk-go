@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +16,8 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
+	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
+	ratelimitv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/ratelimit/v1"
 	triggersv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
@@ -331,4 +334,261 @@ func TestEveryContractCodeKeepsItsMeaningOnACreate(t *testing.T) {
 			}
 		})
 	}
+}
+
+var placeholderCodes = []string{"UNSPECIFIED", "ERROR_CODE_UNSPECIFIED", "AUTH_UNSPECIFIED"}
+
+var serviceDetailTypeNames = []string{
+	"orders.v1.ErrorDetail",
+	"auth.v1.AuthErrorDetail",
+	"chain.withdraw.v1.ErrorDetail",
+	"transfer.v1.ErrorDetail",
+	"ledger.read.v1.ErrorDetail",
+	"polyester.ratelimit.v1.RateLimitDetail",
+}
+
+// detailBody is a JSON error body with one service detail of these raw bytes.
+func detailBody(name, detailType string, value []byte, code string) errorBody {
+	body := map[string]any{
+		"message": "m",
+		"details": []map[string]string{{"type": detailType, "value": base64.StdEncoding.EncodeToString(value)}},
+	}
+	if code != "" {
+		body["code"] = code
+	}
+	raw, _ := json.Marshal(body)
+	return errorBody{name, jsonType, string(raw)}
+}
+
+func wantServerError(t *testing.T, err error, calls int32) {
+	t.Helper()
+	var server *sdkerrors.ServerError
+	if !errors.As(err, &server) {
+		t.Fatalf("got %T %+v", err, err)
+	}
+	assertErrorFlags(t, err, false, true)
+	if calls != 1 {
+		t.Fatalf("calls=%d", calls)
+	}
+}
+
+var noCodeStatuses = []int{400, 402, 404, 405, 409, 410, 412, 413, 418, 422, 431, 500, 501, 505, 520, 599}
+
+func TestPlaceholderCodeIsNoCode(t *testing.T) {
+	for _, code := range placeholderCodes {
+		body := errorBody{code, problemType, fmt.Sprintf(`{"code":%q,"detail":"d"}`, code)}
+		for _, status := range noCodeStatuses {
+			eachOp(t, fmt.Sprintf("%s/%d", code, status), func(t *testing.T, op string) {
+				calls, err := callWithErrorBody(t, op, status, body, -1)
+				wantServerError(t, err, calls)
+				var server *sdkerrors.ServerError
+				if errors.As(err, &server) && server.Code != "" {
+					t.Fatalf("placeholder kept as a code: %+v", server)
+				}
+			})
+		}
+		for _, status := range []int{401, 403} {
+			t.Run(fmt.Sprintf("%s/%d", code, status), func(t *testing.T) {
+				calls, err := callWithErrorBody(t, "write", status, body, -1)
+				var authErr *sdkerrors.AuthError
+				if !errors.As(err, &authErr) || authErr.Status != status {
+					t.Fatalf("got %T %+v", err, err)
+				}
+				assertErrorFlags(t, err, false, false)
+				if calls != 1 {
+					t.Fatalf("calls=%d", calls)
+				}
+			})
+		}
+		for _, status := range []int{429, 502, 503, 504} {
+			t.Run(fmt.Sprintf("%s/%d", code, status), func(t *testing.T) {
+				calls, err := callWithErrorBody(t, "write", status, body, -1)
+				wantServerError(t, err, calls)
+				calls, err = callWithErrorBody(t, "read", status, body, 2)
+				if err != nil || calls != 3 {
+					t.Fatalf("read: err=%v calls=%d", err, calls)
+				}
+			})
+		}
+	}
+}
+
+func TestDetailWithNoCodeIsNoCode(t *testing.T) {
+	for _, detailType := range serviceDetailTypeNames {
+		for name, value := range map[string][]byte{"empty": nil, "undecodable": {0}} {
+			body := detailBody(name, detailType, value, "")
+			for _, status := range noCodeStatuses {
+				eachOp(t, fmt.Sprintf("%s/%s/%d", detailType, name, status), func(t *testing.T, op string) {
+					calls, err := callWithErrorBody(t, op, status, body, -1)
+					wantServerError(t, err, calls)
+				})
+			}
+			for _, status := range []int{401, 403} {
+				t.Run(fmt.Sprintf("%s/%s/%d", detailType, name, status), func(t *testing.T) {
+					calls, err := callWithErrorBody(t, "write", status, body, -1)
+					var authErr *sdkerrors.AuthError
+					if !errors.As(err, &authErr) {
+						t.Fatalf("got %T %+v", err, err)
+					}
+					assertErrorFlags(t, err, false, false)
+					if calls != 1 {
+						t.Fatalf("calls=%d", calls)
+					}
+				})
+			}
+			for _, status := range []int{429, 502, 503, 504} {
+				t.Run(fmt.Sprintf("%s/%s/%d", detailType, name, status), func(t *testing.T) {
+					calls, err := callWithErrorBody(t, "write", status, body, -1)
+					wantServerError(t, err, calls)
+				})
+			}
+		}
+	}
+}
+
+func TestEmptyDetailDoesNotTurnAServerFailureIntoARefusal(t *testing.T) {
+	for _, detailType := range serviceDetailTypeNames {
+		for _, tc := range []struct {
+			status int
+			code   string
+		}{{500, "internal"}, {500, "unknown"}, {500, "data_loss"}, {503, "unavailable"}} {
+			t.Run(fmt.Sprintf("%s/%s", detailType, tc.code), func(t *testing.T) {
+				calls, err := callWithErrorBody(t, "write", tc.status, detailBody("d", detailType, nil, tc.code), -1)
+				wantServerError(t, err, calls)
+			})
+		}
+	}
+}
+
+func TestRecognisedConnectCodeStandsWithoutItsEmptyDetail(t *testing.T) {
+	for _, detailType := range serviceDetailTypeNames {
+		for _, tc := range []struct {
+			status int
+			code   string
+		}{{400, "invalid_argument"}, {404, "not_found"}, {409, "already_exists"}} {
+			t.Run(fmt.Sprintf("%s/%s", detailType, tc.code), func(t *testing.T) {
+				calls, err := callWithErrorBody(t, "write", tc.status, detailBody("d", detailType, nil, tc.code), -1)
+				var server *sdkerrors.ServerError
+				var rate *sdkerrors.RateLimitError
+				if errors.As(err, &server) || errors.As(err, &rate) {
+					t.Fatalf("got %T %+v", err, err)
+				}
+				if code := errorCodeOf(err); code != tc.code {
+					t.Fatalf("code=%q: %T %+v", code, err, err)
+				}
+				assertErrorFlags(t, err, false, false)
+				if calls != 1 {
+					t.Fatalf("calls=%d", calls)
+				}
+			})
+		}
+	}
+}
+
+func errorCodeOf(err error) string {
+	var api *sdkerrors.APIError
+	if errors.As(err, &api) {
+		return api.Code
+	}
+	var validation *sdkerrors.ValidationError
+	if errors.As(err, &validation) {
+		return validation.Code
+	}
+	return ""
+}
+
+func TestPlaceholderDoesNotNameAResourceRefusal(t *testing.T) {
+	for _, body := range []errorBody{
+		detailBody("detail", "orders.v1.ErrorDetail", nil, "resource_exhausted"),
+		{"message-prefixed", jsonType, `{"code":"resource_exhausted","message":"ERROR_CODE_UNSPECIFIED"}`},
+		{"message-short", jsonType, `{"code":"resource_exhausted","message":"UNSPECIFIED"}`},
+	} {
+		t.Run(body.name, func(t *testing.T) {
+			calls, err := callWithErrorBody(t, "write", 429, body, -1)
+			var rate *sdkerrors.RateLimitError
+			if !errors.As(err, &rate) || rate.Code != "" {
+				t.Fatalf("got %T %+v", err, err)
+			}
+			if calls != 1 {
+				t.Fatalf("calls=%d", calls)
+			}
+		})
+	}
+}
+
+func TestRealTypedDetailIsStillACodeControl(t *testing.T) {
+	raw, err := proto.Marshal(&orderv1.ErrorDetail{Code: orderv1.ErrorCode_ERROR_CODE_BAD_PRICE})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, status := range []int{400, 500} {
+		t.Run(fmt.Sprint(status), func(t *testing.T) {
+			calls, callErr := callWithErrorBody(t, "write", status, detailBody("real", "orders.v1.ErrorDetail", raw, ""), -1)
+			if code := errorCodeOf(callErr); code != "ERROR_CODE_BAD_PRICE" {
+				t.Fatalf("code=%q: %T %+v", code, callErr, callErr)
+			}
+			assertErrorFlags(t, callErr, false, false)
+			if calls != 1 {
+				t.Fatalf("calls=%d", calls)
+			}
+		})
+	}
+}
+
+func TestConnectRefusalCodeAt500StaysKnownControl(t *testing.T) {
+	calls, err := callWithErrorBody(t, "write", 500, errorBody{"connect", jsonType, `{"code":"invalid_argument","message":"m"}`}, -1)
+	if code := errorCodeOf(err); code != "invalid_argument" {
+		t.Fatalf("code=%q: %T %+v", code, err, err)
+	}
+	assertErrorFlags(t, err, false, false)
+	if calls != 1 {
+		t.Fatalf("calls=%d", calls)
+	}
+}
+
+func TestBackoffDetailWithoutACodeStaysARateLimitControl(t *testing.T) {
+	delay := uint64(1250)
+	backoff := &ratelimitv1.RateLimitDetail{RetryAfterMs: &delay}
+	nested, err := proto.Marshal(&orderv1.ErrorDetail{RateLimit: backoff})
+	if err != nil {
+		t.Fatal(err)
+	}
+	standalone, err := proto.Marshal(backoff)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, body := range []errorBody{
+		detailBody("nested", "orders.v1.ErrorDetail", nested, "resource_exhausted"),
+		detailBody("standalone", "polyester.ratelimit.v1.RateLimitDetail", standalone, "resource_exhausted"),
+	} {
+		t.Run(body.name, func(t *testing.T) {
+			calls, callErr := callWithErrorBody(t, "write", 429, body, -1)
+			var rate *sdkerrors.RateLimitError
+			if !errors.As(callErr, &rate) || rate.RetryAfter == nil || *rate.RetryAfter != 1.25 {
+				t.Fatalf("got %T %+v", callErr, callErr)
+			}
+			assertErrorFlags(t, callErr, true, false)
+			if calls != 1 {
+				t.Fatalf("calls=%d", calls)
+			}
+		})
+	}
+}
+
+func TestPlaceholderDetailKeepsFieldViolationsOnARecognisedCode(t *testing.T) {
+	raw, err := proto.Marshal(&orderv1.ErrorDetail{Violations: []*orderv1.FieldViolation{{FieldPath: "x", RuleId: "r", Message: "v"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	calls, callErr := callWithErrorBody(t, "write", 400, detailBody("violations", "orders.v1.ErrorDetail", raw, "invalid_argument"), -1)
+	var validation *sdkerrors.ValidationError
+	if !errors.As(callErr, &validation) || validation.Code != "invalid_argument" || len(validation.Violations) != 1 || validation.Violations[0].FieldPath != "x" {
+		t.Fatalf("got %T %+v", callErr, callErr)
+	}
+	assertErrorFlags(t, callErr, false, false)
+	if calls != 1 {
+		t.Fatalf("calls=%d", calls)
+	}
+	calls, callErr = callWithErrorBody(t, "write", 500, detailBody("violations", "orders.v1.ErrorDetail", raw, ""), -1)
+	wantServerError(t, callErr, calls)
 }

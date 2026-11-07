@@ -3,6 +3,7 @@ package transport
 import (
 	"bytes"
 	"compress/gzip"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
@@ -24,18 +25,6 @@ const maxErrorBodyBytes = 64 * 1024
 // restCodeForm is the contract's form for a REST problem code. A new one at 429
 // is a refusal this SDK version can't name yet; anything else there isn't a code.
 var restCodeForm = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
-
-// serviceDetailTypes are the detail types that carry a contract code; a body
-// with one of these has a code.
-var serviceDetailTypes = map[string]struct{}{
-	"auth.v1.AuthErrorDetail":                {},
-	"orders.v1.ErrorDetail":                  {},
-	"chain.withdraw.v1.ErrorDetail":          {},
-	"transfer.v1.ErrorDetail":                {},
-	"ledger.read.v1.ErrorDetail":             {},
-	"polyester.ratelimit.v1.RateLimitDetail": {},
-	"buf.validate.Violations":                {},
-}
 
 // timestampSkewRoundTripper reports gateway answers whose JSON (or problem
 // JSON) body is not a Connect error, so Connect would discard their code and
@@ -88,7 +77,8 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 			Message   string `json:"message"`
 		} `json:"violations"`
 		Details []struct {
-			Type string `json:"type"`
+			Type  string `json:"type"`
+			Value string `json:"value"`
 		} `json:"details"`
 	}
 	if isJSON || resp.StatusCode == 504 {
@@ -102,9 +92,13 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 			detail.Code = ""
 		}
 	}
+	if wire.IsPlaceholderCode(detail.Code) {
+		detail.Code = ""
+	}
 	hasServiceDetail := false
 	for _, item := range detail.Details {
-		if _, ok := serviceDetailTypes[item.Type]; ok {
+		value, decodeErr := base64.RawStdEncoding.DecodeString(strings.TrimRight(item.Value, "="))
+		if decodeErr == nil && wire.CarriesContractCode(item.Type, value) {
 			hasServiceDetail = true
 		}
 	}

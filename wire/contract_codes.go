@@ -3,11 +3,14 @@ package wire
 import (
 	"strings"
 
+	"buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	withdrawv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/withdraw/v1"
 	ledgerrdv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
+	ratelimitv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/ratelimit/v1"
 	transferv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 // restOnlyCodes are contract REST codes that no generated error enum names.
@@ -35,11 +38,71 @@ var restOnlyCodes = map[string]struct{}{
 	"TRIGGER_ID_REQUIRED":                  {},
 }
 
+// IsPlaceholderCode reports whether code is an enum's zero value: "no code was
+// provided", never a code of its own.
+func IsPlaceholderCode(code string) bool {
+	switch code {
+	case "UNSPECIFIED", "ERROR_CODE_UNSPECIFIED", "AUTH_UNSPECIFIED":
+		return true
+	}
+	return false
+}
+
+// isPlaceholderDetail reports whether a decoded service detail says nothing: no
+// code and no backoff. Field violations alone name what to fix, not an outcome.
+func isPlaceholderDetail(detail any) bool {
+	switch d := detail.(type) {
+	case *authv1.AuthErrorDetail:
+		return d.GetCode() == authv1.AuthErrorCode_AUTH_UNSPECIFIED
+	case *orderv1.ErrorDetail:
+		return d.GetCode() == orderv1.ErrorCode_ERROR_CODE_UNSPECIFIED && proto.Size(d.GetRateLimit()) == 0
+	case *withdrawv1.ErrorDetail:
+		return d.GetCode() == 0
+	case *transferv1.ErrorDetail:
+		return d.GetCode() == 0
+	case *ledgerrdv1.ErrorDetail:
+		return d.GetCode() == 0
+	case *ratelimitv1.RateLimitDetail:
+		return proto.Size(d) == 0
+	case *validate.Violations:
+		return len(d.GetViolations()) == 0
+	}
+	return false
+}
+
+// CarriesContractCode reports whether an encoded error detail is a service detail
+// that says something. One that is empty or undecodable proves nothing.
+func CarriesContractCode(detailType string, value []byte) bool {
+	var detail proto.Message
+	switch detailType {
+	case "auth.v1.AuthErrorDetail":
+		detail = &authv1.AuthErrorDetail{}
+	case "orders.v1.ErrorDetail":
+		detail = &orderv1.ErrorDetail{}
+	case "chain.withdraw.v1.ErrorDetail":
+		detail = &withdrawv1.ErrorDetail{}
+	case "transfer.v1.ErrorDetail":
+		detail = &transferv1.ErrorDetail{}
+	case "ledger.read.v1.ErrorDetail":
+		detail = &ledgerrdv1.ErrorDetail{}
+	case "polyester.ratelimit.v1.RateLimitDetail":
+		detail = &ratelimitv1.RateLimitDetail{}
+	case "buf.validate.Violations":
+		detail = &validate.Violations{}
+	default:
+		return false
+	}
+	if proto.Unmarshal(value, detail) != nil {
+		return false
+	}
+	return !isPlaceholderDetail(detail)
+}
+
 // IsRecognisedRESTCode reports whether the contract defines this REST problem
 // code. A mutation's unknown outcome is recognised by its suffix, including one
 // added to the contract after this SDK was generated.
 func IsRecognisedRESTCode(code string) bool {
-	if code == "" {
+	if code == "" || IsPlaceholderCode(code) {
 		return false
 	}
 	if _, ok := restOnlyCodes[code]; ok || strings.HasSuffix(code, "_OUTCOME_UNKNOWN") {

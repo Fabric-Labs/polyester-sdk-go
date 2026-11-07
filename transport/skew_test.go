@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -290,10 +291,45 @@ func TestLongCompressedConnectErrorReachesConnectIntact(t *testing.T) {
 	}
 }
 
+// An encoding this client can't decode leaves no readable error. Whatever the
+// body says, only a 401 or 403 is known, on its status alone, and a 404 reads as
+// bare with an unknown outcome.
 func TestUndecodableEncodingProvesNothing(t *testing.T) {
-	err := callMeAgainst(t, 400, "application/json", `{"code":"BAD_PRICE"}`, map[string]string{"Content-Encoding": "br"})
+	for _, encoding := range []string{"br", "zstd", "deflate", "bogus"} {
+		for _, body := range []string{`{"code":"BAD_PRICE"}`, `{"code":"invalid_argument","message":"m"}`, "corrupt"} {
+			for _, status := range []int{400, 404, 409, 412, 422, 429, 500, 501, 502, 503, 504, 520} {
+				t.Run(fmt.Sprintf("%s/%d/%s", encoding, status, body), func(t *testing.T) {
+					err := callMeAgainst(t, status, "application/json", body, map[string]string{"Content-Encoding": encoding})
+					var server *sdkerrors.ServerError
+					var route *sdkerrors.RouteNotFoundError
+					if !errors.As(err, &server) && !errors.As(err, &route) {
+						t.Fatalf("got %T %+v", err, err)
+					}
+					if sdkerrors.IsRetryable(err) || !sdkerrors.MutationOutcomeUnknown(err) {
+						t.Fatalf("got %T %+v", err, err)
+					}
+				})
+			}
+			for _, status := range []int{401, 403} {
+				t.Run(fmt.Sprintf("%s/%d/%s", encoding, status, body), func(t *testing.T) {
+					err := callMeAgainst(t, status, "application/json", body, map[string]string{"Content-Encoding": encoding})
+					if sdkerrors.IsRetryable(err) {
+						t.Fatalf("got %T %+v", err, err)
+					}
+					var authErr *sdkerrors.AuthError
+					if !errors.As(err, &authErr) && !sdkerrors.MutationOutcomeUnknown(err) {
+						t.Fatalf("got %T %+v", err, err)
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestCorruptGzipBodyProvesNothing(t *testing.T) {
+	err := callMeAgainst(t, 400, "application/json", "not gzip", map[string]string{"Content-Encoding": "gzip"})
 	var server *sdkerrors.ServerError
-	if !errors.As(err, &server) || server.Status != 400 || !sdkerrors.MutationOutcomeUnknown(err) {
+	if !errors.As(err, &server) || !sdkerrors.MutationOutcomeUnknown(err) {
 		t.Fatalf("got %T %+v", err, err)
 	}
 }
