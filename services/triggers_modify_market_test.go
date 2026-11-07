@@ -63,3 +63,67 @@ func TestTriggerModifySendsAPriceForItsMarketOrAnUnknownOne(t *testing.T) {
 		t.Fatalf("modify=%v", handler.modify)
 	}
 }
+
+// An explicit symbol ID the catalogs don't know can't be checked against a
+// bound price, so the price is refused rather than sent unchecked. An
+// unbound price is still sent.
+func TestTriggerModifyRefusesABoundPriceItCannotCheck(t *testing.T) {
+	triggerID := codecs.FormatID(9)
+	unknown := uint32(6)
+	for priceName, price := range map[string]models.PriceInput{
+		"btc_bound": models.PriceFromTicks(models.MustPriceTicks(47_000_000_000_000).WithSymbol("BTC-USDT")),
+		"sol_bound": models.PriceFromTicks(models.MustPriceTicks(46_000_000_000_000).WithSymbol("SOL-USDT")),
+	} {
+		for field, opts := range map[string]codecs.ModifyTriggerOptions{
+			"trigger_price":    {TriggerPrice: &price},
+			"activation_price": {ActivationPrice: &price},
+		} {
+			t.Run(priceName+"/"+field, func(t *testing.T) {
+				handler := &triggerControlHandler{}
+				service := newTriggerControlService(t, handler)
+				_, err := service.Modify(context.Background(), nil, triggerID, nil, nil, &unknown, opts)
+				if err == nil || !strings.Contains(err.Error(), "cannot check a price bound to") {
+					t.Fatalf("err=%v", err)
+				}
+				handler.mu.Lock()
+				defer handler.mu.Unlock()
+				if len(handler.modify) != 0 {
+					t.Fatalf("sent %d modify requests", len(handler.modify))
+				}
+			})
+		}
+	}
+	t.Run("no_catalogs", func(t *testing.T) {
+		handler := &triggerControlHandler{}
+		service := newTriggerControlService(t, handler)
+		service.catalogs = nil
+		btc := models.PriceFromTicks(models.MustPriceTicks(47_000_000_000_000).WithSymbol("BTC-USDT"))
+		_, err := service.Modify(context.Background(), nil, triggerID, nil, nil, &unknown, codecs.ModifyTriggerOptions{TriggerPrice: &btc})
+		if err == nil || !strings.Contains(err.Error(), "cannot check a price bound to") {
+			t.Fatalf("err=%v", err)
+		}
+	})
+	t.Run("unbound", func(t *testing.T) {
+		handler := &triggerControlHandler{}
+		service := newTriggerControlService(t, handler)
+		unbound := models.PriceFromTicksInt(46_000_000_000_000)
+		if _, err := service.Modify(context.Background(), nil, triggerID, nil, nil, &unknown, codecs.ModifyTriggerOptions{TriggerPrice: &unbound, ActivationPrice: &unbound}); err != nil {
+			t.Fatal(err)
+		}
+		handler.mu.Lock()
+		defer handler.mu.Unlock()
+		if len(handler.modify) != 1 || handler.modify[0].GetSymbolId() != 6 ||
+			handler.modify[0].GetTriggerPriceTicks() != 46_000_000_000_000 || handler.modify[0].GetActivationPriceTicks() != 46_000_000_000_000 {
+			t.Fatalf("modify=%v", handler.modify)
+		}
+	})
+	t.Run("matching_by_id", func(t *testing.T) {
+		handler := &triggerControlHandler{}
+		service := newTriggerControlService(t, handler)
+		known := uint32(5)
+		btc := models.PriceFromTicks(models.MustPriceTicks(47_000_000_000_000).WithSymbol("BTC-USDT"))
+		if _, err := service.Modify(context.Background(), nil, triggerID, nil, nil, &known, codecs.ModifyTriggerOptions{ActivationPrice: &btc}); err != nil {
+			t.Fatal(err)
+		}
+	})
+}

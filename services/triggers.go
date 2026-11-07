@@ -2,10 +2,12 @@ package services
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	triggersv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1/triggersv1connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
@@ -214,14 +216,23 @@ func (s *TriggersService) Modify(ctx context.Context, account AccountScope, trig
 	if err != nil {
 		return models.TriggerMutationResult{}, err
 	}
-	// The market's name is needed to refuse a price bound to another market.
+	// A bound price is checked against the named market; one that can't be
+	// named can't be checked, so the price is refused.
 	market := ""
-	if resolvedSymbolID != 0 && s.catalogs != nil && hasBoundPrice(opts.TriggerPrice, opts.ActivationPrice) {
-		if err := s.ensureCatalogs(ctx); err != nil {
-			return models.TriggerMutationResult{}, err
+	if bound := boundPriceSymbol(opts.TriggerPrice, opts.ActivationPrice); resolvedSymbolID != 0 && bound != "" {
+		if s.catalogs != nil {
+			if err := s.ensureCatalogs(ctx); err != nil {
+				return models.TriggerMutationResult{}, err
+			}
+			if canonical := s.catalogs.SymbolForSymbolID(resolvedSymbolID); canonical != nil {
+				market = *canonical
+			}
 		}
-		if canonical := s.catalogs.SymbolForSymbolID(resolvedSymbolID); canonical != nil {
-			market = *canonical
+		if market == "" {
+			return models.TriggerMutationResult{}, &sdkerrors.ValidationError{Msg: fmt.Sprintf(
+				"triggers.modify cannot check a price bound to %s against symbol_id %d: the market is not in the catalogs; hydrate catalogs or pass an unbound price",
+				bound, resolvedSymbolID,
+			)}
 		}
 	}
 	req, err := codecs.ModifyTriggerToProto(triggerID, resolvedSymbolID, market, sub, opts)
@@ -271,15 +282,16 @@ func (s *TriggersService) SubscribeEvents(ctx context.Context, accountID any) (*
 	return SubscribeAccountProtoBatch(ctx, s.realtime, "private:spot:triggers:events:{account_id}:proto", accountID, s.defaultAccountID, decode.TriggerEventBatchFromBytes)
 }
 
-// hasBoundPrice reports whether any price carries a market binding.
-func hasBoundPrice(prices ...*models.PriceInput) bool {
+// boundPriceSymbol returns the market the first bound price is bound to, or
+// "" when no price carries a market binding.
+func boundPriceSymbol(prices ...*models.PriceInput) string {
 	for _, price := range prices {
 		if price == nil {
 			continue
 		}
 		if ticks, ok := price.TicksValue(); ok && ticks.Symbol() != "" {
-			return true
+			return ticks.Symbol()
 		}
 	}
-	return false
+	return ""
 }
