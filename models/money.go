@@ -473,52 +473,34 @@ func cloneUint32(value *uint32) *uint32 {
 const MaxProtocolScale = 36
 
 func formatFixed(n int64, scale int) (string, error) {
+	return formatFixedBig(big.NewInt(n), scale)
+}
+
+// validateScale rejects a scale outside 0..MaxProtocolScale.
+func validateScale(scale int) error {
 	if scale < 0 {
-		return "", &errors.ValidationError{Msg: "scale must be non-negative"}
+		return &errors.ValidationError{Msg: "scale must be non-negative"}
 	}
 	if scale > MaxProtocolScale {
-		return "", &errors.ValidationError{
+		return &errors.ValidationError{
 			Msg: fmt.Sprintf("scale %d exceeds maximum protocol scale %d", scale, MaxProtocolScale),
 		}
 	}
-	if scale == 0 {
-		return fmt.Sprintf("%d", n), nil
-	}
-	neg := n < 0
-	if neg {
-		n = -n
-	}
-	digits := fmt.Sprintf("%d", n)
-	width := scale + 1
-	if len(digits) < width {
-		digits = strings.Repeat("0", width-len(digits)) + digits
-	}
-	head := strings.TrimLeft(digits[:len(digits)-scale], "0")
-	if head == "" {
-		head = "0"
-	}
-	tail := strings.TrimRight(digits[len(digits)-scale:], "0")
-	out := head
-	if tail != "" {
-		out += "." + tail
-	}
-	if neg {
-		return "-" + out, nil
-	}
-	return out, nil
+	return nil
 }
 
 func formatFixedBig(n *big.Int, scale int) (string, error) {
-	if scale < 0 {
-		return "", &errors.ValidationError{Msg: "scale must be non-negative"}
+	if err := validateScale(scale); err != nil {
+		return "", err
 	}
-	if scale > MaxProtocolScale {
-		return "", &errors.ValidationError{
-			Msg: fmt.Sprintf("scale %d exceeds maximum protocol scale %d", scale, MaxProtocolScale),
-		}
-	}
+	return formatScaledBig(n, scale), nil
+}
+
+// formatScaledBig formats n / 10^scale for a non-negative scale without the
+// MaxProtocolScale cap, for values derived from in-range scales.
+func formatScaledBig(n *big.Int, scale int) string {
 	if scale == 0 {
-		return n.String(), nil
+		return n.String()
 	}
 	neg := n.Sign() < 0
 	abs := new(big.Int).Abs(n)
@@ -537,9 +519,9 @@ func formatFixedBig(n *big.Int, scale int) (string, error) {
 		out += "." + tail
 	}
 	if neg {
-		return "-" + out, nil
+		return "-" + out
 	}
-	return out, nil
+	return out
 }
 
 // Int64Max is math.MaxInt64 for bounds docs/tests.
