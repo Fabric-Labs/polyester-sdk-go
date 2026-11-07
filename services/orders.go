@@ -612,14 +612,20 @@ func (s *OrdersService) Subscribe(ctx context.Context, accountID any) (*realtime
 	return s.realtime.SubscribeOrders(ctx, resolved)
 }
 
-// WaitForOrderTradesComplete polls GetOrder until the sum of returned trade
-// quantities equals the order's cumulative filled quantity, or the timeout
-// elapses. A timeout of zero or less waits 15 s.
+// WaitForOrderTradesComplete polls GetOrder until the order is terminal
+// (Status "filled", "canceled" or "rejected") and the sum of returned trade
+// quantities equals its cumulative filled quantity, or the timeout elapses. A
+// timeout of zero or less waits 15 s.
 //
 // Trade projection can lag the order filled/cum qty fields; use this helper
-// when fills must be fully projected before continuing. Each poll reads every
-// execution page, and the result carries the order, trades and transfers of
-// the last poll with that read's ExecutionsComplete.
+// when an order's fills must be final and fully projected before continuing.
+// ExecutionsComplete alone does not mean that: it is also true for a working
+// order whose fills so far are all recorded, for example after a partial fill,
+// so such an order keeps the wait polling until it ends or the timeout passes.
+// To check the trades recorded so far on a working order, read it with Get
+// and compare its trades to CumQty. Each poll reads every execution page, and
+// the result carries the order, trades and transfers of the last poll with
+// that read's ExecutionsComplete.
 //
 // The timeout bounds the whole wait, page reads included: a read still in
 // flight when it passes is abandoned, a read that finishes after it is no
@@ -743,8 +749,15 @@ func (s *OrdersService) getOrderExecutionPages(
 	}
 }
 
+// orderTradesComplete reports an order that has ended and whose trades add up
+// to its cumulative filled quantity: no further fill can follow.
 func orderTradesComplete(detail models.GetOrderResult) bool {
 	if detail.Order == nil {
+		return false
+	}
+	switch detail.Order.Status {
+	case "filled", "canceled", "rejected":
+	default:
 		return false
 	}
 	return sumTradeQty(detail.Trades) == detail.Order.CumQty.Scaled()

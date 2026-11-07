@@ -27,7 +27,7 @@ func (h *executionPageHandler) GetOrder(_ context.Context, r *connect.Request[or
 		next = "older-executions"
 		qty = 40
 	}
-	return connect.NewResponse(&orderv1.GetOrderResponse{Order: &orderv1.Order{OrderId: 9, CumQtyScaled: 100, InheritedCumQtyScaled: 40}, Trades: []*orderv1.UserTrade{{OrderId: 9, QtyScaled: qty}}, NextPageToken: next}), nil
+	return connect.NewResponse(&orderv1.GetOrderResponse{Order: &orderv1.Order{OrderId: 9, Status: orderv1.OrderStatus_FILLED, CumQtyScaled: 100, InheritedCumQtyScaled: 40}, Trades: []*orderv1.UserTrade{{OrderId: 9, QtyScaled: qty}}, NextPageToken: next}), nil
 }
 func TestExecutionPagingPinsOrderGeneration(t *testing.T) {
 	handler := &executionPageHandler{}

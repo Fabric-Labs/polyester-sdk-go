@@ -43,9 +43,13 @@ type tradesWaitServer struct {
 	ordersv1connect.UnimplementedOrdersReadServiceHandler
 	cum   int64
 	polls [][]tradesPage
+	// statuses is the order's status on each poll, the last one repeating.
+	// The order reads FILLED when statuses is empty.
+	statuses []orderv1.OrderStatus
 
 	mu       sync.Mutex
 	poll     int
+	reads    int // polls started after the first
 	started  bool
 	arrivals []time.Time
 }
@@ -55,12 +59,19 @@ func (s *tradesWaitServer) GetOrder(ctx context.Context, req *connect.Request[or
 	s.arrivals = append(s.arrivals, time.Now())
 	token := req.Msg.GetPageToken()
 	if token == "" {
-		if s.started && s.poll < len(s.polls)-1 {
-			s.poll++
+		if s.started {
+			s.reads++
+			if s.poll < len(s.polls)-1 {
+				s.poll++
+			}
 		}
 		s.started = true
 	}
 	pages := s.polls[s.poll]
+	status := orderv1.OrderStatus_FILLED
+	if len(s.statuses) > 0 {
+		status = s.statuses[min(s.reads, len(s.statuses)-1)]
+	}
 	s.mu.Unlock()
 	idx := 0
 	if token != "" {
@@ -85,7 +96,7 @@ func (s *tradesWaitServer) GetOrder(ctx context.Context, req *connect.Request[or
 		}
 	}
 	resp := &orderv1.GetOrderResponse{
-		Order:              &orderv1.Order{OrderId: 1, SymbolId: 1, CumQtyScaled: s.cum},
+		Order:              &orderv1.Order{OrderId: 1, SymbolId: 1, Status: status, CumQtyScaled: s.cum},
 		NextPageToken:      page.next,
 		ExecutionsComplete: page.complete,
 	}
@@ -195,6 +206,63 @@ func TestWaitForOrderTradesCompleteKeepsExecutionsComplete(t *testing.T) {
 			}
 		})
 	}
+}
+
+// The wait reports completion only for a terminal order (filled, canceled or
+// rejected) whose recorded trades add up to its cum_qty. executions_complete
+// alone is not enough: it is also true for a working order whose fills so far
+// are all recorded. The Python and Rust SDKs run the same cases.
+func TestWaitForOrderTradesCompleteRequiresATerminalOrder(t *testing.T) {
+	const (
+		working  = orderv1.OrderStatus_WORKING
+		filled   = orderv1.OrderStatus_FILLED
+		canceled = orderv1.OrderStatus_CANCELED
+		rejected = orderv1.OrderStatus_REJECTED
+	)
+	cases := []struct {
+		name     string
+		cum      int64
+		trades   []int64
+		statuses []orderv1.OrderStatus
+		// wantStatus is the status of the read the wait returns.
+		wantStatus string
+		wantDone   bool
+	}{
+		{"partially filled working order", 40, []int64{40}, []orderv1.OrderStatus{working}, "working", false},
+		{"terminal fully filled order", 100, []int64{60, 40}, []orderv1.OrderStatus{filled}, "filled", true},
+		{"terminal canceled order with partial fills", 40, []int64{40}, []orderv1.OrderStatus{canceled}, "canceled", true},
+		{"terminal order with no fills", 0, nil, []orderv1.OrderStatus{rejected}, "rejected", true},
+		{"partially filled order canceled on a later poll", 40, []int64{40}, []orderv1.OrderStatus{working, working, canceled}, "canceled", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			client := newTradesWaitClient(t, &tradesWaitServer{
+				cum:      tc.cum,
+				polls:    [][]tradesPage{{{trades: tc.trades, complete: true}}},
+				statuses: tc.statuses,
+			})
+			result, err := waitTrades(context.Background(), client, 500*time.Millisecond)
+			if tc.wantDone && err != nil {
+				t.Fatalf("want completion, got %v", err)
+			}
+			if !tc.wantDone && !isTradesWaitTimeout(err) {
+				t.Fatalf("want the wait's timeout error for a working order, got %v (status %q)", err, orderStatus(result))
+			}
+			if got := orderStatus(result); got != tc.wantStatus {
+				t.Fatalf("returned read has status %q, want %q", got, tc.wantStatus)
+			}
+			if !result.ExecutionsComplete {
+				t.Fatal("returned read lost executions_complete")
+			}
+		})
+	}
+}
+
+func orderStatus(result models.GetOrderResult) string {
+	if result.Order == nil {
+		return ""
+	}
+	return result.Order.Status
 }
 
 // Four fast pages within the timeout succeed with every page's trades.
