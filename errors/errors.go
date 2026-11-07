@@ -268,10 +268,18 @@ func ViolationMetadata(violations []FieldViolation) map[string]string {
 }
 
 // TransportError indicates network or timeout failures.
-type TransportError struct{ Msg string }
+//
+// Err is the caller's context error when the call's context was cancelled or
+// its deadline passed, so errors.Is(err, context.Canceled) and
+// errors.Is(err, context.DeadlineExceeded) report it. It is nil otherwise.
+type TransportError struct {
+	Msg string
+	Err error
+}
 
 func (e *TransportError) Error() string        { return e.Msg }
 func (e *TransportError) Is(target error) bool { return target == ErrPolyester }
+func (e *TransportError) Unwrap() error        { return e.Err }
 
 // RateLimitError indicates rate limiting from the API.
 //
