@@ -1,9 +1,11 @@
 package hardening_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"math/rand/v2"
 	"net/http"
 	"os"
@@ -103,6 +105,13 @@ func (s *tradesWaitServer) requestArrivals() []time.Time {
 
 func newTradesWaitClient(t *testing.T, handler *tradesWaitServer) *polyester.Client {
 	t.Helper()
+	return newTradesWaitClientWith(t, handler, nil)
+}
+
+// newTradesWaitClientWith builds the client over httpClient (the SDK default
+// when nil).
+func newTradesWaitClientWith(t *testing.T, handler *tradesWaitServer, httpClient *http.Client) *polyester.Client {
+	t.Helper()
 	mux := http.NewServeMux()
 	path, h := ordersv1connect.NewOrdersReadServiceHandler(handler)
 	mux.Handle(path, h)
@@ -116,7 +125,8 @@ func newTradesWaitClient(t *testing.T, handler *tradesWaitServer) *polyester.Cli
 		HydrateCatalogs: false,
 		// Far above every wait timeout below: a page read that outlives
 		// its wait shows up as a multi-second return.
-		Timeout: 5 * time.Second,
+		Timeout:    5 * time.Second,
+		HTTPClient: httpClient,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -243,6 +253,62 @@ func TestWaitForOrderTradesCompleteAbandonsAPageAtItsTimeout(t *testing.T) {
 	}
 	if !isTradesWaitTimeout(err) {
 		t.Fatalf("want a timeout error, got %T: %v", err, err)
+	}
+}
+
+// lateTransport answers each request in full, then holds the answer until
+// the request's deadline has passed: a page that arrived in time but whose
+// handling finished after the wait's timeout.
+type lateTransport struct{ base http.RoundTripper }
+
+func (l lateTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	resp, err := l.base.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+	body, err := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+	deadline, _ := req.Context().Deadline()
+	resp.Body = &lateEOFBody{Reader: bytes.NewReader(body), deadline: deadline}
+	return resp, nil
+}
+
+// lateEOFBody hands over the whole body at once, then reports its end only
+// once the deadline has passed.
+type lateEOFBody struct {
+	*bytes.Reader
+	deadline time.Time
+}
+
+func (b *lateEOFBody) Read(p []byte) (int, error) {
+	n, err := b.Reader.Read(p)
+	if errors.Is(err, io.EOF) && !b.deadline.IsZero() {
+		time.Sleep(time.Until(b.deadline) + 20*time.Millisecond)
+	}
+	return n, err
+}
+
+func (b *lateEOFBody) Close() error { return nil }
+
+// A complete read whose handling ends after the timeout is no success: the
+// wait times out and still returns that read as its last result. The
+// deadline is checked on the clock, not only through the read's context.
+func TestWaitForOrderTradesCompleteRefusesASuccessFinishedAfterItsTimeout(t *testing.T) {
+	handler := &tradesWaitServer{cum: 100, polls: [][]tradesPage{{{trades: []int64{100}, complete: true}}}}
+	httpClient := &http.Client{Transport: lateTransport{base: http.DefaultTransport}, Timeout: 5 * time.Second}
+	client := newTradesWaitClientWith(t, handler, httpClient)
+	result, err := waitTrades(context.Background(), client, 50*time.Millisecond)
+	if err == nil {
+		t.Fatalf("wait succeeded with a read handled after its timeout: %d trades", len(result.Trades))
+	}
+	if !isTradesWaitTimeout(err) || !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("want the wait's timeout error, got %T: %v", err, err)
+	}
+	if got := tradeQtys(result); !slices.Equal(got, []int64{100}) || !result.ExecutionsComplete {
+		t.Fatalf("late read not kept as the last result: trades=%v complete=%v", got, result.ExecutionsComplete)
 	}
 }
 
