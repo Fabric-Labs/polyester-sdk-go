@@ -41,14 +41,18 @@ func (s *GuardSignerService) GetStatus(ctx context.Context, account AccountScope
 }
 
 func (s *GuardSignerService) SignProtectedAction(ctx context.Context, action string, account AccountScope, subAccountID *string, externalPolychainChainID *int, externalAddresses, internalAddresses []string, whitelistRequired *bool) (*models.GuardApproval, error) {
+	args, err := codecs.ProtectedActionArgsToProto(
+		externalPolychainChainID,
+		externalAddresses,
+		internalAddresses,
+		whitelistRequired,
+	)
+	if err != nil {
+		return nil, err
+	}
 	req := &guardv1.SignProtectedActionRequest{
 		Action: codecs.ProtectedActionFromLabel(action),
-		Args: codecs.ProtectedActionArgsToProto(
-			externalPolychainChainID,
-			externalAddresses,
-			internalAddresses,
-			whitelistRequired,
-		),
+		Args:   args,
 	}
 	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {
 		return nil, err
@@ -63,7 +67,11 @@ func (s *GuardSignerService) BatchSignProtectedActions(ctx context.Context, acti
 		if err != nil {
 			return models.BatchSignProtectedActionsResult{}, err
 		}
-		items = append(items, codecs.BatchProtectedActionItemToProto(parsed))
+		encoded, err := codecs.BatchProtectedActionItemToProto(parsed)
+		if err != nil {
+			return models.BatchSignProtectedActionsResult{}, err
+		}
+		items = append(items, encoded)
 	}
 	req := &guardv1.BatchSignProtectedActionsRequest{Actions: items}
 	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {
