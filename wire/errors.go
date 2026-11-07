@@ -127,6 +127,10 @@ func MapConnectError(err error) error {
 	if errors.As(err, &skewErr) {
 		return skewErr
 	}
+	var notImplementedErr *sdkerrors.NotImplementedError
+	if errors.As(err, &notImplementedErr) {
+		return notImplementedErr
+	}
 	var ownerLockedErr *sdkerrors.SubaccountOwnerRoleLockedError
 	if errors.As(err, &ownerLockedErr) {
 		return ownerLockedErr
@@ -185,9 +189,32 @@ func MapConnectError(err error) error {
 		}
 		return mapped
 	}
+	// A detail with no code says nothing about the outcome, but its field
+	// violations still name what to fix on a recognised Connect code.
+	var placeholderViolations []sdkerrors.FieldViolation
+	futureCode := ""
 	for _, detail := range connectErr.Details() {
 		value, valueErr := detail.Value()
 		if valueErr != nil {
+			continue
+		}
+		if isPlaceholderDetail(value) {
+			if orderDetail, ok := value.(*orderv1.ErrorDetail); ok {
+				for _, violation := range orderDetail.GetViolations() {
+					placeholderViolations = append(placeholderViolations, sdkerrors.FieldViolation{
+						FieldPath: violation.GetFieldPath(),
+						RuleID:    violation.GetRuleId(),
+						Message:   violation.GetMessage(),
+					})
+				}
+			}
+			continue
+		}
+		// A code this SDK can't name stands only behind a recognised refusal.
+		if isServerFailureCode(connectErr.Code()) && hasFutureCode(value) {
+			if futureCode == "" {
+				futureCode = futureCodeLabel(value)
+			}
 			continue
 		}
 		if authDetail, ok := value.(*authv1.AuthErrorDetail); ok {
@@ -301,7 +328,11 @@ func MapConnectError(err error) error {
 	if strings.HasSuffix(msg, "_OUTCOME_UNKNOWN") {
 		return &sdkerrors.APIError{Msg: msg, Code: orderErrorCodeFromName(msg)}
 	}
-	namedCode := orderErrorCodeFromName(strings.TrimSpace(msg))
+	messageCode := strings.TrimSpace(msg)
+	if IsPlaceholderCode(messageCode) {
+		messageCode = ""
+	}
+	namedCode := orderErrorCodeFromName(messageCode)
 	if connectErr.Code() == connect.CodeUnavailable && namedCode == "ERROR_CODE_ACCOUNT_ROUTING_INVALID" {
 		return &sdkerrors.APIError{Msg: msg, Code: namedCode}
 	}
@@ -312,7 +343,7 @@ func MapConnectError(err error) error {
 		if isRetryableAdmissionCode(namedCode) {
 			return rateLimitError(msg, namedCode, nil, headerRetry)
 		}
-		if _, known := orderv1.ErrorCode_value[namedCode]; known || isServiceCodeMessage(strings.TrimSpace(msg)) {
+		if _, known := orderv1.ErrorCode_value[namedCode]; known || isServiceCodeMessage(messageCode) {
 			return &sdkerrors.APIError{Msg: msg, Code: namedCode}
 		}
 	}
@@ -322,10 +353,12 @@ func MapConnectError(err error) error {
 		return &sdkerrors.AuthError{Msg: msg, Code: "unauthenticated", Status: 401}
 	case connect.CodePermissionDenied:
 		return &sdkerrors.AuthError{Msg: msg, Code: "permission_denied", Status: 403}
-	case connect.CodeUnavailable, connect.CodeInternal:
-		return &sdkerrors.ServerError{Msg: msg}
+	case connect.CodeUnavailable, connect.CodeInternal, connect.CodeUnknown, connect.CodeDataLoss:
+		// The contract never uses unknown or data_loss, and neither says a
+		// request was refused.
+		return &sdkerrors.ServerError{Msg: msg, Code: futureCode}
 	case connect.CodeResourceExhausted:
-		code := orderErrorCodeFromName(msg)
+		code := orderErrorCodeFromName(messageCode)
 		if _, known := orderv1.ErrorCode_value[code]; !known {
 			code = ""
 		}
@@ -333,20 +366,26 @@ func MapConnectError(err error) error {
 	case connect.CodeCanceled, connect.CodeDeadlineExceeded:
 		return &sdkerrors.TransportError{Msg: msg}
 	case connect.CodeInvalidArgument, connect.CodeFailedPrecondition, connect.CodeOutOfRange:
-		return &sdkerrors.ValidationError{Msg: msg, Code: connectErr.Code().String()}
+		return &sdkerrors.ValidationError{
+			Msg: msg, Code: connectErr.Code().String(), Metadata: sdkerrors.ViolationMetadata(placeholderViolations), Violations: placeholderViolations,
+		}
 	case connect.CodeUnimplemented:
 		if _, ok := routeNotFoundMessages[strings.ToLower(strings.TrimSpace(msg))]; ok {
 			return &sdkerrors.RouteNotFoundError{}
 		}
 		return &sdkerrors.NotImplementedError{Msg: msg}
-	case connect.CodeUnknown:
-		// Connect reports a non-Connect HTTP error body by its status line
-		// and maps 501 to unknown.
-		if strings.HasPrefix(msg, "501 ") {
-			return &sdkerrors.NotImplementedError{Msg: msg}
-		}
 	}
 	return &sdkerrors.APIError{Msg: msg, Code: connectErr.Code().String()}
+}
+
+// isServerFailureCode reports a Connect code that says the server failed, not
+// that it refused the request.
+func isServerFailureCode(code connect.Code) bool {
+	switch code {
+	case connect.CodeInternal, connect.CodeUnknown, connect.CodeDataLoss, connect.CodeCanceled, connect.CodeUnavailable, connect.CodeDeadlineExceeded:
+		return true
+	}
+	return false
 }
 
 // apiKeyRefusalCodes are the auth.v1 reasons an API key's credentials were

@@ -455,8 +455,17 @@ nothing and `errors.IsRetryable` reports true: retry the same request shortly.
 timestamp fell outside the server's window, for example after waiting in a
 large concurrent burst or with a drifting clock. It changed nothing and is
 retryable: a retry signs again. Bound concurrency or fix the clock if it
-recurs. `errors.NotImplementedError` (Connect `unimplemented` or HTTP 501)
-means the server does not offer the operation; retrying does not help.
+recurs. `errors.NotImplementedError` (Connect `unimplemented`, or a contract
+code at HTTP 501) means the server does not offer the operation; retrying does
+not help. An HTTP error with no code the contract defines can come from a gateway
+or an edge, so it doesn't prove a request was refused. Only a 401 or 403 is a
+refusal on its status alone (`errors.AuthError`). Every other status returns
+`errors.ServerError` with `errors.MutationOutcomeUnknown` true and
+`errors.IsRetryable` false, and keeps any code it did send in `Code`; read back
+before sending a mutation again. Reads retry 429, 502, 503 and 504 for you. A
+bare 404 stays `errors.RouteNotFoundError`, also with an unknown outcome. A
+well-formed but unrecognised code at HTTP 429 returns `errors.APIError`: known
+and not retryable.
 `errors.AuthErrorCode(err)` names why credentials or a session were refused,
 the same way for both transports: it reads the Connect
 `auth.v1.AuthErrorDetail` code and a REST problem `code` with the `AUTH_`

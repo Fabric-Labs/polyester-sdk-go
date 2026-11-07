@@ -2,10 +2,14 @@ package transport
 
 import (
 	"bytes"
+	"compress/gzip"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -17,6 +21,10 @@ import (
 // maxErrorBodyBytes bounds how much of an error body is inspected for a
 // gateway code.
 const maxErrorBodyBytes = 64 * 1024
+
+// restCodeForm is the contract's form for a REST problem code. A new one at 429
+// is a refusal this SDK version can't name yet; anything else there isn't a code.
+var restCodeForm = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
 
 // timestampSkewRoundTripper reports gateway answers whose JSON (or problem
 // JSON) body is not a Connect error, so Connect would discard their code and
@@ -32,7 +40,8 @@ const maxErrorBodyBytes = 64 * 1024
 //     *errors.AuthError with the problem's code and detail;
 //   - an outcome-unknown mutation problem as *errors.APIError, including
 //     codes introduced by a newer server before SDK regeneration;
-//   - a problem that lists field violations as *errors.ValidationError.
+//   - a problem that lists field violations as *errors.ValidationError;
+//   - an answer with no recognised code as *errors.ServerError, by its status.
 type timestampSkewRoundTripper struct {
 	base http.RoundTripper
 }
@@ -43,7 +52,7 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		base = http.DefaultTransport
 	}
 	resp, err := base.RoundTrip(req)
-	if err != nil || resp.StatusCode < 400 || (resp.StatusCode != 504 && !isJSONContentType(resp.Header.Get("Content-Type"))) {
+	if err != nil || resp.StatusCode < 400 {
 		return resp, err
 	}
 	body, readErr := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyBytes))
@@ -52,25 +61,68 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	if readErr != nil {
 		return resp, nil
 	}
+	isJSON := isJSONContentType(resp.Header.Get("Content-Type"))
+	// Connect asks for gzip, so a gateway may compress an error. Classify what
+	// the body says; Connect still gets the bytes as received.
+	decoded := decodedErrorBody(resp.Header.Get("Content-Encoding"), body)
 	// Connect error codes are lowercase names, so this never matches one.
 	var detail struct {
 		Code       string `json:"code"`
 		Detail     string `json:"detail"`
 		Title      string `json:"title"`
+		Message    string `json:"message"`
 		Violations []struct {
 			FieldPath string `json:"fieldPath"`
 			RuleID    string `json:"ruleId"`
 			Message   string `json:"message"`
 		} `json:"violations"`
+		Details []struct {
+			Type  string `json:"type"`
+			Value string `json:"value"`
+		} `json:"details"`
 	}
-	if json.Unmarshal(body, &detail) != nil && resp.StatusCode != 504 {
-		return resp, nil
+	if isJSON || resp.StatusCode == 504 {
+		if json.Unmarshal(decoded, &detail) != nil {
+			// Only part of a long body was inspected, so Connect reads it whole.
+			if (len(body) == maxErrorBodyBytes || len(decoded) == maxErrorBodyBytes) && resp.StatusCode != 504 {
+				return resp, nil
+			}
+			// A body Connect's decoder can't read has no code either, whatever
+			// fields were decoded before the failure.
+			detail.Code = ""
+		}
+	}
+	if wire.IsPlaceholderCode(detail.Code) {
+		detail.Code = ""
+	}
+	hasServiceDetail := false
+	futureCode := ""
+	for _, item := range detail.Details {
+		value, decodeErr := base64.RawStdEncoding.DecodeString(strings.TrimRight(item.Value, "="))
+		if decodeErr != nil {
+			continue
+		}
+		if wire.CarriesContractCode(item.Type, value) {
+			hasServiceDetail = true
+		}
+		if futureCode == "" {
+			futureCode = wire.FutureCodeLabel(item.Type, value)
+		}
 	}
 	// Connect's own code and detail decoder remains authoritative.
 	switch detail.Code {
-	case "canceled", "unknown", "invalid_argument", "deadline_exceeded", "not_found", "already_exists", "permission_denied", "resource_exhausted", "failed_precondition", "aborted", "out_of_range", "unimplemented", "internal", "unavailable", "data_loss", "unauthenticated":
+	case "unknown", "data_loss", "canceled":
+		// The contract never uses these, and they say nothing a 401 or 403
+		// doesn't already say better.
+		if !hasServiceDetail && (resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden) {
+			_ = resp.Body.Close()
+			return nil, connect.NewError(connectCodeForStatus(resp.StatusCode), errors.New(firstNonEmpty(detail.Message, statusLine(resp.StatusCode))))
+		}
+		return resp, nil
+	case "invalid_argument", "deadline_exceeded", "not_found", "already_exists", "permission_denied", "resource_exhausted", "failed_precondition", "aborted", "out_of_range", "unimplemented", "internal", "unavailable", "unauthenticated":
 		return resp, nil
 	}
+	recognised := wire.IsRecognisedRESTCode(detail.Code)
 	msg := detail.Detail
 	if msg == "" {
 		msg = detail.Title
@@ -129,7 +181,7 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	case (resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden) &&
 		(detail.Code == "PERMISSION_DENIED" || sdkerrors.AuthErrorCode(&sdkerrors.AuthError{Code: detail.Code}) != ""):
 		mapped = &sdkerrors.AuthError{Msg: msg, Code: detail.Code, Status: resp.StatusCode}
-	case len(detail.Violations) > 0 && detail.Code != "":
+	case len(detail.Violations) > 0 && recognised:
 		violations := make([]sdkerrors.FieldViolation, 0, len(detail.Violations))
 		for _, violation := range detail.Violations {
 			violations = append(violations, sdkerrors.FieldViolation{
@@ -139,7 +191,18 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		mapped = &sdkerrors.ValidationError{
 			Msg: msg, Code: detail.Code, Metadata: sdkerrors.ViolationMetadata(violations), Violations: violations,
 		}
-	case detail.Code != "" && (resp.StatusCode == 400 || resp.StatusCode == 409 || resp.StatusCode == 412 || resp.StatusCode == 422 || resp.StatusCode == 429):
+	case recognised && resp.StatusCode == http.StatusNotImplemented:
+		if msg == "" {
+			msg = detail.Code
+		}
+		mapped = &sdkerrors.NotImplementedError{Msg: msg}
+	case recognised && resp.StatusCode >= 500:
+		if msg == "" {
+			msg = detail.Code
+		}
+		mapped = &sdkerrors.ServerError{Msg: msg, Code: detail.Code, Status: resp.StatusCode}
+	case (recognised && resp.StatusCode != http.StatusUnauthorized && resp.StatusCode != http.StatusForbidden) ||
+		(resp.StatusCode == http.StatusTooManyRequests && restCodeForm.MatchString(detail.Code)):
 		code := detail.Code
 		if _, ok := orderv1.ErrorCode_value["ERROR_CODE_"+code]; ok {
 			code = "ERROR_CODE_" + code
@@ -149,9 +212,18 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		}
 		mapped = &sdkerrors.APIError{Msg: msg, Code: code}
 	default:
-		return resp, nil
+		if hasServiceDetail || leftToConnect(resp.StatusCode, isJSON, len(decoded), detail.Message) {
+			return resp, nil
+		}
+		// A gateway or an edge can send any of these, so none proves that a
+		// mutation was refused. The code is kept for diagnosis only.
+		mapped = &sdkerrors.ServerError{
+			Msg:    firstNonEmpty(msg, detail.Message, detail.Code, statusLine(resp.StatusCode)),
+			Code:   firstNonEmpty(detail.Code, futureCode),
+			Status: resp.StatusCode,
+		}
 	}
-	problem := sdkerrors.DecodeHTTPProblem(body, resp.StatusCode)
+	problem := sdkerrors.DecodeHTTPProblem(decoded, resp.StatusCode)
 	switch e := mapped.(type) {
 	case *sdkerrors.APIError:
 		e.Problem = problem
@@ -173,28 +245,97 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 // roundTripError hands a mapped answer to connect-go, which reports a plain
 // RoundTripper error as unavailable and keeps a *connect.Error's own code.
 // Read retry selects on that code, so a definite refusal carries the code of
-// its HTTP status and returns at once. A server failure or an unknown outcome
-// stays plain: reads may retry those from read context. Either way
-// wire.MapConnectError returns the typed error inside.
+// its HTTP status and returns at once. Unavailability or an unknown outcome
+// stays plain: reads may retry those from read context. Any other server error
+// is internal, which reads don't retry. Either way wire.MapConnectError returns
+// the typed error inside.
 func roundTripError(mapped error, status int) error {
 	var serverErr *sdkerrors.ServerError
-	if errors.As(mapped, &serverErr) || sdkerrors.MutationOutcomeUnknown(mapped) {
+	if errors.As(mapped, &serverErr) {
+		if isUnavailableStatus(serverErr.Status) {
+			return mapped
+		}
+		return connect.NewError(connect.CodeInternal, mapped)
+	}
+	if sdkerrors.MutationOutcomeUnknown(mapped) {
 		return mapped
 	}
-	code := connect.CodeFailedPrecondition
+	return connect.NewError(connectCodeForStatus(status), mapped)
+}
+
+func connectCodeForStatus(status int) connect.Code {
 	switch status {
-	case http.StatusBadRequest, http.StatusUnprocessableEntity:
-		code = connect.CodeInvalidArgument
+	case http.StatusBadRequest, http.StatusUnprocessableEntity, http.StatusRequestEntityTooLarge:
+		return connect.CodeInvalidArgument
 	case http.StatusUnauthorized:
-		code = connect.CodeUnauthenticated
+		return connect.CodeUnauthenticated
 	case http.StatusForbidden:
-		code = connect.CodePermissionDenied
+		return connect.CodePermissionDenied
+	case http.StatusNotFound:
+		return connect.CodeNotFound
 	case http.StatusConflict:
-		code = connect.CodeAborted
+		return connect.CodeAborted
 	case http.StatusTooManyRequests:
-		code = connect.CodeResourceExhausted
+		return connect.CodeResourceExhausted
+	case http.StatusNotImplemented:
+		return connect.CodeUnimplemented
 	}
-	return connect.NewError(code, mapped)
+	return connect.CodeFailedPrecondition
+}
+
+func isUnavailableStatus(status int) bool {
+	switch status {
+	case http.StatusTooManyRequests, http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+		return true
+	}
+	return false
+}
+
+// leftToConnect reports an answer with no recognised code that Connect already
+// reads correctly by status: a 401 or 403, an unavailable status, or a bare 404,
+// which it names unimplemented and the error mapping names a missing route.
+func leftToConnect(status int, isJSON bool, bodyLen int, message string) bool {
+	switch {
+	case status == http.StatusUnauthorized || status == http.StatusForbidden || isUnavailableStatus(status):
+		return true
+	case status == http.StatusNotFound:
+		return !isJSON || bodyLen == 0 || wire.IsRouteNotFoundMessage(message)
+	}
+	return false
+}
+
+func statusLine(status int) string {
+	return strings.TrimSpace(strconv.Itoa(status) + " " + http.StatusText(status))
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+// decodedErrorBody reads a failed response's body as its Content-Encoding says,
+// up to maxErrorBodyBytes. An encoding this client can't decode leaves no readable
+// error, so it reads as empty.
+func decodedErrorBody(encoding string, body []byte) []byte {
+	switch strings.ToLower(strings.TrimSpace(encoding)) {
+	case "", "identity":
+		return body
+	case "gzip":
+		reader, err := gzip.NewReader(bytes.NewReader(body))
+		if err != nil {
+			return nil
+		}
+		decoded, err := io.ReadAll(io.LimitReader(reader, maxErrorBodyBytes))
+		if err != nil && len(body) < maxErrorBodyBytes {
+			return nil
+		}
+		return decoded
+	}
+	return nil
 }
 
 type prefixedBody struct {

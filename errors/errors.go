@@ -288,12 +288,14 @@ type RateLimitError struct {
 func (e *RateLimitError) Error() string        { return e.Msg }
 func (e *RateLimitError) Is(target error) bool { return target == ErrPolyester }
 
-// ServerError indicates a server-side 5xx failure.
+// ServerError indicates a server-side failure, or any HTTP error that can't
+// prove a refusal: a 5xx, or a 4xx other than 401 and 403 with no code the
+// contract defines. A gateway or an edge can send those too.
 type ServerError struct {
 	// AdmissionRefused is true only for a typed orders-service refusal.
 	AdmissionRefused bool
 	Msg              string
-	Code             string // Structured service code, when supplied.
+	Code             string // Service code, or an unrecognised code kept for diagnosis.
 	Status           int    // HTTP status corresponding to the failure, when known.
 }
 
@@ -330,8 +332,8 @@ func (e *TimestampSkewError) Error() string        { return e.Msg }
 func (e *TimestampSkewError) Is(target error) bool { return target == ErrPolyester }
 
 // NotImplementedError indicates that the server does not implement the
-// requested operation (Connect unimplemented or HTTP 501). Retrying does not
-// help.
+// requested operation (Connect unimplemented, or a contract code at HTTP 501).
+// Retrying does not help.
 type NotImplementedError struct{ Msg string }
 
 func (e *NotImplementedError) Error() string        { return e.Msg }
@@ -370,7 +372,9 @@ func (e *BatchReplaceWindowExpiredError) Error() string {
 }
 func (e *BatchReplaceWindowExpiredError) Is(target error) bool { return target == ErrPolyester }
 
-// RouteNotFoundError indicates the gateway has no route for an RPC.
+// RouteNotFoundError indicates the gateway has no route for an RPC: a bare HTTP
+// 404. Its mutation outcome is unknown, because whatever answered isn't the
+// service and can't prove that a mutation wasn't applied.
 type RouteNotFoundError struct{ Procedure string }
 
 func (e *RouteNotFoundError) Error() string {
@@ -486,17 +490,20 @@ func IsRetryable(err error) bool {
 // mutation before the error became visible to the caller. It includes every
 // order error code ending in _OUTCOME_UNKNOWN: an order create, cancel or
 // modify, or a trigger create, cancel, pause, resume or modify, that was sent
-// but not confirmed in time. Read the order or trigger back before retrying.
+// but not confirmed in time. It also includes any HTTP error with no recognised
+// code except a 401 or 403, and a bare 404. Read the order or trigger back before
+// retrying.
 func MutationOutcomeUnknown(err error) bool {
 	var transportErr *TransportError
 	var serverErr *ServerError
 	var contractErr *ResponseContractError
+	var routeErr *RouteNotFoundError
 	serverUnknown := errors.As(err, &serverErr)
 	if serverUnknown && serverErr.Status == 503 && (serverErr.AdmissionRefused || isKnownAdmissionRefusal(serverErr.Code)) {
 		serverUnknown = false
 	}
 	return errors.As(err, &transportErr) || serverUnknown ||
-		errors.As(err, &contractErr) || isOutcomeUnknownCode(apiErrorCode(err))
+		errors.As(err, &contractErr) || errors.As(err, &routeErr) || isOutcomeUnknownCode(apiErrorCode(err))
 }
 
 // isOutcomeUnknownCode recognises a mutation outcome by its code suffix,
