@@ -40,7 +40,7 @@ func TestServerQuerySigningVectors(t *testing.T) {
 	for i := range seed {
 		seed[i] = byte(i)
 	}
-	creds := &Credentials{KeyID: "test-key", PrivateKey: ed25519.NewKeyFromSeed(seed)}
+	creds := testCredentials(t, "test-key", ed25519.NewKeyFromSeed(seed))
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
 			query, err := CanonicalQuery(tc.URL)

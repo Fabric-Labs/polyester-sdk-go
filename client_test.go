@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 )
 
 func TestNewUsesDefaults(t *testing.T) {
@@ -198,7 +200,7 @@ func TestConfigStringPreservesNormalURLs(t *testing.T) {
 func TestConfigStringRedactsPrivateKey(t *testing.T) {
 	cfg := Config{
 		APIKeyID:      "key_123",
-		APIPrivateKey: "super-secret-private-key",
+		APIPrivateKey: auth.NewSecret("super-secret-private-key"),
 		APIURL:        DefaultAPIURL,
 	}
 	rendered := cfg.String()

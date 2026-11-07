@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go"
+	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
@@ -25,7 +26,7 @@ func MakerClientFromEnv() (*polyester.Client, bool, error) {
 	}
 	cfg := polyester.Config{
 		APIKeyID:        keyID,
-		APIPrivateKey:   privateKey,
+		APIPrivateKey:   auth.NewSecret(privateKey),
 		HydrateCatalogs: true,
 	}
 	if apiURL := strings.TrimSpace(os.Getenv("POLYESTER_API_URL")); apiURL != "" {

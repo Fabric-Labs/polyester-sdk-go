@@ -35,7 +35,7 @@ func TestAPIKeyInterceptorSetsSignatureHeaders(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	interceptor := NewAPIKeyInterceptor(&auth.Credentials{KeyID: "ak_test", PrivateKey: private}, "https://api.example.test", connectx.WireBinary)
+	interceptor := NewAPIKeyInterceptor(testCredentials(t, "ak_test", private), "https://api.example.test", connectx.WireBinary)
 	next := func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
 		if req.Header().Get("X-API-SIGNATURE") == "" {
 			t.Fatal("expected signature header")
@@ -128,7 +128,7 @@ func TestAuthenticatedUnarySignsTransmittedCodecBytes(t *testing.T) {
 				APIURL:     srv.URL,
 				Timeout:    2 * time.Second,
 				WireFormat: tc.wire,
-			}, &auth.Credentials{KeyID: "ak_test", PrivateKey: private}, srv.Client())
+			}, testCredentials(t, "ak_test", private), srv.Client())
 			client := authv1connect.NewAuthServiceClient(factory.HTTP, factory.Config.APIURL, factory.ConnectOptions(true)...)
 			if _, err := client.CreateWalletChallenge(context.Background(), connect.NewRequest(req)); err != nil {
 				t.Fatal(err)
@@ -183,7 +183,7 @@ func TestSigningFailureMapsToAuthError(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	interceptor := NewAPIKeyInterceptor(
-		&auth.Credentials{KeyID: "ak_test", PrivateKey: private},
+		testCredentials(t, "ak_test", private),
 		"://malformed-signing-base",
 		connectx.WireBinary,
 	)
@@ -212,4 +212,13 @@ func TestSigningFailureMapsToAuthError(t *testing.T) {
 	if errors.As(mapped, &apiErr) {
 		t.Fatalf("signing failure must not map to APIError: %+v", apiErr)
 	}
+}
+
+func testCredentials(t *testing.T, keyID string, private ed25519.PrivateKey) *auth.Credentials {
+	t.Helper()
+	creds, err := auth.NewCredentials(keyID, private)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return creds
 }

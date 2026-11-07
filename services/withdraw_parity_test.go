@@ -16,7 +16,7 @@ func TestPreparedAPIKeyWithdrawSignsExactPersistentPayload(t *testing.T) {
 	for i := range seed {
 		seed[i] = 7
 	}
-	creds := &auth.Credentials{KeyID: "ak-test", PrivateKey: ed25519.NewKeyFromSeed(seed)}
+	creds := testCredentials(t, "ak-test", ed25519.NewKeyFromSeed(seed))
 	service := NewWithdrawService(transport.NewFactory(transport.DefaultConfig(), creds, nil), nil)
 	deadline := uint64(1_800_000_000)
 	amount := models.MustAssetAmountScaled(125).
@@ -31,7 +31,7 @@ func TestPreparedAPIKeyWithdrawSignsExactPersistentPayload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !ed25519.Verify(creds.PrivateKey.Public().(ed25519.PublicKey), prepared.DeterministicPayloadBytes(), prepared.PayloadSignature()) {
+	if !ed25519.Verify(creds.PrivateKey().Public().(ed25519.PublicKey), prepared.DeterministicPayloadBytes(), prepared.PayloadSignature()) {
 		t.Fatal("signature does not cover deterministic payload bytes")
 	}
 	payload := prepared.Payload()
@@ -87,4 +87,13 @@ func TestInternalTransferRejectsMissingAmountScale(t *testing.T) {
 	if err == nil {
 		t.Fatal("missing scale must not silently mean e18")
 	}
+}
+
+func testCredentials(t *testing.T, keyID string, private ed25519.PrivateKey) *auth.Credentials {
+	t.Helper()
+	creds, err := auth.NewCredentials(keyID, private)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return creds
 }

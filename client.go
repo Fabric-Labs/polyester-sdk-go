@@ -2,7 +2,10 @@ package polyester
 
 import (
 	"context"
+	"encoding/json"
+	"encoding/xml"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -25,10 +28,16 @@ var (
 )
 
 // Config configures a Polyester client.
+//
+// APIPrivateKey is an auth.Secret, so no printing or encoding path reveals it:
+// fmt prints [REDACTED] for every verb, also through reflection such as an
+// unexported struct field; encoding/json, encoding/xml and log/slog write
+// "[REDACTED]"; gob refuses to encode a Config. Decoding JSON still reads
+// APIPrivateKey.
 type Config struct {
 	Environment         *chain.PolyesterEnvironment
 	APIKeyID            string
-	APIPrivateKey       string
+	APIPrivateKey       auth.Secret
 	APIURL              string
 	WSURL               string
 	DefaultSubAccountID *string
@@ -41,10 +50,7 @@ type Config struct {
 
 // String redacts the API private key.
 func (c Config) String() string {
-	key := c.APIPrivateKey
-	if key != "" {
-		key = "[REDACTED]"
-	}
+	key := c.APIPrivateKey.String()
 	envName := ""
 	if c.Environment != nil {
 		envName = c.Environment.Name
@@ -58,6 +64,68 @@ func (c Config) String() string {
 // GoString redacts the API private key for %#v formatting.
 func (c Config) GoString() string {
 	return c.String()
+}
+
+// Format redacts the API private key for every fmt verb, including verbs
+// such as %d that bypass String.
+func (c Config) Format(f fmt.State, verb rune) {
+	if verb == 'v' && f.Flag('#') {
+		_, _ = io.WriteString(f, c.GoString())
+		return
+	}
+	_, _ = fmt.Fprintf(f, fmt.FormatString(f, verb), c.String())
+}
+
+// redactedConfig is what encoders see. It lists Config's settings
+// explicitly, so a field added to Config stays out of encoded output until it
+// is added here. HTTPClient is not a setting that can be encoded.
+type redactedConfig struct {
+	Environment         *chain.PolyesterEnvironment
+	APIKeyID            string
+	APIPrivateKey       string
+	APIURL              string
+	WSURL               string
+	DefaultSubAccountID *string
+	DefaultAccountID    *string
+	Timeout             time.Duration
+	WireFormat          string
+	HydrateCatalogs     bool
+}
+
+// redacted replaces the private key and URL userinfo, as String does. An
+// unset key stays empty.
+func (c Config) redacted() redactedConfig {
+	key := c.APIPrivateKey.String()
+	return redactedConfig{
+		Environment:         c.Environment,
+		APIKeyID:            c.APIKeyID,
+		APIPrivateKey:       key,
+		APIURL:              redactURLUserinfo(c.APIURL),
+		WSURL:               redactURLUserinfo(c.WSURL),
+		DefaultSubAccountID: c.DefaultSubAccountID,
+		DefaultAccountID:    c.DefaultAccountID,
+		Timeout:             c.Timeout,
+		WireFormat:          c.WireFormat,
+		HydrateCatalogs:     c.HydrateCatalogs,
+	}
+}
+
+// MarshalJSON encodes Config with the API private key and URL userinfo
+// redacted. This also covers log/slog's JSON handler. Decoding still reads
+// APIPrivateKey.
+func (c Config) MarshalJSON() ([]byte, error) {
+	return json.Marshal(c.redacted())
+}
+
+// MarshalXML encodes Config with the API private key redacted.
+func (c Config) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	return e.EncodeElement(c.redacted(), start)
+}
+
+// GobEncode refuses to encode Config, because gob would carry the API private
+// key.
+func (Config) GobEncode() ([]byte, error) {
+	return nil, &sdkerrors.AuthError{Msg: "polyester.Config holds an API private key and cannot be gob-encoded"}
 }
 
 func redactURLUserinfo(raw string) string {
@@ -146,7 +214,7 @@ func New(cfg Config) (*Client, error) {
 		cfg.Timeout = 10 * time.Second
 	}
 	wireFormat := transport.WireFormatFromString(cfg.WireFormat)
-	creds, err := auth.LoadCredentials(cfg.APIKeyID, cfg.APIPrivateKey, false)
+	creds, err := auth.LoadCredentials(cfg.APIKeyID, cfg.APIPrivateKey.Reveal(), false)
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +319,7 @@ func FromEnv(overrides ...func(*Config)) (*Client, error) {
 		cfg.APIKeyID = id
 	}
 	if key := strings.TrimSpace(os.Getenv(auth.APIPrivateKeyEnv)); key != "" {
-		cfg.APIPrivateKey = key
+		cfg.APIPrivateKey = auth.NewSecret(key)
 	}
 	if accountID := auth.AccountIDFromEnv(); accountID != "" {
 		cfg.DefaultAccountID = &accountID

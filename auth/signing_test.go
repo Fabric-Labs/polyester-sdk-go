@@ -78,7 +78,7 @@ func TestSignRequestReturnsPolyesterHeaders(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	creds := &Credentials{KeyID: "key_123", PrivateKey: private}
+	creds := testCredentials(t, "key_123", private)
 	headers, err := SignRequest(creds, "POST", "https://api.example.test/foo", []byte("{}"), "123")
 	if err != nil {
 		t.Fatal(err)
@@ -99,7 +99,7 @@ func TestTenThousandIdenticalRequestsGetUniqueBoundedAuthTuples(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	creds := &Credentials{KeyID: "key_123", PrivateKey: private}
+	creds := testCredentials(t, "key_123", private)
 	const count = 10_000
 	var wg sync.WaitGroup
 	type signedAt struct {
@@ -175,7 +175,7 @@ func TestSignRequestRejectsMalformedURL(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = SignRequest(
-		&Credentials{KeyID: "key_123", PrivateKey: private},
+		testCredentials(t, "key_123", private),
 		"POST",
 		"://not-a-url",
 		[]byte("{}"),
@@ -191,7 +191,7 @@ func TestCredentialsStringRedactsPrivateKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	creds := &Credentials{KeyID: "key_123", PrivateKey: private}
+	creds := testCredentials(t, "key_123", private)
 	secret := hex.EncodeToString(private.Seed())
 	rendered := creds.String()
 	if !strings.Contains(rendered, "[REDACTED]") {
@@ -226,7 +226,7 @@ func TestLoadCredentialsFromEnv(t *testing.T) {
 	if creds == nil {
 		t.Fatal("expected credentials")
 	}
-	if string(private.Seed()) != string(creds.PrivateKey.Seed()) {
+	if string(private.Seed()) != string(creds.PrivateKey().Seed()) {
 		t.Fatal("private key mismatch")
 	}
 }
@@ -255,4 +255,13 @@ func TestMalformedPrivateKeyErrorDoesNotDiscloseSecret(t *testing.T) {
 	if strings.Contains(fmt.Sprintf("%#v", err), secret) {
 		t.Fatalf("malformed secret disclosed in formatted error: %#v", err)
 	}
+}
+
+func testCredentials(t *testing.T, keyID string, private ed25519.PrivateKey) *Credentials {
+	t.Helper()
+	creds, err := NewCredentials(keyID, private)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return creds
 }

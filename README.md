@@ -155,6 +155,7 @@ import (
 	"log"
 
 	polyester "github.com/Fabric-Labs/polyester-sdk-go"
+	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 )
 
 func main() {
@@ -162,7 +163,7 @@ func main() {
 	client, err := polyester.New(polyester.Config{
 		Environment:      &polyester.DevnetEnvironment,
 		APIKeyID:         "ak_...",
-		APIPrivateKey:    "...", // 64-char hex secret from API key creation
+		APIPrivateKey:    auth.NewSecret("..."), // 64-char hex secret from API key creation
 		DefaultAccountID: &accountID,
 		HydrateCatalogs:  true,
 	})
@@ -199,8 +200,9 @@ func main() {
 Pass credentials on `polyester.Config` / `polyester.New`. The SDK does not
 implicitly read environment variables unless you call `FromEnv`.
 
-`APIPrivateKey` accepts the 64-character hex Ed25519 secret from key creation,
-or raw 32-byte key material via the credentials loader.
+`APIPrivateKey` is an `auth.Secret` holding the 64-character hex Ed25519 secret from key
+creation; wrap it with `auth.NewSecret`. Use `auth.NewCredentials` for a 64-byte
+`ed25519.PrivateKey` you already hold.
 
 `DefaultAccountID` is the **Account ID** string from your Profile page. Use the
 value exactly as shown in the app. Do not use an internal numeric id.
@@ -211,9 +213,17 @@ account-scoped operations such as private realtime channels, bucket transfers, a
 some ledger writes.
 
 Automatic request signing gives concurrent identical calls distinct authentication tuples.
-Credential copies for the same key share the process allocator. Timestamps can lead the local clock
+Credential copies and independently loaded credentials for the same key share the process allocator.
+The signing protocol has no cross-process nonce, so assign one API key per process; sharing a key
+between processes can produce identical authentication tuples. Timestamps can lead the local clock
 by at most five seconds; larger bursts are backpressured instead of reusing a signature or drifting
 outside the API's 10-second freshness window.
+
+`Config`, `auth.Credentials` and `auth.Secret` never reveal the private key when printed with `fmt`
+(every verb, as a value or a pointer, and inside any struct, including unexported fields), encoded
+with `encoding/json` or `encoding/xml`, or logged with `log/slog`; gob refuses to encode them.
+Decoding a JSON `Config` still reads `APIPrivateKey`. Read the key explicitly with
+`Secret.Reveal` or `Credentials.PrivateKey`.
 
 Recognized retry-later Connect `resource_exhausted` and REST admission-limit responses map to `errors.RateLimitError`. When the
 server attaches `polyester.ratelimit.v1.RateLimitDetail` (top-level Connect detail or nested under
@@ -235,7 +245,7 @@ order code plus field/rule/message metadata on `ValidationError`.
 accountID := "YOUR_ACCOUNT_ID"
 client, err := polyester.New(polyester.Config{
 	APIKeyID:         "ak_...",
-	APIPrivateKey:    "...",
+	APIPrivateKey:    auth.NewSecret("..."),
 	DefaultAccountID: &accountID,
 	HydrateCatalogs:  true,
 })
@@ -248,7 +258,7 @@ application and pass them to `New`:
 accountID := os.Getenv("POLYESTER_ACCOUNT_ID")
 client, err := polyester.New(polyester.Config{
 	APIKeyID:         os.Getenv("POLYESTER_API_KEY_ID"),
-	APIPrivateKey:    os.Getenv("POLYESTER_API_PRIVATE_KEY"),
+	APIPrivateKey:    auth.NewSecret(os.Getenv("POLYESTER_API_PRIVATE_KEY")),
 	DefaultAccountID: &accountID,
 	HydrateCatalogs:  true,
 })

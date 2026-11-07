@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go"
+	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/testutil"
@@ -289,7 +290,7 @@ func secondClientFromEnv() (*polyester.Client, bool, error) {
 	if keyID == "" || privateKey == "" || keyID == primary {
 		return nil, false, nil
 	}
-	cfg := polyester.Config{APIKeyID: keyID, APIPrivateKey: privateKey, HydrateCatalogs: true}
+	cfg := polyester.Config{APIKeyID: keyID, APIPrivateKey: auth.NewSecret(privateKey), HydrateCatalogs: true}
 	if apiURL := strings.TrimSpace(os.Getenv("POLYESTER_API_URL")); apiURL != "" {
 		cfg.APIURL = apiURL
 	}

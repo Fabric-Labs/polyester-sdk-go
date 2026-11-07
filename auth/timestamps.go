@@ -26,10 +26,11 @@ type signingTimestampAllocator struct {
 var signingTimestampAllocators sync.Map
 
 func automaticSigningTimestamp(creds *Credentials) (string, error) {
-	if creds == nil || len(creds.PrivateKey) != ed25519.PrivateKeySize {
+	private := creds.privateKey()
+	if len(private) != ed25519.PrivateKeySize {
 		return "", &sdkerrors.AuthError{Msg: "Ed25519 API private key must be exactly 64 bytes"}
 	}
-	identity := sha256.Sum256(append(append([]byte{}, creds.KeyID...), creds.PrivateKey...))
+	identity := sha256.Sum256(append(append([]byte{}, creds.KeyID...), private...))
 	key := hex.EncodeToString(identity[:])
 	value, _ := signingTimestampAllocators.LoadOrStore(key, &signingTimestampAllocator{})
 	allocator := value.(*signingTimestampAllocator)

@@ -61,7 +61,7 @@ func TestL2BatchCancelRejectsInconsistentCountsThroughPublicService(t *testing.T
 	client, err := polyester.New(polyester.Config{
 		APIURL:          srv.URL,
 		APIKeyID:        "ak_test",
-		APIPrivateKey:   kp.SecretKeyHex,
+		APIPrivateKey:   auth.NewSecret(kp.SecretKeyHex),
 		HydrateCatalogs: false,
 	})
 	if err != nil {
@@ -176,7 +176,7 @@ func TestL2BatchReplaceRejectsInconsistentCountsThroughPublicService(t *testing.
 	client, err := polyester.New(polyester.Config{
 		APIURL:          srv.URL,
 		APIKeyID:        "ak_test",
-		APIPrivateKey:   kp.SecretKeyHex,
+		APIPrivateKey:   auth.NewSecret(kp.SecretKeyHex),
 		HydrateCatalogs: true,
 	})
 	if err != nil {
@@ -222,7 +222,7 @@ func TestL2CreateDepositAddressRejectsMissingEntityThroughPublicService(t *testi
 	client, err := polyester.New(polyester.Config{
 		APIURL:          srv.URL,
 		APIKeyID:        "ak_test",
-		APIPrivateKey:   kp.SecretKeyHex,
+		APIPrivateKey:   auth.NewSecret(kp.SecretKeyHex),
 		HydrateCatalogs: false,
 	})
 	if err != nil {

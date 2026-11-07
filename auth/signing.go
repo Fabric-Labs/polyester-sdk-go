@@ -71,7 +71,11 @@ func SignRequest(creds *Credentials, method, rawURL string, body []byte, timesta
 	if err != nil {
 		return nil, err
 	}
-	sig := ed25519.Sign(creds.PrivateKey, []byte(canonical))
+	private := creds.privateKey()
+	if len(private) != ed25519.PrivateKeySize {
+		return nil, &sdkerrors.AuthError{Msg: "valid API-key credentials are required to sign requests"}
+	}
+	sig := ed25519.Sign(private, []byte(canonical))
 	return map[string]string{
 		"X-API-KEY-ID":    creds.KeyID,
 		"X-API-TIMESTAMP": timestampMS,
