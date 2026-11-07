@@ -8,6 +8,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -107,8 +108,20 @@ func TestConfigEncodersRedactPrivateKey(t *testing.T) {
 		assertNoConfigSecrets(t, "xml "+name, encoded)
 	}
 
+	// A custom HTTP client is left out instead of failing on its function fields.
+	withClient := cfg
+	withClient.HTTPClient = &http.Client{Timeout: time.Second}
+	encoded, err := json.Marshal(withClient)
+	if err != nil {
+		t.Fatalf("json with HTTPClient: %v", err)
+	}
+	if bytes.Contains(encoded, []byte("HTTPClient")) {
+		t.Error("json should leave out HTTPClient")
+	}
+	assertNoConfigSecrets(t, "json with HTTPClient", encoded)
+
 	// An unset key stays empty rather than claiming a redacted value.
-	encoded, err := json.Marshal(Config{APIKeyID: "key_redaction"})
+	encoded, err = json.Marshal(Config{APIKeyID: "key_redaction"})
 	if err != nil {
 		t.Fatal(err)
 	}

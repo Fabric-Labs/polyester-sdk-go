@@ -2,7 +2,10 @@ package polyester
 
 import (
 	"context"
+	"encoding/json"
+	"encoding/xml"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -24,7 +27,14 @@ var (
 	DefaultWSURL  = chain.PolyesterDevnetEnvironment.WebsocketURL
 )
 
+const redactedSecret = "[REDACTED]"
+
 // Config configures a Polyester client.
+//
+// Formatting and encoding a Config with fmt, encoding/json, encoding/xml or
+// log/slog redact APIPrivateKey; gob refuses to encode it. fmt cannot call
+// methods on unexported struct fields, so keep a Config in an exported field or
+// behind a pointer when printing a struct that holds it.
 type Config struct {
 	Environment         *chain.PolyesterEnvironment
 	APIKeyID            string
@@ -43,7 +53,7 @@ type Config struct {
 func (c Config) String() string {
 	key := c.APIPrivateKey
 	if key != "" {
-		key = "[REDACTED]"
+		key = redactedSecret
 	}
 	envName := ""
 	if c.Environment != nil {
@@ -58,6 +68,70 @@ func (c Config) String() string {
 // GoString redacts the API private key for %#v formatting.
 func (c Config) GoString() string {
 	return c.String()
+}
+
+// Format redacts the API private key for every fmt verb, including verbs
+// such as %d that bypass String.
+func (c Config) Format(f fmt.State, verb rune) {
+	if verb == 'v' && f.Flag('#') {
+		_, _ = io.WriteString(f, c.GoString())
+		return
+	}
+	_, _ = fmt.Fprintf(f, fmt.FormatString(f, verb), c.String())
+}
+
+// redactedConfig is what encoders see. It lists Config's settings
+// explicitly, so a field added to Config stays out of encoded output until it
+// is added here. HTTPClient is not a setting that can be encoded.
+type redactedConfig struct {
+	Environment         *chain.PolyesterEnvironment
+	APIKeyID            string
+	APIPrivateKey       string
+	APIURL              string
+	WSURL               string
+	DefaultSubAccountID *string
+	DefaultAccountID    *string
+	Timeout             time.Duration
+	WireFormat          string
+	HydrateCatalogs     bool
+}
+
+// redacted replaces the private key and URL userinfo, as String does. An
+// unset key stays empty.
+func (c Config) redacted() redactedConfig {
+	key := c.APIPrivateKey
+	if key != "" {
+		key = redactedSecret
+	}
+	return redactedConfig{
+		Environment:         c.Environment,
+		APIKeyID:            c.APIKeyID,
+		APIPrivateKey:       key,
+		APIURL:              redactURLUserinfo(c.APIURL),
+		WSURL:               redactURLUserinfo(c.WSURL),
+		DefaultSubAccountID: c.DefaultSubAccountID,
+		DefaultAccountID:    c.DefaultAccountID,
+		Timeout:             c.Timeout,
+		WireFormat:          c.WireFormat,
+		HydrateCatalogs:     c.HydrateCatalogs,
+	}
+}
+
+// MarshalJSON encodes Config with the API private key redacted. This also
+// covers log/slog's JSON handler. Decoding still reads APIPrivateKey.
+func (c Config) MarshalJSON() ([]byte, error) {
+	return json.Marshal(c.redacted())
+}
+
+// MarshalXML encodes Config with the API private key redacted.
+func (c Config) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	return e.EncodeElement(c.redacted(), start)
+}
+
+// GobEncode refuses to encode Config, because gob would carry the API private
+// key.
+func (Config) GobEncode() ([]byte, error) {
+	return nil, &sdkerrors.AuthError{Msg: "polyester.Config holds an API private key and cannot be gob-encoded"}
 }
 
 func redactURLUserinfo(raw string) string {

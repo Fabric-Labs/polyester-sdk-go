@@ -211,9 +211,17 @@ account-scoped operations such as private realtime channels, bucket transfers, a
 some ledger writes.
 
 Automatic request signing gives concurrent identical calls distinct authentication tuples.
-Credential copies for the same key share the process allocator. Timestamps can lead the local clock
+Credential copies and independently loaded credentials for the same key share the process allocator.
+The signing protocol has no cross-process nonce, so assign one API key per process; sharing a key
+between processes can produce identical authentication tuples. Timestamps can lead the local clock
 by at most five seconds; larger bursts are backpressured instead of reusing a signature or drifting
 outside the API's 10-second freshness window.
+
+`Config` and `auth.Credentials` redact the private key when printed with `fmt` (every verb, value or
+pointer), encoded with `encoding/json` or `encoding/xml`, or logged with `log/slog`; gob refuses to
+encode them. Decoding a JSON `Config` still reads `APIPrivateKey`. `fmt` cannot call methods on
+unexported struct fields, so keep them in an exported field or behind a pointer when you print a
+struct that holds them.
 
 Recognized retry-later Connect `resource_exhausted` and REST admission-limit responses map to `errors.RateLimitError`. When the
 server attaches `polyester.ratelimit.v1.RateLimitDetail` (top-level Connect detail or nested under

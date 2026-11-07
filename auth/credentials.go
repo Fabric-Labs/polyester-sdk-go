@@ -3,7 +3,10 @@ package auth
 import (
 	"crypto/ed25519"
 	"encoding/hex"
+	"encoding/json"
+	"encoding/xml"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -16,7 +19,15 @@ const (
 	AccountIDEnv     = "POLYESTER_ACCOUNT_ID"
 )
 
+const redactedSecret = "[REDACTED]"
+
 // Credentials holds API-key authentication material.
+//
+// Formatting and encoding Credentials, as a value or a pointer, with fmt,
+// encoding/json, encoding/xml or log/slog redact PrivateKey; gob refuses to
+// encode them. fmt cannot call methods on unexported struct fields, so keep
+// Credentials in an exported field or behind a pointer when printing a struct
+// that holds them.
 type Credentials struct {
 	KeyID      string
 	PrivateKey ed25519.PrivateKey
@@ -27,12 +38,57 @@ func (c *Credentials) String() string {
 	if c == nil {
 		return "Credentials<nil>"
 	}
-	return fmt.Sprintf("Credentials{KeyID:%q PrivateKey:[REDACTED]}", c.KeyID)
+	return c.redactedString()
 }
 
 // GoString redacts the private key for %#v formatting.
 func (c *Credentials) GoString() string {
 	return c.String()
+}
+
+func (c Credentials) redactedString() string {
+	return fmt.Sprintf("Credentials{KeyID:%q PrivateKey:%s}", c.KeyID, redactedSecret)
+}
+
+// Format redacts the private key for every fmt verb, for values as well as
+// pointers. A nil pointer formats as <nil>.
+func (c Credentials) Format(f fmt.State, verb rune) {
+	if verb == 'v' && f.Flag('#') {
+		_, _ = io.WriteString(f, c.redactedString())
+		return
+	}
+	_, _ = fmt.Fprintf(f, fmt.FormatString(f, verb), c.redactedString())
+}
+
+// redactedCredentials is the shape encoders see.
+type redactedCredentials struct {
+	KeyID      string
+	PrivateKey string
+}
+
+func (c Credentials) redacted() redactedCredentials {
+	private := ""
+	if len(c.PrivateKey) > 0 {
+		private = redactedSecret
+	}
+	return redactedCredentials{KeyID: c.KeyID, PrivateKey: private}
+}
+
+// MarshalJSON encodes Credentials with the private key redacted. This also
+// covers log/slog's JSON handler.
+func (c Credentials) MarshalJSON() ([]byte, error) {
+	return json.Marshal(c.redacted())
+}
+
+// MarshalXML encodes Credentials with the private key redacted.
+func (c Credentials) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	return e.EncodeElement(c.redacted(), start)
+}
+
+// GobEncode refuses to encode Credentials, because gob would carry the private
+// key.
+func (Credentials) GobEncode() ([]byte, error) {
+	return nil, &errors.AuthError{Msg: "auth.Credentials holds an API private key and cannot be gob-encoded"}
 }
 
 // SignPayload signs exact deterministic protobuf payload bytes.
