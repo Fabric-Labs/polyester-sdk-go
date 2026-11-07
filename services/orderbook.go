@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"sync"
+	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
@@ -16,6 +17,13 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/orderbook"
 	"github.com/Fabric-Labs/polyester-sdk-go/realtime"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
+)
+
+// A snapshot that came back unavailable is requested again after these delays:
+// the first delay doubles up to the limit, for as long as the stream runs.
+const (
+	unavailableSnapshotInitialDelay = time.Second
+	unavailableSnapshotMaxDelay     = 8 * time.Second
 )
 
 type OrderbookService struct {
@@ -112,6 +120,14 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		bucketTicks   = orderbook.ParseBucketTicks(opts.Bucket)
 		subscription  *orderbook.Subscription
 		stream        *realtime.SnapshotThenStream[models.OrderbookData, models.OrderBookDeltaUpdate]
+		// lastViewUnavailable, recheckPending and recheckDelay pace requests for
+		// a snapshot that came back unavailable.
+		lastViewUnavailable bool
+		recheckPending      bool
+		recheckDelay        = unavailableSnapshotInitialDelay
+		// recheckGeneration invalidates a scheduled request once a newer
+		// snapshot is available.
+		recheckGeneration uint64
 	)
 
 	emit := func() {
@@ -122,6 +138,7 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		}
 		data, err := orderbook.BuildOrderbookData(symbol, wsDepth, currentBookSeq, bids, asks, bucketTicks, quantityScale)
 		data.Available = bookAvailable
+		lastViewUnavailable = !bookAvailable
 		localSub := subscription
 		mu.Unlock()
 		if err != nil {
@@ -135,6 +152,7 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		localSub.Enqueue(data)
 	}
 
+	var recheckUnavailableSnapshot func(available bool)
 	handleDelta := func(delta models.OrderBookDeltaUpdate) {
 		mu.Lock()
 		// A delta buffered behind a terminal failure must not change or render the book.
@@ -154,6 +172,48 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 			return
 		}
 		emit()
+	}
+
+	// An unavailable book's levels are unknown, not empty: ask again later, with a
+	// paced delay, until the snapshot is available or the stream stops.
+	recheckUnavailableSnapshot = func(available bool) {
+		mu.Lock()
+		if available {
+			recheckDelay = unavailableSnapshotInitialDelay
+			recheckPending = false
+			recheckGeneration++
+			mu.Unlock()
+			return
+		}
+		if recheckPending || stream == nil {
+			mu.Unlock()
+			return
+		}
+		recheckPending = true
+		delay := recheckDelay
+		recheckDelay = min(recheckDelay*2, unavailableSnapshotMaxDelay)
+		localStream := stream
+		generation := recheckGeneration
+		mu.Unlock()
+		go func() {
+			timer := time.NewTimer(delay)
+			defer timer.Stop()
+			select {
+			case <-timer.C:
+			case <-localStream.Done():
+				return
+			case <-ctx.Done():
+				return
+			}
+			mu.Lock()
+			if generation != recheckGeneration {
+				mu.Unlock()
+				return
+			}
+			recheckPending = false
+			mu.Unlock()
+			localStream.RequestSnapshotRefresh(ctx)
+		}()
 	}
 
 	stream = realtime.NewSnapshotThenStream(realtime.SnapshotThenStreamConfig[models.OrderbookData, models.OrderBookDeltaUpdate]{
@@ -198,7 +258,14 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 			for _, delta := range buffered {
 				handleDelta(delta)
 			}
-			emit()
+			mu.Lock()
+			available := bookAvailable
+			repeated := !available && lastViewUnavailable && len(buffered) == 0
+			mu.Unlock()
+			if !repeated {
+				emit()
+			}
+			recheckUnavailableSnapshot(available)
 		},
 		ApplyLivePublications: func(deltas []models.OrderBookDeltaUpdate) {
 			for _, delta := range deltas {

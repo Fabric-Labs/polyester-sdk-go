@@ -127,7 +127,6 @@ func TestTicket8510SequenceAvailabilityControls(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			bookTicketNext(t, sub.Updates()) // SetBucket emits a pre-start view.
 			view, ok := bookTicketNext(t, sub.Updates())
 			if !ok || view.BookSeq != unary.BookSeq || view.Available != available {
 				t.Fatalf("view=%+v unary=%+v", view, unary)
@@ -164,7 +163,6 @@ func TestTicket8511TerminalLifecycle(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer sub.Close()
-			bookTicketNext(t, sub.Updates()) // SetBucket emits a pre-start view.
 			view, ok := bookTicketNext(t, sub.Updates())
 			if !ok || view.BookSeq != "1" {
 				t.Fatal("healthy initialization did not occur")
@@ -236,7 +234,6 @@ func TestTicket8512SelectorControlsKeepResetIdentityAndScale(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer sub.Close()
-			bookTicketNext(t, sub.Updates())
 			seed, ok := bookTicketNext(t, sub.Updates())
 			if !ok || seed.Symbol != control.symbol {
 				t.Fatal("missing matching snapshot")
@@ -264,7 +261,6 @@ func TestTicket8510ZeroSequenceOrdering(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer sub.Close()
-			bookTicketNext(t, sub.Updates())
 			initial, _ := bookTicketNext(t, sub.Updates())
 			if initial.BookSeq != "0" {
 				t.Fatal(initial)
@@ -324,13 +320,10 @@ func TestTicket8511OverflowThenClose(t *testing.T) {
 	}
 	// Keep the managed queue full while pacing transport delivery at the emit
 	// boundary. Otherwise a fast producer can overflow the raw transport first.
-	for _, expected := range []string{"0", "1"} {
-		view, ok := bookTicketNext(t, events)
-		if !ok || view.BookSeq != expected {
-			t.Fatalf("initial event: %+v", view)
-		}
+	if view, ok := bookTicketNext(t, events); !ok || view.BookSeq != "1" {
+		t.Fatalf("initial event: %+v", view)
 	}
-	for seq := uint64(2); seq <= 200; seq++ {
+	for seq := uint64(2); seq <= 201; seq++ {
 		sends <- bookTicketFrame(&ob.OrderBookDelta{BookSeqStart: seq, BookSeqEnd: seq})
 		view, ok := bookTicketNext(t, events)
 		if !ok || view.BookSeq != fmt.Sprint(seq) {

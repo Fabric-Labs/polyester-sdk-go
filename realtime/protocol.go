@@ -16,6 +16,7 @@ const (
 	incomingReply incomingKind = iota
 	incomingPublication
 	incomingPing
+	incomingUnsubscribe
 )
 
 type incomingMessage struct {
@@ -23,6 +24,10 @@ type incomingMessage struct {
 	id   uint32
 	err  *protocolError
 	data []byte
+	// channel, code and reason describe an incomingUnsubscribe.
+	channel string
+	code    uint32
+	reason  string
 }
 
 func connectCommand(id uint32, token string) []byte {
@@ -172,12 +177,21 @@ func decodeProtocolError(data []byte) (*protocolError, error) {
 
 func decodePush(data []byte, incoming *[]incomingMessage) error {
 	cursor := protoCursor{data: data}
+	channel := ""
+	var unsubscribe *incomingMessage
 	for cursor.remaining() > 0 {
 		field, wire, err := cursor.key()
 		if err != nil {
 			return err
 		}
-		if field == 4 && wire == 2 {
+		switch {
+		case field == 2 && wire == 2:
+			value, err := cursor.lengthDelimited()
+			if err != nil {
+				return err
+			}
+			channel = string(value)
+		case field == 4 && wire == 2:
 			value, err := cursor.lengthDelimited()
 			if err != nil {
 				return err
@@ -185,11 +199,60 @@ func decodePush(data []byte, incoming *[]incomingMessage) error {
 			if err := decodePublication(value, incoming); err != nil {
 				return err
 			}
-		} else if err := cursor.skip(wire); err != nil {
-			return err
+		case field == 7 && wire == 2:
+			value, err := cursor.lengthDelimited()
+			if err != nil {
+				return err
+			}
+			unsubscribe, err = decodeUnsubscribe(value)
+			if err != nil {
+				return err
+			}
+		default:
+			if err := cursor.skip(wire); err != nil {
+				return err
+			}
 		}
 	}
+	if unsubscribe != nil {
+		unsubscribe.channel = channel
+		*incoming = append(*incoming, *unsubscribe)
+	}
 	return nil
+}
+
+// decodeUnsubscribe reads Unsubscribe { code = 2, reason = 3 }.
+func decodeUnsubscribe(data []byte) (*incomingMessage, error) {
+	cursor := protoCursor{data: data}
+	message := &incomingMessage{kind: incomingUnsubscribe}
+	for cursor.remaining() > 0 {
+		field, wire, err := cursor.key()
+		if err != nil {
+			return nil, err
+		}
+		switch {
+		case field == 2 && wire == 0:
+			value, err := cursor.varint()
+			if err != nil {
+				return nil, err
+			}
+			if value > uint64(^uint32(0)) {
+				return nil, fmt.Errorf("centrifugo unsubscribe code exceeds uint32")
+			}
+			message.code = uint32(value)
+		case field == 3 && wire == 2:
+			value, err := cursor.lengthDelimited()
+			if err != nil {
+				return nil, err
+			}
+			message.reason = string(value)
+		default:
+			if err := cursor.skip(wire); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return message, nil
 }
 
 func decodePublication(data []byte, incoming *[]incomingMessage) error {

@@ -15,10 +15,15 @@ const (
 // does not reconnect in lockstep after an upstream interruption.
 type reconnectBackoff struct {
 	cap time.Duration
+	// initial overrides reconnectInitialCap when positive.
+	initial time.Duration
 }
 
 func (b *reconnectBackoff) reset() {
 	b.cap = reconnectInitialCap
+	if b.initial > 0 {
+		b.cap = b.initial
+	}
 }
 
 func (b *reconnectBackoff) next() time.Duration {

@@ -398,6 +398,55 @@ type RealtimeError struct {
 func (e *RealtimeError) Error() string        { return e.Msg }
 func (e *RealtimeError) Is(target error) bool { return target == ErrPolyester }
 
+// SubscriptionEndReason says why a subscription the server ended did not resume.
+type SubscriptionEndReason string
+
+const (
+	// SubscriptionEndNotResubscribable means the channel is not one a
+	// sub-account's access governs, or automatic reconnection is off. Subscribe
+	// again yourself if the channel should still be live.
+	SubscriptionEndNotResubscribable SubscriptionEndReason = "not_resubscribable"
+	// SubscriptionEndAccessRemoved means a sub-account update on this client said
+	// the caller no longer has access (removed true).
+	SubscriptionEndAccessRemoved SubscriptionEndReason = "access_removed"
+	// SubscriptionEndNotListed means ListSubaccounts no longer lists the
+	// sub-account with a role for this API key.
+	SubscriptionEndNotListed SubscriptionEndReason = "not_listed"
+	// SubscriptionEndListRefused means ListSubaccounts refused this API key, so
+	// access could not be confirmed. Cause holds the refusal.
+	SubscriptionEndListRefused SubscriptionEndReason = "list_refused"
+	// SubscriptionEndTokenRefused means the server refused a fresh subscribe
+	// token. Cause holds the refusal.
+	SubscriptionEndTokenRefused SubscriptionEndReason = "token_refused"
+	// SubscriptionEndRetriesExhausted means bounded attempts to subscribe again
+	// did not hold. Cause holds the last failure, if any.
+	SubscriptionEndRetriesExhausted SubscriptionEndReason = "retries_exhausted"
+)
+
+// SubscriptionEndedError reports that the server ended a realtime subscription
+// and the SDK stopped. Code and ServerReason are the server's unsubscribe code
+// and text; Reason says why it did not resume. Queued messages stay readable.
+type SubscriptionEndedError struct {
+	Channel      string
+	Code         uint32
+	ServerReason string
+	Reason       SubscriptionEndReason
+	Cause        error
+}
+
+func (e *SubscriptionEndedError) Error() string {
+	msg := "server ended realtime subscription to " + strconv.Quote(e.Channel) +
+		" (code " + strconv.FormatUint(uint64(e.Code), 10) + ": " + e.ServerReason + "): " + string(e.Reason)
+	if e.Cause != nil {
+		msg += ": " + e.Cause.Error()
+	}
+	return msg
+}
+
+func (e *SubscriptionEndedError) Unwrap() error { return e.Cause }
+
+func (e *SubscriptionEndedError) Is(target error) bool { return target == ErrPolyester }
+
 // QueueOverflowError indicates a realtime subscription discarded work because the
 // consumer lagged behind the publication rate. Subscriptions fail instead of
 // silently dropping updates.

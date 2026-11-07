@@ -31,9 +31,8 @@ func (h orderbookSnapshotHandler) GetOrderBook(_ context.Context, req *connect.R
 	return connect.NewResponse(resp), nil
 }
 
-// The managed order book carries its snapshot's Available on every update:
-// a book merged onto an unavailable snapshot, or rendered before its first
-// snapshot, is not reported as current.
+// The managed order book carries its snapshot's Available on every update: a
+// book merged onto an unavailable snapshot is not reported as current.
 func TestL2OrderbookSubscriptionCarriesSnapshotAvailability(t *testing.T) {
 	for _, available := range []bool{true, false} {
 		t.Run(map[bool]string{true: "available", false: "unavailable"}[available], func(t *testing.T) {
@@ -80,14 +79,6 @@ func TestL2OrderbookSubscriptionCarriesSnapshotAvailability(t *testing.T) {
 				case book = <-sub.Updates():
 				case <-deadline:
 					t.Fatalf("no merged update: %v", sub.Err())
-				}
-				if book.BookSeq == "0" {
-					// SetBucket renders the book before its first snapshot:
-					// nothing is known about it yet.
-					if book.Available {
-						t.Fatalf("book before its snapshot %+v reports available", book)
-					}
-					continue
 				}
 				if book.Available != available {
 					t.Fatalf("book %+v, want available=%v", book, available)

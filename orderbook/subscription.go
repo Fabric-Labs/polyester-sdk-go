@@ -96,7 +96,9 @@ func (s *Subscription) SetBucket(bucket string) {
 	if setBucket != nil {
 		setBucket(ticks)
 	}
-	if s.emit != nil {
+	// Before a snapshot there is no book to render: a default view would read as
+	// a real empty book.
+	if s.emit != nil && (s.stream == nil || s.stream.IsReady()) {
 		s.emit()
 	}
 }

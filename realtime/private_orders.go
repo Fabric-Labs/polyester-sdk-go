@@ -43,6 +43,10 @@ type privateStreamTiming struct {
 	stableAfter  time.Duration
 	writeTimeout time.Duration
 	dialTimeout  time.Duration
+	// subscribeAckTimeout bounds waiting for the server to confirm a subscribe.
+	// Heartbeats keep the connection alive without answering it, so the
+	// heartbeat timeout cannot.
+	subscribeAckTimeout time.Duration
 }
 
 var defaultPrivateStreamTiming = privateStreamTiming{
@@ -52,6 +56,8 @@ var defaultPrivateStreamTiming = privateStreamTiming{
 	stableAfter:      10 * time.Second,
 	writeTimeout:     5 * time.Second,
 	dialTimeout:      10 * time.Second,
+
+	subscribeAckTimeout: 30 * time.Second,
 }
 
 type privateStreamConfig struct {
@@ -130,6 +136,10 @@ type orderStreamSub struct {
 	// delivered data; it drives the resubscribe backoff.
 	retries    int
 	retryTimer *sessionTimer
+	// confirmed: the server has confirmed this subscription at least once.
+	confirmed bool
+	// ackTimer bounds waiting for the current subscribe's confirmation.
+	ackTimer *sessionTimer
 }
 
 type requestKind int
@@ -511,7 +521,39 @@ func (p *privateOrderStream) subscribeServer(conn *privateConn, s *orderStreamSu
 			Token:   token,
 			Cursor:  s.cursor,
 		}}})
+		p.clearAck(s)
+		s.ackTimer = p.afterFunc(p.cfg.timing.subscribeAckTimeout, func(t *sessionTimer) {
+			if s.ackTimer != t {
+				return
+			}
+			s.ackTimer = nil
+			p.expireSubscribe(conn, s, id)
+		})
 	})
+}
+
+// expireSubscribe handles a subscribe the server never answered: a new
+// subscription ends, a confirmed one reports it and subscribes again. A late
+// answer is unsubscribed, since its request is gone.
+func (p *privateOrderStream) expireSubscribe(conn *privateConn, s *orderStreamSub, id string) {
+	if request, ok := p.pending[id]; !ok || request.s != s {
+		return
+	}
+	err := &sdkerrors.RealtimeError{Msg: "private order stream subscribe timed out: subscription not confirmed"}
+	if !s.confirmed {
+		p.terminate(s, err)
+		return
+	}
+	delete(p.pending, id)
+	p.report(s, err)
+	if p.conn == conn && p.isCurrent(s) && s.sub == "" {
+		p.retrySubscribe(conn, s)
+	}
+}
+
+func (p *privateOrderStream) clearAck(s *orderStreamSub) {
+	s.ackTimer.stop()
+	s.ackTimer = nil
 }
 
 // retrySubscribe subscribes again after a backoff that grows until the
@@ -658,6 +700,8 @@ func (p *privateOrderStream) onFrame(conn *privateConn, messageType int, data []
 		}
 		delete(p.pending, frame.Subscribed.GetId())
 		s := request.s
+		p.clearAck(s)
+		s.confirmed = true
 		s.sub = msg.GetSub()
 		s.seq = 0
 		s.ready = false
@@ -899,6 +943,7 @@ func (p *privateOrderStream) detach() {
 	clear(p.unsubscribing)
 	for _, s := range p.subs {
 		p.clearRetry(s)
+		p.clearAck(s)
 		s.sub = ""
 		s.seq = 0
 		s.ready = false
@@ -940,6 +985,7 @@ func (p *privateOrderStream) teardown(s *orderStreamSub) {
 		p.finish(c, nil)
 	}
 	p.clearRetry(s)
+	p.clearAck(s)
 	if p.conn != nil && s.sub != "" {
 		delete(p.bySub, s.sub)
 		p.unsubscribe(p.conn, s.sub)
