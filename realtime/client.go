@@ -42,6 +42,9 @@ type Client struct {
 	maxQueue    int
 	// privateTiming is the private order stream's protocol timing.
 	privateTiming privateStreamTiming
+	// renewalUnit is the unit of a Centrifugo token TTL: a second; tests
+	// shorten it.
+	renewalUnit time.Duration
 	// access decides whether a subscription the server ended may resume.
 	access *subaccountAccess
 
@@ -66,6 +69,7 @@ func NewClient(wsURL string, apiURL string, credentials *auth.Credentials, httpC
 		http:          httpClient,
 		maxQueue:      maxQueue,
 		privateTiming: defaultPrivateStreamTiming,
+		renewalUnit:   time.Second,
 	}
 	c.access = newSubaccountAccess(c, defaultResubscribeTiming)
 	return c
@@ -320,26 +324,43 @@ func runSubscriptionOnce[T any](
 	}
 
 	var pending []incomingMessage
+	write := func(frame []byte) error { return conn.WriteMessage(websocket.BinaryMessage, frame) }
+	var renewer *tokenRenewer
 	if isPrivateChannel(channel) {
 		token, err := fetchConnectionToken(ctx, c.http, c.credentials, c.apiURL)
 		if err != nil {
 			return err
 		}
-		if err := centrifugoConnect(ctx, conn, token, &pending); err != nil {
+		connected, err := centrifugoConnect(ctx, conn, token, &pending)
+		if err != nil {
 			return err
 		}
+		// The connection token's TTL runs from here, through the rest of setup.
+		connectedAt := time.Now()
 		subToken, err := fetchSubscriptionToken(ctx, c.http, c.credentials, c.apiURL, channel)
 		if err != nil {
 			return err
 		}
-		if err := centrifugoSubscribe(ctx, conn, channel, subToken, &pending); err != nil {
+		subscribed, err := centrifugoSubscribe(ctx, conn, channel, subToken, &pending)
+		if err != nil {
 			return err
 		}
+		subscribedAt := time.Now()
+		renewer = newTokenRenewer(ctx, conn, channel, c.renewalUnit, 3, func(ctx context.Context, kind renewalKind) (string, error) {
+			if kind == renewConnection {
+				return fetchConnectionToken(ctx, c.http, c.credentials, c.apiURL)
+			}
+			return fetchSubscriptionToken(ctx, c.http, c.credentials, c.apiURL, channel)
+		}, sub.notifyError)
+		defer renewer.stop()
+		write = renewer.write
+		renewer.schedule(renewConnection, connectedAt, connected.expires, connected.ttl)
+		renewer.schedule(renewSubscription, subscribedAt, subscribed.expires, subscribed.ttl)
 	} else {
-		if err := centrifugoConnect(ctx, conn, "", &pending); err != nil {
+		if _, err := centrifugoConnect(ctx, conn, "", &pending); err != nil {
 			return err
 		}
-		if err := centrifugoSubscribe(ctx, conn, channel, "", &pending); err != nil {
+		if _, err := centrifugoSubscribe(ctx, conn, channel, "", &pending); err != nil {
 			return err
 		}
 	}
@@ -383,7 +404,7 @@ func runSubscriptionOnce[T any](
 		for _, message := range incoming {
 			switch message.kind {
 			case incomingPing:
-				if err := conn.WriteMessage(websocket.BinaryMessage, pongCommand()); err != nil {
+				if err := write(pongCommand()); err != nil {
 					return &sdkerrors.RealtimeError{Msg: err.Error()}
 				}
 			case incomingPublication:
@@ -407,6 +428,9 @@ func runSubscriptionOnce[T any](
 					return &serverUnsubscribedError{code: message.code, reason: message.reason}
 				}
 			case incomingReply:
+				if renewer != nil && renewer.handleReply(message) {
+					continue
+				}
 				if message.err != nil {
 					return centrifugoProtocolError(message.err)
 				}
@@ -415,21 +439,23 @@ func runSubscriptionOnce[T any](
 	}
 }
 
-func centrifugoConnect(ctx context.Context, conn *websocket.Conn, token string, pending *[]incomingMessage) error {
+func centrifugoConnect(ctx context.Context, conn *websocket.Conn, token string, pending *[]incomingMessage) (incomingMessage, error) {
 	if err := conn.WriteMessage(websocket.BinaryMessage, connectCommand(1, token)); err != nil {
-		return &sdkerrors.RealtimeError{Msg: err.Error()}
+		return incomingMessage{}, &sdkerrors.RealtimeError{Msg: err.Error()}
 	}
 	return readCentrifugoReply(ctx, conn, 1, pending)
 }
 
-func centrifugoSubscribe(ctx context.Context, conn *websocket.Conn, channel, token string, pending *[]incomingMessage) error {
+func centrifugoSubscribe(ctx context.Context, conn *websocket.Conn, channel, token string, pending *[]incomingMessage) (incomingMessage, error) {
 	if err := conn.WriteMessage(websocket.BinaryMessage, subscribeCommand(2, channel, token)); err != nil {
-		return &sdkerrors.RealtimeError{Msg: err.Error()}
+		return incomingMessage{}, &sdkerrors.RealtimeError{Msg: err.Error()}
 	}
 	return readCentrifugoReply(ctx, conn, 2, pending)
 }
 
-func readCentrifugoReply(ctx context.Context, conn *websocket.Conn, expectedID uint32, pending *[]incomingMessage) error {
+// readCentrifugoReply returns the reply to expectedID, holding back anything
+// else that arrives first.
+func readCentrifugoReply(ctx context.Context, conn *websocket.Conn, expectedID uint32, pending *[]incomingMessage) (incomingMessage, error) {
 	deadline, ok := ctx.Deadline()
 	if !ok {
 		deadline = time.Now().Add(10 * time.Second)
@@ -438,35 +464,36 @@ func readCentrifugoReply(ctx context.Context, conn *websocket.Conn, expectedID u
 	for {
 		messageType, raw, err := conn.ReadMessage()
 		if err != nil {
-			return &sdkerrors.RealtimeError{Msg: err.Error()}
+			return incomingMessage{}, &sdkerrors.RealtimeError{Msg: err.Error()}
 		}
 		if messageType != websocket.BinaryMessage {
-			return &sdkerrors.RealtimeError{Msg: "received JSON text reply on protobuf websocket"}
+			return incomingMessage{}, &sdkerrors.RealtimeError{Msg: "received JSON text reply on protobuf websocket"}
 		}
 		incoming, err := decodeReplies(raw)
 		if err != nil {
-			return &sdkerrors.RealtimeError{Msg: err.Error()}
+			return incomingMessage{}, &sdkerrors.RealtimeError{Msg: err.Error()}
 		}
 		matched := false
+		var reply incomingMessage
 		for _, message := range incoming {
 			switch {
 			case message.kind == incomingPing:
 				if err := conn.WriteMessage(websocket.BinaryMessage, pongCommand()); err != nil {
-					return &sdkerrors.RealtimeError{Msg: err.Error()}
+					return incomingMessage{}, &sdkerrors.RealtimeError{Msg: err.Error()}
 				}
 			case message.kind == incomingReply && message.id == expectedID && message.err != nil:
-				return centrifugoProtocolError(message.err)
+				return incomingMessage{}, centrifugoProtocolError(message.err)
 			case message.kind == incomingReply && message.id == expectedID:
-				matched = true
+				matched, reply = true, message
 			default:
 				if len(*pending) >= 200 {
-					return &sdkerrors.QueueOverflowError{Msg: "realtime setup buffer full"}
+					return incomingMessage{}, &sdkerrors.QueueOverflowError{Msg: "realtime setup buffer full"}
 				}
 				*pending = append(*pending, message)
 			}
 		}
 		if matched {
-			return nil
+			return reply, nil
 		}
 	}
 }

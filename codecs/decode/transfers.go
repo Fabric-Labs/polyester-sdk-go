@@ -1,6 +1,8 @@
 package decode
 
 import (
+	"strconv"
+
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	ledgerrdv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
@@ -59,6 +61,15 @@ func TransferRowFromProto(t *ledgerrdv1.TransferRow) models.LedgerTransfer {
 	if t == nil {
 		return models.LedgerTransfer{}
 	}
+	var balanceAfter *string
+	if t.GetBalanceAfterE18() != nil {
+		value := u128(t.GetBalanceAfterE18())
+		balanceAfter = &value
+	}
+	linkID := ""
+	if t.GetLinkId() != 0 {
+		linkID = strconv.FormatUint(t.GetLinkId(), 10)
+	}
 	return models.LedgerTransfer{
 		TransferID:   t.GetTransferId(),
 		AssetID:      t.GetAssetId(),
@@ -70,5 +81,7 @@ func TransferRowFromProto(t *ledgerrdv1.TransferRow) models.LedgerTransfer {
 		IsDebit:      t.GetIsDebit(),
 		Source:       TransferSideFromProto(t.GetSource()),
 		Destination:  TransferSideFromProto(t.GetDestination()),
+		BalanceAfter: balanceAfter,
+		LinkID:       linkID,
 	}
 }

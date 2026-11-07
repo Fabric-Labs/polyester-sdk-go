@@ -546,6 +546,13 @@ type LedgerTransfer struct {
 	IsDebit      bool          `json:"is_debit,omitempty"`
 	Source       *TransferSide `json:"source,omitempty"`
 	Destination  *TransferSide `json:"destination,omitempty"`
+	// BalanceAfter is the account bucket's balance after this transfer, an
+	// exact decimal integer at the fixed 18-decimal ledger scale, like
+	// Amount. Nil when the server sent none; a zero balance is "0".
+	BalanceAfter *string `json:"balance_after,omitempty"`
+	// LinkID is the decimal correlation ID that groups related transfer
+	// legs. Empty when the server has none.
+	LinkID string `json:"link_id,omitempty"`
 }
 
 // TransfersList holds ledger transfers.

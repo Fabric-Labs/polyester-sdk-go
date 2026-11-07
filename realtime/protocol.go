@@ -28,6 +28,10 @@ type incomingMessage struct {
 	channel string
 	code    uint32
 	reason  string
+	// expires and ttl are a connect, subscribe or renewal result's token
+	// lifetime: the token must be renewed within ttl seconds.
+	expires bool
+	ttl     uint32
 }
 
 func connectCommand(id uint32, token string) []byte {
@@ -44,6 +48,19 @@ func subscribeCommand(id uint32, channel, token string) []byte {
 		request = appendStringField(request, 2, token)
 	}
 	return command(id, 5, request)
+}
+
+// refreshCommand renews the connection token: Command.refresh = 14,
+// RefreshRequest { token = 1 }.
+func refreshCommand(id uint32, token string) []byte {
+	return command(id, 14, appendStringField(nil, 1, token))
+}
+
+// subRefreshCommand renews a subscription token: Command.sub_refresh = 15,
+// SubRefreshRequest { channel = 1, token = 2 }.
+func subRefreshCommand(id uint32, channel, token string) []byte {
+	request := appendStringField(nil, 1, channel)
+	return command(id, 15, appendStringField(request, 2, token))
 }
 
 func pongCommand() []byte {
@@ -90,6 +107,8 @@ func decodeReply(data []byte, incoming *[]incomingMessage) error {
 	cursor := protoCursor{data: data}
 	var id uint32
 	var replyErr *protocolError
+	var expires bool
+	var ttl uint32
 	sawPush := false
 	for cursor.remaining() > 0 {
 		field, wire, err := cursor.key()
@@ -124,6 +143,15 @@ func decodeReply(data []byte, incoming *[]incomingMessage) error {
 			if err := decodePush(value, incoming); err != nil {
 				return err
 			}
+		case (field == 5 || field == 6 || field == 14 || field == 15) && wire == 2:
+			value, err := cursor.lengthDelimited()
+			if err != nil {
+				return err
+			}
+			expires, ttl, err = decodeExpiry(value, field)
+			if err != nil {
+				return err
+			}
 		default:
 			if err := cursor.skip(wire); err != nil {
 				return err
@@ -131,9 +159,50 @@ func decodeReply(data []byte, incoming *[]incomingMessage) error {
 		}
 	}
 	if id != 0 || replyErr != nil || !sawPush {
-		*incoming = append(*incoming, incomingMessage{kind: incomingReply, id: id, err: replyErr})
+		*incoming = append(*incoming, incomingMessage{kind: incomingReply, id: id, err: replyErr, expires: expires, ttl: ttl})
 	}
 	return nil
+}
+
+// decodeExpiry reads the token lifetime of a reply result: ConnectResult
+// (Reply field 5) and RefreshResult (14) carry expires = 3 and ttl = 4,
+// SubscribeResult (6) and SubRefreshResult (15) carry expires = 1 and ttl = 2.
+func decodeExpiry(data []byte, resultField uint32) (bool, uint32, error) {
+	expiresField, ttlField := uint32(1), uint32(2)
+	if resultField == 5 || resultField == 14 {
+		expiresField, ttlField = 3, 4
+	}
+	cursor := protoCursor{data: data}
+	var expires bool
+	var ttl uint32
+	for cursor.remaining() > 0 {
+		field, wire, err := cursor.key()
+		if err != nil {
+			return false, 0, err
+		}
+		switch {
+		case field == expiresField && wire == 0:
+			value, err := cursor.varint()
+			if err != nil {
+				return false, 0, err
+			}
+			expires = value != 0
+		case field == ttlField && wire == 0:
+			value, err := cursor.varint()
+			if err != nil {
+				return false, 0, err
+			}
+			if value > uint64(^uint32(0)) {
+				return false, 0, fmt.Errorf("centrifugo token ttl exceeds uint32")
+			}
+			ttl = uint32(value)
+		default:
+			if err := cursor.skip(wire); err != nil {
+				return false, 0, err
+			}
+		}
+	}
+	return expires, ttl, nil
 }
 
 func decodeProtocolError(data []byte) (*protocolError, error) {
