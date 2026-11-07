@@ -268,3 +268,24 @@ func TestWalletAlreadyLinkedIsATerminalAuthRefusal(t *testing.T) {
 		})
 	}
 }
+
+// Only ASCII digits within uint64 are an integer; anything else is absent, so
+// the delay falls back to Retry-After.
+func TestRateLimitProblemIgnoresAnUnreadableInteger(t *testing.T) {
+	for _, value := range []string{"²", "٣", strings.Repeat("9", 5000), "18446744073709551616", "-1", "1.5", "+5"} {
+		t.Run(value[:min(len(value), 8)], func(t *testing.T) {
+			body := `{"code":"RATE_LIMIT_EXCEEDED","rate_limit":{"reason":"QUOTA_EXCEEDED","scope":"CLIENT_IP","limit":"` + value + `","retry_after_ms":"` + value + `"}}`
+			err := callMeAgainst(t, http.StatusTooManyRequests, "application/problem+json", body, map[string]string{"Retry-After": "2"})
+			var rate *sdkerrors.RateLimitError
+			if !errors.As(err, &rate) || rate.Code != "ERROR_CODE_RATE_LIMIT_EXCEEDED" || rate.Detail == nil {
+				t.Fatalf("error = %T %+v", err, err)
+			}
+			if !rateLimitDetailEqual(*rate.Detail, sdkerrors.RateLimitDetail{Reason: "QUOTA_EXCEEDED", Scope: "CLIENT_IP"}) {
+				t.Fatalf("detail = %+v", *rate.Detail)
+			}
+			if rate.RetryAfter == nil || *rate.RetryAfter != 2 {
+				t.Fatalf("retry after = %v, want the Retry-After fallback 2", rate.RetryAfter)
+			}
+		})
+	}
+}
