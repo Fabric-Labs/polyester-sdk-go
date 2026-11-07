@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.8.0
+
+Git tag: `v0.8.0`. Released 2026-11-07. Built on public contract `748066a`.
+
+**Known issue:** a managed order book subscribed at a depth other than 1, 20, 50,
+200 or 500 can stop updating with no error. Use one of those depths until the
+next release.
 
 - **Breaking:** A new order stream subscription the server never confirms now ends after 30 seconds with an error, instead of waiting forever while heartbeats keep the connection alive. A resubscribe on a confirmed stream that gets no answer reports `OrderStreamError` and subscribes again with backoff.
 - **Breaking:** A realtime subscription the server ends no longer stays open and silent. `Messages()` delivers what is queued and closes, and `Err()` and the error callback report the new `*errors.SubscriptionEndedError` with the channel, the server's code and text, and `Reason`. Migration: handle a closed channel; subscribe again if you still need the stream. Server unsubscribe codes from 2500 ask for a new subscribe and reconnect as before.
