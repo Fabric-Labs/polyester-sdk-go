@@ -49,6 +49,8 @@ func ChangelogPostSummaryFromProto(msg *changelogv1.PostSummary) models.Changelo
 		Title:               msg.GetTitle(),
 		Introduction:        msg.GetIntroduction(),
 		PublishedAt:         timestampTime(msg.GetPublishedAt()),
+		UpdatedAt:           timestampTime(msg.GetUpdatedAt()),
+		Revision:            msg.GetRevision(),
 		CoverageCutoff:      timestampTime(msg.GetCoverageCutoff()),
 		ChangeCount:         msg.GetChangeCount(),
 		BreakingChangeCount: msg.GetBreakingChangeCount(),

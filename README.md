@@ -228,11 +228,25 @@ Decoding a JSON `Config` still reads `APIPrivateKey`. Read the key explicitly wi
 Recognized retry-later Connect `resource_exhausted` and REST admission-limit responses map to `errors.RateLimitError`. When the
 server attaches `polyester.ratelimit.v1.RateLimitDetail` (top-level Connect detail or nested under
 `orders.v1.ErrorDetail.rate_limit`), use `RateLimitError.Detail` for `policy_class`, `scope`,
-`operation_id`, and presence-aware quota fields. `RetryAfter` prefers `detail.retry_after_ms`,
-then `Retry-After` / `Retry-After-Ms` / `Grpc-Retry-Pushback-Ms` headers. Preview and batch
+`operation_id`, and presence-aware quota fields. A REST `RATE_LIMIT_EXCEEDED` problem is the
+same `errors.RateLimitError`, whichever side refused, with its `rate_limit` object in `Detail`;
+every field is optional. The gateway's own refusal names only `Reason` and `Scope`
+(`CLIENT_IP`, no `OperationID`); a service's also names the operation, the policy class and
+the remaining quota. The gateway's Connect refusal (`resource_exhausted`, "rate limit
+exceeded, retry later") has no detail at all. `RetryAfter` prefers `detail.retry_after_ms`,
+then `Retry-After` / `Retry-After-Ms` / `Grpc-Retry-Pushback-Ms` headers, and is nil when the
+server gave no hint, as for a refusal of too many concurrent requests: back off on your own
+schedule then. A 429 problem with another code, such as `AUTH_RESOURCE_EXHAUSTED` (no new
+account can be created), is an `errors.APIError` that waiting does not resolve. Preview and batch
 rejections expose the same payload on `OrderErrorDetail.RateLimit` / batch item `RateLimit`.
 That error payload is distinct from `client.RateLimits` (`ratelimit.v1.RateLimitService`),
 which returns the public trading quota catalog and authenticated account / API-key limits.
+A request body over an endpoint's size limit is refused with HTTP 413 and the problem
+`REQUEST_TOO_LARGE` on every service, before the request is authenticated. It maps to
+`errors.APIError` with `Code` `errors.CodeRequestTooLarge` and the problem in `Problem`, and
+`errors.IsRequestTooLarge(err)` reports it. Nothing changed and the same body is refused
+again: reduce it to fit the limit. A ConnectRPC message over the limit once decoded keeps
+its Connect `resource_exhausted` answer and maps as before.
 Canceled/deadline failures map to `errors.TransportError`; Connect validation
 codes map to `errors.ValidationError`. Structured order violations preserve the
 order code plus field/rule/message metadata on `ValidationError`.
@@ -488,7 +502,11 @@ an `*errors.AuthError` whose code is one of `errors.AuthCodeSignatureInvalid`,
 `AuthCodeIPNotAllowed` or `AuthCodeAPIKeyNotAccepted`; none is retryable
 without a change by the caller (fix the signature, the key, or the calling
 address). `AUTH_TIMESTAMP_SKEW` is the retryable `errors.TimestampSkewError`
-above, from either transport.
+above, from either transport. `errors.AuthCodeWalletAlreadyLinked`
+(`AUTH_WALLET_ALREADY_LINKED`, Connect `already_exists`, REST 409) refuses a
+wallet login whose wallet is already linked to another account; it is terminal,
+and `errors.IsWalletAlreadyLinked(err)` reports it. Log in with the account
+address the wallet already uses.
 
 ```go
 switch errors.AuthErrorCode(err) {
@@ -723,9 +741,15 @@ quantity, with no successor.
 Persist the returned `BatchRequestID`, then call `Orders.WaitBatchReplace`. It
 polls `Orders.GetBatchReplaceStatus` (50 ms, doubling up to 500 ms) until no
 item is `admitted`, that is until each is `working`, `rejected` or `terminal`,
-and returns that status; `working` only means the order is live. A batch's
-status can read not found for a few seconds after admission, so the wait polls
-through not found and `UNAVAILABLE`.
+and returns that status; `working` only means the order is live. The status is
+retained for 60 seconds from acceptance and is readable as soon as
+`BatchReplace` returns. `UNAVAILABLE` (`errors.ServerError`, retryable) means
+it can't be established yet: send the same read again within the window. Not
+found means no retained batch with that ID, never a rejected replacement. The
+wait polls through `UNAVAILABLE`, and through not found because an older API
+could answer it for a few seconds after admission. After the window, reconcile
+the individual orders with `Orders.Get` and never send an accepted batch again.
+An item's `UpdatedTsNs` is an observation time, not the refusal's identity.
 `models.IsBatchReplaceSettled` tests the same condition on one status read.
 An item can be admitted and then refused when applied, for example a post-only
 order moved to a price that would cross: it reads `rejected`, changed nothing,
@@ -837,18 +861,26 @@ client points at (devnet, testnet, ...). It is public and read-only: it needs no
 key, and the server rate-limits it per client address.
 
 - `ListPosts` returns one page of post summaries, newest first, with change counts by
-  kind. `Posts` iterates over every page.
+  kind. `Posts` iterates over every page. A published post can be republished, for
+  example to correct its copy or withdraw a change: its `Slug`, `PublishedAt` and change
+  IDs stay the same, `Revision` (from 1) increases and `UpdatedAt` is when the current
+  revision was published. To follow edits, read a post again when its `Revision` differs
+  from the one you hold, and drop a post that is no longer listed.
 - `GetPost(ctx, slug)` returns one full post with its sections and changes. A slug is
   the post's coverage cutoff date, `YYYY-MM-DD`; a second or third post on the same day
   gets `-2` or `-3`. An unknown slug fails with `*errors.APIError` whose `Code` is
   `not_found`.
 - `ListChanges` returns one page of changes across posts, each with its post slug,
-  publication time and section heading. `Changes` iterates over every page. Filters
+  first publication time and section heading. `Changes` iterates over every page and
+  yields each change ID once: when a post is republished during the walk, paging
+  restarts at that post's first change. Filters
   on different fields combine with AND; values within one field combine with OR.
   `StartTime` is inclusive and `EndTime` exclusive; an `EndTime` not after `StartTime`
   fails with `*errors.ValidationError` (`invalid_argument`).
 - `BreakingChangesSince(ctx, t)` and `ActionRequiredSince(ctx, t)` return every
-  breaking or action-required change published at or after `t`, newest post first.
+  breaking or action-required change published at or after `t`, newest post first,
+  each change once with the wording last received. They filter on first publication,
+  so they don't report an edit to an older post; compare `Revision` for that.
 
 Categories, audiences and surfaces are lowercase labels with constants in `models`
 (`models.ChangelogCategoryBreakingChange`, `models.ChangelogSurfaceAPI`, ...). A value

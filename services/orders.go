@@ -468,7 +468,10 @@ func (s *OrdersService) BatchCancel(ctx context.Context, account AccountScope, i
 // The response is an admission receipt. Old IDs are the stale predecessors;
 // replacement IDs are successors. Poll GetBatchReplaceStatus to reconcile item
 // phases and IDs, not to infer execution finality. Reuse the same requestID
-// when retrying the same logical batch.
+// when retrying the same logical batch: an identical retry replays the
+// admission for 60 seconds from acceptance. Read the status within that
+// window; after it, reconcile the individual orders and never send an
+// accepted batch again.
 func (s *OrdersService) BatchReplace(ctx context.Context, account AccountScope, items []models.BatchReplaceItem, symbol string, subAccountID *string, requestID *string) (models.BatchReplaceOrdersResult, error) {
 	if err := s.ensureCatalogs(ctx); err != nil {
 		return models.BatchReplaceOrdersResult{}, err
@@ -492,8 +495,30 @@ func (s *OrdersService) BatchReplace(ctx context.Context, account AccountScope, 
 	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().BatchReplaceOrders, protoReq, decode.BatchReplaceFromProto)
 }
 
-// GetBatchReplaceStatus returns durable reconciliation status for one admitted
-// batch. A working successor is live, but not necessarily execution-final.
+// GetBatchReplaceStatus returns the execution status of one accepted batch
+// replacement: its admission and each item's current phase. A working
+// successor is live, but not necessarily execution-final.
+//
+// The status is retained for 60 seconds from the batch's acceptance and is
+// readable as soon as BatchReplace returns; each item's phase then advances
+// asynchronously. batchRequestID is the exact 64-bit BatchRequestID that
+// BatchReplace returned.
+//
+//   - UNAVAILABLE (*errors.ServerError, retryable) means the status can't be
+//     established yet: send the same request again within the window.
+//   - Not found (*errors.APIError with Code "not_found") means the account has
+//     no retained batch with this ID: none was accepted for it, or the window
+//     ended. It never proves that a replacement was rejected.
+//
+// After the window, reconcile the individual orders with Orders.Get, by each
+// item's old and replacement order IDs, and never send an accepted batch again
+// because its status is not found: a batch sent after the window is admitted
+// as a new one.
+//
+// An item's UpdatedTsNs is an observation time: for an item refused after its
+// admission it can be a later time at which the service recovered and
+// observed the refusal, so two reads may differ for the same refusal. Don't
+// use it to identify the refusal.
 func (s *OrdersService) GetBatchReplaceStatus(ctx context.Context, account AccountScope, batchRequestID string, subAccountID *string) (models.BatchReplaceStatusResult, error) {
 	id, err := codecs.IDToInt(batchRequestID, "batch_request_id")
 	if err != nil {
@@ -516,8 +541,10 @@ var batchReplacePoll = unavailableRetry{first: 50 * time.Millisecond, max: 500 *
 // WaitBatchReplace polls GetBatchReplaceStatus until no item is still
 // admitted, that is until each is working, rejected or terminal, and returns
 // that status. Waits start at 50 ms and double up to 500 ms. A read answered
-// not found, UNAVAILABLE or another 5xx is polled again: a batch's status can
-// take a few seconds after admission to become readable.
+// UNAVAILABLE or another 5xx is polled again. A read answered not found is
+// polled again too, because an older API could answer not
+// found for a few seconds after admission; not found never means the batch
+// was rejected.
 //
 // A rejected item changed nothing, including one admitted and then refused
 // when applied: its order keeps OldOrderID, and Code and ErrorCode name the
