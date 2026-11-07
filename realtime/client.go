@@ -335,6 +335,8 @@ func runSubscriptionOnce[T any](
 		if err != nil {
 			return err
 		}
+		// The connection token's TTL runs from here, through the rest of setup.
+		connectedAt := time.Now()
 		subToken, err := fetchSubscriptionToken(ctx, c.http, c.credentials, c.apiURL, channel)
 		if err != nil {
 			return err
@@ -343,6 +345,7 @@ func runSubscriptionOnce[T any](
 		if err != nil {
 			return err
 		}
+		subscribedAt := time.Now()
 		renewer = newTokenRenewer(ctx, conn, channel, c.renewalUnit, 3, func(ctx context.Context, kind renewalKind) (string, error) {
 			if kind == renewConnection {
 				return fetchConnectionToken(ctx, c.http, c.credentials, c.apiURL)
@@ -351,8 +354,8 @@ func runSubscriptionOnce[T any](
 		}, sub.notifyError)
 		defer renewer.stop()
 		write = renewer.write
-		renewer.schedule(renewConnection, connected.expires, connected.ttl)
-		renewer.schedule(renewSubscription, subscribed.expires, subscribed.ttl)
+		renewer.schedule(renewConnection, connectedAt, connected.expires, connected.ttl)
+		renewer.schedule(renewSubscription, subscribedAt, subscribed.expires, subscribed.ttl)
 	} else {
 		if _, err := centrifugoConnect(ctx, conn, "", &pending); err != nil {
 			return err

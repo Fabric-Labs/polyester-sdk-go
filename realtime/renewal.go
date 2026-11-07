@@ -81,9 +81,10 @@ func (r *tokenRenewer) write(frame []byte) error {
 	return r.conn.WriteMessage(websocket.BinaryMessage, frame)
 }
 
-// schedule renews kind's token ttl units from now, when the server said it
-// expires.
-func (r *tokenRenewer) schedule(kind renewalKind, expires bool, ttl uint32) {
+// schedule renews kind's token ttl units after answered, when the reply
+// that carried the TTL arrived, if the server said it expires. Time spent
+// since then, such as the rest of the setup, counts against the TTL.
+func (r *tokenRenewer) schedule(kind renewalKind, answered time.Time, expires bool, ttl uint32) {
 	if !expires {
 		return
 	}
@@ -96,7 +97,8 @@ func (r *tokenRenewer) schedule(kind renewalKind, expires bool, ttl uint32) {
 		r.wg.Done()
 	}
 	r.wg.Add(1)
-	r.timers[kind] = time.AfterFunc(time.Duration(ttl)*r.unit, func() {
+	delay := max(time.Until(answered.Add(time.Duration(ttl)*r.unit)), 0)
+	r.timers[kind] = time.AfterFunc(delay, func() {
 		defer r.wg.Done()
 		r.renew(kind)
 	})
@@ -143,7 +145,7 @@ func (r *tokenRenewer) handleReply(message incomingMessage) bool {
 		r.report(renewalRefused(kind, message.err))
 		return true
 	}
-	r.schedule(kind, message.expires, message.ttl)
+	r.schedule(kind, time.Now(), message.expires, message.ttl)
 	return true
 }
 

@@ -255,3 +255,35 @@ func runRenewalInterleaving(t *testing.T, seed uint64) {
 		t.Errorf("client fetched %d tokens after Close", got-settled)
 	}
 }
+
+// The connection token's lifetime runs from the connect reply, not from the
+// end of setup: a slow subscription token must not push the first connection
+// renewal past the server's expiry.
+func TestConnectionRenewalCountsFromConnectReply(t *testing.T) {
+	const unit = 200 * time.Millisecond
+	srv := newRenewalServer(t, renewalServerConfig{unit: unit, grace: 60 * time.Millisecond, connTTL: 2})
+	var subCalls atomic.Int64
+	hook := func(kind string) int {
+		// Only the setup's subscription token is slow, by more than the grace.
+		if kind == "sub" && subCalls.Add(1) == 1 {
+			time.Sleep(150 * time.Millisecond)
+		}
+		return http.StatusOK
+	}
+	srv.tokenHook.Store(&hook)
+	sub, _ := subscribeTransfers(t, srv, unit)
+
+	time.Sleep(8 * unit)
+	if got := srv.conExpiry.Load(); got != 0 {
+		t.Errorf("server closed %d connections for an expired connection token", got)
+	}
+	if got := srv.accepted.Load(); got != 1 {
+		t.Errorf("client opened %d connections, want 1", got)
+	}
+	if got := srv.refresh.Load(); got < 3 {
+		t.Errorf("client renewed the connection token %d times, want at least 3", got)
+	}
+	if got := sub.Resubscribes(); got != 0 {
+		t.Errorf("Resubscribes() = %d, want 0", got)
+	}
+}
