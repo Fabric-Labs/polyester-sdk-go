@@ -49,8 +49,11 @@ func requestTooLargeServer(t *testing.T, chunked bool) string {
 func assertRequestTooLarge(t *testing.T, err error) {
 	t.Helper()
 	var api *sdkerrors.APIError
-	if !errors.As(err, &api) || api.Code != "REQUEST_TOO_LARGE" {
+	if !errors.As(err, &api) || api.Code != sdkerrors.CodeRequestTooLarge {
 		t.Fatalf("error = %T %v, want *errors.APIError with code REQUEST_TOO_LARGE", err, err)
+	}
+	if !sdkerrors.IsRequestTooLarge(err) {
+		t.Fatal("IsRequestTooLarge = false")
 	}
 	if api.Problem == nil || api.Problem.Status != 413 || api.Problem.Code != "REQUEST_TOO_LARGE" ||
 		api.Problem.Type != "https://polyester.dev/problems/request-too-large" || api.Problem.Detail != "request too large" {
@@ -250,8 +253,11 @@ func TestWalletAlreadyLinkedIsATerminalAuthRefusal(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			mapped := callMeAgainst(t, http.StatusConflict, tc.contentType, tc.body)
-			if got := sdkerrors.AuthErrorCode(mapped); got != "AUTH_WALLET_ALREADY_LINKED" {
+			if got := sdkerrors.AuthErrorCode(mapped); got != sdkerrors.AuthCodeWalletAlreadyLinked {
 				t.Fatalf("AuthErrorCode = %q (%T %v)", got, mapped, mapped)
+			}
+			if !sdkerrors.IsWalletAlreadyLinked(mapped) {
+				t.Fatal("IsWalletAlreadyLinked = false")
 			}
 			if mapped.Error() != message {
 				t.Fatalf("message = %q", mapped.Error())

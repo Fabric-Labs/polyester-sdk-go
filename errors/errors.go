@@ -32,7 +32,33 @@ const (
 	// AuthCodeSessionKindNotAllowed: the method accepts only a session token
 	// and the request carried an account API key. See SessionRequiredError.
 	AuthCodeSessionKindNotAllowed = "AUTH_SESSION_KIND_NOT_ALLOWED"
+	// AuthCodeWalletAlreadyLinked: a valid signed wallet login named an
+	// account address no account uses, and the signing wallet is already
+	// linked to another account (Connect already_exists, REST 409). Wallets
+	// are not moved between accounts and nothing changed. It is terminal:
+	// the same request answers the same refusal. Log in with the account
+	// address the wallet already uses.
+	AuthCodeWalletAlreadyLinked = "AUTH_WALLET_ALREADY_LINKED"
 )
+
+// CodeRequestTooLarge is the code of an *APIError for a request body over the
+// endpoint's size limit (REST problem REQUEST_TOO_LARGE, HTTP 413). The API
+// refuses it before reading or authenticating the request, so nothing
+// changed, and sending the same body again is refused again: reduce it to fit
+// the limit. Read it with IsRequestTooLarge.
+const CodeRequestTooLarge = "REQUEST_TOO_LARGE"
+
+// IsRequestTooLarge reports whether err refuses a request body over the
+// endpoint's size limit (REQUEST_TOO_LARGE).
+func IsRequestTooLarge(err error) bool {
+	return err != nil && apiErrorCode(err) == CodeRequestTooLarge
+}
+
+// IsWalletAlreadyLinked reports whether err refuses a wallet login because the
+// wallet is already linked to another account (AUTH_WALLET_ALREADY_LINKED).
+func IsWalletAlreadyLinked(err error) bool {
+	return AuthErrorCode(err) == AuthCodeWalletAlreadyLinked
+}
 
 // API-key refusals (auth.v1.AuthErrorCode). Order reads, order and trigger
 // writes and balance reads answer them on Connect as unauthenticated with an
@@ -284,8 +310,14 @@ func (e *TransportError) Unwrap() error        { return e.Err }
 // RateLimitError indicates rate limiting from the API.
 //
 // Detail carries structured polyester.ratelimit.v1.RateLimitDetail when the
-// server attached it (Connect details or in-band order rejection). RetryAfter
-// prefers detail.retry_after_ms, then response headers.
+// server attached it: Connect details, an in-band order rejection, or the
+// rate_limit object of a REST RATE_LIMIT_EXCEEDED problem, whose fields are
+// all optional. The gateway's own refusal names only Reason and Scope
+// (CLIENT_IP, with no OperationID); a service's also names the operation, the
+// policy class and the remaining quota. RetryAfter prefers
+// detail.retry_after_ms, then the Retry-After header; it is nil when the
+// server gave no hint, as for a refusal of too many concurrent requests, so
+// back off on your own schedule then.
 type RateLimitError struct {
 	Code       string // Structured service code; empty without a service detail. Known order codes use ERROR_CODE_; an orders detail without a code uses ERROR_CODE_UNSPECIFIED.
 	Msg        string
