@@ -461,7 +461,7 @@ or an edge, so it doesn't prove a request was refused. Only a 401 or 403 is a
 refusal on its status alone (`errors.AuthError`). Every other status returns
 `errors.ServerError` with `errors.MutationOutcomeUnknown` true and
 `errors.IsRetryable` false, and keeps any code it did send in `Code`; read back
-before sending a mutation again. Reads retry 429, 502, 503 and 504 for you. A
+before sending a mutation again. Trigger reads retry 429, 502, 503 and 504 for you; retry other reads yourself if you want to. A
 bare 404 stays `errors.RouteNotFoundError`, also with an unknown outcome. A
 well-formed but unrecognised code at HTTP 429 returns `errors.APIError`: known
 and not retryable.
