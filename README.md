@@ -1367,6 +1367,10 @@ for book := range ob.Updates() {
 ```
 
 `Orderbook.Get` takes the snapshot depths 1, 5, 10, 20, 50, 100, 200, 500 and 1000.
+Any other depth from 1 to 1000 requests the smallest of them that covers it, 20 for
+`11`, and 0 means 50; the result's `Depth` is the depth requested
+(`codecs.OrderbookSnapshotDepth`). A depth below 0 or above 1000 is an
+`*errors.ValidationError` before any request.
 The delta stream is published at fewer depths, 1, 20, 50, 200 and 500
 (`codecs.OrderbookStreamDepths()`), and the server accepts a subscribe at any other
 depth and then sends nothing on it, so the SDK does not subscribe there:

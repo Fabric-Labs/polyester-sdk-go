@@ -3,7 +3,6 @@ package hardening_test
 import (
 	"context"
 	"net/http"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -28,9 +27,13 @@ const (
 
 type rawZeroSnapshotHandler struct {
 	orderbookv1connect.UnimplementedOrderbookServiceHandler
+	calls *atomic.Int64
 }
 
-func (rawZeroSnapshotHandler) GetOrderBook(_ context.Context, req *connect.Request[orderbookv1.GetOrderBookRequest]) (*connect.Response[orderbookv1.GetOrderBookResponse], error) {
+func (h rawZeroSnapshotHandler) GetOrderBook(_ context.Context, req *connect.Request[orderbookv1.GetOrderBookRequest]) (*connect.Response[orderbookv1.GetOrderBookResponse], error) {
+	if h.calls != nil {
+		h.calls.Add(1)
+	}
 	return connect.NewResponse(&orderbookv1.GetOrderBookResponse{
 		SymbolId:  req.Msg.GetSymbolId(),
 		BookSeq:   1,
@@ -41,9 +44,11 @@ func (rawZeroSnapshotHandler) GetOrderBook(_ context.Context, req *connect.Reque
 }
 
 type rawZeroStream struct {
-	sub    *orderbook.Subscription
-	pubs   chan []byte
-	errors *atomic.Int64
+	sub       *orderbook.Subscription
+	pubs      chan []byte
+	errors    *atomic.Int64
+	gaps      *atomic.Int64
+	snapshots *atomic.Int64
 }
 
 func startRawZeroStream(t *testing.T, bucket string, depth int) rawZeroStream {
@@ -51,8 +56,9 @@ func startRawZeroStream(t *testing.T, bucket string, depth int) rawZeroStream {
 	pubs := make(chan []byte, 4)
 	ws := hardening.SpawnCentrifugoPublish(nil, pubs)
 	t.Cleanup(ws.Close)
+	snapshots := &atomic.Int64{}
 	mux := http.NewServeMux()
-	path, handler := orderbookv1connect.NewOrderbookServiceHandler(rawZeroSnapshotHandler{})
+	path, handler := orderbookv1connect.NewOrderbookServiceHandler(rawZeroSnapshotHandler{calls: snapshots})
 	mux.Handle(path, handler)
 	api := hardening.NewTestServer(mux)
 	t.Cleanup(api.Close)
@@ -70,11 +76,13 @@ func startRawZeroStream(t *testing.T, bucket string, depth int) rawZeroStream {
 	service := services.NewOrderbookService(transport.NewFactory(cfg, nil, nil), cats, rt)
 
 	errorCount := &atomic.Int64{}
+	gaps := &atomic.Int64{}
 	sub, err := service.CreateSubscription(context.Background(), services.CreateSubscriptionOptions{
-		Symbol:  "DOGE-USDT",
-		Depth:   depth,
-		Bucket:  bucket,
-		OnError: func(error) { errorCount.Add(1) },
+		Symbol:        "DOGE-USDT",
+		Depth:         depth,
+		Bucket:        bucket,
+		OnError:       func(error) { errorCount.Add(1) },
+		OnSequenceGap: func() { gaps.Add(1) },
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -93,7 +101,7 @@ func startRawZeroStream(t *testing.T, bucket string, depth int) rawZeroStream {
 				if len(book.Bids) != 1 || len(book.Asks) != 1 {
 					t.Fatalf("snapshot view %+v", book)
 				}
-				return rawZeroStream{sub: sub, pubs: pubs, errors: errorCount}
+				return rawZeroStream{sub: sub, pubs: pubs, errors: errorCount, gaps: gaps, snapshots: snapshots}
 			}
 		case <-deadline:
 			t.Fatalf("no snapshot view: %v", sub.Err())
@@ -118,53 +126,75 @@ func publishRawZeroDelta(t *testing.T, stream rawZeroStream, side string, quanti
 	stream.pubs <- payload
 }
 
-func assertRawZeroFailsClosed(t *testing.T, stream rawZeroStream) {
+// assertRawZeroResyncs proves a raw zero price was refused like any malformed
+// delta: never applied or shown, the book is rebuilt from a fresh snapshot, and
+// the stream stays open and keeps applying valid deltas.
+func assertRawZeroResyncs(t *testing.T, stream rawZeroStream) {
 	t.Helper()
 	deadline := time.After(5 * time.Second)
+	for stream.snapshots.Load() < 2 {
+		select {
+		case book, open := <-stream.sub.Updates():
+			if !open {
+				t.Fatalf("raw zero price closed the stream: %v", stream.sub.Err())
+			}
+			if book.BookSeq != "1" {
+				t.Fatalf("raw zero delta was applied: %+v", book)
+			}
+		case <-time.After(10 * time.Millisecond):
+		case <-deadline:
+			t.Fatalf("raw zero price did not refresh the snapshot (Err=%v, OnError=%d)", stream.sub.Err(), stream.errors.Load())
+		}
+	}
+	payload, err := proto.Marshal(&orderbookv1.OrderBookDelta{
+		SymbolId: 1, BookSeqStart: 2, BookSeqEnd: 2,
+		Bids: []*orderbookv1.PriceLevel{{PriceTicks: rawZeroBid, QtyScaled: 7}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stream.pubs <- payload
 	for {
 		select {
 		case book, open := <-stream.sub.Updates():
 			if !open {
-				err := stream.sub.Err()
-				if err == nil || !strings.Contains(err.Error(), "invalid or missing price") {
-					t.Fatalf("terminal error %v", err)
-				}
-				// Updates closes just before the callback runs on the stream worker;
-				// Close waits for that worker, so the count is final afterwards.
-				stream.sub.Close()
-				if got := stream.errors.Load(); got != 1 {
-					t.Fatalf("OnError called %d times, want 1", got)
-				}
-				return
+				t.Fatalf("stream closed after resync: %v", stream.sub.Err())
 			}
-			if book.BookSeq != "1" {
-				t.Fatalf("corrupt delta was delivered: %+v", book)
+			if book.BookSeq == "1" {
+				continue
 			}
+			if book.BookSeq != "2" || len(book.Bids) != 1 || book.Bids[0].Qty.Scaled() != 7 || len(book.Asks) != 1 {
+				t.Fatalf("valid delta after resync: %+v", book)
+			}
+			if stream.gaps.Load() < 1 || stream.errors.Load() != 0 || stream.sub.Err() != nil {
+				t.Fatalf("gaps=%d OnError=%d Err=%v", stream.gaps.Load(), stream.errors.Load(), stream.sub.Err())
+			}
+			return
 		case <-deadline:
-			t.Fatalf("stream stayed open after a raw zero price (Err=%v, OnError=%d)", stream.sub.Err(), stream.errors.Load())
+			t.Fatalf("valid delta after resync never applied: %v", stream.sub.Err())
 		}
 	}
 }
 
-func TestL2OrderbookRawZeroDeltaFailsClosedAtEveryBucket(t *testing.T) {
+func TestL2OrderbookRawZeroDeltaResyncsAtEveryBucket(t *testing.T) {
 	for _, side := range []string{"bids", "asks"} {
 		for _, bucket := range []string{"", "0.001", "0.1"} {
 			t.Run(side+"/bucket="+bucket, func(t *testing.T) {
 				stream := startRawZeroStream(t, bucket, 10)
 				publishRawZeroDelta(t, stream, side, 9)
-				assertRawZeroFailsClosed(t, stream)
+				assertRawZeroResyncs(t, stream)
 			})
 		}
 	}
 }
 
 // A zero bid sorts last, so a depth of one alone would never render it.
-func TestL2OrderbookRawZeroBidOutsideRequestedDepthFailsClosed(t *testing.T) {
+func TestL2OrderbookRawZeroBidOutsideRequestedDepthResyncs(t *testing.T) {
 	for _, bucket := range []string{"", "0.001", "0.1"} {
 		t.Run("bucket="+bucket, func(t *testing.T) {
 			stream := startRawZeroStream(t, bucket, 1)
 			publishRawZeroDelta(t, stream, "bids", 9)
-			assertRawZeroFailsClosed(t, stream)
+			assertRawZeroResyncs(t, stream)
 		})
 	}
 }
@@ -254,10 +284,13 @@ type delayedSnapshotHandler struct {
 	orderbookv1connect.UnimplementedOrderbookServiceHandler
 	started chan struct{}
 	release chan struct{}
+	once    *sync.Once
+	calls   *atomic.Int64
 }
 
 func (h delayedSnapshotHandler) GetOrderBook(ctx context.Context, req *connect.Request[orderbookv1.GetOrderBookRequest]) (*connect.Response[orderbookv1.GetOrderBookResponse], error) {
-	close(h.started)
+	h.calls.Add(1)
+	h.once.Do(func() { close(h.started) })
 	select {
 	case <-h.release:
 	case <-ctx.Done():
@@ -266,13 +299,19 @@ func (h delayedSnapshotHandler) GetOrderBook(ctx context.Context, req *connect.R
 	return rawZeroSnapshotHandler{}.GetOrderBook(ctx, req)
 }
 
-// A delta buffered behind the failing one must not be applied or delivered:
-// its removal would otherwise clear the bad level and report a healthy book.
-func TestL2OrderbookRawZeroBufferedDeltaStopsProcessingAfterFailure(t *testing.T) {
+// A raw zero price buffered ahead of the snapshot is refused like a live one:
+// neither it nor the delta behind it is applied, and the book is rebuilt from
+// a fresh snapshot instead of closing.
+func TestL2OrderbookRawZeroBufferedDeltaResyncsWithoutApplying(t *testing.T) {
 	pubs := make(chan []byte, 4)
 	ws := hardening.SpawnCentrifugoPublish(nil, pubs)
 	t.Cleanup(ws.Close)
-	snapshot := delayedSnapshotHandler{started: make(chan struct{}), release: make(chan struct{})}
+	snapshot := delayedSnapshotHandler{
+		started: make(chan struct{}),
+		release: make(chan struct{}),
+		once:    &sync.Once{},
+		calls:   &atomic.Int64{},
+	}
 	mux := http.NewServeMux()
 	path, handler := orderbookv1connect.NewOrderbookServiceHandler(snapshot)
 	mux.Handle(path, handler)
@@ -343,28 +382,29 @@ func TestL2OrderbookRawZeroBufferedDeltaStopsProcessingAfterFailure(t *testing.T
 	}
 	t.Cleanup(outcome.sub.Close)
 	deadline := time.After(5 * time.Second)
-	for open := true; open; {
+	for snapshot.calls.Load() < 2 {
 		select {
-		case _, open = <-outcome.sub.Updates():
+		case _, open := <-outcome.sub.Updates():
+			if !open {
+				t.Fatalf("buffered raw zero closed the stream: %v", outcome.sub.Err())
+			}
+		case <-time.After(10 * time.Millisecond):
 		case <-deadline:
-			t.Fatalf("stream stayed open (Err=%v)", outcome.sub.Err())
+			t.Fatalf("buffered raw zero did not refresh the snapshot (Err=%v)", outcome.sub.Err())
 		}
 	}
 	outcome.sub.Close()
-	err := outcome.sub.Err()
-	if err == nil || !strings.Contains(err.Error(), "invalid or missing price") {
-		t.Fatalf("terminal error %v", err)
+	if err := outcome.sub.Err(); err != nil {
+		t.Fatalf("Err=%v", err)
 	}
-	if got := errorCount.Load(); got != 1 {
-		t.Fatalf("OnError called %d times, want 1", got)
+	if got := errorCount.Load(); got != 0 {
+		t.Fatalf("OnError called %d times, want 0", got)
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	// The snapshot alone would be delivered at sequence 1, so only a pre-snapshot
-	// render here proves both deltas really were buffered ahead of it.
 	for _, seq := range seqs {
-		if seq != "0" {
-			t.Fatalf("book delivered after the failure, or deltas not buffered: seqs=%v", seqs)
+		if seq != "0" && seq != "1" {
+			t.Fatalf("a buffered delta was applied: seqs=%v", seqs)
 		}
 	}
 }

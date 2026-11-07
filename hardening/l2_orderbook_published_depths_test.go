@@ -725,25 +725,25 @@ func TestManagedBookCoarseBucketAbovePriceShowsZeroBidAtTrimmedDepth(t *testing.
 	}
 }
 
-func TestManagedBookZeroPriceOutsideTrimmedViewStillClosesStream(t *testing.T) {
+// A zero-price level outside the trimmed view is still refused before it reaches
+// the book: the book is rebuilt from a fresh snapshot at the tier and stays open.
+func TestManagedBookZeroPriceOutsideTrimmedViewResyncsAtTier(t *testing.T) {
 	service, market := newTierService(t, 600)
-	var reported atomic.Int64
-	sub := tierBook(t, service, services.CreateSubscriptionOptions{Depth: 10, OnError: func(error) { reported.Add(1) }})
-	nextTierView(t, sub, "first view")
+	var reported, gaps atomic.Int64
+	sub := tierBook(t, service, services.CreateSubscriptionOptions{
+		Depth:         10,
+		OnError:       func(error) { reported.Add(1) },
+		OnSequenceGap: func() { gaps.Add(1) },
+	})
+	first := nextTierView(t, sub, "first view")
 	market.send(t, 20, tierDelta{start: 100, end: 101, bids: map[int64]int64{0: 5}})
-	select {
-	case view, open := <-sub.Updates():
-		if open {
-			t.Fatalf("a view after the bad level: %+v", view)
-		}
-	case <-time.After(tierWait):
-		t.Fatal("stream stayed open after a zero-price level")
+	refreshed := nextTierView(t, sub, "view after the refused delta")
+	if refreshed.BookSeq != first.BookSeq || len(refreshed.Bids) != 10 {
+		t.Fatalf("refused delta changed the book: seq %s, %d bids", refreshed.BookSeq, len(refreshed.Bids))
 	}
-	if sub.Err() == nil || !strings.Contains(sub.Err().Error(), "invalid or missing price") {
-		t.Fatalf("Err() = %v", sub.Err())
-	}
-	if reported.Load() != 1 {
-		t.Fatalf("errors reported = %d", reported.Load())
+	assertSnapshots(t, market, "DEPTH_20", "DEPTH_20")
+	if sub.Err() != nil || reported.Load() != 0 || gaps.Load() != 1 {
+		t.Fatalf("Err=%v errors=%d gaps=%d", sub.Err(), reported.Load(), gaps.Load())
 	}
 }
 
