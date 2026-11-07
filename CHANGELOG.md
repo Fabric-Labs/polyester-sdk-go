@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.10.0
+
+Git tag: `v0.10.0`. Released 2026-11-07. Built on public contract `748066a`.
 
 - **Breaking:** A zipped-asset supply at a quantity scale of 0 now reads as whole units. `SubscribeZippedAssetSupply` reported a BONK supply of 3582802 as `0.000000000003582802`, because `codecs.FormatLedgerU128` treated scale 0 as 18. It now formats at the scale you pass, including 0, and returns `*errors.ValidationError` for a negative scale instead of using 18. `codecs.StrToU128Proto` encodes at scale 0 too and returns zero for a negative scale. A zipped asset that isn't in the hydrated catalog is still refused. Migration: pass `codecs.LedgerScale` to either function for 18-decimal balances.
 - `GuardApproval` now has `NonceSpace` and `DeadlineUnix` from `SignProtectedAction` and `BatchSignProtectedActions`, as exact `uint64` values, and `RotateGuardSignerWalletResult` has the rotation's `Approval`, nil when the API returns none. Submit them with the signature. Added `decode.GuardApprovalFromProto`.
