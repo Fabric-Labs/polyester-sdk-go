@@ -121,3 +121,19 @@ func TestHeatmapGetRefusesAValueOfTheOtherEnum(t *testing.T) {
 		}
 	}
 }
+
+// INTERVAL_UNSPECIFIED is no interval the server reads or publishes.
+func TestHeatmapGetRefusesTheUnspecifiedInterval(t *testing.T) {
+	service, h := newHeatmapRequestService(t)
+	id := uint32(1)
+	_, err := service.Get(context.Background(), nil, &id, "INTERVAL_UNSPECIFIED", 50, 1, "close", nil, nil, nil)
+	var validation *sdkerrors.ValidationError
+	if !stderrors.As(err, &validation) {
+		t.Fatalf("err = %v, want *errors.ValidationError", err)
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if len(h.calls) != 0 {
+		t.Fatalf("sent %d requests", len(h.calls))
+	}
+}
