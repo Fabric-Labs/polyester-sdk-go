@@ -154,3 +154,13 @@ func TestDepositSourceNotConfirmedReasonAndDelayedFlow(t *testing.T) {
 		t.Fatalf("listed=%+v", listed)
 	}
 }
+
+func TestFlowTxMatchCarriesTheFlowAddresses(t *testing.T) {
+	page := decode.FlowsByTxListFromProto(&lifecyclev1.ListFlowsByTxResponse{Matches: []*lifecyclev1.FlowTxMatchView{{
+		FlowId: "f", SourceAddress: "0x00000000000000000000000000000000000000c3", DestinationAddress: "0x00000000000000000000000000000000000000a1",
+	}}})
+	if len(page.Flows) != 1 || page.Flows[0].SourceAddress != "0x00000000000000000000000000000000000000c3" ||
+		page.Flows[0].DestinationAddress != "0x00000000000000000000000000000000000000a1" || page.Flows[0].Participation != "" {
+		t.Fatalf("flows = %+v", page.Flows)
+	}
+}

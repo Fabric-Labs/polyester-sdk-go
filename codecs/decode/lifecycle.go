@@ -183,6 +183,8 @@ func flowTxMatch(msg *lifecyclev1.FlowTxMatchView) models.LifecycleFlowSummary {
 		SmartAccountAddress: msg.GetSmartAccountAddress(),
 		LifecycleReason:     lifecycleReasonLabel(msg.GetLifecycleReason()),
 		ZipperReason:        zipperReasonFromProto(msg.GetZipperReason()),
+		SourceAddress:       msg.GetSourceAddress(),
+		DestinationAddress:  msg.GetDestinationAddress(),
 	}
 }
 
