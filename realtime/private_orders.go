@@ -97,6 +97,9 @@ type orderConsumer struct {
 	sub     *Subscription[OrderStreamEvent]
 	sess    *streamSession
 	stopCtx func() bool
+	// catchUp is set for a consumer that joined a running subscription: the
+	// cached view follows its OrderStreamConnected.
+	catchUp bool
 }
 
 type subState int
@@ -225,11 +228,17 @@ func (p *privateOrderStream) subscribe(ctx context.Context, account uint64) *Sub
 }
 
 // catchUp gives a consumer that joined a running subscription what the
-// others already know.
+// others already know: OrderStreamConnected first, then the cached view. A
+// consumer joining while the subscription is not connected gets both once it
+// reconnects.
 func (p *privateOrderStream) catchUp(s *orderStreamSub, c *orderConsumer) {
+	c.catchUp = true
 	if s.state == subConnected {
 		p.offer(s, c, OrderStreamConnected{})
 	}
+}
+
+func (p *privateOrderStream) deliverCached(s *orderStreamSub, c *orderConsumer) {
 	if s.orders != nil {
 		p.offer(s, c, OrderSnapshot{Orders: sortedOrders(s.orders)})
 	}
@@ -301,6 +310,10 @@ func (p *privateOrderStream) offer(s *orderStreamSub, c *orderConsumer, event Or
 	select {
 	case sub.ch <- event:
 		sub.mu.Unlock()
+		if _, connected := event.(OrderStreamConnected); connected && c.catchUp {
+			c.catchUp = false
+			p.deliverCached(s, c)
+		}
 		return
 	default:
 	}

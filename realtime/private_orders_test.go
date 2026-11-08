@@ -1042,17 +1042,19 @@ func TestPrivateOrdersReadyAgainAfterReconnect(t *testing.T) {
 	if request.GetCursor() != "c1" {
 		t.Fatalf("reconnect cursor %q, want c1", request.GetCursor())
 	}
-	// A late joiner while the replacement is not ready yet gets no OrderReady.
+	// A late joiner while disconnected waits for Connected; the cached view
+	// follows it, without OrderReady while the replacement is not ready yet.
 	late := subscribeOrders(t, c, testAccount)
-	if snapshot := expectEvent[OrderSnapshot](t, late); !reflect.DeepEqual(orderIDs(snapshot.Orders), ids(1)) {
-		t.Fatalf("late snapshot %v", orderIDs(snapshot.Orders))
-	}
 	expectNoEvent(t, late, 50*time.Millisecond)
 
 	// Resumed from the cursor: no snapshot, then ready again.
 	second.confirm(t, "s2", request)
 	expectEvent[OrderStreamConnected](t, sub)
 	expectEvent[OrderStreamConnected](t, late)
+	if snapshot := expectEvent[OrderSnapshot](t, late); !reflect.DeepEqual(orderIDs(snapshot.Orders), ids(1)) {
+		t.Fatalf("late snapshot %v", orderIDs(snapshot.Orders))
+	}
+	expectNoEvent(t, late, 50*time.Millisecond)
 	second.send(t, "s2", 1, readyFrame())
 	expectEvent[OrderReady](t, sub)
 	expectEvent[OrderReady](t, late)

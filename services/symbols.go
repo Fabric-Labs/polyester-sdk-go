@@ -1,6 +1,7 @@
 package services
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
@@ -10,8 +11,16 @@ import (
 // ResolveSymbolID resolves a required symbol_id from an explicit id or catalog
 // lookup of a display symbol. Connect is symbol_id-only except GetSpotConfig;
 // never forward a raw display symbol to the API.
+//
+// Given both, they must name one market: a symbol that is not the catalog's
+// name for the id, or that the catalog maps to another id, is refused.
 func ResolveSymbolID(catalogs *catalogs.Manager, symbol *string, symbolID *uint32, label string) (uint32, error) {
 	if symbolID != nil {
+		if symbol != nil && strings.TrimSpace(*symbol) != "" && catalogs != nil {
+			if err := checkSymbolMatchesID(catalogs, strings.TrimSpace(*symbol), *symbolID, label); err != nil {
+				return 0, err
+			}
+		}
 		return *symbolID, nil
 	}
 	if symbol != nil && catalogs != nil {
@@ -30,13 +39,26 @@ func ResolveSymbolID(catalogs *catalogs.Manager, symbol *string, symbolID *uint3
 // symbol is resolved through the catalog and fails closed when unknown.
 func ResolveOptionalSymbolID(catalogs *catalogs.Manager, symbol *string, symbolID *uint32, label string) (uint32, error) {
 	if symbolID != nil {
-		return *symbolID, nil
+		return ResolveSymbolID(catalogs, symbol, symbolID, label)
 	}
 	if symbol == nil || strings.TrimSpace(*symbol) == "" {
 		return 0, nil
 	}
 	trimmed := strings.TrimSpace(*symbol)
 	return ResolveSymbolID(catalogs, &trimmed, nil, label)
+}
+
+func checkSymbolMatchesID(catalogs *catalogs.Manager, symbol string, symbolID uint32, label string) error {
+	canonical := catalogs.SymbolForSymbolID(symbolID)
+	named := catalogs.SymbolIDForSymbol(symbol)
+	if (canonical == nil || *canonical == symbol) && (named == nil || *named == symbolID) {
+		return nil
+	}
+	msg := fmt.Sprintf("%s symbol mismatch: %q does not match symbol_id %d", label, symbol, symbolID)
+	if canonical != nil {
+		msg += " (" + *canonical + ")"
+	}
+	return &errors.ValidationError{Msg: msg}
 }
 
 const maxCancelAllSymbolIDs = 100

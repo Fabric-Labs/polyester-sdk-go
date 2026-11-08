@@ -14,7 +14,6 @@ import (
 
 	"connectrpc.com/connect"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
-	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/wire"
 )
 
@@ -138,10 +137,7 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	case strings.HasSuffix(detail.Code, "_OUTCOME_UNKNOWN"):
 		// A timed-out mutation may still apply. Preserve the same API error
 		// as a Connect ErrorDetail before considering temporary HTTP failures.
-		code := detail.Code
-		if _, ok := orderv1.ErrorCode_value["ERROR_CODE_"+code]; ok {
-			code = "ERROR_CODE_" + code
-		}
+		code := wire.ErrorCodeFromREST(detail.Code)
 		if msg == "" {
 			msg = detail.Code
 		}
@@ -231,10 +227,7 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		mapped = &sdkerrors.ServerError{Msg: msg, Code: detail.Code, Status: resp.StatusCode}
 	case (recognised && resp.StatusCode != http.StatusUnauthorized && resp.StatusCode != http.StatusForbidden) ||
 		(resp.StatusCode == http.StatusTooManyRequests && restCodeForm.MatchString(detail.Code)):
-		code := detail.Code
-		if _, ok := orderv1.ErrorCode_value["ERROR_CODE_"+code]; ok {
-			code = "ERROR_CODE_" + code
-		}
+		code := wire.ErrorCodeFromREST(detail.Code)
 		if msg == "" {
 			msg = detail.Code
 		}
