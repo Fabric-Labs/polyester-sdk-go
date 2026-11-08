@@ -48,6 +48,9 @@ func TestReplayCapacityExhaustedIsARetryableRateRefusal(t *testing.T) {
 			if rate.Code != "AUTH_REPLAY_CAPACITY_EXHAUSTED" || sdkerrors.AuthErrorCode(mapped) != "AUTH_REPLAY_CAPACITY_EXHAUSTED" {
 				t.Fatalf("code = %q, AuthErrorCode = %q", rate.Code, sdkerrors.AuthErrorCode(mapped))
 			}
+			if !sdkerrors.IsReplayCapacityExhausted(mapped) || rate.Code != sdkerrors.AuthCodeReplayCapacityExhausted {
+				t.Fatal("IsReplayCapacityExhausted = false")
+			}
 			var authErr *sdkerrors.AuthError
 			if errors.As(mapped, &authErr) {
 				t.Fatal("replay capacity is not a credentials problem")
@@ -80,8 +83,11 @@ func TestRecvWindowInvalidIsATerminalAuthRefusal(t *testing.T) {
 			if !errors.As(mapped, &authErr) || authErr.Status != http.StatusUnauthorized {
 				t.Fatalf("error = %T %+v, want *errors.AuthError with status 401", mapped, mapped)
 			}
-			if got := sdkerrors.AuthErrorCode(mapped); got != "AUTH_RECV_WINDOW_INVALID" {
+			if got := sdkerrors.AuthErrorCode(mapped); got != sdkerrors.AuthCodeRecvWindowInvalid {
 				t.Fatalf("AuthErrorCode = %q", got)
+			}
+			if !sdkerrors.IsRecvWindowInvalid(mapped) || sdkerrors.IsReplayCapacityExhausted(mapped) {
+				t.Fatal("IsRecvWindowInvalid = false")
 			}
 			if sdkerrors.IsRetryable(mapped) || sdkerrors.MutationOutcomeUnknown(mapped) {
 				t.Fatalf("retryable=%v outcome unknown=%v, want a terminal refusal", sdkerrors.IsRetryable(mapped), sdkerrors.MutationOutcomeUnknown(mapped))
@@ -104,7 +110,7 @@ func TestRequestDeadlineExceededIsRetryableAndKnown(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mapped := callMeAgainst(t, http.StatusBadRequest, tc.contentType, tc.body)
 			var api *sdkerrors.APIError
-			if !errors.As(mapped, &api) || api.Code != "ERROR_CODE_REQUEST_DEADLINE_EXCEEDED" {
+			if !errors.As(mapped, &api) || api.Code != sdkerrors.CodeRequestDeadlineExceeded || !sdkerrors.IsRequestDeadlineExceeded(mapped) {
 				t.Fatalf("error = %T %+v, want *errors.APIError ERROR_CODE_REQUEST_DEADLINE_EXCEEDED", mapped, mapped)
 			}
 			if !sdkerrors.IsRetryable(mapped) || sdkerrors.MutationOutcomeUnknown(mapped) {

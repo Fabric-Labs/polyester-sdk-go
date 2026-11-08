@@ -234,6 +234,9 @@ func MapConnectError(err error) error {
 				return &sdkerrors.SessionRequiredError{Msg: detailMsg}
 			case authv1.AuthErrorCode_AUTH_TIMESTAMP_SKEW:
 				return &sdkerrors.TimestampSkewError{Msg: detailMsg, Status: connectHTTPStatus(connectErr.Code())}
+			case authv1.AuthErrorCode_AUTH_REPLAY_CAPACITY_EXHAUSTED:
+				// Valid credentials, not processed: a retryable rate refusal.
+				return rateLimitError(detailMsg, codeName, nil, headerRetry)
 			}
 			if apiKeyRefusalCodes[authDetail.GetCode()] {
 				return &sdkerrors.AuthError{Msg: detailMsg, Code: codeName, Status: connectHTTPStatus(connectErr.Code())}
@@ -402,6 +405,7 @@ var apiKeyRefusalCodes = map[authv1.AuthErrorCode]bool{
 	authv1.AuthErrorCode_AUTH_KEY_DISABLED:         true,
 	authv1.AuthErrorCode_AUTH_IP_NOT_ALLOWED:       true,
 	authv1.AuthErrorCode_AUTH_API_KEY_NOT_ACCEPTED: true,
+	authv1.AuthErrorCode_AUTH_RECV_WINDOW_INVALID:  true,
 }
 
 // protovalidateFieldPath renders a buf.validate field path the way order

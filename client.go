@@ -47,6 +47,15 @@ type Config struct {
 	WireFormat          string
 	HydrateCatalogs     bool
 	HTTPClient          *http.Client
+	// RecvWindow is the receive window of every signed API request: the
+	// server processes a request only until its signing timestamp plus
+	// RecvWindow, and refuses it after that as a retryable
+	// errors.TimestampSkewError, or errors.CodeRequestDeadlineExceeded once
+	// authenticated, having changed nothing. It is sent as the signed
+	// X-API-RECV-WINDOW header and must be whole milliseconds from 1ms to
+	// 60s; New refuses any other value. Zero sends no header, and the server
+	// applies 10 seconds. Realtime token requests always use the default.
+	RecvWindow time.Duration
 }
 
 // String redacts the API private key.
@@ -57,8 +66,8 @@ func (c Config) String() string {
 		envName = c.Environment.Name
 	}
 	return fmt.Sprintf(
-		"Config{Environment:%q APIKeyID:%q APIPrivateKey:%q APIURL:%q WSURL:%q Timeout:%s WireFormat:%q HydrateCatalogs:%t}",
-		envName, c.APIKeyID, key, redact.URL(c.APIURL), redact.URL(c.WSURL), c.Timeout, c.WireFormat, c.HydrateCatalogs,
+		"Config{Environment:%q APIKeyID:%q APIPrivateKey:%q APIURL:%q WSURL:%q Timeout:%s WireFormat:%q HydrateCatalogs:%t RecvWindow:%s}",
+		envName, c.APIKeyID, key, redact.URL(c.APIURL), redact.URL(c.WSURL), c.Timeout, c.WireFormat, c.HydrateCatalogs, c.RecvWindow,
 	)
 }
 
@@ -91,6 +100,7 @@ type redactedConfig struct {
 	Timeout             time.Duration
 	WireFormat          string
 	HydrateCatalogs     bool
+	RecvWindow          time.Duration
 }
 
 // redacted replaces the private key and URL userinfo, as String does. An
@@ -108,6 +118,7 @@ func (c Config) redacted() redactedConfig {
 		Timeout:             c.Timeout,
 		WireFormat:          c.WireFormat,
 		HydrateCatalogs:     c.HydrateCatalogs,
+		RecvWindow:          c.RecvWindow,
 	}
 }
 
@@ -127,6 +138,18 @@ func (c Config) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 // key.
 func (Config) GobEncode() ([]byte, error) {
 	return nil, &sdkerrors.AuthError{Msg: "polyester.Config holds an API private key and cannot be gob-encoded"}
+}
+
+// recvWindowMilliseconds converts Config.RecvWindow to the header's whole
+// milliseconds, refusing a value the server would refuse.
+func recvWindowMilliseconds(window time.Duration) (int, error) {
+	if window == 0 {
+		return 0, nil
+	}
+	if window%time.Millisecond != 0 || window < auth.MinRecvWindowMS*time.Millisecond || window > auth.MaxRecvWindowMS*time.Millisecond {
+		return 0, &sdkerrors.ValidationError{Msg: "RecvWindow must be whole milliseconds from 1ms to 60s, or 0 for the server default"}
+	}
+	return int(window / time.Millisecond), nil
 }
 
 // Client is the root Polyester SDK entrypoint.
@@ -199,15 +222,20 @@ func New(cfg Config) (*Client, error) {
 		cfg.Timeout = 10 * time.Second
 	}
 	wireFormat := transport.WireFormatFromString(cfg.WireFormat)
+	recvWindowMS, err := recvWindowMilliseconds(cfg.RecvWindow)
+	if err != nil {
+		return nil, err
+	}
 	creds, err := auth.LoadCredentials(cfg.APIKeyID, cfg.APIPrivateKey.Reveal(), false)
 	if err != nil {
 		return nil, err
 	}
 	tcfg := transport.Config{
-		APIURL:     cfg.APIURL,
-		WSURL:      cfg.WSURL,
-		Timeout:    cfg.Timeout,
-		WireFormat: wireFormat,
+		APIURL:       cfg.APIURL,
+		WSURL:        cfg.WSURL,
+		Timeout:      cfg.Timeout,
+		WireFormat:   wireFormat,
+		RecvWindowMS: recvWindowMS,
 	}
 	factory := transport.NewFactory(tcfg, creds, cfg.HTTPClient)
 	rt := realtime.NewClient(cfg.WSURL, cfg.APIURL, creds, factory.HTTP, 1000)
