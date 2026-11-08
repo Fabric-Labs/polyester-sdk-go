@@ -604,6 +604,11 @@ type InternalTransferResult struct {
 	AssetID    uint32            `json:"asset_id,omitempty"`
 	AssetCode  string            `json:"asset_code,omitempty"`
 	Quantity   AssetAmountScaled `json:"quantity,omitempty"`
+	// Status is how the service answered the request: "accepted", "rejected"
+	// or "failed"; empty when the response names none, and "UNKNOWN(n)" for a
+	// status this SDK version does not know. "accepted" means the transfer has
+	// a durable transfer ID, not that it has settled.
+	Status string `json:"status,omitempty"`
 }
 
 // DepositAddress is a chain deposit address.

@@ -492,6 +492,10 @@ before sending a mutation again. Trigger reads retry 429, 502, 503 and 504 for y
 bare 404 stays `errors.RouteNotFoundError`, also with an unknown outcome. A
 well-formed but unrecognised code at HTTP 429 returns `errors.APIError`: known
 and not retryable.
+A REST 403 problem that refuses the operation rather than the key, such as
+`SUBACCOUNT_READ_FORBIDDEN` or `QUICKSWAP_NOT_PERMITTED`, is an
+`*errors.AuthError` with that `Code`, the problem's detail as its message and
+the problem in `Problem`; `errors.AuthErrorCode` reads no auth reason from it.
 `errors.AuthErrorCode(err)` names why credentials or a session were refused,
 the same way for both transports: it reads the Connect
 `auth.v1.AuthErrorDetail` code and a REST problem `code` with the `AUTH_`
@@ -998,7 +1002,10 @@ at the trigger price raised by the cap. Without a cap the pair's default
 market slippage applies. Setting both, or a cap on a limit child, is refused.
 A buy market child accepts 1 to 10000 bps; a sell, and a trailing stop on
 either side, 1 to 9999. Get, list and the trigger stream expose the cap as
-`Trigger.MaxSlippage` / `Trigger.MaxSlippageBps`.
+`Trigger.MaxSlippage` / `Trigger.MaxSlippageBps`. A TWAP market child takes
+the same cap; `MaxSlippageTicks` is positive wherever a create sends it. No
+trigger child has a GTD execution, so `tif` `gtd` is refused for every
+trigger type.
 
 ```go
 triggerPrice := models.PriceFromDecimal("58000")

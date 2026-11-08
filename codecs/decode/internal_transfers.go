@@ -1,11 +1,28 @@
 package decode
 
 import (
+	"fmt"
+
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	transferv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
+
+func internalTransferStatusLabel(status transferv1.InternalTransferStatus) string {
+	switch status {
+	case transferv1.InternalTransferStatus_INTERNAL_TRANSFER_STATUS_ACCEPTED:
+		return "accepted"
+	case transferv1.InternalTransferStatus_INTERNAL_TRANSFER_STATUS_REJECTED:
+		return "rejected"
+	case transferv1.InternalTransferStatus_INTERNAL_TRANSFER_STATUS_FAILED:
+		return "failed"
+	case transferv1.InternalTransferStatus_INTERNAL_TRANSFER_STATUS_UNSPECIFIED:
+		return ""
+	default:
+		return fmt.Sprintf("UNKNOWN(%d)", status)
+	}
+}
 
 func InternalTransferFromProto(msg *transferv1.CreateInternalTransferResponse) (models.InternalTransferResult, error) {
 	if msg.GetRequestId() == "" || msg.GetTransferId() == "" {
@@ -28,5 +45,6 @@ func InternalTransferFromProto(msg *transferv1.CreateInternalTransferResponse) (
 			models.QuantityDomainLedgerE18,
 			&aid,
 		),
+		Status: internalTransferStatusLabel(msg.GetStatus()),
 	}, nil
 }

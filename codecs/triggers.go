@@ -205,16 +205,15 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 		switch strings.ToLower(orderType) {
 		case "market":
 			ioc := &triggersv1.TwapMarketIoc{}
+			ticks, bps, err := createSlippageCap(opts.MaxSlippageTicks, opts.MaxSlippageBps, MaxSlippageBpsLimit)
+			if err != nil {
+				return nil, err
+			}
 			switch {
-			case opts.MaxSlippageTicks != nil && opts.MaxSlippageBps != nil:
-				return nil, &errors.ValidationError{Msg: "twap market_ioc allows at most one of max_slippage_ticks or max_slippage_bps"}
-			case opts.MaxSlippageTicks != nil:
-				ioc.MaxSlippage = &triggersv1.TwapMarketIoc_MaxSlippageTicks{MaxSlippageTicks: *opts.MaxSlippageTicks}
-			case opts.MaxSlippageBps != nil:
-				if err := validateSlippageBps(*opts.MaxSlippageBps, false); err != nil {
-					return nil, err
-				}
-				ioc.MaxSlippage = &triggersv1.TwapMarketIoc_MaxSlippageBps{MaxSlippageBps: *opts.MaxSlippageBps}
+			case ticks != nil:
+				ioc.MaxSlippage = &triggersv1.TwapMarketIoc_MaxSlippageTicks{MaxSlippageTicks: *ticks}
+			case bps != nil:
+				ioc.MaxSlippage = &triggersv1.TwapMarketIoc_MaxSlippageBps{MaxSlippageBps: *bps}
 			}
 			twap.Execution = &triggersv1.TwapTrigger_MarketIoc{MarketIoc: ioc}
 		case "limit":
@@ -425,10 +424,6 @@ func createSlippageCap(ticks *int64, bps *int32, maxBps int32) (*int64, *int32, 
 		return nil, nil, &errors.ValidationError{Msg: fmt.Sprintf("max_slippage_bps must be between 1 and %d", maxBps)}
 	}
 	return ticks, bps, nil
-}
-
-func validateSlippageBps(bps int32, allowClear bool) error {
-	return validateBps("max_slippage_bps", bps, allowClear)
 }
 
 func validateBps(field string, bps int32, allowClear bool) error {
