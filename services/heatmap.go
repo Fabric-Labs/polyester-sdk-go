@@ -49,13 +49,9 @@ func (s *HeatmapService) Get(ctx context.Context, symbol *string, symbolID *uint
 	if err != nil {
 		return models.ApiData{}, err
 	}
-	intervalName := codecs.IntervalAliases[interval]
-	if intervalName == "" {
-		intervalName = interval
-	}
-	intervalEnum, ok := heatmapv1.HeatmapInterval_value[intervalName]
-	if !ok {
-		return models.ApiData{}, &errors.ValidationError{Msg: fmt.Sprintf("unknown heatmap interval %q; use 1s, 1m, 5m or 1h", interval)}
+	intervalEnum, err := codecs.ResolveHeatmapInterval(interval)
+	if err != nil {
+		return models.ApiData{}, err
 	}
 	depth, err = codecs.HeatmapDepth(depth)
 	if err != nil {
@@ -77,7 +73,7 @@ func (s *HeatmapService) Get(ctx context.Context, symbol *string, symbolID *uint
 	if err != nil {
 		return models.ApiData{}, err
 	}
-	req := &heatmapv1.GetOrderbookHeatmapRequest{SymbolId: resolved, Interval: heatmapv1.HeatmapInterval(intervalEnum), Depth: heatmapv1.HeatmapDepth(depthEnum), Limit: parsedLimit, QuantityMode: heatmapv1.HeatmapQuantityMode(qtyEnum)}
+	req := &heatmapv1.GetOrderbookHeatmapRequest{SymbolId: resolved, Interval: intervalEnum, Depth: heatmapv1.HeatmapDepth(depthEnum), Limit: parsedLimit, QuantityMode: heatmapv1.HeatmapQuantityMode(qtyEnum)}
 	if len(pageToken) == 1 {
 		req.PageToken = pageToken[0]
 	}

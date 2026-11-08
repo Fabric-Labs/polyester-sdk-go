@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
+	heatmapv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1"
 )
 
 var IntervalAliases = map[string]string{"1s": "INTERVAL_1S", "1m": "INTERVAL_1M", "5m": "INTERVAL_5M", "1h": "INTERVAL_1H"}
@@ -17,6 +18,21 @@ var heatmapIntervalChannelLabels = map[string]string{
 	"INTERVAL_1M": "1m",
 	"INTERVAL_5M": "5m",
 	"INTERVAL_1H": "1h",
+}
+
+// ResolveHeatmapInterval returns the HeatmapInterval value of interval, an
+// alias ("1s", "1m", "5m", "1h") or an interval enum name ("INTERVAL_1S").
+// Any other value, INTERVAL_UNSPECIFIED and quantity modes included, is a
+// ValidationError.
+func ResolveHeatmapInterval(interval string) (heatmapv1.HeatmapInterval, error) {
+	name := interval
+	if alias, ok := IntervalAliases[interval]; ok {
+		name = alias
+	}
+	if _, ok := heatmapIntervalChannelLabels[name]; !ok {
+		return 0, &errors.ValidationError{Msg: fmt.Sprintf("unknown heatmap interval %q; use 1s, 1m, 5m or 1h", interval)}
+	}
+	return heatmapv1.HeatmapInterval(heatmapv1.HeatmapInterval_value[name]), nil
 }
 
 // HeatmapIntervalChannelLabel returns the interval segment of the live heatmap

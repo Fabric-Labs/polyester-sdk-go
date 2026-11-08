@@ -44,6 +44,10 @@ func MarketOverviewEntryFromProto(m *marketoverviewv1.MarketOverview, cats *cata
 		Volume24HBase:        decodedBaseVolume(m.Volume_24HBaseScaled, m.GetSymbolId(), cats),
 		Volume24HQuoteScaled: optionalVolumeScaledString(m.Volume_24HQuoteScaled),
 		Volume24HUsdScaled:   optionalVolumeScaledString(m.Volume_24HUsdScaled),
+		Change24hBps:         m.GetChange_24HBps(),
+	}
+	for _, sparkline := range m.GetSparklines() {
+		entry.Sparklines = append(entry.Sparklines, MarketOverviewSparklineFromProto(sparkline, symbol))
 	}
 	if ticks := m.GetLastPriceTicks(); ticks > 0 {
 		entry.LastPrice = codecs.DecodePriceTicks(ticks, symbol)
@@ -52,6 +56,16 @@ func MarketOverviewEntryFromProto(m *marketoverviewv1.MarketOverview, cats *cata
 		entry.IndexPrice = codecs.DecodePriceTicks(ticks, symbol)
 	}
 	return entry
+}
+
+// MarketOverviewSparklineFromProto decodes a sparkline's interval name and its
+// close prices, newest first.
+func MarketOverviewSparklineFromProto(m *marketoverviewv1.Sparkline, symbol string) models.MarketOverviewSparkline {
+	closes := make([]models.PriceTicks, 0, len(m.GetCloseTicks()))
+	for _, ticks := range m.GetCloseTicks() {
+		closes = append(closes, codecs.DecodePriceTicks(ticks, symbol))
+	}
+	return models.MarketOverviewSparkline{Interval: m.GetInterval().String(), ClosePrices: closes}
 }
 
 func MarketOverviewListFromProto(msg *marketoverviewv1.ListMarketOverviewResponse, cats *catalogs.Manager) models.MarketOverviewList {
