@@ -189,7 +189,9 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	case detail.Code == sdkerrors.AuthCodeSessionKindNotAllowed:
 		mapped = &sdkerrors.SessionRequiredError{Msg: msg, Status: resp.StatusCode}
 	case (resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden) &&
-		(detail.Code == "PERMISSION_DENIED" || sdkerrors.AuthErrorCode(&sdkerrors.AuthError{Code: detail.Code}) != ""):
+		(recognised || detail.Code == "PERMISSION_DENIED" || sdkerrors.AuthErrorCode(&sdkerrors.AuthError{Code: detail.Code}) != ""):
+		// A contract code such as SUBACCOUNT_READ_FORBIDDEN refuses the
+		// operation; keep it and the detail instead of the bare status.
 		mapped = &sdkerrors.AuthError{Msg: msg, Code: detail.Code, Status: resp.StatusCode}
 	case len(detail.Violations) > 0 && recognised:
 		violations := make([]sdkerrors.FieldViolation, 0, len(detail.Violations))

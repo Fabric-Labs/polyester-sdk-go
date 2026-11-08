@@ -41,4 +41,26 @@ func TestPoly8824InternalTransferReceiptKeepsItsStatus(t *testing.T) {
 		}
 		decoded[status] = result
 	}
+	for status, want := range map[transferv1.InternalTransferStatus]string{
+		transferv1.InternalTransferStatus_INTERNAL_TRANSFER_STATUS_ACCEPTED:    "accepted",
+		transferv1.InternalTransferStatus_INTERNAL_TRANSFER_STATUS_REJECTED:    "rejected",
+		transferv1.InternalTransferStatus_INTERNAL_TRANSFER_STATUS_FAILED:      "failed",
+		transferv1.InternalTransferStatus_INTERNAL_TRANSFER_STATUS_UNSPECIFIED: "",
+		transferv1.InternalTransferStatus(42):                                  "UNKNOWN(42)",
+	} {
+		result, err := decode.InternalTransferFromProto(oneTokenReceipt(status))
+		if err != nil || result.Status != want {
+			t.Fatalf("%v: status %q err %v, want %q", status, result.Status, err, want)
+		}
+		qty, qtyErr := result.Quantity.Int64()
+		if qtyErr == nil && qty != 1_000_000_000_000_000_000 {
+			t.Fatalf("%v: quantity %d", status, qty)
+		}
+	}
+	// A receipt without IDs is still a contract violation, whatever its status.
+	missing := oneTokenReceipt(transferv1.InternalTransferStatus_INTERNAL_TRANSFER_STATUS_REJECTED)
+	missing.TransferId = ""
+	if _, err := decode.InternalTransferFromProto(missing); err == nil {
+		t.Fatal("missing transfer_id accepted")
+	}
 }

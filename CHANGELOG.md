@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **Breaking:** `TriggersService.Create` refuses a TWAP with a market child whose `CreateTriggerOptions.MaxSlippageTicks` is zero or negative with `errors.ValidationError`, before anything is sent, as every other create-time tick cap already did. Setting both `MaxSlippageTicks` and `MaxSlippageBps` on that child is refused with the shared message `set at most one of max_slippage_ticks or max_slippage_bps`. Migration: send a positive tick cap, or leave `MaxSlippageTicks` nil for the pair default.
+- **Breaking:** A REST HTTP 403 problem with a contract code that refuses the operation, such as `SUBACCOUNT_READ_FORBIDDEN` or `QUICKSWAP_NOT_PERMITTED`, keeps that code in `errors.AuthError.Code`, the problem's detail as its message and the problem in `Problem`, as a 401 or a credential code already did. The error was an `*errors.AuthError` with `Code` `permission_denied` and the message `403 Forbidden`. This applies to every service method. Migration: compare `AuthError.Code` with the contract code instead of `permission_denied`.
+- `InternalTransferResult`, returned by `InternalTransfersService.Create`, gains `Status`: `accepted`, `rejected` or `failed`, as the service answered the request; empty when the response names none, and `UNKNOWN(n)` for a status this version does not know. Receipts that differed only in their status read the same before. `accepted` means the transfer has a durable transfer ID, not that it has settled.
+
 ## 0.12.0
 
 Git tag: `v0.12.0`. Released 2026-11-07. Built on public contract `1bf038e`.
