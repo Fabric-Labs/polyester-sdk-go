@@ -17,6 +17,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	"github.com/Fabric-Labs/polyester-sdk-go/chain"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
+	"github.com/Fabric-Labs/polyester-sdk-go/internal/redact"
 	"github.com/Fabric-Labs/polyester-sdk-go/realtime"
 	"github.com/Fabric-Labs/polyester-sdk-go/services"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
@@ -57,7 +58,7 @@ func (c Config) String() string {
 	}
 	return fmt.Sprintf(
 		"Config{Environment:%q APIKeyID:%q APIPrivateKey:%q APIURL:%q WSURL:%q Timeout:%s WireFormat:%q HydrateCatalogs:%t}",
-		envName, c.APIKeyID, key, redactURLUserinfo(c.APIURL), redactURLUserinfo(c.WSURL), c.Timeout, c.WireFormat, c.HydrateCatalogs,
+		envName, c.APIKeyID, key, redact.URL(c.APIURL), redact.URL(c.WSURL), c.Timeout, c.WireFormat, c.HydrateCatalogs,
 	)
 }
 
@@ -100,8 +101,8 @@ func (c Config) redacted() redactedConfig {
 		Environment:         c.Environment,
 		APIKeyID:            c.APIKeyID,
 		APIPrivateKey:       key,
-		APIURL:              redactURLUserinfo(c.APIURL),
-		WSURL:               redactURLUserinfo(c.WSURL),
+		APIURL:              redact.URL(c.APIURL),
+		WSURL:               redact.URL(c.WSURL),
 		DefaultSubAccountID: c.DefaultSubAccountID,
 		DefaultAccountID:    c.DefaultAccountID,
 		Timeout:             c.Timeout,
@@ -126,22 +127,6 @@ func (c Config) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 // key.
 func (Config) GobEncode() ([]byte, error) {
 	return nil, &sdkerrors.AuthError{Msg: "polyester.Config holds an API private key and cannot be gob-encoded"}
-}
-
-func redactURLUserinfo(raw string) string {
-	parsed, err := url.Parse(raw)
-	if err != nil {
-		return "[REDACTED INVALID URL]"
-	}
-	if parsed.Opaque != "" ||
-		(parsed.Host == "" && (parsed.Scheme != "" || strings.Contains(raw, "@"))) {
-		return "[REDACTED INVALID URL]"
-	}
-	if parsed.User == nil {
-		return raw
-	}
-	parsed.User = nil
-	return parsed.String()
 }
 
 // Client is the root Polyester SDK entrypoint.

@@ -7,6 +7,7 @@ import (
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
+	"github.com/Fabric-Labs/polyester-sdk-go/internal/redact"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
@@ -164,7 +165,7 @@ func privateWSURL(apiURL string) (string, error) {
 	}
 	u, err := url.Parse(strings.TrimRight(apiURL, "/"))
 	if err != nil {
-		return "", &sdkerrors.ValidationError{Msg: "api_url is not a valid URL: " + err.Error()}
+		return "", &sdkerrors.ValidationError{Msg: "api_url is not a valid URL: " + redact.URLError(err).Error()}
 	}
 	switch u.Scheme {
 	case "https":

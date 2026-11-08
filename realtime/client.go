@@ -12,6 +12,7 @@ import (
 
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
+	"github.com/Fabric-Labs/polyester-sdk-go/internal/redact"
 	"github.com/Fabric-Labs/polyester-sdk-go/useragent"
 	"github.com/gorilla/websocket"
 )
@@ -305,7 +306,7 @@ func runSubscriptionOnce[T any](
 	}
 	conn, _, err := dialer.DialContext(ctx, c.wsURL, nil)
 	if err != nil {
-		return &sdkerrors.RealtimeError{Msg: err.Error()}
+		return &sdkerrors.RealtimeError{Msg: redact.URLError(err).Error()}
 	}
 	defer func() { _ = conn.Close() }()
 	conn.SetReadLimit(MaxRealtimeMessageBytes)
