@@ -30,6 +30,19 @@ type ClientFrame struct {
 	Seq uint64 `protobuf:"varint,1,opt,name=seq,proto3" json:"seq,omitempty"`
 	// Client correlation token echoed in every server response.
 	CorrelationId string `protobuf:"bytes,2,opt,name=correlation_id,json=correlationId,proto3" json:"correlation_id,omitempty"`
+	// Optional client time the command was sent, in milliseconds since the Unix
+	// epoch. When set, the command is processed only until timestamp_ms plus
+	// recv_window_ms: a command that arrives, or waits to be sent on for
+	// admission, past then is rejected with REQUEST_DEADLINE_EXCEEDED and
+	// changes nothing, but it has taken its seq, so the next command uses the
+	// next seq. A timestamp more than 10 seconds ahead of the server clock is
+	// rejected with BAD_REQUEST, without taking the seq. Zero sets no
+	// deadline. Ping ignores it.
+	TimestampMs int64 `protobuf:"varint,3,opt,name=timestamp_ms,json=timestampMs,proto3" json:"timestamp_ms,omitempty"`
+	// Optional receive window in milliseconds, from 1 to 60000, applied to
+	// timestamp_ms. Zero uses 10000. Setting it without timestamp_ms is
+	// rejected with BAD_REQUEST.
+	RecvWindowMs uint32 `protobuf:"varint,4,opt,name=recv_window_ms,json=recvWindowMs,proto3" json:"recv_window_ms,omitempty"`
 	// Types that are valid to be assigned to Payload:
 	//
 	//	*ClientFrame_Ping
@@ -40,6 +53,7 @@ type ClientFrame struct {
 	//	*ClientFrame_BatchCreateOrders
 	//	*ClientFrame_BatchReplaceOrders
 	//	*ClientFrame_BatchCancelOrders
+	//	*ClientFrame_CancelAllAfter
 	Payload       isClientFrame_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -87,6 +101,20 @@ func (x *ClientFrame) GetCorrelationId() string {
 		return x.CorrelationId
 	}
 	return ""
+}
+
+func (x *ClientFrame) GetTimestampMs() int64 {
+	if x != nil {
+		return x.TimestampMs
+	}
+	return 0
+}
+
+func (x *ClientFrame) GetRecvWindowMs() uint32 {
+	if x != nil {
+		return x.RecvWindowMs
+	}
+	return 0
 }
 
 func (x *ClientFrame) GetPayload() isClientFrame_Payload {
@@ -168,6 +196,15 @@ func (x *ClientFrame) GetBatchCancelOrders() *v1.BatchCancelOrdersRequest {
 	return nil
 }
 
+func (x *ClientFrame) GetCancelAllAfter() *v1.CancelAllAfterRequest {
+	if x != nil {
+		if x, ok := x.Payload.(*ClientFrame_CancelAllAfter); ok {
+			return x.CancelAllAfter
+		}
+	}
+	return nil
+}
+
 type isClientFrame_Payload interface {
 	isClientFrame_Payload()
 }
@@ -222,6 +259,22 @@ type ClientFrame_BatchCancelOrders struct {
 	BatchCancelOrders *v1.BatchCancelOrdersRequest `protobuf:"bytes,17,opt,name=batch_cancel_orders,json=batchCancelOrders,proto3,oneof"`
 }
 
+type ClientFrame_CancelAllAfter struct {
+	// Cancel-all-after command using the public Orders API request
+	// contract: arms, refreshes or disarms the account's dead-man switch,
+	// the same switch as the Orders API's CancelAllAfter, with the same
+	// symbol and side scope and the same timeout rule (0 disarms; 10 to 120
+	// seconds arms or refreshes). On expiry it cancels the account's open
+	// orders in scope, including orders that triggers placed, and no
+	// trigger. The switch belongs to the account, not to this connection:
+	// closing the connection neither disarms nor fires it. Refresh it well
+	// within the timeout, for example every 15 to 30 seconds with a
+	// 60-second timeout. Resending a request is safe: an arm restarts the
+	// timer from when it applies, and a disarm is idempotent. request_id is
+	// required, as on the Orders API; subaccount_id must be omitted.
+	CancelAllAfter *v1.CancelAllAfterRequest `protobuf:"bytes,18,opt,name=cancel_all_after,json=cancelAllAfter,proto3,oneof"`
+}
+
 func (*ClientFrame_Ping) isClientFrame_Payload() {}
 
 func (*ClientFrame_CreateOrder) isClientFrame_Payload() {}
@@ -237,6 +290,8 @@ func (*ClientFrame_BatchCreateOrders) isClientFrame_Payload() {}
 func (*ClientFrame_BatchReplaceOrders) isClientFrame_Payload() {}
 
 func (*ClientFrame_BatchCancelOrders) isClientFrame_Payload() {}
+
+func (*ClientFrame_CancelAllAfter) isClientFrame_Payload() {}
 
 // PingRequest carries an opaque payload that is echoed by PongResponse.
 type PingRequest struct {
@@ -501,6 +556,7 @@ type AckResponse struct {
 	//	*AckResponse_BatchCreateOrders
 	//	*AckResponse_BatchReplaceOrders
 	//	*AckResponse_BatchCancelOrders
+	//	*AckResponse_CancelAllAfter
 	Result        isAckResponse_Result `protobuf_oneof:"result"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -606,6 +662,15 @@ func (x *AckResponse) GetBatchCancelOrders() *v1.BatchCancelOrdersResponse {
 	return nil
 }
 
+func (x *AckResponse) GetCancelAllAfter() *v1.CancelAllAfterResponse {
+	if x != nil {
+		if x, ok := x.Result.(*AckResponse_CancelAllAfter); ok {
+			return x.CancelAllAfter
+		}
+	}
+	return nil
+}
+
 type isAckResponse_Result interface {
 	isAckResponse_Result()
 }
@@ -648,6 +713,12 @@ type AckResponse_BatchCancelOrders struct {
 	BatchCancelOrders *v1.BatchCancelOrdersResponse `protobuf:"bytes,7,opt,name=batch_cancel_orders,json=batchCancelOrders,proto3,oneof"`
 }
 
+type AckResponse_CancelAllAfter struct {
+	// Cancel-all-after response: the account's dead-man switch after the
+	// request applied, its deadline and its recorded scope.
+	CancelAllAfter *v1.CancelAllAfterResponse `protobuf:"bytes,8,opt,name=cancel_all_after,json=cancelAllAfter,proto3,oneof"`
+}
+
 func (*AckResponse_CreateOrder) isAckResponse_Result() {}
 
 func (*AckResponse_CancelOrder) isAckResponse_Result() {}
@@ -661,6 +732,8 @@ func (*AckResponse_BatchCreateOrders) isAckResponse_Result() {}
 func (*AckResponse_BatchReplaceOrders) isAckResponse_Result() {}
 
 func (*AckResponse_BatchCancelOrders) isAckResponse_Result() {}
+
+func (*AckResponse_CancelAllAfter) isAckResponse_Result() {}
 
 // CommandReject reports a command-level failure without closing the session.
 type CommandReject struct {
@@ -841,10 +914,12 @@ var File_tradews_v1_trade_ws_proto protoreflect.FileDescriptor
 const file_tradews_v1_trade_ws_proto_rawDesc = "" +
 	"\n" +
 	"\x19tradews/v1/trade_ws.proto\x12\n" +
-	"tradews.v1\x1a\x16orders/v1/orders.proto\"\xa5\x05\n" +
+	"tradews.v1\x1a\x16orders/v1/orders.proto\"\xbc\x06\n" +
 	"\vClientFrame\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x04R\x03seq\x12%\n" +
-	"\x0ecorrelation_id\x18\x02 \x01(\tR\rcorrelationId\x12-\n" +
+	"\x0ecorrelation_id\x18\x02 \x01(\tR\rcorrelationId\x12!\n" +
+	"\ftimestamp_ms\x18\x03 \x01(\x03R\vtimestampMs\x12$\n" +
+	"\x0erecv_window_ms\x18\x04 \x01(\rR\frecvWindowMs\x12-\n" +
 	"\x04ping\x18\n" +
 	" \x01(\v2\x17.tradews.v1.PingRequestH\x00R\x04ping\x12B\n" +
 	"\fcreate_order\x18\v \x01(\v2\x1d.orders.v1.CreateOrderRequestH\x00R\vcreateOrder\x12B\n" +
@@ -853,7 +928,8 @@ const file_tradews_v1_trade_ws_proto_rawDesc = "" +
 	"\x11cancel_all_orders\x18\x0e \x01(\v2!.orders.v1.CancelAllOrdersRequestH\x00R\x0fcancelAllOrders\x12U\n" +
 	"\x13batch_create_orders\x18\x0f \x01(\v2#.orders.v1.BatchCreateOrdersRequestH\x00R\x11batchCreateOrders\x12X\n" +
 	"\x14batch_replace_orders\x18\x10 \x01(\v2$.orders.v1.BatchReplaceOrdersRequestH\x00R\x12batchReplaceOrders\x12U\n" +
-	"\x13batch_cancel_orders\x18\x11 \x01(\v2#.orders.v1.BatchCancelOrdersRequestH\x00R\x11batchCancelOrdersB\t\n" +
+	"\x13batch_cancel_orders\x18\x11 \x01(\v2#.orders.v1.BatchCancelOrdersRequestH\x00R\x11batchCancelOrders\x12L\n" +
+	"\x10cancel_all_after\x18\x12 \x01(\v2 .orders.v1.CancelAllAfterRequestH\x00R\x0ecancelAllAfterB\t\n" +
 	"\apayload\"'\n" +
 	"\vPingRequest\x12\x18\n" +
 	"\apayload\x18\x01 \x01(\fR\apayload\"\xdf\x02\n" +
@@ -868,7 +944,7 @@ const file_tradews_v1_trade_ws_proto_rawDesc = "" +
 	"\bterminal\x18\x0e \x01(\v2 .tradews.v1.TerminalSessionEventH\x00R\bterminalB\t\n" +
 	"\apayload\"(\n" +
 	"\fPongResponse\x12\x18\n" +
-	"\apayload\x18\x01 \x01(\fR\apayload\"\xc3\x04\n" +
+	"\apayload\x18\x01 \x01(\fR\apayload\"\x92\x05\n" +
 	"\vAckResponse\x12C\n" +
 	"\fcreate_order\x18\x01 \x01(\v2\x1e.orders.v1.CreateOrderResponseH\x00R\vcreateOrder\x12C\n" +
 	"\fcancel_order\x18\x02 \x01(\v2\x1e.orders.v1.CancelOrderResponseH\x00R\vcancelOrder\x12C\n" +
@@ -876,7 +952,8 @@ const file_tradews_v1_trade_ws_proto_rawDesc = "" +
 	"\x11cancel_all_orders\x18\x04 \x01(\v2\".orders.v1.CancelAllOrdersResponseH\x00R\x0fcancelAllOrders\x12V\n" +
 	"\x13batch_create_orders\x18\x05 \x01(\v2$.orders.v1.BatchCreateOrdersResponseH\x00R\x11batchCreateOrders\x12Y\n" +
 	"\x14batch_replace_orders\x18\x06 \x01(\v2%.orders.v1.BatchReplaceOrdersResponseH\x00R\x12batchReplaceOrders\x12V\n" +
-	"\x13batch_cancel_orders\x18\a \x01(\v2$.orders.v1.BatchCancelOrdersResponseH\x00R\x11batchCancelOrdersB\b\n" +
+	"\x13batch_cancel_orders\x18\a \x01(\v2$.orders.v1.BatchCancelOrdersResponseH\x00R\x11batchCancelOrders\x12M\n" +
+	"\x10cancel_all_after\x18\b \x01(\v2!.orders.v1.CancelAllAfterResponseH\x00R\x0ecancelAllAfterB\b\n" +
 	"\x06result\"i\n" +
 	"\rCommandReject\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x16\n" +
@@ -918,14 +995,16 @@ var file_tradews_v1_trade_ws_proto_goTypes = []any{
 	(*v1.BatchCreateOrdersRequest)(nil),   // 12: orders.v1.BatchCreateOrdersRequest
 	(*v1.BatchReplaceOrdersRequest)(nil),  // 13: orders.v1.BatchReplaceOrdersRequest
 	(*v1.BatchCancelOrdersRequest)(nil),   // 14: orders.v1.BatchCancelOrdersRequest
-	(*v1.CreateOrderResponse)(nil),        // 15: orders.v1.CreateOrderResponse
-	(*v1.CancelOrderResponse)(nil),        // 16: orders.v1.CancelOrderResponse
-	(*v1.ModifyOrderResponse)(nil),        // 17: orders.v1.ModifyOrderResponse
-	(*v1.CancelAllOrdersResponse)(nil),    // 18: orders.v1.CancelAllOrdersResponse
-	(*v1.BatchCreateOrdersResponse)(nil),  // 19: orders.v1.BatchCreateOrdersResponse
-	(*v1.BatchReplaceOrdersResponse)(nil), // 20: orders.v1.BatchReplaceOrdersResponse
-	(*v1.BatchCancelOrdersResponse)(nil),  // 21: orders.v1.BatchCancelOrdersResponse
-	(*v1.ErrorDetail)(nil),                // 22: orders.v1.ErrorDetail
+	(*v1.CancelAllAfterRequest)(nil),      // 15: orders.v1.CancelAllAfterRequest
+	(*v1.CreateOrderResponse)(nil),        // 16: orders.v1.CreateOrderResponse
+	(*v1.CancelOrderResponse)(nil),        // 17: orders.v1.CancelOrderResponse
+	(*v1.ModifyOrderResponse)(nil),        // 18: orders.v1.ModifyOrderResponse
+	(*v1.CancelAllOrdersResponse)(nil),    // 19: orders.v1.CancelAllOrdersResponse
+	(*v1.BatchCreateOrdersResponse)(nil),  // 20: orders.v1.BatchCreateOrdersResponse
+	(*v1.BatchReplaceOrdersResponse)(nil), // 21: orders.v1.BatchReplaceOrdersResponse
+	(*v1.BatchCancelOrdersResponse)(nil),  // 22: orders.v1.BatchCancelOrdersResponse
+	(*v1.CancelAllAfterResponse)(nil),     // 23: orders.v1.CancelAllAfterResponse
+	(*v1.ErrorDetail)(nil),                // 24: orders.v1.ErrorDetail
 }
 var file_tradews_v1_trade_ws_proto_depIdxs = []int32{
 	1,  // 0: tradews.v1.ClientFrame.ping:type_name -> tradews.v1.PingRequest
@@ -936,24 +1015,26 @@ var file_tradews_v1_trade_ws_proto_depIdxs = []int32{
 	12, // 5: tradews.v1.ClientFrame.batch_create_orders:type_name -> orders.v1.BatchCreateOrdersRequest
 	13, // 6: tradews.v1.ClientFrame.batch_replace_orders:type_name -> orders.v1.BatchReplaceOrdersRequest
 	14, // 7: tradews.v1.ClientFrame.batch_cancel_orders:type_name -> orders.v1.BatchCancelOrdersRequest
-	3,  // 8: tradews.v1.ServerFrame.pong:type_name -> tradews.v1.PongResponse
-	4,  // 9: tradews.v1.ServerFrame.ack:type_name -> tradews.v1.AckResponse
-	5,  // 10: tradews.v1.ServerFrame.reject:type_name -> tradews.v1.CommandReject
-	6,  // 11: tradews.v1.ServerFrame.overload:type_name -> tradews.v1.OverloadResponse
-	7,  // 12: tradews.v1.ServerFrame.terminal:type_name -> tradews.v1.TerminalSessionEvent
-	15, // 13: tradews.v1.AckResponse.create_order:type_name -> orders.v1.CreateOrderResponse
-	16, // 14: tradews.v1.AckResponse.cancel_order:type_name -> orders.v1.CancelOrderResponse
-	17, // 15: tradews.v1.AckResponse.modify_order:type_name -> orders.v1.ModifyOrderResponse
-	18, // 16: tradews.v1.AckResponse.cancel_all_orders:type_name -> orders.v1.CancelAllOrdersResponse
-	19, // 17: tradews.v1.AckResponse.batch_create_orders:type_name -> orders.v1.BatchCreateOrdersResponse
-	20, // 18: tradews.v1.AckResponse.batch_replace_orders:type_name -> orders.v1.BatchReplaceOrdersResponse
-	21, // 19: tradews.v1.AckResponse.batch_cancel_orders:type_name -> orders.v1.BatchCancelOrdersResponse
-	22, // 20: tradews.v1.CommandReject.error:type_name -> orders.v1.ErrorDetail
-	21, // [21:21] is the sub-list for method output_type
-	21, // [21:21] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	15, // 8: tradews.v1.ClientFrame.cancel_all_after:type_name -> orders.v1.CancelAllAfterRequest
+	3,  // 9: tradews.v1.ServerFrame.pong:type_name -> tradews.v1.PongResponse
+	4,  // 10: tradews.v1.ServerFrame.ack:type_name -> tradews.v1.AckResponse
+	5,  // 11: tradews.v1.ServerFrame.reject:type_name -> tradews.v1.CommandReject
+	6,  // 12: tradews.v1.ServerFrame.overload:type_name -> tradews.v1.OverloadResponse
+	7,  // 13: tradews.v1.ServerFrame.terminal:type_name -> tradews.v1.TerminalSessionEvent
+	16, // 14: tradews.v1.AckResponse.create_order:type_name -> orders.v1.CreateOrderResponse
+	17, // 15: tradews.v1.AckResponse.cancel_order:type_name -> orders.v1.CancelOrderResponse
+	18, // 16: tradews.v1.AckResponse.modify_order:type_name -> orders.v1.ModifyOrderResponse
+	19, // 17: tradews.v1.AckResponse.cancel_all_orders:type_name -> orders.v1.CancelAllOrdersResponse
+	20, // 18: tradews.v1.AckResponse.batch_create_orders:type_name -> orders.v1.BatchCreateOrdersResponse
+	21, // 19: tradews.v1.AckResponse.batch_replace_orders:type_name -> orders.v1.BatchReplaceOrdersResponse
+	22, // 20: tradews.v1.AckResponse.batch_cancel_orders:type_name -> orders.v1.BatchCancelOrdersResponse
+	23, // 21: tradews.v1.AckResponse.cancel_all_after:type_name -> orders.v1.CancelAllAfterResponse
+	24, // 22: tradews.v1.CommandReject.error:type_name -> orders.v1.ErrorDetail
+	23, // [23:23] is the sub-list for method output_type
+	23, // [23:23] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_tradews_v1_trade_ws_proto_init() }
@@ -970,6 +1051,7 @@ func file_tradews_v1_trade_ws_proto_init() {
 		(*ClientFrame_BatchCreateOrders)(nil),
 		(*ClientFrame_BatchReplaceOrders)(nil),
 		(*ClientFrame_BatchCancelOrders)(nil),
+		(*ClientFrame_CancelAllAfter)(nil),
 	}
 	file_tradews_v1_trade_ws_proto_msgTypes[2].OneofWrappers = []any{
 		(*ServerFrame_Pong)(nil),
@@ -986,6 +1068,7 @@ func file_tradews_v1_trade_ws_proto_init() {
 		(*AckResponse_BatchCreateOrders)(nil),
 		(*AckResponse_BatchReplaceOrders)(nil),
 		(*AckResponse_BatchCancelOrders)(nil),
+		(*AckResponse_CancelAllAfter)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

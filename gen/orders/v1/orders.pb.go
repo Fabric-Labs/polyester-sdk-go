@@ -850,6 +850,12 @@ const (
 	// The trigger's child order did not match the order the trigger requested,
 	// so the trigger failed and the child order was canceled.
 	ErrorCode_ERROR_CODE_CHILD_ORDER_INCONSISTENT ErrorCode = 94
+	// The request's receive window ended before it was sent on for admission:
+	// the request was not processed and changed nothing. The window is the
+	// request's timestamp plus its receive window: the X-API-RECV-WINDOW header
+	// of a signed request, or recv_window_ms of a WebSocket command. Send a new
+	// request with a fresh timestamp.
+	ErrorCode_ERROR_CODE_REQUEST_DEADLINE_EXCEEDED ErrorCode = 308
 )
 
 // Enum value maps for ErrorCode.
@@ -1051,6 +1057,7 @@ var (
 		92:  "ERROR_CODE_CONDITION_PARAMETER_SET",
 		93:  "ERROR_CODE_TWAP_CAPACITY_REACHED",
 		94:  "ERROR_CODE_CHILD_ORDER_INCONSISTENT",
+		308: "ERROR_CODE_REQUEST_DEADLINE_EXCEEDED",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_CODE_UNSPECIFIED":                            0,
@@ -1249,6 +1256,7 @@ var (
 		"ERROR_CODE_CONDITION_PARAMETER_SET":                92,
 		"ERROR_CODE_TWAP_CAPACITY_REACHED":                  93,
 		"ERROR_CODE_CHILD_ORDER_INCONSISTENT":               94,
+		"ERROR_CODE_REQUEST_DEADLINE_EXCEEDED":              308,
 	}
 )
 
@@ -6086,7 +6094,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"&SELF_TRADE_PREVENTION_MODE_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fEXPIRE_MAKER\x10\x01\x12\x10\n" +
 	"\fEXPIRE_TAKER\x10\x02\x12\x0f\n" +
-	"\vEXPIRE_BOTH\x10\x03*\xf3<\n" +
+	"\vEXPIRE_BOTH\x10\x03*\x9e=\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16ERROR_CODE_BAD_REQUEST\x10\x01\x12\x1f\n" +
@@ -6284,7 +6292,8 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\"ERROR_CODE_CONDITION_FLAGS_INVALID\x10[\x12&\n" +
 	"\"ERROR_CODE_CONDITION_PARAMETER_SET\x10\\\x12$\n" +
 	" ERROR_CODE_TWAP_CAPACITY_REACHED\x10]\x12'\n" +
-	"#ERROR_CODE_CHILD_ORDER_INCONSISTENT\x10^*k\n" +
+	"#ERROR_CODE_CHILD_ORDER_INCONSISTENT\x10^\x12)\n" +
+	"$ERROR_CODE_REQUEST_DEADLINE_EXCEEDED\x10\xb4\x02*k\n" +
 	"\x12TriggerPriceSource\x12$\n" +
 	" TRIGGER_PRICE_SOURCE_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
