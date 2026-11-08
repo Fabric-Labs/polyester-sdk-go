@@ -97,8 +97,8 @@ const (
 // REPLAY_CAPACITY_EXHAUSTED, HTTP 429; Connect resource_exhausted with an
 // auth.v1.AuthErrorDetail). It is a *RateLimitError with this Code, not an
 // authentication failure: the credentials are valid, the request was not
-// processed, and the share frees as earlier requests' windows end, within at
-// most 60 seconds. IsRetryable reports it. It carries no Retry-After, so
+// processed, and the share frees as earlier requests' windows end.
+// IsRetryable reports it. It carries no Retry-After, so
 // RetryAfter is nil unless the response named one: back off briefly, then
 // send again, which signs again with a fresh timestamp. A shorter
 // Config.RecvWindow makes room sooner. Read it with IsReplayCapacityExhausted.
