@@ -246,6 +246,64 @@ func (ListOrderBy) EnumDescriptor() ([]byte, []int) {
 	return file_chain_lifecycle_v1_lifecycle_read_proto_rawDescGZIP(), []int{3}
 }
 
+// FlowParticipation says how an account takes part in a lifecycle flow.
+type FlowParticipation int32
+
+const (
+	// Participation was not specified. As a ListFlows filter it matches every
+	// flow the selected account owns or receives.
+	FlowParticipation_PARTICIPATION_UNSPECIFIED FlowParticipation = 0
+	// The account owns the flow: it made the deposit, withdrawal, or transfer.
+	// For a transfer this is the sending account, including a move between the
+	// account's own Funding and Trading balances.
+	FlowParticipation_PARTICIPATION_OWNER FlowParticipation = 1
+	// The account receives a transfer that another account owns, such as a
+	// transfer from another user, a transfer from another subaccount of the same
+	// main account, or a reward payout.
+	FlowParticipation_PARTICIPATION_RECIPIENT FlowParticipation = 2
+)
+
+// Enum value maps for FlowParticipation.
+var (
+	FlowParticipation_name = map[int32]string{
+		0: "PARTICIPATION_UNSPECIFIED",
+		1: "PARTICIPATION_OWNER",
+		2: "PARTICIPATION_RECIPIENT",
+	}
+	FlowParticipation_value = map[string]int32{
+		"PARTICIPATION_UNSPECIFIED": 0,
+		"PARTICIPATION_OWNER":       1,
+		"PARTICIPATION_RECIPIENT":   2,
+	}
+)
+
+func (x FlowParticipation) Enum() *FlowParticipation {
+	p := new(FlowParticipation)
+	*p = x
+	return p
+}
+
+func (x FlowParticipation) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (FlowParticipation) Descriptor() protoreflect.EnumDescriptor {
+	return file_chain_lifecycle_v1_lifecycle_read_proto_enumTypes[4].Descriptor()
+}
+
+func (FlowParticipation) Type() protoreflect.EnumType {
+	return &file_chain_lifecycle_v1_lifecycle_read_proto_enumTypes[4]
+}
+
+func (x FlowParticipation) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use FlowParticipation.Descriptor instead.
+func (FlowParticipation) EnumDescriptor() ([]byte, []int) {
+	return file_chain_lifecycle_v1_lifecycle_read_proto_rawDescGZIP(), []int{4}
+}
+
 // FlowStep is the public lifecycle step shown in API and realtime read
 // models. It is business-facing and intentionally hides the lower-level
 // technical milestone taxonomy.
@@ -322,11 +380,11 @@ func (x FlowStep) String() string {
 }
 
 func (FlowStep) Descriptor() protoreflect.EnumDescriptor {
-	return file_chain_lifecycle_v1_lifecycle_read_proto_enumTypes[4].Descriptor()
+	return file_chain_lifecycle_v1_lifecycle_read_proto_enumTypes[5].Descriptor()
 }
 
 func (FlowStep) Type() protoreflect.EnumType {
-	return &file_chain_lifecycle_v1_lifecycle_read_proto_enumTypes[4]
+	return &file_chain_lifecycle_v1_lifecycle_read_proto_enumTypes[5]
 }
 
 func (x FlowStep) Number() protoreflect.EnumNumber {
@@ -335,7 +393,7 @@ func (x FlowStep) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use FlowStep.Descriptor instead.
 func (FlowStep) EnumDescriptor() ([]byte, []int) {
-	return file_chain_lifecycle_v1_lifecycle_read_proto_rawDescGZIP(), []int{4}
+	return file_chain_lifecycle_v1_lifecycle_read_proto_rawDescGZIP(), []int{5}
 }
 
 type FlowStepActivityKind int32
@@ -378,11 +436,11 @@ func (x FlowStepActivityKind) String() string {
 }
 
 func (FlowStepActivityKind) Descriptor() protoreflect.EnumDescriptor {
-	return file_chain_lifecycle_v1_lifecycle_read_proto_enumTypes[5].Descriptor()
+	return file_chain_lifecycle_v1_lifecycle_read_proto_enumTypes[6].Descriptor()
 }
 
 func (FlowStepActivityKind) Type() protoreflect.EnumType {
-	return &file_chain_lifecycle_v1_lifecycle_read_proto_enumTypes[5]
+	return &file_chain_lifecycle_v1_lifecycle_read_proto_enumTypes[6]
 }
 
 func (x FlowStepActivityKind) Number() protoreflect.EnumNumber {
@@ -391,7 +449,7 @@ func (x FlowStepActivityKind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use FlowStepActivityKind.Descriptor instead.
 func (FlowStepActivityKind) EnumDescriptor() ([]byte, []int) {
-	return file_chain_lifecycle_v1_lifecycle_read_proto_rawDescGZIP(), []int{5}
+	return file_chain_lifecycle_v1_lifecycle_read_proto_rawDescGZIP(), []int{6}
 }
 
 // FlowTimelineStatus describes how a progress timeline item relates to the
@@ -436,11 +494,11 @@ func (x FlowTimelineStatus) String() string {
 }
 
 func (FlowTimelineStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_chain_lifecycle_v1_lifecycle_read_proto_enumTypes[6].Descriptor()
+	return file_chain_lifecycle_v1_lifecycle_read_proto_enumTypes[7].Descriptor()
 }
 
 func (FlowTimelineStatus) Type() protoreflect.EnumType {
-	return &file_chain_lifecycle_v1_lifecycle_read_proto_enumTypes[6]
+	return &file_chain_lifecycle_v1_lifecycle_read_proto_enumTypes[7]
 }
 
 func (x FlowTimelineStatus) Number() protoreflect.EnumNumber {
@@ -449,7 +507,7 @@ func (x FlowTimelineStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use FlowTimelineStatus.Descriptor instead.
 func (FlowTimelineStatus) EnumDescriptor() ([]byte, []int) {
-	return file_chain_lifecycle_v1_lifecycle_read_proto_rawDescGZIP(), []int{6}
+	return file_chain_lifecycle_v1_lifecycle_read_proto_rawDescGZIP(), []int{7}
 }
 
 // GetFlowResponse returns one lifecycle flow with summary, factual steps, and
@@ -643,7 +701,9 @@ type ListFlowsRequest struct {
 	// Selects open, terminal, or all lifecycle flows.
 	Scope ListScope `protobuf:"varint,6,opt,name=scope,proto3,enum=chain.lifecycle.v1.ListScope" json:"scope,omitempty"`
 	// Optional account selector. Omit to list across accounts the caller is
-	// allowed to inspect.
+	// allowed to inspect. A selected account matches the flows it owns and the
+	// transfers it receives from other accounts; use `participation` to narrow
+	// to one of them.
 	//
 	// Types that are valid to be assigned to AccountSelector:
 	//
@@ -657,11 +717,19 @@ type ListFlowsRequest struct {
 	// Optional unified asset ids to include. Maximum 100 unique ids.
 	UnifiedAssetIds []uint32 `protobuf:"varint,11,rep,packed,name=unified_asset_ids,json=unifiedAssetIds,proto3" json:"unified_asset_ids,omitempty"`
 	// Opaque keyset cursor returned by a previous response. The cursor is
-	// exclusive and bound to the caller, filters, account selector, sort
-	// direction, and ordering timestamp.
+	// exclusive and bound to the request it was returned for: the account
+	// selector, participation, every filter including scope, sort direction,
+	// and ordering timestamp. Send it with that same request; only `limit` may
+	// change. A cursor sent with any other request is rejected as invalid.
 	PageToken string `protobuf:"bytes,12,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	// Timestamp used for ordering and pagination. Defaults to last activity.
-	OrderBy       ListOrderBy `protobuf:"varint,13,opt,name=order_by,json=orderBy,proto3,enum=chain.lifecycle.v1.ListOrderBy" json:"order_by,omitempty"`
+	OrderBy ListOrderBy `protobuf:"varint,13,opt,name=order_by,json=orderBy,proto3,enum=chain.lifecycle.v1.ListOrderBy" json:"order_by,omitempty"`
+	// Optional participation filter for the selected account. Unspecified
+	// returns the flows the account owns and the transfers it receives.
+	// `PARTICIPATION_OWNER` returns only the flows it owns, and
+	// `PARTICIPATION_RECIPIENT` only the transfers it receives from another
+	// account. Requires `owner_account_id` or `smart_account_address`.
+	Participation FlowParticipation `protobuf:"varint,14,opt,name=participation,proto3,enum=chain.lifecycle.v1.FlowParticipation" json:"participation,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -796,6 +864,13 @@ func (x *ListFlowsRequest) GetOrderBy() ListOrderBy {
 		return x.OrderBy
 	}
 	return ListOrderBy_ORDER_BY_UNSPECIFIED
+}
+
+func (x *ListFlowsRequest) GetParticipation() FlowParticipation {
+	if x != nil {
+		return x.Participation
+	}
+	return FlowParticipation_PARTICIPATION_UNSPECIFIED
 }
 
 type isListFlowsRequest_AccountSelector interface {
@@ -1239,7 +1314,14 @@ type FlowSummaryView struct {
 	// time of its current step. Show the flow as delayed instead of an ETA; it
 	// still completes normally once progress resumes. Always false for terminal
 	// flows.
-	IsDelayed     bool `protobuf:"varint,36,opt,name=is_delayed,json=isDelayed,proto3" json:"is_delayed,omitempty"`
+	IsDelayed bool `protobuf:"varint,36,opt,name=is_delayed,json=isDelayed,proto3" json:"is_delayed,omitempty"`
+	// How the account selected by a ListFlows request takes part in this flow:
+	// `PARTICIPATION_OWNER` for a flow it owns, including a transfer it sent, or
+	// `PARTICIPATION_RECIPIENT` for a transfer it received from another account.
+	// Each flow appears once with one participation. Unspecified when the
+	// response is not scoped to an account, such as ListFlows without an account
+	// selector, flow detail, and realtime updates.
+	Participation FlowParticipation `protobuf:"varint,37,opt,name=participation,proto3,enum=chain.lifecycle.v1.FlowParticipation" json:"participation,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1482,6 +1564,13 @@ func (x *FlowSummaryView) GetIsDelayed() bool {
 		return x.IsDelayed
 	}
 	return false
+}
+
+func (x *FlowSummaryView) GetParticipation() FlowParticipation {
+	if x != nil {
+		return x.Participation
+	}
+	return FlowParticipation_PARTICIPATION_UNSPECIFIED
 }
 
 // FlowSummaryProgressView describes progress within the current visible step.
@@ -2190,7 +2279,7 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"lookupKind\x12\x1e\n" +
 	"\x05limit\x18\x03 \x01(\rB\b\xbaH\x05*\x03\x18\xf4\x03R\x05limit\x12'\n" +
 	"\n" +
-	"page_token\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken\"\x97\x06\n" +
+	"page_token\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken\"\xc7\b\n" +
 	"\x10ListFlowsRequest\x12\x1e\n" +
 	"\x05limit\x18\x01 \x01(\rB\b\xbaH\x05*\x03\x18\xf4\x03R\x05limit\x126\n" +
 	"\x04sort\x18\x02 \x01(\x0e2\x18.chain.lifecycle.v1.SortB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04sort\x12C\n" +
@@ -2210,7 +2299,9 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\x10d\x18\x01\"\x04*\x02 \x00R\x0funifiedAssetIds\x12'\n" +
 	"\n" +
 	"page_token\x18\f \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken\x12D\n" +
-	"\border_by\x18\r \x01(\x0e2\x1f.chain.lifecycle.v1.ListOrderByB\b\xbaH\x05\x82\x01\x02\x10\x01R\aorderByB\x12\n" +
+	"\border_by\x18\r \x01(\x0e2\x1f.chain.lifecycle.v1.ListOrderByB\b\xbaH\x05\x82\x01\x02\x10\x01R\aorderBy\x12U\n" +
+	"\rparticipation\x18\x0e \x01(\x0e2%.chain.lifecycle.v1.FlowParticipationB\b\xbaH\x05\x82\x01\x02\x10\x01R\rparticipation:\xd6\x01\xbaH\xd2\x01\x1a\xcf\x01\n" +
+	"1chain_lifecycle.list_flows_participation_selector\x12@participation requires owner_account_id or smart_account_address\x1aXthis.participation == 0 || has(this.owner_account_id) || has(this.smart_account_address)B\x12\n" +
 	"\x10account_selector\"\x80\x01\n" +
 	"\x11ListFlowsResponse\x129\n" +
 	"\x05flows\x18\x01 \x03(\v2#.chain.lifecycle.v1.FlowSummaryViewR\x05flows\x120\n" +
@@ -2242,7 +2333,7 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\x15ListFlowsByTxResponse\x12\x17\n" +
 	"\atx_hash\x18\x01 \x01(\tR\x06txHash\x12=\n" +
 	"\amatches\x18\x02 \x03(\v2#.chain.lifecycle.v1.FlowTxMatchViewR\amatches\x120\n" +
-	"\x0fnext_page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\x90\r\n" +
+	"\x0fnext_page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xdd\r\n" +
 	"\x0fFlowSummaryView\x12(\n" +
 	"\x10owner_account_id\x18\x01 \x01(\x06R\x0eownerAccountId\x12@\n" +
 	"\x15smart_account_address\x18\" \x01(\tB\f\xbaH\t\xd8\x01\x01r\x04\x88\xb5\x18\x01R\x13smartAccountAddress\x12\x17\n" +
@@ -2277,7 +2368,8 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\x11progress_timeline\x18\x1a \x03(\v2(.chain.lifecycle.v1.FlowTimelineItemViewR\x10progressTimeline\x12?\n" +
 	"\x1cestimated_completion_unix_ms\x18\x1b \x01(\x04R\x19estimatedCompletionUnixMs\x12\x1d\n" +
 	"\n" +
-	"is_delayed\x18$ \x01(\bR\tisDelayed\"\xe5\x03\n" +
+	"is_delayed\x18$ \x01(\bR\tisDelayed\x12K\n" +
+	"\rparticipation\x18% \x01(\x0e2%.chain.lifecycle.v1.FlowParticipationR\rparticipation\"\xe5\x03\n" +
 	"\x17FlowSummaryProgressView\x12C\n" +
 	"\x1fcurrent_step_started_at_unix_ms\x18\x01 \x01(\x04R\x1acurrentStepStartedAtUnixMs\x12H\n" +
 	"!current_step_expected_duration_ms\x18\x02 \x01(\x04R\x1dcurrentStepExpectedDurationMs\x123\n" +
@@ -2361,7 +2453,11 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\vListOrderBy\x12\x18\n" +
 	"\x14ORDER_BY_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16ORDER_BY_LAST_ACTIVITY\x10\x01\x12\x17\n" +
-	"\x13ORDER_BY_STARTED_AT\x10\x02*\xb8\x02\n" +
+	"\x13ORDER_BY_STARTED_AT\x10\x02*h\n" +
+	"\x11FlowParticipation\x12\x1d\n" +
+	"\x19PARTICIPATION_UNSPECIFIED\x10\x00\x12\x17\n" +
+	"\x13PARTICIPATION_OWNER\x10\x01\x12\x1b\n" +
+	"\x17PARTICIPATION_RECIPIENT\x10\x02*\xb8\x02\n" +
 	"\bFlowStep\x12\x19\n" +
 	"\x15FLOW_STEP_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10FLOW_STEP_SOURCE\x10\x01\x12\x16\n" +
@@ -2408,97 +2504,100 @@ func file_chain_lifecycle_v1_lifecycle_read_proto_rawDescGZIP() []byte {
 	return file_chain_lifecycle_v1_lifecycle_read_proto_rawDescData
 }
 
-var file_chain_lifecycle_v1_lifecycle_read_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
+var file_chain_lifecycle_v1_lifecycle_read_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
 var file_chain_lifecycle_v1_lifecycle_read_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_chain_lifecycle_v1_lifecycle_read_proto_goTypes = []any{
 	(TxLookupKind)(0),               // 0: chain.lifecycle.v1.TxLookupKind
 	(ListScope)(0),                  // 1: chain.lifecycle.v1.ListScope
 	(Sort)(0),                       // 2: chain.lifecycle.v1.Sort
 	(ListOrderBy)(0),                // 3: chain.lifecycle.v1.ListOrderBy
-	(FlowStep)(0),                   // 4: chain.lifecycle.v1.FlowStep
-	(FlowStepActivityKind)(0),       // 5: chain.lifecycle.v1.FlowStepActivityKind
-	(FlowTimelineStatus)(0),         // 6: chain.lifecycle.v1.FlowTimelineStatus
-	(*GetFlowResponse)(nil),         // 7: chain.lifecycle.v1.GetFlowResponse
-	(*GetFlowByIdRequest)(nil),      // 8: chain.lifecycle.v1.GetFlowByIdRequest
-	(*ListFlowsByTxRequest)(nil),    // 9: chain.lifecycle.v1.ListFlowsByTxRequest
-	(*ListFlowsRequest)(nil),        // 10: chain.lifecycle.v1.ListFlowsRequest
-	(*ListFlowsResponse)(nil),       // 11: chain.lifecycle.v1.ListFlowsResponse
-	(*FlowTxMatchView)(nil),         // 12: chain.lifecycle.v1.FlowTxMatchView
-	(*ListFlowsByTxResponse)(nil),   // 13: chain.lifecycle.v1.ListFlowsByTxResponse
-	(*FlowSummaryView)(nil),         // 14: chain.lifecycle.v1.FlowSummaryView
-	(*FlowSummaryProgressView)(nil), // 15: chain.lifecycle.v1.FlowSummaryProgressView
-	(*FlowStepView)(nil),            // 16: chain.lifecycle.v1.FlowStepView
-	(*FlowStepActivityView)(nil),    // 17: chain.lifecycle.v1.FlowStepActivityView
-	(*FlowTimelineItemView)(nil),    // 18: chain.lifecycle.v1.FlowTimelineItemView
-	(*FlowDetailView)(nil),          // 19: chain.lifecycle.v1.FlowDetailView
-	(FlowKind)(0),                   // 20: chain.lifecycle.v1.FlowKind
-	(FlowState)(0),                  // 21: chain.lifecycle.v1.FlowState
-	(FlowDomain)(0),                 // 22: chain.lifecycle.v1.FlowDomain
-	(*AssetIds)(nil),                // 23: chain.lifecycle.v1.AssetIds
-	(*v1.U128)(nil),                 // 24: polyester.type.v1.U128
-	(LifecycleReason)(0),            // 25: chain.lifecycle.v1.LifecycleReason
-	(*v11.ZipperReasonDetails)(nil), // 26: chain.zipper.v1.ZipperReasonDetails
-	(*RequestFee)(nil),              // 27: chain.lifecycle.v1.RequestFee
-	(LifecycleSource)(0),            // 28: chain.lifecycle.v1.LifecycleSource
+	(FlowParticipation)(0),          // 4: chain.lifecycle.v1.FlowParticipation
+	(FlowStep)(0),                   // 5: chain.lifecycle.v1.FlowStep
+	(FlowStepActivityKind)(0),       // 6: chain.lifecycle.v1.FlowStepActivityKind
+	(FlowTimelineStatus)(0),         // 7: chain.lifecycle.v1.FlowTimelineStatus
+	(*GetFlowResponse)(nil),         // 8: chain.lifecycle.v1.GetFlowResponse
+	(*GetFlowByIdRequest)(nil),      // 9: chain.lifecycle.v1.GetFlowByIdRequest
+	(*ListFlowsByTxRequest)(nil),    // 10: chain.lifecycle.v1.ListFlowsByTxRequest
+	(*ListFlowsRequest)(nil),        // 11: chain.lifecycle.v1.ListFlowsRequest
+	(*ListFlowsResponse)(nil),       // 12: chain.lifecycle.v1.ListFlowsResponse
+	(*FlowTxMatchView)(nil),         // 13: chain.lifecycle.v1.FlowTxMatchView
+	(*ListFlowsByTxResponse)(nil),   // 14: chain.lifecycle.v1.ListFlowsByTxResponse
+	(*FlowSummaryView)(nil),         // 15: chain.lifecycle.v1.FlowSummaryView
+	(*FlowSummaryProgressView)(nil), // 16: chain.lifecycle.v1.FlowSummaryProgressView
+	(*FlowStepView)(nil),            // 17: chain.lifecycle.v1.FlowStepView
+	(*FlowStepActivityView)(nil),    // 18: chain.lifecycle.v1.FlowStepActivityView
+	(*FlowTimelineItemView)(nil),    // 19: chain.lifecycle.v1.FlowTimelineItemView
+	(*FlowDetailView)(nil),          // 20: chain.lifecycle.v1.FlowDetailView
+	(FlowKind)(0),                   // 21: chain.lifecycle.v1.FlowKind
+	(FlowState)(0),                  // 22: chain.lifecycle.v1.FlowState
+	(FlowDomain)(0),                 // 23: chain.lifecycle.v1.FlowDomain
+	(*AssetIds)(nil),                // 24: chain.lifecycle.v1.AssetIds
+	(*v1.U128)(nil),                 // 25: polyester.type.v1.U128
+	(LifecycleReason)(0),            // 26: chain.lifecycle.v1.LifecycleReason
+	(*v11.ZipperReasonDetails)(nil), // 27: chain.zipper.v1.ZipperReasonDetails
+	(*RequestFee)(nil),              // 28: chain.lifecycle.v1.RequestFee
+	(LifecycleSource)(0),            // 29: chain.lifecycle.v1.LifecycleSource
 }
 var file_chain_lifecycle_v1_lifecycle_read_proto_depIdxs = []int32{
-	19, // 0: chain.lifecycle.v1.GetFlowResponse.flow:type_name -> chain.lifecycle.v1.FlowDetailView
+	20, // 0: chain.lifecycle.v1.GetFlowResponse.flow:type_name -> chain.lifecycle.v1.FlowDetailView
 	0,  // 1: chain.lifecycle.v1.ListFlowsByTxRequest.lookup_kind:type_name -> chain.lifecycle.v1.TxLookupKind
 	2,  // 2: chain.lifecycle.v1.ListFlowsRequest.sort:type_name -> chain.lifecycle.v1.Sort
-	20, // 3: chain.lifecycle.v1.ListFlowsRequest.flow_kind:type_name -> chain.lifecycle.v1.FlowKind
-	21, // 4: chain.lifecycle.v1.ListFlowsRequest.flow_state:type_name -> chain.lifecycle.v1.FlowState
+	21, // 3: chain.lifecycle.v1.ListFlowsRequest.flow_kind:type_name -> chain.lifecycle.v1.FlowKind
+	22, // 4: chain.lifecycle.v1.ListFlowsRequest.flow_state:type_name -> chain.lifecycle.v1.FlowState
 	1,  // 5: chain.lifecycle.v1.ListFlowsRequest.scope:type_name -> chain.lifecycle.v1.ListScope
 	3,  // 6: chain.lifecycle.v1.ListFlowsRequest.order_by:type_name -> chain.lifecycle.v1.ListOrderBy
-	14, // 7: chain.lifecycle.v1.ListFlowsResponse.flows:type_name -> chain.lifecycle.v1.FlowSummaryView
-	20, // 8: chain.lifecycle.v1.FlowTxMatchView.flow_kind:type_name -> chain.lifecycle.v1.FlowKind
-	22, // 9: chain.lifecycle.v1.FlowTxMatchView.source_domain:type_name -> chain.lifecycle.v1.FlowDomain
-	22, // 10: chain.lifecycle.v1.FlowTxMatchView.destination_domain:type_name -> chain.lifecycle.v1.FlowDomain
-	4,  // 11: chain.lifecycle.v1.FlowTxMatchView.current_step:type_name -> chain.lifecycle.v1.FlowStep
-	23, // 12: chain.lifecycle.v1.FlowTxMatchView.asset_ids:type_name -> chain.lifecycle.v1.AssetIds
-	24, // 13: chain.lifecycle.v1.FlowTxMatchView.amount_e18:type_name -> polyester.type.v1.U128
-	25, // 14: chain.lifecycle.v1.FlowTxMatchView.lifecycle_reason:type_name -> chain.lifecycle.v1.LifecycleReason
-	26, // 15: chain.lifecycle.v1.FlowTxMatchView.zipper_reason:type_name -> chain.zipper.v1.ZipperReasonDetails
-	12, // 16: chain.lifecycle.v1.ListFlowsByTxResponse.matches:type_name -> chain.lifecycle.v1.FlowTxMatchView
-	20, // 17: chain.lifecycle.v1.FlowSummaryView.flow_kind:type_name -> chain.lifecycle.v1.FlowKind
-	4,  // 18: chain.lifecycle.v1.FlowSummaryView.current_step:type_name -> chain.lifecycle.v1.FlowStep
-	23, // 19: chain.lifecycle.v1.FlowSummaryView.asset_ids:type_name -> chain.lifecycle.v1.AssetIds
-	24, // 20: chain.lifecycle.v1.FlowSummaryView.amount_e18:type_name -> polyester.type.v1.U128
-	27, // 21: chain.lifecycle.v1.FlowSummaryView.request_fee:type_name -> chain.lifecycle.v1.RequestFee
-	22, // 22: chain.lifecycle.v1.FlowSummaryView.source_domain:type_name -> chain.lifecycle.v1.FlowDomain
-	22, // 23: chain.lifecycle.v1.FlowSummaryView.destination_domain:type_name -> chain.lifecycle.v1.FlowDomain
-	28, // 24: chain.lifecycle.v1.FlowSummaryView.latest_lifecycle_source:type_name -> chain.lifecycle.v1.LifecycleSource
-	25, // 25: chain.lifecycle.v1.FlowSummaryView.lifecycle_reason:type_name -> chain.lifecycle.v1.LifecycleReason
-	26, // 26: chain.lifecycle.v1.FlowSummaryView.zipper_reason:type_name -> chain.zipper.v1.ZipperReasonDetails
-	15, // 27: chain.lifecycle.v1.FlowSummaryView.current_progress:type_name -> chain.lifecycle.v1.FlowSummaryProgressView
-	18, // 28: chain.lifecycle.v1.FlowSummaryView.progress_timeline:type_name -> chain.lifecycle.v1.FlowTimelineItemView
-	4,  // 29: chain.lifecycle.v1.FlowStepView.step:type_name -> chain.lifecycle.v1.FlowStep
-	23, // 30: chain.lifecycle.v1.FlowStepView.asset_ids:type_name -> chain.lifecycle.v1.AssetIds
-	24, // 31: chain.lifecycle.v1.FlowStepView.amount_e18:type_name -> polyester.type.v1.U128
-	27, // 32: chain.lifecycle.v1.FlowStepView.request_fee:type_name -> chain.lifecycle.v1.RequestFee
-	28, // 33: chain.lifecycle.v1.FlowStepView.lifecycle_source:type_name -> chain.lifecycle.v1.LifecycleSource
-	25, // 34: chain.lifecycle.v1.FlowStepView.lifecycle_reason:type_name -> chain.lifecycle.v1.LifecycleReason
-	26, // 35: chain.lifecycle.v1.FlowStepView.zipper_reason:type_name -> chain.zipper.v1.ZipperReasonDetails
-	17, // 36: chain.lifecycle.v1.FlowStepView.activities:type_name -> chain.lifecycle.v1.FlowStepActivityView
-	28, // 37: chain.lifecycle.v1.FlowStepActivityView.lifecycle_source:type_name -> chain.lifecycle.v1.LifecycleSource
-	25, // 38: chain.lifecycle.v1.FlowStepActivityView.lifecycle_reason:type_name -> chain.lifecycle.v1.LifecycleReason
-	26, // 39: chain.lifecycle.v1.FlowStepActivityView.zipper_reason:type_name -> chain.zipper.v1.ZipperReasonDetails
-	5,  // 40: chain.lifecycle.v1.FlowStepActivityView.kind:type_name -> chain.lifecycle.v1.FlowStepActivityKind
-	24, // 41: chain.lifecycle.v1.FlowStepActivityView.amount_e18:type_name -> polyester.type.v1.U128
-	4,  // 42: chain.lifecycle.v1.FlowTimelineItemView.step:type_name -> chain.lifecycle.v1.FlowStep
-	6,  // 43: chain.lifecycle.v1.FlowTimelineItemView.status:type_name -> chain.lifecycle.v1.FlowTimelineStatus
-	14, // 44: chain.lifecycle.v1.FlowDetailView.summary:type_name -> chain.lifecycle.v1.FlowSummaryView
-	16, // 45: chain.lifecycle.v1.FlowDetailView.observed_steps:type_name -> chain.lifecycle.v1.FlowStepView
-	8,  // 46: chain.lifecycle.v1.LifecycleReadService.GetFlowById:input_type -> chain.lifecycle.v1.GetFlowByIdRequest
-	10, // 47: chain.lifecycle.v1.LifecycleReadService.ListFlows:input_type -> chain.lifecycle.v1.ListFlowsRequest
-	9,  // 48: chain.lifecycle.v1.LifecycleReadService.ListFlowsByTx:input_type -> chain.lifecycle.v1.ListFlowsByTxRequest
-	7,  // 49: chain.lifecycle.v1.LifecycleReadService.GetFlowById:output_type -> chain.lifecycle.v1.GetFlowResponse
-	11, // 50: chain.lifecycle.v1.LifecycleReadService.ListFlows:output_type -> chain.lifecycle.v1.ListFlowsResponse
-	13, // 51: chain.lifecycle.v1.LifecycleReadService.ListFlowsByTx:output_type -> chain.lifecycle.v1.ListFlowsByTxResponse
-	49, // [49:52] is the sub-list for method output_type
-	46, // [46:49] is the sub-list for method input_type
-	46, // [46:46] is the sub-list for extension type_name
-	46, // [46:46] is the sub-list for extension extendee
-	0,  // [0:46] is the sub-list for field type_name
+	4,  // 7: chain.lifecycle.v1.ListFlowsRequest.participation:type_name -> chain.lifecycle.v1.FlowParticipation
+	15, // 8: chain.lifecycle.v1.ListFlowsResponse.flows:type_name -> chain.lifecycle.v1.FlowSummaryView
+	21, // 9: chain.lifecycle.v1.FlowTxMatchView.flow_kind:type_name -> chain.lifecycle.v1.FlowKind
+	23, // 10: chain.lifecycle.v1.FlowTxMatchView.source_domain:type_name -> chain.lifecycle.v1.FlowDomain
+	23, // 11: chain.lifecycle.v1.FlowTxMatchView.destination_domain:type_name -> chain.lifecycle.v1.FlowDomain
+	5,  // 12: chain.lifecycle.v1.FlowTxMatchView.current_step:type_name -> chain.lifecycle.v1.FlowStep
+	24, // 13: chain.lifecycle.v1.FlowTxMatchView.asset_ids:type_name -> chain.lifecycle.v1.AssetIds
+	25, // 14: chain.lifecycle.v1.FlowTxMatchView.amount_e18:type_name -> polyester.type.v1.U128
+	26, // 15: chain.lifecycle.v1.FlowTxMatchView.lifecycle_reason:type_name -> chain.lifecycle.v1.LifecycleReason
+	27, // 16: chain.lifecycle.v1.FlowTxMatchView.zipper_reason:type_name -> chain.zipper.v1.ZipperReasonDetails
+	13, // 17: chain.lifecycle.v1.ListFlowsByTxResponse.matches:type_name -> chain.lifecycle.v1.FlowTxMatchView
+	21, // 18: chain.lifecycle.v1.FlowSummaryView.flow_kind:type_name -> chain.lifecycle.v1.FlowKind
+	5,  // 19: chain.lifecycle.v1.FlowSummaryView.current_step:type_name -> chain.lifecycle.v1.FlowStep
+	24, // 20: chain.lifecycle.v1.FlowSummaryView.asset_ids:type_name -> chain.lifecycle.v1.AssetIds
+	25, // 21: chain.lifecycle.v1.FlowSummaryView.amount_e18:type_name -> polyester.type.v1.U128
+	28, // 22: chain.lifecycle.v1.FlowSummaryView.request_fee:type_name -> chain.lifecycle.v1.RequestFee
+	23, // 23: chain.lifecycle.v1.FlowSummaryView.source_domain:type_name -> chain.lifecycle.v1.FlowDomain
+	23, // 24: chain.lifecycle.v1.FlowSummaryView.destination_domain:type_name -> chain.lifecycle.v1.FlowDomain
+	29, // 25: chain.lifecycle.v1.FlowSummaryView.latest_lifecycle_source:type_name -> chain.lifecycle.v1.LifecycleSource
+	26, // 26: chain.lifecycle.v1.FlowSummaryView.lifecycle_reason:type_name -> chain.lifecycle.v1.LifecycleReason
+	27, // 27: chain.lifecycle.v1.FlowSummaryView.zipper_reason:type_name -> chain.zipper.v1.ZipperReasonDetails
+	16, // 28: chain.lifecycle.v1.FlowSummaryView.current_progress:type_name -> chain.lifecycle.v1.FlowSummaryProgressView
+	19, // 29: chain.lifecycle.v1.FlowSummaryView.progress_timeline:type_name -> chain.lifecycle.v1.FlowTimelineItemView
+	4,  // 30: chain.lifecycle.v1.FlowSummaryView.participation:type_name -> chain.lifecycle.v1.FlowParticipation
+	5,  // 31: chain.lifecycle.v1.FlowStepView.step:type_name -> chain.lifecycle.v1.FlowStep
+	24, // 32: chain.lifecycle.v1.FlowStepView.asset_ids:type_name -> chain.lifecycle.v1.AssetIds
+	25, // 33: chain.lifecycle.v1.FlowStepView.amount_e18:type_name -> polyester.type.v1.U128
+	28, // 34: chain.lifecycle.v1.FlowStepView.request_fee:type_name -> chain.lifecycle.v1.RequestFee
+	29, // 35: chain.lifecycle.v1.FlowStepView.lifecycle_source:type_name -> chain.lifecycle.v1.LifecycleSource
+	26, // 36: chain.lifecycle.v1.FlowStepView.lifecycle_reason:type_name -> chain.lifecycle.v1.LifecycleReason
+	27, // 37: chain.lifecycle.v1.FlowStepView.zipper_reason:type_name -> chain.zipper.v1.ZipperReasonDetails
+	18, // 38: chain.lifecycle.v1.FlowStepView.activities:type_name -> chain.lifecycle.v1.FlowStepActivityView
+	29, // 39: chain.lifecycle.v1.FlowStepActivityView.lifecycle_source:type_name -> chain.lifecycle.v1.LifecycleSource
+	26, // 40: chain.lifecycle.v1.FlowStepActivityView.lifecycle_reason:type_name -> chain.lifecycle.v1.LifecycleReason
+	27, // 41: chain.lifecycle.v1.FlowStepActivityView.zipper_reason:type_name -> chain.zipper.v1.ZipperReasonDetails
+	6,  // 42: chain.lifecycle.v1.FlowStepActivityView.kind:type_name -> chain.lifecycle.v1.FlowStepActivityKind
+	25, // 43: chain.lifecycle.v1.FlowStepActivityView.amount_e18:type_name -> polyester.type.v1.U128
+	5,  // 44: chain.lifecycle.v1.FlowTimelineItemView.step:type_name -> chain.lifecycle.v1.FlowStep
+	7,  // 45: chain.lifecycle.v1.FlowTimelineItemView.status:type_name -> chain.lifecycle.v1.FlowTimelineStatus
+	15, // 46: chain.lifecycle.v1.FlowDetailView.summary:type_name -> chain.lifecycle.v1.FlowSummaryView
+	17, // 47: chain.lifecycle.v1.FlowDetailView.observed_steps:type_name -> chain.lifecycle.v1.FlowStepView
+	9,  // 48: chain.lifecycle.v1.LifecycleReadService.GetFlowById:input_type -> chain.lifecycle.v1.GetFlowByIdRequest
+	11, // 49: chain.lifecycle.v1.LifecycleReadService.ListFlows:input_type -> chain.lifecycle.v1.ListFlowsRequest
+	10, // 50: chain.lifecycle.v1.LifecycleReadService.ListFlowsByTx:input_type -> chain.lifecycle.v1.ListFlowsByTxRequest
+	8,  // 51: chain.lifecycle.v1.LifecycleReadService.GetFlowById:output_type -> chain.lifecycle.v1.GetFlowResponse
+	12, // 52: chain.lifecycle.v1.LifecycleReadService.ListFlows:output_type -> chain.lifecycle.v1.ListFlowsResponse
+	14, // 53: chain.lifecycle.v1.LifecycleReadService.ListFlowsByTx:output_type -> chain.lifecycle.v1.ListFlowsByTxResponse
+	51, // [51:54] is the sub-list for method output_type
+	48, // [48:51] is the sub-list for method input_type
+	48, // [48:48] is the sub-list for extension type_name
+	48, // [48:48] is the sub-list for extension extendee
+	0,  // [0:48] is the sub-list for field type_name
 }
 
 func init() { file_chain_lifecycle_v1_lifecycle_read_proto_init() }
@@ -2516,7 +2615,7 @@ func file_chain_lifecycle_v1_lifecycle_read_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc), len(file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc)),
-			NumEnums:      7,
+			NumEnums:      8,
 			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
