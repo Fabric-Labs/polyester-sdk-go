@@ -102,3 +102,33 @@ func TestRealtimeURLErrorsRedactUserinfo(t *testing.T) {
 		}
 	}
 }
+
+// failingTransport fails every request without reaching a server.
+type failingTransport struct{}
+
+func (failingTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, errors.New("connection failed")
+}
+
+// The standard client masks the password in a transport error but keeps the
+// user name; neither may reach the error from either token path.
+func TestTokenTransportErrorsRedactURLUserinfo(t *testing.T) {
+	const apiURL = "https://fake-user:" + fakeURLPassword + "@api.example.test"
+	client := &http.Client{Transport: failingTransport{}}
+	errs := map[string]error{}
+	_, errs["connection token"] = fetchConnectionToken(context.Background(), client, testCreds(t), apiURL)
+	_, errs["subscription token"] = fetchSubscriptionToken(context.Background(), client, testCreds(t), apiURL, "orders:1")
+	for name, err := range errs {
+		if err == nil {
+			t.Fatalf("%s: want an error", name)
+		}
+		for _, rendered := range []string{err.Error(), fmt.Sprintf("%+v", err), fmt.Sprintf("%#v", err)} {
+			if strings.Contains(rendered, fakeURLPassword) || strings.Contains(rendered, "fake-user") {
+				t.Errorf("%s: error leaked URL userinfo: %s", name, rendered)
+			}
+		}
+		if !strings.Contains(err.Error(), "api.example.test") || !strings.Contains(err.Error(), "connection failed") {
+			t.Errorf("%s: error should keep the host and cause: %s", name, err)
+		}
+	}
+}
