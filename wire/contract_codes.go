@@ -169,6 +169,23 @@ func IsRecognisedRESTCode(code string) bool {
 	return false
 }
 
+// ErrorCodeFromREST names a REST problem code as its typed ConnectRPC detail
+// does: SAME_SOURCE_DESTINATION reads ERROR_CODE_SAME_SOURCE_DESTINATION when
+// any service's ErrorCode (orders, withdraw, transfer, ledger) names it. A code
+// none of them names is returned unchanged.
+func ErrorCodeFromREST(code string) string {
+	prefixed := code
+	if !strings.HasPrefix(code, "ERROR_CODE_") {
+		prefixed = "ERROR_CODE_" + code
+	}
+	for _, enum := range []map[string]int32{orderv1.ErrorCode_value, withdrawv1.ErrorCode_value, transferv1.ErrorCode_value, ledgerrdv1.ErrorCode_value} {
+		if _, ok := enum[prefixed]; ok {
+			return prefixed
+		}
+	}
+	return code
+}
+
 // IsRouteNotFoundMessage reports whether message is a router's own answer for a
 // path it doesn't know.
 func IsRouteNotFoundMessage(message string) bool {
