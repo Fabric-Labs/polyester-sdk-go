@@ -70,3 +70,15 @@ func TestRefusalCodeIsTheSameOverRESTAndConnect(t *testing.T) {
 		})
 	}
 }
+
+// INVALID_REQUEST is an auth, transfer and withdraw code; REST can't say which
+// service refused, so it stays as sent and still reads as an auth code.
+func TestRESTCodeTheAuthServiceAlsoNamesStaysAsSent(t *testing.T) {
+	err := callMeAgainst(t, 400, "application/problem+json", `{"code":"INVALID_REQUEST","status":400,"detail":"refused"}`)
+	if got := errorCode(err); got != "INVALID_REQUEST" {
+		t.Fatalf("REST code = %q (%T), want INVALID_REQUEST", got, err)
+	}
+	if got := sdkerrors.AuthErrorCode(err); got != "AUTH_INVALID_REQUEST" {
+		t.Fatalf("AuthErrorCode = %q, want AUTH_INVALID_REQUEST", got)
+	}
+}
