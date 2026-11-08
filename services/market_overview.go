@@ -34,7 +34,8 @@ func (s *MarketOverviewService) client() marketoverviewv1connect.MarketOverviewS
 
 // List reads one overview page. The legacy string argument before
 // includeSparklines is ignored; pass the returned NextPageToken as the optional
-// final argument to continue with the same filters.
+// final argument to continue with the same filters. With includeSparklines,
+// each row's Sparklines holds the sparklines the server sent.
 func (s *MarketOverviewService) List(ctx context.Context, symbols []string, limit int, _ string, includeSparklines bool, pageToken ...string) (models.MarketOverviewList, error) {
 	parsedLimit, err := PaginationLimit(limit, "limit")
 	if err != nil {
@@ -193,6 +194,10 @@ func (s *MarketOverviewService) CreateSubscription(ctx context.Context, opts Mar
 	applyRows := func(rows []models.MarketOverviewEntry) {
 		for _, row := range rows {
 			if matches(row) {
+				// Live publications carry no sparklines: keep the snapshot's.
+				if previous, ok := bySymbolID[row.SymbolID]; ok && len(row.Sparklines) == 0 {
+					row.Sparklines = previous.Sparklines
+				}
 				bySymbolID[row.SymbolID] = row
 			}
 		}

@@ -71,6 +71,19 @@ type MarketOverviewEntry struct {
 	Volume24HBase        *string    `json:"volume_24h_base,omitempty"`
 	Volume24HQuoteScaled *string    `json:"volume_24h_quote_scaled,omitempty"`
 	Volume24HUsdScaled   *string    `json:"volume_24h_usd_scaled,omitempty"`
+	// Change24hBps is the change of the last price over 24 hours, in basis points.
+	Change24hBps int32 `json:"change_24h_bps"`
+	// Sparklines holds the sparklines the server sent, only when
+	// includeSparklines was requested.
+	Sparklines []MarketOverviewSparkline `json:"sparklines,omitempty"`
+}
+
+// MarketOverviewSparkline is a market's recent closing prices over Interval,
+// newest first.
+type MarketOverviewSparkline struct {
+	// Interval is SPARKLINE_1H, SPARKLINE_24H, SPARKLINE_1W or SPARKLINE_1M.
+	Interval    string       `json:"interval"`
+	ClosePrices []PriceTicks `json:"close_prices"`
 }
 
 // MarketOverviewList holds overview rows.

@@ -26,11 +26,17 @@ const (
 // covering it, so the snapshot never holds fewer levels than asked. 0 is the
 // default 50. A depth below 0 or above 1000 is a ValidationError.
 func OrderbookSnapshotDepth(depth int) (int, error) {
+	return coveringSnapshotDepth(depth, "orderbook snapshot depth")
+}
+
+// coveringSnapshotDepth is depth when it is a snapshot depth, else the smallest
+// one covering it; 0 is the default 50. what names the depth in refusals.
+func coveringSnapshotDepth(depth int, what string) (int, error) {
 	if depth == 0 {
 		return orderbookSnapshotDefaultDepth, nil
 	}
 	if depth < 0 {
-		return 0, &errors.ValidationError{Msg: fmt.Sprintf("orderbook snapshot depth must not be negative, got %d", depth)}
+		return 0, &errors.ValidationError{Msg: fmt.Sprintf("%s must not be negative, got %d", what, depth)}
 	}
 	for _, tier := range orderbookSnapshotDepths {
 		if tier >= depth {
@@ -38,7 +44,7 @@ func OrderbookSnapshotDepth(depth int) (int, error) {
 		}
 	}
 	return 0, &errors.ValidationError{Msg: fmt.Sprintf(
-		"orderbook snapshot depth %d is above the deepest snapshot depth (%d)", depth, orderbookSnapshotMaxDepth,
+		"%s %d is above the deepest snapshot depth (%d)", what, depth, orderbookSnapshotMaxDepth,
 	)}
 }
 
