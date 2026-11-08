@@ -22,6 +22,10 @@ type Config struct {
 	WSURL      string
 	Timeout    time.Duration
 	WireFormat connectx.WireFormat
+	// RecvWindowMS is the receive window of every signed Connect request, in
+	// milliseconds (1 to 60000); 0 sends no window and the server applies
+	// 10000.
+	RecvWindowMS int
 }
 
 // WireFormatFromString parses a wire format name.
@@ -65,6 +69,7 @@ func NewFactory(cfg Config, creds *auth.Credentials, httpClient *http.Client) *F
 	}
 	if creds != nil {
 		f.authInterceptor = NewAPIKeyInterceptor(creds, cfg.APIURL, cfg.WireFormat)
+		f.authInterceptor.RecvWindowMS = cfg.RecvWindowMS
 	}
 	return f
 }

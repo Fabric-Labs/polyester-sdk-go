@@ -64,7 +64,8 @@ func IsWalletAlreadyLinked(err error) bool {
 // writes and balance reads answer them on Connect as unauthenticated with an
 // auth.v1.AuthErrorDetail; REST problem bodies name them without the AUTH_
 // prefix. Only AuthCodeTimestampSkew is retryable, as TimestampSkewError; the
-// others need a change by the caller.
+// others need a change by the caller. AuthCodeReplayCapacityExhausted is not a
+// credentials refusal: it is a retryable *RateLimitError.
 const (
 	// AuthCodeSignatureInvalid: the signature does not verify, or the key is unknown.
 	AuthCodeSignatureInvalid = "AUTH_SIGNATURE_INVALID"
@@ -82,7 +83,54 @@ const (
 	AuthCodeIPNotAllowed = "AUTH_IP_NOT_ALLOWED"
 	// AuthCodeAPIKeyNotAccepted: the API does not accept API keys.
 	AuthCodeAPIKeyNotAccepted = "AUTH_API_KEY_NOT_ACCEPTED"
+	// AuthCodeRecvWindowInvalid: the X-API-RECV-WINDOW header is not one
+	// whole number of milliseconds from 1 to 60000, is empty, or is repeated
+	// (REST RECV_WINDOW_INVALID, HTTP 401; Connect unauthenticated). The
+	// request was not processed, and the same header is refused again: fix
+	// Config.RecvWindow. Read it with IsRecvWindowInvalid.
+	AuthCodeRecvWindowInvalid = "AUTH_RECV_WINDOW_INVALID"
 )
+
+// AuthCodeReplayCapacityExhausted refuses a signed API-key request because
+// the key, or its account, holds its full share of the server's replay record:
+// every signed request is remembered until its receive window ends (REST
+// REPLAY_CAPACITY_EXHAUSTED, HTTP 429; Connect resource_exhausted with an
+// auth.v1.AuthErrorDetail). It is a *RateLimitError with this Code, not an
+// authentication failure: the credentials are valid, the request was not
+// processed, and the share frees as earlier requests' windows end.
+// IsRetryable reports it. It carries no Retry-After, so
+// RetryAfter is nil unless the response named one: back off briefly, then
+// send again, which signs again with a fresh timestamp. A shorter
+// Config.RecvWindow makes room sooner. Read it with IsReplayCapacityExhausted.
+const AuthCodeReplayCapacityExhausted = "AUTH_REPLAY_CAPACITY_EXHAUSTED"
+
+// IsRecvWindowInvalid reports whether err refuses the request's
+// X-API-RECV-WINDOW header (AUTH_RECV_WINDOW_INVALID).
+func IsRecvWindowInvalid(err error) bool {
+	return AuthErrorCode(err) == AuthCodeRecvWindowInvalid
+}
+
+// IsReplayCapacityExhausted reports whether err refuses a signed request
+// because the key's or account's share of the replay record is full
+// (AUTH_REPLAY_CAPACITY_EXHAUSTED). It is retryable after a short backoff.
+func IsReplayCapacityExhausted(err error) bool {
+	return AuthErrorCode(err) == AuthCodeReplayCapacityExhausted
+}
+
+// CodeRequestDeadlineExceeded is the code of an *APIError for an order or
+// trigger write whose receive window ended before it was sent on for
+// admission (ERROR_CODE_REQUEST_DEADLINE_EXCEEDED, 308; REST 400
+// REQUEST_DEADLINE_EXCEEDED, Connect failed_precondition). It passed
+// authentication, but nothing changed and it is never an unknown outcome:
+// IsRetryable reports it, and sending it again signs it with a fresh
+// timestamp. Read it with IsRequestDeadlineExceeded.
+const CodeRequestDeadlineExceeded = "ERROR_CODE_REQUEST_DEADLINE_EXCEEDED"
+
+// IsRequestDeadlineExceeded reports whether err refuses a write whose receive
+// window ended before admission (ERROR_CODE_REQUEST_DEADLINE_EXCEEDED).
+func IsRequestDeadlineExceeded(err error) bool {
+	return err != nil && apiErrorCode(err) == CodeRequestDeadlineExceeded
+}
 
 // AuthErrorCode returns the auth.v1.AuthErrorCode name of err, such as
 // "AUTH_SIGNATURE_INVALID", or "" when err carries no auth reason. It reads
@@ -90,12 +138,17 @@ const (
 // REST code gains the AUTH_ prefix ("IP_NOT_ALLOWED" reads
 // "AUTH_IP_NOT_ALLOWED"), and REST "UNAUTHENTICATED" reads
 // "AUTH_AUTHENTICATION_REQUIRED". A TimestampSkewError reads
-// "AUTH_TIMESTAMP_SKEW" and a SessionRequiredError
-// "AUTH_SESSION_KIND_NOT_ALLOWED". Compare with the AuthCode* constants.
+// "AUTH_TIMESTAMP_SKEW", a SessionRequiredError
+// "AUTH_SESSION_KIND_NOT_ALLOWED", and a RateLimitError its auth code, such as
+// "AUTH_REPLAY_CAPACITY_EXHAUSTED". Compare with the AuthCode* constants.
 func AuthErrorCode(err error) string {
 	var skewErr *TimestampSkewError
 	if errors.As(err, &skewErr) {
 		return AuthCodeTimestampSkew
+	}
+	var rateErr *RateLimitError
+	if errors.As(err, &rateErr) && strings.HasPrefix(rateErr.Code, "AUTH_") {
+		return rateErr.Code
 	}
 	var apiErr *APIError
 	if errors.As(err, &apiErr) {
@@ -508,7 +561,9 @@ func (e *QueueOverflowError) Is(target error) bool { return target == ErrPolyest
 // Unknown mutation outcomes always return false, including bare server and
 // transport failures. Read back before sending a mutation again; safe reads
 // may retry explicitly. A client order ID enables lookup, not exact replay.
-// Explicit admission refusals, timestamp skew and account repairing may retry.
+// Explicit admission refusals, rate refusals (including replay capacity),
+// timestamp skew, a request deadline exceeded before admission and account
+// repairing may retry.
 func IsRetryable(err error) bool {
 	var transportErr *TransportError
 	var rateLimitErr *RateLimitError
@@ -523,6 +578,7 @@ func IsRetryable(err error) bool {
 		errors.As(err, &serverErr) ||
 		errors.As(err, &skewErr) ||
 		code == "ERROR_CODE_ACCOUNT_REPAIRING" ||
+		code == CodeRequestDeadlineExceeded ||
 		code == AuthCodeTemporarilyUnavailable
 }
 

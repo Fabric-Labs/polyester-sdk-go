@@ -277,3 +277,18 @@ func TestWaitForCatalogsHonorsContextCancellation(t *testing.T) {
 		t.Fatalf("expected context cancellation, got %v", err)
 	}
 }
+
+func TestNewRefusesARecvWindowTheServerWouldRefuse(t *testing.T) {
+	for _, window := range []time.Duration{-time.Millisecond, 1500 * time.Microsecond, time.Microsecond, 60*time.Second + time.Millisecond} {
+		if _, err := New(Config{RecvWindow: window}); err == nil || !strings.Contains(err.Error(), "RecvWindow") {
+			t.Fatalf("RecvWindow %s: err = %v, want a validation error", window, err)
+		}
+	}
+	for _, window := range []time.Duration{0, time.Millisecond, 5 * time.Second, 60 * time.Second} {
+		client, err := New(Config{RecvWindow: window})
+		if err != nil {
+			t.Fatalf("RecvWindow %s: %v", window, err)
+		}
+		_ = client.Close()
+	}
+}

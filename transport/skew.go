@@ -41,6 +41,8 @@ var restCodeForm = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
 //   - a retryable admission problem, such as a 429 RATE_LIMIT_EXCEEDED, as
 //     *errors.RateLimitError with the problem's rate_limit detail and the
 //     response's Retry-After;
+//   - a 429 REPLAY_CAPACITY_EXHAUSTED problem as *errors.RateLimitError with
+//     code AUTH_REPLAY_CAPACITY_EXHAUSTED;
 //   - an outcome-unknown mutation problem as *errors.APIError, including
 //     codes introduced by a newer server before SDK regeneration;
 //   - a problem that lists field violations as *errors.ValidationError;
@@ -158,6 +160,20 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 					rate.RetryAfter = seconds
 				}
 			}
+		}
+	case detail.Code == "REPLAY_CAPACITY_EXHAUSTED" || detail.Code == sdkerrors.AuthCodeReplayCapacityExhausted:
+		// Valid credentials, not processed: a retryable rate refusal that
+		// takes Retry-After only when the response names one.
+		// The message is set afterwards: a code-shaped message would read as
+		// a service code rather than a rate refusal.
+		connectErr := connect.NewError(connect.CodeResourceExhausted, errors.New("replay capacity exhausted"))
+		for name, values := range resp.Header {
+			connectErr.Meta()[name] = values
+		}
+		mapped = wire.MapConnectError(connectErr)
+		if rate, ok := mapped.(*sdkerrors.RateLimitError); ok {
+			rate.Code = sdkerrors.AuthCodeReplayCapacityExhausted
+			rate.Msg = firstNonEmpty(msg, detail.Code)
 		}
 	case detail.Code == "ORDER_SEQUENCE_EXHAUSTED" || detail.Code == "ERROR_CODE_ORDER_SEQUENCE_EXHAUSTED":
 		if msg == "" {

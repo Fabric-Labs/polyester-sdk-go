@@ -662,6 +662,19 @@ type LifecycleFlowSummary struct {
 	SmartAccountAddress string               `json:"smart_account_address,omitempty"`
 	LifecycleReason     string               `json:"lifecycle_reason,omitempty"`
 	ZipperReason        *ZipperReasonDetails `json:"zipper_reason,omitempty"`
+	// Participation is how the selected account takes part in the flow, on a
+	// ListFlows row of a list that selects an account: "owner" (its deposit,
+	// withdrawal or a transfer it sent, including a move between its own
+	// balances) or "recipient" (a transfer another account sent to it). It is
+	// "unspecified" on an unscoped list, a flow detail and a realtime update,
+	// and empty on a transaction lookup.
+	Participation string `json:"participation,omitempty"`
+	// SourceAddress and DestinationAddress are the flow's source and
+	// destination addresses. For a transfer, the counterparty is
+	// DestinationAddress when the account sent it and SourceAddress (with
+	// OwnerAccountID) when it received it.
+	SourceAddress      string `json:"source_address,omitempty"`
+	DestinationAddress string `json:"destination_address,omitempty"`
 }
 
 // LifecycleFlowsList lists lifecycle flows.

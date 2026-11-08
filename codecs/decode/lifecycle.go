@@ -105,6 +105,22 @@ func flowStepLabel(step lifecyclev1.FlowStep) string {
 	}
 }
 
+// flowParticipationLabel names a FlowParticipation the way the REST API
+// spells it, lowercased. A value newer than this SDK reads
+// unknown_participation_<n>, never as unspecified.
+func flowParticipationLabel(participation lifecyclev1.FlowParticipation) string {
+	switch participation {
+	case lifecyclev1.FlowParticipation_PARTICIPATION_UNSPECIFIED:
+		return "unspecified"
+	case lifecyclev1.FlowParticipation_PARTICIPATION_OWNER:
+		return "owner"
+	case lifecyclev1.FlowParticipation_PARTICIPATION_RECIPIENT:
+		return "recipient"
+	default:
+		return fmt.Sprintf("unknown_participation_%d", int32(participation))
+	}
+}
+
 func flowSummary(msg *lifecyclev1.FlowSummaryView) models.LifecycleFlowSummary {
 	if msg == nil {
 		return models.LifecycleFlowSummary{}
@@ -120,6 +136,9 @@ func flowSummary(msg *lifecyclev1.FlowSummaryView) models.LifecycleFlowSummary {
 		SmartAccountAddress: msg.GetSmartAccountAddress(),
 		LifecycleReason:     lifecycleReasonLabel(msg.GetLifecycleReason()),
 		ZipperReason:        zipperReasonFromProto(msg.GetZipperReason()),
+		Participation:       flowParticipationLabel(msg.GetParticipation()),
+		SourceAddress:       msg.GetSourceAddress(),
+		DestinationAddress:  msg.GetDestinationAddress(),
 	}
 }
 
@@ -164,6 +183,8 @@ func flowTxMatch(msg *lifecyclev1.FlowTxMatchView) models.LifecycleFlowSummary {
 		SmartAccountAddress: msg.GetSmartAccountAddress(),
 		LifecycleReason:     lifecycleReasonLabel(msg.GetLifecycleReason()),
 		ZipperReason:        zipperReasonFromProto(msg.GetZipperReason()),
+		SourceAddress:       msg.GetSourceAddress(),
+		DestinationAddress:  msg.GetDestinationAddress(),
 	}
 }
 

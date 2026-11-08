@@ -18,6 +18,9 @@ type APIKeyInterceptor struct {
 	Credentials *auth.Credentials
 	BaseURL     string
 	WireFormat  connectx.WireFormat
+	// RecvWindowMS is each request's receive window in milliseconds, sent as
+	// the signed X-API-RECV-WINDOW header; 0 sends none.
+	RecvWindowMS int
 }
 
 // NewAPIKeyInterceptor constructs an API-key signing interceptor.
@@ -45,7 +48,7 @@ func (i *APIKeyInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc 
 			method = http.MethodPost
 		}
 		signURL := auth.RequestURL(i.BaseURL, req.Spec().Procedure)
-		headers, err := auth.SignRequest(i.Credentials, method, signURL, body, "")
+		headers, err := auth.SignRequestWithRecvWindow(i.Credentials, method, signURL, body, "", i.RecvWindowMS)
 		if err != nil {
 			return nil, err
 		}

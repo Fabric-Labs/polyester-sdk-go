@@ -219,6 +219,17 @@ between processes can produce identical authentication tuples. Timestamps can le
 by at most five seconds; larger bursts are backpressured instead of reusing a signature or drifting
 outside the API's 10-second freshness window.
 
+`Config.RecvWindow` sets the receive window of every signed API request: the server processes a
+request only until its signing timestamp plus the window, sent as the signed `X-API-RECV-WINDOW`
+header. It must be whole milliseconds from 1ms to 60s, and `polyester.New` refuses any other value
+with `errors.ValidationError` before anything is sent. Zero sends no header, and the server applies
+10 seconds. A request that arrives after its window is refused as the retryable
+`errors.TimestampSkewError`; one that waited past it before admission is refused as
+`errors.CodeRequestDeadlineExceeded`, also retryable. Both changed nothing, and a retry signs again
+with a fresh timestamp. Realtime token requests always use the default window. To sign requests
+yourself, `auth.SignRequestWithRecvWindow` and `auth.CanonicalSigningStringWithRecvWindow` insert the
+window's line right after the timestamp line.
+
 `Config`, `auth.Credentials`, `auth.Secret` (the same type as `models.Secret`),
 `models.Ed25519Keypair` from `APIKeys.GenerateKeypair` and `models.ExportGuardSignerWalletResult`
 from `GuardSigner.ExportWallet` never reveal the private key when printed with `fmt`
@@ -480,6 +491,13 @@ On REST outcome-unknown and refusal errors (including HTTP 400, 409, 412 and 422
 
 `ERROR_CODE_ACCOUNT_REPAIRING` and `AUTH_TEMPORARILY_UNAVAILABLE` changed
 nothing and `errors.IsRetryable` reports true: retry the same request shortly.
+`errors.CodeRequestDeadlineExceeded` (`ERROR_CODE_REQUEST_DEADLINE_EXCEEDED`,
+REST 400 `REQUEST_DEADLINE_EXCEEDED`, Connect `failed_precondition`) refuses an
+order or trigger write whose receive window (10 seconds by default) ended
+before it was sent on for admission. It is an `errors.APIError` that
+`errors.IsRequestDeadlineExceeded` reports; nothing changed, it is never an
+unknown outcome, and `errors.IsRetryable` reports true: sending it again signs
+it with a fresh timestamp.
 `errors.TimestampSkewError` (`TIMESTAMP_SKEW`) means the API-key signature
 timestamp fell outside the server's window, for example after waiting in a
 large concurrent burst or with a drifting clock. It changed nothing and is
@@ -506,10 +524,22 @@ prefix added (`UNAUTHENTICATED` reads `AUTH_AUTHENTICATION_REQUIRED`). An
 API key refused by order reads, order and trigger writes or balance reads is
 an `*errors.AuthError` whose code is one of `errors.AuthCodeSignatureInvalid`,
 `AuthCodeMissingHeaders`, `AuthCodeKeyExpired`, `AuthCodeKeyDisabled`,
-`AuthCodeIPNotAllowed` or `AuthCodeAPIKeyNotAccepted`; none is retryable
-without a change by the caller (fix the signature, the key, or the calling
-address). `AUTH_TIMESTAMP_SKEW` is the retryable `errors.TimestampSkewError`
-above, from either transport. `errors.AuthCodeWalletAlreadyLinked`
+`AuthCodeIPNotAllowed`, `AuthCodeAPIKeyNotAccepted` or
+`AuthCodeRecvWindowInvalid`; none is retryable without a change by the caller
+(fix the signature, the key, the calling address, or `Config.RecvWindow`).
+`errors.IsRecvWindowInvalid(err)` reports `AUTH_RECV_WINDOW_INVALID` (REST 401
+`RECV_WINDOW_INVALID`), an `X-API-RECV-WINDOW` header that is not one whole
+number from 1 to 60000. `AUTH_TIMESTAMP_SKEW` is the retryable
+`errors.TimestampSkewError` above, from either transport.
+`errors.AuthCodeReplayCapacityExhausted` (`AUTH_REPLAY_CAPACITY_EXHAUSTED`,
+REST 429 `REPLAY_CAPACITY_EXHAUSTED`, Connect `resource_exhausted`) is not a
+credentials refusal: the server remembers every signed request until its
+receive window ends, so it cannot be replayed, and the key or its account
+holds its full share of that record. The request was not processed and the
+share frees as earlier windows end, so it is an `errors.RateLimitError` with
+that `Code`, and `errors.IsRetryable` and `errors.IsReplayCapacityExhausted`
+report true. It carries no `Retry-After`: back off briefly and send again,
+which signs again. A shorter `Config.RecvWindow` makes room sooner. `errors.AuthCodeWalletAlreadyLinked`
 (`AUTH_WALLET_ALREADY_LINKED`, Connect `already_exists`, REST 409) refuses a
 wallet login whose wallet is already linked to another account; it is terminal,
 and `errors.IsWalletAlreadyLinked(err)` reports it. Log in with the account
@@ -1546,6 +1576,30 @@ account.
 | `orderbook/` | Local book merge + managed subscription |
 | `codecs/` | Request encoding, scalar helpers, decode |
 | `gen/` | Checked-in Connect + protobuf generated code |
+
+## Lifecycle flow lists
+
+A flow list that selects an account (`OwnerAccountID` or
+`SmartAccountAddress`) returns the flows it owns and the transfers other
+accounts sent to it, such as a transfer from another user or sub-account, or a
+reward payout. Each row's `Participation` says which: `"owner"` (its deposit,
+withdrawal, or a transfer it sent, including a move between its own Funding
+and Trading balances) or `"recipient"`. For a transfer, the counterparty is
+`DestinationAddress` when the account sent it and `SourceAddress` (with
+`OwnerAccountID`) when it received it. `ListFlowsWith` narrows the list to one
+side; the server refuses `Participation` without an account.
+
+```go
+owner, received := "YOUR_ACCOUNT_ID", "recipient"
+page, err := client.Lifecycle.ListFlowsWith(ctx, services.ListFlowsParams{
+	OwnerAccountID: &owner,
+	Participation:  &received,
+	Limit:          20,
+})
+```
+
+A page token is bound to the request it was returned for: continue with the
+same account, participation, scope and order; only `Limit` may change.
 
 ## Lifecycle transaction lookups
 
