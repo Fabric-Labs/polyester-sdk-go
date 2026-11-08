@@ -62,7 +62,7 @@ func guardApprovalService(t *testing.T, wire connectx.WireFormat, rotateApproval
 		mux.ServeHTTP(w, r)
 	}))
 	t.Cleanup(server.Close)
-	creds, err := auth.LoadCredentials("ak_local", auth.GenerateEd25519Keypair().SecretKeyHex, false)
+	creds, err := auth.LoadCredentials("ak_local", auth.GenerateEd25519Keypair().SecretKeyHex.Reveal(), false)
 	if err != nil {
 		t.Fatal(err)
 	}

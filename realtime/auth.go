@@ -12,6 +12,7 @@ import (
 
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
+	"github.com/Fabric-Labs/polyester-sdk-go/internal/redact"
 	"github.com/Fabric-Labs/polyester-sdk-go/useragent"
 )
 
@@ -98,7 +99,7 @@ func authHTTPError(status int, label string, body []byte) error {
 func signedGet(ctx context.Context, httpClient *http.Client, creds *auth.Credentials, rawURL, label string, maxBytes int) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
-		return nil, err
+		return nil, redact.URLError(err)
 	}
 	headers, err := auth.SignRequest(creds, http.MethodGet, rawURL, nil, "")
 	if err != nil {
@@ -109,7 +110,7 @@ func signedGet(ctx context.Context, httpClient *http.Client, creds *auth.Credent
 	}
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, redact.URLError(err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if contentLengthExceedsLimit(resp.Header, maxBytes) {
@@ -131,8 +132,9 @@ func signedGet(ctx context.Context, httpClient *http.Client, creds *auth.Credent
 		fallthrough
 	case http.StatusUnauthorized:
 		authErr := authHTTPError(resp.StatusCode, label, body).(*sdkerrors.AuthError)
-		authErr.Endpoint = rawURL
-		authErr.Msg += " [" + rawURL + "]"
+		endpoint := redact.URL(rawURL)
+		authErr.Endpoint = endpoint
+		authErr.Msg += " [" + endpoint + "]"
 		return nil, authErr
 	}
 	if resp.StatusCode >= 400 {

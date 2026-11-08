@@ -64,7 +64,7 @@ func TestM5NamedBalanceDecodeNoDoubleScale(t *testing.T) {
 	client, err := polyester.New(polyester.Config{
 		APIURL:          srv.URL,
 		APIKeyID:        "ak_test",
-		APIPrivateKey:   auth.NewSecret(kp.SecretKeyHex),
+		APIPrivateKey:   kp.SecretKeyHex,
 		HydrateCatalogs: false,
 		Timeout:         5 * time.Second,
 	})

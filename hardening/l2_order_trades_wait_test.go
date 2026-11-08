@@ -132,7 +132,7 @@ func newTradesWaitClientWith(t *testing.T, handler *tradesWaitServer, httpClient
 	client, err := polyester.New(polyester.Config{
 		APIURL:          srv.URL,
 		APIKeyID:        "ak_test",
-		APIPrivateKey:   auth.NewSecret(kp.SecretKeyHex),
+		APIPrivateKey:   kp.SecretKeyHex,
 		HydrateCatalogs: false,
 		// Far above every wait timeout below: a page read that outlives
 		// its wait shows up as a multi-second return.

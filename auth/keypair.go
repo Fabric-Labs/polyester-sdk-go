@@ -16,8 +16,8 @@ func GenerateEd25519Keypair() models.Ed25519Keypair {
 	seed := secretKey.Seed()
 	return models.Ed25519Keypair{
 		PublicKeyHex: hex.EncodeToString(publicKey),
-		SecretKeyHex: hex.EncodeToString(seed),
+		SecretKeyHex: NewSecret(hex.EncodeToString(seed)),
 		PublicKey:    publicKey,
-		SecretKey:    seed,
+		SecretKey:    NewSecret(string(seed)),
 	}
 }

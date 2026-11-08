@@ -81,7 +81,7 @@ func TestOrdersSubscribeUsesPrivateWebSocket(t *testing.T) {
 	defer srv.Close()
 
 	kp := auth.GenerateEd25519Keypair()
-	creds, err := auth.LoadCredentials("test-key", kp.SecretKeyHex, false)
+	creds, err := auth.LoadCredentials("test-key", kp.SecretKeyHex.Reveal(), false)
 	if err != nil {
 		t.Fatal(err)
 	}

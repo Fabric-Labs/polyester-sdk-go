@@ -59,5 +59,5 @@ func RotateWalletFromProto(msg *guardv1.RotateGuardSignerWalletResponse) models.
 }
 
 func ExportWalletFromProto(msg *guardv1.ExportGuardSignerWalletResponse) models.ExportGuardSignerWalletResult {
-	return models.ExportGuardSignerWalletResult{EncryptedPrivateKey: msg.GetPrivateKey()}
+	return models.ExportGuardSignerWalletResult{EncryptedPrivateKey: models.NewSecret(msg.GetPrivateKey())}
 }

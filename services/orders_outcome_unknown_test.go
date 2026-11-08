@@ -50,7 +50,7 @@ func TestOrderCreateNeverResendsUnknownOutcome(t *testing.T) {
 					_, _ = w.Write([]byte(tc.body))
 				}))
 				defer srv.Close()
-				creds, err := auth.LoadCredentials("ak_test", auth.GenerateEd25519Keypair().SecretKeyHex, false)
+				creds, err := auth.LoadCredentials("ak_test", auth.GenerateEd25519Keypair().SecretKeyHex.Reveal(), false)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -115,7 +115,7 @@ func TestGateway504ReadRetriesRemainSafe(t *testing.T) {
 						_, _ = w.Write(raw)
 					}))
 					defer srv.Close()
-					creds, err := auth.LoadCredentials("ak_test", auth.GenerateEd25519Keypair().SecretKeyHex, false)
+					creds, err := auth.LoadCredentials("ak_test", auth.GenerateEd25519Keypair().SecretKeyHex.Reveal(), false)
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -166,7 +166,7 @@ func TestClientTimeoutNeverReplaysCreate(t *testing.T) {
 		time.Sleep(200 * time.Millisecond)
 	}))
 	defer srv.Close()
-	creds, err := auth.LoadCredentials("ak_test", auth.GenerateEd25519Keypair().SecretKeyHex, false)
+	creds, err := auth.LoadCredentials("ak_test", auth.GenerateEd25519Keypair().SecretKeyHex.Reveal(), false)
 	if err != nil {
 		t.Fatal(err)
 	}

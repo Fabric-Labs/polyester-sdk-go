@@ -47,7 +47,7 @@ func newBatchStatusService(t *testing.T, handler *batchStatusHandler) *OrdersSer
 	mux.Handle(path, h)
 	srv := hardening.NewTestServer(mux)
 	t.Cleanup(srv.Close)
-	creds, err := auth.LoadCredentials("ak_test", auth.GenerateEd25519Keypair().SecretKeyHex, false)
+	creds, err := auth.LoadCredentials("ak_test", auth.GenerateEd25519Keypair().SecretKeyHex.Reveal(), false)
 	if err != nil {
 		t.Fatal(err)
 	}

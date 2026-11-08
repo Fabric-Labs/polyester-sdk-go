@@ -55,7 +55,7 @@ func cancellationClient(t *testing.T, handler http.Handler) *polyester.Client {
 	client, err := polyester.New(polyester.Config{
 		APIURL:          srv.URL,
 		APIKeyID:        "ak_test",
-		APIPrivateKey:   auth.NewSecret(kp.SecretKeyHex),
+		APIPrivateKey:   kp.SecretKeyHex,
 		HydrateCatalogs: false,
 		Timeout:         30 * time.Second,
 	})
