@@ -23,7 +23,7 @@ func TestRESTErrorsDoNotLeakURLUserinfo(t *testing.T) {
 		"problem": `{"type":"about:blank","code":"AUTH_UNAUTHENTICATED","detail":"refused","status":%d}`,
 		"plain":   "refused",
 	}
-	creds, err := auth.LoadCredentials("ak_test", auth.GenerateEd25519Keypair().SecretKeyHex, false)
+	creds, err := auth.LoadCredentials("ak_test", auth.GenerateEd25519Keypair().SecretKeyHex.Reveal(), false)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -23,8 +23,12 @@ type CreateGuardSignerWalletResult struct {
 }
 
 // ExportGuardSignerWalletResult is export wallet outcome.
+//
+// EncryptedPrivateKey holds the guard signer wallet's private key exactly as
+// the API returns it. It is a Secret, so printing, logging or encoding the
+// result never reveals the key; call EncryptedPrivateKey.Reveal to read it.
 type ExportGuardSignerWalletResult struct {
-	EncryptedPrivateKey string `json:"encrypted_private_key,omitempty"`
+	EncryptedPrivateKey Secret `json:"encrypted_private_key,omitempty"`
 }
 
 // RotateGuardSignerWalletResult is rotate wallet outcome.

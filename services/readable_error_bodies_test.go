@@ -93,7 +93,7 @@ func callWithErrorBody(t *testing.T, op string, status int, body errorBody, fail
 		_, _ = w.Write([]byte(body.body))
 	}))
 	defer srv.Close()
-	creds, err := auth.LoadCredentials("ak_test", auth.GenerateEd25519Keypair().SecretKeyHex, false)
+	creds, err := auth.LoadCredentials("ak_test", auth.GenerateEd25519Keypair().SecretKeyHex.Reveal(), false)
 	if err != nil {
 		t.Fatal(err)
 	}

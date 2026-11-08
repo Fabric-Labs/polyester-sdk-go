@@ -68,7 +68,7 @@ func scriptedTriggerServer(t *testing.T, path string, failFor int32, status int,
 		_, _ = w.Write(raw)
 	}))
 	t.Cleanup(srv.Close)
-	creds, err := auth.LoadCredentials("ak_test", auth.GenerateEd25519Keypair().SecretKeyHex, false)
+	creds, err := auth.LoadCredentials("ak_test", auth.GenerateEd25519Keypair().SecretKeyHex.Reveal(), false)
 	if err != nil {
 		t.Fatal(err)
 	}

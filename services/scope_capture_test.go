@@ -68,7 +68,7 @@ func scopeCaptureFactory(t *testing.T) (*transport.Factory, chan proto.Message) 
 		_, _ = w.Write([]byte(`{"code":"invalid_argument","message":"capture complete"}`))
 	}))
 	t.Cleanup(server.Close)
-	creds, err := auth.LoadCredentials("ak_local", auth.GenerateEd25519Keypair().SecretKeyHex, false)
+	creds, err := auth.LoadCredentials("ak_local", auth.GenerateEd25519Keypair().SecretKeyHex.Reveal(), false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -367,7 +367,7 @@ func TestStopAllTradingScopeOnEveryRequest(t *testing.T) {
 			})
 			server := httptest.NewServer(mux)
 			t.Cleanup(server.Close)
-			creds, err := auth.LoadCredentials("ak_local", auth.GenerateEd25519Keypair().SecretKeyHex, false)
+			creds, err := auth.LoadCredentials("ak_local", auth.GenerateEd25519Keypair().SecretKeyHex.Reveal(), false)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -74,7 +74,7 @@ func newReadPreservationServices(t *testing.T, h *readPreservationHandler, wire 
 	mux.Handle(path, handler)
 	server := hardening.NewTestServer(mux)
 	t.Cleanup(server.Close)
-	creds, err := auth.LoadCredentials("ak_test", auth.GenerateEd25519Keypair().SecretKeyHex, false)
+	creds, err := auth.LoadCredentials("ak_test", auth.GenerateEd25519Keypair().SecretKeyHex.Reveal(), false)
 	if err != nil {
 		t.Fatal(err)
 	}

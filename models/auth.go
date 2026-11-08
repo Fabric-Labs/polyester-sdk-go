@@ -33,24 +33,26 @@ type UsernameHistoryList struct {
 
 // Ed25519Keypair is a locally generated API key pair.
 //
-// String/GoString redact secret material so accidental logging cannot leak the
-// private key. Read SecretKeyHex / SecretKey explicitly when you need the secret.
-// JSON still includes secret_key_hex for intentional key-export flows.
+// The private key is held in Secret fields, so printing, logging or encoding the
+// pair never reveals it: JSON writes "[REDACTED]" for secret_key_hex and gob
+// refuses the pair. Read it explicitly with SecretKeyHex.Reveal (64 hex
+// characters, the form polyester.Config.APIPrivateKey takes) or
+// []byte(SecretKey.Reveal()) (the 32-byte seed).
 type Ed25519Keypair struct {
 	PublicKeyHex string `json:"public_key_hex"`
-	SecretKeyHex string `json:"secret_key_hex"`
+	SecretKeyHex Secret `json:"secret_key_hex"`
 	PublicKey    []byte `json:"-"`
-	SecretKey    []byte `json:"-"`
+	SecretKey    Secret `json:"-"`
 }
 
 // String redacts secret material for %v / %+v formatting.
 func (k Ed25519Keypair) String() string {
 	return fmt.Sprintf(
-		"Ed25519Keypair{PublicKeyHex:%q SecretKeyHex:%q PublicKey:%v SecretKey:%s}",
+		"Ed25519Keypair{PublicKeyHex:%q SecretKeyHex:%s PublicKey:%v SecretKey:%s}",
 		k.PublicKeyHex,
-		"[REDACTED]",
+		k.SecretKeyHex,
 		k.PublicKey,
-		"[REDACTED]",
+		k.SecretKey,
 	)
 }
 

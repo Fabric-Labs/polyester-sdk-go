@@ -81,7 +81,7 @@ func renderAll(t *testing.T, name string, subject any) map[string][]byte {
 
 // exportedKey reads the private key through the explicit export accessor.
 func exportedKey(r models.ExportGuardSignerWalletResult) string {
-	return r.EncryptedPrivateKey
+	return r.EncryptedPrivateKey.Reveal()
 }
 
 func TestExportGuardSignerWalletResultRedactsPrivateKey(t *testing.T) {
@@ -114,7 +114,7 @@ func TestExportGuardSignerWalletResultRedactsPrivateKey(t *testing.T) {
 
 // keypairSecretHex reads the generated private key through its accessor.
 func keypairSecretHex(kp models.Ed25519Keypair) string {
-	return kp.SecretKeyHex
+	return kp.SecretKeyHex.Reveal()
 }
 
 func TestEd25519KeypairRedactsSecretKey(t *testing.T) {
@@ -123,6 +123,9 @@ func TestEd25519KeypairRedactsSecretKey(t *testing.T) {
 	seed, err := hex.DecodeString(secretHex)
 	if err != nil || len(seed) != 32 {
 		t.Fatalf("generated secret key must be a 32-byte hex seed: %v", err)
+	}
+	if kp.SecretKey.Reveal() != string(seed) {
+		t.Fatal("SecretKey must reveal the seed that SecretKeyHex encodes")
 	}
 	type exported struct{ Keypair models.Ed25519Keypair }
 	type unexported struct{ keypair models.Ed25519Keypair }

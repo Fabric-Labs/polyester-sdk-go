@@ -17,7 +17,7 @@ import (
 func testCreds(t *testing.T) *auth.Credentials {
 	t.Helper()
 	kp := auth.GenerateEd25519Keypair()
-	creds, err := auth.LoadCredentials("test-key", kp.SecretKeyHex, false)
+	creds, err := auth.LoadCredentials("test-key", kp.SecretKeyHex.Reveal(), false)
 	if err != nil || creds == nil {
 		t.Fatalf("creds: %v", err)
 	}

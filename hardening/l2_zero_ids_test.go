@@ -43,7 +43,7 @@ func zeroIDClient(t *testing.T, mutate func(*polyester.Config)) (*polyester.Clie
 		APIURL:           srv.URL,
 		WSURL:            "ws" + strings.TrimPrefix(srv.URL, "http") + "/connection/websocket",
 		APIKeyID:         "ak_test",
-		APIPrivateKey:    auth.NewSecret(kp.SecretKeyHex),
+		APIPrivateKey:    kp.SecretKeyHex,
 		DefaultAccountID: &account,
 		HydrateCatalogs:  false,
 		Timeout:          5 * time.Second,

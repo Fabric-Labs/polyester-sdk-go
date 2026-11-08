@@ -219,11 +219,14 @@ between processes can produce identical authentication tuples. Timestamps can le
 by at most five seconds; larger bursts are backpressured instead of reusing a signature or drifting
 outside the API's 10-second freshness window.
 
-`Config`, `auth.Credentials` and `auth.Secret` never reveal the private key when printed with `fmt`
+`Config`, `auth.Credentials`, `auth.Secret` (the same type as `models.Secret`),
+`models.Ed25519Keypair` from `APIKeys.GenerateKeypair` and `models.ExportGuardSignerWalletResult`
+from `GuardSigner.ExportWallet` never reveal the private key when printed with `fmt`
 (every verb, as a value or a pointer, and inside any struct, including unexported fields), encoded
 with `encoding/json` or `encoding/xml`, or logged with `log/slog`; gob refuses to encode them.
 Decoding a JSON `Config` still reads `APIPrivateKey`. Read the key explicitly with
-`Secret.Reveal` or `Credentials.PrivateKey`.
+`Secret.Reveal` (for example `kp.SecretKeyHex.Reveal()` or
+`result.EncryptedPrivateKey.Reveal()`) or `Credentials.PrivateKey`.
 
 Recognized retry-later Connect `resource_exhausted` and REST admission-limit responses map to `errors.RateLimitError`. When the
 server attaches `polyester.ratelimit.v1.RateLimitDetail` (top-level Connect detail or nested under
