@@ -9,7 +9,7 @@ normal development).
 
 **Status:** `v0.13.0`, pre-1.0: a minor release may change the API. The Go,
 Python and Rust SDKs are released together. Their versions match unless a
-change breaks only one SDK's API: Go `v0.13.0` is the release of Rust `0.14.0`.
+change breaks only one SDK's API: Go `v0.13.0` is the release of Python `0.14.0` and Rust `0.14.0`.
 Proprietary license (not open source).
 API-key only; no browser login or session MFA.
 
