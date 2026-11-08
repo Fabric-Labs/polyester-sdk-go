@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.13.0
+
+Git tag: `v0.13.0`. Released 2026-11-08. Built on public contract `c8d9827`.
 
 Built on public contract `c8d9827`. Its changes (received transfers in flow lists, receive windows, and the replay-capacity, receive-window and request-deadline refusals) are available on devnet with its next deployment, and on testnet with its next release.
 - **Breaking:** `TriggersService.Create` refuses a TWAP with a market child whose `CreateTriggerOptions.MaxSlippageTicks` is zero or negative with `errors.ValidationError`, before anything is sent, as every other create-time tick cap already did. Setting both `MaxSlippageTicks` and `MaxSlippageBps` on that child is refused with the shared message `set at most one of max_slippage_ticks or max_slippage_bps`. Migration: send a positive tick cap, or leave `MaxSlippageTicks` nil for the pair default.
