@@ -169,14 +169,24 @@ type AttachedRiskLegState struct {
 // runtime state; policy fields remain zero when only state was requested.
 // TriggerPriceSource is the price the leg watches ("last" or "index"; empty
 // when the server did not name one, which watches the last traded price).
-// OrderType is not on the trailing-stop wire (the child is a market order) and
-// remains empty on decode. Write attached risk with AttachedRiskInput.
+//
+// LimitPrice is the maximum price of a trailing stop that buys back, on an
+// order that sells: the most its exit pays per unit, as the server returns it.
+// It is nil when the server sends none, as for the trailing stop of an order
+// that buys. When a trailing stop with a LimitPrice fires, its child is a limit
+// IOC order at that price (lower when MaxSlippageTicks or MaxSlippageBps cap it
+// below): it fills what it can at or below the limit and the rest is canceled,
+// not left resting. Without a LimitPrice the child is a market order.
+//
+// OrderType is not on the trailing-stop wire and remains empty on decode.
+// Write attached risk with AttachedRiskInput.
 type TrailingStop struct {
 	DistanceTicks      int64                 `json:"distance_ticks,omitempty"`
 	DistanceBps        int32                 `json:"distance_bps,omitempty"`
 	MaxSlippageTicks   int64                 `json:"max_slippage_ticks,omitempty"`
 	MaxSlippageBps     int32                 `json:"max_slippage_bps,omitempty"`
 	ActivationPrice    PriceTicks            `json:"activation_price,omitempty"`
+	LimitPrice         *PriceTicks           `json:"limit_price,omitempty"`
 	TriggerPriceSource string                `json:"trigger_price_source,omitempty"`
 	OrderType          string                `json:"order_type,omitempty"`
 	State              *AttachedRiskLegState `json:"state,omitempty"`

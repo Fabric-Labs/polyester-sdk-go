@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- **Breaking:** `models.TrailingStop` gains `LimitPrice`, a `*models.PriceTicks`: the buy-back maximum of an attached trailing stop on an order that sells, the most its exit pays per unit, exactly as the server returns it. It is nil when the server sends none, as for the trailing stop of an order that buys, and is encoded as `limit_price` in JSON when present. The server already returned it, but order reads dropped it, so a trailing stop read back without its cap and only `Triggers.Get` showed it. Affected: `Orders.Get` with attached risk, `Orders.ListOpen`, `Orders.ListHistory`, `Orders.Subscribe` and `realtime.Client.SubscribeOrders`, and `decode.OrderFromProto`, `decode.OrdersFromProto`, `decode.GetOrderFromProto`, `decode.OrdersListFromOpen` and `decode.OrdersListFromHistory`. Migration: an unkeyed `models.TrailingStop` struct literal no longer compiles; use keyed fields.
+- The `models.TrailingStop` doc comment and the README's attached-risk section now say what an attached trailing stop sends when it fires: with a buy-back `LimitPrice`, a limit IOC child at that price, which fills what it can at or below the limit and cancels the rest instead of resting; without one, a market child. They said the child is a market order, or rests a GTC limit child. A take-profit or stop-loss leg with `LimitPrice` still rests a GTC limit child.
+
 ## 0.14.0
 
 Git tag: `v0.14.0`. Released 2026-11-09. Built on public contract `c8d9827`.

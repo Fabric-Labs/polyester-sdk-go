@@ -108,6 +108,19 @@ func trailingStopJSON(t *testing.T, orders []models.Order, id uint64) map[string
 
 func assertTrailingLimitRead(t *testing.T, orders []models.Order) {
 	t.Helper()
+	for _, order := range orders {
+		limit := order.AttachedRisk.TrailingStop.LimitPrice
+		switch order.OrderID {
+		case codecs.FormatUint64ID(trailingLimitSellOrderID):
+			if limit == nil || limit.Ticks() != trailingLimitTicks || limit.Format() != "85000" {
+				t.Fatalf("sell parent's TrailingStop.LimitPrice=%v, want 85000", limit)
+			}
+		case codecs.FormatUint64ID(trailingLimitBuyOrderID):
+			if limit != nil {
+				t.Fatalf("buy parent's TrailingStop.LimitPrice=%v, want nil", limit)
+			}
+		}
+	}
 	unchanged := func(id uint64) map[string]any {
 		return map[string]any{
 			"distance_bps":         float64(100),

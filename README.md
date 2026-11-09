@@ -87,12 +87,18 @@ permission denial as non-transient and update the API-key policy before retrying
 `ModifyParams.NewAttachedRisk` (`Orders.ModifyWith`), or
 `BatchReplaceItem.NewAttachedRisk` to a `models.AttachedRiskInput` with a
 take-profit and/or one stop leg (stop-loss or trailing stop); `OCO: true`
-requires a take-profit and a stop leg. A leg without `LimitPrice` exits with a
-market child; with `LimitPrice` it rests a GTC limit child. A trailing stop
-on a sell order buys back, so `TrailingStopInput.LimitPrice`, the most its exit
-pays per unit, is required there (at least `ActivationPrice` when set); a buy
-order's trailing stop takes none. A modify replaces
-the order's whole attached policy. Create and modify results carry the
+requires a take-profit and a stop leg. A take-profit or stop-loss leg without
+`LimitPrice` exits with a market child; with `LimitPrice` it rests a GTC limit
+child. A trailing stop on a sell order buys back, so
+`TrailingStopInput.LimitPrice`, the most its exit pays per unit, is required
+there (at least `ActivationPrice` when set). When that trailing stop fires, its
+child is a limit IOC order at `LimitPrice` (lower when `MaxSlippageTicks` or
+`MaxSlippageBps` cap it below): it fills what it can at or below the limit, and
+the rest is canceled instead of resting. A buy order's trailing stop takes no
+`LimitPrice` and exits with a market child. `Orders.Get`, `Orders.ListOpen`
+and `Orders.ListHistory` with attached risk, and `Orders.Subscribe` updates,
+return the buy-back limit as `TrailingStop.LimitPrice`, nil when there is none.
+A modify replaces the order's whole attached policy. Create and modify results carry the
 configured legs' trigger IDs. When requested, each decoded leg exposes typed
 runtime `State` (`Status`, nanosecond armed/terminal timestamps, `TriggerID`,
 and `ChildOrderID`). A leg is retained when it has meaningful runtime state or
