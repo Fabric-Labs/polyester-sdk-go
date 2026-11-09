@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.14.0
+
+Git tag: `v0.14.0`. Released 2026-11-09. Built on public contract `c8d9827`.
 
 - **Breaking:** `models.BatchCreateResultItem`, `models.BatchCancelResultItem` and `models.BatchReplaceAdmissionItem` gain `Violations`, the field violations (`FieldPath`, `RuleID`, `Message`) a rejected item carries, in the order the server sent them, as `Orders.Preview` and a refused single order already report them. A batch create item refused for `ERROR_CODE_PRICE_TICK_SIZE` now names `order.attached_risk.take_profit.trigger_price_ticks` and rule `tick_size`, for example. They were dropped, so a caller could not tell which field to fix. `Violations` is empty for an accepted item and for a rejection that names no field; it is encoded as `violations` in JSON when present. Affected: `Orders.BatchCreate`, `Orders.BatchCancel` and `Orders.BatchReplace`, and `decode.BatchCreateFromProto`, `decode.BatchCancelFromProto` and `decode.BatchReplaceFromProto`. Migration: an unkeyed struct literal of these three types no longer compiles; use keyed fields.
 - **Breaking:** A rejected `Orders.BatchCancel` item that resolved no order, such as an `ORDER_UNKNOWN` rejection by client order ID, now reads `OrderID` `""`. It read `"0"`, an order ID no order has. An item that resolved its order keeps that ID, accepted or rejected. Affected: `Orders.BatchCancel` and `decode.BatchCancelFromProto`. Migration: test `OrderID` for `""` instead of `"0"`.
