@@ -71,12 +71,14 @@ func scheduledSlices() []*triggersv1.TriggerEvent {
 	return []*triggersv1.TriggerEvent{
 		{TriggerId: 9, TriggerType: triggersv1.TriggerType_TWAP, EventType: triggersv1.TriggerEventType_EVENT_FIRED, ChildSeq: 1, ChildOrderId: 101},
 		{TriggerId: 9, TriggerType: triggersv1.TriggerType_TWAP, EventType: triggersv1.TriggerEventType_EVENT_FIRED, ChildSeq: 2, ChildOrderId: 102, FirePriceTicks: proto.Int64(123)},
+		// Presence control only: the contract sends a positive price or none.
+		{TriggerId: 9, TriggerType: triggersv1.TriggerType_TWAP, EventType: triggersv1.TriggerEventType_EVENT_FIRED, ChildSeq: 3, ChildOrderId: 103, FirePriceTicks: proto.Int64(0)},
 	}
 }
 
 func checkScheduledSlices(t *testing.T, events []models.TriggerEvent) {
 	t.Helper()
-	if len(events) != 2 || events[0].ChildOrderID != codecs.FormatID(101) || events[1].ChildOrderID != codecs.FormatID(102) {
+	if len(events) != 3 || events[0].ChildOrderID != codecs.FormatID(101) || events[1].ChildOrderID != codecs.FormatID(102) {
 		t.Fatalf("events=%+v", events)
 	}
 	if fields := publicFields(t, events[0]); fields["fire_price"] != nil {
@@ -84,6 +86,9 @@ func checkScheduledSlices(t *testing.T, events []models.TriggerEvent) {
 	}
 	if fields := publicFields(t, events[1]); fmt.Sprint(fields["fire_price"]) != "map[ticks:123]" {
 		t.Errorf("a positive fire price reads fire_price=%v", fields["fire_price"])
+	}
+	if events[2].FirePrice == nil || events[2].FirePrice.Ticks() != 0 {
+		t.Errorf("an explicit zero fire price reads %v, want a present zero", events[2].FirePrice)
 	}
 }
 
