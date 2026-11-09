@@ -205,7 +205,13 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 		switch strings.ToLower(orderType) {
 		case "market":
 			ioc := &triggersv1.TwapMarketIoc{}
-			ticks, bps, err := createSlippageCap(opts.MaxSlippageTicks, opts.MaxSlippageBps, MaxSlippageBpsLimit)
+			// A slice that sells takes no 100% cap: it would leave no
+			// positive price to sell at.
+			maxBps := MaxSlippageBpsLimit
+			if sideEnum == orderv1.Side_SELL {
+				maxBps = MaxSellingSlippageBps
+			}
+			ticks, bps, err := createSlippageCap(opts.MaxSlippageTicks, opts.MaxSlippageBps, maxBps)
 			if err != nil {
 				return nil, err
 			}

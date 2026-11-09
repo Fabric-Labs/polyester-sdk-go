@@ -513,6 +513,11 @@ func TriggerEventMessageFromProto(e *triggersv1.TriggerEvent) models.TriggerEven
 		subaccountID = codecs.FormatUint64ID(e.GetSubaccountId())
 	}
 	cancelReason, failureReason := triggerReasonsFromEvent(e)
+	var firePrice *models.PriceTicks
+	if e.FirePriceTicks != nil {
+		price := codecs.DecodePriceTicks(e.GetFirePriceTicks(), "")
+		firePrice = &price
+	}
 	fireRefusalReason := ""
 	if e.FireRefusalReason != nil {
 		fireRefusalReason = TriggerFailureReasonLabel(e.GetFireRefusalReason())
@@ -526,7 +531,7 @@ func TriggerEventMessageFromProto(e *triggersv1.TriggerEvent) models.TriggerEven
 		TsNs:          tsNs,
 		ChildSeq:      e.GetChildSeq(),
 		ChildOrderID:  childOrderID,
-		FirePrice:     codecs.DecodePriceTicks(e.GetFirePriceTicks(), ""),
+		FirePrice:     firePrice,
 		CancelReason:  cancelReason,
 		FailureReason: failureReason,
 		// Set only on fire_refused, outside the terminal_reason oneof.

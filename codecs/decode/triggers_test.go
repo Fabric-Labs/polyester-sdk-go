@@ -257,7 +257,7 @@ func TestTriggerEventsListFromProto(t *testing.T) {
 	if ev.SubaccountID != codecs.FormatUint64ID(9) || ev.ChildOrderID != codecs.FormatUint64ID(77) {
 		t.Fatalf("ids=%+v", ev)
 	}
-	if ev.ChildSeq != 3 || ev.FirePrice.Ticks() != 100 || ev.CancelReason != "user_request" || ev.FailureReason != "" {
+	if ev.ChildSeq != 3 || ev.FirePrice == nil || ev.FirePrice.Ticks() != 100 || ev.CancelReason != "user_request" || ev.FailureReason != "" {
 		t.Fatalf("detail=%+v", ev)
 	}
 }
@@ -352,8 +352,8 @@ func TestTriggerEventAbsentFirePrice(t *testing.T) {
 	if len(result.Events) != 1 {
 		t.Fatalf("events=%+v", result.Events)
 	}
-	if result.Events[0].FirePrice.Ticks() != 0 {
-		t.Fatalf("expected absent fire price, got %+v", result.Events[0].FirePrice)
+	if result.Events[0].FirePrice != nil {
+		t.Fatalf("expected absent fire price, got %+v", *result.Events[0].FirePrice)
 	}
 }
 

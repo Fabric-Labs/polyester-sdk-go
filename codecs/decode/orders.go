@@ -526,22 +526,30 @@ func orderErrorDetailFromProto(msg *orderv1.ErrorDetail) *models.OrderErrorDetai
 	if msg == nil {
 		return nil
 	}
-	out := &models.OrderErrorDetail{
-		Code:      errorCodeName(msg.GetCode()),
-		RateLimit: RateLimitDetailFromProto(msg.GetRateLimit()),
+	return &models.OrderErrorDetail{
+		Code:       errorCodeName(msg.GetCode()),
+		Violations: fieldViolationsFromProto(msg),
+		RateLimit:  RateLimitDetailFromProto(msg.GetRateLimit()),
 	}
-	if violations := msg.GetViolations(); len(violations) > 0 {
-		out.Violations = make([]models.OrderFieldViolation, 0, len(violations))
-		for _, v := range violations {
-			if v == nil {
-				continue
-			}
-			out.Violations = append(out.Violations, models.OrderFieldViolation{
-				FieldPath: v.GetFieldPath(),
-				RuleID:    v.GetRuleId(),
-				Message:   v.GetMessage(),
-			})
+}
+
+// fieldViolationsFromProto copies the field violations of an order error
+// detail in the order sent; nil when it has none.
+func fieldViolationsFromProto(msg *orderv1.ErrorDetail) []models.OrderFieldViolation {
+	violations := msg.GetViolations()
+	if len(violations) == 0 {
+		return nil
+	}
+	out := make([]models.OrderFieldViolation, 0, len(violations))
+	for _, v := range violations {
+		if v == nil {
+			continue
 		}
+		out = append(out, models.OrderFieldViolation{
+			FieldPath: v.GetFieldPath(),
+			RuleID:    v.GetRuleId(),
+			Message:   v.GetMessage(),
+		})
 	}
 	return out
 }
@@ -682,10 +690,6 @@ func BatchReplaceFromProto(msg *orderv1.BatchReplaceOrdersResponse) (models.Batc
 				Msg:       fmt.Sprintf("batch replace response has unknown item status: %d", item.GetStatus()),
 			}
 		}
-		var rateLimit *models.RateLimitDetail
-		if errDetail := item.GetError(); errDetail != nil {
-			rateLimit = RateLimitDetailFromProto(errDetail.GetRateLimit())
-		}
 		results = append(results, models.BatchReplaceAdmissionItem{
 			ItemIndex:          item.GetItemIndex(),
 			Status:             itemStatus,
@@ -694,7 +698,8 @@ func BatchReplaceFromProto(msg *orderv1.BatchReplaceOrdersResponse) (models.Batc
 			ClientOrderID:      item.GetClientOrderId(),
 			Code:               item.GetCode(),
 			ActionTaken:        modifyActionName(item.GetActionTaken()),
-			RateLimit:          rateLimit,
+			RateLimit:          RateLimitDetailFromProto(item.GetError().GetRateLimit()),
+			Violations:         fieldViolationsFromProto(item.GetError()),
 		})
 	}
 	accepted := int(msg.GetAcceptedCount())
@@ -867,6 +872,7 @@ func BatchCreateFromProto(msg *orderv1.BatchCreateOrdersResponse) (models.BatchC
 					out.Code = fmt.Sprintf("UNKNOWN_ERROR_CODE(%d)", raw)
 				}
 				out.RateLimit = RateLimitDetailFromProto(err.GetRateLimit())
+				out.Violations = fieldViolationsFromProto(err)
 				if err.ExistingOrderId != nil {
 					out.ExistingOrderID = codecs.FormatUint64ID(err.GetExistingOrderId())
 				}
@@ -915,16 +921,13 @@ func BatchCancelFromProto(msg *orderv1.BatchCancelOrdersResponse) (models.BatchC
 				Msg: fmt.Sprintf("batch cancel response has unknown status: %d", item.GetStatus()),
 			}
 		}
-		var rateLimit *models.RateLimitDetail
-		if errDetail := item.GetError(); errDetail != nil {
-			rateLimit = RateLimitDetailFromProto(errDetail.GetRateLimit())
-		}
 		results = append(results, models.BatchCancelResultItem{
 			Status:        status,
-			OrderID:       codecs.FormatUint64ID(item.GetOrderId()),
+			OrderID:       optionalOrderID(item.GetOrderId()),
 			ClientOrderID: item.GetClientOrderId(),
 			Code:          item.GetCode(),
-			RateLimit:     rateLimit,
+			RateLimit:     RateLimitDetailFromProto(item.GetError().GetRateLimit()),
+			Violations:    fieldViolationsFromProto(item.GetError()),
 		})
 	}
 	accepted := int(msg.GetAcceptedCount())
