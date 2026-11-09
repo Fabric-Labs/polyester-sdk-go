@@ -536,6 +536,9 @@ type SnapshotThenStream[TSnapshot any, TPublication any] struct {
 	refreshMu   sync.Mutex
 	refreshRun  bool
 	refreshNext bool
+	// worker is the goroutine ID of run, which calls the publication
+	// callbacks; 0 until it starts.
+	worker atomic.Uint64
 }
 
 // SnapshotThenStreamConfig configures snapshot-then-stream behavior.
@@ -678,6 +681,7 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) signalInitialConnection(er
 }
 
 func (s *SnapshotThenStream[TSnapshot, TPublication]) run(ctx context.Context) {
+	s.worker.Store(currentGoroutineID())
 	defer close(s.done)
 	first := true
 	var backoff reconnectBackoff
@@ -1029,14 +1033,23 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) Stop() {
 }
 
 // Close stops the stream and waits for its worker to exit.
+//
+// Called from a callback the worker is running, such as a publication or
+// error callback, it stops the stream and returns without waiting: the
+// worker can't exit before the callback returns, and exits once it does.
+// No callback starts after Close returns, from any goroutine.
 func (s *SnapshotThenStream[TSnapshot, TPublication]) Close() {
 	s.Stop()
 	s.mu.Lock()
 	started := s.cancel != nil
 	s.mu.Unlock()
-	if started {
-		<-s.done
+	if !started {
+		return
 	}
+	if worker := s.worker.Load(); worker != 0 && worker == currentGoroutineID() {
+		return
+	}
+	<-s.done
 }
 
 // Done closes when the stream worker has permanently stopped.

@@ -10,8 +10,10 @@ import (
 	"testing"
 	"time"
 
+	ob "github.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1"
 	mosub "github.com/Fabric-Labs/polyester-sdk-go/marketoverview"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
+	"github.com/Fabric-Labs/polyester-sdk-go/orderbook"
 )
 
 // promptClose bounds a Close made from a callback: it must not wait for the
@@ -176,5 +178,69 @@ func runOverviewCloseSchedule(t *testing.T, seed uint64) {
 	}
 	if !external && delivered[len(delivered)-1] != closeAt {
 		t.Fatalf("seed %d: delivered %v, want 1..%d", seed, delivered, closeAt)
+	}
+}
+
+// POLY-9018 parity: closing a managed orderbook subscription from its own
+// OnEvent returns at once and stops delivery, as for the market overview.
+func TestClosingManagedOrderbookFromItsOwnCallbackReturnsAtOnce(t *testing.T) {
+	svc, sends, _, _ := bookTicketService(t, 1, true)
+	var (
+		handle   atomic.Pointer[orderbook.Subscription]
+		mu       sync.Mutex
+		seqs     []string
+		closed   bool
+		late     []string
+		returned = make(chan time.Duration, 1)
+	)
+	sub, err := svc.CreateSubscription(context.Background(), CreateSubscriptionOptions{
+		Symbol: "BTC-USDT",
+		OnEvent: func(view models.OrderbookData) {
+			mu.Lock()
+			if closed {
+				late = append(late, view.BookSeq)
+			}
+			seqs = append(seqs, view.BookSeq)
+			mu.Unlock()
+			if view.BookSeq != "3" || handle.Load() == nil {
+				return
+			}
+			started := time.Now()
+			handle.Load().Close()
+			mu.Lock()
+			closed = true
+			mu.Unlock()
+			returned <- time.Since(started)
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	handle.Store(sub)
+	// Three deltas in one websocket message: the next one is ready at once.
+	frames := []byte{}
+	for seq := uint64(2); seq <= 4; seq++ {
+		frames = append(frames, bookTicketFrame(&ob.OrderBookDelta{BookSeqStart: seq, BookSeqEnd: seq})...)
+	}
+	sends <- frames
+	select {
+	case took := <-returned:
+		if took > promptClose {
+			t.Fatalf("Close from OnEvent took %v", took)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Close from OnEvent blocked the stream worker")
+	}
+	again := make(chan struct{})
+	go func() { sub.Close(); close(again) }()
+	select {
+	case <-again:
+	case <-time.After(5 * time.Second):
+		t.Fatal("a repeated Close hung")
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(late) != 0 || seqs[len(seqs)-1] != "3" {
+		t.Fatalf("delivered %v, late %v", seqs, late)
 	}
 }

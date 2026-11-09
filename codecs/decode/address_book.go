@@ -122,8 +122,15 @@ func AddressBookInvalidationFromProto(msg *authv1.AddressBookViewInvalidated) mo
 		return models.AddressBookViewInvalidation{}
 	}
 	out := models.AddressBookViewInvalidation{}
-	if scope := msg.GetScope(); scope != nil && scope.GetRootAccountId() != 0 {
-		out.Scope = codecs.FormatID(scope.GetRootAccountId())
+	if scope := msg.GetScope(); scope != nil {
+		out.Scope = &models.AccountScope{ScopeType: scope.GetScopeType().String()}
+		if root := scope.GetRootAccountId(); root != 0 {
+			out.Scope.RootAccountID = codecs.FormatID(root)
+		}
+		// A root scope sends sub-account 0, which is not an ID: name none.
+		if sub := scope.GetSubaccountId(); sub != 0 {
+			out.Scope.SubAccountID = codecs.FormatID(sub)
+		}
 	}
 	if ts := msg.GetInvalidatedAt(); ts != nil {
 		out.InvalidatedAt = ts.AsTime().UTC().Format(time.RFC3339Nano)

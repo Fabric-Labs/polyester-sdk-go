@@ -76,6 +76,25 @@ type MarketOverviewEntry struct {
 	// Sparklines holds the sparklines the server sent, only when
 	// includeSparklines was requested.
 	Sparklines []MarketOverviewSparkline `json:"sparklines,omitempty"`
+	// High24h and Low24h are the highest and lowest trade prices over the last
+	// 24 hours; nil when the server sent none.
+	High24h *PriceTicks `json:"high_24h,omitempty"`
+	Low24h  *PriceTicks `json:"low_24h,omitempty"`
+	// BestBid and BestBidQty are the best bid price and the base quantity at
+	// it, at the pair's base quantity scale when the catalogs know it; both
+	// nil when the bid side of the book is empty.
+	BestBid    *PriceTicks `json:"best_bid,omitempty"`
+	BestBidQty *QtyScaled  `json:"best_bid_qty,omitempty"`
+	// BestAsk and BestAskQty are the best ask price and the base quantity at
+	// it; both nil when the ask side of the book is empty.
+	BestAsk    *PriceTicks `json:"best_ask,omitempty"`
+	BestAskQty *QtyScaled  `json:"best_ask_qty,omitempty"`
+	// LastTradeTsNs is the time of the last trade, in epoch nanoseconds;
+	// empty when there was none.
+	LastTradeTsNs string `json:"last_trade_ts_ns,omitempty"`
+	// ListedTsNs is the time the market was listed, in epoch nanoseconds;
+	// empty when unknown.
+	ListedTsNs string `json:"listed_ts_ns,omitempty"`
 }
 
 // MarketOverviewSparkline is a market's recent closing prices over Interval,

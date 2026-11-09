@@ -33,11 +33,23 @@ type AddressBooksList struct {
 	Books []map[string]any `json:"books"`
 }
 
+// AccountScope names an address book: the root account's own, or one of
+// its sub-accounts'.
+type AccountScope struct {
+	// ScopeType is SCOPE_ROOT or SCOPE_SUBACCOUNT.
+	ScopeType string `json:"scope_type,omitempty"`
+	// RootAccountID is the root account's public ID.
+	RootAccountID string `json:"root_account_id,omitempty"`
+	// SubAccountID is the sub-account's public ID; empty for a root scope.
+	SubAccountID string `json:"sub_account_id,omitempty"`
+}
+
 // AddressBookViewInvalidation signals that cached address book views are stale.
 type AddressBookViewInvalidation struct {
-	Scope         string `json:"scope,omitempty"`
-	InvalidatedAt string `json:"invalidated_at,omitempty"`
-	ViewRevision  uint64 `json:"view_revision,omitempty"`
+	// Scope is the address book that changed; nil when the event names none.
+	Scope         *AccountScope `json:"scope,omitempty"`
+	InvalidatedAt string        `json:"invalidated_at,omitempty"`
+	ViewRevision  uint64        `json:"view_revision,omitempty"`
 }
 
 // AddressBookView is a composed address book view.
