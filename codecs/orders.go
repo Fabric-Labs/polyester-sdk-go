@@ -231,6 +231,9 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale, quoteQuant
 		if req.MaxSlippageTicks != nil || req.MaxSlippageBps != nil {
 			return nil, &errors.ValidationError{Msg: "max_slippage_ticks and max_slippage_bps are only valid for market orders"}
 		}
+		if req.MarketClientRefPrice != nil && req.MarketClientRefPrice.IsSet() {
+			return nil, &errors.ValidationError{Msg: "market_client_ref_price is only valid for market orders"}
+		}
 		if !hasPrice {
 			return nil, &errors.ValidationError{Msg: "limit orders require price"}
 		}
