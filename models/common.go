@@ -31,7 +31,8 @@ type CreateOrderRequest struct {
 	// AttachedRisk optionally attaches take-profit, stop-loss or trailing-stop
 	// legs that arm after the order fills.
 	AttachedRisk *AttachedRiskInput `json:"attached_risk,omitempty"`
-	// MarketClientRefPrice is the client-supplied reference price for MARKET orders.
+	// MarketClientRefPrice is the client-supplied reference price for MARKET
+	// orders. Rejected on limit orders.
 	MarketClientRefPrice *PriceInput `json:"market_client_ref_price,omitempty"`
 	// FeeAsset selects the fee asset: "quote" (default) or "base". Base fees
 	// are valid only for BUY orders.

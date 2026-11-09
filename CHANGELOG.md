@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Breaking:** `Orders.Create`, `Orders.Preview` and `Orders.BatchCreate` refuse a limit order with `MarketClientRefPrice` set before sending it, with a `*errors.ValidationError` "market_client_ref_price is only valid for market orders", as they already refuse `MaxSlippageTicks` and `MaxSlippageBps` on a limit order. The public contract carries the reference price on market orders only. On a limit order the SDK accepted it, then dropped it, so the order was created without it and read back with `MarketClientRefPrice` nil. `codecs.OrderIntentToProto`, `codecs.CreateOrderToProto`, `codecs.PreviewOrderToProto` and `codecs.BatchCreateOrdersToProto` refuse it the same way. Migration: remove `MarketClientRefPrice` from limit orders; it never had an effect on them.
+
 ## 0.15.0
 
 Git tag: `v0.15.0`. Released 2026-11-09. Built on public contract `c8d9827`.
