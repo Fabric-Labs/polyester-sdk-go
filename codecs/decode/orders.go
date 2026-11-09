@@ -243,8 +243,9 @@ func trailingStopFromPolicy(policy *orderv1.TrailingStopPolicy, state *orderv1.A
 	if !policyUsable && !hasMeaningfulAttachedRiskLegState(state) {
 		return nil
 	}
-	// OrderType is not on the trailing-stop policy wire; the child is an
-	// implicit market execution.
+	// OrderType is not on the trailing-stop policy wire. A buy-back limit
+	// makes the child a limit IOC at that price; without one it is a market
+	// execution.
 	out := &models.TrailingStop{
 		State: attachedRiskLegStateFromProto(state),
 	}
@@ -262,6 +263,7 @@ func trailingStopFromPolicy(policy *orderv1.TrailingStopPolicy, state *orderv1.A
 	if policy.GetActivationPriceTicks() > 0 {
 		out.ActivationPrice = codecs.DecodePriceTicks(policy.GetActivationPriceTicks(), "")
 	}
+	out.LimitPrice = optionalPriceTicks(policy.GetLimitPriceTicks())
 	out.TriggerPriceSource = codecs.TriggerPriceSourceName(policy.GetTriggerPriceSource())
 	return out
 }
