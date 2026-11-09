@@ -357,6 +357,9 @@ type BatchReplaceAdmissionItem struct {
 	ActionTaken string `json:"action_taken,omitempty"`
 	// RateLimit is set when ErrorDetail.rate_limit is present on rejection.
 	RateLimit *RateLimitDetail `json:"rate_limit,omitempty"`
+	// Violations names the request fields a rejection asks to fix, in the
+	// order the server sent them; empty when it named none.
+	Violations []OrderFieldViolation `json:"violations,omitempty"`
 }
 
 // BatchReplaceOrdersResult is the durable admission receipt from batch_replace.
@@ -447,6 +450,9 @@ type BatchCreateResultItem struct {
 	ExistingOrderID string `json:"existing_order_id,omitempty"`
 	// RateLimit is set when ErrorDetail.rate_limit is present on rejection.
 	RateLimit *RateLimitDetail `json:"rate_limit,omitempty"`
+	// Violations names the request fields a rejection asks to fix, in the
+	// order the server sent them; empty when it named none.
+	Violations []OrderFieldViolation `json:"violations,omitempty"`
 }
 
 // BatchCreateOrdersResult summarizes batch create.
@@ -456,7 +462,9 @@ type BatchCreateOrdersResult struct {
 	RejectedCount int                     `json:"rejected_count,omitempty"`
 }
 
-// BatchCancelResultItem is one batch cancel outcome.
+// BatchCancelResultItem is one batch cancel outcome. OrderID is the order the
+// item resolved to, empty when the server resolved none, such as an
+// ORDER_UNKNOWN rejection by client order ID.
 type BatchCancelResultItem struct {
 	Status        string `json:"status"`
 	OrderID       string `json:"order_id,omitempty"`
@@ -464,6 +472,9 @@ type BatchCancelResultItem struct {
 	Code          string `json:"code,omitempty"`
 	// RateLimit is set when ErrorDetail.rate_limit is present on rejection.
 	RateLimit *RateLimitDetail `json:"rate_limit,omitempty"`
+	// Violations names the request fields a rejection asks to fix, in the
+	// order the server sent them; empty when it named none.
+	Violations []OrderFieldViolation `json:"violations,omitempty"`
 }
 
 // BatchCancelOrdersResult summarizes batch cancel.
@@ -800,18 +811,22 @@ type TriggerMutationResult struct {
 // reason it placed none. CancelReason / FailureReason stay empty. A refusal
 // that ends the trigger is a "failed" event with FailureReason instead.
 // Event types and reasons newer than this SDK read as "unknown(<n>)".
+//
+// FirePrice is the price that fired the trigger, nil when the server sent
+// none: a time-scheduled TWAP slice has no price that caused it to fire. Read
+// the child order for its execution price.
 type TriggerEvent struct {
-	TriggerID     string     `json:"trigger_id,omitempty"`
-	SubaccountID  string     `json:"subaccount_id,omitempty"`
-	SymbolID      uint32     `json:"symbol_id,omitempty"`
-	TriggerType   string     `json:"trigger_type,omitempty"`
-	EventType     string     `json:"event_type,omitempty"`
-	TsNs          string     `json:"ts_ns,omitempty"`
-	ChildSeq      int32      `json:"child_seq,omitempty"`
-	ChildOrderID  string     `json:"child_order_id,omitempty"`
-	FirePrice     PriceTicks `json:"fire_price,omitempty"`
-	CancelReason  string     `json:"cancel_reason,omitempty"`
-	FailureReason string     `json:"failure_reason,omitempty"`
+	TriggerID     string      `json:"trigger_id,omitempty"`
+	SubaccountID  string      `json:"subaccount_id,omitempty"`
+	SymbolID      uint32      `json:"symbol_id,omitempty"`
+	TriggerType   string      `json:"trigger_type,omitempty"`
+	EventType     string      `json:"event_type,omitempty"`
+	TsNs          string      `json:"ts_ns,omitempty"`
+	ChildSeq      int32       `json:"child_seq,omitempty"`
+	ChildOrderID  string      `json:"child_order_id,omitempty"`
+	FirePrice     *PriceTicks `json:"fire_price,omitempty"`
+	CancelReason  string      `json:"cancel_reason,omitempty"`
+	FailureReason string      `json:"failure_reason,omitempty"`
 	// FireRefusalReason is why a "fire_refused" event's order was refused,
 	// with the FailureReason labels. Empty on every other event.
 	FireRefusalReason string `json:"fire_refusal_reason,omitempty"`

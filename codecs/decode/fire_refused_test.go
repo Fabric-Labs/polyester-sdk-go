@@ -22,7 +22,7 @@ func TestFireRefusedEventCarriesItsReason(t *testing.T) {
 		FireRefusalReason: &reason,
 	})
 	if got.EventType != "fire_refused" || got.FireRefusalReason != "rate_limited" || got.ChildSeq != 1 ||
-		got.FirePrice.Ticks() != 104_000_000_000 || got.ChildOrderID != "" || got.CancelReason != "" || got.FailureReason != "" {
+		got.FirePrice == nil || got.FirePrice.Ticks() != 104_000_000_000 || got.ChildOrderID != "" || got.CancelReason != "" || got.FailureReason != "" {
 		t.Fatalf("event=%+v", got)
 	}
 	repairing := triggersv1.TriggerFailureReason_TRIGGER_FAILURE_REASON_ACCOUNT_REPAIRING

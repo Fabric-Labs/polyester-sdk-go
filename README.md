@@ -1035,8 +1035,9 @@ at the trigger price raised by the cap. Without a cap the pair's default
 market slippage applies. Setting both, or a cap on a limit child, is refused.
 A buy market child accepts 1 to 10000 bps; a sell, and a trailing stop on
 either side, 1 to 9999. Get, list and the trigger stream expose the cap as
-`Trigger.MaxSlippage` / `Trigger.MaxSlippageBps`. A TWAP market child takes
-the same cap; `MaxSlippageTicks` is positive wherever a create sends it. No
+`Trigger.MaxSlippage` / `Trigger.MaxSlippageBps`. A TWAP market slice takes
+the same cap: 1 to 10000 bps to buy, 1 to 9999 to sell.
+`MaxSlippageTicks` is positive wherever a create sends it. No
 trigger child has a GTD execution, so `tif` `gtd` is refused for every
 trigger type.
 
@@ -1080,8 +1081,9 @@ to be strictly less than the maximum.
 
 `Orders.ListOpen` / `Orders.ListHistory` accept an optional trailing
 `triggerID` to return only child orders created by that trigger (TWAP/ladder
-slices). Trigger-event `FirePrice` is empty for time-scheduled TWAP slice fires
-(`fire_price_ticks` is optional on the wire). Terminal triggers/events expose
+slices). Trigger-event `FirePrice` is nil when the server sends no fire price,
+as for a time-scheduled TWAP slice; read the child order for its execution
+price. Terminal triggers/events expose
 typed `CancelReason` / `FailureReason` labels (empty when the proto oneof is
 unset or unspecified).
 
