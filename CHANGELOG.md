@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.17.0
+
+Git tag: `v0.17.0`. Released 2026-11-10. Built on public contract `c8d9827`.
 
 - **Breaking:** A managed order book adds one update when it applies a snapshot together with the deltas buffered behind it. It added one update per buffered delta and then the same book again, so stale copies stayed queued: after `SetBucket`, the next update read could be an old copy at the previous bucket. Affected: `Orderbook.CreateSubscription` and `Orderbook.Subscribe` (`orderbook.Subscription.Updates` and `OnEvent`). Migration: read one update per snapshot; code that skipped duplicate `BookSeq` values can keep doing so, as each update now has a new book state.
 - Added `orderbook.Subscription.SinceLastPublication`, the time since the managed book's stream last delivered a publication, or since it started, never negative, also while publications arrive concurrently. The server republishes each book's whole view about every 30 s even when nothing changes, so an age far above that means the stream stalled while the socket stayed open, not that the market is quiet. The SDK sets no threshold; poll it and refresh or resubscribe on a stall. `orderbook.Subscription.NotePublication` records a publication for a subscription wired by hand.
