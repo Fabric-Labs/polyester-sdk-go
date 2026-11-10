@@ -133,9 +133,11 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 			symbol,
 		)}
 	}
-	catalogID := s.catalogs.SymbolIDForSymbol(symbol)
-	if catalogID != nil && *catalogID != *resolvedSymbolID {
-		return nil, &errors.ValidationError{Msg: fmt.Sprintf("orderbook symbol %q does not match symbol_id %d", symbol, *resolvedSymbolID)}
+	if opts.SymbolID != nil {
+		// The same rule as every call that takes both selectors.
+		if _, err := ResolveSymbolID(s.catalogs, &symbol, opts.SymbolID, "orderbook.create_subscription"); err != nil {
+			return nil, err
+		}
 	}
 	channel := fmt.Sprintf("public:spot:orderbook:deltas:depth:%d:%d:proto", streamDepth, *resolvedSymbolID)
 
