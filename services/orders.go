@@ -52,12 +52,12 @@ func NewOrdersService(
 
 func (s *OrdersService) ensureCatalogs(ctx context.Context) error {
 	if s.catalogHydrationDone == nil {
-		return nil
+		return awaitCatalogs(ctx, s.catalogs, true)
 	}
 	select {
 	case <-s.catalogHydrationDone:
 		if s.catalogLastError != nil {
-			return s.catalogLastError()
+			return hydrationFailure(s.catalogLastError())
 		}
 		return nil
 	case <-ctx.Done():
@@ -123,6 +123,9 @@ func (s *OrdersService) ListHistory(ctx context.Context, account AccountScope, s
 	if symbolID != nil {
 		req.SymbolId = append(req.SymbolId, *symbolID)
 	} else if symbol != nil {
+		if err := s.ensureCatalogs(ctx); err != nil {
+			return models.OrdersList{}, err
+		}
 		resolved, err := ResolveSymbolID(s.catalogs, symbol, nil, "list_history")
 		if err != nil {
 			return models.OrdersList{}, err
@@ -274,6 +277,9 @@ func (s *OrdersService) Cancel(ctx context.Context, account AccountScope, key mo
 	if symbolID != nil {
 		req.SymbolId = *symbolID
 	} else if symbol != nil {
+		if err := s.ensureCatalogs(ctx); err != nil {
+			return models.OrderMutationResult{}, err
+		}
 		id, err := ResolveSymbolID(s.catalogs, symbol, nil, "cancel")
 		if err != nil {
 			return models.OrderMutationResult{}, err
@@ -381,6 +387,11 @@ func (s *OrdersService) CancelAllWith(ctx context.Context, account AccountScope,
 	if err != nil {
 		return models.CancelAllOrdersResult{}, err
 	}
+	if namesSymbol(params.Symbol, params.Symbols...) {
+		if err := s.ensureCatalogs(ctx); err != nil {
+			return models.CancelAllOrdersResult{}, err
+		}
+	}
 	symbolIDs, err := ResolveCancelAllSymbolIDs(s.catalogs, params.Symbol, params.Symbols, params.SymbolIDs, "orders.cancel_all")
 	if err != nil {
 		return models.CancelAllOrdersResult{}, err
@@ -400,6 +411,11 @@ func (s *OrdersService) CancelAllAfter(ctx context.Context, account AccountScope
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {
 		return models.CancelAllAfterResult{}, err
+	}
+	if namesSymbol(symbol) {
+		if err := s.ensureCatalogs(ctx); err != nil {
+			return models.CancelAllAfterResult{}, err
+		}
 	}
 	resolvedSymbolID, err := ResolveOptionalSymbolID(s.catalogs, symbol, nil, "orders.cancel_all_after")
 	if err != nil {

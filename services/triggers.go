@@ -47,12 +47,12 @@ func NewTriggersService(
 
 func (s *TriggersService) ensureCatalogs(ctx context.Context) error {
 	if s.catalogHydrationDone == nil {
-		return nil
+		return awaitCatalogs(ctx, s.catalogs, true)
 	}
 	select {
 	case <-s.catalogHydrationDone:
 		if s.catalogLastError != nil {
-			return s.catalogLastError()
+			return hydrationFailure(s.catalogLastError())
 		}
 		return nil
 	case <-ctx.Done():
@@ -84,6 +84,11 @@ func (s *TriggersService) List(ctx context.Context, account AccountScope, subAcc
 		return models.TriggersList{}, err
 	} else if parsed != nil {
 		req.SubaccountId = parsed
+	}
+	if namesSymbol(symbol) {
+		if err := s.ensureCatalogs(ctx); err != nil {
+			return models.TriggersList{}, err
+		}
 	}
 	resolvedSymbolID, err := ResolveOptionalSymbolID(s.catalogs, symbol, nil, "triggers.list")
 	if err != nil {
@@ -129,13 +134,23 @@ func (s *TriggersService) Create(ctx context.Context, account AccountScope, symb
 	if err != nil {
 		return models.TriggerMutationResult{}, err
 	}
+	// With hydration on, the catalogs are loaded by now: an unknown symbol is
+	// refused as unknown, not for its scale. Without it the scale comes first.
+	hydrated := s.catalogs != nil && s.catalogs.Hydration() != nil
+	var symbolID uint32
+	if hydrated {
+		if symbolID, err = ResolveSymbolID(s.catalogs, &symbol, nil, "triggers.create"); err != nil {
+			return models.TriggerMutationResult{}, err
+		}
+	}
 	scale, err := codecs.QuantityScaleForSymbol(s.catalogs, &symbol)
 	if err != nil {
 		return models.TriggerMutationResult{}, err
 	}
-	symbolID, err := ResolveSymbolID(s.catalogs, &symbol, nil, "triggers.create")
-	if err != nil {
-		return models.TriggerMutationResult{}, err
+	if !hydrated {
+		if symbolID, err = ResolveSymbolID(s.catalogs, &symbol, nil, "triggers.create"); err != nil {
+			return models.TriggerMutationResult{}, err
+		}
 	}
 	req, err := codecs.CreateTriggerToProto(symbolID, symbol, triggerType, triggerPrice, side, qty, orderType, limitPrice, triggerPriceSource, tif, sub, clientTriggerID, postOnly, scale, opts)
 	if err != nil {
@@ -188,6 +203,11 @@ func (s *TriggersService) Resume(ctx context.Context, account AccountScope, trig
 	if err != nil {
 		return models.TriggerMutationResult{}, err
 	}
+	if namesSymbol(symbol) {
+		if err := s.ensureCatalogs(ctx); err != nil {
+			return models.TriggerMutationResult{}, err
+		}
+	}
 	resolvedSymbolID, err := ResolveOptionalSymbolID(s.catalogs, symbol, symbolID, "triggers.resume")
 	if err != nil {
 		return models.TriggerMutationResult{}, err
@@ -211,6 +231,11 @@ func (s *TriggersService) Modify(ctx context.Context, account AccountScope, trig
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {
 		return models.TriggerMutationResult{}, err
+	}
+	if namesSymbol(symbol) {
+		if err := s.ensureCatalogs(ctx); err != nil {
+			return models.TriggerMutationResult{}, err
+		}
 	}
 	resolvedSymbolID, err := ResolveOptionalSymbolID(s.catalogs, symbol, symbolID, "triggers.modify")
 	if err != nil {

@@ -72,6 +72,11 @@ func (s *TradesService) List(ctx context.Context, account AccountScope, subAccou
 	if options.IncludeTransfers {
 		req.IncludeTransfers = true
 	}
+	if namesSymbol(symbol) {
+		if err := awaitCatalogs(ctx, s.catalogs, true); err != nil {
+			return models.UserTradesList{}, err
+		}
+	}
 	if afterMatchID != nil {
 		resolved, err := ResolveSymbolID(s.catalogs, symbol, symbolID, "trades.list")
 		if err != nil {

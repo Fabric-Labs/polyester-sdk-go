@@ -51,6 +51,10 @@ func (s *MarketDataService) GetSpotConfig(ctx context.Context) (models.SpotConfi
 }
 
 func (s *MarketDataService) GetTrades(ctx context.Context, symbol *string, symbolID *uint32, limit int, pageToken *string) (models.MarketTradesResult, error) {
+	// Decoded with the pair's catalog scales.
+	if err := awaitCatalogs(ctx, s.catalogs, true); err != nil {
+		return models.MarketTradesResult{}, err
+	}
 	resolved, err := ResolveSymbolID(s.catalogs, symbol, symbolID, "get_trades")
 	if err != nil {
 		return models.MarketTradesResult{}, err
@@ -83,6 +87,10 @@ func (s *MarketDataService) GetTrades(ctx context.Context, symbol *string, symbo
 func (s *MarketDataService) GetTradesAfter(ctx context.Context, symbol *string, symbolID *uint32, afterTradeID string, limit int) (models.MarketTradesResult, error) {
 	after, err := codecs.ParseRequiredUint64Decimal(afterTradeID, "after_trade_id")
 	if err != nil {
+		return models.MarketTradesResult{}, err
+	}
+	// Decoded with the pair's catalog scales.
+	if err := awaitCatalogs(ctx, s.catalogs, true); err != nil {
 		return models.MarketTradesResult{}, err
 	}
 	resolved, err := ResolveSymbolID(s.catalogs, symbol, symbolID, "get_trades_after")
@@ -122,7 +130,7 @@ func (s *MarketDataService) GetCandlesWithReference(ctx context.Context, symbol 
 		token = &pageToken[0]
 	}
 
-	req, scale, refScale, err := s.buildCandlesRequest(symbol, symbolID, timeframe, limit, start, end, includeIncomplete, token, includeReference)
+	req, scale, refScale, err := s.buildCandlesRequest(ctx, symbol, symbolID, timeframe, limit, start, end, includeIncomplete, token, includeReference)
 	if err != nil {
 		return models.CandlesResult{}, err
 	}
@@ -161,7 +169,7 @@ func (s *MarketDataService) GetCandlesColumns(ctx context.Context, symbol *strin
 // GetCandlesColumnsWithReference returns columnar OHLCV decoded to rows, including
 // reference candles when includeReference is true.
 func (s *MarketDataService) GetCandlesColumnsWithReference(ctx context.Context, symbol *string, symbolID *uint32, timeframe string, limit int, start, end *time.Time, includeIncomplete bool, pageToken *string, includeReference bool) (models.CandlesResult, error) {
-	base, scale, refScale, err := s.buildCandlesRequest(symbol, symbolID, timeframe, limit, start, end, includeIncomplete, pageToken, includeReference)
+	base, scale, refScale, err := s.buildCandlesRequest(ctx, symbol, symbolID, timeframe, limit, start, end, includeIncomplete, pageToken, includeReference)
 	if err != nil {
 		return models.CandlesResult{}, err
 	}
@@ -182,7 +190,11 @@ func (s *MarketDataService) GetCandlesColumnsWithReference(ctx context.Context, 
 	})
 }
 
-func (s *MarketDataService) buildCandlesRequest(symbol *string, symbolID *uint32, timeframe string, limit int, start, end *time.Time, includeIncomplete bool, pageToken *string, includeReference bool) (*marketdatav1.GetCandlesRequest, int, int, error) {
+func (s *MarketDataService) buildCandlesRequest(ctx context.Context, symbol *string, symbolID *uint32, timeframe string, limit int, start, end *time.Time, includeIncomplete bool, pageToken *string, includeReference bool) (*marketdatav1.GetCandlesRequest, int, int, error) {
+	// Decoded with the pair's catalog scales.
+	if err := awaitCatalogs(ctx, s.catalogs, true); err != nil {
+		return nil, 0, 0, err
+	}
 	resolved, err := ResolveSymbolID(s.catalogs, symbol, symbolID, "get_candles")
 	if err != nil {
 		return nil, 0, 0, err
@@ -228,6 +240,10 @@ func (s *MarketDataService) buildCandlesRequest(symbol *string, symbolID *uint32
 }
 
 func (s *MarketDataService) SubscribeTrades(ctx context.Context, symbol *string, symbolID *uint32) (*realtime.Subscription[models.MarketTrade], error) {
+	// Decoded with the pair's catalog scales.
+	if err := awaitCatalogs(ctx, s.catalogs, true); err != nil {
+		return nil, err
+	}
 	resolved, err := ResolveSymbolID(s.catalogs, symbol, symbolID, "subscribe_trades")
 	if err != nil {
 		return nil, err
@@ -241,6 +257,10 @@ func (s *MarketDataService) SubscribeTrades(ctx context.Context, symbol *string,
 }
 
 func (s *MarketDataService) SubscribeCandles(ctx context.Context, symbol *string, symbolID *uint32, timeframe string) (*realtime.Subscription[models.Candle], error) {
+	// Decoded with the pair's catalog scales.
+	if err := awaitCatalogs(ctx, s.catalogs, true); err != nil {
+		return nil, err
+	}
 	resolved, err := ResolveSymbolID(s.catalogs, symbol, symbolID, "subscribe_candles")
 	if err != nil {
 		return nil, err

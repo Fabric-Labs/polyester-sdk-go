@@ -360,6 +360,21 @@ func (e *TransportError) Error() string        { return e.Msg }
 func (e *TransportError) Is(target error) bool { return target == ErrPolyester }
 func (e *TransportError) Unwrap() error        { return e.Err }
 
+// CatalogHydrationError is returned by a call that needs the catalogs when the
+// client's construction-time catalog hydration failed, instead of refusing the
+// symbol. Err is that failure, the one Client.WaitForCatalogs and
+// Client.CatalogsLastError return, so errors.Is and errors.As reach it. Create
+// a new client to load the catalogs again.
+type CatalogHydrationError struct {
+	Err error
+}
+
+func (e *CatalogHydrationError) Error() string {
+	return "catalog hydration failed: " + e.Err.Error()
+}
+func (e *CatalogHydrationError) Is(target error) bool { return target == ErrPolyester }
+func (e *CatalogHydrationError) Unwrap() error        { return e.Err }
+
 // RateLimitError indicates rate limiting from the API.
 //
 // Detail carries structured polyester.ratelimit.v1.RateLimitDetail when the
