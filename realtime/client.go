@@ -510,6 +510,25 @@ func centrifugoProtocolError(protocolErr *protocolError) error {
 }
 
 // SnapshotThenStream coordinates REST snapshot hydration with a live channel.
+//
+// Callbacks and shutdown. Every callback the stream calls (the config's
+// FetchSnapshot, ReadPublication, ApplySnapshot, ApplyLivePublications,
+// OnReconnect, OnSnapshotRefresh and OnError) runs inside RunCallback, which
+// records the calling goroutine as running a callback of this stream. Close
+// called from such a goroutine only signals shutdown and returns. Every other
+// Close waits for the worker.
+//
+// Lock order: refreshSem, then mu, then callbacksMu.
+//   - mu and callbacksMu are never held across a callback, a wait on a channel
+//     or another lock acquisition, apart from this order.
+//   - refreshSem is held for a whole refresh, its callbacks included. A refresh
+//     acquires it in a select that also returns when the stream is stopped
+//     (stopped closes) or its context ends, so no wait on it outlives Stop.
+//   - Waits: Close waits on done, and run waits on refreshDone (the reconnect
+//     refresh it started). Neither is ever made while holding refreshSem or mu,
+//     or from inside a callback: a Close from a callback never waits. Once the
+//     stream is stopped, a refresh that waits for refreshSem gives up, so a
+//     chain of waits that reaches refreshSem ends when the stream stops.
 type SnapshotThenStream[TSnapshot any, TPublication any] struct {
 	client                *Client
 	channel               string
@@ -533,14 +552,16 @@ type SnapshotThenStream[TSnapshot any, TPublication any] struct {
 	done        chan struct{}
 	connected   chan error
 	connectOnce sync.Once
-	refreshMu   sync.Mutex
 	refreshRun  bool
 	refreshNext bool
-	// owners holds the goroutine IDs that done waits for: run, and the
-	// snapshot refresh run starts on a reconnect and waits for. Callbacks run
-	// on them, so Close must not wait for done from them.
-	ownersMu sync.Mutex
-	owners   map[uint64]struct{}
+	// refreshSem serializes refreshes; see the lock order above.
+	refreshSem chan struct{}
+	// stopped closes when the stream is disposed: stopped or failed closed.
+	stopped chan struct{}
+	// callbacks counts, per goroutine ID, the callbacks of this stream that
+	// goroutine is running.
+	callbacksMu sync.Mutex
+	callbacks   map[uint64]int
 }
 
 // SnapshotThenStreamConfig configures snapshot-then-stream behavior.
@@ -644,6 +665,8 @@ func NewSnapshotThenStream[TSnapshot any, TPublication any](cfg SnapshotThenStre
 		maxBuffered:           maxBuffered,
 		done:                  make(chan struct{}),
 		connected:             make(chan error, 1),
+		refreshSem:            make(chan struct{}, 1),
+		stopped:               make(chan struct{}),
 	}
 }
 
@@ -684,7 +707,6 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) signalInitialConnection(er
 
 func (s *SnapshotThenStream[TSnapshot, TPublication]) run(ctx context.Context) {
 	defer close(s.done)
-	defer s.own()()
 	first := true
 	var backoff reconnectBackoff
 	for {
@@ -726,17 +748,16 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) run(ctx context.Context) {
 
 		if !first {
 			if s.onReconnect != nil {
-				callSnapshotNotification(s.onReconnect)
+				s.RunCallback(func() { callSnapshotNotification(s.onReconnect) })
 			}
 			// Drain publications into the pending buffer while refresh runs
 			// (ready=false). Without this, reconnect pubs sit in sub.Messages()
 			// until after ready=true and incorrectly apply as live duplicates.
 			// run owns this refresh: it waits for it on every path, so done
-			// never closes while one of its callbacks may still run.
+			// never closes while one of its callbacks may still run. The wait
+			// ends promptly once the stream stops (see the lock order).
 			refreshDone := make(chan error, 1)
 			go func() {
-				release := s.own()
-				defer release()
 				refreshDone <- s.refreshSnapshotWithRetry(ctx)
 			}()
 		drainRefresh:
@@ -828,7 +849,9 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) handlePublication(msg TPub
 	}
 	s.mu.Unlock()
 
-	items, err := callSnapshotRead(s.readPublication, msg)
+	var items []TPublication
+	var err error
+	s.RunCallback(func() { items, err = callSnapshotRead(s.readPublication, msg) })
 	if err != nil {
 		s.failClosed(err)
 		return
@@ -849,11 +872,11 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) handlePublication(msg TPub
 			cancel := s.cancel
 			s.pending = nil
 			s.ready = false
-			s.disposed = true
+			s.disposeLocked()
 			s.generation++
 			s.lastErr = err
 			s.mu.Unlock()
-			callErrorCallback(callback, err)
+			s.RunCallback(func() { callErrorCallback(callback, err) })
 			if cancel != nil {
 				cancel()
 			}
@@ -864,16 +887,31 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) handlePublication(msg TPub
 		return
 	}
 	s.mu.Unlock()
-	if err := callSnapshotApplyLive(s.applyLivePublications, items); err != nil {
+	if err := s.applyLive(items); err != nil {
 		s.failClosed(err)
 	}
 }
 
+// applyLive applies live publications as a callback.
+func (s *SnapshotThenStream[TSnapshot, TPublication]) applyLive(items []TPublication) (err error) {
+	s.RunCallback(func() { err = callSnapshotApplyLive(s.applyLivePublications, items) })
+	return err
+}
+
 // RefreshSnapshot fetches a REST snapshot and merges buffered publications.
 // On failure the stream is marked not-ready and Err() is set. Success clears Err().
+//
+// Refreshes run one at a time. A refresh waiting for another to finish
+// returns nil when the stream stops, and ctx's error when ctx ends.
 func (s *SnapshotThenStream[TSnapshot, TPublication]) RefreshSnapshot(ctx context.Context) error {
-	s.refreshMu.Lock()
-	defer s.refreshMu.Unlock()
+	select {
+	case s.refreshSem <- struct{}{}:
+	case <-s.stopped:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	defer func() { <-s.refreshSem }()
 	s.mu.Lock()
 	if s.disposed {
 		s.mu.Unlock()
@@ -886,7 +924,9 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) RefreshSnapshot(ctx contex
 	// retry merges them exactly once.
 	s.mu.Unlock()
 
-	snapshot, err := callSnapshotFetch(ctx, s.fetchSnapshot)
+	var snapshot TSnapshot
+	var err error
+	s.RunCallback(func() { snapshot, err = callSnapshotFetch(ctx, s.fetchSnapshot) })
 	if err != nil {
 		s.setErr(err)
 		return err
@@ -900,7 +940,8 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) RefreshSnapshot(ctx contex
 	buffered := s.pending
 	s.pending = nil
 	s.mu.Unlock()
-	if err := callSnapshotApply(s.applySnapshot, snapshot, buffered); err != nil {
+	s.RunCallback(func() { err = callSnapshotApply(s.applySnapshot, snapshot, buffered) })
+	if err != nil {
 		s.failClosed(err)
 		return err
 	}
@@ -921,11 +962,11 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) RefreshSnapshot(ctx contex
 			s.lastErr = nil
 			onRefresh := s.onSnapshotRefresh
 			s.mu.Unlock()
-			callSnapshotNotification(onRefresh)
+			s.RunCallback(func() { callSnapshotNotification(onRefresh) })
 			return nil
 		}
 		s.mu.Unlock()
-		if err := callSnapshotApplyLive(s.applyLivePublications, buffered); err != nil {
+		if err := s.applyLive(buffered); err != nil {
 			s.failClosed(err)
 			return err
 		}
@@ -991,7 +1032,7 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) setErr(err error) {
 	s.ready = false
 	callback := s.onError
 	s.mu.Unlock()
-	callErrorCallback(callback, err)
+	s.RunCallback(func() { callErrorCallback(callback, err) })
 }
 
 func (s *SnapshotThenStream[TSnapshot, TPublication]) failClosed(err error) {
@@ -1002,13 +1043,13 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) failClosed(err error) {
 	}
 	s.lastErr = err
 	s.ready = false
-	s.disposed = true
+	s.disposeLocked()
 	s.generation++
 	s.pending = nil
 	callback := s.onError
 	cancel := s.cancel
 	s.mu.Unlock()
-	callErrorCallback(callback, err)
+	s.RunCallback(func() { callErrorCallback(callback, err) })
 	if cancel != nil {
 		cancel()
 	}
@@ -1028,14 +1069,14 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) SetOnError(callback func(e
 	s.onError = callback
 	err := s.lastErr
 	s.mu.Unlock()
-	callErrorCallback(callback, err)
+	s.RunCallback(func() { callErrorCallback(callback, err) })
 }
 
 // Stop requests shutdown without waiting for the worker. It is safe to call
-// from publication callbacks running on the worker itself.
+// from any callback.
 func (s *SnapshotThenStream[TSnapshot, TPublication]) Stop() {
 	s.mu.Lock()
-	s.disposed = true
+	s.disposeLocked()
 	s.generation++
 	s.pending = nil
 	cancel := s.cancel
@@ -1045,54 +1086,69 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) Stop() {
 	}
 }
 
+// disposeLocked marks the stream disposed and releases every refresh waiting
+// for refreshSem. s.mu must be held.
+func (s *SnapshotThenStream[TSnapshot, TPublication]) disposeLocked() {
+	if !s.disposed {
+		s.disposed = true
+		close(s.stopped)
+	}
+}
+
 // Close stops the stream and waits for its worker to exit.
 //
-// Called from a callback on a goroutine the worker waits for (the worker
-// itself, or a snapshot refresh it runs after a reconnect), it stops the
-// stream and returns without waiting: that goroutine can't finish before the
-// callback returns, and the worker exits once it does. No callback starts
-// after Close returns.
+// Called from a callback of this stream, it only signals shutdown and
+// returns: the callback may be running on the worker, on a refresh the worker
+// waits for, or while holding the refresh lock another refresh waits for, so
+// waiting could never end. The worker exits once the callback returns. Every
+// other Close waits for the worker.
 func (s *SnapshotThenStream[TSnapshot, TPublication]) Close() {
 	s.Stop()
 	s.mu.Lock()
 	started := s.cancel != nil
 	s.mu.Unlock()
-	if !started || s.ownedByCaller() {
+	if !started || s.inCallback() {
 		return
 	}
 	<-s.done
 }
 
-// own records the calling goroutine as one done waits for, until the
-// returned release runs.
-func (s *SnapshotThenStream[TSnapshot, TPublication]) own() (release func()) {
+// RunCallback runs fn on the calling goroutine as a callback of this stream:
+// a Close called from inside fn signals shutdown and returns without waiting.
+// The stream runs its own callbacks this way; wrappers such as the managed
+// orderbook and market-overview subscriptions run theirs this way too.
+func (s *SnapshotThenStream[TSnapshot, TPublication]) RunCallback(fn func()) {
 	id := currentGoroutineID()
 	if id == 0 {
-		return func() {}
+		fn()
+		return
 	}
-	s.ownersMu.Lock()
-	if s.owners == nil {
-		s.owners = map[uint64]struct{}{}
+	s.callbacksMu.Lock()
+	if s.callbacks == nil {
+		s.callbacks = map[uint64]int{}
 	}
-	s.owners[id] = struct{}{}
-	s.ownersMu.Unlock()
-	return func() {
-		s.ownersMu.Lock()
-		delete(s.owners, id)
-		s.ownersMu.Unlock()
-	}
+	s.callbacks[id]++
+	s.callbacksMu.Unlock()
+	defer func() {
+		s.callbacksMu.Lock()
+		if s.callbacks[id]--; s.callbacks[id] == 0 {
+			delete(s.callbacks, id)
+		}
+		s.callbacksMu.Unlock()
+	}()
+	fn()
 }
 
-// ownedByCaller reports whether done waits for the calling goroutine.
-func (s *SnapshotThenStream[TSnapshot, TPublication]) ownedByCaller() bool {
+// inCallback reports whether the calling goroutine is running a callback of
+// this stream.
+func (s *SnapshotThenStream[TSnapshot, TPublication]) inCallback() bool {
 	id := currentGoroutineID()
 	if id == 0 {
 		return false
 	}
-	s.ownersMu.Lock()
-	defer s.ownersMu.Unlock()
-	_, owned := s.owners[id]
-	return owned
+	s.callbacksMu.Lock()
+	defer s.callbacksMu.Unlock()
+	return s.callbacks[id] > 0
 }
 
 // Done closes when the stream worker has permanently stopped.
