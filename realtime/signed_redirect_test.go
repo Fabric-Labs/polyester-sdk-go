@@ -3,6 +3,7 @@ package realtime
 import (
 	"context"
 	"crypto/ed25519"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 )
 
 // A signed realtime token request answered with any redirect must not reach
@@ -61,8 +63,15 @@ func TestRealtimeTokenRequestIsNotForwardedAcrossOrigins(t *testing.T) {
 				if signed != 0 || requests != 0 {
 					t.Fatalf("destination received %d request(s), %d signed, after a %d redirect", requests, signed, status)
 				}
-				if err == nil {
-					t.Fatalf("token request succeeded with %q although its only answer was a redirect", token)
+				var refused *sdkerrors.RedirectRefusedError
+				if !errors.As(err, &refused) {
+					t.Fatalf("token request = %q, %T %v; want *errors.RedirectRefusedError", token, err, err)
+				}
+				if refused.StatusCode != status || refused.Origin != destination.URL || refused.SameOrigin {
+					t.Fatalf("refusal = %+v, want status %d to %s", *refused, status, destination.URL)
+				}
+				if !isTerminalTokenError(err) {
+					t.Fatal("a refused redirect must end the private order stream, not retry it")
 				}
 			})
 		}

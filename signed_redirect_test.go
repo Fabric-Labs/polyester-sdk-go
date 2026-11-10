@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/hex"
+	"errors"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +14,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1/authv1connect"
 	"google.golang.org/protobuf/proto"
@@ -155,8 +157,15 @@ func TestSignedRequestIsNotForwardedAcrossOrigins(t *testing.T) {
 						if requests != 0 {
 							t.Fatalf("destination received %d request(s) after a %d redirect", requests, status)
 						}
-						if err == nil {
-							t.Fatal("Me succeeded although its only answer was a redirect")
+						var refused *sdkerrors.RedirectRefusedError
+						if !errors.As(err, &refused) {
+							t.Fatalf("Me error = %T %v, want *errors.RedirectRefusedError", err, err)
+						}
+						if refused.StatusCode != status || refused.Origin != target || refused.SameOrigin {
+							t.Fatalf("refusal = %+v, want status %d to %s across origins", *refused, status, target)
+						}
+						if !errors.Is(err, sdkerrors.ErrPolyester) || sdkerrors.IsRetryable(err) || sdkerrors.MutationOutcomeUnknown(err) {
+							t.Fatalf("refusal must be a non-retryable SDK error with a known outcome: %v", err)
 						}
 					})
 				}
@@ -191,6 +200,35 @@ func TestSignedRequestWithoutRedirectSucceeds(t *testing.T) {
 			}
 			if requests, signed := origin.counts(); requests != 1 || signed != 1 {
 				t.Fatalf("origin received %d request(s), %d signed; want 1 signed", requests, signed)
+			}
+		})
+	}
+}
+
+// Unsigned public calls carry no credentials and still follow a redirect, on
+// the same HTTP client that refuses to forward signed ones.
+func TestUnsignedRequestStillFollowsRedirect(t *testing.T) {
+	for _, wire := range []string{"json", "binary"} {
+		t.Run(wire, func(t *testing.T) {
+			destination := &originRecorder{}
+			target := serveOn(t, "127.0.0.1:0", destination.handler())
+			redirectURL := serveOn(t, "127.0.0.1:0", redirectingOrigin(&target, http.StatusTemporaryRedirect))
+			client, err := New(Config{
+				APIURL:        redirectURL,
+				APIKeyID:      "ak_redirect_test",
+				APIPrivateKey: auth.NewSecret(disposableKeyHex(t)),
+				WireFormat:    wire,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = client.Close() })
+			public := authv1connect.NewAuthServiceClient(client.transport.HTTP, redirectURL, client.transport.ConnectOptions(false)...)
+			if _, err := public.Me(context.Background(), connect.NewRequest(&authv1.MeRequest{})); err != nil {
+				t.Fatal(err)
+			}
+			if requests, signed := destination.counts(); requests != 1 || signed != 0 {
+				t.Fatalf("destination received %d request(s), %d signed; want 1 unsigned", requests, signed)
 			}
 		})
 	}

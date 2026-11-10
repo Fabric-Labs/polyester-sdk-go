@@ -119,6 +119,11 @@ func MapConnectError(err error) error {
 	if errors.As(err, &authErr) {
 		return authErr
 	}
+	// The HTTP client refused to follow a redirect of the signed request.
+	var redirectErr *sdkerrors.RedirectRefusedError
+	if errors.As(err, &redirectErr) {
+		return redirectErr
+	}
 	var rateLimitErr *sdkerrors.RateLimitError
 	if errors.As(err, &rateLimitErr) {
 		return rateLimitErr

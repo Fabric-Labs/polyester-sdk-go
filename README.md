@@ -1754,6 +1754,27 @@ See [CHANGELOG.md](CHANGELOG.md).
 Connect RPC over HTTP via generated clients in `gen/`. Wire format defaults to
 **binary protobuf**; set `Config.WireFormat` to `"json"` for debugging.
 
+### Redirects of signed requests
+
+The SDK never follows an HTTP redirect of a request signed with an API key:
+Connect calls and realtime token requests alike, whatever the redirect status
+and whether it points at another origin or the same one. Following it would
+send the signature, key ID and timestamp to the redirect target, which could
+replay the request within its receive window; and the signature covers the
+path, so a same-origin redirect to another path could not verify either. The
+call returns `*errors.RedirectRefusedError`, which names the redirect status
+(`StatusCode`) and the origin it pointed at (`Origin`, without path, query or
+userinfo), and whether that is the origin the request went to (`SameOrigin`).
+Nothing was sent to the redirect target, and `errors.IsRetryable` and
+`errors.MutationOutcomeUnknown` report false: point `Config.APIURL` at the
+API's own origin.
+
+Unsigned public calls carry no credentials and keep following redirects. A
+`Config.HTTPClient` you supply is copied, not modified: the copy refuses
+redirects of signed requests and keeps your `CheckRedirect` for the rest. The
+policy lives in the `http.Client`, so an `http.RoundTripper` that follows
+redirects by itself is outside it; don't give the SDK one.
+
 The Go SDK ships with a committed `gen/` tree. Proto stubs are updated when a new
 `gen/` bundle is landed (same source as Python/Rust). You do not need local buf
 generation for day-to-day SDK work.

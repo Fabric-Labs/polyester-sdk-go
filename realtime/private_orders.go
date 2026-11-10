@@ -469,7 +469,8 @@ func (p *privateOrderStream) dial(ctx context.Context) (*websocket.Conn, error) 
 
 func isTerminalTokenError(err error) bool {
 	var authErr *sdkerrors.AuthError
-	return errors.As(err, &authErr)
+	var redirected *sdkerrors.RedirectRefusedError
+	return errors.As(err, &authErr) || errors.As(err, &redirected)
 }
 
 func (p *privateOrderStream) authenticate(conn *privateConn, token string) {

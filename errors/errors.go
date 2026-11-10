@@ -360,6 +360,36 @@ func (e *TransportError) Error() string        { return e.Msg }
 func (e *TransportError) Is(target error) bool { return target == ErrPolyester }
 func (e *TransportError) Unwrap() error        { return e.Err }
 
+// RedirectRefusedError is returned when a request signed with an API key is
+// answered with an HTTP redirect. The SDK never follows such a redirect: the
+// signature, key ID and timestamp would reach the redirect target, which could
+// replay the request within its receive window, and the signature covers the
+// path, so even a same-origin redirect to another path could not verify.
+//
+// Nothing was sent to the redirect target. The configured API URL answered
+// with a redirect instead of a result, so sending the request again gets the
+// same answer: IsRetryable and MutationOutcomeUnknown report false. Point
+// Config.APIURL at the API's own origin instead.
+type RedirectRefusedError struct {
+	// StatusCode is the redirect status, such as 307 or 308.
+	StatusCode int
+	// Origin is the scheme, host and port the redirect named, without its
+	// path, query or userinfo.
+	Origin string
+	// SameOrigin reports whether Origin is the origin the request was sent to.
+	SameOrigin bool
+}
+
+func (e *RedirectRefusedError) Error() string {
+	where := "to another origin, " + e.Origin
+	if e.SameOrigin {
+		where = "within its origin, " + e.Origin
+	}
+	return "signed request was redirected (HTTP " + strconv.Itoa(e.StatusCode) + ") " + where +
+		"; the SDK does not follow redirects of signed requests: set the API URL to the API's origin"
+}
+func (e *RedirectRefusedError) Is(target error) bool { return target == ErrPolyester }
+
 // CatalogHydrationError is returned by a call that needs the catalogs when the
 // client's construction-time catalog hydration failed, instead of refusing the
 // symbol. Err is that failure, the one Client.WaitForCatalogs and
