@@ -10,8 +10,9 @@ import (
 // from the first line of its stack trace ("goroutine 18 [running]:"), or 0
 // when that line can't be read. IDs start at 1.
 //
-// SnapshotThenStream.Close uses it to tell its own worker, which can't wait
-// for itself to exit, from every other caller, which must.
+// SnapshotThenStream.Close uses it to tell the goroutines its worker waits
+// for, which can't wait for the worker in turn, from every other caller,
+// which must.
 func currentGoroutineID() uint64 {
 	var buf [64]byte
 	line := bytes.TrimPrefix(buf[:runtime.Stack(buf[:], false)], []byte("goroutine "))

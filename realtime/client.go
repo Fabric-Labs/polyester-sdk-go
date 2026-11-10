@@ -536,9 +536,11 @@ type SnapshotThenStream[TSnapshot any, TPublication any] struct {
 	refreshMu   sync.Mutex
 	refreshRun  bool
 	refreshNext bool
-	// worker is the goroutine ID of run, which calls the publication
-	// callbacks; 0 until it starts.
-	worker atomic.Uint64
+	// owners holds the goroutine IDs that done waits for: run, and the
+	// snapshot refresh run starts on a reconnect and waits for. Callbacks run
+	// on them, so Close must not wait for done from them.
+	ownersMu sync.Mutex
+	owners   map[uint64]struct{}
 }
 
 // SnapshotThenStreamConfig configures snapshot-then-stream behavior.
@@ -681,8 +683,8 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) signalInitialConnection(er
 }
 
 func (s *SnapshotThenStream[TSnapshot, TPublication]) run(ctx context.Context) {
-	s.worker.Store(currentGoroutineID())
 	defer close(s.done)
+	defer s.own()()
 	first := true
 	var backoff reconnectBackoff
 	for {
@@ -729,8 +731,12 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) run(ctx context.Context) {
 			// Drain publications into the pending buffer while refresh runs
 			// (ready=false). Without this, reconnect pubs sit in sub.Messages()
 			// until after ready=true and incorrectly apply as live duplicates.
+			// run owns this refresh: it waits for it on every path, so done
+			// never closes while one of its callbacks may still run.
 			refreshDone := make(chan error, 1)
 			go func() {
+				release := s.own()
+				defer release()
 				refreshDone <- s.refreshSnapshotWithRetry(ctx)
 			}()
 		drainRefresh:
@@ -738,6 +744,7 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) run(ctx context.Context) {
 				select {
 				case <-ctx.Done():
 					sub.Close()
+					<-refreshDone
 					return
 				case err := <-refreshDone:
 					if err != nil {
@@ -974,6 +981,12 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) refreshSnapshotWithRetry(c
 
 func (s *SnapshotThenStream[TSnapshot, TPublication]) setErr(err error) {
 	s.mu.Lock()
+	if s.disposed {
+		// Stopped or failed closed: what fails now is the shutdown itself,
+		// and no callback may start after Close returns.
+		s.mu.Unlock()
+		return
+	}
 	s.lastErr = err
 	s.ready = false
 	callback := s.onError
@@ -1034,22 +1047,52 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) Stop() {
 
 // Close stops the stream and waits for its worker to exit.
 //
-// Called from a callback the worker is running, such as a publication or
-// error callback, it stops the stream and returns without waiting: the
-// worker can't exit before the callback returns, and exits once it does.
-// No callback starts after Close returns, from any goroutine.
+// Called from a callback on a goroutine the worker waits for (the worker
+// itself, or a snapshot refresh it runs after a reconnect), it stops the
+// stream and returns without waiting: that goroutine can't finish before the
+// callback returns, and the worker exits once it does. No callback starts
+// after Close returns.
 func (s *SnapshotThenStream[TSnapshot, TPublication]) Close() {
 	s.Stop()
 	s.mu.Lock()
 	started := s.cancel != nil
 	s.mu.Unlock()
-	if !started {
-		return
-	}
-	if worker := s.worker.Load(); worker != 0 && worker == currentGoroutineID() {
+	if !started || s.ownedByCaller() {
 		return
 	}
 	<-s.done
+}
+
+// own records the calling goroutine as one done waits for, until the
+// returned release runs.
+func (s *SnapshotThenStream[TSnapshot, TPublication]) own() (release func()) {
+	id := currentGoroutineID()
+	if id == 0 {
+		return func() {}
+	}
+	s.ownersMu.Lock()
+	if s.owners == nil {
+		s.owners = map[uint64]struct{}{}
+	}
+	s.owners[id] = struct{}{}
+	s.ownersMu.Unlock()
+	return func() {
+		s.ownersMu.Lock()
+		delete(s.owners, id)
+		s.ownersMu.Unlock()
+	}
+}
+
+// ownedByCaller reports whether done waits for the calling goroutine.
+func (s *SnapshotThenStream[TSnapshot, TPublication]) ownedByCaller() bool {
+	id := currentGoroutineID()
+	if id == 0 {
+		return false
+	}
+	s.ownersMu.Lock()
+	defer s.ownersMu.Unlock()
+	_, owned := s.owners[id]
+	return owned
 }
 
 // Done closes when the stream worker has permanently stopped.
