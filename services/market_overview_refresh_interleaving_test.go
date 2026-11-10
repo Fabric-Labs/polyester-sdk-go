@@ -98,6 +98,8 @@ func newRefreshHarness(t *testing.T, plan func(n int32) fetchStep) *refreshHarne
 			case <-step.gate:
 			case <-r.Context().Done():
 				return
+			case <-stop: // a failed test must not hang its cleanup
+				return
 			}
 		}
 		if step.delay > 0 {
