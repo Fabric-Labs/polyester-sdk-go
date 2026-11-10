@@ -134,14 +134,23 @@ func (s *TriggersService) Create(ctx context.Context, account AccountScope, symb
 	if err != nil {
 		return models.TriggerMutationResult{}, err
 	}
-	// The symbol first: an unknown one is refused as unknown, not for its scale.
-	symbolID, err := ResolveSymbolID(s.catalogs, &symbol, nil, "triggers.create")
-	if err != nil {
-		return models.TriggerMutationResult{}, err
+	// With hydration on, the catalogs are loaded by now: an unknown symbol is
+	// refused as unknown, not for its scale. Without it the scale comes first.
+	hydrated := s.catalogs != nil && s.catalogs.Hydration() != nil
+	var symbolID uint32
+	if hydrated {
+		if symbolID, err = ResolveSymbolID(s.catalogs, &symbol, nil, "triggers.create"); err != nil {
+			return models.TriggerMutationResult{}, err
+		}
 	}
 	scale, err := codecs.QuantityScaleForSymbol(s.catalogs, &symbol)
 	if err != nil {
 		return models.TriggerMutationResult{}, err
+	}
+	if !hydrated {
+		if symbolID, err = ResolveSymbolID(s.catalogs, &symbol, nil, "triggers.create"); err != nil {
+			return models.TriggerMutationResult{}, err
+		}
 	}
 	req, err := codecs.CreateTriggerToProto(symbolID, symbol, triggerType, triggerPrice, side, qty, orderType, limitPrice, triggerPriceSource, tif, sub, clientTriggerID, postOnly, scale, opts)
 	if err != nil {

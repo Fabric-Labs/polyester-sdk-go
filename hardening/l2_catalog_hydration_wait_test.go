@@ -607,6 +607,12 @@ func TestL2HydrationDisabledKeepsTodaysRefusals(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "Unknown symbol 'DOGE-USDT'; set Config.HydrateCatalogs: true") {
 		t.Fatalf("Orderbook.Get: %v", err)
 	}
+	// Without hydration Triggers.Create checks the quantity scale before the symbol, as before.
+	price := models.PriceFromDecimal("0.1")
+	_, err = client.Triggers.Create(context.Background(), nil, "NOPE-USDT", "stop_loss", &price, "sell", models.QtyFromDecimal("1"), "market", nil, "", "gtc", nil, nil, false, codecs.CreateTriggerOptions{})
+	if err == nil || !strings.Contains(err.Error(), "quantity scale for NOPE-USDT is unavailable; call WaitForCatalogs before placing orders, or pass a scaled Quantity") {
+		t.Fatalf("Triggers.Create: %v", err)
+	}
 	select {
 	case <-stub.spotRequested:
 		t.Fatal("hydration ran with HydrateCatalogs off")
