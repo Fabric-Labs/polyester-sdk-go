@@ -67,7 +67,14 @@ func NewSubscription(
 // NotePublication records that the stream delivered a publication now.
 // CreateSubscription calls it for every publication its stream receives.
 func (s *Subscription) NotePublication() {
-	s.lastPublication.Store(int64(time.Since(s.created)))
+	// Keep the latest: a slower caller must not store an older time.
+	now := int64(time.Since(s.created))
+	for {
+		last := s.lastPublication.Load()
+		if now <= last || s.lastPublication.CompareAndSwap(last, now) {
+			return
+		}
+	}
 }
 
 // SinceLastPublication is how long ago the stream last delivered a
@@ -83,7 +90,9 @@ func (s *Subscription) NotePublication() {
 // threshold and takes no action: poll it, and on a stall call RefreshSnapshot,
 // or Close and subscribe again.
 func (s *Subscription) SinceLastPublication() time.Duration {
-	return time.Since(s.created) - time.Duration(s.lastPublication.Load())
+	// Load before reading the clock: every stored time is earlier than now.
+	last := time.Duration(s.lastPublication.Load())
+	return time.Since(s.created) - last
 }
 
 // Updates returns merged orderbook snapshots.
