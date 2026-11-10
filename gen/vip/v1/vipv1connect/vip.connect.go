@@ -46,6 +46,7 @@ type VIPServiceClient interface {
 	// This public, caller-independent catalog supports cacheable ConnectRPC GET.
 	ListVIPTiers(context.Context, *connect.Request[v1.ListVIPTiersRequest]) (*connect.Response[v1.ListVIPTiersResponse], error)
 	// Get VIP qualification status for the authenticated caller's root account.
+	// An API key needs READ_VIP_STATUS and must be scoped to the main account.
 	GetVIPStatus(context.Context, *connect.Request[v1.GetVIPStatusRequest]) (*connect.Response[v1.GetVIPStatusResponse], error)
 }
 
@@ -99,6 +100,7 @@ type VIPServiceHandler interface {
 	// This public, caller-independent catalog supports cacheable ConnectRPC GET.
 	ListVIPTiers(context.Context, *connect.Request[v1.ListVIPTiersRequest]) (*connect.Response[v1.ListVIPTiersResponse], error)
 	// Get VIP qualification status for the authenticated caller's root account.
+	// An API key needs READ_VIP_STATUS and must be scoped to the main account.
 	GetVIPStatus(context.Context, *connect.Request[v1.GetVIPStatusRequest]) (*connect.Response[v1.GetVIPStatusResponse], error)
 }
 

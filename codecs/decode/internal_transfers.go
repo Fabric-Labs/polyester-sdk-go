@@ -46,5 +46,6 @@ func InternalTransferFromProto(msg *transferv1.CreateInternalTransferResponse) (
 			&aid,
 		),
 		Status: internalTransferStatusLabel(msg.GetStatus()),
+		FlowID: msg.GetFlowId(),
 	}, nil
 }

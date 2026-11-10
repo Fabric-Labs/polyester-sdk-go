@@ -56,9 +56,13 @@ type ApiKeyServiceClient interface {
 	// must have accepted the current terms, including when targeting a shared
 	// subaccount; otherwise FailedPrecondition with AUTH_TERMS_NOT_ACCEPTED is returned.
 	CreateApiKey(context.Context, *connect.Request[v1.CreateApiKeyRequest]) (*connect.Response[v1.CreateApiKeyResponse], error)
-	// List non-revoked API keys visible to the caller, newest first.
+	// List non-revoked API keys visible to the caller, newest first. An API key
+	// needs READ_API_KEYS; a key scoped to a sub-account sees only that
+	// sub-account's keys.
 	ListApiKeys(context.Context, *connect.Request[v1.ListApiKeysRequest]) (*connect.Response[v1.ListApiKeysResponse], error)
 	// Get a single API key owned by the caller or scoped to a sub-account the caller administers.
+	// An API key needs READ_API_KEYS; a key scoped to a sub-account reads only
+	// that sub-account's keys.
 	GetApiKey(context.Context, *connect.Request[v1.GetApiKeyRequest]) (*connect.Response[v1.GetApiKeyResponse], error)
 	// Revoke an API key permanently.
 	DeleteApiKey(context.Context, *connect.Request[v1.DeleteApiKeyRequest]) (*connect.Response[v1.DeleteApiKeyResponse], error)
@@ -152,9 +156,13 @@ type ApiKeyServiceHandler interface {
 	// must have accepted the current terms, including when targeting a shared
 	// subaccount; otherwise FailedPrecondition with AUTH_TERMS_NOT_ACCEPTED is returned.
 	CreateApiKey(context.Context, *connect.Request[v1.CreateApiKeyRequest]) (*connect.Response[v1.CreateApiKeyResponse], error)
-	// List non-revoked API keys visible to the caller, newest first.
+	// List non-revoked API keys visible to the caller, newest first. An API key
+	// needs READ_API_KEYS; a key scoped to a sub-account sees only that
+	// sub-account's keys.
 	ListApiKeys(context.Context, *connect.Request[v1.ListApiKeysRequest]) (*connect.Response[v1.ListApiKeysResponse], error)
 	// Get a single API key owned by the caller or scoped to a sub-account the caller administers.
+	// An API key needs READ_API_KEYS; a key scoped to a sub-account reads only
+	// that sub-account's keys.
 	GetApiKey(context.Context, *connect.Request[v1.GetApiKeyRequest]) (*connect.Response[v1.GetApiKeyResponse], error)
 	// Revoke an API key permanently.
 	DeleteApiKey(context.Context, *connect.Request[v1.DeleteApiKeyRequest]) (*connect.Response[v1.DeleteApiKeyResponse], error)

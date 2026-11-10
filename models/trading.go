@@ -632,6 +632,10 @@ type InternalTransferResult struct {
 	// status this SDK version does not know. "accepted" means the transfer has
 	// a durable transfer ID, not that it has settled.
 	Status string `json:"status,omitempty"`
+	// FlowID is the transfer's lifecycle flow, for Lifecycle.GetFlow; its
+	// ledger settlement step names TransferID. The flow may become readable
+	// after the receipt. Empty when the server sends none.
+	FlowID string `json:"flow_id,omitempty"`
 }
 
 // DepositAddress is a chain deposit address.

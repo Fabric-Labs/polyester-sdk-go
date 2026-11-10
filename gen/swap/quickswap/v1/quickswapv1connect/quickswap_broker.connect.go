@@ -36,6 +36,9 @@ const (
 	// QuickSwapBrokerServiceGetBrokerProcedure is the fully-qualified name of the
 	// QuickSwapBrokerService's GetBroker RPC.
 	QuickSwapBrokerServiceGetBrokerProcedure = "/swap.quickswap.v1.QuickSwapBrokerService/GetBroker"
+	// QuickSwapBrokerServiceListVaultBalancesProcedure is the fully-qualified name of the
+	// QuickSwapBrokerService's ListVaultBalances RPC.
+	QuickSwapBrokerServiceListVaultBalancesProcedure = "/swap.quickswap.v1.QuickSwapBrokerService/ListVaultBalances"
 	// QuickSwapBrokerServiceListMyBrokersProcedure is the fully-qualified name of the
 	// QuickSwapBrokerService's ListMyBrokers RPC.
 	QuickSwapBrokerServiceListMyBrokersProcedure = "/swap.quickswap.v1.QuickSwapBrokerService/ListMyBrokers"
@@ -104,6 +107,11 @@ type QuickSwapBrokerServiceClient interface {
 	// Errors:
 	// - NOT_FOUND: BROKER_NOT_FOUND.
 	GetBroker(context.Context, *connect.Request[v1.GetBrokerRequest]) (*connect.Response[v1.GetBrokerResponse], error)
+	// ListVaultBalances reads current balances for this broker's own vaults.
+	// All broker roles and the broker's API keys can read, without step-up.
+	// Errors: NOT_FOUND for an unknown broker or vault; UNAVAILABLE when a
+	// balance cannot be read. No partial page is returned on a read failure.
+	ListVaultBalances(context.Context, *connect.Request[v1.ListVaultBalancesRequest]) (*connect.Response[v1.ListVaultBalancesResponse], error)
 	// ListMyBrokers lists the brokers the caller is a member of and the
 	// invites addressed to the caller. Session token only.
 	ListMyBrokers(context.Context, *connect.Request[v1.ListMyBrokersRequest]) (*connect.Response[v1.ListMyBrokersResponse], error)
@@ -270,6 +278,12 @@ func NewQuickSwapBrokerServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(quickSwapBrokerServiceMethods.ByName("GetBroker")),
 			connect.WithClientOptions(opts...),
 		),
+		listVaultBalances: connect.NewClient[v1.ListVaultBalancesRequest, v1.ListVaultBalancesResponse](
+			httpClient,
+			baseURL+QuickSwapBrokerServiceListVaultBalancesProcedure,
+			connect.WithSchema(quickSwapBrokerServiceMethods.ByName("ListVaultBalances")),
+			connect.WithClientOptions(opts...),
+		),
 		listMyBrokers: connect.NewClient[v1.ListMyBrokersRequest, v1.ListMyBrokersResponse](
 			httpClient,
 			baseURL+QuickSwapBrokerServiceListMyBrokersProcedure,
@@ -390,6 +404,7 @@ func NewQuickSwapBrokerServiceClient(httpClient connect.HTTPClient, baseURL stri
 // quickSwapBrokerServiceClient implements QuickSwapBrokerServiceClient.
 type quickSwapBrokerServiceClient struct {
 	getBroker            *connect.Client[v1.GetBrokerRequest, v1.GetBrokerResponse]
+	listVaultBalances    *connect.Client[v1.ListVaultBalancesRequest, v1.ListVaultBalancesResponse]
 	listMyBrokers        *connect.Client[v1.ListMyBrokersRequest, v1.ListMyBrokersResponse]
 	respondToInvite      *connect.Client[v1.RespondToInviteRequest, v1.RespondToInviteResponse]
 	listMembers          *connect.Client[v1.ListMembersRequest, v1.ListMembersResponse]
@@ -414,6 +429,11 @@ type quickSwapBrokerServiceClient struct {
 // GetBroker calls swap.quickswap.v1.QuickSwapBrokerService.GetBroker.
 func (c *quickSwapBrokerServiceClient) GetBroker(ctx context.Context, req *connect.Request[v1.GetBrokerRequest]) (*connect.Response[v1.GetBrokerResponse], error) {
 	return c.getBroker.CallUnary(ctx, req)
+}
+
+// ListVaultBalances calls swap.quickswap.v1.QuickSwapBrokerService.ListVaultBalances.
+func (c *quickSwapBrokerServiceClient) ListVaultBalances(ctx context.Context, req *connect.Request[v1.ListVaultBalancesRequest]) (*connect.Response[v1.ListVaultBalancesResponse], error) {
+	return c.listVaultBalances.CallUnary(ctx, req)
 }
 
 // ListMyBrokers calls swap.quickswap.v1.QuickSwapBrokerService.ListMyBrokers.
@@ -520,6 +540,11 @@ type QuickSwapBrokerServiceHandler interface {
 	// Errors:
 	// - NOT_FOUND: BROKER_NOT_FOUND.
 	GetBroker(context.Context, *connect.Request[v1.GetBrokerRequest]) (*connect.Response[v1.GetBrokerResponse], error)
+	// ListVaultBalances reads current balances for this broker's own vaults.
+	// All broker roles and the broker's API keys can read, without step-up.
+	// Errors: NOT_FOUND for an unknown broker or vault; UNAVAILABLE when a
+	// balance cannot be read. No partial page is returned on a read failure.
+	ListVaultBalances(context.Context, *connect.Request[v1.ListVaultBalancesRequest]) (*connect.Response[v1.ListVaultBalancesResponse], error)
 	// ListMyBrokers lists the brokers the caller is a member of and the
 	// invites addressed to the caller. Session token only.
 	ListMyBrokers(context.Context, *connect.Request[v1.ListMyBrokersRequest]) (*connect.Response[v1.ListMyBrokersResponse], error)
@@ -682,6 +707,12 @@ func NewQuickSwapBrokerServiceHandler(svc QuickSwapBrokerServiceHandler, opts ..
 		connect.WithSchema(quickSwapBrokerServiceMethods.ByName("GetBroker")),
 		connect.WithHandlerOptions(opts...),
 	)
+	quickSwapBrokerServiceListVaultBalancesHandler := connect.NewUnaryHandler(
+		QuickSwapBrokerServiceListVaultBalancesProcedure,
+		svc.ListVaultBalances,
+		connect.WithSchema(quickSwapBrokerServiceMethods.ByName("ListVaultBalances")),
+		connect.WithHandlerOptions(opts...),
+	)
 	quickSwapBrokerServiceListMyBrokersHandler := connect.NewUnaryHandler(
 		QuickSwapBrokerServiceListMyBrokersProcedure,
 		svc.ListMyBrokers,
@@ -800,6 +831,8 @@ func NewQuickSwapBrokerServiceHandler(svc QuickSwapBrokerServiceHandler, opts ..
 		switch r.URL.Path {
 		case QuickSwapBrokerServiceGetBrokerProcedure:
 			quickSwapBrokerServiceGetBrokerHandler.ServeHTTP(w, r)
+		case QuickSwapBrokerServiceListVaultBalancesProcedure:
+			quickSwapBrokerServiceListVaultBalancesHandler.ServeHTTP(w, r)
 		case QuickSwapBrokerServiceListMyBrokersProcedure:
 			quickSwapBrokerServiceListMyBrokersHandler.ServeHTTP(w, r)
 		case QuickSwapBrokerServiceRespondToInviteProcedure:
@@ -849,6 +882,10 @@ type UnimplementedQuickSwapBrokerServiceHandler struct{}
 
 func (UnimplementedQuickSwapBrokerServiceHandler) GetBroker(context.Context, *connect.Request[v1.GetBrokerRequest]) (*connect.Response[v1.GetBrokerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swap.quickswap.v1.QuickSwapBrokerService.GetBroker is not implemented"))
+}
+
+func (UnimplementedQuickSwapBrokerServiceHandler) ListVaultBalances(context.Context, *connect.Request[v1.ListVaultBalancesRequest]) (*connect.Response[v1.ListVaultBalancesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swap.quickswap.v1.QuickSwapBrokerService.ListVaultBalances is not implemented"))
 }
 
 func (UnimplementedQuickSwapBrokerServiceHandler) ListMyBrokers(context.Context, *connect.Request[v1.ListMyBrokersRequest]) (*connect.Response[v1.ListMyBrokersResponse], error) {

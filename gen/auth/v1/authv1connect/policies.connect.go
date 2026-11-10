@@ -73,9 +73,13 @@ const (
 
 // PolicyServiceClient is a client for the auth.v1.PolicyService service.
 type PolicyServiceClient interface {
-	// List sub-account policy templates available to the caller.
+	// List sub-account policy templates available to the caller. An API key
+	// needs READ_SUBACCOUNT_POLICIES; a key scoped to a sub-account sees only the
+	// policy attached to that sub-account.
 	ListSubaccountPolicies(context.Context, *connect.Request[v1.ListSubaccountPoliciesRequest]) (*connect.Response[v1.ListSubaccountPoliciesResponse], error)
-	// Get a sub-account policy template by id.
+	// Get a sub-account policy template by id. An API key needs
+	// READ_SUBACCOUNT_POLICIES; a key scoped to a sub-account reads only the
+	// policy attached to that sub-account.
 	GetSubaccountPolicy(context.Context, *connect.Request[v1.GetSubaccountPolicyRequest]) (*connect.Response[v1.GetSubaccountPolicyResponse], error)
 	// Create a new sub-account policy template (optionally attach to a sub-account).
 	CreateSubaccountPolicy(context.Context, *connect.Request[v1.CreateSubaccountPolicyRequest]) (*connect.Response[v1.CreateSubaccountPolicyResponse], error)
@@ -85,9 +89,13 @@ type PolicyServiceClient interface {
 	DeleteSubaccountPolicy(context.Context, *connect.Request[v1.DeleteSubaccountPolicyRequest]) (*connect.Response[v1.DeleteSubaccountPolicyResponse], error)
 	// Attach or clear a sub-account policy for a sub-account.
 	SetSubaccountPolicy(context.Context, *connect.Request[v1.SetSubaccountPolicyRequest]) (*connect.Response[v1.SetSubaccountPolicyResponse], error)
-	// List API key policy templates available to the caller.
+	// List API key policy templates available to the caller. An API key needs
+	// READ_API_POLICIES; a key scoped to a sub-account sees only the policies
+	// attached to that sub-account's keys.
 	ListApiPolicies(context.Context, *connect.Request[v1.ListApiPoliciesRequest]) (*connect.Response[v1.ListApiPoliciesResponse], error)
-	// Get an API key policy template by id.
+	// Get an API key policy template by id. An API key needs
+	// READ_API_POLICIES; a key scoped to a sub-account reads only the policies
+	// attached to that sub-account's keys.
 	GetApiPolicy(context.Context, *connect.Request[v1.GetApiPolicyRequest]) (*connect.Response[v1.GetApiPolicyResponse], error)
 	// Create a new API key policy template.
 	CreateApiPolicy(context.Context, *connect.Request[v1.CreateApiPolicyRequest]) (*connect.Response[v1.CreateApiPolicyResponse], error)
@@ -263,9 +271,13 @@ func (c *policyServiceClient) SetApiKeyPolicy(ctx context.Context, req *connect.
 
 // PolicyServiceHandler is an implementation of the auth.v1.PolicyService service.
 type PolicyServiceHandler interface {
-	// List sub-account policy templates available to the caller.
+	// List sub-account policy templates available to the caller. An API key
+	// needs READ_SUBACCOUNT_POLICIES; a key scoped to a sub-account sees only the
+	// policy attached to that sub-account.
 	ListSubaccountPolicies(context.Context, *connect.Request[v1.ListSubaccountPoliciesRequest]) (*connect.Response[v1.ListSubaccountPoliciesResponse], error)
-	// Get a sub-account policy template by id.
+	// Get a sub-account policy template by id. An API key needs
+	// READ_SUBACCOUNT_POLICIES; a key scoped to a sub-account reads only the
+	// policy attached to that sub-account.
 	GetSubaccountPolicy(context.Context, *connect.Request[v1.GetSubaccountPolicyRequest]) (*connect.Response[v1.GetSubaccountPolicyResponse], error)
 	// Create a new sub-account policy template (optionally attach to a sub-account).
 	CreateSubaccountPolicy(context.Context, *connect.Request[v1.CreateSubaccountPolicyRequest]) (*connect.Response[v1.CreateSubaccountPolicyResponse], error)
@@ -275,9 +287,13 @@ type PolicyServiceHandler interface {
 	DeleteSubaccountPolicy(context.Context, *connect.Request[v1.DeleteSubaccountPolicyRequest]) (*connect.Response[v1.DeleteSubaccountPolicyResponse], error)
 	// Attach or clear a sub-account policy for a sub-account.
 	SetSubaccountPolicy(context.Context, *connect.Request[v1.SetSubaccountPolicyRequest]) (*connect.Response[v1.SetSubaccountPolicyResponse], error)
-	// List API key policy templates available to the caller.
+	// List API key policy templates available to the caller. An API key needs
+	// READ_API_POLICIES; a key scoped to a sub-account sees only the policies
+	// attached to that sub-account's keys.
 	ListApiPolicies(context.Context, *connect.Request[v1.ListApiPoliciesRequest]) (*connect.Response[v1.ListApiPoliciesResponse], error)
-	// Get an API key policy template by id.
+	// Get an API key policy template by id. An API key needs
+	// READ_API_POLICIES; a key scoped to a sub-account reads only the policies
+	// attached to that sub-account's keys.
 	GetApiPolicy(context.Context, *connect.Request[v1.GetApiPolicyRequest]) (*connect.Response[v1.GetApiPolicyResponse], error)
 	// Create a new API key policy template.
 	CreateApiPolicy(context.Context, *connect.Request[v1.CreateApiPolicyRequest]) (*connect.Response[v1.CreateApiPolicyResponse], error)

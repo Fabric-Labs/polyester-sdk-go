@@ -584,13 +584,27 @@ case errors.AuthCodeIPNotAllowed:
 `errors.SessionRequiredError` (`AUTH_SESSION_KIND_NOT_ALLOWED`, Connect
 `permission_denied` or REST 403, "interactive session required") refuses an
 API key on a method that accepts only a session token, on every service:
-withdraw and auto-withdraw rule writes, portfolio equity reads, VIP status,
-checkpoints and guard signer methods. `errors.IsSessionRequired` tests for
-it; it changed nothing and is not retryable with an API key. It unwraps to
+wallet trading withdraws, auto-withdraw rule writes, portfolio equity reads,
+internal transfer lookup and guard signer writes. `errors.IsSessionRequired`
+tests for it; it changed nothing and is not retryable with an API key. It unwraps to
 `*errors.APIError`, so a direct type assertion to `*errors.APIError` no longer
 matches it. A withdraw-service refusal of an API key whose policy lacks an
 action keeps its server message, which names the action to grant, for
 example "api key policy does not allow READ_AUTO_WITHDRAW".
+
+API keys read account data through account permissions on their API-key
+policy, granted from an interactive session: `READ_API_KEYS`
+(`APIKeys.List`, `APIKeys.Get`), `READ_VIP_STATUS` (`VIP.GetVIPStatus`),
+`READ_SOCIAL_VERIFICATION` (`SocialVerification.Get`, link status only) and
+`READ_WITHDRAW_VALIDATION` (`TradingWithdraws.ValidateDestination`). The
+other account permissions (`READ_API_POLICIES`, `READ_SUBACCOUNT_POLICIES`,
+`READ_SUBACCOUNT_PERMISSIONS`, `READ_PROFILE`, `READ_ACCOUNT_DIRECTORY`,
+`READ_DAILY_CLAIMS`, `CLAIM_DAILY_REWARD`, `READ_CHECKPOINTS` and
+`READ_REWARDS`) open calls this SDK does not wrap. Each grants only its own
+calls. A key without the permission is refused with `permission_denied` and
+`AUTH_API_KEY_ACCESS_DENIED`, and the message names the permission. Policy
+streams (`Policies.Subscribe`, `Policies.SubscribeAPIPolicies`) report these
+actions by name in `Actions`.
 
 Order refusals name the fields to fix: `errors.Violations(err)` returns the
 `errors.FieldViolation`s (`FieldPath`, `RuleID`, `Message`) of a
@@ -899,10 +913,10 @@ cannot be resolved to a non-zero `symbol_id`.
 
 Public catalog reads (`ListVIPTiers`) need no credentials. Effective spot fees
 (`Fees.GetSpotFeeRates`) and account trading limits (`RateLimits.GetTradingRateLimits`) work
-with an API key. `GetVIPStatus` requires a signed-in website session: the API refuses API-key
-callers with `permission_denied` ("API keys cannot read private VIP metrics"), so it always
-fails from this SDK. For a session caller it has no subaccount selector and reports the owning
-root group only. USD amounts and fee percents are decimal
+with an API key. `GetVIPStatus` works with a main-account API key whose policy grants
+`READ_VIP_STATUS`; without it the API refuses the key with `permission_denied` and
+`AUTH_API_KEY_ACCESS_DENIED`, naming the missing permission. It has no subaccount selector and
+reports the owning root group only. USD amounts and fee percents are decimal
 strings. Optional qualification metrics, timestamps, and next-tier thresholds stay omitted
 when unset. `SettledVolumeQuality` and `AverageAopQuality` report how complete each rolling
 30-day metric is (`complete`, `price_unavailable` or `incomplete_history`, with
@@ -1195,7 +1209,19 @@ SDK notes:
   `client.TradingWithdraws.ValidateDestination(ctx, chainID, address)` returns
   user-safe `valid` / `code` / `message` / `canonical_destination_address`
   without creating a withdraw (create RPCs remain authoritative).
+  An API key needs `READ_WITHDRAW_VALIDATION` on its policy; `EXTERNAL_WITHDRAW`
+  alone no longer opens this check.
+  Each chain of `client.Zipper.GetDepositWithdrawConfig` names its memo rule
+  for withdrawal destinations: `MemoRequirement` is `required`, `optional`
+  or `not_supported` (`models.MemoRequirement*`), empty when the server names
+  none, which does not mean a memo can be omitted. `MemoLabel` (such as
+  "Destination tag") and `MemoFormatHint` are display text; validate against
+  the rule, not the hint.
 - **Trading → trading (another account):** `client.InternalTransfers.Create(...)`.
+  The result's `FlowID` names the transfer's lifecycle flow for
+  `client.Lifecycle.GetFlow`; the flow may become readable after the receipt.
+  Looking a transfer up by transfer or request ID requires an interactive
+  session, so this SDK does not wrap it.
 
 API-key withdrawals always use the authenticated key's bound account or
 subaccount. The SDK's default subaccount does not change that source.

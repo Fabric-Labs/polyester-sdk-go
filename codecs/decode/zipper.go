@@ -1,6 +1,7 @@
 package decode
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
@@ -18,6 +19,7 @@ func DepositWithdrawConfigFromProto(msg *zipperv1.GetDepositWithdrawConfigRespon
 			NativeCurrencySymbol: c.GetNativeCurrencySymbol(), ExplorerURL: c.GetExplorerUrl(), Icon: c.GetIcon(),
 			RequiredConfirmations: int(c.GetRequiredConfirmations()), ConfirmationTimeSeconds: int(c.GetConfirmationTimeSeconds()),
 			IsCaseSensitive: c.GetIsCaseSensitive(), MinAddressLength: int(c.GetMinAddressLength()), MaxAddressLength: int(c.GetMaxAddressLength()),
+			MemoRequirement: memoRequirementLabel(c.GetMemoRequirement()), MemoLabel: c.GetMemoLabel(), MemoFormatHint: c.GetMemoFormatHint(),
 		})
 	}
 	for _, a := range msg.GetAssets() {
@@ -42,6 +44,21 @@ func DepositWithdrawConfigFromProto(msg *zipperv1.GetDepositWithdrawConfigRespon
 		})
 	}
 	return cfg
+}
+
+func memoRequirementLabel(requirement zipperv1.MemoRequirement) string {
+	switch requirement {
+	case zipperv1.MemoRequirement_REQUIRED:
+		return models.MemoRequirementRequired
+	case zipperv1.MemoRequirement_OPTIONAL:
+		return models.MemoRequirementOptional
+	case zipperv1.MemoRequirement_NOT_SUPPORTED:
+		return models.MemoRequirementNotSupported
+	case zipperv1.MemoRequirement_MEMO_UNSPECIFIED:
+		return ""
+	default:
+		return fmt.Sprintf("UNKNOWN(%d)", requirement)
+	}
 }
 
 func zippedAssetSupplyUpdateFromProto(msg *zipperv1.ZippedAssetSupplyUpdate, scaleFn func(uint32) (int, bool)) (models.ZippedAssetSupplyUpdate, error) {

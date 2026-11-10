@@ -3641,6 +3641,271 @@ func (x *GetBrokerStatsResponse) GetPeriods() []*BrokerStatsPeriod {
 	return nil
 }
 
+// ListVaultBalancesRequest selects a broker's default and affiliate vaults.
+type ListVaultBalancesRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Broker name.
+	Broker string `protobuf:"bytes,1,opt,name=broker,proto3" json:"broker,omitempty"`
+	// Public vault subaccount ID. Omit to include every vault, including disabled
+	// affiliates. A root account or another broker's vault is NOT_FOUND.
+	VaultAccountId uint64 `protobuf:"fixed64,2,opt,name=vault_account_id,json=vaultAccountId,proto3" json:"vault_account_id,omitempty"`
+	// Maximum vaults, default 20, max 200.
+	Limit uint32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Opaque exclusive keyset cursor, bound to the broker and vault filter.
+	// Reuse with the same broker and vault_account_id; limit may change.
+	PageToken     string `protobuf:"bytes,4,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListVaultBalancesRequest) Reset() {
+	*x = ListVaultBalancesRequest{}
+	mi := &file_swap_quickswap_v1_quickswap_broker_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListVaultBalancesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListVaultBalancesRequest) ProtoMessage() {}
+
+func (x *ListVaultBalancesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_swap_quickswap_v1_quickswap_broker_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListVaultBalancesRequest.ProtoReflect.Descriptor instead.
+func (*ListVaultBalancesRequest) Descriptor() ([]byte, []int) {
+	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *ListVaultBalancesRequest) GetBroker() string {
+	if x != nil {
+		return x.Broker
+	}
+	return ""
+}
+
+func (x *ListVaultBalancesRequest) GetVaultAccountId() uint64 {
+	if x != nil {
+		return x.VaultAccountId
+	}
+	return 0
+}
+
+func (x *ListVaultBalancesRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListVaultBalancesRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
+// VaultAssetBalance is the current posted balance in one asset.
+type VaultAssetBalance struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unified asset ID, including assets no longer enabled for new swaps.
+	AssetId uint32 `protobuf:"varint,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	// Settled balance of the vault's Funding and Trading accounts, at 18 decimals.
+	// Pending credits are excluded. This is not a withdrawability guarantee.
+	Amount *TokenAmount `protobuf:"bytes,2,opt,name=amount,proto3" json:"amount,omitempty"`
+	// Funds committed to pending outgoing transfers, at 18 decimals. amount
+	// still counts these funds and has NOT been reduced by pending_outgoing.
+	// amount minus pending_outgoing is the balance not yet committed to an
+	// outgoing transfer. This excludes order holds and is not a withdrawability guarantee.
+	PendingOutgoing *TokenAmount `protobuf:"bytes,3,opt,name=pending_outgoing,json=pendingOutgoing,proto3" json:"pending_outgoing,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *VaultAssetBalance) Reset() {
+	*x = VaultAssetBalance{}
+	mi := &file_swap_quickswap_v1_quickswap_broker_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VaultAssetBalance) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VaultAssetBalance) ProtoMessage() {}
+
+func (x *VaultAssetBalance) ProtoReflect() protoreflect.Message {
+	mi := &file_swap_quickswap_v1_quickswap_broker_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VaultAssetBalance.ProtoReflect.Descriptor instead.
+func (*VaultAssetBalance) Descriptor() ([]byte, []int) {
+	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *VaultAssetBalance) GetAssetId() uint32 {
+	if x != nil {
+		return x.AssetId
+	}
+	return 0
+}
+
+func (x *VaultAssetBalance) GetAmount() *TokenAmount {
+	if x != nil {
+		return x.Amount
+	}
+	return nil
+}
+
+func (x *VaultAssetBalance) GetPendingOutgoing() *TokenAmount {
+	if x != nil {
+		return x.PendingOutgoing
+	}
+	return nil
+}
+
+// VaultBalance is one vault's current balance observation.
+type VaultBalance struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public vault subaccount ID.
+	VaultAccountId uint64 `protobuf:"fixed64,1,opt,name=vault_account_id,json=vaultAccountId,proto3" json:"vault_account_id,omitempty"`
+	// Asset balances in ascending asset_id order. Empty for an unfunded vault.
+	Assets []*VaultAssetBalance `protobuf:"bytes,2,rep,name=assets,proto3" json:"assets,omitempty"`
+	// UTC time this vault's balance read completed. Vaults are read separately;
+	// this does not describe an atomic snapshot across vaults or pages.
+	AsOf          *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=as_of,json=asOf,proto3" json:"as_of,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VaultBalance) Reset() {
+	*x = VaultBalance{}
+	mi := &file_swap_quickswap_v1_quickswap_broker_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VaultBalance) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VaultBalance) ProtoMessage() {}
+
+func (x *VaultBalance) ProtoReflect() protoreflect.Message {
+	mi := &file_swap_quickswap_v1_quickswap_broker_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VaultBalance.ProtoReflect.Descriptor instead.
+func (*VaultBalance) Descriptor() ([]byte, []int) {
+	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *VaultBalance) GetVaultAccountId() uint64 {
+	if x != nil {
+		return x.VaultAccountId
+	}
+	return 0
+}
+
+func (x *VaultBalance) GetAssets() []*VaultAssetBalance {
+	if x != nil {
+		return x.Assets
+	}
+	return nil
+}
+
+func (x *VaultBalance) GetAsOf() *timestamppb.Timestamp {
+	if x != nil {
+		return x.AsOf
+	}
+	return nil
+}
+
+// ListVaultBalancesResponse lists vaults in ascending account creation-ID
+// order, independent of their encoded public IDs. A failed balance read fails
+// the entire page; it is never represented as a zero balance.
+type ListVaultBalancesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Default and affiliate vault balances, at most limit vaults.
+	Vaults []*VaultBalance `protobuf:"bytes,1,rep,name=vaults,proto3" json:"vaults,omitempty"`
+	// Opaque exclusive keyset cursor. Empty when no more results exist.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListVaultBalancesResponse) Reset() {
+	*x = ListVaultBalancesResponse{}
+	mi := &file_swap_quickswap_v1_quickswap_broker_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListVaultBalancesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListVaultBalancesResponse) ProtoMessage() {}
+
+func (x *ListVaultBalancesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_swap_quickswap_v1_quickswap_broker_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListVaultBalancesResponse.ProtoReflect.Descriptor instead.
+func (*ListVaultBalancesResponse) Descriptor() ([]byte, []int) {
+	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{56}
+}
+
+func (x *ListVaultBalancesResponse) GetVaults() []*VaultBalance {
+	if x != nil {
+		return x.Vaults
+	}
+	return nil
+}
+
+func (x *ListVaultBalancesResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
 var File_swap_quickswap_v1_quickswap_broker_proto protoreflect.FileDescriptor
 
 const file_swap_quickswap_v1_quickswap_broker_proto_rawDesc = "" +
@@ -3888,7 +4153,24 @@ const file_swap_quickswap_v1_quickswap_broker_proto_rawDesc = "" +
 	"\tdelivered\x18\x05 \x03(\v2\x1e.swap.quickswap.v1.AssetVolumeR\tdelivered\x12/\n" +
 	"\x04fees\x18\x06 \x03(\v2\x1b.swap.quickswap.v1.FeeSplitR\x04fees\"X\n" +
 	"\x16GetBrokerStatsResponse\x12>\n" +
-	"\aperiods\x18\x01 \x03(\v2$.swap.quickswap.v1.BrokerStatsPeriodR\aperiods*o\n" +
+	"\aperiods\x18\x01 \x03(\v2$.swap.quickswap.v1.BrokerStatsPeriodR\aperiods\"\xc8\x01\n" +
+	"\x18ListVaultBalancesRequest\x129\n" +
+	"\x06broker\x18\x01 \x01(\tB!\xbaH\x1er\x1c2\x1a^[a-z0-9][a-z0-9_-]{0,62}$R\x06broker\x12(\n" +
+	"\x10vault_account_id\x18\x02 \x01(\x06R\x0evaultAccountId\x12\x1e\n" +
+	"\x05limit\x18\x03 \x01(\rB\b\xbaH\x05*\x03\x18\xc8\x01R\x05limit\x12'\n" +
+	"\n" +
+	"page_token\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\tpageToken\"\xb1\x01\n" +
+	"\x11VaultAssetBalance\x12\x19\n" +
+	"\basset_id\x18\x01 \x01(\rR\aassetId\x126\n" +
+	"\x06amount\x18\x02 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\x06amount\x12I\n" +
+	"\x10pending_outgoing\x18\x03 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\x0fpendingOutgoing\"\xa7\x01\n" +
+	"\fVaultBalance\x12(\n" +
+	"\x10vault_account_id\x18\x01 \x01(\x06R\x0evaultAccountId\x12<\n" +
+	"\x06assets\x18\x02 \x03(\v2$.swap.quickswap.v1.VaultAssetBalanceR\x06assets\x12/\n" +
+	"\x05as_of\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x04asOf\"|\n" +
+	"\x19ListVaultBalancesResponse\x127\n" +
+	"\x06vaults\x18\x01 \x03(\v2\x1f.swap.quickswap.v1.VaultBalanceR\x06vaults\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken*o\n" +
 	"\n" +
 	"BrokerRole\x12\x1b\n" +
 	"\x17BROKER_ROLE_UNSPECIFIED\x10\x00\x12\t\n" +
@@ -3911,11 +4193,13 @@ const file_swap_quickswap_v1_quickswap_broker_proto_rawDesc = "" +
 	"\vStatsPeriod\x12\x16\n" +
 	"\x12PERIOD_UNSPECIFIED\x10\x00\x12\a\n" +
 	"\x03DAY\x10\x01\x12\t\n" +
-	"\x05MONTH\x10\x022\xae \n" +
+	"\x05MONTH\x10\x022\x94\"\n" +
 	"\x16QuickSwapBrokerService\x12\xc5\x01\n" +
 	"\tGetBroker\x12#.swap.quickswap.v1.GetBrokerRequest\x1a$.swap.quickswap.v1.GetBrokerResponse\"m\xbaGd\n" +
 	"\x10QuickSwap Broker\x12\n" +
-	"Get broker\x1aDGet the broker, its limits and current usage, and the caller's role.\xa2\xb5\x18\x02\x03\x01\x12\xca\x01\n" +
+	"Get broker\x1aDGet the broker, its limits and current usage, and the caller's role.\xa2\xb5\x18\x02\x03\x01\x12\xe3\x01\n" +
+	"\x11ListVaultBalances\x12+.swap.quickswap.v1.ListVaultBalancesRequest\x1a,.swap.quickswap.v1.ListVaultBalancesResponse\"s\xbaGj\n" +
+	"\x10QuickSwap Broker\x12\x13List vault balances\x1aARead current balances of a broker's default and affiliate vaults.\xa2\xb5\x18\x02\x03\x01\x12\xca\x01\n" +
 	"\rListMyBrokers\x12'.swap.quickswap.v1.ListMyBrokersRequest\x1a(.swap.quickswap.v1.ListMyBrokersResponse\"f\xbaG^\n" +
 	"\x10QuickSwap Broker\x12\x0fList my brokers\x1a9List the caller's broker memberships and pending invites.\xa2\xb5\x18\x01\x01\x12\xdb\x01\n" +
 	"\x0fRespondToInvite\x12).swap.quickswap.v1.RespondToInviteRequest\x1a*.swap.quickswap.v1.RespondToInviteResponse\"q\xbaGi\n" +
@@ -3970,7 +4254,7 @@ func file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP() []byte {
 }
 
 var file_swap_quickswap_v1_quickswap_broker_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_swap_quickswap_v1_quickswap_broker_proto_msgTypes = make([]protoimpl.MessageInfo, 53)
+var file_swap_quickswap_v1_quickswap_broker_proto_msgTypes = make([]protoimpl.MessageInfo, 57)
 var file_swap_quickswap_v1_quickswap_broker_proto_goTypes = []any{
 	(BrokerRole)(0),                                    // 0: swap.quickswap.v1.BrokerRole
 	(VaultStatus)(0),                                   // 1: swap.quickswap.v1.VaultStatus
@@ -4029,27 +4313,31 @@ var file_swap_quickswap_v1_quickswap_broker_proto_goTypes = []any{
 	(*FeeSplit)(nil),                                   // 54: swap.quickswap.v1.FeeSplit
 	(*BrokerStatsPeriod)(nil),                          // 55: swap.quickswap.v1.BrokerStatsPeriod
 	(*GetBrokerStatsResponse)(nil),                     // 56: swap.quickswap.v1.GetBrokerStatsResponse
-	(*timestamppb.Timestamp)(nil),                      // 57: google.protobuf.Timestamp
-	(QuickSwapStatus)(0),                               // 58: swap.quickswap.v1.QuickSwapStatus
-	(QuickSwapReason)(0),                               // 59: swap.quickswap.v1.QuickSwapReason
-	(*QuickSwapTerms)(nil),                             // 60: swap.quickswap.v1.QuickSwapTerms
-	(*RequestedFees)(nil),                              // 61: swap.quickswap.v1.RequestedFees
-	(*ChargedFee)(nil),                                 // 62: swap.quickswap.v1.ChargedFee
-	(*QuickSwap)(nil),                                  // 63: swap.quickswap.v1.QuickSwap
-	(*TokenAmount)(nil),                                // 64: swap.quickswap.v1.TokenAmount
+	(*ListVaultBalancesRequest)(nil),                   // 57: swap.quickswap.v1.ListVaultBalancesRequest
+	(*VaultAssetBalance)(nil),                          // 58: swap.quickswap.v1.VaultAssetBalance
+	(*VaultBalance)(nil),                               // 59: swap.quickswap.v1.VaultBalance
+	(*ListVaultBalancesResponse)(nil),                  // 60: swap.quickswap.v1.ListVaultBalancesResponse
+	(*timestamppb.Timestamp)(nil),                      // 61: google.protobuf.Timestamp
+	(QuickSwapStatus)(0),                               // 62: swap.quickswap.v1.QuickSwapStatus
+	(QuickSwapReason)(0),                               // 63: swap.quickswap.v1.QuickSwapReason
+	(*QuickSwapTerms)(nil),                             // 64: swap.quickswap.v1.QuickSwapTerms
+	(*RequestedFees)(nil),                              // 65: swap.quickswap.v1.RequestedFees
+	(*ChargedFee)(nil),                                 // 66: swap.quickswap.v1.ChargedFee
+	(*QuickSwap)(nil),                                  // 67: swap.quickswap.v1.QuickSwap
+	(*TokenAmount)(nil),                                // 68: swap.quickswap.v1.TokenAmount
 }
 var file_swap_quickswap_v1_quickswap_broker_proto_depIdxs = []int32{
 	0,  // 0: swap.quickswap.v1.Broker.role:type_name -> swap.quickswap.v1.BrokerRole
 	1,  // 1: swap.quickswap.v1.AffiliateVault.status:type_name -> swap.quickswap.v1.VaultStatus
-	57, // 2: swap.quickswap.v1.AffiliateVault.created_at:type_name -> google.protobuf.Timestamp
-	57, // 3: swap.quickswap.v1.AffiliateVault.updated_at:type_name -> google.protobuf.Timestamp
-	57, // 4: swap.quickswap.v1.BrokerKey.created_at:type_name -> google.protobuf.Timestamp
-	57, // 5: swap.quickswap.v1.BrokerKey.expires_at:type_name -> google.protobuf.Timestamp
-	57, // 6: swap.quickswap.v1.BrokerKey.revoked_at:type_name -> google.protobuf.Timestamp
+	61, // 2: swap.quickswap.v1.AffiliateVault.created_at:type_name -> google.protobuf.Timestamp
+	61, // 3: swap.quickswap.v1.AffiliateVault.updated_at:type_name -> google.protobuf.Timestamp
+	61, // 4: swap.quickswap.v1.BrokerKey.created_at:type_name -> google.protobuf.Timestamp
+	61, // 5: swap.quickswap.v1.BrokerKey.expires_at:type_name -> google.protobuf.Timestamp
+	61, // 6: swap.quickswap.v1.BrokerKey.revoked_at:type_name -> google.protobuf.Timestamp
 	0,  // 7: swap.quickswap.v1.Member.role:type_name -> swap.quickswap.v1.BrokerRole
-	57, // 8: swap.quickswap.v1.Member.since:type_name -> google.protobuf.Timestamp
+	61, // 8: swap.quickswap.v1.Member.since:type_name -> google.protobuf.Timestamp
 	0,  // 9: swap.quickswap.v1.Invite.role:type_name -> swap.quickswap.v1.BrokerRole
-	57, // 10: swap.quickswap.v1.Invite.created_at:type_name -> google.protobuf.Timestamp
+	61, // 10: swap.quickswap.v1.Invite.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 11: swap.quickswap.v1.Membership.role:type_name -> swap.quickswap.v1.BrokerRole
 	4,  // 12: swap.quickswap.v1.GetBrokerResponse.broker:type_name -> swap.quickswap.v1.Broker
 	5,  // 13: swap.quickswap.v1.GetBrokerResponse.usage:type_name -> swap.quickswap.v1.BrokerUsage
@@ -4071,83 +4359,90 @@ var file_swap_quickswap_v1_quickswap_broker_proto_depIdxs = []int32{
 	6,  // 29: swap.quickswap.v1.GetVaultResponse.vault:type_name -> swap.quickswap.v1.AffiliateVault
 	1,  // 30: swap.quickswap.v1.SetVaultStatusRequest.status:type_name -> swap.quickswap.v1.VaultStatus
 	6,  // 31: swap.quickswap.v1.SetVaultStatusResponse.vault:type_name -> swap.quickswap.v1.AffiliateVault
-	58, // 32: swap.quickswap.v1.QuickSwapSummary.status:type_name -> swap.quickswap.v1.QuickSwapStatus
-	59, // 33: swap.quickswap.v1.QuickSwapSummary.reason:type_name -> swap.quickswap.v1.QuickSwapReason
-	60, // 34: swap.quickswap.v1.QuickSwapSummary.terms:type_name -> swap.quickswap.v1.QuickSwapTerms
-	61, // 35: swap.quickswap.v1.QuickSwapSummary.fees:type_name -> swap.quickswap.v1.RequestedFees
-	62, // 36: swap.quickswap.v1.QuickSwapSummary.charged_fees:type_name -> swap.quickswap.v1.ChargedFee
-	57, // 37: swap.quickswap.v1.QuickSwapSummary.created_at:type_name -> google.protobuf.Timestamp
-	57, // 38: swap.quickswap.v1.QuickSwapSummary.updated_at:type_name -> google.protobuf.Timestamp
-	63, // 39: swap.quickswap.v1.QuickSwapBrokerServiceGetQuickSwapResponse.quick_swap:type_name -> swap.quickswap.v1.QuickSwap
-	58, // 40: swap.quickswap.v1.ListQuickSwapsRequest.statuses:type_name -> swap.quickswap.v1.QuickSwapStatus
-	57, // 41: swap.quickswap.v1.ListQuickSwapsRequest.start_time:type_name -> google.protobuf.Timestamp
-	57, // 42: swap.quickswap.v1.ListQuickSwapsRequest.end_time:type_name -> google.protobuf.Timestamp
+	62, // 32: swap.quickswap.v1.QuickSwapSummary.status:type_name -> swap.quickswap.v1.QuickSwapStatus
+	63, // 33: swap.quickswap.v1.QuickSwapSummary.reason:type_name -> swap.quickswap.v1.QuickSwapReason
+	64, // 34: swap.quickswap.v1.QuickSwapSummary.terms:type_name -> swap.quickswap.v1.QuickSwapTerms
+	65, // 35: swap.quickswap.v1.QuickSwapSummary.fees:type_name -> swap.quickswap.v1.RequestedFees
+	66, // 36: swap.quickswap.v1.QuickSwapSummary.charged_fees:type_name -> swap.quickswap.v1.ChargedFee
+	61, // 37: swap.quickswap.v1.QuickSwapSummary.created_at:type_name -> google.protobuf.Timestamp
+	61, // 38: swap.quickswap.v1.QuickSwapSummary.updated_at:type_name -> google.protobuf.Timestamp
+	67, // 39: swap.quickswap.v1.QuickSwapBrokerServiceGetQuickSwapResponse.quick_swap:type_name -> swap.quickswap.v1.QuickSwap
+	62, // 40: swap.quickswap.v1.ListQuickSwapsRequest.statuses:type_name -> swap.quickswap.v1.QuickSwapStatus
+	61, // 41: swap.quickswap.v1.ListQuickSwapsRequest.start_time:type_name -> google.protobuf.Timestamp
+	61, // 42: swap.quickswap.v1.ListQuickSwapsRequest.end_time:type_name -> google.protobuf.Timestamp
 	43, // 43: swap.quickswap.v1.ListQuickSwapsResponse.quick_swaps:type_name -> swap.quickswap.v1.QuickSwapSummary
 	2,  // 44: swap.quickswap.v1.GetFeeTotalsRequest.group_by:type_name -> swap.quickswap.v1.FeeTotalsGrouping
-	57, // 45: swap.quickswap.v1.GetFeeTotalsRequest.start_time:type_name -> google.protobuf.Timestamp
-	57, // 46: swap.quickswap.v1.GetFeeTotalsRequest.end_time:type_name -> google.protobuf.Timestamp
-	57, // 47: swap.quickswap.v1.FeeTotal.period_start:type_name -> google.protobuf.Timestamp
-	64, // 48: swap.quickswap.v1.FeeTotal.amount:type_name -> swap.quickswap.v1.TokenAmount
+	61, // 45: swap.quickswap.v1.GetFeeTotalsRequest.start_time:type_name -> google.protobuf.Timestamp
+	61, // 46: swap.quickswap.v1.GetFeeTotalsRequest.end_time:type_name -> google.protobuf.Timestamp
+	61, // 47: swap.quickswap.v1.FeeTotal.period_start:type_name -> google.protobuf.Timestamp
+	68, // 48: swap.quickswap.v1.FeeTotal.amount:type_name -> swap.quickswap.v1.TokenAmount
 	49, // 49: swap.quickswap.v1.GetFeeTotalsResponse.totals:type_name -> swap.quickswap.v1.FeeTotal
 	3,  // 50: swap.quickswap.v1.GetBrokerStatsRequest.group_by:type_name -> swap.quickswap.v1.StatsPeriod
-	57, // 51: swap.quickswap.v1.GetBrokerStatsRequest.start_time:type_name -> google.protobuf.Timestamp
-	57, // 52: swap.quickswap.v1.GetBrokerStatsRequest.end_time:type_name -> google.protobuf.Timestamp
-	58, // 53: swap.quickswap.v1.StatusCount.status:type_name -> swap.quickswap.v1.QuickSwapStatus
-	64, // 54: swap.quickswap.v1.AssetVolume.amount:type_name -> swap.quickswap.v1.TokenAmount
-	64, // 55: swap.quickswap.v1.FeeSplit.service_fee:type_name -> swap.quickswap.v1.TokenAmount
-	64, // 56: swap.quickswap.v1.FeeSplit.broker_fee:type_name -> swap.quickswap.v1.TokenAmount
-	64, // 57: swap.quickswap.v1.FeeSplit.affiliate_fee:type_name -> swap.quickswap.v1.TokenAmount
-	57, // 58: swap.quickswap.v1.BrokerStatsPeriod.period_start:type_name -> google.protobuf.Timestamp
+	61, // 51: swap.quickswap.v1.GetBrokerStatsRequest.start_time:type_name -> google.protobuf.Timestamp
+	61, // 52: swap.quickswap.v1.GetBrokerStatsRequest.end_time:type_name -> google.protobuf.Timestamp
+	62, // 53: swap.quickswap.v1.StatusCount.status:type_name -> swap.quickswap.v1.QuickSwapStatus
+	68, // 54: swap.quickswap.v1.AssetVolume.amount:type_name -> swap.quickswap.v1.TokenAmount
+	68, // 55: swap.quickswap.v1.FeeSplit.service_fee:type_name -> swap.quickswap.v1.TokenAmount
+	68, // 56: swap.quickswap.v1.FeeSplit.broker_fee:type_name -> swap.quickswap.v1.TokenAmount
+	68, // 57: swap.quickswap.v1.FeeSplit.affiliate_fee:type_name -> swap.quickswap.v1.TokenAmount
+	61, // 58: swap.quickswap.v1.BrokerStatsPeriod.period_start:type_name -> google.protobuf.Timestamp
 	52, // 59: swap.quickswap.v1.BrokerStatsPeriod.statuses:type_name -> swap.quickswap.v1.StatusCount
 	53, // 60: swap.quickswap.v1.BrokerStatsPeriod.deposited:type_name -> swap.quickswap.v1.AssetVolume
 	53, // 61: swap.quickswap.v1.BrokerStatsPeriod.delivered:type_name -> swap.quickswap.v1.AssetVolume
 	54, // 62: swap.quickswap.v1.BrokerStatsPeriod.fees:type_name -> swap.quickswap.v1.FeeSplit
 	55, // 63: swap.quickswap.v1.GetBrokerStatsResponse.periods:type_name -> swap.quickswap.v1.BrokerStatsPeriod
-	11, // 64: swap.quickswap.v1.QuickSwapBrokerService.GetBroker:input_type -> swap.quickswap.v1.GetBrokerRequest
-	13, // 65: swap.quickswap.v1.QuickSwapBrokerService.ListMyBrokers:input_type -> swap.quickswap.v1.ListMyBrokersRequest
-	15, // 66: swap.quickswap.v1.QuickSwapBrokerService.RespondToInvite:input_type -> swap.quickswap.v1.RespondToInviteRequest
-	17, // 67: swap.quickswap.v1.QuickSwapBrokerService.ListMembers:input_type -> swap.quickswap.v1.ListMembersRequest
-	19, // 68: swap.quickswap.v1.QuickSwapBrokerService.InviteMember:input_type -> swap.quickswap.v1.InviteMemberRequest
-	21, // 69: swap.quickswap.v1.QuickSwapBrokerService.SetMemberRole:input_type -> swap.quickswap.v1.SetMemberRoleRequest
-	23, // 70: swap.quickswap.v1.QuickSwapBrokerService.RemoveMember:input_type -> swap.quickswap.v1.RemoveMemberRequest
-	25, // 71: swap.quickswap.v1.QuickSwapBrokerService.TransferOwnership:input_type -> swap.quickswap.v1.TransferOwnershipRequest
-	27, // 72: swap.quickswap.v1.QuickSwapBrokerService.ListKeys:input_type -> swap.quickswap.v1.ListKeysRequest
-	29, // 73: swap.quickswap.v1.QuickSwapBrokerService.CreateKey:input_type -> swap.quickswap.v1.CreateKeyRequest
-	31, // 74: swap.quickswap.v1.QuickSwapBrokerService.RotateKey:input_type -> swap.quickswap.v1.RotateKeyRequest
-	33, // 75: swap.quickswap.v1.QuickSwapBrokerService.RevokeKey:input_type -> swap.quickswap.v1.RevokeKeyRequest
-	35, // 76: swap.quickswap.v1.QuickSwapBrokerService.CreateAffiliateVault:input_type -> swap.quickswap.v1.CreateAffiliateVaultRequest
-	37, // 77: swap.quickswap.v1.QuickSwapBrokerService.ListVaults:input_type -> swap.quickswap.v1.ListVaultsRequest
-	39, // 78: swap.quickswap.v1.QuickSwapBrokerService.GetVault:input_type -> swap.quickswap.v1.GetVaultRequest
-	41, // 79: swap.quickswap.v1.QuickSwapBrokerService.SetVaultStatus:input_type -> swap.quickswap.v1.SetVaultStatusRequest
-	46, // 80: swap.quickswap.v1.QuickSwapBrokerService.ListQuickSwaps:input_type -> swap.quickswap.v1.ListQuickSwapsRequest
-	44, // 81: swap.quickswap.v1.QuickSwapBrokerService.GetQuickSwap:input_type -> swap.quickswap.v1.QuickSwapBrokerServiceGetQuickSwapRequest
-	48, // 82: swap.quickswap.v1.QuickSwapBrokerService.GetFeeTotals:input_type -> swap.quickswap.v1.GetFeeTotalsRequest
-	51, // 83: swap.quickswap.v1.QuickSwapBrokerService.GetBrokerStats:input_type -> swap.quickswap.v1.GetBrokerStatsRequest
-	12, // 84: swap.quickswap.v1.QuickSwapBrokerService.GetBroker:output_type -> swap.quickswap.v1.GetBrokerResponse
-	14, // 85: swap.quickswap.v1.QuickSwapBrokerService.ListMyBrokers:output_type -> swap.quickswap.v1.ListMyBrokersResponse
-	16, // 86: swap.quickswap.v1.QuickSwapBrokerService.RespondToInvite:output_type -> swap.quickswap.v1.RespondToInviteResponse
-	18, // 87: swap.quickswap.v1.QuickSwapBrokerService.ListMembers:output_type -> swap.quickswap.v1.ListMembersResponse
-	20, // 88: swap.quickswap.v1.QuickSwapBrokerService.InviteMember:output_type -> swap.quickswap.v1.InviteMemberResponse
-	22, // 89: swap.quickswap.v1.QuickSwapBrokerService.SetMemberRole:output_type -> swap.quickswap.v1.SetMemberRoleResponse
-	24, // 90: swap.quickswap.v1.QuickSwapBrokerService.RemoveMember:output_type -> swap.quickswap.v1.RemoveMemberResponse
-	26, // 91: swap.quickswap.v1.QuickSwapBrokerService.TransferOwnership:output_type -> swap.quickswap.v1.TransferOwnershipResponse
-	28, // 92: swap.quickswap.v1.QuickSwapBrokerService.ListKeys:output_type -> swap.quickswap.v1.ListKeysResponse
-	30, // 93: swap.quickswap.v1.QuickSwapBrokerService.CreateKey:output_type -> swap.quickswap.v1.CreateKeyResponse
-	32, // 94: swap.quickswap.v1.QuickSwapBrokerService.RotateKey:output_type -> swap.quickswap.v1.RotateKeyResponse
-	34, // 95: swap.quickswap.v1.QuickSwapBrokerService.RevokeKey:output_type -> swap.quickswap.v1.RevokeKeyResponse
-	36, // 96: swap.quickswap.v1.QuickSwapBrokerService.CreateAffiliateVault:output_type -> swap.quickswap.v1.CreateAffiliateVaultResponse
-	38, // 97: swap.quickswap.v1.QuickSwapBrokerService.ListVaults:output_type -> swap.quickswap.v1.ListVaultsResponse
-	40, // 98: swap.quickswap.v1.QuickSwapBrokerService.GetVault:output_type -> swap.quickswap.v1.GetVaultResponse
-	42, // 99: swap.quickswap.v1.QuickSwapBrokerService.SetVaultStatus:output_type -> swap.quickswap.v1.SetVaultStatusResponse
-	47, // 100: swap.quickswap.v1.QuickSwapBrokerService.ListQuickSwaps:output_type -> swap.quickswap.v1.ListQuickSwapsResponse
-	45, // 101: swap.quickswap.v1.QuickSwapBrokerService.GetQuickSwap:output_type -> swap.quickswap.v1.QuickSwapBrokerServiceGetQuickSwapResponse
-	50, // 102: swap.quickswap.v1.QuickSwapBrokerService.GetFeeTotals:output_type -> swap.quickswap.v1.GetFeeTotalsResponse
-	56, // 103: swap.quickswap.v1.QuickSwapBrokerService.GetBrokerStats:output_type -> swap.quickswap.v1.GetBrokerStatsResponse
-	84, // [84:104] is the sub-list for method output_type
-	64, // [64:84] is the sub-list for method input_type
-	64, // [64:64] is the sub-list for extension type_name
-	64, // [64:64] is the sub-list for extension extendee
-	0,  // [0:64] is the sub-list for field type_name
+	68, // 64: swap.quickswap.v1.VaultAssetBalance.amount:type_name -> swap.quickswap.v1.TokenAmount
+	68, // 65: swap.quickswap.v1.VaultAssetBalance.pending_outgoing:type_name -> swap.quickswap.v1.TokenAmount
+	58, // 66: swap.quickswap.v1.VaultBalance.assets:type_name -> swap.quickswap.v1.VaultAssetBalance
+	61, // 67: swap.quickswap.v1.VaultBalance.as_of:type_name -> google.protobuf.Timestamp
+	59, // 68: swap.quickswap.v1.ListVaultBalancesResponse.vaults:type_name -> swap.quickswap.v1.VaultBalance
+	11, // 69: swap.quickswap.v1.QuickSwapBrokerService.GetBroker:input_type -> swap.quickswap.v1.GetBrokerRequest
+	57, // 70: swap.quickswap.v1.QuickSwapBrokerService.ListVaultBalances:input_type -> swap.quickswap.v1.ListVaultBalancesRequest
+	13, // 71: swap.quickswap.v1.QuickSwapBrokerService.ListMyBrokers:input_type -> swap.quickswap.v1.ListMyBrokersRequest
+	15, // 72: swap.quickswap.v1.QuickSwapBrokerService.RespondToInvite:input_type -> swap.quickswap.v1.RespondToInviteRequest
+	17, // 73: swap.quickswap.v1.QuickSwapBrokerService.ListMembers:input_type -> swap.quickswap.v1.ListMembersRequest
+	19, // 74: swap.quickswap.v1.QuickSwapBrokerService.InviteMember:input_type -> swap.quickswap.v1.InviteMemberRequest
+	21, // 75: swap.quickswap.v1.QuickSwapBrokerService.SetMemberRole:input_type -> swap.quickswap.v1.SetMemberRoleRequest
+	23, // 76: swap.quickswap.v1.QuickSwapBrokerService.RemoveMember:input_type -> swap.quickswap.v1.RemoveMemberRequest
+	25, // 77: swap.quickswap.v1.QuickSwapBrokerService.TransferOwnership:input_type -> swap.quickswap.v1.TransferOwnershipRequest
+	27, // 78: swap.quickswap.v1.QuickSwapBrokerService.ListKeys:input_type -> swap.quickswap.v1.ListKeysRequest
+	29, // 79: swap.quickswap.v1.QuickSwapBrokerService.CreateKey:input_type -> swap.quickswap.v1.CreateKeyRequest
+	31, // 80: swap.quickswap.v1.QuickSwapBrokerService.RotateKey:input_type -> swap.quickswap.v1.RotateKeyRequest
+	33, // 81: swap.quickswap.v1.QuickSwapBrokerService.RevokeKey:input_type -> swap.quickswap.v1.RevokeKeyRequest
+	35, // 82: swap.quickswap.v1.QuickSwapBrokerService.CreateAffiliateVault:input_type -> swap.quickswap.v1.CreateAffiliateVaultRequest
+	37, // 83: swap.quickswap.v1.QuickSwapBrokerService.ListVaults:input_type -> swap.quickswap.v1.ListVaultsRequest
+	39, // 84: swap.quickswap.v1.QuickSwapBrokerService.GetVault:input_type -> swap.quickswap.v1.GetVaultRequest
+	41, // 85: swap.quickswap.v1.QuickSwapBrokerService.SetVaultStatus:input_type -> swap.quickswap.v1.SetVaultStatusRequest
+	46, // 86: swap.quickswap.v1.QuickSwapBrokerService.ListQuickSwaps:input_type -> swap.quickswap.v1.ListQuickSwapsRequest
+	44, // 87: swap.quickswap.v1.QuickSwapBrokerService.GetQuickSwap:input_type -> swap.quickswap.v1.QuickSwapBrokerServiceGetQuickSwapRequest
+	48, // 88: swap.quickswap.v1.QuickSwapBrokerService.GetFeeTotals:input_type -> swap.quickswap.v1.GetFeeTotalsRequest
+	51, // 89: swap.quickswap.v1.QuickSwapBrokerService.GetBrokerStats:input_type -> swap.quickswap.v1.GetBrokerStatsRequest
+	12, // 90: swap.quickswap.v1.QuickSwapBrokerService.GetBroker:output_type -> swap.quickswap.v1.GetBrokerResponse
+	60, // 91: swap.quickswap.v1.QuickSwapBrokerService.ListVaultBalances:output_type -> swap.quickswap.v1.ListVaultBalancesResponse
+	14, // 92: swap.quickswap.v1.QuickSwapBrokerService.ListMyBrokers:output_type -> swap.quickswap.v1.ListMyBrokersResponse
+	16, // 93: swap.quickswap.v1.QuickSwapBrokerService.RespondToInvite:output_type -> swap.quickswap.v1.RespondToInviteResponse
+	18, // 94: swap.quickswap.v1.QuickSwapBrokerService.ListMembers:output_type -> swap.quickswap.v1.ListMembersResponse
+	20, // 95: swap.quickswap.v1.QuickSwapBrokerService.InviteMember:output_type -> swap.quickswap.v1.InviteMemberResponse
+	22, // 96: swap.quickswap.v1.QuickSwapBrokerService.SetMemberRole:output_type -> swap.quickswap.v1.SetMemberRoleResponse
+	24, // 97: swap.quickswap.v1.QuickSwapBrokerService.RemoveMember:output_type -> swap.quickswap.v1.RemoveMemberResponse
+	26, // 98: swap.quickswap.v1.QuickSwapBrokerService.TransferOwnership:output_type -> swap.quickswap.v1.TransferOwnershipResponse
+	28, // 99: swap.quickswap.v1.QuickSwapBrokerService.ListKeys:output_type -> swap.quickswap.v1.ListKeysResponse
+	30, // 100: swap.quickswap.v1.QuickSwapBrokerService.CreateKey:output_type -> swap.quickswap.v1.CreateKeyResponse
+	32, // 101: swap.quickswap.v1.QuickSwapBrokerService.RotateKey:output_type -> swap.quickswap.v1.RotateKeyResponse
+	34, // 102: swap.quickswap.v1.QuickSwapBrokerService.RevokeKey:output_type -> swap.quickswap.v1.RevokeKeyResponse
+	36, // 103: swap.quickswap.v1.QuickSwapBrokerService.CreateAffiliateVault:output_type -> swap.quickswap.v1.CreateAffiliateVaultResponse
+	38, // 104: swap.quickswap.v1.QuickSwapBrokerService.ListVaults:output_type -> swap.quickswap.v1.ListVaultsResponse
+	40, // 105: swap.quickswap.v1.QuickSwapBrokerService.GetVault:output_type -> swap.quickswap.v1.GetVaultResponse
+	42, // 106: swap.quickswap.v1.QuickSwapBrokerService.SetVaultStatus:output_type -> swap.quickswap.v1.SetVaultStatusResponse
+	47, // 107: swap.quickswap.v1.QuickSwapBrokerService.ListQuickSwaps:output_type -> swap.quickswap.v1.ListQuickSwapsResponse
+	45, // 108: swap.quickswap.v1.QuickSwapBrokerService.GetQuickSwap:output_type -> swap.quickswap.v1.QuickSwapBrokerServiceGetQuickSwapResponse
+	50, // 109: swap.quickswap.v1.QuickSwapBrokerService.GetFeeTotals:output_type -> swap.quickswap.v1.GetFeeTotalsResponse
+	56, // 110: swap.quickswap.v1.QuickSwapBrokerService.GetBrokerStats:output_type -> swap.quickswap.v1.GetBrokerStatsResponse
+	90, // [90:111] is the sub-list for method output_type
+	69, // [69:90] is the sub-list for method input_type
+	69, // [69:69] is the sub-list for extension type_name
+	69, // [69:69] is the sub-list for extension extendee
+	0,  // [0:69] is the sub-list for field type_name
 }
 
 func init() { file_swap_quickswap_v1_quickswap_broker_proto_init() }
@@ -4163,7 +4458,7 @@ func file_swap_quickswap_v1_quickswap_broker_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swap_quickswap_v1_quickswap_broker_proto_rawDesc), len(file_swap_quickswap_v1_quickswap_broker_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   53,
+			NumMessages:   57,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

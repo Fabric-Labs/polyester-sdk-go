@@ -41,7 +41,8 @@ const (
 // CheckpointServiceClient is a client for the checkpoints.v1.CheckpointService service.
 type CheckpointServiceClient interface {
 	// List every checkpoint of the authenticated caller's root account, newest
-	// first. Checkpoints are private to the account owner.
+	// first. Checkpoints are private to the account owner. An API key needs
+	// READ_CHECKPOINTS and must be scoped to the main account.
 	ListMyCheckpoints(context.Context, *connect.Request[v1.ListMyCheckpointsRequest]) (*connect.Response[v1.ListMyCheckpointsResponse], error)
 }
 
@@ -79,7 +80,8 @@ func (c *checkpointServiceClient) ListMyCheckpoints(ctx context.Context, req *co
 // CheckpointServiceHandler is an implementation of the checkpoints.v1.CheckpointService service.
 type CheckpointServiceHandler interface {
 	// List every checkpoint of the authenticated caller's root account, newest
-	// first. Checkpoints are private to the account owner.
+	// first. Checkpoints are private to the account owner. An API key needs
+	// READ_CHECKPOINTS and must be scoped to the main account.
 	ListMyCheckpoints(context.Context, *connect.Request[v1.ListMyCheckpointsRequest]) (*connect.Response[v1.ListMyCheckpointsResponse], error)
 }
 

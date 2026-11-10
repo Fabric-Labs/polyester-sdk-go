@@ -64,6 +64,10 @@ const (
 	ErrorCode_ERROR_CODE_SUBACCOUNT_INACTIVE ErrorCode = 14
 	// Reward payouts for this campaign are paused. Today's claim is kept and paid automatically once payouts resume.
 	ErrorCode_ERROR_CODE_CLAIM_PAYOUT_UNAVAILABLE ErrorCode = 15
+	// Today's claim is recorded and its reward payout was submitted, but its result could not be
+	// confirmed. The claim is never paid twice: read the claim status, or retry the claim to get its
+	// current state. The error detail names the claim.
+	ErrorCode_ERROR_CODE_CLAIM_OUTCOME_UNKNOWN ErrorCode = 16
 )
 
 // Enum value maps for ErrorCode.
@@ -85,6 +89,7 @@ var (
 		13: "ERROR_CODE_SUBACCOUNT_NOT_FOUND",
 		14: "ERROR_CODE_SUBACCOUNT_INACTIVE",
 		15: "ERROR_CODE_CLAIM_PAYOUT_UNAVAILABLE",
+		16: "ERROR_CODE_CLAIM_OUTCOME_UNKNOWN",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_CODE_UNSPECIFIED":                   0,
@@ -103,6 +108,7 @@ var (
 		"ERROR_CODE_SUBACCOUNT_NOT_FOUND":          13,
 		"ERROR_CODE_SUBACCOUNT_INACTIVE":           14,
 		"ERROR_CODE_CLAIM_PAYOUT_UNAVAILABLE":      15,
+		"ERROR_CODE_CLAIM_OUTCOME_UNKNOWN":         16,
 	}
 )
 
@@ -256,7 +262,9 @@ func (DailyClaimState) EnumDescriptor() ([]byte, []int) {
 type ErrorDetail struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable error code matching the REST problem+json code field.
-	Code          ErrorCode `protobuf:"varint,1,opt,name=code,proto3,enum=claims.v1.ErrorCode" json:"code,omitempty"`
+	Code ErrorCode `protobuf:"varint,1,opt,name=code,proto3,enum=claims.v1.ErrorCode" json:"code,omitempty"`
+	// Identifier of the claim the error concerns. Set only with CLAIM_OUTCOME_UNKNOWN; empty otherwise.
+	ClaimId       string `protobuf:"bytes,2,opt,name=claim_id,json=claimId,proto3" json:"claim_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -296,6 +304,13 @@ func (x *ErrorDetail) GetCode() ErrorCode {
 		return x.Code
 	}
 	return ErrorCode_ERROR_CODE_UNSPECIFIED
+}
+
+func (x *ErrorDetail) GetClaimId() string {
+	if x != nil {
+		return x.ClaimId
+	}
+	return ""
 }
 
 // ClaimCampaign identifies the campaign associated with a reward or claim.
@@ -793,9 +808,10 @@ var File_claims_v1_claims_proto protoreflect.FileDescriptor
 
 const file_claims_v1_claims_proto_rawDesc = "" +
 	"\n" +
-	"\x16claims/v1/claims.proto\x12\tclaims.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\x1a\x1cpolyester/type/v1/u128.proto\"7\n" +
+	"\x16claims/v1/claims.proto\x12\tclaims.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\x1a\x1cpolyester/type/v1/u128.proto\"R\n" +
 	"\vErrorDetail\x12(\n" +
-	"\x04code\x18\x01 \x01(\x0e2\x14.claims.v1.ErrorCodeR\x04code\"\xa1\x01\n" +
+	"\x04code\x18\x01 \x01(\x0e2\x14.claims.v1.ErrorCodeR\x04code\x12\x19\n" +
+	"\bclaim_id\x18\x02 \x01(\tR\aclaimId\"\xa1\x01\n" +
 	"\rClaimCampaign\x12\x1f\n" +
 	"\vcampaign_id\x18\x01 \x01(\tR\n" +
 	"campaignId\x12\x12\n" +
@@ -832,7 +848,7 @@ const file_claims_v1_claims_proto_rawDesc = "" +
 	"\ttransfers\x18\x05 \x03(\v2\x1d.claims.v1.DailyClaimTransferR\ttransfers\x125\n" +
 	"\breset_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\aresetAt\x124\n" +
 	"\bcampaign\x18\a \x01(\v2\x18.claims.v1.ClaimCampaignR\bcampaign\x12#\n" +
-	"\rsubaccount_id\x18\b \x01(\x06R\fsubaccountId*\xbe\x04\n" +
+	"\rsubaccount_id\x18\b \x01(\x06R\fsubaccountId*\xe4\x04\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12,\n" +
 	"(ERROR_CODE_CLAIM_TEMPORARILY_UNAVAILABLE\x10\x01\x12\x1e\n" +
@@ -850,7 +866,8 @@ const file_claims_v1_claims_proto_rawDesc = "" +
 	"'ERROR_CODE_SOCIAL_VERIFICATION_REQUIRED\x10\f\x12#\n" +
 	"\x1fERROR_CODE_SUBACCOUNT_NOT_FOUND\x10\r\x12\"\n" +
 	"\x1eERROR_CODE_SUBACCOUNT_INACTIVE\x10\x0e\x12'\n" +
-	"#ERROR_CODE_CLAIM_PAYOUT_UNAVAILABLE\x10\x0f*4\n" +
+	"#ERROR_CODE_CLAIM_PAYOUT_UNAVAILABLE\x10\x0f\x12$\n" +
+	" ERROR_CODE_CLAIM_OUTCOME_UNKNOWN\x10\x10*4\n" +
 	"\vClaimPolicy\x12\x16\n" +
 	"\x12POLICY_UNSPECIFIED\x10\x00\x12\r\n" +
 	"\tUTC_DAILY\x10\x01*\x97\x01\n" +
@@ -860,12 +877,12 @@ const file_claims_v1_claims_proto_rawDesc = "" +
 	"\x10CLAIM_PROCESSING\x10\x02\x12\x11\n" +
 	"\rCLAIM_CLAIMED\x10\x03\x12\x15\n" +
 	"\x11CLAIM_UNAVAILABLE\x10\x04\x12\x18\n" +
-	"\x14CLAIM_PAYOUT_DELAYED\x10\x052\xb4\x06\n" +
-	"\rClaimsService\x12\xdb\x02\n" +
-	"\x13GetDailyClaimStatus\x12%.claims.v1.GetDailyClaimStatusRequest\x1a&.claims.v1.GetDailyClaimStatusResponse\"\xf4\x01\xbaG\xcc\x01\n" +
-	"\vDaily Claim\x12\x16Get Daily Claim Status\x1a\xa4\x01Get today's reward and claim status for the authenticated root account. Requires a session JWT; API keys are not accepted. Future reward schedules are not returned.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x19\x12\x17/v1/trading/daily-claim\x12\xb7\x03\n" +
-	"\x10ClaimDailyReward\x12\".claims.v1.ClaimDailyRewardRequest\x1a#.claims.v1.ClaimDailyRewardResponse\"\xd9\x02\xbaG\xa8\x02\n" +
-	"\vDaily Claim\x12\x12Claim Daily Reward\x1a\x84\x02Claim today's reward once for the authenticated root account, paid to the root account or to a subaccount it owns. Requires a session JWT; API keys are not accepted. All reward assets are transferred together, and retries return the same claim and destination.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/v1/trading/daily-claim/claim\x1a\v\x8a\xb5\x18\atestnetB\xc4\x01\xbaG\x80\x01:~\n" +
+	"\x14CLAIM_PAYOUT_DELAYED\x10\x052\xe7\x06\n" +
+	"\rClaimsService\x12\xf4\x02\n" +
+	"\x13GetDailyClaimStatus\x12%.claims.v1.GetDailyClaimStatusRequest\x1a&.claims.v1.GetDailyClaimStatusResponse\"\x8d\x02\xbaG\xe4\x01\n" +
+	"\vDaily Claim\x12\x16Get Daily Claim Status\x1a\xbc\x01Get today's reward and claim status for the authenticated root account. Future reward schedules are not returned. An API key needs READ_DAILY_CLAIMS and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x19\x12\x17/v1/trading/daily-claim\x12\xd1\x03\n" +
+	"\x10ClaimDailyReward\x12\".claims.v1.ClaimDailyRewardRequest\x1a#.claims.v1.ClaimDailyRewardResponse\"\xf3\x02\xbaG\xc1\x02\n" +
+	"\vDaily Claim\x12\x12Claim Daily Reward\x1a\x9d\x02Claim today's reward once for the authenticated root account, paid to the root account or to a subaccount it owns. All reward assets are transferred together, and retries return the same claim and destination. An API key needs CLAIM_DAILY_REWARD and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/v1/trading/daily-claim/claim\x1a\v\x8a\xb5\x18\atestnetB\xc4\x01\xbaG\x80\x01:~\n" +
 	"\vDaily Claim\x12oDaily campaign rewards for authenticated root accounts, payable to the root account or to a subaccount it owns.Z>github.com/Fabric-Labs/polyester-sdk-go/gen/claims/v1;claimsv1b\x06proto3"
 
 var (

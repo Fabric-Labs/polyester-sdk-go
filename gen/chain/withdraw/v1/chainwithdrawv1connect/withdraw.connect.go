@@ -47,7 +47,8 @@ const (
 // WithdrawServiceClient is a client for the chain.withdraw.v1.WithdrawService service.
 type WithdrawServiceClient interface {
 	// Validate an external-chain withdraw destination for an authenticated
-	// caller without creating, signing, or reserving a withdraw.
+	// caller without creating, signing, or reserving a withdraw. An API key
+	// needs READ_WITHDRAW_VALIDATION within its scope.
 	ValidateWithdrawDestination(context.Context, *connect.Request[v1.ValidateWithdrawDestinationRequest]) (*connect.Response[v1.ValidateWithdrawDestinationResponse], error)
 	// Create or return one durable withdraw from Trading.
 	CreateTradingWithdraw(context.Context, *connect.Request[v1.CreateTradingWithdrawRequest]) (*connect.Response[v1.CreateTradingWithdrawResponse], error)
@@ -115,7 +116,8 @@ func (c *withdrawServiceClient) CreateWalletTradingWithdraw(ctx context.Context,
 // WithdrawServiceHandler is an implementation of the chain.withdraw.v1.WithdrawService service.
 type WithdrawServiceHandler interface {
 	// Validate an external-chain withdraw destination for an authenticated
-	// caller without creating, signing, or reserving a withdraw.
+	// caller without creating, signing, or reserving a withdraw. An API key
+	// needs READ_WITHDRAW_VALIDATION within its scope.
 	ValidateWithdrawDestination(context.Context, *connect.Request[v1.ValidateWithdrawDestinationRequest]) (*connect.Response[v1.ValidateWithdrawDestinationResponse], error)
 	// Create or return one durable withdraw from Trading.
 	CreateTradingWithdraw(context.Context, *connect.Request[v1.CreateTradingWithdrawRequest]) (*connect.Response[v1.CreateTradingWithdrawResponse], error)

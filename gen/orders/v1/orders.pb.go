@@ -583,11 +583,17 @@ const (
 	// The venue-wide admission rate that the account shares with other accounts is
 	// exhausted. The account's own limit was not reached; retry shortly.
 	ErrorCode_ERROR_CODE_SYSTEM_RATE_LIMITED ErrorCode = 225
-	// An earlier amend or replace of the order has not completed yet. Retry once it
-	// completes.
+	// An earlier amend or replace of the order has not completed yet. A batch
+	// replace answer means its items were admitted, not completed, so the next
+	// refresh of the same order can get this code. Retry after a short backoff.
+	// For a batch item, resend only that item in a new batch under a fresh request
+	// ID, because the rejected batch's request ID returns this rejection again.
 	ErrorCode_ERROR_CODE_ORDER_MODIFY_IN_PROGRESS ErrorCode = 226
-	// The order, or the replace that created it, has not been placed on the book
-	// yet, so it cannot be modified. Retry shortly.
+	// The placement of the order, or of the replacement an earlier replace
+	// created, has not been confirmed yet, so it cannot be modified. It may already
+	// rest on the book. A refresh that names the replacement order ID from a batch
+	// whose replace has not been confirmed yet gets this code. Retry after a short
+	// backoff, as for ORDER_MODIFY_IN_PROGRESS.
 	ErrorCode_ERROR_CODE_ORDER_PLACEMENT_PENDING ErrorCode = 227
 	// The modify behavior is not a known behavior.
 	ErrorCode_ERROR_CODE_INVALID_MODIFY_BEHAVIOR ErrorCode = 228
@@ -850,6 +856,9 @@ const (
 	// The trigger's child order did not match the order the trigger requested,
 	// so the trigger failed and the child order was canceled.
 	ErrorCode_ERROR_CODE_CHILD_ORDER_INCONSISTENT ErrorCode = 94
+	// A non-empty resource ID in the REST request body differs from the path ID.
+	// Nothing changed. Use the same ID in both places, or omit the body ID.
+	ErrorCode_ERROR_CODE_PATH_BODY_ID_MISMATCH ErrorCode = 95
 	// The request's receive window ended before it was sent on for admission:
 	// the request was not processed and changed nothing. The window is the
 	// request's timestamp plus its receive window: the X-API-RECV-WINDOW header
@@ -1057,6 +1066,7 @@ var (
 		92:  "ERROR_CODE_CONDITION_PARAMETER_SET",
 		93:  "ERROR_CODE_TWAP_CAPACITY_REACHED",
 		94:  "ERROR_CODE_CHILD_ORDER_INCONSISTENT",
+		95:  "ERROR_CODE_PATH_BODY_ID_MISMATCH",
 		308: "ERROR_CODE_REQUEST_DEADLINE_EXCEEDED",
 	}
 	ErrorCode_value = map[string]int32{
@@ -1256,6 +1266,7 @@ var (
 		"ERROR_CODE_CONDITION_PARAMETER_SET":                92,
 		"ERROR_CODE_TWAP_CAPACITY_REACHED":                  93,
 		"ERROR_CODE_CHILD_ORDER_INCONSISTENT":               94,
+		"ERROR_CODE_PATH_BODY_ID_MISMATCH":                  95,
 		"ERROR_CODE_REQUEST_DEADLINE_EXCEEDED":              308,
 	}
 )
@@ -5256,6 +5267,14 @@ func (x *BatchReplaceAdmissionItem) GetActionTaken() ModifyActionTaken {
 // a different payload under the same key conflicts. Use a fresh key for a new batch.
 // Read the batch's status with GetBatchReplaceStatus within the same window;
 // after it, reconcile the individual orders and never resubmit an accepted batch.
+// The response answers admission, before an admitted item's change completes.
+// Until it completes, a later change of that order, an item of the next batch
+// included, is rejected with a retryable code: ORDER_MODIFY_IN_PROGRESS when it
+// names the order by client order ID, and ORDER_PLACEMENT_PENDING (or
+// ORDER_MODIFY_IN_PROGRESS) when it names the replacement_order_id returned
+// here. Resend only the rejected items, in a new batch under a fresh key, after
+// a short backoff: the rejected batch's key keeps replaying its rejection, and
+// admitted items must not be sent again.
 type BatchReplaceOrdersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
@@ -6094,7 +6113,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"&SELF_TRADE_PREVENTION_MODE_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fEXPIRE_MAKER\x10\x01\x12\x10\n" +
 	"\fEXPIRE_TAKER\x10\x02\x12\x0f\n" +
-	"\vEXPIRE_BOTH\x10\x03*\x9e=\n" +
+	"\vEXPIRE_BOTH\x10\x03*\xc4=\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16ERROR_CODE_BAD_REQUEST\x10\x01\x12\x1f\n" +
@@ -6292,7 +6311,8 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\"ERROR_CODE_CONDITION_FLAGS_INVALID\x10[\x12&\n" +
 	"\"ERROR_CODE_CONDITION_PARAMETER_SET\x10\\\x12$\n" +
 	" ERROR_CODE_TWAP_CAPACITY_REACHED\x10]\x12'\n" +
-	"#ERROR_CODE_CHILD_ORDER_INCONSISTENT\x10^\x12)\n" +
+	"#ERROR_CODE_CHILD_ORDER_INCONSISTENT\x10^\x12$\n" +
+	" ERROR_CODE_PATH_BODY_ID_MISMATCH\x10_\x12)\n" +
 	"$ERROR_CODE_REQUEST_DEADLINE_EXCEEDED\x10\xb4\x02*k\n" +
 	"\x12TriggerPriceSource\x12$\n" +
 	" TRIGGER_PRICE_SOURCE_UNSPECIFIED\x10\x00\x12\x0e\n" +

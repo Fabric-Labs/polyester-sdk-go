@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// InternalTransferServiceGetInternalTransferProcedure is the fully-qualified name of the
+	// InternalTransferService's GetInternalTransfer RPC.
+	InternalTransferServiceGetInternalTransferProcedure = "/transfer.v1.InternalTransferService/GetInternalTransfer"
 	// InternalTransferServiceCreateInternalTransferProcedure is the fully-qualified name of the
 	// InternalTransferService's CreateInternalTransfer RPC.
 	InternalTransferServiceCreateInternalTransferProcedure = "/transfer.v1.InternalTransferService/CreateInternalTransfer"
@@ -40,6 +43,11 @@ const (
 
 // InternalTransferServiceClient is a client for the transfer.v1.InternalTransferService service.
 type InternalTransferServiceClient interface {
+	// Read an accepted transfer by request ID or transfer ID, scoped to its source
+	// account. JWT session authentication only; API keys are not supported.
+	// Returns NotFound for unknown, pending, or inaccessible transfers. This read
+	// does not submit or retry a transfer and requires no fresh MFA.
+	GetInternalTransfer(context.Context, *connect.Request[v1.GetInternalTransferRequest]) (*connect.Response[v1.GetInternalTransferResponse], error)
 	// Create or return one accepted Trading to Trading transfer.
 	// Root-owner same-owner transfers and root-owner transfers to explicitly
 	// whitelisted destinations accept recent MFA; delegated and other
@@ -58,6 +66,12 @@ func NewInternalTransferServiceClient(httpClient connect.HTTPClient, baseURL str
 	baseURL = strings.TrimRight(baseURL, "/")
 	internalTransferServiceMethods := v1.File_transfer_v1_internal_transfer_proto.Services().ByName("InternalTransferService").Methods()
 	return &internalTransferServiceClient{
+		getInternalTransfer: connect.NewClient[v1.GetInternalTransferRequest, v1.GetInternalTransferResponse](
+			httpClient,
+			baseURL+InternalTransferServiceGetInternalTransferProcedure,
+			connect.WithSchema(internalTransferServiceMethods.ByName("GetInternalTransfer")),
+			connect.WithClientOptions(opts...),
+		),
 		createInternalTransfer: connect.NewClient[v1.CreateInternalTransferRequest, v1.CreateInternalTransferResponse](
 			httpClient,
 			baseURL+InternalTransferServiceCreateInternalTransferProcedure,
@@ -69,7 +83,13 @@ func NewInternalTransferServiceClient(httpClient connect.HTTPClient, baseURL str
 
 // internalTransferServiceClient implements InternalTransferServiceClient.
 type internalTransferServiceClient struct {
+	getInternalTransfer    *connect.Client[v1.GetInternalTransferRequest, v1.GetInternalTransferResponse]
 	createInternalTransfer *connect.Client[v1.CreateInternalTransferRequest, v1.CreateInternalTransferResponse]
+}
+
+// GetInternalTransfer calls transfer.v1.InternalTransferService.GetInternalTransfer.
+func (c *internalTransferServiceClient) GetInternalTransfer(ctx context.Context, req *connect.Request[v1.GetInternalTransferRequest]) (*connect.Response[v1.GetInternalTransferResponse], error) {
+	return c.getInternalTransfer.CallUnary(ctx, req)
 }
 
 // CreateInternalTransfer calls transfer.v1.InternalTransferService.CreateInternalTransfer.
@@ -80,6 +100,11 @@ func (c *internalTransferServiceClient) CreateInternalTransfer(ctx context.Conte
 // InternalTransferServiceHandler is an implementation of the transfer.v1.InternalTransferService
 // service.
 type InternalTransferServiceHandler interface {
+	// Read an accepted transfer by request ID or transfer ID, scoped to its source
+	// account. JWT session authentication only; API keys are not supported.
+	// Returns NotFound for unknown, pending, or inaccessible transfers. This read
+	// does not submit or retry a transfer and requires no fresh MFA.
+	GetInternalTransfer(context.Context, *connect.Request[v1.GetInternalTransferRequest]) (*connect.Response[v1.GetInternalTransferResponse], error)
 	// Create or return one accepted Trading to Trading transfer.
 	// Root-owner same-owner transfers and root-owner transfers to explicitly
 	// whitelisted destinations accept recent MFA; delegated and other
@@ -94,6 +119,12 @@ type InternalTransferServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewInternalTransferServiceHandler(svc InternalTransferServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	internalTransferServiceMethods := v1.File_transfer_v1_internal_transfer_proto.Services().ByName("InternalTransferService").Methods()
+	internalTransferServiceGetInternalTransferHandler := connect.NewUnaryHandler(
+		InternalTransferServiceGetInternalTransferProcedure,
+		svc.GetInternalTransfer,
+		connect.WithSchema(internalTransferServiceMethods.ByName("GetInternalTransfer")),
+		connect.WithHandlerOptions(opts...),
+	)
 	internalTransferServiceCreateInternalTransferHandler := connect.NewUnaryHandler(
 		InternalTransferServiceCreateInternalTransferProcedure,
 		svc.CreateInternalTransfer,
@@ -102,6 +133,8 @@ func NewInternalTransferServiceHandler(svc InternalTransferServiceHandler, opts 
 	)
 	return "/transfer.v1.InternalTransferService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case InternalTransferServiceGetInternalTransferProcedure:
+			internalTransferServiceGetInternalTransferHandler.ServeHTTP(w, r)
 		case InternalTransferServiceCreateInternalTransferProcedure:
 			internalTransferServiceCreateInternalTransferHandler.ServeHTTP(w, r)
 		default:
@@ -112,6 +145,10 @@ func NewInternalTransferServiceHandler(svc InternalTransferServiceHandler, opts 
 
 // UnimplementedInternalTransferServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedInternalTransferServiceHandler struct{}
+
+func (UnimplementedInternalTransferServiceHandler) GetInternalTransfer(context.Context, *connect.Request[v1.GetInternalTransferRequest]) (*connect.Response[v1.GetInternalTransferResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("transfer.v1.InternalTransferService.GetInternalTransfer is not implemented"))
+}
 
 func (UnimplementedInternalTransferServiceHandler) CreateInternalTransfer(context.Context, *connect.Request[v1.CreateInternalTransferRequest]) (*connect.Response[v1.CreateInternalTransferResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("transfer.v1.InternalTransferService.CreateInternalTransfer is not implemented"))

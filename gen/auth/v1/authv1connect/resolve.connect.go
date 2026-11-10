@@ -42,6 +42,7 @@ const (
 type ResolveServiceClient interface {
 	// Resolve an account by username, account ID, or smart-account address.
 	// Use this before sharing or transferring so the caller can confirm the target.
+	// An API key needs READ_ACCOUNT_DIRECTORY.
 	ResolveAccount(context.Context, *connect.Request[v1.ResolveAccountRequest]) (*connect.Response[v1.ResolveAccountResponse], error)
 }
 
@@ -79,6 +80,7 @@ func (c *resolveServiceClient) ResolveAccount(ctx context.Context, req *connect.
 type ResolveServiceHandler interface {
 	// Resolve an account by username, account ID, or smart-account address.
 	// Use this before sharing or transferring so the caller can confirm the target.
+	// An API key needs READ_ACCOUNT_DIRECTORY.
 	ResolveAccount(context.Context, *connect.Request[v1.ResolveAccountRequest]) (*connect.Response[v1.ResolveAccountResponse], error)
 }
 

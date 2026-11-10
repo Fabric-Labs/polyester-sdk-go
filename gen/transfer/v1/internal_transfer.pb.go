@@ -515,7 +515,10 @@ type CreateInternalTransferResponse struct {
 	// Server-resolved destination summary.
 	Destination *ResolvedDestination `protobuf:"bytes,8,opt,name=destination,proto3" json:"destination,omitempty"`
 	// Public status for the transfer request.
-	Status        InternalTransferStatus `protobuf:"varint,9,opt,name=status,proto3,enum=transfer.v1.InternalTransferStatus" json:"status,omitempty"`
+	Status InternalTransferStatus `protobuf:"varint,9,opt,name=status,proto3,enum=transfer.v1.InternalTransferStatus" json:"status,omitempty"`
+	// Authoritative lifecycle flow identifier. Use GetFlowById to read the flow;
+	// its ledger settlement step links back through milestone_tx_ref.
+	FlowId        string `protobuf:"bytes,10,opt,name=flow_id,json=flowId,proto3" json:"flow_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -613,6 +616,182 @@ func (x *CreateInternalTransferResponse) GetStatus() InternalTransferStatus {
 	return InternalTransferStatus_INTERNAL_TRANSFER_STATUS_UNSPECIFIED
 }
 
+func (x *CreateInternalTransferResponse) GetFlowId() string {
+	if x != nil {
+		return x.FlowId
+	}
+	return ""
+}
+
+// GetInternalTransferRequest selects an accepted transfer from the source account.
+type GetInternalTransferRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Optional source public subaccount ID. Omitted means the authenticated root
+	// account. The caller must have access to the selected subaccount.
+	SubaccountId uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
+	// Types that are valid to be assigned to Identifier:
+	//
+	//	*GetInternalTransferRequest_RequestId
+	//	*GetInternalTransferRequest_TransferId
+	Identifier    isGetInternalTransferRequest_Identifier `protobuf_oneof:"identifier"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetInternalTransferRequest) Reset() {
+	*x = GetInternalTransferRequest{}
+	mi := &file_transfer_v1_internal_transfer_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetInternalTransferRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetInternalTransferRequest) ProtoMessage() {}
+
+func (x *GetInternalTransferRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_transfer_v1_internal_transfer_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetInternalTransferRequest.ProtoReflect.Descriptor instead.
+func (*GetInternalTransferRequest) Descriptor() ([]byte, []int) {
+	return file_transfer_v1_internal_transfer_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *GetInternalTransferRequest) GetSubaccountId() uint64 {
+	if x != nil {
+		return x.SubaccountId
+	}
+	return 0
+}
+
+func (x *GetInternalTransferRequest) GetIdentifier() isGetInternalTransferRequest_Identifier {
+	if x != nil {
+		return x.Identifier
+	}
+	return nil
+}
+
+func (x *GetInternalTransferRequest) GetRequestId() string {
+	if x != nil {
+		if x, ok := x.Identifier.(*GetInternalTransferRequest_RequestId); ok {
+			return x.RequestId
+		}
+	}
+	return ""
+}
+
+func (x *GetInternalTransferRequest) GetTransferId() string {
+	if x != nil {
+		if x, ok := x.Identifier.(*GetInternalTransferRequest_TransferId); ok {
+			return x.TransferId
+		}
+	}
+	return ""
+}
+
+type isGetInternalTransferRequest_Identifier interface {
+	isGetInternalTransferRequest_Identifier()
+}
+
+type GetInternalTransferRequest_RequestId struct {
+	// Exact server-owned request ID returned by CreateInternalTransfer.
+	RequestId string `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3,oneof"`
+}
+
+type GetInternalTransferRequest_TransferId struct {
+	// Exact transfer ID returned by CreateInternalTransfer or ListTransfers.
+	TransferId string `protobuf:"bytes,3,opt,name=transfer_id,json=transferId,proto3,oneof"`
+}
+
+func (*GetInternalTransferRequest_RequestId) isGetInternalTransferRequest_Identifier() {}
+
+func (*GetInternalTransferRequest_TransferId) isGetInternalTransferRequest_Identifier() {}
+
+// GetInternalTransferResponse links an accepted transfer to its lifecycle flow.
+type GetInternalTransferResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable server-owned intake request identifier.
+	RequestId string `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	// Stable transfer identifier shared by its debit and credit ledger entries.
+	TransferId string `protobuf:"bytes,2,opt,name=transfer_id,json=transferId,proto3" json:"transfer_id,omitempty"`
+	// Authoritative lifecycle identifier for GetFlowById. The flow's ledger
+	// settlement step links back through milestone_tx_ref.
+	FlowId string `protobuf:"bytes,3,opt,name=flow_id,json=flowId,proto3" json:"flow_id,omitempty"`
+	// Acceptance timestamp in nanoseconds since epoch (UTC).
+	AcceptedAtTsNs uint64 `protobuf:"varint,4,opt,name=accepted_at_ts_ns,json=acceptedAtTsNs,proto3" json:"accepted_at_ts_ns,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GetInternalTransferResponse) Reset() {
+	*x = GetInternalTransferResponse{}
+	mi := &file_transfer_v1_internal_transfer_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetInternalTransferResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetInternalTransferResponse) ProtoMessage() {}
+
+func (x *GetInternalTransferResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_transfer_v1_internal_transfer_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetInternalTransferResponse.ProtoReflect.Descriptor instead.
+func (*GetInternalTransferResponse) Descriptor() ([]byte, []int) {
+	return file_transfer_v1_internal_transfer_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *GetInternalTransferResponse) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *GetInternalTransferResponse) GetTransferId() string {
+	if x != nil {
+		return x.TransferId
+	}
+	return ""
+}
+
+func (x *GetInternalTransferResponse) GetFlowId() string {
+	if x != nil {
+		return x.FlowId
+	}
+	return ""
+}
+
+func (x *GetInternalTransferResponse) GetAcceptedAtTsNs() uint64 {
+	if x != nil {
+		return x.AcceptedAtTsNs
+	}
+	return 0
+}
+
 var File_transfer_v1_internal_transfer_proto protoreflect.FileDescriptor
 
 const file_transfer_v1_internal_transfer_proto_rawDesc = "" +
@@ -635,7 +814,7 @@ const file_transfer_v1_internal_transfer_proto_rawDesc = "" +
 	"\x14subaccount_public_id\x18\x02 \x01(\tR\x12subaccountPublicId\x122\n" +
 	"\x15smart_account_address\x18\x03 \x01(\tR\x13smartAccountAddress\"9\n" +
 	"\vErrorDetail\x12*\n" +
-	"\x04code\x18\x01 \x01(\x0e2\x16.transfer.v1.ErrorCodeR\x04code\"\x9c\x03\n" +
+	"\x04code\x18\x01 \x01(\x0e2\x16.transfer.v1.ErrorCodeR\x04code\"\xb5\x03\n" +
 	"\x1eCreateInternalTransferResponse\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x12\x1f\n" +
@@ -650,7 +829,25 @@ const file_transfer_v1_internal_transfer_proto_rawDesc = "" +
 	"\n" +
 	"amount_e18\x18\a \x01(\v2\x17.polyester.type.v1.U128R\tamountE18\x12B\n" +
 	"\vdestination\x18\b \x01(\v2 .transfer.v1.ResolvedDestinationR\vdestination\x12;\n" +
-	"\x06status\x18\t \x01(\x0e2#.transfer.v1.InternalTransferStatusR\x06status*\xe9\a\n" +
+	"\x06status\x18\t \x01(\x0e2#.transfer.v1.InternalTransferStatusR\x06status\x12\x17\n" +
+	"\aflow_id\x18\n" +
+	" \x01(\tR\x06flowId\"\xc0\x01\n" +
+	"\x1aGetInternalTransferRequest\x12#\n" +
+	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\x12+\n" +
+	"\n" +
+	"request_id\x18\x02 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x01H\x00R\trequestId\x12;\n" +
+	"\vtransfer_id\x18\x03 \x01(\tB\x18\xbaH\x15r\x13\x10\x01\x18'2\r^[1-9][0-9]*$H\x00R\n" +
+	"transferIdB\x13\n" +
+	"\n" +
+	"identifier\x12\x05\xbaH\x02\b\x01\"\xa1\x01\n" +
+	"\x1bGetInternalTransferResponse\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x01 \x01(\tR\trequestId\x12\x1f\n" +
+	"\vtransfer_id\x18\x02 \x01(\tR\n" +
+	"transferId\x12\x17\n" +
+	"\aflow_id\x18\x03 \x01(\tR\x06flowId\x12)\n" +
+	"\x11accepted_at_ts_ns\x18\x04 \x01(\x04R\x0eacceptedAtTsNs*\xe9\a\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12!\n" +
 	"\x1dERROR_CODE_INSUFFICIENT_FUNDS\x10\x01\x12\x1e\n" +
@@ -685,8 +882,10 @@ const file_transfer_v1_internal_transfer_proto_rawDesc = "" +
 	"$INTERNAL_TRANSFER_STATUS_UNSPECIFIED\x10\x00\x12%\n" +
 	"!INTERNAL_TRANSFER_STATUS_ACCEPTED\x10\x01\x12%\n" +
 	"!INTERNAL_TRANSFER_STATUS_REJECTED\x10\x02\x12#\n" +
-	"\x1fINTERNAL_TRANSFER_STATUS_FAILED\x10\x032\x81\x04\n" +
-	"\x17InternalTransferService\x12\xd8\x03\n" +
+	"\x1fINTERNAL_TRANSFER_STATUS_FAILED\x10\x032\xc4\x06\n" +
+	"\x17InternalTransferService\x12\xc0\x02\n" +
+	"\x13GetInternalTransfer\x12'.transfer.v1.GetInternalTransferRequest\x1a(.transfer.v1.GetInternalTransferResponse\"\xd5\x01\xbaG\xa6\x01\n" +
+	"\x12Internal Transfers\x12\x15Get Internal Transfer\x1ayRead an accepted transfer by request ID or transfer ID for an authorized source account. JWT session authentication only.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02 \x12\x1e/v1/trading/internal-transfers\x12\xd8\x03\n" +
 	"\x16CreateInternalTransfer\x12*.transfer.v1.CreateInternalTransferRequest\x1a+.transfer.v1.CreateInternalTransferResponse\"\xe4\x02\xbaG\xad\x02\n" +
 	"\x12Internal Transfers\x12\x18Create Internal Transfer\x1a\xfc\x01Create or return one authenticated Trading to Trading internal transfer. Root-owner same-owner transfers and root-owner transfers to explicitly whitelisted destinations accept recent MFA; delegated and other interactive transfers require fresh step-up.\x98\xb5\x18\x03\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02#:\x01*\"\x1e/v1/trading/internal-transfers\x1a\v\x8a\xb5\x18\aaccountB\x99\x01\xbaGR:P\n" +
 	"\x12Internal Transfers\x12:Authenticated Trading to Trading internal transfer intake.ZBgithub.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1;transferv1b\x06proto3"
@@ -704,7 +903,7 @@ func file_transfer_v1_internal_transfer_proto_rawDescGZIP() []byte {
 }
 
 var file_transfer_v1_internal_transfer_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_transfer_v1_internal_transfer_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_transfer_v1_internal_transfer_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_transfer_v1_internal_transfer_proto_goTypes = []any{
 	(ErrorCode)(0),                         // 0: transfer.v1.ErrorCode
 	(InternalTransferStatus)(0),            // 1: transfer.v1.InternalTransferStatus
@@ -712,18 +911,22 @@ var file_transfer_v1_internal_transfer_proto_goTypes = []any{
 	(*ResolvedDestination)(nil),            // 3: transfer.v1.ResolvedDestination
 	(*ErrorDetail)(nil),                    // 4: transfer.v1.ErrorDetail
 	(*CreateInternalTransferResponse)(nil), // 5: transfer.v1.CreateInternalTransferResponse
-	(*v1.U128)(nil),                        // 6: polyester.type.v1.U128
+	(*GetInternalTransferRequest)(nil),     // 6: transfer.v1.GetInternalTransferRequest
+	(*GetInternalTransferResponse)(nil),    // 7: transfer.v1.GetInternalTransferResponse
+	(*v1.U128)(nil),                        // 8: polyester.type.v1.U128
 }
 var file_transfer_v1_internal_transfer_proto_depIdxs = []int32{
-	6, // 0: transfer.v1.CreateInternalTransferRequest.amount_e18:type_name -> polyester.type.v1.U128
+	8, // 0: transfer.v1.CreateInternalTransferRequest.amount_e18:type_name -> polyester.type.v1.U128
 	0, // 1: transfer.v1.ErrorDetail.code:type_name -> transfer.v1.ErrorCode
-	6, // 2: transfer.v1.CreateInternalTransferResponse.amount_e18:type_name -> polyester.type.v1.U128
+	8, // 2: transfer.v1.CreateInternalTransferResponse.amount_e18:type_name -> polyester.type.v1.U128
 	3, // 3: transfer.v1.CreateInternalTransferResponse.destination:type_name -> transfer.v1.ResolvedDestination
 	1, // 4: transfer.v1.CreateInternalTransferResponse.status:type_name -> transfer.v1.InternalTransferStatus
-	2, // 5: transfer.v1.InternalTransferService.CreateInternalTransfer:input_type -> transfer.v1.CreateInternalTransferRequest
-	5, // 6: transfer.v1.InternalTransferService.CreateInternalTransfer:output_type -> transfer.v1.CreateInternalTransferResponse
-	6, // [6:7] is the sub-list for method output_type
-	5, // [5:6] is the sub-list for method input_type
+	6, // 5: transfer.v1.InternalTransferService.GetInternalTransfer:input_type -> transfer.v1.GetInternalTransferRequest
+	2, // 6: transfer.v1.InternalTransferService.CreateInternalTransfer:input_type -> transfer.v1.CreateInternalTransferRequest
+	7, // 7: transfer.v1.InternalTransferService.GetInternalTransfer:output_type -> transfer.v1.GetInternalTransferResponse
+	5, // 8: transfer.v1.InternalTransferService.CreateInternalTransfer:output_type -> transfer.v1.CreateInternalTransferResponse
+	7, // [7:9] is the sub-list for method output_type
+	5, // [5:7] is the sub-list for method input_type
 	5, // [5:5] is the sub-list for extension type_name
 	5, // [5:5] is the sub-list for extension extendee
 	0, // [0:5] is the sub-list for field type_name
@@ -739,13 +942,17 @@ func file_transfer_v1_internal_transfer_proto_init() {
 		(*CreateInternalTransferRequest_DestinationSubaccountId)(nil),
 		(*CreateInternalTransferRequest_DestinationSmartAccountAddress)(nil),
 	}
+	file_transfer_v1_internal_transfer_proto_msgTypes[4].OneofWrappers = []any{
+		(*GetInternalTransferRequest_RequestId)(nil),
+		(*GetInternalTransferRequest_TransferId)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_transfer_v1_internal_transfer_proto_rawDesc), len(file_transfer_v1_internal_transfer_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
