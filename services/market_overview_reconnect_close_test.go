@@ -215,3 +215,60 @@ func TestClosingOverviewFromAReconnectRefreshCallbackReturnsAtOnce(t *testing.T)
 		})
 	}
 }
+
+// POLY-9018 parity: a Close from another goroutine while a reconnect's
+// snapshot refresh is running its callback waits for that callback, so no
+// callback is still running once Close returns.
+func TestClosingOverviewDuringAReconnectRefreshCallbackWaitsForIt(t *testing.T) {
+	h := newReconnectHarness(t, false)
+	var (
+		armed     atomic.Bool
+		inside    = make(chan struct{})
+		unblock   = make(chan struct{})
+		running   atomic.Bool
+		blockOnce sync.Once
+	)
+	sub, err := h.svc.CreateSubscription(context.Background(), MarketOverviewCreateSubscriptionOptions{
+		OnEvent: func([]models.MarketOverviewEntry) {
+			if !armed.Load() {
+				return
+			}
+			blockOnce.Do(func() {
+				running.Store(true)
+				close(inside)
+				<-unblock
+				running.Store(false)
+			})
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.awaitConnection(t, 1)
+	h.drop <- struct{}{}
+	h.awaitConnection(t, 2)
+	h.await(t, "the reconnect's snapshot fetch", h.fetchStarted)
+	armed.Store(true)
+	close(h.releaseFetch)
+	h.await(t, "the refresh callback", inside)
+
+	closed := make(chan bool, 1)
+	go func() {
+		sub.Close()
+		closed <- running.Load()
+	}()
+	select {
+	case <-closed:
+		t.Fatal("Close returned while the refresh callback was still running")
+	case <-time.After(300 * time.Millisecond):
+	}
+	close(unblock)
+	select {
+	case stillRunning := <-closed:
+		if stillRunning {
+			t.Fatal("Close returned while the refresh callback was still running")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Close never returned after the refresh callback did")
+	}
+}
