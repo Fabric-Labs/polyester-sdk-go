@@ -138,7 +138,12 @@ func signedGet(ctx context.Context, httpClient *http.Client, creds *auth.Credent
 		return nil, authErr
 	}
 	if resp.StatusCode >= 400 {
-		return nil, &sdkerrors.RealtimeError{Msg: fmt.Sprintf("%s: HTTP %d", label, resp.StatusCode)}
+		msg := fmt.Sprintf("%s: HTTP %d", label, resp.StatusCode)
+		// Keep the server's reason, such as "unsupported channel".
+		if detail := truncateAuthBody(body); detail != "" {
+			msg += ": " + detail
+		}
+		return nil, &sdkerrors.RealtimeError{Msg: msg}
 	}
 	return body, nil
 }

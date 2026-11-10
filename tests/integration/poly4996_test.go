@@ -322,6 +322,7 @@ func TestTwapMarketIocAcceptsSlippage(t *testing.T) {
 }
 
 func TestSocialVerificationDiscordWithoutHandle(t *testing.T) {
+	testutil.RequireMutation(t)
 	client, ctx, cleanup := testutil.RequireLiveClient(t)
 	defer cleanup()
 

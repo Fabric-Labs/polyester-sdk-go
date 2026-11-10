@@ -40,6 +40,7 @@ func TestAddressBookGetView(t *testing.T) {
 }
 
 func TestAddressBookCreateEntryNewTagsAndAppend(t *testing.T) {
+	testutil.RequireMutation(t)
 	client, ctx, cleanup := testutil.RequireLiveClient(t)
 	defer cleanup()
 
@@ -87,6 +88,7 @@ func TestAddressBookCreateEntryNewTagsAndAppend(t *testing.T) {
 }
 
 func TestSocialStartAcceptsAtHandle(t *testing.T) {
+	testutil.RequireMutation(t)
 	client, ctx, cleanup := testutil.RequireLiveClient(t)
 	defer cleanup()
 

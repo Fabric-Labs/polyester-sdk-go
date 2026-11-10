@@ -36,17 +36,23 @@ var selfTradePreventionModeToProto = map[string]orderv1.SelfTradePreventionMode{
 type CreateTriggerOptions struct {
 	FeeAsset                *string
 	SelfTradePreventionMode *string
-	TrailingDistanceTicks   *int64
-	TrailingDistanceBps     *int32
-	ActivationPrice         *models.PriceInput
-	MaxSlippageTicks        *int64
-	MaxSlippageBps          *int32
-	TwapDurationMs          *int64
-	TwapSliceIntervalMs     *int64
-	LadderPriceMin          *models.PriceInput
-	LadderPriceMax          *models.PriceInput
-	LadderLevels            *int32
-	LadderDistribution      *string
+	// TrailingDistanceTicks is the trailing distance as a price delta in
+	// 1e-9 quote-unit ticks, the scale of every price tick: on BTC-USDT,
+	// 50 USDT is 50_000_000_000 and 0.5 USDT is 500_000_000. Convert a
+	// decimal distance with ParsePriceTicks("50", "trailing distance").
+	TrailingDistanceTicks *int64
+	// TrailingDistanceBps is the trailing distance in basis points of the
+	// price (1 bp = 0.01%), from 1 to 10000.
+	TrailingDistanceBps *int32
+	ActivationPrice     *models.PriceInput
+	MaxSlippageTicks    *int64
+	MaxSlippageBps      *int32
+	TwapDurationMs      *int64
+	TwapSliceIntervalMs *int64
+	LadderPriceMin      *models.PriceInput
+	LadderPriceMax      *models.PriceInput
+	LadderLevels        *int32
+	LadderDistribution  *string
 }
 
 func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPrice *models.PriceInput, side string, qty models.QtyInput, orderType string, limitPrice *models.PriceInput, triggerPriceSource, tif string, subAccountID *string, clientTriggerID *string, postOnly bool, quantityScale int, opts CreateTriggerOptions) (*triggersv1.CreateTriggerRequest, error) {
@@ -459,7 +465,9 @@ const MaxSellingSlippageBps = MaxSlippageBpsLimit - 1
 // Send an explicit zero (PriceFromTicksInt(0) or *int32(0)) to clear an
 // existing activation price or maximum-slippage cap.
 type ModifyTriggerOptions struct {
-	TriggerPrice          *models.PriceInput
+	TriggerPrice *models.PriceInput
+	// TrailingDistanceTicks is the new trailing distance as a price delta in
+	// 1e-9 quote-unit ticks, as on CreateTriggerOptions.
 	TrailingDistanceTicks *int64
 	TrailingDistanceBps   *int32
 	ActivationPrice       *models.PriceInput

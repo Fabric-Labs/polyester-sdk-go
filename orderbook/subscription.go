@@ -3,6 +3,8 @@ package orderbook
 import (
 	"context"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/callbackmark"
@@ -26,6 +28,10 @@ type Subscription struct {
 	closed    bool
 	err       error
 	onError   func(error)
+	// created anchors publication times on the monotonic clock;
+	// lastPublication is the latest, as time since created.
+	created         time.Time
+	lastPublication atomic.Int64
 }
 
 // NewSubscription wires snapshot-then-stream state for an orderbook channel.
@@ -44,6 +50,7 @@ func NewSubscription(
 		stream:    stream,
 		emit:      emit,
 		setBucket: setBucketFn,
+		created:   time.Now(),
 	}
 	if stream != nil {
 		go func() {
@@ -55,6 +62,37 @@ func NewSubscription(
 		}()
 	}
 	return sub
+}
+
+// NotePublication records that the stream delivered a publication now.
+// CreateSubscription calls it for every publication its stream receives.
+func (s *Subscription) NotePublication() {
+	// Keep the latest: a slower caller must not store an older time.
+	now := int64(time.Since(s.created))
+	for {
+		last := s.lastPublication.Load()
+		if now <= last || s.lastPublication.CompareAndSwap(last, now) {
+			return
+		}
+	}
+}
+
+// SinceLastPublication is how long ago the stream last delivered a
+// publication, or how long ago the subscription started when none has
+// arrived. Views from a snapshot or a bucket change don't count.
+//
+// It tells a stalled publisher from a quiet market. The server republishes
+// each book's whole view, as a reset, about every 30 s even when nothing
+// changed: seen on every market and depth of devnet and testnet, though the
+// public contract does not promise a cadence. So a quiet market stays well
+// under that, and an age far above it, such as 90 s, means the publisher or
+// the path to it has stalled while the socket stayed open. The SDK sets no
+// threshold and takes no action: poll it, and on a stall call RefreshSnapshot,
+// or Close and subscribe again.
+func (s *Subscription) SinceLastPublication() time.Duration {
+	// Load before reading the clock: every stored time is earlier than now.
+	last := time.Duration(s.lastPublication.Load())
+	return time.Since(s.created) - last
 }
 
 // Updates returns merged orderbook snapshots.

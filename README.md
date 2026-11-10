@@ -245,6 +245,12 @@ Decoding a JSON `Config` still reads `APIPrivateKey`. Read the key explicitly wi
 `Secret.Reveal` (for example `kp.SecretKeyHex.Reveal()` or
 `result.EncryptedPrivateKey.Reveal()`) or `Credentials.PrivateKey`.
 
+Reflection-based dumpers, such as `spew.Dump` from go-spew, pretty-printers and
+debugger variable views, read struct fields directly and skip these methods, so
+they can print the private key. Don't dump a `Client`, `Config`,
+`auth.Credentials`, `auth.Secret` or key pair with them, in logs or anywhere
+else.
+
 Recognized retry-later Connect `resource_exhausted` and REST admission-limit responses map to `errors.RateLimitError`. When the
 server attaches `polyester.ratelimit.v1.RateLimitDetail` (top-level Connect detail or nested under
 `orders.v1.ErrorDetail.rate_limit`), use `RateLimitError.Detail` for `policy_class`, `scope`,
@@ -321,8 +327,12 @@ remain as transport overrides.
 helper, not the primary integration pattern.
 
 `FromEnv` enables spot and Zipper catalog hydration. The zero value used by
-`New` disables it, so set `HydrateCatalogs: true` explicitly when using decimal
-writes that depend on catalog scales. Wait for hydration before those writes:
+`New` disables it, unlike the Python and Rust SDKs, so set `HydrateCatalogs: true`
+explicitly and call `WaitForCatalogs` before anything that names a market by
+symbol or needs its scales. Without catalogs, decimal writes and calls that take a
+symbol, such as `Orderbook.Get` and `Orderbook.CreateSubscription`, return an
+`*errors.ValidationError` that says so, and market overview rows come back with
+an empty `Symbol` and no quantity scale. Wait for hydration before those calls:
 
 ```go
 if err := client.WaitForCatalogs(ctx); err != nil {
@@ -1078,7 +1088,25 @@ patch does not say which leg it changes, so it takes the sell and trailing-stop
 cap; a buy market child's 10000 is set at create) and still accepts `0` to
 clear.
 Create/modify `TrailingDistanceBps` must be 1–10000; zero does not clear a
-trailing distance. `Triggers.Modify` and `Triggers.Resume` take an optional
+trailing distance.
+
+`TrailingDistanceTicks` (and `TrailingStopInput.DistanceTicks` on an attached
+trailing stop) is a price delta in 1e-9 quote-unit ticks, the same scale as every
+price tick, sent as given. It is not a count of the pair's tick size. On
+BTC-USDT, a distance of 50 USDT is `50 × 1_000_000_000 = 50_000_000_000` ticks
+and 0.5 USDT is `500_000_000`; a value of `1` trails by 0.000000001 USDT.
+Convert a decimal distance with `codecs.ParsePriceTicks`:
+
+```go
+ticks, err := codecs.ParsePriceTicks("50", "trailing distance") // 50_000_000_000
+if err != nil {
+	log.Fatal(err)
+}
+distance := int64(ticks)
+opts := codecs.CreateTriggerOptions{TrailingDistanceTicks: &distance}
+```
+
+Trigger reads decode the distance back to quote units in `Details.TrailingDistance`. `Triggers.Modify` and `Triggers.Resume` take an optional
 symbol: pass nil for both `symbol` and `symbolID` to target the trigger's own
 market, or set one, which must be that market. An API key limited to specific
 markets must still pass it. A trailing stop's `Details.TriggerPrice` is its
@@ -1464,11 +1492,33 @@ defer subPolicies.Close()
 ### Managed snapshot-then-stream
 
 Snapshot retries retain buffered publications until a successful refresh merges
-them exactly once. Recovery-buffer overflow fails closed, and `Close` cancels
+them exactly once, and a snapshot with the publications buffered behind it adds
+one update. Recovery-buffer overflow fails closed, and `Close` cancels
 in-flight refresh work and the replacement socket.
+
+A managed order book needs the spot catalog, which `New` leaves off: it resolves
+`Symbol` to its market ID there and reads the quantity scale of its levels.
+Create the client with `HydrateCatalogs: true` and call `WaitForCatalogs` first,
+as below. Passing the market's ID in `SymbolID` does not replace the catalog,
+because the scale still comes from it. Without a catalog, `CreateSubscription`
+returns an `*errors.ValidationError` before connecting. A client that keeps
+hydration off can load the spot catalog itself with
+`client.Catalogs.HydrateSpotConfig`.
 
 ```go
 import "github.com/Fabric-Labs/polyester-sdk-go/services"
+
+client, err := polyester.New(polyester.Config{
+	Environment:     &polyester.TestnetEnvironment,
+	HydrateCatalogs: true,
+})
+if err != nil {
+	log.Fatal(err)
+}
+defer client.Close()
+if err := client.WaitForCatalogs(ctx); err != nil {
+	log.Fatal(err)
+}
 
 ob, err := client.Orderbook.CreateSubscription(ctx, services.CreateSubscriptionOptions{
 	Symbol: "BTC-USDT",
@@ -1519,6 +1569,21 @@ market whose book stays unavailable keeps being requested once every 8 s, so a
 bot recovers by itself when the book comes back; close the subscription to stop.
 An environment that does not serve this release yet reports false for every
 book.
+
+A stream that stops and a market with nothing to report look alike, since no
+update arrives in either case. `SinceLastPublication` tells them apart: it is the
+time since the stream last delivered a publication (or since the subscription
+started). The server republishes each book's whole view about every 30 s even
+when nothing changed (seen on every market of devnet and testnet; the public
+contract does not promise a cadence), so a quiet market stays under that. The SDK
+sets no threshold and acts on none. Poll it, and treat an age far above 30 s, such
+as 90 s, as a stall: call `RefreshSnapshot`, or `Close` and subscribe again.
+
+```go
+if ob.SinceLastPublication() > 90*time.Second {
+	log.Printf("order book stream stalled")
+}
+```
 
 ## Development
 
