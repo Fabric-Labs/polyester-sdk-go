@@ -34,7 +34,29 @@ type ZipperChainConfig struct {
 	IsCaseSensitive         bool   `json:"is_case_sensitive,omitempty"`
 	MinAddressLength        int    `json:"min_address_length,omitempty"`
 	MaxAddressLength        int    `json:"max_address_length,omitempty"`
+	// MemoRequirement is the network's rule for a memo or destination tag on
+	// a withdrawal destination: MemoRequirementRequired, MemoRequirementOptional
+	// or MemoRequirementNotSupported. Empty when the server names no rule, which
+	// does not mean a memo can be omitted, and "UNKNOWN(n)" for a rule this SDK
+	// version does not know. It does not describe deposit instructions.
+	MemoRequirement string `json:"memo_requirement,omitempty"`
+	// MemoLabel is the display name of the memo, such as "Destination tag" or
+	// "Memo". Empty when the network does not support one.
+	MemoLabel string `json:"memo_label,omitempty"`
+	// MemoFormatHint is human-readable format guidance, as sent, for display
+	// only: validate against MemoRequirement, not this text.
+	MemoFormatHint string `json:"memo_format_hint,omitempty"`
 }
+
+// Memo rules of ZipperChainConfig.MemoRequirement.
+const (
+	// MemoRequirementRequired: a memo or destination tag must be supplied.
+	MemoRequirementRequired = "required"
+	// MemoRequirementOptional: a memo or destination tag may be supplied.
+	MemoRequirementOptional = "optional"
+	// MemoRequirementNotSupported: the memo or destination tag must be empty.
+	MemoRequirementNotSupported = "not_supported"
+)
 
 // ZipperAssetConfig is asset metadata.
 type ZipperAssetConfig struct {
@@ -93,8 +115,8 @@ type ZipperCatalogData struct {
 
 // DepositWithdrawConfig is the zipper deposit/withdraw config payload.
 type DepositWithdrawConfig struct {
-	Chains           []ZipperChainConfig         `json:"chains,omitempty"`
-	Assets           []ZipperAssetConfig         `json:"assets,omitempty"`
+	Chains    []ZipperChainConfig         `json:"chains,omitempty"`
+	Assets    []ZipperAssetConfig         `json:"assets,omitempty"`
 	Contracts []ZipperChainContractConfig `json:"contracts,omitempty"`
 	TsMs      int64                       `json:"ts_ms,omitempty"`
 }

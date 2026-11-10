@@ -41,6 +41,10 @@ func (s *SocialVerificationService) MarkReady(ctx context.Context, provider stri
 	})
 }
 
+// Get returns the account's verification for provider. An API key needs
+// READ_SOCIAL_VERIFICATION on its policy and must be scoped to the main
+// account; it reads the link status only (provider, method, handle, status and
+// verified time), and every other field is empty.
 func (s *SocialVerificationService) Get(ctx context.Context, provider string) (models.ApiData, error) {
 	req := &authv1.GetSocialVerificationRequest{Provider: providerEnum(provider)}
 	return UnaryAuth(ctx, s.transport, s.client().GetSocialVerification, req, func(msg *authv1.GetSocialVerificationResponse) models.ApiData {

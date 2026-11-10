@@ -262,7 +262,10 @@ func validateAPIKeyWithdrawScope(account AccountScope, subAccountID *string) err
 
 // ValidateDestination checks one external-chain destination without creating a
 // withdraw. Use it for form feedback before Trading → external submission; the
-// create RPCs remain authoritative.
+// create RPCs remain authoritative. It moves no value: an API key needs
+// READ_WITHDRAW_VALIDATION on its policy (EXTERNAL_WITHDRAW alone no longer
+// opens it), and a sub-account target's policy must still allow external
+// withdrawals.
 func (s *WithdrawService) ValidateDestination(ctx context.Context, destinationChainID uint64, destinationAddress string) (models.WithdrawDestinationValidation, error) {
 	if destinationChainID == 0 {
 		return models.WithdrawDestinationValidation{}, &errors.ValidationError{Msg: "destination_chain_id must be non-zero"}

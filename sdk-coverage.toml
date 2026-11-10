@@ -16,15 +16,15 @@ reason = "Wallet login is intentionally outside the API-key SDK surface."
 
 [[allowlist]]
 service = "auth.v1.PolicyService"
-reason = "Policy unary RPCs require JWT/session auth; API-key SDK exposes realtime subscribe only."
+reason = "Sub-account and API-key policy reads accept API keys with READ_SUBACCOUNT_POLICIES or READ_API_POLICIES but are not wrapped in this SDK, which exposes policy updates through realtime subscribe; policy writes require an interactive session."
 
 [[allowlist]]
 service = "auth.v1.ProfileService"
-reason = "Profile Get/Update/history require JWT/session auth; API-key SDK exposes identity subscribe only."
+reason = "GetProfile and GetUsernameHistory accept main-account API keys with READ_PROFILE but are not wrapped in this SDK, which exposes identity subscribe; profile and username writes require an interactive session."
 
 [[allowlist]]
 service = "auth.v1.ResolveService"
-reason = "Account resolve requires JWT/session auth and is not wrapped in the API-key SDK."
+reason = "ResolveAccount accepts API keys with READ_ACCOUNT_DIRECTORY but is not wrapped in this SDK."
 
 [[allowlist]]
 procedure = "/auth.v1.ApiKeyService/CreateApiKey"
@@ -76,7 +76,7 @@ reason = "Address book copy is not wrapped in the API-key SDK."
 
 [[allowlist]]
 service = "auth.v1.SubaccountRoleService"
-reason = "Subaccount role catalog RPCs are JWT/session-only; outside the API-key SDK surface."
+reason = "The role catalog is public metadata and GetEffectiveSubaccountPermissions accepts API keys with READ_SUBACCOUNT_PERMISSIONS; neither is wrapped in this SDK."
 
 [[allowlist]]
 procedure = "/ledger.read.v1.LedgerReadService/GetPortfolioEquityHistorySeries"
@@ -92,11 +92,11 @@ reason = "Terms acceptance requires an interactive JWT session; API keys are not
 
 [[allowlist]]
 service = "claims.v1.ClaimsService"
-reason = "Daily claims require an interactive root-account session; API keys are not accepted."
+reason = "GetDailyClaimStatus and ClaimDailyReward accept main-account API keys with READ_DAILY_CLAIMS or CLAIM_DAILY_REWARD but are not wrapped in this SDK."
 
 [[allowlist]]
 service = "rewards.v1.RewardCampaignService"
-reason = "Reward award listing and payout destinations require an interactive root-account session; API keys are not accepted."
+reason = "ListMyRewardAwards accepts main-account API keys with READ_REWARDS but is not wrapped in this SDK; AcknowledgeMyRewardAward and SetMyRewardDestination require an interactive root-account session."
 
 [[allowlist]]
 service = "swap.quickswap.v1.QuickSwapService"
@@ -128,4 +128,8 @@ reason = "Swap quote, create and get are not wrapped in the API-key SDK."
 
 [[allowlist]]
 procedure = "/checkpoints.v1.CheckpointService/ListMyCheckpoints"
-reason = "Checkpoints are readable only with an interactive session; the server rejects API keys."
+reason = "ListMyCheckpoints accepts main-account API keys with READ_CHECKPOINTS but is not wrapped in this SDK."
+
+[[allowlist]]
+procedure = "/transfer.v1.InternalTransferService/GetInternalTransfer"
+reason = "Internal transfer lookup by transfer or request ID requires an interactive session; the contract does not accept API keys. InternalTransfers.Create returns the flow ID."

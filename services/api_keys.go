@@ -28,6 +28,10 @@ func (s *ApiKeysService) client() authv1connect.ApiKeyServiceClient {
 	return authv1connect.NewApiKeyServiceClient(s.transport.HTTP, s.transport.Config.APIURL, s.transport.ConnectOptions(true)...)
 }
 
+// List returns the API keys in scope. An API key needs READ_API_KEYS on its
+// policy: a key scoped to the main account reads the main account's keys and
+// those of its sub-accounts, and a sub-account key reads only that
+// sub-account's keys.
 func (s *ApiKeysService) List(ctx context.Context, account AccountScope, subAccountID *string) (models.ApiKeysList, error) {
 	req := &authv1.ListApiKeysRequest{}
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
@@ -42,6 +46,8 @@ func (s *ApiKeysService) List(ctx context.Context, account AccountScope, subAcco
 	return UnaryAuth(ctx, s.transport, s.client().ListApiKeys, req, decode.ApiKeysListFromProto)
 }
 
+// Get returns one API key. An API key needs READ_API_KEYS on its policy, and
+// a key outside its scope answers not found.
 func (s *ApiKeysService) Get(ctx context.Context, keyID string) (*models.ApiKeySummary, error) {
 	return UnaryAuth(ctx, s.transport, s.client().GetApiKey, &authv1.GetApiKeyRequest{KeyId: keyID}, decode.ApiKeyFromGetProto)
 }

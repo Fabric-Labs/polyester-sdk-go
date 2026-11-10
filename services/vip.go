@@ -30,6 +30,9 @@ func (s *VIPService) ListVIPTiers(ctx context.Context) (models.VIPTiersList, err
 	return UnaryPublic(ctx, s.transport, s.client().ListVIPTiers, &vipv1.ListVIPTiersRequest{}, decode.VIPTiersListFromProto)
 }
 
+// GetVIPStatus returns the account's VIP tier and qualification metrics. An
+// API key needs READ_VIP_STATUS on its policy and must be scoped to the main
+// account. It reports the owning root group and has no sub-account selector.
 func (s *VIPService) GetVIPStatus(ctx context.Context) (models.VIPStatus, error) {
 	return UnaryAuth(ctx, s.transport, s.writeClient().GetVIPStatus, &vipv1.GetVIPStatusRequest{}, decode.VIPStatusFromProto)
 }
