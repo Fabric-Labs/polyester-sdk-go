@@ -366,10 +366,11 @@ func (e *TransportError) Unwrap() error        { return e.Err }
 // replay the request within its receive window, and the signature covers the
 // path, so even a same-origin redirect to another path could not verify.
 //
-// Nothing was sent to the redirect target. The configured API URL answered
-// with a redirect instead of a result, so sending the request again gets the
-// same answer: IsRetryable and MutationOutcomeUnknown report false. Point
-// Config.APIURL at the API's own origin instead.
+// Nothing was sent to the redirect target. A redirect does not prove that the
+// configured API URL did not apply the request before answering with it, so
+// MutationOutcomeUnknown reports true: read a mutation back before sending it
+// again. Sending it again gets the same redirect, so IsRetryable reports false.
+// Point Config.APIURL at the API's own origin instead.
 type RedirectRefusedError struct {
 	// StatusCode is the redirect status, such as 307 or 308.
 	StatusCode int
@@ -642,9 +643,11 @@ func IsRetryable(err error) bool {
 // order error code ending in _OUTCOME_UNKNOWN: an order create, cancel or
 // modify, or a trigger create, cancel, pause, resume or modify, that was sent
 // but not confirmed in time. It also includes any HTTP error with no recognised
-// code except a 401 or 403, and a bare 404. Read the order or trigger back before
-// retrying. A *CatalogHydrationError never has an unknown outcome, whatever the
-// catalog load failed with: the call failed before it sent anything.
+// code except a 401 or 403, and a bare 404, and a *RedirectRefusedError: the
+// origin that answered with the redirect may have applied the request. Read
+// the order or trigger back before retrying. A *CatalogHydrationError never
+// has an unknown outcome, whatever the catalog load failed with: the call
+// failed before it sent anything.
 func MutationOutcomeUnknown(err error) bool {
 	if isCatalogHydrationFailure(err) {
 		return false
@@ -653,12 +656,14 @@ func MutationOutcomeUnknown(err error) bool {
 	var serverErr *ServerError
 	var contractErr *ResponseContractError
 	var routeErr *RouteNotFoundError
+	var redirectErr *RedirectRefusedError
 	serverUnknown := errors.As(err, &serverErr)
 	if serverUnknown && serverErr.Status == 503 && (serverErr.AdmissionRefused || isKnownAdmissionRefusal(serverErr.Code)) {
 		serverUnknown = false
 	}
 	return errors.As(err, &transportErr) || serverUnknown ||
-		errors.As(err, &contractErr) || errors.As(err, &routeErr) || isOutcomeUnknownCode(apiErrorCode(err))
+		errors.As(err, &contractErr) || errors.As(err, &routeErr) || errors.As(err, &redirectErr) ||
+		isOutcomeUnknownCode(apiErrorCode(err))
 }
 
 // isCatalogHydrationFailure reports whether err is or wraps a

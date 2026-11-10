@@ -165,8 +165,8 @@ func TestSignedRequestIsNotForwardedAcrossOrigins(t *testing.T) {
 						if refused.StatusCode != status || refused.Origin != target || refused.SameOrigin {
 							t.Fatalf("refusal = %+v, want status %d to %s across origins", *refused, status, target)
 						}
-						if !errors.Is(err, sdkerrors.ErrPolyester) || sdkerrors.IsRetryable(err) || sdkerrors.MutationOutcomeUnknown(err) {
-							t.Fatalf("refusal must be a non-retryable SDK error with a known outcome: %v", err)
+						if !errors.Is(err, sdkerrors.ErrPolyester) || sdkerrors.IsRetryable(err) || !sdkerrors.MutationOutcomeUnknown(err) {
+							t.Fatalf("refusal must be a non-retryable SDK error with an unknown outcome: %v", err)
 						}
 					})
 				}

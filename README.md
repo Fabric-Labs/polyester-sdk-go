@@ -542,7 +542,9 @@ refusal on its status alone (`errors.AuthError`). Every other status returns
 `errors.ServerError` with `errors.MutationOutcomeUnknown` true and
 `errors.IsRetryable` false, and keeps any code it did send in `Code`; read back
 before sending a mutation again. Trigger reads retry 429, 502, 503 and 504 for you; retry other reads yourself if you want to. A
-bare 404 stays `errors.RouteNotFoundError`, also with an unknown outcome.
+bare 404 stays `errors.RouteNotFoundError`, also with an unknown outcome, as
+does a redirect of a signed request, `*errors.RedirectRefusedError` (see
+Transport).
 `*errors.CatalogHydrationError` is neither retryable nor an unknown outcome,
 whatever the catalog load failed with; see Catalogs. A
 well-formed but unrecognised code at HTTP 429 returns `errors.APIError`: known
@@ -1765,9 +1767,11 @@ path, so a same-origin redirect to another path could not verify either. The
 call returns `*errors.RedirectRefusedError`, which names the redirect status
 (`StatusCode`) and the origin it pointed at (`Origin`, without path, query or
 userinfo), and whether that is the origin the request went to (`SameOrigin`).
-Nothing was sent to the redirect target, and `errors.IsRetryable` and
-`errors.MutationOutcomeUnknown` report false: point `Config.APIURL` at the
-API's own origin.
+Nothing was sent to the redirect target, but a redirect does not prove that
+the configured origin did not apply the request before answering with it, so
+`errors.MutationOutcomeUnknown` reports true: read a mutation back before
+sending it again. `errors.IsRetryable` reports false, since sending again gets
+the same redirect: point `Config.APIURL` at the API's own origin.
 
 Unsigned public calls carry no credentials and keep following redirects. A
 `Config.HTTPClient` you supply is copied, not modified: the copy refuses
