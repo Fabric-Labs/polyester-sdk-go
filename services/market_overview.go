@@ -48,6 +48,10 @@ func (s *MarketOverviewService) List(ctx context.Context, symbols []string, limi
 	if len(pageToken) == 1 {
 		req.PageToken = pageToken[0]
 	}
+	// Rows are labelled and scaled from the catalogs; only a symbol filter needs them.
+	if err := awaitCatalogs(ctx, s.catalogs, namesSymbol(nil, symbols...)); err != nil {
+		return models.MarketOverviewList{}, err
+	}
 	for _, symbol := range symbols {
 		trimmed := strings.TrimSpace(symbol)
 		if trimmed == "" {
@@ -74,6 +78,10 @@ func (s *MarketOverviewService) GetSpotVolumeHistory(ctx context.Context, symbol
 		return models.SpotVolumeHistory{}, &errors.ValidationError{
 			Msg: "market_overview.get_spot_volume_history accepts only one of symbols or symbol_ids",
 		}
+	}
+	// Pairs are labelled from the catalogs; only a symbol filter needs them.
+	if err := awaitCatalogs(ctx, s.catalogs, namesSymbol(nil, symbols...)); err != nil {
+		return models.SpotVolumeHistory{}, err
 	}
 	resolved := make([]uint32, 0, len(symbolIDs)+len(symbols))
 	seen := make(map[uint32]struct{}, len(symbolIDs)+len(symbols))
@@ -149,6 +157,10 @@ type MarketOverviewCreateSubscriptionOptions struct {
 // live and buffered publications alike.
 func (s *MarketOverviewService) CreateSubscription(ctx context.Context, opts MarketOverviewCreateSubscriptionOptions) (*mosub.Subscription, error) {
 	if err := requireRealtime(s.realtime); err != nil {
+		return nil, err
+	}
+	// Rows are labelled and scaled from the catalogs; only a symbol filter needs them.
+	if err := awaitCatalogs(ctx, s.catalogs, namesSymbol(nil, opts.Symbols...)); err != nil {
 		return nil, err
 	}
 	selected := map[uint32]struct{}{}
@@ -251,5 +263,9 @@ func (s *MarketOverviewService) CreateSubscription(ctx context.Context, opts Mar
 }
 
 func (s *MarketOverviewService) Subscribe(ctx context.Context) (*realtime.Subscription[models.MarketOverviewList], error) {
+	// Rows are labelled and scaled from the catalogs.
+	if err := awaitCatalogs(ctx, s.catalogs, false); err != nil {
+		return nil, err
+	}
 	return SubscribePublicProto(ctx, s.realtime, "public:spot:market_overview:updates:proto", decode.MarketOverviewBatchDecoder(s.catalogs))
 }

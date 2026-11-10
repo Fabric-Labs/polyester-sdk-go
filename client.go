@@ -290,9 +290,11 @@ func New(cfg Config) (*Client, error) {
 	client.TradingWithdraws = client.Withdraw
 
 	if cfg.HydrateCatalogs {
+		// Begun before New returns: every call that needs the catalogs waits.
+		finish := cats.BeginHydration()
 		go func() {
 			defer close(client.catalogHydrationDone)
-			client.hydrateCatalogs()
+			finish(client.hydrateCatalogs())
 		}()
 	} else {
 		close(client.catalogHydrationDone)
@@ -358,7 +360,7 @@ func FromEnv(overrides ...func(*Config)) (*Client, error) {
 	return New(cfg)
 }
 
-func (c *Client) hydrateCatalogs() {
+func (c *Client) hydrateCatalogs() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -386,6 +388,7 @@ func (c *Client) hydrateCatalogs() {
 	c.catalogMu.Lock()
 	c.catalogLastError = firstErr
 	c.catalogMu.Unlock()
+	return firstErr
 }
 
 // CatalogsLastError returns the last construction-time catalog hydration error, if any.

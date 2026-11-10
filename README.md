@@ -328,11 +328,21 @@ helper, not the primary integration pattern.
 
 `FromEnv` enables spot and Zipper catalog hydration. The zero value used by
 `New` disables it, unlike the Python and Rust SDKs, so set `HydrateCatalogs: true`
-explicitly and call `WaitForCatalogs` before anything that names a market by
-symbol or needs its scales. Without catalogs, decimal writes and calls that take a
-symbol, such as `Orderbook.Get` and `Orderbook.CreateSubscription`, return an
+explicitly for anything that names a market by symbol or needs its scales.
+Without catalogs, decimal writes and calls that take a symbol, such as
+`Orderbook.Get` and `Orderbook.CreateSubscription`, return an
 `*errors.ValidationError` that says so, and market overview rows come back with
-an empty `Symbol` and no quantity scale. Wait for hydration before those calls:
+an empty `Symbol` and no quantity scale.
+
+Hydration runs in the background after `New` returns. Every call that names a
+market by symbol or needs a pair's scales waits for it, within the call's
+context, so it can be made right away. When hydration failed, such a call returns
+`*errors.CatalogHydrationError`, which wraps the failure; a symbol the loaded
+catalogs don't know returns the `*errors.ValidationError` "Unknown symbol". Calls
+that only label their results from the catalogs, such as `MarketOverview.List`
+without symbols and `Fees.GetSpotFeeRates`, wait too and return their rows
+unlabelled when hydration failed. To learn early whether hydration failed, wait
+for it yourself:
 
 ```go
 if err := client.WaitForCatalogs(ctx); err != nil {
@@ -342,7 +352,8 @@ if err := client.WaitForCatalogs(ctx); err != nil {
 
 `WaitForCatalogs` returns immediately when `HydrateCatalogs` is disabled. When
 hydration is enabled, it returns an error if spot/Zipper hydration failed or
-catalogs are unusable (use `CatalogsLastError()` to inspect). Typed Zipper
+catalogs are unusable (use `CatalogsLastError()` to inspect). Cancelling a wait
+leaves hydration running; create a new client to hydrate again after a failure. Typed Zipper
 hydration is available via `client.Catalogs.HydrateZipperConfig(cfg)` /
 `HydrateDepositWithdrawConfig`. Hydration rejects ancillary struct values with
 unexported fields: generic raw snapshots must be JSON-shaped rather than
@@ -1498,8 +1509,9 @@ in-flight refresh work and the replacement socket.
 
 A managed order book needs the spot catalog, which `New` leaves off: it resolves
 `Symbol` to its market ID there and reads the quantity scale of its levels.
-Create the client with `HydrateCatalogs: true` and call `WaitForCatalogs` first,
-as below. Passing the market's ID in `SymbolID` does not replace the catalog,
+Create the client with `HydrateCatalogs: true`, as below; `CreateSubscription`
+waits for hydration, so `WaitForCatalogs` is only needed to learn early whether
+it failed. Passing the market's ID in `SymbolID` does not replace the catalog,
 because the scale still comes from it. Without a catalog, `CreateSubscription`
 returns an `*errors.ValidationError` before connecting. A client that keeps
 hydration off can load the spot catalog itself with
@@ -1516,9 +1528,6 @@ if err != nil {
 	log.Fatal(err)
 }
 defer client.Close()
-if err := client.WaitForCatalogs(ctx); err != nil {
-	log.Fatal(err)
-}
 
 ob, err := client.Orderbook.CreateSubscription(ctx, services.CreateSubscriptionOptions{
 	Symbol: "BTC-USDT",

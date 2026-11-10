@@ -26,6 +26,52 @@ type Manager struct {
 	Zipper                *models.ZipperCatalogData
 	DepositWithdrawConfig *models.DepositWithdrawConfig
 	legacyZipperRaw       map[string]any
+	// hydrationDone is closed when the load begun with BeginHydration ends;
+	// nil when none was begun. hydrationErr is its outcome, set before close.
+	hydrationDone chan struct{}
+	hydrationErr  error
+}
+
+// BeginHydration records that a catalog load has started, so that calls which
+// need the catalogs wait for it (see Hydration) instead of reading them while
+// they are still empty. Call the returned function once, with the load's
+// error or nil, when the load ends. The client begins one when it is created
+// with Config.HydrateCatalogs.
+func (m *Manager) BeginHydration() (finish func(error)) {
+	done := make(chan struct{})
+	m.mu.Lock()
+	m.hydrationDone = done
+	m.hydrationErr = nil
+	m.mu.Unlock()
+	var once sync.Once
+	return func(err error) {
+		once.Do(func() {
+			m.mu.Lock()
+			m.hydrationErr = err
+			m.mu.Unlock()
+			close(done)
+		})
+	}
+}
+
+// Hydration returns a channel closed when the load begun with BeginHydration
+// has ended, or nil when no load was begun. Once it is closed, HydrationError
+// returns the load's error.
+func (m *Manager) Hydration() <-chan struct{} {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.hydrationDone == nil {
+		return nil
+	}
+	return m.hydrationDone
+}
+
+// HydrationError returns the error the load begun with BeginHydration ended
+// with, or nil while it runs, after it succeeded, or when none was begun.
+func (m *Manager) HydrationError() error {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.hydrationErr
 }
 
 // NewManager creates an empty catalog manager.

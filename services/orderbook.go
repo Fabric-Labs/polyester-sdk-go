@@ -56,6 +56,10 @@ func (s *OrderbookService) Get(ctx context.Context, symbol string, depth int) (m
 	if !ok {
 		return models.OrderbookData{}, &errors.ValidationError{Msg: "unsupported orderbook depth"}
 	}
+	// Levels are decoded with the pair's catalog quantity scale.
+	if err := awaitCatalogs(ctx, s.catalogs, true); err != nil {
+		return models.OrderbookData{}, err
+	}
 	symbolID, err := ResolveSymbolID(s.catalogs, &symbol, nil, "orderbook.get")
 	if err != nil {
 		return models.OrderbookData{}, err
@@ -107,6 +111,19 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		return nil, err
 	}
 	resolvedSymbolID := opts.SymbolID
+	if s.catalogs.Hydration() != nil {
+		// Levels are decoded with the pair's catalog quantity scale.
+		if err := awaitCatalogs(ctx, s.catalogs, true); err != nil {
+			return nil, err
+		}
+		if resolvedSymbolID == nil {
+			id, err := ResolveSymbolID(s.catalogs, &symbol, nil, "orderbook.create_subscription")
+			if err != nil {
+				return nil, err
+			}
+			resolvedSymbolID = &id
+		}
+	}
 	if resolvedSymbolID == nil {
 		resolvedSymbolID = s.catalogs.SymbolIDForSymbol(symbol)
 	}
