@@ -627,7 +627,13 @@ func batchStatusNotFound(err error) bool {
 }
 
 // readUnavailable reports a transient server or transport failure of a read.
+// A failed catalog load is never transient: the client never loads its
+// catalogs again, whatever the load failed with.
 func readUnavailable(err error) bool {
+	var hydrationErr *sdkerrors.CatalogHydrationError
+	if errors.As(err, &hydrationErr) {
+		return false
+	}
 	var serverErr *sdkerrors.ServerError
 	var transportErr *sdkerrors.TransportError
 	var apiErr *sdkerrors.APIError

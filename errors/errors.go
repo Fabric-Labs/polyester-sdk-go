@@ -365,6 +365,12 @@ func (e *TransportError) Unwrap() error        { return e.Err }
 // symbol. Err is that failure, the one Client.WaitForCatalogs and
 // Client.CatalogsLastError return, so errors.Is and errors.As reach it. Create
 // a new client to load the catalogs again.
+//
+// The call sent nothing, and the client never loads its catalogs again, so
+// IsRetryable and MutationOutcomeUnknown report false whatever Err is, even a
+// *TransportError, a *ServerError or a *RateLimitError: calling again on the
+// same client fails the same way. Predicates that name a cause, such as
+// AuthErrorCode and IsReplayCapacityExhausted, still read Err for diagnostics.
 type CatalogHydrationError struct {
 	Err error
 }
@@ -578,8 +584,12 @@ func (e *QueueOverflowError) Is(target error) bool { return target == ErrPolyest
 // may retry explicitly. A client order ID enables lookup, not exact replay.
 // Explicit admission refusals, rate refusals (including replay capacity),
 // timestamp skew, a request deadline exceeded before admission and account
-// repairing may retry.
+// repairing may retry. A *CatalogHydrationError is never retryable, whatever
+// the catalog load failed with: create a new client.
 func IsRetryable(err error) bool {
+	if isCatalogHydrationFailure(err) {
+		return false
+	}
 	var transportErr *TransportError
 	var rateLimitErr *RateLimitError
 	var serverErr *ServerError
@@ -603,8 +613,12 @@ func IsRetryable(err error) bool {
 // modify, or a trigger create, cancel, pause, resume or modify, that was sent
 // but not confirmed in time. It also includes any HTTP error with no recognised
 // code except a 401 or 403, and a bare 404. Read the order or trigger back before
-// retrying.
+// retrying. A *CatalogHydrationError never has an unknown outcome, whatever the
+// catalog load failed with: the call failed before it sent anything.
 func MutationOutcomeUnknown(err error) bool {
+	if isCatalogHydrationFailure(err) {
+		return false
+	}
 	var transportErr *TransportError
 	var serverErr *ServerError
 	var contractErr *ResponseContractError
@@ -615,6 +629,14 @@ func MutationOutcomeUnknown(err error) bool {
 	}
 	return errors.As(err, &transportErr) || serverUnknown ||
 		errors.As(err, &contractErr) || errors.As(err, &routeErr) || isOutcomeUnknownCode(apiErrorCode(err))
+}
+
+// isCatalogHydrationFailure reports whether err is or wraps a
+// *CatalogHydrationError. The classifiers check it before they look through it
+// at the catalog load's failure, which says nothing about the call.
+func isCatalogHydrationFailure(err error) bool {
+	var hydrationErr *CatalogHydrationError
+	return errors.As(err, &hydrationErr)
 }
 
 // isOutcomeUnknownCode recognises a mutation outcome by its code suffix,
