@@ -51,5 +51,9 @@ func (s *ZipperService) SubscribeZippedAssetSupply(ctx context.Context, patchCat
 	if s.catalogs == nil {
 		return nil, &errors.ValidationError{Msg: "zipped asset supply decoding requires hydrated catalogs"}
 	}
+	// Each update is decoded with its asset's catalog quantity scale.
+	if err := awaitCatalogs(ctx, s.catalogs, true); err != nil {
+		return nil, err
+	}
 	return SubscribePublicProto(ctx, s.realtime, "public:chain:zipped-asset:supply:proto", decodeFn)
 }

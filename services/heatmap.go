@@ -45,6 +45,11 @@ func (s *HeatmapService) Get(ctx context.Context, symbol *string, symbolID *uint
 	if len(pageToken) > 1 {
 		return models.ApiData{}, &errors.ValidationError{Msg: "at most one page token is allowed"}
 	}
+	if namesSymbol(symbol) {
+		if err := awaitCatalogs(ctx, s.catalogs, true); err != nil {
+			return models.ApiData{}, err
+		}
+	}
 	resolved, err := ResolveSymbolID(s.catalogs, symbol, symbolID, "heatmap.get")
 	if err != nil {
 		return models.ApiData{}, err
@@ -117,6 +122,11 @@ func (s *HeatmapService) Get(ctx context.Context, symbol *string, symbolID *uint
 // "1h", or its enum name such as "INTERVAL_1S") from the channel the server
 // publishes them on. Any other interval is a ValidationError.
 func (s *HeatmapService) SubscribeLive(ctx context.Context, symbol *string, symbolID *uint32, interval string) (*realtime.Subscription[models.ApiData], error) {
+	if namesSymbol(symbol) {
+		if err := awaitCatalogs(ctx, s.catalogs, true); err != nil {
+			return nil, err
+		}
+	}
 	resolved, err := ResolveSymbolID(s.catalogs, symbol, symbolID, "subscribe_live")
 	if err != nil {
 		return nil, err

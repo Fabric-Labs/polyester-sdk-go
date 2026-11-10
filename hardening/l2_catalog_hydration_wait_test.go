@@ -7,11 +7,13 @@ package hardening_test
 // call is made while hydration is still running. No timing is involved: a
 // call that waits for hydration ends with its context's error when that is
 // cancelled while hydration is held, where one that reads the empty catalog
-// refuses the symbol without looking at its context.
+// refuses the symbol without looking at its context, or sends its request
+// and fails at the transport.
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -209,8 +211,6 @@ func newHydrationClient(t *testing.T, stub *hydrationStub, hydrate bool) *polyes
 type hydrationProbe struct {
 	name string
 	call func(ctx context.Context, c *polyester.Client, symbol string) error
-	// filteredLocally: the request names no symbol_id; the SDK filters itself.
-	filteredLocally bool
 	// stream: the call ends at the realtime connection, after the symbol resolved.
 	stream bool
 }
@@ -305,7 +305,7 @@ func hydrationProbes() []hydrationProbe {
 			_, err := c.MarketOverview.GetSpotVolumeHistory(ctx, []string{s}, nil)
 			return err
 		}},
-		{name: "MarketOverview.CreateSubscription", filteredLocally: true, call: func(ctx context.Context, c *polyester.Client, s string) error {
+		{name: "MarketOverview.CreateSubscription", stream: true, call: func(ctx context.Context, c *polyester.Client, s string) error {
 			sub, err := c.MarketOverview.CreateSubscription(ctx, services.MarketOverviewCreateSubscriptionOptions{Symbols: []string{s}})
 			if sub != nil {
 				closeSub(sub)
@@ -424,7 +424,7 @@ func TestL2SymbolCallWaitsForInFlightHydration(t *testing.T) {
 			done := startHeld(ctx, t, stub, client, probe, hydrationSymbol)
 			cancel()
 			err := awaitOutcome(t, probe.name, done)
-			if !errors.Is(err, context.Canceled) {
+			if !endedAtCatalogWait(err) {
 				t.Fatalf("%s did not wait for hydration: %T %v", probe.name, err, err)
 			}
 
@@ -445,7 +445,7 @@ func TestL2SymbolCallWaitsForInFlightHydration(t *testing.T) {
 			if len(reached) == 0 {
 				t.Fatalf("%s sent nothing: %v", probe.name, err)
 			}
-			if !probe.filteredLocally && !containsID(ids, hydrationSymbolID) {
+			if !containsID(ids, hydrationSymbolID) {
 				t.Fatalf("%s sent symbol_ids %v, want %d", probe.name, ids, hydrationSymbolID)
 			}
 		})
@@ -498,6 +498,84 @@ func TestL2UnknownSymbolAfterHydrationIsRefusedAsUnknown(t *testing.T) {
 	}
 }
 
+// Reads that only label or scale their results from the catalogs wait for
+// hydration, and a failed one costs the labels, not the read.
+func labelledReads() []hydrationProbe {
+	return []hydrationProbe{
+		{name: "MarketOverview.List", call: func(ctx context.Context, c *polyester.Client, _ string) error {
+			_, err := c.MarketOverview.List(ctx, nil, 10, "", false)
+			return err
+		}},
+		{name: "MarketOverview.GetSpotVolumeHistory", call: func(ctx context.Context, c *polyester.Client, _ string) error {
+			_, err := c.MarketOverview.GetSpotVolumeHistory(ctx, nil, []uint32{hydrationSymbolID})
+			return err
+		}},
+		{name: "MarketOverview.Subscribe", stream: true, call: func(ctx context.Context, c *polyester.Client, _ string) error {
+			sub, err := c.MarketOverview.Subscribe(ctx)
+			if sub != nil {
+				closeSub(sub)
+			}
+			return err
+		}},
+		{name: "Fees.GetSpotFeeRates", call: func(ctx context.Context, c *polyester.Client, _ string) error {
+			_, err := c.Fees.GetSpotFeeRates(ctx, nil, nil, nil)
+			return err
+		}},
+	}
+}
+
+func TestL2LabelledReadWaitsForHydrationButToleratesFailure(t *testing.T) {
+	for _, probe := range labelledReads() {
+		for _, fail := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/failed=%t", probe.name, fail), func(t *testing.T) {
+				stub := newHydrationStub()
+				client := newHydrationClient(t, stub, true)
+				ctx, cancel := context.WithCancel(context.Background())
+				done := startHeld(ctx, t, stub, client, probe, "")
+				cancel()
+				if err := awaitOutcome(t, probe.name, done); !endedAtCatalogWait(err) {
+					t.Fatalf("%s read before the catalogs loaded: %T %v", probe.name, err, err)
+				}
+				done = startHeld(context.Background(), t, stub, client, probe, "")
+				stub.release(fail)
+				err := awaitOutcome(t, probe.name, done)
+				if err == nil || isSymbolRefusal(err) {
+					t.Fatalf("%s: want the stub's or stream's refusal, got %T %v", probe.name, err, err)
+				}
+			})
+		}
+	}
+}
+
+func TestL2ZippedAssetSupplyWaitsForTheScalesItDecodesWith(t *testing.T) {
+	probe := hydrationProbe{name: "Zipper.SubscribeZippedAssetSupply", call: func(ctx context.Context, c *polyester.Client, _ string) error {
+		sub, err := c.Zipper.SubscribeZippedAssetSupply(ctx, true)
+		if sub != nil {
+			closeSub(sub)
+		}
+		return err
+	}}
+	for _, fail := range []bool{false, true} {
+		t.Run(fmt.Sprintf("failed=%t", fail), func(t *testing.T) {
+			stub := newHydrationStub()
+			client := newHydrationClient(t, stub, true)
+			ctx, cancel := context.WithCancel(context.Background())
+			done := startHeld(ctx, t, stub, client, probe, "")
+			cancel()
+			if err := awaitOutcome(t, probe.name, done); !endedAtCatalogWait(err) {
+				t.Fatalf("the supply stream started before the catalogs loaded: %T %v", err, err)
+			}
+			done = startHeld(context.Background(), t, stub, client, probe, "")
+			stub.release(fail)
+			err := awaitOutcome(t, probe.name, done)
+			var hydration *sdkerrors.CatalogHydrationError
+			if fail != errors.As(err, &hydration) || err == nil {
+				t.Fatalf("failed=%t: got %T %v", fail, err, err)
+			}
+		})
+	}
+}
+
 func TestL2CancelledWaitDoesNotCancelHydration(t *testing.T) {
 	stub := newHydrationStub()
 	client := newHydrationClient(t, stub, true)
@@ -534,6 +612,15 @@ func TestL2HydrationDisabledKeepsTodaysRefusals(t *testing.T) {
 		t.Fatal("hydration ran with HydrateCatalogs off")
 	default:
 	}
+}
+
+// endedAtCatalogWait reports whether a call cancelled while hydration is held
+// ended waiting for the catalogs: with its context's error itself, not one a
+// request or stream attempt wrapped it in.
+func endedAtCatalogWait(err error) bool {
+	var transportErr *sdkerrors.TransportError
+	var realtimeErr *sdkerrors.RealtimeError
+	return errors.Is(err, context.Canceled) && !errors.As(err, &transportErr) && !errors.As(err, &realtimeErr)
 }
 
 func containsID(ids []uint32, want uint32) bool {

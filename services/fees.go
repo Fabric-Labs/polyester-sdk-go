@@ -30,6 +30,10 @@ func (s *FeeService) GetSpotFeeRates(ctx context.Context, account AccountScope, 
 	if err := s.scoped.ApplyOptionalSubaccountIDPtr(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.SpotFeeRatesList{}, err
 	}
+	// Rates are labelled with their symbol from the catalogs.
+	if err := awaitCatalogs(ctx, s.catalogs, false); err != nil {
+		return models.SpotFeeRatesList{}, err
+	}
 	return UnaryAuth(ctx, s.transport, s.client().GetSpotFeeRates, req, func(msg *feesv1.GetSpotFeeRatesResponse) models.SpotFeeRatesList {
 		return decode.SpotFeeRatesListFromProto(msg, s.catalogs)
 	})
