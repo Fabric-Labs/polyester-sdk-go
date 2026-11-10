@@ -17,6 +17,7 @@ import (
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1/authv1connect"
+	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -231,5 +232,64 @@ func TestUnsignedRequestStillFollowsRedirect(t *testing.T) {
 				t.Fatalf("destination received %d request(s), %d signed; want 1 unsigned", requests, signed)
 			}
 		})
+	}
+}
+
+// A redirect proves nothing about whether the origin that answered with it
+// applied the mutation first: a refused redirect of a signed Orders.Cancel
+// leaves its outcome unknown, is not retryable, and never reaches the
+// redirect target.
+func TestRedirectedMutationOutcomeIsUnknown(t *testing.T) {
+	for _, status := range []int{http.StatusTemporaryRedirect, http.StatusPermanentRedirect} {
+		for _, wire := range []string{"json", "binary"} {
+			t.Run(strconv.Itoa(status)+"/"+wire, func(t *testing.T) {
+				destination := &originRecorder{}
+				target := serveOn(t, "127.0.0.1:0", destination.handler())
+				var mu sync.Mutex
+				applied := 0
+				origin := serveOn(t, "127.0.0.1:0", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					// The origin applies the cancel, then answers with a redirect.
+					if r.Header.Get("X-API-SIGNATURE") != "" && r.URL.Path == "/orders.v1.OrdersService/CancelOrder" {
+						mu.Lock()
+						applied++
+						mu.Unlock()
+					}
+					w.Header().Set("Location", target+r.URL.Path)
+					w.WriteHeader(status)
+				}))
+				client, err := New(Config{
+					APIURL:        origin,
+					APIKeyID:      "ak_redirect_test",
+					APIPrivateKey: auth.NewSecret(disposableKeyHex(t)),
+					WireFormat:    wire,
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() { _ = client.Close() })
+				symbolID := uint32(1)
+
+				_, err = client.Orders.Cancel(context.Background(), nil, models.OrderKeyByID("1"), nil, &symbolID, nil)
+
+				mu.Lock()
+				defer mu.Unlock()
+				if applied != 1 {
+					t.Fatalf("origin applied %d cancel(s), want 1", applied)
+				}
+				if requests, _ := destination.counts(); requests != 0 {
+					t.Fatalf("destination received %d request(s)", requests)
+				}
+				var refused *sdkerrors.RedirectRefusedError
+				if !errors.As(err, &refused) {
+					t.Fatalf("Cancel error = %T %v, want *errors.RedirectRefusedError", err, err)
+				}
+				if !sdkerrors.MutationOutcomeUnknown(err) {
+					t.Fatal("a refused redirect of a mutation must leave its outcome unknown: the origin may have applied it")
+				}
+				if sdkerrors.IsRetryable(err) {
+					t.Fatal("a refused redirect must not be retryable")
+				}
+			})
+		}
 	}
 }
