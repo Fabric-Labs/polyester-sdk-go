@@ -72,6 +72,9 @@ type hydrationStub struct {
 	once          sync.Once
 	releaseOnce   sync.Once
 	failSpot      bool
+	// holdFunding holds GetDepositWithdrawConfig behind the same gate, and
+	// fails it with failSpot.
+	holdFunding bool
 
 	mu        sync.Mutex
 	reached   []string
@@ -102,7 +105,17 @@ func (h *hydrationStub) GetSpotConfig(ctx context.Context, _ *connect.Request[ma
 	return connect.NewResponse(hydrationSpotConfig()), nil
 }
 
-func (h *hydrationStub) GetDepositWithdrawConfig(context.Context, *connect.Request[zipperv1.GetDepositWithdrawConfigRequest]) (*connect.Response[zipperv1.GetDepositWithdrawConfigResponse], error) {
+func (h *hydrationStub) GetDepositWithdrawConfig(ctx context.Context, _ *connect.Request[zipperv1.GetDepositWithdrawConfigRequest]) (*connect.Response[zipperv1.GetDepositWithdrawConfigResponse], error) {
+	if h.holdFunding {
+		select {
+		case <-h.gate:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+		if h.failSpot {
+			return nil, connect.NewError(connect.CodeInternal, errors.New("funding down"))
+		}
+	}
 	return connect.NewResponse(&zipperv1.GetDepositWithdrawConfigResponse{}), nil
 }
 
@@ -558,12 +571,14 @@ func TestL2ZippedAssetSupplyWaitsForTheScalesItDecodesWith(t *testing.T) {
 	for _, fail := range []bool{false, true} {
 		t.Run(fmt.Sprintf("failed=%t", fail), func(t *testing.T) {
 			stub := newHydrationStub()
+			// POLY-9228: the stream waits for the funding config.
+			stub.holdFunding = true
 			client := newHydrationClient(t, stub, true)
 			ctx, cancel := context.WithCancel(context.Background())
 			done := startHeld(ctx, t, stub, client, probe, "")
 			cancel()
 			if err := awaitOutcome(t, probe.name, done); !endedAtCatalogWait(err) {
-				t.Fatalf("the supply stream started before the catalogs loaded: %T %v", err, err)
+				t.Fatalf("the supply stream started before the funding config loaded: %T %v", err, err)
 			}
 			done = startHeld(context.Background(), t, stub, client, probe, "")
 			stub.release(fail)
@@ -572,7 +587,26 @@ func TestL2ZippedAssetSupplyWaitsForTheScalesItDecodesWith(t *testing.T) {
 			if fail != errors.As(err, &hydration) || err == nil {
 				t.Fatalf("failed=%t: got %T %v", fail, err, err)
 			}
+			if fail && !strings.Contains(err.Error(), "funding config") {
+				t.Fatalf("failed=true: %v does not name the funding config", err)
+			}
 		})
+	}
+}
+
+// POLY-9228: a failed spot config does not stop the supply stream, which
+// decodes with the funding config only.
+func TestL2ZippedAssetSupplyDoesNotNeedTheSpotConfig(t *testing.T) {
+	stub := newHydrationStub()
+	client := newHydrationClient(t, stub, true)
+	stub.release(true)
+	if err := client.WaitForFundingCatalog(context.Background()); err != nil {
+		t.Fatalf("WaitForFundingCatalog: %v", err)
+	}
+	_, err := client.Zipper.SubscribeZippedAssetSupply(context.Background(), true)
+	var hydration *sdkerrors.CatalogHydrationError
+	if errors.As(err, &hydration) {
+		t.Fatalf("the supply stream refused for the spot config: %v", err)
 	}
 }
 

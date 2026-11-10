@@ -356,8 +356,12 @@ if err := client.WaitForCatalogs(ctx); err != nil {
 ```
 
 `WaitForCatalogs` returns immediately when `HydrateCatalogs` is disabled. When
-hydration is enabled, it returns an error if spot/Zipper hydration failed or
-catalogs are unusable (use `CatalogsLastError()` to inspect). Cancelling a wait
+hydration is enabled, it reports **spot readiness**: it returns nil once the
+spot config has loaded and validated, without waiting for the funding
+(deposit/withdraw) config, and the `*errors.CatalogHydrationError` of the spot
+config when that could not be loaded (`CatalogsLastError()` returns it too).
+`WaitForFundingCatalog(ctx)` reports the funding config the same way; see
+[Startup catalogs](#startup-catalogs-timeouts-and-proxies). Cancelling a wait
 leaves hydration running; create a new client to hydrate again after a failure. Typed Zipper
 hydration is available via `client.Catalogs.HydrateZipperConfig(cfg)` /
 `HydrateDepositWithdrawConfig`. Hydration rejects ancillary struct values with
@@ -1755,6 +1759,65 @@ See [CHANGELOG.md](CHANGELOG.md).
 
 Connect RPC over HTTP via generated clients in `gen/`. Wire format defaults to
 **binary protobuf**; set `Config.WireFormat` to `"json"` for debugging.
+
+### Startup catalogs, timeouts and proxies
+
+With `HydrateCatalogs`, `New` starts loading two catalogs, each on its own:
+
+- the **spot config** (`marketdata.v1.MarketDataService/GetSpotConfig`): pairs,
+  symbol IDs, scales and order limits. Every spot trading call needs it.
+- the **funding config**
+  (`chain.zipper.v1.ZipperService/GetDepositWithdrawConfig`): deposit and
+  withdrawal assets and chains, as `client.Catalogs.Zipper`.
+
+`WaitForCatalogs` reports spot readiness and does not wait for the funding
+config, so a bot can trade while that one is still loading or failed to load.
+`WaitForFundingCatalog` reports the funding config. Each returns an
+`*errors.CatalogHydrationError` when its catalog could not be loaded, and so
+does every call that needs it: calls that name a market for the spot config,
+`Zipper.SubscribeZippedAssetSupply` for the funding config. A missing, empty or
+invalid spot config fails every spot call closed. `Catalogs.LedgerIDForAsset`
+and `QuantityScaleForAsset` return nil until the funding config has loaded.
+
+These two reads change nothing, so a read that times out or loses its
+connection (a proxy closing its tunnel shows as `unexpected EOF`) is read
+again: at most 3 reads per catalog, 250ms and then 500ms apart, each retry on
+connections of its own, all within `Config.CatalogTimeout` of `New` (default
+twice `Timeout`). A read that keeps stalling fails within that deadline. Any
+other error answer, and a catalog that does not validate, fails at once. No
+other call is retried this way, and mutations never are. A retry gets its own
+connections only when the `Config.HTTPClient` transport is an
+`*http.Transport` (or unset); another `http.RoundTripper` is reused as is.
+
+```go
+var hydrationErr *errors.CatalogHydrationError
+if err := client.WaitForCatalogs(ctx); errors.As(err, &hydrationErr) {
+	// catalog hydration failed: spot config (marketdata.v1.MarketDataService/
+	// GetSpotConfig) timed out after 2 attempts in 20.0s: ...
+	log.Fatal(hydrationErr.Catalog, hydrationErr.Operation, hydrationErr.Failure,
+		hydrationErr.Attempts, hydrationErr.ResponseRef, hydrationErr.Err)
+}
+```
+
+The error names the catalog (`Catalog`: `"spot"` or `"funding"`), the
+operation, the kind of failure (`Failure`: `"timeout"`, `"connection_closed"`,
+`"connect_failed"`, `"unavailable"`, `"invalid"` or `"error"`), the number of
+reads, and the edge's reference of the last failed response (`ResponseRef`, the
+`cf-ray` header) when one arrived. `Err` is the last failure, reachable with
+`errors.Is` and `errors.As`. The message carries no credentials and no proxy
+URL.
+
+Timeouts, from the outside in:
+
+- `CatalogTimeout` bounds the startup reads of each catalog, retries included,
+  and each of those reads gets at most `Timeout`.
+- `Timeout` (default 10s) is the `http.Client` timeout of the client the SDK
+  builds when `Config.HTTPClient` is nil. A client you supply keeps its own
+  `Timeout`; bound other calls with their context.
+- Without `Config.HTTPClient`, requests use `http.DefaultTransport`: the proxy
+  from `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY`, 30s to dial, 10s for the TLS
+  handshake, HTTP/2 where the server offers it (one connection then carries
+  every request), and 90s idle connections.
 
 ### Redirects of signed requests
 

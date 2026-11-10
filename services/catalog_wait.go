@@ -21,7 +21,20 @@ func awaitCatalogs(ctx context.Context, cats *catalogs.Manager, required bool) e
 	if cats == nil {
 		return nil
 	}
-	done := cats.Hydration()
+	return awaitLoad(ctx, cats.Hydration(), cats.HydrationError, required)
+}
+
+// awaitFundingCatalog waits for the funding (deposit/withdraw) config the
+// client began loading when it was created, as awaitCatalogs does for the
+// spot config. A failed load returns *errors.CatalogHydrationError naming it.
+func awaitFundingCatalog(ctx context.Context, cats *catalogs.Manager) error {
+	if cats == nil {
+		return nil
+	}
+	return awaitLoad(ctx, cats.FundingHydration(), cats.FundingHydrationError, true)
+}
+
+func awaitLoad(ctx context.Context, done <-chan struct{}, loadErr func() error, required bool) error {
 	if done == nil {
 		return nil
 	}
@@ -30,17 +43,22 @@ func awaitCatalogs(ctx context.Context, cats *catalogs.Manager, required bool) e
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-	if err := cats.HydrationError(); err != nil && required {
-		return &errors.CatalogHydrationError{Err: err}
+	if err := loadErr(); err != nil && required {
+		return hydrationFailure(err)
 	}
 	return nil
 }
 
 // hydrationFailure wraps the failure of construction-time catalog hydration
-// for a call that needs the catalogs.
+// for a call that needs the catalogs. A failure that already is a
+// *errors.CatalogHydrationError, as the client's own load returns, is
+// returned as is, so errors.Is matches it with Client.CatalogsLastError.
 func hydrationFailure(err error) error {
 	if err == nil {
 		return nil
+	}
+	if hydrationErr, ok := err.(*errors.CatalogHydrationError); ok {
+		return hydrationErr
 	}
 	return &errors.CatalogHydrationError{Err: err}
 }

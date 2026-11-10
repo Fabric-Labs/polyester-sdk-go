@@ -391,11 +391,24 @@ func (e *RedirectRefusedError) Error() string {
 }
 func (e *RedirectRefusedError) Is(target error) bool { return target == ErrPolyester }
 
-// CatalogHydrationError is returned by a call that needs the catalogs when the
-// client's construction-time catalog hydration failed, instead of refusing the
-// symbol. Err is that failure, the one Client.WaitForCatalogs and
-// Client.CatalogsLastError return, so errors.Is and errors.As reach it. Create
-// a new client to load the catalogs again.
+// CatalogHydrationError reports a catalog the client loads when it is created
+// that could not be loaded. The client loads two, each on its own: the spot
+// config, which every call that names a market or needs a pair's scales
+// waits for, and the funding (deposit/withdraw) config, which only
+// Zipper.SubscribeZippedAssetSupply waits for. Those calls return this error
+// instead of refusing the symbol, as do Client.WaitForCatalogs (spot config)
+// and Client.WaitForFundingCatalog (funding config). Err is the last failure,
+// so errors.Is and errors.As reach it. Create a new client to load the
+// catalogs again.
+//
+// Catalog is "spot" or "funding", Operation the Connect procedure, such as
+// chain.zipper.v1.ZipperService/GetDepositWithdrawConfig, Failure one of
+// "timeout", "connection_closed", "connect_failed", "unavailable", "invalid"
+// (the response did not validate) or "error", Attempts how many times it was
+// read, and ResponseRef the edge's reference of the last failed response
+// (its cf-ray header), when one arrived. They are empty on an error that
+// does not come from the client's own load. The message carries no
+// credentials and no proxy URL.
 //
 // The call sent nothing, and the client never loads its catalogs again, so
 // IsRetryable and MutationOutcomeUnknown report false whatever Err is, even a
@@ -403,10 +416,21 @@ func (e *RedirectRefusedError) Is(target error) bool { return target == ErrPolye
 // same client fails the same way. Predicates that name a cause, such as
 // AuthErrorCode and IsReplayCapacityExhausted, still read Err for diagnostics.
 type CatalogHydrationError struct {
-	Err error
+	Err         error
+	Catalog     string
+	Operation   string
+	Failure     string
+	Attempts    int
+	ResponseRef string
+	// Msg, when set, is the message after "catalog hydration failed: ",
+	// already redacted; otherwise it is Err's text.
+	Msg string
 }
 
 func (e *CatalogHydrationError) Error() string {
+	if e.Msg != "" {
+		return "catalog hydration failed: " + e.Msg
+	}
 	return "catalog hydration failed: " + e.Err.Error()
 }
 func (e *CatalogHydrationError) Is(target error) bool { return target == ErrPolyester }
