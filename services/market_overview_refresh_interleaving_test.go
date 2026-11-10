@@ -381,3 +381,71 @@ func runRefreshSchedule(t *testing.T, seed uint64) {
 		}
 	}
 }
+
+// POLY-9018 parity: a Close from another goroutine while a manual refresh
+// holds the refresh lock in a callback that waits for that Close, and a
+// reconnect's refresh waits for the lock. The reconnect's refresh gives up
+// when the stream stops, so the worker exits and Close returns.
+func TestClosingOverviewWhileARefreshCallbackWaitsForIt(t *testing.T) {
+	gate := make(chan struct{})
+	h := newRefreshHarness(t, func(n int32) fetchStep {
+		if n == 2 {
+			return fetchStep{gate: gate}
+		}
+		return fetchStep{}
+	})
+	var (
+		armed       atomic.Bool
+		inside      = make(chan struct{})
+		closeReturn = make(chan struct{})
+		once        sync.Once
+	)
+	sub, err := h.svc.CreateSubscription(context.Background(), MarketOverviewCreateSubscriptionOptions{
+		OnEvent: func([]models.MarketOverviewEntry) {
+			if !armed.Load() {
+				return
+			}
+			once.Do(func() {
+				close(inside)
+				// Hand the close to another goroutine and wait for it.
+				select {
+				case <-closeReturn:
+				case <-time.After(10 * time.Second):
+				}
+			})
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := h.nextConn(t)
+	manual := make(chan error, 1)
+	go func() { manual <- sub.RefreshSnapshot(context.Background()) }()
+	h.awaitFetch(t, 2)
+	close(first.drop)
+	h.nextConn(t)
+	// Let the reconnect's refresh start and wait for the refresh lock.
+	time.Sleep(200 * time.Millisecond)
+	armed.Store(true)
+	close(gate)
+	select {
+	case <-inside:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the manual refresh callback never ran")
+	}
+	started := time.Now()
+	go func() { sub.Close(); close(closeReturn) }()
+	select {
+	case <-closeReturn:
+		if took := time.Since(started); took > 5*time.Second {
+			t.Fatalf("Close took %v", took)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Close waited on a refresh blocked behind the refresh lock")
+	}
+	select {
+	case <-manual:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the manual refresh never returned")
+	}
+}
