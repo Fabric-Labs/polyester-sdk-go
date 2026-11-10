@@ -15,6 +15,9 @@ import (
 // that calls one must opt in to writes first.
 var writeMethod = regexp.MustCompile(`^(Create|Update|Delete|Copy|Modify|Replace|Cancel|Batch|Withdraw|Transfer|Pause|Resume|Start|Stop|Revoke|Claim|Rotate|Set)`)
 
+// reads are write-like names that only read.
+var reads = map[string]bool{"CreateSubscription": true}
+
 // writeGates are the opt-ins a live test calls before writing.
 var writeGates = map[string]bool{
 	"RequireMutation":           true,
@@ -82,7 +85,7 @@ func scanLiveTest(fn *ast.FuncDecl, helpers map[string]*ast.FuncDecl, seen map[s
 				gated = true
 			}
 			// client.<Service>.<Method>(...)
-			if service, ok := callee.X.(*ast.SelectorExpr); ok && writeMethod.MatchString(callee.Sel.Name) && !isDryRun(call) {
+			if service, ok := callee.X.(*ast.SelectorExpr); ok && writeMethod.MatchString(callee.Sel.Name) && !reads[callee.Sel.Name] && !isDryRun(call) {
 				writes = append(writes, service.Sel.Name+"."+callee.Sel.Name)
 			}
 		case *ast.Ident:
