@@ -65,6 +65,18 @@ func (s *OrdersService) ensureCatalogs(ctx context.Context) error {
 	}
 }
 
+// resolveSelectors resolves a market given by name, by symbol_id or by both
+// through ResolveSymbolID, which refuses a name and an id of different
+// markets. A name waits for the catalogs it is resolved or checked against.
+func (s *OrdersService) resolveSelectors(ctx context.Context, symbol *string, symbolID *uint32, label string) (uint32, error) {
+	if namesSymbol(symbol) {
+		if err := s.ensureCatalogs(ctx); err != nil {
+			return 0, err
+		}
+	}
+	return ResolveSymbolID(s.catalogs, symbol, symbolID, label)
+}
+
 func (s *OrdersService) readClient() ordersv1connect.OrdersReadServiceClient {
 	return ordersv1connect.NewOrdersReadServiceClient(s.transport.HTTP, s.transport.Config.APIURL, s.transport.ConnectOptions(true)...)
 }
@@ -120,13 +132,8 @@ func (s *OrdersService) ListHistory(ctx context.Context, account AccountScope, s
 	if err := s.scoped.ApplyOptionalSubaccountIDPtr(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.OrdersList{}, err
 	}
-	if symbolID != nil {
-		req.SymbolId = append(req.SymbolId, *symbolID)
-	} else if symbol != nil {
-		if err := s.ensureCatalogs(ctx); err != nil {
-			return models.OrdersList{}, err
-		}
-		resolved, err := ResolveSymbolID(s.catalogs, symbol, nil, "list_history")
+	if symbol != nil || symbolID != nil {
+		resolved, err := s.resolveSelectors(ctx, symbol, symbolID, "list_history")
 		if err != nil {
 			return models.OrdersList{}, err
 		}
@@ -264,9 +271,6 @@ func (s *OrdersService) Preview(ctx context.Context, req models.CreateOrderReque
 // ERROR_CODE_ORDER_UNKNOWN; cancel by order ID once you have it. Every cancel,
 // a repeat included, counts against the cancel rate limit.
 func (s *OrdersService) Cancel(ctx context.Context, account AccountScope, key models.OrderKey, symbol *string, symbolID *uint32, subAccountID *string) (models.OrderMutationResult, error) {
-	if symbol != nil && symbolID != nil {
-		return models.OrderMutationResult{}, &sdkerrors.ValidationError{Msg: "cancel accepts symbol or symbol_id, not both"}
-	}
 	if symbolID != nil && *symbolID == 0 {
 		return models.OrderMutationResult{}, &sdkerrors.ValidationError{Msg: "symbol_id must be non-zero when explicitly supplied"}
 	}
@@ -274,13 +278,8 @@ func (s *OrdersService) Cancel(ctx context.Context, account AccountScope, key mo
 	if err := codecs.ApplyOrderKeyToCancel(req, key); err != nil {
 		return models.OrderMutationResult{}, err
 	}
-	if symbolID != nil {
-		req.SymbolId = *symbolID
-	} else if symbol != nil {
-		if err := s.ensureCatalogs(ctx); err != nil {
-			return models.OrderMutationResult{}, err
-		}
-		id, err := ResolveSymbolID(s.catalogs, symbol, nil, "cancel")
+	if symbol != nil || symbolID != nil {
+		id, err := s.resolveSelectors(ctx, symbol, symbolID, "cancel")
 		if err != nil {
 			return models.OrderMutationResult{}, err
 		}
