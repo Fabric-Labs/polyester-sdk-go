@@ -22,7 +22,6 @@ var writeGates = map[string]bool{
 	"RequireAccountWideCleanup": true,
 }
 
-
 // TestLiveWriteTestsRequireAWriteGate keeps every live test that writes
 // behind POLYESTER_TEST_MUTATION (or a stricter gate), so a run with read-only
 // credentials, or without the opt-in, never writes.

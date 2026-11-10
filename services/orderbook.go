@@ -63,7 +63,7 @@ func (s *OrderbookService) Get(ctx context.Context, symbol string, depth int) (m
 	req := &orderbookv1.GetOrderBookRequest{SymbolId: symbolID, Depth: orderbookv1.Depth(v)}
 	scale, ok := s.catalogs.BaseQuantityScaleForSymbol(symbol)
 	if !ok {
-		return models.OrderbookData{}, &errors.ValidationError{Msg: fmt.Sprintf("orderbook decoding requires a hydrated catalog quantity scale for %q; call Client.WaitForCatalogs(ctx) or hydrate the spot catalog first", symbol)}
+		return models.OrderbookData{}, &errors.ValidationError{Msg: fmt.Sprintf("orderbook decoding requires a hydrated catalog quantity scale for %q; set Config.HydrateCatalogs: true and call Client.WaitForCatalogs(ctx), or hydrate the spot catalog with Client.Catalogs.HydrateSpotConfig", symbol)}
 	}
 	return UnaryPublicDecoded(ctx, s.transport, s.client().GetOrderBook, req, func(msg *orderbookv1.GetOrderBookResponse) (models.OrderbookData, error) {
 		return decode.OrderbookFromProto(msg, symbol, depth, scale)
@@ -111,7 +111,10 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		resolvedSymbolID = s.catalogs.SymbolIDForSymbol(symbol)
 	}
 	if resolvedSymbolID == nil || *resolvedSymbolID == 0 {
-		return nil, &errors.ValidationError{Msg: fmt.Sprintf("symbol_id is required for orderbook subscriptions (%q)", symbol)}
+		return nil, &errors.ValidationError{Msg: fmt.Sprintf(
+			"orderbook subscription for %q needs the spot catalog for its symbol_id and quantity scale: set Config.HydrateCatalogs: true and call Client.WaitForCatalogs(ctx) first; a SymbolID does not replace the catalog",
+			symbol,
+		)}
 	}
 	catalogID := s.catalogs.SymbolIDForSymbol(symbol)
 	if catalogID != nil && *catalogID != *resolvedSymbolID {
@@ -121,7 +124,7 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 
 	quantityScale, ok := s.catalogs.BaseQuantityScaleForSymbol(symbol)
 	if !ok {
-		return nil, &errors.ValidationError{Msg: fmt.Sprintf("orderbook decoding requires a hydrated catalog quantity scale for %q; call Client.WaitForCatalogs(ctx) or hydrate the spot catalog first", symbol)}
+		return nil, &errors.ValidationError{Msg: fmt.Sprintf("orderbook decoding requires a hydrated catalog quantity scale for %q; set Config.HydrateCatalogs: true and call Client.WaitForCatalogs(ctx), or hydrate the spot catalog with Client.Catalogs.HydrateSpotConfig", symbol)}
 	}
 	var (
 		mu             sync.Mutex
@@ -168,12 +171,15 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 	}
 
 	var recheckUnavailableSnapshot func(available bool)
-	handleDelta := func(delta models.OrderBookDeltaUpdate) {
+	// applyDelta changes the book without rendering it. It reports false when
+	// the delta changed nothing to render: the subscription ended, or a
+	// sequence gap requested a refresh.
+	applyDelta := func(delta models.OrderBookDeltaUpdate) bool {
 		mu.Lock()
 		// A delta buffered behind a terminal failure must not change or render the book.
 		if subscription != nil && subscription.Closed() {
 			mu.Unlock()
-			return
+			return false
 		}
 		newSeq, needsRefresh := orderbook.ApplyDelta(bids, asks, currentBookSeq, delta)
 		currentBookSeq = newSeq
@@ -184,9 +190,15 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 				opts.OnSequenceGap()
 			}
 			localStream.RequestSnapshotRefresh(ctx)
-			return
+			return false
 		}
-		emit()
+		return true
+	}
+	// A live delta is one book state: one view.
+	handleDelta := func(delta models.OrderBookDeltaUpdate) {
+		if applyDelta(delta) {
+			emit()
+		}
 	}
 
 	// An unavailable book's levels are unknown, not empty: ask again later, with a
@@ -268,12 +280,20 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 			})
 		},
 		ReadPublication: func(delta models.OrderBookDeltaUpdate) []models.OrderBookDeltaUpdate {
+			mu.Lock()
+			localSub := subscription
+			mu.Unlock()
+			if localSub != nil {
+				localSub.NotePublication()
+			}
 			return []models.OrderBookDeltaUpdate{delta}
 		},
 		ApplySnapshot: func(snapshot models.OrderbookData, buffered []models.OrderBookDeltaUpdate) {
 			_ = snapshot
+			// The snapshot and the deltas buffered behind it are one book state,
+			// so they yield one view: a view per delta would queue stale copies.
 			for _, delta := range buffered {
-				handleDelta(delta)
+				applyDelta(delta)
 			}
 			mu.Lock()
 			available := bookAvailable

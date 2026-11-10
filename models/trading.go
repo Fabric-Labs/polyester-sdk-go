@@ -181,6 +181,8 @@ type AttachedRiskLegState struct {
 // OrderType is not on the trailing-stop wire and remains empty on decode.
 // Write attached risk with AttachedRiskInput.
 type TrailingStop struct {
+	// DistanceTicks is the trailing distance as a price delta in 1e-9
+	// quote-unit ticks (500_000_000 is 0.5 quote units).
 	DistanceTicks      int64                 `json:"distance_ticks,omitempty"`
 	DistanceBps        int32                 `json:"distance_bps,omitempty"`
 	MaxSlippageTicks   int64                 `json:"max_slippage_ticks,omitempty"`
@@ -758,7 +760,8 @@ type TriggerDetails struct {
 	TriggerPriceSource string     `json:"trigger_price_source,omitempty"`
 	TriggerDirection   string     `json:"trigger_direction,omitempty"`
 
-	// trailing
+	// trailing; TrailingDistance is the distance in quote units per base
+	// unit, decoded from 1e-9 quote-unit ticks like every price.
 	TrailingDistance    PriceTicks `json:"trailing_distance,omitempty"`
 	TrailingDistanceBps int32      `json:"trailing_distance_bps,omitempty"`
 	ActivationPrice     PriceTicks `json:"activation_price,omitempty"`

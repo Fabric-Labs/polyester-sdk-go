@@ -52,7 +52,12 @@ type RiskLegInput struct {
 // (buy_required) on new_attached_risk.trailing_stop.limit_price_ticks: leave
 // LimitPrice nil when the parent order buys.
 type TrailingStopInput struct {
-	DistanceTicks      *int64      `json:"distance_ticks,omitempty"`
+	// DistanceTicks is the trailing distance as a price delta in 1e-9
+	// quote-unit ticks, the scale of every price tick: 50 USDT is
+	// 50_000_000_000 and 0.5 USDT is 500_000_000
+	// (codecs.ParsePriceTicks("0.5", "trailing distance")).
+	DistanceTicks *int64 `json:"distance_ticks,omitempty"`
+	// DistanceBps is the trailing distance in basis points of the price.
 	DistanceBps        *int32      `json:"distance_bps,omitempty"`
 	MaxSlippageTicks   *int64      `json:"max_slippage_ticks,omitempty"`
 	MaxSlippageBps     *int32      `json:"max_slippage_bps,omitempty"`
