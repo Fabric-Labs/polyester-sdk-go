@@ -18,6 +18,7 @@ import (
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	ratelimitv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/ratelimit/v1"
 	transferv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1"
+	"github.com/Fabric-Labs/polyester-sdk-go/internal/redact"
 	"github.com/Fabric-Labs/polyester-sdk-go/useragent"
 )
 
@@ -107,10 +108,10 @@ func MapConnectError(err error) error {
 	}
 	// The caller cancelled or ran out of time: keep that answer reachable.
 	if errors.Is(err, context.Canceled) {
-		return &sdkerrors.TransportError{Msg: err.Error(), Err: context.Canceled}
+		return &sdkerrors.TransportError{Msg: redact.Message(err.Error(), err), Err: context.Canceled}
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
-		return &sdkerrors.TransportError{Msg: err.Error(), Err: context.DeadlineExceeded}
+		return &sdkerrors.TransportError{Msg: redact.Message(err.Error(), err), Err: context.DeadlineExceeded}
 	}
 	// Connect may wrap an interceptor-returned SDK error before it reaches the
 	// service layer. Preserve client-side signing/authentication failures
@@ -158,7 +159,7 @@ func MapConnectError(err error) error {
 	}
 	var connectErr *connect.Error
 	if !errors.As(err, &connectErr) {
-		return &sdkerrors.TransportError{Msg: err.Error()}
+		return &sdkerrors.TransportError{Msg: redact.Message(err.Error(), err)}
 	}
 	headerRetry := retryAfterSeconds(connectErr)
 	if connectErr.Message() == TimestampSkewCode {
@@ -167,7 +168,9 @@ func MapConnectError(err error) error {
 			Status: connectHTTPStatus(connectErr.Code()),
 		}
 	}
-	msg := connectErr.Message()
+	// A failed HTTP exchange arrives as a *url.Error, whose text quotes a URL:
+	// for a redirect, the server-supplied Location.
+	msg := redact.Message(connectErr.Message(), connectErr)
 	if strings.TrimSpace(msg) == "" {
 		msg = emptyErrorMessage
 	}

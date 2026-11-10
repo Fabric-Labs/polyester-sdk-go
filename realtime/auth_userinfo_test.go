@@ -47,7 +47,7 @@ func TestTokenAuthErrorsRedactURLUserinfo(t *testing.T) {
 						_, err := fetchSubscriptionToken(context.Background(), &http.Client{Timeout: time.Second}, testCreds(t), apiURL, "orders:1")
 						return err
 					},
-					endpoint: srv.URL + "/v1/rt/subscribe?channel=orders%3A1",
+					endpoint: srv.URL + "/v1/rt/subscribe",
 				},
 			}
 			for name, path := range paths {

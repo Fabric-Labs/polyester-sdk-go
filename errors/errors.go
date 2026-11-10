@@ -371,6 +371,11 @@ func (e *TransportError) Unwrap() error        { return e.Err }
 // MutationOutcomeUnknown reports true: read a mutation back before sending it
 // again. Sending it again gets the same redirect, so IsRetryable reports false.
 // Point Config.APIURL at the API's own origin instead.
+//
+// Any request, signed or not, whose redirect names a Location that does not
+// parse as a URL gets one too, with Malformed set: such a redirect cannot be
+// followed, and the error never repeats the Location, which may carry
+// credentials in its userinfo or query.
 type RedirectRefusedError struct {
 	// StatusCode is the redirect status, such as 307 or 308.
 	StatusCode int
@@ -379,9 +384,16 @@ type RedirectRefusedError struct {
 	Origin string
 	// SameOrigin reports whether Origin is the origin the request was sent to.
 	SameOrigin bool
+	// Malformed reports that the redirect's Location did not parse as a URL.
+	// Origin is then empty and SameOrigin false.
+	Malformed bool
 }
 
 func (e *RedirectRefusedError) Error() string {
+	if e.Malformed {
+		return "request was redirected (HTTP " + strconv.Itoa(e.StatusCode) +
+			") to a malformed Location; the SDK refuses it without following: set the API URL to the API's origin"
+	}
 	where := "to another origin, " + e.Origin
 	if e.SameOrigin {
 		where = "within its origin, " + e.Origin

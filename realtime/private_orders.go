@@ -17,6 +17,7 @@ import (
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	privatewsv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/privatews/v1"
+	"github.com/Fabric-Labs/polyester-sdk-go/internal/redact"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
@@ -456,7 +457,7 @@ func (p *privateOrderStream) dial(ctx context.Context) (*websocket.Conn, error) 
 	}
 	ws, _, err := dialer.DialContext(ctx, p.cfg.url, nil)
 	if err != nil {
-		return nil, &sdkerrors.RealtimeError{Msg: "private order stream: " + err.Error()}
+		return nil, &sdkerrors.RealtimeError{Msg: "private order stream: " + redact.URLError(err).Error()}
 	}
 	// The server defaults to protobuf frames when it echoes no subprotocol.
 	if sp := ws.Subprotocol(); sp != "" && sp != privateWSSubprotocol {

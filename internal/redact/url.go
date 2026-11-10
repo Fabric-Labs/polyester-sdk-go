@@ -1,18 +1,29 @@
 // Package redact removes credentials from values the SDK prints or returns in
-// errors.
+// errors. It is the one place the SDK turns a URL into text.
 package redact
 
 import (
+	"errors"
 	"net/url"
 	"strings"
 )
 
-// InvalidURL replaces a URL that cannot be parsed, so its userinfo cannot be
-// told apart from the rest of it.
+// InvalidURL replaces a URL that cannot be parsed, so its userinfo, query and
+// fragment cannot be told apart from the rest of it.
 const InvalidURL = "[REDACTED INVALID URL]"
 
-// URL returns raw without its userinfo (user name and password), or InvalidURL
-// when raw does not parse as a URL.
+// errMalformedLocation replaces net/http's "failed to parse Location header"
+// error, whose text quotes the server-supplied Location twice.
+var errMalformedLocation = errors.New("redirect Location is not a valid URL")
+
+// locationParseFailure starts the text of net/http's error for a redirect
+// Location that does not parse.
+const locationParseFailure = "failed to parse Location header"
+
+// URL returns raw with only its scheme, host, port and path: without its
+// userinfo (user name and password), query or fragment. It returns InvalidURL
+// when raw does not parse as a URL, or parses as one whose parts cannot be
+// told apart.
 func URL(raw string) string {
 	parsed, err := url.Parse(raw)
 	if err != nil {
@@ -22,24 +33,53 @@ func URL(raw string) string {
 		(parsed.Host == "" && (parsed.Scheme != "" || strings.Contains(raw, "@"))) {
 		return InvalidURL
 	}
-	if parsed.User == nil {
-		return raw
-	}
 	parsed.User = nil
+	parsed.RawQuery = ""
+	parsed.ForceQuery = false
+	parsed.Fragment = ""
+	parsed.RawFragment = ""
 	return parsed.String()
 }
 
-// URLError returns a *url.Error with its URL passed through URL. The standard
-// library quotes the whole URL, userinfo included, in the text of a parse
-// error. Other errors are returned unchanged.
+// URLError returns err with the URL of every *url.Error in it, which the
+// standard library quotes whole, passed through URL. A *url.Error that
+// reports a redirect Location that does not parse has that cause replaced,
+// as its text quotes the Location. The cause of any other *url.Error is kept,
+// so errors.Is and errors.As still reach it. Other errors are returned
+// unchanged.
 func URLError(err error) error {
 	urlErr, ok := err.(*url.Error)
 	if !ok {
 		return err
 	}
+	cause := URLError(urlErr.Err)
+	if cause != nil && strings.HasPrefix(cause.Error(), locationParseFailure) {
+		cause = errMalformedLocation
+	}
 	redacted := URL(urlErr.URL)
-	if redacted == urlErr.URL {
+	if redacted == urlErr.URL && cause == urlErr.Err {
 		return err
 	}
-	return &url.Error{Op: urlErr.Op, URL: redacted, Err: urlErr.Err}
+	return &url.Error{Op: urlErr.Op, URL: redacted, Err: cause}
+}
+
+// Message returns text with every rendering of a *url.Error wrapped by err
+// replaced by the rendering of URLError of it. text is usually err.Error() or
+// a message an outer error copied from it, such as a Connect error's.
+func Message(text string, err error) string {
+	for e := err; e != nil; e = errors.Unwrap(e) {
+		urlErr, ok := e.(*url.Error)
+		if !ok {
+			continue
+		}
+		if redacted := URLError(urlErr); redacted != error(urlErr) {
+			text = strings.ReplaceAll(text, urlErr.Error(), redacted.Error())
+		}
+		// Also when an outer error reworded it around the URL.
+		if urlErr.URL != "" {
+			text = strings.ReplaceAll(text, urlErr.URL, URL(urlErr.URL))
+		}
+		break
+	}
+	return text
 }

@@ -25,6 +25,11 @@ const maxRedirects = 10
 // CheckRedirect, or net/http's default of up to 10 redirects. A nil client is
 // treated as &http.Client{}.
 //
+// Any redirect whose Location does not parse as a URL, of a signed or an
+// unsigned request, is refused with a *errors.RedirectRefusedError whose
+// Malformed is set, before net/http reports the parse failure with the whole
+// Location, userinfo and query included, in its error text.
+//
 // The policy lives in the http.Client. An http.RoundTripper that follows
 // redirects by itself, below the client, is outside it.
 func RefuseSignedRedirects(client *http.Client) *http.Client {
@@ -32,6 +37,7 @@ func RefuseSignedRedirects(client *http.Client) *http.Client {
 		client = &http.Client{}
 	}
 	guarded := *client
+	guarded.Transport = malformedRedirectGuard{next: client.Transport}
 	next := client.CheckRedirect
 	guarded.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		for _, sent := range via {
@@ -48,6 +54,46 @@ func RefuseSignedRedirects(client *http.Client) *http.Client {
 		return nil
 	}
 	return &guarded
+}
+
+// malformedRedirectGuard refuses a redirect response whose Location net/http
+// could not parse. net/http parses the Location after the round trip and
+// before CheckRedirect, and quotes it whole in the error it returns when the
+// parse fails.
+type malformedRedirectGuard struct {
+	next http.RoundTripper
+}
+
+func (g malformedRedirectGuard) RoundTrip(req *http.Request) (*http.Response, error) {
+	next := g.next
+	if next == nil {
+		next = http.DefaultTransport
+	}
+	resp, err := next.RoundTrip(req)
+	if err != nil || resp == nil || !followsLocation(resp.StatusCode) {
+		return resp, err
+	}
+	location := resp.Header.Get("Location")
+	if location == "" {
+		return resp, nil
+	}
+	// net/http resolves the Location against the URL of the request it
+	// answered, as here.
+	if _, parseErr := req.URL.Parse(location); parseErr == nil {
+		return resp, nil
+	}
+	_ = resp.Body.Close()
+	return nil, &errors.RedirectRefusedError{StatusCode: resp.StatusCode, Malformed: true}
+}
+
+// followsLocation reports the statuses whose Location net/http follows.
+func followsLocation(status int) bool {
+	switch status {
+	case http.StatusMovedPermanently, http.StatusFound, http.StatusSeeOther,
+		http.StatusTemporaryRedirect, http.StatusPermanentRedirect:
+		return true
+	}
+	return false
 }
 
 func isSigned(header http.Header) bool {
