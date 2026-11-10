@@ -56,12 +56,14 @@ type Factory struct {
 	authInterceptor *APIKeyInterceptor
 }
 
-// NewFactory builds a transport factory.
+// NewFactory builds a transport factory. Its HTTP client is a copy of
+// httpClient, or a new one, that never follows a redirect of a request signed
+// with an API key (see auth.RefuseSignedRedirects).
 func NewFactory(cfg Config, creds *auth.Credentials, httpClient *http.Client) *Factory {
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: cfg.Timeout}
 	}
-	httpClient = wrapTimestampSkew(useragent.WrapClient(httpClient))
+	httpClient = wrapTimestampSkew(useragent.WrapClient(auth.RefuseSignedRedirects(httpClient)))
 	f := &Factory{
 		Config:      cfg,
 		Credentials: creds,

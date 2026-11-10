@@ -3,6 +3,7 @@ package realtime
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -110,6 +111,10 @@ func signedGet(ctx context.Context, httpClient *http.Client, creds *auth.Credent
 	}
 	resp, err := httpClient.Do(req)
 	if err != nil {
+		var redirected *sdkerrors.RedirectRefusedError
+		if errors.As(err, &redirected) {
+			return nil, redirected
+		}
 		return nil, redact.URLError(err)
 	}
 	defer func() { _ = resp.Body.Close() }()

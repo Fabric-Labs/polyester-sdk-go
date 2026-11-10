@@ -60,10 +60,10 @@ type Client struct {
 // NewClient creates a realtime client.
 func NewClient(wsURL string, apiURL string, credentials *auth.Credentials, httpClient *http.Client, maxQueue int) *Client {
 	if httpClient == nil {
-		httpClient = useragent.WrapClient(&http.Client{Timeout: 10 * time.Second})
-	} else {
-		httpClient = useragent.WrapClient(httpClient)
+		httpClient = &http.Client{Timeout: 10 * time.Second}
 	}
+	// Token requests are signed: they never follow a redirect.
+	httpClient = useragent.WrapClient(auth.RefuseSignedRedirects(httpClient))
 	c := &Client{
 		wsURL:         normalizeWSURL(wsURL),
 		apiURL:        apiURL,
@@ -234,7 +234,8 @@ func subscribeProto[T any](
 				return
 			}
 			var terminal *terminalRealtimeError
-			if errors.As(err, &terminal) {
+			var redirected *sdkerrors.RedirectRefusedError
+			if errors.As(err, &terminal) || errors.As(err, &redirected) {
 				sub.fail(err)
 				return
 			}
