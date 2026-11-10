@@ -372,7 +372,9 @@ supported.
 
 Public methods may still accept display `symbol` strings. The SDK resolves them
 through the spot catalog and fails closed on unknown symbols. Connect requests
-send `symbol_id` only (GetSpotConfig still accepts both). Empty or omitted
+send `symbol_id` only (GetSpotConfig still accepts both). A call given both a
+name and a `symbol_id` checks them against the catalog first and refuses a
+pair that names different markets with `*errors.ValidationError`. Empty or omitted
 symbol filters mean all symbols (`symbol_id = 0`). Use
 `Catalogs.PairConstraintsForSymbol` (or `PairConstraintsForSymbolID`) to inspect
 tick size, quantity step, minimums and order limits; order admission stays
@@ -1229,7 +1231,8 @@ SDK notes:
   or `not_supported` (`models.MemoRequirement*`), empty when the server names
   none, which does not mean a memo can be omitted. `MemoLabel` (such as
   "Destination tag") and `MemoFormatHint` are display text; validate against
-  the rule, not the hint.
+  the rule, not the hint. Each variant's `Supply` is its zToken supply at the
+  asset's quantity scale, also in the catalog `HydrateCatalogs` loads.
 - **Trading → trading (another account):** `client.InternalTransfers.Create(...)`.
   The result's `FlowID` names the transfer's lifecycle flow for
   `client.Lifecycle.GetFlow`; the flow may become readable after the receipt.
@@ -1357,7 +1360,8 @@ after the transfer, an exact integer at the 18-decimal ledger scale like
 `Amount`, or nil when the server sends none. `LedgerTransfer.LinkID` is the
 decimal correlation ID of related legs, empty when there is none.
 
-`GetCandles` returns rows newest-first. With incomplete candles enabled, the
+`GetCandles` returns rows newest-first, with the market and timeframe the
+response names in `SymbolID` and `Timeframe`, also for an empty series. With incomplete candles enabled, the
 open candle is prepended; `GetCurrentCandle` therefore returns the first row, or
 `nil` when no candle rows exist.
 
@@ -1835,6 +1839,12 @@ the configured origin did not apply the request before answering with it, so
 `errors.MutationOutcomeUnknown` reports true: read a mutation back before
 sending it again. `errors.IsRetryable` reports false, since sending again gets
 the same redirect: point `Config.APIURL` at the API's own origin.
+
+A redirect whose `Location` is not a valid URL, of a signed or an unsigned
+request, is refused with `*errors.RedirectRefusedError` with `Malformed` set
+and an empty `Origin`. The error never repeats the `Location`, which may carry
+credentials in its userinfo or query. Every URL the SDK puts in an error keeps
+only its scheme, host, port and path.
 
 Unsigned public calls carry no credentials and keep following redirects. A
 `Config.HTTPClient` you supply is copied, not modified: the copy refuses

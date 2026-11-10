@@ -31,6 +31,8 @@ func DepositWithdrawConfigFromProto(msg *zipperv1.GetDepositWithdrawConfigRespon
 			asset.Variants = append(asset.Variants, models.ZipperAssetChainVariant{
 				ZippedAssetID: v.GetZippedAssetId(), ChainID: v.GetChainId(), IsNativeAsset: v.GetIsNativeAsset(),
 				NetworkFee: v.GetNetworkFee(), DepositMinAmount: v.GetDepositMinAmount(), WithdrawMinAmount: v.GetWithdrawMinAmount(),
+				// supply_q is scaled by the parent asset's quantity_scale.
+				Supply:      formatLedgerU128OrZero(strconv.FormatUint(v.GetSupplyQ(), 10), int(a.GetQuantityScale())),
 				SourceToken: models.ZipperTokenConfig{Address: v.GetSourceAddress(), Decimals: int(v.GetSourceDecimals())},
 				ZToken:      models.ZipperTokenConfig{Address: v.GetZtokenAddress(), Decimals: int(v.GetZtokenDecimals())},
 			})
