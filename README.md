@@ -338,7 +338,12 @@ Hydration runs in the background after `New` returns. Every call that names a
 market by symbol or needs a pair's scales waits for it, within the call's
 context, so it can be made right away. When hydration failed, such a call returns
 `*errors.CatalogHydrationError`, which wraps the failure; a symbol the loaded
-catalogs don't know returns the `*errors.ValidationError` "Unknown symbol". Calls
+catalogs don't know returns the `*errors.ValidationError` "Unknown symbol". The
+call sent nothing and the client never loads its catalogs again, so
+`errors.IsRetryable` and `errors.MutationOutcomeUnknown` report false for it even
+when the load failed on transport, with a server error or with a rate limit:
+create a new client instead of calling again, and don't read an order back for
+it. `errors.Is` and `errors.As` still reach the load's failure. Calls
 that only label their results from the catalogs, such as `MarketOverview.List`
 without symbols and `Fees.GetSpotFeeRates`, wait too and return their rows
 unlabelled when hydration failed. To learn early whether hydration failed, wait
@@ -537,7 +542,9 @@ refusal on its status alone (`errors.AuthError`). Every other status returns
 `errors.ServerError` with `errors.MutationOutcomeUnknown` true and
 `errors.IsRetryable` false, and keeps any code it did send in `Code`; read back
 before sending a mutation again. Trigger reads retry 429, 502, 503 and 504 for you; retry other reads yourself if you want to. A
-bare 404 stays `errors.RouteNotFoundError`, also with an unknown outcome. A
+bare 404 stays `errors.RouteNotFoundError`, also with an unknown outcome.
+`*errors.CatalogHydrationError` is neither retryable nor an unknown outcome,
+whatever the catalog load failed with; see Catalogs. A
 well-formed but unrecognised code at HTTP 429 returns `errors.APIError`: known
 and not retryable.
 A REST 403 problem that refuses the operation rather than the key, such as
