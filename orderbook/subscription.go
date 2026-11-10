@@ -82,7 +82,7 @@ func (s *Subscription) SetOnError(callback func(error)) {
 		s.stream.SetOnError(callback)
 	}
 	if err != nil {
-		callErrorCallback(callback, err)
+		s.runCallback(func() { callErrorCallback(callback, err) })
 	}
 }
 
@@ -99,7 +99,7 @@ func (s *Subscription) SetBucket(bucket string) {
 	// Before a snapshot there is no book to render: a default view would read as
 	// a real empty book.
 	if s.emit != nil && (s.stream == nil || s.stream.IsReady()) {
-		s.emit()
+		s.runCallback(s.emit)
 	}
 }
 
@@ -175,7 +175,17 @@ func (s *Subscription) Fail(err error) {
 	if s.stream != nil {
 		s.stream.Stop()
 	}
-	callErrorCallback(callback, err)
+	s.runCallback(func() { callErrorCallback(callback, err) })
+}
+
+// runCallback runs fn as a callback of the stream, so a Close from inside it
+// signals shutdown without waiting for the stream's worker.
+func (s *Subscription) runCallback(fn func()) {
+	if s.stream != nil {
+		s.stream.RunCallback(fn)
+		return
+	}
+	fn()
 }
 
 func callErrorCallback(callback func(error), err error) {

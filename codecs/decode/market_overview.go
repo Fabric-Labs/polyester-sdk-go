@@ -55,7 +55,44 @@ func MarketOverviewEntryFromProto(m *marketoverviewv1.MarketOverview, cats *cata
 	if ticks := m.GetIndexPriceTicks(); ticks > 0 {
 		entry.IndexPrice = codecs.DecodePriceTicks(ticks, symbol)
 	}
+	entry.High24h = optionalPrice(m.GetHigh_24HTicks(), symbol)
+	entry.Low24h = optionalPrice(m.GetLow_24HTicks(), symbol)
+	baseScale := -1
+	if cats != nil {
+		if scale, ok := cats.BaseQuantityScaleForSymbolID(m.GetSymbolId()); ok {
+			baseScale = scale
+		}
+	}
+	symbolID := m.GetSymbolId()
+	entry.BestBid, entry.BestBidQty = bookSide(m.GetBestBidTicks(), m.GetBestBidQtyScaled(), baseScale, symbol, symbolID)
+	entry.BestAsk, entry.BestAskQty = bookSide(m.GetBestAskTicks(), m.GetBestAskQtyScaled(), baseScale, symbol, symbolID)
+	if ts := m.GetLastTradeTsNs(); ts != 0 {
+		entry.LastTradeTsNs = strconv.FormatUint(ts, 10)
+	}
+	if ts := m.GetListedTsNs(); ts != 0 {
+		entry.ListedTsNs = strconv.FormatUint(ts, 10)
+	}
 	return entry
+}
+
+// optionalPrice is a price the server sent, or nil for 0, which means none.
+func optionalPrice(ticks int64, symbol string) *models.PriceTicks {
+	if ticks <= 0 {
+		return nil
+	}
+	price := codecs.DecodePriceTicks(ticks, symbol)
+	return &price
+}
+
+// bookSide is the best price of one side of the book and the base quantity
+// at it; both nil when that side is empty.
+func bookSide(ticks, qtyScaled int64, scale int, symbol string, symbolID uint32) (*models.PriceTicks, *models.QtyScaled) {
+	price := optionalPrice(ticks, symbol)
+	if price == nil {
+		return nil, nil
+	}
+	qty := codecs.DecodeQtyScaled(qtyScaled, scale, symbol, &symbolID)
+	return price, &qty
 }
 
 // MarketOverviewSparklineFromProto decodes a sparkline's interval name and its
