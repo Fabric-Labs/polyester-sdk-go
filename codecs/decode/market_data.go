@@ -202,7 +202,10 @@ func CandlesFromProto(msg *marketdatav1.GetCandlesResponse, volumeScale int, ref
 	if err != nil {
 		return models.CandlesResult{}, err
 	}
-	return models.CandlesResult{Candles: out, ReferenceCandles: reference, NextPageToken: msg.GetNextPageToken()}, nil
+	return models.CandlesResult{
+		SymbolID: msg.GetSymbolId(), Timeframe: timeframeLabels[msg.GetTimeframe()],
+		Candles: out, ReferenceCandles: reference, NextPageToken: msg.GetNextPageToken(),
+	}, nil
 }
 
 func candlesFromPoints(points []*marketdatav1.CandlePoint, volumeScale int, priceScale int, primary bool) ([]models.Candle, error) {
