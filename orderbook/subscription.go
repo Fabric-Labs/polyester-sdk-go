@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
+	"github.com/Fabric-Labs/polyester-sdk-go/internal/callbackmark"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/realtime"
 )
@@ -182,7 +183,7 @@ func (s *Subscription) Fail(err error) {
 // signals shutdown without waiting for the stream's worker.
 func (s *Subscription) runCallback(fn func()) {
 	if s.stream != nil {
-		s.stream.RunCallback(fn)
+		callbackmark.Run(s.stream, fn)
 		return
 	}
 	fn()
