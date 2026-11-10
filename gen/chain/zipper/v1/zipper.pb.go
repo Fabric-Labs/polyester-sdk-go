@@ -24,6 +24,63 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// MemoRequirement describes the memo or destination tag needed for a payout target.
+type MemoRequirement int32
+
+const (
+	// Requirement is unknown. Do not assume that a memo can be omitted.
+	MemoRequirement_MEMO_UNSPECIFIED MemoRequirement = 0
+	// A memo or destination tag must be supplied.
+	MemoRequirement_REQUIRED MemoRequirement = 1
+	// A memo or destination tag may be supplied.
+	MemoRequirement_OPTIONAL MemoRequirement = 2
+	// A memo or destination tag must be empty.
+	MemoRequirement_NOT_SUPPORTED MemoRequirement = 3
+)
+
+// Enum value maps for MemoRequirement.
+var (
+	MemoRequirement_name = map[int32]string{
+		0: "MEMO_UNSPECIFIED",
+		1: "REQUIRED",
+		2: "OPTIONAL",
+		3: "NOT_SUPPORTED",
+	}
+	MemoRequirement_value = map[string]int32{
+		"MEMO_UNSPECIFIED": 0,
+		"REQUIRED":         1,
+		"OPTIONAL":         2,
+		"NOT_SUPPORTED":    3,
+	}
+)
+
+func (x MemoRequirement) Enum() *MemoRequirement {
+	p := new(MemoRequirement)
+	*p = x
+	return p
+}
+
+func (x MemoRequirement) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (MemoRequirement) Descriptor() protoreflect.EnumDescriptor {
+	return file_chain_zipper_v1_zipper_proto_enumTypes[0].Descriptor()
+}
+
+func (MemoRequirement) Type() protoreflect.EnumType {
+	return &file_chain_zipper_v1_zipper_proto_enumTypes[0]
+}
+
+func (x MemoRequirement) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use MemoRequirement.Descriptor instead.
+func (MemoRequirement) EnumDescriptor() ([]byte, []int) {
+	return file_chain_zipper_v1_zipper_proto_rawDescGZIP(), []int{0}
+}
+
 // ChainConfig describes one supported external chain for deposit and withdraw.
 type ChainConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -53,8 +110,15 @@ type ChainConfig struct {
 	MinAddressLength uint32 `protobuf:"varint,11,opt,name=min_address_length,json=minAddressLength,proto3" json:"min_address_length,omitempty"`
 	// Inclusive maximum source-chain address length for validation.
 	MaxAddressLength uint32 `protobuf:"varint,12,opt,name=max_address_length,json=maxAddressLength,proto3" json:"max_address_length,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Memo rule for withdrawal destinations and QuickSwap destination, return,
+	// and refund targets on this network. Does not describe deposit instructions.
+	MemoRequirement MemoRequirement `protobuf:"varint,13,opt,name=memo_requirement,json=memoRequirement,proto3,enum=chain.zipper.v1.MemoRequirement" json:"memo_requirement,omitempty"`
+	// Display label, such as "Destination tag" or "Memo". Empty when not supported.
+	MemoLabel string `protobuf:"bytes,14,opt,name=memo_label,json=memoLabel,proto3" json:"memo_label,omitempty"`
+	// Human-readable format guidance. Empty when no additional guidance applies.
+	MemoFormatHint string `protobuf:"bytes,15,opt,name=memo_format_hint,json=memoFormatHint,proto3" json:"memo_format_hint,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ChainConfig) Reset() {
@@ -169,6 +233,27 @@ func (x *ChainConfig) GetMaxAddressLength() uint32 {
 		return x.MaxAddressLength
 	}
 	return 0
+}
+
+func (x *ChainConfig) GetMemoRequirement() MemoRequirement {
+	if x != nil {
+		return x.MemoRequirement
+	}
+	return MemoRequirement_MEMO_UNSPECIFIED
+}
+
+func (x *ChainConfig) GetMemoLabel() string {
+	if x != nil {
+		return x.MemoLabel
+	}
+	return ""
+}
+
+func (x *ChainConfig) GetMemoFormatHint() string {
+	if x != nil {
+		return x.MemoFormatHint
+	}
+	return ""
 }
 
 // AssetChainVariant describes one chain route that can be used to deposit into
@@ -721,7 +806,7 @@ var File_chain_zipper_v1_zipper_proto protoreflect.FileDescriptor
 
 const file_chain_zipper_v1_zipper_proto_rawDesc = "" +
 	"\n" +
-	"\x1cchain/zipper/v1/zipper.proto\x12\x0fchain.zipper.v1\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1bpolyester/api/options.proto\"\xe0\x03\n" +
+	"\x1cchain/zipper/v1/zipper.proto\x12\x0fchain.zipper.v1\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1bpolyester/api/options.proto\"\xf6\x04\n" +
 	"\vChainConfig\x12\x19\n" +
 	"\bchain_id\x18\x01 \x01(\rR\achainId\x12\x12\n" +
 	"\x04code\x18\x02 \x01(\tR\x04code\x12\x12\n" +
@@ -735,7 +820,11 @@ const file_chain_zipper_v1_zipper_proto_rawDesc = "" +
 	"\x11is_case_sensitive\x18\n" +
 	" \x01(\bR\x0fisCaseSensitive\x12,\n" +
 	"\x12min_address_length\x18\v \x01(\rR\x10minAddressLength\x12,\n" +
-	"\x12max_address_length\x18\f \x01(\rR\x10maxAddressLength\"\xb8\x03\n" +
+	"\x12max_address_length\x18\f \x01(\rR\x10maxAddressLength\x12K\n" +
+	"\x10memo_requirement\x18\r \x01(\x0e2 .chain.zipper.v1.MemoRequirementR\x0fmemoRequirement\x12\x1d\n" +
+	"\n" +
+	"memo_label\x18\x0e \x01(\tR\tmemoLabel\x12(\n" +
+	"\x10memo_format_hint\x18\x0f \x01(\tR\x0ememoFormatHint\"\xb8\x03\n" +
 	"\x11AssetChainVariant\x12&\n" +
 	"\x0fzipped_asset_id\x18\x01 \x01(\rR\rzippedAssetId\x12\x19\n" +
 	"\bchain_id\x18\x02 \x01(\rR\achainId\x12&\n" +
@@ -776,7 +865,12 @@ const file_chain_zipper_v1_zipper_proto_rawDesc = "" +
 	"\x06chains\x18\x01 \x03(\v2\x1c.chain.zipper.v1.ChainConfigR\x06chains\x124\n" +
 	"\x06assets\x18\x02 \x03(\v2\x1c.chain.zipper.v1.AssetConfigR\x06assets\x12\x15\n" +
 	"\x06ts_sec\x18\x03 \x01(\x04R\x05tsSec\x12B\n" +
-	"\tcontracts\x18\x05 \x03(\v2$.chain.zipper.v1.ChainContractConfigR\tcontracts2\xe4\x02\n" +
+	"\tcontracts\x18\x05 \x03(\v2$.chain.zipper.v1.ChainContractConfigR\tcontracts*V\n" +
+	"\x0fMemoRequirement\x12\x14\n" +
+	"\x10MEMO_UNSPECIFIED\x10\x00\x12\f\n" +
+	"\bREQUIRED\x10\x01\x12\f\n" +
+	"\bOPTIONAL\x10\x02\x12\x11\n" +
+	"\rNOT_SUPPORTED\x10\x032\xe4\x02\n" +
 	"\rZipperService\x12\xc7\x02\n" +
 	"\x18GetDepositWithdrawConfig\x120.chain.zipper.v1.GetDepositWithdrawConfigRequest\x1a1.chain.zipper.v1.GetDepositWithdrawConfigResponse\"\xc5\x01\xbaG\x94\x01\n" +
 	"\x12Deposit & Withdraw\x12\x1dGet Deposit & Withdraw Config\x1a_Retrieve the supported chains and unified assets for Zipper-powered deposit and withdraw flows.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02#\x12!/v1/chain/deposit-withdraw/config\x1a\t\x8a\xb5\x18\x05chainB\xbe\x01\xbaGp:n\n" +
@@ -794,30 +888,33 @@ func file_chain_zipper_v1_zipper_proto_rawDescGZIP() []byte {
 	return file_chain_zipper_v1_zipper_proto_rawDescData
 }
 
+var file_chain_zipper_v1_zipper_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_chain_zipper_v1_zipper_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_chain_zipper_v1_zipper_proto_goTypes = []any{
-	(*ChainConfig)(nil),                      // 0: chain.zipper.v1.ChainConfig
-	(*AssetChainVariant)(nil),                // 1: chain.zipper.v1.AssetChainVariant
-	(*ZippedAssetSupplyUpdate)(nil),          // 2: chain.zipper.v1.ZippedAssetSupplyUpdate
-	(*ZippedAssetSupplyBatch)(nil),           // 3: chain.zipper.v1.ZippedAssetSupplyBatch
-	(*AssetConfig)(nil),                      // 4: chain.zipper.v1.AssetConfig
-	(*ChainContractConfig)(nil),              // 5: chain.zipper.v1.ChainContractConfig
-	(*GetDepositWithdrawConfigRequest)(nil),  // 6: chain.zipper.v1.GetDepositWithdrawConfigRequest
-	(*GetDepositWithdrawConfigResponse)(nil), // 7: chain.zipper.v1.GetDepositWithdrawConfigResponse
+	(MemoRequirement)(0),                     // 0: chain.zipper.v1.MemoRequirement
+	(*ChainConfig)(nil),                      // 1: chain.zipper.v1.ChainConfig
+	(*AssetChainVariant)(nil),                // 2: chain.zipper.v1.AssetChainVariant
+	(*ZippedAssetSupplyUpdate)(nil),          // 3: chain.zipper.v1.ZippedAssetSupplyUpdate
+	(*ZippedAssetSupplyBatch)(nil),           // 4: chain.zipper.v1.ZippedAssetSupplyBatch
+	(*AssetConfig)(nil),                      // 5: chain.zipper.v1.AssetConfig
+	(*ChainContractConfig)(nil),              // 6: chain.zipper.v1.ChainContractConfig
+	(*GetDepositWithdrawConfigRequest)(nil),  // 7: chain.zipper.v1.GetDepositWithdrawConfigRequest
+	(*GetDepositWithdrawConfigResponse)(nil), // 8: chain.zipper.v1.GetDepositWithdrawConfigResponse
 }
 var file_chain_zipper_v1_zipper_proto_depIdxs = []int32{
-	2, // 0: chain.zipper.v1.ZippedAssetSupplyBatch.updates:type_name -> chain.zipper.v1.ZippedAssetSupplyUpdate
-	1, // 1: chain.zipper.v1.AssetConfig.variants:type_name -> chain.zipper.v1.AssetChainVariant
-	0, // 2: chain.zipper.v1.GetDepositWithdrawConfigResponse.chains:type_name -> chain.zipper.v1.ChainConfig
-	4, // 3: chain.zipper.v1.GetDepositWithdrawConfigResponse.assets:type_name -> chain.zipper.v1.AssetConfig
-	5, // 4: chain.zipper.v1.GetDepositWithdrawConfigResponse.contracts:type_name -> chain.zipper.v1.ChainContractConfig
-	6, // 5: chain.zipper.v1.ZipperService.GetDepositWithdrawConfig:input_type -> chain.zipper.v1.GetDepositWithdrawConfigRequest
-	7, // 6: chain.zipper.v1.ZipperService.GetDepositWithdrawConfig:output_type -> chain.zipper.v1.GetDepositWithdrawConfigResponse
-	6, // [6:7] is the sub-list for method output_type
-	5, // [5:6] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	0, // 0: chain.zipper.v1.ChainConfig.memo_requirement:type_name -> chain.zipper.v1.MemoRequirement
+	3, // 1: chain.zipper.v1.ZippedAssetSupplyBatch.updates:type_name -> chain.zipper.v1.ZippedAssetSupplyUpdate
+	2, // 2: chain.zipper.v1.AssetConfig.variants:type_name -> chain.zipper.v1.AssetChainVariant
+	1, // 3: chain.zipper.v1.GetDepositWithdrawConfigResponse.chains:type_name -> chain.zipper.v1.ChainConfig
+	5, // 4: chain.zipper.v1.GetDepositWithdrawConfigResponse.assets:type_name -> chain.zipper.v1.AssetConfig
+	6, // 5: chain.zipper.v1.GetDepositWithdrawConfigResponse.contracts:type_name -> chain.zipper.v1.ChainContractConfig
+	7, // 6: chain.zipper.v1.ZipperService.GetDepositWithdrawConfig:input_type -> chain.zipper.v1.GetDepositWithdrawConfigRequest
+	8, // 7: chain.zipper.v1.ZipperService.GetDepositWithdrawConfig:output_type -> chain.zipper.v1.GetDepositWithdrawConfigResponse
+	7, // [7:8] is the sub-list for method output_type
+	6, // [6:7] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_chain_zipper_v1_zipper_proto_init() }
@@ -830,13 +927,14 @@ func file_chain_zipper_v1_zipper_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chain_zipper_v1_zipper_proto_rawDesc), len(file_chain_zipper_v1_zipper_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_chain_zipper_v1_zipper_proto_goTypes,
 		DependencyIndexes: file_chain_zipper_v1_zipper_proto_depIdxs,
+		EnumInfos:         file_chain_zipper_v1_zipper_proto_enumTypes,
 		MessageInfos:      file_chain_zipper_v1_zipper_proto_msgTypes,
 	}.Build()
 	File_chain_zipper_v1_zipper_proto = out.File

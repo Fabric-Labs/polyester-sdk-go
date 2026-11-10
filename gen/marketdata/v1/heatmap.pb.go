@@ -485,6 +485,9 @@ func (x *HeatmapDeltaLevels) GetQtyScaled() []int64 {
 }
 
 // HeatmapKeyframe is a full-book snapshot anchor.
+// Best bid, best ask and mid preserve the raw prices where available. For older
+// historical buckets without recorded raw prices, they use the reconstructed
+// price bins instead.
 type HeatmapKeyframe struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Snapshot timestamp (seconds since epoch, UTC).

@@ -550,6 +550,8 @@ type SubaccountRoleServiceClient interface {
 	// List the authoritative built-in role and permission catalog. This metadata is public.
 	ListSubaccountRoles(context.Context, *connect.Request[v1.ListSubaccountRolesRequest]) (*connect.Response[v1.ListSubaccountRolesResponse], error)
 	// Return the authenticated caller's effective permissions for one sub-account.
+	// An API key needs READ_SUBACCOUNT_PERMISSIONS and gets what the key itself
+	// may do on a sub-account within its scope.
 	GetEffectiveSubaccountPermissions(context.Context, *connect.Request[v1.GetEffectiveSubaccountPermissionsRequest]) (*connect.Response[v1.GetEffectiveSubaccountPermissionsResponse], error)
 }
 
@@ -601,6 +603,8 @@ type SubaccountRoleServiceHandler interface {
 	// List the authoritative built-in role and permission catalog. This metadata is public.
 	ListSubaccountRoles(context.Context, *connect.Request[v1.ListSubaccountRolesRequest]) (*connect.Response[v1.ListSubaccountRolesResponse], error)
 	// Return the authenticated caller's effective permissions for one sub-account.
+	// An API key needs READ_SUBACCOUNT_PERMISSIONS and gets what the key itself
+	// may do on a sub-account within its scope.
 	GetEffectiveSubaccountPermissions(context.Context, *connect.Request[v1.GetEffectiveSubaccountPermissionsRequest]) (*connect.Response[v1.GetEffectiveSubaccountPermissionsResponse], error)
 }
 

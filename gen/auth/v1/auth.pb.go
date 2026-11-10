@@ -210,6 +210,9 @@ const (
 	// ConnectRPC answers resource_exhausted. The REST problem code is
 	// REPLAY_CAPACITY_EXHAUSTED, with HTTP 429.
 	AuthErrorCode_AUTH_REPLAY_CAPACITY_EXHAUSTED AuthErrorCode = 57
+	// A non-empty request body identifier differs from the REST path identifier.
+	// The request is rejected with HTTP 400 before any action is performed.
+	AuthErrorCode_AUTH_PATH_BODY_ID_MISMATCH AuthErrorCode = 58
 )
 
 // Enum value maps for AuthErrorCode.
@@ -272,6 +275,7 @@ var (
 		55: "AUTH_WALLET_ALREADY_LINKED",
 		56: "AUTH_RECV_WINDOW_INVALID",
 		57: "AUTH_REPLAY_CAPACITY_EXHAUSTED",
+		58: "AUTH_PATH_BODY_ID_MISMATCH",
 	}
 	AuthErrorCode_value = map[string]int32{
 		"AUTH_UNSPECIFIED":                       0,
@@ -331,6 +335,7 @@ var (
 		"AUTH_WALLET_ALREADY_LINKED":             55,
 		"AUTH_RECV_WINDOW_INVALID":               56,
 		"AUTH_REPLAY_CAPACITY_EXHAUSTED":         57,
+		"AUTH_PATH_BODY_ID_MISMATCH":             58,
 	}
 )
 
@@ -979,7 +984,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x13AcceptTermsResponse*A\n" +
 	"\x16WalletChallengePurpose\x12\x1c\n" +
 	"\x18WALLET_PROOF_UNSPECIFIED\x10\x00\x12\t\n" +
-	"\x05LOGIN\x10\x01*\x85\x0e\n" +
+	"\x05LOGIN\x10\x01*\xa5\x0e\n" +
 	"\rAuthErrorCode\x12\x14\n" +
 	"\x10AUTH_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15AUTH_USERNAME_INVALID\x10\x01\x12\x17\n" +
@@ -1038,7 +1043,8 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x19AUTH_API_KEY_NOT_ACCEPTED\x106\x12\x1e\n" +
 	"\x1aAUTH_WALLET_ALREADY_LINKED\x107\x12\x1c\n" +
 	"\x18AUTH_RECV_WINDOW_INVALID\x108\x12\"\n" +
-	"\x1eAUTH_REPLAY_CAPACITY_EXHAUSTED\x1092\xa6\b\n" +
+	"\x1eAUTH_REPLAY_CAPACITY_EXHAUSTED\x109\x12\x1e\n" +
+	"\x1aAUTH_PATH_BODY_ID_MISMATCH\x10:2\xa6\b\n" +
 	"\vAuthService\x12\xf4\x01\n" +
 	"\x15CreateWalletChallenge\x12%.auth.v1.CreateWalletChallengeRequest\x1a&.auth.v1.CreateWalletChallengeResponse\"\x8b\x01\xbaG`\n" +
 	"\fAuth Service\x12\x17Create Wallet Challenge\x1a7Create a short-lived EIP-4361 message for wallet login.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/v1/auth/wallet-challenge\x12\x9e\x02\n" +

@@ -44,8 +44,10 @@ const (
 // ClaimsServiceClient is a client for the claims.v1.ClaimsService service.
 type ClaimsServiceClient interface {
 	// Get today's reward and claim status for the authenticated root account. Future reward schedules are not returned.
+	// An API key needs READ_DAILY_CLAIMS and must be scoped to the main account.
 	GetDailyClaimStatus(context.Context, *connect.Request[v1.GetDailyClaimStatusRequest]) (*connect.Response[v1.GetDailyClaimStatusResponse], error)
 	// Claim today's reward once for the authenticated root account, paid to the root account or to a subaccount it owns. All reward assets are transferred together, and retries return the same claim.
+	// An API key needs CLAIM_DAILY_REWARD and must be scoped to the main account.
 	ClaimDailyReward(context.Context, *connect.Request[v1.ClaimDailyRewardRequest]) (*connect.Response[v1.ClaimDailyRewardResponse], error)
 }
 
@@ -94,8 +96,10 @@ func (c *claimsServiceClient) ClaimDailyReward(ctx context.Context, req *connect
 // ClaimsServiceHandler is an implementation of the claims.v1.ClaimsService service.
 type ClaimsServiceHandler interface {
 	// Get today's reward and claim status for the authenticated root account. Future reward schedules are not returned.
+	// An API key needs READ_DAILY_CLAIMS and must be scoped to the main account.
 	GetDailyClaimStatus(context.Context, *connect.Request[v1.GetDailyClaimStatusRequest]) (*connect.Response[v1.GetDailyClaimStatusResponse], error)
 	// Claim today's reward once for the authenticated root account, paid to the root account or to a subaccount it owns. All reward assets are transferred together, and retries return the same claim.
+	// An API key needs CLAIM_DAILY_REWARD and must be scoped to the main account.
 	ClaimDailyReward(context.Context, *connect.Request[v1.ClaimDailyRewardRequest]) (*connect.Response[v1.ClaimDailyRewardResponse], error)
 }
 

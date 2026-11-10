@@ -56,6 +56,9 @@ type SocialVerificationServiceClient interface {
 	SocialVerificationReady(context.Context, *connect.Request[v1.SocialVerificationReadyRequest]) (*connect.Response[v1.SocialVerificationReadyResponse], error)
 	// Get current verification status for the caller.
 	// A failed verification uses error_code for its machine-readable outcome.
+	// An API key needs READ_SOCIAL_VERIFICATION and must be scoped to the main
+	// account. It reads the status only: provider, method, handle, status, and
+	// verification time, with every other field left empty.
 	GetSocialVerification(context.Context, *connect.Request[v1.GetSocialVerificationRequest]) (*connect.Response[v1.GetSocialVerificationResponse], error)
 }
 
@@ -125,6 +128,9 @@ type SocialVerificationServiceHandler interface {
 	SocialVerificationReady(context.Context, *connect.Request[v1.SocialVerificationReadyRequest]) (*connect.Response[v1.SocialVerificationReadyResponse], error)
 	// Get current verification status for the caller.
 	// A failed verification uses error_code for its machine-readable outcome.
+	// An API key needs READ_SOCIAL_VERIFICATION and must be scoped to the main
+	// account. It reads the status only: provider, method, handle, status, and
+	// verification time, with every other field left empty.
 	GetSocialVerification(context.Context, *connect.Request[v1.GetSocialVerificationRequest]) (*connect.Response[v1.GetSocialVerificationResponse], error)
 }
 

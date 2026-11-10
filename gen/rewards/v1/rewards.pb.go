@@ -162,8 +162,12 @@ type RewardAward struct {
 	DestinationAddress string `protobuf:"bytes,11,opt,name=destination_address,json=destinationAddress,proto3" json:"destination_address,omitempty"`
 	// External transaction identifier once staff records delivery. Empty until delivered.
 	TransactionId string `protobuf:"bytes,12,opt,name=transaction_id,json=transactionId,proto3" json:"transaction_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Time the recipient first acknowledged revealing this award. Absent until explicitly acknowledged; shared across sessions and devices.
+	RevealedAt *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=revealed_at,json=revealedAt,proto3" json:"revealed_at,omitempty"`
+	// Time the recipient first acknowledged seeing delivery of this paid award. Absent until explicitly acknowledged; independent of revealed_at.
+	DeliverySeenAt *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=delivery_seen_at,json=deliverySeenAt,proto3" json:"delivery_seen_at,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *RewardAward) Reset() {
@@ -278,6 +282,20 @@ func (x *RewardAward) GetTransactionId() string {
 		return x.TransactionId
 	}
 	return ""
+}
+
+func (x *RewardAward) GetRevealedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.RevealedAt
+	}
+	return nil
+}
+
+func (x *RewardAward) GetDeliverySeenAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DeliverySeenAt
+	}
+	return nil
 }
 
 // SetMyRewardDestinationRequest records the authenticated recipient's payout destination.
@@ -399,6 +417,116 @@ func (x *SetMyRewardDestinationResponse) GetAward() *RewardAward {
 	return nil
 }
 
+// AcknowledgeMyRewardAwardRequest marks an owned award as seen without changing its delivery state.
+type AcknowledgeMyRewardAwardRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Award owned by the authenticated root account. Must be a UUID.
+	AwardId string `protobuf:"bytes,1,opt,name=award_id,json=awardId,proto3" json:"award_id,omitempty"`
+	// Record that the recipient revealed this award. False leaves the existing mark unchanged.
+	Revealed bool `protobuf:"varint,2,opt,name=revealed,proto3" json:"revealed,omitempty"`
+	// Record that the recipient saw this award's delivery. Requires a paid award; otherwise the entire request fails with failed_precondition. False leaves the existing mark unchanged.
+	DeliverySeen  bool `protobuf:"varint,3,opt,name=delivery_seen,json=deliverySeen,proto3" json:"delivery_seen,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AcknowledgeMyRewardAwardRequest) Reset() {
+	*x = AcknowledgeMyRewardAwardRequest{}
+	mi := &file_rewards_v1_rewards_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AcknowledgeMyRewardAwardRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AcknowledgeMyRewardAwardRequest) ProtoMessage() {}
+
+func (x *AcknowledgeMyRewardAwardRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_rewards_v1_rewards_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AcknowledgeMyRewardAwardRequest.ProtoReflect.Descriptor instead.
+func (*AcknowledgeMyRewardAwardRequest) Descriptor() ([]byte, []int) {
+	return file_rewards_v1_rewards_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *AcknowledgeMyRewardAwardRequest) GetAwardId() string {
+	if x != nil {
+		return x.AwardId
+	}
+	return ""
+}
+
+func (x *AcknowledgeMyRewardAwardRequest) GetRevealed() bool {
+	if x != nil {
+		return x.Revealed
+	}
+	return false
+}
+
+func (x *AcknowledgeMyRewardAwardRequest) GetDeliverySeen() bool {
+	if x != nil {
+		return x.DeliverySeen
+	}
+	return false
+}
+
+// AcknowledgeMyRewardAwardResponse returns the award with its persisted seen state.
+type AcknowledgeMyRewardAwardResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Current award. First acknowledgement timestamps are preserved on retries; fulfillment_revision is unchanged.
+	Award         *RewardAward `protobuf:"bytes,1,opt,name=award,proto3" json:"award,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AcknowledgeMyRewardAwardResponse) Reset() {
+	*x = AcknowledgeMyRewardAwardResponse{}
+	mi := &file_rewards_v1_rewards_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AcknowledgeMyRewardAwardResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AcknowledgeMyRewardAwardResponse) ProtoMessage() {}
+
+func (x *AcknowledgeMyRewardAwardResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_rewards_v1_rewards_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AcknowledgeMyRewardAwardResponse.ProtoReflect.Descriptor instead.
+func (*AcknowledgeMyRewardAwardResponse) Descriptor() ([]byte, []int) {
+	return file_rewards_v1_rewards_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *AcknowledgeMyRewardAwardResponse) GetAward() *RewardAward {
+	if x != nil {
+		return x.Award
+	}
+	return nil
+}
+
 // ListMyRewardAwardsRequest requests a page of awards for the authenticated root account.
 type ListMyRewardAwardsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -412,7 +540,7 @@ type ListMyRewardAwardsRequest struct {
 
 func (x *ListMyRewardAwardsRequest) Reset() {
 	*x = ListMyRewardAwardsRequest{}
-	mi := &file_rewards_v1_rewards_proto_msgTypes[3]
+	mi := &file_rewards_v1_rewards_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -424,7 +552,7 @@ func (x *ListMyRewardAwardsRequest) String() string {
 func (*ListMyRewardAwardsRequest) ProtoMessage() {}
 
 func (x *ListMyRewardAwardsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_rewards_v1_rewards_proto_msgTypes[3]
+	mi := &file_rewards_v1_rewards_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -437,7 +565,7 @@ func (x *ListMyRewardAwardsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMyRewardAwardsRequest.ProtoReflect.Descriptor instead.
 func (*ListMyRewardAwardsRequest) Descriptor() ([]byte, []int) {
-	return file_rewards_v1_rewards_proto_rawDescGZIP(), []int{3}
+	return file_rewards_v1_rewards_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ListMyRewardAwardsRequest) GetLimit() uint32 {
@@ -461,7 +589,7 @@ type ListMyRewardAwardsResponse struct {
 	Awards []*RewardAward `protobuf:"bytes,1,rep,name=awards,proto3" json:"awards,omitempty"`
 	// Opaque continuation token. Empty when no more results exist.
 	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
-	// True while a campaign can still publish new awards, or while one of this account's awards is awaiting a destination, ready for payout, or failed and may be retried. When false, repeated polling cannot return new awards or award changes until a new campaign is created; check again on the next page load or focus.
+	// True while a campaign can still publish new awards, or while one of this account's awards is awaiting a destination, ready for payout, or failed and may be retried. When false, repeated polling cannot return new awards or delivery changes until a new campaign is created; check again on the next page load or focus. Seen marks can still change when another session acknowledges an award.
 	AwardsMayChange bool `protobuf:"varint,3,opt,name=awards_may_change,json=awardsMayChange,proto3" json:"awards_may_change,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
@@ -469,7 +597,7 @@ type ListMyRewardAwardsResponse struct {
 
 func (x *ListMyRewardAwardsResponse) Reset() {
 	*x = ListMyRewardAwardsResponse{}
-	mi := &file_rewards_v1_rewards_proto_msgTypes[4]
+	mi := &file_rewards_v1_rewards_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -481,7 +609,7 @@ func (x *ListMyRewardAwardsResponse) String() string {
 func (*ListMyRewardAwardsResponse) ProtoMessage() {}
 
 func (x *ListMyRewardAwardsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_rewards_v1_rewards_proto_msgTypes[4]
+	mi := &file_rewards_v1_rewards_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -494,7 +622,7 @@ func (x *ListMyRewardAwardsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMyRewardAwardsResponse.ProtoReflect.Descriptor instead.
 func (*ListMyRewardAwardsResponse) Descriptor() ([]byte, []int) {
-	return file_rewards_v1_rewards_proto_rawDescGZIP(), []int{4}
+	return file_rewards_v1_rewards_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListMyRewardAwardsResponse) GetAwards() []*RewardAward {
@@ -523,7 +651,7 @@ var File_rewards_v1_rewards_proto protoreflect.FileDescriptor
 const file_rewards_v1_rewards_proto_rawDesc = "" +
 	"\n" +
 	"\x18rewards/v1/rewards.proto\x12\n" +
-	"rewards.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\xbe\x04\n" +
+	"rewards.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\xc1\x05\n" +
 	"\vRewardAward\x12\x19\n" +
 	"\baward_id\x18\x01 \x01(\tR\aawardId\x12\x1f\n" +
 	"\vcampaign_id\x18\x02 \x01(\tR\n" +
@@ -538,7 +666,10 @@ const file_rewards_v1_rewards_proto_rawDesc = "" +
 	"\x14fulfillment_revision\x18\n" +
 	" \x01(\x04R\x13fulfillmentRevision\x12/\n" +
 	"\x13destination_address\x18\v \x01(\tR\x12destinationAddress\x12%\n" +
-	"\x0etransaction_id\x18\f \x01(\tR\rtransactionId\"\xe4\x01\n" +
+	"\x0etransaction_id\x18\f \x01(\tR\rtransactionId\x12;\n" +
+	"\vrevealed_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"revealedAt\x12D\n" +
+	"\x10delivery_seen_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\x0edeliverySeenAt\"\xe4\x01\n" +
 	"\x1dSetMyRewardDestinationRequest\x12%\n" +
 	"\baward_id\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\aawardId\x12;\n" +
@@ -549,6 +680,13 @@ const file_rewards_v1_rewards_proto_rawDesc = "" +
 	"request_id\x18\x04 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\trequestId\"O\n" +
 	"\x1eSetMyRewardDestinationResponse\x12-\n" +
+	"\x05award\x18\x01 \x01(\v2\x17.rewards.v1.RewardAwardR\x05award\"\x83\x02\n" +
+	"\x1fAcknowledgeMyRewardAwardRequest\x12#\n" +
+	"\baward_id\x18\x01 \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01R\aawardId\x12\x1a\n" +
+	"\brevealed\x18\x02 \x01(\bR\brevealed\x12#\n" +
+	"\rdelivery_seen\x18\x03 \x01(\bR\fdeliverySeen:z\xbaHw\x1au\n" +
+	"\x1freward_acknowledgement.required\x12-at least one acknowledgement must be selected\x1a#this.revealed || this.delivery_seen\"Q\n" +
+	" AcknowledgeMyRewardAwardResponse\x12-\n" +
 	"\x05award\x18\x01 \x01(\v2\x17.rewards.v1.RewardAwardR\x05award\"c\n" +
 	"\x19ListMyRewardAwardsRequest\x12\x1d\n" +
 	"\x05limit\x18\x01 \x01(\rB\a\xbaH\x04*\x02\x18dR\x05limit\x12'\n" +
@@ -569,10 +707,12 @@ const file_rewards_v1_rewards_proto_rawDesc = "" +
 	"\x04PAID\x10\x03\x12\n" +
 	"\n" +
 	"\x06FAILED\x10\x04\x12\f\n" +
-	"\bCANCELED\x10\x052\xad\x05\n" +
-	"\x15RewardCampaignService\x12\x86\x02\n" +
-	"\x12ListMyRewardAwards\x12%.rewards.v1.ListMyRewardAwardsRequest\x1a&.rewards.v1.ListMyRewardAwardsResponse\"\xa0\x01\xbaG~\n" +
-	"\aRewards\x12\x15List My Reward Awards\x1a\\List published campaign awards for the authenticated root account. Requires a session token.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x14\x12\x12/v1/rewards/awards\x12\xfd\x02\n" +
+	"\bCANCELED\x10\x052\xb7\t\n" +
+	"\x15RewardCampaignService\x12\xc3\x02\n" +
+	"\x12ListMyRewardAwards\x12%.rewards.v1.ListMyRewardAwardsRequest\x1a&.rewards.v1.ListMyRewardAwardsResponse\"\xdd\x01\xbaG\xb9\x01\n" +
+	"\aRewards\x12\x15List My Reward Awards\x1a\x96\x01List published campaign awards for the authenticated root account, newest first. An API key needs READ_REWARDS and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x14\x12\x12/v1/rewards/awards\x12\xca\x03\n" +
+	"\x18AcknowledgeMyRewardAward\x12+.rewards.v1.AcknowledgeMyRewardAwardRequest\x1a,.rewards.v1.AcknowledgeMyRewardAwardResponse\"\xd2\x02\xbaG\x95\x02\n" +
+	"\aRewards\x12\x1bAcknowledge My Reward Award\x1a\xec\x01Record revealing an award or seeing a paid award's delivery for the authenticated recipient. Requires a session token. Repeated acknowledgements preserve the first timestamps. Existing awards remain unseen until explicitly acknowledged.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02.:\x01*\")/v1/rewards/awards/{award_id}/acknowledge\x12\xfd\x02\n" +
 	"\x16SetMyRewardDestination\x12).rewards.v1.SetMyRewardDestinationRequest\x1a*.rewards.v1.SetMyRewardDestinationResponse\"\x8b\x02\xbaG\xce\x01\n" +
 	"\aRewards\x12\x19Set My Reward Destination\x1a\xa7\x01Record a write-once payout destination for the authenticated recipient's award. Requires a session token. This does not execute a transfer or mark the award delivered.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02.:\x01*\x1a)/v1/rewards/awards/{award_id}/destination\x1a\v\x8a\xb5\x18\arewardsB\x8c\x01\xbaGG:E\n" +
 	"\aRewards\x12:Published campaign awards for authenticated root accounts.Z@github.com/Fabric-Labs/polyester-sdk-go/gen/rewards/v1;rewardsv1b\x06proto3"
@@ -590,32 +730,39 @@ func file_rewards_v1_rewards_proto_rawDescGZIP() []byte {
 }
 
 var file_rewards_v1_rewards_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_rewards_v1_rewards_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_rewards_v1_rewards_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_rewards_v1_rewards_proto_goTypes = []any{
-	(RewardFulfillmentMethod)(0),           // 0: rewards.v1.RewardFulfillmentMethod
-	(RewardFulfillmentState)(0),            // 1: rewards.v1.RewardFulfillmentState
-	(*RewardAward)(nil),                    // 2: rewards.v1.RewardAward
-	(*SetMyRewardDestinationRequest)(nil),  // 3: rewards.v1.SetMyRewardDestinationRequest
-	(*SetMyRewardDestinationResponse)(nil), // 4: rewards.v1.SetMyRewardDestinationResponse
-	(*ListMyRewardAwardsRequest)(nil),      // 5: rewards.v1.ListMyRewardAwardsRequest
-	(*ListMyRewardAwardsResponse)(nil),     // 6: rewards.v1.ListMyRewardAwardsResponse
-	(*timestamppb.Timestamp)(nil),          // 7: google.protobuf.Timestamp
+	(RewardFulfillmentMethod)(0),             // 0: rewards.v1.RewardFulfillmentMethod
+	(RewardFulfillmentState)(0),              // 1: rewards.v1.RewardFulfillmentState
+	(*RewardAward)(nil),                      // 2: rewards.v1.RewardAward
+	(*SetMyRewardDestinationRequest)(nil),    // 3: rewards.v1.SetMyRewardDestinationRequest
+	(*SetMyRewardDestinationResponse)(nil),   // 4: rewards.v1.SetMyRewardDestinationResponse
+	(*AcknowledgeMyRewardAwardRequest)(nil),  // 5: rewards.v1.AcknowledgeMyRewardAwardRequest
+	(*AcknowledgeMyRewardAwardResponse)(nil), // 6: rewards.v1.AcknowledgeMyRewardAwardResponse
+	(*ListMyRewardAwardsRequest)(nil),        // 7: rewards.v1.ListMyRewardAwardsRequest
+	(*ListMyRewardAwardsResponse)(nil),       // 8: rewards.v1.ListMyRewardAwardsResponse
+	(*timestamppb.Timestamp)(nil),            // 9: google.protobuf.Timestamp
 }
 var file_rewards_v1_rewards_proto_depIdxs = []int32{
-	0, // 0: rewards.v1.RewardAward.fulfillment_method:type_name -> rewards.v1.RewardFulfillmentMethod
-	1, // 1: rewards.v1.RewardAward.fulfillment_state:type_name -> rewards.v1.RewardFulfillmentState
-	7, // 2: rewards.v1.RewardAward.published_at:type_name -> google.protobuf.Timestamp
-	2, // 3: rewards.v1.SetMyRewardDestinationResponse.award:type_name -> rewards.v1.RewardAward
-	2, // 4: rewards.v1.ListMyRewardAwardsResponse.awards:type_name -> rewards.v1.RewardAward
-	5, // 5: rewards.v1.RewardCampaignService.ListMyRewardAwards:input_type -> rewards.v1.ListMyRewardAwardsRequest
-	3, // 6: rewards.v1.RewardCampaignService.SetMyRewardDestination:input_type -> rewards.v1.SetMyRewardDestinationRequest
-	6, // 7: rewards.v1.RewardCampaignService.ListMyRewardAwards:output_type -> rewards.v1.ListMyRewardAwardsResponse
-	4, // 8: rewards.v1.RewardCampaignService.SetMyRewardDestination:output_type -> rewards.v1.SetMyRewardDestinationResponse
-	7, // [7:9] is the sub-list for method output_type
-	5, // [5:7] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	0,  // 0: rewards.v1.RewardAward.fulfillment_method:type_name -> rewards.v1.RewardFulfillmentMethod
+	1,  // 1: rewards.v1.RewardAward.fulfillment_state:type_name -> rewards.v1.RewardFulfillmentState
+	9,  // 2: rewards.v1.RewardAward.published_at:type_name -> google.protobuf.Timestamp
+	9,  // 3: rewards.v1.RewardAward.revealed_at:type_name -> google.protobuf.Timestamp
+	9,  // 4: rewards.v1.RewardAward.delivery_seen_at:type_name -> google.protobuf.Timestamp
+	2,  // 5: rewards.v1.SetMyRewardDestinationResponse.award:type_name -> rewards.v1.RewardAward
+	2,  // 6: rewards.v1.AcknowledgeMyRewardAwardResponse.award:type_name -> rewards.v1.RewardAward
+	2,  // 7: rewards.v1.ListMyRewardAwardsResponse.awards:type_name -> rewards.v1.RewardAward
+	7,  // 8: rewards.v1.RewardCampaignService.ListMyRewardAwards:input_type -> rewards.v1.ListMyRewardAwardsRequest
+	5,  // 9: rewards.v1.RewardCampaignService.AcknowledgeMyRewardAward:input_type -> rewards.v1.AcknowledgeMyRewardAwardRequest
+	3,  // 10: rewards.v1.RewardCampaignService.SetMyRewardDestination:input_type -> rewards.v1.SetMyRewardDestinationRequest
+	8,  // 11: rewards.v1.RewardCampaignService.ListMyRewardAwards:output_type -> rewards.v1.ListMyRewardAwardsResponse
+	6,  // 12: rewards.v1.RewardCampaignService.AcknowledgeMyRewardAward:output_type -> rewards.v1.AcknowledgeMyRewardAwardResponse
+	4,  // 13: rewards.v1.RewardCampaignService.SetMyRewardDestination:output_type -> rewards.v1.SetMyRewardDestinationResponse
+	11, // [11:14] is the sub-list for method output_type
+	8,  // [8:11] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_rewards_v1_rewards_proto_init() }
@@ -629,7 +776,7 @@ func file_rewards_v1_rewards_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_rewards_v1_rewards_proto_rawDesc), len(file_rewards_v1_rewards_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   5,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

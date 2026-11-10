@@ -52,13 +52,15 @@ const (
 
 // ProfileServiceClient is a client for the auth.v1.ProfileService service.
 type ProfileServiceClient interface {
-	// Get the caller's profile.
+	// Get the caller's profile. An API key needs READ_PROFILE and must be scoped
+	// to the main account.
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.UserProfile], error)
 	// Update the caller's mutable profile fields. Omitted fields are unchanged;
 	// present empty strings clear optional text fields.
 	UpdateProfile(context.Context, *connect.Request[v1.UserProfilePatch]) (*connect.Response[v1.UserProfile], error)
 	// Get recent username history for the caller, newest first. Returns at most
-	// 20 entries.
+	// 20 entries. An API key needs READ_PROFILE and must be scoped to the main
+	// account.
 	GetUsernameHistory(context.Context, *connect.Request[v1.GetUsernameHistoryRequest]) (*connect.Response[v1.GetUsernameHistoryResponse], error)
 	// Generate five random username options for an account that has never
 	// claimed a username. Calling this method again returns a fresh set.
@@ -148,13 +150,15 @@ func (c *profileServiceClient) ClaimGeneratedUsername(ctx context.Context, req *
 
 // ProfileServiceHandler is an implementation of the auth.v1.ProfileService service.
 type ProfileServiceHandler interface {
-	// Get the caller's profile.
+	// Get the caller's profile. An API key needs READ_PROFILE and must be scoped
+	// to the main account.
 	GetProfile(context.Context, *connect.Request[v1.GetProfileRequest]) (*connect.Response[v1.UserProfile], error)
 	// Update the caller's mutable profile fields. Omitted fields are unchanged;
 	// present empty strings clear optional text fields.
 	UpdateProfile(context.Context, *connect.Request[v1.UserProfilePatch]) (*connect.Response[v1.UserProfile], error)
 	// Get recent username history for the caller, newest first. Returns at most
-	// 20 entries.
+	// 20 entries. An API key needs READ_PROFILE and must be scoped to the main
+	// account.
 	GetUsernameHistory(context.Context, *connect.Request[v1.GetUsernameHistoryRequest]) (*connect.Response[v1.GetUsernameHistoryResponse], error)
 	// Generate five random username options for an account that has never
 	// claimed a username. Calling this method again returns a fresh set.

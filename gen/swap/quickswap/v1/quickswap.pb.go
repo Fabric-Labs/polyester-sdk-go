@@ -100,7 +100,9 @@ const (
 	// receives, credited to that affiliate vault. Each affiliate has one per
 	// leg; on a bridge one, on the credited amount, charged at payout.
 	FeeKind_AFFILIATE FeeKind = 3
-	// Network fee withheld from the deposit before it is credited.
+	// Network fee withheld from the deposit before it is credited. A quote
+	// shows an estimate; the fee withheld is the network's fee when the
+	// deposit arrives.
 	FeeKind_DEPOSIT_NETWORK FeeKind = 4
 	// Estimated network fee for a withdrawal. The actual fee is charged at
 	// withdrawal time and reported on the withdrawal.
@@ -1365,6 +1367,13 @@ func (x *QuickSwapTerms) GetExecution() *Execution {
 // computed on its own from what the leg receives and rounded down when
 // charged. A bridge has no settlement; its fees are charged at payout, in
 // the destination asset.
+//
+// A quoted fee is an estimate, not a fixed amount. What is fixed is the
+// rate (bps): each trading fee charged is that rate applied to what the leg
+// actually receives once the deposit is credited, which can be hours or days
+// after the quote. The quoted amount is not a cap: the fee charged and the
+// output follow the actual deposit, execution prices and rounding, so they
+// can be higher or lower than quoted.
 type QuoteFee struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Fee component.
@@ -1375,11 +1384,12 @@ type QuoteFee struct {
 	ZippedAssetId uint32 `protobuf:"varint,2,opt,name=zipped_asset_id,json=zippedAssetId,proto3" json:"zipped_asset_id,omitempty"`
 	// Fee in zipped_asset_id's token units; for a fee charged in the
 	// intermediate asset, in the intermediate asset at its trading precision
-	// (amount.decimals). Trading fees are rounded up, so the charged fee never
-	// exceeds the quoted one.
+	// (amount.decimals). An estimate for deposit_amount at the quoted prices,
+	// with trading fees rounded up; the fee charged can be higher or lower.
 	Amount *TokenAmount `protobuf:"bytes,3,opt,name=amount,proto3" json:"amount,omitempty"`
 	// Rate of a trading fee in basis points of what the leg receives; zero for
-	// a network fee.
+	// a network fee. The rate, not amount, is what is charged: bps of what the
+	// leg actually receives.
 	Bps uint32 `protobuf:"varint,4,opt,name=bps,proto3" json:"bps,omitempty"`
 	// AFFILIATE only: public sub-account ID of the affiliate vault credited
 	// with the fee; zero for every other kind.
@@ -1453,8 +1463,13 @@ func (x *QuoteFee) GetAccountId() uint64 {
 	return 0
 }
 
-// QuickSwapQuote is the priced view of a QuickSwap's terms. Price fields are
-// estimates at quoted_at; only the protection fields are guarantees.
+// QuickSwapQuote is the priced view of a QuickSwap's terms. Prices, amounts
+// and fees are estimates at quoted_at; only the protection fields are
+// guarantees. A QuickSwap is priced when its deposit is credited, which can
+// be hours or days after the quote: the deposit must be detected before
+// DepositInstructions.funding_expires_at, and its confirmation, credit and
+// execution can finish later. Its actual output and fees can therefore
+// differ from the quote.
 //
 // The end user may deposit any amount from min_deposit_amount to
 // max_deposit_amount. min_amount_out applies only to a deposit of exactly
@@ -1470,7 +1485,8 @@ type QuickSwapQuote struct {
 	DepositAmount *TokenAmount `protobuf:"bytes,1,opt,name=deposit_amount,json=depositAmount,proto3" json:"deposit_amount,omitempty"`
 	// Expected destination amount for deposit_amount at quoted_at, after
 	// trading fees and both quoted network fees, in destination token units. An
-	// estimate, not a guarantee.
+	// estimate, not a guarantee: the delivered amount follows the actual
+	// deposit, execution and fees, bounded below only by the protection.
 	ExpectedAmountOut *TokenAmount `protobuf:"bytes,2,opt,name=expected_amount_out,json=expectedAmountOut,proto3" json:"expected_amount_out,omitempty"`
 	// Guaranteed minimum delivered amount, in destination token units, at the
 	// quoted network fees, for a deposit of exactly deposit_amount that fully
@@ -1513,10 +1529,13 @@ type QuickSwapQuote struct {
 	// bridge. When non-zero, CreateQuickSwap requires a refund address for that
 	// asset. The route is fixed at creation.
 	IntermediateAssetId uint32 `protobuf:"varint,7,opt,name=intermediate_asset_id,json=intermediateAssetId,proto3" json:"intermediate_asset_id,omitempty"`
-	// Quoted fee components for deposit_amount: each leg's service, broker and
-	// affiliate fees, in that order, legs in route order (a bridge has one set,
-	// charged at payout), then network fees. Affiliates are in ascending
-	// account_id order. Zero fees are omitted.
+	// Estimated fee components for deposit_amount at quoted_at: each leg's
+	// service, broker and affiliate fees, in that order, legs in route order (a
+	// bridge has one set, charged at payout), then network fees. Affiliates are
+	// in ascending account_id order. Zero fees are omitted. The fees charged
+	// are each rate applied to the actual execution and can differ from these
+	// amounts; QuickSwap.charged_fees reports the broker and affiliate fees as
+	// charged.
 	Fees []*QuoteFee `protobuf:"bytes,8,rep,name=fees,proto3" json:"fees,omitempty"`
 	// When the quote was priced.
 	QuotedAt *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=quoted_at,json=quotedAt,proto3" json:"quoted_at,omitempty"`
@@ -2328,7 +2347,10 @@ type QuickSwap struct {
 	RefundAddress string `protobuf:"bytes,12,opt,name=refund_address,json=refundAddress,proto3" json:"refund_address,omitempty"`
 	// Destination tag or memo for refund_address; empty when none.
 	RefundMemo string `protobuf:"bytes,13,opt,name=refund_memo,json=refundMemo,proto3" json:"refund_memo,omitempty"`
-	// Quote and protection fixed at creation. Not refreshed on retries.
+	// Quote and protection fixed at creation. Not refreshed on retries. Its
+	// amounts and fees stay estimates: the QuickSwap is priced when its deposit
+	// is credited, and execution, withdrawals and charged_fees report the
+	// actual output and fees.
 	Quote *QuickSwapQuote `protobuf:"bytes,14,opt,name=quote,proto3" json:"quote,omitempty"`
 	// Where and until when to deposit; absent while ALLOCATING and on a
 	// QuickSwap that never got an address (EXPIRED with
@@ -2366,7 +2388,9 @@ type QuickSwap struct {
 	Fees *RequestedFees `protobuf:"bytes,29,opt,name=fees,proto3" json:"fees,omitempty"`
 	// Broker and affiliate fees charged so far, as settled: one entry per fee
 	// kind, credited vault and asset, in kind, then account_id, then asset_id
-	// order. Grows while the QuickSwap executes or pays out a bridge.
+	// order. Grows while the QuickSwap executes or pays out a bridge. Each is
+	// the requested rate applied to the actual execution, so it can differ
+	// from the quote's fee lines.
 	ChargedFees   []*ChargedFee `protobuf:"bytes,30,rep,name=charged_fees,json=chargedFees,proto3" json:"charged_fees,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2804,7 +2828,8 @@ func (x *QuoteQuickSwapRequest) GetAffiliates() []*AffiliateShare {
 type QuoteQuickSwapResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Indicative quote, including whether the route needs a refund address.
-	// Creating a QuickSwap prices the terms again.
+	// Its amounts and fees are estimates. Creating a QuickSwap prices the terms
+	// again.
 	Quote         *QuickSwapQuote `protobuf:"bytes,1,opt,name=quote,proto3" json:"quote,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2925,8 +2950,8 @@ type CreateQuickSwapRequest struct {
 	// text form without memo: 1-256 UTF-8 bytes.
 	DestinationAddress string `protobuf:"bytes,3,opt,name=destination_address,json=destinationAddress,proto3" json:"destination_address,omitempty"`
 	// Destination tag or memo for destination_address. Required when the
-	// destination network needs one; must be empty otherwise. At most 128 UTF-8
-	// bytes.
+	// destination network requires one, optional when supported, and empty when
+	// unsupported. See ChainConfig.memo_requirement. At most 128 UTF-8 bytes.
 	DestinationMemo string `protobuf:"bytes,4,opt,name=destination_memo,json=destinationMemo,proto3" json:"destination_memo,omitempty"`
 	// Recipient of returned source funds on the source network, in its native
 	// text form without memo: 1-256 UTF-8 bytes. Deposits that are not
@@ -2934,7 +2959,8 @@ type CreateQuickSwapRequest struct {
 	// observed sender.
 	ReturnAddress string `protobuf:"bytes,5,opt,name=return_address,json=returnAddress,proto3" json:"return_address,omitempty"`
 	// Destination tag or memo for return_address. Required when the source
-	// network needs one; must be empty otherwise. At most 128 UTF-8 bytes.
+	// network requires one, optional when supported, and empty when unsupported.
+	// See ChainConfig.memo_requirement. At most 128 UTF-8 bytes.
 	ReturnMemo string `protobuf:"bytes,6,opt,name=return_memo,json=returnMemo,proto3" json:"return_memo,omitempty"`
 	// Refund route for the intermediate asset of a two-leg route: an
 	// AssetChainVariant.zipped_asset_id of the asset whose AssetConfig.ledger_id
@@ -2947,7 +2973,8 @@ type CreateQuickSwapRequest struct {
 	// in its native text form without memo. At most 256 UTF-8 bytes.
 	RefundAddress string `protobuf:"bytes,8,opt,name=refund_address,json=refundAddress,proto3" json:"refund_address,omitempty"`
 	// Destination tag or memo for refund_address. Required when the refund
-	// network needs one; must be empty otherwise. At most 128 UTF-8 bytes.
+	// network requires one, optional when supported, and empty when unsupported.
+	// See ChainConfig.memo_requirement. At most 128 UTF-8 bytes.
 	RefundMemo string `protobuf:"bytes,9,opt,name=refund_memo,json=refundMemo,proto3" json:"refund_memo,omitempty"`
 	// Optional source wallet the end user will deposit from, for brokers that
 	// know it in advance. It must be a valid address on the source network, at
@@ -3676,10 +3703,10 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\x10INVITE_NOT_FOUND\x10\x1f\x12\x10\n" +
 	"\fFEES_INVALID\x10 \x12\x14\n" +
 	"\x10STATS_INCOMPLETE\x10!\x12\x14\n" +
-	"\x10ADDRESS_CONFLICT\x10\"2\xd1\x05\n" +
-	"\x10QuickSwapService\x12\xdf\x01\n" +
-	"\x0eQuoteQuickSwap\x12(.swap.quickswap.v1.QuoteQuickSwapRequest\x1a).swap.quickswap.v1.QuoteQuickSwapResponse\"x\xbaGp\n" +
-	"\tQuickSwap\x12\x0fQuote QuickSwap\x1a:Price QuickSwap terms without reserving a deposit address.Z\x16\n" +
+	"\x10ADDRESS_CONFLICT\x10\"2\xf4\x05\n" +
+	"\x10QuickSwapService\x12\x82\x02\n" +
+	"\x0eQuoteQuickSwap\x12(.swap.quickswap.v1.QuoteQuickSwapRequest\x1a).swap.quickswap.v1.QuoteQuickSwapResponse\"\x9a\x01\xbaG\x91\x01\n" +
+	"\tQuickSwap\x12\x0fQuote QuickSwap\x1a[Price QuickSwap terms, with estimated output and fees, without reserving a deposit address.Z\x16\n" +
 	"\x14\n" +
 	"\x10BrokerApiKeyAuth\x12\x00\xa2\xb5\x18\x01\x03\x12\xf5\x01\n" +
 	"\x0fCreateQuickSwap\x12).swap.quickswap.v1.CreateQuickSwapRequest\x1a*.swap.quickswap.v1.CreateQuickSwapResponse\"\x8a\x01\xbaG\x81\x01\n" +

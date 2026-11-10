@@ -28,8 +28,14 @@ const (
 )
 
 // PolicyAction is a high-level permission that can be granted by a policy.
-// Write-style actions also grant the matching read visibility where needed by
-// the product experience.
+// The product actions TRADE_SPOT through SWAP apply to sub-account and API-key
+// policies, and their write-style actions also grant the matching read
+// visibility where needed by the product experience. The account permissions
+// from READ_API_KEYS on apply to API-key policies only: a sub-account policy
+// refuses them. Each grants exactly the calls it names and never implies
+// another permission. A main-account permission is honored only for an API
+// key scoped to the main account; a key scoped to a sub-account is refused
+// even when its policy grants it.
 type PolicyAction int32
 
 const (
@@ -72,6 +78,47 @@ const (
 	// spot orders on the account's behalf, which also remain subject to the
 	// sub-account's spot trading policy.
 	PolicyAction_SWAP PolicyAction = 16
+	// Allow listing and reading API keys. A key scoped to the main account sees
+	// the main account's keys and those of its sub-accounts; a key scoped to a
+	// sub-account sees only that sub-account's keys.
+	PolicyAction_READ_API_KEYS PolicyAction = 17
+	// Allow listing and reading API-key policies. A key scoped to the main
+	// account sees every API-key policy of the main account; a key scoped to a
+	// sub-account sees only the policies attached to that sub-account's keys.
+	PolicyAction_READ_API_POLICIES PolicyAction = 18
+	// Allow listing and reading sub-account policies. A key scoped to the main
+	// account sees every sub-account policy of the main account; a key scoped to
+	// a sub-account sees only the policy attached to that sub-account.
+	PolicyAction_READ_SUBACCOUNT_POLICIES PolicyAction = 19
+	// Allow reading what the key itself may do on a sub-account within its
+	// scope.
+	PolicyAction_READ_SUBACCOUNT_PERMISSIONS PolicyAction = 20
+	// Allow reading the main account's VIP status. Main-account permission.
+	PolicyAction_READ_VIP_STATUS PolicyAction = 21
+	// Allow reading the main account's social verification status: provider,
+	// handle, status, and verification time. Main-account permission.
+	PolicyAction_READ_SOCIAL_VERIFICATION PolicyAction = 22
+	// Allow reading the main account's profile and username history.
+	// Main-account permission.
+	PolicyAction_READ_PROFILE PolicyAction = 23
+	// Allow resolving an account by username, account ID, or smart-account
+	// address. Any key of the main account may use it, whatever its scope.
+	PolicyAction_READ_ACCOUNT_DIRECTORY PolicyAction = 24
+	// Allow validating an external withdraw destination within the key's scope
+	// without creating, signing, or reserving a withdraw. It does not allow
+	// withdrawing.
+	PolicyAction_READ_WITHDRAW_VALIDATION PolicyAction = 25
+	// Allow reading the main account's daily reward claim status.
+	// Main-account permission.
+	PolicyAction_READ_DAILY_CLAIMS PolicyAction = 26
+	// Allow claiming the main account's daily reward, paid to the main account
+	// or a sub-account it owns. Main-account permission.
+	PolicyAction_CLAIM_DAILY_REWARD PolicyAction = 27
+	// Allow reading the main account's checkpoints. Main-account permission.
+	PolicyAction_READ_CHECKPOINTS PolicyAction = 28
+	// Allow reading the main account's published reward awards. Main-account
+	// permission.
+	PolicyAction_READ_REWARDS PolicyAction = 29
 )
 
 // Enum value maps for PolicyAction.
@@ -89,20 +136,46 @@ var (
 		14: "READ_AUTO_WITHDRAW",
 		15: "MANAGE_AUTO_WITHDRAW",
 		16: "SWAP",
+		17: "READ_API_KEYS",
+		18: "READ_API_POLICIES",
+		19: "READ_SUBACCOUNT_POLICIES",
+		20: "READ_SUBACCOUNT_PERMISSIONS",
+		21: "READ_VIP_STATUS",
+		22: "READ_SOCIAL_VERIFICATION",
+		23: "READ_PROFILE",
+		24: "READ_ACCOUNT_DIRECTORY",
+		25: "READ_WITHDRAW_VALIDATION",
+		26: "READ_DAILY_CLAIMS",
+		27: "CLAIM_DAILY_REWARD",
+		28: "READ_CHECKPOINTS",
+		29: "READ_REWARDS",
 	}
 	PolicyAction_value = map[string]int32{
-		"UNSPECIFIED":             0,
-		"TRADE_SPOT":              1,
-		"INTERNAL_TRANSFER":       3,
-		"EXTERNAL_WITHDRAW":       4,
-		"READ_BALANCES":           5,
-		"READ_SPOT":               6,
-		"READ_INTERNAL_TRANSFERS": 8,
-		"READ_ADDRESS_BOOK":       11,
-		"MANAGE_ADDRESS_BOOK":     12,
-		"READ_AUTO_WITHDRAW":      14,
-		"MANAGE_AUTO_WITHDRAW":    15,
-		"SWAP":                    16,
+		"UNSPECIFIED":                 0,
+		"TRADE_SPOT":                  1,
+		"INTERNAL_TRANSFER":           3,
+		"EXTERNAL_WITHDRAW":           4,
+		"READ_BALANCES":               5,
+		"READ_SPOT":                   6,
+		"READ_INTERNAL_TRANSFERS":     8,
+		"READ_ADDRESS_BOOK":           11,
+		"MANAGE_ADDRESS_BOOK":         12,
+		"READ_AUTO_WITHDRAW":          14,
+		"MANAGE_AUTO_WITHDRAW":        15,
+		"SWAP":                        16,
+		"READ_API_KEYS":               17,
+		"READ_API_POLICIES":           18,
+		"READ_SUBACCOUNT_POLICIES":    19,
+		"READ_SUBACCOUNT_PERMISSIONS": 20,
+		"READ_VIP_STATUS":             21,
+		"READ_SOCIAL_VERIFICATION":    22,
+		"READ_PROFILE":                23,
+		"READ_ACCOUNT_DIRECTORY":      24,
+		"READ_WITHDRAW_VALIDATION":    25,
+		"READ_DAILY_CLAIMS":           26,
+		"CLAIM_DAILY_REWARD":          27,
+		"READ_CHECKPOINTS":            28,
+		"READ_REWARDS":                29,
 	}
 )
 
@@ -735,7 +808,8 @@ type SubaccountPolicySpec struct {
 	SpotMarketScope MarketScope_Value `protobuf:"varint,5,opt,name=spot_market_scope,json=spotMarketScope,proto3,enum=auth.v1.MarketScope_Value" json:"spot_market_scope,omitempty"`
 	// High-level actions enabled for the sub-account policy. Mandatory read-only
 	// actions are included when omitted. Up to 64 unique explicit actions are
-	// allowed.
+	// allowed. Account permissions such as READ_API_KEYS apply to API-key
+	// policies only and are refused here.
 	Actions []PolicyAction `protobuf:"varint,7,rep,packed,name=actions,proto3,enum=auth.v1.PolicyAction" json:"actions,omitempty"`
 	// Maximum notional size for any single order on this sub-account, expressed
 	// in canonical quote microunits (one unit is 0.000001 USDT). A value of 0
@@ -2242,7 +2316,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x16SetApiKeyPolicyRequest\x124\n" +
 	"\x06key_id\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x15\x10\x012\x11^ak_[a-f0-9]{32}$R\x05keyId\x12\x1b\n" +
 	"\tpolicy_id\x18\x02 \x01(\x06R\bpolicyId\"\x19\n" +
-	"\x17SetApiKeyPolicyResponse*\x88\x02\n" +
+	"\x17SetApiKeyPolicyResponse*\xc7\x04\n" +
 	"\fPolicyAction\x12\x0f\n" +
 	"\vUNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -2256,12 +2330,25 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x13MANAGE_ADDRESS_BOOK\x10\f\x12\x16\n" +
 	"\x12READ_AUTO_WITHDRAW\x10\x0e\x12\x18\n" +
 	"\x14MANAGE_AUTO_WITHDRAW\x10\x0f\x12\b\n" +
-	"\x04SWAP\x10\x102\x9d\x18\n" +
-	"\rPolicyService\x12\xfd\x01\n" +
-	"\x16ListSubaccountPolicies\x12&.auth.v1.ListSubaccountPoliciesRequest\x1a'.auth.v1.ListSubaccountPoliciesResponse\"\x91\x01\xbaGd\n" +
-	"\fAuth Service\x12\x18List Subaccount Policies\x1a:List sub-account policy templates available to the caller.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1f\x12\x1d/v1/auth/policies/subaccounts\x12\xfe\x01\n" +
-	"\x13GetSubaccountPolicy\x12#.auth.v1.GetSubaccountPolicyRequest\x1a$.auth.v1.GetSubaccountPolicyResponse\"\x9b\x01\xbaGb\n" +
-	"\fAuth Service\x12\x15Get Subaccount Policy\x1a;Retrieve a single sub-account policy template by policy ID.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02+\x12)/v1/auth/policies/subaccounts/{policy_id}\x12\x97\x02\n" +
+	"\x04SWAP\x10\x10\x12\x11\n" +
+	"\rREAD_API_KEYS\x10\x11\x12\x15\n" +
+	"\x11READ_API_POLICIES\x10\x12\x12\x1c\n" +
+	"\x18READ_SUBACCOUNT_POLICIES\x10\x13\x12\x1f\n" +
+	"\x1bREAD_SUBACCOUNT_PERMISSIONS\x10\x14\x12\x13\n" +
+	"\x0fREAD_VIP_STATUS\x10\x15\x12\x1c\n" +
+	"\x18READ_SOCIAL_VERIFICATION\x10\x16\x12\x10\n" +
+	"\fREAD_PROFILE\x10\x17\x12\x1a\n" +
+	"\x16READ_ACCOUNT_DIRECTORY\x10\x18\x12\x1c\n" +
+	"\x18READ_WITHDRAW_VALIDATION\x10\x19\x12\x15\n" +
+	"\x11READ_DAILY_CLAIMS\x10\x1a\x12\x16\n" +
+	"\x12CLAIM_DAILY_REWARD\x10\x1b\x12\x14\n" +
+	"\x10READ_CHECKPOINTS\x10\x1c\x12\x10\n" +
+	"\fREAD_REWARDS\x10\x1d2\x9f\x1c\n" +
+	"\rPolicyService\x12\xfc\x02\n" +
+	"\x16ListSubaccountPolicies\x12&.auth.v1.ListSubaccountPoliciesRequest\x1a'.auth.v1.ListSubaccountPoliciesResponse\"\x90\x02\xbaG\xe1\x01\n" +
+	"\fAuth Service\x12\x18List Subaccount Policies\x1a\xb6\x01List sub-account policy templates available to the caller. An API key needs READ_SUBACCOUNT_POLICIES; a key scoped to a sub-account sees only the policy attached to that sub-account.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1f\x12\x1d/v1/auth/policies/subaccounts\x12\xfe\x02\n" +
+	"\x13GetSubaccountPolicy\x12#.auth.v1.GetSubaccountPolicyRequest\x1a$.auth.v1.GetSubaccountPolicyResponse\"\x9b\x02\xbaG\xe0\x01\n" +
+	"\fAuth Service\x12\x15Get Subaccount Policy\x1a\xb8\x01Retrieve a single sub-account policy template by policy ID. An API key needs READ_SUBACCOUNT_POLICIES; a key scoped to a sub-account reads only the policy attached to that sub-account.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02+\x12)/v1/auth/policies/subaccounts/{policy_id}\x12\x97\x02\n" +
 	"\x16CreateSubaccountPolicy\x12&.auth.v1.CreateSubaccountPolicyRequest\x1a'.auth.v1.CreateSubaccountPolicyResponse\"\xab\x01\xbaGw\n" +
 	"\fAuth Service\x12\x18Create Subaccount Policy\x1aMCreate a new sub-account policy template for the caller account or workspace.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/v1/auth/policies/subaccounts\x12\x98\x02\n" +
 	"\x16UpdateSubaccountPolicy\x12&.auth.v1.UpdateSubaccountPolicyRequest\x1a'.auth.v1.UpdateSubaccountPolicyResponse\"\xac\x01\xbaGl\n" +
@@ -2269,11 +2356,11 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x16DeleteSubaccountPolicy\x12&.auth.v1.DeleteSubaccountPolicyRequest\x1a'.auth.v1.DeleteSubaccountPolicyResponse\"\xac\x01\xbaGo\n" +
 	"\fAuth Service\x12\x18Delete Subaccount Policy\x1aEDelete an existing sub-account policy template when it is not in use.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02+*)/v1/auth/policies/subaccounts/{policy_id}\x12\x8c\x02\n" +
 	"\x13SetSubaccountPolicy\x12#.auth.v1.SetSubaccountPolicyRequest\x1a$.auth.v1.SetSubaccountPolicyResponse\"\xa9\x01\xbaGg\n" +
-	"\fAuth Service\x12\x15Set Subaccount Policy\x1a@Attach or clear a sub-account policy for the target sub-account.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x020:\x01*2+/v1/auth/subaccounts/{subaccount_id}/policy\x12\xde\x01\n" +
-	"\x0fListApiPolicies\x12\x1f.auth.v1.ListApiPoliciesRequest\x1a .auth.v1.ListApiPoliciesResponse\"\x87\x01\xbaG]\n" +
-	"\fAuth Service\x12\x15List API Key Policies\x1a6List API key policy templates available to the caller.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1c\x12\x1a/v1/auth/policies/api-keys\x12\xdf\x01\n" +
-	"\fGetApiPolicy\x12\x1c.auth.v1.GetApiPolicyRequest\x1a\x1d.auth.v1.GetApiPolicyResponse\"\x91\x01\xbaG[\n" +
-	"\fAuth Service\x12\x12Get API Key Policy\x1a7Retrieve a single API key policy template by policy ID.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02(\x12&/v1/auth/policies/api-keys/{policy_id}\x12\xf8\x01\n" +
+	"\fAuth Service\x12\x15Set Subaccount Policy\x1a@Attach or clear a sub-account policy for the target sub-account.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x020:\x01*2+/v1/auth/subaccounts/{subaccount_id}/policy\x12\xdf\x02\n" +
+	"\x0fListApiPolicies\x12\x1f.auth.v1.ListApiPoliciesRequest\x1a .auth.v1.ListApiPoliciesResponse\"\x88\x02\xbaG\xdc\x01\n" +
+	"\fAuth Service\x12\x15List API Key Policies\x1a\xb4\x01List API key policy templates available to the caller. An API key needs READ_API_POLICIES; a key scoped to a sub-account sees only the policies attached to that sub-account's keys.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1c\x12\x1a/v1/auth/policies/api-keys\x12\xe1\x02\n" +
+	"\fGetApiPolicy\x12\x1c.auth.v1.GetApiPolicyRequest\x1a\x1d.auth.v1.GetApiPolicyResponse\"\x93\x02\xbaG\xdb\x01\n" +
+	"\fAuth Service\x12\x12Get API Key Policy\x1a\xb6\x01Retrieve a single API key policy template by policy ID. An API key needs READ_API_POLICIES; a key scoped to a sub-account reads only the policies attached to that sub-account's keys.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02(\x12&/v1/auth/policies/api-keys/{policy_id}\x12\xf8\x01\n" +
 	"\x0fCreateApiPolicy\x12\x1f.auth.v1.CreateApiPolicyRequest\x1a .auth.v1.CreateApiPolicyResponse\"\xa1\x01\xbaGp\n" +
 	"\fAuth Service\x12\x15Create API Key Policy\x1aICreate a new API key policy template for the caller account or workspace.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1f:\x01*\"\x1a/v1/auth/policies/api-keys\x12\xf9\x01\n" +
 	"\x0fUpdateApiPolicy\x12\x1f.auth.v1.UpdateApiPolicyRequest\x1a .auth.v1.UpdateApiPolicyResponse\"\xa2\x01\xbaGe\n" +

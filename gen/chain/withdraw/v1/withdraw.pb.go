@@ -998,11 +998,11 @@ const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"\x11UNSUPPORTED_CHAIN\x10\x03\x12\x1b\n" +
 	"\x17POLYESTER_SMART_ACCOUNT\x10\x04\x12\x12\n" +
 	"\x0eTOKEN_CONTRACT\x10\x05\x12\x16\n" +
-	"\x12DENYLISTED_ADDRESS\x10\x062\x87\n" +
+	"\x12DENYLISTED_ADDRESS\x10\x062\xc4\n" +
 	"\n" +
-	"\x0fWithdrawService\x12\xe2\x02\n" +
-	"\x1bValidateWithdrawDestination\x125.chain.withdraw.v1.ValidateWithdrawDestinationRequest\x1a6.chain.withdraw.v1.ValidateWithdrawDestinationResponse\"\xd3\x01\xbaG\x96\x01\n" +
-	"\vWithdrawals\x12\x1dValidate Withdraw Destination\x1ahValidate an external-chain withdraw destination for an authenticated caller without creating a withdraw.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02-:\x01*\"(/v1/chain/withdraws:validate-destination\x12\xd0\x02\n" +
+	"\x0fWithdrawService\x12\x9f\x03\n" +
+	"\x1bValidateWithdrawDestination\x125.chain.withdraw.v1.ValidateWithdrawDestinationRequest\x1a6.chain.withdraw.v1.ValidateWithdrawDestinationResponse\"\x90\x02\xbaG\xd3\x01\n" +
+	"\vWithdrawals\x12\x1dValidate Withdraw Destination\x1a\xa4\x01Validate an external-chain withdraw destination for an authenticated caller without creating a withdraw. An API key needs READ_WITHDRAW_VALIDATION within its scope.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02-:\x01*\"(/v1/chain/withdraws:validate-destination\x12\xd0\x02\n" +
 	"\x15CreateTradingWithdraw\x12/.chain.withdraw.v1.CreateTradingWithdrawRequest\x1a0.chain.withdraw.v1.CreateTradingWithdrawResponse\"\xd3\x01\xbaG\xa4\x01\n" +
 	"\x11Trading Withdraws\x12\x17Create Trading Withdraw\x1avCreate or return one durable withdraw from Trading to Funding or to an external chain for the selected account target.\xa2\xb5\x18\x01\x02\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/v1/chain/trading-withdraws\x12\xb0\x04\n" +
 	"\x1bCreateWalletTradingWithdraw\x125.chain.withdraw.v1.CreateWalletTradingWithdrawRequest\x1a6.chain.withdraw.v1.CreateWalletTradingWithdrawResponse\"\xa1\x03\xbaG\xe7\x02\n" +

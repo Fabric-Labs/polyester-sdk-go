@@ -47,7 +47,9 @@ const (
 // QuickSwapServiceClient is a client for the swap.quickswap.v1.QuickSwapService service.
 type QuickSwapServiceClient interface {
 	// QuoteQuickSwap prices terms without creating a QuickSwap or reserving a
-	// deposit address. The quote states whether the route needs a refund
+	// deposit address. The quote's output and fees are estimates: the fees
+	// charged are their rates applied to the actual execution once the
+	// deposit is credited. The quote states whether the route needs a refund
 	// address.
 	//
 	// Errors:
@@ -153,7 +155,9 @@ func (c *quickSwapServiceClient) GetQuickSwap(ctx context.Context, req *connect.
 // QuickSwapServiceHandler is an implementation of the swap.quickswap.v1.QuickSwapService service.
 type QuickSwapServiceHandler interface {
 	// QuoteQuickSwap prices terms without creating a QuickSwap or reserving a
-	// deposit address. The quote states whether the route needs a refund
+	// deposit address. The quote's output and fees are estimates: the fees
+	// charged are their rates applied to the actual execution once the
+	// deposit is credited. The quote states whether the route needs a refund
 	// address.
 	//
 	// Errors:

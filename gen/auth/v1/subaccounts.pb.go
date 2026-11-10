@@ -1018,10 +1018,13 @@ func (x *GetEffectiveSubaccountPermissionsRequest) GetSubaccountId() uint64 {
 // Effective role-granted permissions for the caller on one sub-account.
 type GetEffectiveSubaccountPermissionsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Current role of the caller on the sub-account.
+	// Current role of the caller on the sub-account. For an API key this is
+	// OWNER: keys belong to the main account that owns the sub-account.
 	Role SubaccountRole `protobuf:"varint,1,opt,name=role,proto3,enum=auth.v1.SubaccountRole" json:"role,omitempty"`
-	// Permissions allowed by the role and current sub-account policy. Resource
-	// state, MFA, limits, and other request context may still deny an operation.
+	// Permissions allowed by the role and current sub-account policy. For an API
+	// key, only those its API-key policy also grants and that API keys can use.
+	// Resource state, MFA, limits, and other request context may still deny an
+	// operation.
 	Permissions []SubaccountPermission `protobuf:"varint,2,rep,packed,name=permissions,proto3,enum=auth.v1.SubaccountPermission" json:"permissions,omitempty"`
 	// Attached sub-account policy identifier, or zero when no policy is attached.
 	SubaccountPolicyId uint64 `protobuf:"fixed64,3,opt,name=subaccount_policy_id,json=subaccountPolicyId,proto3" json:"subaccount_policy_id,omitempty"`
@@ -3624,12 +3627,12 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x15ListSubaccountInvites\x12%.auth.v1.ListSubaccountInvitesRequest\x1a&.auth.v1.ListSubaccountInvitesResponse\"\xb5\x01\xbaG\x87\x01\n" +
 	"\fAuth Service\x12\x17List Subaccount Invites\x1a^List incoming invitations and all invitations for sub-accounts the caller owns or administers.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1e\x12\x1c/v1/auth/subaccounts:invites\x12\xac\x03\n" +
 	"\x17RespondSubaccountInvite\x12'.auth.v1.RespondSubaccountInviteRequest\x1a(.auth.v1.RespondSubaccountInviteResponse\"\xbd\x02\xbaG\xf5\x01\n" +
-	"\fAuth Service\x12\x19Respond Subaccount Invite\x1a\xc9\x01Accept or decline an invite as grantee, or cancel it as an authorized owner or admin. Acceptance requires an enrolled factor and a recently MFA-elevated session when the subaccount requires member MFA.\x98\xb5\x18\x03\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x025:\x01*\"0/v1/auth/subaccounts/invites/{invite_id}:respond\x1a\v\x8a\xb5\x18\aaccount2\xef\x05\n" +
+	"\fAuth Service\x12\x19Respond Subaccount Invite\x1a\xc9\x01Accept or decline an invite as grantee, or cancel it as an authorized owner or admin. Acceptance requires an enrolled factor and a recently MFA-elevated session when the subaccount requires member MFA.\x98\xb5\x18\x03\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x025:\x01*\"0/v1/auth/subaccounts/invites/{invite_id}:respond\x1a\v\x8a\xb5\x18\aaccount2\xe4\x06\n" +
 	"\x15SubaccountRoleService\x12\x9b\x02\n" +
 	"\x13ListSubaccountRoles\x12#.auth.v1.ListSubaccountRolesRequest\x1a$.auth.v1.ListSubaccountRolesResponse\"\xb8\x01\xbaG\x8f\x01\n" +
-	"\fAuth Service\x12\x15List Subaccount Roles\x1ahList every built-in sub-account role and the exact permission definitions used by backend authorization.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/auth/subaccount-roles\x12\xaa\x03\n" +
-	"!GetEffectiveSubaccountPermissions\x121.auth.v1.GetEffectiveSubaccountPermissionsRequest\x1a2.auth.v1.GetEffectiveSubaccountPermissionsResponse\"\x9d\x02\xbaG\xdc\x01\n" +
-	"\fAuth Service\x12$Get Effective Subaccount Permissions\x1a\xa5\x01Return permissions granted by the caller's current role after applying the attached sub-account policy. Contextual checks such as MFA and resource state still apply.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x022\x120/v1/auth/subaccounts/{subaccount_id}/permissions\x1a\v\x8a\xb5\x18\aaccountB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
+	"\fAuth Service\x12\x15List Subaccount Roles\x1ahList every built-in sub-account role and the exact permission definitions used by backend authorization.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/auth/subaccount-roles\x12\x9f\x04\n" +
+	"!GetEffectiveSubaccountPermissions\x121.auth.v1.GetEffectiveSubaccountPermissionsRequest\x1a2.auth.v1.GetEffectiveSubaccountPermissionsResponse\"\x92\x03\xbaG\xd0\x02\n" +
+	"\fAuth Service\x12$Get Effective Subaccount Permissions\x1a\x99\x02Return permissions granted by the caller's current role after applying the attached sub-account policy. An API key needs READ_SUBACCOUNT_PERMISSIONS and gets what the key itself may do on a sub-account within its scope. Contextual checks such as MFA and resource state still apply.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x022\x120/v1/auth/subaccounts/{subaccount_id}/permissions\x1a\v\x8a\xb5\x18\aaccountB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
 
 var (
 	file_auth_v1_subaccounts_proto_rawDescOnce sync.Once

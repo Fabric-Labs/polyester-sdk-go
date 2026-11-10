@@ -106,6 +106,21 @@ const (
 	TransferCode_FUNDING_USER_TRANSFER TransferCode = 1063
 	// Non-refundable on-chain request fee retained when a submitted trading withdrawal fails.
 	TransferCode_TRADING_WITHDRAW_REQUEST_FEE TransferCode = 1065
+	// Fee paid to a fee recipient when a trading withdrawal completes.
+	TransferCode_TRADING_WITHDRAW_FEE_LEG TransferCode = 1066
+	// QuickSwap fee paid to Polyester in the received asset.
+	TransferCode_QUICKSWAP_POLYESTER_FEE TransferCode = 1067
+	// QuickSwap fee paid to a broker in the received asset.
+	TransferCode_QUICKSWAP_BROKER_FEE TransferCode = 1068
+	// QuickSwap fee paid to an affiliate in the received asset.
+	TransferCode_QUICKSWAP_AFFILIATE_FEE TransferCode = 1069
+	// Collected fees transferred to the fee treasury's trading account.
+	TransferCode_FEE_SWEEP TransferCode = 1072
+	// Funds transferred from the fee treasury's trading account to replenish fee funds.
+	TransferCode_FEE_REFILL TransferCode = 1073
+	// Balance adjustment with a system account, including account seeding credits or corrections.
+	// May credit or debit the user's account; the transfer direction identifies which.
+	TransferCode_SYSTEM_ADJUSTMENT TransferCode = 1074
 )
 
 // Enum value maps for TransferCode.
@@ -125,6 +140,13 @@ var (
 		1062: "TRADING_WITHDRAW_RESERVE",
 		1063: "FUNDING_USER_TRANSFER",
 		1065: "TRADING_WITHDRAW_REQUEST_FEE",
+		1066: "TRADING_WITHDRAW_FEE_LEG",
+		1067: "QUICKSWAP_POLYESTER_FEE",
+		1068: "QUICKSWAP_BROKER_FEE",
+		1069: "QUICKSWAP_AFFILIATE_FEE",
+		1072: "FEE_SWEEP",
+		1073: "FEE_REFILL",
+		1074: "SYSTEM_ADJUSTMENT",
 	}
 	TransferCode_value = map[string]int32{
 		"TRANSFER_CODE_UNSPECIFIED":    0,
@@ -141,6 +163,13 @@ var (
 		"TRADING_WITHDRAW_RESERVE":     1062,
 		"FUNDING_USER_TRANSFER":        1063,
 		"TRADING_WITHDRAW_REQUEST_FEE": 1065,
+		"TRADING_WITHDRAW_FEE_LEG":     1066,
+		"QUICKSWAP_POLYESTER_FEE":      1067,
+		"QUICKSWAP_BROKER_FEE":         1068,
+		"QUICKSWAP_AFFILIATE_FEE":      1069,
+		"FEE_SWEEP":                    1072,
+		"FEE_REFILL":                   1073,
+		"SYSTEM_ADJUSTMENT":            1074,
 	}
 )
 
@@ -179,7 +208,7 @@ const file_ledger_v1_catalog_proto_rawDesc = "" +
 	"\vAccountCode\x12\x1c\n" +
 	"\x18ACCOUNT_CODE_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\aFUNDING\x10\xac\x02\x12\f\n" +
-	"\aTRADING\x10\xad\x02*\xc2\x02\n" +
+	"\aTRADING\x10\xad\x02*\xf1\x03\n" +
 	"\fTransferCode\x12\x1d\n" +
 	"\x19TRANSFER_CODE_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\aDEPOSIT\x10\xe8\a\x12\r\n" +
@@ -195,7 +224,15 @@ const file_ledger_v1_catalog_proto_rawDesc = "" +
 	"\x12TRADING_TO_FUNDING\x10\xa5\b\x12\x1d\n" +
 	"\x18TRADING_WITHDRAW_RESERVE\x10\xa6\b\x12\x1a\n" +
 	"\x15FUNDING_USER_TRANSFER\x10\xa7\b\x12!\n" +
-	"\x1cTRADING_WITHDRAW_REQUEST_FEE\x10\xa9\bB@Z>github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/v1;ledgerv1b\x06proto3"
+	"\x1cTRADING_WITHDRAW_REQUEST_FEE\x10\xa9\b\x12\x1d\n" +
+	"\x18TRADING_WITHDRAW_FEE_LEG\x10\xaa\b\x12\x1c\n" +
+	"\x17QUICKSWAP_POLYESTER_FEE\x10\xab\b\x12\x19\n" +
+	"\x14QUICKSWAP_BROKER_FEE\x10\xac\b\x12\x1c\n" +
+	"\x17QUICKSWAP_AFFILIATE_FEE\x10\xad\b\x12\x0e\n" +
+	"\tFEE_SWEEP\x10\xb0\b\x12\x0f\n" +
+	"\n" +
+	"FEE_REFILL\x10\xb1\b\x12\x16\n" +
+	"\x11SYSTEM_ADJUSTMENT\x10\xb2\bB@Z>github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/v1;ledgerv1b\x06proto3"
 
 var (
 	file_ledger_v1_catalog_proto_rawDescOnce sync.Once
