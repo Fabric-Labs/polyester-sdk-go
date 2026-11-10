@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.19.0
+
+Git tag: `v0.19.0`. Released 2026-11-10. Built on public contract `a3e3784`.
 
 - **Breaking:** `errors.IsRetryable` and `errors.MutationOutcomeUnknown` report false for a `*errors.CatalogHydrationError`, whatever the client's catalog load failed with. They looked through it at the load's failure, so a hydration error over a `*errors.RateLimitError`, a `*errors.TimestampSkewError` or an admission-refused 503 read as retryable, and one over a `*errors.TransportError`, a 5xx `*errors.ServerError` or a bare 404 read as an unknown mutation outcome. Neither was true: the call failed before it sent anything, and the client never loads its catalogs again, so calling again on the same client fails the same way and a standard retry loop spun until its budget ran out. `errors.Is` and `errors.As` still reach the load's failure, and predicates that name a cause, such as `errors.AuthErrorCode`, still read it. Affected: `errors.IsRetryable` and `errors.MutationOutcomeUnknown` for the `*errors.CatalogHydrationError` returned with `HydrateCatalogs` on by the calls that wait for catalog hydration, such as `Orders.Create`, `Orders.Cancel`, `Triggers.Create`, `Orderbook.Get`, `Orderbook.CreateSubscription` and `MarketData.GetTrades`. Migration: on a `*errors.CatalogHydrationError`, create a new client to load the catalogs again instead of retrying the call, and don't read an order back for it.
 
