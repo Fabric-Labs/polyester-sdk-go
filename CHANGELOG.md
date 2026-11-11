@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.23.0
+
+Git tag: `v0.23.0`. Released 2026-11-12. Built on public contract `a3e3784`.
 
 - **Breaking:** A ladder trigger with an order type other than `limit`, `market` included, is refused before sending with `*errors.ValidationError` (`order_type=market does not apply to a ladder: a ladder places limit GTC orders only`). The SDK sent it, and the server created a ladder of resting limit GTC orders, so a caller who asked for market execution got resting orders and no error. The public contract's `LadderTrigger` is a LINEAR limit-GTC ladder with no order type. A ladder created with an empty `orderType`, or `limit`, works as before. Affected: `Triggers.Create` and `codecs.CreateTriggerToProto`. Migration: create a ladder with an empty `orderType` or `limit`; use a TWAP or a market order for market execution.
 - **Breaking:** `Triggers.Modify` takes `MaxSlippageBps` from 0 to 10000, as `ModifyTriggerRequest` does, so a buy stop-loss or take-profit with a market child can be modified to 10000 bps, which create already accepted. It refused 10000 before sending. The server decides 10000 by side and type: a sell stop-loss or take-profit, and a trailing stop on either side, answer `ERROR_CODE_MAX_SLIPPAGE_INVALID`. Values above 10000 or below 0 are still refused before sending, now with `max_slippage_bps must be between 0 and 10000; 0 clears the cap`. Affected: `Triggers.Modify` and `codecs.ModifyTriggerToProto`. Migration: handle `ERROR_CODE_MAX_SLIPPAGE_INVALID` from the server where you relied on the local refusal of 10000 for a sell or a trailing stop.
