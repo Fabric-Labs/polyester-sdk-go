@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.24.0
+
+Git tag: `v0.24.0`. Released 2026-11-12. Built on public contract `e339360`.
 
 - New `Client.GetVersion` returns the exact build the environment serves (`system.v1.SystemService/GetVersion`): `models.ServerVersion` with `Version`, `Commit` and `Environment`, all plain strings, and `Release()`, the release a build follows (`0.10.0` for `0.10.0-12-g4e21a2f09670`). It needs no API key and is never signed. Affected: `Client.GetVersion`, `services.SystemService`, `models.ServerVersion` (all new).
 - New `Withdraw.GetWalletBalances` reads the zTokens the account's smart account wallet holds on Polyester Chain (`chain.withdraw.v1.WithdrawService/GetWalletBalances`), where a withdrawal Zipper rejected is now refunded net of its network fee: each balance's zipped and unified asset IDs, chain, zToken address, raw `AmountE18` and `Amount` in whole units. It takes a sub-account as `Balances.List` does; an API key needs `READ_BALANCES`. Affected: `Withdraw.GetWalletBalances` (also `TradingWithdraws`), `models.WalletBalances`, `models.WalletBalance`, `decode.WalletBalancesFromProto` (all new).
