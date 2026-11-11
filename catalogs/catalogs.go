@@ -30,32 +30,67 @@ type Manager struct {
 	// nil when none was begun. hydrationErr is its outcome, set before close.
 	hydrationDone chan struct{}
 	hydrationErr  error
+	// The same for the funding config's load, begun with BeginFundingHydration.
+	fundingDone chan struct{}
+	fundingErr  error
 }
 
-// BeginHydration records that a catalog load has started, so that calls which
-// need the catalogs wait for it (see Hydration) instead of reading them while
-// they are still empty. Call the returned function once, with the load's
-// error or nil, when the load ends. The client begins one when it is created
-// with Config.HydrateCatalogs.
+// BeginHydration records that a load of the spot config has started, so that
+// calls which need it wait for it (see Hydration) instead of reading the
+// catalogs while they are still empty. Call the returned function once, with
+// the load's error or nil, when the load ends. The client begins one when it
+// is created with Config.HydrateCatalogs.
 func (m *Manager) BeginHydration() (finish func(error)) {
+	return m.begin(&m.hydrationDone, &m.hydrationErr)
+}
+
+// BeginFundingHydration records that a load of the funding (deposit/withdraw)
+// config has started, as BeginHydration does for the spot config; see
+// FundingHydration. The two loads are independent.
+func (m *Manager) BeginFundingHydration() (finish func(error)) {
+	return m.begin(&m.fundingDone, &m.fundingErr)
+}
+
+func (m *Manager) begin(doneField *chan struct{}, errField *error) func(error) {
 	done := make(chan struct{})
 	m.mu.Lock()
-	m.hydrationDone = done
-	m.hydrationErr = nil
+	*doneField = done
+	*errField = nil
 	m.mu.Unlock()
 	var once sync.Once
 	return func(err error) {
 		once.Do(func() {
 			m.mu.Lock()
-			m.hydrationErr = err
+			*errField = err
 			m.mu.Unlock()
 			close(done)
 		})
 	}
 }
 
-// Hydration returns a channel closed when the load begun with BeginHydration
-// has ended, or nil when no load was begun. Once it is closed, HydrationError
+// FundingHydration returns a channel closed when the load begun with
+// BeginFundingHydration has ended, or nil when none was begun. Once it is
+// closed, FundingHydrationError returns the load's error.
+func (m *Manager) FundingHydration() <-chan struct{} {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if m.fundingDone == nil {
+		return nil
+	}
+	return m.fundingDone
+}
+
+// FundingHydrationError returns the error the load begun with
+// BeginFundingHydration ended with, or nil while it runs, after it
+// succeeded, or when none was begun.
+func (m *Manager) FundingHydrationError() error {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.fundingErr
+}
+
+// Hydration returns a channel closed when the spot config's load begun with
+// BeginHydration has ended, or nil when no load was begun. Once it is closed, HydrationError
 // returns the load's error.
 func (m *Manager) Hydration() <-chan struct{} {
 	m.mu.RLock()
@@ -732,6 +767,10 @@ func (m *Manager) OrderbookPriceBucketsForSymbol(symbol string) []string {
 }
 
 // LedgerIDForAsset resolves ledger id for asset symbol.
+//
+// nil means either that the funding (deposit/withdraw) config has not loaded
+// (yet, or its load failed) or that it does not know the asset; it does not
+// wait. Call Client.WaitForFundingCatalog first to tell the two apart.
 func (m *Manager) LedgerIDForAsset(assetSymbol string) *uint32 {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -768,6 +807,10 @@ func (m *Manager) LedgerIDForAsset(assetSymbol string) *uint32 {
 }
 
 // QuantityScaleForAsset returns quantity scale for asset symbol.
+//
+// nil means either that the funding (deposit/withdraw) config has not loaded
+// (yet, or its load failed) or that it does not know the asset; it does not
+// wait. Call Client.WaitForFundingCatalog first to tell the two apart.
 func (m *Manager) QuantityScaleForAsset(assetSymbol string) *int {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

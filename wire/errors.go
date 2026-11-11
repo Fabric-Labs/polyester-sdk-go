@@ -102,7 +102,18 @@ func rateLimitError(msg string, code string, detail *sdkerrors.RateLimitDetail, 
 }
 
 // MapConnectError converts Connect errors into SDK error types.
+//
+// Every level of the error it returns is redacted (see redact.Text): an
+// answer or a transport error can quote a URL with credentials, such as a
+// proxy's, and the SDK error copies its text. Each level keeps its type, so
+// errors.Is and errors.As still find it.
 func MapConnectError(err error) error {
+	mapped := mapConnectError(err)
+	redactChain(mapped)
+	return mapped
+}
+
+func mapConnectError(err error) error {
 	if err == nil {
 		return nil
 	}

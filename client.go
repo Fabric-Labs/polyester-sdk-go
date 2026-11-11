@@ -13,10 +13,16 @@ import (
 	"sync"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	"github.com/Fabric-Labs/polyester-sdk-go/chain"
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
+	zipperv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/zipper/v1"
+	"github.com/Fabric-Labs/polyester-sdk-go/gen/chain/zipper/v1/chainzipperv1connect"
+	marketdatav1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1"
+	"github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1/marketdatav1connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/redact"
 	"github.com/Fabric-Labs/polyester-sdk-go/realtime"
 	"github.com/Fabric-Labs/polyester-sdk-go/services"
@@ -56,6 +62,13 @@ type Config struct {
 	// 60s; New refuses any other value. Zero sends no header, and the server
 	// applies 10 seconds. Realtime token requests always use the default.
 	RecvWindow time.Duration
+	// CatalogTimeout bounds the catalog loads HydrateCatalogs begins: the
+	// spot config and the funding (deposit/withdraw) config each load on
+	// their own, and a read that times out or loses its connection is read
+	// again, at most 3 times in all, 250ms and then 500ms apart, each retry
+	// on connections of its own, all within CatalogTimeout of New. Zero
+	// means twice Timeout; New refuses a negative value.
+	CatalogTimeout time.Duration
 }
 
 // String redacts the API private key.
@@ -66,8 +79,8 @@ func (c Config) String() string {
 		envName = c.Environment.Name
 	}
 	return fmt.Sprintf(
-		"Config{Environment:%q APIKeyID:%q APIPrivateKey:%q APIURL:%q WSURL:%q Timeout:%s WireFormat:%q HydrateCatalogs:%t RecvWindow:%s}",
-		envName, c.APIKeyID, key, redact.URL(c.APIURL), redact.URL(c.WSURL), c.Timeout, c.WireFormat, c.HydrateCatalogs, c.RecvWindow,
+		"Config{Environment:%q APIKeyID:%q APIPrivateKey:%q APIURL:%q WSURL:%q Timeout:%s WireFormat:%q HydrateCatalogs:%t RecvWindow:%s CatalogTimeout:%s}",
+		envName, c.APIKeyID, key, redact.URL(c.APIURL), redact.URL(c.WSURL), c.Timeout, c.WireFormat, c.HydrateCatalogs, c.RecvWindow, c.CatalogTimeout,
 	)
 }
 
@@ -101,6 +114,7 @@ type redactedConfig struct {
 	WireFormat          string
 	HydrateCatalogs     bool
 	RecvWindow          time.Duration
+	CatalogTimeout      time.Duration
 }
 
 // redacted replaces the private key and URL userinfo, as String does. An
@@ -119,6 +133,7 @@ func (c Config) redacted() redactedConfig {
 		WireFormat:          c.WireFormat,
 		HydrateCatalogs:     c.HydrateCatalogs,
 		RecvWindow:          c.RecvWindow,
+		CatalogTimeout:      c.CatalogTimeout,
 	}
 }
 
@@ -195,8 +210,12 @@ type Client struct {
 	transport            *transport.Factory
 	closeOnce            sync.Once
 	catalogHydrationDone chan struct{}
+	fundingHydrationDone chan struct{}
 	catalogMu            sync.Mutex
 	catalogLastError     error
+	fundingLastError     error
+	stopHydration        context.CancelFunc
+	timeout              time.Duration
 }
 
 // New creates a Polyester client.
@@ -220,6 +239,12 @@ func New(cfg Config) (*Client, error) {
 	}
 	if cfg.Timeout <= 0 {
 		cfg.Timeout = 10 * time.Second
+	}
+	if cfg.CatalogTimeout < 0 {
+		return nil, &sdkerrors.ValidationError{Msg: "CatalogTimeout must not be negative"}
+	}
+	if cfg.CatalogTimeout == 0 {
+		cfg.CatalogTimeout = 2 * cfg.Timeout
 	}
 	wireFormat := transport.WireFormatFromString(cfg.WireFormat)
 	recvWindowMS, err := recvWindowMilliseconds(cfg.RecvWindow)
@@ -284,6 +309,9 @@ func New(cfg Config) (*Client, error) {
 		RateLimits:           services.NewRateLimitService(factory, cfg.DefaultSubAccountID),
 		Withdraw:             services.NewWithdrawService(factory, cfg.DefaultSubAccountID),
 		catalogHydrationDone: catalogHydrationDone,
+		fundingHydrationDone: make(chan struct{}),
+		timeout:              cfg.Timeout,
+		stopHydration:        func() {},
 	}
 	client.Orders = services.NewOrdersService(factory, cats, cfg.DefaultSubAccountID, rt, defaultAccountID, catalogHydrationDone, client.CatalogsLastError)
 	client.Triggers = services.NewTriggersService(factory, cats, cfg.DefaultSubAccountID, rt, defaultAccountID, catalogHydrationDone, client.CatalogsLastError)
@@ -291,14 +319,25 @@ func New(cfg Config) (*Client, error) {
 	client.TradingWithdraws = client.Withdraw
 
 	if cfg.HydrateCatalogs {
-		// Begun before New returns: every call that needs the catalogs waits.
-		finish := cats.BeginHydration()
+		// Begun before New returns: every call that needs a catalog waits for
+		// it. The two load on their own, so spot trading never waits for, or
+		// fails with, the funding config.
+		deadline := time.Now().Add(cfg.CatalogTimeout)
+		ctx, cancel := context.WithDeadline(context.Background(), deadline)
+		client.stopHydration = cancel
+		finishSpot := cats.BeginHydration()
+		finishFunding := cats.BeginFundingHydration()
 		go func() {
 			defer close(client.catalogHydrationDone)
-			finish(client.hydrateCatalogs())
+			finishSpot(client.hydrateSpot(ctx, deadline))
+		}()
+		go func() {
+			defer close(client.fundingHydrationDone)
+			finishFunding(client.hydrateFunding(ctx, deadline))
 		}()
 	} else {
 		close(client.catalogHydrationDone)
+		close(client.fundingHydrationDone)
 	}
 	return client, nil
 }
@@ -361,52 +400,97 @@ func FromEnv(overrides ...func(*Config)) (*Client, error) {
 	return New(cfg)
 }
 
-func (c *Client) hydrateCatalogs() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	var firstErr error
-	spot, err := c.MarketData.GetSpotConfig(ctx)
-	if err != nil {
-		firstErr = fmt.Errorf("catalog spot hydrate: %w", err)
-	} else if len(spot.Raw) == 0 {
-		firstErr = fmt.Errorf("catalog spot hydrate: empty config")
-	} else if err := c.Catalogs.HydrateSpotConfig(spot.Raw); err != nil {
-		firstErr = fmt.Errorf("catalog spot hydrate: %w", err)
+func (c *Client) hydrateSpot(ctx context.Context, deadline time.Time) error {
+	source := catalogSource{
+		catalog:   "spot",
+		name:      "spot config",
+		operation: spotConfigOperation,
+		read: func(ctx context.Context, httpClient connect.HTTPClient) error {
+			client := marketdatav1connect.NewMarketDataServiceClient(httpClient, c.transport.Config.APIURL, c.transport.ConnectOptions(false)...)
+			resp, err := client.GetSpotConfig(ctx, connect.NewRequest(&marketdatav1.GetSpotConfigRequest{}))
+			if err != nil {
+				return err
+			}
+			spot, err := decode.SpotConfigFromProto(resp.Msg)
+			if err != nil {
+				return &catalogInvalid{err: err}
+			}
+			if len(spot.Raw) == 0 {
+				return &catalogInvalid{err: &sdkerrors.ValidationError{Msg: "empty spot config"}}
+			}
+			if err := c.Catalogs.HydrateSpotConfig(spot.Raw); err != nil {
+				return &catalogInvalid{err: err}
+			}
+			return nil
+		},
 	}
-
-	zipper, err := c.Zipper.GetDepositWithdrawConfig(ctx)
-	if err != nil {
-		if firstErr == nil {
-			firstErr = fmt.Errorf("catalog zipper hydrate: %w", err)
-		}
-	} else if err := c.Catalogs.HydrateZipperConfig(zipper); err != nil {
-		if firstErr == nil {
-			firstErr = fmt.Errorf("catalog zipper hydrate: %w", err)
-		}
-	}
-
+	err := loadCatalog(ctx, c.transport, source, c.timeout, deadline)
 	c.catalogMu.Lock()
-	c.catalogLastError = firstErr
+	c.catalogLastError = err
 	c.catalogMu.Unlock()
-	return firstErr
+	return err
 }
 
-// CatalogsLastError returns the last construction-time catalog hydration error, if any.
+func (c *Client) hydrateFunding(ctx context.Context, deadline time.Time) error {
+	source := catalogSource{
+		catalog:   "funding",
+		name:      "funding config",
+		operation: fundingConfigOperation,
+		read: func(ctx context.Context, httpClient connect.HTTPClient) error {
+			client := chainzipperv1connect.NewZipperServiceClient(httpClient, c.transport.Config.APIURL, c.transport.ConnectOptions(false)...)
+			resp, err := client.GetDepositWithdrawConfig(ctx, connect.NewRequest(&zipperv1.GetDepositWithdrawConfigRequest{}))
+			if err != nil {
+				return err
+			}
+			if err := c.Catalogs.HydrateZipperConfig(decode.DepositWithdrawConfigFromProto(resp.Msg)); err != nil {
+				return &catalogInvalid{err: err}
+			}
+			return nil
+		},
+	}
+	err := loadCatalog(ctx, c.transport, source, c.timeout, deadline)
+	c.catalogMu.Lock()
+	c.fundingLastError = err
+	c.catalogMu.Unlock()
+	return err
+}
+
+// CatalogsLastError returns why the spot config failed to load, if it did: a
+// *errors.CatalogHydrationError whose Err is the failure.
 func (c *Client) CatalogsLastError() error {
 	c.catalogMu.Lock()
 	defer c.catalogMu.Unlock()
 	return c.catalogLastError
 }
 
-// WaitForCatalogs waits for construction-time catalog hydration to finish.
-// It returns immediately when HydrateCatalogs is disabled.
-// When hydration fails or catalogs are unusable, it returns that error
-// (breaking vs prior Ok-after-fail best-effort behavior).
+// WaitForCatalogs waits until the spot config, which every spot trading call
+// needs, is ready. It returns nil once that has loaded and validated, without
+// waiting for the funding config (see WaitForFundingCatalog), and at once when
+// HydrateCatalogs is disabled. When the spot config could not be loaded it
+// returns a *errors.CatalogHydrationError naming the operation, the kind of
+// failure and the response reference, whose Err is the failure; calls that
+// name a market then fail closed with it too. It returns ctx's error when ctx
+// ends first; the load carries on.
 func (c *Client) WaitForCatalogs(ctx context.Context) error {
 	select {
 	case <-c.catalogHydrationDone:
 		return c.CatalogsLastError()
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// WaitForFundingCatalog waits until the funding (deposit/withdraw) config is
+// ready, and returns a *errors.CatalogHydrationError naming it when it could
+// not be loaded. Read Catalogs.Zipper, LedgerIDForAsset and
+// QuantityScaleForAsset after it returns nil. It returns at once when
+// HydrateCatalogs is disabled, and ctx's error when ctx ends first.
+func (c *Client) WaitForFundingCatalog(ctx context.Context) error {
+	select {
+	case <-c.fundingHydrationDone:
+		c.catalogMu.Lock()
+		defer c.catalogMu.Unlock()
+		return c.fundingLastError
 	case <-ctx.Done():
 		return ctx.Err()
 	}
@@ -422,6 +506,7 @@ func (c *Client) StopAllTrading(ctx context.Context, account services.AccountSco
 // Close releases client resources, including tracked realtime subscriptions.
 func (c *Client) Close() error {
 	c.closeOnce.Do(func() {
+		c.stopHydration()
 		if c.Realtime != nil {
 			c.Realtime.Close()
 		}

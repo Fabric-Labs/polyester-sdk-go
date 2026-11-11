@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"encoding/hex"
 	"net/http"
 	"strings"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	"github.com/Fabric-Labs/polyester-sdk-go/connectx"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
+	"github.com/Fabric-Labs/polyester-sdk-go/internal/redact"
 	"github.com/Fabric-Labs/polyester-sdk-go/useragent"
 	"github.com/Fabric-Labs/polyester-sdk-go/wire"
 )
@@ -54,6 +56,8 @@ type Factory struct {
 	Credentials     *auth.Credentials
 	HTTP            *http.Client
 	authInterceptor *APIKeyInterceptor
+	// base is the HTTP client HTTP wraps, as the caller supplied it.
+	base *http.Client
 }
 
 // NewFactory builds a transport factory. Its HTTP client is a copy of
@@ -63,17 +67,66 @@ func NewFactory(cfg Config, creds *auth.Credentials, httpClient *http.Client) *F
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: cfg.Timeout}
 	}
-	httpClient = wrapTimestampSkew(useragent.WrapClient(auth.RefuseSignedRedirects(httpClient)))
 	f := &Factory{
 		Config:      cfg,
 		Credentials: creds,
-		HTTP:        httpClient,
+		HTTP:        wrapHTTPClient(httpClient),
+		base:        httpClient,
 	}
+	registerClientSecrets(cfg, creds, httpClient)
 	if creds != nil {
 		f.authInterceptor = NewAPIKeyInterceptor(creds, cfg.APIURL, cfg.WireFormat)
 		f.authInterceptor.RecvWindowMS = cfg.RecvWindowMS
 	}
 	return f
+}
+
+// registerClientSecrets has redact.Text remove the client's own secrets from
+// every error: the userinfo of its API, WebSocket and proxy URLs, and its API
+// private key.
+func registerClientSecrets(cfg Config, creds *auth.Credentials, httpClient *http.Client) {
+	redact.RegisterURLSecrets(cfg.APIURL)
+	redact.RegisterURLSecrets(cfg.WSURL)
+	if creds != nil {
+		if key := creds.PrivateKey(); len(key) > 0 {
+			redact.RegisterSecret(hex.EncodeToString(key))
+			redact.RegisterSecret(hex.EncodeToString(key.Seed()))
+		}
+	}
+	if pooled, ok := httpClient.Transport.(*http.Transport); ok && pooled.Proxy != nil {
+		if req, err := http.NewRequest(http.MethodPost, cfg.APIURL, nil); err == nil {
+			if proxy, err := pooled.Proxy(req); err == nil && proxy != nil {
+				redact.RegisterURLSecrets(proxy.String())
+			}
+		}
+	}
+}
+
+func wrapHTTPClient(client *http.Client) *http.Client {
+	recording := *client
+	recording.Transport = responseRefRoundTripper{base: client.Transport}
+	return wrapTimestampSkew(useragent.WrapClient(auth.RefuseSignedRedirects(&recording)))
+}
+
+// FreshHTTP returns an HTTP client like HTTP whose requests open connections
+// of their own, and a function that closes them once the caller is done. A
+// read retried through it can't queue behind a connection that dropped or
+// stalled: over HTTP/2 one connection carries every request to the host.
+// When the supplied client's transport is not an *http.Transport, which
+// can't be copied, it returns HTTP itself and a function that does nothing.
+func (f *Factory) FreshHTTP() (*http.Client, func()) {
+	roundTripper := f.base.Transport
+	if roundTripper == nil {
+		roundTripper = http.DefaultTransport
+	}
+	pooled, ok := roundTripper.(*http.Transport)
+	if !ok {
+		return f.HTTP, func() {}
+	}
+	fresh := pooled.Clone()
+	client := *f.base
+	client.Transport = fresh
+	return wrapHTTPClient(&client), fresh.CloseIdleConnections
 }
 
 // ConnectOptions returns client options for generated Connect clients.

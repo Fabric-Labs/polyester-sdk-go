@@ -89,7 +89,8 @@ func TestL2DepositWithdrawConfigKeepsVariantSupply(t *testing.T) {
 				t.Fatalf("typed result has %d variants, want %d", seen, len(want))
 			}
 
-			if err := client.WaitForCatalogs(context.Background()); err != nil {
+			// POLY-9228: spot readiness no longer implies the funding config.
+			if err := client.WaitForFundingCatalog(context.Background()); err != nil {
 				t.Fatal(err)
 			}
 			catalog := client.Catalogs.Zipper
