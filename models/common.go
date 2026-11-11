@@ -127,6 +127,12 @@ type SpotAsset struct {
 	// MarketDataVolumeScale is the scale of public candle and market-overview
 	// base volume.
 	MarketDataVolumeScale int `json:"market_data_volume_scale"`
+	// IncludedInEquity says whether the asset counts in the account's total
+	// equity. Nil means unknown (a server that predates the field), never
+	// false: value only assets where it is true, and show no value for an
+	// asset without it. An asset outside equity can still have a market and a
+	// live index price.
+	IncludedInEquity *bool `json:"included_in_equity,omitempty"`
 }
 
 // SpotPair describes one spot trading pair and its order rules. Decimal

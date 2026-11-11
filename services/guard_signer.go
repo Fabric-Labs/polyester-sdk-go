@@ -32,6 +32,11 @@ func (s *GuardSignerService) CreateWallet(ctx context.Context, account AccountSc
 	return UnaryAuth(ctx, s.transport, s.client().CreateGuardSignerWallet, req, decode.CreateWalletFromProto)
 }
 
+// GetStatus reads the Guard Signer status of the account or a sub-account.
+// An API key needs READ_GUARD_SIGNER_STATUS on its policy. A key is refused
+// (permission_denied, AUTH_API_KEY_ACCESS_DENIED) for a sub-account another
+// main account owns, even when it is shared with the key's main account: use
+// a key of the owning main account.
 func (s *GuardSignerService) GetStatus(ctx context.Context, account AccountScope, subAccountID *string) (*models.GuardSignerStatus, error) {
 	req := &guardv1.GetGuardSignerStatusRequest{}
 	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {

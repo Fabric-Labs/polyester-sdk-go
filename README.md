@@ -619,8 +619,21 @@ example "api key policy does not allow READ_AUTO_WITHDRAW".
 API keys read account data through account permissions on their API-key
 policy, granted from an interactive session: `READ_API_KEYS`
 (`APIKeys.List`, `APIKeys.Get`), `READ_VIP_STATUS` (`VIP.GetVIPStatus`),
-`READ_SOCIAL_VERIFICATION` (`SocialVerification.Get`, link status only) and
-`READ_WITHDRAW_VALIDATION` (`TradingWithdraws.ValidateDestination`). The
+`READ_SOCIAL_VERIFICATION` (`SocialVerification.Get`, link status only),
+`READ_WITHDRAW_VALIDATION` (`TradingWithdraws.ValidateDestination`),
+`CREATE_DEPOSIT_ADDRESS` (`Deposit.CreateAddress`), `READ_DEPOSIT_ADDRESSES`
+(`Deposit.ListAddresses`), `READ_SUBACCOUNTS` (`SubAccounts.List`,
+`SubAccounts.Get`), `READ_SUBACCOUNT_ACTIVITY` (`SubAccounts.ListActivity`),
+`READ_SUBACCOUNT_MEMBERS` (`SubAccounts.ListMembers` and the members of
+`SubAccounts.Get`), `READ_SUBACCOUNT_INVITES` (`SubAccounts.ListInvites` and
+the invites of `SubAccounts.Get`) and `READ_GUARD_SIGNER_STATUS`
+(`GuardSigner.GetStatus`). A key without a policy has none of these, and
+`SubAccounts.Get` leaves out the members and invites a key may not read
+instead of failing. The address book needs `READ_ADDRESS_BOOK` (or
+`MANAGE_ADDRESS_BOOK`) for the main account's book as for a sub-account's;
+without it a read is refused with `AUTH_SUBACCOUNT_ACCESS_DENIED`. A key
+cannot read the Guard Signer status of a sub-account another main account
+owns, even one shared with it. The
 other account permissions (`READ_API_POLICIES`, `READ_SUBACCOUNT_POLICIES`,
 `READ_SUBACCOUNT_PERMISSIONS`, `READ_PROFILE`, `READ_ACCOUNT_DIRECTORY`,
 `READ_DAILY_CLAIMS`, `CLAIM_DAILY_REWARD`, `READ_CHECKPOINTS` and

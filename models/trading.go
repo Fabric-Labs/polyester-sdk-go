@@ -857,9 +857,13 @@ type TriggerEventsList struct {
 
 // ApiKeySummary summarizes an API key.
 type ApiKeySummary struct {
-	KeyID            string     `json:"key_id,omitempty"`
-	Label            string     `json:"label,omitempty"`
-	Status           string     `json:"status,omitempty"`
+	KeyID  string `json:"key_id,omitempty"`
+	Label  string `json:"label,omitempty"`
+	Status string `json:"status,omitempty"`
+	// Purpose is "STANDARD" for the user's own keys and "ASSISTANT" for keys
+	// the user created for the Polyester assistant; "PURPOSE_UNSPECIFIED" from
+	// a server that predates the field.
+	Purpose          string     `json:"purpose,omitempty"`
 	PublicKeyEd25519 string     `json:"public_key_ed25519,omitempty"`
 	Revision         uint64     `json:"revision,omitempty"`
 	CreatedAt        *time.Time `json:"created_at,omitempty"`

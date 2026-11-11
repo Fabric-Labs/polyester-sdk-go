@@ -31,6 +31,11 @@ func (s *AddressBookService) ListBooks(ctx context.Context) (models.AddressBooks
 	return UnaryAuth(ctx, s.transport, s.client().ListAddressBooks, &authv1.ListAddressBooksRequest{}, decode.ListBooksFromProto)
 }
 
+// ListEntries lists address-book entries. An API key needs READ_ADDRESS_BOOK
+// (or MANAGE_ADDRESS_BOOK) on its policy, for the main account's book as for
+// a sub-account's; without it the read is refused with permission_denied
+// (AUTH_SUBACCOUNT_ACCESS_DENIED). The other reads of this service follow the
+// same rule.
 func (s *AddressBookService) ListEntries(ctx context.Context, account AccountScope, subAccountID, kind *string, limit int, pageToken *string) (models.AddressBookEntriesList, error) {
 	parsedLimit, err := PaginationLimitOrDefault(limit, 50, "limit")
 	if err != nil {

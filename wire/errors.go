@@ -322,7 +322,12 @@ func mapConnectError(err error) error {
 			if isAuthLikeErrorCode(code) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
 			}
-			return &sdkerrors.APIError{Msg: msg, Code: code}
+			apiErr := &sdkerrors.APIError{Msg: msg, Code: code, FieldPath: withdrawDetail.GetFieldPath()}
+			if withdrawDetail.PayableFrom != nil {
+				payable := withdrawDetail.GetPayableFrom().AsTime()
+				apiErr.PayableFrom = &payable
+			}
+			return apiErr
 		}
 		if ledgerDetail, ok := value.(*ledgerrdv1.ErrorDetail); ok {
 			code := ledgerDetail.GetCode().String()
@@ -425,6 +430,7 @@ var apiKeyRefusalCodes = map[authv1.AuthErrorCode]bool{
 	authv1.AuthErrorCode_AUTH_IP_NOT_ALLOWED:       true,
 	authv1.AuthErrorCode_AUTH_API_KEY_NOT_ACCEPTED: true,
 	authv1.AuthErrorCode_AUTH_RECV_WINDOW_INVALID:  true,
+	authv1.AuthErrorCode_AUTH_REPLAY_DETECTED:      true,
 }
 
 // protovalidateFieldPath renders a buf.validate field path the way order

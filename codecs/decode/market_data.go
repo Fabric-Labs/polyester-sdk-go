@@ -69,6 +69,7 @@ func SpotConfigFromProto(msg *marketdatav1.GetSpotConfigResponse) (models.SpotCo
 			QuantityDisplayDecimals: asset.GetQuantityDisplayDecimals(),
 			QuantityScale:           int(asset.GetQuantityScale()),
 			MarketDataVolumeScale:   int(asset.GetMarketDataVolumeScale()),
+			IncludedInEquity:        includedInEquity(asset),
 		})
 	}
 	for _, pair := range msg.GetPairs() {
@@ -347,4 +348,14 @@ func CandlePointFromProto(point *marketdatav1.CandlePoint, symbolID uint32, time
 		SymbolID:    symbolID,
 		Timeframe:   timeframe,
 	}
+}
+
+// includedInEquity copies AssetConfig.included_in_equity, keeping its
+// presence: nil is unknown, never false.
+func includedInEquity(asset *marketdatav1.AssetConfig) *bool {
+	if asset.IncludedInEquity == nil {
+		return nil
+	}
+	v := asset.GetIncludedInEquity()
+	return &v
 }

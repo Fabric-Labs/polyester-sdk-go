@@ -23,6 +23,9 @@ func (s *DepositService) client() chaindepositv1connect.DepositAddressServiceCli
 	return chaindepositv1connect.NewDepositAddressServiceClient(s.transport.HTTP, s.transport.Config.APIURL, s.transport.ConnectOptions(true)...)
 }
 
+// ListAddresses lists the account's deposit addresses on chainID. An API key
+// needs READ_DEPOSIT_ADDRESSES on its policy; a key without a policy is
+// refused with permission_denied (AUTH_API_KEY_ACCESS_DENIED).
 func (s *DepositService) ListAddresses(ctx context.Context, chainID uint32, account AccountScope, subAccountID *string) (models.DepositAddressesList, error) {
 	req := &chaindepositv1.ListDepositAddressesRequest{ChainId: chainID}
 	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {
@@ -31,6 +34,8 @@ func (s *DepositService) ListAddresses(ctx context.Context, chainID uint32, acco
 	return UnaryAuth(ctx, s.transport, s.client().ListDepositAddresses, req, decode.DepositAddressesListFromProto)
 }
 
+// CreateAddress creates a deposit address on chainID. An API key needs
+// CREATE_DEPOSIT_ADDRESS on its policy.
 func (s *DepositService) CreateAddress(ctx context.Context, chainID uint32, account AccountScope, subAccountID *string) (models.DepositAddress, error) {
 	req := &chaindepositv1.CreateDepositAddressRequest{ChainId: chainID}
 	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {

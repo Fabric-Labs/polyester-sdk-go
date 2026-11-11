@@ -25,6 +25,7 @@ func apiKey(msg *authv1.ApiKey) *models.ApiKeySummary {
 		KeyID:            msg.GetKeyId(),
 		Label:            msg.GetLabel(),
 		Status:           msg.GetStatus().String(),
+		Purpose:          msg.GetPurpose().String(),
 		PublicKeyEd25519: hex.EncodeToString(msg.GetPublicKeyEd25519()),
 		Revision:         msg.GetRevision(),
 		CreatedAt:        timestampTime(msg.GetCreatedAt()),
