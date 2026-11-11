@@ -39,6 +39,7 @@ Requires a recent Go toolchain (see `go.mod`).
 | Spot fee rates | Yes |
 | Trading rate limits | Yes |
 | Product changelog (posts + changes) | Yes |
+| Server build version | Yes |
 | Balances and equity history | Yes |
 | Orders (create, cancel, modify, batch, cancel-all) | Yes |
 | User trades | Yes |
@@ -962,6 +963,16 @@ catalog, err := client.RateLimits.GetRateLimitConfig(ctx)
 limits, err := client.RateLimits.GetTradingRateLimits(ctx, nil, nil)
 ```
 
+## Server version
+
+`client.GetVersion(ctx)` returns the exact build the environment serves:
+`Version` (`0.10.0` for a release; a later build, which devnet may run, reads
+like `0.10.0-12-g4e21a2f09670`), the full source revision in `Commit`, and
+`Environment` (`devnet`, `testnet`, `mainnet` or `local`). All three are plain
+strings; `Release()` returns the release a build follows (`0.10.0`). Don't
+compare `Version` as a semantic version. The call needs no API key and is never
+signed.
+
 ## Product changelog API
 
 `client.Changelog` reads the product changelog published for the environment the
@@ -1252,6 +1263,14 @@ SDK notes:
   "Destination tag") and `MemoFormatHint` are display text; validate against
   the rule, not the hint. Each variant's `Supply` is its zToken supply at the
   asset's quantity scale, also in the catalog `HydrateCatalogs` loads.
+- **Refunded withdrawals:** a withdrawal Zipper rejects is refunded to the
+  account's smart account wallet as zTokens, net of the network fee Zipper
+  keeps, and its flow's `LatestStep` becomes `refunded` instead of ending
+  failed at the verdict. `client.Withdraw.GetWalletBalances(ctx,
+  nil, nil)` reads that wallet live from Polyester Chain: each nonzero zToken
+  with its zipped and unified asset IDs, chain, zToken address, `AmountE18`
+  (raw 18-decimal units) and `Amount` (whole units). Pass a sub-account as for
+  `Balances.List`. An API key needs `READ_BALANCES`.
 - **Trading → trading (another account):** `client.InternalTransfers.Create(...)`.
   The result's `FlowID` names the transfer's lifecycle flow for
   `client.Lifecycle.GetFlow`; the flow may become readable after the receipt.

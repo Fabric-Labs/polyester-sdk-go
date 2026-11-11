@@ -24,6 +24,7 @@ import (
 	marketdatav1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1/marketdatav1connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/redact"
+	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/realtime"
 	"github.com/Fabric-Labs/polyester-sdk-go/services"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
@@ -494,6 +495,14 @@ func (c *Client) WaitForFundingCatalog(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+// GetVersion returns the exact build the environment serves: its version,
+// source revision and environment name. It needs no credentials and is never
+// signed; calls count against the public per-IP read budget, and the answer
+// changes only when the environment deploys a new build.
+func (c *Client) GetVersion(ctx context.Context) (models.ServerVersion, error) {
+	return services.NewSystemService(c.transport).GetVersion(ctx)
 }
 
 // StopAllTrading cancels every live trigger in scope, then all open orders in
