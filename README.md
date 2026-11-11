@@ -40,6 +40,7 @@ Requires a recent Go toolchain (see `go.mod`).
 | Trading rate limits | Yes |
 | Product changelog (posts + changes) | Yes |
 | Server build version | Yes |
+| Price alerts (devnet) | Yes |
 | Balances and equity history | Yes |
 | Orders (create, cancel, modify, batch, cancel-all) | Yes |
 | User trades | Yes |
@@ -975,6 +976,59 @@ fees, err := client.Fees.GetSpotFeeRates(ctx, nil, nil, nil)
 catalog, err := client.RateLimits.GetRateLimitConfig(ctx)
 limits, err := client.RateLimits.GetTradingRateLimits(ctx, nil, nil)
 ```
+
+## Price alerts
+
+Price alerts are available on devnet; they are not yet routed on testnet,
+where these calls fail. `client.Alerts` creates durable alerts ("tell me when
+BTC-USDT falls to 90,000") that the exchange evaluates and delivers to the
+in-app inbox or your linked Telegram account. Alerts belong to the main
+account: use an API key scoped to the main account. A key scoped to a
+sub-account is refused with an `*errors.AuthError` whose code
+`errors.AlertErrorCode(err)` reports as `errors.AlertCodeSubaccountKeyRefused`.
+
+```go
+symbol := "BTC-USDT"
+alert, err := client.Alerts.Create(ctx, services.CreateAlertParams{
+	Symbol:         &symbol,
+	Direction:      "below", // inclusive: fires at a price <= Price
+	Price:          models.PriceFromDecimal("90000"),
+	Channels:       []string{"in_app", "telegram"},
+	IdempotencyKey: "bot-7:alert-1", // a retry returns the alert created first
+})
+// Later: move the level, keyed so a retry applies at most once.
+price := models.PriceFromDecimal("91000")
+res, err := client.Alerts.Update(ctx, services.UpdateAlertParams{
+	AlertID: alert.AlertID, Price: &price,
+	ExpectedRevision: alert.Revision, IdempotencyKey: "bot-7:alert-1:move-1",
+})
+for a, err := range client.Alerts.All(ctx, services.ListAlertsParams{Statuses: []string{"active"}}) { ... }
+_, err = client.Alerts.Cancel(ctx, alert.AlertID)
+```
+
+An alert watches the market's last traded price (`PriceSource: "last"`) or
+its index price (`"index"`); leave it empty for the index price where the
+market has one and the last price otherwise. The returned alert states the
+price it watches. Prices use the order price types: `models.PriceInput` in,
+`models.PriceTicks` out. The market's price at creation is recorded as
+`ReferencePrice`; an alert whose condition already holds then starts unarmed
+(`Armed` false) and fires only after the price moves to the other side and
+crosses back. It fires once, with `Status` `triggered`, `TriggeredAt` and
+`TriggeredPrice`; a late price or a stalled feed never fires it. Status
+values are `active`, `triggered` and `cancelled` (the contract's spelling).
+
+`Update` sends only the fields you set (`Direction`, `Price`, `Channels`) and
+the `ExpectedRevision` you last read; a stale one is refused with
+`errors.AlertCodeRevisionConflict`, so read the alert again. An update that
+sets no field changes nothing on an active alert and sets a triggered one
+again as it is. `Outcome` reports `applied`, `unchanged` or `replayed` (the
+idempotency key was already used for this request: nothing was applied now).
+Tell a retry from a fresh change by `Outcome`, never by `Revision`. An
+idempotency key reused for a different request is refused with
+`errors.AlertCodeIdempotencyConflict`; an alert keeps at most 1000 update
+keys (`errors.AlertCodeUpdateLimitReached`). `Cancel` of a cancelled alert
+returns it unchanged. `List` pages newest first, up to 200 per page (50 by
+default); `All` walks every page.
 
 ## Server version
 

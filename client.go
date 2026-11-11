@@ -203,10 +203,13 @@ type Client struct {
 	GuardSigner        *services.GuardSignerService
 	VIP                *services.VIPService
 	Changelog          *services.ChangelogService
-	Fees               *services.FeeService
-	RateLimits         *services.RateLimitService
-	Withdraw           *services.WithdrawService
-	TradingWithdraws   *services.WithdrawService
+	// Alerts manages price alerts with a main-account API key. Available on
+	// devnet; not yet routed on testnet.
+	Alerts           *services.AlertsService
+	Fees             *services.FeeService
+	RateLimits       *services.RateLimitService
+	Withdraw         *services.WithdrawService
+	TradingWithdraws *services.WithdrawService
 
 	transport            *transport.Factory
 	closeOnce            sync.Once
@@ -306,6 +309,7 @@ func New(cfg Config) (*Client, error) {
 		GuardSigner:          services.NewGuardSignerService(factory, cfg.DefaultSubAccountID),
 		VIP:                  services.NewVIPService(factory),
 		Changelog:            services.NewChangelogService(factory),
+		Alerts:               services.NewAlertsService(factory, cats),
 		Fees:                 services.NewFeeService(factory, cats, cfg.DefaultSubAccountID),
 		RateLimits:           services.NewRateLimitService(factory, cfg.DefaultSubAccountID),
 		Withdraw:             services.NewWithdrawService(factory, cfg.DefaultSubAccountID),

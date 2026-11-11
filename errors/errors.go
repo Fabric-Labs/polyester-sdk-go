@@ -480,7 +480,9 @@ func (e *RateLimitError) Is(target error) bool { return target == ErrPolyester }
 // prove a refusal: a 5xx, or a 4xx other than 401 and 403 with no code the
 // contract defines. A gateway or an edge can send those too.
 type ServerError struct {
-	// AdmissionRefused is true only for a typed orders-service refusal.
+	// AdmissionRefused is true only for a typed refusal that changed nothing:
+	// an orders-service admission refusal, or a price alert refused for want
+	// of a current price.
 	AdmissionRefused bool
 	Msg              string
 	Code             string // Service code, or an unrecognised code kept for diagnosis.
