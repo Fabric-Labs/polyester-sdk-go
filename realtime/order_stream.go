@@ -135,8 +135,9 @@ func (c *Client) SubscribeOrders(ctx context.Context, accountID string) (*Subscr
 			fetchSubscribeToken: func(ctx context.Context, channel string) (string, error) {
 				return fetchSubscriptionToken(ctx, c.http, c.credentials, c.apiURL, channel)
 			},
-			maxQueue: c.maxQueue,
-			timing:   c.privateTiming,
+			maxQueue:       c.maxQueue,
+			timing:         c.privateTiming,
+			quantityScales: c.baseQuantityScale,
 		})
 	}
 	if testHookSubscribeOrdersRegistering != nil {

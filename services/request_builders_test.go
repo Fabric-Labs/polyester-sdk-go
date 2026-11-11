@@ -314,7 +314,7 @@ func TestPOLY8513TriggerRepresentations(t *testing.T) {
 					if opts.TrailingDistanceTicks == nil && opts.TrailingDistanceBps == nil {
 						opts.TrailingDistanceBps = new(int32(100))
 					}
-					_, err = service.Create(context.Background(), nil, "BTC-USDT", "trailing_stop", nil, "sell", models.QtyFromDecimal("0.01"), "market", nil, "", "gtc", nil, nil, false, opts)
+					_, err = service.Create(context.Background(), nil, "BTC-USDT", "trailing_stop", nil, "sell", models.QtyFromDecimal("0.01"), "market", nil, "", "", nil, nil, false, opts)
 				}
 				if test.reject {
 					var validation *sdkerrors.ValidationError

@@ -15,7 +15,7 @@ func createConditional(triggerType, side, orderType string, limitPrice *models.P
 	trigger := models.PriceFromDecimal("60000")
 	return CreateTriggerToProto(
 		1, "BTC-USDT", triggerType, &trigger, side, models.QtyFromDecimal("0.1"),
-		orderType, limitPrice, "", "gtc", nil, nil, false, 8, opts,
+		orderType, limitPrice, "", "", nil, nil, false, 8, opts,
 	)
 }
 

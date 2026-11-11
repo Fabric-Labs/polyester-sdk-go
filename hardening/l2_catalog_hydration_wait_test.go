@@ -373,7 +373,7 @@ func hydrationProbes() []hydrationProbe {
 		}},
 		{name: "Triggers.Create", call: func(ctx context.Context, c *polyester.Client, s string) error {
 			price := models.PriceFromDecimal("0.1")
-			_, err := c.Triggers.Create(ctx, nil, s, "stop_loss", &price, "sell", models.QtyFromDecimal("1"), "market", nil, "", "gtc", nil, nil, false, codecs.CreateTriggerOptions{})
+			_, err := c.Triggers.Create(ctx, nil, s, "stop_loss", &price, "sell", models.QtyFromDecimal("1"), "market", nil, "", "", nil, nil, false, codecs.CreateTriggerOptions{})
 			return err
 		}},
 		{name: "Triggers.List", call: func(ctx context.Context, c *polyester.Client, s string) error {
@@ -643,7 +643,7 @@ func TestL2HydrationDisabledKeepsTodaysRefusals(t *testing.T) {
 	}
 	// Without hydration Triggers.Create checks the quantity scale before the symbol, as before.
 	price := models.PriceFromDecimal("0.1")
-	_, err = client.Triggers.Create(context.Background(), nil, "NOPE-USDT", "stop_loss", &price, "sell", models.QtyFromDecimal("1"), "market", nil, "", "gtc", nil, nil, false, codecs.CreateTriggerOptions{})
+	_, err = client.Triggers.Create(context.Background(), nil, "NOPE-USDT", "stop_loss", &price, "sell", models.QtyFromDecimal("1"), "market", nil, "", "", nil, nil, false, codecs.CreateTriggerOptions{})
 	if err == nil || !strings.Contains(err.Error(), "quantity scale for NOPE-USDT is unavailable; call WaitForCatalogs before placing orders, or pass a scaled Quantity") {
 		t.Fatalf("Triggers.Create: %v", err)
 	}

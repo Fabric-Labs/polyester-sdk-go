@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	triggersv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
@@ -16,7 +17,7 @@ var triggerStatusLabels = map[triggersv1.TriggerStatus]string{
 	triggersv1.TriggerStatus_STATUS_ARMED:     "armed",
 	triggersv1.TriggerStatus_STATUS_RUNNING:   "running",
 	triggersv1.TriggerStatus_STATUS_COMPLETED: "completed",
-	triggersv1.TriggerStatus_STATUS_CANCELED:  "cancelled",
+	triggersv1.TriggerStatus_STATUS_CANCELED:  "canceled",
 	triggersv1.TriggerStatus_STATUS_FAILED:    "failed",
 	triggersv1.TriggerStatus_STATUS_PAUSED:    "paused",
 }
@@ -26,7 +27,6 @@ var triggerStatusFromLabel = map[string]triggersv1.TriggerStatus{
 	"armed":     triggersv1.TriggerStatus_STATUS_ARMED,
 	"running":   triggersv1.TriggerStatus_STATUS_RUNNING,
 	"completed": triggersv1.TriggerStatus_STATUS_COMPLETED,
-	"cancelled": triggersv1.TriggerStatus_STATUS_CANCELED,
 	"canceled":  triggersv1.TriggerStatus_STATUS_CANCELED,
 	"failed":    triggersv1.TriggerStatus_STATUS_FAILED,
 	"paused":    triggersv1.TriggerStatus_STATUS_PAUSED,
@@ -49,10 +49,10 @@ func TriggerStatusFromLabel(label string) (triggersv1.TriggerStatus, error) {
 	if status, ok := triggerStatusFromLabel[key]; ok {
 		return status, nil
 	}
-	return triggersv1.TriggerStatus_STATUS_UNSPECIFIED, fmt.Errorf(
-		"invalid trigger status %q; expected one of: created, armed, running, completed, cancelled, failed, paused",
+	return triggersv1.TriggerStatus_STATUS_UNSPECIFIED, &sdkerrors.ValidationError{Msg: fmt.Sprintf(
+		"invalid trigger status %q; expected one of: created, armed, running, completed, canceled, failed, paused",
 		label,
-	)
+	)}
 }
 
 var triggerEventTypeLabels = map[triggersv1.TriggerEventType]string{
@@ -69,7 +69,6 @@ var triggerEventTypeLabels = map[triggersv1.TriggerEventType]string{
 var triggerEventTypeFromLabel = map[string]triggersv1.TriggerEventType{
 	"fired":        triggersv1.TriggerEventType_EVENT_FIRED,
 	"canceled":     triggersv1.TriggerEventType_EVENT_CANCELED,
-	"cancelled":    triggersv1.TriggerEventType_EVENT_CANCELED,
 	"updated":      triggersv1.TriggerEventType_EVENT_UPDATED,
 	"failed":       triggersv1.TriggerEventType_EVENT_FAILED,
 	"activated":    triggersv1.TriggerEventType_EVENT_ACTIVATED,
@@ -98,10 +97,10 @@ func TriggerEventTypeFromLabel(label string) (triggersv1.TriggerEventType, error
 	if eventType, ok := triggerEventTypeFromLabel[key]; ok {
 		return eventType, nil
 	}
-	return triggersv1.TriggerEventType_EVENT_UNSPECIFIED, fmt.Errorf(
+	return triggersv1.TriggerEventType_EVENT_UNSPECIFIED, &sdkerrors.ValidationError{Msg: fmt.Sprintf(
 		"invalid trigger event type %q; expected one of: fired, canceled, updated, failed, activated, armed, fire_refused",
 		label,
-	)
+	)}
 }
 
 // TriggerCancelReasonLabel maps proto cancel reason to a friendly label.

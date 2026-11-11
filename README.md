@@ -442,6 +442,13 @@ fmt.Println(result.Status, result.OrderID)
 _, err = client.Orders.Cancel(ctx, nil, models.OrderKeyByClientID(clientOrderID), &symbol, nil, nil)
 ```
 
+A market order always executes immediate-or-cancel: the contract's only
+market execution is `MarketIoc`. Leave `TIF` unset or pass `ioc`; `Create`,
+`Preview` and `BatchCreate` refuse any other `TIF` on a market order (`gtc`,
+`fok` or `gtd`) with `*errors.ValidationError`
+(`tif='fok' is only valid for limit orders`) before sending, instead of
+sending it as IOC.
+
 An order read says why the order ended. A `rejected` order's `RejectReason`
 names its refusal as the order write API does, for example `POST_ONLY_CROSS`
 or `INSUFFICIENT_FUNDS` (the `ERROR_CODE_` name without its prefix). A
@@ -745,6 +752,13 @@ unimplemented/not-found response and do not make Preview a prerequisite for
 order submission. Create results expose `ResolvedBaseQtyScaled` and, for
 quote-budget orders, `SubmittedMaxQuoteDebitScaled`.
 
+With the catalogs loaded, order, trade and trigger reads and the private
+order, trade and trigger streams carry each pair's base quantity scale on
+their quantities (`OrigQty`, `CumQty`, `LeavesQty`, `FeeTotal.Qty`, a trade's
+`Qty`, a trigger's `Qty` and `Details.ExecutedQty`), so `CumQty.Format()`
+returns the decimal quantity. Without catalogs, or for a pair they do not
+know, quantities stay unscaled.
+
 Order reads carry exact execution totals as unsigned decimal integer strings,
 never floats. `Order.AvgPriceE18` is the average execution price scaled by
 1e18 (`Order.AvgPrice()` formats it, `"0"` with no fills); `AvgPx` keeps the
@@ -1002,10 +1016,11 @@ for _, entry := range breaking {
 
 `Triggers.List(..., status, ...)` filters by lifecycle status. Valid values:
 
-`created`, `armed`, `running`, `completed`, `cancelled`, `failed`, `paused`
+`created`, `armed`, `running`, `completed`, `canceled`, `failed`, `paused`
 
-Unknown values return an error (they do not silently return an empty list).
-Response `Status` uses the same labels (British spelling `cancelled`).
+Unknown values, `cancelled` included, return an error (they do not silently
+return an empty list). Response `Status` uses the same labels, so a canceled
+trigger reads `canceled`, as its `canceled` event does.
 
 `Triggers.Get` and `Triggers.List` retry `UNAVAILABLE` (HTTP 503) and `DEADLINE_EXCEEDED` with the
 same request: 25 ms, doubling up to 500 ms, for about 2 s, then return the
@@ -1095,7 +1110,10 @@ either side, 1 to 9999. Get, list and the trigger stream expose the cap as
 the same cap: 1 to 10000 bps to buy, 1 to 9999 to sell.
 `MaxSlippageTicks` is positive wherever a create sends it. No
 trigger child has a GTD execution, so `tif` `gtd` is refused for every
-trigger type.
+trigger type. A market child and a trailing stop always execute IOC: leave
+`tif` empty or pass `ioc`, as `gtc` and `fok` are refused. Stop-loss and
+take-profit limit children take `gtc`, `ioc` or `fok`; ladder and TWAP limit
+slices take `gtc`.
 
 ```go
 triggerPrice := models.PriceFromDecimal("58000")

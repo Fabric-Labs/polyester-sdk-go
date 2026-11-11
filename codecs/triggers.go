@@ -343,14 +343,15 @@ func validateTriggerOptionApplicability(kind string, triggerPrice *models.PriceI
 	if tif != "" && tif != "gtc" && tif != "ioc" && tif != "fok" {
 		return &errors.ValidationError{Msg: "tif must be gtc, ioc or fok"}
 	}
-	// Empty leaves execution unspecified. Retain explicit gtc for compatibility;
-	// a fixed IOC execution also accepts ioc.
+	// Empty leaves execution unspecified. A market child and a trailing stop
+	// always execute IOC, so they take only ioc: an explicit gtc or fok is
+	// refused, never sent as IOC.
 	if kind == "ladder" || (kind == "twap" && orderType == "limit") {
 		if tif != "" && tif != "gtc" {
 			return &errors.ValidationError{Msg: "tif must be gtc for ladder or twap limit slices"}
 		}
-	} else if (kind == "trailing_stop" || orderType == "market") && tif == "fok" {
-		return &errors.ValidationError{Msg: "tif=fok applies only to stop_loss or take_profit limit children"}
+	} else if (kind == "trailing_stop" || orderType == "market") && tif != "" && tif != "ioc" {
+		return &errors.ValidationError{Msg: "tif=" + tif + " applies only to limit children; a market child or trailing_stop executes IOC"}
 	}
 	if kind == "trailing_stop" && strings.EqualFold(side, "sell") && orderType == "limit" {
 		return &errors.ValidationError{Msg: "order_type=limit applies only to buy trailing_stop children"}

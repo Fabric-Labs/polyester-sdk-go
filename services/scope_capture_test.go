@@ -133,7 +133,7 @@ func TestExplicitEmptyScopePublicRequests(t *testing.T) {
 						_, callErr = orders.ModifyWith(ctx, a, ModifyParams{Symbol: "BTC-USDT", Key: key, SubAccountID: s, NewPrice: &price})
 					},
 					"triggers.Create": func() {
-						_, callErr = triggers.Create(ctx, a, "BTC-USDT", "trailing_stop", nil, "sell", qty, "market", nil, "", "gtc", s, nil, false, codecs.CreateTriggerOptions{TrailingDistanceBps: new(int32(100))})
+						_, callErr = triggers.Create(ctx, a, "BTC-USDT", "trailing_stop", nil, "sell", qty, "market", nil, "", "", s, nil, false, codecs.CreateTriggerOptions{TrailingDistanceBps: new(int32(100))})
 					},
 					"triggers.Modify": func() {
 						_, callErr = triggers.Modify(ctx, a, codecs.FormatID(9), s, nil, nil, codecs.ModifyTriggerOptions{TrailingDistanceBps: new(int32(100))})

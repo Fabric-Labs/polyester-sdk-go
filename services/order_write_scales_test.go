@@ -247,7 +247,7 @@ func TestTriggerQuantityIdentity(t *testing.T) {
 				qty = models.MustQtyScaled(16000).WithSymbolID(1).WithSymbol("BTC-USDT")
 			}
 			price := models.PriceFromDecimal("100")
-			_, err := service.Create(context.Background(), nil, "BTC-USDT", "stop_loss", &price, "sell", models.QtyFromScaled(qty), "market", nil, "last", "gtc", nil, nil, false, codecs.CreateTriggerOptions{})
+			_, err := service.Create(context.Background(), nil, "BTC-USDT", "stop_loss", &price, "sell", models.QtyFromScaled(qty), "market", nil, "last", "", nil, nil, false, codecs.CreateTriggerOptions{})
 			if tag == "matching" {
 				if err != nil {
 					t.Fatal(err)
