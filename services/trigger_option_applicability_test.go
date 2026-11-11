@@ -60,7 +60,12 @@ func TestTriggerTypeOptionMatrix(t *testing.T) {
 				service := newTriggerControlServiceWith(t, handler)
 				opts := baseTriggerOptions(kind)
 				tc.set(&opts)
-				err := createWithOptions(service, kind, nil, "market", nil, "", "", false, opts)
+				orderType := "market"
+				if kind == "ladder" {
+					// A ladder takes no market order type (POLY-9423).
+					orderType = ""
+				}
+				err := createWithOptions(service, kind, nil, orderType, nil, "", "", false, opts)
 				handler.mu.Lock()
 				defer handler.mu.Unlock()
 				if kind != tc.allowed {
@@ -116,6 +121,11 @@ func TestTriggerExecutionApplicability(t *testing.T) {
 			for _, orderType := range []string{"market", "limit"} {
 				// The sell+limit refusal has a separate public-helper test below.
 				if kind == "trailing_stop" && orderType == "limit" {
+					continue
+				}
+				// A ladder refuses a market order type before any other
+				// option (TestPoly9423LadderRefusesNonLimitOrderType).
+				if kind == "ladder" && orderType == "market" {
 					continue
 				}
 				t.Run(kind+"/"+field+"/"+orderType, func(t *testing.T) {
@@ -244,7 +254,8 @@ func TestTriggerEmptyOrderTypeAndUnsetPrices(t *testing.T) {
 		{"twap_empty_order_type", "twap", "", "", false},
 		{"trailing_unset_trigger_price", "trailing_stop", "market", "trigger_price", true},
 		{"stop_unset_activation_price", "stop_loss", "market", "activation_price", true},
-		{"ladder_unset_limit_price", "ladder", "market", "limit_price", true},
+		{"ladder_unset_limit_price", "ladder", "limit", "limit_price", true},
+		{"ladder_market_order_type", "ladder", "market", "", false},
 		{"stop_unset_ladder_price_min", "stop_loss", "market", "ladder_price_min", true},
 		{"stop_unset_ladder_price_max", "stop_loss", "market", "ladder_price_max", true},
 	}

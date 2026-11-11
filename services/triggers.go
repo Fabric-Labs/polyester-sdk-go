@@ -67,12 +67,23 @@ func (s *TriggersService) client() triggersv1connect.TriggersServiceClient {
 // List reads triggers. It retries UNAVAILABLE with the same request for
 // about 2 s (25 ms, doubling, capped at 500 ms): trigger reads answer it until
 // they reflect every answered trigger change.
-func (s *TriggersService) List(ctx context.Context, account AccountScope, subAccountID, symbol *string, status []string, limit int, pageToken *string) (models.TriggersList, error) {
+//
+// One optional models.ListTriggersOptions filters by trigger type and by
+// parent order; an invalid filter is refused before sending.
+func (s *TriggersService) List(ctx context.Context, account AccountScope, subAccountID, symbol *string, status []string, limit int, pageToken *string, opts ...models.ListTriggersOptions) (models.TriggersList, error) {
+	if len(opts) > 1 {
+		return models.TriggersList{}, &sdkerrors.ValidationError{Msg: "triggers.List accepts at most one ListTriggersOptions value"}
+	}
 	parsedLimit, err := PaginationLimit(limit, "limit")
 	if err != nil {
 		return models.TriggersList{}, err
 	}
 	req := &triggersv1.ListTriggersRequest{Limit: parsedLimit}
+	if len(opts) == 1 {
+		if err := applyListTriggersOptions(req, opts[0]); err != nil {
+			return models.TriggersList{}, err
+		}
+	}
 	if pageToken != nil && *pageToken != "" {
 		req.PageToken = *pageToken
 	}
@@ -106,7 +117,7 @@ func (s *TriggersService) List(ctx context.Context, account AccountScope, subAcc
 	if err != nil {
 		return models.TriggersList{}, err
 	}
-	return UnaryAuth(ctx, s.transport, retryUnavailable(triggerReadRetry, s.client().ListTriggers), req, scaledRead(decode.TriggersListFromProto, scaleTriggersList, scales))
+	return UnaryAuth(ctx, s.transport, retryUnavailable(triggerReadRetry, s.client().ListTriggers), req, scaledRead(decode.TriggersListFromProto, s.readTriggersList, scales))
 }
 
 // Get reads one trigger. Like List, it retries a catching-up UNAVAILABLE
@@ -131,7 +142,7 @@ func (s *TriggersService) Get(ctx context.Context, account AccountScope, trigger
 	if err != nil {
 		return nil, err
 	}
-	return UnaryAuth(ctx, s.transport, retryUnavailable(triggerReadRetry, s.client().GetTrigger), req, scaledRead(decode.GetTriggerFromProto, scaleTriggerRead, scales))
+	return UnaryAuth(ctx, s.transport, retryUnavailable(triggerReadRetry, s.client().GetTrigger), req, scaledRead(decode.GetTriggerFromProto, s.readTrigger, scales))
 }
 
 func (s *TriggersService) Create(ctx context.Context, account AccountScope, symbol, triggerType string, triggerPrice *models.PriceInput, side string, qty models.QtyInput, orderType string, limitPrice *models.PriceInput, triggerPriceSource, tif string, subAccountID *string, clientTriggerID *string, postOnly bool, opts codecs.CreateTriggerOptions) (models.TriggerMutationResult, error) {
@@ -308,10 +319,48 @@ func (s *TriggersService) ListEvents(ctx context.Context, account AccountScope, 
 }
 
 func (s *TriggersService) Subscribe(ctx context.Context, accountID any) (*realtime.Subscription[models.Trigger], error) {
-	return SubscribeAccountProto(ctx, s.realtime, "private:spot:triggers:{account_id}:proto", accountID, s.defaultAccountID, func(payload []byte) (models.Trigger, error) {
-		trigger, err := decode.TriggerFromBytes(payload)
-		return decode.ScaleTrigger(trigger, streamQuantityScales(s.catalogs)), err
-	})
+	return SubscribeAccountProto(ctx, s.realtime, "private:spot:triggers:{account_id}:proto", accountID, s.defaultAccountID, s.decodeStreamTrigger)
+}
+
+// decodeStreamTrigger decodes one trigger stream publication with the
+// catalogs loaded when it arrives.
+func (s *TriggersService) decodeStreamTrigger(payload []byte) (models.Trigger, error) {
+	trigger, err := decode.TriggerFromBytes(payload)
+	return s.nameTrigger(decode.ScaleTrigger(trigger, streamQuantityScales(s.catalogs))), err
+}
+
+// applyListTriggersOptions sets ListTriggers' trigger type and parent order
+// filters.
+func applyListTriggersOptions(req *triggersv1.ListTriggersRequest, opts models.ListTriggersOptions) error {
+	if opts.TriggerType != "" {
+		triggerType, err := codecs.TriggerTypeFromLabel(opts.TriggerType)
+		if err != nil {
+			return err
+		}
+		req.TriggerType = triggerType
+	}
+	if opts.ParentOrderID != nil {
+		id, err := codecs.IDToInt(*opts.ParentOrderID, "parent_order_id")
+		if err != nil {
+			return err
+		}
+		if id == 0 {
+			return &sdkerrors.ValidationError{Msg: "parent_order_id must be a non-zero order ID"}
+		}
+		req.ParentOrderId = &id
+	}
+	return nil
+}
+
+// nameTrigger sets a trigger's Symbol from the loaded catalogs; it stays
+// empty when they do not know the pair.
+func (s *TriggersService) nameTrigger(trigger models.Trigger) models.Trigger {
+	if trigger.Symbol == "" && s.catalogs != nil {
+		if symbol := s.catalogs.SymbolForSymbolID(trigger.SymbolID); symbol != nil {
+			trigger.Symbol = *symbol
+		}
+	}
+	return trigger
 }
 
 func (s *TriggersService) SubscribeEvents(ctx context.Context, accountID any) (*realtime.Subscription[models.TriggerEvent], error) {
@@ -332,19 +381,21 @@ func boundPriceSymbol(prices ...*models.PriceInput) string {
 	return ""
 }
 
-// scaleTriggersList attaches the pair's base quantity scale to each trigger.
-func scaleTriggersList(list models.TriggersList, scales decode.BaseQuantityScales) models.TriggersList {
+// readTriggersList attaches the pair's base quantity scale and name to each
+// trigger.
+func (s *TriggersService) readTriggersList(list models.TriggersList, scales decode.BaseQuantityScales) models.TriggersList {
 	for i := range list.Triggers {
-		list.Triggers[i] = decode.ScaleTrigger(list.Triggers[i], scales)
+		list.Triggers[i] = s.nameTrigger(decode.ScaleTrigger(list.Triggers[i], scales))
 	}
 	return list
 }
 
-// scaleTriggerRead attaches the pair's base quantity scale to a trigger read.
-func scaleTriggerRead(trigger *models.Trigger, scales decode.BaseQuantityScales) *models.Trigger {
+// readTrigger attaches the pair's base quantity scale and name to a trigger
+// read.
+func (s *TriggersService) readTrigger(trigger *models.Trigger, scales decode.BaseQuantityScales) *models.Trigger {
 	if trigger == nil {
 		return nil
 	}
-	scaled := decode.ScaleTrigger(*trigger, scales)
-	return &scaled
+	read := s.nameTrigger(decode.ScaleTrigger(*trigger, scales))
+	return &read
 }

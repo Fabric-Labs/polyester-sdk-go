@@ -4,7 +4,17 @@ import "time"
 
 // SubAccount is a subaccount summary.
 type SubAccount struct {
-	SubaccountID        string     `json:"subaccount_id,omitempty"`
+	SubaccountID string `json:"subaccount_id,omitempty"`
+	// Role is the caller's role on the sub-account: viewer, trader,
+	// leveraged_trader, treasury, admin or owner. Empty when the contract
+	// leaves it unspecified, as it does when Removed is true.
+	Role string `json:"role,omitempty"`
+	// Removed is true on a real-time update telling the caller it no longer
+	// has access to this sub-account: remove it from the caller's list. A
+	// change of role or access does not change Revision or UpdatedAt, so
+	// apply each update as it arrives. Reads list only accessible
+	// sub-accounts and leave it false.
+	Removed             bool       `json:"removed,omitempty"`
 	Label               string     `json:"label,omitempty"`
 	SmartAccountAddress string     `json:"smart_account_address,omitempty"`
 	Status              string     `json:"status,omitempty"`
