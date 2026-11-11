@@ -13,7 +13,7 @@ func createTrigger(kind, orderType, tif string, opts CreateTriggerOptions) (*tri
 	triggerPrice := models.PriceFromDecimal("60000")
 	limitPrice := models.PriceFromDecimal("59950")
 	switch kind {
-	case "stop_loss":
+	case "stop_loss", "take_profit":
 		trigger = &triggerPrice
 		if orderType == "limit" {
 			limit = &limitPrice

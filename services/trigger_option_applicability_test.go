@@ -60,7 +60,7 @@ func TestTriggerTypeOptionMatrix(t *testing.T) {
 				service := newTriggerControlServiceWith(t, handler)
 				opts := baseTriggerOptions(kind)
 				tc.set(&opts)
-				err := createWithOptions(service, kind, nil, "market", nil, "", "gtc", false, opts)
+				err := createWithOptions(service, kind, nil, "market", nil, "", "", false, opts)
 				handler.mu.Lock()
 				defer handler.mu.Unlock()
 				if kind != tc.allowed {
@@ -123,7 +123,7 @@ func TestTriggerExecutionApplicability(t *testing.T) {
 					service := newTriggerControlServiceWith(t, h)
 					opts := baseTriggerOptions(kind)
 					var triggerPrice, limit *models.PriceInput
-					source, tif, post := "", "gtc", false
+					source, tif, post := "", "", false
 					if orderType == "limit" && kind != "ladder" {
 						limit = optionPtr(models.PriceFromDecimal("100"))
 					}

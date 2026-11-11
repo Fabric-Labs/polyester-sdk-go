@@ -102,7 +102,11 @@ func (s *TriggersService) List(ctx context.Context, account AccountScope, subAcc
 		}
 		req.Status = append(req.Status, st)
 	}
-	return UnaryAuth(ctx, s.transport, retryUnavailable(triggerReadRetry, s.client().ListTriggers), req, decode.TriggersListFromProto)
+	scales, err := readQuantityScales(ctx, s.catalogs)
+	if err != nil {
+		return models.TriggersList{}, err
+	}
+	return UnaryAuth(ctx, s.transport, retryUnavailable(triggerReadRetry, s.client().ListTriggers), req, scaledRead(decode.TriggersListFromProto, scaleTriggersList, scales))
 }
 
 // Get reads one trigger. Like List, it retries a catching-up UNAVAILABLE
@@ -123,7 +127,11 @@ func (s *TriggersService) Get(ctx context.Context, account AccountScope, trigger
 	} else if parsed != nil {
 		req.SubaccountId = parsed
 	}
-	return UnaryAuth(ctx, s.transport, retryUnavailable(triggerReadRetry, s.client().GetTrigger), req, decode.GetTriggerFromProto)
+	scales, err := readQuantityScales(ctx, s.catalogs)
+	if err != nil {
+		return nil, err
+	}
+	return UnaryAuth(ctx, s.transport, retryUnavailable(triggerReadRetry, s.client().GetTrigger), req, scaledRead(decode.GetTriggerFromProto, scaleTriggerRead, scales))
 }
 
 func (s *TriggersService) Create(ctx context.Context, account AccountScope, symbol, triggerType string, triggerPrice *models.PriceInput, side string, qty models.QtyInput, orderType string, limitPrice *models.PriceInput, triggerPriceSource, tif string, subAccountID *string, clientTriggerID *string, postOnly bool, opts codecs.CreateTriggerOptions) (models.TriggerMutationResult, error) {
@@ -300,7 +308,10 @@ func (s *TriggersService) ListEvents(ctx context.Context, account AccountScope, 
 }
 
 func (s *TriggersService) Subscribe(ctx context.Context, accountID any) (*realtime.Subscription[models.Trigger], error) {
-	return SubscribeAccountProto(ctx, s.realtime, "private:spot:triggers:{account_id}:proto", accountID, s.defaultAccountID, decode.TriggerFromBytes)
+	return SubscribeAccountProto(ctx, s.realtime, "private:spot:triggers:{account_id}:proto", accountID, s.defaultAccountID, func(payload []byte) (models.Trigger, error) {
+		trigger, err := decode.TriggerFromBytes(payload)
+		return decode.ScaleTrigger(trigger, streamQuantityScales(s.catalogs)), err
+	})
 }
 
 func (s *TriggersService) SubscribeEvents(ctx context.Context, accountID any) (*realtime.Subscription[models.TriggerEvent], error) {
@@ -319,4 +330,21 @@ func boundPriceSymbol(prices ...*models.PriceInput) string {
 		}
 	}
 	return ""
+}
+
+// scaleTriggersList attaches the pair's base quantity scale to each trigger.
+func scaleTriggersList(list models.TriggersList, scales decode.BaseQuantityScales) models.TriggersList {
+	for i := range list.Triggers {
+		list.Triggers[i] = decode.ScaleTrigger(list.Triggers[i], scales)
+	}
+	return list
+}
+
+// scaleTriggerRead attaches the pair's base quantity scale to a trigger read.
+func scaleTriggerRead(trigger *models.Trigger, scales decode.BaseQuantityScales) *models.Trigger {
+	if trigger == nil {
+		return nil
+	}
+	scaled := decode.ScaleTrigger(*trigger, scales)
+	return &scaled
 }

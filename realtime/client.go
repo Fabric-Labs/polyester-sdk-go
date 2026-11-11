@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/callbackmark"
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/redact"
@@ -55,6 +56,31 @@ type Client struct {
 	closed bool
 	// orders carries every account order stream; created on first use.
 	orders *privateOrderStream
+	// quantityScales finds a pair's base quantity scale for the private
+	// order stream's orders and fills; unset leaves them unscaled.
+	quantityScales atomic.Pointer[decode.BaseQuantityScales]
+}
+
+// SetBaseQuantityScales sets how the private order stream finds a pair's base
+// quantity scale, so its orders and fills carry it as the order reads do. The
+// client polyester.New builds uses its catalogs'
+// BaseQuantityScaleForSymbolID. Without it, or for a pair it does not know,
+// stream quantities have no scale.
+func (c *Client) SetBaseQuantityScales(scales decode.BaseQuantityScales) {
+	if c == nil {
+		return
+	}
+	c.quantityScales.Store(&scales)
+}
+
+// baseQuantityScale looks a pair's base quantity scale up with the function
+// SetBaseQuantityScales set; false when none is set or it does not know it.
+func (c *Client) baseQuantityScale(symbolID uint32) (int, bool) {
+	scales := c.quantityScales.Load()
+	if scales == nil || *scales == nil {
+		return 0, false
+	}
+	return (*scales)(symbolID)
 }
 
 // NewClient creates a realtime client.

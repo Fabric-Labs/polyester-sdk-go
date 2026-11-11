@@ -240,6 +240,7 @@ func New(cfg Config) (*Client, error) {
 	factory := transport.NewFactory(tcfg, creds, cfg.HTTPClient)
 	rt := realtime.NewClient(cfg.WSURL, cfg.APIURL, creds, factory.HTTP, 1000)
 	cats := catalogs.NewManager()
+	rt.SetBaseQuantityScales(cats.BaseQuantityScaleForSymbolID)
 
 	defaultAccountID := cfg.DefaultAccountID
 	if defaultAccountID == nil {

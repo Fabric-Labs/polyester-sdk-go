@@ -99,8 +99,8 @@ func TestTriggerPauseResumeCancel(t *testing.T) {
 	if cancelled.TriggerID != created.TriggerID {
 		t.Fatalf("cancel trigger_id=%q", cancelled.TriggerID)
 	}
-	if cancelled.Status != "cancelled" {
-		t.Fatalf("cancel status=%q want cancelled", cancelled.Status)
+	if cancelled.Status != "canceled" {
+		t.Fatalf("cancel status=%q want canceled", cancelled.Status)
 	}
 	cancelledOK = true
 

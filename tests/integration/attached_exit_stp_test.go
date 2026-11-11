@@ -98,14 +98,14 @@ func TestAttachedExitSelfTradePreventionMode(t *testing.T) {
 			trigger, err := client.Triggers.Get(ctx, nil, id, nil)
 			if err == nil {
 				status = trigger.Status
-				if status == "cancelled" {
+				if status == "canceled" {
 					break
 				}
 			}
 			time.Sleep(500 * time.Millisecond)
 		}
 		t.Logf("%s trigger %s after cancel status=%s", leg, id, status)
-		if status != "cancelled" {
+		if status != "canceled" {
 			t.Fatalf("%s trigger %s status=%s after the order's cancel", leg, id, status)
 		}
 	}

@@ -106,9 +106,23 @@ func (s *TradesService) List(ctx context.Context, account AccountScope, subAccou
 	if pageToken != nil {
 		req.PageToken = *pageToken
 	}
-	return UnaryAuth(ctx, s.transport, s.client().GetUserTrades, req, decode.UserTradesListFromProto)
+	scales, err := readQuantityScales(ctx, s.catalogs)
+	if err != nil {
+		return models.UserTradesList{}, err
+	}
+	return UnaryAuth(ctx, s.transport, s.client().GetUserTrades, req, scaledRead(decode.UserTradesListFromProto, scaleUserTradesList, scales))
 }
 
 func (s *TradesService) Subscribe(ctx context.Context, accountID any) (*realtime.Subscription[models.UserTrade], error) {
-	return SubscribeAccountProtoBatch(ctx, s.realtime, "private:spot:trades:{account_id}:proto", accountID, s.defaultAccountID, decode.UserTradeBatchFromBytes)
+	return SubscribeAccountProtoBatch(ctx, s.realtime, "private:spot:trades:{account_id}:proto", accountID, s.defaultAccountID, func(payload []byte) ([]models.UserTrade, error) {
+		trades, err := decode.UserTradeBatchFromBytes(payload)
+		decode.ScaleUserTrades(trades, streamQuantityScales(s.catalogs))
+		return trades, err
+	})
+}
+
+// scaleUserTradesList attaches the pair's base quantity scale to each trade.
+func scaleUserTradesList(list models.UserTradesList, scales decode.BaseQuantityScales) models.UserTradesList {
+	decode.ScaleUserTrades(list.Trades, scales)
+	return list
 }

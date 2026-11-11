@@ -115,7 +115,11 @@ func (s *OrdersService) ListOpen(ctx context.Context, account AccountScope, subA
 		}
 		req.TriggerId = &id
 	}
-	return UnaryAuth(ctx, s.transport, s.readClient().GetOpenOrders, req, decode.OrdersListFromOpen)
+	scales, err := readQuantityScales(ctx, s.catalogs)
+	if err != nil {
+		return models.OrdersList{}, err
+	}
+	return UnaryAuth(ctx, s.transport, s.readClient().GetOpenOrders, req, scaledRead(decode.OrdersListFromOpen, scaleOrdersList, scales))
 }
 
 // ListHistory returns order history.
@@ -149,7 +153,11 @@ func (s *OrdersService) ListHistory(ctx context.Context, account AccountScope, s
 		}
 		req.TriggerId = &id
 	}
-	return UnaryAuth(ctx, s.transport, s.readClient().GetOrderHistory, req, decode.OrdersListFromHistory)
+	scales, err := readQuantityScales(ctx, s.catalogs)
+	if err != nil {
+		return models.OrdersList{}, err
+	}
+	return UnaryAuth(ctx, s.transport, s.readClient().GetOrderHistory, req, scaledRead(decode.OrdersListFromHistory, scaleOrdersList, scales))
 }
 
 // Get returns one order and an optional page of lineage execution history.
@@ -185,7 +193,11 @@ func (s *OrdersService) Get(ctx context.Context, account AccountScope, key model
 	if err := codecs.ApplyOrderKeyToGet(req, key); err != nil {
 		return models.GetOrderResult{}, err
 	}
-	return UnaryAuth(ctx, s.transport, s.readClient().GetOrder, req, decode.GetOrderFromProto)
+	scales, err := readQuantityScales(ctx, s.catalogs)
+	if err != nil {
+		return models.GetOrderResult{}, err
+	}
+	return UnaryAuth(ctx, s.transport, s.readClient().GetOrder, req, scaledRead(decode.GetOrderFromProto, decode.ScaleGetOrderResult, scales))
 }
 
 // Create places a new order.
@@ -880,4 +892,10 @@ func quoteQuantityScaleForOrderWrite(c *catalogs.Manager, symbol *string, symbol
 		return scale, nil
 	}
 	return 0, &sdkerrors.ValidationError{Msg: "quote quantity scale requires catalogs and symbol"}
+}
+
+// scaleOrdersList attaches the pair's base quantity scale to each listed order.
+func scaleOrdersList(list models.OrdersList, scales decode.BaseQuantityScales) models.OrdersList {
+	decode.ScaleOrders(list.Orders, scales)
+	return list
 }

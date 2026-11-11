@@ -204,8 +204,11 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale, quoteQuant
 
 	switch orderType {
 	case "market":
-		if tif == "gtd" {
-			return nil, &errors.ValidationError{Msg: "tif='gtd' is only valid for limit orders"}
+		// The contract's only market execution is MarketIoc: "Market orders
+		// always execute as immediate-or-cancel". Any other time in force is
+		// refused, never sent as IOC.
+		if tif != "" && tif != "ioc" {
+			return nil, &errors.ValidationError{Msg: "tif='" + tif + "' is only valid for limit orders"}
 		}
 		if req.PostOnly {
 			return nil, &errors.ValidationError{Msg: "post_only is not supported for market orders"}

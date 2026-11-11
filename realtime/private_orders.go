@@ -67,6 +67,9 @@ type privateStreamConfig struct {
 	fetchSubscribeToken func(ctx context.Context, channel string) (string, error)
 	maxQueue            int
 	timing              privateStreamTiming
+	// quantityScales attaches a pair's base quantity scale to the stream's
+	// orders and fills; nil leaves them unscaled.
+	quantityScales decode.BaseQuantityScales
 }
 
 // streamSession spans one run of the stream, from its first subscription to
@@ -782,6 +785,7 @@ func (p *privateOrderStream) onFrame(conn *privateConn, messageType int, data []
 		s.cursor = frame.SnapshotEnd.GetCursor()
 		s.retries = 0
 		orders := decode.OrdersFromProto(staged)
+		decode.ScaleOrders(orders, p.cfg.quantityScales)
 		s.orders = make(map[uint64]models.Order, len(orders))
 		for i, order := range staged {
 			s.orders[order.GetOrderId()] = orders[i]
@@ -792,6 +796,9 @@ func (p *privateOrderStream) onFrame(conn *privateConn, messageType int, data []
 		s.cursor = unit.GetNextCursor()
 		s.retries = 0
 		orders := decode.OrdersFromProto(unit.GetOrders())
+		decode.ScaleOrders(orders, p.cfg.quantityScales)
+		events := decode.OrderUnitEventsFromProto(unit.GetEvents(), unit.GetOrders())
+		decode.ScaleOrderUnitEvents(events, p.cfg.quantityScales)
 		removed := make([]string, 0, len(unit.GetRemovedOrderIds()))
 		if s.orders != nil {
 			for i, order := range unit.GetOrders() {
@@ -807,7 +814,7 @@ func (p *privateOrderStream) onFrame(conn *privateConn, messageType int, data []
 		p.deliver(s, OrderUnit{
 			Orders:          orders,
 			RemovedOrderIDs: removed,
-			Events:          decode.OrderUnitEventsFromProto(unit.GetEvents(), unit.GetOrders()),
+			Events:          events,
 		})
 	case *privatewsv1.ServerMessage_Covered:
 		s.cursor = frame.Covered.GetCursor()
