@@ -244,6 +244,12 @@ func (p *privateOrderStream) catchUp(s *orderStreamSub, c *orderConsumer) {
 
 func (p *privateOrderStream) deliverCached(s *orderStreamSub, c *orderConsumer) {
 	if s.orders != nil {
+		// The cached orders were scaled with what the catalogs knew when they
+		// arrived. Attach the scales known now, so a consumer joining after
+		// the catalogs loaded gets them; a pair still unknown stays unscaled.
+		for id, order := range s.orders {
+			s.orders[id] = decode.ScaleOrder(order, p.cfg.quantityScales)
+		}
 		p.offer(s, c, OrderSnapshot{Orders: sortedOrders(s.orders)})
 	}
 	if s.ready {
