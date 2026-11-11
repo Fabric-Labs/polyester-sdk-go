@@ -1101,6 +1101,23 @@ Unknown values, `cancelled` included, return an error (they do not silently
 return an empty list). Response `Status` uses the same labels, so a canceled
 trigger reads `canceled`, as its `canceled` event does.
 
+An optional trailing `models.ListTriggersOptions` filters as `ListTriggers`
+does: `TriggerType` (`stop_loss`, `take_profit`, `trailing_stop`, `twap` or
+`ladder`) lists one trigger type, and `ParentOrderID` lists the attached
+triggers of one parent order. An unknown type or an invalid or zero order ID
+returns a validation error before sending; leaving a field empty sends no
+filter.
+
+```go
+parent := "7mfq2nWjXq"
+legs, err := client.Triggers.List(ctx, nil, nil, nil, nil, 50, nil,
+	models.ListTriggersOptions{TriggerType: "take_profit", ParentOrderID: &parent})
+```
+
+With the catalogs loaded, `Triggers.Get`, `Triggers.List` and the trigger
+stream set `Trigger.Symbol` to the pair name (`BTC-USDT`) as well as
+`SymbolID`; without them `Symbol` is empty.
+
 `Triggers.Get` and `Triggers.List` retry `UNAVAILABLE` (HTTP 503) and `DEADLINE_EXCEEDED` with the
 same request: 25 ms, doubling up to 500 ms, for about 2 s, then return the
 error. Once `Modify`, `Pause` or `Resume` has answered, these reads return the
@@ -1184,9 +1201,13 @@ only within that cap of the price that fired it, and a buy reserves its funds
 at the trigger price raised by the cap. Without a cap the pair's default
 market slippage applies. Setting both, or a cap on a limit child, is refused.
 A buy market child accepts 1 to 10000 bps; a sell, and a trailing stop on
-either side, 1 to 9999. Get, list and the trigger stream expose the cap as
-`Trigger.MaxSlippage` / `Trigger.MaxSlippageBps`. A TWAP market slice takes
-the same cap: 1 to 10000 bps to buy, 1 to 9999 to sell.
+either side, 1 to 9999. A TWAP market slice takes the same cap: 1 to 10000
+bps to buy, 1 to 9999 to sell. Get, list and the trigger stream expose the
+cap of a stop-loss or take-profit market child, of a trailing stop and of each
+market TWAP slice as `Trigger.MaxSlippage` (ticks) or `Trigger.MaxSlippageBps`,
+in the form it was set; both zero means no cap, so the pair default applies.
+A trailing stop's cap also stays in `Details.MaxSlippage` /
+`Details.MaxSlippageBps`.
 `MaxSlippageTicks` is positive wherever a create sends it. No
 trigger child has a GTD execution, so `tif` `gtd` is refused for every
 trigger type. A market child and a trailing stop always execute IOC: leave
@@ -1220,10 +1241,12 @@ of a market-child stop-loss or take-profit can be changed; a cleared cap on a
 market child falls back to the pair default. A child's limit price is fixed
 at create: cancel the trigger and create a new one to change it. Send an explicit zero
 (`PriceFromTicksInt(0)` or `*int32(0)`) to clear an existing activation
-price or maximum-slippage cap. Modify `MaxSlippageBps` must be 1–9999 (the
-patch does not say which leg it changes, so it takes the sell and trailing-stop
-cap; a buy market child's 10000 is set at create) and still accepts `0` to
-clear.
+price or maximum-slippage cap. Modify `MaxSlippageBps` takes 0 to 10000, as
+`ModifyTriggerRequest` does: `0` clears the cap, and the server decides 10000
+by the trigger's side and type. A buy stop-loss or take-profit market child
+takes 10000, as at create; a sell, or a trailing stop on either side, answers
+`ERROR_CODE_MAX_SLIPPAGE_INVALID`. Values above 10000 or below 0 are refused
+before sending.
 Create/modify `TrailingDistanceBps` must be 1–10000; zero does not clear a
 trailing distance.
 
@@ -1248,7 +1271,10 @@ symbol: pass nil for both `symbol` and `symbolID` to target the trigger's own
 market, or set one, which must be that market. An API key limited to specific
 markets must still pass it. A trailing stop's `Details.TriggerPrice` is its
 current threshold once armed; it moves with the peak or trough. Ladder creation requires the resolved minimum price ticks
-to be strictly less than the maximum.
+to be strictly less than the maximum. A ladder places limit GTC orders only:
+leave `orderType` empty or pass `limit`. Any other order type, `market`
+included, returns a validation error before sending; it is never sent as a
+limit ladder.
 
 `Orders.ListOpen` / `Orders.ListHistory` accept an optional trailing
 `triggerID` to return only child orders created by that trigger (TWAP/ladder
@@ -1610,6 +1636,15 @@ Order quantities are raw scaled integers, and `order.OrigQty.Scale()`,
 `order.CumQty.Scale()`, and `order.LeavesQty.Scale()` may be `nil`. Bots must
 resolve the base quantity scale from hydrated catalogs using `order.SymbolID`
 before formatting or reusing a quantity. Never invent a fallback scale.
+
+### Sub-account updates
+
+`SubAccounts.Subscribe` delivers `models.SubAccount` updates with the
+caller's `Role` (`viewer`, `trader`, `leveraged_trader`, `treasury`, `admin`
+or `owner`) and `Removed`. `Removed` true means the caller no longer has access
+to the sub-account: drop it from your list. A removal carries no role, so its
+`Role` is empty, never `viewer`. A change of role or access does not change
+`Revision` or `UpdatedAt`: apply each update in the order it arrives.
 
 ### Subscriptions the server ends
 

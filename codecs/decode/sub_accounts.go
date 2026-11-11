@@ -33,7 +33,10 @@ func subAccount(msg *authv1.Subaccount) models.SubAccount {
 		updatedAt = &value
 	}
 	return models.SubAccount{
-		SubaccountID:        codecs.FormatUint64ID(msg.GetId()),
+		SubaccountID: codecs.FormatUint64ID(msg.GetId()),
+		// Unspecified (as on a removal) reads as "", never as a default role.
+		Role:                codecs.ProtoEnumName(msg.GetRole(), msg.GetRole().Number()),
+		Removed:             msg.GetRemoved(),
 		Label:               msg.GetLabel(),
 		SmartAccountAddress: msg.GetSmartAccountAddress(),
 		Status:              subaccountStatusName(msg.GetStatus()),

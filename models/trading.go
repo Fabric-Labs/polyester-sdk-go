@@ -302,6 +302,16 @@ type UserTradesList struct {
 	NextPageToken string          `json:"next_page_token,omitempty"`
 }
 
+// ListTriggersOptions are optional Triggers.List filters, as ListTriggers
+// takes them. Empty or nil sends no filter.
+type ListTriggersOptions struct {
+	// TriggerType lists one trigger type: stop_loss, take_profit,
+	// trailing_stop, twap or ladder.
+	TriggerType string
+	// ParentOrderID lists the attached triggers of one parent order.
+	ParentOrderID *string
+}
+
 // ListUserTradesOptions are optional GetUserTrades execution-scope filters.
 // OrderID and LineageID are mutually exclusive. ThroughGeneration requires LineageID.
 type ListUserTradesOptions struct {
@@ -717,9 +727,12 @@ type LifecycleFlowsList struct {
 // LimitPrice is then a buy's maximum price, the most its child pays per
 // unit; it is empty for a sell.
 //
-// For a stop-loss or take-profit with a market child, MaxSlippage (ticks) or
-// MaxSlippageBps is the child's slippage cap; both are zero when the pair's
-// default market slippage applies. A trailing stop's cap is in Details.
+// MaxSlippage (ticks) or MaxSlippageBps is the slippage cap of a stop-loss or
+// take-profit market child, of a trailing stop (also in Details), or of each
+// slice of a market TWAP, in the variant the trigger was given; both are zero
+// when no cap is set and the pair's default market slippage applies.
+//
+// Symbol is the pair name from the loaded catalogs; empty without them.
 type Trigger struct {
 	TriggerID               string          `json:"trigger_id,omitempty"`
 	SubaccountID            string          `json:"subaccount_id,omitempty"`

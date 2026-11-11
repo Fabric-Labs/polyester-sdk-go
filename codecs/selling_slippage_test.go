@@ -42,12 +42,16 @@ func TestAttachedTrailingStopCapsSlippageAt9999BpsOnEitherSide(t *testing.T) {
 	}
 }
 
-func TestTriggerModifyCapsSlippageAt9999Bps(t *testing.T) {
-	full := int32(10_000)
-	_, err := ModifyTriggerToProto("1", 7, "", nil, ModifyTriggerOptions{MaxSlippageBps: &full})
-	wantValidation(t, err, "between 1 and 9999")
-	ok := int32(9_999)
-	if _, err := ModifyTriggerToProto("1", 7, "", nil, ModifyTriggerOptions{MaxSlippageBps: &ok}); err != nil {
-		t.Fatalf("modify accepts 9999 bps: %v", err)
+// Modify takes 0 to 10000 bps, as ModifyTriggerRequest does: the server
+// decides 10000 by the trigger's side and type (POLY-9426).
+func TestTriggerModifyTakesSlippageUpTo10000Bps(t *testing.T) {
+	over := int32(10_001)
+	_, err := ModifyTriggerToProto("1", 7, "", nil, ModifyTriggerOptions{MaxSlippageBps: &over})
+	wantValidation(t, err, "between 0 and 10000")
+	for _, ok := range []int32{0, 9_999, 10_000} {
+		req, err := ModifyTriggerToProto("1", 7, "", nil, ModifyTriggerOptions{MaxSlippageBps: &ok})
+		if err != nil || req.GetMaxSlippageBps() != ok {
+			t.Fatalf("modify %d bps: %v %+v", ok, err, req)
+		}
 	}
 }
