@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"encoding/hex"
 	"net/http"
 	"strings"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	"github.com/Fabric-Labs/polyester-sdk-go/connectx"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
+	"github.com/Fabric-Labs/polyester-sdk-go/internal/redact"
 	"github.com/Fabric-Labs/polyester-sdk-go/useragent"
 	"github.com/Fabric-Labs/polyester-sdk-go/wire"
 )
@@ -71,11 +73,33 @@ func NewFactory(cfg Config, creds *auth.Credentials, httpClient *http.Client) *F
 		HTTP:        wrapHTTPClient(httpClient),
 		base:        httpClient,
 	}
+	registerClientSecrets(cfg, creds, httpClient)
 	if creds != nil {
 		f.authInterceptor = NewAPIKeyInterceptor(creds, cfg.APIURL, cfg.WireFormat)
 		f.authInterceptor.RecvWindowMS = cfg.RecvWindowMS
 	}
 	return f
+}
+
+// registerClientSecrets has redact.Text remove the client's own secrets from
+// every error: the userinfo of its API, WebSocket and proxy URLs, and its API
+// private key.
+func registerClientSecrets(cfg Config, creds *auth.Credentials, httpClient *http.Client) {
+	redact.RegisterURLSecrets(cfg.APIURL)
+	redact.RegisterURLSecrets(cfg.WSURL)
+	if creds != nil {
+		if key := creds.PrivateKey(); len(key) > 0 {
+			redact.RegisterSecret(hex.EncodeToString(key))
+			redact.RegisterSecret(hex.EncodeToString(key.Seed()))
+		}
+	}
+	if pooled, ok := httpClient.Transport.(*http.Transport); ok && pooled.Proxy != nil {
+		if req, err := http.NewRequest(http.MethodPost, cfg.APIURL, nil); err == nil {
+			if proxy, err := pooled.Proxy(req); err == nil && proxy != nil {
+				redact.RegisterURLSecrets(proxy.String())
+			}
+		}
+	}
 }
 
 func wrapHTTPClient(client *http.Client) *http.Client {

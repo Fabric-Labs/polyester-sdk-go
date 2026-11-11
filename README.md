@@ -1827,7 +1827,10 @@ SDK maps from a Connect call is redacted where it is mapped, so each URL an
 answer or a transport quotes keeps only its scheme, host, port and path, and a
 proxy URL from the environment reads `[proxy]`, in `Error()` at every
 `errors.Unwrap` level and in structured diagnostics such as `Problem` and a
-rate limit's `Detail`. Each level keeps its type for `errors.Is` and
+rate limit's `Detail`. A URL that does not parse is dropped whole. The
+client's own secrets read `[REDACTED]` however an answer quotes them: the
+userinfo and password of its `APIURL` and `WSURL`, of the proxy its
+`HTTPClient` transport uses or the environment sets, and its API private key. Each level keeps its type for `errors.Is` and
 `errors.As`.
 
 Timeouts, from the outside in:

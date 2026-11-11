@@ -9,6 +9,7 @@ package hardening_test
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,8 +19,11 @@ import (
 	"time"
 
 	polyester "github.com/Fabric-Labs/polyester-sdk-go"
+	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
+	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -110,10 +114,12 @@ func TestL2CatalogStartupErrorChainPrintsNoCredential(t *testing.T) {
 
 func TestL2URLWithParenthesesOrQuotesIsRedacted(t *testing.T) {
 	urls := map[string]string{
-		"paren-userinfo": "http://" + chainUser + ":one(two-" + chainSecret + ")@proxy.example.test/x",
-		"quote-userinfo": "http://" + chainUser + ":one'two-" + chainSecret + "@proxy.example.test/x",
-		"paren-query":    "http://proxy.example.test/x?" + chainQuery + "one(two-" + chainSecret + ")",
-		"quote-query":    "http://proxy.example.test/x?" + chainQuery + "one'two-" + chainSecret,
+		"paren-userinfo":       "http://" + chainUser + ":one(two-" + chainSecret + ")@proxy.example.test/x",
+		"quote-userinfo":       "http://" + chainUser + ":one'two-" + chainSecret + "@proxy.example.test/x",
+		"paren-query":          "http://proxy.example.test/x?" + chainQuery + "one(two-" + chainSecret + ")",
+		"quote-query":          "http://proxy.example.test/x?" + chainQuery + "one'two-" + chainSecret,
+		"question-in-userinfo": "http://" + chainUser + ":" + chainSecret + "?bad@proxy.example.test/x",
+		"hash-in-userinfo":     "http://" + chainUser + ":" + chainSecret + "#bad@proxy.example.test/x",
 	}
 	for name, url := range urls {
 		t.Run(name, func(t *testing.T) {
@@ -128,11 +134,56 @@ func TestL2URLWithParenthesesOrQuotesIsRedacted(t *testing.T) {
 			}
 			t.Cleanup(func() { _ = client.Close() })
 			_, err = client.MarketData.GetSpotConfig(context.Background())
-			if err == nil || !strings.Contains(err.Error(), "proxy.example.test") {
-				t.Fatalf("GetSpotConfig = %v", err)
+			want := "proxy.example.test"
+			if strings.Contains(url, "bad@") {
+				// A URL the parser refuses is dropped whole.
+				want = "[REDACTED INVALID URL]"
+			}
+			if err == nil || !strings.Contains(err.Error(), want) {
+				t.Fatalf("GetSpotConfig = %v, want %q in it", err, want)
 			}
 			assertChainClean(t, err)
 		})
+	}
+}
+
+// Client-held secrets: the userinfo of the client's own API and WebSocket
+// URLs and its API private key never reach an error's text, however the
+// answer quotes them.
+func TestL2ClientHeldSecretsNeverReachAnError(t *testing.T) {
+	const apiUser, apiSecret = "sdk-api-user", "api-secret-9228"
+	const wsUser, wsSecret = "sdk-ws-user", "ws-secret-9228"
+	kp := auth.GenerateEd25519Keypair()
+	seed := kp.SecretKeyHex.Reveal()
+	message := "auth " + apiUser + ":" + apiSecret + " via http//" + apiUser + ":" + apiSecret + "@api ws " +
+		wsUser + ":" + wsSecret + " and " + wsSecret + " key " + seed
+	body, _ := json.Marshal(map[string]string{"code": "unavailable", "message": message})
+	srv := hardening.SpawnHTTP(func(hardening.ParsedRequest) hardening.HttpResponse {
+		return hardening.Json(http.StatusServiceUnavailable, body)
+	})
+	t.Cleanup(srv.Close)
+	client, err := polyester.New(polyester.Config{
+		APIURL:        "http://" + apiUser + ":" + apiSecret + "@" + strings.TrimPrefix(srv.BaseURL(), "http://"),
+		WSURL:         "ws://" + wsUser + ":" + wsSecret + "@127.0.0.1:1/unused",
+		APIKeyID:      "ak_test",
+		APIPrivateKey: kp.SecretKeyHex,
+		Timeout:       2 * time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+	_, err = client.MarketData.GetSpotConfig(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "[REDACTED]") {
+		t.Fatalf("GetSpotConfig = %v", err)
+	}
+	for e := err; e != nil; e = errors.Unwrap(e) {
+		printed := e.Error() + fmt.Sprintf(" %+v %#v", e, e)
+		for _, secret := range []string{apiUser + ":" + apiSecret, apiSecret, wsUser + ":" + wsSecret, wsSecret, seed} {
+			if strings.Contains(printed, secret) {
+				t.Fatalf("%T prints %q: %s", e, secret, printed)
+			}
+		}
 	}
 }
 
@@ -195,4 +246,42 @@ func TestL2StructuredDiagnosticsAreRedacted(t *testing.T) {
 			assertChainClean(t, err)
 		})
 	}
+}
+
+func TestL2ConnectErrorDetailsAreRedacted(t *testing.T) {
+	violation := &orderv1.ErrorDetail{Violations: []*orderv1.FieldViolation{{
+		FieldPath: chainProxyURL, RuleId: chainProxyURL, Message: chainProxyURL,
+	}}}
+	value, err := proto.Marshal(violation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := json.Marshal(map[string]any{
+		"code":    "invalid_argument",
+		"message": "bad",
+		"details": []map[string]string{{
+			"type":  string(violation.ProtoReflect().Descriptor().FullName()),
+			"value": base64.RawStdEncoding.EncodeToString(value),
+		}},
+	})
+	srv := hardening.SpawnHTTP(func(hardening.ParsedRequest) hardening.HttpResponse {
+		return hardening.Json(http.StatusBadRequest, body)
+	})
+	t.Cleanup(srv.Close)
+	client, err := polyester.New(polyester.Config{APIURL: srv.BaseURL(), WSURL: "ws://127.0.0.1:1/unused", Timeout: 2 * time.Second})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+	_, err = client.MarketData.GetSpotConfig(context.Background())
+	if err == nil {
+		t.Fatal("the stub refuses")
+	}
+	printed := fmt.Sprintf("%+v %#v", err, err)
+	for _, secret := range []string{chainUser, chainSecret, chainQuery} {
+		if strings.Contains(printed, secret) {
+			t.Fatalf("prints %q: %s", secret, printed)
+		}
+	}
+	assertChainClean(t, err)
 }
