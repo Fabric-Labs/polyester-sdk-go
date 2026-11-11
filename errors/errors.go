@@ -505,6 +505,10 @@ type APIError struct {
 	// FieldPath names the request field a withdraw-service refusal is about,
 	// such as "destinations[0].min_amount_e18", when the server names one.
 	FieldPath string
+	// MinFloorE18 is the least amount a payout to the destination can pay
+	// now, as a decimal string in 18-decimal units, on an
+	// ERROR_CODE_MIN_AMOUNT_BELOW_FLOOR refusal; empty otherwise.
+	MinFloorE18 string
 	// PayableFrom is when a broker vault can pay the destination of an
 	// ERROR_CODE_EXTERNAL_DESTINATION_COOLING_DOWN refusal, once it has been
 	// on the vault's whitelist for 24 hours; nil when the server does not

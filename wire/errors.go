@@ -324,6 +324,9 @@ func mapConnectError(err error) error {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
 			}
 			apiErr := &sdkerrors.APIError{Msg: msg, Code: code, FieldPath: withdrawDetail.GetFieldPath()}
+			if floor := withdrawDetail.GetMinFloorE18(); floor != nil {
+				apiErr.MinFloorE18 = codecs.U128ToStr(floor.GetHi(), floor.GetLo())
+			}
 			if withdrawDetail.PayableFrom != nil {
 				payable := withdrawDetail.GetPayableFrom().AsTime()
 				apiErr.PayableFrom = &payable

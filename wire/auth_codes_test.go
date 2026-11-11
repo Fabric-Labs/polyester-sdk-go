@@ -11,6 +11,7 @@ import (
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	withdrawv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/withdraw/v1"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
+	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -208,6 +209,26 @@ func TestWithdrawCoolingDownWithoutPayableFrom(t *testing.T) {
 	connectErr.AddDetail(detail)
 	var apiErr *sdkerrors.APIError
 	if mapped := MapConnectError(connectErr); !errors.As(mapped, &apiErr) || apiErr.PayableFrom != nil || !sdkerrors.IsDestinationCoolingDown(mapped) {
+		t.Fatalf("mapped=%T %#v", mapped, mapped)
+	}
+}
+
+// A rule minimum below the destination's floor names the floor, exact in
+// 18-decimal units, and the field to fix.
+func TestWithdrawMinAmountBelowFloorCarriesTheFloor(t *testing.T) {
+	connectErr := connect.NewError(connect.CodeInvalidArgument, errors.New("minimum below floor"))
+	detail, err := connect.NewErrorDetail(&withdrawv1.ErrorDetail{
+		Code:        withdrawv1.ErrorCode_ERROR_CODE_MIN_AMOUNT_BELOW_FLOOR,
+		FieldPath:   "destinations[0].min_amount_e18",
+		MinFloorE18: &typev1.U128{Hi: 1, Lo: 5},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	connectErr.AddDetail(detail)
+	var apiErr *sdkerrors.APIError
+	if mapped := MapConnectError(connectErr); !errors.As(mapped, &apiErr) ||
+		apiErr.FieldPath != "destinations[0].min_amount_e18" || apiErr.MinFloorE18 != "18446744073709551621" || apiErr.PayableFrom != nil {
 		t.Fatalf("mapped=%T %#v", mapped, mapped)
 	}
 }
