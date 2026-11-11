@@ -222,14 +222,15 @@ Automatic request signing gives concurrent identical calls distinct authenticati
 Credential copies and independently loaded credentials for the same key share the process allocator.
 The signing protocol has no cross-process nonce, so assign one API key per process; sharing a key
 between processes can produce identical authentication tuples. Timestamps can lead the local clock
-by at most five seconds; larger bursts are backpressured instead of reusing a signature or drifting
-outside the API's 10-second freshness window.
+by at most half a second; larger bursts are backpressured instead of reusing a signature or running
+past the API's limit, which refuses a timestamp more than one second ahead of the server clock as
+`errors.TimestampSkewError`. Keep the host clock synchronized.
 
 `Config.RecvWindow` sets the receive window of every signed API request: the server processes a
 request only until its signing timestamp plus the window, sent as the signed `X-API-RECV-WINDOW`
 header. It must be whole milliseconds from 1ms to 60s, and `polyester.New` refuses any other value
 with `errors.ValidationError` before anything is sent. Zero sends no header, and the server applies
-10 seconds. A request that arrives after its window is refused as the retryable
+5 seconds. A request that arrives after its window is refused as the retryable
 `errors.TimestampSkewError`; one that waited past it before admission is refused as
 `errors.CodeRequestDeadlineExceeded`, also retryable. Both changed nothing, and a retry signs again
 with a fresh timestamp. Realtime token requests always use the default window. To sign requests
@@ -538,7 +539,7 @@ On REST outcome-unknown and refusal errors (including HTTP 400, 409, 412 and 422
 nothing and `errors.IsRetryable` reports true: retry the same request shortly.
 `errors.CodeRequestDeadlineExceeded` (`ERROR_CODE_REQUEST_DEADLINE_EXCEEDED`,
 REST 400 `REQUEST_DEADLINE_EXCEEDED`, Connect `failed_precondition`) refuses an
-order or trigger write whose receive window (10 seconds by default) ended
+order or trigger write whose receive window (5 seconds by default) ended
 before it was sent on for admission. It is an `errors.APIError` that
 `errors.IsRequestDeadlineExceeded` reports; nothing changed, it is never an
 unknown outcome, and `errors.IsRetryable` reports true: sending it again signs

@@ -13,9 +13,11 @@ import (
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 )
 
-// MaxSigningFutureSkewMS bounds automatically allocated timestamps. The API
-// accepts a 10-second window; five seconds leaves room for clock/network skew.
-const MaxSigningFutureSkewMS int64 = 5_000
+// MaxSigningFutureSkewMS bounds how far ahead of this host's clock an
+// automatically allocated timestamp may run. The API refuses a timestamp more
+// than one second ahead of its own clock as TIMESTAMP_SKEW; half a second
+// leaves the other half for clock skew.
+const MaxSigningFutureSkewMS int64 = 500
 
 const maxSigningBackpressure = 10 * time.Second
 
