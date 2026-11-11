@@ -55,6 +55,17 @@ type CreateTriggerOptions struct {
 	LadderDistribution  *string
 }
 
+// TriggerTypeFromLabel parses a trigger type label (stop_loss, take_profit,
+// trailing_stop, twap or ladder; case and "-" for "_" are accepted) into its
+// contract value.
+func TriggerTypeFromLabel(label string) (triggersv1.TriggerType, error) {
+	key := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(label), "-", "_"))
+	if value, ok := triggerTypeToProto[key]; ok {
+		return value, nil
+	}
+	return triggersv1.TriggerType_TRIGGER_TYPE_UNSPECIFIED, &errors.ValidationError{Msg: fmt.Sprintf("trigger_type %q must be stop_loss, take_profit, trailing_stop, twap, or ladder", label)}
+}
+
 func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPrice *models.PriceInput, side string, qty models.QtyInput, orderType string, limitPrice *models.PriceInput, triggerPriceSource, tif string, subAccountID *string, clientTriggerID *string, postOnly bool, quantityScale int, opts CreateTriggerOptions) (*triggersv1.CreateTriggerRequest, error) {
 	if symbolID == 0 {
 		return nil, &errors.ValidationError{Msg: "triggers.create requires a resolved non-zero symbol_id"}
@@ -330,6 +341,11 @@ func validateTriggerOptionApplicability(kind string, triggerPrice *models.PriceI
 	if !validOrderType {
 		return &errors.ValidationError{Msg: "order_type must be limit or market"}
 	}
+	// A ladder places limit GTC orders only: a market order type is refused,
+	// never sent as limit.
+	if kind == "ladder" && orderType != "" && orderType != "limit" {
+		return &errors.ValidationError{Msg: "order_type=" + orderType + " does not apply to a ladder: a ladder places limit GTC orders only"}
+	}
 	if postOnly && (kind == "trailing_stop" || kind == "twap") {
 		return &errors.ValidationError{Msg: "post_only applies only to limit GTC stops or ladder"}
 	}
@@ -444,7 +460,10 @@ func validateBps(field string, bps int32, allowClear bool) error {
 }
 
 func validateBpsAtMost(field string, bps int32, allowClear bool, maxBps int32) error {
-	if allowClear && bps == 0 {
+	if allowClear {
+		if bps < 0 || bps > maxBps {
+			return &errors.ValidationError{Msg: fmt.Sprintf("%s must be between 0 and %d; 0 clears the cap", field, maxBps)}
+		}
 		return nil
 	}
 	if bps < 1 || bps > maxBps {
@@ -534,10 +553,11 @@ func ModifyTriggerToProto(triggerID string, symbolID uint32, symbol string, subA
 		req.MaxSlippage = &triggersv1.ModifyTriggerRequest_MaxSlippageTicks{MaxSlippageTicks: *opts.MaxSlippageTicks}
 	}
 	if opts.MaxSlippageBps != nil {
-		// The patch does not say which leg it modifies, so it takes the cap
-		// shared by trailing stops and sells; a buy market child's 10000 bps
-		// is set at create.
-		if err := validateBpsAtMost("max_slippage_bps", *opts.MaxSlippageBps, true, MaxSellingSlippageBps); err != nil {
+		// 0 to 10000, as ModifyTriggerRequest takes it: the patch does not
+		// name the trigger's side or type, so the server decides 10000 (a
+		// buy stop-loss or take-profit market child takes it; a sell or a
+		// trailing stop answers MAX_SLIPPAGE_INVALID).
+		if err := validateBps("max_slippage_bps", *opts.MaxSlippageBps, true); err != nil {
 			return nil, err
 		}
 		req.MaxSlippage = &triggersv1.ModifyTriggerRequest_MaxSlippageBps{MaxSlippageBps: *opts.MaxSlippageBps}

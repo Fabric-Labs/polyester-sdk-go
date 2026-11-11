@@ -293,7 +293,8 @@ func triggerConfigProjection(msg *triggersv1.Trigger) (triggerType, side, orderT
 		// Trailing stop fires an IOC child on the configured side. A buy's
 		// limit_price_ticks is its maximum price: its child is an IOC limit
 		// at that price, projected as LimitPrice. A sell's child is a market
-		// IOC; its optional cap is exposed as MaxSlippage/MaxSlippageBps.
+		// IOC. Either side's optional cap is exposed as
+		// MaxSlippage/MaxSlippageBps (see triggerSlippageCap).
 		triggerType = "trailing_stop"
 		orderType = "market"
 		tif = "ioc"
@@ -330,21 +331,34 @@ func triggerConfigProjection(msg *triggersv1.Trigger) (triggerType, side, orderT
 	return
 }
 
-// marketChildSlippage returns a stop-loss or take-profit market child's
-// slippage cap; zero when none is set and the pair default applies.
-func marketChildSlippage(msg *triggersv1.Trigger) (ticks models.PriceTicks, bps int32) {
-	var cond *triggersv1.ConditionalTrigger
+// triggerSlippageCap returns the top-level slippage cap of a trigger: a
+// stop-loss or take-profit market child's, a trailing stop's, or a market
+// TWAP's per-slice cap, in the variant the configuration carries. Both are
+// zero when none is set and the pair's default market slippage applies. A
+// trailing stop without a configuration falls back to its runtime details.
+func triggerSlippageCap(msg *triggersv1.Trigger) (ticks models.PriceTicks, bps int32) {
+	var rawTicks int64
 	switch cfg := msg.GetConfiguration().(type) {
 	case *triggersv1.Trigger_StopLoss:
-		cond = cfg.StopLoss
+		ioc := cfg.StopLoss.GetChild().GetMarketIoc()
+		rawTicks, bps = ioc.GetMaxSlippageTicks(), ioc.GetMaxSlippageBps()
 	case *triggersv1.Trigger_TakeProfit:
-		cond = cfg.TakeProfit
+		ioc := cfg.TakeProfit.GetChild().GetMarketIoc()
+		rawTicks, bps = ioc.GetMaxSlippageTicks(), ioc.GetMaxSlippageBps()
+	case *triggersv1.Trigger_TrailingStop:
+		rawTicks, bps = cfg.TrailingStop.GetMaxSlippageTicks(), cfg.TrailingStop.GetMaxSlippageBps()
+	case *triggersv1.Trigger_Twap:
+		ioc := cfg.Twap.GetMarketIoc()
+		rawTicks, bps = ioc.GetMaxSlippageTicks(), ioc.GetMaxSlippageBps()
+	case nil:
+		if tr := msg.GetTrailing(); tr != nil {
+			rawTicks, bps = tr.GetMaxSlippageTicks(), tr.GetMaxSlippageBps()
+		}
 	}
-	ioc := cond.GetChild().GetMarketIoc()
-	if ioc.GetMaxSlippageTicks() > 0 {
-		ticks = codecs.DecodePriceTicks(ioc.GetMaxSlippageTicks(), "")
+	if rawTicks > 0 {
+		ticks = codecs.DecodePriceTicks(rawTicks, "")
 	}
-	return ticks, ioc.GetMaxSlippageBps()
+	return ticks, bps
 }
 
 // conditionalChildProjection derives flat child fields from a stop-loss /
@@ -397,7 +411,7 @@ func TriggerFromProto(msg *triggersv1.Trigger) models.Trigger {
 		parentOrderID = codecs.FormatUint64ID(msg.GetParentOrderId())
 	}
 	cancelReason, failureReason := triggerReasonsFromTrigger(msg)
-	maxSlippage, maxSlippageBps := marketChildSlippage(msg)
+	maxSlippage, maxSlippageBps := triggerSlippageCap(msg)
 	return models.Trigger{
 		TriggerID:               codecs.FormatUint64ID(msg.GetTriggerId()),
 		SubaccountID:            codecs.FormatUint64ID(msg.GetSubaccountId()),
