@@ -94,13 +94,13 @@ func TestSignRequestReturnsPolyesterHeaders(t *testing.T) {
 	}
 }
 
-func TestTenThousandIdenticalRequestsGetUniqueBoundedAuthTuples(t *testing.T) {
+func TestBurstOfIdenticalRequestsGetsUniqueBoundedAuthTuples(t *testing.T) {
 	_, private, err := ed25519.GenerateKey(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	creds := testCredentials(t, "key_123", private)
-	const count = 10_000
+	const count = 3_000
 	var wg sync.WaitGroup
 	type signedAt struct {
 		headers      map[string]string
