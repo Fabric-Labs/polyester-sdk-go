@@ -132,8 +132,15 @@ func secretsInEffect() []string {
 	secretsMu.Unlock()
 	for _, name := range proxyEnv {
 		for _, part := range userinfoParts(strings.TrimSpace(os.Getenv(name))) {
-			if len(part) >= minSecretLength {
-				secrets = append(secrets, part)
+			// Raw and decoded, as RegisterURLSecrets does.
+			forms := []string{part}
+			if decoded, err := url.PathUnescape(part); err == nil {
+				forms = append(forms, decoded)
+			}
+			for _, form := range forms {
+				if len(form) >= minSecretLength {
+					secrets = append(secrets, form)
+				}
 			}
 		}
 	}

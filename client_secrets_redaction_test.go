@@ -30,3 +30,15 @@ func TestProxyUserinfoIsRedactedFromErrorText(t *testing.T) {
 		}
 	}
 }
+
+// The decoded userinfo of a percent-encoded proxy URL from the environment is
+// redacted too, as for a configured URL.
+func TestPercentEncodedEnvironmentProxyUserinfoIsRedactedDecoded(t *testing.T) {
+	t.Setenv("HTTPS_PROXY", "http://decoded%2Denv%2Duser:decoded%2Denv%2Dsecret%2DA73x@127.0.0.1:9")
+	text := redact.Text("proxy decoded-env-user:decoded-env-secret-A73x and decoded-env-secret-A73x refused")
+	for _, secret := range []string{"decoded-env-user:decoded-env-secret-A73x", "decoded-env-secret-A73x"} {
+		if strings.Contains(text, secret) {
+			t.Fatalf("%q survives: %s", secret, text)
+		}
+	}
+}
