@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.22.1
+
+Git tag: `v0.22.1`. Released 2026-11-12. Built on public contract `a3e3784`.
 
 - Requests signed with an API key could be refused by servers running the new clock rule, which refuses a timestamp more than one second ahead of the server clock as `TIMESTAMP_SKEW` (devnet runs it now; testnet gets it with its next release). The SDK gives each request of a key its own millisecond timestamp, and during a burst it let those timestamps run up to five seconds ahead of the local clock, so a burst of more than about a thousand signed requests, or a few hundred on a host whose clock is a little fast, got `*errors.TimestampSkewError` refusals. Automatic timestamps now lead the local clock by at most 500 ms (`auth.MaxSigningFutureSkewMS` is `500`, was `5000`); a larger burst waits for the clock instead, as it did at the old ceiling. Keep the host clock synchronized: the other half second is all the room the server leaves for skew. The docs also give the server's new default receive window, 5 seconds (was 10), used when `Config.RecvWindow` is zero. Affected: every method that signs with an API key, such as `Auth.Me`, `Orders.Create` and `Balances.List`; the realtime connection and subscription token requests behind every private subscription and the private order stream; `auth.SignRequest` and `auth.SignRequestWithRecvWindow` without an explicit timestamp; `auth.MaxSigningFutureSkewMS`.
 
