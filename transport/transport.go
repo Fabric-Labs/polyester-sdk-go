@@ -26,7 +26,7 @@ type Config struct {
 	WireFormat connectx.WireFormat
 	// RecvWindowMS is the receive window of every signed Connect request, in
 	// milliseconds (1 to 60000); 0 sends no window and the server applies
-	// 10000.
+	// 5000.
 	RecvWindowMS int
 }
 
