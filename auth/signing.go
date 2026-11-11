@@ -36,7 +36,7 @@ func CanonicalQuery(rawURL string) (string, error) {
 }
 
 // Bounds of an API-key request's receive window (X-API-RECV-WINDOW), in
-// milliseconds. Without the header the server applies 10000.
+// milliseconds. Without the header the server applies 5000.
 const (
 	MinRecvWindowMS = 1
 	MaxRecvWindowMS = 60000

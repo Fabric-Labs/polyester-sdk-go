@@ -60,7 +60,7 @@ type Config struct {
 	// authenticated, having changed nothing. It is sent as the signed
 	// X-API-RECV-WINDOW header and must be whole milliseconds from 1ms to
 	// 60s; New refuses any other value. Zero sends no header, and the server
-	// applies 10 seconds. Realtime token requests always use the default.
+	// applies 5 seconds. Realtime token requests always use the default.
 	RecvWindow time.Duration
 	// CatalogTimeout bounds the catalog loads HydrateCatalogs begins: the
 	// spot config and the funding (deposit/withdraw) config each load on

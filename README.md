@@ -7,9 +7,9 @@ and automation. Parity with `polyester-sdk-python` and `polyester-sdk-rust`
 using the checked-in `gen/` protobuf bundle (no local proto generation for
 normal development).
 
-**Status:** `v0.22.0`, pre-1.0: a minor release may change the API. The Go,
+**Status:** `v0.22.1`, pre-1.0: a minor release may change the API. The Go,
 Python and Rust SDKs are released together. Their versions match unless a
-change breaks only one SDK's API: Go `v0.22.0` is the release of Python `0.21.0` and Rust `0.20.0`.
+change breaks only one SDK's API: Go `v0.22.1` is the release of Python `0.21.1` and Rust `0.20.1`.
 Proprietary license (not open source).
 API-key only; no browser login or session MFA.
 
@@ -123,7 +123,7 @@ account's resting orders, the leg stays `armed` and its trigger records one
 ## Install
 
 ```bash
-go get github.com/Fabric-Labs/polyester-sdk-go@v0.22.0
+go get github.com/Fabric-Labs/polyester-sdk-go@v0.22.1
 ```
 
 For development from a git checkout:
@@ -222,14 +222,15 @@ Automatic request signing gives concurrent identical calls distinct authenticati
 Credential copies and independently loaded credentials for the same key share the process allocator.
 The signing protocol has no cross-process nonce, so assign one API key per process; sharing a key
 between processes can produce identical authentication tuples. Timestamps can lead the local clock
-by at most five seconds; larger bursts are backpressured instead of reusing a signature or drifting
-outside the API's 10-second freshness window.
+by at most half a second; larger bursts are backpressured instead of reusing a signature or running
+past the API's limit, which refuses a timestamp more than one second ahead of the server clock as
+`errors.TimestampSkewError`. Keep the host clock synchronized.
 
 `Config.RecvWindow` sets the receive window of every signed API request: the server processes a
 request only until its signing timestamp plus the window, sent as the signed `X-API-RECV-WINDOW`
 header. It must be whole milliseconds from 1ms to 60s, and `polyester.New` refuses any other value
 with `errors.ValidationError` before anything is sent. Zero sends no header, and the server applies
-10 seconds. A request that arrives after its window is refused as the retryable
+5 seconds. A request that arrives after its window is refused as the retryable
 `errors.TimestampSkewError`; one that waited past it before admission is refused as
 `errors.CodeRequestDeadlineExceeded`, also retryable. Both changed nothing, and a retry signs again
 with a fresh timestamp. Realtime token requests always use the default window. To sign requests
@@ -538,7 +539,7 @@ On REST outcome-unknown and refusal errors (including HTTP 400, 409, 412 and 422
 nothing and `errors.IsRetryable` reports true: retry the same request shortly.
 `errors.CodeRequestDeadlineExceeded` (`ERROR_CODE_REQUEST_DEADLINE_EXCEEDED`,
 REST 400 `REQUEST_DEADLINE_EXCEEDED`, Connect `failed_precondition`) refuses an
-order or trigger write whose receive window (10 seconds by default) ended
+order or trigger write whose receive window (5 seconds by default) ended
 before it was sent on for admission. It is an `errors.APIError` that
 `errors.IsRequestDeadlineExceeded` reports; nothing changed, it is never an
 unknown outcome, and `errors.IsRetryable` reports true: sending it again signs
