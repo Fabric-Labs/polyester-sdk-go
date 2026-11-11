@@ -32,6 +32,10 @@ const (
 	RequestFeeStatus_REQUEST_FEE_STATUS_LOCKED RequestFeeStatus = 1
 	// The request completed far enough for the locked fee to settle.
 	RequestFeeStatus_REQUEST_FEE_STATUS_SETTLED RequestFeeStatus = 2
+	// The request did not complete, and the fee was charged anyway: Zipper
+	// does not refund a withdrawal's fee when it rejects the withdrawal or its
+	// execution fails.
+	RequestFeeStatus_REQUEST_FEE_STATUS_KEPT RequestFeeStatus = 3
 )
 
 // Enum value maps for RequestFeeStatus.
@@ -40,11 +44,13 @@ var (
 		0: "REQUEST_FEE_STATUS_UNSPECIFIED",
 		1: "REQUEST_FEE_STATUS_LOCKED",
 		2: "REQUEST_FEE_STATUS_SETTLED",
+		3: "REQUEST_FEE_STATUS_KEPT",
 	}
 	RequestFeeStatus_value = map[string]int32{
 		"REQUEST_FEE_STATUS_UNSPECIFIED": 0,
 		"REQUEST_FEE_STATUS_LOCKED":      1,
 		"REQUEST_FEE_STATUS_SETTLED":     2,
+		"REQUEST_FEE_STATUS_KEPT":        3,
 	}
 )
 
@@ -81,14 +87,30 @@ type LifecycleReason int32
 
 const (
 	LifecycleReason_REASON_UNSPECIFIED LifecycleReason = 0
-	// Zipper validators reached the rejection quorum.
+	// Zipper validators reached the rejection quorum. A rejected withdrawal
+	// ends REFUNDED once Zipper refunds it: the amount net of its request fee
+	// goes back, as zTokens, to the Polyester Chain smart account that sent
+	// it, and the request fee is kept.
 	LifecycleReason_ZIPPER_VALIDATION_REJECTED LifecycleReason = 101
-	// Zipper execution rejected the request.
+	// Zipper execution rejected the request. A withdrawal rejected at
+	// execution ends REFUNDED like one rejected at validation.
 	LifecycleReason_ZIPPER_EXECUTION_REJECTED LifecycleReason = 102
-	// Zipper withdraw execution failed.
+	// Zipper withdraw execution failed after the withdrawal's destination
+	// transaction was committed, and Zipper reviews it manually: the user may
+	// have received the funds on the destination chain. The flow ends FAILED,
+	// and its FAILED step's transaction is that destination transaction.
+	// Nothing is refunded to the account, and the request fee is kept; Zipper
+	// settles the withdrawal with the user outside Polyester Chain.
 	LifecycleReason_ZIPPER_WITHDRAW_EXECUTION_FAILED LifecycleReason = 103
 	// Zipper deposit refund failed.
 	LifecycleReason_ZIPPER_DEPOSIT_REFUND_FAILED LifecycleReason = 104
+	// Zipper's compliance screening blocked the deposit (zipper_reason_code
+	// COMPLIANCE_ADDRESS_BLOCKED), and Zipper's compliance team then
+	// transferred the funds out on the deposit's source chain to an address of
+	// its choosing, not necessarily the depositor's. The flow ends FAILED, and
+	// its FAILED step's transaction is that transfer. Polyester records
+	// neither the recipient nor the amount. This is not a return or a refund.
+	LifecycleReason_ZIPPER_COMPLIANCE_TRANSFERRED LifecycleReason = 105
 	// Ledger mirror rejected a command before it could be durably applied.
 	LifecycleReason_LEDGER_MIRROR_REJECTED LifecycleReason = 200
 	// Ledger settlement rejected the mirror command because the source account did
@@ -122,6 +144,7 @@ var (
 		102: "ZIPPER_EXECUTION_REJECTED",
 		103: "ZIPPER_WITHDRAW_EXECUTION_FAILED",
 		104: "ZIPPER_DEPOSIT_REFUND_FAILED",
+		105: "ZIPPER_COMPLIANCE_TRANSFERRED",
 		200: "LEDGER_MIRROR_REJECTED",
 		201: "LEDGER_MIRROR_TRANSFER_EXCEEDS_CREDITS",
 		202: "LEDGER_MIRROR_TRANSFER_EXISTS",
@@ -138,6 +161,7 @@ var (
 		"ZIPPER_EXECUTION_REJECTED":                102,
 		"ZIPPER_WITHDRAW_EXECUTION_FAILED":         103,
 		"ZIPPER_DEPOSIT_REFUND_FAILED":             104,
+		"ZIPPER_COMPLIANCE_TRANSFERRED":            105,
 		"LEDGER_MIRROR_REJECTED":                   200,
 		"LEDGER_MIRROR_TRANSFER_EXCEEDS_CREDITS":   201,
 		"LEDGER_MIRROR_TRANSFER_EXISTS":            202,
@@ -588,17 +612,19 @@ const file_chain_lifecycle_v1_types_proto_rawDesc = "" +
 	"\n" +
 	"amount_e18\x18\x02 \x01(\v2\x17.polyester.type.v1.U128R\tamountE18\x12+\n" +
 	"\x11recipient_address\x18\x03 \x01(\tR\x10recipientAddress\x12<\n" +
-	"\x06status\x18\x04 \x01(\x0e2$.chain.lifecycle.v1.RequestFeeStatusR\x06status*u\n" +
+	"\x06status\x18\x04 \x01(\x0e2$.chain.lifecycle.v1.RequestFeeStatusR\x06status*\x92\x01\n" +
 	"\x10RequestFeeStatus\x12\"\n" +
 	"\x1eREQUEST_FEE_STATUS_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19REQUEST_FEE_STATUS_LOCKED\x10\x01\x12\x1e\n" +
-	"\x1aREQUEST_FEE_STATUS_SETTLED\x10\x02*\x95\x04\n" +
+	"\x1aREQUEST_FEE_STATUS_SETTLED\x10\x02\x12\x1b\n" +
+	"\x17REQUEST_FEE_STATUS_KEPT\x10\x03*\xb8\x04\n" +
 	"\x0fLifecycleReason\x12\x16\n" +
 	"\x12REASON_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aZIPPER_VALIDATION_REJECTED\x10e\x12\x1d\n" +
 	"\x19ZIPPER_EXECUTION_REJECTED\x10f\x12$\n" +
 	" ZIPPER_WITHDRAW_EXECUTION_FAILED\x10g\x12 \n" +
-	"\x1cZIPPER_DEPOSIT_REFUND_FAILED\x10h\x12\x1b\n" +
+	"\x1cZIPPER_DEPOSIT_REFUND_FAILED\x10h\x12!\n" +
+	"\x1dZIPPER_COMPLIANCE_TRANSFERRED\x10i\x12\x1b\n" +
 	"\x16LEDGER_MIRROR_REJECTED\x10\xc8\x01\x12+\n" +
 	"&LEDGER_MIRROR_TRANSFER_EXCEEDS_CREDITS\x10\xc9\x01\x12\"\n" +
 	"\x1dLEDGER_MIRROR_TRANSFER_EXISTS\x10\xca\x01\x12-\n" +

@@ -3599,15 +3599,15 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x1bACTIVITY_SOURCE_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13ACTIVITY_SOURCE_WEB\x10\x01\x12\x1a\n" +
 	"\x16ACTIVITY_SOURCE_MOBILE\x10\x02\x12\x17\n" +
-	"\x13ACTIVITY_SOURCE_API\x10\x032\xf3\x04\n" +
-	"\x15SubaccountViewService\x12\xbc\x02\n" +
-	"\rGetSubaccount\x12\x1d.auth.v1.GetSubaccountRequest\x1a\x1e.auth.v1.GetSubaccountResponse\"\xeb\x01\xbaG\xb5\x01\n" +
-	"\fAuth Service\x12\x13Get Subaccount View\x1a\x8f\x01Return a single payload containing the sub-account and requested related read models, such as members, API keys, invites, policy, and balances.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02&\x12$/v1/auth/subaccounts/{subaccount_id}\x12\x8d\x02\n" +
-	"\x16ListSubaccountActivity\x12$.auth.v1.ListSubaccountEventsRequest\x1a%.auth.v1.ListSubaccountEventsResponse\"\xa5\x01\xbaGi\n" +
-	"\fAuth Service\x12\x18List Subaccount Activity\x1a?List audit and activity events for a sub-account, newest first.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02-\x12+/v1/auth/subaccounts/{subaccount_id}/events\x1a\v\x8a\xb5\x18\aaccount2\x8c\x1a\n" +
-	"\x11SubaccountService\x12\xed\x01\n" +
-	"\x0fListSubaccounts\x12\x1f.auth.v1.ListSubaccountsRequest\x1a .auth.v1.ListSubaccountsResponse\"\x96\x01\xbaGq\n" +
-	"\fAuth Service\x12\x10List Subaccounts\x1aOList sub-accounts owned by or shared with the caller, including role and label.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x16\x12\x14/v1/auth/subaccounts\x12\xb3\x02\n" +
+	"\x13ACTIVITY_SOURCE_API\x10\x032\xfa\x06\n" +
+	"\x15SubaccountViewService\x12\x86\x04\n" +
+	"\rGetSubaccount\x12\x1d.auth.v1.GetSubaccountRequest\x1a\x1e.auth.v1.GetSubaccountResponse\"\xb5\x03\xbaG\xff\x02\n" +
+	"\fAuth Service\x12\x13Get Subaccount View\x1a\xd9\x02Return a single payload containing the sub-account and requested related read models, such as members, API keys, invites, policy, and balances. An API key needs READ_SUBACCOUNTS within its scope; it gets the members and invites expansions only with READ_SUBACCOUNT_MEMBERS and READ_SUBACCOUNT_INVITES, and never the API-key or policy expansions.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02&\x12$/v1/auth/subaccounts/{subaccount_id}\x12\xca\x02\n" +
+	"\x16ListSubaccountActivity\x12$.auth.v1.ListSubaccountEventsRequest\x1a%.auth.v1.ListSubaccountEventsResponse\"\xe2\x01\xbaG\xa5\x01\n" +
+	"\fAuth Service\x12\x18List Subaccount Activity\x1a{List audit and activity events for a sub-account, newest first. An API key needs READ_SUBACCOUNT_ACTIVITY within its scope.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02-\x12+/v1/auth/subaccounts/{subaccount_id}/events\x1a\v\x8a\xb5\x18\aaccount2\x97\x1c\n" +
+	"\x11SubaccountService\x12\xc3\x02\n" +
+	"\x0fListSubaccounts\x12\x1f.auth.v1.ListSubaccountsRequest\x1a .auth.v1.ListSubaccountsResponse\"\xec\x01\xbaG\xc6\x01\n" +
+	"\fAuth Service\x12\x10List Subaccounts\x1a\xa3\x01List sub-accounts owned by or shared with the caller, including role and label. An API key needs READ_SUBACCOUNTS and lists only the sub-accounts within its scope.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x16\x12\x14/v1/auth/subaccounts\x12\xb3\x02\n" +
 	"\x19CreateSubaccountChallenge\x12).auth.v1.CreateSubaccountChallengeRequest\x1a*.auth.v1.CreateSubaccountChallengeResponse\"\xbe\x01\xbaG\x8c\x01\n" +
 	"\fAuth Service\x12\x1bCreate Subaccount Challenge\x1a_Request the next smart account and an EIP-191 authorization. Requires current terms acceptance.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02#:\x01*\"\x1e/v1/auth/subaccounts/challenge\x12\x96\x02\n" +
 	"\x10CreateSubaccount\x12 .auth.v1.CreateSubaccountRequest\x1a!.auth.v1.CreateSubaccountResponse\"\xbc\x01\xbaG\x94\x01\n" +
@@ -3615,17 +3615,17 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x10UpdateSubaccount\x12 .auth.v1.UpdateSubaccountRequest\x1a!.auth.v1.UpdateSubaccountResponse\"\xa3\x01\xbaGl\n" +
 	"\fAuth Service\x12\x11Update Subaccount\x1aIUpdate mutable sub-account fields such as label, icon, color, and status.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02):\x01*2$/v1/auth/subaccounts/{subaccount_id}\x12\xe9\x02\n" +
 	"!SetSubaccountMemberMFARequirement\x121.auth.v1.SetSubaccountMemberMFARequirementRequest\x1a2.auth.v1.SetSubaccountMemberMFARequirementResponse\"\xdc\x01\xbaG\x95\x01\n" +
-	"\fAuth Service\x12%Set Subaccount Member MFA Requirement\x1a^Enable or disable the owner-controlled MFA requirement for protected delegated-member actions.\x98\xb5\x18\x03\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x024:\x01*2//v1/auth/subaccounts/{subaccount_id}/member-mfa\x12\x90\x02\n" +
-	"\x15ListSubaccountMembers\x12%.auth.v1.ListSubaccountMembersRequest\x1a&.auth.v1.ListSubaccountMembersResponse\"\xa7\x01\xbaGk\n" +
-	"\fAuth Service\x12\x17List Subaccount Members\x1aBList all members and roles for a sub-account, including the owner.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02.\x12,/v1/auth/subaccounts/{subaccount_id}/members\x12\x8e\x02\n" +
+	"\fAuth Service\x12%Set Subaccount Member MFA Requirement\x1a^Enable or disable the owner-controlled MFA requirement for protected delegated-member actions.\x98\xb5\x18\x03\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x024:\x01*2//v1/auth/subaccounts/{subaccount_id}/member-mfa\x12\xcd\x02\n" +
+	"\x15ListSubaccountMembers\x12%.auth.v1.ListSubaccountMembersRequest\x1a&.auth.v1.ListSubaccountMembersResponse\"\xe4\x01\xbaG\xa6\x01\n" +
+	"\fAuth Service\x12\x17List Subaccount Members\x1a}List all members and roles for a sub-account, including the owner. An API key needs READ_SUBACCOUNT_MEMBERS within its scope.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02.\x12,/v1/auth/subaccounts/{subaccount_id}/members\x12\x8e\x02\n" +
 	"\x16RemoveSubaccountMember\x12&.auth.v1.RemoveSubaccountMemberRequest\x1a'.auth.v1.RemoveSubaccountMemberResponse\"\xa2\x01\xbaGM\n" +
 	"\fAuth Service\x12\x18Remove Subaccount Member\x1a#Remove a member from a sub-account.\x98\xb5\x18\x03\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02C*A/v1/auth/subaccounts/{subaccount_id}/members/{grantee_account_id}\x12\xb1\x02\n" +
 	"\x1aUpdateSubaccountMemberRole\x12*.auth.v1.UpdateSubaccountMemberRoleRequest\x1a+.auth.v1.UpdateSubaccountMemberRoleResponse\"\xb9\x01\xbaGa\n" +
 	"\fAuth Service\x12\x1dUpdate Subaccount Member Role\x1a2Update the role of an existing sub-account member.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02F:\x01*2A/v1/auth/subaccounts/{subaccount_id}/members/{grantee_account_id}\x12\x96\x02\n" +
 	"\x16InviteSubaccountMember\x12&.auth.v1.InviteSubaccountMemberRequest\x1a'.auth.v1.InviteSubaccountMemberResponse\"\xaa\x01\xbaGg\n" +
-	"\fAuth Service\x12\x18Invite Subaccount Member\x1a=Create a pending invitation to grant a role on a sub-account.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x021:\x01*\",/v1/auth/subaccounts/{subaccount_id}/invites\x12\x9e\x02\n" +
-	"\x15ListSubaccountInvites\x12%.auth.v1.ListSubaccountInvitesRequest\x1a&.auth.v1.ListSubaccountInvitesResponse\"\xb5\x01\xbaG\x87\x01\n" +
-	"\fAuth Service\x12\x17List Subaccount Invites\x1a^List incoming invitations and all invitations for sub-accounts the caller owns or administers.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1e\x12\x1c/v1/auth/subaccounts:invites\x12\xac\x03\n" +
+	"\fAuth Service\x12\x18Invite Subaccount Member\x1a=Create a pending invitation to grant a role on a sub-account.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x021:\x01*\",/v1/auth/subaccounts/{subaccount_id}/invites\x12\x96\x03\n" +
+	"\x15ListSubaccountInvites\x12%.auth.v1.ListSubaccountInvitesRequest\x1a&.auth.v1.ListSubaccountInvitesResponse\"\xad\x02\xbaG\xff\x01\n" +
+	"\fAuth Service\x12\x17List Subaccount Invites\x1a\xd5\x01List incoming invitations and all invitations for sub-accounts the caller owns or administers. An API key needs READ_SUBACCOUNT_INVITES and lists only the outgoing invitations of the sub-accounts within its scope.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1e\x12\x1c/v1/auth/subaccounts:invites\x12\xac\x03\n" +
 	"\x17RespondSubaccountInvite\x12'.auth.v1.RespondSubaccountInviteRequest\x1a(.auth.v1.RespondSubaccountInviteResponse\"\xbd\x02\xbaG\xf5\x01\n" +
 	"\fAuth Service\x12\x19Respond Subaccount Invite\x1a\xc9\x01Accept or decline an invite as grantee, or cancel it as an authorized owner or admin. Acceptance requires an enrolled factor and a recently MFA-elevated session when the subaccount requires member MFA.\x98\xb5\x18\x03\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x025:\x01*\"0/v1/auth/subaccounts/invites/{invite_id}:respond\x1a\v\x8a\xb5\x18\aaccount2\xe4\x06\n" +
 	"\x15SubaccountRoleService\x12\x9b\x02\n" +

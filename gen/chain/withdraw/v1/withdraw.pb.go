@@ -14,6 +14,7 @@ import (
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -125,6 +126,24 @@ const (
 	// amount_e18 down to a whole number of that token's smallest units before
 	// signing.
 	ErrorCode_ERROR_CODE_AMOUNT_EXCEEDS_ROUTE_PRECISION ErrorCode = 44
+	// An auto-withdraw destination address is not a valid withdrawal
+	// destination on its chain. ErrorDetail.field_path names the destination.
+	ErrorCode_ERROR_CODE_DESTINATION_INVALID ErrorCode = 45
+	// An auto-withdraw destination's min_amount_e18 is below the least amount
+	// a payout to it can pay. ErrorDetail.min_floor_e18 is that floor and
+	// ErrorDetail.field_path names the field.
+	ErrorCode_ERROR_CODE_MIN_AMOUNT_BELOW_FLOOR ErrorCode = 46
+	// No enabled withdrawal route pays an auto-withdraw destination's asset to
+	// its destination chain. ErrorDetail.field_path names the field.
+	ErrorCode_ERROR_CODE_ROUTE_UNSUPPORTED ErrorCode = 47
+	// expected_version is not the auto-withdraw rule's latest version: another
+	// change landed first. Read the rule again before retrying.
+	ErrorCode_ERROR_CODE_VERSION_CONFLICT ErrorCode = 48
+	// A broker vault pays an external destination only once it has been on the
+	// vault's external withdraw whitelist for 24 hours, and this one was added
+	// more recently. ErrorDetail.payable_from is when it can be paid; unset
+	// when that time is not known yet. Retry after it.
+	ErrorCode_ERROR_CODE_EXTERNAL_DESTINATION_COOLING_DOWN ErrorCode = 49
 )
 
 // Enum value maps for ErrorCode.
@@ -175,6 +194,11 @@ var (
 		42: "ERROR_CODE_CONFLICT",
 		43: "ERROR_CODE_INVALID_AUTO_WITHDRAW_SCHEDULE",
 		44: "ERROR_CODE_AMOUNT_EXCEEDS_ROUTE_PRECISION",
+		45: "ERROR_CODE_DESTINATION_INVALID",
+		46: "ERROR_CODE_MIN_AMOUNT_BELOW_FLOOR",
+		47: "ERROR_CODE_ROUTE_UNSUPPORTED",
+		48: "ERROR_CODE_VERSION_CONFLICT",
+		49: "ERROR_CODE_EXTERNAL_DESTINATION_COOLING_DOWN",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_CODE_UNSPECIFIED":                          0,
@@ -222,6 +246,11 @@ var (
 		"ERROR_CODE_CONFLICT":                             42,
 		"ERROR_CODE_INVALID_AUTO_WITHDRAW_SCHEDULE":       43,
 		"ERROR_CODE_AMOUNT_EXCEEDS_ROUTE_PRECISION":       44,
+		"ERROR_CODE_DESTINATION_INVALID":                  45,
+		"ERROR_CODE_MIN_AMOUNT_BELOW_FLOOR":               46,
+		"ERROR_CODE_ROUTE_UNSUPPORTED":                    47,
+		"ERROR_CODE_VERSION_CONFLICT":                     48,
+		"ERROR_CODE_EXTERNAL_DESTINATION_COOLING_DOWN":    49,
 	}
 )
 
@@ -473,7 +502,20 @@ func (x *CreateWalletTradingWithdrawResponse) GetIntentId() string {
 type ErrorDetail struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable error code matching the REST problem+json code field.
-	Code          ErrorCode `protobuf:"varint,1,opt,name=code,proto3,enum=chain.withdraw.v1.ErrorCode" json:"code,omitempty"`
+	Code ErrorCode `protobuf:"varint,1,opt,name=code,proto3,enum=chain.withdraw.v1.ErrorCode" json:"code,omitempty"`
+	// Field the error is about, as a protobuf field path such as
+	// destinations[0].min_amount_e18; empty when the error concerns no single
+	// field. Usually a field of the request. A refused auto-withdraw resume
+	// names a field of the stored rule instead, such as
+	// destinations[1].destination_address of AutoWithdrawRule, which the
+	// request does not carry.
+	FieldPath string `protobuf:"bytes,2,opt,name=field_path,json=fieldPath,proto3" json:"field_path,omitempty"`
+	// Set only with MIN_AMOUNT_BELOW_FLOOR: the least amount, in 18-decimal
+	// asset units, the destination's min_amount_e18 may be.
+	MinFloorE18 *v1.U128 `protobuf:"bytes,3,opt,name=min_floor_e18,json=minFloorE18,proto3" json:"min_floor_e18,omitempty"`
+	// Set only with EXTERNAL_DESTINATION_COOLING_DOWN, when known: the time
+	// from which the destination can be paid.
+	PayableFrom   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=payable_from,json=payableFrom,proto3" json:"payable_from,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -513,6 +555,27 @@ func (x *ErrorDetail) GetCode() ErrorCode {
 		return x.Code
 	}
 	return ErrorCode_ERROR_CODE_UNSPECIFIED
+}
+
+func (x *ErrorDetail) GetFieldPath() string {
+	if x != nil {
+		return x.FieldPath
+	}
+	return ""
+}
+
+func (x *ErrorDetail) GetMinFloorE18() *v1.U128 {
+	if x != nil {
+		return x.MinFloorE18
+	}
+	return nil
+}
+
+func (x *ErrorDetail) GetPayableFrom() *timestamppb.Timestamp {
+	if x != nil {
+		return x.PayableFrom
+	}
+	return nil
 }
 
 // TradingWithdrawIntentPayload is the client-signed typed withdraw request.
@@ -901,17 +964,210 @@ func (x *ValidateWithdrawDestinationResponse) GetCanonicalDestinationAddress() s
 	return ""
 }
 
+// GetWalletBalancesRequest selects the account whose smart account wallet
+// to read.
+type GetWalletBalancesRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public subaccount ID; omit for the root account.
+	SubaccountId  uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetWalletBalancesRequest) Reset() {
+	*x = GetWalletBalancesRequest{}
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWalletBalancesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWalletBalancesRequest) ProtoMessage() {}
+
+func (x *GetWalletBalancesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWalletBalancesRequest.ProtoReflect.Descriptor instead.
+func (*GetWalletBalancesRequest) Descriptor() ([]byte, []int) {
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GetWalletBalancesRequest) GetSubaccountId() uint64 {
+	if x != nil {
+		return x.SubaccountId
+	}
+	return 0
+}
+
+// WalletBalance is one zToken the smart account wallet holds.
+type WalletBalance struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Zipped asset of the zToken: the network-specific asset, as
+	// chain.lifecycle.v1.AssetIds.zipped_asset_id names it.
+	ZippedAssetId uint32 `protobuf:"varint,1,opt,name=zipped_asset_id,json=zippedAssetId,proto3" json:"zipped_asset_id,omitempty"`
+	// Unified asset the zToken stands for, as
+	// chain.lifecycle.v1.AssetIds.unified_asset_id names it.
+	UnifiedAssetId uint32 `protobuf:"varint,2,opt,name=unified_asset_id,json=unifiedAssetId,proto3" json:"unified_asset_id,omitempty"`
+	// External network of the zipped asset, as the `chain_id` of a chain
+	// returned by `GetDepositWithdrawConfig`.
+	ChainId uint32 `protobuf:"varint,3,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
+	// zToken contract address on Polyester Chain.
+	ZtokenAddress string `protobuf:"bytes,4,opt,name=ztoken_address,json=ztokenAddress,proto3" json:"ztoken_address,omitempty"`
+	// Balance in 18-decimal units: every zToken has 18 decimals.
+	AmountE18     *v1.U128 `protobuf:"bytes,5,opt,name=amount_e18,json=amountE18,proto3" json:"amount_e18,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WalletBalance) Reset() {
+	*x = WalletBalance{}
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WalletBalance) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WalletBalance) ProtoMessage() {}
+
+func (x *WalletBalance) ProtoReflect() protoreflect.Message {
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WalletBalance.ProtoReflect.Descriptor instead.
+func (*WalletBalance) Descriptor() ([]byte, []int) {
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *WalletBalance) GetZippedAssetId() uint32 {
+	if x != nil {
+		return x.ZippedAssetId
+	}
+	return 0
+}
+
+func (x *WalletBalance) GetUnifiedAssetId() uint32 {
+	if x != nil {
+		return x.UnifiedAssetId
+	}
+	return 0
+}
+
+func (x *WalletBalance) GetChainId() uint32 {
+	if x != nil {
+		return x.ChainId
+	}
+	return 0
+}
+
+func (x *WalletBalance) GetZtokenAddress() string {
+	if x != nil {
+		return x.ZtokenAddress
+	}
+	return ""
+}
+
+func (x *WalletBalance) GetAmountE18() *v1.U128 {
+	if x != nil {
+		return x.AmountE18
+	}
+	return nil
+}
+
+// GetWalletBalancesResponse is the smart account wallet's zToken balances,
+// read from Polyester Chain at its latest block.
+type GetWalletBalancesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Smart account wallet whose balances these are.
+	SmartAccountAddress string `protobuf:"bytes,1,opt,name=smart_account_address,json=smartAccountAddress,proto3" json:"smart_account_address,omitempty"`
+	// Every zToken the wallet holds a nonzero balance of, ordered by
+	// zipped_asset_id. Empty when it holds none.
+	Balances      []*WalletBalance `protobuf:"bytes,2,rep,name=balances,proto3" json:"balances,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetWalletBalancesResponse) Reset() {
+	*x = GetWalletBalancesResponse{}
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWalletBalancesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWalletBalancesResponse) ProtoMessage() {}
+
+func (x *GetWalletBalancesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWalletBalancesResponse.ProtoReflect.Descriptor instead.
+func (*GetWalletBalancesResponse) Descriptor() ([]byte, []int) {
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *GetWalletBalancesResponse) GetSmartAccountAddress() string {
+	if x != nil {
+		return x.SmartAccountAddress
+	}
+	return ""
+}
+
+func (x *GetWalletBalancesResponse) GetBalances() []*WalletBalance {
+	if x != nil {
+		return x.Balances
+	}
+	return nil
+}
+
 var File_chain_withdraw_v1_withdraw_proto protoreflect.FileDescriptor
 
 const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"\n" +
-	" chain/withdraw/v1/withdraw.proto\x12\x11chain.withdraw.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1bpolyester/api/options.proto\x1a\x1cpolyester/type/v1/u128.proto\"<\n" +
+	" chain/withdraw/v1/withdraw.proto\x12\x11chain.withdraw.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\x1a\x1cpolyester/type/v1/u128.proto\"<\n" +
 	"\x1dCreateTradingWithdrawResponse\x12\x1b\n" +
 	"\tintent_id\x18\x01 \x01(\tR\bintentId\"B\n" +
 	"#CreateWalletTradingWithdrawResponse\x12\x1b\n" +
-	"\tintent_id\x18\x01 \x01(\tR\bintentId\"?\n" +
+	"\tintent_id\x18\x01 \x01(\tR\bintentId\"\xda\x01\n" +
 	"\vErrorDetail\x120\n" +
-	"\x04code\x18\x01 \x01(\x0e2\x1c.chain.withdraw.v1.ErrorCodeR\x04code\"\xcd\x03\n" +
+	"\x04code\x18\x01 \x01(\x0e2\x1c.chain.withdraw.v1.ErrorCodeR\x04code\x12\x1d\n" +
+	"\n" +
+	"field_path\x18\x02 \x01(\tR\tfieldPath\x12;\n" +
+	"\rmin_floor_e18\x18\x03 \x01(\v2\x17.polyester.type.v1.U128R\vminFloorE18\x12=\n" +
+	"\fpayable_from\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vpayableFrom\"\xcd\x03\n" +
 	"\x1cTradingWithdrawIntentPayload\x12L\n" +
 	"\x06action\x18\x01 \x01(\x0e2(.chain.withdraw.v1.TradingWithdrawActionB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x06action\x12\"\n" +
@@ -938,7 +1194,19 @@ const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"\x05valid\x18\x01 \x01(\bR\x05valid\x12H\n" +
 	"\x04code\x18\x02 \x01(\x0e24.chain.withdraw.v1.WithdrawDestinationValidationCodeR\x04code\x12\x18\n" +
 	"\amessage\x18\x03 \x01(\tR\amessage\x12B\n" +
-	"\x1dcanonical_destination_address\x18\x04 \x01(\tR\x1bcanonicalDestinationAddress*\xd8\r\n" +
+	"\x1dcanonical_destination_address\x18\x04 \x01(\tR\x1bcanonicalDestinationAddress\"?\n" +
+	"\x18GetWalletBalancesRequest\x12#\n" +
+	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\"\xdb\x01\n" +
+	"\rWalletBalance\x12&\n" +
+	"\x0fzipped_asset_id\x18\x01 \x01(\rR\rzippedAssetId\x12(\n" +
+	"\x10unified_asset_id\x18\x02 \x01(\rR\x0eunifiedAssetId\x12\x19\n" +
+	"\bchain_id\x18\x03 \x01(\rR\achainId\x12%\n" +
+	"\x0eztoken_address\x18\x04 \x01(\tR\rztokenAddress\x126\n" +
+	"\n" +
+	"amount_e18\x18\x05 \x01(\v2\x17.polyester.type.v1.U128R\tamountE18\"\x8d\x01\n" +
+	"\x19GetWalletBalancesResponse\x122\n" +
+	"\x15smart_account_address\x18\x01 \x01(\tR\x13smartAccountAddress\x12<\n" +
+	"\bbalances\x18\x02 \x03(\v2 .chain.withdraw.v1.WalletBalanceR\bbalances*\x98\x0f\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12!\n" +
 	"\x1dERROR_CODE_INSUFFICIENT_FUNDS\x10\x01\x12\x1e\n" +
@@ -985,7 +1253,12 @@ const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"\x14ERROR_CODE_NOT_FOUND\x10)\x12\x17\n" +
 	"\x13ERROR_CODE_CONFLICT\x10*\x12-\n" +
 	")ERROR_CODE_INVALID_AUTO_WITHDRAW_SCHEDULE\x10+\x12-\n" +
-	")ERROR_CODE_AMOUNT_EXCEEDS_ROUTE_PRECISION\x10,*V\n" +
+	")ERROR_CODE_AMOUNT_EXCEEDS_ROUTE_PRECISION\x10,\x12\"\n" +
+	"\x1eERROR_CODE_DESTINATION_INVALID\x10-\x12%\n" +
+	"!ERROR_CODE_MIN_AMOUNT_BELOW_FLOOR\x10.\x12 \n" +
+	"\x1cERROR_CODE_ROUTE_UNSUPPORTED\x10/\x12\x1f\n" +
+	"\x1bERROR_CODE_VERSION_CONFLICT\x100\x120\n" +
+	",ERROR_CODE_EXTERNAL_DESTINATION_COOLING_DOWN\x101*V\n" +
 	"\x15TradingWithdrawAction\x12\x16\n" +
 	"\x12ACTION_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -998,9 +1271,10 @@ const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"\x11UNSUPPORTED_CHAIN\x10\x03\x12\x1b\n" +
 	"\x17POLYESTER_SMART_ACCOUNT\x10\x04\x12\x12\n" +
 	"\x0eTOKEN_CONTRACT\x10\x05\x12\x16\n" +
-	"\x12DENYLISTED_ADDRESS\x10\x062\xc4\n" +
-	"\n" +
-	"\x0fWithdrawService\x12\x9f\x03\n" +
+	"\x12DENYLISTED_ADDRESS\x10\x062\xae\r\n" +
+	"\x0fWithdrawService\x12\xe7\x02\n" +
+	"\x11GetWalletBalances\x12+.chain.withdraw.v1.GetWalletBalancesRequest\x1a,.chain.withdraw.v1.GetWalletBalancesResponse\"\xf6\x01\xbaG\xcb\x01\n" +
+	"\vWithdrawals\x12\x13Get Wallet Balances\x1a\xa6\x01Read the zTokens the account's smart account wallet holds on Polyester Chain, such as a rejected withdrawal's refund. An API key needs READ_BALANCES within its scope.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/chain/wallet/balances\x12\x9f\x03\n" +
 	"\x1bValidateWithdrawDestination\x125.chain.withdraw.v1.ValidateWithdrawDestinationRequest\x1a6.chain.withdraw.v1.ValidateWithdrawDestinationResponse\"\x90\x02\xbaG\xd3\x01\n" +
 	"\vWithdrawals\x12\x1dValidate Withdraw Destination\x1a\xa4\x01Validate an external-chain withdraw destination for an authenticated caller without creating a withdraw. An API key needs READ_WITHDRAW_VALIDATION within its scope.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02-:\x01*\"(/v1/chain/withdraws:validate-destination\x12\xd0\x02\n" +
 	"\x15CreateTradingWithdraw\x12/.chain.withdraw.v1.CreateTradingWithdrawRequest\x1a0.chain.withdraw.v1.CreateTradingWithdrawResponse\"\xd3\x01\xbaG\xa4\x01\n" +
@@ -1022,7 +1296,7 @@ func file_chain_withdraw_v1_withdraw_proto_rawDescGZIP() []byte {
 }
 
 var file_chain_withdraw_v1_withdraw_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_chain_withdraw_v1_withdraw_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_chain_withdraw_v1_withdraw_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_chain_withdraw_v1_withdraw_proto_goTypes = []any{
 	(ErrorCode)(0),                              // 0: chain.withdraw.v1.ErrorCode
 	(TradingWithdrawAction)(0),                  // 1: chain.withdraw.v1.TradingWithdrawAction
@@ -1035,27 +1309,37 @@ var file_chain_withdraw_v1_withdraw_proto_goTypes = []any{
 	(*CreateWalletTradingWithdrawRequest)(nil),  // 8: chain.withdraw.v1.CreateWalletTradingWithdrawRequest
 	(*ValidateWithdrawDestinationRequest)(nil),  // 9: chain.withdraw.v1.ValidateWithdrawDestinationRequest
 	(*ValidateWithdrawDestinationResponse)(nil), // 10: chain.withdraw.v1.ValidateWithdrawDestinationResponse
-	(*v1.U128)(nil),                             // 11: polyester.type.v1.U128
+	(*GetWalletBalancesRequest)(nil),            // 11: chain.withdraw.v1.GetWalletBalancesRequest
+	(*WalletBalance)(nil),                       // 12: chain.withdraw.v1.WalletBalance
+	(*GetWalletBalancesResponse)(nil),           // 13: chain.withdraw.v1.GetWalletBalancesResponse
+	(*v1.U128)(nil),                             // 14: polyester.type.v1.U128
+	(*timestamppb.Timestamp)(nil),               // 15: google.protobuf.Timestamp
 }
 var file_chain_withdraw_v1_withdraw_proto_depIdxs = []int32{
 	0,  // 0: chain.withdraw.v1.ErrorDetail.code:type_name -> chain.withdraw.v1.ErrorCode
-	1,  // 1: chain.withdraw.v1.TradingWithdrawIntentPayload.action:type_name -> chain.withdraw.v1.TradingWithdrawAction
-	11, // 2: chain.withdraw.v1.TradingWithdrawIntentPayload.amount_e18:type_name -> polyester.type.v1.U128
-	11, // 3: chain.withdraw.v1.TradingWithdrawIntentPayload.nonce:type_name -> polyester.type.v1.U128
-	6,  // 4: chain.withdraw.v1.CreateTradingWithdrawRequest.payload:type_name -> chain.withdraw.v1.TradingWithdrawIntentPayload
-	6,  // 5: chain.withdraw.v1.CreateWalletTradingWithdrawRequest.payload:type_name -> chain.withdraw.v1.TradingWithdrawIntentPayload
-	2,  // 6: chain.withdraw.v1.ValidateWithdrawDestinationResponse.code:type_name -> chain.withdraw.v1.WithdrawDestinationValidationCode
-	9,  // 7: chain.withdraw.v1.WithdrawService.ValidateWithdrawDestination:input_type -> chain.withdraw.v1.ValidateWithdrawDestinationRequest
-	7,  // 8: chain.withdraw.v1.WithdrawService.CreateTradingWithdraw:input_type -> chain.withdraw.v1.CreateTradingWithdrawRequest
-	8,  // 9: chain.withdraw.v1.WithdrawService.CreateWalletTradingWithdraw:input_type -> chain.withdraw.v1.CreateWalletTradingWithdrawRequest
-	10, // 10: chain.withdraw.v1.WithdrawService.ValidateWithdrawDestination:output_type -> chain.withdraw.v1.ValidateWithdrawDestinationResponse
-	3,  // 11: chain.withdraw.v1.WithdrawService.CreateTradingWithdraw:output_type -> chain.withdraw.v1.CreateTradingWithdrawResponse
-	4,  // 12: chain.withdraw.v1.WithdrawService.CreateWalletTradingWithdraw:output_type -> chain.withdraw.v1.CreateWalletTradingWithdrawResponse
-	10, // [10:13] is the sub-list for method output_type
-	7,  // [7:10] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	14, // 1: chain.withdraw.v1.ErrorDetail.min_floor_e18:type_name -> polyester.type.v1.U128
+	15, // 2: chain.withdraw.v1.ErrorDetail.payable_from:type_name -> google.protobuf.Timestamp
+	1,  // 3: chain.withdraw.v1.TradingWithdrawIntentPayload.action:type_name -> chain.withdraw.v1.TradingWithdrawAction
+	14, // 4: chain.withdraw.v1.TradingWithdrawIntentPayload.amount_e18:type_name -> polyester.type.v1.U128
+	14, // 5: chain.withdraw.v1.TradingWithdrawIntentPayload.nonce:type_name -> polyester.type.v1.U128
+	6,  // 6: chain.withdraw.v1.CreateTradingWithdrawRequest.payload:type_name -> chain.withdraw.v1.TradingWithdrawIntentPayload
+	6,  // 7: chain.withdraw.v1.CreateWalletTradingWithdrawRequest.payload:type_name -> chain.withdraw.v1.TradingWithdrawIntentPayload
+	2,  // 8: chain.withdraw.v1.ValidateWithdrawDestinationResponse.code:type_name -> chain.withdraw.v1.WithdrawDestinationValidationCode
+	14, // 9: chain.withdraw.v1.WalletBalance.amount_e18:type_name -> polyester.type.v1.U128
+	12, // 10: chain.withdraw.v1.GetWalletBalancesResponse.balances:type_name -> chain.withdraw.v1.WalletBalance
+	11, // 11: chain.withdraw.v1.WithdrawService.GetWalletBalances:input_type -> chain.withdraw.v1.GetWalletBalancesRequest
+	9,  // 12: chain.withdraw.v1.WithdrawService.ValidateWithdrawDestination:input_type -> chain.withdraw.v1.ValidateWithdrawDestinationRequest
+	7,  // 13: chain.withdraw.v1.WithdrawService.CreateTradingWithdraw:input_type -> chain.withdraw.v1.CreateTradingWithdrawRequest
+	8,  // 14: chain.withdraw.v1.WithdrawService.CreateWalletTradingWithdraw:input_type -> chain.withdraw.v1.CreateWalletTradingWithdrawRequest
+	13, // 15: chain.withdraw.v1.WithdrawService.GetWalletBalances:output_type -> chain.withdraw.v1.GetWalletBalancesResponse
+	10, // 16: chain.withdraw.v1.WithdrawService.ValidateWithdrawDestination:output_type -> chain.withdraw.v1.ValidateWithdrawDestinationResponse
+	3,  // 17: chain.withdraw.v1.WithdrawService.CreateTradingWithdraw:output_type -> chain.withdraw.v1.CreateTradingWithdrawResponse
+	4,  // 18: chain.withdraw.v1.WithdrawService.CreateWalletTradingWithdraw:output_type -> chain.withdraw.v1.CreateWalletTradingWithdrawResponse
+	15, // [15:19] is the sub-list for method output_type
+	11, // [11:15] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_chain_withdraw_v1_withdraw_proto_init() }
@@ -1069,7 +1353,7 @@ func file_chain_withdraw_v1_withdraw_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chain_withdraw_v1_withdraw_proto_rawDesc), len(file_chain_withdraw_v1_withdraw_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   8,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

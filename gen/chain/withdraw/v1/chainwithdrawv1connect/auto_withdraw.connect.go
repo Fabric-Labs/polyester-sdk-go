@@ -36,15 +36,18 @@ const (
 	// AutoWithdrawServiceSetAutoWithdrawRuleProcedure is the fully-qualified name of the
 	// AutoWithdrawService's SetAutoWithdrawRule RPC.
 	AutoWithdrawServiceSetAutoWithdrawRuleProcedure = "/chain.withdraw.v1.AutoWithdrawService/SetAutoWithdrawRule"
-	// AutoWithdrawServiceDisableAutoWithdrawRuleProcedure is the fully-qualified name of the
-	// AutoWithdrawService's DisableAutoWithdrawRule RPC.
-	AutoWithdrawServiceDisableAutoWithdrawRuleProcedure = "/chain.withdraw.v1.AutoWithdrawService/DisableAutoWithdrawRule"
+	// AutoWithdrawServiceSetAutoWithdrawRuleEnabledProcedure is the fully-qualified name of the
+	// AutoWithdrawService's SetAutoWithdrawRuleEnabled RPC.
+	AutoWithdrawServiceSetAutoWithdrawRuleEnabledProcedure = "/chain.withdraw.v1.AutoWithdrawService/SetAutoWithdrawRuleEnabled"
 	// AutoWithdrawServiceGetAutoWithdrawRuleProcedure is the fully-qualified name of the
 	// AutoWithdrawService's GetAutoWithdrawRule RPC.
 	AutoWithdrawServiceGetAutoWithdrawRuleProcedure = "/chain.withdraw.v1.AutoWithdrawService/GetAutoWithdrawRule"
 	// AutoWithdrawServiceListAutoWithdrawRunsProcedure is the fully-qualified name of the
 	// AutoWithdrawService's ListAutoWithdrawRuns RPC.
 	AutoWithdrawServiceListAutoWithdrawRunsProcedure = "/chain.withdraw.v1.AutoWithdrawService/ListAutoWithdrawRuns"
+	// AutoWithdrawServicePreviewAutoWithdrawRunProcedure is the fully-qualified name of the
+	// AutoWithdrawService's PreviewAutoWithdrawRun RPC.
+	AutoWithdrawServicePreviewAutoWithdrawRunProcedure = "/chain.withdraw.v1.AutoWithdrawService/PreviewAutoWithdrawRun"
 )
 
 // AutoWithdrawServiceClient is a client for the chain.withdraw.v1.AutoWithdrawService service.
@@ -53,10 +56,25 @@ type AutoWithdrawServiceClient interface {
 	// one. Requires a session login with withdraw rights on the account and
 	// a fresh single-use step-up; every destination must be on the account's
 	// external withdraw whitelist.
+	//
+	// A refused destination answers a typed code whose ErrorDetail.field_path
+	// names the field, such as destinations[0].min_amount_e18:
+	// EXTERNAL_DESTINATION_NOT_WHITELISTED, DESTINATION_INVALID (not a valid
+	// address on its chain), ROUTE_UNSUPPORTED (no enabled withdrawal route
+	// pays the asset to that chain) or MIN_AMOUNT_BELOW_FLOOR (its
+	// ErrorDetail.min_floor_e18 is the floor). A stale expected_version
+	// answers VERSION_CONFLICT.
 	SetAutoWithdrawRule(context.Context, *connect.Request[v1.SetAutoWithdrawRuleRequest]) (*connect.Response[v1.SetAutoWithdrawRuleResponse], error)
-	// Disable the account's rule. Requires a session login with withdraw
-	// rights on the account and a fresh single-use step-up.
-	DisableAutoWithdrawRule(context.Context, *connect.Request[v1.DisableAutoWithdrawRuleRequest]) (*connect.Response[v1.DisableAutoWithdrawRuleResponse], error)
+	// Pause or resume the account's rule, keeping its schedule and
+	// destinations. Requires a session login with withdraw rights on the
+	// account. Pausing needs no step-up. Resuming needs a fresh single-use
+	// step-up, checks again that every destination is still a valid
+	// destination on the account's external withdraw whitelist, and clears a
+	// pause the rule set itself; a refused destination answers the typed codes
+	// of SetAutoWithdrawRule, and the rule stays paused. A rule already in the
+	// requested state is returned unchanged. A stale expected_version answers
+	// VERSION_CONFLICT.
+	SetAutoWithdrawRuleEnabled(context.Context, *connect.Request[v1.SetAutoWithdrawRuleEnabledRequest]) (*connect.Response[v1.SetAutoWithdrawRuleEnabledResponse], error)
 	// Read the account's latest rule version.
 	//
 	// An API key needs READ_AUTO_WITHDRAW in its policy and reads only its own
@@ -73,6 +91,22 @@ type AutoWithdrawServiceClient interface {
 	// key that names an account other than its own, such as a root-account key
 	// naming a subaccount, gets "api key target scope mismatch".
 	ListAutoWithdrawRuns(context.Context, *connect.Request[v1.ListAutoWithdrawRunsRequest]) (*connect.Response[v1.ListAutoWithdrawRunsResponse], error)
+	// Preview the account's next auto-withdraw run from its balances now:
+	// when it starts, whether it would pay, and per asset what it would pay,
+	// what would stay and why, its USD value and the expected network fee. It
+	// plans exactly as the run does; balances, prices and fees can change
+	// before the run starts. A price that is not current leaves the value
+	// unset instead of failing the read. When prices cannot be read at all,
+	// the values stay unset too, unless the rule has a USD minimum: prices
+	// then decide what pays, so the read answers UNAVAILABLE and can be
+	// retried.
+	//
+	// An API key needs READ_AUTO_WITHDRAW in its policy and reads only its own
+	// account. Both refusals answer PERMISSION_DENIED: a key whose policy lacks
+	// the action gets "api key policy does not allow READ_AUTO_WITHDRAW", and a
+	// key that names an account other than its own, such as a root-account key
+	// naming a subaccount, gets "api key target scope mismatch".
+	PreviewAutoWithdrawRun(context.Context, *connect.Request[v1.PreviewAutoWithdrawRunRequest]) (*connect.Response[v1.PreviewAutoWithdrawRunResponse], error)
 }
 
 // NewAutoWithdrawServiceClient constructs a client for the chain.withdraw.v1.AutoWithdrawService
@@ -92,10 +126,10 @@ func NewAutoWithdrawServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(autoWithdrawServiceMethods.ByName("SetAutoWithdrawRule")),
 			connect.WithClientOptions(opts...),
 		),
-		disableAutoWithdrawRule: connect.NewClient[v1.DisableAutoWithdrawRuleRequest, v1.DisableAutoWithdrawRuleResponse](
+		setAutoWithdrawRuleEnabled: connect.NewClient[v1.SetAutoWithdrawRuleEnabledRequest, v1.SetAutoWithdrawRuleEnabledResponse](
 			httpClient,
-			baseURL+AutoWithdrawServiceDisableAutoWithdrawRuleProcedure,
-			connect.WithSchema(autoWithdrawServiceMethods.ByName("DisableAutoWithdrawRule")),
+			baseURL+AutoWithdrawServiceSetAutoWithdrawRuleEnabledProcedure,
+			connect.WithSchema(autoWithdrawServiceMethods.ByName("SetAutoWithdrawRuleEnabled")),
 			connect.WithClientOptions(opts...),
 		),
 		getAutoWithdrawRule: connect.NewClient[v1.GetAutoWithdrawRuleRequest, v1.GetAutoWithdrawRuleResponse](
@@ -110,15 +144,22 @@ func NewAutoWithdrawServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(autoWithdrawServiceMethods.ByName("ListAutoWithdrawRuns")),
 			connect.WithClientOptions(opts...),
 		),
+		previewAutoWithdrawRun: connect.NewClient[v1.PreviewAutoWithdrawRunRequest, v1.PreviewAutoWithdrawRunResponse](
+			httpClient,
+			baseURL+AutoWithdrawServicePreviewAutoWithdrawRunProcedure,
+			connect.WithSchema(autoWithdrawServiceMethods.ByName("PreviewAutoWithdrawRun")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // autoWithdrawServiceClient implements AutoWithdrawServiceClient.
 type autoWithdrawServiceClient struct {
-	setAutoWithdrawRule     *connect.Client[v1.SetAutoWithdrawRuleRequest, v1.SetAutoWithdrawRuleResponse]
-	disableAutoWithdrawRule *connect.Client[v1.DisableAutoWithdrawRuleRequest, v1.DisableAutoWithdrawRuleResponse]
-	getAutoWithdrawRule     *connect.Client[v1.GetAutoWithdrawRuleRequest, v1.GetAutoWithdrawRuleResponse]
-	listAutoWithdrawRuns    *connect.Client[v1.ListAutoWithdrawRunsRequest, v1.ListAutoWithdrawRunsResponse]
+	setAutoWithdrawRule        *connect.Client[v1.SetAutoWithdrawRuleRequest, v1.SetAutoWithdrawRuleResponse]
+	setAutoWithdrawRuleEnabled *connect.Client[v1.SetAutoWithdrawRuleEnabledRequest, v1.SetAutoWithdrawRuleEnabledResponse]
+	getAutoWithdrawRule        *connect.Client[v1.GetAutoWithdrawRuleRequest, v1.GetAutoWithdrawRuleResponse]
+	listAutoWithdrawRuns       *connect.Client[v1.ListAutoWithdrawRunsRequest, v1.ListAutoWithdrawRunsResponse]
+	previewAutoWithdrawRun     *connect.Client[v1.PreviewAutoWithdrawRunRequest, v1.PreviewAutoWithdrawRunResponse]
 }
 
 // SetAutoWithdrawRule calls chain.withdraw.v1.AutoWithdrawService.SetAutoWithdrawRule.
@@ -126,9 +167,10 @@ func (c *autoWithdrawServiceClient) SetAutoWithdrawRule(ctx context.Context, req
 	return c.setAutoWithdrawRule.CallUnary(ctx, req)
 }
 
-// DisableAutoWithdrawRule calls chain.withdraw.v1.AutoWithdrawService.DisableAutoWithdrawRule.
-func (c *autoWithdrawServiceClient) DisableAutoWithdrawRule(ctx context.Context, req *connect.Request[v1.DisableAutoWithdrawRuleRequest]) (*connect.Response[v1.DisableAutoWithdrawRuleResponse], error) {
-	return c.disableAutoWithdrawRule.CallUnary(ctx, req)
+// SetAutoWithdrawRuleEnabled calls
+// chain.withdraw.v1.AutoWithdrawService.SetAutoWithdrawRuleEnabled.
+func (c *autoWithdrawServiceClient) SetAutoWithdrawRuleEnabled(ctx context.Context, req *connect.Request[v1.SetAutoWithdrawRuleEnabledRequest]) (*connect.Response[v1.SetAutoWithdrawRuleEnabledResponse], error) {
+	return c.setAutoWithdrawRuleEnabled.CallUnary(ctx, req)
 }
 
 // GetAutoWithdrawRule calls chain.withdraw.v1.AutoWithdrawService.GetAutoWithdrawRule.
@@ -141,6 +183,11 @@ func (c *autoWithdrawServiceClient) ListAutoWithdrawRuns(ctx context.Context, re
 	return c.listAutoWithdrawRuns.CallUnary(ctx, req)
 }
 
+// PreviewAutoWithdrawRun calls chain.withdraw.v1.AutoWithdrawService.PreviewAutoWithdrawRun.
+func (c *autoWithdrawServiceClient) PreviewAutoWithdrawRun(ctx context.Context, req *connect.Request[v1.PreviewAutoWithdrawRunRequest]) (*connect.Response[v1.PreviewAutoWithdrawRunResponse], error) {
+	return c.previewAutoWithdrawRun.CallUnary(ctx, req)
+}
+
 // AutoWithdrawServiceHandler is an implementation of the chain.withdraw.v1.AutoWithdrawService
 // service.
 type AutoWithdrawServiceHandler interface {
@@ -148,10 +195,25 @@ type AutoWithdrawServiceHandler interface {
 	// one. Requires a session login with withdraw rights on the account and
 	// a fresh single-use step-up; every destination must be on the account's
 	// external withdraw whitelist.
+	//
+	// A refused destination answers a typed code whose ErrorDetail.field_path
+	// names the field, such as destinations[0].min_amount_e18:
+	// EXTERNAL_DESTINATION_NOT_WHITELISTED, DESTINATION_INVALID (not a valid
+	// address on its chain), ROUTE_UNSUPPORTED (no enabled withdrawal route
+	// pays the asset to that chain) or MIN_AMOUNT_BELOW_FLOOR (its
+	// ErrorDetail.min_floor_e18 is the floor). A stale expected_version
+	// answers VERSION_CONFLICT.
 	SetAutoWithdrawRule(context.Context, *connect.Request[v1.SetAutoWithdrawRuleRequest]) (*connect.Response[v1.SetAutoWithdrawRuleResponse], error)
-	// Disable the account's rule. Requires a session login with withdraw
-	// rights on the account and a fresh single-use step-up.
-	DisableAutoWithdrawRule(context.Context, *connect.Request[v1.DisableAutoWithdrawRuleRequest]) (*connect.Response[v1.DisableAutoWithdrawRuleResponse], error)
+	// Pause or resume the account's rule, keeping its schedule and
+	// destinations. Requires a session login with withdraw rights on the
+	// account. Pausing needs no step-up. Resuming needs a fresh single-use
+	// step-up, checks again that every destination is still a valid
+	// destination on the account's external withdraw whitelist, and clears a
+	// pause the rule set itself; a refused destination answers the typed codes
+	// of SetAutoWithdrawRule, and the rule stays paused. A rule already in the
+	// requested state is returned unchanged. A stale expected_version answers
+	// VERSION_CONFLICT.
+	SetAutoWithdrawRuleEnabled(context.Context, *connect.Request[v1.SetAutoWithdrawRuleEnabledRequest]) (*connect.Response[v1.SetAutoWithdrawRuleEnabledResponse], error)
 	// Read the account's latest rule version.
 	//
 	// An API key needs READ_AUTO_WITHDRAW in its policy and reads only its own
@@ -168,6 +230,22 @@ type AutoWithdrawServiceHandler interface {
 	// key that names an account other than its own, such as a root-account key
 	// naming a subaccount, gets "api key target scope mismatch".
 	ListAutoWithdrawRuns(context.Context, *connect.Request[v1.ListAutoWithdrawRunsRequest]) (*connect.Response[v1.ListAutoWithdrawRunsResponse], error)
+	// Preview the account's next auto-withdraw run from its balances now:
+	// when it starts, whether it would pay, and per asset what it would pay,
+	// what would stay and why, its USD value and the expected network fee. It
+	// plans exactly as the run does; balances, prices and fees can change
+	// before the run starts. A price that is not current leaves the value
+	// unset instead of failing the read. When prices cannot be read at all,
+	// the values stay unset too, unless the rule has a USD minimum: prices
+	// then decide what pays, so the read answers UNAVAILABLE and can be
+	// retried.
+	//
+	// An API key needs READ_AUTO_WITHDRAW in its policy and reads only its own
+	// account. Both refusals answer PERMISSION_DENIED: a key whose policy lacks
+	// the action gets "api key policy does not allow READ_AUTO_WITHDRAW", and a
+	// key that names an account other than its own, such as a root-account key
+	// naming a subaccount, gets "api key target scope mismatch".
+	PreviewAutoWithdrawRun(context.Context, *connect.Request[v1.PreviewAutoWithdrawRunRequest]) (*connect.Response[v1.PreviewAutoWithdrawRunResponse], error)
 }
 
 // NewAutoWithdrawServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -183,10 +261,10 @@ func NewAutoWithdrawServiceHandler(svc AutoWithdrawServiceHandler, opts ...conne
 		connect.WithSchema(autoWithdrawServiceMethods.ByName("SetAutoWithdrawRule")),
 		connect.WithHandlerOptions(opts...),
 	)
-	autoWithdrawServiceDisableAutoWithdrawRuleHandler := connect.NewUnaryHandler(
-		AutoWithdrawServiceDisableAutoWithdrawRuleProcedure,
-		svc.DisableAutoWithdrawRule,
-		connect.WithSchema(autoWithdrawServiceMethods.ByName("DisableAutoWithdrawRule")),
+	autoWithdrawServiceSetAutoWithdrawRuleEnabledHandler := connect.NewUnaryHandler(
+		AutoWithdrawServiceSetAutoWithdrawRuleEnabledProcedure,
+		svc.SetAutoWithdrawRuleEnabled,
+		connect.WithSchema(autoWithdrawServiceMethods.ByName("SetAutoWithdrawRuleEnabled")),
 		connect.WithHandlerOptions(opts...),
 	)
 	autoWithdrawServiceGetAutoWithdrawRuleHandler := connect.NewUnaryHandler(
@@ -201,16 +279,24 @@ func NewAutoWithdrawServiceHandler(svc AutoWithdrawServiceHandler, opts ...conne
 		connect.WithSchema(autoWithdrawServiceMethods.ByName("ListAutoWithdrawRuns")),
 		connect.WithHandlerOptions(opts...),
 	)
+	autoWithdrawServicePreviewAutoWithdrawRunHandler := connect.NewUnaryHandler(
+		AutoWithdrawServicePreviewAutoWithdrawRunProcedure,
+		svc.PreviewAutoWithdrawRun,
+		connect.WithSchema(autoWithdrawServiceMethods.ByName("PreviewAutoWithdrawRun")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chain.withdraw.v1.AutoWithdrawService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AutoWithdrawServiceSetAutoWithdrawRuleProcedure:
 			autoWithdrawServiceSetAutoWithdrawRuleHandler.ServeHTTP(w, r)
-		case AutoWithdrawServiceDisableAutoWithdrawRuleProcedure:
-			autoWithdrawServiceDisableAutoWithdrawRuleHandler.ServeHTTP(w, r)
+		case AutoWithdrawServiceSetAutoWithdrawRuleEnabledProcedure:
+			autoWithdrawServiceSetAutoWithdrawRuleEnabledHandler.ServeHTTP(w, r)
 		case AutoWithdrawServiceGetAutoWithdrawRuleProcedure:
 			autoWithdrawServiceGetAutoWithdrawRuleHandler.ServeHTTP(w, r)
 		case AutoWithdrawServiceListAutoWithdrawRunsProcedure:
 			autoWithdrawServiceListAutoWithdrawRunsHandler.ServeHTTP(w, r)
+		case AutoWithdrawServicePreviewAutoWithdrawRunProcedure:
+			autoWithdrawServicePreviewAutoWithdrawRunHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -224,8 +310,8 @@ func (UnimplementedAutoWithdrawServiceHandler) SetAutoWithdrawRule(context.Conte
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chain.withdraw.v1.AutoWithdrawService.SetAutoWithdrawRule is not implemented"))
 }
 
-func (UnimplementedAutoWithdrawServiceHandler) DisableAutoWithdrawRule(context.Context, *connect.Request[v1.DisableAutoWithdrawRuleRequest]) (*connect.Response[v1.DisableAutoWithdrawRuleResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chain.withdraw.v1.AutoWithdrawService.DisableAutoWithdrawRule is not implemented"))
+func (UnimplementedAutoWithdrawServiceHandler) SetAutoWithdrawRuleEnabled(context.Context, *connect.Request[v1.SetAutoWithdrawRuleEnabledRequest]) (*connect.Response[v1.SetAutoWithdrawRuleEnabledResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chain.withdraw.v1.AutoWithdrawService.SetAutoWithdrawRuleEnabled is not implemented"))
 }
 
 func (UnimplementedAutoWithdrawServiceHandler) GetAutoWithdrawRule(context.Context, *connect.Request[v1.GetAutoWithdrawRuleRequest]) (*connect.Response[v1.GetAutoWithdrawRuleResponse], error) {
@@ -234,4 +320,8 @@ func (UnimplementedAutoWithdrawServiceHandler) GetAutoWithdrawRule(context.Conte
 
 func (UnimplementedAutoWithdrawServiceHandler) ListAutoWithdrawRuns(context.Context, *connect.Request[v1.ListAutoWithdrawRunsRequest]) (*connect.Response[v1.ListAutoWithdrawRunsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chain.withdraw.v1.AutoWithdrawService.ListAutoWithdrawRuns is not implemented"))
+}
+
+func (UnimplementedAutoWithdrawServiceHandler) PreviewAutoWithdrawRun(context.Context, *connect.Request[v1.PreviewAutoWithdrawRunRequest]) (*connect.Response[v1.PreviewAutoWithdrawRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chain.withdraw.v1.AutoWithdrawService.PreviewAutoWithdrawRun is not implemented"))
 }

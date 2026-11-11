@@ -28,14 +28,15 @@ const (
 )
 
 // PolicyAction is a high-level permission that can be granted by a policy.
-// The product actions TRADE_SPOT through SWAP apply to sub-account and API-key
-// policies, and their write-style actions also grant the matching read
-// visibility where needed by the product experience. The account permissions
-// from READ_API_KEYS on apply to API-key policies only: a sub-account policy
-// refuses them. Each grants exactly the calls it names and never implies
-// another permission. A main-account permission is honored only for an API
-// key scoped to the main account; a key scoped to a sub-account is refused
-// even when its policy grants it.
+// Product actions apply to sub-account and API-key policies, and their
+// write-style actions also grant the matching read visibility where needed by
+// the product experience. Account permissions, each documented below as an
+// account permission or a main-account permission, apply to API-key policies
+// only: a sub-account policy refuses them. Each account permission grants
+// exactly the calls it names and never implies another permission. A
+// main-account permission is honored only for an API key scoped to the main
+// account; a key scoped to a sub-account is refused even when its policy
+// grants it. An API key without a policy has no permission at all.
 type PolicyAction int32
 
 const (
@@ -49,10 +50,12 @@ const (
 	// this does not grant mutation access to a read-only API key.
 	PolicyAction_TRADE_SPOT PolicyAction = 1
 	// Allow internal transfers between sub-accounts or linked Polyester accounts,
-	// including reading internal transfer history.
+	// including reading internal transfer history. Moves value out of the
+	// account, so an assistant API key can never be allowed it.
 	PolicyAction_INTERNAL_TRANSFER PolicyAction = 3
 	// Allow value to leave Trading through external withdrawals. Destination
-	// authorization is enforced separately from this policy.
+	// authorization is enforced separately from this policy. Moves value out of
+	// the account, so an assistant API key can never be allowed it.
 	PolicyAction_EXTERNAL_WITHDRAW PolicyAction = 4
 	// Allow reading balances and equity for a sub-account or API key.
 	PolicyAction_READ_BALANCES PolicyAction = 5
@@ -66,12 +69,15 @@ const (
 	// Allow creating, updating, deleting, and copying saved destination entries,
 	// including reading the address book. Address-book writes accept only a
 	// session token, so on an API-key policy this grants address-book reads only.
+	// It manages where value can leave the account, so an assistant API key can
+	// never be allowed it.
 	PolicyAction_MANAGE_ADDRESS_BOOK PolicyAction = 12
 	// Allow reading the auto-withdraw rule and its runs.
 	PolicyAction_READ_AUTO_WITHDRAW PolicyAction = 14
 	// Allow creating, changing, and disabling the auto-withdraw rule, including
 	// reading it. A rule pays value out, so changing one also requires
-	// EXTERNAL_WITHDRAW, and API keys can never change one.
+	// EXTERNAL_WITHDRAW, API keys can never change one, and an assistant API key
+	// can never be allowed it.
 	PolicyAction_MANAGE_AUTO_WITHDRAW PolicyAction = 15
 	// Allow quoting, creating, and reading Swaps: market conversions of the
 	// account's own Trading balance from one asset into another. Each Swap places
@@ -80,18 +86,20 @@ const (
 	PolicyAction_SWAP PolicyAction = 16
 	// Allow listing and reading API keys. A key scoped to the main account sees
 	// the main account's keys and those of its sub-accounts; a key scoped to a
-	// sub-account sees only that sub-account's keys.
+	// sub-account sees only that sub-account's keys. Account permission.
 	PolicyAction_READ_API_KEYS PolicyAction = 17
 	// Allow listing and reading API-key policies. A key scoped to the main
 	// account sees every API-key policy of the main account; a key scoped to a
 	// sub-account sees only the policies attached to that sub-account's keys.
+	// Account permission.
 	PolicyAction_READ_API_POLICIES PolicyAction = 18
 	// Allow listing and reading sub-account policies. A key scoped to the main
 	// account sees every sub-account policy of the main account; a key scoped to
-	// a sub-account sees only the policy attached to that sub-account.
+	// a sub-account sees only the policy attached to that sub-account. Account
+	// permission.
 	PolicyAction_READ_SUBACCOUNT_POLICIES PolicyAction = 19
 	// Allow reading what the key itself may do on a sub-account within its
-	// scope.
+	// scope. Account permission.
 	PolicyAction_READ_SUBACCOUNT_PERMISSIONS PolicyAction = 20
 	// Allow reading the main account's VIP status. Main-account permission.
 	PolicyAction_READ_VIP_STATUS PolicyAction = 21
@@ -103,10 +111,11 @@ const (
 	PolicyAction_READ_PROFILE PolicyAction = 23
 	// Allow resolving an account by username, account ID, or smart-account
 	// address. Any key of the main account may use it, whatever its scope.
+	// Account permission.
 	PolicyAction_READ_ACCOUNT_DIRECTORY PolicyAction = 24
 	// Allow validating an external withdraw destination within the key's scope
 	// without creating, signing, or reserving a withdraw. It does not allow
-	// withdrawing.
+	// withdrawing. Account permission.
 	PolicyAction_READ_WITHDRAW_VALIDATION PolicyAction = 25
 	// Allow reading the main account's daily reward claim status.
 	// Main-account permission.
@@ -119,6 +128,27 @@ const (
 	// Allow reading the main account's published reward awards. Main-account
 	// permission.
 	PolicyAction_READ_REWARDS PolicyAction = 29
+	// Allow creating a deposit address within the key's scope. Account
+	// permission.
+	PolicyAction_CREATE_DEPOSIT_ADDRESS PolicyAction = 10
+	// Allow listing the deposit addresses within the key's scope. Account
+	// permission.
+	PolicyAction_READ_DEPOSIT_ADDRESSES PolicyAction = 30
+	// Allow listing and reading the subaccounts within the key's scope. Account
+	// permission.
+	PolicyAction_READ_SUBACCOUNTS PolicyAction = 31
+	// Allow reading the activity of the subaccounts within the key's scope.
+	// Account permission.
+	PolicyAction_READ_SUBACCOUNT_ACTIVITY PolicyAction = 32
+	// Allow listing the members of the subaccounts within the key's scope.
+	// Account permission.
+	PolicyAction_READ_SUBACCOUNT_MEMBERS PolicyAction = 33
+	// Allow listing the outgoing invites of the subaccounts within the key's
+	// scope. Account permission.
+	PolicyAction_READ_SUBACCOUNT_INVITES PolicyAction = 34
+	// Allow reading the Guard Signer status within the key's scope; a key never
+	// reads another main account's Guard Signer. Account permission.
+	PolicyAction_READ_GUARD_SIGNER_STATUS PolicyAction = 35
 )
 
 // Enum value maps for PolicyAction.
@@ -149,6 +179,13 @@ var (
 		27: "CLAIM_DAILY_REWARD",
 		28: "READ_CHECKPOINTS",
 		29: "READ_REWARDS",
+		10: "CREATE_DEPOSIT_ADDRESS",
+		30: "READ_DEPOSIT_ADDRESSES",
+		31: "READ_SUBACCOUNTS",
+		32: "READ_SUBACCOUNT_ACTIVITY",
+		33: "READ_SUBACCOUNT_MEMBERS",
+		34: "READ_SUBACCOUNT_INVITES",
+		35: "READ_GUARD_SIGNER_STATUS",
 	}
 	PolicyAction_value = map[string]int32{
 		"UNSPECIFIED":                 0,
@@ -176,6 +213,13 @@ var (
 		"CLAIM_DAILY_REWARD":          27,
 		"READ_CHECKPOINTS":            28,
 		"READ_REWARDS":                29,
+		"CREATE_DEPOSIT_ADDRESS":      10,
+		"READ_DEPOSIT_ADDRESSES":      30,
+		"READ_SUBACCOUNTS":            31,
+		"READ_SUBACCOUNT_ACTIVITY":    32,
+		"READ_SUBACCOUNT_MEMBERS":     33,
+		"READ_SUBACCOUNT_INVITES":     34,
+		"READ_GUARD_SIGNER_STATUS":    35,
 	}
 )
 
@@ -1780,7 +1824,9 @@ type CreateApiPolicyRequest struct {
 	Policy *ApiPolicySpec `protobuf:"bytes,1,opt,name=policy,proto3" json:"policy,omitempty"`
 	// Optional API key identifier to bind this newly-created policy to
 	// atomically. When set, the caller must be allowed to manage the key and the
-	// create+assign operation consumes a single fresh step-up proof.
+	// create+assign operation consumes a single fresh step-up proof. An
+	// assistant API key cannot be assigned a policy that allows a money-out
+	// action: FailedPrecondition with AUTH_ASSISTANT_KEY_ACTION_NOT_ALLOWED.
 	AssignToKeyId string `protobuf:"bytes,2,opt,name=assign_to_key_id,json=assignToKeyId,proto3" json:"assign_to_key_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2316,7 +2362,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x16SetApiKeyPolicyRequest\x124\n" +
 	"\x06key_id\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x15\x10\x012\x11^ak_[a-f0-9]{32}$R\x05keyId\x12\x1b\n" +
 	"\tpolicy_id\x18\x02 \x01(\x06R\bpolicyId\"\x19\n" +
-	"\x17SetApiKeyPolicyResponse*\xc7\x04\n" +
+	"\x17SetApiKeyPolicyResponse*\x8b\x06\n" +
 	"\fPolicyAction\x12\x0f\n" +
 	"\vUNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -2343,7 +2389,15 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x11READ_DAILY_CLAIMS\x10\x1a\x12\x16\n" +
 	"\x12CLAIM_DAILY_REWARD\x10\x1b\x12\x14\n" +
 	"\x10READ_CHECKPOINTS\x10\x1c\x12\x10\n" +
-	"\fREAD_REWARDS\x10\x1d2\x9f\x1c\n" +
+	"\fREAD_REWARDS\x10\x1d\x12\x1a\n" +
+	"\x16CREATE_DEPOSIT_ADDRESS\x10\n" +
+	"\x12\x1a\n" +
+	"\x16READ_DEPOSIT_ADDRESSES\x10\x1e\x12\x14\n" +
+	"\x10READ_SUBACCOUNTS\x10\x1f\x12\x1c\n" +
+	"\x18READ_SUBACCOUNT_ACTIVITY\x10 \x12\x1b\n" +
+	"\x17READ_SUBACCOUNT_MEMBERS\x10!\x12\x1b\n" +
+	"\x17READ_SUBACCOUNT_INVITES\x10\"\x12\x1c\n" +
+	"\x18READ_GUARD_SIGNER_STATUS\x10#2\x9f\x1c\n" +
 	"\rPolicyService\x12\xfc\x02\n" +
 	"\x16ListSubaccountPolicies\x12&.auth.v1.ListSubaccountPoliciesRequest\x1a'.auth.v1.ListSubaccountPoliciesResponse\"\x90\x02\xbaG\xe1\x01\n" +
 	"\fAuth Service\x12\x18List Subaccount Policies\x1a\xb6\x01List sub-account policy templates available to the caller. An API key needs READ_SUBACCOUNT_POLICIES; a key scoped to a sub-account sees only the policy attached to that sub-account.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1f\x12\x1d/v1/auth/policies/subaccounts\x12\xfe\x02\n" +

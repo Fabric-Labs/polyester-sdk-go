@@ -96,6 +96,18 @@ const (
 	// QuickSwapBrokerServiceGetBrokerStatsProcedure is the fully-qualified name of the
 	// QuickSwapBrokerService's GetBrokerStats RPC.
 	QuickSwapBrokerServiceGetBrokerStatsProcedure = "/swap.quickswap.v1.QuickSwapBrokerService/GetBrokerStats"
+	// QuickSwapBrokerServiceListPayoutsProcedure is the fully-qualified name of the
+	// QuickSwapBrokerService's ListPayouts RPC.
+	QuickSwapBrokerServiceListPayoutsProcedure = "/swap.quickswap.v1.QuickSwapBrokerService/ListPayouts"
+	// QuickSwapBrokerServiceGetPayoutProcedure is the fully-qualified name of the
+	// QuickSwapBrokerService's GetPayout RPC.
+	QuickSwapBrokerServiceGetPayoutProcedure = "/swap.quickswap.v1.QuickSwapBrokerService/GetPayout"
+	// QuickSwapBrokerServiceListUpcomingPayoutsProcedure is the fully-qualified name of the
+	// QuickSwapBrokerService's ListUpcomingPayouts RPC.
+	QuickSwapBrokerServiceListUpcomingPayoutsProcedure = "/swap.quickswap.v1.QuickSwapBrokerService/ListUpcomingPayouts"
+	// QuickSwapBrokerServiceListVaultPayoutRulesProcedure is the fully-qualified name of the
+	// QuickSwapBrokerService's ListVaultPayoutRules RPC.
+	QuickSwapBrokerServiceListVaultPayoutRulesProcedure = "/swap.quickswap.v1.QuickSwapBrokerService/ListVaultPayoutRules"
 )
 
 // QuickSwapBrokerServiceClient is a client for the swap.quickswap.v1.QuickSwapBrokerService
@@ -251,14 +263,58 @@ type QuickSwapBrokerServiceClient interface {
 	GetFeeTotals(context.Context, *connect.Request[v1.GetFeeTotalsRequest]) (*connect.Response[v1.GetFeeTotalsResponse], error)
 	// GetBrokerStats reads the broker's QuickSwap activity in a window, per UTC
 	// day or month: QuickSwaps created by status, deposits credited and
-	// payouts delivered per asset, and the service, broker and affiliate fees
-	// charged per asset.
+	// payouts delivered per asset, and the service, broker, affiliate and
+	// referral fees charged per asset.
 	//
 	// Errors:
 	//   - NOT_FOUND: BROKER_NOT_FOUND.
 	//   - INTERNAL: STATS_INCOMPLETE, with the swap_id of a QuickSwap whose
 	//     records the stats cannot read.
 	GetBrokerStats(context.Context, *connect.Request[v1.GetBrokerStatsRequest]) (*connect.Response[v1.GetBrokerStatsResponse], error)
+	// ListPayouts lists the payout runs of the broker's vaults, newest first,
+	// filtered by vault, status and scheduled slot. Every broker role and the
+	// broker's API keys can read, without step-up.
+	//
+	// Errors:
+	//   - NOT_FOUND: BROKER_NOT_FOUND, or VAULT_NOT_FOUND for a vault that is
+	//     not the broker's.
+	//   - INVALID_ARGUMENT: a page_token from another broker, other filters or
+	//     malformed.
+	//   - UNAVAILABLE: the payouts cannot be read; retry the same request.
+	ListPayouts(context.Context, *connect.Request[v1.ListPayoutsRequest]) (*connect.Response[v1.ListPayoutsResponse], error)
+	// GetPayout reads one payout run of the broker's vaults, for a detail view
+	// or a link from a ledger entry. Every broker role and the broker's API
+	// keys can read, without step-up.
+	//
+	// Errors:
+	//   - NOT_FOUND: BROKER_NOT_FOUND, or PAYOUT_NOT_FOUND, including a run of
+	//     another broker's vault.
+	//   - UNAVAILABLE: the payout cannot be read; retry the same request.
+	GetPayout(context.Context, *connect.Request[v1.GetPayoutRequest]) (*connect.Response[v1.GetPayoutResponse], error)
+	// ListUpcomingPayouts previews the next payout run of each of the
+	// broker's vaults from its balances now: when it starts, whether it would
+	// pay, and per asset what it would pay, what would stay and why, and the
+	// expected network fee. Every broker role and the broker's API keys can
+	// read, without step-up.
+	//
+	// Errors:
+	//   - NOT_FOUND: BROKER_NOT_FOUND or VAULT_NOT_FOUND.
+	//   - INVALID_ARGUMENT: a page_token from another broker or vault filter, or
+	//     malformed.
+	//   - UNAVAILABLE: a preview cannot be read; no partial page is returned.
+	ListUpcomingPayouts(context.Context, *connect.Request[v1.ListUpcomingPayoutsRequest]) (*connect.Response[v1.ListUpcomingPayoutsResponse], error)
+	// ListVaultPayoutRules reads the payout rule of each of the broker's
+	// vaults, and the assets each vault holds or was credited in that its rule
+	// pays no destination for. Every broker role and the broker's API keys can
+	// read, without step-up; only Owner and Finance members change rules.
+	//
+	// Errors:
+	//   - NOT_FOUND: BROKER_NOT_FOUND or VAULT_NOT_FOUND.
+	//   - INVALID_ARGUMENT: a page_token from another broker or vault filter, or
+	//     malformed.
+	//   - UNAVAILABLE: a rule or balance cannot be read; no partial page is
+	//     returned.
+	ListVaultPayoutRules(context.Context, *connect.Request[v1.ListVaultPayoutRulesRequest]) (*connect.Response[v1.ListVaultPayoutRulesResponse], error)
 }
 
 // NewQuickSwapBrokerServiceClient constructs a client for the
@@ -398,6 +454,30 @@ func NewQuickSwapBrokerServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(quickSwapBrokerServiceMethods.ByName("GetBrokerStats")),
 			connect.WithClientOptions(opts...),
 		),
+		listPayouts: connect.NewClient[v1.ListPayoutsRequest, v1.ListPayoutsResponse](
+			httpClient,
+			baseURL+QuickSwapBrokerServiceListPayoutsProcedure,
+			connect.WithSchema(quickSwapBrokerServiceMethods.ByName("ListPayouts")),
+			connect.WithClientOptions(opts...),
+		),
+		getPayout: connect.NewClient[v1.GetPayoutRequest, v1.GetPayoutResponse](
+			httpClient,
+			baseURL+QuickSwapBrokerServiceGetPayoutProcedure,
+			connect.WithSchema(quickSwapBrokerServiceMethods.ByName("GetPayout")),
+			connect.WithClientOptions(opts...),
+		),
+		listUpcomingPayouts: connect.NewClient[v1.ListUpcomingPayoutsRequest, v1.ListUpcomingPayoutsResponse](
+			httpClient,
+			baseURL+QuickSwapBrokerServiceListUpcomingPayoutsProcedure,
+			connect.WithSchema(quickSwapBrokerServiceMethods.ByName("ListUpcomingPayouts")),
+			connect.WithClientOptions(opts...),
+		),
+		listVaultPayoutRules: connect.NewClient[v1.ListVaultPayoutRulesRequest, v1.ListVaultPayoutRulesResponse](
+			httpClient,
+			baseURL+QuickSwapBrokerServiceListVaultPayoutRulesProcedure,
+			connect.WithSchema(quickSwapBrokerServiceMethods.ByName("ListVaultPayoutRules")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -424,6 +504,10 @@ type quickSwapBrokerServiceClient struct {
 	getQuickSwap         *connect.Client[v1.QuickSwapBrokerServiceGetQuickSwapRequest, v1.QuickSwapBrokerServiceGetQuickSwapResponse]
 	getFeeTotals         *connect.Client[v1.GetFeeTotalsRequest, v1.GetFeeTotalsResponse]
 	getBrokerStats       *connect.Client[v1.GetBrokerStatsRequest, v1.GetBrokerStatsResponse]
+	listPayouts          *connect.Client[v1.ListPayoutsRequest, v1.ListPayoutsResponse]
+	getPayout            *connect.Client[v1.GetPayoutRequest, v1.GetPayoutResponse]
+	listUpcomingPayouts  *connect.Client[v1.ListUpcomingPayoutsRequest, v1.ListUpcomingPayoutsResponse]
+	listVaultPayoutRules *connect.Client[v1.ListVaultPayoutRulesRequest, v1.ListVaultPayoutRulesResponse]
 }
 
 // GetBroker calls swap.quickswap.v1.QuickSwapBrokerService.GetBroker.
@@ -529,6 +613,26 @@ func (c *quickSwapBrokerServiceClient) GetFeeTotals(ctx context.Context, req *co
 // GetBrokerStats calls swap.quickswap.v1.QuickSwapBrokerService.GetBrokerStats.
 func (c *quickSwapBrokerServiceClient) GetBrokerStats(ctx context.Context, req *connect.Request[v1.GetBrokerStatsRequest]) (*connect.Response[v1.GetBrokerStatsResponse], error) {
 	return c.getBrokerStats.CallUnary(ctx, req)
+}
+
+// ListPayouts calls swap.quickswap.v1.QuickSwapBrokerService.ListPayouts.
+func (c *quickSwapBrokerServiceClient) ListPayouts(ctx context.Context, req *connect.Request[v1.ListPayoutsRequest]) (*connect.Response[v1.ListPayoutsResponse], error) {
+	return c.listPayouts.CallUnary(ctx, req)
+}
+
+// GetPayout calls swap.quickswap.v1.QuickSwapBrokerService.GetPayout.
+func (c *quickSwapBrokerServiceClient) GetPayout(ctx context.Context, req *connect.Request[v1.GetPayoutRequest]) (*connect.Response[v1.GetPayoutResponse], error) {
+	return c.getPayout.CallUnary(ctx, req)
+}
+
+// ListUpcomingPayouts calls swap.quickswap.v1.QuickSwapBrokerService.ListUpcomingPayouts.
+func (c *quickSwapBrokerServiceClient) ListUpcomingPayouts(ctx context.Context, req *connect.Request[v1.ListUpcomingPayoutsRequest]) (*connect.Response[v1.ListUpcomingPayoutsResponse], error) {
+	return c.listUpcomingPayouts.CallUnary(ctx, req)
+}
+
+// ListVaultPayoutRules calls swap.quickswap.v1.QuickSwapBrokerService.ListVaultPayoutRules.
+func (c *quickSwapBrokerServiceClient) ListVaultPayoutRules(ctx context.Context, req *connect.Request[v1.ListVaultPayoutRulesRequest]) (*connect.Response[v1.ListVaultPayoutRulesResponse], error) {
+	return c.listVaultPayoutRules.CallUnary(ctx, req)
 }
 
 // QuickSwapBrokerServiceHandler is an implementation of the
@@ -684,14 +788,58 @@ type QuickSwapBrokerServiceHandler interface {
 	GetFeeTotals(context.Context, *connect.Request[v1.GetFeeTotalsRequest]) (*connect.Response[v1.GetFeeTotalsResponse], error)
 	// GetBrokerStats reads the broker's QuickSwap activity in a window, per UTC
 	// day or month: QuickSwaps created by status, deposits credited and
-	// payouts delivered per asset, and the service, broker and affiliate fees
-	// charged per asset.
+	// payouts delivered per asset, and the service, broker, affiliate and
+	// referral fees charged per asset.
 	//
 	// Errors:
 	//   - NOT_FOUND: BROKER_NOT_FOUND.
 	//   - INTERNAL: STATS_INCOMPLETE, with the swap_id of a QuickSwap whose
 	//     records the stats cannot read.
 	GetBrokerStats(context.Context, *connect.Request[v1.GetBrokerStatsRequest]) (*connect.Response[v1.GetBrokerStatsResponse], error)
+	// ListPayouts lists the payout runs of the broker's vaults, newest first,
+	// filtered by vault, status and scheduled slot. Every broker role and the
+	// broker's API keys can read, without step-up.
+	//
+	// Errors:
+	//   - NOT_FOUND: BROKER_NOT_FOUND, or VAULT_NOT_FOUND for a vault that is
+	//     not the broker's.
+	//   - INVALID_ARGUMENT: a page_token from another broker, other filters or
+	//     malformed.
+	//   - UNAVAILABLE: the payouts cannot be read; retry the same request.
+	ListPayouts(context.Context, *connect.Request[v1.ListPayoutsRequest]) (*connect.Response[v1.ListPayoutsResponse], error)
+	// GetPayout reads one payout run of the broker's vaults, for a detail view
+	// or a link from a ledger entry. Every broker role and the broker's API
+	// keys can read, without step-up.
+	//
+	// Errors:
+	//   - NOT_FOUND: BROKER_NOT_FOUND, or PAYOUT_NOT_FOUND, including a run of
+	//     another broker's vault.
+	//   - UNAVAILABLE: the payout cannot be read; retry the same request.
+	GetPayout(context.Context, *connect.Request[v1.GetPayoutRequest]) (*connect.Response[v1.GetPayoutResponse], error)
+	// ListUpcomingPayouts previews the next payout run of each of the
+	// broker's vaults from its balances now: when it starts, whether it would
+	// pay, and per asset what it would pay, what would stay and why, and the
+	// expected network fee. Every broker role and the broker's API keys can
+	// read, without step-up.
+	//
+	// Errors:
+	//   - NOT_FOUND: BROKER_NOT_FOUND or VAULT_NOT_FOUND.
+	//   - INVALID_ARGUMENT: a page_token from another broker or vault filter, or
+	//     malformed.
+	//   - UNAVAILABLE: a preview cannot be read; no partial page is returned.
+	ListUpcomingPayouts(context.Context, *connect.Request[v1.ListUpcomingPayoutsRequest]) (*connect.Response[v1.ListUpcomingPayoutsResponse], error)
+	// ListVaultPayoutRules reads the payout rule of each of the broker's
+	// vaults, and the assets each vault holds or was credited in that its rule
+	// pays no destination for. Every broker role and the broker's API keys can
+	// read, without step-up; only Owner and Finance members change rules.
+	//
+	// Errors:
+	//   - NOT_FOUND: BROKER_NOT_FOUND or VAULT_NOT_FOUND.
+	//   - INVALID_ARGUMENT: a page_token from another broker or vault filter, or
+	//     malformed.
+	//   - UNAVAILABLE: a rule or balance cannot be read; no partial page is
+	//     returned.
+	ListVaultPayoutRules(context.Context, *connect.Request[v1.ListVaultPayoutRulesRequest]) (*connect.Response[v1.ListVaultPayoutRulesResponse], error)
 }
 
 // NewQuickSwapBrokerServiceHandler builds an HTTP handler from the service implementation. It
@@ -827,6 +975,30 @@ func NewQuickSwapBrokerServiceHandler(svc QuickSwapBrokerServiceHandler, opts ..
 		connect.WithSchema(quickSwapBrokerServiceMethods.ByName("GetBrokerStats")),
 		connect.WithHandlerOptions(opts...),
 	)
+	quickSwapBrokerServiceListPayoutsHandler := connect.NewUnaryHandler(
+		QuickSwapBrokerServiceListPayoutsProcedure,
+		svc.ListPayouts,
+		connect.WithSchema(quickSwapBrokerServiceMethods.ByName("ListPayouts")),
+		connect.WithHandlerOptions(opts...),
+	)
+	quickSwapBrokerServiceGetPayoutHandler := connect.NewUnaryHandler(
+		QuickSwapBrokerServiceGetPayoutProcedure,
+		svc.GetPayout,
+		connect.WithSchema(quickSwapBrokerServiceMethods.ByName("GetPayout")),
+		connect.WithHandlerOptions(opts...),
+	)
+	quickSwapBrokerServiceListUpcomingPayoutsHandler := connect.NewUnaryHandler(
+		QuickSwapBrokerServiceListUpcomingPayoutsProcedure,
+		svc.ListUpcomingPayouts,
+		connect.WithSchema(quickSwapBrokerServiceMethods.ByName("ListUpcomingPayouts")),
+		connect.WithHandlerOptions(opts...),
+	)
+	quickSwapBrokerServiceListVaultPayoutRulesHandler := connect.NewUnaryHandler(
+		QuickSwapBrokerServiceListVaultPayoutRulesProcedure,
+		svc.ListVaultPayoutRules,
+		connect.WithSchema(quickSwapBrokerServiceMethods.ByName("ListVaultPayoutRules")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/swap.quickswap.v1.QuickSwapBrokerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case QuickSwapBrokerServiceGetBrokerProcedure:
@@ -871,6 +1043,14 @@ func NewQuickSwapBrokerServiceHandler(svc QuickSwapBrokerServiceHandler, opts ..
 			quickSwapBrokerServiceGetFeeTotalsHandler.ServeHTTP(w, r)
 		case QuickSwapBrokerServiceGetBrokerStatsProcedure:
 			quickSwapBrokerServiceGetBrokerStatsHandler.ServeHTTP(w, r)
+		case QuickSwapBrokerServiceListPayoutsProcedure:
+			quickSwapBrokerServiceListPayoutsHandler.ServeHTTP(w, r)
+		case QuickSwapBrokerServiceGetPayoutProcedure:
+			quickSwapBrokerServiceGetPayoutHandler.ServeHTTP(w, r)
+		case QuickSwapBrokerServiceListUpcomingPayoutsProcedure:
+			quickSwapBrokerServiceListUpcomingPayoutsHandler.ServeHTTP(w, r)
+		case QuickSwapBrokerServiceListVaultPayoutRulesProcedure:
+			quickSwapBrokerServiceListVaultPayoutRulesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -962,4 +1142,20 @@ func (UnimplementedQuickSwapBrokerServiceHandler) GetFeeTotals(context.Context, 
 
 func (UnimplementedQuickSwapBrokerServiceHandler) GetBrokerStats(context.Context, *connect.Request[v1.GetBrokerStatsRequest]) (*connect.Response[v1.GetBrokerStatsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swap.quickswap.v1.QuickSwapBrokerService.GetBrokerStats is not implemented"))
+}
+
+func (UnimplementedQuickSwapBrokerServiceHandler) ListPayouts(context.Context, *connect.Request[v1.ListPayoutsRequest]) (*connect.Response[v1.ListPayoutsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swap.quickswap.v1.QuickSwapBrokerService.ListPayouts is not implemented"))
+}
+
+func (UnimplementedQuickSwapBrokerServiceHandler) GetPayout(context.Context, *connect.Request[v1.GetPayoutRequest]) (*connect.Response[v1.GetPayoutResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swap.quickswap.v1.QuickSwapBrokerService.GetPayout is not implemented"))
+}
+
+func (UnimplementedQuickSwapBrokerServiceHandler) ListUpcomingPayouts(context.Context, *connect.Request[v1.ListUpcomingPayoutsRequest]) (*connect.Response[v1.ListUpcomingPayoutsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swap.quickswap.v1.QuickSwapBrokerService.ListUpcomingPayouts is not implemented"))
+}
+
+func (UnimplementedQuickSwapBrokerServiceHandler) ListVaultPayoutRules(context.Context, *connect.Request[v1.ListVaultPayoutRulesRequest]) (*connect.Response[v1.ListVaultPayoutRulesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swap.quickswap.v1.QuickSwapBrokerService.ListVaultPayoutRules is not implemented"))
 }

@@ -86,9 +86,13 @@ const (
 
 // SubaccountViewServiceClient is a client for the auth.v1.SubaccountViewService service.
 type SubaccountViewServiceClient interface {
-	// Aggregate commonly-needed read data for a sub-account dashboard page.
+	// Aggregate commonly-needed read data for a sub-account dashboard page. An
+	// API key needs READ_SUBACCOUNTS within its scope; it gets the members and
+	// invites expansions only with READ_SUBACCOUNT_MEMBERS and
+	// READ_SUBACCOUNT_INVITES, and never the API-key or policy expansions.
 	GetSubaccount(context.Context, *connect.Request[v1.GetSubaccountRequest]) (*connect.Response[v1.GetSubaccountResponse], error)
-	// List audit and activity events for a sub-account.
+	// List audit and activity events for a sub-account. An API key needs
+	// READ_SUBACCOUNT_ACTIVITY within its scope.
 	ListSubaccountActivity(context.Context, *connect.Request[v1.ListSubaccountEventsRequest]) (*connect.Response[v1.ListSubaccountEventsResponse], error)
 }
 
@@ -136,9 +140,13 @@ func (c *subaccountViewServiceClient) ListSubaccountActivity(ctx context.Context
 
 // SubaccountViewServiceHandler is an implementation of the auth.v1.SubaccountViewService service.
 type SubaccountViewServiceHandler interface {
-	// Aggregate commonly-needed read data for a sub-account dashboard page.
+	// Aggregate commonly-needed read data for a sub-account dashboard page. An
+	// API key needs READ_SUBACCOUNTS within its scope; it gets the members and
+	// invites expansions only with READ_SUBACCOUNT_MEMBERS and
+	// READ_SUBACCOUNT_INVITES, and never the API-key or policy expansions.
 	GetSubaccount(context.Context, *connect.Request[v1.GetSubaccountRequest]) (*connect.Response[v1.GetSubaccountResponse], error)
-	// List audit and activity events for a sub-account.
+	// List audit and activity events for a sub-account. An API key needs
+	// READ_SUBACCOUNT_ACTIVITY within its scope.
 	ListSubaccountActivity(context.Context, *connect.Request[v1.ListSubaccountEventsRequest]) (*connect.Response[v1.ListSubaccountEventsResponse], error)
 }
 
@@ -186,7 +194,8 @@ func (UnimplementedSubaccountViewServiceHandler) ListSubaccountActivity(context.
 
 // SubaccountServiceClient is a client for the auth.v1.SubaccountService service.
 type SubaccountServiceClient interface {
-	// List sub-accounts owned by or shared with the caller.
+	// List sub-accounts owned by or shared with the caller. An API key needs
+	// READ_SUBACCOUNTS and lists only the sub-accounts within its scope.
 	ListSubaccounts(context.Context, *connect.Request[v1.ListSubaccountsRequest]) (*connect.Response[v1.ListSubaccountsResponse], error)
 	// Request the canonical next smart account and a short-lived account-control
 	// authorization bound to the authenticated root and selected owner wallet.
@@ -199,15 +208,21 @@ type SubaccountServiceClient interface {
 	UpdateSubaccount(context.Context, *connect.Request[v1.UpdateSubaccountRequest]) (*connect.Response[v1.UpdateSubaccountResponse], error)
 	// Toggle the delegated member MFA requirement for one sub-account (owner only).
 	SetSubaccountMemberMFARequirement(context.Context, *connect.Request[v1.SetSubaccountMemberMFARequirementRequest]) (*connect.Response[v1.SetSubaccountMemberMFARequirementResponse], error)
-	// List current members for a sub-account visible to any current member.
+	// List current members for a sub-account visible to any current member. An
+	// API key needs READ_SUBACCOUNT_MEMBERS within its scope.
 	ListSubaccountMembers(context.Context, *connect.Request[v1.ListSubaccountMembersRequest]) (*connect.Response[v1.ListSubaccountMembersResponse], error)
-	// Remove a member from a sub-account (owner/admin only).
+	// Remove a member from a sub-account (owner/admin only). The member's
+	// assistant API keys on the sub-account are revoked with the removal.
 	RemoveSubaccountMember(context.Context, *connect.Request[v1.RemoveSubaccountMemberRequest]) (*connect.Response[v1.RemoveSubaccountMemberResponse], error)
-	// Update an existing sub-account member's role (owner/admin only).
+	// Update an existing sub-account member's role (owner/admin only). A role
+	// that cannot manage API keys revokes the member's assistant API keys on the
+	// sub-account with the change.
 	UpdateSubaccountMemberRole(context.Context, *connect.Request[v1.UpdateSubaccountMemberRoleRequest]) (*connect.Response[v1.UpdateSubaccountMemberRoleResponse], error)
 	// Invite a member to a sub-account.
 	InviteSubaccountMember(context.Context, *connect.Request[v1.InviteSubaccountMemberRequest]) (*connect.Response[v1.InviteSubaccountMemberResponse], error)
 	// List incoming invitations and invitations for administered sub-accounts.
+	// An API key needs READ_SUBACCOUNT_INVITES and lists only the outgoing
+	// invitations of the sub-accounts within its scope.
 	ListSubaccountInvites(context.Context, *connect.Request[v1.ListSubaccountInvitesRequest]) (*connect.Response[v1.ListSubaccountInvitesResponse], error)
 	// Accept or decline an invite as the grantee, or cancel it as a current owner or admin.
 	// Acceptance requires an enrolled factor and a recently MFA-elevated session when the subaccount requires member MFA.
@@ -367,7 +382,8 @@ func (c *subaccountServiceClient) RespondSubaccountInvite(ctx context.Context, r
 
 // SubaccountServiceHandler is an implementation of the auth.v1.SubaccountService service.
 type SubaccountServiceHandler interface {
-	// List sub-accounts owned by or shared with the caller.
+	// List sub-accounts owned by or shared with the caller. An API key needs
+	// READ_SUBACCOUNTS and lists only the sub-accounts within its scope.
 	ListSubaccounts(context.Context, *connect.Request[v1.ListSubaccountsRequest]) (*connect.Response[v1.ListSubaccountsResponse], error)
 	// Request the canonical next smart account and a short-lived account-control
 	// authorization bound to the authenticated root and selected owner wallet.
@@ -380,15 +396,21 @@ type SubaccountServiceHandler interface {
 	UpdateSubaccount(context.Context, *connect.Request[v1.UpdateSubaccountRequest]) (*connect.Response[v1.UpdateSubaccountResponse], error)
 	// Toggle the delegated member MFA requirement for one sub-account (owner only).
 	SetSubaccountMemberMFARequirement(context.Context, *connect.Request[v1.SetSubaccountMemberMFARequirementRequest]) (*connect.Response[v1.SetSubaccountMemberMFARequirementResponse], error)
-	// List current members for a sub-account visible to any current member.
+	// List current members for a sub-account visible to any current member. An
+	// API key needs READ_SUBACCOUNT_MEMBERS within its scope.
 	ListSubaccountMembers(context.Context, *connect.Request[v1.ListSubaccountMembersRequest]) (*connect.Response[v1.ListSubaccountMembersResponse], error)
-	// Remove a member from a sub-account (owner/admin only).
+	// Remove a member from a sub-account (owner/admin only). The member's
+	// assistant API keys on the sub-account are revoked with the removal.
 	RemoveSubaccountMember(context.Context, *connect.Request[v1.RemoveSubaccountMemberRequest]) (*connect.Response[v1.RemoveSubaccountMemberResponse], error)
-	// Update an existing sub-account member's role (owner/admin only).
+	// Update an existing sub-account member's role (owner/admin only). A role
+	// that cannot manage API keys revokes the member's assistant API keys on the
+	// sub-account with the change.
 	UpdateSubaccountMemberRole(context.Context, *connect.Request[v1.UpdateSubaccountMemberRoleRequest]) (*connect.Response[v1.UpdateSubaccountMemberRoleResponse], error)
 	// Invite a member to a sub-account.
 	InviteSubaccountMember(context.Context, *connect.Request[v1.InviteSubaccountMemberRequest]) (*connect.Response[v1.InviteSubaccountMemberResponse], error)
 	// List incoming invitations and invitations for administered sub-accounts.
+	// An API key needs READ_SUBACCOUNT_INVITES and lists only the outgoing
+	// invitations of the sub-accounts within its scope.
 	ListSubaccountInvites(context.Context, *connect.Request[v1.ListSubaccountInvitesRequest]) (*connect.Response[v1.ListSubaccountInvitesResponse], error)
 	// Accept or decline an invite as the grantee, or cancel it as a current owner or admin.
 	// Acceptance requires an enrolled factor and a recently MFA-elevated session when the subaccount requires member MFA.

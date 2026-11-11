@@ -40,6 +40,12 @@ const (
 	// SocialVerificationServiceSocialVerificationReadyProcedure is the fully-qualified name of the
 	// SocialVerificationService's SocialVerificationReady RPC.
 	SocialVerificationServiceSocialVerificationReadyProcedure = "/auth.v1.SocialVerificationService/SocialVerificationReady"
+	// SocialVerificationServiceConfirmSocialVerificationProcedure is the fully-qualified name of the
+	// SocialVerificationService's ConfirmSocialVerification RPC.
+	SocialVerificationServiceConfirmSocialVerificationProcedure = "/auth.v1.SocialVerificationService/ConfirmSocialVerification"
+	// SocialVerificationServiceUnlinkSocialAccountProcedure is the fully-qualified name of the
+	// SocialVerificationService's UnlinkSocialAccount RPC.
+	SocialVerificationServiceUnlinkSocialAccountProcedure = "/auth.v1.SocialVerificationService/UnlinkSocialAccount"
 	// SocialVerificationServiceGetSocialVerificationProcedure is the fully-qualified name of the
 	// SocialVerificationService's GetSocialVerification RPC.
 	SocialVerificationServiceGetSocialVerificationProcedure = "/auth.v1.SocialVerificationService/GetSocialVerification"
@@ -48,12 +54,32 @@ const (
 // SocialVerificationServiceClient is a client for the auth.v1.SocialVerificationService service.
 type SocialVerificationServiceClient interface {
 	// Start or restart social verification by issuing a new challenge code.
+	// For Telegram, open action_url to send the code to the Polyester bot, then
+	// confirm the account with ConfirmSocialVerification.
+	// AUTH_SOCIAL_VERIFICATION_INVALID_STATE for Telegram means a Telegram account is already linked; unlink it first.
 	StartSocialVerification(context.Context, *connect.Request[v1.StartSocialVerificationRequest]) (*connect.Response[v1.StartSocialVerificationResponse], error)
 	// Mark a verification as ready after the challenge code has been placed.
 	// AUTH_RESOURCE_NOT_FOUND means no verification exists; start one first.
 	// AUTH_SOCIAL_VERIFICATION_EXPIRED means the challenge window passed; start a new verification, then mark it ready again.
 	// AUTH_SOCIAL_VERIFICATION_INVALID_STATE means Ready is not valid in the current state; call GetSocialVerification for the current status.
+	// Telegram linking does not use Ready and always answers AUTH_SOCIAL_VERIFICATION_INVALID_STATE.
 	SocialVerificationReady(context.Context, *connect.Request[v1.SocialVerificationReadyRequest]) (*connect.Response[v1.SocialVerificationReadyResponse], error)
+	// Link the Telegram account that submitted the caller's challenge code. A
+	// linked Telegram account becomes a channel to the account, so the caller
+	// needs enrolled MFA and a fresh, single-use step-up proof in the
+	// X-Auth-Step-Up header, obtained by completing an MFA challenge for fresh
+	// step-up. The link consumes the proof; a retried confirmation of an existing
+	// link needs no new proof.
+	// AUTH_RESOURCE_NOT_FOUND means no verification exists; start one first.
+	// AUTH_SOCIAL_VERIFICATION_EXPIRED means the challenge window passed; start a new verification.
+	// AUTH_SOCIAL_VERIFICATION_INVALID_STATE means no submitted account awaits confirmation, or provider_user_id is not the account that submitted the code.
+	// AUTH_SOCIAL_ACCOUNT_ALREADY_LINKED means that Telegram account is linked to another Polyester account; the verification fails.
+	// AUTH_MFA_NOT_ENROLLED means enroll MFA first; AUTH_STEP_UP_REQUIRED and AUTH_STEP_UP_PROOF_UNAVAILABLE mean complete a new fresh step-up and retry.
+	ConfirmSocialVerification(context.Context, *connect.Request[v1.ConfirmSocialVerificationRequest]) (*connect.Response[v1.ConfirmSocialVerificationResponse], error)
+	// Unlink the caller's Telegram account, or cancel a Telegram link in progress.
+	// Unlinking again succeeds and changes nothing. To link again, start a new
+	// verification.
+	UnlinkSocialAccount(context.Context, *connect.Request[v1.UnlinkSocialAccountRequest]) (*connect.Response[v1.UnlinkSocialAccountResponse], error)
 	// Get current verification status for the caller.
 	// A failed verification uses error_code for its machine-readable outcome.
 	// An API key needs READ_SOCIAL_VERIFICATION and must be scoped to the main
@@ -85,6 +111,18 @@ func NewSocialVerificationServiceClient(httpClient connect.HTTPClient, baseURL s
 			connect.WithSchema(socialVerificationServiceMethods.ByName("SocialVerificationReady")),
 			connect.WithClientOptions(opts...),
 		),
+		confirmSocialVerification: connect.NewClient[v1.ConfirmSocialVerificationRequest, v1.ConfirmSocialVerificationResponse](
+			httpClient,
+			baseURL+SocialVerificationServiceConfirmSocialVerificationProcedure,
+			connect.WithSchema(socialVerificationServiceMethods.ByName("ConfirmSocialVerification")),
+			connect.WithClientOptions(opts...),
+		),
+		unlinkSocialAccount: connect.NewClient[v1.UnlinkSocialAccountRequest, v1.UnlinkSocialAccountResponse](
+			httpClient,
+			baseURL+SocialVerificationServiceUnlinkSocialAccountProcedure,
+			connect.WithSchema(socialVerificationServiceMethods.ByName("UnlinkSocialAccount")),
+			connect.WithClientOptions(opts...),
+		),
 		getSocialVerification: connect.NewClient[v1.GetSocialVerificationRequest, v1.GetSocialVerificationResponse](
 			httpClient,
 			baseURL+SocialVerificationServiceGetSocialVerificationProcedure,
@@ -96,9 +134,11 @@ func NewSocialVerificationServiceClient(httpClient connect.HTTPClient, baseURL s
 
 // socialVerificationServiceClient implements SocialVerificationServiceClient.
 type socialVerificationServiceClient struct {
-	startSocialVerification *connect.Client[v1.StartSocialVerificationRequest, v1.StartSocialVerificationResponse]
-	socialVerificationReady *connect.Client[v1.SocialVerificationReadyRequest, v1.SocialVerificationReadyResponse]
-	getSocialVerification   *connect.Client[v1.GetSocialVerificationRequest, v1.GetSocialVerificationResponse]
+	startSocialVerification   *connect.Client[v1.StartSocialVerificationRequest, v1.StartSocialVerificationResponse]
+	socialVerificationReady   *connect.Client[v1.SocialVerificationReadyRequest, v1.SocialVerificationReadyResponse]
+	confirmSocialVerification *connect.Client[v1.ConfirmSocialVerificationRequest, v1.ConfirmSocialVerificationResponse]
+	unlinkSocialAccount       *connect.Client[v1.UnlinkSocialAccountRequest, v1.UnlinkSocialAccountResponse]
+	getSocialVerification     *connect.Client[v1.GetSocialVerificationRequest, v1.GetSocialVerificationResponse]
 }
 
 // StartSocialVerification calls auth.v1.SocialVerificationService.StartSocialVerification.
@@ -111,6 +151,16 @@ func (c *socialVerificationServiceClient) SocialVerificationReady(ctx context.Co
 	return c.socialVerificationReady.CallUnary(ctx, req)
 }
 
+// ConfirmSocialVerification calls auth.v1.SocialVerificationService.ConfirmSocialVerification.
+func (c *socialVerificationServiceClient) ConfirmSocialVerification(ctx context.Context, req *connect.Request[v1.ConfirmSocialVerificationRequest]) (*connect.Response[v1.ConfirmSocialVerificationResponse], error) {
+	return c.confirmSocialVerification.CallUnary(ctx, req)
+}
+
+// UnlinkSocialAccount calls auth.v1.SocialVerificationService.UnlinkSocialAccount.
+func (c *socialVerificationServiceClient) UnlinkSocialAccount(ctx context.Context, req *connect.Request[v1.UnlinkSocialAccountRequest]) (*connect.Response[v1.UnlinkSocialAccountResponse], error) {
+	return c.unlinkSocialAccount.CallUnary(ctx, req)
+}
+
 // GetSocialVerification calls auth.v1.SocialVerificationService.GetSocialVerification.
 func (c *socialVerificationServiceClient) GetSocialVerification(ctx context.Context, req *connect.Request[v1.GetSocialVerificationRequest]) (*connect.Response[v1.GetSocialVerificationResponse], error) {
 	return c.getSocialVerification.CallUnary(ctx, req)
@@ -120,12 +170,32 @@ func (c *socialVerificationServiceClient) GetSocialVerification(ctx context.Cont
 // service.
 type SocialVerificationServiceHandler interface {
 	// Start or restart social verification by issuing a new challenge code.
+	// For Telegram, open action_url to send the code to the Polyester bot, then
+	// confirm the account with ConfirmSocialVerification.
+	// AUTH_SOCIAL_VERIFICATION_INVALID_STATE for Telegram means a Telegram account is already linked; unlink it first.
 	StartSocialVerification(context.Context, *connect.Request[v1.StartSocialVerificationRequest]) (*connect.Response[v1.StartSocialVerificationResponse], error)
 	// Mark a verification as ready after the challenge code has been placed.
 	// AUTH_RESOURCE_NOT_FOUND means no verification exists; start one first.
 	// AUTH_SOCIAL_VERIFICATION_EXPIRED means the challenge window passed; start a new verification, then mark it ready again.
 	// AUTH_SOCIAL_VERIFICATION_INVALID_STATE means Ready is not valid in the current state; call GetSocialVerification for the current status.
+	// Telegram linking does not use Ready and always answers AUTH_SOCIAL_VERIFICATION_INVALID_STATE.
 	SocialVerificationReady(context.Context, *connect.Request[v1.SocialVerificationReadyRequest]) (*connect.Response[v1.SocialVerificationReadyResponse], error)
+	// Link the Telegram account that submitted the caller's challenge code. A
+	// linked Telegram account becomes a channel to the account, so the caller
+	// needs enrolled MFA and a fresh, single-use step-up proof in the
+	// X-Auth-Step-Up header, obtained by completing an MFA challenge for fresh
+	// step-up. The link consumes the proof; a retried confirmation of an existing
+	// link needs no new proof.
+	// AUTH_RESOURCE_NOT_FOUND means no verification exists; start one first.
+	// AUTH_SOCIAL_VERIFICATION_EXPIRED means the challenge window passed; start a new verification.
+	// AUTH_SOCIAL_VERIFICATION_INVALID_STATE means no submitted account awaits confirmation, or provider_user_id is not the account that submitted the code.
+	// AUTH_SOCIAL_ACCOUNT_ALREADY_LINKED means that Telegram account is linked to another Polyester account; the verification fails.
+	// AUTH_MFA_NOT_ENROLLED means enroll MFA first; AUTH_STEP_UP_REQUIRED and AUTH_STEP_UP_PROOF_UNAVAILABLE mean complete a new fresh step-up and retry.
+	ConfirmSocialVerification(context.Context, *connect.Request[v1.ConfirmSocialVerificationRequest]) (*connect.Response[v1.ConfirmSocialVerificationResponse], error)
+	// Unlink the caller's Telegram account, or cancel a Telegram link in progress.
+	// Unlinking again succeeds and changes nothing. To link again, start a new
+	// verification.
+	UnlinkSocialAccount(context.Context, *connect.Request[v1.UnlinkSocialAccountRequest]) (*connect.Response[v1.UnlinkSocialAccountResponse], error)
 	// Get current verification status for the caller.
 	// A failed verification uses error_code for its machine-readable outcome.
 	// An API key needs READ_SOCIAL_VERIFICATION and must be scoped to the main
@@ -153,6 +223,18 @@ func NewSocialVerificationServiceHandler(svc SocialVerificationServiceHandler, o
 		connect.WithSchema(socialVerificationServiceMethods.ByName("SocialVerificationReady")),
 		connect.WithHandlerOptions(opts...),
 	)
+	socialVerificationServiceConfirmSocialVerificationHandler := connect.NewUnaryHandler(
+		SocialVerificationServiceConfirmSocialVerificationProcedure,
+		svc.ConfirmSocialVerification,
+		connect.WithSchema(socialVerificationServiceMethods.ByName("ConfirmSocialVerification")),
+		connect.WithHandlerOptions(opts...),
+	)
+	socialVerificationServiceUnlinkSocialAccountHandler := connect.NewUnaryHandler(
+		SocialVerificationServiceUnlinkSocialAccountProcedure,
+		svc.UnlinkSocialAccount,
+		connect.WithSchema(socialVerificationServiceMethods.ByName("UnlinkSocialAccount")),
+		connect.WithHandlerOptions(opts...),
+	)
 	socialVerificationServiceGetSocialVerificationHandler := connect.NewUnaryHandler(
 		SocialVerificationServiceGetSocialVerificationProcedure,
 		svc.GetSocialVerification,
@@ -165,6 +247,10 @@ func NewSocialVerificationServiceHandler(svc SocialVerificationServiceHandler, o
 			socialVerificationServiceStartSocialVerificationHandler.ServeHTTP(w, r)
 		case SocialVerificationServiceSocialVerificationReadyProcedure:
 			socialVerificationServiceSocialVerificationReadyHandler.ServeHTTP(w, r)
+		case SocialVerificationServiceConfirmSocialVerificationProcedure:
+			socialVerificationServiceConfirmSocialVerificationHandler.ServeHTTP(w, r)
+		case SocialVerificationServiceUnlinkSocialAccountProcedure:
+			socialVerificationServiceUnlinkSocialAccountHandler.ServeHTTP(w, r)
 		case SocialVerificationServiceGetSocialVerificationProcedure:
 			socialVerificationServiceGetSocialVerificationHandler.ServeHTTP(w, r)
 		default:
@@ -182,6 +268,14 @@ func (UnimplementedSocialVerificationServiceHandler) StartSocialVerification(con
 
 func (UnimplementedSocialVerificationServiceHandler) SocialVerificationReady(context.Context, *connect.Request[v1.SocialVerificationReadyRequest]) (*connect.Response[v1.SocialVerificationReadyResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.SocialVerificationService.SocialVerificationReady is not implemented"))
+}
+
+func (UnimplementedSocialVerificationServiceHandler) ConfirmSocialVerification(context.Context, *connect.Request[v1.ConfirmSocialVerificationRequest]) (*connect.Response[v1.ConfirmSocialVerificationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.SocialVerificationService.ConfirmSocialVerification is not implemented"))
+}
+
+func (UnimplementedSocialVerificationServiceHandler) UnlinkSocialAccount(context.Context, *connect.Request[v1.UnlinkSocialAccountRequest]) (*connect.Response[v1.UnlinkSocialAccountResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.SocialVerificationService.UnlinkSocialAccount is not implemented"))
 }
 
 func (UnimplementedSocialVerificationServiceHandler) GetSocialVerification(context.Context, *connect.Request[v1.GetSocialVerificationRequest]) (*connect.Response[v1.GetSocialVerificationResponse], error) {

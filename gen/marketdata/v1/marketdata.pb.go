@@ -1456,8 +1456,12 @@ type AssetConfig struct {
 	QuantityScale uint32 `protobuf:"varint,5,opt,name=quantity_scale,json=quantityScale,proto3" json:"quantity_scale,omitempty"`
 	// Integer scale for public candle and market-overview base volume (0..18).
 	MarketDataVolumeScale uint32 `protobuf:"varint,6,opt,name=market_data_volume_scale,json=marketDataVolumeScale,proto3" json:"market_data_volume_scale,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Counted in the account's total equity. When false, balances of this asset
+	// are still reported but carry no value in total equity. Always set; treat
+	// an absent value as unknown, never as false.
+	IncludedInEquity *bool `protobuf:"varint,7,opt,name=included_in_equity,json=includedInEquity,proto3,oneof" json:"included_in_equity,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *AssetConfig) Reset() {
@@ -1530,6 +1534,13 @@ func (x *AssetConfig) GetMarketDataVolumeScale() uint32 {
 		return x.MarketDataVolumeScale
 	}
 	return 0
+}
+
+func (x *AssetConfig) GetIncludedInEquity() bool {
+	if x != nil && x.IncludedInEquity != nil {
+		return *x.IncludedInEquity
+	}
+	return false
 }
 
 // PairMarketdataConfig describes market-data display settings for a spot pair.
@@ -2090,14 +2101,16 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\x03low\x18\x06 \x01(\x03R\x03low\x12\x14\n" +
 	"\x05close\x18\a \x01(\x03R\x05close\x12\x16\n" +
 	"\x06volume\x18\b \x01(\x03R\x06volume\x12!\n" +
-	"\fquote_volume\x18\t \x01(\tR\vquoteVolume\"\xf0\x01\n" +
+	"\fquote_volume\x18\t \x01(\tR\vquoteVolume\"\xba\x02\n" +
 	"\vAssetConfig\x12\x14\n" +
 	"\x05asset\x18\x01 \x01(\tR\x05asset\x12\x1b\n" +
 	"\tledger_id\x18\x02 \x01(\rR\bledgerId\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12:\n" +
 	"\x19quantity_display_decimals\x18\x04 \x01(\rR\x17quantityDisplayDecimals\x12%\n" +
 	"\x0equantity_scale\x18\x05 \x01(\rR\rquantityScale\x127\n" +
-	"\x18market_data_volume_scale\x18\x06 \x01(\rR\x15marketDataVolumeScale\"N\n" +
+	"\x18market_data_volume_scale\x18\x06 \x01(\rR\x15marketDataVolumeScale\x121\n" +
+	"\x12included_in_equity\x18\a \x01(\bH\x00R\x10includedInEquity\x88\x01\x01B\x15\n" +
+	"\x13_included_in_equity\"N\n" +
 	"\x14PairMarketdataConfig\x126\n" +
 	"\x17orderbook_price_buckets\x18\x01 \x03(\x01R\x15orderbookPriceBuckets\"\x95\n" +
 	"\n" +
@@ -2274,6 +2287,7 @@ func file_marketdata_v1_marketdata_proto_init() {
 		return
 	}
 	file_marketdata_v1_marketdata_proto_msgTypes[0].OneofWrappers = []any{}
+	file_marketdata_v1_marketdata_proto_msgTypes[11].OneofWrappers = []any{}
 	file_marketdata_v1_marketdata_proto_msgTypes[13].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

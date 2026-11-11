@@ -35,12 +35,12 @@ type ClientFrame struct {
 	// recv_window_ms: a command that arrives, or waits to be sent on for
 	// admission, past then is rejected with REQUEST_DEADLINE_EXCEEDED and
 	// changes nothing, but it has taken its seq, so the next command uses the
-	// next seq. A timestamp more than 10 seconds ahead of the server clock is
+	// next seq. A timestamp more than 1 second ahead of the server clock is
 	// rejected with BAD_REQUEST, without taking the seq. Zero sets no
 	// deadline. Ping ignores it.
 	TimestampMs int64 `protobuf:"varint,3,opt,name=timestamp_ms,json=timestampMs,proto3" json:"timestamp_ms,omitempty"`
 	// Optional receive window in milliseconds, from 1 to 60000, applied to
-	// timestamp_ms. Zero uses 10000. Setting it without timestamp_ms is
+	// timestamp_ms. Zero uses 5000. Setting it without timestamp_ms is
 	// rejected with BAD_REQUEST.
 	RecvWindowMs uint32 `protobuf:"varint,4,opt,name=recv_window_ms,json=recvWindowMs,proto3" json:"recv_window_ms,omitempty"`
 	// Types that are valid to be assigned to Payload:

@@ -36,6 +36,9 @@ const (
 	SocialProvider_TWITTER SocialProvider = 1
 	// Discord account verification.
 	SocialProvider_DISCORD SocialProvider = 2
+	// Telegram account linking. The user sends the challenge code to the Polyester
+	// Telegram bot, then confirms the Telegram account that sent it.
+	SocialProvider_TELEGRAM SocialProvider = 3
 )
 
 // Enum value maps for SocialProvider.
@@ -44,11 +47,13 @@ var (
 		0: "PROVIDER_UNSPECIFIED",
 		1: "TWITTER",
 		2: "DISCORD",
+		3: "TELEGRAM",
 	}
 	SocialProvider_value = map[string]int32{
 		"PROVIDER_UNSPECIFIED": 0,
 		"TWITTER":              1,
 		"DISCORD":              2,
+		"TELEGRAM":             3,
 	}
 )
 
@@ -97,8 +102,11 @@ const (
 	SocialVerificationStatus_STATUS_FAILED SocialVerificationStatus = 5
 	// Challenge code expired before verification completed.
 	SocialVerificationStatus_STATUS_EXPIRED SocialVerificationStatus = 6
-	// Verification was cancelled.
+	// Verification was cancelled, or the linked account was unlinked.
 	SocialVerificationStatus_STATUS_CANCELLED SocialVerificationStatus = 7
+	// A provider account submitted the challenge code. The user must confirm that
+	// account with ConfirmSocialVerification before it is linked. Telegram only.
+	SocialVerificationStatus_STATUS_AWAITING_CONFIRMATION SocialVerificationStatus = 8
 )
 
 // Enum value maps for SocialVerificationStatus.
@@ -112,16 +120,18 @@ var (
 		5: "STATUS_FAILED",
 		6: "STATUS_EXPIRED",
 		7: "STATUS_CANCELLED",
+		8: "STATUS_AWAITING_CONFIRMATION",
 	}
 	SocialVerificationStatus_value = map[string]int32{
-		"STATUS_UNSPECIFIED":         0,
-		"STATUS_PENDING_USER_ACTION": 1,
-		"STATUS_QUEUED":              2,
-		"STATUS_IN_PROGRESS":         3,
-		"STATUS_VERIFIED":            4,
-		"STATUS_FAILED":              5,
-		"STATUS_EXPIRED":             6,
-		"STATUS_CANCELLED":           7,
+		"STATUS_UNSPECIFIED":           0,
+		"STATUS_PENDING_USER_ACTION":   1,
+		"STATUS_QUEUED":                2,
+		"STATUS_IN_PROGRESS":           3,
+		"STATUS_VERIFIED":              4,
+		"STATUS_FAILED":                5,
+		"STATUS_EXPIRED":               6,
+		"STATUS_CANCELLED":             7,
+		"STATUS_AWAITING_CONFIRMATION": 8,
 	}
 )
 
@@ -221,13 +231,21 @@ type SocialVerification struct {
 	// provider default is used.
 	Method SocialVerificationMethod `protobuf:"varint,11,opt,name=method,proto3,enum=auth.v1.SocialVerificationMethod" json:"method,omitempty"`
 	// Provider handle being verified. Handles are returned lowercase and without
-	// a leading "@".
+	// a leading "@". For Telegram, the username of the account that submitted the
+	// code; empty when that account has no username.
 	Handle string `protobuf:"bytes,2,opt,name=handle,proto3" json:"handle,omitempty"`
-	// Stable provider-side user identifier. Empty until verification succeeds.
+	// Stable provider-side user identifier. Empty until verification succeeds,
+	// except for Telegram: while the status is STATUS_AWAITING_CONFIRMATION, it is
+	// the numeric user ID of the Telegram account that submitted the code, the
+	// value ConfirmSocialVerification takes.
 	ProviderUserId string `protobuf:"bytes,3,opt,name=provider_user_id,json=providerUserId,proto3" json:"provider_user_id,omitempty"`
+	// Provider display name of the account being verified, for showing it to the
+	// user. Telegram only: the account's name, set once the code is submitted.
+	// Empty for other providers.
+	DisplayName string `protobuf:"bytes,17,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	// Challenge code the user must submit according to the verification method.
-	// Discord codes are returned only when a challenge is issued. Codes expire
-	// after 15 minutes.
+	// Discord and Telegram codes are returned only when a challenge is issued.
+	// Codes expire after 15 minutes.
 	ChallengeCode string `protobuf:"bytes,13,opt,name=challenge_code,json=challengeCode,proto3" json:"challenge_code,omitempty"`
 	// Current verification status.
 	Status SocialVerificationStatus `protobuf:"varint,4,opt,name=status,proto3,enum=auth.v1.SocialVerificationStatus" json:"status,omitempty"`
@@ -316,6 +334,13 @@ func (x *SocialVerification) GetProviderUserId() string {
 	return ""
 }
 
+func (x *SocialVerification) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
 func (x *SocialVerification) GetChallengeCode() string {
 	if x != nil {
 		return x.ChallengeCode
@@ -386,10 +411,11 @@ type StartSocialVerificationRequest struct {
 	// Provider account to verify.
 	Provider SocialProvider `protobuf:"varint,1,opt,name=provider,proto3,enum=auth.v1.SocialProvider" json:"provider,omitempty"`
 	// Verification method. If unspecified, profile verification is used for
-	// X/Twitter and channel verification is used for Discord.
+	// X/Twitter, channel verification for Discord and direct message
+	// verification for Telegram.
 	Method SocialVerificationMethod `protobuf:"varint,3,opt,name=method,proto3,enum=auth.v1.SocialVerificationMethod" json:"method,omitempty"`
 	// Provider handle the user claims. Required for X/Twitter and omitted for
-	// Discord, where the authenticated bot supplies the provider identity.
+	// Discord and Telegram, where the provider bot supplies the provider identity.
 	// A leading "@" is accepted and removed from X/Twitter handles.
 	Handle        string `protobuf:"bytes,2,opt,name=handle,proto3" json:"handle,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -457,7 +483,11 @@ type StartSocialVerificationResponse struct {
 	// expire after 15 minutes.
 	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	// Current verification state after issuing the challenge.
-	Verification  *SocialVerification `protobuf:"bytes,3,opt,name=verification,proto3" json:"verification,omitempty"`
+	Verification *SocialVerification `protobuf:"bytes,3,opt,name=verification,proto3" json:"verification,omitempty"`
+	// Link that completes the user action, when the provider has one. Telegram:
+	// opening it starts a chat with the Polyester bot that submits the code.
+	// Empty for other providers.
+	ActionUrl     string `protobuf:"bytes,4,opt,name=action_url,json=actionUrl,proto3" json:"action_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -511,6 +541,13 @@ func (x *StartSocialVerificationResponse) GetVerification() *SocialVerification 
 		return x.Verification
 	}
 	return nil
+}
+
+func (x *StartSocialVerificationResponse) GetActionUrl() string {
+	if x != nil {
+		return x.ActionUrl
+	}
+	return ""
 }
 
 // SocialVerificationReadyRequest tells the API that the challenge code has been
@@ -703,17 +740,218 @@ func (x *GetSocialVerificationResponse) GetVerification() *SocialVerification {
 	return nil
 }
 
+// ConfirmSocialVerificationRequest links the provider account that submitted
+// the caller's challenge code.
+type ConfirmSocialVerificationRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Provider account to confirm. Only TELEGRAM is accepted.
+	Provider SocialProvider `protobuf:"varint,1,opt,name=provider,proto3,enum=auth.v1.SocialProvider" json:"provider,omitempty"`
+	// Provider user ID the user confirms, as provider_user_id of the verification
+	// in STATUS_AWAITING_CONFIRMATION. The request fails when it is not the
+	// account that submitted the code, so the user links exactly the account
+	// they were shown.
+	ProviderUserId string `protobuf:"bytes,2,opt,name=provider_user_id,json=providerUserId,proto3" json:"provider_user_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ConfirmSocialVerificationRequest) Reset() {
+	*x = ConfirmSocialVerificationRequest{}
+	mi := &file_auth_v1_social_verification_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfirmSocialVerificationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfirmSocialVerificationRequest) ProtoMessage() {}
+
+func (x *ConfirmSocialVerificationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_social_verification_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfirmSocialVerificationRequest.ProtoReflect.Descriptor instead.
+func (*ConfirmSocialVerificationRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_social_verification_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ConfirmSocialVerificationRequest) GetProvider() SocialProvider {
+	if x != nil {
+		return x.Provider
+	}
+	return SocialProvider_PROVIDER_UNSPECIFIED
+}
+
+func (x *ConfirmSocialVerificationRequest) GetProviderUserId() string {
+	if x != nil {
+		return x.ProviderUserId
+	}
+	return ""
+}
+
+// ConfirmSocialVerificationResponse returns the verification after the
+// provider account was linked.
+type ConfirmSocialVerificationResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Current verification state, STATUS_VERIFIED.
+	Verification  *SocialVerification `protobuf:"bytes,1,opt,name=verification,proto3" json:"verification,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfirmSocialVerificationResponse) Reset() {
+	*x = ConfirmSocialVerificationResponse{}
+	mi := &file_auth_v1_social_verification_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfirmSocialVerificationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfirmSocialVerificationResponse) ProtoMessage() {}
+
+func (x *ConfirmSocialVerificationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_social_verification_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfirmSocialVerificationResponse.ProtoReflect.Descriptor instead.
+func (*ConfirmSocialVerificationResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_social_verification_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ConfirmSocialVerificationResponse) GetVerification() *SocialVerification {
+	if x != nil {
+		return x.Verification
+	}
+	return nil
+}
+
+// UnlinkSocialAccountRequest removes the caller's linked provider account, or
+// cancels a link in progress.
+type UnlinkSocialAccountRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Provider account to unlink. Only TELEGRAM is accepted.
+	Provider      SocialProvider `protobuf:"varint,1,opt,name=provider,proto3,enum=auth.v1.SocialProvider" json:"provider,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnlinkSocialAccountRequest) Reset() {
+	*x = UnlinkSocialAccountRequest{}
+	mi := &file_auth_v1_social_verification_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnlinkSocialAccountRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnlinkSocialAccountRequest) ProtoMessage() {}
+
+func (x *UnlinkSocialAccountRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_social_verification_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnlinkSocialAccountRequest.ProtoReflect.Descriptor instead.
+func (*UnlinkSocialAccountRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_social_verification_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *UnlinkSocialAccountRequest) GetProvider() SocialProvider {
+	if x != nil {
+		return x.Provider
+	}
+	return SocialProvider_PROVIDER_UNSPECIFIED
+}
+
+// UnlinkSocialAccountResponse returns the verification after unlinking.
+type UnlinkSocialAccountResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Current verification state, STATUS_CANCELLED. Absent when no verification
+	// was ever started for the provider.
+	Verification  *SocialVerification `protobuf:"bytes,1,opt,name=verification,proto3" json:"verification,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnlinkSocialAccountResponse) Reset() {
+	*x = UnlinkSocialAccountResponse{}
+	mi := &file_auth_v1_social_verification_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnlinkSocialAccountResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnlinkSocialAccountResponse) ProtoMessage() {}
+
+func (x *UnlinkSocialAccountResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_social_verification_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnlinkSocialAccountResponse.ProtoReflect.Descriptor instead.
+func (*UnlinkSocialAccountResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_social_verification_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *UnlinkSocialAccountResponse) GetVerification() *SocialVerification {
+	if x != nil {
+		return x.Verification
+	}
+	return nil
+}
+
 var File_auth_v1_social_verification_proto protoreflect.FileDescriptor
 
 const file_auth_v1_social_verification_proto_rawDesc = "" +
 	"\n" +
-	"!auth/v1/social_verification.proto\x12\aauth.v1\x1a\x12auth/v1/auth.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\x9c\x05\n" +
+	"!auth/v1/social_verification.proto\x12\aauth.v1\x1a\x12auth/v1/auth.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\xbf\x05\n" +
 	"\x12SocialVerification\x12\x0e\n" +
 	"\x02id\x18\f \x01(\x03R\x02id\x123\n" +
 	"\bprovider\x18\x01 \x01(\x0e2\x17.auth.v1.SocialProviderR\bprovider\x129\n" +
 	"\x06method\x18\v \x01(\x0e2!.auth.v1.SocialVerificationMethodR\x06method\x12\x16\n" +
 	"\x06handle\x18\x02 \x01(\tR\x06handle\x12(\n" +
-	"\x10provider_user_id\x18\x03 \x01(\tR\x0eproviderUserId\x12%\n" +
+	"\x10provider_user_id\x18\x03 \x01(\tR\x0eproviderUserId\x12!\n" +
+	"\fdisplay_name\x18\x11 \x01(\tR\vdisplayName\x12%\n" +
 	"\x0echallenge_code\x18\r \x01(\tR\rchallengeCode\x129\n" +
 	"\x06status\x18\x04 \x01(\x0e2!.auth.v1.SocialVerificationStatusR\x06status\x12=\n" +
 	"\frequested_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\vrequestedAt\x129\n" +
@@ -728,20 +966,24 @@ const file_auth_v1_social_verification_proto_rawDesc = "" +
 	"\n" +
 	"error_code\x18\x10 \x01(\x0e2\x16.auth.v1.AuthErrorCodeR\terrorCode\x129\n" +
 	"\n" +
-	"updated_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xf5\x05\n" +
+	"updated_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xf4\a\n" +
 	"\x1eStartSocialVerificationRequest\x12B\n" +
 	"\bprovider\x18\x01 \x01(\x0e2\x17.auth.v1.SocialProviderB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\bprovider\x12C\n" +
 	"\x06method\x18\x03 \x01(\x0e2!.auth.v1.SocialVerificationMethodB\b\xbaH\x05\x82\x01\x02\x10\x01R\x06method\x12\x8c\x01\n" +
 	"\x06handle\x18\x02 \x01(\tBt\xbaHq\xba\x01j\n" +
-	"\x18handle.no_angle_brackets\x12\"handle must not contain '<' or '>'\x1a*!this.contains('<') && !this.contains('>')r\x02\x18@R\x06handle:\xba\x03\xbaH\xb6\x03\x1a\xb0\x01\n" +
+	"\x18handle.no_angle_brackets\x12\"handle must not contain '<' or '>'\x1a*!this.contains('<') && !this.contains('>')r\x02\x18@R\x06handle:\xb9\x05\xbaH\xb5\x05\x1a\xb0\x01\n" +
 	"\x15twitter_handle_format\x12Ltwitter handle must be 1-15 chars [A-Za-z0-9_], optionally prefixed with '@'\x1aIthis.provider != 1 ? true : this.handle.matches('^@?[A-Za-z0-9_]{1,15}$')\x1av\n" +
 	"\x16discord_handle_omitted\x12-discord verification does not accept a handle\x1a-this.provider != 2 ? true : this.handle == ''\x1a\x88\x01\n" +
-	"\x16discord_channel_method\x12,discord verification uses the channel method\x1a@this.provider != 2 ? true : this.method == 0 || this.method == 2\"\xc4\x01\n" +
+	"\x16discord_channel_method\x12,discord verification uses the channel method\x1a@this.provider != 2 ? true : this.method == 0 || this.method == 2\x1as\n" +
+	"\x17telegram_handle_omitted\x12)telegram linking does not accept a handle\x1a-this.provider != 3 ? true : this.handle == ''\x1a\x87\x01\n" +
+	"\x12telegram_dm_method\x12/telegram linking uses the direct message method\x1a@this.provider != 3 ? true : this.method == 0 || this.method == 3\"\xe3\x01\n" +
 	"\x1fStartSocialVerificationResponse\x12%\n" +
 	"\x0echallenge_code\x18\x01 \x01(\tR\rchallengeCode\x129\n" +
 	"\n" +
 	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12?\n" +
-	"\fverification\x18\x03 \x01(\v2\x1b.auth.v1.SocialVerificationR\fverification\"d\n" +
+	"\fverification\x18\x03 \x01(\v2\x1b.auth.v1.SocialVerificationR\fverification\x12\x1d\n" +
+	"\n" +
+	"action_url\x18\x04 \x01(\tR\tactionUrl\"d\n" +
 	"\x1eSocialVerificationReadyRequest\x12B\n" +
 	"\bprovider\x18\x01 \x01(\x0e2\x17.auth.v1.SocialProviderB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\bprovider\"b\n" +
 	"\x1fSocialVerificationReadyResponse\x12?\n" +
@@ -749,11 +991,23 @@ const file_auth_v1_social_verification_proto_rawDesc = "" +
 	"\x1cGetSocialVerificationRequest\x12B\n" +
 	"\bprovider\x18\x01 \x01(\x0e2\x17.auth.v1.SocialProviderB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\bprovider\"`\n" +
 	"\x1dGetSocialVerificationResponse\x12?\n" +
-	"\fverification\x18\x01 \x01(\v2\x1b.auth.v1.SocialVerificationR\fverification*D\n" +
+	"\fverification\x18\x01 \x01(\v2\x1b.auth.v1.SocialVerificationR\fverification\"\x8b\x02\n" +
+	" ConfirmSocialVerificationRequest\x12B\n" +
+	"\bprovider\x18\x01 \x01(\x0e2\x17.auth.v1.SocialProviderB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\bprovider\x12E\n" +
+	"\x10provider_user_id\x18\x02 \x01(\tB\x1b\xe0A\x02\xbaH\x15r\x13\x10\x01\x18\x142\r^[1-9][0-9]*$R\x0eproviderUserId:\\\xbaHY\x1aW\n" +
+	"\x15confirm_telegram_only\x12*only telegram linking needs a confirmation\x1a\x12this.provider == 3\"d\n" +
+	"!ConfirmSocialVerificationResponse\x12?\n" +
+	"\fverification\x18\x01 \x01(\v2\x1b.auth.v1.SocialVerificationR\fverification\"\xba\x01\n" +
+	"\x1aUnlinkSocialAccountRequest\x12B\n" +
+	"\bprovider\x18\x01 \x01(\x0e2\x17.auth.v1.SocialProviderB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\bprovider:X\xbaHU\x1aS\n" +
+	"\x14unlink_telegram_only\x12'only a telegram account can be unlinked\x1a\x12this.provider == 3\"^\n" +
+	"\x1bUnlinkSocialAccountResponse\x12?\n" +
+	"\fverification\x18\x01 \x01(\v2\x1b.auth.v1.SocialVerificationR\fverification*R\n" +
 	"\x0eSocialProvider\x12\x18\n" +
 	"\x14PROVIDER_UNSPECIFIED\x10\x00\x12\v\n" +
 	"\aTWITTER\x10\x01\x12\v\n" +
-	"\aDISCORD\x10\x02*\xcf\x01\n" +
+	"\aDISCORD\x10\x02\x12\f\n" +
+	"\bTELEGRAM\x10\x03*\xf1\x01\n" +
 	"\x18SocialVerificationStatus\x12\x16\n" +
 	"\x12STATUS_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aSTATUS_PENDING_USER_ACTION\x10\x01\x12\x11\n" +
@@ -762,17 +1016,22 @@ const file_auth_v1_social_verification_proto_rawDesc = "" +
 	"\x0fSTATUS_VERIFIED\x10\x04\x12\x11\n" +
 	"\rSTATUS_FAILED\x10\x05\x12\x12\n" +
 	"\x0eSTATUS_EXPIRED\x10\x06\x12\x14\n" +
-	"\x10STATUS_CANCELLED\x10\a*i\n" +
+	"\x10STATUS_CANCELLED\x10\a\x12 \n" +
+	"\x1cSTATUS_AWAITING_CONFIRMATION\x10\b*i\n" +
 	"\x18SocialVerificationMethod\x12\x16\n" +
 	"\x12METHOD_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eMETHOD_PROFILE\x10\x01\x12\x12\n" +
 	"\x0eMETHOD_CHANNEL\x10\x02\x12\r\n" +
-	"\tMETHOD_DM\x10\x032\xed\t\n" +
+	"\tMETHOD_DM\x10\x032\xcc\x11\n" +
 	"\x19SocialVerificationService\x12\xb0\x02\n" +
 	"\x17StartSocialVerification\x12'.auth.v1.StartSocialVerificationRequest\x1a(.auth.v1.StartSocialVerificationResponse\"\xc1\x01\xbaG\x8b\x01\n" +
 	"\fAuth Service\x12\x19Start Social Verification\x1a`Issue a challenge code for the caller to submit through the provider-specific verification flow.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/auth/social/verification:start\x12\xd0\x03\n" +
 	"\x17SocialVerificationReady\x12'.auth.v1.SocialVerificationReadyRequest\x1a(.auth.v1.SocialVerificationReadyResponse\"\xe1\x02\xbaG\xab\x02\n" +
-	"\fAuth Service\x12\x1eMark Social Verification Ready\x1a\xfa\x01Mark verification as ready and request a provider account check. AUTH_SOCIAL_VERIFICATION_EXPIRED means start a new challenge. AUTH_SOCIAL_VERIFICATION_INVALID_STATE means Ready is not valid in the current state; use GetSocialVerification for status.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/auth/social/verification:ready\x12\xbc\x03\n" +
+	"\fAuth Service\x12\x1eMark Social Verification Ready\x1a\xfa\x01Mark verification as ready and request a provider account check. AUTH_SOCIAL_VERIFICATION_EXPIRED means start a new challenge. AUTH_SOCIAL_VERIFICATION_INVALID_STATE means Ready is not valid in the current state; use GetSocialVerification for status.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/auth/social/verification:ready\x12\xae\x05\n" +
+	"\x19ConfirmSocialVerification\x12).auth.v1.ConfirmSocialVerificationRequest\x1a*.auth.v1.ConfirmSocialVerificationResponse\"\xb9\x04\xbaG\xfd\x03\n" +
+	"\fAuth Service\x12\x1bConfirm Social Verification\x1a\xcf\x03Link the Telegram account that submitted the caller's challenge code, after the user confirmed it. Requires enrolled MFA and a fresh step-up proof in the X-Auth-Step-Up header. AUTH_MFA_NOT_ENROLLED means enroll MFA first. AUTH_SOCIAL_VERIFICATION_EXPIRED means start a new challenge. AUTH_SOCIAL_VERIFICATION_INVALID_STATE means no matching account awaits confirmation. AUTH_SOCIAL_ACCOUNT_ALREADY_LINKED means the account is linked to another Polyester account.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02):\x01*\"$/v1/auth/social/verification:confirm\x12\xab\x02\n" +
+	"\x13UnlinkSocialAccount\x12#.auth.v1.UnlinkSocialAccountRequest\x1a$.auth.v1.UnlinkSocialAccountResponse\"\xc8\x01\xbaG\x91\x01\n" +
+	"\fAuth Service\x12\x15Unlink Social Account\x1ajUnlink the caller's Telegram account, or cancel a Telegram link in progress. Repeating it changes nothing.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02(:\x01*\"#/v1/auth/social/verification:unlink\x12\xbc\x03\n" +
 	"\x15GetSocialVerification\x12%.auth.v1.GetSocialVerificationRequest\x1a&.auth.v1.GetSocialVerificationResponse\"\xd3\x02\xbaG\xa5\x02\n" +
 	"\fAuth Service\x12\x17Get Social Verification\x1a\xfb\x01Retrieve current social verification status and any typed failure code for the caller. An API key needs READ_SOCIAL_VERIFICATION and must be scoped to the main account; it reads the status only: provider, method, handle, status, and verification time.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1e\x12\x1c/v1/auth/social/verification\x1a\v\x8a\xb5\x18\aaccountB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
 
@@ -789,49 +1048,61 @@ func file_auth_v1_social_verification_proto_rawDescGZIP() []byte {
 }
 
 var file_auth_v1_social_verification_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_auth_v1_social_verification_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_auth_v1_social_verification_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_auth_v1_social_verification_proto_goTypes = []any{
-	(SocialProvider)(0),                     // 0: auth.v1.SocialProvider
-	(SocialVerificationStatus)(0),           // 1: auth.v1.SocialVerificationStatus
-	(SocialVerificationMethod)(0),           // 2: auth.v1.SocialVerificationMethod
-	(*SocialVerification)(nil),              // 3: auth.v1.SocialVerification
-	(*StartSocialVerificationRequest)(nil),  // 4: auth.v1.StartSocialVerificationRequest
-	(*StartSocialVerificationResponse)(nil), // 5: auth.v1.StartSocialVerificationResponse
-	(*SocialVerificationReadyRequest)(nil),  // 6: auth.v1.SocialVerificationReadyRequest
-	(*SocialVerificationReadyResponse)(nil), // 7: auth.v1.SocialVerificationReadyResponse
-	(*GetSocialVerificationRequest)(nil),    // 8: auth.v1.GetSocialVerificationRequest
-	(*GetSocialVerificationResponse)(nil),   // 9: auth.v1.GetSocialVerificationResponse
-	(*timestamppb.Timestamp)(nil),           // 10: google.protobuf.Timestamp
-	(AuthErrorCode)(0),                      // 11: auth.v1.AuthErrorCode
+	(SocialProvider)(0),                       // 0: auth.v1.SocialProvider
+	(SocialVerificationStatus)(0),             // 1: auth.v1.SocialVerificationStatus
+	(SocialVerificationMethod)(0),             // 2: auth.v1.SocialVerificationMethod
+	(*SocialVerification)(nil),                // 3: auth.v1.SocialVerification
+	(*StartSocialVerificationRequest)(nil),    // 4: auth.v1.StartSocialVerificationRequest
+	(*StartSocialVerificationResponse)(nil),   // 5: auth.v1.StartSocialVerificationResponse
+	(*SocialVerificationReadyRequest)(nil),    // 6: auth.v1.SocialVerificationReadyRequest
+	(*SocialVerificationReadyResponse)(nil),   // 7: auth.v1.SocialVerificationReadyResponse
+	(*GetSocialVerificationRequest)(nil),      // 8: auth.v1.GetSocialVerificationRequest
+	(*GetSocialVerificationResponse)(nil),     // 9: auth.v1.GetSocialVerificationResponse
+	(*ConfirmSocialVerificationRequest)(nil),  // 10: auth.v1.ConfirmSocialVerificationRequest
+	(*ConfirmSocialVerificationResponse)(nil), // 11: auth.v1.ConfirmSocialVerificationResponse
+	(*UnlinkSocialAccountRequest)(nil),        // 12: auth.v1.UnlinkSocialAccountRequest
+	(*UnlinkSocialAccountResponse)(nil),       // 13: auth.v1.UnlinkSocialAccountResponse
+	(*timestamppb.Timestamp)(nil),             // 14: google.protobuf.Timestamp
+	(AuthErrorCode)(0),                        // 15: auth.v1.AuthErrorCode
 }
 var file_auth_v1_social_verification_proto_depIdxs = []int32{
 	0,  // 0: auth.v1.SocialVerification.provider:type_name -> auth.v1.SocialProvider
 	2,  // 1: auth.v1.SocialVerification.method:type_name -> auth.v1.SocialVerificationMethod
 	1,  // 2: auth.v1.SocialVerification.status:type_name -> auth.v1.SocialVerificationStatus
-	10, // 3: auth.v1.SocialVerification.requested_at:type_name -> google.protobuf.Timestamp
-	10, // 4: auth.v1.SocialVerification.expires_at:type_name -> google.protobuf.Timestamp
-	10, // 5: auth.v1.SocialVerification.verified_at:type_name -> google.protobuf.Timestamp
-	11, // 6: auth.v1.SocialVerification.error_code:type_name -> auth.v1.AuthErrorCode
-	10, // 7: auth.v1.SocialVerification.updated_at:type_name -> google.protobuf.Timestamp
+	14, // 3: auth.v1.SocialVerification.requested_at:type_name -> google.protobuf.Timestamp
+	14, // 4: auth.v1.SocialVerification.expires_at:type_name -> google.protobuf.Timestamp
+	14, // 5: auth.v1.SocialVerification.verified_at:type_name -> google.protobuf.Timestamp
+	15, // 6: auth.v1.SocialVerification.error_code:type_name -> auth.v1.AuthErrorCode
+	14, // 7: auth.v1.SocialVerification.updated_at:type_name -> google.protobuf.Timestamp
 	0,  // 8: auth.v1.StartSocialVerificationRequest.provider:type_name -> auth.v1.SocialProvider
 	2,  // 9: auth.v1.StartSocialVerificationRequest.method:type_name -> auth.v1.SocialVerificationMethod
-	10, // 10: auth.v1.StartSocialVerificationResponse.expires_at:type_name -> google.protobuf.Timestamp
+	14, // 10: auth.v1.StartSocialVerificationResponse.expires_at:type_name -> google.protobuf.Timestamp
 	3,  // 11: auth.v1.StartSocialVerificationResponse.verification:type_name -> auth.v1.SocialVerification
 	0,  // 12: auth.v1.SocialVerificationReadyRequest.provider:type_name -> auth.v1.SocialProvider
 	3,  // 13: auth.v1.SocialVerificationReadyResponse.verification:type_name -> auth.v1.SocialVerification
 	0,  // 14: auth.v1.GetSocialVerificationRequest.provider:type_name -> auth.v1.SocialProvider
 	3,  // 15: auth.v1.GetSocialVerificationResponse.verification:type_name -> auth.v1.SocialVerification
-	4,  // 16: auth.v1.SocialVerificationService.StartSocialVerification:input_type -> auth.v1.StartSocialVerificationRequest
-	6,  // 17: auth.v1.SocialVerificationService.SocialVerificationReady:input_type -> auth.v1.SocialVerificationReadyRequest
-	8,  // 18: auth.v1.SocialVerificationService.GetSocialVerification:input_type -> auth.v1.GetSocialVerificationRequest
-	5,  // 19: auth.v1.SocialVerificationService.StartSocialVerification:output_type -> auth.v1.StartSocialVerificationResponse
-	7,  // 20: auth.v1.SocialVerificationService.SocialVerificationReady:output_type -> auth.v1.SocialVerificationReadyResponse
-	9,  // 21: auth.v1.SocialVerificationService.GetSocialVerification:output_type -> auth.v1.GetSocialVerificationResponse
-	19, // [19:22] is the sub-list for method output_type
-	16, // [16:19] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	0,  // 16: auth.v1.ConfirmSocialVerificationRequest.provider:type_name -> auth.v1.SocialProvider
+	3,  // 17: auth.v1.ConfirmSocialVerificationResponse.verification:type_name -> auth.v1.SocialVerification
+	0,  // 18: auth.v1.UnlinkSocialAccountRequest.provider:type_name -> auth.v1.SocialProvider
+	3,  // 19: auth.v1.UnlinkSocialAccountResponse.verification:type_name -> auth.v1.SocialVerification
+	4,  // 20: auth.v1.SocialVerificationService.StartSocialVerification:input_type -> auth.v1.StartSocialVerificationRequest
+	6,  // 21: auth.v1.SocialVerificationService.SocialVerificationReady:input_type -> auth.v1.SocialVerificationReadyRequest
+	10, // 22: auth.v1.SocialVerificationService.ConfirmSocialVerification:input_type -> auth.v1.ConfirmSocialVerificationRequest
+	12, // 23: auth.v1.SocialVerificationService.UnlinkSocialAccount:input_type -> auth.v1.UnlinkSocialAccountRequest
+	8,  // 24: auth.v1.SocialVerificationService.GetSocialVerification:input_type -> auth.v1.GetSocialVerificationRequest
+	5,  // 25: auth.v1.SocialVerificationService.StartSocialVerification:output_type -> auth.v1.StartSocialVerificationResponse
+	7,  // 26: auth.v1.SocialVerificationService.SocialVerificationReady:output_type -> auth.v1.SocialVerificationReadyResponse
+	11, // 27: auth.v1.SocialVerificationService.ConfirmSocialVerification:output_type -> auth.v1.ConfirmSocialVerificationResponse
+	13, // 28: auth.v1.SocialVerificationService.UnlinkSocialAccount:output_type -> auth.v1.UnlinkSocialAccountResponse
+	9,  // 29: auth.v1.SocialVerificationService.GetSocialVerification:output_type -> auth.v1.GetSocialVerificationResponse
+	25, // [25:30] is the sub-list for method output_type
+	20, // [20:25] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_social_verification_proto_init() }
@@ -846,7 +1117,7 @@ func file_auth_v1_social_verification_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_social_verification_proto_rawDesc), len(file_auth_v1_social_verification_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   7,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

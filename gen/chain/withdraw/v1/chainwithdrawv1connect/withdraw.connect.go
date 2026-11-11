@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// WithdrawServiceGetWalletBalancesProcedure is the fully-qualified name of the WithdrawService's
+	// GetWalletBalances RPC.
+	WithdrawServiceGetWalletBalancesProcedure = "/chain.withdraw.v1.WithdrawService/GetWalletBalances"
 	// WithdrawServiceValidateWithdrawDestinationProcedure is the fully-qualified name of the
 	// WithdrawService's ValidateWithdrawDestination RPC.
 	WithdrawServiceValidateWithdrawDestinationProcedure = "/chain.withdraw.v1.WithdrawService/ValidateWithdrawDestination"
@@ -46,6 +49,11 @@ const (
 
 // WithdrawServiceClient is a client for the chain.withdraw.v1.WithdrawService service.
 type WithdrawServiceClient interface {
+	// Read the zTokens the account's smart account wallet holds on Polyester
+	// Chain, such as a rejected withdrawal's refund, which stays there until
+	// the account moves it. Balances are read live from the chain. An API key
+	// needs READ_BALANCES within its scope.
+	GetWalletBalances(context.Context, *connect.Request[v1.GetWalletBalancesRequest]) (*connect.Response[v1.GetWalletBalancesResponse], error)
 	// Validate an external-chain withdraw destination for an authenticated
 	// caller without creating, signing, or reserving a withdraw. An API key
 	// needs READ_WITHDRAW_VALIDATION within its scope.
@@ -70,6 +78,12 @@ func NewWithdrawServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 	baseURL = strings.TrimRight(baseURL, "/")
 	withdrawServiceMethods := v1.File_chain_withdraw_v1_withdraw_proto.Services().ByName("WithdrawService").Methods()
 	return &withdrawServiceClient{
+		getWalletBalances: connect.NewClient[v1.GetWalletBalancesRequest, v1.GetWalletBalancesResponse](
+			httpClient,
+			baseURL+WithdrawServiceGetWalletBalancesProcedure,
+			connect.WithSchema(withdrawServiceMethods.ByName("GetWalletBalances")),
+			connect.WithClientOptions(opts...),
+		),
 		validateWithdrawDestination: connect.NewClient[v1.ValidateWithdrawDestinationRequest, v1.ValidateWithdrawDestinationResponse](
 			httpClient,
 			baseURL+WithdrawServiceValidateWithdrawDestinationProcedure,
@@ -93,9 +107,15 @@ func NewWithdrawServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // withdrawServiceClient implements WithdrawServiceClient.
 type withdrawServiceClient struct {
+	getWalletBalances           *connect.Client[v1.GetWalletBalancesRequest, v1.GetWalletBalancesResponse]
 	validateWithdrawDestination *connect.Client[v1.ValidateWithdrawDestinationRequest, v1.ValidateWithdrawDestinationResponse]
 	createTradingWithdraw       *connect.Client[v1.CreateTradingWithdrawRequest, v1.CreateTradingWithdrawResponse]
 	createWalletTradingWithdraw *connect.Client[v1.CreateWalletTradingWithdrawRequest, v1.CreateWalletTradingWithdrawResponse]
+}
+
+// GetWalletBalances calls chain.withdraw.v1.WithdrawService.GetWalletBalances.
+func (c *withdrawServiceClient) GetWalletBalances(ctx context.Context, req *connect.Request[v1.GetWalletBalancesRequest]) (*connect.Response[v1.GetWalletBalancesResponse], error) {
+	return c.getWalletBalances.CallUnary(ctx, req)
 }
 
 // ValidateWithdrawDestination calls chain.withdraw.v1.WithdrawService.ValidateWithdrawDestination.
@@ -115,6 +135,11 @@ func (c *withdrawServiceClient) CreateWalletTradingWithdraw(ctx context.Context,
 
 // WithdrawServiceHandler is an implementation of the chain.withdraw.v1.WithdrawService service.
 type WithdrawServiceHandler interface {
+	// Read the zTokens the account's smart account wallet holds on Polyester
+	// Chain, such as a rejected withdrawal's refund, which stays there until
+	// the account moves it. Balances are read live from the chain. An API key
+	// needs READ_BALANCES within its scope.
+	GetWalletBalances(context.Context, *connect.Request[v1.GetWalletBalancesRequest]) (*connect.Response[v1.GetWalletBalancesResponse], error)
 	// Validate an external-chain withdraw destination for an authenticated
 	// caller without creating, signing, or reserving a withdraw. An API key
 	// needs READ_WITHDRAW_VALIDATION within its scope.
@@ -135,6 +160,12 @@ type WithdrawServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewWithdrawServiceHandler(svc WithdrawServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	withdrawServiceMethods := v1.File_chain_withdraw_v1_withdraw_proto.Services().ByName("WithdrawService").Methods()
+	withdrawServiceGetWalletBalancesHandler := connect.NewUnaryHandler(
+		WithdrawServiceGetWalletBalancesProcedure,
+		svc.GetWalletBalances,
+		connect.WithSchema(withdrawServiceMethods.ByName("GetWalletBalances")),
+		connect.WithHandlerOptions(opts...),
+	)
 	withdrawServiceValidateWithdrawDestinationHandler := connect.NewUnaryHandler(
 		WithdrawServiceValidateWithdrawDestinationProcedure,
 		svc.ValidateWithdrawDestination,
@@ -155,6 +186,8 @@ func NewWithdrawServiceHandler(svc WithdrawServiceHandler, opts ...connect.Handl
 	)
 	return "/chain.withdraw.v1.WithdrawService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case WithdrawServiceGetWalletBalancesProcedure:
+			withdrawServiceGetWalletBalancesHandler.ServeHTTP(w, r)
 		case WithdrawServiceValidateWithdrawDestinationProcedure:
 			withdrawServiceValidateWithdrawDestinationHandler.ServeHTTP(w, r)
 		case WithdrawServiceCreateTradingWithdrawProcedure:
@@ -169,6 +202,10 @@ func NewWithdrawServiceHandler(svc WithdrawServiceHandler, opts ...connect.Handl
 
 // UnimplementedWithdrawServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedWithdrawServiceHandler struct{}
+
+func (UnimplementedWithdrawServiceHandler) GetWalletBalances(context.Context, *connect.Request[v1.GetWalletBalancesRequest]) (*connect.Response[v1.GetWalletBalancesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chain.withdraw.v1.WithdrawService.GetWalletBalances is not implemented"))
+}
 
 func (UnimplementedWithdrawServiceHandler) ValidateWithdrawDestination(context.Context, *connect.Request[v1.ValidateWithdrawDestinationRequest]) (*connect.Response[v1.ValidateWithdrawDestinationResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chain.withdraw.v1.WithdrawService.ValidateWithdrawDestination is not implemented"))
