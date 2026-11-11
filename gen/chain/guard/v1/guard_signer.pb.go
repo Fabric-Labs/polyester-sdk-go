@@ -1231,12 +1231,12 @@ const file_chain_guard_v1_guard_signer_proto_rawDesc = "" +
 	"2PROTECTED_ACTION_FUNDING_REMOVE_EXTERNAL_WHITELIST\x10\x03\x123\n" +
 	"/PROTECTED_ACTION_FUNDING_ADD_INTERNAL_WHITELIST\x10\x04\x126\n" +
 	"2PROTECTED_ACTION_FUNDING_REMOVE_INTERNAL_WHITELIST\x10\x05\x12<\n" +
-	"8PROTECTED_ACTION_FUNDING_SET_INTERNAL_WHITELIST_REQUIRED\x10\x062\xf6\v\n" +
+	"8PROTECTED_ACTION_FUNDING_SET_INTERNAL_WHITELIST_REQUIRED\x10\x062\xcf\f\n" +
 	"\x12GuardSignerService\x12\xf2\x01\n" +
 	"\x17CreateGuardSignerWallet\x12..chain.guard.v1.CreateGuardSignerWalletRequest\x1a/.chain.guard.v1.CreateGuardSignerWalletResponse\"v\xbaGn\n" +
-	"\fGuard Signer\x12\x1aCreate Guard Signer Wallet\x1aBCreate a guard signer wallet for one authenticated account target.\xa2\xb5\x18\x01\x01\x12\xd0\x01\n" +
-	"\x14GetGuardSignerStatus\x12+.chain.guard.v1.GetGuardSignerStatusRequest\x1a,.chain.guard.v1.GetGuardSignerStatusResponse\"]\xbaGT\n" +
-	"\fGuard Signer\x12\x17Get Guard Signer Status\x1a+Return stored and live guard signer status.\xa2\xb5\x18\x02\x01\x02\x12\xe1\x01\n" +
+	"\fGuard Signer\x12\x1aCreate Guard Signer Wallet\x1aBCreate a guard signer wallet for one authenticated account target.\xa2\xb5\x18\x01\x01\x12\xa9\x02\n" +
+	"\x14GetGuardSignerStatus\x12+.chain.guard.v1.GetGuardSignerStatusRequest\x1a,.chain.guard.v1.GetGuardSignerStatusResponse\"\xb5\x01\xbaG\xab\x01\n" +
+	"\fGuard Signer\x12\x17Get Guard Signer Status\x1a\x81\x01Return stored and live guard signer status. An API key needs READ_GUARD_SIGNER_STATUS and reads only within its own main account.\xa2\xb5\x18\x02\x01\x02\x12\xe1\x01\n" +
 	"\x13SignProtectedAction\x12*.chain.guard.v1.SignProtectedActionRequest\x1a+.chain.guard.v1.SignProtectedActionResponse\"q\xbaGe\n" +
 	"\fGuard Signer\x12\x15Sign Protected Action\x1a>Create an approval signature for a supported protected action.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x12\x98\x02\n" +
 	"\x19BatchSignProtectedActions\x120.chain.guard.v1.BatchSignProtectedActionsRequest\x1a1.chain.guard.v1.BatchSignProtectedActionsResponse\"\x95\x01\xbaG\x88\x01\n" +

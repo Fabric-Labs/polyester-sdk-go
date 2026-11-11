@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"time"
 
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
@@ -89,6 +90,12 @@ const (
 	// request was not processed, and the same header is refused again: fix
 	// Config.RecvWindow. Read it with IsRecvWindowInvalid.
 	AuthCodeRecvWindowInvalid = "AUTH_RECV_WINDOW_INVALID"
+	// AuthCodeReplayDetected: the server already saw this exact signed login
+	// or request (REST REPLAY_DETECTED, HTTP 401). Each SDK request signs with
+	// its own timestamp, so this means the same signed request was sent
+	// twice, for example by a proxy; the first may have been applied. It is
+	// not retryable as is: read a mutation back before sending it again.
+	AuthCodeReplayDetected = "AUTH_REPLAY_DETECTED"
 )
 
 // AuthCodeReplayCapacityExhausted refuses a signed API-key request because
@@ -473,7 +480,9 @@ func (e *RateLimitError) Is(target error) bool { return target == ErrPolyester }
 // prove a refusal: a 5xx, or a 4xx other than 401 and 403 with no code the
 // contract defines. A gateway or an edge can send those too.
 type ServerError struct {
-	// AdmissionRefused is true only for a typed orders-service refusal.
+	// AdmissionRefused is true only for a typed refusal that changed nothing:
+	// an orders-service admission refusal, or a price alert refused for want
+	// of a current price.
 	AdmissionRefused bool
 	Msg              string
 	Code             string // Service code, or an unrecognised code kept for diagnosis.
@@ -493,6 +502,33 @@ type APIError struct {
 	// ERROR_CODE_CONFLICT_DUPLICATE_CLIENT_ORDER_ID rejection, when the server
 	// knows it. Read it with Orders.Get for its current state.
 	ExistingOrderID string
+	// FieldPath names the request field a withdraw-service refusal is about,
+	// such as "destinations[0].min_amount_e18", when the server names one.
+	FieldPath string
+	// MinFloorE18 is the least amount a payout to the destination can pay
+	// now, as a decimal string in 18-decimal units, on an
+	// ERROR_CODE_MIN_AMOUNT_BELOW_FLOOR refusal; empty otherwise.
+	MinFloorE18 string
+	// PayableFrom is when a broker vault can pay the destination of an
+	// ERROR_CODE_EXTERNAL_DESTINATION_COOLING_DOWN refusal, once it has been
+	// on the vault's whitelist for 24 hours; nil when the server does not
+	// know yet.
+	PayableFrom *time.Time
+}
+
+// CodeExternalDestinationCoolingDown refuses a withdrawal from a broker vault
+// to a destination added to its external withdraw whitelist less than 24
+// hours ago (chain.withdraw.v1 ERROR_CODE_EXTERNAL_DESTINATION_COOLING_DOWN,
+// Connect failed_precondition, REST 400). Nothing was reserved. The
+// destination is listed: send again at APIError.PayableFrom.
+const CodeExternalDestinationCoolingDown = "ERROR_CODE_EXTERNAL_DESTINATION_COOLING_DOWN"
+
+// IsDestinationCoolingDown reports whether err refuses a broker-vault
+// withdrawal because its destination is still in its whitelist cool-down. It
+// is not retryable before APIError.PayableFrom.
+func IsDestinationCoolingDown(err error) bool {
+	var apiErr *APIError
+	return errors.As(err, &apiErr) && apiErr.Code == CodeExternalDestinationCoolingDown
 }
 
 func (e *APIError) Error() string        { return e.Msg }

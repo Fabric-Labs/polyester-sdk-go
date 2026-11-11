@@ -121,6 +121,10 @@ const (
 	// Balance adjustment with a system account, including account seeding credits or corrections.
 	// May credit or debit the user's account; the transfer direction identifies which.
 	TransferCode_SYSTEM_ADJUSTMENT TransferCode = 1074
+	// Funds that left the account for a withdrawal that Zipper rejected or that failed to execute.
+	// A rejected withdrawal refunds its net amount to the user's own wallet; the withdrawal fee is
+	// not refunded.
+	TransferCode_WITHDRAW_FAILED TransferCode = 1075
 )
 
 // Enum value maps for TransferCode.
@@ -147,6 +151,7 @@ var (
 		1072: "FEE_SWEEP",
 		1073: "FEE_REFILL",
 		1074: "SYSTEM_ADJUSTMENT",
+		1075: "WITHDRAW_FAILED",
 	}
 	TransferCode_value = map[string]int32{
 		"TRANSFER_CODE_UNSPECIFIED":    0,
@@ -170,6 +175,7 @@ var (
 		"FEE_SWEEP":                    1072,
 		"FEE_REFILL":                   1073,
 		"SYSTEM_ADJUSTMENT":            1074,
+		"WITHDRAW_FAILED":              1075,
 	}
 )
 
@@ -208,7 +214,7 @@ const file_ledger_v1_catalog_proto_rawDesc = "" +
 	"\vAccountCode\x12\x1c\n" +
 	"\x18ACCOUNT_CODE_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\aFUNDING\x10\xac\x02\x12\f\n" +
-	"\aTRADING\x10\xad\x02*\xf1\x03\n" +
+	"\aTRADING\x10\xad\x02*\x87\x04\n" +
 	"\fTransferCode\x12\x1d\n" +
 	"\x19TRANSFER_CODE_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\aDEPOSIT\x10\xe8\a\x12\r\n" +
@@ -232,7 +238,8 @@ const file_ledger_v1_catalog_proto_rawDesc = "" +
 	"\tFEE_SWEEP\x10\xb0\b\x12\x0f\n" +
 	"\n" +
 	"FEE_REFILL\x10\xb1\b\x12\x16\n" +
-	"\x11SYSTEM_ADJUSTMENT\x10\xb2\bB@Z>github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/v1;ledgerv1b\x06proto3"
+	"\x11SYSTEM_ADJUSTMENT\x10\xb2\b\x12\x14\n" +
+	"\x0fWITHDRAW_FAILED\x10\xb3\bB@Z>github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/v1;ledgerv1b\x06proto3"
 
 var (
 	file_ledger_v1_catalog_proto_rawDescOnce sync.Once

@@ -48,11 +48,13 @@ type DepositAddressServiceClient interface {
 	// terms, including requests using an API key or targeting a shared subaccount.
 	// Otherwise FailedPrecondition is returned. Listing and using existing deposit
 	// addresses remain available without acceptance. FailedPrecondition is also
-	// returned when deposits on the requested chain are unavailable.
+	// returned when deposits on the requested chain are unavailable. An API key
+	// needs CREATE_DEPOSIT_ADDRESS within its scope.
 	CreateDepositAddress(context.Context, *connect.Request[v1.CreateDepositAddressRequest]) (*connect.Response[v1.CreateDepositAddressResponse], error)
 	// List known deposit addresses for one target on chains that currently
 	// accept deposits. Results are served from Polyester-owned state rather than
-	// a live upstream read.
+	// a live upstream read. An API key needs READ_DEPOSIT_ADDRESSES within its
+	// scope.
 	ListDepositAddresses(context.Context, *connect.Request[v1.ListDepositAddressesRequest]) (*connect.Response[v1.ListDepositAddressesResponse], error)
 }
 
@@ -106,11 +108,13 @@ type DepositAddressServiceHandler interface {
 	// terms, including requests using an API key or targeting a shared subaccount.
 	// Otherwise FailedPrecondition is returned. Listing and using existing deposit
 	// addresses remain available without acceptance. FailedPrecondition is also
-	// returned when deposits on the requested chain are unavailable.
+	// returned when deposits on the requested chain are unavailable. An API key
+	// needs CREATE_DEPOSIT_ADDRESS within its scope.
 	CreateDepositAddress(context.Context, *connect.Request[v1.CreateDepositAddressRequest]) (*connect.Response[v1.CreateDepositAddressResponse], error)
 	// List known deposit addresses for one target on chains that currently
 	// accept deposits. Results are served from Polyester-owned state rather than
-	// a live upstream read.
+	// a live upstream read. An API key needs READ_DEPOSIT_ADDRESSES within its
+	// scope.
 	ListDepositAddresses(context.Context, *connect.Request[v1.ListDepositAddressesRequest]) (*connect.Response[v1.ListDepositAddressesResponse], error)
 }
 

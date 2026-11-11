@@ -183,9 +183,11 @@ const (
 	AutoWithdrawRunState_RUN_PAYING AutoWithdrawRunState = 2
 	// Every payout completed or was skipped, and at least one paid.
 	AutoWithdrawRunState_RUN_COMPLETED AutoWithdrawRunState = 3
-	// Some payouts failed; their funds are back on the account.
+	// Some payouts failed. Each failed step says where its funds are
+	// (STEP_FAILED).
 	AutoWithdrawRunState_RUN_PARTIALLY_FAILED AutoWithdrawRunState = 4
-	// Every attempted payout failed; the funds are back on the account.
+	// Every attempted payout failed. Each failed step says where its funds are
+	// (STEP_FAILED).
 	AutoWithdrawRunState_RUN_FAILED AutoWithdrawRunState = 5
 	// Nothing was paid: every asset was below its minimum, no current price
 	// valued it, or the rule was no longer current.
@@ -255,7 +257,16 @@ const (
 	AutoWithdrawStepState_STEP_SUBMITTED AutoWithdrawStepState = 3
 	// The withdrawal completed on chain.
 	AutoWithdrawStepState_STEP_COMPLETED AutoWithdrawStepState = 4
-	// The withdrawal failed; its funds are back on the account.
+	// The withdrawal failed. Where its funds are depends on when it failed,
+	// which its withdrawal flow shows:
+	//   - before it left the account: they stay on the account;
+	//   - rejected by Zipper (flow REFUNDED, reason ZIPPER_VALIDATION_REJECTED or
+	//     ZIPPER_EXECUTION_REJECTED): amount_e18 less network_fee_e18 is
+	//     refunded, as zTokens, to the account's smart account wallet, not to
+	//     the account's balance, and the network fee is not refunded;
+	//   - its execution failed after its destination transaction was sent (flow
+	//     FAILED, reason ZIPPER_WITHDRAW_EXECUTION_FAILED): Zipper reviews it and
+	//     settles it outside Polyester Chain; nothing is returned to the account.
 	AutoWithdrawStepState_STEP_FAILED AutoWithdrawStepState = 5
 	// Nothing was paid for this asset in this run.
 	AutoWithdrawStepState_STEP_SKIPPED AutoWithdrawStepState = 6
@@ -308,6 +319,77 @@ func (x AutoWithdrawStepState) Number() protoreflect.EnumNumber {
 // Deprecated: Use AutoWithdrawStepState.Descriptor instead.
 func (AutoWithdrawStepState) EnumDescriptor() ([]byte, []int) {
 	return file_chain_withdraw_v1_auto_withdraw_proto_rawDescGZIP(), []int{3}
+}
+
+// AutoWithdrawPreviewStatus is whether the next run would pay, judged from
+// the account's balances now.
+type AutoWithdrawPreviewStatus int32
+
+const (
+	// Never returned.
+	AutoWithdrawPreviewStatus_PREVIEW_STATUS_UNSPECIFIED AutoWithdrawPreviewStatus = 0
+	// At least one asset would pay.
+	AutoWithdrawPreviewStatus_WILL_PAY AutoWithdrawPreviewStatus = 1
+	// Nothing would pay: every asset with a destination is below its minimum
+	// or the rule's USD minimum, has no current price for that minimum, or
+	// pays a broker vault's destination that is still cooling down. The
+	// balance stays on the account for a later run.
+	AutoWithdrawPreviewStatus_ROLLS_OVER AutoWithdrawPreviewStatus = 2
+	// Nothing would pay, and every positive balance is in an asset the rule
+	// has no destination for.
+	AutoWithdrawPreviewStatus_NO_DESTINATION AutoWithdrawPreviewStatus = 3
+	// The rule is paused, by a person or by itself (see pause); no run starts
+	// until it is resumed.
+	AutoWithdrawPreviewStatus_PAUSED AutoWithdrawPreviewStatus = 4
+	// The account has no rule.
+	AutoWithdrawPreviewStatus_NO_RULE AutoWithdrawPreviewStatus = 5
+)
+
+// Enum value maps for AutoWithdrawPreviewStatus.
+var (
+	AutoWithdrawPreviewStatus_name = map[int32]string{
+		0: "PREVIEW_STATUS_UNSPECIFIED",
+		1: "WILL_PAY",
+		2: "ROLLS_OVER",
+		3: "NO_DESTINATION",
+		4: "PAUSED",
+		5: "NO_RULE",
+	}
+	AutoWithdrawPreviewStatus_value = map[string]int32{
+		"PREVIEW_STATUS_UNSPECIFIED": 0,
+		"WILL_PAY":                   1,
+		"ROLLS_OVER":                 2,
+		"NO_DESTINATION":             3,
+		"PAUSED":                     4,
+		"NO_RULE":                    5,
+	}
+)
+
+func (x AutoWithdrawPreviewStatus) Enum() *AutoWithdrawPreviewStatus {
+	p := new(AutoWithdrawPreviewStatus)
+	*p = x
+	return p
+}
+
+func (x AutoWithdrawPreviewStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AutoWithdrawPreviewStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_chain_withdraw_v1_auto_withdraw_proto_enumTypes[4].Descriptor()
+}
+
+func (AutoWithdrawPreviewStatus) Type() protoreflect.EnumType {
+	return &file_chain_withdraw_v1_auto_withdraw_proto_enumTypes[4]
+}
+
+func (x AutoWithdrawPreviewStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AutoWithdrawPreviewStatus.Descriptor instead.
+func (AutoWithdrawPreviewStatus) EnumDescriptor() ([]byte, []int) {
+	return file_chain_withdraw_v1_auto_withdraw_proto_rawDescGZIP(), []int{4}
 }
 
 // AutoWithdrawSchedule is a rule's UTC run slot. Only the fields of its
@@ -419,12 +501,21 @@ type AutoWithdrawDestination struct {
 	// A run pays this asset only when the payable amount reaches this
 	// minimum, in 18-decimal asset units, and the rule's min_usd_value_e18;
 	// otherwise the balance stays on the account for a later run. Must be at
-	// least the route's withdrawal minimum.
+	// least min_floor_e18 when the rule is set.
 	MinAmountE18 *v1.U128 `protobuf:"bytes,4,opt,name=min_amount_e18,json=minAmountE18,proto3" json:"min_amount_e18,omitempty"`
 	// The most one run pays this asset, in 18-decimal asset units; at least
 	// min_amount_e18. A larger balance pays this ceiling and the rest stays on
 	// the account.
-	MaxAmountE18  *v1.U128 `protobuf:"bytes,5,opt,name=max_amount_e18,json=maxAmountE18,proto3" json:"max_amount_e18,omitempty"`
+	MaxAmountE18 *v1.U128 `protobuf:"bytes,5,opt,name=max_amount_e18,json=maxAmountE18,proto3" json:"max_amount_e18,omitempty"`
+	// Returned in responses only; ignored in requests. The least amount one
+	// payout to this destination can pay now, in 18-decimal asset units: the
+	// route's withdrawal minimum, and more than its current network fee. It
+	// follows the network fee, so it can change between reads. A run pays at
+	// least this floor and min_amount_e18, and a new rule needs a
+	// min_amount_e18 of at least the floor. Unset when the route or its network
+	// fee is not known now; a new rule for that destination is then refused
+	// with FEE_UNAVAILABLE or a route code.
+	MinFloorE18   *v1.U128 `protobuf:"bytes,6,opt,name=min_floor_e18,json=minFloorE18,proto3" json:"min_floor_e18,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -494,16 +585,27 @@ func (x *AutoWithdrawDestination) GetMaxAmountE18() *v1.U128 {
 	return nil
 }
 
+func (x *AutoWithdrawDestination) GetMinFloorE18() *v1.U128 {
+	if x != nil {
+		return x.MinFloorE18
+	}
+	return nil
+}
+
 // AutoWithdrawPause reports why a rule stopped running on its own.
 type AutoWithdrawPause struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Asset whose payout paused the rule.
+	// Asset whose payout paused the rule; zero when no payout did.
 	AssetId uint32 `protobuf:"varint,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
 	// Machine-readable reason: destination_not_whitelisted when the
 	// destination left the account's external withdraw whitelist,
 	// destination_invalid when it is no longer a valid destination, or
 	// authority_revoked when the person who set the rule may no longer change
-	// it or withdraw from the account.
+	// it or withdraw from the account. On a broker vault the rule pauses with
+	// authority_revoked as soon as its author's broker role changes in any
+	// way: removed, demoted, or promoted (for example Finance to Owner), and
+	// also when the author is removed and added back. An Owner or Finance
+	// member resumes it with a fresh step-up.
 	Reason string `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
 	// When the rule was paused.
 	PausedAt      *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=paused_at,json=pausedAt,proto3" json:"paused_at,omitempty"`
@@ -563,30 +665,36 @@ func (x *AutoWithdrawPause) GetPausedAt() *timestamppb.Timestamp {
 }
 
 // AutoWithdrawRule is one version of an account's auto-withdraw rule. Each
-// change or disable creates the next version; only the latest version runs,
-// and a run in progress keeps the version it started with but pays nothing
-// further once that version is no longer the latest.
+// change, pause or resume creates the next version; only the latest version
+// runs, and a run in progress keeps the version it started with but pays
+// nothing further once that version is no longer the latest.
 type AutoWithdrawRule struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Public subaccount ID the rule belongs to; zero for the root account.
 	SubaccountId uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
 	// Rule version, starting at 1.
 	Version uint32 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
-	// Whether the rule runs. A disabled version has no destinations.
+	// Whether the rule runs. A paused version (enabled false) keeps its
+	// schedule and destinations, so it resumes to the same destinations. The
+	// rule runs only while enabled and without a pause.
 	Enabled bool `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	// When the rule runs.
 	Schedule *AutoWithdrawSchedule `protobuf:"bytes,4,opt,name=schedule,proto3" json:"schedule,omitempty"`
-	// One destination per paid asset, ordered by asset_id.
+	// One destination per paid asset, ordered by asset_id. Empty only on a
+	// version that was disabled before pausing kept destinations.
 	Destinations []*AutoWithdrawDestination `protobuf:"bytes,5,rep,name=destinations,proto3" json:"destinations,omitempty"`
 	// When this version was created.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	// Set when the rule paused itself; a new version resumes it.
+	// Set when the rule paused itself; resuming it or setting a new rule
+	// clears it.
 	Pause *AutoWithdrawPause `protobuf:"bytes,7,opt,name=pause,proto3" json:"pause,omitempty"`
 	// Least USD value one payout of the rule pays, in 18-decimal USD units;
 	// zero means no USD minimum.
 	MinUsdValueE18 *v1.U128 `protobuf:"bytes,8,opt,name=min_usd_value_e18,json=minUsdValueE18,proto3" json:"min_usd_value_e18,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Public account ID of the person who created this version.
+	CreatedByAccountId uint64 `protobuf:"fixed64,9,opt,name=created_by_account_id,json=createdByAccountId,proto3" json:"created_by_account_id,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *AutoWithdrawRule) Reset() {
@@ -673,6 +781,13 @@ func (x *AutoWithdrawRule) GetMinUsdValueE18() *v1.U128 {
 		return x.MinUsdValueE18
 	}
 	return nil
+}
+
+func (x *AutoWithdrawRule) GetCreatedByAccountId() uint64 {
+	if x != nil {
+		return x.CreatedByAccountId
+	}
+	return 0
 }
 
 // SetAutoWithdrawRuleRequest creates or replaces the rule of the root
@@ -811,32 +926,35 @@ func (x *SetAutoWithdrawRuleResponse) GetRule() *AutoWithdrawRule {
 	return nil
 }
 
-// DisableAutoWithdrawRuleRequest stops the rule of the root account or one
-// subaccount.
-type DisableAutoWithdrawRuleRequest struct {
+// SetAutoWithdrawRuleEnabledRequest pauses or resumes the rule of the root
+// account or one subaccount, keeping its schedule and destinations.
+type SetAutoWithdrawRuleEnabledRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Public subaccount ID; omit for the root account.
 	SubaccountId uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
-	// The account's latest rule version.
+	// The account's latest rule version. A mismatch is rejected so concurrent
+	// changes never overwrite each other.
 	ExpectedVersion uint32 `protobuf:"varint,2,opt,name=expected_version,json=expectedVersion,proto3" json:"expected_version,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// false pauses the rule; true resumes it.
+	Enabled       bool `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *DisableAutoWithdrawRuleRequest) Reset() {
-	*x = DisableAutoWithdrawRuleRequest{}
+func (x *SetAutoWithdrawRuleEnabledRequest) Reset() {
+	*x = SetAutoWithdrawRuleEnabledRequest{}
 	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *DisableAutoWithdrawRuleRequest) String() string {
+func (x *SetAutoWithdrawRuleEnabledRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DisableAutoWithdrawRuleRequest) ProtoMessage() {}
+func (*SetAutoWithdrawRuleEnabledRequest) ProtoMessage() {}
 
-func (x *DisableAutoWithdrawRuleRequest) ProtoReflect() protoreflect.Message {
+func (x *SetAutoWithdrawRuleEnabledRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -848,48 +966,56 @@ func (x *DisableAutoWithdrawRuleRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DisableAutoWithdrawRuleRequest.ProtoReflect.Descriptor instead.
-func (*DisableAutoWithdrawRuleRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use SetAutoWithdrawRuleEnabledRequest.ProtoReflect.Descriptor instead.
+func (*SetAutoWithdrawRuleEnabledRequest) Descriptor() ([]byte, []int) {
 	return file_chain_withdraw_v1_auto_withdraw_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *DisableAutoWithdrawRuleRequest) GetSubaccountId() uint64 {
+func (x *SetAutoWithdrawRuleEnabledRequest) GetSubaccountId() uint64 {
 	if x != nil {
 		return x.SubaccountId
 	}
 	return 0
 }
 
-func (x *DisableAutoWithdrawRuleRequest) GetExpectedVersion() uint32 {
+func (x *SetAutoWithdrawRuleEnabledRequest) GetExpectedVersion() uint32 {
 	if x != nil {
 		return x.ExpectedVersion
 	}
 	return 0
 }
 
-// DisableAutoWithdrawRuleResponse returns the disabled version.
-type DisableAutoWithdrawRuleResponse struct {
+func (x *SetAutoWithdrawRuleEnabledRequest) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+// SetAutoWithdrawRuleEnabledResponse returns the rule's latest version.
+type SetAutoWithdrawRuleEnabledResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The created, disabled version.
+	// The created version, or the latest version unchanged when the rule was
+	// already in the requested state.
 	Rule          *AutoWithdrawRule `protobuf:"bytes,1,opt,name=rule,proto3" json:"rule,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *DisableAutoWithdrawRuleResponse) Reset() {
-	*x = DisableAutoWithdrawRuleResponse{}
+func (x *SetAutoWithdrawRuleEnabledResponse) Reset() {
+	*x = SetAutoWithdrawRuleEnabledResponse{}
 	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *DisableAutoWithdrawRuleResponse) String() string {
+func (x *SetAutoWithdrawRuleEnabledResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DisableAutoWithdrawRuleResponse) ProtoMessage() {}
+func (*SetAutoWithdrawRuleEnabledResponse) ProtoMessage() {}
 
-func (x *DisableAutoWithdrawRuleResponse) ProtoReflect() protoreflect.Message {
+func (x *SetAutoWithdrawRuleEnabledResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -901,12 +1027,12 @@ func (x *DisableAutoWithdrawRuleResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DisableAutoWithdrawRuleResponse.ProtoReflect.Descriptor instead.
-func (*DisableAutoWithdrawRuleResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use SetAutoWithdrawRuleEnabledResponse.ProtoReflect.Descriptor instead.
+func (*SetAutoWithdrawRuleEnabledResponse) Descriptor() ([]byte, []int) {
 	return file_chain_withdraw_v1_auto_withdraw_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *DisableAutoWithdrawRuleResponse) GetRule() *AutoWithdrawRule {
+func (x *SetAutoWithdrawRuleEnabledResponse) GetRule() *AutoWithdrawRule {
 	if x != nil {
 		return x.Rule
 	}
@@ -1026,9 +1152,11 @@ type AutoWithdrawStep struct {
 	// Machine-readable reason for a skipped or failed step, such as
 	// below_minimum, price_unavailable (the rule has a USD minimum and no
 	// current price valued the asset; the funds stay for a later run),
-	// rule_superseded, destination_not_whitelisted, authority_revoked,
-	// gateway_capacity_insufficient (the funds stay for a later run),
-	// withdrawal_released or withdrawal_failed; empty otherwise.
+	// rule_superseded, destination_not_whitelisted, destination_cooling_down
+	// (a broker vault's destination added to its external withdraw whitelist
+	// less than 24 hours ago; the funds stay for a later run),
+	// authority_revoked, gateway_capacity_insufficient (the funds stay for a
+	// later run), withdrawal_released or withdrawal_failed; empty otherwise.
 	Reason string `protobuf:"bytes,7,opt,name=reason,proto3" json:"reason,omitempty"`
 	// Withdraw intent identifier once the withdrawal is accepted; follows the
 	// same lifecycle as a user withdrawal.
@@ -1038,7 +1166,14 @@ type AutoWithdrawStep struct {
 	// USD value of the payable amount when the run started, in 18-decimal USD
 	// units, checked against the rule's min_usd_value_e18. Unset when the rule
 	// has no USD minimum or no current price was available.
-	ValueUsdE18   *v1.U128 `protobuf:"bytes,10,opt,name=value_usd_e18,json=valueUsdE18,proto3" json:"value_usd_e18,omitempty"`
+	ValueUsdE18 *v1.U128 `protobuf:"bytes,10,opt,name=value_usd_e18,json=valueUsdE18,proto3" json:"value_usd_e18,omitempty"`
+	// The network fee charged on the withdrawal, in 18-decimal asset units.
+	// Once it completed: taken out of amount_e18, so the destination received
+	// amount_e18 minus this fee. Once Zipper rejected it or its execution
+	// failed: the fee Zipper kept, which is not refunded. Unset until the step
+	// is final, when it was skipped or failed before it reached Zipper, and
+	// when the fee was not reported.
+	NetworkFeeE18 *v1.U128 `protobuf:"bytes,11,opt,name=network_fee_e18,json=networkFeeE18,proto3" json:"network_fee_e18,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1139,6 +1274,13 @@ func (x *AutoWithdrawStep) GetTxHash() string {
 func (x *AutoWithdrawStep) GetValueUsdE18() *v1.U128 {
 	if x != nil {
 		return x.ValueUsdE18
+	}
+	return nil
+}
+
+func (x *AutoWithdrawStep) GetNetworkFeeE18() *v1.U128 {
+	if x != nil {
+		return x.NetworkFeeE18
 	}
 	return nil
 }
@@ -1376,6 +1518,341 @@ func (x *ListAutoWithdrawRunsResponse) GetNextPageToken() string {
 	return ""
 }
 
+// PreviewAutoWithdrawRunRequest previews the next run of the rule of the
+// root account or one subaccount.
+type PreviewAutoWithdrawRunRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public subaccount ID; omit for the root account.
+	SubaccountId  uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PreviewAutoWithdrawRunRequest) Reset() {
+	*x = PreviewAutoWithdrawRunRequest{}
+	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PreviewAutoWithdrawRunRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PreviewAutoWithdrawRunRequest) ProtoMessage() {}
+
+func (x *PreviewAutoWithdrawRunRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PreviewAutoWithdrawRunRequest.ProtoReflect.Descriptor instead.
+func (*PreviewAutoWithdrawRunRequest) Descriptor() ([]byte, []int) {
+	return file_chain_withdraw_v1_auto_withdraw_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *PreviewAutoWithdrawRunRequest) GetSubaccountId() uint64 {
+	if x != nil {
+		return x.SubaccountId
+	}
+	return 0
+}
+
+// AutoWithdrawPreviewAsset is what the next run would do with one asset,
+// sized from the account's balance now.
+type AutoWithdrawPreviewAsset struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Ledger asset.
+	AssetId uint32 `protobuf:"varint,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	// External destination chain identifier; zero when the rule has no
+	// destination for the asset.
+	DestinationChainId uint64 `protobuf:"varint,2,opt,name=destination_chain_id,json=destinationChainId,proto3" json:"destination_chain_id,omitempty"`
+	// Canonical destination address; empty when the rule has no destination
+	// for the asset.
+	DestinationAddress string `protobuf:"bytes,3,opt,name=destination_address,json=destinationAddress,proto3" json:"destination_address,omitempty"`
+	// The account's available balance of the asset now, in 18-decimal asset
+	// units.
+	AvailableE18 *v1.U128 `protobuf:"bytes,4,opt,name=available_e18,json=availableE18,proto3" json:"available_e18,omitempty"`
+	// What the run would pay, in 18-decimal asset units: the available balance
+	// up to max_amount_e18, rounded down to whole on-chain units, or zero when
+	// it holds. The network fee is taken out of it on the way.
+	PayableE18 *v1.U128 `protobuf:"bytes,5,opt,name=payable_e18,json=payableE18,proto3" json:"payable_e18,omitempty"`
+	// What would stay on the account, in 18-decimal asset units:
+	// available_e18 minus payable_e18.
+	HeldBackE18 *v1.U128 `protobuf:"bytes,6,opt,name=held_back_e18,json=heldBackE18,proto3" json:"held_back_e18,omitempty"`
+	// Why held_back_e18 stays, or why nothing pays: below_minimum (below
+	// minimum_e18 or the rule's min_usd_value_e18), price_unavailable (the
+	// rule has a USD minimum and no current price values the asset),
+	// no_destination (the rule pays no destination for the asset),
+	// destination_cooling_down (a broker vault pays a destination only once
+	// it has been on the vault's external withdraw whitelist for 24 hours;
+	// see payable_from), above_max (the balance above max_amount_e18 stays)
+	// or dust (less than one whole on-chain unit stays); empty when the whole
+	// balance pays.
+	HoldReason string `protobuf:"bytes,7,opt,name=hold_reason,json=holdReason,proto3" json:"hold_reason,omitempty"`
+	// The least one payout of the asset pays, in 18-decimal asset units: the
+	// destination's min_amount_e18, or its min_floor_e18 when that is higher
+	// and known now. Unset when the rule has no destination for the asset.
+	MinimumE18 *v1.U128 `protobuf:"bytes,8,opt,name=minimum_e18,json=minimumE18,proto3" json:"minimum_e18,omitempty"`
+	// USD value, in 18-decimal USD units, of what the asset pays before its
+	// minimums (the available balance up to max_amount_e18, rounded down to
+	// whole on-chain units), at the current price as of priced_at. A rule with
+	// a USD minimum compares this value with it. Unset when no current price
+	// values the asset or the rule has no destination for it.
+	ValueUsdE18 *v1.U128 `protobuf:"bytes,9,opt,name=value_usd_e18,json=valueUsdE18,proto3" json:"value_usd_e18,omitempty"`
+	// When the price behind value_usd_e18 was observed; unset with it.
+	PricedAt *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=priced_at,json=pricedAt,proto3" json:"priced_at,omitempty"`
+	// The network fee a payout to the destination is expected to be charged
+	// now, in 18-decimal asset units: the route's latest sampled network fee,
+	// the same figure min_floor_e18 stays above. It is taken out of the
+	// payout, so the destination receives about payable_e18 minus this fee.
+	// Unset when the rule has no destination for the asset or the fee is not
+	// known now.
+	NetworkFeeE18 *v1.U128 `protobuf:"bytes,11,opt,name=network_fee_e18,json=networkFeeE18,proto3" json:"network_fee_e18,omitempty"`
+	// When network_fee_e18 was sampled; unset with it.
+	NetworkFeeSampledAt *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=network_fee_sampled_at,json=networkFeeSampledAt,proto3" json:"network_fee_sampled_at,omitempty"`
+	// Set only on a broker vault while the destination is cooling down: when
+	// it can be paid, 24 hours after it was added to the vault's external
+	// withdraw whitelist. Unset with hold_reason destination_cooling_down
+	// when that time is not known yet.
+	PayableFrom   *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=payable_from,json=payableFrom,proto3" json:"payable_from,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AutoWithdrawPreviewAsset) Reset() {
+	*x = AutoWithdrawPreviewAsset{}
+	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AutoWithdrawPreviewAsset) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AutoWithdrawPreviewAsset) ProtoMessage() {}
+
+func (x *AutoWithdrawPreviewAsset) ProtoReflect() protoreflect.Message {
+	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AutoWithdrawPreviewAsset.ProtoReflect.Descriptor instead.
+func (*AutoWithdrawPreviewAsset) Descriptor() ([]byte, []int) {
+	return file_chain_withdraw_v1_auto_withdraw_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *AutoWithdrawPreviewAsset) GetAssetId() uint32 {
+	if x != nil {
+		return x.AssetId
+	}
+	return 0
+}
+
+func (x *AutoWithdrawPreviewAsset) GetDestinationChainId() uint64 {
+	if x != nil {
+		return x.DestinationChainId
+	}
+	return 0
+}
+
+func (x *AutoWithdrawPreviewAsset) GetDestinationAddress() string {
+	if x != nil {
+		return x.DestinationAddress
+	}
+	return ""
+}
+
+func (x *AutoWithdrawPreviewAsset) GetAvailableE18() *v1.U128 {
+	if x != nil {
+		return x.AvailableE18
+	}
+	return nil
+}
+
+func (x *AutoWithdrawPreviewAsset) GetPayableE18() *v1.U128 {
+	if x != nil {
+		return x.PayableE18
+	}
+	return nil
+}
+
+func (x *AutoWithdrawPreviewAsset) GetHeldBackE18() *v1.U128 {
+	if x != nil {
+		return x.HeldBackE18
+	}
+	return nil
+}
+
+func (x *AutoWithdrawPreviewAsset) GetHoldReason() string {
+	if x != nil {
+		return x.HoldReason
+	}
+	return ""
+}
+
+func (x *AutoWithdrawPreviewAsset) GetMinimumE18() *v1.U128 {
+	if x != nil {
+		return x.MinimumE18
+	}
+	return nil
+}
+
+func (x *AutoWithdrawPreviewAsset) GetValueUsdE18() *v1.U128 {
+	if x != nil {
+		return x.ValueUsdE18
+	}
+	return nil
+}
+
+func (x *AutoWithdrawPreviewAsset) GetPricedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.PricedAt
+	}
+	return nil
+}
+
+func (x *AutoWithdrawPreviewAsset) GetNetworkFeeE18() *v1.U128 {
+	if x != nil {
+		return x.NetworkFeeE18
+	}
+	return nil
+}
+
+func (x *AutoWithdrawPreviewAsset) GetNetworkFeeSampledAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.NetworkFeeSampledAt
+	}
+	return nil
+}
+
+func (x *AutoWithdrawPreviewAsset) GetPayableFrom() *timestamppb.Timestamp {
+	if x != nil {
+		return x.PayableFrom
+	}
+	return nil
+}
+
+// PreviewAutoWithdrawRunResponse previews the next run.
+type PreviewAutoWithdrawRunResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Whether the next run would pay.
+	Status AutoWithdrawPreviewStatus `protobuf:"varint,1,opt,name=status,proto3,enum=chain.withdraw.v1.AutoWithdrawPreviewStatus" json:"status,omitempty"`
+	// When the next run starts: its UTC slot, or, while a due slot waits for
+	// the scheduler, that slot. For an hourly rule, the next hourly check.
+	// Unset when the account has no rule or the rule is paused.
+	NextRunAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=next_run_at,json=nextRunAt,proto3" json:"next_run_at,omitempty"`
+	// The latest rule version; zero when the account has no rule.
+	RuleVersion uint32 `protobuf:"varint,3,opt,name=rule_version,json=ruleVersion,proto3" json:"rule_version,omitempty"`
+	// Set when the rule paused itself; a rule paused by a person has none.
+	Pause *AutoWithdrawPause `protobuf:"bytes,4,opt,name=pause,proto3" json:"pause,omitempty"`
+	// The rule's least USD value of one payout, in 18-decimal USD units; zero
+	// means no USD minimum. Unset when the account has no rule.
+	MinUsdValueE18 *v1.U128 `protobuf:"bytes,5,opt,name=min_usd_value_e18,json=minUsdValueE18,proto3" json:"min_usd_value_e18,omitempty"`
+	// One entry per destination of the rule, then per other asset with a
+	// positive balance, ordered by asset_id. Empty when the account has no
+	// rule or the rule is paused.
+	Assets []*AutoWithdrawPreviewAsset `protobuf:"bytes,6,rep,name=assets,proto3" json:"assets,omitempty"`
+	// When the balances, prices and fees the preview used were read.
+	ComputedAt    *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=computed_at,json=computedAt,proto3" json:"computed_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PreviewAutoWithdrawRunResponse) Reset() {
+	*x = PreviewAutoWithdrawRunResponse{}
+	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PreviewAutoWithdrawRunResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PreviewAutoWithdrawRunResponse) ProtoMessage() {}
+
+func (x *PreviewAutoWithdrawRunResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PreviewAutoWithdrawRunResponse.ProtoReflect.Descriptor instead.
+func (*PreviewAutoWithdrawRunResponse) Descriptor() ([]byte, []int) {
+	return file_chain_withdraw_v1_auto_withdraw_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *PreviewAutoWithdrawRunResponse) GetStatus() AutoWithdrawPreviewStatus {
+	if x != nil {
+		return x.Status
+	}
+	return AutoWithdrawPreviewStatus_PREVIEW_STATUS_UNSPECIFIED
+}
+
+func (x *PreviewAutoWithdrawRunResponse) GetNextRunAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.NextRunAt
+	}
+	return nil
+}
+
+func (x *PreviewAutoWithdrawRunResponse) GetRuleVersion() uint32 {
+	if x != nil {
+		return x.RuleVersion
+	}
+	return 0
+}
+
+func (x *PreviewAutoWithdrawRunResponse) GetPause() *AutoWithdrawPause {
+	if x != nil {
+		return x.Pause
+	}
+	return nil
+}
+
+func (x *PreviewAutoWithdrawRunResponse) GetMinUsdValueE18() *v1.U128 {
+	if x != nil {
+		return x.MinUsdValueE18
+	}
+	return nil
+}
+
+func (x *PreviewAutoWithdrawRunResponse) GetAssets() []*AutoWithdrawPreviewAsset {
+	if x != nil {
+		return x.Assets
+	}
+	return nil
+}
+
+func (x *PreviewAutoWithdrawRunResponse) GetComputedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ComputedAt
+	}
+	return nil
+}
+
 var File_chain_withdraw_v1_auto_withdraw_proto protoreflect.FileDescriptor
 
 const file_chain_withdraw_v1_auto_withdraw_proto_rawDesc = "" +
@@ -1391,18 +1868,19 @@ const file_chain_withdraw_v1_auto_withdraw_proto_rawDesc = "" +
 	"dayOfMonth\x12I\n" +
 	"\vanchor_date\x18\x06 \x01(\tB(\xbaH%r#\x18\n" +
 	"2\x1f^([0-9]{4}-[0-9]{2}-[0-9]{2})?$R\n" +
-	"anchorDate\"\xc3\x02\n" +
+	"anchorDate\"\x80\x03\n" +
 	"\x17AutoWithdrawDestination\x12\"\n" +
 	"\basset_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\aassetId\x129\n" +
 	"\x14destination_chain_id\x18\x02 \x01(\x04B\a\xbaH\x042\x02 \x00R\x12destinationChainId\x12;\n" +
 	"\x13destination_address\x18\x03 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x81\x03R\x12destinationAddress\x12E\n" +
 	"\x0emin_amount_e18\x18\x04 \x01(\v2\x17.polyester.type.v1.U128B\x06\xbaH\x03\xc8\x01\x01R\fminAmountE18\x12E\n" +
-	"\x0emax_amount_e18\x18\x05 \x01(\v2\x17.polyester.type.v1.U128B\x06\xbaH\x03\xc8\x01\x01R\fmaxAmountE18\"\x7f\n" +
+	"\x0emax_amount_e18\x18\x05 \x01(\v2\x17.polyester.type.v1.U128B\x06\xbaH\x03\xc8\x01\x01R\fmaxAmountE18\x12;\n" +
+	"\rmin_floor_e18\x18\x06 \x01(\v2\x17.polyester.type.v1.U128R\vminFloorE18\"\x7f\n" +
 	"\x11AutoWithdrawPause\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\rR\aassetId\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\x127\n" +
-	"\tpaused_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\bpausedAt\"\xbb\x03\n" +
+	"\tpaused_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\bpausedAt\"\xee\x03\n" +
 	"\x10AutoWithdrawRule\x12#\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\rR\aversion\x12\x18\n" +
@@ -1412,7 +1890,8 @@ const file_chain_withdraw_v1_auto_withdraw_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12:\n" +
 	"\x05pause\x18\a \x01(\v2$.chain.withdraw.v1.AutoWithdrawPauseR\x05pause\x12B\n" +
-	"\x11min_usd_value_e18\x18\b \x01(\v2\x17.polyester.type.v1.U128R\x0eminUsdValueE18\"\xd9\x02\n" +
+	"\x11min_usd_value_e18\x18\b \x01(\v2\x17.polyester.type.v1.U128R\x0eminUsdValueE18\x121\n" +
+	"\x15created_by_account_id\x18\t \x01(\x06R\x12createdByAccountId\"\xd9\x02\n" +
 	"\x1aSetAutoWithdrawRuleRequest\x12#\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\x12)\n" +
 	"\x10expected_version\x18\x02 \x01(\rR\x0fexpectedVersion\x12K\n" +
@@ -1421,16 +1900,17 @@ const file_chain_withdraw_v1_auto_withdraw_proto_rawDesc = "" +
 	"\xbaH\a\x92\x01\x04\b\x01\x10 R\fdestinations\x12B\n" +
 	"\x11min_usd_value_e18\x18\x05 \x01(\v2\x17.polyester.type.v1.U128R\x0eminUsdValueE18\"V\n" +
 	"\x1bSetAutoWithdrawRuleResponse\x127\n" +
-	"\x04rule\x18\x01 \x01(\v2#.chain.withdraw.v1.AutoWithdrawRuleR\x04rule\"y\n" +
-	"\x1eDisableAutoWithdrawRuleRequest\x12#\n" +
+	"\x04rule\x18\x01 \x01(\v2#.chain.withdraw.v1.AutoWithdrawRuleR\x04rule\"\x96\x01\n" +
+	"!SetAutoWithdrawRuleEnabledRequest\x12#\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\x122\n" +
-	"\x10expected_version\x18\x02 \x01(\rB\a\xbaH\x04*\x02 \x00R\x0fexpectedVersion\"Z\n" +
-	"\x1fDisableAutoWithdrawRuleResponse\x127\n" +
+	"\x10expected_version\x18\x02 \x01(\rB\a\xbaH\x04*\x02 \x00R\x0fexpectedVersion\x12\x18\n" +
+	"\aenabled\x18\x03 \x01(\bR\aenabled\"]\n" +
+	"\"SetAutoWithdrawRuleEnabledResponse\x127\n" +
 	"\x04rule\x18\x01 \x01(\v2#.chain.withdraw.v1.AutoWithdrawRuleR\x04rule\"A\n" +
 	"\x1aGetAutoWithdrawRuleRequest\x12#\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\"V\n" +
 	"\x1bGetAutoWithdrawRuleResponse\x127\n" +
-	"\x04rule\x18\x01 \x01(\v2#.chain.withdraw.v1.AutoWithdrawRuleR\x04rule\"\xd1\x03\n" +
+	"\x04rule\x18\x01 \x01(\v2#.chain.withdraw.v1.AutoWithdrawRuleR\x04rule\"\x92\x04\n" +
 	"\x10AutoWithdrawStep\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\rR\aassetId\x120\n" +
 	"\x14destination_chain_id\x18\x02 \x01(\x04R\x12destinationChainId\x12/\n" +
@@ -1443,7 +1923,8 @@ const file_chain_withdraw_v1_auto_withdraw_proto_rawDesc = "" +
 	"\tintent_id\x18\b \x01(\tR\bintentId\x12\x17\n" +
 	"\atx_hash\x18\t \x01(\tR\x06txHash\x12;\n" +
 	"\rvalue_usd_e18\x18\n" +
-	" \x01(\v2\x17.polyester.type.v1.U128R\vvalueUsdE18\"\x98\x03\n" +
+	" \x01(\v2\x17.polyester.type.v1.U128R\vvalueUsdE18\x12?\n" +
+	"\x0fnetwork_fee_e18\x18\v \x01(\v2\x17.polyester.type.v1.U128R\rnetworkFeeE18\"\x98\x03\n" +
 	"\x0fAutoWithdrawRun\x12\x17\n" +
 	"\arun_seq\x18\x01 \x01(\x04R\x06runSeq\x12!\n" +
 	"\frule_version\x18\x02 \x01(\rR\vruleVersion\x12?\n" +
@@ -1462,7 +1943,36 @@ const file_chain_withdraw_v1_auto_withdraw_proto_rawDesc = "" +
 	"page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\tpageToken\"~\n" +
 	"\x1cListAutoWithdrawRunsResponse\x126\n" +
 	"\x04runs\x18\x01 \x03(\v2\".chain.withdraw.v1.AutoWithdrawRunR\x04runs\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken*l\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"D\n" +
+	"\x1dPreviewAutoWithdrawRunRequest\x12#\n" +
+	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\"\xef\x05\n" +
+	"\x18AutoWithdrawPreviewAsset\x12\x19\n" +
+	"\basset_id\x18\x01 \x01(\rR\aassetId\x120\n" +
+	"\x14destination_chain_id\x18\x02 \x01(\x04R\x12destinationChainId\x12/\n" +
+	"\x13destination_address\x18\x03 \x01(\tR\x12destinationAddress\x12<\n" +
+	"\ravailable_e18\x18\x04 \x01(\v2\x17.polyester.type.v1.U128R\favailableE18\x128\n" +
+	"\vpayable_e18\x18\x05 \x01(\v2\x17.polyester.type.v1.U128R\n" +
+	"payableE18\x12;\n" +
+	"\rheld_back_e18\x18\x06 \x01(\v2\x17.polyester.type.v1.U128R\vheldBackE18\x12\x1f\n" +
+	"\vhold_reason\x18\a \x01(\tR\n" +
+	"holdReason\x128\n" +
+	"\vminimum_e18\x18\b \x01(\v2\x17.polyester.type.v1.U128R\n" +
+	"minimumE18\x12;\n" +
+	"\rvalue_usd_e18\x18\t \x01(\v2\x17.polyester.type.v1.U128R\vvalueUsdE18\x127\n" +
+	"\tpriced_at\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\bpricedAt\x12?\n" +
+	"\x0fnetwork_fee_e18\x18\v \x01(\v2\x17.polyester.type.v1.U128R\rnetworkFeeE18\x12O\n" +
+	"\x16network_fee_sampled_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\x13networkFeeSampledAt\x12=\n" +
+	"\fpayable_from\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\vpayableFrom\"\xc7\x03\n" +
+	"\x1ePreviewAutoWithdrawRunResponse\x12D\n" +
+	"\x06status\x18\x01 \x01(\x0e2,.chain.withdraw.v1.AutoWithdrawPreviewStatusR\x06status\x12:\n" +
+	"\vnext_run_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tnextRunAt\x12!\n" +
+	"\frule_version\x18\x03 \x01(\rR\vruleVersion\x12:\n" +
+	"\x05pause\x18\x04 \x01(\v2$.chain.withdraw.v1.AutoWithdrawPauseR\x05pause\x12B\n" +
+	"\x11min_usd_value_e18\x18\x05 \x01(\v2\x17.polyester.type.v1.U128R\x0eminUsdValueE18\x12C\n" +
+	"\x06assets\x18\x06 \x03(\v2+.chain.withdraw.v1.AutoWithdrawPreviewAssetR\x06assets\x12;\n" +
+	"\vcomputed_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"computedAt*l\n" +
 	"\x13AutoWithdrawCadence\x12\x17\n" +
 	"\x13CADENCE_UNSPECIFIED\x10\x00\x12\t\n" +
 	"\x05DAILY\x10\x01\x12\n" +
@@ -1501,12 +2011,22 @@ const file_chain_withdraw_v1_auto_withdraw_proto_rawDesc = "" +
 	"\x0eSTEP_SUBMITTED\x10\x03\x12\x12\n" +
 	"\x0eSTEP_COMPLETED\x10\x04\x12\x0f\n" +
 	"\vSTEP_FAILED\x10\x05\x12\x10\n" +
-	"\fSTEP_SKIPPED\x10\x062\x9e\x04\n" +
+	"\fSTEP_SKIPPED\x10\x06*\x86\x01\n" +
+	"\x19AutoWithdrawPreviewStatus\x12\x1e\n" +
+	"\x1aPREVIEW_STATUS_UNSPECIFIED\x10\x00\x12\f\n" +
+	"\bWILL_PAY\x10\x01\x12\x0e\n" +
+	"\n" +
+	"ROLLS_OVER\x10\x02\x12\x12\n" +
+	"\x0eNO_DESTINATION\x10\x03\x12\n" +
+	"\n" +
+	"\x06PAUSED\x10\x04\x12\v\n" +
+	"\aNO_RULE\x10\x052\xbf\x05\n" +
 	"\x13AutoWithdrawService\x12\x7f\n" +
-	"\x13SetAutoWithdrawRule\x12-.chain.withdraw.v1.SetAutoWithdrawRuleRequest\x1a..chain.withdraw.v1.SetAutoWithdrawRuleResponse\"\t\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x12\x8b\x01\n" +
-	"\x17DisableAutoWithdrawRule\x121.chain.withdraw.v1.DisableAutoWithdrawRuleRequest\x1a2.chain.withdraw.v1.DisableAutoWithdrawRuleResponse\"\t\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x12t\n" +
-	"\x13GetAutoWithdrawRule\x12-.chain.withdraw.v1.GetAutoWithdrawRuleRequest\x1a..chain.withdraw.v1.GetAutoWithdrawRuleResponse\x12w\n" +
-	"\x14ListAutoWithdrawRuns\x12..chain.withdraw.v1.ListAutoWithdrawRunsRequest\x1a/.chain.withdraw.v1.ListAutoWithdrawRunsResponse\x1a\t\x8a\xb5\x18\x05chainBOZMgithub.com/Fabric-Labs/polyester-sdk-go/gen/chain/withdraw/v1;chainwithdrawv1b\x06proto3"
+	"\x13SetAutoWithdrawRule\x12-.chain.withdraw.v1.SetAutoWithdrawRuleRequest\x1a..chain.withdraw.v1.SetAutoWithdrawRuleResponse\"\t\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x12\x94\x01\n" +
+	"\x1aSetAutoWithdrawRuleEnabled\x124.chain.withdraw.v1.SetAutoWithdrawRuleEnabledRequest\x1a5.chain.withdraw.v1.SetAutoWithdrawRuleEnabledResponse\"\t\x98\xb5\x18\x03\xa2\xb5\x18\x01\x01\x12|\n" +
+	"\x13GetAutoWithdrawRule\x12-.chain.withdraw.v1.GetAutoWithdrawRuleRequest\x1a..chain.withdraw.v1.GetAutoWithdrawRuleResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x12\x7f\n" +
+	"\x14ListAutoWithdrawRuns\x12..chain.withdraw.v1.ListAutoWithdrawRunsRequest\x1a/.chain.withdraw.v1.ListAutoWithdrawRunsResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x12\x85\x01\n" +
+	"\x16PreviewAutoWithdrawRun\x120.chain.withdraw.v1.PreviewAutoWithdrawRunRequest\x1a1.chain.withdraw.v1.PreviewAutoWithdrawRunResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x1a\t\x8a\xb5\x18\x05chainBOZMgithub.com/Fabric-Labs/polyester-sdk-go/gen/chain/withdraw/v1;chainwithdrawv1b\x06proto3"
 
 var (
 	file_chain_withdraw_v1_auto_withdraw_proto_rawDescOnce sync.Once
@@ -1520,70 +2040,93 @@ func file_chain_withdraw_v1_auto_withdraw_proto_rawDescGZIP() []byte {
 	return file_chain_withdraw_v1_auto_withdraw_proto_rawDescData
 }
 
-var file_chain_withdraw_v1_auto_withdraw_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_chain_withdraw_v1_auto_withdraw_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_chain_withdraw_v1_auto_withdraw_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
+var file_chain_withdraw_v1_auto_withdraw_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_chain_withdraw_v1_auto_withdraw_proto_goTypes = []any{
-	(AutoWithdrawCadence)(0),                // 0: chain.withdraw.v1.AutoWithdrawCadence
-	(AutoWithdrawWeekday)(0),                // 1: chain.withdraw.v1.AutoWithdrawWeekday
-	(AutoWithdrawRunState)(0),               // 2: chain.withdraw.v1.AutoWithdrawRunState
-	(AutoWithdrawStepState)(0),              // 3: chain.withdraw.v1.AutoWithdrawStepState
-	(*AutoWithdrawSchedule)(nil),            // 4: chain.withdraw.v1.AutoWithdrawSchedule
-	(*AutoWithdrawDestination)(nil),         // 5: chain.withdraw.v1.AutoWithdrawDestination
-	(*AutoWithdrawPause)(nil),               // 6: chain.withdraw.v1.AutoWithdrawPause
-	(*AutoWithdrawRule)(nil),                // 7: chain.withdraw.v1.AutoWithdrawRule
-	(*SetAutoWithdrawRuleRequest)(nil),      // 8: chain.withdraw.v1.SetAutoWithdrawRuleRequest
-	(*SetAutoWithdrawRuleResponse)(nil),     // 9: chain.withdraw.v1.SetAutoWithdrawRuleResponse
-	(*DisableAutoWithdrawRuleRequest)(nil),  // 10: chain.withdraw.v1.DisableAutoWithdrawRuleRequest
-	(*DisableAutoWithdrawRuleResponse)(nil), // 11: chain.withdraw.v1.DisableAutoWithdrawRuleResponse
-	(*GetAutoWithdrawRuleRequest)(nil),      // 12: chain.withdraw.v1.GetAutoWithdrawRuleRequest
-	(*GetAutoWithdrawRuleResponse)(nil),     // 13: chain.withdraw.v1.GetAutoWithdrawRuleResponse
-	(*AutoWithdrawStep)(nil),                // 14: chain.withdraw.v1.AutoWithdrawStep
-	(*AutoWithdrawRun)(nil),                 // 15: chain.withdraw.v1.AutoWithdrawRun
-	(*ListAutoWithdrawRunsRequest)(nil),     // 16: chain.withdraw.v1.ListAutoWithdrawRunsRequest
-	(*ListAutoWithdrawRunsResponse)(nil),    // 17: chain.withdraw.v1.ListAutoWithdrawRunsResponse
-	(*v1.U128)(nil),                         // 18: polyester.type.v1.U128
-	(*timestamppb.Timestamp)(nil),           // 19: google.protobuf.Timestamp
+	(AutoWithdrawCadence)(0),                   // 0: chain.withdraw.v1.AutoWithdrawCadence
+	(AutoWithdrawWeekday)(0),                   // 1: chain.withdraw.v1.AutoWithdrawWeekday
+	(AutoWithdrawRunState)(0),                  // 2: chain.withdraw.v1.AutoWithdrawRunState
+	(AutoWithdrawStepState)(0),                 // 3: chain.withdraw.v1.AutoWithdrawStepState
+	(AutoWithdrawPreviewStatus)(0),             // 4: chain.withdraw.v1.AutoWithdrawPreviewStatus
+	(*AutoWithdrawSchedule)(nil),               // 5: chain.withdraw.v1.AutoWithdrawSchedule
+	(*AutoWithdrawDestination)(nil),            // 6: chain.withdraw.v1.AutoWithdrawDestination
+	(*AutoWithdrawPause)(nil),                  // 7: chain.withdraw.v1.AutoWithdrawPause
+	(*AutoWithdrawRule)(nil),                   // 8: chain.withdraw.v1.AutoWithdrawRule
+	(*SetAutoWithdrawRuleRequest)(nil),         // 9: chain.withdraw.v1.SetAutoWithdrawRuleRequest
+	(*SetAutoWithdrawRuleResponse)(nil),        // 10: chain.withdraw.v1.SetAutoWithdrawRuleResponse
+	(*SetAutoWithdrawRuleEnabledRequest)(nil),  // 11: chain.withdraw.v1.SetAutoWithdrawRuleEnabledRequest
+	(*SetAutoWithdrawRuleEnabledResponse)(nil), // 12: chain.withdraw.v1.SetAutoWithdrawRuleEnabledResponse
+	(*GetAutoWithdrawRuleRequest)(nil),         // 13: chain.withdraw.v1.GetAutoWithdrawRuleRequest
+	(*GetAutoWithdrawRuleResponse)(nil),        // 14: chain.withdraw.v1.GetAutoWithdrawRuleResponse
+	(*AutoWithdrawStep)(nil),                   // 15: chain.withdraw.v1.AutoWithdrawStep
+	(*AutoWithdrawRun)(nil),                    // 16: chain.withdraw.v1.AutoWithdrawRun
+	(*ListAutoWithdrawRunsRequest)(nil),        // 17: chain.withdraw.v1.ListAutoWithdrawRunsRequest
+	(*ListAutoWithdrawRunsResponse)(nil),       // 18: chain.withdraw.v1.ListAutoWithdrawRunsResponse
+	(*PreviewAutoWithdrawRunRequest)(nil),      // 19: chain.withdraw.v1.PreviewAutoWithdrawRunRequest
+	(*AutoWithdrawPreviewAsset)(nil),           // 20: chain.withdraw.v1.AutoWithdrawPreviewAsset
+	(*PreviewAutoWithdrawRunResponse)(nil),     // 21: chain.withdraw.v1.PreviewAutoWithdrawRunResponse
+	(*v1.U128)(nil),                            // 22: polyester.type.v1.U128
+	(*timestamppb.Timestamp)(nil),              // 23: google.protobuf.Timestamp
 }
 var file_chain_withdraw_v1_auto_withdraw_proto_depIdxs = []int32{
 	0,  // 0: chain.withdraw.v1.AutoWithdrawSchedule.cadence:type_name -> chain.withdraw.v1.AutoWithdrawCadence
 	1,  // 1: chain.withdraw.v1.AutoWithdrawSchedule.weekday:type_name -> chain.withdraw.v1.AutoWithdrawWeekday
-	18, // 2: chain.withdraw.v1.AutoWithdrawDestination.min_amount_e18:type_name -> polyester.type.v1.U128
-	18, // 3: chain.withdraw.v1.AutoWithdrawDestination.max_amount_e18:type_name -> polyester.type.v1.U128
-	19, // 4: chain.withdraw.v1.AutoWithdrawPause.paused_at:type_name -> google.protobuf.Timestamp
-	4,  // 5: chain.withdraw.v1.AutoWithdrawRule.schedule:type_name -> chain.withdraw.v1.AutoWithdrawSchedule
-	5,  // 6: chain.withdraw.v1.AutoWithdrawRule.destinations:type_name -> chain.withdraw.v1.AutoWithdrawDestination
-	19, // 7: chain.withdraw.v1.AutoWithdrawRule.created_at:type_name -> google.protobuf.Timestamp
-	6,  // 8: chain.withdraw.v1.AutoWithdrawRule.pause:type_name -> chain.withdraw.v1.AutoWithdrawPause
-	18, // 9: chain.withdraw.v1.AutoWithdrawRule.min_usd_value_e18:type_name -> polyester.type.v1.U128
-	4,  // 10: chain.withdraw.v1.SetAutoWithdrawRuleRequest.schedule:type_name -> chain.withdraw.v1.AutoWithdrawSchedule
-	5,  // 11: chain.withdraw.v1.SetAutoWithdrawRuleRequest.destinations:type_name -> chain.withdraw.v1.AutoWithdrawDestination
-	18, // 12: chain.withdraw.v1.SetAutoWithdrawRuleRequest.min_usd_value_e18:type_name -> polyester.type.v1.U128
-	7,  // 13: chain.withdraw.v1.SetAutoWithdrawRuleResponse.rule:type_name -> chain.withdraw.v1.AutoWithdrawRule
-	7,  // 14: chain.withdraw.v1.DisableAutoWithdrawRuleResponse.rule:type_name -> chain.withdraw.v1.AutoWithdrawRule
-	7,  // 15: chain.withdraw.v1.GetAutoWithdrawRuleResponse.rule:type_name -> chain.withdraw.v1.AutoWithdrawRule
-	18, // 16: chain.withdraw.v1.AutoWithdrawStep.available_e18:type_name -> polyester.type.v1.U128
-	18, // 17: chain.withdraw.v1.AutoWithdrawStep.amount_e18:type_name -> polyester.type.v1.U128
-	3,  // 18: chain.withdraw.v1.AutoWithdrawStep.state:type_name -> chain.withdraw.v1.AutoWithdrawStepState
-	18, // 19: chain.withdraw.v1.AutoWithdrawStep.value_usd_e18:type_name -> polyester.type.v1.U128
-	19, // 20: chain.withdraw.v1.AutoWithdrawRun.scheduled_for:type_name -> google.protobuf.Timestamp
-	2,  // 21: chain.withdraw.v1.AutoWithdrawRun.state:type_name -> chain.withdraw.v1.AutoWithdrawRunState
-	14, // 22: chain.withdraw.v1.AutoWithdrawRun.steps:type_name -> chain.withdraw.v1.AutoWithdrawStep
-	19, // 23: chain.withdraw.v1.AutoWithdrawRun.created_at:type_name -> google.protobuf.Timestamp
-	19, // 24: chain.withdraw.v1.AutoWithdrawRun.finished_at:type_name -> google.protobuf.Timestamp
-	15, // 25: chain.withdraw.v1.ListAutoWithdrawRunsResponse.runs:type_name -> chain.withdraw.v1.AutoWithdrawRun
-	8,  // 26: chain.withdraw.v1.AutoWithdrawService.SetAutoWithdrawRule:input_type -> chain.withdraw.v1.SetAutoWithdrawRuleRequest
-	10, // 27: chain.withdraw.v1.AutoWithdrawService.DisableAutoWithdrawRule:input_type -> chain.withdraw.v1.DisableAutoWithdrawRuleRequest
-	12, // 28: chain.withdraw.v1.AutoWithdrawService.GetAutoWithdrawRule:input_type -> chain.withdraw.v1.GetAutoWithdrawRuleRequest
-	16, // 29: chain.withdraw.v1.AutoWithdrawService.ListAutoWithdrawRuns:input_type -> chain.withdraw.v1.ListAutoWithdrawRunsRequest
-	9,  // 30: chain.withdraw.v1.AutoWithdrawService.SetAutoWithdrawRule:output_type -> chain.withdraw.v1.SetAutoWithdrawRuleResponse
-	11, // 31: chain.withdraw.v1.AutoWithdrawService.DisableAutoWithdrawRule:output_type -> chain.withdraw.v1.DisableAutoWithdrawRuleResponse
-	13, // 32: chain.withdraw.v1.AutoWithdrawService.GetAutoWithdrawRule:output_type -> chain.withdraw.v1.GetAutoWithdrawRuleResponse
-	17, // 33: chain.withdraw.v1.AutoWithdrawService.ListAutoWithdrawRuns:output_type -> chain.withdraw.v1.ListAutoWithdrawRunsResponse
-	30, // [30:34] is the sub-list for method output_type
-	26, // [26:30] is the sub-list for method input_type
-	26, // [26:26] is the sub-list for extension type_name
-	26, // [26:26] is the sub-list for extension extendee
-	0,  // [0:26] is the sub-list for field type_name
+	22, // 2: chain.withdraw.v1.AutoWithdrawDestination.min_amount_e18:type_name -> polyester.type.v1.U128
+	22, // 3: chain.withdraw.v1.AutoWithdrawDestination.max_amount_e18:type_name -> polyester.type.v1.U128
+	22, // 4: chain.withdraw.v1.AutoWithdrawDestination.min_floor_e18:type_name -> polyester.type.v1.U128
+	23, // 5: chain.withdraw.v1.AutoWithdrawPause.paused_at:type_name -> google.protobuf.Timestamp
+	5,  // 6: chain.withdraw.v1.AutoWithdrawRule.schedule:type_name -> chain.withdraw.v1.AutoWithdrawSchedule
+	6,  // 7: chain.withdraw.v1.AutoWithdrawRule.destinations:type_name -> chain.withdraw.v1.AutoWithdrawDestination
+	23, // 8: chain.withdraw.v1.AutoWithdrawRule.created_at:type_name -> google.protobuf.Timestamp
+	7,  // 9: chain.withdraw.v1.AutoWithdrawRule.pause:type_name -> chain.withdraw.v1.AutoWithdrawPause
+	22, // 10: chain.withdraw.v1.AutoWithdrawRule.min_usd_value_e18:type_name -> polyester.type.v1.U128
+	5,  // 11: chain.withdraw.v1.SetAutoWithdrawRuleRequest.schedule:type_name -> chain.withdraw.v1.AutoWithdrawSchedule
+	6,  // 12: chain.withdraw.v1.SetAutoWithdrawRuleRequest.destinations:type_name -> chain.withdraw.v1.AutoWithdrawDestination
+	22, // 13: chain.withdraw.v1.SetAutoWithdrawRuleRequest.min_usd_value_e18:type_name -> polyester.type.v1.U128
+	8,  // 14: chain.withdraw.v1.SetAutoWithdrawRuleResponse.rule:type_name -> chain.withdraw.v1.AutoWithdrawRule
+	8,  // 15: chain.withdraw.v1.SetAutoWithdrawRuleEnabledResponse.rule:type_name -> chain.withdraw.v1.AutoWithdrawRule
+	8,  // 16: chain.withdraw.v1.GetAutoWithdrawRuleResponse.rule:type_name -> chain.withdraw.v1.AutoWithdrawRule
+	22, // 17: chain.withdraw.v1.AutoWithdrawStep.available_e18:type_name -> polyester.type.v1.U128
+	22, // 18: chain.withdraw.v1.AutoWithdrawStep.amount_e18:type_name -> polyester.type.v1.U128
+	3,  // 19: chain.withdraw.v1.AutoWithdrawStep.state:type_name -> chain.withdraw.v1.AutoWithdrawStepState
+	22, // 20: chain.withdraw.v1.AutoWithdrawStep.value_usd_e18:type_name -> polyester.type.v1.U128
+	22, // 21: chain.withdraw.v1.AutoWithdrawStep.network_fee_e18:type_name -> polyester.type.v1.U128
+	23, // 22: chain.withdraw.v1.AutoWithdrawRun.scheduled_for:type_name -> google.protobuf.Timestamp
+	2,  // 23: chain.withdraw.v1.AutoWithdrawRun.state:type_name -> chain.withdraw.v1.AutoWithdrawRunState
+	15, // 24: chain.withdraw.v1.AutoWithdrawRun.steps:type_name -> chain.withdraw.v1.AutoWithdrawStep
+	23, // 25: chain.withdraw.v1.AutoWithdrawRun.created_at:type_name -> google.protobuf.Timestamp
+	23, // 26: chain.withdraw.v1.AutoWithdrawRun.finished_at:type_name -> google.protobuf.Timestamp
+	16, // 27: chain.withdraw.v1.ListAutoWithdrawRunsResponse.runs:type_name -> chain.withdraw.v1.AutoWithdrawRun
+	22, // 28: chain.withdraw.v1.AutoWithdrawPreviewAsset.available_e18:type_name -> polyester.type.v1.U128
+	22, // 29: chain.withdraw.v1.AutoWithdrawPreviewAsset.payable_e18:type_name -> polyester.type.v1.U128
+	22, // 30: chain.withdraw.v1.AutoWithdrawPreviewAsset.held_back_e18:type_name -> polyester.type.v1.U128
+	22, // 31: chain.withdraw.v1.AutoWithdrawPreviewAsset.minimum_e18:type_name -> polyester.type.v1.U128
+	22, // 32: chain.withdraw.v1.AutoWithdrawPreviewAsset.value_usd_e18:type_name -> polyester.type.v1.U128
+	23, // 33: chain.withdraw.v1.AutoWithdrawPreviewAsset.priced_at:type_name -> google.protobuf.Timestamp
+	22, // 34: chain.withdraw.v1.AutoWithdrawPreviewAsset.network_fee_e18:type_name -> polyester.type.v1.U128
+	23, // 35: chain.withdraw.v1.AutoWithdrawPreviewAsset.network_fee_sampled_at:type_name -> google.protobuf.Timestamp
+	23, // 36: chain.withdraw.v1.AutoWithdrawPreviewAsset.payable_from:type_name -> google.protobuf.Timestamp
+	4,  // 37: chain.withdraw.v1.PreviewAutoWithdrawRunResponse.status:type_name -> chain.withdraw.v1.AutoWithdrawPreviewStatus
+	23, // 38: chain.withdraw.v1.PreviewAutoWithdrawRunResponse.next_run_at:type_name -> google.protobuf.Timestamp
+	7,  // 39: chain.withdraw.v1.PreviewAutoWithdrawRunResponse.pause:type_name -> chain.withdraw.v1.AutoWithdrawPause
+	22, // 40: chain.withdraw.v1.PreviewAutoWithdrawRunResponse.min_usd_value_e18:type_name -> polyester.type.v1.U128
+	20, // 41: chain.withdraw.v1.PreviewAutoWithdrawRunResponse.assets:type_name -> chain.withdraw.v1.AutoWithdrawPreviewAsset
+	23, // 42: chain.withdraw.v1.PreviewAutoWithdrawRunResponse.computed_at:type_name -> google.protobuf.Timestamp
+	9,  // 43: chain.withdraw.v1.AutoWithdrawService.SetAutoWithdrawRule:input_type -> chain.withdraw.v1.SetAutoWithdrawRuleRequest
+	11, // 44: chain.withdraw.v1.AutoWithdrawService.SetAutoWithdrawRuleEnabled:input_type -> chain.withdraw.v1.SetAutoWithdrawRuleEnabledRequest
+	13, // 45: chain.withdraw.v1.AutoWithdrawService.GetAutoWithdrawRule:input_type -> chain.withdraw.v1.GetAutoWithdrawRuleRequest
+	17, // 46: chain.withdraw.v1.AutoWithdrawService.ListAutoWithdrawRuns:input_type -> chain.withdraw.v1.ListAutoWithdrawRunsRequest
+	19, // 47: chain.withdraw.v1.AutoWithdrawService.PreviewAutoWithdrawRun:input_type -> chain.withdraw.v1.PreviewAutoWithdrawRunRequest
+	10, // 48: chain.withdraw.v1.AutoWithdrawService.SetAutoWithdrawRule:output_type -> chain.withdraw.v1.SetAutoWithdrawRuleResponse
+	12, // 49: chain.withdraw.v1.AutoWithdrawService.SetAutoWithdrawRuleEnabled:output_type -> chain.withdraw.v1.SetAutoWithdrawRuleEnabledResponse
+	14, // 50: chain.withdraw.v1.AutoWithdrawService.GetAutoWithdrawRule:output_type -> chain.withdraw.v1.GetAutoWithdrawRuleResponse
+	18, // 51: chain.withdraw.v1.AutoWithdrawService.ListAutoWithdrawRuns:output_type -> chain.withdraw.v1.ListAutoWithdrawRunsResponse
+	21, // 52: chain.withdraw.v1.AutoWithdrawService.PreviewAutoWithdrawRun:output_type -> chain.withdraw.v1.PreviewAutoWithdrawRunResponse
+	48, // [48:53] is the sub-list for method output_type
+	43, // [43:48] is the sub-list for method input_type
+	43, // [43:43] is the sub-list for extension type_name
+	43, // [43:43] is the sub-list for extension extendee
+	0,  // [0:43] is the sub-list for field type_name
 }
 
 func init() { file_chain_withdraw_v1_auto_withdraw_proto_init() }
@@ -1596,8 +2139,8 @@ func file_chain_withdraw_v1_auto_withdraw_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chain_withdraw_v1_auto_withdraw_proto_rawDesc), len(file_chain_withdraw_v1_auto_withdraw_proto_rawDesc)),
-			NumEnums:      4,
-			NumMessages:   14,
+			NumEnums:      5,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

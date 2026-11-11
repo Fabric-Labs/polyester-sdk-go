@@ -47,6 +47,15 @@ const (
 	// ApiKeyServiceUpdateApiKeyProcedure is the fully-qualified name of the ApiKeyService's
 	// UpdateApiKey RPC.
 	ApiKeyServiceUpdateApiKeyProcedure = "/auth.v1.ApiKeyService/UpdateApiKey"
+	// ApiKeyServiceSetAssistantKeysProcedure is the fully-qualified name of the ApiKeyService's
+	// SetAssistantKeys RPC.
+	ApiKeyServiceSetAssistantKeysProcedure = "/auth.v1.ApiKeyService/SetAssistantKeys"
+	// ApiKeyServiceListAssistantKeysProcedure is the fully-qualified name of the ApiKeyService's
+	// ListAssistantKeys RPC.
+	ApiKeyServiceListAssistantKeysProcedure = "/auth.v1.ApiKeyService/ListAssistantKeys"
+	// ApiKeyServiceDeleteAssistantKeysProcedure is the fully-qualified name of the ApiKeyService's
+	// DeleteAssistantKeys RPC.
+	ApiKeyServiceDeleteAssistantKeysProcedure = "/auth.v1.ApiKeyService/DeleteAssistantKeys"
 )
 
 // ApiKeyServiceClient is a client for the auth.v1.ApiKeyService service.
@@ -69,6 +78,32 @@ type ApiKeyServiceClient interface {
 	// Update API key metadata and allowed status transitions. Revocation must use
 	// DeleteApiKey.
 	UpdateApiKey(context.Context, *connect.Request[v1.UpdateApiKeyRequest]) (*connect.Response[v1.UpdateApiKeyResponse], error)
+	// Create or replace the caller's Polyester AI assistant key set: one
+	// ASSISTANT key per enabled account, each bounded by its API policy. One
+	// fresh step-up proof covers the whole set, and the change is all or
+	// nothing. An entry whose account already has an assistant key with the same
+	// public key keeps that key, with its status, and takes the requested
+	// policy; any other entry replaces the account's key. Accounts left out of
+	// the set have their assistant key revoked. A sub-account entry needs the
+	// same access as CreateApiKey: owner, or a role that manages its API keys.
+	// The acting caller's root account must have accepted the current terms;
+	// otherwise FailedPrecondition with AUTH_TERMS_NOT_ACCEPTED is returned. A
+	// policy that allows a money-out action returns FailedPrecondition with
+	// AUTH_ASSISTANT_KEY_ACTION_NOT_ALLOWED. A new key is registered only with
+	// the registration proof and deadline the assistant issued with it
+	// (PrepareAssistantKeys), before that deadline: a missing or failing proof
+	// returns InvalidArgument with AUTH_ASSISTANT_KEY_PROOF_INVALID, a passed
+	// deadline FailedPrecondition with AUTH_ASSISTANT_KEY_REGISTRATION_EXPIRED,
+	// and one more than 15 minutes ahead InvalidArgument with
+	// AUTH_ASSISTANT_KEY_DEADLINE_TOO_FAR.
+	SetAssistantKeys(context.Context, *connect.Request[v1.SetAssistantKeysRequest]) (*connect.Response[v1.SetAssistantKeysResponse], error)
+	// List the caller's non-revoked Polyester AI assistant keys, newest first.
+	ListAssistantKeys(context.Context, *connect.Request[v1.ListAssistantKeysRequest]) (*connect.Response[v1.ListAssistantKeysResponse], error)
+	// Revoke the caller's whole Polyester AI assistant key set. Revocation only
+	// removes access, so it needs no step-up proof. Revocation is permanent. As
+	// for DeleteApiKey, key management sees it at once, and requests signed with
+	// a revoked key are refused within a few seconds of the response.
+	DeleteAssistantKeys(context.Context, *connect.Request[v1.DeleteAssistantKeysRequest]) (*connect.Response[v1.DeleteAssistantKeysResponse], error)
 }
 
 // NewApiKeyServiceClient constructs a client for the auth.v1.ApiKeyService service. By default, it
@@ -112,16 +147,37 @@ func NewApiKeyServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(apiKeyServiceMethods.ByName("UpdateApiKey")),
 			connect.WithClientOptions(opts...),
 		),
+		setAssistantKeys: connect.NewClient[v1.SetAssistantKeysRequest, v1.SetAssistantKeysResponse](
+			httpClient,
+			baseURL+ApiKeyServiceSetAssistantKeysProcedure,
+			connect.WithSchema(apiKeyServiceMethods.ByName("SetAssistantKeys")),
+			connect.WithClientOptions(opts...),
+		),
+		listAssistantKeys: connect.NewClient[v1.ListAssistantKeysRequest, v1.ListAssistantKeysResponse](
+			httpClient,
+			baseURL+ApiKeyServiceListAssistantKeysProcedure,
+			connect.WithSchema(apiKeyServiceMethods.ByName("ListAssistantKeys")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteAssistantKeys: connect.NewClient[v1.DeleteAssistantKeysRequest, v1.DeleteAssistantKeysResponse](
+			httpClient,
+			baseURL+ApiKeyServiceDeleteAssistantKeysProcedure,
+			connect.WithSchema(apiKeyServiceMethods.ByName("DeleteAssistantKeys")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // apiKeyServiceClient implements ApiKeyServiceClient.
 type apiKeyServiceClient struct {
-	createApiKey *connect.Client[v1.CreateApiKeyRequest, v1.CreateApiKeyResponse]
-	listApiKeys  *connect.Client[v1.ListApiKeysRequest, v1.ListApiKeysResponse]
-	getApiKey    *connect.Client[v1.GetApiKeyRequest, v1.GetApiKeyResponse]
-	deleteApiKey *connect.Client[v1.DeleteApiKeyRequest, v1.DeleteApiKeyResponse]
-	updateApiKey *connect.Client[v1.UpdateApiKeyRequest, v1.UpdateApiKeyResponse]
+	createApiKey        *connect.Client[v1.CreateApiKeyRequest, v1.CreateApiKeyResponse]
+	listApiKeys         *connect.Client[v1.ListApiKeysRequest, v1.ListApiKeysResponse]
+	getApiKey           *connect.Client[v1.GetApiKeyRequest, v1.GetApiKeyResponse]
+	deleteApiKey        *connect.Client[v1.DeleteApiKeyRequest, v1.DeleteApiKeyResponse]
+	updateApiKey        *connect.Client[v1.UpdateApiKeyRequest, v1.UpdateApiKeyResponse]
+	setAssistantKeys    *connect.Client[v1.SetAssistantKeysRequest, v1.SetAssistantKeysResponse]
+	listAssistantKeys   *connect.Client[v1.ListAssistantKeysRequest, v1.ListAssistantKeysResponse]
+	deleteAssistantKeys *connect.Client[v1.DeleteAssistantKeysRequest, v1.DeleteAssistantKeysResponse]
 }
 
 // CreateApiKey calls auth.v1.ApiKeyService.CreateApiKey.
@@ -149,6 +205,21 @@ func (c *apiKeyServiceClient) UpdateApiKey(ctx context.Context, req *connect.Req
 	return c.updateApiKey.CallUnary(ctx, req)
 }
 
+// SetAssistantKeys calls auth.v1.ApiKeyService.SetAssistantKeys.
+func (c *apiKeyServiceClient) SetAssistantKeys(ctx context.Context, req *connect.Request[v1.SetAssistantKeysRequest]) (*connect.Response[v1.SetAssistantKeysResponse], error) {
+	return c.setAssistantKeys.CallUnary(ctx, req)
+}
+
+// ListAssistantKeys calls auth.v1.ApiKeyService.ListAssistantKeys.
+func (c *apiKeyServiceClient) ListAssistantKeys(ctx context.Context, req *connect.Request[v1.ListAssistantKeysRequest]) (*connect.Response[v1.ListAssistantKeysResponse], error) {
+	return c.listAssistantKeys.CallUnary(ctx, req)
+}
+
+// DeleteAssistantKeys calls auth.v1.ApiKeyService.DeleteAssistantKeys.
+func (c *apiKeyServiceClient) DeleteAssistantKeys(ctx context.Context, req *connect.Request[v1.DeleteAssistantKeysRequest]) (*connect.Response[v1.DeleteAssistantKeysResponse], error) {
+	return c.deleteAssistantKeys.CallUnary(ctx, req)
+}
+
 // ApiKeyServiceHandler is an implementation of the auth.v1.ApiKeyService service.
 type ApiKeyServiceHandler interface {
 	// Create a new API key for the caller. Account security settings may require
@@ -169,6 +240,32 @@ type ApiKeyServiceHandler interface {
 	// Update API key metadata and allowed status transitions. Revocation must use
 	// DeleteApiKey.
 	UpdateApiKey(context.Context, *connect.Request[v1.UpdateApiKeyRequest]) (*connect.Response[v1.UpdateApiKeyResponse], error)
+	// Create or replace the caller's Polyester AI assistant key set: one
+	// ASSISTANT key per enabled account, each bounded by its API policy. One
+	// fresh step-up proof covers the whole set, and the change is all or
+	// nothing. An entry whose account already has an assistant key with the same
+	// public key keeps that key, with its status, and takes the requested
+	// policy; any other entry replaces the account's key. Accounts left out of
+	// the set have their assistant key revoked. A sub-account entry needs the
+	// same access as CreateApiKey: owner, or a role that manages its API keys.
+	// The acting caller's root account must have accepted the current terms;
+	// otherwise FailedPrecondition with AUTH_TERMS_NOT_ACCEPTED is returned. A
+	// policy that allows a money-out action returns FailedPrecondition with
+	// AUTH_ASSISTANT_KEY_ACTION_NOT_ALLOWED. A new key is registered only with
+	// the registration proof and deadline the assistant issued with it
+	// (PrepareAssistantKeys), before that deadline: a missing or failing proof
+	// returns InvalidArgument with AUTH_ASSISTANT_KEY_PROOF_INVALID, a passed
+	// deadline FailedPrecondition with AUTH_ASSISTANT_KEY_REGISTRATION_EXPIRED,
+	// and one more than 15 minutes ahead InvalidArgument with
+	// AUTH_ASSISTANT_KEY_DEADLINE_TOO_FAR.
+	SetAssistantKeys(context.Context, *connect.Request[v1.SetAssistantKeysRequest]) (*connect.Response[v1.SetAssistantKeysResponse], error)
+	// List the caller's non-revoked Polyester AI assistant keys, newest first.
+	ListAssistantKeys(context.Context, *connect.Request[v1.ListAssistantKeysRequest]) (*connect.Response[v1.ListAssistantKeysResponse], error)
+	// Revoke the caller's whole Polyester AI assistant key set. Revocation only
+	// removes access, so it needs no step-up proof. Revocation is permanent. As
+	// for DeleteApiKey, key management sees it at once, and requests signed with
+	// a revoked key are refused within a few seconds of the response.
+	DeleteAssistantKeys(context.Context, *connect.Request[v1.DeleteAssistantKeysRequest]) (*connect.Response[v1.DeleteAssistantKeysResponse], error)
 }
 
 // NewApiKeyServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -208,6 +305,24 @@ func NewApiKeyServiceHandler(svc ApiKeyServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(apiKeyServiceMethods.ByName("UpdateApiKey")),
 		connect.WithHandlerOptions(opts...),
 	)
+	apiKeyServiceSetAssistantKeysHandler := connect.NewUnaryHandler(
+		ApiKeyServiceSetAssistantKeysProcedure,
+		svc.SetAssistantKeys,
+		connect.WithSchema(apiKeyServiceMethods.ByName("SetAssistantKeys")),
+		connect.WithHandlerOptions(opts...),
+	)
+	apiKeyServiceListAssistantKeysHandler := connect.NewUnaryHandler(
+		ApiKeyServiceListAssistantKeysProcedure,
+		svc.ListAssistantKeys,
+		connect.WithSchema(apiKeyServiceMethods.ByName("ListAssistantKeys")),
+		connect.WithHandlerOptions(opts...),
+	)
+	apiKeyServiceDeleteAssistantKeysHandler := connect.NewUnaryHandler(
+		ApiKeyServiceDeleteAssistantKeysProcedure,
+		svc.DeleteAssistantKeys,
+		connect.WithSchema(apiKeyServiceMethods.ByName("DeleteAssistantKeys")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/auth.v1.ApiKeyService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ApiKeyServiceCreateApiKeyProcedure:
@@ -220,6 +335,12 @@ func NewApiKeyServiceHandler(svc ApiKeyServiceHandler, opts ...connect.HandlerOp
 			apiKeyServiceDeleteApiKeyHandler.ServeHTTP(w, r)
 		case ApiKeyServiceUpdateApiKeyProcedure:
 			apiKeyServiceUpdateApiKeyHandler.ServeHTTP(w, r)
+		case ApiKeyServiceSetAssistantKeysProcedure:
+			apiKeyServiceSetAssistantKeysHandler.ServeHTTP(w, r)
+		case ApiKeyServiceListAssistantKeysProcedure:
+			apiKeyServiceListAssistantKeysHandler.ServeHTTP(w, r)
+		case ApiKeyServiceDeleteAssistantKeysProcedure:
+			apiKeyServiceDeleteAssistantKeysHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -247,4 +368,16 @@ func (UnimplementedApiKeyServiceHandler) DeleteApiKey(context.Context, *connect.
 
 func (UnimplementedApiKeyServiceHandler) UpdateApiKey(context.Context, *connect.Request[v1.UpdateApiKeyRequest]) (*connect.Response[v1.UpdateApiKeyResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.ApiKeyService.UpdateApiKey is not implemented"))
+}
+
+func (UnimplementedApiKeyServiceHandler) SetAssistantKeys(context.Context, *connect.Request[v1.SetAssistantKeysRequest]) (*connect.Response[v1.SetAssistantKeysResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.ApiKeyService.SetAssistantKeys is not implemented"))
+}
+
+func (UnimplementedApiKeyServiceHandler) ListAssistantKeys(context.Context, *connect.Request[v1.ListAssistantKeysRequest]) (*connect.Response[v1.ListAssistantKeysResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.ApiKeyService.ListAssistantKeys is not implemented"))
+}
+
+func (UnimplementedApiKeyServiceHandler) DeleteAssistantKeys(context.Context, *connect.Request[v1.DeleteAssistantKeysRequest]) (*connect.Response[v1.DeleteAssistantKeysResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.ApiKeyService.DeleteAssistantKeys is not implemented"))
 }

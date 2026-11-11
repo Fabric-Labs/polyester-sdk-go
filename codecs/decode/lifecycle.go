@@ -43,6 +43,8 @@ func lifecycleReasonLabel(code lifecyclev1.LifecycleReason) string {
 		return "trading_withdraw_execution_failed"
 	case lifecyclev1.LifecycleReason_DEPOSIT_SOURCE_NOT_CONFIRMED:
 		return "deposit_source_not_confirmed"
+	case lifecyclev1.LifecycleReason_ZIPPER_COMPLIANCE_TRANSFERRED:
+		return "zipper_compliance_transferred"
 	default:
 		return fmt.Sprintf("unknown_reason_%d", int32(code))
 	}

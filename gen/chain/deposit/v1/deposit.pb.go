@@ -312,12 +312,12 @@ const file_chain_deposit_v1_deposit_proto_rawDesc = "" +
 	"\bchain_id\x18\x02 \x01(\rB\n" +
 	"\xbaH\a\xd8\x01\x01*\x02 \x00R\achainId\"m\n" +
 	"\x1cListDepositAddressesResponse\x12M\n" +
-	"\x11deposit_addresses\x18\x01 \x03(\v2 .chain.deposit.v1.DepositAddressR\x10depositAddresses2\xc8\x05\n" +
-	"\x15DepositAddressService\x12\x9b\x03\n" +
-	"\x14CreateDepositAddress\x12-.chain.deposit.v1.CreateDepositAddressRequest\x1a..chain.deposit.v1.CreateDepositAddressResponse\"\xa3\x02\xbaG\xf3\x01\n" +
-	"\x11Deposit Addresses\x12\x16Create Deposit Address\x1a\xc5\x01Create or return the assigned deposit address for one account target and source chain. Requires the acting caller's root account to have accepted the current terms, including when using an API key.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/v1/chain/deposit-addresses\x12\x85\x02\n" +
-	"\x14ListDepositAddresses\x12-.chain.deposit.v1.ListDepositAddressesRequest\x1a..chain.deposit.v1.ListDepositAddressesResponse\"\x8d\x01\xbaGa\n" +
-	"\x11Deposit Addresses\x12\x16List Deposit Addresses\x1a4List known deposit addresses for one account target.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1d\x12\x1b/v1/chain/deposit-addresses\x1a\t\x8a\xb5\x18\x05chainB\xaf\x01\xbaG_:]\n" +
+	"\x11deposit_addresses\x18\x01 \x03(\v2 .chain.deposit.v1.DepositAddressR\x10depositAddresses2\xbd\x06\n" +
+	"\x15DepositAddressService\x12\xd5\x03\n" +
+	"\x14CreateDepositAddress\x12-.chain.deposit.v1.CreateDepositAddressRequest\x1a..chain.deposit.v1.CreateDepositAddressResponse\"\xdd\x02\xbaG\xad\x02\n" +
+	"\x11Deposit Addresses\x12\x16Create Deposit Address\x1a\xff\x01Create or return the assigned deposit address for one account target and source chain. Requires the acting caller's root account to have accepted the current terms, including when using an API key. An API key needs CREATE_DEPOSIT_ADDRESS within its scope.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/v1/chain/deposit-addresses\x12\xc0\x02\n" +
+	"\x14ListDepositAddresses\x12-.chain.deposit.v1.ListDepositAddressesRequest\x1a..chain.deposit.v1.ListDepositAddressesResponse\"\xc8\x01\xbaG\x9b\x01\n" +
+	"\x11Deposit Addresses\x12\x16List Deposit Addresses\x1anList known deposit addresses for one account target. An API key needs READ_DEPOSIT_ADDRESSES within its scope.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1d\x12\x1b/v1/chain/deposit-addresses\x1a\t\x8a\xb5\x18\x05chainB\xaf\x01\xbaG_:]\n" +
 	"\x11Deposit Addresses\x12HCreate and list deposit addresses for a Polyester account or subaccount.ZKgithub.com/Fabric-Labs/polyester-sdk-go/gen/chain/deposit/v1;chaindepositv1b\x06proto3"
 
 var (

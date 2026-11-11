@@ -280,6 +280,23 @@ func (s *WithdrawService) ValidateDestination(ctx context.Context, destinationCh
 	return UnaryAuth(ctx, s.transport, s.client().ValidateWithdrawDestination, req, decode.WithdrawDestinationValidationFromProto)
 }
 
+// GetWalletBalances reads the zTokens the account's smart account wallet
+// holds on Polyester Chain, live from the chain: every nonzero balance,
+// ordered by zipped asset ID. A withdrawal that Zipper rejected is refunded
+// there, net of its network fee, and its flow ends refunded (see
+// Lifecycle.GetFlow). account or subAccountID selects a sub-account, as for
+// Balances.List; neither reads the key's own account. An API key needs
+// READ_BALANCES on its policy. A failed chain read is a retryable unavailable
+// error; an account with no smart account wallet is refused with
+// failed_precondition (SOURCE_SMART_ACCOUNT_UNAVAILABLE).
+func (s *WithdrawService) GetWalletBalances(ctx context.Context, account AccountScope, subAccountID *string) (models.WalletBalances, error) {
+	req := &chainwithdrawv1.GetWalletBalancesRequest{}
+	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {
+		return models.WalletBalances{}, err
+	}
+	return UnaryAuthDecoded(ctx, s.transport, s.client().GetWalletBalances, req, decode.WalletBalancesFromProto)
+}
+
 func (s *WithdrawService) CreateWalletTradingWithdraw(ctx context.Context, action string, assetID uint32, amount models.AssetAmountInput, idempotencyKey string, payloadSignature []byte, signerWallet string, account AccountScope, subAccountID *string, destinationChainID uint64, deadlineTsSec *uint64, nonce string, destinationAddress string, amountScale int) (models.WithdrawIntentResult, error) {
 	if len(payloadSignature) == 0 {
 		return models.WithdrawIntentResult{}, &errors.ValidationError{Msg: "payload_signature is required for trading withdraw"}

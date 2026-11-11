@@ -380,8 +380,13 @@ type CancelAllParams struct {
 // placed (a TWAP's working slice, a ladder's levels, a fired stop's order, an
 // attached leg's working exit) are canceled like any other, while the
 // triggers stay live and keep their reserved funds. MatchedOrders counts
-// orders, never triggers. To stop all automated trading, use
-// StopAllTrading, which cancels the triggers first.
+// orders, never triggers. Standalone stop-loss, take-profit and trailing
+// triggers and TWAPs keep running and can place new orders; a ladder stops
+// once its levels are canceled. An attached stop-loss, take-profit or
+// trailing leg whose exit order is canceled ends, and so do the parent's
+// other legs when OCO is set, so the position loses that protection. To stop
+// all automated trading, use StopAllTrading, which cancels the triggers
+// first.
 func (s *OrdersService) CancelAll(ctx context.Context, account AccountScope, subAccountID, symbol, side *string, dryRun bool, requestID *string) (models.CancelAllOrdersResult, error) {
 	return s.CancelAllWith(ctx, account, CancelAllParams{
 		SubAccountID: subAccountID,
@@ -416,8 +421,9 @@ func (s *OrdersService) CancelAllWith(ctx context.Context, account AccountScope,
 
 // CancelAllAfter arms cancel-all-after (the dead-man switch). When it fires
 // it cancels open orders in scope, never triggers: a client that stopped
-// still has its triggers live. Cancel them with Triggers.Cancel, or use
-// StopAllTrading.
+// still has its standalone triggers and TWAPs live, and an attached leg whose
+// exit order it cancels ends (with its OCO siblings). Cancel triggers with
+// Triggers.Cancel first, or use StopAllTrading.
 func (s *OrdersService) CancelAllAfter(ctx context.Context, account AccountScope, timeoutSec int, subAccountID, symbol, side, requestID *string) (models.CancelAllAfterResult, error) {
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {

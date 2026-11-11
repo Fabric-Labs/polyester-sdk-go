@@ -3,6 +3,7 @@ package decode
 import (
 	"fmt"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	chainwithdrawv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/withdraw/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
@@ -55,4 +56,28 @@ func WithdrawDestinationValidationFromProto(msg *chainwithdrawv1.ValidateWithdra
 		Message:                     msg.GetMessage(),
 		CanonicalDestinationAddress: msg.GetCanonicalDestinationAddress(),
 	}
+}
+
+// WalletBalancesFromProto decodes the smart account wallet's zToken balances.
+func WalletBalancesFromProto(msg *chainwithdrawv1.GetWalletBalancesResponse) (models.WalletBalances, error) {
+	out := models.WalletBalances{
+		SmartAccountAddress: msg.GetSmartAccountAddress(),
+		Balances:            make([]models.WalletBalance, 0, len(msg.GetBalances())),
+	}
+	for _, b := range msg.GetBalances() {
+		raw := u128(b.GetAmountE18())
+		amount, err := codecs.FormatLedgerU128(raw, codecs.LedgerScale)
+		if err != nil {
+			return models.WalletBalances{}, &sdkerrors.TransportError{Msg: fmt.Sprintf("wallet balance of zipped asset %d: %v", b.GetZippedAssetId(), err)}
+		}
+		out.Balances = append(out.Balances, models.WalletBalance{
+			ZippedAssetID:  b.GetZippedAssetId(),
+			UnifiedAssetID: b.GetUnifiedAssetId(),
+			ChainID:        b.GetChainId(),
+			ZTokenAddress:  b.GetZtokenAddress(),
+			AmountE18:      raw,
+			Amount:         amount,
+		})
+	}
+	return out, nil
 }

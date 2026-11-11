@@ -99,11 +99,15 @@ type PolicyServiceClient interface {
 	GetApiPolicy(context.Context, *connect.Request[v1.GetApiPolicyRequest]) (*connect.Response[v1.GetApiPolicyResponse], error)
 	// Create a new API key policy template.
 	CreateApiPolicy(context.Context, *connect.Request[v1.CreateApiPolicyRequest]) (*connect.Response[v1.CreateApiPolicyResponse], error)
-	// Change selected fields on an existing API key policy template.
+	// Change selected fields on an existing API key policy template. Adding a
+	// money-out action to a policy attached to an assistant API key returns
+	// FailedPrecondition with AUTH_ASSISTANT_KEY_ACTION_NOT_ALLOWED.
 	UpdateApiPolicy(context.Context, *connect.Request[v1.UpdateApiPolicyRequest]) (*connect.Response[v1.UpdateApiPolicyResponse], error)
 	// Delete an API key policy template.
 	DeleteApiPolicy(context.Context, *connect.Request[v1.DeleteApiPolicyRequest]) (*connect.Response[v1.DeleteApiPolicyResponse], error)
-	// Attach or clear an API key policy for a key.
+	// Attach or clear an API key policy for a key. Attaching a policy that allows
+	// a money-out action to an assistant API key returns FailedPrecondition with
+	// AUTH_ASSISTANT_KEY_ACTION_NOT_ALLOWED.
 	SetApiKeyPolicy(context.Context, *connect.Request[v1.SetApiKeyPolicyRequest]) (*connect.Response[v1.SetApiKeyPolicyResponse], error)
 }
 
@@ -297,11 +301,15 @@ type PolicyServiceHandler interface {
 	GetApiPolicy(context.Context, *connect.Request[v1.GetApiPolicyRequest]) (*connect.Response[v1.GetApiPolicyResponse], error)
 	// Create a new API key policy template.
 	CreateApiPolicy(context.Context, *connect.Request[v1.CreateApiPolicyRequest]) (*connect.Response[v1.CreateApiPolicyResponse], error)
-	// Change selected fields on an existing API key policy template.
+	// Change selected fields on an existing API key policy template. Adding a
+	// money-out action to a policy attached to an assistant API key returns
+	// FailedPrecondition with AUTH_ASSISTANT_KEY_ACTION_NOT_ALLOWED.
 	UpdateApiPolicy(context.Context, *connect.Request[v1.UpdateApiPolicyRequest]) (*connect.Response[v1.UpdateApiPolicyResponse], error)
 	// Delete an API key policy template.
 	DeleteApiPolicy(context.Context, *connect.Request[v1.DeleteApiPolicyRequest]) (*connect.Response[v1.DeleteApiPolicyResponse], error)
-	// Attach or clear an API key policy for a key.
+	// Attach or clear an API key policy for a key. Attaching a policy that allows
+	// a money-out action to an assistant API key returns FailedPrecondition with
+	// AUTH_ASSISTANT_KEY_ACTION_NOT_ALLOWED.
 	SetApiKeyPolicy(context.Context, *connect.Request[v1.SetApiKeyPolicyRequest]) (*connect.Response[v1.SetApiKeyPolicyResponse], error)
 }
 

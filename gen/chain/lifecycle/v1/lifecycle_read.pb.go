@@ -1747,7 +1747,13 @@ type FlowStepView struct {
 	// Nested activity rows for expandable UI detail. The top-level step remains
 	// one visible lifecycle stage while activities expose the underlying on-chain
 	// evidence that advanced it.
-	Activities    []*FlowStepActivityView `protobuf:"bytes,21,rep,name=activities,proto3" json:"activities,omitempty"`
+	Activities []*FlowStepActivityView `protobuf:"bytes,21,rep,name=activities,proto3" json:"activities,omitempty"`
+	// Polyester Chain smart account the step refunded, set only on
+	// `FLOW_STEP_REFUNDED` of a withdrawal: Zipper rejected the withdrawal and
+	// returned `amount_e18`, the amount net of the request fee it kept, as
+	// zTokens to the smart account that sent it. The zTokens stay in that
+	// smart account; nothing moves them back to Funding or Trading.
+	RefundAddress string `protobuf:"bytes,27,opt,name=refund_address,json=refundAddress,proto3" json:"refund_address,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1927,6 +1933,13 @@ func (x *FlowStepView) GetActivities() []*FlowStepActivityView {
 		return x.Activities
 	}
 	return nil
+}
+
+func (x *FlowStepView) GetRefundAddress() string {
+	if x != nil {
+		return x.RefundAddress
+	}
+	return ""
 }
 
 // FlowStepActivityView is an expandable detail row underneath a visible step.
@@ -2380,7 +2393,7 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\x0fvalidator_count\x18\t \x01(\rR\x0evalidatorCount\x12-\n" +
 	"\x12required_approvals\x18\n" +
 	" \x01(\rR\x11requiredApprovals\x12/\n" +
-	"\x13required_rejections\x18\v \x01(\rR\x12requiredRejections\"\xfc\b\n" +
+	"\x13required_rejections\x18\v \x01(\rR\x12requiredRejections\"\xa3\t\n" +
 	"\fFlowStepView\x12\x1a\n" +
 	"\bsequence\x18\x01 \x01(\rR\bsequence\x120\n" +
 	"\x04step\x18\x03 \x01(\x0e2\x1c.chain.lifecycle.v1.FlowStepR\x04step\x129\n" +
@@ -2406,7 +2419,8 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\x1cblock_time_moving_average_ms\x18\x14 \x01(\x04R\x18blockTimeMovingAverageMs\x12H\n" +
 	"\n" +
 	"activities\x18\x15 \x03(\v2(.chain.lifecycle.v1.FlowStepActivityViewR\n" +
-	"activities\"\xe4\x06\n" +
+	"activities\x12%\n" +
+	"\x0erefund_address\x18\x1b \x01(\tR\rrefundAddress\"\xe4\x06\n" +
 	"\x14FlowStepActivityView\x12\x1a\n" +
 	"\bsequence\x18\x01 \x01(\rR\bsequence\x12\x15\n" +
 	"\x06tx_ref\x18\x02 \x01(\tR\x05txRef\x12\x1e\n" +

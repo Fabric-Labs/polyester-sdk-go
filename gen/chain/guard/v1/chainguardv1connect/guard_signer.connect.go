@@ -56,6 +56,10 @@ const (
 // GuardSignerServiceClient is a client for the chain.guard.v1.GuardSignerService service.
 type GuardSignerServiceClient interface {
 	CreateGuardSignerWallet(context.Context, *connect.Request[v1.CreateGuardSignerWalletRequest]) (*connect.Response[v1.CreateGuardSignerWalletResponse], error)
+	// Return stored and live guard signer status. An API key needs
+	// READ_GUARD_SIGNER_STATUS and reads only within its own main account: a
+	// sub-account another main account owns is refused, even when that main
+	// account shares it.
 	GetGuardSignerStatus(context.Context, *connect.Request[v1.GetGuardSignerStatusRequest]) (*connect.Response[v1.GetGuardSignerStatusResponse], error)
 	SignProtectedAction(context.Context, *connect.Request[v1.SignProtectedActionRequest]) (*connect.Response[v1.SignProtectedActionResponse], error)
 	BatchSignProtectedActions(context.Context, *connect.Request[v1.BatchSignProtectedActionsRequest]) (*connect.Response[v1.BatchSignProtectedActionsResponse], error)
@@ -156,6 +160,10 @@ func (c *guardSignerServiceClient) ExportGuardSignerWallet(ctx context.Context, 
 // GuardSignerServiceHandler is an implementation of the chain.guard.v1.GuardSignerService service.
 type GuardSignerServiceHandler interface {
 	CreateGuardSignerWallet(context.Context, *connect.Request[v1.CreateGuardSignerWalletRequest]) (*connect.Response[v1.CreateGuardSignerWalletResponse], error)
+	// Return stored and live guard signer status. An API key needs
+	// READ_GUARD_SIGNER_STATUS and reads only within its own main account: a
+	// sub-account another main account owns is refused, even when that main
+	// account shares it.
 	GetGuardSignerStatus(context.Context, *connect.Request[v1.GetGuardSignerStatusRequest]) (*connect.Response[v1.GetGuardSignerStatusResponse], error)
 	SignProtectedAction(context.Context, *connect.Request[v1.SignProtectedActionRequest]) (*connect.Response[v1.SignProtectedActionResponse], error)
 	BatchSignProtectedActions(context.Context, *connect.Request[v1.BatchSignProtectedActionsRequest]) (*connect.Response[v1.BatchSignProtectedActionsResponse], error)

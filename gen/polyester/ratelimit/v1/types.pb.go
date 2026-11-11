@@ -106,6 +106,13 @@ const (
 	PolicyClass_GUARD_SIGN PolicyClass = 12
 	// External social-provider work.
 	PolicyClass_SOCIAL_PROVIDER PolicyClass = 13
+	// Messages to the trading assistant, each of which starts an assistant run.
+	PolicyClass_ASSISTANT_MESSAGE PolicyClass = 14
+	// Trading assistant controls: cancelling a run, deciding an approval and
+	// deleting a memory.
+	PolicyClass_ASSISTANT_CONTROL PolicyClass = 15
+	// Trading assistant reads, including run event streams.
+	PolicyClass_ASSISTANT_READ PolicyClass = 16
 )
 
 // Enum value maps for PolicyClass.
@@ -125,6 +132,9 @@ var (
 		11: "WITHDRAW_VALIDATE",
 		12: "GUARD_SIGN",
 		13: "SOCIAL_PROVIDER",
+		14: "ASSISTANT_MESSAGE",
+		15: "ASSISTANT_CONTROL",
+		16: "ASSISTANT_READ",
 	}
 	PolicyClass_value = map[string]int32{
 		"CLASS_UNSPECIFIED": 0,
@@ -141,6 +151,9 @@ var (
 		"WITHDRAW_VALIDATE": 11,
 		"GUARD_SIGN":        12,
 		"SOCIAL_PROVIDER":   13,
+		"ASSISTANT_MESSAGE": 14,
+		"ASSISTANT_CONTROL": 15,
+		"ASSISTANT_READ":    16,
 	}
 )
 
@@ -452,7 +465,7 @@ const file_polyester_ratelimit_v1_types_proto_rawDesc = "" +
 	"\rFailureReason\x12\x16\n" +
 	"\x12REASON_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eQUOTA_EXCEEDED\x10\x01\x12\x19\n" +
-	"\x15AUTHORITY_UNAVAILABLE\x10\x02*\xa4\x02\n" +
+	"\x15AUTHORITY_UNAVAILABLE\x10\x02*\xe6\x02\n" +
 	"\vPolicyClass\x12\x15\n" +
 	"\x11CLASS_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vAUTH_PUBLIC\x10\x01\x12\x11\n" +
@@ -469,7 +482,10 @@ const file_polyester_ratelimit_v1_types_proto_rawDesc = "" +
 	"\x11WITHDRAW_VALIDATE\x10\v\x12\x0e\n" +
 	"\n" +
 	"GUARD_SIGN\x10\f\x12\x13\n" +
-	"\x0fSOCIAL_PROVIDER\x10\r*\xa5\x01\n" +
+	"\x0fSOCIAL_PROVIDER\x10\r\x12\x15\n" +
+	"\x11ASSISTANT_MESSAGE\x10\x0e\x12\x15\n" +
+	"\x11ASSISTANT_CONTROL\x10\x0f\x12\x12\n" +
+	"\x0eASSISTANT_READ\x10\x10*\xa5\x01\n" +
 	"\fLimiterScope\x12\x15\n" +
 	"\x11SCOPE_UNSPECIFIED\x10\x00\x12\r\n" +
 	"\tCLIENT_IP\x10\x01\x12\v\n" +

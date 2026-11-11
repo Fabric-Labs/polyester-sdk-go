@@ -3,6 +3,7 @@ package wire
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	"connectrpc.com/connect"
@@ -10,7 +11,9 @@ import (
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	withdrawv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/withdraw/v1"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
+	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func connectAuthError(t *testing.T, code connect.Code, authCode authv1.AuthErrorCode, message string) error {
@@ -152,5 +155,80 @@ func TestProtovalidateViolationsSurfaceAsFieldViolations(t *testing.T) {
 	got := sdkerrors.Violations(mapped)
 	if len(got) != 1 || got[0].FieldPath != "items[2].limit_gtc.price_ticks" || got[0].RuleID != "int64.gt" {
 		t.Fatalf("violations=%#v", got)
+	}
+}
+
+// A replayed login or signed request is a final auth refusal, never
+// retryable as is: the identical signed request already reached the server.
+func TestConnectReplayDetectedIsAFinalAuthError(t *testing.T) {
+	mapped := connectAuthError(t, connect.CodeUnauthenticated, authv1.AuthErrorCode_AUTH_REPLAY_DETECTED, "request replay detected")
+	var authErr *sdkerrors.AuthError
+	if !errors.As(mapped, &authErr) || authErr.Code != sdkerrors.AuthCodeReplayDetected || authErr.Status != 401 {
+		t.Fatalf("mapped=%T %#v", mapped, mapped)
+	}
+	if sdkerrors.AuthErrorCode(mapped) != sdkerrors.AuthCodeReplayDetected || sdkerrors.IsRetryable(mapped) {
+		t.Fatalf("code=%q retryable=%v", sdkerrors.AuthErrorCode(mapped), sdkerrors.IsRetryable(mapped))
+	}
+}
+
+// A broker-vault withdrawal to a destination still in its 24-hour cool-down
+// names when it can be paid. It is not a whitelist error and not retryable
+// before then.
+func TestWithdrawCoolingDownCarriesPayableFrom(t *testing.T) {
+	payable := time.Date(2026, 11, 11, 14, 0, 0, 0, time.UTC)
+	connectErr := connect.NewError(connect.CodeFailedPrecondition, errors.New("destination is cooling down"))
+	detail, err := connect.NewErrorDetail(&withdrawv1.ErrorDetail{
+		Code:        withdrawv1.ErrorCode_ERROR_CODE_EXTERNAL_DESTINATION_COOLING_DOWN,
+		FieldPath:   "payload.destination_address",
+		PayableFrom: timestamppb.New(payable),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	connectErr.AddDetail(detail)
+	mapped := MapConnectError(connectErr)
+	var apiErr *sdkerrors.APIError
+	if !errors.As(mapped, &apiErr) || apiErr.Code != "ERROR_CODE_EXTERNAL_DESTINATION_COOLING_DOWN" {
+		t.Fatalf("mapped=%T %#v", mapped, mapped)
+	}
+	if apiErr.FieldPath != "payload.destination_address" || apiErr.PayableFrom == nil || !apiErr.PayableFrom.Equal(payable) {
+		t.Fatalf("field_path=%q payable_from=%v", apiErr.FieldPath, apiErr.PayableFrom)
+	}
+	if !sdkerrors.IsDestinationCoolingDown(mapped) || sdkerrors.IsRetryable(mapped) {
+		t.Fatalf("cooling=%v retryable=%v", sdkerrors.IsDestinationCoolingDown(mapped), sdkerrors.IsRetryable(mapped))
+	}
+}
+
+// Without a known pay-from time the refusal leaves PayableFrom nil.
+func TestWithdrawCoolingDownWithoutPayableFrom(t *testing.T) {
+	connectErr := connect.NewError(connect.CodeFailedPrecondition, errors.New("destination is cooling down"))
+	detail, err := connect.NewErrorDetail(&withdrawv1.ErrorDetail{Code: withdrawv1.ErrorCode_ERROR_CODE_EXTERNAL_DESTINATION_COOLING_DOWN})
+	if err != nil {
+		t.Fatal(err)
+	}
+	connectErr.AddDetail(detail)
+	var apiErr *sdkerrors.APIError
+	if mapped := MapConnectError(connectErr); !errors.As(mapped, &apiErr) || apiErr.PayableFrom != nil || !sdkerrors.IsDestinationCoolingDown(mapped) {
+		t.Fatalf("mapped=%T %#v", mapped, mapped)
+	}
+}
+
+// A rule minimum below the destination's floor names the floor, exact in
+// 18-decimal units, and the field to fix.
+func TestWithdrawMinAmountBelowFloorCarriesTheFloor(t *testing.T) {
+	connectErr := connect.NewError(connect.CodeInvalidArgument, errors.New("minimum below floor"))
+	detail, err := connect.NewErrorDetail(&withdrawv1.ErrorDetail{
+		Code:        withdrawv1.ErrorCode_ERROR_CODE_MIN_AMOUNT_BELOW_FLOOR,
+		FieldPath:   "destinations[0].min_amount_e18",
+		MinFloorE18: &typev1.U128{Hi: 1, Lo: 5},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	connectErr.AddDetail(detail)
+	var apiErr *sdkerrors.APIError
+	if mapped := MapConnectError(connectErr); !errors.As(mapped, &apiErr) ||
+		apiErr.FieldPath != "destinations[0].min_amount_e18" || apiErr.MinFloorE18 != "18446744073709551621" || apiErr.PayableFrom != nil {
+		t.Fatalf("mapped=%T %#v", mapped, mapped)
 	}
 }

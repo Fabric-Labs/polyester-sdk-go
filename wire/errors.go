@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	alertsv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/alerts/v1"
 	"math"
 	"strconv"
 	"strings"
@@ -322,6 +323,27 @@ func mapConnectError(err error) error {
 			if isAuthLikeErrorCode(code) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
 			}
+			apiErr := &sdkerrors.APIError{Msg: msg, Code: code, FieldPath: withdrawDetail.GetFieldPath()}
+			if floor := withdrawDetail.GetMinFloorE18(); floor != nil {
+				apiErr.MinFloorE18 = codecs.U128ToStr(floor.GetHi(), floor.GetLo())
+			}
+			if withdrawDetail.PayableFrom != nil {
+				payable := withdrawDetail.GetPayableFrom().AsTime()
+				apiErr.PayableFrom = &payable
+			}
+			return apiErr
+		}
+		if alertDetail, ok := value.(*alertsv1.ErrorDetail); ok {
+			code := alertDetail.GetCode().String()
+			switch alertDetail.GetCode() {
+			case alertsv1.ErrorCode_PRICE_UNAVAILABLE:
+				// No current price to record: nothing was created or changed.
+				return &sdkerrors.ServerError{Msg: msg, Code: code, Status: 503, AdmissionRefused: true}
+			case alertsv1.ErrorCode_SERVICE_UNAVAILABLE:
+				return &sdkerrors.ServerError{Msg: msg, Code: code, Status: 503}
+			case alertsv1.ErrorCode_SUBACCOUNT_KEY_REFUSED:
+				return &sdkerrors.AuthError{Msg: msg, Code: code, Status: connectHTTPStatus(connectErr.Code())}
+			}
 			return &sdkerrors.APIError{Msg: msg, Code: code}
 		}
 		if ledgerDetail, ok := value.(*ledgerrdv1.ErrorDetail); ok {
@@ -425,6 +447,7 @@ var apiKeyRefusalCodes = map[authv1.AuthErrorCode]bool{
 	authv1.AuthErrorCode_AUTH_IP_NOT_ALLOWED:       true,
 	authv1.AuthErrorCode_AUTH_API_KEY_NOT_ACCEPTED: true,
 	authv1.AuthErrorCode_AUTH_RECV_WINDOW_INVALID:  true,
+	authv1.AuthErrorCode_AUTH_REPLAY_DETECTED:      true,
 }
 
 // protovalidateFieldPath renders a buf.validate field path the way order

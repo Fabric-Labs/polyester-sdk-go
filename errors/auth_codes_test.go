@@ -17,6 +17,7 @@ func TestAuthErrorCodeReadsEveryTransport(t *testing.T) {
 		{&sdkerrors.AuthError{Code: "KEY_DISABLED"}, sdkerrors.AuthCodeKeyDisabled},
 		{&sdkerrors.AuthError{Code: "MISSING_HEADERS"}, sdkerrors.AuthCodeMissingHeaders},
 		{&sdkerrors.AuthError{Code: "API_KEY_NOT_ACCEPTED"}, sdkerrors.AuthCodeAPIKeyNotAccepted},
+		{&sdkerrors.AuthError{Code: "REPLAY_DETECTED"}, sdkerrors.AuthCodeReplayDetected},
 		{&sdkerrors.AuthError{Code: "UNAUTHENTICATED"}, sdkerrors.AuthCodeAuthenticationRequired},
 		{&sdkerrors.TimestampSkewError{Msg: "skew", Status: 401}, sdkerrors.AuthCodeTimestampSkew},
 		{&sdkerrors.SessionRequiredError{}, sdkerrors.AuthCodeSessionKindNotAllowed},

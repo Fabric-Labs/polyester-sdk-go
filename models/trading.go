@@ -870,9 +870,13 @@ type TriggerEventsList struct {
 
 // ApiKeySummary summarizes an API key.
 type ApiKeySummary struct {
-	KeyID            string     `json:"key_id,omitempty"`
-	Label            string     `json:"label,omitempty"`
-	Status           string     `json:"status,omitempty"`
+	KeyID  string `json:"key_id,omitempty"`
+	Label  string `json:"label,omitempty"`
+	Status string `json:"status,omitempty"`
+	// Purpose is "STANDARD" for the user's own keys and "ASSISTANT" for keys
+	// the user created for the Polyester assistant; "PURPOSE_UNSPECIFIED" from
+	// a server that predates the field.
+	Purpose          string     `json:"purpose,omitempty"`
 	PublicKeyEd25519 string     `json:"public_key_ed25519,omitempty"`
 	Revision         uint64     `json:"revision,omitempty"`
 	CreatedAt        *time.Time `json:"created_at,omitempty"`
@@ -895,4 +899,27 @@ type ResolvedAccount struct {
 // ResolvedAccountsList lists resolved accounts.
 type ResolvedAccountsList struct {
 	Accounts []ResolvedAccount `json:"accounts"`
+}
+
+// WalletBalances are the zTokens the account's smart account wallet holds on
+// Polyester Chain, read live from the chain by Withdraw.GetWalletBalances. A
+// withdrawal that Zipper rejects is refunded here, net of its kept network
+// fee.
+type WalletBalances struct {
+	// SmartAccountAddress is the smart account wallet that holds them.
+	SmartAccountAddress string          `json:"smart_account_address"`
+	Balances            []WalletBalance `json:"balances"`
+}
+
+// WalletBalance is one nonzero zToken balance of the smart account wallet.
+type WalletBalance struct {
+	ZippedAssetID  uint32 `json:"zipped_asset_id"`
+	UnifiedAssetID uint32 `json:"unified_asset_id"`
+	// ChainID is the chain the zToken stands for.
+	ChainID       uint32 `json:"chain_id"`
+	ZTokenAddress string `json:"ztoken_address"`
+	// AmountE18 is the raw u128 amount in 18-decimal units, as a decimal
+	// string; Amount is the same amount in whole units of the asset.
+	AmountE18 string `json:"amount_e18"`
+	Amount    string `json:"amount"`
 }

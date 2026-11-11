@@ -39,6 +39,8 @@ Requires a recent Go toolchain (see `go.mod`).
 | Spot fee rates | Yes |
 | Trading rate limits | Yes |
 | Product changelog (posts + changes) | Yes |
+| Server build version | Yes |
+| Price alerts (devnet) | Yes |
 | Balances and equity history | Yes |
 | Orders (create, cancel, modify, batch, cancel-all) | Yes |
 | User trades | Yes |
@@ -618,8 +620,21 @@ example "api key policy does not allow READ_AUTO_WITHDRAW".
 API keys read account data through account permissions on their API-key
 policy, granted from an interactive session: `READ_API_KEYS`
 (`APIKeys.List`, `APIKeys.Get`), `READ_VIP_STATUS` (`VIP.GetVIPStatus`),
-`READ_SOCIAL_VERIFICATION` (`SocialVerification.Get`, link status only) and
-`READ_WITHDRAW_VALIDATION` (`TradingWithdraws.ValidateDestination`). The
+`READ_SOCIAL_VERIFICATION` (`SocialVerification.Get`, link status only),
+`READ_WITHDRAW_VALIDATION` (`TradingWithdraws.ValidateDestination`),
+`CREATE_DEPOSIT_ADDRESS` (`Deposit.CreateAddress`), `READ_DEPOSIT_ADDRESSES`
+(`Deposit.ListAddresses`), `READ_SUBACCOUNTS` (`SubAccounts.List`,
+`SubAccounts.Get`), `READ_SUBACCOUNT_ACTIVITY` (`SubAccounts.ListActivity`),
+`READ_SUBACCOUNT_MEMBERS` (`SubAccounts.ListMembers` and the members of
+`SubAccounts.Get`), `READ_SUBACCOUNT_INVITES` (`SubAccounts.ListInvites` and
+the invites of `SubAccounts.Get`) and `READ_GUARD_SIGNER_STATUS`
+(`GuardSigner.GetStatus`). A key without a policy has none of these, and
+`SubAccounts.Get` leaves out the members and invites a key may not read
+instead of failing. The address book needs `READ_ADDRESS_BOOK` (or
+`MANAGE_ADDRESS_BOOK`) for the main account's book as for a sub-account's;
+without it a read is refused with `AUTH_SUBACCOUNT_ACCESS_DENIED`. A key
+cannot read the Guard Signer status of a sub-account another main account
+owns, even one shared with it. The
 other account permissions (`READ_API_POLICIES`, `READ_SUBACCOUNT_POLICIES`,
 `READ_SUBACCOUNT_PERMISSIONS`, `READ_PROFILE`, `READ_ACCOUNT_DIRECTORY`,
 `READ_DAILY_CLAIMS`, `CLAIM_DAILY_REWARD`, `READ_CHECKPOINTS` and
@@ -962,6 +977,69 @@ catalog, err := client.RateLimits.GetRateLimitConfig(ctx)
 limits, err := client.RateLimits.GetTradingRateLimits(ctx, nil, nil)
 ```
 
+## Price alerts
+
+Price alerts are available on devnet; they are not yet routed on testnet,
+where these calls fail. `client.Alerts` creates durable alerts ("tell me when
+BTC-USDT falls to 90,000") that the exchange evaluates and delivers to the
+in-app inbox or your linked Telegram account. Alerts belong to the main
+account: use an API key scoped to the main account. A key scoped to a
+sub-account is refused with an `*errors.AuthError` whose code
+`errors.AlertErrorCode(err)` reports as `errors.AlertCodeSubaccountKeyRefused`.
+
+```go
+symbol := "BTC-USDT"
+alert, err := client.Alerts.Create(ctx, services.CreateAlertParams{
+	Symbol:         &symbol,
+	Direction:      "below", // inclusive: fires at a price <= Price
+	Price:          models.PriceFromDecimal("90000"),
+	Channels:       []string{"in_app", "telegram"},
+	IdempotencyKey: "bot-7:alert-1", // a retry returns the alert created first
+})
+// Later: move the level, keyed so a retry applies at most once.
+price := models.PriceFromDecimal("91000")
+res, err := client.Alerts.Update(ctx, services.UpdateAlertParams{
+	AlertID: alert.AlertID, Price: &price,
+	ExpectedRevision: alert.Revision, IdempotencyKey: "bot-7:alert-1:move-1",
+})
+for a, err := range client.Alerts.All(ctx, services.ListAlertsParams{Statuses: []string{"active"}}) { ... }
+_, err = client.Alerts.Cancel(ctx, alert.AlertID)
+```
+
+An alert watches the market's last traded price (`PriceSource: "last"`) or
+its index price (`"index"`); leave it empty for the index price where the
+market has one and the last price otherwise. The returned alert states the
+price it watches. Prices use the order price types: `models.PriceInput` in,
+`models.PriceTicks` out. The market's price at creation is recorded as
+`ReferencePrice`; an alert whose condition already holds then starts unarmed
+(`Armed` false) and fires only after the price moves to the other side and
+crosses back. It fires once, with `Status` `triggered`, `TriggeredAt` and
+`TriggeredPrice`; a late price or a stalled feed never fires it. Status
+values are `active`, `triggered` and `cancelled` (the contract's spelling).
+
+`Update` sends only the fields you set (`Direction`, `Price`, `Channels`) and
+the `ExpectedRevision` you last read; a stale one is refused with
+`errors.AlertCodeRevisionConflict`, so read the alert again. An update that
+sets no field changes nothing on an active alert and sets a triggered one
+again as it is. `Outcome` reports `applied`, `unchanged` or `replayed` (the
+idempotency key was already used for this request: nothing was applied now).
+Tell a retry from a fresh change by `Outcome`, never by `Revision`. An
+idempotency key reused for a different request is refused with
+`errors.AlertCodeIdempotencyConflict`; an alert keeps at most 1000 update
+keys (`errors.AlertCodeUpdateLimitReached`). `Cancel` of a cancelled alert
+returns it unchanged. `List` pages newest first, up to 200 per page (50 by
+default); `All` walks every page.
+
+## Server version
+
+`client.GetVersion(ctx)` returns the exact build the environment serves:
+`Version` (`0.10.0` for a release; a later build, which devnet may run, reads
+like `0.10.0-12-g4e21a2f09670`), the full source revision in `Commit`, and
+`Environment` (`devnet`, `testnet`, `mainnet` or `local`). All three are plain
+strings; `Release()` returns the release a build follows (`0.10.0`). Don't
+compare `Version` as a semantic version. The call needs no API key and is never
+signed.
+
 ## Product changelog API
 
 `client.Changelog` reads the product changelog published for the environment the
@@ -1278,6 +1356,14 @@ SDK notes:
   "Destination tag") and `MemoFormatHint` are display text; validate against
   the rule, not the hint. Each variant's `Supply` is its zToken supply at the
   asset's quantity scale, also in the catalog `HydrateCatalogs` loads.
+- **Refunded withdrawals:** a withdrawal Zipper rejects is refunded to the
+  account's smart account wallet as zTokens, net of the network fee Zipper
+  keeps, and its flow's `LatestStep` becomes `refunded` instead of ending
+  failed at the verdict. `client.Withdraw.GetWalletBalances(ctx,
+  nil, nil)` reads that wallet live from Polyester Chain: each nonzero zToken
+  with its zipped and unified asset IDs, chain, zToken address, `AmountE18`
+  (raw 18-decimal units) and `Amount` (whole units). Pass a sub-account as for
+  `Balances.List`. An API key needs `READ_BALANCES`.
 - **Trading → trading (another account):** `client.InternalTransfers.Create(...)`.
   The result's `FlowID` names the transfer's lifecycle flow for
   `client.Lifecycle.GetFlow`; the flow may become readable after the receipt.

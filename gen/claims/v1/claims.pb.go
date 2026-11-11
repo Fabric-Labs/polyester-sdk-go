@@ -36,7 +36,7 @@ const (
 	ErrorCode_ERROR_CODE_UNSPECIFIED ErrorCode = 0
 	// The claim reward is temporarily unavailable. Please try again later.
 	ErrorCode_ERROR_CODE_CLAIM_TEMPORARILY_UNAVAILABLE ErrorCode = 1
-	// A valid session is required. API keys cannot access claims.
+	// The request carries no valid session token or API-key signature.
 	ErrorCode_ERROR_CODE_UNAUTHENTICATED ErrorCode = 2
 	// The applicable request rate limit was exceeded.
 	ErrorCode_ERROR_CODE_RATE_LIMIT_EXCEEDED ErrorCode = 3

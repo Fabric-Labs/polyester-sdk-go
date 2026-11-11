@@ -41,7 +41,11 @@ func (s *SocialVerificationService) MarkReady(ctx context.Context, provider stri
 	})
 }
 
-// Get returns the account's verification for provider. An API key needs
+// Get returns the account's verification for provider ("twitter", "discord"
+// or "telegram"). A Telegram link waiting for the user to confirm the
+// Telegram account reads STATUS_AWAITING_CONFIRMATION with that account's
+// display_name, handle and numeric provider_user_id (a string); confirming
+// and unlinking need an interactive session. An API key needs
 // READ_SOCIAL_VERIFICATION on its policy and must be scoped to the main
 // account; it reads the link status only (provider, method, handle, status and
 // verified time), and every other field is empty.
@@ -58,6 +62,8 @@ func providerEnum(v string) authv1.SocialProvider {
 		return authv1.SocialProvider_TWITTER
 	case "discord":
 		return authv1.SocialProvider_DISCORD
+	case "telegram":
+		return authv1.SocialProvider_TELEGRAM
 	default:
 		return authv1.SocialProvider_PROVIDER_UNSPECIFIED
 	}

@@ -103,7 +103,10 @@ const (
 	AuthErrorCode_AUTH_RESOURCE_NOT_FOUND AuthErrorCode = 10
 	// Caller does not have access to the requested sub-account.
 	AuthErrorCode_AUTH_SUBACCOUNT_ACCESS_DENIED AuthErrorCode = 11
-	// Caller does not have access to the requested API key.
+	// Caller does not have access to the requested API key, or the calling API
+	// key's policy lacks the account permission the call needs, or the call needs
+	// a key scoped to the main account. Those two permission refusals name the
+	// permission in the message; an ownership refusal names none.
 	AuthErrorCode_AUTH_API_KEY_ACCESS_DENIED AuthErrorCode = 12
 	// Requested API key status transition is not allowed.
 	AuthErrorCode_AUTH_API_KEY_INVALID_STATUS_TRANSITION AuthErrorCode = 14
@@ -163,7 +166,7 @@ const (
 	AuthErrorCode_AUTH_TERMS_NOT_ACCEPTED AuthErrorCode = 41
 	// Social verification challenge expired. Start a new verification, then mark it ready again.
 	AuthErrorCode_AUTH_SOCIAL_VERIFICATION_EXPIRED AuthErrorCode = 42
-	// Social verification cannot accept a ready mark in its current state.
+	// Social verification cannot accept this request in its current state.
 	AuthErrorCode_AUTH_SOCIAL_VERIFICATION_INVALID_STATE AuthErrorCode = 43
 	// Sub-account authorization is expired, replaced, consumed, or has an invalid signature.
 	// Temporary verification failures return Unavailable; retry the same signed challenge.
@@ -171,6 +174,7 @@ const (
 	// Social account is already linked to another Polyester account.
 	AuthErrorCode_AUTH_SOCIAL_ACCOUNT_ALREADY_LINKED AuthErrorCode = 45
 	// The request could not be completed right now and changed nothing. Retry the same request.
+	// A refused WebSocket login needs a new signed login with a fresh nonce.
 	AuthErrorCode_AUTH_TEMPORARILY_UNAVAILABLE AuthErrorCode = 46
 	// The account owns this sub-account. An owner cannot be invited to it, and member role
 	// changes and member removal do not apply to the owner.
@@ -178,12 +182,13 @@ const (
 	// The API key request signature does not verify against the request, or the key is unknown.
 	// The REST problem code is SIGNATURE_INVALID.
 	AuthErrorCode_AUTH_SIGNATURE_INVALID AuthErrorCode = 48
-	// The API key request timestamp is malformed, more than 10 seconds ahead of the server
-	// clock, or older than the request's receive window (X-API-RECV-WINDOW, 10 seconds when
+	// The API key request timestamp is malformed, more than 1 second ahead of the server
+	// clock, or older than the request's receive window (X-API-RECV-WINDOW, 5 seconds when
 	// omitted) when the request arrived. The request was not processed. Sync the clock, then
 	// sign the request again with a fresh timestamp. The REST problem code is TIMESTAMP_SKEW.
 	AuthErrorCode_AUTH_TIMESTAMP_SKEW AuthErrorCode = 49
-	// The API key request lacks its timestamp or signature header. The REST problem code is
+	// The API key request lacks its timestamp or signature header, or a signed
+	// WebSocket login lacks a valid X-API-NONCE. The REST problem code is
 	// MISSING_HEADERS.
 	AuthErrorCode_AUTH_MISSING_HEADERS AuthErrorCode = 50
 	// The API key has expired. The REST problem code is KEY_EXPIRED.
@@ -213,6 +218,23 @@ const (
 	// A non-empty request body identifier differs from the REST path identifier.
 	// The request is rejected with HTTP 400 before any action is performed.
 	AuthErrorCode_AUTH_PATH_BODY_ID_MISMATCH AuthErrorCode = 58
+	// An assistant API key can never be allowed an action that moves value out of the
+	// account or manages where it goes: EXTERNAL_WITHDRAW, INTERNAL_TRANSFER,
+	// MANAGE_ADDRESS_BOOK or MANAGE_AUTO_WITHDRAW.
+	AuthErrorCode_AUTH_ASSISTANT_KEY_ACTION_NOT_ALLOWED AuthErrorCode = 59
+	// A new assistant key's registration proof is missing or does not verify
+	// for its account, public key and registration deadline. The REST problem
+	// code is ASSISTANT_KEY_PROOF_INVALID.
+	AuthErrorCode_AUTH_ASSISTANT_KEY_PROOF_INVALID AuthErrorCode = 60
+	// A new assistant key's registration deadline has passed; prepare the key
+	// again. The REST problem code is ASSISTANT_KEY_REGISTRATION_EXPIRED.
+	AuthErrorCode_AUTH_ASSISTANT_KEY_REGISTRATION_EXPIRED AuthErrorCode = 61
+	// A new assistant key's registration deadline is more than 15 minutes
+	// ahead. The REST problem code is ASSISTANT_KEY_DEADLINE_TOO_FAR.
+	AuthErrorCode_AUTH_ASSISTANT_KEY_DEADLINE_TOO_FAR AuthErrorCode = 62
+	// The signed WebSocket login nonce has already been used. Create a new login
+	// with a fresh random nonce and signature. HTTP 401, REPLAY_DETECTED.
+	AuthErrorCode_AUTH_REPLAY_DETECTED AuthErrorCode = 63
 )
 
 // Enum value maps for AuthErrorCode.
@@ -276,66 +298,76 @@ var (
 		56: "AUTH_RECV_WINDOW_INVALID",
 		57: "AUTH_REPLAY_CAPACITY_EXHAUSTED",
 		58: "AUTH_PATH_BODY_ID_MISMATCH",
+		59: "AUTH_ASSISTANT_KEY_ACTION_NOT_ALLOWED",
+		60: "AUTH_ASSISTANT_KEY_PROOF_INVALID",
+		61: "AUTH_ASSISTANT_KEY_REGISTRATION_EXPIRED",
+		62: "AUTH_ASSISTANT_KEY_DEADLINE_TOO_FAR",
+		63: "AUTH_REPLAY_DETECTED",
 	}
 	AuthErrorCode_value = map[string]int32{
-		"AUTH_UNSPECIFIED":                       0,
-		"AUTH_USERNAME_INVALID":                  1,
-		"AUTH_USERNAME_TAKEN":                    2,
-		"AUTH_USERNAME_COOLDOWN":                 3,
-		"AUTH_USERNAME_FEATURE_LOCKED":           4,
-		"AUTH_USERNAME_RESERVED":                 5,
-		"AUTH_INVALID_REQUEST":                   6,
-		"AUTH_AUTHENTICATION_REQUIRED":           7,
-		"AUTH_SESSION_KIND_NOT_ALLOWED":          8,
-		"AUTH_WALLET_LOGIN_FAILED":               9,
-		"AUTH_RESOURCE_NOT_FOUND":                10,
-		"AUTH_SUBACCOUNT_ACCESS_DENIED":          11,
-		"AUTH_API_KEY_ACCESS_DENIED":             12,
-		"AUTH_API_KEY_INVALID_STATUS_TRANSITION": 14,
-		"AUTH_POLICY_INVALID":                    15,
-		"AUTH_SMART_ACCOUNT_ALREADY_LINKED":      16,
-		"AUTH_INVITE_ACCESS_DENIED":              17,
-		"AUTH_INVITE_INVALID_STATE":              18,
-		"AUTH_MFA_DISABLED":                      19,
-		"AUTH_MFA_NOT_ENROLLED":                  20,
-		"AUTH_MFA_SESSION_INVALID":               21,
-		"AUTH_MFA_CHALLENGE_NOT_FOUND":           22,
-		"AUTH_MFA_CHALLENGE_INVALID":             23,
-		"AUTH_MFA_CHALLENGE_LOCKED":              24,
-		"AUTH_MFA_OTP_INVALID":                   25,
-		"AUTH_MFA_RECOVERY_INVALID":              26,
-		"AUTH_MFA_PASSKEY_NOT_AVAILABLE":         27,
-		"AUTH_MFA_PASSKEY_CREDENTIAL_INVALID":    28,
-		"AUTH_MFA_PASSKEY_VERIFY_FAILED":         29,
-		"AUTH_MFA_ENROLLMENT_BINDING_INVALID":    30,
-		"AUTH_STEP_UP_REQUIRED":                  31,
-		"AUTH_STEP_UP_PROOF_UNAVAILABLE":         32,
-		"AUTH_STEP_UP_ALREADY_CLAIMED":           33,
-		"AUTH_POLICY_IN_USE":                     34,
-		"AUTH_POLICY_LOCKED":                     35,
-		"AUTH_POLICY_SCOPE_MISMATCH":             36,
-		"AUTH_REVISION_CONFLICT":                 37,
-		"AUTH_MFA_ELEVATION_REQUIRED":            38,
-		"AUTH_MFA_LAST_FACTOR_REQUIRED":          39,
-		"AUTH_INTERNAL_ERROR":                    40,
-		"AUTH_TERMS_NOT_ACCEPTED":                41,
-		"AUTH_SOCIAL_VERIFICATION_EXPIRED":       42,
-		"AUTH_SOCIAL_VERIFICATION_INVALID_STATE": 43,
-		"AUTH_SUBACCOUNT_CHALLENGE_INVALID":      44,
-		"AUTH_SOCIAL_ACCOUNT_ALREADY_LINKED":     45,
-		"AUTH_TEMPORARILY_UNAVAILABLE":           46,
-		"AUTH_SUBACCOUNT_OWNER_ROLE_LOCKED":      47,
-		"AUTH_SIGNATURE_INVALID":                 48,
-		"AUTH_TIMESTAMP_SKEW":                    49,
-		"AUTH_MISSING_HEADERS":                   50,
-		"AUTH_KEY_EXPIRED":                       51,
-		"AUTH_KEY_DISABLED":                      52,
-		"AUTH_IP_NOT_ALLOWED":                    53,
-		"AUTH_API_KEY_NOT_ACCEPTED":              54,
-		"AUTH_WALLET_ALREADY_LINKED":             55,
-		"AUTH_RECV_WINDOW_INVALID":               56,
-		"AUTH_REPLAY_CAPACITY_EXHAUSTED":         57,
-		"AUTH_PATH_BODY_ID_MISMATCH":             58,
+		"AUTH_UNSPECIFIED":                        0,
+		"AUTH_USERNAME_INVALID":                   1,
+		"AUTH_USERNAME_TAKEN":                     2,
+		"AUTH_USERNAME_COOLDOWN":                  3,
+		"AUTH_USERNAME_FEATURE_LOCKED":            4,
+		"AUTH_USERNAME_RESERVED":                  5,
+		"AUTH_INVALID_REQUEST":                    6,
+		"AUTH_AUTHENTICATION_REQUIRED":            7,
+		"AUTH_SESSION_KIND_NOT_ALLOWED":           8,
+		"AUTH_WALLET_LOGIN_FAILED":                9,
+		"AUTH_RESOURCE_NOT_FOUND":                 10,
+		"AUTH_SUBACCOUNT_ACCESS_DENIED":           11,
+		"AUTH_API_KEY_ACCESS_DENIED":              12,
+		"AUTH_API_KEY_INVALID_STATUS_TRANSITION":  14,
+		"AUTH_POLICY_INVALID":                     15,
+		"AUTH_SMART_ACCOUNT_ALREADY_LINKED":       16,
+		"AUTH_INVITE_ACCESS_DENIED":               17,
+		"AUTH_INVITE_INVALID_STATE":               18,
+		"AUTH_MFA_DISABLED":                       19,
+		"AUTH_MFA_NOT_ENROLLED":                   20,
+		"AUTH_MFA_SESSION_INVALID":                21,
+		"AUTH_MFA_CHALLENGE_NOT_FOUND":            22,
+		"AUTH_MFA_CHALLENGE_INVALID":              23,
+		"AUTH_MFA_CHALLENGE_LOCKED":               24,
+		"AUTH_MFA_OTP_INVALID":                    25,
+		"AUTH_MFA_RECOVERY_INVALID":               26,
+		"AUTH_MFA_PASSKEY_NOT_AVAILABLE":          27,
+		"AUTH_MFA_PASSKEY_CREDENTIAL_INVALID":     28,
+		"AUTH_MFA_PASSKEY_VERIFY_FAILED":          29,
+		"AUTH_MFA_ENROLLMENT_BINDING_INVALID":     30,
+		"AUTH_STEP_UP_REQUIRED":                   31,
+		"AUTH_STEP_UP_PROOF_UNAVAILABLE":          32,
+		"AUTH_STEP_UP_ALREADY_CLAIMED":            33,
+		"AUTH_POLICY_IN_USE":                      34,
+		"AUTH_POLICY_LOCKED":                      35,
+		"AUTH_POLICY_SCOPE_MISMATCH":              36,
+		"AUTH_REVISION_CONFLICT":                  37,
+		"AUTH_MFA_ELEVATION_REQUIRED":             38,
+		"AUTH_MFA_LAST_FACTOR_REQUIRED":           39,
+		"AUTH_INTERNAL_ERROR":                     40,
+		"AUTH_TERMS_NOT_ACCEPTED":                 41,
+		"AUTH_SOCIAL_VERIFICATION_EXPIRED":        42,
+		"AUTH_SOCIAL_VERIFICATION_INVALID_STATE":  43,
+		"AUTH_SUBACCOUNT_CHALLENGE_INVALID":       44,
+		"AUTH_SOCIAL_ACCOUNT_ALREADY_LINKED":      45,
+		"AUTH_TEMPORARILY_UNAVAILABLE":            46,
+		"AUTH_SUBACCOUNT_OWNER_ROLE_LOCKED":       47,
+		"AUTH_SIGNATURE_INVALID":                  48,
+		"AUTH_TIMESTAMP_SKEW":                     49,
+		"AUTH_MISSING_HEADERS":                    50,
+		"AUTH_KEY_EXPIRED":                        51,
+		"AUTH_KEY_DISABLED":                       52,
+		"AUTH_IP_NOT_ALLOWED":                     53,
+		"AUTH_API_KEY_NOT_ACCEPTED":               54,
+		"AUTH_WALLET_ALREADY_LINKED":              55,
+		"AUTH_RECV_WINDOW_INVALID":                56,
+		"AUTH_REPLAY_CAPACITY_EXHAUSTED":          57,
+		"AUTH_PATH_BODY_ID_MISMATCH":              58,
+		"AUTH_ASSISTANT_KEY_ACTION_NOT_ALLOWED":   59,
+		"AUTH_ASSISTANT_KEY_PROOF_INVALID":        60,
+		"AUTH_ASSISTANT_KEY_REGISTRATION_EXPIRED": 61,
+		"AUTH_ASSISTANT_KEY_DEADLINE_TOO_FAR":     62,
+		"AUTH_REPLAY_DETECTED":                    63,
 	}
 )
 
@@ -984,7 +1016,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x13AcceptTermsResponse*A\n" +
 	"\x16WalletChallengePurpose\x12\x1c\n" +
 	"\x18WALLET_PROOF_UNSPECIFIED\x10\x00\x12\t\n" +
-	"\x05LOGIN\x10\x01*\xa5\x0e\n" +
+	"\x05LOGIN\x10\x01*\xe6\x0f\n" +
 	"\rAuthErrorCode\x12\x14\n" +
 	"\x10AUTH_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15AUTH_USERNAME_INVALID\x10\x01\x12\x17\n" +
@@ -1044,7 +1076,12 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x1aAUTH_WALLET_ALREADY_LINKED\x107\x12\x1c\n" +
 	"\x18AUTH_RECV_WINDOW_INVALID\x108\x12\"\n" +
 	"\x1eAUTH_REPLAY_CAPACITY_EXHAUSTED\x109\x12\x1e\n" +
-	"\x1aAUTH_PATH_BODY_ID_MISMATCH\x10:2\xa6\b\n" +
+	"\x1aAUTH_PATH_BODY_ID_MISMATCH\x10:\x12)\n" +
+	"%AUTH_ASSISTANT_KEY_ACTION_NOT_ALLOWED\x10;\x12$\n" +
+	" AUTH_ASSISTANT_KEY_PROOF_INVALID\x10<\x12+\n" +
+	"'AUTH_ASSISTANT_KEY_REGISTRATION_EXPIRED\x10=\x12'\n" +
+	"#AUTH_ASSISTANT_KEY_DEADLINE_TOO_FAR\x10>\x12\x18\n" +
+	"\x14AUTH_REPLAY_DETECTED\x10?2\xa6\b\n" +
 	"\vAuthService\x12\xf4\x01\n" +
 	"\x15CreateWalletChallenge\x12%.auth.v1.CreateWalletChallengeRequest\x1a&.auth.v1.CreateWalletChallengeResponse\"\x8b\x01\xbaG`\n" +
 	"\fAuth Service\x12\x17Create Wallet Challenge\x1a7Create a short-lived EIP-4361 message for wallet login.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/v1/auth/wallet-challenge\x12\x9e\x02\n" +

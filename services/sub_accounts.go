@@ -47,11 +47,18 @@ func (s *SubAccountsService) requireSubaccountID(account AccountScope, subAccoun
 	return *parsed, nil
 }
 
+// List returns the sub-accounts in the caller's scope. An API key needs
+// READ_SUBACCOUNTS on its policy; a key scoped to the main account sees the
+// sub-accounts it owns, a key scoped to a sub-account only that one.
 func (s *SubAccountsService) List(ctx context.Context) (models.SubAccountsList, error) {
 	return UnaryAuth(ctx, s.transport, s.writeClient().ListSubaccounts, &authv1.ListSubaccountsRequest{}, decode.SubaccountsListFromProto)
 }
 
-// Get reads the sub-account's aggregated view. includeBalances also returns
+// Get reads the sub-account's aggregated view. An API key needs READ_SUBACCOUNTS on its
+// policy; the members and invites expansions need READ_SUBACCOUNT_MEMBERS and
+// READ_SUBACCOUNT_INVITES, and are left out, rather than failing the call,
+// for a key without them. A sub-account outside the key's scope is not_found.
+// includeBalances also returns
 // its current balances in Balances, in the shape of Balances.List. That needs
 // the READ_BALANCES action on the sub-account (its role, its attached policy
 // and, for an API key, the key's policy), or the call fails with
@@ -78,6 +85,8 @@ func (s *SubAccountsService) Get(ctx context.Context, account AccountScope, subA
 	return UnaryAuth(ctx, s.transport, s.viewClient().GetSubaccount, req, decode.GetSubaccountFromProto)
 }
 
+// ListMembers lists a sub-account's members. It accepts API keys with
+// READ_SUBACCOUNT_MEMBERS on their policy, as well as sessions.
 func (s *SubAccountsService) ListMembers(ctx context.Context, account AccountScope, subAccountID *string) (models.SubAccountMembersList, error) {
 	parsed, err := s.requireSubaccountID(account, subAccountID)
 	if err != nil {
@@ -86,6 +95,8 @@ func (s *SubAccountsService) ListMembers(ctx context.Context, account AccountSco
 	return UnaryAuth(ctx, s.transport, s.writeClient().ListSubaccountMembers, &authv1.ListSubaccountMembersRequest{SubaccountId: parsed}, decode.SubaccountMembersListFromProto)
 }
 
+// ListInvites lists sub-account invites. An API key needs
+// READ_SUBACCOUNT_INVITES on its policy.
 func (s *SubAccountsService) ListInvites(ctx context.Context, direction string) (models.SubAccountInvitesList, error) {
 	parsedDirection, err := codecs.InviteDirectionFromLabel(direction)
 	if err != nil {
@@ -94,6 +105,8 @@ func (s *SubAccountsService) ListInvites(ctx context.Context, direction string) 
 	return UnaryAuth(ctx, s.transport, s.writeClient().ListSubaccountInvites, &authv1.ListSubaccountInvitesRequest{Direction: parsedDirection}, decode.SubaccountInvitesListFromProto)
 }
 
+// ListActivity lists a sub-account's activity. An API key needs
+// READ_SUBACCOUNT_ACTIVITY on its policy.
 func (s *SubAccountsService) ListActivity(ctx context.Context, account AccountScope, subAccountID *string, limit int, pageToken *string) (models.SubAccountActivityList, error) {
 	parsed, err := s.requireSubaccountID(account, subAccountID)
 	if err != nil {
