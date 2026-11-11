@@ -767,6 +767,10 @@ func (m *Manager) OrderbookPriceBucketsForSymbol(symbol string) []string {
 }
 
 // LedgerIDForAsset resolves ledger id for asset symbol.
+//
+// nil means either that the funding (deposit/withdraw) config has not loaded
+// (yet, or its load failed) or that it does not know the asset; it does not
+// wait. Call Client.WaitForFundingCatalog first to tell the two apart.
 func (m *Manager) LedgerIDForAsset(assetSymbol string) *uint32 {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -803,6 +807,10 @@ func (m *Manager) LedgerIDForAsset(assetSymbol string) *uint32 {
 }
 
 // QuantityScaleForAsset returns quantity scale for asset symbol.
+//
+// nil means either that the funding (deposit/withdraw) config has not loaded
+// (yet, or its load failed) or that it does not know the asset; it does not
+// wait. Call Client.WaitForFundingCatalog first to tell the two apart.
 func (m *Manager) QuantityScaleForAsset(assetSymbol string) *int {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

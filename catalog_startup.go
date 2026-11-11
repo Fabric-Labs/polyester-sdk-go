@@ -6,9 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
-	"regexp"
-	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -177,29 +174,5 @@ func catalogReadFailure(source catalogSource, err error, attempts int, elapsed t
 	}
 }
 
-var proxyEnv = []string{"HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"}
-
-var urlUserinfo = regexp.MustCompile(`([A-Za-z][A-Za-z0-9+.-]*://)[^\s/@]+@`)
-
-// redactText removes the proxy URLs the environment configures, with or
-// without credentials, and the userinfo of any other URL from text quoted
-// from a transport error.
-func redactText(text string) string {
-	for _, name := range proxyEnv {
-		proxy := strings.TrimSpace(os.Getenv(name))
-		if proxy == "" {
-			continue
-		}
-		forms := []string{proxy, strings.TrimRight(proxy, "/")}
-		if stripped := redact.URL(proxy); stripped != redact.InvalidURL {
-			forms = append(forms, stripped, strings.TrimRight(stripped, "/"))
-		}
-		sort.Slice(forms, func(i, j int) bool { return len(forms[i]) > len(forms[j]) })
-		for _, form := range forms {
-			if form != "" {
-				text = strings.ReplaceAll(text, form, "[proxy]")
-			}
-		}
-	}
-	return urlUserinfo.ReplaceAllString(text, "$1")
-}
+// redactText is redact.Text: the one place text quoting a transport is redacted.
+func redactText(text string) string { return redact.Text(text) }

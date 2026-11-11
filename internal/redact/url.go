@@ -5,6 +5,9 @@ package redact
 import (
 	"errors"
 	"net/url"
+	"os"
+	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -63,10 +66,49 @@ func URLError(err error) error {
 	return &url.Error{Op: urlErr.Op, URL: redacted, Err: cause}
 }
 
+// proxyEnv names the proxy settings net/http reads from the environment.
+var proxyEnv = []string{"HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"}
+
+// urlInText matches a URL inside free text: up to whitespace, a quote, an
+// angle bracket or a parenthesis.
+var urlInText = regexp.MustCompile(`[A-Za-z][A-Za-z0-9+.-]*://[^\s"'<>()]+`)
+
+// ProxyPlaceholder replaces a proxy URL from the environment in text.
+const ProxyPlaceholder = "[proxy]"
+
+// Text returns text with every URL in it as URL renders it, and every proxy
+// URL the environment configures, with or without credentials, replaced by
+// ProxyPlaceholder. Use it for text that quotes an answer or a transport,
+// such as an error message.
+func Text(text string) string {
+	for _, name := range proxyEnv {
+		proxy := strings.TrimSpace(os.Getenv(name))
+		if proxy == "" {
+			continue
+		}
+		forms := []string{proxy, strings.TrimRight(proxy, "/")}
+		if stripped := URL(proxy); stripped != InvalidURL {
+			forms = append(forms, stripped, strings.TrimRight(stripped, "/"))
+		}
+		sort.Slice(forms, func(i, j int) bool { return len(forms[i]) > len(forms[j]) })
+		for _, form := range forms {
+			if form != "" {
+				text = strings.ReplaceAll(text, form, ProxyPlaceholder)
+			}
+		}
+	}
+	return urlInText.ReplaceAllStringFunc(text, URL)
+}
+
 // Message returns text with every rendering of a *url.Error wrapped by err
-// replaced by the rendering of URLError of it. text is usually err.Error() or
-// a message an outer error copied from it, such as a Connect error's.
+// replaced by the rendering of URLError of it, then passed through Text. text
+// is usually err.Error() or a message an outer error copied from it, such as
+// a Connect error's.
 func Message(text string, err error) string {
+	return Text(urlErrorMessage(text, err))
+}
+
+func urlErrorMessage(text string, err error) string {
 	for e := err; e != nil; e = errors.Unwrap(e) {
 		urlErr, ok := e.(*url.Error)
 		if !ok {

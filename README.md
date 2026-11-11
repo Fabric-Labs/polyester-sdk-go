@@ -1780,8 +1780,19 @@ config, so a bot can trade while that one is still loading or failed to load.
 `*errors.CatalogHydrationError` when its catalog could not be loaded, and so
 does every call that needs it: calls that name a market for the spot config,
 `Zipper.SubscribeZippedAssetSupply` for the funding config. A missing, empty or
-invalid spot config fails every spot call closed. `Catalogs.LedgerIDForAsset`
-and `QuantityScaleForAsset` return nil until the funding config has loaded.
+invalid spot config fails every spot call closed.
+
+Only what reads the funding config waits for it: the zipper supply stream,
+which decodes with its scales. A waiting call sends nothing until the config
+loads, and returns the funding config's `*errors.CatalogHydrationError`,
+without sending, when it failed. Deposit addresses and withdrawals
+(`Deposit.ListAddresses`, `Deposit.CreateAddress`, `Withdraw.Create*`) and
+`Zipper.GetDepositWithdrawConfig` read nothing from it and work while it is
+loading or failed. `Catalogs.LedgerIDForAsset` and `QuantityScaleForAsset`
+don't wait: nil means either that the funding config has not loaded (yet, or
+its load failed) or that it does not know the asset, so call
+`WaitForFundingCatalog` first. With `HydrateCatalogs` off nothing loads and
+nothing waits, as before.
 
 These two reads change nothing, so a read that times out or loses its
 connection (a proxy closing its tunnel shows as `unexpected EOF`) is read
@@ -1810,6 +1821,13 @@ reads, and the edge's reference of the last failed response (`ResponseRef`, the
 `cf-ray` header) when one arrived. `Err` is the last failure, reachable with
 `errors.Is` and `errors.As`. The message carries no credentials and no proxy
 URL.
+
+No SDK error prints a credential at any level of its chain: every error the
+SDK maps from a Connect call is redacted where it is mapped, so each URL an
+answer or a transport quotes keeps only its scheme, host, port and path, and a
+proxy URL from the environment reads `[proxy]`, in `Error()` at every
+`errors.Unwrap` level. Each level keeps its type for `errors.Is` and
+`errors.As`.
 
 Timeouts, from the outside in:
 
