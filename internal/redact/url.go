@@ -6,9 +6,9 @@ import (
 	"errors"
 	"net/url"
 	"os"
-	"regexp"
 	"sort"
 	"strings"
+	"unicode"
 )
 
 // InvalidURL replaces a URL that cannot be parsed, so its userinfo, query and
@@ -69,14 +69,10 @@ func URLError(err error) error {
 // proxyEnv names the proxy settings net/http reads from the environment.
 var proxyEnv = []string{"HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy", "ALL_PROXY", "all_proxy"}
 
-// urlInText matches a URL inside free text: up to whitespace, a quote, an
-// angle bracket or a parenthesis.
-var urlInText = regexp.MustCompile(`[A-Za-z][A-Za-z0-9+.-]*://[^\s"'<>()]+`)
-
 // ProxyPlaceholder replaces a proxy URL from the environment in text.
 const ProxyPlaceholder = "[proxy]"
 
-// Text returns text with every URL in it as URL renders it, and every proxy
+// Text returns text with every URL in it reduced as URL reduces one, and every proxy
 // URL the environment configures, with or without credentials, replaced by
 // ProxyPlaceholder. Use it for text that quotes an answer or a transport,
 // such as an error message.
@@ -97,7 +93,42 @@ func Text(text string) string {
 			}
 		}
 	}
-	return urlInText.ReplaceAllStringFunc(text, URL)
+	return stripURLSecrets(text)
+}
+
+// stripURLSecrets drops, after each "://" and up to the next whitespace,
+// everything up to the last "@" before any "?" or "#" (the userinfo), and
+// everything from that "?" or "#" on (the query and fragment). It does not
+// parse the URL, so a userinfo or query holding parentheses or quotes is
+// dropped whole.
+func stripURLSecrets(text string) string {
+	var out strings.Builder
+	position := 0
+	for {
+		separator := strings.Index(text[position:], "://")
+		if separator < 0 {
+			break
+		}
+		start := position + separator + 3
+		end := start
+		for end < len(text) && !unicode.IsSpace(rune(text[end])) {
+			end++
+		}
+		token := text[start:end]
+		cut := len(token)
+		if i := strings.IndexAny(token, "?#"); i >= 0 {
+			cut = i
+		}
+		if at := strings.LastIndex(token[:cut], "@"); at >= 0 {
+			token = token[at+1:]
+			cut -= at + 1
+		}
+		out.WriteString(text[position:start])
+		out.WriteString(token[:cut])
+		position = end
+	}
+	out.WriteString(text[position:])
+	return out.String()
 }
 
 // Message returns text with every rendering of a *url.Error wrapped by err

@@ -9,6 +9,7 @@ package hardening_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -98,6 +99,98 @@ func TestL2CatalogStartupErrorChainPrintsNoCredential(t *testing.T) {
 			var serverErr *sdkerrors.ServerError
 			if !errors.As(err, &hydrationErr) || !errors.As(err, &serverErr) {
 				t.Fatalf("WaitForFundingCatalog = %T %v", err, err)
+			}
+			assertChainClean(t, err)
+		})
+	}
+}
+
+// Round 2: URLs whose userinfo or query holds a parenthesis or an
+// apostrophe, and structured diagnostics behind pointers.
+
+func TestL2URLWithParenthesesOrQuotesIsRedacted(t *testing.T) {
+	urls := map[string]string{
+		"paren-userinfo": "http://" + chainUser + ":one(two-" + chainSecret + ")@proxy.example.test/x",
+		"quote-userinfo": "http://" + chainUser + ":one'two-" + chainSecret + "@proxy.example.test/x",
+		"paren-query":    "http://proxy.example.test/x?" + chainQuery + "one(two-" + chainSecret + ")",
+		"quote-query":    "http://proxy.example.test/x?" + chainQuery + "one'two-" + chainSecret,
+	}
+	for name, url := range urls {
+		t.Run(name, func(t *testing.T) {
+			body, _ := json.Marshal(map[string]string{"code": "unavailable", "message": "upstream " + url + " refused"})
+			srv := hardening.SpawnHTTP(func(hardening.ParsedRequest) hardening.HttpResponse {
+				return hardening.Json(http.StatusServiceUnavailable, body)
+			})
+			t.Cleanup(srv.Close)
+			client, err := polyester.New(polyester.Config{APIURL: srv.BaseURL(), WSURL: "ws://127.0.0.1:1/unused", Timeout: 2 * time.Second})
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = client.Close() })
+			_, err = client.MarketData.GetSpotConfig(context.Background())
+			if err == nil || !strings.Contains(err.Error(), "proxy.example.test") {
+				t.Fatalf("GetSpotConfig = %v", err)
+			}
+			assertChainClean(t, err)
+		})
+	}
+}
+
+func TestL2StructuredDiagnosticsAreRedacted(t *testing.T) {
+	cases := map[string]struct {
+		status int
+		body   map[string]any
+		get    func(error) any
+	}{
+		"timestamp-skew-problem": {
+			status: http.StatusUnauthorized,
+			body:   map[string]any{"code": "TIMESTAMP_SKEW", "detail": "upstream " + chainProxyURL + " refused"},
+			get: func(err error) any {
+				var skew *sdkerrors.TimestampSkewError
+				if !errors.As(err, &skew) || skew.Problem == nil {
+					return nil
+				}
+				return skew.Problem
+			},
+		},
+		"rate-limit-detail": {
+			status: http.StatusTooManyRequests,
+			body: map[string]any{
+				"code":       "RATE_LIMIT_EXCEEDED",
+				"detail":     "upstream " + chainProxyURL,
+				"rate_limit": map[string]any{"reason": "ip", "operation_id": chainProxyURL},
+			},
+			get: func(err error) any {
+				var limited *sdkerrors.RateLimitError
+				if !errors.As(err, &limited) || limited.Detail == nil {
+					return nil
+				}
+				return limited.Detail
+			},
+		},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			body, _ := json.Marshal(c.body)
+			srv := hardening.SpawnHTTP(func(hardening.ParsedRequest) hardening.HttpResponse {
+				return hardening.Raw(c.status, [][2]string{{"Content-Type", "application/problem+json"}}, body)
+			})
+			t.Cleanup(srv.Close)
+			client, err := polyester.New(polyester.Config{APIURL: srv.BaseURL(), WSURL: "ws://127.0.0.1:1/unused", Timeout: 2 * time.Second})
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = client.Close() })
+			_, err = client.MarketData.GetSpotConfig(context.Background())
+			diagnostic := c.get(err)
+			if diagnostic == nil {
+				t.Fatalf("no structured diagnostic in %T %v", err, err)
+			}
+			printed := fmt.Sprintf("%+v %#v", diagnostic, diagnostic)
+			for _, secret := range []string{chainUser, chainSecret, chainQuery} {
+				if strings.Contains(printed, secret) {
+					t.Fatalf("diagnostic prints %q: %s", secret, printed)
+				}
 			}
 			assertChainClean(t, err)
 		})
