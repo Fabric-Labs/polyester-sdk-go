@@ -118,7 +118,7 @@ Attached exits never trade with the order they protect. When a leg fires
 while its order still rests, the order's unfilled rest is canceled first
 (`CancelReason` `attached_exit_fired`; earlier fills stand). The order's
 `CreateOrderRequest.SelfTradePreventionMode` (`expire_maker`, the default,
-`expire_taker` or `expire_both`) also applies to its attached exits' orders.
+`expire_taker`, `expire_both` or `decrement`) also applies to its attached exits' orders.
 When self-trade prevention expires one of those against another of the
 account's resting orders, the leg stays `armed` and its trigger records one
 `fire_refused` event with `FireRefusalReason` `self_trade_prevented`.
@@ -462,8 +462,11 @@ or `INSUFFICIENT_FUNDS` (the `ERROR_CODE_` name without its prefix). A
 `replaced`, `gtd_expired`, `qty_at_or_below_filled`, `pair_drain`,
 `attached_risk_refused`, `cancel_all_after`, `account_repair`,
 `twap_rollover`, `strategy_cancel`, `market_halted`, `attached_exit_fired`
-(its take-profit, stop-loss or trailing stop fired while it still rested) or
-`system`. Both are empty for every other
+(its take-profit, stop-loss or trailing stop fired while it still rested),
+`stp_decrement` (`decrement` self-trade prevention left it no quantity),
+`price_band` (the pair's price band stopped a market order; its fills stand),
+`cancel_on_disconnect` (the account's opted-in trading WebSocket sessions all
+disconnected) or `system`. Both are empty for every other
 status. A value newer than this SDK decodes as `UNKNOWN_ERROR_CODE(N)` or
 `unknown(N)`; treat it as a generic refusal or cancel.
 
@@ -745,12 +748,18 @@ instrument/domain matches. Transfers and trading withdraws use
 
 ### Quote-budget orders and previews
 
-Create requests use exactly one sizing mode: base `Qty`, or
-`MaxQuoteDebitScaled` (a typed hard all-in quote-debit budget). Construct the
-latter with `QtyFromQuoteDecimal` / `QtyFromQuoteScaled`; the SDK validates its
-`OrderQuote` domain and scale against
-`Catalogs.QuoteQuantityScaleForSymbol`. Quote-budget sizing is valid for BUY
-market and limit-IOC orders. `FeeAsset` is `quote` (default) or `base`; base
+Create requests use exactly one sizing mode: base `Qty`,
+`MaxQuoteDebitScaled` (a typed hard all-in quote-debit budget), or
+`QuoteProceedsScaled` (the quote a SELL should receive: "sell 100 USDT
+worth"). Construct the quote amounts with `QtyFromQuoteDecimal` /
+`QtyFromQuoteScaled`; the SDK validates their `OrderQuote` domain and scale
+against `Catalogs.QuoteQuantityScaleForSymbol`. Quote-budget sizing is valid
+for BUY market and limit-IOC orders, quote-proceeds sizing for SELL market and
+limit-IOC orders. A quote-proceeds SELL sells whole quantity steps until its
+proceeds before fees reach the target, and never more; it holds the base the
+target sells at its price limit (refused `INSUFFICIENT_FUNDS` when that base
+is not free), and a target below the pair's minimums is refused
+`QUOTE_SIZE_TOO_SMALL`. `FeeAsset` is `quote` (default) or `base`; base
 fees are valid for BUY orders only. The former `received` fee source is now
 `base`.
 
@@ -776,8 +785,51 @@ resolved base quantity, optional `ProtectedPriceBound`, and `EvaluatedAtMs`.
 Fee/quote estimates are no longer returned; CreateOrder always re-evaluates
 the intent. Preview is not deployed on every API host, so handle an
 unimplemented/not-found response and do not make Preview a prerequisite for
-order submission. Create results expose `ResolvedBaseQtyScaled` and, for
-quote-budget orders, `SubmittedMaxQuoteDebitScaled`.
+order submission. Create results and accepted batch-create items expose
+`ResolvedBaseQtyScaled` and, for orders sized by a quote amount,
+`SubmittedMaxQuoteDebitScaled` or `SubmittedQuoteProceedsScaled`; order reads
+carry the same echoes. For a SELL sized by quote proceeds, `ResolvedBaseQtyScaled`
+is the base it holds, `CumNotional` (`CumQuote`) the proceeds before fees and
+`FeeTotal` the quote fee charged on them.
+
+```go
+_, err = client.Orders.Create(ctx, models.CreateOrderRequest{
+	Symbol: &symbol, Side: "sell", OrderType: "market",
+	QuoteProceedsScaled: models.QtyFromQuoteDecimal("100"),
+}, nil)
+```
+
+### Iceberg and pegged limit orders
+
+`CreateOrderRequest.DisplayQty` makes a limit GTC or GTD order an iceberg
+order: the book shows at most that base quantity at a time. The API checks it
+against the order and the pair (`ICEBERG_DISPLAY_INVALID`,
+`ICEBERG_DISPLAY_TOO_SMALL`, `ICEBERG_NOT_ALLOWED`); the SDK refuses it on
+market, IOC and FOK orders. Order reads carry `DisplayQty` and `HiddenQty`
+(the part of `LeavesQty` the book does not show).
+
+`CreateOrderRequest.Peg` prices a limit order once, at entry, from the best
+bid or ask plus `OffsetTicks` tick-size increments. `Price` stays required as
+the BUY cap or SELL floor (`PEG_LIMIT_VIOLATION` beyond it;
+`PEG_REFERENCE_UNAVAILABLE` for an empty book side). A peg cannot be combined
+with market execution, quote sizing or attached risk. Read the order for the
+price it got.
+
+```go
+maxPrice := models.PriceFromDecimal("61000") // the BUY cap
+display := models.QtyFromDecimal("0.1")
+_, err = client.Orders.Create(ctx, models.CreateOrderRequest{
+	Symbol: &symbol, Side: "buy", OrderType: "limit", PostOnly: true,
+	Qty: models.QtyFromDecimal("1"), Price: &maxPrice,
+	DisplayQty: &display,
+	Peg:        &models.OrderPeg{Reference: "best_bid"},
+}, nil)
+```
+
+A pair's price band (`SpotPair.PriceBand`, also on
+`Catalogs.PairConstraintsForSymbol`) bounds how far from the market an order
+may be priced or trade; nil when the pair has none. A limit order priced
+beyond it is refused `PRICE_BAND_VIOLATION`.
 
 With the catalogs loaded, order, trade and trigger reads and the private
 order, trade and trigger streams carry each pair's base quantity scale on
@@ -1000,6 +1052,10 @@ in-app inbox or your linked Telegram account. Alerts belong to the main
 account: use an API key scoped to the main account. A key scoped to a
 sub-account is refused with an `*errors.AuthError` whose code
 `errors.AlertErrorCode(err)` reports as `errors.AlertCodeSubaccountKeyRefused`.
+The key's API-key policy must also grant `READ_PRICE_ALERTS` to list alerts and
+`MANAGE_PRICE_ALERTS` to create, update or cancel them; a key without the
+permission is refused with `permission_denied` and
+`errors.AuthErrorCode(err) == "AUTH_API_KEY_ACCESS_DENIED"`.
 
 ```go
 symbol := "BTC-USDT"
@@ -1099,9 +1155,9 @@ key, and the server rate-limits it per client address.
 Categories, audiences and surfaces are lowercase labels with constants in `models`
 (`models.ChangelogCategoryBreakingChange`, `models.ChangelogSurfaceAPI`, ...). A value
 newer than this SDK reads as `unknown(<n>)` instead of failing. Surfaces include
-`market_data`, `quickswap` and `rewards`, and `ChangelogSection.Surface` names the
+`market_data`, `quickswap`, `rewards` and `assistant`, and `ChangelogSection.Surface` names the
 product area a section covers (empty for a section tied to none, such as the changes
-that need your attention). `ListChanges` accepts at most 10 surfaces. `Change.ID` is the
+that need your attention). `ListChanges` accepts at most 11 surfaces. `Change.ID` is the
 change's base58 public ID. The service returns `Unavailable` (`*errors.ServerError`)
 while it is starting.
 

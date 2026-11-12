@@ -10,6 +10,7 @@ import (
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	triggersv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var triggerStatusLabels = map[triggersv1.TriggerStatus]string{
@@ -160,6 +161,8 @@ func stpModeLabel(v orderv1.SelfTradePreventionMode) string {
 		return "expire_maker"
 	case orderv1.SelfTradePreventionMode_EXPIRE_BOTH:
 		return "expire_both"
+	case orderv1.SelfTradePreventionMode_DECREMENT:
+		return "decrement"
 	default:
 		return ""
 	}
@@ -509,8 +512,23 @@ func CreateOcoFromProto(msg *triggersv1.CreateOcoResponse) models.CreateOcoResul
 		ClientListID:        msg.GetClientListId(),
 		TakeProfitTriggerID: codecs.FormatUint64ID(msg.GetTakeProfitTriggerId()),
 		StopLossTriggerID:   codecs.FormatUint64ID(msg.GetStopLossTriggerId()),
-		AcceptedTsNs:        msg.GetAcceptedAtTsNs(),
+		AcceptedTsNs:        pairedTsNs(msg.GetAcceptedAtTsNs(), msg.GetAcceptedAt()),
 	}
+}
+
+// pairedTsNs is a response time in nanoseconds since the Unix epoch: the
+// exact *_ts_ns field, or its paired Timestamp when the server left the
+// nanosecond field unset. 0 when both are unset or the time is before the
+// epoch.
+func pairedTsNs(tsNs uint64, ts *timestamppb.Timestamp) uint64 {
+	if tsNs != 0 || ts == nil || !ts.IsValid() {
+		return tsNs
+	}
+	nanos := ts.AsTime().UnixNano()
+	if nanos <= 0 {
+		return 0
+	}
+	return uint64(nanos)
 }
 
 // CancelOcoFromProto decodes an OCO cancel response.
@@ -518,6 +536,7 @@ func CancelOcoFromProto(msg *triggersv1.CancelOcoResponse) models.CancelOcoResul
 	return models.CancelOcoResult{
 		OrderListID: codecs.FormatUint64ID(msg.GetOrderListId()),
 		Status:      TriggerStatusLabel(msg.GetStatus()),
+		TsNs:        pairedTsNs(msg.GetTsNs(), msg.GetTs()),
 	}
 }
 
@@ -557,7 +576,10 @@ func BatchCancelTriggersFromProto(msg *triggersv1.BatchCancelTriggersResponse) (
 			accepted, decodedAccepted, rejected, decodedRejected, len(results),
 		)}
 	}
-	return models.BatchCancelTriggersResult{Results: results, AcceptedCount: accepted, RejectedCount: rejected}, nil
+	return models.BatchCancelTriggersResult{
+		Results: results, AcceptedCount: accepted, RejectedCount: rejected,
+		TsNs: pairedTsNs(msg.GetTsNs(), msg.GetTs()),
+	}, nil
 }
 
 // TriggerEventsListFromProto decodes list trigger events response.

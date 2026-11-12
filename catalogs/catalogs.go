@@ -636,6 +636,10 @@ func pairConstraints(pair map[string]any) (models.PairConstraints, bool) {
 	if err != nil {
 		return models.PairConstraints{}, false
 	}
+	priceBand, ok := pairPriceBand(pair)
+	if !ok {
+		return models.PairConstraints{}, false
+	}
 	minNotionalComputable := false
 	if minNotional != "" {
 		value, valid := new(big.Rat).SetString(minNotional)
@@ -670,7 +674,40 @@ func pairConstraints(pair map[string]any) (models.PairConstraints, bool) {
 		MaxOpenOrdersPerPair:   maxOpenOrders,
 		MaxQuoteSlippage:       maxQuoteSlippage,
 		MaxQuoteSlippageTicks:  math.MaxInt64,
+		PriceBand:              priceBand,
 	}, true
+}
+
+// pairPriceBand reads a pair's price band; nil when the pair has none. ok is
+// false when the band is present but malformed.
+func pairPriceBand(pair map[string]any) (*models.PriceBand, bool) {
+	raw, present := pair["price_band"]
+	if !present {
+		raw, present = pair["priceBand"]
+	}
+	if !present || raw == nil {
+		return nil, true
+	}
+	band, isMap := raw.(map[string]any)
+	if !isMap {
+		return nil, false
+	}
+	var out models.PriceBand
+	for _, field := range []struct {
+		dest *uint32
+		keys []string
+	}{
+		{&out.LowerBps, []string{"lower_bps", "lowerBps"}},
+		{&out.UpperBps, []string{"upper_bps", "upperBps"}},
+		{&out.ReferenceWindowMs, []string{"reference_window_ms", "referenceWindowMs"}},
+	} {
+		value, _, err := requiredU32Field(band, field.keys...)
+		if err != nil {
+			return nil, false
+		}
+		*field.dest = value
+	}
+	return &out, true
 }
 
 // maxQuoteSlippage is math.MaxInt64 Q9 price ticks as a decimal.

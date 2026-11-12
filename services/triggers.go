@@ -178,6 +178,16 @@ func (s *TriggersService) Create(ctx context.Context, account AccountScope, symb
 	return UnaryAuth(ctx, s.transport, s.client().CreateTrigger, req, decode.TriggerMutationFromProto)
 }
 
+// Cancel cancels a trigger. A trigger that has already ended (completed,
+// canceled or failed) is refused with ERROR_CODE_TRIGGER_STATUS_INVALID for at
+// least 60 seconds after it ended, a repeat of a cancel that succeeded
+// included; errors.IsTriggerAlreadyEnded reports it, and it means "already
+// done": read the trigger for how it ended. Later the same cancel may answer
+// ERROR_CODE_TRIGGER_NOT_FOUND, which Get still resolves for a trigger that
+// ended; treat it as done too for a trigger you know you created. Pause,
+// Resume and Modify of an ended trigger, a ladder or TWAP included, answer the
+// same way. Trigger IDs are opaque, account-scoped public IDs: use one only as
+// the API gave it, for the account that owns it.
 func (s *TriggersService) Cancel(ctx context.Context, account AccountScope, triggerID string, subAccountID *string) (models.TriggerMutationResult, error) {
 	id, err := codecs.IDToInt(triggerID, "trigger_id")
 	if err != nil {
@@ -244,7 +254,8 @@ func (s *TriggersService) CreateOco(ctx context.Context, account AccountScope, i
 // end canceled and the reserved quantity is released. Canceling either leg
 // with Cancel does the same. An ID that is not an OCO of the account, such as
 // a trigger ID or a leg's ID, is refused with TRIGGER_NOT_FOUND and nothing
-// is canceled.
+// is canceled. An OCO that has already ended is refused with
+// ERROR_CODE_TRIGGER_STATUS_INVALID (errors.IsTriggerAlreadyEnded).
 func (s *TriggersService) CancelOco(ctx context.Context, account AccountScope, orderListID string, subAccountID *string) (models.CancelOcoResult, error) {
 	id, err := codecs.IDToInt(orderListID, "order_list_id")
 	if err != nil {
@@ -287,6 +298,9 @@ func (s *TriggersService) BatchCancel(ctx context.Context, account AccountScope,
 	return UnaryAuthDecoded(ctx, s.transport, s.client().BatchCancelTriggers, req, decode.BatchCancelTriggersFromProto)
 }
 
+// Pause pauses a trigger. An ended trigger is refused with
+// ERROR_CODE_TRIGGER_STATUS_INVALID (errors.IsTriggerAlreadyEnded), as for
+// Cancel.
 func (s *TriggersService) Pause(ctx context.Context, account AccountScope, triggerID string, subAccountID *string) (models.TriggerMutationResult, error) {
 	id, err := codecs.IDToInt(triggerID, "trigger_id")
 	if err != nil {
@@ -305,7 +319,8 @@ func (s *TriggersService) Pause(ctx context.Context, account AccountScope, trigg
 	return UnaryAuth(ctx, s.transport, s.client().PauseTrigger, req, decode.TriggerMutationFromPause)
 }
 
-// Resume resumes a paused trigger. symbol and symbolID are optional: omitted,
+// Resume resumes a paused trigger; an ended one is refused with
+// ERROR_CODE_TRIGGER_STATUS_INVALID, as for Cancel. symbol and symbolID are optional: omitted,
 // the request targets the trigger's own market; when set, it must be that
 // market. An API key limited to specific markets must pass one.
 func (s *TriggersService) Resume(ctx context.Context, account AccountScope, triggerID string, subAccountID, symbol *string, symbolID *uint32) (models.TriggerMutationResult, error) {
@@ -335,7 +350,10 @@ func (s *TriggersService) Resume(ctx context.Context, account AccountScope, trig
 	return UnaryAuth(ctx, s.transport, s.client().ResumeTrigger, req, decode.TriggerMutationFromResume)
 }
 
-// Modify patches a trigger. symbol and symbolID are optional, as for Resume.
+// Modify patches a trigger. An ended trigger is refused with
+// ERROR_CODE_TRIGGER_STATUS_INVALID, as for Cancel; a running ladder or TWAP,
+// which supports only cancel, with ERROR_CODE_TRIGGER_NOT_MODIFIABLE. symbol
+// and symbolID are optional, as for Resume.
 // When either is given, a price bound to another market is refused.
 func (s *TriggersService) Modify(ctx context.Context, account AccountScope, triggerID string, subAccountID, symbol *string, symbolID *uint32, opts codecs.ModifyTriggerOptions) (models.TriggerMutationResult, error) {
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
