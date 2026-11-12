@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.28.0
 
-Built on public contract `78792a5` (release 0.93.0).
+Git tag: `v0.28.0`. Released 2026-11-13. Built on public contract `78792a5`.
 
 - New `Triggers.CreateOco` creates an OCO (one-cancels-the-other, `triggers.v1.TriggersService/CreateOco`): a take-profit and a stop-loss over a quantity the account already holds, reserved once and shared by both legs, so it trades only once. A SELL OCO protects held base (take-profit above the last price, stop-loss below); a BUY OCO spends held quote (the other way round). Each leg is a `models.RiskLegInput`: a market IOC exit, or a resting GTC limit exit when `LimitPrice` is set. A partly filled exit does not cancel the other leg, which keeps protecting the rest. `models.CreateOcoResult` returns the OCO's `OrderListID`, its `ClientListID`, each leg's trigger ID and `AcceptedTsNs`, the admission time in nanoseconds since the Unix epoch (the contract's `accepted_at_ts_ns`, or `accepted_at` when only that is sent; 0 when neither is). `ClientListID` (1 to 36 bytes, generated when empty) makes a create whose outcome is unknown safe to send again with the same intent: it returns the same OCO while a leg is active and for 60 seconds after both ended. Affected: `Triggers.CreateOco`, `models.CreateOcoInput`, `models.CreateOcoResult`, `codecs.CreateOcoToProto`, `decode.CreateOcoFromProto` (all new).
 - New `Triggers.CancelOco` cancels both legs of an OCO by its `OrderListID` (`triggers.v1.TriggersService/CancelOco`) and releases the reserved quantity; canceling either leg with `Triggers.Cancel` does the same. A trigger ID, a leg's included, is refused `TRIGGER_NOT_FOUND` and cancels nothing. Affected: `Triggers.CancelOco`, `models.CancelOcoResult` (with the cancel's `TsNs`, read the same way), `decode.CancelOcoFromProto` (all new).
