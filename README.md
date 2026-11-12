@@ -1441,6 +1441,34 @@ the sub-account in `APIKeys`, read as `APIKeys.List` reads them. The server
 sends them to an owner or admin of the sub-account only; `APIKeys` is nil when
 they were not asked for or none were sent.
 
+`SubAccounts.Get` with `includeMembers`, `includeInvites` or `includePolicy`
+also returns the sub-account's current members in `Members`, read as
+`SubAccounts.ListMembers` reads them, the invitations visible to the caller in
+`Invites`, read as `SubAccounts.ListInvites` reads them and filtered by
+`invitesDirection` (`"incoming"`, `"outgoing"` or `""` for both), and the
+attached sub-account policy in `Policy`, read as
+`Policies.SubscribeSubaccountPolicies` reads it. Each is nil when it was not
+asked for or the server sent none: members and the policy go to a current
+member only, `Policy` is nil when no policy is attached, and an API key
+without `READ_SUBACCOUNT_MEMBERS` or `READ_SUBACCOUNT_INVITES` gets the view
+without them rather than an error.
+
+```go
+view, err := client.SubAccounts.Get(ctx, nil, &subAccountID, false, true, true, true, false, "incoming")
+if err != nil {
+	log.Fatal(err)
+}
+for _, m := range view.Members {
+	fmt.Println(m.GranteeAccountID, m.Role)
+}
+for _, inv := range view.Invites {
+	fmt.Println(inv.InviteID, inv.Role, inv.Status)
+}
+if view.Policy != nil {
+	fmt.Println(view.Policy.Name, view.Policy.Actions)
+}
+```
+
 `SubAccounts.Get` with `includeBalances` also returns the sub-account's
 current balances in `Balances`, in the same shape (nil when not asked). It
 needs the `READ_BALANCES` action on the sub-account, or fails with

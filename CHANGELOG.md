@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Breaking:** `SubAccounts.Get` with `includeMembers`, `includeInvites` or `includePolicy` returns the sub-account's members, invites and attached policy: `models.GetSubaccountResult` gains `Members` (`[]models.SubAccountMember`, read as `SubAccounts.ListMembers` reads them), `Invites` (`[]models.SubAccountInvite`, read as `SubAccounts.ListInvites` reads them, filtered by `invitesDirection`) and `Policy` (`*models.SubaccountPolicy`, read as `Policies.SubscribeSubaccountPolicies` reads it, with unset timestamps nil). The server sends them, as the contract's `GetSubaccountResponse.members`, `invites` and `policy`, and the SDK dropped them, so the three options had no effect. Each is nil when it was not asked for or the server sent none; `Policy` is also nil when no policy is attached. They are encoded as `members`, `invites` and `policy` in JSON when present. Affected: `models.GetSubaccountResult`, `SubAccounts.Get` and `decode.GetSubaccountFromProto`. Migration: an unkeyed `models.GetSubaccountResult` struct literal no longer compiles; use keyed fields. Code that compares whole results or their JSON now also compares `Members`, `Invites` and `Policy`.
+
 ## 0.26.0
 
 Git tag: `v0.26.0`. Released 2026-11-12. Built on public contract `e339360`.
