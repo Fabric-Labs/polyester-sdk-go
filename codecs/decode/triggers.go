@@ -160,6 +160,8 @@ func stpModeLabel(v orderv1.SelfTradePreventionMode) string {
 		return "expire_maker"
 	case orderv1.SelfTradePreventionMode_EXPIRE_BOTH:
 		return "expire_both"
+	case orderv1.SelfTradePreventionMode_DECREMENT:
+		return "decrement"
 	default:
 		return ""
 	}

@@ -9,16 +9,50 @@ type CreateOrderRequest struct {
 	Side      string  `json:"side"`
 	OrderType string  `json:"order_type"`
 	TIF       *string `json:"tif,omitempty"`
-	// Qty is the requested base quantity. Set exactly one of Qty or
-	// MaxQuoteDebitScaled.
+	// Qty is the requested base quantity. Set exactly one of Qty,
+	// MaxQuoteDebitScaled or QuoteProceedsScaled.
 	Qty QtyInput `json:"qty"`
 	// MaxQuoteDebitScaled is the hard all-in quote debit budget. Construct with
 	// QtyFromQuoteDecimal / QtyFromQuoteScaled (OrderQuote domain). The SDK
 	// validates the embedded scale against the pair's catalog quote_quantity_scale.
 	// Valid for BUY market and limit-IOC orders only.
-	MaxQuoteDebitScaled QtyInput    `json:"max_quote_debit_scaled"`
+	MaxQuoteDebitScaled QtyInput `json:"max_quote_debit_scaled"`
+	// QuoteProceedsScaled sizes a SELL by the quote it should receive ("sell
+	// 100 USDT worth"): the order sells whole quantity steps until its
+	// proceeds before fees reach the target, and never more. The quote fee is
+	// charged on those proceeds. Construct it like MaxQuoteDebitScaled
+	// (QtyFromQuoteDecimal / QtyFromQuoteScaled, the pair's
+	// quote_quantity_scale). Valid for SELL market and limit-IOC orders only,
+	// without a Peg. The order holds the base the target sells at its limit
+	// price, or a market order's slippage bound, and is refused
+	// ERROR_CODE_INSUFFICIENT_FUNDS when that base is not free, or
+	// ERROR_CODE_QUOTE_SIZE_TOO_SMALL when the target sells less than the
+	// pair's minimums. The API refuses it with attached risk.
+	QuoteProceedsScaled QtyInput    `json:"quote_proceeds_scaled"`
 	Price               *PriceInput `json:"price,omitempty"`
-	SubAccountID        *string     `json:"sub_account_id,omitempty"`
+	// DisplayQty makes a limit GTC or GTD order an iceberg order: the book
+	// shows at most this base quantity at a time, and once that part is fully
+	// executed the next part is shown at the same price, behind the orders
+	// already resting there. Nil (or unset) places a plain order. It is a
+	// base quantity like Qty, at the pair's base_quantity_scale, and must be
+	// positive; it is refused before sending on market, IOC and FOK orders.
+	// The API checks the rest: below the order's quantity and a multiple of
+	// the pair's step (ERROR_CODE_ICEBERG_DISPLAY_INVALID), at least the
+	// pair's minimum quantity and the order's quantity divided by 100, rounded
+	// up (ERROR_CODE_ICEBERG_DISPLAY_TOO_SMALL), and no attached risk
+	// (ERROR_CODE_ICEBERG_NOT_ALLOWED). The display cannot be modified; a
+	// replace keeps it.
+	DisplayQty *QtyInput `json:"display_qty,omitempty"`
+	// Peg selects a limit order's price once, at entry, from the best bid or
+	// ask plus OffsetTicks; the price stays fixed afterwards. Price is still
+	// required: it is the BUY cap or SELL floor, and a derived price beyond
+	// it is refused ERROR_CODE_PEG_LIMIT_VIOLATION. An empty reference side
+	// is refused ERROR_CODE_PEG_REFERENCE_UNAVAILABLE. A peg is refused before
+	// sending on a market order, with quote sizing (MaxQuoteDebitScaled or
+	// QuoteProceedsScaled) and with AttachedRisk. Read the order for the
+	// selected price; the create result confirms admission only.
+	Peg          *OrderPeg `json:"peg,omitempty"`
+	SubAccountID *string   `json:"sub_account_id,omitempty"`
 	// ClientOrderID is optional. Set a stable non-empty value so you can
 	// reconcile after an ambiguous failure. Look up that id before creating
 	// again; a second create with the same id is always a conflict if the
@@ -42,14 +76,37 @@ type CreateOrderRequest struct {
 	// limit orders. MaxSlippageBps must be 1–10000; ticks must be positive.
 	MaxSlippageTicks *int64 `json:"max_slippage_ticks,omitempty"`
 	MaxSlippageBps   *int32 `json:"max_slippage_bps,omitempty"`
-	// SelfTradePreventionMode is "expire_maker", "expire_taker" or
-	// "expire_both"; nil leaves the server default, expire_maker. It also
-	// governs the order's attached take-profit, stop-loss and trailing stop
-	// orders: those never trade with the order they protect, and one that
-	// self-trade prevention expires against another of the account's resting
-	// orders leaves its leg live (a "fire_refused" trigger event with
-	// FireRefusalReason "self_trade_prevented").
+	// SelfTradePreventionMode is "expire_maker", "expire_taker",
+	// "expire_both" or "decrement"; nil leaves the server default,
+	// expire_maker. It also governs the order's attached take-profit,
+	// stop-loss and trailing stop orders: those never trade with the order
+	// they protect, and one that self-trade prevention expires against
+	// another of the account's resting orders leaves its leg live (a
+	// "fire_refused" trigger event with FireRefusalReason
+	// "self_trade_prevented").
+	//
+	// With "decrement", an incoming order that would trade against a resting
+	// order of the same root account (another sub-account included) trades
+	// with neither: both are reduced by the quantity that would have traded,
+	// and one left with nothing is canceled with CancelReason
+	// "stp_decrement" (both, when the quantities are equal). The incoming
+	// order's mode decides, so a resting order of any mode can be reduced or
+	// canceled this way. A fill-or-kill order that would meet such an order
+	// is refused ERROR_CODE_FOK_INSUFFICIENT_LIQUIDITY.
 	SelfTradePreventionMode *string `json:"self_trade_prevention_mode,omitempty"`
+}
+
+// OrderPeg is a limit order's static entry peg: the order is priced once, at
+// entry, at the Reference side's best price plus OffsetTicks.
+type OrderPeg struct {
+	// Reference is "best_bid" or "best_ask" (any case).
+	Reference string `json:"reference"`
+	// OffsetTicks is a signed number of the pair's configured price
+	// increments (its tick size, not 1e-9 price ticks) added to the reference
+	// price: -2 on "best_bid" prices two increments below the best bid. It
+	// counts price increments, not occupied book levels. Zero joins the
+	// reference.
+	OffsetTicks int64 `json:"offset_ticks,omitempty"`
 }
 
 // BatchReplaceItem is one item in orders.batch_replace.
@@ -185,6 +242,33 @@ type SpotPair struct {
 	// rejected with ERROR_CODE_MAX_NOTIONAL. Empty when the pair has no
 	// maximum.
 	MaxMarketNotionalQuote string `json:"max_market_notional_quote,omitempty"`
+	// PriceBand limits how far from the market an order may be priced or
+	// trade on this pair. Nil when the pair has no band.
+	PriceBand *PriceBand `json:"price_band,omitempty"`
+}
+
+// PriceBand is a pair's price band. Its limits sit LowerBps below and
+// UpperBps above a reference price R that follows the pair's last trade,
+// moves to the index price when the two diverge by more than the band, and
+// stays fixed for ReferenceWindowMs before it can move to a newer trade. With
+// tick size T the limits are ceil(R × (1 − LowerBps/10000) / T) × T and
+// floor(R × (1 + UpperBps/10000) / T) × T. R is not published; the last trade
+// price is a close estimate, so checking a limit price against
+// last × (1 ± bps/10000) avoids most refusals.
+//
+// A buy limit priced above the upper limit, or a sell limit below the lower
+// one, is refused ERROR_CODE_PRICE_BAND_VIOLATION, as is a replace that adds
+// exposure beyond it (reducing quantity is always allowed). A market order,
+// or another order the exchange prices, trades only up to the limit and its
+// unfilled rest is canceled with CancelReason "price_band". The band never
+// cancels a resting order. An attached take-profit, stop-loss or trailing
+// stop whose order the band refuses stays active and is sent again once the
+// band moves; a standalone trigger fails with FailureReason
+// "price_band_violation".
+type PriceBand struct {
+	LowerBps          uint32 `json:"lower_bps"`
+	UpperBps          uint32 `json:"upper_bps"`
+	ReferenceWindowMs uint32 `json:"reference_window_ms"`
 }
 
 // PairConstraints is the deterministic, parsed trading-rule view for one spot
@@ -226,4 +310,7 @@ type PairConstraints struct {
 	// in quote units: the int64 ceiling of Q9 price ticks.
 	MaxQuoteSlippage      string `json:"max_quote_slippage"`
 	MaxQuoteSlippageTicks int64  `json:"max_quote_slippage_ticks"`
+	// PriceBand is the pair's price band, as SpotPair.PriceBand; nil when the
+	// pair has none.
+	PriceBand *PriceBand `json:"price_band,omitempty"`
 }

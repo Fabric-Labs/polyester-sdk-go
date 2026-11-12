@@ -695,3 +695,22 @@ func TestFutureTypedCodeKeepsItsLabelOnARecognisedRefusalControl(t *testing.T) {
 		}
 	}
 }
+
+// A trigger that has already ended answers REST 400 TRIGGER_STATUS_INVALID,
+// as Connect does: IsTriggerAlreadyEnded reports both.
+func TestTriggerStatusInvalidReadsAsAlreadyEnded(t *testing.T) {
+	for _, tc := range []struct {
+		body   errorBody
+		status int
+	}{
+		{errorBody{"rest", problemType, `{"code":"TRIGGER_STATUS_INVALID","detail":"Trigger has already ended (completed, canceled or failed); there is nothing left to cancel."}`}, 400},
+	} {
+		eachOp(t, tc.body.name, func(t *testing.T, op string) {
+			_, err := callWithErrorBody(t, op, tc.status, tc.body, -1)
+			if !sdkerrors.IsTriggerAlreadyEnded(err) {
+				t.Fatalf("got %T %+v", err, err)
+			}
+			assertErrorFlags(t, err, false, false)
+		})
+	}
+}

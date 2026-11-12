@@ -35,7 +35,13 @@ var alertIdempotencyKeyPattern = regexp.MustCompile(`^[A-Za-z0-9._:-]{1,128}$`)
 // where every call fails. Alerts belong to the main account: an API key
 // scoped to the main account manages them, and a key scoped to a sub-account
 // is refused with an *errors.AuthError whose Code is
-// errors.AlertCodeSubaccountKeyRefused. Read other refusals with
+// errors.AlertCodeSubaccountKeyRefused. An API key also needs its API-key
+// policy to grant the call's permission: READ_PRICE_ALERTS for List and All,
+// MANAGE_PRICE_ALERTS for Create, Update and Cancel (it does not allow
+// listing). A key without it is refused before any alert is read or changed,
+// with permission_denied and errors.AuthErrorCode(err) ==
+// "AUTH_API_KEY_ACCESS_DENIED"; the message names the missing permission.
+// Session tokens need no permission. Read other refusals with
 // errors.AlertErrorCode.
 type AlertsService struct {
 	transport *transport.Factory

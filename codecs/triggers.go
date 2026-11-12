@@ -31,6 +31,7 @@ var selfTradePreventionModeToProto = map[string]orderv1.SelfTradePreventionMode{
 	"expire_taker": orderv1.SelfTradePreventionMode_EXPIRE_TAKER,
 	"expire_maker": orderv1.SelfTradePreventionMode_EXPIRE_MAKER,
 	"expire_both":  orderv1.SelfTradePreventionMode_EXPIRE_BOTH,
+	"decrement":    orderv1.SelfTradePreventionMode_DECREMENT,
 }
 
 // CreateTriggerOptions carries optional create-trigger fields beyond the core order params.
@@ -105,7 +106,7 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 	if opts.SelfTradePreventionMode != nil {
 		mode, ok := selfTradePreventionModeToProto[strings.ToLower(*opts.SelfTradePreventionMode)]
 		if !ok {
-			return nil, &errors.ValidationError{Msg: "self_trade_prevention_mode must be expire_taker, expire_maker, or expire_both"}
+			return nil, &errors.ValidationError{Msg: "self_trade_prevention_mode must be expire_taker, expire_maker, expire_both, or decrement"}
 		}
 		intent.SelfTradePreventionMode = mode
 	}
@@ -603,7 +604,7 @@ func CreateOcoToProto(symbolID uint32, in models.CreateOcoInput, subAccountID *s
 	if in.SelfTradePreventionMode != nil {
 		mode, ok := selfTradePreventionModeToProto[strings.ToLower(*in.SelfTradePreventionMode)]
 		if !ok {
-			return nil, &errors.ValidationError{Msg: "self_trade_prevention_mode must be expire_taker, expire_maker, or expire_both"}
+			return nil, &errors.ValidationError{Msg: "self_trade_prevention_mode must be expire_taker, expire_maker, expire_both, or decrement"}
 		}
 		intent.SelfTradePreventionMode = mode
 	}

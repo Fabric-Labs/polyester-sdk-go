@@ -113,8 +113,8 @@ func QuoteQuantityScaleForSymbol(c *catalogs.Manager, symbol *string) (int, erro
 // single and batch create. The flat public params (order_type/tif/post_only)
 // are mapped onto the appropriate execution variant.
 //
-// quoteQuantityScale is required when MaxQuoteDebitScaled is set; otherwise it
-// is ignored.
+// quoteQuantityScale is required when MaxQuoteDebitScaled or
+// QuoteProceedsScaled is set; otherwise it is ignored.
 func OrderIntentToProto(req models.CreateOrderRequest, quantityScale, quoteQuantityScale int) (*orderv1.OrderIntent, error) {
 	if req.SymbolID == nil || *req.SymbolID == 0 {
 		return nil, &errors.ValidationError{Msg: "orders.create requires a resolved non-zero symbol_id"}
@@ -138,16 +138,24 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale, quoteQuant
 	}
 	hasQty := req.Qty.IsSet()
 	hasQuoteBudget := req.MaxQuoteDebitScaled.IsSet()
-	if hasQty == hasQuoteBudget {
-		return nil, &errors.ValidationError{Msg: "orders.create requires exactly one of qty or max_quote_debit_scaled"}
+	hasQuoteProceeds := req.QuoteProceedsScaled.IsSet()
+	sizings := 0
+	for _, set := range []bool{hasQty, hasQuoteBudget, hasQuoteProceeds} {
+		if set {
+			sizings++
+		}
 	}
-	if hasQty {
+	if sizings != 1 {
+		return nil, &errors.ValidationError{Msg: "orders.create requires exactly one of qty, max_quote_debit_scaled or quote_proceeds_scaled"}
+	}
+	switch {
+	case hasQty:
 		qty, err := ResolveQtyScaled(req.Qty, quantityScale, "qty", symbol, req.SymbolID)
 		if err != nil {
 			return nil, err
 		}
 		intent.Sizing = &orderv1.OrderIntent_BaseQtyScaled{BaseQtyScaled: qty}
-	} else {
+	case hasQuoteBudget:
 		if side != orderv1.Side_BUY {
 			return nil, &errors.ValidationError{Msg: "max_quote_debit_scaled is only valid for buy orders"}
 		}
@@ -156,6 +164,15 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale, quoteQuant
 			return nil, err
 		}
 		intent.Sizing = &orderv1.OrderIntent_MaxQuoteDebitScaled{MaxQuoteDebitScaled: budget}
+	default:
+		if side != orderv1.Side_SELL {
+			return nil, &errors.ValidationError{Msg: "quote_proceeds_scaled is only valid for sell orders"}
+		}
+		target, err := ResolveQuoteQtyScaled(req.QuoteProceedsScaled, quoteQuantityScale, "quote_proceeds_scaled", symbol, req.SymbolID)
+		if err != nil {
+			return nil, err
+		}
+		intent.Sizing = &orderv1.OrderIntent_QuoteProceedsScaled{QuoteProceedsScaled: target}
 	}
 	clientOrderID, err := optionalClientID(req.ClientOrderID, "client_order_id")
 	if err != nil {
@@ -177,7 +194,7 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale, quoteQuant
 	if req.SelfTradePreventionMode != nil {
 		mode, ok := selfTradePreventionModeToProto[strings.ToLower(*req.SelfTradePreventionMode)]
 		if !ok {
-			return nil, &errors.ValidationError{Msg: "self_trade_prevention_mode must be expire_taker, expire_maker, or expire_both"}
+			return nil, &errors.ValidationError{Msg: "self_trade_prevention_mode must be expire_taker, expire_maker, expire_both, or decrement"}
 		}
 		intent.SelfTradePreventionMode = mode
 	}
@@ -272,6 +289,28 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale, quoteQuant
 	if hasQuoteBudget && orderType == "limit" && tif != "ioc" {
 		return nil, &errors.ValidationError{Msg: "max_quote_debit_scaled is only valid for buy market or limit IOC orders"}
 	}
+	if hasQuoteProceeds && orderType == "limit" && tif != "ioc" {
+		return nil, &errors.ValidationError{Msg: "quote_proceeds_scaled is only valid for sell market or limit IOC orders"}
+	}
+	if req.DisplayQty != nil && req.DisplayQty.IsSet() {
+		display, err := resolveDisplayQty(*req.DisplayQty, orderType, tif, quantityScale, symbol, req.SymbolID)
+		if err != nil {
+			return nil, err
+		}
+		switch execution := intent.Execution.(type) {
+		case *orderv1.OrderIntent_LimitGtc:
+			execution.LimitGtc.DisplayQtyScaled = display
+		case *orderv1.OrderIntent_LimitGtd:
+			execution.LimitGtd.DisplayQtyScaled = display
+		}
+	}
+	if req.Peg != nil {
+		peg, err := orderPegToProto(*req.Peg, orderType, hasQty, req.AttachedRisk != nil)
+		if err != nil {
+			return nil, err
+		}
+		intent.Peg = peg
+	}
 	risk, err := RiskPolicyToProto(req.AttachedRisk, "attached_risk", symbol)
 	if err != nil {
 		return nil, err
@@ -281,6 +320,45 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale, quoteQuant
 	}
 	intent.AttachedRisk = risk
 	return intent, nil
+}
+
+// resolveDisplayQty encodes an iceberg display quantity. Only limit GTC and
+// GTD orders carry one; the API checks it against the order and the pair.
+func resolveDisplayQty(in models.QtyInput, orderType, tif string, quantityScale int, symbol string, symbolID *uint32) (int64, error) {
+	if orderType != "limit" || (tif != "" && tif != "gtc" && tif != "gtd") {
+		return 0, &errors.ValidationError{Msg: "display_qty is only valid for limit GTC or GTD orders"}
+	}
+	display, err := ResolveQtyScaled(in, quantityScale, "display_qty", symbol, symbolID)
+	if err != nil {
+		return 0, err
+	}
+	if display <= 0 {
+		return 0, &errors.ValidationError{Msg: "display_qty must be positive; leave it unset for a plain order"}
+	}
+	return display, nil
+}
+
+var pegReferenceToProto = map[string]orderv1.PegReference{
+	"best_bid": orderv1.PegReference_BEST_BID,
+	"best_ask": orderv1.PegReference_BEST_ASK,
+}
+
+// orderPegToProto encodes a static entry peg. The contract allows it only on
+// limit orders sized by base quantity and without attached risk.
+func orderPegToProto(peg models.OrderPeg, orderType string, baseSized, hasAttachedRisk bool) (*orderv1.StaticPeg, error) {
+	reference, ok := pegReferenceToProto[strings.ToLower(strings.TrimSpace(peg.Reference))]
+	if !ok {
+		return nil, &errors.ValidationError{Msg: "peg.reference must be best_bid or best_ask"}
+	}
+	switch {
+	case orderType != "limit":
+		return nil, &errors.ValidationError{Msg: "peg is only valid for limit orders"}
+	case !baseSized:
+		return nil, &errors.ValidationError{Msg: "peg is only valid for orders sized by qty, not by a quote amount"}
+	case hasAttachedRisk:
+		return nil, &errors.ValidationError{Msg: "peg is not valid with attached_risk"}
+	}
+	return &orderv1.StaticPeg{Reference: reference, OffsetTicks: peg.OffsetTicks}, nil
 }
 
 func applyMarketMaxSlippage(market *orderv1.MarketIoc, side orderv1.Side, ticks *int64, bps *int32) error {

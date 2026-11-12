@@ -51,6 +51,16 @@ func SpotConfigFromProto(msg *marketdatav1.GetSpotConfigResponse) (models.SpotCo
 				delete(pair, "reference_price_scale")
 				delete(pair, "referencePriceScale")
 				pair["reference_price_scale"] = float64(typed.GetReferencePriceScale())
+				// A band's zero bounds are omitted too; restore all three.
+				delete(pair, "price_band")
+				delete(pair, "priceBand")
+				if band := typed.GetPriceBand(); band != nil {
+					pair["price_band"] = map[string]any{
+						"lower_bps":           float64(band.GetLowerBps()),
+						"upper_bps":           float64(band.GetUpperBps()),
+						"reference_window_ms": float64(band.GetReferenceWindowMs()),
+					}
+				}
 			}
 		}
 	}
@@ -104,6 +114,13 @@ func spotPairFromProto(pair *marketdatav1.PairConfig) (models.SpotPair, error) {
 		DefaultMarketSlippageBpsSell: pair.GetDefaultMarketSlippageBpsSell(),
 		MaxClientRefDriftBps:         pair.GetMaxClientRefDriftBps(),
 		MaxOpenOrdersPerPair:         pair.GetMaxOpenOrdersPerPair(),
+	}
+	if band := pair.GetPriceBand(); band != nil {
+		out.PriceBand = &models.PriceBand{
+			LowerBps:          band.GetLowerBps(),
+			UpperBps:          band.GetUpperBps(),
+			ReferenceWindowMs: band.GetReferenceWindowMs(),
+		}
 	}
 	for _, limit := range []struct {
 		name  string

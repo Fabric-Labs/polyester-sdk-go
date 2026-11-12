@@ -25,23 +25,38 @@ type Order struct {
 	// InheritedCumQty is the filled quantity a replacement inherited from its
 	// predecessors when it was accepted; zero for an original order. CumQty
 	// minus InheritedCumQty is what this generation executed.
-	InheritedCumQty QtyScaled  `json:"inherited_cum_qty,omitempty"`
-	LeavesQty       QtyScaled  `json:"leaves_qty,omitempty"`
-	Price           PriceTicks `json:"price,omitempty"`
-	AvgPx           PriceTicks `json:"avg_px,omitempty"`
-	CreatedTsNs     string     `json:"created_ts_ns,omitempty"`
+	InheritedCumQty QtyScaled `json:"inherited_cum_qty,omitempty"`
+	LeavesQty       QtyScaled `json:"leaves_qty,omitempty"`
+	// DisplayQty is the iceberg display the order was placed with: the book
+	// shows at most this much of it at a time. HiddenQty is the part of
+	// LeavesQty the book does not show, so the book shows LeavesQty minus
+	// HiddenQty. Both are zero for a plain order, and HiddenQty is zero once
+	// the order has ended. Public market data shows only the quantity on the
+	// book.
+	DisplayQty  QtyScaled  `json:"display_qty,omitempty"`
+	HiddenQty   QtyScaled  `json:"hidden_qty,omitempty"`
+	Price       PriceTicks `json:"price,omitempty"`
+	AvgPx       PriceTicks `json:"avg_px,omitempty"`
+	CreatedTsNs string     `json:"created_ts_ns,omitempty"`
 	// TerminalTsNs is when the order became terminal, in nanoseconds since
 	// the Unix epoch (UTC) as a decimal string. Empty while the order is open.
 	TerminalTsNs string `json:"terminal_ts_ns,omitempty"`
 	Version      uint32 `json:"version,omitempty"`
 	PostOnly     bool   `json:"post_only,omitempty"`
 	FeeAsset     string `json:"fee_asset,omitempty"`
-	// SelfTradePreventionMode is "expire_maker", "expire_taker" or
-	// "expire_both"; empty when the server does not report it, and
+	// SelfTradePreventionMode is "expire_maker", "expire_taker",
+	// "expire_both" or "decrement"; empty when the server does not report it, and
 	// "unknown(N)" for a mode newer than this SDK.
 	SelfTradePreventionMode string `json:"self_trade_prevention_mode,omitempty"`
-	// SubmittedMaxQuoteDebitScaled is populated for quote-budget sized orders.
-	SubmittedMaxQuoteDebitScaled string        `json:"submitted_max_quote_debit_scaled,omitempty"`
+	// SubmittedMaxQuoteDebitScaled is populated for a BUY sized by a quote
+	// budget, at the pair's quote_quantity_scale.
+	SubmittedMaxQuoteDebitScaled string `json:"submitted_max_quote_debit_scaled,omitempty"`
+	// SubmittedQuoteProceedsScaled is the quote proceeds target of a SELL
+	// sized by QuoteProceedsScaled, at the pair's quote_quantity_scale; empty
+	// for every other order. For such an order CumNotional is the proceeds it
+	// received before fees, so the target less CumQuote is what it did not
+	// receive.
+	SubmittedQuoteProceedsScaled string        `json:"submitted_quote_proceeds_scaled,omitempty"`
 	AttachedRisk                 *AttachedRisk `json:"attached_risk,omitempty"`
 	Lineage                      *OrderLineage `json:"lineage,omitempty"`
 	// Origin is how the order was created: directly, or as the child of a
@@ -68,7 +83,13 @@ type Order struct {
 	// CancelReason is why a canceled order ended (for example "user_request",
 	// "replaced", or "attached_exit_fired": its take-profit, stop-loss or
 	// trailing stop fired while it still rested, so its unfilled rest was
-	// canceled first). Empty for every other status.
+	// canceled first). "stp_decrement" is an order DECREMENT self-trade
+	// prevention left with no quantity, "price_band" the unfilled rest of a
+	// market (or exchange-priced) order the pair's price band stopped (its
+	// fills stand), and "cancel_on_disconnect" an order canceled because the
+	// account's opted-in trading WebSocket sessions all disconnected (its own
+	// cancel-all-after timer reads "cancel_all_after"). Empty for every other
+	// status.
 	CancelReason string `json:"cancel_reason,omitempty"`
 	// AvgPriceE18 is the exact average execution price across the lineage
 	// through this generation, in quote units scaled by 1e18, as an unsigned
@@ -220,6 +241,9 @@ type OrderMutationResult struct {
 	ResolvedBaseQtyScaled        string     `json:"resolved_base_qty_scaled,omitempty"`
 	ResolvedBaseQty              *QtyScaled `json:"resolved_base_qty,omitempty"`
 	SubmittedMaxQuoteDebitScaled string     `json:"submitted_max_quote_debit_scaled,omitempty"`
+	// SubmittedQuoteProceedsScaled echoes a SELL's quote proceeds target;
+	// ResolvedBaseQty is then the base the order holds, the most it can sell.
+	SubmittedQuoteProceedsScaled string `json:"submitted_quote_proceeds_scaled,omitempty"`
 	AttachedRiskTriggerIDs
 }
 
@@ -473,7 +497,16 @@ type BatchCreateResultItem struct {
 	Status        string `json:"status"`
 	OrderID       string `json:"order_id,omitempty"`
 	ClientOrderID string `json:"client_order_id,omitempty"`
-	Code          string `json:"code,omitempty"`
+	// ResolvedBaseQtyScaled, SubmittedMaxQuoteDebitScaled and
+	// SubmittedQuoteProceedsScaled are an accepted item's echoes, as on
+	// OrderMutationResult: the gross base quantity resolved for execution at
+	// the pair's base_quantity_scale, and the quote budget of a BUY or the
+	// quote proceeds target of a SELL sized by a quote amount, at the pair's
+	// quote_quantity_scale. Empty when not sent.
+	ResolvedBaseQtyScaled        string `json:"resolved_base_qty_scaled,omitempty"`
+	SubmittedMaxQuoteDebitScaled string `json:"submitted_max_quote_debit_scaled,omitempty"`
+	SubmittedQuoteProceedsScaled string `json:"submitted_quote_proceeds_scaled,omitempty"`
+	Code                         string `json:"code,omitempty"`
 	// ExistingOrderID is the order already holding ClientOrderID on an
 	// ERROR_CODE_CONFLICT_DUPLICATE_CLIENT_ORDER_ID rejection, when known. It
 	// is empty for duplicates rejected within the same batch.
@@ -611,17 +644,25 @@ type TransferSide struct {
 type LedgerTransfer struct {
 	// TransferID is the unsigned 128-bit decimal transfer identity shared by
 	// both legs of one transfer. Empty when the server did not send one.
-	TransferID   string        `json:"transfer_id,omitempty"`
-	AssetID      uint32        `json:"asset_id,omitempty"`
-	Amount       string        `json:"amount,omitempty"`
-	TransferType int           `json:"transfer_type,omitempty"`
-	AccountCode  int           `json:"account_code,omitempty"`
-	Timestamp    int64         `json:"timestamp,omitempty"`
-	Pending      bool          `json:"pending,omitempty"`
-	TxID         string        `json:"tx_id,omitempty"`
-	IsDebit      bool          `json:"is_debit,omitempty"`
-	Source       *TransferSide `json:"source,omitempty"`
-	Destination  *TransferSide `json:"destination,omitempty"`
+	TransferID   string `json:"transfer_id,omitempty"`
+	AssetID      uint32 `json:"asset_id,omitempty"`
+	Amount       string `json:"amount,omitempty"`
+	TransferType int    `json:"transfer_type,omitempty"`
+	AccountCode  int    `json:"account_code,omitempty"`
+	Timestamp    int64  `json:"timestamp,omitempty"`
+	Pending      bool   `json:"pending,omitempty"`
+	// TxID is the transfer's lifecycle flow ID (the contract's flow_id), the
+	// ID Lifecycle.GetFlow accepts; empty when the transfer belongs to no
+	// flow. A Trading-to-Funding transfer carries it from its first realtime
+	// update. The WITHDRAW_FAILED (1075) debit of a failed withdrawal carries
+	// its withdrawal's flow ID in Transfers.List, joined when history is read:
+	// a read made before the withdrawal's outcome is recorded, and the
+	// realtime transfer stream, leave it empty, so reload recent transfers
+	// with Transfers.List to get the link.
+	TxID        string        `json:"tx_id,omitempty"`
+	IsDebit     bool          `json:"is_debit,omitempty"`
+	Source      *TransferSide `json:"source,omitempty"`
+	Destination *TransferSide `json:"destination,omitempty"`
 	// BalanceAfter is the account bucket's balance after this transfer, an
 	// exact decimal integer at the fixed 18-decimal ledger scale, like
 	// Amount. Nil when the server sent none; a zero balance is "0".
@@ -880,6 +921,14 @@ type BatchCancelTriggersResult struct {
 // stop started protecting its parent's filled quantity, once) or fire_refused.
 // A type newer than this SDK reads as unknown(<n>). A ladder has no event types
 // of its own: read its Status, completed, canceled or failed.
+//
+// A ladder level the order book rejects when it arrives (for example a
+// post-only level that would cross) is a "fire_refused" event that follows
+// that level's "fired" event: ChildSeq names the level, FireRefusalReason
+// says why ("post_only_cross") and FirePrice is the level's price, while the
+// ladder keeps working its other levels. Do not count a level whose "fired"
+// is followed by a "fire_refused" of the same ChildSeq as placed. The ladder
+// fails ("failed") only when every level was rejected.
 //
 // EventType "fire_refused" records a fire whose order was refused while the
 // trigger stayed live: the market's or system's state (for example

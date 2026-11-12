@@ -220,7 +220,7 @@ func TestCreateOcoRefusesAnInvalidOcoBeforeSending(t *testing.T) {
 		"no stop-loss price":   func(in *models.CreateOcoInput) { in.StopLoss.TriggerPrice = models.PriceInput{} },
 		"unknown price source": func(in *models.CreateOcoInput) { in.StopLoss.TriggerPriceSource = "bid" },
 		"unknown self-trade mode": func(in *models.CreateOcoInput) {
-			mode := "decrement"
+			mode := "decrease"
 			in.SelfTradePreventionMode = &mode
 		},
 		"client list ID over 36 bytes": func(in *models.CreateOcoInput) {

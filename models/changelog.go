@@ -38,6 +38,9 @@ const (
 	// ChangelogSurfaceRewards covers daily claims, campaigns, VIP tiers and
 	// fee discounts.
 	ChangelogSurfaceRewards = "rewards"
+	// ChangelogSurfaceAssistant covers the AI assistant: chats, approvals,
+	// memories and preferences.
+	ChangelogSurfaceAssistant = "assistant"
 )
 
 // ChangelogChange is one product change in a changelog post.
@@ -139,7 +142,7 @@ type ListChangelogChangesOptions struct {
 	Categories []string
 	// ActionRequired keeps only changes whose action_required matches.
 	ActionRequired *bool
-	// Surfaces are ChangelogSurface* labels, at most 10.
+	// Surfaces are ChangelogSurface* labels, at most 11.
 	Surfaces []string
 	// Audiences are ChangelogAudience* labels. Changes addressed to all users
 	// always match.
