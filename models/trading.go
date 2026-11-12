@@ -506,7 +506,10 @@ type BatchCreateResultItem struct {
 	ResolvedBaseQtyScaled        string `json:"resolved_base_qty_scaled,omitempty"`
 	SubmittedMaxQuoteDebitScaled string `json:"submitted_max_quote_debit_scaled,omitempty"`
 	SubmittedQuoteProceedsScaled string `json:"submitted_quote_proceeds_scaled,omitempty"`
-	Code                         string `json:"code,omitempty"`
+	// AttachedRiskTriggerIDs are an accepted item's attached legs' trigger
+	// IDs, as on OrderMutationResult; empty for a leg the order does not have.
+	AttachedRiskTriggerIDs
+	Code string `json:"code,omitempty"`
 	// ExistingOrderID is the order already holding ClientOrderID on an
 	// ERROR_CODE_CONFLICT_DUPLICATE_CLIENT_ORDER_ID rejection, when known. It
 	// is empty for duplicates rejected within the same batch.

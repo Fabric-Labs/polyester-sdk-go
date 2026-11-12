@@ -873,6 +873,7 @@ func BatchCreateFromProto(msg *orderv1.BatchCreateOrdersResponse) (models.BatchC
 			}
 			out.SubmittedMaxQuoteDebitScaled = optionalScaledString(accepted.SubmittedMaxQuoteDebitScaled)
 			out.SubmittedQuoteProceedsScaled = optionalScaledString(accepted.SubmittedQuoteProceedsScaled)
+			out.AttachedRiskTriggerIDs = attachedRiskTriggerIDs(accepted.TakeProfitTriggerId, accepted.StopLossTriggerId, accepted.TrailingStopTriggerId)
 		} else if rejected := item.GetRejected(); rejected != nil {
 			decodedRejected++
 			out.Status = "rejected"

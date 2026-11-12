@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	changelogv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/changelog/v1"
 	marketdatav1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1"
@@ -81,6 +82,7 @@ func TestCreateResultsEchoQuoteProceeds(t *testing.T) {
 			}}},
 			{Outcome: &orderv1.BatchCreateResultItem_Accepted{Accepted: &orderv1.BatchCreateAccepted{
 				OrderId: 2, SubmittedMaxQuoteDebitScaled: proto.Int64(50_000_000),
+				TakeProfitTriggerId: proto.Uint64(21), StopLossTriggerId: proto.Uint64(22), TrailingStopTriggerId: proto.Uint64(0),
 			}}},
 		},
 	})
@@ -89,7 +91,9 @@ func TestCreateResultsEchoQuoteProceeds(t *testing.T) {
 	}
 	first, second := batch.Results[0], batch.Results[1]
 	if first.SubmittedQuoteProceedsScaled != "100000000" || first.ResolvedBaseQtyScaled != "163000" ||
-		second.SubmittedMaxQuoteDebitScaled != "50000000" || second.SubmittedQuoteProceedsScaled != "" || second.ResolvedBaseQtyScaled != "" {
+		second.SubmittedMaxQuoteDebitScaled != "50000000" || second.SubmittedQuoteProceedsScaled != "" || second.ResolvedBaseQtyScaled != "" ||
+		first.TakeProfitTriggerID != "" || second.TakeProfitTriggerID != codecs.FormatUint64ID(21) ||
+		second.StopLossTriggerID != codecs.FormatUint64ID(22) || second.TrailingStopTriggerID != "" {
 		t.Fatalf("results=%+v", batch.Results)
 	}
 }
