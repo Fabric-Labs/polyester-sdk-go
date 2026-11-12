@@ -450,6 +450,13 @@ func applyListTriggersOptions(req *triggersv1.ListTriggersRequest, opts models.L
 		}
 		req.OrderListId = &id
 	}
+	if opts.ClientListID != nil {
+		id, err := codecs.ValidateClientListID(*opts.ClientListID)
+		if err != nil {
+			return err
+		}
+		req.ClientListId = &id
+	}
 	return nil
 }
 

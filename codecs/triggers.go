@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
@@ -593,7 +594,7 @@ func CreateOcoToProto(symbolID uint32, in models.CreateOcoInput, subAccountID *s
 	}
 	intent := &triggersv1.OcoIntent{SymbolId: symbolID, Side: side, QtyScaled: qtyScaled}
 	if in.ClientListID != nil && *in.ClientListID != "" {
-		if intent.ClientListId, err = requiredClientID(*in.ClientListID, "client_list_id"); err != nil {
+		if intent.ClientListId, err = ValidateClientListID(*in.ClientListID); err != nil {
 			return nil, err
 		}
 	} else {
@@ -617,6 +618,15 @@ func CreateOcoToProto(symbolID uint32, in models.CreateOcoInput, subAccountID *s
 		return nil, err
 	}
 	return req, nil
+}
+
+// ValidateClientListID checks a client OCO ID as the contract does: 1 to 36
+// bytes of UTF-8, sent unchanged.
+func ValidateClientListID(value string) (string, error) {
+	if value == "" || len(value) > clientIDMaxLen || !utf8.ValidString(value) {
+		return "", &errors.ValidationError{Msg: fmt.Sprintf("client_list_id must be 1 to %d bytes of UTF-8", clientIDMaxLen)}
+	}
+	return value, nil
 }
 
 func ocoLegToProto(leg models.RiskLegInput, fieldName, symbol string) (*triggersv1.OcoLeg, error) {

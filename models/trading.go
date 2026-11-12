@@ -315,8 +315,9 @@ type ListTriggersOptions struct {
 	// ParentOrderID lists the attached triggers of one parent order.
 	ParentOrderID *string
 	// OrderListID lists the take-profit and the stop-loss of one OCO, by the
-	// OrderListID CreateOco returned.
-	OrderListID *string
+	// OrderListID CreateOco returned; ClientListID by its client OCO ID.
+	OrderListID  *string
+	ClientListID *string
 }
 
 // ListUserTradesOptions are optional GetUserTrades execution-scope filters.

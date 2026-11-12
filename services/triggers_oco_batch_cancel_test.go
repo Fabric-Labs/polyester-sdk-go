@@ -186,6 +186,31 @@ func TestCreateOcoGeneratesAClientListIDWhenNoneIsGiven(t *testing.T) {
 	}
 }
 
+// A client OCO ID is checked as the contract checks it, 1 to 36 bytes of
+// UTF-8, and sent unchanged.
+func TestCreateOcoSendsAnyClientListIDOfUpTo36Bytes(t *testing.T) {
+	for _, id := range []string{"oco énergie #1 ✓", strings.Repeat("é", 18), " padded "} {
+		handler := &ocoHandler{}
+		service := newTriggerControlServiceWith(t, handler)
+		got, err := service.CreateOco(context.Background(), nil, sellOco(&id), nil)
+		if err != nil {
+			t.Fatalf("client list ID %q: %v", id, err)
+		}
+		if sent := handler.creates[0].GetOco().GetClientListId(); sent != id || got.ClientListID != id {
+			t.Fatalf("client list ID %q: sent %q, read %q", id, sent, got.ClientListID)
+		}
+	}
+	for _, id := range []string{strings.Repeat("é", 19), "\xff\xfe"} {
+		handler := &ocoHandler{}
+		service := newTriggerControlServiceWith(t, handler)
+		_, err := service.CreateOco(context.Background(), nil, sellOco(&id), nil)
+		var validation *sdkerrors.ValidationError
+		if !errors.As(err, &validation) || len(handler.creates) != 0 {
+			t.Fatalf("client list ID %q: err = %T %v, sent %d, want refused before sending", id, err, err, len(handler.creates))
+		}
+	}
+}
+
 func TestCreateOcoRefusesAnInvalidOcoBeforeSending(t *testing.T) {
 	cases := map[string]func(*models.CreateOcoInput){
 		"no side":              func(in *models.CreateOcoInput) { in.Side = "" },
@@ -198,7 +223,7 @@ func TestCreateOcoRefusesAnInvalidOcoBeforeSending(t *testing.T) {
 			mode := "decrement"
 			in.SelfTradePreventionMode = &mode
 		},
-		"client list ID over 36 characters": func(in *models.CreateOcoInput) {
+		"client list ID over 36 bytes": func(in *models.CreateOcoInput) {
 			id := strings.Repeat("a", 37)
 			in.ClientListID = &id
 		},
@@ -411,8 +436,22 @@ func TestTriggerListFiltersByOcoAndReadsItsLegs(t *testing.T) {
 		t.Fatalf("triggers = %+v, want the leg with its OCO", got.Triggers)
 	}
 
-	zero := "0"
-	if _, err := service.List(context.Background(), nil, nil, nil, nil, 0, nil, models.ListTriggersOptions{OrderListID: &zero}); err == nil || len(handler.lists) != 1 {
-		t.Fatalf("zero OCO filter: err = %v, lists sent = %d, want refused before sending", err, len(handler.lists))
+	clientListID := "oco énergie #1"
+	if _, err := service.List(context.Background(), nil, nil, nil, nil, 0, nil, models.ListTriggersOptions{ClientListID: &clientListID}); err != nil {
+		t.Fatalf("list by client OCO ID: %v", err)
+	}
+	if sent := handler.lists[1].ClientListId; sent == nil || *sent != clientListID || handler.lists[1].OrderListId != nil {
+		t.Fatalf("client_list_id filter = %v, want %q alone", sent, clientListID)
+	}
+
+	zero, empty, long := "0", "", strings.Repeat("a", 37)
+	for name, opts := range map[string]models.ListTriggersOptions{
+		"zero OCO ID":                 {OrderListID: &zero},
+		"empty client OCO ID":         {ClientListID: &empty},
+		"client OCO ID over 36 bytes": {ClientListID: &long},
+	} {
+		if _, err := service.List(context.Background(), nil, nil, nil, nil, 0, nil, opts); err == nil || len(handler.lists) != 2 {
+			t.Fatalf("%s: err = %v, lists sent = %d, want refused before sending", name, err, len(handler.lists))
+		}
 	}
 }

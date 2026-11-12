@@ -74,8 +74,8 @@ type TrailingStopInput struct {
 // LimitPrice is nil, otherwise a resting GTC limit.
 //
 // ClientListID identifies the OCO for retries, unique per sub-account and
-// pair among OCOs (1 to 36 characters); one is generated when it is nil or
-// empty. While the OCO is active and for 60 seconds after both legs ended,
+// pair among OCOs (1 to 36 bytes of UTF-8); one is generated when it is nil
+// or empty. While the OCO is active and for 60 seconds after both legs ended,
 // a create with the same ClientListID and the same intent returns the same
 // OCO, so send a create whose outcome is unknown again with the same
 // ClientListID. SelfTradePreventionMode is expire_taker, expire_maker or
