@@ -874,9 +874,16 @@ type TriggerEventsList struct {
 
 // ApiKeySummary summarizes an API key.
 type ApiKeySummary struct {
-	KeyID  string `json:"key_id,omitempty"`
-	Label  string `json:"label,omitempty"`
-	Status string `json:"status,omitempty"`
+	KeyID string `json:"key_id,omitempty"`
+	Label string `json:"label,omitempty"`
+	// Icon and Color are the user-chosen icon or emoji and color token for
+	// display, as sent (at most 32 characters each); empty when unset.
+	Icon  string `json:"icon,omitempty"`
+	Color string `json:"color,omitempty"`
+	// CreatedByActor is the read-only label of who created the key, such as
+	// a username or account label; empty when the server sends none.
+	CreatedByActor string `json:"created_by_actor,omitempty"`
+	Status         string `json:"status,omitempty"`
 	// Purpose is "STANDARD" for the user's own keys and "ASSISTANT" for keys
 	// the user created for the Polyester assistant; "PURPOSE_UNSPECIFIED" from
 	// a server that predates the field.

@@ -637,7 +637,11 @@ instead of failing. `APIKeys.List` and `APIKeys.Get` give each key's restriction
 (empty when none is attached, and then the key has no permissions),
 `SubaccountID` (empty for a main-account key), `IPWhitelist` (nil for no IP
 restriction) and `ExpiresAt`, the exact UTC time after which the key cannot
-authenticate (nil when it does not expire). The address book needs `READ_ADDRESS_BOOK` (or
+authenticate (nil when it does not expire). They also give `Icon` and `Color`,
+the user-chosen icon or emoji and color token, and `CreatedByActor`, the
+read-only label of who created the key, all as sent and empty when unset. The
+API-key subscriptions and the `APIKeys` of `SubAccounts.Get` read keys the same
+way. The address book needs `READ_ADDRESS_BOOK` (or
 `MANAGE_ADDRESS_BOOK`) for the main account's book as for a sub-account's;
 without it a read is refused with `AUTH_SUBACCOUNT_ACCESS_DENIED`. A key
 cannot read the Guard Signer status of a sub-account another main account
@@ -1431,6 +1435,11 @@ for _, bal := range balances.Balances {
 	fmt.Println(funding, trading)
 }
 ```
+
+`SubAccounts.Get` with `includeAPIKeys` also returns the API keys scoped to
+the sub-account in `APIKeys`, read as `APIKeys.List` reads them. The server
+sends them to an owner or admin of the sub-account only; `APIKeys` is nil when
+they were not asked for or none were sent.
 
 `SubAccounts.Get` with `includeBalances` also returns the sub-account's
 current balances in `Balances`, in the same shape (nil when not asked). It
