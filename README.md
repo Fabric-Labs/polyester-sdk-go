@@ -1031,8 +1031,22 @@ crosses back. It fires once, with `Status` `triggered`, `TriggeredAt` and
 `TriggeredPrice`; a late price or a stalled feed never fires it. Status
 values are `active`, `triggered` and `cancelled` (the contract's spelling).
 
+A price bound to a market (`models.MustPriceTicks(t).WithSymbol("ETH-USDT")`)
+is checked against the catalogs' name for the `SymbolID` sent, after a catalog
+load in progress ends. When the catalogs can't name that ID (none loaded, the
+load failed, or they don't list it), `Create` refuses a bound price with
+`*errors.ValidationError` before sending, whatever `Symbol` says. An unbound
+price works with any `SymbolID`. A `Create`, `Update` or `Cancel` answer
+without the alert, or with an alert that has no ID, returns
+`*errors.ResponseContractError` (`errors.MutationOutcomeUnknown` is true):
+read the alerts back rather than trusting it.
+
 `Update` sends only the fields you set (`Direction`, `Price`, `Channels`) and
-the `ExpectedRevision` you last read; a stale one is refused with
+the `ExpectedRevision` you last read. Its `Price` must be unbound
+(`models.PriceFromDecimal`, `models.PriceFromTicksInt`): a price bound to a
+market, including an alert's own `Price`, is refused with
+`*errors.ValidationError` before sending, since the update names the alert,
+not its market; a stale one is refused with
 `errors.AlertCodeRevisionConflict`, so read the alert again. An update that
 sets no field changes nothing on an active alert and sets a triggered one
 again as it is. `Outcome` reports `applied`, `unchanged` or `replayed` (the
