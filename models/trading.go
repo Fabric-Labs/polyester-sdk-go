@@ -57,6 +57,10 @@ type Order struct {
 	MarketMaxSlippageBps int32       `json:"market_max_slippage_bps,omitempty"`
 	// ExpireAt is the RFC3339 UTC expiry for GTD orders. Empty for every other TIF.
 	ExpireAt string `json:"expire_at,omitempty"`
+	// BatchRequestID is the public ID of the batch replace that admitted the
+	// order, as BatchReplaceOrdersResult.BatchRequestID; empty for every other
+	// origin.
+	BatchRequestID string `json:"batch_request_id,omitempty"`
 	// RejectReason is why a rejected order was refused, named as the order
 	// write API names the same refusal (for example "POST_ONLY_CROSS"). Empty
 	// for every other status.
@@ -876,12 +880,25 @@ type ApiKeySummary struct {
 	// Purpose is "STANDARD" for the user's own keys and "ASSISTANT" for keys
 	// the user created for the Polyester assistant; "PURPOSE_UNSPECIFIED" from
 	// a server that predates the field.
-	Purpose          string     `json:"purpose,omitempty"`
-	PublicKeyEd25519 string     `json:"public_key_ed25519,omitempty"`
-	Revision         uint64     `json:"revision,omitempty"`
-	CreatedAt        *time.Time `json:"created_at,omitempty"`
-	LastUsedAt       *time.Time `json:"last_used_at,omitempty"`
-	UpdatedAt        *time.Time `json:"updated_at,omitempty"`
+	Purpose          string `json:"purpose,omitempty"`
+	PublicKeyEd25519 string `json:"public_key_ed25519,omitempty"`
+	// SubaccountID is the public ID of the sub-account the key is scoped to;
+	// empty for a key of the main account.
+	SubaccountID string `json:"subaccount_id,omitempty"`
+	// PolicyID is the public ID of the API policy attached to the key, as
+	// ApiPolicy.PolicyID; empty when none is attached, and then the key has
+	// no permissions.
+	PolicyID string `json:"policy_id,omitempty"`
+	// IPWhitelist is the CIDR allowlist of the addresses the key may be used
+	// from, as sent; nil means no IP restriction.
+	IPWhitelist []string   `json:"ip_whitelist,omitempty"`
+	Revision    uint64     `json:"revision,omitempty"`
+	CreatedAt   *time.Time `json:"created_at,omitempty"`
+	LastUsedAt  *time.Time `json:"last_used_at,omitempty"`
+	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
+	// ExpiresAt is the exact UTC time after which the key cannot
+	// authenticate, whatever its status; nil when it does not expire.
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 }
 
 // ApiKeysList lists API keys.

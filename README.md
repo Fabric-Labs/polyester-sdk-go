@@ -70,6 +70,8 @@ create/update/delete) are wrapped. `new_tags` creates and attaches tags in the
 same protected update; when `tag_ids` is omitted, current tags are preserved
 and the new tags are appended. `GetView(..., minimumViewRevision)` omits the
 revision when it is 0; the view and invalidation payloads include
+`view_revision`. Each entry in the view's `Raw` keeps its own `revision`, the
+`expectedRevision` for updating that entry; it is not the view's
 `view_revision`. Twitter social-verification handles accept an
 optional leading `@` and are forwarded as-is.
 
@@ -630,7 +632,12 @@ policy, granted from an interactive session: `READ_API_KEYS`
 the invites of `SubAccounts.Get`) and `READ_GUARD_SIGNER_STATUS`
 (`GuardSigner.GetStatus`). A key without a policy has none of these, and
 `SubAccounts.Get` leaves out the members and invites a key may not read
-instead of failing. The address book needs `READ_ADDRESS_BOOK` (or
+instead of failing. `APIKeys.List` and `APIKeys.Get` give each key's restrictions:
+`PolicyID`, the public ID of the attached API policy as `ApiPolicy.PolicyID`
+(empty when none is attached, and then the key has no permissions),
+`SubaccountID` (empty for a main-account key), `IPWhitelist` (nil for no IP
+restriction) and `ExpiresAt`, the exact UTC time after which the key cannot
+authenticate (nil when it does not expire). The address book needs `READ_ADDRESS_BOOK` (or
 `MANAGE_ADDRESS_BOOK`) for the main account's book as for a sub-account's;
 without it a read is refused with `AUTH_SUBACCOUNT_ACCESS_DENIED`. A key
 cannot read the Guard Signer status of a sub-account another main account
@@ -873,6 +880,9 @@ wait polls through `UNAVAILABLE`, and through not found because an older API
 could answer it for a few seconds after admission. After the window, reconcile
 the individual orders with `Orders.Get` and never send an accepted batch again.
 An item's `UpdatedTsNs` is an observation time, not the refusal's identity.
+An order the batch admitted reads back from `Orders.Get`, `Orders.ListOpen`,
+`Orders.ListHistory` and `Orders.Subscribe` with `Order.BatchRequestID` set to
+the receipt's `BatchRequestID`; it is empty for an order of any other origin.
 `models.IsBatchReplaceSettled` tests the same condition on one status read.
 An item can be admitted and then refused when applied, for example a post-only
 order moved to a price that would cross: it reads `rejected`, changed nothing,

@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- **Breaking:** API keys read back with their restrictions and scope: `models.ApiKeySummary` gains `PolicyID`, the public ID of the attached API policy in the form of `models.ApiPolicy.PolicyID` (empty when none is attached, and then the key has no permissions); `SubaccountID`, the public ID of the sub-account the key is scoped to (empty for a key of the main account); `IPWhitelist`, the CIDR allowlist as sent (nil for no IP restriction); and `ExpiresAt`, the exact UTC `time.Time` after which the key cannot authenticate whatever its status (nil when it does not expire). They were dropped although the server sends them. They are encoded as `policy_id`, `subaccount_id`, `ip_whitelist` and `expires_at` in JSON when present. `PublicKeyEd25519` stays hex. Affected: `models.ApiKeySummary`, `APIKeys.List`, `APIKeys.Get`, `APIKeys.Subscribe`, `SubAccounts.SubscribeAPIKeys`, `decode.ApiKeysListFromProto`, `decode.ApiKeyFromGetProto`, `decode.ApiKeyMessageFromProto` and `decode.ApiKeyFromBytes`. Migration: an unkeyed `models.ApiKeySummary` struct literal no longer compiles; use keyed fields.
+- **Breaking:** An order admitted by a batch replace keeps that batch's ID: `models.Order` gains `BatchRequestID`, the public ID `Orders.BatchReplace` returned as `BatchReplaceOrdersResult.BatchRequestID`, exact for every 64-bit ID, and empty for an order of any other origin (the contract's 0), never `"0"`. It was dropped although the server sends it. It is encoded as `batch_request_id` in JSON when present. Affected: `models.Order`, `Orders.Get`, `Orders.ListOpen`, `Orders.ListHistory`, `Orders.Subscribe`, `decode.OrderFromProto`, `decode.OrdersFromProto` and `decode.GetOrderFromProto`. Migration: an unkeyed `models.Order` struct literal no longer compiles; use keyed fields.
+
 ## 0.24.0
 
 Git tag: `v0.24.0`. Released 2026-11-12. Built on public contract `e339360`.
