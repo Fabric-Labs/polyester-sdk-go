@@ -217,7 +217,7 @@ func (s *OrdersService) Create(ctx context.Context, req models.CreateOrderReques
 	if err != nil {
 		return models.OrderMutationResult{}, err
 	}
-	quoteScale, err := quoteQuantityScaleForOrderWrite(s.catalogs, req.Symbol, req.SymbolID, req.MaxQuoteDebitScaled.IsSet())
+	quoteScale, err := quoteQuantityScaleForOrderWrite(s.catalogs, req.Symbol, req.SymbolID, req.MaxQuoteDebitScaled.IsSet() || req.QuoteProceedsScaled.IsSet())
 	if err != nil {
 		return models.OrderMutationResult{}, err
 	}
@@ -470,7 +470,7 @@ func (s *OrdersService) BatchCreate(ctx context.Context, account AccountScope, i
 		if err != nil {
 			return models.BatchCreateOrdersResult{}, err
 		}
-		quote, err := quoteQuantityScaleForOrderWrite(s.catalogs, item.Symbol, item.SymbolID, item.MaxQuoteDebitScaled.IsSet())
+		quote, err := quoteQuantityScaleForOrderWrite(s.catalogs, item.Symbol, item.SymbolID, item.MaxQuoteDebitScaled.IsSet() || item.QuoteProceedsScaled.IsSet())
 		if err != nil {
 			return models.BatchCreateOrdersResult{}, err
 		}

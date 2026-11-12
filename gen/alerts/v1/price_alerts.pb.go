@@ -1313,17 +1313,17 @@ const file_alerts_v1_price_alerts_proto_rawDesc = "" +
 	"\x13CHANNEL_UNSPECIFIED\x10\x00\x12\n" +
 	"\n" +
 	"\x06IN_APP\x10\x01\x12\f\n" +
-	"\bTELEGRAM\x10\x022\x8e\x06\n" +
-	"\x11PriceAlertService\x12\xd2\x01\n" +
-	"\vCreateAlert\x12\x1d.alerts.v1.CreateAlertRequest\x1a\x1e.alerts.v1.CreateAlertResponse\"\x83\x01\xbaGz\n" +
-	"\x13Price Alert Service\x12\fCreate Alert\x1aUCreate a price alert that fires once when the market's price crosses the alert price.\xa2\xb5\x18\x02\x01\x02\x12\xa8\x01\n" +
+	"\bTELEGRAM\x10\x022\xc9\b\n" +
+	"\x11PriceAlertService\x12\xa1\x02\n" +
+	"\vCreateAlert\x12\x1d.alerts.v1.CreateAlertRequest\x1a\x1e.alerts.v1.CreateAlertResponse\"\xd2\x01\xbaG\xc8\x01\n" +
+	"\x13Price Alert Service\x12\fCreate Alert\x1a\xa2\x01Create a price alert that fires once when the market's price crosses the alert price. An API key needs MANAGE_PRICE_ALERTS and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x12\xf5\x01\n" +
 	"\n" +
-	"ListAlerts\x12\x1c.alerts.v1.ListAlertsRequest\x1a\x1d.alerts.v1.ListAlertsResponse\"]\xbaGQ\n" +
-	"\x13Price Alert Service\x12\vList Alerts\x1a-List the caller's price alerts, newest first.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\xcc\x01\n" +
-	"\vUpdateAlert\x12\x1d.alerts.v1.UpdateAlertRequest\x1a\x1e.alerts.v1.UpdateAlertResponse\"~\xbaGu\n" +
-	"\x13Price Alert Service\x12\fUpdate Alert\x1aPChange a price alert's direction, price or channels, or set a fired alert again.\xa2\xb5\x18\x02\x01\x02\x12\x9c\x01\n" +
-	"\vCancelAlert\x12\x1d.alerts.v1.CancelAlertRequest\x1a\x1e.alerts.v1.CancelAlertResponse\"N\xbaGB\n" +
-	"\x13Price Alert Service\x12\fCancel Alert\x1a\x1dCancel an active price alert.\xa2\xb5\x18\x02\x01\x02\x90\x02\x02\x1a\v\x8a\xb5\x18\aaccountB\xb8\x01\xbaGu:s\n" +
+	"ListAlerts\x12\x1c.alerts.v1.ListAlertsRequest\x1a\x1d.alerts.v1.ListAlertsResponse\"\xa9\x01\xbaG\x9c\x01\n" +
+	"\x13Price Alert Service\x12\vList Alerts\x1axList the caller's price alerts, newest first. An API key needs READ_PRICE_ALERTS and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\x9c\x02\n" +
+	"\vUpdateAlert\x12\x1d.alerts.v1.UpdateAlertRequest\x1a\x1e.alerts.v1.UpdateAlertResponse\"\xcd\x01\xbaG\xc3\x01\n" +
+	"\x13Price Alert Service\x12\fUpdate Alert\x1a\x9d\x01Change a price alert's direction, price or channels, or set a fired alert again. An API key needs MANAGE_PRICE_ALERTS and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x12\xeb\x01\n" +
+	"\vCancelAlert\x12\x1d.alerts.v1.CancelAlertRequest\x1a\x1e.alerts.v1.CancelAlertResponse\"\x9c\x01\xbaG\x8f\x01\n" +
+	"\x13Price Alert Service\x12\fCancel Alert\x1ajCancel an active price alert. An API key needs MANAGE_PRICE_ALERTS and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x02\x1a\v\x8a\xb5\x18\aaccountB\xb8\x01\xbaGu:s\n" +
 	"\x13Price Alert Service\x12\\Durable price alerts: a notification when a market's price crosses a level the caller chose.Z>github.com/Fabric-Labs/polyester-sdk-go/gen/alerts/v1;alertsv1b\x06proto3"
 
 var (

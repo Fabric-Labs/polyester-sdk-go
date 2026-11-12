@@ -60,16 +60,18 @@ type PriceAlertServiceClient interface {
 	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT; the original alert stands.
 	//   - UNAVAILABLE: PRICE_UNAVAILABLE or SERVICE_UNAVAILABLE; retry the same
 	//     request.
-	//   - PERMISSION_DENIED: SUBACCOUNT_KEY_REFUSED.
+	//   - PERMISSION_DENIED: SUBACCOUNT_KEY_REFUSED, or AUTH_API_KEY_ACCESS_DENIED
+	//     when the API key's policy does not grant MANAGE_PRICE_ALERTS.
 	//   - UNAUTHENTICATED: missing or invalid credentials.
 	CreateAlert(context.Context, *connect.Request[v1.CreateAlertRequest]) (*connect.Response[v1.CreateAlertResponse], error)
 	// ListAlerts lists the caller's alerts, newest first.
 	//
 	// Errors:
-	// - INVALID_ARGUMENT: malformed request or page token.
-	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
-	// - PERMISSION_DENIED: SUBACCOUNT_KEY_REFUSED.
-	// - UNAUTHENTICATED: missing or invalid credentials.
+	//   - INVALID_ARGUMENT: malformed request or page token.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
+	//   - PERMISSION_DENIED: SUBACCOUNT_KEY_REFUSED, or AUTH_API_KEY_ACCESS_DENIED
+	//     when the API key's policy does not grant READ_PRICE_ALERTS.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
 	ListAlerts(context.Context, *connect.Request[v1.ListAlertsRequest]) (*connect.Response[v1.ListAlertsResponse], error)
 	// UpdateAlert changes an alert's direction, price or channels. A change of
 	// direction or price records a new reference price, as creating does.
@@ -88,19 +90,21 @@ type PriceAlertServiceClient interface {
 	//   - FAILED_PRECONDITION: ALERT_CANCELLED, PRICE_SOURCE_UNSUPPORTED,
 	//     ALERT_LIMIT_REACHED or ALERT_UPDATE_LIMIT_REACHED.
 	//   - UNAVAILABLE: PRICE_UNAVAILABLE or SERVICE_UNAVAILABLE; retry.
-	//   - PERMISSION_DENIED: SUBACCOUNT_KEY_REFUSED.
+	//   - PERMISSION_DENIED: SUBACCOUNT_KEY_REFUSED, or AUTH_API_KEY_ACCESS_DENIED
+	//     when the API key's policy does not grant MANAGE_PRICE_ALERTS.
 	//   - UNAUTHENTICATED: missing or invalid credentials.
 	UpdateAlert(context.Context, *connect.Request[v1.UpdateAlertRequest]) (*connect.Response[v1.UpdateAlertResponse], error)
 	// CancelAlert cancels an active alert. Cancelling a cancelled alert returns
 	// it unchanged.
 	//
 	// Errors:
-	// - INVALID_ARGUMENT: malformed request.
-	// - NOT_FOUND: ALERT_NOT_FOUND.
-	// - FAILED_PRECONDITION: ALERT_TRIGGERED; the alert already fired.
-	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
-	// - PERMISSION_DENIED: SUBACCOUNT_KEY_REFUSED.
-	// - UNAUTHENTICATED: missing or invalid credentials.
+	//   - INVALID_ARGUMENT: malformed request.
+	//   - NOT_FOUND: ALERT_NOT_FOUND.
+	//   - FAILED_PRECONDITION: ALERT_TRIGGERED; the alert already fired.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
+	//   - PERMISSION_DENIED: SUBACCOUNT_KEY_REFUSED, or AUTH_API_KEY_ACCESS_DENIED
+	//     when the API key's policy does not grant MANAGE_PRICE_ALERTS.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
 	CancelAlert(context.Context, *connect.Request[v1.CancelAlertRequest]) (*connect.Response[v1.CancelAlertResponse], error)
 }
 
@@ -185,16 +189,18 @@ type PriceAlertServiceHandler interface {
 	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT; the original alert stands.
 	//   - UNAVAILABLE: PRICE_UNAVAILABLE or SERVICE_UNAVAILABLE; retry the same
 	//     request.
-	//   - PERMISSION_DENIED: SUBACCOUNT_KEY_REFUSED.
+	//   - PERMISSION_DENIED: SUBACCOUNT_KEY_REFUSED, or AUTH_API_KEY_ACCESS_DENIED
+	//     when the API key's policy does not grant MANAGE_PRICE_ALERTS.
 	//   - UNAUTHENTICATED: missing or invalid credentials.
 	CreateAlert(context.Context, *connect.Request[v1.CreateAlertRequest]) (*connect.Response[v1.CreateAlertResponse], error)
 	// ListAlerts lists the caller's alerts, newest first.
 	//
 	// Errors:
-	// - INVALID_ARGUMENT: malformed request or page token.
-	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
-	// - PERMISSION_DENIED: SUBACCOUNT_KEY_REFUSED.
-	// - UNAUTHENTICATED: missing or invalid credentials.
+	//   - INVALID_ARGUMENT: malformed request or page token.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
+	//   - PERMISSION_DENIED: SUBACCOUNT_KEY_REFUSED, or AUTH_API_KEY_ACCESS_DENIED
+	//     when the API key's policy does not grant READ_PRICE_ALERTS.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
 	ListAlerts(context.Context, *connect.Request[v1.ListAlertsRequest]) (*connect.Response[v1.ListAlertsResponse], error)
 	// UpdateAlert changes an alert's direction, price or channels. A change of
 	// direction or price records a new reference price, as creating does.
@@ -213,19 +219,21 @@ type PriceAlertServiceHandler interface {
 	//   - FAILED_PRECONDITION: ALERT_CANCELLED, PRICE_SOURCE_UNSUPPORTED,
 	//     ALERT_LIMIT_REACHED or ALERT_UPDATE_LIMIT_REACHED.
 	//   - UNAVAILABLE: PRICE_UNAVAILABLE or SERVICE_UNAVAILABLE; retry.
-	//   - PERMISSION_DENIED: SUBACCOUNT_KEY_REFUSED.
+	//   - PERMISSION_DENIED: SUBACCOUNT_KEY_REFUSED, or AUTH_API_KEY_ACCESS_DENIED
+	//     when the API key's policy does not grant MANAGE_PRICE_ALERTS.
 	//   - UNAUTHENTICATED: missing or invalid credentials.
 	UpdateAlert(context.Context, *connect.Request[v1.UpdateAlertRequest]) (*connect.Response[v1.UpdateAlertResponse], error)
 	// CancelAlert cancels an active alert. Cancelling a cancelled alert returns
 	// it unchanged.
 	//
 	// Errors:
-	// - INVALID_ARGUMENT: malformed request.
-	// - NOT_FOUND: ALERT_NOT_FOUND.
-	// - FAILED_PRECONDITION: ALERT_TRIGGERED; the alert already fired.
-	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
-	// - PERMISSION_DENIED: SUBACCOUNT_KEY_REFUSED.
-	// - UNAUTHENTICATED: missing or invalid credentials.
+	//   - INVALID_ARGUMENT: malformed request.
+	//   - NOT_FOUND: ALERT_NOT_FOUND.
+	//   - FAILED_PRECONDITION: ALERT_TRIGGERED; the alert already fired.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
+	//   - PERMISSION_DENIED: SUBACCOUNT_KEY_REFUSED, or AUTH_API_KEY_ACCESS_DENIED
+	//     when the API key's policy does not grant MANAGE_PRICE_ALERTS.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
 	CancelAlert(context.Context, *connect.Request[v1.CancelAlertRequest]) (*connect.Response[v1.CancelAlertResponse], error)
 }
 

@@ -25,12 +25,15 @@ func scaleQty(q models.QtyScaled, scales BaseQuantityScales) models.QtyScaled {
 }
 
 // ScaleOrder attaches the pair's base quantity scale to an order's
-// quantities: OrigQty, CumQty, InheritedCumQty, LeavesQty and FeeTotal.Qty.
+// quantities: OrigQty, CumQty, InheritedCumQty, LeavesQty, DisplayQty,
+// HiddenQty and FeeTotal.Qty.
 func ScaleOrder(order models.Order, scales BaseQuantityScales) models.Order {
 	order.OrigQty = scaleQty(order.OrigQty, scales)
 	order.CumQty = scaleQty(order.CumQty, scales)
 	order.InheritedCumQty = scaleQty(order.InheritedCumQty, scales)
 	order.LeavesQty = scaleQty(order.LeavesQty, scales)
+	order.DisplayQty = scaleQty(order.DisplayQty, scales)
+	order.HiddenQty = scaleQty(order.HiddenQty, scales)
 	if order.FeeTotal != nil {
 		fee := *order.FeeTotal
 		fee.Qty = scaleQty(fee.Qty, scales)

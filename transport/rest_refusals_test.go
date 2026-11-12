@@ -8,8 +8,10 @@ import (
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 )
 
-// POLY-8757: a REST 403 that names a service refusal is an AuthError with that
-// code and the problem's detail, as the Python and Rust SDKs report it.
+// A REST 403 that names a service refusal is an AuthError with that code and
+// the problem's detail. An order refusal's code is spelled as its ConnectRPC
+// detail spells it (ERROR_CODE_SUBACCOUNT_READ_FORBIDDEN), so both transports
+// return the same code; the problem keeps the code as sent.
 func TestPoly8757RESTServiceRefusalKeepsItsCode(t *testing.T) {
 	for _, code := range []string{"SUBACCOUNT_READ_FORBIDDEN", "QUICKSWAP_NOT_PERMITTED"} {
 		err := callMeAgainst(t, http.StatusForbidden, "application/problem+json",
@@ -18,7 +20,7 @@ func TestPoly8757RESTServiceRefusalKeepsItsCode(t *testing.T) {
 		if !errors.As(err, &auth) {
 			t.Fatalf("%s: got %T %v", code, err, err)
 		}
-		if auth.Code != code || auth.Status != http.StatusForbidden || auth.Msg != "not allowed" {
+		if auth.Code != "ERROR_CODE_"+code || auth.Status != http.StatusForbidden || auth.Msg != "not allowed" {
 			t.Fatalf("%s: got %+v", code, auth)
 		}
 		if auth.Problem == nil || auth.Problem.Code != code {

@@ -10,6 +10,7 @@ import (
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	triggersv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var triggerStatusLabels = map[triggersv1.TriggerStatus]string{
@@ -160,6 +161,8 @@ func stpModeLabel(v orderv1.SelfTradePreventionMode) string {
 		return "expire_maker"
 	case orderv1.SelfTradePreventionMode_EXPIRE_BOTH:
 		return "expire_both"
+	case orderv1.SelfTradePreventionMode_DECREMENT:
+		return "decrement"
 	default:
 		return ""
 	}
@@ -410,6 +413,10 @@ func TriggerFromProto(msg *triggersv1.Trigger) models.Trigger {
 	if msg.ParentOrderId != nil {
 		parentOrderID = codecs.FormatUint64ID(msg.GetParentOrderId())
 	}
+	var orderListID string
+	if msg.OrderListId != nil {
+		orderListID = codecs.FormatUint64ID(msg.GetOrderListId())
+	}
 	cancelReason, failureReason := triggerReasonsFromTrigger(msg)
 	maxSlippage, maxSlippageBps := triggerSlippageCap(msg)
 	return models.Trigger{
@@ -420,6 +427,8 @@ func TriggerFromProto(msg *triggersv1.Trigger) models.Trigger {
 		TriggerType:             triggerType,
 		Status:                  TriggerStatusLabel(msg.GetStatus()),
 		ParentOrderID:           parentOrderID,
+		OrderListID:             orderListID,
+		ClientListID:            msg.GetClientListId(),
 		Side:                    side,
 		OrderType:               orderType,
 		TimeInForce:             tif,
@@ -494,6 +503,83 @@ func TriggerMutationFromResume(msg *triggersv1.ResumeTriggerResponse) models.Tri
 // TriggerMutationFromModify decodes modify trigger response.
 func TriggerMutationFromModify(msg *triggersv1.ModifyTriggerResponse) models.TriggerMutationResult {
 	return triggerMutationResult(msg.GetTriggerId(), msg.GetStatus())
+}
+
+// CreateOcoFromProto decodes an OCO create response.
+func CreateOcoFromProto(msg *triggersv1.CreateOcoResponse) models.CreateOcoResult {
+	return models.CreateOcoResult{
+		OrderListID:         codecs.FormatUint64ID(msg.GetOrderListId()),
+		ClientListID:        msg.GetClientListId(),
+		TakeProfitTriggerID: codecs.FormatUint64ID(msg.GetTakeProfitTriggerId()),
+		StopLossTriggerID:   codecs.FormatUint64ID(msg.GetStopLossTriggerId()),
+		AcceptedTsNs:        pairedTsNs(msg.GetAcceptedAtTsNs(), msg.GetAcceptedAt()),
+	}
+}
+
+// pairedTsNs is a response time in nanoseconds since the Unix epoch: the
+// exact *_ts_ns field, or its paired Timestamp when the server left the
+// nanosecond field unset. 0 when both are unset or the time is before the
+// epoch.
+func pairedTsNs(tsNs uint64, ts *timestamppb.Timestamp) uint64 {
+	if tsNs != 0 || ts == nil || !ts.IsValid() {
+		return tsNs
+	}
+	nanos := ts.AsTime().UnixNano()
+	if nanos <= 0 {
+		return 0
+	}
+	return uint64(nanos)
+}
+
+// CancelOcoFromProto decodes an OCO cancel response.
+func CancelOcoFromProto(msg *triggersv1.CancelOcoResponse) models.CancelOcoResult {
+	return models.CancelOcoResult{
+		OrderListID: codecs.FormatUint64ID(msg.GetOrderListId()),
+		Status:      TriggerStatusLabel(msg.GetStatus()),
+		TsNs:        pairedTsNs(msg.GetTsNs(), msg.GetTs()),
+	}
+}
+
+// BatchCancelTriggersFromProto decodes a batch trigger cancel response. It
+// refuses a response whose item outcomes are unknown or disagree with its
+// counts.
+func BatchCancelTriggersFromProto(msg *triggersv1.BatchCancelTriggersResponse) (models.BatchCancelTriggersResult, error) {
+	results := make([]models.BatchCancelTriggersResultItem, 0, len(msg.GetResults()))
+	decodedAccepted, decodedRejected := 0, 0
+	for _, item := range msg.GetResults() {
+		var status string
+		switch item.GetStatus() {
+		case triggersv1.BatchCancelTriggersResultItem_ACCEPTED:
+			status = "accepted"
+			decodedAccepted++
+		case triggersv1.BatchCancelTriggersResultItem_REJECTED:
+			status = "rejected"
+			decodedRejected++
+		default:
+			return models.BatchCancelTriggersResult{}, &sdkerrors.ResponseContractError{Operation: "BatchCancelTriggers",
+				Msg: fmt.Sprintf("batch trigger cancel response has unknown status: %d", item.GetStatus()),
+			}
+		}
+		results = append(results, models.BatchCancelTriggersResultItem{
+			Status:     status,
+			TriggerID:  codecs.FormatUint64ID(item.GetTriggerId()),
+			Code:       item.GetCode(),
+			RateLimit:  RateLimitDetailFromProto(item.GetError().GetRateLimit()),
+			Violations: fieldViolationsFromProto(item.GetError()),
+		})
+	}
+	accepted := int(msg.GetAcceptedCount())
+	rejected := int(msg.GetRejectedCount())
+	if accepted != decodedAccepted || rejected != decodedRejected || accepted+rejected != len(results) {
+		return models.BatchCancelTriggersResult{}, &sdkerrors.ResponseContractError{Operation: "BatchCancelTriggers", Msg: fmt.Sprintf(
+			"batch trigger cancel response counts do not match decoded outcomes: accepted=%d/%d rejected=%d/%d results=%d",
+			accepted, decodedAccepted, rejected, decodedRejected, len(results),
+		)}
+	}
+	return models.BatchCancelTriggersResult{
+		Results: results, AcceptedCount: accepted, RejectedCount: rejected,
+		TsNs: pairedTsNs(msg.GetTsNs(), msg.GetTs()),
+	}, nil
 }
 
 // TriggerEventsListFromProto decodes list trigger events response.

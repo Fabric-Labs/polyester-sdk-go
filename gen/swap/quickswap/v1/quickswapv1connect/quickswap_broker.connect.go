@@ -108,6 +108,18 @@ const (
 	// QuickSwapBrokerServiceListVaultPayoutRulesProcedure is the fully-qualified name of the
 	// QuickSwapBrokerService's ListVaultPayoutRules RPC.
 	QuickSwapBrokerServiceListVaultPayoutRulesProcedure = "/swap.quickswap.v1.QuickSwapBrokerService/ListVaultPayoutRules"
+	// QuickSwapBrokerServiceListVaultLedgerProcedure is the fully-qualified name of the
+	// QuickSwapBrokerService's ListVaultLedger RPC.
+	QuickSwapBrokerServiceListVaultLedgerProcedure = "/swap.quickswap.v1.QuickSwapBrokerService/ListVaultLedger"
+	// QuickSwapBrokerServiceListVaultAllowlistProcedure is the fully-qualified name of the
+	// QuickSwapBrokerService's ListVaultAllowlist RPC.
+	QuickSwapBrokerServiceListVaultAllowlistProcedure = "/swap.quickswap.v1.QuickSwapBrokerService/ListVaultAllowlist"
+	// QuickSwapBrokerServiceListVaultAllowlistChangesProcedure is the fully-qualified name of the
+	// QuickSwapBrokerService's ListVaultAllowlistChanges RPC.
+	QuickSwapBrokerServiceListVaultAllowlistChangesProcedure = "/swap.quickswap.v1.QuickSwapBrokerService/ListVaultAllowlistChanges"
+	// QuickSwapBrokerServiceRequestVaultAllowlistChangeProcedure is the fully-qualified name of the
+	// QuickSwapBrokerService's RequestVaultAllowlistChange RPC.
+	QuickSwapBrokerServiceRequestVaultAllowlistChangeProcedure = "/swap.quickswap.v1.QuickSwapBrokerService/RequestVaultAllowlistChange"
 )
 
 // QuickSwapBrokerServiceClient is a client for the swap.quickswap.v1.QuickSwapBrokerService
@@ -315,6 +327,59 @@ type QuickSwapBrokerServiceClient interface {
 	//   - UNAVAILABLE: a rule or balance cannot be read; no partial page is
 	//     returned.
 	ListVaultPayoutRules(context.Context, *connect.Request[v1.ListVaultPayoutRulesRequest]) (*connect.Response[v1.ListVaultPayoutRulesResponse], error)
+	// ListVaultLedger lists the movements of the broker's vaults' funds,
+	// newest first: each fee a QuickSwap credited, each payout that left a
+	// vault with how it ended, and each refund of a rejected payout to the
+	// vault's smart account. It carries no running balance; read the current
+	// balance with ListVaultBalances. Every broker role and the broker's API
+	// keys can read, without step-up.
+	//
+	// Errors:
+	//   - NOT_FOUND: BROKER_NOT_FOUND, or VAULT_NOT_FOUND for a vault that is
+	//     not the broker's.
+	//   - INVALID_ARGUMENT: a page_token from another broker, other filters or
+	//     malformed.
+	//   - UNAVAILABLE: the ledger cannot be read; retry the same request.
+	ListVaultLedger(context.Context, *connect.Request[v1.ListVaultLedgerRequest]) (*connect.Response[v1.ListVaultLedgerResponse], error)
+	// ListVaultAllowlist reads one vault's payout address allowlist: the
+	// destinations its payouts and withdrawals may pay, each with when it
+	// becomes payable. A destination is payable 24 hours after it is listed.
+	// Every broker role and the broker's API keys can read, without step-up.
+	//
+	// Errors:
+	//   - NOT_FOUND: BROKER_NOT_FOUND or VAULT_NOT_FOUND.
+	//   - UNAVAILABLE: the allowlist or the vault's payout rule cannot be read;
+	//     no partial list is returned.
+	ListVaultAllowlist(context.Context, *connect.Request[v1.ListVaultAllowlistRequest]) (*connect.Response[v1.ListVaultAllowlistResponse], error)
+	// ListVaultAllowlistChanges lists one vault's payout address allowlist
+	// changes, newest first, pending ones included. Every broker role and the
+	// broker's API keys can read, without step-up.
+	//
+	// Errors:
+	//   - NOT_FOUND: BROKER_NOT_FOUND or VAULT_NOT_FOUND.
+	//   - INVALID_ARGUMENT: a page_token from another broker or vault, or
+	//     malformed.
+	ListVaultAllowlistChanges(context.Context, *connect.Request[v1.ListVaultAllowlistChangesRequest]) (*connect.Response[v1.ListVaultAllowlistChangesResponse], error)
+	// RequestVaultAllowlistChange asks to add one destination to, or remove
+	// one from, a vault's payout address allowlist. Only Owner and Finance
+	// members can, each change with its own fresh step-up proof. The change
+	// is returned PENDING; ListVaultAllowlistChanges shows how it ends. A
+	// vault has at most one pending change. An added
+	// destination becomes payable 24 hours after it is listed
+	// (VaultAllowlistEntry.payable_from).
+	//
+	// Errors:
+	//   - NOT_FOUND: BROKER_NOT_FOUND or VAULT_NOT_FOUND;
+	//     ALLOWLIST_DESTINATION_NOT_LISTED for a removal.
+	//   - PERMISSION_DENIED: ACTION_DENIED or STEP_UP_REQUIRED.
+	//   - INVALID_ARGUMENT: ALLOWLIST_DESTINATION_INVALID, or a label on a
+	//     removal or with leading or trailing whitespace.
+	//   - ALREADY_EXISTS: ALLOWLIST_DESTINATION_EXISTS.
+	//   - FAILED_PRECONDITION: ALLOWLIST_FULL, ALLOWLIST_DESTINATION_IN_USE,
+	//     ALLOWLIST_CHANGE_PENDING or VAULT_ALLOWLIST_NOT_READY.
+	//   - UNAVAILABLE: outcome unknown; read ListVaultAllowlistChanges before
+	//     requesting again.
+	RequestVaultAllowlistChange(context.Context, *connect.Request[v1.RequestVaultAllowlistChangeRequest]) (*connect.Response[v1.RequestVaultAllowlistChangeResponse], error)
 }
 
 // NewQuickSwapBrokerServiceClient constructs a client for the
@@ -478,36 +543,64 @@ func NewQuickSwapBrokerServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithSchema(quickSwapBrokerServiceMethods.ByName("ListVaultPayoutRules")),
 			connect.WithClientOptions(opts...),
 		),
+		listVaultLedger: connect.NewClient[v1.ListVaultLedgerRequest, v1.ListVaultLedgerResponse](
+			httpClient,
+			baseURL+QuickSwapBrokerServiceListVaultLedgerProcedure,
+			connect.WithSchema(quickSwapBrokerServiceMethods.ByName("ListVaultLedger")),
+			connect.WithClientOptions(opts...),
+		),
+		listVaultAllowlist: connect.NewClient[v1.ListVaultAllowlistRequest, v1.ListVaultAllowlistResponse](
+			httpClient,
+			baseURL+QuickSwapBrokerServiceListVaultAllowlistProcedure,
+			connect.WithSchema(quickSwapBrokerServiceMethods.ByName("ListVaultAllowlist")),
+			connect.WithClientOptions(opts...),
+		),
+		listVaultAllowlistChanges: connect.NewClient[v1.ListVaultAllowlistChangesRequest, v1.ListVaultAllowlistChangesResponse](
+			httpClient,
+			baseURL+QuickSwapBrokerServiceListVaultAllowlistChangesProcedure,
+			connect.WithSchema(quickSwapBrokerServiceMethods.ByName("ListVaultAllowlistChanges")),
+			connect.WithClientOptions(opts...),
+		),
+		requestVaultAllowlistChange: connect.NewClient[v1.RequestVaultAllowlistChangeRequest, v1.RequestVaultAllowlistChangeResponse](
+			httpClient,
+			baseURL+QuickSwapBrokerServiceRequestVaultAllowlistChangeProcedure,
+			connect.WithSchema(quickSwapBrokerServiceMethods.ByName("RequestVaultAllowlistChange")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // quickSwapBrokerServiceClient implements QuickSwapBrokerServiceClient.
 type quickSwapBrokerServiceClient struct {
-	getBroker            *connect.Client[v1.GetBrokerRequest, v1.GetBrokerResponse]
-	listVaultBalances    *connect.Client[v1.ListVaultBalancesRequest, v1.ListVaultBalancesResponse]
-	listMyBrokers        *connect.Client[v1.ListMyBrokersRequest, v1.ListMyBrokersResponse]
-	respondToInvite      *connect.Client[v1.RespondToInviteRequest, v1.RespondToInviteResponse]
-	listMembers          *connect.Client[v1.ListMembersRequest, v1.ListMembersResponse]
-	inviteMember         *connect.Client[v1.InviteMemberRequest, v1.InviteMemberResponse]
-	setMemberRole        *connect.Client[v1.SetMemberRoleRequest, v1.SetMemberRoleResponse]
-	removeMember         *connect.Client[v1.RemoveMemberRequest, v1.RemoveMemberResponse]
-	transferOwnership    *connect.Client[v1.TransferOwnershipRequest, v1.TransferOwnershipResponse]
-	listKeys             *connect.Client[v1.ListKeysRequest, v1.ListKeysResponse]
-	createKey            *connect.Client[v1.CreateKeyRequest, v1.CreateKeyResponse]
-	rotateKey            *connect.Client[v1.RotateKeyRequest, v1.RotateKeyResponse]
-	revokeKey            *connect.Client[v1.RevokeKeyRequest, v1.RevokeKeyResponse]
-	createAffiliateVault *connect.Client[v1.CreateAffiliateVaultRequest, v1.CreateAffiliateVaultResponse]
-	listVaults           *connect.Client[v1.ListVaultsRequest, v1.ListVaultsResponse]
-	getVault             *connect.Client[v1.GetVaultRequest, v1.GetVaultResponse]
-	setVaultStatus       *connect.Client[v1.SetVaultStatusRequest, v1.SetVaultStatusResponse]
-	listQuickSwaps       *connect.Client[v1.ListQuickSwapsRequest, v1.ListQuickSwapsResponse]
-	getQuickSwap         *connect.Client[v1.QuickSwapBrokerServiceGetQuickSwapRequest, v1.QuickSwapBrokerServiceGetQuickSwapResponse]
-	getFeeTotals         *connect.Client[v1.GetFeeTotalsRequest, v1.GetFeeTotalsResponse]
-	getBrokerStats       *connect.Client[v1.GetBrokerStatsRequest, v1.GetBrokerStatsResponse]
-	listPayouts          *connect.Client[v1.ListPayoutsRequest, v1.ListPayoutsResponse]
-	getPayout            *connect.Client[v1.GetPayoutRequest, v1.GetPayoutResponse]
-	listUpcomingPayouts  *connect.Client[v1.ListUpcomingPayoutsRequest, v1.ListUpcomingPayoutsResponse]
-	listVaultPayoutRules *connect.Client[v1.ListVaultPayoutRulesRequest, v1.ListVaultPayoutRulesResponse]
+	getBroker                   *connect.Client[v1.GetBrokerRequest, v1.GetBrokerResponse]
+	listVaultBalances           *connect.Client[v1.ListVaultBalancesRequest, v1.ListVaultBalancesResponse]
+	listMyBrokers               *connect.Client[v1.ListMyBrokersRequest, v1.ListMyBrokersResponse]
+	respondToInvite             *connect.Client[v1.RespondToInviteRequest, v1.RespondToInviteResponse]
+	listMembers                 *connect.Client[v1.ListMembersRequest, v1.ListMembersResponse]
+	inviteMember                *connect.Client[v1.InviteMemberRequest, v1.InviteMemberResponse]
+	setMemberRole               *connect.Client[v1.SetMemberRoleRequest, v1.SetMemberRoleResponse]
+	removeMember                *connect.Client[v1.RemoveMemberRequest, v1.RemoveMemberResponse]
+	transferOwnership           *connect.Client[v1.TransferOwnershipRequest, v1.TransferOwnershipResponse]
+	listKeys                    *connect.Client[v1.ListKeysRequest, v1.ListKeysResponse]
+	createKey                   *connect.Client[v1.CreateKeyRequest, v1.CreateKeyResponse]
+	rotateKey                   *connect.Client[v1.RotateKeyRequest, v1.RotateKeyResponse]
+	revokeKey                   *connect.Client[v1.RevokeKeyRequest, v1.RevokeKeyResponse]
+	createAffiliateVault        *connect.Client[v1.CreateAffiliateVaultRequest, v1.CreateAffiliateVaultResponse]
+	listVaults                  *connect.Client[v1.ListVaultsRequest, v1.ListVaultsResponse]
+	getVault                    *connect.Client[v1.GetVaultRequest, v1.GetVaultResponse]
+	setVaultStatus              *connect.Client[v1.SetVaultStatusRequest, v1.SetVaultStatusResponse]
+	listQuickSwaps              *connect.Client[v1.ListQuickSwapsRequest, v1.ListQuickSwapsResponse]
+	getQuickSwap                *connect.Client[v1.QuickSwapBrokerServiceGetQuickSwapRequest, v1.QuickSwapBrokerServiceGetQuickSwapResponse]
+	getFeeTotals                *connect.Client[v1.GetFeeTotalsRequest, v1.GetFeeTotalsResponse]
+	getBrokerStats              *connect.Client[v1.GetBrokerStatsRequest, v1.GetBrokerStatsResponse]
+	listPayouts                 *connect.Client[v1.ListPayoutsRequest, v1.ListPayoutsResponse]
+	getPayout                   *connect.Client[v1.GetPayoutRequest, v1.GetPayoutResponse]
+	listUpcomingPayouts         *connect.Client[v1.ListUpcomingPayoutsRequest, v1.ListUpcomingPayoutsResponse]
+	listVaultPayoutRules        *connect.Client[v1.ListVaultPayoutRulesRequest, v1.ListVaultPayoutRulesResponse]
+	listVaultLedger             *connect.Client[v1.ListVaultLedgerRequest, v1.ListVaultLedgerResponse]
+	listVaultAllowlist          *connect.Client[v1.ListVaultAllowlistRequest, v1.ListVaultAllowlistResponse]
+	listVaultAllowlistChanges   *connect.Client[v1.ListVaultAllowlistChangesRequest, v1.ListVaultAllowlistChangesResponse]
+	requestVaultAllowlistChange *connect.Client[v1.RequestVaultAllowlistChangeRequest, v1.RequestVaultAllowlistChangeResponse]
 }
 
 // GetBroker calls swap.quickswap.v1.QuickSwapBrokerService.GetBroker.
@@ -633,6 +726,28 @@ func (c *quickSwapBrokerServiceClient) ListUpcomingPayouts(ctx context.Context, 
 // ListVaultPayoutRules calls swap.quickswap.v1.QuickSwapBrokerService.ListVaultPayoutRules.
 func (c *quickSwapBrokerServiceClient) ListVaultPayoutRules(ctx context.Context, req *connect.Request[v1.ListVaultPayoutRulesRequest]) (*connect.Response[v1.ListVaultPayoutRulesResponse], error) {
 	return c.listVaultPayoutRules.CallUnary(ctx, req)
+}
+
+// ListVaultLedger calls swap.quickswap.v1.QuickSwapBrokerService.ListVaultLedger.
+func (c *quickSwapBrokerServiceClient) ListVaultLedger(ctx context.Context, req *connect.Request[v1.ListVaultLedgerRequest]) (*connect.Response[v1.ListVaultLedgerResponse], error) {
+	return c.listVaultLedger.CallUnary(ctx, req)
+}
+
+// ListVaultAllowlist calls swap.quickswap.v1.QuickSwapBrokerService.ListVaultAllowlist.
+func (c *quickSwapBrokerServiceClient) ListVaultAllowlist(ctx context.Context, req *connect.Request[v1.ListVaultAllowlistRequest]) (*connect.Response[v1.ListVaultAllowlistResponse], error) {
+	return c.listVaultAllowlist.CallUnary(ctx, req)
+}
+
+// ListVaultAllowlistChanges calls
+// swap.quickswap.v1.QuickSwapBrokerService.ListVaultAllowlistChanges.
+func (c *quickSwapBrokerServiceClient) ListVaultAllowlistChanges(ctx context.Context, req *connect.Request[v1.ListVaultAllowlistChangesRequest]) (*connect.Response[v1.ListVaultAllowlistChangesResponse], error) {
+	return c.listVaultAllowlistChanges.CallUnary(ctx, req)
+}
+
+// RequestVaultAllowlistChange calls
+// swap.quickswap.v1.QuickSwapBrokerService.RequestVaultAllowlistChange.
+func (c *quickSwapBrokerServiceClient) RequestVaultAllowlistChange(ctx context.Context, req *connect.Request[v1.RequestVaultAllowlistChangeRequest]) (*connect.Response[v1.RequestVaultAllowlistChangeResponse], error) {
+	return c.requestVaultAllowlistChange.CallUnary(ctx, req)
 }
 
 // QuickSwapBrokerServiceHandler is an implementation of the
@@ -840,6 +955,59 @@ type QuickSwapBrokerServiceHandler interface {
 	//   - UNAVAILABLE: a rule or balance cannot be read; no partial page is
 	//     returned.
 	ListVaultPayoutRules(context.Context, *connect.Request[v1.ListVaultPayoutRulesRequest]) (*connect.Response[v1.ListVaultPayoutRulesResponse], error)
+	// ListVaultLedger lists the movements of the broker's vaults' funds,
+	// newest first: each fee a QuickSwap credited, each payout that left a
+	// vault with how it ended, and each refund of a rejected payout to the
+	// vault's smart account. It carries no running balance; read the current
+	// balance with ListVaultBalances. Every broker role and the broker's API
+	// keys can read, without step-up.
+	//
+	// Errors:
+	//   - NOT_FOUND: BROKER_NOT_FOUND, or VAULT_NOT_FOUND for a vault that is
+	//     not the broker's.
+	//   - INVALID_ARGUMENT: a page_token from another broker, other filters or
+	//     malformed.
+	//   - UNAVAILABLE: the ledger cannot be read; retry the same request.
+	ListVaultLedger(context.Context, *connect.Request[v1.ListVaultLedgerRequest]) (*connect.Response[v1.ListVaultLedgerResponse], error)
+	// ListVaultAllowlist reads one vault's payout address allowlist: the
+	// destinations its payouts and withdrawals may pay, each with when it
+	// becomes payable. A destination is payable 24 hours after it is listed.
+	// Every broker role and the broker's API keys can read, without step-up.
+	//
+	// Errors:
+	//   - NOT_FOUND: BROKER_NOT_FOUND or VAULT_NOT_FOUND.
+	//   - UNAVAILABLE: the allowlist or the vault's payout rule cannot be read;
+	//     no partial list is returned.
+	ListVaultAllowlist(context.Context, *connect.Request[v1.ListVaultAllowlistRequest]) (*connect.Response[v1.ListVaultAllowlistResponse], error)
+	// ListVaultAllowlistChanges lists one vault's payout address allowlist
+	// changes, newest first, pending ones included. Every broker role and the
+	// broker's API keys can read, without step-up.
+	//
+	// Errors:
+	//   - NOT_FOUND: BROKER_NOT_FOUND or VAULT_NOT_FOUND.
+	//   - INVALID_ARGUMENT: a page_token from another broker or vault, or
+	//     malformed.
+	ListVaultAllowlistChanges(context.Context, *connect.Request[v1.ListVaultAllowlistChangesRequest]) (*connect.Response[v1.ListVaultAllowlistChangesResponse], error)
+	// RequestVaultAllowlistChange asks to add one destination to, or remove
+	// one from, a vault's payout address allowlist. Only Owner and Finance
+	// members can, each change with its own fresh step-up proof. The change
+	// is returned PENDING; ListVaultAllowlistChanges shows how it ends. A
+	// vault has at most one pending change. An added
+	// destination becomes payable 24 hours after it is listed
+	// (VaultAllowlistEntry.payable_from).
+	//
+	// Errors:
+	//   - NOT_FOUND: BROKER_NOT_FOUND or VAULT_NOT_FOUND;
+	//     ALLOWLIST_DESTINATION_NOT_LISTED for a removal.
+	//   - PERMISSION_DENIED: ACTION_DENIED or STEP_UP_REQUIRED.
+	//   - INVALID_ARGUMENT: ALLOWLIST_DESTINATION_INVALID, or a label on a
+	//     removal or with leading or trailing whitespace.
+	//   - ALREADY_EXISTS: ALLOWLIST_DESTINATION_EXISTS.
+	//   - FAILED_PRECONDITION: ALLOWLIST_FULL, ALLOWLIST_DESTINATION_IN_USE,
+	//     ALLOWLIST_CHANGE_PENDING or VAULT_ALLOWLIST_NOT_READY.
+	//   - UNAVAILABLE: outcome unknown; read ListVaultAllowlistChanges before
+	//     requesting again.
+	RequestVaultAllowlistChange(context.Context, *connect.Request[v1.RequestVaultAllowlistChangeRequest]) (*connect.Response[v1.RequestVaultAllowlistChangeResponse], error)
 }
 
 // NewQuickSwapBrokerServiceHandler builds an HTTP handler from the service implementation. It
@@ -999,6 +1167,30 @@ func NewQuickSwapBrokerServiceHandler(svc QuickSwapBrokerServiceHandler, opts ..
 		connect.WithSchema(quickSwapBrokerServiceMethods.ByName("ListVaultPayoutRules")),
 		connect.WithHandlerOptions(opts...),
 	)
+	quickSwapBrokerServiceListVaultLedgerHandler := connect.NewUnaryHandler(
+		QuickSwapBrokerServiceListVaultLedgerProcedure,
+		svc.ListVaultLedger,
+		connect.WithSchema(quickSwapBrokerServiceMethods.ByName("ListVaultLedger")),
+		connect.WithHandlerOptions(opts...),
+	)
+	quickSwapBrokerServiceListVaultAllowlistHandler := connect.NewUnaryHandler(
+		QuickSwapBrokerServiceListVaultAllowlistProcedure,
+		svc.ListVaultAllowlist,
+		connect.WithSchema(quickSwapBrokerServiceMethods.ByName("ListVaultAllowlist")),
+		connect.WithHandlerOptions(opts...),
+	)
+	quickSwapBrokerServiceListVaultAllowlistChangesHandler := connect.NewUnaryHandler(
+		QuickSwapBrokerServiceListVaultAllowlistChangesProcedure,
+		svc.ListVaultAllowlistChanges,
+		connect.WithSchema(quickSwapBrokerServiceMethods.ByName("ListVaultAllowlistChanges")),
+		connect.WithHandlerOptions(opts...),
+	)
+	quickSwapBrokerServiceRequestVaultAllowlistChangeHandler := connect.NewUnaryHandler(
+		QuickSwapBrokerServiceRequestVaultAllowlistChangeProcedure,
+		svc.RequestVaultAllowlistChange,
+		connect.WithSchema(quickSwapBrokerServiceMethods.ByName("RequestVaultAllowlistChange")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/swap.quickswap.v1.QuickSwapBrokerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case QuickSwapBrokerServiceGetBrokerProcedure:
@@ -1051,6 +1243,14 @@ func NewQuickSwapBrokerServiceHandler(svc QuickSwapBrokerServiceHandler, opts ..
 			quickSwapBrokerServiceListUpcomingPayoutsHandler.ServeHTTP(w, r)
 		case QuickSwapBrokerServiceListVaultPayoutRulesProcedure:
 			quickSwapBrokerServiceListVaultPayoutRulesHandler.ServeHTTP(w, r)
+		case QuickSwapBrokerServiceListVaultLedgerProcedure:
+			quickSwapBrokerServiceListVaultLedgerHandler.ServeHTTP(w, r)
+		case QuickSwapBrokerServiceListVaultAllowlistProcedure:
+			quickSwapBrokerServiceListVaultAllowlistHandler.ServeHTTP(w, r)
+		case QuickSwapBrokerServiceListVaultAllowlistChangesProcedure:
+			quickSwapBrokerServiceListVaultAllowlistChangesHandler.ServeHTTP(w, r)
+		case QuickSwapBrokerServiceRequestVaultAllowlistChangeProcedure:
+			quickSwapBrokerServiceRequestVaultAllowlistChangeHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -1158,4 +1358,20 @@ func (UnimplementedQuickSwapBrokerServiceHandler) ListUpcomingPayouts(context.Co
 
 func (UnimplementedQuickSwapBrokerServiceHandler) ListVaultPayoutRules(context.Context, *connect.Request[v1.ListVaultPayoutRulesRequest]) (*connect.Response[v1.ListVaultPayoutRulesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swap.quickswap.v1.QuickSwapBrokerService.ListVaultPayoutRules is not implemented"))
+}
+
+func (UnimplementedQuickSwapBrokerServiceHandler) ListVaultLedger(context.Context, *connect.Request[v1.ListVaultLedgerRequest]) (*connect.Response[v1.ListVaultLedgerResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swap.quickswap.v1.QuickSwapBrokerService.ListVaultLedger is not implemented"))
+}
+
+func (UnimplementedQuickSwapBrokerServiceHandler) ListVaultAllowlist(context.Context, *connect.Request[v1.ListVaultAllowlistRequest]) (*connect.Response[v1.ListVaultAllowlistResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swap.quickswap.v1.QuickSwapBrokerService.ListVaultAllowlist is not implemented"))
+}
+
+func (UnimplementedQuickSwapBrokerServiceHandler) ListVaultAllowlistChanges(context.Context, *connect.Request[v1.ListVaultAllowlistChangesRequest]) (*connect.Response[v1.ListVaultAllowlistChangesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swap.quickswap.v1.QuickSwapBrokerService.ListVaultAllowlistChanges is not implemented"))
+}
+
+func (UnimplementedQuickSwapBrokerServiceHandler) RequestVaultAllowlistChange(context.Context, *connect.Request[v1.RequestVaultAllowlistChangeRequest]) (*connect.Response[v1.RequestVaultAllowlistChangeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swap.quickswap.v1.QuickSwapBrokerService.RequestVaultAllowlistChange is not implemented"))
 }

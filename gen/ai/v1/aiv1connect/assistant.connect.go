@@ -66,6 +66,12 @@ const (
 	// AssistantServiceListAssistantKeysProcedure is the fully-qualified name of the AssistantService's
 	// ListAssistantKeys RPC.
 	AssistantServiceListAssistantKeysProcedure = "/ai.v1.AssistantService/ListAssistantKeys"
+	// AssistantServiceGetTelegramApprovalLimitsProcedure is the fully-qualified name of the
+	// AssistantService's GetTelegramApprovalLimits RPC.
+	AssistantServiceGetTelegramApprovalLimitsProcedure = "/ai.v1.AssistantService/GetTelegramApprovalLimits"
+	// AssistantServiceSetTelegramApprovalLimitsProcedure is the fully-qualified name of the
+	// AssistantService's SetTelegramApprovalLimits RPC.
+	AssistantServiceSetTelegramApprovalLimitsProcedure = "/ai.v1.AssistantService/SetTelegramApprovalLimits"
 )
 
 // AssistantServiceClient is a client for the ai.v1.AssistantService service.
@@ -194,6 +200,24 @@ type AssistantServiceClient interface {
 	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry later.
 	// - UNAUTHENTICATED: missing or invalid credentials.
 	ListAssistantKeys(context.Context, *connect.Request[v1.ListAssistantKeysRequest]) (*connect.Response[v1.ListAssistantKeysResponse], error)
+	// GetTelegramApprovalLimits reads the caller's optional limits on what
+	// they may approve from Telegram, and the notional value approved from
+	// Telegram in the last 24 hours.
+	//
+	// Errors:
+	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry later.
+	// - UNAUTHENTICATED: missing or invalid credentials.
+	GetTelegramApprovalLimits(context.Context, *connect.Request[v1.GetTelegramApprovalLimitsRequest]) (*connect.Response[v1.GetTelegramApprovalLimitsResponse], error)
+	// SetTelegramApprovalLimits replaces the caller's optional limits on what
+	// they may approve from Telegram. A limit left unset is turned off. Only a
+	// signed-in session sets them, never Telegram; they apply to the next
+	// approval from Telegram.
+	//
+	// Errors:
+	// - INVALID_ARGUMENT: malformed request.
+	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry the same request.
+	// - UNAUTHENTICATED: missing or invalid credentials.
+	SetTelegramApprovalLimits(context.Context, *connect.Request[v1.SetTelegramApprovalLimitsRequest]) (*connect.Response[v1.SetTelegramApprovalLimitsResponse], error)
 }
 
 // NewAssistantServiceClient constructs a client for the ai.v1.AssistantService service. By default,
@@ -281,22 +305,38 @@ func NewAssistantServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getTelegramApprovalLimits: connect.NewClient[v1.GetTelegramApprovalLimitsRequest, v1.GetTelegramApprovalLimitsResponse](
+			httpClient,
+			baseURL+AssistantServiceGetTelegramApprovalLimitsProcedure,
+			connect.WithSchema(assistantServiceMethods.ByName("GetTelegramApprovalLimits")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		setTelegramApprovalLimits: connect.NewClient[v1.SetTelegramApprovalLimitsRequest, v1.SetTelegramApprovalLimitsResponse](
+			httpClient,
+			baseURL+AssistantServiceSetTelegramApprovalLimitsProcedure,
+			connect.WithSchema(assistantServiceMethods.ByName("SetTelegramApprovalLimits")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // assistantServiceClient implements AssistantServiceClient.
 type assistantServiceClient struct {
-	sendMessage           *connect.Client[v1.SendMessageRequest, v1.SendMessageResponse]
-	watchRun              *connect.Client[v1.WatchRunRequest, v1.WatchRunResponse]
-	cancelRun             *connect.Client[v1.CancelRunRequest, v1.CancelRunResponse]
-	decideApproval        *connect.Client[v1.DecideApprovalRequest, v1.DecideApprovalResponse]
-	listConversations     *connect.Client[v1.ListConversationsRequest, v1.ListConversationsResponse]
-	listMessages          *connect.Client[v1.ListMessagesRequest, v1.ListMessagesResponse]
-	listMemories          *connect.Client[v1.ListMemoriesRequest, v1.ListMemoriesResponse]
-	deleteMemory          *connect.Client[v1.DeleteMemoryRequest, v1.DeleteMemoryResponse]
-	prepareAssistantKeys  *connect.Client[v1.PrepareAssistantKeysRequest, v1.PrepareAssistantKeysResponse]
-	completeAssistantKeys *connect.Client[v1.CompleteAssistantKeysRequest, v1.CompleteAssistantKeysResponse]
-	listAssistantKeys     *connect.Client[v1.ListAssistantKeysRequest, v1.ListAssistantKeysResponse]
+	sendMessage               *connect.Client[v1.SendMessageRequest, v1.SendMessageResponse]
+	watchRun                  *connect.Client[v1.WatchRunRequest, v1.WatchRunResponse]
+	cancelRun                 *connect.Client[v1.CancelRunRequest, v1.CancelRunResponse]
+	decideApproval            *connect.Client[v1.DecideApprovalRequest, v1.DecideApprovalResponse]
+	listConversations         *connect.Client[v1.ListConversationsRequest, v1.ListConversationsResponse]
+	listMessages              *connect.Client[v1.ListMessagesRequest, v1.ListMessagesResponse]
+	listMemories              *connect.Client[v1.ListMemoriesRequest, v1.ListMemoriesResponse]
+	deleteMemory              *connect.Client[v1.DeleteMemoryRequest, v1.DeleteMemoryResponse]
+	prepareAssistantKeys      *connect.Client[v1.PrepareAssistantKeysRequest, v1.PrepareAssistantKeysResponse]
+	completeAssistantKeys     *connect.Client[v1.CompleteAssistantKeysRequest, v1.CompleteAssistantKeysResponse]
+	listAssistantKeys         *connect.Client[v1.ListAssistantKeysRequest, v1.ListAssistantKeysResponse]
+	getTelegramApprovalLimits *connect.Client[v1.GetTelegramApprovalLimitsRequest, v1.GetTelegramApprovalLimitsResponse]
+	setTelegramApprovalLimits *connect.Client[v1.SetTelegramApprovalLimitsRequest, v1.SetTelegramApprovalLimitsResponse]
 }
 
 // SendMessage calls ai.v1.AssistantService.SendMessage.
@@ -352,6 +392,16 @@ func (c *assistantServiceClient) CompleteAssistantKeys(ctx context.Context, req 
 // ListAssistantKeys calls ai.v1.AssistantService.ListAssistantKeys.
 func (c *assistantServiceClient) ListAssistantKeys(ctx context.Context, req *connect.Request[v1.ListAssistantKeysRequest]) (*connect.Response[v1.ListAssistantKeysResponse], error) {
 	return c.listAssistantKeys.CallUnary(ctx, req)
+}
+
+// GetTelegramApprovalLimits calls ai.v1.AssistantService.GetTelegramApprovalLimits.
+func (c *assistantServiceClient) GetTelegramApprovalLimits(ctx context.Context, req *connect.Request[v1.GetTelegramApprovalLimitsRequest]) (*connect.Response[v1.GetTelegramApprovalLimitsResponse], error) {
+	return c.getTelegramApprovalLimits.CallUnary(ctx, req)
+}
+
+// SetTelegramApprovalLimits calls ai.v1.AssistantService.SetTelegramApprovalLimits.
+func (c *assistantServiceClient) SetTelegramApprovalLimits(ctx context.Context, req *connect.Request[v1.SetTelegramApprovalLimitsRequest]) (*connect.Response[v1.SetTelegramApprovalLimitsResponse], error) {
+	return c.setTelegramApprovalLimits.CallUnary(ctx, req)
 }
 
 // AssistantServiceHandler is an implementation of the ai.v1.AssistantService service.
@@ -480,6 +530,24 @@ type AssistantServiceHandler interface {
 	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry later.
 	// - UNAUTHENTICATED: missing or invalid credentials.
 	ListAssistantKeys(context.Context, *connect.Request[v1.ListAssistantKeysRequest]) (*connect.Response[v1.ListAssistantKeysResponse], error)
+	// GetTelegramApprovalLimits reads the caller's optional limits on what
+	// they may approve from Telegram, and the notional value approved from
+	// Telegram in the last 24 hours.
+	//
+	// Errors:
+	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry later.
+	// - UNAUTHENTICATED: missing or invalid credentials.
+	GetTelegramApprovalLimits(context.Context, *connect.Request[v1.GetTelegramApprovalLimitsRequest]) (*connect.Response[v1.GetTelegramApprovalLimitsResponse], error)
+	// SetTelegramApprovalLimits replaces the caller's optional limits on what
+	// they may approve from Telegram. A limit left unset is turned off. Only a
+	// signed-in session sets them, never Telegram; they apply to the next
+	// approval from Telegram.
+	//
+	// Errors:
+	// - INVALID_ARGUMENT: malformed request.
+	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry the same request.
+	// - UNAUTHENTICATED: missing or invalid credentials.
+	SetTelegramApprovalLimits(context.Context, *connect.Request[v1.SetTelegramApprovalLimitsRequest]) (*connect.Response[v1.SetTelegramApprovalLimitsResponse], error)
 }
 
 // NewAssistantServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -563,6 +631,20 @@ func NewAssistantServiceHandler(svc AssistantServiceHandler, opts ...connect.Han
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	assistantServiceGetTelegramApprovalLimitsHandler := connect.NewUnaryHandler(
+		AssistantServiceGetTelegramApprovalLimitsProcedure,
+		svc.GetTelegramApprovalLimits,
+		connect.WithSchema(assistantServiceMethods.ByName("GetTelegramApprovalLimits")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	assistantServiceSetTelegramApprovalLimitsHandler := connect.NewUnaryHandler(
+		AssistantServiceSetTelegramApprovalLimitsProcedure,
+		svc.SetTelegramApprovalLimits,
+		connect.WithSchema(assistantServiceMethods.ByName("SetTelegramApprovalLimits")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/ai.v1.AssistantService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AssistantServiceSendMessageProcedure:
@@ -587,6 +669,10 @@ func NewAssistantServiceHandler(svc AssistantServiceHandler, opts ...connect.Han
 			assistantServiceCompleteAssistantKeysHandler.ServeHTTP(w, r)
 		case AssistantServiceListAssistantKeysProcedure:
 			assistantServiceListAssistantKeysHandler.ServeHTTP(w, r)
+		case AssistantServiceGetTelegramApprovalLimitsProcedure:
+			assistantServiceGetTelegramApprovalLimitsHandler.ServeHTTP(w, r)
+		case AssistantServiceSetTelegramApprovalLimitsProcedure:
+			assistantServiceSetTelegramApprovalLimitsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -638,4 +724,12 @@ func (UnimplementedAssistantServiceHandler) CompleteAssistantKeys(context.Contex
 
 func (UnimplementedAssistantServiceHandler) ListAssistantKeys(context.Context, *connect.Request[v1.ListAssistantKeysRequest]) (*connect.Response[v1.ListAssistantKeysResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ai.v1.AssistantService.ListAssistantKeys is not implemented"))
+}
+
+func (UnimplementedAssistantServiceHandler) GetTelegramApprovalLimits(context.Context, *connect.Request[v1.GetTelegramApprovalLimitsRequest]) (*connect.Response[v1.GetTelegramApprovalLimitsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ai.v1.AssistantService.GetTelegramApprovalLimits is not implemented"))
+}
+
+func (UnimplementedAssistantServiceHandler) SetTelegramApprovalLimits(context.Context, *connect.Request[v1.SetTelegramApprovalLimitsRequest]) (*connect.Response[v1.SetTelegramApprovalLimitsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ai.v1.AssistantService.SetTelegramApprovalLimits is not implemented"))
 }

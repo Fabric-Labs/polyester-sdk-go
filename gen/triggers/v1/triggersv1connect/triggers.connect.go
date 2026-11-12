@@ -36,6 +36,12 @@ const (
 	// TriggersServiceCreateTriggerProcedure is the fully-qualified name of the TriggersService's
 	// CreateTrigger RPC.
 	TriggersServiceCreateTriggerProcedure = "/triggers.v1.TriggersService/CreateTrigger"
+	// TriggersServiceCreateOcoProcedure is the fully-qualified name of the TriggersService's CreateOco
+	// RPC.
+	TriggersServiceCreateOcoProcedure = "/triggers.v1.TriggersService/CreateOco"
+	// TriggersServiceCancelOcoProcedure is the fully-qualified name of the TriggersService's CancelOco
+	// RPC.
+	TriggersServiceCancelOcoProcedure = "/triggers.v1.TriggersService/CancelOco"
 	// TriggersServiceGetTriggerProcedure is the fully-qualified name of the TriggersService's
 	// GetTrigger RPC.
 	TriggersServiceGetTriggerProcedure = "/triggers.v1.TriggersService/GetTrigger"
@@ -48,6 +54,9 @@ const (
 	// TriggersServiceCancelTriggerProcedure is the fully-qualified name of the TriggersService's
 	// CancelTrigger RPC.
 	TriggersServiceCancelTriggerProcedure = "/triggers.v1.TriggersService/CancelTrigger"
+	// TriggersServiceBatchCancelTriggersProcedure is the fully-qualified name of the TriggersService's
+	// BatchCancelTriggers RPC.
+	TriggersServiceBatchCancelTriggersProcedure = "/triggers.v1.TriggersService/BatchCancelTriggers"
 	// TriggersServiceModifyTriggerProcedure is the fully-qualified name of the TriggersService's
 	// ModifyTrigger RPC.
 	TriggersServiceModifyTriggerProcedure = "/triggers.v1.TriggersService/ModifyTrigger"
@@ -63,6 +72,11 @@ const (
 type TriggersServiceClient interface {
 	// Create a standalone trigger (stop order, TWAP, ladder).
 	CreateTrigger(context.Context, *connect.Request[v1.CreateTriggerRequest]) (*connect.Response[v1.CreateTriggerResponse], error)
+	// Create an OCO: a take-profit and a stop-loss over a quantity the account
+	// already holds, which cancel each other.
+	CreateOco(context.Context, *connect.Request[v1.CreateOcoRequest]) (*connect.Response[v1.CreateOcoResponse], error)
+	// Cancel both legs of an OCO.
+	CancelOco(context.Context, *connect.Request[v1.CancelOcoRequest]) (*connect.Response[v1.CancelOcoResponse], error)
 	// Get a trigger by ID.
 	GetTrigger(context.Context, *connect.Request[v1.GetTriggerRequest]) (*connect.Response[v1.GetTriggerResponse], error)
 	// List triggers for a sub-account with optional filters.
@@ -80,7 +94,27 @@ type TriggersServiceClient interface {
 	// after either, armed stops and running TWAPs can still place orders. To
 	// stop them, cancel each live trigger with this method; ListTriggers lists
 	// them.
+	// A trigger that has ended (completed, canceled or failed) answers a
+	// cancel with ERROR_CODE_TRIGGER_STATUS_INVALID for at least 60 s after it
+	// ends, including a repeat of a cancel that succeeded and a cancel retried
+	// after a timeout: treat it as already done, and read the trigger to see
+	// how it ended. After that it may answer ERROR_CODE_TRIGGER_NOT_FOUND
+	// instead, which then means the same. Pausing, resuming or modifying an
+	// ended trigger answers the same way. A trigger ID that names none of the
+	// caller's triggers returns ERROR_CODE_TRIGGER_NOT_FOUND. Cancelling
+	// either leg of an OCO cancels both.
 	CancelTrigger(context.Context, *connect.Request[v1.CancelTriggerRequest]) (*connect.Response[v1.CancelTriggerResponse], error)
+	// Cancel up to 50 of the account's triggers in one request, each canceled
+	// as CancelTrigger cancels it: a TWAP's or ladder's open child orders are
+	// canceled with it. Results come back per trigger, in request order: an
+	// accepted item's trigger events report when it is canceled;
+	// ERROR_CODE_TRIGGER_NOT_FOUND names an ID that is none of the account's
+	// triggers, and ERROR_CODE_TRIGGER_STATUS_INVALID a trigger that has
+	// already ended. Each trigger counts one against the account's cancel rate
+	// limit, as a CancelTrigger does. A request_id identifies the request for 2
+	// minutes: a retry with the same trigger_ids returns the original results,
+	// so retry a request that timed out unchanged.
+	BatchCancelTriggers(context.Context, *connect.Request[v1.BatchCancelTriggersRequest]) (*connect.Response[v1.BatchCancelTriggersResponse], error)
 	// Modify a trigger (limited patch).
 	ModifyTrigger(context.Context, *connect.Request[v1.ModifyTriggerRequest]) (*connect.Response[v1.ModifyTriggerResponse], error)
 	// Pause a trigger (sets status=PAUSED).
@@ -104,6 +138,18 @@ func NewTriggersServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			httpClient,
 			baseURL+TriggersServiceCreateTriggerProcedure,
 			connect.WithSchema(triggersServiceMethods.ByName("CreateTrigger")),
+			connect.WithClientOptions(opts...),
+		),
+		createOco: connect.NewClient[v1.CreateOcoRequest, v1.CreateOcoResponse](
+			httpClient,
+			baseURL+TriggersServiceCreateOcoProcedure,
+			connect.WithSchema(triggersServiceMethods.ByName("CreateOco")),
+			connect.WithClientOptions(opts...),
+		),
+		cancelOco: connect.NewClient[v1.CancelOcoRequest, v1.CancelOcoResponse](
+			httpClient,
+			baseURL+TriggersServiceCancelOcoProcedure,
+			connect.WithSchema(triggersServiceMethods.ByName("CancelOco")),
 			connect.WithClientOptions(opts...),
 		),
 		getTrigger: connect.NewClient[v1.GetTriggerRequest, v1.GetTriggerResponse](
@@ -130,6 +176,12 @@ func NewTriggersServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(triggersServiceMethods.ByName("CancelTrigger")),
 			connect.WithClientOptions(opts...),
 		),
+		batchCancelTriggers: connect.NewClient[v1.BatchCancelTriggersRequest, v1.BatchCancelTriggersResponse](
+			httpClient,
+			baseURL+TriggersServiceBatchCancelTriggersProcedure,
+			connect.WithSchema(triggersServiceMethods.ByName("BatchCancelTriggers")),
+			connect.WithClientOptions(opts...),
+		),
 		modifyTrigger: connect.NewClient[v1.ModifyTriggerRequest, v1.ModifyTriggerResponse](
 			httpClient,
 			baseURL+TriggersServiceModifyTriggerProcedure,
@@ -153,19 +205,32 @@ func NewTriggersServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // triggersServiceClient implements TriggersServiceClient.
 type triggersServiceClient struct {
-	createTrigger     *connect.Client[v1.CreateTriggerRequest, v1.CreateTriggerResponse]
-	getTrigger        *connect.Client[v1.GetTriggerRequest, v1.GetTriggerResponse]
-	listTriggers      *connect.Client[v1.ListTriggersRequest, v1.ListTriggersResponse]
-	listTriggerEvents *connect.Client[v1.ListTriggerEventsRequest, v1.ListTriggerEventsResponse]
-	cancelTrigger     *connect.Client[v1.CancelTriggerRequest, v1.CancelTriggerResponse]
-	modifyTrigger     *connect.Client[v1.ModifyTriggerRequest, v1.ModifyTriggerResponse]
-	pauseTrigger      *connect.Client[v1.PauseTriggerRequest, v1.PauseTriggerResponse]
-	resumeTrigger     *connect.Client[v1.ResumeTriggerRequest, v1.ResumeTriggerResponse]
+	createTrigger       *connect.Client[v1.CreateTriggerRequest, v1.CreateTriggerResponse]
+	createOco           *connect.Client[v1.CreateOcoRequest, v1.CreateOcoResponse]
+	cancelOco           *connect.Client[v1.CancelOcoRequest, v1.CancelOcoResponse]
+	getTrigger          *connect.Client[v1.GetTriggerRequest, v1.GetTriggerResponse]
+	listTriggers        *connect.Client[v1.ListTriggersRequest, v1.ListTriggersResponse]
+	listTriggerEvents   *connect.Client[v1.ListTriggerEventsRequest, v1.ListTriggerEventsResponse]
+	cancelTrigger       *connect.Client[v1.CancelTriggerRequest, v1.CancelTriggerResponse]
+	batchCancelTriggers *connect.Client[v1.BatchCancelTriggersRequest, v1.BatchCancelTriggersResponse]
+	modifyTrigger       *connect.Client[v1.ModifyTriggerRequest, v1.ModifyTriggerResponse]
+	pauseTrigger        *connect.Client[v1.PauseTriggerRequest, v1.PauseTriggerResponse]
+	resumeTrigger       *connect.Client[v1.ResumeTriggerRequest, v1.ResumeTriggerResponse]
 }
 
 // CreateTrigger calls triggers.v1.TriggersService.CreateTrigger.
 func (c *triggersServiceClient) CreateTrigger(ctx context.Context, req *connect.Request[v1.CreateTriggerRequest]) (*connect.Response[v1.CreateTriggerResponse], error) {
 	return c.createTrigger.CallUnary(ctx, req)
+}
+
+// CreateOco calls triggers.v1.TriggersService.CreateOco.
+func (c *triggersServiceClient) CreateOco(ctx context.Context, req *connect.Request[v1.CreateOcoRequest]) (*connect.Response[v1.CreateOcoResponse], error) {
+	return c.createOco.CallUnary(ctx, req)
+}
+
+// CancelOco calls triggers.v1.TriggersService.CancelOco.
+func (c *triggersServiceClient) CancelOco(ctx context.Context, req *connect.Request[v1.CancelOcoRequest]) (*connect.Response[v1.CancelOcoResponse], error) {
+	return c.cancelOco.CallUnary(ctx, req)
 }
 
 // GetTrigger calls triggers.v1.TriggersService.GetTrigger.
@@ -188,6 +253,11 @@ func (c *triggersServiceClient) CancelTrigger(ctx context.Context, req *connect.
 	return c.cancelTrigger.CallUnary(ctx, req)
 }
 
+// BatchCancelTriggers calls triggers.v1.TriggersService.BatchCancelTriggers.
+func (c *triggersServiceClient) BatchCancelTriggers(ctx context.Context, req *connect.Request[v1.BatchCancelTriggersRequest]) (*connect.Response[v1.BatchCancelTriggersResponse], error) {
+	return c.batchCancelTriggers.CallUnary(ctx, req)
+}
+
 // ModifyTrigger calls triggers.v1.TriggersService.ModifyTrigger.
 func (c *triggersServiceClient) ModifyTrigger(ctx context.Context, req *connect.Request[v1.ModifyTriggerRequest]) (*connect.Response[v1.ModifyTriggerResponse], error) {
 	return c.modifyTrigger.CallUnary(ctx, req)
@@ -207,6 +277,11 @@ func (c *triggersServiceClient) ResumeTrigger(ctx context.Context, req *connect.
 type TriggersServiceHandler interface {
 	// Create a standalone trigger (stop order, TWAP, ladder).
 	CreateTrigger(context.Context, *connect.Request[v1.CreateTriggerRequest]) (*connect.Response[v1.CreateTriggerResponse], error)
+	// Create an OCO: a take-profit and a stop-loss over a quantity the account
+	// already holds, which cancel each other.
+	CreateOco(context.Context, *connect.Request[v1.CreateOcoRequest]) (*connect.Response[v1.CreateOcoResponse], error)
+	// Cancel both legs of an OCO.
+	CancelOco(context.Context, *connect.Request[v1.CancelOcoRequest]) (*connect.Response[v1.CancelOcoResponse], error)
 	// Get a trigger by ID.
 	GetTrigger(context.Context, *connect.Request[v1.GetTriggerRequest]) (*connect.Response[v1.GetTriggerResponse], error)
 	// List triggers for a sub-account with optional filters.
@@ -224,7 +299,27 @@ type TriggersServiceHandler interface {
 	// after either, armed stops and running TWAPs can still place orders. To
 	// stop them, cancel each live trigger with this method; ListTriggers lists
 	// them.
+	// A trigger that has ended (completed, canceled or failed) answers a
+	// cancel with ERROR_CODE_TRIGGER_STATUS_INVALID for at least 60 s after it
+	// ends, including a repeat of a cancel that succeeded and a cancel retried
+	// after a timeout: treat it as already done, and read the trigger to see
+	// how it ended. After that it may answer ERROR_CODE_TRIGGER_NOT_FOUND
+	// instead, which then means the same. Pausing, resuming or modifying an
+	// ended trigger answers the same way. A trigger ID that names none of the
+	// caller's triggers returns ERROR_CODE_TRIGGER_NOT_FOUND. Cancelling
+	// either leg of an OCO cancels both.
 	CancelTrigger(context.Context, *connect.Request[v1.CancelTriggerRequest]) (*connect.Response[v1.CancelTriggerResponse], error)
+	// Cancel up to 50 of the account's triggers in one request, each canceled
+	// as CancelTrigger cancels it: a TWAP's or ladder's open child orders are
+	// canceled with it. Results come back per trigger, in request order: an
+	// accepted item's trigger events report when it is canceled;
+	// ERROR_CODE_TRIGGER_NOT_FOUND names an ID that is none of the account's
+	// triggers, and ERROR_CODE_TRIGGER_STATUS_INVALID a trigger that has
+	// already ended. Each trigger counts one against the account's cancel rate
+	// limit, as a CancelTrigger does. A request_id identifies the request for 2
+	// minutes: a retry with the same trigger_ids returns the original results,
+	// so retry a request that timed out unchanged.
+	BatchCancelTriggers(context.Context, *connect.Request[v1.BatchCancelTriggersRequest]) (*connect.Response[v1.BatchCancelTriggersResponse], error)
 	// Modify a trigger (limited patch).
 	ModifyTrigger(context.Context, *connect.Request[v1.ModifyTriggerRequest]) (*connect.Response[v1.ModifyTriggerResponse], error)
 	// Pause a trigger (sets status=PAUSED).
@@ -244,6 +339,18 @@ func NewTriggersServiceHandler(svc TriggersServiceHandler, opts ...connect.Handl
 		TriggersServiceCreateTriggerProcedure,
 		svc.CreateTrigger,
 		connect.WithSchema(triggersServiceMethods.ByName("CreateTrigger")),
+		connect.WithHandlerOptions(opts...),
+	)
+	triggersServiceCreateOcoHandler := connect.NewUnaryHandler(
+		TriggersServiceCreateOcoProcedure,
+		svc.CreateOco,
+		connect.WithSchema(triggersServiceMethods.ByName("CreateOco")),
+		connect.WithHandlerOptions(opts...),
+	)
+	triggersServiceCancelOcoHandler := connect.NewUnaryHandler(
+		TriggersServiceCancelOcoProcedure,
+		svc.CancelOco,
+		connect.WithSchema(triggersServiceMethods.ByName("CancelOco")),
 		connect.WithHandlerOptions(opts...),
 	)
 	triggersServiceGetTriggerHandler := connect.NewUnaryHandler(
@@ -270,6 +377,12 @@ func NewTriggersServiceHandler(svc TriggersServiceHandler, opts ...connect.Handl
 		connect.WithSchema(triggersServiceMethods.ByName("CancelTrigger")),
 		connect.WithHandlerOptions(opts...),
 	)
+	triggersServiceBatchCancelTriggersHandler := connect.NewUnaryHandler(
+		TriggersServiceBatchCancelTriggersProcedure,
+		svc.BatchCancelTriggers,
+		connect.WithSchema(triggersServiceMethods.ByName("BatchCancelTriggers")),
+		connect.WithHandlerOptions(opts...),
+	)
 	triggersServiceModifyTriggerHandler := connect.NewUnaryHandler(
 		TriggersServiceModifyTriggerProcedure,
 		svc.ModifyTrigger,
@@ -292,6 +405,10 @@ func NewTriggersServiceHandler(svc TriggersServiceHandler, opts ...connect.Handl
 		switch r.URL.Path {
 		case TriggersServiceCreateTriggerProcedure:
 			triggersServiceCreateTriggerHandler.ServeHTTP(w, r)
+		case TriggersServiceCreateOcoProcedure:
+			triggersServiceCreateOcoHandler.ServeHTTP(w, r)
+		case TriggersServiceCancelOcoProcedure:
+			triggersServiceCancelOcoHandler.ServeHTTP(w, r)
 		case TriggersServiceGetTriggerProcedure:
 			triggersServiceGetTriggerHandler.ServeHTTP(w, r)
 		case TriggersServiceListTriggersProcedure:
@@ -300,6 +417,8 @@ func NewTriggersServiceHandler(svc TriggersServiceHandler, opts ...connect.Handl
 			triggersServiceListTriggerEventsHandler.ServeHTTP(w, r)
 		case TriggersServiceCancelTriggerProcedure:
 			triggersServiceCancelTriggerHandler.ServeHTTP(w, r)
+		case TriggersServiceBatchCancelTriggersProcedure:
+			triggersServiceBatchCancelTriggersHandler.ServeHTTP(w, r)
 		case TriggersServiceModifyTriggerProcedure:
 			triggersServiceModifyTriggerHandler.ServeHTTP(w, r)
 		case TriggersServicePauseTriggerProcedure:
@@ -319,6 +438,14 @@ func (UnimplementedTriggersServiceHandler) CreateTrigger(context.Context, *conne
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("triggers.v1.TriggersService.CreateTrigger is not implemented"))
 }
 
+func (UnimplementedTriggersServiceHandler) CreateOco(context.Context, *connect.Request[v1.CreateOcoRequest]) (*connect.Response[v1.CreateOcoResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("triggers.v1.TriggersService.CreateOco is not implemented"))
+}
+
+func (UnimplementedTriggersServiceHandler) CancelOco(context.Context, *connect.Request[v1.CancelOcoRequest]) (*connect.Response[v1.CancelOcoResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("triggers.v1.TriggersService.CancelOco is not implemented"))
+}
+
 func (UnimplementedTriggersServiceHandler) GetTrigger(context.Context, *connect.Request[v1.GetTriggerRequest]) (*connect.Response[v1.GetTriggerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("triggers.v1.TriggersService.GetTrigger is not implemented"))
 }
@@ -333,6 +460,10 @@ func (UnimplementedTriggersServiceHandler) ListTriggerEvents(context.Context, *c
 
 func (UnimplementedTriggersServiceHandler) CancelTrigger(context.Context, *connect.Request[v1.CancelTriggerRequest]) (*connect.Response[v1.CancelTriggerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("triggers.v1.TriggersService.CancelTrigger is not implemented"))
+}
+
+func (UnimplementedTriggersServiceHandler) BatchCancelTriggers(context.Context, *connect.Request[v1.BatchCancelTriggersRequest]) (*connect.Response[v1.BatchCancelTriggersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("triggers.v1.TriggersService.BatchCancelTriggers is not implemented"))
 }
 
 func (UnimplementedTriggersServiceHandler) ModifyTrigger(context.Context, *connect.Request[v1.ModifyTriggerRequest]) (*connect.Response[v1.ModifyTriggerResponse], error) {
