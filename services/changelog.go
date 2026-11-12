@@ -234,8 +234,8 @@ func listChangesRequest(opts models.ListChangelogChangesOptions) (*changelogv1.L
 }
 
 // maxChangelogSurfaces is how many surfaces ListChanges accepts, one per
-// surface.
-const maxChangelogSurfaces = 10
+// surface (ASSISTANT made it 11).
+const maxChangelogSurfaces = 11
 
 // changelogEnums maps filter labels such as "breaking_change" to enum values.
 // A label this SDK does not know cannot be sent, so it is a ValidationError.

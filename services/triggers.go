@@ -178,6 +178,16 @@ func (s *TriggersService) Create(ctx context.Context, account AccountScope, symb
 	return UnaryAuth(ctx, s.transport, s.client().CreateTrigger, req, decode.TriggerMutationFromProto)
 }
 
+// Cancel cancels a trigger. A trigger that has already ended (completed,
+// canceled or failed) is refused with ERROR_CODE_TRIGGER_STATUS_INVALID for at
+// least 60 seconds after it ended, a repeat of a cancel that succeeded
+// included; errors.IsTriggerAlreadyEnded reports it, and it means "already
+// done": read the trigger for how it ended. Later the same cancel may answer
+// ERROR_CODE_TRIGGER_NOT_FOUND, which Get still resolves for a trigger that
+// ended; treat it as done too for a trigger you know you created. Pause,
+// Resume and Modify of an ended trigger, a ladder or TWAP included, answer the
+// same way. Trigger IDs are opaque, account-scoped public IDs: use one only as
+// the API gave it, for the account that owns it.
 func (s *TriggersService) Cancel(ctx context.Context, account AccountScope, triggerID string, subAccountID *string) (models.TriggerMutationResult, error) {
 	id, err := codecs.IDToInt(triggerID, "trigger_id")
 	if err != nil {
@@ -196,6 +206,101 @@ func (s *TriggersService) Cancel(ctx context.Context, account AccountScope, trig
 	return UnaryAuth(ctx, s.transport, s.client().CancelTrigger, req, decode.TriggerMutationFromCancel)
 }
 
+// CreateOco creates a one-cancels-the-other order list: a take-profit and a
+// stop-loss over a quantity the account already holds, reserved once for both
+// legs. When one leg's order trades the whole quantity, the other is
+// canceled; a partly filled order's rest stays protected by the other leg.
+// Cancel All Orders and the dead-man switch do not cancel OCOs; an OCO leg's
+// working order they cancel cancels the OCO.
+//
+// The result names the OCO's OrderListID, which both legs carry as
+// Trigger.OrderListID, and each leg's trigger ID. A create whose outcome is
+// unknown can be sent again with the same in.ClientListID and intent: it
+// returns the same OCO (see models.CreateOcoInput).
+func (s *TriggersService) CreateOco(ctx context.Context, account AccountScope, in models.CreateOcoInput, subAccountID *string) (models.CreateOcoResult, error) {
+	if err := s.ensureCatalogs(ctx); err != nil {
+		return models.CreateOcoResult{}, err
+	}
+	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
+	if err != nil {
+		return models.CreateOcoResult{}, err
+	}
+	// As in Create: with hydration on, an unknown symbol is refused as
+	// unknown, not for its scale.
+	hydrated := s.catalogs != nil && s.catalogs.Hydration() != nil
+	var symbolID uint32
+	if hydrated {
+		if symbolID, err = ResolveSymbolID(s.catalogs, &in.Symbol, nil, "triggers.create_oco"); err != nil {
+			return models.CreateOcoResult{}, err
+		}
+	}
+	scale, err := codecs.QuantityScaleForSymbol(s.catalogs, &in.Symbol)
+	if err != nil {
+		return models.CreateOcoResult{}, err
+	}
+	if !hydrated {
+		if symbolID, err = ResolveSymbolID(s.catalogs, &in.Symbol, nil, "triggers.create_oco"); err != nil {
+			return models.CreateOcoResult{}, err
+		}
+	}
+	req, err := codecs.CreateOcoToProto(symbolID, in, sub, scale)
+	if err != nil {
+		return models.CreateOcoResult{}, err
+	}
+	return UnaryAuth(ctx, s.transport, s.client().CreateOco, req, decode.CreateOcoFromProto)
+}
+
+// CancelOco cancels an OCO by the OrderListID CreateOco returned: both legs
+// end canceled and the reserved quantity is released. Canceling either leg
+// with Cancel does the same. An ID that is not an OCO of the account, such as
+// a trigger ID or a leg's ID, is refused with TRIGGER_NOT_FOUND and nothing
+// is canceled. An OCO that has already ended is refused with
+// ERROR_CODE_TRIGGER_STATUS_INVALID (errors.IsTriggerAlreadyEnded).
+func (s *TriggersService) CancelOco(ctx context.Context, account AccountScope, orderListID string, subAccountID *string) (models.CancelOcoResult, error) {
+	id, err := codecs.IDToInt(orderListID, "order_list_id")
+	if err != nil {
+		return models.CancelOcoResult{}, err
+	}
+	if id == 0 {
+		return models.CancelOcoResult{}, &sdkerrors.ValidationError{Msg: "order_list_id must be a non-zero OCO ID"}
+	}
+	req := &triggersv1.CancelOcoRequest{OrderListId: id}
+	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
+	if err != nil {
+		return models.CancelOcoResult{}, err
+	}
+	if req.SubaccountId, err = codecs.ParseOptionalSubaccountID(sub); err != nil {
+		return models.CancelOcoResult{}, err
+	}
+	return UnaryAuth(ctx, s.transport, s.client().CancelOco, req, decode.CancelOcoFromProto)
+}
+
+// BatchCancel cancels 1 to codecs.MaxBatchCancelTriggers distinct triggers
+// in one request, each as Cancel cancels it: a TWAP's or ladder's open child
+// orders are canceled with it. Results come back per trigger, in request
+// order (see models.BatchCancelTriggersResultItem). Each trigger counts one
+// against the account's cancel rate limit, as a Cancel does.
+//
+// requestID identifies the request for 2 minutes; one is generated when it
+// is nil or empty. A request whose outcome is unknown can be sent again
+// unchanged, with the same requestID and trigger IDs: it returns the
+// original results and cancels nothing again. The same requestID with other
+// trigger IDs rejects every item with CONFLICT_IDEMPOTENCY_KEY_REUSE.
+func (s *TriggersService) BatchCancel(ctx context.Context, account AccountScope, triggerIDs []string, subAccountID *string, requestID *string) (models.BatchCancelTriggersResult, error) {
+	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
+	if err != nil {
+		return models.BatchCancelTriggersResult{}, err
+	}
+	req, err := codecs.BatchCancelTriggersToProto(triggerIDs, sub, requestID)
+	if err != nil {
+		return models.BatchCancelTriggersResult{}, err
+	}
+	return UnaryAuthDecoded(ctx, s.transport, s.client().BatchCancelTriggers, req, decode.BatchCancelTriggersFromProto)
+}
+
+// Pause pauses a trigger. An ended trigger is refused with
+// ERROR_CODE_TRIGGER_STATUS_INVALID (errors.IsTriggerAlreadyEnded), as for
+// Cancel.
 func (s *TriggersService) Pause(ctx context.Context, account AccountScope, triggerID string, subAccountID *string) (models.TriggerMutationResult, error) {
 	id, err := codecs.IDToInt(triggerID, "trigger_id")
 	if err != nil {
@@ -214,7 +319,8 @@ func (s *TriggersService) Pause(ctx context.Context, account AccountScope, trigg
 	return UnaryAuth(ctx, s.transport, s.client().PauseTrigger, req, decode.TriggerMutationFromPause)
 }
 
-// Resume resumes a paused trigger. symbol and symbolID are optional: omitted,
+// Resume resumes a paused trigger; an ended one is refused with
+// ERROR_CODE_TRIGGER_STATUS_INVALID, as for Cancel. symbol and symbolID are optional: omitted,
 // the request targets the trigger's own market; when set, it must be that
 // market. An API key limited to specific markets must pass one.
 func (s *TriggersService) Resume(ctx context.Context, account AccountScope, triggerID string, subAccountID, symbol *string, symbolID *uint32) (models.TriggerMutationResult, error) {
@@ -244,7 +350,10 @@ func (s *TriggersService) Resume(ctx context.Context, account AccountScope, trig
 	return UnaryAuth(ctx, s.transport, s.client().ResumeTrigger, req, decode.TriggerMutationFromResume)
 }
 
-// Modify patches a trigger. symbol and symbolID are optional, as for Resume.
+// Modify patches a trigger. An ended trigger is refused with
+// ERROR_CODE_TRIGGER_STATUS_INVALID, as for Cancel; a running ladder or TWAP,
+// which supports only cancel, with ERROR_CODE_TRIGGER_NOT_MODIFIABLE. symbol
+// and symbolID are optional, as for Resume.
 // When either is given, a price bound to another market is refused.
 func (s *TriggersService) Modify(ctx context.Context, account AccountScope, triggerID string, subAccountID, symbol *string, symbolID *uint32, opts codecs.ModifyTriggerOptions) (models.TriggerMutationResult, error) {
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
@@ -348,6 +457,23 @@ func applyListTriggersOptions(req *triggersv1.ListTriggersRequest, opts models.L
 			return &sdkerrors.ValidationError{Msg: "parent_order_id must be a non-zero order ID"}
 		}
 		req.ParentOrderId = &id
+	}
+	if opts.OrderListID != nil {
+		id, err := codecs.IDToInt(*opts.OrderListID, "order_list_id")
+		if err != nil {
+			return err
+		}
+		if id == 0 {
+			return &sdkerrors.ValidationError{Msg: "order_list_id must be a non-zero OCO ID"}
+		}
+		req.OrderListId = &id
+	}
+	if opts.ClientListID != nil {
+		id, err := codecs.ValidateClientListID(*opts.ClientListID)
+		if err != nil {
+			return err
+		}
+		req.ClientListId = &id
 	}
 	return nil
 }

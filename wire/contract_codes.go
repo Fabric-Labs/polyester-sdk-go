@@ -169,6 +169,24 @@ func IsRecognisedRESTCode(code string) bool {
 	return false
 }
 
+// OrderPermissionCodeFromREST names a REST 401 or 403 problem code as the
+// orders.v1.ErrorCode its ConnectRPC detail carries, such as
+// API_KEY_SPOT_TRADE_DENY as ERROR_CODE_API_KEY_SPOT_TRADE_DENY. Codes no
+// order ErrorCode names, auth codes, and the generic UNAUTHENTICATED and
+// PERMISSION_DENIED are returned unchanged.
+func OrderPermissionCodeFromREST(code string) string {
+	if code == "" || code == "UNAUTHENTICATED" || code == "PERMISSION_DENIED" || strings.HasPrefix(code, "ERROR_CODE_") {
+		return code
+	}
+	if _, auth := authv1.AuthErrorCode_value["AUTH_"+code]; auth {
+		return code
+	}
+	if _, ok := orderv1.ErrorCode_value["ERROR_CODE_"+code]; ok {
+		return "ERROR_CODE_" + code
+	}
+	return code
+}
+
 // ErrorCodeFromREST names a REST problem code as its typed ConnectRPC detail
 // does: SAME_SOURCE_DESTINATION reads ERROR_CODE_SAME_SOURCE_DESTINATION when
 // any service's ErrorCode (orders, withdraw, transfer, ledger) names it. A

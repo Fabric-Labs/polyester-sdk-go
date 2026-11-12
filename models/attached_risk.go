@@ -65,3 +65,29 @@ type TrailingStopInput struct {
 	LimitPrice         *PriceInput `json:"limit_price,omitempty"`
 	TriggerPriceSource string      `json:"trigger_price_source,omitempty"`
 }
+
+// CreateOcoInput is a one-cancels-the-other order list: a take-profit and a
+// stop-loss over Qty, a quantity the account already holds. Side is the side
+// both legs trade: "sell" protects held base, "buy" spends held quote. The
+// take-profit's trigger price must be above the stop-loss's for a sell OCO
+// and below it for a buy OCO. Each leg's child is a market IOC when its
+// LimitPrice is nil, otherwise a resting GTC limit.
+//
+// ClientListID identifies the OCO for retries, unique per sub-account and
+// pair among OCOs (1 to 36 bytes of UTF-8); one is generated when it is nil
+// or empty. While the OCO is active and for 60 seconds after both legs ended,
+// a create with the same ClientListID and the same intent returns the same
+// OCO, so send a create whose outcome is unknown again with the same
+// ClientListID. SelfTradePreventionMode is expire_taker, expire_maker,
+// expire_both or decrement; nil leaves the server's default, expire_maker.
+// The contract documents decrement as not supported on an OCO: the SDK sends
+// it, and the server decides.
+type CreateOcoInput struct {
+	Symbol                  string       `json:"symbol"`
+	Side                    string       `json:"side"`
+	Qty                     QtyInput     `json:"qty"`
+	TakeProfit              RiskLegInput `json:"take_profit"`
+	StopLoss                RiskLegInput `json:"stop_loss"`
+	SelfTradePreventionMode *string      `json:"self_trade_prevention_mode,omitempty"`
+	ClientListID            *string      `json:"client_list_id,omitempty"`
+}
