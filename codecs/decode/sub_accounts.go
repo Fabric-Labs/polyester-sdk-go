@@ -59,6 +59,9 @@ func SubaccountsListFromProto(msg *authv1.ListSubaccountsResponse) models.SubAcc
 func GetSubaccountFromProto(msg *authv1.GetSubaccountResponse) models.GetSubaccountResult {
 	s := subAccount(msg.GetSubaccount())
 	out := models.GetSubaccountResult{Subaccount: &s}
+	if len(msg.GetApiKeys()) > 0 {
+		out.APIKeys = apiKeys(msg.GetApiKeys())
+	}
 	if msg.GetBalances() != nil {
 		balances := BalancesListFromProto(msg.GetBalances())
 		out.Balances = &balances

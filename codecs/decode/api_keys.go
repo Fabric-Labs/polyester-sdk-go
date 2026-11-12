@@ -32,6 +32,9 @@ func apiKey(msg *authv1.ApiKey) *models.ApiKeySummary {
 	return &models.ApiKeySummary{
 		KeyID:            msg.GetKeyId(),
 		Label:            msg.GetLabel(),
+		Icon:             msg.GetIcon(),
+		Color:            msg.GetColor(),
+		CreatedByActor:   msg.GetCreatedByActor(),
 		Status:           msg.GetStatus().String(),
 		Purpose:          msg.GetPurpose().String(),
 		PublicKeyEd25519: hex.EncodeToString(msg.GetPublicKeyEd25519()),
@@ -50,13 +53,18 @@ func apiKey(msg *authv1.ApiKey) *models.ApiKeySummary {
 func ApiKeyMessageFromProto(msg *authv1.ApiKey) *models.ApiKeySummary { return apiKey(msg) }
 
 func ApiKeysListFromProto(msg *authv1.ListApiKeysResponse) models.ApiKeysList {
-	out := make([]models.ApiKeySummary, 0, len(msg.GetApiKeys()))
-	for _, k := range msg.GetApiKeys() {
+	return models.ApiKeysList{Keys: apiKeys(msg.GetApiKeys())}
+}
+
+// apiKeys decodes a list of API keys; empty, never nil.
+func apiKeys(keys []*authv1.ApiKey) []models.ApiKeySummary {
+	out := make([]models.ApiKeySummary, 0, len(keys))
+	for _, k := range keys {
 		if row := apiKey(k); row != nil {
 			out = append(out, *row)
 		}
 	}
-	return models.ApiKeysList{Keys: out}
+	return out
 }
 
 func ApiKeyFromGetProto(msg *authv1.GetApiKeyResponse) *models.ApiKeySummary {

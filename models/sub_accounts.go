@@ -30,6 +30,11 @@ type SubAccountsList struct {
 // GetSubaccountResult is a detailed subaccount view.
 type GetSubaccountResult struct {
 	Subaccount *SubAccount `json:"subaccount,omitempty"`
+	// APIKeys are the API keys scoped to the sub-account, read as
+	// APIKeys.List reads them. Nil unless SubAccounts.Get was asked for
+	// them and the server sent some: it sends them to an owner or admin of
+	// the sub-account only.
+	APIKeys []ApiKeySummary `json:"api_keys,omitempty"`
 	// Balances are the sub-account's current balances, in the shape of
 	// Balances.List. Nil unless SubAccounts.Get was asked for them.
 	Balances *BalancesList `json:"balances,omitempty"`
