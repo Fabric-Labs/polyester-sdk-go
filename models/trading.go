@@ -873,7 +873,8 @@ type TriggerMutationResult struct {
 // CreateOcoResult is the admission of an OCO. OrderListID is the OCO's ID,
 // which both legs carry as Trigger.OrderListID; TakeProfitTriggerID and
 // StopLossTriggerID are the legs' trigger IDs. AcceptedTsNs is when
-// admission completed, in nanoseconds since the Unix epoch.
+// admission completed, in nanoseconds since the Unix epoch; 0 when the server
+// sent no time.
 type CreateOcoResult struct {
 	OrderListID         string `json:"order_list_id,omitempty"`
 	ClientListID        string `json:"client_list_id,omitempty"`
@@ -887,6 +888,9 @@ type CreateOcoResult struct {
 type CancelOcoResult struct {
 	OrderListID string `json:"order_list_id,omitempty"`
 	Status      string `json:"status,omitempty"`
+	// TsNs is when the cancel was answered, in nanoseconds since the Unix
+	// epoch; 0 when the server sent no time.
+	TsNs uint64 `json:"ts_ns,omitempty"`
 }
 
 // BatchCancelTriggersResultItem is one trigger's outcome in a batch cancel,
@@ -912,6 +916,9 @@ type BatchCancelTriggersResult struct {
 	Results       []BatchCancelTriggersResultItem `json:"results"`
 	AcceptedCount int                             `json:"accepted_count,omitempty"`
 	RejectedCount int                             `json:"rejected_count,omitempty"`
+	// TsNs is the server time of the answer, in nanoseconds since the Unix
+	// epoch; 0 when the server sent no time.
+	TsNs uint64 `json:"ts_ns,omitempty"`
 }
 
 // TriggerEvent is a trigger lifecycle event.

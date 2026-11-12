@@ -2,6 +2,7 @@ package decode
 
 import (
 	"testing"
+	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
@@ -10,6 +11,7 @@ import (
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	triggersv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // An iceberg order reads back its display and the hidden part of what is
@@ -204,5 +206,42 @@ func TestBatchReplaceRejectsOneItemForItsPrice(t *testing.T) {
 		rejected.Code != "PRICE_TICK_SIZE" || len(rejected.Violations) != 1 ||
 		rejected.Violations[0].FieldPath != "items[1].new_attached_risk.take_profit.trigger_price_ticks" {
 		t.Fatalf("results=%+v", got.Results)
+	}
+}
+
+// The OCO create and cancel and the batch trigger cancel keep the server's
+// time to the nanosecond: the *_ts_ns field when sent, else its paired
+// Timestamp, else 0.
+func TestOcoAndBatchCancelKeepServerTimes(t *testing.T) {
+	const exact = uint64(1_762_560_000_123_456_789)
+	stamp := timestamppb.New(time.Unix(1_762_560_000, 987_654_321))
+	const fromStamp = uint64(1_762_560_000_987_654_321)
+
+	created := CreateOcoFromProto(&triggersv1.CreateOcoResponse{OrderListId: 1, AcceptedAtTsNs: exact, AcceptedAt: stamp})
+	fallback := CreateOcoFromProto(&triggersv1.CreateOcoResponse{OrderListId: 1, AcceptedAt: stamp})
+	unset := CreateOcoFromProto(&triggersv1.CreateOcoResponse{OrderListId: 1})
+	if created.AcceptedTsNs != exact || fallback.AcceptedTsNs != fromStamp || unset.AcceptedTsNs != 0 {
+		t.Fatalf("create: %d %d %d", created.AcceptedTsNs, fallback.AcceptedTsNs, unset.AcceptedTsNs)
+	}
+
+	canceled := CancelOcoFromProto(&triggersv1.CancelOcoResponse{OrderListId: 1, TsNs: exact, Ts: stamp})
+	cancelFallback := CancelOcoFromProto(&triggersv1.CancelOcoResponse{OrderListId: 1, Ts: stamp})
+	cancelUnset := CancelOcoFromProto(&triggersv1.CancelOcoResponse{OrderListId: 1})
+	if canceled.TsNs != exact || cancelFallback.TsNs != fromStamp || cancelUnset.TsNs != 0 {
+		t.Fatalf("cancel: %d %d %d", canceled.TsNs, cancelFallback.TsNs, cancelUnset.TsNs)
+	}
+
+	for _, tc := range []struct {
+		msg  *triggersv1.BatchCancelTriggersResponse
+		want uint64
+	}{
+		{&triggersv1.BatchCancelTriggersResponse{TsNs: exact, Ts: stamp}, exact},
+		{&triggersv1.BatchCancelTriggersResponse{Ts: stamp}, fromStamp},
+		{&triggersv1.BatchCancelTriggersResponse{}, 0},
+	} {
+		got, err := BatchCancelTriggersFromProto(tc.msg)
+		if err != nil || got.TsNs != tc.want {
+			t.Fatalf("batch: got %d err=%v, want %d", got.TsNs, err, tc.want)
+		}
 	}
 }
