@@ -714,3 +714,31 @@ func TestTriggerStatusInvalidReadsAsAlreadyEnded(t *testing.T) {
 		})
 	}
 }
+
+// Order permission refusals read the same over REST and ConnectRPC: a final
+// *errors.AuthError carrying the order code, so 78 (the API key's policy) is
+// never confused with 23 (the sub-account's).
+func TestOrderPermissionRefusalsMatchAcrossTransports(t *testing.T) {
+	for _, code := range []string{"POLICY_MARKET_DENY", "POLICY_SPOT_TRADE_DENY", "API_KEY_POLICY_REQUIRED", "API_KEY_MARKET_DENY", "API_KEY_SPOT_TRADE_DENY"} {
+		value := orderv1.ErrorCode_value["ERROR_CODE_"+code]
+		data, err := proto.Marshal(&orderv1.ErrorDetail{Code: orderv1.ErrorCode(value)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		connectBody := fmt.Sprintf(`{"code":"permission_denied","message":"denied","details":[{"type":"orders.v1.ErrorDetail","value":%q}]}`,
+			base64.RawStdEncoding.EncodeToString(data))
+		for _, body := range []errorBody{
+			{"rest", problemType, fmt.Sprintf(`{"code":%q,"detail":"denied"}`, code)},
+			{"connect", jsonType, connectBody},
+		} {
+			eachOp(t, code+"/"+body.name, func(t *testing.T, op string) {
+				_, err := callWithErrorBody(t, op, 403, body, -1)
+				var authErr *sdkerrors.AuthError
+				if !errors.As(err, &authErr) || authErr.Code != "ERROR_CODE_"+code {
+					t.Fatalf("got %T %#v", err, err)
+				}
+				assertErrorFlags(t, err, false, false)
+			})
+		}
+	}
+}
