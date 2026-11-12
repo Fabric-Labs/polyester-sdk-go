@@ -314,6 +314,9 @@ type ListTriggersOptions struct {
 	TriggerType string
 	// ParentOrderID lists the attached triggers of one parent order.
 	ParentOrderID *string
+	// OrderListID lists the take-profit and the stop-loss of one OCO, by the
+	// OrderListID CreateOco returned.
+	OrderListID *string
 }
 
 // ListUserTradesOptions are optional GetUserTrades execution-scope filters.
@@ -768,6 +771,12 @@ type Trigger struct {
 	// state change. Keep the copy with the highest version across reads and
 	// realtime updates. Zero from a server that predates trigger versions.
 	Version uint32 `json:"version,omitempty"`
+	// OrderListID is the OCO this take-profit or stop-loss belongs to and
+	// ClientListID its client OCO ID: both triggers of an OCO created with
+	// CreateOco carry them, and neither has a parent order. Empty for any
+	// other trigger.
+	OrderListID  string `json:"order_list_id,omitempty"`
+	ClientListID string `json:"client_list_id,omitempty"`
 }
 
 // TriggerDetails is a discriminated trigger strategy payload.
@@ -817,6 +826,50 @@ type TriggersList struct {
 type TriggerMutationResult struct {
 	TriggerID string `json:"trigger_id,omitempty"`
 	Status    string `json:"status,omitempty"`
+}
+
+// CreateOcoResult is the admission of an OCO. OrderListID is the OCO's ID,
+// which both legs carry as Trigger.OrderListID; TakeProfitTriggerID and
+// StopLossTriggerID are the legs' trigger IDs. AcceptedTsNs is when
+// admission completed, in nanoseconds since the Unix epoch.
+type CreateOcoResult struct {
+	OrderListID         string `json:"order_list_id,omitempty"`
+	ClientListID        string `json:"client_list_id,omitempty"`
+	TakeProfitTriggerID string `json:"take_profit_trigger_id,omitempty"`
+	StopLossTriggerID   string `json:"stop_loss_trigger_id,omitempty"`
+	AcceptedTsNs        uint64 `json:"accepted_ts_ns,omitempty"`
+}
+
+// CancelOcoResult is a canceled OCO: Status is both legs' status after the
+// cancel, "canceled".
+type CancelOcoResult struct {
+	OrderListID string `json:"order_list_id,omitempty"`
+	Status      string `json:"status,omitempty"`
+}
+
+// BatchCancelTriggersResultItem is one trigger's outcome in a batch cancel,
+// in request order. Status is "accepted" (the trigger's events report when
+// it is canceled) or "rejected", with Code saying why:
+// TRIGGER_NOT_FOUND (no trigger of the account has this ID),
+// TRIGGER_STATUS_INVALID (it has already ended; treat it as done), or
+// RATE_LIMIT_EXCEEDED, PAIR_BACKLOGGED and TRIGGER_CONTROL_IN_PROGRESS
+// (retry the item in a new request with a new request ID).
+type BatchCancelTriggersResultItem struct {
+	Status    string `json:"status"`
+	TriggerID string `json:"trigger_id,omitempty"`
+	Code      string `json:"code,omitempty"`
+	// RateLimit is set when the rejection carries rate-limit guidance.
+	RateLimit *RateLimitDetail `json:"rate_limit,omitempty"`
+	// Violations names the request fields a rejection asks to fix, in the
+	// order the server sent them; empty when it named none.
+	Violations []OrderFieldViolation `json:"violations,omitempty"`
+}
+
+// BatchCancelTriggersResult summarizes a batch trigger cancel.
+type BatchCancelTriggersResult struct {
+	Results       []BatchCancelTriggersResultItem `json:"results"`
+	AcceptedCount int                             `json:"accepted_count,omitempty"`
+	RejectedCount int                             `json:"rejected_count,omitempty"`
 }
 
 // TriggerEvent is a trigger lifecycle event.

@@ -410,6 +410,10 @@ func TriggerFromProto(msg *triggersv1.Trigger) models.Trigger {
 	if msg.ParentOrderId != nil {
 		parentOrderID = codecs.FormatUint64ID(msg.GetParentOrderId())
 	}
+	var orderListID string
+	if msg.OrderListId != nil {
+		orderListID = codecs.FormatUint64ID(msg.GetOrderListId())
+	}
 	cancelReason, failureReason := triggerReasonsFromTrigger(msg)
 	maxSlippage, maxSlippageBps := triggerSlippageCap(msg)
 	return models.Trigger{
@@ -420,6 +424,8 @@ func TriggerFromProto(msg *triggersv1.Trigger) models.Trigger {
 		TriggerType:             triggerType,
 		Status:                  TriggerStatusLabel(msg.GetStatus()),
 		ParentOrderID:           parentOrderID,
+		OrderListID:             orderListID,
+		ClientListID:            msg.GetClientListId(),
 		Side:                    side,
 		OrderType:               orderType,
 		TimeInForce:             tif,
@@ -494,6 +500,64 @@ func TriggerMutationFromResume(msg *triggersv1.ResumeTriggerResponse) models.Tri
 // TriggerMutationFromModify decodes modify trigger response.
 func TriggerMutationFromModify(msg *triggersv1.ModifyTriggerResponse) models.TriggerMutationResult {
 	return triggerMutationResult(msg.GetTriggerId(), msg.GetStatus())
+}
+
+// CreateOcoFromProto decodes an OCO create response.
+func CreateOcoFromProto(msg *triggersv1.CreateOcoResponse) models.CreateOcoResult {
+	return models.CreateOcoResult{
+		OrderListID:         codecs.FormatUint64ID(msg.GetOrderListId()),
+		ClientListID:        msg.GetClientListId(),
+		TakeProfitTriggerID: codecs.FormatUint64ID(msg.GetTakeProfitTriggerId()),
+		StopLossTriggerID:   codecs.FormatUint64ID(msg.GetStopLossTriggerId()),
+		AcceptedTsNs:        msg.GetAcceptedAtTsNs(),
+	}
+}
+
+// CancelOcoFromProto decodes an OCO cancel response.
+func CancelOcoFromProto(msg *triggersv1.CancelOcoResponse) models.CancelOcoResult {
+	return models.CancelOcoResult{
+		OrderListID: codecs.FormatUint64ID(msg.GetOrderListId()),
+		Status:      TriggerStatusLabel(msg.GetStatus()),
+	}
+}
+
+// BatchCancelTriggersFromProto decodes a batch trigger cancel response. It
+// refuses a response whose item outcomes are unknown or disagree with its
+// counts.
+func BatchCancelTriggersFromProto(msg *triggersv1.BatchCancelTriggersResponse) (models.BatchCancelTriggersResult, error) {
+	results := make([]models.BatchCancelTriggersResultItem, 0, len(msg.GetResults()))
+	decodedAccepted, decodedRejected := 0, 0
+	for _, item := range msg.GetResults() {
+		var status string
+		switch item.GetStatus() {
+		case triggersv1.BatchCancelTriggersResultItem_ACCEPTED:
+			status = "accepted"
+			decodedAccepted++
+		case triggersv1.BatchCancelTriggersResultItem_REJECTED:
+			status = "rejected"
+			decodedRejected++
+		default:
+			return models.BatchCancelTriggersResult{}, &sdkerrors.ResponseContractError{Operation: "BatchCancelTriggers",
+				Msg: fmt.Sprintf("batch trigger cancel response has unknown status: %d", item.GetStatus()),
+			}
+		}
+		results = append(results, models.BatchCancelTriggersResultItem{
+			Status:     status,
+			TriggerID:  codecs.FormatUint64ID(item.GetTriggerId()),
+			Code:       item.GetCode(),
+			RateLimit:  RateLimitDetailFromProto(item.GetError().GetRateLimit()),
+			Violations: fieldViolationsFromProto(item.GetError()),
+		})
+	}
+	accepted := int(msg.GetAcceptedCount())
+	rejected := int(msg.GetRejectedCount())
+	if accepted != decodedAccepted || rejected != decodedRejected || accepted+rejected != len(results) {
+		return models.BatchCancelTriggersResult{}, &sdkerrors.ResponseContractError{Operation: "BatchCancelTriggers", Msg: fmt.Sprintf(
+			"batch trigger cancel response counts do not match decoded outcomes: accepted=%d/%d rejected=%d/%d results=%d",
+			accepted, decodedAccepted, rejected, decodedRejected, len(results),
+		)}
+	}
+	return models.BatchCancelTriggersResult{Results: results, AcceptedCount: accepted, RejectedCount: rejected}, nil
 }
 
 // TriggerEventsListFromProto decodes list trigger events response.

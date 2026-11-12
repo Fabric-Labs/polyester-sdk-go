@@ -196,6 +196,97 @@ func (s *TriggersService) Cancel(ctx context.Context, account AccountScope, trig
 	return UnaryAuth(ctx, s.transport, s.client().CancelTrigger, req, decode.TriggerMutationFromCancel)
 }
 
+// CreateOco creates a one-cancels-the-other order list: a take-profit and a
+// stop-loss over a quantity the account already holds, reserved once for both
+// legs. When one leg's order trades the whole quantity, the other is
+// canceled; a partly filled order's rest stays protected by the other leg.
+// Cancel All Orders and the dead-man switch do not cancel OCOs; an OCO leg's
+// working order they cancel cancels the OCO.
+//
+// The result names the OCO's OrderListID, which both legs carry as
+// Trigger.OrderListID, and each leg's trigger ID. A create whose outcome is
+// unknown can be sent again with the same in.ClientListID and intent: it
+// returns the same OCO (see models.CreateOcoInput).
+func (s *TriggersService) CreateOco(ctx context.Context, account AccountScope, in models.CreateOcoInput, subAccountID *string) (models.CreateOcoResult, error) {
+	if err := s.ensureCatalogs(ctx); err != nil {
+		return models.CreateOcoResult{}, err
+	}
+	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
+	if err != nil {
+		return models.CreateOcoResult{}, err
+	}
+	// As in Create: with hydration on, an unknown symbol is refused as
+	// unknown, not for its scale.
+	hydrated := s.catalogs != nil && s.catalogs.Hydration() != nil
+	var symbolID uint32
+	if hydrated {
+		if symbolID, err = ResolveSymbolID(s.catalogs, &in.Symbol, nil, "triggers.create_oco"); err != nil {
+			return models.CreateOcoResult{}, err
+		}
+	}
+	scale, err := codecs.QuantityScaleForSymbol(s.catalogs, &in.Symbol)
+	if err != nil {
+		return models.CreateOcoResult{}, err
+	}
+	if !hydrated {
+		if symbolID, err = ResolveSymbolID(s.catalogs, &in.Symbol, nil, "triggers.create_oco"); err != nil {
+			return models.CreateOcoResult{}, err
+		}
+	}
+	req, err := codecs.CreateOcoToProto(symbolID, in, sub, scale)
+	if err != nil {
+		return models.CreateOcoResult{}, err
+	}
+	return UnaryAuth(ctx, s.transport, s.client().CreateOco, req, decode.CreateOcoFromProto)
+}
+
+// CancelOco cancels an OCO by the OrderListID CreateOco returned: both legs
+// end canceled and the reserved quantity is released. Canceling either leg
+// with Cancel does the same. An ID that is not an OCO of the account, such as
+// a trigger ID or a leg's ID, is refused with TRIGGER_NOT_FOUND and nothing
+// is canceled.
+func (s *TriggersService) CancelOco(ctx context.Context, account AccountScope, orderListID string, subAccountID *string) (models.CancelOcoResult, error) {
+	id, err := codecs.IDToInt(orderListID, "order_list_id")
+	if err != nil {
+		return models.CancelOcoResult{}, err
+	}
+	if id == 0 {
+		return models.CancelOcoResult{}, &sdkerrors.ValidationError{Msg: "order_list_id must be a non-zero OCO ID"}
+	}
+	req := &triggersv1.CancelOcoRequest{OrderListId: id}
+	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
+	if err != nil {
+		return models.CancelOcoResult{}, err
+	}
+	if req.SubaccountId, err = codecs.ParseOptionalSubaccountID(sub); err != nil {
+		return models.CancelOcoResult{}, err
+	}
+	return UnaryAuth(ctx, s.transport, s.client().CancelOco, req, decode.CancelOcoFromProto)
+}
+
+// BatchCancel cancels 1 to codecs.MaxBatchCancelTriggers distinct triggers
+// in one request, each as Cancel cancels it: a TWAP's or ladder's open child
+// orders are canceled with it. Results come back per trigger, in request
+// order (see models.BatchCancelTriggersResultItem). Each trigger counts one
+// against the account's cancel rate limit, as a Cancel does.
+//
+// requestID identifies the request for 2 minutes; one is generated when it
+// is nil or empty. A request whose outcome is unknown can be sent again
+// unchanged, with the same requestID and trigger IDs: it returns the
+// original results and cancels nothing again. The same requestID with other
+// trigger IDs rejects every item with CONFLICT_IDEMPOTENCY_KEY_REUSE.
+func (s *TriggersService) BatchCancel(ctx context.Context, account AccountScope, triggerIDs []string, subAccountID *string, requestID *string) (models.BatchCancelTriggersResult, error) {
+	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
+	if err != nil {
+		return models.BatchCancelTriggersResult{}, err
+	}
+	req, err := codecs.BatchCancelTriggersToProto(triggerIDs, sub, requestID)
+	if err != nil {
+		return models.BatchCancelTriggersResult{}, err
+	}
+	return UnaryAuthDecoded(ctx, s.transport, s.client().BatchCancelTriggers, req, decode.BatchCancelTriggersFromProto)
+}
+
 func (s *TriggersService) Pause(ctx context.Context, account AccountScope, triggerID string, subAccountID *string) (models.TriggerMutationResult, error) {
 	id, err := codecs.IDToInt(triggerID, "trigger_id")
 	if err != nil {
@@ -348,6 +439,16 @@ func applyListTriggersOptions(req *triggersv1.ListTriggersRequest, opts models.L
 			return &sdkerrors.ValidationError{Msg: "parent_order_id must be a non-zero order ID"}
 		}
 		req.ParentOrderId = &id
+	}
+	if opts.OrderListID != nil {
+		id, err := codecs.IDToInt(*opts.OrderListID, "order_list_id")
+		if err != nil {
+			return err
+		}
+		if id == 0 {
+			return &sdkerrors.ValidationError{Msg: "order_list_id must be a non-zero OCO ID"}
+		}
+		req.OrderListId = &id
 	}
 	return nil
 }

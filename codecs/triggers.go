@@ -574,6 +574,92 @@ func ParseRequiredUint64Decimal(raw, field string) (uint64, error) {
 	return v, err
 }
 
+// MaxBatchCancelTriggers is the contract's limit of trigger IDs per batch
+// trigger cancel, 50. A larger batch is refused before sending.
+var MaxBatchCancelTriggers = contractMaxRepeated(&triggersv1.BatchCancelTriggersRequest{}, "trigger_ids")
+
+// CreateOcoToProto encodes an OCO create for a resolved pair.
+func CreateOcoToProto(symbolID uint32, in models.CreateOcoInput, subAccountID *string, quantityScale int) (*triggersv1.CreateOcoRequest, error) {
+	if symbolID == 0 {
+		return nil, &errors.ValidationError{Msg: "triggers.create_oco requires a resolved non-zero symbol_id"}
+	}
+	side, ok := orderSideToProto[strings.ToLower(in.Side)]
+	if !ok {
+		return nil, &errors.ValidationError{Msg: "side must be buy or sell"}
+	}
+	qtyScaled, err := ResolveQtyScaled(in.Qty, quantityScale, "qty", in.Symbol, &symbolID)
+	if err != nil {
+		return nil, err
+	}
+	intent := &triggersv1.OcoIntent{SymbolId: symbolID, Side: side, QtyScaled: qtyScaled}
+	if in.ClientListID != nil && *in.ClientListID != "" {
+		if intent.ClientListId, err = requiredClientID(*in.ClientListID, "client_list_id"); err != nil {
+			return nil, err
+		}
+	} else {
+		intent.ClientListId = newTriggerRequestID()
+	}
+	if in.SelfTradePreventionMode != nil {
+		mode, ok := selfTradePreventionModeToProto[strings.ToLower(*in.SelfTradePreventionMode)]
+		if !ok {
+			return nil, &errors.ValidationError{Msg: "self_trade_prevention_mode must be expire_taker, expire_maker, or expire_both"}
+		}
+		intent.SelfTradePreventionMode = mode
+	}
+	if intent.TakeProfit, err = ocoLegToProto(in.TakeProfit, "take_profit", in.Symbol); err != nil {
+		return nil, err
+	}
+	if intent.StopLoss, err = ocoLegToProto(in.StopLoss, "stop_loss", in.Symbol); err != nil {
+		return nil, err
+	}
+	req := &triggersv1.CreateOcoRequest{Oco: intent}
+	if req.SubaccountId, err = ParseOptionalSubaccountID(subAccountID); err != nil {
+		return nil, err
+	}
+	return req, nil
+}
+
+func ocoLegToProto(leg models.RiskLegInput, fieldName, symbol string) (*triggersv1.OcoLeg, error) {
+	ticks, source, child, err := riskLegToProto(leg, fieldName, symbol)
+	if err != nil {
+		return nil, err
+	}
+	return &triggersv1.OcoLeg{TriggerPriceTicks: ticks, Child: child, TriggerPriceSource: source}, nil
+}
+
+// BatchCancelTriggersToProto encodes a batch trigger cancel of 1 to
+// MaxBatchCancelTriggers distinct trigger IDs. A request ID is generated when
+// requestID is nil or empty.
+func BatchCancelTriggersToProto(triggerIDs []string, subAccountID *string, requestID *string) (*triggersv1.BatchCancelTriggersRequest, error) {
+	if err := validateBatchSize("triggers.batch_cancel", len(triggerIDs), MaxBatchCancelTriggers); err != nil {
+		return nil, err
+	}
+	resolvedRequestID, err := coalesceRequestID(requestID, "batch-cancel-triggers")
+	if err != nil {
+		return nil, err
+	}
+	req := &triggersv1.BatchCancelTriggersRequest{RequestId: resolvedRequestID, TriggerIds: make([]uint64, 0, len(triggerIDs))}
+	seen := make(map[uint64]struct{}, len(triggerIDs))
+	for _, raw := range triggerIDs {
+		id, err := IDToInt(raw, "trigger_id")
+		if err != nil {
+			return nil, err
+		}
+		if id == 0 {
+			return nil, &errors.ValidationError{Msg: "trigger_id must be a non-zero trigger ID"}
+		}
+		if _, dup := seen[id]; dup {
+			return nil, &errors.ValidationError{Msg: "triggers.batch_cancel trigger IDs must be distinct: " + FormatUint64ID(id) + " is repeated"}
+		}
+		seen[id] = struct{}{}
+		req.TriggerIds = append(req.TriggerIds, id)
+	}
+	if req.SubaccountId, err = ParseOptionalSubaccountID(subAccountID); err != nil {
+		return nil, err
+	}
+	return req, nil
+}
+
 func newTriggerRequestID() string {
 	var b [6]byte
 	_, _ = rand.Read(b[:])
