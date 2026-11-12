@@ -35,6 +35,18 @@ type fakeAlerts struct {
 	signed  []bool
 	// err, when set, answers every call.
 	err error
+	// answer, when set, replaces the alert of a create, update or cancel
+	// answer: it may return nil (no alert) or an empty alert.
+	answer func(*alertsv1.PriceAlert) *alertsv1.PriceAlert
+	// outcome, when set, is the update answer's outcome.
+	outcome *alertsv1.UpdateOutcome
+}
+
+func (f *fakeAlerts) answered(alert *alertsv1.PriceAlert) *alertsv1.PriceAlert {
+	if f.answer != nil {
+		return f.answer(alert)
+	}
+	return alert
 }
 
 func (f *fakeAlerts) record(h http.Header) {
@@ -66,7 +78,7 @@ func (f *fakeAlerts) CreateAlert(_ context.Context, req *connect.Request[alertsv
 	if f.err != nil {
 		return nil, f.err
 	}
-	return connect.NewResponse(&alertsv1.CreateAlertResponse{Alert: sampleAlert(1234)}), nil
+	return connect.NewResponse(&alertsv1.CreateAlertResponse{Alert: f.answered(sampleAlert(1234))}), nil
 }
 
 func (f *fakeAlerts) ListAlerts(_ context.Context, req *connect.Request[alertsv1.ListAlertsRequest]) (*connect.Response[alertsv1.ListAlertsResponse], error) {
@@ -98,7 +110,11 @@ func (f *fakeAlerts) UpdateAlert(_ context.Context, req *connect.Request[alertsv
 	}
 	alert := sampleAlert(req.Msg.GetAlertId())
 	alert.Revision = req.Msg.GetExpectedRevision() + 1
-	return connect.NewResponse(&alertsv1.UpdateAlertResponse{Alert: alert, Outcome: alertsv1.UpdateOutcome_REPLAYED}), nil
+	outcome := alertsv1.UpdateOutcome_REPLAYED
+	if f.outcome != nil {
+		outcome = *f.outcome
+	}
+	return connect.NewResponse(&alertsv1.UpdateAlertResponse{Alert: f.answered(alert), Outcome: outcome}), nil
 }
 
 func (f *fakeAlerts) CancelAlert(_ context.Context, req *connect.Request[alertsv1.CancelAlertRequest]) (*connect.Response[alertsv1.CancelAlertResponse], error) {
@@ -111,7 +127,7 @@ func (f *fakeAlerts) CancelAlert(_ context.Context, req *connect.Request[alertsv
 	}
 	alert := sampleAlert(req.Msg.GetAlertId())
 	alert.Status = alertsv1.AlertStatus_CANCELLED
-	return connect.NewResponse(&alertsv1.CancelAlertResponse{Alert: alert}), nil
+	return connect.NewResponse(&alertsv1.CancelAlertResponse{Alert: f.answered(alert)}), nil
 }
 
 func alertsCatalog(t *testing.T) *catalogs.Manager {

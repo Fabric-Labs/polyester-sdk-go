@@ -113,16 +113,40 @@ type UpdateAlertParams struct {
 // alert's ReferencePrice; an alert whose condition already holds at that
 // price starts unarmed and fires only after the price moves to the other side
 // and crosses back.
+//
+// A price bound to a market (models.PriceTicks.WithSymbol) is checked against
+// the catalogs' name for the SymbolID sent, after a catalog load in progress
+// ends. When the catalogs can't name that ID (none were loaded, the load
+// failed, or they don't list it) a bound price is refused with an
+// *errors.ValidationError before anything is sent, whatever Symbol says:
+// nothing proves which market the ID is. An unbound price is sent for any
+// SymbolID. An answer without the created alert returns an
+// *errors.ResponseContractError: the alert may exist, so list the alerts or
+// create again with the same IdempotencyKey.
 func (s *AlertsService) Create(ctx context.Context, params CreateAlertParams) (models.PriceAlert, error) {
-	symbolID, symbol, err := s.resolveMarket(ctx, params.Symbol, params.SymbolID, "alerts.create", true)
+	bound := boundPriceSymbol(&params.Price)
+	if bound != "" {
+		// The check below reads the catalogs: wait for a load in progress. A
+		// failed load leaves the market unnamed, and the price is refused.
+		if err := awaitCatalogs(ctx, s.catalogs, false); err != nil {
+			return models.PriceAlert{}, err
+		}
+	}
+	symbolID, market, err := s.resolveMarket(ctx, params.Symbol, params.SymbolID, "alerts.create", true)
 	if err != nil {
 		return models.PriceAlert{}, err
+	}
+	if bound != "" && market == "" {
+		return models.PriceAlert{}, &errors.ValidationError{Msg: fmt.Sprintf(
+			"alerts.create cannot check a price bound to %s against symbol_id %d: the market is not in the catalogs; hydrate catalogs or pass an unbound price",
+			bound, symbolID,
+		)}
 	}
 	direction, err := alertDirection(params.Direction)
 	if err != nil {
 		return models.PriceAlert{}, err
 	}
-	priceTicks, err := alertPriceTicks(params.Price, symbol)
+	priceTicks, err := alertPriceTicks(params.Price, market)
 	if err != nil {
 		return models.PriceAlert{}, err
 	}
@@ -146,7 +170,7 @@ func (s *AlertsService) Create(ctx context.Context, params CreateAlertParams) (m
 		IdempotencyKey: params.IdempotencyKey,
 	}
 	return UnaryAuthDecoded(ctx, s.transport, s.client().CreateAlert, req, func(msg *alertsv1.CreateAlertResponse) (models.PriceAlert, error) {
-		return s.decodeAlert(msg.GetAlert(), "create")
+		return s.decodeAlert(msg.GetAlert(), "CreateAlert")
 	})
 }
 
@@ -172,7 +196,9 @@ func (s *AlertsService) All(ctx context.Context, params ListAlertsParams) iter.S
 }
 
 // Update changes an alert's direction, price or channels; see
-// UpdateAlertParams. Updating a triggered alert sets it again.
+// UpdateAlertParams. Updating a triggered alert sets it again. An answer
+// without the alert returns an *errors.ResponseContractError whatever its
+// outcome: the update may have applied, so read the alert back.
 func (s *AlertsService) Update(ctx context.Context, params UpdateAlertParams) (models.UpdatePriceAlertResult, error) {
 	alertID, err := parseAlertID(params.AlertID)
 	if err != nil {
@@ -212,15 +238,16 @@ func (s *AlertsService) Update(ctx context.Context, params UpdateAlertParams) (m
 		IdempotencyKey:   params.IdempotencyKey,
 	}
 	return UnaryAuthDecoded(ctx, s.transport, s.client().UpdateAlert, req, func(msg *alertsv1.UpdateAlertResponse) (models.UpdatePriceAlertResult, error) {
-		if msg.GetAlert() == nil {
-			return models.UpdatePriceAlertResult{}, &errors.TransportError{Msg: "alerts update: response missing alert"}
+		if err := requireAlert(msg.GetAlert(), "UpdateAlert"); err != nil {
+			return models.UpdatePriceAlertResult{}, err
 		}
 		return decode.UpdatePriceAlertFromProto(msg, s.catalogs), nil
 	})
 }
 
 // Cancel cancels an alert. Cancelling a cancelled alert returns it unchanged,
-// so a retry is safe.
+// so a retry is safe. An answer without the alert returns an
+// *errors.ResponseContractError: cancel again or read the alert back.
 func (s *AlertsService) Cancel(ctx context.Context, alertID string) (models.PriceAlert, error) {
 	id, err := parseAlertID(alertID)
 	if err != nil {
@@ -228,15 +255,28 @@ func (s *AlertsService) Cancel(ctx context.Context, alertID string) (models.Pric
 	}
 	req := &alertsv1.CancelAlertRequest{AlertId: id}
 	return UnaryAuthDecoded(ctx, s.transport, s.client().CancelAlert, req, func(msg *alertsv1.CancelAlertResponse) (models.PriceAlert, error) {
-		return s.decodeAlert(msg.GetAlert(), "cancel")
+		return s.decodeAlert(msg.GetAlert(), "CancelAlert")
 	})
 }
 
-func (s *AlertsService) decodeAlert(msg *alertsv1.PriceAlert, label string) (models.PriceAlert, error) {
-	if msg == nil {
-		return models.PriceAlert{}, &errors.TransportError{Msg: "alerts " + label + ": response missing alert"}
+func (s *AlertsService) decodeAlert(msg *alertsv1.PriceAlert, operation string) (models.PriceAlert, error) {
+	if err := requireAlert(msg, operation); err != nil {
+		return models.PriceAlert{}, err
 	}
 	return decode.PriceAlertFromProto(msg, s.catalogs), nil
+}
+
+// requireAlert refuses the answer of a create, update or cancel that has no
+// alert, or an alert with no ID: it breaks the response contract, and the
+// mutation may have applied.
+func requireAlert(msg *alertsv1.PriceAlert, operation string) error {
+	if msg == nil {
+		return &errors.ResponseContractError{Operation: operation, Msg: "response has no alert"}
+	}
+	if msg.GetAlertId() == 0 {
+		return &errors.ResponseContractError{Operation: operation, Msg: "response alert has no alert_id"}
+	}
+	return nil
 }
 
 func (s *AlertsService) listRequest(ctx context.Context, params ListAlertsParams) (*alertsv1.ListAlertsRequest, error) {
@@ -269,7 +309,8 @@ func (s *AlertsService) listRequest(ctx context.Context, params ListAlertsParams
 }
 
 // resolveMarket resolves a market selector, waiting for the catalog load
-// when it names a market by Symbol. It returns the market's name when known.
+// when it names a market by Symbol. It returns the catalogs' name for the
+// resolved ID when they know it, never the caller's Symbol.
 func (s *AlertsService) resolveMarket(ctx context.Context, symbol *string, symbolID *uint32, label string, required bool) (uint32, string, error) {
 	if namesSymbol(symbol) {
 		if err := awaitCatalogs(ctx, s.catalogs, true); err != nil {

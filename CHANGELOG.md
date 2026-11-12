@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- **Breaking:** A create, update or cancel of a price alert whose answer has no alert, or an alert with no ID, returns `*errors.ResponseContractError` (`CreateAlert response contract violation: response has no alert`, likewise `UpdateAlert` and `CancelAlert`), as the Python and Rust SDKs refuse it. A missing alert returned `*errors.TransportError` (`alerts create: response missing alert`), which `errors.IsRetryable` reported retryable (`*errors.ResponseContractError` is not), and an alert with no ID was returned as a zero-ID alert, so a broken answer read as success. `errors.MutationOutcomeUnknown` stays true: the change may have applied. Every update outcome is checked. Affected: `Alerts.Create`, `Alerts.Update` and `Alerts.Cancel`. Migration: match `*errors.ResponseContractError` instead of `*errors.TransportError` for these answers, and list the alerts before retrying.
+- **Breaking:** `Alerts.Create` never sends a price bound to one market for another. A bound price (`models.PriceTicks.WithSymbol`) is checked against the catalogs' name for the `SymbolID` sent, and is refused with `*errors.ValidationError` (`alerts.create cannot check a price bound to ETH-USDT against symbol_id 1: the market is not in the catalogs; hydrate catalogs or pass an unbound price`) before sending when the catalogs can't name that ID: none were loaded, their load failed, or they don't list it. With the catalogs empty, a `SymbolID` alone, or a `SymbolID` with any `Symbol`, sent an ETH-bound price as an alert on BTC-USDT (ID 1). A `SymbolID` alone with a bound price also didn't wait for a catalog load in progress; it now waits, as a `Symbol` does. An unbound price is sent for any `SymbolID`, as before. Affected: `Alerts.Create` and `services.CreateAlertParams`. Migration: pass an unbound price (`models.PriceFromTicksInt`, `models.PriceFromDecimal`) to create an alert on a market the catalogs can't name, or enable `Config.HydrateCatalogs` and call `Client.WaitForCatalogs(ctx)` first.
+
 ## 0.26.0
 
 Git tag: `v0.26.0`. Released 2026-11-12. Built on public contract `e339360`.
