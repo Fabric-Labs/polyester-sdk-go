@@ -17,6 +17,14 @@ func timestampTime(ts *timestamppb.Timestamp) *time.Time {
 	return &value
 }
 
+// ipWhitelist copies a key's CIDR allowlist; nil when it has none.
+func ipWhitelist(cidrs []string) []string {
+	if len(cidrs) == 0 {
+		return nil
+	}
+	return append([]string(nil), cidrs...)
+}
+
 func apiKey(msg *authv1.ApiKey) *models.ApiKeySummary {
 	if msg == nil {
 		return nil
@@ -27,10 +35,14 @@ func apiKey(msg *authv1.ApiKey) *models.ApiKeySummary {
 		Status:           msg.GetStatus().String(),
 		Purpose:          msg.GetPurpose().String(),
 		PublicKeyEd25519: hex.EncodeToString(msg.GetPublicKeyEd25519()),
+		SubaccountID:     optionalID(msg.GetSubaccountId()),
+		PolicyID:         optionalID(msg.GetPolicyId()),
+		IPWhitelist:      ipWhitelist(msg.GetIpWhitelist()),
 		Revision:         msg.GetRevision(),
 		CreatedAt:        timestampTime(msg.GetCreatedAt()),
 		LastUsedAt:       timestampTime(msg.GetLastUsedAt()),
 		UpdatedAt:        timestampTime(msg.GetUpdatedAt()),
+		ExpiresAt:        timestampTime(msg.GetExpiresAt()),
 	}
 }
 

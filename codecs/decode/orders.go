@@ -50,6 +50,7 @@ func OrderFromProto(msg *orderv1.Order) models.Order {
 		MarketMaxSlippage:    optionalPriceTicks(msg.GetMarketMaxSlippageTicks()),
 		MarketMaxSlippageBps: msg.GetMarketMaxSlippageBps(),
 		ExpireAt:             codecs.FormatExpireAt(msg.GetExpireAt()),
+		BatchRequestID:       optionalID(msg.GetBatchRequestId()),
 		RejectReason:         orderRejectReasonLabel(msg.GetRejectReason()),
 		CancelReason:         OrderCancelReasonLabel(msg.GetCancelReason()),
 		AvgPriceE18:          u128(msg.GetAvgPriceE18()),
@@ -595,9 +596,9 @@ func modifyActionName(v orderv1.ModifyActionTaken) string {
 	}
 }
 
-// optionalOrderID formats an order ID the server may leave out: zero is no
-// order, so it stays empty instead of becoming "0".
-func optionalOrderID(id uint64) string {
+// optionalID formats a public ID the server may leave out: zero is none, so
+// it stays empty instead of becoming "0".
+func optionalID(id uint64) string {
 	if id == 0 {
 		return ""
 	}
@@ -695,8 +696,8 @@ func BatchReplaceFromProto(msg *orderv1.BatchReplaceOrdersResponse) (models.Batc
 		results = append(results, models.BatchReplaceAdmissionItem{
 			ItemIndex:          item.GetItemIndex(),
 			Status:             itemStatus,
-			OldOrderID:         optionalOrderID(item.GetOldOrderId()),
-			ReplacementOrderID: optionalOrderID(item.GetReplacementOrderId()),
+			OldOrderID:         optionalID(item.GetOldOrderId()),
+			ReplacementOrderID: optionalID(item.GetReplacementOrderId()),
 			ClientOrderID:      item.GetClientOrderId(),
 			Code:               item.GetCode(),
 			ActionTaken:        modifyActionName(item.GetActionTaken()),
@@ -925,7 +926,7 @@ func BatchCancelFromProto(msg *orderv1.BatchCancelOrdersResponse) (models.BatchC
 		}
 		results = append(results, models.BatchCancelResultItem{
 			Status:        status,
-			OrderID:       optionalOrderID(item.GetOrderId()),
+			OrderID:       optionalID(item.GetOrderId()),
 			ClientOrderID: item.GetClientOrderId(),
 			Code:          item.GetCode(),
 			RateLimit:     RateLimitDetailFromProto(item.GetError().GetRateLimit()),
