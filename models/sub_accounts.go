@@ -35,6 +35,23 @@ type GetSubaccountResult struct {
 	// them and the server sent some: it sends them to an owner or admin of
 	// the sub-account only.
 	APIKeys []ApiKeySummary `json:"api_keys,omitempty"`
+	// Members are the sub-account's current members, read as
+	// SubAccounts.ListMembers reads them. Nil unless SubAccounts.Get was
+	// asked for them and the server sent some: it sends them to a current
+	// member, and leaves them out for an API key without
+	// READ_SUBACCOUNT_MEMBERS.
+	Members []SubAccountMember `json:"members,omitempty"`
+	// Invites are the invitations visible to the caller, read as
+	// SubAccounts.ListInvites reads them and filtered by the invites
+	// direction passed to SubAccounts.Get. Nil unless SubAccounts.Get was
+	// asked for them and the server sent some: it leaves them out for an API
+	// key without READ_SUBACCOUNT_INVITES.
+	Invites []SubAccountInvite `json:"invites,omitempty"`
+	// Policy is the sub-account policy attached to the sub-account, read as
+	// Policies.SubscribeSubaccountPolicies reads it. Nil unless
+	// SubAccounts.Get was asked for it, the caller is a current member and a
+	// policy is attached.
+	Policy *SubaccountPolicy `json:"policy,omitempty"`
 	// Balances are the sub-account's current balances, in the shape of
 	// Balances.List. Nil unless SubAccounts.Get was asked for them.
 	Balances *BalancesList `json:"balances,omitempty"`
