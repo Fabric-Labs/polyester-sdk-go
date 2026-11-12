@@ -43,8 +43,8 @@ func (s *SocialVerificationService) MarkReady(ctx context.Context, provider stri
 
 // Get returns the account's verification for provider ("twitter", "discord"
 // or "telegram"). A Telegram link waiting for the user to confirm the
-// Telegram account reads STATUS_AWAITING_CONFIRMATION with that account's
-// display_name, handle and numeric provider_user_id (a string); confirming
+// Telegram account reads STATUS_AWAITING_CONFIRMATION with the handle of the
+// Telegram account that sent the code; starting, marking ready, confirming
 // and unlinking need an interactive session. An API key needs
 // READ_SOCIAL_VERIFICATION on its policy and must be scoped to the main
 // account; it reads the link status only (provider, method, handle, status and
