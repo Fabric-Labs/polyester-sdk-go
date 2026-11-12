@@ -1042,7 +1042,11 @@ without the alert, or with an alert that has no ID, returns
 read the alerts back rather than trusting it.
 
 `Update` sends only the fields you set (`Direction`, `Price`, `Channels`) and
-the `ExpectedRevision` you last read; a stale one is refused with
+the `ExpectedRevision` you last read. Its `Price` must be unbound
+(`models.PriceFromDecimal`, `models.PriceFromTicksInt`): a price bound to a
+market, including an alert's own `Price`, is refused with
+`*errors.ValidationError` before sending, since the update names the alert,
+not its market; a stale one is refused with
 `errors.AlertCodeRevisionConflict`, so read the alert again. An update that
 sets no field changes nothing on an active alert and sets a triggered one
 again as it is. `Outcome` reports `applied`, `unchanged` or `replayed` (the

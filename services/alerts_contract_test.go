@@ -292,3 +292,40 @@ func TestAlertsCreateSendsAnUnboundPriceWithEmptyCatalogs(t *testing.T) {
 		})
 	}
 }
+
+// The update names the alert, not its market: a bound price can't be checked
+// without reading the alert, so it is refused before sending, even one bound
+// to the alert's own market. Unbound prices are sent.
+func TestAlertsUpdateRefusesAMarketBoundPrice(t *testing.T) {
+	fake := &fakeAlerts{}
+	service := newAlertsService(t, fake, btcEthCatalog(t))
+	for name, price := range map[string]models.PriceInput{
+		"other market": ethBoundPrice(),
+		"alert market": models.PriceFromTicks(models.MustPriceTicks(90_000_000_000_000).WithSymbol("BTC-USDT")),
+	} {
+		_, err := service.Update(context.Background(), UpdateAlertParams{AlertID: "123", ExpectedRevision: 1, Price: &price})
+		var validation *sdkerrors.ValidationError
+		if !stderrors.As(err, &validation) || !strings.Contains(err.Error(), "unbound price") {
+			t.Fatalf("%s: err = %T %v, want *errors.ValidationError naming an unbound price", name, err, err)
+		}
+	}
+	fake.mu.Lock()
+	sent := len(fake.updates)
+	fake.mu.Unlock()
+	if sent != 0 {
+		t.Fatalf("sent %d updates with a bound price", sent)
+	}
+	for name, price := range map[string]models.PriceInput{
+		"ticks":   models.PriceFromTicksInt(91_000_000_000_000),
+		"decimal": models.PriceFromDecimal("91000"),
+	} {
+		if _, err := service.Update(context.Background(), UpdateAlertParams{AlertID: "123", ExpectedRevision: 1, Price: &price}); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+	}
+	fake.mu.Lock()
+	defer fake.mu.Unlock()
+	if len(fake.updates) != 2 || fake.updates[0].GetUpdate().GetPriceTicks() != 91_000_000_000_000 || fake.updates[1].GetUpdate().GetPriceTicks() != 91_000_000_000_000 {
+		t.Fatalf("updates = %v", fake.updates)
+	}
+}

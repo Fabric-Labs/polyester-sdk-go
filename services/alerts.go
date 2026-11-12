@@ -91,7 +91,10 @@ type ListAlertsParams struct {
 
 // UpdateAlertParams changes an alert. Only the fields set are sent and
 // changed: Direction when not empty, Price when not nil, Channels when not
-// nil. With none set the update changes no field: it sets a fired
+// nil. Price must be unbound (models.PriceFromDecimal or
+// models.PriceFromTicksInt): a price bound to a market, such as an alert's own
+// Price, is refused with an *errors.ValidationError before sending, since the
+// update names the alert, not its market. With none set the update changes no field: it sets a fired
 // ("triggered") alert again as it is, and leaves an active one unchanged.
 type UpdateAlertParams struct {
 	AlertID   string
@@ -216,6 +219,12 @@ func (s *AlertsService) Update(ctx context.Context, params UpdateAlertParams) (m
 		paths = append(paths, "direction")
 	}
 	if params.Price != nil {
+		// The update names the alert, not its market, so nothing proves a
+		// bound price is for that market.
+		if bound := boundPriceSymbol(params.Price); bound != "" {
+			return models.UpdatePriceAlertResult{}, &errors.ValidationError{Msg: "alerts.update cannot check a price bound to " + bound +
+				" against the alert's market; pass an unbound price: models.PriceFromDecimal or models.PriceFromTicksInt"}
+		}
 		if update.PriceTicks, err = alertPriceTicks(*params.Price, ""); err != nil {
 			return models.UpdatePriceAlertResult{}, err
 		}
