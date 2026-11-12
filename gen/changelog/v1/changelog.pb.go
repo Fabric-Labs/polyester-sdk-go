@@ -175,6 +175,8 @@ const (
 	Surface_QUICKSWAP Surface = 9
 	// Rewards: daily claims, campaigns, VIP tiers and fee discounts.
 	Surface_REWARDS Surface = 10
+	// The AI assistant: chats, approvals, memories and preferences.
+	Surface_ASSISTANT Surface = 11
 )
 
 // Enum value maps for Surface.
@@ -191,6 +193,7 @@ var (
 		8:  "MARKET_DATA",
 		9:  "QUICKSWAP",
 		10: "REWARDS",
+		11: "ASSISTANT",
 	}
 	Surface_value = map[string]int32{
 		"SURFACE_UNSPECIFIED": 0,
@@ -204,6 +207,7 @@ var (
 		"MARKET_DATA":         8,
 		"QUICKSWAP":           9,
 		"REWARDS":             10,
+		"ASSISTANT":           11,
 	}
 )
 
@@ -1218,8 +1222,7 @@ const file_changelog_v1_changelog_proto_rawDesc = "" +
 	"categories\x18\x01 \x03(\x0e2\x1c.changelog.v1.ChangeCategoryB\x13\xbaH\x10\x92\x01\r\x10\x04\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\n" +
 	"categories\x12,\n" +
 	"\x0faction_required\x18\x02 \x01(\bH\x00R\x0eactionRequired\x88\x01\x01\x12F\n" +
-	"\bsurfaces\x18\x03 \x03(\x0e2\x15.changelog.v1.SurfaceB\x13\xbaH\x10\x92\x01\r\x10\n" +
-	"\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\bsurfaces\x12I\n" +
+	"\bsurfaces\x18\x03 \x03(\x0e2\x15.changelog.v1.SurfaceB\x13\xbaH\x10\x92\x01\r\x10\v\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\bsurfaces\x12I\n" +
 	"\taudiences\x18\x04 \x03(\x0e2\x16.changelog.v1.AudienceB\x13\xbaH\x10\x92\x01\r\x10\x04\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\taudiences\x129\n" +
 	"\n" +
 	"start_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
@@ -1252,7 +1255,7 @@ const file_changelog_v1_changelog_proto_rawDesc = "" +
 	"\aTRADERS\x10\x02\x12\x11\n" +
 	"\rMARKET_MAKERS\x10\x03\x12\x0e\n" +
 	"\n" +
-	"DEVELOPERS\x10\x04*\xaf\x01\n" +
+	"DEVELOPERS\x10\x04*\xbe\x01\n" +
 	"\aSurface\x12\x17\n" +
 	"\x13SURFACE_UNSPECIFIED\x10\x00\x12\v\n" +
 	"\aTRADING\x10\x01\x12\v\n" +
@@ -1265,7 +1268,8 @@ const file_changelog_v1_changelog_proto_rawDesc = "" +
 	"\vMARKET_DATA\x10\b\x12\r\n" +
 	"\tQUICKSWAP\x10\t\x12\v\n" +
 	"\aREWARDS\x10\n" +
-	"*L\n" +
+	"\x12\r\n" +
+	"\tASSISTANT\x10\v*L\n" +
 	"\rSortDirection\x12\x1e\n" +
 	"\x1aSORT_DIRECTION_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\bSORT_ASC\x10\x01\x12\r\n" +

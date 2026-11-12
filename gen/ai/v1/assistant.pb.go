@@ -7605,6 +7605,258 @@ func (x *ListAssistantKeysResponse) GetKeys() []*AssistantKey {
 	return nil
 }
 
+// TelegramApprovalLimits are the caller's optional limits on what they may
+// approve from Telegram, in US dollars of notional value. Each is off unless
+// set. They apply to placing orders, swapping, modifying orders or triggers
+// and resuming a trigger; cancelling, pausing a trigger and rejecting are
+// never limited. Stablecoin amounts count one US dollar per unit; other
+// amounts are valued at the current market price, and an approval that
+// cannot be valued is refused while a limit is set.
+type TelegramApprovalLimits struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Largest notional value one approval from Telegram may have, in US
+	// dollars: a decimal string with at most 2 decimal places, for example
+	// "5000" or "250.50". "0" allows none. Unset: no limit.
+	PerApprovalUsd *string `protobuf:"bytes,1,opt,name=per_approval_usd,json=perApprovalUsd,proto3,oneof" json:"per_approval_usd,omitempty"`
+	// Largest total notional value of approvals from Telegram in any rolling
+	// 24 hours, in US dollars, in the same format. Unset: no limit.
+	DailyUsd      *string `protobuf:"bytes,2,opt,name=daily_usd,json=dailyUsd,proto3,oneof" json:"daily_usd,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TelegramApprovalLimits) Reset() {
+	*x = TelegramApprovalLimits{}
+	mi := &file_ai_v1_assistant_proto_msgTypes[82]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TelegramApprovalLimits) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TelegramApprovalLimits) ProtoMessage() {}
+
+func (x *TelegramApprovalLimits) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_v1_assistant_proto_msgTypes[82]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TelegramApprovalLimits.ProtoReflect.Descriptor instead.
+func (*TelegramApprovalLimits) Descriptor() ([]byte, []int) {
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{82}
+}
+
+func (x *TelegramApprovalLimits) GetPerApprovalUsd() string {
+	if x != nil && x.PerApprovalUsd != nil {
+		return *x.PerApprovalUsd
+	}
+	return ""
+}
+
+func (x *TelegramApprovalLimits) GetDailyUsd() string {
+	if x != nil && x.DailyUsd != nil {
+		return *x.DailyUsd
+	}
+	return ""
+}
+
+// GetTelegramApprovalLimitsRequest reads the caller's Telegram approval
+// limits.
+type GetTelegramApprovalLimitsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTelegramApprovalLimitsRequest) Reset() {
+	*x = GetTelegramApprovalLimitsRequest{}
+	mi := &file_ai_v1_assistant_proto_msgTypes[83]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTelegramApprovalLimitsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTelegramApprovalLimitsRequest) ProtoMessage() {}
+
+func (x *GetTelegramApprovalLimitsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_v1_assistant_proto_msgTypes[83]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTelegramApprovalLimitsRequest.ProtoReflect.Descriptor instead.
+func (*GetTelegramApprovalLimitsRequest) Descriptor() ([]byte, []int) {
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{83}
+}
+
+// GetTelegramApprovalLimitsResponse returns the caller's Telegram approval
+// limits and what counts against the daily one.
+type GetTelegramApprovalLimitsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The limits; both unset when the caller set none.
+	Limits *TelegramApprovalLimits `protobuf:"bytes,1,opt,name=limits,proto3" json:"limits,omitempty"`
+	// Notional value approved from Telegram in the last 24 hours while a limit
+	// was set, in US dollars: a decimal string with 2 decimal places.
+	ApprovedLast_24HUsd string `protobuf:"bytes,2,opt,name=approved_last_24h_usd,json=approvedLast24hUsd,proto3" json:"approved_last_24h_usd,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *GetTelegramApprovalLimitsResponse) Reset() {
+	*x = GetTelegramApprovalLimitsResponse{}
+	mi := &file_ai_v1_assistant_proto_msgTypes[84]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTelegramApprovalLimitsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTelegramApprovalLimitsResponse) ProtoMessage() {}
+
+func (x *GetTelegramApprovalLimitsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_v1_assistant_proto_msgTypes[84]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTelegramApprovalLimitsResponse.ProtoReflect.Descriptor instead.
+func (*GetTelegramApprovalLimitsResponse) Descriptor() ([]byte, []int) {
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{84}
+}
+
+func (x *GetTelegramApprovalLimitsResponse) GetLimits() *TelegramApprovalLimits {
+	if x != nil {
+		return x.Limits
+	}
+	return nil
+}
+
+func (x *GetTelegramApprovalLimitsResponse) GetApprovedLast_24HUsd() string {
+	if x != nil {
+		return x.ApprovedLast_24HUsd
+	}
+	return ""
+}
+
+// SetTelegramApprovalLimitsRequest replaces the caller's Telegram approval
+// limits.
+type SetTelegramApprovalLimitsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The limits as they are from now on: an unset limit is turned off.
+	Limits        *TelegramApprovalLimits `protobuf:"bytes,1,opt,name=limits,proto3" json:"limits,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetTelegramApprovalLimitsRequest) Reset() {
+	*x = SetTelegramApprovalLimitsRequest{}
+	mi := &file_ai_v1_assistant_proto_msgTypes[85]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetTelegramApprovalLimitsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetTelegramApprovalLimitsRequest) ProtoMessage() {}
+
+func (x *SetTelegramApprovalLimitsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_v1_assistant_proto_msgTypes[85]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetTelegramApprovalLimitsRequest.ProtoReflect.Descriptor instead.
+func (*SetTelegramApprovalLimitsRequest) Descriptor() ([]byte, []int) {
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{85}
+}
+
+func (x *SetTelegramApprovalLimitsRequest) GetLimits() *TelegramApprovalLimits {
+	if x != nil {
+		return x.Limits
+	}
+	return nil
+}
+
+// SetTelegramApprovalLimitsResponse returns the limits as recorded.
+type SetTelegramApprovalLimitsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The limits now.
+	Limits        *TelegramApprovalLimits `protobuf:"bytes,1,opt,name=limits,proto3" json:"limits,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetTelegramApprovalLimitsResponse) Reset() {
+	*x = SetTelegramApprovalLimitsResponse{}
+	mi := &file_ai_v1_assistant_proto_msgTypes[86]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetTelegramApprovalLimitsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetTelegramApprovalLimitsResponse) ProtoMessage() {}
+
+func (x *SetTelegramApprovalLimitsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_v1_assistant_proto_msgTypes[86]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetTelegramApprovalLimitsResponse.ProtoReflect.Descriptor instead.
+func (*SetTelegramApprovalLimitsResponse) Descriptor() ([]byte, []int) {
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{86}
+}
+
+func (x *SetTelegramApprovalLimitsResponse) GetLimits() *TelegramApprovalLimits {
+	if x != nil {
+		return x.Limits
+	}
+	return nil
+}
+
 var File_ai_v1_assistant_proto protoreflect.FileDescriptor
 
 const file_ai_v1_assistant_proto_rawDesc = "" +
@@ -8131,7 +8383,21 @@ const file_ai_v1_assistant_proto_rawDesc = "" +
 	"\x04keys\x18\x01 \x03(\v2\x13.ai.v1.AssistantKeyR\x04keys\"\x1a\n" +
 	"\x18ListAssistantKeysRequest\"D\n" +
 	"\x19ListAssistantKeysResponse\x12'\n" +
-	"\x04keys\x18\x01 \x03(\v2\x13.ai.v1.AssistantKeyR\x04keys*\xc6\x02\n" +
+	"\x04keys\x18\x01 \x03(\v2\x13.ai.v1.AssistantKeyR\x04keys\"\xe8\x01\n" +
+	"\x16TelegramApprovalLimits\x12[\n" +
+	"\x10per_approval_usd\x18\x01 \x01(\tB,\xbaH)r'2%^(0|[1-9][0-9]{0,14})(\\.[0-9]{1,2})?$H\x00R\x0eperApprovalUsd\x88\x01\x01\x12N\n" +
+	"\tdaily_usd\x18\x02 \x01(\tB,\xbaH)r'2%^(0|[1-9][0-9]{0,14})(\\.[0-9]{1,2})?$H\x01R\bdailyUsd\x88\x01\x01B\x13\n" +
+	"\x11_per_approval_usdB\f\n" +
+	"\n" +
+	"_daily_usd\"\"\n" +
+	" GetTelegramApprovalLimitsRequest\"\x8d\x01\n" +
+	"!GetTelegramApprovalLimitsResponse\x125\n" +
+	"\x06limits\x18\x01 \x01(\v2\x1d.ai.v1.TelegramApprovalLimitsR\x06limits\x121\n" +
+	"\x15approved_last_24h_usd\x18\x02 \x01(\tR\x12approvedLast24hUsd\"a\n" +
+	" SetTelegramApprovalLimitsRequest\x12=\n" +
+	"\x06limits\x18\x01 \x01(\v2\x1d.ai.v1.TelegramApprovalLimitsB\x06\xbaH\x03\xc8\x01\x01R\x06limits\"Z\n" +
+	"!SetTelegramApprovalLimitsResponse\x125\n" +
+	"\x06limits\x18\x01 \x01(\v2\x1d.ai.v1.TelegramApprovalLimitsR\x06limits*\xc6\x02\n" +
 	"\tErrorCode\x12\x15\n" +
 	"\x11ERROR_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16CONVERSATION_NOT_FOUND\x10\x01\x12\x11\n" +
@@ -8223,7 +8489,7 @@ const file_ai_v1_assistant_proto_rawDesc = "" +
 	"\x06MODIFY\x10\x01\x12\t\n" +
 	"\x05PAUSE\x10\x02\x12\n" +
 	"\n" +
-	"\x06RESUME\x10\x032\xd2\x10\n" +
+	"\x06RESUME\x10\x032\xb8\x14\n" +
 	"\x10AssistantService\x12\xb3\x01\n" +
 	"\vSendMessage\x12\x19.ai.v1.SendMessageRequest\x1a\x1a.ai.v1.SendMessageResponse\"m\xbaGe\n" +
 	"\x11Assistant Service\x12\fSend Message\x1aBSend a message to the assistant and start the run that answers it.\xa2\xb5\x18\x01\x01\x12\xb1\x01\n" +
@@ -8247,7 +8513,11 @@ const file_ai_v1_assistant_proto_rawDesc = "" +
 	"\x15CompleteAssistantKeys\x12#.ai.v1.CompleteAssistantKeysRequest\x1a$.ai.v1.CompleteAssistantKeysResponse\"{\xbaGp\n" +
 	"\x11Assistant Service\x12\x17Complete Assistant Keys\x1aBStart using the keys of a setup once their registration succeeded.\xa2\xb5\x18\x01\x01\x90\x02\x02\x12\xc9\x01\n" +
 	"\x11ListAssistantKeys\x12\x1f.ai.v1.ListAssistantKeysRequest\x1a .ai.v1.ListAssistantKeysResponse\"q\xbaGf\n" +
-	"\x11Assistant Service\x12\x13List Assistant Keys\x1a<List the keys the assistant holds for the caller's accounts.\xa2\xb5\x18\x01\x01\x90\x02\x01\x1a\r\x8a\xb5\x18\tassistantB\xc6\x01\xbaG\x8a\x01:\x87\x01\n" +
+	"\x11Assistant Service\x12\x13List Assistant Keys\x1a<List the keys the assistant holds for the caller's accounts.\xa2\xb5\x18\x01\x01\x90\x02\x01\x12\xee\x01\n" +
+	"\x19GetTelegramApprovalLimits\x12'.ai.v1.GetTelegramApprovalLimitsRequest\x1a(.ai.v1.GetTelegramApprovalLimitsResponse\"~\xbaGs\n" +
+	"\x11Assistant Service\x12\x1cGet Telegram Approval Limits\x1a@Read the caller's limits on what they may approve from Telegram.\xa2\xb5\x18\x01\x01\x90\x02\x01\x12\xf2\x01\n" +
+	"\x19SetTelegramApprovalLimits\x12'.ai.v1.SetTelegramApprovalLimitsRequest\x1a(.ai.v1.SetTelegramApprovalLimitsResponse\"\x81\x01\xbaGv\n" +
+	"\x11Assistant Service\x12\x1cSet Telegram Approval Limits\x1aCReplace the caller's limits on what they may approve from Telegram.\xa2\xb5\x18\x01\x01\x90\x02\x02\x1a\r\x8a\xb5\x18\tassistantB\xc6\x01\xbaG\x8a\x01:\x87\x01\n" +
 	"\x11Assistant Service\x12rConversations with the Polyester trading assistant: messages, resumable run event streams, approvals and memories.Z6github.com/Fabric-Labs/polyester-sdk-go/gen/ai/v1;aiv1b\x06proto3"
 
 var (
@@ -8263,7 +8533,7 @@ func file_ai_v1_assistant_proto_rawDescGZIP() []byte {
 }
 
 var file_ai_v1_assistant_proto_enumTypes = make([]protoimpl.EnumInfo, 14)
-var file_ai_v1_assistant_proto_msgTypes = make([]protoimpl.MessageInfo, 82)
+var file_ai_v1_assistant_proto_msgTypes = make([]protoimpl.MessageInfo, 87)
 var file_ai_v1_assistant_proto_goTypes = []any{
 	(ErrorCode)(0),                             // 0: ai.v1.ErrorCode
 	(MessageRole)(0),                           // 1: ai.v1.MessageRole
@@ -8361,57 +8631,62 @@ var file_ai_v1_assistant_proto_goTypes = []any{
 	(*CompleteAssistantKeysResponse)(nil),      // 93: ai.v1.CompleteAssistantKeysResponse
 	(*ListAssistantKeysRequest)(nil),           // 94: ai.v1.ListAssistantKeysRequest
 	(*ListAssistantKeysResponse)(nil),          // 95: ai.v1.ListAssistantKeysResponse
-	(*timestamppb.Timestamp)(nil),              // 96: google.protobuf.Timestamp
-	(*v1.Order)(nil),                           // 97: orders.v1.Order
-	(*v11.Trigger)(nil),                        // 98: triggers.v1.Trigger
-	(*v12.AssetBalance)(nil),                   // 99: ledger.read.v1.AssetBalance
-	(v13.Timeframe)(0),                         // 100: marketdata.v1.Timeframe
-	(*v13.Candle)(nil),                         // 101: marketdata.v1.Candle
-	(*v14.DepositAddress)(nil),                 // 102: chain.deposit.v1.DepositAddress
-	(*v12.GetBalanceHistoryResponse)(nil),      // 103: ledger.read.v1.GetBalanceHistoryResponse
-	(*v12.GetEquityHistorySeriesResponse)(nil), // 104: ledger.read.v1.GetEquityHistorySeriesResponse
-	(*v12.TransferRow)(nil),                    // 105: ledger.read.v1.TransferRow
-	(*v15.PriceAlert)(nil),                     // 106: alerts.v1.PriceAlert
-	(*structpb.Struct)(nil),                    // 107: google.protobuf.Struct
-	(v1.TimeInForce)(0),                        // 108: orders.v1.TimeInForce
-	(v1.TriggerPriceSource)(0),                 // 109: orders.v1.TriggerPriceSource
-	(v1.Side)(0),                               // 110: orders.v1.Side
-	(v11.TriggerType)(0),                       // 111: triggers.v1.TriggerType
-	(v11.TriggerStatus)(0),                     // 112: triggers.v1.TriggerStatus
+	(*TelegramApprovalLimits)(nil),             // 96: ai.v1.TelegramApprovalLimits
+	(*GetTelegramApprovalLimitsRequest)(nil),   // 97: ai.v1.GetTelegramApprovalLimitsRequest
+	(*GetTelegramApprovalLimitsResponse)(nil),  // 98: ai.v1.GetTelegramApprovalLimitsResponse
+	(*SetTelegramApprovalLimitsRequest)(nil),   // 99: ai.v1.SetTelegramApprovalLimitsRequest
+	(*SetTelegramApprovalLimitsResponse)(nil),  // 100: ai.v1.SetTelegramApprovalLimitsResponse
+	(*timestamppb.Timestamp)(nil),              // 101: google.protobuf.Timestamp
+	(*v1.Order)(nil),                           // 102: orders.v1.Order
+	(*v11.Trigger)(nil),                        // 103: triggers.v1.Trigger
+	(*v12.AssetBalance)(nil),                   // 104: ledger.read.v1.AssetBalance
+	(v13.Timeframe)(0),                         // 105: marketdata.v1.Timeframe
+	(*v13.Candle)(nil),                         // 106: marketdata.v1.Candle
+	(*v14.DepositAddress)(nil),                 // 107: chain.deposit.v1.DepositAddress
+	(*v12.GetBalanceHistoryResponse)(nil),      // 108: ledger.read.v1.GetBalanceHistoryResponse
+	(*v12.GetEquityHistorySeriesResponse)(nil), // 109: ledger.read.v1.GetEquityHistorySeriesResponse
+	(*v12.TransferRow)(nil),                    // 110: ledger.read.v1.TransferRow
+	(*v15.PriceAlert)(nil),                     // 111: alerts.v1.PriceAlert
+	(*structpb.Struct)(nil),                    // 112: google.protobuf.Struct
+	(v1.TimeInForce)(0),                        // 113: orders.v1.TimeInForce
+	(v1.TriggerPriceSource)(0),                 // 114: orders.v1.TriggerPriceSource
+	(v1.Side)(0),                               // 115: orders.v1.Side
+	(v11.TriggerType)(0),                       // 116: triggers.v1.TriggerType
+	(v11.TriggerStatus)(0),                     // 117: triggers.v1.TriggerStatus
 }
 var file_ai_v1_assistant_proto_depIdxs = []int32{
 	0,   // 0: ai.v1.ErrorDetail.code:type_name -> ai.v1.ErrorCode
-	96,  // 1: ai.v1.Conversation.created_at:type_name -> google.protobuf.Timestamp
-	96,  // 2: ai.v1.Conversation.updated_at:type_name -> google.protobuf.Timestamp
+	101, // 1: ai.v1.Conversation.created_at:type_name -> google.protobuf.Timestamp
+	101, // 2: ai.v1.Conversation.updated_at:type_name -> google.protobuf.Timestamp
 	1,   // 3: ai.v1.Message.role:type_name -> ai.v1.MessageRole
-	96,  // 4: ai.v1.Message.created_at:type_name -> google.protobuf.Timestamp
-	96,  // 5: ai.v1.Memory.created_at:type_name -> google.protobuf.Timestamp
+	101, // 4: ai.v1.Message.created_at:type_name -> google.protobuf.Timestamp
+	101, // 5: ai.v1.Memory.created_at:type_name -> google.protobuf.Timestamp
 	5,   // 6: ai.v1.Memory.kind:type_name -> ai.v1.MemoryKind
-	97,  // 7: ai.v1.OrdersTable.orders:type_name -> orders.v1.Order
-	98,  // 8: ai.v1.TriggersTable.triggers:type_name -> triggers.v1.Trigger
-	99,  // 9: ai.v1.BalancesTable.balances:type_name -> ledger.read.v1.AssetBalance
-	100, // 10: ai.v1.PriceChart.timeframe:type_name -> marketdata.v1.Timeframe
-	101, // 11: ai.v1.PriceChart.candles:type_name -> marketdata.v1.Candle
+	102, // 7: ai.v1.OrdersTable.orders:type_name -> orders.v1.Order
+	103, // 8: ai.v1.TriggersTable.triggers:type_name -> triggers.v1.Trigger
+	104, // 9: ai.v1.BalancesTable.balances:type_name -> ledger.read.v1.AssetBalance
+	105, // 10: ai.v1.PriceChart.timeframe:type_name -> marketdata.v1.Timeframe
+	106, // 11: ai.v1.PriceChart.candles:type_name -> marketdata.v1.Candle
 	23,  // 12: ai.v1.MarkdownTable.rows:type_name -> ai.v1.MarkdownTableRow
-	102, // 13: ai.v1.DepositAddressCard.deposit_address:type_name -> chain.deposit.v1.DepositAddress
-	103, // 14: ai.v1.BalanceHistoryChart.history:type_name -> ledger.read.v1.GetBalanceHistoryResponse
-	104, // 15: ai.v1.EquityHistoryChart.history:type_name -> ledger.read.v1.GetEquityHistorySeriesResponse
-	105, // 16: ai.v1.TransfersTable.transfers:type_name -> ledger.read.v1.TransferRow
+	107, // 13: ai.v1.DepositAddressCard.deposit_address:type_name -> chain.deposit.v1.DepositAddress
+	108, // 14: ai.v1.BalanceHistoryChart.history:type_name -> ledger.read.v1.GetBalanceHistoryResponse
+	109, // 15: ai.v1.EquityHistoryChart.history:type_name -> ledger.read.v1.GetEquityHistorySeriesResponse
+	110, // 16: ai.v1.TransfersTable.transfers:type_name -> ledger.read.v1.TransferRow
 	19,  // 17: ai.v1.View.orders_table:type_name -> ai.v1.OrdersTable
 	21,  // 18: ai.v1.View.balances_table:type_name -> ai.v1.BalancesTable
 	22,  // 19: ai.v1.View.price_chart:type_name -> ai.v1.PriceChart
 	24,  // 20: ai.v1.View.markdown_table:type_name -> ai.v1.MarkdownTable
-	106, // 21: ai.v1.View.price_alert:type_name -> alerts.v1.PriceAlert
+	111, // 21: ai.v1.View.price_alert:type_name -> alerts.v1.PriceAlert
 	20,  // 22: ai.v1.View.triggers_table:type_name -> ai.v1.TriggersTable
 	25,  // 23: ai.v1.View.deposit_address:type_name -> ai.v1.DepositAddressCard
 	26,  // 24: ai.v1.View.balance_history_chart:type_name -> ai.v1.BalanceHistoryChart
 	27,  // 25: ai.v1.View.equity_history_chart:type_name -> ai.v1.EquityHistoryChart
 	28,  // 26: ai.v1.View.transfers_table:type_name -> ai.v1.TransfersTable
-	107, // 27: ai.v1.ToolStarted.input:type_name -> google.protobuf.Struct
+	112, // 27: ai.v1.ToolStarted.input:type_name -> google.protobuf.Struct
 	5,   // 28: ai.v1.RecalledMemory.kind:type_name -> ai.v1.MemoryKind
 	34,  // 29: ai.v1.MemoriesRecalled.memories:type_name -> ai.v1.RecalledMemory
 	7,   // 30: ai.v1.ReferencePrice.source:type_name -> ai.v1.ReferencePriceSource
-	96,  // 31: ai.v1.ReferencePrice.observed_at:type_name -> google.protobuf.Timestamp
+	101, // 31: ai.v1.ReferencePrice.observed_at:type_name -> google.protobuf.Timestamp
 	9,   // 32: ai.v1.RelativePrice.field:type_name -> ai.v1.OrderPriceField
 	10,  // 33: ai.v1.RelativePrice.direction:type_name -> ai.v1.PriceOffsetDirection
 	41,  // 34: ai.v1.RelativePrice.market:type_name -> ai.v1.ReferencePrice
@@ -8420,17 +8695,17 @@ var file_ai_v1_assistant_proto_depIdxs = []int32{
 	43,  // 37: ai.v1.AttachedExits.stop_loss:type_name -> ai.v1.AttachedExit
 	44,  // 38: ai.v1.AttachedExits.trailing_stop:type_name -> ai.v1.AttachedTrailingStop
 	45,  // 39: ai.v1.MarketOrderPreview.attached:type_name -> ai.v1.AttachedExits
-	108, // 40: ai.v1.LimitOrderPreview.time_in_force:type_name -> orders.v1.TimeInForce
-	96,  // 41: ai.v1.LimitOrderPreview.expire_at:type_name -> google.protobuf.Timestamp
+	113, // 40: ai.v1.LimitOrderPreview.time_in_force:type_name -> orders.v1.TimeInForce
+	101, // 41: ai.v1.LimitOrderPreview.expire_at:type_name -> google.protobuf.Timestamp
 	45,  // 42: ai.v1.LimitOrderPreview.attached:type_name -> ai.v1.AttachedExits
-	109, // 43: ai.v1.StopOrderPreview.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
+	114, // 43: ai.v1.StopOrderPreview.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
 	8,   // 44: ai.v1.StopOrderPreview.direction:type_name -> ai.v1.TriggerDirection
-	108, // 45: ai.v1.StopOrderPreview.time_in_force:type_name -> orders.v1.TimeInForce
-	109, // 46: ai.v1.TrailingStopPreview.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
+	113, // 45: ai.v1.StopOrderPreview.time_in_force:type_name -> orders.v1.TimeInForce
+	114, // 46: ai.v1.TrailingStopPreview.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
 	12,  // 47: ai.v1.TwapPreview.unfilled_slice_policy:type_name -> ai.v1.UnfilledSlicePolicy
 	51,  // 48: ai.v1.LadderPreview.levels:type_name -> ai.v1.LadderLevel
-	108, // 49: ai.v1.LadderPreview.time_in_force:type_name -> orders.v1.TimeInForce
-	110, // 50: ai.v1.OrderPreview.side:type_name -> orders.v1.Side
+	113, // 49: ai.v1.LadderPreview.time_in_force:type_name -> orders.v1.TimeInForce
+	115, // 50: ai.v1.OrderPreview.side:type_name -> orders.v1.Side
 	41,  // 51: ai.v1.OrderPreview.reference_price:type_name -> ai.v1.ReferencePrice
 	46,  // 52: ai.v1.OrderPreview.market:type_name -> ai.v1.MarketOrderPreview
 	47,  // 53: ai.v1.OrderPreview.limit:type_name -> ai.v1.LimitOrderPreview
@@ -8442,26 +8717,26 @@ var file_ai_v1_assistant_proto_depIdxs = []int32{
 	42,  // 59: ai.v1.OrderPreview.relative_prices:type_name -> ai.v1.RelativePrice
 	53,  // 60: ai.v1.PlaceOrdersPreview.orders:type_name -> ai.v1.OrderPreview
 	54,  // 61: ai.v1.PlaceOrdersPreview.total_values:type_name -> ai.v1.QuoteValue
-	110, // 62: ai.v1.SwapLegPreview.side:type_name -> orders.v1.Side
+	115, // 62: ai.v1.SwapLegPreview.side:type_name -> orders.v1.Side
 	56,  // 63: ai.v1.SwapPreview.legs:type_name -> ai.v1.SwapLegPreview
-	96,  // 64: ai.v1.SwapPreview.quoted_at:type_name -> google.protobuf.Timestamp
-	96,  // 65: ai.v1.SwapPreview.expires_at:type_name -> google.protobuf.Timestamp
-	110, // 66: ai.v1.OrderToCancel.side:type_name -> orders.v1.Side
+	101, // 64: ai.v1.SwapPreview.quoted_at:type_name -> google.protobuf.Timestamp
+	101, // 65: ai.v1.SwapPreview.expires_at:type_name -> google.protobuf.Timestamp
+	115, // 66: ai.v1.OrderToCancel.side:type_name -> orders.v1.Side
 	58,  // 67: ai.v1.CancelOrdersPreview.orders:type_name -> ai.v1.OrderToCancel
-	110, // 68: ai.v1.CancelOrdersPreview.side:type_name -> orders.v1.Side
-	111, // 69: ai.v1.CancelTriggerPreview.type:type_name -> triggers.v1.TriggerType
-	110, // 70: ai.v1.CancelTriggerPreview.side:type_name -> orders.v1.Side
-	110, // 71: ai.v1.OrderChange.side:type_name -> orders.v1.Side
+	115, // 68: ai.v1.CancelOrdersPreview.side:type_name -> orders.v1.Side
+	116, // 69: ai.v1.CancelTriggerPreview.type:type_name -> triggers.v1.TriggerType
+	115, // 70: ai.v1.CancelTriggerPreview.side:type_name -> orders.v1.Side
+	115, // 71: ai.v1.OrderChange.side:type_name -> orders.v1.Side
 	61,  // 72: ai.v1.OrderChangePreview.orders:type_name -> ai.v1.OrderChange
-	112, // 73: ai.v1.TriggerSettings.status:type_name -> triggers.v1.TriggerStatus
-	111, // 74: ai.v1.TriggerChangePreview.type:type_name -> triggers.v1.TriggerType
-	110, // 75: ai.v1.TriggerChangePreview.side:type_name -> orders.v1.Side
+	117, // 73: ai.v1.TriggerSettings.status:type_name -> triggers.v1.TriggerStatus
+	116, // 74: ai.v1.TriggerChangePreview.type:type_name -> triggers.v1.TriggerType
+	115, // 75: ai.v1.TriggerChangePreview.side:type_name -> orders.v1.Side
 	13,  // 76: ai.v1.TriggerChangePreview.action:type_name -> ai.v1.TriggerChangeAction
 	63,  // 77: ai.v1.TriggerChangePreview.before:type_name -> ai.v1.TriggerSettings
 	63,  // 78: ai.v1.TriggerChangePreview.after:type_name -> ai.v1.TriggerSettings
 	41,  // 79: ai.v1.TriggerChangePreview.reference_price:type_name -> ai.v1.ReferencePrice
 	8,   // 80: ai.v1.TriggerChangePreview.direction:type_name -> ai.v1.TriggerDirection
-	96,  // 81: ai.v1.ApprovalRequested.expires_at:type_name -> google.protobuf.Timestamp
+	101, // 81: ai.v1.ApprovalRequested.expires_at:type_name -> google.protobuf.Timestamp
 	40,  // 82: ai.v1.ApprovalRequested.parameters:type_name -> ai.v1.ApprovalParameter
 	53,  // 83: ai.v1.ApprovalRequested.order_preview:type_name -> ai.v1.OrderPreview
 	59,  // 84: ai.v1.ApprovalRequested.cancel_orders:type_name -> ai.v1.CancelOrdersPreview
@@ -8474,7 +8749,7 @@ var file_ai_v1_assistant_proto_depIdxs = []int32{
 	18,  // 91: ai.v1.RunCompleted.usage:type_name -> ai.v1.Usage
 	2,   // 92: ai.v1.RunFailed.category:type_name -> ai.v1.FailureCategory
 	18,  // 93: ai.v1.RunFailed.usage:type_name -> ai.v1.Usage
-	96,  // 94: ai.v1.RunEvent.created_at:type_name -> google.protobuf.Timestamp
+	101, // 94: ai.v1.RunEvent.created_at:type_name -> google.protobuf.Timestamp
 	30,  // 95: ai.v1.RunEvent.text_delta:type_name -> ai.v1.TextDelta
 	31,  // 96: ai.v1.RunEvent.discard_partial:type_name -> ai.v1.DiscardPartial
 	32,  // 97: ai.v1.RunEvent.tool_started:type_name -> ai.v1.ToolStarted
@@ -8490,7 +8765,7 @@ var file_ai_v1_assistant_proto_depIdxs = []int32{
 	35,  // 107: ai.v1.RunEvent.memories_recalled:type_name -> ai.v1.MemoriesRecalled
 	36,  // 108: ai.v1.RunEvent.destinations_suggested:type_name -> ai.v1.DestinationsSuggested
 	6,   // 109: ai.v1.AssistantKey.state:type_name -> ai.v1.AssistantKeyState
-	96,  // 110: ai.v1.PreparedAssistantKey.registration_deadline:type_name -> google.protobuf.Timestamp
+	101, // 110: ai.v1.PreparedAssistantKey.registration_deadline:type_name -> google.protobuf.Timestamp
 	73,  // 111: ai.v1.SendMessageRequest.destinations:type_name -> ai.v1.Destination
 	69,  // 112: ai.v1.WatchRunResponse.event:type_name -> ai.v1.RunEvent
 	3,   // 113: ai.v1.DecideApprovalRequest.decision:type_name -> ai.v1.ApprovalDecision
@@ -8500,36 +8775,43 @@ var file_ai_v1_assistant_proto_depIdxs = []int32{
 	17,  // 117: ai.v1.ListMemoriesResponse.memories:type_name -> ai.v1.Memory
 	71,  // 118: ai.v1.PrepareAssistantKeysRequest.accounts:type_name -> ai.v1.AssistantKeyAccount
 	72,  // 119: ai.v1.PrepareAssistantKeysResponse.keys:type_name -> ai.v1.PreparedAssistantKey
-	96,  // 120: ai.v1.PrepareAssistantKeysResponse.expires_at:type_name -> google.protobuf.Timestamp
+	101, // 120: ai.v1.PrepareAssistantKeysResponse.expires_at:type_name -> google.protobuf.Timestamp
 	70,  // 121: ai.v1.CompleteAssistantKeysResponse.keys:type_name -> ai.v1.AssistantKey
 	70,  // 122: ai.v1.ListAssistantKeysResponse.keys:type_name -> ai.v1.AssistantKey
-	74,  // 123: ai.v1.AssistantService.SendMessage:input_type -> ai.v1.SendMessageRequest
-	76,  // 124: ai.v1.AssistantService.WatchRun:input_type -> ai.v1.WatchRunRequest
-	78,  // 125: ai.v1.AssistantService.CancelRun:input_type -> ai.v1.CancelRunRequest
-	80,  // 126: ai.v1.AssistantService.DecideApproval:input_type -> ai.v1.DecideApprovalRequest
-	82,  // 127: ai.v1.AssistantService.ListConversations:input_type -> ai.v1.ListConversationsRequest
-	84,  // 128: ai.v1.AssistantService.ListMessages:input_type -> ai.v1.ListMessagesRequest
-	86,  // 129: ai.v1.AssistantService.ListMemories:input_type -> ai.v1.ListMemoriesRequest
-	88,  // 130: ai.v1.AssistantService.DeleteMemory:input_type -> ai.v1.DeleteMemoryRequest
-	90,  // 131: ai.v1.AssistantService.PrepareAssistantKeys:input_type -> ai.v1.PrepareAssistantKeysRequest
-	92,  // 132: ai.v1.AssistantService.CompleteAssistantKeys:input_type -> ai.v1.CompleteAssistantKeysRequest
-	94,  // 133: ai.v1.AssistantService.ListAssistantKeys:input_type -> ai.v1.ListAssistantKeysRequest
-	75,  // 134: ai.v1.AssistantService.SendMessage:output_type -> ai.v1.SendMessageResponse
-	77,  // 135: ai.v1.AssistantService.WatchRun:output_type -> ai.v1.WatchRunResponse
-	79,  // 136: ai.v1.AssistantService.CancelRun:output_type -> ai.v1.CancelRunResponse
-	81,  // 137: ai.v1.AssistantService.DecideApproval:output_type -> ai.v1.DecideApprovalResponse
-	83,  // 138: ai.v1.AssistantService.ListConversations:output_type -> ai.v1.ListConversationsResponse
-	85,  // 139: ai.v1.AssistantService.ListMessages:output_type -> ai.v1.ListMessagesResponse
-	87,  // 140: ai.v1.AssistantService.ListMemories:output_type -> ai.v1.ListMemoriesResponse
-	89,  // 141: ai.v1.AssistantService.DeleteMemory:output_type -> ai.v1.DeleteMemoryResponse
-	91,  // 142: ai.v1.AssistantService.PrepareAssistantKeys:output_type -> ai.v1.PrepareAssistantKeysResponse
-	93,  // 143: ai.v1.AssistantService.CompleteAssistantKeys:output_type -> ai.v1.CompleteAssistantKeysResponse
-	95,  // 144: ai.v1.AssistantService.ListAssistantKeys:output_type -> ai.v1.ListAssistantKeysResponse
-	134, // [134:145] is the sub-list for method output_type
-	123, // [123:134] is the sub-list for method input_type
-	123, // [123:123] is the sub-list for extension type_name
-	123, // [123:123] is the sub-list for extension extendee
-	0,   // [0:123] is the sub-list for field type_name
+	96,  // 123: ai.v1.GetTelegramApprovalLimitsResponse.limits:type_name -> ai.v1.TelegramApprovalLimits
+	96,  // 124: ai.v1.SetTelegramApprovalLimitsRequest.limits:type_name -> ai.v1.TelegramApprovalLimits
+	96,  // 125: ai.v1.SetTelegramApprovalLimitsResponse.limits:type_name -> ai.v1.TelegramApprovalLimits
+	74,  // 126: ai.v1.AssistantService.SendMessage:input_type -> ai.v1.SendMessageRequest
+	76,  // 127: ai.v1.AssistantService.WatchRun:input_type -> ai.v1.WatchRunRequest
+	78,  // 128: ai.v1.AssistantService.CancelRun:input_type -> ai.v1.CancelRunRequest
+	80,  // 129: ai.v1.AssistantService.DecideApproval:input_type -> ai.v1.DecideApprovalRequest
+	82,  // 130: ai.v1.AssistantService.ListConversations:input_type -> ai.v1.ListConversationsRequest
+	84,  // 131: ai.v1.AssistantService.ListMessages:input_type -> ai.v1.ListMessagesRequest
+	86,  // 132: ai.v1.AssistantService.ListMemories:input_type -> ai.v1.ListMemoriesRequest
+	88,  // 133: ai.v1.AssistantService.DeleteMemory:input_type -> ai.v1.DeleteMemoryRequest
+	90,  // 134: ai.v1.AssistantService.PrepareAssistantKeys:input_type -> ai.v1.PrepareAssistantKeysRequest
+	92,  // 135: ai.v1.AssistantService.CompleteAssistantKeys:input_type -> ai.v1.CompleteAssistantKeysRequest
+	94,  // 136: ai.v1.AssistantService.ListAssistantKeys:input_type -> ai.v1.ListAssistantKeysRequest
+	97,  // 137: ai.v1.AssistantService.GetTelegramApprovalLimits:input_type -> ai.v1.GetTelegramApprovalLimitsRequest
+	99,  // 138: ai.v1.AssistantService.SetTelegramApprovalLimits:input_type -> ai.v1.SetTelegramApprovalLimitsRequest
+	75,  // 139: ai.v1.AssistantService.SendMessage:output_type -> ai.v1.SendMessageResponse
+	77,  // 140: ai.v1.AssistantService.WatchRun:output_type -> ai.v1.WatchRunResponse
+	79,  // 141: ai.v1.AssistantService.CancelRun:output_type -> ai.v1.CancelRunResponse
+	81,  // 142: ai.v1.AssistantService.DecideApproval:output_type -> ai.v1.DecideApprovalResponse
+	83,  // 143: ai.v1.AssistantService.ListConversations:output_type -> ai.v1.ListConversationsResponse
+	85,  // 144: ai.v1.AssistantService.ListMessages:output_type -> ai.v1.ListMessagesResponse
+	87,  // 145: ai.v1.AssistantService.ListMemories:output_type -> ai.v1.ListMemoriesResponse
+	89,  // 146: ai.v1.AssistantService.DeleteMemory:output_type -> ai.v1.DeleteMemoryResponse
+	91,  // 147: ai.v1.AssistantService.PrepareAssistantKeys:output_type -> ai.v1.PrepareAssistantKeysResponse
+	93,  // 148: ai.v1.AssistantService.CompleteAssistantKeys:output_type -> ai.v1.CompleteAssistantKeysResponse
+	95,  // 149: ai.v1.AssistantService.ListAssistantKeys:output_type -> ai.v1.ListAssistantKeysResponse
+	98,  // 150: ai.v1.AssistantService.GetTelegramApprovalLimits:output_type -> ai.v1.GetTelegramApprovalLimitsResponse
+	100, // 151: ai.v1.AssistantService.SetTelegramApprovalLimits:output_type -> ai.v1.SetTelegramApprovalLimitsResponse
+	139, // [139:152] is the sub-list for method output_type
+	126, // [126:139] is the sub-list for method input_type
+	126, // [126:126] is the sub-list for extension type_name
+	126, // [126:126] is the sub-list for extension extendee
+	0,   // [0:126] is the sub-list for field type_name
 }
 
 func init() { file_ai_v1_assistant_proto_init() }
@@ -8620,13 +8902,14 @@ func file_ai_v1_assistant_proto_init() {
 	file_ai_v1_assistant_proto_msgTypes[57].OneofWrappers = []any{}
 	file_ai_v1_assistant_proto_msgTypes[58].OneofWrappers = []any{}
 	file_ai_v1_assistant_proto_msgTypes[60].OneofWrappers = []any{}
+	file_ai_v1_assistant_proto_msgTypes[82].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ai_v1_assistant_proto_rawDesc), len(file_ai_v1_assistant_proto_rawDesc)),
 			NumEnums:      14,
-			NumMessages:   82,
+			NumMessages:   87,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

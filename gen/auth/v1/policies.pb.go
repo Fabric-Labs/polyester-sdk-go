@@ -149,6 +149,11 @@ const (
 	// Allow reading the Guard Signer status within the key's scope; a key never
 	// reads another main account's Guard Signer. Account permission.
 	PolicyAction_READ_GUARD_SIGNER_STATUS PolicyAction = 35
+	// Allow listing the main account's price alerts. Main-account permission.
+	PolicyAction_READ_PRICE_ALERTS PolicyAction = 36
+	// Allow creating, updating, and cancelling the main account's price alerts.
+	// It does not allow listing them. Main-account permission.
+	PolicyAction_MANAGE_PRICE_ALERTS PolicyAction = 37
 )
 
 // Enum value maps for PolicyAction.
@@ -186,6 +191,8 @@ var (
 		33: "READ_SUBACCOUNT_MEMBERS",
 		34: "READ_SUBACCOUNT_INVITES",
 		35: "READ_GUARD_SIGNER_STATUS",
+		36: "READ_PRICE_ALERTS",
+		37: "MANAGE_PRICE_ALERTS",
 	}
 	PolicyAction_value = map[string]int32{
 		"UNSPECIFIED":                 0,
@@ -220,6 +227,8 @@ var (
 		"READ_SUBACCOUNT_MEMBERS":     33,
 		"READ_SUBACCOUNT_INVITES":     34,
 		"READ_GUARD_SIGNER_STATUS":    35,
+		"READ_PRICE_ALERTS":           36,
+		"MANAGE_PRICE_ALERTS":         37,
 	}
 )
 
@@ -2362,7 +2371,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x16SetApiKeyPolicyRequest\x124\n" +
 	"\x06key_id\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x15\x10\x012\x11^ak_[a-f0-9]{32}$R\x05keyId\x12\x1b\n" +
 	"\tpolicy_id\x18\x02 \x01(\x06R\bpolicyId\"\x19\n" +
-	"\x17SetApiKeyPolicyResponse*\x8b\x06\n" +
+	"\x17SetApiKeyPolicyResponse*\xbb\x06\n" +
 	"\fPolicyAction\x12\x0f\n" +
 	"\vUNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -2397,7 +2406,9 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x18READ_SUBACCOUNT_ACTIVITY\x10 \x12\x1b\n" +
 	"\x17READ_SUBACCOUNT_MEMBERS\x10!\x12\x1b\n" +
 	"\x17READ_SUBACCOUNT_INVITES\x10\"\x12\x1c\n" +
-	"\x18READ_GUARD_SIGNER_STATUS\x10#2\x9f\x1c\n" +
+	"\x18READ_GUARD_SIGNER_STATUS\x10#\x12\x15\n" +
+	"\x11READ_PRICE_ALERTS\x10$\x12\x17\n" +
+	"\x13MANAGE_PRICE_ALERTS\x10%2\x9f\x1c\n" +
 	"\rPolicyService\x12\xfc\x02\n" +
 	"\x16ListSubaccountPolicies\x12&.auth.v1.ListSubaccountPoliciesRequest\x1a'.auth.v1.ListSubaccountPoliciesResponse\"\x90\x02\xbaG\xe1\x01\n" +
 	"\fAuth Service\x12\x18List Subaccount Policies\x1a\xb6\x01List sub-account policy templates available to the caller. An API key needs READ_SUBACCOUNT_POLICIES; a key scoped to a sub-account sees only the policy attached to that sub-account.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1f\x12\x1d/v1/auth/policies/subaccounts\x12\xfe\x02\n" +

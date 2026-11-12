@@ -8,6 +8,7 @@ package tradewsv1
 
 import (
 	v1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
+	v11 "github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -54,6 +55,8 @@ type ClientFrame struct {
 	//	*ClientFrame_BatchReplaceOrders
 	//	*ClientFrame_BatchCancelOrders
 	//	*ClientFrame_CancelAllAfter
+	//	*ClientFrame_CreateOco
+	//	*ClientFrame_CancelOco
 	Payload       isClientFrame_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -205,6 +208,24 @@ func (x *ClientFrame) GetCancelAllAfter() *v1.CancelAllAfterRequest {
 	return nil
 }
 
+func (x *ClientFrame) GetCreateOco() *v11.CreateOcoRequest {
+	if x != nil {
+		if x, ok := x.Payload.(*ClientFrame_CreateOco); ok {
+			return x.CreateOco
+		}
+	}
+	return nil
+}
+
+func (x *ClientFrame) GetCancelOco() *v11.CancelOcoRequest {
+	if x != nil {
+		if x, ok := x.Payload.(*ClientFrame_CancelOco); ok {
+			return x.CancelOco
+		}
+	}
+	return nil
+}
+
 type isClientFrame_Payload interface {
 	isClientFrame_Payload()
 }
@@ -216,7 +237,8 @@ type ClientFrame_Ping struct {
 
 type ClientFrame_CreateOrder struct {
 	// Create-order command using the public Orders API request contract,
-	// including its required base-quantity or maximum-quote-debit sizing choice.
+	// including its required base-quantity, maximum-quote-debit or
+	// quote-proceeds sizing choice.
 	CreateOrder *v1.CreateOrderRequest `protobuf:"bytes,11,opt,name=create_order,json=createOrder,proto3,oneof"`
 }
 
@@ -275,6 +297,20 @@ type ClientFrame_CancelAllAfter struct {
 	CancelAllAfter *v1.CancelAllAfterRequest `protobuf:"bytes,18,opt,name=cancel_all_after,json=cancelAllAfter,proto3,oneof"`
 }
 
+type ClientFrame_CreateOco struct {
+	// Create-OCO command using the public Triggers API request contract: a
+	// take-profit and a stop-loss over a quantity the account already holds,
+	// which cancel each other. The acknowledgement names the OCO and both
+	// legs; their states follow on the trigger reads and events.
+	CreateOco *v11.CreateOcoRequest `protobuf:"bytes,19,opt,name=create_oco,json=createOco,proto3,oneof"`
+}
+
+type ClientFrame_CancelOco struct {
+	// Cancel-OCO command using the public Triggers API request contract:
+	// both legs end canceled.
+	CancelOco *v11.CancelOcoRequest `protobuf:"bytes,20,opt,name=cancel_oco,json=cancelOco,proto3,oneof"`
+}
+
 func (*ClientFrame_Ping) isClientFrame_Payload() {}
 
 func (*ClientFrame_CreateOrder) isClientFrame_Payload() {}
@@ -292,6 +328,10 @@ func (*ClientFrame_BatchReplaceOrders) isClientFrame_Payload() {}
 func (*ClientFrame_BatchCancelOrders) isClientFrame_Payload() {}
 
 func (*ClientFrame_CancelAllAfter) isClientFrame_Payload() {}
+
+func (*ClientFrame_CreateOco) isClientFrame_Payload() {}
+
+func (*ClientFrame_CancelOco) isClientFrame_Payload() {}
 
 // PingRequest carries an opaque payload that is echoed by PongResponse.
 type PingRequest struct {
@@ -557,6 +597,8 @@ type AckResponse struct {
 	//	*AckResponse_BatchReplaceOrders
 	//	*AckResponse_BatchCancelOrders
 	//	*AckResponse_CancelAllAfter
+	//	*AckResponse_CreateOco
+	//	*AckResponse_CancelOco
 	Result        isAckResponse_Result `protobuf_oneof:"result"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -671,6 +713,24 @@ func (x *AckResponse) GetCancelAllAfter() *v1.CancelAllAfterResponse {
 	return nil
 }
 
+func (x *AckResponse) GetCreateOco() *v11.CreateOcoResponse {
+	if x != nil {
+		if x, ok := x.Result.(*AckResponse_CreateOco); ok {
+			return x.CreateOco
+		}
+	}
+	return nil
+}
+
+func (x *AckResponse) GetCancelOco() *v11.CancelOcoResponse {
+	if x != nil {
+		if x, ok := x.Result.(*AckResponse_CancelOco); ok {
+			return x.CancelOco
+		}
+	}
+	return nil
+}
+
 type isAckResponse_Result interface {
 	isAckResponse_Result()
 }
@@ -719,6 +779,16 @@ type AckResponse_CancelAllAfter struct {
 	CancelAllAfter *v1.CancelAllAfterResponse `protobuf:"bytes,8,opt,name=cancel_all_after,json=cancelAllAfter,proto3,oneof"`
 }
 
+type AckResponse_CreateOco struct {
+	// Accepted create-OCO response: the OCO and its legs' IDs.
+	CreateOco *v11.CreateOcoResponse `protobuf:"bytes,9,opt,name=create_oco,json=createOco,proto3,oneof"`
+}
+
+type AckResponse_CancelOco struct {
+	// Accepted cancel-OCO response.
+	CancelOco *v11.CancelOcoResponse `protobuf:"bytes,10,opt,name=cancel_oco,json=cancelOco,proto3,oneof"`
+}
+
 func (*AckResponse_CreateOrder) isAckResponse_Result() {}
 
 func (*AckResponse_CancelOrder) isAckResponse_Result() {}
@@ -734,6 +804,10 @@ func (*AckResponse_BatchReplaceOrders) isAckResponse_Result() {}
 func (*AckResponse_BatchCancelOrders) isAckResponse_Result() {}
 
 func (*AckResponse_CancelAllAfter) isAckResponse_Result() {}
+
+func (*AckResponse_CreateOco) isAckResponse_Result() {}
+
+func (*AckResponse_CancelOco) isAckResponse_Result() {}
 
 // CommandReject reports a command-level failure without closing the session.
 type CommandReject struct {
@@ -914,7 +988,7 @@ var File_tradews_v1_trade_ws_proto protoreflect.FileDescriptor
 const file_tradews_v1_trade_ws_proto_rawDesc = "" +
 	"\n" +
 	"\x19tradews/v1/trade_ws.proto\x12\n" +
-	"tradews.v1\x1a\x16orders/v1/orders.proto\"\xbc\x06\n" +
+	"tradews.v1\x1a\x16orders/v1/orders.proto\x1a\x1atriggers/v1/triggers.proto\"\xbc\a\n" +
 	"\vClientFrame\x12\x10\n" +
 	"\x03seq\x18\x01 \x01(\x04R\x03seq\x12%\n" +
 	"\x0ecorrelation_id\x18\x02 \x01(\tR\rcorrelationId\x12!\n" +
@@ -929,7 +1003,11 @@ const file_tradews_v1_trade_ws_proto_rawDesc = "" +
 	"\x13batch_create_orders\x18\x0f \x01(\v2#.orders.v1.BatchCreateOrdersRequestH\x00R\x11batchCreateOrders\x12X\n" +
 	"\x14batch_replace_orders\x18\x10 \x01(\v2$.orders.v1.BatchReplaceOrdersRequestH\x00R\x12batchReplaceOrders\x12U\n" +
 	"\x13batch_cancel_orders\x18\x11 \x01(\v2#.orders.v1.BatchCancelOrdersRequestH\x00R\x11batchCancelOrders\x12L\n" +
-	"\x10cancel_all_after\x18\x12 \x01(\v2 .orders.v1.CancelAllAfterRequestH\x00R\x0ecancelAllAfterB\t\n" +
+	"\x10cancel_all_after\x18\x12 \x01(\v2 .orders.v1.CancelAllAfterRequestH\x00R\x0ecancelAllAfter\x12>\n" +
+	"\n" +
+	"create_oco\x18\x13 \x01(\v2\x1d.triggers.v1.CreateOcoRequestH\x00R\tcreateOco\x12>\n" +
+	"\n" +
+	"cancel_oco\x18\x14 \x01(\v2\x1d.triggers.v1.CancelOcoRequestH\x00R\tcancelOcoB\t\n" +
 	"\apayload\"'\n" +
 	"\vPingRequest\x12\x18\n" +
 	"\apayload\x18\x01 \x01(\fR\apayload\"\xdf\x02\n" +
@@ -944,7 +1022,7 @@ const file_tradews_v1_trade_ws_proto_rawDesc = "" +
 	"\bterminal\x18\x0e \x01(\v2 .tradews.v1.TerminalSessionEventH\x00R\bterminalB\t\n" +
 	"\apayload\"(\n" +
 	"\fPongResponse\x12\x18\n" +
-	"\apayload\x18\x01 \x01(\fR\apayload\"\x92\x05\n" +
+	"\apayload\x18\x01 \x01(\fR\apayload\"\x94\x06\n" +
 	"\vAckResponse\x12C\n" +
 	"\fcreate_order\x18\x01 \x01(\v2\x1e.orders.v1.CreateOrderResponseH\x00R\vcreateOrder\x12C\n" +
 	"\fcancel_order\x18\x02 \x01(\v2\x1e.orders.v1.CancelOrderResponseH\x00R\vcancelOrder\x12C\n" +
@@ -953,7 +1031,12 @@ const file_tradews_v1_trade_ws_proto_rawDesc = "" +
 	"\x13batch_create_orders\x18\x05 \x01(\v2$.orders.v1.BatchCreateOrdersResponseH\x00R\x11batchCreateOrders\x12Y\n" +
 	"\x14batch_replace_orders\x18\x06 \x01(\v2%.orders.v1.BatchReplaceOrdersResponseH\x00R\x12batchReplaceOrders\x12V\n" +
 	"\x13batch_cancel_orders\x18\a \x01(\v2$.orders.v1.BatchCancelOrdersResponseH\x00R\x11batchCancelOrders\x12M\n" +
-	"\x10cancel_all_after\x18\b \x01(\v2!.orders.v1.CancelAllAfterResponseH\x00R\x0ecancelAllAfterB\b\n" +
+	"\x10cancel_all_after\x18\b \x01(\v2!.orders.v1.CancelAllAfterResponseH\x00R\x0ecancelAllAfter\x12?\n" +
+	"\n" +
+	"create_oco\x18\t \x01(\v2\x1e.triggers.v1.CreateOcoResponseH\x00R\tcreateOco\x12?\n" +
+	"\n" +
+	"cancel_oco\x18\n" +
+	" \x01(\v2\x1e.triggers.v1.CancelOcoResponseH\x00R\tcancelOcoB\b\n" +
 	"\x06result\"i\n" +
 	"\rCommandReject\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x16\n" +
@@ -996,15 +1079,19 @@ var file_tradews_v1_trade_ws_proto_goTypes = []any{
 	(*v1.BatchReplaceOrdersRequest)(nil),  // 13: orders.v1.BatchReplaceOrdersRequest
 	(*v1.BatchCancelOrdersRequest)(nil),   // 14: orders.v1.BatchCancelOrdersRequest
 	(*v1.CancelAllAfterRequest)(nil),      // 15: orders.v1.CancelAllAfterRequest
-	(*v1.CreateOrderResponse)(nil),        // 16: orders.v1.CreateOrderResponse
-	(*v1.CancelOrderResponse)(nil),        // 17: orders.v1.CancelOrderResponse
-	(*v1.ModifyOrderResponse)(nil),        // 18: orders.v1.ModifyOrderResponse
-	(*v1.CancelAllOrdersResponse)(nil),    // 19: orders.v1.CancelAllOrdersResponse
-	(*v1.BatchCreateOrdersResponse)(nil),  // 20: orders.v1.BatchCreateOrdersResponse
-	(*v1.BatchReplaceOrdersResponse)(nil), // 21: orders.v1.BatchReplaceOrdersResponse
-	(*v1.BatchCancelOrdersResponse)(nil),  // 22: orders.v1.BatchCancelOrdersResponse
-	(*v1.CancelAllAfterResponse)(nil),     // 23: orders.v1.CancelAllAfterResponse
-	(*v1.ErrorDetail)(nil),                // 24: orders.v1.ErrorDetail
+	(*v11.CreateOcoRequest)(nil),          // 16: triggers.v1.CreateOcoRequest
+	(*v11.CancelOcoRequest)(nil),          // 17: triggers.v1.CancelOcoRequest
+	(*v1.CreateOrderResponse)(nil),        // 18: orders.v1.CreateOrderResponse
+	(*v1.CancelOrderResponse)(nil),        // 19: orders.v1.CancelOrderResponse
+	(*v1.ModifyOrderResponse)(nil),        // 20: orders.v1.ModifyOrderResponse
+	(*v1.CancelAllOrdersResponse)(nil),    // 21: orders.v1.CancelAllOrdersResponse
+	(*v1.BatchCreateOrdersResponse)(nil),  // 22: orders.v1.BatchCreateOrdersResponse
+	(*v1.BatchReplaceOrdersResponse)(nil), // 23: orders.v1.BatchReplaceOrdersResponse
+	(*v1.BatchCancelOrdersResponse)(nil),  // 24: orders.v1.BatchCancelOrdersResponse
+	(*v1.CancelAllAfterResponse)(nil),     // 25: orders.v1.CancelAllAfterResponse
+	(*v11.CreateOcoResponse)(nil),         // 26: triggers.v1.CreateOcoResponse
+	(*v11.CancelOcoResponse)(nil),         // 27: triggers.v1.CancelOcoResponse
+	(*v1.ErrorDetail)(nil),                // 28: orders.v1.ErrorDetail
 }
 var file_tradews_v1_trade_ws_proto_depIdxs = []int32{
 	1,  // 0: tradews.v1.ClientFrame.ping:type_name -> tradews.v1.PingRequest
@@ -1016,25 +1103,29 @@ var file_tradews_v1_trade_ws_proto_depIdxs = []int32{
 	13, // 6: tradews.v1.ClientFrame.batch_replace_orders:type_name -> orders.v1.BatchReplaceOrdersRequest
 	14, // 7: tradews.v1.ClientFrame.batch_cancel_orders:type_name -> orders.v1.BatchCancelOrdersRequest
 	15, // 8: tradews.v1.ClientFrame.cancel_all_after:type_name -> orders.v1.CancelAllAfterRequest
-	3,  // 9: tradews.v1.ServerFrame.pong:type_name -> tradews.v1.PongResponse
-	4,  // 10: tradews.v1.ServerFrame.ack:type_name -> tradews.v1.AckResponse
-	5,  // 11: tradews.v1.ServerFrame.reject:type_name -> tradews.v1.CommandReject
-	6,  // 12: tradews.v1.ServerFrame.overload:type_name -> tradews.v1.OverloadResponse
-	7,  // 13: tradews.v1.ServerFrame.terminal:type_name -> tradews.v1.TerminalSessionEvent
-	16, // 14: tradews.v1.AckResponse.create_order:type_name -> orders.v1.CreateOrderResponse
-	17, // 15: tradews.v1.AckResponse.cancel_order:type_name -> orders.v1.CancelOrderResponse
-	18, // 16: tradews.v1.AckResponse.modify_order:type_name -> orders.v1.ModifyOrderResponse
-	19, // 17: tradews.v1.AckResponse.cancel_all_orders:type_name -> orders.v1.CancelAllOrdersResponse
-	20, // 18: tradews.v1.AckResponse.batch_create_orders:type_name -> orders.v1.BatchCreateOrdersResponse
-	21, // 19: tradews.v1.AckResponse.batch_replace_orders:type_name -> orders.v1.BatchReplaceOrdersResponse
-	22, // 20: tradews.v1.AckResponse.batch_cancel_orders:type_name -> orders.v1.BatchCancelOrdersResponse
-	23, // 21: tradews.v1.AckResponse.cancel_all_after:type_name -> orders.v1.CancelAllAfterResponse
-	24, // 22: tradews.v1.CommandReject.error:type_name -> orders.v1.ErrorDetail
-	23, // [23:23] is the sub-list for method output_type
-	23, // [23:23] is the sub-list for method input_type
-	23, // [23:23] is the sub-list for extension type_name
-	23, // [23:23] is the sub-list for extension extendee
-	0,  // [0:23] is the sub-list for field type_name
+	16, // 9: tradews.v1.ClientFrame.create_oco:type_name -> triggers.v1.CreateOcoRequest
+	17, // 10: tradews.v1.ClientFrame.cancel_oco:type_name -> triggers.v1.CancelOcoRequest
+	3,  // 11: tradews.v1.ServerFrame.pong:type_name -> tradews.v1.PongResponse
+	4,  // 12: tradews.v1.ServerFrame.ack:type_name -> tradews.v1.AckResponse
+	5,  // 13: tradews.v1.ServerFrame.reject:type_name -> tradews.v1.CommandReject
+	6,  // 14: tradews.v1.ServerFrame.overload:type_name -> tradews.v1.OverloadResponse
+	7,  // 15: tradews.v1.ServerFrame.terminal:type_name -> tradews.v1.TerminalSessionEvent
+	18, // 16: tradews.v1.AckResponse.create_order:type_name -> orders.v1.CreateOrderResponse
+	19, // 17: tradews.v1.AckResponse.cancel_order:type_name -> orders.v1.CancelOrderResponse
+	20, // 18: tradews.v1.AckResponse.modify_order:type_name -> orders.v1.ModifyOrderResponse
+	21, // 19: tradews.v1.AckResponse.cancel_all_orders:type_name -> orders.v1.CancelAllOrdersResponse
+	22, // 20: tradews.v1.AckResponse.batch_create_orders:type_name -> orders.v1.BatchCreateOrdersResponse
+	23, // 21: tradews.v1.AckResponse.batch_replace_orders:type_name -> orders.v1.BatchReplaceOrdersResponse
+	24, // 22: tradews.v1.AckResponse.batch_cancel_orders:type_name -> orders.v1.BatchCancelOrdersResponse
+	25, // 23: tradews.v1.AckResponse.cancel_all_after:type_name -> orders.v1.CancelAllAfterResponse
+	26, // 24: tradews.v1.AckResponse.create_oco:type_name -> triggers.v1.CreateOcoResponse
+	27, // 25: tradews.v1.AckResponse.cancel_oco:type_name -> triggers.v1.CancelOcoResponse
+	28, // 26: tradews.v1.CommandReject.error:type_name -> orders.v1.ErrorDetail
+	27, // [27:27] is the sub-list for method output_type
+	27, // [27:27] is the sub-list for method input_type
+	27, // [27:27] is the sub-list for extension type_name
+	27, // [27:27] is the sub-list for extension extendee
+	0,  // [0:27] is the sub-list for field type_name
 }
 
 func init() { file_tradews_v1_trade_ws_proto_init() }
@@ -1052,6 +1143,8 @@ func file_tradews_v1_trade_ws_proto_init() {
 		(*ClientFrame_BatchReplaceOrders)(nil),
 		(*ClientFrame_BatchCancelOrders)(nil),
 		(*ClientFrame_CancelAllAfter)(nil),
+		(*ClientFrame_CreateOco)(nil),
+		(*ClientFrame_CancelOco)(nil),
 	}
 	file_tradews_v1_trade_ws_proto_msgTypes[2].OneofWrappers = []any{
 		(*ServerFrame_Pong)(nil),
@@ -1069,6 +1162,8 @@ func file_tradews_v1_trade_ws_proto_init() {
 		(*AckResponse_BatchReplaceOrders)(nil),
 		(*AckResponse_BatchCancelOrders)(nil),
 		(*AckResponse_CancelAllAfter)(nil),
+		(*AckResponse_CreateOco)(nil),
+		(*AckResponse_CancelOco)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

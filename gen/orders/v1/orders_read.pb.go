@@ -42,7 +42,10 @@ const (
 	// Fully filled (no remaining quantity). A buy sized by a quote amount
 	// (max_quote_debit_scaled) is fully filled once it has spent that amount:
 	// what is left of it buys no further quantity step at the next price the
-	// order could fill at. Its quantity is then what it bought.
+	// order could fill at. Its quantity is then what it bought. A sell sized by
+	// a quote proceeds target (quote_proceeds_scaled) is fully filled once
+	// what is left of that target sells no further quantity step at the next
+	// price the order could fill at. Its quantity is then what it sold.
 	OrderStatus_FILLED OrderStatus = 4
 	// Canceled and no longer working.
 	OrderStatus_CANCELED OrderStatus = 5
@@ -111,14 +114,17 @@ const (
 	// A cancel the account sent: a cancel, a batch cancel or a cancel-all.
 	CancelReason_CANCEL_REASON_USER_REQUEST CancelReason = 1
 	// The unfilled remainder of an immediate-or-cancel order. A buy sized by a
-	// quote amount (max_quote_debit_scaled) that spends that amount ends
-	// FILLED instead.
+	// quote amount (max_quote_debit_scaled) that spends that amount, or a sell
+	// sized by a quote proceeds target (quote_proceeds_scaled) that receives
+	// it, ends FILLED instead.
 	CancelReason_CANCEL_REASON_IOC_REMAINDER CancelReason = 2
 	// The unfilled remainder of a market order: the book ran out, the next
 	// price was past the order's protection price, or the order reached the
 	// market's maximum order quantity. A market buy sized by a quote amount
 	// (max_quote_debit_scaled) that spends that amount, so that what is left
-	// buys no further quantity step, ends FILLED instead.
+	// buys no further quantity step, ends FILLED instead, as does a market sell
+	// sized by a quote proceeds target (quote_proceeds_scaled) once what is
+	// left of the target sells no further quantity step.
 	CancelReason_CANCEL_REASON_MARKET_REMAINDER CancelReason = 3
 	// Self-trade prevention canceled this resting order when an incoming order
 	// belonging to the same root account, including another subaccount of that
@@ -169,6 +175,23 @@ const (
 	// remainder before placing the attached order, so the two never trade with
 	// each other. Fills before the cancel stand.
 	CancelReason_CANCEL_REASON_ATTACHED_EXIT_FIRED CancelReason = 18
+	// Self-trade prevention mode DECREMENT reduced this order to its filled
+	// quantity: an incoming order met a resting order belonging to the same
+	// root account, including another subaccount of that root, both were
+	// reduced by the quantity that would have traded, with no trade, and this
+	// order had no quantity left. Fills before the cancel stand.
+	CancelReason_CANCEL_REASON_STP_DECREMENT CancelReason = 19
+	// The market's price band stopped the order: it filled up to the band's
+	// limit price, and its unfilled remainder was canceled rather than trade
+	// beyond the band. Fills before the cancel stand.
+	CancelReason_CANCEL_REASON_PRICE_BAND CancelReason = 20
+	// Cancel-on-disconnect canceled the order: the trading WebSocket
+	// connections of the account that opted in to cancel-on-disconnect all
+	// closed, and no session of the account opted in again before each one's
+	// grace period passed. An order the account's own cancel-all-after timer
+	// canceled reads CANCEL_REASON_CANCEL_ALL_AFTER instead. Fills before the
+	// cancel stand.
+	CancelReason_CANCEL_REASON_CANCEL_ON_DISCONNECT CancelReason = 21
 )
 
 // Enum value maps for CancelReason.
@@ -193,6 +216,9 @@ var (
 		16: "CANCEL_REASON_SYSTEM",
 		17: "CANCEL_REASON_MARKET_HALTED",
 		18: "CANCEL_REASON_ATTACHED_EXIT_FIRED",
+		19: "CANCEL_REASON_STP_DECREMENT",
+		20: "CANCEL_REASON_PRICE_BAND",
+		21: "CANCEL_REASON_CANCEL_ON_DISCONNECT",
 	}
 	CancelReason_value = map[string]int32{
 		"CANCEL_REASON_UNSPECIFIED":            0,
@@ -214,6 +240,9 @@ var (
 		"CANCEL_REASON_SYSTEM":                 16,
 		"CANCEL_REASON_MARKET_HALTED":          17,
 		"CANCEL_REASON_ATTACHED_EXIT_FIRED":    18,
+		"CANCEL_REASON_STP_DECREMENT":          19,
+		"CANCEL_REASON_PRICE_BAND":             20,
+		"CANCEL_REASON_CANCEL_ON_DISCONNECT":   21,
 	}
 )
 
@@ -1090,6 +1119,16 @@ type Order struct {
 	// Remaining working quantity scaled by the pair's base_quantity_scale from
 	// GetSpotConfig for symbol_id. Zero for terminal orders.
 	LeavesQtyScaled int64 `protobuf:"varint,20,opt,name=leaves_qty_scaled,json=leavesQtyScaled,proto3" json:"leaves_qty_scaled,omitempty"`
+	// Iceberg display quantity the order was placed with, scaled by the pair's
+	// base_quantity_scale from GetSpotConfig for symbol_id: the most of the
+	// order the order book shows at once. Zero for a plain order. A replace
+	// keeps it.
+	DisplayQtyScaled int64 `protobuf:"varint,39,opt,name=display_qty_scaled,json=displayQtyScaled,proto3" json:"display_qty_scaled,omitempty"`
+	// Part of leaves_qty_scaled an iceberg order keeps hidden from the order
+	// book, scaled by the pair's base_quantity_scale from GetSpotConfig for
+	// symbol_id. The order book shows leaves_qty_scaled minus this quantity.
+	// Zero for a plain order and for terminal orders.
+	HiddenQtyScaled int64 `protobuf:"varint,40,opt,name=hidden_qty_scaled,json=hiddenQtyScaled,proto3" json:"hidden_qty_scaled,omitempty"`
 	// Average execution price across the lineage through this generation,
 	// in quote units scaled by 1e9, rounded down. Zero if no fills.
 	// avg_price_e18 carries the exact average.
@@ -1115,6 +1154,13 @@ type Order struct {
 	// since a rebate is credited; it is this amount alone when fee_asset is
 	// BASE, whose fee is taken from the base received. What it left unspent is
 	// submitted_max_quote_debit_scaled less the quote it used.
+	//
+	// For a SELL sized by a quote proceeds target
+	// (submitted_quote_proceeds_scaled), this amount is the proceeds it
+	// received before fees, never above the target; the quote it was credited
+	// is this amount less fee_total's amount_e18, or plus it when fee_total's
+	// is_rebate is true. What it did not receive is
+	// submitted_quote_proceeds_scaled less this amount.
 	CumNotional *v1.U128 `protobuf:"bytes,37,opt,name=cum_notional,json=cumNotional,proto3" json:"cum_notional,omitempty"`
 	// Total fee of the fills across the lineage through this generation, net
 	// of rebates, in the order's fee asset. Order history reads and
@@ -1164,6 +1210,10 @@ type Order struct {
 	// quote_quantity_scale from GetSpotConfig. Present only when that sizing
 	// method was submitted.
 	SubmittedMaxQuoteDebitScaled *int64 `protobuf:"varint,28,opt,name=submitted_max_quote_debit_scaled,json=submittedMaxQuoteDebitScaled,proto3,oneof" json:"submitted_max_quote_debit_scaled,omitempty"`
+	// Submitted quote proceeds target, scaled by the pair's
+	// quote_quantity_scale from GetSpotConfig. Present only when that sizing
+	// method was submitted.
+	SubmittedQuoteProceedsScaled *int64 `protobuf:"varint,41,opt,name=submitted_quote_proceeds_scaled,json=submittedQuoteProceedsScaled,proto3,oneof" json:"submitted_quote_proceeds_scaled,omitempty"`
 	// Logical-order identity and requested generation. Always populated by order reads.
 	Lineage *OrderLineage `protobuf:"bytes,31,opt,name=lineage,proto3" json:"lineage,omitempty"`
 	// Exact UTC expiry time for GTD orders, within the supported signed
@@ -1303,6 +1353,20 @@ func (x *Order) GetLeavesQtyScaled() int64 {
 	return 0
 }
 
+func (x *Order) GetDisplayQtyScaled() int64 {
+	if x != nil {
+		return x.DisplayQtyScaled
+	}
+	return 0
+}
+
+func (x *Order) GetHiddenQtyScaled() int64 {
+	if x != nil {
+		return x.HiddenQtyScaled
+	}
+	return 0
+}
+
 func (x *Order) GetAvgPriceTicks() int64 {
 	if x != nil {
 		return x.AvgPriceTicks
@@ -1418,6 +1482,13 @@ func (x *Order) GetBatchRequestId() uint64 {
 func (x *Order) GetSubmittedMaxQuoteDebitScaled() int64 {
 	if x != nil && x.SubmittedMaxQuoteDebitScaled != nil {
 		return *x.SubmittedMaxQuoteDebitScaled
+	}
+	return 0
+}
+
+func (x *Order) GetSubmittedQuoteProceedsScaled() int64 {
+	if x != nil && x.SubmittedQuoteProceedsScaled != nil {
+		return *x.SubmittedQuoteProceedsScaled
 	}
 	return 0
 }
@@ -2964,7 +3035,7 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"amount_e18\x18\x01 \x01(\v2\x17.polyester.type.v1.U128R\tamountE18\x12\x1b\n" +
 	"\tis_rebate\x18\x02 \x01(\bR\bisRebate\x12\x1d\n" +
 	"\n" +
-	"qty_scaled\x18\x03 \x01(\x03R\tqtyScaled\"\xc7\r\n" +
+	"qty_scaled\x18\x03 \x01(\x03R\tqtyScaled\"\x91\x0f\n" +
 	"\x05Order\x12\x19\n" +
 	"\border_id\x18\x01 \x01(\x06R\aorderId\x12\x1b\n" +
 	"\tsymbol_id\x18\x03 \x01(\rR\bsymbolId\x12D\n" +
@@ -2981,7 +3052,9 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\x0forig_qty_scaled\x18\f \x01(\x03R\rorigQtyScaled\x12$\n" +
 	"\x0ecum_qty_scaled\x18\r \x01(\x03R\fcumQtyScaled\x127\n" +
 	"\x18inherited_cum_qty_scaled\x18! \x01(\x03R\x15inheritedCumQtyScaled\x12*\n" +
-	"\x11leaves_qty_scaled\x18\x14 \x01(\x03R\x0fleavesQtyScaled\x12&\n" +
+	"\x11leaves_qty_scaled\x18\x14 \x01(\x03R\x0fleavesQtyScaled\x12,\n" +
+	"\x12display_qty_scaled\x18' \x01(\x03R\x10displayQtyScaled\x12*\n" +
+	"\x11hidden_qty_scaled\x18( \x01(\x03R\x0fhiddenQtyScaled\x12&\n" +
 	"\x0favg_price_ticks\x18\x0e \x01(\x03R\ravgPriceTicks\x12;\n" +
 	"\ravg_price_e18\x18$ \x01(\v2\x17.polyester.type.v1.U128R\vavgPriceE18\x12:\n" +
 	"\fcum_notional\x18% \x01(\v2\x17.polyester.type.v1.U128R\vcumNotional\x125\n" +
@@ -3000,10 +3073,12 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\aversion\x18\x1a \x01(\rB\r\xbaH\n" +
 	"*\b\x18\xff\xff\xff\xff\a(\x00R\aversion\x12(\n" +
 	"\x10batch_request_id\x18\x1b \x01(\x06R\x0ebatchRequestId\x12K\n" +
-	" submitted_max_quote_debit_scaled\x18\x1c \x01(\x03H\x00R\x1csubmittedMaxQuoteDebitScaled\x88\x01\x01\x121\n" +
+	" submitted_max_quote_debit_scaled\x18\x1c \x01(\x03H\x00R\x1csubmittedMaxQuoteDebitScaled\x88\x01\x01\x12J\n" +
+	"\x1fsubmitted_quote_proceeds_scaled\x18) \x01(\x03H\x01R\x1csubmittedQuoteProceedsScaled\x88\x01\x01\x121\n" +
 	"\alineage\x18\x1f \x01(\v2\x17.orders.v1.OrderLineageR\alineage\x127\n" +
 	"\texpire_at\x18  \x01(\v2\x1a.google.protobuf.TimestampR\bexpireAtB#\n" +
-	"!_submitted_max_quote_debit_scaled\"\x99\x04\n" +
+	"!_submitted_max_quote_debit_scaledB\"\n" +
+	" _submitted_quote_proceeds_scaled\"\x99\x04\n" +
 	"\tUserTrade\x12\x1b\n" +
 	"\tsymbol_id\x18\x02 \x01(\rR\bsymbolId\x12\x19\n" +
 	"\bmatch_id\x18\x03 \x01(\x04R\amatchId\x12\x19\n" +
@@ -3175,7 +3250,7 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\n" +
 	"\x06FILLED\x10\x04\x12\f\n" +
 	"\bCANCELED\x10\x05\x12\f\n" +
-	"\bREJECTED\x10\x06*\x95\x05\n" +
+	"\bREJECTED\x10\x06*\xfc\x05\n" +
 	"\fCancelReason\x12\x1d\n" +
 	"\x19CANCEL_REASON_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aCANCEL_REASON_USER_REQUEST\x10\x01\x12\x1f\n" +
@@ -3196,7 +3271,10 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\x1dCANCEL_REASON_STRATEGY_CANCEL\x10\x0f\x12\x18\n" +
 	"\x14CANCEL_REASON_SYSTEM\x10\x10\x12\x1f\n" +
 	"\x1bCANCEL_REASON_MARKET_HALTED\x10\x11\x12%\n" +
-	"!CANCEL_REASON_ATTACHED_EXIT_FIRED\x10\x12*\xbf\x01\n" +
+	"!CANCEL_REASON_ATTACHED_EXIT_FIRED\x10\x12\x12\x1f\n" +
+	"\x1bCANCEL_REASON_STP_DECREMENT\x10\x13\x12\x1c\n" +
+	"\x18CANCEL_REASON_PRICE_BAND\x10\x14\x12&\n" +
+	"\"CANCEL_REASON_CANCEL_ON_DISCONNECT\x10\x15*\xbf\x01\n" +
 	"\x11BatchReplacePhase\x12#\n" +
 	"\x1fBATCH_REPLACE_PHASE_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cBATCH_REPLACE_PHASE_ADMITTED\x10\x01\x12\x1f\n" +

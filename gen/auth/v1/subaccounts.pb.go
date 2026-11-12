@@ -597,6 +597,11 @@ const (
 	ActivityEventAction_ACTIVITY_ACTION_HOLD_PLACED ActivityEventAction = 13
 	// Security hold was released.
 	ActivityEventAction_ACTIVITY_ACTION_HOLD_RELEASED ActivityEventAction = 14
+	// A change was requested; a later APPLIED or FAILED event records how it
+	// ended.
+	ActivityEventAction_ACTIVITY_ACTION_REQUESTED ActivityEventAction = 15
+	// A requested change took effect.
+	ActivityEventAction_ACTIVITY_ACTION_APPLIED ActivityEventAction = 16
 )
 
 // Enum value maps for ActivityEventAction.
@@ -617,6 +622,8 @@ var (
 		12: "ACTIVITY_ACTION_BLOCKED",
 		13: "ACTIVITY_ACTION_HOLD_PLACED",
 		14: "ACTIVITY_ACTION_HOLD_RELEASED",
+		15: "ACTIVITY_ACTION_REQUESTED",
+		16: "ACTIVITY_ACTION_APPLIED",
 	}
 	ActivityEventAction_value = map[string]int32{
 		"ACTIVITY_ACTION_UNSPECIFIED":   0,
@@ -634,6 +641,8 @@ var (
 		"ACTIVITY_ACTION_BLOCKED":       12,
 		"ACTIVITY_ACTION_HOLD_PLACED":   13,
 		"ACTIVITY_ACTION_HOLD_RELEASED": 14,
+		"ACTIVITY_ACTION_REQUESTED":     15,
+		"ACTIVITY_ACTION_APPLIED":       16,
 	}
 )
 
@@ -3577,7 +3586,7 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x16ACTIVITY_ENTITY_POLICY\x10\x06\x12\x1a\n" +
 	"\x16ACTIVITY_ENTITY_INVITE\x10\a\x12\x1c\n" +
 	"\x18ACTIVITY_ENTITY_SECURITY\x10\b\x12\x1f\n" +
-	"\x1bACTIVITY_ENTITY_DESTINATION\x10\t*\xd8\x03\n" +
+	"\x1bACTIVITY_ENTITY_DESTINATION\x10\t*\x94\x04\n" +
 	"\x13ActivityEventAction\x12\x1f\n" +
 	"\x1bACTIVITY_ACTION_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17ACTIVITY_ACTION_CREATED\x10\x01\x12\x1b\n" +
@@ -3594,7 +3603,9 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x17ACTIVITY_ACTION_REVOKED\x10\v\x12\x1b\n" +
 	"\x17ACTIVITY_ACTION_BLOCKED\x10\f\x12\x1f\n" +
 	"\x1bACTIVITY_ACTION_HOLD_PLACED\x10\r\x12!\n" +
-	"\x1dACTIVITY_ACTION_HOLD_RELEASED\x10\x0e*\x84\x01\n" +
+	"\x1dACTIVITY_ACTION_HOLD_RELEASED\x10\x0e\x12\x1d\n" +
+	"\x19ACTIVITY_ACTION_REQUESTED\x10\x0f\x12\x1b\n" +
+	"\x17ACTIVITY_ACTION_APPLIED\x10\x10*\x84\x01\n" +
 	"\x13ActivityEventSource\x12\x1f\n" +
 	"\x1bACTIVITY_SOURCE_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13ACTIVITY_SOURCE_WEB\x10\x01\x12\x1a\n" +
