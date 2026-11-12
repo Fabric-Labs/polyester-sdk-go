@@ -761,6 +761,19 @@ func IsOrderAlreadyTerminal(err error) bool {
 	return err != nil && apiErrorCode(err) == orderv1.ErrorCode_ERROR_CODE_ORDER_ALREADY_TERMINAL.String()
 }
 
+// IsTriggerAlreadyEnded reports whether a trigger cancel, pause, resume or
+// modify (or an OCO cancel) was refused because the trigger has already ended
+// (ERROR_CODE_TRIGGER_STATUS_INVALID, REST 400 TRIGGER_STATUS_INVALID):
+// completed, canceled or failed, by this call or otherwise. A repeat of a
+// cancel that succeeded answers it too. Treat it as "already done" and read
+// the trigger for how it ended. The server answers it for at least 60 seconds
+// after the trigger ended; after that, the same call may answer
+// ERROR_CODE_TRIGGER_NOT_FOUND, which this function does not report, since it
+// also means the ID names none of the caller's triggers.
+func IsTriggerAlreadyEnded(err error) bool {
+	return err != nil && apiErrorCode(err) == orderv1.ErrorCode_ERROR_CODE_TRIGGER_STATUS_INVALID.String()
+}
+
 func apiErrorCode(err error) string {
 	var apiErr *APIError
 	if errors.As(err, &apiErr) {

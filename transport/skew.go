@@ -203,8 +203,11 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	case (resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden) &&
 		(recognised || detail.Code == "PERMISSION_DENIED" || sdkerrors.AuthErrorCode(&sdkerrors.AuthError{Code: detail.Code}) != ""):
 		// A contract code such as SUBACCOUNT_READ_FORBIDDEN refuses the
-		// operation; keep it and the detail instead of the bare status.
-		mapped = &sdkerrors.AuthError{Msg: msg, Code: detail.Code, Status: resp.StatusCode}
+		// operation; keep it and the detail instead of the bare status. An
+		// order refusal reads as its ConnectRPC detail names it
+		// (ERROR_CODE_API_KEY_SPOT_TRADE_DENY), so both transports return the
+		// same code.
+		mapped = &sdkerrors.AuthError{Msg: msg, Code: wire.OrderPermissionCodeFromREST(detail.Code), Status: resp.StatusCode}
 	case len(detail.Violations) > 0 && recognised:
 		violations := make([]sdkerrors.FieldViolation, 0, len(detail.Violations))
 		for _, violation := range detail.Violations {

@@ -30,6 +30,8 @@ func OrderFromProto(msg *orderv1.Order) models.Order {
 		CumQty:          codecs.DecodeQtyScaled(msg.GetCumQtyScaled(), -1, "", &sid),
 		InheritedCumQty: codecs.DecodeQtyScaled(msg.GetInheritedCumQtyScaled(), -1, "", &sid),
 		LeavesQty:       codecs.DecodeQtyScaled(msg.GetLeavesQtyScaled(), -1, "", &sid),
+		DisplayQty:      codecs.DecodeQtyScaled(msg.GetDisplayQtyScaled(), -1, "", &sid),
+		HiddenQty:       codecs.DecodeQtyScaled(msg.GetHiddenQtyScaled(), -1, "", &sid),
 		Price:           codecs.DecodePriceTicks(msg.GetPriceTicks(), ""),
 		AvgPx:           codecs.DecodePriceTicks(msg.GetAvgPriceTicks(), ""),
 		CreatedTsNs:     strconv.FormatUint(msg.GetCreatedTsNs(), 10),
@@ -42,6 +44,9 @@ func OrderFromProto(msg *orderv1.Order) models.Order {
 		),
 		SubmittedMaxQuoteDebitScaled: optionalScaledString(
 			msg.SubmittedMaxQuoteDebitScaled,
+		),
+		SubmittedQuoteProceedsScaled: optionalScaledString(
+			msg.SubmittedQuoteProceedsScaled,
 		),
 		AttachedRisk:         attachedRiskFromProto(msg.GetAttachedRisk()),
 		Lineage:              orderLineageFromProto(msg.GetLineage()),
@@ -439,6 +444,7 @@ func OrderMutationFromProto(msg *orderv1.CreateOrderResponse) (models.OrderMutat
 		result.ResolvedBaseQty = qtyFromScaled(value)
 	}
 	result.SubmittedMaxQuoteDebitScaled = optionalScaledString(msg.SubmittedMaxQuoteDebitScaled)
+	result.SubmittedQuoteProceedsScaled = optionalScaledString(msg.SubmittedQuoteProceedsScaled)
 	result.AttachedRiskTriggerIDs = attachedRiskTriggerIDs(msg.TakeProfitTriggerId, msg.StopLossTriggerId, msg.TrailingStopTriggerId)
 	return result, nil
 }
@@ -862,6 +868,12 @@ func BatchCreateFromProto(msg *orderv1.BatchCreateOrdersResponse) (models.BatchC
 			decodedAccepted++
 			out.Status = "accepted"
 			out.OrderID = codecs.FormatUint64ID(accepted.GetOrderId())
+			if value := accepted.GetResolvedBaseQtyScaled(); value != 0 {
+				out.ResolvedBaseQtyScaled = strconv.FormatInt(value, 10)
+			}
+			out.SubmittedMaxQuoteDebitScaled = optionalScaledString(accepted.SubmittedMaxQuoteDebitScaled)
+			out.SubmittedQuoteProceedsScaled = optionalScaledString(accepted.SubmittedQuoteProceedsScaled)
+			out.AttachedRiskTriggerIDs = attachedRiskTriggerIDs(accepted.TakeProfitTriggerId, accepted.StopLossTriggerId, accepted.TrailingStopTriggerId)
 		} else if rejected := item.GetRejected(); rejected != nil {
 			decodedRejected++
 			out.Status = "rejected"

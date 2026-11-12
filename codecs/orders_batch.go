@@ -5,6 +5,7 @@ import (
 
 	validate "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
@@ -21,7 +22,13 @@ var (
 )
 
 func contractMaxItems(request proto.Message) int {
-	field := request.ProtoReflect().Descriptor().Fields().ByName("items")
+	return contractMaxRepeated(request, "items")
+}
+
+// contractMaxRepeated reads the contract's max_items rule of a repeated
+// request field.
+func contractMaxRepeated(request proto.Message, name protoreflect.Name) int {
+	field := request.ProtoReflect().Descriptor().Fields().ByName(name)
 	rules, _ := proto.GetExtension(field.Options(), validate.E_Field).(*validate.FieldRules)
 	return int(rules.GetRepeated().GetMaxItems())
 }

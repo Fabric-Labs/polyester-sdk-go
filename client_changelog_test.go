@@ -537,10 +537,10 @@ func TestChangelogSectionsNameTheirSurface(t *testing.T) {
 	}
 }
 
-func TestChangelogListChangesAcceptsAtMostTenSurfaces(t *testing.T) {
+func TestChangelogListChangesAcceptsAtMostElevenSurfaces(t *testing.T) {
 	fake := newFakeChangelog(1)
 	client := newPublicChangelogClient(t, fake)
-	surfaces := make([]string, 11)
+	surfaces := make([]string, 12)
 	for i := range surfaces {
 		surfaces[i] = models.ChangelogSurfaceTrading
 	}
