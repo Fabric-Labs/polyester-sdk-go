@@ -62,6 +62,14 @@ func GetSubaccountFromProto(msg *authv1.GetSubaccountResponse) models.GetSubacco
 	if len(msg.GetApiKeys()) > 0 {
 		out.APIKeys = apiKeys(msg.GetApiKeys())
 	}
+	if len(msg.GetMembers()) > 0 {
+		out.Members = subAccountMembers(msg.GetMembers())
+	}
+	if len(msg.GetInvites()) > 0 {
+		out.Invites = subAccountInvites(msg.GetInvites())
+	}
+	// Nil when none is attached: the server leaves policy unset.
+	out.Policy = SubaccountPolicyMessageFromProto(msg.GetPolicy())
 	if msg.GetBalances() != nil {
 		balances := BalancesListFromProto(msg.GetBalances())
 		out.Balances = &balances
@@ -69,14 +77,18 @@ func GetSubaccountFromProto(msg *authv1.GetSubaccountResponse) models.GetSubacco
 	return out
 }
 
-func SubaccountMembersListFromProto(msg *authv1.ListSubaccountMembersResponse) models.SubAccountMembersList {
-	out := make([]models.SubAccountMember, 0, len(msg.GetMembers()))
-	for _, m := range msg.GetMembers() {
+func subAccountMembers(members []*authv1.SubaccountMemberView) []models.SubAccountMember {
+	out := make([]models.SubAccountMember, 0, len(members))
+	for _, m := range members {
 		out = append(out, models.SubAccountMember{
 			GranteeAccountID: codecs.FormatUint64ID(m.GetAccountId()), Role: m.GetRole().String(),
 		})
 	}
-	return models.SubAccountMembersList{Members: out}
+	return out
+}
+
+func SubaccountMembersListFromProto(msg *authv1.ListSubaccountMembersResponse) models.SubAccountMembersList {
+	return models.SubAccountMembersList{Members: subAccountMembers(msg.GetMembers())}
 }
 
 func inviteFromProto(inv *authv1.SubaccountInvite) models.SubAccountInvite {
@@ -90,12 +102,16 @@ func inviteFromProto(inv *authv1.SubaccountInvite) models.SubAccountInvite {
 	}
 }
 
-func SubaccountInvitesListFromProto(msg *authv1.ListSubaccountInvitesResponse) models.SubAccountInvitesList {
-	out := make([]models.SubAccountInvite, 0, len(msg.GetInvites()))
-	for _, inv := range msg.GetInvites() {
+func subAccountInvites(invites []*authv1.SubaccountInvite) []models.SubAccountInvite {
+	out := make([]models.SubAccountInvite, 0, len(invites))
+	for _, inv := range invites {
 		out = append(out, inviteFromProto(inv))
 	}
-	return models.SubAccountInvitesList{Invites: out}
+	return out
+}
+
+func SubaccountInvitesListFromProto(msg *authv1.ListSubaccountInvitesResponse) models.SubAccountInvitesList {
+	return models.SubAccountInvitesList{Invites: subAccountInvites(msg.GetInvites())}
 }
 
 func SubaccountActivityListFromProto(msg *authv1.ListSubaccountEventsResponse) models.SubAccountActivityList {
