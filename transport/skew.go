@@ -183,6 +183,13 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		mapped = &sdkerrors.ServerError{Msg: msg, Code: detail.Code, Status: 504}
 	case resp.StatusCode == http.StatusServiceUnavailable && strings.TrimPrefix(detail.Code, "ERROR_CODE_") == "ACCOUNT_ROUTING_INVALID":
 		mapped = &sdkerrors.APIError{Msg: msg, Code: "ERROR_CODE_ACCOUNT_ROUTING_INVALID"}
+	case resp.StatusCode == http.StatusServiceUnavailable && detail.Code == sdkerrors.AuthCodeTemporarilyUnavailable:
+		// Authentication could not be checked, so the request changed
+		// nothing: a retryable refusal, as its ConnectRPC detail reads.
+		if msg == "" {
+			msg = detail.Code
+		}
+		mapped = &sdkerrors.APIError{Msg: msg, Code: sdkerrors.AuthCodeTemporarilyUnavailable}
 	case (resp.StatusCode == http.StatusBadGateway || resp.StatusCode == http.StatusServiceUnavailable) &&
 		detail.Code != "" && detail.Code == strings.ToUpper(detail.Code):
 		// REST problem codes are uppercase; lowercase Connect error bodies
