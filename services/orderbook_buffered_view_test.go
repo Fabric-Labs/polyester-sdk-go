@@ -43,7 +43,7 @@ func TestSnapshotWithBufferedDeltasEmitsOneView(t *testing.T) {
 				}
 				for seq := uint64(2); seq < 2+buffered; seq++ {
 					frame := bookTicketFrame(&ob.OrderBookDelta{
-						SymbolId: 1, BookSeqStart: seq, BookSeqEnd: seq,
+						SymbolId: 1, BookSeqStart: seq - 1, BookSeqEnd: seq,
 						Bids: []*ob.PriceLevel{{PriceTicks: 71_600_000, QtyScaled: int64(seq)}},
 					})
 					if err = conn.WriteMessage(websocket.BinaryMessage, frame); err != nil {

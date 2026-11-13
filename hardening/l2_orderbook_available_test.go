@@ -64,7 +64,7 @@ func TestL2OrderbookSubscriptionCarriesSnapshotAvailability(t *testing.T) {
 			defer sub.Close()
 
 			payload, err := proto.Marshal(&orderbookv1.OrderBookDelta{
-				SymbolId: 1, BookSeqStart: 11, BookSeqEnd: 11,
+				SymbolId: 1, BookSeqStart: 10, BookSeqEnd: 11,
 				Bids: []*orderbookv1.PriceLevel{{PriceTicks: 99, QtyScaled: 7}},
 			})
 			if err != nil {

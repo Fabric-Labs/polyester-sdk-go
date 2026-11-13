@@ -26,14 +26,14 @@ func TestApplyDeltaUpdatesBook(t *testing.T) {
 	asks := BookSide{200: 3}
 	delta := models.OrderBookDeltaUpdate{
 		BookSeqStart: "3",
-		BookSeqEnd:   "4",
+		BookSeqEnd:   "9",
 		Bids:         []models.PriceQtyPair{{PriceTicks: 100, QtyScaled: 7}},
 	}
 	seq, needsRefresh := ApplyDelta(bids, asks, 3, delta)
 	if needsRefresh {
 		t.Fatal("unexpected refresh")
 	}
-	if seq != 4 {
+	if seq != 9 {
 		t.Fatalf("seq=%d", seq)
 	}
 	if bids[100] != 7 {
@@ -41,11 +41,48 @@ func TestApplyDeltaUpdatesBook(t *testing.T) {
 	}
 }
 
+// A delta diffs the view at its BookSeqStart, the previous delta's
+// BookSeqEnd: it applies only to a book at exactly that sequence. One that
+// starts right after the book's sequence, or before it with a newer end, is
+// out of sequence and leaves the book unchanged.
+func TestApplyDeltaRequiresTheBooksExactSequence(t *testing.T) {
+	for _, tc := range []struct {
+		name, start, end string
+		outOfSequence    bool
+	}{
+		{"continues the book", "3", "4", false},
+		{"one past the book", "4", "5", true},
+		{"skips views", "7", "9", true},
+		{"overlaps the book", "2", "5", true},
+		{"already applied", "1", "3", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			bids := BookSide{100: 5}
+			asks := BookSide{200: 3}
+			seq, outOfSequence := ApplyDelta(bids, asks, 3, models.OrderBookDeltaUpdate{
+				BookSeqStart: tc.start,
+				BookSeqEnd:   tc.end,
+				Bids:         []models.PriceQtyPair{{PriceTicks: 100, QtyScaled: 7}},
+			})
+			if outOfSequence != tc.outOfSequence {
+				t.Fatalf("outOfSequence=%v want %v", outOfSequence, tc.outOfSequence)
+			}
+			applied := tc.name == "continues the book"
+			if wantSeq := map[bool]int{true: 4, false: 3}[applied]; seq != wantSeq {
+				t.Fatalf("seq=%d want %d", seq, wantSeq)
+			}
+			if wantQty := map[bool]int{true: 7, false: 5}[applied]; bids[100] != wantQty {
+				t.Fatalf("bids=%v", bids)
+			}
+		})
+	}
+}
+
 func TestApplyDeltaRejectsMalformedLevelsWithoutAdvancingOrMutating(t *testing.T) {
 	bids := BookSide{100: 5}
 	asks := BookSide{200: 3}
 	delta := models.OrderBookDeltaUpdate{
-		BookSeqStart: "2",
+		BookSeqStart: "1",
 		BookSeqEnd:   "2",
 		Bids: []models.PriceQtyPair{
 			{PriceTicks: 100, QtyScaled: -1},

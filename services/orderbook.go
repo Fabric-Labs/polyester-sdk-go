@@ -81,7 +81,9 @@ type CreateSubscriptionOptions struct {
 	Depth    int
 	Bucket   string
 	OnEvent  func(models.OrderbookData)
-	// OnSequenceGap is called when a book sequence gap is detected (before snapshot refresh).
+	// OnSequenceGap is called once when a delta does not continue the book:
+	// the book then waits for the stream's next reset, published about every
+	// 30 seconds, and its views read Available false until then.
 	OnSequenceGap func()
 	// OnReconnect is called after a websocket disconnect, before snapshot rebuild.
 	OnReconnect func()
@@ -165,6 +167,9 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		// recheckGeneration invalidates a scheduled request once a newer
 		// snapshot is available.
 		recheckGeneration uint64
+		// awaitingReset is set when a delta did not continue the book: the
+		// book is stale until the next reset or snapshot replaces it.
+		awaitingReset bool
 	)
 
 	emit := func() {
@@ -174,7 +179,7 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 			return
 		}
 		data, err := orderbook.BuildOrderbookData(symbol, depth, currentBookSeq, bids, asks, bucketTicks, quantityScale)
-		data.Available = bookAvailable
+		data.Available = bookAvailable && !awaitingReset
 		lastViewUnavailable = !bookAvailable
 		localSub := subscription
 		mu.Unlock()
@@ -190,32 +195,47 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 	}
 
 	var recheckUnavailableSnapshot func(available bool)
-	// applyDelta changes the book without rendering it. It reports false when
-	// the delta changed nothing to render: the subscription ended, or a
-	// sequence gap requested a refresh.
-	applyDelta := func(delta models.OrderBookDeltaUpdate) bool {
+	// applyDelta changes the book without rendering it. It reports whether
+	// the delta changed what to render, and whether it started a sequence gap.
+	// After a gap the book waits for the stream's next reset, which carries
+	// the whole view: a snapshot fetched now need not line up with the stream
+	// either, so the SDK does not fetch one.
+	applyDelta := func(delta models.OrderBookDeltaUpdate) (render, gapStarted bool) {
 		mu.Lock()
+		defer mu.Unlock()
 		// A delta buffered behind a terminal failure must not change or render the book.
 		if subscription != nil && subscription.Closed() {
-			mu.Unlock()
-			return false
+			return false, false
 		}
-		newSeq, needsRefresh := orderbook.ApplyDelta(bids, asks, currentBookSeq, delta)
+		if awaitingReset && !delta.Reset {
+			return false, false
+		}
+		previousSeq := currentBookSeq
+		newSeq, outOfSequence := orderbook.ApplyDelta(bids, asks, currentBookSeq, delta)
 		currentBookSeq = newSeq
-		localStream := stream
-		mu.Unlock()
-		if needsRefresh && localStream != nil {
-			if opts.OnSequenceGap != nil {
-				opts.OnSequenceGap()
+		if outOfSequence {
+			if awaitingReset {
+				return false, false
 			}
-			localStream.RequestSnapshotRefresh(ctx)
-			return false
+			awaitingReset = true
+			return true, true
 		}
-		return true
+		if awaitingReset {
+			if newSeq == previousSeq {
+				// A stale reset: still waiting.
+				return false, false
+			}
+			awaitingReset = false
+		}
+		return true, false
 	}
 	// A live delta is one book state: one view.
 	handleDelta := func(delta models.OrderBookDeltaUpdate) {
-		if applyDelta(delta) {
+		render, gapStarted := applyDelta(delta)
+		if gapStarted && opts.OnSequenceGap != nil {
+			opts.OnSequenceGap()
+		}
+		if render {
 			emit()
 		}
 	}
@@ -292,6 +312,8 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 				asks = nextAsks
 				currentBookSeq = int(msg.GetBookSeq())
 				bookAvailable = msg.GetAvailable()
+				// A new snapshot is a new starting view: deltas continue from it.
+				awaitingReset = false
 				data, err := orderbook.BuildOrderbookData(symbol, depth, currentBookSeq, bids, asks, bucketTicks, quantityScale)
 				data.Available = bookAvailable
 				mu.Unlock()
@@ -311,8 +333,13 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 			_ = snapshot
 			// The snapshot and the deltas buffered behind it are one book state,
 			// so they yield one view: a view per delta would queue stale copies.
+			gap := false
 			for _, delta := range buffered {
-				applyDelta(delta)
+				_, gapStarted := applyDelta(delta)
+				gap = gap || gapStarted
+			}
+			if gap && opts.OnSequenceGap != nil {
+				opts.OnSequenceGap()
 			}
 			mu.Lock()
 			available := bookAvailable

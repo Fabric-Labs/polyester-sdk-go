@@ -47,7 +47,8 @@ func TestTicket8581BuildOrderbookDataRefusesNegativeDepth(t *testing.T) {
 }
 
 // POLY-8583: a positive quantity at price zero is a level the renderer refuses,
-// so the whole delta fails closed: no mutation, no sequence advance, refresh.
+// so the whole delta fails closed: no mutation, no sequence advance, out of
+// sequence until the next reset.
 func TestTicket8583ApplyDeltaRefusesZeroPriceLevel(t *testing.T) {
 	zero := models.PriceQtyPair{PriceTicks: 0, QtyScaled: 4}
 	valid := models.PriceQtyPair{PriceTicks: 103, QtyScaled: 7}
@@ -55,10 +56,10 @@ func TestTicket8583ApplyDeltaRefusesZeroPriceLevel(t *testing.T) {
 		name  string
 		delta models.OrderBookDeltaUpdate
 	}{
-		{"bid", models.OrderBookDeltaUpdate{BookSeqStart: "11", BookSeqEnd: "11", Bids: []models.PriceQtyPair{zero}}},
-		{"ask", models.OrderBookDeltaUpdate{BookSeqStart: "11", BookSeqEnd: "11", Asks: []models.PriceQtyPair{zero}}},
-		{"mixed bid", models.OrderBookDeltaUpdate{BookSeqStart: "11", BookSeqEnd: "11", Bids: []models.PriceQtyPair{valid, zero}}},
-		{"mixed ask", models.OrderBookDeltaUpdate{BookSeqStart: "11", BookSeqEnd: "11", Bids: []models.PriceQtyPair{valid}, Asks: []models.PriceQtyPair{zero}}},
+		{"bid", models.OrderBookDeltaUpdate{BookSeqStart: "10", BookSeqEnd: "11", Bids: []models.PriceQtyPair{zero}}},
+		{"ask", models.OrderBookDeltaUpdate{BookSeqStart: "10", BookSeqEnd: "11", Asks: []models.PriceQtyPair{zero}}},
+		{"mixed bid", models.OrderBookDeltaUpdate{BookSeqStart: "10", BookSeqEnd: "11", Bids: []models.PriceQtyPair{valid, zero}}},
+		{"mixed ask", models.OrderBookDeltaUpdate{BookSeqStart: "10", BookSeqEnd: "11", Bids: []models.PriceQtyPair{valid}, Asks: []models.PriceQtyPair{zero}}},
 		{"reset", models.OrderBookDeltaUpdate{BookSeqStart: "11", BookSeqEnd: "12", Reset: true, Bids: []models.PriceQtyPair{valid}, Asks: []models.PriceQtyPair{zero}}},
 	} {
 		bids := BookSide{100: 5}
@@ -81,7 +82,7 @@ func TestTicket8583ApplyDeltaKeepsValidDeletionsAndInserts(t *testing.T) {
 	bids := BookSide{100: 5, 99: 1}
 	asks := BookSide{200: 3}
 	delta := models.OrderBookDeltaUpdate{
-		BookSeqStart: "11",
+		BookSeqStart: "10",
 		BookSeqEnd:   "11",
 		Bids:         []models.PriceQtyPair{{PriceTicks: 99, QtyScaled: 0}, {PriceTicks: 0, QtyScaled: 0}},
 		Asks:         []models.PriceQtyPair{{PriceTicks: 201, QtyScaled: 2}},
