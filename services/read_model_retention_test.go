@@ -276,6 +276,33 @@ func TestOrderReadsKeepBatchRequestID(t *testing.T) {
 	}
 }
 
+// An order a batch replace admitted keeps that batch's ID after it ends,
+// filled or canceled, as history and single reads return it.
+func TestEndedOrdersKeepBatchRequestID(t *testing.T) {
+	for _, status := range []orders.OrderStatus{orders.OrderStatus_FILLED, orders.OrderStatus_CANCELED} {
+		t.Run(status.String(), func(t *testing.T) {
+			order := batchOrder(7)
+			order.Status = status
+			factory := newRetentionFactory(t, "json", retentionHandler{order: order})
+			svc := NewOrdersService(factory, nil, nil, nil, nil, nil, nil)
+			ctx := context.Background()
+			history, err := svc.ListHistory(ctx, nil, nil, nil, nil, nil, 0, false, false, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(history.Orders) != 1 {
+				t.Fatalf("ListHistory orders = %d", len(history.Orders))
+			}
+			requireBatch(t, "ListHistory", &history.Orders[0], "8")
+			got, err := svc.Get(ctx, nil, models.OrderKeyByID("901"), nil, false, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			requireBatch(t, "Get", got.Order, "8")
+		})
+	}
+}
+
 func TestOrderStreamKeepsBatchRequestID(t *testing.T) {
 	for _, c := range batchCases {
 		payload, err := proto.Marshal(batchOrder(c.id))
