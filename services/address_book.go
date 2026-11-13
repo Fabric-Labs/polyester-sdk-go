@@ -46,7 +46,9 @@ func (s *AddressBookService) ListEntries(ctx context.Context, account AccountSco
 		return models.AddressBookEntriesList{}, err
 	}
 	if kind != nil && *kind != "" {
-		req.Kind = codecs.AddressBookEntryKindFromLabel(*kind)
+		if req.Kind, err = codecs.AddressBookEntryKindFromLabel(*kind); err != nil {
+			return models.AddressBookEntriesList{}, err
+		}
 	}
 	if pageToken != nil {
 		req.PageToken = *pageToken
@@ -64,10 +66,14 @@ func (s *AddressBookService) ListTransferCounterparties(ctx context.Context, acc
 		return models.TransferCounterpartiesList{}, err
 	}
 	if direction != nil && *direction != "" {
-		req.Direction = codecs.TransferCounterpartyDirectionFromLabel(*direction)
+		if req.Direction, err = codecs.TransferCounterpartyDirectionFromLabel(*direction); err != nil {
+			return models.TransferCounterpartiesList{}, err
+		}
 	}
 	if kind != nil && *kind != "" {
-		req.Kind = codecs.AddressBookEntryKindFromLabel(*kind)
+		if req.Kind, err = codecs.AddressBookEntryKindFromLabel(*kind); err != nil {
+			return models.TransferCounterpartiesList{}, err
+		}
 	}
 	return UnaryAuth(ctx, s.transport, s.client().ListTransferCounterparties, req, decode.ListCounterpartiesFromProto)
 }
@@ -80,10 +86,11 @@ func (s *AddressBookService) ListTransferDestinations(ctx context.Context, accou
 	if kind == "" {
 		kind = "internal_account"
 	}
-	req := &authv1.ListTransferDestinationsRequest{
-		Kind:  codecs.AddressBookEntryKindFromLabel(kind),
-		Limit: parsedLimit,
+	entryKind, err := codecs.AddressBookEntryKindFromLabel(kind)
+	if err != nil {
+		return models.AddressBookTransferDestinationsList{}, err
 	}
+	req := &authv1.ListTransferDestinationsRequest{Kind: entryKind, Limit: parsedLimit}
 	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.AddressBookTransferDestinationsList{}, err
 	}

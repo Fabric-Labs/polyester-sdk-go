@@ -1,6 +1,7 @@
 package codecs
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
@@ -19,25 +20,40 @@ type AddressBookEntryPatch struct {
 	NewTags          *[]models.AddressBookTagInput
 }
 
-func AddressBookEntryKindFromLabel(kind string) authv1.AddressBookEntryKind {
-	switch strings.ToLower(kind) {
+// AddressBookEntryKindFromLabel reads an entry kind filter, in any case:
+// external or external_chain, internal or internal_account. Any other label
+// is refused: the contract reads an unspecified kind as no filter.
+func AddressBookEntryKindFromLabel(kind string) (authv1.AddressBookEntryKind, error) {
+	switch strings.ToLower(strings.TrimSpace(kind)) {
 	case "external", "external_chain":
-		return authv1.AddressBookEntryKind_EXTERNAL_CHAIN
+		return authv1.AddressBookEntryKind_EXTERNAL_CHAIN, nil
 	case "internal", "internal_account":
-		return authv1.AddressBookEntryKind_INTERNAL_ACCOUNT
+		return authv1.AddressBookEntryKind_INTERNAL_ACCOUNT, nil
 	default:
-		return authv1.AddressBookEntryKind_ENTRY_KIND_UNSPECIFIED
+		return authv1.AddressBookEntryKind_ENTRY_KIND_UNSPECIFIED, &errors.ValidationError{
+			Msg: "kind must be external, external_chain, internal or internal_account; got " + strconv.Quote(kind),
+		}
 	}
 }
 
-func TransferCounterpartyDirectionFromLabel(direction string) authv1.TransferCounterpartyDirection {
-	switch strings.ToLower(direction) {
+// TransferCounterpartyDirectionFromLabel reads a counterparty direction
+// filter, in any case: deposit_from (or incoming), withdraw_to (or
+// outgoing), internal_transfer_from or internal_transfer_to. Any other label
+// is refused: the contract reads an unspecified direction as no filter.
+func TransferCounterpartyDirectionFromLabel(direction string) (authv1.TransferCounterpartyDirection, error) {
+	switch strings.ToLower(strings.TrimSpace(direction)) {
 	case "deposit_from", "incoming":
-		return authv1.TransferCounterpartyDirection_DEPOSIT_FROM
+		return authv1.TransferCounterpartyDirection_DEPOSIT_FROM, nil
 	case "withdraw_to", "outgoing":
-		return authv1.TransferCounterpartyDirection_WITHDRAW_TO
+		return authv1.TransferCounterpartyDirection_WITHDRAW_TO, nil
+	case "internal_transfer_from":
+		return authv1.TransferCounterpartyDirection_INTERNAL_TRANSFER_FROM, nil
+	case "internal_transfer_to":
+		return authv1.TransferCounterpartyDirection_INTERNAL_TRANSFER_TO, nil
 	default:
-		return authv1.TransferCounterpartyDirection_TRANSFER_COUNTERPARTY_DIRECTION_UNSPECIFIED
+		return authv1.TransferCounterpartyDirection_TRANSFER_COUNTERPARTY_DIRECTION_UNSPECIFIED, &errors.ValidationError{
+			Msg: "direction must be deposit_from, withdraw_to, internal_transfer_from or internal_transfer_to (incoming and outgoing are aliases); got " + strconv.Quote(direction),
+		}
 	}
 }
 
