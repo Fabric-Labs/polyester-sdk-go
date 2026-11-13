@@ -278,9 +278,15 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 // Read retry selects on that code, so a definite refusal carries the code of
 // its HTTP status and returns at once. Unavailability or an unknown outcome
 // stays plain: reads may retry those from read context. Any other server error
-// is internal, which reads don't retry. Either way wire.MapConnectError returns
+// is internal, which reads don't retry. A refusal that changed nothing because
+// authentication was briefly unavailable carries unavailable, as its ConnectRPC
+// answer does, so reads retry it too. Either way wire.MapConnectError returns
 // the typed error inside.
 func roundTripError(mapped error, status int) error {
+	var apiErr *sdkerrors.APIError
+	if errors.As(mapped, &apiErr) && apiErr.Code == sdkerrors.AuthCodeTemporarilyUnavailable {
+		return connect.NewError(connect.CodeUnavailable, mapped)
+	}
 	var serverErr *sdkerrors.ServerError
 	if errors.As(mapped, &serverErr) {
 		if isUnavailableStatus(serverErr.Status) {
