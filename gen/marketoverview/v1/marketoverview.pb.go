@@ -557,8 +557,9 @@ func (x *MarketOverview) GetIndexPriceTicks() int64 {
 type ListMarketOverviewRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Filter by stable numeric pair IDs from GetSpotConfig. When empty, returns
-	// every configured market, including disabled ones. Markets whose delisting
-	// time has passed are never returned.
+	// every configured market, including disabled ones. An ID that names no
+	// configured market is rejected as invalid. Markets whose delisting time has
+	// passed are never returned.
 	SymbolId []uint32 `protobuf:"varint,1,rep,packed,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Maximum number of markets to return. Defaults to 50 when omitted; maximum
 	// is 2000.

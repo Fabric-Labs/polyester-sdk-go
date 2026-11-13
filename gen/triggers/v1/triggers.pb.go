@@ -3811,6 +3811,12 @@ type ModifyTriggerRequest struct {
 	TrailingDistance isModifyTriggerRequest_TrailingDistance `protobuf_oneof:"trailing_distance"`
 	// Updated activation price in quote units scaled by 1e9. Set to zero to
 	// clear an existing activation price; omit to leave it unchanged.
+	// Once trailing tracking has begun, a new or different nonzero value
+	// rejects the whole request with
+	// ERROR_CODE_TRIGGER_ACTIVATION_PRICE_NOT_MODIFIABLE and leaves the trigger
+	// unchanged. Clearing with zero and repeating the current value remain
+	// accepted, including while paused. Before tracking begins, the activation
+	// price remains editable.
 	ActivationPriceTicks *int64 `protobuf:"varint,14,opt,name=activation_price_ticks,json=activationPriceTicks,proto3,oneof" json:"activation_price_ticks,omitempty"`
 	// For a trailing stop, or a stop-loss or take-profit with a market child:
 	// Optional price protection. Select either field with a zero value to clear

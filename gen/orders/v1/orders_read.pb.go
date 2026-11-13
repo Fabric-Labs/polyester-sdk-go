@@ -1204,7 +1204,10 @@ type Order struct {
 	// newer execution state. Fee totals and requested enrichments are not covered
 	// by this version and may differ between responses with the same version.
 	Version uint32 `protobuf:"varint,26,opt,name=version,proto3" json:"version,omitempty"`
-	// Batch-replace identity that admitted this order. Zero for other origins.
+	// Batch-replace identity that admitted this order, retained after it ends.
+	// Also set for batch-replaced trigger-generated orders. Zero when this order
+	// was not admitted by a batch replacement; a later batch replacing this order
+	// does not change its admission identity.
 	BatchRequestId uint64 `protobuf:"fixed64,27,opt,name=batch_request_id,json=batchRequestId,proto3" json:"batch_request_id,omitempty"`
 	// Submitted hard all-in quote debit limit, scaled by the pair's
 	// quote_quantity_scale from GetSpotConfig. Present only when that sizing
@@ -2021,6 +2024,7 @@ type GetOrderHistoryRequest struct {
 	// Inclusive start of the time range, in nanoseconds since epoch (UTC).
 	StartTsNs *uint64 `protobuf:"varint,10,opt,name=start_ts_ns,json=startTsNs,proto3,oneof" json:"start_ts_ns,omitempty"`
 	// Inclusive end of the time range, in nanoseconds since epoch (UTC).
+	// Omit for no upper bound; an explicit zero returns an empty page.
 	EndTsNs *uint64 `protobuf:"varint,11,opt,name=end_ts_ns,json=endTsNs,proto3,oneof" json:"end_ts_ns,omitempty"`
 	// Max number of orders to return (1-1000, default 100).
 	Limit *uint32 `protobuf:"varint,12,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
@@ -2217,6 +2221,7 @@ type GetUserTradesRequest struct {
 	// Inclusive start of the time range, in nanoseconds since epoch (UTC).
 	StartTsNs *uint64 `protobuf:"varint,10,opt,name=start_ts_ns,json=startTsNs,proto3,oneof" json:"start_ts_ns,omitempty"`
 	// Inclusive end of the time range, in nanoseconds since epoch (UTC).
+	// Omit for no upper bound; an explicit zero returns an empty page.
 	EndTsNs *uint64 `protobuf:"varint,11,opt,name=end_ts_ns,json=endTsNs,proto3,oneof" json:"end_ts_ns,omitempty"`
 	// Max number of trades to return (1-1000, default 100).
 	Limit *uint32 `protobuf:"varint,12,opt,name=limit,proto3,oneof" json:"limit,omitempty"`
@@ -3131,7 +3136,7 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\v_trigger_id\"s\n" +
 	"\x15GetOpenOrdersResponse\x12(\n" +
 	"\x06orders\x18\x01 \x03(\v2\x10.orders.v1.OrderR\x06orders\x120\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xf1\x06\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xb5\a\n" +
 	"\x16GetOrderHistoryRequest\x128\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01\x12-\n" +
 	"\tsymbol_id\x18\x02 \x03(\rB\x10\xbaH\r\x92\x01\n" +
@@ -3148,8 +3153,8 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\x15include_attached_risk\x18\x0e \x01(\bH\x04R\x13includeAttachedRisk\x88\x01\x01\x12B\n" +
 	"\x1binclude_attached_risk_state\x18\x0f \x01(\bH\x05R\x18includeAttachedRiskState\x88\x01\x01\x122\n" +
 	"\n" +
-	"trigger_id\x18\x10 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x06R\ttriggerId\x88\x01\x01:\xba\x01\xbaH\xb6\x01\x1a\xb3\x01\n" +
-	"%orders_history_bin.ordered_time_range\x122start_ts_ns must be <= end_ts_ns when both are set\x1aV!has(this.start_ts_ns) || !has(this.end_ts_ns) || (this.start_ts_ns <= this.end_ts_ns)B\x10\n" +
+	"trigger_id\x18\x10 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x06R\ttriggerId\x88\x01\x01:\xfe\x01\xbaH\xfa\x01\x1a\xf7\x01\n" +
+	"%orders_history_bin.ordered_time_range\x12^start_ts_ns must be <= end_ts_ns when both are set, except end_ts_ns = 0 returns an empty page\x1an!has(this.start_ts_ns) || !has(this.end_ts_ns) || this.end_ts_ns == 0u || (this.start_ts_ns <= this.end_ts_ns)B\x10\n" +
 	"\x0e_subaccount_idB\x0e\n" +
 	"\f_start_ts_nsB\f\n" +
 	"\n" +
@@ -3160,7 +3165,7 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\v_trigger_id\"u\n" +
 	"\x17GetOrderHistoryResponse\x12(\n" +
 	"\x06orders\x18\x01 \x03(\v2\x10.orders.v1.OrderR\x06orders\x120\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\x95\t\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xd9\t\n" +
 	"\x14GetUserTradesRequest\x128\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x01R\fsubaccountId\x88\x01\x01\x12'\n" +
 	"\tsymbol_id\x18\x02 \x01(\rB\n" +
@@ -3178,8 +3183,8 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\n" +
 	"lineage_id\x18\x10 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\tlineageId\x12;\n" +
 	"\x12through_generation\x18\x11 \x01(\rB\a\xbaH\x04*\x02 \x00H\x06R\x11throughGeneration\x88\x01\x01\x12+\n" +
-	"\x11include_transfers\x18\x12 \x01(\bR\x10includeTransfers:\xe1\x03\xbaH\xdd\x03\x1a\xb0\x01\n" +
-	"\"user_trades_bin.ordered_time_range\x122start_ts_ns must be <= end_ts_ns when both are set\x1aV!has(this.start_ts_ns) || !has(this.end_ts_ns) || (this.start_ts_ns <= this.end_ts_ns)\x1a\x90\x01\n" +
+	"\x11include_transfers\x18\x12 \x01(\bR\x10includeTransfers:\xa5\x04\xbaH\xa1\x04\x1a\xf4\x01\n" +
+	"\"user_trades_bin.ordered_time_range\x12^start_ts_ns must be <= end_ts_ns when both are set, except end_ts_ns = 0 returns an empty page\x1an!has(this.start_ts_ns) || !has(this.end_ts_ns) || this.end_ts_ns == 0u || (this.start_ts_ns <= this.end_ts_ns)\x1a\x90\x01\n" +
 	"+user_trades_bin.after_match_requires_symbol\x120symbol_id is required when after_match_id is set\x1a/!has(this.after_match_id) || this.symbol_id > 0\x1a\x94\x01\n" +
 	"+user_trades_bin.generation_requires_lineage\x12.lineage_id is required with through_generation\x1a5!has(this.through_generation) || has(this.lineage_id)B\x11\n" +
 	"\x0fexecution_scopeB\x10\n" +
