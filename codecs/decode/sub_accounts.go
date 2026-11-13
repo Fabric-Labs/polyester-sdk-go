@@ -23,6 +23,13 @@ func subaccountStatusName(status authv1.SubaccountStatus) string {
 	}
 }
 
+// subaccountRoleName spells a role the same way on a sub-account, its
+// members, its invites and an address book: lower case (owner,
+// leveraged_trader), "" when unspecified.
+func subaccountRoleName(role authv1.SubaccountRole) string {
+	return codecs.ProtoEnumName(role, role.Number())
+}
+
 func subAccount(msg *authv1.Subaccount) models.SubAccount {
 	if msg == nil {
 		return models.SubAccount{}
@@ -35,7 +42,7 @@ func subAccount(msg *authv1.Subaccount) models.SubAccount {
 	return models.SubAccount{
 		SubaccountID: codecs.FormatUint64ID(msg.GetId()),
 		// Unspecified (as on a removal) reads as "", never as a default role.
-		Role:                codecs.ProtoEnumName(msg.GetRole(), msg.GetRole().Number()),
+		Role:                subaccountRoleName(msg.GetRole()),
 		Removed:             msg.GetRemoved(),
 		Label:               msg.GetLabel(),
 		SmartAccountAddress: msg.GetSmartAccountAddress(),
@@ -81,7 +88,7 @@ func subAccountMembers(members []*authv1.SubaccountMemberView) []models.SubAccou
 	out := make([]models.SubAccountMember, 0, len(members))
 	for _, m := range members {
 		out = append(out, models.SubAccountMember{
-			GranteeAccountID: codecs.FormatUint64ID(m.GetAccountId()), Role: m.GetRole().String(),
+			GranteeAccountID: codecs.FormatUint64ID(m.GetAccountId()), Role: subaccountRoleName(m.GetRole()),
 		})
 	}
 	return out
@@ -98,7 +105,7 @@ func inviteFromProto(inv *authv1.SubaccountInvite) models.SubAccountInvite {
 	return models.SubAccountInvite{
 		InviteID:         codecs.FormatUint64ID(inv.GetId()),
 		GranteeAccountID: codecs.FormatUint64ID(inv.GetGranteeAccountId()),
-		Role:             inv.GetRole().String(), Status: inv.GetStatus().String(),
+		Role:             subaccountRoleName(inv.GetRole()), Status: inv.GetStatus().String(),
 	}
 }
 

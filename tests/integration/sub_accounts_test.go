@@ -97,7 +97,7 @@ func TestAddressBookGetViewOptional(t *testing.T) {
 	view := testutil.CallOptional(t, "address_book.get_view", func() (models.AddressBookView, error) {
 		return client.AddressBook.GetView(ctx, nil, nil, 10, 0)
 	})
-	if len(view.Raw) == 0 {
-		t.Skip("address book view empty on devnet")
+	if len(view.Books) == 0 && view.Entries == nil {
+		t.Skip("address book view empty")
 	}
 }

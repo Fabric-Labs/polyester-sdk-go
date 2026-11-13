@@ -11,6 +11,7 @@ import (
 	"time"
 
 	polyester "github.com/Fabric-Labs/polyester-sdk-go"
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/testutil"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
@@ -34,8 +35,21 @@ func TestAddressBookGetView(t *testing.T) {
 	view := testutil.CallOptional(t, "address_book.get_view", func() (models.AddressBookView, error) {
 		return client.AddressBook.GetView(ctx, nil, nil, 10, 0)
 	})
-	if view.Raw == nil {
-		t.Fatal("expected address book view")
+	// Entry IDs in the view are public IDs, as ListEntries returns them.
+	var ids []string
+	if view.Entries != nil {
+		for _, e := range view.Entries.External {
+			ids = append(ids, e.AddressBookEntryID)
+		}
+		for _, e := range view.Entries.Internal {
+			ids = append(ids, e.AddressBookEntryID)
+		}
+	}
+	for _, id := range ids {
+		n, err := codecs.IDToInt(id, "address_book_entry_id")
+		if err != nil || codecs.FormatID(n) != id {
+			t.Fatalf("view entry ID %q is not a public ID (%v)", id, err)
+		}
 	}
 }
 

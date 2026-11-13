@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -567,13 +568,19 @@ func ModifyTriggerToProto(triggerID string, symbolID uint32, symbol string, subA
 	return req, nil
 }
 
+// ParseRequiredUint64Decimal reads raw as a decimal uint64, digits only. It
+// never reads raw as a public ID: "42" is 42, though "42" also spells the
+// base58 ID of 175.
 func ParseRequiredUint64Decimal(raw, field string) (uint64, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" || !isDecimal(raw) {
 		return 0, &errors.ValidationError{Msg: field + " must be a uint64 decimal string"}
 	}
-	v, err := IDToInt(raw, field)
-	return v, err
+	v, err := strconv.ParseUint(raw, 10, 64)
+	if err != nil {
+		return 0, &errors.ValidationError{Msg: field + " exceeds uint64 range"}
+	}
+	return v, nil
 }
 
 // MaxBatchCancelTriggers is the contract's limit of trigger IDs per batch

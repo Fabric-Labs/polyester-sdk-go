@@ -70,9 +70,11 @@ create/update/delete) are wrapped. `new_tags` creates and attaches tags in the
 same protected update; when `tag_ids` is omitted, current tags are preserved
 and the new tags are appended. `GetView(..., minimumViewRevision)` omits the
 revision when it is 0; the view and invalidation payloads include
-`view_revision`. Each entry in the view's `Raw` keeps its own `revision`, the
-`expectedRevision` for updating that entry; it is not the view's
-`view_revision`. Twitter social-verification handles accept an
+`view_revision`. Each entry in the view (`view.Entries.External` and
+`view.Entries.Internal`) keeps its own `Revision`, the `expectedRevision` for
+updating that entry; it is not the view's `ViewRevision`. Every ID in the view
+and in the counterparty, destination and whitelist lists is a public ID, the
+same as `ListEntries` returns for the same entry. Twitter social-verification handles accept an
 optional leading `@` and are forwarded as-is.
 
 Rows marked **Yes** mean that an SDK wrapper exists; deployment authorization
