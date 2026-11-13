@@ -27,16 +27,55 @@ func ChangelogChangeFromProto(msg *changelogv1.Change) models.ChangelogChange {
 	}
 	category := msg.GetCategory()
 	return models.ChangelogChange{
-		ID:                codecs.FormatUint64ID(msg.GetId()),
-		Title:             msg.GetTitle(),
-		Summary:           msg.GetSummary(),
-		Details:           cloneOptionalString(msg.Details),
-		Category:          codecs.ProtoEnumName(category, category.Number()),
-		ActionRequired:    msg.GetActionRequired(),
-		MigrationGuidance: cloneOptionalString(msg.MigrationGuidance),
-		Audiences:         audiences,
-		Surfaces:          surfaces,
+		ID:                    codecs.FormatUint64ID(msg.GetId()),
+		Title:                 msg.GetTitle(),
+		Summary:               msg.GetSummary(),
+		Details:               cloneOptionalString(msg.Details),
+		Category:              codecs.ProtoEnumName(category, category.Number()),
+		ActionRequired:        msg.GetActionRequired(),
+		MigrationGuidance:     cloneOptionalString(msg.MigrationGuidance),
+		Audiences:             audiences,
+		Surfaces:              surfaces,
+		EnvironmentExceptions: changelogChangeExceptions(msg.GetEnvironmentExceptions()),
 	}
+}
+
+// changelogChangeExceptions decodes a change's environment exceptions; nil
+// when it has none.
+func changelogChangeExceptions(msgs []*changelogv1.ChangeException) []models.ChangelogChangeException {
+	var out []models.ChangelogChangeException
+	for _, msg := range msgs {
+		if msg == nil {
+			continue
+		}
+		availability := msg.GetAvailability()
+		out = append(out, models.ChangelogChangeException{
+			Environment:  changelogEnvironmentLabel(msg.GetEnvironment()),
+			Availability: codecs.ProtoEnumName(availability, availability.Number()),
+			LiveAt:       timestampTime(msg.GetLiveAt()),
+		})
+	}
+	return out
+}
+
+func changelogEnvironmentLabel(environment changelogv1.Environment) string {
+	return codecs.ProtoEnumName(environment, environment.Number())
+}
+
+// changelogEnvironments decodes a release post's per-environment status; nil
+// for a post without a release.
+func changelogEnvironments(msgs []*changelogv1.EnvironmentStatus) []models.ChangelogEnvironmentStatus {
+	var out []models.ChangelogEnvironmentStatus
+	for _, msg := range msgs {
+		if msg == nil {
+			continue
+		}
+		out = append(out, models.ChangelogEnvironmentStatus{
+			Environment: changelogEnvironmentLabel(msg.GetEnvironment()),
+			LiveAt:      timestampTime(msg.GetLiveAt()),
+		})
+	}
+	return out
 }
 
 // ChangelogPostSummaryFromProto decodes a post summary.
@@ -58,6 +97,9 @@ func ChangelogPostSummaryFromProto(msg *changelogv1.PostSummary) models.Changelo
 		NewFeatureCount:     msg.GetNewFeatureCount(),
 		ImprovementCount:    msg.GetImprovementCount(),
 		BugFixCount:         msg.GetBugFixCount(),
+		ReleaseVersion:      cloneOptionalString(msg.ReleaseVersion),
+		Environments:        changelogEnvironments(msg.GetEnvironments()),
+		DeploymentGroupSlug: cloneOptionalString(msg.DeploymentGroupSlug),
 	}
 }
 
@@ -120,4 +162,82 @@ func ChangelogChangesPageFromProto(msg *changelogv1.ListChangesResponse) models.
 		})
 	}
 	return models.ChangelogChangesPage{Changes: entries, NextPageToken: msg.GetNextPageToken()}
+}
+
+// ChangelogDeploymentGroupSummaryFromProto decodes a deployment group summary.
+func ChangelogDeploymentGroupSummaryFromProto(msg *changelogv1.DeploymentGroupSummary) models.ChangelogDeploymentGroupSummary {
+	versions := append([]string{}, msg.GetVersions()...)
+	posts := make([]models.ChangelogDeploymentGroupPost, 0, len(msg.GetPosts()))
+	for _, post := range msg.GetPosts() {
+		if post == nil {
+			continue
+		}
+		posts = append(posts, models.ChangelogDeploymentGroupPost{
+			Slug:           post.GetSlug(),
+			ReleaseVersion: post.GetReleaseVersion(),
+			Title:          post.GetTitle(),
+			PublishedAt:    timestampTime(post.GetPublishedAt()),
+			Revision:       post.GetRevision(),
+			UpdatedAt:      timestampTime(post.GetUpdatedAt()),
+		})
+	}
+	return models.ChangelogDeploymentGroupSummary{
+		Slug:                   msg.GetSlug(),
+		Environment:            changelogEnvironmentLabel(msg.GetEnvironment()),
+		OccurredAt:             timestampTime(msg.GetOccurredAt()),
+		ReleaseVersion:         msg.GetReleaseVersion(),
+		ReleaseTag:             cloneOptionalString(msg.ReleaseTag),
+		PreviousReleaseVersion: cloneOptionalString(msg.PreviousReleaseVersion),
+		Versions:               versions,
+		Posts:                  posts,
+	}
+}
+
+// ChangelogDeploymentGroupsPageFromProto decodes ListDeploymentGroupsResponse.
+func ChangelogDeploymentGroupsPageFromProto(msg *changelogv1.ListDeploymentGroupsResponse) models.ChangelogDeploymentGroupsPage {
+	groups := make([]models.ChangelogDeploymentGroupSummary, 0, len(msg.GetGroups()))
+	for _, group := range msg.GetGroups() {
+		if group == nil {
+			continue
+		}
+		groups = append(groups, ChangelogDeploymentGroupSummaryFromProto(group))
+	}
+	return models.ChangelogDeploymentGroupsPage{Groups: groups, NextPageToken: msg.GetNextPageToken()}
+}
+
+// ChangelogDeploymentGroupFromProto decodes GetDeploymentGroupResponse. A
+// success without a group, or a group without its summary, is a contract
+// violation.
+func ChangelogDeploymentGroupFromProto(msg *changelogv1.GetDeploymentGroupResponse) (models.ChangelogDeploymentGroup, error) {
+	group := msg.GetGroup()
+	if group == nil || group.GetSummary() == nil {
+		return models.ChangelogDeploymentGroup{}, &sdkerrors.ResponseContractError{Operation: "GetDeploymentGroup", Msg: "missing deployment group"}
+	}
+	attention := make([]models.ChangelogDeploymentGroupAttention, 0, len(group.GetAttention()))
+	for _, item := range group.GetAttention() {
+		if item == nil {
+			continue
+		}
+		attention = append(attention, models.ChangelogDeploymentGroupAttention{
+			PostSlug:       item.GetPostSlug(),
+			ReleaseVersion: item.GetReleaseVersion(),
+			Change:         ChangelogChangeFromProto(item.GetChange()),
+		})
+	}
+	highlights := make([]models.ChangelogDeploymentGroupHighlight, 0, len(group.GetHighlights()))
+	for _, item := range group.GetHighlights() {
+		if item == nil {
+			continue
+		}
+		highlights = append(highlights, models.ChangelogDeploymentGroupHighlight{
+			PostSlug:       item.GetPostSlug(),
+			ReleaseVersion: item.GetReleaseVersion(),
+			Text:           item.GetText(),
+		})
+	}
+	return models.ChangelogDeploymentGroup{
+		ChangelogDeploymentGroupSummary: ChangelogDeploymentGroupSummaryFromProto(group.GetSummary()),
+		Attention:                       attention,
+		Highlights:                      highlights,
+	}, nil
 }
