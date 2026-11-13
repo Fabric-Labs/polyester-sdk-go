@@ -12,6 +12,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1/authv1connect"
@@ -291,7 +292,7 @@ func TestOrderStreamKeepsBatchRequestID(t *testing.T) {
 	}
 }
 
-// --- POLY-9893: address-book view entry revisions --------------------------
+// --- Address-book view entry revisions ---------------------------------------
 
 func addressBookViewFixture() *authv1.GetAddressBookViewResponse {
 	return &authv1.GetAddressBookViewResponse{
@@ -309,8 +310,7 @@ func addressBookViewFixture() *authv1.GetAddressBookViewResponse {
 	}
 }
 
-// The Go view exposes its entries in Raw (protobuf JSON, proto field names),
-// where each entry keeps its own revision; 0 is omitted, as protobuf JSON does.
+// Each entry of the view keeps its own revision, 0 when the server sends none.
 func TestAddressBookViewEntriesKeepTheirOwnRevision(t *testing.T) {
 	for _, wire := range retentionWires {
 		t.Run(wire, func(t *testing.T) {
@@ -323,19 +323,16 @@ func TestAddressBookViewEntriesKeepTheirOwnRevision(t *testing.T) {
 			if view.ViewRevision != 99 {
 				t.Fatalf("ViewRevision = %d", view.ViewRevision)
 			}
-			entries, _ := view.Raw["entries"].(map[string]any)
-			want := map[string][]any{"external": {"7", nil}, "internal": {"19", "2"}}
-			for kind, revisions := range want {
-				rows, _ := entries[kind].([]any)
-				if len(rows) != len(revisions) {
-					t.Fatalf("%s entries = %#v", kind, entries[kind])
-				}
-				for i, revision := range revisions {
-					row, _ := rows[i].(map[string]any)
-					if got := row["revision"]; got != revision {
-						t.Errorf("%s[%d] revision = %#v, want %#v", kind, i, got, revision)
-					}
-				}
+			if view.Entries == nil || len(view.Entries.External) != 2 || len(view.Entries.Internal) != 2 {
+				t.Fatalf("entries = %+v", view.Entries)
+			}
+			external := []uint64{view.Entries.External[0].Revision, view.Entries.External[1].Revision}
+			internal := []uint64{view.Entries.Internal[0].Revision, view.Entries.Internal[1].Revision}
+			if external[0] != 7 || external[1] != 0 || internal[0] != 19 || internal[1] != 2 {
+				t.Errorf("revisions external=%v internal=%v, want [7 0] [19 2]", external, internal)
+			}
+			if id := view.Entries.Internal[0].AddressBookEntryID; id != codecs.FormatID(21) {
+				t.Errorf("internal[0] ID = %q, want the public ID %q", id, codecs.FormatID(21))
 			}
 		})
 	}

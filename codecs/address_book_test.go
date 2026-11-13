@@ -11,30 +11,43 @@ import (
 )
 
 func TestAddressBookEntryKindFromLabel(t *testing.T) {
-	if got := AddressBookEntryKindFromLabel("external"); got != authv1.AddressBookEntryKind_EXTERNAL_CHAIN {
-		t.Fatalf("external=%v", got)
+	for label, want := range map[string]authv1.AddressBookEntryKind{
+		"external": authv1.AddressBookEntryKind_EXTERNAL_CHAIN, "EXTERNAL_CHAIN": authv1.AddressBookEntryKind_EXTERNAL_CHAIN,
+		"internal": authv1.AddressBookEntryKind_INTERNAL_ACCOUNT, "internal_account": authv1.AddressBookEntryKind_INTERNAL_ACCOUNT,
+	} {
+		if got, err := AddressBookEntryKindFromLabel(label); err != nil || got != want {
+			t.Fatalf("%s: got=%v err=%v want=%v", label, got, err, want)
+		}
 	}
-	if got := AddressBookEntryKindFromLabel("internal_account"); got != authv1.AddressBookEntryKind_INTERNAL_ACCOUNT {
-		t.Fatalf("internal=%v", got)
-	}
-	if got := AddressBookEntryKindFromLabel("nope"); got != authv1.AddressBookEntryKind_ENTRY_KIND_UNSPECIFIED {
-		t.Fatalf("unknown=%v", got)
+	for _, label := range []string{"nope", "", "entry_kind_unspecified", "unspecified", "scope_root"} {
+		var validation *sdkerrors.ValidationError
+		if _, err := AddressBookEntryKindFromLabel(label); !errors.As(err, &validation) {
+			t.Fatalf("%q: err=%v, want a validation error", label, err)
+		}
 	}
 }
 
 func TestTransferCounterpartyDirectionFromLabel(t *testing.T) {
 	cases := map[string]authv1.TransferCounterpartyDirection{
-		"deposit_from": authv1.TransferCounterpartyDirection_DEPOSIT_FROM,
-		"incoming":     authv1.TransferCounterpartyDirection_DEPOSIT_FROM,
-		"withdraw_to":  authv1.TransferCounterpartyDirection_WITHDRAW_TO,
-		"outgoing":     authv1.TransferCounterpartyDirection_WITHDRAW_TO,
+		"deposit_from":           authv1.TransferCounterpartyDirection_DEPOSIT_FROM,
+		"incoming":               authv1.TransferCounterpartyDirection_DEPOSIT_FROM,
+		"withdraw_to":            authv1.TransferCounterpartyDirection_WITHDRAW_TO,
+		"outgoing":               authv1.TransferCounterpartyDirection_WITHDRAW_TO,
+		"internal_transfer_from": authv1.TransferCounterpartyDirection_INTERNAL_TRANSFER_FROM,
+		"internal_transfer_to":   authv1.TransferCounterpartyDirection_INTERNAL_TRANSFER_TO,
 	}
 	for label, want := range cases {
-		if got := TransferCounterpartyDirectionFromLabel(label); got != want {
-			t.Fatalf("%s: got=%v want=%v", label, got, want)
+		if got, err := TransferCounterpartyDirectionFromLabel(label); err != nil || got != want {
+			t.Fatalf("%s: got=%v err=%v want=%v", label, got, err, want)
 		}
-		if got := TransferCounterpartyDirectionFromLabel(strings.ToUpper(label)); got != want {
-			t.Fatalf("%s upper: got=%v want=%v", label, got, want)
+		if got, err := TransferCounterpartyDirectionFromLabel(strings.ToUpper(label)); err != nil || got != want {
+			t.Fatalf("%s upper: got=%v err=%v want=%v", label, got, err, want)
+		}
+	}
+	for _, label := range []string{"sideways", "", "transfer_counterparty_direction_unspecified", "scope_root"} {
+		var validation *sdkerrors.ValidationError
+		if _, err := TransferCounterpartyDirectionFromLabel(label); !errors.As(err, &validation) {
+			t.Fatalf("%q: err=%v, want a validation error", label, err)
 		}
 	}
 }

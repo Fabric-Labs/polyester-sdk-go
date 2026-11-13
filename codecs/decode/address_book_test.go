@@ -63,8 +63,8 @@ func TestAddressBookViewFromProtoMapsViewRevision(t *testing.T) {
 	if got.ViewRevision != 17 {
 		t.Fatalf("view_revision=%d", got.ViewRevision)
 	}
-	if got.Raw == nil {
-		t.Fatal("expected raw view map")
+	if got.Entries != nil || got.Books != nil || got.WithdrawWhitelist != nil {
+		t.Fatalf("empty view decoded parts: %+v", got)
 	}
 }
 
