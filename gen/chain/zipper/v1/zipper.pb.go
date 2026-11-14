@@ -81,6 +81,61 @@ func (MemoRequirement) EnumDescriptor() ([]byte, []int) {
 	return file_chain_zipper_v1_zipper_proto_rawDescGZIP(), []int{0}
 }
 
+// RouteStatus says whether a chain route accepts new deposits or new
+// withdrawals.
+type RouteStatus int32
+
+const (
+	// Availability is not known yet. Do not treat the route as available.
+	RouteStatus_STATUS_UNSPECIFIED RouteStatus = 0
+	// The route accepts new requests.
+	RouteStatus_NORMAL RouteStatus = 1
+	// The route does not accept new requests. Requests created before the
+	// suspension continue to process.
+	RouteStatus_SUSPENDED RouteStatus = 2
+)
+
+// Enum value maps for RouteStatus.
+var (
+	RouteStatus_name = map[int32]string{
+		0: "STATUS_UNSPECIFIED",
+		1: "NORMAL",
+		2: "SUSPENDED",
+	}
+	RouteStatus_value = map[string]int32{
+		"STATUS_UNSPECIFIED": 0,
+		"NORMAL":             1,
+		"SUSPENDED":          2,
+	}
+)
+
+func (x RouteStatus) Enum() *RouteStatus {
+	p := new(RouteStatus)
+	*p = x
+	return p
+}
+
+func (x RouteStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (RouteStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_chain_zipper_v1_zipper_proto_enumTypes[1].Descriptor()
+}
+
+func (RouteStatus) Type() protoreflect.EnumType {
+	return &file_chain_zipper_v1_zipper_proto_enumTypes[1]
+}
+
+func (x RouteStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use RouteStatus.Descriptor instead.
+func (RouteStatus) EnumDescriptor() ([]byte, []int) {
+	return file_chain_zipper_v1_zipper_proto_rawDescGZIP(), []int{1}
+}
+
 // ChainConfig describes one supported external chain for deposit and withdraw.
 type ChainConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -283,9 +338,15 @@ type AssetChainVariant struct {
 	WithdrawMinAmount string `protobuf:"bytes,11,opt,name=withdraw_min_amount,json=withdrawMinAmount,proto3" json:"withdraw_min_amount,omitempty"`
 	// Latest zToken supply for this chain asset variant, scaled by the parent
 	// unified asset's quantity_scale. Decode: supply_q / 10^quantity_scale.
-	SupplyQ       uint64 `protobuf:"varint,12,opt,name=supply_q,json=supplyQ,proto3" json:"supply_q,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	SupplyQ uint64 `protobuf:"varint,12,opt,name=supply_q,json=supplyQ,proto3" json:"supply_q,omitempty"`
+	// Whether this route currently accepts new deposits. Funds sent to a
+	// deposit address while deposits are suspended are delayed, not lost: they
+	// can be processed only after deposits resume.
+	DepositStatus RouteStatus `protobuf:"varint,13,opt,name=deposit_status,json=depositStatus,proto3,enum=chain.zipper.v1.RouteStatus" json:"deposit_status,omitempty"`
+	// Whether this route currently accepts new withdrawals.
+	WithdrawalStatus RouteStatus `protobuf:"varint,14,opt,name=withdrawal_status,json=withdrawalStatus,proto3,enum=chain.zipper.v1.RouteStatus" json:"withdrawal_status,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *AssetChainVariant) Reset() {
@@ -393,6 +454,20 @@ func (x *AssetChainVariant) GetSupplyQ() uint64 {
 		return x.SupplyQ
 	}
 	return 0
+}
+
+func (x *AssetChainVariant) GetDepositStatus() RouteStatus {
+	if x != nil {
+		return x.DepositStatus
+	}
+	return RouteStatus_STATUS_UNSPECIFIED
+}
+
+func (x *AssetChainVariant) GetWithdrawalStatus() RouteStatus {
+	if x != nil {
+		return x.WithdrawalStatus
+	}
+	return RouteStatus_STATUS_UNSPECIFIED
 }
 
 // ZippedAssetSupplyUpdate carries the latest route liquidity for one zipped
@@ -824,7 +899,7 @@ const file_chain_zipper_v1_zipper_proto_rawDesc = "" +
 	"\x10memo_requirement\x18\r \x01(\x0e2 .chain.zipper.v1.MemoRequirementR\x0fmemoRequirement\x12\x1d\n" +
 	"\n" +
 	"memo_label\x18\x0e \x01(\tR\tmemoLabel\x12(\n" +
-	"\x10memo_format_hint\x18\x0f \x01(\tR\x0ememoFormatHint\"\xb8\x03\n" +
+	"\x10memo_format_hint\x18\x0f \x01(\tR\x0ememoFormatHint\"\xc8\x04\n" +
 	"\x11AssetChainVariant\x12&\n" +
 	"\x0fzipped_asset_id\x18\x01 \x01(\rR\rzippedAssetId\x12\x19\n" +
 	"\bchain_id\x18\x02 \x01(\rR\achainId\x12&\n" +
@@ -838,7 +913,9 @@ const file_chain_zipper_v1_zipper_proto_rawDesc = "" +
 	"\x12deposit_min_amount\x18\n" +
 	" \x01(\tR\x10depositMinAmount\x12.\n" +
 	"\x13withdraw_min_amount\x18\v \x01(\tR\x11withdrawMinAmount\x12\x19\n" +
-	"\bsupply_q\x18\f \x01(\x04R\asupplyQ\"\\\n" +
+	"\bsupply_q\x18\f \x01(\x04R\asupplyQ\x12C\n" +
+	"\x0edeposit_status\x18\r \x01(\x0e2\x1c.chain.zipper.v1.RouteStatusR\rdepositStatus\x12I\n" +
+	"\x11withdrawal_status\x18\x0e \x01(\x0e2\x1c.chain.zipper.v1.RouteStatusR\x10withdrawalStatus\"\\\n" +
 	"\x17ZippedAssetSupplyUpdate\x12&\n" +
 	"\x0fzipped_asset_id\x18\x01 \x01(\rR\rzippedAssetId\x12\x19\n" +
 	"\bsupply_q\x18\x02 \x01(\x04R\asupplyQ\"\\\n" +
@@ -870,7 +947,12 @@ const file_chain_zipper_v1_zipper_proto_rawDesc = "" +
 	"\x10MEMO_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\bREQUIRED\x10\x01\x12\f\n" +
 	"\bOPTIONAL\x10\x02\x12\x11\n" +
-	"\rNOT_SUPPORTED\x10\x032\xe4\x02\n" +
+	"\rNOT_SUPPORTED\x10\x03*@\n" +
+	"\vRouteStatus\x12\x16\n" +
+	"\x12STATUS_UNSPECIFIED\x10\x00\x12\n" +
+	"\n" +
+	"\x06NORMAL\x10\x01\x12\r\n" +
+	"\tSUSPENDED\x10\x022\xe4\x02\n" +
 	"\rZipperService\x12\xc7\x02\n" +
 	"\x18GetDepositWithdrawConfig\x120.chain.zipper.v1.GetDepositWithdrawConfigRequest\x1a1.chain.zipper.v1.GetDepositWithdrawConfigResponse\"\xc5\x01\xbaG\x94\x01\n" +
 	"\x12Deposit & Withdraw\x12\x1dGet Deposit & Withdraw Config\x1a_Retrieve the supported chains and unified assets for Zipper-powered deposit and withdraw flows.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02#\x12!/v1/chain/deposit-withdraw/config\x1a\t\x8a\xb5\x18\x05chainB\xbe\x01\xbaGp:n\n" +
@@ -888,33 +970,36 @@ func file_chain_zipper_v1_zipper_proto_rawDescGZIP() []byte {
 	return file_chain_zipper_v1_zipper_proto_rawDescData
 }
 
-var file_chain_zipper_v1_zipper_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_chain_zipper_v1_zipper_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_chain_zipper_v1_zipper_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_chain_zipper_v1_zipper_proto_goTypes = []any{
 	(MemoRequirement)(0),                     // 0: chain.zipper.v1.MemoRequirement
-	(*ChainConfig)(nil),                      // 1: chain.zipper.v1.ChainConfig
-	(*AssetChainVariant)(nil),                // 2: chain.zipper.v1.AssetChainVariant
-	(*ZippedAssetSupplyUpdate)(nil),          // 3: chain.zipper.v1.ZippedAssetSupplyUpdate
-	(*ZippedAssetSupplyBatch)(nil),           // 4: chain.zipper.v1.ZippedAssetSupplyBatch
-	(*AssetConfig)(nil),                      // 5: chain.zipper.v1.AssetConfig
-	(*ChainContractConfig)(nil),              // 6: chain.zipper.v1.ChainContractConfig
-	(*GetDepositWithdrawConfigRequest)(nil),  // 7: chain.zipper.v1.GetDepositWithdrawConfigRequest
-	(*GetDepositWithdrawConfigResponse)(nil), // 8: chain.zipper.v1.GetDepositWithdrawConfigResponse
+	(RouteStatus)(0),                         // 1: chain.zipper.v1.RouteStatus
+	(*ChainConfig)(nil),                      // 2: chain.zipper.v1.ChainConfig
+	(*AssetChainVariant)(nil),                // 3: chain.zipper.v1.AssetChainVariant
+	(*ZippedAssetSupplyUpdate)(nil),          // 4: chain.zipper.v1.ZippedAssetSupplyUpdate
+	(*ZippedAssetSupplyBatch)(nil),           // 5: chain.zipper.v1.ZippedAssetSupplyBatch
+	(*AssetConfig)(nil),                      // 6: chain.zipper.v1.AssetConfig
+	(*ChainContractConfig)(nil),              // 7: chain.zipper.v1.ChainContractConfig
+	(*GetDepositWithdrawConfigRequest)(nil),  // 8: chain.zipper.v1.GetDepositWithdrawConfigRequest
+	(*GetDepositWithdrawConfigResponse)(nil), // 9: chain.zipper.v1.GetDepositWithdrawConfigResponse
 }
 var file_chain_zipper_v1_zipper_proto_depIdxs = []int32{
 	0, // 0: chain.zipper.v1.ChainConfig.memo_requirement:type_name -> chain.zipper.v1.MemoRequirement
-	3, // 1: chain.zipper.v1.ZippedAssetSupplyBatch.updates:type_name -> chain.zipper.v1.ZippedAssetSupplyUpdate
-	2, // 2: chain.zipper.v1.AssetConfig.variants:type_name -> chain.zipper.v1.AssetChainVariant
-	1, // 3: chain.zipper.v1.GetDepositWithdrawConfigResponse.chains:type_name -> chain.zipper.v1.ChainConfig
-	5, // 4: chain.zipper.v1.GetDepositWithdrawConfigResponse.assets:type_name -> chain.zipper.v1.AssetConfig
-	6, // 5: chain.zipper.v1.GetDepositWithdrawConfigResponse.contracts:type_name -> chain.zipper.v1.ChainContractConfig
-	7, // 6: chain.zipper.v1.ZipperService.GetDepositWithdrawConfig:input_type -> chain.zipper.v1.GetDepositWithdrawConfigRequest
-	8, // 7: chain.zipper.v1.ZipperService.GetDepositWithdrawConfig:output_type -> chain.zipper.v1.GetDepositWithdrawConfigResponse
-	7, // [7:8] is the sub-list for method output_type
-	6, // [6:7] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	1, // 1: chain.zipper.v1.AssetChainVariant.deposit_status:type_name -> chain.zipper.v1.RouteStatus
+	1, // 2: chain.zipper.v1.AssetChainVariant.withdrawal_status:type_name -> chain.zipper.v1.RouteStatus
+	4, // 3: chain.zipper.v1.ZippedAssetSupplyBatch.updates:type_name -> chain.zipper.v1.ZippedAssetSupplyUpdate
+	3, // 4: chain.zipper.v1.AssetConfig.variants:type_name -> chain.zipper.v1.AssetChainVariant
+	2, // 5: chain.zipper.v1.GetDepositWithdrawConfigResponse.chains:type_name -> chain.zipper.v1.ChainConfig
+	6, // 6: chain.zipper.v1.GetDepositWithdrawConfigResponse.assets:type_name -> chain.zipper.v1.AssetConfig
+	7, // 7: chain.zipper.v1.GetDepositWithdrawConfigResponse.contracts:type_name -> chain.zipper.v1.ChainContractConfig
+	8, // 8: chain.zipper.v1.ZipperService.GetDepositWithdrawConfig:input_type -> chain.zipper.v1.GetDepositWithdrawConfigRequest
+	9, // 9: chain.zipper.v1.ZipperService.GetDepositWithdrawConfig:output_type -> chain.zipper.v1.GetDepositWithdrawConfigResponse
+	9, // [9:10] is the sub-list for method output_type
+	8, // [8:9] is the sub-list for method input_type
+	8, // [8:8] is the sub-list for extension type_name
+	8, // [8:8] is the sub-list for extension extendee
+	0, // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_chain_zipper_v1_zipper_proto_init() }
@@ -927,7 +1012,7 @@ func file_chain_zipper_v1_zipper_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chain_zipper_v1_zipper_proto_rawDesc), len(file_chain_zipper_v1_zipper_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      2,
 			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,

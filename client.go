@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"iter"
 	"net/http"
 	"net/url"
 	"os"
@@ -193,6 +194,7 @@ type Client struct {
 	Trades             *services.TradesService
 	Triggers           *services.TriggersService
 	Transfers          *services.TransfersService
+	Statements         *services.StatementsService
 	InternalTransfers  *services.InternalTransfersService
 	Deposit            *services.DepositService
 	APIKeys            *services.ApiKeysService
@@ -299,6 +301,7 @@ func New(cfg Config) (*Client, error) {
 		Orderbook:            services.NewOrderbookService(factory, cats, rt),
 		Trades:               services.NewTradesService(factory, cats, cfg.DefaultSubAccountID, rt, defaultAccountID),
 		Transfers:            services.NewTransfersService(factory, cfg.DefaultSubAccountID, rt, defaultAccountID),
+		Statements:           services.NewStatementsService(factory, cfg.DefaultSubAccountID),
 		InternalTransfers:    services.NewInternalTransfersService(factory, cats, cfg.DefaultSubAccountID),
 		Deposit:              services.NewDepositService(factory, cfg.DefaultSubAccountID),
 		APIKeys:              services.NewApiKeysService(factory, cfg.DefaultSubAccountID, rt, defaultAccountID),
@@ -507,6 +510,21 @@ func (c *Client) WaitForFundingCatalog(ctx context.Context) error {
 // changes only when the environment deploys a new build.
 func (c *Client) GetVersion(ctx context.Context) (models.ServerVersion, error) {
 	return services.NewSystemService(c.transport).GetVersion(ctx)
+}
+
+// ListStatusEvents returns one page of the environment's scheduled
+// maintenance and incidents, the latest start first; see
+// services.SystemService.ListStatusEvents. It needs no credentials and is
+// never signed.
+func (c *Client) ListStatusEvents(ctx context.Context, opts models.ListStatusEventsOptions) (models.StatusEventsPage, error) {
+	return services.NewSystemService(c.transport).ListStatusEvents(ctx, opts)
+}
+
+// StatusEvents iterates over every status event matching opts, resending the
+// same States and Kinds with each page token; see
+// services.SystemService.StatusEvents.
+func (c *Client) StatusEvents(ctx context.Context, opts models.ListStatusEventsOptions) iter.Seq2[models.StatusEvent, error] {
+	return services.NewSystemService(c.transport).StatusEvents(ctx, opts)
 }
 
 // StopAllTrading cancels every live trigger in scope, then all open orders in

@@ -50,6 +50,17 @@ func (s *MarketDataService) GetSpotConfig(ctx context.Context) (models.SpotConfi
 	return UnaryPublicDecoded(ctx, s.transport, s.client().GetSpotConfig, &marketdatav1.GetSpotConfigRequest{}, decode.SpotConfigFromProto)
 }
 
+// ListAssetInfo returns the team-maintained information of the given assets
+// (all saved entries when assetIDs is empty), in ascending asset ID order.
+// Asset IDs are the LedgerID of the spot and funding configs; duplicate and
+// unknown IDs are ignored, and assets never edited are left out. It is
+// public: the request is never signed. The result is the complete snapshot,
+// with no paging.
+func (s *MarketDataService) ListAssetInfo(ctx context.Context, assetIDs ...uint32) ([]models.AssetInfo, error) {
+	req := &marketdatav1.ListAssetInfoRequest{AssetIds: append([]uint32(nil), assetIDs...)}
+	return UnaryPublic(ctx, s.transport, s.client().ListAssetInfo, req, decode.AssetInfoListFromProto)
+}
+
 func (s *MarketDataService) GetTrades(ctx context.Context, symbol *string, symbolID *uint32, limit int, pageToken *string) (models.MarketTradesResult, error) {
 	// Decoded with the pair's catalog scales.
 	if err := awaitCatalogs(ctx, s.catalogs, true); err != nil {

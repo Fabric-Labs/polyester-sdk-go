@@ -353,7 +353,8 @@ func (ChangeAvailability) EnumDescriptor() ([]byte, []int) {
 	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{4}
 }
 
-// SortDirection orders changes by post publication time.
+// SortDirection orders changes by post publication time. Posts published at
+// the same time keep the ListPosts order, reversed for ascending.
 type SortDirection int32
 
 const (
@@ -983,7 +984,7 @@ type ListPostsRequest struct {
 	// Maximum posts to return. 0 means the default of 20; maximum 100.
 	Limit uint32 `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
 	// Opaque, keyset-backed, exclusive cursor from a previous response.
-	// Bound to publication time and slug.
+	// Bound to publication time, release version and slug.
 	PageToken     string `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1036,7 +1037,9 @@ func (x *ListPostsRequest) GetPageToken() string {
 // ListPostsResponse returns post summaries, newest first.
 type ListPostsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Post summaries ordered by publication time descending, then slug descending.
+	// Post summaries ordered by publication time descending. Posts published
+	// at the same time list release posts first, by release version descending
+	// (0.92.10 before 0.92.9), then the other posts by slug descending.
 	Posts []*PostSummary `protobuf:"bytes,1,rep,name=posts,proto3" json:"posts,omitempty"`
 	// Cursor for the next page. Empty when no more results exist.
 	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`

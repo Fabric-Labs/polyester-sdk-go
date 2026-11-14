@@ -634,8 +634,10 @@ policy, granted from an interactive session: `READ_API_KEYS`
 `SubAccounts.Get`), `READ_SUBACCOUNT_ACTIVITY` (`SubAccounts.ListActivity`),
 `READ_SUBACCOUNT_MEMBERS` (`SubAccounts.ListMembers` and the members of
 `SubAccounts.Get`), `READ_SUBACCOUNT_INVITES` (`SubAccounts.ListInvites` and
-the invites of `SubAccounts.Get`) and `READ_GUARD_SIGNER_STATUS`
-(`GuardSigner.GetStatus`). A key without a policy has none of these, and
+the invites of `SubAccounts.Get`), `READ_GUARD_SIGNER_STATUS`
+(`GuardSigner.GetStatus`) and `READ_STATEMENTS` (`Statements.ExportPage`,
+`Statements.Export`; `READ_BALANCES` and `READ_INTERNAL_TRANSFERS` do not grant
+it). A key without a policy has none of these, and
 `SubAccounts.Get` leaves out the members and invites a key may not read
 instead of failing. `APIKeys.List` and `APIKeys.Get` give each key's restrictions:
 `PolicyID`, the public ID of the attached API policy as `ApiPolicy.PolicyID`
@@ -1126,6 +1128,39 @@ strings; `Release()` returns the release a build follows (`0.10.0`). Don't
 compare `Version` as a semantic version. The call needs no API key and is never
 signed.
 
+## Maintenance and incident status
+
+`client.ListStatusEvents(ctx, opts)` returns one page of the environment's
+scheduled maintenance and incidents, the latest start first, and
+`client.StatusEvents(ctx, opts)` iterates over every page, sending the same
+`States` and `Kinds` with each page token. Both are public and never signed;
+answers can be up to 10 seconds old.
+
+```go
+for event, err := range client.StatusEvents(ctx, models.ListStatusEventsOptions{
+	Kinds: []string{models.StatusEventKindMaintenance},
+}) {
+	if err != nil {
+		return err
+	}
+	fmt.Println(event.ID, event.State, event.Title, event.StartTime, event.EndTime)
+}
+```
+
+`States` takes `scheduled`, `in_progress`, `completed` and `cancelled`;
+empty lists current and upcoming events (the server's default). `Kinds` takes
+`maintenance` and `incident`; empty lists both. An unknown label is a
+`*errors.ValidationError` and nothing is sent. Each `models.StatusEvent` has
+a public `ID`, `Kind`, `State`, `Title`, `Message`, the `StartTime` and
+`EndTime` window (`EndTime` is nil for an incident with no expected end), the
+affected `Services` (`trading`, `market_data`, `deposits`, `withdrawals`,
+`transfers`, `accounts`, `api`, `quickswap`, `app`), `Markets` and `Assets`,
+an incident's `Impact` (`degraded`, `partial_outage`, `major_outage`, or ""
+when not given), progress notes in `Updates`, `UpdatedAt`, `CancelledAt` and
+an optional `DetailsURL`. To keep a banner current, poll at most every 10
+seconds and compare `UpdatedAt` per `ID`; a state change caused only by time
+passing does not move it.
+
 ## Product changelog API
 
 `client.Changelog` reads the product changelog published for the environment the
@@ -1338,9 +1373,13 @@ stop, err := client.Triggers.Create(ctx, nil, "BTC-USDT", "stop_loss",
 for an unreadable trigger. It retries catching-up `UNAVAILABLE` responses
 with the same bounded policy and request as trigger reads.
 
-A trailing stop created with an activation price the market has already
-reached now ends `FAILED` with reason
-`TRIGGER_FAILURE_REASON_TRIGGER_WOULD_TRIGGER_IMMEDIATELY` (244).
+A stop-loss or take-profit created with a trigger price the market has
+already reached, on the last or the index price, and a trailing stop created
+with an activation price already reached, end `FAILED` with reason
+`TRIGGER_FAILURE_REASON_TRIGGER_WOULD_TRIGGER_IMMEDIATELY` (244): the trigger
+never armed and placed nothing. The check uses the price when the trigger
+takes effect, a few milliseconds after `Create` returns its ID, so read the
+trigger before assuming it is armed.
 `ModifyTrigger` and order modifies that would make it act at once are refused
 with `ERROR_CODE_TRIGGER_WOULD_TRIGGER_IMMEDIATELY` (302), leaving the
 existing state unchanged. To start trailing from the market, clear the
@@ -1467,6 +1506,11 @@ SDK notes:
   "Destination tag") and `MemoFormatHint` are display text; validate against
   the rule, not the hint. Each variant's `Supply` is its zToken supply at the
   asset's quantity scale, also in the catalog `HydrateCatalogs` loads.
+  Each variant's `DepositStatus` and `WithdrawalStatus` say whether the route
+  accepts new deposits and new withdrawals (`normal` or `suspended`, empty
+  while not known); `AcceptsDeposits()` and `AcceptsWithdrawals()` are true
+  only for `normal`, so treat an unknown status as not available. Funds sent
+  to a deposit address while deposits are suspended are delayed, not lost.
 - **Refunded withdrawals:** a withdrawal Zipper rejects is refunded to the
   account's smart account wallet as zTokens, net of the network fee Zipper
   keeps, and its flow's `LatestStep` becomes `refunded` instead of ending
@@ -1595,6 +1639,38 @@ for _, bal := range view.Balances.Balances {
 }
 ```
 
+## Account statements
+
+`client.Statements.Export(ctx, opts)` exports an account's balance movements
+for a period as CSV, for reconciliation and tax reporting, and
+`Statements.ExportPage` reads one page (at most 2000 ledger movements, entries
+never split). The call is signed like the other ledger reads, and an API key
+needs `READ_STATEMENTS` on its policy.
+
+```go
+statement, err := client.Statements.Export(ctx, services.ExportStatementOptions{
+	StartTime: time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), // inclusive
+	EndTime:   time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC), // exclusive
+})
+if err != nil {
+	return err
+}
+_ = os.WriteFile("statement.csv", []byte(statement.CSV), 0o600)
+rows, err := statement.Rows() // []models.StatementRow, read by header name
+```
+
+`StartTime` and `EndTime` are required; the period is at most 366 days.
+`Account` and `SubAccountID` select the account as for `Transfers.List`, and
+without either the client's `DefaultSubAccountID` applies. `AssetID` keeps one
+asset. `Export` follows each page's token with the same fields and returns
+the pages concatenated: only the first page carries the header row. `CSV` is
+RFC 4180 text with CRLF line endings; keep it as text. `Rows` and
+`models.ParseStatementCSV` read the columns by header name, so columns a later
+release appends do not break them, and keep amounts as exact decimal strings
+(`Amount`, `Fee`, `Balance`; `Balance` is the previous balance of the same
+bucket and asset plus `Amount` minus `Fee`). `FlowID` matches the entry's
+`Transfers.List` flow, empty for trades.
+
 ## Public market data
 
 Public endpoints do not require an API key. Authenticated endpoints use the
@@ -1613,6 +1689,10 @@ _ = candles
 if current != nil {
 	_ = *current
 }
+// Team-maintained descriptions, official links and launch facts, by the
+// assets' LedgerID; no IDs lists every saved entry.
+info, err := client.MarketData.ListAssetInfo(ctx, 1, 2)
+_ = info
 _ = trades
 
 sub, err := client.MarketData.SubscribeTrades(ctx, &symbol, nil)

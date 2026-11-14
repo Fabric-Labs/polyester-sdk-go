@@ -203,8 +203,8 @@ func (ReferralCommissionBasis) EnumDescriptor() ([]byte, []int) {
 }
 
 // ReferralRates are the referral rates of one route category, in whole basis
-// points of the swapped amount. Both come out of the broker fee; the
-// Polyester service fee is never reduced.
+// points of the swapped amount. Both come out of the broker fee; a referral
+// never reduces the Polyester service fee.
 type ReferralRates struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Taken off the referred user's fee.
