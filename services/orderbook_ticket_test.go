@@ -201,7 +201,12 @@ func TestTicket8511TerminalLifecycle(t *testing.T) {
 					t.Fatal("missing terminal error")
 				}
 				select {
-				case <-reported:
+				case got := <-reported:
+					// "refresh" reports each failed attempt, and every one is
+					// the snapshot fetch error that Err returns last.
+					if want := sub.Err(); fmt.Sprintf("%T: %v", got, got) != fmt.Sprintf("%T: %v", want, want) {
+						t.Fatalf("callback reported %T: %v, want %T: %v", got, got, want, want)
+					}
 				default:
 					t.Fatal("missing callback")
 				}

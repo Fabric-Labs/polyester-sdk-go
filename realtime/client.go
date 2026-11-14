@@ -782,37 +782,45 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) run(ctx context.Context) {
 			// run owns this refresh: it waits for it on every path, so done
 			// never closes while one of its callbacks may still run. The wait
 			// ends promptly once the stream stops (see the lock order).
-			refreshDone := make(chan error, 1)
+			// refreshErr is written before refreshDone closes and read only
+			// after it has closed.
+			var refreshErr error
+			refreshDone := make(chan struct{})
 			go func() {
-				refreshDone <- s.refreshSnapshotWithRetry(ctx)
+				defer close(refreshDone)
+				refreshErr = s.refreshSnapshotWithRetry(ctx)
 			}()
 		drainRefresh:
 			for {
 				select {
 				case <-ctx.Done():
 					sub.Close()
+					// The stream stopped, so wait for the refresh and drop its
+					// result. RefreshSnapshot has already recorded any failed
+					// fetch or apply itself, and any other error it returns is
+					// this cancellation.
 					<-refreshDone
 					return
-				case err := <-refreshDone:
-					if err != nil {
-						s.setErr(err)
+				case <-refreshDone:
+					if refreshErr != nil {
+						s.setErr(refreshErr)
 						// Fail-closed: stop the stream after a failed reconnect refresh.
 						sub.Close()
 						return
 					}
 					break drainRefresh
 				case <-sub.Done():
-					err := <-refreshDone
-					if err != nil {
-						s.setErr(err)
+					<-refreshDone
+					if refreshErr != nil {
+						s.setErr(refreshErr)
 						return
 					}
 					break drainRefresh
 				case msg, ok := <-sub.Messages():
 					if !ok {
-						err := <-refreshDone
-						if err != nil {
-							s.setErr(err)
+						<-refreshDone
+						if refreshErr != nil {
+							s.setErr(refreshErr)
 							return
 						}
 						break drainRefresh

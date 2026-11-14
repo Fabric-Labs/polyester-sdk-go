@@ -7,8 +7,8 @@ const (
 	WireBinary WireFormat = "binary"
 	WireJSON   WireFormat = "json"
 
-	ProtocolVersion  = "1"
-	JSONContentType  = "application/json"
+	ProtocolVersion = "1"
+	JSONContentType = "application/json"
 	// ProtoContentType is the Connect unary binary media type.
 	// Streaming envelopes use application/connect+proto instead.
 	ProtoContentType = "application/proto"
