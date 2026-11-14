@@ -231,7 +231,11 @@ func TestClosingOrderbookFromARefreshCallbackWhileAManualRefreshWaits(t *testing
 		t.Fatal("Close from the refresh callback blocked")
 	}
 	select {
-	case <-manual:
+	case err := <-manual:
+		// It was still waiting for the refresh lock when the stream stopped.
+		if err != nil {
+			t.Fatalf("the manual refresh returned %v", err)
+		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("the manual refresh never returned")
 	}

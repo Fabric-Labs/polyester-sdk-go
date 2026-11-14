@@ -211,7 +211,11 @@ func TestClosingOverviewFromAManualRefreshCallbackDuringAReconnect(t *testing.T)
 		t.Fatal("Close from the manual refresh callback blocked")
 	}
 	select {
-	case <-manual:
+	case err := <-manual:
+		// Its snapshot applied before the Close took effect.
+		if err != nil {
+			t.Fatalf("the manual refresh returned %v", err)
+		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("the manual refresh never returned")
 	}
@@ -446,7 +450,11 @@ func TestClosingOverviewWhileARefreshCallbackWaitsForIt(t *testing.T) {
 		t.Fatal("Close waited on a refresh blocked behind the refresh lock")
 	}
 	select {
-	case <-manual:
+	case err := <-manual:
+		// Its snapshot applied; the Close it waited for came after.
+		if err != nil {
+			t.Fatalf("the manual refresh returned %v", err)
+		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("the manual refresh never returned")
 	}
