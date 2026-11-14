@@ -18,6 +18,39 @@ type ZipperAssetChainVariant struct {
 	Supply            string            `json:"supply,omitempty"`
 	SourceToken       ZipperTokenConfig `json:"source_token,omitempty"`
 	ZToken            ZipperTokenConfig `json:"z_token,omitempty"`
+	// DepositStatus says whether the route accepts new deposits:
+	// RouteStatusNormal or RouteStatusSuspended; "" while availability is not
+	// known, which does not mean available, and "unknown(n)" for a status this
+	// SDK version does not know. Use AcceptsDeposits.
+	DepositStatus string `json:"deposit_status,omitempty"`
+	// WithdrawalStatus says whether the route accepts new withdrawals, with
+	// the same labels as DepositStatus. Use AcceptsWithdrawals.
+	WithdrawalStatus string `json:"withdrawal_status,omitempty"`
+}
+
+// Route statuses of ZipperAssetChainVariant.DepositStatus and
+// WithdrawalStatus. A suspension can stop one direction and not the other,
+// and no reason is published.
+const (
+	// RouteStatusNormal: the route accepts new requests.
+	RouteStatusNormal = "normal"
+	// RouteStatusSuspended: the route does not accept new requests. Requests
+	// created before the suspension continue to process, and funds sent to a
+	// deposit address while deposits are suspended are delayed, not lost.
+	RouteStatusSuspended = "suspended"
+)
+
+// AcceptsDeposits reports whether the route currently accepts new deposits:
+// true only for RouteStatusNormal. An unknown status is not available.
+func (v ZipperAssetChainVariant) AcceptsDeposits() bool {
+	return v.DepositStatus == RouteStatusNormal
+}
+
+// AcceptsWithdrawals reports whether the route currently accepts new
+// withdrawals: true only for RouteStatusNormal. An unknown status is not
+// available.
+func (v ZipperAssetChainVariant) AcceptsWithdrawals() bool {
+	return v.WithdrawalStatus == RouteStatusNormal
 }
 
 // ZipperChainConfig is chain metadata.
@@ -91,6 +124,22 @@ type ZipperEnrichedAssetChain struct {
 	Supply            string            `json:"supply,omitempty"`
 	SourceToken       ZipperTokenConfig `json:"source_token,omitempty"`
 	ZToken            ZipperTokenConfig `json:"z_token,omitempty"`
+	// DepositStatus and WithdrawalStatus are the route's
+	// ZipperAssetChainVariant statuses.
+	DepositStatus    string `json:"deposit_status,omitempty"`
+	WithdrawalStatus string `json:"withdrawal_status,omitempty"`
+}
+
+// AcceptsDeposits reports whether the route currently accepts new deposits:
+// true only for RouteStatusNormal.
+func (c ZipperEnrichedAssetChain) AcceptsDeposits() bool {
+	return c.DepositStatus == RouteStatusNormal
+}
+
+// AcceptsWithdrawals reports whether the route currently accepts new
+// withdrawals: true only for RouteStatusNormal.
+func (c ZipperEnrichedAssetChain) AcceptsWithdrawals() bool {
+	return c.WithdrawalStatus == RouteStatusNormal
 }
 
 // ZipperEnrichedAssetConfig is catalog-enriched asset config.

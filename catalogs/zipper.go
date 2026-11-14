@@ -50,6 +50,8 @@ func enrichAssetChains(asset models.ZipperAssetConfig, chainsByID map[uint32]mod
 			Supply:            variant.Supply,
 			SourceToken:       variant.SourceToken,
 			ZToken:            variant.ZToken,
+			DepositStatus:     variant.DepositStatus,
+			WithdrawalStatus:  variant.WithdrawalStatus,
 		})
 	}
 	return out

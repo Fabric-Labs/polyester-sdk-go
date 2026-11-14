@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	zipperv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/zipper/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
@@ -35,6 +36,9 @@ func DepositWithdrawConfigFromProto(msg *zipperv1.GetDepositWithdrawConfigRespon
 				Supply:      formatLedgerU128OrZero(strconv.FormatUint(v.GetSupplyQ(), 10), int(a.GetQuantityScale())),
 				SourceToken: models.ZipperTokenConfig{Address: v.GetSourceAddress(), Decimals: int(v.GetSourceDecimals())},
 				ZToken:      models.ZipperTokenConfig{Address: v.GetZtokenAddress(), Decimals: int(v.GetZtokenDecimals())},
+				// STATUS_UNSPECIFIED reads "": not known, so not available.
+				DepositStatus:    routeStatusLabel(v.GetDepositStatus()),
+				WithdrawalStatus: routeStatusLabel(v.GetWithdrawalStatus()),
 			})
 		}
 		cfg.Assets = append(cfg.Assets, asset)
@@ -46,6 +50,10 @@ func DepositWithdrawConfigFromProto(msg *zipperv1.GetDepositWithdrawConfigRespon
 		})
 	}
 	return cfg
+}
+
+func routeStatusLabel(status zipperv1.RouteStatus) string {
+	return codecs.ProtoEnumName(status, status.Number())
 }
 
 func memoRequirementLabel(requirement zipperv1.MemoRequirement) string {
