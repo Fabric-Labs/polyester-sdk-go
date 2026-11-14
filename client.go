@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"iter"
 	"net/http"
 	"net/url"
 	"os"
@@ -509,6 +510,21 @@ func (c *Client) WaitForFundingCatalog(ctx context.Context) error {
 // changes only when the environment deploys a new build.
 func (c *Client) GetVersion(ctx context.Context) (models.ServerVersion, error) {
 	return services.NewSystemService(c.transport).GetVersion(ctx)
+}
+
+// ListStatusEvents returns one page of the environment's scheduled
+// maintenance and incidents, the latest start first; see
+// services.SystemService.ListStatusEvents. It needs no credentials and is
+// never signed.
+func (c *Client) ListStatusEvents(ctx context.Context, opts models.ListStatusEventsOptions) (models.StatusEventsPage, error) {
+	return services.NewSystemService(c.transport).ListStatusEvents(ctx, opts)
+}
+
+// StatusEvents iterates over every status event matching opts, resending the
+// same States and Kinds with each page token; see
+// services.SystemService.StatusEvents.
+func (c *Client) StatusEvents(ctx context.Context, opts models.ListStatusEventsOptions) iter.Seq2[models.StatusEvent, error] {
+	return services.NewSystemService(c.transport).StatusEvents(ctx, opts)
 }
 
 // StopAllTrading cancels every live trigger in scope, then all open orders in
