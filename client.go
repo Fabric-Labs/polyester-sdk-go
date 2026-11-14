@@ -193,6 +193,7 @@ type Client struct {
 	Trades             *services.TradesService
 	Triggers           *services.TriggersService
 	Transfers          *services.TransfersService
+	Statements         *services.StatementsService
 	InternalTransfers  *services.InternalTransfersService
 	Deposit            *services.DepositService
 	APIKeys            *services.ApiKeysService
@@ -299,6 +300,7 @@ func New(cfg Config) (*Client, error) {
 		Orderbook:            services.NewOrderbookService(factory, cats, rt),
 		Trades:               services.NewTradesService(factory, cats, cfg.DefaultSubAccountID, rt, defaultAccountID),
 		Transfers:            services.NewTransfersService(factory, cfg.DefaultSubAccountID, rt, defaultAccountID),
+		Statements:           services.NewStatementsService(factory, cfg.DefaultSubAccountID),
 		InternalTransfers:    services.NewInternalTransfersService(factory, cats, cfg.DefaultSubAccountID),
 		Deposit:              services.NewDepositService(factory, cfg.DefaultSubAccountID),
 		APIKeys:              services.NewApiKeysService(factory, cfg.DefaultSubAccountID, rt, defaultAccountID),
