@@ -88,9 +88,11 @@ type FeeKind int32
 const (
 	// No kind; never returned.
 	FeeKind_FEE_UNSPECIFIED FeeKind = 0
-	// Service fee of one trading leg: the leg's pair fee in basis points of
-	// what the leg receives. A two-leg route has one per leg. On a bridge, the
-	// one bridge fee in basis points of the credited amount, charged at payout.
+	// Service fee of one trading leg, credited to Polyester, in basis points
+	// of what the leg receives: the leg's pair fee, capped by any fee ceiling
+	// agreed with the broker. A two-leg route has one per leg. On a bridge,
+	// the one bridge fee, capped the same way, in basis points of the credited
+	// amount, charged at payout.
 	FeeKind_SERVICE FeeKind = 1
 	// Broker fee of one trading leg, the request's broker_bps of what the leg
 	// receives, credited to the broker's default vault. A two-leg route has one
@@ -804,10 +806,11 @@ const (
 	// QuickSwaps already created continue.
 	ErrorCode_BROKER_DISABLED ErrorCode = 18
 	// A broker limit was reached: the unfunded QuickSwaps held at once, the
-	// QuickSwaps created per hour, the request rate of the API key, or the
-	// affiliate vaults the broker may create. Nothing is bound to the key. A
-	// funded or expired QuickSwap frees an unfunded slot; when the response
-	// carries a Retry-After header, retry after that many seconds.
+	// QuickSwaps created per hour, the request rate of the API key or of a
+	// member's account, or the affiliate vaults the broker may create. Nothing
+	// is bound to the key. A funded or expired QuickSwap frees an unfunded
+	// slot; when the response carries a Retry-After header, retry after that
+	// many seconds.
 	ErrorCode_BROKER_LIMIT ErrorCode = 19
 	// An affiliate names a vault that is not an active affiliate vault of the
 	// broker: unknown, not yet created, disabled, another broker's, or the
@@ -3018,8 +3021,9 @@ type QuickSwap struct {
 	// every later change increments it.
 	Version uint64 `protobuf:"varint,26,opt,name=version,proto3" json:"version,omitempty"`
 	// Fee schedule version fixed at creation. Every execution or bridge payout
-	// of this QuickSwap is charged that version's service fees, whatever later
-	// versions change.
+	// of this QuickSwap is charged that version's service fees, capped by the
+	// broker's fee ceiling in force at creation if one applies, whatever later
+	// versions or ceiling changes make.
 	FeeScheduleVersion uint64 `protobuf:"varint,28,opt,name=fee_schedule_version,json=feeScheduleVersion,proto3" json:"fee_schedule_version,omitempty"`
 	// Broker and affiliate fees as requested, fixed at creation. With a
 	// referral (quote.referral), the broker fee charged is broker_bps less the

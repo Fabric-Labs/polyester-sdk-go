@@ -51,6 +51,9 @@ const (
 	// LedgerReadServiceGetBalancesProcedure is the fully-qualified name of the LedgerReadService's
 	// GetBalances RPC.
 	LedgerReadServiceGetBalancesProcedure = "/ledger.read.v1.LedgerReadService/GetBalances"
+	// LedgerReadServiceExportStatementProcedure is the fully-qualified name of the LedgerReadService's
+	// ExportStatement RPC.
+	LedgerReadServiceExportStatementProcedure = "/ledger.read.v1.LedgerReadService/ExportStatement"
 )
 
 // LedgerReadServiceClient is a client for the ledger.read.v1.LedgerReadService service.
@@ -75,6 +78,10 @@ type LedgerReadServiceClient interface {
 	// Retrieve the latest balances for an account.
 	// Supports optional subaccount scoping and returns asset symbols with decimal amounts on REST.
 	GetBalances(context.Context, *connect.Request[v1.GetBalancesRequest]) (*connect.Response[v1.GetBalancesResponse], error)
+	// Export an account statement for a period as CSV, one page at a time.
+	// Covers one account, optionally one asset, for a period of at most 366
+	// days. API keys need the READ_STATEMENTS policy action.
+	ExportStatement(context.Context, *connect.Request[v1.ExportStatementRequest]) (*connect.Response[v1.ExportStatementResponse], error)
 }
 
 // NewLedgerReadServiceClient constructs a client for the ledger.read.v1.LedgerReadService service.
@@ -124,6 +131,12 @@ func NewLedgerReadServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(ledgerReadServiceMethods.ByName("GetBalances")),
 			connect.WithClientOptions(opts...),
 		),
+		exportStatement: connect.NewClient[v1.ExportStatementRequest, v1.ExportStatementResponse](
+			httpClient,
+			baseURL+LedgerReadServiceExportStatementProcedure,
+			connect.WithSchema(ledgerReadServiceMethods.ByName("ExportStatement")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -135,6 +148,7 @@ type ledgerReadServiceClient struct {
 	getPortfolioEquitySnapshot      *connect.Client[v1.GetPortfolioEquitySnapshotRequest, v1.GetPortfolioEquitySnapshotResponse]
 	listTransfers                   *connect.Client[v1.ListTransfersRequest, v1.ListTransfersResponse]
 	getBalances                     *connect.Client[v1.GetBalancesRequest, v1.GetBalancesResponse]
+	exportStatement                 *connect.Client[v1.ExportStatementRequest, v1.ExportStatementResponse]
 }
 
 // GetBalanceHistory calls ledger.read.v1.LedgerReadService.GetBalanceHistory.
@@ -168,6 +182,11 @@ func (c *ledgerReadServiceClient) GetBalances(ctx context.Context, req *connect.
 	return c.getBalances.CallUnary(ctx, req)
 }
 
+// ExportStatement calls ledger.read.v1.LedgerReadService.ExportStatement.
+func (c *ledgerReadServiceClient) ExportStatement(ctx context.Context, req *connect.Request[v1.ExportStatementRequest]) (*connect.Response[v1.ExportStatementResponse], error) {
+	return c.exportStatement.CallUnary(ctx, req)
+}
+
 // LedgerReadServiceHandler is an implementation of the ledger.read.v1.LedgerReadService service.
 type LedgerReadServiceHandler interface {
 	// Retrieve balance history buckets for an account.
@@ -190,6 +209,10 @@ type LedgerReadServiceHandler interface {
 	// Retrieve the latest balances for an account.
 	// Supports optional subaccount scoping and returns asset symbols with decimal amounts on REST.
 	GetBalances(context.Context, *connect.Request[v1.GetBalancesRequest]) (*connect.Response[v1.GetBalancesResponse], error)
+	// Export an account statement for a period as CSV, one page at a time.
+	// Covers one account, optionally one asset, for a period of at most 366
+	// days. API keys need the READ_STATEMENTS policy action.
+	ExportStatement(context.Context, *connect.Request[v1.ExportStatementRequest]) (*connect.Response[v1.ExportStatementResponse], error)
 }
 
 // NewLedgerReadServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -235,6 +258,12 @@ func NewLedgerReadServiceHandler(svc LedgerReadServiceHandler, opts ...connect.H
 		connect.WithSchema(ledgerReadServiceMethods.ByName("GetBalances")),
 		connect.WithHandlerOptions(opts...),
 	)
+	ledgerReadServiceExportStatementHandler := connect.NewUnaryHandler(
+		LedgerReadServiceExportStatementProcedure,
+		svc.ExportStatement,
+		connect.WithSchema(ledgerReadServiceMethods.ByName("ExportStatement")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/ledger.read.v1.LedgerReadService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case LedgerReadServiceGetBalanceHistoryProcedure:
@@ -249,6 +278,8 @@ func NewLedgerReadServiceHandler(svc LedgerReadServiceHandler, opts ...connect.H
 			ledgerReadServiceListTransfersHandler.ServeHTTP(w, r)
 		case LedgerReadServiceGetBalancesProcedure:
 			ledgerReadServiceGetBalancesHandler.ServeHTTP(w, r)
+		case LedgerReadServiceExportStatementProcedure:
+			ledgerReadServiceExportStatementHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -280,4 +311,8 @@ func (UnimplementedLedgerReadServiceHandler) ListTransfers(context.Context, *con
 
 func (UnimplementedLedgerReadServiceHandler) GetBalances(context.Context, *connect.Request[v1.GetBalancesRequest]) (*connect.Response[v1.GetBalancesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ledger.read.v1.LedgerReadService.GetBalances is not implemented"))
+}
+
+func (UnimplementedLedgerReadServiceHandler) ExportStatement(context.Context, *connect.Request[v1.ExportStatementRequest]) (*connect.Response[v1.ExportStatementResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ledger.read.v1.LedgerReadService.ExportStatement is not implemented"))
 }

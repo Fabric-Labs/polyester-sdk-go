@@ -13,6 +13,7 @@ import (
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -24,6 +25,263 @@ const (
 	// Verify that runtime/protoimpl is sufficiently up-to-date.
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
+
+// StatusEventKind classifies a status event.
+type StatusEventKind int32
+
+const (
+	// Not set. Never returned.
+	StatusEventKind_KIND_UNSPECIFIED StatusEventKind = 0
+	// Planned maintenance, announced ahead of its window.
+	StatusEventKind_MAINTENANCE StatusEventKind = 1
+	// Unplanned disruption.
+	StatusEventKind_INCIDENT StatusEventKind = 2
+)
+
+// Enum value maps for StatusEventKind.
+var (
+	StatusEventKind_name = map[int32]string{
+		0: "KIND_UNSPECIFIED",
+		1: "MAINTENANCE",
+		2: "INCIDENT",
+	}
+	StatusEventKind_value = map[string]int32{
+		"KIND_UNSPECIFIED": 0,
+		"MAINTENANCE":      1,
+		"INCIDENT":         2,
+	}
+)
+
+func (x StatusEventKind) Enum() *StatusEventKind {
+	p := new(StatusEventKind)
+	*p = x
+	return p
+}
+
+func (x StatusEventKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (StatusEventKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_system_v1_system_proto_enumTypes[0].Descriptor()
+}
+
+func (StatusEventKind) Type() protoreflect.EnumType {
+	return &file_system_v1_system_proto_enumTypes[0]
+}
+
+func (x StatusEventKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use StatusEventKind.Descriptor instead.
+func (StatusEventKind) EnumDescriptor() ([]byte, []int) {
+	return file_system_v1_system_proto_rawDescGZIP(), []int{0}
+}
+
+// StatusEventState is where a status event stands at the time of the
+// response. It follows from the event's window: SCHEDULED before start_time,
+// IN_PROGRESS from start_time until end_time, and COMPLETED from end_time on.
+// A cancelled event is CANCELLED whatever its window.
+type StatusEventState int32
+
+const (
+	// Not set. Never returned.
+	StatusEventState_STATE_UNSPECIFIED StatusEventState = 0
+	// The window has not started.
+	StatusEventState_SCHEDULED StatusEventState = 1
+	// The window has started and not ended.
+	StatusEventState_IN_PROGRESS StatusEventState = 2
+	// The window has ended.
+	StatusEventState_COMPLETED StatusEventState = 3
+	// Called off; its window no longer applies.
+	StatusEventState_CANCELLED StatusEventState = 4
+)
+
+// Enum value maps for StatusEventState.
+var (
+	StatusEventState_name = map[int32]string{
+		0: "STATE_UNSPECIFIED",
+		1: "SCHEDULED",
+		2: "IN_PROGRESS",
+		3: "COMPLETED",
+		4: "CANCELLED",
+	}
+	StatusEventState_value = map[string]int32{
+		"STATE_UNSPECIFIED": 0,
+		"SCHEDULED":         1,
+		"IN_PROGRESS":       2,
+		"COMPLETED":         3,
+		"CANCELLED":         4,
+	}
+)
+
+func (x StatusEventState) Enum() *StatusEventState {
+	p := new(StatusEventState)
+	*p = x
+	return p
+}
+
+func (x StatusEventState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (StatusEventState) Descriptor() protoreflect.EnumDescriptor {
+	return file_system_v1_system_proto_enumTypes[1].Descriptor()
+}
+
+func (StatusEventState) Type() protoreflect.EnumType {
+	return &file_system_v1_system_proto_enumTypes[1]
+}
+
+func (x StatusEventState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use StatusEventState.Descriptor instead.
+func (StatusEventState) EnumDescriptor() ([]byte, []int) {
+	return file_system_v1_system_proto_rawDescGZIP(), []int{1}
+}
+
+// StatusEventImpact is how severely an incident affects users.
+type StatusEventImpact int32
+
+const (
+	// No impact given: always for MAINTENANCE, and for an INCIDENT not yet
+	// assessed.
+	StatusEventImpact_IMPACT_UNSPECIFIED StatusEventImpact = 0
+	// Working, but slower or less reliable than usual.
+	StatusEventImpact_DEGRADED StatusEventImpact = 1
+	// Unavailable for some users, markets or assets.
+	StatusEventImpact_PARTIAL_OUTAGE StatusEventImpact = 2
+	// Unavailable.
+	StatusEventImpact_MAJOR_OUTAGE StatusEventImpact = 3
+)
+
+// Enum value maps for StatusEventImpact.
+var (
+	StatusEventImpact_name = map[int32]string{
+		0: "IMPACT_UNSPECIFIED",
+		1: "DEGRADED",
+		2: "PARTIAL_OUTAGE",
+		3: "MAJOR_OUTAGE",
+	}
+	StatusEventImpact_value = map[string]int32{
+		"IMPACT_UNSPECIFIED": 0,
+		"DEGRADED":           1,
+		"PARTIAL_OUTAGE":     2,
+		"MAJOR_OUTAGE":       3,
+	}
+)
+
+func (x StatusEventImpact) Enum() *StatusEventImpact {
+	p := new(StatusEventImpact)
+	*p = x
+	return p
+}
+
+func (x StatusEventImpact) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (StatusEventImpact) Descriptor() protoreflect.EnumDescriptor {
+	return file_system_v1_system_proto_enumTypes[2].Descriptor()
+}
+
+func (StatusEventImpact) Type() protoreflect.EnumType {
+	return &file_system_v1_system_proto_enumTypes[2]
+}
+
+func (x StatusEventImpact) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use StatusEventImpact.Descriptor instead.
+func (StatusEventImpact) EnumDescriptor() ([]byte, []int) {
+	return file_system_v1_system_proto_rawDescGZIP(), []int{2}
+}
+
+// AffectedService is a part of the platform a status event affects.
+type AffectedService int32
+
+const (
+	// Not set. Never returned.
+	AffectedService_SERVICE_UNSPECIFIED AffectedService = 0
+	// Placing, changing and cancelling orders, and order execution.
+	AffectedService_TRADING AffectedService = 1
+	// Prices, trades, candles and order books.
+	AffectedService_MARKET_DATA AffectedService = 2
+	// Deposits.
+	AffectedService_DEPOSITS AffectedService = 3
+	// Withdrawals.
+	AffectedService_WITHDRAWALS AffectedService = 4
+	// Transfers between accounts and subaccounts.
+	AffectedService_TRANSFERS AffectedService = 5
+	// Sign-in, account management and API keys.
+	AffectedService_ACCOUNTS AffectedService = 6
+	// The REST and WebSocket interfaces for programmatic clients such as market
+	// makers and brokers.
+	AffectedService_API AffectedService = 7
+	// QuickSwap swaps.
+	AffectedService_QUICKSWAP AffectedService = 8
+	// The web app.
+	AffectedService_APP AffectedService = 9
+)
+
+// Enum value maps for AffectedService.
+var (
+	AffectedService_name = map[int32]string{
+		0: "SERVICE_UNSPECIFIED",
+		1: "TRADING",
+		2: "MARKET_DATA",
+		3: "DEPOSITS",
+		4: "WITHDRAWALS",
+		5: "TRANSFERS",
+		6: "ACCOUNTS",
+		7: "API",
+		8: "QUICKSWAP",
+		9: "APP",
+	}
+	AffectedService_value = map[string]int32{
+		"SERVICE_UNSPECIFIED": 0,
+		"TRADING":             1,
+		"MARKET_DATA":         2,
+		"DEPOSITS":            3,
+		"WITHDRAWALS":         4,
+		"TRANSFERS":           5,
+		"ACCOUNTS":            6,
+		"API":                 7,
+		"QUICKSWAP":           8,
+		"APP":                 9,
+	}
+)
+
+func (x AffectedService) Enum() *AffectedService {
+	p := new(AffectedService)
+	*p = x
+	return p
+}
+
+func (x AffectedService) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AffectedService) Descriptor() protoreflect.EnumDescriptor {
+	return file_system_v1_system_proto_enumTypes[3].Descriptor()
+}
+
+func (AffectedService) Type() protoreflect.EnumType {
+	return &file_system_v1_system_proto_enumTypes[3]
+}
+
+func (x AffectedService) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AffectedService.Descriptor instead.
+func (AffectedService) EnumDescriptor() ([]byte, []int) {
+	return file_system_v1_system_proto_rawDescGZIP(), []int{3}
+}
 
 // GetVersionRequest takes no parameters.
 type GetVersionRequest struct {
@@ -132,21 +390,467 @@ func (x *GetVersionResponse) GetEnvironment() string {
 	return ""
 }
 
+// StatusEventUpdate is one progress note posted on a status event. Notes are
+// never edited or removed.
+type StatusEventUpdate struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Position of the note on its event: 1 for the first, then increasing by 1.
+	// Unique within the event and never reused.
+	Id uint32 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Plain-text note for users, at most 4000 characters.
+	Message string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	// When the note was posted.
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StatusEventUpdate) Reset() {
+	*x = StatusEventUpdate{}
+	mi := &file_system_v1_system_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StatusEventUpdate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StatusEventUpdate) ProtoMessage() {}
+
+func (x *StatusEventUpdate) ProtoReflect() protoreflect.Message {
+	mi := &file_system_v1_system_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StatusEventUpdate.ProtoReflect.Descriptor instead.
+func (*StatusEventUpdate) Descriptor() ([]byte, []int) {
+	return file_system_v1_system_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *StatusEventUpdate) GetId() uint32 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *StatusEventUpdate) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *StatusEventUpdate) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+// StatusEvent is one scheduled maintenance or incident.
+type StatusEvent struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable opaque 64-bit identifier. It never changes when the event is
+	// updated.
+	Id uint64 `protobuf:"fixed64,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Maintenance or incident.
+	Kind StatusEventKind `protobuf:"varint,2,opt,name=kind,proto3,enum=system.v1.StatusEventKind" json:"kind,omitempty"`
+	// State at the time of the response.
+	State StatusEventState `protobuf:"varint,3,opt,name=state,proto3,enum=system.v1.StatusEventState" json:"state,omitempty"`
+	// Short title, at most 200 characters.
+	Title string `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
+	// Plain-text summary for users, at most 4000 characters. It can be revised;
+	// progress notes are in updates.
+	Message string `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
+	// Start of the window: when the maintenance begins, or when the incident
+	// began. It no longer changes once the window has started.
+	StartTime *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	// End of the window, after start_time: when the maintenance is expected to
+	// end, or when the incident ended or is expected to end. Always set for
+	// MAINTENANCE. Omitted for an INCIDENT with no expected end yet.
+	EndTime *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
+	// Affected parts of the platform. Never empty.
+	Services []AffectedService `protobuf:"varint,8,rep,packed,name=services,proto3,enum=system.v1.AffectedService" json:"services,omitempty"`
+	// Symbols of the affected markets, such as "BTC-USDT", in ascending order.
+	// Empty when the event is not limited to particular markets.
+	Markets []string `protobuf:"bytes,9,rep,name=markets,proto3" json:"markets,omitempty"`
+	// Time of the latest change to the event, a new progress note included. Its
+	// state moving with the clock is not a change.
+	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// Severity of an INCIDENT. IMPACT_UNSPECIFIED for MAINTENANCE and for an
+	// incident not yet assessed.
+	Impact StatusEventImpact `protobuf:"varint,11,opt,name=impact,proto3,enum=system.v1.StatusEventImpact" json:"impact,omitempty"`
+	// Codes of the affected assets, such as "SOL", in ascending order. Empty
+	// when the event is not limited to particular assets.
+	Assets []string `protobuf:"bytes,12,rep,name=assets,proto3" json:"assets,omitempty"`
+	// When the event was cancelled. Set only when state is CANCELLED.
+	CancelledAt *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=cancelled_at,json=cancelledAt,proto3" json:"cancelled_at,omitempty"`
+	// Progress notes, oldest first. At most 50.
+	Updates []*StatusEventUpdate `protobuf:"bytes,14,rep,name=updates,proto3" json:"updates,omitempty"`
+	// HTTPS link to a long-form announcement about the event, at most 2048
+	// characters. Omitted when the event has none.
+	DetailsUrl    *string `protobuf:"bytes,15,opt,name=details_url,json=detailsUrl,proto3,oneof" json:"details_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StatusEvent) Reset() {
+	*x = StatusEvent{}
+	mi := &file_system_v1_system_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StatusEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StatusEvent) ProtoMessage() {}
+
+func (x *StatusEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_system_v1_system_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StatusEvent.ProtoReflect.Descriptor instead.
+func (*StatusEvent) Descriptor() ([]byte, []int) {
+	return file_system_v1_system_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *StatusEvent) GetId() uint64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *StatusEvent) GetKind() StatusEventKind {
+	if x != nil {
+		return x.Kind
+	}
+	return StatusEventKind_KIND_UNSPECIFIED
+}
+
+func (x *StatusEvent) GetState() StatusEventState {
+	if x != nil {
+		return x.State
+	}
+	return StatusEventState_STATE_UNSPECIFIED
+}
+
+func (x *StatusEvent) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *StatusEvent) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *StatusEvent) GetStartTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartTime
+	}
+	return nil
+}
+
+func (x *StatusEvent) GetEndTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndTime
+	}
+	return nil
+}
+
+func (x *StatusEvent) GetServices() []AffectedService {
+	if x != nil {
+		return x.Services
+	}
+	return nil
+}
+
+func (x *StatusEvent) GetMarkets() []string {
+	if x != nil {
+		return x.Markets
+	}
+	return nil
+}
+
+func (x *StatusEvent) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+func (x *StatusEvent) GetImpact() StatusEventImpact {
+	if x != nil {
+		return x.Impact
+	}
+	return StatusEventImpact_IMPACT_UNSPECIFIED
+}
+
+func (x *StatusEvent) GetAssets() []string {
+	if x != nil {
+		return x.Assets
+	}
+	return nil
+}
+
+func (x *StatusEvent) GetCancelledAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CancelledAt
+	}
+	return nil
+}
+
+func (x *StatusEvent) GetUpdates() []*StatusEventUpdate {
+	if x != nil {
+		return x.Updates
+	}
+	return nil
+}
+
+func (x *StatusEvent) GetDetailsUrl() string {
+	if x != nil && x.DetailsUrl != nil {
+		return *x.DetailsUrl
+	}
+	return ""
+}
+
+// ListStatusEventsRequest selects status events. Filters on different fields
+// combine with AND; values within one field combine with OR.
+type ListStatusEventsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// States to include. Empty means SCHEDULED and IN_PROGRESS: current and
+	// upcoming events.
+	States []StatusEventState `protobuf:"varint,1,rep,packed,name=states,proto3,enum=system.v1.StatusEventState" json:"states,omitempty"`
+	// Kinds to include. Empty means all.
+	Kinds []StatusEventKind `protobuf:"varint,2,rep,packed,name=kinds,proto3,enum=system.v1.StatusEventKind" json:"kinds,omitempty"`
+	// Maximum events to return. 0 means the default of 50; maximum 200.
+	Limit uint32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Opaque, keyset-backed, exclusive cursor from a previous response. Bound
+	// to states and kinds, and to the start time and id of the last event
+	// returned. Reuse it only with the same states and kinds. States follow
+	// the clock, so an event that changes state between two pages can be
+	// missing from both or appear on both; match events by id.
+	PageToken     string `protobuf:"bytes,4,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListStatusEventsRequest) Reset() {
+	*x = ListStatusEventsRequest{}
+	mi := &file_system_v1_system_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListStatusEventsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListStatusEventsRequest) ProtoMessage() {}
+
+func (x *ListStatusEventsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_system_v1_system_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListStatusEventsRequest.ProtoReflect.Descriptor instead.
+func (*ListStatusEventsRequest) Descriptor() ([]byte, []int) {
+	return file_system_v1_system_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ListStatusEventsRequest) GetStates() []StatusEventState {
+	if x != nil {
+		return x.States
+	}
+	return nil
+}
+
+func (x *ListStatusEventsRequest) GetKinds() []StatusEventKind {
+	if x != nil {
+		return x.Kinds
+	}
+	return nil
+}
+
+func (x *ListStatusEventsRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListStatusEventsRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
+// ListStatusEventsResponse returns matching status events.
+type ListStatusEventsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Matching events ordered by start_time descending, then id descending:
+	// the latest start first.
+	Events []*StatusEvent `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
+	// Cursor for the next page. Empty when no more results exist.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListStatusEventsResponse) Reset() {
+	*x = ListStatusEventsResponse{}
+	mi := &file_system_v1_system_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListStatusEventsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListStatusEventsResponse) ProtoMessage() {}
+
+func (x *ListStatusEventsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_system_v1_system_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListStatusEventsResponse.ProtoReflect.Descriptor instead.
+func (*ListStatusEventsResponse) Descriptor() ([]byte, []int) {
+	return file_system_v1_system_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ListStatusEventsResponse) GetEvents() []*StatusEvent {
+	if x != nil {
+		return x.Events
+	}
+	return nil
+}
+
+func (x *ListStatusEventsResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
 var File_system_v1_system_proto protoreflect.FileDescriptor
 
 const file_system_v1_system_proto_rawDesc = "" +
 	"\n" +
-	"\x16system/v1/system.proto\x12\tsystem.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1bpolyester/api/options.proto\"\x13\n" +
+	"\x16system/v1/system.proto\x12\tsystem.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\x13\n" +
 	"\x11GetVersionRequest\"\x91\x02\n" +
 	"\x12GetVersionResponse\x12\x81\x01\n" +
 	"\aversion\x18\x01 \x01(\tBg\xbaHdrb2`^(0|[1-9][0-9]{0,8})\\.(0|[1-9][0-9]{0,8})\\.(0|[1-9][0-9]{0,8})(-[1-9][0-9]{0,8}-g[0-9a-f]{12})?$R\aversion\x12-\n" +
 	"\x06commit\x18\x02 \x01(\tB\x15\xbaH\x12r\x102\x0e^[0-9a-f]{40}$R\x06commit\x12H\n" +
-	"\venvironment\x18\x03 \x01(\tB&\xbaH#r!R\x06devnetR\atestnetR\amainnetR\x05localR\venvironment2\xfa\x01\n" +
+	"\venvironment\x18\x03 \x01(\tB&\xbaH#r!R\x06devnetR\atestnetR\amainnetR\x05localR\venvironment\"x\n" +
+	"\x11StatusEventUpdate\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\rR\x02id\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x129\n" +
+	"\n" +
+	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xaa\x05\n" +
+	"\vStatusEvent\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x06R\x02id\x12.\n" +
+	"\x04kind\x18\x02 \x01(\x0e2\x1a.system.v1.StatusEventKindR\x04kind\x121\n" +
+	"\x05state\x18\x03 \x01(\x0e2\x1b.system.v1.StatusEventStateR\x05state\x12\x14\n" +
+	"\x05title\x18\x04 \x01(\tR\x05title\x12\x18\n" +
+	"\amessage\x18\x05 \x01(\tR\amessage\x129\n" +
+	"\n" +
+	"start_time\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
+	"\bend_time\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\aendTime\x126\n" +
+	"\bservices\x18\b \x03(\x0e2\x1a.system.v1.AffectedServiceR\bservices\x12\x18\n" +
+	"\amarkets\x18\t \x03(\tR\amarkets\x129\n" +
+	"\n" +
+	"updated_at\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x124\n" +
+	"\x06impact\x18\v \x01(\x0e2\x1c.system.v1.StatusEventImpactR\x06impact\x12\x16\n" +
+	"\x06assets\x18\f \x03(\tR\x06assets\x12=\n" +
+	"\fcancelled_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\vcancelledAt\x126\n" +
+	"\aupdates\x18\x0e \x03(\v2\x1c.system.v1.StatusEventUpdateR\aupdates\x12$\n" +
+	"\vdetails_url\x18\x0f \x01(\tH\x00R\n" +
+	"detailsUrl\x88\x01\x01B\x0e\n" +
+	"\f_details_url\"\xf3\x01\n" +
+	"\x17ListStatusEventsRequest\x12H\n" +
+	"\x06states\x18\x01 \x03(\x0e2\x1b.system.v1.StatusEventStateB\x13\xbaH\x10\x92\x01\r\x10\x04\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\x06states\x12E\n" +
+	"\x05kinds\x18\x02 \x03(\x0e2\x1a.system.v1.StatusEventKindB\x13\xbaH\x10\x92\x01\r\x10\x02\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\x05kinds\x12\x1e\n" +
+	"\x05limit\x18\x03 \x01(\rB\b\xbaH\x05*\x03\x18\xc8\x01R\x05limit\x12'\n" +
+	"\n" +
+	"page_token\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken\"r\n" +
+	"\x18ListStatusEventsResponse\x12.\n" +
+	"\x06events\x18\x01 \x03(\v2\x16.system.v1.StatusEventR\x06events\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken*F\n" +
+	"\x0fStatusEventKind\x12\x14\n" +
+	"\x10KIND_UNSPECIFIED\x10\x00\x12\x0f\n" +
+	"\vMAINTENANCE\x10\x01\x12\f\n" +
+	"\bINCIDENT\x10\x02*g\n" +
+	"\x10StatusEventState\x12\x15\n" +
+	"\x11STATE_UNSPECIFIED\x10\x00\x12\r\n" +
+	"\tSCHEDULED\x10\x01\x12\x0f\n" +
+	"\vIN_PROGRESS\x10\x02\x12\r\n" +
+	"\tCOMPLETED\x10\x03\x12\r\n" +
+	"\tCANCELLED\x10\x04*_\n" +
+	"\x11StatusEventImpact\x12\x16\n" +
+	"\x12IMPACT_UNSPECIFIED\x10\x00\x12\f\n" +
+	"\bDEGRADED\x10\x01\x12\x12\n" +
+	"\x0ePARTIAL_OUTAGE\x10\x02\x12\x10\n" +
+	"\fMAJOR_OUTAGE\x10\x03*\xa5\x01\n" +
+	"\x0fAffectedService\x12\x17\n" +
+	"\x13SERVICE_UNSPECIFIED\x10\x00\x12\v\n" +
+	"\aTRADING\x10\x01\x12\x0f\n" +
+	"\vMARKET_DATA\x10\x02\x12\f\n" +
+	"\bDEPOSITS\x10\x03\x12\x0f\n" +
+	"\vWITHDRAWALS\x10\x04\x12\r\n" +
+	"\tTRANSFERS\x10\x05\x12\f\n" +
+	"\bACCOUNTS\x10\x06\x12\a\n" +
+	"\x03API\x10\a\x12\r\n" +
+	"\tQUICKSWAP\x10\b\x12\a\n" +
+	"\x03APP\x10\t2\xa5\x04\n" +
 	"\rSystemService\x12\xd9\x01\n" +
 	"\n" +
 	"GetVersion\x12\x1c.system.v1.GetVersionRequest\x1a\x1d.system.v1.GetVersionResponse\"\x8d\x01\xbaGi\n" +
-	"\x0eSystem Service\x12\vGet Version\x1aHGet the version and source revision of the build the environment serves.Z\x00\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x14\x12\x12/v1/system/version\x90\x02\x01\x1a\r\x8a\xb5\x18\tchangelogBw\xbaG4:2\n" +
-	"\x0eSystem Service\x12 The build an environment serves.Z>github.com/Fabric-Labs/polyester-sdk-go/gen/system/v1;systemv1b\x06proto3"
+	"\x0eSystem Service\x12\vGet Version\x1aHGet the version and source revision of the build the environment serves.Z\x00\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x14\x12\x12/v1/system/version\x90\x02\x01\x12\xa8\x02\n" +
+	"\x10ListStatusEvents\x12\".system.v1.ListStatusEventsRequest\x1a#.system.v1.ListStatusEventsResponse\"\xca\x01\xbaG\x9f\x01\n" +
+	"\x0eSystem Service\x12\x12List Status Events\x1awList scheduled maintenance and incidents, the latest start first. With no states, it lists current and upcoming events.Z\x00\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1a\x12\x18/v1/system/status-events\x90\x02\x01\x1a\r\x8a\xb5\x18\tchangelogB\xa4\x01\xbaGa:_\n" +
+	"\x0eSystem Service\x12MThe build an environment serves, and its scheduled maintenance and incidents.Z>github.com/Fabric-Labs/polyester-sdk-go/gen/system/v1;systemv1b\x06proto3"
 
 var (
 	file_system_v1_system_proto_rawDescOnce sync.Once
@@ -160,19 +864,44 @@ func file_system_v1_system_proto_rawDescGZIP() []byte {
 	return file_system_v1_system_proto_rawDescData
 }
 
-var file_system_v1_system_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_system_v1_system_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
+var file_system_v1_system_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_system_v1_system_proto_goTypes = []any{
-	(*GetVersionRequest)(nil),  // 0: system.v1.GetVersionRequest
-	(*GetVersionResponse)(nil), // 1: system.v1.GetVersionResponse
+	(StatusEventKind)(0),             // 0: system.v1.StatusEventKind
+	(StatusEventState)(0),            // 1: system.v1.StatusEventState
+	(StatusEventImpact)(0),           // 2: system.v1.StatusEventImpact
+	(AffectedService)(0),             // 3: system.v1.AffectedService
+	(*GetVersionRequest)(nil),        // 4: system.v1.GetVersionRequest
+	(*GetVersionResponse)(nil),       // 5: system.v1.GetVersionResponse
+	(*StatusEventUpdate)(nil),        // 6: system.v1.StatusEventUpdate
+	(*StatusEvent)(nil),              // 7: system.v1.StatusEvent
+	(*ListStatusEventsRequest)(nil),  // 8: system.v1.ListStatusEventsRequest
+	(*ListStatusEventsResponse)(nil), // 9: system.v1.ListStatusEventsResponse
+	(*timestamppb.Timestamp)(nil),    // 10: google.protobuf.Timestamp
 }
 var file_system_v1_system_proto_depIdxs = []int32{
-	0, // 0: system.v1.SystemService.GetVersion:input_type -> system.v1.GetVersionRequest
-	1, // 1: system.v1.SystemService.GetVersion:output_type -> system.v1.GetVersionResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	10, // 0: system.v1.StatusEventUpdate.created_at:type_name -> google.protobuf.Timestamp
+	0,  // 1: system.v1.StatusEvent.kind:type_name -> system.v1.StatusEventKind
+	1,  // 2: system.v1.StatusEvent.state:type_name -> system.v1.StatusEventState
+	10, // 3: system.v1.StatusEvent.start_time:type_name -> google.protobuf.Timestamp
+	10, // 4: system.v1.StatusEvent.end_time:type_name -> google.protobuf.Timestamp
+	3,  // 5: system.v1.StatusEvent.services:type_name -> system.v1.AffectedService
+	10, // 6: system.v1.StatusEvent.updated_at:type_name -> google.protobuf.Timestamp
+	2,  // 7: system.v1.StatusEvent.impact:type_name -> system.v1.StatusEventImpact
+	10, // 8: system.v1.StatusEvent.cancelled_at:type_name -> google.protobuf.Timestamp
+	6,  // 9: system.v1.StatusEvent.updates:type_name -> system.v1.StatusEventUpdate
+	1,  // 10: system.v1.ListStatusEventsRequest.states:type_name -> system.v1.StatusEventState
+	0,  // 11: system.v1.ListStatusEventsRequest.kinds:type_name -> system.v1.StatusEventKind
+	7,  // 12: system.v1.ListStatusEventsResponse.events:type_name -> system.v1.StatusEvent
+	4,  // 13: system.v1.SystemService.GetVersion:input_type -> system.v1.GetVersionRequest
+	8,  // 14: system.v1.SystemService.ListStatusEvents:input_type -> system.v1.ListStatusEventsRequest
+	5,  // 15: system.v1.SystemService.GetVersion:output_type -> system.v1.GetVersionResponse
+	9,  // 16: system.v1.SystemService.ListStatusEvents:output_type -> system.v1.ListStatusEventsResponse
+	15, // [15:17] is the sub-list for method output_type
+	13, // [13:15] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_system_v1_system_proto_init() }
@@ -180,18 +909,20 @@ func file_system_v1_system_proto_init() {
 	if File_system_v1_system_proto != nil {
 		return
 	}
+	file_system_v1_system_proto_msgTypes[3].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_system_v1_system_proto_rawDesc), len(file_system_v1_system_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   2,
+			NumEnums:      4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_system_v1_system_proto_goTypes,
 		DependencyIndexes: file_system_v1_system_proto_depIdxs,
+		EnumInfos:         file_system_v1_system_proto_enumTypes,
 		MessageInfos:      file_system_v1_system_proto_msgTypes,
 	}.Build()
 	File_system_v1_system_proto = out.File

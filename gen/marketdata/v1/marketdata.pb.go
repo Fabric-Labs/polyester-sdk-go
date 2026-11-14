@@ -2084,7 +2084,7 @@ var File_marketdata_v1_marketdata_proto protoreflect.FileDescriptor
 
 const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\n" +
-	"\x1emarketdata/v1/marketdata.proto\x12\rmarketdata.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\xf7\a\n" +
+	"\x1emarketdata/v1/marketdata.proto\x12\rmarketdata.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1emarketdata/v1/asset_info.proto\x1a\x1bpolyester/api/options.proto\"\xf7\a\n" +
 	"\x10GetTradesRequest\x12$\n" +
 	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\x12\x1e\n" +
 	"\x05limit\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xe8\aR\x05limit\x129\n" +
@@ -2292,8 +2292,9 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\x17PAIR_STATUS_CANCEL_ONLY\x10\x03\x12\x19\n" +
 	"\x15PAIR_STATUS_POST_ONLY\x10\x04\x12\x1b\n" +
 	"\x17PAIR_STATUS_REDUCE_ONLY\x10\x05\x12\x16\n" +
-	"\x12PAIR_STATUS_HALTED\x10\x062\xa6\x03\n" +
-	"\x11MarketDataService\x12T\n" +
+	"\x12PAIR_STATUS_HALTED\x10\x062\x8b\x04\n" +
+	"\x11MarketDataService\x12c\n" +
+	"\rListAssetInfo\x12#.marketdata.v1.ListAssetInfoRequest\x1a$.marketdata.v1.ListAssetInfoResponse\"\a\x88\xb5\x18\x01\x90\x02\x01\x12T\n" +
 	"\tGetTrades\x12\x1f.marketdata.v1.GetTradesRequest\x1a .marketdata.v1.GetTradesResponse\"\x04\x88\xb5\x18\x01\x12W\n" +
 	"\n" +
 	"GetCandles\x12 .marketdata.v1.GetCandlesRequest\x1a!.marketdata.v1.GetCandlesResponse\"\x04\x88\xb5\x18\x01\x12p\n" +
@@ -2337,6 +2338,8 @@ var file_marketdata_v1_marketdata_proto_goTypes = []any{
 	(*GetSpotConfigRequest)(nil),      // 18: marketdata.v1.GetSpotConfigRequest
 	(*GetSpotConfigResponse)(nil),     // 19: marketdata.v1.GetSpotConfigResponse
 	(*timestamppb.Timestamp)(nil),     // 20: google.protobuf.Timestamp
+	(*ListAssetInfoRequest)(nil),      // 21: marketdata.v1.ListAssetInfoRequest
+	(*ListAssetInfoResponse)(nil),     // 22: marketdata.v1.ListAssetInfoResponse
 }
 var file_marketdata_v1_marketdata_proto_depIdxs = []int32{
 	20, // 0: marketdata.v1.GetTradesRequest.start_time:type_name -> google.protobuf.Timestamp
@@ -2363,16 +2366,18 @@ var file_marketdata_v1_marketdata_proto_depIdxs = []int32{
 	17, // 21: marketdata.v1.PairConfig.price_band:type_name -> marketdata.v1.PriceBand
 	14, // 22: marketdata.v1.GetSpotConfigResponse.assets:type_name -> marketdata.v1.AssetConfig
 	16, // 23: marketdata.v1.GetSpotConfigResponse.pairs:type_name -> marketdata.v1.PairConfig
-	3,  // 24: marketdata.v1.MarketDataService.GetTrades:input_type -> marketdata.v1.GetTradesRequest
-	8,  // 25: marketdata.v1.MarketDataService.GetCandles:input_type -> marketdata.v1.GetCandlesRequest
-	9,  // 26: marketdata.v1.MarketDataService.GetCandlesColumns:input_type -> marketdata.v1.GetCandlesColumnsRequest
-	18, // 27: marketdata.v1.MarketDataService.GetSpotConfig:input_type -> marketdata.v1.GetSpotConfigRequest
-	7,  // 28: marketdata.v1.MarketDataService.GetTrades:output_type -> marketdata.v1.GetTradesResponse
-	11, // 29: marketdata.v1.MarketDataService.GetCandles:output_type -> marketdata.v1.GetCandlesResponse
-	12, // 30: marketdata.v1.MarketDataService.GetCandlesColumns:output_type -> marketdata.v1.GetCandlesColumnsResponse
-	19, // 31: marketdata.v1.MarketDataService.GetSpotConfig:output_type -> marketdata.v1.GetSpotConfigResponse
-	28, // [28:32] is the sub-list for method output_type
-	24, // [24:28] is the sub-list for method input_type
+	21, // 24: marketdata.v1.MarketDataService.ListAssetInfo:input_type -> marketdata.v1.ListAssetInfoRequest
+	3,  // 25: marketdata.v1.MarketDataService.GetTrades:input_type -> marketdata.v1.GetTradesRequest
+	8,  // 26: marketdata.v1.MarketDataService.GetCandles:input_type -> marketdata.v1.GetCandlesRequest
+	9,  // 27: marketdata.v1.MarketDataService.GetCandlesColumns:input_type -> marketdata.v1.GetCandlesColumnsRequest
+	18, // 28: marketdata.v1.MarketDataService.GetSpotConfig:input_type -> marketdata.v1.GetSpotConfigRequest
+	22, // 29: marketdata.v1.MarketDataService.ListAssetInfo:output_type -> marketdata.v1.ListAssetInfoResponse
+	7,  // 30: marketdata.v1.MarketDataService.GetTrades:output_type -> marketdata.v1.GetTradesResponse
+	11, // 31: marketdata.v1.MarketDataService.GetCandles:output_type -> marketdata.v1.GetCandlesResponse
+	12, // 32: marketdata.v1.MarketDataService.GetCandlesColumns:output_type -> marketdata.v1.GetCandlesColumnsResponse
+	19, // 33: marketdata.v1.MarketDataService.GetSpotConfig:output_type -> marketdata.v1.GetSpotConfigResponse
+	29, // [29:34] is the sub-list for method output_type
+	24, // [24:29] is the sub-list for method input_type
 	24, // [24:24] is the sub-list for extension type_name
 	24, // [24:24] is the sub-list for extension extendee
 	0,  // [0:24] is the sub-list for field type_name
@@ -2383,6 +2388,7 @@ func file_marketdata_v1_marketdata_proto_init() {
 	if File_marketdata_v1_marketdata_proto != nil {
 		return
 	}
+	file_marketdata_v1_asset_info_proto_init()
 	file_marketdata_v1_marketdata_proto_msgTypes[0].OneofWrappers = []any{}
 	file_marketdata_v1_marketdata_proto_msgTypes[11].OneofWrappers = []any{}
 	file_marketdata_v1_marketdata_proto_msgTypes[13].OneofWrappers = []any{}

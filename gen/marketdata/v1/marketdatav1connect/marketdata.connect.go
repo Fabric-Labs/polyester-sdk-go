@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// MarketDataServiceListAssetInfoProcedure is the fully-qualified name of the MarketDataService's
+	// ListAssetInfo RPC.
+	MarketDataServiceListAssetInfoProcedure = "/marketdata.v1.MarketDataService/ListAssetInfo"
 	// MarketDataServiceGetTradesProcedure is the fully-qualified name of the MarketDataService's
 	// GetTrades RPC.
 	MarketDataServiceGetTradesProcedure = "/marketdata.v1.MarketDataService/GetTrades"
@@ -49,6 +52,9 @@ const (
 
 // MarketDataServiceClient is a client for the marketdata.v1.MarketDataService service.
 type MarketDataServiceClient interface {
+	// ListAssetInfo returns a cacheable, caller-independent asset information snapshot.
+	// Empty asset_ids returns all saved entries in ascending asset_id order.
+	ListAssetInfo(context.Context, *connect.Request[v1.ListAssetInfoRequest]) (*connect.Response[v1.ListAssetInfoResponse], error)
 	// Retrieve recent public trades for a spot market.
 	// Results are ordered newest-first and support optional aggressor side,
 	// inclusive time-range, and opaque keyset pagination filters. With
@@ -80,6 +86,13 @@ func NewMarketDataServiceClient(httpClient connect.HTTPClient, baseURL string, o
 	baseURL = strings.TrimRight(baseURL, "/")
 	marketDataServiceMethods := v1.File_marketdata_v1_marketdata_proto.Services().ByName("MarketDataService").Methods()
 	return &marketDataServiceClient{
+		listAssetInfo: connect.NewClient[v1.ListAssetInfoRequest, v1.ListAssetInfoResponse](
+			httpClient,
+			baseURL+MarketDataServiceListAssetInfoProcedure,
+			connect.WithSchema(marketDataServiceMethods.ByName("ListAssetInfo")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 		getTrades: connect.NewClient[v1.GetTradesRequest, v1.GetTradesResponse](
 			httpClient,
 			baseURL+MarketDataServiceGetTradesProcedure,
@@ -109,10 +122,16 @@ func NewMarketDataServiceClient(httpClient connect.HTTPClient, baseURL string, o
 
 // marketDataServiceClient implements MarketDataServiceClient.
 type marketDataServiceClient struct {
+	listAssetInfo     *connect.Client[v1.ListAssetInfoRequest, v1.ListAssetInfoResponse]
 	getTrades         *connect.Client[v1.GetTradesRequest, v1.GetTradesResponse]
 	getCandles        *connect.Client[v1.GetCandlesRequest, v1.GetCandlesResponse]
 	getCandlesColumns *connect.Client[v1.GetCandlesColumnsRequest, v1.GetCandlesColumnsResponse]
 	getSpotConfig     *connect.Client[v1.GetSpotConfigRequest, v1.GetSpotConfigResponse]
+}
+
+// ListAssetInfo calls marketdata.v1.MarketDataService.ListAssetInfo.
+func (c *marketDataServiceClient) ListAssetInfo(ctx context.Context, req *connect.Request[v1.ListAssetInfoRequest]) (*connect.Response[v1.ListAssetInfoResponse], error) {
+	return c.listAssetInfo.CallUnary(ctx, req)
 }
 
 // GetTrades calls marketdata.v1.MarketDataService.GetTrades.
@@ -137,6 +156,9 @@ func (c *marketDataServiceClient) GetSpotConfig(ctx context.Context, req *connec
 
 // MarketDataServiceHandler is an implementation of the marketdata.v1.MarketDataService service.
 type MarketDataServiceHandler interface {
+	// ListAssetInfo returns a cacheable, caller-independent asset information snapshot.
+	// Empty asset_ids returns all saved entries in ascending asset_id order.
+	ListAssetInfo(context.Context, *connect.Request[v1.ListAssetInfoRequest]) (*connect.Response[v1.ListAssetInfoResponse], error)
 	// Retrieve recent public trades for a spot market.
 	// Results are ordered newest-first and support optional aggressor side,
 	// inclusive time-range, and opaque keyset pagination filters. With
@@ -164,6 +186,13 @@ type MarketDataServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewMarketDataServiceHandler(svc MarketDataServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	marketDataServiceMethods := v1.File_marketdata_v1_marketdata_proto.Services().ByName("MarketDataService").Methods()
+	marketDataServiceListAssetInfoHandler := connect.NewUnaryHandler(
+		MarketDataServiceListAssetInfoProcedure,
+		svc.ListAssetInfo,
+		connect.WithSchema(marketDataServiceMethods.ByName("ListAssetInfo")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	marketDataServiceGetTradesHandler := connect.NewUnaryHandler(
 		MarketDataServiceGetTradesProcedure,
 		svc.GetTrades,
@@ -190,6 +219,8 @@ func NewMarketDataServiceHandler(svc MarketDataServiceHandler, opts ...connect.H
 	)
 	return "/marketdata.v1.MarketDataService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case MarketDataServiceListAssetInfoProcedure:
+			marketDataServiceListAssetInfoHandler.ServeHTTP(w, r)
 		case MarketDataServiceGetTradesProcedure:
 			marketDataServiceGetTradesHandler.ServeHTTP(w, r)
 		case MarketDataServiceGetCandlesProcedure:
@@ -206,6 +237,10 @@ func NewMarketDataServiceHandler(svc MarketDataServiceHandler, opts ...connect.H
 
 // UnimplementedMarketDataServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedMarketDataServiceHandler struct{}
+
+func (UnimplementedMarketDataServiceHandler) ListAssetInfo(context.Context, *connect.Request[v1.ListAssetInfoRequest]) (*connect.Response[v1.ListAssetInfoResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("marketdata.v1.MarketDataService.ListAssetInfo is not implemented"))
+}
 
 func (UnimplementedMarketDataServiceHandler) GetTrades(context.Context, *connect.Request[v1.GetTradesRequest]) (*connect.Response[v1.GetTradesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("marketdata.v1.MarketDataService.GetTrades is not implemented"))

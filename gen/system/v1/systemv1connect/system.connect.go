@@ -36,6 +36,9 @@ const (
 	// SystemServiceGetVersionProcedure is the fully-qualified name of the SystemService's GetVersion
 	// RPC.
 	SystemServiceGetVersionProcedure = "/system.v1.SystemService/GetVersion"
+	// SystemServiceListStatusEventsProcedure is the fully-qualified name of the SystemService's
+	// ListStatusEvents RPC.
+	SystemServiceListStatusEventsProcedure = "/system.v1.SystemService/ListStatusEvents"
 )
 
 // SystemServiceClient is a client for the system.v1.SystemService service.
@@ -43,6 +46,10 @@ type SystemServiceClient interface {
 	// Get the version and source revision of the build the environment serves.
 	// This public read supports cacheable ConnectRPC GET.
 	GetVersion(context.Context, *connect.Request[v1.GetVersionRequest]) (*connect.Response[v1.GetVersionResponse], error)
+	// List scheduled maintenance and incidents, the latest start first. With no
+	// states, it lists current and upcoming events. This public read supports
+	// cacheable ConnectRPC GET; answers can be up to 10 seconds old.
+	ListStatusEvents(context.Context, *connect.Request[v1.ListStatusEventsRequest]) (*connect.Response[v1.ListStatusEventsResponse], error)
 }
 
 // NewSystemServiceClient constructs a client for the system.v1.SystemService service. By default,
@@ -63,12 +70,20 @@ func NewSystemServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		listStatusEvents: connect.NewClient[v1.ListStatusEventsRequest, v1.ListStatusEventsResponse](
+			httpClient,
+			baseURL+SystemServiceListStatusEventsProcedure,
+			connect.WithSchema(systemServiceMethods.ByName("ListStatusEvents")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // systemServiceClient implements SystemServiceClient.
 type systemServiceClient struct {
-	getVersion *connect.Client[v1.GetVersionRequest, v1.GetVersionResponse]
+	getVersion       *connect.Client[v1.GetVersionRequest, v1.GetVersionResponse]
+	listStatusEvents *connect.Client[v1.ListStatusEventsRequest, v1.ListStatusEventsResponse]
 }
 
 // GetVersion calls system.v1.SystemService.GetVersion.
@@ -76,11 +91,20 @@ func (c *systemServiceClient) GetVersion(ctx context.Context, req *connect.Reque
 	return c.getVersion.CallUnary(ctx, req)
 }
 
+// ListStatusEvents calls system.v1.SystemService.ListStatusEvents.
+func (c *systemServiceClient) ListStatusEvents(ctx context.Context, req *connect.Request[v1.ListStatusEventsRequest]) (*connect.Response[v1.ListStatusEventsResponse], error) {
+	return c.listStatusEvents.CallUnary(ctx, req)
+}
+
 // SystemServiceHandler is an implementation of the system.v1.SystemService service.
 type SystemServiceHandler interface {
 	// Get the version and source revision of the build the environment serves.
 	// This public read supports cacheable ConnectRPC GET.
 	GetVersion(context.Context, *connect.Request[v1.GetVersionRequest]) (*connect.Response[v1.GetVersionResponse], error)
+	// List scheduled maintenance and incidents, the latest start first. With no
+	// states, it lists current and upcoming events. This public read supports
+	// cacheable ConnectRPC GET; answers can be up to 10 seconds old.
+	ListStatusEvents(context.Context, *connect.Request[v1.ListStatusEventsRequest]) (*connect.Response[v1.ListStatusEventsResponse], error)
 }
 
 // NewSystemServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -97,10 +121,19 @@ func NewSystemServiceHandler(svc SystemServiceHandler, opts ...connect.HandlerOp
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	systemServiceListStatusEventsHandler := connect.NewUnaryHandler(
+		SystemServiceListStatusEventsProcedure,
+		svc.ListStatusEvents,
+		connect.WithSchema(systemServiceMethods.ByName("ListStatusEvents")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/system.v1.SystemService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case SystemServiceGetVersionProcedure:
 			systemServiceGetVersionHandler.ServeHTTP(w, r)
+		case SystemServiceListStatusEventsProcedure:
+			systemServiceListStatusEventsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -112,4 +145,8 @@ type UnimplementedSystemServiceHandler struct{}
 
 func (UnimplementedSystemServiceHandler) GetVersion(context.Context, *connect.Request[v1.GetVersionRequest]) (*connect.Response[v1.GetVersionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("system.v1.SystemService.GetVersion is not implemented"))
+}
+
+func (UnimplementedSystemServiceHandler) ListStatusEvents(context.Context, *connect.Request[v1.ListStatusEventsRequest]) (*connect.Response[v1.ListStatusEventsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("system.v1.SystemService.ListStatusEvents is not implemented"))
 }
