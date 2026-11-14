@@ -156,7 +156,9 @@ func TestTicket8512ConflictingSelectorsFailBeforeIO(t *testing.T) {
 func TestTicket8511TerminalLifecycle(t *testing.T) {
 	for _, mode := range []string{"refresh", "transport", "close", "recover"} {
 		t.Run(mode, func(t *testing.T) {
-			svc, sends, fail, calls := bookTicketService(t, 1, true)
+			// An unavailable snapshot is requested again in the background:
+			// "refresh" exhausts that request. A sequence gap fetches nothing.
+			svc, sends, fail, calls := bookTicketService(t, 1, mode != "refresh")
 			reported := make(chan error, 10)
 			sub, err := svc.CreateSubscription(context.Background(), CreateSubscriptionOptions{Symbol: "BTC-USDT", OnError: func(err error) { reported <- err }})
 			if err != nil {
@@ -170,7 +172,6 @@ func TestTicket8511TerminalLifecycle(t *testing.T) {
 			switch mode {
 			case "refresh":
 				fail.Store(true)
-				sends <- bookTicketFrame(&ob.OrderBookDelta{SymbolId: 1, BookSeqStart: 3, BookSeqEnd: 3})
 			case "transport":
 				sends <- []byte{255}
 			case "close":
@@ -265,17 +266,19 @@ func TestTicket8510ZeroSequenceOrdering(t *testing.T) {
 			if initial.BookSeq != "0" {
 				t.Fatal(initial)
 			}
-			seq := uint64(5)
+			start, seq := uint64(4), uint64(5)
 			if mode == "contiguous" {
-				seq = 1
+				start, seq = 0, 1
 			}
-			sends <- bookTicketFrame(&ob.OrderBookDelta{BookSeqStart: seq, BookSeqEnd: seq, Reset_: mode == "reset", Bids: []*ob.PriceLevel{{PriceTicks: 100, QtyScaled: 1}}})
+			sends <- bookTicketFrame(&ob.OrderBookDelta{BookSeqStart: start, BookSeqEnd: seq, Reset_: mode == "reset", Bids: []*ob.PriceLevel{{PriceTicks: 100, QtyScaled: 1}}})
 			view, ok := bookTicketNext(t, sub.Updates())
 			if !ok {
 				t.Fatal(sub.Err())
 			}
 			if mode == "gap" {
-				if view.BookSeq != "0" || len(view.Bids) != 0 || calls.Load() != 2 {
+				// The gap is not applied and fetches no snapshot: the book
+				// reads unavailable until the next reset.
+				if view.BookSeq != "0" || len(view.Bids) != 0 || view.Available || calls.Load() != 1 {
 					t.Fatalf("gap applied: view=%+v calls=%d", view, calls.Load())
 				}
 				select {
@@ -324,7 +327,7 @@ func TestTicket8511OverflowThenClose(t *testing.T) {
 		t.Fatalf("initial event: %+v", view)
 	}
 	for seq := uint64(2); seq <= 201; seq++ {
-		sends <- bookTicketFrame(&ob.OrderBookDelta{BookSeqStart: seq, BookSeqEnd: seq})
+		sends <- bookTicketFrame(&ob.OrderBookDelta{BookSeqStart: seq - 1, BookSeqEnd: seq})
 		view, ok := bookTicketNext(t, events)
 		if !ok || view.BookSeq != fmt.Sprint(seq) {
 			t.Fatalf("live event: %+v, expected %d", view, seq)

@@ -183,6 +183,13 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		mapped = &sdkerrors.ServerError{Msg: msg, Code: detail.Code, Status: 504}
 	case resp.StatusCode == http.StatusServiceUnavailable && strings.TrimPrefix(detail.Code, "ERROR_CODE_") == "ACCOUNT_ROUTING_INVALID":
 		mapped = &sdkerrors.APIError{Msg: msg, Code: "ERROR_CODE_ACCOUNT_ROUTING_INVALID"}
+	case resp.StatusCode == http.StatusServiceUnavailable && detail.Code == sdkerrors.AuthCodeTemporarilyUnavailable:
+		// Authentication could not be checked, so the request changed
+		// nothing: a retryable refusal, as its ConnectRPC detail reads.
+		if msg == "" {
+			msg = detail.Code
+		}
+		mapped = &sdkerrors.APIError{Msg: msg, Code: sdkerrors.AuthCodeTemporarilyUnavailable}
 	case (resp.StatusCode == http.StatusBadGateway || resp.StatusCode == http.StatusServiceUnavailable) &&
 		detail.Code != "" && detail.Code == strings.ToUpper(detail.Code):
 		// REST problem codes are uppercase; lowercase Connect error bodies
@@ -271,9 +278,15 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 // Read retry selects on that code, so a definite refusal carries the code of
 // its HTTP status and returns at once. Unavailability or an unknown outcome
 // stays plain: reads may retry those from read context. Any other server error
-// is internal, which reads don't retry. Either way wire.MapConnectError returns
+// is internal, which reads don't retry. A refusal that changed nothing because
+// authentication was briefly unavailable carries unavailable, as its ConnectRPC
+// answer does, so reads retry it too. Either way wire.MapConnectError returns
 // the typed error inside.
 func roundTripError(mapped error, status int) error {
+	var apiErr *sdkerrors.APIError
+	if errors.As(mapped, &apiErr) && apiErr.Code == sdkerrors.AuthCodeTemporarilyUnavailable {
+		return connect.NewError(connect.CodeUnavailable, mapped)
+	}
 	var serverErr *sdkerrors.ServerError
 	if errors.As(mapped, &serverErr) {
 		if isUnavailableStatus(serverErr.Status) {

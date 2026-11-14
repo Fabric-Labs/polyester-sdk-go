@@ -42,6 +42,12 @@ const (
 	// ChangelogServiceListChangesProcedure is the fully-qualified name of the ChangelogService's
 	// ListChanges RPC.
 	ChangelogServiceListChangesProcedure = "/changelog.v1.ChangelogService/ListChanges"
+	// ChangelogServiceListDeploymentGroupsProcedure is the fully-qualified name of the
+	// ChangelogService's ListDeploymentGroups RPC.
+	ChangelogServiceListDeploymentGroupsProcedure = "/changelog.v1.ChangelogService/ListDeploymentGroups"
+	// ChangelogServiceGetDeploymentGroupProcedure is the fully-qualified name of the ChangelogService's
+	// GetDeploymentGroup RPC.
+	ChangelogServiceGetDeploymentGroupProcedure = "/changelog.v1.ChangelogService/GetDeploymentGroup"
 )
 
 // ChangelogServiceClient is a client for the changelog.v1.ChangelogService service.
@@ -55,6 +61,12 @@ type ChangelogServiceClient interface {
 	// List changes across published posts, for example every breaking change
 	// since a given time.
 	ListChanges(context.Context, *connect.Request[v1.ListChangesRequest]) (*connect.Response[v1.ListChangesResponse], error)
+	// List this environment's deployment groups, newest first: each deployment
+	// that brought new releases, with the release posts it brought.
+	ListDeploymentGroups(context.Context, *connect.Request[v1.ListDeploymentGroupsRequest]) (*connect.Response[v1.ListDeploymentGroupsResponse], error)
+	// Get one deployment group by slug, with the changes that need attention
+	// and the highlights of its release posts.
+	GetDeploymentGroup(context.Context, *connect.Request[v1.GetDeploymentGroupRequest]) (*connect.Response[v1.GetDeploymentGroupResponse], error)
 }
 
 // NewChangelogServiceClient constructs a client for the changelog.v1.ChangelogService service. By
@@ -89,14 +101,30 @@ func NewChangelogServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		listDeploymentGroups: connect.NewClient[v1.ListDeploymentGroupsRequest, v1.ListDeploymentGroupsResponse](
+			httpClient,
+			baseURL+ChangelogServiceListDeploymentGroupsProcedure,
+			connect.WithSchema(changelogServiceMethods.ByName("ListDeploymentGroups")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		getDeploymentGroup: connect.NewClient[v1.GetDeploymentGroupRequest, v1.GetDeploymentGroupResponse](
+			httpClient,
+			baseURL+ChangelogServiceGetDeploymentGroupProcedure,
+			connect.WithSchema(changelogServiceMethods.ByName("GetDeploymentGroup")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // changelogServiceClient implements ChangelogServiceClient.
 type changelogServiceClient struct {
-	listPosts   *connect.Client[v1.ListPostsRequest, v1.ListPostsResponse]
-	getPost     *connect.Client[v1.GetPostRequest, v1.GetPostResponse]
-	listChanges *connect.Client[v1.ListChangesRequest, v1.ListChangesResponse]
+	listPosts            *connect.Client[v1.ListPostsRequest, v1.ListPostsResponse]
+	getPost              *connect.Client[v1.GetPostRequest, v1.GetPostResponse]
+	listChanges          *connect.Client[v1.ListChangesRequest, v1.ListChangesResponse]
+	listDeploymentGroups *connect.Client[v1.ListDeploymentGroupsRequest, v1.ListDeploymentGroupsResponse]
+	getDeploymentGroup   *connect.Client[v1.GetDeploymentGroupRequest, v1.GetDeploymentGroupResponse]
 }
 
 // ListPosts calls changelog.v1.ChangelogService.ListPosts.
@@ -114,6 +142,16 @@ func (c *changelogServiceClient) ListChanges(ctx context.Context, req *connect.R
 	return c.listChanges.CallUnary(ctx, req)
 }
 
+// ListDeploymentGroups calls changelog.v1.ChangelogService.ListDeploymentGroups.
+func (c *changelogServiceClient) ListDeploymentGroups(ctx context.Context, req *connect.Request[v1.ListDeploymentGroupsRequest]) (*connect.Response[v1.ListDeploymentGroupsResponse], error) {
+	return c.listDeploymentGroups.CallUnary(ctx, req)
+}
+
+// GetDeploymentGroup calls changelog.v1.ChangelogService.GetDeploymentGroup.
+func (c *changelogServiceClient) GetDeploymentGroup(ctx context.Context, req *connect.Request[v1.GetDeploymentGroupRequest]) (*connect.Response[v1.GetDeploymentGroupResponse], error) {
+	return c.getDeploymentGroup.CallUnary(ctx, req)
+}
+
 // ChangelogServiceHandler is an implementation of the changelog.v1.ChangelogService service.
 type ChangelogServiceHandler interface {
 	// List published post summaries, newest first. Use limit 1 to poll for the
@@ -125,6 +163,12 @@ type ChangelogServiceHandler interface {
 	// List changes across published posts, for example every breaking change
 	// since a given time.
 	ListChanges(context.Context, *connect.Request[v1.ListChangesRequest]) (*connect.Response[v1.ListChangesResponse], error)
+	// List this environment's deployment groups, newest first: each deployment
+	// that brought new releases, with the release posts it brought.
+	ListDeploymentGroups(context.Context, *connect.Request[v1.ListDeploymentGroupsRequest]) (*connect.Response[v1.ListDeploymentGroupsResponse], error)
+	// Get one deployment group by slug, with the changes that need attention
+	// and the highlights of its release posts.
+	GetDeploymentGroup(context.Context, *connect.Request[v1.GetDeploymentGroupRequest]) (*connect.Response[v1.GetDeploymentGroupResponse], error)
 }
 
 // NewChangelogServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -155,6 +199,20 @@ func NewChangelogServiceHandler(svc ChangelogServiceHandler, opts ...connect.Han
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	changelogServiceListDeploymentGroupsHandler := connect.NewUnaryHandler(
+		ChangelogServiceListDeploymentGroupsProcedure,
+		svc.ListDeploymentGroups,
+		connect.WithSchema(changelogServiceMethods.ByName("ListDeploymentGroups")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	changelogServiceGetDeploymentGroupHandler := connect.NewUnaryHandler(
+		ChangelogServiceGetDeploymentGroupProcedure,
+		svc.GetDeploymentGroup,
+		connect.WithSchema(changelogServiceMethods.ByName("GetDeploymentGroup")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/changelog.v1.ChangelogService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ChangelogServiceListPostsProcedure:
@@ -163,6 +221,10 @@ func NewChangelogServiceHandler(svc ChangelogServiceHandler, opts ...connect.Han
 			changelogServiceGetPostHandler.ServeHTTP(w, r)
 		case ChangelogServiceListChangesProcedure:
 			changelogServiceListChangesHandler.ServeHTTP(w, r)
+		case ChangelogServiceListDeploymentGroupsProcedure:
+			changelogServiceListDeploymentGroupsHandler.ServeHTTP(w, r)
+		case ChangelogServiceGetDeploymentGroupProcedure:
+			changelogServiceGetDeploymentGroupHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -182,4 +244,12 @@ func (UnimplementedChangelogServiceHandler) GetPost(context.Context, *connect.Re
 
 func (UnimplementedChangelogServiceHandler) ListChanges(context.Context, *connect.Request[v1.ListChangesRequest]) (*connect.Response[v1.ListChangesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("changelog.v1.ChangelogService.ListChanges is not implemented"))
+}
+
+func (UnimplementedChangelogServiceHandler) ListDeploymentGroups(context.Context, *connect.Request[v1.ListDeploymentGroupsRequest]) (*connect.Response[v1.ListDeploymentGroupsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("changelog.v1.ChangelogService.ListDeploymentGroups is not implemented"))
+}
+
+func (UnimplementedChangelogServiceHandler) GetDeploymentGroup(context.Context, *connect.Request[v1.GetDeploymentGroupRequest]) (*connect.Response[v1.GetDeploymentGroupResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("changelog.v1.ChangelogService.GetDeploymentGroup is not implemented"))
 }

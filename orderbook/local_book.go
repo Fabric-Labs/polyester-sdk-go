@@ -133,7 +133,18 @@ func ParseBucketTicks(bucket string) int {
 	return int(ticks)
 }
 
-// ApplyDelta applies one delta and returns the new book sequence and whether a snapshot refresh is needed.
+// ApplyDelta applies one delta to a book at currentBookSeq and returns the
+// new book sequence and whether the delta is out of sequence.
+//
+// Each delta is the difference between two published views of the tier's top
+// levels: it applies only to a book at exactly its BookSeqStart, the previous
+// delta's BookSeqEnd. A delta whose BookSeqEnd is at most currentBookSeq is
+// already in the book and is dropped. A reset carries the whole view and
+// replaces the book whenever it advances the sequence. Any other delta (one
+// that starts before or after currentBookSeq, a malformed sequence or a
+// malformed level) is out of sequence: it is not applied, the book and
+// sequence are unchanged, and the book no longer follows the stream until the
+// next reset.
 func ApplyDelta(bids, asks BookSide, currentBookSeq int, delta models.OrderBookDeltaUpdate) (int, bool) {
 	// Reject the whole update atomically. Skipping corrupt rows while advancing
 	// the sequence permanently leaves stale quantity in the local book. A
@@ -155,20 +166,18 @@ func ApplyDelta(bids, asks BookSide, currentBookSeq int, delta models.OrderBookD
 	if seqEnd <= currentBookSeq {
 		return currentBookSeq, false
 	}
-	if !delta.Reset && seqStart > currentBookSeq+1 {
+	// A delta diffs the view at seqStart: applied to any other view, a level
+	// that changed in between keeps a stale quantity.
+	if !delta.Reset && seqStart != currentBookSeq {
 		return currentBookSeq, true
 	}
 	if delta.Reset {
 		clear(bids)
 		clear(asks)
-		currentBookSeq = 0
 	}
 	ApplySideDelta(bids, delta.Bids)
 	ApplySideDelta(asks, delta.Asks)
-	if seqEnd > currentBookSeq {
-		currentBookSeq = seqEnd
-	}
-	return currentBookSeq, false
+	return seqEnd, false
 }
 
 // BuildOrderbookData renders the current in-memory book with up to depth levels

@@ -119,3 +119,19 @@ func TestAttachedLegMinimumRefusalNamesTheLeg(t *testing.T) {
 		t.Fatalf("mapped=%T %#v", mapped, mapped)
 	}
 }
+
+// A trailing stop that has started tracking refuses a new nonzero activation
+// price (315): a final refusal that changed nothing, under its generated name.
+func TestTriggerActivationPriceNotModifiableIsAFinalRefusal(t *testing.T) {
+	if orderv1.ErrorCode_ERROR_CODE_TRIGGER_ACTIVATION_PRICE_NOT_MODIFIABLE != 315 {
+		t.Fatalf("TRIGGER_ACTIVATION_PRICE_NOT_MODIFIABLE = %d, want 315", orderv1.ErrorCode_ERROR_CODE_TRIGGER_ACTIVATION_PRICE_NOT_MODIFIABLE)
+	}
+	mapped := mapOrderRefusal(t, orderv1.ErrorCode_ERROR_CODE_TRIGGER_ACTIVATION_PRICE_NOT_MODIFIABLE, connect.CodeFailedPrecondition)
+	apiErr, ok := mapped.(*sdkerrors.APIError)
+	if !ok || apiErr.Code != "ERROR_CODE_TRIGGER_ACTIVATION_PRICE_NOT_MODIFIABLE" {
+		t.Fatalf("mapped=%T %#v", mapped, mapped)
+	}
+	if sdkerrors.IsRetryable(mapped) || sdkerrors.MutationOutcomeUnknown(mapped) || sdkerrors.IsTriggerAlreadyEnded(mapped) {
+		t.Fatal("315 must be a final refusal with a known outcome")
+	}
+}

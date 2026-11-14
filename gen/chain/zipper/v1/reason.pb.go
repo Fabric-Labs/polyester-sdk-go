@@ -275,9 +275,13 @@ type ZipperReasonDetails struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable code assigned to the specific outcome.
 	Code ZipperReasonCode `protobuf:"varint,1,opt,name=code,proto3,enum=chain.zipper.v1.ZipperReasonCode" json:"code,omitempty"`
-	// Stable reason identifier suitable for localization lookup.
+	// Stable reason identifier suitable for localization lookup. A withdrawal
+	// whose execution failed (lifecycle reason ZIPPER_WITHDRAW_EXECUTION_FAILED)
+	// has `withdrawal.execution_failed.under_review`, whatever the code.
 	ReasonId string `protobuf:"bytes,2,opt,name=reason_id,json=reasonId,proto3" json:"reason_id,omitempty"`
-	// User-displayable English explanation of the outcome.
+	// User-displayable English explanation of the outcome. For a withdrawal
+	// whose execution failed, that it failed and is under review by the bridge
+	// operator, and that its funds were not returned to the account.
 	Message       string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

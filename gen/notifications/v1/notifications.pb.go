@@ -94,6 +94,12 @@ const (
 	// not approve it, the linked Telegram account may be in someone else's
 	// hands: unlink it and review the account's sessions.
 	NotificationType_TELEGRAM_APPROVAL NotificationType = 2
+	// A payout address of a QuickSwap broker vault the caller is an Owner or
+	// Finance member of was requested to be added or removed, or the change
+	// was applied or not. Category SECURITY; detail broker_allowlist. If no
+	// member of the broker requested it, act before the address becomes
+	// payable: an added address is payable 24 hours after it is listed.
+	NotificationType_BROKER_ALLOWLIST_CHANGE NotificationType = 3
 )
 
 // Enum value maps for NotificationType.
@@ -102,11 +108,13 @@ var (
 		0: "TYPE_UNSPECIFIED",
 		1: "PRICE_ALERT",
 		2: "TELEGRAM_APPROVAL",
+		3: "BROKER_ALLOWLIST_CHANGE",
 	}
 	NotificationType_value = map[string]int32{
-		"TYPE_UNSPECIFIED":  0,
-		"PRICE_ALERT":       1,
-		"TELEGRAM_APPROVAL": 2,
+		"TYPE_UNSPECIFIED":        0,
+		"PRICE_ALERT":             1,
+		"TELEGRAM_APPROVAL":       2,
+		"BROKER_ALLOWLIST_CHANGE": 3,
 	}
 )
 
@@ -325,6 +333,117 @@ func (TelegramApprovalAction) EnumDescriptor() ([]byte, []int) {
 	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{4}
 }
 
+// BrokerAllowlistEvent is what happened to a broker vault payout address
+// change.
+type BrokerAllowlistEvent int32
+
+const (
+	// Not set. Never returned.
+	BrokerAllowlistEvent_BROKER_ALLOWLIST_EVENT_UNSPECIFIED BrokerAllowlistEvent = 0
+	// A member requested the change.
+	BrokerAllowlistEvent_CHANGE_REQUESTED BrokerAllowlistEvent = 1
+	// The change was applied.
+	BrokerAllowlistEvent_CHANGE_APPLIED BrokerAllowlistEvent = 2
+	// The change was not applied, and never will be; nothing changed.
+	BrokerAllowlistEvent_CHANGE_NOT_APPLIED BrokerAllowlistEvent = 3
+)
+
+// Enum value maps for BrokerAllowlistEvent.
+var (
+	BrokerAllowlistEvent_name = map[int32]string{
+		0: "BROKER_ALLOWLIST_EVENT_UNSPECIFIED",
+		1: "CHANGE_REQUESTED",
+		2: "CHANGE_APPLIED",
+		3: "CHANGE_NOT_APPLIED",
+	}
+	BrokerAllowlistEvent_value = map[string]int32{
+		"BROKER_ALLOWLIST_EVENT_UNSPECIFIED": 0,
+		"CHANGE_REQUESTED":                   1,
+		"CHANGE_APPLIED":                     2,
+		"CHANGE_NOT_APPLIED":                 3,
+	}
+)
+
+func (x BrokerAllowlistEvent) Enum() *BrokerAllowlistEvent {
+	p := new(BrokerAllowlistEvent)
+	*p = x
+	return p
+}
+
+func (x BrokerAllowlistEvent) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (BrokerAllowlistEvent) Descriptor() protoreflect.EnumDescriptor {
+	return file_notifications_v1_notifications_proto_enumTypes[5].Descriptor()
+}
+
+func (BrokerAllowlistEvent) Type() protoreflect.EnumType {
+	return &file_notifications_v1_notifications_proto_enumTypes[5]
+}
+
+func (x BrokerAllowlistEvent) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use BrokerAllowlistEvent.Descriptor instead.
+func (BrokerAllowlistEvent) EnumDescriptor() ([]byte, []int) {
+	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{5}
+}
+
+// BrokerAllowlistAction is what a broker vault payout address change does.
+type BrokerAllowlistAction int32
+
+const (
+	// Not set. Never returned.
+	BrokerAllowlistAction_BROKER_ALLOWLIST_ACTION_UNSPECIFIED BrokerAllowlistAction = 0
+	// Adds the address to the vault's payout address allowlist.
+	BrokerAllowlistAction_ADD_DESTINATION BrokerAllowlistAction = 1
+	// Removes the address from the vault's payout address allowlist.
+	BrokerAllowlistAction_REMOVE_DESTINATION BrokerAllowlistAction = 2
+)
+
+// Enum value maps for BrokerAllowlistAction.
+var (
+	BrokerAllowlistAction_name = map[int32]string{
+		0: "BROKER_ALLOWLIST_ACTION_UNSPECIFIED",
+		1: "ADD_DESTINATION",
+		2: "REMOVE_DESTINATION",
+	}
+	BrokerAllowlistAction_value = map[string]int32{
+		"BROKER_ALLOWLIST_ACTION_UNSPECIFIED": 0,
+		"ADD_DESTINATION":                     1,
+		"REMOVE_DESTINATION":                  2,
+	}
+)
+
+func (x BrokerAllowlistAction) Enum() *BrokerAllowlistAction {
+	p := new(BrokerAllowlistAction)
+	*p = x
+	return p
+}
+
+func (x BrokerAllowlistAction) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (BrokerAllowlistAction) Descriptor() protoreflect.EnumDescriptor {
+	return file_notifications_v1_notifications_proto_enumTypes[6].Descriptor()
+}
+
+func (BrokerAllowlistAction) Type() protoreflect.EnumType {
+	return &file_notifications_v1_notifications_proto_enumTypes[6]
+}
+
+func (x BrokerAllowlistAction) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use BrokerAllowlistAction.Descriptor instead.
+func (BrokerAllowlistAction) EnumDescriptor() ([]byte, []int) {
+	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{6}
+}
+
 // ErrorDetail is attached to Notification API errors as an error detail of
 // type notifications.v1.ErrorDetail.
 type ErrorDetail struct {
@@ -399,6 +518,7 @@ type Notification struct {
 	//
 	//	*Notification_PriceAlert
 	//	*Notification_TelegramApproval
+	//	*Notification_BrokerAllowlist
 	Detail        isNotification_Detail `protobuf_oneof:"detail"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -508,6 +628,15 @@ func (x *Notification) GetTelegramApproval() *TelegramApprovalNotice {
 	return nil
 }
 
+func (x *Notification) GetBrokerAllowlist() *BrokerAllowlistNotice {
+	if x != nil {
+		if x, ok := x.Detail.(*Notification_BrokerAllowlist); ok {
+			return x.BrokerAllowlist
+		}
+	}
+	return nil
+}
+
 type isNotification_Detail interface {
 	isNotification_Detail()
 }
@@ -522,9 +651,16 @@ type Notification_TelegramApproval struct {
 	TelegramApproval *TelegramApprovalNotice `protobuf:"bytes,11,opt,name=telegram_approval,json=telegramApproval,proto3,oneof"`
 }
 
+type Notification_BrokerAllowlist struct {
+	// The broker vault payout address change.
+	BrokerAllowlist *BrokerAllowlistNotice `protobuf:"bytes,12,opt,name=broker_allowlist,json=brokerAllowlist,proto3,oneof"`
+}
+
 func (*Notification_PriceAlert) isNotification_Detail() {}
 
 func (*Notification_TelegramApproval) isNotification_Detail() {}
+
+func (*Notification_BrokerAllowlist) isNotification_Detail() {}
 
 // PriceAlertNotice is a price alert that fired, as it was when it fired.
 type PriceAlertNotice struct {
@@ -776,6 +912,126 @@ func (x *TelegramApprovalNotice) GetApprovedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// BrokerAllowlistNotice is a change of a QuickSwap broker vault's payout
+// address allowlist, as the broker's records show it. Read the change with
+// QuickSwapBrokerService.ListVaultAllowlistChanges.
+type BrokerAllowlistNotice struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Broker name.
+	Broker string `protobuf:"bytes,1,opt,name=broker,proto3" json:"broker,omitempty"`
+	// Public sub-account ID of the vault.
+	VaultAccountId uint64 `protobuf:"fixed64,2,opt,name=vault_account_id,json=vaultAccountId,proto3" json:"vault_account_id,omitempty"`
+	// Public ID of the change, as ListVaultAllowlistChanges returns it.
+	ChangeId uint64 `protobuf:"fixed64,3,opt,name=change_id,json=changeId,proto3" json:"change_id,omitempty"`
+	// What happened to the change.
+	Event BrokerAllowlistEvent `protobuf:"varint,4,opt,name=event,proto3,enum=notifications.v1.BrokerAllowlistEvent" json:"event,omitempty"`
+	// What the change does.
+	Action BrokerAllowlistAction `protobuf:"varint,5,opt,name=action,proto3,enum=notifications.v1.BrokerAllowlistAction" json:"action,omitempty"`
+	// Destination chain identifier of the address.
+	DestinationChainId uint64 `protobuf:"varint,6,opt,name=destination_chain_id,json=destinationChainId,proto3" json:"destination_chain_id,omitempty"`
+	// The address, in canonical form.
+	DestinationAddress string `protobuf:"bytes,7,opt,name=destination_address,json=destinationAddress,proto3" json:"destination_address,omitempty"`
+	// The requesting member's name for an added address; empty when none.
+	Label string `protobuf:"bytes,8,opt,name=label,proto3" json:"label,omitempty"`
+	// Public account ID of the member who requested the change.
+	RequestedByAccountId uint64 `protobuf:"fixed64,9,opt,name=requested_by_account_id,json=requestedByAccountId,proto3" json:"requested_by_account_id,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *BrokerAllowlistNotice) Reset() {
+	*x = BrokerAllowlistNotice{}
+	mi := &file_notifications_v1_notifications_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BrokerAllowlistNotice) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BrokerAllowlistNotice) ProtoMessage() {}
+
+func (x *BrokerAllowlistNotice) ProtoReflect() protoreflect.Message {
+	mi := &file_notifications_v1_notifications_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BrokerAllowlistNotice.ProtoReflect.Descriptor instead.
+func (*BrokerAllowlistNotice) Descriptor() ([]byte, []int) {
+	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *BrokerAllowlistNotice) GetBroker() string {
+	if x != nil {
+		return x.Broker
+	}
+	return ""
+}
+
+func (x *BrokerAllowlistNotice) GetVaultAccountId() uint64 {
+	if x != nil {
+		return x.VaultAccountId
+	}
+	return 0
+}
+
+func (x *BrokerAllowlistNotice) GetChangeId() uint64 {
+	if x != nil {
+		return x.ChangeId
+	}
+	return 0
+}
+
+func (x *BrokerAllowlistNotice) GetEvent() BrokerAllowlistEvent {
+	if x != nil {
+		return x.Event
+	}
+	return BrokerAllowlistEvent_BROKER_ALLOWLIST_EVENT_UNSPECIFIED
+}
+
+func (x *BrokerAllowlistNotice) GetAction() BrokerAllowlistAction {
+	if x != nil {
+		return x.Action
+	}
+	return BrokerAllowlistAction_BROKER_ALLOWLIST_ACTION_UNSPECIFIED
+}
+
+func (x *BrokerAllowlistNotice) GetDestinationChainId() uint64 {
+	if x != nil {
+		return x.DestinationChainId
+	}
+	return 0
+}
+
+func (x *BrokerAllowlistNotice) GetDestinationAddress() string {
+	if x != nil {
+		return x.DestinationAddress
+	}
+	return ""
+}
+
+func (x *BrokerAllowlistNotice) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *BrokerAllowlistNotice) GetRequestedByAccountId() uint64 {
+	if x != nil {
+		return x.RequestedByAccountId
+	}
+	return 0
+}
+
 // ListNotificationsRequest lists the caller's notifications.
 type ListNotificationsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -802,7 +1058,7 @@ type ListNotificationsRequest struct {
 
 func (x *ListNotificationsRequest) Reset() {
 	*x = ListNotificationsRequest{}
-	mi := &file_notifications_v1_notifications_proto_msgTypes[5]
+	mi := &file_notifications_v1_notifications_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -814,7 +1070,7 @@ func (x *ListNotificationsRequest) String() string {
 func (*ListNotificationsRequest) ProtoMessage() {}
 
 func (x *ListNotificationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_notifications_v1_notifications_proto_msgTypes[5]
+	mi := &file_notifications_v1_notifications_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -827,7 +1083,7 @@ func (x *ListNotificationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListNotificationsRequest.ProtoReflect.Descriptor instead.
 func (*ListNotificationsRequest) Descriptor() ([]byte, []int) {
-	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{5}
+	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListNotificationsRequest) GetCategories() []NotificationCategory {
@@ -885,7 +1141,7 @@ type ListNotificationsResponse struct {
 
 func (x *ListNotificationsResponse) Reset() {
 	*x = ListNotificationsResponse{}
-	mi := &file_notifications_v1_notifications_proto_msgTypes[6]
+	mi := &file_notifications_v1_notifications_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -897,7 +1153,7 @@ func (x *ListNotificationsResponse) String() string {
 func (*ListNotificationsResponse) ProtoMessage() {}
 
 func (x *ListNotificationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_notifications_v1_notifications_proto_msgTypes[6]
+	mi := &file_notifications_v1_notifications_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -910,7 +1166,7 @@ func (x *ListNotificationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListNotificationsResponse.ProtoReflect.Descriptor instead.
 func (*ListNotificationsResponse) Descriptor() ([]byte, []int) {
-	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{6}
+	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListNotificationsResponse) GetNotifications() []*Notification {
@@ -938,7 +1194,7 @@ type GetNotificationRequest struct {
 
 func (x *GetNotificationRequest) Reset() {
 	*x = GetNotificationRequest{}
-	mi := &file_notifications_v1_notifications_proto_msgTypes[7]
+	mi := &file_notifications_v1_notifications_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -950,7 +1206,7 @@ func (x *GetNotificationRequest) String() string {
 func (*GetNotificationRequest) ProtoMessage() {}
 
 func (x *GetNotificationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_notifications_v1_notifications_proto_msgTypes[7]
+	mi := &file_notifications_v1_notifications_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -963,7 +1219,7 @@ func (x *GetNotificationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetNotificationRequest.ProtoReflect.Descriptor instead.
 func (*GetNotificationRequest) Descriptor() ([]byte, []int) {
-	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{7}
+	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetNotificationRequest) GetNotificationId() uint64 {
@@ -984,7 +1240,7 @@ type GetNotificationResponse struct {
 
 func (x *GetNotificationResponse) Reset() {
 	*x = GetNotificationResponse{}
-	mi := &file_notifications_v1_notifications_proto_msgTypes[8]
+	mi := &file_notifications_v1_notifications_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -996,7 +1252,7 @@ func (x *GetNotificationResponse) String() string {
 func (*GetNotificationResponse) ProtoMessage() {}
 
 func (x *GetNotificationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_notifications_v1_notifications_proto_msgTypes[8]
+	mi := &file_notifications_v1_notifications_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1009,7 +1265,7 @@ func (x *GetNotificationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetNotificationResponse.ProtoReflect.Descriptor instead.
 func (*GetNotificationResponse) Descriptor() ([]byte, []int) {
-	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{8}
+	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetNotificationResponse) GetNotification() *Notification {
@@ -1028,7 +1284,7 @@ type GetNotificationCountsRequest struct {
 
 func (x *GetNotificationCountsRequest) Reset() {
 	*x = GetNotificationCountsRequest{}
-	mi := &file_notifications_v1_notifications_proto_msgTypes[9]
+	mi := &file_notifications_v1_notifications_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1040,7 +1296,7 @@ func (x *GetNotificationCountsRequest) String() string {
 func (*GetNotificationCountsRequest) ProtoMessage() {}
 
 func (x *GetNotificationCountsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_notifications_v1_notifications_proto_msgTypes[9]
+	mi := &file_notifications_v1_notifications_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1053,7 +1309,7 @@ func (x *GetNotificationCountsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetNotificationCountsRequest.ProtoReflect.Descriptor instead.
 func (*GetNotificationCountsRequest) Descriptor() ([]byte, []int) {
-	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{9}
+	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{10}
 }
 
 // TypeCount counts the caller's notifications of one type.
@@ -1073,7 +1329,7 @@ type TypeCount struct {
 
 func (x *TypeCount) Reset() {
 	*x = TypeCount{}
-	mi := &file_notifications_v1_notifications_proto_msgTypes[10]
+	mi := &file_notifications_v1_notifications_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1085,7 +1341,7 @@ func (x *TypeCount) String() string {
 func (*TypeCount) ProtoMessage() {}
 
 func (x *TypeCount) ProtoReflect() protoreflect.Message {
-	mi := &file_notifications_v1_notifications_proto_msgTypes[10]
+	mi := &file_notifications_v1_notifications_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1098,7 +1354,7 @@ func (x *TypeCount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TypeCount.ProtoReflect.Descriptor instead.
 func (*TypeCount) Descriptor() ([]byte, []int) {
-	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{10}
+	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *TypeCount) GetType() NotificationType {
@@ -1146,7 +1402,7 @@ type GetNotificationCountsResponse struct {
 
 func (x *GetNotificationCountsResponse) Reset() {
 	*x = GetNotificationCountsResponse{}
-	mi := &file_notifications_v1_notifications_proto_msgTypes[11]
+	mi := &file_notifications_v1_notifications_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1158,7 +1414,7 @@ func (x *GetNotificationCountsResponse) String() string {
 func (*GetNotificationCountsResponse) ProtoMessage() {}
 
 func (x *GetNotificationCountsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_notifications_v1_notifications_proto_msgTypes[11]
+	mi := &file_notifications_v1_notifications_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1171,7 +1427,7 @@ func (x *GetNotificationCountsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetNotificationCountsResponse.ProtoReflect.Descriptor instead.
 func (*GetNotificationCountsResponse) Descriptor() ([]byte, []int) {
-	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{11}
+	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetNotificationCountsResponse) GetTotal() uint64 {
@@ -1206,7 +1462,7 @@ type MarkNotificationsReadRequest struct {
 
 func (x *MarkNotificationsReadRequest) Reset() {
 	*x = MarkNotificationsReadRequest{}
-	mi := &file_notifications_v1_notifications_proto_msgTypes[12]
+	mi := &file_notifications_v1_notifications_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1218,7 +1474,7 @@ func (x *MarkNotificationsReadRequest) String() string {
 func (*MarkNotificationsReadRequest) ProtoMessage() {}
 
 func (x *MarkNotificationsReadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_notifications_v1_notifications_proto_msgTypes[12]
+	mi := &file_notifications_v1_notifications_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1231,7 +1487,7 @@ func (x *MarkNotificationsReadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarkNotificationsReadRequest.ProtoReflect.Descriptor instead.
 func (*MarkNotificationsReadRequest) Descriptor() ([]byte, []int) {
-	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{12}
+	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *MarkNotificationsReadRequest) GetNotificationIds() []uint64 {
@@ -1253,7 +1509,7 @@ type MarkNotificationsReadResponse struct {
 
 func (x *MarkNotificationsReadResponse) Reset() {
 	*x = MarkNotificationsReadResponse{}
-	mi := &file_notifications_v1_notifications_proto_msgTypes[13]
+	mi := &file_notifications_v1_notifications_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1265,7 +1521,7 @@ func (x *MarkNotificationsReadResponse) String() string {
 func (*MarkNotificationsReadResponse) ProtoMessage() {}
 
 func (x *MarkNotificationsReadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_notifications_v1_notifications_proto_msgTypes[13]
+	mi := &file_notifications_v1_notifications_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1278,7 +1534,7 @@ func (x *MarkNotificationsReadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarkNotificationsReadResponse.ProtoReflect.Descriptor instead.
 func (*MarkNotificationsReadResponse) Descriptor() ([]byte, []int) {
-	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{13}
+	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *MarkNotificationsReadResponse) GetChanged() uint32 {
@@ -1299,7 +1555,7 @@ type MarkNotificationsUnreadRequest struct {
 
 func (x *MarkNotificationsUnreadRequest) Reset() {
 	*x = MarkNotificationsUnreadRequest{}
-	mi := &file_notifications_v1_notifications_proto_msgTypes[14]
+	mi := &file_notifications_v1_notifications_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1311,7 +1567,7 @@ func (x *MarkNotificationsUnreadRequest) String() string {
 func (*MarkNotificationsUnreadRequest) ProtoMessage() {}
 
 func (x *MarkNotificationsUnreadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_notifications_v1_notifications_proto_msgTypes[14]
+	mi := &file_notifications_v1_notifications_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1324,7 +1580,7 @@ func (x *MarkNotificationsUnreadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarkNotificationsUnreadRequest.ProtoReflect.Descriptor instead.
 func (*MarkNotificationsUnreadRequest) Descriptor() ([]byte, []int) {
-	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{14}
+	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *MarkNotificationsUnreadRequest) GetNotificationIds() []uint64 {
@@ -1347,7 +1603,7 @@ type MarkNotificationsUnreadResponse struct {
 
 func (x *MarkNotificationsUnreadResponse) Reset() {
 	*x = MarkNotificationsUnreadResponse{}
-	mi := &file_notifications_v1_notifications_proto_msgTypes[15]
+	mi := &file_notifications_v1_notifications_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1359,7 +1615,7 @@ func (x *MarkNotificationsUnreadResponse) String() string {
 func (*MarkNotificationsUnreadResponse) ProtoMessage() {}
 
 func (x *MarkNotificationsUnreadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_notifications_v1_notifications_proto_msgTypes[15]
+	mi := &file_notifications_v1_notifications_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1372,7 +1628,7 @@ func (x *MarkNotificationsUnreadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarkNotificationsUnreadResponse.ProtoReflect.Descriptor instead.
 func (*MarkNotificationsUnreadResponse) Descriptor() ([]byte, []int) {
-	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{15}
+	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *MarkNotificationsUnreadResponse) GetChanged() uint32 {
@@ -1398,7 +1654,7 @@ type MarkAllNotificationsReadRequest struct {
 
 func (x *MarkAllNotificationsReadRequest) Reset() {
 	*x = MarkAllNotificationsReadRequest{}
-	mi := &file_notifications_v1_notifications_proto_msgTypes[16]
+	mi := &file_notifications_v1_notifications_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1410,7 +1666,7 @@ func (x *MarkAllNotificationsReadRequest) String() string {
 func (*MarkAllNotificationsReadRequest) ProtoMessage() {}
 
 func (x *MarkAllNotificationsReadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_notifications_v1_notifications_proto_msgTypes[16]
+	mi := &file_notifications_v1_notifications_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1423,7 +1679,7 @@ func (x *MarkAllNotificationsReadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarkAllNotificationsReadRequest.ProtoReflect.Descriptor instead.
 func (*MarkAllNotificationsReadRequest) Descriptor() ([]byte, []int) {
-	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{16}
+	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *MarkAllNotificationsReadRequest) GetCategories() []NotificationCategory {
@@ -1452,7 +1708,7 @@ type MarkAllNotificationsReadResponse struct {
 
 func (x *MarkAllNotificationsReadResponse) Reset() {
 	*x = MarkAllNotificationsReadResponse{}
-	mi := &file_notifications_v1_notifications_proto_msgTypes[17]
+	mi := &file_notifications_v1_notifications_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1464,7 +1720,7 @@ func (x *MarkAllNotificationsReadResponse) String() string {
 func (*MarkAllNotificationsReadResponse) ProtoMessage() {}
 
 func (x *MarkAllNotificationsReadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_notifications_v1_notifications_proto_msgTypes[17]
+	mi := &file_notifications_v1_notifications_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1477,7 +1733,7 @@ func (x *MarkAllNotificationsReadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarkAllNotificationsReadResponse.ProtoReflect.Descriptor instead.
 func (*MarkAllNotificationsReadResponse) Descriptor() ([]byte, []int) {
-	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{17}
+	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *MarkAllNotificationsReadResponse) GetChanged() uint64 {
@@ -1493,7 +1749,7 @@ const file_notifications_v1_notifications_proto_rawDesc = "" +
 	"\n" +
 	"$notifications/v1/notifications.proto\x12\x10notifications.v1\x1a\x1calerts/v1/price_alerts.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\">\n" +
 	"\vErrorDetail\x12/\n" +
-	"\x04code\x18\x01 \x01(\x0e2\x1b.notifications.v1.ErrorCodeR\x04code\"\xf7\x03\n" +
+	"\x04code\x18\x01 \x01(\x0e2\x1b.notifications.v1.ErrorCodeR\x04code\"\xcd\x04\n" +
 	"\fNotification\x12'\n" +
 	"\x0fnotification_id\x18\x01 \x01(\x06R\x0enotificationId\x126\n" +
 	"\x04type\x18\x02 \x01(\x0e2\".notifications.v1.NotificationTypeR\x04type\x12B\n" +
@@ -1506,7 +1762,8 @@ const file_notifications_v1_notifications_proto_rawDesc = "" +
 	"\vprice_alert\x18\n" +
 	" \x01(\v2\".notifications.v1.PriceAlertNoticeH\x00R\n" +
 	"priceAlert\x12W\n" +
-	"\x11telegram_approval\x18\v \x01(\v2(.notifications.v1.TelegramApprovalNoticeH\x00R\x10telegramApprovalB\b\n" +
+	"\x11telegram_approval\x18\v \x01(\v2(.notifications.v1.TelegramApprovalNoticeH\x00R\x10telegramApproval\x12T\n" +
+	"\x10broker_allowlist\x18\f \x01(\v2'.notifications.v1.BrokerAllowlistNoticeH\x00R\x0fbrokerAllowlistB\b\n" +
 	"\x06detail\"\xd7\x02\n" +
 	"\x10PriceAlertNotice\x12\x19\n" +
 	"\balert_id\x18\x01 \x01(\x06R\aalertId\x12\x1b\n" +
@@ -1534,7 +1791,17 @@ const file_notifications_v1_notifications_proto_rawDesc = "" +
 	"parameters\x18\x05 \x03(\v2\x1d.notifications.v1.NoticeFieldB\b\xbaH\x05\x92\x01\x02\x10\x10R\n" +
 	"parameters\x12C\n" +
 	"\vapproved_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\n" +
-	"approvedAt\"\xf7\x02\n" +
+	"approvedAt\"\xa5\x03\n" +
+	"\x15BrokerAllowlistNotice\x12\x16\n" +
+	"\x06broker\x18\x01 \x01(\tR\x06broker\x12(\n" +
+	"\x10vault_account_id\x18\x02 \x01(\x06R\x0evaultAccountId\x12\x1b\n" +
+	"\tchange_id\x18\x03 \x01(\x06R\bchangeId\x12<\n" +
+	"\x05event\x18\x04 \x01(\x0e2&.notifications.v1.BrokerAllowlistEventR\x05event\x12?\n" +
+	"\x06action\x18\x05 \x01(\x0e2'.notifications.v1.BrokerAllowlistActionR\x06action\x120\n" +
+	"\x14destination_chain_id\x18\x06 \x01(\x04R\x12destinationChainId\x12/\n" +
+	"\x13destination_address\x18\a \x01(\tR\x12destinationAddress\x12\x14\n" +
+	"\x05label\x18\b \x01(\tR\x05label\x125\n" +
+	"\x17requested_by_account_id\x18\t \x01(\x06R\x14requestedByAccountId\"\xf7\x02\n" +
 	"\x18ListNotificationsRequest\x12[\n" +
 	"\n" +
 	"categories\x18\x01 \x03(\x0e2&.notifications.v1.NotificationCategoryB\x13\xbaH\x10\x92\x01\r\x10\b\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\n" +
@@ -1582,11 +1849,12 @@ const file_notifications_v1_notifications_proto_rawDesc = "" +
 	"\tErrorCode\x12\x15\n" +
 	"\x11ERROR_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16NOTIFICATION_NOT_FOUND\x10\x01\x12\x17\n" +
-	"\x13SERVICE_UNAVAILABLE\x10\x02*P\n" +
+	"\x13SERVICE_UNAVAILABLE\x10\x02*m\n" +
 	"\x10NotificationType\x12\x14\n" +
 	"\x10TYPE_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vPRICE_ALERT\x10\x01\x12\x15\n" +
-	"\x11TELEGRAM_APPROVAL\x10\x02*J\n" +
+	"\x11TELEGRAM_APPROVAL\x10\x02\x12\x1b\n" +
+	"\x17BROKER_ALLOWLIST_CHANGE\x10\x03*J\n" +
 	"\x14NotificationCategory\x12\x18\n" +
 	"\x14CATEGORY_UNSPECIFIED\x10\x00\x12\n" +
 	"\n" +
@@ -1607,7 +1875,16 @@ const file_notifications_v1_notifications_proto_rawDesc = "" +
 	"\x0eMODIFY_TRIGGER\x10\x06\x12\x11\n" +
 	"\rPAUSE_TRIGGER\x10\a\x12\x12\n" +
 	"\x0eRESUME_TRIGGER\x10\b\x12\b\n" +
-	"\x04SWAP\x10\t2\xf8\n" +
+	"\x04SWAP\x10\t*\x80\x01\n" +
+	"\x14BrokerAllowlistEvent\x12&\n" +
+	"\"BROKER_ALLOWLIST_EVENT_UNSPECIFIED\x10\x00\x12\x14\n" +
+	"\x10CHANGE_REQUESTED\x10\x01\x12\x12\n" +
+	"\x0eCHANGE_APPLIED\x10\x02\x12\x16\n" +
+	"\x12CHANGE_NOT_APPLIED\x10\x03*m\n" +
+	"\x15BrokerAllowlistAction\x12'\n" +
+	"#BROKER_ALLOWLIST_ACTION_UNSPECIFIED\x10\x00\x12\x13\n" +
+	"\x0fADD_DESTINATION\x10\x01\x12\x16\n" +
+	"\x12REMOVE_DESTINATION\x10\x022\xf8\n" +
 	"\n" +
 	"\x13NotificationService\x12\xd3\x01\n" +
 	"\x11ListNotifications\x12*.notifications.v1.ListNotificationsRequest\x1a+.notifications.v1.ListNotificationsResponse\"e\xbaGZ\n" +
@@ -1636,77 +1913,83 @@ func file_notifications_v1_notifications_proto_rawDescGZIP() []byte {
 	return file_notifications_v1_notifications_proto_rawDescData
 }
 
-var file_notifications_v1_notifications_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_notifications_v1_notifications_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_notifications_v1_notifications_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
+var file_notifications_v1_notifications_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_notifications_v1_notifications_proto_goTypes = []any{
 	(ErrorCode)(0),                           // 0: notifications.v1.ErrorCode
 	(NotificationType)(0),                    // 1: notifications.v1.NotificationType
 	(NotificationCategory)(0),                // 2: notifications.v1.NotificationCategory
 	(ReadState)(0),                           // 3: notifications.v1.ReadState
 	(TelegramApprovalAction)(0),              // 4: notifications.v1.TelegramApprovalAction
-	(*ErrorDetail)(nil),                      // 5: notifications.v1.ErrorDetail
-	(*Notification)(nil),                     // 6: notifications.v1.Notification
-	(*PriceAlertNotice)(nil),                 // 7: notifications.v1.PriceAlertNotice
-	(*NoticeField)(nil),                      // 8: notifications.v1.NoticeField
-	(*TelegramApprovalNotice)(nil),           // 9: notifications.v1.TelegramApprovalNotice
-	(*ListNotificationsRequest)(nil),         // 10: notifications.v1.ListNotificationsRequest
-	(*ListNotificationsResponse)(nil),        // 11: notifications.v1.ListNotificationsResponse
-	(*GetNotificationRequest)(nil),           // 12: notifications.v1.GetNotificationRequest
-	(*GetNotificationResponse)(nil),          // 13: notifications.v1.GetNotificationResponse
-	(*GetNotificationCountsRequest)(nil),     // 14: notifications.v1.GetNotificationCountsRequest
-	(*TypeCount)(nil),                        // 15: notifications.v1.TypeCount
-	(*GetNotificationCountsResponse)(nil),    // 16: notifications.v1.GetNotificationCountsResponse
-	(*MarkNotificationsReadRequest)(nil),     // 17: notifications.v1.MarkNotificationsReadRequest
-	(*MarkNotificationsReadResponse)(nil),    // 18: notifications.v1.MarkNotificationsReadResponse
-	(*MarkNotificationsUnreadRequest)(nil),   // 19: notifications.v1.MarkNotificationsUnreadRequest
-	(*MarkNotificationsUnreadResponse)(nil),  // 20: notifications.v1.MarkNotificationsUnreadResponse
-	(*MarkAllNotificationsReadRequest)(nil),  // 21: notifications.v1.MarkAllNotificationsReadRequest
-	(*MarkAllNotificationsReadResponse)(nil), // 22: notifications.v1.MarkAllNotificationsReadResponse
-	(*timestamppb.Timestamp)(nil),            // 23: google.protobuf.Timestamp
-	(v1.AlertDirection)(0),                   // 24: alerts.v1.AlertDirection
-	(v1.AlertPriceSource)(0),                 // 25: alerts.v1.AlertPriceSource
+	(BrokerAllowlistEvent)(0),                // 5: notifications.v1.BrokerAllowlistEvent
+	(BrokerAllowlistAction)(0),               // 6: notifications.v1.BrokerAllowlistAction
+	(*ErrorDetail)(nil),                      // 7: notifications.v1.ErrorDetail
+	(*Notification)(nil),                     // 8: notifications.v1.Notification
+	(*PriceAlertNotice)(nil),                 // 9: notifications.v1.PriceAlertNotice
+	(*NoticeField)(nil),                      // 10: notifications.v1.NoticeField
+	(*TelegramApprovalNotice)(nil),           // 11: notifications.v1.TelegramApprovalNotice
+	(*BrokerAllowlistNotice)(nil),            // 12: notifications.v1.BrokerAllowlistNotice
+	(*ListNotificationsRequest)(nil),         // 13: notifications.v1.ListNotificationsRequest
+	(*ListNotificationsResponse)(nil),        // 14: notifications.v1.ListNotificationsResponse
+	(*GetNotificationRequest)(nil),           // 15: notifications.v1.GetNotificationRequest
+	(*GetNotificationResponse)(nil),          // 16: notifications.v1.GetNotificationResponse
+	(*GetNotificationCountsRequest)(nil),     // 17: notifications.v1.GetNotificationCountsRequest
+	(*TypeCount)(nil),                        // 18: notifications.v1.TypeCount
+	(*GetNotificationCountsResponse)(nil),    // 19: notifications.v1.GetNotificationCountsResponse
+	(*MarkNotificationsReadRequest)(nil),     // 20: notifications.v1.MarkNotificationsReadRequest
+	(*MarkNotificationsReadResponse)(nil),    // 21: notifications.v1.MarkNotificationsReadResponse
+	(*MarkNotificationsUnreadRequest)(nil),   // 22: notifications.v1.MarkNotificationsUnreadRequest
+	(*MarkNotificationsUnreadResponse)(nil),  // 23: notifications.v1.MarkNotificationsUnreadResponse
+	(*MarkAllNotificationsReadRequest)(nil),  // 24: notifications.v1.MarkAllNotificationsReadRequest
+	(*MarkAllNotificationsReadResponse)(nil), // 25: notifications.v1.MarkAllNotificationsReadResponse
+	(*timestamppb.Timestamp)(nil),            // 26: google.protobuf.Timestamp
+	(v1.AlertDirection)(0),                   // 27: alerts.v1.AlertDirection
+	(v1.AlertPriceSource)(0),                 // 28: alerts.v1.AlertPriceSource
 }
 var file_notifications_v1_notifications_proto_depIdxs = []int32{
 	0,  // 0: notifications.v1.ErrorDetail.code:type_name -> notifications.v1.ErrorCode
 	1,  // 1: notifications.v1.Notification.type:type_name -> notifications.v1.NotificationType
 	2,  // 2: notifications.v1.Notification.category:type_name -> notifications.v1.NotificationCategory
-	23, // 3: notifications.v1.Notification.created_at:type_name -> google.protobuf.Timestamp
-	23, // 4: notifications.v1.Notification.read_at:type_name -> google.protobuf.Timestamp
-	7,  // 5: notifications.v1.Notification.price_alert:type_name -> notifications.v1.PriceAlertNotice
-	9,  // 6: notifications.v1.Notification.telegram_approval:type_name -> notifications.v1.TelegramApprovalNotice
-	24, // 7: notifications.v1.PriceAlertNotice.direction:type_name -> alerts.v1.AlertDirection
-	25, // 8: notifications.v1.PriceAlertNotice.price_source:type_name -> alerts.v1.AlertPriceSource
-	23, // 9: notifications.v1.PriceAlertNotice.triggered_at:type_name -> google.protobuf.Timestamp
-	4,  // 10: notifications.v1.TelegramApprovalNotice.action:type_name -> notifications.v1.TelegramApprovalAction
-	8,  // 11: notifications.v1.TelegramApprovalNotice.parameters:type_name -> notifications.v1.NoticeField
-	23, // 12: notifications.v1.TelegramApprovalNotice.approved_at:type_name -> google.protobuf.Timestamp
-	2,  // 13: notifications.v1.ListNotificationsRequest.categories:type_name -> notifications.v1.NotificationCategory
-	3,  // 14: notifications.v1.ListNotificationsRequest.read_state:type_name -> notifications.v1.ReadState
-	23, // 15: notifications.v1.ListNotificationsRequest.start_time:type_name -> google.protobuf.Timestamp
-	23, // 16: notifications.v1.ListNotificationsRequest.end_time:type_name -> google.protobuf.Timestamp
-	6,  // 17: notifications.v1.ListNotificationsResponse.notifications:type_name -> notifications.v1.Notification
-	6,  // 18: notifications.v1.GetNotificationResponse.notification:type_name -> notifications.v1.Notification
-	1,  // 19: notifications.v1.TypeCount.type:type_name -> notifications.v1.NotificationType
-	2,  // 20: notifications.v1.TypeCount.category:type_name -> notifications.v1.NotificationCategory
-	15, // 21: notifications.v1.GetNotificationCountsResponse.types:type_name -> notifications.v1.TypeCount
-	2,  // 22: notifications.v1.MarkAllNotificationsReadRequest.categories:type_name -> notifications.v1.NotificationCategory
-	10, // 23: notifications.v1.NotificationService.ListNotifications:input_type -> notifications.v1.ListNotificationsRequest
-	12, // 24: notifications.v1.NotificationService.GetNotification:input_type -> notifications.v1.GetNotificationRequest
-	14, // 25: notifications.v1.NotificationService.GetNotificationCounts:input_type -> notifications.v1.GetNotificationCountsRequest
-	17, // 26: notifications.v1.NotificationService.MarkNotificationsRead:input_type -> notifications.v1.MarkNotificationsReadRequest
-	19, // 27: notifications.v1.NotificationService.MarkNotificationsUnread:input_type -> notifications.v1.MarkNotificationsUnreadRequest
-	21, // 28: notifications.v1.NotificationService.MarkAllNotificationsRead:input_type -> notifications.v1.MarkAllNotificationsReadRequest
-	11, // 29: notifications.v1.NotificationService.ListNotifications:output_type -> notifications.v1.ListNotificationsResponse
-	13, // 30: notifications.v1.NotificationService.GetNotification:output_type -> notifications.v1.GetNotificationResponse
-	16, // 31: notifications.v1.NotificationService.GetNotificationCounts:output_type -> notifications.v1.GetNotificationCountsResponse
-	18, // 32: notifications.v1.NotificationService.MarkNotificationsRead:output_type -> notifications.v1.MarkNotificationsReadResponse
-	20, // 33: notifications.v1.NotificationService.MarkNotificationsUnread:output_type -> notifications.v1.MarkNotificationsUnreadResponse
-	22, // 34: notifications.v1.NotificationService.MarkAllNotificationsRead:output_type -> notifications.v1.MarkAllNotificationsReadResponse
-	29, // [29:35] is the sub-list for method output_type
-	23, // [23:29] is the sub-list for method input_type
-	23, // [23:23] is the sub-list for extension type_name
-	23, // [23:23] is the sub-list for extension extendee
-	0,  // [0:23] is the sub-list for field type_name
+	26, // 3: notifications.v1.Notification.created_at:type_name -> google.protobuf.Timestamp
+	26, // 4: notifications.v1.Notification.read_at:type_name -> google.protobuf.Timestamp
+	9,  // 5: notifications.v1.Notification.price_alert:type_name -> notifications.v1.PriceAlertNotice
+	11, // 6: notifications.v1.Notification.telegram_approval:type_name -> notifications.v1.TelegramApprovalNotice
+	12, // 7: notifications.v1.Notification.broker_allowlist:type_name -> notifications.v1.BrokerAllowlistNotice
+	27, // 8: notifications.v1.PriceAlertNotice.direction:type_name -> alerts.v1.AlertDirection
+	28, // 9: notifications.v1.PriceAlertNotice.price_source:type_name -> alerts.v1.AlertPriceSource
+	26, // 10: notifications.v1.PriceAlertNotice.triggered_at:type_name -> google.protobuf.Timestamp
+	4,  // 11: notifications.v1.TelegramApprovalNotice.action:type_name -> notifications.v1.TelegramApprovalAction
+	10, // 12: notifications.v1.TelegramApprovalNotice.parameters:type_name -> notifications.v1.NoticeField
+	26, // 13: notifications.v1.TelegramApprovalNotice.approved_at:type_name -> google.protobuf.Timestamp
+	5,  // 14: notifications.v1.BrokerAllowlistNotice.event:type_name -> notifications.v1.BrokerAllowlistEvent
+	6,  // 15: notifications.v1.BrokerAllowlistNotice.action:type_name -> notifications.v1.BrokerAllowlistAction
+	2,  // 16: notifications.v1.ListNotificationsRequest.categories:type_name -> notifications.v1.NotificationCategory
+	3,  // 17: notifications.v1.ListNotificationsRequest.read_state:type_name -> notifications.v1.ReadState
+	26, // 18: notifications.v1.ListNotificationsRequest.start_time:type_name -> google.protobuf.Timestamp
+	26, // 19: notifications.v1.ListNotificationsRequest.end_time:type_name -> google.protobuf.Timestamp
+	8,  // 20: notifications.v1.ListNotificationsResponse.notifications:type_name -> notifications.v1.Notification
+	8,  // 21: notifications.v1.GetNotificationResponse.notification:type_name -> notifications.v1.Notification
+	1,  // 22: notifications.v1.TypeCount.type:type_name -> notifications.v1.NotificationType
+	2,  // 23: notifications.v1.TypeCount.category:type_name -> notifications.v1.NotificationCategory
+	18, // 24: notifications.v1.GetNotificationCountsResponse.types:type_name -> notifications.v1.TypeCount
+	2,  // 25: notifications.v1.MarkAllNotificationsReadRequest.categories:type_name -> notifications.v1.NotificationCategory
+	13, // 26: notifications.v1.NotificationService.ListNotifications:input_type -> notifications.v1.ListNotificationsRequest
+	15, // 27: notifications.v1.NotificationService.GetNotification:input_type -> notifications.v1.GetNotificationRequest
+	17, // 28: notifications.v1.NotificationService.GetNotificationCounts:input_type -> notifications.v1.GetNotificationCountsRequest
+	20, // 29: notifications.v1.NotificationService.MarkNotificationsRead:input_type -> notifications.v1.MarkNotificationsReadRequest
+	22, // 30: notifications.v1.NotificationService.MarkNotificationsUnread:input_type -> notifications.v1.MarkNotificationsUnreadRequest
+	24, // 31: notifications.v1.NotificationService.MarkAllNotificationsRead:input_type -> notifications.v1.MarkAllNotificationsReadRequest
+	14, // 32: notifications.v1.NotificationService.ListNotifications:output_type -> notifications.v1.ListNotificationsResponse
+	16, // 33: notifications.v1.NotificationService.GetNotification:output_type -> notifications.v1.GetNotificationResponse
+	19, // 34: notifications.v1.NotificationService.GetNotificationCounts:output_type -> notifications.v1.GetNotificationCountsResponse
+	21, // 35: notifications.v1.NotificationService.MarkNotificationsRead:output_type -> notifications.v1.MarkNotificationsReadResponse
+	23, // 36: notifications.v1.NotificationService.MarkNotificationsUnread:output_type -> notifications.v1.MarkNotificationsUnreadResponse
+	25, // 37: notifications.v1.NotificationService.MarkAllNotificationsRead:output_type -> notifications.v1.MarkAllNotificationsReadResponse
+	32, // [32:38] is the sub-list for method output_type
+	26, // [26:32] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_notifications_v1_notifications_proto_init() }
@@ -1717,14 +2000,15 @@ func file_notifications_v1_notifications_proto_init() {
 	file_notifications_v1_notifications_proto_msgTypes[1].OneofWrappers = []any{
 		(*Notification_PriceAlert)(nil),
 		(*Notification_TelegramApproval)(nil),
+		(*Notification_BrokerAllowlist)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_notifications_v1_notifications_proto_rawDesc), len(file_notifications_v1_notifications_proto_rawDesc)),
-			NumEnums:      5,
-			NumMessages:   18,
+			NumEnums:      7,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

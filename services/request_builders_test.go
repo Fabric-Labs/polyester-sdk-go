@@ -258,8 +258,11 @@ func TestPOLY8471GoTransferSinceUsesMicroseconds(t *testing.T) {
 		if since != nil {
 			want = uint64(*since)
 		}
-		if req.TsMinUs != want || req.TsMaxUs != 0 {
-			t.Fatalf("request=%v want ts_min_us=%d", req, want)
+		// ts_max_us has explicit presence: an explicit 0 would ask for an
+		// empty, epoch-bounded page. The SDK sets no upper bound, so the
+		// field must be absent on the wire, not zero.
+		if req.TsMinUs != want || req.TsMaxUs != nil {
+			t.Fatalf("request=%v want ts_min_us=%d and no ts_max_us", req, want)
 		}
 	}
 }

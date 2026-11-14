@@ -255,6 +255,17 @@ func levelDiff(previous, current map[int64]int64) map[int64]int64 {
 }
 
 // publish advances the sequence and sends each tier's diff, on the tiers only.
+// reset sends the tier's whole current view as a reset, as the publisher does
+// periodically and after a gap.
+func (m *tierMarket) reset(t *testing.T, tier int) {
+	t.Helper()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	bids, asks := m.viewLocked(tier)
+	m.sendLocked(t, tier, tierDelta{start: 0, end: m.seq, reset: true, bids: bids, asks: asks})
+	m.published[tier] = tierView{bids: bids, asks: asks, seq: m.seq}
+}
+
 func (m *tierMarket) publish(t *testing.T, change func(*tierMarket)) {
 	t.Helper()
 	m.mu.Lock()
@@ -630,7 +641,10 @@ func gapCounter() (func(), func() int64) {
 	return func() { gaps.Add(1) }, gaps.Load
 }
 
-func TestManagedBookGapInDeltaOutsideViewRefreshesAtTier(t *testing.T) {
+// A delta that does not start at the book's sequence is not applied, and the
+// book waits for the next reset instead of fetching snapshots: one fetched now
+// need not line up with the stream either.
+func TestManagedBookGapInDeltaOutsideViewWaitsForReset(t *testing.T) {
 	service, market := newTierService(t, 600)
 	onGap, gaps := gapCounter()
 	sub := tierBook(t, service, services.CreateSubscriptionOptions{Depth: 10, OnSequenceGap: onGap})
@@ -639,14 +653,18 @@ func TestManagedBookGapInDeltaOutsideViewRefreshesAtTier(t *testing.T) {
 	// Sequences from the snapshot's 100, skipping ahead; only level 15 changes.
 	market.update(func(m *tierMarket) { m.bids[deep] = 44; m.seq = 200 })
 	market.send(t, 20, tierDelta{start: 150, end: 200, bids: map[int64]int64{deep: 44}})
-	refreshed := nextTierView(t, sub, "view after the gap refresh")
-	if gaps() != 1 {
-		t.Fatalf("gaps = %d", gaps())
+	stale := nextTierView(t, sub, "view after the gap")
+	if gaps() != 1 || stale.Available || stale.BookSeq != "100" {
+		t.Fatalf("gaps = %d, view available %v at seq %s", gaps(), stale.Available, stale.BookSeq)
 	}
-	assertSnapshots(t, market, "DEPTH_20", "DEPTH_20")
-	if refreshed.BookSeq != "200" || len(refreshed.Bids) != 10 {
-		t.Fatalf("seq %s with %d bids", refreshed.BookSeq, len(refreshed.Bids))
+	// Deltas after the gap are not applied either, and fire no second gap.
+	market.publish(t, func(m *tierMarket) { m.bids[tierBestBid] = 9 })
+	market.reset(t, 20)
+	recovered := nextTierView(t, sub, "view after the reset")
+	if gaps() != 1 || !recovered.Available || recovered.BookSeq != "201" || len(recovered.Bids) != 10 || recovered.Bids[0].Qty.Scaled() != 9 {
+		t.Fatalf("gaps = %d, view available %v at seq %s with %d bids", gaps(), recovered.Available, recovered.BookSeq, len(recovered.Bids))
 	}
+	assertSnapshots(t, market, "DEPTH_20")
 }
 
 func TestManagedBookSequenceZeroSnapshotDetectsGapAtTrimmedDepth(t *testing.T) {
@@ -660,13 +678,14 @@ func TestManagedBookSequenceZeroSnapshotDetectsGapAtTrimmedDepth(t *testing.T) {
 	}
 	market.update(func(m *tierMarket) { m.seq = 6 })
 	market.send(t, 20, tierDelta{start: 5, end: 6, bids: map[int64]int64{tierBestBid: 8}})
-	refreshed := nextTierView(t, sub, "view after the gap refresh")
+	stale := nextTierView(t, sub, "view after the gap")
 	if gaps() != 1 {
 		t.Fatalf("gaps = %d", gaps())
 	}
-	if refreshed.BookSeq != "6" || refreshed.Bids[0].Qty.Scaled() != 5 {
-		t.Fatalf("seq %s qty %d: the gapped delta must not be applied", refreshed.BookSeq, refreshed.Bids[0].Qty.Scaled())
+	if stale.Available || stale.BookSeq != "0" || stale.Bids[0].Qty.Scaled() != 5 {
+		t.Fatalf("available %v seq %s qty %d: the gapped delta must not be applied", stale.Available, stale.BookSeq, stale.Bids[0].Qty.Scaled())
 	}
+	assertSnapshots(t, market, "DEPTH_20")
 }
 
 func TestManagedBookSequenceZeroSnapshotAppliesNextContiguousDelta(t *testing.T) {
@@ -675,7 +694,7 @@ func TestManagedBookSequenceZeroSnapshotAppliesNextContiguousDelta(t *testing.T)
 	onGap, gaps := gapCounter()
 	sub := tierBook(t, service, services.CreateSubscriptionOptions{Depth: 10, OnSequenceGap: onGap})
 	nextTierView(t, sub, "first view")
-	market.send(t, 20, tierDelta{start: 1, end: 1, bids: map[int64]int64{tierBestBid: 8}})
+	market.send(t, 20, tierDelta{start: 0, end: 1, bids: map[int64]int64{tierBestBid: 8}})
 	updated := nextTierView(t, sub, "view after a delta")
 	if gaps() != 0 || updated.BookSeq != "1" || updated.Bids[0].Qty.Scaled() != 8 {
 		t.Fatalf("gaps %d seq %s qty %d", gaps(), updated.BookSeq, updated.Bids[0].Qty.Scaled())
@@ -749,7 +768,7 @@ func TestManagedBookCoarseBucketAbovePriceShowsZeroBidAtTrimmedDepth(t *testing.
 }
 
 // A zero-price level outside the trimmed view is still refused before it reaches
-// the book: the book is rebuilt from a fresh snapshot at the tier and stays open.
+// the book: the book waits for the next reset at the tier and stays open.
 func TestManagedBookZeroPriceOutsideTrimmedViewResyncsAtTier(t *testing.T) {
 	service, market := newTierService(t, 600)
 	var reported, gaps atomic.Int64
@@ -760,11 +779,17 @@ func TestManagedBookZeroPriceOutsideTrimmedViewResyncsAtTier(t *testing.T) {
 	})
 	first := nextTierView(t, sub, "first view")
 	market.send(t, 20, tierDelta{start: 100, end: 101, bids: map[int64]int64{0: 5}})
-	refreshed := nextTierView(t, sub, "view after the refused delta")
-	if refreshed.BookSeq != first.BookSeq || len(refreshed.Bids) != 10 {
-		t.Fatalf("refused delta changed the book: seq %s, %d bids", refreshed.BookSeq, len(refreshed.Bids))
+	stale := nextTierView(t, sub, "view after the refused delta")
+	if stale.Available || stale.BookSeq != first.BookSeq || len(stale.Bids) != 10 {
+		t.Fatalf("refused delta changed the book: available %v seq %s, %d bids", stale.Available, stale.BookSeq, len(stale.Bids))
 	}
-	assertSnapshots(t, market, "DEPTH_20", "DEPTH_20")
+	market.update(func(m *tierMarket) { m.seq = 101 })
+	market.reset(t, 20)
+	recovered := nextTierView(t, sub, "view after the reset")
+	if !recovered.Available || recovered.BookSeq != "101" || len(recovered.Bids) != 10 {
+		t.Fatalf("reset did not recover the book: available %v seq %s, %d bids", recovered.Available, recovered.BookSeq, len(recovered.Bids))
+	}
+	assertSnapshots(t, market, "DEPTH_20")
 	if sub.Err() != nil || reported.Load() != 0 || gaps.Load() != 1 {
 		t.Fatalf("Err=%v errors=%d gaps=%d", sub.Err(), reported.Load(), gaps.Load())
 	}
