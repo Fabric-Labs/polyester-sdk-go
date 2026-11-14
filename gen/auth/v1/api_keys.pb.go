@@ -143,6 +143,75 @@ func (ApiKeyPurpose) EnumDescriptor() ([]byte, []int) {
 	return file_auth_v1_api_keys_proto_rawDescGZIP(), []int{1}
 }
 
+// AssistantKeyPreset is a fixed permission set for a Polyester AI assistant
+// key. SetAssistantKeys turns it into an API policy of the key's main account,
+// named after the preset, so the policy and the key need only the set's one
+// step-up proof. No preset ever allows a money-out action (EXTERNAL_WITHDRAW,
+// INTERNAL_TRANSFER, MANAGE_ADDRESS_BOOK, MANAGE_AUTO_WITHDRAW), API-key or
+// policy management, or any action that weakens account security.
+type AssistantKeyPreset int32
+
+const (
+	// No preset selected.
+	AssistantKeyPreset_PRESET_UNSPECIFIED AssistantKeyPreset = 0
+	// Read actions only: READ_BALANCES, READ_SPOT, READ_INTERNAL_TRANSFERS,
+	// READ_AUTO_WITHDRAW, READ_API_KEYS, READ_SUBACCOUNTS and
+	// READ_DEPOSIT_ADDRESSES. On the main account, also READ_PRICE_ALERTS, a
+	// main-account permission. Policy name "Polyester AI - Read only (main
+	// account)" on the main account, "Polyester AI - Read only (sub-account)"
+	// on a sub-account.
+	AssistantKeyPreset_READ_ONLY AssistantKeyPreset = 1
+	// READ_ONLY plus TRADE_SPOT, SWAP and CREATE_DEPOSIT_ADDRESS: the assistant
+	// also places, changes and cancels orders and triggers, and swaps, each only
+	// after the user approves that change, and creates deposit addresses, which
+	// move no funds out. On the main account, also MANAGE_PRICE_ALERTS: price
+	// alerts move no funds. Policy name "Polyester AI - Trade with
+	// approval (main account)" on the main account, "Polyester AI - Trade with
+	// approval (sub-account)" on a sub-account.
+	AssistantKeyPreset_TRADE_WITH_APPROVAL AssistantKeyPreset = 2
+)
+
+// Enum value maps for AssistantKeyPreset.
+var (
+	AssistantKeyPreset_name = map[int32]string{
+		0: "PRESET_UNSPECIFIED",
+		1: "READ_ONLY",
+		2: "TRADE_WITH_APPROVAL",
+	}
+	AssistantKeyPreset_value = map[string]int32{
+		"PRESET_UNSPECIFIED":  0,
+		"READ_ONLY":           1,
+		"TRADE_WITH_APPROVAL": 2,
+	}
+)
+
+func (x AssistantKeyPreset) Enum() *AssistantKeyPreset {
+	p := new(AssistantKeyPreset)
+	*p = x
+	return p
+}
+
+func (x AssistantKeyPreset) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AssistantKeyPreset) Descriptor() protoreflect.EnumDescriptor {
+	return file_auth_v1_api_keys_proto_enumTypes[2].Descriptor()
+}
+
+func (AssistantKeyPreset) Type() protoreflect.EnumType {
+	return &file_auth_v1_api_keys_proto_enumTypes[2]
+}
+
+func (x AssistantKeyPreset) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AssistantKeyPreset.Descriptor instead.
+func (AssistantKeyPreset) EnumDescriptor() ([]byte, []int) {
+	return file_auth_v1_api_keys_proto_rawDescGZIP(), []int{2}
+}
+
 // ApiKey is public API key metadata. It never includes the private key or seed.
 type ApiKey struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -972,7 +1041,8 @@ type AssistantKeySpec struct {
 	PublicKeyEd25519 []byte `protobuf:"bytes,2,opt,name=public_key_ed25519,json=publicKeyEd25519,proto3" json:"public_key_ed25519,omitempty"`
 	// API policy that bounds the key (opaque ID). It must belong to the same
 	// main account as the key, and must not allow EXTERNAL_WITHDRAW,
-	// INTERNAL_TRANSFER, MANAGE_ADDRESS_BOOK or MANAGE_AUTO_WITHDRAW.
+	// INTERNAL_TRANSFER, MANAGE_ADDRESS_BOOK or MANAGE_AUTO_WITHDRAW. Set
+	// exactly one of policy_id and preset.
 	PolicyId uint64 `protobuf:"fixed64,3,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
 	// Time until which the key may be registered, as the Polyester AI assistant
 	// issued it with the key (PrepareAssistantKeys), in whole milliseconds.
@@ -985,8 +1055,14 @@ type AssistantKeySpec struct {
 	// issued it with the key (64 bytes). Required for a new key; not needed
 	// when the account's current assistant key already has this public key.
 	RegistrationProof []byte `protobuf:"bytes,5,opt,name=registration_proof,json=registrationProof,proto3" json:"registration_proof,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Permission preset that bounds the key, instead of policy_id. The key is
+	// bound to the preset's policy in the key's main account: the existing one
+	// with the preset's name and exactly its actions over all markets, else one
+	// created in the same change. The response's policy_id names it. Set
+	// exactly one of policy_id and preset.
+	Preset        AssistantKeyPreset `protobuf:"varint,6,opt,name=preset,proto3,enum=auth.v1.AssistantKeyPreset" json:"preset,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AssistantKeySpec) Reset() {
@@ -1052,6 +1128,13 @@ func (x *AssistantKeySpec) GetRegistrationProof() []byte {
 		return x.RegistrationProof
 	}
 	return nil
+}
+
+func (x *AssistantKeySpec) GetPreset() AssistantKeyPreset {
+	if x != nil {
+		return x.Preset
+	}
+	return AssistantKeyPreset_PRESET_UNSPECIFIED
 }
 
 // SetAssistantKeysRequest replaces the caller's assistant key set.
@@ -1386,14 +1469,17 @@ const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\x11expected_revision\x18\x04 \x01(\x04B\n" +
 	"\xe0A\x02\xbaH\x042\x02 \x00R\x10expectedRevision\"@\n" +
 	"\x14UpdateApiKeyResponse\x12(\n" +
-	"\aapi_key\x18\x01 \x01(\v2\x0f.auth.v1.ApiKeyR\x06apiKey\"\xb8\x02\n" +
+	"\aapi_key\x18\x01 \x01(\v2\x0f.auth.v1.ApiKeyR\x06apiKey\"\x80\x03\n" +
 	"\x10AssistantKeySpec\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x128\n" +
 	"\x12public_key_ed25519\x18\x02 \x01(\fB\n" +
-	"\xe0A\x02\xbaH\x04z\x02h R\x10publicKeyEd25519\x12.\n" +
-	"\tpolicy_id\x18\x03 \x01(\x06B\x11\xe0A\x02\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\bpolicyId\x12O\n" +
+	"\xe0A\x02\xbaH\x04z\x02h R\x10publicKeyEd25519\x12\x1b\n" +
+	"\tpolicy_id\x18\x03 \x01(\x06R\bpolicyId\x12O\n" +
 	"\x15registration_deadline\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x14registrationDeadline\x12-\n" +
-	"\x12registration_proof\x18\x05 \x01(\fR\x11registrationProofB\x10\n" +
+	"\x12registration_proof\x18\x05 \x01(\fR\x11registrationProof\x12=\n" +
+	"\x06preset\x18\x06 \x01(\x0e2\x1b.auth.v1.AssistantKeyPresetB\b\xbaH\x05\x82\x01\x02\x10\x01R\x06preset:\x1a\xbaH\x17\"\x15\n" +
+	"\tpolicy_id\n" +
+	"\x06preset\x10\x01B\x10\n" +
 	"\x0e_subaccount_id\"W\n" +
 	"\x17SetAssistantKeysRequest\x12<\n" +
 	"\x04keys\x18\x01 \x03(\v2\x19.auth.v1.AssistantKeySpecB\r\xe0A\x02\xbaH\a\x92\x01\x04\b\x01\x10@R\x04keys\"F\n" +
@@ -1414,7 +1500,11 @@ const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\rApiKeyPurpose\x12\x17\n" +
 	"\x13PURPOSE_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\bSTANDARD\x10\x01\x12\r\n" +
-	"\tASSISTANT\x10\x022\xb4\x12\n" +
+	"\tASSISTANT\x10\x02*T\n" +
+	"\x12AssistantKeyPreset\x12\x16\n" +
+	"\x12PRESET_UNSPECIFIED\x10\x00\x12\r\n" +
+	"\tREAD_ONLY\x10\x01\x12\x17\n" +
+	"\x13TRADE_WITH_APPROVAL\x10\x022\xb4\x12\n" +
 	"\rApiKeyService\x12\xaf\x02\n" +
 	"\fCreateApiKey\x12\x1c.auth.v1.CreateApiKeyRequest\x1a\x1d.auth.v1.CreateApiKeyResponse\"\xe1\x01\xbaG\xb8\x01\n" +
 	"\fAuth Service\x12\x0eCreate API Key\x1a\x97\x01Create a new API key for the caller account, including public key material and metadata. Requires the acting caller to have accepted the current terms.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v1/auth/api-keys\x12\xe3\x02\n" +
@@ -1445,73 +1535,75 @@ func file_auth_v1_api_keys_proto_rawDescGZIP() []byte {
 	return file_auth_v1_api_keys_proto_rawDescData
 }
 
-var file_auth_v1_api_keys_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_auth_v1_api_keys_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_auth_v1_api_keys_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_auth_v1_api_keys_proto_goTypes = []any{
 	(ApiKeyStatus)(0),                   // 0: auth.v1.ApiKeyStatus
 	(ApiKeyPurpose)(0),                  // 1: auth.v1.ApiKeyPurpose
-	(*ApiKey)(nil),                      // 2: auth.v1.ApiKey
-	(*CreateApiKeyRequest)(nil),         // 3: auth.v1.CreateApiKeyRequest
-	(*CreateApiKeyResponse)(nil),        // 4: auth.v1.CreateApiKeyResponse
-	(*ListApiKeysRequest)(nil),          // 5: auth.v1.ListApiKeysRequest
-	(*ListApiKeysResponse)(nil),         // 6: auth.v1.ListApiKeysResponse
-	(*DeleteApiKeyRequest)(nil),         // 7: auth.v1.DeleteApiKeyRequest
-	(*DeleteApiKeyResponse)(nil),        // 8: auth.v1.DeleteApiKeyResponse
-	(*GetApiKeyRequest)(nil),            // 9: auth.v1.GetApiKeyRequest
-	(*GetApiKeyResponse)(nil),           // 10: auth.v1.GetApiKeyResponse
-	(*ApiKeyUpdateSpec)(nil),            // 11: auth.v1.ApiKeyUpdateSpec
-	(*UpdateApiKeyRequest)(nil),         // 12: auth.v1.UpdateApiKeyRequest
-	(*UpdateApiKeyResponse)(nil),        // 13: auth.v1.UpdateApiKeyResponse
-	(*AssistantKeySpec)(nil),            // 14: auth.v1.AssistantKeySpec
-	(*SetAssistantKeysRequest)(nil),     // 15: auth.v1.SetAssistantKeysRequest
-	(*SetAssistantKeysResponse)(nil),    // 16: auth.v1.SetAssistantKeysResponse
-	(*ListAssistantKeysRequest)(nil),    // 17: auth.v1.ListAssistantKeysRequest
-	(*ListAssistantKeysResponse)(nil),   // 18: auth.v1.ListAssistantKeysResponse
-	(*DeleteAssistantKeysRequest)(nil),  // 19: auth.v1.DeleteAssistantKeysRequest
-	(*DeleteAssistantKeysResponse)(nil), // 20: auth.v1.DeleteAssistantKeysResponse
-	(*timestamppb.Timestamp)(nil),       // 21: google.protobuf.Timestamp
-	(*fieldmaskpb.FieldMask)(nil),       // 22: google.protobuf.FieldMask
+	(AssistantKeyPreset)(0),             // 2: auth.v1.AssistantKeyPreset
+	(*ApiKey)(nil),                      // 3: auth.v1.ApiKey
+	(*CreateApiKeyRequest)(nil),         // 4: auth.v1.CreateApiKeyRequest
+	(*CreateApiKeyResponse)(nil),        // 5: auth.v1.CreateApiKeyResponse
+	(*ListApiKeysRequest)(nil),          // 6: auth.v1.ListApiKeysRequest
+	(*ListApiKeysResponse)(nil),         // 7: auth.v1.ListApiKeysResponse
+	(*DeleteApiKeyRequest)(nil),         // 8: auth.v1.DeleteApiKeyRequest
+	(*DeleteApiKeyResponse)(nil),        // 9: auth.v1.DeleteApiKeyResponse
+	(*GetApiKeyRequest)(nil),            // 10: auth.v1.GetApiKeyRequest
+	(*GetApiKeyResponse)(nil),           // 11: auth.v1.GetApiKeyResponse
+	(*ApiKeyUpdateSpec)(nil),            // 12: auth.v1.ApiKeyUpdateSpec
+	(*UpdateApiKeyRequest)(nil),         // 13: auth.v1.UpdateApiKeyRequest
+	(*UpdateApiKeyResponse)(nil),        // 14: auth.v1.UpdateApiKeyResponse
+	(*AssistantKeySpec)(nil),            // 15: auth.v1.AssistantKeySpec
+	(*SetAssistantKeysRequest)(nil),     // 16: auth.v1.SetAssistantKeysRequest
+	(*SetAssistantKeysResponse)(nil),    // 17: auth.v1.SetAssistantKeysResponse
+	(*ListAssistantKeysRequest)(nil),    // 18: auth.v1.ListAssistantKeysRequest
+	(*ListAssistantKeysResponse)(nil),   // 19: auth.v1.ListAssistantKeysResponse
+	(*DeleteAssistantKeysRequest)(nil),  // 20: auth.v1.DeleteAssistantKeysRequest
+	(*DeleteAssistantKeysResponse)(nil), // 21: auth.v1.DeleteAssistantKeysResponse
+	(*timestamppb.Timestamp)(nil),       // 22: google.protobuf.Timestamp
+	(*fieldmaskpb.FieldMask)(nil),       // 23: google.protobuf.FieldMask
 }
 var file_auth_v1_api_keys_proto_depIdxs = []int32{
 	0,  // 0: auth.v1.ApiKey.status:type_name -> auth.v1.ApiKeyStatus
-	21, // 1: auth.v1.ApiKey.created_at:type_name -> google.protobuf.Timestamp
-	21, // 2: auth.v1.ApiKey.last_used_at:type_name -> google.protobuf.Timestamp
-	21, // 3: auth.v1.ApiKey.expires_at:type_name -> google.protobuf.Timestamp
-	21, // 4: auth.v1.ApiKey.updated_at:type_name -> google.protobuf.Timestamp
+	22, // 1: auth.v1.ApiKey.created_at:type_name -> google.protobuf.Timestamp
+	22, // 2: auth.v1.ApiKey.last_used_at:type_name -> google.protobuf.Timestamp
+	22, // 3: auth.v1.ApiKey.expires_at:type_name -> google.protobuf.Timestamp
+	22, // 4: auth.v1.ApiKey.updated_at:type_name -> google.protobuf.Timestamp
 	1,  // 5: auth.v1.ApiKey.purpose:type_name -> auth.v1.ApiKeyPurpose
-	2,  // 6: auth.v1.CreateApiKeyResponse.api_key:type_name -> auth.v1.ApiKey
-	2,  // 7: auth.v1.ListApiKeysResponse.api_keys:type_name -> auth.v1.ApiKey
-	2,  // 8: auth.v1.GetApiKeyResponse.api_key:type_name -> auth.v1.ApiKey
+	3,  // 6: auth.v1.CreateApiKeyResponse.api_key:type_name -> auth.v1.ApiKey
+	3,  // 7: auth.v1.ListApiKeysResponse.api_keys:type_name -> auth.v1.ApiKey
+	3,  // 8: auth.v1.GetApiKeyResponse.api_key:type_name -> auth.v1.ApiKey
 	0,  // 9: auth.v1.ApiKeyUpdateSpec.status:type_name -> auth.v1.ApiKeyStatus
-	21, // 10: auth.v1.ApiKeyUpdateSpec.expires_at:type_name -> google.protobuf.Timestamp
-	11, // 11: auth.v1.UpdateApiKeyRequest.api_key:type_name -> auth.v1.ApiKeyUpdateSpec
-	22, // 12: auth.v1.UpdateApiKeyRequest.update_mask:type_name -> google.protobuf.FieldMask
-	2,  // 13: auth.v1.UpdateApiKeyResponse.api_key:type_name -> auth.v1.ApiKey
-	21, // 14: auth.v1.AssistantKeySpec.registration_deadline:type_name -> google.protobuf.Timestamp
-	14, // 15: auth.v1.SetAssistantKeysRequest.keys:type_name -> auth.v1.AssistantKeySpec
-	2,  // 16: auth.v1.SetAssistantKeysResponse.api_keys:type_name -> auth.v1.ApiKey
-	2,  // 17: auth.v1.ListAssistantKeysResponse.api_keys:type_name -> auth.v1.ApiKey
-	3,  // 18: auth.v1.ApiKeyService.CreateApiKey:input_type -> auth.v1.CreateApiKeyRequest
-	5,  // 19: auth.v1.ApiKeyService.ListApiKeys:input_type -> auth.v1.ListApiKeysRequest
-	9,  // 20: auth.v1.ApiKeyService.GetApiKey:input_type -> auth.v1.GetApiKeyRequest
-	7,  // 21: auth.v1.ApiKeyService.DeleteApiKey:input_type -> auth.v1.DeleteApiKeyRequest
-	12, // 22: auth.v1.ApiKeyService.UpdateApiKey:input_type -> auth.v1.UpdateApiKeyRequest
-	15, // 23: auth.v1.ApiKeyService.SetAssistantKeys:input_type -> auth.v1.SetAssistantKeysRequest
-	17, // 24: auth.v1.ApiKeyService.ListAssistantKeys:input_type -> auth.v1.ListAssistantKeysRequest
-	19, // 25: auth.v1.ApiKeyService.DeleteAssistantKeys:input_type -> auth.v1.DeleteAssistantKeysRequest
-	4,  // 26: auth.v1.ApiKeyService.CreateApiKey:output_type -> auth.v1.CreateApiKeyResponse
-	6,  // 27: auth.v1.ApiKeyService.ListApiKeys:output_type -> auth.v1.ListApiKeysResponse
-	10, // 28: auth.v1.ApiKeyService.GetApiKey:output_type -> auth.v1.GetApiKeyResponse
-	8,  // 29: auth.v1.ApiKeyService.DeleteApiKey:output_type -> auth.v1.DeleteApiKeyResponse
-	13, // 30: auth.v1.ApiKeyService.UpdateApiKey:output_type -> auth.v1.UpdateApiKeyResponse
-	16, // 31: auth.v1.ApiKeyService.SetAssistantKeys:output_type -> auth.v1.SetAssistantKeysResponse
-	18, // 32: auth.v1.ApiKeyService.ListAssistantKeys:output_type -> auth.v1.ListAssistantKeysResponse
-	20, // 33: auth.v1.ApiKeyService.DeleteAssistantKeys:output_type -> auth.v1.DeleteAssistantKeysResponse
-	26, // [26:34] is the sub-list for method output_type
-	18, // [18:26] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	22, // 10: auth.v1.ApiKeyUpdateSpec.expires_at:type_name -> google.protobuf.Timestamp
+	12, // 11: auth.v1.UpdateApiKeyRequest.api_key:type_name -> auth.v1.ApiKeyUpdateSpec
+	23, // 12: auth.v1.UpdateApiKeyRequest.update_mask:type_name -> google.protobuf.FieldMask
+	3,  // 13: auth.v1.UpdateApiKeyResponse.api_key:type_name -> auth.v1.ApiKey
+	22, // 14: auth.v1.AssistantKeySpec.registration_deadline:type_name -> google.protobuf.Timestamp
+	2,  // 15: auth.v1.AssistantKeySpec.preset:type_name -> auth.v1.AssistantKeyPreset
+	15, // 16: auth.v1.SetAssistantKeysRequest.keys:type_name -> auth.v1.AssistantKeySpec
+	3,  // 17: auth.v1.SetAssistantKeysResponse.api_keys:type_name -> auth.v1.ApiKey
+	3,  // 18: auth.v1.ListAssistantKeysResponse.api_keys:type_name -> auth.v1.ApiKey
+	4,  // 19: auth.v1.ApiKeyService.CreateApiKey:input_type -> auth.v1.CreateApiKeyRequest
+	6,  // 20: auth.v1.ApiKeyService.ListApiKeys:input_type -> auth.v1.ListApiKeysRequest
+	10, // 21: auth.v1.ApiKeyService.GetApiKey:input_type -> auth.v1.GetApiKeyRequest
+	8,  // 22: auth.v1.ApiKeyService.DeleteApiKey:input_type -> auth.v1.DeleteApiKeyRequest
+	13, // 23: auth.v1.ApiKeyService.UpdateApiKey:input_type -> auth.v1.UpdateApiKeyRequest
+	16, // 24: auth.v1.ApiKeyService.SetAssistantKeys:input_type -> auth.v1.SetAssistantKeysRequest
+	18, // 25: auth.v1.ApiKeyService.ListAssistantKeys:input_type -> auth.v1.ListAssistantKeysRequest
+	20, // 26: auth.v1.ApiKeyService.DeleteAssistantKeys:input_type -> auth.v1.DeleteAssistantKeysRequest
+	5,  // 27: auth.v1.ApiKeyService.CreateApiKey:output_type -> auth.v1.CreateApiKeyResponse
+	7,  // 28: auth.v1.ApiKeyService.ListApiKeys:output_type -> auth.v1.ListApiKeysResponse
+	11, // 29: auth.v1.ApiKeyService.GetApiKey:output_type -> auth.v1.GetApiKeyResponse
+	9,  // 30: auth.v1.ApiKeyService.DeleteApiKey:output_type -> auth.v1.DeleteApiKeyResponse
+	14, // 31: auth.v1.ApiKeyService.UpdateApiKey:output_type -> auth.v1.UpdateApiKeyResponse
+	17, // 32: auth.v1.ApiKeyService.SetAssistantKeys:output_type -> auth.v1.SetAssistantKeysResponse
+	19, // 33: auth.v1.ApiKeyService.ListAssistantKeys:output_type -> auth.v1.ListAssistantKeysResponse
+	21, // 34: auth.v1.ApiKeyService.DeleteAssistantKeys:output_type -> auth.v1.DeleteAssistantKeysResponse
+	27, // [27:35] is the sub-list for method output_type
+	19, // [19:27] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_api_keys_proto_init() }
@@ -1528,7 +1620,7 @@ func file_auth_v1_api_keys_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_api_keys_proto_rawDesc), len(file_auth_v1_api_keys_proto_rawDesc)),
-			NumEnums:      2,
+			NumEnums:      3,
 			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,

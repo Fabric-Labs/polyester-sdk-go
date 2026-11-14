@@ -647,13 +647,21 @@ type TransferSide struct {
 type LedgerTransfer struct {
 	// TransferID is the unsigned 128-bit decimal transfer identity shared by
 	// both legs of one transfer. Empty when the server did not send one.
-	TransferID   string `json:"transfer_id,omitempty"`
-	AssetID      uint32 `json:"asset_id,omitempty"`
-	Amount       string `json:"amount,omitempty"`
-	TransferType int    `json:"transfer_type,omitempty"`
-	AccountCode  int    `json:"account_code,omitempty"`
-	Timestamp    int64  `json:"timestamp,omitempty"`
-	Pending      bool   `json:"pending,omitempty"`
+	TransferID string `json:"transfer_id,omitempty"`
+	AssetID    uint32 `json:"asset_id,omitempty"`
+	Amount     string `json:"amount,omitempty"`
+	// TransferType is the ledger.v1.TransferCode value. 1065
+	// (TRADING_WITHDRAW_REQUEST_FEE) is the debit of a Trading-account
+	// withdrawal that Zipper rejected or that failed to execute, for the whole
+	// amount sent with it, its request fee included: show it as a failed
+	// withdrawal, not as a fee. 1075 (WITHDRAW_FAILED) is the same debit for a
+	// Funding-account withdrawal. A rejected withdrawal is refunded, less the
+	// request fee, to the account's own wallet; one that failed to execute is
+	// not refunded.
+	TransferType int   `json:"transfer_type,omitempty"`
+	AccountCode  int   `json:"account_code,omitempty"`
+	Timestamp    int64 `json:"timestamp,omitempty"`
+	Pending      bool  `json:"pending,omitempty"`
 	// TxID is the transfer's lifecycle flow ID (the contract's flow_id), the
 	// ID Lifecycle.GetFlow accepts; empty when the transfer belongs to no
 	// flow. A Trading-to-Funding transfer carries it from its first realtime
@@ -728,6 +736,14 @@ type WithdrawDestinationValidation struct {
 }
 
 // ZipperReasonDetails is the Zipper-specific failure detail on a lifecycle flow.
+//
+// Show Message, or localize with ReasonID, rather than text keyed by Code: a
+// withdrawal whose execution failed after its destination transaction was
+// committed (lifecycle reason zipper_withdraw_execution_failed) reads ReasonID
+// "withdrawal.execution_failed.under_review" whatever its Code, and a Message
+// saying the bridge operator reviews it and its funds were not returned to the
+// account. Code is 0 when the bridge gave none. Do not show such a withdrawal
+// as refunded.
 type ZipperReasonDetails struct {
 	Code     int32  `json:"code,omitempty"`
 	ReasonID string `json:"reason_id,omitempty"`

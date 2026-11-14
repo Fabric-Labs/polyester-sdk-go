@@ -220,7 +220,7 @@ func TestClosingManagedOrderbookFromItsOwnCallbackReturnsAtOnce(t *testing.T) {
 	// Three deltas in one websocket message: the next one is ready at once.
 	frames := []byte{}
 	for seq := uint64(2); seq <= 4; seq++ {
-		frames = append(frames, bookTicketFrame(&ob.OrderBookDelta{BookSeqStart: seq, BookSeqEnd: seq})...)
+		frames = append(frames, bookTicketFrame(&ob.OrderBookDelta{BookSeqStart: seq - 1, BookSeqEnd: seq})...)
 	}
 	sends <- frames
 	select {

@@ -124,14 +124,15 @@ func newBookRefreshHarness(t *testing.T, plan func(n int32) fetchStep) *bookRefr
 	return h
 }
 
-// delta is the next delta in sequence, or, with gap, one that skips a
-// sequence so the client must refresh its snapshot.
+// delta is the next delta in sequence, starting where the last one ended, or,
+// with gap, one that skips a view so the client waits for a reset.
 func (h *bookRefreshHarness) delta(gap bool) []byte {
-	seq := h.seq.Add(1)
+	start := h.seq.Load()
 	if gap {
-		seq = h.seq.Add(1)
+		start = h.seq.Add(1)
 	}
-	return bookTicketFrame(&ob.OrderBookDelta{BookSeqStart: seq, BookSeqEnd: seq})
+	end := h.seq.Add(1)
+	return bookTicketFrame(&ob.OrderBookDelta{BookSeqStart: start, BookSeqEnd: end})
 }
 
 func (h *bookRefreshHarness) nextConn(t *testing.T) *sweepConn {
@@ -160,12 +161,11 @@ func (h *bookRefreshHarness) awaitFetch(t *testing.T, want int32) {
 	}
 }
 
-// POLY-9018 parity: a sequence-gap refresh (RequestSnapshotRefresh) whose
-// callback closes the subscription while a manual RefreshSnapshot waits for
-// the refresh lock. Close returns at once, the manual refresh returns, and
-// the worker exits. (A delta that arrives during a refresh is buffered, not
-// applied, so the gap refresh is the one that holds the lock first.)
-func TestClosingOrderbookFromAGapRefreshCallbackWhileAManualRefreshWaits(t *testing.T) {
+// A reconnect's snapshot refresh whose callback closes the subscription while
+// a manual RefreshSnapshot waits for the refresh lock. Close returns at once,
+// the manual refresh returns, and the worker exits. A sequence gap fetches no
+// snapshot: it waits for the stream's next reset.
+func TestClosingOrderbookFromARefreshCallbackWhileAManualRefreshWaits(t *testing.T) {
 	gate := make(chan struct{})
 	h := newBookRefreshHarness(t, func(n int32) fetchStep {
 		if n == 2 {
@@ -206,6 +206,14 @@ func TestClosingOrderbookFromAGapRefreshCallbackWhileAManualRefreshWaits(t *test
 	case <-time.After(10 * time.Second):
 		t.Fatal("the sequence gap was never seen")
 	}
+	select {
+	case n := <-h.fetchStarted:
+		if n != 1 {
+			t.Fatalf("the sequence gap fetched snapshot %d", n)
+		}
+	default:
+	}
+	close(conn.drop)
 	h.awaitFetch(t, 2)
 	manual := make(chan error, 1)
 	go func() { manual <- sub.RefreshSnapshot(context.Background()) }()
@@ -217,10 +225,10 @@ func TestClosingOrderbookFromAGapRefreshCallbackWhileAManualRefreshWaits(t *test
 	select {
 	case took := <-returned:
 		if took > promptClose {
-			t.Fatalf("Close from the gap refresh callback took %v", took)
+			t.Fatalf("Close from the refresh callback took %v", took)
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatal("Close from the gap refresh callback blocked")
+		t.Fatal("Close from the refresh callback blocked")
 	}
 	select {
 	case <-manual:
@@ -339,7 +347,7 @@ func runBookRefreshSchedule(t *testing.T, seed uint64) {
 			}
 		}
 		switch action {
-		case 0, 1: // an in-order delta, or one that skips a sequence
+		case 0, 1: // an in-order delta, or one that skips a view
 			if conn != nil {
 				select {
 				case conn.frames <- h.delta(action == 1):

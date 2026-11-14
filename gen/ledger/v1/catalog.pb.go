@@ -104,7 +104,12 @@ const (
 	TransferCode_TRADING_WITHDRAW_RESERVE TransferCode = 1062
 	// Funding user-to-user transfer.
 	TransferCode_FUNDING_USER_TRANSFER TransferCode = 1063
-	// Non-refundable on-chain request fee retained when a submitted trading withdrawal fails.
+	// Debit of a withdrawal from the Trading account that Zipper rejected or that failed to
+	// execute: the whole amount sent to Zipper for it, the request fee included. The withdrawal's
+	// other fees are not charged. A rejected withdrawal refunds that amount, less the request fee,
+	// to the user's own wallet; one that failed to execute is not refunded, and Zipper settles it
+	// with the user outside Polyester Chain. A withdrawal from the Funding account uses
+	// WITHDRAW_FAILED instead.
 	TransferCode_TRADING_WITHDRAW_REQUEST_FEE TransferCode = 1065
 	// Fee paid to a fee recipient when a trading withdrawal completes.
 	TransferCode_TRADING_WITHDRAW_FEE_LEG TransferCode = 1066
@@ -121,9 +126,11 @@ const (
 	// Balance adjustment with a system account, including account seeding credits or corrections.
 	// May credit or debit the user's account; the transfer direction identifies which.
 	TransferCode_SYSTEM_ADJUSTMENT TransferCode = 1074
-	// Funds that left the account for a withdrawal that Zipper rejected or that failed to execute.
-	// A rejected withdrawal refunds its net amount to the user's own wallet; the withdrawal fee is
-	// not refunded.
+	// Debit of a withdrawal from the Funding account that Zipper rejected or that failed to
+	// execute: the whole amount that left the account for it. A rejected withdrawal refunds that
+	// amount, less the request fee, to the user's own wallet; one that failed to execute is not
+	// refunded, and Zipper settles it with the user outside Polyester Chain. A withdrawal from the
+	// Trading account uses TRADING_WITHDRAW_REQUEST_FEE instead.
 	TransferCode_WITHDRAW_FAILED TransferCode = 1075
 )
 

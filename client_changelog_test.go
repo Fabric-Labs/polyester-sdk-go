@@ -192,7 +192,7 @@ func newFakeChangelog(postCount int) *fakeChangelog {
 
 // newPublicChangelogClient serves fake through Connect and returns a client
 // built without API-key credentials.
-func newPublicChangelogClient(t *testing.T, fake *fakeChangelog) *Client {
+func newPublicChangelogClient(t *testing.T, fake changelogv1connect.ChangelogServiceHandler) *Client {
 	t.Helper()
 	mux := http.NewServeMux()
 	path, handler := changelogv1connect.NewChangelogServiceHandler(fake)

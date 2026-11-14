@@ -238,6 +238,121 @@ func (Surface) EnumDescriptor() ([]byte, []int) {
 	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{2}
 }
 
+// Environment is a Polyester network with its own changelog.
+type Environment int32
+
+const (
+	// Not set. Never returned.
+	Environment_ENVIRONMENT_UNSPECIFIED Environment = 0
+	// Development network.
+	Environment_DEVNET Environment = 1
+	// Test network.
+	Environment_TESTNET Environment = 2
+	// Main network.
+	Environment_MAINNET Environment = 3
+)
+
+// Enum value maps for Environment.
+var (
+	Environment_name = map[int32]string{
+		0: "ENVIRONMENT_UNSPECIFIED",
+		1: "DEVNET",
+		2: "TESTNET",
+		3: "MAINNET",
+	}
+	Environment_value = map[string]int32{
+		"ENVIRONMENT_UNSPECIFIED": 0,
+		"DEVNET":                  1,
+		"TESTNET":                 2,
+		"MAINNET":                 3,
+	}
+)
+
+func (x Environment) Enum() *Environment {
+	p := new(Environment)
+	*p = x
+	return p
+}
+
+func (x Environment) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Environment) Descriptor() protoreflect.EnumDescriptor {
+	return file_changelog_v1_changelog_proto_enumTypes[3].Descriptor()
+}
+
+func (Environment) Type() protoreflect.EnumType {
+	return &file_changelog_v1_changelog_proto_enumTypes[3]
+}
+
+func (x Environment) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Environment.Descriptor instead.
+func (Environment) EnumDescriptor() ([]byte, []int) {
+	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{3}
+}
+
+// ChangeAvailability is how one change of a release differs from its release
+// in one environment.
+type ChangeAvailability int32
+
+const (
+	// Not set. Never returned.
+	ChangeAvailability_AVAILABILITY_UNSPECIFIED ChangeAvailability = 0
+	// Available in the environment while its release is still pending there.
+	ChangeAvailability_AHEAD ChangeAvailability = 1
+	// Not yet available in the environment although its release is live there.
+	ChangeAvailability_PENDING ChangeAvailability = 2
+	// Not available in the environment for now, whatever its release's status.
+	ChangeAvailability_UNAVAILABLE ChangeAvailability = 3
+)
+
+// Enum value maps for ChangeAvailability.
+var (
+	ChangeAvailability_name = map[int32]string{
+		0: "AVAILABILITY_UNSPECIFIED",
+		1: "AHEAD",
+		2: "PENDING",
+		3: "UNAVAILABLE",
+	}
+	ChangeAvailability_value = map[string]int32{
+		"AVAILABILITY_UNSPECIFIED": 0,
+		"AHEAD":                    1,
+		"PENDING":                  2,
+		"UNAVAILABLE":              3,
+	}
+)
+
+func (x ChangeAvailability) Enum() *ChangeAvailability {
+	p := new(ChangeAvailability)
+	*p = x
+	return p
+}
+
+func (x ChangeAvailability) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ChangeAvailability) Descriptor() protoreflect.EnumDescriptor {
+	return file_changelog_v1_changelog_proto_enumTypes[4].Descriptor()
+}
+
+func (ChangeAvailability) Type() protoreflect.EnumType {
+	return &file_changelog_v1_changelog_proto_enumTypes[4]
+}
+
+func (x ChangeAvailability) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ChangeAvailability.Descriptor instead.
+func (ChangeAvailability) EnumDescriptor() ([]byte, []int) {
+	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{4}
+}
+
 // SortDirection orders changes by post publication time.
 type SortDirection int32
 
@@ -275,11 +390,11 @@ func (x SortDirection) String() string {
 }
 
 func (SortDirection) Descriptor() protoreflect.EnumDescriptor {
-	return file_changelog_v1_changelog_proto_enumTypes[3].Descriptor()
+	return file_changelog_v1_changelog_proto_enumTypes[5].Descriptor()
 }
 
 func (SortDirection) Type() protoreflect.EnumType {
-	return &file_changelog_v1_changelog_proto_enumTypes[3]
+	return &file_changelog_v1_changelog_proto_enumTypes[5]
 }
 
 func (x SortDirection) Number() protoreflect.EnumNumber {
@@ -288,7 +403,128 @@ func (x SortDirection) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use SortDirection.Descriptor instead.
 func (SortDirection) EnumDescriptor() ([]byte, []int) {
-	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{3}
+	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{5}
+}
+
+// EnvironmentStatus says whether a release is live in one environment.
+type EnvironmentStatus struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Environment.
+	Environment Environment `protobuf:"varint,1,opt,name=environment,proto3,enum=changelog.v1.Environment" json:"environment,omitempty"`
+	// When the release went live in the environment. Omitted while it is
+	// pending there.
+	LiveAt        *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=live_at,json=liveAt,proto3" json:"live_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EnvironmentStatus) Reset() {
+	*x = EnvironmentStatus{}
+	mi := &file_changelog_v1_changelog_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnvironmentStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnvironmentStatus) ProtoMessage() {}
+
+func (x *EnvironmentStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_changelog_v1_changelog_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnvironmentStatus.ProtoReflect.Descriptor instead.
+func (*EnvironmentStatus) Descriptor() ([]byte, []int) {
+	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *EnvironmentStatus) GetEnvironment() Environment {
+	if x != nil {
+		return x.Environment
+	}
+	return Environment_ENVIRONMENT_UNSPECIFIED
+}
+
+func (x *EnvironmentStatus) GetLiveAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LiveAt
+	}
+	return nil
+}
+
+// ChangeException is the status of one change in one environment where it
+// differs from its release's status.
+type ChangeException struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Environment.
+	Environment Environment `protobuf:"varint,1,opt,name=environment,proto3,enum=changelog.v1.Environment" json:"environment,omitempty"`
+	// How the change differs from its release there.
+	Availability ChangeAvailability `protobuf:"varint,2,opt,name=availability,proto3,enum=changelog.v1.ChangeAvailability" json:"availability,omitempty"`
+	// When the change became available in the environment; set for AHEAD only.
+	LiveAt        *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=live_at,json=liveAt,proto3" json:"live_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChangeException) Reset() {
+	*x = ChangeException{}
+	mi := &file_changelog_v1_changelog_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChangeException) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChangeException) ProtoMessage() {}
+
+func (x *ChangeException) ProtoReflect() protoreflect.Message {
+	mi := &file_changelog_v1_changelog_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChangeException.ProtoReflect.Descriptor instead.
+func (*ChangeException) Descriptor() ([]byte, []int) {
+	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ChangeException) GetEnvironment() Environment {
+	if x != nil {
+		return x.Environment
+	}
+	return Environment_ENVIRONMENT_UNSPECIFIED
+}
+
+func (x *ChangeException) GetAvailability() ChangeAvailability {
+	if x != nil {
+		return x.Availability
+	}
+	return ChangeAvailability_AVAILABILITY_UNSPECIFIED
+}
+
+func (x *ChangeException) GetLiveAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LiveAt
+	}
+	return nil
 }
 
 // Change is one announced change. A republished post may reword or withdraw it.
@@ -312,14 +548,18 @@ type Change struct {
 	// Audiences addressed. Never empty.
 	Audiences []Audience `protobuf:"varint,8,rep,packed,name=audiences,proto3,enum=changelog.v1.Audience" json:"audiences,omitempty"`
 	// Product areas affected. May be empty.
-	Surfaces      []Surface `protobuf:"varint,9,rep,packed,name=surfaces,proto3,enum=changelog.v1.Surface" json:"surfaces,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Surfaces []Surface `protobuf:"varint,9,rep,packed,name=surfaces,proto3,enum=changelog.v1.Surface" json:"surfaces,omitempty"`
+	// Environments where this change differs from its release's status, in any
+	// environment, not only this one. Empty outside release posts and when the
+	// change follows its release everywhere.
+	EnvironmentExceptions []*ChangeException `protobuf:"bytes,10,rep,name=environment_exceptions,json=environmentExceptions,proto3" json:"environment_exceptions,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *Change) Reset() {
 	*x = Change{}
-	mi := &file_changelog_v1_changelog_proto_msgTypes[0]
+	mi := &file_changelog_v1_changelog_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -331,7 +571,7 @@ func (x *Change) String() string {
 func (*Change) ProtoMessage() {}
 
 func (x *Change) ProtoReflect() protoreflect.Message {
-	mi := &file_changelog_v1_changelog_proto_msgTypes[0]
+	mi := &file_changelog_v1_changelog_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -344,7 +584,7 @@ func (x *Change) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Change.ProtoReflect.Descriptor instead.
 func (*Change) Descriptor() ([]byte, []int) {
-	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{0}
+	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Change) GetId() uint64 {
@@ -410,6 +650,13 @@ func (x *Change) GetSurfaces() []Surface {
 	return nil
 }
 
+func (x *Change) GetEnvironmentExceptions() []*ChangeException {
+	if x != nil {
+		return x.EnvironmentExceptions
+	}
+	return nil
+}
+
 // Section groups related changes inside a post.
 type Section struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -428,7 +675,7 @@ type Section struct {
 
 func (x *Section) Reset() {
 	*x = Section{}
-	mi := &file_changelog_v1_changelog_proto_msgTypes[1]
+	mi := &file_changelog_v1_changelog_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -440,7 +687,7 @@ func (x *Section) String() string {
 func (*Section) ProtoMessage() {}
 
 func (x *Section) ProtoReflect() protoreflect.Message {
-	mi := &file_changelog_v1_changelog_proto_msgTypes[1]
+	mi := &file_changelog_v1_changelog_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -453,7 +700,7 @@ func (x *Section) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Section.ProtoReflect.Descriptor instead.
 func (*Section) Descriptor() ([]byte, []int) {
-	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{1}
+	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Section) GetHeading() string {
@@ -514,14 +761,28 @@ type PostSummary struct {
 	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	// Published revision, starting at 1. Each republication of the post, for
 	// example to correct its copy or withdraw a change, increments it.
-	Revision      uint32 `protobuf:"varint,13,opt,name=revision,proto3" json:"revision,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Revision uint32 `protobuf:"varint,13,opt,name=revision,proto3" json:"revision,omitempty"`
+	// Release the post announces, for example "0.92.9". Omitted for posts that
+	// do not announce one release. A release post has the same slug, for
+	// example "v0.92.9", and the same content in every environment, and is
+	// listed in every environment, including environments where it is still
+	// pending.
+	ReleaseVersion *string `protobuf:"bytes,14,opt,name=release_version,json=releaseVersion,proto3,oneof" json:"release_version,omitempty"`
+	// Status of the post's release in each environment: DEVNET, TESTNET and
+	// MAINNET, in that order. Empty for posts without release_version. The
+	// status changes when the release goes live, without a new revision.
+	Environments []*EnvironmentStatus `protobuf:"bytes,15,rep,name=environments,proto3" json:"environments,omitempty"`
+	// Slug of the deployment group that brought the release to this
+	// environment. Omitted while the release is pending here and for posts
+	// without release_version.
+	DeploymentGroupSlug *string `protobuf:"bytes,16,opt,name=deployment_group_slug,json=deploymentGroupSlug,proto3,oneof" json:"deployment_group_slug,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *PostSummary) Reset() {
 	*x = PostSummary{}
-	mi := &file_changelog_v1_changelog_proto_msgTypes[2]
+	mi := &file_changelog_v1_changelog_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -533,7 +794,7 @@ func (x *PostSummary) String() string {
 func (*PostSummary) ProtoMessage() {}
 
 func (x *PostSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_changelog_v1_changelog_proto_msgTypes[2]
+	mi := &file_changelog_v1_changelog_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -546,7 +807,7 @@ func (x *PostSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PostSummary.ProtoReflect.Descriptor instead.
 func (*PostSummary) Descriptor() ([]byte, []int) {
-	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{2}
+	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *PostSummary) GetSlug() string {
@@ -640,6 +901,27 @@ func (x *PostSummary) GetRevision() uint32 {
 	return 0
 }
 
+func (x *PostSummary) GetReleaseVersion() string {
+	if x != nil && x.ReleaseVersion != nil {
+		return *x.ReleaseVersion
+	}
+	return ""
+}
+
+func (x *PostSummary) GetEnvironments() []*EnvironmentStatus {
+	if x != nil {
+		return x.Environments
+	}
+	return nil
+}
+
+func (x *PostSummary) GetDeploymentGroupSlug() string {
+	if x != nil && x.DeploymentGroupSlug != nil {
+		return *x.DeploymentGroupSlug
+	}
+	return ""
+}
+
 // Post is one complete published post at its current revision.
 type Post struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -653,7 +935,7 @@ type Post struct {
 
 func (x *Post) Reset() {
 	*x = Post{}
-	mi := &file_changelog_v1_changelog_proto_msgTypes[3]
+	mi := &file_changelog_v1_changelog_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -665,7 +947,7 @@ func (x *Post) String() string {
 func (*Post) ProtoMessage() {}
 
 func (x *Post) ProtoReflect() protoreflect.Message {
-	mi := &file_changelog_v1_changelog_proto_msgTypes[3]
+	mi := &file_changelog_v1_changelog_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -678,7 +960,7 @@ func (x *Post) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Post.ProtoReflect.Descriptor instead.
 func (*Post) Descriptor() ([]byte, []int) {
-	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{3}
+	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Post) GetSummary() *PostSummary {
@@ -709,7 +991,7 @@ type ListPostsRequest struct {
 
 func (x *ListPostsRequest) Reset() {
 	*x = ListPostsRequest{}
-	mi := &file_changelog_v1_changelog_proto_msgTypes[4]
+	mi := &file_changelog_v1_changelog_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -721,7 +1003,7 @@ func (x *ListPostsRequest) String() string {
 func (*ListPostsRequest) ProtoMessage() {}
 
 func (x *ListPostsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_changelog_v1_changelog_proto_msgTypes[4]
+	mi := &file_changelog_v1_changelog_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -734,7 +1016,7 @@ func (x *ListPostsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPostsRequest.ProtoReflect.Descriptor instead.
 func (*ListPostsRequest) Descriptor() ([]byte, []int) {
-	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{4}
+	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListPostsRequest) GetLimit() uint32 {
@@ -764,7 +1046,7 @@ type ListPostsResponse struct {
 
 func (x *ListPostsResponse) Reset() {
 	*x = ListPostsResponse{}
-	mi := &file_changelog_v1_changelog_proto_msgTypes[5]
+	mi := &file_changelog_v1_changelog_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -776,7 +1058,7 @@ func (x *ListPostsResponse) String() string {
 func (*ListPostsResponse) ProtoMessage() {}
 
 func (x *ListPostsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_changelog_v1_changelog_proto_msgTypes[5]
+	mi := &file_changelog_v1_changelog_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -789,7 +1071,7 @@ func (x *ListPostsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPostsResponse.ProtoReflect.Descriptor instead.
 func (*ListPostsResponse) Descriptor() ([]byte, []int) {
-	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{5}
+	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListPostsResponse) GetPosts() []*PostSummary {
@@ -817,7 +1099,7 @@ type GetPostRequest struct {
 
 func (x *GetPostRequest) Reset() {
 	*x = GetPostRequest{}
-	mi := &file_changelog_v1_changelog_proto_msgTypes[6]
+	mi := &file_changelog_v1_changelog_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -829,7 +1111,7 @@ func (x *GetPostRequest) String() string {
 func (*GetPostRequest) ProtoMessage() {}
 
 func (x *GetPostRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_changelog_v1_changelog_proto_msgTypes[6]
+	mi := &file_changelog_v1_changelog_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -842,7 +1124,7 @@ func (x *GetPostRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPostRequest.ProtoReflect.Descriptor instead.
 func (*GetPostRequest) Descriptor() ([]byte, []int) {
-	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{6}
+	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetPostRequest) GetSlug() string {
@@ -864,7 +1146,7 @@ type GetPostResponse struct {
 
 func (x *GetPostResponse) Reset() {
 	*x = GetPostResponse{}
-	mi := &file_changelog_v1_changelog_proto_msgTypes[7]
+	mi := &file_changelog_v1_changelog_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -876,7 +1158,7 @@ func (x *GetPostResponse) String() string {
 func (*GetPostResponse) ProtoMessage() {}
 
 func (x *GetPostResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_changelog_v1_changelog_proto_msgTypes[7]
+	mi := &file_changelog_v1_changelog_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -889,7 +1171,7 @@ func (x *GetPostResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPostResponse.ProtoReflect.Descriptor instead.
 func (*GetPostResponse) Descriptor() ([]byte, []int) {
-	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{7}
+	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetPostResponse) GetPost() *Post {
@@ -935,7 +1217,7 @@ type ListChangesRequest struct {
 
 func (x *ListChangesRequest) Reset() {
 	*x = ListChangesRequest{}
-	mi := &file_changelog_v1_changelog_proto_msgTypes[8]
+	mi := &file_changelog_v1_changelog_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -947,7 +1229,7 @@ func (x *ListChangesRequest) String() string {
 func (*ListChangesRequest) ProtoMessage() {}
 
 func (x *ListChangesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_changelog_v1_changelog_proto_msgTypes[8]
+	mi := &file_changelog_v1_changelog_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -960,7 +1242,7 @@ func (x *ListChangesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListChangesRequest.ProtoReflect.Descriptor instead.
 func (*ListChangesRequest) Descriptor() ([]byte, []int) {
-	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{8}
+	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ListChangesRequest) GetCategories() []ChangeCategory {
@@ -1050,7 +1332,7 @@ type ChangeEntry struct {
 
 func (x *ChangeEntry) Reset() {
 	*x = ChangeEntry{}
-	mi := &file_changelog_v1_changelog_proto_msgTypes[9]
+	mi := &file_changelog_v1_changelog_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1062,7 +1344,7 @@ func (x *ChangeEntry) String() string {
 func (*ChangeEntry) ProtoMessage() {}
 
 func (x *ChangeEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_changelog_v1_changelog_proto_msgTypes[9]
+	mi := &file_changelog_v1_changelog_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1075,7 +1357,7 @@ func (x *ChangeEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChangeEntry.ProtoReflect.Descriptor instead.
 func (*ChangeEntry) Descriptor() ([]byte, []int) {
-	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{9}
+	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ChangeEntry) GetChange() *Change {
@@ -1119,7 +1401,7 @@ type ListChangesResponse struct {
 
 func (x *ListChangesResponse) Reset() {
 	*x = ListChangesResponse{}
-	mi := &file_changelog_v1_changelog_proto_msgTypes[10]
+	mi := &file_changelog_v1_changelog_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1131,7 +1413,7 @@ func (x *ListChangesResponse) String() string {
 func (*ListChangesResponse) ProtoMessage() {}
 
 func (x *ListChangesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_changelog_v1_changelog_proto_msgTypes[10]
+	mi := &file_changelog_v1_changelog_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1144,7 +1426,7 @@ func (x *ListChangesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListChangesResponse.ProtoReflect.Descriptor instead.
 func (*ListChangesResponse) Descriptor() ([]byte, []int) {
-	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{10}
+	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ListChangesResponse) GetChanges() []*ChangeEntry {
@@ -1161,11 +1443,627 @@ func (x *ListChangesResponse) GetNextPageToken() string {
 	return ""
 }
 
+// DeploymentGroupPost is one published release post a deployment group
+// brought.
+type DeploymentGroupPost struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Post slug, for example "v0.92.9".
+	Slug string `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
+	// Release the post announces, for example "0.92.9".
+	ReleaseVersion string `protobuf:"bytes,2,opt,name=release_version,json=releaseVersion,proto3" json:"release_version,omitempty"`
+	// Post title.
+	Title string `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
+	// Time of first publication of the post.
+	PublishedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=published_at,json=publishedAt,proto3" json:"published_at,omitempty"`
+	// Published revision of the post, starting at 1.
+	Revision uint32 `protobuf:"varint,5,opt,name=revision,proto3" json:"revision,omitempty"`
+	// When the post's current revision was published.
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeploymentGroupPost) Reset() {
+	*x = DeploymentGroupPost{}
+	mi := &file_changelog_v1_changelog_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeploymentGroupPost) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeploymentGroupPost) ProtoMessage() {}
+
+func (x *DeploymentGroupPost) ProtoReflect() protoreflect.Message {
+	mi := &file_changelog_v1_changelog_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeploymentGroupPost.ProtoReflect.Descriptor instead.
+func (*DeploymentGroupPost) Descriptor() ([]byte, []int) {
+	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *DeploymentGroupPost) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+func (x *DeploymentGroupPost) GetReleaseVersion() string {
+	if x != nil {
+		return x.ReleaseVersion
+	}
+	return ""
+}
+
+func (x *DeploymentGroupPost) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *DeploymentGroupPost) GetPublishedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.PublishedAt
+	}
+	return nil
+}
+
+func (x *DeploymentGroupPost) GetRevision() uint32 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *DeploymentGroupPost) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+// DeploymentGroupSummary describes one deployment group without its details.
+// A deployment group is one deployment to this environment that raised its
+// release version, and brought every release above the previous group's
+// version up to and including its own.
+type DeploymentGroupSummary struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable shareable identifier: the environment and the group's own
+	// release, for example "testnet-v0.92.9". It never changes.
+	Slug string `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
+	// Environment the group was deployed to.
+	Environment Environment `protobuf:"varint,2,opt,name=environment,proto3,enum=changelog.v1.Environment" json:"environment,omitempty"`
+	// When the deployment ran.
+	OccurredAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
+	// The group's own, highest release, for example "0.92.9".
+	ReleaseVersion string `protobuf:"bytes,4,opt,name=release_version,json=releaseVersion,proto3" json:"release_version,omitempty"`
+	// Release tag of the group's own release, for example "v0.92.9". Omitted
+	// when unknown.
+	ReleaseTag *string `protobuf:"bytes,5,opt,name=release_tag,json=releaseTag,proto3,oneof" json:"release_tag,omitempty"`
+	// Release of the previous deployment group. Omitted for the first group.
+	PreviousReleaseVersion *string `protobuf:"bytes,6,opt,name=previous_release_version,json=previousReleaseVersion,proto3,oneof" json:"previous_release_version,omitempty"`
+	// Every release the group brought, ascending, for example ["0.92.8",
+	// "0.92.9"].
+	Versions []string `protobuf:"bytes,7,rep,name=versions,proto3" json:"versions,omitempty"`
+	// Published release posts of those releases, ascending by release. A
+	// release without a published post has none.
+	Posts         []*DeploymentGroupPost `protobuf:"bytes,8,rep,name=posts,proto3" json:"posts,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeploymentGroupSummary) Reset() {
+	*x = DeploymentGroupSummary{}
+	mi := &file_changelog_v1_changelog_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeploymentGroupSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeploymentGroupSummary) ProtoMessage() {}
+
+func (x *DeploymentGroupSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_changelog_v1_changelog_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeploymentGroupSummary.ProtoReflect.Descriptor instead.
+func (*DeploymentGroupSummary) Descriptor() ([]byte, []int) {
+	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *DeploymentGroupSummary) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+func (x *DeploymentGroupSummary) GetEnvironment() Environment {
+	if x != nil {
+		return x.Environment
+	}
+	return Environment_ENVIRONMENT_UNSPECIFIED
+}
+
+func (x *DeploymentGroupSummary) GetOccurredAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.OccurredAt
+	}
+	return nil
+}
+
+func (x *DeploymentGroupSummary) GetReleaseVersion() string {
+	if x != nil {
+		return x.ReleaseVersion
+	}
+	return ""
+}
+
+func (x *DeploymentGroupSummary) GetReleaseTag() string {
+	if x != nil && x.ReleaseTag != nil {
+		return *x.ReleaseTag
+	}
+	return ""
+}
+
+func (x *DeploymentGroupSummary) GetPreviousReleaseVersion() string {
+	if x != nil && x.PreviousReleaseVersion != nil {
+		return *x.PreviousReleaseVersion
+	}
+	return ""
+}
+
+func (x *DeploymentGroupSummary) GetVersions() []string {
+	if x != nil {
+		return x.Versions
+	}
+	return nil
+}
+
+func (x *DeploymentGroupSummary) GetPosts() []*DeploymentGroupPost {
+	if x != nil {
+		return x.Posts
+	}
+	return nil
+}
+
+// DeploymentGroupAttention is one change of a deployment group that needs
+// attention.
+type DeploymentGroupAttention struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Slug of the release post that announces the change.
+	PostSlug string `protobuf:"bytes,1,opt,name=post_slug,json=postSlug,proto3" json:"post_slug,omitempty"`
+	// Release of that post.
+	ReleaseVersion string `protobuf:"bytes,2,opt,name=release_version,json=releaseVersion,proto3" json:"release_version,omitempty"`
+	// The change, as in its post.
+	Change        *Change `protobuf:"bytes,3,opt,name=change,proto3" json:"change,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeploymentGroupAttention) Reset() {
+	*x = DeploymentGroupAttention{}
+	mi := &file_changelog_v1_changelog_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeploymentGroupAttention) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeploymentGroupAttention) ProtoMessage() {}
+
+func (x *DeploymentGroupAttention) ProtoReflect() protoreflect.Message {
+	mi := &file_changelog_v1_changelog_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeploymentGroupAttention.ProtoReflect.Descriptor instead.
+func (*DeploymentGroupAttention) Descriptor() ([]byte, []int) {
+	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *DeploymentGroupAttention) GetPostSlug() string {
+	if x != nil {
+		return x.PostSlug
+	}
+	return ""
+}
+
+func (x *DeploymentGroupAttention) GetReleaseVersion() string {
+	if x != nil {
+		return x.ReleaseVersion
+	}
+	return ""
+}
+
+func (x *DeploymentGroupAttention) GetChange() *Change {
+	if x != nil {
+		return x.Change
+	}
+	return nil
+}
+
+// DeploymentGroupHighlight is one highlight of a release post in a deployment
+// group.
+type DeploymentGroupHighlight struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Slug of the release post.
+	PostSlug string `protobuf:"bytes,1,opt,name=post_slug,json=postSlug,proto3" json:"post_slug,omitempty"`
+	// Release of that post.
+	ReleaseVersion string `protobuf:"bytes,2,opt,name=release_version,json=releaseVersion,proto3" json:"release_version,omitempty"`
+	// Highlight text, inline Markdown.
+	Text          string `protobuf:"bytes,3,opt,name=text,proto3" json:"text,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeploymentGroupHighlight) Reset() {
+	*x = DeploymentGroupHighlight{}
+	mi := &file_changelog_v1_changelog_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeploymentGroupHighlight) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeploymentGroupHighlight) ProtoMessage() {}
+
+func (x *DeploymentGroupHighlight) ProtoReflect() protoreflect.Message {
+	mi := &file_changelog_v1_changelog_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeploymentGroupHighlight.ProtoReflect.Descriptor instead.
+func (*DeploymentGroupHighlight) Descriptor() ([]byte, []int) {
+	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *DeploymentGroupHighlight) GetPostSlug() string {
+	if x != nil {
+		return x.PostSlug
+	}
+	return ""
+}
+
+func (x *DeploymentGroupHighlight) GetReleaseVersion() string {
+	if x != nil {
+		return x.ReleaseVersion
+	}
+	return ""
+}
+
+func (x *DeploymentGroupHighlight) GetText() string {
+	if x != nil {
+		return x.Text
+	}
+	return ""
+}
+
+// DeploymentGroup is one complete deployment group.
+type DeploymentGroup struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Group summary.
+	Summary *DeploymentGroupSummary `protobuf:"bytes,1,opt,name=summary,proto3" json:"summary,omitempty"`
+	// Breaking changes and changes with action_required across the group's
+	// posts, in post order (ascending release), then section and change order.
+	Attention []*DeploymentGroupAttention `protobuf:"bytes,2,rep,name=attention,proto3" json:"attention,omitempty"`
+	// Highlights of the group's posts, in post order.
+	Highlights    []*DeploymentGroupHighlight `protobuf:"bytes,3,rep,name=highlights,proto3" json:"highlights,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeploymentGroup) Reset() {
+	*x = DeploymentGroup{}
+	mi := &file_changelog_v1_changelog_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeploymentGroup) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeploymentGroup) ProtoMessage() {}
+
+func (x *DeploymentGroup) ProtoReflect() protoreflect.Message {
+	mi := &file_changelog_v1_changelog_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeploymentGroup.ProtoReflect.Descriptor instead.
+func (*DeploymentGroup) Descriptor() ([]byte, []int) {
+	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *DeploymentGroup) GetSummary() *DeploymentGroupSummary {
+	if x != nil {
+		return x.Summary
+	}
+	return nil
+}
+
+func (x *DeploymentGroup) GetAttention() []*DeploymentGroupAttention {
+	if x != nil {
+		return x.Attention
+	}
+	return nil
+}
+
+func (x *DeploymentGroup) GetHighlights() []*DeploymentGroupHighlight {
+	if x != nil {
+		return x.Highlights
+	}
+	return nil
+}
+
+// ListDeploymentGroupsRequest pages through this environment's deployment
+// groups, newest first.
+type ListDeploymentGroupsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Maximum groups to return. 0 means the default of 20; maximum 100.
+	Limit uint32 `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Opaque, keyset-backed, exclusive cursor from a previous response.
+	// Bound to deployment time and slug.
+	PageToken     string `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDeploymentGroupsRequest) Reset() {
+	*x = ListDeploymentGroupsRequest{}
+	mi := &file_changelog_v1_changelog_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDeploymentGroupsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDeploymentGroupsRequest) ProtoMessage() {}
+
+func (x *ListDeploymentGroupsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_changelog_v1_changelog_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDeploymentGroupsRequest.ProtoReflect.Descriptor instead.
+func (*ListDeploymentGroupsRequest) Descriptor() ([]byte, []int) {
+	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *ListDeploymentGroupsRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListDeploymentGroupsRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
+// ListDeploymentGroupsResponse returns deployment group summaries, newest
+// first.
+type ListDeploymentGroupsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Group summaries ordered by deployment time descending, then slug
+	// descending.
+	Groups []*DeploymentGroupSummary `protobuf:"bytes,1,rep,name=groups,proto3" json:"groups,omitempty"`
+	// Cursor for the next page. Empty when no more results exist.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDeploymentGroupsResponse) Reset() {
+	*x = ListDeploymentGroupsResponse{}
+	mi := &file_changelog_v1_changelog_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDeploymentGroupsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDeploymentGroupsResponse) ProtoMessage() {}
+
+func (x *ListDeploymentGroupsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_changelog_v1_changelog_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDeploymentGroupsResponse.ProtoReflect.Descriptor instead.
+func (*ListDeploymentGroupsResponse) Descriptor() ([]byte, []int) {
+	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *ListDeploymentGroupsResponse) GetGroups() []*DeploymentGroupSummary {
+	if x != nil {
+		return x.Groups
+	}
+	return nil
+}
+
+func (x *ListDeploymentGroupsResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
+// GetDeploymentGroupRequest selects one deployment group.
+type GetDeploymentGroupRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Group slug, for example "testnet-v0.92.9".
+	Slug          string `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDeploymentGroupRequest) Reset() {
+	*x = GetDeploymentGroupRequest{}
+	mi := &file_changelog_v1_changelog_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDeploymentGroupRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDeploymentGroupRequest) ProtoMessage() {}
+
+func (x *GetDeploymentGroupRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_changelog_v1_changelog_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDeploymentGroupRequest.ProtoReflect.Descriptor instead.
+func (*GetDeploymentGroupRequest) Descriptor() ([]byte, []int) {
+	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *GetDeploymentGroupRequest) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+// GetDeploymentGroupResponse returns one complete deployment group.
+type GetDeploymentGroupResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The group with its attention changes and highlights.
+	Group         *DeploymentGroup `protobuf:"bytes,1,opt,name=group,proto3" json:"group,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDeploymentGroupResponse) Reset() {
+	*x = GetDeploymentGroupResponse{}
+	mi := &file_changelog_v1_changelog_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDeploymentGroupResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDeploymentGroupResponse) ProtoMessage() {}
+
+func (x *GetDeploymentGroupResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_changelog_v1_changelog_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDeploymentGroupResponse.ProtoReflect.Descriptor instead.
+func (*GetDeploymentGroupResponse) Descriptor() ([]byte, []int) {
+	return file_changelog_v1_changelog_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *GetDeploymentGroupResponse) GetGroup() *DeploymentGroup {
+	if x != nil {
+		return x.Group
+	}
+	return nil
+}
+
 var File_changelog_v1_changelog_proto protoreflect.FileDescriptor
 
 const file_changelog_v1_changelog_proto_rawDesc = "" +
 	"\n" +
-	"\x1cchangelog/v1/changelog.proto\x12\fchangelog.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\x8a\x03\n" +
+	"\x1cchangelog/v1/changelog.proto\x12\fchangelog.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\x85\x01\n" +
+	"\x11EnvironmentStatus\x12;\n" +
+	"\venvironment\x18\x01 \x01(\x0e2\x19.changelog.v1.EnvironmentR\venvironment\x123\n" +
+	"\alive_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06liveAt\"\xc9\x01\n" +
+	"\x0fChangeException\x12;\n" +
+	"\venvironment\x18\x01 \x01(\x0e2\x19.changelog.v1.EnvironmentR\venvironment\x12D\n" +
+	"\favailability\x18\x02 \x01(\x0e2 .changelog.v1.ChangeAvailabilityR\favailability\x123\n" +
+	"\alive_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x06liveAt\"\xe0\x03\n" +
 	"\x06Change\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x06R\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x18\n" +
@@ -1175,7 +2073,9 @@ const file_changelog_v1_changelog_proto_rawDesc = "" +
 	"\x0faction_required\x18\x06 \x01(\bR\x0eactionRequired\x122\n" +
 	"\x12migration_guidance\x18\a \x01(\tH\x01R\x11migrationGuidance\x88\x01\x01\x124\n" +
 	"\taudiences\x18\b \x03(\x0e2\x16.changelog.v1.AudienceR\taudiences\x121\n" +
-	"\bsurfaces\x18\t \x03(\x0e2\x15.changelog.v1.SurfaceR\bsurfacesB\n" +
+	"\bsurfaces\x18\t \x03(\x0e2\x15.changelog.v1.SurfaceR\bsurfaces\x12T\n" +
+	"\x16environment_exceptions\x18\n" +
+	" \x03(\v2\x1d.changelog.v1.ChangeExceptionR\x15environmentExceptionsB\n" +
 	"\n" +
 	"\b_detailsB\x15\n" +
 	"\x13_migration_guidance\"\xaf\x01\n" +
@@ -1185,7 +2085,7 @@ const file_changelog_v1_changelog_proto_rawDesc = "" +
 	"\achanges\x18\x03 \x03(\v2\x14.changelog.v1.ChangeR\achanges\x12/\n" +
 	"\asurface\x18\x04 \x01(\x0e2\x15.changelog.v1.SurfaceR\asurfaceB\n" +
 	"\n" +
-	"\b_summary\"\xbe\x04\n" +
+	"\b_summary\"\x98\x06\n" +
 	"\vPostSummary\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\"\n" +
@@ -1201,7 +2101,12 @@ const file_changelog_v1_changelog_proto_rawDesc = "" +
 	"\rbug_fix_count\x18\v \x01(\rR\vbugFixCount\x129\n" +
 	"\n" +
 	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1a\n" +
-	"\brevision\x18\r \x01(\rR\brevision\"n\n" +
+	"\brevision\x18\r \x01(\rR\brevision\x12,\n" +
+	"\x0frelease_version\x18\x0e \x01(\tH\x00R\x0ereleaseVersion\x88\x01\x01\x12C\n" +
+	"\fenvironments\x18\x0f \x03(\v2\x1f.changelog.v1.EnvironmentStatusR\fenvironments\x127\n" +
+	"\x15deployment_group_slug\x18\x10 \x01(\tH\x01R\x13deploymentGroupSlug\x88\x01\x01B\x12\n" +
+	"\x10_release_versionB\x18\n" +
+	"\x16_deployment_group_slug\"n\n" +
 	"\x04Post\x123\n" +
 	"\asummary\x18\x01 \x01(\v2\x19.changelog.v1.PostSummaryR\asummary\x121\n" +
 	"\bsections\x18\x02 \x03(\v2\x15.changelog.v1.SectionR\bsections\"Z\n" +
@@ -1242,7 +2147,54 @@ const file_changelog_v1_changelog_proto_rawDesc = "" +
 	"\x0fsection_heading\x18\x04 \x01(\tR\x0esectionHeading\"r\n" +
 	"\x13ListChangesResponse\x123\n" +
 	"\achanges\x18\x01 \x03(\v2\x19.changelog.v1.ChangeEntryR\achanges\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken*n\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xfe\x01\n" +
+	"\x13DeploymentGroupPost\x12\x12\n" +
+	"\x04slug\x18\x01 \x01(\tR\x04slug\x12'\n" +
+	"\x0frelease_version\x18\x02 \x01(\tR\x0ereleaseVersion\x12\x14\n" +
+	"\x05title\x18\x03 \x01(\tR\x05title\x12=\n" +
+	"\fpublished_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vpublishedAt\x12\x1a\n" +
+	"\brevision\x18\x05 \x01(\rR\brevision\x129\n" +
+	"\n" +
+	"updated_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xb6\x03\n" +
+	"\x16DeploymentGroupSummary\x12\x12\n" +
+	"\x04slug\x18\x01 \x01(\tR\x04slug\x12;\n" +
+	"\venvironment\x18\x02 \x01(\x0e2\x19.changelog.v1.EnvironmentR\venvironment\x12;\n" +
+	"\voccurred_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"occurredAt\x12'\n" +
+	"\x0frelease_version\x18\x04 \x01(\tR\x0ereleaseVersion\x12$\n" +
+	"\vrelease_tag\x18\x05 \x01(\tH\x00R\n" +
+	"releaseTag\x88\x01\x01\x12=\n" +
+	"\x18previous_release_version\x18\x06 \x01(\tH\x01R\x16previousReleaseVersion\x88\x01\x01\x12\x1a\n" +
+	"\bversions\x18\a \x03(\tR\bversions\x127\n" +
+	"\x05posts\x18\b \x03(\v2!.changelog.v1.DeploymentGroupPostR\x05postsB\x0e\n" +
+	"\f_release_tagB\x1b\n" +
+	"\x19_previous_release_version\"\x8e\x01\n" +
+	"\x18DeploymentGroupAttention\x12\x1b\n" +
+	"\tpost_slug\x18\x01 \x01(\tR\bpostSlug\x12'\n" +
+	"\x0frelease_version\x18\x02 \x01(\tR\x0ereleaseVersion\x12,\n" +
+	"\x06change\x18\x03 \x01(\v2\x14.changelog.v1.ChangeR\x06change\"t\n" +
+	"\x18DeploymentGroupHighlight\x12\x1b\n" +
+	"\tpost_slug\x18\x01 \x01(\tR\bpostSlug\x12'\n" +
+	"\x0frelease_version\x18\x02 \x01(\tR\x0ereleaseVersion\x12\x12\n" +
+	"\x04text\x18\x03 \x01(\tR\x04text\"\xdf\x01\n" +
+	"\x0fDeploymentGroup\x12>\n" +
+	"\asummary\x18\x01 \x01(\v2$.changelog.v1.DeploymentGroupSummaryR\asummary\x12D\n" +
+	"\tattention\x18\x02 \x03(\v2&.changelog.v1.DeploymentGroupAttentionR\tattention\x12F\n" +
+	"\n" +
+	"highlights\x18\x03 \x03(\v2&.changelog.v1.DeploymentGroupHighlightR\n" +
+	"highlights\"e\n" +
+	"\x1bListDeploymentGroupsRequest\x12\x1d\n" +
+	"\x05limit\x18\x01 \x01(\rB\a\xbaH\x04*\x02\x18dR\x05limit\x12'\n" +
+	"\n" +
+	"page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken\"\x84\x01\n" +
+	"\x1cListDeploymentGroupsResponse\x12<\n" +
+	"\x06groups\x18\x01 \x03(\v2$.changelog.v1.DeploymentGroupSummaryR\x06groups\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\";\n" +
+	"\x19GetDeploymentGroupRequest\x12\x1e\n" +
+	"\x04slug\x18\x01 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\xc8\x01R\x04slug\"Q\n" +
+	"\x1aGetDeploymentGroupResponse\x123\n" +
+	"\x05group\x18\x01 \x01(\v2\x1d.changelog.v1.DeploymentGroupR\x05group*n\n" +
 	"\x0eChangeCategory\x12\x18\n" +
 	"\x14CATEGORY_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fBREAKING_CHANGE\x10\x01\x12\x0f\n" +
@@ -1269,18 +2221,33 @@ const file_changelog_v1_changelog_proto_rawDesc = "" +
 	"\tQUICKSWAP\x10\t\x12\v\n" +
 	"\aREWARDS\x10\n" +
 	"\x12\r\n" +
-	"\tASSISTANT\x10\v*L\n" +
+	"\tASSISTANT\x10\v*P\n" +
+	"\vEnvironment\x12\x1b\n" +
+	"\x17ENVIRONMENT_UNSPECIFIED\x10\x00\x12\n" +
+	"\n" +
+	"\x06DEVNET\x10\x01\x12\v\n" +
+	"\aTESTNET\x10\x02\x12\v\n" +
+	"\aMAINNET\x10\x03*[\n" +
+	"\x12ChangeAvailability\x12\x1c\n" +
+	"\x18AVAILABILITY_UNSPECIFIED\x10\x00\x12\t\n" +
+	"\x05AHEAD\x10\x01\x12\v\n" +
+	"\aPENDING\x10\x02\x12\x0f\n" +
+	"\vUNAVAILABLE\x10\x03*L\n" +
 	"\rSortDirection\x12\x1e\n" +
 	"\x1aSORT_DIRECTION_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\bSORT_ASC\x10\x01\x12\r\n" +
-	"\tSORT_DESC\x10\x022\x8d\x04\n" +
+	"\tSORT_DESC\x10\x022\xc0\a\n" +
 	"\x10ChangelogService\x12\x9e\x01\n" +
 	"\tListPosts\x12\x1e.changelog.v1.ListPostsRequest\x1a\x1f.changelog.v1.ListPostsResponse\"P\xbaG+\n" +
 	"\x11Changelog Service\x12\x14List Changelog PostsZ\x00\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x15\x12\x13/v1/changelog/posts\x90\x02\x01\x12\x9d\x01\n" +
 	"\aGetPost\x12\x1c.changelog.v1.GetPostRequest\x1a\x1d.changelog.v1.GetPostResponse\"U\xbaG)\n" +
 	"\x11Changelog Service\x12\x12Get Changelog PostZ\x00\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1c\x12\x1a/v1/changelog/posts/{slug}\x90\x02\x01\x12\xa8\x01\n" +
 	"\vListChanges\x12 .changelog.v1.ListChangesRequest\x1a!.changelog.v1.ListChangesResponse\"T\xbaG-\n" +
-	"\x11Changelog Service\x12\x16List Changelog ChangesZ\x00\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x17\x12\x15/v1/changelog/changes\x90\x02\x01\x1a\r\x8a\xb5\x18\tchangelogB\xb5\x01\xbaGl:j\n" +
+	"\x11Changelog Service\x12\x16List Changelog ChangesZ\x00\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x17\x12\x15/v1/changelog/changes\x90\x02\x01\x12\xd7\x01\n" +
+	"\x14ListDeploymentGroups\x12).changelog.v1.ListDeploymentGroupsRequest\x1a*.changelog.v1.ListDeploymentGroupsResponse\"h\xbaG7\n" +
+	"\x11Changelog Service\x12 List Changelog Deployment GroupsZ\x00\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02!\x12\x1f/v1/changelog/deployment-groups\x90\x02\x01\x12\xd6\x01\n" +
+	"\x12GetDeploymentGroup\x12'.changelog.v1.GetDeploymentGroupRequest\x1a(.changelog.v1.GetDeploymentGroupResponse\"m\xbaG5\n" +
+	"\x11Changelog Service\x12\x1eGet Changelog Deployment GroupZ\x00\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02(\x12&/v1/changelog/deployment-groups/{slug}\x90\x02\x01\x1a\r\x8a\xb5\x18\tchangelogB\xb5\x01\xbaGl:j\n" +
 	"\x11Changelog Service\x12UPublished product changelog of this environment: posts and the changes they announce.ZDgithub.com/Fabric-Labs/polyester-sdk-go/gen/changelog/v1;changelogv1b\x06proto3"
 
 var (
@@ -1295,59 +2262,94 @@ func file_changelog_v1_changelog_proto_rawDescGZIP() []byte {
 	return file_changelog_v1_changelog_proto_rawDescData
 }
 
-var file_changelog_v1_changelog_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_changelog_v1_changelog_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_changelog_v1_changelog_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
+var file_changelog_v1_changelog_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_changelog_v1_changelog_proto_goTypes = []any{
-	(ChangeCategory)(0),           // 0: changelog.v1.ChangeCategory
-	(Audience)(0),                 // 1: changelog.v1.Audience
-	(Surface)(0),                  // 2: changelog.v1.Surface
-	(SortDirection)(0),            // 3: changelog.v1.SortDirection
-	(*Change)(nil),                // 4: changelog.v1.Change
-	(*Section)(nil),               // 5: changelog.v1.Section
-	(*PostSummary)(nil),           // 6: changelog.v1.PostSummary
-	(*Post)(nil),                  // 7: changelog.v1.Post
-	(*ListPostsRequest)(nil),      // 8: changelog.v1.ListPostsRequest
-	(*ListPostsResponse)(nil),     // 9: changelog.v1.ListPostsResponse
-	(*GetPostRequest)(nil),        // 10: changelog.v1.GetPostRequest
-	(*GetPostResponse)(nil),       // 11: changelog.v1.GetPostResponse
-	(*ListChangesRequest)(nil),    // 12: changelog.v1.ListChangesRequest
-	(*ChangeEntry)(nil),           // 13: changelog.v1.ChangeEntry
-	(*ListChangesResponse)(nil),   // 14: changelog.v1.ListChangesResponse
-	(*timestamppb.Timestamp)(nil), // 15: google.protobuf.Timestamp
+	(ChangeCategory)(0),                  // 0: changelog.v1.ChangeCategory
+	(Audience)(0),                        // 1: changelog.v1.Audience
+	(Surface)(0),                         // 2: changelog.v1.Surface
+	(Environment)(0),                     // 3: changelog.v1.Environment
+	(ChangeAvailability)(0),              // 4: changelog.v1.ChangeAvailability
+	(SortDirection)(0),                   // 5: changelog.v1.SortDirection
+	(*EnvironmentStatus)(nil),            // 6: changelog.v1.EnvironmentStatus
+	(*ChangeException)(nil),              // 7: changelog.v1.ChangeException
+	(*Change)(nil),                       // 8: changelog.v1.Change
+	(*Section)(nil),                      // 9: changelog.v1.Section
+	(*PostSummary)(nil),                  // 10: changelog.v1.PostSummary
+	(*Post)(nil),                         // 11: changelog.v1.Post
+	(*ListPostsRequest)(nil),             // 12: changelog.v1.ListPostsRequest
+	(*ListPostsResponse)(nil),            // 13: changelog.v1.ListPostsResponse
+	(*GetPostRequest)(nil),               // 14: changelog.v1.GetPostRequest
+	(*GetPostResponse)(nil),              // 15: changelog.v1.GetPostResponse
+	(*ListChangesRequest)(nil),           // 16: changelog.v1.ListChangesRequest
+	(*ChangeEntry)(nil),                  // 17: changelog.v1.ChangeEntry
+	(*ListChangesResponse)(nil),          // 18: changelog.v1.ListChangesResponse
+	(*DeploymentGroupPost)(nil),          // 19: changelog.v1.DeploymentGroupPost
+	(*DeploymentGroupSummary)(nil),       // 20: changelog.v1.DeploymentGroupSummary
+	(*DeploymentGroupAttention)(nil),     // 21: changelog.v1.DeploymentGroupAttention
+	(*DeploymentGroupHighlight)(nil),     // 22: changelog.v1.DeploymentGroupHighlight
+	(*DeploymentGroup)(nil),              // 23: changelog.v1.DeploymentGroup
+	(*ListDeploymentGroupsRequest)(nil),  // 24: changelog.v1.ListDeploymentGroupsRequest
+	(*ListDeploymentGroupsResponse)(nil), // 25: changelog.v1.ListDeploymentGroupsResponse
+	(*GetDeploymentGroupRequest)(nil),    // 26: changelog.v1.GetDeploymentGroupRequest
+	(*GetDeploymentGroupResponse)(nil),   // 27: changelog.v1.GetDeploymentGroupResponse
+	(*timestamppb.Timestamp)(nil),        // 28: google.protobuf.Timestamp
 }
 var file_changelog_v1_changelog_proto_depIdxs = []int32{
-	0,  // 0: changelog.v1.Change.category:type_name -> changelog.v1.ChangeCategory
-	1,  // 1: changelog.v1.Change.audiences:type_name -> changelog.v1.Audience
-	2,  // 2: changelog.v1.Change.surfaces:type_name -> changelog.v1.Surface
-	4,  // 3: changelog.v1.Section.changes:type_name -> changelog.v1.Change
-	2,  // 4: changelog.v1.Section.surface:type_name -> changelog.v1.Surface
-	15, // 5: changelog.v1.PostSummary.published_at:type_name -> google.protobuf.Timestamp
-	15, // 6: changelog.v1.PostSummary.coverage_cutoff:type_name -> google.protobuf.Timestamp
-	15, // 7: changelog.v1.PostSummary.updated_at:type_name -> google.protobuf.Timestamp
-	6,  // 8: changelog.v1.Post.summary:type_name -> changelog.v1.PostSummary
-	5,  // 9: changelog.v1.Post.sections:type_name -> changelog.v1.Section
-	6,  // 10: changelog.v1.ListPostsResponse.posts:type_name -> changelog.v1.PostSummary
-	7,  // 11: changelog.v1.GetPostResponse.post:type_name -> changelog.v1.Post
-	0,  // 12: changelog.v1.ListChangesRequest.categories:type_name -> changelog.v1.ChangeCategory
-	2,  // 13: changelog.v1.ListChangesRequest.surfaces:type_name -> changelog.v1.Surface
-	1,  // 14: changelog.v1.ListChangesRequest.audiences:type_name -> changelog.v1.Audience
-	15, // 15: changelog.v1.ListChangesRequest.start_time:type_name -> google.protobuf.Timestamp
-	15, // 16: changelog.v1.ListChangesRequest.end_time:type_name -> google.protobuf.Timestamp
-	3,  // 17: changelog.v1.ListChangesRequest.sort:type_name -> changelog.v1.SortDirection
-	4,  // 18: changelog.v1.ChangeEntry.change:type_name -> changelog.v1.Change
-	15, // 19: changelog.v1.ChangeEntry.published_at:type_name -> google.protobuf.Timestamp
-	13, // 20: changelog.v1.ListChangesResponse.changes:type_name -> changelog.v1.ChangeEntry
-	8,  // 21: changelog.v1.ChangelogService.ListPosts:input_type -> changelog.v1.ListPostsRequest
-	10, // 22: changelog.v1.ChangelogService.GetPost:input_type -> changelog.v1.GetPostRequest
-	12, // 23: changelog.v1.ChangelogService.ListChanges:input_type -> changelog.v1.ListChangesRequest
-	9,  // 24: changelog.v1.ChangelogService.ListPosts:output_type -> changelog.v1.ListPostsResponse
-	11, // 25: changelog.v1.ChangelogService.GetPost:output_type -> changelog.v1.GetPostResponse
-	14, // 26: changelog.v1.ChangelogService.ListChanges:output_type -> changelog.v1.ListChangesResponse
-	24, // [24:27] is the sub-list for method output_type
-	21, // [21:24] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	3,  // 0: changelog.v1.EnvironmentStatus.environment:type_name -> changelog.v1.Environment
+	28, // 1: changelog.v1.EnvironmentStatus.live_at:type_name -> google.protobuf.Timestamp
+	3,  // 2: changelog.v1.ChangeException.environment:type_name -> changelog.v1.Environment
+	4,  // 3: changelog.v1.ChangeException.availability:type_name -> changelog.v1.ChangeAvailability
+	28, // 4: changelog.v1.ChangeException.live_at:type_name -> google.protobuf.Timestamp
+	0,  // 5: changelog.v1.Change.category:type_name -> changelog.v1.ChangeCategory
+	1,  // 6: changelog.v1.Change.audiences:type_name -> changelog.v1.Audience
+	2,  // 7: changelog.v1.Change.surfaces:type_name -> changelog.v1.Surface
+	7,  // 8: changelog.v1.Change.environment_exceptions:type_name -> changelog.v1.ChangeException
+	8,  // 9: changelog.v1.Section.changes:type_name -> changelog.v1.Change
+	2,  // 10: changelog.v1.Section.surface:type_name -> changelog.v1.Surface
+	28, // 11: changelog.v1.PostSummary.published_at:type_name -> google.protobuf.Timestamp
+	28, // 12: changelog.v1.PostSummary.coverage_cutoff:type_name -> google.protobuf.Timestamp
+	28, // 13: changelog.v1.PostSummary.updated_at:type_name -> google.protobuf.Timestamp
+	6,  // 14: changelog.v1.PostSummary.environments:type_name -> changelog.v1.EnvironmentStatus
+	10, // 15: changelog.v1.Post.summary:type_name -> changelog.v1.PostSummary
+	9,  // 16: changelog.v1.Post.sections:type_name -> changelog.v1.Section
+	10, // 17: changelog.v1.ListPostsResponse.posts:type_name -> changelog.v1.PostSummary
+	11, // 18: changelog.v1.GetPostResponse.post:type_name -> changelog.v1.Post
+	0,  // 19: changelog.v1.ListChangesRequest.categories:type_name -> changelog.v1.ChangeCategory
+	2,  // 20: changelog.v1.ListChangesRequest.surfaces:type_name -> changelog.v1.Surface
+	1,  // 21: changelog.v1.ListChangesRequest.audiences:type_name -> changelog.v1.Audience
+	28, // 22: changelog.v1.ListChangesRequest.start_time:type_name -> google.protobuf.Timestamp
+	28, // 23: changelog.v1.ListChangesRequest.end_time:type_name -> google.protobuf.Timestamp
+	5,  // 24: changelog.v1.ListChangesRequest.sort:type_name -> changelog.v1.SortDirection
+	8,  // 25: changelog.v1.ChangeEntry.change:type_name -> changelog.v1.Change
+	28, // 26: changelog.v1.ChangeEntry.published_at:type_name -> google.protobuf.Timestamp
+	17, // 27: changelog.v1.ListChangesResponse.changes:type_name -> changelog.v1.ChangeEntry
+	28, // 28: changelog.v1.DeploymentGroupPost.published_at:type_name -> google.protobuf.Timestamp
+	28, // 29: changelog.v1.DeploymentGroupPost.updated_at:type_name -> google.protobuf.Timestamp
+	3,  // 30: changelog.v1.DeploymentGroupSummary.environment:type_name -> changelog.v1.Environment
+	28, // 31: changelog.v1.DeploymentGroupSummary.occurred_at:type_name -> google.protobuf.Timestamp
+	19, // 32: changelog.v1.DeploymentGroupSummary.posts:type_name -> changelog.v1.DeploymentGroupPost
+	8,  // 33: changelog.v1.DeploymentGroupAttention.change:type_name -> changelog.v1.Change
+	20, // 34: changelog.v1.DeploymentGroup.summary:type_name -> changelog.v1.DeploymentGroupSummary
+	21, // 35: changelog.v1.DeploymentGroup.attention:type_name -> changelog.v1.DeploymentGroupAttention
+	22, // 36: changelog.v1.DeploymentGroup.highlights:type_name -> changelog.v1.DeploymentGroupHighlight
+	20, // 37: changelog.v1.ListDeploymentGroupsResponse.groups:type_name -> changelog.v1.DeploymentGroupSummary
+	23, // 38: changelog.v1.GetDeploymentGroupResponse.group:type_name -> changelog.v1.DeploymentGroup
+	12, // 39: changelog.v1.ChangelogService.ListPosts:input_type -> changelog.v1.ListPostsRequest
+	14, // 40: changelog.v1.ChangelogService.GetPost:input_type -> changelog.v1.GetPostRequest
+	16, // 41: changelog.v1.ChangelogService.ListChanges:input_type -> changelog.v1.ListChangesRequest
+	24, // 42: changelog.v1.ChangelogService.ListDeploymentGroups:input_type -> changelog.v1.ListDeploymentGroupsRequest
+	26, // 43: changelog.v1.ChangelogService.GetDeploymentGroup:input_type -> changelog.v1.GetDeploymentGroupRequest
+	13, // 44: changelog.v1.ChangelogService.ListPosts:output_type -> changelog.v1.ListPostsResponse
+	15, // 45: changelog.v1.ChangelogService.GetPost:output_type -> changelog.v1.GetPostResponse
+	18, // 46: changelog.v1.ChangelogService.ListChanges:output_type -> changelog.v1.ListChangesResponse
+	25, // 47: changelog.v1.ChangelogService.ListDeploymentGroups:output_type -> changelog.v1.ListDeploymentGroupsResponse
+	27, // 48: changelog.v1.ChangelogService.GetDeploymentGroup:output_type -> changelog.v1.GetDeploymentGroupResponse
+	44, // [44:49] is the sub-list for method output_type
+	39, // [39:44] is the sub-list for method input_type
+	39, // [39:39] is the sub-list for extension type_name
+	39, // [39:39] is the sub-list for extension extendee
+	0,  // [0:39] is the sub-list for field type_name
 }
 
 func init() { file_changelog_v1_changelog_proto_init() }
@@ -1355,16 +2357,18 @@ func file_changelog_v1_changelog_proto_init() {
 	if File_changelog_v1_changelog_proto != nil {
 		return
 	}
-	file_changelog_v1_changelog_proto_msgTypes[0].OneofWrappers = []any{}
-	file_changelog_v1_changelog_proto_msgTypes[1].OneofWrappers = []any{}
-	file_changelog_v1_changelog_proto_msgTypes[8].OneofWrappers = []any{}
+	file_changelog_v1_changelog_proto_msgTypes[2].OneofWrappers = []any{}
+	file_changelog_v1_changelog_proto_msgTypes[3].OneofWrappers = []any{}
+	file_changelog_v1_changelog_proto_msgTypes[4].OneofWrappers = []any{}
+	file_changelog_v1_changelog_proto_msgTypes[10].OneofWrappers = []any{}
+	file_changelog_v1_changelog_proto_msgTypes[14].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_changelog_v1_changelog_proto_rawDesc), len(file_changelog_v1_changelog_proto_rawDesc)),
-			NumEnums:      4,
-			NumMessages:   11,
+			NumEnums:      6,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

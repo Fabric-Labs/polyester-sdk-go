@@ -1609,8 +1609,8 @@ type ListTransfersRequest struct {
 	// inclusive.
 	TsMinUs uint64 `protobuf:"varint,4,opt,name=ts_min_us,json=tsMinUs,proto3" json:"ts_min_us,omitempty"`
 	// Optional upper transfer timestamp bound in microseconds since epoch (UTC),
-	// inclusive.
-	TsMaxUs uint64 `protobuf:"varint,5,opt,name=ts_max_us,json=tsMaxUs,proto3" json:"ts_max_us,omitempty"`
+	// inclusive. Omit for no upper bound; an explicit zero returns an empty page.
+	TsMaxUs *uint64 `protobuf:"varint,5,opt,name=ts_max_us,json=tsMaxUs,proto3,oneof" json:"ts_max_us,omitempty"`
 	// Optional filter by transfer reason.
 	TransferCode v11.TransferCode `protobuf:"varint,6,opt,name=transfer_code,json=transferCode,proto3,enum=ledger.v1.TransferCode" json:"transfer_code,omitempty"`
 	// Optional filter by asset ledger.
@@ -1682,8 +1682,8 @@ func (x *ListTransfersRequest) GetTsMinUs() uint64 {
 }
 
 func (x *ListTransfersRequest) GetTsMaxUs() uint64 {
-	if x != nil {
-		return x.TsMaxUs
+	if x != nil && x.TsMaxUs != nil {
+		return *x.TsMaxUs
 	}
 	return 0
 }
@@ -2202,19 +2202,21 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"\x0etotal_equity_q\x18\x02 \x01(\x12R\ftotalEquityQ\x12B\n" +
 	"\baccounts\x18\x03 \x03(\v2&.ledger.read.v1.PortfolioAccountEquityR\baccounts\x12<\n" +
 	"\x06assets\x18\x04 \x03(\v2$.ledger.read.v1.PortfolioAssetEquityR\x06assets\x12\x1e\n" +
-	"\vbtc_price_q\x18\x05 \x01(\x03R\tbtcPriceQ\"\x83\x04\n" +
+	"\vbtc_price_q\x18\x05 \x01(\x03R\tbtcPriceQ\"\x96\x04\n" +
 	"\x14ListTransfersRequest\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12\x1e\n" +
 	"\x05limit\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xe8\aR\x05limit\x12\x1a\n" +
 	"\breversed\x18\x03 \x01(\bR\breversed\x12\x1a\n" +
-	"\tts_min_us\x18\x04 \x01(\x04R\atsMinUs\x12\x1a\n" +
-	"\tts_max_us\x18\x05 \x01(\x04R\atsMaxUs\x12F\n" +
+	"\tts_min_us\x18\x04 \x01(\x04R\atsMinUs\x12\x1f\n" +
+	"\tts_max_us\x18\x05 \x01(\x04H\x01R\atsMaxUs\x88\x01\x01\x12F\n" +
 	"\rtransfer_code\x18\x06 \x01(\x0e2\x17.ledger.v1.TransferCodeB\b\xbaH\x05\x82\x01\x02\x10\x01R\ftransferCode\x12\x16\n" +
 	"\x06ledger\x18\a \x01(\rR\x06ledger\x12'\n" +
 	"\n" +
 	"page_token\x18\t \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken:\xb1\x01\xbaH\xad\x01\x1a\xaa\x01\n" +
-	"$list_transfers.timestamp_range_valid\x120ts_max_us must be >= ts_min_us when both are set\x1aPthis.ts_min_us == 0u || this.ts_max_us == 0u || this.ts_max_us >= this.ts_min_usB\x10\n" +
-	"\x0e_subaccount_id\"\xbe\x01\n" +
+	"$list_transfers.timestamp_range_valid\x120ts_max_us must be >= ts_min_us when both are set\x1aP!has(this.ts_max_us) || this.ts_max_us == 0u || this.ts_max_us >= this.ts_min_usB\x10\n" +
+	"\x0e_subaccount_idB\f\n" +
+	"\n" +
+	"_ts_max_us\"\xbe\x01\n" +
 	"\fTransferSide\x124\n" +
 	"\x04kind\x18\x01 \x01(\x0e2 .ledger.read.v1.TransferSideKindR\x04kind\x12\"\n" +
 	"\n" +

@@ -60,6 +60,39 @@ func (s *ChangelogService) ListChanges(ctx context.Context, opts models.ListChan
 	return UnaryPublic(ctx, s.transport, s.client().ListChanges, req, decode.ChangelogChangesPageFromProto)
 }
 
+// ListDeploymentGroups returns one page of this environment's deployment
+// groups, newest deployment first: each deployment that brought new
+// releases, with the release posts it brought. The list is empty until the
+// environment publishes release posts.
+func (s *ChangelogService) ListDeploymentGroups(ctx context.Context, opts models.ListChangelogDeploymentGroupsOptions) (models.ChangelogDeploymentGroupsPage, error) {
+	limit, err := PaginationLimit(opts.Limit, "limit")
+	if err != nil {
+		return models.ChangelogDeploymentGroupsPage{}, err
+	}
+	req := &changelogv1.ListDeploymentGroupsRequest{Limit: limit, PageToken: opts.PageToken}
+	return UnaryPublic(ctx, s.transport, s.client().ListDeploymentGroups, req, decode.ChangelogDeploymentGroupsPageFromProto)
+}
+
+// GetDeploymentGroup returns one deployment group by slug, such as
+// "testnet-v0.92.9", with the changes that need attention and the highlights
+// of its release posts. An unknown slug fails with an *errors.APIError whose
+// Code is "not_found".
+func (s *ChangelogService) GetDeploymentGroup(ctx context.Context, slug string) (models.ChangelogDeploymentGroup, error) {
+	req := &changelogv1.GetDeploymentGroupRequest{Slug: slug}
+	return UnaryPublicDecoded(ctx, s.transport, s.client().GetDeploymentGroup, req, decode.ChangelogDeploymentGroupFromProto)
+}
+
+// DeploymentGroups iterates over deployment group summaries from
+// opts.PageToken (or the newest deployment) to the oldest, fetching pages as
+// needed. Iteration stops at the first error.
+func (s *ChangelogService) DeploymentGroups(ctx context.Context, opts models.ListChangelogDeploymentGroupsOptions) iter.Seq2[models.ChangelogDeploymentGroupSummary, error] {
+	return paginate(opts.PageToken, func(token string) ([]models.ChangelogDeploymentGroupSummary, string, error) {
+		opts.PageToken = token
+		page, err := s.ListDeploymentGroups(ctx, opts)
+		return page.Groups, page.NextPageToken, err
+	})
+}
+
 // Posts iterates over post summaries from opts.PageToken (or the newest post)
 // to the oldest, fetching pages as needed. Iteration stops at the first error.
 func (s *ChangelogService) Posts(ctx context.Context, opts models.ListChangelogPostsOptions) iter.Seq2[models.ChangelogPostSummary, error] {

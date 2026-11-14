@@ -1153,6 +1153,25 @@ key, and the server rate-limits it per client address.
   breaking or action-required change published at or after `t`, newest post first,
   each change once with the wording last received. They filter on first publication,
   so they don't report an edit to an older post; compare `Revision` for that.
+- `ListDeploymentGroups` returns one page of the environment's deployment groups,
+  newest deployment first, and `DeploymentGroups` iterates over every page. A
+  deployment group is one deployment that raised the environment's release: its
+  `Slug` (such as `testnet-v0.92.9`) never changes, `Versions` lists every release it
+  brought in ascending order, and `Posts` the published release posts among them.
+  `GetDeploymentGroup(ctx, slug)` adds `Attention`, the breaking and action-required
+  changes of those posts, and `Highlights`; an unknown slug fails with
+  `*errors.APIError` whose `Code` is `not_found`. The list stays empty until the
+  environment publishes release posts.
+
+A release post announces one release (`ReleaseVersion`, such as `0.92.9`, with the
+slug `v0.92.9`) and has the same content in every environment. Its `Environments`
+say when the release went live on devnet, testnet and mainnet (`LiveAt` is nil while
+it is pending there), and `DeploymentGroupSlug` names the group that brought it to
+this environment (nil while pending here). `Environments` changes without a new
+`Revision`, so compare the whole summary to notice it. A change whose availability
+differs from its release's in some environment lists it in `EnvironmentExceptions`:
+`ahead` (available before its release; `LiveAt` says since when), `pending` or
+`unavailable`. Other posts leave these fields nil or empty.
 
 Categories, audiences and surfaces are lowercase labels with constants in `models`
 (`models.ChangelogCategoryBreakingChange`, `models.ChangelogSurfaceAPI`, ...). A value
@@ -1174,6 +1193,12 @@ post, err := client.Changelog.GetPost(ctx, "2026-09-24")
 breaking, err := client.Changelog.BreakingChangesSince(ctx, time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC))
 for _, entry := range breaking {
     fmt.Println(entry.PostSlug, entry.Change.ID, entry.Change.Title, entry.Change.MigrationGuidance)
+}
+for group, err := range client.Changelog.DeploymentGroups(ctx, models.ListChangelogDeploymentGroupsOptions{}) {
+    if err != nil {
+        return err
+    }
+    fmt.Println(group.Slug, group.Versions)
 }
 ```
 
@@ -1482,6 +1507,15 @@ Reconnects use capped exponential backoff with per-subscription jitter.
 Orderbook `CreateSubscriptionOptions` exposes `OnSequenceGap`, `OnReconnect`,
 `OnSnapshotRefresh`, and `OnError`. Managed create methods wait for both the
 WebSocket handshake and initial snapshot before returning.
+
+A managed order book follows the depth stream's rule: each update is the
+difference between two published views of the tier's top levels, so it applies
+only to a book at exactly its `BookSeqStart` (the previous update's
+`BookSeqEnd`); updates the snapshot already contains are dropped. An update that
+does not line up is a gap: `OnSequenceGap` is called once, the book emits one
+view with `Available` false and then waits for the stream's next `reset`, a full
+view published about every 30 s and after a gap, instead of fetching snapshots
+that need not line up either. Call `RefreshSnapshot` to rebuild sooner.
 
 Pass `DefaultAccountID` (your Profile **Account ID**) on the client for bucket
 transfers and other account-scoped ledger operations.
