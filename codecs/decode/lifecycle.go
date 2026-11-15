@@ -164,14 +164,10 @@ func FlowsListFromProto(msg *lifecyclev1.ListFlowsResponse) (models.LifecycleFlo
 
 func FlowFromGetResponse(msg *lifecyclev1.GetFlowResponse) (models.LifecycleFlowSummary, error) {
 	if msg.GetFlow() == nil {
-		return models.LifecycleFlowSummary{}, &sdkerrors.TransportError{
-			Msg: "invalid GetFlow response: missing flow",
-		}
+		return models.LifecycleFlowSummary{}, &sdkerrors.ResponseContractError{Operation: "GetFlowById", Msg: "missing flow"}
 	}
 	if msg.GetFlow().GetSummary() == nil {
-		return models.LifecycleFlowSummary{}, &sdkerrors.TransportError{
-			Msg: "invalid GetFlow response: missing flow summary",
-		}
+		return models.LifecycleFlowSummary{}, &sdkerrors.ResponseContractError{Operation: "GetFlowById", Msg: "missing flow summary"}
 	}
 	if err := requireStringID("GetFlowById", "flow_id", msg.GetFlow().GetSummary().GetFlowId()); err != nil {
 		return models.LifecycleFlowSummary{}, err

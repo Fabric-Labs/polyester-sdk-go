@@ -354,6 +354,11 @@ func AddressBookViewFromProto(msg *authv1.GetAddressBookViewResponse) (models.Ad
 			return models.AddressBookView{}, err
 		}
 	}
+	for _, tag := range msg.GetTags() {
+		if err := requireID("GetAddressBookView", "tag_id", tag.GetTagId()); err != nil {
+			return models.AddressBookView{}, err
+		}
+	}
 	out := models.AddressBookView{
 		Entries:                     entriesView(msg.GetEntries()),
 		RecentDestinations:          recentDestinations(msg.GetRecentDestinations()),

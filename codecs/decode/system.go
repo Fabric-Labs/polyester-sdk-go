@@ -18,6 +18,11 @@ func StatusEventsPageFromProto(msg *systemv1.ListStatusEventsResponse) (models.S
 		if err := requireID("ListStatusEvents", "id", event.GetId()); err != nil {
 			return models.StatusEventsPage{}, err
 		}
+		for _, update := range event.GetUpdates() {
+			if err := requireID("ListStatusEvents", "update id", uint64(update.GetId())); err != nil {
+				return models.StatusEventsPage{}, err
+			}
+		}
 		events = append(events, StatusEventFromProto(event))
 	}
 	return models.StatusEventsPage{Events: events, NextPageToken: msg.GetNextPageToken()}, nil

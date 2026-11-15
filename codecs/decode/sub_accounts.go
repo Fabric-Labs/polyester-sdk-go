@@ -81,14 +81,17 @@ func requireInviteIDs(operation string, invites []*authv1.SubaccountInvite) erro
 	return nil
 }
 
-// GetSubaccountFromProto decodes one sub-account with its expansions. A
-// sub-account, API key, invite or attached policy without its ID returns a
-// *errors.ResponseContractError.
+// GetSubaccountFromProto decodes one sub-account with its expansions. A reply
+// without its sub-account, or a sub-account, API key, member, invite or
+// attached policy without its ID, returns a *errors.ResponseContractError.
 func GetSubaccountFromProto(msg *authv1.GetSubaccountResponse) (models.GetSubaccountResult, error) {
 	if err := requireID("GetSubaccount", "subaccount id", msg.GetSubaccount().GetId()); err != nil {
 		return models.GetSubaccountResult{}, err
 	}
 	if err := requireAPIKeyIDs("GetSubaccount", msg.GetApiKeys()...); err != nil {
+		return models.GetSubaccountResult{}, err
+	}
+	if err := requireMemberIDs("GetSubaccount", msg.GetMembers()); err != nil {
 		return models.GetSubaccountResult{}, err
 	}
 	if err := requireInviteIDs("GetSubaccount", msg.GetInvites()); err != nil {
@@ -129,8 +132,23 @@ func subAccountMembers(members []*authv1.SubaccountMemberView) []models.SubAccou
 	return out
 }
 
-func SubaccountMembersListFromProto(msg *authv1.ListSubaccountMembersResponse) models.SubAccountMembersList {
-	return models.SubAccountMembersList{Members: subAccountMembers(msg.GetMembers())}
+// SubaccountMembersListFromProto decodes sub-account members. A member
+// without its account ID returns a *errors.ResponseContractError.
+func SubaccountMembersListFromProto(msg *authv1.ListSubaccountMembersResponse) (models.SubAccountMembersList, error) {
+	if err := requireMemberIDs("ListSubaccountMembers", msg.GetMembers()); err != nil {
+		return models.SubAccountMembersList{}, err
+	}
+	return models.SubAccountMembersList{Members: subAccountMembers(msg.GetMembers())}, nil
+}
+
+// requireMemberIDs refuses a member without its account ID.
+func requireMemberIDs(operation string, members []*authv1.SubaccountMemberView) error {
+	for _, m := range members {
+		if err := requireID(operation, "member account_id", m.GetAccountId()); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func inviteFromProto(inv *authv1.SubaccountInvite) models.SubAccountInvite {

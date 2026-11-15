@@ -22,9 +22,9 @@ func TestSubaccountRoleSpellingMatchesAcrossSubaccountMembersAndInvites(t *testi
 			t.Errorf("%v: subaccount=%q member=%q invite=%q, want %q everywhere",
 				role, got.Subaccount.Role, got.Members[0].Role, got.Invites[0].Role, want)
 		}
-		members := SubaccountMembersListFromProto(&authv1.ListSubaccountMembersResponse{
+		members := mustReply(SubaccountMembersListFromProto(&authv1.ListSubaccountMembersResponse{
 			Members: []*authv1.SubaccountMemberView{{AccountId: 3, Role: role}},
-		})
+		}))
 		invites := mustReply(SubaccountInvitesListFromProto(&authv1.ListSubaccountInvitesResponse{
 			Invites: []*authv1.SubaccountInvite{{Id: 4, SubaccountId: 6, Role: role}},
 		}))

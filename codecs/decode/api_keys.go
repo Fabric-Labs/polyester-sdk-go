@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"time"
 
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -82,13 +83,14 @@ func apiKeys(keys []*authv1.ApiKey) []models.ApiKeySummary {
 	return out
 }
 
-// ApiKeyFromGetProto decodes one API key; nil when the reply has none. A key
-// without its ID returns a *errors.ResponseContractError.
+// ApiKeyFromGetProto decodes one API key. A reply without its key, or a key
+// without its ID, returns a *errors.ResponseContractError.
 func ApiKeyFromGetProto(msg *authv1.GetApiKeyResponse) (*models.ApiKeySummary, error) {
-	if key := msg.GetApiKey(); key != nil {
-		if err := requireAPIKeyIDs("GetApiKey", key); err != nil {
-			return nil, err
-		}
+	if msg.GetApiKey() == nil {
+		return nil, &sdkerrors.ResponseContractError{Operation: "GetApiKey", Msg: "missing api_key"}
+	}
+	if err := requireAPIKeyIDs("GetApiKey", msg.GetApiKey()); err != nil {
+		return nil, err
 	}
 	return apiKey(msg.GetApiKey()), nil
 }

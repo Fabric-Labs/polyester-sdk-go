@@ -472,11 +472,13 @@ func TriggersListFromProto(msg *triggersv1.ListTriggersResponse) (models.Trigger
 	}, nil
 }
 
-// GetTriggerFromProto decodes get trigger response. A trigger without its ID
-// returns a *errors.ResponseContractError.
+// GetTriggerFromProto decodes get trigger response. A reply without its
+// trigger, or a trigger without its ID, returns a
+// *errors.ResponseContractError: a trigger that does not exist is refused by
+// the API with its own error, never answered with an empty success.
 func GetTriggerFromProto(msg *triggersv1.GetTriggerResponse) (*models.Trigger, error) {
 	if msg.GetTrigger() == nil {
-		return nil, nil
+		return nil, &sdkerrors.ResponseContractError{Operation: "GetTrigger", Msg: "missing trigger"}
 	}
 	if err := requireID("GetTrigger", "trigger_id", msg.GetTrigger().GetTriggerId()); err != nil {
 		return nil, err

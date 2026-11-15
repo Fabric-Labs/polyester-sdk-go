@@ -89,9 +89,9 @@ func TestLifecycleReasonUnspecified(t *testing.T) {
 
 func TestGetFlowResponseRejectsMissingRequiredEntity(t *testing.T) {
 	_, err := decode.FlowFromGetResponse(&lifecyclev1.GetFlowResponse{})
-	var transportErr *sdkerrors.TransportError
-	if !errors.As(err, &transportErr) {
-		t.Fatalf("expected TransportError for missing flow, got %T: %v", err, err)
+	var contractErr *sdkerrors.ResponseContractError
+	if !errors.As(err, &contractErr) {
+		t.Fatalf("expected ResponseContractError for missing flow, got %T: %v", err, err)
 	}
 }
 

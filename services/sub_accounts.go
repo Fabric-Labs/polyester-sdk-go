@@ -92,7 +92,7 @@ func (s *SubAccountsService) ListMembers(ctx context.Context, account AccountSco
 	if err != nil {
 		return models.SubAccountMembersList{}, err
 	}
-	return UnaryAuth(ctx, s.transport, s.writeClient().ListSubaccountMembers, &authv1.ListSubaccountMembersRequest{SubaccountId: parsed}, decode.SubaccountMembersListFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().ListSubaccountMembers, &authv1.ListSubaccountMembersRequest{SubaccountId: parsed}, decode.SubaccountMembersListFromProto)
 }
 
 // ListInvites lists sub-account invites. An API key needs

@@ -17,11 +17,12 @@ import (
 	triggersv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1"
 )
 
-// Every read reply that carries an object's required ID refuses 0 (or an
-// empty string ID) with a ResponseContractError; the same reply with a real
-// ID decodes. A nested message the reply may leave out (an order's lineage,
-// the caller's session, a sub-account's policy, a destination's saved entry)
-// is checked only when present.
+// Every read reply that carries an object's required ID (see
+// testdata/reply_id_inventory.tsv) refuses 0 (or an empty string ID) with a
+// ResponseContractError; the same reply with a real ID decodes. A nested
+// message the reply may leave out (an order's lineage, the caller's session,
+// a sub-account's policy, a destination's saved entry) is checked only when
+// present.
 func TestReadReplyDecodersRefuseZeroRequiredID(t *testing.T) {
 	entry := func(id, tagID uint64) *authv1.AddressBookEntry {
 		return &authv1.AddressBookEntry{AddressBookEntryId: id, Tags: []*authv1.AddressBookTag{{TagId: tagID}}}
@@ -177,6 +178,13 @@ func TestReadReplyDecodersRefuseZeroRequiredID(t *testing.T) {
 					Internal: []*authv1.InternalAddressBookEntry{{AddressBookEntryId: 5}},
 				}}))
 			}},
+		{"GetAddressBookView tag",
+			func() error {
+				return ignoreResult(decode.AddressBookViewFromProto(&authv1.GetAddressBookViewResponse{Tags: []*authv1.AddressBookTagSummary{{}}}))
+			},
+			func() error {
+				return ignoreResult(decode.AddressBookViewFromProto(&authv1.GetAddressBookViewResponse{Tags: []*authv1.AddressBookTagSummary{{TagId: 7}}}))
+			}},
 		{"GetAddressBookView internal",
 			func() error {
 				return ignoreResult(decode.AddressBookViewFromProto(&authv1.GetAddressBookViewResponse{Entries: &authv1.AddressBookEntriesView{Internal: []*authv1.InternalAddressBookEntry{{}}}}))
@@ -242,6 +250,24 @@ func TestReadReplyDecodersRefuseZeroRequiredID(t *testing.T) {
 			func() error {
 				return ignoreResult(decode.GetSubaccountFromProto(subaccount(4, "ak_1", invite(5, 6), 0)))
 			}, nil},
+		{"GetSubaccount member account_id",
+			func() error {
+				r := subaccount(4, "ak_1", invite(5, 6), 7)
+				r.Members = []*authv1.SubaccountMemberView{{}}
+				return ignoreResult(decode.GetSubaccountFromProto(r))
+			},
+			func() error {
+				r := subaccount(4, "ak_1", invite(5, 6), 7)
+				r.Members = []*authv1.SubaccountMemberView{{AccountId: 8}}
+				return ignoreResult(decode.GetSubaccountFromProto(r))
+			}},
+		{"ListSubaccountMembers",
+			func() error {
+				return ignoreResult(decode.SubaccountMembersListFromProto(&authv1.ListSubaccountMembersResponse{Members: []*authv1.SubaccountMemberView{{}}}))
+			},
+			func() error {
+				return ignoreResult(decode.SubaccountMembersListFromProto(&authv1.ListSubaccountMembersResponse{Members: []*authv1.SubaccountMemberView{{AccountId: 8}}}))
+			}},
 		{"ListSubaccounts",
 			func() error {
 				return ignoreResult(decode.SubaccountsListFromProto(&authv1.ListSubaccountsResponse{Subaccounts: []*authv1.Subaccount{{}}}))
@@ -309,8 +335,12 @@ func TestReadReplyDecodersRefuseZeroRequiredID(t *testing.T) {
 				return ignoreResult(decode.StatusEventsPageFromProto(&systemv1.ListStatusEventsResponse{Events: []*systemv1.StatusEvent{{}}}))
 			},
 			func() error {
-				return ignoreResult(decode.StatusEventsPageFromProto(&systemv1.ListStatusEventsResponse{Events: []*systemv1.StatusEvent{{Id: 7}}}))
+				return ignoreResult(decode.StatusEventsPageFromProto(&systemv1.ListStatusEventsResponse{Events: []*systemv1.StatusEvent{{Id: 7, Updates: []*systemv1.StatusEventUpdate{{Id: 1}}}}}))
 			}},
+		{"ListStatusEvents update id",
+			func() error {
+				return ignoreResult(decode.StatusEventsPageFromProto(&systemv1.ListStatusEventsResponse{Events: []*systemv1.StatusEvent{{Id: 7, Updates: []*systemv1.StatusEventUpdate{{}}}}}))
+			}, nil},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -327,15 +357,28 @@ func TestReadReplyDecodersRefuseZeroRequiredID(t *testing.T) {
 	}
 }
 
-// A get that finds nothing still reads as nil, with no error.
-func TestGetReadsWithoutTheirObjectStillDecode(t *testing.T) {
-	if got, err := decode.GetTriggerFromProto(&triggersv1.GetTriggerResponse{}); got != nil || err != nil {
-		t.Fatalf("GetTrigger: (%v, %v)", got, err)
+// A successful get without the object it exists to return breaks the
+// contract: a missing object is refused, never read as "none" (a real
+// not-found arrives as an API error).
+func TestGetRepliesWithoutTheirObjectAreRefused(t *testing.T) {
+	cases := map[string]func() error{
+		"GetTrigger":    func() error { return ignoreResult(decode.GetTriggerFromProto(&triggersv1.GetTriggerResponse{})) },
+		"GetOrder":      func() error { return ignoreResult(decode.GetOrderFromProto(&orderv1.GetOrderResponse{})) },
+		"GetApiKey":     func() error { return ignoreResult(decode.ApiKeyFromGetProto(&authv1.GetApiKeyResponse{})) },
+		"GetSubaccount": func() error { return ignoreResult(decode.GetSubaccountFromProto(&authv1.GetSubaccountResponse{})) },
+		"GetFlowById":   func() error { return ignoreResult(decode.FlowFromGetResponse(&lifecyclev1.GetFlowResponse{})) },
+		"GetFlowById summary": func() error {
+			return ignoreResult(decode.FlowFromGetResponse(&lifecyclev1.GetFlowResponse{Flow: &lifecyclev1.FlowDetailView{}}))
+		},
+		"GetPost": func() error { return ignoreResult(decode.ChangelogPostFromProto(&changelogv1.GetPostResponse{})) },
+		"GetDeploymentGroup": func() error {
+			return ignoreResult(decode.ChangelogDeploymentGroupFromProto(&changelogv1.GetDeploymentGroupResponse{}))
+		},
 	}
-	if got, err := decode.ApiKeyFromGetProto(&authv1.GetApiKeyResponse{}); got != nil || err != nil {
-		t.Fatalf("GetApiKey: (%v, %v)", got, err)
-	}
-	if got, err := decode.GetOrderFromProto(&orderv1.GetOrderResponse{}); got.Order != nil || err != nil {
-		t.Fatalf("GetOrder: (%v, %v)", got, err)
+	for name, call := range cases {
+		var contract *sdkerrors.ResponseContractError
+		if err := call(); !errors.As(err, &contract) {
+			t.Errorf("%s without its object: got %v, want a ResponseContractError", name, err)
+		}
 	}
 }

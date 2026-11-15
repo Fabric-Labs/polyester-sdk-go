@@ -455,14 +455,15 @@ func UserTradesListFromProto(msg *orderv1.GetUserTradesResponse) (models.UserTra
 	}, nil
 }
 
-// GetOrderFromProto decodes get order response. An order without its ID, or
-// an order or trade lineage without its ID, returns a
+// GetOrderFromProto decodes get order response. A reply without its order, an
+// order without its ID, or an order or trade lineage without its ID, returns a
 // *errors.ResponseContractError.
 func GetOrderFromProto(msg *orderv1.GetOrderResponse) (models.GetOrderResult, error) {
-	if msg.GetOrder() != nil {
-		if err := requireOrderIDs("GetOrder", msg.GetOrder()); err != nil {
-			return models.GetOrderResult{}, err
-		}
+	if msg.GetOrder() == nil {
+		return models.GetOrderResult{}, &sdkerrors.ResponseContractError{Operation: "GetOrder", Msg: "missing order"}
+	}
+	if err := requireOrderIDs("GetOrder", msg.GetOrder()); err != nil {
+		return models.GetOrderResult{}, err
 	}
 	if err := requireTradeLineageIDs("GetOrder", msg.GetTrades()); err != nil {
 		return models.GetOrderResult{}, err
