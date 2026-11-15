@@ -709,8 +709,12 @@ funds. `MatchedOrders` counts orders only. `client.StopAllTrading(ctx,
 account, services.StopAllTradingScope{...})` stops all automated trading in
 scope: it lists the live triggers (created, armed, running, paused, every
 page), cancels each, then cancels all orders, in that order so an order a
-trigger places before its cancel is still canceled. A failed trigger cancel
-is listed in `FailedTriggers` and returned as an error after the cancel-all.
+trigger places before its cancel is still canceled. The two legs of an OCO
+are canceled once, together, by their `OrderListID`. A trigger or OCO that
+has ended since the listing (its cancel answers
+`ERROR_CODE_TRIGGER_STATUS_INVALID` or `ERROR_CODE_TRIGGER_NOT_FOUND`) is
+stopped, not failed. Any other failed trigger cancel is listed in
+`FailedTriggers` and returned as an error after the cancel-all.
 A failed listing, including one whose page token repeats an earlier page,
 returns its error before anything is canceled.
 
