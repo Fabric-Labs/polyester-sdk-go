@@ -16,7 +16,7 @@ func TestMeFromProto(t *testing.T) {
 		Username:                "alice",
 		RootSmartAccountAddress: "0xabc",
 	}
-	me := decode.MeFromProto(msg)
+	me := mustReply(decode.MeFromProto(msg))
 	if me.AccountID != codecs.FormatUint64ID(42) {
 		t.Fatalf("account_id=%q", me.AccountID)
 	}

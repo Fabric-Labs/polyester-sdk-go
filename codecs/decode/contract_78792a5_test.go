@@ -150,11 +150,11 @@ func TestTriggerReadsDecrementAndNewFailureReasons(t *testing.T) {
 // its price and why, after that level's fired event.
 func TestLadderRejectedLevelIsFireRefused(t *testing.T) {
 	reason := triggersv1.TriggerFailureReason_TRIGGER_FAILURE_REASON_POST_ONLY_CROSS
-	events := TriggerEventsListFromProto(&triggersv1.ListTriggerEventsResponse{Events: []*triggersv1.TriggerEvent{
+	events := mustReply(TriggerEventsListFromProto(&triggersv1.ListTriggerEventsResponse{Events: []*triggersv1.TriggerEvent{
 		{TriggerId: 4, TriggerType: triggersv1.TriggerType_LADDER, EventType: triggersv1.TriggerEventType_EVENT_FIRED, ChildSeq: 2, ChildOrderId: 40},
 		{TriggerId: 4, TriggerType: triggersv1.TriggerType_LADDER, EventType: triggersv1.TriggerEventType_EVENT_FIRE_REFUSED, ChildSeq: 2,
 			FireRefusalReason: &reason, FirePriceTicks: proto.Int64(60_000_000_000_000)},
-	}}).Events
+	}})).Events
 	refused := events[1]
 	if events[0].EventType != "fired" || refused.EventType != "fire_refused" || refused.TriggerType != "ladder" ||
 		refused.ChildSeq != events[0].ChildSeq || refused.FireRefusalReason != "post_only_cross" ||

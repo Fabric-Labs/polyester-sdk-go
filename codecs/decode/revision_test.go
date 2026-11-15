@@ -28,9 +28,9 @@ func TestDecodeRevisionFields(t *testing.T) {
 		t.Fatalf("api policy=%+v", apiPolicy)
 	}
 
-	entries := decode.ListEntriesFromProto(&authv1.ListAddressBookEntriesResponse{
+	entries := mustReply(decode.ListEntriesFromProto(&authv1.ListAddressBookEntriesResponse{
 		Entries: []*authv1.AddressBookEntry{{AddressBookEntryId: 9, Revision: 15}},
-	})
+	}))
 	if len(entries.Entries) != 1 || entries.Entries[0].Revision != 15 {
 		t.Fatalf("entries=%+v", entries.Entries)
 	}

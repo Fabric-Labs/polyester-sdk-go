@@ -186,7 +186,7 @@ func TestSystemAdjustmentDirectionComesFromIsDebit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	listed := decode.TransfersListFromProto(&ledgerrdv1.ListTransfersResponse{Transfers: []*ledgerrdv1.TransferRow{seeding, correction}}).Transfers
+	listed := mustReply(decode.TransfersListFromProto(&ledgerrdv1.ListTransfersResponse{Transfers: []*ledgerrdv1.TransferRow{seeding, correction}})).Transfers
 	for name, rows := range map[string][]models.LedgerTransfer{"stream": streamed, "list": listed} {
 		if len(rows) != 2 {
 			t.Fatalf("%s: rows=%#v", name, rows)

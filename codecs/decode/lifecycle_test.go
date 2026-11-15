@@ -103,7 +103,7 @@ func TestFlowsListFromProto(t *testing.T) {
 		},
 		NextPageToken: "next",
 	}
-	result := decode.FlowsListFromProto(msg)
+	result := mustReply(decode.FlowsListFromProto(msg))
 	if len(result.Flows) != 2 || result.NextPageToken != "next" {
 		t.Fatalf("result=%+v", result)
 	}
@@ -147,18 +147,18 @@ func TestDepositSourceNotConfirmedReasonAndDelayedFlow(t *testing.T) {
 	if flow.LifecycleReason != "deposit_source_not_confirmed" || !flow.IsDelayed {
 		t.Fatalf("flow=%+v", flow)
 	}
-	listed := decode.FlowsListFromProto(&lifecyclev1.ListFlowsResponse{
+	listed := mustReply(decode.FlowsListFromProto(&lifecyclev1.ListFlowsResponse{
 		Flows: []*lifecyclev1.FlowSummaryView{{FlowId: "flow-delayed", IsOpen: true, IsDelayed: true}},
-	})
+	}))
 	if len(listed.Flows) != 1 || !listed.Flows[0].IsDelayed {
 		t.Fatalf("listed=%+v", listed)
 	}
 }
 
 func TestFlowTxMatchCarriesTheFlowAddresses(t *testing.T) {
-	page := decode.FlowsByTxListFromProto(&lifecyclev1.ListFlowsByTxResponse{Matches: []*lifecyclev1.FlowTxMatchView{{
+	page := mustReply(decode.FlowsByTxListFromProto(&lifecyclev1.ListFlowsByTxResponse{Matches: []*lifecyclev1.FlowTxMatchView{{
 		FlowId: "f", SourceAddress: "0x00000000000000000000000000000000000000c3", DestinationAddress: "0x00000000000000000000000000000000000000a1",
-	}}})
+	}}}))
 	if len(page.Flows) != 1 || page.Flows[0].SourceAddress != "0x00000000000000000000000000000000000000c3" ||
 		page.Flows[0].DestinationAddress != "0x00000000000000000000000000000000000000a1" || page.Flows[0].Participation != "" {
 		t.Fatalf("flows = %+v", page.Flows)

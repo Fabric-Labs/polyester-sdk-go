@@ -455,26 +455,34 @@ func TriggerFromProto(msg *triggersv1.Trigger) models.Trigger {
 	}
 }
 
-// TriggersListFromProto decodes list triggers response.
-func TriggersListFromProto(msg *triggersv1.ListTriggersResponse) models.TriggersList {
+// TriggersListFromProto decodes list triggers response. A trigger without
+// its ID returns a *errors.ResponseContractError.
+func TriggersListFromProto(msg *triggersv1.ListTriggersResponse) (models.TriggersList, error) {
 	out := make([]models.Trigger, 0, len(msg.GetTriggers()))
 	for _, t := range msg.GetTriggers() {
+		if err := requireID("ListTriggers", "trigger_id", t.GetTriggerId()); err != nil {
+			return models.TriggersList{}, err
+		}
 		out = append(out, TriggerFromProto(t))
 	}
 	return models.TriggersList{
 		Triggers:      out,
 		Total:         len(out),
 		NextPageToken: msg.GetNextPageToken(),
-	}
+	}, nil
 }
 
-// GetTriggerFromProto decodes get trigger response.
-func GetTriggerFromProto(msg *triggersv1.GetTriggerResponse) *models.Trigger {
+// GetTriggerFromProto decodes get trigger response. A trigger without its ID
+// returns a *errors.ResponseContractError.
+func GetTriggerFromProto(msg *triggersv1.GetTriggerResponse) (*models.Trigger, error) {
 	if msg.GetTrigger() == nil {
-		return nil
+		return nil, nil
+	}
+	if err := requireID("GetTrigger", "trigger_id", msg.GetTrigger().GetTriggerId()); err != nil {
+		return nil, err
 	}
 	t := TriggerFromProto(msg.GetTrigger())
-	return &t
+	return &t, nil
 }
 
 // TriggerMutationFromProto decodes create trigger response. A reply without
@@ -613,16 +621,20 @@ func BatchCancelTriggersFromProto(msg *triggersv1.BatchCancelTriggersResponse) (
 	}, nil
 }
 
-// TriggerEventsListFromProto decodes list trigger events response.
-func TriggerEventsListFromProto(msg *triggersv1.ListTriggerEventsResponse) models.TriggerEventsList {
+// TriggerEventsListFromProto decodes list trigger events response. An event
+// without its trigger ID returns a *errors.ResponseContractError.
+func TriggerEventsListFromProto(msg *triggersv1.ListTriggerEventsResponse) (models.TriggerEventsList, error) {
 	out := make([]models.TriggerEvent, 0, len(msg.GetEvents()))
 	for _, e := range msg.GetEvents() {
+		if err := requireID("ListTriggerEvents", "trigger_id", e.GetTriggerId()); err != nil {
+			return models.TriggerEventsList{}, err
+		}
 		out = append(out, TriggerEventMessageFromProto(e))
 	}
 	return models.TriggerEventsList{
 		Events:        out,
 		NextPageToken: msg.GetNextPageToken(),
-	}
+	}, nil
 }
 
 // TriggerEventMessageFromProto decodes one trigger event.

@@ -48,7 +48,7 @@ func (s *SystemService) ListStatusEvents(ctx context.Context, opts models.ListSt
 	if err != nil {
 		return models.StatusEventsPage{}, err
 	}
-	return UnaryPublic(ctx, s.transport, s.client().ListStatusEvents, req, decode.StatusEventsPageFromProto)
+	return UnaryPublicDecoded(ctx, s.transport, s.client().ListStatusEvents, req, decode.StatusEventsPageFromProto)
 }
 
 // StatusEvents iterates over every status event matching opts from

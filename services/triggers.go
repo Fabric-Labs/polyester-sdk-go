@@ -117,7 +117,7 @@ func (s *TriggersService) List(ctx context.Context, account AccountScope, subAcc
 	if err != nil {
 		return models.TriggersList{}, err
 	}
-	return UnaryAuth(ctx, s.transport, retryUnavailable(triggerReadRetry, s.client().ListTriggers), req, scaledRead(decode.TriggersListFromProto, s.readTriggersList, scales))
+	return UnaryAuthDecoded(ctx, s.transport, retryUnavailable(triggerReadRetry, s.client().ListTriggers), req, scaledRead(decode.TriggersListFromProto, s.readTriggersList, scales))
 }
 
 // Get reads one trigger. Like List, it retries a catching-up UNAVAILABLE
@@ -142,7 +142,7 @@ func (s *TriggersService) Get(ctx context.Context, account AccountScope, trigger
 	if err != nil {
 		return nil, err
 	}
-	return UnaryAuth(ctx, s.transport, retryUnavailable(triggerReadRetry, s.client().GetTrigger), req, scaledRead(decode.GetTriggerFromProto, s.readTrigger, scales))
+	return UnaryAuthDecoded(ctx, s.transport, retryUnavailable(triggerReadRetry, s.client().GetTrigger), req, scaledRead(decode.GetTriggerFromProto, s.readTrigger, scales))
 }
 
 func (s *TriggersService) Create(ctx context.Context, account AccountScope, symbol, triggerType string, triggerPrice *models.PriceInput, side string, qty models.QtyInput, orderType string, limitPrice *models.PriceInput, triggerPriceSource, tif string, subAccountID *string, clientTriggerID *string, postOnly bool, opts codecs.CreateTriggerOptions) (models.TriggerMutationResult, error) {
@@ -424,7 +424,7 @@ func (s *TriggersService) ListEvents(ctx context.Context, account AccountScope, 
 	if pageToken != nil && *pageToken != "" {
 		req.PageToken = *pageToken
 	}
-	return UnaryAuth(ctx, s.transport, retryUnavailable(triggerReadRetry, s.client().ListTriggerEvents), req, decode.TriggerEventsListFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, retryUnavailable(triggerReadRetry, s.client().ListTriggerEvents), req, decode.TriggerEventsListFromProto)
 }
 
 func (s *TriggersService) Subscribe(ctx context.Context, accountID any) (*realtime.Subscription[models.Trigger], error) {

@@ -72,12 +72,12 @@ func assertPublicIDs(t *testing.T, what, got string, ids ...uint64) {
 
 // A listed entry carries its destination, note, scope and times.
 func TestAddressBookEntryCarriesDestinationNoteScopeAndTimes(t *testing.T) {
-	got := mustJSON(t, ListEntriesFromProto(&authv1.ListAddressBookEntriesResponse{
+	got := mustJSON(t, mustReply(ListEntriesFromProto(&authv1.ListAddressBookEntriesResponse{
 		Entries: []*authv1.AddressBookEntry{abInternalEntry(), {
 			AddressBookEntryId: 8, Kind: authv1.AddressBookEntryKind_EXTERNAL_CHAIN,
 			Entry: &authv1.AddressBookEntry_External{External: &authv1.ExternalWithdrawAddress{PolychainChainId: 42161, Address: "0xabc"}},
 		}},
-	}))
+	})))
 	for _, want := range []string{"desk wallet", abSmartAddr, "2026-03-04T05:06:07.825341Z", "2026-03-04T05:06:08.825341Z", "SCOPE_SUBACCOUNT", "42161", "0xabc", `"ops"`} {
 		if !strings.Contains(got, want) {
 			t.Errorf("entry JSON lacks %q: %s", want, got)
@@ -89,7 +89,7 @@ func TestAddressBookEntryCarriesDestinationNoteScopeAndTimes(t *testing.T) {
 // The view reads an entry with the same public ID as ListEntries, and every
 // account, sub-account and tag ID in it is a public ID.
 func TestAddressBookViewUsesPublicIDs(t *testing.T) {
-	view := AddressBookViewFromProto(&authv1.GetAddressBookViewResponse{
+	view := mustReply(AddressBookViewFromProto(&authv1.GetAddressBookViewResponse{
 		Books: []*authv1.AddressBook{{Scope: abScope(), CallerRole: authv1.SubaccountRole_OWNER}},
 		Entries: &authv1.AddressBookEntriesView{
 			Internal: []*authv1.InternalAddressBookEntry{{
@@ -99,9 +99,9 @@ func TestAddressBookViewUsesPublicIDs(t *testing.T) {
 		},
 		Tags:         []*authv1.AddressBookTagSummary{{TagId: abTagID, Name: "hot"}},
 		ViewRevision: 3,
-	})
+	}))
 	got := mustJSON(t, view)
-	listed := ListEntriesFromProto(&authv1.ListAddressBookEntriesResponse{Entries: []*authv1.AddressBookEntry{abInternalEntry()}})
+	listed := mustReply(ListEntriesFromProto(&authv1.ListAddressBookEntriesResponse{Entries: []*authv1.AddressBookEntry{abInternalEntry()}}))
 	if !strings.Contains(got, `"`+listed.Entries[0].AddressBookEntryID+`"`) {
 		t.Errorf("view lacks ListEntries' entry ID %q: %s", listed.Entries[0].AddressBookEntryID, got)
 	}
@@ -111,20 +111,20 @@ func TestAddressBookViewUsesPublicIDs(t *testing.T) {
 // Counterparty, destination, whitelist and withdraw-whitelist reads use
 // public IDs too.
 func TestAddressBookListsAndWhitelistViewUsePublicIDs(t *testing.T) {
-	counterparties := mustJSON(t, ListCounterpartiesFromProto(&authv1.ListTransferCounterpartiesResponse{
+	counterparties := mustJSON(t, mustReply(ListCounterpartiesFromProto(&authv1.ListTransferCounterpartiesResponse{
 		Counterparties: []*authv1.TransferCounterparty{{
 			CounterpartyId: abSubID, Scope: abScope(), AddressBookEntryId: abEntryID,
 			Counterparty: &authv1.TransferCounterparty_Internal{Internal: &authv1.InternalTransferAccount{RootAccountId: abRootID, TargetAccountId: abTargetID}},
 		}},
-	}))
+	})))
 	assertPublicIDs(t, "counterparties", counterparties, abSubID, abEntryID, abRootID, abTargetID)
-	destinations := mustJSON(t, ListDestinationsFromProto(&authv1.ListTransferDestinationsResponse{
+	destinations := mustJSON(t, mustReply(ListDestinationsFromProto(&authv1.ListTransferDestinationsResponse{
 		Destinations: []*authv1.TransferDestination{{Scope: abScope(), AddressBookEntry: abInternalEntry()}},
-	}))
+	})))
 	assertPublicIDs(t, "destinations", destinations, abEntryID, abRootID, abTargetID, abSubID)
-	whitelist := mustJSON(t, ListInternalWhitelistFromProto(&authv1.ListInternalTransferWhitelistEntriesResponse{
+	whitelist := mustJSON(t, mustReply(ListInternalWhitelistFromProto(&authv1.ListInternalTransferWhitelistEntriesResponse{
 		Entries: []*authv1.InternalTransferWhitelistEntry{{EntryId: abEntryID, Scope: abScope(), RootAccountId: abRootID, TargetAccountId: abTargetID}},
-	}))
+	})))
 	assertPublicIDs(t, "internal whitelist", whitelist, abEntryID, abRootID, abTargetID, abSubID)
 	withdraw := mustJSON(t, WithdrawWhitelistViewFromGetProto(&authv1.GetWithdrawWhitelistViewResponse{
 		View: &authv1.WithdrawWhitelistView{Scope: abScope()},
@@ -170,7 +170,7 @@ func TestAddressBookEntryAndViewTypedFields(t *testing.T) {
 		}
 	}
 
-	view := AddressBookViewFromProto(&authv1.GetAddressBookViewResponse{
+	view := mustReply(AddressBookViewFromProto(&authv1.GetAddressBookViewResponse{
 		Books: []*authv1.AddressBook{{Scope: abScope(), CallerRole: authv1.SubaccountRole_OWNER, Label: "ops"}},
 		Entries: &authv1.AddressBookEntriesView{
 			External: []*authv1.ExternalAddressBookEntry{{AddressBookEntryId: 8, PolychainChainId: 42161, Address: "0xabc", Revision: 4,
@@ -183,7 +183,7 @@ func TestAddressBookEntryAndViewTypedFields(t *testing.T) {
 		WithdrawWhitelist:           &authv1.WithdrawWhitelistView{ExternalWhitelistRequired: true, ActiveEntries: []*authv1.MirroredWithdrawWhitelistEntry{{CanonicalAddress: "0xabc"}}},
 		RecentDestinationsTruncated: true,
 		ViewRevision:                3,
-	})
+	}))
 	if len(view.Books) != 1 || view.Books[0].CallerRole != "owner" || !reflect.DeepEqual(view.Books[0].Scope, wantScope) {
 		t.Fatalf("books %+v", view.Books)
 	}

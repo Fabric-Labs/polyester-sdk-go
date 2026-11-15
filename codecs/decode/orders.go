@@ -325,14 +325,54 @@ func orderStatusName(v orderv1.OrderStatus) string {
 	}
 }
 
-// OrdersListFromOpen decodes open orders response.
-func OrdersListFromOpen(msg *orderv1.GetOpenOrdersResponse) models.OrdersList {
-	return ordersList(msg.GetOrders(), msg.GetNextPageToken())
+// OrdersListFromOpen decodes open orders response. An order without its ID,
+// or with a lineage without its ID, returns a *errors.ResponseContractError.
+func OrdersListFromOpen(msg *orderv1.GetOpenOrdersResponse) (models.OrdersList, error) {
+	if err := requireOrderIDs("GetOpenOrders", msg.GetOrders()...); err != nil {
+		return models.OrdersList{}, err
+	}
+	return ordersList(msg.GetOrders(), msg.GetNextPageToken()), nil
 }
 
-// OrdersListFromHistory decodes order history response.
-func OrdersListFromHistory(msg *orderv1.GetOrderHistoryResponse) models.OrdersList {
-	return ordersList(msg.GetOrders(), msg.GetNextPageToken())
+// OrdersListFromHistory decodes order history response. An order without its
+// ID, or with a lineage without its ID, returns a *errors.ResponseContractError.
+func OrdersListFromHistory(msg *orderv1.GetOrderHistoryResponse) (models.OrdersList, error) {
+	if err := requireOrderIDs("GetOrderHistory", msg.GetOrders()...); err != nil {
+		return models.OrdersList{}, err
+	}
+	return ordersList(msg.GetOrders(), msg.GetNextPageToken()), nil
+}
+
+// requireOrderIDs refuses an order read without the order's ID, or with a
+// lineage that has no ID.
+func requireOrderIDs(operation string, orders ...*orderv1.Order) error {
+	for _, o := range orders {
+		if err := requireID(operation, "order_id", o.GetOrderId()); err != nil {
+			return err
+		}
+		if err := requireLineageID(operation, o.GetLineage()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// requireLineageID refuses a lineage that is present without its ID.
+func requireLineageID(operation string, lineage *orderv1.OrderLineage) error {
+	if lineage == nil {
+		return nil
+	}
+	return requireID(operation, "lineage.id", lineage.GetId())
+}
+
+// requireTradeLineageIDs refuses a trade whose lineage is present without its ID.
+func requireTradeLineageIDs(operation string, trades []*orderv1.UserTrade) error {
+	for _, t := range trades {
+		if err := requireLineageID(operation, t.GetLineage()); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func ordersList(orders []*orderv1.Order, token string) models.OrdersList {
@@ -394,8 +434,12 @@ func qtyFromScaled(value int64) *models.QtyScaled {
 	return &qty
 }
 
-// UserTradesListFromProto decodes user trades list.
-func UserTradesListFromProto(msg *orderv1.GetUserTradesResponse) models.UserTradesList {
+// UserTradesListFromProto decodes user trades list. A trade with a lineage
+// without its ID returns a *errors.ResponseContractError.
+func UserTradesListFromProto(msg *orderv1.GetUserTradesResponse) (models.UserTradesList, error) {
+	if err := requireTradeLineageIDs("GetUserTrades", msg.GetTrades()); err != nil {
+		return models.UserTradesList{}, err
+	}
 	trades := make([]models.UserTrade, 0, len(msg.GetTrades()))
 	for _, t := range msg.GetTrades() {
 		trades = append(trades, UserTradeFromProto(t))
@@ -408,11 +452,21 @@ func UserTradesListFromProto(msg *orderv1.GetUserTradesResponse) models.UserTrad
 		Trades:        trades,
 		Transfers:     transfers,
 		NextPageToken: msg.GetNextPageToken(),
-	}
+	}, nil
 }
 
-// GetOrderFromProto decodes get order response.
-func GetOrderFromProto(msg *orderv1.GetOrderResponse) models.GetOrderResult {
+// GetOrderFromProto decodes get order response. An order without its ID, or
+// an order or trade lineage without its ID, returns a
+// *errors.ResponseContractError.
+func GetOrderFromProto(msg *orderv1.GetOrderResponse) (models.GetOrderResult, error) {
+	if msg.GetOrder() != nil {
+		if err := requireOrderIDs("GetOrder", msg.GetOrder()); err != nil {
+			return models.GetOrderResult{}, err
+		}
+	}
+	if err := requireTradeLineageIDs("GetOrder", msg.GetTrades()); err != nil {
+		return models.GetOrderResult{}, err
+	}
 	var order *models.Order
 	if msg.GetOrder() != nil {
 		o := OrderFromProto(msg.GetOrder())
@@ -432,7 +486,7 @@ func GetOrderFromProto(msg *orderv1.GetOrderResponse) models.GetOrderResult {
 		Transfers:          transfers,
 		NextPageToken:      msg.GetNextPageToken(),
 		ExecutionsComplete: msg.GetExecutionsComplete(),
-	}
+	}, nil
 }
 
 // OrderMutationFromProto decodes order mutation response.

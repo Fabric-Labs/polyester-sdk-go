@@ -48,9 +48,9 @@ func subaccountDecodes(t *testing.T, msg *authv1.Subaccount) map[string]models.S
 		if m.GetRemoved() != msg.GetRemoved() || m.GetRevision() != msg.GetRevision() {
 			t.Fatalf("%s generated round trip lost removed/revision: %+v", wire, m)
 		}
-		list := decode.SubaccountsListFromProto(&authv1.ListSubaccountsResponse{Subaccounts: []*authv1.Subaccount{m}})
+		list := mustReply(decode.SubaccountsListFromProto(&authv1.ListSubaccountsResponse{Subaccounts: []*authv1.Subaccount{m}}))
 		out[wire+" list"] = list.Subaccounts[0]
-		out[wire+" get"] = *decode.GetSubaccountFromProto(&authv1.GetSubaccountResponse{Subaccount: m}).Subaccount
+		out[wire+" get"] = *mustReply(decode.GetSubaccountFromProto(&authv1.GetSubaccountResponse{Subaccount: m})).Subaccount
 	}
 	return out
 }

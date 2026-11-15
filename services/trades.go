@@ -110,7 +110,7 @@ func (s *TradesService) List(ctx context.Context, account AccountScope, subAccou
 	if err != nil {
 		return models.UserTradesList{}, err
 	}
-	return UnaryAuth(ctx, s.transport, s.client().GetUserTrades, req, scaledRead(decode.UserTradesListFromProto, scaleUserTradesList, scales))
+	return UnaryAuthDecoded(ctx, s.transport, s.client().GetUserTrades, req, scaledRead(decode.UserTradesListFromProto, scaleUserTradesList, scales))
 }
 
 func (s *TradesService) Subscribe(ctx context.Context, accountID any) (*realtime.Subscription[models.UserTrade], error) {

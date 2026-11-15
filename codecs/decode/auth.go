@@ -9,7 +9,17 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/wire"
 )
 
-func MeFromProto(msg *authv1.MeResponse) models.MeResult {
+// MeFromProto decodes the caller's identity. A reply without the account ID,
+// or with a session without its ID, returns a *errors.ResponseContractError.
+func MeFromProto(msg *authv1.MeResponse) (models.MeResult, error) {
+	if err := requireID("Me", "account_id", msg.GetAccountId()); err != nil {
+		return models.MeResult{}, err
+	}
+	if session := msg.GetSession(); session != nil {
+		if err := requireStringID("Me", "session.session_id", session.GetSessionId()); err != nil {
+			return models.MeResult{}, err
+		}
+	}
 	session, _ := wire.ProtoToMap(msg.GetSession())
 	out := models.MeResult{
 		AccountID: codecs.FormatUint64ID(msg.GetAccountId()),
@@ -24,7 +34,7 @@ func MeFromProto(msg *authv1.MeResponse) models.MeResult {
 	if msg.GetRootSmartAccountAddress() != "" {
 		out.RootSmartAccountAddress = msg.GetRootSmartAccountAddress()
 	}
-	return out
+	return out, nil
 }
 
 func ProfileFromProto(msg *authv1.UserProfile) models.UserProfile {

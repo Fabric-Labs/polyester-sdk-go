@@ -55,15 +55,50 @@ func subAccount(msg *authv1.Subaccount) models.SubAccount {
 // SubaccountMessageFromProto decodes one subaccount message.
 func SubaccountMessageFromProto(msg *authv1.Subaccount) models.SubAccount { return subAccount(msg) }
 
-func SubaccountsListFromProto(msg *authv1.ListSubaccountsResponse) models.SubAccountsList {
+// SubaccountsListFromProto decodes the account's sub-accounts. A sub-account
+// without its ID returns a *errors.ResponseContractError.
+func SubaccountsListFromProto(msg *authv1.ListSubaccountsResponse) (models.SubAccountsList, error) {
 	out := make([]models.SubAccount, 0, len(msg.GetSubaccounts()))
 	for _, s := range msg.GetSubaccounts() {
+		if err := requireID("ListSubaccounts", "id", s.GetId()); err != nil {
+			return models.SubAccountsList{}, err
+		}
 		out = append(out, subAccount(s))
 	}
-	return models.SubAccountsList{Subaccounts: out}
+	return models.SubAccountsList{Subaccounts: out}, nil
 }
 
-func GetSubaccountFromProto(msg *authv1.GetSubaccountResponse) models.GetSubaccountResult {
+// requireInviteIDs refuses an invite without its ID or its sub-account's ID.
+func requireInviteIDs(operation string, invites []*authv1.SubaccountInvite) error {
+	for _, inv := range invites {
+		if err := requireID(operation, "invite id", inv.GetId()); err != nil {
+			return err
+		}
+		if err := requireID(operation, "invite subaccount_id", inv.GetSubaccountId()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// GetSubaccountFromProto decodes one sub-account with its expansions. A
+// sub-account, API key, invite or attached policy without its ID returns a
+// *errors.ResponseContractError.
+func GetSubaccountFromProto(msg *authv1.GetSubaccountResponse) (models.GetSubaccountResult, error) {
+	if err := requireID("GetSubaccount", "subaccount id", msg.GetSubaccount().GetId()); err != nil {
+		return models.GetSubaccountResult{}, err
+	}
+	if err := requireAPIKeyIDs("GetSubaccount", msg.GetApiKeys()...); err != nil {
+		return models.GetSubaccountResult{}, err
+	}
+	if err := requireInviteIDs("GetSubaccount", msg.GetInvites()); err != nil {
+		return models.GetSubaccountResult{}, err
+	}
+	if policy := msg.GetPolicy(); policy != nil {
+		if err := requireID("GetSubaccount", "policy id", policy.GetId()); err != nil {
+			return models.GetSubaccountResult{}, err
+		}
+	}
 	s := subAccount(msg.GetSubaccount())
 	out := models.GetSubaccountResult{Subaccount: &s}
 	if len(msg.GetApiKeys()) > 0 {
@@ -81,7 +116,7 @@ func GetSubaccountFromProto(msg *authv1.GetSubaccountResponse) models.GetSubacco
 		balances := BalancesListFromProto(msg.GetBalances())
 		out.Balances = &balances
 	}
-	return out
+	return out, nil
 }
 
 func subAccountMembers(members []*authv1.SubaccountMemberView) []models.SubAccountMember {
@@ -117,8 +152,14 @@ func subAccountInvites(invites []*authv1.SubaccountInvite) []models.SubAccountIn
 	return out
 }
 
-func SubaccountInvitesListFromProto(msg *authv1.ListSubaccountInvitesResponse) models.SubAccountInvitesList {
-	return models.SubAccountInvitesList{Invites: subAccountInvites(msg.GetInvites())}
+// SubaccountInvitesListFromProto decodes sub-account invites. An invite
+// without its ID or its sub-account's ID returns a
+// *errors.ResponseContractError.
+func SubaccountInvitesListFromProto(msg *authv1.ListSubaccountInvitesResponse) (models.SubAccountInvitesList, error) {
+	if err := requireInviteIDs("ListSubaccountInvites", msg.GetInvites()); err != nil {
+		return models.SubAccountInvitesList{}, err
+	}
+	return models.SubAccountInvitesList{Invites: subAccountInvites(msg.GetInvites())}, nil
 }
 
 func SubaccountActivityListFromProto(msg *authv1.ListSubaccountEventsResponse) models.SubAccountActivityList {

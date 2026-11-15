@@ -25,5 +25,5 @@ func (s *AuthService) client() authv1connect.AuthServiceClient {
 }
 
 func (s *AuthService) Me(ctx context.Context) (models.MeResult, error) {
-	return UnaryAuth(ctx, s.transport, s.client().Me, &authv1.MeRequest{}, decode.MeFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.client().Me, &authv1.MeRequest{}, decode.MeFromProto)
 }

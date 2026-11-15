@@ -59,7 +59,7 @@ func TestTagFromCreateProtoMapsFields(t *testing.T) {
 }
 
 func TestAddressBookViewFromProtoMapsViewRevision(t *testing.T) {
-	got := AddressBookViewFromProto(&authv1.GetAddressBookViewResponse{ViewRevision: 17})
+	got := mustReply(AddressBookViewFromProto(&authv1.GetAddressBookViewResponse{ViewRevision: 17}))
 	if got.ViewRevision != 17 {
 		t.Fatalf("view_revision=%d", got.ViewRevision)
 	}

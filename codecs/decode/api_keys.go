@@ -52,8 +52,23 @@ func apiKey(msg *authv1.ApiKey) *models.ApiKeySummary {
 // ApiKeyMessageFromProto decodes one API key message.
 func ApiKeyMessageFromProto(msg *authv1.ApiKey) *models.ApiKeySummary { return apiKey(msg) }
 
-func ApiKeysListFromProto(msg *authv1.ListApiKeysResponse) models.ApiKeysList {
-	return models.ApiKeysList{Keys: apiKeys(msg.GetApiKeys())}
+// ApiKeysListFromProto decodes the account's API keys. A key without its ID
+// returns a *errors.ResponseContractError.
+func ApiKeysListFromProto(msg *authv1.ListApiKeysResponse) (models.ApiKeysList, error) {
+	if err := requireAPIKeyIDs("ListApiKeys", msg.GetApiKeys()...); err != nil {
+		return models.ApiKeysList{}, err
+	}
+	return models.ApiKeysList{Keys: apiKeys(msg.GetApiKeys())}, nil
+}
+
+// requireAPIKeyIDs refuses an API key read without the key's ID.
+func requireAPIKeyIDs(operation string, keys ...*authv1.ApiKey) error {
+	for _, k := range keys {
+		if err := requireStringID(operation, "key_id", k.GetKeyId()); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // apiKeys decodes a list of API keys; empty, never nil.
@@ -67,6 +82,13 @@ func apiKeys(keys []*authv1.ApiKey) []models.ApiKeySummary {
 	return out
 }
 
-func ApiKeyFromGetProto(msg *authv1.GetApiKeyResponse) *models.ApiKeySummary {
-	return apiKey(msg.GetApiKey())
+// ApiKeyFromGetProto decodes one API key; nil when the reply has none. A key
+// without its ID returns a *errors.ResponseContractError.
+func ApiKeyFromGetProto(msg *authv1.GetApiKeyResponse) (*models.ApiKeySummary, error) {
+	if key := msg.GetApiKey(); key != nil {
+		if err := requireAPIKeyIDs("GetApiKey", key); err != nil {
+			return nil, err
+		}
+	}
+	return apiKey(msg.GetApiKey()), nil
 }

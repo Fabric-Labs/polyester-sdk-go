@@ -168,7 +168,7 @@ func TestSubAccountsGetReturnsAPIKeysWhenAsked(t *testing.T) {
 			requireDisplayKeys(t, "SubAccounts.Get", withKeys.APIKeys)
 
 			// The same decoder as APIKeys.List: every contract field is kept.
-			listed := decode.ApiKeysListFromProto(&authv1.ListApiKeysResponse{ApiKeys: displayKeys()})
+			listed := mustReply(decode.ApiKeysListFromProto(&authv1.ListApiKeysResponse{ApiKeys: displayKeys()}))
 			if !reflect.DeepEqual(withKeys.APIKeys, listed.Keys) {
 				t.Fatalf("SubAccounts.Get keys %+v != List keys %+v", withKeys.APIKeys, listed.Keys)
 			}

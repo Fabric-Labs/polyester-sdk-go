@@ -141,7 +141,7 @@ func TestSubAccountsGetReturnsMembersInvitesAndPolicyWhenAsked(t *testing.T) {
 			if !reflect.DeepEqual(got.Invites, wantInvites) {
 				t.Fatalf("Invites = %+v, want %+v", got.Invites, wantInvites)
 			}
-			listedInvites := decode.SubaccountInvitesListFromProto(&authv1.ListSubaccountInvitesResponse{Invites: expansionInvites()})
+			listedInvites := mustReply(decode.SubaccountInvitesListFromProto(&authv1.ListSubaccountInvitesResponse{Invites: expansionInvites()}))
 			if !reflect.DeepEqual(got.Invites, listedInvites.Invites) {
 				t.Fatalf("Get invites %+v != ListInvites %+v", got.Invites, listedInvites.Invites)
 			}

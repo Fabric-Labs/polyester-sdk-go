@@ -43,13 +43,13 @@ func (s *ApiKeysService) List(ctx context.Context, account AccountScope, subAcco
 	} else if parsed != nil {
 		req.SubaccountId = parsed
 	}
-	return UnaryAuth(ctx, s.transport, s.client().ListApiKeys, req, decode.ApiKeysListFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.client().ListApiKeys, req, decode.ApiKeysListFromProto)
 }
 
 // Get returns one API key. An API key needs READ_API_KEYS on its policy, and
 // a key outside its scope answers not found.
 func (s *ApiKeysService) Get(ctx context.Context, keyID string) (*models.ApiKeySummary, error) {
-	return UnaryAuth(ctx, s.transport, s.client().GetApiKey, &authv1.GetApiKeyRequest{KeyId: keyID}, decode.ApiKeyFromGetProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.client().GetApiKey, &authv1.GetApiKeyRequest{KeyId: keyID}, decode.ApiKeyFromGetProto)
 }
 
 func (s *ApiKeysService) GenerateKeypair() models.Ed25519Keypair {

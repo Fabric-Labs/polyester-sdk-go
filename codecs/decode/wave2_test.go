@@ -71,7 +71,7 @@ func TestAPIKeysFromProto(t *testing.T) {
 			},
 		},
 	}
-	result := decode.ApiKeysListFromProto(msg)
+	result := mustReply(decode.ApiKeysListFromProto(msg))
 	if len(result.Keys) != 1 || result.Keys[0].KeyID != "key-1" || result.Keys[0].Status != "ACTIVE" {
 		t.Fatalf("keys=%+v", result.Keys)
 	}

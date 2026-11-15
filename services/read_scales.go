@@ -22,11 +22,15 @@ func readQuantityScales(ctx context.Context, cats *catalogs.Manager) (decode.Bas
 	return cats.BaseQuantityScaleForSymbolID, nil
 }
 
-// scaledRead wraps a read decoder so its result carries the catalogs' base
-// quantity scales.
-func scaledRead[Resp any, Out any](decodeFn func(Resp) Out, scale func(Out, decode.BaseQuantityScales) Out, scales decode.BaseQuantityScales) func(Resp) Out {
-	return func(msg Resp) Out {
-		return scale(decodeFn(msg), scales)
+// scaledRead attaches the base quantity scales to a decoded read, and passes
+// on a decoder's refusal of the reply.
+func scaledRead[Resp any, Out any](decodeFn func(Resp) (Out, error), scale func(Out, decode.BaseQuantityScales) Out, scales decode.BaseQuantityScales) func(Resp) (Out, error) {
+	return func(msg Resp) (Out, error) {
+		out, err := decodeFn(msg)
+		if err != nil {
+			return out, err
+		}
+		return scale(out, scales), nil
 	}
 }
 

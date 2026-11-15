@@ -101,8 +101,8 @@ func TestApiKeyReadsKeepTheCompleteModel(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := []models.ApiKeySummary{
-		*decode.ApiKeyFromGetProto(&authv1.GetApiKeyResponse{ApiKey: key}),
-		decode.ApiKeysListFromProto(&authv1.ListApiKeysResponse{ApiKeys: []*authv1.ApiKey{key}}).Keys[0],
+		*mustReply(decode.ApiKeyFromGetProto(&authv1.GetApiKeyResponse{ApiKey: key})),
+		mustReply(decode.ApiKeysListFromProto(&authv1.ListApiKeysResponse{ApiKeys: []*authv1.ApiKey{key}})).Keys[0],
 		streamed,
 	}
 	for i, k := range got {
