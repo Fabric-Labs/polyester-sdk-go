@@ -29,7 +29,7 @@ func TestMarketHaltReasonsLabelOnReadsAndStreams(t *testing.T) {
 		OrderId: 2, Status: orderv1.OrderStatus_REJECTED,
 		RejectReason: orderv1.ErrorCode_ERROR_CODE_MARKET_HALTED,
 	})
-	if refused.RejectReason != "MARKET_HALTED" {
+	if refused.RejectReason != "market_halted" {
 		t.Fatalf("order reject reason=%q", refused.RejectReason)
 	}
 
@@ -37,7 +37,7 @@ func TestMarketHaltReasonsLabelOnReadsAndStreams(t *testing.T) {
 		orderEvent(&privatewsv1.OrderEvent{OrderId: 3, Kind: privatewsv1.OrderEvent_CANCELED, CancelReason: orderv1.CancelReason_CANCEL_REASON_MARKET_HALTED}),
 		orderEvent(&privatewsv1.OrderEvent{OrderId: 4, Kind: privatewsv1.OrderEvent_REJECTED, RejectReason: orderv1.ErrorCode_ERROR_CODE_MARKET_HALTED}),
 	}, nil)
-	if len(events) != 2 || events[0].Order.CancelReason != "market_halted" || events[1].Order.RejectReason != "MARKET_HALTED" {
+	if len(events) != 2 || events[0].Order.CancelReason != "market_halted" || events[1].Order.RejectReason != "market_halted" {
 		t.Fatalf("order stream events=%+v %+v", events[0].Order, events[1].Order)
 	}
 

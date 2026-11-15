@@ -28,7 +28,7 @@ func TestOrderEventReasons(t *testing.T) {
 		reject string
 		cancel string
 	}{
-		{models.OrderEventRejected, "POST_ONLY_CROSS", ""},
+		{models.OrderEventRejected, "post_only_cross", ""},
 		{models.OrderEventCanceled, "", "user_request"},
 		{models.OrderEventReplaced, "", "replaced"},
 		{models.OrderEventAccepted, "", ""},

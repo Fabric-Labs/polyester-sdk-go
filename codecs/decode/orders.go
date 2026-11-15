@@ -84,11 +84,16 @@ func OrderCancelReasonLabel(reason orderv1.CancelReason) string {
 	return codecs.ProtoEnumName(reason, reason.Number())
 }
 
-// orderRejectReasonLabel names a rejected order's refusal as the order write
-// API names it. Unspecified (0) and unset decode as "".
+// orderRejectReasonLabel names a rejected order's refusal, or a refused
+// order command, as a lowercase label without the ERROR_CODE_ prefix, for
+// example "post_only_cross". Unspecified (0) and unset decode as "", and a
+// code newer than this SDK as "UNKNOWN_ERROR_CODE(N)".
 func orderRejectReasonLabel(code orderv1.ErrorCode) string {
 	if code == orderv1.ErrorCode_ERROR_CODE_UNSPECIFIED {
 		return ""
+	}
+	if name, ok := orderv1.ErrorCode_name[int32(code)]; ok {
+		return strings.ToLower(strings.TrimPrefix(name, "ERROR_CODE_"))
 	}
 	return errorCodeName(code)
 }
@@ -446,6 +451,7 @@ func OrderMutationFromProto(msg *orderv1.CreateOrderResponse) (models.OrderMutat
 	result.SubmittedMaxQuoteDebitScaled = optionalScaledString(msg.SubmittedMaxQuoteDebitScaled)
 	result.SubmittedQuoteProceedsScaled = optionalScaledString(msg.SubmittedQuoteProceedsScaled)
 	result.AttachedRiskTriggerIDs = attachedRiskTriggerIDs(msg.TakeProfitTriggerId, msg.StopLossTriggerId, msg.TrailingStopTriggerId)
+	result.AcceptedTsNs = pairedTsNs(msg.GetAcceptedAtTsNs(), msg.GetAcceptedAt())
 	return result, nil
 }
 
@@ -585,6 +591,7 @@ func ModifyOrderFromProto(msg *orderv1.ModifyOrderResponse) (models.ModifyOrderR
 		OldOrderID:   codecs.FormatUint64ID(msg.GetOldOrderId()),
 		FinalOrderID: codecs.FormatUint64ID(msg.GetFinalOrderId()),
 		Code:         msg.GetCode(),
+		TsNs:         pairedTsNs(msg.GetTsNs(), msg.GetTs()),
 		AttachedRiskTriggerIDs: attachedRiskTriggerIDs(
 			msg.TakeProfitTriggerId, msg.StopLossTriggerId, msg.TrailingStopTriggerId,
 		),
@@ -707,6 +714,7 @@ func BatchReplaceFromProto(msg *orderv1.BatchReplaceOrdersResponse) (models.Batc
 			ClientOrderID:      item.GetClientOrderId(),
 			Code:               item.GetCode(),
 			ActionTaken:        modifyActionName(item.GetActionTaken()),
+			ExistingOrderID:    optionalID(item.GetError().GetExistingOrderId()),
 			RateLimit:          RateLimitDetailFromProto(item.GetError().GetRateLimit()),
 			Violations:         fieldViolationsFromProto(item.GetError()),
 		})
@@ -728,7 +736,7 @@ func BatchReplaceFromProto(msg *orderv1.BatchReplaceOrdersResponse) (models.Batc
 		Results:        results,
 		AcceptedCount:  accepted,
 		RejectedCount:  rejected,
-		AcceptedTsNs:   msg.GetAcceptedTsNs(),
+		AcceptedTsNs:   pairedTsNs(msg.GetAcceptedTsNs(), msg.GetAcceptedTs()),
 	}, nil
 }
 
@@ -870,6 +878,7 @@ func BatchCreateFromProto(msg *orderv1.BatchCreateOrdersResponse) (models.BatchC
 			out.OrderID = codecs.FormatUint64ID(accepted.GetOrderId())
 			if value := accepted.GetResolvedBaseQtyScaled(); value != 0 {
 				out.ResolvedBaseQtyScaled = strconv.FormatInt(value, 10)
+				out.ResolvedBaseQty = qtyFromScaled(value)
 			}
 			out.SubmittedMaxQuoteDebitScaled = optionalScaledString(accepted.SubmittedMaxQuoteDebitScaled)
 			out.SubmittedQuoteProceedsScaled = optionalScaledString(accepted.SubmittedQuoteProceedsScaled)
@@ -916,6 +925,7 @@ func BatchCreateFromProto(msg *orderv1.BatchCreateOrdersResponse) (models.BatchC
 		Results:       results,
 		AcceptedCount: accepted,
 		RejectedCount: rejected,
+		TsNs:          pairedTsNs(msg.GetTsNs(), msg.GetTs()),
 	}, nil
 }
 

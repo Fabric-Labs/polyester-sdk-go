@@ -78,9 +78,7 @@ func commandOutcomeFromProto(msg *privatewsv1.CommandOutcome) *models.OrderComma
 	if id := msg.GetNewOrderId(); id != 0 {
 		outcome.NewOrderID = codecs.FormatUint64ID(id)
 	}
-	if msg.GetReason() != orderv1.ErrorCode_ERROR_CODE_UNSPECIFIED {
-		outcome.Reason = errorCodeName(msg.GetReason())
-	}
+	outcome.Reason = orderRejectReasonLabel(msg.GetReason())
 	return outcome
 }
 

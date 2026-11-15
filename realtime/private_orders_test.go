@@ -522,7 +522,7 @@ func TestPrivateOrdersUnitDecodesOrdersRemovalsAndEvents(t *testing.T) {
 	}
 	outcome := unit.Events[1].Outcome
 	if outcome.Kind != models.OrderOutcomeCancelRejected || outcome.OrderID != codecs.FormatID(2) ||
-		outcome.ClientOrderID != "cl-2" || outcome.Reason != "INSUFFICIENT_FUNDS" || outcome.NewOrderID != "" {
+		outcome.ClientOrderID != "cl-2" || outcome.Reason != "insufficient_funds" || outcome.NewOrderID != "" {
 		t.Fatalf("outcome %#v", outcome)
 	}
 
@@ -547,7 +547,7 @@ func TestPrivateOrdersDecodeTypedEndReasons(t *testing.T) {
 	rejected.RejectReason = orderv1.ErrorCode_ERROR_CODE_POST_ONLY_CROSS
 	seq := ws.snapshot(t, "s1", 1, "c1", rejected, testOrder(2, 1))
 	snapshot := expectEvent[OrderSnapshot](t, sub)
-	if len(snapshot.Orders) != 2 || snapshot.Orders[0].RejectReason != "POST_ONLY_CROSS" || snapshot.Orders[0].CancelReason != "" ||
+	if len(snapshot.Orders) != 2 || snapshot.Orders[0].RejectReason != "post_only_cross" || snapshot.Orders[0].CancelReason != "" ||
 		snapshot.Orders[1].RejectReason != "" || snapshot.Orders[1].CancelReason != "" {
 		t.Fatalf("snapshot orders %#v", snapshot.Orders)
 	}
