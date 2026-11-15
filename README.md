@@ -1302,8 +1302,8 @@ change never returns its previous state.
 
 A market halt cancels the market's open orders with `CancelReason`
 `market_halted` and ends its open triggers with `CancelReason` `market_halted`.
-An order the halted market refuses after admission ends `REJECTED` with
-`RejectReason` `market_halted`. A trigger it refuses after admission ends
+An order the halted market refuses after admission ends with `Status`
+`rejected` and `RejectReason` `market_halted`. A trigger it refuses after admission ends
 `failed` with `FailureReason` `market_halted`, as do the attached legs of an
 order refused this way; a fire it refuses while the trigger stays live is a
 `fire_refused` event with `FireRefusalReason` `market_halted`.
@@ -1419,8 +1419,8 @@ with the same bounded policy and request as trigger reads.
 
 A stop-loss or take-profit created with a trigger price the market has
 already reached, on the last or the index price, and a trailing stop created
-with an activation price already reached, end `FAILED` with reason
-`TRIGGER_FAILURE_REASON_TRIGGER_WOULD_TRIGGER_IMMEDIATELY` (244): the trigger
+with an activation price already reached, end with `Status` `failed` and
+`FailureReason` `trigger_would_trigger_immediately` (244): the trigger
 never armed and placed nothing. The check uses the price when the trigger
 takes effect, a few milliseconds after `Create` returns its ID, so read the
 trigger before assuming it is armed.
