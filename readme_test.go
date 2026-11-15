@@ -2,6 +2,7 @@ package polyester
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -15,9 +16,11 @@ import (
 	"testing"
 )
 
-// TestREADMEGoExamplesCompile type-checks every ```go block in README.md
+// TestREADMEGoExamplesCompile compiles every ```go block in README.md
 // against this module, so an example that no longer matches the API fails
-// the build. Nothing is run and nothing is fetched.
+// the build. Nothing is run and nothing is fetched: the blocks are built as
+// packages of this module through an -overlay, with the same dependencies as
+// the module's own build.
 //
 // A block that starts with a package clause is built as its own program.
 // Any other block is a fragment: its leading import lines are kept, the
@@ -36,7 +39,8 @@ func TestREADMEGoExamplesCompile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	blocks, err := readmeGoBlocks(filepath.Join(repoRoot, "README.md"))
+	readme := filepath.Join(repoRoot, "README.md")
+	blocks, err := readmeGoBlocks(readme)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,47 +48,56 @@ func TestREADMEGoExamplesCompile(t *testing.T) {
 		t.Fatal("README.md has no ```go blocks")
 	}
 
-	dir := t.TempDir()
-	writeFile(t, filepath.Join(dir, "go.mod"), "module readmeexamples\n\ngo 1.26.0\n")
-	writeFile(t, filepath.Join(dir, "go.work"), fmt.Sprintf("go 1.26.0\n\nuse (\n\t.\n\t%s\n)\n", strconv.Quote(repoRoot)))
-	writeFile(t, filepath.Join(dir, "fragments", "prelude.go"), readmePrelude)
+	// The packages exist only in the overlay, under a directory the module
+	// does not have.
+	const virtualDir = "internal/readmeexamples"
+	if _, err := os.Stat(filepath.Join(repoRoot, virtualDir)); err == nil {
+		t.Fatalf("%s exists; the README check needs that directory free", virtualDir)
+	}
+	tmp := t.TempDir()
+	replace := map[string]string{}
+	pkgs := map[string]bool{}
+	add := func(pkg, name, src string) {
+		backing := filepath.Join(tmp, pkg, name)
+		writeFile(t, backing, src)
+		replace[filepath.Join(repoRoot, virtualDir, pkg, name)] = backing
+		pkgs["./"+virtualDir+"/"+pkg] = true
+	}
+	add("fragments", "prelude.go", readmePrelude)
 
 	var parseErrs []string
 	for _, b := range blocks {
 		if strings.HasPrefix(strings.TrimSpace(b.code), "package ") {
-			src := fmt.Sprintf("//line README.md:%d\n%s", b.line, b.code)
-			writeFile(t, filepath.Join(dir, fmt.Sprintf("program_%d", b.line), "main.go"), src)
+			add(fmt.Sprintf("program_%d", b.line), "main.go", fmt.Sprintf("//line %s:%d\n%s", readme, b.line, b.code))
 			continue
 		}
-		src, err := wrapReadmeFragment(b)
+		src, err := wrapReadmeFragment(b, readme)
 		if err != nil {
 			parseErrs = append(parseErrs, err.Error())
 			continue
 		}
-		writeFile(t, filepath.Join(dir, "fragments", fmt.Sprintf("block_%d.go", b.line)), src)
+		add("fragments", fmt.Sprintf("block_%d.go", b.line), src)
 	}
+	overlay, err := json.Marshal(map[string]any{"Replace": replace})
+	if err != nil {
+		t.Fatal(err)
+	}
+	overlayPath := filepath.Join(tmp, "overlay.json")
+	writeFile(t, overlayPath, string(overlay))
 
-	env := append(os.Environ(),
-		"GOWORK="+filepath.Join(dir, "go.work"),
-		"GOFLAGS=-mod=readonly",
-		"GOPROXY=off",
-	)
-	// Build first to list every compile error (-e), then vet.
-	var out []byte
-	for _, args := range [][]string{
-		{"build", "-gcflags=-e", "./..."},
-		{"vet", "-unreachable=false", "./..."},
-	} {
-		cmd := exec.Command(goBin, args...)
-		cmd.Dir = dir
-		cmd.Env = env
-		if out, err = cmd.CombinedOutput(); err != nil {
-			break
-		}
+	args := []string{"build", "-overlay=" + overlayPath, "-gcflags=-e"}
+	for pkg := range pkgs {
+		args = append(args, pkg)
 	}
+	sort.Strings(args[3:])
+	cmd := exec.Command(goBin, args...)
+	cmd.Dir = repoRoot
+	cmd.Env = append(os.Environ(), "GOWORK=off", "GOFLAGS=-mod=readonly", "GOPROXY=off")
+	out, err := cmd.CombinedOutput()
 	if err != nil || len(parseErrs) > 0 {
 		t.Fatalf("README Go examples do not compile against this module (%d blocks):\n%s%s",
-			len(blocks), strings.Join(append(parseErrs, ""), "\n"), out)
+			len(blocks), strings.Join(append(parseErrs, ""), "\n"),
+			strings.ReplaceAll(string(out), repoRoot+string(filepath.Separator), ""))
 	}
 }
 
@@ -182,7 +195,8 @@ func readmeGoBlocks(path string) ([]readmeBlock, error) {
 }
 
 // wrapReadmeFragment turns a fragment into a file of package fragments.
-func wrapReadmeFragment(b readmeBlock) (string, error) {
+// Positions name the README at readme.
+func wrapReadmeFragment(b readmeBlock, readme string) (string, error) {
 	lines := strings.Split(strings.TrimSuffix(b.code, "\n"), "\n")
 	var specs []string
 	i := 0
@@ -301,8 +315,8 @@ func wrapReadmeFragment(b readmeBlock) (string, error) {
 		}
 		out.WriteString(")\n\n")
 	}
-	fmt.Fprintf(&out, "func %s() error {\n{\n//line README.md:%d\n%s\n//line %s:1\n%s\n}\nreturn nil\n}\n",
-		fn, bodyLine, body, fn+"_generated", strings.Join(uses, "\n"))
+	fmt.Fprintf(&out, "func %s() error {\n{\n//line %s:%d\n%s\n//line %s:1\n%s\n}\nreturn nil\n}\n",
+		fn, readme, bodyLine, body, fn+"_generated", strings.Join(uses, "\n"))
 	return out.String(), nil
 }
 
