@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.32.0
+
+Git tag: `v0.32.0`. Released 2026-11-15. Built on public contract `ebbbeac`.
 
 - `Triggers.Create` and `Orders.CancelAllAfter` refuse values the published contract refuses with a `ValidationError` before sending, where the server refused them after a round trip: a TWAP's `TwapDurationMs` below 1000 and `TwapSliceIntervalMs` below 100 or longer than the duration, a ladder's `LadderLevels` outside 2 to 100, and a `timeoutSec` other than 0 or 10 to 120. A TWAP without a duration or slice interval, and a ladder without levels, are refused the same way: left out, the field was sent as 0. The TWAP and ladder ranges are read from the contract's validation rules (`codecs.TwapDurationMsMin`, `TwapDurationMsMax`, `TwapSliceIntervalMsMin`, `TwapSliceIntervalMsMax`, `LadderLevelsMin`, `LadderLevelsMax`, all new); the timeout range, which the contract states as a rule on the whole request, is `codecs.CancelAllAfterMinTimeoutSec` and `CancelAllAfterMaxTimeoutSec` (new). Affected: `Triggers.Create`, `codecs.CreateTriggerToProto`, `Orders.CancelAllAfter`, `codecs.CancelAllAfterToProto`.
 - A standalone trailing stop's `TrailingDistanceTicks` below 1 (the contract's rule, `codecs.TrailingDistanceTicksMin`, new) is refused with a `ValidationError` before sending; 0 and negative distances were sent and refused by the server. Attached trailing legs already refused them. Affected: `Triggers.Create`, `codecs.CreateTriggerToProto`.
