@@ -19,8 +19,8 @@ type OrderEvent struct {
 	// Version is the order's version after the event.
 	Version uint32         `json:"version"`
 	Kind    OrderEventKind `json:"kind"`
-	// RejectReason is why a rejected order was refused, as the order write API
-	// names the same refusal (for example "POST_ONLY_CROSS"). Empty otherwise.
+	// RejectReason is why a rejected order was refused, with the labels of
+	// Order.RejectReason (for example "post_only_cross"). Empty otherwise.
 	RejectReason string `json:"reject_reason,omitempty"`
 	// CancelReason is why a canceled order ended (for example "user_request").
 	// It is also set on the replaced event of the order a replace ended, as
@@ -64,8 +64,8 @@ type OrderCommandOutcome struct {
 	// NewOrderID is a replace's successor; empty otherwise.
 	NewOrderID    string `json:"new_order_id,omitempty"`
 	ClientOrderID string `json:"client_order_id,omitempty"`
-	// Reason is the refusal's order error code, as the order write API names
-	// the same refusal (for example "INSUFFICIENT_FUNDS"). Empty for
+	// Reason is the refusal's order error code, with the labels of
+	// Order.RejectReason (for example "insufficient_funds"). Empty for
 	// cancel_all_done.
 	Reason string `json:"reason,omitempty"`
 }

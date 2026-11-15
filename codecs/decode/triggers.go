@@ -244,9 +244,9 @@ func triggerDetailsFromProto(msg *triggersv1.Trigger) *models.TriggerDetails {
 			SliceIdx:            twap.GetSliceIdx(),
 			SliceCount:          twap.GetSliceCount(),
 		}
-		if twap.GetExecutedQtyScaled() != 0 {
-			out.ExecutedQty = codecs.DecodeQtyScaled(twap.GetExecutedQtyScaled(), -1, symbol, &sid)
-		}
+		// Zero until the first execution; it names the pair as Qty does, so
+		// it takes the same scale and formats as zero.
+		out.ExecutedQty = codecs.DecodeQtyScaled(twap.GetExecutedQtyScaled(), -1, symbol, &sid)
 		return out
 	case *triggersv1.Trigger_LadderState:
 		ladder := d.LadderState
@@ -265,9 +265,9 @@ func triggerDetailsFromProto(msg *triggersv1.Trigger) *models.TriggerDetails {
 		if ladder.GetLadderPriceMaxTicks() > 0 {
 			out.LadderPriceMax = codecs.DecodePriceTicks(ladder.GetLadderPriceMaxTicks(), symbol)
 		}
-		if ladder.GetExecutedQtyScaled() != 0 {
-			out.ExecutedQty = codecs.DecodeQtyScaled(ladder.GetExecutedQtyScaled(), -1, symbol, &sid)
-		}
+		// Zero until the first execution; it names the pair as Qty does, so
+		// it takes the same scale and formats as zero.
+		out.ExecutedQty = codecs.DecodeQtyScaled(ladder.GetExecutedQtyScaled(), -1, symbol, &sid)
 		return out
 	default:
 		return nil

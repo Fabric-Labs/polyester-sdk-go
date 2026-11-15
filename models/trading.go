@@ -76,9 +76,10 @@ type Order struct {
 	// order, as BatchReplaceOrdersResult.BatchRequestID; empty for every other
 	// origin.
 	BatchRequestID string `json:"batch_request_id,omitempty"`
-	// RejectReason is why a rejected order was refused, named as the order
-	// write API names the same refusal (for example "POST_ONLY_CROSS"). Empty
-	// for every other status.
+	// RejectReason is why a rejected order was refused: the order error code
+	// of the same refusal as a lowercase label without its ERROR_CODE_ prefix
+	// (for example "post_only_cross"), or "UNKNOWN_ERROR_CODE(N)" for a code
+	// newer than this SDK. Empty for every other status.
 	RejectReason string `json:"reject_reason,omitempty"`
 	// CancelReason is why a canceled order ended (for example "user_request",
 	// "replaced", or "attached_exit_fired": its take-profit, stop-loss or
@@ -244,6 +245,10 @@ type OrderMutationResult struct {
 	// SubmittedQuoteProceedsScaled echoes a SELL's quote proceeds target;
 	// ResolvedBaseQty is then the base the order holds, the most it can sell.
 	SubmittedQuoteProceedsScaled string `json:"submitted_quote_proceeds_scaled,omitempty"`
+	// AcceptedTsNs is when a create's admission completed, in nanoseconds
+	// since the Unix epoch: the contract's accepted_at_ts_ns, or accepted_at
+	// when only that is sent; 0 when neither is, and on a cancel.
+	AcceptedTsNs uint64 `json:"accepted_ts_ns,omitempty"`
 	AttachedRiskTriggerIDs
 }
 
@@ -359,6 +364,9 @@ type ModifyOrderResult struct {
 	OldOrderID   string `json:"old_order_id,omitempty"`
 	FinalOrderID string `json:"final_order_id,omitempty"`
 	Code         string `json:"code,omitempty"`
+	// TsNs is the server's response time in nanoseconds since the Unix epoch:
+	// the contract's ts_ns, or ts when only that is sent; 0 when neither is.
+	TsNs uint64 `json:"ts_ns,omitempty"`
 	AttachedRiskTriggerIDs
 }
 
@@ -409,6 +417,10 @@ type BatchReplaceAdmissionItem struct {
 	// quantity. Keep tracking OldOrderID for an amended item. Empty for rejected
 	// items.
 	ActionTaken string `json:"action_taken,omitempty"`
+	// ExistingOrderID is the order already holding the successor's client
+	// order ID on an ERROR_CODE_CONFLICT_DUPLICATE_CLIENT_ORDER_ID rejection,
+	// when known. Empty otherwise.
+	ExistingOrderID string `json:"existing_order_id,omitempty"`
 	// RateLimit is set when ErrorDetail.rate_limit is present on rejection.
 	RateLimit *RateLimitDetail `json:"rate_limit,omitempty"`
 	// Violations names the request fields a rejection asks to fix, in the
@@ -423,7 +435,10 @@ type BatchReplaceOrdersResult struct {
 	Results        []BatchReplaceAdmissionItem `json:"results"`
 	AcceptedCount  int                         `json:"accepted_count,omitempty"`
 	RejectedCount  int                         `json:"rejected_count,omitempty"`
-	AcceptedTsNs   uint64                      `json:"accepted_ts_ns,omitempty"`
+	// AcceptedTsNs is when admission completed, in nanoseconds since the Unix
+	// epoch: the contract's accepted_ts_ns, or accepted_ts when only that is
+	// sent; 0 when neither is.
+	AcceptedTsNs uint64 `json:"accepted_ts_ns,omitempty"`
 }
 
 // BatchReplaceStatusItem is one recoverable execution status from get_batch_replace_status.
@@ -503,9 +518,13 @@ type BatchCreateResultItem struct {
 	// the pair's base_quantity_scale, and the quote budget of a BUY or the
 	// quote proceeds target of a SELL sized by a quote amount, at the pair's
 	// quote_quantity_scale. Empty when not sent.
-	ResolvedBaseQtyScaled        string `json:"resolved_base_qty_scaled,omitempty"`
-	SubmittedMaxQuoteDebitScaled string `json:"submitted_max_quote_debit_scaled,omitempty"`
-	SubmittedQuoteProceedsScaled string `json:"submitted_quote_proceeds_scaled,omitempty"`
+	ResolvedBaseQtyScaled string `json:"resolved_base_qty_scaled,omitempty"`
+	// ResolvedBaseQty is ResolvedBaseQtyScaled as a quantity at the item's
+	// pair's base quantity scale, as on a single create; nil when not sent
+	// and for a rejected item.
+	ResolvedBaseQty              *QtyScaled `json:"resolved_base_qty,omitempty"`
+	SubmittedMaxQuoteDebitScaled string     `json:"submitted_max_quote_debit_scaled,omitempty"`
+	SubmittedQuoteProceedsScaled string     `json:"submitted_quote_proceeds_scaled,omitempty"`
 	// AttachedRiskTriggerIDs are an accepted item's attached legs' trigger
 	// IDs, as on OrderMutationResult; empty for a leg the order does not have.
 	AttachedRiskTriggerIDs
@@ -526,6 +545,9 @@ type BatchCreateOrdersResult struct {
 	Results       []BatchCreateResultItem `json:"results"`
 	AcceptedCount int                     `json:"accepted_count,omitempty"`
 	RejectedCount int                     `json:"rejected_count,omitempty"`
+	// TsNs is the server's response time in nanoseconds since the Unix epoch:
+	// the contract's ts_ns, or ts when only that is sent; 0 when neither is.
+	TsNs uint64 `json:"ts_ns,omitempty"`
 }
 
 // BatchCancelResultItem is one batch cancel outcome. OrderID is the order the
