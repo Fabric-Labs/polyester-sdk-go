@@ -144,6 +144,11 @@ const (
 	// more recently. ErrorDetail.payable_from is when it can be paid; unset
 	// when that time is not known yet. Retry after it.
 	ErrorCode_ERROR_CODE_EXTERNAL_DESTINATION_COOLING_DOWN ErrorCode = 49
+	// Withdrawals of this asset to the destination network are temporarily
+	// suspended, as AssetChainVariant.withdrawal_status SUSPENDED shows.
+	// Nothing was reserved; submit a new request once the status is NORMAL
+	// again.
+	ErrorCode_ERROR_CODE_ROUTE_SUSPENDED ErrorCode = 50
 )
 
 // Enum value maps for ErrorCode.
@@ -199,6 +204,7 @@ var (
 		47: "ERROR_CODE_ROUTE_UNSUPPORTED",
 		48: "ERROR_CODE_VERSION_CONFLICT",
 		49: "ERROR_CODE_EXTERNAL_DESTINATION_COOLING_DOWN",
+		50: "ERROR_CODE_ROUTE_SUSPENDED",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_CODE_UNSPECIFIED":                          0,
@@ -251,6 +257,7 @@ var (
 		"ERROR_CODE_ROUTE_UNSUPPORTED":                    47,
 		"ERROR_CODE_VERSION_CONFLICT":                     48,
 		"ERROR_CODE_EXTERNAL_DESTINATION_COOLING_DOWN":    49,
+		"ERROR_CODE_ROUTE_SUSPENDED":                      50,
 	}
 )
 
@@ -1206,7 +1213,7 @@ const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"amount_e18\x18\x05 \x01(\v2\x17.polyester.type.v1.U128R\tamountE18\"\x8d\x01\n" +
 	"\x19GetWalletBalancesResponse\x122\n" +
 	"\x15smart_account_address\x18\x01 \x01(\tR\x13smartAccountAddress\x12<\n" +
-	"\bbalances\x18\x02 \x03(\v2 .chain.withdraw.v1.WalletBalanceR\bbalances*\x98\x0f\n" +
+	"\bbalances\x18\x02 \x03(\v2 .chain.withdraw.v1.WalletBalanceR\bbalances*\xb8\x0f\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12!\n" +
 	"\x1dERROR_CODE_INSUFFICIENT_FUNDS\x10\x01\x12\x1e\n" +
@@ -1258,7 +1265,8 @@ const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"!ERROR_CODE_MIN_AMOUNT_BELOW_FLOOR\x10.\x12 \n" +
 	"\x1cERROR_CODE_ROUTE_UNSUPPORTED\x10/\x12\x1f\n" +
 	"\x1bERROR_CODE_VERSION_CONFLICT\x100\x120\n" +
-	",ERROR_CODE_EXTERNAL_DESTINATION_COOLING_DOWN\x101*V\n" +
+	",ERROR_CODE_EXTERNAL_DESTINATION_COOLING_DOWN\x101\x12\x1e\n" +
+	"\x1aERROR_CODE_ROUTE_SUSPENDED\x102*V\n" +
 	"\x15TradingWithdrawAction\x12\x16\n" +
 	"\x12ACTION_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +

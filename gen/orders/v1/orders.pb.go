@@ -2147,8 +2147,11 @@ type LimitGtc struct {
 	// rounded up, so the order splits into at most 100 parts: otherwise the
 	// order is refused with ICEBERG_DISPLAY_TOO_SMALL or
 	// ICEBERG_DISPLAY_INVALID. An iceberg order cannot carry attached_risk
-	// (ICEBERG_NOT_ALLOWED). The display cannot be modified; a replace keeps
-	// it.
+	// (ICEBERG_NOT_ALLOWED). The display cannot be modified. Lowering the
+	// order's quantity in place to the display or below is allowed: the order
+	// then shows all of its remaining quantity. A replace keeps the display
+	// while the new quantity is above it; otherwise the new order is a plain
+	// order with no display.
 	DisplayQtyScaled int64 `protobuf:"varint,3,opt,name=display_qty_scaled,json=displayQtyScaled,proto3" json:"display_qty_scaled,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
@@ -2227,8 +2230,11 @@ type LimitGtd struct {
 	// rounded up, so the order splits into at most 100 parts: otherwise the
 	// order is refused with ICEBERG_DISPLAY_TOO_SMALL or
 	// ICEBERG_DISPLAY_INVALID. An iceberg order cannot carry attached_risk
-	// (ICEBERG_NOT_ALLOWED). The display cannot be modified; a replace keeps
-	// it.
+	// (ICEBERG_NOT_ALLOWED). The display cannot be modified. Lowering the
+	// order's quantity in place to the display or below is allowed: the order
+	// then shows all of its remaining quantity. A replace keeps the display
+	// while the new quantity is above it; otherwise the new order is a plain
+	// order with no display.
 	DisplayQtyScaled int64 `protobuf:"varint,4,opt,name=display_qty_scaled,json=displayQtyScaled,proto3" json:"display_qty_scaled,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
@@ -3347,8 +3353,18 @@ type ErrorDetail struct {
 	// existing holder is known; omitted for duplicates rejected within the same
 	// batch before an order is assigned. Use GetOrder to obtain its current state.
 	ExistingOrderId *uint64 `protobuf:"fixed64,4,opt,name=existing_order_id,json=existingOrderId,proto3,oneof" json:"existing_order_id,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Why the refused order of a ladder can't be placed, when a trigger create
+	// is rejected with LADDER_LEVEL_REJECTED: the code that order would return
+	// as a single order, for example MAX_OPEN_ORDERS_PER_PAIR. Unspecified for
+	// every other error.
+	CauseCode ErrorCode `protobuf:"varint,8,opt,name=cause_code,json=causeCode,proto3,enum=orders.v1.ErrorCode" json:"cause_code,omitempty"`
+	// The refused order of a ladder, when a trigger create is rejected with
+	// LADDER_LEVEL_REJECTED: its zero-based index among the ladder's orders, the
+	// i of the violation's trigger.strategy.ladder.levels[i], so 0 is the first
+	// order. Omitted for every other error.
+	LevelIndex    *uint32 `protobuf:"varint,9,opt,name=level_index,json=levelIndex,proto3,oneof" json:"level_index,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ErrorDetail) Reset() {
@@ -3405,6 +3421,20 @@ func (x *ErrorDetail) GetRateLimit() *v1.RateLimitDetail {
 func (x *ErrorDetail) GetExistingOrderId() uint64 {
 	if x != nil && x.ExistingOrderId != nil {
 		return *x.ExistingOrderId
+	}
+	return 0
+}
+
+func (x *ErrorDetail) GetCauseCode() ErrorCode {
+	if x != nil {
+		return x.CauseCode
+	}
+	return ErrorCode_ERROR_CODE_UNSPECIFIED
+}
+
+func (x *ErrorDetail) GetLevelIndex() uint32 {
+	if x != nil && x.LevelIndex != nil {
+		return *x.LevelIndex
 	}
 	return 0
 }
@@ -6160,7 +6190,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\n" +
 	"field_path\x18\x01 \x01(\tR\tfieldPath\x12\x17\n" +
 	"\arule_id\x18\x02 \x01(\tR\x06ruleId\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\"\x81\x02\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"\xec\x02\n" +
 	"\vErrorDetail\x12(\n" +
 	"\x04code\x18\x01 \x01(\x0e2\x14.orders.v1.ErrorCodeR\x04code\x129\n" +
 	"\n" +
@@ -6168,8 +6198,13 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"violations\x12F\n" +
 	"\n" +
 	"rate_limit\x18\x03 \x01(\v2'.polyester.ratelimit.v1.RateLimitDetailR\trateLimit\x12/\n" +
-	"\x11existing_order_id\x18\x04 \x01(\x06H\x00R\x0fexistingOrderId\x88\x01\x01B\x14\n" +
-	"\x12_existing_order_id\"\x0f\n" +
+	"\x11existing_order_id\x18\x04 \x01(\x06H\x00R\x0fexistingOrderId\x88\x01\x01\x123\n" +
+	"\n" +
+	"cause_code\x18\b \x01(\x0e2\x14.orders.v1.ErrorCodeR\tcauseCode\x12$\n" +
+	"\vlevel_index\x18\t \x01(\rH\x01R\n" +
+	"levelIndex\x88\x01\x01B\x14\n" +
+	"\x12_existing_order_idB\x0e\n" +
+	"\f_level_index\"\x0f\n" +
 	"\rRiskMarketIoc\"8\n" +
 	"\fRiskLimitGtc\x12(\n" +
 	"\vprice_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\n" +
@@ -6793,72 +6828,73 @@ var file_orders_v1_orders_proto_depIdxs = []int32{
 	6,  // 19: orders.v1.ErrorDetail.code:type_name -> orders.v1.ErrorCode
 	31, // 20: orders.v1.ErrorDetail.violations:type_name -> orders.v1.FieldViolation
 	62, // 21: orders.v1.ErrorDetail.rate_limit:type_name -> polyester.ratelimit.v1.RateLimitDetail
-	33, // 22: orders.v1.RiskExecution.market_ioc:type_name -> orders.v1.RiskMarketIoc
-	34, // 23: orders.v1.RiskExecution.limit_gtc:type_name -> orders.v1.RiskLimitGtc
-	35, // 24: orders.v1.TakeProfitPolicy.child:type_name -> orders.v1.RiskExecution
-	7,  // 25: orders.v1.TakeProfitPolicy.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
-	35, // 26: orders.v1.StopLossPolicy.child:type_name -> orders.v1.RiskExecution
-	7,  // 27: orders.v1.StopLossPolicy.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
-	7,  // 28: orders.v1.TrailingStopPolicy.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
-	36, // 29: orders.v1.RiskPolicy.take_profit:type_name -> orders.v1.TakeProfitPolicy
-	37, // 30: orders.v1.RiskPolicy.stop_loss:type_name -> orders.v1.StopLossPolicy
-	38, // 31: orders.v1.RiskPolicy.trailing_stop:type_name -> orders.v1.TrailingStopPolicy
-	0,  // 32: orders.v1.CancelAllOrdersRequest.side:type_name -> orders.v1.Side
-	14, // 33: orders.v1.CancelAllOrdersResponse.status:type_name -> orders.v1.CancelAllOrdersResponse.Status
-	61, // 34: orders.v1.CancelAllOrdersResponse.ts:type_name -> google.protobuf.Timestamp
-	41, // 35: orders.v1.CancelAllOrdersResponse.cancelled_orders:type_name -> orders.v1.CancelledOrder
-	15, // 36: orders.v1.CancelAllOrdersResponse.listing_status:type_name -> orders.v1.CancelAllOrdersResponse.ListingStatus
-	0,  // 37: orders.v1.CancelAllAfterRequest.side:type_name -> orders.v1.Side
-	0,  // 38: orders.v1.DeadManSwitchScope.side:type_name -> orders.v1.Side
-	16, // 39: orders.v1.CancelAllAfterResponse.status:type_name -> orders.v1.CancelAllAfterResponse.Status
-	61, // 40: orders.v1.CancelAllAfterResponse.ts:type_name -> google.protobuf.Timestamp
-	44, // 41: orders.v1.CancelAllAfterResponse.effective_scope:type_name -> orders.v1.DeadManSwitchScope
-	32, // 42: orders.v1.BatchCreateRejected.error:type_name -> orders.v1.ErrorDetail
-	46, // 43: orders.v1.BatchCreateResultItem.accepted:type_name -> orders.v1.BatchCreateAccepted
-	47, // 44: orders.v1.BatchCreateResultItem.rejected:type_name -> orders.v1.BatchCreateRejected
-	24, // 45: orders.v1.BatchCreateOrdersRequest.items:type_name -> orders.v1.OrderIntent
-	48, // 46: orders.v1.BatchCreateOrdersResponse.results:type_name -> orders.v1.BatchCreateResultItem
-	61, // 47: orders.v1.BatchCreateOrdersResponse.ts:type_name -> google.protobuf.Timestamp
-	39, // 48: orders.v1.ModifyOrderRequest.new_attached_risk:type_name -> orders.v1.RiskPolicy
-	9,  // 49: orders.v1.ModifyOrderRequest.behavior:type_name -> orders.v1.ModifyBehavior
-	10, // 50: orders.v1.ModifyOrderResponse.action_taken:type_name -> orders.v1.ModifyActionTaken
-	61, // 51: orders.v1.ModifyOrderResponse.ts:type_name -> google.protobuf.Timestamp
-	39, // 52: orders.v1.BatchReplaceOrderItem.new_attached_risk:type_name -> orders.v1.RiskPolicy
-	12, // 53: orders.v1.BatchReplaceAdmissionItem.status:type_name -> orders.v1.BatchReplaceItemAdmissionStatus
-	32, // 54: orders.v1.BatchReplaceAdmissionItem.error:type_name -> orders.v1.ErrorDetail
-	10, // 55: orders.v1.BatchReplaceAdmissionItem.action_taken:type_name -> orders.v1.ModifyActionTaken
-	53, // 56: orders.v1.BatchReplaceOrdersRequest.items:type_name -> orders.v1.BatchReplaceOrderItem
-	11, // 57: orders.v1.BatchReplaceOrdersResponse.status:type_name -> orders.v1.BatchReplaceAdmissionStatus
-	54, // 58: orders.v1.BatchReplaceOrdersResponse.results:type_name -> orders.v1.BatchReplaceAdmissionItem
-	61, // 59: orders.v1.BatchReplaceOrdersResponse.accepted_ts:type_name -> google.protobuf.Timestamp
-	17, // 60: orders.v1.BatchCancelResultItem.status:type_name -> orders.v1.BatchCancelResultItem.Status
-	32, // 61: orders.v1.BatchCancelResultItem.error:type_name -> orders.v1.ErrorDetail
-	57, // 62: orders.v1.BatchCancelOrdersRequest.items:type_name -> orders.v1.BatchCancelItem
-	58, // 63: orders.v1.BatchCancelOrdersResponse.results:type_name -> orders.v1.BatchCancelResultItem
-	61, // 64: orders.v1.BatchCancelOrdersResponse.ts:type_name -> google.protobuf.Timestamp
-	27, // 65: orders.v1.OrdersService.PreviewOrder:input_type -> orders.v1.PreviewOrderRequest
-	25, // 66: orders.v1.OrdersService.CreateOrder:input_type -> orders.v1.CreateOrderRequest
-	29, // 67: orders.v1.OrdersService.CancelOrder:input_type -> orders.v1.CancelOrderRequest
-	40, // 68: orders.v1.OrdersService.CancelAllOrders:input_type -> orders.v1.CancelAllOrdersRequest
-	43, // 69: orders.v1.OrdersService.CancelAllAfter:input_type -> orders.v1.CancelAllAfterRequest
-	49, // 70: orders.v1.OrdersService.BatchCreateOrders:input_type -> orders.v1.BatchCreateOrdersRequest
-	51, // 71: orders.v1.OrdersService.ModifyOrder:input_type -> orders.v1.ModifyOrderRequest
-	55, // 72: orders.v1.OrdersService.BatchReplaceOrders:input_type -> orders.v1.BatchReplaceOrdersRequest
-	59, // 73: orders.v1.OrdersService.BatchCancelOrders:input_type -> orders.v1.BatchCancelOrdersRequest
-	28, // 74: orders.v1.OrdersService.PreviewOrder:output_type -> orders.v1.PreviewOrderResponse
-	26, // 75: orders.v1.OrdersService.CreateOrder:output_type -> orders.v1.CreateOrderResponse
-	30, // 76: orders.v1.OrdersService.CancelOrder:output_type -> orders.v1.CancelOrderResponse
-	42, // 77: orders.v1.OrdersService.CancelAllOrders:output_type -> orders.v1.CancelAllOrdersResponse
-	45, // 78: orders.v1.OrdersService.CancelAllAfter:output_type -> orders.v1.CancelAllAfterResponse
-	50, // 79: orders.v1.OrdersService.BatchCreateOrders:output_type -> orders.v1.BatchCreateOrdersResponse
-	52, // 80: orders.v1.OrdersService.ModifyOrder:output_type -> orders.v1.ModifyOrderResponse
-	56, // 81: orders.v1.OrdersService.BatchReplaceOrders:output_type -> orders.v1.BatchReplaceOrdersResponse
-	60, // 82: orders.v1.OrdersService.BatchCancelOrders:output_type -> orders.v1.BatchCancelOrdersResponse
-	74, // [74:83] is the sub-list for method output_type
-	65, // [65:74] is the sub-list for method input_type
-	65, // [65:65] is the sub-list for extension type_name
-	65, // [65:65] is the sub-list for extension extendee
-	0,  // [0:65] is the sub-list for field type_name
+	6,  // 22: orders.v1.ErrorDetail.cause_code:type_name -> orders.v1.ErrorCode
+	33, // 23: orders.v1.RiskExecution.market_ioc:type_name -> orders.v1.RiskMarketIoc
+	34, // 24: orders.v1.RiskExecution.limit_gtc:type_name -> orders.v1.RiskLimitGtc
+	35, // 25: orders.v1.TakeProfitPolicy.child:type_name -> orders.v1.RiskExecution
+	7,  // 26: orders.v1.TakeProfitPolicy.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
+	35, // 27: orders.v1.StopLossPolicy.child:type_name -> orders.v1.RiskExecution
+	7,  // 28: orders.v1.StopLossPolicy.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
+	7,  // 29: orders.v1.TrailingStopPolicy.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
+	36, // 30: orders.v1.RiskPolicy.take_profit:type_name -> orders.v1.TakeProfitPolicy
+	37, // 31: orders.v1.RiskPolicy.stop_loss:type_name -> orders.v1.StopLossPolicy
+	38, // 32: orders.v1.RiskPolicy.trailing_stop:type_name -> orders.v1.TrailingStopPolicy
+	0,  // 33: orders.v1.CancelAllOrdersRequest.side:type_name -> orders.v1.Side
+	14, // 34: orders.v1.CancelAllOrdersResponse.status:type_name -> orders.v1.CancelAllOrdersResponse.Status
+	61, // 35: orders.v1.CancelAllOrdersResponse.ts:type_name -> google.protobuf.Timestamp
+	41, // 36: orders.v1.CancelAllOrdersResponse.cancelled_orders:type_name -> orders.v1.CancelledOrder
+	15, // 37: orders.v1.CancelAllOrdersResponse.listing_status:type_name -> orders.v1.CancelAllOrdersResponse.ListingStatus
+	0,  // 38: orders.v1.CancelAllAfterRequest.side:type_name -> orders.v1.Side
+	0,  // 39: orders.v1.DeadManSwitchScope.side:type_name -> orders.v1.Side
+	16, // 40: orders.v1.CancelAllAfterResponse.status:type_name -> orders.v1.CancelAllAfterResponse.Status
+	61, // 41: orders.v1.CancelAllAfterResponse.ts:type_name -> google.protobuf.Timestamp
+	44, // 42: orders.v1.CancelAllAfterResponse.effective_scope:type_name -> orders.v1.DeadManSwitchScope
+	32, // 43: orders.v1.BatchCreateRejected.error:type_name -> orders.v1.ErrorDetail
+	46, // 44: orders.v1.BatchCreateResultItem.accepted:type_name -> orders.v1.BatchCreateAccepted
+	47, // 45: orders.v1.BatchCreateResultItem.rejected:type_name -> orders.v1.BatchCreateRejected
+	24, // 46: orders.v1.BatchCreateOrdersRequest.items:type_name -> orders.v1.OrderIntent
+	48, // 47: orders.v1.BatchCreateOrdersResponse.results:type_name -> orders.v1.BatchCreateResultItem
+	61, // 48: orders.v1.BatchCreateOrdersResponse.ts:type_name -> google.protobuf.Timestamp
+	39, // 49: orders.v1.ModifyOrderRequest.new_attached_risk:type_name -> orders.v1.RiskPolicy
+	9,  // 50: orders.v1.ModifyOrderRequest.behavior:type_name -> orders.v1.ModifyBehavior
+	10, // 51: orders.v1.ModifyOrderResponse.action_taken:type_name -> orders.v1.ModifyActionTaken
+	61, // 52: orders.v1.ModifyOrderResponse.ts:type_name -> google.protobuf.Timestamp
+	39, // 53: orders.v1.BatchReplaceOrderItem.new_attached_risk:type_name -> orders.v1.RiskPolicy
+	12, // 54: orders.v1.BatchReplaceAdmissionItem.status:type_name -> orders.v1.BatchReplaceItemAdmissionStatus
+	32, // 55: orders.v1.BatchReplaceAdmissionItem.error:type_name -> orders.v1.ErrorDetail
+	10, // 56: orders.v1.BatchReplaceAdmissionItem.action_taken:type_name -> orders.v1.ModifyActionTaken
+	53, // 57: orders.v1.BatchReplaceOrdersRequest.items:type_name -> orders.v1.BatchReplaceOrderItem
+	11, // 58: orders.v1.BatchReplaceOrdersResponse.status:type_name -> orders.v1.BatchReplaceAdmissionStatus
+	54, // 59: orders.v1.BatchReplaceOrdersResponse.results:type_name -> orders.v1.BatchReplaceAdmissionItem
+	61, // 60: orders.v1.BatchReplaceOrdersResponse.accepted_ts:type_name -> google.protobuf.Timestamp
+	17, // 61: orders.v1.BatchCancelResultItem.status:type_name -> orders.v1.BatchCancelResultItem.Status
+	32, // 62: orders.v1.BatchCancelResultItem.error:type_name -> orders.v1.ErrorDetail
+	57, // 63: orders.v1.BatchCancelOrdersRequest.items:type_name -> orders.v1.BatchCancelItem
+	58, // 64: orders.v1.BatchCancelOrdersResponse.results:type_name -> orders.v1.BatchCancelResultItem
+	61, // 65: orders.v1.BatchCancelOrdersResponse.ts:type_name -> google.protobuf.Timestamp
+	27, // 66: orders.v1.OrdersService.PreviewOrder:input_type -> orders.v1.PreviewOrderRequest
+	25, // 67: orders.v1.OrdersService.CreateOrder:input_type -> orders.v1.CreateOrderRequest
+	29, // 68: orders.v1.OrdersService.CancelOrder:input_type -> orders.v1.CancelOrderRequest
+	40, // 69: orders.v1.OrdersService.CancelAllOrders:input_type -> orders.v1.CancelAllOrdersRequest
+	43, // 70: orders.v1.OrdersService.CancelAllAfter:input_type -> orders.v1.CancelAllAfterRequest
+	49, // 71: orders.v1.OrdersService.BatchCreateOrders:input_type -> orders.v1.BatchCreateOrdersRequest
+	51, // 72: orders.v1.OrdersService.ModifyOrder:input_type -> orders.v1.ModifyOrderRequest
+	55, // 73: orders.v1.OrdersService.BatchReplaceOrders:input_type -> orders.v1.BatchReplaceOrdersRequest
+	59, // 74: orders.v1.OrdersService.BatchCancelOrders:input_type -> orders.v1.BatchCancelOrdersRequest
+	28, // 75: orders.v1.OrdersService.PreviewOrder:output_type -> orders.v1.PreviewOrderResponse
+	26, // 76: orders.v1.OrdersService.CreateOrder:output_type -> orders.v1.CreateOrderResponse
+	30, // 77: orders.v1.OrdersService.CancelOrder:output_type -> orders.v1.CancelOrderResponse
+	42, // 78: orders.v1.OrdersService.CancelAllOrders:output_type -> orders.v1.CancelAllOrdersResponse
+	45, // 79: orders.v1.OrdersService.CancelAllAfter:output_type -> orders.v1.CancelAllAfterResponse
+	50, // 80: orders.v1.OrdersService.BatchCreateOrders:output_type -> orders.v1.BatchCreateOrdersResponse
+	52, // 81: orders.v1.OrdersService.ModifyOrder:output_type -> orders.v1.ModifyOrderResponse
+	56, // 82: orders.v1.OrdersService.BatchReplaceOrders:output_type -> orders.v1.BatchReplaceOrdersResponse
+	60, // 83: orders.v1.OrdersService.BatchCancelOrders:output_type -> orders.v1.BatchCancelOrdersResponse
+	75, // [75:84] is the sub-list for method output_type
+	66, // [66:75] is the sub-list for method input_type
+	66, // [66:66] is the sub-list for extension type_name
+	66, // [66:66] is the sub-list for extension extendee
+	0,  // [0:66] is the sub-list for field type_name
 }
 
 func init() { file_orders_v1_orders_proto_init() }

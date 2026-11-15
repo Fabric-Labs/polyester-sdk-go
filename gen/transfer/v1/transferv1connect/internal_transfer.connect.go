@@ -39,6 +39,9 @@ const (
 	// InternalTransferServiceCreateInternalTransferProcedure is the fully-qualified name of the
 	// InternalTransferService's CreateInternalTransfer RPC.
 	InternalTransferServiceCreateInternalTransferProcedure = "/transfer.v1.InternalTransferService/CreateInternalTransfer"
+	// InternalTransferServiceBatchCreateInternalTransfersProcedure is the fully-qualified name of the
+	// InternalTransferService's BatchCreateInternalTransfers RPC.
+	InternalTransferServiceBatchCreateInternalTransfersProcedure = "/transfer.v1.InternalTransferService/BatchCreateInternalTransfers"
 )
 
 // InternalTransferServiceClient is a client for the transfer.v1.InternalTransferService service.
@@ -53,6 +56,16 @@ type InternalTransferServiceClient interface {
 	// whitelisted destinations accept recent MFA; delegated and other
 	// interactive transfers require fresh step-up.
 	CreateInternalTransfer(context.Context, *connect.Request[v1.CreateInternalTransferRequest]) (*connect.Response[v1.CreateInternalTransferResponse], error)
+	// Submit up to 10 Trading to Trading transfers authorized by one MFA check.
+	// Every leg passes the same checks as CreateInternalTransfer before any leg
+	// runs; if one fails, the whole batch is refused, nothing moves and no
+	// step-up is used. Legs then run independently, in order, and are not
+	// atomic: a leg can be refused, for example for insufficient balance, after
+	// earlier legs were accepted. The batch accepts recent MFA when the root
+	// owner moves funds between its own accounts or to explicitly whitelisted
+	// destinations; any other leg requires one fresh step-up for the whole
+	// batch. Each leg is its own transfer, readable with GetInternalTransfer.
+	BatchCreateInternalTransfers(context.Context, *connect.Request[v1.BatchCreateInternalTransfersRequest]) (*connect.Response[v1.BatchCreateInternalTransfersResponse], error)
 }
 
 // NewInternalTransferServiceClient constructs a client for the transfer.v1.InternalTransferService
@@ -78,13 +91,20 @@ func NewInternalTransferServiceClient(httpClient connect.HTTPClient, baseURL str
 			connect.WithSchema(internalTransferServiceMethods.ByName("CreateInternalTransfer")),
 			connect.WithClientOptions(opts...),
 		),
+		batchCreateInternalTransfers: connect.NewClient[v1.BatchCreateInternalTransfersRequest, v1.BatchCreateInternalTransfersResponse](
+			httpClient,
+			baseURL+InternalTransferServiceBatchCreateInternalTransfersProcedure,
+			connect.WithSchema(internalTransferServiceMethods.ByName("BatchCreateInternalTransfers")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // internalTransferServiceClient implements InternalTransferServiceClient.
 type internalTransferServiceClient struct {
-	getInternalTransfer    *connect.Client[v1.GetInternalTransferRequest, v1.GetInternalTransferResponse]
-	createInternalTransfer *connect.Client[v1.CreateInternalTransferRequest, v1.CreateInternalTransferResponse]
+	getInternalTransfer          *connect.Client[v1.GetInternalTransferRequest, v1.GetInternalTransferResponse]
+	createInternalTransfer       *connect.Client[v1.CreateInternalTransferRequest, v1.CreateInternalTransferResponse]
+	batchCreateInternalTransfers *connect.Client[v1.BatchCreateInternalTransfersRequest, v1.BatchCreateInternalTransfersResponse]
 }
 
 // GetInternalTransfer calls transfer.v1.InternalTransferService.GetInternalTransfer.
@@ -95,6 +115,12 @@ func (c *internalTransferServiceClient) GetInternalTransfer(ctx context.Context,
 // CreateInternalTransfer calls transfer.v1.InternalTransferService.CreateInternalTransfer.
 func (c *internalTransferServiceClient) CreateInternalTransfer(ctx context.Context, req *connect.Request[v1.CreateInternalTransferRequest]) (*connect.Response[v1.CreateInternalTransferResponse], error) {
 	return c.createInternalTransfer.CallUnary(ctx, req)
+}
+
+// BatchCreateInternalTransfers calls
+// transfer.v1.InternalTransferService.BatchCreateInternalTransfers.
+func (c *internalTransferServiceClient) BatchCreateInternalTransfers(ctx context.Context, req *connect.Request[v1.BatchCreateInternalTransfersRequest]) (*connect.Response[v1.BatchCreateInternalTransfersResponse], error) {
+	return c.batchCreateInternalTransfers.CallUnary(ctx, req)
 }
 
 // InternalTransferServiceHandler is an implementation of the transfer.v1.InternalTransferService
@@ -110,6 +136,16 @@ type InternalTransferServiceHandler interface {
 	// whitelisted destinations accept recent MFA; delegated and other
 	// interactive transfers require fresh step-up.
 	CreateInternalTransfer(context.Context, *connect.Request[v1.CreateInternalTransferRequest]) (*connect.Response[v1.CreateInternalTransferResponse], error)
+	// Submit up to 10 Trading to Trading transfers authorized by one MFA check.
+	// Every leg passes the same checks as CreateInternalTransfer before any leg
+	// runs; if one fails, the whole batch is refused, nothing moves and no
+	// step-up is used. Legs then run independently, in order, and are not
+	// atomic: a leg can be refused, for example for insufficient balance, after
+	// earlier legs were accepted. The batch accepts recent MFA when the root
+	// owner moves funds between its own accounts or to explicitly whitelisted
+	// destinations; any other leg requires one fresh step-up for the whole
+	// batch. Each leg is its own transfer, readable with GetInternalTransfer.
+	BatchCreateInternalTransfers(context.Context, *connect.Request[v1.BatchCreateInternalTransfersRequest]) (*connect.Response[v1.BatchCreateInternalTransfersResponse], error)
 }
 
 // NewInternalTransferServiceHandler builds an HTTP handler from the service implementation. It
@@ -131,12 +167,20 @@ func NewInternalTransferServiceHandler(svc InternalTransferServiceHandler, opts 
 		connect.WithSchema(internalTransferServiceMethods.ByName("CreateInternalTransfer")),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalTransferServiceBatchCreateInternalTransfersHandler := connect.NewUnaryHandler(
+		InternalTransferServiceBatchCreateInternalTransfersProcedure,
+		svc.BatchCreateInternalTransfers,
+		connect.WithSchema(internalTransferServiceMethods.ByName("BatchCreateInternalTransfers")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/transfer.v1.InternalTransferService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalTransferServiceGetInternalTransferProcedure:
 			internalTransferServiceGetInternalTransferHandler.ServeHTTP(w, r)
 		case InternalTransferServiceCreateInternalTransferProcedure:
 			internalTransferServiceCreateInternalTransferHandler.ServeHTTP(w, r)
+		case InternalTransferServiceBatchCreateInternalTransfersProcedure:
+			internalTransferServiceBatchCreateInternalTransfersHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -152,4 +196,8 @@ func (UnimplementedInternalTransferServiceHandler) GetInternalTransfer(context.C
 
 func (UnimplementedInternalTransferServiceHandler) CreateInternalTransfer(context.Context, *connect.Request[v1.CreateInternalTransferRequest]) (*connect.Response[v1.CreateInternalTransferResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("transfer.v1.InternalTransferService.CreateInternalTransfer is not implemented"))
+}
+
+func (UnimplementedInternalTransferServiceHandler) BatchCreateInternalTransfers(context.Context, *connect.Request[v1.BatchCreateInternalTransfersRequest]) (*connect.Response[v1.BatchCreateInternalTransfersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("transfer.v1.InternalTransferService.BatchCreateInternalTransfers is not implemented"))
 }

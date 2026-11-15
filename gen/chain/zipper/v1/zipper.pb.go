@@ -90,8 +90,8 @@ const (
 	RouteStatus_STATUS_UNSPECIFIED RouteStatus = 0
 	// The route accepts new requests.
 	RouteStatus_NORMAL RouteStatus = 1
-	// The route does not accept new requests. Requests created before the
-	// suspension continue to process.
+	// The route does not accept new requests. Do not send funds on it until it
+	// returns to NORMAL.
 	RouteStatus_SUSPENDED RouteStatus = 2
 )
 
@@ -339,11 +339,15 @@ type AssetChainVariant struct {
 	// Latest zToken supply for this chain asset variant, scaled by the parent
 	// unified asset's quantity_scale. Decode: supply_q / 10^quantity_scale.
 	SupplyQ uint64 `protobuf:"varint,12,opt,name=supply_q,json=supplyQ,proto3" json:"supply_q,omitempty"`
-	// Whether this route currently accepts new deposits. Funds sent to a
-	// deposit address while deposits are suspended are delayed, not lost: they
-	// can be processed only after deposits resume.
+	// Whether this route currently accepts new deposits. While it is
+	// SUSPENDED, do not send funds to a deposit address on this route; wait
+	// until it returns to NORMAL.
 	DepositStatus RouteStatus `protobuf:"varint,13,opt,name=deposit_status,json=depositStatus,proto3,enum=chain.zipper.v1.RouteStatus" json:"deposit_status,omitempty"`
-	// Whether this route currently accepts new withdrawals.
+	// Whether this route currently accepts new withdrawals. A Trading
+	// withdrawal accepted before the route became SUSPENDED and not yet sent
+	// stays pending, with its funds held, and is sent once the route returns
+	// to NORMAL. One already being sent when the suspension takes effect may
+	// fail instead; its funds then return to the account.
 	WithdrawalStatus RouteStatus `protobuf:"varint,14,opt,name=withdrawal_status,json=withdrawalStatus,proto3,enum=chain.zipper.v1.RouteStatus" json:"withdrawal_status,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
