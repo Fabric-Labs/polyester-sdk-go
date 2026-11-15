@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.31.0
+
+Git tag: `v0.31.0`. Released 2026-11-15. Built on public contract `ebbbeac`.
 
 - **Breaking:** `account` `"main"` always addresses the main account. With `Config.DefaultSubAccountID` set, `"main"` resolved like `"active"` and the call went to the default sub-account: a key scoped to the main account was refused (`api_key_root_scope_only`), and a key that may act on the sub-account read balances, or placed and canceled orders, there with no error. Only an unset `account` (nil) and `"active"` take the default; `""` is the main account, as before, as is an empty `subAccountID`. `services.AccountScope` documents every accepted value, and the README has a table of them. Without a default nothing changes. Affected: every call that takes an `account`, such as `Balances.List`, `Orders.Create`, `Orders.Cancel`, `Orders.ModifyWith`, `Triggers.Create`, `Transfers.List`, `Statements.Export` and `Client.StopAllTrading`, and `services.ScopedSubAccountID`. Migration: pass `nil` or `"active"` where you relied on `"main"` taking the default sub-account.
 - **Breaking:** `New` reads no environment variable. With `Config.DefaultAccountID` unset it took `POLYESTER_ACCOUNT_ID` from the environment, so a service built from explicit config could pick up an account ID left in the environment, and its private streams defaulted to that account. The API key, environment and URLs already came from the `Config` only. `FromEnv` still reads every `POLYESTER_*` variable. Affected: `polyester.New`, `Client.DefaultAccountID`. Migration: set `Config.DefaultAccountID`, or build the client with `polyester.FromEnv()`.
