@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	chainwithdrawv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/withdraw/v1"
@@ -63,12 +64,19 @@ func StrToU128Proto(value string, scale int) *typev1.U128 {
 }
 
 func TradingWithdrawPayloadToProto(action string, assetID uint32, amount models.AssetAmountInput, idempotencyKey string, destinationChainID uint64, deadlineTsSec *uint64, nonce string, destinationAddress string, amountScale int) (*chainwithdrawv1.TradingWithdrawIntentPayload, error) {
-	if strings.TrimSpace(idempotencyKey) == "" {
+	// The key is signed exactly as given, never trimmed; the contract only
+	// sets a minimum length.
+	if int32(utf8.RuneCountInString(idempotencyKey)) < withdrawIdempotencyKeyMinLen {
 		return nil, &errors.ValidationError{Msg: "idempotency_key is required"}
 	}
-	nonceValue, ok := new(big.Int).SetString(strings.TrimSpace(nonce), 10)
+	// The nonce is ASCII decimal digits only: no sign, no surrounding
+	// whitespace, so the signed nonce is the string given.
+	nonceValue, ok := new(big.Int), isDecimalDigits(nonce)
+	if ok {
+		_, ok = nonceValue.SetString(nonce, 10)
+	}
 	if !ok || nonceValue.Sign() <= 0 {
-		return nil, &errors.ValidationError{Msg: "nonce must be a positive decimal integer"}
+		return nil, &errors.ValidationError{Msg: "nonce must be a positive integer written in decimal digits only"}
 	}
 	if nonceValue.BitLen() > 128 {
 		return nil, &errors.ValidationError{Msg: "nonce exceeds uint128 range"}
@@ -106,4 +114,17 @@ func TradingWithdrawPayloadToProto(action string, assetID uint32, amount models.
 		return nil, &errors.ValidationError{Msg: "amount must be positive"}
 	}
 	return payload, nil
+}
+
+// isDecimalDigits reports whether s is one or more ASCII digits 0-9.
+func isDecimalDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return false
+		}
+	}
+	return true
 }

@@ -184,6 +184,9 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 		}
 		switch {
 		case opts.TrailingDistanceTicks != nil:
+			if *opts.TrailingDistanceTicks < TrailingDistanceTicksMin {
+				return nil, &errors.ValidationError{Msg: fmt.Sprintf("trailing_distance_ticks %d must be at least %d", *opts.TrailingDistanceTicks, TrailingDistanceTicksMin)}
+			}
 			trailing.TrailingDistance = &triggersv1.TrailingStopTrigger_TrailingDistanceTicks{TrailingDistanceTicks: *opts.TrailingDistanceTicks}
 		case opts.TrailingDistanceBps != nil:
 			if err := validateBps("trailing_distance_bps", *opts.TrailingDistanceBps, false); err != nil {

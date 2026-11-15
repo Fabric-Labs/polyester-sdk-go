@@ -79,6 +79,7 @@ func TestTwapRefusesValuesOutsideTheContract(t *testing.T) {
 		{ptr64(999), ptr64(100), "twap_duration_ms"},
 		{ptr64(60_000), ptr64(0), "twap_slice_interval_ms"},
 		{ptr64(60_000), ptr64(-5), "twap_slice_interval_ms"},
+		{ptr64(60_000), ptr64(10), "twap_slice_interval_ms"},
 		{ptr64(60_000), ptr64(99), "twap_slice_interval_ms"},
 		{ptr64(1_000), ptr64(1_001), "must not exceed twap_duration_ms"},
 		{nil, ptr64(100), "twap_duration_ms is required"},
@@ -139,3 +140,32 @@ func TestCancelAllAfterRefusesTimeoutsOutsideTheContract(t *testing.T) {
 
 func ptr64(v int64) *int64 { return &v }
 func ptr32(v int32) *int32 { return &v }
+
+func trailingRequest(ticks int64) (*triggersv1.CreateTriggerRequest, error) {
+	return CreateTriggerToProto(
+		1, "BTC-USDT", "trailing_stop", nil, "sell", models.QtyFromDecimal("0.001"),
+		"market", nil, "", "", nil, nil, false, 8,
+		CreateTriggerOptions{TrailingDistanceTicks: &ticks},
+	)
+}
+
+// The contract's trailing_distance_ticks rule is gt 0: zero and negative
+// distances are refused before sending.
+func TestTrailingStopRefusesDistanceTicksOutsideTheContract(t *testing.T) {
+	if TrailingDistanceTicksMin != 1 {
+		t.Fatalf("TrailingDistanceTicksMin = %d, want the contract's gt 0", TrailingDistanceTicksMin)
+	}
+	for _, ticks := range []int64{-5, 0, math.MinInt64} {
+		_, err := trailingRequest(ticks)
+		wantValidation(t, err, "trailing_distance_ticks")
+	}
+	for _, ticks := range []int64{1, 50_000_000_000, math.MaxInt64} {
+		req, err := trailingRequest(ticks)
+		if err != nil {
+			t.Fatalf("%d: %v", ticks, err)
+		}
+		if got := req.GetTrigger().GetTrailingStop().GetTrailingDistanceTicks(); got != ticks {
+			t.Fatalf("trailing ticks sent %d, want %d", got, ticks)
+		}
+	}
+}

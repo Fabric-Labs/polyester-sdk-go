@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
+	chainwithdrawv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/withdraw/v1"
 	triggersv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1"
 )
 
@@ -19,7 +20,14 @@ var (
 	TwapDurationMsMin, TwapDurationMsMax           = contractInt64Range(&triggersv1.TwapTrigger{}, "duration_ms")
 	TwapSliceIntervalMsMin, TwapSliceIntervalMsMax = contractInt64Range(&triggersv1.TwapTrigger{}, "slice_interval_ms")
 	LadderLevelsMin, LadderLevelsMax               = contractInt32Range(&triggersv1.LadderTrigger{}, "levels")
+	// TrailingDistanceTicksMin is the smallest trailing stop distance in
+	// ticks the contract takes (its gt 0 rule on trailing_distance_ticks).
+	TrailingDistanceTicksMin, _ = contractInt64Range(&triggersv1.TrailingStopTrigger{}, "trailing_distance_ticks")
 )
+
+// withdrawIdempotencyKeyMinLen is the contract's min_len on a trading
+// withdraw's idempotency_key, in characters. The key is signed as given.
+var withdrawIdempotencyKeyMinLen = int32(contractFieldRules(&chainwithdrawv1.TradingWithdrawIntentPayload{}, "idempotency_key").GetString().GetMinLen())
 
 // Dead-man-switch timeouts the contract accepts besides 0, which disarms
 // it. The contract states this range only as a CEL rule on
