@@ -839,7 +839,11 @@ order: the book shows at most that base quantity at a time. The API checks it
 against the order and the pair (`ICEBERG_DISPLAY_INVALID`,
 `ICEBERG_DISPLAY_TOO_SMALL`, `ICEBERG_NOT_ALLOWED`); the SDK refuses it on
 market, IOC and FOK orders. Order reads carry `DisplayQty` and `HiddenQty`
-(the part of `LeavesQty` the book does not show).
+(the part of `LeavesQty` the book does not show). Lowering an iceberg's
+quantity in place to its display or below keeps its queue priority and shows
+all of it (`HiddenQty` zero). A replace keeps the display while the new
+quantity is above it; otherwise the new order is a plain limit order with
+`DisplayQty` zero, and it stays plain.
 
 `CreateOrderRequest.Peg` prices a limit order once, at entry, from the best
 bid or ask plus `OffsetTicks` tick-size increments. `Price` stays required as
