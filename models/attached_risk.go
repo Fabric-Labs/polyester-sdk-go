@@ -78,10 +78,12 @@ type TrailingStopInput struct {
 // or empty. While the OCO is active and for 60 seconds after both legs ended,
 // a create with the same ClientListID and the same intent returns the same
 // OCO, so send a create whose outcome is unknown again with the same
-// ClientListID. SelfTradePreventionMode is expire_taker, expire_maker,
-// expire_both or decrement; nil leaves the server's default, expire_maker.
-// The contract documents decrement as not supported on an OCO: the SDK sends
-// it, and the server decides.
+// ClientListID. SelfTradePreventionMode is expire_taker, expire_maker or
+// expire_both; nil leaves the server's default, expire_maker. Each leg's
+// TriggerPriceSource is "last" or "index". The contract does not support
+// decrement self-trade prevention or a mark price source on an OCO, so
+// Triggers.CreateOco refuses both with *errors.ValidationError before
+// sending.
 type CreateOcoInput struct {
 	Symbol                  string       `json:"symbol"`
 	Side                    string       `json:"side"`

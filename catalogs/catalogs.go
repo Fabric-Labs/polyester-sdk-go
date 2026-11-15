@@ -39,7 +39,7 @@ type Manager struct {
 // calls which need it wait for it (see Hydration) instead of reading the
 // catalogs while they are still empty. Call the returned function once, with
 // the load's error or nil, when the load ends. The client begins one when it
-// is created with Config.HydrateCatalogs.
+// is created, unless Config.SkipCatalogHydration is set.
 func (m *Manager) BeginHydration() (finish func(error)) {
 	return m.begin(&m.hydrationDone, &m.hydrationErr)
 }

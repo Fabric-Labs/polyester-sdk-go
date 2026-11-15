@@ -15,7 +15,7 @@ import (
 func TestProxyUserinfoIsRedactedFromErrorText(t *testing.T) {
 	configured, _ := url.Parse("http://sdk-configured-proxy-user:configured-proxy-secret@127.0.0.1:1")
 	transport := &http.Transport{Proxy: http.ProxyURL(configured)}
-	client, err := New(Config{APIURL: "http://127.0.0.1:1", HTTPClient: &http.Client{Transport: transport}})
+	client, err := New(Config{APIURL: "http://127.0.0.1:1", HTTPClient: &http.Client{Transport: transport}, SkipCatalogHydration: true})
 	if err != nil {
 		t.Fatal(err)
 	}

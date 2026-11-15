@@ -70,7 +70,7 @@ func newPublicReadClient(t *testing.T, register func(*http.ServeMux)) *Client {
 	srv := hardening.NewTestServer(mux)
 	t.Cleanup(srv.Close)
 	keypair := auth.GenerateEd25519Keypair()
-	client, err := New(Config{APIURL: srv.URL, APIKeyID: "ak_public", APIPrivateKey: keypair.SecretKeyHex})
+	client, err := New(Config{APIURL: srv.URL, APIKeyID: "ak_public", APIPrivateKey: keypair.SecretKeyHex, SkipCatalogHydration: true})
 	if err != nil {
 		t.Fatal(err)
 	}

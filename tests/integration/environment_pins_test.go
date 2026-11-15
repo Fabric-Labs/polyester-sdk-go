@@ -24,9 +24,9 @@ func TestTestnetPinsMatchLiveZipperCatalog(t *testing.T) {
 func assertPinsMatchCatalog(t *testing.T, env chain.PolyesterEnvironment) {
 	t.Helper()
 	client, err := polyester.New(polyester.Config{
-		Environment:     &env,
-		HydrateCatalogs: false,
-		Timeout:         15 * time.Second,
+		Environment:          &env,
+		SkipCatalogHydration: true,
+		Timeout:              15 * time.Second,
 	})
 	if err != nil {
 		t.Fatal(err)

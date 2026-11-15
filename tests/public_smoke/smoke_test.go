@@ -19,9 +19,9 @@ func TestPublicSmokeClientConstructAndJSONRPC(t *testing.T) {
 	t.Cleanup(httpSrv.Close)
 
 	client, err := polyester.New(polyester.Config{
-		APIURL:          "http://127.0.0.1:1", // unused for this smoke
-		HydrateCatalogs: false,
-		Timeout:         time.Second,
+		APIURL:               "http://127.0.0.1:1", // unused for this smoke
+		SkipCatalogHydration: true,
+		Timeout:              time.Second,
 	})
 	if err != nil {
 		t.Fatal(err)

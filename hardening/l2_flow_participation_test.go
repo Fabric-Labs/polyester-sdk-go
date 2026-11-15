@@ -66,7 +66,7 @@ func flowsClient(t *testing.T) (*polyester.Client, *flowsAPI) {
 	api := &flowsAPI{}
 	srv := hardening.NewTestServer(api)
 	t.Cleanup(srv.Close)
-	client, err := polyester.New(polyester.Config{APIURL: srv.URL, Timeout: 5 * time.Second})
+	client, err := polyester.New(polyester.Config{APIURL: srv.URL, Timeout: 5 * time.Second, SkipCatalogHydration: true})
 	if err != nil {
 		t.Fatal(err)
 	}

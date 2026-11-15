@@ -177,7 +177,6 @@ func main() {
 		APIKeyID:         "ak_...",
 		APIPrivateKey:    auth.NewSecret("..."), // 64-char hex secret from API key creation
 		DefaultAccountID: &accountID,
-		HydrateCatalogs:  true,
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -294,7 +293,6 @@ client, err := polyester.New(polyester.Config{
 	APIKeyID:         "ak_...",
 	APIPrivateKey:    auth.NewSecret("..."),
 	DefaultAccountID: &accountID,
-	HydrateCatalogs:  true,
 })
 ```
 
@@ -307,11 +305,12 @@ client, err := polyester.New(polyester.Config{
 	APIKeyID:         os.Getenv("POLYESTER_API_KEY_ID"),
 	APIPrivateKey:    auth.NewSecret(os.Getenv("POLYESTER_API_PRIVATE_KEY")),
 	DefaultAccountID: &accountID,
-	HydrateCatalogs:  true,
 })
 ```
 
-`polyester.New` never implicitly reads `os.Environ`.
+`polyester.New` reads no environment variable: a setting the `Config` leaves
+unset keeps its default, even when a `POLYESTER_*` variable is set. Only
+`FromEnv` reads them.
 
 `Config.APIURL` must be an absolute `http` or `https` base URL. Paths (including
 local `httptest` server paths) are supported, but query/fragment delimiters
@@ -333,13 +332,12 @@ remain as transport overrides.
 `POLYESTER_API_URL` / `POLYESTER_WS_URL` overrides. This is a convenience
 helper, not the primary integration pattern.
 
-`FromEnv` enables spot and Zipper catalog hydration. The zero value used by
-`New` disables it, unlike the Python and Rust SDKs, so set `HydrateCatalogs: true`
-explicitly for anything that names a market by symbol or needs its scales.
-Without catalogs, decimal writes and calls that take a symbol, such as
-`Orderbook.Get` and `Orderbook.CreateSubscription`, return an
-`*errors.ValidationError` that says so, and market overview rows come back with
-an empty `Symbol` and no quantity scale.
+`New` loads the spot and Zipper catalogs by default, as the Python and Rust
+SDKs do. Set `SkipCatalogHydration: true` to load nothing at construction;
+then decimal writes and calls that take a symbol, such as `Orderbook.Get` and
+`Orderbook.CreateSubscription`, return an `*errors.ValidationError` that says
+so, and market overview rows come back with an empty `Symbol` and no quantity
+scale.
 
 Hydration runs in the background after `New` returns. Every call that names a
 market by symbol or needs a pair's scales waits for it, within the call's
@@ -362,8 +360,8 @@ if err := client.WaitForCatalogs(ctx); err != nil {
 }
 ```
 
-`WaitForCatalogs` returns immediately when `HydrateCatalogs` is disabled. When
-hydration is enabled, it reports **spot readiness**: it returns nil once the
+`WaitForCatalogs` returns immediately when `SkipCatalogHydration` is set.
+Otherwise it reports **spot readiness**: it returns nil once the
 spot config has loaded and validated, without waiting for the funding
 (deposit/withdraw) config, and the `*errors.CatalogHydrationError` of the spot
 config when that could not be loaded (`CatalogsLastError()` returns it too).
@@ -420,6 +418,23 @@ must carry their source scale. An `AssetAmount` constructed without scale is
 accepted for composition only and fails closed on transfer/withdraw encoding
 unless the request's `amount_scale` / `quantity_scale` is explicit. Prefer
 `AssetAmountFromDecimal`, or attach `.WithScale(scale)` before encoding.
+
+### Choosing the account
+
+Calls that act on an account take an `account` argument (`services.AccountScope`)
+and, on most calls, a legacy `subAccountID`. The account is:
+
+| `account` | Account the call acts on |
+| --- | --- |
+| `nil` (unset) | `Config.DefaultSubAccountID`, or the main account when none is set |
+| `"active"` | the same as `nil` |
+| `"main"` or `""` | always the main account, whatever `DefaultSubAccountID` is |
+| a sub-account ID, such as `"Bht3tfQZv8E"` | that sub-account |
+| `map[string]string{"subaccountId": id}` | that sub-account |
+
+A `subAccountID` of `""` also means the main account, and a non-empty one names
+a sub-account. Pass either `account` or `subAccountID`, not both. Any other
+`account` value is refused with `*errors.ValidationError` before sending.
 
 ## Create and cancel orders
 
@@ -1313,6 +1328,20 @@ _, err = client.Orders.ModifyWith(ctx, nil, services.ModifyParams{
 })
 ```
 
+To remove an order's attached legs, set `ClearAttachedRisk: true` on
+`ModifyParams` or `BatchReplaceItem`, alone or with a new price or quantity:
+it sends an empty risk policy, which removes the take-profit, stop-loss and
+trailing stop. A nil `NewAttachedRisk` leaves them unchanged, an empty
+`&models.AttachedRiskInput{}` is refused, and `ClearAttachedRisk` with a
+`NewAttachedRisk` is refused before sending.
+
+```go
+_, err = client.Orders.ModifyWith(ctx, nil, services.ModifyParams{
+    Symbol: symbol, Key: models.OrderKeyByID(created.OrderID),
+    ClearAttachedRisk: true,
+})
+```
+
 Standalone `trailing_stop` creates accept `side` `sell` or `buy`. A sell
 trails the highest price since arming (`Details.PeakPrice`) and fires on a
 fall; a buy trails the lowest (`Details.TroughPrice`) and fires on a rise. A
@@ -1505,7 +1534,7 @@ SDK notes:
   none, which does not mean a memo can be omitted. `MemoLabel` (such as
   "Destination tag") and `MemoFormatHint` are display text; validate against
   the rule, not the hint. Each variant's `Supply` is its zToken supply at the
-  asset's quantity scale, also in the catalog `HydrateCatalogs` loads.
+  asset's quantity scale, also in the catalog `New` loads.
   Each variant's `DepositStatus` and `WithdrawalStatus` say whether the route
   accepts new deposits and new withdrawals (`normal` or `suspended`, empty
   while not known); `AcceptsDeposits()` and `AcceptsWithdrawals()` are true
@@ -1923,22 +1952,21 @@ them exactly once, and a snapshot with the publications buffered behind it adds
 one update. Recovery-buffer overflow fails closed, and `Close` cancels
 in-flight refresh work and the replacement socket.
 
-A managed order book needs the spot catalog, which `New` leaves off: it resolves
-`Symbol` to its market ID there and reads the quantity scale of its levels.
-Create the client with `HydrateCatalogs: true`, as below; `CreateSubscription`
+A managed order book needs the spot catalog, which `New` loads unless
+`SkipCatalogHydration` is set: it resolves `Symbol` to its market ID there and
+reads the quantity scale of its levels. `CreateSubscription`
 waits for hydration, so `WaitForCatalogs` is only needed to learn early whether
 it failed. Passing the market's ID in `SymbolID` does not replace the catalog,
 because the scale still comes from it. Without a catalog, `CreateSubscription`
-returns an `*errors.ValidationError` before connecting. A client that keeps
-hydration off can load the spot catalog itself with
+returns an `*errors.ValidationError` before connecting. A client with
+`SkipCatalogHydration` set can load the spot catalog itself with
 `client.Catalogs.HydrateSpotConfig`.
 
 ```go
 import "github.com/Fabric-Labs/polyester-sdk-go/services"
 
 client, err := polyester.New(polyester.Config{
-	Environment:     &polyester.TestnetEnvironment,
-	HydrateCatalogs: true,
+	Environment: &polyester.TestnetEnvironment,
 })
 if err != nil {
 	log.Fatal(err)
@@ -2139,7 +2167,8 @@ Connect RPC over HTTP via generated clients in `gen/`. Wire format defaults to
 
 ### Startup catalogs, timeouts and proxies
 
-With `HydrateCatalogs`, `New` starts loading two catalogs, each on its own:
+Unless `SkipCatalogHydration` is set, `New` starts loading two catalogs, each
+on its own:
 
 - the **spot config** (`marketdata.v1.MarketDataService/GetSpotConfig`): pairs,
   symbol IDs, scales and order limits. Every spot trading call needs it.
@@ -2164,8 +2193,8 @@ without sending, when it failed. Deposit addresses and withdrawals
 loading or failed. `Catalogs.LedgerIDForAsset` and `QuantityScaleForAsset`
 don't wait: nil means either that the funding config has not loaded (yet, or
 its load failed) or that it does not know the asset, so call
-`WaitForFundingCatalog` first. With `HydrateCatalogs` off nothing loads and
-nothing waits, as before.
+`WaitForFundingCatalog` first. With `SkipCatalogHydration` set nothing loads
+and nothing waits.
 
 These two reads change nothing, so a read that times out or loses its
 connection (a proxy closing its tunnel shows as `unexpected EOF`) is read

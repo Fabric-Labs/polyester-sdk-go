@@ -77,12 +77,11 @@ func TestL2OrderReadsScaleFromTheSpotConfigWithoutTheFundingConfig(t *testing.T)
 			t.Cleanup(srv.Close)
 			kp := auth.GenerateEd25519Keypair()
 			client, err := polyester.New(polyester.Config{
-				APIURL:          srv.URL,
-				WSURL:           "ws://127.0.0.1:9/connection/websocket",
-				APIKeyID:        "ak_test",
-				APIPrivateKey:   kp.SecretKeyHex,
-				HydrateCatalogs: true,
-				Timeout:         30 * time.Second,
+				APIURL:        srv.URL,
+				WSURL:         "ws://127.0.0.1:9/connection/websocket",
+				APIKeyID:      "ak_test",
+				APIPrivateKey: kp.SecretKeyHex,
+				Timeout:       30 * time.Second,
 			})
 			if err != nil {
 				t.Fatal(err)

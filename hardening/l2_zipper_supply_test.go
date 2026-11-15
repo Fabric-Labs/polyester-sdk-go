@@ -63,7 +63,7 @@ func TestL2DepositWithdrawConfigKeepsVariantSupply(t *testing.T) {
 			}}, zipperHandler{fn: func(context.Context, *connect.Request[zipperv1.GetDepositWithdrawConfigRequest]) (*connect.Response[zipperv1.GetDepositWithdrawConfigResponse], error) {
 				return connect.NewResponse(config), nil
 			}})
-			client, err := polyester.New(polyester.Config{APIURL: srv.URL, WireFormat: wire, HydrateCatalogs: true, Timeout: 5 * time.Second})
+			client, err := polyester.New(polyester.Config{APIURL: srv.URL, WireFormat: wire, Timeout: 5 * time.Second})
 			if err != nil {
 				t.Fatal(err)
 			}

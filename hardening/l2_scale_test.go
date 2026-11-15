@@ -87,11 +87,10 @@ func TestL2ScaleHydrateWaitForCatalogsThenFormatAndOrderPath(t *testing.T) {
 
 	kp := auth.GenerateEd25519Keypair()
 	client, err := polyester.New(polyester.Config{
-		APIURL:          srv.URL,
-		APIKeyID:        "ak_test",
-		APIPrivateKey:   kp.SecretKeyHex,
-		HydrateCatalogs: true,
-		Timeout:         5 * time.Second,
+		APIURL:        srv.URL,
+		APIKeyID:      "ak_test",
+		APIPrivateKey: kp.SecretKeyHex,
+		Timeout:       5 * time.Second,
 	})
 	if err != nil {
 		t.Fatal(err)

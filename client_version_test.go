@@ -47,7 +47,7 @@ func TestGetVersionReturnsTheServedBuildWithoutSigning(t *testing.T) {
 	t.Cleanup(srv.Close)
 	// With credentials configured, the version read is still sent unsigned.
 	keypair := auth.GenerateEd25519Keypair()
-	client, err := New(Config{APIURL: srv.URL, APIKeyID: "ak_version", APIPrivateKey: keypair.SecretKeyHex})
+	client, err := New(Config{APIURL: srv.URL, APIKeyID: "ak_version", APIPrivateKey: keypair.SecretKeyHex, SkipCatalogHydration: true})
 	if err != nil {
 		t.Fatal(err)
 	}

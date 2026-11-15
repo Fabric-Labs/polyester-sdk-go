@@ -11,7 +11,7 @@ import (
 // awaitCatalogs waits for the catalog load the client began when it was
 // created, before a call resolves a display symbol or reads a pair's scales,
 // so a call made right after New does not refuse a valid symbol. It returns
-// at once when no load was begun (Config.HydrateCatalogs off), and ctx's
+// at once when no load was begun (Config.SkipCatalogHydration set), and ctx's
 // error when ctx ends first; the load itself carries on.
 //
 // With required, a failed load returns *errors.CatalogHydrationError wrapping

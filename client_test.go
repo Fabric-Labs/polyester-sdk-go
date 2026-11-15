@@ -13,7 +13,7 @@ import (
 )
 
 func TestNewUsesDefaults(t *testing.T) {
-	client, err := New(Config{})
+	client, err := New(Config{SkipCatalogHydration: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,7 +30,7 @@ func TestNewUsesDefaults(t *testing.T) {
 }
 
 func TestNewUsesNamedEnvironment(t *testing.T) {
-	client, err := New(Config{Environment: &TestnetEnvironment, HydrateCatalogs: false})
+	client, err := New(Config{Environment: &TestnetEnvironment, SkipCatalogHydration: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func TestNewValidatesAPIBaseURL(t *testing.T) {
 		" https://api.example.test",
 	} {
 		t.Run(rawURL, func(t *testing.T) {
-			client, err := New(Config{APIURL: rawURL})
+			client, err := New(Config{APIURL: rawURL, SkipCatalogHydration: true})
 			if client != nil {
 				t.Cleanup(func() { _ = client.Close() })
 			}
@@ -77,7 +77,7 @@ func TestNewValidatesAPIBaseURL(t *testing.T) {
 		"https://proxy-user:proxy-pass@api.example.test/base",
 	} {
 		t.Run("valid_"+rawURL, func(t *testing.T) {
-			client, err := New(Config{APIURL: rawURL})
+			client, err := New(Config{APIURL: rawURL, SkipCatalogHydration: true})
 			if err != nil {
 				t.Fatalf("New rejected valid APIURL %q: %v", rawURL, err)
 			}
@@ -88,8 +88,9 @@ func TestNewValidatesAPIBaseURL(t *testing.T) {
 
 func TestConfigStringRedactsURLUserinfo(t *testing.T) {
 	cfg := Config{
-		APIURL: "https://proxy-user:proxy-pass@api.example.test/base",
-		WSURL:  "wss://socket-user:socket-pass@api.example.test/realtime",
+		APIURL:               "https://proxy-user:proxy-pass@api.example.test/base",
+		WSURL:                "wss://socket-user:socket-pass@api.example.test/realtime",
+		SkipCatalogHydration: true,
 	}
 	for name, rendered := range map[string]string{
 		"String":   cfg.String(),
@@ -111,8 +112,9 @@ func TestConfigStringRedactsURLUserinfo(t *testing.T) {
 
 func TestConfigStringRedactsMalformedCredentialURLs(t *testing.T) {
 	cfg := Config{
-		APIURL: "https://api-user:api-secret@api.example.test/%zz",
-		WSURL:  "wss://ws-user:ws-secret@api.example.test/%zz",
+		APIURL:               "https://api-user:api-secret@api.example.test/%zz",
+		WSURL:                "wss://ws-user:ws-secret@api.example.test/%zz",
+		SkipCatalogHydration: true,
 	}
 	for name, rendered := range map[string]string{
 		"String":   cfg.String(),
@@ -128,7 +130,7 @@ func TestConfigStringRedactsMalformedCredentialURLs(t *testing.T) {
 			t.Fatalf("%s should fail closed for both malformed URLs, got %d placeholders: %s", name, count, rendered)
 		}
 	}
-	_, err := New(Config{APIURL: cfg.APIURL})
+	_, err := New(Config{APIURL: cfg.APIURL, SkipCatalogHydration: true})
 	if err == nil {
 		t.Fatal("New accepted malformed credential-bearing APIURL")
 	}
@@ -162,7 +164,7 @@ func TestConfigStringRedactsOpaqueAndHostlessCredentialURLs(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			cfg := Config{APIURL: test.apiURL, WSURL: test.wsURL}
+			cfg := Config{APIURL: test.apiURL, WSURL: test.wsURL, SkipCatalogHydration: true}
 			for name, rendered := range map[string]string{
 				"String":   cfg.String(),
 				"GoString": cfg.GoString(),
@@ -183,8 +185,9 @@ func TestConfigStringRedactsOpaqueAndHostlessCredentialURLs(t *testing.T) {
 
 func TestConfigStringPreservesNormalURLs(t *testing.T) {
 	cfg := Config{
-		APIURL: "https://api.example.test/path@segment",
-		WSURL:  "wss://api.example.test/realtime@stream",
+		APIURL:               "https://api.example.test/path@segment",
+		WSURL:                "wss://api.example.test/realtime@stream",
+		SkipCatalogHydration: true,
 	}
 	for name, rendered := range map[string]string{
 		"String":   cfg.String(),
@@ -199,9 +202,10 @@ func TestConfigStringPreservesNormalURLs(t *testing.T) {
 
 func TestConfigStringRedactsPrivateKey(t *testing.T) {
 	cfg := Config{
-		APIKeyID:      "key_123",
-		APIPrivateKey: auth.NewSecret("super-secret-private-key"),
-		APIURL:        DefaultAPIURL,
+		APIKeyID:             "key_123",
+		APIPrivateKey:        auth.NewSecret("super-secret-private-key"),
+		APIURL:               DefaultAPIURL,
+		SkipCatalogHydration: true,
 	}
 	rendered := cfg.String()
 	if !strings.Contains(rendered, "[REDACTED]") {
@@ -223,7 +227,7 @@ func TestConfigStringRedactsPrivateKey(t *testing.T) {
 }
 
 func TestClientExposesDocumentedServices(t *testing.T) {
-	client, err := New(Config{HydrateCatalogs: false})
+	client, err := New(Config{SkipCatalogHydration: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -255,7 +259,7 @@ func TestClientExposesDocumentedServices(t *testing.T) {
 }
 
 func TestWaitForCatalogsReturnsImmediatelyWhenHydrationDisabled(t *testing.T) {
-	client, err := New(Config{HydrateCatalogs: false})
+	client, err := New(Config{SkipCatalogHydration: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -280,12 +284,12 @@ func TestWaitForCatalogsHonorsContextCancellation(t *testing.T) {
 
 func TestNewRefusesARecvWindowTheServerWouldRefuse(t *testing.T) {
 	for _, window := range []time.Duration{-time.Millisecond, 1500 * time.Microsecond, time.Microsecond, 60*time.Second + time.Millisecond} {
-		if _, err := New(Config{RecvWindow: window}); err == nil || !strings.Contains(err.Error(), "RecvWindow") {
+		if _, err := New(Config{RecvWindow: window, SkipCatalogHydration: true}); err == nil || !strings.Contains(err.Error(), "RecvWindow") {
 			t.Fatalf("RecvWindow %s: err = %v, want a validation error", window, err)
 		}
 	}
 	for _, window := range []time.Duration{0, time.Millisecond, 5 * time.Second, 60 * time.Second} {
-		client, err := New(Config{RecvWindow: window})
+		client, err := New(Config{RecvWindow: window, SkipCatalogHydration: true})
 		if err != nil {
 			t.Fatalf("RecvWindow %s: %v", window, err)
 		}

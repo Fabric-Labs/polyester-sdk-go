@@ -455,3 +455,46 @@ func TestTriggerListFiltersByOcoAndReadsItsLegs(t *testing.T) {
 		}
 	}
 }
+
+// The contract does not allow a mark price source on an OCO leg or decrement
+// self-trade prevention on an OCO, so both are refused before sending, as a
+// single trigger create refuses what its contract does not allow.
+func TestCreateOcoRefusesWhatTheContractDoesNotAllowBeforeSending(t *testing.T) {
+	cases := map[string]func(*models.CreateOcoInput){
+		"mark take-profit source": func(in *models.CreateOcoInput) { in.TakeProfit.TriggerPriceSource = "mark" },
+		"mark stop-loss source":   func(in *models.CreateOcoInput) { in.StopLoss.TriggerPriceSource = "MARK" },
+		"decrement self-trade mode": func(in *models.CreateOcoInput) {
+			mode := "decrement"
+			in.SelfTradePreventionMode = &mode
+		},
+		"DECREMENT self-trade mode": func(in *models.CreateOcoInput) {
+			mode := "DECREMENT"
+			in.SelfTradePreventionMode = &mode
+		},
+	}
+	for name, mutate := range cases {
+		t.Run(name, func(t *testing.T) {
+			handler := &ocoHandler{}
+			service := newTriggerControlServiceWith(t, handler)
+			in := sellOco(nil)
+			mutate(&in)
+			_, err := service.CreateOco(context.Background(), nil, in, nil)
+			var validation *sdkerrors.ValidationError
+			if !errors.As(err, &validation) {
+				t.Fatalf("err = %T %v, want a validation error", err, err)
+			}
+			if len(handler.creates) != 0 {
+				t.Fatalf("sent %d creates, want none", len(handler.creates))
+			}
+		})
+	}
+	for _, source := range []string{"", "last", "index"} {
+		handler := &ocoHandler{}
+		service := newTriggerControlServiceWith(t, handler)
+		in := sellOco(nil)
+		in.TakeProfit.TriggerPriceSource = source
+		if _, err := service.CreateOco(context.Background(), nil, in, nil); err != nil || len(handler.creates) != 1 {
+			t.Fatalf("source %q: err = %v, creates = %d; want it sent", source, err, len(handler.creates))
+		}
+	}
+}

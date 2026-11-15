@@ -121,6 +121,10 @@ type BatchReplaceItem struct {
 	// or negative one is refused before sending, as on
 	// models.TrailingStopInput.
 	NewAttachedRisk *AttachedRiskInput `json:"new_attached_risk,omitempty"`
+	// ClearAttachedRisk removes the order's attached take-profit, stop-loss
+	// and trailing-stop legs, alone or with a price or quantity change. It
+	// is refused before sending with NewAttachedRisk.
+	ClearAttachedRisk bool `json:"clear_attached_risk,omitempty"`
 }
 
 // BatchCancelItem is one item in orders.batch_cancel.

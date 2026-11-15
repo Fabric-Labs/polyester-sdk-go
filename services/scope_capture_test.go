@@ -90,7 +90,7 @@ func TestExplicitEmptyScopePublicRequests(t *testing.T) {
 			refused bool
 		}{
 			{name: "empty", sub: ptr("")}, {name: "omitted", want: defaultID},
-			{name: "main", account: "main", want: defaultID}, {name: "active", account: "active", want: defaultID},
+			{name: "main", account: "main"}, {name: "active", account: "active", want: defaultID},
 			{name: "explicit", sub: ptr(codecs.FormatID(44)), want: 44},
 			{name: "selector_id", account: codecs.FormatID(44), want: 44},
 			{name: "selector_dict", account: map[string]string{"subaccountId": codecs.FormatID(44)}, want: 44},
@@ -336,7 +336,8 @@ func TestStopAllTradingScopeOnEveryRequest(t *testing.T) {
 	}{
 		{name: "empty", sub: ptr("")},
 		{name: "omitted", want: 42},
-		{name: "main", account: "main", want: 42},
+		{name: "main", account: "main"},
+		{name: "active", account: "active", want: 42},
 		{name: "explicit", sub: ptr(codecs.FormatID(44)), want: 44},
 		{name: "selector_id", account: codecs.FormatID(44), want: 44},
 	} {

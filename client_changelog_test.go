@@ -199,7 +199,7 @@ func newPublicChangelogClient(t *testing.T, fake changelogv1connect.ChangelogSer
 	mux.Handle(path, handler)
 	srv := hardening.NewTestServer(mux)
 	t.Cleanup(srv.Close)
-	client, err := New(Config{APIURL: srv.URL})
+	client, err := New(Config{APIURL: srv.URL, SkipCatalogHydration: true})
 	if err != nil {
 		t.Fatal(err)
 	}

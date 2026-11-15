@@ -66,11 +66,11 @@ func TestWaitForOrderTradesCompletePollsUntilSumMatches(t *testing.T) {
 
 	kp := auth.GenerateEd25519Keypair()
 	client, err := polyester.New(polyester.Config{
-		APIURL:          srv.URL,
-		APIKeyID:        "ak_test",
-		APIPrivateKey:   kp.SecretKeyHex,
-		HydrateCatalogs: false,
-		Timeout:         5 * time.Second,
+		APIURL:               srv.URL,
+		APIKeyID:             "ak_test",
+		APIPrivateKey:        kp.SecretKeyHex,
+		SkipCatalogHydration: true,
+		Timeout:              5 * time.Second,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -115,11 +115,11 @@ func TestCancelRejectsInvalidClientOrderIDBeforeTransport(t *testing.T) {
 
 	kp := auth.GenerateEd25519Keypair()
 	client, err := polyester.New(polyester.Config{
-		APIURL:          srv.URL,
-		APIKeyID:        "ak_test",
-		APIPrivateKey:   kp.SecretKeyHex,
-		HydrateCatalogs: false,
-		Timeout:         5 * time.Second,
+		APIURL:               srv.URL,
+		APIKeyID:             "ak_test",
+		APIPrivateKey:        kp.SecretKeyHex,
+		SkipCatalogHydration: true,
+		Timeout:              5 * time.Second,
 	})
 	if err != nil {
 		t.Fatal(err)

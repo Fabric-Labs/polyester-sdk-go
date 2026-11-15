@@ -90,7 +90,6 @@ func newSelectorClient(t *testing.T, wire string) (*polyester.Client, *selectorS
 		APIPrivateKey:    auth.NewSecret(auth.GenerateEd25519Keypair().SecretKeyHex.Reveal()),
 		DefaultAccountID: new("7"),
 		WireFormat:       wire,
-		HydrateCatalogs:  true,
 		Timeout:          5 * time.Second,
 	})
 	if err != nil {
