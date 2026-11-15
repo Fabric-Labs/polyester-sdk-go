@@ -110,12 +110,18 @@ func requireEntry(operation string, entry *authv1.AddressBookEntry) (models.Addr
 	if entry == nil {
 		return models.AddressBookEntry{}, &sdkerrors.ResponseContractError{Operation: operation, Msg: "missing entry"}
 	}
+	if err := requireID(operation, "address_book_entry_id", entry.GetAddressBookEntryId()); err != nil {
+		return models.AddressBookEntry{}, err
+	}
 	return entryFromProto(entry), nil
 }
 
 func requireTag(operation string, tag *authv1.AddressBookTag) (models.AddressBookTag, error) {
 	if tag == nil {
 		return models.AddressBookTag{}, &sdkerrors.ResponseContractError{Operation: operation, Msg: "missing tag"}
+	}
+	if err := requireID(operation, "tag_id", tag.GetTagId()); err != nil {
+		return models.AddressBookTag{}, err
 	}
 	return tagFromProto(tag), nil
 }

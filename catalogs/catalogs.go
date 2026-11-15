@@ -1140,25 +1140,22 @@ func parseU32Exact(v any, field string) (uint32, error) {
 	return uint32(n), nil
 }
 
+// maxExactFloatInteger is 2^53-1, the largest integer below which every
+// integer has an exact float64.
+const maxExactFloatInteger = 1<<53 - 1
+
 func parseUintExact(v any, field string) (uint64, error) {
 	switch t := v.(type) {
 	case float64:
-		if t < 0 || t != math.Trunc(t) {
+		if math.IsNaN(t) || t < 0 || t != math.Trunc(t) {
 			return 0, &errors.ValidationError{Msg: field + " must be a non-negative integer"}
 		}
-		if t > float64(math.MaxUint64) {
-			return 0, &errors.ValidationError{Msg: field + " exceeds uint64 range"}
-		}
-		// Reject values that cannot be represented exactly in float64 (and thus
-		// would silently truncate when cast). JSON numbers above 2^53 are unsafe.
-		if t > float64(1<<53) && t != float64(uint64(t)) {
+		// Above 2^53-1 a float64 can't tell neighbouring integers apart, so
+		// the value may already have been rounded: refuse it, never saturate.
+		if t > maxExactFloatInteger {
 			return 0, &errors.ValidationError{Msg: field + " is not an exact integer"}
 		}
-		u := uint64(t)
-		if float64(u) != t {
-			return 0, &errors.ValidationError{Msg: field + " exceeds exact integer range"}
-		}
-		return u, nil
+		return uint64(t), nil
 	case int:
 		if t < 0 {
 			return 0, &errors.ValidationError{Msg: field + " must be a non-negative integer"}
@@ -1203,18 +1200,16 @@ func intish(v any) *uint32 {
 	return &u
 }
 
-func intValue(v any) int {
-	n, err := parseIntExact(v, "scale")
-	if err != nil {
-		return 0
-	}
-	return n
-}
-
+// intField reads the first of keys row sets. A value that is not an exact
+// non-negative integer is reported missing, never read as 0 or truncated.
 func intField(row map[string]any, keys ...string) (int, bool) {
 	for _, key := range keys {
 		if value, ok := row[key]; ok && value != nil {
-			return intValue(value), true
+			n, err := parseIntExact(value, key)
+			if err != nil {
+				return 0, false
+			}
+			return n, true
 		}
 	}
 	return 0, false

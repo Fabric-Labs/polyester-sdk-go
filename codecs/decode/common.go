@@ -1,6 +1,7 @@
 package decode
 
 import (
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/wire"
 	"google.golang.org/protobuf/proto"
@@ -22,4 +23,14 @@ func APIDataFromProtoMust(msg proto.Message) models.ApiData {
 		return models.ApiData{Raw: map[string]any{}}
 	}
 	return data
+}
+
+// requireID refuses a reply whose required public ID is 0, the proto default
+// of an absent field: it breaks the response contract, and the call may have
+// applied, so the caller must not keep "0" as the ID of what it changed.
+func requireID(operation, field string, id uint64) error {
+	if id == 0 {
+		return &sdkerrors.ResponseContractError{Operation: operation, Msg: "missing " + field}
+	}
+	return nil
 }

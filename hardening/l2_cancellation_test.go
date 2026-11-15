@@ -3,6 +3,7 @@ package hardening_test
 import (
 	"context"
 	"errors"
+	"io"
 	"math/rand/v2"
 	"net/http"
 	"os"
@@ -35,6 +36,9 @@ func newHangingAPI(unavailable int64) *hangingAPI {
 
 func (a *hangingAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a.calls.Add(1)
+	// Read the body first: the server notices the client went away, and ends
+	// r.Context(), only once the request body is consumed.
+	_, _ = io.Copy(io.Discard, r.Body)
 	if a.unavailable.Add(-1) >= 0 {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusServiceUnavailable)
@@ -121,7 +125,7 @@ func TestL2CancelledRetriedReadIsContextCanceled(t *testing.T) {
 	api := newHangingAPI(2)
 	client := cancellationClient(t, api)
 	err := cancelOnceArrived(t, api, func(ctx context.Context) error {
-		_, err := client.Triggers.Get(ctx, nil, "1", nil)
+		_, err := client.Triggers.Get(ctx, nil, "2", nil)
 		return err
 	})
 	requireCallerError(t, err, context.Canceled)
@@ -138,7 +142,7 @@ func TestL2RetriedReadPastTheCallerDeadlineIsDeadlineExceeded(t *testing.T) {
 	client := cancellationClient(t, api)
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Millisecond)
 	defer cancel()
-	_, err := client.Triggers.Get(ctx, nil, "1", nil)
+	_, err := client.Triggers.Get(ctx, nil, "2", nil)
 	requireCallerError(t, err, context.DeadlineExceeded)
 }
 
@@ -190,7 +194,7 @@ func TestL2CancelRacingAnAnswerIsAnAnswerOrContextCanceled(t *testing.T) {
 		var err error
 		retried := i%2 == 1
 		if retried {
-			_, err = client.Triggers.Get(ctx, nil, "1", nil)
+			_, err = client.Triggers.Get(ctx, nil, "2", nil)
 		} else {
 			_, err = client.MarketData.GetSpotConfig(ctx)
 		}

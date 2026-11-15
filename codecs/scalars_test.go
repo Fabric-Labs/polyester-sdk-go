@@ -56,7 +56,8 @@ func TestIDToIntRoundTripFormatIDCanonical(t *testing.T) {
 }
 
 func TestIDToIntPrefersCanonicalBase58ForAllDigitCollisions(t *testing.T) {
-	for id := uint64(0); id <= 70; id++ {
+	// From 1: IDToInt refuses 0, whose encoding is "1".
+	for id := uint64(1); id <= 70; id++ {
 		encoded := FormatID(id)
 		allDigit := true
 		for _, r := range encoded {

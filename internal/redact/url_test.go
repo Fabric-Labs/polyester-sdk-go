@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -77,5 +78,32 @@ func TestMessageRedactsCopiedURLErrorText(t *testing.T) {
 	other := errors.New("plain")
 	if Message("plain", other) != "plain" {
 		t.Fatal("Message must leave text without a *url.Error unchanged")
+	}
+}
+
+// Registrations that share a secret are counted: the secret stays redacted
+// until every one is released, and each release is applied at most once,
+// also when registrations are made and released concurrently.
+func TestRegisterCountsSharedSecretsConcurrently(t *testing.T) {
+	const secret = "registry-shared-secret-R9"
+	line := "saw " + secret
+	keep := Register(secret)
+	var wg sync.WaitGroup
+	for range 32 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			release := Register(secret, "abc")
+			release()
+			release()
+		}()
+	}
+	wg.Wait()
+	if got := Text(line); got != "saw "+SecretPlaceholder {
+		t.Fatalf("held secret not redacted: %s", got)
+	}
+	keep()
+	if got := Text(line); got != line {
+		t.Fatalf("released secret still redacted: %s", got)
 	}
 }

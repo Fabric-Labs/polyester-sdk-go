@@ -80,7 +80,7 @@ func TestWaitForOrderTradesCompletePollsUntilSumMatches(t *testing.T) {
 	result, err := client.Orders.WaitForOrderTradesComplete(
 		context.Background(),
 		nil,
-		models.OrderKeyByID("1"),
+		models.OrderKeyByID("2"),
 		nil,
 		2*time.Second,
 	)

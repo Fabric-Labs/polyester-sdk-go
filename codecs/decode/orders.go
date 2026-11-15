@@ -635,6 +635,9 @@ func CancelAllFromProto(msg *orderv1.CancelAllOrdersResponse) (models.CancelAllO
 	}
 	var cancelled []models.CancelledOrder
 	for _, order := range msg.GetCancelledOrders() {
+		if err := requireID("CancelAllOrders", "order_id", order.GetOrderId()); err != nil {
+			return models.CancelAllOrdersResult{}, err
+		}
 		cancelled = append(cancelled, models.CancelledOrder{
 			OrderID:       codecs.FormatUint64ID(order.GetOrderId()),
 			ClientOrderID: order.GetClientOrderId(),
@@ -874,6 +877,9 @@ func BatchCreateFromProto(msg *orderv1.BatchCreateOrdersResponse) (models.BatchC
 		}
 		if accepted := item.GetAccepted(); accepted != nil {
 			decodedAccepted++
+			if err := requireID("BatchCreateOrders", "order_id", accepted.GetOrderId()); err != nil {
+				return models.BatchCreateOrdersResult{}, err
+			}
 			out.Status = "accepted"
 			out.OrderID = codecs.FormatUint64ID(accepted.GetOrderId())
 			if value := accepted.GetResolvedBaseQtyScaled(); value != 0 {

@@ -151,7 +151,7 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		mu             sync.Mutex
 		bids           = orderbook.BookSide{}
 		asks           = orderbook.BookSide{}
-		currentBookSeq int
+		currentBookSeq uint64
 		// bookAvailable is the last snapshot's Available: false means the
 		// book was being built or invalidated, so its merged levels are not
 		// known to be complete.
@@ -310,7 +310,7 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 				mu.Lock()
 				bids = nextBids
 				asks = nextAsks
-				currentBookSeq = int(msg.GetBookSeq())
+				currentBookSeq = msg.GetBookSeq()
 				bookAvailable = msg.GetAvailable()
 				// A new snapshot is a new starting view: deltas continue from it.
 				awaitingReset = false

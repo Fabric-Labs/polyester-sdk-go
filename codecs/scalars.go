@@ -112,13 +112,26 @@ func formatScaledInt64(n int64, scale int) string {
 	return digits
 }
 
-// IDToInt parses base58 or decimal uint64 ids.
+// IDToInt parses a base58 or decimal uint64 public ID and refuses one that
+// decodes to 0. On the wire 0 is unset and names nothing, so "1" (FormatID(0)),
+// "0" or "00" would send a request for an ID the caller did not mean.
 //
 // All-digit strings are ambiguous: they may be a decimal literal or a base58
 // encoding that happens to use only digit characters (e.g. FormatID(4) == "5").
 // For those inputs, prefer the canonical base58 decode when FormatID(b) matches
 // the input; otherwise treat the value as decimal.
 func IDToInt(value string, label string) (uint64, error) {
+	id, err := parseID(value, label)
+	if err != nil {
+		return 0, err
+	}
+	if id == 0 {
+		return 0, &errors.ValidationError{Msg: label + " must be a non-zero public ID"}
+	}
+	return id, nil
+}
+
+func parseID(value string, label string) (uint64, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return 0, &errors.ValidationError{Msg: label + " is required"}
@@ -154,20 +167,13 @@ func IDToInt(value string, label string) (uint64, error) {
 	return n.Uint64(), nil
 }
 
-// ParseAccountID decodes an account or sub-account ID as IDToInt does and
-// refuses one that decodes to 0. On the wire 0 is unset: a sub-account ID of
+// ParseAccountID decodes an account or sub-account ID as IDToInt does,
+// refusing one that decodes to 0. On the wire 0 is unset: a sub-account ID of
 // 0 is the main account, and an account ID of 0 names no account. So "1"
 // (FormatID(0)), "0" or "00" would address another account than the caller
 // named. Omit a sub-account ID to address the main account.
 func ParseAccountID(value string, label string) (uint64, error) {
-	id, err := IDToInt(value, label)
-	if err != nil {
-		return 0, err
-	}
-	if id == 0 {
-		return 0, &errors.ValidationError{Msg: label + " must be a non-zero public ID"}
-	}
-	return id, nil
+	return IDToInt(value, label)
 }
 
 // FormatID encodes a uint64 id as base58.

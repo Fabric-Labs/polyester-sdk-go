@@ -175,7 +175,7 @@ func (s *TriggersService) Create(ctx context.Context, account AccountScope, symb
 	if err != nil {
 		return models.TriggerMutationResult{}, err
 	}
-	return UnaryAuth(ctx, s.transport, s.client().CreateTrigger, req, decode.TriggerMutationFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.client().CreateTrigger, req, decode.TriggerMutationFromProto)
 }
 
 // Cancel cancels a trigger. A trigger that has already ended (completed,
@@ -203,7 +203,7 @@ func (s *TriggersService) Cancel(ctx context.Context, account AccountScope, trig
 	} else if parsed != nil {
 		req.SubaccountId = parsed
 	}
-	return UnaryAuth(ctx, s.transport, s.client().CancelTrigger, req, decode.TriggerMutationFromCancel)
+	return UnaryAuthDecoded(ctx, s.transport, s.client().CancelTrigger, req, decode.TriggerMutationFromCancel)
 }
 
 // CreateOco creates a one-cancels-the-other order list: a take-profit and a
@@ -247,7 +247,7 @@ func (s *TriggersService) CreateOco(ctx context.Context, account AccountScope, i
 	if err != nil {
 		return models.CreateOcoResult{}, err
 	}
-	return UnaryAuth(ctx, s.transport, s.client().CreateOco, req, decode.CreateOcoFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.client().CreateOco, req, decode.CreateOcoFromProto)
 }
 
 // CancelOco cancels an OCO by the OrderListID CreateOco returned: both legs
@@ -272,7 +272,7 @@ func (s *TriggersService) CancelOco(ctx context.Context, account AccountScope, o
 	if req.SubaccountId, err = codecs.ParseOptionalSubaccountID(sub); err != nil {
 		return models.CancelOcoResult{}, err
 	}
-	return UnaryAuth(ctx, s.transport, s.client().CancelOco, req, decode.CancelOcoFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.client().CancelOco, req, decode.CancelOcoFromProto)
 }
 
 // BatchCancel cancels 1 to codecs.MaxBatchCancelTriggers distinct triggers
@@ -316,7 +316,7 @@ func (s *TriggersService) Pause(ctx context.Context, account AccountScope, trigg
 	} else if parsed != nil {
 		req.SubaccountId = parsed
 	}
-	return UnaryAuth(ctx, s.transport, s.client().PauseTrigger, req, decode.TriggerMutationFromPause)
+	return UnaryAuthDecoded(ctx, s.transport, s.client().PauseTrigger, req, decode.TriggerMutationFromPause)
 }
 
 // Resume resumes a paused trigger; an ended one is refused with
@@ -347,7 +347,7 @@ func (s *TriggersService) Resume(ctx context.Context, account AccountScope, trig
 	} else if parsed != nil {
 		req.SubaccountId = parsed
 	}
-	return UnaryAuth(ctx, s.transport, s.client().ResumeTrigger, req, decode.TriggerMutationFromResume)
+	return UnaryAuthDecoded(ctx, s.transport, s.client().ResumeTrigger, req, decode.TriggerMutationFromResume)
 }
 
 // Modify patches a trigger. An ended trigger is refused with
@@ -392,7 +392,7 @@ func (s *TriggersService) Modify(ctx context.Context, account AccountScope, trig
 	if err != nil {
 		return models.TriggerMutationResult{}, err
 	}
-	return UnaryAuth(ctx, s.transport, s.client().ModifyTrigger, req, decode.TriggerMutationFromModify)
+	return UnaryAuthDecoded(ctx, s.transport, s.client().ModifyTrigger, req, decode.TriggerMutationFromModify)
 }
 
 func (s *TriggersService) ListEvents(ctx context.Context, account AccountScope, triggerID string, subAccountID *string, limit int, eventType *string, pageToken *string) (models.TriggerEventsList, error) {

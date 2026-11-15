@@ -58,6 +58,8 @@ type Factory struct {
 	authInterceptor *APIKeyInterceptor
 	// base is the HTTP client HTTP wraps, as the caller supplied it.
 	base *http.Client
+	// releaseSecrets forgets the secrets registerClientSecrets registered.
+	releaseSecrets func()
 }
 
 // NewFactory builds a transport factory. Its HTTP client is a copy of
@@ -68,12 +70,12 @@ func NewFactory(cfg Config, creds *auth.Credentials, httpClient *http.Client) *F
 		httpClient = &http.Client{Timeout: cfg.Timeout}
 	}
 	f := &Factory{
-		Config:      cfg,
-		Credentials: creds,
-		HTTP:        wrapHTTPClient(httpClient),
-		base:        httpClient,
+		Config:         cfg,
+		Credentials:    creds,
+		HTTP:           wrapHTTPClient(httpClient),
+		base:           httpClient,
+		releaseSecrets: registerClientSecrets(cfg, creds, httpClient),
 	}
-	registerClientSecrets(cfg, creds, httpClient)
 	if creds != nil {
 		f.authInterceptor = NewAPIKeyInterceptor(creds, cfg.APIURL, cfg.WireFormat)
 		f.authInterceptor.RecvWindowMS = cfg.RecvWindowMS
@@ -83,23 +85,22 @@ func NewFactory(cfg Config, creds *auth.Credentials, httpClient *http.Client) *F
 
 // registerClientSecrets has redact.Text remove the client's own secrets from
 // every error: the userinfo of its API, WebSocket and proxy URLs, and its API
-// private key.
-func registerClientSecrets(cfg Config, creds *auth.Credentials, httpClient *http.Client) {
-	redact.RegisterURLSecrets(cfg.APIURL)
-	redact.RegisterURLSecrets(cfg.WSURL)
+// private key. The returned function forgets them again.
+func registerClientSecrets(cfg Config, creds *auth.Credentials, httpClient *http.Client) func() {
+	secrets := append(redact.URLSecrets(cfg.APIURL), redact.URLSecrets(cfg.WSURL)...)
 	if creds != nil {
 		if key := creds.PrivateKey(); len(key) > 0 {
-			redact.RegisterSecret(hex.EncodeToString(key))
-			redact.RegisterSecret(hex.EncodeToString(key.Seed()))
+			secrets = append(secrets, hex.EncodeToString(key), hex.EncodeToString(key.Seed()))
 		}
 	}
 	if pooled, ok := httpClient.Transport.(*http.Transport); ok && pooled.Proxy != nil {
 		if req, err := http.NewRequest(http.MethodPost, cfg.APIURL, nil); err == nil {
 			if proxy, err := pooled.Proxy(req); err == nil && proxy != nil {
-				redact.RegisterURLSecrets(proxy.String())
+				secrets = append(secrets, redact.URLSecrets(proxy.String())...)
 			}
 		}
 	}
+	return redact.Register(secrets...)
 }
 
 func wrapHTTPClient(client *http.Client) *http.Client {
@@ -154,5 +155,11 @@ func MapError(err error) error {
 	return wire.MapConnectError(err)
 }
 
-// Close is a no-op when the HTTP client is caller-owned.
-func (f *Factory) Close() error { return nil }
+// Close forgets the client's secrets the factory registered for redaction.
+// It leaves the HTTP client open: it may be caller-owned.
+func (f *Factory) Close() error {
+	if f.releaseSecrets != nil {
+		f.releaseSecrets()
+	}
+	return nil
+}

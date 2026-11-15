@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	stdmath "math"
 	"math/big"
 	"strings"
 	"time"
@@ -605,6 +606,11 @@ func asInt(value any) (*big.Int, error) {
 	case int64:
 		return big.NewInt(v), nil
 	case float64:
+		// Only a whole number within ±(2^53-1) is exact: refuse a fraction or
+		// a float that may already be rounded, never truncate or saturate.
+		if stdmath.IsNaN(v) || v != stdmath.Trunc(v) || stdmath.Abs(v) > 1<<53-1 {
+			return nil, fmt.Errorf("float %v is not an exact integer", v)
+		}
 		return big.NewInt(int64(v)), nil
 	case json.Number:
 		i, err := v.Int64()

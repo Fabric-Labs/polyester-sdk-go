@@ -145,7 +145,7 @@ func ParseBucketTicks(bucket string) int {
 // malformed level) is out of sequence: it is not applied, the book and
 // sequence are unchanged, and the book no longer follows the stream until the
 // next reset.
-func ApplyDelta(bids, asks BookSide, currentBookSeq int, delta models.OrderBookDeltaUpdate) (int, bool) {
+func ApplyDelta(bids, asks BookSide, currentBookSeq uint64, delta models.OrderBookDeltaUpdate) (uint64, bool) {
 	// Reject the whole update atomically. Skipping corrupt rows while advancing
 	// the sequence permanently leaves stale quantity in the local book. A
 	// positive quantity at price zero is a level BucketSide refuses to render,
@@ -155,9 +155,9 @@ func ApplyDelta(bids, asks BookSide, currentBookSeq int, delta models.OrderBookD
 			return currentBookSeq, true
 		}
 	}
-	seqStart, startErr := strconv.Atoi(delta.BookSeqStart)
-	seqEnd, endErr := strconv.Atoi(delta.BookSeqEnd)
-	if startErr != nil || endErr != nil || seqStart < 0 || seqEnd < seqStart {
+	seqStart, startErr := strconv.ParseUint(delta.BookSeqStart, 10, 64)
+	seqEnd, endErr := strconv.ParseUint(delta.BookSeqEnd, 10, 64)
+	if startErr != nil || endErr != nil || seqEnd < seqStart {
 		return currentBookSeq, true
 	}
 	// A reset may replace the current snapshot only when it advances the
@@ -182,7 +182,7 @@ func ApplyDelta(bids, asks BookSide, currentBookSeq int, delta models.OrderBookD
 
 // BuildOrderbookData renders the current in-memory book with up to depth levels
 // per side; depth 0 renders no levels. A negative depth is a ValidationError.
-func BuildOrderbookData(symbol string, depth, bookSeq int, bids, asks BookSide, bucketTicks, quantityScale int) (models.OrderbookData, error) {
+func BuildOrderbookData(symbol string, depth int, bookSeq uint64, bids, asks BookSide, bucketTicks, quantityScale int) (models.OrderbookData, error) {
 	if depth < 0 {
 		return models.OrderbookData{}, &sdkerrors.ValidationError{Msg: fmt.Sprintf("orderbook depth must not be negative, got %d", depth)}
 	}
@@ -197,7 +197,7 @@ func BuildOrderbookData(symbol string, depth, bookSeq int, bids, asks BookSide, 
 	return models.OrderbookData{
 		Symbol:  symbol,
 		Depth:   depth,
-		BookSeq: strconv.Itoa(bookSeq),
+		BookSeq: strconv.FormatUint(bookSeq, 10),
 		Bids:    bidLevels,
 		Asks:    askLevels,
 	}, nil

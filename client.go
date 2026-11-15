@@ -253,6 +253,9 @@ func New(cfg Config) (*Client, error) {
 	if cfg.WSURL == "" {
 		cfg.WSURL = env.WebsocketURL
 	}
+	if err := refuseQueryOrFragment("WSURL", cfg.WSURL); err != nil {
+		return nil, err
+	}
 	if cfg.Timeout <= 0 {
 		cfg.Timeout = 10 * time.Second
 	}
@@ -367,15 +370,22 @@ func validateAPIBaseURL(raw string) error {
 		parsed.Opaque != "" {
 		return &sdkerrors.ValidationError{Msg: "APIURL must be an absolute HTTP(S) base URL"}
 	}
-	// url.Parse intentionally discards an empty fragment and represents a bare
-	// query delimiter only through ForceQuery. Check the original text so no
-	// literal delimiter can remain for Connect to append a procedure after.
-	// Percent-escaped path content such as %3F and %23 remains legal.
+	// Connect appends a procedure to the base, so no literal delimiter may remain.
+	return refuseQueryOrFragment("APIURL", raw)
+}
+
+// refuseQueryOrFragment refuses a base URL, APIURL or WSURL, that holds a
+// query string or fragment: the SDK appends paths to it, and anything in one
+// would be sent on every request or connection, outside any signature.
+// url.Parse intentionally discards an empty fragment and represents a bare
+// query delimiter only through ForceQuery, so the original text is checked.
+// Percent-escaped path content such as %3F and %23 remains legal.
+func refuseQueryOrFragment(name, raw string) error {
 	if strings.Contains(raw, "?") {
-		return &sdkerrors.ValidationError{Msg: "APIURL base must not contain a query string"}
+		return &sdkerrors.ValidationError{Msg: name + " base must not contain a query string"}
 	}
 	if strings.Contains(raw, "#") {
-		return &sdkerrors.ValidationError{Msg: "APIURL base must not contain a fragment"}
+		return &sdkerrors.ValidationError{Msg: name + " base must not contain a fragment"}
 	}
 	return nil
 }

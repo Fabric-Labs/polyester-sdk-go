@@ -147,7 +147,7 @@ func newTradesWaitClientWith(t *testing.T, handler *tradesWaitServer, httpClient
 }
 
 func waitTrades(ctx context.Context, client *polyester.Client, timeout time.Duration) (models.GetOrderResult, error) {
-	return client.Orders.WaitForOrderTradesComplete(ctx, nil, models.OrderKeyByID("1"), nil, timeout)
+	return client.Orders.WaitForOrderTradesComplete(ctx, nil, models.OrderKeyByID("2"), nil, timeout)
 }
 
 // isTradesWaitTimeout reports the error WaitForOrderTradesComplete returns

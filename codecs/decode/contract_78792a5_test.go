@@ -11,6 +11,7 @@ import (
 	marketdatav1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	triggersv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1"
+	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -221,16 +222,33 @@ func TestOcoAndBatchCancelKeepServerTimes(t *testing.T) {
 	stamp := timestamppb.New(time.Unix(1_762_560_000, 987_654_321))
 	const fromStamp = uint64(1_762_560_000_987_654_321)
 
-	created := CreateOcoFromProto(&triggersv1.CreateOcoResponse{OrderListId: 1, AcceptedAtTsNs: exact, AcceptedAt: stamp})
-	fallback := CreateOcoFromProto(&triggersv1.CreateOcoResponse{OrderListId: 1, AcceptedAt: stamp})
-	unset := CreateOcoFromProto(&triggersv1.CreateOcoResponse{OrderListId: 1})
+	oco := func(msg *triggersv1.CreateOcoResponse) models.CreateOcoResult {
+		t.Helper()
+		msg.OrderListId, msg.TakeProfitTriggerId, msg.StopLossTriggerId = 1, 2, 3
+		out, err := CreateOcoFromProto(msg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	created := oco(&triggersv1.CreateOcoResponse{AcceptedAtTsNs: exact, AcceptedAt: stamp})
+	fallback := oco(&triggersv1.CreateOcoResponse{AcceptedAt: stamp})
+	unset := oco(&triggersv1.CreateOcoResponse{})
 	if created.AcceptedTsNs != exact || fallback.AcceptedTsNs != fromStamp || unset.AcceptedTsNs != 0 {
 		t.Fatalf("create: %d %d %d", created.AcceptedTsNs, fallback.AcceptedTsNs, unset.AcceptedTsNs)
 	}
 
-	canceled := CancelOcoFromProto(&triggersv1.CancelOcoResponse{OrderListId: 1, TsNs: exact, Ts: stamp})
-	cancelFallback := CancelOcoFromProto(&triggersv1.CancelOcoResponse{OrderListId: 1, Ts: stamp})
-	cancelUnset := CancelOcoFromProto(&triggersv1.CancelOcoResponse{OrderListId: 1})
+	cancelOco := func(msg *triggersv1.CancelOcoResponse) models.CancelOcoResult {
+		t.Helper()
+		out, err := CancelOcoFromProto(msg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	canceled := cancelOco(&triggersv1.CancelOcoResponse{OrderListId: 1, TsNs: exact, Ts: stamp})
+	cancelFallback := cancelOco(&triggersv1.CancelOcoResponse{OrderListId: 1, Ts: stamp})
+	cancelUnset := cancelOco(&triggersv1.CancelOcoResponse{OrderListId: 1})
 	if canceled.TsNs != exact || cancelFallback.TsNs != fromStamp || cancelUnset.TsNs != 0 {
 		t.Fatalf("cancel: %d %d %d", canceled.TsNs, cancelFallback.TsNs, cancelUnset.TsNs)
 	}
