@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- README examples match the current API: the alert listing example is complete Go, and the catalog hydration example imports the standard `errors` package for `errors.As` beside this SDK's `errors` package. `go test ./...` now compiles every Go block in the README against the module (`readme_test.go`), so an example that drifts from the API fails CI. No API changes.
+
 ## 0.31.0
 
 Git tag: `v0.31.0`. Released 2026-11-15. Built on public contract `ebbbeac`.

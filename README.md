@@ -1101,7 +1101,12 @@ res, err := client.Alerts.Update(ctx, services.UpdateAlertParams{
 	AlertID: alert.AlertID, Price: &price,
 	ExpectedRevision: alert.Revision, IdempotencyKey: "bot-7:alert-1:move-1",
 })
-for a, err := range client.Alerts.All(ctx, services.ListAlertsParams{Statuses: []string{"active"}}) { ... }
+for a, err := range client.Alerts.All(ctx, services.ListAlertsParams{Statuses: []string{"active"}}) {
+	if err != nil {
+		return err
+	}
+	fmt.Println(a.AlertID, a.Direction, a.Price.Ticks())
+}
 _, err = client.Alerts.Cancel(ctx, alert.AlertID)
 ```
 
@@ -2071,6 +2076,11 @@ CI checks that `sdk-capabilities.json` and the README capability table are
 current and fails when they are stale; it never commits them. Run
 `--write-capabilities` and commit the result.
 
+`go test ./...` also compiles every Go block in this README against the
+module (`readme_test.go`), so an example that no longer matches the API fails
+CI. A fragment may use `ctx`, `client`, `err` and the values its prose
+introduces, such as `symbol` and `orderID`; the test declares them.
+
 Unit / public-smoke tests run offline (no API keys):
 
 ```bash
@@ -2217,8 +2227,14 @@ connections only when the `Config.HTTPClient` transport is an
 `*http.Transport` (or unset); another `http.RoundTripper` is reused as is.
 
 ```go
+import (
+	stderrors "errors"
+
+	"github.com/Fabric-Labs/polyester-sdk-go/errors"
+)
+
 var hydrationErr *errors.CatalogHydrationError
-if err := client.WaitForCatalogs(ctx); errors.As(err, &hydrationErr) {
+if err := client.WaitForCatalogs(ctx); stderrors.As(err, &hydrationErr) {
 	// catalog hydration failed: spot config (marketdata.v1.MarketDataService/
 	// GetSpotConfig) timed out after 2 attempts in 20.0s: ...
 	log.Fatal(hydrationErr.Catalog, hydrationErr.Operation, hydrationErr.Failure,
