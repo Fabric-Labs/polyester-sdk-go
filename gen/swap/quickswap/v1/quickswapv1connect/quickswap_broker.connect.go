@@ -140,11 +140,15 @@ type QuickSwapBrokerServiceClient interface {
 	// invites addressed to the caller. Session token only.
 	ListMyBrokers(context.Context, *connect.Request[v1.ListMyBrokersRequest]) (*connect.Response[v1.ListMyBrokersResponse], error)
 	// RespondToInvite accepts or declines a pending invite addressed to the
-	// caller. Session token only; no step-up proof is needed.
+	// caller. Session token only; no step-up proof is needed. An invite is
+	// accepted only while the member who sent it may still grant its role.
+	// SetMemberRole, RemoveMember and TransferOwnership cancel the invites
+	// they take that from; accepting any other such invite cancels it.
 	//
 	// Errors:
 	// - NOT_FOUND: INVITE_NOT_FOUND.
 	// - ALREADY_EXISTS: ALREADY_MEMBER.
+	// - FAILED_PRECONDITION: INVITE_VOID.
 	RespondToInvite(context.Context, *connect.Request[v1.RespondToInviteRequest]) (*connect.Response[v1.RespondToInviteResponse], error)
 	// ListMembers lists the broker's members and pending invites. Session
 	// token only.
@@ -155,6 +159,7 @@ type QuickSwapBrokerServiceClient interface {
 	ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error)
 	// InviteMember invites a person with any role but OWNER; the person
 	// accepts with their own login. Inviting again replaces the pending invite.
+	// The invite stays pending only while the caller may still grant its role.
 	// Session token and step-up proof only.
 	//
 	// Errors:
@@ -164,8 +169,9 @@ type QuickSwapBrokerServiceClient interface {
 	//   - ALREADY_EXISTS: ALREADY_MEMBER.
 	InviteMember(context.Context, *connect.Request[v1.InviteMemberRequest]) (*connect.Response[v1.InviteMemberResponse], error)
 	// SetMemberRole changes a member's role to any role but OWNER. The Owner's
-	// role cannot be changed; transfer ownership instead. Session token and
-	// step-up proof only.
+	// role cannot be changed; transfer ownership instead. The member's pending
+	// invites that the new role may not grant are cancelled in the same
+	// change. Session token and step-up proof only.
 	//
 	// Errors:
 	// - NOT_FOUND: BROKER_NOT_FOUND or MEMBER_NOT_FOUND.
@@ -173,8 +179,9 @@ type QuickSwapBrokerServiceClient interface {
 	// - FAILED_PRECONDITION: OWNER_IMMUTABLE.
 	SetMemberRole(context.Context, *connect.Request[v1.SetMemberRoleRequest]) (*connect.Response[v1.SetMemberRoleResponse], error)
 	// RemoveMember removes a member, ending their access immediately, or
-	// cancels the person's pending invite. The Owner cannot be removed. Session
-	// token and step-up proof only.
+	// cancels the person's pending invite. The Owner cannot be removed. A
+	// removed member's pending invites are cancelled in the same change.
+	// Session token and step-up proof only.
 	//
 	// Errors:
 	// - NOT_FOUND: BROKER_NOT_FOUND or MEMBER_NOT_FOUND.
@@ -182,8 +189,9 @@ type QuickSwapBrokerServiceClient interface {
 	// - FAILED_PRECONDITION: OWNER_IMMUTABLE.
 	RemoveMember(context.Context, *connect.Request[v1.RemoveMemberRequest]) (*connect.Response[v1.RemoveMemberResponse], error)
 	// TransferOwnership makes another member the Owner; the caller, the
-	// current Owner, becomes an Admin in the same change. Session token and
-	// step-up proof only.
+	// current Owner, becomes an Admin in the same change, and the caller's
+	// pending invites that an Admin may not grant (Finance) are cancelled.
+	// Session token and step-up proof only.
 	//
 	// Errors:
 	// - NOT_FOUND: BROKER_NOT_FOUND or MEMBER_NOT_FOUND.
@@ -768,11 +776,15 @@ type QuickSwapBrokerServiceHandler interface {
 	// invites addressed to the caller. Session token only.
 	ListMyBrokers(context.Context, *connect.Request[v1.ListMyBrokersRequest]) (*connect.Response[v1.ListMyBrokersResponse], error)
 	// RespondToInvite accepts or declines a pending invite addressed to the
-	// caller. Session token only; no step-up proof is needed.
+	// caller. Session token only; no step-up proof is needed. An invite is
+	// accepted only while the member who sent it may still grant its role.
+	// SetMemberRole, RemoveMember and TransferOwnership cancel the invites
+	// they take that from; accepting any other such invite cancels it.
 	//
 	// Errors:
 	// - NOT_FOUND: INVITE_NOT_FOUND.
 	// - ALREADY_EXISTS: ALREADY_MEMBER.
+	// - FAILED_PRECONDITION: INVITE_VOID.
 	RespondToInvite(context.Context, *connect.Request[v1.RespondToInviteRequest]) (*connect.Response[v1.RespondToInviteResponse], error)
 	// ListMembers lists the broker's members and pending invites. Session
 	// token only.
@@ -783,6 +795,7 @@ type QuickSwapBrokerServiceHandler interface {
 	ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error)
 	// InviteMember invites a person with any role but OWNER; the person
 	// accepts with their own login. Inviting again replaces the pending invite.
+	// The invite stays pending only while the caller may still grant its role.
 	// Session token and step-up proof only.
 	//
 	// Errors:
@@ -792,8 +805,9 @@ type QuickSwapBrokerServiceHandler interface {
 	//   - ALREADY_EXISTS: ALREADY_MEMBER.
 	InviteMember(context.Context, *connect.Request[v1.InviteMemberRequest]) (*connect.Response[v1.InviteMemberResponse], error)
 	// SetMemberRole changes a member's role to any role but OWNER. The Owner's
-	// role cannot be changed; transfer ownership instead. Session token and
-	// step-up proof only.
+	// role cannot be changed; transfer ownership instead. The member's pending
+	// invites that the new role may not grant are cancelled in the same
+	// change. Session token and step-up proof only.
 	//
 	// Errors:
 	// - NOT_FOUND: BROKER_NOT_FOUND or MEMBER_NOT_FOUND.
@@ -801,8 +815,9 @@ type QuickSwapBrokerServiceHandler interface {
 	// - FAILED_PRECONDITION: OWNER_IMMUTABLE.
 	SetMemberRole(context.Context, *connect.Request[v1.SetMemberRoleRequest]) (*connect.Response[v1.SetMemberRoleResponse], error)
 	// RemoveMember removes a member, ending their access immediately, or
-	// cancels the person's pending invite. The Owner cannot be removed. Session
-	// token and step-up proof only.
+	// cancels the person's pending invite. The Owner cannot be removed. A
+	// removed member's pending invites are cancelled in the same change.
+	// Session token and step-up proof only.
 	//
 	// Errors:
 	// - NOT_FOUND: BROKER_NOT_FOUND or MEMBER_NOT_FOUND.
@@ -810,8 +825,9 @@ type QuickSwapBrokerServiceHandler interface {
 	// - FAILED_PRECONDITION: OWNER_IMMUTABLE.
 	RemoveMember(context.Context, *connect.Request[v1.RemoveMemberRequest]) (*connect.Response[v1.RemoveMemberResponse], error)
 	// TransferOwnership makes another member the Owner; the caller, the
-	// current Owner, becomes an Admin in the same change. Session token and
-	// step-up proof only.
+	// current Owner, becomes an Admin in the same change, and the caller's
+	// pending invites that an Admin may not grant (Finance) are cancelled.
+	// Session token and step-up proof only.
 	//
 	// Errors:
 	// - NOT_FOUND: BROKER_NOT_FOUND or MEMBER_NOT_FOUND.

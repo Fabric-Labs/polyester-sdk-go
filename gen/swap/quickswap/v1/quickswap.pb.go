@@ -624,11 +624,17 @@ func (WithdrawalState) EnumDescriptor() ([]byte, []int) {
 // PREPARING_DEPOSIT | CONFIRMING) → CREDITED → EXECUTING (skipped for a
 // bridge) → PAYING_OUT | REFUNDING | RETURNING → a terminal status. A
 // QuickSwap that cannot be issued a deposit address goes from ALLOCATING
-// straight to EXPIRED (DEPOSIT_ADDRESS_CONFLICT). HELD can be entered from
-// any non-terminal status and is not terminal; a QuickSwap HELD with
-// SOURCE_SCREENING_BLOCKED can end CLOSED. The terminal statuses are
+// straight to EXPIRED (DEPOSIT_ADDRESS_CONFLICT). A deposit that is dropped
+// or replaced on its network before it confirms brings no funds: the
+// QuickSwap goes back from PREPARING_DEPOSIT or WAITING_FOR_CAPACITY to
+// AWAITING_DEPOSIT, the only status that moves back, and no longer shows
+// that deposit. HELD can be
+// entered from any non-terminal status and is not terminal; a QuickSwap HELD
+// with SOURCE_SCREENING_BLOCKED can end CLOSED. The terminal statuses are
 // COMPLETED, REFUNDED, RETURNED, EXPIRED and CLOSED; a terminal status never
-// changes. Accept status values added later; is_terminal is authoritative.
+// changes, except that EXPIRED becomes HELD when a dropped or replaced
+// deposit confirms after all (see EXPIRED). Accept status values added
+// later; is_terminal is authoritative.
 type QuickSwapStatus int32
 
 const (
@@ -680,7 +686,11 @@ const (
 	QuickSwapStatus_RETURNED QuickSwapStatus = 15
 	// Terminal: the funding window ended without an eligible deposit
 	// (FUNDING_WINDOW_ENDED), or the QuickSwap never got a deposit address
-	// (DEPOSIT_ADDRESS_CONFLICT).
+	// (DEPOSIT_ADDRESS_CONFLICT). With FUNDING_WINDOW_ENDED, terminal_at is
+	// funding_expires_at, also after a dropped or replaced deposit. If such a
+	// deposit confirms after all, its funds are held for review: the QuickSwap
+	// becomes HELD, with that deposit ON_HOLD, the one change of a terminal
+	// status.
 	QuickSwapStatus_EXPIRED QuickSwapStatus = 16
 	// Terminal: the deposit was blocked by its risk screen
 	// (SOURCE_SCREENING_BLOCKED), and Zipper's compliance team transferred the
@@ -911,6 +921,17 @@ const (
 	// The vault's payout address allowlist cannot be changed yet: its
 	// on-chain protection is still being set up. Retry in a few minutes.
 	ErrorCode_VAULT_ALLOWLIST_NOT_READY ErrorCode = 53
+	// The route is temporarily suspended: deposits on the source network or
+	// withdrawals on the destination network, as AssetChainVariant
+	// deposit_status and withdrawal_status SUSPENDED show. Quotes and creates
+	// are refused and nothing is bound to the key; QuickSwaps already created
+	// continue. Repeat the request once both are NORMAL again.
+	ErrorCode_ROUTE_SUSPENDED ErrorCode = 54
+	// The invite is void: the member who sent it has left the broker or may no
+	// longer grant its role. Accepting it granted nothing and cancelled it; ask
+	// a member who may grant the role for a new invite. Invites voided by a
+	// member change are cancelled by that change and answer INVITE_NOT_FOUND.
+	ErrorCode_INVITE_VOID ErrorCode = 55
 )
 
 // Enum value maps for ErrorCode.
@@ -966,6 +987,8 @@ var (
 		51: "ALLOWLIST_DESTINATION_IN_USE",
 		52: "ALLOWLIST_CHANGE_PENDING",
 		53: "VAULT_ALLOWLIST_NOT_READY",
+		54: "ROUTE_SUSPENDED",
+		55: "INVITE_VOID",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_UNSPECIFIED":                0,
@@ -1018,6 +1041,8 @@ var (
 		"ALLOWLIST_DESTINATION_IN_USE":     51,
 		"ALLOWLIST_CHANGE_PENDING":         52,
 		"VAULT_ALLOWLIST_NOT_READY":        53,
+		"ROUTE_SUSPENDED":                  54,
+		"INVITE_VOID":                      55,
 	}
 )
 
@@ -2260,7 +2285,11 @@ func (x *DepositInstructions) GetMinNativeGasLimit() uint64 {
 // Deposit is one deposit detected on the QuickSwap's deposit address.
 type Deposit struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Zero-based position in detection order; stable for the QuickSwap's life.
+	// Zero-based position in deposits, which lists deposits oldest first. Not
+	// stable: a deposit detected earlier can appear later, for example a
+	// dropped or replaced deposit that confirms after all, and then shifts the
+	// index of every deposit after it. Identify a deposit by tx_hash with
+	// tx_occurrence_index, not by index.
 	Index uint32 `protobuf:"varint,1,opt,name=index,proto3" json:"index,omitempty"`
 	// Source-network transaction identifier in the network's native text form.
 	TxHash string `protobuf:"bytes,2,opt,name=tx_hash,json=txHash,proto3" json:"tx_hash,omitempty"`
@@ -2756,7 +2785,8 @@ type Withdrawal struct {
 	Index uint32 `protobuf:"varint,1,opt,name=index,proto3" json:"index,omitempty"`
 	// Why this withdrawal pays its recipient.
 	Role WithdrawalRole `protobuf:"varint,2,opt,name=role,proto3,enum=swap.quickswap.v1.WithdrawalRole" json:"role,omitempty"`
-	// Deposit whose funds this withdrawal moves.
+	// Index (Deposit.index), in the same response, of the deposit whose funds
+	// this withdrawal moves. Not stable across reads, like Deposit.index.
 	DepositIndex uint32 `protobuf:"varint,3,opt,name=deposit_index,json=depositIndex,proto3" json:"deposit_index,omitempty"`
 	// Asset and network paid, as a zipped_asset_id.
 	ZippedAssetId uint32 `protobuf:"varint,4,opt,name=zipped_asset_id,json=zippedAssetId,proto3" json:"zipped_asset_id,omitempty"`
@@ -2964,8 +2994,9 @@ type QuickSwap struct {
 	// another deposit observed on an already retired address shows as
 	// MANUAL_RECOVERY. Returns made directly for such deposits are not yet
 	// reported in withdrawals; RETURN_ONLY does not confirm a completed return.
-	// Read again if the end user reports such a deposit or needs the final
-	// retirement time.
+	// An EXPIRED QuickSwap whose dropped or replaced deposit confirms after all
+	// becomes HELD (see QuickSwapStatus.EXPIRED). Read again if the end user
+	// reports such a deposit or needs the final retirement time.
 	IsTerminal bool `protobuf:"varint,5,opt,name=is_terminal,json=isTerminal,proto3" json:"is_terminal,omitempty"`
 	// Accepted economic terms.
 	Terms *QuickSwapTerms `protobuf:"bytes,6,opt,name=terms,proto3" json:"terms,omitempty"`
@@ -2998,7 +3029,8 @@ type QuickSwap struct {
 	DepositInstructions *DepositInstructions `protobuf:"bytes,15,opt,name=deposit_instructions,json=depositInstructions,proto3" json:"deposit_instructions,omitempty"`
 	// Risk screening.
 	Screening *Screening `protobuf:"bytes,16,opt,name=screening,proto3" json:"screening,omitempty"`
-	// Detected deposits, oldest first, at most 50.
+	// Detected deposits, oldest first, at most 50. A deposit detected earlier
+	// can appear later and shift the others' index (see Deposit.index).
 	Deposits []*Deposit `protobuf:"bytes,17,rep,name=deposits,proto3" json:"deposits,omitempty"`
 	// True when more than 50 deposits were detected; only the first 50 are
 	// listed.
@@ -4472,7 +4504,8 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\bRETURNED\x10\x0f\x12\v\n" +
 	"\aEXPIRED\x10\x10\x12\n" +
 	"\n" +
-	"\x06CLOSED\x10\x11*\xfd\t\n" +
+	"\x06CLOSED\x10\x11*\xa3\n" +
+	"\n" +
 	"\tErrorCode\x12\x15\n" +
 	"\x11ERROR_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11ROUTE_UNSUPPORTED\x10\x01\x12\x17\n" +
@@ -4523,7 +4556,9 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	" ALLOWLIST_DESTINATION_NOT_LISTED\x102\x12 \n" +
 	"\x1cALLOWLIST_DESTINATION_IN_USE\x103\x12\x1c\n" +
 	"\x18ALLOWLIST_CHANGE_PENDING\x104\x12\x1d\n" +
-	"\x19VAULT_ALLOWLIST_NOT_READY\x1052\xf4\x05\n" +
+	"\x19VAULT_ALLOWLIST_NOT_READY\x105\x12\x13\n" +
+	"\x0fROUTE_SUSPENDED\x106\x12\x0f\n" +
+	"\vINVITE_VOID\x1072\xf4\x05\n" +
 	"\x10QuickSwapService\x12\x82\x02\n" +
 	"\x0eQuoteQuickSwap\x12(.swap.quickswap.v1.QuoteQuickSwapRequest\x1a).swap.quickswap.v1.QuoteQuickSwapResponse\"\x9a\x01\xbaG\x91\x01\n" +
 	"\tQuickSwap\x12\x0fQuote QuickSwap\x1a[Price QuickSwap terms, with estimated output and fees, without reserving a deposit address.Z\x16\n" +

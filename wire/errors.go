@@ -207,7 +207,7 @@ func mapConnectError(err error) error {
 		return &sdkerrors.APIError{Msg: msg, Code: orderErrorCodeFromName(strings.TrimSpace(msg))}
 	}
 	if outcome != nil {
-		mapped := &sdkerrors.APIError{Msg: msg, Code: outcome.GetCode().String()}
+		mapped := &sdkerrors.APIError{Msg: msg, Code: outcome.GetCode().String(), LadderLevelCause: ladderLevelCause(outcome)}
 		if outcome.ExistingOrderId != nil {
 			mapped.ExistingOrderID = codecs.FormatUint64ID(outcome.GetExistingOrderId())
 		}
@@ -261,7 +261,12 @@ func mapConnectError(err error) error {
 			if apiKeyRefusalCodes[authDetail.GetCode()] {
 				return &sdkerrors.AuthError{Msg: detailMsg, Code: codeName, Status: connectHTTPStatus(connectErr.Code())}
 			}
-			return &sdkerrors.APIError{Msg: detailMsg, Code: codeName}
+			apiErr := &sdkerrors.APIError{Msg: detailMsg, Code: codeName}
+			if authDetail.RetryAfter != nil {
+				retryAt := authDetail.GetRetryAfter().AsTime()
+				apiErr.RetryAt = &retryAt
+			}
+			return apiErr
 		}
 		if rl, ok := value.(*ratelimitv1.RateLimitDetail); ok {
 			return rateLimitError(msg, "", rateLimitDetailFromProto(rl), headerRetry)
@@ -269,8 +274,11 @@ func mapConnectError(err error) error {
 		if orderDetail, ok := value.(*orderv1.ErrorDetail); ok {
 			unknown := strings.HasSuffix(orderDetail.GetCode().String(), "_OUTCOME_UNKNOWN")
 			rl := rateLimitDetailFromProto(orderDetail.GetRateLimit())
+			cause := ladderLevelCause(orderDetail)
 			if !unknown && (rl != nil || isRetryableAdmissionCode(orderDetail.GetCode().String())) {
-				return rateLimitError(msg, orderDetail.GetCode().String(), rl, headerRetry)
+				rateErr := rateLimitError(msg, orderDetail.GetCode().String(), rl, headerRetry)
+				rateErr.LadderLevelCause = cause
+				return rateErr
 			}
 			code := orderDetail.GetCode().String()
 			// Backoff hints and unknown mutation outcomes take precedence.
@@ -287,13 +295,13 @@ func mapConnectError(err error) error {
 					})
 				}
 				return &sdkerrors.ValidationError{
-					Msg: msg, Code: code, Metadata: sdkerrors.ViolationMetadata(violations), Violations: violations,
+					Msg: msg, Code: code, Metadata: sdkerrors.ViolationMetadata(violations), Violations: violations, LadderLevelCause: cause,
 				}
 			}
 			if isAuthLikeErrorCode(code) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
 			}
-			apiErr := &sdkerrors.APIError{Msg: msg, Code: code}
+			apiErr := &sdkerrors.APIError{Msg: msg, Code: code, LadderLevelCause: cause}
 			if orderDetail.ExistingOrderId != nil {
 				apiErr.ExistingOrderID = codecs.FormatUint64ID(orderDetail.GetExistingOrderId())
 			}
@@ -424,6 +432,21 @@ func mapConnectError(err error) error {
 		return &sdkerrors.NotImplementedError{Msg: msg}
 	}
 	return &sdkerrors.APIError{Msg: msg, Code: connectErr.Code().String()}
+}
+
+// ladderLevelCause reads why a ladder order can't be placed from an order
+// ErrorDetail: its cause_code in the form of the detail's code, and its
+// level_index with presence kept, since 0 is the first order.
+func ladderLevelCause(detail *orderv1.ErrorDetail) sdkerrors.LadderLevelCause {
+	var cause sdkerrors.LadderLevelCause
+	if detail.GetCauseCode() != orderv1.ErrorCode_ERROR_CODE_UNSPECIFIED {
+		cause.CauseCode = detail.GetCauseCode().String()
+	}
+	if detail.LevelIndex != nil {
+		index := detail.GetLevelIndex()
+		cause.LevelIndex = &index
+	}
+	return cause
 }
 
 // isServerFailureCode reports a Connect code that says the server failed, not

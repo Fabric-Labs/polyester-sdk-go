@@ -318,8 +318,10 @@ func (x *GetTradingRateLimitsRequest) GetSubaccountId() uint64 {
 	return 0
 }
 
-// GetTradingRateLimitsResponse contains every placement and cancellation
-// policy enforced for the selected account target and caller.
+// GetTradingRateLimitsResponse contains the placement and cancellation limits
+// enforced for the selected account target. Trading limits apply per account:
+// the root account and each subaccount have their own limits, and every API
+// key and session that trades for an account shares that account's limits.
 type GetTradingRateLimitsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Positive identifier of the rate-limit policy version used for the
@@ -327,12 +329,15 @@ type GetTradingRateLimitsResponse struct {
 	PolicyVersion uint64 `protobuf:"varint,1,opt,name=policy_version,json=policyVersion,proto3" json:"policy_version,omitempty"`
 	// UTC time at which this policy version became effective.
 	EffectiveFrom *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=effective_from,json=effectiveFrom,proto3" json:"effective_from,omitempty"`
-	// Account-scoped placement and cancellation rules for the selected account,
-	// ordered with placement first and cancellation second.
+	// Placement and cancellation rules enforced for the selected account,
+	// ordered with placement first and cancellation second. All of the
+	// account's API keys and sessions draw on these limits together.
 	Rules []*TradingRateLimitRule `protobuf:"bytes,3,rep,name=rules,proto3" json:"rules,omitempty"`
-	// API-key-scoped placement and cancellation rules, ordered with placement
-	// first and cancellation second. Present only when the caller authenticated
-	// with an API key. Both this scope and the account scope are enforced.
+	// Placement and cancellation rules resolved for the calling API key, ordered
+	// with placement first and cancellation second. Present only when the caller
+	// authenticated with an API key. These rules are informational: trading
+	// requests are not limited per API key, and only the account rules in
+	// `rules` are enforced.
 	ApiKeyRules   []*TradingRateLimitRule `protobuf:"bytes,4,rep,name=api_key_rules,json=apiKeyRules,proto3" json:"api_key_rules,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

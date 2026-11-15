@@ -4,7 +4,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	lifecyclev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/lifecycle/v1"
@@ -18,7 +17,6 @@ func TestFlowSummaryFromProto(t *testing.T) {
 		CurrentStep:         lifecyclev1.FlowStep_FLOW_STEP_SETTLEMENT,
 		IsOpen:              false,
 		IsTerminal:          true,
-		OwnerAccountId:      99,
 		SourceAddress:       "0xsource",
 		SmartAccountAddress: "0xabc",
 		LifecycleReason:     lifecyclev1.LifecycleReason_ZIPPER_VALIDATION_REJECTED,
@@ -115,7 +113,6 @@ func TestFlowByTxResponseReturnsAllMatches(t *testing.T) {
 			{
 				FlowId:              "flow-a",
 				SourceAddress:       "0xsource",
-				OwnerAccountId:      99,
 				SmartAccountAddress: "0xsmart",
 				LifecycleReason:     lifecyclev1.LifecycleReason_LEDGER_MIRROR_REJECTED,
 			},
@@ -127,7 +124,6 @@ func TestFlowByTxResponseReturnsAllMatches(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(result.Flows) != 2 ||
-		result.Flows[0].OwnerAccountID != codecs.FormatUint64ID(99) ||
 		result.Flows[0].SmartAccountAddress != "0xsmart" ||
 		result.Flows[0].LifecycleReason != "ledger_mirror_rejected" ||
 		result.Flows[1].IntentID != "flow-b" ||

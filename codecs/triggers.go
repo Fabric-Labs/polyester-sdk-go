@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
@@ -645,13 +644,15 @@ func CreateOcoToProto(symbolID uint32, in models.CreateOcoInput, subAccountID *s
 	return req, nil
 }
 
-// ValidateClientListID checks a client OCO ID as the contract does: 1 to 36
-// bytes of UTF-8, sent unchanged.
+// ValidateClientListID checks a client OCO ID as the contract does, with the
+// client order ID rule: 1 to 36 ASCII letters, digits, ".", "_", ":", "/" or
+// "-". It is sent unchanged, never trimmed, so an ID with surrounding spaces
+// is refused like any other character outside the set.
 func ValidateClientListID(value string) (string, error) {
-	if value == "" || len(value) > clientIDMaxLen || !utf8.ValidString(value) {
-		return "", &errors.ValidationError{Msg: fmt.Sprintf("client_list_id must be 1 to %d bytes of UTF-8", clientIDMaxLen)}
+	if strings.TrimSpace(value) != value && strings.TrimSpace(value) != "" {
+		return "", &errors.ValidationError{Msg: "client_list_id contains invalid characters; allowed: A-Z a-z 0-9 . _ : / -"}
 	}
-	return value, nil
+	return validateCorrelationID(value, "client_list_id", clientIDMaxLen)
 }
 
 func ocoLegToProto(leg models.RiskLegInput, fieldName, symbol string) (*triggersv1.OcoLeg, error) {

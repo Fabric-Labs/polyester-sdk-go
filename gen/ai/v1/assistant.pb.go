@@ -482,6 +482,108 @@ func (AssistantKeyState) EnumDescriptor() ([]byte, []int) {
 	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{6}
 }
 
+// AccountSelection says whether a message's run reads an account at all.
+type AccountSelection int32
+
+const (
+	// The default: the run reads the account subaccount_id names, or the main
+	// account when subaccount_id is omitted.
+	AccountSelection_ACCOUNT_SELECTION_UNSPECIFIED AccountSelection = 0
+	// The run reads no account: it answers about the markets and Polyester
+	// only. subaccount_id must be omitted.
+	AccountSelection_ACCOUNT_SELECTION_NONE AccountSelection = 1
+)
+
+// Enum value maps for AccountSelection.
+var (
+	AccountSelection_name = map[int32]string{
+		0: "ACCOUNT_SELECTION_UNSPECIFIED",
+		1: "ACCOUNT_SELECTION_NONE",
+	}
+	AccountSelection_value = map[string]int32{
+		"ACCOUNT_SELECTION_UNSPECIFIED": 0,
+		"ACCOUNT_SELECTION_NONE":        1,
+	}
+)
+
+func (x AccountSelection) Enum() *AccountSelection {
+	p := new(AccountSelection)
+	*p = x
+	return p
+}
+
+func (x AccountSelection) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AccountSelection) Descriptor() protoreflect.EnumDescriptor {
+	return file_ai_v1_assistant_proto_enumTypes[7].Descriptor()
+}
+
+func (AccountSelection) Type() protoreflect.EnumType {
+	return &file_ai_v1_assistant_proto_enumTypes[7]
+}
+
+func (x AccountSelection) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AccountSelection.Descriptor instead.
+func (AccountSelection) EnumDescriptor() ([]byte, []int) {
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{7}
+}
+
+// AssistantKeyView selects how much of each assistant key ListAssistantKeys
+// returns.
+type AssistantKeyView int32
+
+const (
+	// The default: each key's account, ID, public key and state, without its
+	// account's name.
+	AssistantKeyView_ASSISTANT_KEY_VIEW_UNSPECIFIED AssistantKeyView = 0
+	// Everything in the default view, plus each key's account name (label).
+	AssistantKeyView_ASSISTANT_KEY_VIEW_FULL AssistantKeyView = 1
+)
+
+// Enum value maps for AssistantKeyView.
+var (
+	AssistantKeyView_name = map[int32]string{
+		0: "ASSISTANT_KEY_VIEW_UNSPECIFIED",
+		1: "ASSISTANT_KEY_VIEW_FULL",
+	}
+	AssistantKeyView_value = map[string]int32{
+		"ASSISTANT_KEY_VIEW_UNSPECIFIED": 0,
+		"ASSISTANT_KEY_VIEW_FULL":        1,
+	}
+)
+
+func (x AssistantKeyView) Enum() *AssistantKeyView {
+	p := new(AssistantKeyView)
+	*p = x
+	return p
+}
+
+func (x AssistantKeyView) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AssistantKeyView) Descriptor() protoreflect.EnumDescriptor {
+	return file_ai_v1_assistant_proto_enumTypes[8].Descriptor()
+}
+
+func (AssistantKeyView) Type() protoreflect.EnumType {
+	return &file_ai_v1_assistant_proto_enumTypes[8]
+}
+
+func (x AssistantKeyView) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AssistantKeyView.Descriptor instead.
+func (AssistantKeyView) EnumDescriptor() ([]byte, []int) {
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{8}
+}
+
 // DisplaySetting is one of the client's display preferences the assistant may
 // change for the user: cosmetic settings the user can change back at any
 // time. Each value names the values the assistant may apply to it, exactly as
@@ -553,11 +655,11 @@ func (x DisplaySetting) String() string {
 }
 
 func (DisplaySetting) Descriptor() protoreflect.EnumDescriptor {
-	return file_ai_v1_assistant_proto_enumTypes[7].Descriptor()
+	return file_ai_v1_assistant_proto_enumTypes[9].Descriptor()
 }
 
 func (DisplaySetting) Type() protoreflect.EnumType {
-	return &file_ai_v1_assistant_proto_enumTypes[7]
+	return &file_ai_v1_assistant_proto_enumTypes[9]
 }
 
 func (x DisplaySetting) Number() protoreflect.EnumNumber {
@@ -566,7 +668,7 @@ func (x DisplaySetting) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use DisplaySetting.Descriptor instead.
 func (DisplaySetting) EnumDescriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{7}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{9}
 }
 
 // ReferencePriceSource names the market price a ReferencePrice is.
@@ -614,11 +716,11 @@ func (x ReferencePriceSource) String() string {
 }
 
 func (ReferencePriceSource) Descriptor() protoreflect.EnumDescriptor {
-	return file_ai_v1_assistant_proto_enumTypes[8].Descriptor()
+	return file_ai_v1_assistant_proto_enumTypes[10].Descriptor()
 }
 
 func (ReferencePriceSource) Type() protoreflect.EnumType {
-	return &file_ai_v1_assistant_proto_enumTypes[8]
+	return &file_ai_v1_assistant_proto_enumTypes[10]
 }
 
 func (x ReferencePriceSource) Number() protoreflect.EnumNumber {
@@ -627,7 +729,7 @@ func (x ReferencePriceSource) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ReferencePriceSource.Descriptor instead.
 func (ReferencePriceSource) EnumDescriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{8}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{10}
 }
 
 // TriggerDirection is which way the watched price must move to fire a
@@ -668,11 +770,11 @@ func (x TriggerDirection) String() string {
 }
 
 func (TriggerDirection) Descriptor() protoreflect.EnumDescriptor {
-	return file_ai_v1_assistant_proto_enumTypes[9].Descriptor()
+	return file_ai_v1_assistant_proto_enumTypes[11].Descriptor()
 }
 
 func (TriggerDirection) Type() protoreflect.EnumType {
-	return &file_ai_v1_assistant_proto_enumTypes[9]
+	return &file_ai_v1_assistant_proto_enumTypes[11]
 }
 
 func (x TriggerDirection) Number() protoreflect.EnumNumber {
@@ -681,7 +783,7 @@ func (x TriggerDirection) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use TriggerDirection.Descriptor instead.
 func (TriggerDirection) EnumDescriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{9}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{11}
 }
 
 // OrderPriceField names one price of an order.
@@ -758,11 +860,11 @@ func (x OrderPriceField) String() string {
 }
 
 func (OrderPriceField) Descriptor() protoreflect.EnumDescriptor {
-	return file_ai_v1_assistant_proto_enumTypes[10].Descriptor()
+	return file_ai_v1_assistant_proto_enumTypes[12].Descriptor()
 }
 
 func (OrderPriceField) Type() protoreflect.EnumType {
-	return &file_ai_v1_assistant_proto_enumTypes[10]
+	return &file_ai_v1_assistant_proto_enumTypes[12]
 }
 
 func (x OrderPriceField) Number() protoreflect.EnumNumber {
@@ -771,7 +873,7 @@ func (x OrderPriceField) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use OrderPriceField.Descriptor instead.
 func (OrderPriceField) EnumDescriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{10}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{12}
 }
 
 // PriceOffsetDirection is which side of its reference a relative price is.
@@ -811,11 +913,11 @@ func (x PriceOffsetDirection) String() string {
 }
 
 func (PriceOffsetDirection) Descriptor() protoreflect.EnumDescriptor {
-	return file_ai_v1_assistant_proto_enumTypes[11].Descriptor()
+	return file_ai_v1_assistant_proto_enumTypes[13].Descriptor()
 }
 
 func (PriceOffsetDirection) Type() protoreflect.EnumType {
-	return &file_ai_v1_assistant_proto_enumTypes[11]
+	return &file_ai_v1_assistant_proto_enumTypes[13]
 }
 
 func (x PriceOffsetDirection) Number() protoreflect.EnumNumber {
@@ -824,7 +926,7 @@ func (x PriceOffsetDirection) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PriceOffsetDirection.Descriptor instead.
 func (PriceOffsetDirection) EnumDescriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{11}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{13}
 }
 
 // PriceRounding is which way a resolved price was rounded onto the market's
@@ -865,11 +967,11 @@ func (x PriceRounding) String() string {
 }
 
 func (PriceRounding) Descriptor() protoreflect.EnumDescriptor {
-	return file_ai_v1_assistant_proto_enumTypes[12].Descriptor()
+	return file_ai_v1_assistant_proto_enumTypes[14].Descriptor()
 }
 
 func (PriceRounding) Type() protoreflect.EnumType {
-	return &file_ai_v1_assistant_proto_enumTypes[12]
+	return &file_ai_v1_assistant_proto_enumTypes[14]
 }
 
 func (x PriceRounding) Number() protoreflect.EnumNumber {
@@ -878,7 +980,7 @@ func (x PriceRounding) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PriceRounding.Descriptor instead.
 func (PriceRounding) EnumDescriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{12}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{14}
 }
 
 // UnfilledSlicePolicy is what a TWAP does with a slice that has not filled
@@ -915,11 +1017,11 @@ func (x UnfilledSlicePolicy) String() string {
 }
 
 func (UnfilledSlicePolicy) Descriptor() protoreflect.EnumDescriptor {
-	return file_ai_v1_assistant_proto_enumTypes[13].Descriptor()
+	return file_ai_v1_assistant_proto_enumTypes[15].Descriptor()
 }
 
 func (UnfilledSlicePolicy) Type() protoreflect.EnumType {
-	return &file_ai_v1_assistant_proto_enumTypes[13]
+	return &file_ai_v1_assistant_proto_enumTypes[15]
 }
 
 func (x UnfilledSlicePolicy) Number() protoreflect.EnumNumber {
@@ -928,7 +1030,7 @@ func (x UnfilledSlicePolicy) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use UnfilledSlicePolicy.Descriptor instead.
 func (UnfilledSlicePolicy) EnumDescriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{13}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{15}
 }
 
 // TriggerChangeAction is what an approval does to a trigger.
@@ -973,11 +1075,11 @@ func (x TriggerChangeAction) String() string {
 }
 
 func (TriggerChangeAction) Descriptor() protoreflect.EnumDescriptor {
-	return file_ai_v1_assistant_proto_enumTypes[14].Descriptor()
+	return file_ai_v1_assistant_proto_enumTypes[16].Descriptor()
 }
 
 func (TriggerChangeAction) Type() protoreflect.EnumType {
-	return &file_ai_v1_assistant_proto_enumTypes[14]
+	return &file_ai_v1_assistant_proto_enumTypes[16]
 }
 
 func (x TriggerChangeAction) Number() protoreflect.EnumNumber {
@@ -986,7 +1088,7 @@ func (x TriggerChangeAction) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use TriggerChangeAction.Descriptor instead.
 func (TriggerChangeAction) EnumDescriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{14}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{16}
 }
 
 // ErrorDetail is attached to Assistant API errors as an error detail of type
@@ -6392,7 +6494,12 @@ type AssistantKey struct {
 	// Ed25519 public key, 32 bytes.
 	PublicKeyEd25519 []byte `protobuf:"bytes,3,opt,name=public_key_ed25519,json=publicKeyEd25519,proto3" json:"public_key_ed25519,omitempty"`
 	// ACTIVE or DISABLED.
-	State         AssistantKeyState `protobuf:"varint,4,opt,name=state,proto3,enum=ai.v1.AssistantKeyState" json:"state,omitempty"`
+	State AssistantKeyState `protobuf:"varint,4,opt,name=state,proto3,enum=ai.v1.AssistantKeyState" json:"state,omitempty"`
+	// Name of the key's subaccount, as its owner set it. Returned only when
+	// ListAssistantKeys asks for ASSISTANT_KEY_VIEW_FULL. Empty for the main
+	// account, for a subaccount without a name, and when the name could not be
+	// read: the keys are listed either way.
+	Label         string `protobuf:"bytes,5,opt,name=label,proto3" json:"label,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6453,6 +6560,13 @@ func (x *AssistantKey) GetState() AssistantKeyState {
 		return x.State
 	}
 	return AssistantKeyState_KEY_STATE_UNSPECIFIED
+}
+
+func (x *AssistantKey) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
 }
 
 // AssistantKeyAccount names one account to give the assistant a key for.
@@ -6737,7 +6851,8 @@ type SendMessageRequest struct {
 	IdempotencyKey string `protobuf:"bytes,3,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
 	// Trading account (subaccount) the run reads and acts on. It must be one
 	// the caller's account owns; any other value, also one that does not
-	// exist, is INVALID_ARGUMENT. Omit it for the main account: the run then
+	// exist, is INVALID_ARGUMENT. Omit it for the main account (unless
+	// account_selection is ACCOUNT_SELECTION_NONE): the run then
 	// reads the main account (its balances, funding included, every trading
 	// account with its equity, API keys, price alerts, fee rates and
 	// permissions) and places, changes or cancels no order, trigger or swap;
@@ -6762,8 +6877,14 @@ type SendMessageRequest struct {
 	// points the user to their settings instead. They are part of the request
 	// the idempotency key covers.
 	DisplaySettings []DisplaySetting `protobuf:"varint,7,rep,packed,name=display_settings,json=displaySettings,proto3,enum=ai.v1.DisplaySetting" json:"display_settings,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Whether the run reads an account. Omit it to read the account
+	// subaccount_id names, or the main account. ACCOUNT_SELECTION_NONE for a
+	// run that reads no account, such as a client whose user has not given the
+	// assistant access to any account: subaccount_id must then be omitted. It
+	// is part of the request the idempotency key covers.
+	AccountSelection AccountSelection `protobuf:"varint,8,opt,name=account_selection,json=accountSelection,proto3,enum=ai.v1.AccountSelection" json:"account_selection,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *SendMessageRequest) Reset() {
@@ -6843,6 +6964,13 @@ func (x *SendMessageRequest) GetDisplaySettings() []DisplaySetting {
 		return x.DisplaySettings
 	}
 	return nil
+}
+
+func (x *SendMessageRequest) GetAccountSelection() AccountSelection {
+	if x != nil {
+		return x.AccountSelection
+	}
+	return AccountSelection_ACCOUNT_SELECTION_UNSPECIFIED
 }
 
 // SendMessageResponse identifies the started run.
@@ -7820,7 +7948,10 @@ func (x *CompleteAssistantKeysResponse) GetKeys() []*AssistantKey {
 
 // ListAssistantKeysRequest lists the assistant keys the assistant holds.
 type ListAssistantKeysRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// How much of each key to return. Omit it for the default view, without
+	// account names; ASSISTANT_KEY_VIEW_FULL adds each key's account name.
+	View          AssistantKeyView `protobuf:"varint,1,opt,name=view,proto3,enum=ai.v1.AssistantKeyView" json:"view,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -7853,6 +7984,13 @@ func (x *ListAssistantKeysRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ListAssistantKeysRequest.ProtoReflect.Descriptor instead.
 func (*ListAssistantKeysRequest) Descriptor() ([]byte, []int) {
 	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{82}
+}
+
+func (x *ListAssistantKeysRequest) GetView() AssistantKeyView {
+	if x != nil {
+		return x.View
+	}
+	return AssistantKeyView_ASSISTANT_KEY_VIEW_UNSPECIFIED
 }
 
 // ListAssistantKeysResponse returns the assistant keys the assistant holds.
@@ -8600,12 +8738,13 @@ const file_ai_v1_assistant_proto_rawDesc = "" +
 	"\x11memories_recalled\x18\x0f \x01(\v2\x17.ai.v1.MemoriesRecalledH\x00R\x10memoriesRecalled\x12U\n" +
 	"\x16destinations_suggested\x18\x10 \x01(\v2\x1c.ai.v1.DestinationsSuggestedH\x00R\x15destinationsSuggested\x12S\n" +
 	"\x16display_setting_action\x18\x11 \x01(\v2\x1b.ai.v1.DisplaySettingActionH\x00R\x14displaySettingActionB\a\n" +
-	"\x05event\"\xbf\x01\n" +
+	"\x05event\"\xd5\x01\n" +
 	"\fAssistantKey\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12\x15\n" +
 	"\x06key_id\x18\x02 \x01(\tR\x05keyId\x12,\n" +
 	"\x12public_key_ed25519\x18\x03 \x01(\fR\x10publicKeyEd25519\x12.\n" +
-	"\x05state\x18\x04 \x01(\x0e2\x18.ai.v1.AssistantKeyStateR\x05stateB\x10\n" +
+	"\x05state\x18\x04 \x01(\x0e2\x18.ai.v1.AssistantKeyStateR\x05state\x12\x14\n" +
+	"\x05label\x18\x05 \x01(\tR\x05labelB\x10\n" +
 	"\x0e_subaccount_id\"a\n" +
 	"\x13AssistantKeyAccount\x128\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
@@ -8624,7 +8763,7 @@ const file_ai_v1_assistant_proto_rawDesc = "" +
 	"\x0edestination_id\x18\x01 \x01(\tB \xbaH\x1dr\x1b2\x19^[a-z0-9][a-z0-9-]{0,63}$H\x00R\rdestinationId\x88\x01\x01\x12:\n" +
 	"\x05route\x18\x02 \x01(\tB$\xbaH!r\x1f2\x1d^/[A-Za-z0-9/_.\\[\\]-]{0,199}$R\x05route\x12\x1f\n" +
 	"\x05title\x18\x03 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18PR\x05titleB\x11\n" +
-	"\x0f_destination_id\"\xd3\x04\n" +
+	"\x0f_destination_id\"\xdd\x06\n" +
 	"\x12SendMessageRequest\x12<\n" +
 	"\x0fconversation_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\x0econversationId\x88\x01\x01\x12\x1e\n" +
 	"\x04text\x18\x02 \x01(\tB\n" +
@@ -8633,8 +8772,10 @@ const file_ai_v1_assistant_proto_rawDesc = "" +
 	"\rsubaccount_id\x18\x04 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x01R\fsubaccountId\x88\x01\x01\x12@\n" +
 	"\fdestinations\x18\x05 \x03(\v2\x12.ai.v1.DestinationB\b\xbaH\x05\x92\x01\x02\x10dR\fdestinations\x12&\n" +
 	"\x04page\x18\x06 \x01(\v2\x12.ai.v1.CurrentPageR\x04page\x12U\n" +
-	"\x10display_settings\x18\a \x03(\x0e2\x15.ai.v1.DisplaySettingB\x13\xbaH\x10\x92\x01\r\x10\b\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\x0fdisplaySettings:t\xbaHq\x1ao\n" +
-	" send_message.unique_destinations\x12\"each destination id must be unique\x1a'this.destinations.map(d, d.id).unique()B\x12\n" +
+	"\x10display_settings\x18\a \x03(\x0e2\x15.ai.v1.DisplaySettingB\x13\xbaH\x10\x92\x01\r\x10\b\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\x0fdisplaySettings\x12N\n" +
+	"\x11account_selection\x18\b \x01(\x0e2\x17.ai.v1.AccountSelectionB\b\xbaH\x05\x82\x01\x02\x10\x01R\x10accountSelection:\xad\x02\xbaH\xa9\x02\x1ao\n" +
+	" send_message.unique_destinations\x12\"each destination id must be unique\x1a'this.destinations.map(d, d.id).unique()\x1a\xb5\x01\n" +
+	"*send_message.no_account_without_subaccount\x12Nsubaccount_id must be omitted when account_selection is ACCOUNT_SELECTION_NONE\x1a7this.account_selection != 1 || !has(this.subaccount_id)B\x12\n" +
 	"\x10_conversation_idB\x10\n" +
 	"\x0e_subaccount_id\"U\n" +
 	"\x13SendMessageResponse\x12\x15\n" +
@@ -8691,8 +8832,9 @@ const file_ai_v1_assistant_proto_rawDesc = "" +
 	"\x1cCompleteAssistantKeysRequest\x12)\n" +
 	"\bsetup_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\asetupId\"H\n" +
 	"\x1dCompleteAssistantKeysResponse\x12'\n" +
-	"\x04keys\x18\x01 \x03(\v2\x13.ai.v1.AssistantKeyR\x04keys\"\x1a\n" +
-	"\x18ListAssistantKeysRequest\"D\n" +
+	"\x04keys\x18\x01 \x03(\v2\x13.ai.v1.AssistantKeyR\x04keys\"Q\n" +
+	"\x18ListAssistantKeysRequest\x125\n" +
+	"\x04view\x18\x01 \x01(\x0e2\x17.ai.v1.AssistantKeyViewB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04view\"D\n" +
 	"\x19ListAssistantKeysResponse\x12'\n" +
 	"\x04keys\x18\x01 \x03(\v2\x13.ai.v1.AssistantKeyR\x04keys\"\xe8\x01\n" +
 	"\x16TelegramApprovalLimits\x12[\n" +
@@ -8757,7 +8899,13 @@ const file_ai_v1_assistant_proto_rawDesc = "" +
 	"\x15KEY_STATE_UNSPECIFIED\x10\x00\x12\n" +
 	"\n" +
 	"\x06ACTIVE\x10\x01\x12\f\n" +
-	"\bDISABLED\x10\x02*\xa6\x01\n" +
+	"\bDISABLED\x10\x02*Q\n" +
+	"\x10AccountSelection\x12!\n" +
+	"\x1dACCOUNT_SELECTION_UNSPECIFIED\x10\x00\x12\x1a\n" +
+	"\x16ACCOUNT_SELECTION_NONE\x10\x01*S\n" +
+	"\x10AssistantKeyView\x12\"\n" +
+	"\x1eASSISTANT_KEY_VIEW_UNSPECIFIED\x10\x00\x12\x1b\n" +
+	"\x17ASSISTANT_KEY_VIEW_FULL\x10\x01*\xa6\x01\n" +
 	"\x0eDisplaySetting\x12\x17\n" +
 	"\x13SETTING_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -8856,7 +9004,7 @@ func file_ai_v1_assistant_proto_rawDescGZIP() []byte {
 	return file_ai_v1_assistant_proto_rawDescData
 }
 
-var file_ai_v1_assistant_proto_enumTypes = make([]protoimpl.EnumInfo, 15)
+var file_ai_v1_assistant_proto_enumTypes = make([]protoimpl.EnumInfo, 17)
 var file_ai_v1_assistant_proto_msgTypes = make([]protoimpl.MessageInfo, 89)
 var file_ai_v1_assistant_proto_goTypes = []any{
 	(ErrorCode)(0),                             // 0: ai.v1.ErrorCode
@@ -8866,283 +9014,287 @@ var file_ai_v1_assistant_proto_goTypes = []any{
 	(ApprovalStatus)(0),                        // 4: ai.v1.ApprovalStatus
 	(MemoryKind)(0),                            // 5: ai.v1.MemoryKind
 	(AssistantKeyState)(0),                     // 6: ai.v1.AssistantKeyState
-	(DisplaySetting)(0),                        // 7: ai.v1.DisplaySetting
-	(ReferencePriceSource)(0),                  // 8: ai.v1.ReferencePriceSource
-	(TriggerDirection)(0),                      // 9: ai.v1.TriggerDirection
-	(OrderPriceField)(0),                       // 10: ai.v1.OrderPriceField
-	(PriceOffsetDirection)(0),                  // 11: ai.v1.PriceOffsetDirection
-	(PriceRounding)(0),                         // 12: ai.v1.PriceRounding
-	(UnfilledSlicePolicy)(0),                   // 13: ai.v1.UnfilledSlicePolicy
-	(TriggerChangeAction)(0),                   // 14: ai.v1.TriggerChangeAction
-	(*ErrorDetail)(nil),                        // 15: ai.v1.ErrorDetail
-	(*Conversation)(nil),                       // 16: ai.v1.Conversation
-	(*Message)(nil),                            // 17: ai.v1.Message
-	(*Memory)(nil),                             // 18: ai.v1.Memory
-	(*Usage)(nil),                              // 19: ai.v1.Usage
-	(*OrdersTable)(nil),                        // 20: ai.v1.OrdersTable
-	(*TriggersTable)(nil),                      // 21: ai.v1.TriggersTable
-	(*BalancesTable)(nil),                      // 22: ai.v1.BalancesTable
-	(*PriceChart)(nil),                         // 23: ai.v1.PriceChart
-	(*MarkdownTableRow)(nil),                   // 24: ai.v1.MarkdownTableRow
-	(*MarkdownTable)(nil),                      // 25: ai.v1.MarkdownTable
-	(*DepositAddressCard)(nil),                 // 26: ai.v1.DepositAddressCard
-	(*BalanceHistoryChart)(nil),                // 27: ai.v1.BalanceHistoryChart
-	(*EquityHistoryChart)(nil),                 // 28: ai.v1.EquityHistoryChart
-	(*TransfersTable)(nil),                     // 29: ai.v1.TransfersTable
-	(*View)(nil),                               // 30: ai.v1.View
-	(*TextDelta)(nil),                          // 31: ai.v1.TextDelta
-	(*DiscardPartial)(nil),                     // 32: ai.v1.DiscardPartial
-	(*ToolStarted)(nil),                        // 33: ai.v1.ToolStarted
-	(*ToolFinished)(nil),                       // 34: ai.v1.ToolFinished
-	(*RecalledMemory)(nil),                     // 35: ai.v1.RecalledMemory
-	(*MemoriesRecalled)(nil),                   // 36: ai.v1.MemoriesRecalled
-	(*DestinationsSuggested)(nil),              // 37: ai.v1.DestinationsSuggested
-	(*DisplaySettingAction)(nil),               // 38: ai.v1.DisplaySettingAction
-	(*SkillLoaded)(nil),                        // 39: ai.v1.SkillLoaded
-	(*SubagentStarted)(nil),                    // 40: ai.v1.SubagentStarted
-	(*SubagentFinished)(nil),                   // 41: ai.v1.SubagentFinished
-	(*ApprovalParameter)(nil),                  // 42: ai.v1.ApprovalParameter
-	(*ReferencePrice)(nil),                     // 43: ai.v1.ReferencePrice
-	(*RelativePrice)(nil),                      // 44: ai.v1.RelativePrice
-	(*AttachedExit)(nil),                       // 45: ai.v1.AttachedExit
-	(*AttachedTrailingStop)(nil),               // 46: ai.v1.AttachedTrailingStop
-	(*AttachedExits)(nil),                      // 47: ai.v1.AttachedExits
-	(*MarketOrderPreview)(nil),                 // 48: ai.v1.MarketOrderPreview
-	(*LimitOrderPreview)(nil),                  // 49: ai.v1.LimitOrderPreview
-	(*StopOrderPreview)(nil),                   // 50: ai.v1.StopOrderPreview
-	(*TrailingStopPreview)(nil),                // 51: ai.v1.TrailingStopPreview
-	(*TwapPreview)(nil),                        // 52: ai.v1.TwapPreview
-	(*LadderLevel)(nil),                        // 53: ai.v1.LadderLevel
-	(*LadderPreview)(nil),                      // 54: ai.v1.LadderPreview
-	(*OrderPreview)(nil),                       // 55: ai.v1.OrderPreview
-	(*QuoteValue)(nil),                         // 56: ai.v1.QuoteValue
-	(*PlaceOrdersPreview)(nil),                 // 57: ai.v1.PlaceOrdersPreview
-	(*SwapLegPreview)(nil),                     // 58: ai.v1.SwapLegPreview
-	(*SwapPreview)(nil),                        // 59: ai.v1.SwapPreview
-	(*OrderToCancel)(nil),                      // 60: ai.v1.OrderToCancel
-	(*CancelOrdersPreview)(nil),                // 61: ai.v1.CancelOrdersPreview
-	(*CancelTriggerPreview)(nil),               // 62: ai.v1.CancelTriggerPreview
-	(*OrderChange)(nil),                        // 63: ai.v1.OrderChange
-	(*OrderChangePreview)(nil),                 // 64: ai.v1.OrderChangePreview
-	(*TriggerSettings)(nil),                    // 65: ai.v1.TriggerSettings
-	(*TriggerChangePreview)(nil),               // 66: ai.v1.TriggerChangePreview
-	(*ApprovalRequested)(nil),                  // 67: ai.v1.ApprovalRequested
-	(*ApprovalResolved)(nil),                   // 68: ai.v1.ApprovalResolved
-	(*RunCompleted)(nil),                       // 69: ai.v1.RunCompleted
-	(*RunFailed)(nil),                          // 70: ai.v1.RunFailed
-	(*RunEvent)(nil),                           // 71: ai.v1.RunEvent
-	(*AssistantKey)(nil),                       // 72: ai.v1.AssistantKey
-	(*AssistantKeyAccount)(nil),                // 73: ai.v1.AssistantKeyAccount
-	(*PreparedAssistantKey)(nil),               // 74: ai.v1.PreparedAssistantKey
-	(*Destination)(nil),                        // 75: ai.v1.Destination
-	(*CurrentPage)(nil),                        // 76: ai.v1.CurrentPage
-	(*SendMessageRequest)(nil),                 // 77: ai.v1.SendMessageRequest
-	(*SendMessageResponse)(nil),                // 78: ai.v1.SendMessageResponse
-	(*WatchRunRequest)(nil),                    // 79: ai.v1.WatchRunRequest
-	(*WatchRunResponse)(nil),                   // 80: ai.v1.WatchRunResponse
-	(*CancelRunRequest)(nil),                   // 81: ai.v1.CancelRunRequest
-	(*CancelRunResponse)(nil),                  // 82: ai.v1.CancelRunResponse
-	(*DecideApprovalRequest)(nil),              // 83: ai.v1.DecideApprovalRequest
-	(*DecideApprovalResponse)(nil),             // 84: ai.v1.DecideApprovalResponse
-	(*ListConversationsRequest)(nil),           // 85: ai.v1.ListConversationsRequest
-	(*ListConversationsResponse)(nil),          // 86: ai.v1.ListConversationsResponse
-	(*ListMessagesRequest)(nil),                // 87: ai.v1.ListMessagesRequest
-	(*ListMessagesResponse)(nil),               // 88: ai.v1.ListMessagesResponse
-	(*ListMemoriesRequest)(nil),                // 89: ai.v1.ListMemoriesRequest
-	(*ListMemoriesResponse)(nil),               // 90: ai.v1.ListMemoriesResponse
-	(*DeleteMemoryRequest)(nil),                // 91: ai.v1.DeleteMemoryRequest
-	(*DeleteMemoryResponse)(nil),               // 92: ai.v1.DeleteMemoryResponse
-	(*PrepareAssistantKeysRequest)(nil),        // 93: ai.v1.PrepareAssistantKeysRequest
-	(*PrepareAssistantKeysResponse)(nil),       // 94: ai.v1.PrepareAssistantKeysResponse
-	(*CompleteAssistantKeysRequest)(nil),       // 95: ai.v1.CompleteAssistantKeysRequest
-	(*CompleteAssistantKeysResponse)(nil),      // 96: ai.v1.CompleteAssistantKeysResponse
-	(*ListAssistantKeysRequest)(nil),           // 97: ai.v1.ListAssistantKeysRequest
-	(*ListAssistantKeysResponse)(nil),          // 98: ai.v1.ListAssistantKeysResponse
-	(*TelegramApprovalLimits)(nil),             // 99: ai.v1.TelegramApprovalLimits
-	(*GetTelegramApprovalLimitsRequest)(nil),   // 100: ai.v1.GetTelegramApprovalLimitsRequest
-	(*GetTelegramApprovalLimitsResponse)(nil),  // 101: ai.v1.GetTelegramApprovalLimitsResponse
-	(*SetTelegramApprovalLimitsRequest)(nil),   // 102: ai.v1.SetTelegramApprovalLimitsRequest
-	(*SetTelegramApprovalLimitsResponse)(nil),  // 103: ai.v1.SetTelegramApprovalLimitsResponse
-	(*timestamppb.Timestamp)(nil),              // 104: google.protobuf.Timestamp
-	(*v1.Order)(nil),                           // 105: orders.v1.Order
-	(*v11.Trigger)(nil),                        // 106: triggers.v1.Trigger
-	(*v12.AssetBalance)(nil),                   // 107: ledger.read.v1.AssetBalance
-	(v13.Timeframe)(0),                         // 108: marketdata.v1.Timeframe
-	(*v13.Candle)(nil),                         // 109: marketdata.v1.Candle
-	(*v14.DepositAddress)(nil),                 // 110: chain.deposit.v1.DepositAddress
-	(*v12.GetBalanceHistoryResponse)(nil),      // 111: ledger.read.v1.GetBalanceHistoryResponse
-	(*v12.GetEquityHistorySeriesResponse)(nil), // 112: ledger.read.v1.GetEquityHistorySeriesResponse
-	(*v12.TransferRow)(nil),                    // 113: ledger.read.v1.TransferRow
-	(*v15.PriceAlert)(nil),                     // 114: alerts.v1.PriceAlert
-	(*structpb.Struct)(nil),                    // 115: google.protobuf.Struct
-	(v1.TimeInForce)(0),                        // 116: orders.v1.TimeInForce
-	(v1.TriggerPriceSource)(0),                 // 117: orders.v1.TriggerPriceSource
-	(v1.Side)(0),                               // 118: orders.v1.Side
-	(v11.TriggerType)(0),                       // 119: triggers.v1.TriggerType
-	(v11.TriggerStatus)(0),                     // 120: triggers.v1.TriggerStatus
+	(AccountSelection)(0),                      // 7: ai.v1.AccountSelection
+	(AssistantKeyView)(0),                      // 8: ai.v1.AssistantKeyView
+	(DisplaySetting)(0),                        // 9: ai.v1.DisplaySetting
+	(ReferencePriceSource)(0),                  // 10: ai.v1.ReferencePriceSource
+	(TriggerDirection)(0),                      // 11: ai.v1.TriggerDirection
+	(OrderPriceField)(0),                       // 12: ai.v1.OrderPriceField
+	(PriceOffsetDirection)(0),                  // 13: ai.v1.PriceOffsetDirection
+	(PriceRounding)(0),                         // 14: ai.v1.PriceRounding
+	(UnfilledSlicePolicy)(0),                   // 15: ai.v1.UnfilledSlicePolicy
+	(TriggerChangeAction)(0),                   // 16: ai.v1.TriggerChangeAction
+	(*ErrorDetail)(nil),                        // 17: ai.v1.ErrorDetail
+	(*Conversation)(nil),                       // 18: ai.v1.Conversation
+	(*Message)(nil),                            // 19: ai.v1.Message
+	(*Memory)(nil),                             // 20: ai.v1.Memory
+	(*Usage)(nil),                              // 21: ai.v1.Usage
+	(*OrdersTable)(nil),                        // 22: ai.v1.OrdersTable
+	(*TriggersTable)(nil),                      // 23: ai.v1.TriggersTable
+	(*BalancesTable)(nil),                      // 24: ai.v1.BalancesTable
+	(*PriceChart)(nil),                         // 25: ai.v1.PriceChart
+	(*MarkdownTableRow)(nil),                   // 26: ai.v1.MarkdownTableRow
+	(*MarkdownTable)(nil),                      // 27: ai.v1.MarkdownTable
+	(*DepositAddressCard)(nil),                 // 28: ai.v1.DepositAddressCard
+	(*BalanceHistoryChart)(nil),                // 29: ai.v1.BalanceHistoryChart
+	(*EquityHistoryChart)(nil),                 // 30: ai.v1.EquityHistoryChart
+	(*TransfersTable)(nil),                     // 31: ai.v1.TransfersTable
+	(*View)(nil),                               // 32: ai.v1.View
+	(*TextDelta)(nil),                          // 33: ai.v1.TextDelta
+	(*DiscardPartial)(nil),                     // 34: ai.v1.DiscardPartial
+	(*ToolStarted)(nil),                        // 35: ai.v1.ToolStarted
+	(*ToolFinished)(nil),                       // 36: ai.v1.ToolFinished
+	(*RecalledMemory)(nil),                     // 37: ai.v1.RecalledMemory
+	(*MemoriesRecalled)(nil),                   // 38: ai.v1.MemoriesRecalled
+	(*DestinationsSuggested)(nil),              // 39: ai.v1.DestinationsSuggested
+	(*DisplaySettingAction)(nil),               // 40: ai.v1.DisplaySettingAction
+	(*SkillLoaded)(nil),                        // 41: ai.v1.SkillLoaded
+	(*SubagentStarted)(nil),                    // 42: ai.v1.SubagentStarted
+	(*SubagentFinished)(nil),                   // 43: ai.v1.SubagentFinished
+	(*ApprovalParameter)(nil),                  // 44: ai.v1.ApprovalParameter
+	(*ReferencePrice)(nil),                     // 45: ai.v1.ReferencePrice
+	(*RelativePrice)(nil),                      // 46: ai.v1.RelativePrice
+	(*AttachedExit)(nil),                       // 47: ai.v1.AttachedExit
+	(*AttachedTrailingStop)(nil),               // 48: ai.v1.AttachedTrailingStop
+	(*AttachedExits)(nil),                      // 49: ai.v1.AttachedExits
+	(*MarketOrderPreview)(nil),                 // 50: ai.v1.MarketOrderPreview
+	(*LimitOrderPreview)(nil),                  // 51: ai.v1.LimitOrderPreview
+	(*StopOrderPreview)(nil),                   // 52: ai.v1.StopOrderPreview
+	(*TrailingStopPreview)(nil),                // 53: ai.v1.TrailingStopPreview
+	(*TwapPreview)(nil),                        // 54: ai.v1.TwapPreview
+	(*LadderLevel)(nil),                        // 55: ai.v1.LadderLevel
+	(*LadderPreview)(nil),                      // 56: ai.v1.LadderPreview
+	(*OrderPreview)(nil),                       // 57: ai.v1.OrderPreview
+	(*QuoteValue)(nil),                         // 58: ai.v1.QuoteValue
+	(*PlaceOrdersPreview)(nil),                 // 59: ai.v1.PlaceOrdersPreview
+	(*SwapLegPreview)(nil),                     // 60: ai.v1.SwapLegPreview
+	(*SwapPreview)(nil),                        // 61: ai.v1.SwapPreview
+	(*OrderToCancel)(nil),                      // 62: ai.v1.OrderToCancel
+	(*CancelOrdersPreview)(nil),                // 63: ai.v1.CancelOrdersPreview
+	(*CancelTriggerPreview)(nil),               // 64: ai.v1.CancelTriggerPreview
+	(*OrderChange)(nil),                        // 65: ai.v1.OrderChange
+	(*OrderChangePreview)(nil),                 // 66: ai.v1.OrderChangePreview
+	(*TriggerSettings)(nil),                    // 67: ai.v1.TriggerSettings
+	(*TriggerChangePreview)(nil),               // 68: ai.v1.TriggerChangePreview
+	(*ApprovalRequested)(nil),                  // 69: ai.v1.ApprovalRequested
+	(*ApprovalResolved)(nil),                   // 70: ai.v1.ApprovalResolved
+	(*RunCompleted)(nil),                       // 71: ai.v1.RunCompleted
+	(*RunFailed)(nil),                          // 72: ai.v1.RunFailed
+	(*RunEvent)(nil),                           // 73: ai.v1.RunEvent
+	(*AssistantKey)(nil),                       // 74: ai.v1.AssistantKey
+	(*AssistantKeyAccount)(nil),                // 75: ai.v1.AssistantKeyAccount
+	(*PreparedAssistantKey)(nil),               // 76: ai.v1.PreparedAssistantKey
+	(*Destination)(nil),                        // 77: ai.v1.Destination
+	(*CurrentPage)(nil),                        // 78: ai.v1.CurrentPage
+	(*SendMessageRequest)(nil),                 // 79: ai.v1.SendMessageRequest
+	(*SendMessageResponse)(nil),                // 80: ai.v1.SendMessageResponse
+	(*WatchRunRequest)(nil),                    // 81: ai.v1.WatchRunRequest
+	(*WatchRunResponse)(nil),                   // 82: ai.v1.WatchRunResponse
+	(*CancelRunRequest)(nil),                   // 83: ai.v1.CancelRunRequest
+	(*CancelRunResponse)(nil),                  // 84: ai.v1.CancelRunResponse
+	(*DecideApprovalRequest)(nil),              // 85: ai.v1.DecideApprovalRequest
+	(*DecideApprovalResponse)(nil),             // 86: ai.v1.DecideApprovalResponse
+	(*ListConversationsRequest)(nil),           // 87: ai.v1.ListConversationsRequest
+	(*ListConversationsResponse)(nil),          // 88: ai.v1.ListConversationsResponse
+	(*ListMessagesRequest)(nil),                // 89: ai.v1.ListMessagesRequest
+	(*ListMessagesResponse)(nil),               // 90: ai.v1.ListMessagesResponse
+	(*ListMemoriesRequest)(nil),                // 91: ai.v1.ListMemoriesRequest
+	(*ListMemoriesResponse)(nil),               // 92: ai.v1.ListMemoriesResponse
+	(*DeleteMemoryRequest)(nil),                // 93: ai.v1.DeleteMemoryRequest
+	(*DeleteMemoryResponse)(nil),               // 94: ai.v1.DeleteMemoryResponse
+	(*PrepareAssistantKeysRequest)(nil),        // 95: ai.v1.PrepareAssistantKeysRequest
+	(*PrepareAssistantKeysResponse)(nil),       // 96: ai.v1.PrepareAssistantKeysResponse
+	(*CompleteAssistantKeysRequest)(nil),       // 97: ai.v1.CompleteAssistantKeysRequest
+	(*CompleteAssistantKeysResponse)(nil),      // 98: ai.v1.CompleteAssistantKeysResponse
+	(*ListAssistantKeysRequest)(nil),           // 99: ai.v1.ListAssistantKeysRequest
+	(*ListAssistantKeysResponse)(nil),          // 100: ai.v1.ListAssistantKeysResponse
+	(*TelegramApprovalLimits)(nil),             // 101: ai.v1.TelegramApprovalLimits
+	(*GetTelegramApprovalLimitsRequest)(nil),   // 102: ai.v1.GetTelegramApprovalLimitsRequest
+	(*GetTelegramApprovalLimitsResponse)(nil),  // 103: ai.v1.GetTelegramApprovalLimitsResponse
+	(*SetTelegramApprovalLimitsRequest)(nil),   // 104: ai.v1.SetTelegramApprovalLimitsRequest
+	(*SetTelegramApprovalLimitsResponse)(nil),  // 105: ai.v1.SetTelegramApprovalLimitsResponse
+	(*timestamppb.Timestamp)(nil),              // 106: google.protobuf.Timestamp
+	(*v1.Order)(nil),                           // 107: orders.v1.Order
+	(*v11.Trigger)(nil),                        // 108: triggers.v1.Trigger
+	(*v12.AssetBalance)(nil),                   // 109: ledger.read.v1.AssetBalance
+	(v13.Timeframe)(0),                         // 110: marketdata.v1.Timeframe
+	(*v13.Candle)(nil),                         // 111: marketdata.v1.Candle
+	(*v14.DepositAddress)(nil),                 // 112: chain.deposit.v1.DepositAddress
+	(*v12.GetBalanceHistoryResponse)(nil),      // 113: ledger.read.v1.GetBalanceHistoryResponse
+	(*v12.GetEquityHistorySeriesResponse)(nil), // 114: ledger.read.v1.GetEquityHistorySeriesResponse
+	(*v12.TransferRow)(nil),                    // 115: ledger.read.v1.TransferRow
+	(*v15.PriceAlert)(nil),                     // 116: alerts.v1.PriceAlert
+	(*structpb.Struct)(nil),                    // 117: google.protobuf.Struct
+	(v1.TimeInForce)(0),                        // 118: orders.v1.TimeInForce
+	(v1.TriggerPriceSource)(0),                 // 119: orders.v1.TriggerPriceSource
+	(v1.Side)(0),                               // 120: orders.v1.Side
+	(v11.TriggerType)(0),                       // 121: triggers.v1.TriggerType
+	(v11.TriggerStatus)(0),                     // 122: triggers.v1.TriggerStatus
 }
 var file_ai_v1_assistant_proto_depIdxs = []int32{
 	0,   // 0: ai.v1.ErrorDetail.code:type_name -> ai.v1.ErrorCode
-	104, // 1: ai.v1.Conversation.created_at:type_name -> google.protobuf.Timestamp
-	104, // 2: ai.v1.Conversation.updated_at:type_name -> google.protobuf.Timestamp
+	106, // 1: ai.v1.Conversation.created_at:type_name -> google.protobuf.Timestamp
+	106, // 2: ai.v1.Conversation.updated_at:type_name -> google.protobuf.Timestamp
 	1,   // 3: ai.v1.Message.role:type_name -> ai.v1.MessageRole
-	104, // 4: ai.v1.Message.created_at:type_name -> google.protobuf.Timestamp
-	104, // 5: ai.v1.Memory.created_at:type_name -> google.protobuf.Timestamp
+	106, // 4: ai.v1.Message.created_at:type_name -> google.protobuf.Timestamp
+	106, // 5: ai.v1.Memory.created_at:type_name -> google.protobuf.Timestamp
 	5,   // 6: ai.v1.Memory.kind:type_name -> ai.v1.MemoryKind
-	105, // 7: ai.v1.OrdersTable.orders:type_name -> orders.v1.Order
-	106, // 8: ai.v1.TriggersTable.triggers:type_name -> triggers.v1.Trigger
-	107, // 9: ai.v1.BalancesTable.balances:type_name -> ledger.read.v1.AssetBalance
-	108, // 10: ai.v1.PriceChart.timeframe:type_name -> marketdata.v1.Timeframe
-	109, // 11: ai.v1.PriceChart.candles:type_name -> marketdata.v1.Candle
-	24,  // 12: ai.v1.MarkdownTable.rows:type_name -> ai.v1.MarkdownTableRow
-	110, // 13: ai.v1.DepositAddressCard.deposit_address:type_name -> chain.deposit.v1.DepositAddress
-	111, // 14: ai.v1.BalanceHistoryChart.history:type_name -> ledger.read.v1.GetBalanceHistoryResponse
-	112, // 15: ai.v1.EquityHistoryChart.history:type_name -> ledger.read.v1.GetEquityHistorySeriesResponse
-	113, // 16: ai.v1.TransfersTable.transfers:type_name -> ledger.read.v1.TransferRow
-	20,  // 17: ai.v1.View.orders_table:type_name -> ai.v1.OrdersTable
-	22,  // 18: ai.v1.View.balances_table:type_name -> ai.v1.BalancesTable
-	23,  // 19: ai.v1.View.price_chart:type_name -> ai.v1.PriceChart
-	25,  // 20: ai.v1.View.markdown_table:type_name -> ai.v1.MarkdownTable
-	114, // 21: ai.v1.View.price_alert:type_name -> alerts.v1.PriceAlert
-	21,  // 22: ai.v1.View.triggers_table:type_name -> ai.v1.TriggersTable
-	26,  // 23: ai.v1.View.deposit_address:type_name -> ai.v1.DepositAddressCard
-	27,  // 24: ai.v1.View.balance_history_chart:type_name -> ai.v1.BalanceHistoryChart
-	28,  // 25: ai.v1.View.equity_history_chart:type_name -> ai.v1.EquityHistoryChart
-	29,  // 26: ai.v1.View.transfers_table:type_name -> ai.v1.TransfersTable
-	115, // 27: ai.v1.ToolStarted.input:type_name -> google.protobuf.Struct
+	107, // 7: ai.v1.OrdersTable.orders:type_name -> orders.v1.Order
+	108, // 8: ai.v1.TriggersTable.triggers:type_name -> triggers.v1.Trigger
+	109, // 9: ai.v1.BalancesTable.balances:type_name -> ledger.read.v1.AssetBalance
+	110, // 10: ai.v1.PriceChart.timeframe:type_name -> marketdata.v1.Timeframe
+	111, // 11: ai.v1.PriceChart.candles:type_name -> marketdata.v1.Candle
+	26,  // 12: ai.v1.MarkdownTable.rows:type_name -> ai.v1.MarkdownTableRow
+	112, // 13: ai.v1.DepositAddressCard.deposit_address:type_name -> chain.deposit.v1.DepositAddress
+	113, // 14: ai.v1.BalanceHistoryChart.history:type_name -> ledger.read.v1.GetBalanceHistoryResponse
+	114, // 15: ai.v1.EquityHistoryChart.history:type_name -> ledger.read.v1.GetEquityHistorySeriesResponse
+	115, // 16: ai.v1.TransfersTable.transfers:type_name -> ledger.read.v1.TransferRow
+	22,  // 17: ai.v1.View.orders_table:type_name -> ai.v1.OrdersTable
+	24,  // 18: ai.v1.View.balances_table:type_name -> ai.v1.BalancesTable
+	25,  // 19: ai.v1.View.price_chart:type_name -> ai.v1.PriceChart
+	27,  // 20: ai.v1.View.markdown_table:type_name -> ai.v1.MarkdownTable
+	116, // 21: ai.v1.View.price_alert:type_name -> alerts.v1.PriceAlert
+	23,  // 22: ai.v1.View.triggers_table:type_name -> ai.v1.TriggersTable
+	28,  // 23: ai.v1.View.deposit_address:type_name -> ai.v1.DepositAddressCard
+	29,  // 24: ai.v1.View.balance_history_chart:type_name -> ai.v1.BalanceHistoryChart
+	30,  // 25: ai.v1.View.equity_history_chart:type_name -> ai.v1.EquityHistoryChart
+	31,  // 26: ai.v1.View.transfers_table:type_name -> ai.v1.TransfersTable
+	117, // 27: ai.v1.ToolStarted.input:type_name -> google.protobuf.Struct
 	5,   // 28: ai.v1.RecalledMemory.kind:type_name -> ai.v1.MemoryKind
-	35,  // 29: ai.v1.MemoriesRecalled.memories:type_name -> ai.v1.RecalledMemory
-	7,   // 30: ai.v1.DisplaySettingAction.setting:type_name -> ai.v1.DisplaySetting
-	8,   // 31: ai.v1.ReferencePrice.source:type_name -> ai.v1.ReferencePriceSource
-	104, // 32: ai.v1.ReferencePrice.observed_at:type_name -> google.protobuf.Timestamp
-	10,  // 33: ai.v1.RelativePrice.field:type_name -> ai.v1.OrderPriceField
-	11,  // 34: ai.v1.RelativePrice.direction:type_name -> ai.v1.PriceOffsetDirection
-	43,  // 35: ai.v1.RelativePrice.market:type_name -> ai.v1.ReferencePrice
-	12,  // 36: ai.v1.RelativePrice.rounding:type_name -> ai.v1.PriceRounding
-	45,  // 37: ai.v1.AttachedExits.take_profit:type_name -> ai.v1.AttachedExit
-	45,  // 38: ai.v1.AttachedExits.stop_loss:type_name -> ai.v1.AttachedExit
-	46,  // 39: ai.v1.AttachedExits.trailing_stop:type_name -> ai.v1.AttachedTrailingStop
-	47,  // 40: ai.v1.MarketOrderPreview.attached:type_name -> ai.v1.AttachedExits
-	116, // 41: ai.v1.LimitOrderPreview.time_in_force:type_name -> orders.v1.TimeInForce
-	104, // 42: ai.v1.LimitOrderPreview.expire_at:type_name -> google.protobuf.Timestamp
-	47,  // 43: ai.v1.LimitOrderPreview.attached:type_name -> ai.v1.AttachedExits
-	117, // 44: ai.v1.StopOrderPreview.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
-	9,   // 45: ai.v1.StopOrderPreview.direction:type_name -> ai.v1.TriggerDirection
-	116, // 46: ai.v1.StopOrderPreview.time_in_force:type_name -> orders.v1.TimeInForce
-	117, // 47: ai.v1.TrailingStopPreview.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
-	13,  // 48: ai.v1.TwapPreview.unfilled_slice_policy:type_name -> ai.v1.UnfilledSlicePolicy
-	53,  // 49: ai.v1.LadderPreview.levels:type_name -> ai.v1.LadderLevel
-	116, // 50: ai.v1.LadderPreview.time_in_force:type_name -> orders.v1.TimeInForce
-	118, // 51: ai.v1.OrderPreview.side:type_name -> orders.v1.Side
-	43,  // 52: ai.v1.OrderPreview.reference_price:type_name -> ai.v1.ReferencePrice
-	48,  // 53: ai.v1.OrderPreview.market:type_name -> ai.v1.MarketOrderPreview
-	49,  // 54: ai.v1.OrderPreview.limit:type_name -> ai.v1.LimitOrderPreview
-	50,  // 55: ai.v1.OrderPreview.stop_loss:type_name -> ai.v1.StopOrderPreview
-	50,  // 56: ai.v1.OrderPreview.take_profit:type_name -> ai.v1.StopOrderPreview
-	51,  // 57: ai.v1.OrderPreview.trailing_stop:type_name -> ai.v1.TrailingStopPreview
-	52,  // 58: ai.v1.OrderPreview.twap:type_name -> ai.v1.TwapPreview
-	54,  // 59: ai.v1.OrderPreview.ladder:type_name -> ai.v1.LadderPreview
-	44,  // 60: ai.v1.OrderPreview.relative_prices:type_name -> ai.v1.RelativePrice
-	55,  // 61: ai.v1.PlaceOrdersPreview.orders:type_name -> ai.v1.OrderPreview
-	56,  // 62: ai.v1.PlaceOrdersPreview.total_values:type_name -> ai.v1.QuoteValue
-	118, // 63: ai.v1.SwapLegPreview.side:type_name -> orders.v1.Side
-	58,  // 64: ai.v1.SwapPreview.legs:type_name -> ai.v1.SwapLegPreview
-	104, // 65: ai.v1.SwapPreview.quoted_at:type_name -> google.protobuf.Timestamp
-	104, // 66: ai.v1.SwapPreview.expires_at:type_name -> google.protobuf.Timestamp
-	118, // 67: ai.v1.OrderToCancel.side:type_name -> orders.v1.Side
-	60,  // 68: ai.v1.CancelOrdersPreview.orders:type_name -> ai.v1.OrderToCancel
-	118, // 69: ai.v1.CancelOrdersPreview.side:type_name -> orders.v1.Side
-	119, // 70: ai.v1.CancelTriggerPreview.type:type_name -> triggers.v1.TriggerType
-	118, // 71: ai.v1.CancelTriggerPreview.side:type_name -> orders.v1.Side
-	118, // 72: ai.v1.OrderChange.side:type_name -> orders.v1.Side
-	63,  // 73: ai.v1.OrderChangePreview.orders:type_name -> ai.v1.OrderChange
-	120, // 74: ai.v1.TriggerSettings.status:type_name -> triggers.v1.TriggerStatus
-	119, // 75: ai.v1.TriggerChangePreview.type:type_name -> triggers.v1.TriggerType
-	118, // 76: ai.v1.TriggerChangePreview.side:type_name -> orders.v1.Side
-	14,  // 77: ai.v1.TriggerChangePreview.action:type_name -> ai.v1.TriggerChangeAction
-	65,  // 78: ai.v1.TriggerChangePreview.before:type_name -> ai.v1.TriggerSettings
-	65,  // 79: ai.v1.TriggerChangePreview.after:type_name -> ai.v1.TriggerSettings
-	43,  // 80: ai.v1.TriggerChangePreview.reference_price:type_name -> ai.v1.ReferencePrice
-	9,   // 81: ai.v1.TriggerChangePreview.direction:type_name -> ai.v1.TriggerDirection
-	104, // 82: ai.v1.ApprovalRequested.expires_at:type_name -> google.protobuf.Timestamp
-	42,  // 83: ai.v1.ApprovalRequested.parameters:type_name -> ai.v1.ApprovalParameter
-	55,  // 84: ai.v1.ApprovalRequested.order_preview:type_name -> ai.v1.OrderPreview
-	61,  // 85: ai.v1.ApprovalRequested.cancel_orders:type_name -> ai.v1.CancelOrdersPreview
-	64,  // 86: ai.v1.ApprovalRequested.order_change:type_name -> ai.v1.OrderChangePreview
-	66,  // 87: ai.v1.ApprovalRequested.trigger_change:type_name -> ai.v1.TriggerChangePreview
-	57,  // 88: ai.v1.ApprovalRequested.place_orders:type_name -> ai.v1.PlaceOrdersPreview
-	59,  // 89: ai.v1.ApprovalRequested.swap:type_name -> ai.v1.SwapPreview
-	62,  // 90: ai.v1.ApprovalRequested.cancel_trigger:type_name -> ai.v1.CancelTriggerPreview
+	37,  // 29: ai.v1.MemoriesRecalled.memories:type_name -> ai.v1.RecalledMemory
+	9,   // 30: ai.v1.DisplaySettingAction.setting:type_name -> ai.v1.DisplaySetting
+	10,  // 31: ai.v1.ReferencePrice.source:type_name -> ai.v1.ReferencePriceSource
+	106, // 32: ai.v1.ReferencePrice.observed_at:type_name -> google.protobuf.Timestamp
+	12,  // 33: ai.v1.RelativePrice.field:type_name -> ai.v1.OrderPriceField
+	13,  // 34: ai.v1.RelativePrice.direction:type_name -> ai.v1.PriceOffsetDirection
+	45,  // 35: ai.v1.RelativePrice.market:type_name -> ai.v1.ReferencePrice
+	14,  // 36: ai.v1.RelativePrice.rounding:type_name -> ai.v1.PriceRounding
+	47,  // 37: ai.v1.AttachedExits.take_profit:type_name -> ai.v1.AttachedExit
+	47,  // 38: ai.v1.AttachedExits.stop_loss:type_name -> ai.v1.AttachedExit
+	48,  // 39: ai.v1.AttachedExits.trailing_stop:type_name -> ai.v1.AttachedTrailingStop
+	49,  // 40: ai.v1.MarketOrderPreview.attached:type_name -> ai.v1.AttachedExits
+	118, // 41: ai.v1.LimitOrderPreview.time_in_force:type_name -> orders.v1.TimeInForce
+	106, // 42: ai.v1.LimitOrderPreview.expire_at:type_name -> google.protobuf.Timestamp
+	49,  // 43: ai.v1.LimitOrderPreview.attached:type_name -> ai.v1.AttachedExits
+	119, // 44: ai.v1.StopOrderPreview.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
+	11,  // 45: ai.v1.StopOrderPreview.direction:type_name -> ai.v1.TriggerDirection
+	118, // 46: ai.v1.StopOrderPreview.time_in_force:type_name -> orders.v1.TimeInForce
+	119, // 47: ai.v1.TrailingStopPreview.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
+	15,  // 48: ai.v1.TwapPreview.unfilled_slice_policy:type_name -> ai.v1.UnfilledSlicePolicy
+	55,  // 49: ai.v1.LadderPreview.levels:type_name -> ai.v1.LadderLevel
+	118, // 50: ai.v1.LadderPreview.time_in_force:type_name -> orders.v1.TimeInForce
+	120, // 51: ai.v1.OrderPreview.side:type_name -> orders.v1.Side
+	45,  // 52: ai.v1.OrderPreview.reference_price:type_name -> ai.v1.ReferencePrice
+	50,  // 53: ai.v1.OrderPreview.market:type_name -> ai.v1.MarketOrderPreview
+	51,  // 54: ai.v1.OrderPreview.limit:type_name -> ai.v1.LimitOrderPreview
+	52,  // 55: ai.v1.OrderPreview.stop_loss:type_name -> ai.v1.StopOrderPreview
+	52,  // 56: ai.v1.OrderPreview.take_profit:type_name -> ai.v1.StopOrderPreview
+	53,  // 57: ai.v1.OrderPreview.trailing_stop:type_name -> ai.v1.TrailingStopPreview
+	54,  // 58: ai.v1.OrderPreview.twap:type_name -> ai.v1.TwapPreview
+	56,  // 59: ai.v1.OrderPreview.ladder:type_name -> ai.v1.LadderPreview
+	46,  // 60: ai.v1.OrderPreview.relative_prices:type_name -> ai.v1.RelativePrice
+	57,  // 61: ai.v1.PlaceOrdersPreview.orders:type_name -> ai.v1.OrderPreview
+	58,  // 62: ai.v1.PlaceOrdersPreview.total_values:type_name -> ai.v1.QuoteValue
+	120, // 63: ai.v1.SwapLegPreview.side:type_name -> orders.v1.Side
+	60,  // 64: ai.v1.SwapPreview.legs:type_name -> ai.v1.SwapLegPreview
+	106, // 65: ai.v1.SwapPreview.quoted_at:type_name -> google.protobuf.Timestamp
+	106, // 66: ai.v1.SwapPreview.expires_at:type_name -> google.protobuf.Timestamp
+	120, // 67: ai.v1.OrderToCancel.side:type_name -> orders.v1.Side
+	62,  // 68: ai.v1.CancelOrdersPreview.orders:type_name -> ai.v1.OrderToCancel
+	120, // 69: ai.v1.CancelOrdersPreview.side:type_name -> orders.v1.Side
+	121, // 70: ai.v1.CancelTriggerPreview.type:type_name -> triggers.v1.TriggerType
+	120, // 71: ai.v1.CancelTriggerPreview.side:type_name -> orders.v1.Side
+	120, // 72: ai.v1.OrderChange.side:type_name -> orders.v1.Side
+	65,  // 73: ai.v1.OrderChangePreview.orders:type_name -> ai.v1.OrderChange
+	122, // 74: ai.v1.TriggerSettings.status:type_name -> triggers.v1.TriggerStatus
+	121, // 75: ai.v1.TriggerChangePreview.type:type_name -> triggers.v1.TriggerType
+	120, // 76: ai.v1.TriggerChangePreview.side:type_name -> orders.v1.Side
+	16,  // 77: ai.v1.TriggerChangePreview.action:type_name -> ai.v1.TriggerChangeAction
+	67,  // 78: ai.v1.TriggerChangePreview.before:type_name -> ai.v1.TriggerSettings
+	67,  // 79: ai.v1.TriggerChangePreview.after:type_name -> ai.v1.TriggerSettings
+	45,  // 80: ai.v1.TriggerChangePreview.reference_price:type_name -> ai.v1.ReferencePrice
+	11,  // 81: ai.v1.TriggerChangePreview.direction:type_name -> ai.v1.TriggerDirection
+	106, // 82: ai.v1.ApprovalRequested.expires_at:type_name -> google.protobuf.Timestamp
+	44,  // 83: ai.v1.ApprovalRequested.parameters:type_name -> ai.v1.ApprovalParameter
+	57,  // 84: ai.v1.ApprovalRequested.order_preview:type_name -> ai.v1.OrderPreview
+	63,  // 85: ai.v1.ApprovalRequested.cancel_orders:type_name -> ai.v1.CancelOrdersPreview
+	66,  // 86: ai.v1.ApprovalRequested.order_change:type_name -> ai.v1.OrderChangePreview
+	68,  // 87: ai.v1.ApprovalRequested.trigger_change:type_name -> ai.v1.TriggerChangePreview
+	59,  // 88: ai.v1.ApprovalRequested.place_orders:type_name -> ai.v1.PlaceOrdersPreview
+	61,  // 89: ai.v1.ApprovalRequested.swap:type_name -> ai.v1.SwapPreview
+	64,  // 90: ai.v1.ApprovalRequested.cancel_trigger:type_name -> ai.v1.CancelTriggerPreview
 	4,   // 91: ai.v1.ApprovalResolved.status:type_name -> ai.v1.ApprovalStatus
-	19,  // 92: ai.v1.RunCompleted.usage:type_name -> ai.v1.Usage
+	21,  // 92: ai.v1.RunCompleted.usage:type_name -> ai.v1.Usage
 	2,   // 93: ai.v1.RunFailed.category:type_name -> ai.v1.FailureCategory
-	19,  // 94: ai.v1.RunFailed.usage:type_name -> ai.v1.Usage
-	104, // 95: ai.v1.RunEvent.created_at:type_name -> google.protobuf.Timestamp
-	31,  // 96: ai.v1.RunEvent.text_delta:type_name -> ai.v1.TextDelta
-	32,  // 97: ai.v1.RunEvent.discard_partial:type_name -> ai.v1.DiscardPartial
-	33,  // 98: ai.v1.RunEvent.tool_started:type_name -> ai.v1.ToolStarted
-	34,  // 99: ai.v1.RunEvent.tool_finished:type_name -> ai.v1.ToolFinished
-	39,  // 100: ai.v1.RunEvent.skill_loaded:type_name -> ai.v1.SkillLoaded
-	40,  // 101: ai.v1.RunEvent.subagent_started:type_name -> ai.v1.SubagentStarted
-	41,  // 102: ai.v1.RunEvent.subagent_finished:type_name -> ai.v1.SubagentFinished
-	67,  // 103: ai.v1.RunEvent.approval_requested:type_name -> ai.v1.ApprovalRequested
-	68,  // 104: ai.v1.RunEvent.approval_resolved:type_name -> ai.v1.ApprovalResolved
-	30,  // 105: ai.v1.RunEvent.view:type_name -> ai.v1.View
-	69,  // 106: ai.v1.RunEvent.run_completed:type_name -> ai.v1.RunCompleted
-	70,  // 107: ai.v1.RunEvent.run_failed:type_name -> ai.v1.RunFailed
-	36,  // 108: ai.v1.RunEvent.memories_recalled:type_name -> ai.v1.MemoriesRecalled
-	37,  // 109: ai.v1.RunEvent.destinations_suggested:type_name -> ai.v1.DestinationsSuggested
-	38,  // 110: ai.v1.RunEvent.display_setting_action:type_name -> ai.v1.DisplaySettingAction
+	21,  // 94: ai.v1.RunFailed.usage:type_name -> ai.v1.Usage
+	106, // 95: ai.v1.RunEvent.created_at:type_name -> google.protobuf.Timestamp
+	33,  // 96: ai.v1.RunEvent.text_delta:type_name -> ai.v1.TextDelta
+	34,  // 97: ai.v1.RunEvent.discard_partial:type_name -> ai.v1.DiscardPartial
+	35,  // 98: ai.v1.RunEvent.tool_started:type_name -> ai.v1.ToolStarted
+	36,  // 99: ai.v1.RunEvent.tool_finished:type_name -> ai.v1.ToolFinished
+	41,  // 100: ai.v1.RunEvent.skill_loaded:type_name -> ai.v1.SkillLoaded
+	42,  // 101: ai.v1.RunEvent.subagent_started:type_name -> ai.v1.SubagentStarted
+	43,  // 102: ai.v1.RunEvent.subagent_finished:type_name -> ai.v1.SubagentFinished
+	69,  // 103: ai.v1.RunEvent.approval_requested:type_name -> ai.v1.ApprovalRequested
+	70,  // 104: ai.v1.RunEvent.approval_resolved:type_name -> ai.v1.ApprovalResolved
+	32,  // 105: ai.v1.RunEvent.view:type_name -> ai.v1.View
+	71,  // 106: ai.v1.RunEvent.run_completed:type_name -> ai.v1.RunCompleted
+	72,  // 107: ai.v1.RunEvent.run_failed:type_name -> ai.v1.RunFailed
+	38,  // 108: ai.v1.RunEvent.memories_recalled:type_name -> ai.v1.MemoriesRecalled
+	39,  // 109: ai.v1.RunEvent.destinations_suggested:type_name -> ai.v1.DestinationsSuggested
+	40,  // 110: ai.v1.RunEvent.display_setting_action:type_name -> ai.v1.DisplaySettingAction
 	6,   // 111: ai.v1.AssistantKey.state:type_name -> ai.v1.AssistantKeyState
-	104, // 112: ai.v1.PreparedAssistantKey.registration_deadline:type_name -> google.protobuf.Timestamp
-	75,  // 113: ai.v1.SendMessageRequest.destinations:type_name -> ai.v1.Destination
-	76,  // 114: ai.v1.SendMessageRequest.page:type_name -> ai.v1.CurrentPage
-	7,   // 115: ai.v1.SendMessageRequest.display_settings:type_name -> ai.v1.DisplaySetting
-	71,  // 116: ai.v1.WatchRunResponse.event:type_name -> ai.v1.RunEvent
-	3,   // 117: ai.v1.DecideApprovalRequest.decision:type_name -> ai.v1.ApprovalDecision
-	4,   // 118: ai.v1.DecideApprovalResponse.status:type_name -> ai.v1.ApprovalStatus
-	16,  // 119: ai.v1.ListConversationsResponse.conversations:type_name -> ai.v1.Conversation
-	17,  // 120: ai.v1.ListMessagesResponse.messages:type_name -> ai.v1.Message
-	18,  // 121: ai.v1.ListMemoriesResponse.memories:type_name -> ai.v1.Memory
-	73,  // 122: ai.v1.PrepareAssistantKeysRequest.accounts:type_name -> ai.v1.AssistantKeyAccount
-	74,  // 123: ai.v1.PrepareAssistantKeysResponse.keys:type_name -> ai.v1.PreparedAssistantKey
-	104, // 124: ai.v1.PrepareAssistantKeysResponse.expires_at:type_name -> google.protobuf.Timestamp
-	72,  // 125: ai.v1.CompleteAssistantKeysResponse.keys:type_name -> ai.v1.AssistantKey
-	72,  // 126: ai.v1.ListAssistantKeysResponse.keys:type_name -> ai.v1.AssistantKey
-	99,  // 127: ai.v1.GetTelegramApprovalLimitsResponse.limits:type_name -> ai.v1.TelegramApprovalLimits
-	99,  // 128: ai.v1.SetTelegramApprovalLimitsRequest.limits:type_name -> ai.v1.TelegramApprovalLimits
-	99,  // 129: ai.v1.SetTelegramApprovalLimitsResponse.limits:type_name -> ai.v1.TelegramApprovalLimits
-	77,  // 130: ai.v1.AssistantService.SendMessage:input_type -> ai.v1.SendMessageRequest
-	79,  // 131: ai.v1.AssistantService.WatchRun:input_type -> ai.v1.WatchRunRequest
-	81,  // 132: ai.v1.AssistantService.CancelRun:input_type -> ai.v1.CancelRunRequest
-	83,  // 133: ai.v1.AssistantService.DecideApproval:input_type -> ai.v1.DecideApprovalRequest
-	85,  // 134: ai.v1.AssistantService.ListConversations:input_type -> ai.v1.ListConversationsRequest
-	87,  // 135: ai.v1.AssistantService.ListMessages:input_type -> ai.v1.ListMessagesRequest
-	89,  // 136: ai.v1.AssistantService.ListMemories:input_type -> ai.v1.ListMemoriesRequest
-	91,  // 137: ai.v1.AssistantService.DeleteMemory:input_type -> ai.v1.DeleteMemoryRequest
-	93,  // 138: ai.v1.AssistantService.PrepareAssistantKeys:input_type -> ai.v1.PrepareAssistantKeysRequest
-	95,  // 139: ai.v1.AssistantService.CompleteAssistantKeys:input_type -> ai.v1.CompleteAssistantKeysRequest
-	97,  // 140: ai.v1.AssistantService.ListAssistantKeys:input_type -> ai.v1.ListAssistantKeysRequest
-	100, // 141: ai.v1.AssistantService.GetTelegramApprovalLimits:input_type -> ai.v1.GetTelegramApprovalLimitsRequest
-	102, // 142: ai.v1.AssistantService.SetTelegramApprovalLimits:input_type -> ai.v1.SetTelegramApprovalLimitsRequest
-	78,  // 143: ai.v1.AssistantService.SendMessage:output_type -> ai.v1.SendMessageResponse
-	80,  // 144: ai.v1.AssistantService.WatchRun:output_type -> ai.v1.WatchRunResponse
-	82,  // 145: ai.v1.AssistantService.CancelRun:output_type -> ai.v1.CancelRunResponse
-	84,  // 146: ai.v1.AssistantService.DecideApproval:output_type -> ai.v1.DecideApprovalResponse
-	86,  // 147: ai.v1.AssistantService.ListConversations:output_type -> ai.v1.ListConversationsResponse
-	88,  // 148: ai.v1.AssistantService.ListMessages:output_type -> ai.v1.ListMessagesResponse
-	90,  // 149: ai.v1.AssistantService.ListMemories:output_type -> ai.v1.ListMemoriesResponse
-	92,  // 150: ai.v1.AssistantService.DeleteMemory:output_type -> ai.v1.DeleteMemoryResponse
-	94,  // 151: ai.v1.AssistantService.PrepareAssistantKeys:output_type -> ai.v1.PrepareAssistantKeysResponse
-	96,  // 152: ai.v1.AssistantService.CompleteAssistantKeys:output_type -> ai.v1.CompleteAssistantKeysResponse
-	98,  // 153: ai.v1.AssistantService.ListAssistantKeys:output_type -> ai.v1.ListAssistantKeysResponse
-	101, // 154: ai.v1.AssistantService.GetTelegramApprovalLimits:output_type -> ai.v1.GetTelegramApprovalLimitsResponse
-	103, // 155: ai.v1.AssistantService.SetTelegramApprovalLimits:output_type -> ai.v1.SetTelegramApprovalLimitsResponse
-	143, // [143:156] is the sub-list for method output_type
-	130, // [130:143] is the sub-list for method input_type
-	130, // [130:130] is the sub-list for extension type_name
-	130, // [130:130] is the sub-list for extension extendee
-	0,   // [0:130] is the sub-list for field type_name
+	106, // 112: ai.v1.PreparedAssistantKey.registration_deadline:type_name -> google.protobuf.Timestamp
+	77,  // 113: ai.v1.SendMessageRequest.destinations:type_name -> ai.v1.Destination
+	78,  // 114: ai.v1.SendMessageRequest.page:type_name -> ai.v1.CurrentPage
+	9,   // 115: ai.v1.SendMessageRequest.display_settings:type_name -> ai.v1.DisplaySetting
+	7,   // 116: ai.v1.SendMessageRequest.account_selection:type_name -> ai.v1.AccountSelection
+	73,  // 117: ai.v1.WatchRunResponse.event:type_name -> ai.v1.RunEvent
+	3,   // 118: ai.v1.DecideApprovalRequest.decision:type_name -> ai.v1.ApprovalDecision
+	4,   // 119: ai.v1.DecideApprovalResponse.status:type_name -> ai.v1.ApprovalStatus
+	18,  // 120: ai.v1.ListConversationsResponse.conversations:type_name -> ai.v1.Conversation
+	19,  // 121: ai.v1.ListMessagesResponse.messages:type_name -> ai.v1.Message
+	20,  // 122: ai.v1.ListMemoriesResponse.memories:type_name -> ai.v1.Memory
+	75,  // 123: ai.v1.PrepareAssistantKeysRequest.accounts:type_name -> ai.v1.AssistantKeyAccount
+	76,  // 124: ai.v1.PrepareAssistantKeysResponse.keys:type_name -> ai.v1.PreparedAssistantKey
+	106, // 125: ai.v1.PrepareAssistantKeysResponse.expires_at:type_name -> google.protobuf.Timestamp
+	74,  // 126: ai.v1.CompleteAssistantKeysResponse.keys:type_name -> ai.v1.AssistantKey
+	8,   // 127: ai.v1.ListAssistantKeysRequest.view:type_name -> ai.v1.AssistantKeyView
+	74,  // 128: ai.v1.ListAssistantKeysResponse.keys:type_name -> ai.v1.AssistantKey
+	101, // 129: ai.v1.GetTelegramApprovalLimitsResponse.limits:type_name -> ai.v1.TelegramApprovalLimits
+	101, // 130: ai.v1.SetTelegramApprovalLimitsRequest.limits:type_name -> ai.v1.TelegramApprovalLimits
+	101, // 131: ai.v1.SetTelegramApprovalLimitsResponse.limits:type_name -> ai.v1.TelegramApprovalLimits
+	79,  // 132: ai.v1.AssistantService.SendMessage:input_type -> ai.v1.SendMessageRequest
+	81,  // 133: ai.v1.AssistantService.WatchRun:input_type -> ai.v1.WatchRunRequest
+	83,  // 134: ai.v1.AssistantService.CancelRun:input_type -> ai.v1.CancelRunRequest
+	85,  // 135: ai.v1.AssistantService.DecideApproval:input_type -> ai.v1.DecideApprovalRequest
+	87,  // 136: ai.v1.AssistantService.ListConversations:input_type -> ai.v1.ListConversationsRequest
+	89,  // 137: ai.v1.AssistantService.ListMessages:input_type -> ai.v1.ListMessagesRequest
+	91,  // 138: ai.v1.AssistantService.ListMemories:input_type -> ai.v1.ListMemoriesRequest
+	93,  // 139: ai.v1.AssistantService.DeleteMemory:input_type -> ai.v1.DeleteMemoryRequest
+	95,  // 140: ai.v1.AssistantService.PrepareAssistantKeys:input_type -> ai.v1.PrepareAssistantKeysRequest
+	97,  // 141: ai.v1.AssistantService.CompleteAssistantKeys:input_type -> ai.v1.CompleteAssistantKeysRequest
+	99,  // 142: ai.v1.AssistantService.ListAssistantKeys:input_type -> ai.v1.ListAssistantKeysRequest
+	102, // 143: ai.v1.AssistantService.GetTelegramApprovalLimits:input_type -> ai.v1.GetTelegramApprovalLimitsRequest
+	104, // 144: ai.v1.AssistantService.SetTelegramApprovalLimits:input_type -> ai.v1.SetTelegramApprovalLimitsRequest
+	80,  // 145: ai.v1.AssistantService.SendMessage:output_type -> ai.v1.SendMessageResponse
+	82,  // 146: ai.v1.AssistantService.WatchRun:output_type -> ai.v1.WatchRunResponse
+	84,  // 147: ai.v1.AssistantService.CancelRun:output_type -> ai.v1.CancelRunResponse
+	86,  // 148: ai.v1.AssistantService.DecideApproval:output_type -> ai.v1.DecideApprovalResponse
+	88,  // 149: ai.v1.AssistantService.ListConversations:output_type -> ai.v1.ListConversationsResponse
+	90,  // 150: ai.v1.AssistantService.ListMessages:output_type -> ai.v1.ListMessagesResponse
+	92,  // 151: ai.v1.AssistantService.ListMemories:output_type -> ai.v1.ListMemoriesResponse
+	94,  // 152: ai.v1.AssistantService.DeleteMemory:output_type -> ai.v1.DeleteMemoryResponse
+	96,  // 153: ai.v1.AssistantService.PrepareAssistantKeys:output_type -> ai.v1.PrepareAssistantKeysResponse
+	98,  // 154: ai.v1.AssistantService.CompleteAssistantKeys:output_type -> ai.v1.CompleteAssistantKeysResponse
+	100, // 155: ai.v1.AssistantService.ListAssistantKeys:output_type -> ai.v1.ListAssistantKeysResponse
+	103, // 156: ai.v1.AssistantService.GetTelegramApprovalLimits:output_type -> ai.v1.GetTelegramApprovalLimitsResponse
+	105, // 157: ai.v1.AssistantService.SetTelegramApprovalLimits:output_type -> ai.v1.SetTelegramApprovalLimitsResponse
+	145, // [145:158] is the sub-list for method output_type
+	132, // [132:145] is the sub-list for method input_type
+	132, // [132:132] is the sub-list for extension type_name
+	132, // [132:132] is the sub-list for extension extendee
+	0,   // [0:132] is the sub-list for field type_name
 }
 
 func init() { file_ai_v1_assistant_proto_init() }
@@ -9242,7 +9394,7 @@ func file_ai_v1_assistant_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ai_v1_assistant_proto_rawDesc), len(file_ai_v1_assistant_proto_rawDesc)),
-			NumEnums:      15,
+			NumEnums:      17,
 			NumMessages:   89,
 			NumExtensions: 0,
 			NumServices:   1,

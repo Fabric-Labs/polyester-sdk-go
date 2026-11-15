@@ -323,6 +323,37 @@ type ValidationError struct {
 	Code       string
 	Metadata   map[string]string
 	Violations []FieldViolation
+	LadderLevelCause
+}
+
+// LadderLevelCause says why a ladder was refused whole with
+// ERROR_CODE_LADDER_LEVEL_REJECTED: one of its orders can't be placed.
+// CauseCode is the code that order would return as a single order, in the
+// form of Code (for example "ERROR_CODE_MAX_OPEN_ORDERS_PER_PAIR"), and
+// LevelIndex its zero-based index among the ladder's orders, the i of the
+// violation path trigger.strategy.ladder.levels[i]: 0 is the first order.
+// Both are empty (CauseCode "" and LevelIndex nil) for every other error.
+type LadderLevelCause struct {
+	CauseCode  string
+	LevelIndex *uint32
+}
+
+// LadderCause returns the ladder-level cause err carries, from a
+// *ValidationError, *APIError or *RateLimitError; ok is false when it carries
+// none.
+func LadderCause(err error) (cause LadderLevelCause, ok bool) {
+	var validationErr *ValidationError
+	var apiErr *APIError
+	var rateErr *RateLimitError
+	switch {
+	case errors.As(err, &validationErr):
+		cause = validationErr.LadderLevelCause
+	case errors.As(err, &apiErr):
+		cause = apiErr.LadderLevelCause
+	case errors.As(err, &rateErr):
+		cause = rateErr.LadderLevelCause
+	}
+	return cause, cause.CauseCode != "" || cause.LevelIndex != nil
 }
 
 func (e *ValidationError) Error() string        { return e.Msg }
@@ -375,6 +406,15 @@ func (e *TransportError) Unwrap() error        { return e.Err }
 //
 // Nothing was sent to the redirect target. A redirect does not prove that the
 // configured API URL did not apply the request before answering with it, so
+// CodeDustBusy refuses a dust conversion because too many are in progress
+// (transfer.v1 ERROR_CODE_DUST_BUSY, Connect resource_exhausted). Nothing
+// moved; IsRetryable reports it: retry shortly with the same idempotency key.
+// The other resource_exhausted dust refusals, ERROR_CODE_DUST_WINDOW_ACTIVE
+// (one conversion every 6 hours) and ERROR_CODE_DUST_DAILY_LIMIT, and a
+// statement export's ERROR_CODE_STATEMENT_EXPORT_LIMIT_REACHED, are not
+// retryable: they last until a window, a day or an export ends.
+const CodeDustBusy = "ERROR_CODE_DUST_BUSY"
+
 // MutationOutcomeUnknown reports true: read a mutation back before sending it
 // again. Sending it again gets the same redirect, so IsRetryable reports false.
 // Point Config.APIURL at the API's own origin instead.
@@ -471,6 +511,10 @@ type RateLimitError struct {
 	Msg        string
 	RetryAfter *float64
 	Detail     *RateLimitDetail
+	// LadderLevelCause is set when a ladder order was refused because the
+	// account's request quota is spent: CauseCode
+	// ERROR_CODE_RATE_LIMIT_EXCEEDED with the order's LevelIndex.
+	LadderLevelCause
 }
 
 func (e *RateLimitError) Error() string        { return e.Msg }
@@ -514,6 +558,11 @@ type APIError struct {
 	// on the vault's whitelist for 24 hours; nil when the server does not
 	// know yet.
 	PayableFrom *time.Time
+	// RetryAt is the auth detail's retry_after: the time from which the same
+	// request may succeed, on an AUTH_SOCIAL_ACCOUNT_COOLDOWN or
+	// AUTH_SOCIAL_CHANGE_LIMIT_REACHED refusal; nil otherwise.
+	RetryAt *time.Time
+	LadderLevelCause
 }
 
 // CodeExternalDestinationCoolingDown refuses a withdrawal from a broker vault
@@ -522,6 +571,22 @@ type APIError struct {
 // Connect failed_precondition, REST 400). Nothing was reserved. The
 // destination is listed: send again at APIError.PayableFrom.
 const CodeExternalDestinationCoolingDown = "ERROR_CODE_EXTERNAL_DESTINATION_COOLING_DOWN"
+
+// CodeRouteSuspended refuses a new Trading withdrawal to an external network
+// whose withdrawals of the asset are suspended (chain.withdraw.v1
+// ERROR_CODE_ROUTE_SUSPENDED, Connect failed_precondition, REST 400
+// ROUTE_SUSPENDED). The suspension is temporary: submit a new request once the
+// route's WithdrawalStatus in Zipper.GetDepositWithdrawConfig is "normal"
+// again. Nothing was reserved for the refused request, so a fresh request is
+// safe. It is final for this request and not retryable.
+const CodeRouteSuspended = "ERROR_CODE_ROUTE_SUSPENDED"
+
+// IsRouteSuspended reports whether err refuses a withdrawal because its
+// route's withdrawals are suspended; see CodeRouteSuspended.
+func IsRouteSuspended(err error) bool {
+	var apiErr *APIError
+	return errors.As(err, &apiErr) && apiErr.Code == CodeRouteSuspended
+}
 
 // IsDestinationCoolingDown reports whether err refuses a broker-vault
 // withdrawal because its destination is still in its whitelist cool-down. It
@@ -686,8 +751,8 @@ func (e *QueueOverflowError) Is(target error) bool { return target == ErrPolyest
 // transport failures. Read back before sending a mutation again; safe reads
 // may retry explicitly. A client order ID enables lookup, not exact replay.
 // Explicit admission refusals, rate refusals (including replay capacity),
-// timestamp skew, a request deadline exceeded before admission and account
-// repairing may retry. A *CatalogHydrationError is never retryable, whatever
+// timestamp skew, a request deadline exceeded before admission, account
+// repairing and a busy dust conversion (CodeDustBusy) may retry. A *CatalogHydrationError is never retryable, whatever
 // the catalog load failed with: create a new client.
 func IsRetryable(err error) bool {
 	if isCatalogHydrationFailure(err) {
@@ -706,6 +771,7 @@ func IsRetryable(err error) bool {
 		errors.As(err, &serverErr) ||
 		errors.As(err, &skewErr) ||
 		code == "ERROR_CODE_ACCOUNT_REPAIRING" ||
+		code == CodeDustBusy ||
 		code == CodeRequestDeadlineExceeded ||
 		code == AuthCodeTemporarilyUnavailable
 }

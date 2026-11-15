@@ -299,8 +299,10 @@ const (
 	// attached leg's working exit (with oco set, the parent's other legs end
 	// with it), or a level of a ladder that ended with nothing filled.
 	TriggerCancelReason_TRIGGER_CANCEL_REASON_USER_REQUEST TriggerCancelReason = 1
-	// An attached leg ended because its parent order is terminal and another of
-	// the parent's legs made the last exit, leaving no position to protect.
+	// Another leg of the same OCO made the last exit, leaving no position to
+	// protect: a take-profit or stop-loss of an OCO created with CreateOco,
+	// once the OCO's whole quantity has traded, or an order's attached leg,
+	// once its parent order is terminal.
 	TriggerCancelReason_TRIGGER_CANCEL_REASON_OCO TriggerCancelReason = 2
 	// The parent order ended without a fill, so its attached trigger was canceled.
 	TriggerCancelReason_TRIGGER_CANCEL_REASON_PARENT_CANCELED_NO_FILL TriggerCancelReason = 3
@@ -2365,7 +2367,9 @@ type OcoIntent struct {
 	// among OCOs. While the OCO is active and for 60 seconds after both legs
 	// ended, retrying the create with the identical intent returns the same
 	// OCO, and a different intent with the same ID returns
-	// CONFLICT_DUPLICATE_CLIENT_TRIGGER_ID. At most 36 bytes in UTF-8.
+	// CONFLICT_DUPLICATE_CLIENT_TRIGGER_ID. 1 to 36 ASCII characters using
+	// letters, digits, period, underscore, colon, slash, or hyphen, as a
+	// client_order_id; other IDs are rejected with INVALID_ARGUMENT.
 	ClientListId string `protobuf:"bytes,5,opt,name=client_list_id,json=clientListId,proto3" json:"client_list_id,omitempty"`
 	// The take-profit leg. Its trigger price must be above the stop-loss's for
 	// a SELL OCO and below it for a BUY OCO.
@@ -2866,8 +2870,9 @@ type ListTriggersRequest struct {
 	// this order_list_id.
 	OrderListId *uint64 `protobuf:"fixed64,6,opt,name=order_list_id,json=orderListId,proto3,oneof" json:"order_list_id,omitempty"`
 	// Optional filter by OCO client ID: the take-profit and the stop-loss of
-	// the OCO created with this client_list_id, 1 to 36 bytes in UTF-8. Use it
-	// to find an OCO whose create failed with TRIGGER_CREATE_OUTCOME_UNKNOWN.
+	// the OCO created with this client_list_id, which follows the same rule as
+	// OcoIntent.client_list_id. Use it to find an OCO whose create failed with
+	// TRIGGER_CREATE_OUTCOME_UNKNOWN.
 	ClientListId *string `protobuf:"bytes,7,opt,name=client_list_id,json=clientListId,proto3,oneof" json:"client_list_id,omitempty"`
 	// Maximum number of triggers to return. Defaults to 100 when omitted;
 	// maximum is 1000.
@@ -5277,7 +5282,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x13trigger_price_ticks\x18\x01 \x01(\x03B\n" +
 	"\xe0A\x02\xbaH\x04\"\x02 \x00R\x11triggerPriceTicks\x129\n" +
 	"\x05child\x18\x02 \x01(\v2\x18.orders.v1.RiskExecutionB\t\xe0A\x02\xbaH\x03\xc8\x01\x01R\x05child\x12Y\n" +
-	"\x14trigger_price_source\x18\x03 \x01(\x0e2\x1d.orders.v1.TriggerPriceSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\x12triggerPriceSource\"\xb0\x03\n" +
+	"\x14trigger_price_source\x18\x03 \x01(\x0e2\x1d.orders.v1.TriggerPriceSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\x12triggerPriceSource\"\xc5\x03\n" +
 	"\tOcoIntent\x12'\n" +
 	"\tsymbol_id\x18\x01 \x01(\rB\n" +
 	"\xe0A\x02\xbaH\x04*\x02 \x00R\bsymbolId\x122\n" +
@@ -5285,8 +5290,8 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\n" +
 	"qty_scaled\x18\x03 \x01(\x03B\n" +
 	"\xe0A\x02\xbaH\x04\"\x02 \x00R\tqtyScaled\x12i\n" +
-	"\x1aself_trade_prevention_mode\x18\x04 \x01(\x0e2\".orders.v1.SelfTradePreventionModeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x17selfTradePreventionMode\x122\n" +
-	"\x0eclient_list_id\x18\x05 \x01(\tB\f\xe0A\x02\xbaH\x06r\x04\x10\x01($R\fclientListId\x12?\n" +
+	"\x1aself_trade_prevention_mode\x18\x04 \x01(\x0e2\".orders.v1.SelfTradePreventionModeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x17selfTradePreventionMode\x12G\n" +
+	"\x0eclient_list_id\x18\x05 \x01(\tB!\xe0A\x02\xbaH\x1br\x19\x10\x01\x18$2\x13^[A-Za-z0-9._:/-]+$R\fclientListId\x12?\n" +
 	"\vtake_profit\x18\x06 \x01(\v2\x13.triggers.v1.OcoLegB\t\xe0A\x02\xbaH\x03\xc8\x01\x01R\n" +
 	"takeProfit\x12;\n" +
 	"\tstop_loss\x18\a \x01(\v2\x13.triggers.v1.OcoLegB\t\xe0A\x02\xbaH\x03\xc8\x01\x01R\bstopLoss\"\x83\x01\n" +
@@ -5317,7 +5322,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\rsubaccount_id\x18\x02 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
 	"\x0e_subaccount_id\"D\n" +
 	"\x12GetTriggerResponse\x12.\n" +
-	"\atrigger\x18\x01 \x01(\v2\x14.triggers.v1.TriggerR\atrigger\"\x92\x04\n" +
+	"\atrigger\x18\x01 \x01(\v2\x14.triggers.v1.TriggerR\atrigger\"\xa7\x04\n" +
 	"\x13ListTriggersRequest\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12'\n" +
 	"\tsymbol_id\x18\x02 \x01(\rB\n" +
@@ -5326,8 +5331,8 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x92\x01\a\"\x05\x82\x01\x02\x10\x01R\x06status\x12E\n" +
 	"\ftrigger_type\x18\x04 \x01(\x0e2\x18.triggers.v1.TriggerTypeB\b\xbaH\x05\x82\x01\x02\x10\x01R\vtriggerType\x12+\n" +
 	"\x0fparent_order_id\x18\x05 \x01(\x06H\x01R\rparentOrderId\x88\x01\x01\x12'\n" +
-	"\rorder_list_id\x18\x06 \x01(\x06H\x02R\vorderListId\x88\x01\x01\x124\n" +
-	"\x0eclient_list_id\x18\a \x01(\tB\t\xbaH\x06r\x04\x10\x01($H\x03R\fclientListId\x88\x01\x01\x12\x1e\n" +
+	"\rorder_list_id\x18\x06 \x01(\x06H\x02R\vorderListId\x88\x01\x01\x12I\n" +
+	"\x0eclient_list_id\x18\a \x01(\tB\x1e\xbaH\x1br\x19\x10\x01\x18$2\x13^[A-Za-z0-9._:/-]+$H\x03R\fclientListId\x88\x01\x01\x12\x1e\n" +
 	"\x05limit\x18\n" +
 	" \x01(\rB\b\xbaH\x05*\x03\x18\xe8\aR\x05limit\x12'\n" +
 	"\n" +

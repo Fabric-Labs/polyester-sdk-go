@@ -186,10 +186,12 @@ func TestCreateOcoGeneratesAClientListIDWhenNoneIsGiven(t *testing.T) {
 	}
 }
 
-// A client OCO ID is checked as the contract checks it, 1 to 36 bytes of
-// UTF-8, and sent unchanged.
-func TestCreateOcoSendsAnyClientListIDOfUpTo36Bytes(t *testing.T) {
-	for _, id := range []string{"oco énergie #1 ✓", strings.Repeat("é", 18), " padded "} {
+// A client OCO ID follows the client order ID rule, as the contract checks
+// it: 1 to 36 ASCII letters, digits, ".", "_", ":", "/" or "-". It is sent
+// unchanged; spaces (inside or around it), other punctuation and non-ASCII
+// characters are refused before sending.
+func TestCreateOcoClientListIDFollowsTheClientOrderIDRule(t *testing.T) {
+	for _, id := range []string{"tp-sl:btc/2026-11-15_1", strings.Repeat("a", 36), "A.b_c:d/e-f"} {
 		handler := &ocoHandler{}
 		service := newTriggerControlServiceWith(t, handler)
 		got, err := service.CreateOco(context.Background(), nil, sellOco(&id), nil)
@@ -200,7 +202,7 @@ func TestCreateOcoSendsAnyClientListIDOfUpTo36Bytes(t *testing.T) {
 			t.Fatalf("client list ID %q: sent %q, read %q", id, sent, got.ClientListID)
 		}
 	}
-	for _, id := range []string{strings.Repeat("é", 19), "\xff\xfe"} {
+	for _, id := range []string{"oco énergie #1 ✓", strings.Repeat("é", 18), " padded ", "padded ", "with space", "hash#1", strings.Repeat("a", 37), "\xff\xfe"} {
 		handler := &ocoHandler{}
 		service := newTriggerControlServiceWith(t, handler)
 		_, err := service.CreateOco(context.Background(), nil, sellOco(&id), nil)
@@ -436,7 +438,7 @@ func TestTriggerListFiltersByOcoAndReadsItsLegs(t *testing.T) {
 		t.Fatalf("triggers = %+v, want the leg with its OCO", got.Triggers)
 	}
 
-	clientListID := "oco énergie #1"
+	clientListID := "tp-sl:btc/2026-11-15_1"
 	if _, err := service.List(context.Background(), nil, nil, nil, nil, 0, nil, models.ListTriggersOptions{ClientListID: &clientListID}); err != nil {
 		t.Fatalf("list by client OCO ID: %v", err)
 	}
@@ -444,11 +446,13 @@ func TestTriggerListFiltersByOcoAndReadsItsLegs(t *testing.T) {
 		t.Fatalf("client_list_id filter = %v, want %q alone", sent, clientListID)
 	}
 
-	zero, empty, long := "0", "", strings.Repeat("a", 37)
+	zero, empty, long, spaced, accented := "0", "", strings.Repeat("a", 37), " oco-1", "oco énergie"
 	for name, opts := range map[string]models.ListTriggersOptions{
 		"zero OCO ID":                 {OrderListID: &zero},
 		"empty client OCO ID":         {ClientListID: &empty},
 		"client OCO ID over 36 bytes": {ClientListID: &long},
+		"client OCO ID with a space":  {ClientListID: &spaced},
+		"non-ASCII client OCO ID":     {ClientListID: &accented},
 	} {
 		if _, err := service.List(context.Background(), nil, nil, nil, nil, 0, nil, opts); err == nil || len(handler.lists) != 2 {
 			t.Fatalf("%s: err = %v, lists sent = %d, want refused before sending", name, err, len(handler.lists))

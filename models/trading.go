@@ -344,7 +344,9 @@ type ListTriggersOptions struct {
 	// ParentOrderID lists the attached triggers of one parent order.
 	ParentOrderID *string
 	// OrderListID lists the take-profit and the stop-loss of one OCO, by the
-	// OrderListID CreateOco returned; ClientListID by its client OCO ID.
+	// OrderListID CreateOco returned; ClientListID by its client OCO ID,
+	// which follows the client order ID rule (1 to 36 ASCII letters, digits,
+	// ".", "_", ":", "/" or "-") and is sent unchanged.
 	OrderListID  *string
 	ClientListID *string
 }
@@ -613,9 +615,11 @@ type BalancesList struct {
 
 // BalanceHistorySeries is one balance history series.
 type BalanceHistorySeries struct {
-	AssetID     uint32   `json:"asset_id"`
-	AccountCode int32    `json:"account_code"`
-	BalanceQ    []uint64 `json:"balance_q"`
+	AssetID     uint32 `json:"asset_id"`
+	AccountCode int32  `json:"account_code"`
+	// Balance is the exact balance at each point, at the 18-decimal ledger
+	// scale, aligned 1:1 with the response's points.
+	Balance []AssetAmountScaled `json:"balance"`
 }
 
 // BalanceHistory is balance history response.
@@ -779,16 +783,24 @@ type ZipperReasonDetails struct {
 // completes normally once progress resumes. It is always false for terminal
 // flows and for transaction lookups, which do not report it.
 type LifecycleFlowSummary struct {
-	IntentID            string               `json:"intent_id"`
-	FlowKind            string               `json:"flow_kind,omitempty"`
-	LatestStep          string               `json:"latest_step,omitempty"`
-	IsOpen              bool                 `json:"is_open,omitempty"`
-	IsTerminal          bool                 `json:"is_terminal,omitempty"`
-	IsDelayed           bool                 `json:"is_delayed,omitempty"`
-	OwnerAccountID      string               `json:"owner_account_id,omitempty"`
-	SmartAccountAddress string               `json:"smart_account_address,omitempty"`
-	LifecycleReason     string               `json:"lifecycle_reason,omitempty"`
-	ZipperReason        *ZipperReasonDetails `json:"zipper_reason,omitempty"`
+	IntentID            string `json:"intent_id"`
+	FlowKind            string `json:"flow_kind,omitempty"`
+	LatestStep          string `json:"latest_step,omitempty"`
+	IsOpen              bool   `json:"is_open,omitempty"`
+	IsTerminal          bool   `json:"is_terminal,omitempty"`
+	IsDelayed           bool   `json:"is_delayed,omitempty"`
+	SmartAccountAddress string `json:"smart_account_address,omitempty"`
+	// LifecycleReason names why a flow ended the way it did, as a lowercase
+	// label such as "zipper_validation_rejected"; "unspecified" when the flow
+	// carries none, and "unknown_reason_<n>" for a reason newer than this SDK.
+	// It is set on failed flows, with one exception:
+	// "zipper_deposit_delivered_to_wallet" marks a COMPLETED deposit that was
+	// delivered as zTokens to the account's own wallet (SmartAccountAddress)
+	// because its destination did not accept the credit. No Funding or Trading
+	// balance was credited; show it as delivered to the wallet, not as a
+	// failure and not as credited to Funding or Trading.
+	LifecycleReason string               `json:"lifecycle_reason,omitempty"`
+	ZipperReason    *ZipperReasonDetails `json:"zipper_reason,omitempty"`
 	// Participation is how the selected account takes part in the flow, on a
 	// ListFlows row of a list that selects an account: "owner" (its deposit,
 	// withdrawal or a transfer it sent, including a move between its own
@@ -798,8 +810,8 @@ type LifecycleFlowSummary struct {
 	Participation string `json:"participation,omitempty"`
 	// SourceAddress and DestinationAddress are the flow's source and
 	// destination addresses. For a transfer, the counterparty is
-	// DestinationAddress when the account sent it and SourceAddress (with
-	// OwnerAccountID) when it received it.
+	// DestinationAddress when the account sent it and SourceAddress when it
+	// received it.
 	SourceAddress      string `json:"source_address,omitempty"`
 	DestinationAddress string `json:"destination_address,omitempty"`
 }
