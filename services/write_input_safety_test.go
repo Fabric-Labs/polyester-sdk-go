@@ -41,11 +41,11 @@ func requireRefusedBeforeTransport(t *testing.T, err error, captures chan proto.
 	}
 }
 
-// A timeout that does not fit the wire uint32 is refused, not wrapped:
-// 4294967296 would arm nothing (0 disables the switch) and 4294967306
-// would arm 10 seconds.
-func TestCancelAllAfterRefusesTimeoutsOutsideUint32(t *testing.T) {
-	for _, timeout := range []int{-1, math.MinInt64, 1 << 32, 1<<32 + 10, math.MaxInt64} {
+// A timeout outside the contract's 0 or 10..120 is refused before sending,
+// and never wrapped: 4294967296 would arm nothing (0 disables the switch)
+// and 4294967306 would arm 10 seconds.
+func TestCancelAllAfterRefusesTimeoutsOutsideTheContract(t *testing.T) {
+	for _, timeout := range []int{5, 9, 121, -1, math.MinInt64, math.MaxUint32, 1 << 32, 1<<32 + 10, math.MaxInt64} {
 		t.Run(fmt.Sprint(timeout), func(t *testing.T) {
 			factory, captures := scopeCaptureFactory(t)
 			orders := NewOrdersService(factory, auditCatalog(t), nil, nil, nil, nil, nil)
@@ -53,7 +53,7 @@ func TestCancelAllAfterRefusesTimeoutsOutsideUint32(t *testing.T) {
 			requireRefusedBeforeTransport(t, err, captures)
 		})
 	}
-	for _, timeout := range []int{0, 10, 120, math.MaxUint32} {
+	for _, timeout := range []int{0, 10, 120} {
 		t.Run(fmt.Sprint(timeout), func(t *testing.T) {
 			factory, captures := scopeCaptureFactory(t)
 			orders := NewOrdersService(factory, auditCatalog(t), nil, nil, nil, nil, nil)

@@ -2,7 +2,6 @@ package codecs
 
 import (
 	"fmt"
-	"math"
 	"strings"
 	"time"
 
@@ -548,10 +547,10 @@ func CancelAllAfterToProto(subAccountID *string, timeoutSec int, symbolID *uint3
 	if err != nil {
 		return nil, err
 	}
-	// The wire field is uint32: a wrapped value would arm a different
-	// timeout, and 1<<32 would disable the switch (0).
-	if timeoutSec < 0 || uint64(timeoutSec) > math.MaxUint32 {
-		return nil, &errors.ValidationError{Msg: fmt.Sprintf("cancel_all_after timeout_sec %d is outside 0..%d", timeoutSec, uint32(math.MaxUint32))}
+	// The contract takes 0 (disarm) or 10..120; checking the range also
+	// keeps a value from wrapping the wire uint32 (1<<32 would send 0).
+	if timeoutSec != 0 && (timeoutSec < CancelAllAfterMinTimeoutSec || timeoutSec > CancelAllAfterMaxTimeoutSec) {
+		return nil, &errors.ValidationError{Msg: fmt.Sprintf("cancel_all_after timeout_sec must be 0 or between %d and %d; received %d", CancelAllAfterMinTimeoutSec, CancelAllAfterMaxTimeoutSec, timeoutSec)}
 	}
 	proto := &orderv1.CancelAllAfterRequest{
 		RequestId:  resolvedRequestID,
