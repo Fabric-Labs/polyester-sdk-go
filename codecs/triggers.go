@@ -50,12 +50,17 @@ type CreateTriggerOptions struct {
 	ActivationPrice     *models.PriceInput
 	MaxSlippageTicks    *int64
 	MaxSlippageBps      *int32
+	// TwapDurationMs (at least TwapDurationMsMin, 1000) and
+	// TwapSliceIntervalMs (at least TwapSliceIntervalMsMin, 100, and no
+	// longer than the duration) are required for a TWAP.
 	TwapDurationMs      *int64
 	TwapSliceIntervalMs *int64
 	LadderPriceMin      *models.PriceInput
 	LadderPriceMax      *models.PriceInput
-	LadderLevels        *int32
-	LadderDistribution  *string
+	// LadderLevels is required for a ladder: LadderLevelsMin to
+	// LadderLevelsMax (2 to 100).
+	LadderLevels       *int32
+	LadderDistribution *string
 }
 
 // TriggerTypeFromLabel parses a trigger type label (stop_loss, take_profit,
@@ -215,13 +220,19 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 		if !ok {
 			return nil, &errors.ValidationError{Msg: "side must be buy or sell"}
 		}
-		twap := &triggersv1.TwapTrigger{Side: sideEnum}
-		if opts.TwapDurationMs != nil {
-			twap.DurationMs = *opts.TwapDurationMs
+		duration, err := requiredInRange(opts.TwapDurationMs, "twap_duration_ms", "twap", TwapDurationMsMin, TwapDurationMsMax)
+		if err != nil {
+			return nil, err
 		}
-		if opts.TwapSliceIntervalMs != nil {
-			twap.SliceIntervalMs = *opts.TwapSliceIntervalMs
+		interval, err := requiredInRange(opts.TwapSliceIntervalMs, "twap_slice_interval_ms", "twap", TwapSliceIntervalMsMin, TwapSliceIntervalMsMax)
+		if err != nil {
+			return nil, err
 		}
+		// The contract's twap_trigger.window rule.
+		if interval > duration {
+			return nil, &errors.ValidationError{Msg: "twap_slice_interval_ms must not exceed twap_duration_ms"}
+		}
+		twap := &triggersv1.TwapTrigger{Side: sideEnum, DurationMs: duration, SliceIntervalMs: interval}
 		switch strings.ToLower(orderType) {
 		case "market":
 			ioc := &triggersv1.TwapMarketIoc{}
@@ -286,9 +297,11 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 		if hasMin && hasMax && ladder.PriceMinTicks >= ladder.PriceMaxTicks {
 			return nil, &errors.ValidationError{Msg: "ladder_price_min must be strictly less than ladder_price_max"}
 		}
-		if opts.LadderLevels != nil {
-			ladder.Levels = *opts.LadderLevels
+		levels, err := requiredInRange(opts.LadderLevels, "ladder_levels", "ladder", LadderLevelsMin, LadderLevelsMax)
+		if err != nil {
+			return nil, err
 		}
+		ladder.Levels = levels
 		intent.Strategy = &triggersv1.TriggerIntent_Ladder{Ladder: ladder}
 	}
 

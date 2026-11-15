@@ -427,7 +427,9 @@ func (s *OrdersService) CancelAllWith(ctx context.Context, account AccountScope,
 // it cancels open orders in scope, never triggers: a client that stopped
 // still has its standalone triggers and TWAPs live, and an attached leg whose
 // exit order it cancels ends (with its OCO siblings). Cancel triggers with
-// Triggers.Cancel first, or use StopAllTrading.
+// Triggers.Cancel first, or use StopAllTrading. timeoutSec is 10 to 120, or
+// 0 to disarm the switch; any other value is a ValidationError before
+// sending.
 func (s *OrdersService) CancelAllAfter(ctx context.Context, account AccountScope, timeoutSec int, subAccountID, symbol, side, requestID *string) (models.CancelAllAfterResult, error) {
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {
