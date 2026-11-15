@@ -125,8 +125,18 @@
       "supported": true
     },
     {
+      "id": "dust_conversion",
+      "label": "Dust conversion",
+      "supported": true
+    },
+    {
       "id": "transfer_history",
       "label": "Transfer history",
+      "supported": true
+    },
+    {
+      "id": "statement_exports",
+      "label": "Statement export files",
       "supported": true
     },
     {

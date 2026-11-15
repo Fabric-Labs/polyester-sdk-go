@@ -62,7 +62,7 @@ func (s *BalancesService) GetBalanceHistory(ctx context.Context, account Account
 	} else if parsed != nil {
 		req.SubaccountId = parsed
 	}
-	return UnaryAuth(ctx, s.transport, s.client().GetBalanceHistory, req, decode.BalanceHistoryFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.client().GetBalanceHistory, req, decode.BalanceHistoryFromProto)
 }
 
 func (s *BalancesService) GetEquityHistory(ctx context.Context, account AccountScope, rangeKey string, subAccountID *string, accountCodes []uint32, groupBy string) (models.EquityHistory, error) {

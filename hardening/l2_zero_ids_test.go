@@ -471,7 +471,9 @@ func TestL2ZeroAccountIDArgumentsAreRefused(t *testing.T) {
 		requireZeroIDRefused(t, "InternalTransfers.Create destination account "+zero, "destination_account_id", err, api)
 		_, err = client.InternalTransfers.Create(ctx, 1, models.AssetAmountFromDecimal("1"), "idem-1", nil, nil, nil, zeroIDStr(zero), nil, &scale)
 		requireZeroIDRefused(t, "InternalTransfers.Create destination sub-account "+zero, "destination_subaccount_id", err, api)
-		_, err = client.Lifecycle.ListFlows(ctx, 0, nil, nil, zeroIDStr(zero), nil, false)
-		requireZeroIDRefused(t, "Lifecycle.ListFlows owner "+zero, "owner_account_id", err, api)
+		_, err = client.InternalTransfers.CreateBatch(ctx, []models.InternalTransferBatchLeg{{AssetID: 1, Quantity: models.AssetAmountFromDecimal("1"), QuantityScale: &scale, DestinationAccountID: zeroIDStr(zero)}}, "idem-1")
+		requireZeroIDRefused(t, "InternalTransfers.CreateBatch destination account "+zero, "destination_account_id", err, api)
+		_, err = client.Statements.GetExport(ctx, zero)
+		requireZeroIDRefused(t, "Statements.GetExport "+zero, "export_id", err, api)
 	}
 }

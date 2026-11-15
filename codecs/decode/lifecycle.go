@@ -3,7 +3,6 @@ package decode
 import (
 	"fmt"
 
-	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	lifecyclev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/lifecycle/v1"
 	zipperv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/zipper/v1"
@@ -45,6 +44,10 @@ func lifecycleReasonLabel(code lifecyclev1.LifecycleReason) string {
 		return "deposit_source_not_confirmed"
 	case lifecyclev1.LifecycleReason_ZIPPER_COMPLIANCE_TRANSFERRED:
 		return "zipper_compliance_transferred"
+	case lifecyclev1.LifecycleReason_ZIPPER_DEPOSIT_DELIVERED_TO_WALLET:
+		// The one reason a completed flow carries: the deposit ended at the
+		// account's own wallet, not in Funding or Trading. Not a failure.
+		return "zipper_deposit_delivered_to_wallet"
 	default:
 		return fmt.Sprintf("unknown_reason_%d", int32(code))
 	}
@@ -134,7 +137,6 @@ func flowSummary(msg *lifecyclev1.FlowSummaryView) models.LifecycleFlowSummary {
 		IsOpen:              msg.GetIsOpen(),
 		IsTerminal:          msg.GetIsTerminal(),
 		IsDelayed:           msg.GetIsDelayed(),
-		OwnerAccountID:      codecs.FormatUint64ID(msg.GetOwnerAccountId()),
 		SmartAccountAddress: msg.GetSmartAccountAddress(),
 		LifecycleReason:     lifecycleReasonLabel(msg.GetLifecycleReason()),
 		ZipperReason:        zipperReasonFromProto(msg.GetZipperReason()),
@@ -175,6 +177,35 @@ func FlowFromGetResponse(msg *lifecyclev1.GetFlowResponse) (models.LifecycleFlow
 	return flowSummary(msg.GetFlow().GetSummary()), nil
 }
 
+// AccountFlowsListFromProto decodes one page of the caller's own flows. A flow
+// without its ID returns a *errors.ResponseContractError.
+func AccountFlowsListFromProto(msg *lifecyclev1.ListAccountFlowsResponse) (models.LifecycleFlowsList, error) {
+	out := make([]models.LifecycleFlowSummary, 0, len(msg.GetFlows()))
+	for _, f := range msg.GetFlows() {
+		if err := requireStringID("ListAccountFlows", "flow_id", f.GetFlowId()); err != nil {
+			return models.LifecycleFlowsList{}, err
+		}
+		out = append(out, flowSummary(f))
+	}
+	return models.LifecycleFlowsList{Flows: out, NextPageToken: msg.GetNextPageToken()}, nil
+}
+
+// AccountFlowFromGetResponse decodes one of the caller's own flows. A reply
+// without the flow, its summary or its ID returns a
+// *errors.ResponseContractError.
+func AccountFlowFromGetResponse(msg *lifecyclev1.GetAccountFlowResponse) (models.LifecycleFlowSummary, error) {
+	if msg.GetFlow() == nil {
+		return models.LifecycleFlowSummary{}, &sdkerrors.ResponseContractError{Operation: "GetAccountFlow", Msg: "missing flow"}
+	}
+	if msg.GetFlow().GetSummary() == nil {
+		return models.LifecycleFlowSummary{}, &sdkerrors.ResponseContractError{Operation: "GetAccountFlow", Msg: "missing flow summary"}
+	}
+	if err := requireStringID("GetAccountFlow", "flow_id", msg.GetFlow().GetSummary().GetFlowId()); err != nil {
+		return models.LifecycleFlowSummary{}, err
+	}
+	return flowSummary(msg.GetFlow().GetSummary()), nil
+}
+
 func flowTxMatch(msg *lifecyclev1.FlowTxMatchView) models.LifecycleFlowSummary {
 	if msg == nil {
 		return models.LifecycleFlowSummary{}
@@ -185,7 +216,6 @@ func flowTxMatch(msg *lifecyclev1.FlowTxMatchView) models.LifecycleFlowSummary {
 		LatestStep:          flowStepLabel(msg.GetCurrentStep()),
 		IsOpen:              msg.GetIsOpen(),
 		IsTerminal:          msg.GetIsTerminal(),
-		OwnerAccountID:      codecs.FormatUint64ID(msg.GetOwnerAccountId()),
 		SmartAccountAddress: msg.GetSmartAccountAddress(),
 		LifecycleReason:     lifecycleReasonLabel(msg.GetLifecycleReason()),
 		ZipperReason:        zipperReasonFromProto(msg.GetZipperReason()),

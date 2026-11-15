@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"iter"
 	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
@@ -18,14 +19,22 @@ import (
 type LifecycleService struct {
 	transport *transport.Factory
 	realtime  RealtimeClient
+	scoped    ScopedSubAccount
 }
 
-func NewLifecycleService(factory *transport.Factory, realtime RealtimeClient) *LifecycleService {
-	return &LifecycleService{transport: factory, realtime: realtime}
+// NewLifecycleService builds the lifecycle service. defaultSubAccountID is the
+// sub-account ListAccountFlows and GetAccountFlow read when a call selects
+// none, as for the other account reads.
+func NewLifecycleService(factory *transport.Factory, realtime RealtimeClient, defaultSubAccountID *string) *LifecycleService {
+	return &LifecycleService{transport: factory, realtime: realtime, scoped: ScopedSubAccount{DefaultSubAccountID: defaultSubAccountID}}
 }
 
 func (s *LifecycleService) client() chainlifecyclev1connect.LifecycleReadServiceClient {
 	return chainlifecyclev1connect.NewLifecycleReadServiceClient(s.transport.HTTP, s.transport.Config.APIURL, s.transport.ConnectOptions(false)...)
+}
+
+func (s *LifecycleService) signedClient() chainlifecyclev1connect.LifecycleReadServiceClient {
+	return chainlifecyclev1connect.NewLifecycleReadServiceClient(s.transport.HTTP, s.transport.Config.APIURL, s.transport.ConnectOptions(true)...)
 }
 
 // ListFlowsParams selects a page of lifecycle flows for ListFlowsWith.
@@ -38,9 +47,10 @@ type ListFlowsParams struct {
 	PageToken *string
 	// Scope is "all", "open_only" or "terminal_only"; nil lists all.
 	Scope *string
-	// OwnerAccountID or SmartAccountAddress selects one account. Without
-	// either, the list covers every account the caller may inspect.
-	OwnerAccountID      *string
+	// SmartAccountAddress selects one account by its Polyester Chain smart
+	// account address, its public identity. Without it, the list covers every
+	// account. To list the caller's own flows, including those no chain
+	// transaction started, use ListAccountFlows.
 	SmartAccountAddress *string
 	// Participation narrows a list that selects an account: "owner" for the
 	// flows it owns, "recipient" for the transfers other accounts sent to it.
@@ -50,16 +60,17 @@ type ListFlowsParams struct {
 	Reversed bool
 }
 
-// ListFlows lists lifecycle flows, newest first unless reversed. A list that
-// selects an account includes the transfers it received as well as the flows
-// it owns; each row's Participation says which. Use ListFlowsWith to narrow it
-// to one side.
-func (s *LifecycleService) ListFlows(ctx context.Context, limit int, pageToken *string, scope *string, ownerAccountID *string, smartAccountAddress *string, reversed bool) (models.LifecycleFlowsList, error) {
+// ListFlows lists lifecycle flows a chain transaction started, newest first
+// unless reversed. It is public: a flow settled without a chain transaction,
+// such as a transfer between Trading accounts, is not listed. A list that
+// selects a smart account includes the transfers it received as well as the
+// flows it owns; each row's Participation says which. Use ListFlowsWith to
+// narrow it to one side, and ListAccountFlows for the caller's own flows.
+func (s *LifecycleService) ListFlows(ctx context.Context, limit int, pageToken *string, scope *string, smartAccountAddress *string, reversed bool) (models.LifecycleFlowsList, error) {
 	return s.ListFlowsWith(ctx, ListFlowsParams{
 		Limit:               limit,
 		PageToken:           pageToken,
 		Scope:               scope,
-		OwnerAccountID:      ownerAccountID,
 		SmartAccountAddress: smartAccountAddress,
 		Reversed:            reversed,
 	})
@@ -67,49 +78,147 @@ func (s *LifecycleService) ListFlows(ctx context.Context, limit int, pageToken *
 
 // ListFlowsWith lists lifecycle flows selected by params.
 func (s *LifecycleService) ListFlowsWith(ctx context.Context, params ListFlowsParams) (models.LifecycleFlowsList, error) {
-	limit, pageToken, scope, ownerAccountID, smartAccountAddress := params.Limit, params.PageToken, params.Scope, params.OwnerAccountID, params.SmartAccountAddress
-	parsedLimit, err := PaginationLimitOrDefault(limit, 50, "limit")
+	parsedLimit, err := PaginationLimitOrDefault(params.Limit, 50, "limit")
 	if err != nil {
 		return models.LifecycleFlowsList{}, err
 	}
 	req := &lifecyclev1.ListFlowsRequest{Limit: parsedLimit}
-	if params.Participation != nil {
-		participation, err := flowParticipationFromLabel(*params.Participation)
-		if err != nil {
-			return models.LifecycleFlowsList{}, err
-		}
-		req.Participation = participation
+	if req.Participation, err = flowParticipationParam(params.Participation); err != nil {
+		return models.LifecycleFlowsList{}, err
 	}
-	if params.Reversed {
-		req.Sort = lifecyclev1.Sort_SORT_OLDEST
-	} else {
-		req.Sort = lifecyclev1.Sort_SORT_NEWEST
+	req.Sort = flowSort(params.Reversed)
+	if params.PageToken != nil {
+		req.PageToken = *params.PageToken
 	}
-	if pageToken != nil {
-		req.PageToken = *pageToken
+	if req.Scope, err = flowListScope(params.Scope); err != nil {
+		return models.LifecycleFlowsList{}, err
 	}
-	if scope != nil {
-		name := strings.ToUpper(*scope)
-		if !strings.HasPrefix(name, "LIST_") {
-			name = "LIST_" + name
-		}
-		if v, ok := lifecyclev1.ListScope_value[name]; ok {
-			req.Scope = lifecyclev1.ListScope(v)
-		} else {
-			return models.LifecycleFlowsList{}, &errors.ValidationError{Msg: "scope must be one of 'all', 'open_only', or 'terminal_only'"}
-		}
-	}
-	if ownerAccountID != nil {
-		id, err := codecs.ParseAccountID(*ownerAccountID, "owner_account_id")
-		if err != nil {
-			return models.LifecycleFlowsList{}, err
-		}
-		req.AccountSelector = &lifecyclev1.ListFlowsRequest_OwnerAccountId{OwnerAccountId: id}
-	}
-	if smartAccountAddress != nil {
-		req.AccountSelector = &lifecyclev1.ListFlowsRequest_SmartAccountAddress{SmartAccountAddress: *smartAccountAddress}
+	if params.SmartAccountAddress != nil {
+		req.AccountSelector = &lifecyclev1.ListFlowsRequest_SmartAccountAddress{SmartAccountAddress: *params.SmartAccountAddress}
 	}
 	return UnaryPublicDecoded(ctx, s.transport, s.client().ListFlows, req, decode.FlowsListFromProto)
+}
+
+// ListAccountFlowsParams selects a page of the caller's own flows for
+// ListAccountFlows.
+type ListAccountFlowsParams struct {
+	// Account and SubAccountID select the account as for Transfers.List: pass
+	// one or neither. With neither, the client's DefaultSubAccountID is used,
+	// and without one the account the credentials authenticate (a
+	// sub-account-scoped key's own sub-account).
+	Account      AccountScope
+	SubAccountID *string
+	// Limit is the page size; 0 uses 50. At most
+	// codecs.ListAccountFlowsLimitMax.
+	Limit int
+	// PageToken continues from a previous page's NextPageToken. A token is
+	// bound to the account and the request it was returned for: send it with
+	// the same account, participation, scope and order; only Limit may change.
+	PageToken *string
+	// Scope is "all", "open_only" or "terminal_only"; nil lists all.
+	Scope *string
+	// Participation is "owner" for the flows the account owns, "recipient"
+	// for the transfers other accounts sent to it; nil or "" returns both.
+	Participation *string
+	// Reversed lists oldest first.
+	Reversed bool
+}
+
+// ListAccountFlows lists the selected account's own lifecycle flows, newest
+// first unless reversed: the flows it owns and the transfers it receives,
+// including those no chain transaction started, such as a transfer between
+// Trading accounts or a Trading withdrawal not yet sent to a chain. Each row's
+// Participation says whether the account owns or receives it. The call is
+// signed; an API key needs READ_FUNDING_FLOWS on its policy.
+func (s *LifecycleService) ListAccountFlows(ctx context.Context, params ListAccountFlowsParams) (models.LifecycleFlowsList, error) {
+	req, err := s.accountFlowsRequest(params)
+	if err != nil {
+		return models.LifecycleFlowsList{}, err
+	}
+	return UnaryAuthDecoded(ctx, s.transport, s.signedClient().ListAccountFlows, req, decode.AccountFlowsListFromProto)
+}
+
+// AccountFlows iterates the selected account's own flows from
+// params.PageToken (or the first page), following each page's NextPageToken
+// with the same request. It stops at the first error.
+func (s *LifecycleService) AccountFlows(ctx context.Context, params ListAccountFlowsParams) iter.Seq2[models.LifecycleFlowSummary, error] {
+	start := ""
+	if params.PageToken != nil {
+		start = *params.PageToken
+	}
+	return paginate(start, func(token string) ([]models.LifecycleFlowSummary, string, error) {
+		page := params
+		page.PageToken = &token
+		list, err := s.ListAccountFlows(ctx, page)
+		return list.Flows, list.NextPageToken, err
+	})
+}
+
+func (s *LifecycleService) accountFlowsRequest(params ListAccountFlowsParams) (*lifecyclev1.ListAccountFlowsRequest, error) {
+	parsedLimit, err := PaginationLimitOrDefault(params.Limit, 50, "limit")
+	if err != nil {
+		return nil, err
+	}
+	if parsedLimit > codecs.ListAccountFlowsLimitMax {
+		return nil, &errors.ValidationError{Msg: fmt.Sprintf("limit %d exceeds %d", parsedLimit, codecs.ListAccountFlowsLimitMax)}
+	}
+	req := &lifecyclev1.ListAccountFlowsRequest{Limit: parsedLimit, Sort: flowSort(params.Reversed)}
+	if req.Participation, err = flowParticipationParam(params.Participation); err != nil {
+		return nil, err
+	}
+	if req.Scope, err = flowListScope(params.Scope); err != nil {
+		return nil, err
+	}
+	if params.PageToken != nil {
+		req.PageToken = *params.PageToken
+	}
+	if err := s.scoped.ApplyOptionalSubaccountIDPtr(&req.SubaccountId, params.Account, params.SubAccountID); err != nil {
+		return nil, err
+	}
+	return req, nil
+}
+
+// GetAccountFlow reads one flow the selected account owns or receives,
+// including one no chain transaction started; any other flow is not found.
+// Account and subAccountID select the account as for ListAccountFlows. The
+// call is signed; an API key needs READ_FUNDING_FLOWS on its policy.
+func (s *LifecycleService) GetAccountFlow(ctx context.Context, flowID string, account AccountScope, subAccountID *string) (models.LifecycleFlowSummary, error) {
+	if flowID == "" {
+		return models.LifecycleFlowSummary{}, &errors.ValidationError{Msg: "flow_id is required"}
+	}
+	req := &lifecyclev1.GetAccountFlowRequest{FlowId: flowID}
+	if err := s.scoped.ApplyOptionalSubaccountIDPtr(&req.SubaccountId, account, subAccountID); err != nil {
+		return models.LifecycleFlowSummary{}, err
+	}
+	return UnaryAuthDecoded(ctx, s.transport, s.signedClient().GetAccountFlow, req, decode.AccountFlowFromGetResponse)
+}
+
+func flowSort(reversed bool) lifecyclev1.Sort {
+	if reversed {
+		return lifecyclev1.Sort_SORT_OLDEST
+	}
+	return lifecyclev1.Sort_SORT_NEWEST
+}
+
+func flowListScope(scope *string) (lifecyclev1.ListScope, error) {
+	if scope == nil {
+		return lifecyclev1.ListScope_LIST_UNSPECIFIED, nil
+	}
+	name := strings.ToUpper(*scope)
+	if !strings.HasPrefix(name, "LIST_") {
+		name = "LIST_" + name
+	}
+	if v, ok := lifecyclev1.ListScope_value[name]; ok {
+		return lifecyclev1.ListScope(v), nil
+	}
+	return 0, &errors.ValidationError{Msg: "scope must be one of 'all', 'open_only', or 'terminal_only'"}
+}
+
+func flowParticipationParam(label *string) (lifecyclev1.FlowParticipation, error) {
+	if label == nil {
+		return lifecyclev1.FlowParticipation_PARTICIPATION_UNSPECIFIED, nil
+	}
+	return flowParticipationFromLabel(*label)
 }
 
 // flowParticipationFromLabel reads "owner" or "recipient", in any case and

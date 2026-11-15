@@ -1,12 +1,15 @@
 package decode_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	ledgerrdv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
 	ledgerv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/v1"
+	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 )
 
 func TestAssetBalanceFromProtoPreservesComponentRevisions(t *testing.T) {
@@ -23,30 +26,74 @@ func TestAssetBalanceFromProtoPreservesComponentRevisions(t *testing.T) {
 }
 
 func TestBalanceHistoryFromProto(t *testing.T) {
+	// 1,844,674,407,370.955161549999999999: above the old 7-decimal uint64
+	// ceiling, with all 18 decimals, so only an exact U128 decode keeps it.
+	big := &typev1.U128{Hi: 99999999999, Lo: 0xfffffff45bc48bff}
 	msg := &ledgerrdv1.GetBalanceHistoryResponse{
 		Range:      ledgerrdv1.BalanceRange_DAY_7,
 		Bucket:     "1h",
 		StartTsSec: 100,
 		EndTsSec:   200,
-		Points:     2,
+		Points:     3,
 		Series: []*ledgerrdv1.BalanceSeries{{
 			AssetId:     1,
 			AccountCode: ledgerv1.AccountCode(-7),
-			BalanceQ:    []uint64{1<<63 + 1, ^uint64(0)},
+			Balance:     []*typev1.U128{big, {Lo: 1}, {}},
 		}},
 	}
-	result := decode.BalanceHistoryFromProto(msg)
-	if result.Range != "7d" || result.Bucket != "1h" {
-		t.Fatalf("range/bucket=%q/%q", result.Range, result.Bucket)
+	result, err := decode.BalanceHistoryFromProto(msg)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if len(result.Series) != 1 || len(result.Series[0].BalanceQ) != 2 {
+	if result.Range != "7d" || result.Bucket != "1h" || result.Points != 3 {
+		t.Fatalf("range/bucket/points=%q/%q/%d", result.Range, result.Bucket, result.Points)
+	}
+	if len(result.Series) != 1 || len(result.Series[0].Balance) != 3 {
 		t.Fatalf("series=%+v", result.Series)
 	}
-	if result.Series[0].BalanceQ[0] != 1<<63+1 || result.Series[0].BalanceQ[1] != ^uint64(0) {
-		t.Fatalf("unsigned balances were not preserved: %+v", result.Series[0].BalanceQ)
+	want := []string{"1844674407370955161549999999999", "1", "0"}
+	wantText := []string{"1844674407370.955161549999999999", "0.000000000000000001", "0"}
+	for i, b := range result.Series[0].Balance {
+		if b.Scaled().String() != want[i] {
+			t.Fatalf("balance[%d] scaled=%s, want %s", i, b.Scaled(), want[i])
+		}
+		if scale := b.Scale(); scale == nil || *scale != 18 {
+			t.Fatalf("balance[%d] scale=%v", i, scale)
+		}
+		if id := b.AssetID(); id == nil || *id != 1 {
+			t.Fatalf("balance[%d] asset=%v", i, id)
+		}
+		text, err := b.Format()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if text != wantText[i] {
+			t.Fatalf("balance[%d]=%s, want %s", i, text, wantText[i])
+		}
 	}
 	if result.Series[0].AccountCode != -7 {
 		t.Fatalf("unknown account code was not preserved: %d", result.Series[0].AccountCode)
+	}
+}
+
+// TestBalanceHistoryRefusesMisalignedSeries pins the fail-closed rule: a
+// series must hold one balance per point. A server on the previous contract
+// sends balance_q, which this SDK no longer reads, so its series arrive empty.
+func TestBalanceHistoryRefusesMisalignedSeries(t *testing.T) {
+	for name, balances := range map[string][]*typev1.U128{
+		"previous contract (none)": nil,
+		"short":                    {{Lo: 1}},
+		"long":                     {{Lo: 1}, {Lo: 2}, {Lo: 3}},
+	} {
+		msg := &ledgerrdv1.GetBalanceHistoryResponse{Points: 2, Series: []*ledgerrdv1.BalanceSeries{{AssetId: 4, Balance: balances}}}
+		_, err := decode.BalanceHistoryFromProto(msg)
+		var contractErr *sdkerrors.ResponseContractError
+		if !errors.As(err, &contractErr) {
+			t.Fatalf("%s: err=%v, want ResponseContractError", name, err)
+		}
+	}
+	if _, err := decode.BalanceHistoryFromProto(&ledgerrdv1.GetBalanceHistoryResponse{}); err != nil {
+		t.Fatalf("empty history: %v", err)
 	}
 }
 
