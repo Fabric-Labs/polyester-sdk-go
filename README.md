@@ -1841,7 +1841,8 @@ independently. They are not atomic: a leg can be `refused` (for example
 `insufficient_funds`) after earlier legs were `accepted`. A `pending` leg's
 outcome is not known yet: retry with the same key and the same legs in the same
 order, which answers accepted legs with the same transfers and runs the rest.
-Each leg counts as one internal transfer against the rate limit.
+Each leg counts as one internal transfer against the rate limit. Each leg's
+`Destination` is the destination the server resolved for it.
 
 ## Public market data
 
@@ -2276,7 +2277,10 @@ The caller's own flows, including those no chain transaction started (a
 transfer between Trading accounts, a Trading withdrawal not yet sent to a
 chain), come from the signed `ListAccountFlows`, `AccountFlows` (an iterator)
 and `GetAccountFlow`. They take `Account` or `SubAccountID` like the other
-account reads; an API key needs `READ_FUNDING_FLOWS` on its policy.
+account reads, and filter by `FlowKind`, `FlowState`, `TxRef`,
+`PolyesterChainIDs`, `ZippedAssetIDs` and `UnifiedAssetIDs`, ordered by
+`OrderBy` (`last_activity` or `started_at`); an API key needs
+`READ_FUNDING_FLOWS` on its policy.
 
 ```go
 for flow, err := range client.Lifecycle.AccountFlows(ctx, services.ListAccountFlowsParams{Limit: 100}) {

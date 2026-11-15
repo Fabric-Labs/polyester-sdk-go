@@ -564,3 +564,76 @@ func isValidation(err error) bool {
 	var validation *sdkerrors.ValidationError
 	return stderrors.As(err, &validation)
 }
+
+// A batch leg reads the destination the server resolved for it, all three of
+// its fields, and nil when the reply carries none.
+func TestInternalTransfersCreateBatchReadsEachLegsResolvedDestination(t *testing.T) {
+	api := &contractAPI{batch: func(req *transferv1.BatchCreateInternalTransfersRequest) *transferv1.BatchCreateInternalTransfersResponse {
+		resp := acceptAll(req)
+		resp.Legs[0].Destination = &transferv1.ResolvedDestination{
+			RootAccountPublicId: "AAo8yKqygTg", SubaccountPublicId: "AAo8yKqygTh", SmartAccountAddress: "0x2222222222222222222222222222222222222222",
+		}
+		resp.Legs[1].Destination = nil
+		return resp
+	}}
+	client := newContractClient(t, api, nil)
+	scale := 18
+	dest := "0x2222222222222222222222222222222222222222"
+	leg := models.InternalTransferBatchLeg{AssetID: 1, Quantity: models.AssetAmountFromDecimal("1"), QuantityScale: &scale, DestinationSmartAccountAddress: &dest}
+	result, err := client.InternalTransfers.CreateBatch(context.Background(), []models.InternalTransferBatchLeg{leg, leg}, "k")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := result.Legs[0].Destination
+	if got == nil || got.RootAccountPublicID != "AAo8yKqygTg" || got.SubaccountPublicID != "AAo8yKqygTh" || got.SmartAccountAddress != dest {
+		t.Fatalf("leg 0 destination = %+v", got)
+	}
+	if result.Legs[1].Destination != nil {
+		t.Fatalf("leg 1 destination = %+v, want nil without one", result.Legs[1].Destination)
+	}
+}
+
+// ListAccountFlows sends every filter the contract has, by label, and
+// refuses an ID filter the contract refuses before sending.
+func TestLifecycleListAccountFlowsSendsEveryFilter(t *testing.T) {
+	api := &contractAPI{}
+	client := newContractClient(t, api, nil)
+	kind, state, orderBy, tx := "withdraw", "PENDING_LEDGER", "started_at", "0xabc"
+	_, err := client.Lifecycle.ListAccountFlows(context.Background(), services.ListAccountFlowsParams{
+		FlowKind: &kind, FlowState: &state, OrderBy: &orderBy, TxRef: &tx,
+		PolyesterChainIDs: []uint32{7}, ZippedAssetIDs: []uint32{3, 4}, UnifiedAssetIDs: []uint32{1},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := api.sent(t)[0].(*lifecyclev1.ListAccountFlowsRequest)
+	if req.GetFlowKind() != lifecyclev1.FlowKind_KIND_WITHDRAW || req.GetFlowState() != lifecyclev1.FlowState_STATE_PENDING_LEDGER ||
+		req.GetOrderBy() != lifecyclev1.ListOrderBy_ORDER_BY_STARTED_AT || req.GetTxRef() != tx ||
+		len(req.GetPolyesterChainIds()) != 1 || req.GetPolyesterChainIds()[0] != 7 || len(req.GetZippedAssetIds()) != 2 || req.GetUnifiedAssetIds()[0] != 1 {
+		t.Fatalf("request = %v", req)
+	}
+	tooMany := make([]uint32, codecs.ListAccountFlowsFilterIDsMax+1)
+	for i := range tooMany {
+		tooMany[i] = uint32(i + 1)
+	}
+	bad, unspecified := "sideways", "unspecified"
+	for name, params := range map[string]services.ListAccountFlowsParams{
+		"unknown kind":       {FlowKind: &bad},
+		"unknown state":      {FlowState: &bad},
+		"unknown order":      {OrderBy: &bad},
+		"unspecified kind":   {FlowKind: &unspecified},
+		"zero chain ID":      {PolyesterChainIDs: []uint32{0}},
+		"repeated asset ID":  {ZippedAssetIDs: []uint32{3, 3}},
+		"101 unified assets": {UnifiedAssetIDs: tooMany},
+	} {
+		if _, err := client.Lifecycle.ListAccountFlows(context.Background(), params); !isValidation(err) {
+			t.Fatalf("%s: err = %T %v", name, err, err)
+		}
+	}
+	if n := len(api.sent(t)); n != 1 {
+		t.Fatalf("refused filters were sent: %d requests", n)
+	}
+	if codecs.ListAccountFlowsFilterIDsMax != 100 {
+		t.Fatalf("contract ID filter maximum = %d", codecs.ListAccountFlowsFilterIDsMax)
+	}
+}

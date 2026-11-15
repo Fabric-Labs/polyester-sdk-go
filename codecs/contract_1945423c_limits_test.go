@@ -5,7 +5,9 @@ import (
 	"testing"
 	"time"
 
+	chainlifecyclev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/lifecycle/v1"
 	ledgerrdv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 // The page, batch and period limits are the published contract's: its
@@ -17,6 +19,11 @@ func TestContract1945423cLimitsAreTheContracts(t *testing.T) {
 	}
 	if ListAccountFlowsLimitMax != 500 || ListDustConversionsLimitMax != 100 || ListStatementExportsLimitMax != 100 {
 		t.Fatalf("page maximums = %d, %d, %d; want 500, 100, 100", ListAccountFlowsLimitMax, ListDustConversionsLimitMax, ListStatementExportsLimitMax)
+	}
+	for _, field := range []protoreflect.Name{"polyester_chain_ids", "zipped_asset_ids", "unified_asset_ids"} {
+		if _, high := contractRepeatedItems(&chainlifecyclev1.ListAccountFlowsRequest{}, field); high != ListAccountFlowsFilterIDsMax || high != 100 {
+			t.Fatalf("%s holds at most %d IDs; want the shared 100", field, high)
+		}
 	}
 	want := fmt.Sprintf("this.end_time > this.start_time && this.end_time - this.start_time <= duration('%dh')", int(StatementExportMaxPeriod/time.Hour))
 	period := messageCEL(&ledgerrdv1.CreateStatementExportRequest{})

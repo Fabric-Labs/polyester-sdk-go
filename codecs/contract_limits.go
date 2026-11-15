@@ -40,6 +40,9 @@ var (
 	BatchInternalTransferLegsMin, BatchInternalTransferLegsMax = contractRepeatedItems(&transferv1.BatchCreateInternalTransfersRequest{}, "legs")
 	// ListAccountFlowsLimitMax is the largest ListAccountFlows page.
 	ListAccountFlowsLimitMax = contractUint32Max(&chainlifecyclev1.ListAccountFlowsRequest{}, "limit")
+	// ListAccountFlowsFilterIDsMax is the most IDs one ListAccountFlows ID
+	// filter (Polyester Chain, zipped asset or unified asset IDs) takes.
+	_, ListAccountFlowsFilterIDsMax = contractRepeatedItems(&chainlifecyclev1.ListAccountFlowsRequest{}, "unified_asset_ids")
 	// ListDustConversionsLimitMax is the largest ListDustConversions page.
 	ListDustConversionsLimitMax = contractUint32Max(&transferv1.ListDustConversionsRequest{}, "limit")
 	// ListStatementExportsLimitMax is the largest ListStatementExports page.

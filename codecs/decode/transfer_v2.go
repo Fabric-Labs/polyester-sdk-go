@@ -113,11 +113,25 @@ func InternalTransferBatchFromProto(msg *transferv1.BatchCreateInternalTransfers
 			AssetID:      assetID,
 			AssetCode:    leg.GetAssetCode(),
 			Quantity:     ledgerAmount(leg.GetAmountE18(), &assetID),
+			Destination:  resolvedDestination(leg.GetDestination()),
 			ErrorCode:    transferErrorCodeLabel(leg.GetErrorCode()),
 			ErrorMessage: leg.GetErrorMessage(),
 		})
 	}
 	return out, nil
+}
+
+// resolvedDestination decodes a transfer's resolved destination; nil when
+// the reply carries none.
+func resolvedDestination(msg *transferv1.ResolvedDestination) *models.ResolvedDestination {
+	if msg == nil {
+		return nil
+	}
+	return &models.ResolvedDestination{
+		RootAccountPublicID: msg.GetRootAccountPublicId(),
+		SubaccountPublicID:  msg.GetSubaccountPublicId(),
+		SmartAccountAddress: msg.GetSmartAccountAddress(),
+	}
 }
 
 func dustBalances(in []*transferv1.DustBalance) []models.DustBalance {

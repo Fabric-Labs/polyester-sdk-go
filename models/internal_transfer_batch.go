@@ -69,10 +69,23 @@ type InternalTransferBatchLegResult struct {
 	AssetCode string `json:"asset_code,omitempty"`
 	// Quantity echoes the leg's amount at the 18-decimal ledger scale.
 	Quantity AssetAmountScaled `json:"quantity"`
+	// Destination is the destination the server resolved for the leg, set
+	// once the leg is submitted; nil when the reply carries none.
+	Destination *ResolvedDestination `json:"destination,omitempty"`
 	// ErrorCode is why the leg was refused, or why its outcome is not known
 	// yet, as a lowercase label without the ERROR_CODE_ prefix, such as
 	// "insufficient_funds"; empty for an accepted or not-submitted leg, and
 	// UNKNOWN_ERROR_CODE(n) for a code newer than this SDK.
 	ErrorCode    string `json:"error_code,omitempty"`
 	ErrorMessage string `json:"error_message,omitempty"`
+}
+
+// ResolvedDestination is the destination the server resolved for a transfer:
+// the destination's root account, its sub-account when the transfer targets
+// one, and its smart account address. Each is empty when the server does not
+// name it.
+type ResolvedDestination struct {
+	RootAccountPublicID string `json:"root_account_public_id,omitempty"`
+	SubaccountPublicID  string `json:"subaccount_public_id,omitempty"`
+	SmartAccountAddress string `json:"smart_account_address,omitempty"`
 }

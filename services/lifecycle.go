@@ -120,6 +120,27 @@ type ListAccountFlowsParams struct {
 	// Participation is "owner" for the flows the account owns, "recipient"
 	// for the transfers other accounts sent to it; nil or "" returns both.
 	Participation *string
+	// FlowKind keeps one kind: "deposit", "withdraw" or "transfer"; nil or ""
+	// keeps every kind.
+	FlowKind *string
+	// FlowState keeps one state: "pending_source",
+	// "pending_polyester_chain", "pending_ledger", "completed", "failed" or
+	// "dropped"; nil or "" keeps every state the scope allows.
+	FlowState *string
+	// TxRef keeps the flows whose source or latest activity transaction is
+	// this transaction identifier, on any supported chain; nil or "" keeps
+	// every flow.
+	TxRef *string
+	// PolyesterChainIDs, ZippedAssetIDs and UnifiedAssetIDs keep the flows of
+	// these Polyester Chain IDs, chain asset mapping IDs and unified asset IDs:
+	// each at most codecs.ListAccountFlowsFilterIDsMax unique positive IDs;
+	// empty keeps every one.
+	PolyesterChainIDs []uint32
+	ZippedAssetIDs    []uint32
+	UnifiedAssetIDs   []uint32
+	// OrderBy is the timestamp that orders and pages the list:
+	// "last_activity" (the default) or "started_at".
+	OrderBy *string
 	// Reversed lists oldest first.
 	Reversed bool
 }
@@ -172,10 +193,69 @@ func (s *LifecycleService) accountFlowsRequest(params ListAccountFlowsParams) (*
 	if params.PageToken != nil {
 		req.PageToken = *params.PageToken
 	}
+	if req.FlowKind, err = enumParam[lifecyclev1.FlowKind](params.FlowKind, "KIND_", lifecyclev1.FlowKind_value, "flow_kind", "'deposit', 'withdraw' or 'transfer'"); err != nil {
+		return nil, err
+	}
+	if req.FlowState, err = enumParam[lifecyclev1.FlowState](params.FlowState, "STATE_", lifecyclev1.FlowState_value, "flow_state",
+		"'pending_source', 'pending_polyester_chain', 'pending_ledger', 'completed', 'failed' or 'dropped'"); err != nil {
+		return nil, err
+	}
+	if req.OrderBy, err = enumParam[lifecyclev1.ListOrderBy](params.OrderBy, "ORDER_BY_", lifecyclev1.ListOrderBy_value, "order_by", "'last_activity' or 'started_at'"); err != nil {
+		return nil, err
+	}
+	if params.TxRef != nil {
+		req.TxRef = *params.TxRef
+	}
+	for _, ids := range []struct {
+		name string
+		in   []uint32
+		out  *[]uint32
+	}{
+		{"polyester_chain_ids", params.PolyesterChainIDs, &req.PolyesterChainIds},
+		{"zipped_asset_ids", params.ZippedAssetIDs, &req.ZippedAssetIds},
+		{"unified_asset_ids", params.UnifiedAssetIDs, &req.UnifiedAssetIds},
+	} {
+		if err := checkFilterIDs(ids.name, ids.in); err != nil {
+			return nil, err
+		}
+		*ids.out = append([]uint32(nil), ids.in...)
+	}
 	if err := s.scoped.ApplyOptionalSubaccountIDPtr(&req.SubaccountId, params.Account, params.SubAccountID); err != nil {
 		return nil, err
 	}
 	return req, nil
+}
+
+// enumParam reads a lowercase label such as "deposit", in any case and with
+// or without its prefix; nil or "" is the zero value.
+func enumParam[E ~int32](label *string, prefix string, values map[string]int32, field, allowed string) (E, error) {
+	if label == nil || strings.TrimSpace(*label) == "" {
+		return 0, nil
+	}
+	name := strings.TrimPrefix(strings.ToUpper(strings.TrimSpace(*label)), prefix)
+	if v, ok := values[prefix+name]; ok && v != 0 {
+		return E(v), nil
+	}
+	return 0, &errors.ValidationError{Msg: field + " must be one of " + allowed}
+}
+
+// checkFilterIDs refuses an ID filter the contract refuses: more than
+// codecs.ListAccountFlowsFilterIDsMax IDs, a zero ID or a repeated one.
+func checkFilterIDs(name string, ids []uint32) error {
+	if len(ids) > codecs.ListAccountFlowsFilterIDsMax {
+		return &errors.ValidationError{Msg: fmt.Sprintf("%s holds at most %d IDs, not %d", name, codecs.ListAccountFlowsFilterIDsMax, len(ids))}
+	}
+	seen := make(map[uint32]struct{}, len(ids))
+	for _, id := range ids {
+		if id == 0 {
+			return &errors.ValidationError{Msg: name + " IDs must be positive"}
+		}
+		if _, dup := seen[id]; dup {
+			return &errors.ValidationError{Msg: fmt.Sprintf("%s repeats %d", name, id)}
+		}
+		seen[id] = struct{}{}
+	}
+	return nil
 }
 
 // GetAccountFlow reads one flow the selected account owns or receives,
