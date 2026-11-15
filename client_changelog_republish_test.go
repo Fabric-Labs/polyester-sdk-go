@@ -61,7 +61,7 @@ func newRepublishingChangelogClient(t *testing.T) (*Client, *republishingChangel
 	mux.Handle(path, handler)
 	srv := hardening.NewTestServer(mux)
 	t.Cleanup(srv.Close)
-	client, err := New(Config{APIURL: srv.URL})
+	client, err := New(Config{APIURL: srv.URL, SkipCatalogHydration: true})
 	if err != nil {
 		t.Fatal(err)
 	}

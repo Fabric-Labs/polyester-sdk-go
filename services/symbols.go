@@ -31,7 +31,7 @@ func ResolveSymbolID(catalogs *catalogs.Manager, symbol *string, symbolID *uint3
 	if symbol == nil {
 		return 0, &errors.ValidationError{Msg: label + " requires symbol or symbol_id"}
 	}
-	return 0, &errors.ValidationError{Msg: "Unknown symbol '" + *symbol + "'; set Config.HydrateCatalogs: true and call Client.WaitForCatalogs(ctx), or pass a symbol_id where the call takes one"}
+	return 0, &errors.ValidationError{Msg: "Unknown symbol '" + *symbol + "'; leave Config.SkipCatalogHydration unset and call Client.WaitForCatalogs(ctx), or pass a symbol_id where the call takes one"}
 }
 
 // ResolveOptionalSymbolID resolves an optional symbol filter.

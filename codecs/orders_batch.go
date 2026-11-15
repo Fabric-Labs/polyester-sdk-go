@@ -172,8 +172,8 @@ func BatchReplaceItemToProto(item models.BatchReplaceItem, quantityScale int, de
 	if !item.Key.IsSet() {
 		return nil, &errors.ValidationError{Msg: "each batch item requires an OrderKey (OrderKeyByID or OrderKeyByClientID)"}
 	}
-	if (item.NewPrice == nil || !item.NewPrice.IsSet()) && (item.NewQty == nil || !item.NewQty.IsSet()) && item.NewAttachedRisk == nil {
-		return nil, &errors.ValidationError{Msg: "each batch item requires new_price, new_qty, and/or new_attached_risk"}
+	if (item.NewPrice == nil || !item.NewPrice.IsSet()) && (item.NewQty == nil || !item.NewQty.IsSet()) && item.NewAttachedRisk == nil && !item.ClearAttachedRisk {
+		return nil, &errors.ValidationError{Msg: "each batch item requires new_price, new_qty, new_attached_risk, and/or clear_attached_risk"}
 	}
 	proto := &orderv1.BatchReplaceOrderItem{}
 	if orderID, ok := item.Key.OrderID(); ok {
@@ -204,7 +204,7 @@ func BatchReplaceItemToProto(item models.BatchReplaceItem, quantityScale int, de
 		}
 		proto.NewQtyScaled = &qty
 	}
-	risk, err := RiskPolicyToProto(item.NewAttachedRisk, "new_attached_risk", identity.Symbol)
+	risk, err := ReplacementRiskPolicyToProto(item.NewAttachedRisk, item.ClearAttachedRisk, identity.Symbol)
 	if err != nil {
 		return nil, err
 	}

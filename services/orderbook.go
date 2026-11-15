@@ -67,7 +67,7 @@ func (s *OrderbookService) Get(ctx context.Context, symbol string, depth int) (m
 	req := &orderbookv1.GetOrderBookRequest{SymbolId: symbolID, Depth: orderbookv1.Depth(v)}
 	scale, ok := s.catalogs.BaseQuantityScaleForSymbol(symbol)
 	if !ok {
-		return models.OrderbookData{}, &errors.ValidationError{Msg: fmt.Sprintf("orderbook decoding requires a hydrated catalog quantity scale for %q; set Config.HydrateCatalogs: true and call Client.WaitForCatalogs(ctx), or hydrate the spot catalog with Client.Catalogs.HydrateSpotConfig", symbol)}
+		return models.OrderbookData{}, &errors.ValidationError{Msg: fmt.Sprintf("orderbook decoding requires a hydrated catalog quantity scale for %q; leave Config.SkipCatalogHydration unset and call Client.WaitForCatalogs(ctx), or hydrate the spot catalog with Client.Catalogs.HydrateSpotConfig", symbol)}
 	}
 	return UnaryPublicDecoded(ctx, s.transport, s.client().GetOrderBook, req, func(msg *orderbookv1.GetOrderBookResponse) (models.OrderbookData, error) {
 		return decode.OrderbookFromProto(msg, symbol, depth, scale)
@@ -131,7 +131,7 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 	}
 	if resolvedSymbolID == nil || *resolvedSymbolID == 0 {
 		return nil, &errors.ValidationError{Msg: fmt.Sprintf(
-			"orderbook subscription for %q needs the spot catalog for its symbol_id and quantity scale: set Config.HydrateCatalogs: true and call Client.WaitForCatalogs(ctx) first; a SymbolID does not replace the catalog",
+			"orderbook subscription for %q needs the spot catalog for its symbol_id and quantity scale: leave Config.SkipCatalogHydration unset and call Client.WaitForCatalogs(ctx) first; a SymbolID does not replace the catalog",
 			symbol,
 		)}
 	}
@@ -145,7 +145,7 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 
 	quantityScale, ok := s.catalogs.BaseQuantityScaleForSymbol(symbol)
 	if !ok {
-		return nil, &errors.ValidationError{Msg: fmt.Sprintf("orderbook decoding requires a hydrated catalog quantity scale for %q; set Config.HydrateCatalogs: true and call Client.WaitForCatalogs(ctx), or hydrate the spot catalog with Client.Catalogs.HydrateSpotConfig", symbol)}
+		return nil, &errors.ValidationError{Msg: fmt.Sprintf("orderbook decoding requires a hydrated catalog quantity scale for %q; leave Config.SkipCatalogHydration unset and call Client.WaitForCatalogs(ctx), or hydrate the spot catalog with Client.Catalogs.HydrateSpotConfig", symbol)}
 	}
 	var (
 		mu             sync.Mutex

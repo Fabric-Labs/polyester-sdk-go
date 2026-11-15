@@ -59,10 +59,10 @@ func TestL2BatchCancelRejectsInconsistentCountsThroughPublicService(t *testing.T
 
 	kp := auth.GenerateEd25519Keypair()
 	client, err := polyester.New(polyester.Config{
-		APIURL:          srv.URL,
-		APIKeyID:        "ak_test",
-		APIPrivateKey:   kp.SecretKeyHex,
-		HydrateCatalogs: false,
+		APIURL:               srv.URL,
+		APIKeyID:             "ak_test",
+		APIPrivateKey:        kp.SecretKeyHex,
+		SkipCatalogHydration: true,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -140,8 +140,7 @@ func TestL2ColumnarCandlesRejectMisalignedColumnsThroughPublicService(t *testing
 	t.Cleanup(srv.Close)
 
 	client, err := polyester.New(polyester.Config{
-		APIURL:          srv.URL,
-		HydrateCatalogs: true,
+		APIURL: srv.URL,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -174,10 +173,9 @@ func TestL2BatchReplaceRejectsInconsistentCountsThroughPublicService(t *testing.
 
 	kp := auth.GenerateEd25519Keypair()
 	client, err := polyester.New(polyester.Config{
-		APIURL:          srv.URL,
-		APIKeyID:        "ak_test",
-		APIPrivateKey:   kp.SecretKeyHex,
-		HydrateCatalogs: true,
+		APIURL:        srv.URL,
+		APIKeyID:      "ak_test",
+		APIPrivateKey: kp.SecretKeyHex,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -220,10 +218,10 @@ func TestL2CreateDepositAddressRejectsMissingEntityThroughPublicService(t *testi
 
 	kp := auth.GenerateEd25519Keypair()
 	client, err := polyester.New(polyester.Config{
-		APIURL:          srv.URL,
-		APIKeyID:        "ak_test",
-		APIPrivateKey:   kp.SecretKeyHex,
-		HydrateCatalogs: false,
+		APIURL:               srv.URL,
+		APIKeyID:             "ak_test",
+		APIPrivateKey:        kp.SecretKeyHex,
+		SkipCatalogHydration: true,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -261,8 +259,8 @@ func TestL2GetFlowByTxReturnsAllMatchesThroughPublicService(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	client, err := polyester.New(polyester.Config{
-		APIURL:          srv.URL,
-		HydrateCatalogs: false,
+		APIURL:               srv.URL,
+		SkipCatalogHydration: true,
 	})
 	if err != nil {
 		t.Fatal(err)

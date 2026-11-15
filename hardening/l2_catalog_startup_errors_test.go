@@ -150,7 +150,7 @@ func TestL2UnavailableFundingReadStopsAfterThreeAttemptsWithItsReference(t *test
 	})
 	t.Cleanup(srv.Close)
 	client, err := polyester.New(polyester.Config{
-		APIURL: srv.BaseURL(), WSURL: "ws://127.0.0.1:1/unused", HydrateCatalogs: true, Timeout: 2 * time.Second,
+		APIURL: srv.BaseURL(), WSURL: "ws://127.0.0.1:1/unused", Timeout: 2 * time.Second,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -182,7 +182,7 @@ func TestL2InvalidSpotConfigIsNotRetriedAndFailsClosed(t *testing.T) {
 	})
 	t.Cleanup(srv.Close)
 	client, err := polyester.New(polyester.Config{
-		APIURL: srv.BaseURL(), WSURL: "ws://127.0.0.1:1/unused", HydrateCatalogs: true, Timeout: 2 * time.Second,
+		APIURL: srv.BaseURL(), WSURL: "ws://127.0.0.1:1/unused", Timeout: 2 * time.Second,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -199,7 +199,7 @@ func TestL2InvalidSpotConfigIsNotRetriedAndFailsClosed(t *testing.T) {
 }
 
 func TestCatalogTimeoutMustNotBeNegative(t *testing.T) {
-	_, err := polyester.New(polyester.Config{CatalogTimeout: -time.Second})
+	_, err := polyester.New(polyester.Config{CatalogTimeout: -time.Second, SkipCatalogHydration: true})
 	var validation *sdkerrors.ValidationError
 	if !errors.As(err, &validation) || !strings.Contains(err.Error(), "CatalogTimeout") {
 		t.Fatalf("New = %v", err)

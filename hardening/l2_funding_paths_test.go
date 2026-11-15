@@ -89,7 +89,6 @@ func newFundingHarness(t *testing.T, state fundingState) *fundingHarness {
 		APIKeyID:         "ak_test",
 		APIPrivateKey:    kp.SecretKeyHex,
 		DefaultAccountID: &accountID,
-		HydrateCatalogs:  true,
 		Timeout:          30 * time.Second,
 	})
 	if err != nil {

@@ -18,7 +18,6 @@ func LiveClientFromEnv() (*polyester.Client, bool, error) {
 		return nil, false, nil
 	}
 	client, err := polyester.FromEnv(func(c *polyester.Config) {
-		c.HydrateCatalogs = true
 		if apiURL := strings.TrimSpace(os.Getenv("POLYESTER_API_URL")); apiURL != "" {
 			c.APIURL = apiURL
 		}

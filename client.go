@@ -53,8 +53,16 @@ type Config struct {
 	DefaultAccountID    *string
 	Timeout             time.Duration
 	WireFormat          string
-	HydrateCatalogs     bool
-	HTTPClient          *http.Client
+	// SkipCatalogHydration leaves the spot and funding catalogs unloaded. By
+	// default New begins loading both in the background, as the Python and
+	// Rust SDKs do, and every call that names a market by symbol, needs a
+	// pair's scales or labels its results with symbols waits for the load.
+	// Skipped, nothing is read at New: calls that name a market by symbol or
+	// need its scales return an *errors.ValidationError, and market reads such
+	// as MarketOverview.List return rows with an empty Symbol and no
+	// quantity scale.
+	SkipCatalogHydration bool
+	HTTPClient           *http.Client
 	// RecvWindow is the receive window of every signed API request: the
 	// server processes a request only until its signing timestamp plus
 	// RecvWindow, and refuses it after that as a retryable
@@ -64,7 +72,7 @@ type Config struct {
 	// 60s; New refuses any other value. Zero sends no header, and the server
 	// applies 5 seconds. Realtime token requests always use the default.
 	RecvWindow time.Duration
-	// CatalogTimeout bounds the catalog loads HydrateCatalogs begins: the
+	// CatalogTimeout bounds the catalog loads New begins: the
 	// spot config and the funding (deposit/withdraw) config each load on
 	// their own, and a read that times out or loses its connection is read
 	// again, at most 3 times in all, 250ms and then 500ms apart, each retry
@@ -81,8 +89,8 @@ func (c Config) String() string {
 		envName = c.Environment.Name
 	}
 	return fmt.Sprintf(
-		"Config{Environment:%q APIKeyID:%q APIPrivateKey:%q APIURL:%q WSURL:%q Timeout:%s WireFormat:%q HydrateCatalogs:%t RecvWindow:%s CatalogTimeout:%s}",
-		envName, c.APIKeyID, key, redact.URL(c.APIURL), redact.URL(c.WSURL), c.Timeout, c.WireFormat, c.HydrateCatalogs, c.RecvWindow, c.CatalogTimeout,
+		"Config{Environment:%q APIKeyID:%q APIPrivateKey:%q APIURL:%q WSURL:%q Timeout:%s WireFormat:%q SkipCatalogHydration:%t RecvWindow:%s CatalogTimeout:%s}",
+		envName, c.APIKeyID, key, redact.URL(c.APIURL), redact.URL(c.WSURL), c.Timeout, c.WireFormat, c.SkipCatalogHydration, c.RecvWindow, c.CatalogTimeout,
 	)
 }
 
@@ -105,18 +113,18 @@ func (c Config) Format(f fmt.State, verb rune) {
 // explicitly, so a field added to Config stays out of encoded output until it
 // is added here. HTTPClient is not a setting that can be encoded.
 type redactedConfig struct {
-	Environment         *chain.PolyesterEnvironment
-	APIKeyID            string
-	APIPrivateKey       string
-	APIURL              string
-	WSURL               string
-	DefaultSubAccountID *string
-	DefaultAccountID    *string
-	Timeout             time.Duration
-	WireFormat          string
-	HydrateCatalogs     bool
-	RecvWindow          time.Duration
-	CatalogTimeout      time.Duration
+	Environment          *chain.PolyesterEnvironment
+	APIKeyID             string
+	APIPrivateKey        string
+	APIURL               string
+	WSURL                string
+	DefaultSubAccountID  *string
+	DefaultAccountID     *string
+	Timeout              time.Duration
+	WireFormat           string
+	SkipCatalogHydration bool
+	RecvWindow           time.Duration
+	CatalogTimeout       time.Duration
 }
 
 // redacted replaces the private key and URL userinfo, as String does. An
@@ -124,18 +132,18 @@ type redactedConfig struct {
 func (c Config) redacted() redactedConfig {
 	key := c.APIPrivateKey.String()
 	return redactedConfig{
-		Environment:         c.Environment,
-		APIKeyID:            c.APIKeyID,
-		APIPrivateKey:       key,
-		APIURL:              redact.URL(c.APIURL),
-		WSURL:               redact.URL(c.WSURL),
-		DefaultSubAccountID: c.DefaultSubAccountID,
-		DefaultAccountID:    c.DefaultAccountID,
-		Timeout:             c.Timeout,
-		WireFormat:          c.WireFormat,
-		HydrateCatalogs:     c.HydrateCatalogs,
-		RecvWindow:          c.RecvWindow,
-		CatalogTimeout:      c.CatalogTimeout,
+		Environment:          c.Environment,
+		APIKeyID:             c.APIKeyID,
+		APIPrivateKey:        key,
+		APIURL:               redact.URL(c.APIURL),
+		WSURL:                redact.URL(c.WSURL),
+		DefaultSubAccountID:  c.DefaultSubAccountID,
+		DefaultAccountID:     c.DefaultAccountID,
+		Timeout:              c.Timeout,
+		WireFormat:           c.WireFormat,
+		SkipCatalogHydration: c.SkipCatalogHydration,
+		RecvWindow:           c.RecvWindow,
+		CatalogTimeout:       c.CatalogTimeout,
 	}
 }
 
@@ -224,7 +232,9 @@ type Client struct {
 	timeout              time.Duration
 }
 
-// New creates a Polyester client.
+// New creates a Polyester client from cfg alone: it reads no environment
+// variable, so a setting cfg leaves unset keeps its default. Use FromEnv to
+// read the POLYESTER_* variables.
 func New(cfg Config) (*Client, error) {
 	env := chain.PolyesterDevnetEnvironment
 	if cfg.Environment != nil {
@@ -274,11 +284,6 @@ func New(cfg Config) (*Client, error) {
 	rt.SetBaseQuantityScales(cats.BaseQuantityScaleForSymbolID)
 
 	defaultAccountID := cfg.DefaultAccountID
-	if defaultAccountID == nil {
-		if accountID := auth.AccountIDFromEnv(); accountID != "" {
-			defaultAccountID = &accountID
-		}
-	}
 
 	catalogHydrationDone := make(chan struct{})
 	client := &Client{
@@ -326,7 +331,7 @@ func New(cfg Config) (*Client, error) {
 	client.Candles = client.MarketData
 	client.TradingWithdraws = client.Withdraw
 
-	if cfg.HydrateCatalogs {
+	if !cfg.SkipCatalogHydration {
 		// Begun before New returns: every call that needs a catalog waits for
 		// it. The two load on their own, so spot trading never waits for, or
 		// fails with, the funding config.
@@ -375,9 +380,13 @@ func validateAPIBaseURL(raw string) error {
 	return nil
 }
 
-// FromEnv creates a client using POLYESTER_* environment variables.
+// FromEnv creates a client from the POLYESTER_* environment variables:
+// POLYESTER_API_KEY_ID, POLYESTER_API_PRIVATE_KEY, POLYESTER_ACCOUNT_ID
+// (DefaultAccountID), POLYESTER_ENV, POLYESTER_API_URL and POLYESTER_WS_URL.
+// The overrides then change the Config before it is passed to New. It is
+// meant for scripts and local tests; New reads none of these variables.
 func FromEnv(overrides ...func(*Config)) (*Client, error) {
-	cfg := Config{HydrateCatalogs: true}
+	var cfg Config
 	if id := strings.TrimSpace(os.Getenv(auth.APIKeyIDEnv)); id != "" {
 		cfg.APIKeyID = id
 	}
@@ -474,7 +483,7 @@ func (c *Client) CatalogsLastError() error {
 // WaitForCatalogs waits until the spot config, which every spot trading call
 // needs, is ready. It returns nil once that has loaded and validated, without
 // waiting for the funding config (see WaitForFundingCatalog), and at once when
-// HydrateCatalogs is disabled. When the spot config could not be loaded it
+// SkipCatalogHydration is set. When the spot config could not be loaded it
 // returns a *errors.CatalogHydrationError naming the operation, the kind of
 // failure and the response reference, whose Err is the failure; calls that
 // name a market then fail closed with it too. It returns ctx's error when ctx
@@ -492,7 +501,7 @@ func (c *Client) WaitForCatalogs(ctx context.Context) error {
 // ready, and returns a *errors.CatalogHydrationError naming it when it could
 // not be loaded. Read Catalogs.Zipper, LedgerIDForAsset and
 // QuantityScaleForAsset after it returns nil. It returns at once when
-// HydrateCatalogs is disabled, and ctx's error when ctx ends first.
+// SkipCatalogHydration is set, and ctx's error when ctx ends first.
 func (c *Client) WaitForFundingCatalog(ctx context.Context) error {
 	select {
 	case <-c.fundingHydrationDone:

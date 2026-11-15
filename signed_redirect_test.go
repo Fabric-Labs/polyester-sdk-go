@@ -138,11 +138,12 @@ func TestSignedRequestIsNotForwardedAcrossOrigins(t *testing.T) {
 							t.Fatalf("redirect origin and destination are the same: %s", target)
 						}
 						client, err := New(Config{
-							APIURL:        redirectURL,
-							APIKeyID:      "ak_redirect_test",
-							APIPrivateKey: auth.NewSecret(disposableKeyHex(t)),
-							WireFormat:    wire,
-							HTTPClient:    newClient(),
+							APIURL:               redirectURL,
+							APIKeyID:             "ak_redirect_test",
+							APIPrivateKey:        auth.NewSecret(disposableKeyHex(t)),
+							WireFormat:           wire,
+							HTTPClient:           newClient(),
+							SkipCatalogHydration: true,
 						})
 						if err != nil {
 							t.Fatal(err)
@@ -183,10 +184,11 @@ func TestSignedRequestWithoutRedirectSucceeds(t *testing.T) {
 			origin := &originRecorder{}
 			apiURL := serveOn(t, "127.0.0.1:0", origin.handler())
 			client, err := New(Config{
-				APIURL:        apiURL,
-				APIKeyID:      "ak_redirect_test",
-				APIPrivateKey: auth.NewSecret(disposableKeyHex(t)),
-				WireFormat:    wire,
+				APIURL:               apiURL,
+				APIKeyID:             "ak_redirect_test",
+				APIPrivateKey:        auth.NewSecret(disposableKeyHex(t)),
+				WireFormat:           wire,
+				SkipCatalogHydration: true,
 			})
 			if err != nil {
 				t.Fatal(err)
@@ -215,10 +217,11 @@ func TestUnsignedRequestStillFollowsRedirect(t *testing.T) {
 			target := serveOn(t, "127.0.0.1:0", destination.handler())
 			redirectURL := serveOn(t, "127.0.0.1:0", redirectingOrigin(&target, http.StatusTemporaryRedirect))
 			client, err := New(Config{
-				APIURL:        redirectURL,
-				APIKeyID:      "ak_redirect_test",
-				APIPrivateKey: auth.NewSecret(disposableKeyHex(t)),
-				WireFormat:    wire,
+				APIURL:               redirectURL,
+				APIKeyID:             "ak_redirect_test",
+				APIPrivateKey:        auth.NewSecret(disposableKeyHex(t)),
+				WireFormat:           wire,
+				SkipCatalogHydration: true,
 			})
 			if err != nil {
 				t.Fatal(err)
@@ -258,10 +261,11 @@ func TestRedirectedMutationOutcomeIsUnknown(t *testing.T) {
 					w.WriteHeader(status)
 				}))
 				client, err := New(Config{
-					APIURL:        origin,
-					APIKeyID:      "ak_redirect_test",
-					APIPrivateKey: auth.NewSecret(disposableKeyHex(t)),
-					WireFormat:    wire,
+					APIURL:               origin,
+					APIKeyID:             "ak_redirect_test",
+					APIPrivateKey:        auth.NewSecret(disposableKeyHex(t)),
+					WireFormat:           wire,
+					SkipCatalogHydration: true,
 				})
 				if err != nil {
 					t.Fatal(err)

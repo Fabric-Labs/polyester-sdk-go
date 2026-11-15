@@ -50,7 +50,7 @@ func newStatementsClient(t *testing.T, fake *fakeStatements, defaultSub *string)
 	srv := hardening.NewTestServer(mux)
 	t.Cleanup(srv.Close)
 	keypair := auth.GenerateEd25519Keypair()
-	client, err := New(Config{APIURL: srv.URL, APIKeyID: "ak_statements", APIPrivateKey: keypair.SecretKeyHex, DefaultSubAccountID: defaultSub})
+	client, err := New(Config{APIURL: srv.URL, APIKeyID: "ak_statements", APIPrivateKey: keypair.SecretKeyHex, DefaultSubAccountID: defaultSub, SkipCatalogHydration: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +123,8 @@ func TestStatementsExportPageScopes(t *testing.T) {
 		want *uint64
 	}{
 		{"explicit sub-account", services.ExportStatementOptions{SubAccountID: &explicit}, proto.Uint64(9000000002)},
-		{"account main uses the default", services.ExportStatementOptions{Account: "main"}, proto.Uint64(9000000001)},
+		{"account main is the main account", services.ExportStatementOptions{Account: "main"}, nil},
+		{"account active uses the default", services.ExportStatementOptions{Account: "active"}, proto.Uint64(9000000001)},
 		{"empty sub-account is the authenticated account", services.ExportStatementOptions{SubAccountID: &empty}, nil},
 	}
 	for _, tc := range cases {

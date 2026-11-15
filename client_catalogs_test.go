@@ -26,9 +26,8 @@ func TestWaitForCatalogsReturnsHydrationError(t *testing.T) {
 
 func TestWaitForCatalogsFailsWhenAPIUnreachable(t *testing.T) {
 	client, err := New(Config{
-		APIURL:          "http://127.0.0.1:1",
-		HydrateCatalogs: true,
-		Timeout:         300 * time.Millisecond,
+		APIURL:  "http://127.0.0.1:1",
+		Timeout: 300 * time.Millisecond,
 	})
 	if err != nil {
 		t.Fatal(err)

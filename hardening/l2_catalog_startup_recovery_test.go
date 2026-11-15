@@ -239,7 +239,6 @@ func (h *startupHarness) config(timeout time.Duration) polyester.Config {
 		APIKeyID:         "ak_test",
 		APIPrivateKey:    kp.SecretKeyHex,
 		DefaultAccountID: &accountID,
-		HydrateCatalogs:  true,
 		Timeout:          timeout,
 		HTTPClient:       &http.Client{Transport: transport},
 	}

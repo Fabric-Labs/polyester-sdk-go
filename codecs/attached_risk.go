@@ -20,7 +20,11 @@ func RiskPolicyToProto(in *models.AttachedRiskInput, fieldName, symbol string) (
 	}
 	hasStop := in.StopLoss != nil || in.TrailingStop != nil
 	if in.TakeProfit == nil && !hasStop {
-		return nil, &errors.ValidationError{Msg: fieldName + " requires take_profit and/or a stop leg"}
+		msg := fieldName + " requires take_profit and/or a stop leg"
+		if fieldName == "new_attached_risk" {
+			msg += "; to remove the order's attached risk, set ClearAttachedRisk instead"
+		}
+		return nil, &errors.ValidationError{Msg: msg}
 	}
 	if in.OCO && (in.TakeProfit == nil || !hasStop) {
 		return nil, &errors.ValidationError{Msg: fieldName + ".oco requires take_profit and exactly one stop leg (stop_loss or trailing_stop)"}
@@ -187,4 +191,19 @@ func trailingLimitError(fieldName string, code orderv1.ErrorCode, ruleID, msg st
 		Metadata:   errors.ViolationMetadata(violations),
 		Violations: violations,
 	}
+}
+
+// ReplacementRiskPolicyToProto encodes the new_attached_risk of a modify or a
+// batch replace item. With clear it is an empty RiskPolicy, which removes the
+// order's take-profit, stop-loss and trailing-stop legs; clear with a non-nil
+// newRisk is refused. Without clear, newRisk is encoded as RiskPolicyToProto
+// does: nil leaves the legs unchanged, and an empty one is refused.
+func ReplacementRiskPolicyToProto(newRisk *models.AttachedRiskInput, clear bool, symbol string) (*orderv1.RiskPolicy, error) {
+	if !clear {
+		return RiskPolicyToProto(newRisk, "new_attached_risk", symbol)
+	}
+	if newRisk != nil {
+		return nil, &errors.ValidationError{Msg: "set new_attached_risk or clear_attached_risk, not both"}
+	}
+	return &orderv1.RiskPolicy{}, nil
 }

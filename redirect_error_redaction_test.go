@@ -153,10 +153,11 @@ func TestMalformedRedirectOfSignedRequestIsRefusedWithoutURLSecrets(t *testing.T
 					origin := &countingRedirect{status: status, location: location}
 					apiURL := serveOn(t, "127.0.0.1:0", origin)
 					client, err := New(Config{
-						APIURL:        apiURL,
-						APIKeyID:      "ak_redirect_test",
-						APIPrivateKey: auth.NewSecret(disposableKeyHex(t)),
-						WireFormat:    wire,
+						APIURL:               apiURL,
+						APIKeyID:             "ak_redirect_test",
+						APIPrivateKey:        auth.NewSecret(disposableKeyHex(t)),
+						WireFormat:           wire,
+						SkipCatalogHydration: true,
 					})
 					if err != nil {
 						t.Fatal(err)
@@ -204,10 +205,11 @@ func TestValidRedirectOfSignedRequestNamesOriginOnly(t *testing.T) {
 				origin := &countingRedirect{status: status, location: location}
 				apiURL := serveOn(t, "127.0.0.1:0", origin)
 				client, err := New(Config{
-					APIURL:        apiURL,
-					APIKeyID:      "ak_redirect_test",
-					APIPrivateKey: auth.NewSecret(disposableKeyHex(t)),
-					WireFormat:    wire,
+					APIURL:               apiURL,
+					APIKeyID:             "ak_redirect_test",
+					APIPrivateKey:        auth.NewSecret(disposableKeyHex(t)),
+					WireFormat:           wire,
+					SkipCatalogHydration: true,
 				})
 				if err != nil {
 					t.Fatal(err)
@@ -240,7 +242,7 @@ func TestMalformedRedirectOfUnsignedRequestIsRefusedWithoutURLSecrets(t *testing
 			t.Run(kind+"/"+wire, func(t *testing.T) {
 				origin := &countingRedirect{status: http.StatusTemporaryRedirect, location: location}
 				apiURL := serveOn(t, "127.0.0.1:0", origin)
-				client, err := New(Config{APIURL: apiURL, WireFormat: wire})
+				client, err := New(Config{APIURL: apiURL, WireFormat: wire, SkipCatalogHydration: true})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -279,6 +281,7 @@ func TestCallerStoppedRedirectErrorHasNoURLSecrets(t *testing.T) {
 				HTTPClient: &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
 					return errors.New("caller policy stops redirects")
 				}},
+				SkipCatalogHydration: true,
 			})
 			if err != nil {
 				t.Fatal(err)

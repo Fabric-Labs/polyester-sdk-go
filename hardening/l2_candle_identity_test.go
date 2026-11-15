@@ -69,7 +69,7 @@ func TestL2RowCandlesReportResponseIdentity(t *testing.T) {
 			mux.Handle(marketdatav1connect.NewMarketDataServiceHandler(server))
 			mux.Handle(chainzipperv1connect.NewZipperServiceHandler(server))
 			srv := hardening.NewTestServer(mux)
-			client, err := polyester.New(polyester.Config{APIURL: srv.URL, WireFormat: wire, HydrateCatalogs: true, Timeout: 5 * time.Second})
+			client, err := polyester.New(polyester.Config{APIURL: srv.URL, WireFormat: wire, Timeout: 5 * time.Second})
 			if err != nil {
 				t.Fatal(err)
 			}

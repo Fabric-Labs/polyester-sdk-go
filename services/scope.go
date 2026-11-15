@@ -10,7 +10,17 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 )
 
-// AccountScope mirrors TS-style account routing: "main", "active", subaccount id, or scoped dict.
+// AccountScope selects the account a call acts on:
+//
+//   - nil (unset) or "active": the client's DefaultSubAccountID, or the main
+//     account when none is configured;
+//   - "main" or "": always the main account, whatever DefaultSubAccountID is;
+//   - any other string: that sub-account's public ID;
+//   - map[string]string{"subaccountId": id} (or "sub_account_id"): that
+//     sub-account.
+//
+// Any other value is a *errors.ValidationError. Pass either an account or a
+// sub-account ID, not both.
 type AccountScope any
 
 // ScopedSubAccount holds default sub-account resolution for trading services.
@@ -32,7 +42,9 @@ func ResolveSubAccountID(value *string, defaultVal *string) *string {
 	return defaultVal
 }
 
-// ScopedSubAccountID resolves sub-account scope from account or legacy sub_account_id.
+// ScopedSubAccountID resolves the sub-account of a call from account (see
+// AccountScope) or the legacy subAccountID, falling back to defaultVal only
+// when both are unset or account is "active". nil means the main account.
 func ScopedSubAccountID(account AccountScope, subAccountID *string, defaultVal *string) (*string, error) {
 	if subAccountID != nil && account != nil {
 		return nil, &errors.ValidationError{Msg: "Pass account or sub_account_id, not both"}
@@ -40,8 +52,11 @@ func ScopedSubAccountID(account AccountScope, subAccountID *string, defaultVal *
 	if subAccountID != nil {
 		return ResolveSubAccountID(subAccountID, defaultVal), nil
 	}
-	if account == nil || account == "active" || account == "main" {
+	if account == nil || account == "active" {
 		return ResolveSubAccountID(nil, defaultVal), nil
+	}
+	if account == "main" || account == "" {
+		return nil, nil
 	}
 	switch v := account.(type) {
 	case map[string]string:
@@ -80,7 +95,7 @@ func ResolveAccountID(value any, defaultVal any) (string, error) {
 			return id, nil
 		}
 	}
-	return "", &errors.ValidationError{Msg: "account_id is required; set POLYESTER_ACCOUNT_ID or pass account_id explicitly"}
+	return "", &errors.ValidationError{Msg: "account_id is required; set Config.DefaultAccountID or pass account_id explicitly"}
 }
 
 // publicID returns the public ID text of an account or sub-account ID given

@@ -25,9 +25,8 @@ func MakerClientFromEnv() (*polyester.Client, bool, error) {
 		return nil, false, nil
 	}
 	cfg := polyester.Config{
-		APIKeyID:        keyID,
-		APIPrivateKey:   auth.NewSecret(privateKey),
-		HydrateCatalogs: true,
+		APIKeyID:      keyID,
+		APIPrivateKey: auth.NewSecret(privateKey),
 	}
 	if apiURL := strings.TrimSpace(os.Getenv("POLYESTER_API_URL")); apiURL != "" {
 		cfg.APIURL = apiURL

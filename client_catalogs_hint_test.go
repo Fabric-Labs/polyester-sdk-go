@@ -9,14 +9,14 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/services"
 )
 
-// POLY-8563: New leaves HydrateCatalogs off, so a call that names a market by
-// symbol cannot resolve it. The refusal tells a Go caller how to turn catalogs
-// on. A managed book needs them even with a SymbolID, for its quantity scale.
+// With SkipCatalogHydration set, a call that names a market by symbol cannot
+// resolve it. The refusal tells a Go caller how to load the catalogs. A managed book needs them even with a SymbolID, for its quantity scale.
 func TestSymbolRefusalWithoutCatalogsNamesBothRemedies(t *testing.T) {
 	client, err := polyester.New(polyester.Config{
 		// Closed loopback ports: nothing can be reached, and nothing must be.
-		APIURL: "http://127.0.0.1:9",
-		WSURL:  "ws://127.0.0.1:9",
+		APIURL:               "http://127.0.0.1:9",
+		WSURL:                "ws://127.0.0.1:9",
+		SkipCatalogHydration: true,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -33,9 +33,9 @@ func TestSymbolRefusalWithoutCatalogsNamesBothRemedies(t *testing.T) {
 		err      error
 		remedies []string
 	}{
-		{"Orderbook.CreateSubscription", subscribeErr, []string{"HydrateCatalogs: true", "WaitForCatalogs", "SymbolID does not replace the catalog"}},
-		{"Orderbook.CreateSubscription with SymbolID", byIDErr, []string{"HydrateCatalogs: true", "WaitForCatalogs"}},
-		{"Orderbook.Get", getErr, []string{"HydrateCatalogs: true", "WaitForCatalogs"}},
+		{"Orderbook.CreateSubscription", subscribeErr, []string{"SkipCatalogHydration unset", "WaitForCatalogs", "SymbolID does not replace the catalog"}},
+		{"Orderbook.CreateSubscription with SymbolID", byIDErr, []string{"SkipCatalogHydration unset", "WaitForCatalogs"}},
+		{"Orderbook.Get", getErr, []string{"SkipCatalogHydration unset", "WaitForCatalogs"}},
 	} {
 		name, err := tc.name, tc.err
 		if err == nil {

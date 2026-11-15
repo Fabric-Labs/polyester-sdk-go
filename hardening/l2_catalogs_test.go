@@ -65,9 +65,8 @@ func TestL2WaitForCatalogsFailClosedOnHTTP500(t *testing.T) {
 	}}, emptyZipper())
 
 	client, err := polyester.New(polyester.Config{
-		APIURL:          srv.URL,
-		HydrateCatalogs: true,
-		Timeout:         500 * time.Millisecond,
+		APIURL:  srv.URL,
+		Timeout: 500 * time.Millisecond,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -96,9 +95,8 @@ func TestL2WaitForCatalogsFailClosedOnEmptyOrMalformed(t *testing.T) {
 		}}, emptyZipper())
 
 		client, err := polyester.New(polyester.Config{
-			APIURL:          srv.URL,
-			HydrateCatalogs: true,
-			Timeout:         time.Second,
+			APIURL:  srv.URL,
+			Timeout: time.Second,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -126,9 +124,8 @@ func TestL2WaitForCatalogsFailClosedOnEmptyOrMalformed(t *testing.T) {
 		}}, emptyZipper())
 
 		client, err := polyester.New(polyester.Config{
-			APIURL:          srv.URL,
-			HydrateCatalogs: true,
-			Timeout:         time.Second,
+			APIURL:  srv.URL,
+			Timeout: time.Second,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -170,9 +167,8 @@ func TestL2WaitForCatalogsRejectsBadWireResponse(t *testing.T) {
 			t.Cleanup(srv.Close)
 
 			client, err := polyester.New(polyester.Config{
-				APIURL:          srv.URL,
-				HydrateCatalogs: true,
-				Timeout:         2 * time.Second,
+				APIURL:  srv.URL,
+				Timeout: 2 * time.Second,
 			})
 			if err != nil {
 				t.Fatal(err)
@@ -212,9 +208,8 @@ func TestL2ConcurrentWaitForCatalogsShareOneAttempt(t *testing.T) {
 	}}, emptyZipper())
 
 	client, err := polyester.New(polyester.Config{
-		APIURL:          srv.URL,
-		HydrateCatalogs: true,
-		Timeout:         5 * time.Second,
+		APIURL:  srv.URL,
+		Timeout: 5 * time.Second,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -262,9 +257,8 @@ func TestL2ScaleFormatAndCatalogRejectPanicBoundary(t *testing.T) {
 	}}, emptyZipper())
 
 	client, err := polyester.New(polyester.Config{
-		APIURL:          srv.URL,
-		HydrateCatalogs: true,
-		Timeout:         time.Second,
+		APIURL:  srv.URL,
+		Timeout: time.Second,
 	})
 	if err != nil {
 		t.Fatal(err)

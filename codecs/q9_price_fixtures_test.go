@@ -83,7 +83,7 @@ func TestQ9OrderAndTriggerEncodePaths(t *testing.T) {
 	}
 
 	newPrice := models.PriceFromDecimal("83589")
-	modify, err := codecs.ModifyOrderToProto("BTC-USDT", 1, models.OrderKeyByID("100"), nil, nil, &newPrice, nil, nil, nil, nil, 8)
+	modify, err := codecs.ModifyOrderToProto("BTC-USDT", 1, models.OrderKeyByID("100"), nil, nil, &newPrice, nil, nil, false, nil, nil, 8)
 	if err != nil {
 		t.Fatal(err)
 	}

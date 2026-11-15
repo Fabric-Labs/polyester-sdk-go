@@ -203,13 +203,13 @@ func newHydrationClient(t *testing.T, stub *hydrationStub, hydrate bool) *polyes
 	kp := auth.GenerateEd25519Keypair()
 	accountID := "1"
 	client, err := polyester.New(polyester.Config{
-		APIURL:           srv.URL,
-		WSURL:            "ws://127.0.0.1:1/unused",
-		APIKeyID:         "ak_test",
-		APIPrivateKey:    kp.SecretKeyHex,
-		DefaultAccountID: &accountID,
-		HydrateCatalogs:  hydrate,
-		Timeout:          5 * time.Second,
+		APIURL:               srv.URL,
+		WSURL:                "ws://127.0.0.1:1/unused",
+		APIKeyID:             "ak_test",
+		APIPrivateKey:        kp.SecretKeyHex,
+		DefaultAccountID:     &accountID,
+		SkipCatalogHydration: !hydrate,
+		Timeout:              5 * time.Second,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -638,7 +638,7 @@ func TestL2HydrationDisabledKeepsTodaysRefusals(t *testing.T) {
 		t.Fatalf("Orderbook.CreateSubscription: %v", err)
 	}
 	_, err = client.Orderbook.Get(context.Background(), hydrationSymbol, 10)
-	if err == nil || !strings.Contains(err.Error(), "Unknown symbol 'DOGE-USDT'; set Config.HydrateCatalogs: true") {
+	if err == nil || !strings.Contains(err.Error(), "Unknown symbol 'DOGE-USDT'; leave Config.SkipCatalogHydration unset") {
 		t.Fatalf("Orderbook.Get: %v", err)
 	}
 	// Without hydration Triggers.Create checks the quantity scale before the symbol, as before.
@@ -649,7 +649,7 @@ func TestL2HydrationDisabledKeepsTodaysRefusals(t *testing.T) {
 	}
 	select {
 	case <-stub.spotRequested:
-		t.Fatal("hydration ran with HydrateCatalogs off")
+		t.Fatal("hydration ran with SkipCatalogHydration set")
 	default:
 	}
 }

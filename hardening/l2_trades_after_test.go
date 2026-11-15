@@ -60,7 +60,7 @@ func newTradesAfterClient(t *testing.T, handler marketdatav1connect.MarketDataSe
 	kp := auth.GenerateEd25519Keypair()
 	client, err := polyester.New(polyester.Config{
 		APIURL: srv.URL, APIKeyID: "ak_test", APIPrivateKey: kp.SecretKeyHex,
-		HydrateCatalogs: true, Timeout: 5 * time.Second,
+		Timeout: 5 * time.Second,
 	})
 	if err != nil {
 		t.Fatal(err)

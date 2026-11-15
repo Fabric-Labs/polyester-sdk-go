@@ -87,7 +87,7 @@ func TestTriggerPriceSourceRoundTripsFromReadsToWrites(t *testing.T) {
 	}
 	modify := func(risk *models.AttachedRiskInput) *orderv1.RiskPolicy {
 		t.Helper()
-		req, err := codecs.ModifyOrderToProto("BTC-USDT", 1, models.OrderKeyByID("100"), nil, nil, nil, nil, risk, nil, nil, 8)
+		req, err := codecs.ModifyOrderToProto("BTC-USDT", 1, models.OrderKeyByID("100"), nil, nil, nil, nil, risk, false, nil, nil, 8)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -430,6 +430,7 @@ func ModifyOrderToProto(
 	newPrice *models.PriceInput,
 	newQty *models.QtyInput,
 	newAttachedRisk *models.AttachedRiskInput,
+	clearAttachedRisk bool,
 	behavior *string,
 	newClientOrderID *string,
 	quantityScale int,
@@ -437,8 +438,8 @@ func ModifyOrderToProto(
 	if symbolID == 0 {
 		return nil, &errors.ValidationError{Msg: "modify requires a resolved non-zero symbol_id"}
 	}
-	if (newPrice == nil || !newPrice.IsSet()) && (newQty == nil || !newQty.IsSet()) && newAttachedRisk == nil {
-		return nil, &errors.ValidationError{Msg: "modify requires new_price, new_qty, and/or new_attached_risk"}
+	if (newPrice == nil || !newPrice.IsSet()) && (newQty == nil || !newQty.IsSet()) && newAttachedRisk == nil && !clearAttachedRisk {
+		return nil, &errors.ValidationError{Msg: "modify requires new_price, new_qty, new_attached_risk, and/or clear_attached_risk"}
 	}
 	resolvedRequestID, err := coalesceRequestID(requestID, "mod")
 	if err != nil {
@@ -472,7 +473,7 @@ func ModifyOrderToProto(
 		}
 		proto.NewQtyScaled = &qty
 	}
-	risk, err := RiskPolicyToProto(newAttachedRisk, "new_attached_risk", symbol)
+	risk, err := ReplacementRiskPolicyToProto(newAttachedRisk, clearAttachedRisk, symbol)
 	if err != nil {
 		return nil, err
 	}

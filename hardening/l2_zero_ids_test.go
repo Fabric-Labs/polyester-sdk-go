@@ -40,13 +40,13 @@ func zeroIDClient(t *testing.T, mutate func(*polyester.Config)) (*polyester.Clie
 	kp := auth.GenerateEd25519Keypair()
 	account := codecs.FormatID(7)
 	cfg := polyester.Config{
-		APIURL:           srv.URL,
-		WSURL:            "ws" + strings.TrimPrefix(srv.URL, "http") + "/connection/websocket",
-		APIKeyID:         "ak_test",
-		APIPrivateKey:    kp.SecretKeyHex,
-		DefaultAccountID: &account,
-		HydrateCatalogs:  false,
-		Timeout:          5 * time.Second,
+		APIURL:               srv.URL,
+		WSURL:                "ws" + strings.TrimPrefix(srv.URL, "http") + "/connection/websocket",
+		APIKeyID:             "ak_test",
+		APIPrivateKey:        kp.SecretKeyHex,
+		DefaultAccountID:     &account,
+		SkipCatalogHydration: true,
+		Timeout:              5 * time.Second,
 	}
 	if mutate != nil {
 		mutate(&cfg)
@@ -343,7 +343,7 @@ func TestL2ZeroSubAccountIDPublicCodecsAreRefused(t *testing.T) {
 				return err
 			},
 			"ModifyOrderToProto": func() error {
-				_, err := codecs.ModifyOrderToProto(symbol, sid, key, sub, nil, &price, nil, nil, nil, nil, 8)
+				_, err := codecs.ModifyOrderToProto(symbol, sid, key, sub, nil, &price, nil, nil, false, nil, nil, 8)
 				return err
 			},
 			"CancelAllOrdersToProto": func() error {

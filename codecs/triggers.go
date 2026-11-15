@@ -610,8 +610,9 @@ func CreateOcoToProto(symbolID uint32, in models.CreateOcoInput, subAccountID *s
 	}
 	if in.SelfTradePreventionMode != nil {
 		mode, ok := selfTradePreventionModeToProto[strings.ToLower(*in.SelfTradePreventionMode)]
-		if !ok {
-			return nil, &errors.ValidationError{Msg: "self_trade_prevention_mode must be expire_taker, expire_maker, expire_both, or decrement"}
+		if !ok || mode == orderv1.SelfTradePreventionMode_DECREMENT {
+			// The contract does not support DECREMENT on an OCO.
+			return nil, &errors.ValidationError{Msg: "self_trade_prevention_mode of an OCO must be expire_taker, expire_maker, or expire_both; decrement is not supported on an OCO"}
 		}
 		intent.SelfTradePreventionMode = mode
 	}
@@ -641,6 +642,10 @@ func ocoLegToProto(leg models.RiskLegInput, fieldName, symbol string) (*triggers
 	ticks, source, child, err := riskLegToProto(leg, fieldName, symbol)
 	if err != nil {
 		return nil, err
+	}
+	if source == orderv1.TriggerPriceSource_MARK_PRICE {
+		// The contract does not support MARK_PRICE on an OCO leg.
+		return nil, &errors.ValidationError{Msg: fieldName + ".trigger_price_source of an OCO leg must be last or index; mark is not supported on an OCO"}
 	}
 	return &triggersv1.OcoLeg{TriggerPriceTicks: ticks, Child: child, TriggerPriceSource: source}, nil
 }

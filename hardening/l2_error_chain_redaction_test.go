@@ -62,7 +62,7 @@ func TestL2UnaryErrorChainPrintsNoCredential(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			srv := hardening.SpawnHTTP(func(hardening.ParsedRequest) hardening.HttpResponse { return answer })
 			t.Cleanup(srv.Close)
-			client, err := polyester.New(polyester.Config{APIURL: srv.BaseURL(), WSURL: "ws://127.0.0.1:1/unused", Timeout: 2 * time.Second})
+			client, err := polyester.New(polyester.Config{APIURL: srv.BaseURL(), WSURL: "ws://127.0.0.1:1/unused", Timeout: 2 * time.Second, SkipCatalogHydration: true})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -90,7 +90,7 @@ func TestL2CatalogStartupErrorChainPrintsNoCredential(t *testing.T) {
 				return answer
 			})
 			t.Cleanup(srv.Close)
-			client, err := polyester.New(polyester.Config{APIURL: srv.BaseURL(), WSURL: "ws://127.0.0.1:1/unused", HydrateCatalogs: true, Timeout: 2 * time.Second})
+			client, err := polyester.New(polyester.Config{APIURL: srv.BaseURL(), WSURL: "ws://127.0.0.1:1/unused", Timeout: 2 * time.Second})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -128,7 +128,7 @@ func TestL2URLWithParenthesesOrQuotesIsRedacted(t *testing.T) {
 				return hardening.Json(http.StatusServiceUnavailable, body)
 			})
 			t.Cleanup(srv.Close)
-			client, err := polyester.New(polyester.Config{APIURL: srv.BaseURL(), WSURL: "ws://127.0.0.1:1/unused", Timeout: 2 * time.Second})
+			client, err := polyester.New(polyester.Config{APIURL: srv.BaseURL(), WSURL: "ws://127.0.0.1:1/unused", Timeout: 2 * time.Second, SkipCatalogHydration: true})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -163,11 +163,12 @@ func TestL2ClientHeldSecretsNeverReachAnError(t *testing.T) {
 	})
 	t.Cleanup(srv.Close)
 	client, err := polyester.New(polyester.Config{
-		APIURL:        "http://" + apiUser + ":" + apiSecret + "@" + strings.TrimPrefix(srv.BaseURL(), "http://"),
-		WSURL:         "ws://" + wsUser + ":" + wsSecret + "@127.0.0.1:1/unused",
-		APIKeyID:      "ak_test",
-		APIPrivateKey: kp.SecretKeyHex,
-		Timeout:       2 * time.Second,
+		APIURL:               "http://" + apiUser + ":" + apiSecret + "@" + strings.TrimPrefix(srv.BaseURL(), "http://"),
+		WSURL:                "ws://" + wsUser + ":" + wsSecret + "@127.0.0.1:1/unused",
+		APIKeyID:             "ak_test",
+		APIPrivateKey:        kp.SecretKeyHex,
+		Timeout:              2 * time.Second,
+		SkipCatalogHydration: true,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -227,7 +228,7 @@ func TestL2StructuredDiagnosticsAreRedacted(t *testing.T) {
 				return hardening.Raw(c.status, [][2]string{{"Content-Type", "application/problem+json"}}, body)
 			})
 			t.Cleanup(srv.Close)
-			client, err := polyester.New(polyester.Config{APIURL: srv.BaseURL(), WSURL: "ws://127.0.0.1:1/unused", Timeout: 2 * time.Second})
+			client, err := polyester.New(polyester.Config{APIURL: srv.BaseURL(), WSURL: "ws://127.0.0.1:1/unused", Timeout: 2 * time.Second, SkipCatalogHydration: true})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -268,7 +269,7 @@ func TestL2ConnectErrorDetailsAreRedacted(t *testing.T) {
 		return hardening.Json(http.StatusBadRequest, body)
 	})
 	t.Cleanup(srv.Close)
-	client, err := polyester.New(polyester.Config{APIURL: srv.BaseURL(), WSURL: "ws://127.0.0.1:1/unused", Timeout: 2 * time.Second})
+	client, err := polyester.New(polyester.Config{APIURL: srv.BaseURL(), WSURL: "ws://127.0.0.1:1/unused", Timeout: 2 * time.Second, SkipCatalogHydration: true})
 	if err != nil {
 		t.Fatal(err)
 	}

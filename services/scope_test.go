@@ -8,9 +8,9 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/services"
 )
 
-func TestScopedSubAccountIDMainUsesDefault(t *testing.T) {
+func TestScopedSubAccountIDActiveUsesDefault(t *testing.T) {
 	defaultSub := "sub-123"
-	got, err := services.ScopedSubAccountID("main", nil, &defaultSub)
+	got, err := services.ScopedSubAccountID("active", nil, &defaultSub)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,7 +25,7 @@ func TestScopedSubAccountIDMainUsesDefault(t *testing.T) {
 		t.Fatalf("got=%v want nil", got)
 	}
 	empty := ""
-	got, err = services.ScopedSubAccountID("main", nil, &empty)
+	got, err = services.ScopedSubAccountID("active", nil, &empty)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +76,7 @@ func TestScopedSubAccountMixinIgnoresTypedNilSubAccountID(t *testing.T) {
 	defaultSub := "default-sub"
 	scoped := services.ScopedSubAccount{DefaultSubAccountID: &defaultSub}
 	var sub *string
-	got, err := scoped.ResolveSubAccountID(sub, "main")
+	got, err := scoped.ResolveSubAccountID(sub, "active")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +88,7 @@ func TestScopedSubAccountMixinIgnoresTypedNilSubAccountID(t *testing.T) {
 func TestScopedSubAccountMixinOnService(t *testing.T) {
 	defaultSub := "default-sub"
 	scoped := services.ScopedSubAccount{DefaultSubAccountID: &defaultSub}
-	got, err := scoped.ResolveSubAccountID(nil, "main")
+	got, err := scoped.ResolveSubAccountID(nil, "active")
 	if err != nil {
 		t.Fatal(err)
 	}

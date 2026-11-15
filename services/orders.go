@@ -319,20 +319,24 @@ func (s *OrdersService) Modify(ctx context.Context, account AccountScope, symbol
 }
 
 // ModifyParams is the expanded modify input. Set at least one of NewPrice,
-// NewQty, or NewAttachedRisk. NewAttachedRisk replaces the order's attached
-// take-profit, stop-loss, or trailing-stop policy. A trailing stop's
+// NewQty, NewAttachedRisk or ClearAttachedRisk. NewAttachedRisk replaces the
+// order's attached take-profit, stop-loss, or trailing-stop policy; nil
+// leaves it unchanged, and an empty one is refused. ClearAttachedRisk removes
+// every attached leg, alone or with a price or quantity change; setting it
+// with NewAttachedRisk is refused before sending. A trailing stop's
 // LimitPrice is sent as given: the server knows the order's side, applies the
 // side rule and answers ERROR_CODE_BAD_PRICE with no violation.
 type ModifyParams struct {
-	Symbol           string
-	Key              models.OrderKey
-	SubAccountID     *string
-	RequestID        *string
-	NewPrice         *models.PriceInput
-	NewQty           *models.QtyInput
-	NewAttachedRisk  *models.AttachedRiskInput
-	Behavior         *string
-	NewClientOrderID *string
+	Symbol            string
+	Key               models.OrderKey
+	SubAccountID      *string
+	RequestID         *string
+	NewPrice          *models.PriceInput
+	NewQty            *models.QtyInput
+	NewAttachedRisk   *models.AttachedRiskInput
+	ClearAttachedRisk bool
+	Behavior          *string
+	NewClientOrderID  *string
 }
 
 // ModifyWith modifies an open order from the expanded parameter set.
@@ -355,7 +359,7 @@ func (s *OrdersService) ModifyWith(ctx context.Context, account AccountScope, pa
 	}
 	protoReq, err := codecs.ModifyOrderToProto(
 		symbol, resolvedSymbolID, params.Key, sub, params.RequestID,
-		params.NewPrice, params.NewQty, params.NewAttachedRisk, params.Behavior, params.NewClientOrderID, scale,
+		params.NewPrice, params.NewQty, params.NewAttachedRisk, params.ClearAttachedRisk, params.Behavior, params.NewClientOrderID, scale,
 	)
 	if err != nil {
 		return models.ModifyOrderResult{}, err
