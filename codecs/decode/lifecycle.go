@@ -149,24 +149,28 @@ func FlowSummaryMessageFromProto(msg *lifecyclev1.FlowSummaryView) models.Lifecy
 	return flowSummary(msg)
 }
 
-func FlowsListFromProto(msg *lifecyclev1.ListFlowsResponse) models.LifecycleFlowsList {
+// FlowsListFromProto decodes one page of flows. A flow without its ID returns
+// a *errors.ResponseContractError.
+func FlowsListFromProto(msg *lifecyclev1.ListFlowsResponse) (models.LifecycleFlowsList, error) {
 	out := make([]models.LifecycleFlowSummary, 0, len(msg.GetFlows()))
 	for _, f := range msg.GetFlows() {
+		if err := requireStringID("ListFlows", "flow_id", f.GetFlowId()); err != nil {
+			return models.LifecycleFlowsList{}, err
+		}
 		out = append(out, flowSummary(f))
 	}
-	return models.LifecycleFlowsList{Flows: out, NextPageToken: msg.GetNextPageToken()}
+	return models.LifecycleFlowsList{Flows: out, NextPageToken: msg.GetNextPageToken()}, nil
 }
 
 func FlowFromGetResponse(msg *lifecyclev1.GetFlowResponse) (models.LifecycleFlowSummary, error) {
 	if msg.GetFlow() == nil {
-		return models.LifecycleFlowSummary{}, &sdkerrors.TransportError{
-			Msg: "invalid GetFlow response: missing flow",
-		}
+		return models.LifecycleFlowSummary{}, &sdkerrors.ResponseContractError{Operation: "GetFlowById", Msg: "missing flow"}
 	}
 	if msg.GetFlow().GetSummary() == nil {
-		return models.LifecycleFlowSummary{}, &sdkerrors.TransportError{
-			Msg: "invalid GetFlow response: missing flow summary",
-		}
+		return models.LifecycleFlowSummary{}, &sdkerrors.ResponseContractError{Operation: "GetFlowById", Msg: "missing flow summary"}
+	}
+	if err := requireStringID("GetFlowById", "flow_id", msg.GetFlow().GetSummary().GetFlowId()); err != nil {
+		return models.LifecycleFlowSummary{}, err
 	}
 	return flowSummary(msg.GetFlow().GetSummary()), nil
 }
@@ -195,13 +199,18 @@ func flowTxMatch(msg *lifecyclev1.FlowTxMatchView) models.LifecycleFlowSummary {
 // The legacy helper name is retained for compatibility, but transaction
 // lookups are one-to-many and must not silently discard bundled flows.
 func FlowFromGetByTxResponse(msg *lifecyclev1.ListFlowsByTxResponse) (models.LifecycleFlowsList, error) {
-	return FlowsByTxListFromProto(msg), nil
+	return FlowsByTxListFromProto(msg)
 }
 
-func FlowsByTxListFromProto(msg *lifecyclev1.ListFlowsByTxResponse) models.LifecycleFlowsList {
+// FlowsByTxListFromProto decodes every flow a transaction matched. A match
+// without its flow ID returns a *errors.ResponseContractError.
+func FlowsByTxListFromProto(msg *lifecyclev1.ListFlowsByTxResponse) (models.LifecycleFlowsList, error) {
 	out := make([]models.LifecycleFlowSummary, 0, len(msg.GetMatches()))
 	for _, m := range msg.GetMatches() {
+		if err := requireStringID("ListFlowsByTx", "flow_id", m.GetFlowId()); err != nil {
+			return models.LifecycleFlowsList{}, err
+		}
 		out = append(out, flowTxMatch(m))
 	}
-	return models.LifecycleFlowsList{Flows: out, NextPageToken: msg.GetNextPageToken()}
+	return models.LifecycleFlowsList{Flows: out, NextPageToken: msg.GetNextPageToken()}, nil
 }

@@ -21,7 +21,7 @@ func contractItemsLimit(t *testing.T, message proto.Message) int {
 func batchCancelItems(n int) []models.BatchCancelItem {
 	items := make([]models.BatchCancelItem, n)
 	for i := range items {
-		items[i] = models.BatchCancelItem{Key: models.OrderKeyByID("1")}
+		items[i] = models.BatchCancelItem{Key: models.OrderKeyByID("2")}
 	}
 	return items
 }
@@ -30,7 +30,7 @@ func batchReplaceItems(n int) []models.BatchReplaceItem {
 	items := make([]models.BatchReplaceItem, n)
 	for i := range items {
 		p := models.PriceFromDecimal("1")
-		items[i] = models.BatchReplaceItem{Key: models.OrderKeyByID("1"), NewPrice: &p}
+		items[i] = models.BatchReplaceItem{Key: models.OrderKeyByID("2"), NewPrice: &p}
 	}
 	return items
 }

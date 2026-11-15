@@ -48,7 +48,7 @@ func TestTransferReadAndStreamKeepBalanceAfterAndLinkID(t *testing.T) {
 	if err != nil || len(streamed) != 1 {
 		t.Fatalf("stream decode = %v, %v", streamed, err)
 	}
-	listed := decode.TransfersListFromProto(&ledgerrdv1.ListTransfersResponse{Transfers: []*ledgerrdv1.TransferRow{row}})
+	listed := mustReply(decode.TransfersListFromProto(&ledgerrdv1.ListTransfersResponse{Transfers: []*ledgerrdv1.TransferRow{row}}))
 	for path, transfer := range map[string]models.LedgerTransfer{
 		"list":   listed.Transfers[0],
 		"stream": streamed[0],

@@ -53,9 +53,7 @@ func (s *ChainAnalyticsService) GetZippedAssetSupplyGroup(ctx context.Context, g
 		StartTsSec: startTsSec,
 		EndTsSec:   endTsSec,
 	}
-	return UnaryPublic(ctx, s.transport, s.client().GetZippedAssetSupplyGroup, req, func(msg *analyticsv1.GetZippedAssetSupplyGroupResponse) models.ApiData {
-		return decode.APIDataFromProtoMust(msg)
-	})
+	return UnaryPublicDecoded(ctx, s.transport, s.client().GetZippedAssetSupplyGroup, req, decode.ZippedAssetSupplyGroupFromProto)
 }
 
 func (s *ChainAnalyticsService) GetUnifiedAssetBalances(ctx context.Context, assetID uint32, rangeKey, bucket string, startTsSec, endTsSec uint32) (models.ApiData, error) {

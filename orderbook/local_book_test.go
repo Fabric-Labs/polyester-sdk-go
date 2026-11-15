@@ -68,7 +68,7 @@ func TestApplyDeltaRequiresTheBooksExactSequence(t *testing.T) {
 				t.Fatalf("outOfSequence=%v want %v", outOfSequence, tc.outOfSequence)
 			}
 			applied := tc.name == "continues the book"
-			if wantSeq := map[bool]int{true: 4, false: 3}[applied]; seq != wantSeq {
+			if wantSeq := map[bool]uint64{true: 4, false: 3}[applied]; seq != wantSeq {
 				t.Fatalf("seq=%d want %d", seq, wantSeq)
 			}
 			if wantQty := map[bool]int{true: 7, false: 5}[applied]; bids[100] != wantQty {
@@ -132,7 +132,7 @@ func TestApplyDeltaResetSequenceSafety(t *testing.T) {
 		name        string
 		start       string
 		end         string
-		wantSeq     int
+		wantSeq     uint64
 		wantRefresh bool
 		wantOldBook bool
 	}{

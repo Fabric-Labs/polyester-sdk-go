@@ -57,7 +57,7 @@ func (s *TransfersService) List(ctx context.Context, account AccountScope, subAc
 		}
 		req.TsMinUs = uint64(*since)
 	}
-	return UnaryAuth(ctx, s.transport, s.client().ListTransfers, req, decode.TransfersListFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.client().ListTransfers, req, decode.TransfersListFromProto)
 }
 
 func (s *TransfersService) Subscribe(ctx context.Context, accountID any) (*realtime.Subscription[models.LedgerTransfer], error) {

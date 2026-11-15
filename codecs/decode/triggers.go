@@ -124,11 +124,14 @@ func TriggerTypeLabel(triggerType triggersv1.TriggerType) string {
 	return strings.ToLower(triggerType.String())
 }
 
-func triggerMutationResult(triggerID uint64, status triggersv1.TriggerStatus) models.TriggerMutationResult {
+func triggerMutationResult(operation string, triggerID uint64, status triggersv1.TriggerStatus) (models.TriggerMutationResult, error) {
+	if err := requireID(operation, "trigger_id", triggerID); err != nil {
+		return models.TriggerMutationResult{}, err
+	}
 	return models.TriggerMutationResult{
 		TriggerID: codecs.FormatUint64ID(triggerID),
 		Status:    TriggerStatusLabel(status),
-	}
+	}, nil
 }
 
 func triggerDirectionLabel(v orderv1.TriggerDirection) string {
@@ -452,68 +455,99 @@ func TriggerFromProto(msg *triggersv1.Trigger) models.Trigger {
 	}
 }
 
-// TriggersListFromProto decodes list triggers response.
-func TriggersListFromProto(msg *triggersv1.ListTriggersResponse) models.TriggersList {
+// TriggersListFromProto decodes list triggers response. A trigger without
+// its ID returns a *errors.ResponseContractError.
+func TriggersListFromProto(msg *triggersv1.ListTriggersResponse) (models.TriggersList, error) {
 	out := make([]models.Trigger, 0, len(msg.GetTriggers()))
 	for _, t := range msg.GetTriggers() {
+		if err := requireID("ListTriggers", "trigger_id", t.GetTriggerId()); err != nil {
+			return models.TriggersList{}, err
+		}
 		out = append(out, TriggerFromProto(t))
 	}
 	return models.TriggersList{
 		Triggers:      out,
 		Total:         len(out),
 		NextPageToken: msg.GetNextPageToken(),
-	}
+	}, nil
 }
 
-// GetTriggerFromProto decodes get trigger response.
-func GetTriggerFromProto(msg *triggersv1.GetTriggerResponse) *models.Trigger {
+// GetTriggerFromProto decodes get trigger response. A reply without its
+// trigger, or a trigger without its ID, returns a
+// *errors.ResponseContractError: a trigger that does not exist is refused by
+// the API with its own error, never answered with an empty success.
+func GetTriggerFromProto(msg *triggersv1.GetTriggerResponse) (*models.Trigger, error) {
 	if msg.GetTrigger() == nil {
-		return nil
+		return nil, &sdkerrors.ResponseContractError{Operation: "GetTrigger", Msg: "missing trigger"}
+	}
+	if err := requireID("GetTrigger", "trigger_id", msg.GetTrigger().GetTriggerId()); err != nil {
+		return nil, err
 	}
 	t := TriggerFromProto(msg.GetTrigger())
-	return &t
+	return &t, nil
 }
 
-// TriggerMutationFromProto decodes create trigger response.
+// TriggerMutationFromProto decodes create trigger response. A reply without
+// a trigger ID returns a *errors.ResponseContractError.
 //
 // CreateTriggerResponse acknowledges admission only and no longer carries a
 // status field; synthesize "accepted".
-func TriggerMutationFromProto(msg *triggersv1.CreateTriggerResponse) models.TriggerMutationResult {
+func TriggerMutationFromProto(msg *triggersv1.CreateTriggerResponse) (models.TriggerMutationResult, error) {
+	if err := requireID("CreateTrigger", "trigger_id", msg.GetTriggerId()); err != nil {
+		return models.TriggerMutationResult{}, err
+	}
 	return models.TriggerMutationResult{
 		TriggerID: codecs.FormatUint64ID(msg.GetTriggerId()),
 		Status:    "accepted",
+	}, nil
+}
+
+// TriggerMutationFromCancel decodes cancel trigger response. A reply without
+// a trigger ID returns a *errors.ResponseContractError.
+func TriggerMutationFromCancel(msg *triggersv1.CancelTriggerResponse) (models.TriggerMutationResult, error) {
+	return triggerMutationResult("CancelTrigger", msg.GetTriggerId(), msg.GetStatus())
+}
+
+// TriggerMutationFromPause decodes pause trigger response. A reply without a
+// trigger ID returns a *errors.ResponseContractError.
+func TriggerMutationFromPause(msg *triggersv1.PauseTriggerResponse) (models.TriggerMutationResult, error) {
+	return triggerMutationResult("PauseTrigger", msg.GetTriggerId(), msg.GetStatus())
+}
+
+// TriggerMutationFromResume decodes resume trigger response. A reply without
+// a trigger ID returns a *errors.ResponseContractError.
+func TriggerMutationFromResume(msg *triggersv1.ResumeTriggerResponse) (models.TriggerMutationResult, error) {
+	return triggerMutationResult("ResumeTrigger", msg.GetTriggerId(), msg.GetStatus())
+}
+
+// TriggerMutationFromModify decodes modify trigger response. A reply without
+// a trigger ID returns a *errors.ResponseContractError.
+func TriggerMutationFromModify(msg *triggersv1.ModifyTriggerResponse) (models.TriggerMutationResult, error) {
+	return triggerMutationResult("ModifyTrigger", msg.GetTriggerId(), msg.GetStatus())
+}
+
+// CreateOcoFromProto decodes an OCO create response. A reply without the OCO
+// ID or either leg's trigger ID returns a *errors.ResponseContractError.
+func CreateOcoFromProto(msg *triggersv1.CreateOcoResponse) (models.CreateOcoResult, error) {
+	for _, required := range []struct {
+		field string
+		id    uint64
+	}{
+		{"order_list_id", msg.GetOrderListId()},
+		{"take_profit_trigger_id", msg.GetTakeProfitTriggerId()},
+		{"stop_loss_trigger_id", msg.GetStopLossTriggerId()},
+	} {
+		if err := requireID("CreateOco", required.field, required.id); err != nil {
+			return models.CreateOcoResult{}, err
+		}
 	}
-}
-
-// TriggerMutationFromCancel decodes cancel trigger response.
-func TriggerMutationFromCancel(msg *triggersv1.CancelTriggerResponse) models.TriggerMutationResult {
-	return triggerMutationResult(msg.GetTriggerId(), msg.GetStatus())
-}
-
-// TriggerMutationFromPause decodes pause trigger response.
-func TriggerMutationFromPause(msg *triggersv1.PauseTriggerResponse) models.TriggerMutationResult {
-	return triggerMutationResult(msg.GetTriggerId(), msg.GetStatus())
-}
-
-// TriggerMutationFromResume decodes resume trigger response.
-func TriggerMutationFromResume(msg *triggersv1.ResumeTriggerResponse) models.TriggerMutationResult {
-	return triggerMutationResult(msg.GetTriggerId(), msg.GetStatus())
-}
-
-// TriggerMutationFromModify decodes modify trigger response.
-func TriggerMutationFromModify(msg *triggersv1.ModifyTriggerResponse) models.TriggerMutationResult {
-	return triggerMutationResult(msg.GetTriggerId(), msg.GetStatus())
-}
-
-// CreateOcoFromProto decodes an OCO create response.
-func CreateOcoFromProto(msg *triggersv1.CreateOcoResponse) models.CreateOcoResult {
 	return models.CreateOcoResult{
 		OrderListID:         codecs.FormatUint64ID(msg.GetOrderListId()),
 		ClientListID:        msg.GetClientListId(),
 		TakeProfitTriggerID: codecs.FormatUint64ID(msg.GetTakeProfitTriggerId()),
 		StopLossTriggerID:   codecs.FormatUint64ID(msg.GetStopLossTriggerId()),
 		AcceptedTsNs:        pairedTsNs(msg.GetAcceptedAtTsNs(), msg.GetAcceptedAt()),
-	}
+	}, nil
 }
 
 // pairedTsNs is a response time in nanoseconds since the Unix epoch: the
@@ -531,18 +565,22 @@ func pairedTsNs(tsNs uint64, ts *timestamppb.Timestamp) uint64 {
 	return uint64(nanos)
 }
 
-// CancelOcoFromProto decodes an OCO cancel response.
-func CancelOcoFromProto(msg *triggersv1.CancelOcoResponse) models.CancelOcoResult {
+// CancelOcoFromProto decodes an OCO cancel response. A reply without the OCO
+// ID returns a *errors.ResponseContractError.
+func CancelOcoFromProto(msg *triggersv1.CancelOcoResponse) (models.CancelOcoResult, error) {
+	if err := requireID("CancelOco", "order_list_id", msg.GetOrderListId()); err != nil {
+		return models.CancelOcoResult{}, err
+	}
 	return models.CancelOcoResult{
 		OrderListID: codecs.FormatUint64ID(msg.GetOrderListId()),
 		Status:      TriggerStatusLabel(msg.GetStatus()),
 		TsNs:        pairedTsNs(msg.GetTsNs(), msg.GetTs()),
-	}
+	}, nil
 }
 
 // BatchCancelTriggersFromProto decodes a batch trigger cancel response. It
 // refuses a response whose item outcomes are unknown or disagree with its
-// counts.
+// counts, or whose item does not echo its trigger ID.
 func BatchCancelTriggersFromProto(msg *triggersv1.BatchCancelTriggersResponse) (models.BatchCancelTriggersResult, error) {
 	results := make([]models.BatchCancelTriggersResultItem, 0, len(msg.GetResults()))
 	decodedAccepted, decodedRejected := 0, 0
@@ -559,6 +597,9 @@ func BatchCancelTriggersFromProto(msg *triggersv1.BatchCancelTriggersResponse) (
 			return models.BatchCancelTriggersResult{}, &sdkerrors.ResponseContractError{Operation: "BatchCancelTriggers",
 				Msg: fmt.Sprintf("batch trigger cancel response has unknown status: %d", item.GetStatus()),
 			}
+		}
+		if err := requireID("BatchCancelTriggers", "trigger_id", item.GetTriggerId()); err != nil {
+			return models.BatchCancelTriggersResult{}, err
 		}
 		results = append(results, models.BatchCancelTriggersResultItem{
 			Status:     status,
@@ -582,16 +623,20 @@ func BatchCancelTriggersFromProto(msg *triggersv1.BatchCancelTriggersResponse) (
 	}, nil
 }
 
-// TriggerEventsListFromProto decodes list trigger events response.
-func TriggerEventsListFromProto(msg *triggersv1.ListTriggerEventsResponse) models.TriggerEventsList {
+// TriggerEventsListFromProto decodes list trigger events response. An event
+// without its trigger ID returns a *errors.ResponseContractError.
+func TriggerEventsListFromProto(msg *triggersv1.ListTriggerEventsResponse) (models.TriggerEventsList, error) {
 	out := make([]models.TriggerEvent, 0, len(msg.GetEvents()))
 	for _, e := range msg.GetEvents() {
+		if err := requireID("ListTriggerEvents", "trigger_id", e.GetTriggerId()); err != nil {
+			return models.TriggerEventsList{}, err
+		}
 		out = append(out, TriggerEventMessageFromProto(e))
 	}
 	return models.TriggerEventsList{
 		Events:        out,
 		NextPageToken: msg.GetNextPageToken(),
-	}
+	}, nil
 }
 
 // TriggerEventMessageFromProto decodes one trigger event.

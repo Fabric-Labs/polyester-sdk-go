@@ -13,7 +13,7 @@ import (
 func TestReadTransferOpaqueToken(t *testing.T) {
 	for _, token := range []string{"eyJ2IjoxfQ==", "000123", "0", ""} {
 		t.Run(token, func(t *testing.T) {
-			raw := &ledger.ListTransfersResponse{Transfers: []*ledger.TransferRow{{AssetId: 1, TsUs: 999}}, NextPageToken: token}
+			raw := &ledger.ListTransfersResponse{Transfers: []*ledger.TransferRow{{AssetId: 1, TsUs: 999, TransferId: "7"}}, NextPageToken: token}
 			for _, jsonWire := range []bool{false, true} {
 				msg := &ledger.ListTransfersResponse{}
 				if jsonWire {
@@ -33,7 +33,7 @@ func TestReadTransferOpaqueToken(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
-				result := decode.TransfersListFromProto(msg)
+				result := mustReply(decode.TransfersListFromProto(msg))
 				if len(result.Transfers) != 1 || result.Transfers[0].Timestamp != 999 {
 					t.Fatal(result)
 				}

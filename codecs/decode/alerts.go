@@ -103,13 +103,17 @@ func PriceAlertFromProto(msg *alertsv1.PriceAlert, cats *catalogs.Manager) model
 	return out
 }
 
-// PriceAlertsPageFromProto decodes one ListAlerts page.
-func PriceAlertsPageFromProto(msg *alertsv1.ListAlertsResponse, cats *catalogs.Manager) models.PriceAlertsPage {
+// PriceAlertsPageFromProto decodes one ListAlerts page. An alert without its
+// ID returns a *errors.ResponseContractError.
+func PriceAlertsPageFromProto(msg *alertsv1.ListAlertsResponse, cats *catalogs.Manager) (models.PriceAlertsPage, error) {
 	alerts := make([]models.PriceAlert, 0, len(msg.GetAlerts()))
 	for _, alert := range msg.GetAlerts() {
+		if err := requireID("ListAlerts", "alert_id", alert.GetAlertId()); err != nil {
+			return models.PriceAlertsPage{}, err
+		}
 		alerts = append(alerts, PriceAlertFromProto(alert, cats))
 	}
-	return models.PriceAlertsPage{Alerts: alerts, NextPageToken: msg.GetNextPageToken()}
+	return models.PriceAlertsPage{Alerts: alerts, NextPageToken: msg.GetNextPageToken()}, nil
 }
 
 // UpdatePriceAlertFromProto decodes an UpdateAlert answer.

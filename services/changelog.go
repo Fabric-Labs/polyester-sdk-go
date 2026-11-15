@@ -57,7 +57,7 @@ func (s *ChangelogService) ListChanges(ctx context.Context, opts models.ListChan
 	if err != nil {
 		return models.ChangelogChangesPage{}, err
 	}
-	return UnaryPublic(ctx, s.transport, s.client().ListChanges, req, decode.ChangelogChangesPageFromProto)
+	return UnaryPublicDecoded(ctx, s.transport, s.client().ListChanges, req, decode.ChangelogChangesPageFromProto)
 }
 
 // ListDeploymentGroups returns one page of this environment's deployment

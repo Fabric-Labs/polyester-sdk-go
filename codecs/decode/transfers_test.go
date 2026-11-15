@@ -78,10 +78,10 @@ func TestTransferSideFromProtoOmitsEmptyAndUnsetChainID(t *testing.T) {
 
 func TestTransfersListFromProtoPreservesNumericToken(t *testing.T) {
 	msg := &ledgerrdv1.ListTransfersResponse{
-		Transfers:     []*ledgerrdv1.TransferRow{{AssetId: 1}},
+		Transfers:     []*ledgerrdv1.TransferRow{{AssetId: 1, TransferId: "7"}},
 		NextPageToken: "12345",
 	}
-	result := decode.TransfersListFromProto(msg)
+	result := mustReply(decode.TransfersListFromProto(msg))
 	if len(result.Transfers) != 1 {
 		t.Fatalf("transfers=%+v", result.Transfers)
 	}

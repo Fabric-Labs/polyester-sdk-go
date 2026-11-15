@@ -7,16 +7,25 @@ import (
 )
 
 // StatusEventsPageFromProto decodes one ListStatusEvents page. Events is
-// empty, never nil.
-func StatusEventsPageFromProto(msg *systemv1.ListStatusEventsResponse) models.StatusEventsPage {
+// empty, never nil. An event without its ID returns a
+// *errors.ResponseContractError.
+func StatusEventsPageFromProto(msg *systemv1.ListStatusEventsResponse) (models.StatusEventsPage, error) {
 	events := make([]models.StatusEvent, 0, len(msg.GetEvents()))
 	for _, event := range msg.GetEvents() {
 		if event == nil {
 			continue
 		}
+		if err := requireID("ListStatusEvents", "id", event.GetId()); err != nil {
+			return models.StatusEventsPage{}, err
+		}
+		for _, update := range event.GetUpdates() {
+			if err := requireID("ListStatusEvents", "update id", uint64(update.GetId())); err != nil {
+				return models.StatusEventsPage{}, err
+			}
+		}
 		events = append(events, StatusEventFromProto(event))
 	}
-	return models.StatusEventsPage{Events: events, NextPageToken: msg.GetNextPageToken()}
+	return models.StatusEventsPage{Events: events, NextPageToken: msg.GetNextPageToken()}, nil
 }
 
 // StatusEventFromProto decodes one status event. Omitted optional times and

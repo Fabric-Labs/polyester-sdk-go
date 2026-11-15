@@ -379,7 +379,7 @@ func TestOrdersListFromProto(t *testing.T) {
 		Orders:        []*orderv1.Order{{OrderId: 1, SymbolId: 1, Side: orderv1.Side_SELL}},
 		NextPageToken: "tok",
 	}
-	result := decode.OrdersListFromOpen(msg)
+	result := mustReply(decode.OrdersListFromOpen(msg))
 	if len(result.Orders) != 1 || result.NextPageToken != "tok" {
 		t.Fatalf("result=%+v", result)
 	}
@@ -396,7 +396,7 @@ func TestGetOrderFromProtoIncludesTrades(t *testing.T) {
 			FeeIsRebate:            true,
 		}},
 	}
-	result := decode.GetOrderFromProto(msg)
+	result := mustReply(decode.GetOrderFromProto(msg))
 	if result.Order == nil || result.Order.OrderID != codecs.FormatUint64ID(7) {
 		t.Fatalf("order=%+v", result.Order)
 	}
@@ -428,7 +428,7 @@ func TestGetOrderFromProtoIncludesLineageTransfersAndPageToken(t *testing.T) {
 		}},
 		NextPageToken: "page-2",
 	}
-	result := decode.GetOrderFromProto(msg)
+	result := mustReply(decode.GetOrderFromProto(msg))
 	if result.Order == nil || result.Order.Lineage == nil {
 		t.Fatalf("order lineage missing: %+v", result.Order)
 	}
@@ -1008,10 +1008,10 @@ func TestCancelAllAfterDecodesEffectiveScope(t *testing.T) {
 
 func TestGetOrderFromProtoDecodesExecutionsComplete(t *testing.T) {
 	for _, complete := range []bool{true, false} {
-		result := decode.GetOrderFromProto(&orderv1.GetOrderResponse{
+		result := mustReply(decode.GetOrderFromProto(&orderv1.GetOrderResponse{
 			Order:              &orderv1.Order{OrderId: 7, SymbolId: 2},
 			ExecutionsComplete: complete,
-		})
+		}))
 		if result.ExecutionsComplete != complete {
 			t.Fatalf("executions_complete=%v want %v", result.ExecutionsComplete, complete)
 		}

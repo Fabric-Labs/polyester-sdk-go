@@ -53,7 +53,7 @@ func (s *AddressBookService) ListEntries(ctx context.Context, account AccountSco
 	if pageToken != nil {
 		req.PageToken = *pageToken
 	}
-	return UnaryAuth(ctx, s.transport, s.client().ListAddressBookEntries, req, decode.ListEntriesFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.client().ListAddressBookEntries, req, decode.ListEntriesFromProto)
 }
 
 func (s *AddressBookService) ListTransferCounterparties(ctx context.Context, account AccountScope, subAccountID *string, direction, kind *string, limit int) (models.TransferCounterpartiesList, error) {
@@ -75,7 +75,7 @@ func (s *AddressBookService) ListTransferCounterparties(ctx context.Context, acc
 			return models.TransferCounterpartiesList{}, err
 		}
 	}
-	return UnaryAuth(ctx, s.transport, s.client().ListTransferCounterparties, req, decode.ListCounterpartiesFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.client().ListTransferCounterparties, req, decode.ListCounterpartiesFromProto)
 }
 
 func (s *AddressBookService) ListTransferDestinations(ctx context.Context, account AccountScope, subAccountID *string, kind string, limit int, pageToken *string) (models.AddressBookTransferDestinationsList, error) {
@@ -97,7 +97,7 @@ func (s *AddressBookService) ListTransferDestinations(ctx context.Context, accou
 	if pageToken != nil {
 		req.PageToken = *pageToken
 	}
-	return UnaryAuth(ctx, s.transport, s.client().ListTransferDestinations, req, decode.ListDestinationsFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.client().ListTransferDestinations, req, decode.ListDestinationsFromProto)
 }
 
 func (s *AddressBookService) ListInternalTransferWhitelistEntries(ctx context.Context, account AccountScope, subAccountID *string, limit int, pageToken *string) (models.InternalTransferWhitelistEntriesList, error) {
@@ -112,7 +112,7 @@ func (s *AddressBookService) ListInternalTransferWhitelistEntries(ctx context.Co
 	if pageToken != nil {
 		req.PageToken = *pageToken
 	}
-	return UnaryAuth(ctx, s.transport, s.client().ListInternalTransferWhitelistEntries, req, decode.ListInternalWhitelistFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.client().ListInternalTransferWhitelistEntries, req, decode.ListInternalWhitelistFromProto)
 }
 
 func (s *AddressBookService) GetWithdrawWhitelistView(ctx context.Context, account AccountScope, subAccountID *string) (models.WithdrawWhitelistView, error) {
@@ -135,7 +135,7 @@ func (s *AddressBookService) GetView(ctx context.Context, account AccountScope, 
 	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.AddressBookView{}, err
 	}
-	return UnaryAuth(ctx, s.transport, s.client().GetAddressBookView, req, decode.AddressBookViewFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.client().GetAddressBookView, req, decode.AddressBookViewFromProto)
 }
 
 func (s *AddressBookService) Subscribe(ctx context.Context, accountID any) (*realtime.Subscription[models.AddressBookViewInvalidation], error) {

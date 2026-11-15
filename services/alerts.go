@@ -189,7 +189,7 @@ func (s *AlertsService) List(ctx context.Context, params ListAlertsParams) (mode
 	if err != nil {
 		return models.PriceAlertsPage{}, err
 	}
-	return UnaryAuth(ctx, s.transport, s.client().ListAlerts, req, func(msg *alertsv1.ListAlertsResponse) models.PriceAlertsPage {
+	return UnaryAuthDecoded(ctx, s.transport, s.client().ListAlerts, req, func(msg *alertsv1.ListAlertsResponse) (models.PriceAlertsPage, error) {
 		return decode.PriceAlertsPageFromProto(msg, s.catalogs)
 	})
 }

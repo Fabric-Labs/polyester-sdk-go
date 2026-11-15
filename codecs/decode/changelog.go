@@ -132,6 +132,9 @@ func ChangelogPostFromProto(msg *changelogv1.GetPostResponse) (models.ChangelogP
 			if change == nil {
 				continue
 			}
+			if err := requireID("GetPost", "change id", change.GetId()); err != nil {
+				return models.ChangelogPost{}, err
+			}
 			changes = append(changes, ChangelogChangeFromProto(change))
 		}
 		sections = append(sections, models.ChangelogSection{
@@ -147,12 +150,16 @@ func ChangelogPostFromProto(msg *changelogv1.GetPostResponse) (models.ChangelogP
 	}, nil
 }
 
-// ChangelogChangesPageFromProto decodes ListChangesResponse.
-func ChangelogChangesPageFromProto(msg *changelogv1.ListChangesResponse) models.ChangelogChangesPage {
+// ChangelogChangesPageFromProto decodes ListChangesResponse. A change
+// without its ID returns a *errors.ResponseContractError.
+func ChangelogChangesPageFromProto(msg *changelogv1.ListChangesResponse) (models.ChangelogChangesPage, error) {
 	entries := make([]models.ChangelogChangeEntry, 0, len(msg.GetChanges()))
 	for _, entry := range msg.GetChanges() {
 		if entry == nil {
 			continue
+		}
+		if err := requireID("ListChanges", "change id", entry.GetChange().GetId()); err != nil {
+			return models.ChangelogChangesPage{}, err
 		}
 		entries = append(entries, models.ChangelogChangeEntry{
 			Change:         ChangelogChangeFromProto(entry.GetChange()),
@@ -161,7 +168,7 @@ func ChangelogChangesPageFromProto(msg *changelogv1.ListChangesResponse) models.
 			SectionHeading: entry.GetSectionHeading(),
 		})
 	}
-	return models.ChangelogChangesPage{Changes: entries, NextPageToken: msg.GetNextPageToken()}
+	return models.ChangelogChangesPage{Changes: entries, NextPageToken: msg.GetNextPageToken()}, nil
 }
 
 // ChangelogDeploymentGroupSummaryFromProto decodes a deployment group summary.
@@ -217,6 +224,9 @@ func ChangelogDeploymentGroupFromProto(msg *changelogv1.GetDeploymentGroupRespon
 	for _, item := range group.GetAttention() {
 		if item == nil {
 			continue
+		}
+		if err := requireID("GetDeploymentGroup", "change id", item.GetChange().GetId()); err != nil {
+			return models.ChangelogDeploymentGroup{}, err
 		}
 		attention = append(attention, models.ChangelogDeploymentGroupAttention{
 			PostSlug:       item.GetPostSlug(),

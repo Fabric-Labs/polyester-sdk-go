@@ -109,7 +109,7 @@ func (s *LifecycleService) ListFlowsWith(ctx context.Context, params ListFlowsPa
 	if smartAccountAddress != nil {
 		req.AccountSelector = &lifecyclev1.ListFlowsRequest_SmartAccountAddress{SmartAccountAddress: *smartAccountAddress}
 	}
-	return UnaryPublic(ctx, s.transport, s.client().ListFlows, req, decode.FlowsListFromProto)
+	return UnaryPublicDecoded(ctx, s.transport, s.client().ListFlows, req, decode.FlowsListFromProto)
 }
 
 // flowParticipationFromLabel reads "owner" or "recipient", in any case and
@@ -170,7 +170,7 @@ func (s *LifecycleService) ListFlowsByTx(ctx context.Context, txHash, lookupKind
 	if pageToken != nil {
 		req.PageToken = *pageToken
 	}
-	return UnaryPublic(ctx, s.transport, s.client().ListFlowsByTx, req, decode.FlowsByTxListFromProto)
+	return UnaryPublicDecoded(ctx, s.transport, s.client().ListFlowsByTx, req, decode.FlowsByTxListFromProto)
 }
 
 func (s *LifecycleService) SubscribeOpenFlows(ctx context.Context, accountID any) (*realtime.Subscription[models.LifecycleFlowSummary], error) {

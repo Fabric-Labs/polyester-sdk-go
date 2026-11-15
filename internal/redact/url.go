@@ -78,29 +78,51 @@ const SecretPlaceholder = "[REDACTED]"
 const minSecretLength = 4
 
 var (
-	secretsMu    sync.Mutex
-	knownSecrets = map[string]bool{}
+	secretsMu sync.Mutex
+	// knownSecrets counts, per secret, the registrations that hold it, so a
+	// secret two clients share stays redacted until both release it.
+	knownSecrets = map[string]int{}
 )
 
-// RegisterSecret remembers a client-held secret, such as an API private key,
-// so Text removes it wherever it appears.
-func RegisterSecret(secret string) {
-	if len(secret) < minSecretLength {
-		return
+// URLSecrets returns the userinfo of a URL the client holds, its API,
+// WebSocket or proxy URL, and its password, raw and decoded.
+func URLSecrets(raw string) []string {
+	var secrets []string
+	for _, part := range userinfoParts(raw) {
+		secrets = append(secrets, part)
+		if decoded, err := url.PathUnescape(part); err == nil {
+			secrets = append(secrets, decoded)
+		}
 	}
-	secretsMu.Lock()
-	knownSecrets[secret] = true
-	secretsMu.Unlock()
+	return secrets
 }
 
-// RegisterURLSecrets remembers the userinfo of a URL the client holds, its
-// API, WebSocket or proxy URL, and its password, raw and decoded.
-func RegisterURLSecrets(raw string) {
-	for _, part := range userinfoParts(raw) {
-		RegisterSecret(part)
-		if decoded, err := url.PathUnescape(part); err == nil {
-			RegisterSecret(decoded)
+// Register remembers client-held secrets, such as an API private key, so Text
+// removes them wherever they appear, until the returned release function is
+// called. Release forgets each secret once no other registration holds it;
+// calling it again does nothing.
+func Register(secrets ...string) (release func()) {
+	held := make([]string, 0, len(secrets))
+	secretsMu.Lock()
+	for _, secret := range secrets {
+		if len(secret) < minSecretLength {
+			continue
 		}
+		knownSecrets[secret]++
+		held = append(held, secret)
+	}
+	secretsMu.Unlock()
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			secretsMu.Lock()
+			defer secretsMu.Unlock()
+			for _, secret := range held {
+				if knownSecrets[secret]--; knownSecrets[secret] <= 0 {
+					delete(knownSecrets, secret)
+				}
+			}
+		})
 	}
 }
 
@@ -132,7 +154,7 @@ func secretsInEffect() []string {
 	secretsMu.Unlock()
 	for _, name := range proxyEnv {
 		for _, part := range userinfoParts(strings.TrimSpace(os.Getenv(name))) {
-			// Raw and decoded, as RegisterURLSecrets does.
+			// Raw and decoded, as URLSecrets returns them.
 			forms := []string{part}
 			if decoded, err := url.PathUnescape(part); err == nil {
 				forms = append(forms, decoded)

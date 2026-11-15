@@ -127,7 +127,7 @@ func TestBatchSizeGuardFollowsEachOperationLimit(t *testing.T) {
 	}
 	cancelItems := make([]models.BatchCancelItem, 51)
 	for i := range cancelItems {
-		cancelItems[i] = models.BatchCancelItem{Key: models.OrderKeyByID("1")}
+		cancelItems[i] = models.BatchCancelItem{Key: models.OrderKeyByID("2")}
 	}
 	if _, err := BatchCancelOrdersToProto(cancelItems, nil, nil); err == nil {
 		t.Fatal("expected batch_cancel max-50 rejection")
@@ -135,7 +135,7 @@ func TestBatchSizeGuardFollowsEachOperationLimit(t *testing.T) {
 	replaceItems := make([]models.BatchReplaceItem, 51)
 	for i := range replaceItems {
 		p := models.PriceFromDecimal("1")
-		replaceItems[i] = models.BatchReplaceItem{Key: models.OrderKeyByID("1"), NewPrice: &p}
+		replaceItems[i] = models.BatchReplaceItem{Key: models.OrderKeyByID("2"), NewPrice: &p}
 	}
 	if _, err := BatchReplaceOrdersToProto(replaceItems, 1, nil, nil, 8); err == nil {
 		t.Fatal("expected batch_replace max-50 rejection")

@@ -110,12 +110,31 @@ func requireEntry(operation string, entry *authv1.AddressBookEntry) (models.Addr
 	if entry == nil {
 		return models.AddressBookEntry{}, &sdkerrors.ResponseContractError{Operation: operation, Msg: "missing entry"}
 	}
+	if err := requireEntryIDs(operation, entry); err != nil {
+		return models.AddressBookEntry{}, err
+	}
 	return entryFromProto(entry), nil
+}
+
+// requireEntryIDs refuses an entry without its ID or with a tag without its ID.
+func requireEntryIDs(operation string, entry *authv1.AddressBookEntry) error {
+	if err := requireID(operation, "address_book_entry_id", entry.GetAddressBookEntryId()); err != nil {
+		return err
+	}
+	for _, tag := range entry.GetTags() {
+		if err := requireID(operation, "tag_id", tag.GetTagId()); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func requireTag(operation string, tag *authv1.AddressBookTag) (models.AddressBookTag, error) {
 	if tag == nil {
 		return models.AddressBookTag{}, &sdkerrors.ResponseContractError{Operation: operation, Msg: "missing tag"}
+	}
+	if err := requireID(operation, "tag_id", tag.GetTagId()); err != nil {
+		return models.AddressBookTag{}, err
 	}
 	return tagFromProto(tag), nil
 }
@@ -148,12 +167,17 @@ func TagFromUpdateProto(msg *authv1.UpdateAddressBookTagResponse) (models.Addres
 	return requireTag("UpdateAddressBookTag", msg.GetTag())
 }
 
-func ListEntriesFromProto(msg *authv1.ListAddressBookEntriesResponse) models.AddressBookEntriesList {
+// ListEntriesFromProto decodes one page of address-book entries. An entry or
+// tag without its ID returns a *errors.ResponseContractError.
+func ListEntriesFromProto(msg *authv1.ListAddressBookEntriesResponse) (models.AddressBookEntriesList, error) {
 	out := make([]models.AddressBookEntry, 0, len(msg.GetEntries()))
 	for _, e := range msg.GetEntries() {
+		if err := requireEntryIDs("ListAddressBookEntries", e); err != nil {
+			return models.AddressBookEntriesList{}, err
+		}
 		out = append(out, entryFromProto(e))
 	}
-	return models.AddressBookEntriesList{Entries: out, NextPageToken: msg.GetNextPageToken()}
+	return models.AddressBookEntriesList{Entries: out, NextPageToken: msg.GetNextPageToken()}, nil
 }
 
 func bookFromProto(msg *authv1.AddressBook) models.AddressBookSummary {
@@ -314,10 +338,26 @@ func withdrawWhitelistView(msg *authv1.WithdrawWhitelistView) *models.WithdrawWh
 }
 
 // AddressBookViewFromProto decodes the composed address book view. Its IDs
-// are public IDs, as ListEntries returns them.
-func AddressBookViewFromProto(msg *authv1.GetAddressBookViewResponse) models.AddressBookView {
+// are public IDs, as ListEntries returns them. An entry without its ID
+// returns a *errors.ResponseContractError.
+func AddressBookViewFromProto(msg *authv1.GetAddressBookViewResponse) (models.AddressBookView, error) {
 	if msg == nil {
-		return models.AddressBookView{}
+		return models.AddressBookView{}, nil
+	}
+	for _, item := range msg.GetEntries().GetExternal() {
+		if err := requireID("GetAddressBookView", "address_book_entry_id", item.GetAddressBookEntryId()); err != nil {
+			return models.AddressBookView{}, err
+		}
+	}
+	for _, item := range msg.GetEntries().GetInternal() {
+		if err := requireID("GetAddressBookView", "address_book_entry_id", item.GetAddressBookEntryId()); err != nil {
+			return models.AddressBookView{}, err
+		}
+	}
+	for _, tag := range msg.GetTags() {
+		if err := requireID("GetAddressBookView", "tag_id", tag.GetTagId()); err != nil {
+			return models.AddressBookView{}, err
+		}
 	}
 	out := models.AddressBookView{
 		Entries:                     entriesView(msg.GetEntries()),
@@ -330,7 +370,7 @@ func AddressBookViewFromProto(msg *authv1.GetAddressBookViewResponse) models.Add
 	if len(msg.GetBooks()) > 0 {
 		out.Books = booksFromProto(msg.GetBooks())
 	}
-	return out
+	return out, nil
 }
 
 // AddressBookInvalidationFromProto decodes an address-book invalidation event.
@@ -405,35 +445,50 @@ func whitelistEntryFromProto(msg *authv1.InternalTransferWhitelistEntry) models.
 	}
 }
 
-// ListCounterpartiesFromProto decodes transfer counterparties.
-func ListCounterpartiesFromProto(msg *authv1.ListTransferCounterpartiesResponse) models.TransferCounterpartiesList {
+// ListCounterpartiesFromProto decodes transfer counterparties. A
+// counterparty without its ID returns a *errors.ResponseContractError.
+func ListCounterpartiesFromProto(msg *authv1.ListTransferCounterpartiesResponse) (models.TransferCounterpartiesList, error) {
 	out := make([]models.TransferCounterparty, 0, len(msg.GetCounterparties()))
 	for _, item := range msg.GetCounterparties() {
 		if item != nil {
+			if err := requireID("ListTransferCounterparties", "counterparty_id", item.GetCounterpartyId()); err != nil {
+				return models.TransferCounterpartiesList{}, err
+			}
 			out = append(out, counterpartyFromProto(item))
 		}
 	}
-	return models.TransferCounterpartiesList{Counterparties: out, Truncated: msg.GetTruncated()}
+	return models.TransferCounterpartiesList{Counterparties: out, Truncated: msg.GetTruncated()}, nil
 }
 
-// ListDestinationsFromProto decodes transfer destinations.
-func ListDestinationsFromProto(msg *authv1.ListTransferDestinationsResponse) models.AddressBookTransferDestinationsList {
+// ListDestinationsFromProto decodes transfer destinations. A saved entry
+// without its ID, or with a tag without its ID, returns a
+// *errors.ResponseContractError.
+func ListDestinationsFromProto(msg *authv1.ListTransferDestinationsResponse) (models.AddressBookTransferDestinationsList, error) {
 	out := make([]models.AddressBookTransferDestination, 0, len(msg.GetDestinations()))
 	for _, item := range msg.GetDestinations() {
 		if item != nil {
+			if entry := item.GetAddressBookEntry(); entry != nil {
+				if err := requireEntryIDs("ListTransferDestinations", entry); err != nil {
+					return models.AddressBookTransferDestinationsList{}, err
+				}
+			}
 			out = append(out, destinationFromProto(item))
 		}
 	}
-	return models.AddressBookTransferDestinationsList{Destinations: out, NextPageToken: msg.GetNextPageToken()}
+	return models.AddressBookTransferDestinationsList{Destinations: out, NextPageToken: msg.GetNextPageToken()}, nil
 }
 
 // ListInternalWhitelistFromProto decodes internal transfer whitelist entries.
-func ListInternalWhitelistFromProto(msg *authv1.ListInternalTransferWhitelistEntriesResponse) models.InternalTransferWhitelistEntriesList {
+// An entry without its ID returns a *errors.ResponseContractError.
+func ListInternalWhitelistFromProto(msg *authv1.ListInternalTransferWhitelistEntriesResponse) (models.InternalTransferWhitelistEntriesList, error) {
 	out := make([]models.InternalTransferWhitelistEntry, 0, len(msg.GetEntries()))
 	for _, item := range msg.GetEntries() {
 		if item != nil {
+			if err := requireID("ListInternalTransferWhitelistEntries", "entry_id", item.GetEntryId()); err != nil {
+				return models.InternalTransferWhitelistEntriesList{}, err
+			}
 			out = append(out, whitelistEntryFromProto(item))
 		}
 	}
-	return models.InternalTransferWhitelistEntriesList{Entries: out, NextPageToken: msg.GetNextPageToken()}
+	return models.InternalTransferWhitelistEntriesList{Entries: out, NextPageToken: msg.GetNextPageToken()}, nil
 }

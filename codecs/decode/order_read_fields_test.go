@@ -15,9 +15,9 @@ import (
 // open orders, order history and the private order stream.
 func orderReadPaths(msg *orderv1.Order) map[string]models.Order {
 	return map[string]models.Order{
-		"GetOrder":     *decode.GetOrderFromProto(&orderv1.GetOrderResponse{Order: msg}).Order,
-		"open orders":  decode.OrdersListFromOpen(&orderv1.GetOpenOrdersResponse{Orders: []*orderv1.Order{msg}}).Orders[0],
-		"history":      decode.OrdersListFromHistory(&orderv1.GetOrderHistoryResponse{Orders: []*orderv1.Order{msg}}).Orders[0],
+		"GetOrder":     *mustReply(decode.GetOrderFromProto(&orderv1.GetOrderResponse{Order: msg})).Order,
+		"open orders":  mustReply(decode.OrdersListFromOpen(&orderv1.GetOpenOrdersResponse{Orders: []*orderv1.Order{msg}})).Orders[0],
+		"history":      mustReply(decode.OrdersListFromHistory(&orderv1.GetOrderHistoryResponse{Orders: []*orderv1.Order{msg}})).Orders[0],
 		"order stream": decode.OrdersFromProto([]*orderv1.Order{msg})[0],
 	}
 }

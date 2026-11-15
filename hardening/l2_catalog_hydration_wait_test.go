@@ -334,7 +334,7 @@ func hydrationProbes() []hydrationProbe {
 			return err
 		}},
 		{name: "Orders.Cancel", call: func(ctx context.Context, c *polyester.Client, s string) error {
-			_, err := c.Orders.Cancel(ctx, nil, models.OrderKeyByID("1"), &s, nil, nil)
+			_, err := c.Orders.Cancel(ctx, nil, models.OrderKeyByID("2"), &s, nil, nil)
 			return err
 		}},
 		{name: "Orders.CancelAll", call: func(ctx context.Context, c *polyester.Client, s string) error {
@@ -363,12 +363,12 @@ func hydrationProbes() []hydrationProbe {
 		}},
 		{name: "Orders.BatchReplace", call: func(ctx context.Context, c *polyester.Client, s string) error {
 			qty := models.QtyFromDecimal("1")
-			_, err := c.Orders.BatchReplace(ctx, nil, []models.BatchReplaceItem{{Key: models.OrderKeyByID("1"), NewQty: &qty}}, s, nil, nil)
+			_, err := c.Orders.BatchReplace(ctx, nil, []models.BatchReplaceItem{{Key: models.OrderKeyByID("2"), NewQty: &qty}}, s, nil, nil)
 			return err
 		}},
 		{name: "Orders.Modify", call: func(ctx context.Context, c *polyester.Client, s string) error {
 			qty := models.QtyFromDecimal("1")
-			_, err := c.Orders.Modify(ctx, nil, s, models.OrderKeyByID("1"), nil, nil, nil, &qty, nil, nil)
+			_, err := c.Orders.Modify(ctx, nil, s, models.OrderKeyByID("2"), nil, nil, nil, &qty, nil, nil)
 			return err
 		}},
 		{name: "Triggers.Create", call: func(ctx context.Context, c *polyester.Client, s string) error {
@@ -381,11 +381,11 @@ func hydrationProbes() []hydrationProbe {
 			return err
 		}},
 		{name: "Triggers.Resume", call: func(ctx context.Context, c *polyester.Client, s string) error {
-			_, err := c.Triggers.Resume(ctx, nil, "1", nil, &s, nil)
+			_, err := c.Triggers.Resume(ctx, nil, "2", nil, &s, nil)
 			return err
 		}},
 		{name: "Triggers.Modify", call: func(ctx context.Context, c *polyester.Client, s string) error {
-			_, err := c.Triggers.Modify(ctx, nil, "1", nil, &s, nil, codecs.ModifyTriggerOptions{MaxSlippageBps: ptr(int32(10))})
+			_, err := c.Triggers.Modify(ctx, nil, "2", nil, &s, nil, codecs.ModifyTriggerOptions{MaxSlippageBps: ptr(int32(10))})
 			return err
 		}},
 		{name: "Client.StopAllTrading", call: func(ctx context.Context, c *polyester.Client, s string) error {

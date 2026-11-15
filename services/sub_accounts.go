@@ -51,7 +51,7 @@ func (s *SubAccountsService) requireSubaccountID(account AccountScope, subAccoun
 // READ_SUBACCOUNTS on its policy; a key scoped to the main account sees the
 // sub-accounts it owns, a key scoped to a sub-account only that one.
 func (s *SubAccountsService) List(ctx context.Context) (models.SubAccountsList, error) {
-	return UnaryAuth(ctx, s.transport, s.writeClient().ListSubaccounts, &authv1.ListSubaccountsRequest{}, decode.SubaccountsListFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().ListSubaccounts, &authv1.ListSubaccountsRequest{}, decode.SubaccountsListFromProto)
 }
 
 // Get reads the sub-account's aggregated view. An API key needs READ_SUBACCOUNTS on its
@@ -82,7 +82,7 @@ func (s *SubAccountsService) Get(ctx context.Context, account AccountScope, subA
 		return models.GetSubaccountResult{}, err
 	}
 	req := &authv1.GetSubaccountRequest{SubaccountId: *parsed, IncludeApiKeys: includeAPIKeys, IncludeMembers: includeMembers, IncludeInvites: includeInvites, IncludePolicy: includePolicy, IncludeBalances: includeBalances, InvitesDirection: direction}
-	return UnaryAuth(ctx, s.transport, s.viewClient().GetSubaccount, req, decode.GetSubaccountFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.viewClient().GetSubaccount, req, decode.GetSubaccountFromProto)
 }
 
 // ListMembers lists a sub-account's members. It accepts API keys with
@@ -92,7 +92,7 @@ func (s *SubAccountsService) ListMembers(ctx context.Context, account AccountSco
 	if err != nil {
 		return models.SubAccountMembersList{}, err
 	}
-	return UnaryAuth(ctx, s.transport, s.writeClient().ListSubaccountMembers, &authv1.ListSubaccountMembersRequest{SubaccountId: parsed}, decode.SubaccountMembersListFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().ListSubaccountMembers, &authv1.ListSubaccountMembersRequest{SubaccountId: parsed}, decode.SubaccountMembersListFromProto)
 }
 
 // ListInvites lists sub-account invites. An API key needs
@@ -102,7 +102,7 @@ func (s *SubAccountsService) ListInvites(ctx context.Context, direction string) 
 	if err != nil {
 		return models.SubAccountInvitesList{}, err
 	}
-	return UnaryAuth(ctx, s.transport, s.writeClient().ListSubaccountInvites, &authv1.ListSubaccountInvitesRequest{Direction: parsedDirection}, decode.SubaccountInvitesListFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().ListSubaccountInvites, &authv1.ListSubaccountInvitesRequest{Direction: parsedDirection}, decode.SubaccountInvitesListFromProto)
 }
 
 // ListActivity lists a sub-account's activity. An API key needs

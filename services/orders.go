@@ -119,7 +119,7 @@ func (s *OrdersService) ListOpen(ctx context.Context, account AccountScope, subA
 	if err != nil {
 		return models.OrdersList{}, err
 	}
-	return UnaryAuth(ctx, s.transport, s.readClient().GetOpenOrders, req, scaledRead(decode.OrdersListFromOpen, scaleOrdersList, scales))
+	return UnaryAuthDecoded(ctx, s.transport, s.readClient().GetOpenOrders, req, scaledRead(decode.OrdersListFromOpen, scaleOrdersList, scales))
 }
 
 // ListHistory returns order history.
@@ -157,7 +157,7 @@ func (s *OrdersService) ListHistory(ctx context.Context, account AccountScope, s
 	if err != nil {
 		return models.OrdersList{}, err
 	}
-	return UnaryAuth(ctx, s.transport, s.readClient().GetOrderHistory, req, scaledRead(decode.OrdersListFromHistory, scaleOrdersList, scales))
+	return UnaryAuthDecoded(ctx, s.transport, s.readClient().GetOrderHistory, req, scaledRead(decode.OrdersListFromHistory, scaleOrdersList, scales))
 }
 
 // Get returns one order and an optional page of lineage execution history.
@@ -197,7 +197,7 @@ func (s *OrdersService) Get(ctx context.Context, account AccountScope, key model
 	if err != nil {
 		return models.GetOrderResult{}, err
 	}
-	return UnaryAuth(ctx, s.transport, s.readClient().GetOrder, req, scaledRead(decode.GetOrderFromProto, decode.ScaleGetOrderResult, scales))
+	return UnaryAuthDecoded(ctx, s.transport, s.readClient().GetOrder, req, scaledRead(decode.GetOrderFromProto, decode.ScaleGetOrderResult, scales))
 }
 
 // Create places a new order.

@@ -222,7 +222,7 @@ func TestTriggersListFromProto(t *testing.T) {
 		Triggers:      []*triggersv1.Trigger{{TriggerId: 1, SymbolId: 1}},
 		NextPageToken: "trig-page-2",
 	}
-	result := decode.TriggersListFromProto(msg)
+	result := mustReply(decode.TriggersListFromProto(msg))
 	if len(result.Triggers) != 1 || result.Total != 1 || result.NextPageToken != "trig-page-2" {
 		t.Fatalf("result=%+v", result)
 	}
@@ -246,7 +246,7 @@ func TestTriggerEventsListFromProto(t *testing.T) {
 		}},
 		NextPageToken: "evt-page-2",
 	}
-	result := decode.TriggerEventsListFromProto(msg)
+	result := mustReply(decode.TriggerEventsListFromProto(msg))
 	if len(result.Events) != 1 || result.NextPageToken != "evt-page-2" {
 		t.Fatalf("result=%+v", result)
 	}
@@ -284,13 +284,13 @@ func TestTriggerEventTypeFromLabel(t *testing.T) {
 }
 
 func TestTriggerEventsListFromProtoArmed(t *testing.T) {
-	result := decode.TriggerEventsListFromProto(&triggersv1.ListTriggerEventsResponse{
+	result := mustReply(decode.TriggerEventsListFromProto(&triggersv1.ListTriggerEventsResponse{
 		Events: []*triggersv1.TriggerEvent{{
 			TriggerId:   5,
 			TriggerType: triggersv1.TriggerType_TAKE_PROFIT,
 			EventType:   triggersv1.TriggerEventType_EVENT_ARMED,
 		}},
-	})
+	}))
 	if len(result.Events) != 1 || result.Events[0].EventType != "armed" {
 		t.Fatalf("result=%+v", result)
 	}
@@ -300,7 +300,7 @@ func TestGetTriggerFromProto(t *testing.T) {
 	msg := &triggersv1.GetTriggerResponse{
 		Trigger: &triggersv1.Trigger{TriggerId: 3, SymbolId: 1},
 	}
-	trigger := decode.GetTriggerFromProto(msg)
+	trigger := mustReply(decode.GetTriggerFromProto(msg))
 	if trigger == nil || trigger.TriggerID != codecs.FormatUint64ID(3) {
 		t.Fatalf("trigger=%+v", trigger)
 	}
@@ -348,7 +348,7 @@ func TestTriggerEventAbsentFirePrice(t *testing.T) {
 			ChildSeq:    1,
 		}},
 	}
-	result := decode.TriggerEventsListFromProto(msg)
+	result := mustReply(decode.TriggerEventsListFromProto(msg))
 	if len(result.Events) != 1 {
 		t.Fatalf("events=%+v", result.Events)
 	}
@@ -379,10 +379,10 @@ func TestTriggerReadPathsDistinguishMarketChildCaps(t *testing.T) {
 	}
 	paths := map[string]func(*triggersv1.Trigger) int32{
 		"get": func(msg *triggersv1.Trigger) int32 {
-			return decode.GetTriggerFromProto(&triggersv1.GetTriggerResponse{Trigger: msg}).MaxSlippageBps
+			return mustReply(decode.GetTriggerFromProto(&triggersv1.GetTriggerResponse{Trigger: msg})).MaxSlippageBps
 		},
 		"list": func(msg *triggersv1.Trigger) int32 {
-			return decode.TriggersListFromProto(&triggersv1.ListTriggersResponse{Triggers: []*triggersv1.Trigger{msg}}).Triggers[0].MaxSlippageBps
+			return mustReply(decode.TriggersListFromProto(&triggersv1.ListTriggersResponse{Triggers: []*triggersv1.Trigger{msg}})).Triggers[0].MaxSlippageBps
 		},
 		"stream": func(msg *triggersv1.Trigger) int32 {
 			payload, err := proto.Marshal(msg)
@@ -465,7 +465,7 @@ func TestTriggerFromProtoDecodesVersion(t *testing.T) {
 	if got := decode.TriggerFromProto(&triggersv1.Trigger{TriggerId: 7}).Version; got != 0 {
 		t.Fatalf("version=%d, want 0", got)
 	}
-	list := decode.TriggersListFromProto(&triggersv1.ListTriggersResponse{Triggers: []*triggersv1.Trigger{{TriggerId: 7, Version: 5}}})
+	list := mustReply(decode.TriggersListFromProto(&triggersv1.ListTriggersResponse{Triggers: []*triggersv1.Trigger{{TriggerId: 7, Version: 5}}}))
 	if len(list.Triggers) != 1 || list.Triggers[0].Version != 5 {
 		t.Fatalf("list=%+v", list)
 	}

@@ -273,7 +273,7 @@ func TestRedirectedMutationOutcomeIsUnknown(t *testing.T) {
 				t.Cleanup(func() { _ = client.Close() })
 				symbolID := uint32(1)
 
-				_, err = client.Orders.Cancel(context.Background(), nil, models.OrderKeyByID("1"), nil, &symbolID, nil)
+				_, err = client.Orders.Cancel(context.Background(), nil, models.OrderKeyByID("2"), nil, &symbolID, nil)
 
 				mu.Lock()
 				defer mu.Unlock()

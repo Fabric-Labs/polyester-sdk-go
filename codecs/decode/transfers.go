@@ -48,12 +48,17 @@ func TransferSideFromProto(msg *ledgerrdv1.TransferSide) *models.TransferSide {
 	return side
 }
 
-func TransfersListFromProto(msg *ledgerrdv1.ListTransfersResponse) models.TransfersList {
+// TransfersListFromProto decodes one page of ledger transfers. A transfer
+// without its ID returns a *errors.ResponseContractError.
+func TransfersListFromProto(msg *ledgerrdv1.ListTransfersResponse) (models.TransfersList, error) {
 	out := make([]models.LedgerTransfer, 0, len(msg.GetTransfers()))
 	for _, t := range msg.GetTransfers() {
+		if err := requireStringID("ListTransfers", "transfer_id", t.GetTransferId()); err != nil {
+			return models.TransfersList{}, err
+		}
 		out = append(out, TransferRowFromProto(t))
 	}
-	return models.TransfersList{Transfers: out, NextPageToken: msg.GetNextPageToken()}
+	return models.TransfersList{Transfers: out, NextPageToken: msg.GetNextPageToken()}, nil
 }
 
 // TransferRowFromProto decodes one transfer row.
