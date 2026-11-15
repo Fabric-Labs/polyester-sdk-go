@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- README examples match the current API: the alert listing example is complete Go, and the catalog hydration example imports the standard `errors` package for `errors.As` beside this SDK's `errors` package. `go test ./...` now compiles every Go block in the README against the module (`readme_test.go`), so an example that drifts from the API fails CI. No API changes.
+- README examples match the current API: the alert listing example is complete Go, and the catalog hydration example imports the standard `errors` package for `errors.As` beside this SDK's `errors` package. The trigger and halted-market prose names `Status` `failed` / `rejected` and `FailureReason` `trigger_would_trigger_immediately` as typed reads return them. `go test ./...` now compiles every Go block in the README against the module (`readme_test.go`), so an example that drifts from the API fails CI. No API changes.
 
 ## 0.31.0
 
