@@ -17,7 +17,7 @@ func TestOrderFromProtoDecodesEndReasons(t *testing.T) {
 		{
 			name:   "rejected",
 			msg:    &orderv1.Order{OrderId: 1, Status: orderv1.OrderStatus_REJECTED, RejectReason: orderv1.ErrorCode_ERROR_CODE_POST_ONLY_CROSS},
-			reject: "POST_ONLY_CROSS",
+			reject: "post_only_cross",
 		},
 		{
 			name:   "rejected with a code newer than the SDK",
@@ -27,7 +27,7 @@ func TestOrderFromProtoDecodesEndReasons(t *testing.T) {
 		{
 			name:   "rejected by a new trigger refusal",
 			msg:    &orderv1.Order{OrderId: 3, Status: orderv1.OrderStatus_REJECTED, RejectReason: orderv1.ErrorCode_ERROR_CODE_TWAP_CAPACITY_REACHED},
-			reject: "TWAP_CAPACITY_REACHED",
+			reject: "twap_capacity_reached",
 		},
 		{
 			name:   "canceled",

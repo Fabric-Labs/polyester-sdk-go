@@ -457,8 +457,10 @@ market execution is `MarketIoc`. Leave `TIF` unset or pass `ioc`; `Create`,
 sending it as IOC.
 
 An order read says why the order ended. A `rejected` order's `RejectReason`
-names its refusal as the order write API does, for example `POST_ONLY_CROSS`
-or `INSUFFICIENT_FUNDS` (the `ERROR_CODE_` name without its prefix). A
+names its refusal as a lowercase label, for example `post_only_cross` or
+`insufficient_funds` (the `ERROR_CODE_` name without its prefix, in lower
+case; `UNKNOWN_ERROR_CODE(n)` for a code newer than this SDK). The other
+Polyester SDKs read the same labels. A
 `canceled` order's `CancelReason` is one of `user_request`, `ioc_remainder`,
 `market_remainder`, `stp_expire_maker`, `stp_expire_taker`, `stp_expire_both`,
 `replaced`, `gtd_expired`, `qty_at_or_below_filled`, `pair_drain`,
@@ -790,9 +792,13 @@ Fee/quote estimates are no longer returned; CreateOrder always re-evaluates
 the intent. Preview is not deployed on every API host, so handle an
 unimplemented/not-found response and do not make Preview a prerequisite for
 order submission. Create results and accepted batch-create items expose
-`ResolvedBaseQtyScaled` and, for orders sized by a quote amount,
+`ResolvedBaseQtyScaled` and `ResolvedBaseQty` (the same quantity at the pair's
+base quantity scale) and, for orders sized by a quote amount,
 `SubmittedMaxQuoteDebitScaled` or `SubmittedQuoteProceedsScaled`; order reads
-carry the same echoes. For a SELL sized by quote proceeds, `ResolvedBaseQtyScaled`
+carry the same echoes. A create result's `AcceptedTsNs` is when admission
+completed, and `BatchCreateOrdersResult.TsNs` and `ModifyOrderResult.TsNs` are
+the server's response times, in nanoseconds since the Unix epoch (0 when the
+server sent none). For a SELL sized by quote proceeds, `ResolvedBaseQtyScaled`
 is the base it holds, `CumNotional` (`CumQuote`) the proceeds before fees and
 `FeeTotal` the quote fee charged on them.
 
@@ -1273,7 +1279,7 @@ change never returns its previous state.
 A market halt cancels the market's open orders with `CancelReason`
 `market_halted` and ends its open triggers with `CancelReason` `market_halted`.
 An order the halted market refuses after admission ends `REJECTED` with
-`RejectReason` `MARKET_HALTED`. A trigger it refuses after admission ends
+`RejectReason` `market_halted`. A trigger it refuses after admission ends
 `failed` with `FailureReason` `market_halted`, as do the attached legs of an
 order refused this way; a fire it refuses while the trigger stays live is a
 `fire_refused` event with `FireRefusalReason` `market_halted`.

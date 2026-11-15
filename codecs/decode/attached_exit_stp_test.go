@@ -37,7 +37,7 @@ func TestAttachedExitFiredCancelReason(t *testing.T) {
 		OrderId: 2, Status: orderv1.OrderStatus_REJECTED,
 		RejectReason: orderv1.ErrorCode_ERROR_CODE_SELF_TRADE_PREVENTED,
 	})
-	if rejected.RejectReason != "SELF_TRADE_PREVENTED" {
+	if rejected.RejectReason != "self_trade_prevented" {
 		t.Fatalf("reject reason=%q", rejected.RejectReason)
 	}
 }

@@ -480,7 +480,21 @@ func (s *OrdersService) BatchCreate(ctx context.Context, account AccountScope, i
 	if err != nil {
 		return models.BatchCreateOrdersResult{}, err
 	}
-	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().BatchCreateOrders, protoReq, decode.BatchCreateFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().BatchCreateOrders, protoReq, func(msg *orderv1.BatchCreateOrdersResponse) (models.BatchCreateOrdersResult, error) {
+		result, err := decode.BatchCreateFromProto(msg)
+		if err != nil || len(result.Results) != len(resolvedItems) {
+			return result, err
+		}
+		// Results come in request order: scale each resolved quantity as
+		// Create does, with its own item's pair.
+		for i := range result.Results {
+			if qty := result.Results[i].ResolvedBaseQty; qty != nil {
+				scaled := qty.WithScale(itemScales[i].Base).WithSymbolID(*resolvedItems[i].SymbolID)
+				result.Results[i].ResolvedBaseQty = &scaled
+			}
+		}
+		return result, nil
+	})
 }
 
 // BatchCancel cancels multiple orders in one request.
