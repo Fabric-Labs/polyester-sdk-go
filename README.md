@@ -142,6 +142,25 @@ cd polyester-sdk-go
 go test ./...
 ```
 
+## Devnet pre-releases
+
+Stable releases track testnet. While `CHANGELOG.md` has entries under
+`## Unreleased`, every push to `main` also tags a devnet pre-release of the next
+version, `v<version>-devnet.<YYYYMMDDHHmmss>` (the commit time, UTC), for trying
+changes before they reach a stable release. `go get` resolves `@latest` and
+`-u` upgrades to release versions only, so a module that does not name a
+devnet tag stays on the stable release.
+
+```bash
+go get github.com/Fabric-Labs/polyester-sdk-go@v0.35.0-devnet.20261117093000
+go list -m -versions github.com/Fabric-Labs/polyester-sdk-go   # every version, devnet tags included
+```
+
+The [releases page](https://github.com/Fabric-Labs/polyester-sdk-go/releases)
+holds one pre-release per upcoming version, pointing at its newest devnet tag,
+with the changes it carries. [RELEASING.md](RELEASING.md) describes both
+channels.
+
 ## Examples
 
 Runnable cookbook examples live in the sibling repo
