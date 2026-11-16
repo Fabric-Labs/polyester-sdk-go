@@ -3,6 +3,7 @@ package transport
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -136,13 +137,23 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	// authentication code, or a typed detail included, changes that.
 	if resp.StatusCode == http.StatusGatewayTimeout {
 		var mapped error
-		if outcomeCode != "" {
+		switch {
+		case outcomeCode != "":
 			mapped = &sdkerrors.APIError{
 				Msg:     firstNonEmpty(detail.Detail, detail.Title, strings.TrimSpace(detail.Message), detail.Code, outcomeCode),
 				Code:    outcomeCode,
 				Problem: sdkerrors.DecodeHTTPProblem(decoded, resp.StatusCode),
 			}
-		} else {
+		case detail.Code == "deadline_exceeded":
+			// ConnectRPC answers its own deadline_exceeded with 504: the
+			// request's deadline passed, read as the deadline it is (as
+			// ConnectRPC deadline_exceeded reads), whatever its message
+			// or detail says. Still an unknown outcome that reads retry.
+			mapped = &sdkerrors.TransportError{
+				Msg: firstNonEmpty(strings.TrimSpace(detail.Message), "deadline exceeded"),
+				Err: context.DeadlineExceeded,
+			}
+		default:
 			// A REST problem's code is uppercase; a ConnectRPC error's
 			// lowercase code names no service code, so only its detail's
 			// label is kept.

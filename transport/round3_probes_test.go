@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -76,6 +77,29 @@ func TestRound3ProbeRetryAfterOnEveryAnswer(t *testing.T) {
 		err := callMeAgainst(t, tc.status, tc.contentType, tc.body, map[string]string{"Retry-After": "30"})
 		if got := sdkerrors.RetryAfter(err); got == nil || *got != 30 {
 			t.Errorf("%d %s: %T retry after %v, want 30", tc.status, tc.body, err, got)
+		}
+	}
+}
+
+// ConnectRPC answers a server-side deadline_exceeded with HTTP 504. That is
+// the request's deadline, read as one: a deadline error with an unknown
+// outcome, whatever its message says, and never a refusal.
+func TestRound3ConnectDeadlineAt504IsTheDeadline(t *testing.T) {
+	for _, body := range []string{
+		`{"code":"deadline_exceeded","message":"context deadline exceeded"}`,
+		`{"code":"deadline_exceeded","message":"TIMESTAMP_SKEW"}`,
+	} {
+		err := callMeAgainst(t, http.StatusGatewayTimeout, "application/json", body)
+		var transportErr *sdkerrors.TransportError
+		if !errors.As(err, &transportErr) || !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("%s: %T %+v, want the deadline", body, err, err)
+		}
+		if sdkerrors.IsRetryable(err) || !sdkerrors.MutationOutcomeUnknown(err) {
+			t.Fatalf("%s: retryable=%v unknown=%v", body, sdkerrors.IsRetryable(err), sdkerrors.MutationOutcomeUnknown(err))
+		}
+		raw := rawMeAgainst(t, http.StatusGatewayTimeout, "application/json", body)
+		if !errors.Is(raw, context.DeadlineExceeded) {
+			t.Fatalf("%s: raw %v does not wrap the deadline", body, raw)
 		}
 	}
 }
