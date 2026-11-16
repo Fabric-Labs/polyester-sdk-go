@@ -2,14 +2,18 @@ package chain
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/big"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"github.com/Fabric-Labs/polyester-sdk-go/useragent"
 )
 
@@ -190,4 +194,52 @@ func (c *JSONRPCClient) RequestDecode(method string, params any, out any) error 
 		return fmt.Errorf("decode json-rpc result: %w", err)
 	}
 	return nil
+}
+
+// ethCallWord decodes the one 32-byte ABI word that an eth_call of a function
+// returning a single static value answers: 0x and exactly 64 hex digits,
+// surrounding whitespace ignored. Anything else, such as non-ASCII, short,
+// odd-length or non-hex text from the RPC endpoint, is an
+// *errors.TransportError; the text is not echoed.
+func ethCallWord(raw, kind string) ([32]byte, error) {
+	var word [32]byte
+	text := strings.TrimSpace(raw)
+	digits, ok := strings.CutPrefix(text, "0x")
+	if ok && len(digits) == 2*len(word) {
+		if _, err := hex.Decode(word[:], []byte(digits)); err == nil {
+			return word, nil
+		}
+	}
+	return [32]byte{}, &sdkerrors.TransportError{Msg: fmt.Sprintf(
+		"eth_call %s result is not a 0x-prefixed 32-byte hex word (%d bytes of text)", kind, len(raw),
+	)}
+}
+
+// ethCallAddress decodes an eth_call result that is one ABI-encoded address:
+// a 32-byte word whose upper 12 bytes are zero.
+func ethCallAddress(raw, kind string) (string, error) {
+	word, err := ethCallWord(raw, kind)
+	if err != nil {
+		return "", err
+	}
+	for _, b := range word[:12] {
+		if b != 0 {
+			return "", &sdkerrors.TransportError{Msg: "eth_call " + kind + " result is not an ABI-encoded address"}
+		}
+	}
+	return "0x" + hex.EncodeToString(word[12:]), nil
+}
+
+// ethCallUint decodes an eth_call result that is one ABI-encoded unsigned
+// integer of at most bits bits.
+func ethCallUint(raw, kind string, bits int) (*big.Int, error) {
+	word, err := ethCallWord(raw, kind)
+	if err != nil {
+		return nil, err
+	}
+	n := new(big.Int).SetBytes(word[:])
+	if n.BitLen() > bits {
+		return nil, &sdkerrors.TransportError{Msg: fmt.Sprintf("eth_call %s result exceeds uint%d", kind, bits)}
+	}
+	return n, nil
 }

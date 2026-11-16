@@ -8,10 +8,12 @@ import (
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 )
 
-var invalidBuckets = []string{"abc", "-1", "0", "0.000", " ", "0.0000000001", "1e3"}
+// A whitespace-only bucket is not empty: like a whitespace-only price, it is
+// refused. Whitespace around a valid price is ignored, as for every price.
+var invalidBuckets = []string{"abc", "-1", "0", "0.000", " ", "\t \n", "0.0000000001", "1e3"}
 
 func TestParseBucketTicks(t *testing.T) {
-	for bucket, want := range map[string]int{"": 0, "0.01": 10_000_000, "1": 1_000_000_000, "0.000000001": 1} {
+	for bucket, want := range map[string]int{"": 0, "0.01": 10_000_000, " 0.01\t": 10_000_000, "1": 1_000_000_000, "0.000000001": 1} {
 		got, err := ParseBucketTicks(bucket)
 		if err != nil || got != want {
 			t.Fatalf("ParseBucketTicks(%q)=%d, %v; want %d", bucket, got, err, want)
