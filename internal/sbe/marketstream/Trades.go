@@ -15,7 +15,7 @@ type Trades struct {
 	position          uint64
 	actingBlockLength uint64
 	actingVersion     uint64
-	_Trades           TradesTrades
+	_Entries          TradesEntries
 }
 
 func (m *Trades) sbePositionPtr() *uint64 {
@@ -27,7 +27,7 @@ const (
 	TradesSbeTemplateID      uint16 = uint16(22)
 	TradesSbeSchemaID        uint16 = uint16(20)
 	TradesSbeSchemaVersion   uint16 = uint16(0)
-	TradesSbeSemanticVersion string = ""
+	TradesSbeSemanticVersion string = "1.0.0"
 )
 
 func (m *Trades) SbeBlockLength() uint16 {
@@ -51,7 +51,7 @@ func (m *Trades) SbeSchemaVersion() uint16 {
 }
 
 func (m *Trades) SbeSemanticVersion() string {
-	return ""
+	return "1.0.0"
 }
 
 func (m *Trades) SbeSemanticType() string {
@@ -414,7 +414,7 @@ func (m *Trades) SetSendTsNs(value uint64) *Trades {
 	return m
 }
 
-type TradesTrades struct {
+type TradesEntries struct {
 	buffer          []byte
 	bufferLength    uint64
 	initialPosition uint64
@@ -426,11 +426,11 @@ type TradesTrades struct {
 	actingVersion   uint64
 }
 
-func (g *TradesTrades) sbePositionPtr() *uint64 {
+func (g *TradesEntries) sbePositionPtr() *uint64 {
 	return g.positionPtr
 }
 
-func (g *TradesTrades) WrapForDecode(
+func (g *TradesEntries) WrapForDecode(
 	buffer []byte,
 	pos *uint64,
 	actingVersion uint64,
@@ -448,7 +448,7 @@ func (g *TradesTrades) WrapForDecode(
 	*g.positionPtr = *g.positionPtr + 4
 }
 
-func (g *TradesTrades) WrapForEncode(
+func (g *TradesEntries) WrapForEncode(
 	buffer []byte,
 	count uint16,
 	pos *uint64,
@@ -472,38 +472,38 @@ func (g *TradesTrades) WrapForEncode(
 	*g.positionPtr = *g.positionPtr + 4
 }
 
-func (g *TradesTrades) SbeHeaderSize() uint64 {
+func (g *TradesEntries) SbeHeaderSize() uint64 {
 	return 4
 }
 
-func (g *TradesTrades) SbeBlockLength() uint64 {
+func (g *TradesEntries) SbeBlockLength() uint64 {
 	return 25
 }
 
-func (g *TradesTrades) SbePosition() uint64 {
+func (g *TradesEntries) SbePosition() uint64 {
 	return *g.positionPtr
 }
 
-func (g *TradesTrades) SbeCheckPosition(position uint64) uint64 {
+func (g *TradesEntries) SbeCheckPosition(position uint64) uint64 {
 	if position > g.bufferLength {
 		panic("buffer too short [E100]")
 	}
 	return position
 }
 
-func (g *TradesTrades) SetSbePosition(position uint64) {
+func (g *TradesEntries) SetSbePosition(position uint64) {
 	*g.positionPtr = g.SbeCheckPosition(position)
 }
 
-func (g *TradesTrades) Count() uint64 {
+func (g *TradesEntries) Count() uint64 {
 	return g.count
 }
 
-func (g *TradesTrades) HasNext() bool {
+func (g *TradesEntries) HasNext() bool {
 	return g.index < g.count
 }
 
-func (g *TradesTrades) Next() *TradesTrades {
+func (g *TradesEntries) Next() *TradesEntries {
 	if g.index >= g.count {
 		panic("index >= count [E108]")
 	}
@@ -517,7 +517,7 @@ func (g *TradesTrades) Next() *TradesTrades {
 	return g
 }
 
-func (g *TradesTrades) ResetCountToIndex() uint64 {
+func (g *TradesEntries) ResetCountToIndex() uint64 {
 	g.count = g.index
 	dimensions := GroupSizeEncoding{}
 	dimensions.Wrap(g.buffer, g.initialPosition, g.actingVersion, g.bufferLength)
@@ -525,14 +525,14 @@ func (g *TradesTrades) ResetCountToIndex() uint64 {
 	return g.count
 }
 
-func (g *TradesTrades) ForEach(fn func(group *TradesTrades)) {
+func (g *TradesEntries) ForEach(fn func(group *TradesEntries)) {
 	for g.HasNext() {
 		g.Next()
 		fn(g)
 	}
 }
 
-func (m *TradesTrades) TradeIdMetaAttribute(metaAttribute string) string {
+func (m *TradesEntries) TradeIdMetaAttribute(metaAttribute string) string {
 	switch metaAttribute {
 	case "PRESENCE":
 		return "required"
@@ -541,48 +541,48 @@ func (m *TradesTrades) TradeIdMetaAttribute(metaAttribute string) string {
 	}
 }
 
-func (m *TradesTrades) TradeIdId() int {
+func (m *TradesEntries) TradeIdId() int {
 	return 1
 }
 
-func (m *TradesTrades) TradeIdSinceVersion() uint64 {
+func (m *TradesEntries) TradeIdSinceVersion() uint64 {
 	return 0
 }
 
-func (m *TradesTrades) TradeIdInActingVersion() bool {
+func (m *TradesEntries) TradeIdInActingVersion() bool {
 	return true
 }
 
-func (m *TradesTrades) TradeIdEncodingOffset() uint {
+func (m *TradesEntries) TradeIdEncodingOffset() uint {
 	return 0
 }
 
-func (m *TradesTrades) TradeIdNullValue() uint64 {
+func (m *TradesEntries) TradeIdNullValue() uint64 {
 	return SbeNullValueUint64()
 }
 
-func (m *TradesTrades) TradeIdMinValue() uint64 {
+func (m *TradesEntries) TradeIdMinValue() uint64 {
 	return uint64(0x0)
 }
 
-func (m *TradesTrades) TradeIdMaxValue() uint64 {
+func (m *TradesEntries) TradeIdMaxValue() uint64 {
 	return uint64(0xfffffffffffffffe)
 }
 
-func (m *TradesTrades) TradeIdEncodingLength() int {
+func (m *TradesEntries) TradeIdEncodingLength() int {
 	return 8
 }
 
-func (m *TradesTrades) TradeId() uint64 {
+func (m *TradesEntries) TradeId() uint64 {
 	return Uint64LittleEndian(m.buffer[(m.offset + 0):])
 }
 
-func (m *TradesTrades) SetTradeId(value uint64) *TradesTrades {
+func (m *TradesEntries) SetTradeId(value uint64) *TradesEntries {
 	PutUint64LittleEndian(m.buffer[(m.offset+0):], value)
 	return m
 }
 
-func (m *TradesTrades) PriceTicksMetaAttribute(metaAttribute string) string {
+func (m *TradesEntries) PriceTicksMetaAttribute(metaAttribute string) string {
 	switch metaAttribute {
 	case "PRESENCE":
 		return "required"
@@ -591,48 +591,48 @@ func (m *TradesTrades) PriceTicksMetaAttribute(metaAttribute string) string {
 	}
 }
 
-func (m *TradesTrades) PriceTicksId() int {
+func (m *TradesEntries) PriceTicksId() int {
 	return 2
 }
 
-func (m *TradesTrades) PriceTicksSinceVersion() uint64 {
+func (m *TradesEntries) PriceTicksSinceVersion() uint64 {
 	return 0
 }
 
-func (m *TradesTrades) PriceTicksInActingVersion() bool {
+func (m *TradesEntries) PriceTicksInActingVersion() bool {
 	return true
 }
 
-func (m *TradesTrades) PriceTicksEncodingOffset() uint {
+func (m *TradesEntries) PriceTicksEncodingOffset() uint {
 	return 8
 }
 
-func (m *TradesTrades) PriceTicksNullValue() int64 {
+func (m *TradesEntries) PriceTicksNullValue() int64 {
 	return SbeNullValueInt64()
 }
 
-func (m *TradesTrades) PriceTicksMinValue() int64 {
+func (m *TradesEntries) PriceTicksMinValue() int64 {
 	return int64(-9223372036854775807)
 }
 
-func (m *TradesTrades) PriceTicksMaxValue() int64 {
+func (m *TradesEntries) PriceTicksMaxValue() int64 {
 	return int64(9223372036854775807)
 }
 
-func (m *TradesTrades) PriceTicksEncodingLength() int {
+func (m *TradesEntries) PriceTicksEncodingLength() int {
 	return 8
 }
 
-func (m *TradesTrades) PriceTicks() int64 {
+func (m *TradesEntries) PriceTicks() int64 {
 	return Int64LittleEndian(m.buffer[(m.offset + 8):])
 }
 
-func (m *TradesTrades) SetPriceTicks(value int64) *TradesTrades {
+func (m *TradesEntries) SetPriceTicks(value int64) *TradesEntries {
 	PutInt64LittleEndian(m.buffer[(m.offset+8):], value)
 	return m
 }
 
-func (m *TradesTrades) QtyScaledMetaAttribute(metaAttribute string) string {
+func (m *TradesEntries) QtyScaledMetaAttribute(metaAttribute string) string {
 	switch metaAttribute {
 	case "PRESENCE":
 		return "required"
@@ -641,48 +641,48 @@ func (m *TradesTrades) QtyScaledMetaAttribute(metaAttribute string) string {
 	}
 }
 
-func (m *TradesTrades) QtyScaledId() int {
+func (m *TradesEntries) QtyScaledId() int {
 	return 3
 }
 
-func (m *TradesTrades) QtyScaledSinceVersion() uint64 {
+func (m *TradesEntries) QtyScaledSinceVersion() uint64 {
 	return 0
 }
 
-func (m *TradesTrades) QtyScaledInActingVersion() bool {
+func (m *TradesEntries) QtyScaledInActingVersion() bool {
 	return true
 }
 
-func (m *TradesTrades) QtyScaledEncodingOffset() uint {
+func (m *TradesEntries) QtyScaledEncodingOffset() uint {
 	return 16
 }
 
-func (m *TradesTrades) QtyScaledNullValue() int64 {
+func (m *TradesEntries) QtyScaledNullValue() int64 {
 	return SbeNullValueInt64()
 }
 
-func (m *TradesTrades) QtyScaledMinValue() int64 {
+func (m *TradesEntries) QtyScaledMinValue() int64 {
 	return int64(-9223372036854775807)
 }
 
-func (m *TradesTrades) QtyScaledMaxValue() int64 {
+func (m *TradesEntries) QtyScaledMaxValue() int64 {
 	return int64(9223372036854775807)
 }
 
-func (m *TradesTrades) QtyScaledEncodingLength() int {
+func (m *TradesEntries) QtyScaledEncodingLength() int {
 	return 8
 }
 
-func (m *TradesTrades) QtyScaled() int64 {
+func (m *TradesEntries) QtyScaled() int64 {
 	return Int64LittleEndian(m.buffer[(m.offset + 16):])
 }
 
-func (m *TradesTrades) SetQtyScaled(value int64) *TradesTrades {
+func (m *TradesEntries) SetQtyScaled(value int64) *TradesEntries {
 	PutInt64LittleEndian(m.buffer[(m.offset+16):], value)
 	return m
 }
 
-func (m *TradesTrades) TakerSideMetaAttribute(metaAttribute string) string {
+func (m *TradesEntries) TakerSideMetaAttribute(metaAttribute string) string {
 	switch metaAttribute {
 	case "PRESENCE":
 		return "required"
@@ -691,41 +691,41 @@ func (m *TradesTrades) TakerSideMetaAttribute(metaAttribute string) string {
 	}
 }
 
-func (m *TradesTrades) TakerSideId() int {
+func (m *TradesEntries) TakerSideId() int {
 	return 4
 }
 
-func (m *TradesTrades) TakerSideSinceVersion() uint64 {
+func (m *TradesEntries) TakerSideSinceVersion() uint64 {
 	return 0
 }
 
-func (m *TradesTrades) TakerSideInActingVersion() bool {
+func (m *TradesEntries) TakerSideInActingVersion() bool {
 	return true
 }
 
-func (m *TradesTrades) TakerSideEncodingOffset() uint {
+func (m *TradesEntries) TakerSideEncodingOffset() uint {
 	return 24
 }
 
-func (m *TradesTrades) TakerSideEncodingLength() int {
+func (m *TradesEntries) TakerSideEncodingLength() int {
 	return 1
 }
 
-func (m *TradesTrades) TakerSideRaw() uint8 {
+func (m *TradesEntries) TakerSideRaw() uint8 {
 	return Uint8LittleEndian(m.buffer[(m.offset + 24):])
 }
 
-func (m *TradesTrades) TakerSide() Side {
+func (m *TradesEntries) TakerSide() Side {
 	return Side(Uint8LittleEndian(m.buffer[(m.offset + 24):]))
 }
 
-func (m *TradesTrades) SetTakerSide(value Side) *TradesTrades {
+func (m *TradesEntries) SetTakerSide(value Side) *TradesEntries {
 	val := uint8(value)
 	PutUint8LittleEndian(m.buffer[(m.offset+24):], val)
 	return m
 }
 
-func (writer *TradesTrades) String() string {
+func (writer *TradesEntries) String() string {
 	builder := strings.Builder{}
 	builder.WriteString("{")
 	builder.WriteString(`"tradeId": `)
@@ -748,37 +748,37 @@ func (writer *TradesTrades) String() string {
 	return builder.String()
 }
 
-func (m *TradesTrades) Skip() {
+func (m *TradesEntries) Skip() {
 }
 
-func (m *TradesTrades) IsConstLength() bool {
+func (m *TradesEntries) IsConstLength() bool {
 	return true
 }
 
-func (m *TradesTrades) ComputeLength() (int, error) {
+func (m *TradesEntries) ComputeLength() (int, error) {
 	length := uint64(m.SbeBlockLength())
 
 	return int(length), nil
 }
-func (m *Trades) TradesId() int {
+func (m *Trades) EntriesId() int {
 	return 6
 }
 
-func (m *Trades) Trades() *TradesTrades {
-	m._Trades.WrapForDecode(m.buffer, m.sbePositionPtr(), m.actingVersion, m.bufferLength)
-	return &m._Trades
+func (m *Trades) Entries() *TradesEntries {
+	m._Entries.WrapForDecode(m.buffer, m.sbePositionPtr(), m.actingVersion, m.bufferLength)
+	return &m._Entries
 }
 
-func (m *Trades) TradesCount(count uint16) *TradesTrades {
-	m._Trades.WrapForEncode(m.buffer, count, m.sbePositionPtr(), m.actingVersion, m.bufferLength)
-	return &m._Trades
+func (m *Trades) EntriesCount(count uint16) *TradesEntries {
+	m._Entries.WrapForEncode(m.buffer, count, m.sbePositionPtr(), m.actingVersion, m.bufferLength)
+	return &m._Entries
 }
 
-func (m *Trades) TradesSinceVersion() uint64 {
+func (m *Trades) EntriesSinceVersion() uint64 {
 	return 0
 }
 
-func (m *Trades) TradesInActingVersion() bool {
+func (m *Trades) EntriesInActingVersion() bool {
 	return true
 }
 
@@ -810,9 +810,9 @@ func (writer *Trades) String() string {
 	builder.WriteString(", ")
 	{
 		atLeastOne := false
-		builder.WriteString(`"trades": [`)
-		writer.Trades().ForEach(
-			func(value *TradesTrades) {
+		builder.WriteString(`"entries": [`)
+		writer.Entries().ForEach(
+			func(value *TradesEntries) {
 				if atLeastOne {
 					builder.WriteString(", ")
 				}
@@ -828,8 +828,8 @@ func (writer *Trades) String() string {
 }
 
 func (m *Trades) Skip() {
-	for TradesGroup := m.Trades(); TradesGroup.HasNext(); {
-		TradesGroup.Next().Skip()
+	for EntriesGroup := m.Entries(); EntriesGroup.HasNext(); {
+		EntriesGroup.Next().Skip()
 	}
 }
 
@@ -837,14 +837,14 @@ func (m *Trades) IsConstLength() bool {
 	return false
 }
 
-func (m *Trades) ComputeLength(TradesLength int) (int, error) {
+func (m *Trades) ComputeLength(EntriesLength int) (int, error) {
 	length := uint64(m.SbeBlockLength())
 
-	length += m.Trades().SbeHeaderSize()
-	if TradesLength > 65534 {
-		panic(fmt.Sprintf("TradesLength outside of allowed range [E110]"))
+	length += m.Entries().SbeHeaderSize()
+	if EntriesLength > 65534 {
+		panic(fmt.Sprintf("EntriesLength outside of allowed range [E110]"))
 	}
-	length += uint64(TradesLength) * m.Trades().SbeBlockLength()
+	length += uint64(EntriesLength) * m.Entries().SbeBlockLength()
 
 	return int(length), nil
 }

@@ -26,7 +26,7 @@ const (
 	PingSbeTemplateID      uint16 = uint16(3)
 	PingSbeSchemaID        uint16 = uint16(20)
 	PingSbeSchemaVersion   uint16 = uint16(0)
-	PingSbeSemanticVersion string = ""
+	PingSbeSemanticVersion string = "1.0.0"
 )
 
 func (m *Ping) SbeBlockLength() uint16 {
@@ -50,7 +50,7 @@ func (m *Ping) SbeSchemaVersion() uint16 {
 }
 
 func (m *Ping) SbeSemanticVersion() string {
-	return ""
+	return "1.0.0"
 }
 
 func (m *Ping) SbeSemanticType() string {

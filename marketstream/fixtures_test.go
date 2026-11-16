@@ -2,6 +2,7 @@ package marketstream
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -220,8 +221,11 @@ func TestFixtureTradesAfterTheirBaseline(t *testing.T) {
 	replay(t, c, fixtureGroup(t, frames, "trades"))
 	var trades *Trades
 	for _, e := range events(c) {
-		if tr, ok := e.(*Trades); ok {
-			trades = tr
+		switch e := e.(type) {
+		case *Trades:
+			trades = e
+		case *TradesGap:
+			t.Fatalf("gap %+v between the baseline and its trades", e)
 		}
 	}
 	if trades == nil || len(trades.Trades) == 0 {
@@ -271,4 +275,83 @@ func TestFixturePongAnswersItsPing(t *testing.T) {
 		}
 	}
 	t.Fatal("the fixture pong does not answer the fixture ping")
+}
+
+// A depth snapshot holding levels, then its contiguous updates: the window
+// is the snapshot's, each update applies at its base, the last one, a range
+// without levels, advances the position to its end.
+func TestFixtureDepthWithLevels(t *testing.T) {
+	frames, _ := loadFixtures(t)
+	c := fixtureClient(t, frames)
+	chain := fixtureGroup(t, frames, "depth-levels-chain")
+	m, _ := decodeFrame(chain[0].data)
+	snap := m.(*depthSnapshotMsg)
+	if len(snap.bids) == 0 || len(snap.asks) == 0 {
+		t.Fatalf("snapshot %+v holds no levels", snap)
+	}
+	replay(t, c, chain[:1])
+	book, _ := c.OrderBook(snap.symbolID, StreamDepth, 0)
+	if book.LevelsPerSide != int(snap.levelsPerSide) || len(book.Bids) != len(snap.bids) || len(book.Asks) != len(snap.asks) || book.Stale {
+		t.Fatalf("book %+v from the snapshot", book)
+	}
+	replay(t, c, chain[1:])
+	last, _ := decodeFrame(chain[len(chain)-1].data)
+	end := last.(*depthUpdateMsg)
+	if end.last <= end.first || len(end.bids)+len(end.asks) != 0 {
+		t.Fatalf("the chain's last update %+v is not a bridging range", end)
+	}
+	book, _ = c.OrderBook(snap.symbolID, StreamDepth, 0)
+	if book.UpdateID != end.last || book.Stale || len(book.Bids) > book.LevelsPerSide || len(book.Asks) > book.LevelsPerSide {
+		t.Fatalf("book %+v after the chain ending at %d", book, end.last)
+	}
+	for i := 1; i < len(book.Bids); i++ {
+		if book.Bids[i].Price.Ticks() >= book.Bids[i-1].Price.Ticks() {
+			t.Fatalf("bids out of order: %+v", book.Bids)
+		}
+	}
+	for i := 1; i < len(book.Asks); i++ {
+		if book.Asks[i].Price.Ticks() <= book.Asks[i-1].Price.Ticks() {
+			t.Fatalf("asks out of order: %+v", book.Asks)
+		}
+	}
+}
+
+// An update missing from the chain is a gap: the book is stale and the
+// connection is ended so a new subscription's snapshot replaces it.
+func TestFixtureDepthGapMarksTheBookStale(t *testing.T) {
+	frames, _ := loadFixtures(t)
+	c := fixtureClient(t, frames)
+	chain := fixtureGroup(t, frames, "depth-levels-chain")
+	replay(t, c, chain[:2])
+	err := c.handle(chain[3].data)
+	var gap *BookGapError
+	if !errors.As(err, &gap) {
+		t.Fatalf("an update past a missing one: %v, want a book gap", err)
+	}
+	m, _ := decodeFrame(chain[0].data)
+	symbol := m.(*depthSnapshotMsg).symbolID
+	if book, _ := c.OrderBook(symbol, StreamDepth, 0); !book.Stale || c.Live(Topic{symbol, StreamDepth}) {
+		t.Fatalf("book %+v current after a gap", book)
+	}
+}
+
+// TradesSkipped after the pair's baseline names exactly the trades the
+// subscription will not receive live.
+func TestFixtureTradesSkippedAfterTheBaseline(t *testing.T) {
+	frames, _ := loadFixtures(t)
+	c := fixtureClient(t, frames)
+	group := fixtureGroup(t, frames, "trades-skipped")
+	replay(t, c, group)
+	m, _ := decodeFrame(group[1].data)
+	skipped := m.(*tradesSkippedMsg)
+	var gaps []*TradesGap
+	for _, e := range events(c) {
+		if g, ok := e.(*TradesGap); ok {
+			gaps = append(gaps, g)
+		}
+	}
+	want := TradesGap{SymbolID: skipped.symbolID, AfterTradeID: skipped.first - 1, ThroughTradeID: skipped.last, Cause: GapSkipped}
+	if len(gaps) != 1 || *gaps[0] != want {
+		t.Fatalf("gaps %+v, want only %+v", gaps, want)
+	}
 }

@@ -128,12 +128,12 @@ func decodeFrame(frame []byte) (msg any, err error) {
 	switch template {
 	case ms.TradesSbeTemplateID:
 		var m ms.Trades
-		if err := check(m.SbeBlockLength(), (&ms.TradesTrades{}).SbeBlockLength()); err != nil {
+		if err := check(m.SbeBlockLength(), (&ms.TradesEntries{}).SbeBlockLength()); err != nil {
 			return nil, err
 		}
 		m.WrapForDecode(frame, uint64(headerLength), block, version, size)
 		out := &tradesMsg{symbolID: m.SymbolId(), epoch: m.BookEpoch(), updateID: m.UpdateId(), transactNs: m.TransactTsNs(), sendNs: m.SendTsNs()}
-		g := m.Trades()
+		g := m.Entries()
 		out.fills = make([]fillMsg, 0, g.Count())
 		for g.HasNext() {
 			f := g.Next()

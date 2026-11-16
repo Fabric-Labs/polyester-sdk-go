@@ -27,7 +27,7 @@ const (
 	SubscribeSbeTemplateID      uint16 = uint16(1)
 	SubscribeSbeSchemaID        uint16 = uint16(20)
 	SubscribeSbeSchemaVersion   uint16 = uint16(0)
-	SubscribeSbeSemanticVersion string = ""
+	SubscribeSbeSemanticVersion string = "1.0.0"
 )
 
 func (m *Subscribe) SbeBlockLength() uint16 {
@@ -51,7 +51,7 @@ func (m *Subscribe) SbeSchemaVersion() uint16 {
 }
 
 func (m *Subscribe) SbeSemanticVersion() string {
-	return ""
+	return "1.0.0"
 }
 
 func (m *Subscribe) SbeSemanticType() string {

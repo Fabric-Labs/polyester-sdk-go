@@ -26,7 +26,7 @@ const (
 	PongSbeTemplateID      uint16 = uint16(21)
 	PongSbeSchemaID        uint16 = uint16(20)
 	PongSbeSchemaVersion   uint16 = uint16(0)
-	PongSbeSemanticVersion string = ""
+	PongSbeSemanticVersion string = "1.0.0"
 )
 
 func (m *Pong) SbeBlockLength() uint16 {
@@ -50,7 +50,7 @@ func (m *Pong) SbeSchemaVersion() uint16 {
 }
 
 func (m *Pong) SbeSemanticVersion() string {
-	return ""
+	return "1.0.0"
 }
 
 func (m *Pong) SbeSemanticType() string {

@@ -26,7 +26,7 @@ const (
 	TradesSkippedSbeTemplateID      uint16 = uint16(27)
 	TradesSkippedSbeSchemaID        uint16 = uint16(20)
 	TradesSkippedSbeSchemaVersion   uint16 = uint16(0)
-	TradesSkippedSbeSemanticVersion string = ""
+	TradesSkippedSbeSemanticVersion string = "1.0.0"
 )
 
 func (m *TradesSkipped) SbeBlockLength() uint16 {
@@ -50,7 +50,7 @@ func (m *TradesSkipped) SbeSchemaVersion() uint16 {
 }
 
 func (m *TradesSkipped) SbeSemanticVersion() string {
-	return ""
+	return "1.0.0"
 }
 
 func (m *TradesSkipped) SbeSemanticType() string {

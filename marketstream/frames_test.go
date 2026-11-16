@@ -20,7 +20,7 @@ func tradesFrame(symbol uint32, epoch, updateID uint64, fills ...fillMsg) []byte
 	var m ms.Trades
 	m.WrapAndApplyHeader(buf, 0, uint64(len(buf))).
 		SetSymbolId(symbol).SetBookEpoch(epoch).SetUpdateId(updateID).SetTransactTsNs(1_700_000_000_000_000_000).SetSendTsNs(1_700_000_000_000_001_000)
-	g := m.TradesCount(uint16(len(fills)))
+	g := m.EntriesCount(uint16(len(fills)))
 	for _, f := range fills {
 		g.Next().SetTradeId(f.tradeID).SetPriceTicks(f.price).SetQtyScaled(f.qty).SetTakerSide(ms.Side(f.side))
 	}

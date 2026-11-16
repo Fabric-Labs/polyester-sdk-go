@@ -26,7 +26,7 @@ const (
 	BestBidOfferSbeTemplateID      uint16 = uint16(23)
 	BestBidOfferSbeSchemaID        uint16 = uint16(20)
 	BestBidOfferSbeSchemaVersion   uint16 = uint16(0)
-	BestBidOfferSbeSemanticVersion string = ""
+	BestBidOfferSbeSemanticVersion string = "1.0.0"
 )
 
 func (m *BestBidOffer) SbeBlockLength() uint16 {
@@ -50,7 +50,7 @@ func (m *BestBidOffer) SbeSchemaVersion() uint16 {
 }
 
 func (m *BestBidOffer) SbeSemanticVersion() string {
-	return ""
+	return "1.0.0"
 }
 
 func (m *BestBidOffer) SbeSemanticType() string {

@@ -26,7 +26,7 @@ const (
 	MarketStatusSbeTemplateID      uint16 = uint16(26)
 	MarketStatusSbeSchemaID        uint16 = uint16(20)
 	MarketStatusSbeSchemaVersion   uint16 = uint16(0)
-	MarketStatusSbeSemanticVersion string = ""
+	MarketStatusSbeSemanticVersion string = "1.0.0"
 )
 
 func (m *MarketStatus) SbeBlockLength() uint16 {
@@ -50,7 +50,7 @@ func (m *MarketStatus) SbeSchemaVersion() uint16 {
 }
 
 func (m *MarketStatus) SbeSemanticVersion() string {
-	return ""
+	return "1.0.0"
 }
 
 func (m *MarketStatus) SbeSemanticType() string {

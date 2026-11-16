@@ -217,7 +217,9 @@ func (r *rewrite) apply(m msg) msg {
 		m.first, m.last = r.trade(m.first), r.trade(m.last)
 	}
 	if m.template == ms.TradesThroughSbeTemplateID {
-		m.lastTrade = r.trade(m.lastTrade)
+		// A frontier moves with the trades it accounts for, an epoch's base
+		// (0 for epoch 1) included: it is a position, never a null.
+		m.lastTrade += tradeOffset
 	}
 	m.transact, m.send = r.time(m.transact), r.time(m.send)
 	m.bids, m.asks = r.levels(m.bids), r.levels(m.asks)
@@ -345,13 +347,11 @@ func (d *deriver) select_() {
 	d.one("market-status-stale", "MarketStatus STALE", func(f frame) bool { return f.message == "MarketStatus" && f.m.feed == feedStale })
 	d.one("market-status-live", "MarketStatus LIVE", func(f frame) bool { return f.message == "MarketStatus" && f.m.feed == feedLive })
 	d.trades()
-	d.one("trades-skipped", "a TradesSkipped", is("server", "TradesSkipped"))
+	d.tradesSkipped()
 	d.depth20()
 	d.one("depth-snapshot", "a depth-stream DepthSnapshot", func(f frame) bool { return f.message == "DepthSnapshot" && f.m.stream == streamDepth })
-	d.one("depth-snapshot-levels", "a depth-stream DepthSnapshot holding levels", func(f frame) bool {
-		return f.message == "DepthSnapshot" && f.m.stream == streamDepth && len(f.m.bids)+len(f.m.asks) > 0
-	})
 	d.chains()
+	d.levelsChain()
 }
 
 // trades selects a Trades message whose pair's baseline TradesThrough came
@@ -374,6 +374,48 @@ func (d *deriver) trades() {
 	}
 	d.add("trades-through", "trades", "TODO: no captured baseline before trades yet", nil)
 	d.add("trades", "trades", "TODO: no captured trades after a baseline yet", nil)
+}
+
+// tradesSkipped selects a TradesSkipped whose pair's baseline TradesThrough
+// came before it in the same capture, with that baseline.
+func (d *deriver) tradesSkipped() {
+	for _, c := range d.captures {
+		through := map[uint32]int{}
+		for i, f := range c {
+			switch f.message {
+			case "TradesThrough":
+				through[f.m.symbol] = i
+			case "TradesSkipped":
+				if j, ok := through[f.m.symbol]; ok {
+					d.add("trades-skipped-through", "trades-skipped", "the pair's baseline", &c[j])
+					d.add("trades-skipped", "trades-skipped", "trades the subscription will not receive live", &c[i])
+					return
+				}
+			}
+		}
+	}
+	d.add("trades-skipped", "trades-skipped", "TODO: no captured TradesSkipped after a baseline yet", nil)
+}
+
+// levelsChain selects the first depth chain whose snapshot holds levels.
+func (d *deriver) levelsChain() {
+	for _, c := range d.captures {
+		for _, ch := range d.chainsOf(c) {
+			s := ch.frames[0].m
+			if len(s.bids)+len(s.asks) == 0 {
+				continue
+			}
+			for i, f := range ch.frames[:min(len(ch.frames), 1+maxChainUpdates)] {
+				note := "contiguous DepthUpdate"
+				if i == 0 {
+					note = "a depth-stream DepthSnapshot holding levels"
+				}
+				d.add(fmt.Sprintf("depth-levels-chain-%02d", i), "depth-levels-chain", note, f)
+			}
+			return
+		}
+	}
+	d.add("depth-levels-chain", "depth-levels-chain", "TODO: no captured depth-stream DepthSnapshot holding levels yet", nil)
 }
 
 // depth20 selects the depth20 snapshot with the most levels.
@@ -575,7 +617,7 @@ func decode(b []byte) (m msg, err error) {
 		var x ms.Trades
 		x.WrapForDecode(b, off, block, ver, size)
 		m.symbol, m.epoch, m.update, m.transact, m.send = x.SymbolId(), x.BookEpoch(), x.UpdateId(), x.TransactTsNs(), x.SendTsNs()
-		g := x.Trades()
+		g := x.Entries()
 		for g.HasNext() {
 			f := g.Next()
 			m.fills = append(m.fills, fill{id: f.TradeId(), price: f.PriceTicks(), qty: f.QtyScaled(), side: uint8(f.TakerSide())})
@@ -673,7 +715,7 @@ func encode(m msg) ([]byte, error) {
 	case ms.TradesSbeTemplateID:
 		var x ms.Trades
 		x.WrapAndApplyHeader(buf, 0, n).SetSymbolId(m.symbol).SetBookEpoch(m.epoch).SetUpdateId(m.update).SetTransactTsNs(m.transact).SetSendTsNs(m.send)
-		g := x.TradesCount(uint16(len(m.fills)))
+		g := x.EntriesCount(uint16(len(m.fills)))
 		for _, f := range m.fills {
 			g.Next().SetTradeId(f.id).SetPriceTicks(f.price).SetQtyScaled(f.qty).SetTakerSide(ms.Side(f.side))
 		}

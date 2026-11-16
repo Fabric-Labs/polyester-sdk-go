@@ -28,7 +28,7 @@ const (
 	DepthSnapshotSbeTemplateID      uint16 = uint16(24)
 	DepthSnapshotSbeSchemaID        uint16 = uint16(20)
 	DepthSnapshotSbeSchemaVersion   uint16 = uint16(0)
-	DepthSnapshotSbeSemanticVersion string = ""
+	DepthSnapshotSbeSemanticVersion string = "1.0.0"
 )
 
 func (m *DepthSnapshot) SbeBlockLength() uint16 {
@@ -52,7 +52,7 @@ func (m *DepthSnapshot) SbeSchemaVersion() uint16 {
 }
 
 func (m *DepthSnapshot) SbeSemanticVersion() string {
-	return ""
+	return "1.0.0"
 }
 
 func (m *DepthSnapshot) SbeSemanticType() string {
