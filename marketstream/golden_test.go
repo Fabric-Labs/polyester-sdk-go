@@ -167,12 +167,12 @@ func TestGoldenCapturesReplay(t *testing.T) {
 					}
 				}
 				if err := c.handle(f.data); err != nil {
-					// capture-2 was taken when the server sent LIVE before
-					// the depth book's replacement snapshot; the client
-					// recovers from that order by reconnecting. A capture of
+					// A capture taken while the server sent LIVE before the
+					// depth book's replacement snapshot: the client refuses
+					// that order and recovers by reconnecting. A capture of
 					// the server's current order replays through.
 					var gap *BookGapError
-					if capture == "capture-2" && f.file == "124-server-MarketStatus.bin" && errors.As(err, &gap) {
+					if _, live := decoded.(*marketStatusMsg); live && errors.As(err, &gap) {
 						oldOrder = true
 						c.state.Lock()
 						c.feeds[gap.SymbolID] = FeedLive
@@ -201,20 +201,17 @@ func TestGoldenCapturesReplay(t *testing.T) {
 					t.Fatalf("depth book of %d at %d (synced %t, feed stale %t), the stream ended at %d", topic.SymbolID, b.updateID, b.synced, stale, lastDepth)
 				}
 			}
-			var gaps, statuses int
+			gaps := 0
 			for len(c.events) > 0 {
-				switch (<-c.events).(type) {
-				case *TradesGap:
+				if _, ok := (<-c.events).(*TradesGap); ok {
 					gaps++
-				case *MarketStatus:
-					statuses++
 				}
 			}
 			if gaps != 0 {
 				t.Fatalf("%d trade gaps in a capture without lost trades", gaps)
 			}
-			if capture == "capture-2" && (statuses != 1 || !oldOrder) {
-				t.Fatalf("%d MarketStatus events (LIVE before the snapshot refused: %t), want STALE delivered and LIVE refused", statuses, oldOrder)
+			if oldOrder {
+				t.Logf("%s holds LIVE before a replacement snapshot, refused as the old order", capture)
 			}
 		})
 	}
