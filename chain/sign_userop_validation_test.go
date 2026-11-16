@@ -51,6 +51,44 @@ func withCurve(key *ecdsa.PrivateKey, curve elliptic.Curve) *ecdsa.PrivateKey {
 	return &moved
 }
 
+// A copy of the secp256k1 parameters with any one of them missing is not the
+// signer's curve.
+func TestSignSafeUserOperationRefusesIncompleteSecp256k1Params(t *testing.T) {
+	for _, field := range []string{"P", "N", "B", "Gx", "Gy"} {
+		t.Run(field, func(t *testing.T) {
+			params := *crypto.S256().Params()
+			switch field {
+			case "P":
+				params.P = nil
+			case "N":
+				params.N = nil
+			case "B":
+				params.B = nil
+			case "Gx":
+				params.Gx = nil
+			case "Gy":
+				params.Gy = nil
+			}
+			p := validSignSafeUserOperationParams(t)
+			p.OwnerKey = withCurve(p.OwnerKey, &params)
+			var signature []byte
+			var err error
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						t.Fatalf("panicked: %v", r)
+					}
+				}()
+				signature, err = SignSafeUserOperation(p)
+			}()
+			var validation *sdkerrors.ValidationError
+			if !errors.As(err, &validation) || signature != nil || !strings.Contains(err.Error(), "OwnerKey") {
+				t.Fatalf("got signature=%x err=%v, want an OwnerKey *errors.ValidationError", signature, err)
+			}
+		})
+	}
+}
+
 func TestSignSafeUserOperationSignsValidInput(t *testing.T) {
 	signature, err := SignSafeUserOperation(validSignSafeUserOperationParams(t))
 	if err != nil {
@@ -83,6 +121,11 @@ func TestSignSafeUserOperationRefusesInvalidInput(t *testing.T) {
 			p.OwnerKey = withCurve(p.OwnerKey, paramsCurve{&partial})
 		}},
 		{"OwnerKey", func(p *SignSafeUserOperationParams) { p.OwnerKey = withCurve(p.OwnerKey, paramsCurve{nil}) }},
+		// Bare, empty CurveParams as the curve, with and without a scalar.
+		{"OwnerKey", func(p *SignSafeUserOperationParams) { p.OwnerKey = withCurve(p.OwnerKey, &elliptic.CurveParams{}) }},
+		{"OwnerKey", func(p *SignSafeUserOperationParams) {
+			p.OwnerKey = &ecdsa.PrivateKey{PublicKey: ecdsa.PublicKey{Curve: &elliptic.CurveParams{}}}
+		}},
 		{"Environment.ChainID", func(p *SignSafeUserOperationParams) { p.Environment = PolyesterEnvironment{} }},
 		{"Environment.AccountAbstraction.Safe.Safe4337ModuleAddress", func(p *SignSafeUserOperationParams) {
 			p.Environment.AccountAbstraction.Safe.Safe4337ModuleAddress = ""
