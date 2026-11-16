@@ -34,9 +34,6 @@ type book struct {
 	// followed every update since.
 	synced bool
 	has    bool
-	// current: a snapshot of the connection's current subscription was
-	// applied.
-	current bool
 	// recovering: the stream recovers from a gap; snapshots and updates are
 	// dropped until a new subscription is made, whose snapshot replaces the
 	// book.

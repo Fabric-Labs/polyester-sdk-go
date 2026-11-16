@@ -1,6 +1,7 @@
 package marketstream
 
 import (
+	"errors"
 	"fmt"
 	"math/rand/v2"
 	"os"
@@ -36,9 +37,10 @@ func (c *Client) recordSent(id uint64, unsubscribe bool, topics []Topic) {
 }
 
 // simServer is one connection's server: it holds subscriptions, answers
-// requests in the order received and sends frames in order. A new depth
-// subscription opens with a snapshot at the pair's position, a new bbo one
-// with a quote.
+// requests in the order received and sends frames in order. A new
+// subscription opens with its initial state and nothing more: a depth or
+// depth20 snapshot at the pair's position, a quote, or the trades
+// baseline. Streams are otherwise quiet unless a test sends updates.
 type simServer struct {
 	t     *testing.T
 	held  map[Topic]bool
@@ -47,10 +49,13 @@ type simServer struct {
 	pos   map[uint32]uint64
 	quote uint64
 	log   []string
+	// refuse answers the next Unsubscribe of each topic with
+	// LIMIT_EXCEEDED, leaving the subscription in place.
+	refuse map[Topic]bool
 }
 
 func newSimServer(t *testing.T) *simServer {
-	return &simServer{t: t, held: map[Topic]bool{}, pos: map[uint32]uint64{7: 10, 9: 10}, quote: 1}
+	return &simServer{t: t, held: map[Topic]bool{}, pos: map[uint32]uint64{7: 10, 9: 10}, quote: 1, refuse: map[Topic]bool{}}
 }
 
 // simClient is an offline client whose requests go to s.
@@ -86,6 +91,9 @@ func (s *simServer) process() {
 	for _, t := range m.topics {
 		r := SubscribeOK
 		switch {
+		case m.unsubscribe && s.refuse[t]:
+			delete(s.refuse, t)
+			r = SubscribeLimitExceeded
 		case m.unsubscribe && !s.held[t]:
 			r = SubscribeNotSubscribed
 		case m.unsubscribe:
@@ -104,8 +112,13 @@ func (s *simServer) process() {
 		switch t.Stream {
 		case StreamDepth:
 			s.out = append(s.out, s.snapshot(t.SymbolID))
+		case StreamDepth20:
+			p := s.pos[t.SymbolID]
+			s.out = append(s.out, depthSnapshotFrame(t.SymbolID, StreamDepth20, 1, p, []levelMsg{lv(100, int64(p))}, nil))
 		case StreamBBO:
 			s.out = append(s.out, s.bbo(t.SymbolID))
+		case StreamTrades:
+			s.out = append(s.out, tradesThroughFrame(t.SymbolID, 1, 100))
 		}
 	}
 }
@@ -148,24 +161,16 @@ func (s *simServer) deliver(c *Client) {
 }
 
 // quiesce runs the server and client until neither has anything left to
-// send; every held bbo stream then sends a quote, as it does on every
-// change.
+// send. The streams are quiet: nothing re-sends a topic's initial state.
 func (s *simServer) quiesce(c *Client) {
-	for round := 0; round < 2; round++ {
-		for steps := 0; len(s.in) > 0 || len(s.out) > 0; steps++ {
-			if steps > 10000 {
-				s.t.Fatalf("no quiescence\n%s", strings.Join(s.log, "\n"))
-			}
-			if len(s.in) > 0 {
-				s.process()
-			} else {
-				s.deliver(c)
-			}
+	for steps := 0; len(s.in) > 0 || len(s.out) > 0; steps++ {
+		if steps > 10000 {
+			s.t.Fatalf("no quiescence\n%s", strings.Join(s.log, "\n"))
 		}
-		for _, symbol := range []uint32{7, 9} {
-			if s.held[Topic{symbol, StreamBBO}] {
-				s.out = append(s.out, s.bbo(symbol))
-			}
+		if len(s.in) > 0 {
+			s.process()
+		} else {
+			s.deliver(c)
 		}
 	}
 }
@@ -199,7 +204,8 @@ func (s *simServer) settled(c *Client, intent map[Topic]bool) {
 			fail("client wants %s: %t, the caller: %t", t, c.wantSet[t], intent[t])
 		}
 		if !intent[t] {
-			if c.active[t] || c.books[t] != nil || (t.Stream == StreamBBO && c.quotes[t.SymbolID] != nil) {
+			if c.active[t] || c.books[t] != nil || (t.Stream == StreamBBO && c.quotes[t.SymbolID] != nil) ||
+				(t.Stream == StreamTrades && c.trackers[t.SymbolID] != nil) {
 				fail("state kept for %s, which the caller ended", t)
 			}
 			continue
@@ -225,7 +231,7 @@ func (s *simServer) settled(c *Client, intent map[Topic]bool) {
 	}
 }
 
-var simTopics = []Topic{{7, StreamDepth}, {9, StreamDepth}, {7, StreamBBO}}
+var simTopics = []Topic{{7, StreamDepth}, {9, StreamDepth}, {7, StreamBBO}, {9, StreamTrades}, {9, StreamDepth20}}
 
 // live subscribes topics and brings them live.
 func (s *simServer) live(c *Client, intent map[Topic]bool, topics ...Topic) {
@@ -322,25 +328,78 @@ func TestTheCallerResubscribingARecoveringStreamHoldsIt(t *testing.T) {
 	}
 }
 
-// A Subscribe answered OK, superseded by a second Subscribe answered
-// ALREADY_SUBSCRIBED: the snapshot that followed the OK arrived before the
-// stream was held, so the stream recovers and goes live.
-func TestADepthStreamHeldWithoutItsSnapshotRecovers(t *testing.T) {
-	depth := Topic{7, StreamDepth}
+// Two Subscribes of a quiet stream: the first answered OK, superseded by
+// the second, answered ALREADY_SUBSCRIBED. The initial state that followed
+// the OK (the trades baseline, a quote, a depth or depth20 snapshot) arrived
+// before the stream was held and is never sent again, so the stream is
+// ended and subscribed again, and goes live.
+func TestAStreamHeldWithoutItsInitialStateIsSubscribedAgain(t *testing.T) {
+	for _, topic := range []Topic{{7, StreamDepth}, {9, StreamDepth20}, {7, StreamBBO}, {9, StreamTrades}} {
+		t.Run(topic.Stream.String(), func(t *testing.T) {
+			s := newSimServer(t)
+			c := simClient(t, s)
+			s.caller(c, topic, false)
+			s.caller(c, topic, false)
+			s.process()
+			s.process()
+			s.deliver(c) // OK, superseded
+			s.deliver(c) // the initial state, before the stream is held
+			s.deliver(c) // ALREADY_SUBSCRIBED
+			if len(s.in) != 1 || !decodeClient(t, s.in[0]).unsubscribe {
+				t.Fatalf("a stream held without its initial state was not subscribed again\n%s", strings.Join(s.log, "\n"))
+			}
+			if c.Live(topic) {
+				t.Fatal("live without its initial state")
+			}
+			s.process() // the Unsubscribe
+			s.deliver(c)
+			s.process() // the Subscribe: OK, then the initial state
+			s.deliver(c)
+			if c.Live(topic) {
+				t.Fatal("live before the new subscription's initial state")
+			}
+			s.deliver(c)
+			if !c.Live(topic) {
+				t.Fatalf("not live after the new subscription's initial state\n%s", strings.Join(s.log, "\n"))
+			}
+			s.quiesce(c)
+			s.settled(c, map[Topic]bool{topic: true})
+		})
+	}
+}
+
+// A Subscribe answered OK but superseded by an Unsubscribe, which the
+// server refuses: the server may still hold the stream, so the connection
+// ends, as for a refused Unsubscribe of a held stream.
+func TestARefusedUnsubscribeAfterASupersededSubscribeReconnects(t *testing.T) {
+	topic := Topic{9, StreamTrades}
 	s := newSimServer(t)
 	c := simClient(t, s)
-	s.caller(c, depth, false)
-	s.caller(c, depth, false)
+	s.caller(c, topic, false)
+	s.refuse[topic] = true
+	s.caller(c, topic, true)
 	s.process()
 	s.process()
 	s.deliver(c) // OK, superseded
-	s.deliver(c) // the snapshot, before the stream is held
-	s.deliver(c) // ALREADY_SUBSCRIBED
-	if len(s.in) != 1 || !decodeClient(t, s.in[0]).unsubscribe {
-		t.Fatalf("a stream held without its snapshot did not recover\n%s", strings.Join(s.log, "\n"))
+	s.deliver(c) // the baseline of a stream no longer wanted
+	frame := s.out[0]
+	var refused *UnsubscribeError
+	if err := c.handle(frame); !errors.As(err, &refused) || refused.Topic != topic || refused.Result != SubscribeLimitExceeded {
+		t.Fatalf("refused Unsubscribe applied as %v\n%s", err, strings.Join(s.log, "\n"))
 	}
+}
+
+// An Unsubscribe of a topic never subscribed that the server answers
+// otherwise than NOT_SUBSCRIBED leaves nothing unknown: the server never
+// held it.
+func TestARefusedUnsubscribeOfANeverSubscribedTopicChangesNothing(t *testing.T) {
+	topic := Topic{9, StreamTrades}
+	s := newSimServer(t)
+	c := simClient(t, s)
+	s.refuse[topic] = true
+	s.caller(c, topic, true)
 	s.quiesce(c)
-	s.settled(c, map[Topic]bool{depth: true})
+	s.settled(c, map[Topic]bool{})
 }
 
 // Caller requests, answers, depth updates, gaps and stale periods in random
@@ -438,9 +497,6 @@ func TestConcurrentCallersAndGapsSettleOnTheCallersIntent(t *testing.T) {
 					default:
 						s.stale(symbol)
 					}
-				}
-				if s.held[Topic{7, StreamBBO}] {
-					s.out = append(s.out, s.bbo(7))
 				}
 			case <-stop:
 				mu.Unlock()

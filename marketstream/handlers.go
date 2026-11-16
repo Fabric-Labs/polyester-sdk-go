@@ -99,24 +99,28 @@ func (c *Client) onSubscribeResponse(m *subscribeResponseMsg) error {
 // answered otherwise for a held topic, the server's state is unknown and the
 // connection ends, reconnecting every stream. A Subscribe answered OK made a
 // new subscription, whose snapshot or baseline the topic waits for;
-// ALREADY_SUBSCRIBED keeps the one held. A depth stream held without a
-// snapshot of its subscription, whose snapshot followed the answer to a
-// superseded request, recovers as after a gap. A refused Subscribe ends the
-// topic: it is not resubscribed. State is kept only for topics the caller
-// wants.
+// ALREADY_SUBSCRIBED keeps the one held. A topic held without the initial
+// state of its subscription, which followed the answer to a superseded
+// request before the topic was held, is ended and subscribed again, as a
+// depth stream after a gap. A refused Subscribe ends the topic: it is not
+// resubscribed. State is kept only for topics the caller wants.
 func (c *Client) apply(o *owner, r TopicResult, unsubscribe bool) error {
 	t := r.Topic
 	want := c.wantSet[t]
+	// A Subscribe sent before this request was answered before it.
+	maybeHeld := o.held || o.subscribing
+	o.subscribing = false
 	if unsubscribe {
-		if r.Result != SubscribeOK && r.Result != SubscribeNotSubscribed && o.held {
+		if r.Result != SubscribeOK && r.Result != SubscribeNotSubscribed && maybeHeld {
 			return &UnsubscribeError{Topic: t, Result: r.Result}
 		}
 		o.held, o.recovering = false, false
 		delete(c.active, t)
+		delete(c.initial, t)
 		if !want {
 			c.dropTopicLocked(t)
 		} else if b := c.books[t]; b != nil {
-			b.synced, b.current = false, false
+			b.synced = false
 		}
 		return nil
 	}
@@ -138,6 +142,13 @@ func (c *Client) apply(o *owner, r TopicResult, unsubscribe bool) error {
 		return nil
 	}
 	c.active[t] = true
+	if fresh {
+		delete(c.initial, t)
+	}
+	missing := !fresh && !c.initial[t] && !o.recovering
+	if missing {
+		o.recovering = true
+	}
 	switch t.Stream {
 	case StreamTrades:
 		if c.trackers[t.SymbolID] == nil {
@@ -151,9 +162,9 @@ func (c *Client) apply(o *owner, r TopicResult, unsubscribe bool) error {
 		}
 		switch {
 		case fresh:
-			b.synced, b.current, b.recovering = false, false, false
-		case t.Stream == StreamDepth && !b.current && !o.recovering:
-			o.recovering, b.recovering, b.synced = true, true, false
+			b.synced, b.recovering = false, false
+		case missing:
+			b.recovering, b.synced = t.Stream == StreamDepth, false
 		}
 	}
 	return nil
@@ -238,6 +249,9 @@ func (c *Client) onTradesThrough(m *tradesThroughMsg) error {
 		return nil
 	}
 	gaps, err := t.through(m)
+	if err == nil {
+		c.initial[Topic{SymbolID: m.symbolID, Stream: StreamTrades}] = true
+	}
 	c.state.Unlock()
 	if err != nil {
 		return &FrameError{TemplateID: ms.TradesThroughSbeTemplateID, Msg: err.Error()}
@@ -344,6 +358,7 @@ func (c *Client) onBBO(m *bboMsg) error {
 		c.state.Unlock()
 		return nil
 	}
+	c.initial[Topic{SymbolID: m.symbolID, Stream: StreamBBO}] = true
 	prev := c.quotes[m.symbolID]
 	if prev != nil && (m.epoch < prev.BookEpoch || m.epoch == prev.BookEpoch && m.updateID < prev.UpdateID ||
 		!prev.Stale && m.epoch == prev.BookEpoch && m.updateID == prev.UpdateID) {
@@ -393,7 +408,7 @@ func (c *Client) onDepthSnapshot(m *depthSnapshotMsg) error {
 	}
 	changed, err := b.snapshot(m)
 	if err == nil {
-		b.current = true
+		c.initial[topic] = true
 	}
 	c.state.Unlock()
 	if err != nil {
@@ -447,10 +462,11 @@ func (c *Client) onDepthUpdate(m *depthUpdateMsg) error {
 	return nil
 }
 
-// UnsubscribeError reports an Unsubscribe of a held stream that the server
-// answered with neither OK nor NOT_SUBSCRIBED: whether the connection still
-// holds the stream is unknown, so the client reconnects, and every stream is
-// resubscribed.
+// UnsubscribeError reports an Unsubscribe that the server answered with
+// neither OK nor NOT_SUBSCRIBED for a stream it held or may hold (a
+// Subscribe of it was unanswered when the Unsubscribe was sent): whether the
+// connection still holds the stream is unknown, so the client reconnects,
+// and every stream is resubscribed.
 type UnsubscribeError struct {
 	Topic  Topic
 	Result SubscribeResult

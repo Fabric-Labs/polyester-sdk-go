@@ -144,6 +144,10 @@ type Client struct {
 	trackers map[uint32]*tradeTracker
 	// active are the topics the current connection holds.
 	active map[Topic]bool
+	// initial are the active topics whose current subscription delivered
+	// its initial state: a depth or depth20 snapshot, a quote, or the trades
+	// baseline.
+	initial map[Topic]bool
 }
 
 type subscribeOutcome struct {
@@ -207,6 +211,7 @@ func newClient(cfg Config) *Client {
 		feeds:    map[uint32]FeedState{},
 		trackers: map[uint32]*tradeTracker{},
 		active:   map[Topic]bool{},
+		initial:  map[Topic]bool{},
 	}
 }
 
@@ -577,9 +582,12 @@ type owner struct {
 	gen uint64
 	// held: the server holds the topic, as of the last answer applied.
 	held bool
-	// recovering: the held subscription had a gap and must be ended and
-	// made again.
+	// recovering: the held subscription had a gap, or misses its initial
+	// state, and must be ended and made again.
 	recovering bool
+	// subscribing: a Subscribe was sent since the last answer applied, so
+	// the server may hold the topic whatever held says.
+	subscribing bool
 }
 
 // ownerOf is a topic's owner, made on first use. c.mu must be held.
@@ -602,7 +610,9 @@ func (c *Client) record(unsubscribe bool, topics []Topic) (uint64, []byte) {
 	id := c.ids.Add(1)
 	c.sent[id] = sentRequest{unsubscribe: unsubscribe, topics: append([]Topic(nil), topics...)}
 	for _, t := range topics {
-		c.ownerOf(t).gen = id
+		o := c.ownerOf(t)
+		o.gen = id
+		o.subscribing = o.subscribing || !unsubscribe
 	}
 	if unsubscribe {
 		return id, encodeUnsubscribe(id, topics)
@@ -726,6 +736,7 @@ func (c *Client) dropTopics(topics []Topic) {
 // dropTopicLocked is dropTopics of one topic. c.state must be held.
 func (c *Client) dropTopicLocked(topic Topic) {
 	delete(c.active, topic)
+	delete(c.initial, topic)
 	switch topic.Stream {
 	case StreamTrades:
 		delete(c.trackers, topic.SymbolID)
@@ -774,9 +785,10 @@ func (c *Client) lose() {
 	c.dropTopics(ended)
 	c.state.Lock()
 	clear(c.active)
+	clear(c.initial)
 	clear(c.feeds)
 	for _, b := range c.books {
-		b.synced, b.current, b.recovering = false, false, false
+		b.synced, b.recovering = false, false
 	}
 	for _, q := range c.quotes {
 		q.Stale = true

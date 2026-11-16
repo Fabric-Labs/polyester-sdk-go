@@ -2022,9 +2022,9 @@ Streams and recovery:
   meanwhile are dropped, a second gap starts no second recovery, and every
   other stream of the connection carries on untouched. The client's own
   requests arrive as `SubscribeResponse` events like any other. Only a lost
-  connection, or an Unsubscribe of a held stream answered with anything but
-  OK or NOT_SUBSCRIBED (`*marketstream.UnsubscribeError`), reconnects every
-  stream.
+  connection, or an Unsubscribe answered with anything but OK or
+  NOT_SUBSCRIBED for a stream the server holds or may hold
+  (`*marketstream.UnsubscribeError`), reconnects every stream.
 - `MarketStatus` reports a pair whose feed went stale (`FeedStale`): its best
   bid and offer and depth pause until it recovers. A depth book then waits
   for its replacement snapshot, which arrives before the pair is reported
@@ -2057,7 +2057,10 @@ again starts from a fresh snapshot or baseline. Each topic's requests take
 effect in the order they are made, whether the caller's, a resubscription or a
 depth recovery's: the answer to a request that a later request of the same
 topic overtook is delivered as a `SubscribeResponse` but not applied, and the
-client then brings the server to what the caller last asked for. A request
+client then brings the server to what the caller last asked for. A stream
+answered ALREADY_SUBSCRIBED whose subscription's initial state (snapshot,
+quote or trades baseline) the client never took is unsubscribed and
+subscribed again, so it starts from fresh initial state. A request
 that was sent takes effect even if the caller stops waiting for its answer,
 and an Unsubscribe the connection drops before answering counts as done:
 
