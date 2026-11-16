@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - main
+  # devnet.yml runs this workflow before it pushes a devnet tag.
+  workflow_call:
 
 permissions:
   contents: read
@@ -53,6 +55,11 @@ jobs:
             -f event_type=sdk-coverage-refresh \
             -f 'client_payload[sdk]=go' \
             -f 'client_payload[sha]=${{ github.sha }}'
+
+      # Release channel routing, devnet versions and the devnet workflow
+      # (scripts/devnet_release.py).
+      - name: Release channel tests
+        run: python3 -m unittest discover -s scripts -p 'test_devnet_release.py'
 
       - name: Test
         run: go test ./...
