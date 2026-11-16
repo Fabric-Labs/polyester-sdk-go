@@ -2,7 +2,6 @@ package transport
 
 import (
 	"context"
-	"net"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -51,14 +50,9 @@ func TestRound4AnswerStatusAndNoAnswer(t *testing.T) {
 			t.Errorf("%s: %T status %d, want %d", tc.name, err, got, tc.status)
 		}
 	}
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	addr := listener.Addr().String()
-	_ = listener.Close()
+	// Port 1 on the loopback refuses the connection: no answer at all.
 	cfg := DefaultConfig()
-	cfg.APIURL = "http://" + addr
+	cfg.APIURL = "http://127.0.0.1:1"
 	factory := NewFactory(cfg, nil, nil)
 	client := authv1connect.NewAuthServiceClient(factory.HTTP, cfg.APIURL, factory.ConnectOptions(false)...)
 	_, callErr := client.Me(context.Background(), connect.NewRequest(&authv1.MeRequest{}))
