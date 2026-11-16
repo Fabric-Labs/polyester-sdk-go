@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.34.0
+
+Git tag: `v0.34.0`. Released 2026-11-16. Built on public contract `1945423`.
 
 - **Breaking:** A managed order book's client-side `Bucket` must be empty (no bucketing) or a positive price with at most 9 decimal places, such as `"0.01"`. An invalid bucket such as `"abc"`, `"-1"` or `"0"` is refused with an `*errors.ValidationError` that says what is valid: by `Orderbook.CreateSubscription` before connecting, and by `SetBucket`, which keeps the current bucket. It was silently ignored and the book was rendered without bucketing. `orderbook.ParseBucketTicks` returns `(int, error)` and `orderbook.Subscription.SetBucket` returns `error`. Affected: `Orderbook.CreateSubscription` (`CreateSubscriptionOptions.Bucket`), `orderbook.Subscription.SetBucket`, `orderbook.ParseBucketTicks`. Migration: pass `""` for no bucketing, check the error `SetBucket` returns, and read both results of `ParseBucketTicks`.
 - **Breaking:** A zero `NewPrice` on a modify or batch replace item is refused with an `*errors.ValidationError` (`new_price must be positive`) before sending, in every form: a decimal such as `"0"` or `"0.00"` and `PriceFromTicksInt(0)`. It was sent as a price of 0. A zero `NewQty` was already refused. Affected: `Orders.Modify`, `Orders.ModifyWith`, `Orders.BatchReplace`, `codecs.ModifyOrderToProto`, `codecs.BatchReplaceOrdersToProto`, `codecs.BatchReplaceItemToProto`. Migration: leave `NewPrice` nil to keep the order's price.
