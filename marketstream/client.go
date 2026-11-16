@@ -444,14 +444,15 @@ func (c *Client) BestBidOffer(symbolID uint32) (BestBidOffer, bool) {
 }
 
 // Live reports whether a topic is current: the connection holds it, its
-// state arrived on that connection (a depth book's snapshot, a quote, the
-// trades stream's baseline) and the pair's feed is not stale. A lost
+// state arrived from the subscription it holds now (a depth book's
+// snapshot, a quote, the trades stream's baseline) and the pair's feed is
+// not stale. A lost
 // connection makes every topic not live at once, before its Disconnected
 // event.
 func (c *Client) Live(topic Topic) bool {
 	c.state.RLock()
 	defer c.state.RUnlock()
-	if !c.active[topic] || c.feeds[topic.SymbolID] == FeedStale {
+	if !c.active[topic] || !c.initial[topic] || c.feeds[topic.SymbolID] == FeedStale {
 		return false
 	}
 	switch topic.Stream {

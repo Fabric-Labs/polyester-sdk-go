@@ -2060,9 +2060,11 @@ topic overtook is delivered as a `SubscribeResponse` but not applied, and the
 client then brings the server to what the caller last asked for. What the
 server holds is followed from every answer, applied or not. Every stream is
 live only once the subscription it holds delivered its initial state
-(snapshot, quote or trades baseline): a stream answered ALREADY_SUBSCRIBED
-whose subscription's initial state the client never took is unsubscribed and
-subscribed again, and its trades meanwhile are dropped. A request
+(snapshot, quote or trades baseline); what an earlier subscription delivered
+stays stale until then, and trade accounting carries on across it. A stream
+answered ALREADY_SUBSCRIBED whose subscription's initial state the client
+never took is unsubscribed and subscribed again, and its trades meanwhile
+are dropped. A request
 that was sent takes effect even if the caller stops waiting for its answer,
 and an Unsubscribe the connection drops before answering counts as done:
 

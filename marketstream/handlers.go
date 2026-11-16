@@ -104,21 +104,46 @@ func (c *Client) onSubscribeResponse(m *subscribeResponseMsg) error {
 // subscription, whether or not the answer is applied: an Unsubscribe
 // answered OK or NOT_SUBSCRIBED ended it, a Subscribe answered OK made a new
 // one, whose initial state is still to come, and ALREADY_SUBSCRIBED kept the
-// one held. Any other answer changed nothing. c.mu and c.state must be held.
+// one held. Any other answer changed nothing. Whatever the client took from
+// a subscription that ended or was replaced is no longer current. c.mu and
+// c.state must be held.
 func (c *Client) observe(o *owner, r TopicResult, unsubscribe bool) {
 	t := r.Topic
 	switch {
 	case unsubscribe && (r.Result == SubscribeOK || r.Result == SubscribeNotSubscribed):
 		o.held, o.recovering = false, false
-		delete(c.initial, t)
+		c.invalidate(t)
 	case !unsubscribe && r.Result == SubscribeOK:
 		o.held, o.recovering = true, false
-		delete(c.initial, t)
+		c.invalidate(t)
 		if b := c.books[t]; b != nil {
-			b.synced, b.recovering = false, false
+			b.recovering = false
 		}
 	case !unsubscribe && r.Result == SubscribeAlreadySubscribed:
 		o.held = true
+	}
+}
+
+// invalidate makes a topic not ready once the subscription its state came
+// from ended or was replaced: it waits for the initial state of the next
+// one. A book waits for its snapshot and a quote stays, stale, until one at
+// least as new; trade accounting is kept, so the next baseline reconciles
+// against what was delivered. c.state must be held.
+func (c *Client) invalidate(t Topic) {
+	delete(c.initial, t)
+	switch t.Stream {
+	case StreamTrades:
+		if tr := c.trackers[t.SymbolID]; tr != nil {
+			tr.restart()
+		}
+	case StreamBBO:
+		if q := c.quotes[t.SymbolID]; q != nil {
+			q.Stale = true
+		}
+	case StreamDepth20, StreamDepth:
+		if b := c.books[t]; b != nil {
+			b.synced = false
+		}
 	}
 }
 
@@ -151,8 +176,6 @@ func (c *Client) apply(o *owner, r TopicResult, unsubscribe bool) error {
 		delete(c.active, t)
 		if !want {
 			c.dropTopicLocked(t)
-		} else if b := c.books[t]; b != nil {
-			b.synced = false
 		}
 		return nil
 	}
