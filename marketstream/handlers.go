@@ -366,14 +366,11 @@ func (c *Client) onDepthUpdate(m *depthUpdateMsg) error {
 		c.state.Unlock()
 		return nil
 	}
-	applied, err := b.update(m)
+	err := b.update(m)
 	if err != nil {
-		b.synced, b.behind = false, false
+		b.synced = false
 	}
 	c.state.Unlock()
-	if err == nil && !applied {
-		return nil
-	}
 	if err != nil {
 		var gap *errBookGap
 		if errors.As(err, &gap) {

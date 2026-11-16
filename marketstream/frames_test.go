@@ -58,12 +58,16 @@ func bboFrame(symbol uint32, epoch, updateID uint64, bidPrice, bidQty, askPrice,
 func lv(price, qty int64) levelMsg { return levelMsg{price: price, qty: qty} }
 
 func depthSnapshotFrame(symbol uint32, stream Stream, epoch, updateID uint64, bids, asks []levelMsg) []byte {
-	buf := make([]byte, testBufSize)
-	var m ms.DepthSnapshot
 	window := uint16(1000)
 	if stream == StreamDepth20 {
 		window = 20
 	}
+	return depthSnapshotFrameWindow(symbol, stream, epoch, updateID, window, bids, asks)
+}
+
+func depthSnapshotFrameWindow(symbol uint32, stream Stream, epoch, updateID uint64, window uint16, bids, asks []levelMsg) []byte {
+	buf := make([]byte, testBufSize)
+	var m ms.DepthSnapshot
 	m.WrapAndApplyHeader(buf, 0, uint64(len(buf))).SetSymbolId(symbol).SetStream(ms.StreamType(stream)).SetBookEpoch(epoch).SetUpdateId(updateID).SetTransactTsNs(1).SetSendTsNs(2).SetLevelsPerSide(window)
 	b := m.BidsCount(uint16(len(bids)))
 	for _, l := range bids {

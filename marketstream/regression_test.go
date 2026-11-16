@@ -2,6 +2,7 @@ package marketstream
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 )
@@ -173,67 +174,177 @@ func TestAResponseToNoRequestChangesNothing(t *testing.T) {
 	}
 }
 
-// A book keeps its highest (epoch, update) for its whole life: a reconnect
-// to a replica behind never takes it backwards.
-func TestBooksAndQuotesNeverGoBackwardsAcrossReconnects(t *testing.T) {
-	for _, s := range []Stream{StreamDepth20, StreamDepth} {
-		t.Run(s.String(), func(t *testing.T) {
-			fs := newFakeServer(t)
-			c := dialTest(t, fs)
-			sc := fs.accept(t)
-			results := subscribeAsync(c, Topic{7, s}, Topic{7, StreamBBO})
-			sub := sc.subscribe(t)
-			sc.send(t, respond(sub, SubscribeOK), depthSnapshotFrame(7, s, 1, 10, []levelMsg{lv(100, 1)}, nil), bboFrame(7, 1, 10, 100, 1, 101, 1))
-			awaitResults(t, results)
-			expect[*BestBidOffer](t, c)
-			sc.close()
-			expect[*Disconnected](t, c)
+// A depth20 book and a quote keep their newest (epoch, update) across
+// reconnects: a replica behind never takes them backwards. An older state is
+// ignored and stays stale, an equal one confirms it, a higher epoch replaces
+// it.
+func TestDepth20AndQuotesNeverGoBackwardsAcrossReconnects(t *testing.T) {
+	fs := newFakeServer(t)
+	c := dialTest(t, fs)
+	sc := fs.accept(t)
+	results := subscribeAsync(c, Topic{7, StreamDepth20}, Topic{7, StreamBBO})
+	sub := sc.subscribe(t)
+	sc.send(t, respond(sub, SubscribeOK), depthSnapshotFrame(7, StreamDepth20, 1, 10, []levelMsg{lv(100, 1)}, nil), bboFrame(7, 1, 10, 100, 1, 101, 1))
+	awaitResults(t, results)
+	expect[*BestBidOffer](t, c)
+	sc.close()
+	expect[*Disconnected](t, c)
 
-			// The new connection's replica is behind: its state is older.
-			sc2 := fs.accept(t)
-			resub := sc2.subscribe(t)
-			// A status of another pair after them: once it arrives, they are
-			// applied.
-			sc2.send(t, respond(resub, SubscribeOK), depthSnapshotFrame(7, s, 1, 9, []levelMsg{lv(99, 1)}, nil), bboFrame(7, 1, 9, 99, 1, 101, 1), marketStatusFrame(9, FeedLive))
-			for st := expect[*MarketStatus](t, c); st.SymbolID != 9; st = expect[*MarketStatus](t, c) {
-			}
-			book, _ := c.OrderBook(7, s, 0)
-			if book.UpdateID != 10 || !book.Stale || book.Bids[0].Price.Ticks() != 100 {
-				t.Fatalf("book %+v after an older snapshot; want update 10, stale", book)
-			}
-			if q, _ := c.BestBidOffer(7); q.UpdateID != 10 || !q.Stale {
-				t.Fatalf("quote %+v after an older quote; want update 10, stale", q)
-			}
-			if s == StreamDepth {
-				// Updates that catch the replica up to the book are skipped;
-				// the first one at the book's base resumes it.
-				sc2.send(t, depthUpdateFrame(7, 1, 10, 10, []levelMsg{lv(99, 0), lv(100, 1)}, nil), depthUpdateFrame(7, 1, 11, 11, []levelMsg{lv(100, 4)}, nil))
-				if u := expect[*DepthUpdate](t, c); u.FirstUpdateID != 11 {
-					t.Fatalf("update %+v", u)
-				}
-			} else {
-				// An equal snapshot confirms the kept state.
-				sc2.send(t, depthSnapshotFrame(7, s, 1, 10, []levelMsg{lv(100, 1)}, nil))
-				expect[*DepthSnapshot](t, c)
-			}
-			sc2.send(t, bboFrame(7, 1, 10, 100, 1, 101, 1))
-			expect[*BestBidOffer](t, c)
-			book, _ = c.OrderBook(7, s, 0)
-			if book.Stale || book.UpdateID < 10 {
-				t.Fatalf("book %+v not current once the replica caught up", book)
-			}
-			if q, _ := c.BestBidOffer(7); q.Stale || q.UpdateID != 10 {
-				t.Fatalf("quote %+v not confirmed by an equal quote", q)
-			}
+	sc2 := fs.accept(t)
+	resub := sc2.subscribe(t)
+	sc2.send(t, respond(resub, SubscribeOK), depthSnapshotFrame(7, StreamDepth20, 1, 9, []levelMsg{lv(99, 1)}, nil), bboFrame(7, 1, 9, 99, 1, 101, 1))
+	barrier(t, c, sc2)
+	if book, _ := c.OrderBook(7, StreamDepth20, 0); book.UpdateID != 10 || !book.Stale || book.Bids[0].Price.Ticks() != 100 {
+		t.Fatalf("book %+v after an older snapshot; want update 10, stale", book)
+	}
+	if q, _ := c.BestBidOffer(7); q.UpdateID != 10 || !q.Stale {
+		t.Fatalf("quote %+v after an older quote; want update 10, stale", q)
+	}
+	sc2.send(t, depthSnapshotFrame(7, StreamDepth20, 1, 10, []levelMsg{lv(100, 1)}, nil), bboFrame(7, 1, 10, 100, 1, 101, 1))
+	expect[*BestBidOffer](t, c)
+	if book, _ := c.OrderBook(7, StreamDepth20, 0); book.Stale || book.UpdateID != 10 {
+		t.Fatalf("book %+v not confirmed by an equal snapshot", book)
+	}
+	if q, _ := c.BestBidOffer(7); q.Stale || q.UpdateID != 10 {
+		t.Fatalf("quote %+v not confirmed by an equal quote", q)
+	}
+	sc2.send(t, depthSnapshotFrame(7, StreamDepth20, 2, 3, []levelMsg{lv(50, 1)}, nil))
+	expect[*DepthSnapshot](t, c)
+	if book, _ := c.OrderBook(7, StreamDepth20, 0); book.BookEpoch != 2 || book.UpdateID != 3 || book.Stale {
+		t.Fatalf("book %+v after a new epoch", book)
+	}
+}
 
-			// A higher epoch is a rebuilt book: taken whatever it holds.
-			sc2.send(t, depthSnapshotFrame(7, s, 2, 3, []levelMsg{lv(50, 1)}, nil))
-			if snap := expect[*DepthSnapshot](t, c); snap.BookEpoch != 2 {
-				t.Fatalf("snapshot %+v", snap)
-			}
-			if book, _ := c.OrderBook(7, s, 0); book.BookEpoch != 2 || book.UpdateID != 3 || book.Stale {
-				t.Fatalf("book %+v after a new epoch", book)
-			}
-		})
+// barrier waits until every frame sent before it is applied: a status of
+// another pair, which always produces an event.
+func barrier(t *testing.T, c *Client, sc *serverConn) {
+	t.Helper()
+	sc.send(t, marketStatusFrame(9, FeedLive))
+	for st := expect[*MarketStatus](t, c); st.SymbolID != 9; st = expect[*MarketStatus](t, c) {
+	}
+}
+
+// Every depth snapshot replaces the book, older ones included, within a
+// session and across reconnects; its levelsPerSide is the window from then
+// on.
+func TestEveryDepthSnapshotReplacesTheBook(t *testing.T) {
+	fs := newFakeServer(t)
+	c := dialTest(t, fs)
+	sc := fs.accept(t)
+	results := subscribeAsync(c, Topic{7, StreamDepth})
+	sub := sc.subscribe(t)
+	sc.send(t, respond(sub, SubscribeOK), depthSnapshotFrameWindow(7, StreamDepth, 2, 10, 2, []levelMsg{lv(100, 1), lv(99, 1)}, nil))
+	awaitResults(t, results)
+	expect[*DepthSnapshot](t, c)
+
+	// Mid-session with no status around it (an overrun or a source
+	// refresh): newer, then older, then an older epoch, each replaces.
+	for _, s := range []struct{ epoch, update uint64 }{{2, 50}, {2, 45}, {1, 900}, {3, 1}} {
+		sc.send(t, depthSnapshotFrameWindow(7, StreamDepth, s.epoch, s.update, 2, []levelMsg{lv(int64(s.update), 1)}, nil))
+		if snap := expect[*DepthSnapshot](t, c); snap.BookEpoch != s.epoch || snap.UpdateID != s.update {
+			t.Fatalf("snapshot %+v", snap)
+		}
+		if book, _ := c.OrderBook(7, StreamDepth, 0); book.BookEpoch != s.epoch || book.UpdateID != s.update || book.Stale {
+			t.Fatalf("book %+v after a mid-session snapshot at %d/%d", book, s.epoch, s.update)
+		}
+	}
+	// A bridging update over a range with no levels advances the position.
+	sc.send(t, depthUpdateFrame(7, 3, 2, 20, nil, nil), depthUpdateFrame(7, 3, 21, 21, []levelMsg{lv(2, 1)}, nil))
+	expect[*DepthUpdate](t, c)
+	if u := expect[*DepthUpdate](t, c); u.FirstUpdateID != 21 {
+		t.Fatalf("update %+v", u)
+	}
+	if book, _ := c.OrderBook(7, StreamDepth, 0); book.UpdateID != 21 || book.Stale {
+		t.Fatalf("book %+v after a bridging range", book)
+	}
+
+	// Across a reconnect: an older snapshot with a wider window replaces the
+	// book and its window.
+	sc.close()
+	expect[*Disconnected](t, c)
+	sc2 := fs.accept(t)
+	resub := sc2.subscribe(t)
+	sc2.send(t, respond(resub, SubscribeOK), depthSnapshotFrameWindow(7, StreamDepth, 3, 9, 3, []levelMsg{lv(10, 1), lv(9, 1), lv(8, 1)}, nil))
+	expect[*DepthSnapshot](t, c)
+	book, _ := c.OrderBook(7, StreamDepth, 0)
+	if book.UpdateID != 9 || book.Stale || book.LevelsPerSide != 3 || len(book.Bids) != 3 {
+		t.Fatalf("book %+v after an older, wider snapshot across a reconnect", book)
+	}
+	// The window is the new one: three levels kept after an update.
+	sc2.send(t, depthUpdateFrame(7, 3, 10, 11, []levelMsg{lv(11, 1)}, nil))
+	expect[*DepthUpdate](t, c)
+	if book, _ := c.OrderBook(7, StreamDepth, 0); len(book.Bids) != 3 || book.Bids[0].Price.Ticks() != 11 || book.UpdateID != 11 {
+		t.Fatalf("book %+v after an update in the new window", book)
+	}
+}
+
+// A connection whose depth subscription delivers an update before any
+// snapshot never makes the book live: the book is rebuilt from a snapshot.
+func TestDepthUpdateBeforeASnapshotAfterAReconnectIsAGap(t *testing.T) {
+	fs := newFakeServer(t)
+	c := dialTest(t, fs)
+	sc := fs.accept(t)
+	results := subscribeAsync(c, Topic{7, StreamDepth})
+	sub := sc.subscribe(t)
+	sc.send(t, respond(sub, SubscribeOK), depthSnapshotFrame(7, StreamDepth, 1, 10, []levelMsg{lv(100, 1)}, nil))
+	awaitResults(t, results)
+	expect[*DepthSnapshot](t, c)
+	for range 2 {
+		sc.close()
+		expect[*Disconnected](t, c)
+		sc = fs.accept(t)
+		resub := sc.subscribe(t)
+		sc.send(t, respond(resub, SubscribeOK), depthSnapshotFrame(7, StreamDepth, 1, 9, []levelMsg{lv(99, 1)}, nil))
+		expect[*DepthSnapshot](t, c)
+	}
+	sc.close()
+	expect[*Disconnected](t, c)
+	sc = fs.accept(t)
+	resub := sc.subscribe(t)
+	sc.send(t, respond(resub, SubscribeOK), depthUpdateFrame(7, 1, 10, 10, nil, nil))
+	var gap *BookGapError
+	if d := expect[*Disconnected](t, c); !errors.As(d.Err, &gap) {
+		t.Fatalf("disconnected by %v, want a book gap", d.Err)
+	}
+	if c.Live(Topic{7, StreamDepth}) {
+		t.Fatal("depth live without the session's snapshot")
+	}
+}
+
+// A depth subscription made while the pair is stale gets no snapshot until
+// the pair recovers: subscribed, STALE, no snapshot is no gap and no error.
+// The book stays stale until the snapshot, then LIVE.
+func TestDepthSubscribedWhileStaleWaitsForRecovery(t *testing.T) {
+	fs := newFakeServer(t)
+	c := dialTest(t, fs)
+	sc := fs.accept(t)
+	results := subscribeAsync(c, Topic{7, StreamDepth})
+	sub := sc.subscribe(t)
+	sc.send(t, respond(sub, SubscribeOK), marketStatusFrame(7, FeedStale), marketStatusFrame(9, FeedLive))
+	awaitResults(t, results)
+	for st := expect[*MarketStatus](t, c); st.SymbolID != 9; st = expect[*MarketStatus](t, c) {
+	}
+	if _, ok := c.OrderBook(7, StreamDepth, 0); ok {
+		t.Fatal("a book before any snapshot")
+	}
+	if c.Live(Topic{7, StreamDepth}) {
+		t.Fatal("live with no snapshot while stale")
+	}
+	sc.send(t, depthSnapshotFrame(7, StreamDepth, 1, 40, []levelMsg{lv(100, 1)}, nil))
+	expect[*DepthSnapshot](t, c)
+	if book, _ := c.OrderBook(7, StreamDepth, 0); !book.Stale {
+		t.Fatal("book current before LIVE")
+	}
+	sc.send(t, marketStatusFrame(7, FeedLive), depthUpdateFrame(7, 1, 41, 41, []levelMsg{lv(100, 2)}, nil))
+	expect[*DepthUpdate](t, c)
+	if book, _ := c.OrderBook(7, StreamDepth, 0); book.Stale || book.UpdateID != 41 || !c.Live(Topic{7, StreamDepth}) {
+		t.Fatalf("book %+v after recovery", book)
+	}
+	select {
+	case e := <-c.Events():
+		if d, ok := e.(*Disconnected); ok {
+			t.Fatalf("disconnected by %v", d.Err)
+		}
+	default:
 	}
 }

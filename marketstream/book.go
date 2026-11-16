@@ -35,10 +35,6 @@ type book struct {
 	synced          bool
 	has             bool
 	epoch, updateID uint64
-	// behind is set when this connection's snapshot was older than the
-	// book: the book keeps its state, stale, and resumes with the first
-	// update at its base; updates up to it are skipped.
-	behind bool
 	// window is the snapshot's levelsPerSide: each side is truncated to it
 	// after every update.
 	window     int
@@ -62,12 +58,14 @@ func validLevels(levels []levelMsg, descending bool) error {
 	return nil
 }
 
-// snapshot replaces the book. The book keeps its highest (epoch, update) for
-// its whole life, across connections: an older snapshot changes nothing and
-// leaves the book as it is, current or waiting; an equal one confirms it (on
-// depth20, a re-send that changes nothing while the book is current); a newer
-// one, a higher epoch included, replaces it. It reports whether the book
-// changed or was confirmed.
+// snapshot takes a snapshot. On depth every snapshot replaces the book,
+// whatever it held, older ones included, within a connection and across
+// reconnects; its levels per side are the window from then on. A depth20
+// book keeps its newest (epoch, update) for its whole life: an older snapshot
+// changes nothing and leaves the book as it is, an equal one confirms it (a
+// re-send, changing nothing, while the book is current), and a newer one, a
+// higher epoch included, replaces it. It reports whether the book changed or
+// was confirmed.
 func (b *book) snapshot(m *depthSnapshotMsg) (bool, error) {
 	if err := validLevels(m.bids, true); err != nil {
 		return false, fmt.Errorf("snapshot bids: %w", err)
@@ -78,18 +76,14 @@ func (b *book) snapshot(m *depthSnapshotMsg) (bool, error) {
 	if m.levelsPerSide == 0 || len(m.bids) > int(m.levelsPerSide) || len(m.asks) > int(m.levelsPerSide) {
 		return false, fmt.Errorf("snapshot of %d bids and %d asks for %d levels per side", len(m.bids), len(m.asks), m.levelsPerSide)
 	}
-	if b.has {
+	if b.stream == StreamDepth20 && b.has {
 		older := m.epoch < b.epoch || m.epoch == b.epoch && m.updateID < b.updateID
 		equal := m.epoch == b.epoch && m.updateID == b.updateID
-		switch {
-		case older:
-			b.behind = !b.synced
-			return false, nil
-		case equal && b.synced && b.stream == StreamDepth20:
+		if older || equal && b.synced {
 			return false, nil
 		}
 	}
-	b.synced, b.has, b.behind = true, true, false
+	b.synced, b.has = true, true
 	b.epoch, b.updateID, b.window = m.epoch, m.updateID, int(m.levelsPerSide)
 	b.bids = append(b.bids[:0], m.bids...)
 	b.asks = append(b.asks[:0], m.asks...)
@@ -103,41 +97,33 @@ type errBookGap struct{ msg string }
 func (e *errBookGap) Error() string { return e.msg }
 
 // update applies a DepthUpdate at exactly its base, then truncates each side
-// to the snapshot's levels per side. It reports false for an update skipped
-// while the book waits for a replica behind it to catch up.
-func (b *book) update(m *depthUpdateMsg) (bool, error) {
+// to the snapshot's levels per side. An update with no levels over a range
+// advances the position to its end.
+func (b *book) update(m *depthUpdateMsg) error {
 	if m.last < m.first {
-		return false, fmt.Errorf("update covers %d..%d", m.first, m.last)
+		return fmt.Errorf("update covers %d..%d", m.first, m.last)
 	}
 	for _, side := range [][]levelMsg{m.bids, m.asks} {
 		for i, l := range side {
 			if l.price <= 0 || l.qty < 0 {
-				return false, fmt.Errorf("update level %d has price %d and quantity %d", i, l.price, l.qty)
+				return fmt.Errorf("update level %d has price %d and quantity %d", i, l.price, l.qty)
 			}
-		}
-	}
-	if b.behind && m.epoch == b.epoch {
-		switch {
-		case m.last <= b.updateID:
-			return false, nil // the replica catching up to the book
-		case b.updateID < math.MaxUint64 && m.first == b.updateID+1:
-			b.synced, b.behind = true, false // the book's own base: it resumes
 		}
 	}
 	switch {
 	case !b.synced:
-		return false, &errBookGap{msg: fmt.Sprintf("depth update %d..%d before a snapshot", m.first, m.last)}
+		return &errBookGap{msg: fmt.Sprintf("depth update %d..%d before a snapshot", m.first, m.last)}
 	case m.epoch != b.epoch:
-		return false, &errBookGap{msg: fmt.Sprintf("depth update of book epoch %d on a book of epoch %d", m.epoch, b.epoch)}
+		return &errBookGap{msg: fmt.Sprintf("depth update of book epoch %d on a book of epoch %d", m.epoch, b.epoch)}
 	case b.updateID == math.MaxUint64 || m.first != b.updateID+1:
-		return false, &errBookGap{msg: fmt.Sprintf("depth update %d..%d on a book at %d", m.first, m.last, b.updateID)}
+		return &errBookGap{msg: fmt.Sprintf("depth update %d..%d on a book at %d", m.first, m.last, b.updateID)}
 	}
 	b.bids = applyLevels(b.bids, m.bids, true)
 	b.asks = applyLevels(b.asks, m.asks, false)
 	b.bids = b.bids[:min(len(b.bids), b.window)]
 	b.asks = b.asks[:min(len(b.asks), b.window)]
 	b.updateID = m.last
-	return true, nil
+	return nil
 }
 
 // applyLevels sets each level of changes on side, deleting those with

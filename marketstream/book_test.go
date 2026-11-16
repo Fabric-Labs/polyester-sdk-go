@@ -26,12 +26,6 @@ func lvls(pairs ...int64) []levelMsg {
 	return out
 }
 
-// apply applies an update and reports only its error.
-func apply(b *book, m *depthUpdateMsg) error {
-	_, err := b.update(m)
-	return err
-}
-
 func wantBook(t *testing.T, b *book, updateID uint64, bids, asks []levelMsg) {
 	t.Helper()
 	if b.updateID != updateID || !reflect.DeepEqual(append([]levelMsg{}, b.bids...), bids) || !reflect.DeepEqual(append([]levelMsg{}, b.asks...), asks) {
@@ -45,31 +39,27 @@ func TestDepthSnapshotThenExactBaseUpdates(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Set, insert and delete on both sides.
-	if err := apply(b, upd(1, 11, 14, lvls(100, 6, 98, 1, 99, 0), lvls(102, 7, 101, 0))); err != nil {
+	if err := b.update(upd(1, 11, 14, lvls(100, 6, 98, 1, 99, 0), lvls(102, 7, 101, 0))); err != nil {
 		t.Fatal(err)
 	}
 	wantBook(t, b, 14, lvls(100, 6, 98, 1), lvls(102, 7, 103, 4))
 	// An empty update keeps the next one contiguous.
-	if err := apply(b, upd(1, 15, 20, nil, nil)); err != nil {
+	if err := b.update(upd(1, 15, 20, nil, nil)); err != nil {
 		t.Fatal(err)
 	}
 	wantBook(t, b, 20, lvls(100, 6, 98, 1), lvls(102, 7, 103, 4))
-	// An older snapshot never takes the book backwards; a newer replacement
-	// replaces it, whatever it held.
-	if changed, err := b.snapshot(snap(StreamDepth, 1, 15, lvls(97, 1), nil)); err != nil || changed {
+	// A replacement snapshot replaces the book, whatever it held, an older
+	// one included.
+	if changed, err := b.snapshot(snap(StreamDepth, 1, 15, lvls(97, 1), nil)); err != nil || !changed {
 		t.Fatalf("older snapshot: changed %t, %v", changed, err)
 	}
-	wantBook(t, b, 20, lvls(100, 6, 98, 1), lvls(102, 7, 103, 4))
-	if _, err := b.snapshot(snap(StreamDepth, 1, 25, lvls(97, 1), nil)); err != nil {
-		t.Fatal(err)
-	}
-	wantBook(t, b, 25, lvls(97, 1), lvls())
+	wantBook(t, b, 15, lvls(97, 1), lvls())
 }
 
 func TestDepthUpdatesTheBookCannotApply(t *testing.T) {
 	b := &book{stream: StreamDepth}
 	var gap *errBookGap
-	if err := apply(b, upd(1, 11, 11, nil, nil)); !errors.As(err, &gap) {
+	if err := b.update(upd(1, 11, 11, nil, nil)); !errors.As(err, &gap) {
 		t.Fatalf("update before a snapshot: %v", err)
 	}
 	if _, err := b.snapshot(snap(StreamDepth, 1, 10, lvls(100, 5), lvls(101, 2))); err != nil {
@@ -81,7 +71,7 @@ func TestDepthUpdatesTheBookCannotApply(t *testing.T) {
 		"already applied":  upd(1, 9, 10, nil, nil),
 		"of another epoch": upd(2, 11, 11, nil, nil),
 	} {
-		if err := apply(b, u); !errors.As(err, &gap) {
+		if err := b.update(u); !errors.As(err, &gap) {
 			t.Fatalf("%s: %v, want a book gap", name, err)
 		}
 	}
@@ -91,7 +81,7 @@ func TestDepthUpdatesTheBookCannotApply(t *testing.T) {
 		"negative quantity":  upd(1, 11, 11, lvls(100, -1), nil),
 		"price not positive": upd(1, 11, 11, nil, lvls(0, 1)),
 	} {
-		if err := apply(b, u); err == nil || errors.As(err, &gap) {
+		if err := b.update(u); err == nil || errors.As(err, &gap) {
 			t.Fatalf("%s: %v, want a malformed update", name, err)
 		}
 	}
@@ -106,7 +96,7 @@ func TestDepthWindowTruncatesEachSide(t *testing.T) {
 	}
 	// Better levels push the worst out of a three-level window; the server
 	// sends no delete for them.
-	if err := apply(b, upd(1, 2, 2, lvls(105, 1), lvls(100, 9))); err != nil {
+	if err := b.update(upd(1, 2, 2, lvls(105, 1), lvls(100, 9))); err != nil {
 		t.Fatal(err)
 	}
 	wantBook(t, b, 2, lvls(105, 1, 100, 1, 99, 1), lvls(100, 9, 101, 1, 102, 1))
