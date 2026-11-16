@@ -870,11 +870,9 @@ func MutationOutcomeUnknown(err error) bool {
 	var routeErr *RouteNotFoundError
 	var redirectErr *RedirectRefusedError
 	serverUnknown := errors.As(err, &serverErr)
-	// An admission refusal reads from its code. A REST answer proves one
-	// only at 503; an error read from a ConnectRPC code alone carries no
-	// answer status and reads by its code.
-	if serverUnknown && (serverErr.AdmissionRefused ||
-		((serverErr.Status == 503 || serverErr.Status == 0) && isKnownAdmissionRefusal(serverErr.Code))) {
+	// A ConnectRPC admission refusal reads from its code (AdmissionRefused);
+	// a REST problem proves one only at 503.
+	if serverUnknown && (serverErr.AdmissionRefused || (serverErr.Status == 503 && isKnownAdmissionRefusal(serverErr.Code))) {
 		serverUnknown = false
 	}
 	return errors.As(err, &transportErr) || serverUnknown ||

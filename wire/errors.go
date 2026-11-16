@@ -297,7 +297,9 @@ func mapConnectError(err error) error {
 			code := orderDetail.GetCode().String()
 			// Backoff hints and unknown mutation outcomes take precedence.
 			if connectErr.Code() == connect.CodeUnavailable && !strings.HasSuffix(code, "_OUTCOME_UNKNOWN") && code != "ERROR_CODE_ACCOUNT_ROUTING_INVALID" {
-				return &sdkerrors.ServerError{Msg: msg, Code: code, AdmissionRefused: code == "ERROR_CODE_UNAVAILABLE"}
+				// An admission refusal reads from its code, whatever status
+				// the answer had.
+				return &sdkerrors.ServerError{Msg: msg, Code: code, AdmissionRefused: code == "ERROR_CODE_UNAVAILABLE" || isSpecificAdmissionRefusal(code)}
 			}
 			if len(orderDetail.GetViolations()) > 0 && !unknown {
 				violations := make([]sdkerrors.FieldViolation, 0, len(orderDetail.GetViolations()))
@@ -407,7 +409,7 @@ func mapConnectError(err error) error {
 		return &sdkerrors.APIError{Msg: msg, Code: namedCode}
 	}
 	if connectErr.Code() == connect.CodeUnavailable && isSpecificAdmissionRefusal(namedCode) {
-		return &sdkerrors.ServerError{Msg: msg, Code: namedCode}
+		return &sdkerrors.ServerError{Msg: msg, Code: namedCode, AdmissionRefused: true}
 	}
 	if connectErr.Code() == connect.CodeResourceExhausted {
 		if isRetryableAdmissionCode(namedCode) {
