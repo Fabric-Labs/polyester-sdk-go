@@ -551,10 +551,10 @@ non-retryable, including message-only responses.
 A REST 504 returns `*errors.ServerError` with `Status == 504` whatever code its
 body names, a retryable rate-limit or admission code included (only an
 `*_OUTCOME_UNKNOWN` code keeps its `errors.APIError`): `errors.IsRetryable` is
-false and `errors.MutationOutcomeUnknown` is true. A temporary failure (503,
-502, 504 or ConnectRPC `unavailable`) carries the delay its `Retry-After` asked
-for in `ServerError.RetryAfter`, seconds, nil when none; the SDK's own read
-retries wait at least that long.
+false and `errors.MutationOutcomeUnknown` is true. Every error that comes from an
+answer carries the delay its `Retry-After` asked for in `RetryAfter`, seconds,
+nil when none; read it with `errors.RetryAfter(err)`. The SDK's own read retries
+wait at least that long.
 The classifier has no operation context. Reads may retry a 504 explicitly;
 writes read back first. A client order ID supports reconciliation, not exact
 replay of a single create. Without one, read open orders before deciding whether

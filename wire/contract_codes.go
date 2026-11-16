@@ -108,11 +108,14 @@ func CarriesContractCode(detailType string, value []byte) bool {
 	return detail != nil && !isPlaceholderDetail(detail) && !hasFutureCode(detail)
 }
 
-// NamesOutcomeUnknown reports whether an encoded detail is an order detail
-// whose code ends in _OUTCOME_UNKNOWN: a write that may have applied.
-func NamesOutcomeUnknown(detailType string, value []byte) bool {
+// OutcomeUnknownCode returns the code of an encoded order detail whose code
+// ends in _OUTCOME_UNKNOWN, a write that may have applied, or "".
+func OutcomeUnknownCode(detailType string, value []byte) string {
 	detail, ok := decodeServiceDetail(detailType, value).(*orderv1.ErrorDetail)
-	return ok && strings.HasSuffix(detail.GetCode().String(), "_OUTCOME_UNKNOWN")
+	if !ok || !strings.HasSuffix(detail.GetCode().String(), "_OUTCOME_UNKNOWN") {
+		return ""
+	}
+	return detail.GetCode().String()
 }
 
 // FutureCodeLabel returns the label of an encoded detail's code when this SDK's

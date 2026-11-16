@@ -6,7 +6,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/Fabric-Labs/polyester-sdk-go/wire"
+	"github.com/Fabric-Labs/polyester-sdk-go/internal/retrywait"
 )
 
 // unavailableRetry retries a side-effect-free read that answered UNAVAILABLE
@@ -47,16 +47,7 @@ func retryUnavailable[Req any, Resp any](
 				// The answer would be retried; only the caller ended the read.
 				return nil, ctx.Err()
 			}
-			wait := delay
-			if seconds := wire.RetryAfterSeconds(err); seconds != nil {
-				if *seconds > policy.budget.Seconds() {
-					// Asked to wait past the whole budget: answer now.
-					return nil, err
-				}
-				if asked := time.Duration(*seconds * float64(time.Second)); asked > wait {
-					wait = asked
-				}
-			}
+			wait := retrywait.Delay(err, delay)
 			if time.Since(started)+wait > policy.budget {
 				return nil, err
 			}

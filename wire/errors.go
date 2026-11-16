@@ -118,35 +118,15 @@ func rateLimitError(msg string, code string, detail *sdkerrors.RateLimitDetail, 
 // errors.Is and errors.As still find it.
 func MapConnectError(err error) error {
 	mapped := mapConnectError(err)
-	// A temporary failure keeps the delay its answer asked for.
-	var serverErr *sdkerrors.ServerError
+	// A ConnectRPC answer's delay, captured from its metadata once for
+	// whatever error it maps to; a REST answer's was captured by the
+	// transport.
 	var connectErr *connect.Error
-	if errors.As(mapped, &serverErr) && serverErr.RetryAfter == nil &&
-		errors.As(err, &connectErr) && connectErr.Code() == connect.CodeUnavailable {
-		serverErr.RetryAfter = retryAfterSeconds(connectErr)
+	if errors.As(err, &connectErr) {
+		sdkerrors.AttachRetryAfter(mapped, retryAfterSeconds(connectErr))
 	}
 	redactChain(mapped)
 	return mapped
-}
-
-// RetryAfterSeconds returns the delay in seconds a failed call's answer asked
-// for before a retry: a *errors.ServerError's or *errors.RateLimitError's
-// RetryAfter, else the Retry-After headers of a ConnectRPC error. Nil when
-// the answer named none.
-func RetryAfterSeconds(err error) *float64 {
-	var serverErr *sdkerrors.ServerError
-	if errors.As(err, &serverErr) && serverErr.RetryAfter != nil {
-		return serverErr.RetryAfter
-	}
-	var rateErr *sdkerrors.RateLimitError
-	if errors.As(err, &rateErr) && rateErr.RetryAfter != nil {
-		return rateErr.RetryAfter
-	}
-	var connectErr *connect.Error
-	if errors.As(err, &connectErr) {
-		return retryAfterSeconds(connectErr)
-	}
-	return nil
 }
 
 func mapConnectError(err error) error {

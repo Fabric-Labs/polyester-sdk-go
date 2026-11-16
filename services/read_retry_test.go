@@ -99,13 +99,16 @@ func TestRetryUnavailableKeepsADefiniteAnswerToAnEndedCaller(t *testing.T) {
 func TestRetryUnavailableHonoursRetryAfter(t *testing.T) {
 	for _, tc := range []struct {
 		name       string
+		body       string
 		retryAfter string
 		wantCalls  int32
 		minElapsed time.Duration
 		maxElapsed time.Duration
 	}{
-		{"past the budget", "30", 1, 0, time.Second},
-		{"within the budget", "0.4", 2, 400 * time.Millisecond, 2 * time.Second},
+		{"past the budget", `{"code":"UPSTREAM_ERROR","status":503}`, "30", 1, 0, time.Second},
+		{"within the budget", `{"code":"UPSTREAM_ERROR","status":503}`, "0.4", 2, 400 * time.Millisecond, 2 * time.Second},
+		{"auth unavailable past the budget", `{"code":"AUTH_TEMPORARILY_UNAVAILABLE","status":503}`, "30", 1, 0, time.Second},
+		{"auth unavailable within the budget", `{"code":"AUTH_TEMPORARILY_UNAVAILABLE","status":503}`, "0.4", 2, 400 * time.Millisecond, 2 * time.Second},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var calls atomic.Int32
@@ -114,7 +117,7 @@ func TestRetryUnavailableHonoursRetryAfter(t *testing.T) {
 					w.Header().Set("Content-Type", "application/problem+json")
 					w.Header().Set("Retry-After", tc.retryAfter)
 					w.WriteHeader(http.StatusServiceUnavailable)
-					_, _ = w.Write([]byte(`{"code":"UPSTREAM_ERROR","status":503}`))
+					_, _ = w.Write([]byte(tc.body))
 					return
 				}
 				w.Header().Set("Content-Type", "application/proto")
@@ -130,8 +133,7 @@ func TestRetryUnavailableHonoursRetryAfter(t *testing.T) {
 				t.Fatalf("calls=%d elapsed=%v err=%v", calls.Load(), elapsed, err)
 			}
 			if tc.wantCalls == 1 {
-				var server *sdkerrors.ServerError
-				if mapped := transport.MapError(err); !errors.As(mapped, &server) || server.RetryAfter == nil || *server.RetryAfter != 30 {
+				if mapped := transport.MapError(err); sdkerrors.RetryAfter(mapped) == nil || *sdkerrors.RetryAfter(mapped) != 30 {
 					t.Fatalf("err=%T %+v", mapped, mapped)
 				}
 			} else if err != nil {

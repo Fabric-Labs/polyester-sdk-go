@@ -102,8 +102,15 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	}
 	hasServiceDetail := false
 	futureCode := ""
-	namesOutcomeUnknown := strings.HasSuffix(detail.Code, "_OUTCOME_UNKNOWN") ||
-		strings.HasSuffix(strings.TrimSpace(detail.Message), "_OUTCOME_UNKNOWN")
+	// An explicit outcome-unknown code: a problem's code, a ConnectRPC
+	// error's code-only message, or an order detail's code.
+	outcomeCode := ""
+	switch {
+	case strings.HasSuffix(detail.Code, "_OUTCOME_UNKNOWN"):
+		outcomeCode = wire.ErrorCodeFromREST(detail.Code)
+	case strings.HasSuffix(strings.TrimSpace(detail.Message), "_OUTCOME_UNKNOWN"):
+		outcomeCode = wire.ErrorCodeFromREST(strings.TrimSpace(detail.Message))
+	}
 	for _, item := range detail.Details {
 		value, decodeErr := base64.RawStdEncoding.DecodeString(strings.TrimRight(item.Value, "="))
 		if decodeErr != nil {
@@ -112,34 +119,44 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		if wire.CarriesContractCode(item.Type, value) {
 			hasServiceDetail = true
 		}
-		if wire.NamesOutcomeUnknown(item.Type, value) {
-			namesOutcomeUnknown = true
+		if code := wire.OutcomeUnknownCode(item.Type, value); code != "" && outcomeCode == "" {
+			outcomeCode = code
 		}
 		if futureCode == "" {
 			futureCode = wire.FutureCodeLabel(item.Type, value)
 		}
 	}
-	// A 504 never proves a refusal. The API answers it only where a write's
-	// outcome is unknown, and an edge answers it for a request that may have
-	// reached the API. So whatever code its body names, a retryable admission,
-	// rate-limit or authentication code included, it stays an unknown outcome:
-	// a *errors.ServerError that safe reads retry. An explicit
-	// outcome-unknown code, in a problem's code or a ConnectRPC error's message
-	// or order detail, keeps that code below.
-	if resp.StatusCode == http.StatusGatewayTimeout && !namesOutcomeUnknown {
-		// A REST problem's code is uppercase; a ConnectRPC error's lowercase
-		// code names no service code, so only its detail's label is kept.
-		restCode := detail.Code
-		if restCode == strings.ToLower(restCode) {
-			restCode = ""
+	// The HTTP status decides outcome certainty first. A 504 never proves a
+	// refusal: the API answers it only where a write's outcome is unknown,
+	// and an edge answers it for a request that may have reached the API. So
+	// before any code, message or typed detail is read for a refusal, a 504
+	// is an unknown outcome that safe reads retry: an *errors.APIError with
+	// the outcome-unknown code the answer names, else an *errors.ServerError.
+	// No body, a ConnectRPC code, a retryable rate-limit, admission or
+	// authentication code, or a typed detail included, changes that.
+	if resp.StatusCode == http.StatusGatewayTimeout {
+		var mapped error
+		if outcomeCode != "" {
+			mapped = &sdkerrors.APIError{
+				Msg:     firstNonEmpty(detail.Detail, detail.Title, strings.TrimSpace(detail.Message), detail.Code, outcomeCode),
+				Code:    outcomeCode,
+				Problem: sdkerrors.DecodeHTTPProblem(decoded, resp.StatusCode),
+			}
+		} else {
+			// A REST problem's code is uppercase; a ConnectRPC error's
+			// lowercase code names no service code, so only its detail's
+			// label is kept.
+			restCode := detail.Code
+			if restCode == strings.ToLower(restCode) {
+				restCode = ""
+			}
+			mapped = &sdkerrors.ServerError{
+				Msg:    firstNonEmpty(detail.Detail, detail.Title, detail.Message, "Gateway Timeout"),
+				Code:   firstNonEmpty(futureCode, restCode),
+				Status: http.StatusGatewayTimeout,
+			}
 		}
-		_ = resp.Body.Close()
-		return nil, roundTripError(&sdkerrors.ServerError{
-			Msg:        firstNonEmpty(detail.Detail, detail.Title, detail.Message, "Gateway Timeout"),
-			Code:       firstNonEmpty(futureCode, restCode),
-			Status:     http.StatusGatewayTimeout,
-			RetryAfter: wire.RetryAfterHeaderSeconds(resp.Header),
-		}, resp.StatusCode)
+		return nil, failedAnswer(resp, mapped)
 	}
 	// Connect's own code and detail decoder remains authoritative.
 	switch detail.Code {
@@ -278,11 +295,6 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	}
 	problem := sdkerrors.DecodeHTTPProblem(decoded, resp.StatusCode)
 	switch e := mapped.(type) {
-	case *sdkerrors.ServerError:
-		// A temporary failure keeps the delay it asked for.
-		if e.RetryAfter == nil && resp.StatusCode != http.StatusTooManyRequests && isUnavailableStatus(resp.StatusCode) {
-			e.RetryAfter = wire.RetryAfterHeaderSeconds(resp.Header)
-		}
 	case *sdkerrors.APIError:
 		e.Problem = problem
 	case *sdkerrors.AuthError:
@@ -296,8 +308,16 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	case *sdkerrors.ValidationError:
 		e.Problem = problem
 	}
+	return nil, failedAnswer(resp, mapped)
+}
+
+// failedAnswer closes a failed answer the SDK mapped itself and hands mapped
+// to connect-go, with the delay the answer's Retry-After asked for: the one
+// place a REST answer's delay is captured.
+func failedAnswer(resp *http.Response, mapped error) error {
+	sdkerrors.AttachRetryAfter(mapped, wire.RetryAfterHeaderSeconds(resp.Header))
 	_ = resp.Body.Close()
-	return nil, roundTripError(mapped, resp.StatusCode)
+	return roundTripError(mapped, resp.StatusCode)
 }
 
 // roundTripError hands a mapped answer to connect-go, which reports a plain
