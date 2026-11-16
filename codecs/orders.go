@@ -459,7 +459,7 @@ func ModifyOrderToProto(
 		proto.SubaccountId = &sub
 	}
 	if newPrice != nil && newPrice.IsSet() {
-		ticks, err := ResolvePriceTicks(*newPrice, "new_price", symbol)
+		ticks, err := positivePriceTicks(*newPrice, "new_price", symbol)
 		if err != nil {
 			return nil, err
 		}

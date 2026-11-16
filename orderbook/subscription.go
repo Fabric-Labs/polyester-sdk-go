@@ -125,9 +125,14 @@ func (s *Subscription) SetOnError(callback func(error)) {
 	}
 }
 
-// SetBucket changes the active price bucket.
-func (s *Subscription) SetBucket(bucket string) {
-	ticks := ParseBucketTicks(bucket)
+// SetBucket changes the active price bucket, as ParseBucketTicks reads it: ""
+// turns bucketing off. An invalid bucket returns its *errors.ValidationError
+// and leaves the current bucket and view unchanged.
+func (s *Subscription) SetBucket(bucket string) error {
+	ticks, err := ParseBucketTicks(bucket)
+	if err != nil {
+		return err
+	}
 	s.mu.Lock()
 	s.bucket = ticks
 	setBucket := s.setBucket
@@ -140,6 +145,7 @@ func (s *Subscription) SetBucket(bucket string) {
 	if s.emit != nil && (s.stream == nil || s.stream.IsReady()) {
 		s.runCallback(s.emit)
 	}
+	return nil
 }
 
 // RefreshSnapshot refetches the REST snapshot.

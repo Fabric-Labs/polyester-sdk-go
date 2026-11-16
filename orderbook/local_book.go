@@ -121,16 +121,22 @@ func checkedAdd(a, b int) (int, error) {
 	return result, nil
 }
 
-// ParseBucketTicks parses a bucket string into tick size.
-func ParseBucketTicks(bucket string) int {
+// ParseBucketTicks parses a price bucket into price ticks. An empty bucket is
+// 0, no bucketing. Any other bucket must be a positive decimal price with at
+// most 9 decimal places, such as "0.01"; anything else is an
+// *errors.ValidationError.
+func ParseBucketTicks(bucket string) (int, error) {
 	if bucket == "" {
-		return 0
+		return 0, nil
 	}
 	ticks, err := codecs.ParsePriceTicks(bucket, "bucket")
-	if err != nil {
-		return 0
+	if err != nil || ticks == 0 {
+		return 0, &sdkerrors.ValidationError{Msg: fmt.Sprintf(
+			"invalid orderbook bucket %q: a bucket is a positive price with at most 9 decimal places, such as \"0.01\", or empty for no bucketing",
+			bucket,
+		)}
 	}
-	return int(ticks)
+	return int(ticks), nil
 }
 
 // ApplyDelta applies one delta to a book at currentBookSeq and returns the

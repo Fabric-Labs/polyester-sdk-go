@@ -2148,7 +2148,9 @@ depth and then sends nothing on it, so the SDK does not subscribe there:
   snapshot, and trims each view to 10 levels. Its update rate is that of the depth it
   rides, and each published update adds a view, also when only levels outside yours
   changed. With `Bucket`, levels are aggregated first and the depth then counts
-  buckets. A depth above 500, or below 0, is an `*errors.ValidationError` before
+  buckets. `Bucket` is empty for no bucketing or a positive price with at most 9
+  decimal places, such as `"0.01"`; any other bucket is an `*errors.ValidationError`
+  before connecting, and `SetBucket` returns it and keeps the current bucket. A depth above 500, or below 0, is an `*errors.ValidationError` before
   connecting; for more than 500 levels, read a snapshot with `Orderbook.Get`.
 - `Orderbook.SubscribeDeltas` delivers raw deltas, which can't be trimmed, so it takes
   only a published depth and returns `*errors.ValidationError` for any other.
