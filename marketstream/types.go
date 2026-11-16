@@ -283,6 +283,10 @@ type BestBidOffer struct {
 	SendTime     time.Time
 	Bid          *Level
 	Ask          *Level
+	// Stale is set on the copy Client.BestBidOffer returns while the quote
+	// may not be current: the connection that fed it was lost, or the pair's
+	// feed is stale. Events always carry false.
+	Stale bool
 }
 
 // DepthSnapshot replaces a pair's book of the depth20 or depth stream. Bids

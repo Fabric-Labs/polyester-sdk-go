@@ -44,9 +44,18 @@ func (c *Client) handle(frame []byte) error {
 func (c *Client) onSubscribeResponse(m *subscribeResponseMsg) {
 	resp := &SubscribeResponse{RequestID: m.requestID, Results: make([]TopicResult, len(m.results))}
 	c.mu.Lock()
-	unsubscribe := c.unsubscribes[m.requestID]
+	req, known := c.sent[m.requestID]
+	delete(c.sent, m.requestID)
 	c.mu.Unlock()
-	if unsubscribe {
+	if !known {
+		// No request of this connection: delivered, never applied.
+		for i, r := range m.results {
+			resp.Results[i] = TopicResult{Topic: Topic{SymbolID: r.symbolID, Stream: Stream(r.stream)}, Result: SubscribeResult(r.result)}
+		}
+		c.emit(resp)
+		return
+	}
+	if req.unsubscribe {
 		c.onUnsubscribeResponse(m, resp)
 		return
 	}
@@ -86,32 +95,16 @@ func (c *Client) onSubscribeResponse(m *subscribeResponseMsg) {
 // onUnsubscribeResponse ends the streams an Unsubscribe names: whether they
 // ended now or were not held, the client drops their state.
 func (c *Client) onUnsubscribeResponse(m *subscribeResponseMsg, resp *SubscribeResponse) {
-	c.state.Lock()
+	var ended []Topic
 	for i, r := range m.results {
 		topic := Topic{SymbolID: r.symbolID, Stream: Stream(r.stream)}
 		result := SubscribeResult(r.result)
 		resp.Results[i] = TopicResult{Topic: topic, Result: result}
-		if result != SubscribeOK && result != SubscribeNotSubscribed {
-			continue
-		}
-		delete(c.active, topic)
-		switch topic.Stream {
-		case StreamTrades:
-			delete(c.trackers, topic.SymbolID)
-		case StreamBBO:
-			delete(c.quotes, topic.SymbolID)
-		case StreamDepth20, StreamDepth:
-			delete(c.books, topic)
-		}
-		held := false
-		for _, s := range []Stream{StreamTrades, StreamBBO, StreamDepth20, StreamDepth} {
-			held = held || c.active[Topic{SymbolID: topic.SymbolID, Stream: s}]
-		}
-		if !held {
-			delete(c.feeds, topic.SymbolID)
+		if result == SubscribeOK || result == SubscribeNotSubscribed {
+			ended = append(ended, topic)
 		}
 	}
-	c.state.Unlock()
+	c.dropTopics(ended)
 	c.answer(m.requestID, resp)
 }
 
@@ -120,7 +113,6 @@ func (c *Client) answer(requestID uint64, resp *SubscribeResponse) {
 	c.mu.Lock()
 	waiter := c.waiting[requestID]
 	delete(c.waiting, requestID)
-	delete(c.unsubscribes, requestID)
 	c.mu.Unlock()
 	c.emit(resp)
 	if waiter != nil {
@@ -301,8 +293,11 @@ func (c *Client) onBBO(m *bboMsg) error {
 		return nil
 	}
 	prev := c.quotes[m.symbolID]
-	if prev != nil && (m.epoch < prev.BookEpoch || m.epoch == prev.BookEpoch && m.updateID <= prev.UpdateID) {
-		// An older state, or a re-send of the same one.
+	if prev != nil && (m.epoch < prev.BookEpoch || m.epoch == prev.BookEpoch && m.updateID < prev.UpdateID ||
+		!prev.Stale && m.epoch == prev.BookEpoch && m.updateID == prev.UpdateID) {
+		// An older state, or a re-send of the current one. A quote kept,
+		// stale, from a lost connection stays until one at least as new
+		// confirms or replaces it.
 		c.state.Unlock()
 		return nil
 	}
@@ -371,11 +366,14 @@ func (c *Client) onDepthUpdate(m *depthUpdateMsg) error {
 		c.state.Unlock()
 		return nil
 	}
-	err := b.update(m)
+	applied, err := b.update(m)
 	if err != nil {
-		b.synced = false
+		b.synced, b.behind = false, false
 	}
 	c.state.Unlock()
+	if err == nil && !applied {
+		return nil
+	}
 	if err != nil {
 		var gap *errBookGap
 		if errors.As(err, &gap) {

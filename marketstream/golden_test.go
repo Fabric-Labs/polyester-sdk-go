@@ -135,7 +135,22 @@ func TestGoldenCapturesReplay(t *testing.T) {
 			// a pair whose baseline it did not keep are not replayed.
 			baseline := map[uint32]bool{}
 			for _, f := range frames {
-				if f.direction != "server" {
+				if f.direction == "client" {
+					// The captured client's requests, as this client records
+					// what it sends: responses are matched to them by ID.
+					if f.message == "Subscribe" {
+						var h ms.MessageHeader
+						h.Wrap(f.data, 0, 0, uint64(len(f.data)))
+						var m ms.Subscribe
+						m.WrapForDecode(f.data, uint64(headerLength), uint64(h.BlockLength()), uint64(h.Version()), uint64(len(f.data)))
+						var topics []Topic
+						items := m.Items()
+						for items.HasNext() {
+							it := items.Next()
+							topics = append(topics, Topic{SymbolID: it.SymbolId(), Stream: Stream(it.Stream())})
+						}
+						c.sent[m.RequestId()] = sentRequest{topics: topics}
+					}
 					continue
 				}
 				decoded, _ := decodeFrame(f.data)

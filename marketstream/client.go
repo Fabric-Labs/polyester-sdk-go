@@ -117,10 +117,12 @@ type Client struct {
 	wanted  []Topic
 	wantSet map[Topic]bool
 	waiting map[uint64]chan subscribeOutcome
-	// unsubscribes are the requests in flight that are Unsubscribes: their
-	// responses end streams.
-	unsubscribes map[uint64]bool
-	ping         struct {
+	// sent records every Subscribe and Unsubscribe sent on the current
+	// connection by request ID: its kind and topics. A response is matched
+	// to it by ID alone; a caller that stops waiting leaves it in place, as
+	// the server acts on the request regardless.
+	sent map[uint64]sentRequest
+	ping struct {
 		id   uint64
 		sent time.Time
 	}
@@ -183,19 +185,19 @@ func Dial(ctx context.Context, cfg Config) (*Client, error) {
 func newClient(cfg Config) *Client {
 	runCtx, cancel := context.WithCancel(context.Background())
 	return &Client{
-		cfg:          cfg,
-		events:       make(chan Event, cfg.QueueSize),
-		ctx:          runCtx,
-		cancel:       cancel,
-		done:         make(chan struct{}),
-		wantSet:      map[Topic]bool{},
-		waiting:      map[uint64]chan subscribeOutcome{},
-		unsubscribes: map[uint64]bool{},
-		books:        map[Topic]*book{},
-		quotes:       map[uint32]*BestBidOffer{},
-		feeds:        map[uint32]FeedState{},
-		trackers:     map[uint32]*tradeTracker{},
-		active:       map[Topic]bool{},
+		cfg:      cfg,
+		events:   make(chan Event, cfg.QueueSize),
+		ctx:      runCtx,
+		cancel:   cancel,
+		done:     make(chan struct{}),
+		wantSet:  map[Topic]bool{},
+		waiting:  map[uint64]chan subscribeOutcome{},
+		sent:     map[uint64]sentRequest{},
+		books:    map[Topic]*book{},
+		quotes:   map[uint32]*BestBidOffer{},
+		feeds:    map[uint32]FeedState{},
+		trackers: map[uint32]*tradeTracker{},
+		active:   map[Topic]bool{},
 	}
 }
 
@@ -329,16 +331,18 @@ func (c *Client) request(ctx context.Context, topics []Topic, unsubscribe bool) 
 			c.wanted = append(c.wanted, t)
 		}
 	}
-	c.waiting[id] = reply
-	if unsubscribe {
-		c.unsubscribes[id] = true
-	}
 	conn := c.conn
+	if conn != nil {
+		// Recorded before it is sent and kept until the response or the end
+		// of the connection, whether or not the caller keeps waiting.
+		c.waiting[id] = reply
+		c.sent[id] = sentRequest{unsubscribe: unsubscribe, topics: append([]Topic(nil), topics...)}
+	}
 	c.mu.Unlock()
 	defer func() {
+		// Only the wait ends here; the record stays.
 		c.mu.Lock()
 		delete(c.waiting, id)
-		delete(c.unsubscribes, id)
 		c.mu.Unlock()
 	}()
 	verb, frame := "subscribe", encodeSubscribe
@@ -346,6 +350,10 @@ func (c *Client) request(ctx context.Context, topics []Topic, unsubscribe bool) 
 		verb, frame = "unsubscribe", encodeUnsubscribe
 	}
 	if conn == nil {
+		if unsubscribe {
+			// No connection holds the topics; they are not resubscribed.
+			c.dropTopics(topics)
+		}
 		// Between connections: the next connection subscribes what is wanted
 		// then, which these topics are, or no longer are.
 		return nil, &sdkerrors.RealtimeError{Msg: "market stream is reconnecting; the " + verb + " applies once it is connected"}
@@ -398,7 +406,33 @@ func (c *Client) BestBidOffer(symbolID uint32) (BestBidOffer, bool) {
 	if q == nil {
 		return BestBidOffer{}, false
 	}
-	return *q, true
+	out := *q
+	out.Stale = q.Stale || c.feeds[symbolID] == FeedStale
+	return out, true
+}
+
+// Live reports whether a topic is current: the connection holds it, its
+// state arrived on that connection (a depth book's snapshot, a quote, the
+// trades stream's baseline) and the pair's feed is not stale. A lost
+// connection makes every topic not live at once, before its Disconnected
+// event.
+func (c *Client) Live(topic Topic) bool {
+	c.state.RLock()
+	defer c.state.RUnlock()
+	if !c.active[topic] || c.feeds[topic.SymbolID] == FeedStale {
+		return false
+	}
+	switch topic.Stream {
+	case StreamTrades:
+		t := c.trackers[topic.SymbolID]
+		return t != nil && t.started
+	case StreamBBO:
+		q := c.quotes[topic.SymbolID]
+		return q != nil && !q.Stale
+	default:
+		b := c.books[topic]
+		return b != nil && b.synced
+	}
 }
 
 // Feed returns a pair's feed state as last reported; FeedLive unless the
@@ -500,6 +534,67 @@ func (c *Client) run(conn *websocket.Conn, wanted []Topic) {
 	}
 }
 
+// sentRequest is a Subscribe or Unsubscribe sent on the current connection.
+type sentRequest struct {
+	unsubscribe bool
+	topics      []Topic
+}
+
+// dropTopics forgets the state of topics no longer subscribed: their books,
+// quotes and trade accounting, and a pair's feed state once it holds none.
+func (c *Client) dropTopics(topics []Topic) {
+	c.state.Lock()
+	defer c.state.Unlock()
+	for _, topic := range topics {
+		delete(c.active, topic)
+		switch topic.Stream {
+		case StreamTrades:
+			delete(c.trackers, topic.SymbolID)
+		case StreamBBO:
+			delete(c.quotes, topic.SymbolID)
+		case StreamDepth20, StreamDepth:
+			delete(c.books, topic)
+		}
+		held := false
+		for _, s := range []Stream{StreamTrades, StreamBBO, StreamDepth20, StreamDepth} {
+			held = held || c.active[Topic{SymbolID: topic.SymbolID, Stream: s}]
+		}
+		if !held {
+			delete(c.feeds, topic.SymbolID)
+		}
+	}
+}
+
+// lose marks everything a lost connection fed as stale, before the client
+// reports the loss: books wait for a new snapshot, quotes for a new quote and
+// trades for a new baseline. Unsubscribes the connection never answered are
+// done: their topics are no longer wanted.
+func (c *Client) lose() {
+	c.mu.Lock()
+	var ended []Topic
+	for id, r := range c.sent {
+		if r.unsubscribe {
+			ended = append(ended, r.topics...)
+		}
+		delete(c.sent, id)
+	}
+	c.mu.Unlock()
+	c.dropTopics(ended)
+	c.state.Lock()
+	clear(c.active)
+	clear(c.feeds)
+	for _, b := range c.books {
+		b.synced = false
+	}
+	for _, q := range c.quotes {
+		q.Stale = true
+	}
+	for _, t := range c.trackers {
+		t.restart()
+	}
+	c.state.Unlock()
+}
+
 // attach makes conn the client's connection and returns the topics to
 // subscribe on it, atomically: a Subscribe either adds its topics before, and
 // they are subscribed with these, or sends them on conn itself. False when
@@ -520,6 +615,7 @@ func (c *Client) attach(conn *websocket.Conn) ([]Topic, bool) {
 func (c *Client) session(conn *websocket.Conn, wanted []Topic, reconnect bool) error {
 	defer func() {
 		_ = conn.Close()
+		c.lose()
 		c.mu.Lock()
 		c.conn = nil
 		for id, w := range c.waiting {
@@ -552,7 +648,11 @@ func (c *Client) session(conn *websocket.Conn, wanted []Topic, reconnect bool) e
 	}
 	for start := 0; start < len(wanted); start += maxSubscribeItems {
 		chunk := wanted[start:min(start+maxSubscribeItems, len(wanted))]
-		if err := c.write(conn, encodeSubscribe(c.ids.Add(1), chunk)); err != nil {
+		id := c.ids.Add(1)
+		c.mu.Lock()
+		c.sent[id] = sentRequest{topics: append([]Topic(nil), chunk...)}
+		c.mu.Unlock()
+		if err := c.write(conn, encodeSubscribe(id, chunk)); err != nil {
 			return &sdkerrors.RealtimeError{Msg: "market stream resubscribe: " + err.Error()}
 		}
 	}
