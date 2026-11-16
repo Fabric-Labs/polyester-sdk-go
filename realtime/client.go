@@ -332,9 +332,9 @@ func runSubscriptionOnce[T any](
 		HandshakeTimeout: 10 * time.Second,
 		Subprotocols:     []string{centrifugoProtobufSubprotocol},
 	}
-	conn, _, err := dialer.DialContext(ctx, c.wsURL, nil)
+	conn, resp, err := dialer.DialContext(ctx, c.wsURL, nil)
 	if err != nil {
-		return &sdkerrors.RealtimeError{Msg: redact.URLError(err).Error()}
+		return upgradeAnswerError(&sdkerrors.RealtimeError{Msg: redact.URLError(err).Error()}, resp)
 	}
 	defer func() { _ = conn.Close() }()
 	conn.SetReadLimit(MaxRealtimeMessageBytes)

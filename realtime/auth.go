@@ -15,6 +15,7 @@ import (
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/redact"
 	"github.com/Fabric-Labs/polyester-sdk-go/useragent"
+	"github.com/Fabric-Labs/polyester-sdk-go/wire"
 )
 
 const (
@@ -118,6 +119,17 @@ func signedGet(ctx context.Context, httpClient *http.Client, creds *auth.Credent
 		return nil, redact.URLError(err)
 	}
 	defer func() { _ = resp.Body.Close() }()
+	body, err := readSignedAnswer(resp, label, rawURL, maxBytes)
+	if err != nil && resp.StatusCode >= 400 {
+		// Every error from a failed answer carries its status and delay.
+		sdkerrors.AttachAnswer(err, resp.StatusCode, wire.RetryAfterHeaderSeconds(resp.Header))
+	}
+	return body, err
+}
+
+// readSignedAnswer reads a signed GET's answer: its body when it succeeded,
+// else the error it maps to.
+func readSignedAnswer(resp *http.Response, label, rawURL string, maxBytes int) ([]byte, error) {
 	if contentLengthExceedsLimit(resp.Header, maxBytes) {
 		return nil, &sdkerrors.RealtimeError{Msg: fmt.Sprintf("%s: response exceeds %d bytes", label, maxBytes)}
 	}

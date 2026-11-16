@@ -98,7 +98,12 @@ func (c *JSONRPCClient) Request(method string, params any) (json.RawMessage, err
 		return nil, fmt.Errorf("json-rpc response exceeds %d bytes", maxBody)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("json-rpc http %d: %s", resp.StatusCode, truncateBody(body, 256))
+		// The JSON-RPC endpoint's answer: its status and delay ride along.
+		return nil, &sdkerrors.TransportError{
+			Msg:        fmt.Sprintf("json-rpc http %d: %s", resp.StatusCode, truncateBody(body, 256)),
+			Status:     resp.StatusCode,
+			RetryAfter: sdkerrors.RetryAfterHeader(resp.Header),
+		}
 	}
 
 	var envelope map[string]json.RawMessage

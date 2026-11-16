@@ -60,6 +60,9 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	if err != nil || resp.StatusCode < 400 {
 		return resp, err
 	}
+	// The answer's real status, which a ConnectRPC error decoded by
+	// connect-go keeps in its metadata (its code alone implies another).
+	resp.Header.Set(wire.AnswerStatusHeader, strconv.Itoa(resp.StatusCode))
 	body, readErr := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyBytes))
 	// Hand the caller the whole body: the inspected prefix, then the rest.
 	resp.Body = prefixedBody{Reader: io.MultiReader(bytes.NewReader(body), resp.Body), Closer: resp.Body}
@@ -326,12 +329,14 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 }
 
 // passToConnect hands a failed answer to connect-go, which decodes a
-// ConnectRPC error body and keeps the answer's headers on the error. A body
-// it cannot decode (not JSON, malformed, or with a code it can't read) it
-// reports by status alone and without the answer's headers, so the SDK reads
-// that one here, exactly as connect-go would, with the answer attached.
-func passToConnect(resp *http.Response, isJSON bool, decoded []byte) (*http.Response, error) {
-	if connectWillDecode(isJSON, decoded) {
+// ConnectRPC error body and keeps the answer's headers on the error, the
+// transport's AnswerStatusHeader included. An answer it cannot decode (an
+// error content type other than application/json, or JSON that does not
+// parse) it reports by status alone and without the answer's headers, so the
+// SDK reads that one here, exactly as connect-go would, with the answer
+// attached.
+func passToConnect(resp *http.Response, _ bool, decoded []byte) (*http.Response, error) {
+	if connectWillDecode(resp.Header.Get("Content-Type"), resp.Header.Get("Content-Encoding"), decoded) {
 		return resp, nil
 	}
 	code := connectCodeForUndecodable(resp.StatusCode)
@@ -342,22 +347,30 @@ func passToConnect(resp *http.Response, isJSON bool, decoded []byte) (*http.Resp
 	return nil, connect.NewError(code, mapped)
 }
 
-// connectWillDecode reports whether connect-go reads body as a ConnectRPC
-// error: JSON with a code it knows, a string message and well-formed details.
-func connectWillDecode(isJSON bool, decoded []byte) bool {
-	if !isJSON {
+// connectWillDecode reports whether connect-go decodes an error answer and
+// keeps its headers: an exact application/json content type, an encoding it
+// reads, and JSON that parses as its wire error (a string code and message,
+// well-formed details). It is lenient with the code's value, as connect-go
+// is: a missing or unknown one reads by status.
+func connectWillDecode(contentType, encoding string, decoded []byte) bool {
+	if contentType != "application/json" && contentType != "application/json; charset=utf-8" {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(encoding)) {
+	case "", "identity", "gzip":
+	default:
 		return false
 	}
 	var wireErr struct {
-		Code    *connect.Code `json:"code"`
-		Message *string       `json:"message"`
+		Code    string `json:"code"`
+		Message string `json:"message"`
 		Details []struct {
 			Type  string          `json:"type"`
 			Value string          `json:"value"`
 			Debug json.RawMessage `json:"debug"`
 		} `json:"details"`
 	}
-	if json.Unmarshal(decoded, &wireErr) != nil {
+	if decoded == nil || json.Unmarshal(decoded, &wireErr) != nil {
 		return false
 	}
 	for _, item := range wireErr.Details {

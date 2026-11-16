@@ -109,11 +109,14 @@ func isSigned(header http.Header) bool {
 // and the origin next would have gone to.
 func redirectRefused(next, previous *http.Request) *errors.RedirectRefusedError {
 	status := 0
+	var retryAfter *float64
 	if next.Response != nil {
 		status = next.Response.StatusCode
+		retryAfter = errors.RetryAfterHeader(next.Response.Header)
 	}
 	return &errors.RedirectRefusedError{
 		StatusCode: status,
+		RetryAfter: retryAfter,
 		Origin:     strings.ToLower(next.URL.Scheme) + "://" + strings.ToLower(next.URL.Host),
 		SameOrigin: comparableOrigin(next.URL) == comparableOrigin(previous.URL),
 	}

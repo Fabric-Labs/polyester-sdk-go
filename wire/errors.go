@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	alertsv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/alerts/v1"
-	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -32,33 +31,19 @@ var routeNotFoundMessages = map[string]struct{}{
 
 const emptyErrorMessage = "request failed without server error details"
 
+// AnswerStatusHeader carries a failed answer's real HTTP status into the
+// metadata of the ConnectRPC error connect-go decodes from it. The transport
+// sets it on every failed answer; it never leaves the client.
+const AnswerStatusHeader = "Polyester-Sdk-Answer-Status"
+
 func retryAfterSeconds(connectErr *connect.Error) *float64 {
 	return RetryAfterHeaderSeconds(connectErr.Meta())
 }
 
 // RetryAfterHeaderSeconds reads the delay an answer asks for, in seconds:
-// Retry-After, then Retry-After-Ms, then Grpc-Retry-Pushback-Ms. Nil when
-// none holds a non-negative number.
+// see errors.RetryAfterHeader.
 func RetryAfterHeaderSeconds(header http.Header) *float64 {
-	parse := func(name string, divisor float64) *float64 {
-		raw := strings.TrimSpace(header.Get(name))
-		if raw == "" {
-			return nil
-		}
-		value, err := strconv.ParseFloat(raw, 64)
-		if err != nil || math.IsNaN(value) || math.IsInf(value, 0) || value < 0 {
-			return nil
-		}
-		value /= divisor
-		return &value
-	}
-	if seconds := parse("Retry-After", 1); seconds != nil {
-		return seconds
-	}
-	if seconds := parse("Retry-After-Ms", 1_000); seconds != nil {
-		return seconds
-	}
-	return parse("Grpc-Retry-Pushback-Ms", 1_000)
+	return sdkerrors.RetryAfterHeader(header)
 }
 
 func rateLimitDetailFromProto(msg *ratelimitv1.RateLimitDetail) *sdkerrors.RateLimitDetail {
@@ -125,7 +110,10 @@ func MapConnectError(err error) error {
 	// answer behind it, such as a refused connection, has no headers.
 	var connectErr *connect.Error
 	if errors.As(err, &connectErr) && len(connectErr.Meta()) > 0 {
-		sdkerrors.AttachAnswer(mapped, connectHTTPStatus(connectErr.Code()), retryAfterSeconds(connectErr))
+		// The status is the answer's own, recorded by the transport; it is
+		// never inferred from the code.
+		status, _ := strconv.Atoi(connectErr.Meta().Get(AnswerStatusHeader))
+		sdkerrors.AttachAnswer(mapped, status, retryAfterSeconds(connectErr))
 	}
 	redactChain(mapped)
 	return mapped
@@ -203,8 +191,7 @@ func mapConnectError(err error) error {
 	headerRetry := retryAfterSeconds(connectErr)
 	if connectErr.Message() == TimestampSkewCode {
 		return &sdkerrors.TimestampSkewError{
-			Msg:    "API key timestamp is outside the allowed skew window",
-			Status: connectHTTPStatus(connectErr.Code()),
+			Msg: "API key timestamp is outside the allowed skew window",
 		}
 	}
 	// A failed HTTP exchange arrives as a *url.Error, whose text quotes a URL:
@@ -280,13 +267,13 @@ func mapConnectError(err error) error {
 			case authv1.AuthErrorCode_AUTH_SESSION_KIND_NOT_ALLOWED:
 				return &sdkerrors.SessionRequiredError{Msg: detailMsg}
 			case authv1.AuthErrorCode_AUTH_TIMESTAMP_SKEW:
-				return &sdkerrors.TimestampSkewError{Msg: detailMsg, Status: connectHTTPStatus(connectErr.Code())}
+				return &sdkerrors.TimestampSkewError{Msg: detailMsg}
 			case authv1.AuthErrorCode_AUTH_REPLAY_CAPACITY_EXHAUSTED:
 				// Valid credentials, not processed: a retryable rate refusal.
 				return rateLimitError(detailMsg, codeName, nil, headerRetry)
 			}
 			if apiKeyRefusalCodes[authDetail.GetCode()] {
-				return &sdkerrors.AuthError{Msg: detailMsg, Code: codeName, Status: connectHTTPStatus(connectErr.Code())}
+				return &sdkerrors.AuthError{Msg: detailMsg, Code: codeName}
 			}
 			apiErr := &sdkerrors.APIError{Msg: detailMsg, Code: codeName}
 			if authDetail.RetryAfter != nil {
@@ -310,7 +297,7 @@ func mapConnectError(err error) error {
 			code := orderDetail.GetCode().String()
 			// Backoff hints and unknown mutation outcomes take precedence.
 			if connectErr.Code() == connect.CodeUnavailable && !strings.HasSuffix(code, "_OUTCOME_UNKNOWN") && code != "ERROR_CODE_ACCOUNT_ROUTING_INVALID" {
-				return &sdkerrors.ServerError{Msg: msg, Code: code, Status: 503, AdmissionRefused: code == "ERROR_CODE_UNAVAILABLE"}
+				return &sdkerrors.ServerError{Msg: msg, Code: code, AdmissionRefused: code == "ERROR_CODE_UNAVAILABLE"}
 			}
 			if len(orderDetail.GetViolations()) > 0 && !unknown {
 				violations := make([]sdkerrors.FieldViolation, 0, len(orderDetail.GetViolations()))
@@ -353,7 +340,7 @@ func mapConnectError(err error) error {
 				return rateLimitError(msg, code, nil, headerRetry)
 			}
 			if connectErr.Code() == connect.CodeUnavailable {
-				return &sdkerrors.ServerError{Msg: msg, Code: code, Status: 503}
+				return &sdkerrors.ServerError{Msg: msg, Code: code}
 			}
 			if isAuthLikeErrorCode(code) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
@@ -373,18 +360,18 @@ func mapConnectError(err error) error {
 			switch alertDetail.GetCode() {
 			case alertsv1.ErrorCode_PRICE_UNAVAILABLE:
 				// No current price to record: nothing was created or changed.
-				return &sdkerrors.ServerError{Msg: msg, Code: code, Status: 503, AdmissionRefused: true}
+				return &sdkerrors.ServerError{Msg: msg, Code: code, AdmissionRefused: true}
 			case alertsv1.ErrorCode_SERVICE_UNAVAILABLE:
-				return &sdkerrors.ServerError{Msg: msg, Code: code, Status: 503}
+				return &sdkerrors.ServerError{Msg: msg, Code: code}
 			case alertsv1.ErrorCode_SUBACCOUNT_KEY_REFUSED:
-				return &sdkerrors.AuthError{Msg: msg, Code: code, Status: connectHTTPStatus(connectErr.Code())}
+				return &sdkerrors.AuthError{Msg: msg, Code: code}
 			}
 			return &sdkerrors.APIError{Msg: msg, Code: code}
 		}
 		if ledgerDetail, ok := value.(*ledgerrdv1.ErrorDetail); ok {
 			code := ledgerDetail.GetCode().String()
 			if connectErr.Code() == connect.CodeUnavailable {
-				return &sdkerrors.ServerError{Msg: msg, Code: code, Status: 503}
+				return &sdkerrors.ServerError{Msg: msg, Code: code}
 			}
 			if isAuthLikeErrorCode(code) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
@@ -397,7 +384,7 @@ func mapConnectError(err error) error {
 				return rateLimitError(msg, code, nil, headerRetry)
 			}
 			if connectErr.Code() == connect.CodeUnavailable {
-				return &sdkerrors.ServerError{Msg: msg, Code: code, Status: 503}
+				return &sdkerrors.ServerError{Msg: msg, Code: code}
 			}
 			if isAuthLikeErrorCode(code) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
@@ -420,7 +407,7 @@ func mapConnectError(err error) error {
 		return &sdkerrors.APIError{Msg: msg, Code: namedCode}
 	}
 	if connectErr.Code() == connect.CodeUnavailable && isSpecificAdmissionRefusal(namedCode) {
-		return &sdkerrors.ServerError{Msg: msg, Code: namedCode, Status: 503}
+		return &sdkerrors.ServerError{Msg: msg, Code: namedCode}
 	}
 	if connectErr.Code() == connect.CodeResourceExhausted {
 		if isRetryableAdmissionCode(namedCode) {
@@ -433,9 +420,9 @@ func mapConnectError(err error) error {
 
 	switch connectErr.Code() {
 	case connect.CodeUnauthenticated:
-		return &sdkerrors.AuthError{Msg: msg, Code: "unauthenticated", Status: 401}
+		return &sdkerrors.AuthError{Msg: msg, Code: "unauthenticated"}
 	case connect.CodePermissionDenied:
-		return &sdkerrors.AuthError{Msg: msg, Code: "permission_denied", Status: 403}
+		return &sdkerrors.AuthError{Msg: msg, Code: "permission_denied"}
 	case connect.CodeUnavailable, connect.CodeInternal, connect.CodeUnknown, connect.CodeDataLoss:
 		// The contract never uses unknown or data_loss, and neither says a
 		// request was refused.
@@ -528,19 +515,6 @@ func protovalidateFieldPath(path *validate.FieldPath) string {
 // TimestampSkewCode is the API-key authentication code for a signature
 // timestamp outside the server's skew window.
 const TimestampSkewCode = "TIMESTAMP_SKEW"
-
-func connectHTTPStatus(code connect.Code) int {
-	switch code {
-	case connect.CodeUnauthenticated:
-		return 401
-	case connect.CodePermissionDenied:
-		return 403
-	case connect.CodeInvalidArgument:
-		return 400
-	default:
-		return 0
-	}
-}
 
 func isAuthLikeErrorCode(code string) bool {
 	return strings.Contains(code, "UNAUTHENTICATED") ||

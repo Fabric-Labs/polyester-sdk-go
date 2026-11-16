@@ -2,6 +2,8 @@ package errors
 
 import (
 	"errors"
+	"math"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -744,6 +746,13 @@ type RealtimeError struct {
 	Msg       string
 	Code      string
 	CloseCode int
+	// Status is the HTTP status of the answer behind the error, a realtime
+	// token or subscription answer or a refused WebSocket upgrade; 0 when
+	// there was none. See errors.AnswerStatus.
+	Status int
+	// RetryAfter is the delay in seconds that answer asked for with
+	// Retry-After; nil when it named none. See errors.RetryAfter.
+	RetryAfter *float64
 }
 
 func (e *RealtimeError) Error() string        { return e.Msg }
@@ -861,7 +870,11 @@ func MutationOutcomeUnknown(err error) bool {
 	var routeErr *RouteNotFoundError
 	var redirectErr *RedirectRefusedError
 	serverUnknown := errors.As(err, &serverErr)
-	if serverUnknown && serverErr.Status == 503 && (serverErr.AdmissionRefused || isKnownAdmissionRefusal(serverErr.Code)) {
+	// An admission refusal reads from its code. A REST answer proves one
+	// only at 503; an error read from a ConnectRPC code alone carries no
+	// answer status and reads by its code.
+	if serverUnknown && (serverErr.AdmissionRefused ||
+		((serverErr.Status == 503 || serverErr.Status == 0) && isKnownAdmissionRefusal(serverErr.Code))) {
 		serverUnknown = false
 	}
 	return errors.As(err, &transportErr) || serverUnknown ||
@@ -946,6 +959,7 @@ func (e *RouteNotFoundError) answer() (*int, **float64)   { return &e.Status, &e
 func (e *SessionRequiredError) answer() (*int, **float64) { return &e.Status, &e.RetryAfter }
 func (e *TransportError) answer() (*int, **float64)       { return &e.Status, &e.RetryAfter }
 func (e *RedirectRefusedError) answer() (*int, **float64) { return &e.StatusCode, &e.RetryAfter }
+func (e *RealtimeError) answer() (*int, **float64)        { return &e.Status, &e.RetryAfter }
 func (e *SubaccountOwnerRoleLockedError) answer() (*int, **float64) {
 	return &e.Status, &e.RetryAfter
 }
@@ -977,19 +991,46 @@ func AnswerStatus(err error) int {
 	return *status
 }
 
-// AttachAnswer records an answer's metadata, its HTTP status and the delay
-// it asked for, on the SDK error err is or wraps, keeping what it already
-// carries. The transport calls it once for each failed answer.
+// AttachAnswer records an answer's metadata on the SDK error err is or
+// wraps: its HTTP status, which replaces one inferred from an error code, and
+// the delay it asked for, unless the error already carries a delay (a
+// rate-limit detail's comes first). The transport calls it once for each
+// failed answer.
 func AttachAnswer(err error, status int, retryAfter *float64) {
 	var a answered
 	if !errors.As(err, &a) {
 		return
 	}
 	current, delay := a.answer()
-	if *current == 0 {
+	if status > 0 {
 		*current = status
 	}
 	if *delay == nil {
 		*delay = retryAfter
 	}
+}
+
+// RetryAfterHeader reads the delay an answer's headers ask for, in seconds:
+// Retry-After, then Retry-After-Ms, then Grpc-Retry-Pushback-Ms. Nil when
+// none holds a non-negative number.
+func RetryAfterHeader(header http.Header) *float64 {
+	parse := func(name string, divisor float64) *float64 {
+		raw := strings.TrimSpace(header.Get(name))
+		if raw == "" {
+			return nil
+		}
+		value, err := strconv.ParseFloat(raw, 64)
+		if err != nil || math.IsNaN(value) || math.IsInf(value, 0) || value < 0 {
+			return nil
+		}
+		value /= divisor
+		return &value
+	}
+	if seconds := parse("Retry-After", 1); seconds != nil {
+		return seconds
+	}
+	if seconds := parse("Retry-After-Ms", 1_000); seconds != nil {
+		return seconds
+	}
+	return parse("Grpc-Retry-Pushback-Ms", 1_000)
 }

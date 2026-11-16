@@ -2,6 +2,7 @@ package transport
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -59,5 +60,53 @@ func TestRound4AnswerStatusAndNoAnswer(t *testing.T) {
 	mapped := MapError(callErr)
 	if sdkerrors.AnswerStatus(mapped) != 0 || sdkerrors.RetryAfter(mapped) != nil {
 		t.Fatalf("refused connection %T %v carries an answer", mapped, mapped)
+	}
+}
+
+// A final refusal is still an HTTP answer: a ConnectRPC authentication
+// refusal at 503 keeps the answer's real status, not the one its code
+// implies, and its Retry-After; a permission refusal at 403 likewise.
+func TestRound4AuthAndPermissionRefusalsKeepTheirAnswer(t *testing.T) {
+	for _, tc := range []struct {
+		status      int
+		contentType string
+		body        string
+	}{
+		{503, "application/json", `{"code":"unauthenticated","message":"temporarily unavailable"}`},
+		{403, "application/problem+json", `{"code":"SUBACCOUNT_READ_FORBIDDEN","status":403,"detail":"denied"}`},
+		{503, "application/json", `{"code":"permission_denied","message":"denied"}`},
+	} {
+		err := callMeAgainst(t, tc.status, tc.contentType, tc.body, map[string]string{"Retry-After": "30"})
+		var auth *sdkerrors.AuthError
+		if !errors.As(err, &auth) {
+			t.Fatalf("%s: %T %v, want an *errors.AuthError", tc.body, err, err)
+		}
+		if got := sdkerrors.AnswerStatus(err); got != tc.status {
+			t.Errorf("%s: status %d, want %d", tc.body, got, tc.status)
+		}
+		if got := sdkerrors.RetryAfter(err); got == nil || *got != 30 {
+			t.Errorf("%s: retry after %v, want 30", tc.body, got)
+		}
+	}
+}
+
+// The status an error reports is the answer's own HTTP status, never one its
+// ConnectRPC code implies; the delay rides along.
+func TestRound5StatusIsTheAnswersOwn(t *testing.T) {
+	for _, tc := range []struct {
+		status int
+		body   string
+	}{
+		{503, `{"code":"unavailable","message":"busy"}`},
+		{429, `{"code":"unavailable","message":"busy"}`},
+		{503, `{"code":"unauthenticated","message":"temporarily unavailable"}`},
+	} {
+		err := callMeAgainst(t, tc.status, "application/json", tc.body, map[string]string{"Retry-After": "30"})
+		if got := sdkerrors.AnswerStatus(err); got != tc.status {
+			t.Errorf("%d %s: %T status %d, want %d", tc.status, tc.body, err, got, tc.status)
+		}
+		if got := sdkerrors.RetryAfter(err); got == nil || *got != 30 {
+			t.Errorf("%d %s: retry after %v, want 30", tc.status, tc.body, got)
+		}
 	}
 }

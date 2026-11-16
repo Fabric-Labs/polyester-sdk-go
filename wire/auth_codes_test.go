@@ -32,7 +32,7 @@ func connectAuthError(t *testing.T, code connect.Code, authCode authv1.AuthError
 func TestConnectAuthTimestampSkewDetailIsRetryableSkewError(t *testing.T) {
 	mapped := connectAuthError(t, connect.CodeUnauthenticated, authv1.AuthErrorCode_AUTH_TIMESTAMP_SKEW, "request timestamp is outside the allowed window")
 	var skew *sdkerrors.TimestampSkewError
-	if !errors.As(mapped, &skew) || skew.Status != 401 {
+	if !errors.As(mapped, &skew) || skew.Status != 0 {
 		t.Fatalf("mapped=%T %v", mapped, mapped)
 	}
 	if !sdkerrors.IsRetryable(mapped) || sdkerrors.AuthErrorCode(mapped) != sdkerrors.AuthCodeTimestampSkew {
@@ -52,7 +52,7 @@ func TestConnectAPIKeyRefusalDetailsAreFinalAuthErrors(t *testing.T) {
 	} {
 		mapped := connectAuthError(t, connect.CodeUnauthenticated, code, "API key signature is invalid")
 		var authErr *sdkerrors.AuthError
-		if !errors.As(mapped, &authErr) || authErr.Code != want || authErr.Status != 401 || authErr.Msg != "API key signature is invalid" {
+		if !errors.As(mapped, &authErr) || authErr.Code != want || authErr.Status != 0 || authErr.Msg != "API key signature is invalid" {
 			t.Fatalf("%s: mapped=%T %#v", want, mapped, mapped)
 		}
 		if sdkerrors.AuthErrorCode(mapped) != want || sdkerrors.IsRetryable(mapped) {
@@ -163,7 +163,7 @@ func TestProtovalidateViolationsSurfaceAsFieldViolations(t *testing.T) {
 func TestConnectReplayDetectedIsAFinalAuthError(t *testing.T) {
 	mapped := connectAuthError(t, connect.CodeUnauthenticated, authv1.AuthErrorCode_AUTH_REPLAY_DETECTED, "request replay detected")
 	var authErr *sdkerrors.AuthError
-	if !errors.As(mapped, &authErr) || authErr.Code != sdkerrors.AuthCodeReplayDetected || authErr.Status != 401 {
+	if !errors.As(mapped, &authErr) || authErr.Code != sdkerrors.AuthCodeReplayDetected || authErr.Status != 0 {
 		t.Fatalf("mapped=%T %#v", mapped, mapped)
 	}
 	if sdkerrors.AuthErrorCode(mapped) != sdkerrors.AuthCodeReplayDetected || sdkerrors.IsRetryable(mapped) {

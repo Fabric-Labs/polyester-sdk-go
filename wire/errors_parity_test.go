@@ -17,7 +17,7 @@ func TestMapConnectErrorTimestampSkewIsRetryable(t *testing.T) {
 	if !errors.As(mapped, &skew) {
 		t.Fatalf("mapped=%T %v", mapped, mapped)
 	}
-	if skew.Status != 401 || !errors.Is(mapped, sdkerrors.ErrPolyester) {
+	if skew.Status != 0 || !errors.Is(mapped, sdkerrors.ErrPolyester) {
 		t.Fatalf("skew=%+v", skew)
 	}
 	if !sdkerrors.IsRetryable(mapped) {
