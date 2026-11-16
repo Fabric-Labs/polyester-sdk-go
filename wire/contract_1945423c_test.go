@@ -138,3 +138,19 @@ func TestSocialCooldownCarriesRetryAt(t *testing.T) {
 		t.Fatalf("without retry_after: %#v", mapped)
 	}
 }
+
+// An order or trigger refused for funds answers failed_precondition, where it
+// answered invalid_argument: the same account-state refusal either way, with
+// its code, final and with a known outcome.
+func TestInsufficientFundsIsAnAccountStateRefusal(t *testing.T) {
+	for _, code := range []connect.Code{connect.CodeFailedPrecondition, connect.CodeInvalidArgument} {
+		mapped := MapConnectError(connectErrWith(code, &orderv1.ErrorDetail{Code: orderv1.ErrorCode_ERROR_CODE_INSUFFICIENT_FUNDS}))
+		var apiErr *sdkerrors.APIError
+		if !errors.As(mapped, &apiErr) || apiErr.Code != "ERROR_CODE_INSUFFICIENT_FUNDS" {
+			t.Fatalf("%v: mapped = %T %#v", code, mapped, mapped)
+		}
+		if sdkerrors.IsRetryable(mapped) || sdkerrors.MutationOutcomeUnknown(mapped) {
+			t.Fatalf("%v: retryable=%v unknown=%v", code, sdkerrors.IsRetryable(mapped), sdkerrors.MutationOutcomeUnknown(mapped))
+		}
+	}
+}

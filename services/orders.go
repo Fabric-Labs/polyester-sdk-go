@@ -13,6 +13,7 @@ import (
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1/ordersv1connect"
+	"github.com/Fabric-Labs/polyester-sdk-go/internal/retrywait"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/realtime"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
@@ -666,10 +667,15 @@ func (s *OrdersService) WaitBatchReplace(ctx context.Context, account AccountSco
 		default:
 			return last, err
 		}
-		if time.Now().Add(delay).After(deadline) {
+		// Never sooner than the Retry-After an unavailable answer asked for.
+		wait := delay
+		if err != nil {
+			wait = retrywait.Delay(err, delay)
+		}
+		if time.Now().Add(wait).After(deadline) {
 			return last, &sdkerrors.BatchReplaceWindowExpiredError{BatchRequestID: batchRequestID}
 		}
-		timer := time.NewTimer(delay)
+		timer := time.NewTimer(wait)
 		select {
 		case <-ctx.Done():
 			timer.Stop()

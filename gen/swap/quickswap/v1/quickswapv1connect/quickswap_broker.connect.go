@@ -131,13 +131,23 @@ type QuickSwapBrokerServiceClient interface {
 	// Errors:
 	// - NOT_FOUND: BROKER_NOT_FOUND.
 	GetBroker(context.Context, *connect.Request[v1.GetBrokerRequest]) (*connect.Response[v1.GetBrokerResponse], error)
-	// ListVaultBalances reads current balances for this broker's own vaults.
-	// All broker roles and the broker's API keys can read, without step-up.
-	// Errors: NOT_FOUND for an unknown broker or vault; UNAVAILABLE when a
-	// balance cannot be read. No partial page is returned on a read failure.
+	// ListVaultBalances reads the current balances of the broker's vaults.
+	//
+	// Covers the default vault and every affiliate vault. Every broker role
+	// and the broker's API keys can read, without step-up.
+	//
+	// Errors:
+	//   - NOT_FOUND: BROKER_NOT_FOUND or VAULT_NOT_FOUND.
+	//   - INVALID_ARGUMENT: a page_token from another broker or vault filter, or
+	//     malformed.
+	//   - UNAVAILABLE: a balance cannot be read; no partial page is returned.
 	ListVaultBalances(context.Context, *connect.Request[v1.ListVaultBalancesRequest]) (*connect.Response[v1.ListVaultBalancesResponse], error)
-	// ListMyBrokers lists the brokers the caller is a member of and the
-	// invites addressed to the caller. Session token only.
+	// ListMyBrokers lists the caller's broker memberships and pending invites.
+	//
+	// Session token only.
+	//
+	// Errors:
+	// - PERMISSION_DENIED: ACTION_DENIED for a broker API key.
 	ListMyBrokers(context.Context, *connect.Request[v1.ListMyBrokersRequest]) (*connect.Response[v1.ListMyBrokersResponse], error)
 	// RespondToInvite accepts or declines a pending invite addressed to the
 	// caller. Session token only; no step-up proof is needed. An invite is
@@ -188,10 +198,11 @@ type QuickSwapBrokerServiceClient interface {
 	// - PERMISSION_DENIED: ACTION_DENIED or STEP_UP_REQUIRED.
 	// - FAILED_PRECONDITION: OWNER_IMMUTABLE.
 	RemoveMember(context.Context, *connect.Request[v1.RemoveMemberRequest]) (*connect.Response[v1.RemoveMemberResponse], error)
-	// TransferOwnership makes another member the Owner; the caller, the
-	// current Owner, becomes an Admin in the same change, and the caller's
-	// pending invites that an Admin may not grant (Finance) are cancelled.
-	// Session token and step-up proof only.
+	// TransferOwnership makes another member the Owner of the broker.
+	//
+	// The caller, the current Owner, becomes an Admin in the same change, and
+	// the caller's pending invites that an Admin may not grant (Finance) are
+	// cancelled. Session token and step-up proof only.
 	//
 	// Errors:
 	// - NOT_FOUND: BROKER_NOT_FOUND or MEMBER_NOT_FOUND.
@@ -260,30 +271,37 @@ type QuickSwapBrokerServiceClient interface {
 	// - NOT_FOUND: BROKER_NOT_FOUND or VAULT_NOT_FOUND.
 	// - PERMISSION_DENIED: ACTION_DENIED.
 	SetVaultStatus(context.Context, *connect.Request[v1.SetVaultStatusRequest]) (*connect.Response[v1.SetVaultStatusResponse], error)
-	// ListQuickSwaps lists the broker's QuickSwaps, newest first, filtered by
-	// vault, status and creation time.
+	// ListQuickSwaps lists the broker's QuickSwaps.
+	//
+	// Newest first, filtered by vault, status and creation time.
 	//
 	// Errors:
 	//   - NOT_FOUND: BROKER_NOT_FOUND.
-	//   - INVALID_ARGUMENT: a page_token from another broker, other filters or
-	//     malformed.
+	//   - INVALID_ARGUMENT: vault_account_id is not a public sub-account ID, or
+	//     a page_token from another broker, other filters or malformed.
 	ListQuickSwaps(context.Context, *connect.Request[v1.ListQuickSwapsRequest]) (*connect.Response[v1.ListQuickSwapsResponse], error)
-	// GetQuickSwap returns the full detail of one of the broker's QuickSwaps,
-	// including its addresses, quote, progress, requested and charged fees.
-	// Every broker member role can read it with a session token.
+	// GetQuickSwap returns the full detail of one of the broker's QuickSwaps.
+	//
+	// The detail includes its addresses, quote, progress, and requested and
+	// charged fees. Every broker member role can read it with a session token.
 	//
 	// Errors:
-	// - NOT_FOUND: BROKER_NOT_FOUND or SWAP_NOT_FOUND, including another broker's swap.
+	//   - NOT_FOUND: BROKER_NOT_FOUND, or SWAP_NOT_FOUND, including another
+	//     broker's QuickSwap.
 	GetQuickSwap(context.Context, *connect.Request[v1.QuickSwapBrokerServiceGetQuickSwapRequest]) (*connect.Response[v1.QuickSwapBrokerServiceGetQuickSwapResponse], error)
-	// GetFeeTotals totals the broker and affiliate fees charged to the
-	// broker's QuickSwaps in a window, per asset, by vault, day or month.
+	// GetFeeTotals totals the broker and affiliate fees charged in a window.
+	//
+	// Fees charged to the broker's QuickSwaps, per asset, grouped by vault, day
+	// or month.
 	//
 	// Errors:
 	// - NOT_FOUND: BROKER_NOT_FOUND.
+	// - INVALID_ARGUMENT: vault_account_id is not a public sub-account ID.
 	GetFeeTotals(context.Context, *connect.Request[v1.GetFeeTotalsRequest]) (*connect.Response[v1.GetFeeTotalsResponse], error)
-	// GetBrokerStats reads the broker's QuickSwap activity in a window, per UTC
-	// day or month: QuickSwaps created by status, deposits credited and
-	// payouts delivered per asset, and the service, broker, affiliate and
+	// GetBrokerStats reads the broker's QuickSwap activity in a window.
+	//
+	// Per UTC day or month: QuickSwaps created by status, deposits credited
+	// and payouts delivered per asset, and the service, broker, affiliate and
 	// referral fees charged per asset.
 	//
 	// Errors:
@@ -291,9 +309,10 @@ type QuickSwapBrokerServiceClient interface {
 	//   - INTERNAL: STATS_INCOMPLETE, with the swap_id of a QuickSwap whose
 	//     records the stats cannot read.
 	GetBrokerStats(context.Context, *connect.Request[v1.GetBrokerStatsRequest]) (*connect.Response[v1.GetBrokerStatsResponse], error)
-	// ListPayouts lists the payout runs of the broker's vaults, newest first,
-	// filtered by vault, status and scheduled slot. Every broker role and the
-	// broker's API keys can read, without step-up.
+	// ListPayouts lists the payout runs of the broker's vaults.
+	//
+	// Newest first, filtered by vault, status and scheduled slot. Every broker
+	// role and the broker's API keys can read, without step-up.
 	//
 	// Errors:
 	//   - NOT_FOUND: BROKER_NOT_FOUND, or VAULT_NOT_FOUND for a vault that is
@@ -302,20 +321,22 @@ type QuickSwapBrokerServiceClient interface {
 	//     malformed.
 	//   - UNAVAILABLE: the payouts cannot be read; retry the same request.
 	ListPayouts(context.Context, *connect.Request[v1.ListPayoutsRequest]) (*connect.Response[v1.ListPayoutsResponse], error)
-	// GetPayout reads one payout run of the broker's vaults, for a detail view
-	// or a link from a ledger entry. Every broker role and the broker's API
-	// keys can read, without step-up.
+	// GetPayout reads one payout run of the broker's vaults.
+	//
+	// For a detail view or a link from a ledger entry. Every broker role and
+	// the broker's API keys can read, without step-up.
 	//
 	// Errors:
 	//   - NOT_FOUND: BROKER_NOT_FOUND, or PAYOUT_NOT_FOUND, including a run of
 	//     another broker's vault.
 	//   - UNAVAILABLE: the payout cannot be read; retry the same request.
 	GetPayout(context.Context, *connect.Request[v1.GetPayoutRequest]) (*connect.Response[v1.GetPayoutResponse], error)
-	// ListUpcomingPayouts previews the next payout run of each of the
-	// broker's vaults from its balances now: when it starts, whether it would
-	// pay, and per asset what it would pay, what would stay and why, and the
-	// expected network fee. Every broker role and the broker's API keys can
-	// read, without step-up.
+	// ListUpcomingPayouts previews the next payout run of each vault.
+	//
+	// The preview uses the vault's balances now: when the run starts, whether
+	// it would pay, and per asset what it would pay, what would stay and why,
+	// and the expected network fee. Every broker role and the broker's API keys
+	// can read, without step-up.
 	//
 	// Errors:
 	//   - NOT_FOUND: BROKER_NOT_FOUND or VAULT_NOT_FOUND.
@@ -323,10 +344,11 @@ type QuickSwapBrokerServiceClient interface {
 	//     malformed.
 	//   - UNAVAILABLE: a preview cannot be read; no partial page is returned.
 	ListUpcomingPayouts(context.Context, *connect.Request[v1.ListUpcomingPayoutsRequest]) (*connect.Response[v1.ListUpcomingPayoutsResponse], error)
-	// ListVaultPayoutRules reads the payout rule of each of the broker's
-	// vaults, and the assets each vault holds or was credited in that its rule
-	// pays no destination for. Every broker role and the broker's API keys can
-	// read, without step-up; only Owner and Finance members change rules.
+	// ListVaultPayoutRules reads the payout rule of each of the broker's vaults.
+	//
+	// Each vault also lists the assets it holds or was credited in that its
+	// rule pays no destination for. Every broker role and the broker's API keys
+	// can read, without step-up; only Owner and Finance members change rules.
 	//
 	// Errors:
 	//   - NOT_FOUND: BROKER_NOT_FOUND or VAULT_NOT_FOUND.
@@ -335,8 +357,9 @@ type QuickSwapBrokerServiceClient interface {
 	//   - UNAVAILABLE: a rule or balance cannot be read; no partial page is
 	//     returned.
 	ListVaultPayoutRules(context.Context, *connect.Request[v1.ListVaultPayoutRulesRequest]) (*connect.Response[v1.ListVaultPayoutRulesResponse], error)
-	// ListVaultLedger lists the movements of the broker's vaults' funds,
-	// newest first: each fee a QuickSwap credited, each payout that left a
+	// ListVaultLedger lists the movements of the broker's vaults' funds.
+	//
+	// Newest first: each fee a QuickSwap credited, each payout that left a
 	// vault with how it ended, and each refund of a rejected payout to the
 	// vault's smart account. It carries no running balance; read the current
 	// balance with ListVaultBalances. Every broker role and the broker's API
@@ -349,10 +372,12 @@ type QuickSwapBrokerServiceClient interface {
 	//     malformed.
 	//   - UNAVAILABLE: the ledger cannot be read; retry the same request.
 	ListVaultLedger(context.Context, *connect.Request[v1.ListVaultLedgerRequest]) (*connect.Response[v1.ListVaultLedgerResponse], error)
-	// ListVaultAllowlist reads one vault's payout address allowlist: the
-	// destinations its payouts and withdrawals may pay, each with when it
-	// becomes payable. A destination is payable 24 hours after it is listed.
-	// Every broker role and the broker's API keys can read, without step-up.
+	// ListVaultAllowlist reads one vault's payout address allowlist.
+	//
+	// The allowlist holds the destinations the vault's payouts and withdrawals
+	// may pay, each with when it becomes payable. A destination is payable 24
+	// hours after it is listed. Every broker role and the broker's API keys can
+	// read, without step-up.
 	//
 	// Errors:
 	//   - NOT_FOUND: BROKER_NOT_FOUND or VAULT_NOT_FOUND.
@@ -368,11 +393,12 @@ type QuickSwapBrokerServiceClient interface {
 	//   - INVALID_ARGUMENT: a page_token from another broker or vault, or
 	//     malformed.
 	ListVaultAllowlistChanges(context.Context, *connect.Request[v1.ListVaultAllowlistChangesRequest]) (*connect.Response[v1.ListVaultAllowlistChangesResponse], error)
-	// RequestVaultAllowlistChange asks to add one destination to, or remove
-	// one from, a vault's payout address allowlist. Only Owner and Finance
-	// members can, each change with its own fresh step-up proof. The change
-	// is returned PENDING; ListVaultAllowlistChanges shows how it ends. A
-	// vault has at most one pending change. An added
+	// RequestVaultAllowlistChange adds a payout address to a vault's allowlist,
+	// or removes one.
+	//
+	// Only Owner and Finance members can, each change with its own fresh
+	// step-up proof. The change is returned PENDING; ListVaultAllowlistChanges
+	// shows how it ends. A vault has at most one pending change. An added
 	// destination becomes payable 24 hours after it is listed
 	// (VaultAllowlistEntry.payable_from).
 	//
@@ -767,13 +793,23 @@ type QuickSwapBrokerServiceHandler interface {
 	// Errors:
 	// - NOT_FOUND: BROKER_NOT_FOUND.
 	GetBroker(context.Context, *connect.Request[v1.GetBrokerRequest]) (*connect.Response[v1.GetBrokerResponse], error)
-	// ListVaultBalances reads current balances for this broker's own vaults.
-	// All broker roles and the broker's API keys can read, without step-up.
-	// Errors: NOT_FOUND for an unknown broker or vault; UNAVAILABLE when a
-	// balance cannot be read. No partial page is returned on a read failure.
+	// ListVaultBalances reads the current balances of the broker's vaults.
+	//
+	// Covers the default vault and every affiliate vault. Every broker role
+	// and the broker's API keys can read, without step-up.
+	//
+	// Errors:
+	//   - NOT_FOUND: BROKER_NOT_FOUND or VAULT_NOT_FOUND.
+	//   - INVALID_ARGUMENT: a page_token from another broker or vault filter, or
+	//     malformed.
+	//   - UNAVAILABLE: a balance cannot be read; no partial page is returned.
 	ListVaultBalances(context.Context, *connect.Request[v1.ListVaultBalancesRequest]) (*connect.Response[v1.ListVaultBalancesResponse], error)
-	// ListMyBrokers lists the brokers the caller is a member of and the
-	// invites addressed to the caller. Session token only.
+	// ListMyBrokers lists the caller's broker memberships and pending invites.
+	//
+	// Session token only.
+	//
+	// Errors:
+	// - PERMISSION_DENIED: ACTION_DENIED for a broker API key.
 	ListMyBrokers(context.Context, *connect.Request[v1.ListMyBrokersRequest]) (*connect.Response[v1.ListMyBrokersResponse], error)
 	// RespondToInvite accepts or declines a pending invite addressed to the
 	// caller. Session token only; no step-up proof is needed. An invite is
@@ -824,10 +860,11 @@ type QuickSwapBrokerServiceHandler interface {
 	// - PERMISSION_DENIED: ACTION_DENIED or STEP_UP_REQUIRED.
 	// - FAILED_PRECONDITION: OWNER_IMMUTABLE.
 	RemoveMember(context.Context, *connect.Request[v1.RemoveMemberRequest]) (*connect.Response[v1.RemoveMemberResponse], error)
-	// TransferOwnership makes another member the Owner; the caller, the
-	// current Owner, becomes an Admin in the same change, and the caller's
-	// pending invites that an Admin may not grant (Finance) are cancelled.
-	// Session token and step-up proof only.
+	// TransferOwnership makes another member the Owner of the broker.
+	//
+	// The caller, the current Owner, becomes an Admin in the same change, and
+	// the caller's pending invites that an Admin may not grant (Finance) are
+	// cancelled. Session token and step-up proof only.
 	//
 	// Errors:
 	// - NOT_FOUND: BROKER_NOT_FOUND or MEMBER_NOT_FOUND.
@@ -896,30 +933,37 @@ type QuickSwapBrokerServiceHandler interface {
 	// - NOT_FOUND: BROKER_NOT_FOUND or VAULT_NOT_FOUND.
 	// - PERMISSION_DENIED: ACTION_DENIED.
 	SetVaultStatus(context.Context, *connect.Request[v1.SetVaultStatusRequest]) (*connect.Response[v1.SetVaultStatusResponse], error)
-	// ListQuickSwaps lists the broker's QuickSwaps, newest first, filtered by
-	// vault, status and creation time.
+	// ListQuickSwaps lists the broker's QuickSwaps.
+	//
+	// Newest first, filtered by vault, status and creation time.
 	//
 	// Errors:
 	//   - NOT_FOUND: BROKER_NOT_FOUND.
-	//   - INVALID_ARGUMENT: a page_token from another broker, other filters or
-	//     malformed.
+	//   - INVALID_ARGUMENT: vault_account_id is not a public sub-account ID, or
+	//     a page_token from another broker, other filters or malformed.
 	ListQuickSwaps(context.Context, *connect.Request[v1.ListQuickSwapsRequest]) (*connect.Response[v1.ListQuickSwapsResponse], error)
-	// GetQuickSwap returns the full detail of one of the broker's QuickSwaps,
-	// including its addresses, quote, progress, requested and charged fees.
-	// Every broker member role can read it with a session token.
+	// GetQuickSwap returns the full detail of one of the broker's QuickSwaps.
+	//
+	// The detail includes its addresses, quote, progress, and requested and
+	// charged fees. Every broker member role can read it with a session token.
 	//
 	// Errors:
-	// - NOT_FOUND: BROKER_NOT_FOUND or SWAP_NOT_FOUND, including another broker's swap.
+	//   - NOT_FOUND: BROKER_NOT_FOUND, or SWAP_NOT_FOUND, including another
+	//     broker's QuickSwap.
 	GetQuickSwap(context.Context, *connect.Request[v1.QuickSwapBrokerServiceGetQuickSwapRequest]) (*connect.Response[v1.QuickSwapBrokerServiceGetQuickSwapResponse], error)
-	// GetFeeTotals totals the broker and affiliate fees charged to the
-	// broker's QuickSwaps in a window, per asset, by vault, day or month.
+	// GetFeeTotals totals the broker and affiliate fees charged in a window.
+	//
+	// Fees charged to the broker's QuickSwaps, per asset, grouped by vault, day
+	// or month.
 	//
 	// Errors:
 	// - NOT_FOUND: BROKER_NOT_FOUND.
+	// - INVALID_ARGUMENT: vault_account_id is not a public sub-account ID.
 	GetFeeTotals(context.Context, *connect.Request[v1.GetFeeTotalsRequest]) (*connect.Response[v1.GetFeeTotalsResponse], error)
-	// GetBrokerStats reads the broker's QuickSwap activity in a window, per UTC
-	// day or month: QuickSwaps created by status, deposits credited and
-	// payouts delivered per asset, and the service, broker, affiliate and
+	// GetBrokerStats reads the broker's QuickSwap activity in a window.
+	//
+	// Per UTC day or month: QuickSwaps created by status, deposits credited
+	// and payouts delivered per asset, and the service, broker, affiliate and
 	// referral fees charged per asset.
 	//
 	// Errors:
@@ -927,9 +971,10 @@ type QuickSwapBrokerServiceHandler interface {
 	//   - INTERNAL: STATS_INCOMPLETE, with the swap_id of a QuickSwap whose
 	//     records the stats cannot read.
 	GetBrokerStats(context.Context, *connect.Request[v1.GetBrokerStatsRequest]) (*connect.Response[v1.GetBrokerStatsResponse], error)
-	// ListPayouts lists the payout runs of the broker's vaults, newest first,
-	// filtered by vault, status and scheduled slot. Every broker role and the
-	// broker's API keys can read, without step-up.
+	// ListPayouts lists the payout runs of the broker's vaults.
+	//
+	// Newest first, filtered by vault, status and scheduled slot. Every broker
+	// role and the broker's API keys can read, without step-up.
 	//
 	// Errors:
 	//   - NOT_FOUND: BROKER_NOT_FOUND, or VAULT_NOT_FOUND for a vault that is
@@ -938,20 +983,22 @@ type QuickSwapBrokerServiceHandler interface {
 	//     malformed.
 	//   - UNAVAILABLE: the payouts cannot be read; retry the same request.
 	ListPayouts(context.Context, *connect.Request[v1.ListPayoutsRequest]) (*connect.Response[v1.ListPayoutsResponse], error)
-	// GetPayout reads one payout run of the broker's vaults, for a detail view
-	// or a link from a ledger entry. Every broker role and the broker's API
-	// keys can read, without step-up.
+	// GetPayout reads one payout run of the broker's vaults.
+	//
+	// For a detail view or a link from a ledger entry. Every broker role and
+	// the broker's API keys can read, without step-up.
 	//
 	// Errors:
 	//   - NOT_FOUND: BROKER_NOT_FOUND, or PAYOUT_NOT_FOUND, including a run of
 	//     another broker's vault.
 	//   - UNAVAILABLE: the payout cannot be read; retry the same request.
 	GetPayout(context.Context, *connect.Request[v1.GetPayoutRequest]) (*connect.Response[v1.GetPayoutResponse], error)
-	// ListUpcomingPayouts previews the next payout run of each of the
-	// broker's vaults from its balances now: when it starts, whether it would
-	// pay, and per asset what it would pay, what would stay and why, and the
-	// expected network fee. Every broker role and the broker's API keys can
-	// read, without step-up.
+	// ListUpcomingPayouts previews the next payout run of each vault.
+	//
+	// The preview uses the vault's balances now: when the run starts, whether
+	// it would pay, and per asset what it would pay, what would stay and why,
+	// and the expected network fee. Every broker role and the broker's API keys
+	// can read, without step-up.
 	//
 	// Errors:
 	//   - NOT_FOUND: BROKER_NOT_FOUND or VAULT_NOT_FOUND.
@@ -959,10 +1006,11 @@ type QuickSwapBrokerServiceHandler interface {
 	//     malformed.
 	//   - UNAVAILABLE: a preview cannot be read; no partial page is returned.
 	ListUpcomingPayouts(context.Context, *connect.Request[v1.ListUpcomingPayoutsRequest]) (*connect.Response[v1.ListUpcomingPayoutsResponse], error)
-	// ListVaultPayoutRules reads the payout rule of each of the broker's
-	// vaults, and the assets each vault holds or was credited in that its rule
-	// pays no destination for. Every broker role and the broker's API keys can
-	// read, without step-up; only Owner and Finance members change rules.
+	// ListVaultPayoutRules reads the payout rule of each of the broker's vaults.
+	//
+	// Each vault also lists the assets it holds or was credited in that its
+	// rule pays no destination for. Every broker role and the broker's API keys
+	// can read, without step-up; only Owner and Finance members change rules.
 	//
 	// Errors:
 	//   - NOT_FOUND: BROKER_NOT_FOUND or VAULT_NOT_FOUND.
@@ -971,8 +1019,9 @@ type QuickSwapBrokerServiceHandler interface {
 	//   - UNAVAILABLE: a rule or balance cannot be read; no partial page is
 	//     returned.
 	ListVaultPayoutRules(context.Context, *connect.Request[v1.ListVaultPayoutRulesRequest]) (*connect.Response[v1.ListVaultPayoutRulesResponse], error)
-	// ListVaultLedger lists the movements of the broker's vaults' funds,
-	// newest first: each fee a QuickSwap credited, each payout that left a
+	// ListVaultLedger lists the movements of the broker's vaults' funds.
+	//
+	// Newest first: each fee a QuickSwap credited, each payout that left a
 	// vault with how it ended, and each refund of a rejected payout to the
 	// vault's smart account. It carries no running balance; read the current
 	// balance with ListVaultBalances. Every broker role and the broker's API
@@ -985,10 +1034,12 @@ type QuickSwapBrokerServiceHandler interface {
 	//     malformed.
 	//   - UNAVAILABLE: the ledger cannot be read; retry the same request.
 	ListVaultLedger(context.Context, *connect.Request[v1.ListVaultLedgerRequest]) (*connect.Response[v1.ListVaultLedgerResponse], error)
-	// ListVaultAllowlist reads one vault's payout address allowlist: the
-	// destinations its payouts and withdrawals may pay, each with when it
-	// becomes payable. A destination is payable 24 hours after it is listed.
-	// Every broker role and the broker's API keys can read, without step-up.
+	// ListVaultAllowlist reads one vault's payout address allowlist.
+	//
+	// The allowlist holds the destinations the vault's payouts and withdrawals
+	// may pay, each with when it becomes payable. A destination is payable 24
+	// hours after it is listed. Every broker role and the broker's API keys can
+	// read, without step-up.
 	//
 	// Errors:
 	//   - NOT_FOUND: BROKER_NOT_FOUND or VAULT_NOT_FOUND.
@@ -1004,11 +1055,12 @@ type QuickSwapBrokerServiceHandler interface {
 	//   - INVALID_ARGUMENT: a page_token from another broker or vault, or
 	//     malformed.
 	ListVaultAllowlistChanges(context.Context, *connect.Request[v1.ListVaultAllowlistChangesRequest]) (*connect.Response[v1.ListVaultAllowlistChangesResponse], error)
-	// RequestVaultAllowlistChange asks to add one destination to, or remove
-	// one from, a vault's payout address allowlist. Only Owner and Finance
-	// members can, each change with its own fresh step-up proof. The change
-	// is returned PENDING; ListVaultAllowlistChanges shows how it ends. A
-	// vault has at most one pending change. An added
+	// RequestVaultAllowlistChange adds a payout address to a vault's allowlist,
+	// or removes one.
+	//
+	// Only Owner and Finance members can, each change with its own fresh
+	// step-up proof. The change is returned PENDING; ListVaultAllowlistChanges
+	// shows how it ends. A vault has at most one pending change. An added
 	// destination becomes payable 24 hours after it is listed
 	// (VaultAllowlistEntry.payable_from).
 	//

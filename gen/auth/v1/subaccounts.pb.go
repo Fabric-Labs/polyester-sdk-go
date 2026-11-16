@@ -2464,7 +2464,7 @@ type SubaccountInvite struct {
 	// Grantee (root account) primary Smart Account address, when available.
 	// Useful for displaying a stable identity when no username is set.
 	GranteeRootSmartAccountAddress string `protobuf:"bytes,13,opt,name=grantee_root_smart_account_address,json=granteeRootSmartAccountAddress,proto3" json:"grantee_root_smart_account_address,omitempty"`
-	// Current delegated-member MFA requirement on the target sub-account. If true, accepting the invite requires MFA enrollment and fresh step-up.
+	// Current delegated-member MFA requirement on the target sub-account. If true, accepting the invite requires an enrolled MFA factor and a recently MFA-elevated session.
 	RequireMemberMfa bool `protobuf:"varint,14,opt,name=require_member_mfa,json=requireMemberMfa,proto3" json:"require_member_mfa,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache

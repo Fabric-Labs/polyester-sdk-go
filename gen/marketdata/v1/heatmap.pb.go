@@ -81,9 +81,6 @@ func (HeatmapInterval) EnumDescriptor() ([]byte, []int) {
 }
 
 // HeatmapDepth controls top-N levels included per side in each heatmap bucket.
-//
-// Values intentionally mirror orderbook.v1.Depth for FE ergonomics, while
-// keeping this contract decoupled from orderbook service protos.
 type HeatmapDepth int32
 
 const (

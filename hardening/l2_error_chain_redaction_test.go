@@ -208,9 +208,9 @@ func TestL2StructuredDiagnosticsAreRedacted(t *testing.T) {
 		"rate-limit-detail": {
 			status: http.StatusTooManyRequests,
 			body: map[string]any{
-				"code":       "RATE_LIMIT_EXCEEDED",
-				"detail":     "upstream " + chainProxyURL,
-				"rate_limit": map[string]any{"reason": "ip", "operation_id": chainProxyURL},
+				"code":      "RATE_LIMIT_EXCEEDED",
+				"detail":    "upstream " + chainProxyURL,
+				"rateLimit": map[string]any{"reason": "ip", "operationId": chainProxyURL},
 			},
 			get: func(err error) any {
 				var limited *sdkerrors.RateLimitError

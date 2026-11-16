@@ -855,9 +855,13 @@ const (
 	ErrorCode_OWNER_IMMUTABLE ErrorCode = 30
 	// No pending invite with this ID is addressed to the caller.
 	ErrorCode_INVITE_NOT_FOUND ErrorCode = 31
-	// The fees are not valid: more than three affiliates, an affiliate without
-	// a valid account_id or with bps outside 1 to 300, a vault named twice, or
-	// broker_bps and the affiliates' bps totalling more than 300.
+	// The fees are not valid in a way the request rules cannot check: an
+	// affiliate account_id that is not a public sub-account ID, or a
+	// referral_code whose discount and commission for the route exceed
+	// broker_bps. Fees that break the request rules (at most three distinct
+	// affiliates of 1 to 300 bps, broker_bps at most 300, all together at most
+	// 300, no affiliates with a referral_code) fail with INVALID_ARGUMENT
+	// before this check.
 	ErrorCode_FEES_INVALID ErrorCode = 32
 	// The broker stats cannot be read: a QuickSwap in the window, named by
 	// ErrorDetail.swap_id, is missing a record they need. Contact Polyester
@@ -3437,9 +3441,8 @@ type QuoteQuickSwapRequest struct {
 	// Terms to price.
 	Terms *QuickSwapTerms `protobuf:"bytes,1,opt,name=terms,proto3" json:"terms,omitempty"`
 	// Broker fee in basis points of what each leg receives, charged on top of
-	// the service fee and credited to the broker's default vault; 0 for none.
-	// broker_bps and the affiliates' bps total at most 300. Fees outside these
-	// rules fail with FEES_INVALID.
+	// the service fee and credited to the broker's default vault; 0 for none,
+	// at most 300. broker_bps and the affiliates' bps total at most 300.
 	BrokerBps uint32 `protobuf:"varint,2,opt,name=broker_bps,json=brokerBps,proto3" json:"broker_bps,omitempty"`
 	// Affiliate fees, each charged on top and credited to its affiliate vault:
 	// at most three distinct vaults.
@@ -3564,7 +3567,8 @@ type AffiliateShare struct {
 	// Public sub-account ID of an active affiliate vault of the broker
 	// (QuickSwapBrokerService.CreateAffiliateVault). Create the vault first: an
 	// unknown, disabled or other broker's vault, or the default vault, fails
-	// with AFFILIATE_VAULT_UNKNOWN.
+	// with AFFILIATE_VAULT_UNKNOWN; an ID that is not a public sub-account ID
+	// fails with FEES_INVALID.
 	AccountId uint64 `protobuf:"fixed64,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	// Fee in basis points of what each leg receives, from 1 to 300.
 	Bps           uint32 `protobuf:"varint,2,opt,name=bps,proto3" json:"bps,omitempty"`
@@ -3669,13 +3673,12 @@ type CreateQuickSwapRequest struct {
 	// at most three distinct vaults. Fixed at creation with broker_bps.
 	Affiliates []*AffiliateShare `protobuf:"bytes,11,rep,name=affiliates,proto3" json:"affiliates,omitempty"`
 	// Broker fee in basis points of what each leg receives, charged on top of
-	// the service fee and credited to the broker's default vault; 0 for none.
-	// broker_bps and the affiliates' bps total at most 300. Fees outside these
-	// rules fail with FEES_INVALID.
+	// the service fee and credited to the broker's default vault; 0 for none,
+	// at most 300. broker_bps and the affiliates' bps total at most 300.
 	BrokerBps uint32 `protobuf:"varint,12,opt,name=broker_bps,json=brokerBps,proto3" json:"broker_bps,omitempty"`
 	// Optional referral partner code from a referral link, case-insensitive,
 	// at most 64 bytes; empty for none. Only a broker with a referral program may send one
-	// (REFERRAL_NOT_SUPPORTED otherwise), never with affiliates (FEES_INVALID).
+	// (REFERRAL_NOT_SUPPORTED otherwise), never with affiliates.
 	// It must be a valid code (REFERRAL_CODE_INVALID) that is a partner's
 	// current code (REFERRAL_CODE_UNKNOWN), and the partner must be active
 	// (REFERRAL_PARTNER_INACTIVE). The program's rates
@@ -4363,21 +4366,25 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\n" +
 	"account_id\x18\x02 \x01(\x06R\taccountId\x12\x19\n" +
 	"\basset_id\x18\x03 \x01(\rR\aassetId\x126\n" +
-	"\x06amount\x18\x04 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\x06amount\"\xe8\x01\n" +
+	"\x06amount\x18\x04 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\x06amount\"\xc5\x06\n" +
 	"\x15QuoteQuickSwapRequest\x12?\n" +
-	"\x05terms\x18\x01 \x01(\v2!.swap.quickswap.v1.QuickSwapTermsB\x06\xbaH\x03\xc8\x01\x01R\x05terms\x12\x1d\n" +
+	"\x05terms\x18\x01 \x01(\v2!.swap.quickswap.v1.QuickSwapTermsB\x06\xbaH\x03\xc8\x01\x01R\x05terms\x12'\n" +
 	"\n" +
-	"broker_bps\x18\x02 \x01(\rR\tbrokerBps\x12A\n" +
+	"broker_bps\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xac\x02R\tbrokerBps\x12\xb6\x01\n" +
 	"\n" +
-	"affiliates\x18\x03 \x03(\v2!.swap.quickswap.v1.AffiliateShareR\n" +
+	"affiliates\x18\x03 \x03(\v2!.swap.quickswap.v1.AffiliateShareBs\xbaHp\xba\x01h\n" +
+	"\x1aaffiliates.distinct_vaults\x12&each affiliate vault may be named once\x1a\"this.map(a, a.account_id).unique()\x92\x01\x02\x10\x03R\n" +
 	"affiliates\x12,\n" +
-	"\rreferral_code\x18\x04 \x01(\tB\a\xbaH\x04r\x02(@R\freferralCode\"Q\n" +
+	"\rreferral_code\x18\x04 \x01(\tB\a\xbaH\x04r\x02(@R\freferralCode:\xda\x03\xbaH\xd6\x03\x1a\xb0\x02\n" +
+	"\"quote_quickswap_request.fees_total\x129broker_bps and the affiliates' bps must total at most 300\x1a\xce\x01this.broker_bps + (this.affiliates.size() > 0 ? this.affiliates[0].bps : 0u) + (this.affiliates.size() > 1 ? this.affiliates[1].bps : 0u) + (this.affiliates.size() > 2 ? this.affiliates[2].bps : 0u) <= 300u\x1a\xa0\x01\n" +
+	"3quote_quickswap_request.referral_without_affiliates\x120referral_code cannot be combined with affiliates\x1a7this.referral_code == '' || this.affiliates.size() == 0\"Q\n" +
 	"\x16QuoteQuickSwapResponse\x127\n" +
-	"\x05quote\x18\x01 \x01(\v2!.swap.quickswap.v1.QuickSwapQuoteR\x05quote\"A\n" +
-	"\x0eAffiliateShare\x12\x1d\n" +
+	"\x05quote\x18\x01 \x01(\v2!.swap.quickswap.v1.QuickSwapQuoteR\x05quote\"]\n" +
+	"\x0eAffiliateShare\x12-\n" +
 	"\n" +
-	"account_id\x18\x01 \x01(\x06R\taccountId\x12\x10\n" +
-	"\x03bps\x18\x02 \x01(\rR\x03bps\"\xdb\a\n" +
+	"account_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\taccountId\x12\x1c\n" +
+	"\x03bps\x18\x02 \x01(\rB\n" +
+	"\xbaH\a*\x05\x18\xac\x02(\x01R\x03bps\"\xb3\f\n" +
 	"\x16CreateQuickSwapRequest\x12H\n" +
 	"\x0fidempotency_key\x18\x01 \x01(\tB\x1f\xbaH\x1cr\x1a2\x18^[A-Za-z0-9._:-]{1,128}$R\x0eidempotencyKey\x12?\n" +
 	"\x05terms\x18\x02 \x01(\v2!.swap.quickswap.v1.QuickSwapTermsB\x06\xbaH\x03\xc8\x01\x01R\x05terms\x12;\n" +
@@ -4393,14 +4400,17 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\vrefund_memo\x18\t \x01(\tB\b\xbaH\x05r\x03(\x80\x01R\n" +
 	"refundMemo\x12-\n" +
 	"\rsource_wallet\x18\n" +
-	" \x01(\tB\b\xbaH\x05r\x03(\x80\x02R\fsourceWallet\x12A\n" +
+	" \x01(\tB\b\xbaH\x05r\x03(\x80\x02R\fsourceWallet\x12\xb6\x01\n" +
 	"\n" +
-	"affiliates\x18\v \x03(\v2!.swap.quickswap.v1.AffiliateShareR\n" +
-	"affiliates\x12\x1d\n" +
+	"affiliates\x18\v \x03(\v2!.swap.quickswap.v1.AffiliateShareBs\xbaHp\xba\x01h\n" +
+	"\x1aaffiliates.distinct_vaults\x12&each affiliate vault may be named once\x1a\"this.map(a, a.account_id).unique()\x92\x01\x02\x10\x03R\n" +
+	"affiliates\x12'\n" +
 	"\n" +
-	"broker_bps\x18\f \x01(\rR\tbrokerBps\x12,\n" +
-	"\rreferral_code\x18\r \x01(\tB\a\xbaH\x04r\x02(@R\freferralCode:\x95\x02\xbaH\x91\x02\x1a\x8e\x02\n" +
-	"&create_quickswap_request.refund_target\x12grefund_zipped_asset_id and refund_address must be set together, and refund_memo requires refund_address\x1a{(this.refund_address == '') == (this.refund_zipped_asset_id == 0u) && (this.refund_memo == '' || this.refund_address != '')\"V\n" +
+	"broker_bps\x18\f \x01(\rB\b\xbaH\x05*\x03\x18\xac\x02R\tbrokerBps\x12,\n" +
+	"\rreferral_code\x18\r \x01(\tB\a\xbaH\x04r\x02(@R\freferralCode:\xed\x05\xbaH\xe9\x05\x1a\x8e\x02\n" +
+	"&create_quickswap_request.refund_target\x12grefund_zipped_asset_id and refund_address must be set together, and refund_memo requires refund_address\x1a{(this.refund_address == '') == (this.refund_zipped_asset_id == 0u) && (this.refund_memo == '' || this.refund_address != '')\x1a\xb1\x02\n" +
+	"#create_quickswap_request.fees_total\x129broker_bps and the affiliates' bps must total at most 300\x1a\xce\x01this.broker_bps + (this.affiliates.size() > 0 ? this.affiliates[0].bps : 0u) + (this.affiliates.size() > 1 ? this.affiliates[1].bps : 0u) + (this.affiliates.size() > 2 ? this.affiliates[2].bps : 0u) <= 300u\x1a\xa1\x01\n" +
+	"4create_quickswap_request.referral_without_affiliates\x120referral_code cannot be combined with affiliates\x1a7this.referral_code == '' || this.affiliates.size() == 0\"V\n" +
 	"\x17CreateQuickSwapResponse\x12;\n" +
 	"\n" +
 	"quick_swap\x18\x01 \x01(\v2\x1c.swap.quickswap.v1.QuickSwapR\tquickSwap\"\x9f\x01\n" +

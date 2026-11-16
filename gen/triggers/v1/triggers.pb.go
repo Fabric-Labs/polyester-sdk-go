@@ -1047,9 +1047,9 @@ type TriggerMarketIoc_MaxSlippageTicks struct {
 }
 
 type TriggerMarketIoc_MaxSlippageBps struct {
-	// Maximum allowed slippage in basis points (1 bp = 0.01%). A sell child
-	// accepts values below 10000; a 100% cap would leave it no positive price
-	// to sell at.
+	// Maximum allowed slippage in basis points (1 bp = 0.01%), from 1 to 10000.
+	// A sell child accepts values below 10000; a 100% cap would leave it no
+	// positive price to sell at.
 	MaxSlippageBps int32 `protobuf:"varint,2,opt,name=max_slippage_bps,json=maxSlippageBps,proto3,oneof"`
 }
 
@@ -1060,7 +1060,7 @@ func (*TriggerMarketIoc_MaxSlippageBps) isTriggerMarketIoc_MaxSlippage() {}
 // TriggerLimitGtc configures a resting limit child.
 type TriggerLimitGtc struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Limit price in quote units scaled by 1e9.
+	// Positive limit price in quote units scaled by 1e9.
 	PriceTicks int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	// Reject instead of taking liquidity.
 	PostOnly      bool `protobuf:"varint,2,opt,name=post_only,json=postOnly,proto3" json:"post_only,omitempty"`
@@ -1115,7 +1115,7 @@ func (x *TriggerLimitGtc) GetPostOnly() bool {
 // TriggerLimitIoc configures an immediate-or-cancel limit child.
 type TriggerLimitIoc struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Limit price in quote units scaled by 1e9.
+	// Positive limit price in quote units scaled by 1e9.
 	PriceTicks    int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1161,7 +1161,7 @@ func (x *TriggerLimitIoc) GetPriceTicks() int64 {
 // TriggerLimitFok configures a fill-or-kill limit child.
 type TriggerLimitFok struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Limit price in quote units scaled by 1e9.
+	// Positive limit price in quote units scaled by 1e9.
 	PriceTicks    int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1208,6 +1208,8 @@ func (x *TriggerLimitFok) GetPriceTicks() int64 {
 // take-profit trigger. Either side may use any child.
 type ConditionalChildExecution struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required child execution: exactly one variant.
+	//
 	// Types that are valid to be assigned to Execution:
 	//
 	//	*ConditionalChildExecution_MarketIoc
@@ -1327,11 +1329,11 @@ func (*ConditionalChildExecution_LimitFok) isConditionalChildExecution_Execution
 // ConditionalTrigger configures a standalone stop-loss or take-profit.
 type ConditionalTrigger struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Trigger threshold in quote units scaled by 1e9.
+	// Positive trigger threshold in quote units scaled by 1e9.
 	TriggerPriceTicks int64 `protobuf:"varint,1,opt,name=trigger_price_ticks,json=triggerPriceTicks,proto3" json:"trigger_price_ticks,omitempty"`
-	// Child order side.
+	// Child order side. Required.
 	Side v1.Side `protobuf:"varint,2,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
-	// Child execution.
+	// Child execution. Required.
 	Child *ConditionalChildExecution `protobuf:"bytes,3,opt,name=child,proto3" json:"child,omitempty"`
 	// Price the trigger watches. Unspecified or LAST_PRICE watches the last
 	// traded price. INDEX_PRICE watches the market's index price; a market
@@ -1413,14 +1415,15 @@ func (x *ConditionalTrigger) GetTriggerPriceSource() v1.TriggerPriceSource {
 // trailing stops may use either side, opposite their parent order.
 type TrailingStopTrigger struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Required trailing distance.
+	// Required trailing distance. A missing distance, or one out of range, is
+	// rejected with ERROR_CODE_TRAILING_DISTANCE_INVALID.
 	//
 	// Types that are valid to be assigned to TrailingDistance:
 	//
 	//	*TrailingStopTrigger_TrailingDistanceTicks
 	//	*TrailingStopTrigger_TrailingDistanceBps
 	TrailingDistance isTrailingStopTrigger_TrailingDistance `protobuf_oneof:"trailing_distance"`
-	// Optional activation price in quote units scaled by 1e9.
+	// Optional positive activation price in quote units scaled by 1e9.
 	ActivationPriceTicks int64 `protobuf:"varint,3,opt,name=activation_price_ticks,json=activationPriceTicks,proto3" json:"activation_price_ticks,omitempty"`
 	// Optional protection applied when the child fires: the child becomes an
 	// IOC limit order this far below the fire price for a sell, or above it
@@ -1431,14 +1434,14 @@ type TrailingStopTrigger struct {
 	//	*TrailingStopTrigger_MaxSlippageTicks
 	//	*TrailingStopTrigger_MaxSlippageBps
 	MaxSlippage isTrailingStopTrigger_MaxSlippage `protobuf_oneof:"max_slippage"`
-	// Child order side.
+	// Child order side. Required.
 	Side v1.Side `protobuf:"varint,6,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
-	// Maximum price of a trailing stop that buys, in quote units scaled by 1e9:
-	// the most its child pays per unit. Required when `side` is BUY and set
-	// aside for it with the child's fee; at least the activation price, or at
-	// least the price it watches (trigger_price_source) when no activation price
-	// is set. A rise that fires above it still fires, and the child fills only
-	// at or below it. Must be unset when `side` is SELL. Fixed at create.
+	// Positive maximum price of a trailing stop that buys, in quote units scaled
+	// by 1e9: the most its child pays per unit. Required when `side` is BUY and
+	// set aside for it with the child's fee; at least the activation price, or
+	// at least the price it watches (trigger_price_source) when no activation
+	// price is set. A rise that fires above it still fires, and the child fills
+	// only at or below it. Must be unset when `side` is SELL. Fixed at create.
 	LimitPriceTicks int64 `protobuf:"varint,7,opt,name=limit_price_ticks,json=limitPriceTicks,proto3" json:"limit_price_ticks,omitempty"`
 	// Price the trailing stop watches: its activation, its peak or trough and
 	// its fire all follow this price. Unspecified or LAST_PRICE watches the last
@@ -1565,12 +1568,12 @@ type isTrailingStopTrigger_TrailingDistance interface {
 }
 
 type TrailingStopTrigger_TrailingDistanceTicks struct {
-	// Distance as a price delta in 1e-9 quote-unit ticks.
+	// Positive distance as a price delta in 1e-9 quote-unit ticks.
 	TrailingDistanceTicks int64 `protobuf:"varint,1,opt,name=trailing_distance_ticks,json=trailingDistanceTicks,proto3,oneof"`
 }
 
 type TrailingStopTrigger_TrailingDistanceBps struct {
-	// Distance in basis points (1 bp = 0.01%).
+	// Distance in basis points (1 bp = 0.01%), from 1 to 10000.
 	TrailingDistanceBps int32 `protobuf:"varint,2,opt,name=trailing_distance_bps,json=trailingDistanceBps,proto3,oneof"`
 }
 
@@ -1588,9 +1591,10 @@ type TrailingStopTrigger_MaxSlippageTicks struct {
 }
 
 type TrailingStopTrigger_MaxSlippageBps struct {
-	// Maximum slippage in basis points (1 bp = 0.01%). Values below 10000
-	// are accepted; a 100% cap would leave a trailing stop that sells no
-	// positive price to sell at.
+	// Maximum slippage in basis points (1 bp = 0.01%), from 1 to 9999 on
+	// either side. 10000 is rejected with ERROR_CODE_MAX_SLIPPAGE_INVALID,
+	// because a 100% cap would leave a trailing stop that sells no positive
+	// price to sell at.
 	MaxSlippageBps int32 `protobuf:"varint,5,opt,name=max_slippage_bps,json=maxSlippageBps,proto3,oneof"`
 }
 
@@ -1680,7 +1684,9 @@ type TwapMarketIoc_MaxSlippageTicks struct {
 }
 
 type TwapMarketIoc_MaxSlippageBps struct {
-	// Maximum adverse price movement per slice in basis points (1 bp = 0.01%).
+	// Maximum adverse price movement per slice in basis points (1 bp = 0.01%),
+	// from 1 to 10000. A SELL TWAP accepts values below 10000; a 100% cap
+	// would leave a slice no positive price to sell at.
 	MaxSlippageBps int32 `protobuf:"varint,2,opt,name=max_slippage_bps,json=maxSlippageBps,proto3,oneof"`
 }
 
@@ -1692,7 +1698,7 @@ func (*TwapMarketIoc_MaxSlippageBps) isTwapMarketIoc_MaxSlippage() {}
 // slice is canceled before the next interval.
 type TwapLimitGtc struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Slice limit price in quote units scaled by 1e9.
+	// Positive slice limit price in quote units scaled by 1e9.
 	PriceTicks    int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1738,14 +1744,14 @@ func (x *TwapLimitGtc) GetPriceTicks() int64 {
 // TwapTrigger configures a proven TWAP execution mode.
 type TwapTrigger struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Child side.
+	// Child side. Required.
 	Side v1.Side `protobuf:"varint,1,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
 	// Total execution duration in milliseconds, at least 1000.
 	DurationMs int64 `protobuf:"varint,2,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
 	// Interval between slices in milliseconds, at least 100 and at most
 	// duration_ms.
 	SliceIntervalMs int64 `protobuf:"varint,3,opt,name=slice_interval_ms,json=sliceIntervalMs,proto3" json:"slice_interval_ms,omitempty"`
-	// Proven slice execution behavior.
+	// Proven slice execution behavior. Required: exactly one variant.
 	//
 	// Types that are valid to be assigned to Execution:
 	//
@@ -1854,13 +1860,14 @@ func (*TwapTrigger_LimitGtc) isTwapTrigger_Execution() {}
 // are admitted immediately and may rest concurrently.
 type LadderTrigger struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Child side.
+	// Child side. Required.
 	Side v1.Side `protobuf:"varint,1,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
-	// Minimum generated level price in quote units scaled by 1e9.
+	// Positive minimum generated level price in quote units scaled by 1e9.
 	PriceMinTicks int64 `protobuf:"varint,2,opt,name=price_min_ticks,json=priceMinTicks,proto3" json:"price_min_ticks,omitempty"`
-	// Maximum generated level price in quote units scaled by 1e9.
+	// Maximum generated level price in quote units scaled by 1e9; must be
+	// greater than price_min_ticks.
 	PriceMaxTicks int64 `protobuf:"varint,3,opt,name=price_max_ticks,json=priceMaxTicks,proto3" json:"price_max_ticks,omitempty"`
-	// Number of linearly distributed levels.
+	// Number of linearly distributed levels, from 2 to 100.
 	Levels int32 `protobuf:"varint,4,opt,name=levels,proto3" json:"levels,omitempty"`
 	// Reject each level instead of taking liquidity.
 	PostOnly      bool `protobuf:"varint,5,opt,name=post_only,json=postOnly,proto3" json:"post_only,omitempty"`
@@ -1938,9 +1945,13 @@ type TriggerIntent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable numeric pair ID from GetSpotConfig.
 	SymbolId uint32 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
-	// Total quantity scaled by the pair's base_quantity_scale.
+	// Positive total quantity scaled by the pair's base_quantity_scale.
 	QtyScaled int64 `protobuf:"varint,2,opt,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`
-	// Fee asset for BUY children. SELL children must use QUOTE.
+	// Asset charged for the children's fees, for every strategy. Defaults to
+	// QUOTE. A trigger whose children BUY may select BASE only on a pair whose
+	// allow_buy_fee_from_base is true in GetSpotConfig; a trigger whose
+	// children SELL must use QUOTE. Otherwise the create is refused with
+	// ERROR_CODE_FEE_ASSET_NOT_ALLOWED.
 	FeeAsset v1.FeeAsset `protobuf:"varint,3,opt,name=fee_asset,json=feeAsset,proto3,enum=orders.v1.FeeAsset" json:"fee_asset,omitempty"`
 	// Child self-trade prevention mode against orders of the same root account,
 	// including all its subaccounts. Defaults to EXPIRE_MAKER.
@@ -1956,8 +1967,9 @@ type TriggerIntent struct {
 	// client_trigger_id, instead of retrying the create. After a create fails
 	// with INTERNAL_ERROR, the ID may already be used: a retry then returns
 	// CONFLICT_DUPLICATE_CLIENT_TRIGGER_ID and needs a new client trigger ID.
-	// At most 36 bytes in UTF-8 (36 ASCII characters); longer IDs are rejected
-	// with INVALID_ARGUMENT.
+	// 1 to 36 bytes in UTF-8 (up to 36 ASCII characters); empty or longer IDs
+	// are rejected with INVALID_ARGUMENT and
+	// ERROR_CODE_CLIENT_TRIGGER_ID_INVALID.
 	ClientTriggerId string `protobuf:"bytes,5,opt,name=client_trigger_id,json=clientTriggerId,proto3" json:"client_trigger_id,omitempty"`
 	// Required trigger strategy.
 	//
@@ -2140,7 +2152,7 @@ type CreateTriggerRequest struct {
 	// use their bound subaccount; other callers use their authenticated root
 	// account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
-	// Trigger to admit.
+	// Trigger to admit. Required.
 	Trigger       *TriggerIntent `protobuf:"bytes,2,opt,name=trigger,proto3" json:"trigger,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2268,10 +2280,10 @@ func (x *CreateTriggerResponse) GetAcceptedAtTsNs() uint64 {
 // order it then places for the OCO's whole remaining quantity.
 type OcoLeg struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Trigger price in quote units scaled by 1e9.
+	// Positive trigger price in quote units scaled by 1e9. Required.
 	TriggerPriceTicks int64 `protobuf:"varint,1,opt,name=trigger_price_ticks,json=triggerPriceTicks,proto3" json:"trigger_price_ticks,omitempty"`
 	// The order the leg places when its trigger price is reached: a market
-	// order (IOC) or a resting limit order (GTC).
+	// order (IOC) or a resting limit order (GTC). Required.
 	Child *v1.RiskExecution `protobuf:"bytes,2,opt,name=child,proto3" json:"child,omitempty"`
 	// Price the leg watches. Unspecified or LAST_PRICE watches the last traded
 	// price. INDEX_PRICE watches the market's index price; on a market without
@@ -2354,10 +2366,10 @@ type OcoIntent struct {
 	// Stable numeric pair ID from GetSpotConfig.
 	SymbolId uint32 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// The side both legs trade: SELL protects a held base position, BUY spends
-	// held quote.
+	// held quote. Required.
 	Side v1.Side `protobuf:"varint,2,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
-	// Quantity both legs trade, scaled by the pair's base_quantity_scale; a
-	// multiple of the pair's quantity step.
+	// Positive quantity both legs trade, scaled by the pair's
+	// base_quantity_scale; a multiple of the pair's quantity step.
 	QtyScaled int64 `protobuf:"varint,3,opt,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`
 	// Self-trade prevention mode of the legs' orders against orders of the same
 	// root account, including all its subaccounts. Defaults to EXPIRE_MAKER;
@@ -2372,9 +2384,9 @@ type OcoIntent struct {
 	// client_order_id; other IDs are rejected with INVALID_ARGUMENT.
 	ClientListId string `protobuf:"bytes,5,opt,name=client_list_id,json=clientListId,proto3" json:"client_list_id,omitempty"`
 	// The take-profit leg. Its trigger price must be above the stop-loss's for
-	// a SELL OCO and below it for a BUY OCO.
+	// a SELL OCO and below it for a BUY OCO. Required.
 	TakeProfit *OcoLeg `protobuf:"bytes,6,opt,name=take_profit,json=takeProfit,proto3" json:"take_profit,omitempty"`
-	// The stop-loss leg.
+	// The stop-loss leg. Required.
 	StopLoss      *OcoLeg `protobuf:"bytes,7,opt,name=stop_loss,json=stopLoss,proto3" json:"stop_loss,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2472,7 +2484,7 @@ type CreateOcoRequest struct {
 	// use their bound subaccount; other callers use their authenticated root
 	// account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
-	// OCO to admit.
+	// OCO to admit. Required.
 	Oco           *OcoIntent `protobuf:"bytes,2,opt,name=oco,proto3" json:"oco,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2879,7 +2891,7 @@ type ListTriggersRequest struct {
 	Limit uint32 `protobuf:"varint,10,opt,name=limit,proto3" json:"limit,omitempty"`
 	// Opaque keyset cursor from a previous response. The cursor is exclusive and
 	// bound to the authenticated account, sub-account scope, filters, and newest
-	// first sort order.
+	// first sort order. At most 512 characters.
 	PageToken     string `protobuf:"bytes,12,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -3050,7 +3062,7 @@ type ListTriggerEventsRequest struct {
 	EventType TriggerEventType `protobuf:"varint,4,opt,name=event_type,json=eventType,proto3,enum=triggers.v1.TriggerEventType" json:"event_type,omitempty"`
 	// Opaque keyset cursor from a previous response. The cursor is exclusive and
 	// bound to the authenticated account, trigger, sub-account scope, event
-	// filter, and newest-first sort order.
+	// filter, and newest-first sort order. At most 512 characters.
 	PageToken     string `protobuf:"bytes,5,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -3559,6 +3571,8 @@ type BatchCancelTriggersRequest struct {
 	// trigger_ids within 2 minutes returns the original results and cancels
 	// nothing again. The same request_id with other trigger_ids rejects every
 	// item with ERROR_CODE_CONFLICT_IDEMPOTENCY_KEY_REUSE.
+	// 1 to 64 ASCII characters using letters, digits, period, underscore, colon,
+	// slash, or hyphen.
 	RequestId string `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	// Triggers to cancel: 1 to 50 distinct trigger IDs. Results follow this
 	// order. Cancel more by sending further requests of up to 50.
@@ -3801,7 +3815,7 @@ type ModifyTriggerRequest struct {
 	SymbolId uint32 `protobuf:"varint,3,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Patch fields for safe price, trailing-distance, and slippage edits.
 	// For stop/take-profit:
-	// Updated trigger price in quote units scaled by 1e9.
+	// Positive updated trigger price in quote units scaled by 1e9.
 	TriggerPriceTicks *int64 `protobuf:"varint,10,opt,name=trigger_price_ticks,json=triggerPriceTicks,proto3,oneof" json:"trigger_price_ticks,omitempty"`
 	// Not modifiable: a trigger's child limit price is fixed at create. Setting
 	// this field rejects the whole request with
@@ -3969,12 +3983,14 @@ type isModifyTriggerRequest_TrailingDistance interface {
 }
 
 type ModifyTriggerRequest_TrailingDistanceTicks struct {
-	// Updated trailing distance as a price delta in 1e-9 quote-unit ticks.
+	// Positive updated trailing distance as a price delta in 1e-9 quote-unit
+	// ticks.
 	TrailingDistanceTicks int64 `protobuf:"varint,12,opt,name=trailing_distance_ticks,json=trailingDistanceTicks,proto3,oneof"`
 }
 
 type ModifyTriggerRequest_TrailingDistanceBps struct {
-	// Updated trailing distance in basis points (1 bp = 0.01%).
+	// Updated trailing distance in basis points (1 bp = 0.01%), from 1 to
+	// 10000.
 	TrailingDistanceBps int32 `protobuf:"varint,13,opt,name=trailing_distance_bps,json=trailingDistanceBps,proto3,oneof"`
 }
 

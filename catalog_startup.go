@@ -13,6 +13,7 @@ import (
 	"connectrpc.com/connect"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/redact"
+	"github.com/Fabric-Labs/polyester-sdk-go/internal/retrywait"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
 )
 
@@ -82,10 +83,12 @@ func loadCatalog(ctx context.Context, factory *transport.Factory, source catalog
 				Msg:       fmt.Sprintf("%s (%s) is invalid: %s", source.name, source.operation, redactText(invalid.err.Error())),
 			}
 		}
-		if ctx.Err() != nil || !catalogReadRetryable(err) || attempt >= catalogStartupAttempts || time.Now().Add(delay).After(deadline) {
+		// Never sooner than the Retry-After the answer asked for.
+		wait := retrywait.Delay(err, delay)
+		if ctx.Err() != nil || !catalogReadRetryable(err) || attempt >= catalogStartupAttempts || time.Now().Add(wait).After(deadline) {
 			return catalogReadFailure(source, err, attempt, time.Since(started), refs.Last())
 		}
-		timer := time.NewTimer(delay)
+		timer := time.NewTimer(wait)
 		select {
 		case <-ctx.Done():
 			timer.Stop()

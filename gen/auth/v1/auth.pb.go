@@ -160,7 +160,7 @@ const (
 	AuthErrorCode_AUTH_MFA_ELEVATION_REQUIRED AuthErrorCode = 38
 	// At least one active MFA factor must remain enrolled.
 	AuthErrorCode_AUTH_MFA_LAST_FACTOR_REQUIRED AuthErrorCode = 39
-	// An unexpected internal failure prevented the auth mutation from completing.
+	// An unexpected server error stopped the request from completing.
 	AuthErrorCode_AUTH_INTERNAL_ERROR AuthErrorCode = 40
 	// The caller has not accepted the terms required for this action.
 	AuthErrorCode_AUTH_TERMS_NOT_ACCEPTED AuthErrorCode = 41

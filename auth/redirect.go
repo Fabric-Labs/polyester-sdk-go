@@ -83,7 +83,8 @@ func (g malformedRedirectGuard) RoundTrip(req *http.Request) (*http.Response, er
 		return resp, nil
 	}
 	_ = resp.Body.Close()
-	return nil, &errors.RedirectRefusedError{StatusCode: resp.StatusCode, Malformed: true}
+	// The answer's delay, read from its headers, rides on the refusal.
+	return nil, &errors.RedirectRefusedError{StatusCode: resp.StatusCode, Malformed: true, RetryAfter: errors.RetryAfterHeader(resp.Header)}
 }
 
 // followsLocation reports the statuses whose Location net/http follows.
@@ -109,11 +110,14 @@ func isSigned(header http.Header) bool {
 // and the origin next would have gone to.
 func redirectRefused(next, previous *http.Request) *errors.RedirectRefusedError {
 	status := 0
+	var retryAfter *float64
 	if next.Response != nil {
 		status = next.Response.StatusCode
+		retryAfter = errors.RetryAfterHeader(next.Response.Header)
 	}
 	return &errors.RedirectRefusedError{
 		StatusCode: status,
+		RetryAfter: retryAfter,
 		Origin:     strings.ToLower(next.URL.Scheme) + "://" + strings.ToLower(next.URL.Host),
 		SameOrigin: comparableOrigin(next.URL) == comparableOrigin(previous.URL),
 	}

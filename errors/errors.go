@@ -2,6 +2,8 @@ package errors
 
 import (
 	"errors"
+	"math"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -211,14 +213,18 @@ func IsMFALastFactorRequired(err error) bool {
 
 // AuthError indicates missing or invalid credentials / permissions.
 type AuthError struct {
-	Problem  *HTTPProblem // REST metadata, when supplied by the server.
-	Msg      string
-	Status   int    // HTTP status when sourced from an HTTP exchange (e.g. 401/403)
-	Label    string // backward-compatible endpoint/procedure label
-	Body     string // truncated server body
-	Code     string // stable server code, when supplied
-	Context  string // channel/procedure context
-	Endpoint string // exact HTTP endpoint used
+	// RetryAfter is the delay in seconds the answer asked for with
+	// Retry-After (or Retry-After-Ms); nil when it named none. See
+	// errors.RetryAfter.
+	RetryAfter *float64
+	Problem    *HTTPProblem // REST metadata, when supplied by the server.
+	Msg        string
+	Status     int    // HTTP status when sourced from an HTTP exchange (e.g. 401/403)
+	Label      string // backward-compatible endpoint/procedure label
+	Body       string // truncated server body
+	Code       string // stable server code, when supplied
+	Context    string // channel/procedure context
+	Endpoint   string // exact HTTP endpoint used
 }
 
 func (e *AuthError) Error() string {
@@ -243,9 +249,13 @@ func (e *AuthError) Is(target error) bool { return target == ErrPolyester }
 //
 // It unwraps to an *APIError with that code, so AuthErrorCode reads it.
 type SubaccountOwnerRoleLockedError struct {
-	Problem *HTTPProblem // REST metadata, when supplied by the server.
-	Msg     string
-	Status  int // HTTP status when sourced from a REST problem body (412)
+	// RetryAfter is the delay in seconds the answer asked for with
+	// Retry-After (or Retry-After-Ms); nil when it named none. See
+	// errors.RetryAfter.
+	RetryAfter *float64
+	Problem    *HTTPProblem // REST metadata, when supplied by the server.
+	Msg        string
+	Status     int // HTTP status when sourced from a REST problem body (412)
 }
 
 func (e *SubaccountOwnerRoleLockedError) Error() string {
@@ -277,9 +287,13 @@ func IsSubaccountOwnerRoleLocked(err error) bool {
 //
 // It unwraps to an *APIError with that code, so AuthErrorCode reads it.
 type SessionRequiredError struct {
-	Problem *HTTPProblem // REST metadata, when supplied by the server.
-	Msg     string
-	Status  int // HTTP status when sourced from a REST problem body (403)
+	// RetryAfter is the delay in seconds the answer asked for with
+	// Retry-After (or Retry-After-Ms); nil when it named none. See
+	// errors.RetryAfter.
+	RetryAfter *float64
+	Problem    *HTTPProblem // REST metadata, when supplied by the server.
+	Msg        string
+	Status     int // HTTP status when sourced from a REST problem body (403)
 }
 
 func (e *SessionRequiredError) Error() string {
@@ -318,6 +332,13 @@ type FieldViolation struct {
 // checks; Metadata carries the same violations as violation.N.field_path,
 // violation.N.rule_id and violation.N.message.
 type ValidationError struct {
+	// Status is the HTTP status of the answer behind the error; 0 when
+	// there was no answer. See errors.AnswerStatus.
+	Status int
+	// RetryAfter is the delay in seconds the answer asked for with
+	// Retry-After (or Retry-After-Ms); nil when it named none. See
+	// errors.RetryAfter.
+	RetryAfter *float64
 	Problem    *HTTPProblem // REST metadata, when supplied by the server.
 	Msg        string
 	Code       string
@@ -392,6 +413,13 @@ func ViolationMetadata(violations []FieldViolation) map[string]string {
 type TransportError struct {
 	Msg string
 	Err error
+	// Status is the HTTP status of the answer behind the error; 0 when
+	// there was no answer. See errors.AnswerStatus.
+	Status int
+	// RetryAfter is the delay in seconds the answer asked for with
+	// Retry-After (or Retry-After-Ms); nil when it named none or there was
+	// no answer, as for a refused connection. See errors.RetryAfter.
+	RetryAfter *float64
 }
 
 func (e *TransportError) Error() string        { return e.Msg }
@@ -434,6 +462,9 @@ type RedirectRefusedError struct {
 	// Malformed reports that the redirect's Location did not parse as a URL.
 	// Origin is then empty and SameOrigin false.
 	Malformed bool
+	// RetryAfter is the delay in seconds the redirect asked for with
+	// Retry-After; nil when it named none. See errors.RetryAfter.
+	RetryAfter *float64
 }
 
 func (e *RedirectRefusedError) Error() string {
@@ -499,7 +530,7 @@ func (e *CatalogHydrationError) Unwrap() error        { return e.Err }
 //
 // Detail carries structured polyester.ratelimit.v1.RateLimitDetail when the
 // server attached it: Connect details, an in-band order rejection, or the
-// rate_limit object of a REST RATE_LIMIT_EXCEEDED problem, whose fields are
+// rateLimit object of a REST RATE_LIMIT_EXCEEDED problem, whose fields are
 // all optional. The gateway's own refusal names only Reason and Scope
 // (CLIENT_IP, with no OperationID); a service's also names the operation, the
 // policy class and the remaining quota. RetryAfter prefers
@@ -507,6 +538,9 @@ func (e *CatalogHydrationError) Unwrap() error        { return e.Err }
 // server gave no hint, as for a refusal of too many concurrent requests, so
 // back off on your own schedule then.
 type RateLimitError struct {
+	// Status is the HTTP status of the answer behind the error; 0 when
+	// there was no answer. See errors.AnswerStatus.
+	Status     int
 	Code       string // Structured service code; empty without a service detail. Known order codes use ERROR_CODE_; an orders detail without a code uses ERROR_CODE_UNSPECIFIED.
 	Msg        string
 	RetryAfter *float64
@@ -531,6 +565,10 @@ type ServerError struct {
 	Msg              string
 	Code             string // Service code, or an unrecognised code kept for diagnosis.
 	Status           int    // HTTP status corresponding to the failure, when known.
+	// RetryAfter is the delay in seconds the answer asked for with
+	// Retry-After (or Retry-After-Ms); nil when it named none. See
+	// errors.RetryAfter.
+	RetryAfter *float64
 }
 
 func (e *ServerError) Error() string        { return e.Msg }
@@ -538,10 +576,17 @@ func (e *ServerError) Is(target error) bool { return target == ErrPolyester }
 
 // APIError indicates a structured Connect/API error.
 type APIError struct {
-	Problem  *HTTPProblem // REST metadata for outcome-unknown and ORDER_SEQUENCE_EXHAUSTED problems.
-	Msg      string
-	Code     string
-	Metadata map[string]string
+	// Status is the HTTP status of the answer behind the error; 0 when
+	// there was no answer. See errors.AnswerStatus.
+	Status int
+	// RetryAfter is the delay in seconds the answer asked for with
+	// Retry-After (or Retry-After-Ms); nil when it named none. See
+	// errors.RetryAfter.
+	RetryAfter *float64
+	Problem    *HTTPProblem // REST metadata for outcome-unknown and ORDER_SEQUENCE_EXHAUSTED problems.
+	Msg        string
+	Code       string
+	Metadata   map[string]string
 	// ExistingOrderID is the order already holding the client order ID on an
 	// ERROR_CODE_CONFLICT_DUPLICATE_CLIENT_ORDER_ID rejection, when the server
 	// knows it. Read it with Orders.Get for its current state.
@@ -605,9 +650,13 @@ func (e *APIError) Is(target error) bool { return target == ErrPolyester }
 // drifted. The request changed nothing: retrying signs it again with a fresh
 // timestamp. Bound concurrency or correct the clock if it recurs.
 type TimestampSkewError struct {
-	Problem *HTTPProblem // REST metadata, when supplied by the server.
-	Msg     string
-	Status  int // HTTP status, usually 401
+	// RetryAfter is the delay in seconds the answer asked for with
+	// Retry-After (or Retry-After-Ms); nil when it named none. See
+	// errors.RetryAfter.
+	RetryAfter *float64
+	Problem    *HTTPProblem // REST metadata, when supplied by the server.
+	Msg        string
+	Status     int // HTTP status, usually 401
 }
 
 func (e *TimestampSkewError) Error() string        { return e.Msg }
@@ -616,7 +665,16 @@ func (e *TimestampSkewError) Is(target error) bool { return target == ErrPolyest
 // NotImplementedError indicates that the server does not implement the
 // requested operation (Connect unimplemented, or a contract code at HTTP 501).
 // Retrying does not help.
-type NotImplementedError struct{ Msg string }
+type NotImplementedError struct {
+	Msg string
+	// Status is the HTTP status of the answer behind the error; 0 when
+	// there was no answer. See errors.AnswerStatus.
+	Status int
+	// RetryAfter is the delay in seconds the answer asked for with
+	// Retry-After (or Retry-After-Ms); nil when it named none. See
+	// errors.RetryAfter.
+	RetryAfter *float64
+}
 
 func (e *NotImplementedError) Error() string        { return e.Msg }
 func (e *NotImplementedError) Is(target error) bool { return target == ErrPolyester }
@@ -657,7 +715,16 @@ func (e *BatchReplaceWindowExpiredError) Is(target error) bool { return target =
 // RouteNotFoundError indicates the gateway has no route for an RPC: a bare HTTP
 // 404. Its mutation outcome is unknown, because whatever answered isn't the
 // service and can't prove that a mutation wasn't applied.
-type RouteNotFoundError struct{ Procedure string }
+type RouteNotFoundError struct {
+	Procedure string
+	// Status is the HTTP status of the answer behind the error; 0 when
+	// there was no answer. See errors.AnswerStatus.
+	Status int
+	// RetryAfter is the delay in seconds the answer asked for with
+	// Retry-After (or Retry-After-Ms); nil when it named none. See
+	// errors.RetryAfter.
+	RetryAfter *float64
+}
 
 func (e *RouteNotFoundError) Error() string {
 	hint := "RPC not exposed on this API host"
@@ -679,6 +746,13 @@ type RealtimeError struct {
 	Msg       string
 	Code      string
 	CloseCode int
+	// Status is the HTTP status of the answer behind the error, a realtime
+	// token or subscription answer or a refused WebSocket upgrade; 0 when
+	// there was none. See errors.AnswerStatus.
+	Status int
+	// RetryAfter is the delay in seconds that answer asked for with
+	// Retry-After; nil when it named none. See errors.RetryAfter.
+	RetryAfter *float64
 }
 
 func (e *RealtimeError) Error() string        { return e.Msg }
@@ -796,7 +870,9 @@ func MutationOutcomeUnknown(err error) bool {
 	var routeErr *RouteNotFoundError
 	var redirectErr *RedirectRefusedError
 	serverUnknown := errors.As(err, &serverErr)
-	if serverUnknown && serverErr.Status == 503 && (serverErr.AdmissionRefused || isKnownAdmissionRefusal(serverErr.Code)) {
+	// A ConnectRPC admission refusal reads from its code (AdmissionRefused);
+	// a REST problem proves one only at 503.
+	if serverUnknown && (serverErr.AdmissionRefused || (serverErr.Status == 503 && isKnownAdmissionRefusal(serverErr.Code))) {
 		serverUnknown = false
 	}
 	return errors.As(err, &transportErr) || serverUnknown ||
@@ -861,4 +937,98 @@ func isKnownAdmissionRefusal(code string) bool {
 	default:
 		return false
 	}
+}
+
+// answered is an error that came from an HTTP answer and keeps that answer's
+// metadata: its status and the delay it asked for.
+type answered interface {
+	error
+	answer() (status *int, retryAfter **float64)
+}
+
+func (e *RateLimitError) answer() (*int, **float64)       { return &e.Status, &e.RetryAfter }
+func (e *ServerError) answer() (*int, **float64)          { return &e.Status, &e.RetryAfter }
+func (e *APIError) answer() (*int, **float64)             { return &e.Status, &e.RetryAfter }
+func (e *AuthError) answer() (*int, **float64)            { return &e.Status, &e.RetryAfter }
+func (e *ValidationError) answer() (*int, **float64)      { return &e.Status, &e.RetryAfter }
+func (e *TimestampSkewError) answer() (*int, **float64)   { return &e.Status, &e.RetryAfter }
+func (e *NotImplementedError) answer() (*int, **float64)  { return &e.Status, &e.RetryAfter }
+func (e *RouteNotFoundError) answer() (*int, **float64)   { return &e.Status, &e.RetryAfter }
+func (e *SessionRequiredError) answer() (*int, **float64) { return &e.Status, &e.RetryAfter }
+func (e *TransportError) answer() (*int, **float64)       { return &e.Status, &e.RetryAfter }
+func (e *RedirectRefusedError) answer() (*int, **float64) { return &e.StatusCode, &e.RetryAfter }
+func (e *RealtimeError) answer() (*int, **float64)        { return &e.Status, &e.RetryAfter }
+func (e *SubaccountOwnerRoleLockedError) answer() (*int, **float64) {
+	return &e.Status, &e.RetryAfter
+}
+
+// RetryAfter returns the delay in seconds the answer behind err asked for
+// with Retry-After (or Retry-After-Ms, or a rate-limit detail's
+// retry_after_ms), whatever SDK error err is or wraps; nil when the answer
+// named none or there was no answer. Every error that comes from an answer
+// carries it: the SDK captures it once, where it reads the answer, and its
+// own retries of safe reads wait at least this long.
+func RetryAfter(err error) *float64 {
+	var a answered
+	if !errors.As(err, &a) {
+		return nil
+	}
+	_, retryAfter := a.answer()
+	return *retryAfter
+}
+
+// AnswerStatus returns the HTTP status of the answer behind err, whatever
+// SDK error err is or wraps; 0 when there was no answer, as for a refused
+// connection or an SDK check made before sending.
+func AnswerStatus(err error) int {
+	var a answered
+	if !errors.As(err, &a) {
+		return 0
+	}
+	status, _ := a.answer()
+	return *status
+}
+
+// AttachAnswer records an answer's metadata on the SDK error err is or
+// wraps: its HTTP status, which replaces one inferred from an error code, and
+// the delay it asked for, unless the error already carries a delay (a
+// rate-limit detail's comes first). The transport calls it once for each
+// failed answer.
+func AttachAnswer(err error, status int, retryAfter *float64) {
+	var a answered
+	if !errors.As(err, &a) {
+		return
+	}
+	current, delay := a.answer()
+	if status > 0 {
+		*current = status
+	}
+	if *delay == nil {
+		*delay = retryAfter
+	}
+}
+
+// RetryAfterHeader reads the delay an answer's headers ask for, in seconds:
+// Retry-After, then Retry-After-Ms, then Grpc-Retry-Pushback-Ms. Nil when
+// none holds a non-negative number.
+func RetryAfterHeader(header http.Header) *float64 {
+	parse := func(name string, divisor float64) *float64 {
+		raw := strings.TrimSpace(header.Get(name))
+		if raw == "" {
+			return nil
+		}
+		value, err := strconv.ParseFloat(raw, 64)
+		if err != nil || math.IsNaN(value) || math.IsInf(value, 0) || value < 0 {
+			return nil
+		}
+		value /= divisor
+		return &value
+	}
+	if seconds := parse("Retry-After", 1); seconds != nil {
+		return seconds
+	}
+	if seconds := parse("Retry-After-Ms", 1_000); seconds != nil {
+		return seconds
+	}
+	return parse("Grpc-Retry-Pushback-Ms", 1_000)
 }
