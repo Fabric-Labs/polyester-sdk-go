@@ -1924,6 +1924,175 @@ for markets := range mo.Updates() {
 }
 ```
 
+## Binary market-data stream
+
+`marketstream` connects to the public binary market-data WebSocket
+(`/ws/market.sbe` on the API's WebSocket host). It is the low-latency feed of
+trades, best bid and offer, and order book depth per spot pair, encoded with
+Simple Binary Encoding (SBE). Connecting needs no API key.
+
+`Client.MarketStream` waits for the spot catalogs and connects to the client's
+environment. Every price is a `models.PriceTicks` and every quantity a
+`models.QtyScaled` with the pair's base quantity scale from the catalogs, so
+values are exact decimals, never floats.
+
+```go
+import (
+	"github.com/Fabric-Labs/polyester-sdk-go/marketstream"
+)
+
+stream, err := client.MarketStream(ctx, marketstream.Config{})
+if err != nil {
+	log.Fatal(err)
+}
+defer stream.Close()
+
+symbolID := client.Catalogs.SymbolIDForSymbol(symbol)
+if symbolID == nil {
+	log.Fatalf("unknown pair %s", symbol)
+}
+results, err := stream.Subscribe(ctx,
+	marketstream.Topic{SymbolID: *symbolID, Stream: marketstream.StreamTrades},
+	marketstream.Topic{SymbolID: *symbolID, Stream: marketstream.StreamBBO},
+	marketstream.Topic{SymbolID: *symbolID, Stream: marketstream.StreamDepth},
+)
+if err != nil {
+	log.Fatal(err)
+}
+for _, r := range results {
+	if !r.Result.Subscribed() {
+		log.Printf("%s not subscribed: %s", r.Topic, r.Result)
+	}
+}
+
+for event := range stream.Events() {
+	switch e := event.(type) {
+	case *marketstream.Trades:
+		for _, t := range e.Trades {
+			qty, _ := t.Qty.Format()
+			fmt.Println(t.TradeID, t.TakerSide, t.Price.Format(), qty)
+		}
+	case *marketstream.TradesGap:
+		log.Printf("trades after %d missed live (%s); recovering", e.AfterTradeID, e.Cause)
+	case *marketstream.TradesBackfill:
+		if e.Err != nil {
+			log.Printf("trade recovery failed: %v", e.Err)
+		}
+	case *marketstream.BestBidOffer:
+		if e.Bid != nil && e.Ask != nil {
+			fmt.Println("bbo", e.Bid.Price.Format(), e.Ask.Price.Format())
+		}
+	case *marketstream.DepthSnapshot, *marketstream.DepthUpdate:
+		book, _ := stream.OrderBook(*symbolID, marketstream.StreamDepth, 10)
+		fmt.Println("book at", book.UpdateID, "stale:", book.Stale)
+	case *marketstream.MarketStatus:
+		log.Printf("pair %d feed %s", e.SymbolID, e.Feed)
+	case *marketstream.Disconnected:
+		log.Printf("market stream reconnecting in %s: %v", e.Delay, e.Err)
+	}
+}
+if err := stream.Err(); err != nil {
+	log.Fatal(err)
+}
+```
+
+Streams and recovery:
+
+- `StreamTrades` delivers every trade once, in trade ID order. The stream
+  starts with a `TradesThrough` frontier and repeats it every second. Trades
+  the connection did not receive live, whether the server named them, the
+  client found them missing, or they fell between two connections, arrive as a
+  `TradesGap`. With `Config.History` set (the default of
+  `Client.MarketStream`), the client recovers each gap from the trade history
+  API by trade ID and delivers a `TradesBackfill`; `marketstream.Backfill`
+  does the same on demand. A recovery waits, retrying, while the trade history
+  catches up with the live stream.
+- `StreamBBO` and `StreamDepth20` carry the full state in every message. The
+  client delivers only states newer than the last one and keeps the newest
+  (`Client.BestBidOffer`, `Client.OrderBook`).
+- `StreamDepth` opens with a `DepthSnapshot`, then each `DepthUpdate` applies
+  only to a book at exactly its base: each level is set, and a level with
+  quantity 0 is deleted; an update with no levels over a range only advances
+  the book's position. After each update, each side is truncated to the live
+  window the snapshot names (`DepthSnapshot.LevelsPerSide`). An update the
+  book cannot apply is never patched over. The depth stream alone recovers
+  on the same connection: its book goes stale (`OrderBook.Stale`,
+  `Client.Live`), the client unsubscribes the stream and subscribes it again,
+  and the new subscription's snapshot replaces the book. Updates that arrive
+  meanwhile are dropped, a second gap starts no second recovery, and every
+  other stream of the connection carries on untouched. The client's own
+  requests arrive as `SubscribeResponse` events like any other. Only a lost
+  connection, or an Unsubscribe answered with anything but OK or
+  NOT_SUBSCRIBED for a stream the server holds
+  (`*marketstream.UnsubscribeError`), reconnects every stream.
+- `MarketStatus` reports a pair whose feed went stale (`FeedStale`): its best
+  bid and offer and depth pause until it recovers. A depth book then waits
+  for its replacement snapshot, which arrives before the pair is reported
+  live again; `OrderBook.Stale` is set while the book may not be current.
+
+The moment a connection is lost, everything it fed is stale, before the
+`Disconnected` event arrives: `OrderBook.Stale` and `BestBidOffer.Stale` are
+set and `Client.Live` reports false for every topic. A topic is live again once
+the new connection delivers its snapshot, quote or trades baseline, and, for a
+pair the server reports stale, once it reports the pair live. Every depth
+snapshot replaces the book, whenever it arrives, whatever the book held: within
+a connection (after a slow read or a source refresh, with no status around it)
+and across reconnects, its window (`DepthSnapshot.LevelsPerSide`) included.
+Depth20 books and quotes never go backwards: each keeps the newest state it has
+held, by book epoch and update, across connections; an older one is ignored and
+the kept state stays stale until one at least as new confirms or replaces it.
+
+The client pings every 15 seconds and reconnects when a pong is late or the
+connection drops, with jittered backoff, and resubscribes every topic the
+server accepted. Topics it refused (an unknown or disabled pair, or more
+subscriptions than one connection may hold) are not resubscribed. The `Events`
+channel is bounded by `Config.QueueSize`: a consumer that falls behind fails
+the client with `*errors.QueueOverflowError` instead of losing messages.
+
+`Unsubscribe` ends topics and `UnsubscribeSymbol` every stream of one pair.
+Each topic's result is `SubscribeOK` when its stream ended or
+`SubscribeNotSubscribed` when it was not held. The client stops resubscribing
+them at once and drops their books, quotes and trade tracking, so subscribing
+again starts from a fresh snapshot or baseline. Each topic's requests take
+effect in the order they are made, whether the caller's, a resubscription or a
+depth recovery's: the answer to a request that a later request of the same
+topic overtook is delivered as a `SubscribeResponse` but not applied, and the
+client then brings the server to what the caller last asked for. What the
+server holds is followed from every answer, applied or not. Every stream is
+live only once the subscription it holds delivered its initial state
+(snapshot, quote or trades baseline); what an earlier subscription delivered
+stays stale until then, and trade accounting carries on across it. A stream
+answered ALREADY_SUBSCRIBED whose subscription's initial state the client
+never took is unsubscribed and subscribed again, and its trades meanwhile
+are dropped. A request
+that was sent takes effect even if the caller stops waiting for its answer,
+and an Unsubscribe the connection drops before answering counts as done:
+
+```go
+import (
+	"github.com/Fabric-Labs/polyester-sdk-go/marketstream"
+)
+
+var stream *marketstream.Client // from client.MarketStream
+var symbolID uint32             // the pair's numeric ID from the catalogs
+
+results, err := stream.UnsubscribeSymbol(ctx, symbolID)
+if err != nil {
+	log.Fatal(err)
+}
+for _, r := range results {
+	log.Printf("%s: %s", r.Topic, r.Result)
+}
+```
+
+Decoders are generated from the published schema with Real Logic's sbe-tool
+(`sbe/marketstream-v<version>.xml`, schema id 20). Messages of templates the
+client does not know are skipped. A message of a newer schema version is read
+by its declared block lengths, as the SBE versioning rules allow; a message
+whose layout cannot be read this way ends the connection with a
+`*marketstream.FrameError`, and a message of another schema stops the client
+with a `*marketstream.SchemaError`. No message is ever misread.
+
 ## Realtime
 
 Realtime is binary-only. Centrifugo channels negotiate the `centrifuge-protobuf`
@@ -2251,6 +2420,8 @@ account.
 | `services/` | Typed unary RPC + subscribe helpers |
 | `realtime/` | Centrifugo client, private order stream, snapshot-then-stream |
 | `orderbook/` | Local book merge + managed subscription |
+| `marketstream/` | Binary market-data stream client, local depth book, trade recovery |
+| `sbe/`, `internal/sbe/` | Market-data stream schema and its generated SBE decoders |
 | `codecs/` | Request encoding, scalar helpers, decode |
 | `gen/` | Checked-in Connect + protobuf generated code |
 
