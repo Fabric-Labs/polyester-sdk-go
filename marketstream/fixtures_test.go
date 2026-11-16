@@ -135,7 +135,7 @@ func fixtureClient(t *testing.T, frames []fixtureFrame) *Client {
 	c := newClient(Config{Pairs: anyPairs{}, QueueSize: 1 << 12})
 	t.Cleanup(c.cancel)
 	id, topics := decodeSubscribe(t, fixtureGroup(t, frames, "client-subscribe")[0].data)
-	c.sent[id] = sentRequest{topics: topics}
+	c.recordSent(id, false, topics)
 	if err := c.handle(fixtureGroup(t, frames, "subscribe-response")[0].data); err != nil {
 		t.Fatal(err)
 	}
@@ -343,17 +343,12 @@ func TestFixtureDepthGapMarksTheBookStale(t *testing.T) {
 	}
 }
 
-// recoveryRequested reports whether the client recorded its recovery
-// Unsubscribe of topic.
+// recoveryRequested reports whether topic's owner is recovering it.
 func recoveryRequested(c *Client, topic Topic) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	for _, r := range c.sent {
-		if r.recovery && r.unsubscribe && len(r.topics) == 1 && r.topics[0] == topic {
-			return true
-		}
-	}
-	return false
+	o := c.owners[topic]
+	return o != nil && o.recovering
 }
 
 // TradesSkipped after the pair's baseline names exactly the trades the

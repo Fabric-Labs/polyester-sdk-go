@@ -2021,7 +2021,10 @@ Streams and recovery:
   and the new subscription's snapshot replaces the book. Updates that arrive
   meanwhile are dropped, a second gap starts no second recovery, and every
   other stream of the connection carries on untouched. The client's own
-  requests arrive as `SubscribeResponse` events like any other.
+  requests arrive as `SubscribeResponse` events like any other. Only a lost
+  connection, or an Unsubscribe of a held stream answered with anything but
+  OK or NOT_SUBSCRIBED (`*marketstream.UnsubscribeError`), reconnects every
+  stream.
 - `MarketStatus` reports a pair whose feed went stale (`FeedStale`): its best
   bid and offer and depth pause until it recovers. A depth book then waits
   for its replacement snapshot, which arrives before the pair is reported
@@ -2050,9 +2053,13 @@ the client with `*errors.QueueOverflowError` instead of losing messages.
 Each topic's result is `SubscribeOK` when its stream ended or
 `SubscribeNotSubscribed` when it was not held. The client stops resubscribing
 them at once and drops their books, quotes and trade tracking, so subscribing
-again starts from a fresh snapshot or baseline. A request that was sent takes
-effect even if the caller stops waiting for its answer, and an Unsubscribe the
-connection drops before answering counts as done:
+again starts from a fresh snapshot or baseline. Each topic's requests take
+effect in the order they are made, whether the caller's, a resubscription or a
+depth recovery's: the answer to a request that a later request of the same
+topic overtook is delivered as a `SubscribeResponse` but not applied, and the
+client then brings the server to what the caller last asked for. A request
+that was sent takes effect even if the caller stops waiting for its answer,
+and an Unsubscribe the connection drops before answering counts as done:
 
 ```go
 import (

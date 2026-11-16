@@ -2,7 +2,6 @@ package marketstream
 
 import (
 	"bytes"
-	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -130,7 +129,6 @@ func TestGoldenCapturesReplay(t *testing.T) {
 			c := newClient(Config{Pairs: anyPairs{}, QueueSize: 1 << 16})
 			defer c.cancel()
 			var lastDepth uint64
-			oldOrder := false
 			// A capture may keep only some frames of a template: trades of
 			// a pair whose baseline it did not keep are not replayed.
 			baseline := map[uint32]bool{}
@@ -149,7 +147,7 @@ func TestGoldenCapturesReplay(t *testing.T) {
 							it := items.Next()
 							topics = append(topics, Topic{SymbolID: it.SymbolId(), Stream: Stream(it.Stream())})
 						}
-						c.sent[m.RequestId()] = sentRequest{topics: topics}
+						c.recordSent(m.RequestId(), false, topics)
 					}
 					continue
 				}
@@ -167,18 +165,6 @@ func TestGoldenCapturesReplay(t *testing.T) {
 					}
 				}
 				if err := c.handle(f.data); err != nil {
-					// A capture taken while the server sent LIVE before the
-					// depth book's replacement snapshot: the client refuses
-					// that order and recovers by reconnecting. A capture of
-					// the server's current order replays through.
-					var gap *BookGapError
-					if _, live := decoded.(*marketStatusMsg); live && errors.As(err, &gap) {
-						oldOrder = true
-						c.state.Lock()
-						c.feeds[gap.SymbolID] = FeedLive
-						c.state.Unlock()
-						continue
-					}
 					t.Fatalf("%s: %v", f.file, err)
 				}
 				switch m := decoded.(type) {
@@ -197,7 +183,7 @@ func TestGoldenCapturesReplay(t *testing.T) {
 				// A capture that ends stale leaves the book waiting for its
 				// replacement snapshot.
 				stale := c.feeds[topic.SymbolID] == FeedStale
-				if topic.Stream == StreamDepth && b.recovery != recoveryNone {
+				if topic.Stream == StreamDepth && b.recovering {
 					// A capture of the server's old order (LIVE before the
 					// replacement snapshot) leaves the stream recovering; the
 					// capture has no answer to its requests.
@@ -216,9 +202,6 @@ func TestGoldenCapturesReplay(t *testing.T) {
 			}
 			if gaps != 0 {
 				t.Fatalf("%d trade gaps in a capture without lost trades", gaps)
-			}
-			if oldOrder {
-				t.Logf("%s holds LIVE before a replacement snapshot, refused as the old order", capture)
 			}
 		})
 	}

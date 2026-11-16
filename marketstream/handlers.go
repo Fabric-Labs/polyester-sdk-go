@@ -41,162 +41,122 @@ func (c *Client) handle(frame []byte) error {
 	return nil
 }
 
+// onSubscribeResponse applies the answer to a Subscribe or Unsubscribe.
+// Each topic's result is applied only if the request is still the topic's
+// generation: an answer to a request a later one superseded is delivered,
+// never applied. Each topic answered is then reconciled with the caller's
+// intent.
 func (c *Client) onSubscribeResponse(m *subscribeResponseMsg) error {
 	resp := &SubscribeResponse{RequestID: m.requestID, Results: make([]TopicResult, len(m.results))}
-	c.mu.Lock()
-	req, known := c.sent[m.requestID]
-	delete(c.sent, m.requestID)
-	c.mu.Unlock()
-	if !known {
-		// No request of this connection: delivered, never applied.
-		for i, r := range m.results {
-			resp.Results[i] = TopicResult{Topic: Topic{SymbolID: r.symbolID, Stream: Stream(r.stream)}, Result: SubscribeResult(r.result)}
-		}
-		c.emit(resp)
-		return nil
-	}
-	if req.recovery {
-		return c.onRecoveryResponse(m, resp, req)
-	}
-	if req.unsubscribe {
-		c.onUnsubscribeResponse(m, resp)
-		return nil
-	}
-	c.state.Lock()
-	for i, r := range m.results {
-		topic := Topic{SymbolID: r.symbolID, Stream: Stream(r.stream)}
-		result := SubscribeResult(r.result)
-		resp.Results[i] = TopicResult{Topic: topic, Result: result}
-		if !result.Subscribed() || !topic.Stream.known() {
-			continue
-		}
-		c.active[topic] = true
-		switch topic.Stream {
-		case StreamTrades:
-			if c.trackers[topic.SymbolID] == nil {
-				c.trackers[topic.SymbolID] = &tradeTracker{symbolID: topic.SymbolID}
-			}
-		case StreamDepth20, StreamDepth:
-			if c.books[topic] == nil {
-				c.books[topic] = &book{stream: topic.Stream}
-			}
-		}
-	}
-	c.state.Unlock()
-
-	c.mu.Lock()
-	for _, r := range resp.Results {
-		if !r.Result.Subscribed() {
-			// Refused: not resubscribed on reconnect.
-			c.unwant(r.Topic)
-		}
-	}
-	c.mu.Unlock()
-	c.answer(m.requestID, resp)
-	return nil
-}
-
-// onRecoveryResponse advances a depth stream's recovery. The Unsubscribe
-// answered OK, or NOT_SUBSCRIBED when the server no longer held the stream,
-// is followed by the Subscribe; any other answer leaves the stream in a state
-// the client cannot know, so the connection ends and every stream is
-// resubscribed. The Subscribe answered OK waits for the snapshot; refused, it
-// ends the stream as a refused Subscribe does.
-func (c *Client) onRecoveryResponse(m *subscribeResponseMsg, resp *SubscribeResponse, req sentRequest) error {
 	for i, r := range m.results {
 		resp.Results[i] = TopicResult{Topic: Topic{SymbolID: r.symbolID, Stream: Stream(r.stream)}, Result: SubscribeResult(r.result)}
 	}
-	c.emit(resp)
-	topic := req.topics[0]
-	result := SubscribeResult(0)
-	for _, r := range resp.Results {
-		if r.Topic == topic {
-			result = r.Result
-		}
-	}
-	if !req.unsubscribe {
-		return c.onRecoverySubscribeResponse(topic, result)
-	}
+	var applied []Topic
+	var broken error
 	c.mu.Lock()
-	wanted := c.wantSet[topic]
-	c.mu.Unlock()
-	c.state.Lock()
-	b := c.books[topic]
-	if b == nil || b.recovery != recoveryUnsubscribing {
-		// The caller ended the stream meanwhile, or the recovery ended.
-		c.state.Unlock()
-		return nil
-	}
-	if result != SubscribeOK && result != SubscribeNotSubscribed {
-		c.state.Unlock()
-		return &BookGapError{SymbolID: topic.SymbolID, Msg: "the depth stream's recovery Unsubscribe was answered " + result.String()}
-	}
-	if !wanted {
-		c.state.Unlock()
-		c.dropTopics([]Topic{topic})
-		return nil
-	}
-	b.recovery = recoverySubscribing
-	c.state.Unlock()
-	c.send(sentRequest{recovery: true, topics: []Topic{topic}})
-	return nil
-}
-
-// onRecoverySubscribeResponse applies the answer to a recovery's Subscribe.
-// The caller may have unsubscribed, or unsubscribed and subscribed again,
-// while it was on the wire, in either order with it, so the answer is
-// applied to what the caller wants now. A stream the caller no longer wants
-// but the server holds again is unsubscribed; a wanted one is held, its book
-// waiting for the new subscription's snapshot.
-func (c *Client) onRecoverySubscribeResponse(topic Topic, result SubscribeResult) error {
-	c.mu.Lock()
-	wanted := c.wantSet[topic]
-	c.mu.Unlock()
-	if !result.Subscribed() {
+	req, known := c.sent[m.requestID]
+	delete(c.sent, m.requestID)
+	if known {
 		c.state.Lock()
-		b := c.books[topic]
-		refused := b != nil && b.recovery == recoverySubscribing
-		c.state.Unlock()
-		if refused {
-			c.mu.Lock()
-			c.unwant(topic)
-			c.mu.Unlock()
-			c.dropTopics([]Topic{topic})
+		for _, r := range resp.Results {
+			o := c.owners[r.Topic]
+			if o == nil || o.gen != m.requestID || !r.Topic.Stream.known() {
+				continue
+			}
+			o.gen = 0
+			applied = append(applied, r.Topic)
+			if err := c.apply(o, r, req.unsubscribe); err != nil && broken == nil {
+				broken = err
+			}
 		}
-		return nil
+		for _, t := range req.topics {
+			// A topic the answer leaves out is no longer awaited: its owner
+			// reconciles from what it last knew.
+			if o := c.owners[t]; o != nil && o.gen == m.requestID {
+				o.gen = 0
+				applied = append(applied, t)
+			}
+		}
+		c.state.Unlock()
 	}
-	if !wanted {
-		c.dropTopics([]Topic{topic})
-		c.send(sentRequest{unsubscribe: true, topics: []Topic{topic}})
-		return nil
+	c.mu.Unlock()
+	// An answer to no request of this connection is delivered, never
+	// applied.
+	c.answer(m.requestID, resp)
+	if broken != nil {
+		return broken
 	}
-	c.state.Lock()
-	c.active[topic] = true
-	b := c.books[topic]
-	switch {
-	case b == nil:
-		c.books[topic] = &book{stream: topic.Stream}
-	case b.recovery == recoverySubscribing:
-		b.recovery = recoverySnapshot
+	if len(applied) > 0 {
+		_ = c.reconcileTopics(applied...)
 	}
-	c.state.Unlock()
 	return nil
 }
 
-// onUnsubscribeResponse ends the streams an Unsubscribe names: whether they
-// ended now or were not held, the client drops their state.
-func (c *Client) onUnsubscribeResponse(m *subscribeResponseMsg, resp *SubscribeResponse) {
-	var ended []Topic
-	for i, r := range m.results {
-		topic := Topic{SymbolID: r.symbolID, Stream: Stream(r.stream)}
-		result := SubscribeResult(r.result)
-		resp.Results[i] = TopicResult{Topic: topic, Result: result}
-		if result == SubscribeOK || result == SubscribeNotSubscribed {
-			ended = append(ended, topic)
+// apply records the answer to a topic's current request on its owner and
+// its state. c.mu and c.state must be held.
+//
+// An Unsubscribe answered OK or NOT_SUBSCRIBED leaves the topic not held;
+// answered otherwise for a held topic, the server's state is unknown and the
+// connection ends, reconnecting every stream. A Subscribe answered OK made a
+// new subscription, whose snapshot or baseline the topic waits for;
+// ALREADY_SUBSCRIBED keeps the one held. A depth stream held without a
+// snapshot of its subscription, whose snapshot followed the answer to a
+// superseded request, recovers as after a gap. A refused Subscribe ends the
+// topic: it is not resubscribed. State is kept only for topics the caller
+// wants.
+func (c *Client) apply(o *owner, r TopicResult, unsubscribe bool) error {
+	t := r.Topic
+	want := c.wantSet[t]
+	if unsubscribe {
+		if r.Result != SubscribeOK && r.Result != SubscribeNotSubscribed && o.held {
+			return &UnsubscribeError{Topic: t, Result: r.Result}
+		}
+		o.held, o.recovering = false, false
+		delete(c.active, t)
+		if !want {
+			c.dropTopicLocked(t)
+		} else if b := c.books[t]; b != nil {
+			b.synced, b.current = false, false
+		}
+		return nil
+	}
+	if !r.Result.Subscribed() {
+		o.held, o.recovering = false, false
+		c.unwant(t)
+		c.dropTopicLocked(t)
+		return nil
+	}
+	fresh := r.Result == SubscribeOK
+	o.held = true
+	if fresh {
+		o.recovering = false
+	}
+	if !want {
+		// Held again by a request the caller has since withdrawn: reconcile
+		// ends it.
+		delete(c.active, t)
+		return nil
+	}
+	c.active[t] = true
+	switch t.Stream {
+	case StreamTrades:
+		if c.trackers[t.SymbolID] == nil {
+			c.trackers[t.SymbolID] = &tradeTracker{symbolID: t.SymbolID}
+		}
+	case StreamDepth20, StreamDepth:
+		b := c.books[t]
+		if b == nil {
+			b = &book{stream: t.Stream}
+			c.books[t] = b
+		}
+		switch {
+		case fresh:
+			b.synced, b.current, b.recovering = false, false, false
+		case t.Stream == StreamDepth && !b.current && !o.recovering:
+			o.recovering, b.recovering, b.synced = true, true, false
 		}
 	}
-	c.dropTopics(ended)
-	c.answer(m.requestID, resp)
+	return nil
 }
 
 // answer delivers a response as an event and to the request waiting for it.
@@ -425,7 +385,7 @@ func (c *Client) onDepthSnapshot(m *depthSnapshotMsg) error {
 	topic := Topic{SymbolID: m.symbolID, Stream: Stream(m.stream)}
 	c.state.Lock()
 	b := c.books[topic]
-	if b == nil || !c.active[topic] || b.recovery == recoveryUnsubscribing || b.recovery == recoverySubscribing {
+	if b == nil || !c.active[topic] || b.recovering {
 		// While the stream recovers, only the new subscription's snapshot
 		// counts.
 		c.state.Unlock()
@@ -433,7 +393,7 @@ func (c *Client) onDepthSnapshot(m *depthSnapshotMsg) error {
 	}
 	changed, err := b.snapshot(m)
 	if err == nil {
-		b.recovery = recoveryNone
+		b.current = true
 	}
 	c.state.Unlock()
 	if err != nil {
@@ -460,7 +420,7 @@ func (c *Client) onDepthUpdate(m *depthUpdateMsg) error {
 	topic := Topic{SymbolID: m.symbolID, Stream: StreamDepth}
 	c.state.Lock()
 	b := c.books[topic]
-	if b == nil || !c.active[topic] || b.recovery != recoveryNone {
+	if b == nil || !c.active[topic] || b.recovering {
 		c.state.Unlock()
 		return nil
 	}
@@ -487,12 +447,15 @@ func (c *Client) onDepthUpdate(m *depthUpdateMsg) error {
 	return nil
 }
 
-// BookGapError reports a depth stream whose recovery after a gap could not
-// go on: the server answered its Unsubscribe with neither OK nor
-// NOT_SUBSCRIBED. The client reconnects, and every stream is resubscribed.
-type BookGapError struct {
-	SymbolID uint32
-	Msg      string
+// UnsubscribeError reports an Unsubscribe of a held stream that the server
+// answered with neither OK nor NOT_SUBSCRIBED: whether the connection still
+// holds the stream is unknown, so the client reconnects, and every stream is
+// resubscribed.
+type UnsubscribeError struct {
+	Topic  Topic
+	Result SubscribeResult
 }
 
-func (e *BookGapError) Error() string { return "market stream depth book gap: " + e.Msg }
+func (e *UnsubscribeError) Error() string {
+	return "market stream unsubscribe of " + e.Topic.String() + " answered " + e.Result.String()
+}

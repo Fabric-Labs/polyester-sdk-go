@@ -107,13 +107,19 @@ type Client struct {
 	// reconnect starts from the shortest backoff.
 	healthy atomic.Bool
 
-	mu      sync.Mutex
-	err     error
-	closed  bool
-	conn    *websocket.Conn
+	mu     sync.Mutex
+	err    error
+	closed bool
+	conn   *websocket.Conn
+	// writeMu serializes writes; a request is given its ID and put on the
+	// wire under it, so the server receives requests in ID order.
 	writeMu sync.Mutex
-	// wanted are the topics to hold, in the order first asked; each is
-	// resubscribed on reconnect until the server refuses it.
+	// wire, when set, receives every frame instead of a connection: a test
+	// seam for driving the client without one.
+	wire func([]byte) error
+	// wanted are the topics the caller wants held, in the order first asked:
+	// the intent every topic's owner moves the server toward. A topic leaves
+	// it when the caller unsubscribes or the server refuses it.
 	wanted  []Topic
 	wantSet map[Topic]bool
 	waiting map[uint64]chan subscribeOutcome
@@ -122,7 +128,9 @@ type Client struct {
 	// to it by ID alone; a caller that stops waiting leaves it in place, as
 	// the server acts on the request regardless.
 	sent map[uint64]sentRequest
-	ping struct {
+	// owners hold each topic's subscription on the current connection.
+	owners map[Topic]*owner
+	ping   struct {
 		id   uint64
 		sent time.Time
 	}
@@ -176,8 +184,8 @@ func Dial(ctx context.Context, cfg Config) (*Client, error) {
 	}
 	// Subscribe may run as soon as Dial returns: the connection is the
 	// client's before then.
-	wanted, _ := c.attach(conn)
-	go c.run(conn, wanted)
+	c.attach(conn)
+	go c.run(conn)
 	return c, nil
 }
 
@@ -193,6 +201,7 @@ func newClient(cfg Config) *Client {
 		wantSet:  map[Topic]bool{},
 		waiting:  map[uint64]chan subscribeOutcome{},
 		sent:     map[uint64]sentRequest{},
+		owners:   map[Topic]*owner{},
 		books:    map[Topic]*book{},
 		quotes:   map[uint32]*BestBidOffer{},
 		feeds:    map[uint32]FeedState{},
@@ -260,10 +269,9 @@ func (c *Client) Subscribe(ctx context.Context, topics ...Topic) ([]TopicResult,
 // request sends one Subscribe and waits for its response.
 // Unsubscribe ends subscriptions and returns one result per topic, in order:
 // SubscribeOK when the stream ended, SubscribeNotSubscribed when the
-// connection did not hold it. The topics are not resubscribed on reconnect
-// from the moment the request is sent, and their books, quotes and trade
-// accounting are dropped once the server answers, so subscribing again
-// starts afresh.
+// connection did not hold it. From the moment the request is sent, the
+// topics are not resubscribed on reconnect and their books, quotes and trade
+// accounting are dropped, so subscribing again starts afresh.
 func (c *Client) Unsubscribe(ctx context.Context, topics ...Topic) ([]TopicResult, error) {
 	if len(topics) == 0 {
 		return nil, &sdkerrors.ValidationError{Msg: "market stream Unsubscribe needs at least one topic"}
@@ -316,50 +324,17 @@ func (c *Client) UnsubscribeSymbol(ctx context.Context, symbolID uint32) ([]Topi
 
 // request sends one Subscribe, or Unsubscribe, and waits for its response.
 func (c *Client) request(ctx context.Context, topics []Topic, unsubscribe bool) (*SubscribeResponse, error) {
-	id := c.ids.Add(1)
-	reply := make(chan subscribeOutcome, 1)
-	c.mu.Lock()
-	if c.closed || c.err != nil {
-		c.mu.Unlock()
-		return nil, ErrClosed
+	id, reply, err := c.issue(topics, unsubscribe)
+	if id != 0 {
+		defer func() {
+			// Only the wait ends here; the record stays.
+			c.mu.Lock()
+			delete(c.waiting, id)
+			c.mu.Unlock()
+		}()
 	}
-	for _, t := range topics {
-		if unsubscribe {
-			c.unwant(t)
-		} else if !c.wantSet[t] {
-			c.wantSet[t] = true
-			c.wanted = append(c.wanted, t)
-		}
-	}
-	conn := c.conn
-	if conn != nil {
-		// Recorded before it is sent and kept until the response or the end
-		// of the connection, whether or not the caller keeps waiting.
-		c.waiting[id] = reply
-		c.sent[id] = sentRequest{unsubscribe: unsubscribe, topics: append([]Topic(nil), topics...)}
-	}
-	c.mu.Unlock()
-	defer func() {
-		// Only the wait ends here; the record stays.
-		c.mu.Lock()
-		delete(c.waiting, id)
-		c.mu.Unlock()
-	}()
-	verb, frame := "subscribe", encodeSubscribe
-	if unsubscribe {
-		verb, frame = "unsubscribe", encodeUnsubscribe
-	}
-	if conn == nil {
-		if unsubscribe {
-			// No connection holds the topics; they are not resubscribed.
-			c.dropTopics(topics)
-		}
-		// Between connections: the next connection subscribes what is wanted
-		// then, which these topics are, or no longer are.
-		return nil, &sdkerrors.RealtimeError{Msg: "market stream is reconnecting; the " + verb + " applies once it is connected"}
-	}
-	if err := c.write(conn, frame(id, topics)); err != nil {
-		return nil, &sdkerrors.RealtimeError{Msg: "market stream " + verb + ": " + err.Error() + "; it applies once the client reconnects"}
+	if err != nil {
+		return nil, err
 	}
 	select {
 	case out := <-reply:
@@ -369,6 +344,58 @@ func (c *Client) request(ctx context.Context, topics []Topic, unsubscribe bool) 
 	case <-c.done:
 		return nil, ErrClosed
 	}
+}
+
+// issue records the caller's intent for topics and sends the request that
+// moves the server toward it, through the topics' owners: the request
+// becomes each topic's generation, so any answer to an earlier request of
+// those topics is superseded. The response arrives on reply.
+func (c *Client) issue(topics []Topic, unsubscribe bool) (id uint64, reply chan subscribeOutcome, err error) {
+	verb := "subscribe"
+	if unsubscribe {
+		verb = "unsubscribe"
+	}
+	reply = make(chan subscribeOutcome, 1)
+	offline := false
+	err = c.transmit(func() ([][]byte, error) {
+		if c.closed || c.err != nil {
+			return nil, ErrClosed
+		}
+		for _, t := range topics {
+			if unsubscribe {
+				// The caller ended the topic: its state goes now, and a new
+				// subscription starts afresh.
+				c.unwant(t)
+				c.state.Lock()
+				c.dropTopicLocked(t)
+				c.state.Unlock()
+			} else if !c.wantSet[t] {
+				c.wantSet[t] = true
+				c.wanted = append(c.wanted, t)
+			}
+		}
+		if !c.connected() {
+			offline = true
+			return nil, nil
+		}
+		var frame []byte
+		id, frame = c.record(unsubscribe, topics)
+		// Kept until the response or the end of the connection, whether or
+		// not the caller keeps waiting.
+		c.waiting[id] = reply
+		return [][]byte{frame}, nil
+	})
+	switch {
+	case errors.Is(err, ErrClosed):
+		return 0, nil, err
+	case offline:
+		// Between connections: the next connection subscribes what is wanted
+		// then, which these topics are, or no longer are.
+		return 0, nil, &sdkerrors.RealtimeError{Msg: "market stream is reconnecting; the " + verb + " applies once it is connected"}
+	case err != nil:
+		return id, nil, &sdkerrors.RealtimeError{Msg: "market stream " + verb + ": " + err.Error() + "; it applies once the client reconnects"}
+	}
+	return id, reply, nil
 }
 
 // OrderBook returns a copy of a pair's depth20 or depth book, up to levels
@@ -478,7 +505,7 @@ func (c *Client) write(conn *websocket.Conn, frame []byte) error {
 }
 
 // run serves connections until the client stops.
-func (c *Client) run(conn *websocket.Conn, wanted []Topic) {
+func (c *Client) run(conn *websocket.Conn) {
 	defer close(c.done)
 	defer func() {
 		c.backfills.Wait()
@@ -493,7 +520,7 @@ func (c *Client) run(conn *websocket.Conn, wanted []Topic) {
 	var delay backoff
 	reconnect := false
 	for {
-		err := c.session(conn, wanted, reconnect)
+		err := c.session(conn, reconnect)
 		if c.ctx.Err() != nil {
 			return
 		}
@@ -520,8 +547,7 @@ func (c *Client) run(conn *websocket.Conn, wanted []Topic) {
 			}
 			conn, err = c.dial(c.ctx)
 			if err == nil {
-				var ok bool
-				if wanted, ok = c.attach(conn); !ok {
+				if !c.attach(conn) {
 					return
 				}
 				break
@@ -537,47 +563,153 @@ func (c *Client) run(conn *websocket.Conn, wanted []Topic) {
 // sentRequest is a Subscribe or Unsubscribe sent on the current connection.
 type sentRequest struct {
 	unsubscribe bool
-	// recovery marks the client's own Unsubscribe and Subscribe of a depth
-	// stream recovering from a gap.
-	recovery bool
-	topics   []Topic
+	topics      []Topic
 }
 
-// send records and sends a request no caller waits for. Without a
-// connection it is only recorded; the connection's end drops the record.
-func (c *Client) send(req sentRequest) {
+// owner holds one topic's subscription on the current connection. Every
+// request for the topic, the caller's, a resubscription and a recovery's,
+// goes through it: the request it sent last is its generation, and only the
+// answer to that request is applied. With no request outstanding, the owner
+// moves the server toward the caller's intent (reconcile).
+type owner struct {
+	// gen is the ID of the request whose answer the owner awaits; 0 when
+	// none is outstanding.
+	gen uint64
+	// held: the server holds the topic, as of the last answer applied.
+	held bool
+	// recovering: the held subscription had a gap and must be ended and
+	// made again.
+	recovering bool
+}
+
+// ownerOf is a topic's owner, made on first use. c.mu must be held.
+func (c *Client) ownerOf(topic Topic) *owner {
+	o := c.owners[topic]
+	if o == nil {
+		o = &owner{}
+		c.owners[topic] = o
+	}
+	return o
+}
+
+// connected reports whether requests can be sent. c.mu must be held.
+func (c *Client) connected() bool { return c.conn != nil || c.wire != nil }
+
+// record gives a request the next ID, records it and makes it its topics'
+// generation, returning its frame. c.writeMu and c.mu must be held, and the
+// frame written before c.writeMu is released.
+func (c *Client) record(unsubscribe bool, topics []Topic) (uint64, []byte) {
 	id := c.ids.Add(1)
-	frame := encodeSubscribe
-	if req.unsubscribe {
-		frame = encodeUnsubscribe
+	c.sent[id] = sentRequest{unsubscribe: unsubscribe, topics: append([]Topic(nil), topics...)}
+	for _, t := range topics {
+		c.ownerOf(t).gen = id
 	}
-	c.mu.Lock()
-	c.sent[id] = req
-	conn := c.conn
-	c.mu.Unlock()
-	if conn != nil {
-		// A failed write ends the connection, which reconnects everything.
-		_ = c.write(conn, frame(id, req.topics))
+	if unsubscribe {
+		return id, encodeUnsubscribe(id, topics)
 	}
+	return id, encodeSubscribe(id, topics)
 }
 
-// startRecovery begins a depth stream's recovery after a gap: the stream
-// alone is unsubscribed, then subscribed again, and the new subscription's
-// snapshot replaces its book. Every other stream is untouched. A gap while
-// the stream recovers starts nothing more. c.state must not be held.
+// transmit is the one path requests take to the wire. build runs under
+// c.writeMu and c.mu and records the requests to send; their frames are
+// written before c.writeMu is released, so the server receives requests in
+// the order of their IDs, the order their owners recorded them. A failed
+// write closes the connection, which then reconnects every stream.
+func (c *Client) transmit(build func() ([][]byte, error)) error {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+	c.mu.Lock()
+	frames, err := build()
+	conn, wire := c.conn, c.wire
+	c.mu.Unlock()
+	if err != nil {
+		return err
+	}
+	for _, frame := range frames {
+		if wire != nil {
+			err = wire(frame)
+		} else {
+			_ = conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			err = conn.WriteMessage(websocket.BinaryMessage, frame)
+		}
+		if err != nil {
+			if conn != nil {
+				_ = conn.Close()
+			}
+			return err
+		}
+	}
+	return nil
+}
+
+// reconcile moves the server toward the caller's intent for each topic
+// pick returns (pick runs under c.mu) whose owner awaits no answer: a wanted
+// topic not held is subscribed; a held topic no longer wanted, or one
+// recovering from a gap, is unsubscribed. A topic whose owner awaits an
+// answer is reconciled when that answer is applied.
+func (c *Client) reconcile(pick func() []Topic) error {
+	return c.transmit(func() ([][]byte, error) {
+		if c.closed || !c.connected() {
+			return nil, nil
+		}
+		var subs, unsubs []Topic
+		for _, t := range pick() {
+			o := c.owners[t]
+			var held, recovering bool
+			if o != nil {
+				if o.gen != 0 {
+					continue
+				}
+				held, recovering = o.held, o.recovering
+			}
+			want := c.wantSet[t]
+			switch {
+			case held && (!want || recovering):
+				unsubs = append(unsubs, t)
+			case want && !held:
+				subs = append(subs, t)
+			}
+		}
+		var frames [][]byte
+		for _, req := range []struct {
+			unsubscribe bool
+			topics      []Topic
+		}{{true, unsubs}, {false, subs}} {
+			for start := 0; start < len(req.topics); start += maxSubscribeItems {
+				_, frame := c.record(req.unsubscribe, req.topics[start:min(start+maxSubscribeItems, len(req.topics))])
+				frames = append(frames, frame)
+			}
+		}
+		return frames, nil
+	})
+}
+
+// reconcileTopics reconciles the given topics.
+func (c *Client) reconcileTopics(topics ...Topic) error {
+	return c.reconcile(func() []Topic { return topics })
+}
+
+// startRecovery begins a depth stream's recovery after a gap: its book goes
+// stale and drops what arrives until a new subscription is made, and its
+// owner ends the subscription and makes it again, through the same path as
+// every request of the topic. Every other stream is untouched. A gap while
+// the stream recovers starts nothing more.
 func (c *Client) startRecovery(topic Topic) {
+	c.mu.Lock()
 	c.state.Lock()
 	b := c.books[topic]
-	start := b != nil && c.active[topic] && b.recovery == recoveryNone
+	o := c.owners[topic]
 	if b != nil {
 		b.synced = false
 	}
+	start := b != nil && o != nil && o.held && c.wantSet[topic] && !o.recovering && !b.recovering
 	if start {
-		b.recovery = recoveryUnsubscribing
+		o.recovering, b.recovering = true, true
 	}
 	c.state.Unlock()
+	c.mu.Unlock()
 	if start {
-		c.send(sentRequest{unsubscribe: true, recovery: true, topics: []Topic{topic}})
+		_ = c.reconcileTopics(topic)
 	}
 }
 
@@ -587,45 +719,64 @@ func (c *Client) dropTopics(topics []Topic) {
 	c.state.Lock()
 	defer c.state.Unlock()
 	for _, topic := range topics {
-		delete(c.active, topic)
-		switch topic.Stream {
-		case StreamTrades:
-			delete(c.trackers, topic.SymbolID)
-		case StreamBBO:
-			delete(c.quotes, topic.SymbolID)
-		case StreamDepth20, StreamDepth:
-			delete(c.books, topic)
-		}
-		held := false
-		for _, s := range []Stream{StreamTrades, StreamBBO, StreamDepth20, StreamDepth} {
-			held = held || c.active[Topic{SymbolID: topic.SymbolID, Stream: s}]
-		}
-		if !held {
-			delete(c.feeds, topic.SymbolID)
-		}
+		c.dropTopicLocked(topic)
+	}
+}
+
+// dropTopicLocked is dropTopics of one topic. c.state must be held.
+func (c *Client) dropTopicLocked(topic Topic) {
+	delete(c.active, topic)
+	switch topic.Stream {
+	case StreamTrades:
+		delete(c.trackers, topic.SymbolID)
+	case StreamBBO:
+		delete(c.quotes, topic.SymbolID)
+	case StreamDepth20, StreamDepth:
+		delete(c.books, topic)
+	}
+	held := false
+	for _, s := range []Stream{StreamTrades, StreamBBO, StreamDepth20, StreamDepth} {
+		held = held || c.active[Topic{SymbolID: topic.SymbolID, Stream: s}]
+	}
+	if !held {
+		delete(c.feeds, topic.SymbolID)
 	}
 }
 
 // lose marks everything a lost connection fed as stale, before the client
 // reports the loss: books wait for a new snapshot, quotes for a new quote and
-// trades for a new baseline. Unsubscribes the connection never answered are
-// done: their topics are no longer wanted.
+// trades for a new baseline. The connection's requests and owners end with
+// it; state of topics no longer wanted, those of an Unsubscribe it never
+// answered included, is dropped.
 func (c *Client) lose() {
 	c.mu.Lock()
+	clear(c.sent)
+	clear(c.owners)
 	var ended []Topic
-	for id, r := range c.sent {
-		if r.unsubscribe {
-			ended = append(ended, r.topics...)
+	c.state.RLock()
+	for t := range c.books {
+		if !c.wantSet[t] {
+			ended = append(ended, t)
 		}
-		delete(c.sent, id)
 	}
+	for symbol := range c.trackers {
+		if t := (Topic{SymbolID: symbol, Stream: StreamTrades}); !c.wantSet[t] {
+			ended = append(ended, t)
+		}
+	}
+	for symbol := range c.quotes {
+		if t := (Topic{SymbolID: symbol, Stream: StreamBBO}); !c.wantSet[t] {
+			ended = append(ended, t)
+		}
+	}
+	c.state.RUnlock()
 	c.mu.Unlock()
 	c.dropTopics(ended)
 	c.state.Lock()
 	clear(c.active)
 	clear(c.feeds)
 	for _, b := range c.books {
-		b.synced, b.recovery = false, recoveryNone
+		b.synced, b.current, b.recovering = false, false, false
 	}
 	for _, q := range c.quotes {
 		q.Stale = true
@@ -636,29 +787,33 @@ func (c *Client) lose() {
 	c.state.Unlock()
 }
 
-// attach makes conn the client's connection and returns the topics to
-// subscribe on it, atomically: a Subscribe either adds its topics before, and
-// they are subscribed with these, or sends them on conn itself. False when
-// the client is closed.
-func (c *Client) attach(conn *websocket.Conn) ([]Topic, bool) {
+// attach makes conn the client's connection; false when the client is
+// closed. The session subscribes what is wanted then, and a Subscribe after
+// this sends its topics on conn itself: each topic is sent once, by
+// whichever its owner records first.
+func (c *Client) attach(conn *websocket.Conn) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closed {
 		_ = conn.Close()
-		return nil, false
+		return false
 	}
 	c.conn = conn
 	c.ping.id = 0
-	return append([]Topic(nil), c.wanted...), true
+	return true
 }
 
 // session serves one attached connection until it fails.
-func (c *Client) session(conn *websocket.Conn, wanted []Topic, reconnect bool) error {
+func (c *Client) session(conn *websocket.Conn, reconnect bool) error {
 	defer func() {
 		_ = conn.Close()
-		c.lose()
+		// Detached first: a request from here on waits for the next
+		// connection, so none is recorded against owners lose clears.
 		c.mu.Lock()
 		c.conn = nil
+		c.mu.Unlock()
+		c.lose()
+		c.mu.Lock()
 		for id, w := range c.waiting {
 			w <- subscribeOutcome{err: &sdkerrors.RealtimeError{Msg: "market stream connection lost before the subscribe response; the topics are subscribed once it reconnects"}}
 			delete(c.waiting, id)
@@ -687,15 +842,9 @@ func (c *Client) session(conn *websocket.Conn, wanted []Topic, reconnect bool) e
 	if !c.emit(&Connected{Reconnect: reconnect}) {
 		return nil
 	}
-	for start := 0; start < len(wanted); start += maxSubscribeItems {
-		chunk := wanted[start:min(start+maxSubscribeItems, len(wanted))]
-		id := c.ids.Add(1)
-		c.mu.Lock()
-		c.sent[id] = sentRequest{topics: append([]Topic(nil), chunk...)}
-		c.mu.Unlock()
-		if err := c.write(conn, encodeSubscribe(id, chunk)); err != nil {
-			return &sdkerrors.RealtimeError{Msg: "market stream resubscribe: " + err.Error()}
-		}
+	// Every wanted topic no request is outstanding for is subscribed.
+	if err := c.reconcile(func() []Topic { return append([]Topic(nil), c.wanted...) }); err != nil {
+		return &sdkerrors.RealtimeError{Msg: "market stream resubscribe: " + err.Error()}
 	}
 	for {
 		// The heartbeat detects a dead connection; the deadline only backs
