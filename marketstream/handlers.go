@@ -42,10 +42,14 @@ func (c *Client) handle(frame []byte) error {
 }
 
 // onSubscribeResponse applies the answer to a Subscribe or Unsubscribe.
-// Each topic's result is applied only if the request is still the topic's
-// generation: an answer to a request a later one superseded is delivered,
-// never applied. Each topic answered is then reconciled with the caller's
-// intent.
+// Every answer to a request of this connection updates what the server
+// holds, as the server answers in the order it acts: OK or
+// ALREADY_SUBSCRIBED to a Subscribe means held, OK or NOT_SUBSCRIBED to an
+// Unsubscribe means not held, and any other answer changes nothing. Only
+// the answer to the topic's current generation is applied to the caller's
+// view, its state and intent; one to a request a later one superseded is
+// delivered, never applied. Each topic answered is then reconciled with the
+// caller's intent.
 func (c *Client) onSubscribeResponse(m *subscribeResponseMsg) error {
 	resp := &SubscribeResponse{RequestID: m.requestID, Results: make([]TopicResult, len(m.results))}
 	for i, r := range m.results {
@@ -60,7 +64,11 @@ func (c *Client) onSubscribeResponse(m *subscribeResponseMsg) error {
 		c.state.Lock()
 		for _, r := range resp.Results {
 			o := c.owners[r.Topic]
-			if o == nil || o.gen != m.requestID || !r.Topic.Stream.known() {
+			if o == nil || !r.Topic.Stream.known() {
+				continue
+			}
+			c.observe(o, r, req.unsubscribe)
+			if o.gen != m.requestID {
 				continue
 			}
 			o.gen = 0
@@ -92,31 +100,55 @@ func (c *Client) onSubscribeResponse(m *subscribeResponseMsg) error {
 	return nil
 }
 
-// apply records the answer to a topic's current request on its owner and
-// its state. c.mu and c.state must be held.
+// observe records what an answer says the server did to a topic's
+// subscription, whether or not the answer is applied: an Unsubscribe
+// answered OK or NOT_SUBSCRIBED ended it, a Subscribe answered OK made a new
+// one, whose initial state is still to come, and ALREADY_SUBSCRIBED kept the
+// one held. Any other answer changed nothing. c.mu and c.state must be held.
+func (c *Client) observe(o *owner, r TopicResult, unsubscribe bool) {
+	t := r.Topic
+	switch {
+	case unsubscribe && (r.Result == SubscribeOK || r.Result == SubscribeNotSubscribed):
+		o.held, o.recovering = false, false
+		delete(c.initial, t)
+	case !unsubscribe && r.Result == SubscribeOK:
+		o.held, o.recovering = true, false
+		delete(c.initial, t)
+		if b := c.books[t]; b != nil {
+			b.synced, b.recovering = false, false
+		}
+	case !unsubscribe && r.Result == SubscribeAlreadySubscribed:
+		o.held = true
+	}
+}
+
+// apply records the answer to a topic's current request on the caller's
+// view: its intent and state. c.mu and c.state must be held.
 //
-// An Unsubscribe answered OK or NOT_SUBSCRIBED leaves the topic not held;
-// answered otherwise for a held topic, the server's state is unknown and the
-// connection ends, reconnecting every stream. A Subscribe answered OK made a
-// new subscription, whose snapshot or baseline the topic waits for;
+// observe has already recorded the server's state after the answer. An
+// Unsubscribe answered OK or NOT_SUBSCRIBED ended the topic; refused while
+// the server holds the topic, as when an accepted Subscribe it superseded
+// made it, the stream the caller ended stays held, so the connection ends,
+// reconnecting every stream without it. A Subscribe answered OK made a new
+// subscription, whose snapshot or baseline the topic waits for;
 // ALREADY_SUBSCRIBED keeps the one held. A topic held without the initial
 // state of its subscription, which followed the answer to a superseded
 // request before the topic was held, is ended and subscribed again, as a
-// depth stream after a gap. A refused Subscribe ends the topic: it is not
-// resubscribed. State is kept only for topics the caller wants.
+// depth stream after a gap; its trades meanwhile are dropped. A refused
+// Subscribe ends the topic: it is not resubscribed. State is kept only for
+// topics the caller wants.
 func (c *Client) apply(o *owner, r TopicResult, unsubscribe bool) error {
 	t := r.Topic
 	want := c.wantSet[t]
-	// A Subscribe sent before this request was answered before it.
-	maybeHeld := o.held || o.subscribing
-	o.subscribing = false
 	if unsubscribe {
-		if r.Result != SubscribeOK && r.Result != SubscribeNotSubscribed && maybeHeld {
-			return &UnsubscribeError{Topic: t, Result: r.Result}
+		if r.Result != SubscribeOK && r.Result != SubscribeNotSubscribed {
+			if o.held {
+				return &UnsubscribeError{Topic: t, Result: r.Result}
+			}
+			// Never held: the refusal changes nothing.
+			return nil
 		}
-		o.held, o.recovering = false, false
 		delete(c.active, t)
-		delete(c.initial, t)
 		if !want {
 			c.dropTopicLocked(t)
 		} else if b := c.books[t]; b != nil {
@@ -125,16 +157,11 @@ func (c *Client) apply(o *owner, r TopicResult, unsubscribe bool) error {
 		return nil
 	}
 	if !r.Result.Subscribed() {
-		o.held, o.recovering = false, false
 		c.unwant(t)
 		c.dropTopicLocked(t)
 		return nil
 	}
 	fresh := r.Result == SubscribeOK
-	o.held = true
-	if fresh {
-		o.recovering = false
-	}
 	if !want {
 		// Held again by a request the caller has since withdrawn: reconcile
 		// ends it.
@@ -142,17 +169,19 @@ func (c *Client) apply(o *owner, r TopicResult, unsubscribe bool) error {
 		return nil
 	}
 	c.active[t] = true
-	if fresh {
-		delete(c.initial, t)
-	}
 	missing := !fresh && !c.initial[t] && !o.recovering
 	if missing {
 		o.recovering = true
 	}
 	switch t.Stream {
 	case StreamTrades:
-		if c.trackers[t.SymbolID] == nil {
-			c.trackers[t.SymbolID] = &tradeTracker{symbolID: t.SymbolID}
+		tr := c.trackers[t.SymbolID]
+		if tr == nil {
+			tr = &tradeTracker{symbolID: t.SymbolID}
+			c.trackers[t.SymbolID] = tr
+		}
+		if missing {
+			tr.missed = true
 		}
 	case StreamDepth20, StreamDepth:
 		b := c.books[t]
@@ -160,10 +189,7 @@ func (c *Client) apply(o *owner, r TopicResult, unsubscribe bool) error {
 			b = &book{stream: t.Stream}
 			c.books[t] = b
 		}
-		switch {
-		case fresh:
-			b.synced, b.recovering = false, false
-		case missing:
+		if missing {
 			b.recovering, b.synced = t.Stream == StreamDepth, false
 		}
 	}
@@ -463,10 +489,10 @@ func (c *Client) onDepthUpdate(m *depthUpdateMsg) error {
 }
 
 // UnsubscribeError reports an Unsubscribe that the server answered with
-// neither OK nor NOT_SUBSCRIBED for a stream it held or may hold (a
-// Subscribe of it was unanswered when the Unsubscribe was sent): whether the
-// connection still holds the stream is unknown, so the client reconnects,
-// and every stream is resubscribed.
+// neither OK nor NOT_SUBSCRIBED for a stream it holds, as its answers show,
+// those to superseded requests included: the stream stays held whatever the
+// caller wants, so the client reconnects, and every stream it wants is
+// resubscribed.
 type UnsubscribeError struct {
 	Topic  Topic
 	Result SubscribeResult

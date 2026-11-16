@@ -50,12 +50,24 @@ type simServer struct {
 	quote uint64
 	log   []string
 	// refuse answers the next Unsubscribe of each topic with
-	// LIMIT_EXCEEDED, leaving the subscription in place.
-	refuse map[Topic]bool
+	// LIMIT_EXCEEDED, leaving the subscription in place; refuseSub the
+	// next Subscribe, leaving the topic not held.
+	refuse, refuseSub map[Topic]bool
+	// refused: the last request answered for the topic was a Subscribe
+	// the server refused, which ends the caller's intent for it.
+	refused map[Topic]bool
+	// trade is each pair's last trade ID.
+	trade map[uint32]uint64
+	// connections counts connections after the first.
+	reconnects int
 }
 
 func newSimServer(t *testing.T) *simServer {
-	return &simServer{t: t, held: map[Topic]bool{}, pos: map[uint32]uint64{7: 10, 9: 10}, quote: 1, refuse: map[Topic]bool{}}
+	return &simServer{
+		t: t, held: map[Topic]bool{}, pos: map[uint32]uint64{7: 10, 9: 10}, quote: 1,
+		refuse: map[Topic]bool{}, refuseSub: map[Topic]bool{}, refused: map[Topic]bool{},
+		trade: map[uint32]uint64{7: 100, 9: 100},
+	}
 }
 
 // simClient is an offline client whose requests go to s.
@@ -90,9 +102,14 @@ func (s *simServer) process() {
 	var opened []Topic
 	for _, t := range m.topics {
 		r := SubscribeOK
+		s.refused[t] = false
 		switch {
 		case m.unsubscribe && s.refuse[t]:
 			delete(s.refuse, t)
+			r = SubscribeLimitExceeded
+		case !m.unsubscribe && s.refuseSub[t] && !s.held[t]:
+			delete(s.refuseSub, t)
+			s.refused[t] = true
 			r = SubscribeLimitExceeded
 		case m.unsubscribe && !s.held[t]:
 			r = SubscribeNotSubscribed
@@ -118,8 +135,32 @@ func (s *simServer) process() {
 		case StreamBBO:
 			s.out = append(s.out, s.bbo(t.SymbolID))
 		case StreamTrades:
-			s.out = append(s.out, tradesThroughFrame(t.SymbolID, 1, 100))
+			s.out = append(s.out, tradesThroughFrame(t.SymbolID, 1, s.trade[t.SymbolID]))
 		}
+	}
+}
+
+// trades sends the next trade of a held trades stream.
+func (s *simServer) trades(symbol uint32) {
+	if !s.held[Topic{symbol, StreamTrades}] {
+		return
+	}
+	s.trade[symbol]++
+	s.log = append(s.log, fmt.Sprintf("server trades %d: %d", symbol, s.trade[symbol]))
+	s.out = append(s.out, tradesFrame(symbol, 1, s.trade[symbol], fill(s.trade[symbol])))
+}
+
+// reconnect replaces the connection: the server holds nothing on the new
+// one and what was in flight is gone; the client marks everything stale
+// and subscribes what it wants, as its session does.
+func (s *simServer) reconnect(c *Client) {
+	s.reconnects++
+	s.log = append(s.log, "connection replaced")
+	clear(s.held)
+	s.in, s.out = nil, nil
+	c.lose()
+	if err := c.reconcile(func() []Topic { return append([]Topic(nil), c.wanted...) }); err != nil {
+		s.t.Fatal(err)
 	}
 }
 
@@ -153,7 +194,12 @@ func (s *simServer) deliver(c *Client) {
 	frame := s.out[0]
 	s.out = s.out[1:]
 	if err := c.handle(frame); err != nil {
-		s.t.Fatalf("client refused a frame: %v\n%s", err, strings.Join(s.log, "\n"))
+		var refused *UnsubscribeError
+		if !errors.As(err, &refused) {
+			s.t.Fatalf("client refused a frame: %v\n%s", err, strings.Join(s.log, "\n"))
+		}
+		s.log = append(s.log, fmt.Sprintf("client ends the connection: %v", err))
+		s.reconnect(c)
 	}
 	for len(c.events) > 0 {
 		<-c.events
@@ -351,6 +397,13 @@ func TestAStreamHeldWithoutItsInitialStateIsSubscribedAgain(t *testing.T) {
 			if c.Live(topic) {
 				t.Fatal("live without its initial state")
 			}
+			if topic.Stream == StreamTrades {
+				// A trade of the held subscription, whose baseline was
+				// missed, is no protocol error.
+				s.trades(topic.SymbolID)
+				s.out = append(s.out[len(s.out)-1:], s.out[:len(s.out)-1]...)
+				s.deliver(c)
+			}
 			s.process() // the Unsubscribe
 			s.deliver(c)
 			s.process() // the Subscribe: OK, then the initial state
@@ -405,7 +458,8 @@ func TestARefusedUnsubscribeOfANeverSubscribedTopicChangesNothing(t *testing.T) 
 // Caller requests, answers, depth updates, gaps and stale periods in random
 // orders, seeded and reproducible: at quiescence the server holds exactly
 // what the caller wants, and every wanted stream is live, depth with the
-// server's book. POLYESTER_INTERLEAVE_SEED runs one seed.
+// server's book. POLYESTER_INTERLEAVE_SEED runs one seed,
+// POLYESTER_INTERLEAVE_SEEDS the first n.
 func TestRandomInterleavingsSettleOnTheCallersIntent(t *testing.T) {
 	seeds := make([]uint64, 0, 300)
 	if env := os.Getenv("POLYESTER_INTERLEAVE_SEED"); env != "" {
@@ -415,7 +469,14 @@ func TestRandomInterleavingsSettleOnTheCallersIntent(t *testing.T) {
 		}
 		seeds = append(seeds, seed)
 	} else {
-		for seed := uint64(1); seed <= 300; seed++ {
+		n := uint64(300)
+		if env := os.Getenv("POLYESTER_INTERLEAVE_SEEDS"); env != "" {
+			var err error
+			if n, err = strconv.ParseUint(env, 10, 64); err != nil {
+				t.Fatal(err)
+			}
+		}
+		for seed := uint64(1); seed <= n; seed++ {
 			seeds = append(seeds, seed)
 		}
 	}
@@ -443,15 +504,32 @@ func TestRandomInterleavingsSettleOnTheCallersIntent(t *testing.T) {
 					if len(s.out) > 0 {
 						s.deliver(c)
 					}
-				case n < 88:
+				case n < 82:
 					s.update(symbol, false)
-				case n < 96:
+				case n < 88:
 					s.update(symbol, true)
+				case n < 93:
+					s.trades(symbol)
+				case n < 95:
+					s.log = append(s.log, fmt.Sprintf("server will refuse the next Unsubscribe of %s", topic))
+					s.refuse[topic] = true
+				case n < 97:
+					s.log = append(s.log, fmt.Sprintf("server will refuse the next Subscribe of %s", topic))
+					s.refuseSub[topic] = true
 				default:
 					s.stale(symbol)
 				}
 			}
+			// Refusals not yet used stay out of the settling.
+			clear(s.refuse)
+			clear(s.refuseSub)
 			s.quiesce(c)
+			// A Subscribe the server refused last ends the caller's intent.
+			for t, refused := range s.refused {
+				if refused {
+					delete(intent, t)
+				}
+			}
 			s.settled(c, intent)
 			if !slices.ContainsFunc(s.log, func(l string) bool { return strings.HasPrefix(l, "server answers") }) {
 				t.Fatal("the run exchanged no requests")

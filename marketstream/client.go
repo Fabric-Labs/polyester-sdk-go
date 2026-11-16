@@ -580,14 +580,12 @@ type owner struct {
 	// gen is the ID of the request whose answer the owner awaits; 0 when
 	// none is outstanding.
 	gen uint64
-	// held: the server holds the topic, as of the last answer applied.
+	// held: the server holds the topic, as of the last answer received,
+	// whether or not it was applied.
 	held bool
 	// recovering: the held subscription had a gap, or misses its initial
 	// state, and must be ended and made again.
 	recovering bool
-	// subscribing: a Subscribe was sent since the last answer applied, so
-	// the server may hold the topic whatever held says.
-	subscribing bool
 }
 
 // ownerOf is a topic's owner, made on first use. c.mu must be held.
@@ -610,9 +608,7 @@ func (c *Client) record(unsubscribe bool, topics []Topic) (uint64, []byte) {
 	id := c.ids.Add(1)
 	c.sent[id] = sentRequest{unsubscribe: unsubscribe, topics: append([]Topic(nil), topics...)}
 	for _, t := range topics {
-		o := c.ownerOf(t)
-		o.gen = id
-		o.subscribing = o.subscribing || !unsubscribe
+		c.ownerOf(t).gen = id
 	}
 	if unsubscribe {
 		return id, encodeUnsubscribe(id, topics)

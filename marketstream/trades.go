@@ -35,6 +35,10 @@ type tradeTracker struct {
 	symbolID uint32
 	// started is set by the current subscription's baseline TradesThrough.
 	started bool
+	// missed: the held subscription's baseline arrived before the stream was
+	// held, so its trades and skipped ranges are dropped until the next
+	// baseline, which the stream's resubscription brings.
+	missed bool
 	// known is set once any subscription had a baseline.
 	known bool
 	epoch uint64
@@ -45,7 +49,7 @@ type tradeTracker struct {
 }
 
 // restart forgets the subscription, keeping what was accounted for.
-func (t *tradeTracker) restart() { t.started = false }
+func (t *tradeTracker) restart() { t.started, t.missed = false, false }
 
 func (t *tradeTracker) gap(after, through, tail uint64, cause GapCause) *TradesGap {
 	return &TradesGap{SymbolID: t.symbolID, AfterTradeID: after, ThroughTradeID: through, TailEpoch: tail, Cause: cause}
@@ -123,6 +127,9 @@ func (t *tradeTracker) through(m *tradesThroughMsg) ([]*TradesGap, error) {
 // skipped applies a TradesSkipped.
 func (t *tradeTracker) skipped(m *tradesSkippedMsg) ([]*TradesGap, error) {
 	if !t.started {
+		if t.missed {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("trades skipped before the subscription's baseline")
 	}
 	if !inEpoch(m.first, m.epoch) || (m.last != 0 && (!inEpoch(m.last, m.epoch) || m.last < m.first)) {
@@ -160,6 +167,9 @@ func (t *tradeTracker) skipped(m *tradesSkippedMsg) ([]*TradesGap, error) {
 // for, and the gaps before them.
 func (t *tradeTracker) trades(m *tradesMsg) ([]fillMsg, []*TradesGap, error) {
 	if !t.started {
+		if t.missed {
+			return nil, nil, nil
+		}
 		return nil, nil, fmt.Errorf("trades before the subscription's baseline")
 	}
 	if len(m.fills) == 0 {
