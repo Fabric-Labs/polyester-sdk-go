@@ -175,12 +175,15 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		// The contract never uses these, and they say nothing a 401 or 403
 		// doesn't already say better.
 		if !hasServiceDetail && (resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden) {
+			code := connectCodeForStatus(resp.StatusCode)
+			mapped := wire.MapConnectError(connect.NewError(code, errors.New(firstNonEmpty(detail.Message, statusLine(resp.StatusCode)))))
+			sdkerrors.AttachAnswer(mapped, resp.StatusCode, wire.RetryAfterHeaderSeconds(resp.Header))
 			_ = resp.Body.Close()
-			return nil, connect.NewError(connectCodeForStatus(resp.StatusCode), errors.New(firstNonEmpty(detail.Message, statusLine(resp.StatusCode))))
+			return nil, connect.NewError(code, mapped)
 		}
-		return resp, nil
+		return passToConnect(resp, isJSON, decoded)
 	case "invalid_argument", "deadline_exceeded", "not_found", "already_exists", "permission_denied", "resource_exhausted", "failed_precondition", "aborted", "out_of_range", "unimplemented", "internal", "unavailable", "unauthenticated":
-		return resp, nil
+		return passToConnect(resp, isJSON, decoded)
 	}
 	recognised := wire.IsRecognisedRESTCode(detail.Code)
 	msg := detail.Detail
@@ -294,7 +297,7 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		mapped = &sdkerrors.APIError{Msg: msg, Code: code}
 	default:
 		if hasServiceDetail || leftToConnect(resp.StatusCode, isJSON, len(decoded), detail.Message) {
-			return resp, nil
+			return passToConnect(resp, isJSON, decoded)
 		}
 		// A gateway or an edge can send any of these, so none proves that a
 		// mutation was refused. The code is kept for diagnosis only.
@@ -322,11 +325,72 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	return nil, failedAnswer(resp, mapped)
 }
 
+// passToConnect hands a failed answer to connect-go, which decodes a
+// ConnectRPC error body and keeps the answer's headers on the error. A body
+// it cannot decode (not JSON, malformed, or with a code it can't read) it
+// reports by status alone and without the answer's headers, so the SDK reads
+// that one here, exactly as connect-go would, with the answer attached.
+func passToConnect(resp *http.Response, isJSON bool, decoded []byte) (*http.Response, error) {
+	if connectWillDecode(isJSON, decoded) {
+		return resp, nil
+	}
+	code := connectCodeForUndecodable(resp.StatusCode)
+	mapped := wire.MapConnectError(connect.NewError(code, errors.New(resp.Status)))
+	sdkerrors.AttachAnswer(mapped, resp.StatusCode, wire.RetryAfterHeaderSeconds(resp.Header))
+	_ = resp.Body.Close()
+	// The same code connect-go reports, so retries choose as before.
+	return nil, connect.NewError(code, mapped)
+}
+
+// connectWillDecode reports whether connect-go reads body as a ConnectRPC
+// error: JSON with a code it knows, a string message and well-formed details.
+func connectWillDecode(isJSON bool, decoded []byte) bool {
+	if !isJSON {
+		return false
+	}
+	var wireErr struct {
+		Code    *connect.Code `json:"code"`
+		Message *string       `json:"message"`
+		Details []struct {
+			Type  string          `json:"type"`
+			Value string          `json:"value"`
+			Debug json.RawMessage `json:"debug"`
+		} `json:"details"`
+	}
+	if json.Unmarshal(decoded, &wireErr) != nil {
+		return false
+	}
+	for _, item := range wireErr.Details {
+		if _, err := base64.RawStdEncoding.DecodeString(strings.TrimRight(item.Value, "=")); err != nil {
+			return false
+		}
+	}
+	return true
+}
+
+// connectCodeForUndecodable is connect-go's code for an answer it cannot
+// decode, by HTTP status.
+func connectCodeForUndecodable(status int) connect.Code {
+	switch status {
+	case 400:
+		return connect.CodeInternal
+	case 401:
+		return connect.CodeUnauthenticated
+	case 403:
+		return connect.CodePermissionDenied
+	case 404:
+		return connect.CodeUnimplemented
+	case 429, 502, 503, 504:
+		return connect.CodeUnavailable
+	}
+	return connect.CodeUnknown
+}
+
 // failedAnswer closes a failed answer the SDK mapped itself and hands mapped
 // to connect-go, with the delay the answer's Retry-After asked for: the one
 // place a REST answer's delay is captured.
 func failedAnswer(resp *http.Response, mapped error) error {
-	sdkerrors.AttachRetryAfter(mapped, wire.RetryAfterHeaderSeconds(resp.Header))
+	sdkerrors.AttachAnswer(mapped, resp.StatusCode, wire.RetryAfterHeaderSeconds(resp.Header))
 	_ = resp.Body.Close()
 	return roundTripError(mapped, resp.StatusCode)
 }

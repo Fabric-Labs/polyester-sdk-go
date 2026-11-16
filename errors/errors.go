@@ -330,6 +330,9 @@ type FieldViolation struct {
 // checks; Metadata carries the same violations as violation.N.field_path,
 // violation.N.rule_id and violation.N.message.
 type ValidationError struct {
+	// Status is the HTTP status of the answer behind the error; 0 when
+	// there was no answer. See errors.AnswerStatus.
+	Status int
 	// RetryAfter is the delay in seconds the answer asked for with
 	// Retry-After (or Retry-After-Ms); nil when it named none. See
 	// errors.RetryAfter.
@@ -408,6 +411,13 @@ func ViolationMetadata(violations []FieldViolation) map[string]string {
 type TransportError struct {
 	Msg string
 	Err error
+	// Status is the HTTP status of the answer behind the error; 0 when
+	// there was no answer. See errors.AnswerStatus.
+	Status int
+	// RetryAfter is the delay in seconds the answer asked for with
+	// Retry-After (or Retry-After-Ms); nil when it named none or there was
+	// no answer, as for a refused connection. See errors.RetryAfter.
+	RetryAfter *float64
 }
 
 func (e *TransportError) Error() string        { return e.Msg }
@@ -450,6 +460,9 @@ type RedirectRefusedError struct {
 	// Malformed reports that the redirect's Location did not parse as a URL.
 	// Origin is then empty and SameOrigin false.
 	Malformed bool
+	// RetryAfter is the delay in seconds the redirect asked for with
+	// Retry-After; nil when it named none. See errors.RetryAfter.
+	RetryAfter *float64
 }
 
 func (e *RedirectRefusedError) Error() string {
@@ -523,6 +536,9 @@ func (e *CatalogHydrationError) Unwrap() error        { return e.Err }
 // server gave no hint, as for a refusal of too many concurrent requests, so
 // back off on your own schedule then.
 type RateLimitError struct {
+	// Status is the HTTP status of the answer behind the error; 0 when
+	// there was no answer. See errors.AnswerStatus.
+	Status     int
 	Code       string // Structured service code; empty without a service detail. Known order codes use ERROR_CODE_; an orders detail without a code uses ERROR_CODE_UNSPECIFIED.
 	Msg        string
 	RetryAfter *float64
@@ -558,6 +574,9 @@ func (e *ServerError) Is(target error) bool { return target == ErrPolyester }
 
 // APIError indicates a structured Connect/API error.
 type APIError struct {
+	// Status is the HTTP status of the answer behind the error; 0 when
+	// there was no answer. See errors.AnswerStatus.
+	Status int
 	// RetryAfter is the delay in seconds the answer asked for with
 	// Retry-After (or Retry-After-Ms); nil when it named none. See
 	// errors.RetryAfter.
@@ -646,6 +665,9 @@ func (e *TimestampSkewError) Is(target error) bool { return target == ErrPolyest
 // Retrying does not help.
 type NotImplementedError struct {
 	Msg string
+	// Status is the HTTP status of the answer behind the error; 0 when
+	// there was no answer. See errors.AnswerStatus.
+	Status int
 	// RetryAfter is the delay in seconds the answer asked for with
 	// Retry-After (or Retry-After-Ms); nil when it named none. See
 	// errors.RetryAfter.
@@ -693,6 +715,9 @@ func (e *BatchReplaceWindowExpiredError) Is(target error) bool { return target =
 // service and can't prove that a mutation wasn't applied.
 type RouteNotFoundError struct {
 	Procedure string
+	// Status is the HTTP status of the answer behind the error; 0 when
+	// there was no answer. See errors.AnswerStatus.
+	Status int
 	// RetryAfter is the delay in seconds the answer asked for with
 	// Retry-After (or Retry-After-Ms); nil when it named none. See
 	// errors.RetryAfter.
@@ -903,88 +928,68 @@ func isKnownAdmissionRefusal(code string) bool {
 	}
 }
 
+// answered is an error that came from an HTTP answer and keeps that answer's
+// metadata: its status and the delay it asked for.
+type answered interface {
+	error
+	answer() (status *int, retryAfter **float64)
+}
+
+func (e *RateLimitError) answer() (*int, **float64)       { return &e.Status, &e.RetryAfter }
+func (e *ServerError) answer() (*int, **float64)          { return &e.Status, &e.RetryAfter }
+func (e *APIError) answer() (*int, **float64)             { return &e.Status, &e.RetryAfter }
+func (e *AuthError) answer() (*int, **float64)            { return &e.Status, &e.RetryAfter }
+func (e *ValidationError) answer() (*int, **float64)      { return &e.Status, &e.RetryAfter }
+func (e *TimestampSkewError) answer() (*int, **float64)   { return &e.Status, &e.RetryAfter }
+func (e *NotImplementedError) answer() (*int, **float64)  { return &e.Status, &e.RetryAfter }
+func (e *RouteNotFoundError) answer() (*int, **float64)   { return &e.Status, &e.RetryAfter }
+func (e *SessionRequiredError) answer() (*int, **float64) { return &e.Status, &e.RetryAfter }
+func (e *TransportError) answer() (*int, **float64)       { return &e.Status, &e.RetryAfter }
+func (e *RedirectRefusedError) answer() (*int, **float64) { return &e.StatusCode, &e.RetryAfter }
+func (e *SubaccountOwnerRoleLockedError) answer() (*int, **float64) {
+	return &e.Status, &e.RetryAfter
+}
+
 // RetryAfter returns the delay in seconds the answer behind err asked for
 // with Retry-After (or Retry-After-Ms, or a rate-limit detail's
 // retry_after_ms), whatever SDK error err is or wraps; nil when the answer
-// named none or there was no answer. The SDK captures it once, where the
-// answer is read, and its own retries of safe reads wait at least this long.
+// named none or there was no answer. Every error that comes from an answer
+// carries it: the SDK captures it once, where it reads the answer, and its
+// own retries of safe reads wait at least this long.
 func RetryAfter(err error) *float64 {
-	var (
-		rateErr      *RateLimitError
-		serverErr    *ServerError
-		apiErr       *APIError
-		authErr      *AuthError
-		validation   *ValidationError
-		skewErr      *TimestampSkewError
-		notImpl      *NotImplementedError
-		routeErr     *RouteNotFoundError
-		sessionErr   *SessionRequiredError
-		ownerLockErr *SubaccountOwnerRoleLockedError
-	)
-	switch {
-	case errors.As(err, &rateErr):
-		return rateErr.RetryAfter
-	case errors.As(err, &serverErr):
-		return serverErr.RetryAfter
-	case errors.As(err, &apiErr):
-		return apiErr.RetryAfter
-	case errors.As(err, &authErr):
-		return authErr.RetryAfter
-	case errors.As(err, &validation):
-		return validation.RetryAfter
-	case errors.As(err, &skewErr):
-		return skewErr.RetryAfter
-	case errors.As(err, &notImpl):
-		return notImpl.RetryAfter
-	case errors.As(err, &routeErr):
-		return routeErr.RetryAfter
-	case errors.As(err, &sessionErr):
-		return sessionErr.RetryAfter
-	case errors.As(err, &ownerLockErr):
-		return ownerLockErr.RetryAfter
+	var a answered
+	if !errors.As(err, &a) {
+		return nil
 	}
-	return nil
+	_, retryAfter := a.answer()
+	return *retryAfter
 }
 
-// AttachRetryAfter records seconds, the delay an answer asked for, on the SDK
-// error err is or wraps, unless it already carries one. The transport calls
-// it once for each failed answer.
-func AttachRetryAfter(err error, seconds *float64) {
-	if seconds == nil || RetryAfter(err) != nil {
+// AnswerStatus returns the HTTP status of the answer behind err, whatever
+// SDK error err is or wraps; 0 when there was no answer, as for a refused
+// connection or an SDK check made before sending.
+func AnswerStatus(err error) int {
+	var a answered
+	if !errors.As(err, &a) {
+		return 0
+	}
+	status, _ := a.answer()
+	return *status
+}
+
+// AttachAnswer records an answer's metadata, its HTTP status and the delay
+// it asked for, on the SDK error err is or wraps, keeping what it already
+// carries. The transport calls it once for each failed answer.
+func AttachAnswer(err error, status int, retryAfter *float64) {
+	var a answered
+	if !errors.As(err, &a) {
 		return
 	}
-	var (
-		rateErr      *RateLimitError
-		serverErr    *ServerError
-		apiErr       *APIError
-		authErr      *AuthError
-		validation   *ValidationError
-		skewErr      *TimestampSkewError
-		notImpl      *NotImplementedError
-		routeErr     *RouteNotFoundError
-		sessionErr   *SessionRequiredError
-		ownerLockErr *SubaccountOwnerRoleLockedError
-	)
-	switch {
-	case errors.As(err, &rateErr):
-		rateErr.RetryAfter = seconds
-	case errors.As(err, &serverErr):
-		serverErr.RetryAfter = seconds
-	case errors.As(err, &apiErr):
-		apiErr.RetryAfter = seconds
-	case errors.As(err, &authErr):
-		authErr.RetryAfter = seconds
-	case errors.As(err, &validation):
-		validation.RetryAfter = seconds
-	case errors.As(err, &skewErr):
-		skewErr.RetryAfter = seconds
-	case errors.As(err, &notImpl):
-		notImpl.RetryAfter = seconds
-	case errors.As(err, &routeErr):
-		routeErr.RetryAfter = seconds
-	case errors.As(err, &sessionErr):
-		sessionErr.RetryAfter = seconds
-	case errors.As(err, &ownerLockErr):
-		ownerLockErr.RetryAfter = seconds
+	current, delay := a.answer()
+	if *current == 0 {
+		*current = status
+	}
+	if *delay == nil {
+		*delay = retryAfter
 	}
 }

@@ -142,3 +142,63 @@ func TestRetryUnavailableHonoursRetryAfter(t *testing.T) {
 		})
 	}
 }
+
+// Round 4 controls: a read retried after any of these answers waits for its
+// Retry-After (0.4 s), and returns at once with the delay on its error when
+// the delay is past the budget (30 s). A refusal is never retried.
+func TestRetryUnavailableHonoursRetryAfterOnEveryAnswer(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		status      int
+		contentType string
+		body        string
+		retried     bool
+	}{
+		{"deadline 504", 504, "application/json", `{"code":"deadline_exceeded","message":"context deadline exceeded"}`, true},
+		{"auth 503", 503, "application/problem+json", `{"code":"AUTH_TEMPORARILY_UNAVAILABLE","status":503}`, true},
+		{"permission denied 403", 403, "application/problem+json", `{"code":"PERMISSION_DENIED","status":403,"detail":"denied"}`, false},
+		{"malformed message 503", 503, "application/json", `{"code":"unavailable","message":5}`, true},
+		{"malformed message 504", 504, "application/json", `{"code":"unavailable","message":5}`, true},
+		{"malformed detail 503", 503, "application/json", `{"code":"unavailable","message":"m","details":"nope"}`, true},
+		{"malformed detail 504", 504, "application/json", `{"code":"unavailable","message":"m","details":[{"type":"orders.v1.ErrorDetail","value":"!!"}]}`, true},
+	} {
+		for _, delay := range []string{"30", "0.4"} {
+			t.Run(tc.name+"/"+delay, func(t *testing.T) {
+				var calls atomic.Int32
+				srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					if calls.Add(1) == 1 {
+						w.Header().Set("Content-Type", tc.contentType)
+						w.Header().Set("Retry-After", delay)
+						w.WriteHeader(tc.status)
+						_, _ = w.Write([]byte(tc.body))
+						return
+					}
+					w.Header().Set("Content-Type", "application/proto")
+					_, _ = w.Write(nil)
+				}))
+				t.Cleanup(srv.Close)
+				factory := transport.NewFactory(transport.Config{APIURL: srv.URL, Timeout: 10 * time.Second}, nil, nil)
+				client := triggersv1connect.NewTriggersServiceClient(factory.HTTP, srv.URL, factory.ConnectOptions(false)...)
+				started := time.Now()
+				_, err := retryUnavailable(triggerReadRetry, client.GetTrigger)(context.Background(), connect.NewRequest(&triggerv1.GetTriggerRequest{}))
+				elapsed := time.Since(started)
+				if !tc.retried || delay == "30" {
+					if calls.Load() != 1 || elapsed > time.Second {
+						t.Fatalf("calls=%d elapsed=%v, want one answer returned at once", calls.Load(), elapsed)
+					}
+					want := 30.0
+					if delay == "0.4" {
+						want = 0.4
+					}
+					if got := sdkerrors.RetryAfter(transport.MapError(err)); got == nil || *got != want {
+						t.Fatalf("err=%T %v retry after %v, want %v", err, err, got, want)
+					}
+					return
+				}
+				if err != nil || calls.Load() != 2 || elapsed < 400*time.Millisecond {
+					t.Fatalf("calls=%d elapsed=%v err=%v, want a retry after 0.4 s", calls.Load(), elapsed, err)
+				}
+			})
+		}
+	}
+}

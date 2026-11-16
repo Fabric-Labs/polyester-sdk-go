@@ -118,12 +118,14 @@ func rateLimitError(msg string, code string, detail *sdkerrors.RateLimitDetail, 
 // errors.Is and errors.As still find it.
 func MapConnectError(err error) error {
 	mapped := mapConnectError(err)
-	// A ConnectRPC answer's delay, captured from its metadata once for
-	// whatever error it maps to; a REST answer's was captured by the
-	// transport.
+	// A ConnectRPC error decoded from an answer keeps the answer's headers;
+	// its metadata, the status ConnectRPC answers its code with and the delay
+	// it asked for, is captured here once for whatever error it maps to. A
+	// REST answer's was captured by the transport, and an error with no
+	// answer behind it, such as a refused connection, has no headers.
 	var connectErr *connect.Error
-	if errors.As(err, &connectErr) {
-		sdkerrors.AttachRetryAfter(mapped, retryAfterSeconds(connectErr))
+	if errors.As(err, &connectErr) && len(connectErr.Meta()) > 0 {
+		sdkerrors.AttachAnswer(mapped, connectHTTPStatus(connectErr.Code()), retryAfterSeconds(connectErr))
 	}
 	redactChain(mapped)
 	return mapped
@@ -132,6 +134,12 @@ func MapConnectError(err error) error {
 func mapConnectError(err error) error {
 	if err == nil {
 		return nil
+	}
+	// An SDK error mapped from an answer is kept as it is, with the answer's
+	// metadata, never rebuilt.
+	var mappedTransport *sdkerrors.TransportError
+	if errors.As(err, &mappedTransport) {
+		return mappedTransport
 	}
 	// The caller cancelled or ran out of time: keep that answer reachable.
 	if errors.Is(err, context.Canceled) {
@@ -167,6 +175,10 @@ func mapConnectError(err error) error {
 	var notImplementedErr *sdkerrors.NotImplementedError
 	if errors.As(err, &notImplementedErr) {
 		return notImplementedErr
+	}
+	var routeErr *sdkerrors.RouteNotFoundError
+	if errors.As(err, &routeErr) {
+		return routeErr
 	}
 	var ownerLockedErr *sdkerrors.SubaccountOwnerRoleLockedError
 	if errors.As(err, &ownerLockedErr) {
