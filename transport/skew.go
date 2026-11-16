@@ -90,7 +90,12 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	isJSON := isJSONContentType(resp.Header.Get("Content-Type"))
 	// Connect asks for gzip, so a gateway may compress an error. Classify what
 	// the body says; Connect still gets the bytes as received.
-	decoded := decodedErrorBody(resp.Header.Get("Content-Encoding"), body)
+	decoded, overflow := decodedErrorBody(resp.Header.Get("Content-Encoding"), body)
+	if overflow {
+		// Longer than the SDK reads once decoded: unreadable, decided on the
+		// byte count before anything parses it.
+		return unreadableAnswer(resp)
+	}
 	// Connect error codes are lowercase names, so this never matches one.
 	var detail struct {
 		Code       string `json:"code"`
@@ -110,11 +115,6 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	}
 	if isJSON || resp.StatusCode == 504 {
 		if json.Unmarshal(decoded, &detail) != nil {
-			// A compressed body longer than the limit once decoded is
-			// unreadable too.
-			if len(decoded) == maxErrorBodyBytes && resp.StatusCode != 504 {
-				return unreadableAnswer(resp)
-			}
 			// A body Connect's decoder can't read has no code either, whatever
 			// fields were decoded before the failure.
 			detail.Code = ""
@@ -521,24 +521,28 @@ func firstNonEmpty(values ...string) string {
 }
 
 // decodedErrorBody reads a failed response's body as its Content-Encoding says,
-// up to maxErrorBodyBytes. An encoding this client can't decode leaves no readable
-// error, so it reads as empty.
-func decodedErrorBody(encoding string, body []byte) []byte {
+// up to maxErrorBodyBytes. overflow reports a body longer than that once
+// decoded, decided on the byte count alone. An encoding this client can't
+// decode leaves no readable error, so it reads as empty.
+func decodedErrorBody(encoding string, body []byte) (decoded []byte, overflow bool) {
 	switch strings.ToLower(strings.TrimSpace(encoding)) {
 	case "", "identity":
-		return body
+		return body, false
 	case "gzip":
 		reader, err := gzip.NewReader(bytes.NewReader(body))
 		if err != nil {
-			return nil
+			return nil, false
 		}
-		decoded, err := io.ReadAll(io.LimitReader(reader, maxErrorBodyBytes))
-		if err != nil && len(body) < maxErrorBodyBytes {
-			return nil
+		decoded, err := io.ReadAll(io.LimitReader(reader, maxErrorBodyBytes+1))
+		if len(decoded) > maxErrorBodyBytes {
+			return nil, true
 		}
-		return decoded
+		if err != nil {
+			return nil, false
+		}
+		return decoded, false
 	}
-	return nil
+	return nil, false
 }
 
 type prefixedBody struct {
