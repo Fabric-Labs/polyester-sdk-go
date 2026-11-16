@@ -6,6 +6,7 @@ import (
 	"fmt"
 	alertsv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/alerts/v1"
 	"math"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -32,8 +33,15 @@ var routeNotFoundMessages = map[string]struct{}{
 const emptyErrorMessage = "request failed without server error details"
 
 func retryAfterSeconds(connectErr *connect.Error) *float64 {
+	return RetryAfterHeaderSeconds(connectErr.Meta())
+}
+
+// RetryAfterHeaderSeconds reads the delay an answer asks for, in seconds:
+// Retry-After, then Retry-After-Ms, then Grpc-Retry-Pushback-Ms. Nil when
+// none holds a non-negative number.
+func RetryAfterHeaderSeconds(header http.Header) *float64 {
 	parse := func(name string, divisor float64) *float64 {
-		raw := strings.TrimSpace(connectErr.Meta().Get(name))
+		raw := strings.TrimSpace(header.Get(name))
 		if raw == "" {
 			return nil
 		}
@@ -110,8 +118,35 @@ func rateLimitError(msg string, code string, detail *sdkerrors.RateLimitDetail, 
 // errors.Is and errors.As still find it.
 func MapConnectError(err error) error {
 	mapped := mapConnectError(err)
+	// A temporary failure keeps the delay its answer asked for.
+	var serverErr *sdkerrors.ServerError
+	var connectErr *connect.Error
+	if errors.As(mapped, &serverErr) && serverErr.RetryAfter == nil &&
+		errors.As(err, &connectErr) && connectErr.Code() == connect.CodeUnavailable {
+		serverErr.RetryAfter = retryAfterSeconds(connectErr)
+	}
 	redactChain(mapped)
 	return mapped
+}
+
+// RetryAfterSeconds returns the delay in seconds a failed call's answer asked
+// for before a retry: a *errors.ServerError's or *errors.RateLimitError's
+// RetryAfter, else the Retry-After headers of a ConnectRPC error. Nil when
+// the answer named none.
+func RetryAfterSeconds(err error) *float64 {
+	var serverErr *sdkerrors.ServerError
+	if errors.As(err, &serverErr) && serverErr.RetryAfter != nil {
+		return serverErr.RetryAfter
+	}
+	var rateErr *sdkerrors.RateLimitError
+	if errors.As(err, &rateErr) && rateErr.RetryAfter != nil {
+		return rateErr.RetryAfter
+	}
+	var connectErr *connect.Error
+	if errors.As(err, &connectErr) {
+		return retryAfterSeconds(connectErr)
+	}
+	return nil
 }
 
 func mapConnectError(err error) error {

@@ -531,6 +531,12 @@ type ServerError struct {
 	Msg              string
 	Code             string // Service code, or an unrecognised code kept for diagnosis.
 	Status           int    // HTTP status corresponding to the failure, when known.
+	// RetryAfter is the delay in seconds the server asked for with
+	// Retry-After (or Retry-After-Ms) on a temporary failure: an HTTP 503,
+	// 502 or 504 answer, or a ConnectRPC unavailable one. Nil when the
+	// answer named none. The SDK's own retries of safe reads wait at least
+	// this long, and give up instead when it would end past their budget.
+	RetryAfter *float64
 }
 
 func (e *ServerError) Error() string        { return e.Msg }

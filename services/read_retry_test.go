@@ -3,12 +3,16 @@ package services
 import (
 	"context"
 	"errors"
+	"net/http"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	triggerv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1"
+	"github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1/triggersv1connect"
+	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
 )
 
@@ -86,5 +90,53 @@ func TestRetryUnavailableKeepsADefiniteAnswerToAnEndedCaller(t *testing.T) {
 	_, err := read(ctx, connect.NewRequest(&triggerv1.GetTriggerRequest{}))
 	if connect.CodeOf(err) != connect.CodeNotFound || errors.Is(err, context.Canceled) {
 		t.Fatalf("err=%T %v, want the not-found answer", err, err)
+	}
+}
+
+// A read retried after a temporary failure waits at least the Retry-After
+// its answer asked for, and gives up at once when that would end past the
+// retry budget. The answer arrives through the real transport.
+func TestRetryUnavailableHonoursRetryAfter(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		retryAfter string
+		wantCalls  int32
+		minElapsed time.Duration
+		maxElapsed time.Duration
+	}{
+		{"past the budget", "30", 1, 0, time.Second},
+		{"within the budget", "0.4", 2, 400 * time.Millisecond, 2 * time.Second},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var calls atomic.Int32
+			srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				if calls.Add(1) == 1 {
+					w.Header().Set("Content-Type", "application/problem+json")
+					w.Header().Set("Retry-After", tc.retryAfter)
+					w.WriteHeader(http.StatusServiceUnavailable)
+					_, _ = w.Write([]byte(`{"code":"UPSTREAM_ERROR","status":503}`))
+					return
+				}
+				w.Header().Set("Content-Type", "application/proto")
+				_, _ = w.Write(nil)
+			}))
+			t.Cleanup(srv.Close)
+			factory := transport.NewFactory(transport.Config{APIURL: srv.URL, Timeout: 10 * time.Second}, nil, nil)
+			client := triggersv1connect.NewTriggersServiceClient(factory.HTTP, srv.URL, factory.ConnectOptions(false)...)
+			started := time.Now()
+			_, err := retryUnavailable(triggerReadRetry, client.GetTrigger)(context.Background(), connect.NewRequest(&triggerv1.GetTriggerRequest{}))
+			elapsed := time.Since(started)
+			if calls.Load() != tc.wantCalls || elapsed < tc.minElapsed || elapsed > tc.maxElapsed {
+				t.Fatalf("calls=%d elapsed=%v err=%v", calls.Load(), elapsed, err)
+			}
+			if tc.wantCalls == 1 {
+				var server *sdkerrors.ServerError
+				if mapped := transport.MapError(err); !errors.As(mapped, &server) || server.RetryAfter == nil || *server.RetryAfter != 30 {
+					t.Fatalf("err=%T %+v", mapped, mapped)
+				}
+			} else if err != nil {
+				t.Fatalf("second attempt: %v", err)
+			}
+		})
 	}
 }

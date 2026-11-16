@@ -93,7 +93,8 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 		SymbolId:  symbolID,
 		QtyScaled: qtyScaled,
 	}
-	if clientTriggerID != nil && *clientTriggerID != "" {
+	// Nil asks the SDK for an ID; an explicit one, even empty, is checked.
+	if clientTriggerID != nil {
 		if err := checkClientTriggerID(*clientTriggerID); err != nil {
 			return nil, err
 		}
@@ -756,10 +757,11 @@ func feeAssetNotAllowed(msg string) error {
 // TriggerIntent.client_trigger_id: 1 to 36 bytes of UTF-8, any characters.
 var clientTriggerIDMaxBytes = contractFieldRules(&triggersv1.TriggerIntent{}, "client_trigger_id").GetString().GetMaxBytes()
 
-// checkClientTriggerID refuses a client trigger ID the contract refuses: not
-// UTF-8, or longer than clientTriggerIDMaxBytes bytes. It is sent unchanged.
+// checkClientTriggerID refuses a client trigger ID the contract refuses:
+// empty, not UTF-8, or longer than clientTriggerIDMaxBytes bytes. It is sent
+// unchanged.
 func checkClientTriggerID(id string) error {
-	if !utf8.ValidString(id) || uint64(len(id)) > clientTriggerIDMaxBytes {
+	if id == "" || !utf8.ValidString(id) || uint64(len(id)) > clientTriggerIDMaxBytes {
 		return &errors.ValidationError{
 			Msg:  fmt.Sprintf("client_trigger_id must be 1 to %d bytes of UTF-8", clientTriggerIDMaxBytes),
 			Code: orderv1.ErrorCode_ERROR_CODE_CLIENT_TRIGGER_ID_INVALID.String(),

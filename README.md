@@ -548,8 +548,13 @@ The resource codes without retry guidance are `ORDER_SEQUENCE_EXHAUSTED`,
 `ACCOUNT_RESERVATION_LIMIT_REACHED` and `TRIGGER_LIMIT_EXCEEDED`: outcome known,
 non-retryable, including message-only responses.
 
-A plain REST gateway 504 returns `*errors.ServerError` with `Status == 504`:
-`errors.IsRetryable` is false and `errors.MutationOutcomeUnknown` is true.
+A REST 504 returns `*errors.ServerError` with `Status == 504` whatever code its
+body names, a retryable rate-limit or admission code included (only an
+`*_OUTCOME_UNKNOWN` code keeps its `errors.APIError`): `errors.IsRetryable` is
+false and `errors.MutationOutcomeUnknown` is true. A temporary failure (503,
+502, 504 or ConnectRPC `unavailable`) carries the delay its `Retry-After` asked
+for in `ServerError.RetryAfter`, seconds, nil when none; the SDK's own read
+retries wait at least that long.
 The classifier has no operation context. Reads may retry a 504 explicitly;
 writes read back first. A client order ID supports reconciliation, not exact
 replay of a single create. Without one, read open orders before deciding whether

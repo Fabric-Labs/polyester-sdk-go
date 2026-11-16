@@ -102,6 +102,8 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	}
 	hasServiceDetail := false
 	futureCode := ""
+	namesOutcomeUnknown := strings.HasSuffix(detail.Code, "_OUTCOME_UNKNOWN") ||
+		strings.HasSuffix(strings.TrimSpace(detail.Message), "_OUTCOME_UNKNOWN")
 	for _, item := range detail.Details {
 		value, decodeErr := base64.RawStdEncoding.DecodeString(strings.TrimRight(item.Value, "="))
 		if decodeErr != nil {
@@ -110,9 +112,34 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		if wire.CarriesContractCode(item.Type, value) {
 			hasServiceDetail = true
 		}
+		if wire.NamesOutcomeUnknown(item.Type, value) {
+			namesOutcomeUnknown = true
+		}
 		if futureCode == "" {
 			futureCode = wire.FutureCodeLabel(item.Type, value)
 		}
+	}
+	// A 504 never proves a refusal. The API answers it only where a write's
+	// outcome is unknown, and an edge answers it for a request that may have
+	// reached the API. So whatever code its body names, a retryable admission,
+	// rate-limit or authentication code included, it stays an unknown outcome:
+	// a *errors.ServerError that safe reads retry. An explicit
+	// outcome-unknown code, in a problem's code or a ConnectRPC error's message
+	// or order detail, keeps that code below.
+	if resp.StatusCode == http.StatusGatewayTimeout && !namesOutcomeUnknown {
+		// A REST problem's code is uppercase; a ConnectRPC error's lowercase
+		// code names no service code, so only its detail's label is kept.
+		restCode := detail.Code
+		if restCode == strings.ToLower(restCode) {
+			restCode = ""
+		}
+		_ = resp.Body.Close()
+		return nil, roundTripError(&sdkerrors.ServerError{
+			Msg:        firstNonEmpty(detail.Detail, detail.Title, detail.Message, "Gateway Timeout"),
+			Code:       firstNonEmpty(futureCode, restCode),
+			Status:     http.StatusGatewayTimeout,
+			RetryAfter: wire.RetryAfterHeaderSeconds(resp.Header),
+		}, resp.StatusCode)
 	}
 	// Connect's own code and detail decoder remains authoritative.
 	switch detail.Code {
@@ -176,11 +203,6 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 			msg = detail.Code
 		}
 		mapped = &sdkerrors.APIError{Msg: msg, Code: "ERROR_CODE_ORDER_SEQUENCE_EXHAUSTED"}
-	case resp.StatusCode == 504:
-		if msg == "" {
-			msg = "Gateway Timeout"
-		}
-		mapped = &sdkerrors.ServerError{Msg: msg, Code: detail.Code, Status: 504}
 	case resp.StatusCode == http.StatusServiceUnavailable && strings.TrimPrefix(detail.Code, "ERROR_CODE_") == "ACCOUNT_ROUTING_INVALID":
 		mapped = &sdkerrors.APIError{Msg: msg, Code: "ERROR_CODE_ACCOUNT_ROUTING_INVALID"}
 	case resp.StatusCode == http.StatusServiceUnavailable && detail.Code == sdkerrors.AuthCodeTemporarilyUnavailable:
@@ -256,6 +278,11 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	}
 	problem := sdkerrors.DecodeHTTPProblem(decoded, resp.StatusCode)
 	switch e := mapped.(type) {
+	case *sdkerrors.ServerError:
+		// A temporary failure keeps the delay it asked for.
+		if e.RetryAfter == nil && resp.StatusCode != http.StatusTooManyRequests && isUnavailableStatus(resp.StatusCode) {
+			e.RetryAfter = wire.RetryAfterHeaderSeconds(resp.Header)
+		}
 	case *sdkerrors.APIError:
 		e.Problem = problem
 	case *sdkerrors.AuthError:

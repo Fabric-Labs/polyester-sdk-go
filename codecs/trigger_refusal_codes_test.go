@@ -230,8 +230,25 @@ func TestClientTriggerIDFollowsTheContract(t *testing.T) {
 			t.Fatalf("%q sent as %q", id, got)
 		}
 	}
-	for _, id := range []string{strings.Repeat("a", 37), strings.Repeat("é", 19), "bad\xff"} {
+	// An explicit empty ID is refused, never replaced: nil asks for one.
+	for _, id := range []string{"", strings.Repeat("a", 37), strings.Repeat("é", 19), "bad\xff"} {
 		_, err := CreateTriggerToProto(1, "BTC-USDT", "stop_loss", refPrice("60000"), "sell", models.QtyFromDecimal("0.001"), "market", nil, "", "", nil, refStr(id), false, 8, CreateTriggerOptions{})
 		requireCode(t, id, err, orderv1.ErrorCode_ERROR_CODE_CLIENT_TRIGGER_ID_INVALID)
+	}
+}
+
+// A nil client trigger ID gets a generated one; each create its own.
+func TestNilClientTriggerIDIsGenerated(t *testing.T) {
+	ids := map[string]bool{}
+	for range 2 {
+		req, err := CreateTriggerToProto(1, "BTC-USDT", "stop_loss", refPrice("60000"), "sell", models.QtyFromDecimal("0.001"), "market", nil, "", "", nil, nil, false, 8, CreateTriggerOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		id := req.GetTrigger().GetClientTriggerId()
+		if id == "" || ids[id] {
+			t.Fatalf("generated ID %q (seen %v)", id, ids)
+		}
+		ids[id] = true
 	}
 }
