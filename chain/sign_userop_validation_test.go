@@ -32,6 +32,18 @@ func validSignSafeUserOperationParams(t *testing.T) SignSafeUserOperationParams 
 	}
 }
 
+// paramsCurve is a curve that reports params, which may be nil or incomplete.
+type paramsCurve struct {
+	params *elliptic.CurveParams
+}
+
+func (c paramsCurve) Params() *elliptic.CurveParams                         { return c.params }
+func (paramsCurve) IsOnCurve(_, _ *big.Int) bool                            { return false }
+func (paramsCurve) Add(_, _, _, _ *big.Int) (*big.Int, *big.Int)            { return nil, nil }
+func (paramsCurve) Double(_, _ *big.Int) (*big.Int, *big.Int)               { return nil, nil }
+func (paramsCurve) ScalarMult(_, _ *big.Int, _ []byte) (*big.Int, *big.Int) { return nil, nil }
+func (paramsCurve) ScalarBaseMult(_ []byte) (*big.Int, *big.Int)            { return nil, nil }
+
 // withCurve is key's scalar on curve.
 func withCurve(key *ecdsa.PrivateKey, curve elliptic.Curve) *ecdsa.PrivateKey {
 	moved := *key
@@ -61,6 +73,16 @@ func TestSignSafeUserOperationRefusesInvalidInput(t *testing.T) {
 		// A valid scalar without a curve, or on another curve, is not a secp256k1 key.
 		{"OwnerKey", func(p *SignSafeUserOperationParams) { p.OwnerKey = withCurve(p.OwnerKey, nil) }},
 		{"OwnerKey", func(p *SignSafeUserOperationParams) { p.OwnerKey = withCurve(p.OwnerKey, elliptic.P256()) }},
+		// A curve whose parameters are missing or partly missing.
+		{"OwnerKey", func(p *SignSafeUserOperationParams) {
+			p.OwnerKey = withCurve(p.OwnerKey, paramsCurve{&elliptic.CurveParams{}})
+		}},
+		{"OwnerKey", func(p *SignSafeUserOperationParams) {
+			partial := *crypto.S256().Params()
+			partial.Gy = nil
+			p.OwnerKey = withCurve(p.OwnerKey, paramsCurve{&partial})
+		}},
+		{"OwnerKey", func(p *SignSafeUserOperationParams) { p.OwnerKey = withCurve(p.OwnerKey, paramsCurve{nil}) }},
 		{"Environment.ChainID", func(p *SignSafeUserOperationParams) { p.Environment = PolyesterEnvironment{} }},
 		{"Environment.AccountAbstraction.Safe.Safe4337ModuleAddress", func(p *SignSafeUserOperationParams) {
 			p.Environment.AccountAbstraction.Safe.Safe4337ModuleAddress = ""

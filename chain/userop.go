@@ -624,19 +624,16 @@ func validateSignSafeUserOperationParams(p SignSafeUserOperationParams) error {
 	return nil
 }
 
-// validOwnerKey reports whether key is a usable secp256k1 private key: on the
-// secp256k1 curve, with a scalar in [1, N).
+// validOwnerKey reports whether key is a usable secp256k1 private key: on
+// go-ethereum's secp256k1 curve, which every key from crypto.GenerateKey,
+// crypto.HexToECDSA and crypto.ToECDSA carries, with a scalar in [1, N). The
+// curve is compared by identity, so a caller's curve is never called.
 func validOwnerKey(key *ecdsa.PrivateKey) bool {
-	if key == nil || key.Curve == nil {
-		return false
-	}
-	params, secp256k1 := key.Params(), crypto.S256().Params()
-	if params == nil || params.P.Cmp(secp256k1.P) != 0 || params.N.Cmp(secp256k1.N) != 0 ||
-		params.B.Cmp(secp256k1.B) != 0 || params.Gx.Cmp(secp256k1.Gx) != 0 || params.Gy.Cmp(secp256k1.Gy) != 0 {
+	if key == nil || key.Curve != crypto.S256() {
 		return false
 	}
 	d := key.D //nolint:staticcheck // go-ethereum signs secp256k1 keys with D; crypto/ecdsa's Bytes does not support that curve.
-	return d != nil && d.Sign() > 0 && d.Cmp(secp256k1.N) < 0
+	return d != nil && d.Sign() > 0 && d.Cmp(crypto.S256().Params().N) < 0
 }
 
 func maxBig(a, b *big.Int) *big.Int {
