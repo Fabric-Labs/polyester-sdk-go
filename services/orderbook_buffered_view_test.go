@@ -89,7 +89,9 @@ func TestSnapshotWithBufferedDeltasEmitsOneView(t *testing.T) {
 			}
 
 			// The next bucket change reads its own view, not a stale one.
-			sub.SetBucket("0.001")
+			if err := sub.SetBucket("0.001"); err != nil {
+				t.Fatal(err)
+			}
 			fine, ok := bookTicketNext(t, sub.Updates())
 			if !ok || fine.Bids[0].Price.Ticks() != 71_000_000 {
 				t.Fatalf("bid bucket price after the bucket change: %+v, want 71000000", fine.Bids)

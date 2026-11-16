@@ -38,7 +38,9 @@ func TestManagedSubscriptionSurfacesStreamErrorsAndUpdatesBucket(t *testing.T) {
 		t.Fatalf("OnError=%v want %v", observed, want)
 	}
 
-	sub.SetBucket("0.01")
+	if err := sub.SetBucket("0.01"); err != nil {
+		t.Fatal(err)
+	}
 	if bucket != 10_000_000 {
 		t.Fatalf("bucket ticks=%d want 10000000", bucket)
 	}

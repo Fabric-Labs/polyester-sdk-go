@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -506,7 +507,15 @@ type SignSafeUserOperationParams struct {
 }
 
 // SignSafeUserOperation signs an EIP-712 SafeOp and packs uint48/uint48/bytes.
+//
+// OwnerKey, Environment (its ChainID, Safe 4337 module and EntryPoint
+// addresses), Sender, Nonce and the five gas fields are required. A missing or
+// out-of-range input is an *errors.ValidationError naming the field; nothing
+// is signed.
 func SignSafeUserOperation(p SignSafeUserOperationParams) ([]byte, error) {
+	if err := validateSignSafeUserOperationParams(p); err != nil {
+		return nil, err
+	}
 	module := p.Environment.AccountAbstraction.Safe.Safe4337ModuleAddress
 	entryPoint := p.Environment.AccountAbstraction.EntryPoint.Address
 	typed := apitypes.TypedData{
@@ -568,6 +577,63 @@ func SignSafeUserOperation(p SignSafeUserOperationParams) ([]byte, error) {
 	out = append(out, common.LeftPadBytes(big.NewInt(int64(p.ValidUntil)).Bytes(), 6)...)
 	out = append(out, sig...)
 	return out, nil
+}
+
+func validateSignSafeUserOperationParams(p SignSafeUserOperationParams) error {
+	if !validOwnerKey(p.OwnerKey) {
+		return &errors.ValidationError{Msg: "SignSafeUserOperationParams.OwnerKey is required: a secp256k1 private key"}
+	}
+	if p.Environment.ChainID <= 0 {
+		return &errors.ValidationError{Msg: "SignSafeUserOperationParams.Environment.ChainID must be > 0; pass a Polyester environment such as PolyesterDevnetEnvironment"}
+	}
+	for _, address := range []struct{ value, field string }{
+		{p.Environment.AccountAbstraction.Safe.Safe4337ModuleAddress, "SignSafeUserOperationParams.Environment.AccountAbstraction.Safe.Safe4337ModuleAddress"},
+		{p.Environment.AccountAbstraction.EntryPoint.Address, "SignSafeUserOperationParams.Environment.AccountAbstraction.EntryPoint.Address"},
+		{p.Sender, "SignSafeUserOperationParams.Sender"},
+	} {
+		if _, err := normalizeAddress(address.value, address.field); err != nil {
+			return err
+		}
+	}
+	for _, value := range []struct {
+		n     *big.Int
+		field string
+		bits  int
+	}{
+		{p.Nonce, "Nonce", 256},
+		{p.CallGasLimit, "CallGasLimit", 128},
+		{p.VerificationGasLimit, "VerificationGasLimit", 128},
+		{p.PreVerificationGas, "PreVerificationGas", 256},
+		{p.MaxFeePerGas, "MaxFeePerGas", 128},
+		{p.MaxPriorityFeePerGas, "MaxPriorityFeePerGas", 128},
+	} {
+		if value.n == nil {
+			return &errors.ValidationError{Msg: "SignSafeUserOperationParams." + value.field + " is required"}
+		}
+		if value.n.Sign() < 0 || value.n.BitLen() > value.bits {
+			return &errors.ValidationError{Msg: fmt.Sprintf("SignSafeUserOperationParams.%s must be a uint%d", value.field, value.bits)}
+		}
+	}
+	const maxUint48 = 1<<48 - 1
+	if p.ValidAfter > maxUint48 {
+		return &errors.ValidationError{Msg: "SignSafeUserOperationParams.ValidAfter must be a uint48"}
+	}
+	if p.ValidUntil > maxUint48 {
+		return &errors.ValidationError{Msg: "SignSafeUserOperationParams.ValidUntil must be a uint48"}
+	}
+	return nil
+}
+
+// validOwnerKey reports whether key is a usable secp256k1 private key: on
+// go-ethereum's secp256k1 curve, which every key from crypto.GenerateKey,
+// crypto.HexToECDSA and crypto.ToECDSA carries, with a scalar in [1, N). The
+// curve is compared by identity, so a caller's curve is never called.
+func validOwnerKey(key *ecdsa.PrivateKey) bool {
+	if key == nil || key.Curve != crypto.S256() {
+		return false
+	}
+	d := key.D //nolint:staticcheck // go-ethereum signs secp256k1 keys with D; crypto/ecdsa's Bytes does not support that curve.
+	return d != nil && d.Sign() > 0 && d.Cmp(crypto.S256().Params().N) < 0
 }
 
 func maxBig(a, b *big.Int) *big.Int {
