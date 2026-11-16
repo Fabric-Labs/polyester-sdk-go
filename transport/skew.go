@@ -18,8 +18,8 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/wire"
 )
 
-// maxErrorBodyBytes bounds how much of an error body is inspected for a
-// gateway code.
+// maxErrorBodyBytes bounds how much of a failed answer's body is read. A
+// longer one is unreadable and reads by its status alone.
 const maxErrorBodyBytes = 64 * 1024
 
 // restCodeForm is the contract's form for a REST problem code. A new one at 429
@@ -76,7 +76,12 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		// is refused, and one with nothing to follow reaches connect-go.
 		return resp, nil
 	}
-	body, readErr := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyBytes))
+	body, readErr := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyBytes+1))
+	if readErr == nil && len(body) > maxErrorBodyBytes {
+		// Longer than the SDK reads: unreadable, whatever its first bytes
+		// say. It is never handed back to connect-go to decode whole.
+		return unreadableAnswer(resp)
+	}
 	// Hand the caller the whole body: the inspected prefix, then the rest.
 	resp.Body = prefixedBody{Reader: io.MultiReader(bytes.NewReader(body), resp.Body), Closer: resp.Body}
 	if readErr != nil {
@@ -105,9 +110,10 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	}
 	if isJSON || resp.StatusCode == 504 {
 		if json.Unmarshal(decoded, &detail) != nil {
-			// Only part of a long body was inspected, so Connect reads it whole.
-			if (len(body) == maxErrorBodyBytes || len(decoded) == maxErrorBodyBytes) && resp.StatusCode != 504 {
-				return resp, nil
+			// A compressed body longer than the limit once decoded is
+			// unreadable too.
+			if len(decoded) == maxErrorBodyBytes && resp.StatusCode != 504 {
+				return unreadableAnswer(resp)
 			}
 			// A body Connect's decoder can't read has no code either, whatever
 			// fields were decoded before the failure.
@@ -358,6 +364,18 @@ func passToConnect(resp *http.Response, _ bool, decoded []byte) (*http.Response,
 	_ = resp.Body.Close()
 	// The same code connect-go reports, so retries choose as before.
 	return nil, connect.NewError(code, mapped)
+}
+
+// unreadableAnswer reports a failed answer whose body is longer than
+// maxErrorBodyBytes: it reads by status alone, as an answer connect-go cannot
+// decode does, with the status and delay its headers gave. A 504 is an
+// unknown outcome, as every 504 is.
+func unreadableAnswer(resp *http.Response) (*http.Response, error) {
+	_ = resp.Body.Close()
+	if resp.StatusCode == http.StatusGatewayTimeout {
+		return nil, failedAnswer(resp, &sdkerrors.ServerError{Msg: "Gateway Timeout", Status: http.StatusGatewayTimeout})
+	}
+	return passToConnect(resp, false, nil)
 }
 
 // connectWillDecode reports whether connect-go decodes an error answer and
