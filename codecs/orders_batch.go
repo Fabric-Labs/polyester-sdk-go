@@ -191,7 +191,7 @@ func BatchReplaceItemToProto(item models.BatchReplaceItem, quantityScale int, de
 		proto.Key = &orderv1.BatchReplaceOrderItem_ClientOrderId{ClientOrderId: validated}
 	}
 	if item.NewPrice != nil && item.NewPrice.IsSet() {
-		ticks, err := ResolvePriceTicks(*item.NewPrice, "new_price", identity.Symbol)
+		ticks, err := positivePriceTicks(*item.NewPrice, "new_price", identity.Symbol)
 		if err != nil {
 			return nil, err
 		}

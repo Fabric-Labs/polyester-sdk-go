@@ -109,7 +109,9 @@ func TestL2OrderbookFirstViewIsTheFetchedSnapshot(t *testing.T) {
 		t.Fatal("OnEvent did not see the snapshot")
 	}
 	// SetBucket after start still re-renders the current book.
-	sub.SetBucket("0.01")
+	if err := sub.SetBucket("0.01"); err != nil {
+		t.Fatal(err)
+	}
 	if again := nextBook(t, sub, 5*time.Second); again.BookSeq != "10" {
 		t.Fatalf("SetBucket view %+v", again)
 	}

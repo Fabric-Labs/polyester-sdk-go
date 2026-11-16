@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -76,11 +77,16 @@ func (s *OrderbookService) Get(ctx context.Context, symbol string, depth int) (m
 
 // CreateSubscriptionOptions configures a managed orderbook subscription.
 type CreateSubscriptionOptions struct {
+	// Symbol or SymbolID selects the pair; with SymbolID alone, the symbol and
+	// quantity scale come from the spot catalog.
 	Symbol   string
 	SymbolID *uint32
 	Depth    int
-	Bucket   string
-	OnEvent  func(models.OrderbookData)
+	// Bucket aggregates levels client-side: "" for none, or a positive price
+	// with at most 9 decimal places, such as "0.01". Any other bucket is an
+	// *errors.ValidationError before connecting.
+	Bucket  string
+	OnEvent func(models.OrderbookData)
 	// OnSequenceGap is called once when a delta does not continue the book:
 	// the book then waits for the stream's next reset, published about every
 	// 30 seconds, and its views read Available false until then.
@@ -109,6 +115,10 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		depth = 50
 	}
 	streamDepth, err := codecs.OrderbookStreamTier(depth)
+	if err != nil {
+		return nil, err
+	}
+	initialBucketTicks, err := orderbook.ParseBucketTicks(opts.Bucket)
 	if err != nil {
 		return nil, err
 	}
@@ -141,6 +151,18 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 			return nil, err
 		}
 	}
+	if strings.TrimSpace(symbol) == "" {
+		// Selected by SymbolID alone: the catalog names the pair, whose
+		// quantity scale decodes the levels.
+		canonical := s.catalogs.SymbolForSymbolID(*resolvedSymbolID)
+		if canonical == nil {
+			return nil, &errors.ValidationError{Msg: fmt.Sprintf(
+				"orderbook subscription for symbol_id %d needs that pair in the spot catalog: leave Config.SkipCatalogHydration unset and call Client.WaitForCatalogs(ctx), or hydrate the spot catalog with Client.Catalogs.HydrateSpotConfig",
+				*resolvedSymbolID,
+			)}
+		}
+		symbol = *canonical
+	}
 	channel := fmt.Sprintf("public:spot:orderbook:deltas:depth:%d:%d:proto", streamDepth, *resolvedSymbolID)
 
 	quantityScale, ok := s.catalogs.BaseQuantityScaleForSymbol(symbol)
@@ -156,7 +178,7 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		// book was being built or invalidated, so its merged levels are not
 		// known to be complete.
 		bookAvailable bool
-		bucketTicks   = orderbook.ParseBucketTicks(opts.Bucket)
+		bucketTicks   = initialBucketTicks
 		subscription  *orderbook.Subscription
 		stream        *realtime.SnapshotThenStream[models.OrderbookData, models.OrderBookDeltaUpdate]
 		// lastViewUnavailable, recheckPending and recheckDelay pace requests for
@@ -364,7 +386,10 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		mu.Unlock()
 	})
 	subscription.SetOnError(opts.OnError)
-	subscription.SetBucket(opts.Bucket)
+	if err := subscription.SetBucket(opts.Bucket); err != nil {
+		subscription.Close()
+		return nil, err
+	}
 	if err := stream.Start(ctx); err != nil {
 		subscription.Close()
 		return nil, err

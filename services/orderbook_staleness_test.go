@@ -40,7 +40,9 @@ func TestManagedBookReportsTimeSinceLastPublication(t *testing.T) {
 
 	// Silence makes it grow again; a bucket change is not a publication.
 	time.Sleep(300 * time.Millisecond)
-	sub.SetBucket("1")
+	if err := sub.SetBucket("1"); err != nil {
+		t.Fatal(err)
+	}
 	if _, ok := bookTicketNext(t, sub.Updates()); !ok {
 		t.Fatal("no view for the bucket change")
 	}
