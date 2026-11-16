@@ -48,9 +48,11 @@ has no entries (right after a stable release) it stops there.
   tags themselves are never deleted or moved. It is never marked latest. When a
   target is abandoned (a breaking entry moves `0.34.1` to `0.35.0`) its
   pre-release is removed; pre-releases of versions that shipped stay.
-- **One at a time.** Runs on `main` queue behind each other. A re-run of a
+- **One at a time.** Runs on `main` queue behind each other (`queue: max`),
+  so every push is published in its turn. A re-run of a
   commit whose tag is already pushed skips the push, and a GitHub pre-release
-  is never moved back to an older tag.
+  is never moved back to an older tag: a run older than any devnet
+  pre-release, of any target, changes nothing.
 
 ### Dry run
 
