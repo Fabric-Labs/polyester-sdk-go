@@ -122,9 +122,31 @@ func (s *OrdersService) ListOpen(ctx context.Context, account AccountScope, subA
 	return UnaryAuthDecoded(ctx, s.transport, s.readClient().GetOpenOrders, req, scaledRead(decode.OrdersListFromOpen, scaleOrdersList, scales))
 }
 
+// validateTimeRange applies the contract's ordered time range
+// (orders_history_bin.ordered_time_range, user_trades_bin.ordered_time_range):
+// when both bounds are set, the start must not be after the end, except an
+// explicit end of 0, which the server answers with an empty page.
+func validateTimeRange(method string, startTsNs, endTsNs *uint64) error {
+	if startTsNs != nil && endTsNs != nil && *endTsNs != 0 && *startTsNs > *endTsNs {
+		return &sdkerrors.ValidationError{Msg: fmt.Sprintf("%s start_ts_ns (%d) must be <= end_ts_ns (%d) when both are set", method, *startTsNs, *endTsNs)}
+	}
+	return nil
+}
+
 // ListHistory returns order history.
 // When triggerID is set, only child orders created by that trigger are returned.
-func (s *OrdersService) ListHistory(ctx context.Context, account AccountScope, subAccountID, symbol *string, symbolID *uint32, pageToken *string, limit int, includeAttachedRisk, includeAttachedRiskState bool, triggerID *string) (models.OrdersList, error) {
+// An optional ListOrderHistoryOptions bounds the time range.
+func (s *OrdersService) ListHistory(ctx context.Context, account AccountScope, subAccountID, symbol *string, symbolID *uint32, pageToken *string, limit int, includeAttachedRisk, includeAttachedRiskState bool, triggerID *string, opts ...models.ListOrderHistoryOptions) (models.OrdersList, error) {
+	var options models.ListOrderHistoryOptions
+	if len(opts) > 1 {
+		return models.OrdersList{}, &sdkerrors.ValidationError{Msg: "orders.ListHistory accepts at most one ListOrderHistoryOptions value"}
+	}
+	if len(opts) == 1 {
+		options = opts[0]
+	}
+	if err := validateTimeRange("orders.ListHistory", options.StartTsNs, options.EndTsNs); err != nil {
+		return models.OrdersList{}, err
+	}
 	parsedLimit, err := PaginationLimit(limit, "limit")
 	if err != nil {
 		return models.OrdersList{}, err
@@ -132,6 +154,8 @@ func (s *OrdersService) ListHistory(ctx context.Context, account AccountScope, s
 	req := &orderv1.GetOrderHistoryRequest{
 		Limit: uint32Ptr(parsedLimit), IncludeAttachedRisk: boolPtr(includeAttachedRisk),
 		IncludeAttachedRiskState: boolPtr(includeAttachedRiskState),
+		StartTsNs:                options.StartTsNs,
+		EndTsNs:                  options.EndTsNs,
 	}
 	if err := s.scoped.ApplyOptionalSubaccountIDPtr(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.OrdersList{}, err

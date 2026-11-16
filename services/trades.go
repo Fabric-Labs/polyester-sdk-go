@@ -47,11 +47,14 @@ func (s *TradesService) List(ctx context.Context, account AccountScope, subAccou
 	if options.ThroughGeneration != nil && *options.ThroughGeneration == 0 {
 		return models.UserTradesList{}, &errors.ValidationError{Msg: "trades.List through_generation must be a positive integer"}
 	}
+	if err := validateTimeRange("trades.List", options.StartTsNs, options.EndTsNs); err != nil {
+		return models.UserTradesList{}, err
+	}
 	parsedLimit, err := PaginationLimit(limit, "limit")
 	if err != nil {
 		return models.UserTradesList{}, err
 	}
-	req := &orderv1.GetUserTradesRequest{Limit: uint32Ptr(parsedLimit)}
+	req := &orderv1.GetUserTradesRequest{Limit: uint32Ptr(parsedLimit), StartTsNs: options.StartTsNs, EndTsNs: options.EndTsNs}
 	if options.OrderID != nil {
 		id, err := codecs.IDToInt(*options.OrderID, "order_id")
 		if err != nil {
