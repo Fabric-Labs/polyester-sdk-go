@@ -93,16 +93,26 @@ func TestGatewayTimestampSkewJSONMapsToSkewError(t *testing.T) {
 	}
 }
 
-func TestLargeJSONErrorBodyReachesConnectIntact(t *testing.T) {
-	// A Connect error whose body exceeds the inspected prefix must still
-	// decode with its full message.
+// expectReadByStatus asserts err read a 400 answer by its status alone, as
+// a body that cannot be read: no refusal, an unknown outcome.
+func expectReadByStatus(t *testing.T, err error) {
+	t.Helper()
+	var validation *sdkerrors.ValidationError
+	var server *sdkerrors.ServerError
+	if errors.As(err, &validation) || !errors.As(err, &server) {
+		t.Fatalf("err=%T, want the answer read by its status", err)
+	}
+	if sdkerrors.AnswerStatus(err) != http.StatusBadRequest || sdkerrors.IsRetryable(err) || !sdkerrors.MutationOutcomeUnknown(err) {
+		t.Fatalf("status=%d retryable=%v unknown=%v", sdkerrors.AnswerStatus(err), sdkerrors.IsRetryable(err), sdkerrors.MutationOutcomeUnknown(err))
+	}
+}
+
+func TestLargeJSONErrorBodyReadsByStatus(t *testing.T) {
+	// A Connect error whose body is longer than the SDK reads is not decoded.
 	message := strings.Repeat("x", maxErrorBodyBytes+1024)
 	err := callMeAgainst(t, http.StatusBadRequest, "application/json",
 		`{"code":"invalid_argument","message":"`+message+`"}`)
-	var validation *sdkerrors.ValidationError
-	if !errors.As(err, &validation) || validation.Msg != message {
-		t.Fatalf("err=%T len=%d", err, len(err.Error()))
-	}
+	expectReadByStatus(t, err)
 }
 
 func TestOwnerRoleLockedProblemMapsToTypedError(t *testing.T) {
@@ -272,9 +282,9 @@ func TestCompressedErrorBodiesKeepTheirClassification(t *testing.T) {
 	}
 }
 
-func TestLongCompressedConnectErrorReachesConnectIntact(t *testing.T) {
-	// Random hex barely compresses, so the compressed body also passes the
-	// inspected prefix.
+func TestLongCompressedConnectErrorReadsByStatus(t *testing.T) {
+	// Random hex barely compresses, so the compressed body is also longer
+	// than the SDK reads.
 	random := make([]byte, maxErrorBodyBytes)
 	if _, err := rand.Read(random); err != nil {
 		t.Fatal(err)
@@ -285,10 +295,7 @@ func TestLongCompressedConnectErrorReachesConnectIntact(t *testing.T) {
 		t.Fatalf("fixture is %d bytes and must pass the inspected prefix", len(body))
 	}
 	err := callMeAgainst(t, 400, "application/json", body, map[string]string{"Content-Encoding": "gzip"})
-	var validation *sdkerrors.ValidationError
-	if !errors.As(err, &validation) || validation.Msg != message {
-		t.Fatalf("got %T", err)
-	}
+	expectReadByStatus(t, err)
 }
 
 // An encoding this client can't decode leaves no readable error. Whatever the

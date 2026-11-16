@@ -2,50 +2,39 @@ package codecs
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 )
 
-// orderbookStreamDepths are the depths the server publishes on the delta stream,
-// fewer than the snapshot enum. It also accepts a subscribe at any other depth,
-// and then never sends anything on it.
+// orderbookStreamDepths are the depths the server publishes on the delta stream.
+// It also accepts a subscribe at any other depth, and then never sends anything
+// on it.
 var orderbookStreamDepths = [...]int{1, 20, 50, 200, 500}
 
-// orderbookSnapshotDepths are the depths Orderbook.Get can request, ascending.
-var orderbookSnapshotDepths = [...]int{1, 5, 10, 20, 50, 100, 200, 500, 1000}
+// OrderbookDefaultDepth is the depth per side a snapshot holds when its
+// request leaves the depth at 0.
+const OrderbookDefaultDepth = 50
 
-const (
-	orderbookSnapshotMaxDepth     = 1000
-	orderbookSnapshotDefaultDepth = 50
-)
-
-// OrderbookSnapshotDepth returns the snapshot depth Orderbook.Get requests for
-// depth: depth itself when it is a snapshot depth, else the smallest one
-// covering it, so the snapshot never holds fewer levels than asked. 0 is the
-// default 50. A depth below 0 or above 1000 is a ValidationError.
+// OrderbookSnapshotDepth returns the depth per side Orderbook.Get reports for
+// depth: depth itself, or OrderbookDefaultDepth for 0. Any level count the
+// uint32 request field holds is sent as given: the largest depth the service
+// accepts is the MaxDepth every snapshot reports, and the service refuses a
+// depth above it with invalid_argument, never truncating it. A negative depth,
+// or one above the uint32 range, is a ValidationError.
 func OrderbookSnapshotDepth(depth int) (int, error) {
-	return coveringSnapshotDepth(depth, "orderbook snapshot depth")
-}
-
-// coveringSnapshotDepth is depth when it is a snapshot depth, else the smallest
-// one covering it; 0 is the default 50. what names the depth in refusals.
-func coveringSnapshotDepth(depth int, what string) (int, error) {
-	if depth == 0 {
-		return orderbookSnapshotDefaultDepth, nil
-	}
 	if depth < 0 {
-		return 0, &errors.ValidationError{Msg: fmt.Sprintf("%s must not be negative, got %d", what, depth)}
+		return 0, &errors.ValidationError{Msg: fmt.Sprintf("orderbook snapshot depth must not be negative, got %d", depth)}
 	}
-	for _, tier := range orderbookSnapshotDepths {
-		if tier >= depth {
-			return tier, nil
-		}
+	if uint64(depth) > math.MaxUint32 {
+		return 0, &errors.ValidationError{Msg: fmt.Sprintf("orderbook snapshot depth %d is above the uint32 range", depth)}
 	}
-	return 0, &errors.ValidationError{Msg: fmt.Sprintf(
-		"%s %d is above the deepest snapshot depth (%d)", what, depth, orderbookSnapshotMaxDepth,
-	)}
+	if depth == 0 {
+		return OrderbookDefaultDepth, nil
+	}
+	return depth, nil
 }
 
 // OrderbookStreamDepths returns the depths published on the delta stream, ascending.
@@ -65,8 +54,8 @@ func OrderbookStreamTier(depth int) (int, error) {
 		}
 	}
 	return 0, &errors.ValidationError{Msg: fmt.Sprintf(
-		"orderbook subscription depth %d is above the deepest published stream tier (%d); use Orderbook.Get for a snapshot of up to %d levels",
-		depth, orderbookStreamDepths[len(orderbookStreamDepths)-1], orderbookSnapshotMaxDepth,
+		"orderbook subscription depth %d is above the deepest published stream tier (%d); use Orderbook.Get for a deeper snapshot, up to the MaxDepth it reports",
+		depth, orderbookStreamDepths[len(orderbookStreamDepths)-1],
 	)}
 }
 
@@ -84,37 +73,4 @@ func RequirePublishedStreamDepth(depth int) (int, error) {
 		"orderbook delta streams are published only at depths %s, got %d; use Orderbook.CreateSubscription for a book trimmed to any depth up to %d",
 		strings.Join(names, ", "), depth, orderbookStreamDepths[len(orderbookStreamDepths)-1],
 	)}
-}
-
-func DepthToConnectEnum(depth int) string {
-	switch {
-	case depth <= 0:
-		return "DEPTH_5"
-	case depth == 1:
-		return "DEPTH_1"
-	case depth <= 5:
-		return "DEPTH_5"
-	case depth <= 10:
-		return "DEPTH_10"
-	case depth <= 20:
-		return "DEPTH_20"
-	case depth <= 50:
-		return "DEPTH_50"
-	case depth <= 100:
-		return "DEPTH_100"
-	case depth <= 200:
-		return "DEPTH_200"
-	case depth <= 500:
-		return "DEPTH_500"
-	default:
-		return "DEPTH_1000"
-	}
-}
-
-func DepthProtoValue(depth int, values map[string]int32) (int32, error) {
-	name := DepthToConnectEnum(depth)
-	if v, ok := values[name]; ok {
-		return v, nil
-	}
-	return 0, fmt.Errorf("unsupported depth %d", depth)
 }

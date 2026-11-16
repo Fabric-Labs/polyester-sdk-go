@@ -3,6 +3,7 @@ package transport
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -17,8 +18,8 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/wire"
 )
 
-// maxErrorBodyBytes bounds how much of an error body is inspected for a
-// gateway code.
+// maxErrorBodyBytes bounds how much of a failed answer's body is read. A
+// longer one is unreadable and reads by its status alone.
 const maxErrorBodyBytes = 64 * 1024
 
 // restCodeForm is the contract's form for a REST problem code. A new one at 429
@@ -38,7 +39,7 @@ var restCodeForm = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
 //     "UNAUTHENTICATED", ...) or a {"code":"PERMISSION_DENIED"} problem as
 //     *errors.AuthError with the problem's code and detail;
 //   - a retryable admission problem, such as a 429 RATE_LIMIT_EXCEEDED, as
-//     *errors.RateLimitError with the problem's rate_limit detail and the
+//     *errors.RateLimitError with the problem's rateLimit detail and the
 //     response's Retry-After;
 //   - a 429 REPLAY_CAPACITY_EXHAUSTED problem as *errors.RateLimitError with
 //     code AUTH_REPLAY_CAPACITY_EXHAUSTED;
@@ -55,11 +56,32 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	if base == nil {
 		base = http.DefaultTransport
 	}
+	// Each round trip answers for itself: a redirect followed to a target
+	// that never answers leaves no answer behind.
+	record := answerRecordOf(req.Context())
+	record.clear()
 	resp, err := base.RoundTrip(req)
-	if err != nil || resp.StatusCode < 400 {
+	if err != nil || resp.StatusCode < 300 {
 		return resp, err
 	}
-	body, readErr := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyBytes))
+	// The answer's status and delay are fixed here, from its headers, before
+	// its body is read or a redirect is decided; the call's error, whatever
+	// later fails, carries them (see answerInterceptor). A ConnectRPC error
+	// decoded by connect-go keeps the real status in its metadata too (its
+	// code alone implies another).
+	record.set(resp)
+	resp.Header.Set(wire.AnswerStatusHeader, strconv.Itoa(resp.StatusCode))
+	if resp.StatusCode < 400 {
+		// The client's redirect policy decides; a signed request's redirect
+		// is refused, and one with nothing to follow reaches connect-go.
+		return resp, nil
+	}
+	body, readErr := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyBytes+1))
+	if readErr == nil && len(body) > maxErrorBodyBytes {
+		// Longer than the SDK reads: unreadable, whatever its first bytes
+		// say. It is never handed back to connect-go to decode whole.
+		return unreadableAnswer(resp)
+	}
 	// Hand the caller the whole body: the inspected prefix, then the rest.
 	resp.Body = prefixedBody{Reader: io.MultiReader(bytes.NewReader(body), resp.Body), Closer: resp.Body}
 	if readErr != nil {
@@ -68,7 +90,12 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	isJSON := isJSONContentType(resp.Header.Get("Content-Type"))
 	// Connect asks for gzip, so a gateway may compress an error. Classify what
 	// the body says; Connect still gets the bytes as received.
-	decoded := decodedErrorBody(resp.Header.Get("Content-Encoding"), body)
+	decoded, overflow := decodedErrorBody(resp.Header.Get("Content-Encoding"), body)
+	if overflow {
+		// Longer than the SDK reads once decoded: unreadable, decided on the
+		// byte count before anything parses it.
+		return unreadableAnswer(resp)
+	}
 	// Connect error codes are lowercase names, so this never matches one.
 	var detail struct {
 		Code       string `json:"code"`
@@ -84,14 +111,10 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 			Type  string `json:"type"`
 			Value string `json:"value"`
 		} `json:"details"`
-		RateLimit json.RawMessage `json:"rate_limit"`
+		RateLimit json.RawMessage `json:"rateLimit"`
 	}
 	if isJSON || resp.StatusCode == 504 {
 		if json.Unmarshal(decoded, &detail) != nil {
-			// Only part of a long body was inspected, so Connect reads it whole.
-			if (len(body) == maxErrorBodyBytes || len(decoded) == maxErrorBodyBytes) && resp.StatusCode != 504 {
-				return resp, nil
-			}
 			// A body Connect's decoder can't read has no code either, whatever
 			// fields were decoded before the failure.
 			detail.Code = ""
@@ -102,6 +125,15 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	}
 	hasServiceDetail := false
 	futureCode := ""
+	// An explicit outcome-unknown code: a problem's code, a ConnectRPC
+	// error's code-only message, or an order detail's code.
+	outcomeCode := ""
+	switch {
+	case strings.HasSuffix(detail.Code, "_OUTCOME_UNKNOWN"):
+		outcomeCode = wire.ErrorCodeFromREST(detail.Code)
+	case strings.HasSuffix(strings.TrimSpace(detail.Message), "_OUTCOME_UNKNOWN"):
+		outcomeCode = wire.ErrorCodeFromREST(strings.TrimSpace(detail.Message))
+	}
 	for _, item := range detail.Details {
 		value, decodeErr := base64.RawStdEncoding.DecodeString(strings.TrimRight(item.Value, "="))
 		if decodeErr != nil {
@@ -110,9 +142,54 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		if wire.CarriesContractCode(item.Type, value) {
 			hasServiceDetail = true
 		}
+		if code := wire.OutcomeUnknownCode(item.Type, value); code != "" && outcomeCode == "" {
+			outcomeCode = code
+		}
 		if futureCode == "" {
 			futureCode = wire.FutureCodeLabel(item.Type, value)
 		}
+	}
+	// The HTTP status decides outcome certainty first. A 504 never proves a
+	// refusal: the API answers it only where a write's outcome is unknown,
+	// and an edge answers it for a request that may have reached the API. So
+	// before any code, message or typed detail is read for a refusal, a 504
+	// is an unknown outcome that safe reads retry: an *errors.APIError with
+	// the outcome-unknown code the answer names, else an *errors.ServerError.
+	// No body, a ConnectRPC code, a retryable rate-limit, admission or
+	// authentication code, or a typed detail included, changes that.
+	if resp.StatusCode == http.StatusGatewayTimeout {
+		var mapped error
+		switch {
+		case outcomeCode != "":
+			mapped = &sdkerrors.APIError{
+				Msg:     firstNonEmpty(detail.Detail, detail.Title, strings.TrimSpace(detail.Message), detail.Code, outcomeCode),
+				Code:    outcomeCode,
+				Problem: sdkerrors.DecodeHTTPProblem(decoded, resp.StatusCode),
+			}
+		case detail.Code == "deadline_exceeded":
+			// ConnectRPC answers its own deadline_exceeded with 504: the
+			// request's deadline passed, read as the deadline it is (as
+			// ConnectRPC deadline_exceeded reads), whatever its message
+			// or detail says. Still an unknown outcome that reads retry.
+			mapped = &sdkerrors.TransportError{
+				Msg: firstNonEmpty(strings.TrimSpace(detail.Message), "deadline exceeded"),
+				Err: context.DeadlineExceeded,
+			}
+		default:
+			// A REST problem's code is uppercase; a ConnectRPC error's
+			// lowercase code names no service code, so only its detail's
+			// label is kept.
+			restCode := detail.Code
+			if restCode == strings.ToLower(restCode) {
+				restCode = ""
+			}
+			mapped = &sdkerrors.ServerError{
+				Msg:    firstNonEmpty(detail.Detail, detail.Title, detail.Message, "Gateway Timeout"),
+				Code:   firstNonEmpty(futureCode, restCode),
+				Status: http.StatusGatewayTimeout,
+			}
+		}
+		return nil, failedAnswer(resp, mapped)
 	}
 	// Connect's own code and detail decoder remains authoritative.
 	switch detail.Code {
@@ -120,12 +197,15 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		// The contract never uses these, and they say nothing a 401 or 403
 		// doesn't already say better.
 		if !hasServiceDetail && (resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden) {
+			code := connectCodeForStatus(resp.StatusCode)
+			mapped := wire.MapConnectError(connect.NewError(code, errors.New(firstNonEmpty(detail.Message, statusLine(resp.StatusCode)))))
+			sdkerrors.AttachAnswer(mapped, resp.StatusCode, wire.RetryAfterHeaderSeconds(resp.Header))
 			_ = resp.Body.Close()
-			return nil, connect.NewError(connectCodeForStatus(resp.StatusCode), errors.New(firstNonEmpty(detail.Message, statusLine(resp.StatusCode))))
+			return nil, connect.NewError(code, mapped)
 		}
-		return resp, nil
+		return passToConnect(resp, isJSON, decoded)
 	case "invalid_argument", "deadline_exceeded", "not_found", "already_exists", "permission_denied", "resource_exhausted", "failed_precondition", "aborted", "out_of_range", "unimplemented", "internal", "unavailable", "unauthenticated":
-		return resp, nil
+		return passToConnect(resp, isJSON, decoded)
 	}
 	recognised := wire.IsRecognisedRESTCode(detail.Code)
 	msg := detail.Detail
@@ -176,11 +256,6 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 			msg = detail.Code
 		}
 		mapped = &sdkerrors.APIError{Msg: msg, Code: "ERROR_CODE_ORDER_SEQUENCE_EXHAUSTED"}
-	case resp.StatusCode == 504:
-		if msg == "" {
-			msg = "Gateway Timeout"
-		}
-		mapped = &sdkerrors.ServerError{Msg: msg, Code: detail.Code, Status: 504}
 	case resp.StatusCode == http.StatusServiceUnavailable && strings.TrimPrefix(detail.Code, "ERROR_CODE_") == "ACCOUNT_ROUTING_INVALID":
 		mapped = &sdkerrors.APIError{Msg: msg, Code: "ERROR_CODE_ACCOUNT_ROUTING_INVALID"}
 	case resp.StatusCode == http.StatusServiceUnavailable && detail.Code == sdkerrors.AuthCodeTemporarilyUnavailable:
@@ -244,7 +319,7 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		mapped = &sdkerrors.APIError{Msg: msg, Code: code}
 	default:
 		if hasServiceDetail || leftToConnect(resp.StatusCode, isJSON, len(decoded), detail.Message) {
-			return resp, nil
+			return passToConnect(resp, isJSON, decoded)
 		}
 		// A gateway or an edge can send any of these, so none proves that a
 		// mutation was refused. The code is kept for diagnosis only.
@@ -269,8 +344,99 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	case *sdkerrors.ValidationError:
 		e.Problem = problem
 	}
+	return nil, failedAnswer(resp, mapped)
+}
+
+// passToConnect hands a failed answer to connect-go, which decodes a
+// ConnectRPC error body and keeps the answer's headers on the error, the
+// transport's AnswerStatusHeader included. An answer it cannot decode (an
+// error content type other than application/json, or JSON that does not
+// parse) it reports by status alone and without the answer's headers, so the
+// SDK reads that one here, exactly as connect-go would, with the answer
+// attached.
+func passToConnect(resp *http.Response, _ bool, decoded []byte) (*http.Response, error) {
+	if connectWillDecode(resp.Header.Get("Content-Type"), resp.Header.Get("Content-Encoding"), decoded) {
+		return resp, nil
+	}
+	code := connectCodeForUndecodable(resp.StatusCode)
+	mapped := wire.MapConnectError(connect.NewError(code, errors.New(resp.Status)))
+	sdkerrors.AttachAnswer(mapped, resp.StatusCode, wire.RetryAfterHeaderSeconds(resp.Header))
 	_ = resp.Body.Close()
-	return nil, roundTripError(mapped, resp.StatusCode)
+	// The same code connect-go reports, so retries choose as before.
+	return nil, connect.NewError(code, mapped)
+}
+
+// unreadableAnswer reports a failed answer whose body is longer than
+// maxErrorBodyBytes: it reads by status alone, as an answer connect-go cannot
+// decode does, with the status and delay its headers gave. A 504 is an
+// unknown outcome, as every 504 is.
+func unreadableAnswer(resp *http.Response) (*http.Response, error) {
+	_ = resp.Body.Close()
+	if resp.StatusCode == http.StatusGatewayTimeout {
+		return nil, failedAnswer(resp, &sdkerrors.ServerError{Msg: "Gateway Timeout", Status: http.StatusGatewayTimeout})
+	}
+	return passToConnect(resp, false, nil)
+}
+
+// connectWillDecode reports whether connect-go decodes an error answer and
+// keeps its headers: an exact application/json content type, an encoding it
+// reads, and JSON that parses as its wire error (a string code and message,
+// well-formed details). It is lenient with the code's value, as connect-go
+// is: a missing or unknown one reads by status.
+func connectWillDecode(contentType, encoding string, decoded []byte) bool {
+	if contentType != "application/json" && contentType != "application/json; charset=utf-8" {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(encoding)) {
+	case "", "identity", "gzip":
+	default:
+		return false
+	}
+	var wireErr struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+		Details []struct {
+			Type  string          `json:"type"`
+			Value string          `json:"value"`
+			Debug json.RawMessage `json:"debug"`
+		} `json:"details"`
+	}
+	if decoded == nil || json.Unmarshal(decoded, &wireErr) != nil {
+		return false
+	}
+	for _, item := range wireErr.Details {
+		if _, err := base64.RawStdEncoding.DecodeString(strings.TrimRight(item.Value, "=")); err != nil {
+			return false
+		}
+	}
+	return true
+}
+
+// connectCodeForUndecodable is connect-go's code for an answer it cannot
+// decode, by HTTP status.
+func connectCodeForUndecodable(status int) connect.Code {
+	switch status {
+	case 400:
+		return connect.CodeInternal
+	case 401:
+		return connect.CodeUnauthenticated
+	case 403:
+		return connect.CodePermissionDenied
+	case 404:
+		return connect.CodeUnimplemented
+	case 429, 502, 503, 504:
+		return connect.CodeUnavailable
+	}
+	return connect.CodeUnknown
+}
+
+// failedAnswer closes a failed answer the SDK mapped itself and hands mapped
+// to connect-go, with the delay the answer's Retry-After asked for: the one
+// place a REST answer's delay is captured.
+func failedAnswer(resp *http.Response, mapped error) error {
+	sdkerrors.AttachAnswer(mapped, resp.StatusCode, wire.RetryAfterHeaderSeconds(resp.Header))
+	_ = resp.Body.Close()
+	return roundTripError(mapped, resp.StatusCode)
 }
 
 // roundTripError hands a mapped answer to connect-go, which reports a plain
@@ -355,24 +521,28 @@ func firstNonEmpty(values ...string) string {
 }
 
 // decodedErrorBody reads a failed response's body as its Content-Encoding says,
-// up to maxErrorBodyBytes. An encoding this client can't decode leaves no readable
-// error, so it reads as empty.
-func decodedErrorBody(encoding string, body []byte) []byte {
+// up to maxErrorBodyBytes. overflow reports a body longer than that once
+// decoded, decided on the byte count alone. An encoding this client can't
+// decode leaves no readable error, so it reads as empty.
+func decodedErrorBody(encoding string, body []byte) (decoded []byte, overflow bool) {
 	switch strings.ToLower(strings.TrimSpace(encoding)) {
 	case "", "identity":
-		return body
+		return body, false
 	case "gzip":
 		reader, err := gzip.NewReader(bytes.NewReader(body))
 		if err != nil {
-			return nil
+			return nil, false
 		}
-		decoded, err := io.ReadAll(io.LimitReader(reader, maxErrorBodyBytes))
-		if err != nil && len(body) < maxErrorBodyBytes {
-			return nil
+		decoded, err := io.ReadAll(io.LimitReader(reader, maxErrorBodyBytes+1))
+		if len(decoded) > maxErrorBodyBytes {
+			return nil, true
 		}
-		return decoded
+		if err != nil {
+			return nil, false
+		}
+		return decoded, false
 	}
-	return nil
+	return nil, false
 }
 
 type prefixedBody struct {
@@ -403,29 +573,24 @@ func isRetryableRESTAdmissionCode(code string) bool {
 	}
 }
 
-// problemRateLimit reads the rate_limit object of a REST rate-limit problem.
-// Every field is optional: the gateway's own refusal sends only reason and
-// scope. Integers arrive as JSON strings or numbers; enum names are kept as
-// sent, including ones newer than this SDK. Anything that isn't an object
-// reads as no detail, and a field of the wrong type reads as absent.
+// problemRateLimit reads the rateLimit object of a REST rate-limit problem,
+// whose fields are camelCase. Every field is optional: the gateway's own
+// refusal sends only reason and scope. Integers arrive as JSON strings (problem
+// bodies) or numbers; enum names are kept as sent, including ones newer than
+// this SDK. Anything that isn't an object reads as no detail, and a field of the
+// wrong type reads as absent.
 func problemRateLimit(raw json.RawMessage) *sdkerrors.RateLimitDetail {
 	var fields map[string]json.RawMessage
 	if len(raw) == 0 || json.Unmarshal(raw, &fields) != nil || fields == nil {
 		return nil
 	}
-	field := func(snake, camel string) json.RawMessage {
-		if value, ok := fields[snake]; ok {
-			return value
-		}
-		return fields[camel]
-	}
-	text := func(snake, camel string) string {
+	text := func(name string) string {
 		var value string
-		_ = json.Unmarshal(field(snake, camel), &value)
+		_ = json.Unmarshal(fields[name], &value)
 		return value
 	}
-	integer := func(snake, camel string) *uint64 {
-		value := field(snake, camel)
+	integer := func(name string) *uint64 {
+		value := fields[name]
 		var quoted string
 		if json.Unmarshal(value, &quoted) == nil {
 			value = json.RawMessage(quoted)
@@ -437,14 +602,14 @@ func problemRateLimit(raw json.RawMessage) *sdkerrors.RateLimitDetail {
 		return &parsed
 	}
 	return &sdkerrors.RateLimitDetail{
-		Reason:        text("reason", "reason"),
-		Limit:         integer("limit", "limit"),
-		Remaining:     integer("remaining", "remaining"),
-		RetryAfterMs:  integer("retry_after_ms", "retryAfterMs"),
-		PolicyVersion: integer("policy_version", "policyVersion"),
-		OperationID:   text("operation_id", "operationId"),
-		PolicyClass:   text("policy_class", "policyClass"),
-		Scope:         text("scope", "scope"),
-		RefillModel:   text("refill_model", "refillModel"),
+		Reason:        text("reason"),
+		Limit:         integer("limit"),
+		Remaining:     integer("remaining"),
+		RetryAfterMs:  integer("retryAfterMs"),
+		PolicyVersion: integer("policyVersion"),
+		OperationID:   text("operationId"),
+		PolicyClass:   text("policyClass"),
+		Scope:         text("scope"),
+		RefillModel:   text("refillModel"),
 	}
 }

@@ -22,6 +22,8 @@ func OrderbookFromProto(msg *orderbookv1.GetOrderBookResponse, symbol string, de
 		Symbol:    symbol,
 		Depth:     depth,
 		BookSeq:   strconv.FormatUint(msg.GetBookSeq(), 10),
+		BookEpoch: strconv.FormatUint(msg.GetBookEpoch(), 10),
+		MaxDepth:  msg.GetMaxDepth(),
 		Bids:      bids,
 		Asks:      asks,
 		Available: msg.GetAvailable(),

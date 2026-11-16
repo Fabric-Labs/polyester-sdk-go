@@ -5,12 +5,15 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+
+	"github.com/Fabric-Labs/polyester-sdk-go/internal/retrywait"
 )
 
 // unavailableRetry retries a side-effect-free read that answered UNAVAILABLE
 // (Connect unavailable, or HTTP 503), with the same request. The first wait
-// is first, each next one doubles up to max, and no wait starts that would
-// end after budget from the first attempt; the last error is then returned.
+// is first, each next one doubles up to max, and a wait is never shorter than
+// the Retry-After the answer asked for. No wait starts that would end after
+// budget from the first attempt; the last error is then returned.
 type unavailableRetry struct {
 	first  time.Duration
 	max    time.Duration
@@ -44,10 +47,11 @@ func retryUnavailable[Req any, Resp any](
 				// The answer would be retried; only the caller ended the read.
 				return nil, ctx.Err()
 			}
-			if time.Since(started)+delay > policy.budget {
+			wait := retrywait.Delay(err, delay)
+			if time.Since(started)+wait > policy.budget {
 				return nil, err
 			}
-			timer := time.NewTimer(delay)
+			timer := time.NewTimer(wait)
 			select {
 			case <-ctx.Done():
 				timer.Stop()

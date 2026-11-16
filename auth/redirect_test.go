@@ -152,3 +152,19 @@ func TestRefuseSignedRedirectsKeepsUnsignedPolicy(t *testing.T) {
 		t.Fatalf("redirect loop err = %v, want net/http's limit", err)
 	}
 }
+
+// A refused redirect keeps the redirect answer's Retry-After.
+func TestRefusedRedirectKeepsItsRetryAfter(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Retry-After", "30")
+		http.Redirect(w, r, "/moved", http.StatusTemporaryRedirect)
+	}))
+	t.Cleanup(srv.Close)
+	_, err := RefuseSignedRedirects(nil).Do(signedRequest(t, srv.URL+"/v1/rt/token"))
+	if errors.AnswerStatus(err) != http.StatusTemporaryRedirect {
+		t.Fatalf("status %d (%v)", errors.AnswerStatus(err), err)
+	}
+	if got := errors.RetryAfter(err); got == nil || *got != 30 {
+		t.Fatalf("retry after %v", got)
+	}
+}

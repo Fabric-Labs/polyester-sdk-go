@@ -186,7 +186,7 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale, quoteQuant
 			return nil, &errors.ValidationError{Msg: "fee_asset must be quote or base"}
 		}
 		if feeAsset == orderv1.FeeAsset_BASE && side != orderv1.Side_BUY {
-			return nil, &errors.ValidationError{Msg: "fee_asset=base is only valid for buy orders"}
+			return nil, feeAssetNotAllowed("fee_asset=base is only valid for buy orders")
 		}
 		intent.FeeAsset = feeAsset
 	}

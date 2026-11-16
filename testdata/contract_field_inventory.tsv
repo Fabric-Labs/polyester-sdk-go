@@ -1,7 +1,7 @@
-# Every field of the request and reply messages public contract 1945423c
-# added or changed, and of the messages nested in their new replies. A guard
-# test walks these messages and fails when a field is missing here or listed
-# but gone, so no field of them is dropped by accident.
+# Every field of the request and reply messages public contracts 1945423c
+# and 5c2119f added or changed, and of the messages nested in their new
+# replies. A guard test walks these messages and fails when a field is missing
+# here or listed but gone, so no field of them is dropped by accident.
 #
 # covered: the SDK parameter (request) or model field (reply) that carries it.
 # omitted: not exposed, with the reason.
@@ -67,6 +67,16 @@ ledger.read.v1.StatementExport.ready_at	covered	models.StatementExport.ReadyAt
 ledger.read.v1.StatementExport.start_time	covered	models.StatementExport.StartTime
 ledger.read.v1.StatementExport.status	covered	models.StatementExport.Status
 ledger.read.v1.StatementExport.subaccount_id	covered	models.StatementExport.SubaccountID
+orderbook.v1.GetOrderBookRequest.depth	covered	Orderbook.Get depth, sent as given (0 for the default 50)
+orderbook.v1.GetOrderBookRequest.symbol_id	covered	Orderbook.Get symbol, resolved through the spot catalog
+orderbook.v1.GetOrderBookResponse.asks	covered	models.OrderbookData.Asks
+orderbook.v1.GetOrderBookResponse.available	covered	models.OrderbookData.Available
+orderbook.v1.GetOrderBookResponse.bids	covered	models.OrderbookData.Bids
+orderbook.v1.GetOrderBookResponse.book_epoch	covered	models.OrderbookData.BookEpoch
+orderbook.v1.GetOrderBookResponse.book_seq	covered	models.OrderbookData.BookSeq
+orderbook.v1.GetOrderBookResponse.max_depth	covered	models.OrderbookData.MaxDepth
+orderbook.v1.GetOrderBookResponse.symbol_id	covered	models.OrderbookData.Symbol (the symbol the caller asked for)
+orderbook.v1.GetOrderBookResponse.ts	omitted	best-effort snapshot time, unchanged by this contract and not modelled; order snapshots by (book_epoch, book_seq)
 orders.v1.ErrorDetail.cause_code	covered	errors.LadderLevelCause.CauseCode
 orders.v1.ErrorDetail.code	covered	errors.APIError.Code, errors.ValidationError.Code, errors.RateLimitError.Code
 orders.v1.ErrorDetail.existing_order_id	covered	errors.APIError.ExistingOrderID

@@ -464,9 +464,9 @@ func (p *privateOrderStream) dial(ctx context.Context) (*websocket.Conn, error) 
 		HandshakeTimeout: p.cfg.timing.dialTimeout,
 		Subprotocols:     []string{privateWSSubprotocol},
 	}
-	ws, _, err := dialer.DialContext(ctx, p.cfg.url, nil)
+	ws, resp, err := dialer.DialContext(ctx, p.cfg.url, nil)
 	if err != nil {
-		return nil, &sdkerrors.RealtimeError{Msg: "private order stream: " + redact.URLError(err).Error()}
+		return nil, upgradeAnswerError(&sdkerrors.RealtimeError{Msg: "private order stream: " + redact.URLError(err).Error()}, resp)
 	}
 	// The server defaults to protobuf frames when it echoes no subprotocol.
 	if sp := ws.Subprotocol(); sp != "" && sp != privateWSSubprotocol {

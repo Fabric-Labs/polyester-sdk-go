@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 )
 
@@ -182,5 +183,26 @@ func TestJSONRPCConcurrentReorderedOK(t *testing.T) {
 		if err := <-errs; err != nil {
 			t.Fatalf("request %d: %v", i, err)
 		}
+	}
+}
+
+// A JSON-RPC endpoint's failed answer is a *errors.TransportError that keeps
+// the answer's status and Retry-After.
+func TestJSONRPCFailedAnswerCarriesItsMetadata(t *testing.T) {
+	srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Retry-After", "30")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte("busy"))
+	}))
+	t.Cleanup(srv.Close)
+	_, err := NewJSONRPCClient(srv.URL, time.Second).Request("eth_chainId", []any{})
+	if err == nil || !strings.Contains(err.Error(), "json-rpc http 503") {
+		t.Fatalf("err = %v", err)
+	}
+	if sdkerrors.AnswerStatus(err) != http.StatusServiceUnavailable {
+		t.Fatalf("status %d", sdkerrors.AnswerStatus(err))
+	}
+	if got := sdkerrors.RetryAfter(err); got == nil || *got != 30 {
+		t.Fatalf("retry after %v", got)
 	}
 }

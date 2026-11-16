@@ -33,8 +33,19 @@ type Order struct {
 	// HiddenQty. Both are zero for a plain order, and HiddenQty is zero once
 	// the order has ended. Public market data shows only the quantity on the
 	// book.
-	DisplayQty  QtyScaled  `json:"display_qty,omitempty"`
-	HiddenQty   QtyScaled  `json:"hidden_qty,omitempty"`
+	DisplayQty QtyScaled `json:"display_qty,omitempty"`
+	HiddenQty  QtyScaled `json:"hidden_qty,omitempty"`
+	// Price is a limit order's limit price. For a market order, whatever
+	// placed it (a direct market order, the market order of a stop-loss,
+	// take-profit, attached leg or TWAP slice, or a trailing stop's), it is
+	// its protection price: the worst price it may fill at, a buy at or below
+	// it and a sell at or above it. That is the order's reference price moved
+	// by its maximum slippage, or by the pair's default market slippage for
+	// its side (200 basis points if none is configured), on the pair's tick
+	// grid; a stop-loss's, take-profit's or trailing stop's market order takes
+	// the price that fired it as its reference. Order reads and private
+	// stream order updates carry the same value. Tell a market order by
+	// OrderType, never by a zero price.
 	Price       PriceTicks `json:"price,omitempty"`
 	AvgPx       PriceTicks `json:"avg_px,omitempty"`
 	CreatedTsNs string     `json:"created_ts_ns,omitempty"`

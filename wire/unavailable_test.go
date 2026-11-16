@@ -71,7 +71,7 @@ func TestServiceUnavailableClassification(t *testing.T) {
 			if sdkerrors.IsRetryable(mapped) != known || sdkerrors.MutationOutcomeUnknown(mapped) == known {
 				t.Fatalf("retryable=%v unknown=%v for %s", sdkerrors.IsRetryable(mapped), sdkerrors.MutationOutcomeUnknown(mapped), wantCode)
 			}
-			if server.Code != wantCode || server.Status != 503 {
+			if server.Code != wantCode || server.Status != 0 {
 				t.Fatalf("code=%q status=%d", server.Code, server.Status)
 			}
 		})
