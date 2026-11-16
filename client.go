@@ -25,6 +25,7 @@ import (
 	marketdatav1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1/marketdatav1connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/redact"
+	"github.com/Fabric-Labs/polyester-sdk-go/marketstream"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/realtime"
 	"github.com/Fabric-Labs/polyester-sdk-go/services"
@@ -222,8 +223,13 @@ type Client struct {
 	Withdraw         *services.WithdrawService
 	TradingWithdraws *services.WithdrawService
 
-	transport            *transport.Factory
-	closeOnce            sync.Once
+	transport *transport.Factory
+	closeOnce sync.Once
+	// marketStreams are the market-data stream clients MarketStream opened;
+	// Close closes them.
+	marketStreams        []*marketstream.Client
+	marketStreamsMu      sync.Mutex
+	closed               bool
 	catalogHydrationDone chan struct{}
 	fundingHydrationDone chan struct{}
 	catalogMu            sync.Mutex
@@ -555,9 +561,62 @@ func (c *Client) StopAllTrading(ctx context.Context, account services.AccountSco
 	return services.StopAllTrading(ctx, c.Triggers, c.Orders, account, scope)
 }
 
-// Close releases client resources, including tracked realtime subscriptions.
+// MarketStream connects to the public binary market-data stream of the
+// client's environment (marketstream.Dial). It waits for the spot catalogs,
+// whose pair scales every price level and trade is decoded with. Fields of
+// cfg left empty are filled: URL from the client's WebSocket URL, Pairs from
+// its catalogs, and History from its market data API, so trade gaps are
+// backfilled. The stream needs no credentials. Close closes it.
+func (c *Client) MarketStream(ctx context.Context, cfg marketstream.Config) (*marketstream.Client, error) {
+	if err := c.WaitForCatalogs(ctx); err != nil {
+		return nil, err
+	}
+	if cfg.URL == "" {
+		url, err := marketstream.URL(c.WSURL)
+		if err != nil {
+			return nil, err
+		}
+		cfg.URL = url
+	}
+	if cfg.Pairs == nil {
+		cfg.Pairs = c.Catalogs
+	}
+	if cfg.History == nil {
+		cfg.History = marketstream.HistoryFromMarketData(c.MarketData)
+	}
+	c.marketStreamsMu.Lock()
+	if c.closed {
+		c.marketStreamsMu.Unlock()
+		return nil, marketstream.ErrClosed
+	}
+	c.marketStreamsMu.Unlock()
+	stream, err := marketstream.Dial(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	c.marketStreamsMu.Lock()
+	if c.closed {
+		c.marketStreamsMu.Unlock()
+		stream.Close()
+		return nil, marketstream.ErrClosed
+	}
+	c.marketStreams = append(c.marketStreams, stream)
+	c.marketStreamsMu.Unlock()
+	return stream, nil
+}
+
+// Close releases client resources, including tracked realtime subscriptions
+// and market-data streams.
 func (c *Client) Close() error {
 	c.closeOnce.Do(func() {
+		c.marketStreamsMu.Lock()
+		c.closed = true
+		streams := c.marketStreams
+		c.marketStreams = nil
+		c.marketStreamsMu.Unlock()
+		for _, s := range streams {
+			s.Close()
+		}
 		c.stopHydration()
 		if c.Realtime != nil {
 			c.Realtime.Close()
