@@ -89,22 +89,25 @@ type QuickSwapReferralServiceClient interface {
 	//     REFERRAL_PARTNER_DISABLED.
 	//   - RESOURCE_EXHAUSTED: the caller's rate limit; retry after Retry-After.
 	SetReferralCode(context.Context, *connect.Request[v1.SetReferralCodeRequest]) (*connect.Response[v1.SetReferralCodeResponse], error)
-	// ListReferredQuickSwaps lists the Quick Swaps the caller referred, newest
-	// first, filtered by status and creation time, with their rates and the
-	// commission credited so far.
+	// ListReferredQuickSwaps lists the QuickSwaps the caller referred.
+	//
+	// Newest first, filtered by status and creation time. Each QuickSwap
+	// carries its rates and the commission credited so far.
 	//
 	// Errors:
 	//   - NOT_FOUND: REFERRAL_PARTNER_NOT_FOUND.
 	//   - INVALID_ARGUMENT: a page_token from another partner, other filters or
 	//     malformed.
 	ListReferredQuickSwaps(context.Context, *connect.Request[v1.ListReferredQuickSwapsRequest]) (*connect.Response[v1.ListReferredQuickSwapsResponse], error)
-	// GetReferredQuickSwap returns one Quick Swap the caller referred, in
-	// progress or done, with the breakdown of its fee and the commission:
-	// rates, every credit and the commission's current US dollar value.
+	// GetReferredQuickSwap returns one QuickSwap the caller referred.
+	//
+	// The QuickSwap can be in progress or done. Its breakdown shows the fee
+	// and commission rates, every commission credit and the commission's
+	// current US dollar value.
 	//
 	// Errors:
-	//   - NOT_FOUND: REFERRAL_PARTNER_NOT_FOUND, or SWAP_NOT_FOUND for a Quick
-	//     Swap the caller did not refer.
+	//   - NOT_FOUND: REFERRAL_PARTNER_NOT_FOUND, or SWAP_NOT_FOUND for a
+	//     QuickSwap the caller did not refer.
 	GetReferredQuickSwap(context.Context, *connect.Request[v1.GetReferredQuickSwapRequest]) (*connect.Response[v1.GetReferredQuickSwapResponse], error)
 }
 
@@ -234,22 +237,25 @@ type QuickSwapReferralServiceHandler interface {
 	//     REFERRAL_PARTNER_DISABLED.
 	//   - RESOURCE_EXHAUSTED: the caller's rate limit; retry after Retry-After.
 	SetReferralCode(context.Context, *connect.Request[v1.SetReferralCodeRequest]) (*connect.Response[v1.SetReferralCodeResponse], error)
-	// ListReferredQuickSwaps lists the Quick Swaps the caller referred, newest
-	// first, filtered by status and creation time, with their rates and the
-	// commission credited so far.
+	// ListReferredQuickSwaps lists the QuickSwaps the caller referred.
+	//
+	// Newest first, filtered by status and creation time. Each QuickSwap
+	// carries its rates and the commission credited so far.
 	//
 	// Errors:
 	//   - NOT_FOUND: REFERRAL_PARTNER_NOT_FOUND.
 	//   - INVALID_ARGUMENT: a page_token from another partner, other filters or
 	//     malformed.
 	ListReferredQuickSwaps(context.Context, *connect.Request[v1.ListReferredQuickSwapsRequest]) (*connect.Response[v1.ListReferredQuickSwapsResponse], error)
-	// GetReferredQuickSwap returns one Quick Swap the caller referred, in
-	// progress or done, with the breakdown of its fee and the commission:
-	// rates, every credit and the commission's current US dollar value.
+	// GetReferredQuickSwap returns one QuickSwap the caller referred.
+	//
+	// The QuickSwap can be in progress or done. Its breakdown shows the fee
+	// and commission rates, every commission credit and the commission's
+	// current US dollar value.
 	//
 	// Errors:
-	//   - NOT_FOUND: REFERRAL_PARTNER_NOT_FOUND, or SWAP_NOT_FOUND for a Quick
-	//     Swap the caller did not refer.
+	//   - NOT_FOUND: REFERRAL_PARTNER_NOT_FOUND, or SWAP_NOT_FOUND for a
+	//     QuickSwap the caller did not refer.
 	GetReferredQuickSwap(context.Context, *connect.Request[v1.GetReferredQuickSwapRequest]) (*connect.Response[v1.GetReferredQuickSwapResponse], error)
 }
 

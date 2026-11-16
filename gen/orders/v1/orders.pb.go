@@ -204,7 +204,8 @@ const (
 	FeeAsset_FEE_ASSET_UNSPECIFIED FeeAsset = 0
 	// Fees are charged in the quote asset. SELL fees always use quote asset.
 	FeeAsset_QUOTE FeeAsset = 1
-	// BUY-only option: fees are deducted from the received base asset.
+	// BUY-only option: fees are deducted from the received base asset. Only on
+	// a pair whose allow_buy_fee_from_base is true in GetSpotConfig.
 	FeeAsset_BASE FeeAsset = 2
 )
 
@@ -416,9 +417,10 @@ const (
 	ErrorCode_ERROR_CODE_PERMISSION_DENIED ErrorCode = 12
 	// Requested order or resource was not found.
 	ErrorCode_ERROR_CODE_NOT_FOUND ErrorCode = 13
-	// Upstream dependency returned an error.
+	// A temporary server-side failure stopped the request. Retry later.
 	ErrorCode_ERROR_CODE_UPSTREAM_ERROR ErrorCode = 14
-	// Requested fee asset is not allowed for this order.
+	// Requested fee asset is not allowed for this order or trigger: BASE on a
+	// SELL, or BASE on a BUY where the pair's allow_buy_fee_from_base is false.
 	ErrorCode_ERROR_CODE_FEE_ASSET_NOT_ALLOWED ErrorCode = 15
 	// Pair is disabled and does not accept orders.
 	ErrorCode_ERROR_CODE_PAIR_DISABLED ErrorCode = 16
@@ -429,7 +431,8 @@ const (
 	// Sub-account is present but not in an active state (disabled, deleted,
 	// etc.).
 	ErrorCode_ERROR_CODE_SUBACCOUNT_INACTIVE ErrorCode = 19
-	// Sub-account policy prevented trading on this market (e.g. pair mask).
+	// The sub-account policy limits spot trading to an allowlist of markets
+	// (spot_market_scope ALLOWLIST), and this market is not on it.
 	ErrorCode_ERROR_CODE_POLICY_MARKET_DENY ErrorCode = 20
 	// Sub-account policy max order notional exceeded.
 	ErrorCode_ERROR_CODE_POLICY_MAX_NOTIONAL ErrorCode = 21
@@ -451,8 +454,7 @@ const (
 	// The API key has no policy, so it has no permissions: attach a policy to
 	// the API key that grants what it needs.
 	ErrorCode_ERROR_CODE_API_KEY_POLICY_REQUIRED ErrorCode = 27
-	// API key referenced in the request could not be resolved by the Orders
-	// service.
+	// The API key in the request, or its policy, could not be found.
 	ErrorCode_ERROR_CODE_API_KEY_UNKNOWN ErrorCode = 28
 	// API key policy does not allow trading this market, even though the
 	// sub-account policy does.
@@ -497,9 +499,19 @@ const (
 	ErrorCode_ERROR_CODE_POST_ONLY_CROSS ErrorCode = 58
 	// Reduce-only policy blocked the order.
 	ErrorCode_ERROR_CODE_REDUCE_ONLY_BLOCKED ErrorCode = 59
-	// Price band guard rejected the order.
+	// The order falls outside the pair's price band (PairConfig.price_band from
+	// GetSpotConfig): a buy priced above the band's upper limit or a sell priced
+	// below its lower limit, a fill-or-kill order the band would stop before it
+	// fills, or any new order while no price tick lies inside the band, a market
+	// order included. The band spans a set number of basis points around its
+	// reference price. The reference price starts at the last trade, or at the
+	// pair's listing reference price when the pair has not traded, and afterwards
+	// moves only in two ways: to a newer last trade, at most once per reference
+	// window, or by the index guard, which sets it to the index price when a
+	// current index price exists and the reference price lies outside the band
+	// around it. Only the side that would trade is checked.
 	ErrorCode_ERROR_CODE_PRICE_BAND_VIOLATION ErrorCode = 60
-	// Market-cap guard rejected the order.
+	// The order exceeded a market-wide limit. Not currently returned.
 	ErrorCode_ERROR_CODE_MARKET_CAP_VIOLATION ErrorCode = 61
 	// Market order could not execute due to empty book.
 	ErrorCode_ERROR_CODE_EMPTY_BOOK ErrorCode = 62
@@ -508,7 +520,10 @@ const (
 	// The order has already ended (filled, canceled or expired).
 	ErrorCode_ERROR_CODE_ORDER_ALREADY_TERMINAL ErrorCode = 64
 	// Trigger-specific error codes (40-49 range).
-	// Trigger price is invalid (e.g., TP below current price for long).
+	// The trigger price is invalid: for example not positive, an attached
+	// take-profit or stop-loss at or past its limit parent's price (for a buy
+	// parent, a take-profit at or below it or a stop-loss at or above it), or
+	// a one-cancels-the-other take-profit that crosses its stop-loss.
 	ErrorCode_ERROR_CODE_TRIGGER_PRICE_INVALID ErrorCode = 40
 	// Trigger price source not supported (e.g., INDEX_PRICE before it's
 	// available).
@@ -531,7 +546,10 @@ const (
 	// trailing stops, on create and on modify; for example, a 10000 bps cap on a
 	// market order or trailing stop that sells.
 	ErrorCode_ERROR_CODE_MAX_SLIPPAGE_INVALID ErrorCode = 48
-	// Client reference price is stale compared to server-side BBO/drift policy.
+	// The market order's client reference price differs from the market price
+	// (the best ask for a buy or the best bid for a sell, otherwise the last
+	// trade price) by more than the pair's max_client_ref_drift_bps from
+	// GetSpotConfig.
 	ErrorCode_ERROR_CODE_STALE_QUOTE ErrorCode = 65
 	// Request failed structural or cross-field validation.
 	ErrorCode_ERROR_CODE_VALIDATION_ERROR ErrorCode = 66
@@ -552,7 +570,9 @@ const (
 	ErrorCode_ERROR_CODE_POLICY_SPOT_READ_DENY ErrorCode = 71
 	// API key policy does not allow reading spot data.
 	ErrorCode_ERROR_CODE_API_KEY_SPOT_READ_DENY ErrorCode = 72
-	// The cancel request exceeded its bounded internal replay window.
+	// The cancel-all request arrived after its acceptance window of about two
+	// minutes had passed, so nothing was canceled. Send a new request with a
+	// fresh request_id.
 	ErrorCode_ERROR_CODE_CANCEL_REQUEST_EXPIRED ErrorCode = 73
 	// Quantity is above the pair maximum: the market-order maximum for MARKET
 	// orders, the limit-order maximum otherwise (base units).
@@ -564,20 +584,18 @@ const (
 	// quantity: the order ended at its filled quantity and no replacement order
 	// was created.
 	ErrorCode_ERROR_CODE_QTY_AT_OR_BELOW_FILLED ErrorCode = 76
-	// The trading gateway that took the request is misconfigured for the order
-	// service behind it. An operator must correct it; retrying does not help.
+	// The endpoint that took the request is misconfigured. Retrying does not
+	// help; contact support. Not currently returned.
 	ErrorCode_ERROR_CODE_GATEWAY_MISCONFIGURED ErrorCode = 77
 	// The order identifier or the replacement order identifier is not valid.
 	ErrorCode_ERROR_CODE_INVALID_ORDER_ID ErrorCode = 80
 	// The quantity of a trigger's child order or a ladder order can't be raised
 	// above its planned quantity. Nothing changed.
 	ErrorCode_ERROR_CODE_CHILD_QTY_RAISE_NOT_ALLOWED ErrorCode = 81
-	// Attached take-profit, stop-loss or trailing legs can't be applied here:
-	// this market takes none, an attached trailing stop isn't offered yet, the
-	// modify changes them together with the order's price, quantity, client
-	// order ID or a replace, or the order was placed by a triggered take-profit,
-	// stop-loss or trailing-stop leg, which can't carry legs of its own. Nothing
-	// changed.
+	// Attached take-profit, stop-loss or trailing legs can't be applied to this
+	// order: it was placed by a triggered take-profit, stop-loss or
+	// trailing-stop leg, or replaces such an order, and it can't carry legs of
+	// its own. Nothing changed.
 	ErrorCode_ERROR_CODE_ATTACHED_RISK_NOT_SUPPORTED ErrorCode = 82
 	// The account has too many filled or ended orders whose settlement has not
 	// completed yet. Nothing changed; the request is accepted again once settlement
@@ -2042,8 +2060,8 @@ type MarketIoc struct {
 	//	*MarketIoc_MaxSlippageTicks
 	//	*MarketIoc_MaxSlippageBps
 	MaxSlippage isMarketIoc_MaxSlippage `protobuf_oneof:"max_slippage"`
-	// Optional client reference price in quote units scaled by 1e9. When
-	// omitted, admission uses server-side reference pricing.
+	// Optional positive client reference price in quote units scaled by 1e9.
+	// When omitted, admission uses server-side reference pricing.
 	ClientRefPriceTicks int64 `protobuf:"varint,3,opt,name=client_ref_price_ticks,json=clientRefPriceTicks,proto3" json:"client_ref_price_ticks,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
@@ -2121,7 +2139,10 @@ type MarketIoc_MaxSlippageTicks struct {
 }
 
 type MarketIoc_MaxSlippageBps struct {
-	// Maximum allowed slippage in basis points (1 bp = 0.01%).
+	// Maximum allowed slippage in basis points (1 bp = 0.01%), from 1 to 10000.
+	// A SELL order accepts at most 9999: a 100% cap would leave it no
+	// positive price to sell at, so 10000 is rejected with
+	// ERROR_CODE_MAX_SLIPPAGE_INVALID.
 	MaxSlippageBps int32 `protobuf:"varint,2,opt,name=max_slippage_bps,json=maxSlippageBps,proto3,oneof"`
 }
 
@@ -2132,10 +2153,10 @@ func (*MarketIoc_MaxSlippageBps) isMarketIoc_MaxSlippage() {}
 // LimitGtc configures a good-til-canceled limit order.
 type LimitGtc struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Limit price in quote units scaled by 1e9.
+	// Positive limit price in quote units scaled by 1e9.
 	PriceTicks int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
-	// Reject the order instead of taking liquidity. Post-only is available only
-	// on this resting limit-order variant.
+	// Reject the order instead of taking liquidity. Post-only is available on
+	// GTC and GTD limit orders; IOC, FOK and market orders cannot be post-only.
 	PostOnly bool `protobuf:"varint,2,opt,name=post_only,json=postOnly,proto3" json:"post_only,omitempty"`
 	// Optional iceberg display quantity, scaled by the pair's
 	// base_quantity_scale from GetSpotConfig. Zero places a plain order. When
@@ -2212,13 +2233,13 @@ func (x *LimitGtc) GetDisplayQtyScaled() int64 {
 // exact expiry time.
 type LimitGtd struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Limit price in quote units scaled by 1e9.
+	// Positive limit price in quote units scaled by 1e9.
 	PriceTicks int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	// Reject the order instead of taking liquidity.
 	PostOnly bool `protobuf:"varint,2,opt,name=post_only,json=postOnly,proto3" json:"post_only,omitempty"`
-	// Exact expiry time in UTC. It must be at least 1 second and at most 30 days
-	// after validation time. The order cannot execute when the current time equals
-	// this value.
+	// Required exact expiry time in UTC. It must be at least 1 second and at
+	// most 30 days after validation time. The order cannot execute when the
+	// current time equals this value.
 	ExpireAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=expire_at,json=expireAt,proto3" json:"expire_at,omitempty"`
 	// Optional iceberg display quantity, scaled by the pair's
 	// base_quantity_scale from GetSpotConfig. Zero places a plain order. When
@@ -2301,7 +2322,7 @@ func (x *LimitGtd) GetDisplayQtyScaled() int64 {
 // LimitIoc configures an immediate-or-cancel limit order.
 type LimitIoc struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Limit price in quote units scaled by 1e9.
+	// Positive limit price in quote units scaled by 1e9.
 	PriceTicks    int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2347,7 +2368,7 @@ func (x *LimitIoc) GetPriceTicks() int64 {
 // LimitFok configures a fill-or-kill limit order.
 type LimitFok struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Limit price in quote units scaled by 1e9.
+	// Positive limit price in quote units scaled by 1e9.
 	PriceTicks    int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2456,7 +2477,7 @@ type OrderIntent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable numeric pair ID from GetSpotConfig.
 	SymbolId uint32 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
-	// Order side.
+	// Order side. Required.
 	Side Side `protobuf:"varint,2,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
 	// Required order sizing intent. Exactly one sizing method must be supplied.
 	//
@@ -2481,10 +2502,13 @@ type OrderIntent struct {
 	// While this identifier is retained, reuse returns
 	// CONFLICT_DUPLICATE_CLIENT_ORDER_ID for every new submission, even with the
 	// same payload. This identifier enables GetOrder reconciliation after a
-	// timeout; it does not provide exact replay.
+	// timeout; it does not provide exact replay. At most 36 ASCII characters
+	// using letters, digits, period, underscore, colon, slash, or hyphen.
 	ClientOrderId string `protobuf:"bytes,20,opt,name=client_order_id,json=clientOrderId,proto3" json:"client_order_id,omitempty"`
 	// Asset charged for fees. Defaults to QUOTE. BASE is available only for BUY
-	// orders; SELL orders must use QUOTE.
+	// orders on a pair whose allow_buy_fee_from_base is true in GetSpotConfig;
+	// SELL orders must use QUOTE. Otherwise the order is refused with
+	// ERROR_CODE_FEE_ASSET_NOT_ALLOWED.
 	FeeAsset FeeAsset `protobuf:"varint,21,opt,name=fee_asset,json=feeAsset,proto3,enum=orders.v1.FeeAsset" json:"fee_asset,omitempty"`
 	// Self-trade prevention mode against orders of the same root account,
 	// including all its subaccounts. Defaults to EXPIRE_MAKER if unspecified.
@@ -2668,8 +2692,8 @@ type isOrderIntent_Sizing interface {
 }
 
 type OrderIntent_BaseQtyScaled struct {
-	// Exact gross base quantity scaled by the pair's base_quantity_scale from
-	// GetSpotConfig.
+	// Exact positive gross base quantity scaled by the pair's
+	// base_quantity_scale from GetSpotConfig.
 	BaseQtyScaled int64 `protobuf:"varint,3,opt,name=base_qty_scaled,json=baseQtyScaled,proto3,oneof"`
 }
 
@@ -2679,7 +2703,8 @@ type OrderIntent_MaxQuoteDebitScaled struct {
 	// The order spends up to this amount at the prices it fills at. Once what
 	// is left buys no further quantity step, it ends FILLED; if the book or
 	// its price limit stops it first, its remainder is canceled. It can carry
-	// attached_risk: the legs protect the quantity it actually buys.
+	// attached_risk: the legs protect the quantity it actually buys. Must be
+	// positive.
 	MaxQuoteDebitScaled int64 `protobuf:"varint,4,opt,name=max_quote_debit_scaled,json=maxQuoteDebitScaled,proto3,oneof"`
 }
 
@@ -2693,7 +2718,8 @@ type OrderIntent_QuoteProceedsScaled struct {
 	// order's maximum slippage price, and is rejected INSUFFICIENT_FUNDS when
 	// that base is not available. Once what is left sells no further quantity
 	// step, it ends FILLED; if the book or its price limit stops it first,
-	// its remainder is canceled. It cannot carry attached_risk.
+	// its remainder is canceled. It cannot carry attached_risk. Must be
+	// positive.
 	QuoteProceedsScaled int64 `protobuf:"varint,5,opt,name=quote_proceeds_scaled,json=quoteProceedsScaled,proto3,oneof"`
 }
 
@@ -2756,7 +2782,7 @@ type CreateOrderRequest struct {
 	// use their bound subaccount; other callers use their authenticated root
 	// account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
-	// Order to admit.
+	// Order to admit. Required.
 	Order         *OrderIntent `protobuf:"bytes,2,opt,name=order,proto3" json:"order,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2949,7 +2975,7 @@ type PreviewOrderRequest struct {
 	// use their bound subaccount; other callers use their authenticated root
 	// account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
-	// Order intent to evaluate without submitting it.
+	// Order intent to evaluate without submitting it. Required.
 	Order         *OrderIntent `protobuf:"bytes,2,opt,name=order,proto3" json:"order,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -3188,12 +3214,14 @@ type isCancelOrderRequest_Key interface {
 }
 
 type CancelOrderRequest_OrderId struct {
-	// Order ID as fixed64.
+	// Order ID as fixed64. Exactly one of order_id or client_order_id.
 	OrderId uint64 `protobuf:"fixed64,1,opt,name=order_id,json=orderId,proto3,oneof"`
 }
 
 type CancelOrderRequest_ClientOrderId struct {
-	// Client order ID.
+	// Client order ID: 1 to 36 ASCII characters using letters, digits,
+	// period, underscore, colon, slash, or hyphen. Exactly one of order_id or
+	// client_order_id.
 	ClientOrderId string `protobuf:"bytes,2,opt,name=client_order_id,json=clientOrderId,proto3,oneof"`
 }
 
@@ -3481,7 +3509,7 @@ func (*RiskMarketIoc) Descriptor() ([]byte, []int) {
 // child. Attached risk legs do not support post-only.
 type RiskLimitGtc struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Limit price in quote units scaled by 1e9.
+	// Positive limit price in quote units scaled by 1e9.
 	PriceTicks    int64 `protobuf:"varint,1,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -3528,6 +3556,8 @@ func (x *RiskLimitGtc) GetPriceTicks() int64 {
 // and stop-loss policies.
 type RiskExecution struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required child execution: exactly one variant.
+	//
 	// Types that are valid to be assigned to Execution:
 	//
 	//	*RiskExecution_MarketIoc
@@ -3615,9 +3645,9 @@ func (*RiskExecution_LimitGtc) isRiskExecution_Execution() {}
 // parent fills, and submits the selected child.
 type TakeProfitPolicy struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Trigger price in quote units scaled by 1e9.
+	// Positive trigger price in quote units scaled by 1e9.
 	TriggerPriceTicks int64 `protobuf:"varint,1,opt,name=trigger_price_ticks,json=triggerPriceTicks,proto3" json:"trigger_price_ticks,omitempty"`
-	// Child execution when the threshold is crossed.
+	// Required child execution when the threshold is crossed.
 	Child *RiskExecution `protobuf:"bytes,2,opt,name=child,proto3" json:"child,omitempty"`
 	// Price the take-profit watches. Unspecified or LAST_PRICE watches the last
 	// traded price. INDEX_PRICE watches the market's index price; on a market
@@ -3687,9 +3717,9 @@ func (x *TakeProfitPolicy) GetTriggerPriceSource() TriggerPriceSource {
 // parent fills, and submits the selected child.
 type StopLossPolicy struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Trigger price in quote units scaled by 1e9.
+	// Positive trigger price in quote units scaled by 1e9.
 	TriggerPriceTicks int64 `protobuf:"varint,1,opt,name=trigger_price_ticks,json=triggerPriceTicks,proto3" json:"trigger_price_ticks,omitempty"`
-	// Child execution when the threshold is crossed.
+	// Required child execution when the threshold is crossed.
 	Child *RiskExecution `protobuf:"bytes,2,opt,name=child,proto3" json:"child,omitempty"`
 	// Price the stop-loss watches. Unspecified or LAST_PRICE watches the last
 	// traded price. INDEX_PRICE watches the market's index price; on a market
@@ -3791,12 +3821,12 @@ type TrailingStopPolicy struct {
 	// order and its legs unchanged. MARK_PRICE is not supported. A modify naming
 	// another source replaces the leg.
 	TriggerPriceSource TriggerPriceSource `protobuf:"varint,8,opt,name=trigger_price_source,json=triggerPriceSource,proto3,enum=orders.v1.TriggerPriceSource" json:"trigger_price_source,omitempty"`
-	// Maximum price of a trailing stop that buys back, in quote units scaled by
-	// 1e9: the most its exit pays per unit, at which the quote it may spend is
-	// reserved with the exit's fee. Required when the parent order sells, so
-	// the trailing stop buys; must be unset when the parent order buys. A rise
-	// that fires above it still fires, and the exit fills only at or below it.
-	// Changing it with ModifyOrder replaces the leg.
+	// Positive maximum price of a trailing stop that buys back, in quote units
+	// scaled by 1e9: the most its exit pays per unit, at which the quote it may
+	// spend is reserved with the exit's fee. Required when the parent order
+	// sells, so the trailing stop buys; must be unset when the parent order
+	// buys. A rise that fires above it still fires, and the exit fills only at
+	// or below it. Changing it with ModifyOrder replaces the leg.
 	LimitPriceTicks int64 `protobuf:"varint,4,opt,name=limit_price_ticks,json=limitPriceTicks,proto3" json:"limit_price_ticks,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
@@ -3908,12 +3938,12 @@ type isTrailingStopPolicy_TrailingDistance interface {
 }
 
 type TrailingStopPolicy_TrailingDistanceTicks struct {
-	// Trailing distance as a price delta in 1e-9 quote-unit ticks.
+	// Positive trailing distance as a price delta in 1e-9 quote-unit ticks.
 	TrailingDistanceTicks int64 `protobuf:"varint,1,opt,name=trailing_distance_ticks,json=trailingDistanceTicks,proto3,oneof"`
 }
 
 type TrailingStopPolicy_TrailingDistanceBps struct {
-	// Trailing distance in basis points (1 bp = 0.01%).
+	// Trailing distance in basis points (1 bp = 0.01%), from 1 to 10000.
 	TrailingDistanceBps int32 `protobuf:"varint,2,opt,name=trailing_distance_bps,json=trailingDistanceBps,proto3,oneof"`
 }
 
@@ -4127,6 +4157,8 @@ type CancelAllOrdersRequest struct {
 	// Idempotency key (required). Reuse the same key and criteria for retries.
 	// Completed results are retained for at least two minutes. Use a fresh key
 	// for a new cancellation; do not reuse a key after its replay window.
+	// 1 to 64 ASCII characters using letters, digits, period, underscore, colon,
+	// slash, or hyphen.
 	RequestId     string `protobuf:"bytes,6,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -4423,6 +4455,8 @@ type CancelAllAfterRequest struct {
 	// Optional side filter for cancel-on-expiry.
 	Side Side `protobuf:"varint,4,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
 	// Idempotency/trace key from caller (required).
+	// 1 to 64 ASCII characters using letters, digits, period, underscore, colon,
+	// slash, or hyphen.
 	RequestId     string `protobuf:"bytes,5,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -4915,8 +4949,10 @@ type BatchCreateOrdersRequest struct {
 	// CONFLICT_IDEMPOTENCY_KEY_REUSE. After 15 minutes the ID is free: a repeat
 	// is a new request and can place its orders again, so read the items back
 	// instead of repeating an older batch.
+	// 1 to 64 ASCII characters using letters, digits, period, underscore, colon,
+	// slash, or hyphen.
 	RequestId string `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	// Orders to create (max 20). client_order_id is optional per item. For a new
+	// Orders to create, 1 to 20. client_order_id is optional per item. For a new
 	// request_id, a reused client_order_id rejects only that item with
 	// CONFLICT_DUPLICATE_CLIENT_ORDER_ID; other valid items continue.
 	Items         []*OrderIntent `protobuf:"bytes,3,rep,name=items,proto3" json:"items,omitempty"`
@@ -5064,7 +5100,7 @@ type ModifyOrderRequest struct {
 	// use their bound subaccount; other callers use their authenticated root
 	// account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
-	// Target key.
+	// Target key: exactly one of order_id or client_order_id is required.
 	//
 	// Types that are valid to be assigned to Key:
 	//
@@ -5073,12 +5109,16 @@ type ModifyOrderRequest struct {
 	Key isModifyOrderRequest_Key `protobuf_oneof:"key"`
 	// Idempotency key (required). Outstanding modifications retain this key;
 	// identical retries replay the final result for 60 seconds after the answer.
+	// 1 to 64 ASCII characters using letters, digits, period, underscore, colon,
+	// slash, or hyphen.
 	RequestId string `protobuf:"bytes,4,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	// Patch fields (presence-based).
-	// New limit price in quote units scaled by 1e9. Required for price changes.
+	// Patch fields (presence-based): set at least one of new_price_ticks,
+	// new_qty_scaled or new_attached_risk.
+	// Positive new limit price in quote units scaled by 1e9. Required for price
+	// changes.
 	NewPriceTicks *int64 `protobuf:"varint,5,opt,name=new_price_ticks,json=newPriceTicks,proto3,oneof" json:"new_price_ticks,omitempty"`
-	// Target total quantity after modify/replace, scaled by the pair's
-	// base_quantity_scale from GetSpotConfig.
+	// Positive target total quantity after modify/replace, scaled by the
+	// pair's base_quantity_scale from GetSpotConfig.
 	NewQtyScaled *int64 `protobuf:"varint,6,opt,name=new_qty_scaled,json=newQtyScaled,proto3,oneof" json:"new_qty_scaled,omitempty"`
 	// Replacement attached-risk policy for the order. The order's change and its
 	// take-profit, stop-loss and trailing legs apply together: either all of
@@ -5088,7 +5128,9 @@ type ModifyOrderRequest struct {
 	// Modify behavior policy.
 	// MODIFY_BEHAVIOR_UNSPECIFIED is treated as AMEND_OR_REPLACE.
 	Behavior ModifyBehavior `protobuf:"varint,8,opt,name=behavior,proto3,enum=orders.v1.ModifyBehavior" json:"behavior,omitempty"`
-	// Optional new client order id when replace path is taken.
+	// Optional new client order id when replace path is taken: at most 36 ASCII
+	// characters using letters, digits, period, underscore, colon, slash, or
+	// hyphen.
 	NewClientOrderId string `protobuf:"bytes,9,opt,name=new_client_order_id,json=newClientOrderId,proto3" json:"new_client_order_id,omitempty"`
 	// Trading symbol numeric identifier. Required for API-key market policy and
 	// must match the target order.
@@ -5218,7 +5260,9 @@ type ModifyOrderRequest_OrderId struct {
 }
 
 type ModifyOrderRequest_ClientOrderId struct {
-	// Client order ID to resolve within the caller account.
+	// Client order ID to resolve within the caller account: 1 to 36 ASCII
+	// characters using letters, digits, period, underscore, colon, slash, or
+	// hyphen.
 	ClientOrderId string `protobuf:"bytes,3,opt,name=client_order_id,json=clientOrderId,proto3,oneof"`
 }
 
@@ -5359,15 +5403,18 @@ type BatchReplaceOrderItem struct {
 	//	*BatchReplaceOrderItem_OrderId
 	//	*BatchReplaceOrderItem_ClientOrderId
 	Key isBatchReplaceOrderItem_Key `protobuf_oneof:"key"`
-	// New limit price in quote units scaled by 1e9.
+	// Patch fields (presence-based): set at least one of new_price_ticks,
+	// new_qty_scaled or new_attached_risk.
+	// Positive new limit price in quote units scaled by 1e9.
 	NewPriceTicks *int64 `protobuf:"varint,3,opt,name=new_price_ticks,json=newPriceTicks,proto3,oneof" json:"new_price_ticks,omitempty"`
-	// Target total quantity after modify/replace, scaled by the pair's
-	// base_quantity_scale from GetSpotConfig.
+	// Positive target total quantity after modify/replace, scaled by the
+	// pair's base_quantity_scale from GetSpotConfig.
 	NewQtyScaled *int64 `protobuf:"varint,4,opt,name=new_qty_scaled,json=newQtyScaled,proto3,oneof" json:"new_qty_scaled,omitempty"`
 	// Replacement attached-risk policy for the order.
 	NewAttachedRisk *RiskPolicy `protobuf:"bytes,5,opt,name=new_attached_risk,json=newAttachedRisk,proto3" json:"new_attached_risk,omitempty"`
 	// Optional client order ID for the successor. A value other than the order's
-	// client order ID makes the item a replacement.
+	// client order ID makes the item a replacement. At most 36 ASCII characters
+	// using letters, digits, period, underscore, colon, slash, or hyphen.
 	NewClientOrderId string `protobuf:"bytes,6,opt,name=new_client_order_id,json=newClientOrderId,proto3" json:"new_client_order_id,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
@@ -5466,7 +5513,9 @@ type BatchReplaceOrderItem_OrderId struct {
 }
 
 type BatchReplaceOrderItem_ClientOrderId struct {
-	// Client order ID. Exactly one of order_id or client_order_id.
+	// Client order ID: 1 to 36 ASCII characters using letters, digits,
+	// period, underscore, colon, slash, or hyphen. Exactly one of order_id or
+	// client_order_id.
 	ClientOrderId string `protobuf:"bytes,2,opt,name=client_order_id,json=clientOrderId,proto3,oneof"`
 }
 
@@ -5615,8 +5664,10 @@ type BatchReplaceOrdersRequest struct {
 	// another symbol is refused alone as an unknown order.
 	SymbolId uint32 `protobuf:"varint,2,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Client idempotency key (required).
+	// 1 to 64 ASCII characters using letters, digits, period, underscore, colon,
+	// slash, or hyphen.
 	RequestId string `protobuf:"bytes,3,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	// Replacement items.
+	// Replacement items, 1 to 50, each targeting a different order.
 	Items         []*BatchReplaceOrderItem `protobuf:"bytes,4,rep,name=items,proto3" json:"items,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -5785,7 +5836,9 @@ type BatchCancelItem struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Order ID as fixed64. Exactly one of order_id or client_order_id.
 	OrderId uint64 `protobuf:"fixed64,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
-	// Client order ID. Exactly one of order_id or client_order_id.
+	// Client order ID: 1 to 36 ASCII characters using letters, digits, period,
+	// underscore, colon, slash, or hyphen. Exactly one of order_id or
+	// client_order_id.
 	ClientOrderId string `protobuf:"bytes,2,opt,name=client_order_id,json=clientOrderId,proto3" json:"client_order_id,omitempty"`
 	// Optional trading symbol numeric identifier. When set, it must match the
 	// order's symbol, or the item is refused as an unknown order. When omitted,
@@ -5936,8 +5989,10 @@ type BatchCancelOrdersRequest struct {
 	// account.
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Idempotency key (required).
+	// 1 to 64 ASCII characters using letters, digits, period, underscore, colon,
+	// slash, or hyphen.
 	RequestId string `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	// Orders to cancel (max 50).
+	// Orders to cancel, 1 to 50.
 	Items         []*BatchCancelItem `protobuf:"bytes,3,rep,name=items,proto3" json:"items,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

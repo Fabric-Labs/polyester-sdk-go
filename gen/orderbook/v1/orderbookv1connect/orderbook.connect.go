@@ -41,7 +41,8 @@ const (
 // OrderbookServiceClient is a client for the orderbook.v1.OrderbookService service.
 type OrderbookServiceClient interface {
 	// Retrieve a spot order book depth snapshot for a symbol.
-	// Supports selectable depth per side and returns best bid/ask levels.
+	// Supports a selectable depth per side, up to the max_depth each response
+	// reports, and returns best bid/ask levels.
 	GetOrderBook(context.Context, *connect.Request[v1.GetOrderBookRequest]) (*connect.Response[v1.GetOrderBookResponse], error)
 }
 
@@ -78,7 +79,8 @@ func (c *orderbookServiceClient) GetOrderBook(ctx context.Context, req *connect.
 // OrderbookServiceHandler is an implementation of the orderbook.v1.OrderbookService service.
 type OrderbookServiceHandler interface {
 	// Retrieve a spot order book depth snapshot for a symbol.
-	// Supports selectable depth per side and returns best bid/ask levels.
+	// Supports a selectable depth per side, up to the max_depth each response
+	// reports, and returns best bid/ask levels.
 	GetOrderBook(context.Context, *connect.Request[v1.GetOrderBookRequest]) (*connect.Response[v1.GetOrderBookResponse], error)
 }
 

@@ -228,7 +228,8 @@ const (
 	ErrorCode_ERROR_CODE_MISSING_WALLET                ErrorCode = 7
 	ErrorCode_ERROR_CODE_WALLET_RESOLUTION_UNAVAILABLE ErrorCode = 8
 	ErrorCode_ERROR_CODE_WALLET_NOT_FOUND              ErrorCode = 9
-	// Upstream dependency error (e.g., transfers store, wallet resolver).
+	// Ledger data needed to answer the request is temporarily unavailable.
+	// Retry later.
 	ErrorCode_ERROR_CODE_UPSTREAM_ERROR ErrorCode = 10
 	// subaccount_id is zero or not an encoded public subaccount identifier.
 	ErrorCode_ERROR_CODE_INVALID_SUBACCOUNT_ID ErrorCode = 11

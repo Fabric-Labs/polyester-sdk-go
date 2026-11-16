@@ -25,94 +25,15 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Depth specifies the number of price levels per side.
-type Depth int32
-
-const (
-	// Default depth (50 levels per side).
-	Depth_DEPTH_UNSPECIFIED Depth = 0
-	// 1 level per side (top of book / best bid-ask).
-	Depth_DEPTH_1 Depth = 1
-	// 5 levels per side.
-	Depth_DEPTH_5 Depth = 2
-	// 10 levels per side.
-	Depth_DEPTH_10 Depth = 3
-	// 20 levels per side.
-	Depth_DEPTH_20 Depth = 4
-	// 50 levels per side.
-	Depth_DEPTH_50 Depth = 5
-	// 100 levels per side.
-	Depth_DEPTH_100 Depth = 6
-	// 200 levels per side.
-	Depth_DEPTH_200 Depth = 7
-	// 500 levels per side.
-	Depth_DEPTH_500 Depth = 8
-	// 1000 levels per side.
-	Depth_DEPTH_1000 Depth = 9
-)
-
-// Enum value maps for Depth.
-var (
-	Depth_name = map[int32]string{
-		0: "DEPTH_UNSPECIFIED",
-		1: "DEPTH_1",
-		2: "DEPTH_5",
-		3: "DEPTH_10",
-		4: "DEPTH_20",
-		5: "DEPTH_50",
-		6: "DEPTH_100",
-		7: "DEPTH_200",
-		8: "DEPTH_500",
-		9: "DEPTH_1000",
-	}
-	Depth_value = map[string]int32{
-		"DEPTH_UNSPECIFIED": 0,
-		"DEPTH_1":           1,
-		"DEPTH_5":           2,
-		"DEPTH_10":          3,
-		"DEPTH_20":          4,
-		"DEPTH_50":          5,
-		"DEPTH_100":         6,
-		"DEPTH_200":         7,
-		"DEPTH_500":         8,
-		"DEPTH_1000":        9,
-	}
-)
-
-func (x Depth) Enum() *Depth {
-	p := new(Depth)
-	*p = x
-	return p
-}
-
-func (x Depth) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (Depth) Descriptor() protoreflect.EnumDescriptor {
-	return file_orderbook_v1_orderbook_proto_enumTypes[0].Descriptor()
-}
-
-func (Depth) Type() protoreflect.EnumType {
-	return &file_orderbook_v1_orderbook_proto_enumTypes[0]
-}
-
-func (x Depth) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use Depth.Descriptor instead.
-func (Depth) EnumDescriptor() ([]byte, []int) {
-	return file_orderbook_v1_orderbook_proto_rawDescGZIP(), []int{0}
-}
-
 // GetOrderBookRequest describes a ConnectRPC snapshot request.
 type GetOrderBookRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable numeric pair ID from GetSpotConfig.
 	SymbolId uint32 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
-	// Requested depth per side (number of price levels). Default is 50.
-	Depth         Depth `protobuf:"varint,2,opt,name=depth,proto3,enum=orderbook.v1.Depth" json:"depth,omitempty"`
+	// Number of price levels per side, from 1 to the max_depth every response
+	// reports. 0 (unset) selects the default of 50. A depth above max_depth is
+	// rejected with INVALID_ARGUMENT, never truncated.
+	Depth         uint32 `protobuf:"varint,3,opt,name=depth,proto3" json:"depth,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -154,11 +75,11 @@ func (x *GetOrderBookRequest) GetSymbolId() uint32 {
 	return 0
 }
 
-func (x *GetOrderBookRequest) GetDepth() Depth {
+func (x *GetOrderBookRequest) GetDepth() uint32 {
 	if x != nil {
 		return x.Depth
 	}
-	return Depth_DEPTH_UNSPECIFIED
+	return 0
 }
 
 // PriceLevel uses scaled integers for the binary (protobuf) API (low-latency).
@@ -226,7 +147,8 @@ type GetOrderBookResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Numeric symbol identifier (client resolves to symbol string).
 	SymbolId uint32 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
-	// Monotonic book sequence for this symbol.
+	// Book sequence of this snapshot within book_epoch. Monotonic within one
+	// epoch; compare it only with sequences of the same epoch.
 	BookSeq uint64 `protobuf:"varint,2,opt,name=book_seq,json=bookSeq,proto3" json:"book_seq,omitempty"`
 	// Best bid first; descending price. When available is true, empty means no
 	// current liquidity; when it is false, always empty.
@@ -240,7 +162,15 @@ type GetOrderBookResponse struct {
 	// sides mean no liquidity. False while the book is being built or after it
 	// was invalidated: its levels are unknown, not empty, and the response
 	// carries none. Request the snapshot again later.
-	Available     bool `protobuf:"varint,6,opt,name=available,proto3" json:"available,omitempty"`
+	Available bool `protobuf:"varint,6,opt,name=available,proto3" json:"available,omitempty"`
+	// Epoch of book_seq. Order snapshots by (book_epoch, book_seq): a higher
+	// epoch is newer whatever its book_seq, and a new epoch may restart
+	// book_seq. Discard a snapshot whose epoch is older than the newest one
+	// seen for the symbol. 0 while available is false.
+	BookEpoch uint64 `protobuf:"varint,7,opt,name=book_epoch,json=bookEpoch,proto3" json:"book_epoch,omitempty"`
+	// Largest depth per side the service accepts, the upper bound of the
+	// request's depth. Set in every response, available or not.
+	MaxDepth      uint32 `protobuf:"varint,8,opt,name=max_depth,json=maxDepth,proto3" json:"max_depth,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -315,6 +245,20 @@ func (x *GetOrderBookResponse) GetAvailable() bool {
 		return x.Available
 	}
 	return false
+}
+
+func (x *GetOrderBookResponse) GetBookEpoch() uint64 {
+	if x != nil {
+		return x.BookEpoch
+	}
+	return 0
+}
+
+func (x *GetOrderBookResponse) GetMaxDepth() uint32 {
+	if x != nil {
+		return x.MaxDepth
+	}
+	return 0
 }
 
 // OrderBookDelta is an incremental update to the orderbook state of one depth
@@ -443,23 +387,26 @@ var File_orderbook_v1_orderbook_proto protoreflect.FileDescriptor
 
 const file_orderbook_v1_orderbook_proto_rawDesc = "" +
 	"\n" +
-	"\x1corderbook/v1/orderbook.proto\x12\forderbook.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"p\n" +
+	"\x1corderbook/v1/orderbook.proto\x12\forderbook.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"Q\n" +
 	"\x13GetOrderBookRequest\x12$\n" +
-	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\x123\n" +
-	"\x05depth\x18\x02 \x01(\x0e2\x13.orderbook.v1.DepthB\b\xbaH\x05\x82\x01\x02\x10\x01R\x05depth\"L\n" +
+	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\x12\x14\n" +
+	"\x05depth\x18\x03 \x01(\rR\x05depth\"L\n" +
 	"\n" +
 	"PriceLevel\x12\x1f\n" +
 	"\vprice_ticks\x18\x01 \x01(\x03R\n" +
 	"priceTicks\x12\x1d\n" +
 	"\n" +
-	"qty_scaled\x18\x02 \x01(\x03R\tqtyScaled\"\xf4\x01\n" +
+	"qty_scaled\x18\x02 \x01(\x03R\tqtyScaled\"\xb0\x02\n" +
 	"\x14GetOrderBookResponse\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x12\x19\n" +
 	"\bbook_seq\x18\x02 \x01(\x04R\abookSeq\x12,\n" +
 	"\x04bids\x18\x03 \x03(\v2\x18.orderbook.v1.PriceLevelR\x04bids\x12,\n" +
 	"\x04asks\x18\x04 \x03(\v2\x18.orderbook.v1.PriceLevelR\x04asks\x12*\n" +
 	"\x02ts\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x02ts\x12\x1c\n" +
-	"\tavailable\x18\x06 \x01(\bR\tavailable\"\x93\x02\n" +
+	"\tavailable\x18\x06 \x01(\bR\tavailable\x12\x1d\n" +
+	"\n" +
+	"book_epoch\x18\a \x01(\x04R\tbookEpoch\x12\x1b\n" +
+	"\tmax_depth\x18\b \x01(\rR\bmaxDepth\"\x93\x02\n" +
 	"\x0eOrderBookDelta\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x12$\n" +
 	"\x0ebook_seq_start\x18\x02 \x01(\x04R\fbookSeqStart\x12 \n" +
@@ -468,22 +415,10 @@ const file_orderbook_v1_orderbook_proto_rawDesc = "" +
 	"\x04bids\x18\x04 \x03(\v2\x18.orderbook.v1.PriceLevelR\x04bids\x12,\n" +
 	"\x04asks\x18\x05 \x03(\v2\x18.orderbook.v1.PriceLevelR\x04asks\x12\x14\n" +
 	"\x05reset\x18\x06 \x01(\bR\x05reset\x12*\n" +
-	"\x02ts\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\x02ts*\x9f\x01\n" +
-	"\x05Depth\x12\x15\n" +
-	"\x11DEPTH_UNSPECIFIED\x10\x00\x12\v\n" +
-	"\aDEPTH_1\x10\x01\x12\v\n" +
-	"\aDEPTH_5\x10\x02\x12\f\n" +
-	"\bDEPTH_10\x10\x03\x12\f\n" +
-	"\bDEPTH_20\x10\x04\x12\f\n" +
-	"\bDEPTH_50\x10\x05\x12\r\n" +
-	"\tDEPTH_100\x10\x06\x12\r\n" +
-	"\tDEPTH_200\x10\a\x12\r\n" +
-	"\tDEPTH_500\x10\b\x12\x0e\n" +
-	"\n" +
-	"DEPTH_1000\x10\t2\xa5\x02\n" +
-	"\x10OrderbookService\x12\x80\x02\n" +
-	"\fGetOrderBook\x12!.orderbook.v1.GetOrderBookRequest\x1a\".orderbook.v1.GetOrderBookResponse\"\xa8\x01\xbaG\xa0\x01\n" +
-	"\x11Orderbook Service\x12\x0eGet Order Book\x1a{Retrieve a spot order book depth snapshot for a symbol. Supports selectable depth per side and returns best bid/ask levels.\x88\xb5\x18\x01\x1a\x0e\x8a\xb5\x18\n" +
+	"\x02ts\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\x02ts2\xd4\x02\n" +
+	"\x10OrderbookService\x12\xaf\x02\n" +
+	"\fGetOrderBook\x12!.orderbook.v1.GetOrderBookRequest\x1a\".orderbook.v1.GetOrderBookResponse\"\xd7\x01\xbaG\xcf\x01\n" +
+	"\x11Orderbook Service\x12\x0eGet Order Book\x1a\xa9\x01Retrieve a spot order book depth snapshot for a symbol. Supports a selectable depth per side, up to the max_depth each response reports, and returns best bid/ask levels.\x88\xb5\x18\x01\x1a\x0e\x8a\xb5\x18\n" +
 	"marketdataB\x97\x01\xbaGN:L\n" +
 	"\x11Orderbook Service\x127Public read surface for spot orderbook depth snapshots.ZDgithub.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1;orderbookv1b\x06proto3"
 
@@ -499,31 +434,28 @@ func file_orderbook_v1_orderbook_proto_rawDescGZIP() []byte {
 	return file_orderbook_v1_orderbook_proto_rawDescData
 }
 
-var file_orderbook_v1_orderbook_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_orderbook_v1_orderbook_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_orderbook_v1_orderbook_proto_goTypes = []any{
-	(Depth)(0),                    // 0: orderbook.v1.Depth
-	(*GetOrderBookRequest)(nil),   // 1: orderbook.v1.GetOrderBookRequest
-	(*PriceLevel)(nil),            // 2: orderbook.v1.PriceLevel
-	(*GetOrderBookResponse)(nil),  // 3: orderbook.v1.GetOrderBookResponse
-	(*OrderBookDelta)(nil),        // 4: orderbook.v1.OrderBookDelta
-	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
+	(*GetOrderBookRequest)(nil),   // 0: orderbook.v1.GetOrderBookRequest
+	(*PriceLevel)(nil),            // 1: orderbook.v1.PriceLevel
+	(*GetOrderBookResponse)(nil),  // 2: orderbook.v1.GetOrderBookResponse
+	(*OrderBookDelta)(nil),        // 3: orderbook.v1.OrderBookDelta
+	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
 }
 var file_orderbook_v1_orderbook_proto_depIdxs = []int32{
-	0, // 0: orderbook.v1.GetOrderBookRequest.depth:type_name -> orderbook.v1.Depth
-	2, // 1: orderbook.v1.GetOrderBookResponse.bids:type_name -> orderbook.v1.PriceLevel
-	2, // 2: orderbook.v1.GetOrderBookResponse.asks:type_name -> orderbook.v1.PriceLevel
-	5, // 3: orderbook.v1.GetOrderBookResponse.ts:type_name -> google.protobuf.Timestamp
-	2, // 4: orderbook.v1.OrderBookDelta.bids:type_name -> orderbook.v1.PriceLevel
-	2, // 5: orderbook.v1.OrderBookDelta.asks:type_name -> orderbook.v1.PriceLevel
-	5, // 6: orderbook.v1.OrderBookDelta.ts:type_name -> google.protobuf.Timestamp
-	1, // 7: orderbook.v1.OrderbookService.GetOrderBook:input_type -> orderbook.v1.GetOrderBookRequest
-	3, // 8: orderbook.v1.OrderbookService.GetOrderBook:output_type -> orderbook.v1.GetOrderBookResponse
-	8, // [8:9] is the sub-list for method output_type
-	7, // [7:8] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	1, // 0: orderbook.v1.GetOrderBookResponse.bids:type_name -> orderbook.v1.PriceLevel
+	1, // 1: orderbook.v1.GetOrderBookResponse.asks:type_name -> orderbook.v1.PriceLevel
+	4, // 2: orderbook.v1.GetOrderBookResponse.ts:type_name -> google.protobuf.Timestamp
+	1, // 3: orderbook.v1.OrderBookDelta.bids:type_name -> orderbook.v1.PriceLevel
+	1, // 4: orderbook.v1.OrderBookDelta.asks:type_name -> orderbook.v1.PriceLevel
+	4, // 5: orderbook.v1.OrderBookDelta.ts:type_name -> google.protobuf.Timestamp
+	0, // 6: orderbook.v1.OrderbookService.GetOrderBook:input_type -> orderbook.v1.GetOrderBookRequest
+	2, // 7: orderbook.v1.OrderbookService.GetOrderBook:output_type -> orderbook.v1.GetOrderBookResponse
+	7, // [7:8] is the sub-list for method output_type
+	6, // [6:7] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_orderbook_v1_orderbook_proto_init() }
@@ -536,14 +468,13 @@ func file_orderbook_v1_orderbook_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_orderbook_v1_orderbook_proto_rawDesc), len(file_orderbook_v1_orderbook_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      0,
 			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_orderbook_v1_orderbook_proto_goTypes,
 		DependencyIndexes: file_orderbook_v1_orderbook_proto_depIdxs,
-		EnumInfos:         file_orderbook_v1_orderbook_proto_enumTypes,
 		MessageInfos:      file_orderbook_v1_orderbook_proto_msgTypes,
 	}.Build()
 	File_orderbook_v1_orderbook_proto = out.File

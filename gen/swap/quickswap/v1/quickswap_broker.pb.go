@@ -835,13 +835,13 @@ type Broker struct {
 	// API key count as reads. Over the rate, the call fails with
 	// RESOURCE_EXHAUSTED / BROKER_LIMIT and a Retry-After header.
 	ReadRps uint32 `protobuf:"varint,10,opt,name=read_rps,json=readRps,proto3" json:"read_rps,omitempty"`
-	// Unfunded Quick Swaps the broker may hold at once: Quick Swaps whose
+	// Unfunded QuickSwaps the broker may hold at once: QuickSwaps whose
 	// deposit address is being issued or is still awaiting a deposit within
 	// its funding window. At the limit, CreateQuickSwap fails with
 	// RESOURCE_EXHAUSTED / BROKER_LIMIT; a deposit or the end of a funding
 	// window frees a slot.
 	MaxUnfundedAddresses uint32 `protobuf:"varint,11,opt,name=max_unfunded_addresses,json=maxUnfundedAddresses,proto3" json:"max_unfunded_addresses,omitempty"`
-	// Quick Swaps the broker may create in any rolling hour. At the limit,
+	// QuickSwaps the broker may create in any rolling hour. At the limit,
 	// CreateQuickSwap fails with RESOURCE_EXHAUSTED / BROKER_LIMIT until the
 	// oldest create of the hour is more than an hour old.
 	MaxCreatesPerHour uint32 `protobuf:"varint,12,opt,name=max_creates_per_hour,json=maxCreatesPerHour,proto3" json:"max_creates_per_hour,omitempty"`
@@ -970,10 +970,10 @@ func (x *Broker) GetMaxCreatesPerHour() uint32 {
 // right after with concurrent creates, deposits and expiring funding windows.
 type BrokerUsage struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Unfunded Quick Swaps held now, counted against
+	// Unfunded QuickSwaps held now, counted against
 	// Broker.max_unfunded_addresses.
 	UnfundedAddresses uint32 `protobuf:"varint,1,opt,name=unfunded_addresses,json=unfundedAddresses,proto3" json:"unfunded_addresses,omitempty"`
-	// Quick Swaps created in the last hour, counted against
+	// QuickSwaps created in the last hour, counted against
 	// Broker.max_creates_per_hour.
 	CreatesLastHour uint32 `protobuf:"varint,2,opt,name=creates_last_hour,json=createsLastHour,proto3" json:"creates_last_hour,omitempty"`
 	// Affiliate vaults created, active and disabled together, counted against
@@ -2380,7 +2380,8 @@ type CreateKeyRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Broker name.
 	Broker string `protobuf:"bytes,1,opt,name=broker,proto3" json:"broker,omitempty"`
-	// Label, 1 to 64 characters without leading or trailing whitespace.
+	// Label, 1 to 64 characters without leading or trailing whitespace,
+	// Unicode spaces such as the no-break space included.
 	Label         string `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -3411,8 +3412,8 @@ type ListQuickSwapsRequest struct {
 	// Only QuickSwaps created at or after start_time; unset for no lower
 	// bound.
 	StartTime *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
-	// Only QuickSwaps created before end_time (exclusive); unset for no upper
-	// bound.
+	// Only QuickSwaps created before end_time (exclusive); after start_time
+	// when both are set; unset for no upper bound.
 	EndTime *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
 	// Maximum number of QuickSwaps to return; 0 means 100, at most 200.
 	Limit uint32 `protobuf:"varint,6,opt,name=limit,proto3" json:"limit,omitempty"`
@@ -4807,8 +4808,8 @@ type ListPayoutsRequest struct {
 	Statuses []PayoutStatus `protobuf:"varint,3,rep,packed,name=statuses,proto3,enum=swap.quickswap.v1.PayoutStatus" json:"statuses,omitempty"`
 	// Only runs scheduled at or after start_time; unset for no lower bound.
 	StartTime *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
-	// Only runs scheduled before end_time (exclusive); unset for no upper
-	// bound.
+	// Only runs scheduled before end_time (exclusive); after start_time when
+	// both are set; unset for no upper bound.
 	EndTime *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
 	// Maximum number of payouts to return; 0 means 50, at most 100.
 	Limit uint32 `protobuf:"varint,6,opt,name=limit,proto3" json:"limit,omitempty"`
@@ -6396,8 +6397,8 @@ type ListVaultLedgerRequest struct {
 	// Only entries that occurred at or after start_time; unset for no lower
 	// bound.
 	StartTime *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
-	// Only entries that occurred before end_time (exclusive); unset for no
-	// upper bound.
+	// Only entries that occurred before end_time (exclusive); after start_time
+	// when both are set; unset for no upper bound.
 	EndTime *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
 	// Maximum number of entries to return; 0 means 25, at most 100.
 	Limit uint32 `protobuf:"varint,5,opt,name=limit,proto3" json:"limit,omitempty"`
@@ -7321,10 +7322,10 @@ const file_swap_quickswap_v1_quickswap_broker_proto_rawDesc = "" +
 	"page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\tpageToken\"l\n" +
 	"\x10ListKeysResponse\x120\n" +
 	"\x04keys\x18\x01 \x03(\v2\x1c.swap.quickswap.v1.BrokerKeyR\x04keys\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"n\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xd3\x01\n" +
 	"\x10CreateKeyRequest\x129\n" +
-	"\x06broker\x18\x01 \x01(\tB!\xbaH\x1er\x1c2\x1a^[a-z0-9][a-z0-9_-]{0,62}$R\x06broker\x12\x1f\n" +
-	"\x05label\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\x05label\"Y\n" +
+	"\x06broker\x18\x01 \x01(\tB!\xbaH\x1er\x1c2\x1a^[a-z0-9][a-z0-9_-]{0,62}$R\x06broker\x12\x83\x01\n" +
+	"\x05label\x18\x02 \x01(\tBm\xbaHjrh\x10\x01\x18@2b^[^\\t\\n\\v\\f\\r \u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]([\\s\\S]*[^\\t\\n\\v\\f\\r \u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000])?$R\x05label\"Y\n" +
 	"\x11CreateKeyResponse\x12.\n" +
 	"\x03key\x18\x01 \x01(\v2\x1c.swap.quickswap.v1.BrokerKeyR\x03key\x12\x14\n" +
 	"\x05token\x18\x02 \x01(\tR\x05token\"\xc8\x01\n" +
@@ -7341,10 +7342,10 @@ const file_swap_quickswap_v1_quickswap_broker_proto_rawDesc = "" +
 	"\x06broker\x18\x01 \x01(\tB!\xbaH\x1er\x1c2\x1a^[a-z0-9][a-z0-9_-]{0,62}$R\x06broker\x12,\n" +
 	"\x06key_id\x18\x02 \x01(\tB\x15\xbaH\x12r\x102\x0e^[0-9a-f]{32}$R\x05keyId\"C\n" +
 	"\x11RevokeKeyResponse\x12.\n" +
-	"\x03key\x18\x01 \x01(\v2\x1c.swap.quickswap.v1.BrokerKeyR\x03key\"y\n" +
+	"\x03key\x18\x01 \x01(\v2\x1c.swap.quickswap.v1.BrokerKeyR\x03key\"\x8b\x01\n" +
 	"\x1bCreateAffiliateVaultRequest\x129\n" +
-	"\x06broker\x18\x01 \x01(\tB!\xbaH\x1er\x1c2\x1a^[a-z0-9][a-z0-9_-]{0,62}$R\x06broker\x12\x1f\n" +
-	"\x05label\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\x05label\"q\n" +
+	"\x06broker\x18\x01 \x01(\tB!\xbaH\x1er\x1c2\x1a^[a-z0-9][a-z0-9_-]{0,62}$R\x06broker\x121\n" +
+	"\x05label\x18\x02 \x01(\tB\x1b\xbaH\x18r\x16\x10\x01\x18@2\x10^\\S([\\s\\S]*\\S)?$R\x05label\"q\n" +
 	"\x1cCreateAffiliateVaultResponse\x127\n" +
 	"\x05vault\x18\x01 \x01(\v2!.swap.quickswap.v1.AffiliateVaultR\x05vault\x12\x18\n" +
 	"\acreated\x18\x02 \x01(\bR\acreated\"\x96\x01\n" +
@@ -7390,7 +7391,7 @@ const file_swap_quickswap_v1_quickswap_broker_proto_rawDesc = "" +
 	"\aswap_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x06swapId\"i\n" +
 	"*QuickSwapBrokerServiceGetQuickSwapResponse\x12;\n" +
 	"\n" +
-	"quick_swap\x18\x01 \x01(\v2\x1c.swap.quickswap.v1.QuickSwapR\tquickSwap\"\x8a\x03\n" +
+	"quick_swap\x18\x01 \x01(\v2\x1c.swap.quickswap.v1.QuickSwapR\tquickSwap\"\xa8\x04\n" +
 	"\x15ListQuickSwapsRequest\x129\n" +
 	"\x06broker\x18\x01 \x01(\tB!\xbaH\x1er\x1c2\x1a^[a-z0-9][a-z0-9_-]{0,62}$R\x06broker\x12(\n" +
 	"\x10vault_account_id\x18\x02 \x01(\x06R\x0evaultAccountId\x12Q\n" +
@@ -7400,7 +7401,8 @@ const file_swap_quickswap_v1_quickswap_broker_proto_rawDesc = "" +
 	"\bend_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\aendTime\x12\x1e\n" +
 	"\x05limit\x18\x06 \x01(\rB\b\xbaH\x05*\x03\x18\xc8\x01R\x05limit\x12'\n" +
 	"\n" +
-	"page_token\x18\a \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\tpageToken\"\x86\x01\n" +
+	"page_token\x18\a \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\tpageToken:\x9b\x01\xbaH\x97\x01\x1a\x94\x01\n" +
+	"\x1elist_quickswaps_request.window\x12!end_time must be after start_time\x1aO!has(this.start_time) || !has(this.end_time) || this.end_time > this.start_time\"\x86\x01\n" +
 	"\x16ListQuickSwapsResponse\x12D\n" +
 	"\vquick_swaps\x18\x01 \x03(\v2#.swap.quickswap.v1.QuickSwapSummaryR\n" +
 	"quickSwaps\x12&\n" +
@@ -7501,7 +7503,7 @@ const file_swap_quickswap_v1_quickswap_broker_proto_rawDesc = "" +
 	"finishedAt\x12B\n" +
 	"\rmin_usd_value\x18\n" +
 	" \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\vminUsdValue\x123\n" +
-	"\x05steps\x18\v \x03(\v2\x1d.swap.quickswap.v1.PayoutStepR\x05steps\"\x83\x03\n" +
+	"\x05steps\x18\v \x03(\v2\x1d.swap.quickswap.v1.PayoutStepR\x05steps\"\x9e\x04\n" +
 	"\x12ListPayoutsRequest\x129\n" +
 	"\x06broker\x18\x01 \x01(\tB!\xbaH\x1er\x1c2\x1a^[a-z0-9][a-z0-9_-]{0,62}$R\x06broker\x12(\n" +
 	"\x10vault_account_id\x18\x02 \x01(\x06R\x0evaultAccountId\x12N\n" +
@@ -7511,7 +7513,8 @@ const file_swap_quickswap_v1_quickswap_broker_proto_rawDesc = "" +
 	"\bend_time\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\aendTime\x12\x1d\n" +
 	"\x05limit\x18\x06 \x01(\rB\a\xbaH\x04*\x02\x18dR\x05limit\x12'\n" +
 	"\n" +
-	"page_token\x18\a \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\tpageToken\"r\n" +
+	"page_token\x18\a \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\tpageToken:\x98\x01\xbaH\x94\x01\x1a\x91\x01\n" +
+	"\x1blist_payouts_request.window\x12!end_time must be after start_time\x1aO!has(this.start_time) || !has(this.end_time) || this.end_time > this.start_time\"r\n" +
 	"\x13ListPayoutsResponse\x123\n" +
 	"\apayouts\x18\x01 \x03(\v2\x19.swap.quickswap.v1.PayoutR\apayouts\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"t\n" +
@@ -7626,7 +7629,7 @@ const file_swap_quickswap_v1_quickswap_broker_proto_rawDesc = "" +
 	"fee_credit\x18\x06 \x01(\v2'.swap.quickswap.v1.VaultLedgerFeeCreditH\x00R\tfeeCredit\x12N\n" +
 	"\fpayout_debit\x18\a \x01(\v2).swap.quickswap.v1.VaultLedgerPayoutDebitH\x00R\vpayoutDebit\x12Q\n" +
 	"\rpayout_refund\x18\b \x01(\v2*.swap.quickswap.v1.VaultLedgerPayoutRefundH\x00R\fpayoutRefundB\b\n" +
-	"\x06detail\"\xb7\x02\n" +
+	"\x06detail\"\xd7\x03\n" +
 	"\x16ListVaultLedgerRequest\x129\n" +
 	"\x06broker\x18\x01 \x01(\tB!\xbaH\x1er\x1c2\x1a^[a-z0-9][a-z0-9_-]{0,62}$R\x06broker\x12(\n" +
 	"\x10vault_account_id\x18\x02 \x01(\x06R\x0evaultAccountId\x129\n" +
@@ -7635,7 +7638,8 @@ const file_swap_quickswap_v1_quickswap_broker_proto_rawDesc = "" +
 	"\bend_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\aendTime\x12\x1d\n" +
 	"\x05limit\x18\x05 \x01(\rB\a\xbaH\x04*\x02\x18dR\x05limit\x12'\n" +
 	"\n" +
-	"page_token\x18\x06 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\tpageToken\"\x80\x01\n" +
+	"page_token\x18\x06 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\tpageToken:\x9d\x01\xbaH\x99\x01\x1a\x96\x01\n" +
+	" list_vault_ledger_request.window\x12!end_time must be after start_time\x1aO!has(this.start_time) || !has(this.end_time) || this.end_time > this.start_time\"\x80\x01\n" +
 	"\x17ListVaultLedgerResponse\x12=\n" +
 	"\aentries\x18\x01 \x03(\v2#.swap.quickswap.v1.VaultLedgerEntryR\aentries\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\x8b\x03\n" +
@@ -7677,7 +7681,7 @@ const file_swap_quickswap_v1_quickswap_broker_proto_rawDesc = "" +
 	"page_token\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\tpageToken\"\x8e\x01\n" +
 	"!ListVaultAllowlistChangesResponse\x12A\n" +
 	"\achanges\x18\x01 \x03(\v2'.swap.quickswap.v1.VaultAllowlistChangeR\achanges\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xfc\x02\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xab\x04\n" +
 	"\"RequestVaultAllowlistChangeRequest\x129\n" +
 	"\x06broker\x18\x01 \x01(\tB!\xbaH\x1er\x1c2\x1a^[a-z0-9][a-z0-9_-]{0,62}$R\x06broker\x128\n" +
 	"\x10vault_account_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x0evaultAccountId\x12F\n" +
@@ -7685,8 +7689,9 @@ const file_swap_quickswap_v1_quickswap_broker_proto_rawDesc = "" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x06action\x12=\n" +
 	"\x14destination_chain_id\x18\x04 \x01(\x04B\v\xbaH\b2\x06\x18\xff\xff\x03 \x00R\x12destinationChainId\x12;\n" +
 	"\x13destination_address\x18\x05 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\x81\x03R\x12destinationAddress\x12\x1d\n" +
-	"\x05label\x18\x06 \x01(\tB\a\xbaH\x04r\x02\x18@R\x05label\"f\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x81\x03R\x12destinationAddress\x122\n" +
+	"\x05label\x18\x06 \x01(\tB\x1c\xbaH\x19r\x17\x18@2\x13^(\\S([\\s\\S]*\\S)?)?$R\x05label:\x97\x01\xbaH\x93\x01\x1a\x90\x01\n" +
+	"<request_vault_allowlist_change_request.removal_without_label\x12*label must be empty for REMOVE_DESTINATION\x1a$this.action != 2 || this.label == ''\"f\n" +
 	"#RequestVaultAllowlistChangeResponse\x12?\n" +
 	"\x06change\x18\x01 \x01(\v2'.swap.quickswap.v1.VaultAllowlistChangeR\x06change*o\n" +
 	"\n" +

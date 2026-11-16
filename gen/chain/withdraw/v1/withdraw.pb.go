@@ -54,7 +54,7 @@ const (
 	ErrorCode_ERROR_CODE_SUBACCOUNT_NOT_FOUND ErrorCode = 9
 	// The requested withdraw action is invalid for this endpoint.
 	ErrorCode_ERROR_CODE_INVALID_ACTION ErrorCode = 10
-	// The requested ledger is not supported for withdrawals.
+	// asset_id does not identify a known asset.
 	ErrorCode_ERROR_CODE_UNSUPPORTED_LEDGER ErrorCode = 11
 	// The requested asset or withdraw route is not supported.
 	ErrorCode_ERROR_CODE_UNSUPPORTED_ASSET ErrorCode = 12
@@ -98,7 +98,8 @@ const (
 	ErrorCode_ERROR_CODE_IDEMPOTENCY_CONFLICT ErrorCode = 31
 	// The funds lock conflicts with an existing or finalized reservation.
 	ErrorCode_ERROR_CODE_FUNDS_LOCK_CONFLICT ErrorCode = 32
-	// The authoritative capital view is not ready or is stale.
+	// The account's available balance cannot be confirmed right now. Retry
+	// later.
 	ErrorCode_ERROR_CODE_CAPITAL_VIEW_UNAVAILABLE ErrorCode = 33
 	// Required chain or contract metadata is unavailable.
 	ErrorCode_ERROR_CODE_CHAIN_METADATA_UNAVAILABLE ErrorCode = 34

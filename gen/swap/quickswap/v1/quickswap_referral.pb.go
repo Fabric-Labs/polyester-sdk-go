@@ -35,10 +35,10 @@ const (
 	// Enrolled and waiting for Polyester's review. The code is reserved for the
 	// partner but earns nothing yet.
 	ReferralPartnerStatus_PARTNER_PENDING ReferralPartnerStatus = 1
-	// Approved: Quick Swaps made with the partner's code earn the commission.
+	// Approved: QuickSwaps made with the partner's code earn the commission.
 	ReferralPartnerStatus_PARTNER_ACTIVE ReferralPartnerStatus = 2
-	// Disabled by Polyester: new Quick Swaps with the code earn nothing and the
-	// code cannot be changed. Quick Swaps already created keep their terms.
+	// Disabled by Polyester: new QuickSwaps with the code earn nothing and the
+	// code cannot be changed. QuickSwaps already created keep their terms.
 	ReferralPartnerStatus_PARTNER_DISABLED ReferralPartnerStatus = 3
 )
 
@@ -260,8 +260,8 @@ func (x *ReferralRates) GetCommissionBps() uint32 {
 }
 
 // ReferralProgram is the referral rates of every route category. Polyester
-// can change them at any time; a change applies to Quick Swaps created after
-// it, and Quick Swaps already created keep their rates.
+// can change them at any time; a change applies to QuickSwaps created after
+// it, and QuickSwaps already created keep their rates.
 type ReferralProgram struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Swaps between two assets, at least one of them not a stablecoin.
@@ -339,7 +339,7 @@ type ReferralPartner struct {
 	EarningsSubaccountId uint64 `protobuf:"fixed64,4,opt,name=earnings_subaccount_id,json=earningsSubaccountId,proto3" json:"earnings_subaccount_id,omitempty"`
 	// Current referral code, lower case.
 	Code string `protobuf:"bytes,5,opt,name=code,proto3" json:"code,omitempty"`
-	// Path of the share link on Polyester's Quick Swap app: "/r/" followed by
+	// Path of the share link on Polyester's QuickSwap app: "/r/" followed by
 	// the code.
 	LinkPath string `protobuf:"bytes,6,opt,name=link_path,json=linkPath,proto3" json:"link_path,omitempty"`
 	// Rates the partner earns on; unset while no referral program runs.
@@ -455,8 +455,8 @@ type EnrollReferralPartnerRequest struct {
 	// credited with the commissions. It cannot be changed later or be used by
 	// another partner.
 	EarningsSubaccountId uint64 `protobuf:"fixed64,1,opt,name=earnings_subaccount_id,json=earningsSubaccountId,proto3" json:"earnings_subaccount_id,omitempty"`
-	// Name shown for the partner, 1 to 64 characters without leading or
-	// trailing spaces.
+	// Name shown for the partner, at most 64 characters. Leading and trailing
+	// spaces are removed; at least one other character must remain.
 	DisplayName   string `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -888,7 +888,7 @@ func (x *ReferralCommission) GetAmount() *TokenAmount {
 	return nil
 }
 
-// ReferralCredit is one commission credit of a Quick Swap: a settled trade
+// ReferralCredit is one commission credit of a QuickSwap: a settled trade
 // of one of its legs, or its bridge payout.
 type ReferralCredit struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -954,7 +954,7 @@ func (x *ReferralCredit) GetAccruedAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// ReferredQuickSwap is a Quick Swap the caller referred, as its referral
+// ReferredQuickSwap is a QuickSwap the caller referred, as its referral
 // partner sees it. It carries no identity of the person who swapped and no
 // account, address, memo, transaction hash or flow ID. Amounts are exact;
 // every time is rounded down to the minute.
@@ -967,7 +967,7 @@ type ReferredQuickSwap struct {
 	Status QuickSwapStatus `protobuf:"varint,2,opt,name=status,proto3,enum=swap.quickswap.v1.QuickSwapStatus" json:"status,omitempty"`
 	// True when status is terminal; a terminal status never changes.
 	IsTerminal bool `protobuf:"varint,3,opt,name=is_terminal,json=isTerminal,proto3" json:"is_terminal,omitempty"`
-	// When the Quick Swap was created, rounded down to the minute.
+	// When the QuickSwap was created, rounded down to the minute.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// When status became terminal, rounded down to the minute; unset while
 	// not terminal.
@@ -1002,7 +1002,7 @@ type ReferredQuickSwap struct {
 	// legs as base_fee_bps is. Fixed at creation.
 	CommissionBps uint32 `protobuf:"varint,14,opt,name=commission_bps,json=commissionBps,proto3" json:"commission_bps,omitempty"`
 	// Commission credited so far, one entry per asset in asset_id order. Grows
-	// while the Quick Swap executes or pays out a bridge; empty until the
+	// while the QuickSwap executes or pays out a bridge; empty until the
 	// first credit. Each credit is commission_bps applied to what its leg
 	// actually received, so it can differ from an estimate.
 	Commission    []*ReferralCommission `protobuf:"bytes,15,rep,name=commission,proto3" json:"commission,omitempty"`
@@ -1145,7 +1145,7 @@ func (x *ReferredQuickSwap) GetCommission() []*ReferralCommission {
 	return nil
 }
 
-// ReferralCommissionValue is the US dollar value of a Quick Swap's commission
+// ReferralCommissionValue is the US dollar value of a QuickSwap's commission
 // at a current price.
 type ReferralCommissionValue struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1204,9 +1204,9 @@ func (x *ReferralCommissionValue) GetAsOf() *timestamppb.Timestamp {
 	return nil
 }
 
-// ReferralBreakdown shows how a referred Quick Swap's fee and the partner's
+// ReferralBreakdown shows how a referred QuickSwap's fee and the partner's
 // commission were worked out. Rates are in basis points of what each leg
-// receives and are fixed when the Quick Swap is created; a two-leg route
+// receives and are fixed when the QuickSwap is created; a two-leg route
 // shows the sum of both legs' rates. For example, on a one-leg route with a
 // 30 bps fee, a 3 bps discount and a 6 bps commission, the user pays 27 bps
 // and the partner earns 6 bps, 20% of the fee before the discount.
@@ -1322,23 +1322,23 @@ func (x *ReferralBreakdown) GetCommissionValue() *ReferralCommissionValue {
 	return nil
 }
 
-// ListReferredQuickSwapsRequest lists the Quick Swaps the caller referred.
+// ListReferredQuickSwapsRequest lists the QuickSwaps the caller referred.
 type ListReferredQuickSwapsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Only Quick Swaps created at or after start_time, rounded down to the
+	// Only QuickSwaps created at or after start_time, rounded down to the
 	// minute; unset for no lower bound.
 	StartTime *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
-	// Only Quick Swaps created before end_time (exclusive), rounded up to the
-	// minute; unset for no upper bound.
+	// Only QuickSwaps created before end_time (exclusive), rounded up to the
+	// minute; after start_time when both are set; unset for no upper bound.
 	EndTime *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
-	// Only Quick Swaps in one of these statuses, at most 16; empty for every
+	// Only QuickSwaps in one of these statuses, at most 16; empty for every
 	// status.
 	Statuses []QuickSwapStatus `protobuf:"varint,3,rep,packed,name=statuses,proto3,enum=swap.quickswap.v1.QuickSwapStatus" json:"statuses,omitempty"`
-	// Maximum number of Quick Swaps to return; 0 means 100, at most 200.
+	// Maximum number of QuickSwaps to return; 0 means 100, at most 200.
 	Limit uint32 `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
 	// Opaque keyset cursor from a previous next_page_token, exclusive, bound
 	// to the caller's partner record, the filters and the list order. It
-	// names only the swap_id of the previous page's last Quick Swap. Reuse it
+	// names only the swap_id of the previous page's last QuickSwap. Reuse it
 	// with the same filters. Empty for the first page.
 	PageToken     string `protobuf:"bytes,5,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1410,14 +1410,14 @@ func (x *ListReferredQuickSwapsRequest) GetPageToken() string {
 	return ""
 }
 
-// ListReferredQuickSwapsResponse lists Quick Swaps newest minute first.
+// ListReferredQuickSwapsResponse lists QuickSwaps newest minute first.
 // Within a minute the order is fixed but does not follow creation time.
-// Every Quick Swap whose creation was complete when the first page was read
+// Every QuickSwap whose creation was complete when the first page was read
 // is listed exactly once. One whose creation completed later may be missing
 // from later pages, even if its created_at is earlier than theirs.
 type ListReferredQuickSwapsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The Quick Swaps.
+	// The QuickSwaps.
 	QuickSwaps []*ReferredQuickSwap `protobuf:"bytes,1,rep,name=quick_swaps,json=quickSwaps,proto3" json:"quick_swaps,omitempty"`
 	// Cursor of the next page. Empty when no more results exist.
 	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
@@ -1469,7 +1469,7 @@ func (x *ListReferredQuickSwapsResponse) GetNextPageToken() string {
 	return ""
 }
 
-// GetReferredQuickSwapRequest reads one Quick Swap the caller referred.
+// GetReferredQuickSwapRequest reads one QuickSwap the caller referred.
 type GetReferredQuickSwapRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Public QuickSwap identifier.
@@ -1515,11 +1515,11 @@ func (x *GetReferredQuickSwapRequest) GetSwapId() uint64 {
 	return 0
 }
 
-// GetReferredQuickSwapResponse returns the Quick Swap with its fee
+// GetReferredQuickSwapResponse returns the QuickSwap with its fee
 // breakdown, in progress or done.
 type GetReferredQuickSwapResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The Quick Swap.
+	// The QuickSwap.
 	QuickSwap *ReferredQuickSwap `protobuf:"bytes,1,opt,name=quick_swap,json=quickSwap,proto3" json:"quick_swap,omitempty"`
 	// How its fee and the partner's commission were worked out.
 	Breakdown     *ReferralBreakdown `protobuf:"bytes,2,opt,name=breakdown,proto3" json:"breakdown,omitempty"`
@@ -1657,7 +1657,7 @@ const file_swap_quickswap_v1_quickswap_referral_proto_rawDesc = "" +
 	"\x05basis\x18\x05 \x01(\x0e2*.swap.quickswap.v1.ReferralCommissionBasisR\x05basis\x12=\n" +
 	"\bcredited\x18\x06 \x03(\v2!.swap.quickswap.v1.ReferralCreditR\bcredited\x12-\n" +
 	"\x12credited_truncated\x18\a \x01(\bR\x11creditedTruncated\x12U\n" +
-	"\x10commission_value\x18\b \x01(\v2*.swap.quickswap.v1.ReferralCommissionValueR\x0fcommissionValue\"\xad\x02\n" +
+	"\x10commission_value\x18\b \x01(\v2*.swap.quickswap.v1.ReferralCommissionValueR\x0fcommissionValue\"\xd4\x03\n" +
 	"\x1dListReferredQuickSwapsRequest\x129\n" +
 	"\n" +
 	"start_time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
@@ -1665,7 +1665,8 @@ const file_swap_quickswap_v1_quickswap_referral_proto_rawDesc = "" +
 	"\bstatuses\x18\x03 \x03(\x0e2\".swap.quickswap.v1.QuickSwapStatusB\x11\xbaH\x0e\x92\x01\v\x10\x10\"\a\x82\x01\x04\x10\x01 \x00R\bstatuses\x12\x1e\n" +
 	"\x05limit\x18\x04 \x01(\rB\b\xbaH\x05*\x03\x18\xc8\x01R\x05limit\x12'\n" +
 	"\n" +
-	"page_token\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\tpageToken\"\x8f\x01\n" +
+	"page_token\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\tpageToken:\xa4\x01\xbaH\xa0\x01\x1a\x9d\x01\n" +
+	"'list_referred_quickswaps_request.window\x12!end_time must be after start_time\x1aO!has(this.start_time) || !has(this.end_time) || this.end_time > this.start_time\"\x8f\x01\n" +
 	"\x1eListReferredQuickSwapsResponse\x12E\n" +
 	"\vquick_swaps\x18\x01 \x03(\v2$.swap.quickswap.v1.ReferredQuickSwapR\n" +
 	"quickSwaps\x12&\n" +
@@ -1691,7 +1692,7 @@ const file_swap_quickswap_v1_quickswap_referral_proto_rawDesc = "" +
 	"\fCODE_INVALID\x10\x05*Q\n" +
 	"\x17ReferralCommissionBasis\x12 \n" +
 	"\x1cCOMMISSION_BASIS_UNSPECIFIED\x10\x00\x12\x14\n" +
-	"\x10PRE_DISCOUNT_FEE\x10\x012\xe1\v\n" +
+	"\x10PRE_DISCOUNT_FEE\x10\x012\xdd\v\n" +
 	"\x18QuickSwapReferralService\x12\x83\x02\n" +
 	"\x15EnrollReferralPartner\x12/.swap.quickswap.v1.EnrollReferralPartnerRequest\x1a0.swap.quickswap.v1.EnrollReferralPartnerResponse\"\x86\x01\xbaG~\n" +
 	"\x12QuickSwap Referral\x12\x17Enroll referral partner\x1aOApply to become a referral partner, paid into one of the caller's sub-accounts.\xa2\xb5\x18\x01\x01\x12\xec\x01\n" +
@@ -1700,12 +1701,12 @@ const file_swap_quickswap_v1_quickswap_referral_proto_rawDesc = "" +
 	"\x11CheckReferralCode\x12+.swap.quickswap.v1.CheckReferralCodeRequest\x1a,.swap.quickswap.v1.CheckReferralCodeResponse\"e\xbaG]\n" +
 	"\x12QuickSwap Referral\x12\x13Check referral code\x1a2Check whether the caller may take a referral code.\xa2\xb5\x18\x01\x01\x12\xd7\x01\n" +
 	"\x0fSetReferralCode\x12).swap.quickswap.v1.SetReferralCodeRequest\x1a*.swap.quickswap.v1.SetReferralCodeResponse\"m\xbaGe\n" +
-	"\x12QuickSwap Referral\x12\x11Set referral code\x1a<Replace the caller's referral code; the old code is retired.\xa2\xb5\x18\x01\x01\x12\x8c\x02\n" +
-	"\x16ListReferredQuickSwaps\x120.swap.quickswap.v1.ListReferredQuickSwapsRequest\x1a1.swap.quickswap.v1.ListReferredQuickSwapsResponse\"\x8c\x01\xbaG\x83\x01\n" +
-	"\x12QuickSwap Referral\x12\x19List referred Quick Swaps\x1aRList the Quick Swaps the caller referred, newest first, with rates and commission.\xa2\xb5\x18\x01\x01\x12\xff\x01\n" +
-	"\x14GetReferredQuickSwap\x12..swap.quickswap.v1.GetReferredQuickSwapRequest\x1a/.swap.quickswap.v1.GetReferredQuickSwapResponse\"\x85\x01\xbaG}\n" +
-	"\x12QuickSwap Referral\x12\x17Get referred Quick Swap\x1aNGet one Quick Swap the caller referred, with its fee and commission breakdown.\xa2\xb5\x18\x01\x01\x1a\r\x8a\xb5\x18\tquickswapB\xd2\x01\xbaG\x83\x01:\x80\x01\n" +
-	"\x12QuickSwap Referral\x12jA referral partner's own record: enrollment, status, rates, referral code and the Quick Swaps it referred.ZIgithub.com/Fabric-Labs/polyester-sdk-go/gen/swap/quickswap/v1;quickswapv1b\x06proto3"
+	"\x12QuickSwap Referral\x12\x11Set referral code\x1a<Replace the caller's referral code; the old code is retired.\xa2\xb5\x18\x01\x01\x12\x8a\x02\n" +
+	"\x16ListReferredQuickSwaps\x120.swap.quickswap.v1.ListReferredQuickSwapsRequest\x1a1.swap.quickswap.v1.ListReferredQuickSwapsResponse\"\x8a\x01\xbaG\x81\x01\n" +
+	"\x12QuickSwap Referral\x12\x18List referred QuickSwaps\x1aQList the QuickSwaps the caller referred, newest first, with rates and commission.\xa2\xb5\x18\x01\x01\x12\xfd\x01\n" +
+	"\x14GetReferredQuickSwap\x12..swap.quickswap.v1.GetReferredQuickSwapRequest\x1a/.swap.quickswap.v1.GetReferredQuickSwapResponse\"\x83\x01\xbaG{\n" +
+	"\x12QuickSwap Referral\x12\x16Get referred QuickSwap\x1aMGet one QuickSwap the caller referred, with its fee and commission breakdown.\xa2\xb5\x18\x01\x01\x1a\r\x8a\xb5\x18\tquickswapB\xd0\x01\xbaG\x81\x01:\x7f\n" +
+	"\x12QuickSwap Referral\x12iA referral partner's own record: enrollment, status, rates, referral code and the QuickSwaps it referred.ZIgithub.com/Fabric-Labs/polyester-sdk-go/gen/swap/quickswap/v1;quickswapv1b\x06proto3"
 
 var (
 	file_swap_quickswap_v1_quickswap_referral_proto_rawDescOnce sync.Once
