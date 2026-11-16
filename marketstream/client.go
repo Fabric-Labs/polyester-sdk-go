@@ -494,10 +494,15 @@ func (c *Client) dial(ctx context.Context) (*websocket.Conn, error) {
 	}
 	if err != nil {
 		msg := "market stream connect: " + redact.URLError(err).Error()
+		refused := &sdkerrors.RealtimeError{Msg: msg}
 		if resp != nil {
-			msg += fmt.Sprintf(" (HTTP %d)", resp.StatusCode)
+			// A refused upgrade's answer: its status and the delay it asks
+			// for, which the next connection waits at least.
+			refused.Msg += fmt.Sprintf(" (HTTP %d)", resp.StatusCode)
+			refused.Status = resp.StatusCode
+			refused.RetryAfter = sdkerrors.RetryAfterHeader(resp.Header)
 		}
-		return nil, &sdkerrors.RealtimeError{Msg: msg}
+		return nil, refused
 	}
 	conn.SetReadLimit(maxMessageBytes)
 	return conn, nil
@@ -542,7 +547,7 @@ func (c *Client) run(conn *websocket.Conn) {
 			delay.reset()
 		}
 		for {
-			wait := delay.next()
+			wait := reconnectWait(delay.next(), err)
 			if !c.emit(&Disconnected{Err: err, Delay: wait}) {
 				return
 			}
@@ -973,6 +978,22 @@ func levelsOf(levels []levelMsg, scale int, symbol string, symbolID uint32) []Le
 		}
 	}
 	return out
+}
+
+// reconnectWait is how long the client waits before its next connection:
+// the backoff's delay, or longer when the answer behind err asked for more
+// with Retry-After (errors.RetryAfter). A server's Retry-After is never
+// shortened; the backoff's 30-second ceiling applies to the backoff alone.
+func reconnectWait(backoff time.Duration, err error) time.Duration {
+	seconds := sdkerrors.RetryAfter(err)
+	if seconds == nil {
+		return backoff
+	}
+	asked := time.Duration(math.MaxInt64)
+	if *seconds < float64(math.MaxInt64)/float64(time.Second) {
+		asked = time.Duration(*seconds * float64(time.Second))
+	}
+	return max(backoff, asked)
 }
 
 // backoff spaces reconnects: a delay drawn from the upper half of a cap that
