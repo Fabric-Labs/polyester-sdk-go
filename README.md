@@ -1062,6 +1062,13 @@ fee model and exact integer budgeting guidance.
 set, pass a display `symbol` or `symbolID`; the SDK fails closed if the symbol
 cannot be resolved to a non-zero `symbol_id`.
 
+`Orders.ListHistory` (trailing `models.ListOrderHistoryOptions`) and
+`Trades.List` (`models.ListUserTradesOptions`) take an inclusive time window,
+`StartTsNs` and `EndTsNs` (Unix nanoseconds), sent only when non-nil, so a
+restart can read the last hour rather than the whole history; an explicit
+`EndTsNs` of 0 returns an empty page, and a start after any other end is an
+`*errors.ValidationError` before sending.
+
 ## VIP, spot fees, and trading rate limits
 
 Public catalog reads (`ListVIPTiers`) need no credentials. Effective spot fees

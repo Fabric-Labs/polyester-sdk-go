@@ -362,13 +362,33 @@ type ListTriggersOptions struct {
 	ClientListID *string
 }
 
-// ListUserTradesOptions are optional GetUserTrades execution-scope filters.
+// ListOrderHistoryOptions are optional GetOrderHistory filters.
+type ListOrderHistoryOptions struct {
+	// StartTsNs is the inclusive start of the time range, in nanoseconds
+	// since the Unix epoch (UTC); nil sends no lower bound.
+	StartTsNs *uint64
+	// EndTsNs is the inclusive end of the time range, in nanoseconds since
+	// the Unix epoch (UTC); nil sends no upper bound. An explicit 0 is sent
+	// and returns an empty page. Any other end earlier than StartTsNs is
+	// refused with *errors.ValidationError before sending.
+	EndTsNs *uint64
+}
+
+// ListUserTradesOptions are optional GetUserTrades filters.
 // OrderID and LineageID are mutually exclusive. ThroughGeneration requires LineageID.
 type ListUserTradesOptions struct {
 	OrderID           *string
 	LineageID         *string
 	ThroughGeneration *uint32
 	IncludeTransfers  bool
+	// StartTsNs is the inclusive start of the time range, in nanoseconds
+	// since the Unix epoch (UTC); nil sends no lower bound.
+	StartTsNs *uint64
+	// EndTsNs is the inclusive end of the time range, in nanoseconds since
+	// the Unix epoch (UTC); nil sends no upper bound. An explicit 0 is sent
+	// and returns an empty page. Any other end earlier than StartTsNs is
+	// refused with *errors.ValidationError before sending.
+	EndTsNs *uint64
 }
 
 // ModifyOrderResult is returned from order modify RPCs.
