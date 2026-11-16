@@ -32,8 +32,10 @@ type book struct {
 	stream Stream
 	// synced: the book holds a snapshot of the current subscription and has
 	// followed every update since.
-	synced          bool
-	has             bool
+	synced bool
+	has    bool
+	// recovery is the stream's resubscription after a gap, if one runs.
+	recovery        recovery
 	epoch, updateID uint64
 	// window is the snapshot's levelsPerSide: each side is truncated to it
 	// after every update.
@@ -89,6 +91,22 @@ func (b *book) snapshot(m *depthSnapshotMsg) (bool, error) {
 	b.asks = append(b.asks[:0], m.asks...)
 	return true, nil
 }
+
+// recovery is where a depth stream's resubscription after a gap stands: the
+// stream alone is unsubscribed and subscribed again, and the new
+// subscription's snapshot replaces the book.
+type recovery uint8
+
+const (
+	recoveryNone recovery = iota
+	// recoveryUnsubscribing: the Unsubscribe is sent, its answer awaited.
+	recoveryUnsubscribing
+	// recoverySubscribing: the Subscribe is sent, its answer awaited.
+	recoverySubscribing
+	// recoverySnapshot: subscribed again; the next snapshot replaces the
+	// book and ends the recovery.
+	recoverySnapshot
+)
 
 // errBookGap reports an update the book cannot apply: the book is not at its
 // base. The book stops following the stream until a new snapshot.

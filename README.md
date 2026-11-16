@@ -2015,8 +2015,13 @@ Streams and recovery:
   quantity 0 is deleted; an update with no levels over a range only advances
   the book's position. After each update, each side is truncated to the live
   window the snapshot names (`DepthSnapshot.LevelsPerSide`). An update the
-  book cannot apply is never patched over: the client reconnects and the new
-  subscription's snapshot replaces the book.
+  book cannot apply is never patched over. The depth stream alone recovers
+  on the same connection: its book goes stale (`OrderBook.Stale`,
+  `Client.Live`), the client unsubscribes the stream and subscribes it again,
+  and the new subscription's snapshot replaces the book. Updates that arrive
+  meanwhile are dropped, a second gap starts no second recovery, and every
+  other stream of the connection carries on untouched. The client's own
+  requests arrive as `SubscribeResponse` events like any other.
 - `MarketStatus` reports a pair whose feed went stale (`FeedStale`): its best
   bid and offer and depth pause until it recovers. A depth book then waits
   for its replacement snapshot, which arrives before the pair is reported

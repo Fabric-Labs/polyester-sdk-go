@@ -308,57 +308,6 @@ func TestClientDeliversEveryStream(t *testing.T) {
 	}
 }
 
-func TestClientRebuildsTheBookAfterAGapAndReconcilesTrades(t *testing.T) {
-	fs := newFakeServer(t)
-	c := dialTest(t, fs)
-	sc := fs.accept(t)
-	results := subscribeAsync(c, Topic{7, StreamDepth}, Topic{7, StreamTrades})
-	sub := sc.subscribe(t)
-	sc.send(t,
-		respond(sub, SubscribeOK),
-		depthSnapshotFrame(7, StreamDepth, 1, 10, []levelMsg{lv(100, 1)}, nil),
-		tradesThroughFrame(7, 1, 100),
-		depthUpdateFrame(7, 1, 11, 11, []levelMsg{lv(100, 2)}, nil),
-		tradesFrame(7, 1, 11, fill(101)),
-		depthUpdateFrame(7, 1, 13, 13, []levelMsg{lv(100, 3)}, nil), // gap: 12 missing
-	)
-	awaitResults(t, results)
-	d := expect[*Disconnected](t, c)
-	var gap *BookGapError
-	if !errors.As(d.Err, &gap) {
-		t.Fatalf("disconnected by %v, want a book gap", d.Err)
-	}
-	if book, _ := c.OrderBook(7, StreamDepth, 0); !book.Stale || book.UpdateID != 11 {
-		t.Fatalf("book after gap %+v", book)
-	}
-
-	sc2 := fs.accept(t)
-	if conn := expect[*Connected](t, c); !conn.Reconnect {
-		t.Fatal("reconnect not flagged")
-	}
-	resub := sc2.subscribe(t)
-	if len(resub.topics) != 2 {
-		t.Fatalf("resubscribed %v", resub.topics)
-	}
-	sc2.send(t,
-		respond(resub, SubscribeOK),
-		depthSnapshotFrame(7, StreamDepth, 1, 20, []levelMsg{lv(100, 9)}, nil),
-		tradesThroughFrame(7, 1, 105),
-	)
-	snap := expect[*DepthSnapshot](t, c)
-	if snap.UpdateID != 20 {
-		t.Fatalf("snapshot %+v", snap)
-	}
-	g := expect[*TradesGap](t, c)
-	if g.AfterTradeID != 101 || g.ThroughTradeID != 105 || g.Cause != GapReconnect {
-		t.Fatalf("gap %+v", g)
-	}
-	book, _ := c.OrderBook(7, StreamDepth, 0)
-	if book.Stale || book.UpdateID != 20 || book.Bids[0].Qty.Scaled() != 9 {
-		t.Fatalf("rebuilt book %+v", book)
-	}
-}
-
 func TestClientDropsRefusedTopicsOnReconnect(t *testing.T) {
 	fs := newFakeServer(t)
 	c := dialTest(t, fs)
@@ -680,33 +629,5 @@ func TestDepthRecoversWithASnapshotBeforeLive(t *testing.T) {
 	book, _ := c.OrderBook(7, StreamDepth, 0)
 	if book.Stale || book.UpdateID != 41 || book.Bids[0].Qty.Scaled() != 2 {
 		t.Fatalf("recovered book %+v", book)
-	}
-}
-
-// LIVE before the replacement snapshot, or an update while stale, breaks the
-// recovery order: the client rebuilds the book from a new subscription.
-func TestDepthRecoveryOutOfOrderIsRecovered(t *testing.T) {
-	for name, frames := range map[string][][]byte{
-		"live before the snapshot": {marketStatusFrame(7, FeedStale), marketStatusFrame(7, FeedLive)},
-		"update while stale":       {marketStatusFrame(7, FeedStale), depthUpdateFrame(7, 1, 11, 11, nil, nil)},
-	} {
-		t.Run(name, func(t *testing.T) {
-			fs := newFakeServer(t)
-			c := dialTest(t, fs)
-			sc := fs.accept(t)
-			results := subscribeAsync(c, Topic{7, StreamDepth})
-			sub := sc.subscribe(t)
-			sc.send(t, respond(sub, SubscribeOK), depthSnapshotFrame(7, StreamDepth, 1, 10, []levelMsg{lv(100, 1)}, nil))
-			awaitResults(t, results)
-			sc.send(t, frames...)
-			var gap *BookGapError
-			if d := expect[*Disconnected](t, c); !errors.As(d.Err, &gap) {
-				t.Fatalf("disconnected by %v, want a book gap", d.Err)
-			}
-			resub := fs.accept(t).subscribe(t)
-			if len(resub.topics) != 1 || resub.topics[0] != (Topic{7, StreamDepth}) {
-				t.Fatalf("resubscribed %v", resub.topics)
-			}
-		})
 	}
 }

@@ -197,6 +197,13 @@ func TestGoldenCapturesReplay(t *testing.T) {
 				// A capture that ends stale leaves the book waiting for its
 				// replacement snapshot.
 				stale := c.feeds[topic.SymbolID] == FeedStale
+				if topic.Stream == StreamDepth && b.recovery != recoveryNone {
+					// A capture of the server's old order (LIVE before the
+					// replacement snapshot) leaves the stream recovering; the
+					// capture has no answer to its requests.
+					t.Logf("%s leaves pair %d's depth stream recovering", capture, topic.SymbolID)
+					continue
+				}
 				if topic.Stream == StreamDepth && (b.synced == stale || b.updateID != lastDepth) {
 					t.Fatalf("depth book of %d at %d (synced %t, feed stale %t), the stream ended at %d", topic.SymbolID, b.updateID, b.synced, stale, lastDepth)
 				}

@@ -537,7 +537,48 @@ func (c *Client) run(conn *websocket.Conn, wanted []Topic) {
 // sentRequest is a Subscribe or Unsubscribe sent on the current connection.
 type sentRequest struct {
 	unsubscribe bool
-	topics      []Topic
+	// recovery marks the client's own Unsubscribe and Subscribe of a depth
+	// stream recovering from a gap.
+	recovery bool
+	topics   []Topic
+}
+
+// send records and sends a request no caller waits for. Without a
+// connection it is only recorded; the connection's end drops the record.
+func (c *Client) send(req sentRequest) {
+	id := c.ids.Add(1)
+	frame := encodeSubscribe
+	if req.unsubscribe {
+		frame = encodeUnsubscribe
+	}
+	c.mu.Lock()
+	c.sent[id] = req
+	conn := c.conn
+	c.mu.Unlock()
+	if conn != nil {
+		// A failed write ends the connection, which reconnects everything.
+		_ = c.write(conn, frame(id, req.topics))
+	}
+}
+
+// startRecovery begins a depth stream's recovery after a gap: the stream
+// alone is unsubscribed, then subscribed again, and the new subscription's
+// snapshot replaces its book. Every other stream is untouched. A gap while
+// the stream recovers starts nothing more. c.state must not be held.
+func (c *Client) startRecovery(topic Topic) {
+	c.state.Lock()
+	b := c.books[topic]
+	start := b != nil && c.active[topic] && b.recovery == recoveryNone
+	if b != nil {
+		b.synced = false
+	}
+	if start {
+		b.recovery = recoveryUnsubscribing
+	}
+	c.state.Unlock()
+	if start {
+		c.send(sentRequest{unsubscribe: true, recovery: true, topics: []Topic{topic}})
+	}
 }
 
 // dropTopics forgets the state of topics no longer subscribed: their books,
@@ -584,7 +625,7 @@ func (c *Client) lose() {
 	clear(c.active)
 	clear(c.feeds)
 	for _, b := range c.books {
-		b.synced = false
+		b.synced, b.recovery = false, recoveryNone
 	}
 	for _, q := range c.quotes {
 		q.Stale = true

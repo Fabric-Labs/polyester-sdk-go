@@ -2,7 +2,6 @@ package marketstream
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 )
@@ -275,39 +274,6 @@ func TestEveryDepthSnapshotReplacesTheBook(t *testing.T) {
 	expect[*DepthUpdate](t, c)
 	if book, _ := c.OrderBook(7, StreamDepth, 0); len(book.Bids) != 3 || book.Bids[0].Price.Ticks() != 11 || book.UpdateID != 11 {
 		t.Fatalf("book %+v after an update in the new window", book)
-	}
-}
-
-// A connection whose depth subscription delivers an update before any
-// snapshot never makes the book live: the book is rebuilt from a snapshot.
-func TestDepthUpdateBeforeASnapshotAfterAReconnectIsAGap(t *testing.T) {
-	fs := newFakeServer(t)
-	c := dialTest(t, fs)
-	sc := fs.accept(t)
-	results := subscribeAsync(c, Topic{7, StreamDepth})
-	sub := sc.subscribe(t)
-	sc.send(t, respond(sub, SubscribeOK), depthSnapshotFrame(7, StreamDepth, 1, 10, []levelMsg{lv(100, 1)}, nil))
-	awaitResults(t, results)
-	expect[*DepthSnapshot](t, c)
-	for range 2 {
-		sc.close()
-		expect[*Disconnected](t, c)
-		sc = fs.accept(t)
-		resub := sc.subscribe(t)
-		sc.send(t, respond(resub, SubscribeOK), depthSnapshotFrame(7, StreamDepth, 1, 9, []levelMsg{lv(99, 1)}, nil))
-		expect[*DepthSnapshot](t, c)
-	}
-	sc.close()
-	expect[*Disconnected](t, c)
-	sc = fs.accept(t)
-	resub := sc.subscribe(t)
-	sc.send(t, respond(resub, SubscribeOK), depthUpdateFrame(7, 1, 10, 10, nil, nil))
-	var gap *BookGapError
-	if d := expect[*Disconnected](t, c); !errors.As(d.Err, &gap) {
-		t.Fatalf("disconnected by %v, want a book gap", d.Err)
-	}
-	if c.Live(Topic{7, StreamDepth}) {
-		t.Fatal("depth live without the session's snapshot")
 	}
 }
 

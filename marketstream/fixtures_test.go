@@ -2,7 +2,6 @@ package marketstream
 
 import (
 	"bytes"
-	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -251,11 +250,12 @@ func TestFixtureRecoveryOrder(t *testing.T) {
 	if c.Feed(symbol) != FeedLive || !c.Live(Topic{symbol, StreamDepth}) {
 		t.Fatalf("pair %d not live after its snapshot and LIVE", symbol)
 	}
-	// LIVE before the replacement snapshot is a recovery error.
+	// LIVE before the replacement snapshot is a gap of the depth stream: it
+	// alone recovers.
 	c2 := fixtureClient(t, frames)
-	replay(t, c2, []fixtureFrame{snapshot, stale})
-	if err := c2.handle(live.data); err == nil {
-		t.Fatal("LIVE before the replacement snapshot accepted")
+	replay(t, c2, []fixtureFrame{snapshot, stale, live})
+	if !recoveryRequested(c2, Topic{symbol, StreamDepth}) || c2.Live(Topic{symbol, StreamDepth}) {
+		t.Fatal("LIVE before the replacement snapshot did not start the depth stream's recovery")
 	}
 }
 
@@ -316,23 +316,44 @@ func TestFixtureDepthWithLevels(t *testing.T) {
 	}
 }
 
-// An update missing from the chain is a gap: the book is stale and the
-// connection is ended so a new subscription's snapshot replaces it.
+// An update missing from the chain is a gap: the book is stale and not live,
+// and the depth stream alone recovers by an Unsubscribe.
 func TestFixtureDepthGapMarksTheBookStale(t *testing.T) {
 	frames, _ := loadFixtures(t)
 	c := fixtureClient(t, frames)
 	chain := fixtureGroup(t, frames, "depth-levels-chain")
 	replay(t, c, chain[:2])
-	err := c.handle(chain[3].data)
-	var gap *BookGapError
-	if !errors.As(err, &gap) {
-		t.Fatalf("an update past a missing one: %v, want a book gap", err)
+	if err := c.handle(chain[3].data); err != nil {
+		t.Fatalf("a gap ended the connection: %v", err)
 	}
 	m, _ := decodeFrame(chain[0].data)
-	symbol := m.(*depthSnapshotMsg).symbolID
-	if book, _ := c.OrderBook(symbol, StreamDepth, 0); !book.Stale || c.Live(Topic{symbol, StreamDepth}) {
+	topic := Topic{m.(*depthSnapshotMsg).symbolID, StreamDepth}
+	if book, _ := c.OrderBook(topic.SymbolID, StreamDepth, 0); !book.Stale || c.Live(topic) {
 		t.Fatalf("book %+v current after a gap", book)
 	}
+	if !recoveryRequested(c, topic) {
+		t.Fatal("no Unsubscribe of the depth stream after its gap")
+	}
+	// Further updates are dropped while it recovers.
+	if err := c.handle(chain[4].data); err != nil {
+		t.Fatal(err)
+	}
+	if book, _ := c.OrderBook(topic.SymbolID, StreamDepth, 0); !book.Stale {
+		t.Fatal("an update applied during the recovery")
+	}
+}
+
+// recoveryRequested reports whether the client recorded its recovery
+// Unsubscribe of topic.
+func recoveryRequested(c *Client, topic Topic) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, r := range c.sent {
+		if r.recovery && r.unsubscribe && len(r.topics) == 1 && r.topics[0] == topic {
+			return true
+		}
+	}
+	return false
 }
 
 // TradesSkipped after the pair's baseline names exactly the trades the

@@ -19,7 +19,7 @@ func (c *Client) handle(frame []byte) error {
 	c.healthy.Store(true)
 	switch m := decoded.(type) {
 	case *subscribeResponseMsg:
-		c.onSubscribeResponse(m)
+		return c.onSubscribeResponse(m)
 	case *pongMsg:
 		c.onPong(m)
 	case *marketStatusMsg:
@@ -41,7 +41,7 @@ func (c *Client) handle(frame []byte) error {
 	return nil
 }
 
-func (c *Client) onSubscribeResponse(m *subscribeResponseMsg) {
+func (c *Client) onSubscribeResponse(m *subscribeResponseMsg) error {
 	resp := &SubscribeResponse{RequestID: m.requestID, Results: make([]TopicResult, len(m.results))}
 	c.mu.Lock()
 	req, known := c.sent[m.requestID]
@@ -53,11 +53,14 @@ func (c *Client) onSubscribeResponse(m *subscribeResponseMsg) {
 			resp.Results[i] = TopicResult{Topic: Topic{SymbolID: r.symbolID, Stream: Stream(r.stream)}, Result: SubscribeResult(r.result)}
 		}
 		c.emit(resp)
-		return
+		return nil
+	}
+	if req.recovery {
+		return c.onRecoveryResponse(m, resp, req)
 	}
 	if req.unsubscribe {
 		c.onUnsubscribeResponse(m, resp)
-		return
+		return nil
 	}
 	c.state.Lock()
 	for i, r := range m.results {
@@ -90,6 +93,76 @@ func (c *Client) onSubscribeResponse(m *subscribeResponseMsg) {
 	}
 	c.mu.Unlock()
 	c.answer(m.requestID, resp)
+	return nil
+}
+
+// onRecoveryResponse advances a depth stream's recovery. The Unsubscribe
+// answered OK, or NOT_SUBSCRIBED when the server no longer held the stream,
+// is followed by the Subscribe; any other answer leaves the stream in a state
+// the client cannot know, so the connection ends and every stream is
+// resubscribed. The Subscribe answered OK waits for the snapshot; refused, it
+// ends the stream as a refused Subscribe does.
+func (c *Client) onRecoveryResponse(m *subscribeResponseMsg, resp *SubscribeResponse, req sentRequest) error {
+	for i, r := range m.results {
+		resp.Results[i] = TopicResult{Topic: Topic{SymbolID: r.symbolID, Stream: Stream(r.stream)}, Result: SubscribeResult(r.result)}
+	}
+	c.emit(resp)
+	topic := req.topics[0]
+	result := SubscribeResult(0)
+	for _, r := range resp.Results {
+		if r.Topic == topic {
+			result = r.Result
+		}
+	}
+	c.mu.Lock()
+	wanted := c.wantSet[topic]
+	c.mu.Unlock()
+	c.state.Lock()
+	b := c.books[topic]
+	if b == nil {
+		// The caller ended the stream meanwhile.
+		c.state.Unlock()
+		return nil
+	}
+	if req.unsubscribe {
+		if b.recovery != recoveryUnsubscribing {
+			c.state.Unlock()
+			return nil
+		}
+		if result != SubscribeOK && result != SubscribeNotSubscribed {
+			c.state.Unlock()
+			return &BookGapError{SymbolID: topic.SymbolID, Msg: "the depth stream's recovery Unsubscribe was answered " + result.String()}
+		}
+		if !wanted {
+			c.state.Unlock()
+			c.dropTopics([]Topic{topic})
+			return nil
+		}
+		b.recovery = recoverySubscribing
+		c.state.Unlock()
+		c.send(sentRequest{recovery: true, topics: []Topic{topic}})
+		return nil
+	}
+	if b.recovery != recoverySubscribing {
+		c.state.Unlock()
+		return nil
+	}
+	if !result.Subscribed() {
+		c.state.Unlock()
+		c.mu.Lock()
+		c.unwant(topic)
+		c.mu.Unlock()
+		c.dropTopics([]Topic{topic})
+		return nil
+	}
+	b.recovery = recoverySnapshot
+	c.active[topic] = true
+	c.state.Unlock()
+	if !wanted {
+		// The caller unsubscribed while the stream recovered.
+		c.send(sentRequest{unsubscribe: true, topics: []Topic{topic}})
+	}
+	return nil
 }
 
 // onUnsubscribeResponse ends the streams an Unsubscribe names: whether they
@@ -136,7 +209,8 @@ func (c *Client) unwant(topic Topic) {
 
 // onMarketStatus records a pair's feed state. A stale pair's depth book waits
 // for a replacement snapshot, which the server sends before the pair is live
-// again: LIVE while the book still waits is a gap, recovered by reconnecting.
+// again: LIVE while the book still waits is a gap, and the depth stream alone
+// recovers.
 func (c *Client) onMarketStatus(m *marketStatusMsg) error {
 	feed := FeedState(m.feed)
 	topic := Topic{SymbolID: m.symbolID, Stream: StreamDepth}
@@ -150,7 +224,7 @@ func (c *Client) onMarketStatus(m *marketStatusMsg) error {
 	}
 	c.state.Unlock()
 	if feed == FeedLive && waiting {
-		return &BookGapError{SymbolID: m.symbolID, Msg: "feed live again before the depth book's replacement snapshot"}
+		c.startRecovery(topic)
 	}
 	c.emit(&MarketStatus{SymbolID: m.symbolID, Feed: feed, SendTime: timeOf(m.sendNs)})
 	return nil
@@ -333,11 +407,16 @@ func (c *Client) onDepthSnapshot(m *depthSnapshotMsg) error {
 	topic := Topic{SymbolID: m.symbolID, Stream: Stream(m.stream)}
 	c.state.Lock()
 	b := c.books[topic]
-	if b == nil || !c.active[topic] {
+	if b == nil || !c.active[topic] || b.recovery == recoveryUnsubscribing || b.recovery == recoverySubscribing {
+		// While the stream recovers, only the new subscription's snapshot
+		// counts.
 		c.state.Unlock()
 		return nil
 	}
 	changed, err := b.snapshot(m)
+	if err == nil {
+		b.recovery = recoveryNone
+	}
 	c.state.Unlock()
 	if err != nil {
 		return &FrameError{TemplateID: ms.DepthSnapshotSbeTemplateID, Msg: err.Error()}
@@ -356,13 +435,14 @@ func (c *Client) onDepthSnapshot(m *depthSnapshotMsg) error {
 }
 
 // onDepthUpdate applies an update at exactly its base. An update the book
-// cannot apply ends the connection: the protocol has no unsubscribe, so the
-// book is rebuilt from the snapshot of a new connection's subscription.
+// cannot apply is a gap: the book goes stale and the stream alone recovers by
+// an Unsubscribe and a Subscribe, whose snapshot replaces the book. Updates
+// that arrive while it recovers are dropped.
 func (c *Client) onDepthUpdate(m *depthUpdateMsg) error {
 	topic := Topic{SymbolID: m.symbolID, Stream: StreamDepth}
 	c.state.Lock()
 	b := c.books[topic]
-	if b == nil || !c.active[topic] {
+	if b == nil || !c.active[topic] || b.recovery != recoveryNone {
 		c.state.Unlock()
 		return nil
 	}
@@ -374,7 +454,8 @@ func (c *Client) onDepthUpdate(m *depthUpdateMsg) error {
 	if err != nil {
 		var gap *errBookGap
 		if errors.As(err, &gap) {
-			return &BookGapError{SymbolID: m.symbolID, Msg: gap.msg}
+			c.startRecovery(topic)
+			return nil
 		}
 		return &FrameError{TemplateID: ms.DepthUpdateSbeTemplateID, Msg: err.Error()}
 	}
@@ -388,9 +469,9 @@ func (c *Client) onDepthUpdate(m *depthUpdateMsg) error {
 	return nil
 }
 
-// BookGapError reports a depth update the client's book could not apply
-// because the book is not at its base. The client reconnects, and the new
-// subscription's snapshot replaces the book.
+// BookGapError reports a depth stream whose recovery after a gap could not
+// go on: the server answered its Unsubscribe with neither OK nor
+// NOT_SUBSCRIBED. The client reconnects, and every stream is resubscribed.
 type BookGapError struct {
 	SymbolID uint32
 	Msg      string
