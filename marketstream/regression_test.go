@@ -192,9 +192,11 @@ func TestBooksAndQuotesNeverGoBackwardsAcrossReconnects(t *testing.T) {
 			// The new connection's replica is behind: its state is older.
 			sc2 := fs.accept(t)
 			resub := sc2.subscribe(t)
-			sc2.send(t, respond(resub, SubscribeOK), depthSnapshotFrame(7, s, 1, 9, []levelMsg{lv(99, 1)}, nil), bboFrame(7, 1, 9, 99, 1, 101, 1), pongFrame(0))
-			expect[*SubscribeResponse](t, c)
-			time.Sleep(30 * time.Millisecond)
+			// A status of another pair after them: once it arrives, they are
+			// applied.
+			sc2.send(t, respond(resub, SubscribeOK), depthSnapshotFrame(7, s, 1, 9, []levelMsg{lv(99, 1)}, nil), bboFrame(7, 1, 9, 99, 1, 101, 1), marketStatusFrame(9, FeedLive))
+			for st := expect[*MarketStatus](t, c); st.SymbolID != 9; st = expect[*MarketStatus](t, c) {
+			}
 			book, _ := c.OrderBook(7, s, 0)
 			if book.UpdateID != 10 || !book.Stale || book.Bids[0].Price.Ticks() != 100 {
 				t.Fatalf("book %+v after an older snapshot; want update 10, stale", book)
