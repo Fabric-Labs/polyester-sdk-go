@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
@@ -93,11 +94,10 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 		QtyScaled: qtyScaled,
 	}
 	if clientTriggerID != nil && *clientTriggerID != "" {
-		validated, err := requiredClientID(*clientTriggerID, "client_trigger_id")
-		if err != nil {
-			return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_CLIENT_TRIGGER_ID_INVALID)
+		if err := checkClientTriggerID(*clientTriggerID); err != nil {
+			return nil, err
 		}
-		intent.ClientTriggerId = validated
+		intent.ClientTriggerId = *clientTriggerID
 	} else {
 		intent.ClientTriggerId = newTriggerRequestID()
 	}
@@ -750,4 +750,20 @@ func coded(err error, code orderv1.ErrorCode) error {
 // with the code the API answers for it.
 func feeAssetNotAllowed(msg string) error {
 	return &errors.ValidationError{Msg: msg, Code: orderv1.ErrorCode_ERROR_CODE_FEE_ASSET_NOT_ALLOWED.String()}
+}
+
+// clientTriggerIDMaxBytes is the contract's max_bytes on
+// TriggerIntent.client_trigger_id: 1 to 36 bytes of UTF-8, any characters.
+var clientTriggerIDMaxBytes = contractFieldRules(&triggersv1.TriggerIntent{}, "client_trigger_id").GetString().GetMaxBytes()
+
+// checkClientTriggerID refuses a client trigger ID the contract refuses: not
+// UTF-8, or longer than clientTriggerIDMaxBytes bytes. It is sent unchanged.
+func checkClientTriggerID(id string) error {
+	if !utf8.ValidString(id) || uint64(len(id)) > clientTriggerIDMaxBytes {
+		return &errors.ValidationError{
+			Msg:  fmt.Sprintf("client_trigger_id must be 1 to %d bytes of UTF-8", clientTriggerIDMaxBytes),
+			Code: orderv1.ErrorCode_ERROR_CODE_CLIENT_TRIGGER_ID_INVALID.String(),
+		}
+	}
+	return nil
 }

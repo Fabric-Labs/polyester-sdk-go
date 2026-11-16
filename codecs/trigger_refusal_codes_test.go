@@ -214,3 +214,24 @@ func TestOrderFeeAssetBaseOnASellCarriesTheAPIsCode(t *testing.T) {
 	}, 8, 6)
 	requireCode(t, "sell order fee_asset=base", err, orderv1.ErrorCode_ERROR_CODE_FEE_ASSET_NOT_ALLOWED)
 }
+
+// A client trigger ID is what the contract says, 1 to 36 bytes of UTF-8 in
+// any characters, sent unchanged; only a longer or non-UTF-8 ID is refused.
+func TestClientTriggerIDFollowsTheContract(t *testing.T) {
+	if clientTriggerIDMaxBytes != 36 {
+		t.Fatalf("max bytes = %d, want the contract's 36", clientTriggerIDMaxBytes)
+	}
+	for _, id := range []string{"ladder-btc-1", "stop loss #1", " padded ", "ordre-été", strings.Repeat("é", 18), strings.Repeat("a", 36)} {
+		req, err := CreateTriggerToProto(1, "BTC-USDT", "stop_loss", refPrice("60000"), "sell", models.QtyFromDecimal("0.001"), "market", nil, "", "", nil, refStr(id), false, 8, CreateTriggerOptions{})
+		if err != nil {
+			t.Fatalf("%q: %v", id, err)
+		}
+		if got := req.GetTrigger().GetClientTriggerId(); got != id {
+			t.Fatalf("%q sent as %q", id, got)
+		}
+	}
+	for _, id := range []string{strings.Repeat("a", 37), strings.Repeat("é", 19), "bad\xff"} {
+		_, err := CreateTriggerToProto(1, "BTC-USDT", "stop_loss", refPrice("60000"), "sell", models.QtyFromDecimal("0.001"), "market", nil, "", "", nil, refStr(id), false, 8, CreateTriggerOptions{})
+		requireCode(t, id, err, orderv1.ErrorCode_ERROR_CODE_CLIENT_TRIGGER_ID_INVALID)
+	}
+}
