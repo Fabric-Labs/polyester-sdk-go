@@ -141,7 +141,9 @@ func TestSubscribeCancelledAfterSendingStillTakesEffect(t *testing.T) {
 	}()
 	m := sc.subscribe(t)
 	cancel()
-	<-done
+	if err := <-done; err == nil {
+		t.Fatal("cancelled Subscribe returned no error")
+	}
 	sc.send(t, respond(m, SubscribeOK), bboFrame(7, 1, 5, 100, 1, 101, 1))
 	if q := expect[*BestBidOffer](t, c); q.UpdateID != 5 {
 		t.Fatalf("quote %+v", q)
