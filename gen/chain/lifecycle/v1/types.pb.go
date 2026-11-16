@@ -116,6 +116,14 @@ const (
 	// its FAILED step's transaction is that transfer. Polyester records
 	// neither the recipient nor the amount. This is not a return or a refund.
 	LifecycleReason_ZIPPER_COMPLIANCE_TRANSFERRED LifecycleReason = 105
+	// The deposit was delivered as zTokens to the account's own Polyester
+	// Chain wallet, the flow's `smart_account_address`, instead of its Funding
+	// or Trading balance: the destination did not accept the credit, for
+	// example because deposits into it were paused. The flow ends COMPLETED at
+	// the wallet, its destination domain is DOMAIN_ZIPPER, and its final
+	// step's transaction is the delivery. No Funding or Trading balance was
+	// credited; `destination_address` stays the deposit address.
+	LifecycleReason_ZIPPER_DEPOSIT_DELIVERED_TO_WALLET LifecycleReason = 106
 	// Ledger mirror rejected a command before it could be durably applied.
 	LifecycleReason_LEDGER_MIRROR_REJECTED LifecycleReason = 200
 	// Ledger settlement rejected the mirror command because the source account did
@@ -150,6 +158,7 @@ var (
 		103: "ZIPPER_WITHDRAW_EXECUTION_FAILED",
 		104: "ZIPPER_DEPOSIT_REFUND_FAILED",
 		105: "ZIPPER_COMPLIANCE_TRANSFERRED",
+		106: "ZIPPER_DEPOSIT_DELIVERED_TO_WALLET",
 		200: "LEDGER_MIRROR_REJECTED",
 		201: "LEDGER_MIRROR_TRANSFER_EXCEEDS_CREDITS",
 		202: "LEDGER_MIRROR_TRANSFER_EXISTS",
@@ -167,6 +176,7 @@ var (
 		"ZIPPER_WITHDRAW_EXECUTION_FAILED":         103,
 		"ZIPPER_DEPOSIT_REFUND_FAILED":             104,
 		"ZIPPER_COMPLIANCE_TRANSFERRED":            105,
+		"ZIPPER_DEPOSIT_DELIVERED_TO_WALLET":       106,
 		"LEDGER_MIRROR_REJECTED":                   200,
 		"LEDGER_MIRROR_TRANSFER_EXCEEDS_CREDITS":   201,
 		"LEDGER_MIRROR_TRANSFER_EXISTS":            202,
@@ -622,14 +632,15 @@ const file_chain_lifecycle_v1_types_proto_rawDesc = "" +
 	"\x1eREQUEST_FEE_STATUS_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19REQUEST_FEE_STATUS_LOCKED\x10\x01\x12\x1e\n" +
 	"\x1aREQUEST_FEE_STATUS_SETTLED\x10\x02\x12\x1b\n" +
-	"\x17REQUEST_FEE_STATUS_KEPT\x10\x03*\xb8\x04\n" +
+	"\x17REQUEST_FEE_STATUS_KEPT\x10\x03*\xe0\x04\n" +
 	"\x0fLifecycleReason\x12\x16\n" +
 	"\x12REASON_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aZIPPER_VALIDATION_REJECTED\x10e\x12\x1d\n" +
 	"\x19ZIPPER_EXECUTION_REJECTED\x10f\x12$\n" +
 	" ZIPPER_WITHDRAW_EXECUTION_FAILED\x10g\x12 \n" +
 	"\x1cZIPPER_DEPOSIT_REFUND_FAILED\x10h\x12!\n" +
-	"\x1dZIPPER_COMPLIANCE_TRANSFERRED\x10i\x12\x1b\n" +
+	"\x1dZIPPER_COMPLIANCE_TRANSFERRED\x10i\x12&\n" +
+	"\"ZIPPER_DEPOSIT_DELIVERED_TO_WALLET\x10j\x12\x1b\n" +
 	"\x16LEDGER_MIRROR_REJECTED\x10\xc8\x01\x12+\n" +
 	"&LEDGER_MIRROR_TRANSFER_EXCEEDS_CREDITS\x10\xc9\x01\x12\"\n" +
 	"\x1dLEDGER_MIRROR_TRANSFER_EXISTS\x10\xca\x01\x12-\n" +

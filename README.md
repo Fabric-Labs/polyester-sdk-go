@@ -7,9 +7,9 @@ and automation. Parity with `polyester-sdk-python` and `polyester-sdk-rust`
 using the checked-in `gen/` protobuf bundle (no local proto generation for
 normal development).
 
-**Status:** `v0.32.0`, pre-1.0: a minor release may change the API. The Go,
+**Status:** `v0.33.0`, pre-1.0: a minor release may change the API. The Go,
 Python and Rust SDKs are released together. Their versions match unless a
-change breaks only one SDK's API: Go `v0.32.0` is the release of Python `0.31.0` and Rust `0.30.0`.
+change breaks only one SDK's API: Go `v0.33.0` is the release of Python `0.32.0` and Rust `0.31.0`.
 Proprietary license (not open source).
 API-key only; no browser login or session MFA.
 
@@ -46,7 +46,9 @@ Requires a recent Go toolchain (see `go.mod`).
 | User trades | Yes |
 | Triggers | Yes |
 | Internal transfers | Yes |
+| Dust conversion | Yes |
 | Transfer history | Yes |
+| Statement export files | Yes |
 | Deposit addresses | Yes |
 | Trading / funding withdraws | Yes |
 | Zipper deposit-withdraw config | Yes |
@@ -129,7 +131,7 @@ account's resting orders, the leg stays `armed` and its trigger records one
 ## Install
 
 ```bash
-go get github.com/Fabric-Labs/polyester-sdk-go@v0.32.0
+go get github.com/Fabric-Labs/polyester-sdk-go@v0.33.0
 ```
 
 For development from a git checkout:
@@ -652,9 +654,11 @@ policy, granted from an interactive session: `READ_API_KEYS`
 `READ_SUBACCOUNT_MEMBERS` (`SubAccounts.ListMembers` and the members of
 `SubAccounts.Get`), `READ_SUBACCOUNT_INVITES` (`SubAccounts.ListInvites` and
 the invites of `SubAccounts.Get`), `READ_GUARD_SIGNER_STATUS`
-(`GuardSigner.GetStatus`) and `READ_STATEMENTS` (`Statements.ExportPage`,
-`Statements.Export`; `READ_BALANCES` and `READ_INTERNAL_TRANSFERS` do not grant
-it). A key without a policy has none of these, and
+(`GuardSigner.GetStatus`), `READ_STATEMENTS` (`Statements.ExportPage`,
+`Statements.Export` and the statement export files; `READ_BALANCES` and
+`READ_INTERNAL_TRANSFERS` do not grant it), `READ_FUNDING_FLOWS`
+(`Lifecycle.ListAccountFlows`, `AccountFlows`, `GetAccountFlow`) and
+`CONVERT_DUST` (`DustConversions.Quote`, `Convert`, `Get`, `List`, `All`). A key without a policy has none of these, and
 `SubAccounts.Get` leaves out the members and invites a key may not read
 instead of failing. `APIKeys.List` and `APIKeys.Get` give each key's restrictions:
 `PolicyID`, the public ID of the attached API policy as `ApiPolicy.PolicyID`
@@ -835,7 +839,11 @@ order: the book shows at most that base quantity at a time. The API checks it
 against the order and the pair (`ICEBERG_DISPLAY_INVALID`,
 `ICEBERG_DISPLAY_TOO_SMALL`, `ICEBERG_NOT_ALLOWED`); the SDK refuses it on
 market, IOC and FOK orders. Order reads carry `DisplayQty` and `HiddenQty`
-(the part of `LeavesQty` the book does not show).
+(the part of `LeavesQty` the book does not show). Lowering an iceberg's
+quantity in place to its display or below keeps its queue priority and shows
+all of it (`HiddenQty` zero). A replace keeps the display while the new
+quantity is above it; otherwise the new order is a plain limit order with
+`DisplayQty` zero, and it stays plain.
 
 `CreateOrderRequest.Peg` prices a limit order once, at entry, from the best
 bid or ask plus `OffsetTicks` tick-size increments. `Price` stays required as
@@ -1062,7 +1070,11 @@ when unset. `SettledVolumeQuality` and `AverageAopQuality` report how complete e
 30-day metric is (`complete`, `price_unavailable` or `incomplete_history`, with
 `IncompleteHours`). `policy_class` uses full protobuf enum names
 (`TRADING_RATE_LIMIT_CLASS_PLACE` / `_CANCEL`). Rate-limit rules expose
-`VIPTier` (`json:"vip_tier"`), matching the proto field rename.
+`VIPTier` (`json:"vip_tier"`), matching the proto field rename. Trading
+limits apply per account: the root account and each sub-account have their own,
+and every API key and session trading for an account shares them, so adding a
+key adds no capacity. Budget against `Rules`; `APIKeyRules` are informational
+only and not enforced.
 
 ```go
 tiers, err := client.VIP.ListVIPTiers(ctx)
@@ -1553,8 +1565,22 @@ SDK notes:
   Each variant's `DepositStatus` and `WithdrawalStatus` say whether the route
   accepts new deposits and new withdrawals (`normal` or `suspended`, empty
   while not known); `AcceptsDeposits()` and `AcceptsWithdrawals()` are true
-  only for `normal`, so treat an unknown status as not available. Funds sent
-  to a deposit address while deposits are suspended are delayed, not lost.
+  only for `normal`, so treat an unknown status as not available (unknown is
+  not suspended). While a route's deposits are `suspended`, do not send funds
+  to a deposit address on it; wait until it returns to `normal`. A Trading
+  withdrawal accepted before its route's withdrawals were suspended, and not
+  yet sent, stays pending with its funds held and is sent once the route is
+  `normal` again; one already being sent when the suspension takes effect may
+  fail instead, and its funds then return to the account.
+- **Suspended withdrawal routes:** a new Trading withdrawal to an external
+  network whose withdrawals of the asset are suspended is refused with
+  `ERROR_CODE_ROUTE_SUSPENDED` (`errors.IsRouteSuspended`). The suspension is
+  temporary: submit a new request once the route's `WithdrawalStatus` in
+  `Zipper.GetDepositWithdrawConfig` is `normal` again. Nothing was reserved
+  for the refused request, so a fresh request is safe. It is final for that
+  request and not retryable (`errors.IsRetryable` is false). Auto-withdraw
+  runs and broker payouts that skip such a route report the status-only
+  reason `route_suspended`.
 - **Refunded withdrawals:** a withdrawal Zipper rejects is refunded to the
   account's smart account wallet as zTokens, net of the network fee Zipper
   keeps, and its flow's `LatestStep` becomes `refunded` instead of ending
@@ -1565,9 +1591,13 @@ SDK notes:
   `Balances.List`. An API key needs `READ_BALANCES`.
 - **Trading → trading (another account):** `client.InternalTransfers.Create(...)`.
   The result's `FlowID` names the transfer's lifecycle flow for
-  `client.Lifecycle.GetFlow`; the flow may become readable after the receipt.
-  Looking a transfer up by transfer or request ID requires an interactive
-  session, so this SDK does not wrap it.
+  `client.Lifecycle.GetAccountFlow`; the flow may become readable after the
+  receipt. Looking a transfer up by transfer or request ID requires an
+  interactive session, so this SDK does not wrap it.
+- **Several Trading → trading transfers at once:**
+  `client.InternalTransfers.CreateBatch(ctx, legs, idempotencyKey)` sends 1
+  to 10 legs under one idempotency key and one MFA check (see
+  [Batch internal transfers](#batch-internal-transfers)).
 
 API-key withdrawals always use the authenticated key's bound account or
 subaccount. The SDK's default subaccount does not change that source.
@@ -1703,7 +1733,13 @@ _ = os.WriteFile("statement.csv", []byte(statement.CSV), 0o600)
 rows, err := statement.Rows() // []models.StatementRow, read by header name
 ```
 
-`StartTime` and `EndTime` are required; the period is at most 366 days.
+`StartTime` and `EndTime` are required; the period is at most 366 days. The
+statement covers movements up to `CompleteThrough` (on each page and on the
+whole `Statement`), which is at most `EndTime`: the time the first page was
+requested and through which account history was complete. When it is before
+`EndTime`, request the rest, from `CompleteThrough` to `EndTime`, later. A
+page token issued before the server added `CompleteThrough` is refused: restart
+from the first page.
 `Account` and `SubAccountID` select the account as for `Transfers.List`, and
 without either the client's `DefaultSubAccountID` applies. `AssetID` keeps one
 asset. `Export` follows each page's token with the same fields and returns
@@ -1714,6 +1750,99 @@ release appends do not break them, and keep amounts as exact decimal strings
 (`Amount`, `Fee`, `Balance`; `Balance` is the previous balance of the same
 bucket and asset plus `Amount` minus `Fee`). `FlowID` matches the entry's
 `Transfers.List` flow, empty for trades.
+
+### Statement export files
+
+For a long period, ask the server to produce the whole statement as one CSV
+file in the background instead of paging through it:
+
+```go
+export, err := client.Statements.CreateExport(ctx, services.CreateStatementExportOptions{
+	StartTime:      time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+	EndTime:        time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC),
+	IdempotencyKey: "statement-2026",
+})
+if err != nil {
+	return err
+}
+for export.Status == "queued" || export.Status == "processing" {
+	time.Sleep(5 * time.Second)
+	if export, err = client.Statements.GetExport(ctx, export.ExportID); err != nil {
+		return err
+	}
+}
+```
+
+`IdempotencyKey` is required (1 to 64 letters, digits, `.`, `_`, `:` or `-`):
+repeating a create with the same key returns the same export, and the same key
+with other fields is refused with `ERROR_CODE_IDEMPOTENCY_KEY_REUSED`. The
+period is at most 366 days. A root account has at most 5 exports queued or
+processing; another create is refused with
+`ERROR_CODE_STATEMENT_EXPORT_LIMIT_REACHED`, which is not retryable until one
+of them finishes. `Status` is `queued`, `processing`, `ready`, `failed`
+(`FailureReason` `too_large`: split the period; `unavailable`: create a new
+export) or `expired`. `Statements.ListExports` and the `Statements.Exports`
+iterator list an account's exports, newest first. A `ready` file is
+downloaded for 7 days with an authenticated REST
+`GET /v1/statements/exports/{exportId}/file`; the download has no ConnectRPC
+method, so this SDK does not wrap it. Access follows `Statements.Export`: an
+API key needs `READ_STATEMENTS`.
+
+## Dust conversion
+
+`client.DustConversions` turns dust, Trading balances too small to trade, into
+one target asset at index prices less a disclosed fee. A conversion moves every
+source and credits the payout atomically, or moves nothing. Amounts are exact
+18-decimal `models.AssetAmountScaled` values, never floats.
+
+```go
+preview, err := client.DustConversions.ListBalances(ctx, 0, nil, nil) // 0: first target
+quote, err := client.DustConversions.Quote(ctx, preview.TargetAssetID, nil, nil)
+if err != nil || quote.QuoteID == "" {
+	return err // nothing converts; quote.Balances say why
+}
+conv, err := client.DustConversions.Convert(ctx, quote.QuoteID, "dust-2026-11-14-1", nil, nil)
+for err == nil && conv.State == "processing" {
+	time.Sleep(time.Second)
+	conv, err = client.DustConversions.Get(ctx, conv.ConversionID, nil, nil)
+}
+```
+
+A balance is dust when no open market accepts an order for it and it is worth
+at most 10 USD; one conversion takes at most 20 balances worth at most 200 USD
+together. A quote is valid for 30 seconds and reserves nothing. `Convert`
+answers `completed`, or `processing` when the outcome is not known yet; retrying
+it with the same idempotency key returns the same conversion. `ListBalances`
+needs `READ_BALANCES`; `Quote`, `Convert`, `Get`, `List` and `All` need
+`CONVERT_DUST` on an API key's policy (and on a sub-account's policy). The
+refusals `ERROR_CODE_DUST_QUOTE_EXPIRED`, `DUST_PRICE_MOVED`,
+`DUST_BALANCE_CHANGED`, `DUST_NOT_ELIGIBLE`, `DUST_TARGET_UNAVAILABLE` and
+`DUST_CONVERSION_FAILED` mean quote again; `DUST_WINDOW_ACTIVE` (one conversion
+every 6 hours) and `DUST_DAILY_LIMIT` mean try much later and are not
+retryable; `DUST_BUSY` is retryable shortly.
+
+## Batch internal transfers
+
+```go
+scale := 18
+dest, sub := "0x2222222222222222222222222222222222222222", "YOUR_SUBACCOUNT_ID"
+result, err := client.InternalTransfers.CreateBatch(ctx, []models.InternalTransferBatchLeg{
+	{AssetID: 1, Quantity: models.AssetAmountFromDecimal("0.5"), QuantityScale: &scale, DestinationSmartAccountAddress: &dest},
+	{AssetID: 3, Quantity: models.AssetAmountFromDecimal("0.001"), QuantityScale: &scale, DestinationSmartAccountAddress: &dest, SubAccountID: &sub},
+}, "rebalance-2026-11-13-1")
+```
+
+Each leg takes the fields of `InternalTransfers.Create` and is converted
+exactly the same way; the batch carries one idempotency key. The server checks
+every leg before any leg runs: if one fails, `Status` is `refused`, the failed
+legs are `refused` with an `ErrorCode` and the others `not_submitted`, and
+nothing moves. Otherwise `Status` is `submitted` and the legs run in order,
+independently. They are not atomic: a leg can be `refused` (for example
+`insufficient_funds`) after earlier legs were `accepted`. A `pending` leg's
+outcome is not known yet: retry with the same key and the same legs in the same
+order, which answers accepted legs with the same transfers and runs the rest.
+Each leg counts as one internal transfer against the rate limit. Each leg's
+`Destination` is the destination the server resolved for it.
 
 ## Public market data
 
@@ -2275,27 +2404,51 @@ account.
 
 ## Lifecycle flow lists
 
-A flow list that selects an account (`OwnerAccountID` or
-`SmartAccountAddress`) returns the flows it owns and the transfers other
-accounts sent to it, such as a transfer from another user or sub-account, or a
-reward payout. Each row's `Participation` says which: `"owner"` (its deposit,
-withdrawal, or a transfer it sent, including a move between its own Funding
-and Trading balances) or `"recipient"`. For a transfer, the counterparty is
-`DestinationAddress` when the account sent it and `SourceAddress` (with
-`OwnerAccountID`) when it received it. `ListFlowsWith` narrows the list to one
-side; the server refuses `Participation` without an account.
+The public flow reads (`ListFlows`, `ListFlowsWith`, `GetFlow`,
+`ListFlowsByTx`) show only flows a chain transaction started, and select an
+account only by its smart account address. A list that selects one returns the
+flows it owns and the transfers other accounts sent to it. Each row's
+`Participation` says which: `"owner"` (its deposit, withdrawal, or a transfer
+it sent) or `"recipient"`. For a transfer, the counterparty is
+`DestinationAddress` when the account sent it and `SourceAddress` when it
+received it. `ListFlowsWith` narrows the list to one side; the server refuses
+`Participation` without an account.
 
 ```go
-owner, received := "YOUR_ACCOUNT_ID", "recipient"
+address, received := "0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed", "recipient"
 page, err := client.Lifecycle.ListFlowsWith(ctx, services.ListFlowsParams{
-	OwnerAccountID: &owner,
-	Participation:  &received,
-	Limit:          20,
+	SmartAccountAddress: &address,
+	Participation:       &received,
+	Limit:               20,
 })
+```
+
+The caller's own flows, including those no chain transaction started (a
+transfer between Trading accounts, a Trading withdrawal not yet sent to a
+chain), come from the signed `ListAccountFlows`, `AccountFlows` (an iterator)
+and `GetAccountFlow`. They take `Account` or `SubAccountID` like the other
+account reads, and filter by `FlowKind`, `FlowState`, `TxRef`,
+`PolyesterChainIDs`, `ZippedAssetIDs` and `UnifiedAssetIDs`, ordered by
+`OrderBy` (`last_activity` or `started_at`); an API key needs
+`READ_FUNDING_FLOWS` on its policy.
+
+```go
+for flow, err := range client.Lifecycle.AccountFlows(ctx, services.ListAccountFlowsParams{Limit: 100}) {
+	if err != nil {
+		return err
+	}
+	fmt.Println(flow.IntentID, flow.FlowKind, flow.Participation)
+}
 ```
 
 A page token is bound to the request it was returned for: continue with the
 same account, participation, scope and order; only `Limit` may change.
+
+A deposit whose `LifecycleReason` is `zipper_deposit_delivered_to_wallet`
+completed at the account's own Polyester Chain wallet (its
+`SmartAccountAddress`) because its destination did not accept the credit, for
+example while deposits into it were paused. No Funding or Trading balance was
+credited: show it as delivered to the wallet, not as a failure.
 
 ## Lifecycle transaction lookups
 

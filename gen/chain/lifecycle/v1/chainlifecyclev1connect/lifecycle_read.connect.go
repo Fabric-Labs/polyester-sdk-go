@@ -42,17 +42,40 @@ const (
 	// LifecycleReadServiceListFlowsByTxProcedure is the fully-qualified name of the
 	// LifecycleReadService's ListFlowsByTx RPC.
 	LifecycleReadServiceListFlowsByTxProcedure = "/chain.lifecycle.v1.LifecycleReadService/ListFlowsByTx"
+	// LifecycleReadServiceListAccountFlowsProcedure is the fully-qualified name of the
+	// LifecycleReadService's ListAccountFlows RPC.
+	LifecycleReadServiceListAccountFlowsProcedure = "/chain.lifecycle.v1.LifecycleReadService/ListAccountFlows"
+	// LifecycleReadServiceGetAccountFlowProcedure is the fully-qualified name of the
+	// LifecycleReadService's GetAccountFlow RPC.
+	LifecycleReadServiceGetAccountFlowProcedure = "/chain.lifecycle.v1.LifecycleReadService/GetAccountFlow"
 )
 
 // LifecycleReadServiceClient is a client for the chain.lifecycle.v1.LifecycleReadService service.
 type LifecycleReadServiceClient interface {
-	// GetFlowById retrieves one lifecycle flow by public flow id.
+	// GetFlowById retrieves one lifecycle flow by public flow id. It finds only
+	// flows a chain transaction started, which carry `source_tx_hash`; a flow
+	// settled without one, such as a transfer between Trading accounts or a
+	// Trading withdrawal not yet sent to a chain, is not found. Its account
+	// reads it with GetAccountFlow.
 	GetFlowById(context.Context, *connect.Request[v1.GetFlowByIdRequest]) (*connect.Response[v1.GetFlowResponse], error)
 	// ListFlows lists lifecycle flows with optional filters and keyset
-	// pagination.
+	// pagination. It lists only flows a chain transaction started, which carry
+	// `source_tx_hash`, and identifies accounts by smart account address. An
+	// account lists all of its own flows with ListAccountFlows.
 	ListFlows(context.Context, *connect.Request[v1.ListFlowsRequest]) (*connect.Response[v1.ListFlowsResponse], error)
-	// ListFlowsByTx lists lifecycle flows that reference a transaction hash.
+	// ListFlowsByTx lists lifecycle flows that reference a transaction hash. It
+	// finds only flows a chain transaction started.
 	ListFlowsByTx(context.Context, *connect.Request[v1.ListFlowsByTxRequest]) (*connect.Response[v1.ListFlowsByTxResponse], error)
+	// ListAccountFlows lists the authenticated account's lifecycle flows with
+	// optional filters and keyset pagination: the flows it owns and the
+	// transfers it receives, including those no chain transaction started. API
+	// keys need the READ_FUNDING_FLOWS policy action.
+	ListAccountFlows(context.Context, *connect.Request[v1.ListAccountFlowsRequest]) (*connect.Response[v1.ListAccountFlowsResponse], error)
+	// GetAccountFlow retrieves one lifecycle flow the authenticated account owns
+	// or receives, including one no chain transaction started. A flow the
+	// account takes no part in is not found. API keys need the
+	// READ_FUNDING_FLOWS policy action.
+	GetAccountFlow(context.Context, *connect.Request[v1.GetAccountFlowRequest]) (*connect.Response[v1.GetAccountFlowResponse], error)
 }
 
 // NewLifecycleReadServiceClient constructs a client for the chain.lifecycle.v1.LifecycleReadService
@@ -84,14 +107,28 @@ func NewLifecycleReadServiceClient(httpClient connect.HTTPClient, baseURL string
 			connect.WithSchema(lifecycleReadServiceMethods.ByName("ListFlowsByTx")),
 			connect.WithClientOptions(opts...),
 		),
+		listAccountFlows: connect.NewClient[v1.ListAccountFlowsRequest, v1.ListAccountFlowsResponse](
+			httpClient,
+			baseURL+LifecycleReadServiceListAccountFlowsProcedure,
+			connect.WithSchema(lifecycleReadServiceMethods.ByName("ListAccountFlows")),
+			connect.WithClientOptions(opts...),
+		),
+		getAccountFlow: connect.NewClient[v1.GetAccountFlowRequest, v1.GetAccountFlowResponse](
+			httpClient,
+			baseURL+LifecycleReadServiceGetAccountFlowProcedure,
+			connect.WithSchema(lifecycleReadServiceMethods.ByName("GetAccountFlow")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // lifecycleReadServiceClient implements LifecycleReadServiceClient.
 type lifecycleReadServiceClient struct {
-	getFlowById   *connect.Client[v1.GetFlowByIdRequest, v1.GetFlowResponse]
-	listFlows     *connect.Client[v1.ListFlowsRequest, v1.ListFlowsResponse]
-	listFlowsByTx *connect.Client[v1.ListFlowsByTxRequest, v1.ListFlowsByTxResponse]
+	getFlowById      *connect.Client[v1.GetFlowByIdRequest, v1.GetFlowResponse]
+	listFlows        *connect.Client[v1.ListFlowsRequest, v1.ListFlowsResponse]
+	listFlowsByTx    *connect.Client[v1.ListFlowsByTxRequest, v1.ListFlowsByTxResponse]
+	listAccountFlows *connect.Client[v1.ListAccountFlowsRequest, v1.ListAccountFlowsResponse]
+	getAccountFlow   *connect.Client[v1.GetAccountFlowRequest, v1.GetAccountFlowResponse]
 }
 
 // GetFlowById calls chain.lifecycle.v1.LifecycleReadService.GetFlowById.
@@ -109,16 +146,43 @@ func (c *lifecycleReadServiceClient) ListFlowsByTx(ctx context.Context, req *con
 	return c.listFlowsByTx.CallUnary(ctx, req)
 }
 
+// ListAccountFlows calls chain.lifecycle.v1.LifecycleReadService.ListAccountFlows.
+func (c *lifecycleReadServiceClient) ListAccountFlows(ctx context.Context, req *connect.Request[v1.ListAccountFlowsRequest]) (*connect.Response[v1.ListAccountFlowsResponse], error) {
+	return c.listAccountFlows.CallUnary(ctx, req)
+}
+
+// GetAccountFlow calls chain.lifecycle.v1.LifecycleReadService.GetAccountFlow.
+func (c *lifecycleReadServiceClient) GetAccountFlow(ctx context.Context, req *connect.Request[v1.GetAccountFlowRequest]) (*connect.Response[v1.GetAccountFlowResponse], error) {
+	return c.getAccountFlow.CallUnary(ctx, req)
+}
+
 // LifecycleReadServiceHandler is an implementation of the chain.lifecycle.v1.LifecycleReadService
 // service.
 type LifecycleReadServiceHandler interface {
-	// GetFlowById retrieves one lifecycle flow by public flow id.
+	// GetFlowById retrieves one lifecycle flow by public flow id. It finds only
+	// flows a chain transaction started, which carry `source_tx_hash`; a flow
+	// settled without one, such as a transfer between Trading accounts or a
+	// Trading withdrawal not yet sent to a chain, is not found. Its account
+	// reads it with GetAccountFlow.
 	GetFlowById(context.Context, *connect.Request[v1.GetFlowByIdRequest]) (*connect.Response[v1.GetFlowResponse], error)
 	// ListFlows lists lifecycle flows with optional filters and keyset
-	// pagination.
+	// pagination. It lists only flows a chain transaction started, which carry
+	// `source_tx_hash`, and identifies accounts by smart account address. An
+	// account lists all of its own flows with ListAccountFlows.
 	ListFlows(context.Context, *connect.Request[v1.ListFlowsRequest]) (*connect.Response[v1.ListFlowsResponse], error)
-	// ListFlowsByTx lists lifecycle flows that reference a transaction hash.
+	// ListFlowsByTx lists lifecycle flows that reference a transaction hash. It
+	// finds only flows a chain transaction started.
 	ListFlowsByTx(context.Context, *connect.Request[v1.ListFlowsByTxRequest]) (*connect.Response[v1.ListFlowsByTxResponse], error)
+	// ListAccountFlows lists the authenticated account's lifecycle flows with
+	// optional filters and keyset pagination: the flows it owns and the
+	// transfers it receives, including those no chain transaction started. API
+	// keys need the READ_FUNDING_FLOWS policy action.
+	ListAccountFlows(context.Context, *connect.Request[v1.ListAccountFlowsRequest]) (*connect.Response[v1.ListAccountFlowsResponse], error)
+	// GetAccountFlow retrieves one lifecycle flow the authenticated account owns
+	// or receives, including one no chain transaction started. A flow the
+	// account takes no part in is not found. API keys need the
+	// READ_FUNDING_FLOWS policy action.
+	GetAccountFlow(context.Context, *connect.Request[v1.GetAccountFlowRequest]) (*connect.Response[v1.GetAccountFlowResponse], error)
 }
 
 // NewLifecycleReadServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -146,6 +210,18 @@ func NewLifecycleReadServiceHandler(svc LifecycleReadServiceHandler, opts ...con
 		connect.WithSchema(lifecycleReadServiceMethods.ByName("ListFlowsByTx")),
 		connect.WithHandlerOptions(opts...),
 	)
+	lifecycleReadServiceListAccountFlowsHandler := connect.NewUnaryHandler(
+		LifecycleReadServiceListAccountFlowsProcedure,
+		svc.ListAccountFlows,
+		connect.WithSchema(lifecycleReadServiceMethods.ByName("ListAccountFlows")),
+		connect.WithHandlerOptions(opts...),
+	)
+	lifecycleReadServiceGetAccountFlowHandler := connect.NewUnaryHandler(
+		LifecycleReadServiceGetAccountFlowProcedure,
+		svc.GetAccountFlow,
+		connect.WithSchema(lifecycleReadServiceMethods.ByName("GetAccountFlow")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chain.lifecycle.v1.LifecycleReadService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case LifecycleReadServiceGetFlowByIdProcedure:
@@ -154,6 +230,10 @@ func NewLifecycleReadServiceHandler(svc LifecycleReadServiceHandler, opts ...con
 			lifecycleReadServiceListFlowsHandler.ServeHTTP(w, r)
 		case LifecycleReadServiceListFlowsByTxProcedure:
 			lifecycleReadServiceListFlowsByTxHandler.ServeHTTP(w, r)
+		case LifecycleReadServiceListAccountFlowsProcedure:
+			lifecycleReadServiceListAccountFlowsHandler.ServeHTTP(w, r)
+		case LifecycleReadServiceGetAccountFlowProcedure:
+			lifecycleReadServiceGetAccountFlowHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -173,4 +253,12 @@ func (UnimplementedLifecycleReadServiceHandler) ListFlows(context.Context, *conn
 
 func (UnimplementedLifecycleReadServiceHandler) ListFlowsByTx(context.Context, *connect.Request[v1.ListFlowsByTxRequest]) (*connect.Response[v1.ListFlowsByTxResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chain.lifecycle.v1.LifecycleReadService.ListFlowsByTx is not implemented"))
+}
+
+func (UnimplementedLifecycleReadServiceHandler) ListAccountFlows(context.Context, *connect.Request[v1.ListAccountFlowsRequest]) (*connect.Response[v1.ListAccountFlowsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chain.lifecycle.v1.LifecycleReadService.ListAccountFlows is not implemented"))
+}
+
+func (UnimplementedLifecycleReadServiceHandler) GetAccountFlow(context.Context, *connect.Request[v1.GetAccountFlowRequest]) (*connect.Response[v1.GetAccountFlowResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chain.lifecycle.v1.LifecycleReadService.GetAccountFlow is not implemented"))
 }

@@ -278,8 +278,10 @@ const (
 	// reason is nothing_to_pay (no asset reached its minimum), below_minimum
 	// (an amount was below the least a withdrawal on its network pays),
 	// price_unavailable (the rule has a USD minimum and no current price
-	// valued an asset) or destination_cooling_down (the destination was added
-	// to the vault's external withdraw whitelist less than 24 hours ago). Each
+	// valued an asset), destination_cooling_down (the destination was added
+	// to the vault's external withdraw whitelist less than 24 hours ago) or
+	// route_suspended (withdrawals to the destination's network were
+	// suspended). Each
 	// step carries the balance evaluated, its value and the minimum it was
 	// held to.
 	PayoutStatus_PAYOUT_ROLLED_OVER PayoutStatus = 4
@@ -4481,7 +4483,9 @@ type PayoutStep struct {
 	// price_unavailable, rule_superseded, destination_not_whitelisted,
 	// destination_cooling_down (the destination was added to the vault's
 	// external withdraw whitelist less than 24 hours ago; the balance stays
-	// for a later run), destination_invalid, authority_revoked,
+	// for a later run), route_suspended (withdrawals to the destination's
+	// network were suspended; the balance stays for a later run),
+	// destination_invalid, authority_revoked,
 	// withdrawal_refused,
 	// gateway_capacity_insufficient, withdrawal_released (the withdrawal was
 	// released before it was sent; nothing left the vault) or

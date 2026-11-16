@@ -172,9 +172,12 @@ type UserProfile struct {
 	Bio string `protobuf:"bytes,2,opt,name=bio,proto3" json:"bio,omitempty"`
 	// Public website URL, if set. Maximum length is 256 characters.
 	Website string `protobuf:"bytes,3,opt,name=website,proto3" json:"website,omitempty"`
-	// X/Twitter handle without "@". Maximum length is 15 characters.
+	// Handle of the account's verified X/Twitter account, without "@", as X
+	// reports it at the latest successful verification. Empty while no X account
+	// is linked. Only SocialVerificationService sets it; UpdateProfile cannot.
+	// Maximum length is 15 characters.
 	Twitter string `protobuf:"bytes,4,opt,name=twitter,proto3" json:"twitter,omitempty"`
-	// Whether the X/Twitter handle for this account has been verified.
+	// Whether an X/Twitter account is linked: true exactly when twitter is set.
 	TwitterVerified bool `protobuf:"varint,8,opt,name=twitter_verified,json=twitterVerified,proto3" json:"twitter_verified,omitempty"`
 	// Discord handle or username without "@". Maximum length is 64 characters.
 	Discord string `protobuf:"bytes,9,opt,name=discord,proto3" json:"discord,omitempty"`
@@ -340,9 +343,6 @@ type UserProfilePatch struct {
 	// Public website URL. Use an empty string to clear it. Non-empty values must
 	// be valid http(s) URLs up to 256 characters.
 	Website *string `protobuf:"bytes,3,opt,name=website,proto3,oneof" json:"website,omitempty"`
-	// X/Twitter handle without "@". Use an empty string to clear it. Non-empty
-	// values must be 1 to 15 letters, digits, or underscores.
-	Twitter *string `protobuf:"bytes,4,opt,name=twitter,proto3,oneof" json:"twitter,omitempty"`
 	// Avatar URL. Use an empty string to clear it. Non-empty values must be valid
 	// http(s) URLs up to 256 characters.
 	AvatarUrl     *string `protobuf:"bytes,5,opt,name=avatar_url,json=avatarUrl,proto3,oneof" json:"avatar_url,omitempty"`
@@ -401,13 +401,6 @@ func (x *UserProfilePatch) GetWebsite() string {
 	return ""
 }
 
-func (x *UserProfilePatch) GetTwitter() string {
-	if x != nil && x.Twitter != nil {
-		return *x.Twitter
-	}
-	return ""
-}
-
 func (x *UserProfilePatch) GetAvatarUrl() string {
 	if x != nil && x.AvatarUrl != nil {
 		return *x.AvatarUrl
@@ -457,8 +450,8 @@ type ProfileErrorDetail struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable machine-readable profile error code.
 	Code ProfileErrorCode `protobuf:"varint,1,opt,name=code,proto3,enum=auth.v1.ProfileErrorCode" json:"code,omitempty"`
-	// Field name associated with the error, such as "bio", "website", "twitter",
-	// or "avatar_url".
+	// Field name associated with the error, such as "bio", "website", or
+	// "avatar_url".
 	Field string `protobuf:"bytes,2,opt,name=field,proto3" json:"field,omitempty"`
 	// Human-friendly message for UI/debugging.
 	Message       string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
@@ -842,26 +835,21 @@ const file_auth_v1_profile_proto_rawDesc = "" +
 	"\x17next_username_change_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x14nextUsernameChangeAt\x12\x19\n" +
 	"\bvip_tier\x18\a \x01(\x05R\avipTier\x12+\n" +
 	"\x11username_unlocked\x18\v \x01(\bR\x10usernameUnlocked\x124\n" +
-	"\x16current_terms_accepted\x18\r \x01(\bR\x14currentTermsAccepted\"\x8d\n" +
-	"\n" +
+	"\x16current_terms_accepted\x18\r \x01(\bR\x14currentTermsAccepted\"\xaa\b\n" +
 	"\x10UserProfilePatch\x12\xd0\x01\n" +
 	"\busername\x18\x01 \x01(\tB\xae\x01\xbaH\xaa\x01\xba\x01\xa6\x01\n" +
 	"\x17username.valid_or_empty\x12Pusername must be empty or 3-32 chars of letters, digits, underscore, dot, hyphen\x1a9size(this) == 0 || this.matches('^[a-zA-Z0-9_.-]{3,32}$')H\x00R\busername\x88\x01\x01\x12\xd1\x01\n" +
 	"\x03bio\x18\x02 \x01(\tB\xb9\x01\xbaH\xb5\x01\xba\x01\xb1\x01\n" +
 	"\x11bio.safe_or_empty\x12Fbio must be empty or <= 256 characters and must not contain '<' or '>'\x1aTsize(this) == 0 || (size(this) <= 256 && !this.contains('<') && !this.contains('>'))H\x01R\x03bio\x88\x01\x01\x12\x98\x02\n" +
 	"\awebsite\x18\x03 \x01(\tB\xf8\x01\xbaH\xf4\x01\xba\x01\xf0\x01\n" +
-	"\x1awebsite.valid_url_or_empty\x12,website must be empty or a valid http(s) URL\x1a\xa3\x01size(this) == 0 || (size(this) <= 256 && (this.startsWith('http://') || this.startsWith('https://')) && this.isUri() && !this.contains('<') && !this.contains('>'))H\x02R\awebsite\x88\x01\x01\x12\xd4\x01\n" +
-	"\atwitter\x18\x04 \x01(\tB\xb4\x01\xbaH\xb0\x01\xba\x01\xac\x01\n" +
-	"\x1dtwitter.valid_handle_or_empty\x12Rtwitter must be empty or a valid handle (letters, digits, underscore; without '@')\x1a7size(this) == 0 || this.matches('^[A-Za-z0-9_]{1,15}$')H\x03R\atwitter\x88\x01\x01\x12\xa3\x02\n" +
+	"\x1awebsite.valid_url_or_empty\x12,website must be empty or a valid http(s) URL\x1a\xa3\x01size(this) == 0 || (size(this) <= 256 && (this.startsWith('http://') || this.startsWith('https://')) && this.isUri() && !this.contains('<') && !this.contains('>'))H\x02R\awebsite\x88\x01\x01\x12\xa3\x02\n" +
 	"\n" +
 	"avatar_url\x18\x05 \x01(\tB\xfe\x01\xbaH\xfa\x01\xba\x01\xf6\x01\n" +
-	"\x1davatar_url.valid_url_or_empty\x12/avatar_url must be empty or a valid http(s) URL\x1a\xa3\x01size(this) == 0 || (size(this) <= 256 && (this.startsWith('http://') || this.startsWith('https://')) && this.isUri() && !this.contains('<') && !this.contains('>'))H\x04R\tavatarUrl\x88\x01\x01B\v\n" +
+	"\x1davatar_url.valid_url_or_empty\x12/avatar_url must be empty or a valid http(s) URL\x1a\xa3\x01size(this) == 0 || (size(this) <= 256 && (this.startsWith('http://') || this.startsWith('https://')) && this.isUri() && !this.contains('<') && !this.contains('>'))H\x03R\tavatarUrl\x88\x01\x01B\v\n" +
 	"\t_usernameB\x06\n" +
 	"\x04_bioB\n" +
 	"\n" +
-	"\b_websiteB\n" +
-	"\n" +
-	"\b_twitterB\r\n" +
+	"\b_websiteB\r\n" +
 	"\v_avatar_url\"\x13\n" +
 	"\x11GetProfileRequest\"s\n" +
 	"\x12ProfileErrorDetail\x12-\n" +

@@ -232,6 +232,17 @@ const (
 	ErrorCode_ERROR_CODE_UPSTREAM_ERROR ErrorCode = 10
 	// subaccount_id is zero or not an encoded public subaccount identifier.
 	ErrorCode_ERROR_CODE_INVALID_SUBACCOUNT_ID ErrorCode = 11
+	// The idempotency key was used for a request with other fields.
+	ErrorCode_ERROR_CODE_IDEMPOTENCY_KEY_REUSED ErrorCode = 12
+	// The root account already has the most statement exports queued or being
+	// produced; wait for one to finish.
+	ErrorCode_ERROR_CODE_STATEMENT_EXPORT_LIMIT_REACHED ErrorCode = 13
+	// The statement export's file is not ready yet.
+	ErrorCode_ERROR_CODE_STATEMENT_EXPORT_NOT_READY ErrorCode = 14
+	// The statement export's file has expired and was deleted.
+	ErrorCode_ERROR_CODE_STATEMENT_EXPORT_EXPIRED ErrorCode = 15
+	// The statement export failed and has no file.
+	ErrorCode_ERROR_CODE_STATEMENT_EXPORT_FAILED ErrorCode = 16
 )
 
 // Enum value maps for ErrorCode.
@@ -249,20 +260,30 @@ var (
 		9:  "ERROR_CODE_WALLET_NOT_FOUND",
 		10: "ERROR_CODE_UPSTREAM_ERROR",
 		11: "ERROR_CODE_INVALID_SUBACCOUNT_ID",
+		12: "ERROR_CODE_IDEMPOTENCY_KEY_REUSED",
+		13: "ERROR_CODE_STATEMENT_EXPORT_LIMIT_REACHED",
+		14: "ERROR_CODE_STATEMENT_EXPORT_NOT_READY",
+		15: "ERROR_CODE_STATEMENT_EXPORT_EXPIRED",
+		16: "ERROR_CODE_STATEMENT_EXPORT_FAILED",
 	}
 	ErrorCode_value = map[string]int32{
-		"ERROR_CODE_UNSPECIFIED":                   0,
-		"ERROR_CODE_BAD_REQUEST":                   1,
-		"ERROR_CODE_UNAUTHENTICATED":               2,
-		"ERROR_CODE_PERMISSION_DENIED":             3,
-		"ERROR_CODE_NOT_FOUND":                     4,
-		"ERROR_CODE_MISSING_ACCOUNT_ID":            5,
-		"ERROR_CODE_INVALID_ACCOUNT_ID":            6,
-		"ERROR_CODE_MISSING_WALLET":                7,
-		"ERROR_CODE_WALLET_RESOLUTION_UNAVAILABLE": 8,
-		"ERROR_CODE_WALLET_NOT_FOUND":              9,
-		"ERROR_CODE_UPSTREAM_ERROR":                10,
-		"ERROR_CODE_INVALID_SUBACCOUNT_ID":         11,
+		"ERROR_CODE_UNSPECIFIED":                    0,
+		"ERROR_CODE_BAD_REQUEST":                    1,
+		"ERROR_CODE_UNAUTHENTICATED":                2,
+		"ERROR_CODE_PERMISSION_DENIED":              3,
+		"ERROR_CODE_NOT_FOUND":                      4,
+		"ERROR_CODE_MISSING_ACCOUNT_ID":             5,
+		"ERROR_CODE_INVALID_ACCOUNT_ID":             6,
+		"ERROR_CODE_MISSING_WALLET":                 7,
+		"ERROR_CODE_WALLET_RESOLUTION_UNAVAILABLE":  8,
+		"ERROR_CODE_WALLET_NOT_FOUND":               9,
+		"ERROR_CODE_UPSTREAM_ERROR":                 10,
+		"ERROR_CODE_INVALID_SUBACCOUNT_ID":          11,
+		"ERROR_CODE_IDEMPOTENCY_KEY_REUSED":         12,
+		"ERROR_CODE_STATEMENT_EXPORT_LIMIT_REACHED": 13,
+		"ERROR_CODE_STATEMENT_EXPORT_NOT_READY":     14,
+		"ERROR_CODE_STATEMENT_EXPORT_EXPIRED":       15,
+		"ERROR_CODE_STATEMENT_EXPORT_FAILED":        16,
 	}
 )
 
@@ -567,16 +588,15 @@ func (x *GetBalanceHistoryRequest) GetAccountCodes() []v11.AccountCode {
 	return nil
 }
 
-// Columnar balance series payload (scaled integers).
+// Columnar balance series payload.
 // REST renders decimal strings from these values.
 type BalanceSeries struct {
 	state       protoimpl.MessageState `protogen:"open.v1"`
 	AssetId     uint32                 `protobuf:"varint,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`                                        // public unified asset id
 	AccountCode v11.AccountCode        `protobuf:"varint,2,opt,name=account_code,json=accountCode,proto3,enum=ledger.v1.AccountCode" json:"account_code,omitempty"` // account bucket
-	// Chart balance in asset units scaled by 1e7 (7 decimals).
-	// Values are downscaled from 18-decimal ledger balances for compact charting
-	// and align 1:1 with implicit timestamps.
-	BalanceQ      []uint64 `protobuf:"varint,3,rep,packed,name=balance_q,json=balanceQ,proto3" json:"balance_q,omitempty"`
+	// Exact balance at each point at fixed 18-decimal ledger scale. Values align
+	// 1:1 with implicit timestamps.
+	Balance       []*v1.U128 `protobuf:"bytes,4,rep,name=balance,proto3" json:"balance,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -625,9 +645,9 @@ func (x *BalanceSeries) GetAccountCode() v11.AccountCode {
 	return v11.AccountCode(0)
 }
 
-func (x *BalanceSeries) GetBalanceQ() []uint64 {
+func (x *BalanceSeries) GetBalance() []*v1.U128 {
 	if x != nil {
-		return x.BalanceQ
+		return x.Balance
 	}
 	return nil
 }
@@ -1412,9 +1432,9 @@ type PortfolioAssetEquity struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Public unified asset ID.
 	AssetId uint32 `protobuf:"varint,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
-	// Combined Funding and Trading balance in asset units scaled by 1e7
-	// (7 decimals).
-	BalanceQ uint64 `protobuf:"varint,2,opt,name=balance_q,json=balanceQ,proto3" json:"balance_q,omitempty"`
+	// Exact combined Funding and Trading balance across the master account and
+	// all owned subaccounts at fixed 18-decimal ledger scale.
+	Balance *v1.U128 `protobuf:"bytes,4,opt,name=balance,proto3" json:"balance,omitempty"`
 	// Current equity in USDT scaled by 1e4 (4 decimals).
 	EquityQ       int64 `protobuf:"zigzag64,3,opt,name=equity_q,json=equityQ,proto3" json:"equity_q,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1458,11 +1478,11 @@ func (x *PortfolioAssetEquity) GetAssetId() uint32 {
 	return 0
 }
 
-func (x *PortfolioAssetEquity) GetBalanceQ() uint64 {
+func (x *PortfolioAssetEquity) GetBalance() *v1.U128 {
 	if x != nil {
-		return x.BalanceQ
+		return x.Balance
 	}
-	return 0
+	return nil
 }
 
 func (x *PortfolioAssetEquity) GetEquityQ() int64 {
@@ -2060,16 +2080,16 @@ type ExportStatementRequest struct {
 	SubaccountId *uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Start of the statement period (UTC), inclusive.
 	StartTime *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
-	// End of the statement period (UTC), exclusive. Movements recorded after
-	// the request are not included, so a period that has not ended yet covers
-	// the movements up to the time of the request.
+	// End of the statement period (UTC), exclusive. The statement covers the
+	// period up to complete_through, which is at most end_time; see
+	// ExportStatementResponse.complete_through.
 	EndTime *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
 	// Optional public unified asset ID. When unset/0, the statement covers every
 	// asset.
 	AssetId uint32 `protobuf:"varint,4,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
 	// Opaque keyset cursor from a previous response. The cursor is exclusive and
-	// bound to the authenticated account, sub-account scope, asset filter and
-	// period; reuse it only with the same request fields.
+	// bound to the authenticated account, sub-account scope, asset filter,
+	// period and complete_through; reuse it only with the same request fields.
 	PageToken     string `protobuf:"bytes,5,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2183,8 +2203,15 @@ type ExportStatementResponse struct {
 	Csv string `protobuf:"bytes,1,opt,name=csv,proto3" json:"csv,omitempty"`
 	// Opaque cursor for the next page. Empty when no more results exist.
 	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// The statement covers movements from start_time up to complete_through,
+	// exclusive: the earliest of end_time, the time of the first page's request
+	// and the time through which account history is complete when that page was
+	// requested, and never before start_time. Every page of one statement
+	// carries the same value. When it is before end_time, the movements from it
+	// to end_time appear in a statement requested later.
+	CompleteThrough *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=complete_through,json=completeThrough,proto3" json:"complete_through,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ExportStatementResponse) Reset() {
@@ -2229,6 +2256,13 @@ func (x *ExportStatementResponse) GetNextPageToken() string {
 		return x.NextPageToken
 	}
 	return ""
+}
+
+func (x *ExportStatementResponse) GetCompleteThrough() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CompleteThrough
+	}
+	return nil
 }
 
 // ErrorDetail is attached to ConnectRPC errors for structured error handling.
@@ -2301,11 +2335,11 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"\x05range\x18\x02 \x01(\x0e2\x1c.ledger.read.v1.BalanceRangeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x05range\x12\x16\n" +
 	"\x06ledger\x18\x03 \x01(\rR\x06ledger\x12;\n" +
 	"\raccount_codes\x18\x04 \x03(\x0e2\x16.ledger.v1.AccountCodeR\faccountCodesB\x10\n" +
-	"\x0e_subaccount_id\"\x82\x01\n" +
+	"\x0e_subaccount_id\"\x98\x01\n" +
 	"\rBalanceSeries\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\rR\aassetId\x129\n" +
-	"\faccount_code\x18\x02 \x01(\x0e2\x16.ledger.v1.AccountCodeR\vaccountCode\x12\x1b\n" +
-	"\tbalance_q\x18\x03 \x03(\x04R\bbalanceQ\"\xf6\x01\n" +
+	"\faccount_code\x18\x02 \x01(\x0e2\x16.ledger.v1.AccountCodeR\vaccountCode\x121\n" +
+	"\abalance\x18\x04 \x03(\v2\x17.polyester.type.v1.U128R\abalance\"\xf6\x01\n" +
 	"\x19GetBalanceHistoryResponse\x122\n" +
 	"\x05range\x18\x01 \x01(\x0e2\x1c.ledger.read.v1.BalanceRangeR\x05range\x12\x16\n" +
 	"\x06bucket\x18\x02 \x01(\tR\x06bucket\x12 \n" +
@@ -2372,10 +2406,10 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"\n" +
 	"account_id\x18\x01 \x01(\x06R\taccountId\x12\x19\n" +
 	"\bequity_q\x18\x02 \x01(\x12R\aequityQ\x12,\n" +
-	"\rtop_asset_ids\x18\x03 \x03(\rB\b\xbaH\x05\x92\x01\x02\x10\x03R\vtopAssetIds\"i\n" +
+	"\rtop_asset_ids\x18\x03 \x03(\rB\b\xbaH\x05\x92\x01\x02\x10\x03R\vtopAssetIds\"\x7f\n" +
 	"\x14PortfolioAssetEquity\x12\x19\n" +
-	"\basset_id\x18\x01 \x01(\rR\aassetId\x12\x1b\n" +
-	"\tbalance_q\x18\x02 \x01(\x04R\bbalanceQ\x12\x19\n" +
+	"\basset_id\x18\x01 \x01(\rR\aassetId\x121\n" +
+	"\abalance\x18\x04 \x01(\v2\x17.polyester.type.v1.U128R\abalance\x12\x19\n" +
 	"\bequity_q\x18\x03 \x01(\x12R\aequityQ\"#\n" +
 	"!GetPortfolioEquitySnapshotRequest\"\x8d\x02\n" +
 	"\"GetPortfolioEquitySnapshotResponse\x12\x1f\n" +
@@ -2437,10 +2471,11 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"\n" +
 	"page_token\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken:\xc0\x01\xbaH\xbc\x01\x1a\xb9\x01\n" +
 	"\x1dexport_statement.period_valid\x12?end_time must be after start_time and at most 366 days after it\x1aWthis.end_time > this.start_time && this.end_time - this.start_time <= duration('8784h')B\x10\n" +
-	"\x0e_subaccount_id\"]\n" +
+	"\x0e_subaccount_id\"\xa4\x01\n" +
 	"\x17ExportStatementResponse\x12\x10\n" +
 	"\x03csv\x18\x01 \x01(\tR\x03csv\x120\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"<\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\x12E\n" +
+	"\x10complete_through\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x0fcompleteThrough\"<\n" +
 	"\vErrorDetail\x12-\n" +
 	"\x04code\x18\x01 \x01(\x0e2\x19.ledger.read.v1.ErrorCodeR\x04code*m\n" +
 	"\fBalanceRange\x12\x15\n" +
@@ -2464,7 +2499,7 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"\x10EXTERNAL_ADDRESS\x10\x03\x12\x18\n" +
 	"\x14PRIVATE_COUNTERPARTY\x10\x04\x12\x0f\n" +
 	"\vFEE_ACCOUNT\x10\x05\x12\x12\n" +
-	"\x0eSYSTEM_ACCOUNT\x10\x06*\x98\x03\n" +
+	"\x0eSYSTEM_ACCOUNT\x10\x06*\xea\x04\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16ERROR_CODE_BAD_REQUEST\x10\x01\x12\x1e\n" +
@@ -2478,7 +2513,12 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"\x1bERROR_CODE_WALLET_NOT_FOUND\x10\t\x12\x1d\n" +
 	"\x19ERROR_CODE_UPSTREAM_ERROR\x10\n" +
 	"\x12$\n" +
-	" ERROR_CODE_INVALID_SUBACCOUNT_ID\x10\v2\xee\x06\n" +
+	" ERROR_CODE_INVALID_SUBACCOUNT_ID\x10\v\x12%\n" +
+	"!ERROR_CODE_IDEMPOTENCY_KEY_REUSED\x10\f\x12-\n" +
+	")ERROR_CODE_STATEMENT_EXPORT_LIMIT_REACHED\x10\r\x12)\n" +
+	"%ERROR_CODE_STATEMENT_EXPORT_NOT_READY\x10\x0e\x12'\n" +
+	"#ERROR_CODE_STATEMENT_EXPORT_EXPIRED\x10\x0f\x12&\n" +
+	"\"ERROR_CODE_STATEMENT_EXPORT_FAILED\x10\x102\xee\x06\n" +
 	"\x11LedgerReadService\x12p\n" +
 	"\x11GetBalanceHistory\x12(.ledger.read.v1.GetBalanceHistoryRequest\x1a).ledger.read.v1.GetBalanceHistoryResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x12\x7f\n" +
 	"\x16GetEquityHistorySeries\x12-.ledger.read.v1.GetEquityHistorySeriesRequest\x1a..ledger.read.v1.GetEquityHistorySeriesResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x12\x99\x01\n" +
@@ -2548,53 +2588,56 @@ var file_ledger_read_v1_ledger_read_proto_depIdxs = []int32{
 	0,  // 5: ledger.read.v1.GetBalanceHistoryRequest.range:type_name -> ledger.read.v1.BalanceRange
 	31, // 6: ledger.read.v1.GetBalanceHistoryRequest.account_codes:type_name -> ledger.v1.AccountCode
 	31, // 7: ledger.read.v1.BalanceSeries.account_code:type_name -> ledger.v1.AccountCode
-	0,  // 8: ledger.read.v1.GetBalanceHistoryResponse.range:type_name -> ledger.read.v1.BalanceRange
-	8,  // 9: ledger.read.v1.GetBalanceHistoryResponse.series:type_name -> ledger.read.v1.BalanceSeries
-	0,  // 10: ledger.read.v1.GetEquityHistorySeriesRequest.range:type_name -> ledger.read.v1.BalanceRange
-	31, // 11: ledger.read.v1.GetEquityHistorySeriesRequest.account_codes:type_name -> ledger.v1.AccountCode
-	1,  // 12: ledger.read.v1.GetEquityHistorySeriesRequest.group_by:type_name -> ledger.read.v1.EquityGroupBy
-	10, // 13: ledger.read.v1.EquitySeries.account:type_name -> ledger.read.v1.AccountGrouping
-	11, // 14: ledger.read.v1.EquitySeries.asset:type_name -> ledger.read.v1.AssetGrouping
-	12, // 15: ledger.read.v1.EquitySeries.portfolio_account:type_name -> ledger.read.v1.PortfolioAccountGrouping
-	0,  // 16: ledger.read.v1.GetEquityHistorySeriesResponse.range:type_name -> ledger.read.v1.BalanceRange
-	14, // 17: ledger.read.v1.GetEquityHistorySeriesResponse.series:type_name -> ledger.read.v1.EquitySeries
-	0,  // 18: ledger.read.v1.GetPortfolioEquityHistorySeriesRequest.range:type_name -> ledger.read.v1.BalanceRange
-	0,  // 19: ledger.read.v1.GetPortfolioEquityHistorySeriesResponse.range:type_name -> ledger.read.v1.BalanceRange
-	14, // 20: ledger.read.v1.GetPortfolioEquityHistorySeriesResponse.series:type_name -> ledger.read.v1.EquitySeries
-	18, // 21: ledger.read.v1.GetPortfolioEquitySnapshotResponse.accounts:type_name -> ledger.read.v1.PortfolioAccountEquity
-	19, // 22: ledger.read.v1.GetPortfolioEquitySnapshotResponse.assets:type_name -> ledger.read.v1.PortfolioAssetEquity
-	32, // 23: ledger.read.v1.ListTransfersRequest.transfer_code:type_name -> ledger.v1.TransferCode
-	2,  // 24: ledger.read.v1.TransferSide.kind:type_name -> ledger.read.v1.TransferSideKind
-	30, // 25: ledger.read.v1.TransferRow.amount_e18:type_name -> polyester.type.v1.U128
-	32, // 26: ledger.read.v1.TransferRow.transfer_code:type_name -> ledger.v1.TransferCode
-	31, // 27: ledger.read.v1.TransferRow.account_code:type_name -> ledger.v1.AccountCode
-	30, // 28: ledger.read.v1.TransferRow.balance_after_e18:type_name -> polyester.type.v1.U128
-	23, // 29: ledger.read.v1.TransferRow.source:type_name -> ledger.read.v1.TransferSide
-	23, // 30: ledger.read.v1.TransferRow.destination:type_name -> ledger.read.v1.TransferSide
-	24, // 31: ledger.read.v1.TransferRowBatch.events:type_name -> ledger.read.v1.TransferRow
-	24, // 32: ledger.read.v1.ListTransfersResponse.transfers:type_name -> ledger.read.v1.TransferRow
-	33, // 33: ledger.read.v1.ExportStatementRequest.start_time:type_name -> google.protobuf.Timestamp
-	33, // 34: ledger.read.v1.ExportStatementRequest.end_time:type_name -> google.protobuf.Timestamp
-	3,  // 35: ledger.read.v1.ErrorDetail.code:type_name -> ledger.read.v1.ErrorCode
-	7,  // 36: ledger.read.v1.LedgerReadService.GetBalanceHistory:input_type -> ledger.read.v1.GetBalanceHistoryRequest
-	13, // 37: ledger.read.v1.LedgerReadService.GetEquityHistorySeries:input_type -> ledger.read.v1.GetEquityHistorySeriesRequest
-	16, // 38: ledger.read.v1.LedgerReadService.GetPortfolioEquityHistorySeries:input_type -> ledger.read.v1.GetPortfolioEquityHistorySeriesRequest
-	20, // 39: ledger.read.v1.LedgerReadService.GetPortfolioEquitySnapshot:input_type -> ledger.read.v1.GetPortfolioEquitySnapshotRequest
-	22, // 40: ledger.read.v1.LedgerReadService.ListTransfers:input_type -> ledger.read.v1.ListTransfersRequest
-	4,  // 41: ledger.read.v1.LedgerReadService.GetBalances:input_type -> ledger.read.v1.GetBalancesRequest
-	27, // 42: ledger.read.v1.LedgerReadService.ExportStatement:input_type -> ledger.read.v1.ExportStatementRequest
-	9,  // 43: ledger.read.v1.LedgerReadService.GetBalanceHistory:output_type -> ledger.read.v1.GetBalanceHistoryResponse
-	15, // 44: ledger.read.v1.LedgerReadService.GetEquityHistorySeries:output_type -> ledger.read.v1.GetEquityHistorySeriesResponse
-	17, // 45: ledger.read.v1.LedgerReadService.GetPortfolioEquityHistorySeries:output_type -> ledger.read.v1.GetPortfolioEquityHistorySeriesResponse
-	21, // 46: ledger.read.v1.LedgerReadService.GetPortfolioEquitySnapshot:output_type -> ledger.read.v1.GetPortfolioEquitySnapshotResponse
-	26, // 47: ledger.read.v1.LedgerReadService.ListTransfers:output_type -> ledger.read.v1.ListTransfersResponse
-	6,  // 48: ledger.read.v1.LedgerReadService.GetBalances:output_type -> ledger.read.v1.GetBalancesResponse
-	28, // 49: ledger.read.v1.LedgerReadService.ExportStatement:output_type -> ledger.read.v1.ExportStatementResponse
-	43, // [43:50] is the sub-list for method output_type
-	36, // [36:43] is the sub-list for method input_type
-	36, // [36:36] is the sub-list for extension type_name
-	36, // [36:36] is the sub-list for extension extendee
-	0,  // [0:36] is the sub-list for field type_name
+	30, // 8: ledger.read.v1.BalanceSeries.balance:type_name -> polyester.type.v1.U128
+	0,  // 9: ledger.read.v1.GetBalanceHistoryResponse.range:type_name -> ledger.read.v1.BalanceRange
+	8,  // 10: ledger.read.v1.GetBalanceHistoryResponse.series:type_name -> ledger.read.v1.BalanceSeries
+	0,  // 11: ledger.read.v1.GetEquityHistorySeriesRequest.range:type_name -> ledger.read.v1.BalanceRange
+	31, // 12: ledger.read.v1.GetEquityHistorySeriesRequest.account_codes:type_name -> ledger.v1.AccountCode
+	1,  // 13: ledger.read.v1.GetEquityHistorySeriesRequest.group_by:type_name -> ledger.read.v1.EquityGroupBy
+	10, // 14: ledger.read.v1.EquitySeries.account:type_name -> ledger.read.v1.AccountGrouping
+	11, // 15: ledger.read.v1.EquitySeries.asset:type_name -> ledger.read.v1.AssetGrouping
+	12, // 16: ledger.read.v1.EquitySeries.portfolio_account:type_name -> ledger.read.v1.PortfolioAccountGrouping
+	0,  // 17: ledger.read.v1.GetEquityHistorySeriesResponse.range:type_name -> ledger.read.v1.BalanceRange
+	14, // 18: ledger.read.v1.GetEquityHistorySeriesResponse.series:type_name -> ledger.read.v1.EquitySeries
+	0,  // 19: ledger.read.v1.GetPortfolioEquityHistorySeriesRequest.range:type_name -> ledger.read.v1.BalanceRange
+	0,  // 20: ledger.read.v1.GetPortfolioEquityHistorySeriesResponse.range:type_name -> ledger.read.v1.BalanceRange
+	14, // 21: ledger.read.v1.GetPortfolioEquityHistorySeriesResponse.series:type_name -> ledger.read.v1.EquitySeries
+	30, // 22: ledger.read.v1.PortfolioAssetEquity.balance:type_name -> polyester.type.v1.U128
+	18, // 23: ledger.read.v1.GetPortfolioEquitySnapshotResponse.accounts:type_name -> ledger.read.v1.PortfolioAccountEquity
+	19, // 24: ledger.read.v1.GetPortfolioEquitySnapshotResponse.assets:type_name -> ledger.read.v1.PortfolioAssetEquity
+	32, // 25: ledger.read.v1.ListTransfersRequest.transfer_code:type_name -> ledger.v1.TransferCode
+	2,  // 26: ledger.read.v1.TransferSide.kind:type_name -> ledger.read.v1.TransferSideKind
+	30, // 27: ledger.read.v1.TransferRow.amount_e18:type_name -> polyester.type.v1.U128
+	32, // 28: ledger.read.v1.TransferRow.transfer_code:type_name -> ledger.v1.TransferCode
+	31, // 29: ledger.read.v1.TransferRow.account_code:type_name -> ledger.v1.AccountCode
+	30, // 30: ledger.read.v1.TransferRow.balance_after_e18:type_name -> polyester.type.v1.U128
+	23, // 31: ledger.read.v1.TransferRow.source:type_name -> ledger.read.v1.TransferSide
+	23, // 32: ledger.read.v1.TransferRow.destination:type_name -> ledger.read.v1.TransferSide
+	24, // 33: ledger.read.v1.TransferRowBatch.events:type_name -> ledger.read.v1.TransferRow
+	24, // 34: ledger.read.v1.ListTransfersResponse.transfers:type_name -> ledger.read.v1.TransferRow
+	33, // 35: ledger.read.v1.ExportStatementRequest.start_time:type_name -> google.protobuf.Timestamp
+	33, // 36: ledger.read.v1.ExportStatementRequest.end_time:type_name -> google.protobuf.Timestamp
+	33, // 37: ledger.read.v1.ExportStatementResponse.complete_through:type_name -> google.protobuf.Timestamp
+	3,  // 38: ledger.read.v1.ErrorDetail.code:type_name -> ledger.read.v1.ErrorCode
+	7,  // 39: ledger.read.v1.LedgerReadService.GetBalanceHistory:input_type -> ledger.read.v1.GetBalanceHistoryRequest
+	13, // 40: ledger.read.v1.LedgerReadService.GetEquityHistorySeries:input_type -> ledger.read.v1.GetEquityHistorySeriesRequest
+	16, // 41: ledger.read.v1.LedgerReadService.GetPortfolioEquityHistorySeries:input_type -> ledger.read.v1.GetPortfolioEquityHistorySeriesRequest
+	20, // 42: ledger.read.v1.LedgerReadService.GetPortfolioEquitySnapshot:input_type -> ledger.read.v1.GetPortfolioEquitySnapshotRequest
+	22, // 43: ledger.read.v1.LedgerReadService.ListTransfers:input_type -> ledger.read.v1.ListTransfersRequest
+	4,  // 44: ledger.read.v1.LedgerReadService.GetBalances:input_type -> ledger.read.v1.GetBalancesRequest
+	27, // 45: ledger.read.v1.LedgerReadService.ExportStatement:input_type -> ledger.read.v1.ExportStatementRequest
+	9,  // 46: ledger.read.v1.LedgerReadService.GetBalanceHistory:output_type -> ledger.read.v1.GetBalanceHistoryResponse
+	15, // 47: ledger.read.v1.LedgerReadService.GetEquityHistorySeries:output_type -> ledger.read.v1.GetEquityHistorySeriesResponse
+	17, // 48: ledger.read.v1.LedgerReadService.GetPortfolioEquityHistorySeries:output_type -> ledger.read.v1.GetPortfolioEquityHistorySeriesResponse
+	21, // 49: ledger.read.v1.LedgerReadService.GetPortfolioEquitySnapshot:output_type -> ledger.read.v1.GetPortfolioEquitySnapshotResponse
+	26, // 50: ledger.read.v1.LedgerReadService.ListTransfers:output_type -> ledger.read.v1.ListTransfersResponse
+	6,  // 51: ledger.read.v1.LedgerReadService.GetBalances:output_type -> ledger.read.v1.GetBalancesResponse
+	28, // 52: ledger.read.v1.LedgerReadService.ExportStatement:output_type -> ledger.read.v1.ExportStatementResponse
+	46, // [46:53] is the sub-list for method output_type
+	39, // [39:46] is the sub-list for method input_type
+	39, // [39:39] is the sub-list for extension type_name
+	39, // [39:39] is the sub-list for extension extendee
+	0,  // [0:39] is the sub-list for field type_name
 }
 
 func init() { file_ledger_read_v1_ledger_read_proto_init() }

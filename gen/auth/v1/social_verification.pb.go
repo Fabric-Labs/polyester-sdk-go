@@ -234,10 +234,12 @@ type SocialVerification struct {
 	// a leading "@". For Telegram, the username of the account that submitted the
 	// code; empty when that account has no username.
 	Handle string `protobuf:"bytes,2,opt,name=handle,proto3" json:"handle,omitempty"`
-	// Stable provider-side user identifier. Empty until verification succeeds,
-	// except for Telegram: while the status is STATUS_AWAITING_CONFIRMATION, it is
-	// the numeric user ID of the Telegram account that submitted the code, the
-	// value ConfirmSocialVerification takes.
+	// Stable provider-side user identifier of the linked provider account. Empty
+	// while no account is linked. A restarted X/Twitter or Discord verification
+	// keeps the current link, and this value, until the new verification succeeds
+	// and replaces it. For Telegram, while the status is
+	// STATUS_AWAITING_CONFIRMATION, it is the numeric user ID of the Telegram
+	// account that submitted the code, the value ConfirmSocialVerification takes.
 	ProviderUserId string `protobuf:"bytes,3,opt,name=provider_user_id,json=providerUserId,proto3" json:"provider_user_id,omitempty"`
 	// Provider display name of the account being verified, for showing it to the
 	// user. Telegram only: the account's name, set once the code is submitted.
@@ -253,7 +255,9 @@ type SocialVerification struct {
 	RequestedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=requested_at,json=requestedAt,proto3" json:"requested_at,omitempty"`
 	// Time in UTC when the current challenge code expires.
 	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	// Time in UTC when verification succeeded. Empty until status is STATUS_VERIFIED.
+	// Time in UTC when the linked provider account was last verified. Empty while
+	// no account is linked; kept, like provider_user_id, while a restarted
+	// verification runs.
 	VerifiedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=verified_at,json=verifiedAt,proto3" json:"verified_at,omitempty"`
 	// Number of recorded provider-check attempts for this challenge.
 	Attempts int32 `protobuf:"varint,9,opt,name=attempts,proto3" json:"attempts,omitempty"`
@@ -264,7 +268,11 @@ type SocialVerification struct {
 	// AUTH_UNSPECIFIED when no typed error applies.
 	ErrorCode AuthErrorCode `protobuf:"varint,16,opt,name=error_code,json=errorCode,proto3,enum=auth.v1.AuthErrorCode" json:"error_code,omitempty"`
 	// Time in UTC when this verification state last changed.
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// Time in UTC from which a new verification may succeed, when this one
+	// failed with error_code AUTH_SOCIAL_ACCOUNT_COOLDOWN or
+	// AUTH_SOCIAL_CHANGE_LIMIT_REACHED. Empty otherwise.
+	RetryAfter    *timestamppb.Timestamp `protobuf:"bytes,18,opt,name=retry_after,json=retryAfter,proto3" json:"retry_after,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -404,8 +412,18 @@ func (x *SocialVerification) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *SocialVerification) GetRetryAfter() *timestamppb.Timestamp {
+	if x != nil {
+		return x.RetryAfter
+	}
+	return nil
+}
+
 // StartSocialVerificationRequest starts or restarts social account verification.
-// Starting again for the same provider replaces the previous challenge.
+// Starting again for the same provider replaces the previous challenge. A linked
+// X/Twitter or Discord account stays linked until the new verification
+// succeeds; then the newly verified account replaces it, which counts as the
+// provider's one change per 30 days.
 type StartSocialVerificationRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Provider account to verify.
@@ -850,7 +868,7 @@ func (x *ConfirmSocialVerificationResponse) GetVerification() *SocialVerificatio
 // cancels a link in progress.
 type UnlinkSocialAccountRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Provider account to unlink. Only TELEGRAM is accepted.
+	// Provider account to unlink.
 	Provider      SocialProvider `protobuf:"varint,1,opt,name=provider,proto3,enum=auth.v1.SocialProvider" json:"provider,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -944,7 +962,7 @@ var File_auth_v1_social_verification_proto protoreflect.FileDescriptor
 
 const file_auth_v1_social_verification_proto_rawDesc = "" +
 	"\n" +
-	"!auth/v1/social_verification.proto\x12\aauth.v1\x1a\x12auth/v1/auth.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\xbf\x05\n" +
+	"!auth/v1/social_verification.proto\x12\aauth.v1\x1a\x12auth/v1/auth.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\xfc\x05\n" +
 	"\x12SocialVerification\x12\x0e\n" +
 	"\x02id\x18\f \x01(\x03R\x02id\x123\n" +
 	"\bprovider\x18\x01 \x01(\x0e2\x17.auth.v1.SocialProviderR\bprovider\x129\n" +
@@ -966,7 +984,9 @@ const file_auth_v1_social_verification_proto_rawDesc = "" +
 	"\n" +
 	"error_code\x18\x10 \x01(\x0e2\x16.auth.v1.AuthErrorCodeR\terrorCode\x129\n" +
 	"\n" +
-	"updated_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xf4\a\n" +
+	"updated_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12;\n" +
+	"\vretry_after\x18\x12 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"retryAfter\"\xf4\a\n" +
 	"\x1eStartSocialVerificationRequest\x12B\n" +
 	"\bprovider\x18\x01 \x01(\x0e2\x17.auth.v1.SocialProviderB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\bprovider\x12C\n" +
 	"\x06method\x18\x03 \x01(\x0e2!.auth.v1.SocialVerificationMethodB\b\xbaH\x05\x82\x01\x02\x10\x01R\x06method\x12\x8c\x01\n" +
@@ -997,10 +1017,9 @@ const file_auth_v1_social_verification_proto_rawDesc = "" +
 	"\x10provider_user_id\x18\x02 \x01(\tB\x1b\xe0A\x02\xbaH\x15r\x13\x10\x01\x18\x142\r^[1-9][0-9]*$R\x0eproviderUserId:\\\xbaHY\x1aW\n" +
 	"\x15confirm_telegram_only\x12*only telegram linking needs a confirmation\x1a\x12this.provider == 3\"d\n" +
 	"!ConfirmSocialVerificationResponse\x12?\n" +
-	"\fverification\x18\x01 \x01(\v2\x1b.auth.v1.SocialVerificationR\fverification\"\xba\x01\n" +
+	"\fverification\x18\x01 \x01(\v2\x1b.auth.v1.SocialVerificationR\fverification\"`\n" +
 	"\x1aUnlinkSocialAccountRequest\x12B\n" +
-	"\bprovider\x18\x01 \x01(\x0e2\x17.auth.v1.SocialProviderB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\bprovider:X\xbaHU\x1aS\n" +
-	"\x14unlink_telegram_only\x12'only a telegram account can be unlinked\x1a\x12this.provider == 3\"^\n" +
+	"\bprovider\x18\x01 \x01(\x0e2\x17.auth.v1.SocialProviderB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\bprovider\"^\n" +
 	"\x1bUnlinkSocialAccountResponse\x12?\n" +
 	"\fverification\x18\x01 \x01(\v2\x1b.auth.v1.SocialVerificationR\fverification*R\n" +
 	"\x0eSocialProvider\x12\x18\n" +
@@ -1022,16 +1041,16 @@ const file_auth_v1_social_verification_proto_rawDesc = "" +
 	"\x12METHOD_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eMETHOD_PROFILE\x10\x01\x12\x12\n" +
 	"\x0eMETHOD_CHANNEL\x10\x02\x12\r\n" +
-	"\tMETHOD_DM\x10\x032\xcc\x11\n" +
-	"\x19SocialVerificationService\x12\xb0\x02\n" +
-	"\x17StartSocialVerification\x12'.auth.v1.StartSocialVerificationRequest\x1a(.auth.v1.StartSocialVerificationResponse\"\xc1\x01\xbaG\x8b\x01\n" +
-	"\fAuth Service\x12\x19Start Social Verification\x1a`Issue a challenge code for the caller to submit through the provider-specific verification flow.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/auth/social/verification:start\x12\xd0\x03\n" +
+	"\tMETHOD_DM\x10\x032\xff\x14\n" +
+	"\x19SocialVerificationService\x12\xf3\x03\n" +
+	"\x17StartSocialVerification\x12'.auth.v1.StartSocialVerificationRequest\x1a(.auth.v1.StartSocialVerificationResponse\"\x84\x03\xbaG\xca\x02\n" +
+	"\fAuth Service\x12\x19Start Social Verification\x1a\x9e\x02Issue a challenge code for the caller to submit through the provider-specific verification flow. While an X/Twitter or Discord account is linked, it needs enrolled MFA and a fresh step-up proof in the X-Auth-Step-Up header; AUTH_SOCIAL_CHANGE_LIMIT_REACHED means wait until retry_after.\x98\xb5\x18\x03\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/auth/social/verification:start\x12\xd0\x03\n" +
 	"\x17SocialVerificationReady\x12'.auth.v1.SocialVerificationReadyRequest\x1a(.auth.v1.SocialVerificationReadyResponse\"\xe1\x02\xbaG\xab\x02\n" +
 	"\fAuth Service\x12\x1eMark Social Verification Ready\x1a\xfa\x01Mark verification as ready and request a provider account check. AUTH_SOCIAL_VERIFICATION_EXPIRED means start a new challenge. AUTH_SOCIAL_VERIFICATION_INVALID_STATE means Ready is not valid in the current state; use GetSocialVerification for status.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/auth/social/verification:ready\x12\xae\x05\n" +
 	"\x19ConfirmSocialVerification\x12).auth.v1.ConfirmSocialVerificationRequest\x1a*.auth.v1.ConfirmSocialVerificationResponse\"\xb9\x04\xbaG\xfd\x03\n" +
-	"\fAuth Service\x12\x1bConfirm Social Verification\x1a\xcf\x03Link the Telegram account that submitted the caller's challenge code, after the user confirmed it. Requires enrolled MFA and a fresh step-up proof in the X-Auth-Step-Up header. AUTH_MFA_NOT_ENROLLED means enroll MFA first. AUTH_SOCIAL_VERIFICATION_EXPIRED means start a new challenge. AUTH_SOCIAL_VERIFICATION_INVALID_STATE means no matching account awaits confirmation. AUTH_SOCIAL_ACCOUNT_ALREADY_LINKED means the account is linked to another Polyester account.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02):\x01*\"$/v1/auth/social/verification:confirm\x12\xab\x02\n" +
-	"\x13UnlinkSocialAccount\x12#.auth.v1.UnlinkSocialAccountRequest\x1a$.auth.v1.UnlinkSocialAccountResponse\"\xc8\x01\xbaG\x91\x01\n" +
-	"\fAuth Service\x12\x15Unlink Social Account\x1ajUnlink the caller's Telegram account, or cancel a Telegram link in progress. Repeating it changes nothing.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02(:\x01*\"#/v1/auth/social/verification:unlink\x12\xbc\x03\n" +
+	"\fAuth Service\x12\x1bConfirm Social Verification\x1a\xcf\x03Link the Telegram account that submitted the caller's challenge code, after the user confirmed it. Requires enrolled MFA and a fresh step-up proof in the X-Auth-Step-Up header. AUTH_MFA_NOT_ENROLLED means enroll MFA first. AUTH_SOCIAL_VERIFICATION_EXPIRED means start a new challenge. AUTH_SOCIAL_VERIFICATION_INVALID_STATE means no matching account awaits confirmation. AUTH_SOCIAL_ACCOUNT_ALREADY_LINKED means the account is linked to another Polyester account.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02):\x01*\"$/v1/auth/social/verification:confirm\x12\x9b\x04\n" +
+	"\x13UnlinkSocialAccount\x12#.auth.v1.UnlinkSocialAccountRequest\x1a$.auth.v1.UnlinkSocialAccountResponse\"\xb8\x03\xbaG\xfd\x02\n" +
+	"\fAuth Service\x12\x15Unlink Social Account\x1a\xd5\x02Unlink the caller's X/Twitter, Discord or Telegram account, or cancel a link in progress. Repeating it changes nothing. An X/Twitter or Discord unlink needs enrolled MFA and a fresh step-up proof in the X-Auth-Step-Up header, and counts as the provider's one change per 30 days: AUTH_SOCIAL_CHANGE_LIMIT_REACHED means wait until retry_after.\x98\xb5\x18\x03\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02(:\x01*\"#/v1/auth/social/verification:unlink\x12\xbc\x03\n" +
 	"\x15GetSocialVerification\x12%.auth.v1.GetSocialVerificationRequest\x1a&.auth.v1.GetSocialVerificationResponse\"\xd3\x02\xbaG\xa5\x02\n" +
 	"\fAuth Service\x12\x17Get Social Verification\x1a\xfb\x01Retrieve current social verification status and any typed failure code for the caller. An API key needs READ_SOCIAL_VERIFICATION and must be scoped to the main account; it reads the status only: provider, method, handle, status, and verification time.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1e\x12\x1c/v1/auth/social/verification\x1a\v\x8a\xb5\x18\aaccountB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
 
@@ -1076,33 +1095,34 @@ var file_auth_v1_social_verification_proto_depIdxs = []int32{
 	14, // 5: auth.v1.SocialVerification.verified_at:type_name -> google.protobuf.Timestamp
 	15, // 6: auth.v1.SocialVerification.error_code:type_name -> auth.v1.AuthErrorCode
 	14, // 7: auth.v1.SocialVerification.updated_at:type_name -> google.protobuf.Timestamp
-	0,  // 8: auth.v1.StartSocialVerificationRequest.provider:type_name -> auth.v1.SocialProvider
-	2,  // 9: auth.v1.StartSocialVerificationRequest.method:type_name -> auth.v1.SocialVerificationMethod
-	14, // 10: auth.v1.StartSocialVerificationResponse.expires_at:type_name -> google.protobuf.Timestamp
-	3,  // 11: auth.v1.StartSocialVerificationResponse.verification:type_name -> auth.v1.SocialVerification
-	0,  // 12: auth.v1.SocialVerificationReadyRequest.provider:type_name -> auth.v1.SocialProvider
-	3,  // 13: auth.v1.SocialVerificationReadyResponse.verification:type_name -> auth.v1.SocialVerification
-	0,  // 14: auth.v1.GetSocialVerificationRequest.provider:type_name -> auth.v1.SocialProvider
-	3,  // 15: auth.v1.GetSocialVerificationResponse.verification:type_name -> auth.v1.SocialVerification
-	0,  // 16: auth.v1.ConfirmSocialVerificationRequest.provider:type_name -> auth.v1.SocialProvider
-	3,  // 17: auth.v1.ConfirmSocialVerificationResponse.verification:type_name -> auth.v1.SocialVerification
-	0,  // 18: auth.v1.UnlinkSocialAccountRequest.provider:type_name -> auth.v1.SocialProvider
-	3,  // 19: auth.v1.UnlinkSocialAccountResponse.verification:type_name -> auth.v1.SocialVerification
-	4,  // 20: auth.v1.SocialVerificationService.StartSocialVerification:input_type -> auth.v1.StartSocialVerificationRequest
-	6,  // 21: auth.v1.SocialVerificationService.SocialVerificationReady:input_type -> auth.v1.SocialVerificationReadyRequest
-	10, // 22: auth.v1.SocialVerificationService.ConfirmSocialVerification:input_type -> auth.v1.ConfirmSocialVerificationRequest
-	12, // 23: auth.v1.SocialVerificationService.UnlinkSocialAccount:input_type -> auth.v1.UnlinkSocialAccountRequest
-	8,  // 24: auth.v1.SocialVerificationService.GetSocialVerification:input_type -> auth.v1.GetSocialVerificationRequest
-	5,  // 25: auth.v1.SocialVerificationService.StartSocialVerification:output_type -> auth.v1.StartSocialVerificationResponse
-	7,  // 26: auth.v1.SocialVerificationService.SocialVerificationReady:output_type -> auth.v1.SocialVerificationReadyResponse
-	11, // 27: auth.v1.SocialVerificationService.ConfirmSocialVerification:output_type -> auth.v1.ConfirmSocialVerificationResponse
-	13, // 28: auth.v1.SocialVerificationService.UnlinkSocialAccount:output_type -> auth.v1.UnlinkSocialAccountResponse
-	9,  // 29: auth.v1.SocialVerificationService.GetSocialVerification:output_type -> auth.v1.GetSocialVerificationResponse
-	25, // [25:30] is the sub-list for method output_type
-	20, // [20:25] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	14, // 8: auth.v1.SocialVerification.retry_after:type_name -> google.protobuf.Timestamp
+	0,  // 9: auth.v1.StartSocialVerificationRequest.provider:type_name -> auth.v1.SocialProvider
+	2,  // 10: auth.v1.StartSocialVerificationRequest.method:type_name -> auth.v1.SocialVerificationMethod
+	14, // 11: auth.v1.StartSocialVerificationResponse.expires_at:type_name -> google.protobuf.Timestamp
+	3,  // 12: auth.v1.StartSocialVerificationResponse.verification:type_name -> auth.v1.SocialVerification
+	0,  // 13: auth.v1.SocialVerificationReadyRequest.provider:type_name -> auth.v1.SocialProvider
+	3,  // 14: auth.v1.SocialVerificationReadyResponse.verification:type_name -> auth.v1.SocialVerification
+	0,  // 15: auth.v1.GetSocialVerificationRequest.provider:type_name -> auth.v1.SocialProvider
+	3,  // 16: auth.v1.GetSocialVerificationResponse.verification:type_name -> auth.v1.SocialVerification
+	0,  // 17: auth.v1.ConfirmSocialVerificationRequest.provider:type_name -> auth.v1.SocialProvider
+	3,  // 18: auth.v1.ConfirmSocialVerificationResponse.verification:type_name -> auth.v1.SocialVerification
+	0,  // 19: auth.v1.UnlinkSocialAccountRequest.provider:type_name -> auth.v1.SocialProvider
+	3,  // 20: auth.v1.UnlinkSocialAccountResponse.verification:type_name -> auth.v1.SocialVerification
+	4,  // 21: auth.v1.SocialVerificationService.StartSocialVerification:input_type -> auth.v1.StartSocialVerificationRequest
+	6,  // 22: auth.v1.SocialVerificationService.SocialVerificationReady:input_type -> auth.v1.SocialVerificationReadyRequest
+	10, // 23: auth.v1.SocialVerificationService.ConfirmSocialVerification:input_type -> auth.v1.ConfirmSocialVerificationRequest
+	12, // 24: auth.v1.SocialVerificationService.UnlinkSocialAccount:input_type -> auth.v1.UnlinkSocialAccountRequest
+	8,  // 25: auth.v1.SocialVerificationService.GetSocialVerification:input_type -> auth.v1.GetSocialVerificationRequest
+	5,  // 26: auth.v1.SocialVerificationService.StartSocialVerification:output_type -> auth.v1.StartSocialVerificationResponse
+	7,  // 27: auth.v1.SocialVerificationService.SocialVerificationReady:output_type -> auth.v1.SocialVerificationReadyResponse
+	11, // 28: auth.v1.SocialVerificationService.ConfirmSocialVerification:output_type -> auth.v1.ConfirmSocialVerificationResponse
+	13, // 29: auth.v1.SocialVerificationService.UnlinkSocialAccount:output_type -> auth.v1.UnlinkSocialAccountResponse
+	9,  // 30: auth.v1.SocialVerificationService.GetSocialVerification:output_type -> auth.v1.GetSocialVerificationResponse
+	26, // [26:31] is the sub-list for method output_type
+	21, // [21:26] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_social_verification_proto_init() }

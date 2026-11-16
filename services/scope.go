@@ -150,12 +150,11 @@ func publicID(value any, label string) (id string, set bool, err error) {
 	}
 }
 
-// LifecycleAccountFields extracts owner account fields from a proto-like message.
-func LifecycleAccountFields(ownerAccountID uint64, smartAccountAddress string) map[string]string {
+// LifecycleAccountFields names the account of a lifecycle flow. A flow names
+// its account only by its smart account address, the account's public
+// identity: the contract no longer carries an owner account ID.
+func LifecycleAccountFields(smartAccountAddress string) map[string]string {
 	fields := map[string]string{}
-	if ownerAccountID != 0 {
-		fields["owner_account_id"] = codecs.FormatID(ownerAccountID)
-	}
 	if smartAccountAddress != "" {
 		fields["smart_account_address"] = smartAccountAddress
 	}

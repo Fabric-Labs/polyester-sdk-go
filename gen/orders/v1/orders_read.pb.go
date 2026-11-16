@@ -1122,7 +1122,8 @@ type Order struct {
 	// Iceberg display quantity the order was placed with, scaled by the pair's
 	// base_quantity_scale from GetSpotConfig for symbol_id: the most of the
 	// order the order book shows at once. Zero for a plain order. A replace
-	// keeps it.
+	// keeps it while the new quantity is above it; a replace to the display or
+	// below it is a plain order, zero here.
 	DisplayQtyScaled int64 `protobuf:"varint,39,opt,name=display_qty_scaled,json=displayQtyScaled,proto3" json:"display_qty_scaled,omitempty"`
 	// Part of leaves_qty_scaled an iceberg order keeps hidden from the order
 	// book, scaled by the pair's base_quantity_scale from GetSpotConfig for

@@ -218,6 +218,12 @@ const (
 	SubaccountPermission_SUBACCOUNT_PERMISSION_SWAP SubaccountPermission = 28
 	// Export account statements of the sub-account.
 	SubaccountPermission_SUBACCOUNT_PERMISSION_READ_STATEMENTS SubaccountPermission = 29
+	// Quote, convert, and view conversions of the sub-account's dust: small
+	// Trading balances converted into a target asset.
+	SubaccountPermission_SUBACCOUNT_PERMISSION_CONVERT_DUST SubaccountPermission = 30
+	// View the sub-account's deposit, withdrawal, and transfer flows, including
+	// those without a public chain transaction.
+	SubaccountPermission_SUBACCOUNT_PERMISSION_READ_FUNDING_FLOWS SubaccountPermission = 31
 )
 
 // Enum value maps for SubaccountPermission.
@@ -253,6 +259,8 @@ var (
 		27: "SUBACCOUNT_PERMISSION_MANAGE_AUTO_WITHDRAW",
 		28: "SUBACCOUNT_PERMISSION_SWAP",
 		29: "SUBACCOUNT_PERMISSION_READ_STATEMENTS",
+		30: "SUBACCOUNT_PERMISSION_CONVERT_DUST",
+		31: "SUBACCOUNT_PERMISSION_READ_FUNDING_FLOWS",
 	}
 	SubaccountPermission_value = map[string]int32{
 		"SUBACCOUNT_PERMISSION_UNSPECIFIED":                    0,
@@ -285,6 +293,8 @@ var (
 		"SUBACCOUNT_PERMISSION_MANAGE_AUTO_WITHDRAW":           27,
 		"SUBACCOUNT_PERMISSION_SWAP":                           28,
 		"SUBACCOUNT_PERMISSION_READ_STATEMENTS":                29,
+		"SUBACCOUNT_PERMISSION_CONVERT_DUST":                   30,
+		"SUBACCOUNT_PERMISSION_READ_FUNDING_FLOWS":             31,
 	}
 )
 
@@ -1519,6 +1529,8 @@ type CreateSubaccountChallengeResponse struct {
 	// Expiration in UTC, five minutes after issuance.
 	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	// Polyester EIP-155 chain ID used for smart-account derivation and verification.
+	// It differs per environment, so read it from this response rather than
+	// assuming a fixed value.
 	PolyesterChainId uint64 `protobuf:"varint,5,opt,name=polyester_chain_id,json=polyesterChainId,proto3" json:"polyester_chain_id,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
@@ -3532,8 +3544,7 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x10LEVERAGED_TRADER\x10\x03\x12\f\n" +
 	"\bTREASURY\x10\x04\x12\t\n" +
 	"\x05ADMIN\x10\x05\x12\t\n" +
-	"\x05OWNER\x10\x06*\xdc\n" +
-	"\n" +
+	"\x05OWNER\x10\x06*\xb2\v\n" +
 	"\x14SubaccountPermission\x12%\n" +
 	"!SUBACCOUNT_PERMISSION_UNSPECIFIED\x10\x00\x12)\n" +
 	"%SUBACCOUNT_PERMISSION_READ_SUBACCOUNT\x10\x01\x12+\n" +
@@ -3565,7 +3576,9 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"(SUBACCOUNT_PERMISSION_READ_AUTO_WITHDRAW\x10\x1a\x12.\n" +
 	"*SUBACCOUNT_PERMISSION_MANAGE_AUTO_WITHDRAW\x10\x1b\x12\x1e\n" +
 	"\x1aSUBACCOUNT_PERMISSION_SWAP\x10\x1c\x12)\n" +
-	"%SUBACCOUNT_PERMISSION_READ_STATEMENTS\x10\x1d*\xde\x01\n" +
+	"%SUBACCOUNT_PERMISSION_READ_STATEMENTS\x10\x1d\x12&\n" +
+	"\"SUBACCOUNT_PERMISSION_CONVERT_DUST\x10\x1e\x12,\n" +
+	"(SUBACCOUNT_PERMISSION_READ_FUNDING_FLOWS\x10\x1f*\xde\x01\n" +
 	"\x16SubaccountInviteStatus\x12(\n" +
 	"$SUBACCOUNT_INVITE_STATUS_UNSPECIFIED\x10\x00\x12$\n" +
 	" SUBACCOUNT_INVITE_STATUS_PENDING\x10\x01\x12%\n" +

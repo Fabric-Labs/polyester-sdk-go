@@ -324,10 +324,10 @@ def extract_gen_rust(gen_root: Path) -> tuple[set[str], dict[str, set[str]]]:
 def extract_wrapped_go(services_root: Path, service_names: dict[str, str]) -> set[str]:
     covered: set[str] = set()
     call_re = re.compile(
-        r"s\.(?P<acc>client|readClient|writeClient|viewClient)\(\)\.(?P<meth>[A-Za-z0-9_]+)"
+        r"s\.(?P<acc>client|readClient|writeClient|viewClient|signedClient|exportsClient)\(\)\.(?P<meth>[A-Za-z0-9_]+)"
     )
     def_re = re.compile(
-        r"func \(s \*\w+\) (?P<acc>client|readClient|writeClient|viewClient)\(\)"
+        r"func \(s \*\w+\) (?P<acc>client|readClient|writeClient|viewClient|signedClient|exportsClient)\(\)"
         r"[^{]*?(?P<svc>\w+)Client\b"
     )
     if not services_root.is_dir():
@@ -724,9 +724,19 @@ CAPABILITY_DEFS: list[dict[str, Any]] = [
         "any_services": ["transfer.v1.InternalTransferService"],
     },
     {
+        "id": "dust_conversion",
+        "label": "Dust conversion",
+        "any_services": ["transfer.v1.DustConversionService"],
+    },
+    {
         "id": "transfer_history",
         "label": "Transfer history",
         "any_procedures": ["/ledger.read.v1.LedgerReadService/ListTransfers"],
+    },
+    {
+        "id": "statement_exports",
+        "label": "Statement export files",
+        "any_services": ["ledger.read.v1.StatementExportService"],
     },
     {
         "id": "deposit_addresses",

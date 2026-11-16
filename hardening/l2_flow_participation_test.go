@@ -35,9 +35,9 @@ func (a *flowsAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a.requests = append(a.requests, req)
 	a.mu.Unlock()
 	out, _ := proto.Marshal(&lifecyclev1.ListFlowsResponse{Flows: []*lifecyclev1.FlowSummaryView{
-		{FlowId: "sent", FlowKind: lifecyclev1.FlowKind_KIND_TRANSFER, OwnerAccountId: 7, Participation: lifecyclev1.FlowParticipation_PARTICIPATION_OWNER,
+		{FlowId: "sent", FlowKind: lifecyclev1.FlowKind_KIND_TRANSFER, Participation: lifecyclev1.FlowParticipation_PARTICIPATION_OWNER,
 			SourceAddress: "0x00000000000000000000000000000000000000a1", DestinationAddress: "0x00000000000000000000000000000000000000b2"},
-		{FlowId: "received", FlowKind: lifecyclev1.FlowKind_KIND_TRANSFER, OwnerAccountId: 9, Participation: lifecyclev1.FlowParticipation_PARTICIPATION_RECIPIENT,
+		{FlowId: "received", FlowKind: lifecyclev1.FlowKind_KIND_TRANSFER, Participation: lifecyclev1.FlowParticipation_PARTICIPATION_RECIPIENT,
 			SourceAddress: "0x00000000000000000000000000000000000000c3", DestinationAddress: "0x00000000000000000000000000000000000000a1"},
 		{FlowId: "future", Participation: lifecyclev1.FlowParticipation(9)},
 	}})
@@ -78,8 +78,8 @@ func flowsClient(t *testing.T) (*polyester.Client, *flowsAPI) {
 // how the account takes part, with the addresses that name the counterparty.
 func TestListFlowsRowsCarryParticipation(t *testing.T) {
 	client, api := flowsClient(t)
-	owner := "8"
-	page, err := client.Lifecycle.ListFlows(context.Background(), 10, nil, nil, &owner, nil, false)
+	owner := "0x00000000000000000000000000000000000000a1"
+	page, err := client.Lifecycle.ListFlows(context.Background(), 10, nil, nil, &owner, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +103,7 @@ func TestListFlowsRowsCarryParticipation(t *testing.T) {
 
 func TestListFlowsWithSendsTheParticipationFilter(t *testing.T) {
 	client, api := flowsClient(t)
-	owner := "8"
+	owner := "0x00000000000000000000000000000000000000a1"
 	for label, want := range map[string]lifecyclev1.FlowParticipation{
 		"owner":                   lifecyclev1.FlowParticipation_PARTICIPATION_OWNER,
 		"RECIPIENT":               lifecyclev1.FlowParticipation_PARTICIPATION_RECIPIENT,
@@ -111,17 +111,17 @@ func TestListFlowsWithSendsTheParticipationFilter(t *testing.T) {
 		"":                        lifecyclev1.FlowParticipation_PARTICIPATION_UNSPECIFIED,
 	} {
 		participation := label
-		if _, err := client.Lifecycle.ListFlowsWith(context.Background(), services.ListFlowsParams{OwnerAccountID: &owner, Participation: &participation}); err != nil {
+		if _, err := client.Lifecycle.ListFlowsWith(context.Background(), services.ListFlowsParams{SmartAccountAddress: &owner, Participation: &participation}); err != nil {
 			t.Fatalf("%q: %v", label, err)
 		}
 		req := api.last(t)
-		if req.GetParticipation() != want || req.GetOwnerAccountId() == 0 || req.GetLimit() != 50 {
+		if req.GetParticipation() != want || req.GetSmartAccountAddress() != owner || req.GetLimit() != 50 {
 			t.Fatalf("%q: request = %v", label, req)
 		}
 	}
 	calls := api.count()
 	bad := "sender"
-	_, err := client.Lifecycle.ListFlowsWith(context.Background(), services.ListFlowsParams{OwnerAccountID: &owner, Participation: &bad})
+	_, err := client.Lifecycle.ListFlowsWith(context.Background(), services.ListFlowsParams{SmartAccountAddress: &owner, Participation: &bad})
 	var validation *sdkerrors.ValidationError
 	if !errors.As(err, &validation) || api.count() != calls {
 		t.Fatalf("unknown participation: err = %v, requests %d -> %d", err, calls, api.count())

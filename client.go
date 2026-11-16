@@ -205,6 +205,7 @@ type Client struct {
 	Transfers          *services.TransfersService
 	Statements         *services.StatementsService
 	InternalTransfers  *services.InternalTransfersService
+	DustConversions    *services.DustConversionsService
 	Deposit            *services.DepositService
 	APIKeys            *services.ApiKeysService
 	Policies           *services.PoliciesService
@@ -310,13 +311,14 @@ func New(cfg Config) (*Client, error) {
 		Zipper:               services.NewZipperService(factory, cats, rt),
 		ChainAnalytics:       services.NewChainAnalyticsService(factory),
 		Heatmap:              services.NewHeatmapService(factory, cats, rt),
-		Lifecycle:            services.NewLifecycleService(factory, rt),
+		Lifecycle:            services.NewLifecycleService(factory, rt, cfg.DefaultSubAccountID),
 		Balances:             services.NewBalancesService(factory, cats, cfg.DefaultSubAccountID, rt, defaultAccountID),
 		Orderbook:            services.NewOrderbookService(factory, cats, rt),
 		Trades:               services.NewTradesService(factory, cats, cfg.DefaultSubAccountID, rt, defaultAccountID),
 		Transfers:            services.NewTransfersService(factory, cfg.DefaultSubAccountID, rt, defaultAccountID),
 		Statements:           services.NewStatementsService(factory, cfg.DefaultSubAccountID),
 		InternalTransfers:    services.NewInternalTransfersService(factory, cats, cfg.DefaultSubAccountID),
+		DustConversions:      services.NewDustConversionsService(factory, cfg.DefaultSubAccountID),
 		Deposit:              services.NewDepositService(factory, cfg.DefaultSubAccountID),
 		APIKeys:              services.NewApiKeysService(factory, cfg.DefaultSubAccountID, rt, defaultAccountID),
 		Policies:             services.NewPoliciesService(rt, defaultAccountID),

@@ -1,7 +1,10 @@
 package decode
 
 import (
+	"fmt"
+
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	ledgerrdv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
 	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
@@ -40,12 +43,30 @@ func BalancesListFromProto(msg *ledgerrdv1.GetBalancesResponse) models.BalancesL
 	return models.BalancesList{Balances: out}
 }
 
-func BalanceHistoryFromProto(msg *ledgerrdv1.GetBalanceHistoryResponse) models.BalanceHistory {
+// BalanceHistoryFromProto decodes balance chart series. Each point is the
+// exact balance at the 18-decimal ledger scale, decoded from its U128 without
+// rounding. A series whose number of balances differs from the response's
+// points returns a *errors.ResponseContractError: a server on the previous
+// contract sends none.
+func BalanceHistoryFromProto(msg *ledgerrdv1.GetBalanceHistoryResponse) (models.BalanceHistory, error) {
 	series := make([]models.BalanceHistorySeries, 0, len(msg.GetSeries()))
+	points := int(msg.GetPoints())
 	for _, s := range msg.GetSeries() {
-		series = append(series, models.BalanceHistorySeries{AssetID: s.GetAssetId(), AccountCode: int32(s.GetAccountCode()), BalanceQ: append([]uint64(nil), s.GetBalanceQ()...)})
+		raw := s.GetBalance()
+		if len(raw) != points {
+			return models.BalanceHistory{}, &sdkerrors.ResponseContractError{
+				Operation: "GetBalanceHistory",
+				Msg:       fmt.Sprintf("series for asset %d has %d balances, expected %d points", s.GetAssetId(), len(raw), points),
+			}
+		}
+		assetID := s.GetAssetId()
+		balances := make([]models.AssetAmountScaled, len(raw))
+		for i, v := range raw {
+			balances[i] = codecs.DecodeAssetAmountBig(codecs.U128ToBig(v.GetHi(), v.GetLo()), codecs.LedgerScale, models.QuantityDomainLedgerE18, &assetID)
+		}
+		series = append(series, models.BalanceHistorySeries{AssetID: assetID, AccountCode: int32(s.GetAccountCode()), Balance: balances})
 	}
-	return models.BalanceHistory{Range: balanceRangeLabels[msg.GetRange()], Bucket: msg.GetBucket(), StartTsSec: int64(msg.GetStartTsSec()), EndTsSec: int64(msg.GetEndTsSec()), Points: int(msg.GetPoints()), Series: series}
+	return models.BalanceHistory{Range: balanceRangeLabels[msg.GetRange()], Bucket: msg.GetBucket(), StartTsSec: int64(msg.GetStartTsSec()), EndTsSec: int64(msg.GetEndTsSec()), Points: points, Series: series}, nil
 }
 
 func EquityHistoryFromProto(msg *ledgerrdv1.GetEquityHistorySeriesResponse) models.EquityHistory {

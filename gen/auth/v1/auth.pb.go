@@ -235,6 +235,15 @@ const (
 	// The signed WebSocket login nonce has already been used. Create a new login
 	// with a fresh random nonce and signature. HTTP 401, REPLAY_DETECTED.
 	AuthErrorCode_AUTH_REPLAY_DETECTED AuthErrorCode = 63
+	// The X/Twitter or Discord account was unlinked from another Polyester
+	// account less than 30 days ago, and can be linked to a different account
+	// only after that. The account that unlinked it may link it again at once.
+	// retry_after says when. HTTP 412, SOCIAL_ACCOUNT_COOLDOWN.
+	AuthErrorCode_AUTH_SOCIAL_ACCOUNT_COOLDOWN AuthErrorCode = 64
+	// The account already changed or unlinked its X/Twitter or Discord account
+	// less than 30 days ago: one change per provider every 30 days. retry_after
+	// says when the next one is allowed. HTTP 412, SOCIAL_CHANGE_LIMIT_REACHED.
+	AuthErrorCode_AUTH_SOCIAL_CHANGE_LIMIT_REACHED AuthErrorCode = 65
 )
 
 // Enum value maps for AuthErrorCode.
@@ -303,6 +312,8 @@ var (
 		61: "AUTH_ASSISTANT_KEY_REGISTRATION_EXPIRED",
 		62: "AUTH_ASSISTANT_KEY_DEADLINE_TOO_FAR",
 		63: "AUTH_REPLAY_DETECTED",
+		64: "AUTH_SOCIAL_ACCOUNT_COOLDOWN",
+		65: "AUTH_SOCIAL_CHANGE_LIMIT_REACHED",
 	}
 	AuthErrorCode_value = map[string]int32{
 		"AUTH_UNSPECIFIED":                        0,
@@ -368,6 +379,8 @@ var (
 		"AUTH_ASSISTANT_KEY_REGISTRATION_EXPIRED": 61,
 		"AUTH_ASSISTANT_KEY_DEADLINE_TOO_FAR":     62,
 		"AUTH_REPLAY_DETECTED":                    63,
+		"AUTH_SOCIAL_ACCOUNT_COOLDOWN":            64,
+		"AUTH_SOCIAL_CHANGE_LIMIT_REACHED":        65,
 	}
 )
 
@@ -840,7 +853,11 @@ type AuthErrorDetail struct {
 	// Stable machine-readable auth error code.
 	Code AuthErrorCode `protobuf:"varint,1,opt,name=code,proto3,enum=auth.v1.AuthErrorCode" json:"code,omitempty"`
 	// Human-readable error message.
-	Message       string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	Message string `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	// Time in UTC from which the same request may succeed. Set for
+	// AUTH_SOCIAL_ACCOUNT_COOLDOWN and AUTH_SOCIAL_CHANGE_LIMIT_REACHED; empty
+	// otherwise.
+	RetryAfter    *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=retry_after,json=retryAfter,proto3" json:"retry_after,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -887,6 +904,13 @@ func (x *AuthErrorDetail) GetMessage() string {
 		return x.Message
 	}
 	return ""
+}
+
+func (x *AuthErrorDetail) GetRetryAfter() *timestamppb.Timestamp {
+	if x != nil {
+		return x.RetryAfter
+	}
+	return nil
 }
 
 // AcceptTermsRequest records explicit consent to the terms that apply to the caller's root account.
@@ -1008,15 +1032,17 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\busername\x18\v \x01(\tR\busername\x12;\n" +
 	"\x1aroot_smart_account_address\x18\f \x01(\tR\x17rootSmartAccountAddress\x12.\n" +
 	"\asession\x18\x14 \x01(\v2\x14.auth.v1.SessionInfoR\asessionB\r\n" +
-	"\v_api_key_id\"W\n" +
+	"\v_api_key_id\"\x94\x01\n" +
 	"\x0fAuthErrorDetail\x12*\n" +
 	"\x04code\x18\x01 \x01(\x0e2\x16.auth.v1.AuthErrorCodeR\x04code\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\x14\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12;\n" +
+	"\vretry_after\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"retryAfter\"\x14\n" +
 	"\x12AcceptTermsRequest\"\x15\n" +
 	"\x13AcceptTermsResponse*A\n" +
 	"\x16WalletChallengePurpose\x12\x1c\n" +
 	"\x18WALLET_PROOF_UNSPECIFIED\x10\x00\x12\t\n" +
-	"\x05LOGIN\x10\x01*\xe6\x0f\n" +
+	"\x05LOGIN\x10\x01*\xae\x10\n" +
 	"\rAuthErrorCode\x12\x14\n" +
 	"\x10AUTH_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15AUTH_USERNAME_INVALID\x10\x01\x12\x17\n" +
@@ -1081,7 +1107,9 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	" AUTH_ASSISTANT_KEY_PROOF_INVALID\x10<\x12+\n" +
 	"'AUTH_ASSISTANT_KEY_REGISTRATION_EXPIRED\x10=\x12'\n" +
 	"#AUTH_ASSISTANT_KEY_DEADLINE_TOO_FAR\x10>\x12\x18\n" +
-	"\x14AUTH_REPLAY_DETECTED\x10?2\xa6\b\n" +
+	"\x14AUTH_REPLAY_DETECTED\x10?\x12 \n" +
+	"\x1cAUTH_SOCIAL_ACCOUNT_COOLDOWN\x10@\x12$\n" +
+	" AUTH_SOCIAL_CHANGE_LIMIT_REACHED\x10A2\xa6\b\n" +
 	"\vAuthService\x12\xf4\x01\n" +
 	"\x15CreateWalletChallenge\x12%.auth.v1.CreateWalletChallengeRequest\x1a&.auth.v1.CreateWalletChallengeResponse\"\x8b\x01\xbaG`\n" +
 	"\fAuth Service\x12\x17Create Wallet Challenge\x1a7Create a short-lived EIP-4361 message for wallet login.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/v1/auth/wallet-challenge\x12\x9e\x02\n" +
@@ -1129,19 +1157,20 @@ var file_auth_v1_auth_proto_depIdxs = []int32{
 	12, // 3: auth.v1.LoginWithWalletResponse.session:type_name -> auth.v1.SessionInfo
 	12, // 4: auth.v1.MeResponse.session:type_name -> auth.v1.SessionInfo
 	1,  // 5: auth.v1.AuthErrorDetail.code:type_name -> auth.v1.AuthErrorCode
-	2,  // 6: auth.v1.AuthService.CreateWalletChallenge:input_type -> auth.v1.CreateWalletChallengeRequest
-	4,  // 7: auth.v1.AuthService.LoginWithWallet:input_type -> auth.v1.LoginWithWalletRequest
-	9,  // 8: auth.v1.AuthService.AcceptTerms:input_type -> auth.v1.AcceptTermsRequest
-	6,  // 9: auth.v1.AuthService.Me:input_type -> auth.v1.MeRequest
-	3,  // 10: auth.v1.AuthService.CreateWalletChallenge:output_type -> auth.v1.CreateWalletChallengeResponse
-	5,  // 11: auth.v1.AuthService.LoginWithWallet:output_type -> auth.v1.LoginWithWalletResponse
-	10, // 12: auth.v1.AuthService.AcceptTerms:output_type -> auth.v1.AcceptTermsResponse
-	7,  // 13: auth.v1.AuthService.Me:output_type -> auth.v1.MeResponse
-	10, // [10:14] is the sub-list for method output_type
-	6,  // [6:10] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	11, // 6: auth.v1.AuthErrorDetail.retry_after:type_name -> google.protobuf.Timestamp
+	2,  // 7: auth.v1.AuthService.CreateWalletChallenge:input_type -> auth.v1.CreateWalletChallengeRequest
+	4,  // 8: auth.v1.AuthService.LoginWithWallet:input_type -> auth.v1.LoginWithWalletRequest
+	9,  // 9: auth.v1.AuthService.AcceptTerms:input_type -> auth.v1.AcceptTermsRequest
+	6,  // 10: auth.v1.AuthService.Me:input_type -> auth.v1.MeRequest
+	3,  // 11: auth.v1.AuthService.CreateWalletChallenge:output_type -> auth.v1.CreateWalletChallengeResponse
+	5,  // 12: auth.v1.AuthService.LoginWithWallet:output_type -> auth.v1.LoginWithWalletResponse
+	10, // 13: auth.v1.AuthService.AcceptTerms:output_type -> auth.v1.AcceptTermsResponse
+	7,  // 14: auth.v1.AuthService.Me:output_type -> auth.v1.MeResponse
+	11, // [11:15] is the sub-list for method output_type
+	7,  // [7:11] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_auth_proto_init() }

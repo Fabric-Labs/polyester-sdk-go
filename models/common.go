@@ -40,8 +40,13 @@ type CreateOrderRequest struct {
 	// the pair's step (ERROR_CODE_ICEBERG_DISPLAY_INVALID), at least the
 	// pair's minimum quantity and the order's quantity divided by 100, rounded
 	// up (ERROR_CODE_ICEBERG_DISPLAY_TOO_SMALL), and no attached risk
-	// (ERROR_CODE_ICEBERG_NOT_ALLOWED). The display cannot be modified; a
-	// replace keeps it.
+	// (ERROR_CODE_ICEBERG_NOT_ALLOWED). The display cannot be modified.
+	// Lowering the order's quantity in place to the display or below is
+	// allowed: the order keeps its queue priority and then shows all of its
+	// remaining quantity. A replace keeps the display while the new quantity
+	// is above it; otherwise the new order is a plain, fully visible order with
+	// no display, and stays plain. To rest a hidden quantity again, cancel and
+	// place a new iceberg order.
 	DisplayQty *QtyInput `json:"display_qty,omitempty"`
 	// Peg selects a limit order's price once, at entry, from the best bid or
 	// ask plus OffsetTicks; the price stays fixed afterwards. Price is still

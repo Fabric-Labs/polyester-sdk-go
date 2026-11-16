@@ -208,7 +208,7 @@ func accountSubscribes(rt RealtimeClient, def *string) []accountSubscribe {
 	apiKeys := NewApiKeysService(nil, nil, rt, def)
 	book := NewAddressBookService(nil, nil, rt, def)
 	balances := NewBalancesService(nil, nil, nil, rt, def)
-	lifecycle := NewLifecycleService(nil, rt)
+	lifecycle := NewLifecycleService(nil, rt, nil)
 	policies := NewPoliciesService(rt, def)
 	subAccounts := NewSubAccountsService(nil, nil, rt, def)
 	trades := NewTradesService(nil, nil, nil, rt, def)
@@ -426,7 +426,7 @@ func TestLifecycleSubscribeOpenFlowsUnsetStaysPublic(t *testing.T) {
 	fake := newFakeCentrifugo(t)
 	rt := realtime.NewClient(fake.wsURL, fake.apiURL, accountIDTestCredentials(t), nil, 16)
 	t.Cleanup(rt.Close)
-	lifecycle := NewLifecycleService(nil, rt)
+	lifecycle := NewLifecycleService(nil, rt, nil)
 	var empty *string
 	for name, unset := range map[string]any{"nil": nil, "empty string": "", "nil pointer": empty} {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
