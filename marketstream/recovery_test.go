@@ -249,3 +249,76 @@ func TestUnsubscribeDuringARecoveryEndsTheStream(t *testing.T) {
 		t.Fatal("book kept after the caller's Unsubscribe")
 	}
 }
+
+// recoveryClient is an offline client whose pair 7 depth stream was
+// subscribed and is recovering: its Unsubscribe was answered and its
+// Subscribe, request 3, sent. The caller's Unsubscribe, request 2, went out
+// in between.
+func recoveryClient(t *testing.T) (*Client, Topic) {
+	t.Helper()
+	c := newClient(Config{Pairs: testPairs{}, QueueSize: 64})
+	t.Cleanup(c.cancel)
+	topic := Topic{7, StreamDepth}
+	c.active[topic] = true
+	c.books[topic] = &book{stream: StreamDepth, has: true, recovery: recoverySubscribing}
+	c.sent[2] = sentRequest{unsubscribe: true, topics: []Topic{topic}}
+	c.sent[3] = sentRequest{recovery: true, topics: []Topic{topic}}
+	return c, topic
+}
+
+func cleanupUnsubscribe(c *Client, topic Topic) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, r := range c.sent {
+		if r.unsubscribe && !r.recovery && len(r.topics) == 1 && r.topics[0] == topic {
+			return true
+		}
+	}
+	return false
+}
+
+// The caller ended the stream while its recovery Subscribe was on the wire:
+// the late OK recreated the server's subscription, so the client ends it
+// again and keeps no state.
+func TestALateRecoverySubscribeAfterTheCallerEndedTheStreamIsUndone(t *testing.T) {
+	c, topic := recoveryClient(t)
+	if err := c.handle(subscribeResponseFrame(2, resultMsg{7, uint8(StreamDepth), uint8(SubscribeNotSubscribed)})); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.handle(subscribeResponseFrame(3, resultMsg{7, uint8(StreamDepth), uint8(SubscribeOK)})); err != nil {
+		t.Fatal(err)
+	}
+	if !cleanupUnsubscribe(c, topic) {
+		t.Fatal("no Unsubscribe ended the subscription the late recovery Subscribe recreated")
+	}
+	if c.active[topic] || c.books[topic] != nil {
+		t.Fatal("state kept for a stream the caller ended")
+	}
+}
+
+// The caller ended the stream and subscribed it again while its recovery
+// Subscribe was on the wire: the stream is held, and waits for its
+// snapshot.
+func TestALateRecoverySubscribeAfterTheCallerResubscribedHoldsTheStream(t *testing.T) {
+	c, topic := recoveryClient(t)
+	if err := c.handle(subscribeResponseFrame(2, resultMsg{7, uint8(StreamDepth), uint8(SubscribeNotSubscribed)})); err != nil {
+		t.Fatal(err)
+	}
+	c.wantSet[topic] = true
+	c.wanted = append(c.wanted, topic)
+	if err := c.handle(subscribeResponseFrame(3, resultMsg{7, uint8(StreamDepth), uint8(SubscribeOK)})); err != nil {
+		t.Fatal(err)
+	}
+	if cleanupUnsubscribe(c, topic) {
+		t.Fatal("a wanted stream unsubscribed")
+	}
+	if !c.active[topic] || c.books[topic] == nil {
+		t.Fatal("the wanted stream is not held")
+	}
+	if err := c.handle(depthSnapshotFrame(7, StreamDepth, 1, 40, []levelMsg{lv(100, 1)}, nil)); err != nil {
+		t.Fatal(err)
+	}
+	if !c.Live(topic) {
+		t.Fatal("the stream is not live after its snapshot")
+	}
+}

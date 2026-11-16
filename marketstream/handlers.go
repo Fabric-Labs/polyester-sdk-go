@@ -114,54 +114,72 @@ func (c *Client) onRecoveryResponse(m *subscribeResponseMsg, resp *SubscribeResp
 			result = r.Result
 		}
 	}
+	if !req.unsubscribe {
+		return c.onRecoverySubscribeResponse(topic, result)
+	}
 	c.mu.Lock()
 	wanted := c.wantSet[topic]
 	c.mu.Unlock()
 	c.state.Lock()
 	b := c.books[topic]
-	if b == nil {
-		// The caller ended the stream meanwhile.
+	if b == nil || b.recovery != recoveryUnsubscribing {
+		// The caller ended the stream meanwhile, or the recovery ended.
 		c.state.Unlock()
 		return nil
 	}
-	if req.unsubscribe {
-		if b.recovery != recoveryUnsubscribing {
-			c.state.Unlock()
-			return nil
-		}
-		if result != SubscribeOK && result != SubscribeNotSubscribed {
-			c.state.Unlock()
-			return &BookGapError{SymbolID: topic.SymbolID, Msg: "the depth stream's recovery Unsubscribe was answered " + result.String()}
-		}
-		if !wanted {
-			c.state.Unlock()
-			c.dropTopics([]Topic{topic})
-			return nil
-		}
-		b.recovery = recoverySubscribing
+	if result != SubscribeOK && result != SubscribeNotSubscribed {
 		c.state.Unlock()
-		c.send(sentRequest{recovery: true, topics: []Topic{topic}})
-		return nil
+		return &BookGapError{SymbolID: topic.SymbolID, Msg: "the depth stream's recovery Unsubscribe was answered " + result.String()}
 	}
-	if b.recovery != recoverySubscribing {
+	if !wanted {
 		c.state.Unlock()
-		return nil
-	}
-	if !result.Subscribed() {
-		c.state.Unlock()
-		c.mu.Lock()
-		c.unwant(topic)
-		c.mu.Unlock()
 		c.dropTopics([]Topic{topic})
 		return nil
 	}
-	b.recovery = recoverySnapshot
-	c.active[topic] = true
+	b.recovery = recoverySubscribing
 	c.state.Unlock()
-	if !wanted {
-		// The caller unsubscribed while the stream recovered.
-		c.send(sentRequest{unsubscribe: true, topics: []Topic{topic}})
+	c.send(sentRequest{recovery: true, topics: []Topic{topic}})
+	return nil
+}
+
+// onRecoverySubscribeResponse applies the answer to a recovery's Subscribe.
+// The caller may have unsubscribed, or unsubscribed and subscribed again,
+// while it was on the wire, in either order with it, so the answer is
+// applied to what the caller wants now. A stream the caller no longer wants
+// but the server holds again is unsubscribed; a wanted one is held, its book
+// waiting for the new subscription's snapshot.
+func (c *Client) onRecoverySubscribeResponse(topic Topic, result SubscribeResult) error {
+	c.mu.Lock()
+	wanted := c.wantSet[topic]
+	c.mu.Unlock()
+	if !result.Subscribed() {
+		c.state.Lock()
+		b := c.books[topic]
+		refused := b != nil && b.recovery == recoverySubscribing
+		c.state.Unlock()
+		if refused {
+			c.mu.Lock()
+			c.unwant(topic)
+			c.mu.Unlock()
+			c.dropTopics([]Topic{topic})
+		}
+		return nil
 	}
+	if !wanted {
+		c.dropTopics([]Topic{topic})
+		c.send(sentRequest{unsubscribe: true, topics: []Topic{topic}})
+		return nil
+	}
+	c.state.Lock()
+	c.active[topic] = true
+	b := c.books[topic]
+	switch {
+	case b == nil:
+		c.books[topic] = &book{stream: topic.Stream}
+	case b.recovery == recoverySubscribing:
+		b.recovery = recoverySnapshot
+	}
+	c.state.Unlock()
 	return nil
 }
 
