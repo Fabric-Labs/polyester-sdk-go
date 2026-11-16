@@ -2,6 +2,7 @@ package chain
 
 import (
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"errors"
 	"math/big"
 	"strings"
@@ -31,6 +32,13 @@ func validSignSafeUserOperationParams(t *testing.T) SignSafeUserOperationParams 
 	}
 }
 
+// withCurve is key's scalar on curve.
+func withCurve(key *ecdsa.PrivateKey, curve elliptic.Curve) *ecdsa.PrivateKey {
+	moved := *key
+	moved.Curve = curve
+	return &moved
+}
+
 func TestSignSafeUserOperationSignsValidInput(t *testing.T) {
 	signature, err := SignSafeUserOperation(validSignSafeUserOperationParams(t))
 	if err != nil {
@@ -50,6 +58,9 @@ func TestSignSafeUserOperationRefusesInvalidInput(t *testing.T) {
 	}{
 		{"OwnerKey", func(p *SignSafeUserOperationParams) { p.OwnerKey = nil }},
 		{"OwnerKey", func(p *SignSafeUserOperationParams) { p.OwnerKey = &ecdsa.PrivateKey{} }},
+		// A valid scalar without a curve, or on another curve, is not a secp256k1 key.
+		{"OwnerKey", func(p *SignSafeUserOperationParams) { p.OwnerKey = withCurve(p.OwnerKey, nil) }},
+		{"OwnerKey", func(p *SignSafeUserOperationParams) { p.OwnerKey = withCurve(p.OwnerKey, elliptic.P256()) }},
 		{"Environment.ChainID", func(p *SignSafeUserOperationParams) { p.Environment = PolyesterEnvironment{} }},
 		{"Environment.AccountAbstraction.Safe.Safe4337ModuleAddress", func(p *SignSafeUserOperationParams) {
 			p.Environment.AccountAbstraction.Safe.Safe4337ModuleAddress = ""
