@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
-	"strings"
 	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
@@ -26,6 +25,11 @@ type ZipperFeeQuote struct {
 // Use the returned Fee (or a small buffer above it) as maxFee for
 // EncodeFundingWithdrawToChain. When env or rpc is nil, PolyesterDevnetEnvironment
 // and its RPC URL are used.
+//
+// Each eth_call result must be 0x and exactly one 32-byte ABI word: an address
+// word with its upper 12 bytes zero, a decimals word of at most 255. Any other
+// result, such as non-ASCII, short, odd-length or non-hex text, is an
+// *errors.TransportError.
 func QuoteZipperFee(
 	chainID uint16,
 	zToken, zipperEndpoint string,
@@ -60,11 +64,10 @@ func QuoteZipperFee(
 	}, &ffRaw); err != nil {
 		return ZipperFeeQuote{}, fmt.Errorf("feeFactory eth_call: %w", err)
 	}
-	ffRaw = strings.TrimPrefix(strings.ToLower(ffRaw), "0x")
-	if len(ffRaw) < 40 {
-		return ZipperFeeQuote{}, fmt.Errorf("feeFactory returned short result: %s", ffRaw)
+	feeFactory, err := ethCallAddress(ffRaw, "feeFactory")
+	if err != nil {
+		return ZipperFeeQuote{}, err
 	}
-	feeFactory := "0x" + ffRaw[len(ffRaw)-40:]
 
 	decimalsSel := crypto.Keccak256([]byte("decimals()"))[:4]
 	var decimalsRaw string
@@ -74,9 +77,10 @@ func QuoteZipperFee(
 	}, &decimalsRaw); err != nil {
 		return ZipperFeeQuote{}, fmt.Errorf("decimals eth_call: %w", err)
 	}
-	decimals, ok := new(big.Int).SetString(strings.TrimPrefix(decimalsRaw, "0x"), 16)
-	if !ok {
-		return ZipperFeeQuote{}, fmt.Errorf("decimals decode failed: %s", decimalsRaw)
+	// ERC-20 decimals() returns a uint8.
+	decimals, err := ethCallUint(decimalsRaw, "decimals", 8)
+	if err != nil {
+		return ZipperFeeQuote{}, err
 	}
 
 	getFeeArgs := abi.Arguments{
@@ -98,9 +102,9 @@ func QuoteZipperFee(
 	}, &feeRaw); err != nil {
 		return ZipperFeeQuote{}, fmt.Errorf("getFee eth_call: %w", err)
 	}
-	fee, ok := new(big.Int).SetString(strings.TrimPrefix(feeRaw, "0x"), 16)
-	if !ok {
-		return ZipperFeeQuote{}, fmt.Errorf("fee decode failed: %s", feeRaw)
+	fee, err := ethCallUint(feeRaw, "getFee", 256)
+	if err != nil {
+		return ZipperFeeQuote{}, err
 	}
 
 	return ZipperFeeQuote{

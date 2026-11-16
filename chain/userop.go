@@ -121,7 +121,9 @@ func (a *SmartAccount) IsDeployed() (bool, error) {
 // Matches viem/permissionless: when key is nil, use a fresh timestamp-based
 // nonce key (Date.now() ms) so ops are not stuck on key 0 (Polyester's bundler
 // rejects some key-0 mempool submissions). getNonce(sender, key) returns the
-// full packed nonce (key<<64)|seq.
+// full packed nonce (key<<64)|seq. The eth_call result must be 0x and exactly
+// one 32-byte ABI word; any other result, such as "0x", is an
+// *errors.TransportError.
 func (a *SmartAccount) GetNonce(key *big.Int) (*big.Int, error) {
 	nonceKey := key
 	if nonceKey == nil {
@@ -148,11 +150,7 @@ func (a *SmartAccount) GetNonce(key *big.Int) (*big.Int, error) {
 	}, &result); err != nil {
 		return nil, err
 	}
-	n, ok := new(big.Int).SetString(strings.TrimPrefix(result, "0x"), 16)
-	if !ok {
-		return nil, fmt.Errorf("invalid getNonce result: %s", result)
-	}
-	return n, nil
+	return ethCallUint(result, "getNonce", 256)
 }
 
 // SendCalls builds, sponsors, signs, and submits a UserOperation for calls.
@@ -237,15 +235,15 @@ func (a *SmartAccount) SendCalls(calls []ChainCall, wait bool, receiptTimeout ti
 
 	callGasRaw, err := asInt(sponsored["callGasLimit"])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("sponsored callGasLimit: %w", err)
 	}
 	verificationGasRaw, err := asInt(sponsored["verificationGasLimit"])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("sponsored verificationGasLimit: %w", err)
 	}
 	preVerificationRaw, err := asInt(sponsored["preVerificationGas"])
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("sponsored preVerificationGas: %w", err)
 	}
 	callGas := AddUserOperationGasBuffer(callGasRaw)
 	verificationGas := AddUserOperationGasBuffer(verificationGasRaw)
@@ -663,6 +661,25 @@ func hexInt(n *big.Int) string {
 	return hexutil.EncodeBig(n)
 }
 
+// hexQuantity reads the digits of a JSON-RPC quantity after its 0x: at least
+// one hex digit, no sign and no leading zero, so "0x0" is zero and "0x" and
+// "0x01" are refused.
+func hexQuantity(digits, raw string) (*big.Int, error) {
+	if digits == "" || (len(digits) > 1 && digits[0] == '0') {
+		return nil, fmt.Errorf("invalid hex quantity %q", raw)
+	}
+	if strings.ContainsFunc(digits, func(c rune) bool {
+		return (c < '0' || c > '9') && (c < 'a' || c > 'f') && (c < 'A' || c > 'F')
+	}) {
+		return nil, fmt.Errorf("invalid hex quantity %q", raw)
+	}
+	n, ok := new(big.Int).SetString(digits, 16)
+	if !ok {
+		return nil, fmt.Errorf("invalid hex quantity %q", raw)
+	}
+	return n, nil
+}
+
 func asInt(value any) (*big.Int, error) {
 	switch v := value.(type) {
 	case nil:
@@ -691,11 +708,7 @@ func asInt(value any) (*big.Int, error) {
 	case string:
 		s := strings.TrimSpace(v)
 		if strings.HasPrefix(s, "0x") || strings.HasPrefix(s, "0X") {
-			n, ok := new(big.Int).SetString(s[2:], 16)
-			if !ok {
-				return nil, fmt.Errorf("cannot parse hex int %q", v)
-			}
-			return n, nil
+			return hexQuantity(s[2:], v)
 		}
 		n, ok := new(big.Int).SetString(s, 10)
 		if !ok {

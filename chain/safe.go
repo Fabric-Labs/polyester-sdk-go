@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -56,10 +57,28 @@ type PredictSafeAddressOptions struct {
 
 // PredictSafeAddressWithData returns the deterministic CREATE2 Safe address and
 // factory deploy data (zero RPC).
+//
+// Each owner must be a 20-byte hex address, with or without 0x, and not the
+// zero address, which the Safe contract refuses as an owner. Any other owner is
+// an *errors.ValidationError naming it, such as
+// PredictSafeAddressOptions.Owners[1]: a Safe is never predicted for an
+// address nobody controls.
 func PredictSafeAddressWithData(opts PredictSafeAddressOptions) (*PredictedSafe, error) {
 	if len(opts.Owners) == 0 {
 		return nil, fmt.Errorf("owners must be non-empty")
 	}
+	owners := make([]common.Address, len(opts.Owners))
+	for i, o := range opts.Owners {
+		owner, err := parseSafeOwner(o, fmt.Sprintf("PredictSafeAddressOptions.Owners[%d]", i))
+		if err != nil {
+			return nil, err
+		}
+		owners[i] = owner
+	}
+	return predictSafe(owners, opts)
+}
+
+func predictSafe(owners []common.Address, opts PredictSafeAddressOptions) (*PredictedSafe, error) {
 	env := PolyesterDevnetEnvironment
 	if opts.Environment != nil {
 		env = *opts.Environment
@@ -71,10 +90,6 @@ func PredictSafeAddressWithData(opts PredictSafeAddressOptions) (*PredictedSafe,
 	saltNonce := big.NewInt(0)
 	if opts.SaltNonce != nil {
 		saltNonce = new(big.Int).Set(opts.SaltNonce)
-	}
-	owners := make([]common.Address, len(opts.Owners))
-	for i, o := range opts.Owners {
-		owners[i] = common.HexToAddress(o)
 	}
 	threshold := big.NewInt(int64(len(owners)))
 	if opts.Threshold != nil {
@@ -106,9 +121,16 @@ func PredictSafeAddressWithData(opts PredictSafeAddressOptions) (*PredictedSafe,
 
 // PredictSafeAddress predicts the Polyester Safe for a single owner
 // (main account = salt 0).
+//
+// ownerAddress must be a 20-byte hex address, with or without 0x, and not the
+// zero address; any other value is an *errors.ValidationError naming
+// owner_address.
 func PredictSafeAddress(ownerAddress string, saltNonce *big.Int, environment *PolyesterChainEnvironment) (string, error) {
-	predicted, err := PredictSafeAddressWithData(PredictSafeAddressOptions{
-		Owners:      []string{ownerAddress},
+	owner, err := parseSafeOwner(ownerAddress, "owner_address")
+	if err != nil {
+		return "", err
+	}
+	predicted, err := predictSafe([]common.Address{owner}, PredictSafeAddressOptions{
 		SaltNonce:   saltNonce,
 		Environment: environment,
 	})
@@ -121,6 +143,30 @@ func PredictSafeAddress(ownerAddress string, saltNonce *big.Int, environment *Po
 // PredictPolyesterSmartAccountAddress is an alias matching the TypeScript name.
 func PredictPolyesterSmartAccountAddress(ownerAddress string, saltNonce *big.Int, environment *PolyesterChainEnvironment) (string, error) {
 	return PredictSafeAddress(ownerAddress, saltNonce, environment)
+}
+
+// parseSafeOwner reads a Safe owner: 40 hex digits after an optional 0x or 0X,
+// surrounding whitespace ignored, and not the zero address. The Safe contract
+// refuses the zero address as an owner, so a Safe predicted for it could never
+// be deployed or controlled.
+func parseSafeOwner(value, field string) (common.Address, error) {
+	text := strings.TrimSpace(value)
+	digits := text
+	if strings.HasPrefix(text, "0x") || strings.HasPrefix(text, "0X") {
+		digits = text[2:]
+	}
+	if len(digits) != 2*common.AddressLength {
+		return common.Address{}, &errors.ValidationError{Msg: field + " must be a 20-byte hex address"}
+	}
+	raw, err := hex.DecodeString(digits)
+	if err != nil {
+		return common.Address{}, &errors.ValidationError{Msg: field + " is not a valid hex address"}
+	}
+	owner := common.BytesToAddress(raw)
+	if owner == (common.Address{}) {
+		return common.Address{}, &errors.ValidationError{Msg: field + " must not be the zero address: a Safe owner must be an address someone controls"}
+	}
+	return owner, nil
 }
 
 func getInitializer(owners []common.Address, threshold *big.Int, safe SafeDeploymentConfig) ([]byte, error) {
