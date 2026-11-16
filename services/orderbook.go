@@ -43,19 +43,18 @@ func (s *OrderbookService) client() orderbookv1connect.OrderbookServiceClient {
 	return orderbookv1connect.NewOrderbookServiceClient(s.transport.HTTP, s.transport.Config.APIURL, s.transport.ConnectOptions(false)...)
 }
 
-// Get reads a snapshot of symbol. depth is a snapshot depth (1, 5, 10, 20, 50,
-// 100, 200, 500 or 1000); any other depth from 1 to 1000 requests the smallest
-// one covering it, and 0 means 50. The result's Depth is the depth requested.
-// A depth below 0 or above 1000 is an *errors.ValidationError before any request.
+// Get reads a snapshot of symbol with depth levels per side, sent as given: 0
+// requests the default of 50. The result's Depth is the depth requested (50 for
+// 0), and its MaxDepth the largest depth the service accepts. A depth above it
+// is refused by the service with invalid_argument (a *errors.ValidationError),
+// never truncated. A negative depth, or one above the uint32 range, is an
+// *errors.ValidationError before any request. Order snapshots by
+// (BookEpoch, BookSeq) with orderbook.CompareSnapshots, and never apply live
+// deltas to a snapshot: it is a frozen view of the book.
 func (s *OrderbookService) Get(ctx context.Context, symbol string, depth int) (models.OrderbookData, error) {
-	depth, err := codecs.OrderbookSnapshotDepth(depth)
+	reported, err := codecs.OrderbookSnapshotDepth(depth)
 	if err != nil {
 		return models.OrderbookData{}, err
-	}
-	name := codecs.DepthToConnectEnum(depth)
-	v, ok := orderbookv1.Depth_value[name]
-	if !ok {
-		return models.OrderbookData{}, &errors.ValidationError{Msg: "unsupported orderbook depth"}
 	}
 	// Levels are decoded with the pair's catalog quantity scale.
 	if err := awaitCatalogs(ctx, s.catalogs, true); err != nil {
@@ -65,13 +64,13 @@ func (s *OrderbookService) Get(ctx context.Context, symbol string, depth int) (m
 	if err != nil {
 		return models.OrderbookData{}, err
 	}
-	req := &orderbookv1.GetOrderBookRequest{SymbolId: symbolID, Depth: orderbookv1.Depth(v)}
+	req := &orderbookv1.GetOrderBookRequest{SymbolId: symbolID, Depth: uint32(depth)}
 	scale, ok := s.catalogs.BaseQuantityScaleForSymbol(symbol)
 	if !ok {
 		return models.OrderbookData{}, &errors.ValidationError{Msg: fmt.Sprintf("orderbook decoding requires a hydrated catalog quantity scale for %q; leave Config.SkipCatalogHydration unset and call Client.WaitForCatalogs(ctx), or hydrate the spot catalog with Client.Catalogs.HydrateSpotConfig", symbol)}
 	}
 	return UnaryPublicDecoded(ctx, s.transport, s.client().GetOrderBook, req, func(msg *orderbookv1.GetOrderBookResponse) (models.OrderbookData, error) {
-		return decode.OrderbookFromProto(msg, symbol, depth, scale)
+		return decode.OrderbookFromProto(msg, symbol, reported, scale)
 	})
 }
 
@@ -314,12 +313,7 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		FetchSnapshot: func(fetchCtx context.Context) (models.OrderbookData, error) {
 			// At the tier, not the requested depth: deltas diff the tier's whole
 			// view, and a level promoted into a trimmed view must already be known.
-			name := codecs.DepthToConnectEnum(streamDepth)
-			v, ok := orderbookv1.Depth_value[name]
-			if !ok {
-				return models.OrderbookData{}, &errors.ValidationError{Msg: "unsupported orderbook depth"}
-			}
-			req := &orderbookv1.GetOrderBookRequest{SymbolId: *resolvedSymbolID, Depth: orderbookv1.Depth(v)}
+			req := &orderbookv1.GetOrderBookRequest{SymbolId: *resolvedSymbolID, Depth: uint32(streamDepth)}
 			return UnaryPublicDecoded(fetchCtx, s.transport, s.client().GetOrderBook, req, func(msg *orderbookv1.GetOrderBookResponse) (models.OrderbookData, error) {
 				nextBids, err := orderbook.LevelsFromProtoLevels(msg.GetBids())
 				if err != nil {

@@ -15,14 +15,16 @@ import (
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/lifecycle/v1"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/services"
 )
 
-// contractFieldMessages are the request and reply messages public contract
-// 1945423c added or changed, and the messages nested in their new replies.
+// contractFieldMessages are the request and reply messages public contracts
+// 1945423c and 5c2119f added or changed, and the messages nested in their new
+// replies.
 var contractFieldMessages = []protoreflect.FullName{
 	"auth.v1.AuthErrorDetail",
 	"chain.lifecycle.v1.GetAccountFlowRequest", "chain.lifecycle.v1.GetAccountFlowResponse",
@@ -31,6 +33,7 @@ var contractFieldMessages = []protoreflect.FullName{
 	"ledger.read.v1.CreateStatementExportRequest", "ledger.read.v1.CreateStatementExportResponse",
 	"ledger.read.v1.GetStatementExportRequest", "ledger.read.v1.GetStatementExportResponse",
 	"ledger.read.v1.ListStatementExportsRequest", "ledger.read.v1.ListStatementExportsResponse", "ledger.read.v1.StatementExport",
+	"orderbook.v1.GetOrderBookRequest", "orderbook.v1.GetOrderBookResponse",
 	"orders.v1.ErrorDetail",
 	"transfer.v1.BatchCreateInternalTransfersRequest", "transfer.v1.InternalTransferBatchLeg",
 	"transfer.v1.BatchCreateInternalTransfersResponse", "transfer.v1.InternalTransferBatchLegResult", "transfer.v1.ResolvedDestination",
@@ -55,6 +58,7 @@ var contractFieldTypes = map[string]reflect.Type{
 	"models.DustQuote":                      reflect.TypeFor[models.DustQuote](),
 	"models.DustSource":                     reflect.TypeFor[models.DustSource](),
 	"models.InternalTransferBatchLeg":       reflect.TypeFor[models.InternalTransferBatchLeg](),
+	"models.OrderbookData":                  reflect.TypeFor[models.OrderbookData](),
 	"models.InternalTransferBatchLegResult": reflect.TypeFor[models.InternalTransferBatchLegResult](),
 	"models.InternalTransferBatchResult":    reflect.TypeFor[models.InternalTransferBatchResult](),
 	"models.LifecycleFlowsList":             reflect.TypeFor[models.LifecycleFlowsList](),

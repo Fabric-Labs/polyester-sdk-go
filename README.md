@@ -263,8 +263,8 @@ Recognized retry-later Connect `resource_exhausted` and REST admission-limit res
 server attaches `polyester.ratelimit.v1.RateLimitDetail` (top-level Connect detail or nested under
 `orders.v1.ErrorDetail.rate_limit`), use `RateLimitError.Detail` for `policy_class`, `scope`,
 `operation_id`, and presence-aware quota fields. A REST `RATE_LIMIT_EXCEEDED` problem is the
-same `errors.RateLimitError`, whichever side refused, with its `rate_limit` object in `Detail`;
-every field is optional. The gateway's own refusal names only `Reason` and `Scope`
+same `errors.RateLimitError`, whichever side refused, with its `rateLimit` object (camelCase
+fields, integers as decimal strings) in `Detail`; every field is optional. The gateway's own refusal names only `Reason` and `Scope`
 (`CLIENT_IP`, no `OperationID`); a service's also names the operation, the policy class and
 the remaining quota. The gateway's Connect refusal (`resource_exhausted`, "rate limit
 exceeded, retry later") has no detail at all. `RetryAfter` prefers `detail.retry_after_ms`,
@@ -2134,11 +2134,14 @@ for book := range ob.Updates() {
 }
 ```
 
-`Orderbook.Get` takes the snapshot depths 1, 5, 10, 20, 50, 100, 200, 500 and 1000.
-Any other depth from 1 to 1000 requests the smallest of them that covers it, 20 for
-`11`, and 0 means 50; the result's `Depth` is the depth requested
-(`codecs.OrderbookSnapshotDepth`). A depth below 0 or above 1000 is an
-`*errors.ValidationError` before any request.
+`Orderbook.Get` takes any level count per side and sends it as given; 0 means 50, and the
+result's `Depth` is the depth requested (`codecs.OrderbookSnapshotDepth`). The largest depth
+the service accepts is the `MaxDepth` every snapshot reports (5,000 by default); a deeper
+request is refused by the service with `invalid_argument` (an `*errors.ValidationError`),
+never truncated, so read `MaxDepth` instead of assuming one. A negative depth is an
+`*errors.ValidationError` before any request. A snapshot is a frozen view at its own
+`(BookEpoch, BookSeq)`: order snapshots with `orderbook.CompareSnapshots`, keep the newest,
+and never apply live deltas to one.
 The delta stream is published at fewer depths, 1, 20, 50, 200 and 500
 (`codecs.OrderbookStreamDepths()`), and the server accepts a subscribe at any other
 depth and then sends nothing on it, so the SDK does not subscribe there:

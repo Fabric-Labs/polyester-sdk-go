@@ -101,7 +101,7 @@ func TestOversizedRequestRefusedBeforeItsBodyIsRead(t *testing.T) {
 }
 
 // A REST rate-limit problem is one typed rate-limit error whichever side
-// refused, with its rate_limit detail and the server's retry time.
+// refused, with its rateLimit detail and the server's retry time.
 func TestRateLimitProblemCarriesItsDetail(t *testing.T) {
 	u64 := func(v uint64) *uint64 { return &v }
 	f64 := func(v float64) *float64 { return &v }
@@ -115,7 +115,7 @@ func TestRateLimitProblemCarriesItsDetail(t *testing.T) {
 		{
 			name:    "service quota",
 			headers: map[string]string{"Retry-After": "2", "RateLimit-Limit": "30", "RateLimit-Remaining": "0", "RateLimit-Reset": "2"},
-			body:    `{"code":"RATE_LIMIT_EXCEEDED","detail":"Rate limit exceeded","rate_limit":{"reason":"QUOTA_EXCEEDED","limit":"30","remaining":"0","retry_after_ms":"1409","policy_version":"5","operation_id":"auth.wallet_challenge","policy_class":"AUTH_PUBLIC","scope":"AUTH_SUBJECT","refill_model":"CONTINUOUS"},"status":429,"title":"Rate limit exceeded","type":"https://polyester.dev/problems/rate-limit-exceeded"}`,
+			body:    `{"code":"RATE_LIMIT_EXCEEDED","detail":"Rate limit exceeded","rateLimit":{"reason":"QUOTA_EXCEEDED","operationId":"auth.wallet_challenge","policyClass":"AUTH_PUBLIC","scope":"AUTH_SUBJECT","refillModel":"CONTINUOUS","limit":"30","remaining":"0","retryAfterMs":"1409","policyVersion":"5"},"status":429,"title":"Rate limit exceeded","type":"https://polyester.dev/problems/rate-limit-exceeded"}`,
 			detail: sdkerrors.RateLimitDetail{
 				Reason: "QUOTA_EXCEEDED", Limit: u64(30), Remaining: u64(0), RetryAfterMs: u64(1409), PolicyVersion: u64(5),
 				OperationID: "auth.wallet_challenge", PolicyClass: "AUTH_PUBLIC", Scope: "AUTH_SUBJECT", RefillModel: "CONTINUOUS",
@@ -125,18 +125,18 @@ func TestRateLimitProblemCarriesItsDetail(t *testing.T) {
 		{
 			name:    "gateway window",
 			headers: map[string]string{"Retry-After": "59", "X-RateLimit-Limit": "30", "X-RateLimit-Remaining": "0", "X-RateLimit-Reset": "59"},
-			body:    `{"code":"RATE_LIMIT_EXCEEDED","detail":"Rate limit exceeded","rate_limit":{"reason":"QUOTA_EXCEEDED","scope":"CLIENT_IP"},"status":429,"title":"Rate limit exceeded","type":"https://polyester.dev/problems/rate-limit-exceeded"}`,
+			body:    `{"code":"RATE_LIMIT_EXCEEDED","detail":"Rate limit exceeded","rateLimit":{"reason":"QUOTA_EXCEEDED","scope":"CLIENT_IP"},"status":429,"title":"Rate limit exceeded","type":"https://polyester.dev/problems/rate-limit-exceeded"}`,
 			detail:  sdkerrors.RateLimitDetail{Reason: "QUOTA_EXCEEDED", Scope: "CLIENT_IP"},
 			retry:   f64(59),
 		},
 		{
 			name:   "gateway concurrency",
-			body:   `{"code":"RATE_LIMIT_EXCEEDED","detail":"Rate limit exceeded","rate_limit":{"reason":"QUOTA_EXCEEDED","scope":"CLIENT_IP"},"status":429,"title":"Rate limit exceeded","type":"https://polyester.dev/problems/rate-limit-exceeded"}`,
+			body:   `{"code":"RATE_LIMIT_EXCEEDED","detail":"Rate limit exceeded","rateLimit":{"reason":"QUOTA_EXCEEDED","scope":"CLIENT_IP"},"status":429,"title":"Rate limit exceeded","type":"https://polyester.dev/problems/rate-limit-exceeded"}`,
 			detail: sdkerrors.RateLimitDetail{Reason: "QUOTA_EXCEEDED", Scope: "CLIENT_IP"},
 		},
 		{
 			name:   "numbers and a newer enum value",
-			body:   `{"code":"RATE_LIMIT_EXCEEDED","rate_limit":{"reason":"SOME_NEW_REASON","limit":30,"retry_after_ms":250}}`,
+			body:   `{"code":"RATE_LIMIT_EXCEEDED","rateLimit":{"reason":"SOME_NEW_REASON","limit":30,"retryAfterMs":250}}`,
 			detail: sdkerrors.RateLimitDetail{Reason: "SOME_NEW_REASON", Limit: u64(30), RetryAfterMs: u64(250)},
 			retry:  f64(0.25),
 		},
@@ -151,7 +151,7 @@ func TestRateLimitProblemCarriesItsDetail(t *testing.T) {
 				t.Fatalf("code = %q", rate.Code)
 			}
 			if rate.Detail == nil {
-				t.Fatal("rate_limit detail dropped")
+				t.Fatal("rateLimit detail dropped")
 			}
 			if got, want := *rate.Detail, tc.detail; !rateLimitDetailEqual(got, want) {
 				t.Fatalf("detail = %+v, want %+v", got, want)
@@ -269,12 +269,34 @@ func TestWalletAlreadyLinkedIsATerminalAuthRefusal(t *testing.T) {
 	}
 }
 
+// The problem's member is rateLimit with camelCase fields. The snake_case
+// spelling an older API sent is not the contract's and is not read: the error
+// keeps its code and the Retry-After header, with no detail.
+func TestRateLimitProblemReadsOnlyTheContractSpelling(t *testing.T) {
+	for _, body := range []string{
+		`{"code":"RATE_LIMIT_EXCEEDED","rate_limit":{"reason":"QUOTA_EXCEEDED","retry_after_ms":"1500"}}`,
+		`{"code":"RATE_LIMIT_EXCEEDED","rateLimit":{"reason":"QUOTA_EXCEEDED","retry_after_ms":"1500","operation_id":"orders.create"}}`,
+	} {
+		err := callMeAgainst(t, http.StatusTooManyRequests, "application/problem+json", body, map[string]string{"Retry-After": "2"})
+		var rate *sdkerrors.RateLimitError
+		if !errors.As(err, &rate) || rate.Code != "ERROR_CODE_RATE_LIMIT_EXCEEDED" {
+			t.Fatalf("%s: error = %T %+v", body, err, err)
+		}
+		if rate.Detail != nil && (rate.Detail.RetryAfterMs != nil || rate.Detail.OperationID != "") {
+			t.Fatalf("%s: read a snake_case field: %+v", body, *rate.Detail)
+		}
+		if rate.RetryAfter == nil || *rate.RetryAfter != 2 {
+			t.Fatalf("%s: retry after = %v, want the Retry-After header 2", body, rate.RetryAfter)
+		}
+	}
+}
+
 // Only ASCII digits within uint64 are an integer; anything else is absent, so
 // the delay falls back to Retry-After.
 func TestRateLimitProblemIgnoresAnUnreadableInteger(t *testing.T) {
 	for _, value := range []string{"²", "٣", strings.Repeat("9", 5000), "18446744073709551616", "-1", "1.5", "+5"} {
 		t.Run(value[:min(len(value), 8)], func(t *testing.T) {
-			body := `{"code":"RATE_LIMIT_EXCEEDED","rate_limit":{"reason":"QUOTA_EXCEEDED","scope":"CLIENT_IP","limit":"` + value + `","retry_after_ms":"` + value + `"}}`
+			body := `{"code":"RATE_LIMIT_EXCEEDED","rateLimit":{"reason":"QUOTA_EXCEEDED","scope":"CLIENT_IP","limit":"` + value + `","retryAfterMs":"` + value + `"}}`
 			err := callMeAgainst(t, http.StatusTooManyRequests, "application/problem+json", body, map[string]string{"Retry-After": "2"})
 			var rate *sdkerrors.RateLimitError
 			if !errors.As(err, &rate) || rate.Code != "ERROR_CODE_RATE_LIMIT_EXCEEDED" || rate.Detail == nil {

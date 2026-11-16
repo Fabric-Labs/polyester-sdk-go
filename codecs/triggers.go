@@ -86,7 +86,7 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 	}
 	qtyScaled, err := ResolveQtyScaled(qty, quantityScale, "qty", symbol, &symbolID)
 	if err != nil {
-		return nil, err
+		return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_TRIGGER_QTY_INVALID)
 	}
 	intent := &triggersv1.TriggerIntent{
 		SymbolId:  symbolID,
@@ -95,7 +95,7 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 	if clientTriggerID != nil && *clientTriggerID != "" {
 		validated, err := requiredClientID(*clientTriggerID, "client_trigger_id")
 		if err != nil {
-			return nil, err
+			return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_CLIENT_TRIGGER_ID_INVALID)
 		}
 		intent.ClientTriggerId = validated
 	} else {
@@ -105,6 +105,12 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 		asset, ok := triggerFeeAssetToProto[strings.ToLower(*opts.FeeAsset)]
 		if !ok {
 			return nil, &errors.ValidationError{Msg: "fee_asset must be quote or base"}
+		}
+		// The contract's fee-asset rule for every trigger strategy: a sell
+		// pays its fee in quote. A buy may pay in base only on a pair that
+		// allows it, which the server checks.
+		if sideEnum, ok := orderSideToProto[strings.ToLower(side)]; ok && asset == orderv1.FeeAsset_BASE && sideEnum == orderv1.Side_SELL {
+			return nil, feeAssetNotAllowed("fee_asset=base is only valid for buy triggers; a sell pays its fee in quote")
 		}
 		intent.FeeAsset = asset
 	}
@@ -126,7 +132,7 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 		if triggerPrice != nil && triggerPrice.IsSet() {
 			parsed, err := ResolvePriceTicks(*triggerPrice, "trigger_price", symbol)
 			if err != nil {
-				return nil, err
+				return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_TRIGGER_PRICE_INVALID)
 			}
 			triggerTicks = parsed
 		}
@@ -174,31 +180,34 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 		case hasLimitPrice:
 			ticks, err := ResolvePriceTicks(*limitPrice, "limit_price", symbol)
 			if err != nil {
-				return nil, err
+				return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_BAD_PRICE)
 			}
 			if ticks <= 0 {
-				return nil, &errors.ValidationError{Msg: "limit_price must be positive"}
+				return nil, &errors.ValidationError{Msg: "limit_price must be positive", Code: orderv1.ErrorCode_ERROR_CODE_BAD_PRICE.String()}
 			}
 			trailing.LimitPriceTicks = ticks
 		}
 		switch {
 		case opts.TrailingDistanceTicks != nil:
 			if *opts.TrailingDistanceTicks < TrailingDistanceTicksMin {
-				return nil, &errors.ValidationError{Msg: fmt.Sprintf("trailing_distance_ticks %d must be at least %d", *opts.TrailingDistanceTicks, TrailingDistanceTicksMin)}
+				return nil, &errors.ValidationError{
+					Msg:  fmt.Sprintf("trailing_distance_ticks %d must be at least %d", *opts.TrailingDistanceTicks, TrailingDistanceTicksMin),
+					Code: orderv1.ErrorCode_ERROR_CODE_TRAILING_DISTANCE_INVALID.String(),
+				}
 			}
 			trailing.TrailingDistance = &triggersv1.TrailingStopTrigger_TrailingDistanceTicks{TrailingDistanceTicks: *opts.TrailingDistanceTicks}
 		case opts.TrailingDistanceBps != nil:
 			if err := validateBps("trailing_distance_bps", *opts.TrailingDistanceBps, false); err != nil {
-				return nil, err
+				return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_TRAILING_DISTANCE_INVALID)
 			}
 			trailing.TrailingDistance = &triggersv1.TrailingStopTrigger_TrailingDistanceBps{TrailingDistanceBps: *opts.TrailingDistanceBps}
 		default:
-			return nil, &errors.ValidationError{Msg: "trailing_stop requires trailing_distance_ticks or trailing_distance_bps"}
+			return nil, &errors.ValidationError{Msg: "trailing_stop requires trailing_distance_ticks or trailing_distance_bps", Code: orderv1.ErrorCode_ERROR_CODE_TRAILING_DISTANCE_INVALID.String()}
 		}
 		if opts.ActivationPrice != nil && opts.ActivationPrice.IsSet() {
 			ticks, err := ResolvePriceTicks(*opts.ActivationPrice, "activation_price", symbol)
 			if err != nil {
-				return nil, err
+				return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_TRIGGER_ACTIVATION_PRICE_INVALID)
 			}
 			trailing.ActivationPriceTicks = ticks
 		}
@@ -224,15 +233,15 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 		}
 		duration, err := requiredInRange(opts.TwapDurationMs, "twap_duration_ms", "twap", TwapDurationMsMin, TwapDurationMsMax)
 		if err != nil {
-			return nil, err
+			return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_TWAP_DURATION_INVALID)
 		}
 		interval, err := requiredInRange(opts.TwapSliceIntervalMs, "twap_slice_interval_ms", "twap", TwapSliceIntervalMsMin, TwapSliceIntervalMsMax)
 		if err != nil {
-			return nil, err
+			return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_TWAP_INTERVAL_INVALID)
 		}
 		// The contract's twap_trigger.window rule.
 		if interval > duration {
-			return nil, &errors.ValidationError{Msg: "twap_slice_interval_ms must not exceed twap_duration_ms"}
+			return nil, &errors.ValidationError{Msg: "twap_slice_interval_ms must not exceed twap_duration_ms", Code: orderv1.ErrorCode_ERROR_CODE_TWAP_INTERVAL_INVALID.String()}
 		}
 		twap := &triggersv1.TwapTrigger{Side: sideEnum, DurationMs: duration, SliceIntervalMs: interval}
 		switch strings.ToLower(orderType) {
@@ -257,11 +266,11 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 			twap.Execution = &triggersv1.TwapTrigger_MarketIoc{MarketIoc: ioc}
 		case "limit":
 			if limitPrice == nil || !limitPrice.IsSet() {
-				return nil, &errors.ValidationError{Msg: "twap limit slices require limit_price"}
+				return nil, &errors.ValidationError{Msg: "twap limit slices require limit_price", Code: orderv1.ErrorCode_ERROR_CODE_BAD_PRICE.String()}
 			}
 			ticks, err := ResolvePriceTicks(*limitPrice, "limit_price", symbol)
 			if err != nil {
-				return nil, err
+				return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_BAD_PRICE)
 			}
 			twap.Execution = &triggersv1.TwapTrigger_LimitGtc{LimitGtc: &triggersv1.TwapLimitGtc{PriceTicks: ticks}}
 		default:
@@ -283,7 +292,7 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 		if opts.LadderPriceMin != nil && opts.LadderPriceMin.IsSet() {
 			ticks, err := ResolvePriceTicks(*opts.LadderPriceMin, "ladder_price_min", symbol)
 			if err != nil {
-				return nil, err
+				return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_TRIGGER_PRICE_INVALID)
 			}
 			ladder.PriceMinTicks = ticks
 			hasMin = true
@@ -291,17 +300,17 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 		if opts.LadderPriceMax != nil && opts.LadderPriceMax.IsSet() {
 			ticks, err := ResolvePriceTicks(*opts.LadderPriceMax, "ladder_price_max", symbol)
 			if err != nil {
-				return nil, err
+				return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_TRIGGER_PRICE_INVALID)
 			}
 			ladder.PriceMaxTicks = ticks
 			hasMax = true
 		}
 		if hasMin && hasMax && ladder.PriceMinTicks >= ladder.PriceMaxTicks {
-			return nil, &errors.ValidationError{Msg: "ladder_price_min must be strictly less than ladder_price_max"}
+			return nil, &errors.ValidationError{Msg: "ladder_price_min must be strictly less than ladder_price_max", Code: orderv1.ErrorCode_ERROR_CODE_TRIGGER_PRICE_INVALID.String()}
 		}
 		levels, err := requiredInRange(opts.LadderLevels, "ladder_levels", "ladder", LadderLevelsMin, LadderLevelsMax)
 		if err != nil {
-			return nil, err
+			return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_LADDER_LEVELS_INVALID)
 		}
 		ladder.Levels = levels
 		intent.Strategy = &triggersv1.TriggerIntent_Ladder{Ladder: ladder}
@@ -425,11 +434,11 @@ func conditionalChildToProto(orderType, tif string, limitPrice *models.PriceInpu
 			return nil, &errors.ValidationError{Msg: "max_slippage_ticks and max_slippage_bps apply only to market children; a limit child is bounded by limit_price"}
 		}
 		if limitPrice == nil || !limitPrice.IsSet() {
-			return nil, &errors.ValidationError{Msg: "limit trigger requires limit_price"}
+			return nil, &errors.ValidationError{Msg: "limit trigger requires limit_price", Code: orderv1.ErrorCode_ERROR_CODE_BAD_PRICE.String()}
 		}
 		ticks, err := ResolvePriceTicks(*limitPrice, "limit_price", symbol)
 		if err != nil {
-			return nil, err
+			return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_BAD_PRICE)
 		}
 		switch strings.ToLower(tif) {
 		case "ioc":
@@ -459,16 +468,24 @@ func conditionalChildToProto(orderType, tif string, limitPrice *models.PriceInpu
 // MaxSlippageBpsLimit is the product-wide trigger/order slippage BPS cap.
 const MaxSlippageBpsLimit int32 = 10_000
 
-// createSlippageCap validates an optional create-time slippage cap: at most
-// one of ticks or bps, ticks positive, bps from 1 to maxBps.
+// createSlippageCap validates an optional create-time trigger slippage cap: at
+// most one of ticks or bps, ticks positive, bps from 1 to maxBps. Refusals
+// carry the code the API answers: ERROR_CODE_SLIPPAGE_TICKS_INVALID, or for
+// bps ERROR_CODE_SLIPPAGE_BPS_INVALID outside 1 to 10000 and
+// ERROR_CODE_MAX_SLIPPAGE_INVALID for 10000 where maxBps excludes it (a sell
+// or a trailing stop, where it leaves no price).
 func createSlippageCap(ticks *int64, bps *int32, maxBps int32) (*int64, *int32, error) {
 	switch {
 	case ticks != nil && bps != nil:
 		return nil, nil, &errors.ValidationError{Msg: "set at most one of max_slippage_ticks or max_slippage_bps"}
 	case ticks != nil && *ticks <= 0:
-		return nil, nil, &errors.ValidationError{Msg: "max_slippage_ticks must be positive"}
+		return nil, nil, &errors.ValidationError{Msg: "max_slippage_ticks must be positive", Code: orderv1.ErrorCode_ERROR_CODE_SLIPPAGE_TICKS_INVALID.String()}
 	case bps != nil && (*bps < 1 || *bps > maxBps):
-		return nil, nil, &errors.ValidationError{Msg: fmt.Sprintf("max_slippage_bps must be between 1 and %d", maxBps)}
+		code := orderv1.ErrorCode_ERROR_CODE_SLIPPAGE_BPS_INVALID
+		if *bps >= 1 && *bps <= MaxSlippageBpsLimit {
+			code = orderv1.ErrorCode_ERROR_CODE_MAX_SLIPPAGE_INVALID
+		}
+		return nil, nil, &errors.ValidationError{Msg: fmt.Sprintf("max_slippage_bps must be between 1 and %d", maxBps), Code: code.String()}
 	}
 	return ticks, bps, nil
 }
@@ -544,7 +561,7 @@ func ModifyTriggerToProto(triggerID string, symbolID uint32, symbol string, subA
 	if opts.TriggerPrice != nil && opts.TriggerPrice.IsSet() {
 		ticks, err := ResolvePriceTicks(*opts.TriggerPrice, "trigger_price", symbol)
 		if err != nil {
-			return nil, err
+			return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_TRIGGER_PRICE_INVALID)
 		}
 		req.TriggerPriceTicks = &ticks
 	}
@@ -553,20 +570,20 @@ func ModifyTriggerToProto(triggerID string, symbolID uint32, symbol string, subA
 	}
 	if opts.TrailingDistanceBps != nil {
 		if err := validateBps("trailing_distance_bps", *opts.TrailingDistanceBps, false); err != nil {
-			return nil, err
+			return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_TRAILING_DISTANCE_INVALID)
 		}
 		req.TrailingDistance = &triggersv1.ModifyTriggerRequest_TrailingDistanceBps{TrailingDistanceBps: *opts.TrailingDistanceBps}
 	}
 	if opts.ActivationPrice != nil && opts.ActivationPrice.IsSet() {
 		ticks, err := ResolvePriceTicks(*opts.ActivationPrice, "activation_price", symbol)
 		if err != nil {
-			return nil, err
+			return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_TRIGGER_ACTIVATION_PRICE_INVALID)
 		}
 		req.ActivationPriceTicks = &ticks
 	}
 	if opts.MaxSlippageTicks != nil {
 		if *opts.MaxSlippageTicks < 0 {
-			return nil, &errors.ValidationError{Msg: "max_slippage_ticks must not be negative; send 0 to clear the cap"}
+			return nil, &errors.ValidationError{Msg: "max_slippage_ticks must not be negative; send 0 to clear the cap", Code: orderv1.ErrorCode_ERROR_CODE_SLIPPAGE_TICKS_INVALID.String()}
 		}
 		req.MaxSlippage = &triggersv1.ModifyTriggerRequest_MaxSlippageTicks{MaxSlippageTicks: *opts.MaxSlippageTicks}
 	}
@@ -576,7 +593,7 @@ func ModifyTriggerToProto(triggerID string, symbolID uint32, symbol string, subA
 		// buy stop-loss or take-profit market child takes it; a sell or a
 		// trailing stop answers MAX_SLIPPAGE_INVALID).
 		if err := validateBps("max_slippage_bps", *opts.MaxSlippageBps, true); err != nil {
-			return nil, err
+			return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_SLIPPAGE_BPS_INVALID)
 		}
 		req.MaxSlippage = &triggersv1.ModifyTriggerRequest_MaxSlippageBps{MaxSlippageBps: *opts.MaxSlippageBps}
 	}
@@ -613,7 +630,7 @@ func CreateOcoToProto(symbolID uint32, in models.CreateOcoInput, subAccountID *s
 	}
 	qtyScaled, err := ResolveQtyScaled(in.Qty, quantityScale, "qty", in.Symbol, &symbolID)
 	if err != nil {
-		return nil, err
+		return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_BAD_QTY)
 	}
 	intent := &triggersv1.OcoIntent{SymbolId: symbolID, Side: side, QtyScaled: qtyScaled}
 	if in.ClientListID != nil && *in.ClientListID != "" {
@@ -656,6 +673,16 @@ func ValidateClientListID(value string) (string, error) {
 }
 
 func ocoLegToProto(leg models.RiskLegInput, fieldName, symbol string) (*triggersv1.OcoLeg, error) {
+	// A leg's prices are refused with the codes the API answers for an OCO:
+	// ERROR_CODE_TRIGGER_PRICE_INVALID and ERROR_CODE_BAD_PRICE.
+	if _, err := positivePriceTicks(leg.TriggerPrice, fieldName+".trigger_price", symbol); err != nil {
+		return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_TRIGGER_PRICE_INVALID)
+	}
+	if leg.LimitPrice != nil {
+		if _, err := positivePriceTicks(*leg.LimitPrice, fieldName+".limit_price", symbol); err != nil {
+			return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_BAD_PRICE)
+		}
+	}
 	ticks, source, child, err := riskLegToProto(leg, fieldName, symbol)
 	if err != nil {
 		return nil, err
@@ -704,4 +731,23 @@ func newTriggerRequestID() string {
 	var b [6]byte
 	_, _ = rand.Read(b[:])
 	return fmt.Sprintf("trg-%s", hex.EncodeToString(b[:]))
+}
+
+// coded gives a trigger refusal the SDK makes before sending the code the API
+// answers for the same mistake, so a refusal reads alike either way. A
+// refusal that already carries a code keeps it.
+func coded(err error, code orderv1.ErrorCode) error {
+	validation, ok := err.(*errors.ValidationError)
+	if !ok || validation.Code != "" {
+		return err
+	}
+	copied := *validation
+	copied.Code = code.String()
+	return &copied
+}
+
+// feeAssetNotAllowed refuses a fee asset the contract's fee-asset rule refuses,
+// with the code the API answers for it.
+func feeAssetNotAllowed(msg string) error {
+	return &errors.ValidationError{Msg: msg, Code: orderv1.ErrorCode_ERROR_CODE_FEE_ASSET_NOT_ALLOWED.String()}
 }

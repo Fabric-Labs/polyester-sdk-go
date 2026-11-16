@@ -38,7 +38,7 @@ var restCodeForm = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
 //     "UNAUTHENTICATED", ...) or a {"code":"PERMISSION_DENIED"} problem as
 //     *errors.AuthError with the problem's code and detail;
 //   - a retryable admission problem, such as a 429 RATE_LIMIT_EXCEEDED, as
-//     *errors.RateLimitError with the problem's rate_limit detail and the
+//     *errors.RateLimitError with the problem's rateLimit detail and the
 //     response's Retry-After;
 //   - a 429 REPLAY_CAPACITY_EXHAUSTED problem as *errors.RateLimitError with
 //     code AUTH_REPLAY_CAPACITY_EXHAUSTED;
@@ -84,7 +84,7 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 			Type  string `json:"type"`
 			Value string `json:"value"`
 		} `json:"details"`
-		RateLimit json.RawMessage `json:"rate_limit"`
+		RateLimit json.RawMessage `json:"rateLimit"`
 	}
 	if isJSON || resp.StatusCode == 504 {
 		if json.Unmarshal(decoded, &detail) != nil {
@@ -403,29 +403,24 @@ func isRetryableRESTAdmissionCode(code string) bool {
 	}
 }
 
-// problemRateLimit reads the rate_limit object of a REST rate-limit problem.
-// Every field is optional: the gateway's own refusal sends only reason and
-// scope. Integers arrive as JSON strings or numbers; enum names are kept as
-// sent, including ones newer than this SDK. Anything that isn't an object
-// reads as no detail, and a field of the wrong type reads as absent.
+// problemRateLimit reads the rateLimit object of a REST rate-limit problem,
+// whose fields are camelCase. Every field is optional: the gateway's own
+// refusal sends only reason and scope. Integers arrive as JSON strings (problem
+// bodies) or numbers; enum names are kept as sent, including ones newer than
+// this SDK. Anything that isn't an object reads as no detail, and a field of the
+// wrong type reads as absent.
 func problemRateLimit(raw json.RawMessage) *sdkerrors.RateLimitDetail {
 	var fields map[string]json.RawMessage
 	if len(raw) == 0 || json.Unmarshal(raw, &fields) != nil || fields == nil {
 		return nil
 	}
-	field := func(snake, camel string) json.RawMessage {
-		if value, ok := fields[snake]; ok {
-			return value
-		}
-		return fields[camel]
-	}
-	text := func(snake, camel string) string {
+	text := func(name string) string {
 		var value string
-		_ = json.Unmarshal(field(snake, camel), &value)
+		_ = json.Unmarshal(fields[name], &value)
 		return value
 	}
-	integer := func(snake, camel string) *uint64 {
-		value := field(snake, camel)
+	integer := func(name string) *uint64 {
+		value := fields[name]
 		var quoted string
 		if json.Unmarshal(value, &quoted) == nil {
 			value = json.RawMessage(quoted)
@@ -437,14 +432,14 @@ func problemRateLimit(raw json.RawMessage) *sdkerrors.RateLimitDetail {
 		return &parsed
 	}
 	return &sdkerrors.RateLimitDetail{
-		Reason:        text("reason", "reason"),
-		Limit:         integer("limit", "limit"),
-		Remaining:     integer("remaining", "remaining"),
-		RetryAfterMs:  integer("retry_after_ms", "retryAfterMs"),
-		PolicyVersion: integer("policy_version", "policyVersion"),
-		OperationID:   text("operation_id", "operationId"),
-		PolicyClass:   text("policy_class", "policyClass"),
-		Scope:         text("scope", "scope"),
-		RefillModel:   text("refill_model", "refillModel"),
+		Reason:        text("reason"),
+		Limit:         integer("limit"),
+		Remaining:     integer("remaining"),
+		RetryAfterMs:  integer("retryAfterMs"),
+		PolicyVersion: integer("policyVersion"),
+		OperationID:   text("operationId"),
+		PolicyClass:   text("policyClass"),
+		Scope:         text("scope"),
+		RefillModel:   text("refillModel"),
 	}
 }

@@ -50,12 +50,30 @@ func HeatmapIntervalChannelLabel(interval string) (string, error) {
 	return "", &errors.ValidationError{Msg: fmt.Sprintf("unknown heatmap interval %q; use 1s, 1m, 5m or 1h", interval)}
 }
 
-// HeatmapDepth returns the depth Heatmap.Get requests for depth, by the rule of
-// OrderbookSnapshotDepth: depth itself when it is a supported depth (1, 5, 10,
-// 20, 50, 100, 200, 500, 1000), else the smallest one covering it. 0 is the
-// default 50. A depth below 0 or above 1000 is a ValidationError.
+// heatmapDepths are the depths a heatmap request names (HeatmapDepth), ascending.
+var heatmapDepths = [...]int{1, 5, 10, 20, 50, 100, 200, 500, 1000}
+
+const heatmapDefaultDepth = 50
+
+// HeatmapDepth returns the depth Heatmap.Get requests for depth: depth itself
+// when it is a heatmap depth (1, 5, 10, 20, 50, 100, 200, 500, 1000), else the
+// smallest one covering it. 0 is the default 50. A depth below 0 or above 1000
+// is a ValidationError.
 func HeatmapDepth(depth int) (int, error) {
-	return coveringSnapshotDepth(depth, "heatmap depth")
+	if depth == 0 {
+		return heatmapDefaultDepth, nil
+	}
+	if depth < 0 {
+		return 0, &errors.ValidationError{Msg: fmt.Sprintf("heatmap depth must not be negative, got %d", depth)}
+	}
+	for _, tier := range heatmapDepths {
+		if tier >= depth {
+			return tier, nil
+		}
+	}
+	return 0, &errors.ValidationError{Msg: fmt.Sprintf(
+		"heatmap depth %d is above the deepest heatmap depth (%d)", depth, heatmapDepths[len(heatmapDepths)-1],
+	)}
 }
 
 func ResolveHeatmapEnum(values map[string]int32, aliases map[string]string, value, field string) (int32, error) {

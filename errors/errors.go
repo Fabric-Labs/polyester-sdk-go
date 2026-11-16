@@ -499,7 +499,7 @@ func (e *CatalogHydrationError) Unwrap() error        { return e.Err }
 //
 // Detail carries structured polyester.ratelimit.v1.RateLimitDetail when the
 // server attached it: Connect details, an in-band order rejection, or the
-// rate_limit object of a REST RATE_LIMIT_EXCEEDED problem, whose fields are
+// rateLimit object of a REST RATE_LIMIT_EXCEEDED problem, whose fields are
 // all optional. The gateway's own refusal names only Reason and Scope
 // (CLIENT_IP, with no OperationID); a service's also names the operation, the
 // policy class and the remaining quota. RetryAfter prefers

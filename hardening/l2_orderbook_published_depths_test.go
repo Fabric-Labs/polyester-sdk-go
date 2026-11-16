@@ -130,14 +130,6 @@ func (m *tierMarket) viewLocked(depth int) (map[int64]int64, map[int64]int64) {
 	return topLevels(m.bids, depth, true), topLevels(m.asks, depth, false)
 }
 
-func depthLevels(depth orderbookv1.Depth) int {
-	var levels int
-	if _, err := fmt.Sscanf(depth.String(), "DEPTH_%d", &levels); err != nil {
-		return 0
-	}
-	return levels
-}
-
 func sortedProtoLevels(side map[int64]int64, descending bool) []*orderbookv1.PriceLevel {
 	prices := slices.Sorted(maps.Keys(side))
 	if descending {
@@ -153,10 +145,11 @@ func sortedProtoLevels(side map[int64]int64, descending bool) []*orderbookv1.Pri
 func (m *tierMarket) GetOrderBook(_ context.Context, req *connect.Request[orderbookv1.GetOrderBookRequest]) (*connect.Response[orderbookv1.GetOrderBookResponse], error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.snapshots = append(m.snapshots, req.Msg.GetDepth().String())
-	response := &orderbookv1.GetOrderBookResponse{SymbolId: 1, BookSeq: m.seq, Available: !m.unavailable}
+	m.snapshots = append(m.snapshots, fmt.Sprint(req.Msg.GetDepth()))
+	response := &orderbookv1.GetOrderBookResponse{SymbolId: 1, BookSeq: m.seq, Available: !m.unavailable, MaxDepth: 5000}
 	if !m.unavailable {
-		bids, asks := m.viewLocked(depthLevels(req.Msg.GetDepth()))
+		response.BookEpoch = 1
+		bids, asks := m.viewLocked(int(req.Msg.GetDepth()))
 		response.Bids = sortedProtoLevels(bids, true)
 		response.Asks = sortedProtoLevels(asks, false)
 	}
@@ -500,7 +493,7 @@ func TestManagedBookEveryRequestedDepthRidesItsTierAndTrims(t *testing.T) {
 		}
 		first := nextTierView(t, sub, fmt.Sprintf("first view at depth %d", depth))
 		requests := market.snapshotRequests()
-		if got := requests[len(requests)-1]; got != fmt.Sprintf("DEPTH_%d", tier) {
+		if got := requests[len(requests)-1]; got != fmt.Sprint(tier) {
 			t.Fatalf("depth %d snapshot %s", depth, got)
 		}
 		if first.Depth != depth ||
@@ -539,7 +532,7 @@ func TestManagedBookEachTierUsesItselfForChannelSnapshotAndView(t *testing.T) {
 				t.Fatalf("subscribed %q", got)
 			}
 			view := nextTierView(t, sub, "first view")
-			assertSnapshots(t, market, fmt.Sprintf("DEPTH_%d", tier))
+			assertSnapshots(t, market, fmt.Sprint(tier))
 			if view.Depth != tier || len(view.Bids) != tier || len(view.Asks) != tier {
 				t.Fatalf("view has depth %d, %d bids, %d asks", view.Depth, len(view.Bids), len(view.Asks))
 			}
@@ -583,7 +576,7 @@ func TestManagedBookUnservableDepthRefusedBeforeConnecting(t *testing.T) {
 			if got := market.connections.Load(); got != 1 {
 				t.Fatalf("control connections = %d", got)
 			}
-			assertSnapshots(t, market, "DEPTH_500")
+			assertSnapshots(t, market, "500")
 		})
 	}
 }
@@ -664,7 +657,7 @@ func TestManagedBookGapInDeltaOutsideViewWaitsForReset(t *testing.T) {
 	if gaps() != 1 || !recovered.Available || recovered.BookSeq != "201" || len(recovered.Bids) != 10 || recovered.Bids[0].Qty.Scaled() != 9 {
 		t.Fatalf("gaps = %d, view available %v at seq %s with %d bids", gaps(), recovered.Available, recovered.BookSeq, len(recovered.Bids))
 	}
-	assertSnapshots(t, market, "DEPTH_20")
+	assertSnapshots(t, market, "20")
 }
 
 func TestManagedBookSequenceZeroSnapshotDetectsGapAtTrimmedDepth(t *testing.T) {
@@ -685,7 +678,7 @@ func TestManagedBookSequenceZeroSnapshotDetectsGapAtTrimmedDepth(t *testing.T) {
 	if stale.Available || stale.BookSeq != "0" || stale.Bids[0].Qty.Scaled() != 5 {
 		t.Fatalf("available %v seq %s qty %d: the gapped delta must not be applied", stale.Available, stale.BookSeq, stale.Bids[0].Qty.Scaled())
 	}
-	assertSnapshots(t, market, "DEPTH_20")
+	assertSnapshots(t, market, "20")
 }
 
 func TestManagedBookSequenceZeroSnapshotAppliesNextContiguousDelta(t *testing.T) {
@@ -699,7 +692,7 @@ func TestManagedBookSequenceZeroSnapshotAppliesNextContiguousDelta(t *testing.T)
 	if gaps() != 0 || updated.BookSeq != "1" || updated.Bids[0].Qty.Scaled() != 8 {
 		t.Fatalf("gaps %d seq %s qty %d", gaps(), updated.BookSeq, updated.Bids[0].Qty.Scaled())
 	}
-	assertSnapshots(t, market, "DEPTH_20")
+	assertSnapshots(t, market, "20")
 }
 
 func TestManagedBookUnavailableStaysUnknownThenRecoversTrimmed(t *testing.T) {
@@ -720,7 +713,7 @@ func TestManagedBookUnavailableStaysUnknownThenRecoversTrimmed(t *testing.T) {
 	if !recovered.Available || len(recovered.Bids) != 10 || len(recovered.Asks) != 10 {
 		t.Fatalf("recovered view has available %v, %d bids, %d asks", recovered.Available, len(recovered.Bids), len(recovered.Asks))
 	}
-	assertSnapshots(t, market, "DEPTH_20", "DEPTH_20")
+	assertSnapshots(t, market, "20", "20")
 }
 
 func TestManagedBookResetDeltaReplacesBookAndStaysTrimmed(t *testing.T) {
@@ -789,7 +782,7 @@ func TestManagedBookZeroPriceOutsideTrimmedViewResyncsAtTier(t *testing.T) {
 	if !recovered.Available || recovered.BookSeq != "101" || len(recovered.Bids) != 10 {
 		t.Fatalf("reset did not recover the book: available %v seq %s, %d bids", recovered.Available, recovered.BookSeq, len(recovered.Bids))
 	}
-	assertSnapshots(t, market, "DEPTH_20")
+	assertSnapshots(t, market, "20")
 	if sub.Err() != nil || reported.Load() != 0 || gaps.Load() != 1 {
 		t.Fatalf("Err=%v errors=%d gaps=%d", sub.Err(), reported.Load(), gaps.Load())
 	}
@@ -816,7 +809,7 @@ func TestManagedBookReconnectStaysOnTierAndRefetchesAtIt(t *testing.T) {
 	if reconnects.Load() != 1 {
 		t.Fatalf("reconnects = %d", reconnects.Load())
 	}
-	assertSnapshots(t, market, "DEPTH_20", "DEPTH_20")
+	assertSnapshots(t, market, "20", "20")
 	if len(refreshed.Bids) != 10 {
 		t.Fatalf("%d bids", len(refreshed.Bids))
 	}
@@ -875,7 +868,7 @@ func TestRawSnapshotServesEveryEnumDepth(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			assertSnapshots(t, market, fmt.Sprintf("DEPTH_%d", depth))
+			assertSnapshots(t, market, fmt.Sprint(depth))
 			if book.Depth != depth || len(book.Bids) != depth || len(book.Asks) != depth {
 				t.Fatalf("book has depth %d, %d bids, %d asks", book.Depth, len(book.Bids), len(book.Asks))
 			}
