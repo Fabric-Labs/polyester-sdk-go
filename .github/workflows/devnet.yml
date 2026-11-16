@@ -1,0 +1,164 @@
+name: Devnet
+
+# Publishes a devnet pre-release of the Go module on every push to main whose
+# CHANGELOG has entries under ## Unreleased. RELEASING.md describes both
+# release channels.
+#
+# A Go module version is a git tag, and the Go module proxy serves any tag
+# pushed to this repository, so publishing is pushing the tag
+# v<next version>-devnet.<YYYYMMDDHHmmss> on the commit. `go get <module>@latest`
+# prefers release versions to pre-releases, so it keeps resolving the newest
+# vX.Y.Z tag. This workflow never runs for tags: stable releases are the
+# vX.Y.Z tags a maintainer pushes, and nothing builds them.
+#
+# scripts/devnet_release.py computes the version. A manual run plans and checks
+# the tag without pushing it; it publishes only from main with dry_run off.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Plan and check the devnet tag without pushing it
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+# One devnet publish at a time on main. A manual dry run publishes nothing and
+# takes no lock.
+concurrency:
+  group: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && format('devnet-dry-run-{0}', github.run_id) || format('devnet-{0}', github.ref) }}
+  cancel-in-progress: false
+
+jobs:
+  route:
+    name: Route devnet
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    outputs:
+      channel: ${{ steps.route.outputs.channel }}
+      dry_run: ${{ steps.route.outputs.dry_run }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # A push to main goes devnet; scripts/test_devnet_release.py covers each case.
+      - name: Pick the channel
+        id: route
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: python3 scripts/devnet_release.py route --event "$GITHUB_EVENT_NAME" --ref "$GITHUB_REF" --dry-run "$DRY_RUN"
+
+  devnet-plan:
+    name: Plan devnet pre-release
+    needs: route
+    if: needs.route.outputs.channel == 'devnet'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    outputs:
+      skip: ${{ steps.plan.outputs.skip }}
+      sha: ${{ steps.plan.outputs.sha }}
+      version: ${{ steps.plan.outputs.version }}
+      tag: ${{ steps.plan.outputs.tag }}
+      exists: ${{ steps.exists.outputs.exists }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      # Next version from the last vX.Y.Z tag and ## Unreleased, timestamped
+      # with the commit time; skip=true when Unreleased has no entries.
+      - name: Plan the devnet version
+        id: plan
+        run: python3 scripts/devnet_release.py plan --notes devnet-notes.md
+
+      - name: Is the tag already pushed?
+        id: exists
+        if: steps.plan.outputs.skip == 'false'
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: python3 scripts/devnet_release.py exists --version "$VERSION"
+
+      # Tags a local mirror of this repository and resolves it with the go
+      # command: the tag is a valid module version, and @latest stays stable.
+      - name: Go resolves the tag; @latest stays stable
+        if: steps.plan.outputs.skip == 'false'
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: python3 scripts/devnet_release.py verify --version "$VERSION"
+
+      - name: GitHub pre-release preview
+        if: steps.plan.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/devnet_release.py release --notes devnet-notes.md --dry-run true
+
+      - name: Keep the release notes
+        if: steps.plan.outputs.skip == 'false'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: devnet-notes
+          path: devnet-notes.md
+          if-no-files-found: error
+
+  devnet-ci:
+    name: CI
+    needs: devnet-plan
+    if: needs.devnet-plan.outputs.skip == 'false'
+    uses: ./.github/workflows/ci.yml
+
+  devnet-publish:
+    name: Push devnet tag and pre-release
+    needs: [route, devnet-plan, devnet-ci]
+    if: needs.route.outputs.channel == 'devnet' && needs.route.outputs.dry_run == 'false' && needs.devnet-plan.outputs.skip == 'false'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      # A re-run of a commit whose tag is already pushed skips the push.
+      - name: Push the devnet tag
+        if: needs.devnet-plan.outputs.exists == 'false'
+        env:
+          SHA: ${{ needs.devnet-plan.outputs.sha }}
+          TAG: ${{ needs.devnet-plan.outputs.tag }}
+        run: git push origin "$SHA:refs/tags/$TAG"
+
+      # Asks the Go module proxy for the tag until it serves it, then checks
+      # that @latest still resolves to a vX.Y.Z release.
+      - name: The Go proxy serves it; @latest stays stable
+        env:
+          VERSION: ${{ needs.devnet-plan.outputs.version }}
+        run: python3 scripts/devnet_release.py check-registry --version "$VERSION"
+
+      - name: Fetch the release notes
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: devnet-notes
+
+      - name: Move the GitHub pre-release to this snapshot
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/devnet_release.py release --notes devnet-notes.md
