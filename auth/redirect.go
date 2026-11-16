@@ -83,7 +83,8 @@ func (g malformedRedirectGuard) RoundTrip(req *http.Request) (*http.Response, er
 		return resp, nil
 	}
 	_ = resp.Body.Close()
-	return nil, &errors.RedirectRefusedError{StatusCode: resp.StatusCode, Malformed: true}
+	// The answer's delay, read from its headers, rides on the refusal.
+	return nil, &errors.RedirectRefusedError{StatusCode: resp.StatusCode, Malformed: true, RetryAfter: errors.RetryAfterHeader(resp.Header)}
 }
 
 // followsLocation reports the statuses whose Location net/http follows.

@@ -56,13 +56,26 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	if base == nil {
 		base = http.DefaultTransport
 	}
+	// Each round trip answers for itself: a redirect followed to a target
+	// that never answers leaves no answer behind.
+	record := answerRecordOf(req.Context())
+	record.clear()
 	resp, err := base.RoundTrip(req)
-	if err != nil || resp.StatusCode < 400 {
+	if err != nil || resp.StatusCode < 300 {
 		return resp, err
 	}
-	// The answer's real status, which a ConnectRPC error decoded by
-	// connect-go keeps in its metadata (its code alone implies another).
+	// The answer's status and delay are fixed here, from its headers, before
+	// its body is read or a redirect is decided; the call's error, whatever
+	// later fails, carries them (see answerInterceptor). A ConnectRPC error
+	// decoded by connect-go keeps the real status in its metadata too (its
+	// code alone implies another).
+	record.set(resp)
 	resp.Header.Set(wire.AnswerStatusHeader, strconv.Itoa(resp.StatusCode))
+	if resp.StatusCode < 400 {
+		// The client's redirect policy decides; a signed request's redirect
+		// is refused, and one with nothing to follow reaches connect-go.
+		return resp, nil
+	}
 	body, readErr := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyBytes))
 	// Hand the caller the whole body: the inspected prefix, then the rest.
 	resp.Body = prefixedBody{Reader: io.MultiReader(bytes.NewReader(body), resp.Body), Closer: resp.Body}

@@ -262,6 +262,9 @@ func subscribeProto[T any](
 			var terminal *terminalRealtimeError
 			var redirected *sdkerrors.RedirectRefusedError
 			if errors.As(err, &terminal) || errors.As(err, &redirected) {
+				// Before the first handshake the caller gets this refusal
+				// itself, with its answer.
+				sendReady(err)
 				sub.fail(err)
 				return
 			}

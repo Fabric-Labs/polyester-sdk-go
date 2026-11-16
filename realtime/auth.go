@@ -119,10 +119,14 @@ func signedGet(ctx context.Context, httpClient *http.Client, creds *auth.Credent
 		return nil, redact.URLError(err)
 	}
 	defer func() { _ = resp.Body.Close() }()
+	// A failed answer's status and delay are fixed from its headers before
+	// its body is read: every error on it carries them, a body cut short,
+	// too long or past its deadline included.
+	failed := resp.StatusCode < 200 || resp.StatusCode >= 300
+	status, retryAfter := resp.StatusCode, wire.RetryAfterHeaderSeconds(resp.Header)
 	body, err := readSignedAnswer(resp, label, rawURL, maxBytes)
-	if err != nil && resp.StatusCode >= 400 {
-		// Every error from a failed answer carries its status and delay.
-		sdkerrors.AttachAnswer(err, resp.StatusCode, wire.RetryAfterHeaderSeconds(resp.Header))
+	if err != nil && failed {
+		sdkerrors.AttachAnswer(err, status, retryAfter)
 	}
 	return body, err
 }
@@ -154,7 +158,9 @@ func readSignedAnswer(resp *http.Response, label, rawURL string, maxBytes int) (
 		authErr.Msg += " [" + endpoint + "]"
 		return nil, authErr
 	}
-	if resp.StatusCode >= 400 {
+	// A redirect is never followed, so one that reaches here, with nothing
+	// to follow, is a failed answer too.
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		msg := fmt.Sprintf("%s: HTTP %d", label, resp.StatusCode)
 		// Keep the server's reason, such as "unsupported channel".
 		if detail := truncateAuthBody(body); detail != "" {

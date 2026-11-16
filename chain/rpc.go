@@ -51,7 +51,8 @@ func NewJSONRPCClient(url string, timeout time.Duration) *JSONRPCClient {
 	return &JSONRPCClient{
 		url: url,
 		client: useragent.WrapClient(&http.Client{
-			Timeout: timeout,
+			Timeout:   timeout,
+			Transport: refuseRedirects{},
 		}),
 		maxBody: MaxJSONRPCResponseBytes,
 	}
@@ -84,6 +85,19 @@ func (c *JSONRPCClient) Request(method string, params any) (json.RawMessage, err
 		return nil, fmt.Errorf("json-rpc post: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
+	// A failed answer's status and delay are fixed from its headers before
+	// its body is read, so every error on it carries them.
+	var failed func(detail string) error
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		status, retryAfter := resp.StatusCode, sdkerrors.RetryAfterHeader(resp.Header)
+		failed = func(detail string) error {
+			return &sdkerrors.TransportError{
+				Msg:        fmt.Sprintf("json-rpc http %d: %s", status, detail),
+				Status:     status,
+				RetryAfter: retryAfter,
+			}
+		}
+	}
 
 	maxBody := c.maxBody
 	if maxBody <= 0 {
@@ -92,18 +106,19 @@ func (c *JSONRPCClient) Request(method string, params any) (json.RawMessage, err
 	limited := io.LimitReader(resp.Body, maxBody+1)
 	body, err := io.ReadAll(limited)
 	if err != nil {
+		if failed != nil {
+			return nil, failed("read body: " + err.Error())
+		}
 		return nil, fmt.Errorf("read json-rpc response: %w", err)
 	}
 	if int64(len(body)) > maxBody {
+		if failed != nil {
+			return nil, failed(fmt.Sprintf("response exceeds %d bytes", maxBody))
+		}
 		return nil, fmt.Errorf("json-rpc response exceeds %d bytes", maxBody)
 	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		// The JSON-RPC endpoint's answer: its status and delay ride along.
-		return nil, &sdkerrors.TransportError{
-			Msg:        fmt.Sprintf("json-rpc http %d: %s", resp.StatusCode, truncateBody(body, 256)),
-			Status:     resp.StatusCode,
-			RetryAfter: sdkerrors.RetryAfterHeader(resp.Header),
-		}
+	if failed != nil {
+		return nil, failed(truncateBody(body, 256))
 	}
 
 	var envelope map[string]json.RawMessage
@@ -247,4 +262,22 @@ func ethCallUint(raw, kind string, bits int) (*big.Int, error) {
 		return nil, &sdkerrors.TransportError{Msg: fmt.Sprintf("eth_call %s result exceeds uint%d", kind, bits)}
 	}
 	return n, nil
+}
+
+// refuseRedirects never follows a redirect: it answers one, before net/http
+// parses its Location, with the redirect's status and delay, and without the
+// Location, which may carry credentials.
+type refuseRedirects struct{}
+
+func (refuseRedirects) RoundTrip(req *http.Request) (*http.Response, error) {
+	resp, err := http.DefaultTransport.RoundTrip(req)
+	if err != nil || resp.StatusCode < 300 || resp.StatusCode >= 400 {
+		return resp, err
+	}
+	_ = resp.Body.Close()
+	return nil, &sdkerrors.TransportError{
+		Msg:        fmt.Sprintf("json-rpc http %d: redirect not followed", resp.StatusCode),
+		Status:     resp.StatusCode,
+		RetryAfter: sdkerrors.RetryAfterHeader(resp.Header),
+	}
 }

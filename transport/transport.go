@@ -132,7 +132,9 @@ func (f *Factory) FreshHTTP() (*http.Client, func()) {
 
 // ConnectOptions returns client options for generated Connect clients.
 func (f *Factory) ConnectOptions(authenticated bool) []connect.ClientOption {
-	opts := []connect.ClientOption{connect.WithReadMaxBytes(MaxConnectResponseBytes)}
+	// The answer interceptor is outermost: every attempt inside it records
+	// its answer, and the call's error carries the last one.
+	opts := []connect.ClientOption{connect.WithReadMaxBytes(MaxConnectResponseBytes), connect.WithInterceptors(answerInterceptor{})}
 	if f.Config.WireFormat == connectx.WireJSON {
 		opts = append(opts, connect.WithProtoJSON())
 	}
