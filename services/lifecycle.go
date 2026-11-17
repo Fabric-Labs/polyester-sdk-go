@@ -266,8 +266,8 @@ func checkFilterIDs(name string, ids []uint32) error {
 // Account and subAccountID select the account as for ListAccountFlows. The
 // call is signed; an API key needs READ_FUNDING_FLOWS on its policy.
 func (s *LifecycleService) GetAccountFlow(ctx context.Context, flowID string, account AccountScope, subAccountID *string) (models.LifecycleFlowSummary, error) {
-	if flowID == "" {
-		return models.LifecycleFlowSummary{}, &errors.ValidationError{Msg: "flow_id is required"}
+	if err := checkFlowID(flowID); err != nil {
+		return models.LifecycleFlowSummary{}, err
 	}
 	req := &lifecyclev1.GetAccountFlowRequest{FlowId: flowID}
 	if err := s.scoped.ApplyOptionalSubaccountIDPtr(&req.SubaccountId, account, subAccountID); err != nil {
@@ -322,12 +322,17 @@ func flowParticipationFromLabel(label string) (lifecyclev1.FlowParticipation, er
 }
 
 func (s *LifecycleService) GetFlow(ctx context.Context, intentID, flowID *string) (models.LifecycleFlowSummary, error) {
+	// Only a nil flow ID is unset: a supplied one never falls back to the
+	// intent ID.
 	resolved := flowID
-	if resolved == nil || *resolved == "" {
+	if resolved == nil {
 		resolved = intentID
 	}
-	if resolved == nil || *resolved == "" {
+	if resolved == nil {
 		return models.LifecycleFlowSummary{}, &errors.ValidationError{Msg: "flow_id or intent_id is required"}
+	}
+	if err := checkFlowID(*resolved); err != nil {
+		return models.LifecycleFlowSummary{}, err
 	}
 	req := &lifecyclev1.GetFlowByIdRequest{FlowId: *resolved}
 	return UnaryPublicDecoded(ctx, s.transport, s.client().GetFlowById, req, decode.FlowFromGetResponse)
@@ -388,6 +393,16 @@ func (s *LifecycleService) SubscribeOpenFlows(ctx context.Context, accountID any
 }
 
 func (s *LifecycleService) SubscribeFlowDetail(ctx context.Context, flowID string) (*realtime.Subscription[models.LifecycleFlowSummary], error) {
+	if err := checkFlowID(flowID); err != nil {
+		return nil, err
+	}
 	channel := fmt.Sprintf("public:chain:lifecycle:flow:%s:proto", flowID)
 	return SubscribePublicProto(ctx, s.realtime, channel, decode.FlowDetailFromBytes)
+}
+
+// checkFlowID refuses a flow ID the contract's flow_id rule does not take
+// ("flow_" and base58, 6 to 64 characters): empty, blank or spaced text is
+// no flow ID.
+func checkFlowID(flowID string) error {
+	return codecs.CheckContractString(&lifecyclev1.GetFlowByIdRequest{}, "flow_id", flowID, "flow_id")
 }
