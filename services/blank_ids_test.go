@@ -103,3 +103,36 @@ func TestSubscribeOpenFlowsRefusesABlankAccountInsteadOfThePublicFeed(t *testing
 		t.Fatalf("SubscribeOpenFlows(nil) requested private channels %v, want the public feed", channels)
 	}
 }
+
+// A supplied flow ID is read by the contract's flow_id rule: a blank or
+// spaced one is refused before sending, and GetFlow never falls back from a
+// supplied flow ID to the intent ID. A nil flow ID still reads the intent.
+func TestFlowLookupsRefuseABlankFlowID(t *testing.T) {
+	factory, captures := scopeCaptureFactory(t)
+	fake := newFakeCentrifugo(t)
+	rt := realtime.NewClient(fake.wsURL, fake.apiURL, accountIDTestCredentials(t), nil, 16)
+	t.Cleanup(rt.Close)
+	lifecycle := NewLifecycleService(factory, rt, nil)
+	ctx := context.Background()
+	intent := "flow_23"
+	for _, id := range append(blankIDs, " flow_23", "flow_23 ") {
+		id := id
+		_, err := lifecycle.GetFlow(ctx, &intent, &id)
+		requireValidation(t, "GetFlow "+id, err)
+		_, err = lifecycle.GetAccountFlow(ctx, id, nil, nil)
+		requireValidation(t, "GetAccountFlow "+id, err)
+		sub, err := lifecycle.SubscribeFlowDetail(ctx, id)
+		if sub != nil {
+			sub.Close()
+		}
+		requireValidation(t, "SubscribeFlowDetail "+id, err)
+		if len(captures) != 0 {
+			<-captures
+			t.Errorf("flow ID %q reached transport", id)
+		}
+	}
+	_, _ = lifecycle.GetFlow(ctx, &intent, nil)
+	if len(captures) != 1 {
+		t.Fatalf("GetFlow(intent, nil) captured %d requests, want one", len(captures))
+	}
+}
