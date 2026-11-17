@@ -202,6 +202,29 @@ func TestTriggerFeeAssetBaseOnASellIsRefused(t *testing.T) {
 		if err := createCodedTrigger(quote); err != nil {
 			t.Fatalf("%s sell fee_asset=quote: %v", kind, err)
 		}
+		// What is sent: an unset fee asset stays unset (quote) on either
+		// side, and a buy's base is sent as base for the server to decide.
+		for _, tc := range []struct {
+			side  string
+			asset *string
+			want  orderv1.FeeAsset
+		}{
+			{"sell", nil, orderv1.FeeAsset_FEE_ASSET_UNSPECIFIED},
+			{"buy", nil, orderv1.FeeAsset_FEE_ASSET_UNSPECIFIED},
+			{"sell", refStr("quote"), orderv1.FeeAsset_QUOTE},
+			{"buy", refStr("base"), orderv1.FeeAsset_BASE},
+		} {
+			sent := c
+			sent.side = tc.side
+			if kind == "trailing_stop" && tc.side == "buy" {
+				sent.limitPrice = refPrice("70000")
+			}
+			sent.opts.FeeAsset = tc.asset
+			req, err := CreateTriggerToProto(1, "BTC-USDT", sent.kind, sent.triggerPrice, sent.side, models.QtyFromDecimal("0.001"), sent.orderType, sent.limitPrice, "", "", nil, nil, false, 8, sent.opts)
+			if err != nil || req.GetTrigger().GetFeeAsset() != tc.want {
+				t.Fatalf("%s %s fee_asset=%v: sent %v, err %v; want %v", kind, tc.side, tc.asset, req.GetTrigger().GetFeeAsset(), err, tc.want)
+			}
+		}
 	}
 }
 
