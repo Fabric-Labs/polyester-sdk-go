@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	marketoverviewv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketoverview/v1"
@@ -45,6 +46,9 @@ func (s *MarketOverviewService) List(ctx context.Context, symbols []string, limi
 		return models.MarketOverviewList{}, &errors.ValidationError{Msg: "at most one page token is allowed"}
 	}
 	req := &marketoverviewv1.ListMarketOverviewRequest{Limit: parsedLimit, IncludeSparklines: includeSparklines}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.MarketOverviewList{}, err
+	}
 	if len(pageToken) == 1 {
 		req.PageToken = pageToken[0]
 	}

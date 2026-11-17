@@ -42,6 +42,9 @@ func (s *AddressBookService) ListEntries(ctx context.Context, account AccountSco
 		return models.AddressBookEntriesList{}, err
 	}
 	req := &authv1.ListAddressBookEntriesRequest{Limit: parsedLimit}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.AddressBookEntriesList{}, err
+	}
 	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.AddressBookEntriesList{}, err
 	}
@@ -62,6 +65,9 @@ func (s *AddressBookService) ListTransferCounterparties(ctx context.Context, acc
 		return models.TransferCounterpartiesList{}, err
 	}
 	req := &authv1.ListTransferCounterpartiesRequest{Limit: parsedLimit}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.TransferCounterpartiesList{}, err
+	}
 	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.TransferCounterpartiesList{}, err
 	}
@@ -91,6 +97,9 @@ func (s *AddressBookService) ListTransferDestinations(ctx context.Context, accou
 		return models.AddressBookTransferDestinationsList{}, err
 	}
 	req := &authv1.ListTransferDestinationsRequest{Kind: entryKind, Limit: parsedLimit}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.AddressBookTransferDestinationsList{}, err
+	}
 	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.AddressBookTransferDestinationsList{}, err
 	}
@@ -106,6 +115,9 @@ func (s *AddressBookService) ListInternalTransferWhitelistEntries(ctx context.Co
 		return models.InternalTransferWhitelistEntriesList{}, err
 	}
 	req := &authv1.ListInternalTransferWhitelistEntriesRequest{Limit: parsedLimit}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.InternalTransferWhitelistEntriesList{}, err
+	}
 	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.InternalTransferWhitelistEntriesList{}, err
 	}
@@ -129,6 +141,9 @@ func (s *AddressBookService) GetView(ctx context.Context, account AccountScope, 
 		return models.AddressBookView{}, err
 	}
 	req := &authv1.GetAddressBookViewRequest{Limit: parsedLimit}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.AddressBookView{}, err
+	}
 	if minimumViewRevision != 0 {
 		req.MinimumViewRevision = minimumViewRevision
 	}

@@ -109,6 +109,9 @@ func (s *OrdersService) ListOpen(ctx context.Context, account AccountScope, subA
 	if parsedLimit != nil {
 		req.Limit = parsedLimit
 	}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.OrdersList{}, err
+	}
 	if triggerID != nil && *triggerID != "" {
 		id, err := codecs.IDToInt(*triggerID, "trigger_id")
 		if err != nil {
@@ -153,10 +156,13 @@ func (s *OrdersService) ListHistory(ctx context.Context, account AccountScope, s
 		return models.OrdersList{}, err
 	}
 	req := &orderv1.GetOrderHistoryRequest{
-		Limit: uint32Ptr(parsedLimit), IncludeAttachedRisk: boolPtr(includeAttachedRisk),
+		Limit: optionalPageLimit(parsedLimit), IncludeAttachedRisk: boolPtr(includeAttachedRisk),
 		IncludeAttachedRiskState: boolPtr(includeAttachedRiskState),
 		StartTsNs:                options.StartTsNs,
 		EndTsNs:                  options.EndTsNs,
+	}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.OrdersList{}, err
 	}
 	if err := s.scoped.ApplyOptionalSubaccountIDPtr(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.OrdersList{}, err
@@ -208,6 +214,9 @@ func (s *OrdersService) Get(ctx context.Context, account AccountScope, key model
 	}
 	if options.Limit != nil {
 		req.Limit = options.Limit
+	}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.GetOrderResult{}, err
 	}
 	if options.PageToken != nil {
 		req.PageToken = *options.PageToken
@@ -742,7 +751,8 @@ func (s *OrdersService) Subscribe(ctx context.Context, accountID any) (*realtime
 // To check the trades recorded so far on a working order, read it with Get
 // and compare its trades to CumQty. Each poll reads every execution page, and
 // the result carries the order, trades and transfers of the last poll with
-// that read's ExecutionsComplete.
+// that read's ExecutionsComplete. A settlement leg listed on several pages,
+// because its match's fills span them, is returned once (by tx_id).
 //
 // The timeout bounds the whole wait, page reads included: a read still in
 // flight when it passes is abandoned, a read that finishes after it is no
@@ -817,7 +827,10 @@ func (s *OrdersService) WaitForOrderTradesComplete(
 
 // getOrderExecutionPages reads one order with every page of its execution
 // history and returns the order, the trades and transfers of all pages, and
-// the final page's ExecutionsComplete.
+// the final page's ExecutionsComplete. A page lists the settlement legs of
+// the matches on it, so a match whose fills span pages repeats its legs: a
+// leg whose tx_id an earlier page listed is kept once, at its first position,
+// as the contract says to deduplicate them. A leg without a tx_id is kept.
 func (s *OrdersService) getOrderExecutionPages(
 	ctx context.Context,
 	account AccountScope,
@@ -830,6 +843,7 @@ func (s *OrdersService) getOrderExecutionPages(
 	var transfers []models.OrderTransfer
 	var order *models.Order
 	requested := map[string]bool{}
+	settled := map[string]bool{}
 	for {
 		page, err := s.Get(ctx, account, key, subAccountID, false, false, models.GetOrderOptions{
 			IncludeExecutionHistory: &includeHistory,
@@ -845,7 +859,16 @@ func (s *OrdersService) getOrderExecutionPages(
 			order = page.Order
 		}
 		trades = append(trades, page.Trades...)
-		transfers = append(transfers, page.Transfers...)
+		for _, leg := range page.Transfers {
+			if leg.TxID == "" || !settled[leg.TxID] {
+				transfers = append(transfers, leg)
+			}
+		}
+		for _, leg := range page.Transfers {
+			if leg.TxID != "" {
+				settled[leg.TxID] = true
+			}
+		}
 		if page.NextPageToken == "" {
 			return models.GetOrderResult{
 				Order:              order,

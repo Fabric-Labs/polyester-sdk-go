@@ -79,6 +79,9 @@ func (s *MarketDataService) GetTrades(ctx context.Context, symbol *string, symbo
 		return models.MarketTradesResult{}, err
 	}
 	req := &marketdatav1.GetTradesRequest{SymbolId: resolved, Limit: parsedLimit}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.MarketTradesResult{}, err
+	}
 	if pageToken != nil && *pageToken != "" {
 		req.PageToken = *pageToken
 	}
@@ -117,6 +120,9 @@ func (s *MarketDataService) GetTradesAfter(ctx context.Context, symbol *string, 
 		return models.MarketTradesResult{}, err
 	}
 	req := &marketdatav1.GetTradesRequest{SymbolId: resolved, Limit: parsedLimit, AfterTradeId: &after}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.MarketTradesResult{}, err
+	}
 	return UnaryPublic(ctx, s.transport, s.client().GetTrades, req, func(msg *marketdatav1.GetTradesResponse) models.MarketTradesResult {
 		return decode.MarketTradesBackfillFromProto(msg, scale)
 	})
@@ -220,6 +226,9 @@ func (s *MarketDataService) buildCandlesRequest(ctx context.Context, symbol *str
 			return nil, 0, 0, err
 		}
 		req := &marketdatav1.GetCandlesRequest{SymbolId: resolved, Timeframe: marketdatav1.Timeframe(v), Limit: parsedLimit, IncludeIncomplete: includeIncomplete, IncludeReference: includeReference}
+		if err := codecs.CheckPageLimit(req); err != nil {
+			return nil, 0, 0, err
+		}
 		if start != nil {
 			req.StartTime = timestamppb.New(*start)
 		}

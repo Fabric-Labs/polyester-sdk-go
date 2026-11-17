@@ -4,6 +4,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
@@ -132,6 +133,13 @@ func IDToInt(value string, label string) (uint64, error) {
 }
 
 func parseID(value string, label string) (uint64, error) {
+	// A public ID is ASCII: decimal digits or the base58 alphabet. Anything
+	// else, including a non-ASCII space TrimSpace would remove, is refused.
+	for i := 0; i < len(value); i++ {
+		if value[i] >= utf8.RuneSelf {
+			return 0, &errors.ValidationError{Msg: label + " must be an ASCII base58 or decimal uint64"}
+		}
+	}
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return 0, &errors.ValidationError{Msg: label + " is required"}

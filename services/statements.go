@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"iter"
 	"strings"
 	"time"
@@ -202,10 +201,10 @@ func (s *StatementsService) ListExports(ctx context.Context, opts ListStatementE
 	if err != nil {
 		return models.StatementExportsList{}, err
 	}
-	if limit > codecs.ListStatementExportsLimitMax {
-		return models.StatementExportsList{}, &errors.ValidationError{Msg: fmt.Sprintf("limit %d exceeds %d", limit, codecs.ListStatementExportsLimitMax)}
-	}
 	req := &ledgerrdv1.ListStatementExportsRequest{Limit: limit, PageToken: opts.PageToken}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.StatementExportsList{}, err
+	}
 	if err := s.scoped.ApplyOptionalSubaccountIDPtr(&req.SubaccountId, opts.Account, opts.SubAccountID); err != nil {
 		return models.StatementExportsList{}, err
 	}

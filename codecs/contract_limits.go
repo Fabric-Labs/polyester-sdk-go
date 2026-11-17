@@ -30,6 +30,9 @@ var (
 	// TrailingDistanceTicksMin is the smallest trailing stop distance in
 	// ticks the contract takes (its gt 0 rule on trailing_distance_ticks).
 	TrailingDistanceTicksMin, _ = contractInt64Range(&triggersv1.TrailingStopTrigger{}, "trailing_distance_ticks")
+	// ModifyTrailingDistanceTicksMin is the smallest trailing distance in
+	// ticks a trigger modify takes (its gt 0 rule on trailing_distance_ticks).
+	ModifyTrailingDistanceTicksMin, _ = contractInt64Range(&triggersv1.ModifyTriggerRequest{}, "trailing_distance_ticks")
 )
 
 // Page sizes and batch sizes, read from the public contract's validation
@@ -87,6 +90,40 @@ func contractPattern(pattern string) *regexp.Regexp {
 	re := regexp.MustCompile(pattern)
 	contractPatterns.Store(pattern, re)
 	return re
+}
+
+// CheckPageLimit refuses req with a *errors.ValidationError when its page
+// limit breaks the public contract's rule on the request's limit field: above
+// the rule's maximum, or below its minimum when the field is set. A limit
+// left unset, which a field without presence also is at 0, is not checked:
+// the server then applies its default page size. A request without a limit
+// field, or whose limit has no rule, passes.
+func CheckPageLimit(req proto.Message) error {
+	msg := req.ProtoReflect()
+	field := msg.Descriptor().Fields().ByName("limit")
+	if field == nil || field.Kind() != protoreflect.Uint32Kind || !msg.Has(field) {
+		return nil
+	}
+	rules := contractFieldRules(req, "limit").GetUint32()
+	if rules == nil {
+		return nil
+	}
+	value := uint32(msg.Get(field).Uint())
+	low := uint32(0)
+	switch bound := rules.GetGreaterThan().(type) {
+	case *validate.UInt32Rules_Gte:
+		low = bound.Gte
+	case *validate.UInt32Rules_Gt:
+		low = bound.Gt + 1
+	}
+	high := contractUint32Max(req, "limit")
+	switch {
+	case value > high:
+		return &errors.ValidationError{Msg: fmt.Sprintf("limit %d exceeds %d", value, high)}
+	case value < low:
+		return &errors.ValidationError{Msg: fmt.Sprintf("limit %d is below %d; leave it unset for the server's default", value, low)}
+	}
+	return nil
 }
 
 func contractUint32Max(msg proto.Message, name protoreflect.Name) uint32 {

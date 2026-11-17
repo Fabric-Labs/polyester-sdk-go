@@ -79,6 +79,9 @@ func (s *HeatmapService) Get(ctx context.Context, symbol *string, symbolID *uint
 		return models.ApiData{}, err
 	}
 	req := &heatmapv1.GetOrderbookHeatmapRequest{SymbolId: resolved, Interval: intervalEnum, Depth: heatmapv1.HeatmapDepth(depthEnum), Limit: parsedLimit, QuantityMode: heatmapv1.HeatmapQuantityMode(qtyEnum)}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.ApiData{}, err
+	}
 	if len(pageToken) == 1 {
 		req.PageToken = pageToken[0]
 	}

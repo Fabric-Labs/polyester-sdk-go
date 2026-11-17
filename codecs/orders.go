@@ -201,7 +201,7 @@ func OrderIntentToProto(req models.CreateOrderRequest, quantityScale, quoteQuant
 	hasPrice := req.Price != nil && req.Price.IsSet()
 	var priceTicks int64
 	if hasPrice {
-		ticks, err := ResolvePriceTicks(*req.Price, "price", symbol)
+		ticks, err := positivePriceTicks(*req.Price, "price", symbol)
 		if err != nil {
 			return nil, err
 		}

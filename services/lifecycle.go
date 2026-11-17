@@ -83,6 +83,9 @@ func (s *LifecycleService) ListFlowsWith(ctx context.Context, params ListFlowsPa
 		return models.LifecycleFlowsList{}, err
 	}
 	req := &lifecyclev1.ListFlowsRequest{Limit: parsedLimit}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.LifecycleFlowsList{}, err
+	}
 	if req.Participation, err = flowParticipationParam(params.Participation); err != nil {
 		return models.LifecycleFlowsList{}, err
 	}
@@ -180,10 +183,10 @@ func (s *LifecycleService) accountFlowsRequest(params ListAccountFlowsParams) (*
 	if err != nil {
 		return nil, err
 	}
-	if parsedLimit > codecs.ListAccountFlowsLimitMax {
-		return nil, &errors.ValidationError{Msg: fmt.Sprintf("limit %d exceeds %d", parsedLimit, codecs.ListAccountFlowsLimitMax)}
-	}
 	req := &lifecyclev1.ListAccountFlowsRequest{Limit: parsedLimit, Sort: flowSort(params.Reversed)}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return nil, err
+	}
 	if req.Participation, err = flowParticipationParam(params.Participation); err != nil {
 		return nil, err
 	}
@@ -343,6 +346,9 @@ func (s *LifecycleService) GetFlowByTx(ctx context.Context, txHash, lookupKind s
 		LookupKind: codecs.TxLookupKindFromLabel(lookupKind),
 		Limit:      parsedLimit,
 	}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.LifecycleFlowsList{}, err
+	}
 	return UnaryPublicDecoded(ctx, s.transport, s.client().ListFlowsByTx, req, decode.FlowFromGetByTxResponse)
 }
 
@@ -355,6 +361,9 @@ func (s *LifecycleService) ListFlowsByTx(ctx context.Context, txHash, lookupKind
 		TxHash:     txHash,
 		LookupKind: codecs.TxLookupKindFromLabel(lookupKind),
 		Limit:      parsedLimit,
+	}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.LifecycleFlowsList{}, err
 	}
 	if pageToken != nil {
 		req.PageToken = *pageToken
