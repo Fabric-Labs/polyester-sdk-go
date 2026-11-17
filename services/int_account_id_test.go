@@ -26,6 +26,15 @@ import (
 
 type accountIDNamedInt int64
 
+type accountIDNamedString string
+
+func namedIDPtr(v string) *accountIDNamedString {
+	named := accountIDNamedString(v)
+	return &named
+}
+
+func stringPtr(v string) *string { return &v }
+
 var (
 	refusedAccountIDs = map[string]any{
 		"zero":            0,
@@ -44,6 +53,18 @@ var (
 		"decimal string 00023": "00023",
 		"leading space":        " 23",
 		"trailing space":       "23 ",
+		// A supplied ID is parsed whatever it holds: empty or blank text is
+		// no ID and never means "unset", the default or the main account.
+		"empty":                       "",
+		"space":                       " ",
+		"tab":                         "\t",
+		"no-break space":              "\u00a0",
+		"pointer to empty":            stringPtr(""),
+		"pointer to spaced":           stringPtr(" 23"),
+		"named string empty":          accountIDNamedString(""),
+		"named string leading space":  accountIDNamedString(" 23"),
+		"named string trailing space": accountIDNamedString("23 "),
+		"pointer to named spaced":     namedIDPtr(" 23"),
 	}
 	maxUint64PublicID = codecs.FormatID(math.MaxUint64)
 )
