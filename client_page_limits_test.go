@@ -205,6 +205,20 @@ func TestOrderHistoryAndTradesLeaveAZeroLimitOut(t *testing.T) {
 	}
 }
 
+// A heatmap limit has no presence and the contract takes 1 to 20000: 0 is on
+// the wire as 0, which the contract refuses, so it is refused before sending.
+func TestHeatmapRefusesAZeroLimit(t *testing.T) {
+	client, capture := newLimitCaptureClient(t)
+	symbolID := uint32(1)
+	_, err := client.Heatmap.Get(context.Background(), nil, &symbolID, "1m", 50, 0, "close", nil, nil, nil)
+	if !isLimitRefusal(err) {
+		t.Fatalf("limit 0: err = %T %v, want a limit ValidationError", err, err)
+	}
+	if sent := capture.take(); len(sent) != 0 {
+		t.Fatalf("limit 0: sent %+v", sent)
+	}
+}
+
 // Every other list call refuses a page limit above its own request's
 // contract maximum before sending, and sends the maximum itself.
 func TestEveryListCallRefusesALimitAboveItsContractMaximum(t *testing.T) {
@@ -289,6 +303,10 @@ func TestEveryListCallRefusesALimitAboveItsContractMaximum(t *testing.T) {
 		}},
 		{"system.ListStatusEvents", 200, func(limit int) error {
 			_, err := client.ListStatusEvents(ctx, models.ListStatusEventsOptions{Limit: limit})
+			return err
+		}},
+		{"heatmap.Get", 20000, func(limit int) error {
+			_, err := client.Heatmap.Get(ctx, nil, &symbolID, "1m", 50, limit, "close", nil, nil, nil)
 			return err
 		}},
 		{"dustConversions.List", 100, func(limit int) error {

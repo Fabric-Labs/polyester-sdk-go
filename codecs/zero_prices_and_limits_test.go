@@ -136,9 +136,10 @@ func TestModifyTriggerRefusesNonPositiveTrailingDistanceAndTriggerPrice(t *testi
 }
 
 // CheckPageLimit applies each public request's own limit rule: every request
-// with a limit rule refuses one above its maximum, takes its maximum, and
-// takes an unset limit; a field with presence and a minimum refuses an
-// explicit value below it.
+// with a limit rule refuses one above its maximum and takes its maximum. A
+// field with presence takes an unset limit and refuses an explicit value
+// below its minimum. A field without presence is on the wire even at 0, so a
+// minimum above 0 refuses it there.
 func TestCheckPageLimitFollowsEveryRequestsContractRule(t *testing.T) {
 	checked := 0
 	protoregistry.GlobalTypes.RangeMessages(func(mt protoreflect.MessageType) bool {
@@ -158,8 +159,16 @@ func TestCheckPageLimitFollowsEveryRequestsContractRule(t *testing.T) {
 			msg.Set(field, protoreflect.ValueOfUint32(v))
 			return msg.Interface()
 		}
-		if err := CheckPageLimit(mt.New().Interface()); err != nil {
-			t.Errorf("%s unset limit: %v", desc.FullName(), err)
+		minimum := rules.GetUint32().GetGte()
+		if gt := rules.GetUint32(); gt.HasGt() {
+			minimum = gt.GetGt() + 1
+		}
+		if field.HasPresence() || minimum == 0 {
+			if err := CheckPageLimit(mt.New().Interface()); err != nil {
+				t.Errorf("%s unset limit: %v", desc.FullName(), err)
+			}
+		} else {
+			refusedNaming(t, "limit", CheckPageLimit(mt.New().Interface()))
 		}
 		if err := CheckPageLimit(with(max)); err != nil {
 			t.Errorf("%s limit %d: %v", desc.FullName(), max, err)
@@ -167,8 +176,11 @@ func TestCheckPageLimitFollowsEveryRequestsContractRule(t *testing.T) {
 		if max < ^uint32(0) {
 			refusedNaming(t, "limit", CheckPageLimit(with(max+1)))
 		}
-		if field.HasPresence() && rules.GetUint32().HasGte() && rules.GetUint32().GetGte() > 0 {
+		if minimum > 0 {
 			refusedNaming(t, "limit", CheckPageLimit(with(0)))
+			if err := CheckPageLimit(with(minimum)); err != nil {
+				t.Errorf("%s limit %d: %v", desc.FullName(), minimum, err)
+			}
 		}
 		return true
 	})
