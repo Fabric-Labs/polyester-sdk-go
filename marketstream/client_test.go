@@ -84,15 +84,33 @@ type fakeServer struct {
 	conns chan *serverConn
 	count int
 	mu    sync.Mutex
+	// refuse holds Retry-After values: each upgrade takes the next one, if
+	// any, and is refused with 503 and that Retry-After.
+	refuse chan string
+	// upgrades counts every upgrade request, refused ones included, with
+	// the time of the last.
+	upgrades int
+	last     time.Time
 }
 
 func newFakeServer(t *testing.T) *fakeServer {
-	fs := &fakeServer{conns: make(chan *serverConn, 8)}
+	fs := &fakeServer{conns: make(chan *serverConn, 8), refuse: make(chan string, 8)}
 	upgrader := websocket.Upgrader{}
 	fs.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != Path {
 			http.NotFound(w, r)
 			return
+		}
+		fs.mu.Lock()
+		fs.upgrades++
+		fs.last = time.Now()
+		fs.mu.Unlock()
+		select {
+		case retryAfter := <-fs.refuse:
+			w.Header().Set("Retry-After", retryAfter)
+			http.Error(w, "UNAVAILABLE", http.StatusServiceUnavailable)
+			return
+		default:
 		}
 		ws, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
@@ -120,6 +138,14 @@ func (fs *fakeServer) connections() int {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 	return fs.count
+}
+
+// upgradeRequests returns how many upgrades were requested and when the last
+// one was.
+func (fs *fakeServer) upgradeRequests() (int, time.Time) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+	return fs.upgrades, fs.last
 }
 
 func (fs *fakeServer) url() string { return "ws" + strings.TrimPrefix(fs.srv.URL, "http") + Path }

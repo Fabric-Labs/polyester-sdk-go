@@ -356,7 +356,13 @@ type Connected struct {
 	Reconnect bool
 }
 
-// Disconnected reports a lost connection; the client reconnects after Delay.
+// Disconnected reports a lost connection, or a failed reconnect; the client
+// connects again after Delay. When Err comes from an answer, such as a
+// refused upgrade, errors.AnswerStatus and errors.RetryAfter read its HTTP
+// status and the delay it asked for, and Delay is at least that delay: a
+// server's Retry-After is never shortened, and the backoff's 30-second
+// ceiling applies to the backoff alone. A caller that will not wait that
+// long can Close the client.
 type Disconnected struct {
 	Err   error
 	Delay time.Duration
