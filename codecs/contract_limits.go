@@ -94,14 +94,15 @@ func contractPattern(pattern string) *regexp.Regexp {
 
 // CheckPageLimit refuses req with a *errors.ValidationError when its page
 // limit breaks the public contract's rule on the request's limit field: above
-// the rule's maximum, or below its minimum when the field is set. A limit
-// left unset, which a field without presence also is at 0, is not checked:
-// the server then applies its default page size. A request without a limit
-// field, or whose limit has no rule, passes.
+// the rule's maximum, or below its minimum. A limit field with presence that
+// is left unset is not checked: the server then applies its default page
+// size. A limit field without presence is on the wire even at 0, so it is
+// checked at 0 too; most such rules start at 0, where 0 asks for the default.
+// A request without a limit field, or whose limit has no rule, passes.
 func CheckPageLimit(req proto.Message) error {
 	msg := req.ProtoReflect()
 	field := msg.Descriptor().Fields().ByName("limit")
-	if field == nil || field.Kind() != protoreflect.Uint32Kind || !msg.Has(field) {
+	if field == nil || field.Kind() != protoreflect.Uint32Kind || (field.HasPresence() && !msg.Has(field)) {
 		return nil
 	}
 	rules := contractFieldRules(req, "limit").GetUint32()
@@ -120,8 +121,10 @@ func CheckPageLimit(req proto.Message) error {
 	switch {
 	case value > high:
 		return &errors.ValidationError{Msg: fmt.Sprintf("limit %d exceeds %d", value, high)}
-	case value < low:
+	case value < low && field.HasPresence():
 		return &errors.ValidationError{Msg: fmt.Sprintf("limit %d is below %d; leave it unset for the server's default", value, low)}
+	case value < low:
+		return &errors.ValidationError{Msg: fmt.Sprintf("limit %d is below %d", value, low)}
 	}
 	return nil
 }
