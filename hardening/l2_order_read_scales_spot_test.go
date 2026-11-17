@@ -18,6 +18,7 @@ import (
 
 	polyester "github.com/Fabric-Labs/polyester-sdk-go"
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	marketdatav1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	triggersv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1"
@@ -116,7 +117,7 @@ func TestL2OrderReadsScaleFromTheSpotConfigWithoutTheFundingConfig(t *testing.T)
 				t.Fatalf("Trades.List: %v", err)
 			}
 			requireSpotScale(t, "Trades.List Qty", trades.Trades[0].Qty)
-			read, err := client.Triggers.Get(ctx, nil, "11", nil)
+			read, err := client.Triggers.Get(ctx, nil, codecs.FormatID(11), nil)
 			if err != nil {
 				t.Fatalf("Triggers.Get: %v", err)
 			}

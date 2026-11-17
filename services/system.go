@@ -4,6 +4,7 @@ import (
 	"context"
 	"iter"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
 	systemv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/system/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/system/v1/systemv1connect"
@@ -77,5 +78,9 @@ func listStatusEventsRequest(opts models.ListStatusEventsOptions) (*systemv1.Lis
 	if err != nil {
 		return nil, err
 	}
-	return &systemv1.ListStatusEventsRequest{States: states, Kinds: kinds, Limit: limit, PageToken: opts.PageToken}, nil
+	req := &systemv1.ListStatusEventsRequest{States: states, Kinds: kinds, Limit: limit, PageToken: opts.PageToken}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return nil, err
+	}
+	return req, nil
 }

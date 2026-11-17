@@ -16,9 +16,9 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
 )
 
-// A public ID that decodes to 0 ("1" is the base58 form of 0, "0" and "00"
-// the decimal) names nothing: every call that takes one refuses it locally
-// with a ValidationError and sends no request.
+// A public ID that decodes to 0 ("1" and "11" are base58 forms of 0) names
+// nothing, and "0" or "00" is no base58 ID: every call that takes one refuses
+// it locally with a ValidationError and sends no request.
 func TestCallsRefusePublicIDThatDecodesToZero(t *testing.T) {
 	var requests atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -77,11 +77,18 @@ func TestCallsRefusePublicIDThatDecodesToZero(t *testing.T) {
 		"addressBook.DeleteTag":   func(id string) error { return addressBook.DeleteTag(ctx, id) },
 	}
 	for name, call := range calls {
-		for _, id := range []string{"1", "0", "00"} {
+		for _, id := range []string{"1", "11"} {
 			err := call(id)
 			var validation *sdkerrors.ValidationError
 			if !errors.As(err, &validation) || !strings.Contains(validation.Msg, "non-zero") {
 				t.Errorf("%s(%q): got %v, want a non-zero ValidationError", name, id, err)
+			}
+		}
+		// "0" is no base58 digit, so these are no public ID at all.
+		for _, id := range []string{"0", "00"} {
+			var validation *sdkerrors.ValidationError
+			if err := call(id); !errors.As(err, &validation) {
+				t.Errorf("%s(%q): got %v, want a ValidationError", name, id, err)
 			}
 		}
 	}
@@ -92,12 +99,12 @@ func TestCallsRefusePublicIDThatDecodesToZero(t *testing.T) {
 
 // The shared parser refuses a zero public ID and still decodes others.
 func TestIDToIntRefusesZero(t *testing.T) {
-	for _, raw := range []string{"1", "0", "00", " 1 "} {
+	for _, raw := range []string{"1", "11", "0", "00", " 1 ", "10"} {
 		if got, err := codecs.IDToInt(raw, "trigger_id"); err == nil {
 			t.Errorf("IDToInt(%q) = %d, want an error", raw, got)
 		}
 	}
-	for raw, want := range map[string]uint64{"2": 1, "5": 4, "10": 10, codecs.FormatID(1 << 63): 1 << 63} {
+	for raw, want := range map[string]uint64{"2": 1, "5": 4, "12": 1, codecs.FormatID(1 << 63): 1 << 63} {
 		if got, err := codecs.IDToInt(raw, "trigger_id"); err != nil || got != want {
 			t.Errorf("IDToInt(%q) = (%d, %v), want %d", raw, got, err, want)
 		}

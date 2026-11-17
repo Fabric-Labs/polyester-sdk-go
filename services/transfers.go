@@ -39,6 +39,9 @@ func (s *TransfersService) List(ctx context.Context, account AccountScope, subAc
 		return models.TransfersList{}, &errors.ValidationError{Msg: "at most one page token is allowed"}
 	}
 	req := &ledgerrdv1.ListTransfersRequest{Limit: parsedLimit, Reversed: reversed}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.TransfersList{}, err
+	}
 	if len(pageToken) == 1 {
 		req.PageToken = pageToken[0]
 	}

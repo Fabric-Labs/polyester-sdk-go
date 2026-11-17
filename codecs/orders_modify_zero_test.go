@@ -30,31 +30,31 @@ func TestModifyAndBatchReplaceRefuseZeroPriceAndQuantity(t *testing.T) {
 	}
 	for name, price := range prices {
 		t.Run("modify price "+name, func(t *testing.T) {
-			_, err := ModifyOrderToProto("SOL-USDT", 3, models.OrderKeyByID("100"), nil, ptr("mod-1"), &price, nil, nil, false, nil, nil, 6)
+			_, err := ModifyOrderToProto("SOL-USDT", 3, models.OrderKeyByID(FormatID(100)), nil, ptr("mod-1"), &price, nil, nil, false, nil, nil, 6)
 			expectRefused(t, "new_price", err)
 		})
 		t.Run("batch replace price "+name, func(t *testing.T) {
-			_, err := BatchReplaceOrdersToProto([]models.BatchReplaceItem{{Key: models.OrderKeyByID("100"), NewPrice: &price}}, 3, nil, ptr("br-1"), 6, "SOL-USDT")
+			_, err := BatchReplaceOrdersToProto([]models.BatchReplaceItem{{Key: models.OrderKeyByID(FormatID(100)), NewPrice: &price}}, 3, nil, ptr("br-1"), 6, "SOL-USDT")
 			expectRefused(t, "new_price", err)
 		})
 	}
 	for name, qty := range quantities {
 		t.Run("modify qty "+name, func(t *testing.T) {
-			_, err := ModifyOrderToProto("SOL-USDT", 3, models.OrderKeyByID("100"), nil, ptr("mod-1"), nil, &qty, nil, false, nil, nil, 6)
+			_, err := ModifyOrderToProto("SOL-USDT", 3, models.OrderKeyByID(FormatID(100)), nil, ptr("mod-1"), nil, &qty, nil, false, nil, nil, 6)
 			expectRefused(t, "new_qty", err)
 		})
 		t.Run("batch replace qty "+name, func(t *testing.T) {
-			_, err := BatchReplaceOrdersToProto([]models.BatchReplaceItem{{Key: models.OrderKeyByID("100"), NewQty: &qty}}, 3, nil, ptr("br-1"), 6, "SOL-USDT")
+			_, err := BatchReplaceOrdersToProto([]models.BatchReplaceItem{{Key: models.OrderKeyByID(FormatID(100)), NewQty: &qty}}, 3, nil, ptr("br-1"), 6, "SOL-USDT")
 			expectRefused(t, "new_qty", err)
 		})
 	}
 	// Positive values still encode.
 	price, qty := models.PriceFromDecimal("0.000000001"), models.QtyFromDecimal("0.000001")
-	req, err := ModifyOrderToProto("SOL-USDT", 3, models.OrderKeyByID("100"), nil, ptr("mod-1"), &price, &qty, nil, false, nil, nil, 6)
+	req, err := ModifyOrderToProto("SOL-USDT", 3, models.OrderKeyByID(FormatID(100)), nil, ptr("mod-1"), &price, &qty, nil, false, nil, nil, 6)
 	if err != nil || req.GetNewPriceTicks() != 1 || req.GetNewQtyScaled() != 1 {
 		t.Fatalf("smallest positive modify: req=%v err=%v", req, err)
 	}
-	batch, err := BatchReplaceOrdersToProto([]models.BatchReplaceItem{{Key: models.OrderKeyByID("100"), NewPrice: &price, NewQty: &qty}}, 3, nil, ptr("br-1"), 6, "SOL-USDT")
+	batch, err := BatchReplaceOrdersToProto([]models.BatchReplaceItem{{Key: models.OrderKeyByID(FormatID(100)), NewPrice: &price, NewQty: &qty}}, 3, nil, ptr("br-1"), 6, "SOL-USDT")
 	if err != nil || batch.Items[0].GetNewPriceTicks() != 1 || batch.Items[0].GetNewQtyScaled() != 1 {
 		t.Fatalf("smallest positive batch replace: req=%v err=%v", batch, err)
 	}

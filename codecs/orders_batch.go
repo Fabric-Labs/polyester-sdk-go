@@ -67,7 +67,7 @@ func BatchCreateOrdersToProto(items []models.CreateOrderRequest, subAccountID *s
 	proto := &orderv1.BatchCreateOrdersRequest{
 		RequestId: resolvedRequestID,
 	}
-	if subAccountID != nil && *subAccountID != "" {
+	if subAccountID != nil {
 		sub, err := ParseAccountID(*subAccountID, "sub_account_id")
 		if err != nil {
 			return nil, err
@@ -140,7 +140,7 @@ func BatchCancelOrdersToProto(items []models.BatchCancelItem, subAccountID *stri
 	proto := &orderv1.BatchCancelOrdersRequest{
 		RequestId: resolvedRequestID,
 	}
-	if subAccountID != nil && *subAccountID != "" {
+	if subAccountID != nil {
 		sub, err := ParseAccountID(*subAccountID, "sub_account_id")
 		if err != nil {
 			return nil, err
@@ -235,7 +235,7 @@ func BatchReplaceOrdersToProto(items []models.BatchReplaceItem, symbolID uint32,
 		SymbolId:  symbolID,
 		RequestId: resolvedRequestID,
 	}
-	if subAccountID != nil && *subAccountID != "" {
+	if subAccountID != nil {
 		sub, err := ParseAccountID(*subAccountID, "sub_account_id")
 		if err != nil {
 			return nil, err

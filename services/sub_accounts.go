@@ -117,6 +117,9 @@ func (s *SubAccountsService) ListActivity(ctx context.Context, account AccountSc
 		return models.SubAccountActivityList{}, err
 	}
 	req := &authv1.ListSubaccountEventsRequest{SubaccountId: parsed, Limit: parsedLimit}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.SubAccountActivityList{}, err
+	}
 	if pageToken != nil {
 		req.PageToken = *pageToken
 	}

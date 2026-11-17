@@ -178,7 +178,7 @@ func (h *triggerReadHandler) ListTriggerEvents(_ context.Context, req *connect.R
 func TestTriggerEventsRetryAndNotFound(t *testing.T) {
 	handler := &triggerReadHandler{unavailable: 2}
 	service := newTriggerReadService(t, handler)
-	sub, page, event := "12", "next-page", "fired"
+	sub, page, event := codecs.FormatID(12), "next-page", "fired"
 	result, err := service.ListEvents(context.Background(), nil, codecs.FormatID(9), &sub, 17, &event, &page)
 	if err != nil {
 		t.Fatalf("events read did not recover: %v", err)

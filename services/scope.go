@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
-	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
@@ -14,8 +13,9 @@ import (
 //
 //   - nil (unset) or "active": the client's DefaultSubAccountID, or the main
 //     account when none is configured;
-//   - "main" or "": always the main account, whatever DefaultSubAccountID is;
-//   - any other string: that sub-account's public ID;
+//   - "main": always the main account, whatever DefaultSubAccountID is;
+//   - any other string: that sub-account's base58 public ID, read strictly:
+//     "", a blank string or any other text that is no public ID is refused;
 //   - map[string]string{"subaccountId": id} (or "sub_account_id"): that
 //     sub-account.
 //
@@ -28,16 +28,12 @@ type ScopedSubAccount struct {
 	DefaultSubAccountID *string
 }
 
-// ResolveSubAccountID resolves empty string to nil.
+// ResolveSubAccountID returns value, or defaultVal when value is nil. Only
+// nil is unset: a supplied ID, empty or blank included, is returned as given
+// for the strict public-ID parser to read.
 func ResolveSubAccountID(value *string, defaultVal *string) *string {
-	if value != nil && *value == "" {
-		return nil
-	}
 	if value != nil {
 		return value
-	}
-	if defaultVal != nil && *defaultVal == "" {
-		return nil
 	}
 	return defaultVal
 }
@@ -46,6 +42,19 @@ func ResolveSubAccountID(value *string, defaultVal *string) *string {
 // AccountScope) or the legacy subAccountID, falling back to defaultVal only
 // when both are unset or account is "active". nil means the main account.
 func ScopedSubAccountID(account AccountScope, subAccountID *string, defaultVal *string) (*string, error) {
+	sub, err := scopedSubAccountID(account, subAccountID, defaultVal)
+	if err != nil || sub == nil {
+		return sub, err
+	}
+	// A supplied, selected or default sub-account is a public ID: a blank or
+	// malformed one is refused here, never read as the main account.
+	if _, err := codecs.ParseAccountID(*sub, "sub_account_id"); err != nil {
+		return nil, err
+	}
+	return sub, nil
+}
+
+func scopedSubAccountID(account AccountScope, subAccountID *string, defaultVal *string) (*string, error) {
 	if subAccountID != nil && account != nil {
 		return nil, &errors.ValidationError{Msg: "Pass account or sub_account_id, not both"}
 	}
@@ -55,16 +64,16 @@ func ScopedSubAccountID(account AccountScope, subAccountID *string, defaultVal *
 	if account == nil || account == "active" {
 		return ResolveSubAccountID(nil, defaultVal), nil
 	}
-	if account == "main" || account == "" {
+	if account == "main" {
 		return nil, nil
 	}
 	switch v := account.(type) {
 	case map[string]string:
-		scoped := v["subaccountId"]
-		if scoped == "" {
-			scoped = v["sub_account_id"]
+		scoped, ok := v["subaccountId"]
+		if !ok {
+			scoped, ok = v["sub_account_id"]
 		}
-		if scoped == "" {
+		if !ok {
 			return nil, &errors.ValidationError{Msg: "account dict requires subaccountId or sub_account_id"}
 		}
 		s := scoped
@@ -78,17 +87,18 @@ func ScopedSubAccountID(account AccountScope, subAccountID *string, defaultVal *
 }
 
 // ResolveAccountID returns the public account ID from value, or from
-// defaultVal when value is unset (nil, a nil pointer or ""). Each may be a
-// public ID string, which is used as given, or a positive integer, which is
-// encoded as its public ID (42 is "j"). A string that decodes to 0, such as
-// "1", "0" or "00", and any other value are a ValidationError.
+// defaultVal when value is unset (nil or a nil pointer). Each may be a public
+// ID string, which must be base58 as the API reads it, or a positive integer,
+// which is encoded as its public ID (42 is "j"). A supplied string is never
+// unset: an empty or blank one, one that decodes to 0 such as "1", and any
+// other value are a ValidationError.
 func ResolveAccountID(value any, defaultVal any) (string, error) {
 	for _, v := range []any{value, defaultVal} {
-		id, _, err := publicID(v, "account_id")
+		id, set, err := publicID(v, "account_id")
 		if err != nil {
 			return "", err
 		}
-		if id != "" {
+		if set {
 			if _, err := codecs.ParseAccountID(id, "account_id"); err != nil {
 				return "", err
 			}
@@ -100,8 +110,8 @@ func ResolveAccountID(value any, defaultVal any) (string, error) {
 
 // publicID returns the public ID text of an account or sub-account ID given
 // as a public ID string or a positive integer; set is false when value is nil
-// or a nil pointer. A string or *string is returned unchanged, and a named
-// string type trimmed. An integer is encoded with codecs.FormatID, never as
+// or a nil pointer. A string, *string or named string type is returned
+// unchanged, never trimmed. An integer is encoded with codecs.FormatID, never as
 // decimal text, which reads as the public ID of another account. Zero,
 // negative, out-of-range, bool and other values are refused.
 func publicID(value any, label string) (id string, set bool, err error) {
@@ -134,7 +144,7 @@ func publicID(value any, label string) (id string, set bool, err error) {
 	case reflect.Invalid:
 		return "", false, nil
 	case reflect.String:
-		return strings.TrimSpace(v.String()), true, nil
+		return v.String(), true, nil
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		if v.Int() <= 0 {
 			return "", false, invalid

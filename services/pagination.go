@@ -19,6 +19,16 @@ func PaginationLimit(limit int, label string) (uint32, error) {
 	return uint32(limit), nil
 }
 
+// optionalPageLimit sets a limit field that has presence only for a nonzero
+// limit: a zero limit is left out, so the server applies its default, instead
+// of being sent as an explicit 0 that the contract refuses.
+func optionalPageLimit(limit uint32) *uint32 {
+	if limit == 0 {
+		return nil
+	}
+	return &limit
+}
+
 // PaginationLimitOrDefault applies an existing default only when limit is
 // omitted as zero. Negative and overflowing explicit values are rejected.
 func PaginationLimitOrDefault(limit int, fallback uint32, label string) (uint32, error) {

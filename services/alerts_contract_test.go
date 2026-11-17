@@ -59,7 +59,7 @@ func TestAlertsMutationsRefuseAnAnswerWithoutTheAlert(t *testing.T) {
 				t.Fatalf("create returned %+v", got)
 			}
 
-			cancelled, err := service.Cancel(ctx, "123")
+			cancelled, err := service.Cancel(ctx, codecs.FormatID(123))
 			wantResponseContract(t, err, "CancelAlert")
 			if cancelled.AlertID != "" {
 				t.Fatalf("cancel returned %+v", cancelled)
@@ -70,7 +70,7 @@ func TestAlertsMutationsRefuseAnAnswerWithoutTheAlert(t *testing.T) {
 				fake.mu.Lock()
 				fake.outcome = &outcome
 				fake.mu.Unlock()
-				result, err := service.Update(ctx, UpdateAlertParams{AlertID: "123", ExpectedRevision: 1, Price: &price})
+				result, err := service.Update(ctx, UpdateAlertParams{AlertID: codecs.FormatID(123), ExpectedRevision: 1, Price: &price})
 				wantResponseContract(t, err, "UpdateAlert")
 				if result.Outcome != "" || result.Alert.AlertID != "" {
 					t.Fatalf("update (%v) returned %+v", outcome, result)
@@ -100,7 +100,7 @@ func TestAlertsUpdateReadsAPopulatedAlertForEveryOutcome(t *testing.T) {
 		fake.mu.Lock()
 		fake.outcome = &outcome
 		fake.mu.Unlock()
-		result, err := service.Update(context.Background(), UpdateAlertParams{AlertID: "123", ExpectedRevision: 1, Price: &price})
+		result, err := service.Update(context.Background(), UpdateAlertParams{AlertID: codecs.FormatID(123), ExpectedRevision: 1, Price: &price})
 		if err != nil {
 			t.Fatalf("%v: %v", outcome, err)
 		}
@@ -303,7 +303,7 @@ func TestAlertsUpdateRefusesAMarketBoundPrice(t *testing.T) {
 		"other market": ethBoundPrice(),
 		"alert market": models.PriceFromTicks(models.MustPriceTicks(90_000_000_000_000).WithSymbol("BTC-USDT")),
 	} {
-		_, err := service.Update(context.Background(), UpdateAlertParams{AlertID: "123", ExpectedRevision: 1, Price: &price})
+		_, err := service.Update(context.Background(), UpdateAlertParams{AlertID: codecs.FormatID(123), ExpectedRevision: 1, Price: &price})
 		var validation *sdkerrors.ValidationError
 		if !stderrors.As(err, &validation) || !strings.Contains(err.Error(), "unbound price") {
 			t.Fatalf("%s: err = %T %v, want *errors.ValidationError naming an unbound price", name, err, err)
@@ -319,7 +319,7 @@ func TestAlertsUpdateRefusesAMarketBoundPrice(t *testing.T) {
 		"ticks":   models.PriceFromTicksInt(91_000_000_000_000),
 		"decimal": models.PriceFromDecimal("91000"),
 	} {
-		if _, err := service.Update(context.Background(), UpdateAlertParams{AlertID: "123", ExpectedRevision: 1, Price: &price}); err != nil {
+		if _, err := service.Update(context.Background(), UpdateAlertParams{AlertID: codecs.FormatID(123), ExpectedRevision: 1, Price: &price}); err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
 	}

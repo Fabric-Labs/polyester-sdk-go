@@ -79,6 +79,9 @@ func (s *TriggersService) List(ctx context.Context, account AccountScope, subAcc
 		return models.TriggersList{}, err
 	}
 	req := &triggersv1.ListTriggersRequest{Limit: parsedLimit}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.TriggersList{}, err
+	}
 	if len(opts) == 1 {
 		if err := applyListTriggersOptions(req, opts[0]); err != nil {
 			return models.TriggersList{}, err
@@ -405,6 +408,9 @@ func (s *TriggersService) ListEvents(ctx context.Context, account AccountScope, 
 		return models.TriggerEventsList{}, err
 	}
 	req := &triggersv1.ListTriggerEventsRequest{TriggerId: id, Limit: parsedLimit}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.TriggerEventsList{}, err
+	}
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {
 		return models.TriggerEventsList{}, err

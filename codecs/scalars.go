@@ -112,14 +112,13 @@ func formatScaledInt64(n int64, scale int) string {
 	return digits
 }
 
-// IDToInt parses a base58 or decimal uint64 public ID and refuses one that
-// decodes to 0. On the wire 0 is unset and names nothing, so "1" (FormatID(0)),
-// "0" or "00" would send a request for an ID the caller did not mean.
+// IDToInt parses a base58 public ID, as the API reads one, and refuses one
+// that decodes to 0. On the wire 0 is unset and names nothing, so "1"
+// (FormatID(0)) would send a request for an ID the caller did not mean.
 //
-// All-digit strings are ambiguous: they may be a decimal literal or a base58
-// encoding that happens to use only digit characters (e.g. FormatID(4) == "5").
-// For those inputs, prefer the canonical base58 decode when FormatID(b) matches
-// the input; otherwise treat the value as decimal.
+// A string ID is base58 only: a string of digits is read as base58 too, never
+// as a decimal number, so one string names one ID. Pass an ID the API
+// returned as it is, and an integer through FormatID.
 func IDToInt(value string, label string) (uint64, error) {
 	id, err := parseID(value, label)
 	if err != nil {
@@ -131,40 +130,38 @@ func IDToInt(value string, label string) (uint64, error) {
 	return id, nil
 }
 
+// base58Digits maps each byte of the base58 alphabet to its digit value and
+// every other byte to 0xFF.
+var base58Digits = func() (table [256]byte) {
+	for i := range table {
+		table[i] = 0xFF
+	}
+	for i, c := range []byte(base58Alphabet) {
+		table[c] = byte(i)
+	}
+	return table
+}()
+
+const base58Alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+
+// parseID reads a public ID exactly as the API does: every byte a base58
+// digit, nothing trimmed, and a value that fits in a uint64.
 func parseID(value string, label string) (uint64, error) {
-	value = strings.TrimSpace(value)
 	if value == "" {
 		return 0, &errors.ValidationError{Msg: label + " is required"}
 	}
-	if isDecimal(value) {
-		n := new(big.Int)
-		if _, ok := n.SetString(value, 10); !ok {
-			return 0, &errors.ValidationError{Msg: label + " must be base58 or decimal uint64"}
+	var id uint64
+	for i := 0; i < len(value); i++ {
+		digit := base58Digits[value[i]]
+		if digit == 0xFF {
+			return 0, &errors.ValidationError{Msg: label + " must be a base58 public ID, without spaces; pass an integer ID through FormatID"}
 		}
-		if n.Sign() < 0 || n.Cmp(new(big.Int).SetUint64(Uint64Max)) > 0 {
+		if id > (Uint64Max-uint64(digit))/58 {
 			return 0, &errors.ValidationError{Msg: label + " exceeds uint64 range"}
 		}
-		d := n.Uint64()
-		if decoded, err := base58.Decode(value); err == nil {
-			b := new(big.Int).SetBytes(decoded)
-			if b.Sign() >= 0 && b.Cmp(new(big.Int).SetUint64(Uint64Max)) <= 0 {
-				canonical := b.Uint64()
-				if FormatID(canonical) == value {
-					return canonical, nil
-				}
-			}
-		}
-		return d, nil
+		id = id*58 + uint64(digit)
 	}
-	decoded, err := base58.Decode(value)
-	if err != nil {
-		return 0, &errors.ValidationError{Msg: label + " must be base58 or decimal uint64"}
-	}
-	n := new(big.Int).SetBytes(decoded)
-	if n.Sign() < 0 || n.Cmp(new(big.Int).SetUint64(Uint64Max)) > 0 {
-		return 0, &errors.ValidationError{Msg: label + " exceeds uint64 range"}
-	}
-	return n.Uint64(), nil
+	return id, nil
 }
 
 // ParseAccountID decodes an account or sub-account ID as IDToInt does,

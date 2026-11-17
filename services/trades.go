@@ -54,7 +54,10 @@ func (s *TradesService) List(ctx context.Context, account AccountScope, subAccou
 	if err != nil {
 		return models.UserTradesList{}, err
 	}
-	req := &orderv1.GetUserTradesRequest{Limit: uint32Ptr(parsedLimit), StartTsNs: options.StartTsNs, EndTsNs: options.EndTsNs}
+	req := &orderv1.GetUserTradesRequest{Limit: optionalPageLimit(parsedLimit), StartTsNs: options.StartTsNs, EndTsNs: options.EndTsNs}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.UserTradesList{}, err
+	}
 	if options.OrderID != nil {
 		id, err := codecs.IDToInt(*options.OrderID, "order_id")
 		if err != nil {

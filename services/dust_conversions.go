@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"iter"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
@@ -123,10 +122,10 @@ func (s *DustConversionsService) List(ctx context.Context, opts ListDustConversi
 	if err != nil {
 		return models.DustConversionsList{}, err
 	}
-	if limit > codecs.ListDustConversionsLimitMax {
-		return models.DustConversionsList{}, &errors.ValidationError{Msg: fmt.Sprintf("limit %d exceeds %d", limit, codecs.ListDustConversionsLimitMax)}
-	}
 	req := &transferv1.ListDustConversionsRequest{Limit: limit, PageToken: opts.PageToken}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.DustConversionsList{}, err
+	}
 	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, opts.Account, opts.SubAccountID); err != nil {
 		return models.DustConversionsList{}, err
 	}

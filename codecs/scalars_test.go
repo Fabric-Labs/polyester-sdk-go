@@ -9,7 +9,7 @@ import (
 	"github.com/mr-tron/base58"
 )
 
-func TestIDToIntAcceptsBase58AndDecimal(t *testing.T) {
+func TestIDToIntAcceptsBase58AndRefusesDecimal(t *testing.T) {
 	var buf [8]byte
 	binary.BigEndian.PutUint64(buf[:], 42)
 	encoded := base58.Encode(buf[:])
@@ -20,9 +20,9 @@ func TestIDToIntAcceptsBase58AndDecimal(t *testing.T) {
 	if got != 42 {
 		t.Fatalf("got %d", got)
 	}
-	got, err = IDToInt("100", "trigger_id")
-	if err != nil || got != 100 {
-		t.Fatalf("decimal: got %d err %v", got, err)
+	// "0" is not a base58 digit: "100" is no public ID, not the number 100.
+	if got, err := IDToInt("100", "trigger_id"); err == nil {
+		t.Fatalf("decimal \"100\": got %d, want a validation error", got)
 	}
 	if _, err := IDToInt("not a trigger id", "trigger_id"); err == nil {
 		t.Fatal("expected validation error")
@@ -79,19 +79,18 @@ func TestIDToIntPrefersCanonicalBase58ForAllDigitCollisions(t *testing.T) {
 	}
 }
 
-func TestIDToIntNonCanonicalPureDecimalsStillWork(t *testing.T) {
-	// Strings with '0' (not in base58) or non-canonical digit sequences stay decimal.
-	for _, raw := range []string{"10", "100", "123", "123456789"} {
+func TestIDToIntReadsDigitStringsAsBase58(t *testing.T) {
+	// A string with a '0' is no base58 public ID; any other digit string is
+	// read as base58, the way the API reads it, never as a decimal number.
+	for _, raw := range []string{"10", "100"} {
+		if got, err := IDToInt(raw, "id"); err == nil {
+			t.Fatalf("%q: got %d, want a validation error", raw, got)
+		}
+	}
+	for raw, want := range map[string]uint64{"123": 60, "123456789": 2_286_136_885_086} {
 		got, err := IDToInt(raw, "id")
-		if err != nil {
-			t.Fatalf("%q: %v", raw, err)
-		}
-		want := mustParseUint(raw)
-		if got != want {
-			t.Fatalf("%q: got %d want %d", raw, got, want)
-		}
-		if FormatID(got) == raw {
-			t.Fatalf("%q unexpectedly canonical for %d", raw, got)
+		if err != nil || got != want {
+			t.Fatalf("%q: got %d, %v; want base58 %d", raw, got, err, want)
 		}
 	}
 }
@@ -107,14 +106,6 @@ func TestIDToIntInvalidStillErrors(t *testing.T) {
 			t.Fatalf("%q: want ValidationError, got %T %v", raw, err, err)
 		}
 	}
-}
-
-func mustParseUint(s string) uint64 {
-	var n uint64
-	for _, r := range s {
-		n = n*10 + uint64(r-'0')
-	}
-	return n
 }
 
 func TestParseAndFormatPriceTicks(t *testing.T) {

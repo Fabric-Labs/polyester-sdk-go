@@ -21,7 +21,7 @@ func isClearedRisk(risk *orderv1.RiskPolicy) bool {
 func TestModifyClearAttachedRiskSendsEmptyRiskPolicy(t *testing.T) {
 	price := models.PriceFromDecimal("185.25")
 	for name, newPrice := range map[string]*models.PriceInput{"alone": nil, "with a new price": &price} {
-		req, err := ModifyOrderToProto("SOL-USDT", 3, models.OrderKeyByID("100"), nil, ptr("mod-1"),
+		req, err := ModifyOrderToProto("SOL-USDT", 3, models.OrderKeyByID(FormatID(100)), nil, ptr("mod-1"),
 			newPrice, nil, nil, true, nil, nil, 6)
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
@@ -54,7 +54,7 @@ func TestBatchReplaceClearAttachedRiskSendsEmptyRiskPolicy(t *testing.T) {
 // Clearing and setting new attached risk together is refused before sending.
 func TestClearAttachedRiskWithNewRiskIsRefused(t *testing.T) {
 	var validation *errors.ValidationError
-	_, err := ModifyOrderToProto("SOL-USDT", 3, models.OrderKeyByID("100"), nil, nil,
+	_, err := ModifyOrderToProto("SOL-USDT", 3, models.OrderKeyByID(FormatID(100)), nil, nil,
 		nil, nil, attachedOCO("185.25", "140.5"), true, nil, nil, 6)
 	if !stderrors.As(err, &validation) {
 		t.Fatalf("modify: err = %v, want a validation error", err)
@@ -71,7 +71,7 @@ func TestClearAttachedRiskWithNewRiskIsRefused(t *testing.T) {
 // clear or a no-op.
 func TestModifyEmptyAttachedRiskIsRefused(t *testing.T) {
 	var validation *errors.ValidationError
-	_, err := ModifyOrderToProto("SOL-USDT", 3, models.OrderKeyByID("100"), nil, nil,
+	_, err := ModifyOrderToProto("SOL-USDT", 3, models.OrderKeyByID(FormatID(100)), nil, nil,
 		nil, nil, &models.AttachedRiskInput{}, false, nil, nil, 6)
 	if !stderrors.As(err, &validation) {
 		t.Fatalf("err = %v, want a validation error", err)

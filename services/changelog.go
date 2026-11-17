@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	changelogv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/changelog/v1"
@@ -41,6 +42,9 @@ func (s *ChangelogService) ListPosts(ctx context.Context, opts models.ListChange
 		return models.ChangelogPostsPage{}, err
 	}
 	req := &changelogv1.ListPostsRequest{Limit: limit, PageToken: opts.PageToken}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.ChangelogPostsPage{}, err
+	}
 	return UnaryPublic(ctx, s.transport, s.client().ListPosts, req, decode.ChangelogPostsPageFromProto)
 }
 
@@ -70,6 +74,9 @@ func (s *ChangelogService) ListDeploymentGroups(ctx context.Context, opts models
 		return models.ChangelogDeploymentGroupsPage{}, err
 	}
 	req := &changelogv1.ListDeploymentGroupsRequest{Limit: limit, PageToken: opts.PageToken}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.ChangelogDeploymentGroupsPage{}, err
+	}
 	return UnaryPublic(ctx, s.transport, s.client().ListDeploymentGroups, req, decode.ChangelogDeploymentGroupsPageFromProto)
 }
 
@@ -256,6 +263,9 @@ func listChangesRequest(opts models.ListChangelogChangesOptions) (*changelogv1.L
 		Sort:           sort,
 		Limit:          limit,
 		PageToken:      opts.PageToken,
+	}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return nil, err
 	}
 	if opts.StartTime != nil {
 		req.StartTime = timestamppb.New(*opts.StartTime)

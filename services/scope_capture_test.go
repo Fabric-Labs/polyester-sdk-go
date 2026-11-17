@@ -88,13 +88,18 @@ func TestExplicitEmptyScopePublicRequests(t *testing.T) {
 			sub     *string
 			want    uint64
 			refused bool
+			// invalid names a supplied sub-account that is no public ID: the
+			// call is refused before sending, never sent for the main account.
+			invalid bool
 		}{
-			{name: "empty", sub: ptr("")}, {name: "omitted", want: defaultID},
+			{name: "empty", sub: ptr(""), invalid: true}, {name: "blank", sub: ptr(" "), invalid: true},
+			{name: "omitted", want: defaultID},
 			{name: "main", account: "main"}, {name: "active", account: "active", want: defaultID},
 			{name: "explicit", sub: ptr(codecs.FormatID(44)), want: 44},
 			{name: "selector_id", account: codecs.FormatID(44), want: 44},
 			{name: "selector_dict", account: map[string]string{"subaccountId": codecs.FormatID(44)}, want: 44},
-			{name: "selector_empty", account: ""},
+			{name: "selector_empty", account: "", invalid: true},
+			{name: "selector_blank", account: "\u00a0", invalid: true},
 			{name: "conflict_main_empty", account: "main", sub: ptr(""), refused: true},
 			{name: "conflict_active_explicit", account: "active", sub: ptr(codecs.FormatID(44)), refused: true},
 			{name: "conflict_dict_default", account: map[string]string{"subaccountId": codecs.FormatID(44)}, sub: ptr(defaultSub), refused: true},
@@ -191,6 +196,17 @@ func TestExplicitEmptyScopePublicRequests(t *testing.T) {
 				for name, call := range calls {
 					t.Run(name, func(t *testing.T) {
 						call()
+						if control.invalid {
+							var validation *sdkerrors.ValidationError
+							if !stderrors.As(callErr, &validation) {
+								t.Errorf("got %v, want a ValidationError for a supplied sub-account that is no public ID", callErr)
+							}
+							if len(captures) != 0 {
+								<-captures
+								t.Error("an invalid sub-account reached transport")
+							}
+							return
+						}
 						if control.refused {
 							var validation *sdkerrors.ValidationError
 							if !stderrors.As(callErr, &validation) || !strings.Contains(callErr.Error(), "not both") {
@@ -250,9 +266,10 @@ func TestExplicitEmptyRequiredSubaccount(t *testing.T) {
 	}
 	scoped := ScopedSubAccount{DefaultSubAccountID: &defaultSub}
 	for _, override := range []any{"", &empty} {
-		sub, err := scoped.ResolveSubAccountID(override, nil)
-		if err != nil || sub != nil {
-			t.Fatalf("explicit empty: sub=%v err=%v", sub, err)
+		// An explicit empty sub-account is no ID: it is refused, never the
+		// main account.
+		if sub, err := scoped.ResolveSubAccountID(override, nil); err == nil {
+			t.Fatalf("explicit empty: sub=%v, want a ValidationError", sub)
 		}
 		if _, err := scoped.ResolveSubAccountID(override, "main"); err == nil {
 			t.Fatal("empty override with account selector must be refused")
@@ -260,9 +277,10 @@ func TestExplicitEmptyRequiredSubaccount(t *testing.T) {
 	}
 	type namedID string
 	for _, override := range []any{namedID(""), namedID("  ")} {
-		sub, err := scoped.ResolveSubAccountID(override, nil)
-		if err != nil || sub != nil {
-			t.Fatalf("named empty %q: sub=%v err=%v, want it omitted, not the default", override, sub, err)
+		// A named string is a supplied ID like any string: never trimmed,
+		// never unset.
+		if sub, err := scoped.ResolveSubAccountID(override, nil); err == nil {
+			t.Fatalf("named empty %q: sub=%v, want a ValidationError", override, sub)
 		}
 	}
 	var omitted *string
@@ -333,8 +351,10 @@ func TestStopAllTradingScopeOnEveryRequest(t *testing.T) {
 		account AccountScope
 		sub     *string
 		want    uint64
+		invalid bool
 	}{
-		{name: "empty", sub: ptr("")},
+		{name: "empty", sub: ptr(""), invalid: true},
+		{name: "blank", sub: ptr("\t"), invalid: true},
 		{name: "omitted", want: 42},
 		{name: "main", account: "main"},
 		{name: "active", account: "active", want: 42},
@@ -378,7 +398,14 @@ func TestStopAllTradingScopeOnEveryRequest(t *testing.T) {
 			cats := auditCatalog(t)
 			triggers := NewTriggersService(factory, cats, &defaultSub, nil, nil, nil, nil)
 			orders := NewOrdersService(factory, cats, &defaultSub, nil, nil, nil, nil)
-			_, _ = StopAllTrading(context.Background(), triggers, orders, control.account, StopAllTradingScope{SubAccountID: control.sub})
+			_, stopErr := StopAllTrading(context.Background(), triggers, orders, control.account, StopAllTradingScope{SubAccountID: control.sub})
+			if control.invalid {
+				var validation *sdkerrors.ValidationError
+				if !stderrors.As(stopErr, &validation) || len(seen) != 0 {
+					t.Fatalf("err=%v captured %+v, want a ValidationError and nothing sent", stopErr, seen)
+				}
+				return
+			}
 			if len(seen) != 3 {
 				t.Fatalf("captured %+v, want list, cancel and cancel-all", seen)
 			}

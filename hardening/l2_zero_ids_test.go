@@ -280,15 +280,22 @@ func TestL2ZeroSubAccountIDIsRefusedBeforeSending(t *testing.T) {
 }
 
 // TestL2ZeroSubAccountIDControlsStillSend keeps an omitted sub-account (the
-// main account) and a non-zero one on the wire.
+// main account) and a non-zero one on the wire. An empty one is no ID: it is
+// refused, never sent for the main account.
 func TestL2ZeroSubAccountIDControlsStillSend(t *testing.T) {
 	ctx := context.Background()
 	client, api := zeroIDClient(t, nil)
-	for name, sub := range map[string]*string{"omitted": nil, "empty": zeroIDStr(""), "42": zeroIDStr(codecs.FormatID(42))} {
+	for name, sub := range map[string]*string{"omitted": nil, "42": zeroIDStr(codecs.FormatID(42))} {
 		_, _ = client.Balances.List(ctx, nil, sub)
 		if calls := api.calls.Swap(0); calls == 0 {
 			t.Errorf("Balances.List %s sent nothing", name)
 		}
+	}
+	if _, err := client.Balances.List(ctx, nil, zeroIDStr("")); err == nil {
+		t.Error("Balances.List with an empty sub-account: no error")
+	}
+	if calls := api.calls.Swap(0); calls != 0 {
+		t.Errorf("Balances.List with an empty sub-account sent %d requests", calls)
 	}
 }
 

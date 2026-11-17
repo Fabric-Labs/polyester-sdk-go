@@ -83,6 +83,9 @@ func (s *LifecycleService) ListFlowsWith(ctx context.Context, params ListFlowsPa
 		return models.LifecycleFlowsList{}, err
 	}
 	req := &lifecyclev1.ListFlowsRequest{Limit: parsedLimit}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.LifecycleFlowsList{}, err
+	}
 	if req.Participation, err = flowParticipationParam(params.Participation); err != nil {
 		return models.LifecycleFlowsList{}, err
 	}
@@ -180,10 +183,10 @@ func (s *LifecycleService) accountFlowsRequest(params ListAccountFlowsParams) (*
 	if err != nil {
 		return nil, err
 	}
-	if parsedLimit > codecs.ListAccountFlowsLimitMax {
-		return nil, &errors.ValidationError{Msg: fmt.Sprintf("limit %d exceeds %d", parsedLimit, codecs.ListAccountFlowsLimitMax)}
-	}
 	req := &lifecyclev1.ListAccountFlowsRequest{Limit: parsedLimit, Sort: flowSort(params.Reversed)}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return nil, err
+	}
 	if req.Participation, err = flowParticipationParam(params.Participation); err != nil {
 		return nil, err
 	}
@@ -263,8 +266,8 @@ func checkFilterIDs(name string, ids []uint32) error {
 // Account and subAccountID select the account as for ListAccountFlows. The
 // call is signed; an API key needs READ_FUNDING_FLOWS on its policy.
 func (s *LifecycleService) GetAccountFlow(ctx context.Context, flowID string, account AccountScope, subAccountID *string) (models.LifecycleFlowSummary, error) {
-	if flowID == "" {
-		return models.LifecycleFlowSummary{}, &errors.ValidationError{Msg: "flow_id is required"}
+	if err := checkFlowID(flowID); err != nil {
+		return models.LifecycleFlowSummary{}, err
 	}
 	req := &lifecyclev1.GetAccountFlowRequest{FlowId: flowID}
 	if err := s.scoped.ApplyOptionalSubaccountIDPtr(&req.SubaccountId, account, subAccountID); err != nil {
@@ -319,12 +322,17 @@ func flowParticipationFromLabel(label string) (lifecyclev1.FlowParticipation, er
 }
 
 func (s *LifecycleService) GetFlow(ctx context.Context, intentID, flowID *string) (models.LifecycleFlowSummary, error) {
+	// Only a nil flow ID is unset: a supplied one never falls back to the
+	// intent ID.
 	resolved := flowID
-	if resolved == nil || *resolved == "" {
+	if resolved == nil {
 		resolved = intentID
 	}
-	if resolved == nil || *resolved == "" {
+	if resolved == nil {
 		return models.LifecycleFlowSummary{}, &errors.ValidationError{Msg: "flow_id or intent_id is required"}
+	}
+	if err := checkFlowID(*resolved); err != nil {
+		return models.LifecycleFlowSummary{}, err
 	}
 	req := &lifecyclev1.GetFlowByIdRequest{FlowId: *resolved}
 	return UnaryPublicDecoded(ctx, s.transport, s.client().GetFlowById, req, decode.FlowFromGetResponse)
@@ -343,6 +351,9 @@ func (s *LifecycleService) GetFlowByTx(ctx context.Context, txHash, lookupKind s
 		LookupKind: codecs.TxLookupKindFromLabel(lookupKind),
 		Limit:      parsedLimit,
 	}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.LifecycleFlowsList{}, err
+	}
 	return UnaryPublicDecoded(ctx, s.transport, s.client().ListFlowsByTx, req, decode.FlowFromGetByTxResponse)
 }
 
@@ -356,6 +367,9 @@ func (s *LifecycleService) ListFlowsByTx(ctx context.Context, txHash, lookupKind
 		LookupKind: codecs.TxLookupKindFromLabel(lookupKind),
 		Limit:      parsedLimit,
 	}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.LifecycleFlowsList{}, err
+	}
 	if pageToken != nil {
 		req.PageToken = *pageToken
 	}
@@ -363,17 +377,32 @@ func (s *LifecycleService) ListFlowsByTx(ctx context.Context, txHash, lookupKind
 }
 
 func (s *LifecycleService) SubscribeOpenFlows(ctx context.Context, accountID any) (*realtime.Subscription[models.LifecycleFlowSummary], error) {
-	id, _, err := publicID(accountID, "account_id")
+	id, set, err := publicID(accountID, "account_id")
 	if err != nil {
 		return nil, err
 	}
-	if id != "" {
+	// Only an unset account is the public feed: a supplied one, blank
+	// included, is read strictly and refused when it is no public ID.
+	if set {
+		if _, err := codecs.ParseAccountID(id, "account_id"); err != nil {
+			return nil, err
+		}
 		return SubscribeAccountProto(ctx, s.realtime, "private:chain:lifecycle:flows:{account_id}:proto", id, nil, decode.FlowSummaryFromBytes)
 	}
 	return SubscribePublicProto(ctx, s.realtime, "public:chain:lifecycle:flows:proto", decode.FlowSummaryFromBytes)
 }
 
 func (s *LifecycleService) SubscribeFlowDetail(ctx context.Context, flowID string) (*realtime.Subscription[models.LifecycleFlowSummary], error) {
+	if err := checkFlowID(flowID); err != nil {
+		return nil, err
+	}
 	channel := fmt.Sprintf("public:chain:lifecycle:flow:%s:proto", flowID)
 	return SubscribePublicProto(ctx, s.realtime, channel, decode.FlowDetailFromBytes)
+}
+
+// checkFlowID refuses a flow ID the contract's flow_id rule does not take
+// ("flow_" and base58, 6 to 64 characters): empty, blank or spaced text is
+// no flow ID.
+func checkFlowID(flowID string) error {
+	return codecs.CheckContractString(&lifecyclev1.GetFlowByIdRequest{}, "flow_id", flowID, "flow_id")
 }

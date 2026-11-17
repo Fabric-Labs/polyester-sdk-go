@@ -131,7 +131,7 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 		}
 		triggerTicks := int64(0)
 		if triggerPrice != nil && triggerPrice.IsSet() {
-			parsed, err := ResolvePriceTicks(*triggerPrice, "trigger_price", symbol)
+			parsed, err := positivePriceTicks(*triggerPrice, "trigger_price", symbol)
 			if err != nil {
 				return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_TRIGGER_PRICE_INVALID)
 			}
@@ -206,7 +206,9 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 			return nil, &errors.ValidationError{Msg: "trailing_stop requires trailing_distance_ticks or trailing_distance_bps", Code: orderv1.ErrorCode_ERROR_CODE_TRAILING_DISTANCE_INVALID.String()}
 		}
 		if opts.ActivationPrice != nil && opts.ActivationPrice.IsSet() {
-			ticks, err := ResolvePriceTicks(*opts.ActivationPrice, "activation_price", symbol)
+			// 0 is "no activation price" on the wire: a given activation
+			// price must be positive.
+			ticks, err := positivePriceTicks(*opts.ActivationPrice, "activation_price", symbol)
 			if err != nil {
 				return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_TRIGGER_ACTIVATION_PRICE_INVALID)
 			}
@@ -269,7 +271,7 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 			if limitPrice == nil || !limitPrice.IsSet() {
 				return nil, &errors.ValidationError{Msg: "twap limit slices require limit_price", Code: orderv1.ErrorCode_ERROR_CODE_BAD_PRICE.String()}
 			}
-			ticks, err := ResolvePriceTicks(*limitPrice, "limit_price", symbol)
+			ticks, err := positivePriceTicks(*limitPrice, "limit_price", symbol)
 			if err != nil {
 				return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_BAD_PRICE)
 			}
@@ -291,7 +293,7 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 		ladder := &triggersv1.LadderTrigger{Side: sideEnum, PostOnly: postOnly}
 		var hasMin, hasMax bool
 		if opts.LadderPriceMin != nil && opts.LadderPriceMin.IsSet() {
-			ticks, err := ResolvePriceTicks(*opts.LadderPriceMin, "ladder_price_min", symbol)
+			ticks, err := positivePriceTicks(*opts.LadderPriceMin, "ladder_price_min", symbol)
 			if err != nil {
 				return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_TRIGGER_PRICE_INVALID)
 			}
@@ -299,7 +301,7 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 			hasMin = true
 		}
 		if opts.LadderPriceMax != nil && opts.LadderPriceMax.IsSet() {
-			ticks, err := ResolvePriceTicks(*opts.LadderPriceMax, "ladder_price_max", symbol)
+			ticks, err := positivePriceTicks(*opts.LadderPriceMax, "ladder_price_max", symbol)
 			if err != nil {
 				return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_TRIGGER_PRICE_INVALID)
 			}
@@ -437,7 +439,7 @@ func conditionalChildToProto(orderType, tif string, limitPrice *models.PriceInpu
 		if limitPrice == nil || !limitPrice.IsSet() {
 			return nil, &errors.ValidationError{Msg: "limit trigger requires limit_price", Code: orderv1.ErrorCode_ERROR_CODE_BAD_PRICE.String()}
 		}
-		ticks, err := ResolvePriceTicks(*limitPrice, "limit_price", symbol)
+		ticks, err := positivePriceTicks(*limitPrice, "limit_price", symbol)
 		if err != nil {
 			return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_BAD_PRICE)
 		}
@@ -552,7 +554,7 @@ func ModifyTriggerToProto(triggerID string, symbolID uint32, symbol string, subA
 		return nil, err
 	}
 	req := &triggersv1.ModifyTriggerRequest{TriggerId: id, SymbolId: symbolID}
-	if subAccountID != nil && *subAccountID != "" {
+	if subAccountID != nil {
 		sub, err := ParseAccountID(*subAccountID, "sub_account_id")
 		if err != nil {
 			return nil, err
@@ -560,13 +562,19 @@ func ModifyTriggerToProto(triggerID string, symbolID uint32, symbol string, subA
 		req.SubaccountId = &sub
 	}
 	if opts.TriggerPrice != nil && opts.TriggerPrice.IsSet() {
-		ticks, err := ResolvePriceTicks(*opts.TriggerPrice, "trigger_price", symbol)
+		ticks, err := positivePriceTicks(*opts.TriggerPrice, "trigger_price", symbol)
 		if err != nil {
 			return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_TRIGGER_PRICE_INVALID)
 		}
 		req.TriggerPriceTicks = &ticks
 	}
 	if opts.TrailingDistanceTicks != nil {
+		if *opts.TrailingDistanceTicks < ModifyTrailingDistanceTicksMin {
+			return nil, &errors.ValidationError{
+				Msg:  fmt.Sprintf("trailing_distance_ticks %d must be at least %d", *opts.TrailingDistanceTicks, ModifyTrailingDistanceTicksMin),
+				Code: orderv1.ErrorCode_ERROR_CODE_TRAILING_DISTANCE_INVALID.String(),
+			}
+		}
 		req.TrailingDistance = &triggersv1.ModifyTriggerRequest_TrailingDistanceTicks{TrailingDistanceTicks: *opts.TrailingDistanceTicks}
 	}
 	if opts.TrailingDistanceBps != nil {

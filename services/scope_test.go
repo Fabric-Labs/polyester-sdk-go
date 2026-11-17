@@ -9,7 +9,7 @@ import (
 )
 
 func TestScopedSubAccountIDActiveUsesDefault(t *testing.T) {
-	defaultSub := "sub-123"
+	defaultSub := "Sub123"
 	got, err := services.ScopedSubAccountID("active", nil, &defaultSub)
 	if err != nil {
 		t.Fatal(err)
@@ -24,13 +24,13 @@ func TestScopedSubAccountIDActiveUsesDefault(t *testing.T) {
 	if got != nil {
 		t.Fatalf("got=%v want nil", got)
 	}
+	// A configured default is a supplied ID: an empty one is refused, never
+	// the main account.
 	empty := ""
 	got, err = services.ScopedSubAccountID("active", nil, &empty)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != nil {
-		t.Fatalf("got=%v want nil for empty default subaccount", got)
+	var validation *sdkerrors.ValidationError
+	if !stderrors.As(err, &validation) {
+		t.Fatalf("empty default sub-account: got=%v err=%v, want a ValidationError", got, err)
 	}
 }
 
@@ -54,7 +54,7 @@ func TestScopedSubAccountIDRejectsBoth(t *testing.T) {
 }
 
 func TestScopedSubAccountIDPrefersAccountScope(t *testing.T) {
-	defaultSub := "default"
+	defaultSub := "DefSub"
 	got, err := services.ScopedSubAccountID(map[string]string{"subaccountId": "scoped"}, nil, &defaultSub)
 	if err != nil {
 		t.Fatal(err)
@@ -62,7 +62,7 @@ func TestScopedSubAccountIDPrefersAccountScope(t *testing.T) {
 	if got == nil || *got != "scoped" {
 		t.Fatalf("got=%v want scoped", got)
 	}
-	legacy := "legacy"
+	legacy := "Legacy"
 	got, err = services.ScopedSubAccountID(nil, &legacy, &defaultSub)
 	if err != nil {
 		t.Fatal(err)
@@ -73,7 +73,7 @@ func TestScopedSubAccountIDPrefersAccountScope(t *testing.T) {
 }
 
 func TestScopedSubAccountMixinIgnoresTypedNilSubAccountID(t *testing.T) {
-	defaultSub := "default-sub"
+	defaultSub := "DefSub2"
 	scoped := services.ScopedSubAccount{DefaultSubAccountID: &defaultSub}
 	var sub *string
 	got, err := scoped.ResolveSubAccountID(sub, "active")
@@ -86,7 +86,7 @@ func TestScopedSubAccountMixinIgnoresTypedNilSubAccountID(t *testing.T) {
 }
 
 func TestScopedSubAccountMixinOnService(t *testing.T) {
-	defaultSub := "default-sub"
+	defaultSub := "DefSub2"
 	scoped := services.ScopedSubAccount{DefaultSubAccountID: &defaultSub}
 	got, err := scoped.ResolveSubAccountID(nil, "active")
 	if err != nil {

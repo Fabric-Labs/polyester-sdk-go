@@ -26,6 +26,15 @@ import (
 
 type accountIDNamedInt int64
 
+type accountIDNamedString string
+
+func namedIDPtr(v string) *accountIDNamedString {
+	named := accountIDNamedString(v)
+	return &named
+}
+
+func stringPtr(v string) *string { return &v }
+
 var (
 	refusedAccountIDs = map[string]any{
 		"zero":            0,
@@ -37,6 +46,25 @@ var (
 		"big over uint64": new(big.Int).Lsh(big.NewInt(1), 64),
 		"big zero":        new(big.Int),
 		"float":           42.0,
+		// A string is a base58 public ID, as the API reads it: a decimal
+		// string, or one with whitespace around it, is refused, never read
+		// as another account.
+		"decimal string 100":   "100",
+		"decimal string 00023": "00023",
+		"leading space":        " 23",
+		"trailing space":       "23 ",
+		// A supplied ID is parsed whatever it holds: empty or blank text is
+		// no ID and never means "unset", the default or the main account.
+		"empty":                       "",
+		"space":                       " ",
+		"tab":                         "\t",
+		"no-break space":              "\u00a0",
+		"pointer to empty":            stringPtr(""),
+		"pointer to spaced":           stringPtr(" 23"),
+		"named string empty":          accountIDNamedString(""),
+		"named string leading space":  accountIDNamedString(" 23"),
+		"named string trailing space": accountIDNamedString("23 "),
+		"pointer to named spaced":     namedIDPtr(" 23"),
 	}
 	maxUint64PublicID = codecs.FormatID(math.MaxUint64)
 )
@@ -54,6 +82,8 @@ func acceptedAccountIDs() map[string]struct {
 		want  string
 	}{
 		"int 42":           {42, codecs.FormatID(42)},
+		"int 100":          {100, codecs.FormatID(100)},
+		"uint64 23":        {uint64(23), codecs.FormatID(23)},
 		"uint32 42":        {uint32(42), codecs.FormatID(42)},
 		"named int 42":     {accountIDNamedInt(42), codecs.FormatID(42)},
 		"pointer int 42":   {func() *int { v := 42; return &v }(), codecs.FormatID(42)},
@@ -105,6 +135,10 @@ func TestScopedSubAccountEncodesIntegerSubAccountIDs(t *testing.T) {
 	}
 	for name, value := range refusedAccountIDs {
 		got, err := scoped.ResolveSubAccountID(value, nil)
+		if _, isString := value.(string); isString && err == nil {
+			// A sub-account string is read when the request is built.
+			_, err = codecs.ParseOptionalSubaccountID(got)
+		}
 		var validation *sdkerrors.ValidationError
 		if !errors.As(err, &validation) {
 			t.Errorf("%s: ResolveSubAccountID(%v) = %v, %v; want ValidationError", name, value, got, err)
@@ -428,7 +462,7 @@ func TestLifecycleSubscribeOpenFlowsUnsetStaysPublic(t *testing.T) {
 	t.Cleanup(rt.Close)
 	lifecycle := NewLifecycleService(nil, rt, nil)
 	var empty *string
-	for name, unset := range map[string]any{"nil": nil, "empty string": "", "nil pointer": empty} {
+	for name, unset := range map[string]any{"nil": nil, "nil pointer": empty} {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		sub, err := lifecycle.SubscribeOpenFlows(ctx, unset)
 		cancel()
