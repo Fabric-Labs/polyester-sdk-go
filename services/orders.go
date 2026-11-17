@@ -112,7 +112,7 @@ func (s *OrdersService) ListOpen(ctx context.Context, account AccountScope, subA
 	if err := codecs.CheckPageLimit(req); err != nil {
 		return models.OrdersList{}, err
 	}
-	if triggerID != nil && *triggerID != "" {
+	if triggerID != nil {
 		id, err := codecs.IDToInt(*triggerID, "trigger_id")
 		if err != nil {
 			return models.OrdersList{}, err
@@ -177,7 +177,7 @@ func (s *OrdersService) ListHistory(ctx context.Context, account AccountScope, s
 	if pageToken != nil {
 		req.PageToken = *pageToken
 	}
-	if triggerID != nil && *triggerID != "" {
+	if triggerID != nil {
 		id, err := codecs.IDToInt(*triggerID, "trigger_id")
 		if err != nil {
 			return models.OrdersList{}, err

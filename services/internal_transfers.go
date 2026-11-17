@@ -147,8 +147,11 @@ type transferDestination struct {
 
 // internalTransferDestination parses the one destination of a transfer.
 func internalTransferDestination(destinationAccountID, destinationSubaccountID, destinationSmartAccountAddress *string) (transferDestination, error) {
-	hasAccount := destinationAccountID != nil && strings.TrimSpace(*destinationAccountID) != ""
-	hasSubaccount := destinationSubaccountID != nil && strings.TrimSpace(*destinationSubaccountID) != ""
+	// A supplied destination ID counts as given whatever it holds, and is
+	// then read strictly: a blank one is refused, not dropped in favour of
+	// another destination.
+	hasAccount := destinationAccountID != nil
+	hasSubaccount := destinationSubaccountID != nil
 	hasAddress := destinationSmartAccountAddress != nil && strings.TrimSpace(*destinationSmartAccountAddress) != ""
 	destinations := 0
 	for _, has := range []bool{hasAccount, hasSubaccount, hasAddress} {

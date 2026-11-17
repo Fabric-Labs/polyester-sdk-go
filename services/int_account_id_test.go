@@ -462,7 +462,7 @@ func TestLifecycleSubscribeOpenFlowsUnsetStaysPublic(t *testing.T) {
 	t.Cleanup(rt.Close)
 	lifecycle := NewLifecycleService(nil, rt, nil)
 	var empty *string
-	for name, unset := range map[string]any{"nil": nil, "empty string": "", "nil pointer": empty} {
+	for name, unset := range map[string]any{"nil": nil, "nil pointer": empty} {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		sub, err := lifecycle.SubscribeOpenFlows(ctx, unset)
 		cancel()

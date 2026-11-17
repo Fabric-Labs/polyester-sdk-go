@@ -63,9 +63,10 @@ func FormatExpireAt(ts *timestamppb.Timestamp) string {
 }
 
 // ParseOptionalSubaccountID parses an optional sub-account ID to uint64, nil
-// when unset. An ID that decodes to 0 is refused, as ParseAccountID does.
+// only when value is nil. A supplied ID, empty or blank included, is read as
+// ParseAccountID does and refused when it is no non-zero public ID.
 func ParseOptionalSubaccountID(value *string) (*uint64, error) {
-	if value == nil || *value == "" {
+	if value == nil {
 		return nil, nil
 	}
 	parsed, err := ParseAccountID(*value, "sub_account_id")

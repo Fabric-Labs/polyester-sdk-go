@@ -125,7 +125,6 @@ func TestStatementsExportPageScopes(t *testing.T) {
 		{"explicit sub-account", services.ExportStatementOptions{SubAccountID: &explicit}, proto.Uint64(9000000002)},
 		{"account main is the main account", services.ExportStatementOptions{Account: "main"}, nil},
 		{"account active uses the default", services.ExportStatementOptions{Account: "active"}, proto.Uint64(9000000001)},
-		{"empty sub-account is the authenticated account", services.ExportStatementOptions{SubAccountID: &empty}, nil},
 	}
 	for _, tc := range cases {
 		opts := tc.opts
@@ -143,6 +142,21 @@ func TestStatementsExportPageScopes(t *testing.T) {
 		if (got == nil) != (tc.want == nil) || (got != nil && *got != *tc.want) {
 			t.Fatalf("%s: subaccount_id = %v, want %v", tc.name, got, tc.want)
 		}
+	}
+	// An empty sub-account is no ID: it is refused before sending, never the
+	// authenticated account.
+	fake.mu.Lock()
+	sent := len(fake.requests)
+	fake.mu.Unlock()
+	opts := services.ExportStatementOptions{SubAccountID: &empty, StartTime: start, EndTime: end}
+	var validation *sdkerrors.ValidationError
+	if _, err := client.Statements.ExportPage(context.Background(), opts); !stderrors.As(err, &validation) {
+		t.Fatalf("empty sub-account: err = %v, want a ValidationError", err)
+	}
+	fake.mu.Lock()
+	defer fake.mu.Unlock()
+	if len(fake.requests) != sent {
+		t.Fatal("empty sub-account was sent")
 	}
 }
 

@@ -554,7 +554,7 @@ func ModifyTriggerToProto(triggerID string, symbolID uint32, symbol string, subA
 		return nil, err
 	}
 	req := &triggersv1.ModifyTriggerRequest{TriggerId: id, SymbolId: symbolID}
-	if subAccountID != nil && *subAccountID != "" {
+	if subAccountID != nil {
 		sub, err := ParseAccountID(*subAccountID, "sub_account_id")
 		if err != nil {
 			return nil, err
