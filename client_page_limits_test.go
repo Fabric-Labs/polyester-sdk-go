@@ -27,6 +27,7 @@ type sentLimit struct {
 	procedure string
 	present   bool
 	value     uint64
+	msg       proto.Message
 }
 
 // limitCapture decodes every request it receives as its method's input
@@ -70,7 +71,7 @@ func (c *limitCapture) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	got := sentLimit{procedure: procedure}
+	got := sentLimit{procedure: procedure, msg: msg}
 	if field := input.Fields().ByName("limit"); field != nil && msg.ProtoReflect().Has(field) {
 		got.present, got.value = true, msg.ProtoReflect().Get(field).Uint()
 	}
@@ -327,4 +328,9 @@ func TestEveryListCallRefusesALimitAboveItsContractMaximum(t *testing.T) {
 			t.Errorf("%s limit %d: sent %+v", tc.name, tc.max, sent)
 		}
 	}
+}
+
+func isValidationNaming(err error, field string) bool {
+	var validation *sdkerrors.ValidationError
+	return stderrors.As(err, &validation) && strings.Contains(validation.Msg, field)
 }
