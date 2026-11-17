@@ -21,7 +21,7 @@ func TestBatchCreateOrdersToProto(t *testing.T) {
 		{Symbol: strPtr("ETH-USD"), SymbolID: &ethID, Side: "sell", OrderType: "market", Qty: models.QtyFromDecimal("1"), ClientOrderID: strPtr("cid-2")},
 	}
 	reqID := "req-create-1"
-	proto, err := BatchCreateOrdersToProto(items, strPtr("123"), &reqID, true, 8, 6)
+	proto, err := BatchCreateOrdersToProto(items, strPtr(FormatID(123)), &reqID, true, 8, 6)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,11 +146,11 @@ func TestBatchCancelOrdersToProto(t *testing.T) {
 	sid := uint32(3)
 	sid2 := uint32(5)
 	items := []models.BatchCancelItem{
-		{Key: models.OrderKeyByID("100"), SymbolID: &sid},
+		{Key: models.OrderKeyByID(FormatID(100)), SymbolID: &sid},
 		{Key: models.OrderKeyByClientID("cid-9"), SymbolID: &sid2},
 	}
 	reqID := "req-cancel-1"
-	proto, err := BatchCancelOrdersToProto(items, strPtr("100"), &reqID)
+	proto, err := BatchCancelOrdersToProto(items, strPtr(FormatID(100)), &reqID)
 	if err != nil {
 		t.Fatal(err)
 	}

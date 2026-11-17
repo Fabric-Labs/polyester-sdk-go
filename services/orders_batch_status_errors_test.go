@@ -30,7 +30,7 @@ func TestGetBatchReplaceStatusErrorsAndExactBatchID(t *testing.T) {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("batch replace status not found"))
 	}
 	ctx := context.Background()
-	const maxID = "18446744073709551615"
+	maxID := codecs.FormatID(math.MaxUint64)
 
 	svc := newBatchStatusService(t, &batchStatusHandler{responses: []func() (*orderv1.GetBatchReplaceStatusResponse, error){unavailable}})
 	_, err := svc.GetBatchReplaceStatus(ctx, nil, maxID, nil)

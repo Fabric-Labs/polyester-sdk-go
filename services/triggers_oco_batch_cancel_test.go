@@ -314,7 +314,7 @@ func TestBatchCancelTriggersSendsIDsInOrderAndReadsEachOutcome(t *testing.T) {
 	service := newTriggerControlServiceWith(t, handler)
 	sub := codecs.FormatID(42)
 	requestID := "cancel-wave-1"
-	ids := []string{codecs.FormatID(12), "11", codecs.FormatID(13)}
+	ids := []string{codecs.FormatID(12), codecs.FormatID(11), codecs.FormatID(13)}
 
 	got, err := service.BatchCancel(context.Background(), nil, ids, &sub, &requestID)
 	if err != nil {
@@ -349,7 +349,7 @@ func TestBatchCancelTriggersRetrySendsTheSameRequest(t *testing.T) {
 	service := newTriggerControlServiceWith(t, handler)
 	requestID := "cancel-wave-2"
 	for range 2 {
-		if _, err := service.BatchCancel(context.Background(), nil, []string{"12"}, nil, &requestID); err != nil {
+		if _, err := service.BatchCancel(context.Background(), nil, []string{codecs.FormatID(12)}, nil, &requestID); err != nil {
 			t.Fatalf("batch cancel: %v", err)
 		}
 	}
@@ -357,7 +357,7 @@ func TestBatchCancelTriggersRetrySendsTheSameRequest(t *testing.T) {
 		t.Fatalf("retry = %v, want the first request %v", handler.batches[1], handler.batches[0])
 	}
 
-	if _, err := service.BatchCancel(context.Background(), nil, []string{"12"}, nil, nil); err != nil {
+	if _, err := service.BatchCancel(context.Background(), nil, []string{codecs.FormatID(12)}, nil, nil); err != nil {
 		t.Fatalf("batch cancel without a request ID: %v", err)
 	}
 	if generated := handler.batches[2].GetRequestId(); !strings.HasPrefix(generated, "batch-cancel-triggers-") {
@@ -377,10 +377,10 @@ func TestBatchCancelTriggersRefusesAnInvalidBatchBeforeSending(t *testing.T) {
 	}{
 		"no trigger":         {ids: nil},
 		"over the limit":     {ids: tooMany},
-		"repeated trigger":   {ids: []string{"12", codecs.FormatID(12)}},
+		"repeated trigger":   {ids: []string{codecs.FormatID(12), codecs.FormatID(12)}},
 		"zero trigger ID":    {ids: []string{"0"}},
 		"invalid trigger ID": {ids: []string{"not-an-id!"}},
-		"invalid request ID": {ids: []string{"12"}, requestID: &badRequestID},
+		"invalid request ID": {ids: []string{codecs.FormatID(12)}, requestID: &badRequestID},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -412,7 +412,7 @@ func TestBatchCancelTriggersRefusesAnInconsistentResponse(t *testing.T) {
 	for name, resp := range cases {
 		t.Run(name, func(t *testing.T) {
 			service := newTriggerControlServiceWith(t, &ocoHandler{batchResp: resp})
-			_, err := service.BatchCancel(context.Background(), nil, []string{"12"}, nil, nil)
+			_, err := service.BatchCancel(context.Background(), nil, []string{codecs.FormatID(12)}, nil, nil)
 			var contract *sdkerrors.ResponseContractError
 			if !errors.As(err, &contract) {
 				t.Fatalf("err = %T %v, want a response contract error", err, err)

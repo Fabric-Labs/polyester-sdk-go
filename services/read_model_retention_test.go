@@ -249,7 +249,7 @@ func TestOrderReadsKeepBatchRequestID(t *testing.T) {
 				svc := NewOrdersService(factory, nil, nil, nil, nil, nil, nil)
 				ctx := context.Background()
 
-				got, err := svc.Get(ctx, nil, models.OrderKeyByID("901"), nil, false, false)
+				got, err := svc.Get(ctx, nil, models.OrderKeyByID(codecs.FormatID(901)), nil, false, false)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -295,7 +295,7 @@ func TestEndedOrdersKeepBatchRequestID(t *testing.T) {
 				t.Fatalf("ListHistory orders = %d", len(history.Orders))
 			}
 			requireBatch(t, "ListHistory", &history.Orders[0], "8")
-			got, err := svc.Get(ctx, nil, models.OrderKeyByID("901"), nil, false, false)
+			got, err := svc.Get(ctx, nil, models.OrderKeyByID(codecs.FormatID(901)), nil, false, false)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -146,7 +146,7 @@ func TestRiskPolicyRejectsInvalidShapes(t *testing.T) {
 
 func TestModifyEncodesAttachedRiskOnlyPatch(t *testing.T) {
 	req, err := ModifyOrderToProto(
-		"SOL-USDT", 3, models.OrderKeyByID("100"), nil, ptr("mod-1"),
+		"SOL-USDT", 3, models.OrderKeyByID(FormatID(100)), nil, ptr("mod-1"),
 		nil, nil, attachedOCO("185.25", "140.5"), false, nil, nil, 6,
 	)
 	if err != nil {
@@ -159,11 +159,11 @@ func TestModifyEncodesAttachedRiskOnlyPatch(t *testing.T) {
 	if risk.GetTakeProfit().GetTriggerPriceTicks() != 185250000000 || risk.GetStopLoss().GetTriggerPriceTicks() != 140500000000 || !risk.GetOco() {
 		t.Fatalf("new_attached_risk=%v", risk)
 	}
-	if _, err := ModifyOrderToProto("SOL-USDT", 3, models.OrderKeyByID("100"), nil, nil, nil, nil, nil, false, nil, nil, 6); err == nil ||
+	if _, err := ModifyOrderToProto("SOL-USDT", 3, models.OrderKeyByID(FormatID(100)), nil, nil, nil, nil, nil, false, nil, nil, 6); err == nil ||
 		!strings.Contains(err.Error(), "new_attached_risk") {
 		t.Fatalf("empty patch err=%v", err)
 	}
-	_, err = ModifyOrderToProto("SOL-USDT", 3, models.OrderKeyByID("100"), nil, nil, nil, nil,
+	_, err = ModifyOrderToProto("SOL-USDT", 3, models.OrderKeyByID(FormatID(100)), nil, nil, nil, nil,
 		&models.AttachedRiskInput{OCO: true}, false, nil, nil, 6)
 	if err == nil || !strings.Contains(err.Error(), "new_attached_risk requires take_profit") {
 		t.Fatalf("invalid patch err=%v", err)
@@ -259,14 +259,14 @@ func TestModifyAndBatchReplacePassAttachedTrailingLimit(t *testing.T) {
 		DistanceBps: ptr(int32(150)),
 		LimitPrice:  ptr(models.PriceFromDecimal("185.5")),
 	}}
-	req, err := ModifyOrderToProto("SOL-USDT", 3, models.OrderKeyByID("100"), nil, nil, nil, nil, risk, false, nil, nil, 6)
+	req, err := ModifyOrderToProto("SOL-USDT", 3, models.OrderKeyByID(FormatID(100)), nil, nil, nil, nil, risk, false, nil, nil, 6)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if req.GetNewAttachedRisk().GetTrailingStop().GetLimitPriceTicks() != 185500000000 {
 		t.Fatalf("modify=%v", req.GetNewAttachedRisk())
 	}
-	batch, err := BatchReplaceOrdersToProto([]models.BatchReplaceItem{{Key: models.OrderKeyByID("100"), NewAttachedRisk: risk}}, 3, nil, ptr("batch-1"), 6)
+	batch, err := BatchReplaceOrdersToProto([]models.BatchReplaceItem{{Key: models.OrderKeyByID(FormatID(100)), NewAttachedRisk: risk}}, 3, nil, ptr("batch-1"), 6)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -276,7 +276,7 @@ func TestModifyAndBatchReplacePassAttachedTrailingLimit(t *testing.T) {
 	// The order's side is unknown here, so the server judges the side rule;
 	// the price checks still apply.
 	risk.TrailingStop.ActivationPrice = ptr(models.PriceFromDecimal("190"))
-	_, err = ModifyOrderToProto("SOL-USDT", 3, models.OrderKeyByID("100"), nil, nil, nil, nil, risk, false, nil, nil, 6)
+	_, err = ModifyOrderToProto("SOL-USDT", 3, models.OrderKeyByID(FormatID(100)), nil, nil, nil, nil, risk, false, nil, nil, 6)
 	if err == nil || !strings.Contains(err.Error(), "new_attached_risk.trailing_stop.limit_price must be at least activation_price") {
 		t.Fatalf("err=%v", err)
 	}
@@ -337,7 +337,7 @@ func TestAttachedTrailingLimitChecksUseServerCodes(t *testing.T) {
 		ActivationPrice: ptr(models.PriceFromDecimal("190")),
 		LimitPrice:      ptr(models.PriceFromDecimal("185.5")),
 	}}
-	_, err := ModifyOrderToProto("SOL-USDT", 3, models.OrderKeyByID("100"), nil, nil, nil, nil, risk, false, nil, nil, 6)
+	_, err := ModifyOrderToProto("SOL-USDT", 3, models.OrderKeyByID(FormatID(100)), nil, nil, nil, nil, risk, false, nil, nil, 6)
 	violations := errors.Violations(err)
 	if len(violations) != 1 || violations[0].FieldPath != "new_attached_risk.trailing_stop.limit_price_ticks" ||
 		violations[0].RuleID != "buy_at_least_activation" {

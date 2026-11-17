@@ -189,8 +189,8 @@ func TestCheckPageLimitFollowsEveryRequestsContractRule(t *testing.T) {
 	}
 }
 
-// Public IDs are ASCII: a decimal or base58 ID written with other digits, or
-// wrapped in non-ASCII spaces, is refused rather than read as another ID.
+// Public IDs are ASCII base58: an ID written with other digits, or wrapped in
+// any space, is refused rather than read as another ID.
 func TestIDsRefuseNonASCIIDigitsAndSpaces(t *testing.T) {
 	for _, value := range []string{"٥", "５", "٢٣", "２３", "๒๓", " 23", "23　", "２3"} {
 		if _, err := IDToInt(value, "order_id"); err == nil {
@@ -205,7 +205,8 @@ func TestIDsRefuseNonASCIIDigitsAndSpaces(t *testing.T) {
 	if id, err := IDToInt("23", "order_id"); err != nil || id != 60 {
 		t.Fatalf(`IDToInt("23") = %d, %v; want 60 (base58)`, id, err)
 	}
-	if id, err := IDToInt(" 23 ", "order_id"); err != nil || id != 60 {
-		t.Fatalf(`IDToInt(" 23 ") = %d, %v; want 60`, id, err)
+	// Nothing is trimmed: ASCII spaces are refused too.
+	if id, err := IDToInt(" 23 ", "order_id"); err == nil {
+		t.Fatalf(`IDToInt(" 23 ") = %d, want a validation error`, id)
 	}
 }

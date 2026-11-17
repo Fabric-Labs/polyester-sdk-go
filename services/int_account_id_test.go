@@ -114,6 +114,10 @@ func TestScopedSubAccountEncodesIntegerSubAccountIDs(t *testing.T) {
 	}
 	for name, value := range refusedAccountIDs {
 		got, err := scoped.ResolveSubAccountID(value, nil)
+		if _, isString := value.(string); isString && err == nil {
+			// A sub-account string is read when the request is built.
+			_, err = codecs.ParseOptionalSubaccountID(got)
+		}
 		var validation *sdkerrors.ValidationError
 		if !errors.As(err, &validation) {
 			t.Errorf("%s: ResolveSubAccountID(%v) = %v, %v; want ValidationError", name, value, got, err)

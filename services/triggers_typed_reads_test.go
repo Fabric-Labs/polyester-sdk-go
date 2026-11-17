@@ -254,7 +254,7 @@ func TestPoly9433ListTriggerTypeAndParentOrderFilters(t *testing.T) {
 			handler := &typedReadHandler{}
 			svc := newTypedReadService(t, handler, wire, true)
 			ctx := context.Background()
-			parent := "12345"
+			parent := codecs.FormatID(12345)
 			if _, err := svc.List(ctx, nil, nil, nil, nil, 10, nil, models.ListTriggersOptions{TriggerType: "ladder", ParentOrderID: &parent}); err != nil {
 				t.Fatal(err)
 			}

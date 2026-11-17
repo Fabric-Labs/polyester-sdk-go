@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
@@ -46,13 +47,13 @@ func TestModifyAndBatchReplaceExplainABadTrailingMaximum(t *testing.T) {
 	calls := map[string]func(*OrdersService, *models.AttachedRiskInput) error{
 		"modify": func(s *OrdersService, risk *models.AttachedRiskInput) error {
 			_, err := s.ModifyWith(context.Background(), nil, ModifyParams{
-				Symbol: "BTC-USDT", Key: models.OrderKeyByID("100"), NewAttachedRisk: risk,
+				Symbol: "BTC-USDT", Key: models.OrderKeyByID(codecs.FormatID(100)), NewAttachedRisk: risk,
 			})
 			return err
 		},
 		"batch replace": func(s *OrdersService, risk *models.AttachedRiskInput) error {
 			_, err := s.BatchReplace(context.Background(), nil, []models.BatchReplaceItem{{
-				Key: models.OrderKeyByID("100"), NewAttachedRisk: risk,
+				Key: models.OrderKeyByID(codecs.FormatID(100)), NewAttachedRisk: risk,
 			}}, "BTC-USDT", nil, nil)
 			return err
 		},
@@ -93,12 +94,12 @@ func TestModifyAndBatchReplaceSendAPositiveTrailingMaximumControl(t *testing.T) 
 	service, sent := trailingMaximumService(t)
 	risk := trailingRisk("185.5")
 	if _, err := service.ModifyWith(context.Background(), nil, ModifyParams{
-		Symbol: "BTC-USDT", Key: models.OrderKeyByID("100"), NewAttachedRisk: risk,
+		Symbol: "BTC-USDT", Key: models.OrderKeyByID(codecs.FormatID(100)), NewAttachedRisk: risk,
 	}); err == nil {
 		t.Fatal("the test server refuses every request")
 	}
 	if _, err := service.BatchReplace(context.Background(), nil, []models.BatchReplaceItem{{
-		Key: models.OrderKeyByID("100"), NewAttachedRisk: risk,
+		Key: models.OrderKeyByID(codecs.FormatID(100)), NewAttachedRisk: risk,
 	}}, "BTC-USDT", nil, nil); err == nil {
 		t.Fatal("the test server refuses every request")
 	}
