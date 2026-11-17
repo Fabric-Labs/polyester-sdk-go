@@ -37,6 +37,13 @@ var (
 		"big over uint64": new(big.Int).Lsh(big.NewInt(1), 64),
 		"big zero":        new(big.Int),
 		"float":           42.0,
+		// A string is a base58 public ID, as the API reads it: a decimal
+		// string, or one with whitespace around it, is refused, never read
+		// as another account.
+		"decimal string 100":   "100",
+		"decimal string 00023": "00023",
+		"leading space":        " 23",
+		"trailing space":       "23 ",
 	}
 	maxUint64PublicID = codecs.FormatID(math.MaxUint64)
 )
@@ -54,6 +61,8 @@ func acceptedAccountIDs() map[string]struct {
 		want  string
 	}{
 		"int 42":           {42, codecs.FormatID(42)},
+		"int 100":          {100, codecs.FormatID(100)},
+		"uint64 23":        {uint64(23), codecs.FormatID(23)},
 		"uint32 42":        {uint32(42), codecs.FormatID(42)},
 		"named int 42":     {accountIDNamedInt(42), codecs.FormatID(42)},
 		"pointer int 42":   {func() *int { v := 42; return &v }(), codecs.FormatID(42)},
