@@ -9,6 +9,7 @@ import (
 	triggersv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/realtime"
 	"google.golang.org/protobuf/proto"
+	"io"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -77,7 +78,44 @@ func TestOrderCreateNeverResendsUnknownOutcome(t *testing.T) {
 	}
 }
 
+// timeoutAfterReceipt ends the client's first request with a deadline
+// exceeded, as a client timeout would, once the server has received it; the
+// other requests are sent unchanged. It makes a timed-out read independent
+// of how fast the machine runs.
+type timeoutAfterReceipt struct {
+	base     http.RoundTripper
+	received chan struct{}
+	first    atomic.Bool
+}
+
+func (rt *timeoutAfterReceipt) RoundTrip(req *http.Request) (*http.Response, error) {
+	if !rt.first.CompareAndSwap(false, true) {
+		return rt.base.RoundTrip(req)
+	}
+	return rt.base.RoundTrip(req.WithContext(&expiresOn{Context: req.Context(), done: rt.received}))
+}
+
+// expiresOn is a context whose deadline passes when done closes.
+type expiresOn struct {
+	context.Context
+	done chan struct{}
+}
+
+func (c *expiresOn) Done() <-chan struct{} { return c.done }
+
+func (c *expiresOn) Err() error {
+	select {
+	case <-c.done:
+		return context.DeadlineExceeded
+	default:
+		return nil
+	}
+}
+
 func TestGateway504ReadRetriesRemainSafe(t *testing.T) {
+	// The reads' retry budgets and the batch status window count their
+	// waits, not how long a loaded machine takes to answer.
+	useFakeClock(t)
 	for _, failure := range []struct {
 		status     int
 		kind, body string
@@ -86,10 +124,17 @@ func TestGateway504ReadRetriesRemainSafe(t *testing.T) {
 			for _, operation := range []string{"trigger", "batch-status", "snapshot"} {
 				t.Run(operation, func(t *testing.T) {
 					var calls atomic.Int32
-					srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					received := make(chan struct{})
+					srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 						if calls.Add(1) == 1 {
 							if failure.status == 0 {
-								time.Sleep(200 * time.Millisecond)
+								// Received: the client's request times out
+								// now, and this answer never reaches it. The
+								// body is read first, so the server notices the
+								// client going away.
+								_, _ = io.Copy(io.Discard, r.Body)
+								close(received)
+								<-r.Context().Done()
 								return
 							}
 							w.Header().Set("Content-Type", failure.kind)
@@ -123,9 +168,10 @@ func TestGateway504ReadRetriesRemainSafe(t *testing.T) {
 					cfg.APIURL = srv.URL
 					factory := transport.NewFactory(cfg, creds, nil)
 					if failure.status == 0 {
-						factory.HTTP.Timeout = 50 * time.Millisecond
+						factory.HTTP.Transport = &timeoutAfterReceipt{base: factory.HTTP.Transport, received: received}
 					}
-					ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+					// A guard against a hang only: no step is timed.
+					ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 					defer cancel()
 					switch operation {
 					case "trigger":

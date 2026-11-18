@@ -117,20 +117,26 @@ func TestTriggerReadsRetryCatchingUpWithTheSameRequest(t *testing.T) {
 }
 
 func TestTriggerReadRetryGivesUpAfterItsBudget(t *testing.T) {
+	clock := useFakeClock(t)
 	handler := &triggerReadHandler{unavailable: 1 << 30}
 	service := newTriggerReadService(t, handler)
 
-	started := time.Now()
 	_, err := service.Get(context.Background(), nil, codecs.FormatID(9), nil)
-	elapsed := time.Since(started)
 	var serverErr *sdkerrors.ServerError
 	if !errors.As(err, &serverErr) || serverErr.Code != "ERROR_CODE_UNAVAILABLE" || !sdkerrors.IsRetryable(err) {
 		t.Fatalf("err=%T %v", err, err)
 	}
-	// 25 ms doubling to a 500 ms cap: the waits add up to 1.775 s, the
-	// last one that fits the 2 s budget.
-	if elapsed < 1700*time.Millisecond || elapsed > 3*time.Second {
-		t.Fatalf("gave up after %s", elapsed)
+	// 25 ms doubling to a 500 ms cap: the waits add up to 1.775 s, and the
+	// next 500 ms one would end past the 2 s budget.
+	want := []time.Duration{25, 50, 100, 200, 400, 500, 500}
+	got := clock.Waits()
+	if len(got) != len(want) {
+		t.Fatalf("waits=%v, want %v ms", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i]*time.Millisecond {
+			t.Fatalf("waits=%v, want %v ms", got, want)
+		}
 	}
 	handler.mu.Lock()
 	defer handler.mu.Unlock()

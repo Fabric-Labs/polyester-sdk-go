@@ -220,6 +220,9 @@ func TestStatus401And403StayDefiniteAuthRefusals(t *testing.T) {
 }
 
 func TestUnavailableStatusesStayUnknownSendACreateOnceAndLetReadsRetry(t *testing.T) {
+	// The read's retry budget counts its waits, not how long a loaded
+	// machine takes to answer.
+	useFakeClock(t)
 	bodies := append(append([]errorBody{}, noCodeBodies...), bareBodies...)
 	for _, status := range []int{429, 502, 503, 504} {
 		for _, body := range bodies {

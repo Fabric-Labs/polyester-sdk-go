@@ -221,7 +221,10 @@ func TestWaitBatchReplaceKeepsCallerCancellation(t *testing.T) {
 }
 
 func TestWaitBatchReplaceStopsAtTheWindowWhileUnavailable(t *testing.T) {
-	acceptedAt := time.Now().Add(-59700 * time.Millisecond)
+	clock := useFakeClock(t)
+	// The window ends 300 ms from now: polls after 50 ms and 150 ms fit,
+	// and the next wait, to 350 ms, would end past it.
+	acceptedAt := clock.Now().Add(-59700 * time.Millisecond)
 	handler := &batchStatusHandler{responses: []func() (*orderv1.GetBatchReplaceStatusResponse, error){
 		batchStatus(acceptedAt, orderv1.BatchReplacePhase_BATCH_REPLACE_PHASE_ADMITTED, ""),
 		func() (*orderv1.GetBatchReplaceStatusResponse, error) {
@@ -240,7 +243,10 @@ func TestWaitBatchReplaceStopsAtTheWindowWhileUnavailable(t *testing.T) {
 	}
 	handler.mu.Lock()
 	defer handler.mu.Unlock()
-	if handler.calls < 3 {
-		t.Fatalf("polls=%d", handler.calls)
+	if handler.calls != 3 {
+		t.Fatalf("polls=%d, want 3", handler.calls)
+	}
+	if waits := clock.Waits(); len(waits) != 2 || waits[0] != 50*time.Millisecond || waits[1] != 100*time.Millisecond {
+		t.Fatalf("waits=%v, want 50ms and 100ms", waits)
 	}
 }
