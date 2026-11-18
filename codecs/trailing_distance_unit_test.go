@@ -9,7 +9,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
-// POLY-5724: a trailing distance in ticks is a price delta in 1e-9 quote
+// A trailing distance in ticks is a price delta in 1e-9 quote
 // units, the scale of every price tick, and every path sends it unchanged:
 // 50 USDT is 50_000_000_000 ticks and 0.5 USDT is 500_000_000.
 func TestTrailingDistanceTicksArePriceTicks(t *testing.T) {

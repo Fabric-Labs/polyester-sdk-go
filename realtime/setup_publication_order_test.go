@@ -21,7 +21,7 @@ func ticketPublication(data string) []byte {
 	return append(appendVarint(nil, uint64(len(reply))), reply...)
 }
 
-func TestTicket8475SetupPreservesPublicationOrder(t *testing.T) {
+func TestSetupPreservesPublicationOrder(t *testing.T) {
 	ack := []byte{2, 8, 2}
 	first := ticketPublication("first")
 	fixture, err := hex.DecodeString("0208020b2209220722056669727374")

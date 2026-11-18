@@ -1,6 +1,6 @@
 package hardening_test
 
-// POLY-9228: no level of an SDK error's chain prints a credential.
+// No level of an SDK error's chain prints a credential.
 //
 // An answer can quote a URL with userinfo, such as a proxy's. The SDK error
 // copied it into its message, so Error() printed the credential. Every level
@@ -28,7 +28,7 @@ import (
 
 const (
 	chainUser   = "sdk-proxy-user"
-	chainSecret = "proxy-secret-9228"
+	chainSecret = "proxy-secret-value"
 	chainQuery  = "token=query-secret"
 )
 
@@ -151,8 +151,8 @@ func TestL2URLWithParenthesesOrQuotesIsRedacted(t *testing.T) {
 // URLs and its API private key never reach an error's text, however the
 // answer quotes them.
 func TestL2ClientHeldSecretsNeverReachAnError(t *testing.T) {
-	const apiUser, apiSecret = "sdk-api-user", "api-secret-9228"
-	const wsUser, wsSecret = "sdk-ws-user", "ws-secret-9228"
+	const apiUser, apiSecret = "sdk-api-user", "api-secret-value"
+	const wsUser, wsSecret = "sdk-ws-user", "ws-secret-value"
 	kp := auth.GenerateEd25519Keypair()
 	seed := kp.SecretKeyHex.Reveal()
 	message := "auth " + apiUser + ":" + apiSecret + " via http//" + apiUser + ":" + apiSecret + "@api ws " +

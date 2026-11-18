@@ -115,7 +115,7 @@ func bookTicketNext(t *testing.T, updates <-chan models.OrderbookData) (models.O
 		return models.OrderbookData{}, false
 	}
 }
-func TestTicket8510SequenceAvailabilityControls(t *testing.T) {
+func TestSequenceAvailabilityControls(t *testing.T) {
 	for _, seq := range []uint64{0, 1} {
 		for _, available := range []bool{false, true} {
 			svc, _, _, _ := bookTicketService(t, seq, available)
@@ -138,7 +138,7 @@ func TestTicket8510SequenceAvailabilityControls(t *testing.T) {
 		}
 	}
 }
-func TestTicket8512ConflictingSelectorsFailBeforeIO(t *testing.T) {
+func TestConflictingSelectorsFailBeforeIO(t *testing.T) {
 	svc, _, _, calls := bookTicketService(t, 1, true)
 	id := uint32(2)
 	sub, err := svc.CreateSubscription(context.Background(), CreateSubscriptionOptions{Symbol: "BTC-USDT", SymbolID: &id})
@@ -153,7 +153,7 @@ func TestTicket8512ConflictingSelectorsFailBeforeIO(t *testing.T) {
 		t.Fatal("conflicting selectors performed snapshot I/O")
 	}
 }
-func TestTicket8511TerminalLifecycle(t *testing.T) {
+func TestTerminalLifecycle(t *testing.T) {
 	for _, mode := range []string{"refresh", "transport", "close", "recover"} {
 		t.Run(mode, func(t *testing.T) {
 			// An unavailable snapshot is requested again in the background:
@@ -220,7 +220,7 @@ func TestTicket8511TerminalLifecycle(t *testing.T) {
 	}
 }
 
-func TestTicket8512SelectorControlsKeepResetIdentityAndScale(t *testing.T) {
+func TestSelectorControlsKeepResetIdentityAndScale(t *testing.T) {
 	for _, control := range []struct {
 		symbol   string
 		id       uint32
@@ -257,7 +257,7 @@ func TestTicket8512SelectorControlsKeepResetIdentityAndScale(t *testing.T) {
 	}
 }
 
-func TestTicket8510ZeroSequenceOrdering(t *testing.T) {
+func TestZeroSequenceOrdering(t *testing.T) {
 	for _, mode := range []string{"gap", "contiguous", "reset"} {
 		t.Run(mode, func(t *testing.T) {
 			svc, sends, _, calls := bookTicketService(t, 0, true)
@@ -298,7 +298,7 @@ func TestTicket8510ZeroSequenceOrdering(t *testing.T) {
 	}
 }
 
-func TestTicket8512UnknownMatchingSelectorsRequireCatalogs(t *testing.T) {
+func TestUnknownMatchingSelectorsRequireCatalogs(t *testing.T) {
 	svc, _, _, calls := bookTicketService(t, 1, true)
 	svc.catalogs = catalogs.NewManager()
 	id := uint32(1)
@@ -314,7 +314,7 @@ func TestTicket8512UnknownMatchingSelectorsRequireCatalogs(t *testing.T) {
 	}
 }
 
-func TestTicket8511OverflowThenClose(t *testing.T) {
+func TestOverflowThenClose(t *testing.T) {
 	svc, sends, _, _ := bookTicketService(t, 1, true)
 	failed := make(chan error, 1)
 	events := make(chan models.OrderbookData, 2)
@@ -367,7 +367,7 @@ func TestTicket8511OverflowThenClose(t *testing.T) {
 	}
 }
 
-func TestTicket8512HydrationMessagesNameGoAPI(t *testing.T) {
+func TestHydrationMessagesNameGoAPI(t *testing.T) {
 	svc, _, _, _ := bookTicketService(t, 1, true)
 	svc.catalogs = catalogs.NewManager()
 	// A legacy partial catalog can know the ID while still lacking its scale.

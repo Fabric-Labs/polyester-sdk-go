@@ -8,7 +8,7 @@ import (
 	ob "github.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1"
 )
 
-// POLY-8563: a stalled publisher must be distinguishable from a quiet market.
+// A stalled publisher must be distinguishable from a quiet market.
 // The server republishes every book about every 30 s, so the time since the
 // last publication tells them apart; the subscription reports it.
 func TestManagedBookReportsTimeSinceLastPublication(t *testing.T) {

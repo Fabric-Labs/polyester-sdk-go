@@ -1,6 +1,6 @@
 package hardening_test
 
-// POLY-9228: catalog startup through an HTTPS proxy that drops or stalls a
+// Catalog startup through an HTTPS proxy that drops or stalls a
 // read.
 //
 // A local HTTPS Connect API (HTTP/2, a test certificate) sits behind a local
@@ -37,7 +37,7 @@ import (
 // Synthetic proxy credentials: they must never reach an error message.
 const (
 	startupProxyUser   = "sdk-test-user"
-	startupProxySecret = "proxy-secret-9228"
+	startupProxySecret = "proxy-secret-value"
 	startupSymbol      = "BTC-USDT"
 )
 

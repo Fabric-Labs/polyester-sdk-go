@@ -62,7 +62,7 @@ func TestTriggerTypeOptionMatrix(t *testing.T) {
 				tc.set(&opts)
 				orderType := "market"
 				if kind == "ladder" {
-					// A ladder takes no market order type (POLY-9423).
+					// A ladder takes no market order type.
 					orderType = ""
 				}
 				err := createWithOptions(service, kind, nil, orderType, nil, "", "", false, opts)
@@ -124,7 +124,7 @@ func TestTriggerExecutionApplicability(t *testing.T) {
 					continue
 				}
 				// A ladder refuses a market order type before any other
-				// option (TestPoly9423LadderRefusesNonLimitOrderType).
+				// option (TestLadderRefusesNonLimitOrderType).
 				if kind == "ladder" && orderType == "market" {
 					continue
 				}

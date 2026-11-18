@@ -121,7 +121,7 @@ func overviewTicketNext(t *testing.T, updates <-chan []models.MarketOverviewEntr
 	}
 }
 
-func TestTicket8511MarketOverviewTerminalLifecycle(t *testing.T) {
+func TestMarketOverviewTerminalLifecycle(t *testing.T) {
 	for _, mode := range []string{"bad_frame", "overflow", "close"} {
 		t.Run(mode, func(t *testing.T) {
 			svc, send, released, conns := overviewTicketService(t)

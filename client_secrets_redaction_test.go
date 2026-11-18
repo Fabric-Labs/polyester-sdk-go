@@ -9,7 +9,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/redact"
 )
 
-// POLY-9228: the userinfo of a proxy the client is configured with, or that
+// The userinfo of a proxy the client is configured with, or that
 // the environment sets, never reaches an error's text. The proxies are
 // synthetic and never dialled.
 func TestProxyUserinfoIsRedactedFromErrorText(t *testing.T) {

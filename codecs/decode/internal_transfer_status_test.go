@@ -21,9 +21,9 @@ func oneTokenReceipt(status transferv1.InternalTransferStatus) *transferv1.Creat
 	}
 }
 
-// POLY-8824: receipts that differ only in their status decode to different
+// Receipts that differ only in their status decode to different
 // results.
-func TestPoly8824InternalTransferReceiptKeepsItsStatus(t *testing.T) {
+func TestInternalTransferReceiptKeepsItsStatus(t *testing.T) {
 	decoded := map[transferv1.InternalTransferStatus]models.InternalTransferResult{}
 	for _, status := range []transferv1.InternalTransferStatus{
 		transferv1.InternalTransferStatus_INTERNAL_TRANSFER_STATUS_ACCEPTED,

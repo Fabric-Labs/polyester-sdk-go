@@ -248,7 +248,7 @@ func TestClosingOrderbookFromARefreshCallbackWhileAManualRefreshWaits(t *testing
 	}
 }
 
-// POLY-9018 parity: seeded schedules of sequence-gap refreshes, manual
+// Cross-SDK parity: seeded schedules of sequence-gap refreshes, manual
 // refreshes, reconnect refreshes after socket drops, in-order deltas, failing
 // and slow snapshot fetches, and closes from OnEvent, from OnError and from
 // another goroutine.

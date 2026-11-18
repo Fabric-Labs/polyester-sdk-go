@@ -8,9 +8,9 @@ import (
 	triggersv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1"
 )
 
-// POLY-9303: a canceled trigger reads "canceled", the spelling of its
+// A canceled trigger reads "canceled", the spelling of its
 // canceled event and of every other SDK. "cancelled" is not a filter value.
-func TestPoly9303CanceledTriggerStatusUsesContractSpelling(t *testing.T) {
+func TestCanceledTriggerStatusUsesContractSpelling(t *testing.T) {
 	trigger := TriggerFromProto(&triggersv1.Trigger{TriggerId: 7, Status: triggersv1.TriggerStatus_STATUS_CANCELED})
 	if trigger.Status != "canceled" {
 		t.Fatalf("Status = %q, want canceled", trigger.Status)
@@ -26,7 +26,7 @@ func TestPoly9303CanceledTriggerStatusUsesContractSpelling(t *testing.T) {
 	}
 }
 
-func TestPoly9303CancelledSpellingIsRefusedAsValidationError(t *testing.T) {
+func TestCancelledSpellingIsRefusedAsValidationError(t *testing.T) {
 	var validation *sdkerrors.ValidationError
 	if _, err := TriggerStatusFromLabel("cancelled"); !stderrors.As(err, &validation) {
 		t.Fatalf("TriggerStatusFromLabel(cancelled) err = %T %v, want ValidationError", err, err)

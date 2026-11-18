@@ -8,7 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// The Devnet account from POLY-9020: root Xiw8QFupu6d, sub-account 2nphEX67UQT.
+// A Devnet account: root Xiw8QFupu6d, sub-account 2nphEX67UQT.
 const (
 	invalidationRootID uint64 = 13235591962976289070
 	invalidationSubID  uint64 = 771156649032427868
@@ -23,7 +23,7 @@ func invalidationPayload(t *testing.T, scope *authv1.AccountScopeRef) []byte {
 	return payload
 }
 
-// POLY-9020: a sub-account's change names the sub-account and its scope type.
+// A sub-account's change names the sub-account and its scope type.
 func TestAddressBookInvalidationKeepsTheSubaccountScope(t *testing.T) {
 	got, err := AddressBookInvalidationFromBytes(invalidationPayload(t, &authv1.AccountScopeRef{
 		ScopeType: authv1.AccountScopeType_SCOPE_SUBACCOUNT, RootAccountId: invalidationRootID, SubaccountId: invalidationSubID,
@@ -40,7 +40,7 @@ func TestAddressBookInvalidationKeepsTheSubaccountScope(t *testing.T) {
 	}
 }
 
-// POLY-9020: a root change names the root and no sub-account; no scope is nil.
+// A root change names the root and no sub-account; no scope is nil.
 func TestAddressBookInvalidationRootScopeHasNoSubaccount(t *testing.T) {
 	got, err := AddressBookInvalidationFromBytes(invalidationPayload(t, &authv1.AccountScopeRef{
 		ScopeType: authv1.AccountScopeType_SCOPE_ROOT, RootAccountId: invalidationRootID,

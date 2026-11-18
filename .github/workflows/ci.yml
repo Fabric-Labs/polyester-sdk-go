@@ -57,9 +57,10 @@ jobs:
             -f 'client_payload[sha]=${{ github.sha }}'
 
       # Release channel routing, devnet versions and the devnet workflow
-      # (scripts/devnet_release.py).
-      - name: Release channel tests
-        run: python3 -m unittest discover -s scripts -p 'test_devnet_release.py'
+      # (scripts/devnet_release.py), and the public disclosure check
+      # (scripts/check_public_disclosure.py).
+      - name: Script tests
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
 
       - name: Test
         run: go test ./...

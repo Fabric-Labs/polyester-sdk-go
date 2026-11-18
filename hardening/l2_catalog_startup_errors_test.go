@@ -1,6 +1,6 @@
 package hardening_test
 
-// POLY-9228: what a failed catalog load reports, its deadline, and funding
+// What a failed catalog load reports, its deadline, and funding
 // readiness on its own.
 
 import (

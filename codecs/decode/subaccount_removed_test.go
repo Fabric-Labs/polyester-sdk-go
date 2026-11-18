@@ -55,10 +55,10 @@ func subaccountDecodes(t *testing.T, msg *authv1.Subaccount) map[string]models.S
 	return out
 }
 
-// POLY-9397: a removal update keeps removed and reports the role as the
+// A removal update keeps removed and reports the role as the
 // contract sends it (unspecified reads as ""), so it never reads like an
 // active viewer, even with the same revision and update time.
-func TestPoly9397SubaccountUpdateKeepsRemovedAndRole(t *testing.T) {
+func TestSubaccountUpdateKeepsRemovedAndRole(t *testing.T) {
 	for _, revision := range []uint64{0, 3, 9007199254740993} {
 		removal := subaccountDecodes(t, subaccountFixture(revision, true, authv1.SubaccountRole_SUBACCOUNT_ROLE_UNSPECIFIED))
 		viewer := subaccountDecodes(t, subaccountFixture(revision, false, authv1.SubaccountRole_VIEWER))

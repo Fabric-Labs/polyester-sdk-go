@@ -210,7 +210,7 @@ func TestPartialFillModifyKeepsPredecessorExecutionHistory(t *testing.T) {
 		t.Fatalf("cum_qty=%d want >= %d", history.Order.CumQty.Scaled(), firstFillQty)
 	}
 	if len(history.Trades) == 0 {
-		t.Fatal("POLY-4708: GetOrder history is empty after replacing a partially filled order")
+		t.Fatal("GetOrder history is empty after replacing a partially filled order")
 	}
 	afterMatchIDs := matchIDs(history.Trades)
 	for id := range firstMatchIDs {

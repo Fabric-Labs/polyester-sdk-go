@@ -149,14 +149,14 @@ func TestMarketBuySellRoundtrip(t *testing.T) {
 
 	buyDetail, err := testutil.WaitForTerminalOrder(ctx, client, buyCID, 20*time.Second)
 	if err != nil {
-		testutil.SoftSkipf(t, "buy terminal wait (possible POLY-3028): %v", err)
+		testutil.SoftSkipf(t, "buy terminal wait (possibly a known fill delay): %v", err)
 	}
 	if buyDetail.Order == nil {
 		t.Fatal("expected buy order detail")
 	}
 	filled := buyDetail.Order.CumQty
 	if filled.Scaled() <= 0 {
-		testutil.SoftSkip(t, "buy produced no fill (possible POLY-3028)")
+		testutil.SoftSkip(t, "buy produced no fill (possibly a known fill delay)")
 	}
 	buyProjection, err := client.Orders.WaitForOrderTradesComplete(
 		ctx, nil, models.OrderKeyByClientID(buyCID), nil, 20*time.Second,
@@ -237,7 +237,7 @@ func TestMarketBuySellRoundtrip(t *testing.T) {
 
 	sellDetail, err := testutil.WaitForTerminalOrder(ctx, client, sellCID, 20*time.Second)
 	if err != nil {
-		testutil.SoftSkipf(t, "sell terminal wait (possible POLY-3028): %v", err)
+		testutil.SoftSkipf(t, "sell terminal wait (possibly a known fill delay): %v", err)
 	}
 	if sellDetail.Order == nil {
 		t.Fatal("expected sell order detail")

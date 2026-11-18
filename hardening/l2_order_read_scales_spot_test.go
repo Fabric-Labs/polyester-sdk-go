@@ -1,7 +1,7 @@
 package hardening_test
 
-// POLY-9302 on top of POLY-9228: order, trade and trigger reads take their
-// pair's quantity scale from the spot config alone. They are scaled while
+// Order, trade and trigger reads take their pair's quantity scale from the
+// spot config alone. They are scaled while
 // the funding (deposit/withdraw) config is still loading or after it failed,
 // and never wait for it.
 

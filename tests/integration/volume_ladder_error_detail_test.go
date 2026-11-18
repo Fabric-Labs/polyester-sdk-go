@@ -357,7 +357,7 @@ func TestWithdrawErrorDetailFromImpossibleFundingMove(t *testing.T) {
 	_, err := client.Withdraw.CreateAPIKeyToFunding(ctx, services.PrepareAPIKeyWithdrawParams{
 		AssetID:        *assetID,
 		Amount:         models.AssetAmountFromDecimal(impossibleWithdrawQty),
-		IdempotencyKey: testutil.UniqueClientOrderID("poly4996-wd"),
+		IdempotencyKey: testutil.UniqueClientOrderID("integration-wd"),
 	})
 	if err == nil {
 		t.Fatal("expected withdraw ErrorDetail for an impossible funding amount")
@@ -387,7 +387,7 @@ func TestTransferErrorDetailFromUnknownDestination(t *testing.T) {
 	dest := deadSmartAccount
 	_, err := client.InternalTransfers.Create(
 		ctx, *assetID, models.AssetAmountFromDecimal("0.000001"),
-		testutil.UniqueClientOrderID("poly4996-xfer"), nil, nil, nil, nil, &dest, nil,
+		testutil.UniqueClientOrderID("integration-xfer"), nil, nil, nil, nil, &dest, nil,
 	)
 	if err == nil {
 		t.Fatal("expected transfer ErrorDetail for an unknown destination")

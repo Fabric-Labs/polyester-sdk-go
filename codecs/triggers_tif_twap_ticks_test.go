@@ -38,9 +38,9 @@ func createTrigger(kind, orderType, tif string, opts CreateTriggerOptions) (*tri
 	)
 }
 
-// POLY-8758: no trigger child has a GTD execution, so gtd is refused for every
+// No trigger child has a GTD execution, so gtd is refused for every
 // strategy rather than sent as an IOC or GTC child.
-func TestPoly8758GTDIsRefusedForEveryTriggerStrategy(t *testing.T) {
+func TestGTDIsRefusedForEveryTriggerStrategy(t *testing.T) {
 	for _, tc := range []struct{ kind, orderType string }{
 		{"stop_loss", "market"}, {"stop_loss", "limit"}, {"twap", "market"},
 		{"twap", "limit"}, {"trailing_stop", "market"}, {"ladder", ""},
@@ -53,9 +53,9 @@ func TestPoly8758GTDIsRefusedForEveryTriggerStrategy(t *testing.T) {
 	}
 }
 
-// POLY-8748: a TWAP market child's tick cap is positive, as every other
+// A TWAP market child's tick cap is positive, as every other
 // create-time tick cap is.
-func TestPoly8748TwapMarketRefusesNonpositiveSlippageTicks(t *testing.T) {
+func TestTwapMarketRefusesNonpositiveSlippageTicks(t *testing.T) {
 	for _, ticks := range []int64{-5, 0} {
 		ticks := ticks
 		_, err := createTrigger("twap", "market", "", CreateTriggerOptions{MaxSlippageTicks: &ticks})

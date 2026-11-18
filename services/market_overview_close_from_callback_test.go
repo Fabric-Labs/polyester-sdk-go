@@ -44,7 +44,7 @@ func closeScheduleSeeds(t *testing.T) []uint64 {
 	return seeds
 }
 
-// POLY-9018 parity: closing a managed market-overview subscription from its
+// Cross-SDK parity: closing a managed market-overview subscription from its
 // own OnEvent stops delivery and returns at once instead of waiting for the
 // stream worker that runs the callback.
 //
@@ -181,7 +181,7 @@ func runOverviewCloseSchedule(t *testing.T, seed uint64) {
 	}
 }
 
-// POLY-9018 parity: closing a managed orderbook subscription from its own
+// Cross-SDK parity: closing a managed orderbook subscription from its own
 // OnEvent returns at once and stops delivery, as for the market overview.
 func TestClosingManagedOrderbookFromItsOwnCallbackReturnsAtOnce(t *testing.T) {
 	svc, sends, _, _ := bookTicketService(t, 1, true)

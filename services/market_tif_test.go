@@ -8,11 +8,11 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
-// POLY-9301: the public contract has one market execution, MarketIoc
+// The public contract has one market execution, MarketIoc
 // ("Market orders always execute as immediate-or-cancel"). A market order
 // that names any other time in force is refused before sending, as gtd
 // already was, instead of being sent as IOC.
-func TestPoly9301MarketOrderRefusesNonIOCTIFBeforeSending(t *testing.T) {
+func TestMarketOrderRefusesNonIOCTIFBeforeSending(t *testing.T) {
 	for _, tif := range []string{"fok", "gtc", "gtd", "FOK"} {
 		for _, side := range []string{"buy", "sell"} {
 			for _, method := range []string{"Create", "Preview", "BatchCreate"} {
@@ -46,7 +46,7 @@ func TestPoly9301MarketOrderRefusesNonIOCTIFBeforeSending(t *testing.T) {
 	}
 }
 
-func TestPoly9301MarketOrderSendsIOCWhenTIFIsIOCOrUnset(t *testing.T) {
+func TestMarketOrderSendsIOCWhenTIFIsIOCOrUnset(t *testing.T) {
 	for _, tif := range []string{"", "ioc", "IOC"} {
 		for _, side := range []string{"buy", "sell"} {
 			t.Run(tif+"/"+side, func(t *testing.T) {

@@ -43,7 +43,7 @@ func TestTriggerPauseResumeCancel(t *testing.T) {
 	if created.TriggerID == "" {
 		t.Fatal("expected trigger_id from create")
 	}
-	// CreateTriggerResponse no longer carries a lifecycle status (POLY-3701);
+	// CreateTriggerResponse no longer carries a lifecycle status;
 	// SDKs synthesize "accepted" for admission.
 	if created.Status != "accepted" {
 		t.Fatalf("create status=%q want accepted", created.Status)

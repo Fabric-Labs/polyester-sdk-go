@@ -9,10 +9,10 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
-// POLY-9302: the private order stream's orders and fills carry the pair's
+// The private order stream's orders and fills carry the pair's
 // base quantity scale, as the order reads do, once SetBaseQuantityScales
 // names it.
-func TestPoly9302OrderStreamCarriesBaseQuantityScale(t *testing.T) {
+func TestOrderStreamCarriesBaseQuantityScale(t *testing.T) {
 	f := newFakePrivateServer(t)
 	c := newTestOrderClient(t, f, testTiming())
 	c.SetBaseQuantityScales(func(symbolID uint32) (int, bool) { return 8, symbolID == testOrder(1, 1).GetSymbolId() })
@@ -43,12 +43,12 @@ func requireStreamScale(t *testing.T, label string, q models.QtyScaled) {
 	}
 }
 
-// POLY-9302: a consumer that joins a running order stream gets the cached
+// A consumer that joins a running order stream gets the cached
 // view at the scales known when it joins. The snapshot here arrives before
 // the catalogs load, so the first consumer's orders carry no scale; once the
 // catalogs know a pair, a later consumer's cached snapshot carries it, a zero
 // scale included, while a pair the catalogs don't list stays unscaled.
-func TestPoly9302LateOrderStreamConsumerGetsCachedViewAtKnownScales(t *testing.T) {
+func TestLateOrderStreamConsumerGetsCachedViewAtKnownScales(t *testing.T) {
 	f := newFakePrivateServer(t)
 	c := newTestOrderClient(t, f, testTiming())
 	var loaded atomic.Bool

@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// The Devnet BTC-USDT row from POLY-9019.
+// A Devnet BTC-USDT row.
 func topOfBookRow() *overviewpb.MarketOverview {
 	return &overviewpb.MarketOverview{
 		SymbolId:         1,
@@ -73,7 +73,7 @@ func assertTopOfBook(t *testing.T, row models.MarketOverviewEntry) {
 	}
 }
 
-// POLY-9019: list rows keep the 24h range, top of book and times.
+// List rows keep the 24h range, top of book and times.
 func TestMarketOverviewListKeepsRangeTopOfBookAndTimes(t *testing.T) {
 	list := MarketOverviewListFromProto(&overviewpb.ListMarketOverviewResponse{
 		Markets: []*overviewpb.MarketOverview{topOfBookRow()},
@@ -81,7 +81,7 @@ func TestMarketOverviewListKeepsRangeTopOfBookAndTimes(t *testing.T) {
 	assertTopOfBook(t, list.Markets[0])
 }
 
-// POLY-9019: live publications keep them too.
+// Live publications keep them too.
 func TestMarketOverviewPublicationsKeepRangeTopOfBookAndTimes(t *testing.T) {
 	payload, err := proto.Marshal(&overviewpb.MarketOverviewBatch{Markets: []*overviewpb.MarketOverview{topOfBookRow()}})
 	if err != nil {
@@ -94,7 +94,7 @@ func TestMarketOverviewPublicationsKeepRangeTopOfBookAndTimes(t *testing.T) {
 	assertTopOfBook(t, batch.Markets[0])
 }
 
-// POLY-9019: an empty book side, and a market with no trade or listing time,
+// An empty book side, and a market with no trade or listing time,
 // decode as unset rather than zero.
 func TestMarketOverviewEmptySideAndTimesAreUnset(t *testing.T) {
 	for _, side := range []string{"bid", "ask"} {

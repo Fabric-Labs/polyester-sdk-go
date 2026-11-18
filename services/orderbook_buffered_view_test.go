@@ -17,7 +17,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// POLY-9098: a snapshot applied with the deltas buffered behind it is one book
+// A snapshot applied with the deltas buffered behind it is one book
 // state, so it yields one view. A view per buffered delta plus one more left
 // stale copies queued, and the next bucket change read one of them.
 func TestSnapshotWithBufferedDeltasEmitsOneView(t *testing.T) {

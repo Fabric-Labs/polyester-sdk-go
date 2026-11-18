@@ -92,7 +92,7 @@ func checkScheduledSlices(t *testing.T, events []models.TriggerEvent) {
 	}
 }
 
-// POLY-8959: a scheduled TWAP slice the server sends without a fire price
+// A scheduled TWAP slice the server sends without a fire price
 // keeps it absent through ListEvents, instead of reading a zero price.
 func TestListEventsKeepsAnAbsentFirePriceAbsent(t *testing.T) {
 	for _, wire := range []string{"binary", "json"} {
@@ -107,7 +107,7 @@ func TestListEventsKeepsAnAbsentFirePriceAbsent(t *testing.T) {
 	}
 }
 
-// POLY-8959: the realtime trigger event decoder keeps the same absence.
+// The realtime trigger event decoder keeps the same absence.
 func TestRealtimeTriggerEventsKeepAnAbsentFirePriceAbsent(t *testing.T) {
 	payload, err := proto.Marshal(&triggersv1.TriggerEventBatch{Events: scheduledSlices()})
 	if err != nil {
@@ -120,7 +120,7 @@ func TestRealtimeTriggerEventsKeepAnAbsentFirePriceAbsent(t *testing.T) {
 	checkScheduledSlices(t, events)
 }
 
-// POLY-8961: a market TWAP slice takes 1 to 10000 bps to buy and 1 to 9999 to
+// A market TWAP slice takes 1 to 10000 bps to buy and 1 to 9999 to
 // sell, since a 100% cap leaves a sell no positive price. A refused cap sends
 // nothing.
 func TestTwapMarketSlippageCapsBySide(t *testing.T) {
