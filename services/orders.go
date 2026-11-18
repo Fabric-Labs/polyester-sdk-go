@@ -312,10 +312,19 @@ func (s *OrdersService) Preview(ctx context.Context, req models.CreateOrderReque
 // Cancel cancels an order. A cancel of an order that has already ended,
 // including a repeat of the cancel that ended it, fails with
 // ERROR_CODE_ORDER_ALREADY_TERMINAL (errors.IsOrderAlreadyTerminal): treat it
-// as already done and read the order for how it ended. A retry by client
-// order ID more than a minute after the order ended may read
-// ERROR_CODE_ORDER_UNKNOWN; cancel by order ID once you have it. Every cancel,
-// a repeat included, counts against the cancel rate limit.
+// as already done and read the order for how it ended. It can also fail with
+// ERROR_CODE_ORDER_UNKNOWN (errors.IsOrderUnknown) for an order that has
+// ended: by client order ID more than a minute after it ended, and by order
+// ID once the exchange can no longer confirm the order (after a market
+// listing or a recovery, for example), as for an order ID never placed. So
+// ERROR_CODE_ORDER_UNKNOWN does not prove the order never existed: for an
+// order you placed and know has ended (you saw its final update, or this
+// repeats a cancel that timed out), treat it as done; otherwise read the
+// order with Orders.Get, which is definitive (an ended status means nothing
+// is left to cancel), or retry by client order ID within its window. Never
+// retry by order ID to tell the two apart. An open order is never reported
+// unknown under its own order ID and market. Every cancel, a repeat
+// included, counts against the cancel rate limit.
 func (s *OrdersService) Cancel(ctx context.Context, account AccountScope, key models.OrderKey, symbol *string, symbolID *uint32, subAccountID *string) (models.OrderMutationResult, error) {
 	if symbolID != nil && *symbolID == 0 {
 		return models.OrderMutationResult{}, &sdkerrors.ValidationError{Msg: "symbol_id must be non-zero when explicitly supplied"}

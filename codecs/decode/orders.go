@@ -577,6 +577,10 @@ func PreviewOrderFromProto(
 	}
 	if rejection := msg.GetRejection(); rejection != nil {
 		result.Rejection = orderErrorDetailFromProto(rejection)
+		if rejection.PriceBandLimitTicks != nil {
+			limit := codecs.DecodePriceTicks(rejection.GetPriceBandLimitTicks(), symbol)
+			result.Rejection.PriceBandLimit = &limit
+		}
 	}
 	if msg.ResolvedBaseQtyScaled != nil {
 		value := msg.GetResolvedBaseQtyScaled()

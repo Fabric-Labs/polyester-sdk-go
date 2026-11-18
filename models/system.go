@@ -23,6 +23,20 @@ type ServerVersion struct {
 	Environment string `json:"environment"`
 }
 
+// ServerTime is the server's clock, as Client.GetServerTime reads it.
+type ServerTime struct {
+	// Time is the server time, at millisecond precision, in UTC. It is the
+	// clock that checks the X-API-TIMESTAMP of requests signed with an API
+	// key.
+	Time time.Time `json:"time"`
+	// Offset estimates how far the server clock is ahead of this host's
+	// clock (negative when it is behind): Time minus the midpoint of the
+	// local times the call was sent and answered. RoundTrip, the call's
+	// duration, bounds its error to half of it.
+	Offset    time.Duration `json:"offset"`
+	RoundTrip time.Duration `json:"round_trip"`
+}
+
 // Release returns the release the build follows: Version up to its first
 // "-", such as "0.10.0" for "0.10.0-12-g4e21a2f09670".
 func (v ServerVersion) Release() string {

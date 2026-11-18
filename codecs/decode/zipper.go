@@ -29,17 +29,24 @@ func DepositWithdrawConfigFromProto(msg *zipperv1.GetDepositWithdrawConfigRespon
 			QuantityScale: int(a.GetQuantityScale()), QuantityDisplayDecimals: int(a.GetQuantityDisplayDecimals()), UAssetID: a.GetUAssetId(),
 		}
 		for _, v := range a.GetVariants() {
-			asset.Variants = append(asset.Variants, models.ZipperAssetChainVariant{
+			variant := models.ZipperAssetChainVariant{
 				ZippedAssetID: v.GetZippedAssetId(), ChainID: v.GetChainId(), IsNativeAsset: v.GetIsNativeAsset(),
 				NetworkFee: v.GetNetworkFee(), DepositMinAmount: v.GetDepositMinAmount(), WithdrawMinAmount: v.GetWithdrawMinAmount(),
-				// supply_q is scaled by the parent asset's quantity_scale.
-				Supply:      formatLedgerU128OrZero(strconv.FormatUint(v.GetSupplyQ(), 10), int(a.GetQuantityScale())),
-				SourceToken: models.ZipperTokenConfig{Address: v.GetSourceAddress(), Decimals: int(v.GetSourceDecimals())},
-				ZToken:      models.ZipperTokenConfig{Address: v.GetZtokenAddress(), Decimals: int(v.GetZtokenDecimals())},
+				SupplyStatus: supplyStatusLabel(v.GetSupplyStatus()),
+				SourceToken:  models.ZipperTokenConfig{Address: v.GetSourceAddress(), Decimals: int(v.GetSourceDecimals())},
+				ZToken:       models.ZipperTokenConfig{Address: v.GetZtokenAddress(), Decimals: int(v.GetZtokenDecimals())},
 				// STATUS_UNSPECIFIED reads "": not known, so not available.
 				DepositStatus:    routeStatusLabel(v.GetDepositStatus()),
 				WithdrawalStatus: routeStatusLabel(v.GetWithdrawalStatus()),
-			})
+			}
+			// supply_q is meaningful only while the supply is known
+			// (AVAILABLE or STALE), and is scaled by the parent asset's
+			// quantity_scale. Otherwise no supply is known: never zero.
+			if supplyKnown(v.GetSupplyStatus()) {
+				variant.Supply = formatLedgerU128OrZero(strconv.FormatUint(v.GetSupplyQ(), 10), int(a.GetQuantityScale()))
+				variant.SupplyObservedAt = timestampTime(v.GetSupplyObservedAt())
+			}
+			asset.Variants = append(asset.Variants, variant)
 		}
 		cfg.Assets = append(cfg.Assets, asset)
 	}
@@ -50,6 +57,18 @@ func DepositWithdrawConfigFromProto(msg *zipperv1.GetDepositWithdrawConfigRespon
 		})
 	}
 	return cfg
+}
+
+// supplyKnown reports whether a route's supply_q is a known supply: AVAILABLE
+// or STALE.
+func supplyKnown(status zipperv1.SupplyStatus) bool {
+	return status == zipperv1.SupplyStatus_AVAILABLE || status == zipperv1.SupplyStatus_STALE
+}
+
+// supplyStatusLabel names a route's supply status: "available", "stale",
+// "missing", "" when unspecified and "unknown(n)" for a newer one.
+func supplyStatusLabel(status zipperv1.SupplyStatus) string {
+	return enumLabel(status, "")
 }
 
 func routeStatusLabel(status zipperv1.RouteStatus) string {
@@ -82,10 +101,17 @@ func zippedAssetSupplyUpdateFromProto(msg *zipperv1.ZippedAssetSupplyUpdate, sca
 	if !ok {
 		return models.ZippedAssetSupplyUpdate{}, &errors.ValidationError{Msg: "unknown quantity scale for zipped_asset_id"}
 	}
-	return models.ZippedAssetSupplyUpdate{
+	update := models.ZippedAssetSupplyUpdate{
 		ZippedAssetID: msg.GetZippedAssetId(),
-		Supply:        formatLedgerU128OrZero(strconv.FormatUint(msg.GetSupplyQ(), 10), scale),
-	}, nil
+		Status:        supplyStatusLabel(msg.GetStatus()),
+		ObservedAt:    timestampTime(msg.GetObservedAt()),
+	}
+	// Updates carry AVAILABLE or STALE; any other status names no known
+	// supply, as the contract reads an unspecified one: never zero.
+	if supplyKnown(msg.GetStatus()) {
+		update.Supply = formatLedgerU128OrZero(strconv.FormatUint(msg.GetSupplyQ(), 10), scale)
+	}
+	return update, nil
 }
 
 // ZippedAssetSupplyBatchFromProto decodes a realtime supply batch.

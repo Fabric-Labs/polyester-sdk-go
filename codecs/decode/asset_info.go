@@ -17,9 +17,37 @@ func AssetInfoListFromProto(msg *marketdatav1.ListAssetInfoResponse) []models.As
 			AssetID:            info.GetAssetId(),
 			Editorial:          assetEditorialInfo(info.GetEditorial()),
 			EditorialUpdatedAt: timestampTime(info.GetEditorialUpdatedAt()),
+			MarketStats:        assetMarketStats(info.GetMarketStats()),
 		})
 	}
 	return out
+}
+
+func assetMarketStats(msg *marketdatav1.AssetMarketStats) *models.AssetMarketStats {
+	if msg == nil {
+		return nil
+	}
+	out := &models.AssetMarketStats{
+		CirculatingSupply:        assetMarketValue(msg.GetCirculatingSupply()),
+		TotalSupply:              assetMarketValue(msg.GetTotalSupply()),
+		MaxSupply:                assetMarketValue(msg.GetMaxSupply()),
+		MarketCapUSD:             assetMarketValue(msg.GetMarketCapUsd()),
+		FullyDilutedMarketCapUSD: assetMarketValue(msg.GetFullyDilutedMarketCapUsd()),
+		Rank:                     assetMarketValue(msg.GetRank()),
+	}
+	// A presence-only fact: present means the source reports no maximum.
+	if flag := msg.GetMaxSupplyUnlimited(); flag != nil {
+		out.MaxSupplyUnlimited = &models.AssetMarketFlag{Source: enumLabel(flag.GetSource(), ""), AsOf: timestampTime(flag.GetAsOf())}
+	}
+	return out
+}
+
+// assetMarketValue decodes one datapoint; nil when absent, which is unknown.
+func assetMarketValue(msg *marketdatav1.AssetMarketValue) *models.AssetMarketValue {
+	if msg == nil {
+		return nil
+	}
+	return &models.AssetMarketValue{Value: msg.GetValue(), Source: enumLabel(msg.GetSource(), ""), AsOf: timestampTime(msg.GetAsOf())}
 }
 
 func assetEditorialInfo(msg *marketdatav1.AssetEditorialInfo) models.AssetEditorialInfo {

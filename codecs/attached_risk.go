@@ -55,9 +55,11 @@ func RiskPolicyToProto(in *models.AttachedRiskInput, fieldName, symbol string) (
 }
 
 func riskLegToProto(leg models.RiskLegInput, fieldName, symbol string) (int64, orderv1.TriggerPriceSource, *orderv1.RiskExecution, error) {
+	// A leg's prices are refused with the codes the Orders API answers for
+	// them: ERROR_CODE_TRIGGER_PRICE_INVALID and ERROR_CODE_BAD_PRICE.
 	trigger, err := positivePriceTicks(leg.TriggerPrice, fieldName+".trigger_price", symbol)
 	if err != nil {
-		return 0, 0, nil, err
+		return 0, 0, nil, coded(err, orderv1.ErrorCode_ERROR_CODE_TRIGGER_PRICE_INVALID)
 	}
 	source, err := triggerPriceSourceToProto(leg.TriggerPriceSource, fieldName+".trigger_price_source")
 	if err != nil {
@@ -68,11 +70,15 @@ func riskLegToProto(leg models.RiskLegInput, fieldName, symbol string) (int64, o
 	}
 	limit, err := positivePriceTicks(*leg.LimitPrice, fieldName+".limit_price", symbol)
 	if err != nil {
-		return 0, 0, nil, err
+		return 0, 0, nil, coded(err, orderv1.ErrorCode_ERROR_CODE_BAD_PRICE)
 	}
 	return trigger, source, &orderv1.RiskExecution{Execution: &orderv1.RiskExecution_LimitGtc{LimitGtc: &orderv1.RiskLimitGtc{PriceTicks: limit}}}, nil
 }
 
+// trailingStopToProto encodes an attached trailing stop, refusing its
+// distance, slippage cap and activation price with the codes a standalone
+// trailing stop answers for the same mistake, as the API answers them on
+// every transport.
 func trailingStopToProto(in models.TrailingStopInput, fieldName, symbol string) (*orderv1.TrailingStopPolicy, error) {
 	if (in.DistanceTicks == nil) == (in.DistanceBps == nil) {
 		return nil, &errors.ValidationError{Msg: fieldName + " requires exactly one of distance_ticks or distance_bps"}
@@ -83,32 +89,38 @@ func trailingStopToProto(in models.TrailingStopInput, fieldName, symbol string) 
 	out := &orderv1.TrailingStopPolicy{}
 	if in.DistanceTicks != nil {
 		if *in.DistanceTicks <= 0 {
-			return nil, &errors.ValidationError{Msg: fieldName + ".distance_ticks must be positive"}
+			return nil, &errors.ValidationError{Msg: fieldName + ".distance_ticks must be positive", Code: orderv1.ErrorCode_ERROR_CODE_TRAILING_DISTANCE_INVALID.String()}
 		}
 		out.TrailingDistance = &orderv1.TrailingStopPolicy_TrailingDistanceTicks{TrailingDistanceTicks: *in.DistanceTicks}
 	} else {
 		if err := validateBps(fieldName+".distance_bps", *in.DistanceBps, false); err != nil {
-			return nil, err
+			return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_TRAILING_DISTANCE_INVALID)
 		}
 		out.TrailingDistance = &orderv1.TrailingStopPolicy_TrailingDistanceBps{TrailingDistanceBps: *in.DistanceBps}
 	}
 	if in.MaxSlippageTicks != nil {
 		if *in.MaxSlippageTicks <= 0 {
-			return nil, &errors.ValidationError{Msg: fieldName + ".max_slippage_ticks must be positive"}
+			return nil, &errors.ValidationError{Msg: fieldName + ".max_slippage_ticks must be positive", Code: orderv1.ErrorCode_ERROR_CODE_SLIPPAGE_TICKS_INVALID.String()}
 		}
 		out.MaxSlippage = &orderv1.TrailingStopPolicy_MaxSlippageTicks{MaxSlippageTicks: *in.MaxSlippageTicks}
 	}
 	if in.MaxSlippageBps != nil {
 		// An attached trailing stop takes no 100% cap on either parent side.
 		if err := validateBpsAtMost(fieldName+".max_slippage_bps", *in.MaxSlippageBps, false, MaxSellingSlippageBps); err != nil {
-			return nil, err
+			// Not positive: SLIPPAGE_BPS_INVALID; 10000 or more:
+			// MAX_SLIPPAGE_INVALID.
+			code := orderv1.ErrorCode_ERROR_CODE_MAX_SLIPPAGE_INVALID
+			if *in.MaxSlippageBps < 1 {
+				code = orderv1.ErrorCode_ERROR_CODE_SLIPPAGE_BPS_INVALID
+			}
+			return nil, coded(err, code)
 		}
 		out.MaxSlippage = &orderv1.TrailingStopPolicy_MaxSlippageBps{MaxSlippageBps: *in.MaxSlippageBps}
 	}
 	if in.ActivationPrice != nil && in.ActivationPrice.IsSet() {
 		ticks, err := positivePriceTicks(*in.ActivationPrice, fieldName+".activation_price", symbol)
 		if err != nil {
-			return nil, err
+			return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_TRIGGER_ACTIVATION_PRICE_INVALID)
 		}
 		out.ActivationPriceTicks = ticks
 	}

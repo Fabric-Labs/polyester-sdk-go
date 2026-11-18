@@ -11,8 +11,53 @@ type AssetInfo struct {
 	// Editorial holds the asset's description, official links and launch
 	// facts.
 	Editorial AssetEditorialInfo `json:"editorial"`
-	// EditorialUpdatedAt is the last effective change to Editorial.
+	// EditorialUpdatedAt is the last effective change to Editorial; nil for
+	// an asset listed only for its MarketStats, whose Editorial is empty.
 	EditorialUpdatedAt *time.Time `json:"editorial_updated_at,omitempty"`
+	// MarketStats holds the asset's market datapoints; nil when the asset has
+	// none.
+	MarketStats *AssetMarketStats `json:"market_stats,omitempty"`
+}
+
+// AssetMarketStats are an asset's market datapoints. A nil value is unknown:
+// hide its row.
+type AssetMarketStats struct {
+	// CirculatingSupply, TotalSupply and MaxSupply are in asset units.
+	CirculatingSupply *AssetMarketValue `json:"circulating_supply,omitempty"`
+	TotalSupply       *AssetMarketValue `json:"total_supply,omitempty"`
+	MaxSupply         *AssetMarketValue `json:"max_supply,omitempty"`
+	// MaxSupplyUnlimited is set, and MaxSupply nil, when the source reports
+	// no maximum supply. When both are nil the maximum is unknown.
+	MaxSupplyUnlimited *AssetMarketFlag `json:"max_supply_unlimited,omitempty"`
+	// MarketCapUSD and FullyDilutedMarketCapUSD are in US dollars.
+	MarketCapUSD             *AssetMarketValue `json:"market_cap_usd,omitempty"`
+	FullyDilutedMarketCapUSD *AssetMarketValue `json:"fully_diluted_market_cap_usd,omitempty"`
+	// Rank is the market capitalization rank, a positive integer where 1 is
+	// the largest.
+	Rank *AssetMarketValue `json:"rank,omitempty"`
+}
+
+// AssetMarketValue is one market datapoint with its source and the time the
+// source observed or set it.
+type AssetMarketValue struct {
+	// Value is a nonnegative decimal string without sign or exponent, kept as
+	// sent; never parse it as a float.
+	Value string `json:"value"`
+	// Source is "coinmarketcap" (show "Source: CoinMarketCap" with the value)
+	// or "polyester" (set by the Polyester team); "unknown(n)" for a source
+	// this SDK does not know.
+	Source string `json:"source,omitempty"`
+	// AsOf is when the source last observed or set the value. Values stay
+	// until a newer observation replaces them, so show the time with the
+	// value.
+	AsOf *time.Time `json:"as_of,omitempty"`
+}
+
+// AssetMarketFlag is a market fact that holds, with its source and the time
+// the source observed it.
+type AssetMarketFlag struct {
+	Source string     `json:"source,omitempty"`
+	AsOf   *time.Time `json:"as_of,omitempty"`
 }
 
 // AssetEditorialInfo is plain text and official links about an asset. An

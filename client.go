@@ -539,6 +539,15 @@ func (c *Client) GetVersion(ctx context.Context) (models.ServerVersion, error) {
 	return services.NewSystemService(c.transport).GetVersion(ctx)
 }
 
+// GetServerTime reads the server's clock, the one that checks the timestamp
+// of requests signed with an API key, and estimates this host's offset from
+// it; see services.SystemService.GetServerTime. It needs no credentials and
+// is never signed. A signed request refused for its timestamp returns an
+// *errors.TimestampSkewError whose Window carries the server time too.
+func (c *Client) GetServerTime(ctx context.Context) (models.ServerTime, error) {
+	return services.NewSystemService(c.transport).GetServerTime(ctx)
+}
+
 // ListStatusEvents returns one page of the environment's scheduled
 // maintenance and incidents, the latest start first; see
 // services.SystemService.ListStatusEvents. It needs no credentials and is

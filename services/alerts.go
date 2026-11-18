@@ -72,7 +72,10 @@ type CreateAlertParams struct {
 	// one, the last traded price otherwise. The returned alert states it.
 	PriceSource string
 	// Channels are where the alert is delivered: one or both of "in_app" and
-	// "telegram" (the account's linked Telegram account).
+	// "telegram" (the account's linked Telegram account). "telegram" is
+	// refused with errors.AlertCodeTelegramNotLinked when no Telegram account
+	// is linked, and with errors.AlertCodeTelegramUnavailable where the
+	// environment offers no Telegram alerts; nothing is created.
 	Channels []string
 	// IdempotencyKey, when set, makes a retry of this create safe: the same
 	// key and request return the alert created first. 1 to 128 characters
@@ -102,6 +105,10 @@ type ListAlertsParams struct {
 // Price, is refused with an *errors.ValidationError before sending, since the
 // update names the alert, not its market. With none set the update changes no field: it sets a fired
 // ("triggered") alert again as it is, and leaves an active one unchanged.
+// An update that changes an alert whose channels then include "telegram" is
+// refused as a create is (errors.AlertCodeTelegramNotLinked,
+// errors.AlertCodeTelegramUnavailable): after unlinking Telegram, set
+// Channels to "in_app" alone in the same update to change the alert further.
 type UpdateAlertParams struct {
 	AlertID   string
 	Direction string

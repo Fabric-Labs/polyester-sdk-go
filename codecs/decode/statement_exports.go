@@ -1,9 +1,6 @@
 package decode
 
 import (
-	"fmt"
-	"time"
-
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	ledgerrdv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
@@ -66,20 +63,39 @@ func StatementExportsListFromProto(msg *ledgerrdv1.ListStatementExportsResponse)
 		}
 		out = append(out, export)
 	}
-	return models.StatementExportsList{Exports: out, NextPageToken: msg.GetNextPageToken()}, nil
+	return models.StatementExportsList{
+		Exports:              out,
+		NextPageToken:        msg.GetNextPageToken(),
+		InProgressExports:    msg.GetInProgressExports(),
+		MaxInProgressExports: msg.GetMaxInProgressExports(),
+	}, nil
 }
 
-// StatementPageFromProto decodes one ExportStatement page.
-func StatementPageFromProto(msg *ledgerrdv1.ExportStatementResponse) models.StatementPage {
-	return models.StatementPage{CSV: msg.GetCsv(), NextPageToken: msg.GetNextPageToken(), CompleteThrough: timestampTime(msg.GetCompleteThrough())}
-}
-
-// SameCompleteThrough reports a *errors.ResponseContractError when a later
-// page of one statement names a different complete_through than its first:
-// the contract gives every page of one statement the same value.
-func SameCompleteThrough(first, page *time.Time) error {
-	if (first == nil) != (page == nil) || (first != nil && !first.Equal(*page)) {
-		return &sdkerrors.ResponseContractError{Operation: "ExportStatement", Msg: fmt.Sprintf("complete_through changed between pages: %v then %v", first, page)}
+// StatementExportFromCancel decodes a CancelStatementExport reply: the
+// export, canceled. A reply without its export or export ID, or for another
+// export than exportID, returns a *errors.ResponseContractError.
+func StatementExportFromCancel(msg *ledgerrdv1.CancelStatementExportResponse, exportID uint64) (models.StatementExport, error) {
+	out, err := statementExport("CancelStatementExport", msg.GetExport())
+	if err != nil {
+		return out, err
 	}
-	return nil
+	if msg.GetExport().GetExportId() != exportID {
+		return models.StatementExport{}, &sdkerrors.ResponseContractError{Operation: "CancelStatementExport", Msg: "reply names another export"}
+	}
+	return out, nil
+}
+
+// StatementExportDownloadURLFromProto decodes a
+// GetStatementExportDownloadUrl reply. A reply without its URL or expiry
+// returns a *errors.ResponseContractError that never repeats the URL.
+func StatementExportDownloadURLFromProto(msg *ledgerrdv1.GetStatementExportDownloadUrlResponse) (models.StatementExportDownloadURL, error) {
+	const op = "GetStatementExportDownloadUrl"
+	if msg.GetUrl() == "" {
+		return models.StatementExportDownloadURL{}, &sdkerrors.ResponseContractError{Operation: op, Msg: "missing url"}
+	}
+	expires := timestampTime(msg.GetExpiresAt())
+	if expires == nil {
+		return models.StatementExportDownloadURL{}, &sdkerrors.ResponseContractError{Operation: op, Msg: "missing expires_at"}
+	}
+	return models.StatementExportDownloadURL{URL: models.NewSecret(msg.GetUrl()), ExpiresAt: *expires, Filename: msg.GetFilename()}, nil
 }

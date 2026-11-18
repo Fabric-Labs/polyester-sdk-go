@@ -171,9 +171,8 @@ func TestCreateOcoRetryWithTheSameClientListIDSendsTheSameRequest(t *testing.T) 
 func TestCreateOcoGeneratesAClientListIDWhenNoneIsGiven(t *testing.T) {
 	handler := &ocoHandler{}
 	service := newTriggerControlServiceWith(t, handler)
-	empty := ""
-	for _, id := range []*string{nil, &empty} {
-		got, err := service.CreateOco(context.Background(), nil, sellOco(id), nil)
+	for range 2 {
+		got, err := service.CreateOco(context.Background(), nil, sellOco(nil), nil)
 		if err != nil {
 			t.Fatalf("create OCO: %v", err)
 		}
@@ -183,6 +182,14 @@ func TestCreateOcoGeneratesAClientListIDWhenNoneIsGiven(t *testing.T) {
 	}
 	if handler.creates[0].GetOco().GetClientListId() == handler.creates[1].GetOco().GetClientListId() {
 		t.Fatal("two creates without a client list ID sent the same generated ID")
+	}
+	// An empty client list ID is supplied, never read as absent: it is
+	// refused with the code the API answers, and nothing is sent.
+	empty := ""
+	_, err := service.CreateOco(context.Background(), nil, sellOco(&empty), nil)
+	var validation *sdkerrors.ValidationError
+	if !errors.As(err, &validation) || validation.Code != "ERROR_CODE_CLIENT_LIST_ID_INVALID" || len(handler.creates) != 2 {
+		t.Fatalf("empty client list ID: err = %v, creates = %d", err, len(handler.creates))
 	}
 }
 
