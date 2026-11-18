@@ -117,8 +117,10 @@ func formatScaledInt64(n int64, scale int) string {
 // (FormatID(0)) would send a request for an ID the caller did not mean.
 //
 // A string ID is base58 only: a string of digits is read as base58 too, never
-// as a decimal number, so one string names one ID. Pass an ID the API
-// returned as it is, and an integer through FormatID.
+// as a decimal number. Only the canonical spelling, the one FormatID writes,
+// is accepted: a leading "1" is a base58 zero digit, so "123" would name the
+// same ID as "23", and it is refused. One ID has one spelling. Pass an ID the
+// API returned as it is, and an integer through FormatID.
 func IDToInt(value string, label string) (uint64, error) {
 	id, err := parseID(value, label)
 	if err != nil {
@@ -126,6 +128,9 @@ func IDToInt(value string, label string) (uint64, error) {
 	}
 	if id == 0 {
 		return 0, &errors.ValidationError{Msg: label + " must be a non-zero public ID"}
+	}
+	if FormatID(id) != value {
+		return 0, &errors.ValidationError{Msg: label + " must be a public ID in canonical form, as the SDK writes it (no leading 1)"}
 	}
 	return id, nil
 }

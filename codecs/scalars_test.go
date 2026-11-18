@@ -1,19 +1,14 @@
 package codecs
 
 import (
-	"encoding/binary"
 	"errors"
 	"testing"
 
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
-	"github.com/mr-tron/base58"
 )
 
 func TestIDToIntAcceptsBase58AndRefusesDecimal(t *testing.T) {
-	var buf [8]byte
-	binary.BigEndian.PutUint64(buf[:], 42)
-	encoded := base58.Encode(buf[:])
-	got, err := IDToInt(encoded, "trigger_id")
+	got, err := IDToInt(FormatID(42), "trigger_id")
 	if err != nil {
 		t.Fatal(err)
 	}
