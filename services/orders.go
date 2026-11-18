@@ -654,13 +654,13 @@ var batchReplacePoll = unavailableRetry{first: 50 * time.Millisecond, max: 500 *
 // reads. A read still in flight when the window ends is abandoned. Bound the
 // wait further with ctx; its cancellation or deadline returns ctx.Err().
 func (s *OrdersService) WaitBatchReplace(ctx context.Context, account AccountScope, batchRequestID string, subAccountID *string) (models.BatchReplaceStatusResult, error) {
-	deadline := time.Now().Add(batchReplaceStatusWindow)
+	deadline := waitClock.Now().Add(batchReplaceStatusWindow)
 	delay := batchReplacePoll.first
 	var last models.BatchReplaceStatusResult
 	for {
 		// Bound the read itself by the window: a slow answer must not keep
 		// the wait past it.
-		readCtx, cancelRead := context.WithDeadline(ctx, deadline)
+		readCtx, cancelRead := waitClock.WithDeadline(ctx, deadline)
 		status, err := s.GetBatchReplaceStatus(readCtx, account, batchRequestID, subAccountID)
 		readExpired := readCtx.Err() != nil
 		cancelRead()
@@ -690,15 +690,11 @@ func (s *OrdersService) WaitBatchReplace(ctx context.Context, account AccountSco
 		if err != nil {
 			wait = retrywait.Delay(err, delay)
 		}
-		if time.Now().Add(wait).After(deadline) {
+		if waitClock.Now().Add(wait).After(deadline) {
 			return last, &sdkerrors.BatchReplaceWindowExpiredError{BatchRequestID: batchRequestID}
 		}
-		timer := time.NewTimer(wait)
-		select {
-		case <-ctx.Done():
-			timer.Stop()
-			return last, ctx.Err()
-		case <-timer.C:
+		if waitErr := waitClock.Wait(ctx, wait); waitErr != nil {
+			return last, waitErr
 		}
 		delay = min(2*delay, batchReplacePoll.max)
 	}

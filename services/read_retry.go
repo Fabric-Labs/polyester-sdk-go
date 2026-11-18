@@ -35,7 +35,7 @@ func retryUnavailable[Req any, Resp any](
 ) func(context.Context, *connect.Request[Req]) (*connect.Response[Resp], error) {
 	return func(ctx context.Context, req *connect.Request[Req]) (*connect.Response[Resp], error) {
 		header := req.Header().Clone()
-		started := time.Now()
+		started := waitClock.Now()
 		delay := policy.first
 		attempt := req
 		for {
@@ -48,15 +48,11 @@ func retryUnavailable[Req any, Resp any](
 				return nil, ctx.Err()
 			}
 			wait := retrywait.Delay(err, delay)
-			if time.Since(started)+wait > policy.budget {
+			if waitClock.Now().Sub(started)+wait > policy.budget {
 				return nil, err
 			}
-			timer := time.NewTimer(wait)
-			select {
-			case <-ctx.Done():
-				timer.Stop()
-				return nil, ctx.Err()
-			case <-timer.C:
+			if waitErr := waitClock.Wait(ctx, wait); waitErr != nil {
+				return nil, waitErr
 			}
 			delay = min(2*delay, policy.max)
 			// Each attempt signs a fresh request carrying the same message.

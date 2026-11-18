@@ -7,6 +7,7 @@ package hardening_test
 // from it and keep working.
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"net"
@@ -77,8 +78,7 @@ func newFundingHarness(t *testing.T, state fundingState) *fundingHarness {
 			if err != nil {
 				return
 			}
-			h.wsConnects.Add(1)
-			_ = conn.Close()
+			go h.countStreamUpgrade(conn)
 		}
 	}()
 	kp := auth.GenerateEd25519Keypair()
@@ -105,6 +105,20 @@ func newFundingHarness(t *testing.T, state fundingState) *fundingHarness {
 	}
 	h.client = client
 	return h
+}
+
+// countStreamUpgrade counts conn when it asks to upgrade to the realtime
+// stream, then closes it. Anything else that connects to the listener, such
+// as a local health probe, is no stream connection and is not counted.
+func (h *fundingHarness) countStreamUpgrade(conn net.Conn) {
+	defer func() { _ = conn.Close() }()
+	req, err := http.ReadRequest(bufio.NewReader(conn))
+	if err != nil {
+		return
+	}
+	if req.Method == http.MethodGet && req.URL.Path == "/connection/websocket" && strings.EqualFold(req.Header.Get("Upgrade"), "websocket") {
+		h.wsConnects.Add(1)
+	}
 }
 
 func TestL2SupplyStreamSendsNothingWithoutTheFundingConfig(t *testing.T) {
