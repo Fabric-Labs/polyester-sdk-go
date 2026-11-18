@@ -87,7 +87,7 @@ func TestIDToIntReadsDigitStringsAsBase58(t *testing.T) {
 			t.Fatalf("%q: got %d, want a validation error", raw, got)
 		}
 	}
-	for raw, want := range map[string]uint64{"123": 60, "123456789": 2_286_136_885_086} {
+	for raw, want := range map[string]uint64{"23": 60, "23456789": 2_286_136_885_086} {
 		got, err := IDToInt(raw, "id")
 		if err != nil || got != want {
 			t.Fatalf("%q: got %d, %v; want base58 %d", raw, got, err, want)
