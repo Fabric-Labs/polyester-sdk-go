@@ -12,7 +12,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 )
 
-// POLY-8563: a refused subscribe token keeps the server's reason, as the
+// A refused subscribe token keeps the server's reason, as the
 // Python and Rust SDKs report it: "HTTP 400: unsupported channel".
 func TestSubscriptionTokenRefusalKeepsTheServerText(t *testing.T) {
 	for _, tc := range []struct {

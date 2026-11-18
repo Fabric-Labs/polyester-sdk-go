@@ -1,5 +1,5 @@
 // Package chain encodes FundingAccount / TradingGateway calldata for optional
-// on-chain Funding ops (POLY-3569). It is not part of the API-key Connect surface.
+// on-chain Funding ops. It is not part of the API-key Connect surface.
 //
 // Encoding uses github.com/ethereum/go-ethereum/accounts/abi. Import this package
 // only when you need Funding → Trading / Funding → external calldata helpers.

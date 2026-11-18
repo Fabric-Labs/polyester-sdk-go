@@ -29,7 +29,7 @@ func TestPublicTradesSubscriptionSurvivesCentrifugoPing(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), realtimeHeartbeatHold+20*time.Second)
 	defer cancel()
 
-	// Heartbeat / mutation paths honor POLYESTER_TEST_TRADE_SYMBOL (F-23).
+	// Heartbeat / mutation paths honor POLYESTER_TEST_TRADE_SYMBOL.
 	symbol := testutil.TradeSymbol(t, client, ctx)
 	t.Logf("heartbeat trade_symbol=%s", symbol)
 	sub, err := client.MarketData.SubscribeTrades(ctx, &symbol, nil)

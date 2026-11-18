@@ -42,7 +42,7 @@ func wantResponseContract(t *testing.T, err error, operation string) {
 	}
 }
 
-// POLY-9918: a create, update or cancel answer without its alert breaks the
+// A create, update or cancel answer without its alert breaks the
 // response contract; it never reads as a zero-ID alert.
 func TestAlertsMutationsRefuseAnAnswerWithoutTheAlert(t *testing.T) {
 	for name, answer := range brokenAlertAnswers {
@@ -153,7 +153,7 @@ func wantValidation(t *testing.T, err error, contains string) {
 	}
 }
 
-// POLY-9919: a price bound to ETH-USDT is never sent for symbol_id 1 when the
+// A price bound to ETH-USDT is never sent for symbol_id 1 when the
 // catalogs can't name that ID: a caller's Symbol beside it proves nothing.
 func TestAlertsCreateRefusesABoundPriceTheCatalogsCannotCheck(t *testing.T) {
 	selectors := map[string]CreateAlertParams{

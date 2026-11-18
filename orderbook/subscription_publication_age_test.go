@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// POLY-8563 review: SinceLastPublication raced NotePublication. It sampled the
+// SinceLastPublication raced NotePublication. It sampled the
 // clock before loading the last publication, so a publication noted between
 // the two made the age negative; and a slow NotePublication could store an
 // older time over a newer one. Writers and a reader run concurrently here; the

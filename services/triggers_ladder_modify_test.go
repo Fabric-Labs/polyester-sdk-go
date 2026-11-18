@@ -17,10 +17,10 @@ func createLadder(s *TriggersService, orderType string) error {
 	return err
 }
 
-// POLY-9423: a ladder places only limit GTC orders, so an explicit market
+// A ladder places only limit GTC orders, so an explicit market
 // (or any other non-limit) order type is refused before sending, never
 // remapped to limit. A ladder without an order type, or with limit, is sent.
-func TestPoly9423LadderRefusesNonLimitOrderType(t *testing.T) {
+func TestLadderRefusesNonLimitOrderType(t *testing.T) {
 	for _, orderType := range []string{"market", "MARKET", "stop"} {
 		t.Run(orderType, func(t *testing.T) {
 			h := &optionCapture{}
@@ -51,11 +51,11 @@ func TestPoly9423LadderRefusesNonLimitOrderType(t *testing.T) {
 	}
 }
 
-// POLY-9426: modify takes 0 to 10000 bps as ModifyTriggerRequest does; the
+// Modify takes 0 to 10000 bps as ModifyTriggerRequest does; the
 // server decides 10000 by side and trigger type (a buy stop-loss or
 // take-profit market child takes it). 10001 and negatives are refused before
 // sending.
-func TestPoly9426ModifyAcceptsTenThousandBps(t *testing.T) {
+func TestModifyAcceptsTenThousandBps(t *testing.T) {
 	for _, bps := range []int32{0, 1, 9999, 10_000} {
 		h := &triggerControlHandler{}
 		svc := newTriggerControlService(t, h)

@@ -11,7 +11,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/realtime"
 )
 
-// Permission fixtures (F-24 / B6b): each subscribe group needs the matching
+// Permission fixtures: each subscribe group needs the matching
 // API-key scope. Missing permission returns structured Auth/403 and soft-skips
 // (fails closed under POLYESTER_TEST_STRICT_LIVE=1):
 // - address_book.subscribe → address-book read

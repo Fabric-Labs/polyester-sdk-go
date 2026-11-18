@@ -12,7 +12,7 @@ import (
 // the problem's detail. An order refusal's code is spelled as its ConnectRPC
 // detail spells it (ERROR_CODE_SUBACCOUNT_READ_FORBIDDEN), so both transports
 // return the same code; the problem keeps the code as sent.
-func TestPoly8757RESTServiceRefusalKeepsItsCode(t *testing.T) {
+func TestRESTServiceRefusalKeepsItsCode(t *testing.T) {
 	for _, code := range []string{"SUBACCOUNT_READ_FORBIDDEN", "QUICKSWAP_NOT_PERMITTED"} {
 		err := callMeAgainst(t, http.StatusForbidden, "application/problem+json",
 			`{"status":403,"code":"`+code+`","detail":"not allowed"}`)
@@ -42,9 +42,9 @@ func TestPoly8757RESTServiceRefusalKeepsItsCode(t *testing.T) {
 	}
 }
 
-// POLY-8756: the documented HTTP 400 MISSING_HEADERS problem keeps its auth
+// The documented HTTP 400 MISSING_HEADERS problem keeps its auth
 // reason, as the HTTP 401 one does.
-func TestPoly8756MissingHeadersKeepsItsAuthReasonAt400(t *testing.T) {
+func TestMissingHeadersKeepsItsAuthReasonAt400(t *testing.T) {
 	for _, status := range []int{http.StatusBadRequest, http.StatusUnauthorized} {
 		err := callMeAgainst(t, status, "application/problem+json",
 			`{"code":"MISSING_HEADERS","detail":"missing signature headers"}`)

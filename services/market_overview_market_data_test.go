@@ -45,7 +45,7 @@ func marketDataCatalogs(t *testing.T) *catalogs.Manager {
 	return cats
 }
 
-// POLY-8785 parity: Go keeps every digit of sub-micro price buckets.
+// Cross-SDK parity: Go keeps every digit of sub-micro price buckets.
 func TestOrderbookPriceBucketsKeepSubMicroIncrements(t *testing.T) {
 	cats := marketDataCatalogs(t)
 	for symbol, want := range map[string][]string{
@@ -64,7 +64,7 @@ func TestOrderbookPriceBucketsKeepSubMicroIncrements(t *testing.T) {
 	}
 }
 
-// POLY-8783 parity: Go decodes live overview rows with the catalogs, so they
+// Cross-SDK parity: Go decodes live overview rows with the catalogs, so they
 // keep the symbol and formatted base volume list rows have.
 func TestLiveOverviewRowsAreEnrichedFromTheCatalogs(t *testing.T) {
 	volume := int64(250)
@@ -107,7 +107,7 @@ func sparklineTicks(row models.MarketOverviewEntry) string {
 
 const wantSparklines = "SPARKLINE_24H=101,100,99 SPARKLINE_1H="
 
-// POLY-8789 and POLY-8786 parity: List exposes the requested sparklines and the
+// Cross-SDK parity: List exposes the requested sparklines and the
 // 24-hour change.
 func TestOverviewListExposesRequestedSparklinesAndThe24hChange(t *testing.T) {
 	var mu sync.Mutex
@@ -154,7 +154,7 @@ func TestOverviewListExposesRequestedSparklinesAndThe24hChange(t *testing.T) {
 	}
 }
 
-// POLY-8789: live publications carry no sparklines; a managed subscription
+// Live publications carry no sparklines; a managed subscription
 // keeps the snapshot's when a live update replaces the row.
 func TestManagedOverviewKeepsSnapshotSparklinesOnLiveUpdates(t *testing.T) {
 	live := make(chan []byte, 1)

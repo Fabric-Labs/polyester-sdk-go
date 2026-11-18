@@ -96,7 +96,7 @@ func requestBuilderAmount() models.AssetAmountInput {
 		WithScale(0).WithDomain(models.QuantityDomainLedgerE18).WithAssetID(7))
 }
 
-func TestPOLY8468InternalTransferDestination(t *testing.T) {
+func TestInternalTransferDestination(t *testing.T) {
 	ptr := func(s string) *string { return &s }
 	for _, destination := range []string{"account", "subaccount"} {
 		for _, address := range []*string{nil, ptr(""), ptr(" \t ")} {
@@ -162,7 +162,7 @@ func TestPOLY8468InternalTransferDestination(t *testing.T) {
 	}
 }
 
-func TestPOLY8474APIKeyWithdrawSelectors(t *testing.T) {
+func TestAPIKeyWithdrawSelectors(t *testing.T) {
 	ptr := func(s string) *string { return &s }
 	for _, external := range []bool{false, true} {
 		for _, test := range []struct {
@@ -224,7 +224,7 @@ func TestPOLY8474APIKeyWithdrawSelectors(t *testing.T) {
 	}
 }
 
-func TestPOLY8474WalletWithdrawStillRoutesScope(t *testing.T) {
+func TestWalletWithdrawStillRoutesScope(t *testing.T) {
 	defaultSub, explicit := codecs.FormatID(42), codecs.FormatID(43)
 	for _, test := range []struct {
 		account AccountScope
@@ -246,7 +246,7 @@ func TestPOLY8474WalletWithdrawStillRoutesScope(t *testing.T) {
 	}
 }
 
-func TestPOLY8471GoTransferSinceUsesMicroseconds(t *testing.T) {
+func TestGoTransferSinceUsesMicroseconds(t *testing.T) {
 	for _, since := range []*int64{nil, new(int64(0)), new(int64(1_793_922_052_911_123)), new(int64(1<<63 - 1))} {
 		factory, requests := requestCaptureFactory(t)
 		_, err := NewTransfersService(factory, nil, nil, nil).List(context.Background(), nil, nil, 50, false, since)
@@ -267,7 +267,7 @@ func TestPOLY8471GoTransferSinceUsesMicroseconds(t *testing.T) {
 	}
 }
 
-func TestPOLY8471NegativeSinceRejectedBeforeTransport(t *testing.T) {
+func TestNegativeSinceRejectedBeforeTransport(t *testing.T) {
 	for _, since := range []int64{-1, -1 << 63} {
 		factory, requests := requestCaptureFactory(t)
 		_, err := NewTransfersService(factory, nil, nil, nil).List(context.Background(), nil, nil, 50, false, &since)
@@ -278,7 +278,7 @@ func TestPOLY8471NegativeSinceRejectedBeforeTransport(t *testing.T) {
 	}
 }
 
-func TestPOLY8513TriggerRepresentations(t *testing.T) {
+func TestTriggerRepresentations(t *testing.T) {
 	for _, modify := range []bool{false, true} {
 		for _, test := range []struct {
 			name          string

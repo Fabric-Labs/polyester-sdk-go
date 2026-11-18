@@ -61,7 +61,7 @@ func DevnetProtoMismatch(err error) bool {
 	return strings.Contains(msg, "internal error") || strings.Contains(msg, "decode") || strings.Contains(msg, "proto")
 }
 
-// IsPermissionDenied reports structured Auth/403 permission failures (F-24).
+// IsPermissionDenied reports structured Auth/403 permission failures.
 func IsPermissionDenied(err error) bool {
 	if err == nil {
 		return false
@@ -91,7 +91,7 @@ func JWTSessionOnly(err error) bool {
 	if err == nil {
 		return false
 	}
-	// Permission-denied is classified separately (F-24).
+	// Permission-denied is classified separately.
 	if IsPermissionDenied(err) {
 		return false
 	}

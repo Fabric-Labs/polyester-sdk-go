@@ -409,7 +409,7 @@ func (m *Manager) SymbolForSymbolID(symbolID uint32) *string {
 //
 // ok is false when the symbol is unknown or catalogs are unhydrated.
 // Callers that need a decode-only fallback must choose it explicitly (never
-// invent scale 8 here — that caused POLY-3549 false INSUFFICIENT_FUNDS).
+// invent scale 8 here: that caused false INSUFFICIENT_FUNDS).
 func (m *Manager) BaseQuantityScaleForSymbol(symbol string) (scale int, ok bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

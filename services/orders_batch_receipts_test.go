@@ -107,7 +107,7 @@ func qtyViolation() []*orderv1.FieldViolation {
 	return []*orderv1.FieldViolation{{FieldPath: qtyField, RuleId: "minimum", Message: qtyMessage}}
 }
 
-// POLY-8960: each rejected batch item keeps the field violations the server
+// Each rejected batch item keeps the field violations the server
 // returned, in item order, beside the accepted IDs.
 func TestBatchCreateKeepsEachRejectionsFieldViolations(t *testing.T) {
 	for _, wire := range []string{"binary", "json"} {
@@ -157,7 +157,7 @@ func TestBatchCreateKeepsEachRejectionsFieldViolations(t *testing.T) {
 	}
 }
 
-// POLY-8960: batch cancel and batch replace items carry the same ErrorDetail,
+// Batch cancel and batch replace items carry the same ErrorDetail,
 // so their rejections keep its field violations too.
 func TestBatchCancelAndReplaceKeepEachRejectionsFieldViolations(t *testing.T) {
 	for _, wire := range []string{"binary", "json"} {
@@ -225,7 +225,7 @@ func TestBatchCancelAndReplaceKeepEachRejectionsFieldViolations(t *testing.T) {
 	}
 }
 
-// POLY-8920: a rejected batch cancel that resolved no order keeps its order
+// A rejected batch cancel that resolved no order keeps its order
 // ID empty instead of reporting order "0"; a resolved ID is kept as sent.
 func TestBatchCancelKeepsAnUnresolvedOrderIDEmpty(t *testing.T) {
 	for _, wire := range []string{"binary", "json"} {

@@ -10,7 +10,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
-// POLY-8581: a negative depth is invalid caller input for the exported
+// A negative depth is invalid caller input for the exported
 // renderer, so it is a ValidationError instead of a slice-bounds panic.
 func TestTicket8581BuildOrderbookDataRefusesNegativeDepth(t *testing.T) {
 	books := map[string][2]BookSide{
@@ -46,7 +46,7 @@ func TestTicket8581BuildOrderbookDataRefusesNegativeDepth(t *testing.T) {
 	}
 }
 
-// POLY-8583: a positive quantity at price zero is a level the renderer refuses,
+// A positive quantity at price zero is a level the renderer refuses,
 // so the whole delta fails closed: no mutation, no sequence advance, out of
 // sequence until the next reset.
 func TestTicket8583ApplyDeltaRefusesZeroPriceLevel(t *testing.T) {
@@ -77,7 +77,7 @@ func TestTicket8583ApplyDeltaRefusesZeroPriceLevel(t *testing.T) {
 	}
 }
 
-// Controls for POLY-8583: deletions and valid inserts still apply and advance.
+// Controls for the case above: deletions and valid inserts still apply and advance.
 func TestTicket8583ApplyDeltaKeepsValidDeletionsAndInserts(t *testing.T) {
 	bids := BookSide{100: 5, 99: 1}
 	asks := BookSide{200: 3}
@@ -99,7 +99,7 @@ func TestTicket8583ApplyDeltaKeepsValidDeletionsAndInserts(t *testing.T) {
 	}
 }
 
-// POLY-8588 parity: snapshot and rendered levels keep the market they were read for.
+// Cross-SDK parity: snapshot and rendered levels keep the market they were read for.
 func TestTicket8588LevelsAreBoundToTheirMarket(t *testing.T) {
 	check := func(name string, levels []models.OrderbookLevel) {
 		t.Helper()

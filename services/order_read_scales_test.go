@@ -115,10 +115,10 @@ func requireOrderScales(t *testing.T, label string, o models.Order, want *int) {
 	}
 }
 
-// POLY-9302: with the catalogs loaded, every order, trade and trigger read
+// With the catalogs loaded, every order, trade and trigger read
 // carries the pair's base quantity scale, as create and preview do; without
 // them the quantities stay unscaled.
-func TestPoly9302OrderReadsCarryCatalogQuantityScale(t *testing.T) {
+func TestOrderReadsCarryCatalogQuantityScale(t *testing.T) {
 	eight := 8
 	for _, wire := range []string{"binary", "json"} {
 		for _, loaded := range []bool{true, false} {

@@ -153,7 +153,7 @@ func (h *refreshHarness) awaitFetch(t *testing.T, want int32) {
 	}
 }
 
-// POLY-9018 parity: a manual RefreshSnapshot whose callback closes the
+// Cross-SDK parity: a manual RefreshSnapshot whose callback closes the
 // subscription while a reconnect's refresh waits for the refresh lock.
 //
 // Schedule: subscribe; a manual refresh's fetch blocks, holding the refresh
@@ -228,7 +228,7 @@ func TestClosingOverviewFromAManualRefreshCallbackDuringAReconnect(t *testing.T)
 	}
 }
 
-// POLY-9018 parity: seeded schedules of manual refreshes, reconnect
+// Cross-SDK parity: seeded schedules of manual refreshes, reconnect
 // refreshes, socket drops, live publications, failing and slow snapshot
 // fetches, and closes from OnEvent, from OnError and from another goroutine.
 //
@@ -388,7 +388,7 @@ func runRefreshSchedule(t *testing.T, seed uint64) {
 	}
 }
 
-// POLY-9018 parity: a Close from another goroutine while a manual refresh
+// Cross-SDK parity: a Close from another goroutine while a manual refresh
 // holds the refresh lock in a callback that waits for that Close, and a
 // reconnect's refresh waits for the lock. The reconnect's refresh gives up
 // when the stream stops, so the worker exits and Close returns.

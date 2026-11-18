@@ -121,7 +121,7 @@ func (h *reconnectHarness) awaitConnection(t *testing.T, want int32) {
 	}
 }
 
-// POLY-9018 parity: a callback that runs on the reconnect's snapshot refresh,
+// Cross-SDK parity: a callback that runs on the reconnect's snapshot refresh,
 // while the stream worker waits for that refresh because the replacement
 // socket closed too, can close the subscription. Close returns at once, the
 // worker exits, and no callback starts after Close returns.
@@ -216,7 +216,7 @@ func TestClosingOverviewFromAReconnectRefreshCallbackReturnsAtOnce(t *testing.T)
 	}
 }
 
-// POLY-9018 parity: a Close from another goroutine while a reconnect's
+// Cross-SDK parity: a Close from another goroutine while a reconnect's
 // snapshot refresh is running its callback waits for that callback, so no
 // callback is still running once Close returns.
 func TestClosingOverviewDuringAReconnectRefreshCallbackWaitsForIt(t *testing.T) {

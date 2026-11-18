@@ -1,6 +1,6 @@
 package hardening_test
 
-// POLY-9228: no level of an SDK error's chain prints a credential.
+// No level of an SDK error's chain prints a credential.
 //
 // An answer can quote a URL with userinfo, such as a proxy's. The SDK error
 // copied it into its message, so Error() printed the credential. Every level

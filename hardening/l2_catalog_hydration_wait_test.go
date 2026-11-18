@@ -1,6 +1,6 @@
 package hardening_test
 
-// POLY-9127: a method that names a market by symbol, or needs a pair's catalog
+// A method that names a market by symbol, or needs a pair's catalog
 // scales, waits for construction-time catalog hydration.
 //
 // The stub server holds GetSpotConfig until the test releases it, so every
@@ -571,7 +571,7 @@ func TestL2ZippedAssetSupplyWaitsForTheScalesItDecodesWith(t *testing.T) {
 	for _, fail := range []bool{false, true} {
 		t.Run(fmt.Sprintf("failed=%t", fail), func(t *testing.T) {
 			stub := newHydrationStub()
-			// POLY-9228: the stream waits for the funding config.
+			// The stream waits for the funding config.
 			stub.holdFunding = true
 			client := newHydrationClient(t, stub, true)
 			ctx, cancel := context.WithCancel(context.Background())
@@ -594,7 +594,7 @@ func TestL2ZippedAssetSupplyWaitsForTheScalesItDecodesWith(t *testing.T) {
 	}
 }
 
-// POLY-9228: a failed spot config does not stop the supply stream, which
+// A failed spot config does not stop the supply stream, which
 // decodes with the funding config only.
 func TestL2ZippedAssetSupplyDoesNotNeedTheSpotConfig(t *testing.T) {
 	stub := newHydrationStub()

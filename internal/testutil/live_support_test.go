@@ -30,7 +30,7 @@ func TestJWTSessionOnly(t *testing.T) {
 	if testutil.JWTSessionOnly(&sdkerrors.AuthError{Msg: "invalid signature"}) {
 		t.Fatal("unexpected jwt-only")
 	}
-	// Permission-denied is classified separately (F-24).
+	// Permission-denied is classified separately.
 	if testutil.JWTSessionOnly(&sdkerrors.AuthError{Msg: "permission_denied"}) {
 		t.Fatal("permission_denied should not classify as jwt-only")
 	}

@@ -175,10 +175,10 @@ func requireTypedReads(t *testing.T, cases []typedReadCase, loaded bool, check f
 	}
 }
 
-// POLY-9396: a market TWAP's per-slice cap reads back on the typed trigger
+// A market TWAP's per-slice cap reads back on the typed trigger
 // in its exact variant, and an unset cap reads as none (the pair default).
 // Stop-loss and take-profit market children are unchanged controls.
-func TestPoly9396TwapMarketSliceCapOnTypedReads(t *testing.T) {
+func TestTwapMarketSliceCapOnTypedReads(t *testing.T) {
 	cases := []typedReadCase{
 		{name: "twap 10bps", trigger: twapMarketFixture(1, &triggers.TwapMarketIoc{MaxSlippage: &triggers.TwapMarketIoc_MaxSlippageBps{MaxSlippageBps: 10}}), bps: 10},
 		{name: "twap 50bps", trigger: twapMarketFixture(2, &triggers.TwapMarketIoc{MaxSlippage: &triggers.TwapMarketIoc_MaxSlippageBps{MaxSlippageBps: 50}}), bps: 50},
@@ -193,10 +193,10 @@ func TestPoly9396TwapMarketSliceCapOnTypedReads(t *testing.T) {
 	})
 }
 
-// POLY-9425: a trailing stop's cap reads at the top level, as a stop-loss's
+// A trailing stop's cap reads at the top level, as a stop-loss's
 // does, in bps and in ticks; Details.trailing is unchanged. Without the
 // configuration, the runtime details carry it.
-func TestPoly9425TrailingStopCapAtTopLevel(t *testing.T) {
+func TestTrailingStopCapAtTopLevel(t *testing.T) {
 	bpsDetails := &triggers.TrailingDetails{TrailingDistanceBps: 200, MaxSlippageBps: 100}
 	ticksDetails := &triggers.TrailingDetails{TrailingDistanceBps: 200, MaxSlippageTicks: 25_000_000_000}
 	cases := []typedReadCase{
@@ -221,9 +221,9 @@ func TestPoly9425TrailingStopCapAtTopLevel(t *testing.T) {
 	})
 }
 
-// POLY-9424: with the catalogs loaded, trigger reads and the trigger stream
+// With the catalogs loaded, trigger reads and the trigger stream
 // name the pair; without them Symbol stays empty, as before.
-func TestPoly9424TriggerReadsNameThePair(t *testing.T) {
+func TestTriggerReadsNameThePair(t *testing.T) {
 	cases := []typedReadCase{
 		{name: "stop_loss", trigger: conditionalMarketFixture(1, false, 50)},
 		{name: "twap", trigger: twapMarketFixture(2, &triggers.TwapMarketIoc{})},
@@ -245,10 +245,10 @@ func TestPoly9424TriggerReadsNameThePair(t *testing.T) {
 	}
 }
 
-// POLY-9433: List sends the trigger type and parent order filters of
+// List sends the trigger type and parent order filters of
 // ListTriggers, refuses invalid ones before sending, and sends neither when
 // they are not given.
-func TestPoly9433ListTriggerTypeAndParentOrderFilters(t *testing.T) {
+func TestListTriggerTypeAndParentOrderFilters(t *testing.T) {
 	for _, wire := range []string{"binary", "json"} {
 		t.Run(wire, func(t *testing.T) {
 			handler := &typedReadHandler{}

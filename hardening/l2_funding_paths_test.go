@@ -1,6 +1,6 @@
 package hardening_test
 
-// POLY-9228: only what reads the funding (deposit/withdraw) config waits for
+// Only what reads the funding (deposit/withdraw) config waits for
 // it. The zipper supply stream sends nothing while the config is pending,
 // and returns the funding config's *errors.CatalogHydrationError without
 // sending once it failed. Deposit addresses and withdrawals read nothing
@@ -155,7 +155,7 @@ func TestL2DepositAddressesAndWithdrawalsDoNotWaitForTheFundingConfig(t *testing
 				}},
 				{"CreateTradingWithdraw", func(ctx context.Context) error {
 					_, err := h.client.Withdraw.CreateToFunding(ctx, 2, models.AssetAmountFromDecimal("1"),
-						make([]byte, 65), "poly-9228-control", "1", &deadline, nil, nil, "", 6)
+						make([]byte, 65), "funding-paths-control", "1", &deadline, nil, nil, "", 6)
 					return err
 				}},
 			}

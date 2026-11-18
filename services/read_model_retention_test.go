@@ -26,10 +26,10 @@ import (
 )
 
 // Typed reads keep contract fields the server sends: an API key's policy,
-// subaccount, IP allowlist and expiry (POLY-9894), an order's batch replace
-// ID (POLY-9896), and each address-book view entry's own revision
-// (POLY-9893). Every read goes through the public service over both wire
-// formats; the streams decode through the same decoders.
+// subaccount, IP allowlist and expiry, an order's batch replace ID, and
+// each address-book view entry's own revision. Every read goes through the
+// public service over both wire formats; the streams decode through the same
+// decoders.
 
 var retentionWires = []string{"binary", "json"}
 
@@ -86,7 +86,7 @@ func newRetentionFactory(t *testing.T, wire string, h retentionHandler) *transpo
 	return transport.NewFactory(cfg, creds, nil)
 }
 
-// --- POLY-9894: API-key policy, subaccount, IP allowlist and expiry --------
+// --- API-key policy, subaccount, IP allowlist and expiry --------
 
 var retentionPublicKey = func() []byte {
 	b := make([]byte, 32)
@@ -212,7 +212,7 @@ func TestApiKeyStreamKeepsPolicySubaccountAllowlistAndExpiry(t *testing.T) {
 	requireAbsentKey(t, "stream", got)
 }
 
-// --- POLY-9896: order batch_request_id -------------------------------------
+// --- Order batch_request_id -------------------------------------
 
 type batchCase struct {
 	id   uint64

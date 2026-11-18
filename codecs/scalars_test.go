@@ -177,7 +177,7 @@ func TestParseAndFormatQtyScaled(t *testing.T) {
 }
 
 func TestParseQtyScaledAcceptsTrailingZerosBeyondScale(t *testing.T) {
-	// POLY-4685: extra zeros past scale are padding, not extra precision.
+	// Extra zeros past scale are padding, not extra precision.
 	got, err := ParseQtyScaled("1.500000000", 8, "qty")
 	if err != nil {
 		t.Fatal(err)

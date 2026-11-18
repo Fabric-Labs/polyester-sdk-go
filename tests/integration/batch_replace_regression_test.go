@@ -15,7 +15,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
-// TestBatchReplaceFiveRoundsOfTwenty is F-01/M1: BatchReplace admission + status regression.
+// TestBatchReplaceFiveRoundsOfTwenty is a BatchReplace admission + status regression.
 func TestBatchReplaceFiveRoundsOfTwenty(t *testing.T) {
 	testutil.RequireAccountWideCleanup(t)
 	testutil.RequireFunded(t)

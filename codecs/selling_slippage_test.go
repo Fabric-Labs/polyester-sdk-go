@@ -43,7 +43,7 @@ func TestAttachedTrailingStopCapsSlippageAt9999BpsOnEitherSide(t *testing.T) {
 }
 
 // Modify takes 0 to 10000 bps, as ModifyTriggerRequest does: the server
-// decides 10000 by the trigger's side and type (POLY-9426).
+// decides 10000 by the trigger's side and type.
 func TestTriggerModifyTakesSlippageUpTo10000Bps(t *testing.T) {
 	over := int32(10_001)
 	_, err := ModifyTriggerToProto("2", 7, "", nil, ModifyTriggerOptions{MaxSlippageBps: &over})
