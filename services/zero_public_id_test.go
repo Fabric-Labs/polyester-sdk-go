@@ -97,14 +97,15 @@ func TestCallsRefusePublicIDThatDecodesToZero(t *testing.T) {
 	}
 }
 
-// The shared parser refuses a zero public ID and still decodes others.
+// The shared parser refuses a zero public ID and still decodes others. "12"
+// is another spelling of "2" (a leading "1" is a base58 zero) and is refused.
 func TestIDToIntRefusesZero(t *testing.T) {
-	for _, raw := range []string{"1", "11", "0", "00", " 1 ", "10"} {
+	for _, raw := range []string{"1", "11", "0", "00", " 1 ", "10", "12"} {
 		if got, err := codecs.IDToInt(raw, "trigger_id"); err == nil {
 			t.Errorf("IDToInt(%q) = %d, want an error", raw, got)
 		}
 	}
-	for raw, want := range map[string]uint64{"2": 1, "5": 4, "12": 1, codecs.FormatID(1 << 63): 1 << 63} {
+	for raw, want := range map[string]uint64{"2": 1, "5": 4, codecs.FormatID(1 << 63): 1 << 63} {
 		if got, err := codecs.IDToInt(raw, "trigger_id"); err != nil || got != want {
 			t.Errorf("IDToInt(%q) = (%d, %v), want %d", raw, got, err, want)
 		}
