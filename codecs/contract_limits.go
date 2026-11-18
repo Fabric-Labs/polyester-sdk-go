@@ -13,9 +13,11 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
+	chaindepositv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/deposit/v1"
 	chainlifecyclev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/lifecycle/v1"
 	chainwithdrawv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/withdraw/v1"
 	ledgerrdv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
+	marketdatav1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1"
 	transferv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1"
 	triggersv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1"
 )
@@ -50,7 +52,30 @@ var (
 	ListDustConversionsLimitMax = contractUint32Max(&transferv1.ListDustConversionsRequest{}, "limit")
 	// ListStatementExportsLimitMax is the largest ListStatementExports page.
 	ListStatementExportsLimitMax = contractUint32Max(&ledgerrdv1.ListStatementExportsRequest{}, "limit")
+	// AssetInfoIDMin and AssetInfoIDMax bound each ListAssetInfo asset ID
+	// (the items rule on asset_ids); AssetInfoIDsMax is the most IDs one
+	// request takes.
+	AssetInfoIDMin, AssetInfoIDMax = contractUint32Range(contractFieldRules(&marketdatav1.ListAssetInfoRequest{}, "asset_ids").GetRepeated().GetItems().GetUint32())
+	_, AssetInfoIDsMax             = contractRepeatedItems(&marketdatav1.ListAssetInfoRequest{}, "asset_ids")
+	// DepositChainIDMin is the smallest chain ID CreateDepositAddress takes
+	// (its gt 0 rule on chain_id).
+	DepositChainIDMin, _ = contractUint32Range(contractFieldRules(&chaindepositv1.CreateDepositAddressRequest{}, "chain_id").GetUint32())
 )
+
+// CheckAssetInfoIDs refuses asset IDs ListAssetInfo does not take with a
+// *errors.ValidationError naming asset_ids: more than AssetInfoIDsMax IDs, or
+// an ID outside AssetInfoIDMin..AssetInfoIDMax. No IDs means all assets.
+func CheckAssetInfoIDs(ids []uint32) error {
+	if len(ids) > AssetInfoIDsMax {
+		return &errors.ValidationError{Msg: fmt.Sprintf("asset_ids takes at most %d IDs, got %d", AssetInfoIDsMax, len(ids))}
+	}
+	for i, id := range ids {
+		if id < AssetInfoIDMin || id > AssetInfoIDMax {
+			return &errors.ValidationError{Msg: fmt.Sprintf("asset_ids[%d] %d is outside %d..%d", i, id, AssetInfoIDMin, AssetInfoIDMax)}
+		}
+	}
+	return nil
+}
 
 // StatementExportMaxPeriod is the longest period one statement export
 // covers. The contract states it only as a CEL rule on
@@ -138,6 +163,23 @@ func contractUint32Max(msg proto.Message, name protoreflect.Name) uint32 {
 		return bound.Lt - 1
 	}
 	return math.MaxUint32
+}
+
+func contractUint32Range(rules *validate.UInt32Rules) (low, high uint32) {
+	low, high = 0, math.MaxUint32
+	switch bound := rules.GetGreaterThan().(type) {
+	case *validate.UInt32Rules_Gte:
+		low = bound.Gte
+	case *validate.UInt32Rules_Gt:
+		low = bound.Gt + 1
+	}
+	switch bound := rules.GetLessThan().(type) {
+	case *validate.UInt32Rules_Lte:
+		high = bound.Lte
+	case *validate.UInt32Rules_Lt:
+		high = bound.Lt - 1
+	}
+	return low, high
 }
 
 func contractRepeatedItems(msg proto.Message, name protoreflect.Name) (low, high int) {

@@ -1507,8 +1507,8 @@ Trigger reads decode the distance back to quote units in `Details.TrailingDistan
 symbol: pass nil for both `symbol` and `symbolID` to target the trigger's own
 market, or set one, which must be that market. An API key limited to specific
 markets must still pass it. A trailing stop's `Details.TriggerPrice` is its
-current threshold once armed; it moves with the peak or trough. Ladder creation requires the resolved minimum price ticks
-to be strictly less than the maximum. A ladder places limit GTC orders only:
+current threshold once armed; it moves with the peak or trough. Ladder creation requires both a minimum and a maximum
+price, the resolved minimum price ticks strictly less than the maximum. A ladder places limit GTC orders only:
 leave `orderType` empty or pass `limit`. Any other order type, `market`
 included, returns a validation error before sending; it is never sent as a
 limit ladder.

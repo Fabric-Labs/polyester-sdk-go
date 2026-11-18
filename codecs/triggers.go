@@ -55,8 +55,10 @@ type CreateTriggerOptions struct {
 	// longer than the duration) are required for a TWAP.
 	TwapDurationMs      *int64
 	TwapSliceIntervalMs *int64
-	LadderPriceMin      *models.PriceInput
-	LadderPriceMax      *models.PriceInput
+	// LadderPriceMin and LadderPriceMax are required for a ladder: both
+	// positive, the minimum strictly below the maximum.
+	LadderPriceMin *models.PriceInput
+	LadderPriceMax *models.PriceInput
 	// LadderLevels is required for a ladder: LadderLevelsMin to
 	// LadderLevelsMax (2 to 100).
 	LadderLevels       *int32
@@ -308,7 +310,15 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 			ladder.PriceMaxTicks = ticks
 			hasMax = true
 		}
-		if hasMin && hasMax && ladder.PriceMinTicks >= ladder.PriceMaxTicks {
+		// Both bounds are required: the contract's gt 0 rules on
+		// price_min_ticks and price_max_ticks refuse a bound left at 0.
+		if !hasMin {
+			return nil, &errors.ValidationError{Msg: "ladder_price_min is required for a ladder", Code: orderv1.ErrorCode_ERROR_CODE_TRIGGER_PRICE_INVALID.String()}
+		}
+		if !hasMax {
+			return nil, &errors.ValidationError{Msg: "ladder_price_max is required for a ladder", Code: orderv1.ErrorCode_ERROR_CODE_TRIGGER_PRICE_INVALID.String()}
+		}
+		if ladder.PriceMinTicks >= ladder.PriceMaxTicks {
 			return nil, &errors.ValidationError{Msg: "ladder_price_min must be strictly less than ladder_price_max", Code: orderv1.ErrorCode_ERROR_CODE_TRIGGER_PRICE_INVALID.String()}
 		}
 		levels, err := requiredInRange(opts.LadderLevels, "ladder_levels", "ladder", LadderLevelsMin, LadderLevelsMax)
