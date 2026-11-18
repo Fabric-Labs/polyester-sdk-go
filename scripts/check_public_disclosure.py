@@ -2,9 +2,9 @@
 """Fail if the public repository discloses internal references.
 
 README.md and CHANGELOG.md are checked for every internal/QA disclosure
-pattern below. Every other tracked file outside the generated gen/ tree is
-checked for internal ticket references (POLY-<number>, in any case), in its
-path and in its text, so they cannot come back.
+pattern in FORBIDDEN. Every other tracked file outside the generated gen/
+tree is checked for internal ticket references, in its path and, unless it
+is binary, in its text, so they cannot come back.
 """
 
 from __future__ import annotations
@@ -19,7 +19,8 @@ ROOT = Path(__file__).resolve().parents[1]
 FILES = ("README.md", "CHANGELOG.md")
 FORBIDDEN: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"\bPOLY-\d+\b"), "internal ticket ID"),
-    (re.compile(r"\bF-\d+\b"), "internal finding ID"),
+    # A QA finding ID, with or without its hyphen.
+    (re.compile(r"\bF-?\d{2,}\b"), "internal finding ID"),
     (re.compile(r"\b(?:Yvan|Sergio)\b"), "internal person/reference"),
     (
         re.compile(r"\b(?:current )?(?:devnet|staging) (?:behavior|testing)\b", re.I),
@@ -32,10 +33,14 @@ FORBIDDEN: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"—"), "em dash"),
 ]
 
-# An internal ticket reference: "POLY", a hyphen and digits, in any case.
-TICKET_REFERENCE = re.compile(r"(?<![A-Za-z0-9])poly-\d+(?!\d)", re.IGNORECASE)
+# An internal ticket reference: "POLY" or "Ticket" and its number, with or
+# without a hyphen or underscore, in any case, also inside an identifier
+# such as a test name. A digit before it (as in a cipher name) is no ticket.
+TICKET_REFERENCE = re.compile(r"(?<![0-9])(?:poly|ticket)[-_]?\d{3,}(?!\d)", re.IGNORECASE)
 # Generated code, copied from the published contract, is not checked.
 GENERATED_PREFIXES = ("gen/",)
+# Git reads a file as binary when its first 8000 bytes hold a NUL byte.
+BINARY_SNIFF_BYTES = 8000
 
 
 def tracked_files(root: Path) -> list[str]:
@@ -48,10 +53,22 @@ def tracked_files(root: Path) -> list[str]:
     return [name for name in out.decode("utf-8").split("\0") if name]
 
 
+def is_binary(content: bytes) -> bool:
+    """Reports whether content is binary as Git reads it: a NUL byte in its
+    first 8000 bytes, or bytes that are not UTF-8 text."""
+    if b"\0" in content[:BINARY_SNIFF_BYTES]:
+        return True
+    try:
+        content.decode("utf-8")
+    except UnicodeDecodeError:
+        return True
+    return False
+
+
 def ticket_references(root: Path, names: Iterable[str]) -> list[str]:
     """Names each file outside gen/ whose path or text holds an internal
-    ticket reference, with the first line that does. Files that are not
-    UTF-8 text are checked by path only."""
+    ticket reference, with the first line that does. A binary file is
+    checked by its path only."""
     failures: list[str] = []
     for name in sorted(names):
         if name.startswith(GENERATED_PREFIXES):
@@ -62,21 +79,21 @@ def ticket_references(root: Path, names: Iterable[str]) -> list[str]:
         path = root / name
         if not path.is_file():
             continue
-        try:
-            text = path.read_text(encoding="utf-8")
-        except UnicodeDecodeError:
+        content = path.read_bytes()
+        if is_binary(content):
             continue
-        for number, line in enumerate(text.splitlines(), start=1):
+        for number, line in enumerate(content.decode("utf-8").splitlines(), start=1):
             if TICKET_REFERENCE.search(line):
                 failures.append(f"{name}:{number}: contains an internal ticket ID")
                 break
     return failures
 
 
-def main() -> int:
+def markdown_disclosures(root: Path) -> list[str]:
+    """Names each FORBIDDEN pattern README.md or CHANGELOG.md holds."""
     failures: list[str] = []
     for name in FILES:
-        path = ROOT / name
+        path = root / name
         if not path.is_file():
             failures.append(f"{name}: missing")
             continue
@@ -84,6 +101,11 @@ def main() -> int:
         for pattern, description in FORBIDDEN:
             if pattern.search(text):
                 failures.append(f"{name}: contains {description}")
+    return failures
+
+
+def main() -> int:
+    failures = markdown_disclosures(ROOT)
     failures.extend(ticket_references(ROOT, tracked_files(ROOT)))
     if failures:
         print("\n".join(failures), file=sys.stderr)

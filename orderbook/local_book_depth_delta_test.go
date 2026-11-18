@@ -12,7 +12,7 @@ import (
 
 // A negative depth is invalid caller input for the exported
 // renderer, so it is a ValidationError instead of a slice-bounds panic.
-func TestTicket8581BuildOrderbookDataRefusesNegativeDepth(t *testing.T) {
+func TestBuildOrderbookDataRefusesNegativeDepth(t *testing.T) {
 	books := map[string][2]BookSide{
 		"empty":     {{}, {}},
 		"populated": {{100: 5, 99: 2}, {101: 3, 102: 1}},
@@ -49,7 +49,7 @@ func TestTicket8581BuildOrderbookDataRefusesNegativeDepth(t *testing.T) {
 // A positive quantity at price zero is a level the renderer refuses,
 // so the whole delta fails closed: no mutation, no sequence advance, out of
 // sequence until the next reset.
-func TestTicket8583ApplyDeltaRefusesZeroPriceLevel(t *testing.T) {
+func TestApplyDeltaRefusesZeroPriceLevel(t *testing.T) {
 	zero := models.PriceQtyPair{PriceTicks: 0, QtyScaled: 4}
 	valid := models.PriceQtyPair{PriceTicks: 103, QtyScaled: 7}
 	for _, tc := range []struct {
@@ -78,7 +78,7 @@ func TestTicket8583ApplyDeltaRefusesZeroPriceLevel(t *testing.T) {
 }
 
 // Controls for the case above: deletions and valid inserts still apply and advance.
-func TestTicket8583ApplyDeltaKeepsValidDeletionsAndInserts(t *testing.T) {
+func TestApplyDeltaKeepsValidDeletionsAndInserts(t *testing.T) {
 	bids := BookSide{100: 5, 99: 1}
 	asks := BookSide{200: 3}
 	delta := models.OrderBookDeltaUpdate{
@@ -100,7 +100,7 @@ func TestTicket8583ApplyDeltaKeepsValidDeletionsAndInserts(t *testing.T) {
 }
 
 // Cross-SDK parity: snapshot and rendered levels keep the market they were read for.
-func TestTicket8588LevelsAreBoundToTheirMarket(t *testing.T) {
+func TestLevelsAreBoundToTheirMarket(t *testing.T) {
 	check := func(name string, levels []models.OrderbookLevel) {
 		t.Helper()
 		if len(levels) == 0 {

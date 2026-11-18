@@ -44,23 +44,52 @@ class TicketReferenceTest(unittest.TestCase):
         name = f"codecs/{TICKET.lower()}_test.go"
         self.assertEqual(self.check({name: b"package codecs\n"}), [f"{name}: path contains an internal ticket ID"])
 
+    def test_refuses_the_unhyphenated_forms(self) -> None:
+        for text in ("func Test" + "Ticket" + "8581Depth(t *testing.T) {}", "func Test" + "Poly" + "9301Market() {}",
+                     'id := "' + "poly" + '4996-wd"', "POLY" + "_1234"):
+            with self.subTest(text=text):
+                self.assertEqual(self.check({"x_test.go": (text + "\n").encode()}),
+                                 ["x_test.go:1: contains an internal ticket ID"])
+        name = "services/orderbook_" + "ticket" + "8512_test.go"
+        self.assertEqual(self.check({name: b"package services\n"}), [f"{name}: path contains an internal ticket ID"])
+
     def test_ignores_generated_code_and_binary_files(self) -> None:
         failures = self.check({
             "gen/orders/v1/orders.pb.go": f"// {TICKET}\n".encode(),
             "testdata/blob.bin": b"\xff\xfe" + TICKET.encode(),
+            # Valid UTF-8, but binary as Git reads it: it holds a NUL byte.
+            "testdata/image.bin": b"\x00" + TICKET.encode() + b"\x00",
         })
         self.assertEqual(failures, [])
 
+    def test_a_binary_file_is_still_checked_by_its_path(self) -> None:
+        name = "testdata/" + TICKET.lower() + ".bin"
+        self.assertEqual(self.check({name: b"\x00\x01"}), [f"{name}: path contains an internal ticket ID"])
+
+    def test_a_nul_byte_past_the_sniffed_prefix_leaves_a_text_file(self) -> None:
+        content = b"a" * cpd.BINARY_SNIFF_BYTES + b"\n// " + TICKET.encode() + b"\n\x00"
+        self.assertEqual(self.check({"big.txt": content}), ["big.txt:2: contains an internal ticket ID"])
+
     def test_accepts_text_without_a_ticket_reference(self) -> None:
         failures = self.check({
-            "README.md": b"Polyester SDK, POLYESTER_API_URL, poly-market and POLY- alone.\n",
+            "README.md": b"Polyester SDK, POLYESTER_API_URL, poly-market, POLY- alone, a setup ticket.\n",
+            "go.sum": b"golang.org/x/crypto/chacha20" + b"poly" + b"1305 h1:abc=\n",
             "scripts/check.py": b'TICKET = re.compile(r"(?<![A-Za-z0-9])poly-\\d+(?!\\d)")\n',
         })
         self.assertEqual(failures, [])
 
+    def test_markdown_refuses_finding_ids_with_or_without_a_hyphen(self) -> None:
+        for finding in ("F-24", "F" + "001", "F" + "018"):
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                (root / "README.md").write_text("ok\n", encoding="utf-8")
+                (root / "CHANGELOG.md").write_text(f"- Tests for {finding}.\n", encoding="utf-8")
+                self.assertEqual(cpd.markdown_disclosures(root), ["CHANGELOG.md: contains internal finding ID"], finding)
+
     def test_the_repository_is_clean(self) -> None:
         root = SCRIPTS.parent
         self.assertEqual(cpd.ticket_references(root, cpd.tracked_files(root)), [])
+        self.assertEqual(cpd.markdown_disclosures(root), [])
 
 
 if __name__ == "__main__":

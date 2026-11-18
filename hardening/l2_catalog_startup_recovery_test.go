@@ -37,7 +37,7 @@ import (
 // Synthetic proxy credentials: they must never reach an error message.
 const (
 	startupProxyUser   = "sdk-test-user"
-	startupProxySecret = "proxy-secret-9228"
+	startupProxySecret = "proxy-secret-value"
 	startupSymbol      = "BTC-USDT"
 )
 

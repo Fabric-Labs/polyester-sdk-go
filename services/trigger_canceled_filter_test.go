@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-// "Canceled" is the only spelling of the canceled trigger status
-// and event type; "cancelled" is refused before sending.
+// The canceled trigger status and event type are spelled only "canceled";
+// "cancelled" is refused before sending.
 func TestTriggerFiltersRefuseCancelledBeforeSending(t *testing.T) {
 	t.Run("List", func(t *testing.T) {
 		factory, captures := scopeCaptureFactory(t)
