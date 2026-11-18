@@ -33,10 +33,11 @@ FORBIDDEN: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"—"), "em dash"),
 ]
 
-# An internal ticket reference: "POLY" or "Ticket" and its number, with or
-# without a hyphen or underscore, in any case, also inside an identifier
-# such as a test name. A digit before it (as in a cipher name) is no ticket.
-TICKET_REFERENCE = re.compile(r"(?<![0-9])(?:poly|ticket)[-_]?\d{3,}(?!\d)", re.IGNORECASE)
+# An internal ticket reference: "POLY" or "Ticket", an optional hyphen or
+# underscore, and digits, in any case, also inside an identifier such as a
+# test name. The one legitimate term of that shape, the Poly1305
+# authenticator (poly1305), is excluded by name.
+TICKET_REFERENCE = re.compile(r"poly(?!1305(?!\d))[-_]?\d+|ticket[-_]?\d+", re.IGNORECASE)
 # Generated code, copied from the published contract, is not checked.
 GENERATED_PREFIXES = ("gen/",)
 # Git reads a file as binary when its first 8000 bytes hold a NUL byte.

@@ -44,9 +44,14 @@ class TicketReferenceTest(unittest.TestCase):
         name = f"codecs/{TICKET.lower()}_test.go"
         self.assertEqual(self.check({name: b"package codecs\n"}), [f"{name}: path contains an internal ticket ID"])
 
-    def test_refuses_the_unhyphenated_forms(self) -> None:
+    def test_refuses_every_numbered_form(self) -> None:
         for text in ("func Test" + "Ticket" + "8581Depth(t *testing.T) {}", "func Test" + "Poly" + "9301Market() {}",
-                     'id := "' + "poly" + '4996-wd"', "POLY" + "_1234"):
+                     'id := "' + "poly" + '4996-wd"', "POLY" + "_1234",
+                     # Short numbers are tickets too, hyphenated or not.
+                     "see " + "POLY" + "-12", "see " + "Ticket" + "_42", "Poly" + "7",
+                     # Only Poly1305 itself is excluded: other numbers that
+                     # start with 1305, and its hyphenated form, are tickets.
+                     "Poly" + "13050", "POLY" + "-1305"):
             with self.subTest(text=text):
                 self.assertEqual(self.check({"x_test.go": (text + "\n").encode()}),
                                  ["x_test.go:1: contains an internal ticket ID"])
@@ -74,12 +79,15 @@ class TicketReferenceTest(unittest.TestCase):
         failures = self.check({
             "README.md": b"Polyester SDK, POLYESTER_API_URL, poly-market, POLY- alone, a setup ticket.\n",
             "go.sum": b"golang.org/x/crypto/chacha20" + b"poly" + b"1305 h1:abc=\n",
+            "crypto.go": b"// Poly1305, XChaCha20-Poly1305 and golang.org/x/crypto/internal/poly1305\n"
+                         b"poly1305.Sum(&tag, msg, &key)\nvar POLY1305 = 1\n",
+            "internal/poly1305/sum.go": b"package poly1305\n",
             "scripts/check.py": b'TICKET = re.compile(r"(?<![A-Za-z0-9])poly-\\d+(?!\\d)")\n',
         })
         self.assertEqual(failures, [])
 
     def test_markdown_refuses_finding_ids_with_or_without_a_hyphen(self) -> None:
-        for finding in ("F-24", "F" + "001", "F" + "018"):
+        for finding in ("F" + "-24", "F" + "001", "F" + "018"):
             with tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
                 (root / "README.md").write_text("ok\n", encoding="utf-8")
