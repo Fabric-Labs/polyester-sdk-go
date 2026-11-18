@@ -43,12 +43,11 @@ func (s *OrderbookService) client() orderbookv1connect.OrderbookServiceClient {
 	return orderbookv1connect.NewOrderbookServiceClient(s.transport.HTTP, s.transport.Config.APIURL, s.transport.ConnectOptions(false)...)
 }
 
-// Get reads a snapshot of symbol with depth levels per side, sent as given: 0
-// requests the default of 50. The result's Depth is the depth requested (50 for
-// 0), and its MaxDepth the largest depth the service accepts. A depth above it
-// is refused by the service with invalid_argument (a *errors.ValidationError),
-// never truncated. A negative depth, or one above the uint32 range, is an
-// *errors.ValidationError before any request. Order snapshots by
+// Get reads a snapshot of symbol with depth levels per side: one of the
+// contract's depth tiers, 1, 5, 10, 20, 50, 100, 200, 500, 1000 or 5000
+// (codecs.OrderbookDepthTiers), or 0 for the default of 50. Any other depth is
+// an *errors.ValidationError before any request. The result's Depth is the
+// tier the service served. Order snapshots by
 // (BookEpoch, BookSeq) with orderbook.CompareSnapshots, and never apply live
 // deltas to a snapshot: it is a frozen view of the book.
 func (s *OrderbookService) Get(ctx context.Context, symbol string, depth int) (models.OrderbookData, error) {
@@ -64,7 +63,11 @@ func (s *OrderbookService) Get(ctx context.Context, symbol string, depth int) (m
 	if err != nil {
 		return models.OrderbookData{}, err
 	}
-	req := &orderbookv1.GetOrderBookRequest{SymbolId: symbolID, Depth: uint32(depth)}
+	tier, err := codecs.DepthTierForLevels(reported)
+	if err != nil {
+		return models.OrderbookData{}, err
+	}
+	req := &orderbookv1.GetOrderBookRequest{SymbolId: symbolID, Depth: tier}
 	scale, ok := s.catalogs.BaseQuantityScaleForSymbol(symbol)
 	if !ok {
 		return models.OrderbookData{}, &errors.ValidationError{Msg: fmt.Sprintf("orderbook decoding requires a hydrated catalog quantity scale for %q; leave Config.SkipCatalogHydration unset and call Client.WaitForCatalogs(ctx), or hydrate the spot catalog with Client.Catalogs.HydrateSpotConfig", symbol)}
@@ -313,7 +316,11 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		FetchSnapshot: func(fetchCtx context.Context) (models.OrderbookData, error) {
 			// At the tier, not the requested depth: deltas diff the tier's whole
 			// view, and a level promoted into a trimmed view must already be known.
-			req := &orderbookv1.GetOrderBookRequest{SymbolId: *resolvedSymbolID, Depth: uint32(streamDepth)}
+			tier, err := codecs.DepthTierForLevels(streamDepth)
+			if err != nil {
+				return models.OrderbookData{}, err
+			}
+			req := &orderbookv1.GetOrderBookRequest{SymbolId: *resolvedSymbolID, Depth: tier}
 			return UnaryPublicDecoded(fetchCtx, s.transport, s.client().GetOrderBook, req, func(msg *orderbookv1.GetOrderBookResponse) (models.OrderbookData, error) {
 				nextBids, err := orderbook.LevelsFromProtoLevels(msg.GetBids())
 				if err != nil {

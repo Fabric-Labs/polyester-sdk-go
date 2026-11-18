@@ -9,6 +9,9 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
+// OrderbookFromProto decodes an Orderbook.Get snapshot requested at depth
+// levels per side. Its Depth is the tier the reply names as served, or depth
+// when the reply names none.
 func OrderbookFromProto(msg *orderbookv1.GetOrderBookResponse, symbol string, depth, quantityScale int) (models.OrderbookData, error) {
 	bids, err := levelsFromProto(msg.GetBids(), symbol, quantityScale)
 	if err != nil {
@@ -18,12 +21,14 @@ func OrderbookFromProto(msg *orderbookv1.GetOrderBookResponse, symbol string, de
 	if err != nil {
 		return models.OrderbookData{}, err
 	}
+	if served, ok := codecs.LevelsForDepthTier(msg.GetDepth()); ok {
+		depth = served
+	}
 	return models.OrderbookData{
 		Symbol:    symbol,
 		Depth:     depth,
 		BookSeq:   strconv.FormatUint(msg.GetBookSeq(), 10),
 		BookEpoch: strconv.FormatUint(msg.GetBookEpoch(), 10),
-		MaxDepth:  msg.GetMaxDepth(),
 		Bids:      bids,
 		Asks:      asks,
 		Available: msg.GetAvailable(),

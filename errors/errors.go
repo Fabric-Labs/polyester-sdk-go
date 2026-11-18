@@ -45,7 +45,9 @@ const (
 )
 
 // CodeRequestTooLarge is the code of an *APIError for a request body over the
-// endpoint's size limit (REST problem REQUEST_TOO_LARGE, HTTP 413). The API
+// endpoint's size limit: REST problem REQUEST_TOO_LARGE (HTTP 413), or a
+// ConnectRPC resource_exhausted carrying the polyester.api.v1
+// RequestErrorDetail REQUEST_TOO_LARGE, whose limit is LimitBytes. The API
 // refuses it before reading or authenticating the request, so nothing
 // changed, and sending the same body again is refused again: reduce it to fit
 // the limit. Read it with IsRequestTooLarge.
@@ -607,6 +609,9 @@ type APIError struct {
 	// request may succeed, on an AUTH_SOCIAL_ACCOUNT_COOLDOWN or
 	// AUTH_SOCIAL_CHANGE_LIMIT_REACHED refusal; nil otherwise.
 	RetryAt *time.Time
+	// LimitBytes is the size limit, in bytes, a request refused with
+	// REQUEST_TOO_LARGE is over, when the refusal names it; 0 otherwise.
+	LimitBytes uint64
 	LadderLevelCause
 }
 

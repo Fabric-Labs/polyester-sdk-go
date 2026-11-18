@@ -10,7 +10,8 @@ import (
 )
 
 // MeFromProto decodes the caller's identity. A reply without the account ID,
-// or with a session without its ID, returns a *errors.ResponseContractError.
+// with a session without its ID, or naming a sub-account key without its
+// sub-account ID, returns a *errors.ResponseContractError.
 func MeFromProto(msg *authv1.MeResponse) (models.MeResult, error) {
 	if err := requireID("Me", "account_id", msg.GetAccountId()); err != nil {
 		return models.MeResult{}, err
@@ -33,6 +34,15 @@ func MeFromProto(msg *authv1.MeResponse) (models.MeResult, error) {
 	}
 	if msg.GetRootSmartAccountAddress() != "" {
 		out.RootSmartAccountAddress = msg.GetRootSmartAccountAddress()
+	}
+	out.APIKeyScope = enumLabel(msg.GetApiKeyScope(), "SCOPE_")
+	if msg.GetApiKeyScope() == authv1.AccountScopeType_SCOPE_SUBACCOUNT {
+		if err := requireID("Me", "subaccount_id", msg.GetSubaccountId()); err != nil {
+			return models.MeResult{}, err
+		}
+	}
+	if msg.GetSubaccountId() != 0 {
+		out.SubaccountID = codecs.FormatID(msg.GetSubaccountId())
 	}
 	return out, nil
 }

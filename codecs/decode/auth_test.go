@@ -1,11 +1,14 @@
 package decode_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestMeFromProto(t *testing.T) {
@@ -58,5 +61,27 @@ func TestSubaccountActivityFromProtoNormalizesTypedEnums(t *testing.T) {
 	result := decode.SubaccountActivityListFromProto(msg)
 	if len(result.Events) != 1 || result.Events[0].EventType != "invite:created" {
 		t.Fatalf("events=%+v", result.Events)
+	}
+}
+
+// Me names the account an API key is scoped to, and a sub-account key's
+// sub-account; a sub-account key without its sub-account ID breaks the
+// contract.
+func TestMeNamesTheAPIKeyScope(t *testing.T) {
+	sub, err := decode.MeFromProto(&authv1.MeResponse{AccountId: 7, ApiKeyId: proto.String("ak_1"), ApiKeyScope: authv1.AccountScopeType_SCOPE_SUBACCOUNT, SubaccountId: proto.Uint64(9000000001)})
+	if err != nil || sub.APIKeyScope != "subaccount" || sub.SubaccountID != codecs.FormatID(9000000001) || sub.ChannelAccountID() != codecs.FormatID(9000000001) {
+		t.Fatalf("sub-account key: %+v, %v", sub, err)
+	}
+	root, err := decode.MeFromProto(&authv1.MeResponse{AccountId: 7, ApiKeyId: proto.String("ak_2"), ApiKeyScope: authv1.AccountScopeType_SCOPE_ROOT})
+	if err != nil || root.APIKeyScope != "root" || root.SubaccountID != "" || root.ChannelAccountID() != codecs.FormatID(7) {
+		t.Fatalf("root key: %+v, %v", root, err)
+	}
+	session, err := decode.MeFromProto(&authv1.MeResponse{AccountId: 7})
+	if err != nil || session.APIKeyScope != "" || session.SubaccountID != "" {
+		t.Fatalf("session: %+v, %v", session, err)
+	}
+	var contract *sdkerrors.ResponseContractError
+	if _, err := decode.MeFromProto(&authv1.MeResponse{AccountId: 7, ApiKeyScope: authv1.AccountScopeType_SCOPE_SUBACCOUNT}); !errors.As(err, &contract) {
+		t.Fatalf("sub-account key without its ID: err = %v", err)
 	}
 }

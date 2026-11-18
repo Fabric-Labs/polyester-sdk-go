@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"maps"
 	"net/http"
 	"slices"
@@ -145,11 +146,12 @@ func sortedProtoLevels(side map[int64]int64, descending bool) []*orderbookv1.Pri
 func (m *tierMarket) GetOrderBook(_ context.Context, req *connect.Request[orderbookv1.GetOrderBookRequest]) (*connect.Response[orderbookv1.GetOrderBookResponse], error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.snapshots = append(m.snapshots, fmt.Sprint(req.Msg.GetDepth()))
-	response := &orderbookv1.GetOrderBookResponse{SymbolId: 1, BookSeq: m.seq, Available: !m.unavailable, MaxDepth: 5000}
+	levels, _ := codecs.LevelsForDepthTier(req.Msg.GetDepth())
+	m.snapshots = append(m.snapshots, fmt.Sprint(levels))
+	response := &orderbookv1.GetOrderBookResponse{SymbolId: 1, BookSeq: m.seq, Available: !m.unavailable, Depth: req.Msg.GetDepth()}
 	if !m.unavailable {
 		response.BookEpoch = 1
-		bids, asks := m.viewLocked(int(req.Msg.GetDepth()))
+		bids, asks := m.viewLocked(levels)
 		response.Bids = sortedProtoLevels(bids, true)
 		response.Asks = sortedProtoLevels(asks, false)
 	}

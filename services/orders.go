@@ -420,6 +420,15 @@ type CancelAllParams struct {
 	Side         *string
 	DryRun       bool
 	RequestID    *string
+	// IncludeTriggers also stops the account's waiting triggers on the
+	// matched symbols whose orders trade on Side: every stop-loss,
+	// take-profit, trailing stop, TWAP, ladder and attached leg created
+	// before the request was accepted ends canceled (cancel reason
+	// "cancel_all") and releases its reserved funds, and none places an order
+	// after the response. False cancels open orders only. A retry with the
+	// same RequestID must keep it unchanged: it is part of the request's
+	// criteria.
+	IncludeTriggers bool
 }
 
 // CancelAll cancels all matching orders. Empty symbol matches every pair.
@@ -432,8 +441,15 @@ type CancelAllParams struct {
 // once its levels are canceled. An attached stop-loss, take-profit or
 // trailing leg whose exit order is canceled ends, and so do the parent's
 // other legs when OCO is set, so the position loses that protection. To stop
-// all automated trading, use StopAllTrading, which cancels the triggers
-// first.
+// triggers too, in the same request, use CancelAllWith with IncludeTriggers.
+//
+// What a cancel-all cancels is fixed when its request ID is first admitted:
+// every matching order admitted before that, from any interface, and none
+// admitted after it. An order whose create, modify or batch answer arrived
+// before the cancel-all was sent is covered; one still in flight, or whose
+// outcome is unknown, may be admitted after it and stay open. To stop
+// trading, let the in-flight order calls answer first, or send a second
+// cancel-all with a new request ID after the last of them has answered.
 func (s *OrdersService) CancelAll(ctx context.Context, account AccountScope, subAccountID, symbol, side *string, dryRun bool, requestID *string) (models.CancelAllOrdersResult, error) {
 	return s.CancelAllWith(ctx, account, CancelAllParams{
 		SubAccountID: subAccountID,
@@ -463,17 +479,39 @@ func (s *OrdersService) CancelAllWith(ctx context.Context, account AccountScope,
 	if err != nil {
 		return models.CancelAllOrdersResult{}, err
 	}
+	protoReq.IncludeTriggers = params.IncludeTriggers
 	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().CancelAllOrders, protoReq, decode.CancelAllFromProto)
 }
 
 // CancelAllAfter arms cancel-all-after (the dead-man switch). When it fires
 // it cancels open orders in scope, never triggers: a client that stopped
 // still has its standalone triggers and TWAPs live, and an attached leg whose
-// exit order it cancels ends (with its OCO siblings). Cancel triggers with
-// Triggers.Cancel first, or use StopAllTrading. timeoutSec is 10 to 120, or
-// 0 to disarm the switch; any other value is a ValidationError before
-// sending.
+// exit order it cancels ends (with its OCO siblings). To stop triggers too,
+// use CancelAllAfterWith with IncludeTriggers. timeoutSec is 10 to 120, or 0
+// to disarm the switch; any other value is a ValidationError before sending.
 func (s *OrdersService) CancelAllAfter(ctx context.Context, account AccountScope, timeoutSec int, subAccountID, symbol, side, requestID *string) (models.CancelAllAfterResult, error) {
+	return s.CancelAllAfterWith(ctx, account, CancelAllAfterParams{TimeoutSec: timeoutSec, SubAccountID: subAccountID, Symbol: symbol, Side: side, RequestID: requestID})
+}
+
+// CancelAllAfterParams arms or disarms the dead-man switch, as for
+// CancelAllAfter.
+type CancelAllAfterParams struct {
+	TimeoutSec   int
+	SubAccountID *string
+	Symbol       *string
+	Side         *string
+	RequestID    *string
+	// IncludeTriggers makes the switch also stop the account's waiting
+	// triggers in scope when it fires, as CancelAllParams.IncludeTriggers
+	// does: those created before its expiry time, even when the expiry is
+	// processed later. Set it on every arm or refresh; a disarm ignores it.
+	IncludeTriggers bool
+}
+
+// CancelAllAfterWith arms or disarms the dead-man switch with params; see
+// CancelAllAfter.
+func (s *OrdersService) CancelAllAfterWith(ctx context.Context, account AccountScope, params CancelAllAfterParams) (models.CancelAllAfterResult, error) {
+	timeoutSec, subAccountID, symbol, side, requestID := params.TimeoutSec, params.SubAccountID, params.Symbol, params.Side, params.RequestID
 	sub, err := s.scoped.ResolveSubAccountID(subAccountID, account)
 	if err != nil {
 		return models.CancelAllAfterResult{}, err
@@ -495,6 +533,7 @@ func (s *OrdersService) CancelAllAfter(ctx context.Context, account AccountScope
 	if err != nil {
 		return models.CancelAllAfterResult{}, err
 	}
+	protoReq.IncludeTriggers = params.IncludeTriggers
 	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().CancelAllAfter, protoReq, decode.CancelAllAfterFromProto)
 }
 

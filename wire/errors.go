@@ -17,6 +17,7 @@ import (
 	withdrawv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/withdraw/v1"
 	ledgerrdv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
+	polyesterapiv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api/v1"
 	ratelimitv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/ratelimit/v1"
 	transferv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/redact"
@@ -254,6 +255,12 @@ func mapConnectError(err error) error {
 				futureCode = futureCodeLabel(value)
 			}
 			continue
+		}
+		if requestDetail, ok := value.(*polyesterapiv1.RequestErrorDetail); ok && requestDetail.GetCode() == polyesterapiv1.RequestErrorCode_REQUEST_TOO_LARGE {
+			// A request over the API's size limit, refused before it was
+			// read: the same body is refused again, so it is no rate refusal
+			// to wait out. Any other code reads as the plain refusal.
+			return &sdkerrors.APIError{Msg: msg, Code: sdkerrors.CodeRequestTooLarge, LimitBytes: requestDetail.GetLimitBytes()}
 		}
 		if authDetail, ok := value.(*authv1.AuthErrorDetail); ok {
 			codeName := authDetail.GetCode().String()

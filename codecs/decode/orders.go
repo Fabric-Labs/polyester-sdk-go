@@ -711,6 +711,7 @@ func CancelAllFromProto(msg *orderv1.CancelAllOrdersResponse) (models.CancelAllO
 		TotalCancelled:   int(msg.GetTotalCancelled()),
 		Truncated:        msg.GetTruncated(),
 		ListingStatus:    cancelAllListingStatusName(msg.GetListingStatus()),
+		MatchedTriggers:  int(msg.GetMatchedTriggers()),
 	}, nil
 }
 

@@ -3,6 +3,10 @@
 # CI: python3 scripts/check_sdk_coverage.py
 
 [[allowlist]]
+service = "auth.v1.ConnectedAppService"
+reason = "Connecting outside apps with OAuth is for the website's signed-in session; every method refuses an API key."
+
+[[allowlist]]
 service = "auth.v1.MFAService"
 reason = "MFA enrollment and step-up are outside the API-key SDK surface."
 

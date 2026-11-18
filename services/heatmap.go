@@ -11,6 +11,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	heatmapv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1/marketdatav1connect"
+	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/realtime"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
@@ -62,7 +63,7 @@ func (s *HeatmapService) Get(ctx context.Context, symbol *string, symbolID *uint
 	if err != nil {
 		return models.ApiData{}, err
 	}
-	depthEnum, ok := heatmapv1.HeatmapDepth_value[fmt.Sprintf("DEPTH_%d", depth)]
+	depthEnum, ok := typev1.DepthTier_value[fmt.Sprintf("DEPTH_%d", depth)]
 	if !ok {
 		return models.ApiData{}, &errors.ValidationError{Msg: "Unsupported heatmap depth"}
 	}
@@ -78,7 +79,7 @@ func (s *HeatmapService) Get(ctx context.Context, symbol *string, symbolID *uint
 	if err != nil {
 		return models.ApiData{}, err
 	}
-	req := &heatmapv1.GetOrderbookHeatmapRequest{SymbolId: resolved, Interval: intervalEnum, Depth: heatmapv1.HeatmapDepth(depthEnum), Limit: parsedLimit, QuantityMode: heatmapv1.HeatmapQuantityMode(qtyEnum)}
+	req := &heatmapv1.GetOrderbookHeatmapRequest{SymbolId: resolved, Interval: intervalEnum, Depth: typev1.DepthTier(depthEnum), Limit: parsedLimit, QuantityMode: heatmapv1.HeatmapQuantityMode(qtyEnum)}
 	if err := codecs.CheckPageLimit(req); err != nil {
 		return models.ApiData{}, err
 	}

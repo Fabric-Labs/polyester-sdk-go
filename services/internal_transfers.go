@@ -93,6 +93,12 @@ func (s *InternalTransfersService) Create(ctx context.Context, assetID uint32, q
 // batch outweighs the account's burst: split it instead of retrying. A reply
 // that breaks the contract returns a *errors.ResponseContractError; the batch
 // may have run, so read it back or retry it with the same key and legs.
+//
+// "refused" is final for its key even once the cause is gone: the same legs
+// under it answer the same refusal. A check that cannot be decided now fails
+// the whole call with Connect code unavailable (ERROR_CODE_SERVICE_UNAVAILABLE
+// or ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE) and records nothing under the key:
+// retry with the same key and legs, after its Retry-After when present.
 func (s *InternalTransfersService) CreateBatch(ctx context.Context, legs []models.InternalTransferBatchLeg, idempotencyKey string) (models.InternalTransferBatchResult, error) {
 	if len(legs) < codecs.BatchInternalTransferLegsMin || len(legs) > codecs.BatchInternalTransferLegsMax {
 		return models.InternalTransferBatchResult{}, &errors.ValidationError{Msg: fmt.Sprintf("a batch takes at least %d leg, not %d", codecs.BatchInternalTransferLegsMin, len(legs))}

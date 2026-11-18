@@ -63,23 +63,24 @@ func SubaccountPolicyFromView(msg *authv1.SubaccountPolicyView, cats *catalogs.M
 		return nil
 	}
 	return &models.SubaccountPolicy{
-		PolicyID:         codecs.FormatUint64ID(msg.GetId()),
-		Name:             msg.GetName(),
-		Description:      msg.GetDescription(),
-		Revision:         msg.GetRevision(),
-		SpotMarkets:      spotMarketRules(msg.GetSpotMarkets(), cats),
-		SpotMarketScope:  marketScopeLabel(msg.GetSpotMarketScope()),
-		Actions:          policyActions(msg.GetActions()),
-		IsTemplate:       msg.GetIsTemplate(),
-		SourceTemplateID: sourceTemplateID(msg.GetSourceTemplateId()),
-		MaxOrderNotional: msg.GetMaxOrderNotional(),
-		MaxOpenOrders:    msg.GetMaxOpenOrders(),
-		TradingHalted:    msg.GetTradingHalted(),
-		Locked:           msg.GetLocked(),
-		ReviewAt:         timestampTime(msg.GetReviewAt()),
-		ExpiresAt:        timestampTime(msg.GetExpiresAt()),
-		CreatedAt:        timestampTime(msg.GetCreatedAt()),
-		UpdatedAt:        timestampTime(msg.GetUpdatedAt()),
+		PolicyID:               codecs.FormatUint64ID(msg.GetId()),
+		Name:                   msg.GetName(),
+		Description:            msg.GetDescription(),
+		Revision:               msg.GetRevision(),
+		SpotMarkets:            spotMarketRules(msg.GetSpotMarkets(), cats),
+		SpotMarketScope:        marketScopeLabel(msg.GetSpotMarketScope()),
+		Actions:                policyActions(msg.GetActions()),
+		IsTemplate:             msg.GetIsTemplate(),
+		SourceTemplateID:       sourceTemplateID(msg.GetSourceTemplateId()),
+		SourceTemplateRevision: msg.GetSourceTemplateRevision(),
+		MaxOrderNotional:       msg.GetMaxOrderNotional(),
+		MaxOpenOrders:          msg.GetMaxOpenOrders(),
+		TradingHalted:          msg.GetTradingHalted(),
+		Locked:                 msg.GetLocked(),
+		ReviewAt:               timestampTime(msg.GetReviewAt()),
+		ExpiresAt:              timestampTime(msg.GetExpiresAt()),
+		CreatedAt:              timestampTime(msg.GetCreatedAt()),
+		UpdatedAt:              timestampTime(msg.GetUpdatedAt()),
 	}
 }
 
@@ -94,17 +95,18 @@ func ApiPolicyFromView(msg *authv1.ApiPolicyView, cats *catalogs.Manager) *model
 		return nil
 	}
 	return &models.ApiPolicy{
-		PolicyID:         codecs.FormatUint64ID(msg.GetId()),
-		Name:             msg.GetName(),
-		Description:      msg.GetDescription(),
-		Revision:         msg.GetRevision(),
-		SpotMarkets:      spotMarketRules(msg.GetSpotMarkets(), cats),
-		SpotMarketScope:  marketScopeLabel(msg.GetSpotMarketScope()),
-		Actions:          policyActions(msg.GetActions()),
-		IsTemplate:       msg.GetIsTemplate(),
-		SourceTemplateID: sourceTemplateID(msg.GetSourceTemplateId()),
-		CreatedAt:        timestampTime(msg.GetCreatedAt()),
-		UpdatedAt:        timestampTime(msg.GetUpdatedAt()),
+		PolicyID:               codecs.FormatUint64ID(msg.GetId()),
+		Name:                   msg.GetName(),
+		Description:            msg.GetDescription(),
+		Revision:               msg.GetRevision(),
+		SpotMarkets:            spotMarketRules(msg.GetSpotMarkets(), cats),
+		SpotMarketScope:        marketScopeLabel(msg.GetSpotMarketScope()),
+		Actions:                policyActions(msg.GetActions()),
+		IsTemplate:             msg.GetIsTemplate(),
+		SourceTemplateID:       sourceTemplateID(msg.GetSourceTemplateId()),
+		SourceTemplateRevision: msg.GetSourceTemplateRevision(),
+		CreatedAt:              timestampTime(msg.GetCreatedAt()),
+		UpdatedAt:              timestampTime(msg.GetUpdatedAt()),
 	}
 }
 
