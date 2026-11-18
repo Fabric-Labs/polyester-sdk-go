@@ -105,7 +105,9 @@ const (
 	ErrorCode_ERROR_CODE_CHAIN_METADATA_UNAVAILABLE ErrorCode = 34
 	// Required network fee data is unavailable.
 	ErrorCode_ERROR_CODE_FEE_UNAVAILABLE ErrorCode = 35
-	// Required zipped-asset supply data is unavailable.
+	// The zToken supply of the destination route is not known, or not
+	// current: AssetChainVariant.supply_status is MISSING or STALE. Nothing was
+	// reserved; retry once the status is AVAILABLE again.
 	ErrorCode_ERROR_CODE_SUPPLY_UNAVAILABLE ErrorCode = 36
 	// Fresh step-up verification is temporarily unavailable.
 	ErrorCode_ERROR_CODE_STEP_UP_UNAVAILABLE ErrorCode = 37
@@ -410,6 +412,63 @@ func (WithdrawDestinationValidationCode) EnumDescriptor() ([]byte, []int) {
 	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{2}
 }
 
+// WalletAssetUnavailableReason says why a zToken balance could not be read.
+type WalletAssetUnavailableReason int32
+
+const (
+	// No reason was given.
+	WalletAssetUnavailableReason_UNAVAILABLE_UNSPECIFIED WalletAssetUnavailableReason = 0
+	// No zToken contract exists at the listed address on Polyester Chain.
+	WalletAssetUnavailableReason_NO_CONTRACT WalletAssetUnavailableReason = 1
+	// Polyester Chain answered the balance read with an error.
+	WalletAssetUnavailableReason_READ_FAILED WalletAssetUnavailableReason = 2
+	// The balance read returned a value that is not a valid balance.
+	WalletAssetUnavailableReason_INVALID_BALANCE WalletAssetUnavailableReason = 3
+)
+
+// Enum value maps for WalletAssetUnavailableReason.
+var (
+	WalletAssetUnavailableReason_name = map[int32]string{
+		0: "UNAVAILABLE_UNSPECIFIED",
+		1: "NO_CONTRACT",
+		2: "READ_FAILED",
+		3: "INVALID_BALANCE",
+	}
+	WalletAssetUnavailableReason_value = map[string]int32{
+		"UNAVAILABLE_UNSPECIFIED": 0,
+		"NO_CONTRACT":             1,
+		"READ_FAILED":             2,
+		"INVALID_BALANCE":         3,
+	}
+)
+
+func (x WalletAssetUnavailableReason) Enum() *WalletAssetUnavailableReason {
+	p := new(WalletAssetUnavailableReason)
+	*p = x
+	return p
+}
+
+func (x WalletAssetUnavailableReason) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (WalletAssetUnavailableReason) Descriptor() protoreflect.EnumDescriptor {
+	return file_chain_withdraw_v1_withdraw_proto_enumTypes[3].Descriptor()
+}
+
+func (WalletAssetUnavailableReason) Type() protoreflect.EnumType {
+	return &file_chain_withdraw_v1_withdraw_proto_enumTypes[3]
+}
+
+func (x WalletAssetUnavailableReason) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use WalletAssetUnavailableReason.Descriptor instead.
+func (WalletAssetUnavailableReason) EnumDescriptor() ([]byte, []int) {
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{3}
+}
+
 // CreateTradingWithdrawResponse returns the accepted durable intent identifier
 // for the withdraw lifecycle.
 type CreateTradingWithdrawResponse struct {
@@ -595,7 +654,11 @@ type TradingWithdrawIntentPayload struct {
 	// Unified asset identifier from Polyester asset metadata. amount_e18 is
 	// denominated in this asset at canonical 18-decimal scale.
 	AssetId uint32 `protobuf:"varint,2,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
-	// External network id for TO_EXTERNAL_CHAIN. Omit for TO_FUNDING.
+	// Polyester chain id of the destination network for TO_EXTERNAL_CHAIN:
+	// ChainConfig.chain_id from GetDepositWithdrawConfig, not the network's
+	// native chain id (ChainConfig.native_chain_id, such as 11155111 for
+	// Ethereum Sepolia). An unknown id is refused with
+	// ERROR_CODE_INVALID_DESTINATION_CHAIN. Omit for TO_FUNDING.
 	DestinationChainId uint64 `protobuf:"varint,3,opt,name=destination_chain_id,json=destinationChainId,proto3" json:"destination_chain_id,omitempty"`
 	// Withdraw amount in canonical 18-decimal unified asset units.
 	// For example, 0.5 is encoded as 500000000000000000. For TO_EXTERNAL_CHAIN,
@@ -846,7 +909,10 @@ func (x *CreateWalletTradingWithdrawRequest) GetPayloadSignature() []byte {
 // destination for an authenticated caller without creating a withdraw.
 type ValidateWithdrawDestinationRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// External destination chain identifier.
+	// Polyester chain id of the destination network: ChainConfig.chain_id
+	// from GetDepositWithdrawConfig, not the network's native chain id
+	// (ChainConfig.native_chain_id, such as 11155111 for Ethereum Sepolia).
+	// An unknown id answers valid false with UNSUPPORTED_CHAIN.
 	DestinationChainId uint64 `protobuf:"varint,1,opt,name=destination_chain_id,json=destinationChainId,proto3" json:"destination_chain_id,omitempty"`
 	// Destination address to validate for destination_chain_id.
 	DestinationAddress string `protobuf:"bytes,2,opt,name=destination_address,json=destinationAddress,proto3" json:"destination_address,omitempty"`
@@ -1111,10 +1177,16 @@ type GetWalletBalancesResponse struct {
 	// Smart account wallet whose balances these are.
 	SmartAccountAddress string `protobuf:"bytes,1,opt,name=smart_account_address,json=smartAccountAddress,proto3" json:"smart_account_address,omitempty"`
 	// Every zToken the wallet holds a nonzero balance of, ordered by
-	// zipped_asset_id. Empty when it holds none.
-	Balances      []*WalletBalance `protobuf:"bytes,2,rep,name=balances,proto3" json:"balances,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// zipped_asset_id. Empty when it holds none. An asset whose balance could
+	// not be read is in unavailable_assets instead.
+	Balances []*WalletBalance `protobuf:"bytes,2,rep,name=balances,proto3" json:"balances,omitempty"`
+	// Zipped assets whose zToken balance could not be read, ordered by
+	// zipped_asset_id. The wallet's balance of each is unknown, not zero: read
+	// again later. Empty when every balance was read. When no balance can be
+	// read at all, the request fails as unavailable instead.
+	UnavailableAssets []*UnavailableWalletAsset `protobuf:"bytes,3,rep,name=unavailable_assets,json=unavailableAssets,proto3" json:"unavailable_assets,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *GetWalletBalancesResponse) Reset() {
@@ -1159,6 +1231,97 @@ func (x *GetWalletBalancesResponse) GetBalances() []*WalletBalance {
 		return x.Balances
 	}
 	return nil
+}
+
+func (x *GetWalletBalancesResponse) GetUnavailableAssets() []*UnavailableWalletAsset {
+	if x != nil {
+		return x.UnavailableAssets
+	}
+	return nil
+}
+
+// UnavailableWalletAsset is a zipped asset whose zToken balance could not be
+// read from Polyester Chain.
+type UnavailableWalletAsset struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Zipped asset of the zToken, as WalletBalance.zipped_asset_id names it.
+	ZippedAssetId uint32 `protobuf:"varint,1,opt,name=zipped_asset_id,json=zippedAssetId,proto3" json:"zipped_asset_id,omitempty"`
+	// Unified asset the zToken stands for, as WalletBalance.unified_asset_id
+	// names it.
+	UnifiedAssetId uint32 `protobuf:"varint,2,opt,name=unified_asset_id,json=unifiedAssetId,proto3" json:"unified_asset_id,omitempty"`
+	// External network of the zipped asset, as WalletBalance.chain_id names it.
+	ChainId uint32 `protobuf:"varint,3,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
+	// zToken contract address on Polyester Chain listed for the zipped asset.
+	ZtokenAddress string `protobuf:"bytes,4,opt,name=ztoken_address,json=ztokenAddress,proto3" json:"ztoken_address,omitempty"`
+	// Why the balance could not be read.
+	Reason        WalletAssetUnavailableReason `protobuf:"varint,5,opt,name=reason,proto3,enum=chain.withdraw.v1.WalletAssetUnavailableReason" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnavailableWalletAsset) Reset() {
+	*x = UnavailableWalletAsset{}
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnavailableWalletAsset) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnavailableWalletAsset) ProtoMessage() {}
+
+func (x *UnavailableWalletAsset) ProtoReflect() protoreflect.Message {
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnavailableWalletAsset.ProtoReflect.Descriptor instead.
+func (*UnavailableWalletAsset) Descriptor() ([]byte, []int) {
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *UnavailableWalletAsset) GetZippedAssetId() uint32 {
+	if x != nil {
+		return x.ZippedAssetId
+	}
+	return 0
+}
+
+func (x *UnavailableWalletAsset) GetUnifiedAssetId() uint32 {
+	if x != nil {
+		return x.UnifiedAssetId
+	}
+	return 0
+}
+
+func (x *UnavailableWalletAsset) GetChainId() uint32 {
+	if x != nil {
+		return x.ChainId
+	}
+	return 0
+}
+
+func (x *UnavailableWalletAsset) GetZtokenAddress() string {
+	if x != nil {
+		return x.ZtokenAddress
+	}
+	return ""
+}
+
+func (x *UnavailableWalletAsset) GetReason() WalletAssetUnavailableReason {
+	if x != nil {
+		return x.Reason
+	}
+	return WalletAssetUnavailableReason_UNAVAILABLE_UNSPECIFIED
 }
 
 var File_chain_withdraw_v1_withdraw_proto protoreflect.FileDescriptor
@@ -1211,10 +1374,17 @@ const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"\bchain_id\x18\x03 \x01(\rR\achainId\x12%\n" +
 	"\x0eztoken_address\x18\x04 \x01(\tR\rztokenAddress\x126\n" +
 	"\n" +
-	"amount_e18\x18\x05 \x01(\v2\x17.polyester.type.v1.U128R\tamountE18\"\x8d\x01\n" +
+	"amount_e18\x18\x05 \x01(\v2\x17.polyester.type.v1.U128R\tamountE18\"\xe7\x01\n" +
 	"\x19GetWalletBalancesResponse\x122\n" +
 	"\x15smart_account_address\x18\x01 \x01(\tR\x13smartAccountAddress\x12<\n" +
-	"\bbalances\x18\x02 \x03(\v2 .chain.withdraw.v1.WalletBalanceR\bbalances*\xb8\x0f\n" +
+	"\bbalances\x18\x02 \x03(\v2 .chain.withdraw.v1.WalletBalanceR\bbalances\x12X\n" +
+	"\x12unavailable_assets\x18\x03 \x03(\v2).chain.withdraw.v1.UnavailableWalletAssetR\x11unavailableAssets\"\xf5\x01\n" +
+	"\x16UnavailableWalletAsset\x12&\n" +
+	"\x0fzipped_asset_id\x18\x01 \x01(\rR\rzippedAssetId\x12(\n" +
+	"\x10unified_asset_id\x18\x02 \x01(\rR\x0eunifiedAssetId\x12\x19\n" +
+	"\bchain_id\x18\x03 \x01(\rR\achainId\x12%\n" +
+	"\x0eztoken_address\x18\x04 \x01(\tR\rztokenAddress\x12G\n" +
+	"\x06reason\x18\x05 \x01(\x0e2/.chain.withdraw.v1.WalletAssetUnavailableReasonR\x06reason*\xb8\x0f\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12!\n" +
 	"\x1dERROR_CODE_INSUFFICIENT_FUNDS\x10\x01\x12\x1e\n" +
@@ -1280,7 +1450,12 @@ const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"\x11UNSUPPORTED_CHAIN\x10\x03\x12\x1b\n" +
 	"\x17POLYESTER_SMART_ACCOUNT\x10\x04\x12\x12\n" +
 	"\x0eTOKEN_CONTRACT\x10\x05\x12\x16\n" +
-	"\x12DENYLISTED_ADDRESS\x10\x062\xae\r\n" +
+	"\x12DENYLISTED_ADDRESS\x10\x06*r\n" +
+	"\x1cWalletAssetUnavailableReason\x12\x1b\n" +
+	"\x17UNAVAILABLE_UNSPECIFIED\x10\x00\x12\x0f\n" +
+	"\vNO_CONTRACT\x10\x01\x12\x0f\n" +
+	"\vREAD_FAILED\x10\x02\x12\x13\n" +
+	"\x0fINVALID_BALANCE\x10\x032\xae\r\n" +
 	"\x0fWithdrawService\x12\xe7\x02\n" +
 	"\x11GetWalletBalances\x12+.chain.withdraw.v1.GetWalletBalancesRequest\x1a,.chain.withdraw.v1.GetWalletBalancesResponse\"\xf6\x01\xbaG\xcb\x01\n" +
 	"\vWithdrawals\x12\x13Get Wallet Balances\x1a\xa6\x01Read the zTokens the account's smart account wallet holds on Polyester Chain, such as a rejected withdrawal's refund. An API key needs READ_BALANCES within its scope.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/chain/wallet/balances\x12\x9f\x03\n" +
@@ -1304,51 +1479,55 @@ func file_chain_withdraw_v1_withdraw_proto_rawDescGZIP() []byte {
 	return file_chain_withdraw_v1_withdraw_proto_rawDescData
 }
 
-var file_chain_withdraw_v1_withdraw_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_chain_withdraw_v1_withdraw_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_chain_withdraw_v1_withdraw_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
+var file_chain_withdraw_v1_withdraw_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_chain_withdraw_v1_withdraw_proto_goTypes = []any{
 	(ErrorCode)(0),                              // 0: chain.withdraw.v1.ErrorCode
 	(TradingWithdrawAction)(0),                  // 1: chain.withdraw.v1.TradingWithdrawAction
 	(WithdrawDestinationValidationCode)(0),      // 2: chain.withdraw.v1.WithdrawDestinationValidationCode
-	(*CreateTradingWithdrawResponse)(nil),       // 3: chain.withdraw.v1.CreateTradingWithdrawResponse
-	(*CreateWalletTradingWithdrawResponse)(nil), // 4: chain.withdraw.v1.CreateWalletTradingWithdrawResponse
-	(*ErrorDetail)(nil),                         // 5: chain.withdraw.v1.ErrorDetail
-	(*TradingWithdrawIntentPayload)(nil),        // 6: chain.withdraw.v1.TradingWithdrawIntentPayload
-	(*CreateTradingWithdrawRequest)(nil),        // 7: chain.withdraw.v1.CreateTradingWithdrawRequest
-	(*CreateWalletTradingWithdrawRequest)(nil),  // 8: chain.withdraw.v1.CreateWalletTradingWithdrawRequest
-	(*ValidateWithdrawDestinationRequest)(nil),  // 9: chain.withdraw.v1.ValidateWithdrawDestinationRequest
-	(*ValidateWithdrawDestinationResponse)(nil), // 10: chain.withdraw.v1.ValidateWithdrawDestinationResponse
-	(*GetWalletBalancesRequest)(nil),            // 11: chain.withdraw.v1.GetWalletBalancesRequest
-	(*WalletBalance)(nil),                       // 12: chain.withdraw.v1.WalletBalance
-	(*GetWalletBalancesResponse)(nil),           // 13: chain.withdraw.v1.GetWalletBalancesResponse
-	(*v1.U128)(nil),                             // 14: polyester.type.v1.U128
-	(*timestamppb.Timestamp)(nil),               // 15: google.protobuf.Timestamp
+	(WalletAssetUnavailableReason)(0),           // 3: chain.withdraw.v1.WalletAssetUnavailableReason
+	(*CreateTradingWithdrawResponse)(nil),       // 4: chain.withdraw.v1.CreateTradingWithdrawResponse
+	(*CreateWalletTradingWithdrawResponse)(nil), // 5: chain.withdraw.v1.CreateWalletTradingWithdrawResponse
+	(*ErrorDetail)(nil),                         // 6: chain.withdraw.v1.ErrorDetail
+	(*TradingWithdrawIntentPayload)(nil),        // 7: chain.withdraw.v1.TradingWithdrawIntentPayload
+	(*CreateTradingWithdrawRequest)(nil),        // 8: chain.withdraw.v1.CreateTradingWithdrawRequest
+	(*CreateWalletTradingWithdrawRequest)(nil),  // 9: chain.withdraw.v1.CreateWalletTradingWithdrawRequest
+	(*ValidateWithdrawDestinationRequest)(nil),  // 10: chain.withdraw.v1.ValidateWithdrawDestinationRequest
+	(*ValidateWithdrawDestinationResponse)(nil), // 11: chain.withdraw.v1.ValidateWithdrawDestinationResponse
+	(*GetWalletBalancesRequest)(nil),            // 12: chain.withdraw.v1.GetWalletBalancesRequest
+	(*WalletBalance)(nil),                       // 13: chain.withdraw.v1.WalletBalance
+	(*GetWalletBalancesResponse)(nil),           // 14: chain.withdraw.v1.GetWalletBalancesResponse
+	(*UnavailableWalletAsset)(nil),              // 15: chain.withdraw.v1.UnavailableWalletAsset
+	(*v1.U128)(nil),                             // 16: polyester.type.v1.U128
+	(*timestamppb.Timestamp)(nil),               // 17: google.protobuf.Timestamp
 }
 var file_chain_withdraw_v1_withdraw_proto_depIdxs = []int32{
 	0,  // 0: chain.withdraw.v1.ErrorDetail.code:type_name -> chain.withdraw.v1.ErrorCode
-	14, // 1: chain.withdraw.v1.ErrorDetail.min_floor_e18:type_name -> polyester.type.v1.U128
-	15, // 2: chain.withdraw.v1.ErrorDetail.payable_from:type_name -> google.protobuf.Timestamp
+	16, // 1: chain.withdraw.v1.ErrorDetail.min_floor_e18:type_name -> polyester.type.v1.U128
+	17, // 2: chain.withdraw.v1.ErrorDetail.payable_from:type_name -> google.protobuf.Timestamp
 	1,  // 3: chain.withdraw.v1.TradingWithdrawIntentPayload.action:type_name -> chain.withdraw.v1.TradingWithdrawAction
-	14, // 4: chain.withdraw.v1.TradingWithdrawIntentPayload.amount_e18:type_name -> polyester.type.v1.U128
-	14, // 5: chain.withdraw.v1.TradingWithdrawIntentPayload.nonce:type_name -> polyester.type.v1.U128
-	6,  // 6: chain.withdraw.v1.CreateTradingWithdrawRequest.payload:type_name -> chain.withdraw.v1.TradingWithdrawIntentPayload
-	6,  // 7: chain.withdraw.v1.CreateWalletTradingWithdrawRequest.payload:type_name -> chain.withdraw.v1.TradingWithdrawIntentPayload
+	16, // 4: chain.withdraw.v1.TradingWithdrawIntentPayload.amount_e18:type_name -> polyester.type.v1.U128
+	16, // 5: chain.withdraw.v1.TradingWithdrawIntentPayload.nonce:type_name -> polyester.type.v1.U128
+	7,  // 6: chain.withdraw.v1.CreateTradingWithdrawRequest.payload:type_name -> chain.withdraw.v1.TradingWithdrawIntentPayload
+	7,  // 7: chain.withdraw.v1.CreateWalletTradingWithdrawRequest.payload:type_name -> chain.withdraw.v1.TradingWithdrawIntentPayload
 	2,  // 8: chain.withdraw.v1.ValidateWithdrawDestinationResponse.code:type_name -> chain.withdraw.v1.WithdrawDestinationValidationCode
-	14, // 9: chain.withdraw.v1.WalletBalance.amount_e18:type_name -> polyester.type.v1.U128
-	12, // 10: chain.withdraw.v1.GetWalletBalancesResponse.balances:type_name -> chain.withdraw.v1.WalletBalance
-	11, // 11: chain.withdraw.v1.WithdrawService.GetWalletBalances:input_type -> chain.withdraw.v1.GetWalletBalancesRequest
-	9,  // 12: chain.withdraw.v1.WithdrawService.ValidateWithdrawDestination:input_type -> chain.withdraw.v1.ValidateWithdrawDestinationRequest
-	7,  // 13: chain.withdraw.v1.WithdrawService.CreateTradingWithdraw:input_type -> chain.withdraw.v1.CreateTradingWithdrawRequest
-	8,  // 14: chain.withdraw.v1.WithdrawService.CreateWalletTradingWithdraw:input_type -> chain.withdraw.v1.CreateWalletTradingWithdrawRequest
-	13, // 15: chain.withdraw.v1.WithdrawService.GetWalletBalances:output_type -> chain.withdraw.v1.GetWalletBalancesResponse
-	10, // 16: chain.withdraw.v1.WithdrawService.ValidateWithdrawDestination:output_type -> chain.withdraw.v1.ValidateWithdrawDestinationResponse
-	3,  // 17: chain.withdraw.v1.WithdrawService.CreateTradingWithdraw:output_type -> chain.withdraw.v1.CreateTradingWithdrawResponse
-	4,  // 18: chain.withdraw.v1.WithdrawService.CreateWalletTradingWithdraw:output_type -> chain.withdraw.v1.CreateWalletTradingWithdrawResponse
-	15, // [15:19] is the sub-list for method output_type
-	11, // [11:15] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	16, // 9: chain.withdraw.v1.WalletBalance.amount_e18:type_name -> polyester.type.v1.U128
+	13, // 10: chain.withdraw.v1.GetWalletBalancesResponse.balances:type_name -> chain.withdraw.v1.WalletBalance
+	15, // 11: chain.withdraw.v1.GetWalletBalancesResponse.unavailable_assets:type_name -> chain.withdraw.v1.UnavailableWalletAsset
+	3,  // 12: chain.withdraw.v1.UnavailableWalletAsset.reason:type_name -> chain.withdraw.v1.WalletAssetUnavailableReason
+	12, // 13: chain.withdraw.v1.WithdrawService.GetWalletBalances:input_type -> chain.withdraw.v1.GetWalletBalancesRequest
+	10, // 14: chain.withdraw.v1.WithdrawService.ValidateWithdrawDestination:input_type -> chain.withdraw.v1.ValidateWithdrawDestinationRequest
+	8,  // 15: chain.withdraw.v1.WithdrawService.CreateTradingWithdraw:input_type -> chain.withdraw.v1.CreateTradingWithdrawRequest
+	9,  // 16: chain.withdraw.v1.WithdrawService.CreateWalletTradingWithdraw:input_type -> chain.withdraw.v1.CreateWalletTradingWithdrawRequest
+	14, // 17: chain.withdraw.v1.WithdrawService.GetWalletBalances:output_type -> chain.withdraw.v1.GetWalletBalancesResponse
+	11, // 18: chain.withdraw.v1.WithdrawService.ValidateWithdrawDestination:output_type -> chain.withdraw.v1.ValidateWithdrawDestinationResponse
+	4,  // 19: chain.withdraw.v1.WithdrawService.CreateTradingWithdraw:output_type -> chain.withdraw.v1.CreateTradingWithdrawResponse
+	5,  // 20: chain.withdraw.v1.WithdrawService.CreateWalletTradingWithdraw:output_type -> chain.withdraw.v1.CreateWalletTradingWithdrawResponse
+	17, // [17:21] is the sub-list for method output_type
+	13, // [13:17] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_chain_withdraw_v1_withdraw_proto_init() }
@@ -1361,8 +1540,8 @@ func file_chain_withdraw_v1_withdraw_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chain_withdraw_v1_withdraw_proto_rawDesc), len(file_chain_withdraw_v1_withdraw_proto_rawDesc)),
-			NumEnums:      3,
-			NumMessages:   11,
+			NumEnums:      4,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

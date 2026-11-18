@@ -80,9 +80,13 @@ type ApiKeyServiceClient interface {
 	UpdateApiKey(context.Context, *connect.Request[v1.UpdateApiKeyRequest]) (*connect.Response[v1.UpdateApiKeyResponse], error)
 	// Create or replace the caller's Polyester AI assistant key set: one
 	// ASSISTANT key per enabled account, each bounded by its API policy or by a
-	// permission preset. One fresh step-up proof covers the whole set,
-	// including the policies its presets create, and the change is all or
-	// nothing. An entry whose account already has an assistant key with the same
+	// permission preset. One step-up covers the whole set, including the
+	// policies its presets create, and the change is all or nothing. Send a
+	// fresh step-up proof in the X-Auth-Step-Up header, which the change
+	// consumes, or no proof while the session's recent-MFA window is open for
+	// RECENT_MFA_ACTION_ASSISTANT_ACCESS (GetRecentMFA). Without either,
+	// PermissionDenied with AUTH_STEP_UP_REQUIRED, or AUTH_RECENT_MFA_EXPIRED
+	// when the window has closed. An entry whose account already has an assistant key with the same
 	// public key keeps that key, with its status, and takes the requested
 	// policy; any other entry replaces the account's key. Accounts left out of
 	// the set have their assistant key revoked. A sub-account entry needs the
@@ -243,9 +247,13 @@ type ApiKeyServiceHandler interface {
 	UpdateApiKey(context.Context, *connect.Request[v1.UpdateApiKeyRequest]) (*connect.Response[v1.UpdateApiKeyResponse], error)
 	// Create or replace the caller's Polyester AI assistant key set: one
 	// ASSISTANT key per enabled account, each bounded by its API policy or by a
-	// permission preset. One fresh step-up proof covers the whole set,
-	// including the policies its presets create, and the change is all or
-	// nothing. An entry whose account already has an assistant key with the same
+	// permission preset. One step-up covers the whole set, including the
+	// policies its presets create, and the change is all or nothing. Send a
+	// fresh step-up proof in the X-Auth-Step-Up header, which the change
+	// consumes, or no proof while the session's recent-MFA window is open for
+	// RECENT_MFA_ACTION_ASSISTANT_ACCESS (GetRecentMFA). Without either,
+	// PermissionDenied with AUTH_STEP_UP_REQUIRED, or AUTH_RECENT_MFA_EXPIRED
+	// when the window has closed. An entry whose account already has an assistant key with the same
 	// public key keeps that key, with its status, and takes the requested
 	// policy; any other entry replaces the account's key. Accounts left out of
 	// the set have their assistant key revoked. A sub-account entry needs the

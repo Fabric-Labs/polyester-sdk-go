@@ -43,6 +43,9 @@ const (
 	StatementExportStatus_STATEMENT_EXPORT_STATUS_FAILED StatementExportStatus = 4
 	// The file was deleted at expires_at; create a new export for it.
 	StatementExportStatus_STATEMENT_EXPORT_STATUS_EXPIRED StatementExportStatus = 5
+	// Canceled with CancelStatementExport before it finished. It has no file
+	// and no longer counts toward the root account's exports in progress.
+	StatementExportStatus_STATEMENT_EXPORT_STATUS_CANCELED StatementExportStatus = 6
 )
 
 // Enum value maps for StatementExportStatus.
@@ -54,6 +57,7 @@ var (
 		3: "STATEMENT_EXPORT_STATUS_READY",
 		4: "STATEMENT_EXPORT_STATUS_FAILED",
 		5: "STATEMENT_EXPORT_STATUS_EXPIRED",
+		6: "STATEMENT_EXPORT_STATUS_CANCELED",
 	}
 	StatementExportStatus_value = map[string]int32{
 		"STATEMENT_EXPORT_STATUS_UNSPECIFIED": 0,
@@ -62,6 +66,7 @@ var (
 		"STATEMENT_EXPORT_STATUS_READY":       3,
 		"STATEMENT_EXPORT_STATUS_FAILED":      4,
 		"STATEMENT_EXPORT_STATUS_EXPIRED":     5,
+		"STATEMENT_EXPORT_STATUS_CANCELED":    6,
 	}
 )
 
@@ -147,17 +152,70 @@ func (StatementExportFailureReason) EnumDescriptor() ([]byte, []int) {
 }
 
 // StatementExport is a whole-period account statement produced in the
-// background as one CSV file. The file is byte for byte the pages of
-// ExportStatement for the same account, asset and period up to
-// complete_through, concatenated: the header row, then every row, oldest
-// first, in the columns ExportStatementResponse.csv documents.
+// background as one CSV file.
 //
-// Download a READY file with an authenticated
-// `GET /v1/statements/exports/{exportId}/file`, as the account that created
-// it or one with the same access: it returns `text/csv` and supports HTTP
-// `Range` requests. With `?redirect=true` it instead answers
-// `307 Temporary Redirect` to a URL valid for 60 seconds. An EXPIRED export's
-// file answers `410 Gone`.
+// The file is RFC 4180 CSV in UTF-8 with CRLF line endings: the header row,
+// then every row of the period up to complete_through, oldest first. A period
+// without movements yields the header row alone. Each row is the effect of
+// one entry on one account bucket in one asset. An entry is one ledger
+// operation, such as a trade with its fees, a deposit, a withdrawal step or an
+// internal transfer.
+//
+// Columns, in order:
+//   - `time`: entry time, RFC 3339 in UTC with microseconds, for example
+//     `2026-11-12T19:52:07.734123Z`.
+//   - `entry_id`: stable entry identifier, an unsigned 128-bit integer as a
+//     decimal string. It is the `transfer_id` of the entry's first transfer leg
+//     on the account, as LedgerReadService.ListTransfers returns it.
+//   - `type`: `trade` for a trade's settlement and its fees; otherwise the
+//     entry's transfer reason, such as `deposit`, `withdraw`,
+//     `internal_transfer`, `funding_to_trading` or `system_adjustment`.
+//   - `account`: account bucket, `funding` or `trading`.
+//   - `asset`: asset symbol.
+//   - `amount`: signed balance change of the entry in whole units of the
+//     asset, excluding the fees in `fee`, for example `-5000` or `0.1`. Fees
+//     the account receives are included here.
+//   - `fee`: fees the account paid in the asset for the entry, in whole units
+//     of the asset; `0` when none.
+//   - `balance`: account bucket balance in the asset after the entry, in whole
+//     units of the asset. For consecutive rows of the same bucket and asset,
+//     each balance equals the previous balance plus `amount` minus `fee`.
+//   - `link_id`: correlation ID shared by related transfer legs, the trade's
+//     match ID for trades; empty when unavailable.
+//   - `flow_id`: public lifecycle flow ID when the entry belongs to a chain
+//     lifecycle flow, such as a deposit, a withdrawal or an internal transfer,
+//     as LedgerReadService.ListTransfers returns it; empty otherwise.
+//
+// Amounts are exact decimal strings with up to 18 fractional digits and no
+// trailing zeros.
+//
+// A READY file downloads in one of two ways:
+//   - StatementExportService.GetStatementExportDownloadUrl returns a URL valid
+//     for 60 seconds from signing that needs no credentials, so a browser can
+//     save the file straight to disk.
+//   - An authenticated `GET /v1/statements/exports/{exportId}/file` returns the
+//     file as `text/csv` and supports HTTP `Range` requests.
+//
+// Both save the file as `statement-<exportId>.csv`. Before the file is READY
+// both answer FAILED_PRECONDITION with STATEMENT_EXPORT_NOT_READY, REST
+// `409 Conflict`; a FAILED export answers STATEMENT_EXPORT_FAILED, REST `409`;
+// an EXPIRED export, or a file already deleted, answers
+// STATEMENT_EXPORT_EXPIRED, REST `410 Gone`, and so does a download URL
+// request for a file with less than 5 seconds left; a CANCELED export
+// answers STATEMENT_EXPORT_CANCELED, REST `409`. REST errors are
+// `application/problem+json` whose `code` is the ErrorCode name, such as
+// `STATEMENT_EXPORT_NOT_READY`: `401` without valid credentials, `403
+// PERMISSION_DENIED` for an API key without READ_STATEMENTS, `404 NOT_FOUND`
+// for an export the caller cannot read, and `503 UPSTREAM_ERROR`, with
+// `Retry-After`, when the request can be retried.
+//
+// An export belongs to the root account whose session or API key created it.
+// Any session or API key of that root that may read the export's account can
+// read and download it, whichever of them created it. A member of a
+// subaccount shared from another root sees only the exports its own root
+// created, and the subaccount's owner does not see those: an export of
+// another root, or of an account the caller can no longer read, answers
+// NOT_FOUND, as one that does not exist.
 type StatementExport struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Public ID of the export.
@@ -325,7 +383,8 @@ func (x *StatementExport) GetFailureReason() StatementExportFailureReason {
 }
 
 // CreateStatementExportRequest asks for a whole-period statement file of one
-// account.
+// account. The period is at most 366 days long; a longer or empty period is
+// INVALID_ARGUMENT.
 type CreateStatementExportRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
@@ -554,6 +613,215 @@ func (x *GetStatementExportResponse) GetExport() *StatementExport {
 	return nil
 }
 
+// GetStatementExportDownloadUrlRequest names the export whose file to
+// download.
+type GetStatementExportDownloadUrlRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public ID of the export.
+	ExportId      uint64 `protobuf:"fixed64,1,opt,name=export_id,json=exportId,proto3" json:"export_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetStatementExportDownloadUrlRequest) Reset() {
+	*x = GetStatementExportDownloadUrlRequest{}
+	mi := &file_ledger_read_v1_statement_export_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetStatementExportDownloadUrlRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetStatementExportDownloadUrlRequest) ProtoMessage() {}
+
+func (x *GetStatementExportDownloadUrlRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ledger_read_v1_statement_export_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetStatementExportDownloadUrlRequest.ProtoReflect.Descriptor instead.
+func (*GetStatementExportDownloadUrlRequest) Descriptor() ([]byte, []int) {
+	return file_ledger_read_v1_statement_export_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *GetStatementExportDownloadUrlRequest) GetExportId() uint64 {
+	if x != nil {
+		return x.ExportId
+	}
+	return 0
+}
+
+// GetStatementExportDownloadUrlResponse is a short-lived link to a READY
+// export's file.
+type GetStatementExportDownloadUrlResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// URL of the file, valid until expires_at. It carries its own
+	// authorization and needs no credentials, so a browser can open it to save
+	// the file. Anyone who holds it can download the file until expires_at:
+	// do not share, store or log it.
+	Url string `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	// When the URL stops working: the exact end of its signature, 60 seconds
+	// after it was signed for this request, or when the file expires if that
+	// is sooner. Request a new URL after it.
+	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	// Name the download saves the file as, `statement-<exportId>.csv`.
+	Filename      string `protobuf:"bytes,3,opt,name=filename,proto3" json:"filename,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetStatementExportDownloadUrlResponse) Reset() {
+	*x = GetStatementExportDownloadUrlResponse{}
+	mi := &file_ledger_read_v1_statement_export_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetStatementExportDownloadUrlResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetStatementExportDownloadUrlResponse) ProtoMessage() {}
+
+func (x *GetStatementExportDownloadUrlResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ledger_read_v1_statement_export_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetStatementExportDownloadUrlResponse.ProtoReflect.Descriptor instead.
+func (*GetStatementExportDownloadUrlResponse) Descriptor() ([]byte, []int) {
+	return file_ledger_read_v1_statement_export_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *GetStatementExportDownloadUrlResponse) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *GetStatementExportDownloadUrlResponse) GetExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+func (x *GetStatementExportDownloadUrlResponse) GetFilename() string {
+	if x != nil {
+		return x.Filename
+	}
+	return ""
+}
+
+// CancelStatementExportRequest names the export to cancel.
+type CancelStatementExportRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public ID of the export.
+	ExportId      uint64 `protobuf:"fixed64,1,opt,name=export_id,json=exportId,proto3" json:"export_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelStatementExportRequest) Reset() {
+	*x = CancelStatementExportRequest{}
+	mi := &file_ledger_read_v1_statement_export_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelStatementExportRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelStatementExportRequest) ProtoMessage() {}
+
+func (x *CancelStatementExportRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ledger_read_v1_statement_export_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelStatementExportRequest.ProtoReflect.Descriptor instead.
+func (*CancelStatementExportRequest) Descriptor() ([]byte, []int) {
+	return file_ledger_read_v1_statement_export_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *CancelStatementExportRequest) GetExportId() uint64 {
+	if x != nil {
+		return x.ExportId
+	}
+	return 0
+}
+
+// CancelStatementExportResponse is the canceled export.
+type CancelStatementExportResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The export, CANCELED.
+	Export        *StatementExport `protobuf:"bytes,1,opt,name=export,proto3" json:"export,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CancelStatementExportResponse) Reset() {
+	*x = CancelStatementExportResponse{}
+	mi := &file_ledger_read_v1_statement_export_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CancelStatementExportResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CancelStatementExportResponse) ProtoMessage() {}
+
+func (x *CancelStatementExportResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ledger_read_v1_statement_export_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CancelStatementExportResponse.ProtoReflect.Descriptor instead.
+func (*CancelStatementExportResponse) Descriptor() ([]byte, []int) {
+	return file_ledger_read_v1_statement_export_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *CancelStatementExportResponse) GetExport() *StatementExport {
+	if x != nil {
+		return x.Export
+	}
+	return nil
+}
+
 // ListStatementExportsRequest selects one account's exports.
 type ListStatementExportsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -571,7 +839,7 @@ type ListStatementExportsRequest struct {
 
 func (x *ListStatementExportsRequest) Reset() {
 	*x = ListStatementExportsRequest{}
-	mi := &file_ledger_read_v1_statement_export_proto_msgTypes[5]
+	mi := &file_ledger_read_v1_statement_export_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -583,7 +851,7 @@ func (x *ListStatementExportsRequest) String() string {
 func (*ListStatementExportsRequest) ProtoMessage() {}
 
 func (x *ListStatementExportsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ledger_read_v1_statement_export_proto_msgTypes[5]
+	mi := &file_ledger_read_v1_statement_export_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -596,7 +864,7 @@ func (x *ListStatementExportsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListStatementExportsRequest.ProtoReflect.Descriptor instead.
 func (*ListStatementExportsRequest) Descriptor() ([]byte, []int) {
-	return file_ledger_read_v1_statement_export_proto_rawDescGZIP(), []int{5}
+	return file_ledger_read_v1_statement_export_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ListStatementExportsRequest) GetSubaccountId() uint64 {
@@ -627,13 +895,21 @@ type ListStatementExportsResponse struct {
 	Exports []*StatementExport `protobuf:"bytes,1,rep,name=exports,proto3" json:"exports,omitempty"`
 	// Opaque cursor for the next page. Empty when no more results exist.
 	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Exports QUEUED or PROCESSING across the whole root account, its
+	// subaccounts included, whichever account the list selects: the number a
+	// new CreateStatementExport counts against max_in_progress_exports.
+	InProgressExports uint32 `protobuf:"varint,3,opt,name=in_progress_exports,json=inProgressExports,proto3" json:"in_progress_exports,omitempty"`
+	// Most exports the root account may have QUEUED or PROCESSING at a time.
+	// While in_progress_exports is at it, CreateStatementExport answers
+	// RESOURCE_EXHAUSTED with STATEMENT_EXPORT_LIMIT_REACHED.
+	MaxInProgressExports uint32 `protobuf:"varint,4,opt,name=max_in_progress_exports,json=maxInProgressExports,proto3" json:"max_in_progress_exports,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *ListStatementExportsResponse) Reset() {
 	*x = ListStatementExportsResponse{}
-	mi := &file_ledger_read_v1_statement_export_proto_msgTypes[6]
+	mi := &file_ledger_read_v1_statement_export_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -645,7 +921,7 @@ func (x *ListStatementExportsResponse) String() string {
 func (*ListStatementExportsResponse) ProtoMessage() {}
 
 func (x *ListStatementExportsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ledger_read_v1_statement_export_proto_msgTypes[6]
+	mi := &file_ledger_read_v1_statement_export_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -658,7 +934,7 @@ func (x *ListStatementExportsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListStatementExportsResponse.ProtoReflect.Descriptor instead.
 func (*ListStatementExportsResponse) Descriptor() ([]byte, []int) {
-	return file_ledger_read_v1_statement_export_proto_rawDescGZIP(), []int{6}
+	return file_ledger_read_v1_statement_export_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ListStatementExportsResponse) GetExports() []*StatementExport {
@@ -673,6 +949,20 @@ func (x *ListStatementExportsResponse) GetNextPageToken() string {
 		return x.NextPageToken
 	}
 	return ""
+}
+
+func (x *ListStatementExportsResponse) GetInProgressExports() uint32 {
+	if x != nil {
+		return x.InProgressExports
+	}
+	return 0
+}
+
+func (x *ListStatementExportsResponse) GetMaxInProgressExports() uint32 {
+	if x != nil {
+		return x.MaxInProgressExports
+	}
+	return 0
 }
 
 var File_ledger_read_v1_statement_export_proto protoreflect.FileDescriptor
@@ -714,32 +1004,50 @@ const file_ledger_read_v1_statement_export_proto_rawDesc = "" +
 	"\x19GetStatementExportRequest\x12+\n" +
 	"\texport_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\bexportId\"U\n" +
 	"\x1aGetStatementExportResponse\x127\n" +
+	"\x06export\x18\x01 \x01(\v2\x1f.ledger.read.v1.StatementExportR\x06export\"S\n" +
+	"$GetStatementExportDownloadUrlRequest\x12+\n" +
+	"\texport_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\bexportId\"\x90\x01\n" +
+	"%GetStatementExportDownloadUrlResponse\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x129\n" +
+	"\n" +
+	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x1a\n" +
+	"\bfilename\x18\x03 \x01(\tR\bfilename\"K\n" +
+	"\x1cCancelStatementExportRequest\x12+\n" +
+	"\texport_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\bexportId\"X\n" +
+	"\x1dCancelStatementExportResponse\x127\n" +
 	"\x06export\x18\x01 \x01(\v2\x1f.ledger.read.v1.StatementExportR\x06export\"\xb1\x01\n" +
 	"\x1bListStatementExportsRequest\x128\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01\x12\x1d\n" +
 	"\x05limit\x18\x02 \x01(\rB\a\xbaH\x04*\x02\x18dR\x05limit\x12'\n" +
 	"\n" +
 	"page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageTokenB\x10\n" +
-	"\x0e_subaccount_id\"\x8b\x01\n" +
+	"\x0e_subaccount_id\"\xf2\x01\n" +
 	"\x1cListStatementExportsResponse\x129\n" +
 	"\aexports\x18\x01 \x03(\v2\x1f.ledger.read.v1.StatementExportR\aexports\x120\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken*\xf8\x01\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\x12.\n" +
+	"\x13in_progress_exports\x18\x03 \x01(\rR\x11inProgressExports\x125\n" +
+	"\x17max_in_progress_exports\x18\x04 \x01(\rR\x14maxInProgressExports*\x9e\x02\n" +
 	"\x15StatementExportStatus\x12'\n" +
 	"#STATEMENT_EXPORT_STATUS_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eSTATEMENT_EXPORT_STATUS_QUEUED\x10\x01\x12&\n" +
 	"\"STATEMENT_EXPORT_STATUS_PROCESSING\x10\x02\x12!\n" +
 	"\x1dSTATEMENT_EXPORT_STATUS_READY\x10\x03\x12\"\n" +
 	"\x1eSTATEMENT_EXPORT_STATUS_FAILED\x10\x04\x12#\n" +
-	"\x1fSTATEMENT_EXPORT_STATUS_EXPIRED\x10\x05*\xaf\x01\n" +
+	"\x1fSTATEMENT_EXPORT_STATUS_EXPIRED\x10\x05\x12$\n" +
+	" STATEMENT_EXPORT_STATUS_CANCELED\x10\x06*\xaf\x01\n" +
 	"\x1cStatementExportFailureReason\x12/\n" +
 	"+STATEMENT_EXPORT_FAILURE_REASON_UNSPECIFIED\x10\x00\x12-\n" +
 	")STATEMENT_EXPORT_FAILURE_REASON_TOO_LARGE\x10\x01\x12/\n" +
-	"+STATEMENT_EXPORT_FAILURE_REASON_UNAVAILABLE\x10\x022\xe8\x06\n" +
+	"+STATEMENT_EXPORT_FAILURE_REASON_UNAVAILABLE\x10\x022\xa8\f\n" +
 	"\x16StatementExportService\x12\xb9\x02\n" +
 	"\x15CreateStatementExport\x12,.ledger.read.v1.CreateStatementExportRequest\x1a-.ledger.read.v1.CreateStatementExportResponse\"\xc2\x01\xbaG\x97\x01\n" +
 	"\x11Statement Exports\x12\x17Create Statement Export\x1aiCreate a whole-period account statement file, produced in the background. Idempotent per idempotency key.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/v1/statements/exports\x12\x84\x02\n" +
 	"\x12GetStatementExport\x12).ledger.read.v1.GetStatementExportRequest\x1a*.ledger.read.v1.GetStatementExportResponse\"\x96\x01\xbaG`\n" +
-	"\x11Statement Exports\x12\x14Get Statement Export\x1a5Get a statement export's status, progress and expiry.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02$\x12\"/v1/statements/exports/{export_id}\x90\x02\x01\x12\xfd\x01\n" +
+	"\x11Statement Exports\x12\x14Get Statement Export\x1a5Get a statement export's status, progress and expiry.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02$\x12\"/v1/statements/exports/{export_id}\x90\x02\x01\x12\xf3\x02\n" +
+	"\x1dGetStatementExportDownloadUrl\x124.ledger.read.v1.GetStatementExportDownloadUrlRequest\x1a5.ledger.read.v1.GetStatementExportDownloadUrlResponse\"\xe4\x01\xbaG\xa0\x01\n" +
+	"\x11Statement Exports\x12!Get Statement Export Download URL\x1ahGet a 60-second URL that downloads a ready statement file without credentials, for a browser to save it.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x021\x12//v1/statements/exports/{export_id}/download-url\x90\x02\x01\x12\xc7\x02\n" +
+	"\x15CancelStatementExport\x12,.ledger.read.v1.CancelStatementExportRequest\x1a-.ledger.read.v1.CancelStatementExportResponse\"\xd0\x01\xbaG\x8f\x01\n" +
+	"\x11Statement Exports\x12\x17Cancel Statement Export\x1aaCancel a queued or processing statement export, freeing its place under the root account's limit.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02.:\x01*\")/v1/statements/exports/{export_id}/cancel\x90\x02\x02\x12\xfd\x01\n" +
 	"\x14ListStatementExports\x12+.ledger.read.v1.ListStatementExportsRequest\x1a,.ledger.read.v1.ListStatementExportsResponse\"\x89\x01\xbaG_\n" +
 	"\x11Statement Exports\x12\x16List Statement Exports\x1a2List an account's statement exports, newest first.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x18\x12\x16/v1/statements/exports\x90\x02\x01\x1a\v\x8a\xb5\x18\aaccountB\xac\x01\xbaGb:`\n" +
 	"\x11Statement Exports\x12KWhole-period account statements produced in the background as one CSV file.ZEgithub.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1;ledgerrdv1b\x06proto3"
@@ -757,44 +1065,54 @@ func file_ledger_read_v1_statement_export_proto_rawDescGZIP() []byte {
 }
 
 var file_ledger_read_v1_statement_export_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_ledger_read_v1_statement_export_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_ledger_read_v1_statement_export_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_ledger_read_v1_statement_export_proto_goTypes = []any{
-	(StatementExportStatus)(0),            // 0: ledger.read.v1.StatementExportStatus
-	(StatementExportFailureReason)(0),     // 1: ledger.read.v1.StatementExportFailureReason
-	(*StatementExport)(nil),               // 2: ledger.read.v1.StatementExport
-	(*CreateStatementExportRequest)(nil),  // 3: ledger.read.v1.CreateStatementExportRequest
-	(*CreateStatementExportResponse)(nil), // 4: ledger.read.v1.CreateStatementExportResponse
-	(*GetStatementExportRequest)(nil),     // 5: ledger.read.v1.GetStatementExportRequest
-	(*GetStatementExportResponse)(nil),    // 6: ledger.read.v1.GetStatementExportResponse
-	(*ListStatementExportsRequest)(nil),   // 7: ledger.read.v1.ListStatementExportsRequest
-	(*ListStatementExportsResponse)(nil),  // 8: ledger.read.v1.ListStatementExportsResponse
-	(*timestamppb.Timestamp)(nil),         // 9: google.protobuf.Timestamp
+	(StatementExportStatus)(0),                    // 0: ledger.read.v1.StatementExportStatus
+	(StatementExportFailureReason)(0),             // 1: ledger.read.v1.StatementExportFailureReason
+	(*StatementExport)(nil),                       // 2: ledger.read.v1.StatementExport
+	(*CreateStatementExportRequest)(nil),          // 3: ledger.read.v1.CreateStatementExportRequest
+	(*CreateStatementExportResponse)(nil),         // 4: ledger.read.v1.CreateStatementExportResponse
+	(*GetStatementExportRequest)(nil),             // 5: ledger.read.v1.GetStatementExportRequest
+	(*GetStatementExportResponse)(nil),            // 6: ledger.read.v1.GetStatementExportResponse
+	(*GetStatementExportDownloadUrlRequest)(nil),  // 7: ledger.read.v1.GetStatementExportDownloadUrlRequest
+	(*GetStatementExportDownloadUrlResponse)(nil), // 8: ledger.read.v1.GetStatementExportDownloadUrlResponse
+	(*CancelStatementExportRequest)(nil),          // 9: ledger.read.v1.CancelStatementExportRequest
+	(*CancelStatementExportResponse)(nil),         // 10: ledger.read.v1.CancelStatementExportResponse
+	(*ListStatementExportsRequest)(nil),           // 11: ledger.read.v1.ListStatementExportsRequest
+	(*ListStatementExportsResponse)(nil),          // 12: ledger.read.v1.ListStatementExportsResponse
+	(*timestamppb.Timestamp)(nil),                 // 13: google.protobuf.Timestamp
 }
 var file_ledger_read_v1_statement_export_proto_depIdxs = []int32{
-	9,  // 0: ledger.read.v1.StatementExport.start_time:type_name -> google.protobuf.Timestamp
-	9,  // 1: ledger.read.v1.StatementExport.end_time:type_name -> google.protobuf.Timestamp
+	13, // 0: ledger.read.v1.StatementExport.start_time:type_name -> google.protobuf.Timestamp
+	13, // 1: ledger.read.v1.StatementExport.end_time:type_name -> google.protobuf.Timestamp
 	0,  // 2: ledger.read.v1.StatementExport.status:type_name -> ledger.read.v1.StatementExportStatus
-	9,  // 3: ledger.read.v1.StatementExport.complete_through:type_name -> google.protobuf.Timestamp
-	9,  // 4: ledger.read.v1.StatementExport.created_at:type_name -> google.protobuf.Timestamp
-	9,  // 5: ledger.read.v1.StatementExport.ready_at:type_name -> google.protobuf.Timestamp
-	9,  // 6: ledger.read.v1.StatementExport.expires_at:type_name -> google.protobuf.Timestamp
+	13, // 3: ledger.read.v1.StatementExport.complete_through:type_name -> google.protobuf.Timestamp
+	13, // 4: ledger.read.v1.StatementExport.created_at:type_name -> google.protobuf.Timestamp
+	13, // 5: ledger.read.v1.StatementExport.ready_at:type_name -> google.protobuf.Timestamp
+	13, // 6: ledger.read.v1.StatementExport.expires_at:type_name -> google.protobuf.Timestamp
 	1,  // 7: ledger.read.v1.StatementExport.failure_reason:type_name -> ledger.read.v1.StatementExportFailureReason
-	9,  // 8: ledger.read.v1.CreateStatementExportRequest.start_time:type_name -> google.protobuf.Timestamp
-	9,  // 9: ledger.read.v1.CreateStatementExportRequest.end_time:type_name -> google.protobuf.Timestamp
+	13, // 8: ledger.read.v1.CreateStatementExportRequest.start_time:type_name -> google.protobuf.Timestamp
+	13, // 9: ledger.read.v1.CreateStatementExportRequest.end_time:type_name -> google.protobuf.Timestamp
 	2,  // 10: ledger.read.v1.CreateStatementExportResponse.export:type_name -> ledger.read.v1.StatementExport
 	2,  // 11: ledger.read.v1.GetStatementExportResponse.export:type_name -> ledger.read.v1.StatementExport
-	2,  // 12: ledger.read.v1.ListStatementExportsResponse.exports:type_name -> ledger.read.v1.StatementExport
-	3,  // 13: ledger.read.v1.StatementExportService.CreateStatementExport:input_type -> ledger.read.v1.CreateStatementExportRequest
-	5,  // 14: ledger.read.v1.StatementExportService.GetStatementExport:input_type -> ledger.read.v1.GetStatementExportRequest
-	7,  // 15: ledger.read.v1.StatementExportService.ListStatementExports:input_type -> ledger.read.v1.ListStatementExportsRequest
-	4,  // 16: ledger.read.v1.StatementExportService.CreateStatementExport:output_type -> ledger.read.v1.CreateStatementExportResponse
-	6,  // 17: ledger.read.v1.StatementExportService.GetStatementExport:output_type -> ledger.read.v1.GetStatementExportResponse
-	8,  // 18: ledger.read.v1.StatementExportService.ListStatementExports:output_type -> ledger.read.v1.ListStatementExportsResponse
-	16, // [16:19] is the sub-list for method output_type
-	13, // [13:16] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	13, // 12: ledger.read.v1.GetStatementExportDownloadUrlResponse.expires_at:type_name -> google.protobuf.Timestamp
+	2,  // 13: ledger.read.v1.CancelStatementExportResponse.export:type_name -> ledger.read.v1.StatementExport
+	2,  // 14: ledger.read.v1.ListStatementExportsResponse.exports:type_name -> ledger.read.v1.StatementExport
+	3,  // 15: ledger.read.v1.StatementExportService.CreateStatementExport:input_type -> ledger.read.v1.CreateStatementExportRequest
+	5,  // 16: ledger.read.v1.StatementExportService.GetStatementExport:input_type -> ledger.read.v1.GetStatementExportRequest
+	7,  // 17: ledger.read.v1.StatementExportService.GetStatementExportDownloadUrl:input_type -> ledger.read.v1.GetStatementExportDownloadUrlRequest
+	9,  // 18: ledger.read.v1.StatementExportService.CancelStatementExport:input_type -> ledger.read.v1.CancelStatementExportRequest
+	11, // 19: ledger.read.v1.StatementExportService.ListStatementExports:input_type -> ledger.read.v1.ListStatementExportsRequest
+	4,  // 20: ledger.read.v1.StatementExportService.CreateStatementExport:output_type -> ledger.read.v1.CreateStatementExportResponse
+	6,  // 21: ledger.read.v1.StatementExportService.GetStatementExport:output_type -> ledger.read.v1.GetStatementExportResponse
+	8,  // 22: ledger.read.v1.StatementExportService.GetStatementExportDownloadUrl:output_type -> ledger.read.v1.GetStatementExportDownloadUrlResponse
+	10, // 23: ledger.read.v1.StatementExportService.CancelStatementExport:output_type -> ledger.read.v1.CancelStatementExportResponse
+	12, // 24: ledger.read.v1.StatementExportService.ListStatementExports:output_type -> ledger.read.v1.ListStatementExportsResponse
+	20, // [20:25] is the sub-list for method output_type
+	15, // [15:20] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_ledger_read_v1_statement_export_proto_init() }
@@ -804,14 +1122,14 @@ func file_ledger_read_v1_statement_export_proto_init() {
 	}
 	file_ledger_read_v1_statement_export_proto_msgTypes[0].OneofWrappers = []any{}
 	file_ledger_read_v1_statement_export_proto_msgTypes[1].OneofWrappers = []any{}
-	file_ledger_read_v1_statement_export_proto_msgTypes[5].OneofWrappers = []any{}
+	file_ledger_read_v1_statement_export_proto_msgTypes[9].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ledger_read_v1_statement_export_proto_rawDesc), len(file_ledger_read_v1_statement_export_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   7,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

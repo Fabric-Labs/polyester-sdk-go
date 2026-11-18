@@ -398,6 +398,10 @@ const (
 	// the deposit is returned to return_address, and the QuickSwap shows
 	// RETURNING and RETURNED with this reason.
 	QuickSwapReason_MARKET_CLOSED QuickSwapReason = 27
+	// The source wallet supplied in the request failed risk screening. The
+	// QuickSwap is REJECTED: it never gets a deposit address, and nothing can
+	// be deposited to it.
+	QuickSwapReason_SOURCE_WALLET_SCREENING_FAILED QuickSwapReason = 28
 )
 
 // Enum value maps for QuickSwapReason.
@@ -423,28 +427,30 @@ var (
 		25: "DEPOSIT_ADDRESS_NOT_ISSUED",
 		26: "INTERMEDIATE_BELOW_MINIMUM",
 		27: "MARKET_CLOSED",
+		28: "SOURCE_WALLET_SCREENING_FAILED",
 	}
 	QuickSwapReason_value = map[string]int32{
-		"REASON_UNSPECIFIED":           0,
-		"SOURCE_SCREENING_FAILED":      1,
-		"CAPACITY_UNAVAILABLE":         4,
-		"PROTECTION_NOT_MET":           7,
-		"EXECUTION_DEADLINE_REACHED":   8,
-		"LATE_DEPOSIT":                 9,
-		"DEPOSIT_BELOW_MINIMUM":        11,
-		"DEPOSIT_ABOVE_MAXIMUM":        12,
-		"WRONG_ASSET":                  13,
-		"FUNDING_WINDOW_ENDED":         15,
-		"WITHDRAWAL_FAILED":            16,
-		"OUTCOME_RECONCILING":          17,
-		"SOURCE_SCREENING_BLOCKED":     20,
-		"REFUND_BELOW_MINIMUM":         21,
-		"DEPOSIT_ADDRESS_CONFLICT":     22,
-		"DEPOSIT_ADDRESS_ALREADY_USED": 23,
-		"DEPOSIT_ADDRESS_RETIRED":      24,
-		"DEPOSIT_ADDRESS_NOT_ISSUED":   25,
-		"INTERMEDIATE_BELOW_MINIMUM":   26,
-		"MARKET_CLOSED":                27,
+		"REASON_UNSPECIFIED":             0,
+		"SOURCE_SCREENING_FAILED":        1,
+		"CAPACITY_UNAVAILABLE":           4,
+		"PROTECTION_NOT_MET":             7,
+		"EXECUTION_DEADLINE_REACHED":     8,
+		"LATE_DEPOSIT":                   9,
+		"DEPOSIT_BELOW_MINIMUM":          11,
+		"DEPOSIT_ABOVE_MAXIMUM":          12,
+		"WRONG_ASSET":                    13,
+		"FUNDING_WINDOW_ENDED":           15,
+		"WITHDRAWAL_FAILED":              16,
+		"OUTCOME_RECONCILING":            17,
+		"SOURCE_SCREENING_BLOCKED":       20,
+		"REFUND_BELOW_MINIMUM":           21,
+		"DEPOSIT_ADDRESS_CONFLICT":       22,
+		"DEPOSIT_ADDRESS_ALREADY_USED":   23,
+		"DEPOSIT_ADDRESS_RETIRED":        24,
+		"DEPOSIT_ADDRESS_NOT_ISSUED":     25,
+		"INTERMEDIATE_BELOW_MINIMUM":     26,
+		"MARKET_CLOSED":                  27,
+		"SOURCE_WALLET_SCREENING_FAILED": 28,
 	}
 )
 
@@ -624,14 +630,16 @@ func (WithdrawalState) EnumDescriptor() ([]byte, []int) {
 // PREPARING_DEPOSIT | CONFIRMING) → CREDITED → EXECUTING (skipped for a
 // bridge) → PAYING_OUT | REFUNDING | RETURNING → a terminal status. A
 // QuickSwap that cannot be issued a deposit address goes from ALLOCATING
-// straight to EXPIRED (DEPOSIT_ADDRESS_CONFLICT). A deposit that is dropped
+// straight to EXPIRED (DEPOSIT_ADDRESS_CONFLICT). A QuickSwap whose source
+// wallet failed risk screening is REJECTED from creation and never gets a
+// deposit address. A deposit that is dropped
 // or replaced on its network before it confirms brings no funds: the
 // QuickSwap goes back from PREPARING_DEPOSIT or WAITING_FOR_CAPACITY to
 // AWAITING_DEPOSIT, the only status that moves back, and no longer shows
 // that deposit. HELD can be
 // entered from any non-terminal status and is not terminal; a QuickSwap HELD
 // with SOURCE_SCREENING_BLOCKED can end CLOSED. The terminal statuses are
-// COMPLETED, REFUNDED, RETURNED, EXPIRED and CLOSED; a terminal status never
+// REJECTED, COMPLETED, REFUNDED, RETURNED, EXPIRED and CLOSED; a terminal status never
 // changes, except that EXPIRED becomes HELD when a dropped or replaced
 // deposit confirms after all (see EXPIRED). Accept status values added
 // later; is_terminal is authoritative.
@@ -640,6 +648,11 @@ type QuickSwapStatus int32
 const (
 	// No status; never returned.
 	QuickSwapStatus_STATUS_UNSPECIFIED QuickSwapStatus = 0
+	// Terminal: the source wallet supplied in the request failed risk
+	// screening (SOURCE_WALLET_SCREENING_FAILED). The QuickSwap never gets a
+	// deposit address, and every repeat of its create request returns
+	// SOURCE_WALLET_REJECTED with its swap_id.
+	QuickSwapStatus_REJECTED QuickSwapStatus = 1
 	// The quote is fixed and the deposit address is being allocated. After
 	// ADDRESS_UNAVAILABLE, allocation continues automatically until an address
 	// frees up; the wait has no fixed bound.
@@ -704,6 +717,7 @@ const (
 var (
 	QuickSwapStatus_name = map[int32]string{
 		0:  "STATUS_UNSPECIFIED",
+		1:  "REJECTED",
 		2:  "ALLOCATING",
 		3:  "AWAITING_DEPOSIT",
 		4:  "WAITING_FOR_CAPACITY",
@@ -723,6 +737,7 @@ var (
 	}
 	QuickSwapStatus_value = map[string]int32{
 		"STATUS_UNSPECIFIED":   0,
+		"REJECTED":             1,
 		"ALLOCATING":           2,
 		"AWAITING_DEPOSIT":     3,
 		"WAITING_FOR_CAPACITY": 4,
@@ -836,7 +851,9 @@ const (
 	// expired. Complete an MFA challenge for fresh step-up and repeat the
 	// request with the new proof.
 	ErrorCode_STEP_UP_REQUIRED ErrorCode = 23
-	// The broker has no affiliate vault with this ID.
+	// The ID names no vault of the broker: neither its default vault nor one
+	// of its affiliate vaults. GetVault and SetVaultStatus take affiliate
+	// vaults only, so they also return it for the default vault.
 	ErrorCode_VAULT_NOT_FOUND ErrorCode = 24
 	// The broker has no API key with this ID, or it no longer works.
 	ErrorCode_KEY_NOT_FOUND ErrorCode = 25
@@ -863,9 +880,9 @@ const (
 	// 300, no affiliates with a referral_code) fail with INVALID_ARGUMENT
 	// before this check.
 	ErrorCode_FEES_INVALID ErrorCode = 32
-	// The broker stats cannot be read: a QuickSwap in the window, named by
-	// ErrorDetail.swap_id, is missing a record they need. Contact Polyester
-	// broker support with the swap_id.
+	// The broker stats, or the public QuickSwap statistics, cannot be read: a
+	// QuickSwap in the window, named by ErrorDetail.swap_id, is missing a
+	// record they need. Contact Polyester support with the swap_id.
 	ErrorCode_STATS_INCOMPLETE ErrorCode = 33
 	// The QuickSwap (swap_id in the error) cannot be issued a deposit address
 	// and never gets one, so nothing can be deposited to it; it is EXPIRED with
@@ -936,6 +953,14 @@ const (
 	// a member who may grant the role for a new invite. Invites voided by a
 	// member change are cancelled by that change and answer INVITE_NOT_FOUND.
 	ErrorCode_INVITE_VOID ErrorCode = 55
+	// The source_wallet failed risk screening. On QuoteQuickSwap nothing is
+	// bound. On CreateQuickSwap the QuickSwap (swap_id in the error) is
+	// REJECTED and never gets a deposit address, and every repeat of the
+	// request returns this error; the end user cannot swap from this wallet.
+	ErrorCode_SOURCE_WALLET_REJECTED ErrorCode = 56
+	// The page_token is malformed or was returned for other filters. Start
+	// again from the first page with an empty page_token.
+	ErrorCode_PAGE_TOKEN_INVALID ErrorCode = 57
 )
 
 // Enum value maps for ErrorCode.
@@ -993,6 +1018,8 @@ var (
 		53: "VAULT_ALLOWLIST_NOT_READY",
 		54: "ROUTE_SUSPENDED",
 		55: "INVITE_VOID",
+		56: "SOURCE_WALLET_REJECTED",
+		57: "PAGE_TOKEN_INVALID",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_UNSPECIFIED":                0,
@@ -1047,6 +1074,8 @@ var (
 		"VAULT_ALLOWLIST_NOT_READY":        53,
 		"ROUTE_SUSPENDED":                  54,
 		"INVITE_VOID":                      55,
+		"SOURCE_WALLET_REJECTED":           56,
+		"PAGE_TOKEN_INVALID":               57,
 	}
 )
 
@@ -1086,7 +1115,8 @@ const (
 	// Recorded slice data is inconsistent; no slice amounts are fabricated.
 	ExecutionProgress_ACCOUNTING_INCONSISTENCY ExecutionProgress_SlicesUnavailableReason = 1
 	// The precision of one or more execution assets is unavailable, so slice
-	// amounts cannot be shown accurately. Aggregate amounts may be unknown.
+	// amounts cannot be shown accurately. Aggregate amounts in those assets
+	// are unset; the others remain available.
 	ExecutionProgress_PRECISION_UNAVAILABLE ExecutionProgress_SlicesUnavailableReason = 2
 )
 
@@ -1980,8 +2010,8 @@ type QuickSwapQuote struct {
 	// route order (a bridge has one set, charged at payout), then network fees.
 	// Affiliates are in ascending account_id order. Zero fees are omitted. The fees charged
 	// are each rate applied to the actual execution and can differ from these
-	// amounts; QuickSwap.charged_fees reports the broker and affiliate fees as
-	// charged.
+	// amounts; QuickSwap.charged_fees reports the broker, affiliate and
+	// referral fees as charged.
 	Fees []*QuoteFee `protobuf:"bytes,8,rep,name=fees,proto3" json:"fees,omitempty"`
 	// When the quote was priced.
 	QuotedAt *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=quoted_at,json=quotedAt,proto3" json:"quoted_at,omitempty"`
@@ -2106,13 +2136,15 @@ func (x *QuickSwapQuote) GetReferral() *ReferralPricing {
 	return nil
 }
 
-// Screening is the risk screening of a QuickSwap. Deposits are screened on
-// arrival; the outcome shows in the status, its reason and each deposit's
-// disposition and reason.
+// Screening is the risk screening of a QuickSwap. A source wallet supplied
+// in the request is screened before the deposit address is issued: a
+// rejected wallet makes the QuickSwap REJECTED with
+// SOURCE_WALLET_SCREENING_FAILED.
+// Every deposit is still screened on arrival, whoever sent it; that outcome
+// shows in the status, its reason and each deposit's disposition and reason.
 type Screening struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Source wallet supplied in the request; empty when none was supplied.
-	// Recorded and shown; not used to accept or reject a deposit.
 	SourceWallet  string `protobuf:"bytes,2,opt,name=source_wallet,json=sourceWallet,proto3" json:"source_wallet,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2188,13 +2220,14 @@ type DepositInstructions struct {
 	AddressRetiresAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=address_retires_at,json=addressRetiresAt,proto3" json:"address_retires_at,omitempty"`
 	// Current lifecycle state of the address.
 	AddressState DepositAddressState `protobuf:"varint,7,opt,name=address_state,json=addressState,proto3,enum=swap.quickswap.v1.DepositAddressState" json:"address_state,omitempty"`
-	// Recommended gas limit, in gas units, for native-coin deposits on EVM
-	// networks: 250000. Polyester does not enforce this limit. On some networks,
-	// depositing to an address that has never received funds requires far more
-	// than 21000 gas. If the limit is too low, the transaction fails on chain
-	// without depositing funds, and the network fee is still charged. Use at
-	// least the recommended limit. Unused gas is not charged. Zero for token
-	// deposits and non-EVM networks.
+	// Recommended gas limit, in gas units, for a native-coin deposit on EVM
+	// networks to succeed reliably: 250000. Polyester does not enforce it; the
+	// sender's wallet or exchange sets the gas limit. A gas estimate from the
+	// network of at least 50000 also works, but confirms more slowly. The gas
+	// a plain transfer needs differs by network: several layer-2 networks and
+	// EVM forks do not use 21000. If the limit is too low, the transfer fails
+	// on chain without depositing, and the network fee is still charged. Zero
+	// for token deposits and non-EVM networks.
 	MinNativeGasLimit uint64 `protobuf:"varint,8,opt,name=min_native_gas_limit,json=minNativeGasLimit,proto3" json:"min_native_gas_limit,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
@@ -2494,8 +2527,10 @@ type ExecutionProgress struct {
 	// Totals and completed_slices still cover the entire execution.
 	SlicesTruncated bool `protobuf:"varint,11,opt,name=slices_truncated,json=slicesTruncated,proto3" json:"slices_truncated,omitempty"`
 	// Why slice history is unavailable. When set, slices is empty and
-	// slices_truncated is false. Aggregate amounts, counts, execution status
-	// and withdrawals remain available. Unspecified when history is available.
+	// slices_truncated is false. Counts, execution status and withdrawals
+	// remain available, and so do the aggregate amounts, except that with
+	// PRECISION_UNAVAILABLE an amount in a token whose precision is
+	// unavailable is unset. Unspecified when history is available.
 	SlicesUnavailableReason ExecutionProgress_SlicesUnavailableReason `protobuf:"varint,12,opt,name=slices_unavailable_reason,json=slicesUnavailableReason,proto3,enum=swap.quickswap.v1.ExecutionProgress_SlicesUnavailableReason" json:"slices_unavailable_reason,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
@@ -3028,7 +3063,7 @@ type QuickSwap struct {
 	// actual output and fees.
 	Quote *QuickSwapQuote `protobuf:"bytes,14,opt,name=quote,proto3" json:"quote,omitempty"`
 	// Where and until when to deposit; absent while ALLOCATING and on a
-	// QuickSwap that never got an address (EXPIRED with
+	// QuickSwap that never got an address (REJECTED, or EXPIRED with
 	// DEPOSIT_ADDRESS_CONFLICT).
 	DepositInstructions *DepositInstructions `protobuf:"bytes,15,opt,name=deposit_instructions,json=depositInstructions,proto3" json:"deposit_instructions,omitempty"`
 	// Risk screening.
@@ -3052,9 +3087,9 @@ type QuickSwap struct {
 	// When status became terminal; unset while not terminal.
 	TerminalAt *timestamppb.Timestamp `protobuf:"bytes,25,opt,name=terminal_at,json=terminalAt,proto3" json:"terminal_at,omitempty"`
 	// Monotonic state version: a snapshot with a lower version is older. Zero
-	// while ALLOCATING; 1 once the deposit address is issued (AWAITING_DEPOSIT)
-	// or allocation ends without one (EXPIRED with DEPOSIT_ADDRESS_CONFLICT);
-	// every later change increments it.
+	// while ALLOCATING; 1 once the deposit address is issued (AWAITING_DEPOSIT),
+	// allocation ends without one (EXPIRED with DEPOSIT_ADDRESS_CONFLICT) or
+	// the QuickSwap is REJECTED; every later change increments it.
 	Version uint64 `protobuf:"varint,26,opt,name=version,proto3" json:"version,omitempty"`
 	// Fee schedule version fixed at creation. Every execution or bridge payout
 	// of this QuickSwap is charged that version's service fees, capped by the
@@ -3065,14 +3100,30 @@ type QuickSwap struct {
 	// referral (quote.referral), the broker fee charged is broker_bps less the
 	// referral's discount and commission.
 	Fees *RequestedFees `protobuf:"bytes,29,opt,name=fees,proto3" json:"fees,omitempty"`
-	// Broker and affiliate fees charged so far, as settled: one entry per fee
-	// kind, credited vault and asset, in kind, then account_id, then asset_id
-	// order. Grows while the QuickSwap executes or pays out a bridge. Each is
+	// Broker, affiliate and referral fees charged so far, as settled: one
+	// entry per fee kind, credited account and asset, in kind, then
+	// account_id, then asset_id order. Grows while the QuickSwap executes or pays out a bridge. Each is
 	// the requested rate applied to the actual execution, so it can differ
 	// from the quote's fee lines.
-	ChargedFees   []*ChargedFee `protobuf:"bytes,30,rep,name=charged_fees,json=chargedFees,proto3" json:"charged_fees,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ChargedFees []*ChargedFee `protobuf:"bytes,30,rep,name=charged_fees,json=chargedFees,proto3" json:"charged_fees,omitempty"`
+	// USD value of the credited deposit taken into execution
+	// (execution.input_amount), at the source asset's USD price when it was
+	// taken in, in base units of 18 decimals, rounded down. Set once, within
+	// minutes of that moment, and never repriced. Unset until then, and for
+	// good when no current price valued it in time or the QuickSwap predates
+	// USD values; never zero for unknown.
+	// Setting it increments version.
+	DepositedValueUsd *TokenAmount `protobuf:"bytes,31,opt,name=deposited_value_usd,json=depositedValueUsd,proto3" json:"deposited_value_usd,omitempty"`
+	// USD value of what the destination is paid (the DESTINATION withdrawal's
+	// amount: after service, broker and affiliate fees, before its network
+	// fee), at the destination asset's USD price when that payout was
+	// requested, in base units of 18 decimals, rounded down. Set only once
+	// that withdrawal is FINALIZED; unset for good when no current price
+	// valued the payout within minutes of its request or the QuickSwap
+	// predates USD values; never zero for unknown.
+	DeliveredValueUsd *TokenAmount `protobuf:"bytes,32,opt,name=delivered_value_usd,json=deliveredValueUsd,proto3" json:"delivered_value_usd,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *QuickSwap) Reset() {
@@ -3301,6 +3352,20 @@ func (x *QuickSwap) GetChargedFees() []*ChargedFee {
 	return nil
 }
 
+func (x *QuickSwap) GetDepositedValueUsd() *TokenAmount {
+	if x != nil {
+		return x.DepositedValueUsd
+	}
+	return nil
+}
+
+func (x *QuickSwap) GetDeliveredValueUsd() *TokenAmount {
+	if x != nil {
+		return x.DeliveredValueUsd
+	}
+	return nil
+}
+
 // RequestedFees are the broker and affiliate fees a QuickSwap request set,
 // charged on top of the service fee.
 type RequestedFees struct {
@@ -3371,7 +3436,14 @@ type ChargedFee struct {
 	// GET /v1/chain/deposit-withdraw/config.
 	AssetId uint32 `protobuf:"varint,3,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
 	// Amount credited, in base units of 18 decimals.
-	Amount        *TokenAmount `protobuf:"bytes,4,opt,name=amount,proto3" json:"amount,omitempty"`
+	Amount *TokenAmount `protobuf:"bytes,4,opt,name=amount,proto3" json:"amount,omitempty"`
+	// USD value of amount, each fee summed in it valued at its asset's USD
+	// price when it was charged, in base units of 18 decimals, rounded down.
+	// Each fee is valued once, within minutes of being charged, and never
+	// repriced. Unset while any fee summed in amount has no USD value: one
+	// charged in the last few minutes, one no current price valued in time,
+	// or one charged before USD values existed; never zero for unknown.
+	ValueUsd      *TokenAmount `protobuf:"bytes,5,opt,name=value_usd,json=valueUsd,proto3" json:"value_usd,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3434,6 +3506,13 @@ func (x *ChargedFee) GetAmount() *TokenAmount {
 	return nil
 }
 
+func (x *ChargedFee) GetValueUsd() *TokenAmount {
+	if x != nil {
+		return x.ValueUsd
+	}
+	return nil
+}
+
 // QuoteQuickSwapRequest prices terms, with the broker and affiliate fees,
 // without reserving anything.
 type QuoteQuickSwapRequest struct {
@@ -3449,7 +3528,17 @@ type QuoteQuickSwapRequest struct {
 	Affiliates []*AffiliateShare `protobuf:"bytes,3,rep,name=affiliates,proto3" json:"affiliates,omitempty"`
 	// Optional referral partner code, as CreateQuickSwapRequest.referral_code:
 	// at most 64 bytes.
-	ReferralCode  string `protobuf:"bytes,4,opt,name=referral_code,json=referralCode,proto3" json:"referral_code,omitempty"`
+	ReferralCode string `protobuf:"bytes,4,opt,name=referral_code,json=referralCode,proto3" json:"referral_code,omitempty"`
+	// Optional source wallet the end user will deposit from, as
+	// CreateQuickSwapRequest.source_wallet: a valid address on the source
+	// network, at most 256 UTF-8 bytes. When supplied, it is risk screened
+	// before the quote is returned, and a wallet that fails screening is
+	// refused with SOURCE_WALLET_REJECTED. Source wallets are screened in
+	// advance on Bitcoin, Solana and most EVM networks. Wallets on other
+	// networks, including the Bitcoin and Solana test networks, and wallets
+	// whose screening is unavailable at the time, are quoted without it; their
+	// deposits are still screened on arrival.
+	SourceWallet  string `protobuf:"bytes,5,opt,name=source_wallet,json=sourceWallet,proto3" json:"source_wallet,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3508,6 +3597,13 @@ func (x *QuoteQuickSwapRequest) GetAffiliates() []*AffiliateShare {
 func (x *QuoteQuickSwapRequest) GetReferralCode() string {
 	if x != nil {
 		return x.ReferralCode
+	}
+	return ""
+}
+
+func (x *QuoteQuickSwapRequest) GetSourceWallet() string {
+	if x != nil {
+		return x.SourceWallet
 	}
 	return ""
 }
@@ -3667,7 +3763,16 @@ type CreateQuickSwapRequest struct {
 	RefundMemo string `protobuf:"bytes,9,opt,name=refund_memo,json=refundMemo,proto3" json:"refund_memo,omitempty"`
 	// Optional source wallet the end user will deposit from, for brokers that
 	// know it in advance. It must be a valid address on the source network, at
-	// most 256 UTF-8 bytes, and is shown on the QuickSwap.
+	// most 256 UTF-8 bytes, and is shown on the QuickSwap. It is risk screened
+	// before the deposit address is issued: a wallet that fails screening
+	// makes the QuickSwap REJECTED, bound to the key, without a deposit
+	// address, and the request and every repeat of it fail with
+	// SOURCE_WALLET_REJECTED. Source wallets are screened in advance on
+	// Bitcoin, Solana and most EVM networks. Wallets on other networks,
+	// including the Bitcoin and Solana test networks, and wallets whose
+	// screening is unavailable at the time, get their address without it.
+	// Every deposit is still screened on arrival, so a deposit sent from
+	// another wallet is judged on its own sender.
 	SourceWallet string `protobuf:"bytes,10,opt,name=source_wallet,json=sourceWallet,proto3" json:"source_wallet,omitempty"`
 	// Affiliate fees, each charged on top and credited to its affiliate vault:
 	// at most three distinct vaults. Fixed at creation with broker_bps.
@@ -4317,7 +4422,7 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\fsubmitted_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\vsubmittedAt\x12=\n" +
 	"\ffinalized_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\vfinalizedAt\x12\x17\n" +
 	"\aflow_id\x18\r \x01(\tR\x06flowId\x12C\n" +
-	"\runsent_amount\x18\x0e \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\funsentAmount\"\xa8\v\n" +
+	"\runsent_amount\x18\x0e \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\funsentAmount\"\xc8\f\n" +
 	"\tQuickSwap\x12\x17\n" +
 	"\aswap_id\x18\x01 \x01(\x06R\x06swapId\x12'\n" +
 	"\x0fidempotency_key\x18\x02 \x01(\tR\x0eidempotencyKey\x12:\n" +
@@ -4353,20 +4458,23 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\aversion\x18\x1a \x01(\x04R\aversion\x120\n" +
 	"\x14fee_schedule_version\x18\x1c \x01(\x04R\x12feeScheduleVersion\x124\n" +
 	"\x04fees\x18\x1d \x01(\v2 .swap.quickswap.v1.RequestedFeesR\x04fees\x12@\n" +
-	"\fcharged_fees\x18\x1e \x03(\v2\x1d.swap.quickswap.v1.ChargedFeeR\vchargedFees\"q\n" +
+	"\fcharged_fees\x18\x1e \x03(\v2\x1d.swap.quickswap.v1.ChargedFeeR\vchargedFees\x12N\n" +
+	"\x13deposited_value_usd\x18\x1f \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\x11depositedValueUsd\x12N\n" +
+	"\x13delivered_value_usd\x18  \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\x11deliveredValueUsd\"q\n" +
 	"\rRequestedFees\x12\x1d\n" +
 	"\n" +
 	"broker_bps\x18\x01 \x01(\rR\tbrokerBps\x12A\n" +
 	"\n" +
 	"affiliates\x18\x02 \x03(\v2!.swap.quickswap.v1.AffiliateShareR\n" +
-	"affiliates\"\xae\x01\n" +
+	"affiliates\"\xeb\x01\n" +
 	"\n" +
 	"ChargedFee\x12.\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x1a.swap.quickswap.v1.FeeKindR\x04kind\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x02 \x01(\x06R\taccountId\x12\x19\n" +
 	"\basset_id\x18\x03 \x01(\rR\aassetId\x126\n" +
-	"\x06amount\x18\x04 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\x06amount\"\xc5\x06\n" +
+	"\x06amount\x18\x04 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\x06amount\x12;\n" +
+	"\tvalue_usd\x18\x05 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\bvalueUsd\"\xf4\x06\n" +
 	"\x15QuoteQuickSwapRequest\x12?\n" +
 	"\x05terms\x18\x01 \x01(\v2!.swap.quickswap.v1.QuickSwapTermsB\x06\xbaH\x03\xc8\x01\x01R\x05terms\x12'\n" +
 	"\n" +
@@ -4375,7 +4483,8 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"affiliates\x18\x03 \x03(\v2!.swap.quickswap.v1.AffiliateShareBs\xbaHp\xba\x01h\n" +
 	"\x1aaffiliates.distinct_vaults\x12&each affiliate vault may be named once\x1a\"this.map(a, a.account_id).unique()\x92\x01\x02\x10\x03R\n" +
 	"affiliates\x12,\n" +
-	"\rreferral_code\x18\x04 \x01(\tB\a\xbaH\x04r\x02(@R\freferralCode:\xda\x03\xbaH\xd6\x03\x1a\xb0\x02\n" +
+	"\rreferral_code\x18\x04 \x01(\tB\a\xbaH\x04r\x02(@R\freferralCode\x12-\n" +
+	"\rsource_wallet\x18\x05 \x01(\tB\b\xbaH\x05r\x03(\x80\x02R\fsourceWallet:\xda\x03\xbaH\xd6\x03\x1a\xb0\x02\n" +
 	"\"quote_quickswap_request.fees_total\x129broker_bps and the affiliates' bps must total at most 300\x1a\xce\x01this.broker_bps + (this.affiliates.size() > 0 ? this.affiliates[0].bps : 0u) + (this.affiliates.size() > 1 ? this.affiliates[1].bps : 0u) + (this.affiliates.size() > 2 ? this.affiliates[2].bps : 0u) <= 300u\x1a\xa0\x01\n" +
 	"3quote_quickswap_request.referral_without_affiliates\x120referral_code cannot be combined with affiliates\x1a7this.referral_code == '' || this.affiliates.size() == 0\"Q\n" +
 	"\x16QuoteQuickSwapResponse\x127\n" +
@@ -4453,7 +4562,7 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\bELIGIBLE\x10\x02\x12\x0f\n" +
 	"\vRETURN_ONLY\x10\x03\x12\v\n" +
 	"\aON_HOLD\x10\x04\x12\x13\n" +
-	"\x0fMANUAL_RECOVERY\x10\x05*\xa3\x04\n" +
+	"\x0fMANUAL_RECOVERY\x10\x05*\xc7\x04\n" +
 	"\x0fQuickSwapReason\x12\x16\n" +
 	"\x12REASON_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17SOURCE_SCREENING_FAILED\x10\x01\x12\x18\n" +
@@ -4474,7 +4583,8 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\x17DEPOSIT_ADDRESS_RETIRED\x10\x18\x12\x1e\n" +
 	"\x1aDEPOSIT_ADDRESS_NOT_ISSUED\x10\x19\x12\x1e\n" +
 	"\x1aINTERMEDIATE_BELOW_MINIMUM\x10\x1a\x12\x11\n" +
-	"\rMARKET_CLOSED\x10\x1b*h\n" +
+	"\rMARKET_CLOSED\x10\x1b\x12\"\n" +
+	"\x1eSOURCE_WALLET_SCREENING_FAILED\x10\x1c*h\n" +
 	"\x0eWithdrawalRole\x12\x14\n" +
 	"\x10ROLE_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vDESTINATION\x10\x01\x12\n" +
@@ -4491,9 +4601,10 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\tFINALIZED\x10\x03\x12\n" +
 	"\n" +
 	"\x06FAILED\x10\x04\x12\f\n" +
-	"\bNOT_SENT\x10\x05*\xa9\x02\n" +
+	"\bNOT_SENT\x10\x05*\xb7\x02\n" +
 	"\x0fQuickSwapStatus\x12\x16\n" +
-	"\x12STATUS_UNSPECIFIED\x10\x00\x12\x0e\n" +
+	"\x12STATUS_UNSPECIFIED\x10\x00\x12\f\n" +
+	"\bREJECTED\x10\x01\x12\x0e\n" +
 	"\n" +
 	"ALLOCATING\x10\x02\x12\x14\n" +
 	"\x10AWAITING_DEPOSIT\x10\x03\x12\x18\n" +
@@ -4514,7 +4625,7 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\bRETURNED\x10\x0f\x12\v\n" +
 	"\aEXPIRED\x10\x10\x12\n" +
 	"\n" +
-	"\x06CLOSED\x10\x11*\xa3\n" +
+	"\x06CLOSED\x10\x11*\xd7\n" +
 	"\n" +
 	"\tErrorCode\x12\x15\n" +
 	"\x11ERROR_UNSPECIFIED\x10\x00\x12\x15\n" +
@@ -4568,20 +4679,22 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\x18ALLOWLIST_CHANGE_PENDING\x104\x12\x1d\n" +
 	"\x19VAULT_ALLOWLIST_NOT_READY\x105\x12\x13\n" +
 	"\x0fROUTE_SUSPENDED\x106\x12\x0f\n" +
-	"\vINVITE_VOID\x1072\xf4\x05\n" +
-	"\x10QuickSwapService\x12\x82\x02\n" +
-	"\x0eQuoteQuickSwap\x12(.swap.quickswap.v1.QuoteQuickSwapRequest\x1a).swap.quickswap.v1.QuoteQuickSwapResponse\"\x9a\x01\xbaG\x91\x01\n" +
+	"\vINVITE_VOID\x107\x12\x1a\n" +
+	"\x16SOURCE_WALLET_REJECTED\x108\x12\x16\n" +
+	"\x12PAGE_TOKEN_INVALID\x1092\xa4\r\n" +
+	"\x10QuickSwapService\x12\xf0\x04\n" +
+	"\x0eQuoteQuickSwap\x12(.swap.quickswap.v1.QuoteQuickSwapRequest\x1a).swap.quickswap.v1.QuoteQuickSwapResponse\"\x88\x04\xbaG\x91\x01\n" +
 	"\tQuickSwap\x12\x0fQuote QuickSwap\x1a[Price QuickSwap terms, with estimated output and fees, without reserving a deposit address.Z\x16\n" +
 	"\x14\n" +
-	"\x10BrokerApiKeyAuth\x12\x00\xa2\xb5\x18\x01\x03\x12\xf5\x01\n" +
-	"\x0fCreateQuickSwap\x12).swap.quickswap.v1.CreateQuickSwapRequest\x1a*.swap.quickswap.v1.CreateQuickSwapResponse\"\x8a\x01\xbaG\x81\x01\n" +
+	"\x10BrokerApiKeyAuth\x12\x00\xa2\xb5\x18\x01\x03\xaa\xb5\x18\x17AFFILIATE_VAULT_UNKNOWN\xaa\xb5\x18\x13AMOUNT_OUT_OF_RANGE\xaa\xb5\x18\x0fBROKER_DISABLED\xaa\xb5\x18\fBROKER_LIMIT\xaa\xb5\x18\x11DECIMALS_MISMATCH\xaa\xb5\x18\fFEES_INVALID\xaa\xb5\x18\x17PROTECTION_UNACHIEVABLE\xaa\xb5\x18\x11QUOTE_UNAVAILABLE\xaa\xb5\x18\x15REFERRAL_CODE_INVALID\xaa\xb5\x18\x15REFERRAL_CODE_UNKNOWN\xaa\xb5\x18\x16REFERRAL_NOT_SUPPORTED\xaa\xb5\x18\x19REFERRAL_PARTNER_INACTIVE\xaa\xb5\x18\x0fROUTE_SUSPENDED\xaa\xb5\x18\x11ROUTE_UNSUPPORTED\xaa\xb5\x18\x15SOURCE_WALLET_INVALID\xaa\xb5\x18\x16SOURCE_WALLET_REJECTED\x12\x94\x06\n" +
+	"\x0fCreateQuickSwap\x12).swap.quickswap.v1.CreateQuickSwapRequest\x1a*.swap.quickswap.v1.CreateQuickSwapResponse\"\xa9\x05\xbaG\x81\x01\n" +
 	"\tQuickSwap\x12\x10Create QuickSwap\x1aJCreate or return the QuickSwap and deposit address for an idempotency key.Z\x16\n" +
 	"\x14\n" +
-	"\x10BrokerApiKeyAuth\x12\x00\xa2\xb5\x18\x01\x03\x12\xd3\x01\n" +
-	"\fGetQuickSwap\x12&.swap.quickswap.v1.GetQuickSwapRequest\x1a'.swap.quickswap.v1.GetQuickSwapResponse\"r\xbaGj\n" +
+	"\x10BrokerApiKeyAuth\x12\x00\xa2\xb5\x18\x01\x03\xaa\xb5\x18\x10ADDRESS_CONFLICT\xaa\xb5\x18\x13ADDRESS_UNAVAILABLE\xaa\xb5\x18\x17AFFILIATE_VAULT_UNKNOWN\xaa\xb5\x18\x13AMOUNT_OUT_OF_RANGE\xaa\xb5\x18\x0fBROKER_DISABLED\xaa\xb5\x18\fBROKER_LIMIT\xaa\xb5\x18\x11DECIMALS_MISMATCH\xaa\xb5\x18\x1bDESTINATION_ADDRESS_INVALID\xaa\xb5\x18\fFEES_INVALID\xaa\xb5\x18\x14IDEMPOTENCY_CONFLICT\xaa\xb5\x18\x17PROTECTION_UNACHIEVABLE\xaa\xb5\x18\x11QUOTE_UNAVAILABLE\xaa\xb5\x18\x15REFERRAL_CODE_INVALID\xaa\xb5\x18\x15REFERRAL_CODE_UNKNOWN\xaa\xb5\x18\x16REFERRAL_NOT_SUPPORTED\xaa\xb5\x18\x19REFERRAL_PARTNER_INACTIVE\xaa\xb5\x18\x16REFUND_ADDRESS_INVALID\xaa\xb5\x18\x17REFUND_ADDRESS_REQUIRED\xaa\xb5\x18\x16RETURN_ADDRESS_INVALID\xaa\xb5\x18\x0fROUTE_SUSPENDED\xaa\xb5\x18\x11ROUTE_UNSUPPORTED\xaa\xb5\x18\x15SOURCE_WALLET_INVALID\xaa\xb5\x18\x16SOURCE_WALLET_REJECTED\x12\xf6\x01\n" +
+	"\fGetQuickSwap\x12&.swap.quickswap.v1.GetQuickSwapRequest\x1a'.swap.quickswap.v1.GetQuickSwapResponse\"\x94\x01\xbaGj\n" +
 	"\tQuickSwap\x12\rGet QuickSwap\x1a6Get one QuickSwap by identifier or by idempotency key.Z\x16\n" +
 	"\x14\n" +
-	"\x10BrokerApiKeyAuth\x12\x00\xa2\xb5\x18\x01\x03\x1a\r\x8a\xb5\x18\tquickswapB\xa0\x01\xbaGR:P\n" +
+	"\x10BrokerApiKeyAuth\x12\x00\xa2\xb5\x18\x01\x03\xaa\xb5\x18\fBROKER_LIMIT\xaa\xb5\x18\x0eSWAP_NOT_FOUND\x1a\r\x8a\xb5\x18\tquickswapB\xa0\x01\xbaGR:P\n" +
 	"\tQuickSwap\x12CBroker-only swaps of an external deposit into external withdrawals.ZIgithub.com/Fabric-Labs/polyester-sdk-go/gen/swap/quickswap/v1;quickswapv1b\x06proto3"
 
 var (
@@ -4708,32 +4821,35 @@ var file_swap_quickswap_v1_quickswap_proto_depIdxs = []int32{
 	39, // 64: swap.quickswap.v1.QuickSwap.terminal_at:type_name -> google.protobuf.Timestamp
 	28, // 65: swap.quickswap.v1.QuickSwap.fees:type_name -> swap.quickswap.v1.RequestedFees
 	29, // 66: swap.quickswap.v1.QuickSwap.charged_fees:type_name -> swap.quickswap.v1.ChargedFee
-	32, // 67: swap.quickswap.v1.RequestedFees.affiliates:type_name -> swap.quickswap.v1.AffiliateShare
-	1,  // 68: swap.quickswap.v1.ChargedFee.kind:type_name -> swap.quickswap.v1.FeeKind
-	12, // 69: swap.quickswap.v1.ChargedFee.amount:type_name -> swap.quickswap.v1.TokenAmount
-	17, // 70: swap.quickswap.v1.QuoteQuickSwapRequest.terms:type_name -> swap.quickswap.v1.QuickSwapTerms
-	32, // 71: swap.quickswap.v1.QuoteQuickSwapRequest.affiliates:type_name -> swap.quickswap.v1.AffiliateShare
-	20, // 72: swap.quickswap.v1.QuoteQuickSwapResponse.quote:type_name -> swap.quickswap.v1.QuickSwapQuote
-	17, // 73: swap.quickswap.v1.CreateQuickSwapRequest.terms:type_name -> swap.quickswap.v1.QuickSwapTerms
-	32, // 74: swap.quickswap.v1.CreateQuickSwapRequest.affiliates:type_name -> swap.quickswap.v1.AffiliateShare
-	27, // 75: swap.quickswap.v1.CreateQuickSwapResponse.quick_swap:type_name -> swap.quickswap.v1.QuickSwap
-	27, // 76: swap.quickswap.v1.GetQuickSwapResponse.quick_swap:type_name -> swap.quickswap.v1.QuickSwap
-	8,  // 77: swap.quickswap.v1.ErrorDetail.code:type_name -> swap.quickswap.v1.ErrorCode
-	12, // 78: swap.quickswap.v1.ErrorDetail.min_deposit_amount:type_name -> swap.quickswap.v1.TokenAmount
-	12, // 79: swap.quickswap.v1.ErrorDetail.max_deposit_amount:type_name -> swap.quickswap.v1.TokenAmount
-	12, // 80: swap.quickswap.v1.ExecutionSlice.SecondLeg.input_traded:type_name -> swap.quickswap.v1.TokenAmount
-	12, // 81: swap.quickswap.v1.ExecutionSlice.SecondLeg.output_received:type_name -> swap.quickswap.v1.TokenAmount
-	30, // 82: swap.quickswap.v1.QuickSwapService.QuoteQuickSwap:input_type -> swap.quickswap.v1.QuoteQuickSwapRequest
-	33, // 83: swap.quickswap.v1.QuickSwapService.CreateQuickSwap:input_type -> swap.quickswap.v1.CreateQuickSwapRequest
-	35, // 84: swap.quickswap.v1.QuickSwapService.GetQuickSwap:input_type -> swap.quickswap.v1.GetQuickSwapRequest
-	31, // 85: swap.quickswap.v1.QuickSwapService.QuoteQuickSwap:output_type -> swap.quickswap.v1.QuoteQuickSwapResponse
-	34, // 86: swap.quickswap.v1.QuickSwapService.CreateQuickSwap:output_type -> swap.quickswap.v1.CreateQuickSwapResponse
-	36, // 87: swap.quickswap.v1.QuickSwapService.GetQuickSwap:output_type -> swap.quickswap.v1.GetQuickSwapResponse
-	85, // [85:88] is the sub-list for method output_type
-	82, // [82:85] is the sub-list for method input_type
-	82, // [82:82] is the sub-list for extension type_name
-	82, // [82:82] is the sub-list for extension extendee
-	0,  // [0:82] is the sub-list for field type_name
+	12, // 67: swap.quickswap.v1.QuickSwap.deposited_value_usd:type_name -> swap.quickswap.v1.TokenAmount
+	12, // 68: swap.quickswap.v1.QuickSwap.delivered_value_usd:type_name -> swap.quickswap.v1.TokenAmount
+	32, // 69: swap.quickswap.v1.RequestedFees.affiliates:type_name -> swap.quickswap.v1.AffiliateShare
+	1,  // 70: swap.quickswap.v1.ChargedFee.kind:type_name -> swap.quickswap.v1.FeeKind
+	12, // 71: swap.quickswap.v1.ChargedFee.amount:type_name -> swap.quickswap.v1.TokenAmount
+	12, // 72: swap.quickswap.v1.ChargedFee.value_usd:type_name -> swap.quickswap.v1.TokenAmount
+	17, // 73: swap.quickswap.v1.QuoteQuickSwapRequest.terms:type_name -> swap.quickswap.v1.QuickSwapTerms
+	32, // 74: swap.quickswap.v1.QuoteQuickSwapRequest.affiliates:type_name -> swap.quickswap.v1.AffiliateShare
+	20, // 75: swap.quickswap.v1.QuoteQuickSwapResponse.quote:type_name -> swap.quickswap.v1.QuickSwapQuote
+	17, // 76: swap.quickswap.v1.CreateQuickSwapRequest.terms:type_name -> swap.quickswap.v1.QuickSwapTerms
+	32, // 77: swap.quickswap.v1.CreateQuickSwapRequest.affiliates:type_name -> swap.quickswap.v1.AffiliateShare
+	27, // 78: swap.quickswap.v1.CreateQuickSwapResponse.quick_swap:type_name -> swap.quickswap.v1.QuickSwap
+	27, // 79: swap.quickswap.v1.GetQuickSwapResponse.quick_swap:type_name -> swap.quickswap.v1.QuickSwap
+	8,  // 80: swap.quickswap.v1.ErrorDetail.code:type_name -> swap.quickswap.v1.ErrorCode
+	12, // 81: swap.quickswap.v1.ErrorDetail.min_deposit_amount:type_name -> swap.quickswap.v1.TokenAmount
+	12, // 82: swap.quickswap.v1.ErrorDetail.max_deposit_amount:type_name -> swap.quickswap.v1.TokenAmount
+	12, // 83: swap.quickswap.v1.ExecutionSlice.SecondLeg.input_traded:type_name -> swap.quickswap.v1.TokenAmount
+	12, // 84: swap.quickswap.v1.ExecutionSlice.SecondLeg.output_received:type_name -> swap.quickswap.v1.TokenAmount
+	30, // 85: swap.quickswap.v1.QuickSwapService.QuoteQuickSwap:input_type -> swap.quickswap.v1.QuoteQuickSwapRequest
+	33, // 86: swap.quickswap.v1.QuickSwapService.CreateQuickSwap:input_type -> swap.quickswap.v1.CreateQuickSwapRequest
+	35, // 87: swap.quickswap.v1.QuickSwapService.GetQuickSwap:input_type -> swap.quickswap.v1.GetQuickSwapRequest
+	31, // 88: swap.quickswap.v1.QuickSwapService.QuoteQuickSwap:output_type -> swap.quickswap.v1.QuoteQuickSwapResponse
+	34, // 89: swap.quickswap.v1.QuickSwapService.CreateQuickSwap:output_type -> swap.quickswap.v1.CreateQuickSwapResponse
+	36, // 90: swap.quickswap.v1.QuickSwapService.GetQuickSwap:output_type -> swap.quickswap.v1.GetQuickSwapResponse
+	88, // [88:91] is the sub-list for method output_type
+	85, // [85:88] is the sub-list for method input_type
+	85, // [85:85] is the sub-list for extension type_name
+	85, // [85:85] is the sub-list for extension extendee
+	0,  // [0:85] is the sub-list for field type_name
 }
 
 func init() { file_swap_quickswap_v1_quickswap_proto_init() }

@@ -56,7 +56,10 @@ type PriceAlertServiceClient interface {
 	// Errors:
 	//   - INVALID_ARGUMENT: malformed request, or UNKNOWN_SYMBOL.
 	//   - FAILED_PRECONDITION: PRICE_SOURCE_UNSUPPORTED (INDEX_PRICE requested on
-	//     a market without one), or ALERT_LIMIT_REACHED.
+	//     a market without one), ALERT_LIMIT_REACHED, TELEGRAM_UNAVAILABLE
+	//     (TELEGRAM requested where Telegram delivery is not available), or
+	//     TELEGRAM_NOT_LINKED (TELEGRAM requested without a linked Telegram
+	//     account).
 	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT; the original alert stands.
 	//   - UNAVAILABLE: PRICE_UNAVAILABLE or SERVICE_UNAVAILABLE; retry the same
 	//     request.
@@ -81,6 +84,10 @@ type PriceAlertServiceClient interface {
 	// unchanged. With an idempotency_key
 	// already used for the same request, it returns the alert as it is now and
 	// changes nothing: a retried or replayed update never sets the alert again.
+	// An update that changes an alert whose channels then include TELEGRAM needs
+	// Telegram delivery to be available and a linked Telegram account, so
+	// without them, change such an alert's channels to IN_APP to change it
+	// further.
 	//
 	// Errors:
 	//   - INVALID_ARGUMENT: malformed request or update_mask.
@@ -88,7 +95,8 @@ type PriceAlertServiceClient interface {
 	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT.
 	//   - ABORTED: REVISION_CONFLICT.
 	//   - FAILED_PRECONDITION: ALERT_CANCELLED, PRICE_SOURCE_UNSUPPORTED,
-	//     ALERT_LIMIT_REACHED or ALERT_UPDATE_LIMIT_REACHED.
+	//     ALERT_LIMIT_REACHED, ALERT_UPDATE_LIMIT_REACHED, TELEGRAM_UNAVAILABLE or
+	//     TELEGRAM_NOT_LINKED.
 	//   - UNAVAILABLE: PRICE_UNAVAILABLE or SERVICE_UNAVAILABLE; retry.
 	//   - PERMISSION_DENIED: SUBACCOUNT_KEY_REFUSED, or AUTH_API_KEY_ACCESS_DENIED
 	//     when the API key's policy does not grant MANAGE_PRICE_ALERTS.
@@ -185,7 +193,10 @@ type PriceAlertServiceHandler interface {
 	// Errors:
 	//   - INVALID_ARGUMENT: malformed request, or UNKNOWN_SYMBOL.
 	//   - FAILED_PRECONDITION: PRICE_SOURCE_UNSUPPORTED (INDEX_PRICE requested on
-	//     a market without one), or ALERT_LIMIT_REACHED.
+	//     a market without one), ALERT_LIMIT_REACHED, TELEGRAM_UNAVAILABLE
+	//     (TELEGRAM requested where Telegram delivery is not available), or
+	//     TELEGRAM_NOT_LINKED (TELEGRAM requested without a linked Telegram
+	//     account).
 	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT; the original alert stands.
 	//   - UNAVAILABLE: PRICE_UNAVAILABLE or SERVICE_UNAVAILABLE; retry the same
 	//     request.
@@ -210,6 +221,10 @@ type PriceAlertServiceHandler interface {
 	// unchanged. With an idempotency_key
 	// already used for the same request, it returns the alert as it is now and
 	// changes nothing: a retried or replayed update never sets the alert again.
+	// An update that changes an alert whose channels then include TELEGRAM needs
+	// Telegram delivery to be available and a linked Telegram account, so
+	// without them, change such an alert's channels to IN_APP to change it
+	// further.
 	//
 	// Errors:
 	//   - INVALID_ARGUMENT: malformed request or update_mask.
@@ -217,7 +232,8 @@ type PriceAlertServiceHandler interface {
 	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT.
 	//   - ABORTED: REVISION_CONFLICT.
 	//   - FAILED_PRECONDITION: ALERT_CANCELLED, PRICE_SOURCE_UNSUPPORTED,
-	//     ALERT_LIMIT_REACHED or ALERT_UPDATE_LIMIT_REACHED.
+	//     ALERT_LIMIT_REACHED, ALERT_UPDATE_LIMIT_REACHED, TELEGRAM_UNAVAILABLE or
+	//     TELEGRAM_NOT_LINKED.
 	//   - UNAVAILABLE: PRICE_UNAVAILABLE or SERVICE_UNAVAILABLE; retry.
 	//   - PERMISSION_DENIED: SUBACCOUNT_KEY_REFUSED, or AUTH_API_KEY_ACCESS_DENIED
 	//     when the API key's policy does not grant MANAGE_PRICE_ALERTS.

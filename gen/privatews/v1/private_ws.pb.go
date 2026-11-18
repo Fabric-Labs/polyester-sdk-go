@@ -1950,7 +1950,9 @@ type Unit struct {
 	// equal `version` is the identical order, also across the Orders API's
 	// reads; version 0 is an order accepted but not yet on the book. The reads
 	// omit attached risk unless asked for it: an omission on request, never a
-	// removal.
+	// removal. The stream never carries an order's fee_total, which the reads
+	// add once its fills are settled; orders.v1.Order.fee_total says how to
+	// read an ended order's fee.
 	Orders []*v1.Order `protobuf:"bytes,3,rep,name=orders,proto3" json:"orders,omitempty"`
 	// Public IDs of orders that left the live view: ended orders now kept in
 	// history, or orders that never got past admission. Not a cancellation.
@@ -2551,12 +2553,20 @@ func (*UnitEvent_Order) isUnitEvent_Kind() {}
 
 func (*UnitEvent_Outcome) isUnitEvent_Kind() {}
 
-// OrderEvent is something that happened to an order.
+// OrderEvent is something that happened to an order. No event carries a
+// fee: a fill's fee is recorded once the fill is settled, after its FILLED
+// event and often after the order's last event. orders.v1.Order.fee_total
+// says how to read it.
 type OrderEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The order's public ID.
 	OrderId uint64 `protobuf:"fixed64,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
-	// The order's version after the event.
+	// The order's version after the event: the same counter as the version of the
+	// order's reads, orders.v1.Order.version, which says how a client orders
+	// events and reads by it. It is an unsigned 32-bit counter that increases on
+	// every change of the order: it would wrap to 0 only after 4,294,967,295
+	// changes to one order ID. Ignore an event whose version is below the highest
+	// one applied for the order.
 	Version uint32 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
 	// What happened.
 	Kind OrderEvent_Kind `protobuf:"varint,3,opt,name=kind,proto3,enum=privatews.v1.OrderEvent_Kind" json:"kind,omitempty"`

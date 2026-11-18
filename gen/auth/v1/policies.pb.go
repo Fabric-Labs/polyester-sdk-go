@@ -160,13 +160,20 @@ const (
 	PolicyAction_READ_STATEMENTS PolicyAction = 38
 	// Allow quoting and converting dust, small Trading balances, into a target
 	// asset, and reading the conversions. Listing dust balances needs
-	// READ_BALANCES. Account permission.
+	// READ_BALANCES.
 	PolicyAction_CONVERT_DUST PolicyAction = 39
 	// Allow reading the account's deposit, withdrawal, and transfer flows,
 	// including the flows no chain transaction started and the transfers it
 	// receives from other accounts. It grants no balance or transfer read.
-	// Account permission.
 	PolicyAction_READ_FUNDING_FLOWS PolicyAction = 40
+	// Allow listing, reading, and counting the main account's notifications.
+	// It does not allow marking them read or unread. Main-account permission.
+	PolicyAction_READ_NOTIFICATIONS PolicyAction = 41
+	// Allow listing the security and activity events of the main account and
+	// its sub-accounts within the key's scope: a key scoped to the main account
+	// reads all of them, a key scoped to a sub-account only that sub-account's.
+	// Account permission.
+	PolicyAction_READ_ACCOUNT_ACTIVITY PolicyAction = 42
 )
 
 // Enum value maps for PolicyAction.
@@ -209,6 +216,8 @@ var (
 		38: "READ_STATEMENTS",
 		39: "CONVERT_DUST",
 		40: "READ_FUNDING_FLOWS",
+		41: "READ_NOTIFICATIONS",
+		42: "READ_ACCOUNT_ACTIVITY",
 	}
 	PolicyAction_value = map[string]int32{
 		"UNSPECIFIED":                 0,
@@ -248,6 +257,8 @@ var (
 		"READ_STATEMENTS":             38,
 		"CONVERT_DUST":                39,
 		"READ_FUNDING_FLOWS":          40,
+		"READ_NOTIFICATIONS":          41,
+		"READ_ACCOUNT_ACTIVITY":       42,
 	}
 )
 
@@ -2390,7 +2401,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x16SetApiKeyPolicyRequest\x124\n" +
 	"\x06key_id\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x15\x10\x012\x11^ak_[a-f0-9]{32}$R\x05keyId\x12\x1b\n" +
 	"\tpolicy_id\x18\x02 \x01(\x06R\bpolicyId\"\x19\n" +
-	"\x17SetApiKeyPolicyResponse*\xfa\x06\n" +
+	"\x17SetApiKeyPolicyResponse*\xad\a\n" +
 	"\fPolicyAction\x12\x0f\n" +
 	"\vUNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -2430,7 +2441,9 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x13MANAGE_PRICE_ALERTS\x10%\x12\x13\n" +
 	"\x0fREAD_STATEMENTS\x10&\x12\x10\n" +
 	"\fCONVERT_DUST\x10'\x12\x16\n" +
-	"\x12READ_FUNDING_FLOWS\x10(2\x9f\x1c\n" +
+	"\x12READ_FUNDING_FLOWS\x10(\x12\x16\n" +
+	"\x12READ_NOTIFICATIONS\x10)\x12\x19\n" +
+	"\x15READ_ACCOUNT_ACTIVITY\x10*2\x9f\x1c\n" +
 	"\rPolicyService\x12\xfc\x02\n" +
 	"\x16ListSubaccountPolicies\x12&.auth.v1.ListSubaccountPoliciesRequest\x1a'.auth.v1.ListSubaccountPoliciesResponse\"\x90\x02\xbaG\xe1\x01\n" +
 	"\fAuth Service\x12\x18List Subaccount Policies\x1a\xb6\x01List sub-account policy templates available to the caller. An API key needs READ_SUBACCOUNT_POLICIES; a key scoped to a sub-account sees only the policy attached to that sub-account.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1f\x12\x1d/v1/auth/policies/subaccounts\x12\xfe\x02\n" +

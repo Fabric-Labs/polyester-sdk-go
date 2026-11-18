@@ -46,35 +46,45 @@ const (
 
 // QuickSwapServiceClient is a client for the swap.quickswap.v1.QuickSwapService service.
 type QuickSwapServiceClient interface {
-	// QuoteQuickSwap prices terms without creating a QuickSwap or reserving a
-	// deposit address. The quote's output and fees are estimates: the fees
+	// QuoteQuickSwap prices terms without reserving a deposit address.
+	//
+	// Nothing is created. The quote's output and fees are estimates: the fees
 	// charged are their rates applied to the actual execution once the
 	// deposit is credited. The quote states whether the route needs a refund
-	// address.
+	// address. A declared source_wallet is risk screened before the quote is
+	// returned.
 	//
 	// Errors:
 	//   - INVALID_ARGUMENT: malformed request, AMOUNT_OUT_OF_RANGE,
-	//     DECIMALS_MISMATCH or FEES_INVALID.
-	//   - FAILED_PRECONDITION: ROUTE_UNSUPPORTED, PROTECTION_UNACHIEVABLE or
-	//     AFFILIATE_VAULT_UNKNOWN.
+	//     DECIMALS_MISMATCH, SOURCE_WALLET_INVALID, FEES_INVALID,
+	//     REFERRAL_CODE_INVALID or REFERRAL_NOT_SUPPORTED.
+	//   - FAILED_PRECONDITION: ROUTE_UNSUPPORTED, ROUTE_SUSPENDED,
+	//     PROTECTION_UNACHIEVABLE, AFFILIATE_VAULT_UNKNOWN, REFERRAL_CODE_UNKNOWN
+	//     or REFERRAL_PARTNER_INACTIVE.
 	//   - UNAVAILABLE: QUOTE_UNAVAILABLE; retry later.
-	//   - PERMISSION_DENIED: BROKER_DISABLED.
+	//   - PERMISSION_DENIED: BROKER_DISABLED, or SOURCE_WALLET_REJECTED when the
+	//     source_wallet failed risk screening; nothing is bound.
 	//   - RESOURCE_EXHAUSTED: BROKER_LIMIT, the quote request rate of the key.
 	//   - UNAUTHENTICATED: missing or invalid broker API key.
 	QuoteQuickSwap(context.Context, *connect.Request[v1.QuoteQuickSwapRequest]) (*connect.Response[v1.QuoteQuickSwapResponse], error)
-	// CreateQuickSwap creates the QuickSwap for idempotency_key, prices it and
-	// allocates its deposit address. It is idempotent per broker and key: a
-	// repeated or concurrent request with the same body returns the same
-	// QuickSwap, quote and address, so every unknown outcome is resolved by
-	// repeating the request unchanged.
+	// CreateQuickSwap creates or returns the QuickSwap for an idempotency key.
+	//
+	// A new QuickSwap is priced and gets its deposit address. The call is
+	// idempotent per broker and key: a repeated or concurrent request with the
+	// same body returns the same QuickSwap, quote and address, so every
+	// unknown outcome is resolved by repeating the request unchanged. A
+	// declared source_wallet is risk screened before the deposit address is
+	// issued.
 	//
 	// Errors:
 	//   - INVALID_ARGUMENT: malformed request, AMOUNT_OUT_OF_RANGE,
 	//     DECIMALS_MISMATCH, DESTINATION_ADDRESS_INVALID, RETURN_ADDRESS_INVALID,
-	//     REFUND_ADDRESS_INVALID, SOURCE_WALLET_INVALID or FEES_INVALID.
-	//   - FAILED_PRECONDITION: ROUTE_UNSUPPORTED, PROTECTION_UNACHIEVABLE,
-	//     REFUND_ADDRESS_REQUIRED or AFFILIATE_VAULT_UNKNOWN; nothing is bound to
-	//     the key.
+	//     REFUND_ADDRESS_INVALID, SOURCE_WALLET_INVALID, FEES_INVALID,
+	//     REFERRAL_CODE_INVALID or REFERRAL_NOT_SUPPORTED.
+	//   - FAILED_PRECONDITION: ROUTE_UNSUPPORTED, ROUTE_SUSPENDED,
+	//     PROTECTION_UNACHIEVABLE, REFUND_ADDRESS_REQUIRED,
+	//     AFFILIATE_VAULT_UNKNOWN, REFERRAL_CODE_UNKNOWN or
+	//     REFERRAL_PARTNER_INACTIVE; nothing is bound to the key.
 	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT; the original QuickSwap stands.
 	//   - UNAVAILABLE: ADDRESS_UNAVAILABLE; the QuickSwap is kept and gets its
 	//     address automatically; follow it with GetQuickSwap or the same request.
@@ -84,6 +94,9 @@ type QuickSwapServiceClient interface {
 	//   - UNAVAILABLE, DEADLINE_EXCEEDED: unknown outcome or QUOTE_UNAVAILABLE;
 	//     retry the same request.
 	//   - PERMISSION_DENIED: BROKER_DISABLED; nothing is bound to the key.
+	//   - PERMISSION_DENIED: SOURCE_WALLET_REJECTED when the source_wallet failed
+	//     risk screening; the QuickSwap (swap_id in the error) is REJECTED
+	//     without a deposit address, and every repeat returns this error.
 	//   - RESOURCE_EXHAUSTED: BROKER_LIMIT; nothing is bound to the key.
 	//   - UNAUTHENTICATED: missing or invalid broker API key.
 	CreateQuickSwap(context.Context, *connect.Request[v1.CreateQuickSwapRequest]) (*connect.Response[v1.CreateQuickSwapResponse], error)
@@ -154,35 +167,45 @@ func (c *quickSwapServiceClient) GetQuickSwap(ctx context.Context, req *connect.
 
 // QuickSwapServiceHandler is an implementation of the swap.quickswap.v1.QuickSwapService service.
 type QuickSwapServiceHandler interface {
-	// QuoteQuickSwap prices terms without creating a QuickSwap or reserving a
-	// deposit address. The quote's output and fees are estimates: the fees
+	// QuoteQuickSwap prices terms without reserving a deposit address.
+	//
+	// Nothing is created. The quote's output and fees are estimates: the fees
 	// charged are their rates applied to the actual execution once the
 	// deposit is credited. The quote states whether the route needs a refund
-	// address.
+	// address. A declared source_wallet is risk screened before the quote is
+	// returned.
 	//
 	// Errors:
 	//   - INVALID_ARGUMENT: malformed request, AMOUNT_OUT_OF_RANGE,
-	//     DECIMALS_MISMATCH or FEES_INVALID.
-	//   - FAILED_PRECONDITION: ROUTE_UNSUPPORTED, PROTECTION_UNACHIEVABLE or
-	//     AFFILIATE_VAULT_UNKNOWN.
+	//     DECIMALS_MISMATCH, SOURCE_WALLET_INVALID, FEES_INVALID,
+	//     REFERRAL_CODE_INVALID or REFERRAL_NOT_SUPPORTED.
+	//   - FAILED_PRECONDITION: ROUTE_UNSUPPORTED, ROUTE_SUSPENDED,
+	//     PROTECTION_UNACHIEVABLE, AFFILIATE_VAULT_UNKNOWN, REFERRAL_CODE_UNKNOWN
+	//     or REFERRAL_PARTNER_INACTIVE.
 	//   - UNAVAILABLE: QUOTE_UNAVAILABLE; retry later.
-	//   - PERMISSION_DENIED: BROKER_DISABLED.
+	//   - PERMISSION_DENIED: BROKER_DISABLED, or SOURCE_WALLET_REJECTED when the
+	//     source_wallet failed risk screening; nothing is bound.
 	//   - RESOURCE_EXHAUSTED: BROKER_LIMIT, the quote request rate of the key.
 	//   - UNAUTHENTICATED: missing or invalid broker API key.
 	QuoteQuickSwap(context.Context, *connect.Request[v1.QuoteQuickSwapRequest]) (*connect.Response[v1.QuoteQuickSwapResponse], error)
-	// CreateQuickSwap creates the QuickSwap for idempotency_key, prices it and
-	// allocates its deposit address. It is idempotent per broker and key: a
-	// repeated or concurrent request with the same body returns the same
-	// QuickSwap, quote and address, so every unknown outcome is resolved by
-	// repeating the request unchanged.
+	// CreateQuickSwap creates or returns the QuickSwap for an idempotency key.
+	//
+	// A new QuickSwap is priced and gets its deposit address. The call is
+	// idempotent per broker and key: a repeated or concurrent request with the
+	// same body returns the same QuickSwap, quote and address, so every
+	// unknown outcome is resolved by repeating the request unchanged. A
+	// declared source_wallet is risk screened before the deposit address is
+	// issued.
 	//
 	// Errors:
 	//   - INVALID_ARGUMENT: malformed request, AMOUNT_OUT_OF_RANGE,
 	//     DECIMALS_MISMATCH, DESTINATION_ADDRESS_INVALID, RETURN_ADDRESS_INVALID,
-	//     REFUND_ADDRESS_INVALID, SOURCE_WALLET_INVALID or FEES_INVALID.
-	//   - FAILED_PRECONDITION: ROUTE_UNSUPPORTED, PROTECTION_UNACHIEVABLE,
-	//     REFUND_ADDRESS_REQUIRED or AFFILIATE_VAULT_UNKNOWN; nothing is bound to
-	//     the key.
+	//     REFUND_ADDRESS_INVALID, SOURCE_WALLET_INVALID, FEES_INVALID,
+	//     REFERRAL_CODE_INVALID or REFERRAL_NOT_SUPPORTED.
+	//   - FAILED_PRECONDITION: ROUTE_UNSUPPORTED, ROUTE_SUSPENDED,
+	//     PROTECTION_UNACHIEVABLE, REFUND_ADDRESS_REQUIRED,
+	//     AFFILIATE_VAULT_UNKNOWN, REFERRAL_CODE_UNKNOWN or
+	//     REFERRAL_PARTNER_INACTIVE; nothing is bound to the key.
 	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT; the original QuickSwap stands.
 	//   - UNAVAILABLE: ADDRESS_UNAVAILABLE; the QuickSwap is kept and gets its
 	//     address automatically; follow it with GetQuickSwap or the same request.
@@ -192,6 +215,9 @@ type QuickSwapServiceHandler interface {
 	//   - UNAVAILABLE, DEADLINE_EXCEEDED: unknown outcome or QUOTE_UNAVAILABLE;
 	//     retry the same request.
 	//   - PERMISSION_DENIED: BROKER_DISABLED; nothing is bound to the key.
+	//   - PERMISSION_DENIED: SOURCE_WALLET_REJECTED when the source_wallet failed
+	//     risk screening; the QuickSwap (swap_id in the error) is REJECTED
+	//     without a deposit address, and every repeat returns this error.
 	//   - RESOURCE_EXHAUSTED: BROKER_LIMIT; nothing is bound to the key.
 	//   - UNAUTHENTICATED: missing or invalid broker API key.
 	CreateQuickSwap(context.Context, *connect.Request[v1.CreateQuickSwapRequest]) (*connect.Response[v1.CreateQuickSwapResponse], error)

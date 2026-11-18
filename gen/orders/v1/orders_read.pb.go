@@ -1083,7 +1083,7 @@ func (x *OrderFeeTotal) GetQtyScaled() int64 {
 // Order is the Connect-facing order view with compact binary fields.
 type Order struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Public order identifier as fixed64.
+	// Public order ID.
 	OrderId uint64 `protobuf:"fixed64,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
 	// Trading symbol numeric identifier.
 	SymbolId uint32 `protobuf:"varint,3,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
@@ -1164,18 +1164,31 @@ type Order struct {
 	// submitted_quote_proceeds_scaled less this amount.
 	CumNotional *v1.U128 `protobuf:"bytes,37,opt,name=cum_notional,json=cumNotional,proto3" json:"cum_notional,omitempty"`
 	// Total fee of the fills across the lineage through this generation, net
-	// of rebates, in the order's fee asset. Order history reads and
-	// single-order reads that include execution history (the default) carry
-	// it. It can trail the order's fills: its quantity shows which fills it
-	// covers. Open-order reads, single-order reads without execution history
-	// and private stream order updates leave it unset.
+	// of rebates, in the order's fee asset. A fill's fee is recorded once the
+	// fill is settled, which can be seconds after the order ended.
+	//
+	// Order history reads and single-order reads that include execution
+	// history (the default) carry it, over the fills recorded so far: its
+	// quantity shows which fills it covers, and it is the order's whole fee
+	// once that quantity equals the order's filled quantity. Open-order reads,
+	// single-order reads without execution history and private stream order
+	// updates leave it unset, an ended order's update included.
+	//
+	// To show the fee of an order seen on the private stream, or the quote a
+	// BUY sized by a quote amount used: once an update shows the order ended
+	// with a filled quantity above zero, read the order by its ID, and read it
+	// again, a few hundred milliseconds apart, until the fee total's quantity
+	// equals the order's filled quantity.
 	FeeTotal *OrderFeeTotal `protobuf:"bytes,38,opt,name=fee_total,json=feeTotal,proto3" json:"fee_total,omitempty"`
 	// Price in quote units scaled by 1e9. For a LIMIT order, its limit price.
 	// For a MARKET order, whatever placed it, its protection price: the worst
 	// price it may fill at, a BUY at or below it and a SELL at or above it. It
 	// is the order's reference price moved by its maximum slippage, or by the
 	// pair's default market slippage for its side (200 basis points if none is
-	// configured), on the pair's tick grid. A stop-loss's, take-profit's or
+	// configured), put on the pair's tick grid toward the reference: a BUY's
+	// rounded down and a SELL's up, so it never allows more than the slippage.
+	// The reference and the slippage need not be on the tick grid themselves
+	// (see MarketIoc). A stop-loss's, take-profit's or
 	// trailing stop's market order takes the price that fired it as its
 	// reference; a buy stop's is never above the protection price at its
 	// trigger price.
@@ -1199,21 +1212,38 @@ type Order struct {
 	AttachedRisk *AttachedRisk `protobuf:"bytes,21,opt,name=attached_risk,json=attachedRisk,proto3" json:"attached_risk,omitempty"`
 	// Runtime lineage metadata (why the order exists and what generated it).
 	Origin *OrderOrigin `protobuf:"bytes,22,opt,name=origin,proto3" json:"origin,omitempty"`
-	// Optional client-side reference price used for MARKET slippage protection,
-	// in quote units scaled by 1e9.
+	// Client reference price the MARKET order set for its slippage protection,
+	// in quote units scaled by 1e9, exactly as given: it need not be on the
+	// pair's tick grid (see MarketIoc). Zero when the order set none.
 	MarketClientRefPriceTicks int64 `protobuf:"varint,23,opt,name=market_client_ref_price_ticks,json=marketClientRefPriceTicks,proto3" json:"market_client_ref_price_ticks,omitempty"`
-	// MARKET maximum absolute price delta the order carries, in Q9
-	// execution-price ticks (1 tick = 1e-9 quote units). Positive when the order
-	// set this cap; zero when it did not, for example because it set
-	// market_max_slippage_bps instead.
+	// MARKET maximum absolute price delta the order carries, in quote units
+	// scaled by 1e9 (1e-9 quote units, not the pair's tick size), exactly as
+	// given: it need not be a multiple of the pair's tick size (see MarketIoc).
+	// Positive when the order set this cap; zero when it did not, for example
+	// because it set market_max_slippage_bps instead.
 	MarketMaxSlippageTicks int64 `protobuf:"varint,24,opt,name=market_max_slippage_ticks,json=marketMaxSlippageTicks,proto3" json:"market_max_slippage_ticks,omitempty"`
 	// Optional MARKET max slippage in basis points (1 bp = 0.01%).
 	MarketMaxSlippageBps int32 `protobuf:"varint,25,opt,name=market_max_slippage_bps,json=marketMaxSlippageBps,proto3" json:"market_max_slippage_bps,omitempty"`
-	// Per-order state version: 0 while the order is accepted but not yet on
-	// the book (status PENDING), then 1 from its first book state and higher
-	// for every later published execution-state change. Higher values identify
-	// newer execution state. Fee totals and requested enrichments are not covered
-	// by this version and may differ between responses with the same version.
+	// Per-order state version: the same counter as the version of the order's
+	// events on the private WebSocket and the trade WebSocket. It is 0 while the
+	// order is accepted but not yet on the book (status PENDING), then 1 from its
+	// first book state, and it increases with every later published change of the
+	// order's state, such as an amend in place, a fill, a change of its attached
+	// risk, a cancel or a replace. It is an unsigned 32-bit counter that
+	// increases on every change of the order: it would wrap to 0 only after
+	// 4,294,967,295 changes to one order ID. A replace that gives the order a new
+	// ID starts that order's own version.
+	//
+	// A read can lag behind the order's events. Keep the highest version
+	// applied for each order ID, from reads and events alike, and drop any read
+	// whose version is below it: that read shows an older state. A stream need
+	// not show every version, so a gap is not an error; read the order to
+	// recover its current state.
+	//
+	// fee_total is not covered by this version: a fill's fee is recorded after
+	// the fill, so responses with the same version can show different fee
+	// totals. A read includes attached_risk only on request, so its absence
+	// from a response is no change of the order.
 	Version uint32 `protobuf:"varint,26,opt,name=version,proto3" json:"version,omitempty"`
 	// Batch-replace identity that admitted this order, retained after it ends.
 	// Also set for batch-replaced trigger-generated orders. Zero when this order
@@ -1528,7 +1558,7 @@ type UserTrade struct {
 	SymbolId uint32 `protobuf:"varint,2,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Match identifier (monotonic per symbol).
 	MatchId uint64 `protobuf:"varint,3,opt,name=match_id,json=matchId,proto3" json:"match_id,omitempty"`
-	// Order identifier as fixed64.
+	// Public order ID of the filled order.
 	OrderId uint64 `protobuf:"fixed64,4,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
 	// Fill side.
 	Side Side `protobuf:"varint,5,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
@@ -2608,7 +2638,7 @@ type isGetOrderRequest_Key interface {
 }
 
 type GetOrderRequest_OrderId struct {
-	// Public order ID (base58-encoded fixed64 on REST).
+	// Public order ID.
 	OrderId uint64 `protobuf:"fixed64,2,opt,name=order_id,json=orderId,proto3,oneof"`
 }
 
@@ -3059,7 +3089,7 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"amount_e18\x18\x01 \x01(\v2\x17.polyester.type.v1.U128R\tamountE18\x12\x1b\n" +
 	"\tis_rebate\x18\x02 \x01(\bR\bisRebate\x12\x1d\n" +
 	"\n" +
-	"qty_scaled\x18\x03 \x01(\x03R\tqtyScaled\"\x91\x0f\n" +
+	"qty_scaled\x18\x03 \x01(\x03R\tqtyScaled\"\x82\x0f\n" +
 	"\x05Order\x12\x19\n" +
 	"\border_id\x18\x01 \x01(\x06R\aorderId\x12\x1b\n" +
 	"\tsymbol_id\x18\x03 \x01(\rR\bsymbolId\x12D\n" +
@@ -3093,9 +3123,8 @@ const file_orders_v1_orders_read_proto_rawDesc = "" +
 	"\x06origin\x18\x16 \x01(\v2\x16.orders.v1.OrderOriginR\x06origin\x12@\n" +
 	"\x1dmarket_client_ref_price_ticks\x18\x17 \x01(\x03R\x19marketClientRefPriceTicks\x129\n" +
 	"\x19market_max_slippage_ticks\x18\x18 \x01(\x03R\x16marketMaxSlippageTicks\x125\n" +
-	"\x17market_max_slippage_bps\x18\x19 \x01(\x05R\x14marketMaxSlippageBps\x12'\n" +
-	"\aversion\x18\x1a \x01(\rB\r\xbaH\n" +
-	"*\b\x18\xff\xff\xff\xff\a(\x00R\aversion\x12(\n" +
+	"\x17market_max_slippage_bps\x18\x19 \x01(\x05R\x14marketMaxSlippageBps\x12\x18\n" +
+	"\aversion\x18\x1a \x01(\rR\aversion\x12(\n" +
 	"\x10batch_request_id\x18\x1b \x01(\x06R\x0ebatchRequestId\x12K\n" +
 	" submitted_max_quote_debit_scaled\x18\x1c \x01(\x03H\x00R\x1csubmittedMaxQuoteDebitScaled\x88\x01\x01\x12J\n" +
 	"\x1fsubmitted_quote_proceeds_scaled\x18) \x01(\x03H\x01R\x1csubmittedQuoteProceedsScaled\x88\x01\x01\x121\n" +

@@ -390,6 +390,91 @@ func (x *GetVersionResponse) GetEnvironment() string {
 	return ""
 }
 
+// GetTimeRequest takes no parameters.
+type GetTimeRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTimeRequest) Reset() {
+	*x = GetTimeRequest{}
+	mi := &file_system_v1_system_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTimeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTimeRequest) ProtoMessage() {}
+
+func (x *GetTimeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_system_v1_system_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTimeRequest.ProtoReflect.Descriptor instead.
+func (*GetTimeRequest) Descriptor() ([]byte, []int) {
+	return file_system_v1_system_proto_rawDescGZIP(), []int{2}
+}
+
+// GetTimeResponse carries the server clock.
+type GetTimeResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Server time when the request was answered, in milliseconds since the Unix
+	// epoch (UTC). The clock that checks the X-API-TIMESTAMP of requests signed
+	// with an API key.
+	ServerTimeMs  int64 `protobuf:"varint,1,opt,name=server_time_ms,json=serverTimeMs,proto3" json:"server_time_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetTimeResponse) Reset() {
+	*x = GetTimeResponse{}
+	mi := &file_system_v1_system_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetTimeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetTimeResponse) ProtoMessage() {}
+
+func (x *GetTimeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_system_v1_system_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetTimeResponse.ProtoReflect.Descriptor instead.
+func (*GetTimeResponse) Descriptor() ([]byte, []int) {
+	return file_system_v1_system_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *GetTimeResponse) GetServerTimeMs() int64 {
+	if x != nil {
+		return x.ServerTimeMs
+	}
+	return 0
+}
+
 // StatusEventUpdate is one progress note posted on a status event. Notes are
 // never edited or removed.
 type StatusEventUpdate struct {
@@ -407,7 +492,7 @@ type StatusEventUpdate struct {
 
 func (x *StatusEventUpdate) Reset() {
 	*x = StatusEventUpdate{}
-	mi := &file_system_v1_system_proto_msgTypes[2]
+	mi := &file_system_v1_system_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -419,7 +504,7 @@ func (x *StatusEventUpdate) String() string {
 func (*StatusEventUpdate) ProtoMessage() {}
 
 func (x *StatusEventUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_system_v1_system_proto_msgTypes[2]
+	mi := &file_system_v1_system_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -432,7 +517,7 @@ func (x *StatusEventUpdate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusEventUpdate.ProtoReflect.Descriptor instead.
 func (*StatusEventUpdate) Descriptor() ([]byte, []int) {
-	return file_system_v1_system_proto_rawDescGZIP(), []int{2}
+	return file_system_v1_system_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *StatusEventUpdate) GetId() uint32 {
@@ -505,7 +590,7 @@ type StatusEvent struct {
 
 func (x *StatusEvent) Reset() {
 	*x = StatusEvent{}
-	mi := &file_system_v1_system_proto_msgTypes[3]
+	mi := &file_system_v1_system_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -517,7 +602,7 @@ func (x *StatusEvent) String() string {
 func (*StatusEvent) ProtoMessage() {}
 
 func (x *StatusEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_system_v1_system_proto_msgTypes[3]
+	mi := &file_system_v1_system_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -530,7 +615,7 @@ func (x *StatusEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusEvent.ProtoReflect.Descriptor instead.
 func (*StatusEvent) Descriptor() ([]byte, []int) {
-	return file_system_v1_system_proto_rawDescGZIP(), []int{3}
+	return file_system_v1_system_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *StatusEvent) GetId() uint64 {
@@ -661,7 +746,7 @@ type ListStatusEventsRequest struct {
 
 func (x *ListStatusEventsRequest) Reset() {
 	*x = ListStatusEventsRequest{}
-	mi := &file_system_v1_system_proto_msgTypes[4]
+	mi := &file_system_v1_system_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -673,7 +758,7 @@ func (x *ListStatusEventsRequest) String() string {
 func (*ListStatusEventsRequest) ProtoMessage() {}
 
 func (x *ListStatusEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_system_v1_system_proto_msgTypes[4]
+	mi := &file_system_v1_system_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -686,7 +771,7 @@ func (x *ListStatusEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListStatusEventsRequest.ProtoReflect.Descriptor instead.
 func (*ListStatusEventsRequest) Descriptor() ([]byte, []int) {
-	return file_system_v1_system_proto_rawDescGZIP(), []int{4}
+	return file_system_v1_system_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListStatusEventsRequest) GetStates() []StatusEventState {
@@ -731,7 +816,7 @@ type ListStatusEventsResponse struct {
 
 func (x *ListStatusEventsResponse) Reset() {
 	*x = ListStatusEventsResponse{}
-	mi := &file_system_v1_system_proto_msgTypes[5]
+	mi := &file_system_v1_system_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -743,7 +828,7 @@ func (x *ListStatusEventsResponse) String() string {
 func (*ListStatusEventsResponse) ProtoMessage() {}
 
 func (x *ListStatusEventsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_system_v1_system_proto_msgTypes[5]
+	mi := &file_system_v1_system_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -756,7 +841,7 @@ func (x *ListStatusEventsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListStatusEventsResponse.ProtoReflect.Descriptor instead.
 func (*ListStatusEventsResponse) Descriptor() ([]byte, []int) {
-	return file_system_v1_system_proto_rawDescGZIP(), []int{5}
+	return file_system_v1_system_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListStatusEventsResponse) GetEvents() []*StatusEvent {
@@ -782,7 +867,10 @@ const file_system_v1_system_proto_rawDesc = "" +
 	"\x12GetVersionResponse\x12\x81\x01\n" +
 	"\aversion\x18\x01 \x01(\tBg\xbaHdrb2`^(0|[1-9][0-9]{0,8})\\.(0|[1-9][0-9]{0,8})\\.(0|[1-9][0-9]{0,8})(-[1-9][0-9]{0,8}-g[0-9a-f]{12})?$R\aversion\x12-\n" +
 	"\x06commit\x18\x02 \x01(\tB\x15\xbaH\x12r\x102\x0e^[0-9a-f]{40}$R\x06commit\x12H\n" +
-	"\venvironment\x18\x03 \x01(\tB&\xbaH#r!R\x06devnetR\atestnetR\amainnetR\x05localR\venvironment\"x\n" +
+	"\venvironment\x18\x03 \x01(\tB&\xbaH#r!R\x06devnetR\atestnetR\amainnetR\x05localR\venvironment\"\x10\n" +
+	"\x0eGetTimeRequest\"7\n" +
+	"\x0fGetTimeResponse\x12$\n" +
+	"\x0eserver_time_ms\x18\x01 \x01(\x03R\fserverTimeMs\"x\n" +
 	"\x11StatusEventUpdate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x129\n" +
@@ -843,14 +931,17 @@ const file_system_v1_system_proto_rawDesc = "" +
 	"\bACCOUNTS\x10\x06\x12\a\n" +
 	"\x03API\x10\a\x12\r\n" +
 	"\tQUICKSWAP\x10\b\x12\a\n" +
-	"\x03APP\x10\t2\xa5\x04\n" +
+	"\x03APP\x10\t2\xd2\a\n" +
 	"\rSystemService\x12\xd9\x01\n" +
 	"\n" +
 	"GetVersion\x12\x1c.system.v1.GetVersionRequest\x1a\x1d.system.v1.GetVersionResponse\"\x8d\x01\xbaGi\n" +
-	"\x0eSystem Service\x12\vGet Version\x1aHGet the version and source revision of the build the environment serves.Z\x00\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x14\x12\x12/v1/system/version\x90\x02\x01\x12\xa8\x02\n" +
+	"\x0eSystem Service\x12\vGet Version\x1aHGet the version and source revision of the build the environment serves.Z\x00\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x14\x12\x12/v1/system/version\x90\x02\x01\x12\xaa\x03\n" +
+	"\aGetTime\x12\x19.system.v1.GetTimeRequest\x1a\x1a.system.v1.GetTimeResponse\"\xe7\x02\xbaG\xcc\x02\n" +
+	"\x0eSystem Service\x12\x0fGet Server Time\x1a\xa6\x02Get the server time in milliseconds since the Unix epoch. A request signed with an API key is accepted only while its X-API-TIMESTAMP is at most 1000 ms ahead of the server time and at most its receive window behind it: the X-API-RECV-WINDOW header, from 1 to 60000 ms, or 5000 ms when omitted.Z\x00\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\n" +
+	"\x12\b/v1/time\x90\x02\x01\x12\xa8\x02\n" +
 	"\x10ListStatusEvents\x12\".system.v1.ListStatusEventsRequest\x1a#.system.v1.ListStatusEventsResponse\"\xca\x01\xbaG\x9f\x01\n" +
-	"\x0eSystem Service\x12\x12List Status Events\x1awList scheduled maintenance and incidents, the latest start first. With no states, it lists current and upcoming events.Z\x00\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1a\x12\x18/v1/system/status-events\x90\x02\x01\x1a\r\x8a\xb5\x18\tchangelogB\xa4\x01\xbaGa:_\n" +
-	"\x0eSystem Service\x12MThe build an environment serves, and its scheduled maintenance and incidents.Z>github.com/Fabric-Labs/polyester-sdk-go/gen/system/v1;systemv1b\x06proto3"
+	"\x0eSystem Service\x12\x12List Status Events\x1awList scheduled maintenance and incidents, the latest start first. With no states, it lists current and upcoming events.Z\x00\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1a\x12\x18/v1/system/status-events\x90\x02\x01\x1a\r\x8a\xb5\x18\tchangelogB\xaf\x01\xbaGl:j\n" +
+	"\x0eSystem Service\x12XThe build an environment serves, its clock, and its scheduled maintenance and incidents.Z>github.com/Fabric-Labs/polyester-sdk-go/gen/system/v1;systemv1b\x06proto3"
 
 var (
 	file_system_v1_system_proto_rawDescOnce sync.Once
@@ -865,7 +956,7 @@ func file_system_v1_system_proto_rawDescGZIP() []byte {
 }
 
 var file_system_v1_system_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_system_v1_system_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_system_v1_system_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_system_v1_system_proto_goTypes = []any{
 	(StatusEventKind)(0),             // 0: system.v1.StatusEventKind
 	(StatusEventState)(0),            // 1: system.v1.StatusEventState
@@ -873,32 +964,36 @@ var file_system_v1_system_proto_goTypes = []any{
 	(AffectedService)(0),             // 3: system.v1.AffectedService
 	(*GetVersionRequest)(nil),        // 4: system.v1.GetVersionRequest
 	(*GetVersionResponse)(nil),       // 5: system.v1.GetVersionResponse
-	(*StatusEventUpdate)(nil),        // 6: system.v1.StatusEventUpdate
-	(*StatusEvent)(nil),              // 7: system.v1.StatusEvent
-	(*ListStatusEventsRequest)(nil),  // 8: system.v1.ListStatusEventsRequest
-	(*ListStatusEventsResponse)(nil), // 9: system.v1.ListStatusEventsResponse
-	(*timestamppb.Timestamp)(nil),    // 10: google.protobuf.Timestamp
+	(*GetTimeRequest)(nil),           // 6: system.v1.GetTimeRequest
+	(*GetTimeResponse)(nil),          // 7: system.v1.GetTimeResponse
+	(*StatusEventUpdate)(nil),        // 8: system.v1.StatusEventUpdate
+	(*StatusEvent)(nil),              // 9: system.v1.StatusEvent
+	(*ListStatusEventsRequest)(nil),  // 10: system.v1.ListStatusEventsRequest
+	(*ListStatusEventsResponse)(nil), // 11: system.v1.ListStatusEventsResponse
+	(*timestamppb.Timestamp)(nil),    // 12: google.protobuf.Timestamp
 }
 var file_system_v1_system_proto_depIdxs = []int32{
-	10, // 0: system.v1.StatusEventUpdate.created_at:type_name -> google.protobuf.Timestamp
+	12, // 0: system.v1.StatusEventUpdate.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 1: system.v1.StatusEvent.kind:type_name -> system.v1.StatusEventKind
 	1,  // 2: system.v1.StatusEvent.state:type_name -> system.v1.StatusEventState
-	10, // 3: system.v1.StatusEvent.start_time:type_name -> google.protobuf.Timestamp
-	10, // 4: system.v1.StatusEvent.end_time:type_name -> google.protobuf.Timestamp
+	12, // 3: system.v1.StatusEvent.start_time:type_name -> google.protobuf.Timestamp
+	12, // 4: system.v1.StatusEvent.end_time:type_name -> google.protobuf.Timestamp
 	3,  // 5: system.v1.StatusEvent.services:type_name -> system.v1.AffectedService
-	10, // 6: system.v1.StatusEvent.updated_at:type_name -> google.protobuf.Timestamp
+	12, // 6: system.v1.StatusEvent.updated_at:type_name -> google.protobuf.Timestamp
 	2,  // 7: system.v1.StatusEvent.impact:type_name -> system.v1.StatusEventImpact
-	10, // 8: system.v1.StatusEvent.cancelled_at:type_name -> google.protobuf.Timestamp
-	6,  // 9: system.v1.StatusEvent.updates:type_name -> system.v1.StatusEventUpdate
+	12, // 8: system.v1.StatusEvent.cancelled_at:type_name -> google.protobuf.Timestamp
+	8,  // 9: system.v1.StatusEvent.updates:type_name -> system.v1.StatusEventUpdate
 	1,  // 10: system.v1.ListStatusEventsRequest.states:type_name -> system.v1.StatusEventState
 	0,  // 11: system.v1.ListStatusEventsRequest.kinds:type_name -> system.v1.StatusEventKind
-	7,  // 12: system.v1.ListStatusEventsResponse.events:type_name -> system.v1.StatusEvent
+	9,  // 12: system.v1.ListStatusEventsResponse.events:type_name -> system.v1.StatusEvent
 	4,  // 13: system.v1.SystemService.GetVersion:input_type -> system.v1.GetVersionRequest
-	8,  // 14: system.v1.SystemService.ListStatusEvents:input_type -> system.v1.ListStatusEventsRequest
-	5,  // 15: system.v1.SystemService.GetVersion:output_type -> system.v1.GetVersionResponse
-	9,  // 16: system.v1.SystemService.ListStatusEvents:output_type -> system.v1.ListStatusEventsResponse
-	15, // [15:17] is the sub-list for method output_type
-	13, // [13:15] is the sub-list for method input_type
+	6,  // 14: system.v1.SystemService.GetTime:input_type -> system.v1.GetTimeRequest
+	10, // 15: system.v1.SystemService.ListStatusEvents:input_type -> system.v1.ListStatusEventsRequest
+	5,  // 16: system.v1.SystemService.GetVersion:output_type -> system.v1.GetVersionResponse
+	7,  // 17: system.v1.SystemService.GetTime:output_type -> system.v1.GetTimeResponse
+	11, // 18: system.v1.SystemService.ListStatusEvents:output_type -> system.v1.ListStatusEventsResponse
+	16, // [16:19] is the sub-list for method output_type
+	13, // [13:16] is the sub-list for method input_type
 	13, // [13:13] is the sub-list for extension type_name
 	13, // [13:13] is the sub-list for extension extendee
 	0,  // [0:13] is the sub-list for field type_name
@@ -909,14 +1004,14 @@ func file_system_v1_system_proto_init() {
 	if File_system_v1_system_proto != nil {
 		return
 	}
-	file_system_v1_system_proto_msgTypes[3].OneofWrappers = []any{}
+	file_system_v1_system_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_system_v1_system_proto_rawDesc), len(file_system_v1_system_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

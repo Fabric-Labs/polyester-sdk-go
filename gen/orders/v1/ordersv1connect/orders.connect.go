@@ -78,10 +78,24 @@ type OrdersServiceClient interface {
 	// ERROR_CODE_ORDER_ALREADY_TERMINAL, including a cancel retried after a
 	// timeout once the order has ended: treat it as already done. A repeat
 	// while an earlier cancel of the order is still in progress is accepted
-	// again and changes nothing. A client order ID keeps naming its order for
-	// at least a minute after the order ends; a cancel by client order ID sent
-	// later may return ERROR_CODE_ORDER_UNKNOWN instead. Retry by order ID, or
-	// read the order, to tell an ended order from an unknown one.
+	// again and changes nothing.
+	// By client order ID, an ended order returns
+	// ERROR_CODE_ORDER_ALREADY_TERMINAL for at least a minute after it ends;
+	// later the client order ID may name no order, and the cancel returns
+	// ERROR_CODE_ORDER_UNKNOWN.
+	// By order ID, an ended order returns ERROR_CODE_ORDER_ALREADY_TERMINAL
+	// while the exchange can still confirm that it placed an order under that
+	// ID. After some exchange maintenance, such as a market listing or a
+	// recovery, an order that ended before it can no longer be confirmed and
+	// returns ERROR_CODE_ORDER_UNKNOWN, as an order ID that was never placed
+	// does.
+	// ERROR_CODE_ORDER_UNKNOWN therefore does not prove that an order never
+	// existed. A client that knows the order ended, for example when retrying a
+	// cancel that timed out, can treat it as done: an open order is never
+	// reported unknown under its own order ID and symbol. Otherwise retry by
+	// client order ID within its window, or read the order with
+	// OrdersReadService.GetOrder to tell an ended order from one that was never
+	// placed.
 	CancelOrder(context.Context, *connect.Request[v1.CancelOrderRequest]) (*connect.Response[v1.CancelOrderResponse], error)
 	// Cancels all matching open orders for an account (kill switch).
 	// Evaluates matching orders from a consistent snapshot at request start and
@@ -126,12 +140,24 @@ type OrdersServiceClient interface {
 	// Places multiple orders in a single request (best-effort per item).
 	BatchCreateOrders(context.Context, *connect.Request[v1.BatchCreateOrdersRequest]) (*connect.Response[v1.BatchCreateOrdersResponse], error)
 	// Modifies an existing order using explicit behavior policy.
+	// A modify of an order that has already ended is refused with
+	// ERROR_CODE_ORDER_ALREADY_TERMINAL; one naming no order is refused with
+	// ERROR_CODE_ORDER_UNKNOWN. An ended order is told apart as for
+	// CancelOrder: by client order ID it returns
+	// ERROR_CODE_ORDER_ALREADY_TERMINAL for at least a minute after it ends; by
+	// order ID it returns ERROR_CODE_ORDER_UNKNOWN once the exchange can no
+	// longer confirm that it placed an order under that ID. Read the order with
+	// OrdersReadService.GetOrder to tell the two apart.
 	ModifyOrder(context.Context, *connect.Request[v1.ModifyOrderRequest]) (*connect.Response[v1.ModifyOrderResponse], error)
 	// Amends or replaces same-symbol orders and returns after authoritative
-	// admission.
+	// admission. An item naming an ended order is refused with
+	// ERROR_CODE_ORDER_ALREADY_TERMINAL or ERROR_CODE_ORDER_UNKNOWN as for
+	// ModifyOrder.
 	BatchReplaceOrders(context.Context, *connect.Request[v1.BatchReplaceOrdersRequest]) (*connect.Response[v1.BatchReplaceOrdersResponse], error)
 	// Cancels multiple orders by explicit ID in a single request.
-	// Per-item results are returned; partial success is the default.
+	// Per-item results are returned; partial success is the default. An item
+	// naming an ended order is rejected with ERROR_CODE_ORDER_ALREADY_TERMINAL
+	// or ERROR_CODE_ORDER_UNKNOWN as for CancelOrder.
 	// Final state is confirmed via the order update stream or read path.
 	BatchCancelOrders(context.Context, *connect.Request[v1.BatchCancelOrdersRequest]) (*connect.Response[v1.BatchCancelOrdersResponse], error)
 }
@@ -278,10 +304,24 @@ type OrdersServiceHandler interface {
 	// ERROR_CODE_ORDER_ALREADY_TERMINAL, including a cancel retried after a
 	// timeout once the order has ended: treat it as already done. A repeat
 	// while an earlier cancel of the order is still in progress is accepted
-	// again and changes nothing. A client order ID keeps naming its order for
-	// at least a minute after the order ends; a cancel by client order ID sent
-	// later may return ERROR_CODE_ORDER_UNKNOWN instead. Retry by order ID, or
-	// read the order, to tell an ended order from an unknown one.
+	// again and changes nothing.
+	// By client order ID, an ended order returns
+	// ERROR_CODE_ORDER_ALREADY_TERMINAL for at least a minute after it ends;
+	// later the client order ID may name no order, and the cancel returns
+	// ERROR_CODE_ORDER_UNKNOWN.
+	// By order ID, an ended order returns ERROR_CODE_ORDER_ALREADY_TERMINAL
+	// while the exchange can still confirm that it placed an order under that
+	// ID. After some exchange maintenance, such as a market listing or a
+	// recovery, an order that ended before it can no longer be confirmed and
+	// returns ERROR_CODE_ORDER_UNKNOWN, as an order ID that was never placed
+	// does.
+	// ERROR_CODE_ORDER_UNKNOWN therefore does not prove that an order never
+	// existed. A client that knows the order ended, for example when retrying a
+	// cancel that timed out, can treat it as done: an open order is never
+	// reported unknown under its own order ID and symbol. Otherwise retry by
+	// client order ID within its window, or read the order with
+	// OrdersReadService.GetOrder to tell an ended order from one that was never
+	// placed.
 	CancelOrder(context.Context, *connect.Request[v1.CancelOrderRequest]) (*connect.Response[v1.CancelOrderResponse], error)
 	// Cancels all matching open orders for an account (kill switch).
 	// Evaluates matching orders from a consistent snapshot at request start and
@@ -326,12 +366,24 @@ type OrdersServiceHandler interface {
 	// Places multiple orders in a single request (best-effort per item).
 	BatchCreateOrders(context.Context, *connect.Request[v1.BatchCreateOrdersRequest]) (*connect.Response[v1.BatchCreateOrdersResponse], error)
 	// Modifies an existing order using explicit behavior policy.
+	// A modify of an order that has already ended is refused with
+	// ERROR_CODE_ORDER_ALREADY_TERMINAL; one naming no order is refused with
+	// ERROR_CODE_ORDER_UNKNOWN. An ended order is told apart as for
+	// CancelOrder: by client order ID it returns
+	// ERROR_CODE_ORDER_ALREADY_TERMINAL for at least a minute after it ends; by
+	// order ID it returns ERROR_CODE_ORDER_UNKNOWN once the exchange can no
+	// longer confirm that it placed an order under that ID. Read the order with
+	// OrdersReadService.GetOrder to tell the two apart.
 	ModifyOrder(context.Context, *connect.Request[v1.ModifyOrderRequest]) (*connect.Response[v1.ModifyOrderResponse], error)
 	// Amends or replaces same-symbol orders and returns after authoritative
-	// admission.
+	// admission. An item naming an ended order is refused with
+	// ERROR_CODE_ORDER_ALREADY_TERMINAL or ERROR_CODE_ORDER_UNKNOWN as for
+	// ModifyOrder.
 	BatchReplaceOrders(context.Context, *connect.Request[v1.BatchReplaceOrdersRequest]) (*connect.Response[v1.BatchReplaceOrdersResponse], error)
 	// Cancels multiple orders by explicit ID in a single request.
-	// Per-item results are returned; partial success is the default.
+	// Per-item results are returned; partial success is the default. An item
+	// naming an ended order is rejected with ERROR_CODE_ORDER_ALREADY_TERMINAL
+	// or ERROR_CODE_ORDER_UNKNOWN as for CancelOrder.
 	// Final state is confirmed via the order update stream or read path.
 	BatchCancelOrders(context.Context, *connect.Request[v1.BatchCancelOrdersRequest]) (*connect.Response[v1.BatchCancelOrdersResponse], error)
 }

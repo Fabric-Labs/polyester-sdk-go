@@ -424,7 +424,10 @@ const (
 	ErrorCode_ERROR_CODE_FEE_ASSET_NOT_ALLOWED ErrorCode = 15
 	// Pair is disabled and does not accept orders.
 	ErrorCode_ERROR_CODE_PAIR_DISABLED ErrorCode = 16
-	// Referenced order could not be resolved.
+	// Referenced order could not be resolved: no order of the account has that
+	// order ID or client order ID, or an ended order can no longer be
+	// confirmed under it (see OrdersService.CancelOrder). Read the order to
+	// tell an ended order from one that was never placed.
 	ErrorCode_ERROR_CODE_ORDER_UNKNOWN ErrorCode = 17
 	// Order processing failed because of an unexpected error.
 	ErrorCode_ERROR_CODE_INTERNAL_ERROR ErrorCode = 18
@@ -997,6 +1000,11 @@ const (
 	// remain valid. To wait for a new activation price, cancel the trigger and
 	// create a new one.
 	ErrorCode_ERROR_CODE_TRIGGER_ACTIVATION_PRICE_NOT_MODIFIABLE ErrorCode = 315
+	// The OCO's client list ID is empty, longer than 36 characters, or has a
+	// character other than a letter, digit, period, underscore, colon, slash or
+	// hyphen. Answered by CreateOco and by the ListTriggers client_list_id
+	// filter. Nothing changed.
+	ErrorCode_ERROR_CODE_CLIENT_LIST_ID_INVALID ErrorCode = 318
 )
 
 // Enum value maps for ErrorCode.
@@ -1208,6 +1216,7 @@ var (
 		313: "ERROR_CODE_PEG_REFERENCE_UNAVAILABLE",
 		314: "ERROR_CODE_INVALID_PEG",
 		315: "ERROR_CODE_TRIGGER_ACTIVATION_PRICE_NOT_MODIFIABLE",
+		318: "ERROR_CODE_CLIENT_LIST_ID_INVALID",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_CODE_UNSPECIFIED":                             0,
@@ -1416,6 +1425,7 @@ var (
 		"ERROR_CODE_PEG_REFERENCE_UNAVAILABLE":               313,
 		"ERROR_CODE_INVALID_PEG":                             314,
 		"ERROR_CODE_TRIGGER_ACTIVATION_PRICE_NOT_MODIFIABLE": 315,
+		"ERROR_CODE_CLIENT_LIST_ID_INVALID":                  318,
 	}
 )
 
@@ -2051,6 +2061,21 @@ func (BatchCancelResultItem_Status) EnumDescriptor() ([]byte, []int) {
 
 // MarketIoc configures a market order. Market orders always execute as
 // immediate-or-cancel and therefore cannot rest or be post-only.
+//
+// The order fills only up to its protection price, a BUY at or below it and
+// a SELL at or above it. The protection price is the reference price
+// (client_ref_price_ticks, or the server's reference when it is omitted)
+// moved by the maximum slippage, up for a BUY and down for a SELL, then put
+// on the pair's tick grid toward the reference: a BUY's is rounded down and
+// a SELL's up, so it never allows more than the slippage and can be up to
+// one tick tighter. Neither client_ref_price_ticks nor max_slippage_ticks
+// has to be a multiple of the pair's tick size; only the protection price
+// is. For example, on a pair whose tick size is 0.01, a reference of
+// 73840.125 and a slippage of 50.12 give a BUY protection price of 73890.24
+// (73890.245 rounded down) and a SELL protection price of 73790.01
+// (73790.005 rounded up). The order's price_ticks shows the protection
+// price; market_client_ref_price_ticks and market_max_slippage_ticks show
+// the values exactly as given.
 type MarketIoc struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional max slippage override. If omitted, the pair default is used.
@@ -2060,8 +2085,12 @@ type MarketIoc struct {
 	//	*MarketIoc_MaxSlippageTicks
 	//	*MarketIoc_MaxSlippageBps
 	MaxSlippage isMarketIoc_MaxSlippage `protobuf_oneof:"max_slippage"`
-	// Optional positive client reference price in quote units scaled by 1e9.
-	// When omitted, admission uses server-side reference pricing.
+	// Optional positive client reference price in quote units scaled by 1e9
+	// (1e-9 quote units, not the pair's tick size). It need not be on the
+	// pair's tick grid; only the protection price derived from it is, as
+	// MarketIoc describes. When omitted, admission uses server-side reference
+	// pricing. A reference too far from the server's is refused with
+	// ERROR_CODE_STALE_QUOTE.
 	ClientRefPriceTicks int64 `protobuf:"varint,3,opt,name=client_ref_price_ticks,json=clientRefPriceTicks,proto3" json:"client_ref_price_ticks,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
@@ -2134,7 +2163,11 @@ type isMarketIoc_MaxSlippage interface {
 }
 
 type MarketIoc_MaxSlippageTicks struct {
-	// Positive maximum absolute price delta in Q9 execution-price ticks (1 tick = 1e-9 quote units).
+	// Positive maximum absolute price delta in quote units scaled by 1e9. The
+	// "ticks" in this name are 1e-9 quote units, not the pair's tick size,
+	// and the value need not be a multiple of the pair's tick size: the
+	// protection price derived from it is put on the tick grid toward the
+	// reference, as MarketIoc describes.
 	MaxSlippageTicks int64 `protobuf:"varint,1,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
 }
 
@@ -3214,7 +3247,7 @@ type isCancelOrderRequest_Key interface {
 }
 
 type CancelOrderRequest_OrderId struct {
-	// Order ID as fixed64. Exactly one of order_id or client_order_id.
+	// Public order ID. Exactly one of order_id or client_order_id.
 	OrderId uint64 `protobuf:"fixed64,1,opt,name=order_id,json=orderId,proto3,oneof"`
 }
 
@@ -3234,7 +3267,7 @@ type CancelOrderResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Cancellation submission outcome.
 	Status CancelOrderResponse_Status `protobuf:"varint,1,opt,name=status,proto3,enum=orders.v1.CancelOrderResponse_Status" json:"status,omitempty"`
-	// Order ID as fixed64.
+	// Public order ID.
 	OrderId uint64 `protobuf:"fixed64,2,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
 	// Server timestamp.
 	Ts *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=ts,proto3" json:"ts,omitempty"`
@@ -3390,9 +3423,16 @@ type ErrorDetail struct {
 	// LADDER_LEVEL_REJECTED: its zero-based index among the ladder's orders, the
 	// i of the violation's trigger.strategy.ladder.levels[i], so 0 is the first
 	// order. Omitted for every other error.
-	LevelIndex    *uint32 `protobuf:"varint,9,opt,name=level_index,json=levelIndex,proto3,oneof" json:"level_index,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	LevelIndex *uint32 `protobuf:"varint,9,opt,name=level_index,json=levelIndex,proto3,oneof" json:"level_index,omitempty"`
+	// The price band limit the order's limit price is past, when a preview is
+	// not admissible with PRICE_BAND_VIOLATION: the highest admitted buy price
+	// for a buy, the lowest admitted sell price for a sell, as the market last
+	// published its band. REST returns priceBandLimit as a decimal string in
+	// quote asset units per base asset unit, for example "1837.5". Protobuf
+	// uses quote units scaled by 1e9. Omitted for every other error.
+	PriceBandLimitTicks *int64 `protobuf:"varint,10,opt,name=price_band_limit_ticks,json=priceBandLimitTicks,proto3,oneof" json:"price_band_limit_ticks,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ErrorDetail) Reset() {
@@ -3463,6 +3503,13 @@ func (x *ErrorDetail) GetCauseCode() ErrorCode {
 func (x *ErrorDetail) GetLevelIndex() uint32 {
 	if x != nil && x.LevelIndex != nil {
 		return *x.LevelIndex
+	}
+	return 0
+}
+
+func (x *ErrorDetail) GetPriceBandLimitTicks() int64 {
+	if x != nil && x.PriceBandLimitTicks != nil {
+		return *x.PriceBandLimitTicks
 	}
 	return 0
 }
@@ -3651,10 +3698,10 @@ type TakeProfitPolicy struct {
 	Child *RiskExecution `protobuf:"bytes,2,opt,name=child,proto3" json:"child,omitempty"`
 	// Price the take-profit watches. Unspecified or LAST_PRICE watches the last
 	// traded price. INDEX_PRICE watches the market's index price; on a market
-	// without an index price the order is rejected with terminal reason
-	// INDEX_PRICE_UNAVAILABLE before any fill, and a modify that adds such a leg
-	// is refused with ERROR_CODE_TRIGGER_PRICE_SOURCE_UNSUPPORTED, leaving the
-	// order and its legs unchanged. MARK_PRICE is not supported. A modify naming
+	// without an index price the order is rejected before any fill with
+	// reject_reason ERROR_CODE_TRIGGER_PRICE_SOURCE_UNSUPPORTED, and a modify
+	// that adds such a leg is refused with the same code, leaving the order and
+	// its legs unchanged. MARK_PRICE is not supported. A modify naming
 	// another source replaces the leg.
 	TriggerPriceSource TriggerPriceSource `protobuf:"varint,3,opt,name=trigger_price_source,json=triggerPriceSource,proto3,enum=orders.v1.TriggerPriceSource" json:"trigger_price_source,omitempty"`
 	unknownFields      protoimpl.UnknownFields
@@ -3723,10 +3770,10 @@ type StopLossPolicy struct {
 	Child *RiskExecution `protobuf:"bytes,2,opt,name=child,proto3" json:"child,omitempty"`
 	// Price the stop-loss watches. Unspecified or LAST_PRICE watches the last
 	// traded price. INDEX_PRICE watches the market's index price; on a market
-	// without an index price the order is rejected with terminal reason
-	// INDEX_PRICE_UNAVAILABLE before any fill, and a modify that adds such a leg
-	// is refused with ERROR_CODE_TRIGGER_PRICE_SOURCE_UNSUPPORTED, leaving the
-	// order and its legs unchanged. MARK_PRICE is not supported. A modify naming
+	// without an index price the order is rejected before any fill with
+	// reject_reason ERROR_CODE_TRIGGER_PRICE_SOURCE_UNSUPPORTED, and a modify
+	// that adds such a leg is refused with the same code, leaving the order and
+	// its legs unchanged. MARK_PRICE is not supported. A modify naming
 	// another source replaces the leg.
 	TriggerPriceSource TriggerPriceSource `protobuf:"varint,3,opt,name=trigger_price_source,json=triggerPriceSource,proto3,enum=orders.v1.TriggerPriceSource" json:"trigger_price_source,omitempty"`
 	unknownFields      protoimpl.UnknownFields
@@ -3815,10 +3862,10 @@ type TrailingStopPolicy struct {
 	// Price the trailing stop watches and trails: its peak or trough, activation
 	// and fire all follow this price. Unspecified or LAST_PRICE watches the last
 	// traded price. INDEX_PRICE watches the market's index price; on a market
-	// without an index price the order is rejected with terminal reason
-	// INDEX_PRICE_UNAVAILABLE before any fill, and a modify that adds such a leg
-	// is refused with ERROR_CODE_TRIGGER_PRICE_SOURCE_UNSUPPORTED, leaving the
-	// order and its legs unchanged. MARK_PRICE is not supported. A modify naming
+	// without an index price the order is rejected before any fill with
+	// reject_reason ERROR_CODE_TRIGGER_PRICE_SOURCE_UNSUPPORTED, and a modify
+	// that adds such a leg is refused with the same code, leaving the order and
+	// its legs unchanged. MARK_PRICE is not supported. A modify naming
 	// another source replaces the leg.
 	TriggerPriceSource TriggerPriceSource `protobuf:"varint,8,opt,name=trigger_price_source,json=triggerPriceSource,proto3,enum=orders.v1.TriggerPriceSource" json:"trigger_price_source,omitempty"`
 	// Positive maximum price of a trailing stop that buys back, in quote units
@@ -3956,7 +4003,11 @@ type isTrailingStopPolicy_MaxSlippage interface {
 }
 
 type TrailingStopPolicy_MaxSlippageTicks struct {
-	// Positive maximum absolute price delta in Q9 execution-price ticks (1 tick = 1e-9 quote units).
+	// Positive maximum absolute price delta in quote units scaled by 1e9. The
+	// "ticks" in this name are 1e-9 quote units, not the pair's tick size,
+	// and the value need not be a multiple of the pair's tick size: the
+	// child's protection price, the price that fired it moved by this delta,
+	// is put on the tick grid toward that price, as MarketIoc describes.
 	MaxSlippageTicks int64 `protobuf:"varint,6,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
 }
 
@@ -5255,7 +5306,7 @@ type isModifyOrderRequest_Key interface {
 }
 
 type ModifyOrderRequest_OrderId struct {
-	// Order ID as fixed64.
+	// Public order ID.
 	OrderId uint64 `protobuf:"fixed64,2,opt,name=order_id,json=orderId,proto3,oneof"`
 }
 
@@ -5508,7 +5559,7 @@ type isBatchReplaceOrderItem_Key interface {
 }
 
 type BatchReplaceOrderItem_OrderId struct {
-	// Order ID as fixed64. Exactly one of order_id or client_order_id.
+	// Public order ID. Exactly one of order_id or client_order_id.
 	OrderId uint64 `protobuf:"fixed64,1,opt,name=order_id,json=orderId,proto3,oneof"`
 }
 
@@ -5834,7 +5885,7 @@ func (x *BatchReplaceOrdersResponse) GetAcceptedTsNs() uint64 {
 // BatchCancelItem identifies a single order to cancel within a batch.
 type BatchCancelItem struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Order ID as fixed64. Exactly one of order_id or client_order_id.
+	// Public order ID. Exactly one of order_id or client_order_id.
 	OrderId uint64 `protobuf:"fixed64,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
 	// Client order ID: 1 to 36 ASCII characters using letters, digits, period,
 	// underscore, colon, slash, or hyphen. Exactly one of order_id or
@@ -6245,7 +6296,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\n" +
 	"field_path\x18\x01 \x01(\tR\tfieldPath\x12\x17\n" +
 	"\arule_id\x18\x02 \x01(\tR\x06ruleId\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage\"\xec\x02\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"\xc1\x03\n" +
 	"\vErrorDetail\x12(\n" +
 	"\x04code\x18\x01 \x01(\x0e2\x14.orders.v1.ErrorCodeR\x04code\x129\n" +
 	"\n" +
@@ -6257,9 +6308,12 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\n" +
 	"cause_code\x18\b \x01(\x0e2\x14.orders.v1.ErrorCodeR\tcauseCode\x12$\n" +
 	"\vlevel_index\x18\t \x01(\rH\x01R\n" +
-	"levelIndex\x88\x01\x01B\x14\n" +
+	"levelIndex\x88\x01\x01\x128\n" +
+	"\x16price_band_limit_ticks\x18\n" +
+	" \x01(\x03H\x02R\x13priceBandLimitTicks\x88\x01\x01B\x14\n" +
 	"\x12_existing_order_idB\x0e\n" +
-	"\f_level_index\"\x0f\n" +
+	"\f_level_indexB\x19\n" +
+	"\x17_price_band_limit_ticks\"\x0f\n" +
 	"\rRiskMarketIoc\"8\n" +
 	"\fRiskLimitGtc\x12(\n" +
 	"\vprice_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\n" +
@@ -6521,7 +6575,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\fPegReference\x12\x1d\n" +
 	"\x19PEG_REFERENCE_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\bBEST_BID\x10\x01\x12\f\n" +
-	"\bBEST_ASK\x10\x02*\x86@\n" +
+	"\bBEST_ASK\x10\x02*\xae@\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16ERROR_CODE_BAD_REQUEST\x10\x01\x12\x1f\n" +
@@ -6729,7 +6783,8 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x1eERROR_CODE_PEG_LIMIT_VIOLATION\x10\xb8\x02\x12)\n" +
 	"$ERROR_CODE_PEG_REFERENCE_UNAVAILABLE\x10\xb9\x02\x12\x1b\n" +
 	"\x16ERROR_CODE_INVALID_PEG\x10\xba\x02\x127\n" +
-	"2ERROR_CODE_TRIGGER_ACTIVATION_PRICE_NOT_MODIFIABLE\x10\xbb\x02*k\n" +
+	"2ERROR_CODE_TRIGGER_ACTIVATION_PRICE_NOT_MODIFIABLE\x10\xbb\x02\x12&\n" +
+	"!ERROR_CODE_CLIENT_LIST_ID_INVALID\x10\xbe\x02*k\n" +
 	"\x12TriggerPriceSource\x12$\n" +
 	" TRIGGER_PRICE_SOURCE_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +

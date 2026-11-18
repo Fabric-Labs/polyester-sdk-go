@@ -907,6 +907,68 @@ func (LadderDistribution) EnumDescriptor() ([]byte, []int) {
 	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{5}
 }
 
+// LadderOutcome summarizes how many of an ended ladder's child orders were
+// placed on the book. It does not state what filled: see the executed
+// quantity and executed levels.
+type LadderOutcome int32
+
+const (
+	// The ladder is still running, or was rejected at its creation before any
+	// child order.
+	LadderOutcome_LADDER_OUTCOME_UNSPECIFIED LadderOutcome = 0
+	// No child order was rejected before it was placed on the book.
+	LadderOutcome_ALL_ADMITTED LadderOutcome = 1
+	// Some child orders were placed on the book and the others were rejected
+	// before they were placed.
+	LadderOutcome_MIXED_REJECTIONS LadderOutcome = 2
+	// Every child order that reached the book was rejected before it was
+	// placed: the ladder placed nothing.
+	LadderOutcome_ALL_CHILDREN_REJECTED LadderOutcome = 3
+)
+
+// Enum value maps for LadderOutcome.
+var (
+	LadderOutcome_name = map[int32]string{
+		0: "LADDER_OUTCOME_UNSPECIFIED",
+		1: "ALL_ADMITTED",
+		2: "MIXED_REJECTIONS",
+		3: "ALL_CHILDREN_REJECTED",
+	}
+	LadderOutcome_value = map[string]int32{
+		"LADDER_OUTCOME_UNSPECIFIED": 0,
+		"ALL_ADMITTED":               1,
+		"MIXED_REJECTIONS":           2,
+		"ALL_CHILDREN_REJECTED":      3,
+	}
+)
+
+func (x LadderOutcome) Enum() *LadderOutcome {
+	p := new(LadderOutcome)
+	*p = x
+	return p
+}
+
+func (x LadderOutcome) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (LadderOutcome) Descriptor() protoreflect.EnumDescriptor {
+	return file_triggers_v1_triggers_proto_enumTypes[6].Descriptor()
+}
+
+func (LadderOutcome) Type() protoreflect.EnumType {
+	return &file_triggers_v1_triggers_proto_enumTypes[6]
+}
+
+func (x LadderOutcome) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use LadderOutcome.Descriptor instead.
+func (LadderOutcome) EnumDescriptor() ([]byte, []int) {
+	return file_triggers_v1_triggers_proto_rawDescGZIP(), []int{6}
+}
+
 // Per-item cancellation outcome.
 type BatchCancelTriggersResultItem_Status int32
 
@@ -945,11 +1007,11 @@ func (x BatchCancelTriggersResultItem_Status) String() string {
 }
 
 func (BatchCancelTriggersResultItem_Status) Descriptor() protoreflect.EnumDescriptor {
-	return file_triggers_v1_triggers_proto_enumTypes[6].Descriptor()
+	return file_triggers_v1_triggers_proto_enumTypes[7].Descriptor()
 }
 
 func (BatchCancelTriggersResultItem_Status) Type() protoreflect.EnumType {
-	return &file_triggers_v1_triggers_proto_enumTypes[6]
+	return &file_triggers_v1_triggers_proto_enumTypes[7]
 }
 
 func (x BatchCancelTriggersResultItem_Status) Number() protoreflect.EnumNumber {
@@ -1042,7 +1104,12 @@ type isTriggerMarketIoc_MaxSlippage interface {
 }
 
 type TriggerMarketIoc_MaxSlippageTicks struct {
-	// Positive maximum absolute price delta in Q9 execution-price ticks (1 tick = 1e-9 quote units).
+	// Positive maximum absolute price delta in quote units scaled by 1e9. The
+	// "ticks" in this name are 1e-9 quote units, not the pair's tick size,
+	// and the value need not be a multiple of the pair's tick size: the
+	// child's protection price, the price that fired it moved by this delta,
+	// is put on the tick grid toward that price, as for a market order
+	// (orders.v1.MarketIoc).
 	MaxSlippageTicks int64 `protobuf:"varint,1,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
 }
 
@@ -1586,7 +1653,12 @@ type isTrailingStopTrigger_MaxSlippage interface {
 }
 
 type TrailingStopTrigger_MaxSlippageTicks struct {
-	// Positive maximum absolute price delta in Q9 execution-price ticks (1 tick = 1e-9 quote units).
+	// Positive maximum absolute price delta in quote units scaled by 1e9. The
+	// "ticks" in this name are 1e-9 quote units, not the pair's tick size,
+	// and the value need not be a multiple of the pair's tick size: the
+	// child's protection price, the price that fired it moved by this delta,
+	// is put on the tick grid toward that price, as for a market order
+	// (orders.v1.MarketIoc).
 	MaxSlippageTicks int64 `protobuf:"varint,4,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
 }
 
@@ -1679,7 +1751,12 @@ type isTwapMarketIoc_MaxSlippage interface {
 }
 
 type TwapMarketIoc_MaxSlippageTicks struct {
-	// Positive maximum absolute price delta per slice in Q9 execution-price ticks (1 tick = 1e-9 quote units).
+	// Positive maximum absolute price delta per slice in quote units scaled by
+	// 1e9. The "ticks" in this name are 1e-9 quote units, not the pair's tick
+	// size, and the value need not be a multiple of the pair's tick size: a
+	// slice's protection price, its reference moved by this delta, is put on
+	// the tick grid toward that reference, as for a market order
+	// (orders.v1.MarketIoc).
 	MaxSlippageTicks int64 `protobuf:"varint,1,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
 }
 
@@ -2381,7 +2458,8 @@ type OcoIntent struct {
 	// OCO, and a different intent with the same ID returns
 	// CONFLICT_DUPLICATE_CLIENT_TRIGGER_ID. 1 to 36 ASCII characters using
 	// letters, digits, period, underscore, colon, slash, or hyphen, as a
-	// client_order_id; other IDs are rejected with INVALID_ARGUMENT.
+	// client_order_id; other IDs are rejected with INVALID_ARGUMENT and
+	// ERROR_CODE_CLIENT_LIST_ID_INVALID.
 	ClientListId string `protobuf:"bytes,5,opt,name=client_list_id,json=clientListId,proto3" json:"client_list_id,omitempty"`
 	// The take-profit leg. Its trigger price must be above the stop-loss's for
 	// a SELL OCO and below it for a BUY OCO. Required.
@@ -2883,8 +2961,9 @@ type ListTriggersRequest struct {
 	OrderListId *uint64 `protobuf:"fixed64,6,opt,name=order_list_id,json=orderListId,proto3,oneof" json:"order_list_id,omitempty"`
 	// Optional filter by OCO client ID: the take-profit and the stop-loss of
 	// the OCO created with this client_list_id, which follows the same rule as
-	// OcoIntent.client_list_id. Use it to find an OCO whose create failed with
-	// TRIGGER_CREATE_OUTCOME_UNKNOWN.
+	// OcoIntent.client_list_id: other IDs are rejected with INVALID_ARGUMENT and
+	// ERROR_CODE_CLIENT_LIST_ID_INVALID. Use it to find an OCO whose create
+	// failed with TRIGGER_CREATE_OUTCOME_UNKNOWN.
 	ClientListId *string `protobuf:"bytes,7,opt,name=client_list_id,json=clientListId,proto3,oneof" json:"client_list_id,omitempty"`
 	// Maximum number of triggers to return. Defaults to 100 when omitted;
 	// maximum is 1000.
@@ -3810,8 +3889,10 @@ type ModifyTriggerRequest struct {
 	// trigger's own pair. When set, it must be the trigger's pair: another
 	// listed pair is rejected with ERROR_CODE_TRIGGER_SYMBOL_MISMATCH, and a
 	// pair that is not listed with ERROR_CODE_UNKNOWN_SYMBOL; either leaves the
-	// trigger unchanged. An API key limited to specific markets must name the
-	// trigger's pair.
+	// trigger unchanged. An API key limited to specific markets may act only
+	// on a trigger whose pair is one of its markets, whether or not the
+	// request names it: any other trigger, or a named pair outside those
+	// markets, is rejected with ERROR_CODE_API_KEY_MARKET_DENY.
 	SymbolId uint32 `protobuf:"varint,3,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Patch fields for safe price, trailing-distance, and slippage edits.
 	// For stop/take-profit:
@@ -4003,8 +4084,9 @@ type isModifyTriggerRequest_MaxSlippage interface {
 }
 
 type ModifyTriggerRequest_MaxSlippageTicks struct {
-	// Non-negative maximum absolute price delta in Q9 execution-price ticks
-	// (1 tick = 1e-9 quote units). Set to zero to clear the cap.
+	// Non-negative maximum absolute price delta in quote units scaled by 1e9
+	// (1e-9 quote units, not the pair's tick size; the value need not be a
+	// multiple of the pair's tick size). Set to zero to clear the cap.
 	MaxSlippageTicks int64 `protobuf:"varint,15,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3,oneof"`
 }
 
@@ -4247,8 +4329,10 @@ type ResumeTriggerRequest struct {
 	// trigger's own pair. When set, it must be the trigger's pair: another
 	// listed pair is rejected with ERROR_CODE_TRIGGER_SYMBOL_MISMATCH, and a
 	// pair that is not listed with ERROR_CODE_UNKNOWN_SYMBOL; either leaves the
-	// trigger unchanged. An API key limited to specific markets must name the
-	// trigger's pair.
+	// trigger unchanged. An API key limited to specific markets may act only
+	// on a trigger whose pair is one of its markets, whether or not the
+	// request names it: any other trigger, or a named pair outside those
+	// markets, is rejected with ERROR_CODE_API_KEY_MARKET_DENY.
 	SymbolId      uint32 `protobuf:"varint,3,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -4457,8 +4541,9 @@ type TrailingDetails struct {
 	TroughPriceTicks int64 `protobuf:"varint,4,opt,name=trough_price_ticks,json=troughPriceTicks,proto3" json:"trough_price_ticks,omitempty"`
 	// Trailing distance in basis points (1 bp = 0.01%).
 	TrailingDistanceBps int32 `protobuf:"varint,5,opt,name=trailing_distance_bps,json=trailingDistanceBps,proto3" json:"trailing_distance_bps,omitempty"`
-	// Non-negative maximum absolute price delta in Q9 execution-price ticks
-	// (1 tick = 1e-9 quote units). Zero means no absolute cap is configured.
+	// Non-negative maximum absolute price delta in quote units scaled by 1e9
+	// (1e-9 quote units, not the pair's tick size), as set. Zero means no
+	// absolute cap is configured.
 	MaxSlippageTicks int64 `protobuf:"varint,6,opt,name=max_slippage_ticks,json=maxSlippageTicks,proto3" json:"max_slippage_ticks,omitempty"`
 	// Optional maximum allowed slippage in basis points (1 bp = 0.01%).
 	MaxSlippageBps int32 `protobuf:"varint,7,opt,name=max_slippage_bps,json=maxSlippageBps,proto3" json:"max_slippage_bps,omitempty"`
@@ -4679,8 +4764,26 @@ type LadderDetails struct {
 	// filled level counts once, including across replacement child orders.
 	// This is not the number of fully filled levels.
 	ExecutedLevels int32 `protobuf:"varint,6,opt,name=executed_levels,json=executedLevels,proto3" json:"executed_levels,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Number of child orders the ladder requested, one per level.
+	RequestedLevels int32 `protobuf:"varint,7,opt,name=requested_levels,json=requestedLevels,proto3" json:"requested_levels,omitempty"`
+	// Number of child orders placed on the book, including those still open.
+	PlacedLevels int32 `protobuf:"varint,8,opt,name=placed_levels,json=placedLevels,proto3" json:"placed_levels,omitempty"`
+	// Number of child orders rejected before they were placed on the book.
+	// Each child order's own status states why.
+	RejectedLevels int32 `protobuf:"varint,9,opt,name=rejected_levels,json=rejectedLevels,proto3" json:"rejected_levels,omitempty"`
+	// Number of placed child orders that were canceled or expired, whether
+	// partly filled or not. When the ladder itself ends, its open child orders
+	// are canceled with it and are counted here. A placed child order rejected
+	// after a partial fill counts as neither rejected nor canceled.
+	CanceledLevels int32 `protobuf:"varint,10,opt,name=canceled_levels,json=canceledLevels,proto3" json:"canceled_levels,omitempty"`
+	// How the ended ladder's child orders were placed; unspecified while it
+	// runs, and for a ladder rejected at its creation, before any child order
+	// (its failure reason states why). A completed ladder with MIXED_REJECTIONS
+	// completed with some levels rejected: placed_levels of requested_levels
+	// were placed.
+	Outcome       LadderOutcome `protobuf:"varint,11,opt,name=outcome,proto3,enum=triggers.v1.LadderOutcome" json:"outcome,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *LadderDetails) Reset() {
@@ -4753,6 +4856,41 @@ func (x *LadderDetails) GetExecutedLevels() int32 {
 		return x.ExecutedLevels
 	}
 	return 0
+}
+
+func (x *LadderDetails) GetRequestedLevels() int32 {
+	if x != nil {
+		return x.RequestedLevels
+	}
+	return 0
+}
+
+func (x *LadderDetails) GetPlacedLevels() int32 {
+	if x != nil {
+		return x.PlacedLevels
+	}
+	return 0
+}
+
+func (x *LadderDetails) GetRejectedLevels() int32 {
+	if x != nil {
+		return x.RejectedLevels
+	}
+	return 0
+}
+
+func (x *LadderDetails) GetCanceledLevels() int32 {
+	if x != nil {
+		return x.CanceledLevels
+	}
+	return 0
+}
+
+func (x *LadderDetails) GetOutcome() LadderOutcome {
+	if x != nil {
+		return x.Outcome
+	}
+	return LadderOutcome_LADDER_OUTCOME_UNSPECIFIED
 }
 
 // Trigger represents current trigger configuration, lifecycle state, and
@@ -5501,14 +5639,20 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\tslice_idx\x18\x04 \x01(\x05R\bsliceIdx\x12\x1f\n" +
 	"\vslice_count\x18\x05 \x01(\x05R\n" +
 	"sliceCount\x12.\n" +
-	"\x13executed_qty_scaled\x18\x06 \x01(\x03R\x11executedQtyScaled\"\xc9\x02\n" +
+	"\x13executed_qty_scaled\x18\x06 \x01(\x03R\x11executedQtyScaled\"\xa1\x04\n" +
 	"\rLadderDetails\x123\n" +
 	"\x16ladder_price_min_ticks\x18\x01 \x01(\x03R\x13ladderPriceMinTicks\x123\n" +
 	"\x16ladder_price_max_ticks\x18\x02 \x01(\x03R\x13ladderPriceMaxTicks\x12#\n" +
 	"\rladder_levels\x18\x03 \x01(\x05R\fladderLevels\x12P\n" +
 	"\x13ladder_distribution\x18\x04 \x01(\x0e2\x1f.triggers.v1.LadderDistributionR\x12ladderDistribution\x12.\n" +
 	"\x13executed_qty_scaled\x18\x05 \x01(\x03R\x11executedQtyScaled\x12'\n" +
-	"\x0fexecuted_levels\x18\x06 \x01(\x05R\x0eexecutedLevels\"\x8b\f\n" +
+	"\x0fexecuted_levels\x18\x06 \x01(\x05R\x0eexecutedLevels\x12)\n" +
+	"\x10requested_levels\x18\a \x01(\x05R\x0frequestedLevels\x12#\n" +
+	"\rplaced_levels\x18\b \x01(\x05R\fplacedLevels\x12'\n" +
+	"\x0frejected_levels\x18\t \x01(\x05R\x0erejectedLevels\x12'\n" +
+	"\x0fcanceled_levels\x18\n" +
+	" \x01(\x05R\x0ecanceledLevels\x124\n" +
+	"\aoutcome\x18\v \x01(\x0e2\x1a.triggers.v1.LadderOutcomeR\aoutcome\"\x8b\f\n" +
 	"\aTrigger\x12\x1d\n" +
 	"\n" +
 	"trigger_id\x18\x01 \x01(\x06R\ttriggerId\x12#\n" +
@@ -5693,7 +5837,12 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\n" +
 	"\x06LINEAR\x10\x01\x12\r\n" +
 	"\tGEOMETRIC\x10\x02\x12\x16\n" +
-	"\x12WEIGHTED_FAVORABLE\x10\x032\xd3$\n" +
+	"\x12WEIGHTED_FAVORABLE\x10\x03*r\n" +
+	"\rLadderOutcome\x12\x1e\n" +
+	"\x1aLADDER_OUTCOME_UNSPECIFIED\x10\x00\x12\x10\n" +
+	"\fALL_ADMITTED\x10\x01\x12\x14\n" +
+	"\x10MIXED_REJECTIONS\x10\x02\x12\x19\n" +
+	"\x15ALL_CHILDREN_REJECTED\x10\x032\xd3$\n" +
 	"\x0fTriggersService\x12\x82\x02\n" +
 	"\rCreateTrigger\x12!.triggers.v1.CreateTriggerRequest\x1a\".triggers.v1.CreateTriggerResponse\"\xa9\x01\xbaG\x88\x01\n" +
 	"\x10Triggers Service\x12\x0eCreate Trigger\x1adCreate a standalone trigger order. Supports stop, trailing, TWAP, and ladder trigger configurations.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x11:\x01*\"\f/v1/triggers\x12\xaf\x04\n" +
@@ -5734,7 +5883,7 @@ func file_triggers_v1_triggers_proto_rawDescGZIP() []byte {
 	return file_triggers_v1_triggers_proto_rawDescData
 }
 
-var file_triggers_v1_triggers_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
+var file_triggers_v1_triggers_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
 var file_triggers_v1_triggers_proto_msgTypes = make([]protoimpl.MessageInfo, 44)
 var file_triggers_v1_triggers_proto_goTypes = []any{
 	(TriggerType)(0),                          // 0: triggers.v1.TriggerType
@@ -5743,167 +5892,169 @@ var file_triggers_v1_triggers_proto_goTypes = []any{
 	(TriggerCancelReason)(0),                  // 3: triggers.v1.TriggerCancelReason
 	(TriggerFailureReason)(0),                 // 4: triggers.v1.TriggerFailureReason
 	(LadderDistribution)(0),                   // 5: triggers.v1.LadderDistribution
-	(BatchCancelTriggersResultItem_Status)(0), // 6: triggers.v1.BatchCancelTriggersResultItem.Status
-	(*TriggerMarketIoc)(nil),                  // 7: triggers.v1.TriggerMarketIoc
-	(*TriggerLimitGtc)(nil),                   // 8: triggers.v1.TriggerLimitGtc
-	(*TriggerLimitIoc)(nil),                   // 9: triggers.v1.TriggerLimitIoc
-	(*TriggerLimitFok)(nil),                   // 10: triggers.v1.TriggerLimitFok
-	(*ConditionalChildExecution)(nil),         // 11: triggers.v1.ConditionalChildExecution
-	(*ConditionalTrigger)(nil),                // 12: triggers.v1.ConditionalTrigger
-	(*TrailingStopTrigger)(nil),               // 13: triggers.v1.TrailingStopTrigger
-	(*TwapMarketIoc)(nil),                     // 14: triggers.v1.TwapMarketIoc
-	(*TwapLimitGtc)(nil),                      // 15: triggers.v1.TwapLimitGtc
-	(*TwapTrigger)(nil),                       // 16: triggers.v1.TwapTrigger
-	(*LadderTrigger)(nil),                     // 17: triggers.v1.LadderTrigger
-	(*TriggerIntent)(nil),                     // 18: triggers.v1.TriggerIntent
-	(*CreateTriggerRequest)(nil),              // 19: triggers.v1.CreateTriggerRequest
-	(*CreateTriggerResponse)(nil),             // 20: triggers.v1.CreateTriggerResponse
-	(*OcoLeg)(nil),                            // 21: triggers.v1.OcoLeg
-	(*OcoIntent)(nil),                         // 22: triggers.v1.OcoIntent
-	(*CreateOcoRequest)(nil),                  // 23: triggers.v1.CreateOcoRequest
-	(*CreateOcoResponse)(nil),                 // 24: triggers.v1.CreateOcoResponse
-	(*CancelOcoRequest)(nil),                  // 25: triggers.v1.CancelOcoRequest
-	(*CancelOcoResponse)(nil),                 // 26: triggers.v1.CancelOcoResponse
-	(*GetTriggerRequest)(nil),                 // 27: triggers.v1.GetTriggerRequest
-	(*GetTriggerResponse)(nil),                // 28: triggers.v1.GetTriggerResponse
-	(*ListTriggersRequest)(nil),               // 29: triggers.v1.ListTriggersRequest
-	(*ListTriggersResponse)(nil),              // 30: triggers.v1.ListTriggersResponse
-	(*ListTriggerEventsRequest)(nil),          // 31: triggers.v1.ListTriggerEventsRequest
-	(*TriggerEvent)(nil),                      // 32: triggers.v1.TriggerEvent
-	(*TriggerEventBatch)(nil),                 // 33: triggers.v1.TriggerEventBatch
-	(*ListTriggerEventsResponse)(nil),         // 34: triggers.v1.ListTriggerEventsResponse
-	(*CancelTriggerRequest)(nil),              // 35: triggers.v1.CancelTriggerRequest
-	(*CancelTriggerResponse)(nil),             // 36: triggers.v1.CancelTriggerResponse
-	(*BatchCancelTriggersRequest)(nil),        // 37: triggers.v1.BatchCancelTriggersRequest
-	(*BatchCancelTriggersResultItem)(nil),     // 38: triggers.v1.BatchCancelTriggersResultItem
-	(*BatchCancelTriggersResponse)(nil),       // 39: triggers.v1.BatchCancelTriggersResponse
-	(*ModifyTriggerRequest)(nil),              // 40: triggers.v1.ModifyTriggerRequest
-	(*ModifyTriggerResponse)(nil),             // 41: triggers.v1.ModifyTriggerResponse
-	(*PauseTriggerRequest)(nil),               // 42: triggers.v1.PauseTriggerRequest
-	(*PauseTriggerResponse)(nil),              // 43: triggers.v1.PauseTriggerResponse
-	(*ResumeTriggerRequest)(nil),              // 44: triggers.v1.ResumeTriggerRequest
-	(*ResumeTriggerResponse)(nil),             // 45: triggers.v1.ResumeTriggerResponse
-	(*StopDetails)(nil),                       // 46: triggers.v1.StopDetails
-	(*TrailingDetails)(nil),                   // 47: triggers.v1.TrailingDetails
-	(*TwapDetails)(nil),                       // 48: triggers.v1.TwapDetails
-	(*LadderDetails)(nil),                     // 49: triggers.v1.LadderDetails
-	(*Trigger)(nil),                           // 50: triggers.v1.Trigger
-	(v1.Side)(0),                              // 51: orders.v1.Side
-	(v1.TriggerPriceSource)(0),                // 52: orders.v1.TriggerPriceSource
-	(v1.FeeAsset)(0),                          // 53: orders.v1.FeeAsset
-	(v1.SelfTradePreventionMode)(0),           // 54: orders.v1.SelfTradePreventionMode
-	(*timestamppb.Timestamp)(nil),             // 55: google.protobuf.Timestamp
-	(*v1.RiskExecution)(nil),                  // 56: orders.v1.RiskExecution
-	(*v1.ErrorDetail)(nil),                    // 57: orders.v1.ErrorDetail
-	(v1.TriggerDirection)(0),                  // 58: orders.v1.TriggerDirection
+	(LadderOutcome)(0),                        // 6: triggers.v1.LadderOutcome
+	(BatchCancelTriggersResultItem_Status)(0), // 7: triggers.v1.BatchCancelTriggersResultItem.Status
+	(*TriggerMarketIoc)(nil),                  // 8: triggers.v1.TriggerMarketIoc
+	(*TriggerLimitGtc)(nil),                   // 9: triggers.v1.TriggerLimitGtc
+	(*TriggerLimitIoc)(nil),                   // 10: triggers.v1.TriggerLimitIoc
+	(*TriggerLimitFok)(nil),                   // 11: triggers.v1.TriggerLimitFok
+	(*ConditionalChildExecution)(nil),         // 12: triggers.v1.ConditionalChildExecution
+	(*ConditionalTrigger)(nil),                // 13: triggers.v1.ConditionalTrigger
+	(*TrailingStopTrigger)(nil),               // 14: triggers.v1.TrailingStopTrigger
+	(*TwapMarketIoc)(nil),                     // 15: triggers.v1.TwapMarketIoc
+	(*TwapLimitGtc)(nil),                      // 16: triggers.v1.TwapLimitGtc
+	(*TwapTrigger)(nil),                       // 17: triggers.v1.TwapTrigger
+	(*LadderTrigger)(nil),                     // 18: triggers.v1.LadderTrigger
+	(*TriggerIntent)(nil),                     // 19: triggers.v1.TriggerIntent
+	(*CreateTriggerRequest)(nil),              // 20: triggers.v1.CreateTriggerRequest
+	(*CreateTriggerResponse)(nil),             // 21: triggers.v1.CreateTriggerResponse
+	(*OcoLeg)(nil),                            // 22: triggers.v1.OcoLeg
+	(*OcoIntent)(nil),                         // 23: triggers.v1.OcoIntent
+	(*CreateOcoRequest)(nil),                  // 24: triggers.v1.CreateOcoRequest
+	(*CreateOcoResponse)(nil),                 // 25: triggers.v1.CreateOcoResponse
+	(*CancelOcoRequest)(nil),                  // 26: triggers.v1.CancelOcoRequest
+	(*CancelOcoResponse)(nil),                 // 27: triggers.v1.CancelOcoResponse
+	(*GetTriggerRequest)(nil),                 // 28: triggers.v1.GetTriggerRequest
+	(*GetTriggerResponse)(nil),                // 29: triggers.v1.GetTriggerResponse
+	(*ListTriggersRequest)(nil),               // 30: triggers.v1.ListTriggersRequest
+	(*ListTriggersResponse)(nil),              // 31: triggers.v1.ListTriggersResponse
+	(*ListTriggerEventsRequest)(nil),          // 32: triggers.v1.ListTriggerEventsRequest
+	(*TriggerEvent)(nil),                      // 33: triggers.v1.TriggerEvent
+	(*TriggerEventBatch)(nil),                 // 34: triggers.v1.TriggerEventBatch
+	(*ListTriggerEventsResponse)(nil),         // 35: triggers.v1.ListTriggerEventsResponse
+	(*CancelTriggerRequest)(nil),              // 36: triggers.v1.CancelTriggerRequest
+	(*CancelTriggerResponse)(nil),             // 37: triggers.v1.CancelTriggerResponse
+	(*BatchCancelTriggersRequest)(nil),        // 38: triggers.v1.BatchCancelTriggersRequest
+	(*BatchCancelTriggersResultItem)(nil),     // 39: triggers.v1.BatchCancelTriggersResultItem
+	(*BatchCancelTriggersResponse)(nil),       // 40: triggers.v1.BatchCancelTriggersResponse
+	(*ModifyTriggerRequest)(nil),              // 41: triggers.v1.ModifyTriggerRequest
+	(*ModifyTriggerResponse)(nil),             // 42: triggers.v1.ModifyTriggerResponse
+	(*PauseTriggerRequest)(nil),               // 43: triggers.v1.PauseTriggerRequest
+	(*PauseTriggerResponse)(nil),              // 44: triggers.v1.PauseTriggerResponse
+	(*ResumeTriggerRequest)(nil),              // 45: triggers.v1.ResumeTriggerRequest
+	(*ResumeTriggerResponse)(nil),             // 46: triggers.v1.ResumeTriggerResponse
+	(*StopDetails)(nil),                       // 47: triggers.v1.StopDetails
+	(*TrailingDetails)(nil),                   // 48: triggers.v1.TrailingDetails
+	(*TwapDetails)(nil),                       // 49: triggers.v1.TwapDetails
+	(*LadderDetails)(nil),                     // 50: triggers.v1.LadderDetails
+	(*Trigger)(nil),                           // 51: triggers.v1.Trigger
+	(v1.Side)(0),                              // 52: orders.v1.Side
+	(v1.TriggerPriceSource)(0),                // 53: orders.v1.TriggerPriceSource
+	(v1.FeeAsset)(0),                          // 54: orders.v1.FeeAsset
+	(v1.SelfTradePreventionMode)(0),           // 55: orders.v1.SelfTradePreventionMode
+	(*timestamppb.Timestamp)(nil),             // 56: google.protobuf.Timestamp
+	(*v1.RiskExecution)(nil),                  // 57: orders.v1.RiskExecution
+	(*v1.ErrorDetail)(nil),                    // 58: orders.v1.ErrorDetail
+	(v1.TriggerDirection)(0),                  // 59: orders.v1.TriggerDirection
 }
 var file_triggers_v1_triggers_proto_depIdxs = []int32{
-	7,  // 0: triggers.v1.ConditionalChildExecution.market_ioc:type_name -> triggers.v1.TriggerMarketIoc
-	8,  // 1: triggers.v1.ConditionalChildExecution.limit_gtc:type_name -> triggers.v1.TriggerLimitGtc
-	9,  // 2: triggers.v1.ConditionalChildExecution.limit_ioc:type_name -> triggers.v1.TriggerLimitIoc
-	10, // 3: triggers.v1.ConditionalChildExecution.limit_fok:type_name -> triggers.v1.TriggerLimitFok
-	51, // 4: triggers.v1.ConditionalTrigger.side:type_name -> orders.v1.Side
-	11, // 5: triggers.v1.ConditionalTrigger.child:type_name -> triggers.v1.ConditionalChildExecution
-	52, // 6: triggers.v1.ConditionalTrigger.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
-	51, // 7: triggers.v1.TrailingStopTrigger.side:type_name -> orders.v1.Side
-	52, // 8: triggers.v1.TrailingStopTrigger.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
-	51, // 9: triggers.v1.TwapTrigger.side:type_name -> orders.v1.Side
-	14, // 10: triggers.v1.TwapTrigger.market_ioc:type_name -> triggers.v1.TwapMarketIoc
-	15, // 11: triggers.v1.TwapTrigger.limit_gtc:type_name -> triggers.v1.TwapLimitGtc
-	51, // 12: triggers.v1.LadderTrigger.side:type_name -> orders.v1.Side
-	53, // 13: triggers.v1.TriggerIntent.fee_asset:type_name -> orders.v1.FeeAsset
-	54, // 14: triggers.v1.TriggerIntent.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
-	12, // 15: triggers.v1.TriggerIntent.stop_loss:type_name -> triggers.v1.ConditionalTrigger
-	12, // 16: triggers.v1.TriggerIntent.take_profit:type_name -> triggers.v1.ConditionalTrigger
-	13, // 17: triggers.v1.TriggerIntent.trailing_stop:type_name -> triggers.v1.TrailingStopTrigger
-	16, // 18: triggers.v1.TriggerIntent.twap:type_name -> triggers.v1.TwapTrigger
-	17, // 19: triggers.v1.TriggerIntent.ladder:type_name -> triggers.v1.LadderTrigger
-	18, // 20: triggers.v1.CreateTriggerRequest.trigger:type_name -> triggers.v1.TriggerIntent
-	55, // 21: triggers.v1.CreateTriggerResponse.accepted_at:type_name -> google.protobuf.Timestamp
-	56, // 22: triggers.v1.OcoLeg.child:type_name -> orders.v1.RiskExecution
-	52, // 23: triggers.v1.OcoLeg.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
-	51, // 24: triggers.v1.OcoIntent.side:type_name -> orders.v1.Side
-	54, // 25: triggers.v1.OcoIntent.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
-	21, // 26: triggers.v1.OcoIntent.take_profit:type_name -> triggers.v1.OcoLeg
-	21, // 27: triggers.v1.OcoIntent.stop_loss:type_name -> triggers.v1.OcoLeg
-	22, // 28: triggers.v1.CreateOcoRequest.oco:type_name -> triggers.v1.OcoIntent
-	55, // 29: triggers.v1.CreateOcoResponse.accepted_at:type_name -> google.protobuf.Timestamp
+	8,  // 0: triggers.v1.ConditionalChildExecution.market_ioc:type_name -> triggers.v1.TriggerMarketIoc
+	9,  // 1: triggers.v1.ConditionalChildExecution.limit_gtc:type_name -> triggers.v1.TriggerLimitGtc
+	10, // 2: triggers.v1.ConditionalChildExecution.limit_ioc:type_name -> triggers.v1.TriggerLimitIoc
+	11, // 3: triggers.v1.ConditionalChildExecution.limit_fok:type_name -> triggers.v1.TriggerLimitFok
+	52, // 4: triggers.v1.ConditionalTrigger.side:type_name -> orders.v1.Side
+	12, // 5: triggers.v1.ConditionalTrigger.child:type_name -> triggers.v1.ConditionalChildExecution
+	53, // 6: triggers.v1.ConditionalTrigger.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
+	52, // 7: triggers.v1.TrailingStopTrigger.side:type_name -> orders.v1.Side
+	53, // 8: triggers.v1.TrailingStopTrigger.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
+	52, // 9: triggers.v1.TwapTrigger.side:type_name -> orders.v1.Side
+	15, // 10: triggers.v1.TwapTrigger.market_ioc:type_name -> triggers.v1.TwapMarketIoc
+	16, // 11: triggers.v1.TwapTrigger.limit_gtc:type_name -> triggers.v1.TwapLimitGtc
+	52, // 12: triggers.v1.LadderTrigger.side:type_name -> orders.v1.Side
+	54, // 13: triggers.v1.TriggerIntent.fee_asset:type_name -> orders.v1.FeeAsset
+	55, // 14: triggers.v1.TriggerIntent.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
+	13, // 15: triggers.v1.TriggerIntent.stop_loss:type_name -> triggers.v1.ConditionalTrigger
+	13, // 16: triggers.v1.TriggerIntent.take_profit:type_name -> triggers.v1.ConditionalTrigger
+	14, // 17: triggers.v1.TriggerIntent.trailing_stop:type_name -> triggers.v1.TrailingStopTrigger
+	17, // 18: triggers.v1.TriggerIntent.twap:type_name -> triggers.v1.TwapTrigger
+	18, // 19: triggers.v1.TriggerIntent.ladder:type_name -> triggers.v1.LadderTrigger
+	19, // 20: triggers.v1.CreateTriggerRequest.trigger:type_name -> triggers.v1.TriggerIntent
+	56, // 21: triggers.v1.CreateTriggerResponse.accepted_at:type_name -> google.protobuf.Timestamp
+	57, // 22: triggers.v1.OcoLeg.child:type_name -> orders.v1.RiskExecution
+	53, // 23: triggers.v1.OcoLeg.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
+	52, // 24: triggers.v1.OcoIntent.side:type_name -> orders.v1.Side
+	55, // 25: triggers.v1.OcoIntent.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
+	22, // 26: triggers.v1.OcoIntent.take_profit:type_name -> triggers.v1.OcoLeg
+	22, // 27: triggers.v1.OcoIntent.stop_loss:type_name -> triggers.v1.OcoLeg
+	23, // 28: triggers.v1.CreateOcoRequest.oco:type_name -> triggers.v1.OcoIntent
+	56, // 29: triggers.v1.CreateOcoResponse.accepted_at:type_name -> google.protobuf.Timestamp
 	1,  // 30: triggers.v1.CancelOcoResponse.status:type_name -> triggers.v1.TriggerStatus
-	55, // 31: triggers.v1.CancelOcoResponse.ts:type_name -> google.protobuf.Timestamp
-	50, // 32: triggers.v1.GetTriggerResponse.trigger:type_name -> triggers.v1.Trigger
+	56, // 31: triggers.v1.CancelOcoResponse.ts:type_name -> google.protobuf.Timestamp
+	51, // 32: triggers.v1.GetTriggerResponse.trigger:type_name -> triggers.v1.Trigger
 	1,  // 33: triggers.v1.ListTriggersRequest.status:type_name -> triggers.v1.TriggerStatus
 	0,  // 34: triggers.v1.ListTriggersRequest.trigger_type:type_name -> triggers.v1.TriggerType
-	50, // 35: triggers.v1.ListTriggersResponse.triggers:type_name -> triggers.v1.Trigger
+	51, // 35: triggers.v1.ListTriggersResponse.triggers:type_name -> triggers.v1.Trigger
 	2,  // 36: triggers.v1.ListTriggerEventsRequest.event_type:type_name -> triggers.v1.TriggerEventType
 	0,  // 37: triggers.v1.TriggerEvent.trigger_type:type_name -> triggers.v1.TriggerType
 	2,  // 38: triggers.v1.TriggerEvent.event_type:type_name -> triggers.v1.TriggerEventType
 	3,  // 39: triggers.v1.TriggerEvent.cancel_reason:type_name -> triggers.v1.TriggerCancelReason
 	4,  // 40: triggers.v1.TriggerEvent.failure_reason:type_name -> triggers.v1.TriggerFailureReason
 	4,  // 41: triggers.v1.TriggerEvent.fire_refusal_reason:type_name -> triggers.v1.TriggerFailureReason
-	32, // 42: triggers.v1.TriggerEventBatch.events:type_name -> triggers.v1.TriggerEvent
-	32, // 43: triggers.v1.ListTriggerEventsResponse.events:type_name -> triggers.v1.TriggerEvent
+	33, // 42: triggers.v1.TriggerEventBatch.events:type_name -> triggers.v1.TriggerEvent
+	33, // 43: triggers.v1.ListTriggerEventsResponse.events:type_name -> triggers.v1.TriggerEvent
 	1,  // 44: triggers.v1.CancelTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
-	55, // 45: triggers.v1.CancelTriggerResponse.ts:type_name -> google.protobuf.Timestamp
-	6,  // 46: triggers.v1.BatchCancelTriggersResultItem.status:type_name -> triggers.v1.BatchCancelTriggersResultItem.Status
-	57, // 47: triggers.v1.BatchCancelTriggersResultItem.error:type_name -> orders.v1.ErrorDetail
-	38, // 48: triggers.v1.BatchCancelTriggersResponse.results:type_name -> triggers.v1.BatchCancelTriggersResultItem
-	55, // 49: triggers.v1.BatchCancelTriggersResponse.ts:type_name -> google.protobuf.Timestamp
+	56, // 45: triggers.v1.CancelTriggerResponse.ts:type_name -> google.protobuf.Timestamp
+	7,  // 46: triggers.v1.BatchCancelTriggersResultItem.status:type_name -> triggers.v1.BatchCancelTriggersResultItem.Status
+	58, // 47: triggers.v1.BatchCancelTriggersResultItem.error:type_name -> orders.v1.ErrorDetail
+	39, // 48: triggers.v1.BatchCancelTriggersResponse.results:type_name -> triggers.v1.BatchCancelTriggersResultItem
+	56, // 49: triggers.v1.BatchCancelTriggersResponse.ts:type_name -> google.protobuf.Timestamp
 	1,  // 50: triggers.v1.ModifyTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
-	55, // 51: triggers.v1.ModifyTriggerResponse.ts:type_name -> google.protobuf.Timestamp
+	56, // 51: triggers.v1.ModifyTriggerResponse.ts:type_name -> google.protobuf.Timestamp
 	1,  // 52: triggers.v1.PauseTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
-	55, // 53: triggers.v1.PauseTriggerResponse.ts:type_name -> google.protobuf.Timestamp
+	56, // 53: triggers.v1.PauseTriggerResponse.ts:type_name -> google.protobuf.Timestamp
 	1,  // 54: triggers.v1.ResumeTriggerResponse.status:type_name -> triggers.v1.TriggerStatus
-	55, // 55: triggers.v1.ResumeTriggerResponse.ts:type_name -> google.protobuf.Timestamp
-	52, // 56: triggers.v1.StopDetails.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
-	58, // 57: triggers.v1.StopDetails.trigger_direction:type_name -> orders.v1.TriggerDirection
-	52, // 58: triggers.v1.TrailingDetails.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
-	58, // 59: triggers.v1.TrailingDetails.trigger_direction:type_name -> orders.v1.TriggerDirection
+	56, // 55: triggers.v1.ResumeTriggerResponse.ts:type_name -> google.protobuf.Timestamp
+	53, // 56: triggers.v1.StopDetails.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
+	59, // 57: triggers.v1.StopDetails.trigger_direction:type_name -> orders.v1.TriggerDirection
+	53, // 58: triggers.v1.TrailingDetails.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
+	59, // 59: triggers.v1.TrailingDetails.trigger_direction:type_name -> orders.v1.TriggerDirection
 	5,  // 60: triggers.v1.LadderDetails.ladder_distribution:type_name -> triggers.v1.LadderDistribution
-	1,  // 61: triggers.v1.Trigger.status:type_name -> triggers.v1.TriggerStatus
-	3,  // 62: triggers.v1.Trigger.cancel_reason:type_name -> triggers.v1.TriggerCancelReason
-	4,  // 63: triggers.v1.Trigger.failure_reason:type_name -> triggers.v1.TriggerFailureReason
-	53, // 64: triggers.v1.Trigger.fee_asset:type_name -> orders.v1.FeeAsset
-	54, // 65: triggers.v1.Trigger.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
-	12, // 66: triggers.v1.Trigger.stop_loss:type_name -> triggers.v1.ConditionalTrigger
-	12, // 67: triggers.v1.Trigger.take_profit:type_name -> triggers.v1.ConditionalTrigger
-	13, // 68: triggers.v1.Trigger.trailing_stop:type_name -> triggers.v1.TrailingStopTrigger
-	16, // 69: triggers.v1.Trigger.twap:type_name -> triggers.v1.TwapTrigger
-	17, // 70: triggers.v1.Trigger.ladder:type_name -> triggers.v1.LadderTrigger
-	46, // 71: triggers.v1.Trigger.stop:type_name -> triggers.v1.StopDetails
-	47, // 72: triggers.v1.Trigger.trailing:type_name -> triggers.v1.TrailingDetails
-	48, // 73: triggers.v1.Trigger.twap_state:type_name -> triggers.v1.TwapDetails
-	49, // 74: triggers.v1.Trigger.ladder_state:type_name -> triggers.v1.LadderDetails
-	55, // 75: triggers.v1.Trigger.created_at:type_name -> google.protobuf.Timestamp
-	55, // 76: triggers.v1.Trigger.updated_at:type_name -> google.protobuf.Timestamp
-	55, // 77: triggers.v1.Trigger.armed_at:type_name -> google.protobuf.Timestamp
-	55, // 78: triggers.v1.Trigger.completed_at:type_name -> google.protobuf.Timestamp
-	19, // 79: triggers.v1.TriggersService.CreateTrigger:input_type -> triggers.v1.CreateTriggerRequest
-	23, // 80: triggers.v1.TriggersService.CreateOco:input_type -> triggers.v1.CreateOcoRequest
-	25, // 81: triggers.v1.TriggersService.CancelOco:input_type -> triggers.v1.CancelOcoRequest
-	27, // 82: triggers.v1.TriggersService.GetTrigger:input_type -> triggers.v1.GetTriggerRequest
-	29, // 83: triggers.v1.TriggersService.ListTriggers:input_type -> triggers.v1.ListTriggersRequest
-	31, // 84: triggers.v1.TriggersService.ListTriggerEvents:input_type -> triggers.v1.ListTriggerEventsRequest
-	35, // 85: triggers.v1.TriggersService.CancelTrigger:input_type -> triggers.v1.CancelTriggerRequest
-	37, // 86: triggers.v1.TriggersService.BatchCancelTriggers:input_type -> triggers.v1.BatchCancelTriggersRequest
-	40, // 87: triggers.v1.TriggersService.ModifyTrigger:input_type -> triggers.v1.ModifyTriggerRequest
-	42, // 88: triggers.v1.TriggersService.PauseTrigger:input_type -> triggers.v1.PauseTriggerRequest
-	44, // 89: triggers.v1.TriggersService.ResumeTrigger:input_type -> triggers.v1.ResumeTriggerRequest
-	20, // 90: triggers.v1.TriggersService.CreateTrigger:output_type -> triggers.v1.CreateTriggerResponse
-	24, // 91: triggers.v1.TriggersService.CreateOco:output_type -> triggers.v1.CreateOcoResponse
-	26, // 92: triggers.v1.TriggersService.CancelOco:output_type -> triggers.v1.CancelOcoResponse
-	28, // 93: triggers.v1.TriggersService.GetTrigger:output_type -> triggers.v1.GetTriggerResponse
-	30, // 94: triggers.v1.TriggersService.ListTriggers:output_type -> triggers.v1.ListTriggersResponse
-	34, // 95: triggers.v1.TriggersService.ListTriggerEvents:output_type -> triggers.v1.ListTriggerEventsResponse
-	36, // 96: triggers.v1.TriggersService.CancelTrigger:output_type -> triggers.v1.CancelTriggerResponse
-	39, // 97: triggers.v1.TriggersService.BatchCancelTriggers:output_type -> triggers.v1.BatchCancelTriggersResponse
-	41, // 98: triggers.v1.TriggersService.ModifyTrigger:output_type -> triggers.v1.ModifyTriggerResponse
-	43, // 99: triggers.v1.TriggersService.PauseTrigger:output_type -> triggers.v1.PauseTriggerResponse
-	45, // 100: triggers.v1.TriggersService.ResumeTrigger:output_type -> triggers.v1.ResumeTriggerResponse
-	90, // [90:101] is the sub-list for method output_type
-	79, // [79:90] is the sub-list for method input_type
-	79, // [79:79] is the sub-list for extension type_name
-	79, // [79:79] is the sub-list for extension extendee
-	0,  // [0:79] is the sub-list for field type_name
+	6,  // 61: triggers.v1.LadderDetails.outcome:type_name -> triggers.v1.LadderOutcome
+	1,  // 62: triggers.v1.Trigger.status:type_name -> triggers.v1.TriggerStatus
+	3,  // 63: triggers.v1.Trigger.cancel_reason:type_name -> triggers.v1.TriggerCancelReason
+	4,  // 64: triggers.v1.Trigger.failure_reason:type_name -> triggers.v1.TriggerFailureReason
+	54, // 65: triggers.v1.Trigger.fee_asset:type_name -> orders.v1.FeeAsset
+	55, // 66: triggers.v1.Trigger.self_trade_prevention_mode:type_name -> orders.v1.SelfTradePreventionMode
+	13, // 67: triggers.v1.Trigger.stop_loss:type_name -> triggers.v1.ConditionalTrigger
+	13, // 68: triggers.v1.Trigger.take_profit:type_name -> triggers.v1.ConditionalTrigger
+	14, // 69: triggers.v1.Trigger.trailing_stop:type_name -> triggers.v1.TrailingStopTrigger
+	17, // 70: triggers.v1.Trigger.twap:type_name -> triggers.v1.TwapTrigger
+	18, // 71: triggers.v1.Trigger.ladder:type_name -> triggers.v1.LadderTrigger
+	47, // 72: triggers.v1.Trigger.stop:type_name -> triggers.v1.StopDetails
+	48, // 73: triggers.v1.Trigger.trailing:type_name -> triggers.v1.TrailingDetails
+	49, // 74: triggers.v1.Trigger.twap_state:type_name -> triggers.v1.TwapDetails
+	50, // 75: triggers.v1.Trigger.ladder_state:type_name -> triggers.v1.LadderDetails
+	56, // 76: triggers.v1.Trigger.created_at:type_name -> google.protobuf.Timestamp
+	56, // 77: triggers.v1.Trigger.updated_at:type_name -> google.protobuf.Timestamp
+	56, // 78: triggers.v1.Trigger.armed_at:type_name -> google.protobuf.Timestamp
+	56, // 79: triggers.v1.Trigger.completed_at:type_name -> google.protobuf.Timestamp
+	20, // 80: triggers.v1.TriggersService.CreateTrigger:input_type -> triggers.v1.CreateTriggerRequest
+	24, // 81: triggers.v1.TriggersService.CreateOco:input_type -> triggers.v1.CreateOcoRequest
+	26, // 82: triggers.v1.TriggersService.CancelOco:input_type -> triggers.v1.CancelOcoRequest
+	28, // 83: triggers.v1.TriggersService.GetTrigger:input_type -> triggers.v1.GetTriggerRequest
+	30, // 84: triggers.v1.TriggersService.ListTriggers:input_type -> triggers.v1.ListTriggersRequest
+	32, // 85: triggers.v1.TriggersService.ListTriggerEvents:input_type -> triggers.v1.ListTriggerEventsRequest
+	36, // 86: triggers.v1.TriggersService.CancelTrigger:input_type -> triggers.v1.CancelTriggerRequest
+	38, // 87: triggers.v1.TriggersService.BatchCancelTriggers:input_type -> triggers.v1.BatchCancelTriggersRequest
+	41, // 88: triggers.v1.TriggersService.ModifyTrigger:input_type -> triggers.v1.ModifyTriggerRequest
+	43, // 89: triggers.v1.TriggersService.PauseTrigger:input_type -> triggers.v1.PauseTriggerRequest
+	45, // 90: triggers.v1.TriggersService.ResumeTrigger:input_type -> triggers.v1.ResumeTriggerRequest
+	21, // 91: triggers.v1.TriggersService.CreateTrigger:output_type -> triggers.v1.CreateTriggerResponse
+	25, // 92: triggers.v1.TriggersService.CreateOco:output_type -> triggers.v1.CreateOcoResponse
+	27, // 93: triggers.v1.TriggersService.CancelOco:output_type -> triggers.v1.CancelOcoResponse
+	29, // 94: triggers.v1.TriggersService.GetTrigger:output_type -> triggers.v1.GetTriggerResponse
+	31, // 95: triggers.v1.TriggersService.ListTriggers:output_type -> triggers.v1.ListTriggersResponse
+	35, // 96: triggers.v1.TriggersService.ListTriggerEvents:output_type -> triggers.v1.ListTriggerEventsResponse
+	37, // 97: triggers.v1.TriggersService.CancelTrigger:output_type -> triggers.v1.CancelTriggerResponse
+	40, // 98: triggers.v1.TriggersService.BatchCancelTriggers:output_type -> triggers.v1.BatchCancelTriggersResponse
+	42, // 99: triggers.v1.TriggersService.ModifyTrigger:output_type -> triggers.v1.ModifyTriggerResponse
+	44, // 100: triggers.v1.TriggersService.PauseTrigger:output_type -> triggers.v1.PauseTriggerResponse
+	46, // 101: triggers.v1.TriggersService.ResumeTrigger:output_type -> triggers.v1.ResumeTriggerResponse
+	91, // [91:102] is the sub-list for method output_type
+	80, // [80:91] is the sub-list for method input_type
+	80, // [80:80] is the sub-list for extension type_name
+	80, // [80:80] is the sub-list for extension extendee
+	0,  // [0:80] is the sub-list for field type_name
 }
 
 func init() { file_triggers_v1_triggers_proto_init() }
@@ -5981,7 +6132,7 @@ func file_triggers_v1_triggers_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_triggers_v1_triggers_proto_rawDesc), len(file_triggers_v1_triggers_proto_rawDesc)),
-			NumEnums:      7,
+			NumEnums:      8,
 			NumMessages:   44,
 			NumExtensions: 0,
 			NumServices:   1,
