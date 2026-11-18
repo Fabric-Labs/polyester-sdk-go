@@ -14,7 +14,7 @@ func TestLifecycleListFlowsOptional(t *testing.T) {
 	defer cleanup()
 
 	result := testutil.CallOptional(t, "lifecycle.list_flows", func() (models.LifecycleFlowsList, error) {
-		return client.Lifecycle.ListFlows(ctx, 5, nil, nil, nil, nil, false)
+		return client.Lifecycle.ListFlows(ctx, 5, nil, nil, nil, false)
 	})
 	if result.Flows == nil {
 		t.Fatal("expected flows list")

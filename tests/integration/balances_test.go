@@ -44,8 +44,8 @@ func TestBalancesGetBalanceHistory(t *testing.T) {
 		t.Fatalf("points=%d", result.Points)
 	}
 	for _, series := range result.Series {
-		if len(series.BalanceQ) > result.Points {
-			t.Fatalf("series points=%d exceed response points=%d", len(series.BalanceQ), result.Points)
+		if len(series.Balance) > result.Points {
+			t.Fatalf("series points=%d exceed response points=%d", len(series.Balance), result.Points)
 		}
 	}
 }
