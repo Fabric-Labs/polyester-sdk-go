@@ -214,10 +214,11 @@ func TestStatementsGetExportDownloadURLNeverPrintsTheURL(t *testing.T) {
 		t.Fatalf("requests = %v unsigned=%d", fake.urls, fake.unsigned)
 	}
 
-	// A reply without its URL or expiry breaks the contract.
+	// A reply without its URL, expiry or file name breaks the contract.
 	for _, reply := range []*ledgerrdv1.GetStatementExportDownloadUrlResponse{
-		{ExpiresAt: timestamppb.New(expires)},
-		{Url: signed},
+		{ExpiresAt: timestamppb.New(expires), Filename: "statement-7000000001.csv"},
+		{Url: signed, Filename: "statement-7000000001.csv"},
+		{Url: signed, ExpiresAt: timestamppb.New(expires)},
 	} {
 		fake.url = reply
 		_, err := client.Statements.GetExportDownloadURL(context.Background(), codecs.FormatID(7000000001))

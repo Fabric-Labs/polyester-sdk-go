@@ -50,14 +50,17 @@ func TestWalletBalancesListTheUnavailableAssets(t *testing.T) {
 // absent value is unknown, and an unlimited maximum is a presence-only fact.
 func TestAssetInfoCarriesItsMarketStats(t *testing.T) {
 	asOf := time.Date(2026, 11, 17, 4, 27, 33, 22_000_000, time.UTC)
-	list := AssetInfoListFromProto(&marketdatav1.ListAssetInfoResponse{AssetInfo: []*marketdatav1.AssetInfo{
+	list, err := AssetInfoListFromProto(&marketdatav1.ListAssetInfoResponse{AssetInfo: []*marketdatav1.AssetInfo{
 		{AssetId: 1, MarketStats: &marketdatav1.AssetMarketStats{
 			CirculatingSupply:  &marketdatav1.AssetMarketValue{Value: "20113162", Source: marketdatav1.AssetDataSource_COINMARKETCAP, AsOf: timestamppb.New(asOf)},
-			MarketCapUsd:       &marketdatav1.AssetMarketValue{Value: "1307009616822.71", Source: marketdatav1.AssetDataSource_POLYESTER},
+			MarketCapUsd:       &marketdatav1.AssetMarketValue{Value: "1307009616822.71", Source: marketdatav1.AssetDataSource_POLYESTER, AsOf: timestamppb.New(asOf)},
 			MaxSupplyUnlimited: &marketdatav1.AssetMarketFlag{Source: marketdatav1.AssetDataSource_COINMARKETCAP, AsOf: timestamppb.New(asOf)},
 		}},
 		{AssetId: 2},
 	}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(list) != 2 || list[1].MarketStats != nil {
 		t.Fatalf("list = %+v", list)
 	}
@@ -65,7 +68,7 @@ func TestAssetInfoCarriesItsMarketStats(t *testing.T) {
 	if stats == nil || stats.CirculatingSupply == nil || stats.CirculatingSupply.Value != "20113162" || stats.CirculatingSupply.Source != "coinmarketcap" || !stats.CirculatingSupply.AsOf.Equal(asOf) {
 		t.Fatalf("circulating supply = %+v", stats)
 	}
-	if stats.MarketCapUSD.Value != "1307009616822.71" || stats.MarketCapUSD.Source != "polyester" || stats.MarketCapUSD.AsOf != nil {
+	if stats.MarketCapUSD.Value != "1307009616822.71" || stats.MarketCapUSD.Source != "polyester" || !stats.MarketCapUSD.AsOf.Equal(asOf) {
 		t.Fatalf("market cap = %+v", stats.MarketCapUSD)
 	}
 	if stats.MaxSupply != nil || stats.MaxSupplyUnlimited == nil || stats.MaxSupplyUnlimited.Source != "coinmarketcap" || stats.TotalSupply != nil || stats.Rank != nil {

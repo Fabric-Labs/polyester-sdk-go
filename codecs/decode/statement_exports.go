@@ -86,8 +86,9 @@ func StatementExportFromCancel(msg *ledgerrdv1.CancelStatementExportResponse, ex
 }
 
 // StatementExportDownloadURLFromProto decodes a
-// GetStatementExportDownloadUrl reply. A reply without its URL or expiry
-// returns a *errors.ResponseContractError that never repeats the URL.
+// GetStatementExportDownloadUrl reply. A reply without its URL, expiry or
+// file name returns a *errors.ResponseContractError that never repeats the
+// URL.
 func StatementExportDownloadURLFromProto(msg *ledgerrdv1.GetStatementExportDownloadUrlResponse) (models.StatementExportDownloadURL, error) {
 	const op = "GetStatementExportDownloadUrl"
 	if msg.GetUrl() == "" {
@@ -96,6 +97,9 @@ func StatementExportDownloadURLFromProto(msg *ledgerrdv1.GetStatementExportDownl
 	expires := timestampTime(msg.GetExpiresAt())
 	if expires == nil {
 		return models.StatementExportDownloadURL{}, &sdkerrors.ResponseContractError{Operation: op, Msg: "missing expires_at"}
+	}
+	if msg.GetFilename() == "" {
+		return models.StatementExportDownloadURL{}, &sdkerrors.ResponseContractError{Operation: op, Msg: "missing filename"}
 	}
 	return models.StatementExportDownloadURL{URL: models.NewSecret(msg.GetUrl()), ExpiresAt: *expires, Filename: msg.GetFilename()}, nil
 }

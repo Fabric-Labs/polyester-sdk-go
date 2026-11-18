@@ -28,7 +28,7 @@ func (s *ZipperService) client() chainzipperv1connect.ZipperServiceClient {
 }
 
 func (s *ZipperService) GetDepositWithdrawConfig(ctx context.Context) (models.DepositWithdrawConfig, error) {
-	return UnaryPublic(ctx, s.transport, s.client().GetDepositWithdrawConfig, &zipperv1.GetDepositWithdrawConfigRequest{}, decode.DepositWithdrawConfigFromProto)
+	return UnaryPublicDecoded(ctx, s.transport, s.client().GetDepositWithdrawConfig, &zipperv1.GetDepositWithdrawConfigRequest{}, decode.DepositWithdrawConfigFromProto)
 }
 
 func (s *ZipperService) SubscribeZippedAssetSupply(ctx context.Context, patchCatalog bool) (*realtime.Subscription[models.ZippedAssetSupplyBatch], error) {
