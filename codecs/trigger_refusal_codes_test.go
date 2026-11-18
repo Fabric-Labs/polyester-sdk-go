@@ -135,7 +135,8 @@ func TestModifyTriggerRefusalsCarryTheAPIsFieldCodes(t *testing.T) {
 	}
 }
 
-// CreateOco answers BAD_QTY for its quantity, TRIGGER_PRICE_INVALID for a
+// CreateOco answers TRIGGER_QTY_INVALID for its quantity, CLIENT_LIST_ID_INVALID
+// for its client list ID, TRIGGER_PRICE_INVALID for a
 // leg's trigger price and BAD_PRICE for a leg's limit price.
 func TestOcoRefusalsCarryTheAPIsFieldCodes(t *testing.T) {
 	valid := func() models.CreateOcoInput {
@@ -155,7 +156,10 @@ func TestOcoRefusalsCarryTheAPIsFieldCodes(t *testing.T) {
 		edit func(*models.CreateOcoInput)
 		want orderv1.ErrorCode
 	}{
-		{"qty zero", func(in *models.CreateOcoInput) { in.Qty = models.QtyFromScaledInt(0) }, orderv1.ErrorCode_ERROR_CODE_BAD_QTY},
+		{"qty zero", func(in *models.CreateOcoInput) { in.Qty = models.QtyFromScaledInt(0) }, orderv1.ErrorCode_ERROR_CODE_TRIGGER_QTY_INVALID},
+		{"client list ID empty", func(in *models.CreateOcoInput) { empty := ""; in.ClientListID = &empty }, orderv1.ErrorCode_ERROR_CODE_CLIENT_LIST_ID_INVALID},
+		{"client list ID with a plus", func(in *models.CreateOcoInput) { id := "oco+1"; in.ClientListID = &id }, orderv1.ErrorCode_ERROR_CODE_CLIENT_LIST_ID_INVALID},
+		{"client list ID of 37 characters", func(in *models.CreateOcoInput) { id := strings.Repeat("a", 37); in.ClientListID = &id }, orderv1.ErrorCode_ERROR_CODE_CLIENT_LIST_ID_INVALID},
 		{"stop-loss trigger price zero", func(in *models.CreateOcoInput) { in.StopLoss.TriggerPrice = models.PriceFromDecimal("0") }, orderv1.ErrorCode_ERROR_CODE_TRIGGER_PRICE_INVALID},
 		{"take-profit trigger price missing", func(in *models.CreateOcoInput) { in.TakeProfit.TriggerPrice = models.PriceInput{} }, orderv1.ErrorCode_ERROR_CODE_TRIGGER_PRICE_INVALID},
 		{"take-profit limit price zero", func(in *models.CreateOcoInput) { in.TakeProfit.LimitPrice = &zeroLimit }, orderv1.ErrorCode_ERROR_CODE_BAD_PRICE},

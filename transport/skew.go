@@ -111,7 +111,8 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 			Type  string `json:"type"`
 			Value string `json:"value"`
 		} `json:"details"`
-		RateLimit json.RawMessage `json:"rateLimit"`
+		RateLimit       json.RawMessage `json:"rateLimit"`
+		TimestampWindow json.RawMessage `json:"timestampWindow"`
 	}
 	if isJSON || resp.StatusCode == 504 {
 		if json.Unmarshal(decoded, &detail) != nil {
@@ -277,6 +278,7 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		mapped = &sdkerrors.TimestampSkewError{
 			Msg:    "API key timestamp is outside the allowed skew window",
 			Status: resp.StatusCode,
+			Window: problemTimestampWindow(detail.TimestampWindow),
 		}
 	case detail.Code == sdkerrors.AuthCodeSubaccountOwnerRoleLocked:
 		mapped = &sdkerrors.SubaccountOwnerRoleLockedError{Msg: msg, Status: resp.StatusCode}
@@ -579,6 +581,38 @@ func isRetryableRESTAdmissionCode(code string) bool {
 // bodies) or numbers; enum names are kept as sent, including ones newer than
 // this SDK. Anything that isn't an object reads as no detail, and a field of the
 // wrong type reads as absent.
+// problemTimestampWindow reads a TIMESTAMP_SKEW problem's timestampWindow
+// member, whose serverTimeMs is a decimal string; nil when the problem has
+// none or it does not parse exactly.
+func problemTimestampWindow(raw json.RawMessage) *sdkerrors.TimestampWindow {
+	if len(raw) == 0 {
+		return nil
+	}
+	var window struct {
+		ServerTimeMs json.Number `json:"serverTimeMs"`
+		RecvWindowMs json.Number `json:"recvWindowMs"`
+		MaxFutureMs  json.Number `json:"maxFutureMs"`
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	if decoder.Decode(&window) != nil {
+		return nil
+	}
+	server, err := strconv.ParseInt(window.ServerTimeMs.String(), 10, 64)
+	if err != nil {
+		return nil
+	}
+	recv, err := strconv.ParseUint(window.RecvWindowMs.String(), 10, 32)
+	if err != nil {
+		return nil
+	}
+	future, err := strconv.ParseUint(window.MaxFutureMs.String(), 10, 32)
+	if err != nil {
+		return nil
+	}
+	return &sdkerrors.TimestampWindow{ServerTimeMs: server, RecvWindowMs: uint32(recv), MaxFutureMs: uint32(future)}
+}
+
 func problemRateLimit(raw json.RawMessage) *sdkerrors.RateLimitDetail {
 	var fields map[string]json.RawMessage
 	if len(raw) == 0 || json.Unmarshal(raw, &fields) != nil || fields == nil {

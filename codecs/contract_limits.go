@@ -41,7 +41,10 @@ var (
 // rules. A value outside them is refused before sending.
 var (
 	// BatchInternalTransferLegsMin and BatchInternalTransferLegsMax bound the
-	// number of legs of one BatchCreateInternalTransfers request.
+	// number of legs of one BatchCreateInternalTransfers request, as the
+	// contract's rule states them. The contract states no maximum, so
+	// BatchInternalTransferLegsMax is math.MaxInt: the API takes up to 500
+	// legs and refuses more itself.
 	BatchInternalTransferLegsMin, BatchInternalTransferLegsMax = contractRepeatedItems(&transferv1.BatchCreateInternalTransfersRequest{}, "legs")
 	// ListAccountFlowsLimitMax is the largest ListAccountFlows page.
 	ListAccountFlowsLimitMax = contractUint32Max(&chainlifecyclev1.ListAccountFlowsRequest{}, "limit")
@@ -115,6 +118,20 @@ func contractPattern(pattern string) *regexp.Regexp {
 	re := regexp.MustCompile(pattern)
 	contractPatterns.Store(pattern, re)
 	return re
+}
+
+// CheckContractRepeated refuses a repeated field of n items with a
+// *errors.ValidationError when n breaks the contract's min_items or
+// max_items on msg's field. label names the field in the message.
+func CheckContractRepeated(msg proto.Message, field protoreflect.Name, n int, label string) error {
+	low, high := contractRepeatedItems(msg, field)
+	if n < low || n > high {
+		if high == math.MaxInt {
+			return &errors.ValidationError{Msg: fmt.Sprintf("%s takes at least %d items, not %d", label, low, n)}
+		}
+		return &errors.ValidationError{Msg: fmt.Sprintf("%s takes %d to %d items, not %d", label, low, high, n)}
+	}
+	return nil
 }
 
 // CheckPageLimit refuses req with a *errors.ValidationError when its page

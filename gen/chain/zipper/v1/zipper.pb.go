@@ -12,6 +12,7 @@ import (
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -134,6 +135,68 @@ func (x RouteStatus) Number() protoreflect.EnumNumber {
 // Deprecated: Use RouteStatus.Descriptor instead.
 func (RouteStatus) EnumDescriptor() ([]byte, []int) {
 	return file_chain_zipper_v1_zipper_proto_rawDescGZIP(), []int{1}
+}
+
+// SupplyStatus says whether a route's zToken supply is known and current.
+// Read it before using a supply value: only AVAILABLE and STALE routes carry
+// one, and a missing supply is never reported as zero.
+type SupplyStatus int32
+
+const (
+	// Never sent. Treat the supply as MISSING.
+	SupplyStatus_SUPPLY_UNSPECIFIED SupplyStatus = 0
+	// The supply was read from Polyester chain recently and is current.
+	SupplyStatus_AVAILABLE SupplyStatus = 1
+	// The supply value is the last one read, but it has not been refreshed for
+	// longer than expected and may no longer be accurate. Do not size a
+	// withdrawal against it as if it were current.
+	SupplyStatus_STALE SupplyStatus = 2
+	// No supply is known for the route yet. No supply value or observation
+	// time is sent; do not treat the route's supply as zero.
+	SupplyStatus_MISSING SupplyStatus = 3
+)
+
+// Enum value maps for SupplyStatus.
+var (
+	SupplyStatus_name = map[int32]string{
+		0: "SUPPLY_UNSPECIFIED",
+		1: "AVAILABLE",
+		2: "STALE",
+		3: "MISSING",
+	}
+	SupplyStatus_value = map[string]int32{
+		"SUPPLY_UNSPECIFIED": 0,
+		"AVAILABLE":          1,
+		"STALE":              2,
+		"MISSING":            3,
+	}
+)
+
+func (x SupplyStatus) Enum() *SupplyStatus {
+	p := new(SupplyStatus)
+	*p = x
+	return p
+}
+
+func (x SupplyStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SupplyStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_chain_zipper_v1_zipper_proto_enumTypes[2].Descriptor()
+}
+
+func (SupplyStatus) Type() protoreflect.EnumType {
+	return &file_chain_zipper_v1_zipper_proto_enumTypes[2]
+}
+
+func (x SupplyStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SupplyStatus.Descriptor instead.
+func (SupplyStatus) EnumDescriptor() ([]byte, []int) {
+	return file_chain_zipper_v1_zipper_proto_rawDescGZIP(), []int{2}
 }
 
 // ChainConfig describes one supported external chain for deposit and withdraw.
@@ -338,6 +401,8 @@ type AssetChainVariant struct {
 	WithdrawMinAmount string `protobuf:"bytes,11,opt,name=withdraw_min_amount,json=withdrawMinAmount,proto3" json:"withdraw_min_amount,omitempty"`
 	// Latest zToken supply for this chain asset variant, scaled by the parent
 	// unified asset's quantity_scale. Decode: supply_q / 10^quantity_scale.
+	// Set only when supply_status is AVAILABLE or STALE; a value of zero then
+	// is a real supply of zero.
 	SupplyQ uint64 `protobuf:"varint,12,opt,name=supply_q,json=supplyQ,proto3" json:"supply_q,omitempty"`
 	// Whether this route currently accepts new deposits. While it is
 	// SUSPENDED, do not send funds to a deposit address on this route; wait
@@ -349,6 +414,11 @@ type AssetChainVariant struct {
 	// to NORMAL. One already being sent when the suspension takes effect may
 	// fail instead; its funds then return to the account.
 	WithdrawalStatus RouteStatus `protobuf:"varint,14,opt,name=withdrawal_status,json=withdrawalStatus,proto3,enum=chain.zipper.v1.RouteStatus" json:"withdrawal_status,omitempty"`
+	// Whether supply_q is known and current for this route.
+	SupplyStatus SupplyStatus `protobuf:"varint,15,opt,name=supply_status,json=supplyStatus,proto3,enum=chain.zipper.v1.SupplyStatus" json:"supply_status,omitempty"`
+	// When supply_q was read from Polyester chain. Set only when supply_status
+	// is AVAILABLE or STALE.
+	SupplyObservedAt *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=supply_observed_at,json=supplyObservedAt,proto3" json:"supply_observed_at,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -474,6 +544,20 @@ func (x *AssetChainVariant) GetWithdrawalStatus() RouteStatus {
 	return RouteStatus_STATUS_UNSPECIFIED
 }
 
+func (x *AssetChainVariant) GetSupplyStatus() SupplyStatus {
+	if x != nil {
+		return x.SupplyStatus
+	}
+	return SupplyStatus_SUPPLY_UNSPECIFIED
+}
+
+func (x *AssetChainVariant) GetSupplyObservedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.SupplyObservedAt
+	}
+	return nil
+}
+
 // ZippedAssetSupplyUpdate carries the latest route liquidity for one zipped
 // asset. It is published on the Protobuf WebSocket channel.
 type ZippedAssetSupplyUpdate struct {
@@ -481,8 +565,17 @@ type ZippedAssetSupplyUpdate struct {
 	// Canonical zipped asset route ID.
 	ZippedAssetId uint32 `protobuf:"varint,1,opt,name=zipped_asset_id,json=zippedAssetId,proto3" json:"zipped_asset_id,omitempty"`
 	// Latest zToken supply for this route, scaled by the parent asset's
-	// quantity_scale. Decode: supply_q / 10^quantity_scale.
-	SupplyQ       uint64 `protobuf:"varint,2,opt,name=supply_q,json=supplyQ,proto3" json:"supply_q,omitempty"`
+	// quantity_scale. Decode: supply_q / 10^quantity_scale. Set only when
+	// status is AVAILABLE or STALE; a value of zero then is a real supply of
+	// zero.
+	SupplyQ uint64 `protobuf:"varint,2,opt,name=supply_q,json=supplyQ,proto3" json:"supply_q,omitempty"`
+	// Whether supply_q is current: AVAILABLE or STALE. A route whose supply
+	// stops being refreshed gets one STALE update repeating its last value and
+	// observation time; it returns to AVAILABLE with the next reading.
+	Status SupplyStatus `protobuf:"varint,3,opt,name=status,proto3,enum=chain.zipper.v1.SupplyStatus" json:"status,omitempty"`
+	// When supply_q was read from Polyester chain. Set only when status is
+	// AVAILABLE or STALE.
+	ObservedAt    *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -529,6 +622,20 @@ func (x *ZippedAssetSupplyUpdate) GetSupplyQ() uint64 {
 		return x.SupplyQ
 	}
 	return 0
+}
+
+func (x *ZippedAssetSupplyUpdate) GetStatus() SupplyStatus {
+	if x != nil {
+		return x.Status
+	}
+	return SupplyStatus_SUPPLY_UNSPECIFIED
+}
+
+func (x *ZippedAssetSupplyUpdate) GetObservedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return nil
 }
 
 // ZippedAssetSupplyBatch batches public zipped-asset supply updates.
@@ -885,7 +992,7 @@ var File_chain_zipper_v1_zipper_proto protoreflect.FileDescriptor
 
 const file_chain_zipper_v1_zipper_proto_rawDesc = "" +
 	"\n" +
-	"\x1cchain/zipper/v1/zipper.proto\x12\x0fchain.zipper.v1\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1bpolyester/api/options.proto\"\xf6\x04\n" +
+	"\x1cchain/zipper/v1/zipper.proto\x12\x0fchain.zipper.v1\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\xf6\x04\n" +
 	"\vChainConfig\x12\x19\n" +
 	"\bchain_id\x18\x01 \x01(\rR\achainId\x12\x12\n" +
 	"\x04code\x18\x02 \x01(\tR\x04code\x12\x12\n" +
@@ -903,7 +1010,7 @@ const file_chain_zipper_v1_zipper_proto_rawDesc = "" +
 	"\x10memo_requirement\x18\r \x01(\x0e2 .chain.zipper.v1.MemoRequirementR\x0fmemoRequirement\x12\x1d\n" +
 	"\n" +
 	"memo_label\x18\x0e \x01(\tR\tmemoLabel\x12(\n" +
-	"\x10memo_format_hint\x18\x0f \x01(\tR\x0ememoFormatHint\"\xc8\x04\n" +
+	"\x10memo_format_hint\x18\x0f \x01(\tR\x0ememoFormatHint\"\xd6\x05\n" +
 	"\x11AssetChainVariant\x12&\n" +
 	"\x0fzipped_asset_id\x18\x01 \x01(\rR\rzippedAssetId\x12\x19\n" +
 	"\bchain_id\x18\x02 \x01(\rR\achainId\x12&\n" +
@@ -919,10 +1026,15 @@ const file_chain_zipper_v1_zipper_proto_rawDesc = "" +
 	"\x13withdraw_min_amount\x18\v \x01(\tR\x11withdrawMinAmount\x12\x19\n" +
 	"\bsupply_q\x18\f \x01(\x04R\asupplyQ\x12C\n" +
 	"\x0edeposit_status\x18\r \x01(\x0e2\x1c.chain.zipper.v1.RouteStatusR\rdepositStatus\x12I\n" +
-	"\x11withdrawal_status\x18\x0e \x01(\x0e2\x1c.chain.zipper.v1.RouteStatusR\x10withdrawalStatus\"\\\n" +
+	"\x11withdrawal_status\x18\x0e \x01(\x0e2\x1c.chain.zipper.v1.RouteStatusR\x10withdrawalStatus\x12B\n" +
+	"\rsupply_status\x18\x0f \x01(\x0e2\x1d.chain.zipper.v1.SupplyStatusR\fsupplyStatus\x12H\n" +
+	"\x12supply_observed_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\x10supplyObservedAt\"\xd0\x01\n" +
 	"\x17ZippedAssetSupplyUpdate\x12&\n" +
 	"\x0fzipped_asset_id\x18\x01 \x01(\rR\rzippedAssetId\x12\x19\n" +
-	"\bsupply_q\x18\x02 \x01(\x04R\asupplyQ\"\\\n" +
+	"\bsupply_q\x18\x02 \x01(\x04R\asupplyQ\x125\n" +
+	"\x06status\x18\x03 \x01(\x0e2\x1d.chain.zipper.v1.SupplyStatusR\x06status\x12;\n" +
+	"\vobserved_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"observedAt\"\\\n" +
 	"\x16ZippedAssetSupplyBatch\x12B\n" +
 	"\aupdates\x18\x01 \x03(\v2(.chain.zipper.v1.ZippedAssetSupplyUpdateR\aupdates\"\xa9\x02\n" +
 	"\vAssetConfig\x12\x14\n" +
@@ -956,7 +1068,12 @@ const file_chain_zipper_v1_zipper_proto_rawDesc = "" +
 	"\x12STATUS_UNSPECIFIED\x10\x00\x12\n" +
 	"\n" +
 	"\x06NORMAL\x10\x01\x12\r\n" +
-	"\tSUSPENDED\x10\x022\xe4\x02\n" +
+	"\tSUSPENDED\x10\x02*M\n" +
+	"\fSupplyStatus\x12\x16\n" +
+	"\x12SUPPLY_UNSPECIFIED\x10\x00\x12\r\n" +
+	"\tAVAILABLE\x10\x01\x12\t\n" +
+	"\x05STALE\x10\x02\x12\v\n" +
+	"\aMISSING\x10\x032\xe4\x02\n" +
 	"\rZipperService\x12\xc7\x02\n" +
 	"\x18GetDepositWithdrawConfig\x120.chain.zipper.v1.GetDepositWithdrawConfigRequest\x1a1.chain.zipper.v1.GetDepositWithdrawConfigResponse\"\xc5\x01\xbaG\x94\x01\n" +
 	"\x12Deposit & Withdraw\x12\x1dGet Deposit & Withdraw Config\x1a_Retrieve the supported chains and unified assets for Zipper-powered deposit and withdraw flows.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02#\x12!/v1/chain/deposit-withdraw/config\x1a\t\x8a\xb5\x18\x05chainB\xbe\x01\xbaGp:n\n" +
@@ -974,36 +1091,42 @@ func file_chain_zipper_v1_zipper_proto_rawDescGZIP() []byte {
 	return file_chain_zipper_v1_zipper_proto_rawDescData
 }
 
-var file_chain_zipper_v1_zipper_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_chain_zipper_v1_zipper_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_chain_zipper_v1_zipper_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_chain_zipper_v1_zipper_proto_goTypes = []any{
 	(MemoRequirement)(0),                     // 0: chain.zipper.v1.MemoRequirement
 	(RouteStatus)(0),                         // 1: chain.zipper.v1.RouteStatus
-	(*ChainConfig)(nil),                      // 2: chain.zipper.v1.ChainConfig
-	(*AssetChainVariant)(nil),                // 3: chain.zipper.v1.AssetChainVariant
-	(*ZippedAssetSupplyUpdate)(nil),          // 4: chain.zipper.v1.ZippedAssetSupplyUpdate
-	(*ZippedAssetSupplyBatch)(nil),           // 5: chain.zipper.v1.ZippedAssetSupplyBatch
-	(*AssetConfig)(nil),                      // 6: chain.zipper.v1.AssetConfig
-	(*ChainContractConfig)(nil),              // 7: chain.zipper.v1.ChainContractConfig
-	(*GetDepositWithdrawConfigRequest)(nil),  // 8: chain.zipper.v1.GetDepositWithdrawConfigRequest
-	(*GetDepositWithdrawConfigResponse)(nil), // 9: chain.zipper.v1.GetDepositWithdrawConfigResponse
+	(SupplyStatus)(0),                        // 2: chain.zipper.v1.SupplyStatus
+	(*ChainConfig)(nil),                      // 3: chain.zipper.v1.ChainConfig
+	(*AssetChainVariant)(nil),                // 4: chain.zipper.v1.AssetChainVariant
+	(*ZippedAssetSupplyUpdate)(nil),          // 5: chain.zipper.v1.ZippedAssetSupplyUpdate
+	(*ZippedAssetSupplyBatch)(nil),           // 6: chain.zipper.v1.ZippedAssetSupplyBatch
+	(*AssetConfig)(nil),                      // 7: chain.zipper.v1.AssetConfig
+	(*ChainContractConfig)(nil),              // 8: chain.zipper.v1.ChainContractConfig
+	(*GetDepositWithdrawConfigRequest)(nil),  // 9: chain.zipper.v1.GetDepositWithdrawConfigRequest
+	(*GetDepositWithdrawConfigResponse)(nil), // 10: chain.zipper.v1.GetDepositWithdrawConfigResponse
+	(*timestamppb.Timestamp)(nil),            // 11: google.protobuf.Timestamp
 }
 var file_chain_zipper_v1_zipper_proto_depIdxs = []int32{
-	0, // 0: chain.zipper.v1.ChainConfig.memo_requirement:type_name -> chain.zipper.v1.MemoRequirement
-	1, // 1: chain.zipper.v1.AssetChainVariant.deposit_status:type_name -> chain.zipper.v1.RouteStatus
-	1, // 2: chain.zipper.v1.AssetChainVariant.withdrawal_status:type_name -> chain.zipper.v1.RouteStatus
-	4, // 3: chain.zipper.v1.ZippedAssetSupplyBatch.updates:type_name -> chain.zipper.v1.ZippedAssetSupplyUpdate
-	3, // 4: chain.zipper.v1.AssetConfig.variants:type_name -> chain.zipper.v1.AssetChainVariant
-	2, // 5: chain.zipper.v1.GetDepositWithdrawConfigResponse.chains:type_name -> chain.zipper.v1.ChainConfig
-	6, // 6: chain.zipper.v1.GetDepositWithdrawConfigResponse.assets:type_name -> chain.zipper.v1.AssetConfig
-	7, // 7: chain.zipper.v1.GetDepositWithdrawConfigResponse.contracts:type_name -> chain.zipper.v1.ChainContractConfig
-	8, // 8: chain.zipper.v1.ZipperService.GetDepositWithdrawConfig:input_type -> chain.zipper.v1.GetDepositWithdrawConfigRequest
-	9, // 9: chain.zipper.v1.ZipperService.GetDepositWithdrawConfig:output_type -> chain.zipper.v1.GetDepositWithdrawConfigResponse
-	9, // [9:10] is the sub-list for method output_type
-	8, // [8:9] is the sub-list for method input_type
-	8, // [8:8] is the sub-list for extension type_name
-	8, // [8:8] is the sub-list for extension extendee
-	0, // [0:8] is the sub-list for field type_name
+	0,  // 0: chain.zipper.v1.ChainConfig.memo_requirement:type_name -> chain.zipper.v1.MemoRequirement
+	1,  // 1: chain.zipper.v1.AssetChainVariant.deposit_status:type_name -> chain.zipper.v1.RouteStatus
+	1,  // 2: chain.zipper.v1.AssetChainVariant.withdrawal_status:type_name -> chain.zipper.v1.RouteStatus
+	2,  // 3: chain.zipper.v1.AssetChainVariant.supply_status:type_name -> chain.zipper.v1.SupplyStatus
+	11, // 4: chain.zipper.v1.AssetChainVariant.supply_observed_at:type_name -> google.protobuf.Timestamp
+	2,  // 5: chain.zipper.v1.ZippedAssetSupplyUpdate.status:type_name -> chain.zipper.v1.SupplyStatus
+	11, // 6: chain.zipper.v1.ZippedAssetSupplyUpdate.observed_at:type_name -> google.protobuf.Timestamp
+	5,  // 7: chain.zipper.v1.ZippedAssetSupplyBatch.updates:type_name -> chain.zipper.v1.ZippedAssetSupplyUpdate
+	4,  // 8: chain.zipper.v1.AssetConfig.variants:type_name -> chain.zipper.v1.AssetChainVariant
+	3,  // 9: chain.zipper.v1.GetDepositWithdrawConfigResponse.chains:type_name -> chain.zipper.v1.ChainConfig
+	7,  // 10: chain.zipper.v1.GetDepositWithdrawConfigResponse.assets:type_name -> chain.zipper.v1.AssetConfig
+	8,  // 11: chain.zipper.v1.GetDepositWithdrawConfigResponse.contracts:type_name -> chain.zipper.v1.ChainContractConfig
+	9,  // 12: chain.zipper.v1.ZipperService.GetDepositWithdrawConfig:input_type -> chain.zipper.v1.GetDepositWithdrawConfigRequest
+	10, // 13: chain.zipper.v1.ZipperService.GetDepositWithdrawConfig:output_type -> chain.zipper.v1.GetDepositWithdrawConfigResponse
+	13, // [13:14] is the sub-list for method output_type
+	12, // [12:13] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_chain_zipper_v1_zipper_proto_init() }
@@ -1016,7 +1139,7 @@ func file_chain_zipper_v1_zipper_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chain_zipper_v1_zipper_proto_rawDesc), len(file_chain_zipper_v1_zipper_proto_rawDesc)),
-			NumEnums:      2,
+			NumEnums:      3,
 			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,

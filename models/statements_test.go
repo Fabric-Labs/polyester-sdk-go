@@ -44,7 +44,7 @@ func TestParseStatementCSVWithoutFlowIDReadsAnEmptyFlowID(t *testing.T) {
 }
 
 func TestParseStatementCSVHeaderOnlyHasNoRows(t *testing.T) {
-	rows, err := Statement{CSV: "time,entry_id,type,account,asset,amount,fee,balance,link_id,flow_id\r\n"}.Rows()
+	rows, err := ParseStatementCSV("time,entry_id,type,account,asset,amount,fee,balance,link_id,flow_id\r\n")
 	if err != nil || len(rows) != 0 {
 		t.Fatalf("rows=%+v err=%v", rows, err)
 	}

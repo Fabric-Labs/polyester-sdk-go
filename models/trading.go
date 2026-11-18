@@ -282,6 +282,11 @@ type OrderErrorDetail struct {
 	Violations []OrderFieldViolation `json:"violations,omitempty"`
 	// RateLimit is set when the rejection carries polyester.ratelimit.v1 detail.
 	RateLimit *RateLimitDetail `json:"rate_limit,omitempty"`
+	// PriceBandLimit is set on a preview refused with
+	// ERROR_CODE_PRICE_BAND_VIOLATION: the band limit the order's limit price
+	// is past, as the market last published its band. A buy is admitted at
+	// or below it, a sell at or above it. nil on every other rejection.
+	PriceBandLimit *PriceTicks `json:"price_band_limit,omitempty"`
 }
 
 // PreviewOrderResult is the advisory admission result of Orders.Preview.
@@ -939,6 +944,20 @@ type TriggerDetails struct {
 	LadderLevels       int32      `json:"ladder_levels,omitempty"`
 	LadderDistribution string     `json:"ladder_distribution,omitempty"`
 	ExecutedLevels     int32      `json:"executed_levels,omitempty"`
+	// RequestedLevels, PlacedLevels, RejectedLevels and CanceledLevels count
+	// the ladder's child orders: requested (one per level), placed on the
+	// book (open ones included), rejected before they were placed, and
+	// placed then canceled or expired (when the ladder ends, its open child
+	// orders count here). A child rejected after a partial fill counts as
+	// neither rejected nor canceled.
+	RequestedLevels int32 `json:"requested_levels,omitempty"`
+	PlacedLevels    int32 `json:"placed_levels,omitempty"`
+	RejectedLevels  int32 `json:"rejected_levels,omitempty"`
+	CanceledLevels  int32 `json:"canceled_levels,omitempty"`
+	// LadderOutcome is how placement went once the ladder has ended:
+	// "all_admitted", "mixed_rejections" or "all_children_rejected"; "" while
+	// it runs, and "unknown(n)" for an outcome this SDK does not know.
+	LadderOutcome string `json:"ladder_outcome,omitempty"`
 }
 
 // TriggersList lists triggers.
@@ -1123,10 +1142,42 @@ type ResolvedAccountsList struct {
 // Polyester Chain, read live from the chain by Withdraw.GetWalletBalances. A
 // withdrawal that Zipper rejects is refunded here, net of its kept network
 // fee.
+//
+// A read can be incomplete: a zToken whose balance could not be read is
+// listed in UnavailableAssets, and its balance is unknown, not zero. An asset
+// missing from Balances means the wallet holds none of it only when Complete
+// is true.
 type WalletBalances struct {
 	// SmartAccountAddress is the smart account wallet that holds them.
 	SmartAccountAddress string          `json:"smart_account_address"`
 	Balances            []WalletBalance `json:"balances"`
+	// UnavailableAssets lists the zTokens whose balance could not be read,
+	// ordered by zipped asset ID. Show each as "balance unavailable", never
+	// as zero; leave it out of any total, and decide nothing that depends on
+	// its balance until a later read returns it.
+	UnavailableAssets []UnavailableWalletAsset `json:"unavailable_assets,omitempty"`
+}
+
+// Complete reports whether every zToken's balance was read
+// (UnavailableAssets is empty), so an asset missing from Balances is held at
+// zero. Refuse or flag a total of an incomplete read.
+func (w WalletBalances) Complete() bool {
+	return len(w.UnavailableAssets) == 0
+}
+
+// UnavailableWalletAsset is a zToken whose wallet balance could not be read:
+// its balance is unknown, not zero.
+type UnavailableWalletAsset struct {
+	ZippedAssetID  uint32 `json:"zipped_asset_id"`
+	UnifiedAssetID uint32 `json:"unified_asset_id"`
+	ChainID        uint32 `json:"chain_id"`
+	ZTokenAddress  string `json:"ztoken_address"`
+	// Reason is why: "no_contract" (no zToken contract at ZTokenAddress on
+	// Polyester Chain), "read_failed" (the chain answered the read with an
+	// error) or "invalid_balance" (the read returned no valid balance); ""
+	// when none is given and "unknown(n)" for a reason this SDK does not
+	// know.
+	Reason string `json:"reason,omitempty"`
 }
 
 // WalletBalance is one nonzero zToken balance of the smart account wallet.

@@ -3099,7 +3099,7 @@ func (x *GetSubaccountResponse) GetBalances() *v1.GetBalancesResponse {
 	return nil
 }
 
-// Activity or audit event for a sub-account.
+// Activity or audit event of a main account or one of its sub-accounts.
 type ActivityEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Time when the event occurred.
@@ -3118,7 +3118,13 @@ type ActivityEvent struct {
 	ActorAccountId uint64 `protobuf:"fixed64,8,opt,name=actor_account_id,json=actorAccountId,proto3" json:"actor_account_id,omitempty"`
 	// Structured event details as a JSON string. Maximum 64 KiB (65536 UTF-8
 	// bytes).
-	PayloadJson   string `protobuf:"bytes,9,opt,name=payload_json,json=payloadJson,proto3" json:"payload_json,omitempty"`
+	PayloadJson string `protobuf:"bytes,9,opt,name=payload_json,json=payloadJson,proto3" json:"payload_json,omitempty"`
+	// Sub-account the event belongs to (opaque ID). Absent for an event of the
+	// main account itself.
+	SubaccountId uint64 `protobuf:"fixed64,10,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
+	// API key the actor used (opaque ID). Absent when the actor used a session.
+	// Set by ListAccountActivity only.
+	ActorApiKeyId uint64 `protobuf:"fixed64,11,opt,name=actor_api_key_id,json=actorApiKeyId,proto3" json:"actor_api_key_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3207,6 +3213,20 @@ func (x *ActivityEvent) GetPayloadJson() string {
 		return x.PayloadJson
 	}
 	return ""
+}
+
+func (x *ActivityEvent) GetSubaccountId() uint64 {
+	if x != nil {
+		return x.SubaccountId
+	}
+	return 0
+}
+
+func (x *ActivityEvent) GetActorApiKeyId() uint64 {
+	if x != nil {
+		return x.ActorApiKeyId
+	}
+	return 0
 }
 
 // Request to list sub-account activity.
@@ -3509,7 +3529,7 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\amembers\x18\x03 \x03(\v2\x1d.auth.v1.SubaccountMemberViewR\amembers\x123\n" +
 	"\ainvites\x18\x04 \x03(\v2\x19.auth.v1.SubaccountInviteR\ainvites\x125\n" +
 	"\x06policy\x18\x05 \x01(\v2\x1d.auth.v1.SubaccountPolicyViewR\x06policy\x12?\n" +
-	"\bbalances\x18\x06 \x01(\v2#.ledger.read.v1.GetBalancesResponseR\bbalances\"\xba\x03\n" +
+	"\bbalances\x18\x06 \x01(\v2#.ledger.read.v1.GetBalancesResponseR\bbalances\"\x88\x04\n" +
 	"\rActivityEvent\x129\n" +
 	"\n" +
 	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12F\n" +
@@ -3522,7 +3542,10 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\n" +
 	"user_agent\x18\a \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tuserAgent\x12(\n" +
 	"\x10actor_account_id\x18\b \x01(\x06R\x0eactorAccountId\x12,\n" +
-	"\fpayload_json\x18\t \x01(\tB\t\xbaH\x06r\x04(\x80\x80\x04R\vpayloadJson\"\x9e\x01\n" +
+	"\fpayload_json\x18\t \x01(\tB\t\xbaH\x06r\x04(\x80\x80\x04R\vpayloadJson\x12#\n" +
+	"\rsubaccount_id\x18\n" +
+	" \x01(\x06R\fsubaccountId\x12'\n" +
+	"\x10actor_api_key_id\x18\v \x01(\x06R\ractorApiKeyId\"\x9e\x01\n" +
 	"\x1bListSubaccountEventsRequest\x126\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xe0A\x02\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12\x1e\n" +
 	"\x05limit\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xc8\x01R\x05limit\x12'\n" +

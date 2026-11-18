@@ -42,6 +42,9 @@ const (
 	// InternalTransferServiceBatchCreateInternalTransfersProcedure is the fully-qualified name of the
 	// InternalTransferService's BatchCreateInternalTransfers RPC.
 	InternalTransferServiceBatchCreateInternalTransfersProcedure = "/transfer.v1.InternalTransferService/BatchCreateInternalTransfers"
+	// InternalTransferServiceGetInternalTransferBatchProcedure is the fully-qualified name of the
+	// InternalTransferService's GetInternalTransferBatch RPC.
+	InternalTransferServiceGetInternalTransferBatchProcedure = "/transfer.v1.InternalTransferService/GetInternalTransferBatch"
 )
 
 // InternalTransferServiceClient is a client for the transfer.v1.InternalTransferService service.
@@ -54,18 +57,30 @@ type InternalTransferServiceClient interface {
 	// Create or return one accepted Trading to Trading transfer.
 	// Root-owner same-owner transfers and root-owner transfers to explicitly
 	// whitelisted destinations accept recent MFA; delegated and other
-	// interactive transfers require fresh step-up.
+	// interactive transfers require fresh step-up. Without them the transfer is
+	// refused PERMISSION_DENIED with auth code AUTH_MFA_ELEVATION_REQUIRED or
+	// AUTH_STEP_UP_REQUIRED; REST answers HTTP 403 with that auth code.
 	CreateInternalTransfer(context.Context, *connect.Request[v1.CreateInternalTransferRequest]) (*connect.Response[v1.CreateInternalTransferResponse], error)
-	// Submit up to 10 Trading to Trading transfers authorized by one MFA check.
-	// Every leg passes the same checks as CreateInternalTransfer before any leg
-	// runs; if one fails, the whole batch is refused, nothing moves and no
-	// step-up is used. Legs then run independently, in order, and are not
-	// atomic: a leg can be refused, for example for insufficient balance, after
-	// earlier legs were accepted. The batch accepts recent MFA when the root
-	// owner moves funds between its own accounts or to explicitly whitelisted
-	// destinations; any other leg requires one fresh step-up for the whole
-	// batch. Each leg is its own transfer, readable with GetInternalTransfer.
+	// Move up to 500 Trading to Trading transfers together, authorized by one
+	// MFA check: every leg is credited, or none moves. Every leg passes the
+	// same checks as CreateInternalTransfer first; if one fails, the batch is
+	// refused, nothing moves and no step-up is used. The batch accepts recent
+	// MFA when the root owner moves funds between its own accounts or to
+	// explicitly whitelisted destinations; any other leg requires one fresh
+	// step-up for the whole batch. Without them the batch is refused
+	// PERMISSION_DENIED with auth code AUTH_MFA_ELEVATION_REQUIRED or
+	// AUTH_STEP_UP_REQUIRED; REST answers HTTP 403 with that auth code. A batch
+	// whose outcome is not known within the request answers BATCH_PROCESSING
+	// and completes on its own; a retry with the same idempotency key returns
+	// its current state.
 	BatchCreateInternalTransfers(context.Context, *connect.Request[v1.BatchCreateInternalTransfersRequest]) (*connect.Response[v1.BatchCreateInternalTransfersResponse], error)
+	// Read a batch's current outcome and the state of every leg, by the
+	// request ID BatchCreateInternalTransfers returned: for example to follow
+	// a batch that answered BATCH_PROCESSING. The caller must be allowed to
+	// read the transfers of every source account of the batch; any other
+	// batch is not found. This read does not submit or retry the batch and
+	// requires no fresh MFA.
+	GetInternalTransferBatch(context.Context, *connect.Request[v1.GetInternalTransferBatchRequest]) (*connect.Response[v1.GetInternalTransferBatchResponse], error)
 }
 
 // NewInternalTransferServiceClient constructs a client for the transfer.v1.InternalTransferService
@@ -97,6 +112,12 @@ func NewInternalTransferServiceClient(httpClient connect.HTTPClient, baseURL str
 			connect.WithSchema(internalTransferServiceMethods.ByName("BatchCreateInternalTransfers")),
 			connect.WithClientOptions(opts...),
 		),
+		getInternalTransferBatch: connect.NewClient[v1.GetInternalTransferBatchRequest, v1.GetInternalTransferBatchResponse](
+			httpClient,
+			baseURL+InternalTransferServiceGetInternalTransferBatchProcedure,
+			connect.WithSchema(internalTransferServiceMethods.ByName("GetInternalTransferBatch")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -105,6 +126,7 @@ type internalTransferServiceClient struct {
 	getInternalTransfer          *connect.Client[v1.GetInternalTransferRequest, v1.GetInternalTransferResponse]
 	createInternalTransfer       *connect.Client[v1.CreateInternalTransferRequest, v1.CreateInternalTransferResponse]
 	batchCreateInternalTransfers *connect.Client[v1.BatchCreateInternalTransfersRequest, v1.BatchCreateInternalTransfersResponse]
+	getInternalTransferBatch     *connect.Client[v1.GetInternalTransferBatchRequest, v1.GetInternalTransferBatchResponse]
 }
 
 // GetInternalTransfer calls transfer.v1.InternalTransferService.GetInternalTransfer.
@@ -123,6 +145,11 @@ func (c *internalTransferServiceClient) BatchCreateInternalTransfers(ctx context
 	return c.batchCreateInternalTransfers.CallUnary(ctx, req)
 }
 
+// GetInternalTransferBatch calls transfer.v1.InternalTransferService.GetInternalTransferBatch.
+func (c *internalTransferServiceClient) GetInternalTransferBatch(ctx context.Context, req *connect.Request[v1.GetInternalTransferBatchRequest]) (*connect.Response[v1.GetInternalTransferBatchResponse], error) {
+	return c.getInternalTransferBatch.CallUnary(ctx, req)
+}
+
 // InternalTransferServiceHandler is an implementation of the transfer.v1.InternalTransferService
 // service.
 type InternalTransferServiceHandler interface {
@@ -134,18 +161,30 @@ type InternalTransferServiceHandler interface {
 	// Create or return one accepted Trading to Trading transfer.
 	// Root-owner same-owner transfers and root-owner transfers to explicitly
 	// whitelisted destinations accept recent MFA; delegated and other
-	// interactive transfers require fresh step-up.
+	// interactive transfers require fresh step-up. Without them the transfer is
+	// refused PERMISSION_DENIED with auth code AUTH_MFA_ELEVATION_REQUIRED or
+	// AUTH_STEP_UP_REQUIRED; REST answers HTTP 403 with that auth code.
 	CreateInternalTransfer(context.Context, *connect.Request[v1.CreateInternalTransferRequest]) (*connect.Response[v1.CreateInternalTransferResponse], error)
-	// Submit up to 10 Trading to Trading transfers authorized by one MFA check.
-	// Every leg passes the same checks as CreateInternalTransfer before any leg
-	// runs; if one fails, the whole batch is refused, nothing moves and no
-	// step-up is used. Legs then run independently, in order, and are not
-	// atomic: a leg can be refused, for example for insufficient balance, after
-	// earlier legs were accepted. The batch accepts recent MFA when the root
-	// owner moves funds between its own accounts or to explicitly whitelisted
-	// destinations; any other leg requires one fresh step-up for the whole
-	// batch. Each leg is its own transfer, readable with GetInternalTransfer.
+	// Move up to 500 Trading to Trading transfers together, authorized by one
+	// MFA check: every leg is credited, or none moves. Every leg passes the
+	// same checks as CreateInternalTransfer first; if one fails, the batch is
+	// refused, nothing moves and no step-up is used. The batch accepts recent
+	// MFA when the root owner moves funds between its own accounts or to
+	// explicitly whitelisted destinations; any other leg requires one fresh
+	// step-up for the whole batch. Without them the batch is refused
+	// PERMISSION_DENIED with auth code AUTH_MFA_ELEVATION_REQUIRED or
+	// AUTH_STEP_UP_REQUIRED; REST answers HTTP 403 with that auth code. A batch
+	// whose outcome is not known within the request answers BATCH_PROCESSING
+	// and completes on its own; a retry with the same idempotency key returns
+	// its current state.
 	BatchCreateInternalTransfers(context.Context, *connect.Request[v1.BatchCreateInternalTransfersRequest]) (*connect.Response[v1.BatchCreateInternalTransfersResponse], error)
+	// Read a batch's current outcome and the state of every leg, by the
+	// request ID BatchCreateInternalTransfers returned: for example to follow
+	// a batch that answered BATCH_PROCESSING. The caller must be allowed to
+	// read the transfers of every source account of the batch; any other
+	// batch is not found. This read does not submit or retry the batch and
+	// requires no fresh MFA.
+	GetInternalTransferBatch(context.Context, *connect.Request[v1.GetInternalTransferBatchRequest]) (*connect.Response[v1.GetInternalTransferBatchResponse], error)
 }
 
 // NewInternalTransferServiceHandler builds an HTTP handler from the service implementation. It
@@ -173,6 +212,12 @@ func NewInternalTransferServiceHandler(svc InternalTransferServiceHandler, opts 
 		connect.WithSchema(internalTransferServiceMethods.ByName("BatchCreateInternalTransfers")),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalTransferServiceGetInternalTransferBatchHandler := connect.NewUnaryHandler(
+		InternalTransferServiceGetInternalTransferBatchProcedure,
+		svc.GetInternalTransferBatch,
+		connect.WithSchema(internalTransferServiceMethods.ByName("GetInternalTransferBatch")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/transfer.v1.InternalTransferService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalTransferServiceGetInternalTransferProcedure:
@@ -181,6 +226,8 @@ func NewInternalTransferServiceHandler(svc InternalTransferServiceHandler, opts 
 			internalTransferServiceCreateInternalTransferHandler.ServeHTTP(w, r)
 		case InternalTransferServiceBatchCreateInternalTransfersProcedure:
 			internalTransferServiceBatchCreateInternalTransfersHandler.ServeHTTP(w, r)
+		case InternalTransferServiceGetInternalTransferBatchProcedure:
+			internalTransferServiceGetInternalTransferBatchHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -200,4 +247,8 @@ func (UnimplementedInternalTransferServiceHandler) CreateInternalTransfer(contex
 
 func (UnimplementedInternalTransferServiceHandler) BatchCreateInternalTransfers(context.Context, *connect.Request[v1.BatchCreateInternalTransfersRequest]) (*connect.Response[v1.BatchCreateInternalTransfersResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("transfer.v1.InternalTransferService.BatchCreateInternalTransfers is not implemented"))
+}
+
+func (UnimplementedInternalTransferServiceHandler) GetInternalTransferBatch(context.Context, *connect.Request[v1.GetInternalTransferBatchRequest]) (*connect.Response[v1.GetInternalTransferBatchResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("transfer.v1.InternalTransferService.GetInternalTransferBatch is not implemented"))
 }

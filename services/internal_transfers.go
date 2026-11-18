@@ -71,26 +71,31 @@ func (s *InternalTransfersService) Create(ctx context.Context, assetID uint32, q
 	return UnaryAuthDecoded(ctx, s.transport, s.client().CreateInternalTransfer, req, decode.InternalTransferFromProto)
 }
 
-// CreateBatch submits up to codecs.BatchInternalTransferLegsMax (10) Trading
-// to Trading transfers under one idempotency key and one MFA check. Each leg
-// is checked and converted as InternalTransfers.Create would, exactly, before
-// anything is sent.
+// CreateBatch moves Trading to Trading transfers together under one
+// idempotency key and one MFA check: every leg is credited, or none moves.
+// Each leg is checked and converted as InternalTransfers.Create would,
+// exactly, before anything is sent. The API takes up to 500 legs, debiting at
+// most 50 distinct source account and asset pairs from at most 10 source
+// accounts, each source, destination and asset combination at most once; it
+// refuses a batch over those limits with ERROR_CODE_INVALID_REQUEST, or
+// ERROR_CODE_BATCH_TOO_MANY_SOURCES for more than 10 sources.
 //
-// The server checks every leg before any leg runs: if one fails, the result's
-// Status is "refused", nothing moves and no step-up is used. Otherwise the
-// Status is "submitted" and the legs run in order, independently: they are
-// not atomic, so a leg can be refused, for example for insufficient funds,
-// after earlier legs were accepted. A "pending" leg's outcome is not known
-// yet: retry with the same idempotency key and the same legs in the same
-// order, which answers accepted legs with the same transfers, needs no new
-// step-up and runs the legs not yet accepted. Different legs under the key
-// are refused with ERROR_CODE_IDEMPOTENCY_CONFLICT. Each leg counts as one
-// internal transfer against the rate limit. A reply that breaks the contract
-// returns a *errors.ResponseContractError; the batch may have run, so retry
-// it with the same key and legs.
+// The result's Status is "accepted" once every leg is credited, "refused"
+// when nothing moved (the legs that caused it carry their ErrorCode; nothing
+// will move under this key, so submit again under a new one), or
+// "processing" when the outcome is not known within the request: the batch
+// completes on its own, and GetBatch with the result's RequestID (or this
+// call again with the same key and the same legs in the same order) reads
+// it. Different legs under the key are refused with
+// ERROR_CODE_IDEMPOTENCY_CONFLICT. A batch counts once against the
+// internal-transfer rate limit, with a weight of max(ceil(legs/50), source
+// accounts); a RATE_LIMIT_EXCEEDED refusal without a Retry-After means the
+// batch outweighs the account's burst: split it instead of retrying. A reply
+// that breaks the contract returns a *errors.ResponseContractError; the batch
+// may have run, so read it back or retry it with the same key and legs.
 func (s *InternalTransfersService) CreateBatch(ctx context.Context, legs []models.InternalTransferBatchLeg, idempotencyKey string) (models.InternalTransferBatchResult, error) {
 	if len(legs) < codecs.BatchInternalTransferLegsMin || len(legs) > codecs.BatchInternalTransferLegsMax {
-		return models.InternalTransferBatchResult{}, &errors.ValidationError{Msg: fmt.Sprintf("a batch takes %d to %d legs, not %d", codecs.BatchInternalTransferLegsMin, codecs.BatchInternalTransferLegsMax, len(legs))}
+		return models.InternalTransferBatchResult{}, &errors.ValidationError{Msg: fmt.Sprintf("a batch takes at least %d leg, not %d", codecs.BatchInternalTransferLegsMin, len(legs))}
 	}
 	req := &transferv1.BatchCreateInternalTransfersRequest{IdempotencyKey: idempotencyKey, Legs: make([]*transferv1.InternalTransferBatchLeg, 0, len(legs))}
 	if err := codecs.CheckContractString(req, "idempotency_key", idempotencyKey, "idempotency_key"); err != nil {
@@ -109,6 +114,24 @@ func (s *InternalTransfersService) CreateBatch(ctx context.Context, legs []model
 	}
 	return UnaryAuthDecoded(ctx, s.transport, s.client().BatchCreateInternalTransfers, req, func(msg *transferv1.BatchCreateInternalTransfersResponse) (models.InternalTransferBatchResult, error) {
 		return decode.InternalTransferBatchFromProto(msg, len(legs))
+	})
+}
+
+// GetBatch reads a batch's current outcome and the state of every leg by the
+// RequestID CreateBatch returned, as CreateBatch answered it: for example to
+// follow a "processing" batch without resubmitting it. It neither submits nor
+// retries the batch and needs no fresh MFA. The caller must be allowed to
+// read the transfers of every source account of the batch; any other batch
+// answers ERROR_CODE_NOT_FOUND, as an unknown one does. A requestID that is
+// not a decimal batch ID (1 to 39 digits, no leading zero) is refused with an
+// *errors.ValidationError before sending.
+func (s *InternalTransfersService) GetBatch(ctx context.Context, requestID string) (models.InternalTransferBatchResult, error) {
+	req := &transferv1.GetInternalTransferBatchRequest{RequestId: requestID}
+	if err := codecs.CheckContractString(req, "request_id", requestID, "request_id"); err != nil {
+		return models.InternalTransferBatchResult{}, err
+	}
+	return UnaryAuthDecoded(ctx, s.transport, s.client().GetInternalTransferBatch, req, func(msg *transferv1.GetInternalTransferBatchResponse) (models.InternalTransferBatchResult, error) {
+		return decode.InternalTransferBatchFromGet(msg, requestID)
 	})
 }
 

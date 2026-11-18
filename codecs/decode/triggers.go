@@ -261,6 +261,11 @@ func triggerDetailsFromProto(msg *triggersv1.Trigger) *models.TriggerDetails {
 			LadderLevels:       ladder.GetLadderLevels(),
 			LadderDistribution: ladderDistributionLabel(ladder.GetLadderDistribution()),
 			ExecutedLevels:     ladder.GetExecutedLevels(),
+			RequestedLevels:    ladder.GetRequestedLevels(),
+			PlacedLevels:       ladder.GetPlacedLevels(),
+			RejectedLevels:     ladder.GetRejectedLevels(),
+			CanceledLevels:     ladder.GetCanceledLevels(),
+			LadderOutcome:      enumLabel(ladder.GetOutcome(), ""),
 		}
 		if ladder.GetLadderPriceMinTicks() > 0 {
 			out.LadderPriceMin = codecs.DecodePriceTicks(ladder.GetLadderPriceMinTicks(), symbol)

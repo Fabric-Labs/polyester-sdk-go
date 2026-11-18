@@ -650,6 +650,12 @@ func (e *APIError) Is(target error) bool { return target == ErrPolyester }
 // drifted. The request changed nothing: retrying signs it again with a fresh
 // timestamp. Bound concurrency or correct the clock if it recurs.
 type TimestampSkewError struct {
+	// Window is the window the server checked the timestamp against: its
+	// time when it refused the request, the receive window and how far a
+	// timestamp may run ahead. nil when the refusal names none. A client can
+	// estimate its clock offset from it as ServerTimeMs minus the time the
+	// request was signed.
+	Window *TimestampWindow
 	// RetryAfter is the delay in seconds the answer asked for with
 	// Retry-After (or Retry-After-Ms); nil when it named none. See
 	// errors.RetryAfter.
@@ -657,6 +663,20 @@ type TimestampSkewError struct {
 	Problem    *HTTPProblem // REST metadata, when supplied by the server.
 	Msg        string
 	Status     int // HTTP status, usually 401
+}
+
+// TimestampWindow is the window in which the server accepts the timestamp of
+// a request signed with an API key: at most MaxFutureMs ahead of its time
+// and at most RecvWindowMs behind it.
+type TimestampWindow struct {
+	// ServerTimeMs is the server's time when it refused the request, in
+	// milliseconds since the Unix epoch (UTC).
+	ServerTimeMs int64 `json:"server_time_ms"`
+	// RecvWindowMs is the receive window the timestamp was checked against:
+	// the request's X-API-RECV-WINDOW, or 5000 when it sent none.
+	RecvWindowMs uint32 `json:"recv_window_ms"`
+	// MaxFutureMs is how far a timestamp may run ahead of the server time.
+	MaxFutureMs uint32 `json:"max_future_ms"`
 }
 
 func (e *TimestampSkewError) Error() string        { return e.Msg }
@@ -898,9 +918,26 @@ func isOutcomeUnknownCode(code string) bool {
 // was refused because the order has already ended
 // (ERROR_CODE_ORDER_ALREADY_TERMINAL): filled, expired or canceled, by this
 // cancel or otherwise. A repeat of a cancel that ended the order answers it
-// too. Treat it as "already done" and read the order for how it ended.
+// too. Treat it as "already done" and read the order for how it ended. It
+// matches that code only: an ended order can also be refused with
+// ERROR_CODE_ORDER_UNKNOWN (see IsOrderUnknown).
 func IsOrderAlreadyTerminal(err error) bool {
 	return err != nil && apiErrorCode(err) == orderv1.ErrorCode_ERROR_CODE_ORDER_ALREADY_TERMINAL.String()
+}
+
+// IsOrderUnknown reports whether a cancel or modify was refused because the
+// exchange knows no order under the ID or client order ID it names
+// (ERROR_CODE_ORDER_UNKNOWN, ConnectRPC not_found). It does not prove the
+// order never existed: an order that has ended is refused with it by client
+// order ID more than a minute after it ended, and by order ID once the
+// exchange can no longer confirm the order, for example after a market
+// listing or a recovery. For an order the caller placed and knows has ended,
+// treat it as done, as for IsOrderAlreadyTerminal; otherwise read the order
+// (Orders.Get), which is definitive, or retry by client order ID within its
+// window, before raising an alarm or resubmitting. Never retry by order ID to
+// tell the two apart: the retry can answer it again. It is not retryable.
+func IsOrderUnknown(err error) bool {
+	return err != nil && apiErrorCode(err) == orderv1.ErrorCode_ERROR_CODE_ORDER_UNKNOWN.String()
 }
 
 // IsTriggerAlreadyEnded reports whether a trigger cancel, pause, resume or

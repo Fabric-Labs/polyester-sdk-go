@@ -36,6 +36,8 @@ const (
 	// SystemServiceGetVersionProcedure is the fully-qualified name of the SystemService's GetVersion
 	// RPC.
 	SystemServiceGetVersionProcedure = "/system.v1.SystemService/GetVersion"
+	// SystemServiceGetTimeProcedure is the fully-qualified name of the SystemService's GetTime RPC.
+	SystemServiceGetTimeProcedure = "/system.v1.SystemService/GetTime"
 	// SystemServiceListStatusEventsProcedure is the fully-qualified name of the SystemService's
 	// ListStatusEvents RPC.
 	SystemServiceListStatusEventsProcedure = "/system.v1.SystemService/ListStatusEvents"
@@ -46,6 +48,14 @@ type SystemServiceClient interface {
 	// Get the version and source revision of the build the environment serves.
 	// This public read supports cacheable ConnectRPC GET.
 	GetVersion(context.Context, *connect.Request[v1.GetVersionRequest]) (*connect.Response[v1.GetVersionResponse], error)
+	// Get the server time in milliseconds since the Unix epoch. A request signed
+	// with an API key is accepted only while its X-API-TIMESTAMP is at most 1000
+	// ms ahead of the server time and at most its receive window behind it: the
+	// X-API-RECV-WINDOW header, from 1 to 60000 ms, or 5000 ms when omitted.
+	// Otherwise it is refused unprocessed with TIMESTAMP_SKEW, which carries the
+	// server time and the window too. Clients measure their clock's offset from
+	// this time, allowing for half the round trip. Answers are never cached.
+	GetTime(context.Context, *connect.Request[v1.GetTimeRequest]) (*connect.Response[v1.GetTimeResponse], error)
 	// List scheduled maintenance and incidents, the latest start first. With no
 	// states, it lists current and upcoming events. This public read supports
 	// cacheable ConnectRPC GET; answers can be up to 10 seconds old.
@@ -70,6 +80,13 @@ func NewSystemServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getTime: connect.NewClient[v1.GetTimeRequest, v1.GetTimeResponse](
+			httpClient,
+			baseURL+SystemServiceGetTimeProcedure,
+			connect.WithSchema(systemServiceMethods.ByName("GetTime")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 		listStatusEvents: connect.NewClient[v1.ListStatusEventsRequest, v1.ListStatusEventsResponse](
 			httpClient,
 			baseURL+SystemServiceListStatusEventsProcedure,
@@ -83,12 +100,18 @@ func NewSystemServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 // systemServiceClient implements SystemServiceClient.
 type systemServiceClient struct {
 	getVersion       *connect.Client[v1.GetVersionRequest, v1.GetVersionResponse]
+	getTime          *connect.Client[v1.GetTimeRequest, v1.GetTimeResponse]
 	listStatusEvents *connect.Client[v1.ListStatusEventsRequest, v1.ListStatusEventsResponse]
 }
 
 // GetVersion calls system.v1.SystemService.GetVersion.
 func (c *systemServiceClient) GetVersion(ctx context.Context, req *connect.Request[v1.GetVersionRequest]) (*connect.Response[v1.GetVersionResponse], error) {
 	return c.getVersion.CallUnary(ctx, req)
+}
+
+// GetTime calls system.v1.SystemService.GetTime.
+func (c *systemServiceClient) GetTime(ctx context.Context, req *connect.Request[v1.GetTimeRequest]) (*connect.Response[v1.GetTimeResponse], error) {
+	return c.getTime.CallUnary(ctx, req)
 }
 
 // ListStatusEvents calls system.v1.SystemService.ListStatusEvents.
@@ -101,6 +124,14 @@ type SystemServiceHandler interface {
 	// Get the version and source revision of the build the environment serves.
 	// This public read supports cacheable ConnectRPC GET.
 	GetVersion(context.Context, *connect.Request[v1.GetVersionRequest]) (*connect.Response[v1.GetVersionResponse], error)
+	// Get the server time in milliseconds since the Unix epoch. A request signed
+	// with an API key is accepted only while its X-API-TIMESTAMP is at most 1000
+	// ms ahead of the server time and at most its receive window behind it: the
+	// X-API-RECV-WINDOW header, from 1 to 60000 ms, or 5000 ms when omitted.
+	// Otherwise it is refused unprocessed with TIMESTAMP_SKEW, which carries the
+	// server time and the window too. Clients measure their clock's offset from
+	// this time, allowing for half the round trip. Answers are never cached.
+	GetTime(context.Context, *connect.Request[v1.GetTimeRequest]) (*connect.Response[v1.GetTimeResponse], error)
 	// List scheduled maintenance and incidents, the latest start first. With no
 	// states, it lists current and upcoming events. This public read supports
 	// cacheable ConnectRPC GET; answers can be up to 10 seconds old.
@@ -121,6 +152,13 @@ func NewSystemServiceHandler(svc SystemServiceHandler, opts ...connect.HandlerOp
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	systemServiceGetTimeHandler := connect.NewUnaryHandler(
+		SystemServiceGetTimeProcedure,
+		svc.GetTime,
+		connect.WithSchema(systemServiceMethods.ByName("GetTime")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	systemServiceListStatusEventsHandler := connect.NewUnaryHandler(
 		SystemServiceListStatusEventsProcedure,
 		svc.ListStatusEvents,
@@ -132,6 +170,8 @@ func NewSystemServiceHandler(svc SystemServiceHandler, opts ...connect.HandlerOp
 		switch r.URL.Path {
 		case SystemServiceGetVersionProcedure:
 			systemServiceGetVersionHandler.ServeHTTP(w, r)
+		case SystemServiceGetTimeProcedure:
+			systemServiceGetTimeHandler.ServeHTTP(w, r)
 		case SystemServiceListStatusEventsProcedure:
 			systemServiceListStatusEventsHandler.ServeHTTP(w, r)
 		default:
@@ -145,6 +185,10 @@ type UnimplementedSystemServiceHandler struct{}
 
 func (UnimplementedSystemServiceHandler) GetVersion(context.Context, *connect.Request[v1.GetVersionRequest]) (*connect.Response[v1.GetVersionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("system.v1.SystemService.GetVersion is not implemented"))
+}
+
+func (UnimplementedSystemServiceHandler) GetTime(context.Context, *connect.Request[v1.GetTimeRequest]) (*connect.Response[v1.GetTimeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("system.v1.SystemService.GetTime is not implemented"))
 }
 
 func (UnimplementedSystemServiceHandler) ListStatusEvents(context.Context, *connect.Request[v1.ListStatusEventsRequest]) (*connect.Response[v1.ListStatusEventsResponse], error) {

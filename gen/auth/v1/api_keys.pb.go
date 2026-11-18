@@ -157,7 +157,9 @@ const (
 	// Read actions only: READ_BALANCES, READ_SPOT, READ_INTERNAL_TRANSFERS,
 	// READ_AUTO_WITHDRAW, READ_API_KEYS, READ_SUBACCOUNTS,
 	// READ_DEPOSIT_ADDRESSES, READ_STATEMENTS and READ_FUNDING_FLOWS. On the
-	// main account, also READ_PRICE_ALERTS, a main-account permission. Policy
+	// main account, also the main-account permissions READ_PRICE_ALERTS,
+	// READ_VIP_STATUS, READ_REWARDS, READ_DAILY_CLAIMS, READ_CHECKPOINTS,
+	// READ_PROFILE, READ_SOCIAL_VERIFICATION and READ_NOTIFICATIONS. Policy
 	// name "Polyester AI - Read only (main account)" on the main account,
 	// "Polyester AI - Read only (sub-account)" on a sub-account.
 	AssistantKeyPreset_READ_ONLY AssistantKeyPreset = 1
@@ -1504,7 +1506,7 @@ const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\x12AssistantKeyPreset\x12\x16\n" +
 	"\x12PRESET_UNSPECIFIED\x10\x00\x12\r\n" +
 	"\tREAD_ONLY\x10\x01\x12\x17\n" +
-	"\x13TRADE_WITH_APPROVAL\x10\x022\xb4\x12\n" +
+	"\x13TRADE_WITH_APPROVAL\x10\x022\xe1\x12\n" +
 	"\rApiKeyService\x12\xaf\x02\n" +
 	"\fCreateApiKey\x12\x1c.auth.v1.CreateApiKeyRequest\x1a\x1d.auth.v1.CreateApiKeyResponse\"\xe1\x01\xbaG\xb8\x01\n" +
 	"\fAuth Service\x12\x0eCreate API Key\x1a\x97\x01Create a new API key for the caller account, including public key material and metadata. Requires the acting caller to have accepted the current terms.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v1/auth/api-keys\x12\xe3\x02\n" +
@@ -1515,9 +1517,9 @@ const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\fDeleteApiKey\x12\x1c.auth.v1.DeleteApiKeyRequest\x1a\x1d.auth.v1.DeleteApiKeyResponse\"\x95\x01\xbaGg\n" +
 	"\fAuth Service\x12\x0eDelete API Key\x1aGRevoke an API key owned by the caller account. Revocation is permanent.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1c*\x1a/v1/auth/api-keys/{key_id}\x12\xed\x01\n" +
 	"\fUpdateApiKey\x12\x1c.auth.v1.UpdateApiKeyRequest\x1a\x1d.auth.v1.UpdateApiKeyResponse\"\x9f\x01\xbaGn\n" +
-	"\fAuth Service\x12\x0eUpdate API Key\x1aNUpdate mutable API key fields, including label, status, whitelist, and expiry.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1f:\x01*2\x1a/v1/auth/api-keys/{key_id}\x12\xd1\x02\n" +
-	"\x10SetAssistantKeys\x12 .auth.v1.SetAssistantKeysRequest\x1a!.auth.v1.SetAssistantKeysResponse\"\xf7\x01\xbaG\xc8\x01\n" +
-	"\fAuth Service\x12\x12Set Assistant Keys\x1a\xa3\x01Create or replace the caller's Polyester AI assistant key set with one fresh step-up proof. All keys change or none do; accounts left out lose their assistant key.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1c:\x01*\x1a\x17/v1/auth/assistant-keys\x12\xf1\x01\n" +
+	"\fAuth Service\x12\x0eUpdate API Key\x1aNUpdate mutable API key fields, including label, status, whitelist, and expiry.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1f:\x01*2\x1a/v1/auth/api-keys/{key_id}\x12\xfe\x02\n" +
+	"\x10SetAssistantKeys\x12 .auth.v1.SetAssistantKeysRequest\x1a!.auth.v1.SetAssistantKeysResponse\"\xa4\x02\xbaG\xf5\x01\n" +
+	"\fAuth Service\x12\x12Set Assistant Keys\x1a\xd0\x01Create or replace the caller's Polyester AI assistant key set with one fresh step-up proof, or none while the recent-MFA window is open. All keys change or none do; accounts left out lose their assistant key.\x98\xb5\x18\x01\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1c:\x01*\x1a\x17/v1/auth/assistant-keys\x12\xf1\x01\n" +
 	"\x11ListAssistantKeys\x12!.auth.v1.ListAssistantKeysRequest\x1a\".auth.v1.ListAssistantKeysResponse\"\x94\x01\xbaGm\n" +
 	"\fAuth Service\x12\x13List Assistant Keys\x1aHList the caller's non-revoked Polyester AI assistant keys, newest first.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x19\x12\x17/v1/auth/assistant-keys\x12\x83\x02\n" +
 	"\x13DeleteAssistantKeys\x12#.auth.v1.DeleteAssistantKeysRequest\x1a$.auth.v1.DeleteAssistantKeysResponse\"\xa0\x01\xbaGy\n" +

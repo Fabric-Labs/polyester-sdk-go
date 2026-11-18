@@ -70,6 +70,32 @@ const (
 	// keys: they were not submitted yet, or their registration was refused.
 	// Nothing changed.
 	ErrorCode_KEY_SETUP_NOT_REGISTERED ErrorCode = 12
+	// The conversation's latest run is no longer the one the request expected
+	// (SendMessageRequest.expected_latest_run_id): another message was sent in
+	// it since. Nothing is recorded.
+	ErrorCode_CONVERSATION_ADVANCED ErrorCode = 13
+	// OpenAI refused the OpenAI API key: it is mistyped, revoked or disabled.
+	// Nothing was saved. Check the key, or create a new one in the OpenAI
+	// dashboard.
+	ErrorCode_MODEL_KEY_REJECTED ErrorCode = 14
+	// The OpenAI API key's OpenAI account has no quota left: no credit, or a
+	// spending limit reached. Nothing was saved. Add credit or raise the limit
+	// in the OpenAI dashboard, then try again.
+	ErrorCode_MODEL_KEY_NO_QUOTA ErrorCode = 15
+	// The OpenAI API key cannot use the model the assistant runs on, for
+	// example a project key whose project does not allow that model. Nothing
+	// was saved. Allow the model for the key's project, or use another key.
+	ErrorCode_MODEL_KEY_MODEL_UNAVAILABLE ErrorCode = 16
+	// An attached image is larger than the assistant reads: over 10 MiB, or
+	// over 8000 pixels on a side or 32 megapixels in all. Nothing is recorded.
+	ErrorCode_IMAGE_TOO_LARGE ErrorCode = 17
+	// An attached image is not a PNG, JPEG or WebP image, does not match its
+	// mime_type, or cannot be decoded. Nothing is recorded.
+	ErrorCode_IMAGE_TYPE_UNSUPPORTED ErrorCode = 18
+	// The message has more than 4 images. Nothing is recorded.
+	ErrorCode_TOO_MANY_IMAGES ErrorCode = 19
+	// No image of the caller's messages has this ID.
+	ErrorCode_IMAGE_NOT_FOUND ErrorCode = 20
 )
 
 // Enum value maps for ErrorCode.
@@ -88,21 +114,37 @@ var (
 		10: "SERVICE_UNAVAILABLE",
 		11: "KEY_SETUP_NOT_FOUND",
 		12: "KEY_SETUP_NOT_REGISTERED",
+		13: "CONVERSATION_ADVANCED",
+		14: "MODEL_KEY_REJECTED",
+		15: "MODEL_KEY_NO_QUOTA",
+		16: "MODEL_KEY_MODEL_UNAVAILABLE",
+		17: "IMAGE_TOO_LARGE",
+		18: "IMAGE_TYPE_UNSUPPORTED",
+		19: "TOO_MANY_IMAGES",
+		20: "IMAGE_NOT_FOUND",
 	}
 	ErrorCode_value = map[string]int32{
-		"ERROR_UNSPECIFIED":        0,
-		"CONVERSATION_NOT_FOUND":   1,
-		"RUN_NOT_FOUND":            2,
-		"APPROVAL_NOT_FOUND":       3,
-		"MEMORY_NOT_FOUND":         4,
-		"RUN_ACTIVE":               5,
-		"IDEMPOTENCY_CONFLICT":     6,
-		"APPROVAL_ALREADY_DECIDED": 7,
-		"APPROVAL_EXPIRED":         8,
-		"USAGE_LIMIT_REACHED":      9,
-		"SERVICE_UNAVAILABLE":      10,
-		"KEY_SETUP_NOT_FOUND":      11,
-		"KEY_SETUP_NOT_REGISTERED": 12,
+		"ERROR_UNSPECIFIED":           0,
+		"CONVERSATION_NOT_FOUND":      1,
+		"RUN_NOT_FOUND":               2,
+		"APPROVAL_NOT_FOUND":          3,
+		"MEMORY_NOT_FOUND":            4,
+		"RUN_ACTIVE":                  5,
+		"IDEMPOTENCY_CONFLICT":        6,
+		"APPROVAL_ALREADY_DECIDED":    7,
+		"APPROVAL_EXPIRED":            8,
+		"USAGE_LIMIT_REACHED":         9,
+		"SERVICE_UNAVAILABLE":         10,
+		"KEY_SETUP_NOT_FOUND":         11,
+		"KEY_SETUP_NOT_REGISTERED":    12,
+		"CONVERSATION_ADVANCED":       13,
+		"MODEL_KEY_REJECTED":          14,
+		"MODEL_KEY_NO_QUOTA":          15,
+		"MODEL_KEY_MODEL_UNAVAILABLE": 16,
+		"IMAGE_TOO_LARGE":             17,
+		"IMAGE_TYPE_UNSUPPORTED":      18,
+		"TOO_MANY_IMAGES":             19,
+		"IMAGE_NOT_FOUND":             20,
 	}
 )
 
@@ -203,6 +245,29 @@ const (
 	FailureCategory_MODEL_UNAVAILABLE FailureCategory = 4
 	// The run could not continue because of an unexpected error.
 	FailureCategory_UNEXPECTED_ERROR FailureCategory = 5
+	// The run used the caller's own OpenAI API key, and OpenAI refused it for
+	// one of the run's requests (its answer, a check it makes, or a web
+	// search): the key was revoked, its account has no quota left, or it
+	// cannot use a model the assistant needs. The run never falls back to the
+	// assistant's own allowance or to another key. GetModelKey says why in
+	// ModelKey.last_check; fix the key in the OpenAI dashboard, save a new one
+	// with SetModelKey, or delete it with DeleteModelKey, then send the message
+	// again. Also returned when the run's key was deleted or replaced before
+	// the run could finish with it.
+	FailureCategory_MODEL_KEY_REFUSED FailureCategory = 6
+	// The caller's main account used up today's free assistant credits, so the
+	// message was not answered. The daily free credits follow the account's
+	// VIP tier, every subaccount shares its main account's, and they reset at
+	// 00:00 UTC without carrying over. RunFailed.message says how many there
+	// were, when they reset and how to get more: a higher VIP tier, or the
+	// caller's own OpenAI API key. GetUsage returns the same figures as
+	// fields.
+	FailureCategory_DAILY_LIMIT_REACHED FailureCategory = 7
+	// The assistant paused new answers for every account until 00:00 UTC
+	// because its daily capacity is used up, so the message was not answered.
+	// RunFailed.message says when it resumes. A caller's own OpenAI API key
+	// still answers.
+	FailureCategory_ASSISTANT_PAUSED FailureCategory = 8
 )
 
 // Enum value maps for FailureCategory.
@@ -214,6 +279,9 @@ var (
 		3: "PERMISSION_DENIED",
 		4: "MODEL_UNAVAILABLE",
 		5: "UNEXPECTED_ERROR",
+		6: "MODEL_KEY_REFUSED",
+		7: "DAILY_LIMIT_REACHED",
+		8: "ASSISTANT_PAUSED",
 	}
 	FailureCategory_value = map[string]int32{
 		"FAILURE_UNSPECIFIED": 0,
@@ -222,6 +290,9 @@ var (
 		"PERMISSION_DENIED":   3,
 		"MODEL_UNAVAILABLE":   4,
 		"UNEXPECTED_ERROR":    5,
+		"MODEL_KEY_REFUSED":   6,
+		"DAILY_LIMIT_REACHED": 7,
+		"ASSISTANT_PAUSED":    8,
 	}
 )
 
@@ -541,7 +612,9 @@ const (
 	// The default: each key's account, ID, public key and state, without its
 	// account's name.
 	AssistantKeyView_ASSISTANT_KEY_VIEW_UNSPECIFIED AssistantKeyView = 0
-	// Everything in the default view, plus each key's account name (label).
+	// Everything in the default view, plus each key's account name (label),
+	// with the keys ordered by account: the main account first, then the
+	// subaccounts by equity, highest first.
 	AssistantKeyView_ASSISTANT_KEY_VIEW_FULL AssistantKeyView = 1
 )
 
@@ -582,6 +655,123 @@ func (x AssistantKeyView) Number() protoreflect.EnumNumber {
 // Deprecated: Use AssistantKeyView.Descriptor instead.
 func (AssistantKeyView) EnumDescriptor() ([]byte, []int) {
 	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{8}
+}
+
+// ModelKeyCheck is the result of the last check of the caller's own OpenAI
+// API key with OpenAI.
+type ModelKeyCheck int32
+
+const (
+	// Not set. Never returned.
+	ModelKeyCheck_KEY_CHECK_UNSPECIFIED ModelKeyCheck = 0
+	// OpenAI accepted the key for the assistant's model.
+	ModelKeyCheck_KEY_VALID ModelKeyCheck = 1
+	// OpenAI refused the key: it is revoked or disabled.
+	ModelKeyCheck_KEY_REJECTED ModelKeyCheck = 2
+	// The key's OpenAI account has no quota left: no credit, or a spending
+	// limit reached.
+	ModelKeyCheck_KEY_NO_QUOTA ModelKeyCheck = 3
+	// The key cannot use the model the assistant runs on.
+	ModelKeyCheck_KEY_MODEL_UNAVAILABLE ModelKeyCheck = 4
+)
+
+// Enum value maps for ModelKeyCheck.
+var (
+	ModelKeyCheck_name = map[int32]string{
+		0: "KEY_CHECK_UNSPECIFIED",
+		1: "KEY_VALID",
+		2: "KEY_REJECTED",
+		3: "KEY_NO_QUOTA",
+		4: "KEY_MODEL_UNAVAILABLE",
+	}
+	ModelKeyCheck_value = map[string]int32{
+		"KEY_CHECK_UNSPECIFIED": 0,
+		"KEY_VALID":             1,
+		"KEY_REJECTED":          2,
+		"KEY_NO_QUOTA":          3,
+		"KEY_MODEL_UNAVAILABLE": 4,
+	}
+)
+
+func (x ModelKeyCheck) Enum() *ModelKeyCheck {
+	p := new(ModelKeyCheck)
+	*p = x
+	return p
+}
+
+func (x ModelKeyCheck) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ModelKeyCheck) Descriptor() protoreflect.EnumDescriptor {
+	return file_ai_v1_assistant_proto_enumTypes[9].Descriptor()
+}
+
+func (ModelKeyCheck) Type() protoreflect.EnumType {
+	return &file_ai_v1_assistant_proto_enumTypes[9]
+}
+
+func (x ModelKeyCheck) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ModelKeyCheck.Descriptor instead.
+func (ModelKeyCheck) EnumDescriptor() ([]byte, []int) {
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{9}
+}
+
+// FundingMode is what pays for the caller's next messages to the assistant.
+type FundingMode int32
+
+const (
+	// Not set. Never returned.
+	FundingMode_FUNDING_UNSPECIFIED FundingMode = 0
+	// The assistant's credits: the caller's free daily credits.
+	FundingMode_CREDITS FundingMode = 1
+	// The caller's own OpenAI API key (SetModelKey): the messages use no
+	// credits.
+	FundingMode_OWN_KEY FundingMode = 2
+)
+
+// Enum value maps for FundingMode.
+var (
+	FundingMode_name = map[int32]string{
+		0: "FUNDING_UNSPECIFIED",
+		1: "CREDITS",
+		2: "OWN_KEY",
+	}
+	FundingMode_value = map[string]int32{
+		"FUNDING_UNSPECIFIED": 0,
+		"CREDITS":             1,
+		"OWN_KEY":             2,
+	}
+)
+
+func (x FundingMode) Enum() *FundingMode {
+	p := new(FundingMode)
+	*p = x
+	return p
+}
+
+func (x FundingMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (FundingMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_ai_v1_assistant_proto_enumTypes[10].Descriptor()
+}
+
+func (FundingMode) Type() protoreflect.EnumType {
+	return &file_ai_v1_assistant_proto_enumTypes[10]
+}
+
+func (x FundingMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use FundingMode.Descriptor instead.
+func (FundingMode) EnumDescriptor() ([]byte, []int) {
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{10}
 }
 
 // DisplaySetting is one of the client's display preferences the assistant may
@@ -655,11 +845,11 @@ func (x DisplaySetting) String() string {
 }
 
 func (DisplaySetting) Descriptor() protoreflect.EnumDescriptor {
-	return file_ai_v1_assistant_proto_enumTypes[9].Descriptor()
+	return file_ai_v1_assistant_proto_enumTypes[11].Descriptor()
 }
 
 func (DisplaySetting) Type() protoreflect.EnumType {
-	return &file_ai_v1_assistant_proto_enumTypes[9]
+	return &file_ai_v1_assistant_proto_enumTypes[11]
 }
 
 func (x DisplaySetting) Number() protoreflect.EnumNumber {
@@ -668,7 +858,7 @@ func (x DisplaySetting) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use DisplaySetting.Descriptor instead.
 func (DisplaySetting) EnumDescriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{9}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{11}
 }
 
 // ReferencePriceSource names the market price a ReferencePrice is.
@@ -716,11 +906,11 @@ func (x ReferencePriceSource) String() string {
 }
 
 func (ReferencePriceSource) Descriptor() protoreflect.EnumDescriptor {
-	return file_ai_v1_assistant_proto_enumTypes[10].Descriptor()
+	return file_ai_v1_assistant_proto_enumTypes[12].Descriptor()
 }
 
 func (ReferencePriceSource) Type() protoreflect.EnumType {
-	return &file_ai_v1_assistant_proto_enumTypes[10]
+	return &file_ai_v1_assistant_proto_enumTypes[12]
 }
 
 func (x ReferencePriceSource) Number() protoreflect.EnumNumber {
@@ -729,7 +919,7 @@ func (x ReferencePriceSource) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ReferencePriceSource.Descriptor instead.
 func (ReferencePriceSource) EnumDescriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{10}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{12}
 }
 
 // TriggerDirection is which way the watched price must move to fire a
@@ -770,11 +960,11 @@ func (x TriggerDirection) String() string {
 }
 
 func (TriggerDirection) Descriptor() protoreflect.EnumDescriptor {
-	return file_ai_v1_assistant_proto_enumTypes[11].Descriptor()
+	return file_ai_v1_assistant_proto_enumTypes[13].Descriptor()
 }
 
 func (TriggerDirection) Type() protoreflect.EnumType {
-	return &file_ai_v1_assistant_proto_enumTypes[11]
+	return &file_ai_v1_assistant_proto_enumTypes[13]
 }
 
 func (x TriggerDirection) Number() protoreflect.EnumNumber {
@@ -783,7 +973,7 @@ func (x TriggerDirection) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use TriggerDirection.Descriptor instead.
 func (TriggerDirection) EnumDescriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{11}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{13}
 }
 
 // OrderPriceField names one price of an order.
@@ -860,11 +1050,11 @@ func (x OrderPriceField) String() string {
 }
 
 func (OrderPriceField) Descriptor() protoreflect.EnumDescriptor {
-	return file_ai_v1_assistant_proto_enumTypes[12].Descriptor()
+	return file_ai_v1_assistant_proto_enumTypes[14].Descriptor()
 }
 
 func (OrderPriceField) Type() protoreflect.EnumType {
-	return &file_ai_v1_assistant_proto_enumTypes[12]
+	return &file_ai_v1_assistant_proto_enumTypes[14]
 }
 
 func (x OrderPriceField) Number() protoreflect.EnumNumber {
@@ -873,7 +1063,7 @@ func (x OrderPriceField) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use OrderPriceField.Descriptor instead.
 func (OrderPriceField) EnumDescriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{12}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{14}
 }
 
 // PriceOffsetDirection is which side of its reference a relative price is.
@@ -913,11 +1103,11 @@ func (x PriceOffsetDirection) String() string {
 }
 
 func (PriceOffsetDirection) Descriptor() protoreflect.EnumDescriptor {
-	return file_ai_v1_assistant_proto_enumTypes[13].Descriptor()
+	return file_ai_v1_assistant_proto_enumTypes[15].Descriptor()
 }
 
 func (PriceOffsetDirection) Type() protoreflect.EnumType {
-	return &file_ai_v1_assistant_proto_enumTypes[13]
+	return &file_ai_v1_assistant_proto_enumTypes[15]
 }
 
 func (x PriceOffsetDirection) Number() protoreflect.EnumNumber {
@@ -926,7 +1116,7 @@ func (x PriceOffsetDirection) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PriceOffsetDirection.Descriptor instead.
 func (PriceOffsetDirection) EnumDescriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{13}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{15}
 }
 
 // PriceRounding is which way a resolved price was rounded onto the market's
@@ -967,11 +1157,11 @@ func (x PriceRounding) String() string {
 }
 
 func (PriceRounding) Descriptor() protoreflect.EnumDescriptor {
-	return file_ai_v1_assistant_proto_enumTypes[14].Descriptor()
+	return file_ai_v1_assistant_proto_enumTypes[16].Descriptor()
 }
 
 func (PriceRounding) Type() protoreflect.EnumType {
-	return &file_ai_v1_assistant_proto_enumTypes[14]
+	return &file_ai_v1_assistant_proto_enumTypes[16]
 }
 
 func (x PriceRounding) Number() protoreflect.EnumNumber {
@@ -980,7 +1170,7 @@ func (x PriceRounding) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PriceRounding.Descriptor instead.
 func (PriceRounding) EnumDescriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{14}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{16}
 }
 
 // UnfilledSlicePolicy is what a TWAP does with a slice that has not filled
@@ -1017,11 +1207,11 @@ func (x UnfilledSlicePolicy) String() string {
 }
 
 func (UnfilledSlicePolicy) Descriptor() protoreflect.EnumDescriptor {
-	return file_ai_v1_assistant_proto_enumTypes[15].Descriptor()
+	return file_ai_v1_assistant_proto_enumTypes[17].Descriptor()
 }
 
 func (UnfilledSlicePolicy) Type() protoreflect.EnumType {
-	return &file_ai_v1_assistant_proto_enumTypes[15]
+	return &file_ai_v1_assistant_proto_enumTypes[17]
 }
 
 func (x UnfilledSlicePolicy) Number() protoreflect.EnumNumber {
@@ -1030,7 +1220,7 @@ func (x UnfilledSlicePolicy) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use UnfilledSlicePolicy.Descriptor instead.
 func (UnfilledSlicePolicy) EnumDescriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{15}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{17}
 }
 
 // TriggerChangeAction is what an approval does to a trigger.
@@ -1075,11 +1265,11 @@ func (x TriggerChangeAction) String() string {
 }
 
 func (TriggerChangeAction) Descriptor() protoreflect.EnumDescriptor {
-	return file_ai_v1_assistant_proto_enumTypes[16].Descriptor()
+	return file_ai_v1_assistant_proto_enumTypes[18].Descriptor()
 }
 
 func (TriggerChangeAction) Type() protoreflect.EnumType {
-	return &file_ai_v1_assistant_proto_enumTypes[16]
+	return &file_ai_v1_assistant_proto_enumTypes[18]
 }
 
 func (x TriggerChangeAction) Number() protoreflect.EnumNumber {
@@ -1088,7 +1278,7 @@ func (x TriggerChangeAction) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use TriggerChangeAction.Descriptor instead.
 func (TriggerChangeAction) EnumDescriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{16}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{18}
 }
 
 // ErrorDetail is attached to Assistant API errors as an error detail of type
@@ -1227,7 +1417,11 @@ type Message struct {
 	// The run the message started (user) or the run that wrote it (assistant).
 	// Replay that run with WatchRun from after_seq 0 to show its tool activity
 	// and views.
-	RunId         uint64 `protobuf:"fixed64,5,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	RunId uint64 `protobuf:"fixed64,5,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	// The images of a user message, in the order they were sent; empty for an
+	// assistant message and for a message sent without images. Read each one
+	// with GetMessageImage.
+	Images        []*MessageImage `protobuf:"bytes,6,rep,name=images,proto3" json:"images,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1297,6 +1491,156 @@ func (x *Message) GetRunId() uint64 {
 	return 0
 }
 
+func (x *Message) GetImages() []*MessageImage {
+	if x != nil {
+		return x.Images
+	}
+	return nil
+}
+
+// MessageImage describes one image of a user message, as the assistant read
+// it: an image larger than 2000 pixels on a side is scaled down to fit, and
+// may be stored in another of the three formats.
+type MessageImage struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public image ID, for GetMessageImage.
+	ImageId uint64 `protobuf:"fixed64,1,opt,name=image_id,json=imageId,proto3" json:"image_id,omitempty"`
+	// Media type of the stored image: image/png, image/jpeg or image/webp.
+	MimeType string `protobuf:"bytes,2,opt,name=mime_type,json=mimeType,proto3" json:"mime_type,omitempty"`
+	// Width of the stored image, in pixels.
+	Width uint32 `protobuf:"varint,3,opt,name=width,proto3" json:"width,omitempty"`
+	// Height of the stored image, in pixels.
+	Height uint32 `protobuf:"varint,4,opt,name=height,proto3" json:"height,omitempty"`
+	// Size of the stored image, in bytes.
+	SizeBytes     uint32 `protobuf:"varint,5,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MessageImage) Reset() {
+	*x = MessageImage{}
+	mi := &file_ai_v1_assistant_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MessageImage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MessageImage) ProtoMessage() {}
+
+func (x *MessageImage) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_v1_assistant_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MessageImage.ProtoReflect.Descriptor instead.
+func (*MessageImage) Descriptor() ([]byte, []int) {
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *MessageImage) GetImageId() uint64 {
+	if x != nil {
+		return x.ImageId
+	}
+	return 0
+}
+
+func (x *MessageImage) GetMimeType() string {
+	if x != nil {
+		return x.MimeType
+	}
+	return ""
+}
+
+func (x *MessageImage) GetWidth() uint32 {
+	if x != nil {
+		return x.Width
+	}
+	return 0
+}
+
+func (x *MessageImage) GetHeight() uint32 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
+func (x *MessageImage) GetSizeBytes() uint32 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+// ImageAttachment is an image the caller attaches to a message, such as a
+// screenshot of an order, an error or a chart.
+type ImageAttachment struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The image file: a PNG, JPEG or WebP image, at most 10 MiB, 8000 pixels on
+	// a side and 32 megapixels in all. Larger is IMAGE_TOO_LARGE; another format,
+	// or a file that cannot be decoded, is IMAGE_TYPE_UNSUPPORTED.
+	Data []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	// Media type of data: image/png, image/jpeg or image/webp. It must match the
+	// file's own format (IMAGE_TYPE_UNSUPPORTED otherwise).
+	MimeType      string `protobuf:"bytes,2,opt,name=mime_type,json=mimeType,proto3" json:"mime_type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ImageAttachment) Reset() {
+	*x = ImageAttachment{}
+	mi := &file_ai_v1_assistant_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ImageAttachment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ImageAttachment) ProtoMessage() {}
+
+func (x *ImageAttachment) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_v1_assistant_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ImageAttachment.ProtoReflect.Descriptor instead.
+func (*ImageAttachment) Descriptor() ([]byte, []int) {
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ImageAttachment) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+func (x *ImageAttachment) GetMimeType() string {
+	if x != nil {
+		return x.MimeType
+	}
+	return ""
+}
+
 // Memory is one fact the assistant remembers about the caller across
 // conversations, such as a stated preference. A corrected fact replaces the
 // earlier one, which is no longer listed.
@@ -1319,7 +1663,7 @@ type Memory struct {
 
 func (x *Memory) Reset() {
 	*x = Memory{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[3]
+	mi := &file_ai_v1_assistant_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1331,7 +1675,7 @@ func (x *Memory) String() string {
 func (*Memory) ProtoMessage() {}
 
 func (x *Memory) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[3]
+	mi := &file_ai_v1_assistant_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1344,7 +1688,7 @@ func (x *Memory) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Memory.ProtoReflect.Descriptor instead.
 func (*Memory) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{3}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Memory) GetMemoryId() uint64 {
@@ -1397,7 +1741,7 @@ type Usage struct {
 
 func (x *Usage) Reset() {
 	*x = Usage{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[4]
+	mi := &file_ai_v1_assistant_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1409,7 +1753,7 @@ func (x *Usage) String() string {
 func (*Usage) ProtoMessage() {}
 
 func (x *Usage) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[4]
+	mi := &file_ai_v1_assistant_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1422,7 +1766,7 @@ func (x *Usage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Usage.ProtoReflect.Descriptor instead.
 func (*Usage) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{4}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Usage) GetInputTokens() uint64 {
@@ -1462,7 +1806,7 @@ type OrdersTable struct {
 
 func (x *OrdersTable) Reset() {
 	*x = OrdersTable{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[5]
+	mi := &file_ai_v1_assistant_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1474,7 +1818,7 @@ func (x *OrdersTable) String() string {
 func (*OrdersTable) ProtoMessage() {}
 
 func (x *OrdersTable) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[5]
+	mi := &file_ai_v1_assistant_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1487,7 +1831,7 @@ func (x *OrdersTable) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OrdersTable.ProtoReflect.Descriptor instead.
 func (*OrdersTable) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{5}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *OrdersTable) GetOrders() []*v1.Order {
@@ -1533,7 +1877,7 @@ type TriggersTable struct {
 
 func (x *TriggersTable) Reset() {
 	*x = TriggersTable{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[6]
+	mi := &file_ai_v1_assistant_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1545,7 +1889,7 @@ func (x *TriggersTable) String() string {
 func (*TriggersTable) ProtoMessage() {}
 
 func (x *TriggersTable) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[6]
+	mi := &file_ai_v1_assistant_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1558,7 +1902,7 @@ func (x *TriggersTable) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TriggersTable.ProtoReflect.Descriptor instead.
 func (*TriggersTable) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{6}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *TriggersTable) GetTriggers() []*v11.Trigger {
@@ -1597,7 +1941,7 @@ type BalancesTable struct {
 
 func (x *BalancesTable) Reset() {
 	*x = BalancesTable{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[7]
+	mi := &file_ai_v1_assistant_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1609,7 +1953,7 @@ func (x *BalancesTable) String() string {
 func (*BalancesTable) ProtoMessage() {}
 
 func (x *BalancesTable) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[7]
+	mi := &file_ai_v1_assistant_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1622,7 +1966,7 @@ func (x *BalancesTable) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BalancesTable.ProtoReflect.Descriptor instead.
 func (*BalancesTable) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{7}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *BalancesTable) GetBalances() []*v12.AssetBalance {
@@ -1654,7 +1998,7 @@ type PriceChart struct {
 
 func (x *PriceChart) Reset() {
 	*x = PriceChart{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[8]
+	mi := &file_ai_v1_assistant_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1666,7 +2010,7 @@ func (x *PriceChart) String() string {
 func (*PriceChart) ProtoMessage() {}
 
 func (x *PriceChart) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[8]
+	mi := &file_ai_v1_assistant_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1679,7 +2023,7 @@ func (x *PriceChart) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PriceChart.ProtoReflect.Descriptor instead.
 func (*PriceChart) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{8}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *PriceChart) GetSymbolId() uint32 {
@@ -1714,7 +2058,7 @@ type MarkdownTableRow struct {
 
 func (x *MarkdownTableRow) Reset() {
 	*x = MarkdownTableRow{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[9]
+	mi := &file_ai_v1_assistant_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1726,7 +2070,7 @@ func (x *MarkdownTableRow) String() string {
 func (*MarkdownTableRow) ProtoMessage() {}
 
 func (x *MarkdownTableRow) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[9]
+	mi := &file_ai_v1_assistant_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1739,7 +2083,7 @@ func (x *MarkdownTableRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarkdownTableRow.ProtoReflect.Descriptor instead.
 func (*MarkdownTableRow) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{9}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *MarkdownTableRow) GetCells() []string {
@@ -1765,7 +2109,7 @@ type MarkdownTable struct {
 
 func (x *MarkdownTable) Reset() {
 	*x = MarkdownTable{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[10]
+	mi := &file_ai_v1_assistant_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1777,7 +2121,7 @@ func (x *MarkdownTable) String() string {
 func (*MarkdownTable) ProtoMessage() {}
 
 func (x *MarkdownTable) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[10]
+	mi := &file_ai_v1_assistant_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1790,7 +2134,7 @@ func (x *MarkdownTable) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarkdownTable.ProtoReflect.Descriptor instead.
 func (*MarkdownTable) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{10}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *MarkdownTable) GetColumns() []string {
@@ -1836,7 +2180,7 @@ type DepositAddressCard struct {
 
 func (x *DepositAddressCard) Reset() {
 	*x = DepositAddressCard{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[11]
+	mi := &file_ai_v1_assistant_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1848,7 +2192,7 @@ func (x *DepositAddressCard) String() string {
 func (*DepositAddressCard) ProtoMessage() {}
 
 func (x *DepositAddressCard) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[11]
+	mi := &file_ai_v1_assistant_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1861,7 +2205,7 @@ func (x *DepositAddressCard) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DepositAddressCard.ProtoReflect.Descriptor instead.
 func (*DepositAddressCard) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{11}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *DepositAddressCard) GetDepositAddress() *v14.DepositAddress {
@@ -1902,7 +2246,7 @@ type BalanceHistoryChart struct {
 
 func (x *BalanceHistoryChart) Reset() {
 	*x = BalanceHistoryChart{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[12]
+	mi := &file_ai_v1_assistant_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1914,7 +2258,7 @@ func (x *BalanceHistoryChart) String() string {
 func (*BalanceHistoryChart) ProtoMessage() {}
 
 func (x *BalanceHistoryChart) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[12]
+	mi := &file_ai_v1_assistant_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1927,7 +2271,7 @@ func (x *BalanceHistoryChart) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BalanceHistoryChart.ProtoReflect.Descriptor instead.
 func (*BalanceHistoryChart) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{12}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *BalanceHistoryChart) GetHistory() *v12.GetBalanceHistoryResponse {
@@ -1962,7 +2306,7 @@ type EquityHistoryChart struct {
 
 func (x *EquityHistoryChart) Reset() {
 	*x = EquityHistoryChart{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[13]
+	mi := &file_ai_v1_assistant_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1974,7 +2318,7 @@ func (x *EquityHistoryChart) String() string {
 func (*EquityHistoryChart) ProtoMessage() {}
 
 func (x *EquityHistoryChart) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[13]
+	mi := &file_ai_v1_assistant_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1987,7 +2331,7 @@ func (x *EquityHistoryChart) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EquityHistoryChart.ProtoReflect.Descriptor instead.
 func (*EquityHistoryChart) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{13}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *EquityHistoryChart) GetHistory() *v12.GetEquityHistorySeriesResponse {
@@ -2021,7 +2365,7 @@ type TransfersTable struct {
 
 func (x *TransfersTable) Reset() {
 	*x = TransfersTable{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[14]
+	mi := &file_ai_v1_assistant_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2033,7 +2377,7 @@ func (x *TransfersTable) String() string {
 func (*TransfersTable) ProtoMessage() {}
 
 func (x *TransfersTable) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[14]
+	mi := &file_ai_v1_assistant_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2046,7 +2390,7 @@ func (x *TransfersTable) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransfersTable.ProtoReflect.Descriptor instead.
 func (*TransfersTable) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{14}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *TransfersTable) GetTransfers() []*v12.TransferRow {
@@ -2096,7 +2440,7 @@ type View struct {
 
 func (x *View) Reset() {
 	*x = View{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[15]
+	mi := &file_ai_v1_assistant_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2108,7 +2452,7 @@ func (x *View) String() string {
 func (*View) ProtoMessage() {}
 
 func (x *View) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[15]
+	mi := &file_ai_v1_assistant_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2121,7 +2465,7 @@ func (x *View) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use View.ProtoReflect.Descriptor instead.
 func (*View) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{15}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *View) GetKind() isView_Kind {
@@ -2306,7 +2650,7 @@ type TextDelta struct {
 
 func (x *TextDelta) Reset() {
 	*x = TextDelta{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[16]
+	mi := &file_ai_v1_assistant_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2318,7 +2662,7 @@ func (x *TextDelta) String() string {
 func (*TextDelta) ProtoMessage() {}
 
 func (x *TextDelta) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[16]
+	mi := &file_ai_v1_assistant_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2331,7 +2675,7 @@ func (x *TextDelta) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TextDelta.ProtoReflect.Descriptor instead.
 func (*TextDelta) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{16}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *TextDelta) GetText() string {
@@ -2356,7 +2700,7 @@ type DiscardPartial struct {
 
 func (x *DiscardPartial) Reset() {
 	*x = DiscardPartial{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[17]
+	mi := &file_ai_v1_assistant_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2368,7 +2712,7 @@ func (x *DiscardPartial) String() string {
 func (*DiscardPartial) ProtoMessage() {}
 
 func (x *DiscardPartial) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[17]
+	mi := &file_ai_v1_assistant_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2381,7 +2725,7 @@ func (x *DiscardPartial) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DiscardPartial.ProtoReflect.Descriptor instead.
 func (*DiscardPartial) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{17}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *DiscardPartial) GetFromSeq() uint64 {
@@ -2406,7 +2750,7 @@ type ToolStarted struct {
 
 func (x *ToolStarted) Reset() {
 	*x = ToolStarted{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[18]
+	mi := &file_ai_v1_assistant_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2418,7 +2762,7 @@ func (x *ToolStarted) String() string {
 func (*ToolStarted) ProtoMessage() {}
 
 func (x *ToolStarted) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[18]
+	mi := &file_ai_v1_assistant_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2431,7 +2775,7 @@ func (x *ToolStarted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToolStarted.ProtoReflect.Descriptor instead.
 func (*ToolStarted) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{18}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ToolStarted) GetToolCallId() string {
@@ -2473,7 +2817,7 @@ type ToolFinished struct {
 
 func (x *ToolFinished) Reset() {
 	*x = ToolFinished{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[19]
+	mi := &file_ai_v1_assistant_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2485,7 +2829,7 @@ func (x *ToolFinished) String() string {
 func (*ToolFinished) ProtoMessage() {}
 
 func (x *ToolFinished) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[19]
+	mi := &file_ai_v1_assistant_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2498,7 +2842,7 @@ func (x *ToolFinished) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ToolFinished.ProtoReflect.Descriptor instead.
 func (*ToolFinished) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{19}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ToolFinished) GetToolCallId() string {
@@ -2544,7 +2888,7 @@ type RecalledMemory struct {
 
 func (x *RecalledMemory) Reset() {
 	*x = RecalledMemory{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[20]
+	mi := &file_ai_v1_assistant_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2556,7 +2900,7 @@ func (x *RecalledMemory) String() string {
 func (*RecalledMemory) ProtoMessage() {}
 
 func (x *RecalledMemory) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[20]
+	mi := &file_ai_v1_assistant_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2569,7 +2913,7 @@ func (x *RecalledMemory) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RecalledMemory.ProtoReflect.Descriptor instead.
 func (*RecalledMemory) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{20}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *RecalledMemory) GetMemoryId() uint64 {
@@ -2626,7 +2970,7 @@ type MemoriesRecalled struct {
 
 func (x *MemoriesRecalled) Reset() {
 	*x = MemoriesRecalled{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[21]
+	mi := &file_ai_v1_assistant_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2638,7 +2982,7 @@ func (x *MemoriesRecalled) String() string {
 func (*MemoriesRecalled) ProtoMessage() {}
 
 func (x *MemoriesRecalled) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[21]
+	mi := &file_ai_v1_assistant_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2651,7 +2995,7 @@ func (x *MemoriesRecalled) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MemoriesRecalled.ProtoReflect.Descriptor instead.
 func (*MemoriesRecalled) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{21}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *MemoriesRecalled) GetToolCallId() string {
@@ -2688,7 +3032,7 @@ type DestinationsSuggested struct {
 
 func (x *DestinationsSuggested) Reset() {
 	*x = DestinationsSuggested{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[22]
+	mi := &file_ai_v1_assistant_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2700,7 +3044,7 @@ func (x *DestinationsSuggested) String() string {
 func (*DestinationsSuggested) ProtoMessage() {}
 
 func (x *DestinationsSuggested) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[22]
+	mi := &file_ai_v1_assistant_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2713,7 +3057,7 @@ func (x *DestinationsSuggested) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DestinationsSuggested.ProtoReflect.Descriptor instead.
 func (*DestinationsSuggested) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{22}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *DestinationsSuggested) GetToolCallId() string {
@@ -2759,7 +3103,7 @@ type DisplaySettingAction struct {
 
 func (x *DisplaySettingAction) Reset() {
 	*x = DisplaySettingAction{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[23]
+	mi := &file_ai_v1_assistant_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2771,7 +3115,7 @@ func (x *DisplaySettingAction) String() string {
 func (*DisplaySettingAction) ProtoMessage() {}
 
 func (x *DisplaySettingAction) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[23]
+	mi := &file_ai_v1_assistant_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2784,7 +3128,7 @@ func (x *DisplaySettingAction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DisplaySettingAction.ProtoReflect.Descriptor instead.
 func (*DisplaySettingAction) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{23}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *DisplaySettingAction) GetToolCallId() string {
@@ -2820,7 +3164,7 @@ type SkillLoaded struct {
 
 func (x *SkillLoaded) Reset() {
 	*x = SkillLoaded{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[24]
+	mi := &file_ai_v1_assistant_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2832,7 +3176,7 @@ func (x *SkillLoaded) String() string {
 func (*SkillLoaded) ProtoMessage() {}
 
 func (x *SkillLoaded) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[24]
+	mi := &file_ai_v1_assistant_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2845,7 +3189,7 @@ func (x *SkillLoaded) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SkillLoaded.ProtoReflect.Descriptor instead.
 func (*SkillLoaded) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{24}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *SkillLoaded) GetName() string {
@@ -2869,7 +3213,7 @@ type SubagentStarted struct {
 
 func (x *SubagentStarted) Reset() {
 	*x = SubagentStarted{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[25]
+	mi := &file_ai_v1_assistant_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2881,7 +3225,7 @@ func (x *SubagentStarted) String() string {
 func (*SubagentStarted) ProtoMessage() {}
 
 func (x *SubagentStarted) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[25]
+	mi := &file_ai_v1_assistant_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2894,7 +3238,7 @@ func (x *SubagentStarted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubagentStarted.ProtoReflect.Descriptor instead.
 func (*SubagentStarted) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{25}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *SubagentStarted) GetSubagentId() string {
@@ -2928,7 +3272,7 @@ type SubagentFinished struct {
 
 func (x *SubagentFinished) Reset() {
 	*x = SubagentFinished{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[26]
+	mi := &file_ai_v1_assistant_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2940,7 +3284,7 @@ func (x *SubagentFinished) String() string {
 func (*SubagentFinished) ProtoMessage() {}
 
 func (x *SubagentFinished) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[26]
+	mi := &file_ai_v1_assistant_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2953,7 +3297,7 @@ func (x *SubagentFinished) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubagentFinished.ProtoReflect.Descriptor instead.
 func (*SubagentFinished) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{26}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *SubagentFinished) GetSubagentId() string {
@@ -2998,7 +3342,7 @@ type ApprovalParameter struct {
 
 func (x *ApprovalParameter) Reset() {
 	*x = ApprovalParameter{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[27]
+	mi := &file_ai_v1_assistant_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3010,7 +3354,7 @@ func (x *ApprovalParameter) String() string {
 func (*ApprovalParameter) ProtoMessage() {}
 
 func (x *ApprovalParameter) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[27]
+	mi := &file_ai_v1_assistant_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3023,7 +3367,7 @@ func (x *ApprovalParameter) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApprovalParameter.ProtoReflect.Descriptor instead.
 func (*ApprovalParameter) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{27}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *ApprovalParameter) GetLabel() string {
@@ -3057,7 +3401,7 @@ type ReferencePrice struct {
 
 func (x *ReferencePrice) Reset() {
 	*x = ReferencePrice{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[28]
+	mi := &file_ai_v1_assistant_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3069,7 +3413,7 @@ func (x *ReferencePrice) String() string {
 func (*ReferencePrice) ProtoMessage() {}
 
 func (x *ReferencePrice) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[28]
+	mi := &file_ai_v1_assistant_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3082,7 +3426,7 @@ func (x *ReferencePrice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReferencePrice.ProtoReflect.Descriptor instead.
 func (*ReferencePrice) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{28}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *ReferencePrice) GetPrice() string {
@@ -3149,7 +3493,7 @@ type RelativePrice struct {
 
 func (x *RelativePrice) Reset() {
 	*x = RelativePrice{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[29]
+	mi := &file_ai_v1_assistant_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3161,7 +3505,7 @@ func (x *RelativePrice) String() string {
 func (*RelativePrice) ProtoMessage() {}
 
 func (x *RelativePrice) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[29]
+	mi := &file_ai_v1_assistant_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3174,7 +3518,7 @@ func (x *RelativePrice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RelativePrice.ProtoReflect.Descriptor instead.
 func (*RelativePrice) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{29}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *RelativePrice) GetField() OrderPriceField {
@@ -3283,7 +3627,7 @@ type AttachedExit struct {
 
 func (x *AttachedExit) Reset() {
 	*x = AttachedExit{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[30]
+	mi := &file_ai_v1_assistant_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3295,7 +3639,7 @@ func (x *AttachedExit) String() string {
 func (*AttachedExit) ProtoMessage() {}
 
 func (x *AttachedExit) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[30]
+	mi := &file_ai_v1_assistant_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3308,7 +3652,7 @@ func (x *AttachedExit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AttachedExit.ProtoReflect.Descriptor instead.
 func (*AttachedExit) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{30}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *AttachedExit) GetTriggerPrice() string {
@@ -3347,7 +3691,7 @@ type AttachedTrailingStop struct {
 
 func (x *AttachedTrailingStop) Reset() {
 	*x = AttachedTrailingStop{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[31]
+	mi := &file_ai_v1_assistant_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3359,7 +3703,7 @@ func (x *AttachedTrailingStop) String() string {
 func (*AttachedTrailingStop) ProtoMessage() {}
 
 func (x *AttachedTrailingStop) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[31]
+	mi := &file_ai_v1_assistant_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3372,7 +3716,7 @@ func (x *AttachedTrailingStop) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AttachedTrailingStop.ProtoReflect.Descriptor instead.
 func (*AttachedTrailingStop) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{31}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *AttachedTrailingStop) GetTrailingDistance() isAttachedTrailingStop_TrailingDistance {
@@ -3453,7 +3797,7 @@ type AttachedExits struct {
 
 func (x *AttachedExits) Reset() {
 	*x = AttachedExits{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[32]
+	mi := &file_ai_v1_assistant_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3465,7 +3809,7 @@ func (x *AttachedExits) String() string {
 func (*AttachedExits) ProtoMessage() {}
 
 func (x *AttachedExits) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[32]
+	mi := &file_ai_v1_assistant_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3478,7 +3822,7 @@ func (x *AttachedExits) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AttachedExits.ProtoReflect.Descriptor instead.
 func (*AttachedExits) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{32}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *AttachedExits) GetTakeProfit() *AttachedExit {
@@ -3523,7 +3867,7 @@ type MarketOrderPreview struct {
 
 func (x *MarketOrderPreview) Reset() {
 	*x = MarketOrderPreview{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[33]
+	mi := &file_ai_v1_assistant_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3535,7 +3879,7 @@ func (x *MarketOrderPreview) String() string {
 func (*MarketOrderPreview) ProtoMessage() {}
 
 func (x *MarketOrderPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[33]
+	mi := &file_ai_v1_assistant_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3548,7 +3892,7 @@ func (x *MarketOrderPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarketOrderPreview.ProtoReflect.Descriptor instead.
 func (*MarketOrderPreview) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{33}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *MarketOrderPreview) GetMaxSlippageBps() uint32 {
@@ -3584,7 +3928,7 @@ type LimitOrderPreview struct {
 
 func (x *LimitOrderPreview) Reset() {
 	*x = LimitOrderPreview{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[34]
+	mi := &file_ai_v1_assistant_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3596,7 +3940,7 @@ func (x *LimitOrderPreview) String() string {
 func (*LimitOrderPreview) ProtoMessage() {}
 
 func (x *LimitOrderPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[34]
+	mi := &file_ai_v1_assistant_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3609,7 +3953,7 @@ func (x *LimitOrderPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LimitOrderPreview.ProtoReflect.Descriptor instead.
 func (*LimitOrderPreview) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{34}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *LimitOrderPreview) GetPrice() string {
@@ -3677,7 +4021,7 @@ type StopOrderPreview struct {
 
 func (x *StopOrderPreview) Reset() {
 	*x = StopOrderPreview{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[35]
+	mi := &file_ai_v1_assistant_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3689,7 +4033,7 @@ func (x *StopOrderPreview) String() string {
 func (*StopOrderPreview) ProtoMessage() {}
 
 func (x *StopOrderPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[35]
+	mi := &file_ai_v1_assistant_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3702,7 +4046,7 @@ func (x *StopOrderPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StopOrderPreview.ProtoReflect.Descriptor instead.
 func (*StopOrderPreview) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{35}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *StopOrderPreview) GetTriggerPrice() string {
@@ -3794,7 +4138,7 @@ type TrailingStopPreview struct {
 
 func (x *TrailingStopPreview) Reset() {
 	*x = TrailingStopPreview{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[36]
+	mi := &file_ai_v1_assistant_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3806,7 +4150,7 @@ func (x *TrailingStopPreview) String() string {
 func (*TrailingStopPreview) ProtoMessage() {}
 
 func (x *TrailingStopPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[36]
+	mi := &file_ai_v1_assistant_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3819,7 +4163,7 @@ func (x *TrailingStopPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TrailingStopPreview.ProtoReflect.Descriptor instead.
 func (*TrailingStopPreview) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{36}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *TrailingStopPreview) GetTrailingDistance() isTrailingStopPreview_TrailingDistance {
@@ -3936,7 +4280,7 @@ type TwapPreview struct {
 
 func (x *TwapPreview) Reset() {
 	*x = TwapPreview{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[37]
+	mi := &file_ai_v1_assistant_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3948,7 +4292,7 @@ func (x *TwapPreview) String() string {
 func (*TwapPreview) ProtoMessage() {}
 
 func (x *TwapPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[37]
+	mi := &file_ai_v1_assistant_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3961,7 +4305,7 @@ func (x *TwapPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TwapPreview.ProtoReflect.Descriptor instead.
 func (*TwapPreview) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{37}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *TwapPreview) GetDurationMs() uint64 {
@@ -4033,7 +4377,7 @@ type LadderLevel struct {
 
 func (x *LadderLevel) Reset() {
 	*x = LadderLevel{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[38]
+	mi := &file_ai_v1_assistant_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4045,7 +4389,7 @@ func (x *LadderLevel) String() string {
 func (*LadderLevel) ProtoMessage() {}
 
 func (x *LadderLevel) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[38]
+	mi := &file_ai_v1_assistant_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4058,7 +4402,7 @@ func (x *LadderLevel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LadderLevel.ProtoReflect.Descriptor instead.
 func (*LadderLevel) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{38}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *LadderLevel) GetPrice() string {
@@ -4098,7 +4442,7 @@ type LadderPreview struct {
 
 func (x *LadderPreview) Reset() {
 	*x = LadderPreview{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[39]
+	mi := &file_ai_v1_assistant_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4110,7 +4454,7 @@ func (x *LadderPreview) String() string {
 func (*LadderPreview) ProtoMessage() {}
 
 func (x *LadderPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[39]
+	mi := &file_ai_v1_assistant_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4123,7 +4467,7 @@ func (x *LadderPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LadderPreview.ProtoReflect.Descriptor instead.
 func (*LadderPreview) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{39}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *LadderPreview) GetLowPrice() string {
@@ -4237,7 +4581,7 @@ type OrderPreview struct {
 
 func (x *OrderPreview) Reset() {
 	*x = OrderPreview{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[40]
+	mi := &file_ai_v1_assistant_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4249,7 +4593,7 @@ func (x *OrderPreview) String() string {
 func (*OrderPreview) ProtoMessage() {}
 
 func (x *OrderPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[40]
+	mi := &file_ai_v1_assistant_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4262,7 +4606,7 @@ func (x *OrderPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OrderPreview.ProtoReflect.Descriptor instead.
 func (*OrderPreview) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{40}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *OrderPreview) GetSymbolId() uint32 {
@@ -4479,7 +4823,7 @@ type QuoteValue struct {
 
 func (x *QuoteValue) Reset() {
 	*x = QuoteValue{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[41]
+	mi := &file_ai_v1_assistant_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4491,7 +4835,7 @@ func (x *QuoteValue) String() string {
 func (*QuoteValue) ProtoMessage() {}
 
 func (x *QuoteValue) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[41]
+	mi := &file_ai_v1_assistant_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4504,7 +4848,7 @@ func (x *QuoteValue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QuoteValue.ProtoReflect.Descriptor instead.
 func (*QuoteValue) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{41}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *QuoteValue) GetQuoteAsset() string {
@@ -4538,7 +4882,7 @@ type PlaceOrdersPreview struct {
 
 func (x *PlaceOrdersPreview) Reset() {
 	*x = PlaceOrdersPreview{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[42]
+	mi := &file_ai_v1_assistant_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4550,7 +4894,7 @@ func (x *PlaceOrdersPreview) String() string {
 func (*PlaceOrdersPreview) ProtoMessage() {}
 
 func (x *PlaceOrdersPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[42]
+	mi := &file_ai_v1_assistant_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4563,7 +4907,7 @@ func (x *PlaceOrdersPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlaceOrdersPreview.ProtoReflect.Descriptor instead.
 func (*PlaceOrdersPreview) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{42}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *PlaceOrdersPreview) GetOrders() []*OrderPreview {
@@ -4606,7 +4950,7 @@ type SwapLegPreview struct {
 
 func (x *SwapLegPreview) Reset() {
 	*x = SwapLegPreview{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[43]
+	mi := &file_ai_v1_assistant_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4618,7 +4962,7 @@ func (x *SwapLegPreview) String() string {
 func (*SwapLegPreview) ProtoMessage() {}
 
 func (x *SwapLegPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[43]
+	mi := &file_ai_v1_assistant_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4631,7 +4975,7 @@ func (x *SwapLegPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SwapLegPreview.ProtoReflect.Descriptor instead.
 func (*SwapLegPreview) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{43}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *SwapLegPreview) GetSymbol() string {
@@ -4719,7 +5063,7 @@ type SwapPreview struct {
 
 func (x *SwapPreview) Reset() {
 	*x = SwapPreview{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[44]
+	mi := &file_ai_v1_assistant_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4731,7 +5075,7 @@ func (x *SwapPreview) String() string {
 func (*SwapPreview) ProtoMessage() {}
 
 func (x *SwapPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[44]
+	mi := &file_ai_v1_assistant_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4744,7 +5088,7 @@ func (x *SwapPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SwapPreview.ProtoReflect.Descriptor instead.
 func (*SwapPreview) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{44}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *SwapPreview) GetSourceAsset() string {
@@ -4833,7 +5177,7 @@ type OrderToCancel struct {
 
 func (x *OrderToCancel) Reset() {
 	*x = OrderToCancel{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[45]
+	mi := &file_ai_v1_assistant_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4845,7 +5189,7 @@ func (x *OrderToCancel) String() string {
 func (*OrderToCancel) ProtoMessage() {}
 
 func (x *OrderToCancel) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[45]
+	mi := &file_ai_v1_assistant_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4858,7 +5202,7 @@ func (x *OrderToCancel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OrderToCancel.ProtoReflect.Descriptor instead.
 func (*OrderToCancel) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{45}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *OrderToCancel) GetOrderId() uint64 {
@@ -4933,7 +5277,7 @@ type CancelOrdersPreview struct {
 
 func (x *CancelOrdersPreview) Reset() {
 	*x = CancelOrdersPreview{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[46]
+	mi := &file_ai_v1_assistant_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4945,7 +5289,7 @@ func (x *CancelOrdersPreview) String() string {
 func (*CancelOrdersPreview) ProtoMessage() {}
 
 func (x *CancelOrdersPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[46]
+	mi := &file_ai_v1_assistant_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4958,7 +5302,7 @@ func (x *CancelOrdersPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelOrdersPreview.ProtoReflect.Descriptor instead.
 func (*CancelOrdersPreview) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{46}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *CancelOrdersPreview) GetOrders() []*OrderToCancel {
@@ -5043,7 +5387,7 @@ type CancelTriggerPreview struct {
 
 func (x *CancelTriggerPreview) Reset() {
 	*x = CancelTriggerPreview{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[47]
+	mi := &file_ai_v1_assistant_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5055,7 +5399,7 @@ func (x *CancelTriggerPreview) String() string {
 func (*CancelTriggerPreview) ProtoMessage() {}
 
 func (x *CancelTriggerPreview) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[47]
+	mi := &file_ai_v1_assistant_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5068,7 +5412,7 @@ func (x *CancelTriggerPreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelTriggerPreview.ProtoReflect.Descriptor instead.
 func (*CancelTriggerPreview) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{47}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *CancelTriggerPreview) GetTriggerId() uint64 {
@@ -5193,7 +5537,7 @@ type OrderChange struct {
 
 func (x *OrderChange) Reset() {
 	*x = OrderChange{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[48]
+	mi := &file_ai_v1_assistant_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5205,7 +5549,7 @@ func (x *OrderChange) String() string {
 func (*OrderChange) ProtoMessage() {}
 
 func (x *OrderChange) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[48]
+	mi := &file_ai_v1_assistant_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5218,7 +5562,7 @@ func (x *OrderChange) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OrderChange.ProtoReflect.Descriptor instead.
 func (*OrderChange) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{48}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *OrderChange) GetOrderId() uint64 {
@@ -5297,7 +5641,7 @@ type OrderChangePreview struct {
 
 func (x *OrderChangePreview) Reset() {
 	*x = OrderChangePreview{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[49]
+	mi := &file_ai_v1_assistant_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5309,7 +5653,7 @@ func (x *OrderChangePreview) String() string {
 func (*OrderChangePreview) ProtoMessage() {}
 
 func (x *OrderChangePreview) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[49]
+	mi := &file_ai_v1_assistant_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5322,7 +5666,7 @@ func (x *OrderChangePreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OrderChangePreview.ProtoReflect.Descriptor instead.
 func (*OrderChangePreview) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{49}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *OrderChangePreview) GetSymbolId() uint32 {
@@ -5397,7 +5741,7 @@ type TriggerSettings struct {
 
 func (x *TriggerSettings) Reset() {
 	*x = TriggerSettings{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[50]
+	mi := &file_ai_v1_assistant_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5409,7 +5753,7 @@ func (x *TriggerSettings) String() string {
 func (*TriggerSettings) ProtoMessage() {}
 
 func (x *TriggerSettings) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[50]
+	mi := &file_ai_v1_assistant_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5422,7 +5766,7 @@ func (x *TriggerSettings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TriggerSettings.ProtoReflect.Descriptor instead.
 func (*TriggerSettings) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{50}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *TriggerSettings) GetStatus() v11.TriggerStatus {
@@ -5590,7 +5934,7 @@ type TriggerChangePreview struct {
 
 func (x *TriggerChangePreview) Reset() {
 	*x = TriggerChangePreview{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[51]
+	mi := &file_ai_v1_assistant_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5602,7 +5946,7 @@ func (x *TriggerChangePreview) String() string {
 func (*TriggerChangePreview) ProtoMessage() {}
 
 func (x *TriggerChangePreview) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[51]
+	mi := &file_ai_v1_assistant_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5615,7 +5959,7 @@ func (x *TriggerChangePreview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TriggerChangePreview.ProtoReflect.Descriptor instead.
 func (*TriggerChangePreview) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{51}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *TriggerChangePreview) GetTriggerId() uint64 {
@@ -5800,7 +6144,7 @@ type ApprovalRequested struct {
 
 func (x *ApprovalRequested) Reset() {
 	*x = ApprovalRequested{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[52]
+	mi := &file_ai_v1_assistant_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5812,7 +6156,7 @@ func (x *ApprovalRequested) String() string {
 func (*ApprovalRequested) ProtoMessage() {}
 
 func (x *ApprovalRequested) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[52]
+	mi := &file_ai_v1_assistant_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5825,7 +6169,7 @@ func (x *ApprovalRequested) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApprovalRequested.ProtoReflect.Descriptor instead.
 func (*ApprovalRequested) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{52}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *ApprovalRequested) GetApprovalId() uint64 {
@@ -5999,7 +6343,7 @@ type ApprovalResolved struct {
 
 func (x *ApprovalResolved) Reset() {
 	*x = ApprovalResolved{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[53]
+	mi := &file_ai_v1_assistant_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6011,7 +6355,7 @@ func (x *ApprovalResolved) String() string {
 func (*ApprovalResolved) ProtoMessage() {}
 
 func (x *ApprovalResolved) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[53]
+	mi := &file_ai_v1_assistant_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6024,7 +6368,7 @@ func (x *ApprovalResolved) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApprovalResolved.ProtoReflect.Descriptor instead.
 func (*ApprovalResolved) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{53}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *ApprovalResolved) GetApprovalId() uint64 {
@@ -6052,7 +6396,7 @@ type RunCompleted struct {
 
 func (x *RunCompleted) Reset() {
 	*x = RunCompleted{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[54]
+	mi := &file_ai_v1_assistant_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6064,7 +6408,7 @@ func (x *RunCompleted) String() string {
 func (*RunCompleted) ProtoMessage() {}
 
 func (x *RunCompleted) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[54]
+	mi := &file_ai_v1_assistant_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6077,7 +6421,7 @@ func (x *RunCompleted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunCompleted.ProtoReflect.Descriptor instead.
 func (*RunCompleted) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{54}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *RunCompleted) GetUsage() *Usage {
@@ -6103,7 +6447,7 @@ type RunFailed struct {
 
 func (x *RunFailed) Reset() {
 	*x = RunFailed{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[55]
+	mi := &file_ai_v1_assistant_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6115,7 +6459,7 @@ func (x *RunFailed) String() string {
 func (*RunFailed) ProtoMessage() {}
 
 func (x *RunFailed) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[55]
+	mi := &file_ai_v1_assistant_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6128,7 +6472,7 @@ func (x *RunFailed) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunFailed.ProtoReflect.Descriptor instead.
 func (*RunFailed) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{55}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *RunFailed) GetCategory() FailureCategory {
@@ -6189,7 +6533,7 @@ type RunEvent struct {
 
 func (x *RunEvent) Reset() {
 	*x = RunEvent{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[56]
+	mi := &file_ai_v1_assistant_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6201,7 +6545,7 @@ func (x *RunEvent) String() string {
 func (*RunEvent) ProtoMessage() {}
 
 func (x *RunEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[56]
+	mi := &file_ai_v1_assistant_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6214,7 +6558,7 @@ func (x *RunEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunEvent.ProtoReflect.Descriptor instead.
 func (*RunEvent) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{56}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *RunEvent) GetSeq() uint64 {
@@ -6506,7 +6850,7 @@ type AssistantKey struct {
 
 func (x *AssistantKey) Reset() {
 	*x = AssistantKey{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[57]
+	mi := &file_ai_v1_assistant_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6518,7 +6862,7 @@ func (x *AssistantKey) String() string {
 func (*AssistantKey) ProtoMessage() {}
 
 func (x *AssistantKey) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[57]
+	mi := &file_ai_v1_assistant_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6531,7 +6875,7 @@ func (x *AssistantKey) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssistantKey.ProtoReflect.Descriptor instead.
 func (*AssistantKey) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{57}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *AssistantKey) GetSubaccountId() uint64 {
@@ -6569,6 +6913,82 @@ func (x *AssistantKey) GetLabel() string {
 	return ""
 }
 
+// ModelKey is the caller's own OpenAI API key as the assistant shows it. The
+// key itself is never returned.
+type ModelKey struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The key's last four characters, to tell it apart, for example "x7Qa".
+	Suffix string `protobuf:"bytes,1,opt,name=suffix,proto3" json:"suffix,omitempty"`
+	// When the key was saved.
+	AddedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=added_at,json=addedAt,proto3" json:"added_at,omitempty"`
+	// The result of the key's last check with OpenAI: when it was saved, when
+	// OpenAI refused it during a run, and when a run used it successfully after
+	// a refusal.
+	LastCheck ModelKeyCheck `protobuf:"varint,3,opt,name=last_check,json=lastCheck,proto3,enum=ai.v1.ModelKeyCheck" json:"last_check,omitempty"`
+	// When last_check was recorded.
+	CheckedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=checked_at,json=checkedAt,proto3" json:"checked_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ModelKey) Reset() {
+	*x = ModelKey{}
+	mi := &file_ai_v1_assistant_proto_msgTypes[60]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ModelKey) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ModelKey) ProtoMessage() {}
+
+func (x *ModelKey) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_v1_assistant_proto_msgTypes[60]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ModelKey.ProtoReflect.Descriptor instead.
+func (*ModelKey) Descriptor() ([]byte, []int) {
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{60}
+}
+
+func (x *ModelKey) GetSuffix() string {
+	if x != nil {
+		return x.Suffix
+	}
+	return ""
+}
+
+func (x *ModelKey) GetAddedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.AddedAt
+	}
+	return nil
+}
+
+func (x *ModelKey) GetLastCheck() ModelKeyCheck {
+	if x != nil {
+		return x.LastCheck
+	}
+	return ModelKeyCheck_KEY_CHECK_UNSPECIFIED
+}
+
+func (x *ModelKey) GetCheckedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CheckedAt
+	}
+	return nil
+}
+
 // AssistantKeyAccount names one account to give the assistant a key for.
 type AssistantKeyAccount struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -6580,7 +7000,7 @@ type AssistantKeyAccount struct {
 
 func (x *AssistantKeyAccount) Reset() {
 	*x = AssistantKeyAccount{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[58]
+	mi := &file_ai_v1_assistant_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6592,7 +7012,7 @@ func (x *AssistantKeyAccount) String() string {
 func (*AssistantKeyAccount) ProtoMessage() {}
 
 func (x *AssistantKeyAccount) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[58]
+	mi := &file_ai_v1_assistant_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6605,7 +7025,7 @@ func (x *AssistantKeyAccount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssistantKeyAccount.ProtoReflect.Descriptor instead.
 func (*AssistantKeyAccount) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{58}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *AssistantKeyAccount) GetSubaccountId() uint64 {
@@ -6636,7 +7056,7 @@ type PreparedAssistantKey struct {
 
 func (x *PreparedAssistantKey) Reset() {
 	*x = PreparedAssistantKey{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[59]
+	mi := &file_ai_v1_assistant_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6648,7 +7068,7 @@ func (x *PreparedAssistantKey) String() string {
 func (*PreparedAssistantKey) ProtoMessage() {}
 
 func (x *PreparedAssistantKey) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[59]
+	mi := &file_ai_v1_assistant_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6661,7 +7081,7 @@ func (x *PreparedAssistantKey) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreparedAssistantKey.ProtoReflect.Descriptor instead.
 func (*PreparedAssistantKey) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{59}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *PreparedAssistantKey) GetSubaccountId() uint64 {
@@ -6714,7 +7134,7 @@ type Destination struct {
 
 func (x *Destination) Reset() {
 	*x = Destination{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[60]
+	mi := &file_ai_v1_assistant_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6726,7 +7146,7 @@ func (x *Destination) String() string {
 func (*Destination) ProtoMessage() {}
 
 func (x *Destination) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[60]
+	mi := &file_ai_v1_assistant_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6739,7 +7159,7 @@ func (x *Destination) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Destination.ProtoReflect.Descriptor instead.
 func (*Destination) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{60}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *Destination) GetId() string {
@@ -6788,7 +7208,7 @@ type CurrentPage struct {
 
 func (x *CurrentPage) Reset() {
 	*x = CurrentPage{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[61]
+	mi := &file_ai_v1_assistant_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6800,7 +7220,7 @@ func (x *CurrentPage) String() string {
 func (*CurrentPage) ProtoMessage() {}
 
 func (x *CurrentPage) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[61]
+	mi := &file_ai_v1_assistant_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6813,7 +7233,7 @@ func (x *CurrentPage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CurrentPage.ProtoReflect.Descriptor instead.
 func (*CurrentPage) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{61}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *CurrentPage) GetDestinationId() string {
@@ -6843,7 +7263,8 @@ type SendMessageRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Conversation to continue. Omit to start a new conversation.
 	ConversationId *uint64 `protobuf:"fixed64,1,opt,name=conversation_id,json=conversationId,proto3,oneof" json:"conversation_id,omitempty"`
-	// Message text, plain text or Markdown, 1 to 16000 characters.
+	// Message text, plain text or Markdown, at most 16000 characters. Required
+	// unless images are attached; with images, it is the question about them.
 	Text string `protobuf:"bytes,2,opt,name=text,proto3" json:"text,omitempty"`
 	// Client-chosen key, unique per caller, that makes sending idempotent: the
 	// same key and request return the same run and conversation, also for a new
@@ -6883,13 +7304,30 @@ type SendMessageRequest struct {
 	// assistant access to any account: subaccount_id must then be omitted. It
 	// is part of the request the idempotency key covers.
 	AccountSelection AccountSelection `protobuf:"varint,8,opt,name=account_selection,json=accountSelection,proto3,enum=ai.v1.AccountSelection" json:"account_selection,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Send the message only while this run is still the conversation's latest
+	// run: a client that continues a request it showed the user, such as a
+	// button under an answer, sets it to that answer's run, so the message never
+	// lands after a newer one. Checked as the message is recorded; when another
+	// run is the latest, nothing is recorded and the call is
+	// FAILED_PRECONDITION with CONVERSATION_ADVANCED. Requires conversation_id.
+	// Omit it to send whatever the conversation's latest run. It is part of the
+	// request the idempotency key covers: a repeat of a request already
+	// recorded returns its run, whatever ran since.
+	ExpectedLatestRunId *uint64 `protobuf:"fixed64,9,opt,name=expected_latest_run_id,json=expectedLatestRunId,proto3,oneof" json:"expected_latest_run_id,omitempty"`
+	// Images the message shows the assistant, at most 4, in the order the user
+	// attached them; more is TOO_MANY_IMAGES. The assistant reads them with the
+	// text, and they stay with the message: later answers in the conversation
+	// can refer to them, and ListMessages lists them. Text in an image is read
+	// as part of the picture, never as instructions to the assistant. They are
+	// part of the request the idempotency key covers.
+	Images        []*ImageAttachment `protobuf:"bytes,10,rep,name=images,proto3" json:"images,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SendMessageRequest) Reset() {
 	*x = SendMessageRequest{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[62]
+	mi := &file_ai_v1_assistant_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6901,7 +7339,7 @@ func (x *SendMessageRequest) String() string {
 func (*SendMessageRequest) ProtoMessage() {}
 
 func (x *SendMessageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[62]
+	mi := &file_ai_v1_assistant_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6914,7 +7352,7 @@ func (x *SendMessageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendMessageRequest.ProtoReflect.Descriptor instead.
 func (*SendMessageRequest) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{62}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *SendMessageRequest) GetConversationId() uint64 {
@@ -6973,6 +7411,20 @@ func (x *SendMessageRequest) GetAccountSelection() AccountSelection {
 	return AccountSelection_ACCOUNT_SELECTION_UNSPECIFIED
 }
 
+func (x *SendMessageRequest) GetExpectedLatestRunId() uint64 {
+	if x != nil && x.ExpectedLatestRunId != nil {
+		return *x.ExpectedLatestRunId
+	}
+	return 0
+}
+
+func (x *SendMessageRequest) GetImages() []*ImageAttachment {
+	if x != nil {
+		return x.Images
+	}
+	return nil
+}
+
 // SendMessageResponse identifies the started run.
 type SendMessageResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -6986,7 +7438,7 @@ type SendMessageResponse struct {
 
 func (x *SendMessageResponse) Reset() {
 	*x = SendMessageResponse{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[63]
+	mi := &file_ai_v1_assistant_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6998,7 +7450,7 @@ func (x *SendMessageResponse) String() string {
 func (*SendMessageResponse) ProtoMessage() {}
 
 func (x *SendMessageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[63]
+	mi := &file_ai_v1_assistant_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7011,7 +7463,7 @@ func (x *SendMessageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendMessageResponse.ProtoReflect.Descriptor instead.
 func (*SendMessageResponse) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{63}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *SendMessageResponse) GetRunId() uint64 {
@@ -7042,7 +7494,7 @@ type WatchRunRequest struct {
 
 func (x *WatchRunRequest) Reset() {
 	*x = WatchRunRequest{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[64]
+	mi := &file_ai_v1_assistant_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7054,7 +7506,7 @@ func (x *WatchRunRequest) String() string {
 func (*WatchRunRequest) ProtoMessage() {}
 
 func (x *WatchRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[64]
+	mi := &file_ai_v1_assistant_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7067,7 +7519,7 @@ func (x *WatchRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchRunRequest.ProtoReflect.Descriptor instead.
 func (*WatchRunRequest) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{64}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *WatchRunRequest) GetRunId() uint64 {
@@ -7095,7 +7547,7 @@ type WatchRunResponse struct {
 
 func (x *WatchRunResponse) Reset() {
 	*x = WatchRunResponse{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[65]
+	mi := &file_ai_v1_assistant_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7107,7 +7559,7 @@ func (x *WatchRunResponse) String() string {
 func (*WatchRunResponse) ProtoMessage() {}
 
 func (x *WatchRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[65]
+	mi := &file_ai_v1_assistant_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7120,7 +7572,7 @@ func (x *WatchRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchRunResponse.ProtoReflect.Descriptor instead.
 func (*WatchRunResponse) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{65}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *WatchRunResponse) GetEvent() *RunEvent {
@@ -7141,7 +7593,7 @@ type CancelRunRequest struct {
 
 func (x *CancelRunRequest) Reset() {
 	*x = CancelRunRequest{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[66]
+	mi := &file_ai_v1_assistant_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7153,7 +7605,7 @@ func (x *CancelRunRequest) String() string {
 func (*CancelRunRequest) ProtoMessage() {}
 
 func (x *CancelRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[66]
+	mi := &file_ai_v1_assistant_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7166,7 +7618,7 @@ func (x *CancelRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelRunRequest.ProtoReflect.Descriptor instead.
 func (*CancelRunRequest) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{66}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *CancelRunRequest) GetRunId() uint64 {
@@ -7185,7 +7637,7 @@ type CancelRunResponse struct {
 
 func (x *CancelRunResponse) Reset() {
 	*x = CancelRunResponse{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[67]
+	mi := &file_ai_v1_assistant_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7197,7 +7649,7 @@ func (x *CancelRunResponse) String() string {
 func (*CancelRunResponse) ProtoMessage() {}
 
 func (x *CancelRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[67]
+	mi := &file_ai_v1_assistant_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7210,7 +7662,7 @@ func (x *CancelRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelRunResponse.ProtoReflect.Descriptor instead.
 func (*CancelRunResponse) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{67}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{70}
 }
 
 // DecideApprovalRequest answers one approval request.
@@ -7226,7 +7678,7 @@ type DecideApprovalRequest struct {
 
 func (x *DecideApprovalRequest) Reset() {
 	*x = DecideApprovalRequest{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[68]
+	mi := &file_ai_v1_assistant_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7238,7 +7690,7 @@ func (x *DecideApprovalRequest) String() string {
 func (*DecideApprovalRequest) ProtoMessage() {}
 
 func (x *DecideApprovalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[68]
+	mi := &file_ai_v1_assistant_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7251,7 +7703,7 @@ func (x *DecideApprovalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DecideApprovalRequest.ProtoReflect.Descriptor instead.
 func (*DecideApprovalRequest) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{68}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *DecideApprovalRequest) GetApprovalId() uint64 {
@@ -7279,7 +7731,7 @@ type DecideApprovalResponse struct {
 
 func (x *DecideApprovalResponse) Reset() {
 	*x = DecideApprovalResponse{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[69]
+	mi := &file_ai_v1_assistant_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7291,7 +7743,7 @@ func (x *DecideApprovalResponse) String() string {
 func (*DecideApprovalResponse) ProtoMessage() {}
 
 func (x *DecideApprovalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[69]
+	mi := &file_ai_v1_assistant_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7304,7 +7756,7 @@ func (x *DecideApprovalResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DecideApprovalResponse.ProtoReflect.Descriptor instead.
 func (*DecideApprovalResponse) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{69}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *DecideApprovalResponse) GetStatus() ApprovalStatus {
@@ -7329,7 +7781,7 @@ type ListConversationsRequest struct {
 
 func (x *ListConversationsRequest) Reset() {
 	*x = ListConversationsRequest{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[70]
+	mi := &file_ai_v1_assistant_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7341,7 +7793,7 @@ func (x *ListConversationsRequest) String() string {
 func (*ListConversationsRequest) ProtoMessage() {}
 
 func (x *ListConversationsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[70]
+	mi := &file_ai_v1_assistant_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7354,7 +7806,7 @@ func (x *ListConversationsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListConversationsRequest.ProtoReflect.Descriptor instead.
 func (*ListConversationsRequest) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{70}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *ListConversationsRequest) GetLimit() uint32 {
@@ -7386,7 +7838,7 @@ type ListConversationsResponse struct {
 
 func (x *ListConversationsResponse) Reset() {
 	*x = ListConversationsResponse{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[71]
+	mi := &file_ai_v1_assistant_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7398,7 +7850,7 @@ func (x *ListConversationsResponse) String() string {
 func (*ListConversationsResponse) ProtoMessage() {}
 
 func (x *ListConversationsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[71]
+	mi := &file_ai_v1_assistant_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7411,7 +7863,7 @@ func (x *ListConversationsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListConversationsResponse.ProtoReflect.Descriptor instead.
 func (*ListConversationsResponse) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{71}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *ListConversationsResponse) GetConversations() []*Conversation {
@@ -7444,7 +7896,7 @@ type ListMessagesRequest struct {
 
 func (x *ListMessagesRequest) Reset() {
 	*x = ListMessagesRequest{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[72]
+	mi := &file_ai_v1_assistant_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7456,7 +7908,7 @@ func (x *ListMessagesRequest) String() string {
 func (*ListMessagesRequest) ProtoMessage() {}
 
 func (x *ListMessagesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[72]
+	mi := &file_ai_v1_assistant_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7469,7 +7921,7 @@ func (x *ListMessagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMessagesRequest.ProtoReflect.Descriptor instead.
 func (*ListMessagesRequest) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{72}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *ListMessagesRequest) GetConversationId() uint64 {
@@ -7506,7 +7958,7 @@ type ListMessagesResponse struct {
 
 func (x *ListMessagesResponse) Reset() {
 	*x = ListMessagesResponse{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[73]
+	mi := &file_ai_v1_assistant_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7518,7 +7970,7 @@ func (x *ListMessagesResponse) String() string {
 func (*ListMessagesResponse) ProtoMessage() {}
 
 func (x *ListMessagesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[73]
+	mi := &file_ai_v1_assistant_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7531,7 +7983,7 @@ func (x *ListMessagesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMessagesResponse.ProtoReflect.Descriptor instead.
 func (*ListMessagesResponse) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{73}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *ListMessagesResponse) GetMessages() []*Message {
@@ -7544,6 +7996,107 @@ func (x *ListMessagesResponse) GetMessages() []*Message {
 func (x *ListMessagesResponse) GetNextPageToken() string {
 	if x != nil {
 		return x.NextPageToken
+	}
+	return ""
+}
+
+// GetMessageImageRequest selects one image of the caller's messages.
+type GetMessageImageRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Image to read, from Message.images.
+	ImageId       uint64 `protobuf:"fixed64,1,opt,name=image_id,json=imageId,proto3" json:"image_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetMessageImageRequest) Reset() {
+	*x = GetMessageImageRequest{}
+	mi := &file_ai_v1_assistant_proto_msgTypes[77]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetMessageImageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetMessageImageRequest) ProtoMessage() {}
+
+func (x *GetMessageImageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_v1_assistant_proto_msgTypes[77]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetMessageImageRequest.ProtoReflect.Descriptor instead.
+func (*GetMessageImageRequest) Descriptor() ([]byte, []int) {
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{77}
+}
+
+func (x *GetMessageImageRequest) GetImageId() uint64 {
+	if x != nil {
+		return x.ImageId
+	}
+	return 0
+}
+
+// GetMessageImageResponse returns the image file.
+type GetMessageImageResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The image file, as MessageImage describes it.
+	Data []byte `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	// Media type of data: image/png, image/jpeg or image/webp.
+	MimeType      string `protobuf:"bytes,2,opt,name=mime_type,json=mimeType,proto3" json:"mime_type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetMessageImageResponse) Reset() {
+	*x = GetMessageImageResponse{}
+	mi := &file_ai_v1_assistant_proto_msgTypes[78]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetMessageImageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetMessageImageResponse) ProtoMessage() {}
+
+func (x *GetMessageImageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_v1_assistant_proto_msgTypes[78]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetMessageImageResponse.ProtoReflect.Descriptor instead.
+func (*GetMessageImageResponse) Descriptor() ([]byte, []int) {
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{78}
+}
+
+func (x *GetMessageImageResponse) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+func (x *GetMessageImageResponse) GetMimeType() string {
+	if x != nil {
+		return x.MimeType
 	}
 	return ""
 }
@@ -7562,7 +8115,7 @@ type ListMemoriesRequest struct {
 
 func (x *ListMemoriesRequest) Reset() {
 	*x = ListMemoriesRequest{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[74]
+	mi := &file_ai_v1_assistant_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7574,7 +8127,7 @@ func (x *ListMemoriesRequest) String() string {
 func (*ListMemoriesRequest) ProtoMessage() {}
 
 func (x *ListMemoriesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[74]
+	mi := &file_ai_v1_assistant_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7587,7 +8140,7 @@ func (x *ListMemoriesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMemoriesRequest.ProtoReflect.Descriptor instead.
 func (*ListMemoriesRequest) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{74}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *ListMemoriesRequest) GetLimit() uint32 {
@@ -7617,7 +8170,7 @@ type ListMemoriesResponse struct {
 
 func (x *ListMemoriesResponse) Reset() {
 	*x = ListMemoriesResponse{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[75]
+	mi := &file_ai_v1_assistant_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7629,7 +8182,7 @@ func (x *ListMemoriesResponse) String() string {
 func (*ListMemoriesResponse) ProtoMessage() {}
 
 func (x *ListMemoriesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[75]
+	mi := &file_ai_v1_assistant_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7642,7 +8195,7 @@ func (x *ListMemoriesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMemoriesResponse.ProtoReflect.Descriptor instead.
 func (*ListMemoriesResponse) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{75}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{80}
 }
 
 func (x *ListMemoriesResponse) GetMemories() []*Memory {
@@ -7670,7 +8223,7 @@ type DeleteMemoryRequest struct {
 
 func (x *DeleteMemoryRequest) Reset() {
 	*x = DeleteMemoryRequest{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[76]
+	mi := &file_ai_v1_assistant_proto_msgTypes[81]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7682,7 +8235,7 @@ func (x *DeleteMemoryRequest) String() string {
 func (*DeleteMemoryRequest) ProtoMessage() {}
 
 func (x *DeleteMemoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[76]
+	mi := &file_ai_v1_assistant_proto_msgTypes[81]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7695,7 +8248,7 @@ func (x *DeleteMemoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteMemoryRequest.ProtoReflect.Descriptor instead.
 func (*DeleteMemoryRequest) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{76}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{81}
 }
 
 func (x *DeleteMemoryRequest) GetMemoryId() uint64 {
@@ -7714,7 +8267,7 @@ type DeleteMemoryResponse struct {
 
 func (x *DeleteMemoryResponse) Reset() {
 	*x = DeleteMemoryResponse{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[77]
+	mi := &file_ai_v1_assistant_proto_msgTypes[82]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7726,7 +8279,7 @@ func (x *DeleteMemoryResponse) String() string {
 func (*DeleteMemoryResponse) ProtoMessage() {}
 
 func (x *DeleteMemoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[77]
+	mi := &file_ai_v1_assistant_proto_msgTypes[82]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7739,7 +8292,7 @@ func (x *DeleteMemoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteMemoryResponse.ProtoReflect.Descriptor instead.
 func (*DeleteMemoryResponse) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{77}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{82}
 }
 
 // PrepareAssistantKeysRequest names the accounts to give the assistant keys
@@ -7754,7 +8307,7 @@ type PrepareAssistantKeysRequest struct {
 
 func (x *PrepareAssistantKeysRequest) Reset() {
 	*x = PrepareAssistantKeysRequest{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[78]
+	mi := &file_ai_v1_assistant_proto_msgTypes[83]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7766,7 +8319,7 @@ func (x *PrepareAssistantKeysRequest) String() string {
 func (*PrepareAssistantKeysRequest) ProtoMessage() {}
 
 func (x *PrepareAssistantKeysRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[78]
+	mi := &file_ai_v1_assistant_proto_msgTypes[83]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7779,7 +8332,7 @@ func (x *PrepareAssistantKeysRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PrepareAssistantKeysRequest.ProtoReflect.Descriptor instead.
 func (*PrepareAssistantKeysRequest) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{78}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{83}
 }
 
 func (x *PrepareAssistantKeysRequest) GetAccounts() []*AssistantKeyAccount {
@@ -7805,7 +8358,7 @@ type PrepareAssistantKeysResponse struct {
 
 func (x *PrepareAssistantKeysResponse) Reset() {
 	*x = PrepareAssistantKeysResponse{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[79]
+	mi := &file_ai_v1_assistant_proto_msgTypes[84]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7817,7 +8370,7 @@ func (x *PrepareAssistantKeysResponse) String() string {
 func (*PrepareAssistantKeysResponse) ProtoMessage() {}
 
 func (x *PrepareAssistantKeysResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[79]
+	mi := &file_ai_v1_assistant_proto_msgTypes[84]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7830,7 +8383,7 @@ func (x *PrepareAssistantKeysResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PrepareAssistantKeysResponse.ProtoReflect.Descriptor instead.
 func (*PrepareAssistantKeysResponse) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{79}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{84}
 }
 
 func (x *PrepareAssistantKeysResponse) GetSetupId() uint64 {
@@ -7865,7 +8418,7 @@ type CompleteAssistantKeysRequest struct {
 
 func (x *CompleteAssistantKeysRequest) Reset() {
 	*x = CompleteAssistantKeysRequest{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[80]
+	mi := &file_ai_v1_assistant_proto_msgTypes[85]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7877,7 +8430,7 @@ func (x *CompleteAssistantKeysRequest) String() string {
 func (*CompleteAssistantKeysRequest) ProtoMessage() {}
 
 func (x *CompleteAssistantKeysRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[80]
+	mi := &file_ai_v1_assistant_proto_msgTypes[85]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7890,7 +8443,7 @@ func (x *CompleteAssistantKeysRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompleteAssistantKeysRequest.ProtoReflect.Descriptor instead.
 func (*CompleteAssistantKeysRequest) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{80}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{85}
 }
 
 func (x *CompleteAssistantKeysRequest) GetSetupId() uint64 {
@@ -7911,7 +8464,7 @@ type CompleteAssistantKeysResponse struct {
 
 func (x *CompleteAssistantKeysResponse) Reset() {
 	*x = CompleteAssistantKeysResponse{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[81]
+	mi := &file_ai_v1_assistant_proto_msgTypes[86]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7923,7 +8476,7 @@ func (x *CompleteAssistantKeysResponse) String() string {
 func (*CompleteAssistantKeysResponse) ProtoMessage() {}
 
 func (x *CompleteAssistantKeysResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[81]
+	mi := &file_ai_v1_assistant_proto_msgTypes[86]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7936,7 +8489,7 @@ func (x *CompleteAssistantKeysResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompleteAssistantKeysResponse.ProtoReflect.Descriptor instead.
 func (*CompleteAssistantKeysResponse) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{81}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{86}
 }
 
 func (x *CompleteAssistantKeysResponse) GetKeys() []*AssistantKey {
@@ -7950,7 +8503,8 @@ func (x *CompleteAssistantKeysResponse) GetKeys() []*AssistantKey {
 type ListAssistantKeysRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// How much of each key to return. Omit it for the default view, without
-	// account names; ASSISTANT_KEY_VIEW_FULL adds each key's account name.
+	// account names; ASSISTANT_KEY_VIEW_FULL adds each key's account name and
+	// orders the keys by account (see ListAssistantKeysResponse.keys).
 	View          AssistantKeyView `protobuf:"varint,1,opt,name=view,proto3,enum=ai.v1.AssistantKeyView" json:"view,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -7958,7 +8512,7 @@ type ListAssistantKeysRequest struct {
 
 func (x *ListAssistantKeysRequest) Reset() {
 	*x = ListAssistantKeysRequest{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[82]
+	mi := &file_ai_v1_assistant_proto_msgTypes[87]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7970,7 +8524,7 @@ func (x *ListAssistantKeysRequest) String() string {
 func (*ListAssistantKeysRequest) ProtoMessage() {}
 
 func (x *ListAssistantKeysRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[82]
+	mi := &file_ai_v1_assistant_proto_msgTypes[87]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7983,7 +8537,7 @@ func (x *ListAssistantKeysRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAssistantKeysRequest.ProtoReflect.Descriptor instead.
 func (*ListAssistantKeysRequest) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{82}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{87}
 }
 
 func (x *ListAssistantKeysRequest) GetView() AssistantKeyView {
@@ -7996,8 +8550,12 @@ func (x *ListAssistantKeysRequest) GetView() AssistantKeyView {
 // ListAssistantKeysResponse returns the assistant keys the assistant holds.
 type ListAssistantKeysResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The caller's assistant keys the assistant holds, oldest first, at most
-	// one per account.
+	// The caller's assistant keys the assistant holds, at most one per account.
+	// The default view lists them oldest first. ASSISTANT_KEY_VIEW_FULL lists
+	// them as an account picker shows them: the main account's key first, then
+	// the subaccounts' keys by the subaccount's equity, highest first. Keys
+	// with equal equity, and those whose equity could not be read, which come
+	// last, are listed by account name.
 	Keys          []*AssistantKey `protobuf:"bytes,1,rep,name=keys,proto3" json:"keys,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -8005,7 +8563,7 @@ type ListAssistantKeysResponse struct {
 
 func (x *ListAssistantKeysResponse) Reset() {
 	*x = ListAssistantKeysResponse{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[83]
+	mi := &file_ai_v1_assistant_proto_msgTypes[88]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8017,7 +8575,7 @@ func (x *ListAssistantKeysResponse) String() string {
 func (*ListAssistantKeysResponse) ProtoMessage() {}
 
 func (x *ListAssistantKeysResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[83]
+	mi := &file_ai_v1_assistant_proto_msgTypes[88]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8030,7 +8588,7 @@ func (x *ListAssistantKeysResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAssistantKeysResponse.ProtoReflect.Descriptor instead.
 func (*ListAssistantKeysResponse) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{83}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{88}
 }
 
 func (x *ListAssistantKeysResponse) GetKeys() []*AssistantKey {
@@ -8062,7 +8620,7 @@ type TelegramApprovalLimits struct {
 
 func (x *TelegramApprovalLimits) Reset() {
 	*x = TelegramApprovalLimits{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[84]
+	mi := &file_ai_v1_assistant_proto_msgTypes[89]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8074,7 +8632,7 @@ func (x *TelegramApprovalLimits) String() string {
 func (*TelegramApprovalLimits) ProtoMessage() {}
 
 func (x *TelegramApprovalLimits) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[84]
+	mi := &file_ai_v1_assistant_proto_msgTypes[89]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8087,7 +8645,7 @@ func (x *TelegramApprovalLimits) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TelegramApprovalLimits.ProtoReflect.Descriptor instead.
 func (*TelegramApprovalLimits) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{84}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{89}
 }
 
 func (x *TelegramApprovalLimits) GetPerApprovalUsd() string {
@@ -8114,7 +8672,7 @@ type GetTelegramApprovalLimitsRequest struct {
 
 func (x *GetTelegramApprovalLimitsRequest) Reset() {
 	*x = GetTelegramApprovalLimitsRequest{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[85]
+	mi := &file_ai_v1_assistant_proto_msgTypes[90]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8126,7 +8684,7 @@ func (x *GetTelegramApprovalLimitsRequest) String() string {
 func (*GetTelegramApprovalLimitsRequest) ProtoMessage() {}
 
 func (x *GetTelegramApprovalLimitsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[85]
+	mi := &file_ai_v1_assistant_proto_msgTypes[90]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8139,7 +8697,7 @@ func (x *GetTelegramApprovalLimitsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTelegramApprovalLimitsRequest.ProtoReflect.Descriptor instead.
 func (*GetTelegramApprovalLimitsRequest) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{85}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{90}
 }
 
 // GetTelegramApprovalLimitsResponse returns the caller's Telegram approval
@@ -8157,7 +8715,7 @@ type GetTelegramApprovalLimitsResponse struct {
 
 func (x *GetTelegramApprovalLimitsResponse) Reset() {
 	*x = GetTelegramApprovalLimitsResponse{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[86]
+	mi := &file_ai_v1_assistant_proto_msgTypes[91]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8169,7 +8727,7 @@ func (x *GetTelegramApprovalLimitsResponse) String() string {
 func (*GetTelegramApprovalLimitsResponse) ProtoMessage() {}
 
 func (x *GetTelegramApprovalLimitsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[86]
+	mi := &file_ai_v1_assistant_proto_msgTypes[91]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8182,7 +8740,7 @@ func (x *GetTelegramApprovalLimitsResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use GetTelegramApprovalLimitsResponse.ProtoReflect.Descriptor instead.
 func (*GetTelegramApprovalLimitsResponse) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{86}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{91}
 }
 
 func (x *GetTelegramApprovalLimitsResponse) GetLimits() *TelegramApprovalLimits {
@@ -8211,7 +8769,7 @@ type SetTelegramApprovalLimitsRequest struct {
 
 func (x *SetTelegramApprovalLimitsRequest) Reset() {
 	*x = SetTelegramApprovalLimitsRequest{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[87]
+	mi := &file_ai_v1_assistant_proto_msgTypes[92]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8223,7 +8781,7 @@ func (x *SetTelegramApprovalLimitsRequest) String() string {
 func (*SetTelegramApprovalLimitsRequest) ProtoMessage() {}
 
 func (x *SetTelegramApprovalLimitsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[87]
+	mi := &file_ai_v1_assistant_proto_msgTypes[92]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8236,7 +8794,7 @@ func (x *SetTelegramApprovalLimitsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetTelegramApprovalLimitsRequest.ProtoReflect.Descriptor instead.
 func (*SetTelegramApprovalLimitsRequest) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{87}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{92}
 }
 
 func (x *SetTelegramApprovalLimitsRequest) GetLimits() *TelegramApprovalLimits {
@@ -8257,7 +8815,7 @@ type SetTelegramApprovalLimitsResponse struct {
 
 func (x *SetTelegramApprovalLimitsResponse) Reset() {
 	*x = SetTelegramApprovalLimitsResponse{}
-	mi := &file_ai_v1_assistant_proto_msgTypes[88]
+	mi := &file_ai_v1_assistant_proto_msgTypes[93]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8269,7 +8827,7 @@ func (x *SetTelegramApprovalLimitsResponse) String() string {
 func (*SetTelegramApprovalLimitsResponse) ProtoMessage() {}
 
 func (x *SetTelegramApprovalLimitsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ai_v1_assistant_proto_msgTypes[88]
+	mi := &file_ai_v1_assistant_proto_msgTypes[93]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8282,12 +8840,464 @@ func (x *SetTelegramApprovalLimitsResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use SetTelegramApprovalLimitsResponse.ProtoReflect.Descriptor instead.
 func (*SetTelegramApprovalLimitsResponse) Descriptor() ([]byte, []int) {
-	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{88}
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{93}
 }
 
 func (x *SetTelegramApprovalLimitsResponse) GetLimits() *TelegramApprovalLimits {
 	if x != nil {
 		return x.Limits
+	}
+	return nil
+}
+
+// SetModelKeyRequest saves the caller's own OpenAI API key.
+type SetModelKeyRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// An OpenAI secret API key: "sk-" followed by 20 to 300 letters, digits,
+	// "-" or "_". It is checked with OpenAI before it is saved.
+	ApiKey        string `protobuf:"bytes,1,opt,name=api_key,json=apiKey,proto3" json:"api_key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetModelKeyRequest) Reset() {
+	*x = SetModelKeyRequest{}
+	mi := &file_ai_v1_assistant_proto_msgTypes[94]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetModelKeyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetModelKeyRequest) ProtoMessage() {}
+
+func (x *SetModelKeyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_v1_assistant_proto_msgTypes[94]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetModelKeyRequest.ProtoReflect.Descriptor instead.
+func (*SetModelKeyRequest) Descriptor() ([]byte, []int) {
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{94}
+}
+
+func (x *SetModelKeyRequest) GetApiKey() string {
+	if x != nil {
+		return x.ApiKey
+	}
+	return ""
+}
+
+// SetModelKeyResponse returns the saved key's status.
+type SetModelKeyResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The key as saved; last_check is KEY_VALID.
+	Key           *ModelKey `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetModelKeyResponse) Reset() {
+	*x = SetModelKeyResponse{}
+	mi := &file_ai_v1_assistant_proto_msgTypes[95]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetModelKeyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetModelKeyResponse) ProtoMessage() {}
+
+func (x *SetModelKeyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_v1_assistant_proto_msgTypes[95]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetModelKeyResponse.ProtoReflect.Descriptor instead.
+func (*SetModelKeyResponse) Descriptor() ([]byte, []int) {
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{95}
+}
+
+func (x *SetModelKeyResponse) GetKey() *ModelKey {
+	if x != nil {
+		return x.Key
+	}
+	return nil
+}
+
+// GetModelKeyRequest reads the status of the caller's own OpenAI API key.
+type GetModelKeyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetModelKeyRequest) Reset() {
+	*x = GetModelKeyRequest{}
+	mi := &file_ai_v1_assistant_proto_msgTypes[96]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetModelKeyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetModelKeyRequest) ProtoMessage() {}
+
+func (x *GetModelKeyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_v1_assistant_proto_msgTypes[96]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetModelKeyRequest.ProtoReflect.Descriptor instead.
+func (*GetModelKeyRequest) Descriptor() ([]byte, []int) {
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{96}
+}
+
+// GetModelKeyResponse returns the status of the caller's own OpenAI API key.
+type GetModelKeyResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The caller's key; unset when the caller has none.
+	Key           *ModelKey `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetModelKeyResponse) Reset() {
+	*x = GetModelKeyResponse{}
+	mi := &file_ai_v1_assistant_proto_msgTypes[97]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetModelKeyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetModelKeyResponse) ProtoMessage() {}
+
+func (x *GetModelKeyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_v1_assistant_proto_msgTypes[97]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetModelKeyResponse.ProtoReflect.Descriptor instead.
+func (*GetModelKeyResponse) Descriptor() ([]byte, []int) {
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{97}
+}
+
+func (x *GetModelKeyResponse) GetKey() *ModelKey {
+	if x != nil {
+		return x.Key
+	}
+	return nil
+}
+
+// DeleteModelKeyRequest deletes the caller's own OpenAI API key.
+type DeleteModelKeyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteModelKeyRequest) Reset() {
+	*x = DeleteModelKeyRequest{}
+	mi := &file_ai_v1_assistant_proto_msgTypes[98]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteModelKeyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteModelKeyRequest) ProtoMessage() {}
+
+func (x *DeleteModelKeyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_v1_assistant_proto_msgTypes[98]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteModelKeyRequest.ProtoReflect.Descriptor instead.
+func (*DeleteModelKeyRequest) Descriptor() ([]byte, []int) {
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{98}
+}
+
+// DeleteModelKeyResponse confirms the deletion.
+type DeleteModelKeyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteModelKeyResponse) Reset() {
+	*x = DeleteModelKeyResponse{}
+	mi := &file_ai_v1_assistant_proto_msgTypes[99]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteModelKeyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteModelKeyResponse) ProtoMessage() {}
+
+func (x *DeleteModelKeyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_v1_assistant_proto_msgTypes[99]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteModelKeyResponse.ProtoReflect.Descriptor instead.
+func (*DeleteModelKeyResponse) Descriptor() ([]byte, []int) {
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{99}
+}
+
+// GetUsageRequest reads the caller's assistant credits today.
+type GetUsageRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUsageRequest) Reset() {
+	*x = GetUsageRequest{}
+	mi := &file_ai_v1_assistant_proto_msgTypes[100]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUsageRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUsageRequest) ProtoMessage() {}
+
+func (x *GetUsageRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_v1_assistant_proto_msgTypes[100]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUsageRequest.ProtoReflect.Descriptor instead.
+func (*GetUsageRequest) Descriptor() ([]byte, []int) {
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{100}
+}
+
+// TierCredits is the free daily credits of one VIP tier.
+type TierCredits struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The VIP tier, from 0 to 10.
+	VipTier uint32 `protobuf:"varint,1,opt,name=vip_tier,json=vipTier,proto3" json:"vip_tier,omitempty"`
+	// Free credits per UTC day at this tier.
+	DailyFreeCredits uint64 `protobuf:"varint,2,opt,name=daily_free_credits,json=dailyFreeCredits,proto3" json:"daily_free_credits,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *TierCredits) Reset() {
+	*x = TierCredits{}
+	mi := &file_ai_v1_assistant_proto_msgTypes[101]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TierCredits) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TierCredits) ProtoMessage() {}
+
+func (x *TierCredits) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_v1_assistant_proto_msgTypes[101]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TierCredits.ProtoReflect.Descriptor instead.
+func (*TierCredits) Descriptor() ([]byte, []int) {
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{101}
+}
+
+func (x *TierCredits) GetVipTier() uint32 {
+	if x != nil {
+		return x.VipTier
+	}
+	return 0
+}
+
+func (x *TierCredits) GetDailyFreeCredits() uint64 {
+	if x != nil {
+		return x.DailyFreeCredits
+	}
+	return 0
+}
+
+// GetUsageResponse is the caller's assistant credits today. A credit is a
+// fixed amount of AI usage: a longer answer, or one that uses more tools,
+// uses more credits. The figures are the main account's, which every
+// subaccount shares, and are the ones a new message is admitted against.
+type GetUsageResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// What pays for the caller's next messages. With OWN_KEY they use no
+	// credits, and the free credits below stay unused.
+	FundingMode FundingMode `protobuf:"varint,1,opt,name=funding_mode,json=fundingMode,proto3,enum=ai.v1.FundingMode" json:"funding_mode,omitempty"`
+	// The caller's VIP tier, whose free credits apply today. Unset when the
+	// tier could not be read: VIP 0's free credits then apply.
+	VipTier *uint32 `protobuf:"varint,2,opt,name=vip_tier,json=vipTier,proto3,oneof" json:"vip_tier,omitempty"`
+	// Today's free credits: the VIP tier's daily free credits.
+	FreeCredits uint64 `protobuf:"varint,3,opt,name=free_credits,json=freeCredits,proto3" json:"free_credits,omitempty"`
+	// Free credits used today, rounded down to a whole credit. May exceed
+	// free_credits: an answer started with credits left always finishes.
+	FreeCreditsUsed uint64 `protobuf:"varint,4,opt,name=free_credits_used,json=freeCreditsUsed,proto3" json:"free_credits_used,omitempty"`
+	// Free credits left today: free_credits minus free_credits_used, and 0
+	// when none are left. With none left and CREDITS funding, a message is
+	// answered with RunFailed DAILY_LIMIT_REACHED.
+	FreeCreditsLeft uint64 `protobuf:"varint,5,opt,name=free_credits_left,json=freeCreditsLeft,proto3" json:"free_credits_left,omitempty"`
+	// When the free credits reset: the next 00:00 UTC. Credits left unused do
+	// not carry over to the next day.
+	ResetsAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=resets_at,json=resetsAt,proto3" json:"resets_at,omitempty"`
+	// The next VIP tier and its daily free credits. Unset at the highest tier,
+	// and when the caller's tier could not be read.
+	NextTier      *TierCredits `protobuf:"bytes,7,opt,name=next_tier,json=nextTier,proto3" json:"next_tier,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUsageResponse) Reset() {
+	*x = GetUsageResponse{}
+	mi := &file_ai_v1_assistant_proto_msgTypes[102]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUsageResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUsageResponse) ProtoMessage() {}
+
+func (x *GetUsageResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ai_v1_assistant_proto_msgTypes[102]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUsageResponse.ProtoReflect.Descriptor instead.
+func (*GetUsageResponse) Descriptor() ([]byte, []int) {
+	return file_ai_v1_assistant_proto_rawDescGZIP(), []int{102}
+}
+
+func (x *GetUsageResponse) GetFundingMode() FundingMode {
+	if x != nil {
+		return x.FundingMode
+	}
+	return FundingMode_FUNDING_UNSPECIFIED
+}
+
+func (x *GetUsageResponse) GetVipTier() uint32 {
+	if x != nil && x.VipTier != nil {
+		return *x.VipTier
+	}
+	return 0
+}
+
+func (x *GetUsageResponse) GetFreeCredits() uint64 {
+	if x != nil {
+		return x.FreeCredits
+	}
+	return 0
+}
+
+func (x *GetUsageResponse) GetFreeCreditsUsed() uint64 {
+	if x != nil {
+		return x.FreeCreditsUsed
+	}
+	return 0
+}
+
+func (x *GetUsageResponse) GetFreeCreditsLeft() uint64 {
+	if x != nil {
+		return x.FreeCreditsLeft
+	}
+	return 0
+}
+
+func (x *GetUsageResponse) GetResetsAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ResetsAt
+	}
+	return nil
+}
+
+func (x *GetUsageResponse) GetNextTier() *TierCredits {
+	if x != nil {
+		return x.NextTier
 	}
 	return nil
 }
@@ -8305,7 +9315,7 @@ const file_ai_v1_assistant_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xb6\x01\n" +
+	"updated_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xe3\x01\n" +
 	"\aMessage\x12\x1d\n" +
 	"\n" +
 	"message_id\x18\x01 \x01(\x06R\tmessageId\x12&\n" +
@@ -8313,7 +9323,18 @@ const file_ai_v1_assistant_proto_rawDesc = "" +
 	"\x04text\x18\x03 \x01(\tR\x04text\x129\n" +
 	"\n" +
 	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x15\n" +
-	"\x06run_id\x18\x05 \x01(\x06R\x05runId\"\xdd\x01\n" +
+	"\x06run_id\x18\x05 \x01(\x06R\x05runId\x12+\n" +
+	"\x06images\x18\x06 \x03(\v2\x13.ai.v1.MessageImageR\x06images\"\x93\x01\n" +
+	"\fMessageImage\x12\x19\n" +
+	"\bimage_id\x18\x01 \x01(\x06R\aimageId\x12\x1b\n" +
+	"\tmime_type\x18\x02 \x01(\tR\bmimeType\x12\x14\n" +
+	"\x05width\x18\x03 \x01(\rR\x05width\x12\x16\n" +
+	"\x06height\x18\x04 \x01(\rR\x06height\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\x05 \x01(\rR\tsizeBytes\"B\n" +
+	"\x0fImageAttachment\x12\x12\n" +
+	"\x04data\x18\x01 \x01(\fR\x04data\x12\x1b\n" +
+	"\tmime_type\x18\x02 \x01(\tR\bmimeType\"\xdd\x01\n" +
 	"\x06Memory\x12\x1b\n" +
 	"\tmemory_id\x18\x01 \x01(\x06R\bmemoryId\x12\x12\n" +
 	"\x04text\x18\x02 \x01(\tR\x04text\x129\n" +
@@ -8745,7 +9766,14 @@ const file_ai_v1_assistant_proto_rawDesc = "" +
 	"\x12public_key_ed25519\x18\x03 \x01(\fR\x10publicKeyEd25519\x12.\n" +
 	"\x05state\x18\x04 \x01(\x0e2\x18.ai.v1.AssistantKeyStateR\x05state\x12\x14\n" +
 	"\x05label\x18\x05 \x01(\tR\x05labelB\x10\n" +
-	"\x0e_subaccount_id\"a\n" +
+	"\x0e_subaccount_id\"\xc9\x01\n" +
+	"\bModelKey\x12\x16\n" +
+	"\x06suffix\x18\x01 \x01(\tR\x06suffix\x125\n" +
+	"\badded_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\aaddedAt\x123\n" +
+	"\n" +
+	"last_check\x18\x03 \x01(\x0e2\x14.ai.v1.ModelKeyCheckR\tlastCheck\x129\n" +
+	"\n" +
+	"checked_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcheckedAt\"a\n" +
 	"\x13AssistantKeyAccount\x128\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
 	"\x0e_subaccount_id\"\x80\x02\n" +
@@ -8763,21 +9791,27 @@ const file_ai_v1_assistant_proto_rawDesc = "" +
 	"\x0edestination_id\x18\x01 \x01(\tB \xbaH\x1dr\x1b2\x19^[a-z0-9][a-z0-9-]{0,63}$H\x00R\rdestinationId\x88\x01\x01\x12:\n" +
 	"\x05route\x18\x02 \x01(\tB$\xbaH!r\x1f2\x1d^/[A-Za-z0-9/_.\\[\\]-]{0,199}$R\x05route\x12\x1f\n" +
 	"\x05title\x18\x03 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18PR\x05titleB\x11\n" +
-	"\x0f_destination_id\"\xdd\x06\n" +
+	"\x0f_destination_id\"\x9b\n" +
+	"\n" +
 	"\x12SendMessageRequest\x12<\n" +
-	"\x0fconversation_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\x0econversationId\x88\x01\x01\x12\x1e\n" +
-	"\x04text\x18\x02 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\x80}R\x04text\x12H\n" +
+	"\x0fconversation_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\x0econversationId\x88\x01\x01\x12\x1c\n" +
+	"\x04text\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80}R\x04text\x12H\n" +
 	"\x0fidempotency_key\x18\x03 \x01(\tB\x1f\xbaH\x1cr\x1a2\x18^[A-Za-z0-9._:-]{1,128}$R\x0eidempotencyKey\x128\n" +
 	"\rsubaccount_id\x18\x04 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x01R\fsubaccountId\x88\x01\x01\x12@\n" +
 	"\fdestinations\x18\x05 \x03(\v2\x12.ai.v1.DestinationB\b\xbaH\x05\x92\x01\x02\x10dR\fdestinations\x12&\n" +
 	"\x04page\x18\x06 \x01(\v2\x12.ai.v1.CurrentPageR\x04page\x12U\n" +
 	"\x10display_settings\x18\a \x03(\x0e2\x15.ai.v1.DisplaySettingB\x13\xbaH\x10\x92\x01\r\x10\b\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\x0fdisplaySettings\x12N\n" +
-	"\x11account_selection\x18\b \x01(\x0e2\x17.ai.v1.AccountSelectionB\b\xbaH\x05\x82\x01\x02\x10\x01R\x10accountSelection:\xad\x02\xbaH\xa9\x02\x1ao\n" +
+	"\x11account_selection\x18\b \x01(\x0e2\x17.ai.v1.AccountSelectionB\b\xbaH\x05\x82\x01\x02\x10\x01R\x10accountSelection\x12H\n" +
+	"\x16expected_latest_run_id\x18\t \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x02R\x13expectedLatestRunId\x88\x01\x01\x12.\n" +
+	"\x06images\x18\n" +
+	" \x03(\v2\x16.ai.v1.ImageAttachmentR\x06images:\xd8\x04\xbaH\xd4\x04\x1ao\n" +
 	" send_message.unique_destinations\x12\"each destination id must be unique\x1a'this.destinations.map(d, d.id).unique()\x1a\xb5\x01\n" +
-	"*send_message.no_account_without_subaccount\x12Nsubaccount_id must be omitted when account_selection is ACCOUNT_SELECTION_NONE\x1a7this.account_selection != 1 || !has(this.subaccount_id)B\x12\n" +
+	"*send_message.no_account_without_subaccount\x12Nsubaccount_id must be omitted when account_selection is ACCOUNT_SELECTION_NONE\x1a7this.account_selection != 1 || !has(this.subaccount_id)\x1a\xae\x01\n" +
+	"3send_message.expected_latest_run_needs_conversation\x127conversation_id is required with expected_latest_run_id\x1a>!has(this.expected_latest_run_id) || has(this.conversation_id)\x1ax\n" +
+	"\x1bsend_message.text_or_images\x12+text is required unless images are attached\x1a,size(this.text) > 0 || size(this.images) > 0B\x12\n" +
 	"\x10_conversation_idB\x10\n" +
-	"\x0e_subaccount_id\"U\n" +
+	"\x0e_subaccount_idB\x19\n" +
+	"\x17_expected_latest_run_id\"U\n" +
 	"\x13SendMessageResponse\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\x06R\x05runId\x12'\n" +
 	"\x0fconversation_id\x18\x02 \x01(\x06R\x0econversationId\"U\n" +
@@ -8810,7 +9844,12 @@ const file_ai_v1_assistant_proto_rawDesc = "" +
 	"page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken\"j\n" +
 	"\x14ListMessagesResponse\x12*\n" +
 	"\bmessages\x18\x01 \x03(\v2\x0e.ai.v1.MessageR\bmessages\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"^\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"C\n" +
+	"\x16GetMessageImageRequest\x12)\n" +
+	"\bimage_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\aimageId\"J\n" +
+	"\x17GetMessageImageResponse\x12\x12\n" +
+	"\x04data\x18\x01 \x01(\fR\x04data\x12\x1b\n" +
+	"\tmime_type\x18\x02 \x01(\tR\bmimeType\"^\n" +
 	"\x13ListMemoriesRequest\x12\x1e\n" +
 	"\x05limit\x18\x01 \x01(\rB\b\xbaH\x05*\x03\x18\xc8\x01R\x05limit\x12'\n" +
 	"\n" +
@@ -8850,7 +9889,29 @@ const file_ai_v1_assistant_proto_rawDesc = "" +
 	" SetTelegramApprovalLimitsRequest\x12=\n" +
 	"\x06limits\x18\x01 \x01(\v2\x1d.ai.v1.TelegramApprovalLimitsB\x06\xbaH\x03\xc8\x01\x01R\x06limits\"Z\n" +
 	"!SetTelegramApprovalLimitsResponse\x125\n" +
-	"\x06limits\x18\x01 \x01(\v2\x1d.ai.v1.TelegramApprovalLimitsR\x06limits*\xc6\x02\n" +
+	"\x06limits\x18\x01 \x01(\v2\x1d.ai.v1.TelegramApprovalLimitsR\x06limits\"P\n" +
+	"\x12SetModelKeyRequest\x12:\n" +
+	"\aapi_key\x18\x01 \x01(\tB!\xbaH\x1er\x1c2\x1a^sk-[A-Za-z0-9_-]{20,300}$R\x06apiKey\"8\n" +
+	"\x13SetModelKeyResponse\x12!\n" +
+	"\x03key\x18\x01 \x01(\v2\x0f.ai.v1.ModelKeyR\x03key\"\x14\n" +
+	"\x12GetModelKeyRequest\"8\n" +
+	"\x13GetModelKeyResponse\x12!\n" +
+	"\x03key\x18\x01 \x01(\v2\x0f.ai.v1.ModelKeyR\x03key\"\x17\n" +
+	"\x15DeleteModelKeyRequest\"\x18\n" +
+	"\x16DeleteModelKeyResponse\"\x11\n" +
+	"\x0fGetUsageRequest\"V\n" +
+	"\vTierCredits\x12\x19\n" +
+	"\bvip_tier\x18\x01 \x01(\rR\avipTier\x12,\n" +
+	"\x12daily_free_credits\x18\x02 \x01(\x04R\x10dailyFreeCredits\"\xdb\x02\n" +
+	"\x10GetUsageResponse\x125\n" +
+	"\ffunding_mode\x18\x01 \x01(\x0e2\x12.ai.v1.FundingModeR\vfundingMode\x12\x1e\n" +
+	"\bvip_tier\x18\x02 \x01(\rH\x00R\avipTier\x88\x01\x01\x12!\n" +
+	"\ffree_credits\x18\x03 \x01(\x04R\vfreeCredits\x12*\n" +
+	"\x11free_credits_used\x18\x04 \x01(\x04R\x0ffreeCreditsUsed\x12*\n" +
+	"\x11free_credits_left\x18\x05 \x01(\x04R\x0ffreeCreditsLeft\x127\n" +
+	"\tresets_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\bresetsAt\x12/\n" +
+	"\tnext_tier\x18\a \x01(\v2\x12.ai.v1.TierCreditsR\bnextTierB\v\n" +
+	"\t_vip_tier*\x8d\x04\n" +
 	"\tErrorCode\x12\x15\n" +
 	"\x11ERROR_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16CONVERSATION_NOT_FOUND\x10\x01\x12\x11\n" +
@@ -8866,18 +9927,29 @@ const file_ai_v1_assistant_proto_rawDesc = "" +
 	"\x13SERVICE_UNAVAILABLE\x10\n" +
 	"\x12\x17\n" +
 	"\x13KEY_SETUP_NOT_FOUND\x10\v\x12\x1c\n" +
-	"\x18KEY_SETUP_NOT_REGISTERED\x10\f*<\n" +
+	"\x18KEY_SETUP_NOT_REGISTERED\x10\f\x12\x19\n" +
+	"\x15CONVERSATION_ADVANCED\x10\r\x12\x16\n" +
+	"\x12MODEL_KEY_REJECTED\x10\x0e\x12\x16\n" +
+	"\x12MODEL_KEY_NO_QUOTA\x10\x0f\x12\x1f\n" +
+	"\x1bMODEL_KEY_MODEL_UNAVAILABLE\x10\x10\x12\x13\n" +
+	"\x0fIMAGE_TOO_LARGE\x10\x11\x12\x1a\n" +
+	"\x16IMAGE_TYPE_UNSUPPORTED\x10\x12\x12\x13\n" +
+	"\x0fTOO_MANY_IMAGES\x10\x13\x12\x13\n" +
+	"\x0fIMAGE_NOT_FOUND\x10\x14*<\n" +
 	"\vMessageRole\x12\x14\n" +
 	"\x10ROLE_UNSPECIFIED\x10\x00\x12\b\n" +
 	"\x04USER\x10\x01\x12\r\n" +
-	"\tASSISTANT\x10\x02*\x92\x01\n" +
+	"\tASSISTANT\x10\x02*\xd8\x01\n" +
 	"\x0fFailureCategory\x12\x17\n" +
 	"\x13FAILURE_UNSPECIFIED\x10\x00\x12\r\n" +
 	"\tCANCELLED\x10\x01\x12\x13\n" +
 	"\x0fBUDGET_EXCEEDED\x10\x02\x12\x15\n" +
 	"\x11PERMISSION_DENIED\x10\x03\x12\x15\n" +
 	"\x11MODEL_UNAVAILABLE\x10\x04\x12\x14\n" +
-	"\x10UNEXPECTED_ERROR\x10\x05*E\n" +
+	"\x10UNEXPECTED_ERROR\x10\x05\x12\x15\n" +
+	"\x11MODEL_KEY_REFUSED\x10\x06\x12\x17\n" +
+	"\x13DAILY_LIMIT_REACHED\x10\a\x12\x14\n" +
+	"\x10ASSISTANT_PAUSED\x10\b*E\n" +
 	"\x10ApprovalDecision\x12\x18\n" +
 	"\x14DECISION_UNSPECIFIED\x10\x00\x12\v\n" +
 	"\aAPPROVE\x10\x01\x12\n" +
@@ -8905,7 +9977,17 @@ const file_ai_v1_assistant_proto_rawDesc = "" +
 	"\x16ACCOUNT_SELECTION_NONE\x10\x01*S\n" +
 	"\x10AssistantKeyView\x12\"\n" +
 	"\x1eASSISTANT_KEY_VIEW_UNSPECIFIED\x10\x00\x12\x1b\n" +
-	"\x17ASSISTANT_KEY_VIEW_FULL\x10\x01*\xa6\x01\n" +
+	"\x17ASSISTANT_KEY_VIEW_FULL\x10\x01*x\n" +
+	"\rModelKeyCheck\x12\x19\n" +
+	"\x15KEY_CHECK_UNSPECIFIED\x10\x00\x12\r\n" +
+	"\tKEY_VALID\x10\x01\x12\x10\n" +
+	"\fKEY_REJECTED\x10\x02\x12\x10\n" +
+	"\fKEY_NO_QUOTA\x10\x03\x12\x19\n" +
+	"\x15KEY_MODEL_UNAVAILABLE\x10\x04*@\n" +
+	"\vFundingMode\x12\x17\n" +
+	"\x13FUNDING_UNSPECIFIED\x10\x00\x12\v\n" +
+	"\aCREDITS\x10\x01\x12\v\n" +
+	"\aOWN_KEY\x10\x02*\xa6\x01\n" +
 	"\x0eDisplaySetting\x12\x17\n" +
 	"\x13SETTING_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -8961,7 +10043,7 @@ const file_ai_v1_assistant_proto_rawDesc = "" +
 	"\x06MODIFY\x10\x01\x12\t\n" +
 	"\x05PAUSE\x10\x02\x12\n" +
 	"\n" +
-	"\x06RESUME\x10\x032\xb8\x14\n" +
+	"\x06RESUME\x10\x032\xe2\x1c\n" +
 	"\x10AssistantService\x12\xb3\x01\n" +
 	"\vSendMessage\x12\x19.ai.v1.SendMessageRequest\x1a\x1a.ai.v1.SendMessageResponse\"m\xbaGe\n" +
 	"\x11Assistant Service\x12\fSend Message\x1aBSend a message to the assistant and start the run that answers it.\xa2\xb5\x18\x01\x01\x12\xb1\x01\n" +
@@ -8975,7 +10057,9 @@ const file_ai_v1_assistant_proto_rawDesc = "" +
 	"\x11ListConversations\x12\x1f.ai.v1.ListConversationsRequest\x1a .ai.v1.ListConversationsResponse\"q\xbaGf\n" +
 	"\x11Assistant Service\x12\x12List Conversations\x1a=List the caller's conversations, most recently updated first.\xa2\xb5\x18\x01\x01\x90\x02\x01\x12\xac\x01\n" +
 	"\fListMessages\x12\x1a.ai.v1.ListMessagesRequest\x1a\x1b.ai.v1.ListMessagesResponse\"c\xbaGX\n" +
-	"\x11Assistant Service\x12\rList Messages\x1a4List the messages of one conversation, newest first.\xa2\xb5\x18\x01\x01\x90\x02\x01\x12\xb9\x01\n" +
+	"\x11Assistant Service\x12\rList Messages\x1a4List the messages of one conversation, newest first.\xa2\xb5\x18\x01\x01\x90\x02\x01\x12\xad\x01\n" +
+	"\x0fGetMessageImage\x12\x1d.ai.v1.GetMessageImageRequest\x1a\x1e.ai.v1.GetMessageImageResponse\"[\xbaGP\n" +
+	"\x11Assistant Service\x12\x11Get Message Image\x1a(Read one image of the caller's messages.\xa2\xb5\x18\x01\x01\x90\x02\x01\x12\xb9\x01\n" +
 	"\fListMemories\x12\x1a.ai.v1.ListMemoriesRequest\x1a\x1b.ai.v1.ListMemoriesResponse\"p\xbaGe\n" +
 	"\x11Assistant Service\x12\rList Memories\x1aAList what the assistant remembers about the caller, newest first.\xa2\xb5\x18\x01\x01\x90\x02\x01\x12\x9d\x01\n" +
 	"\fDeleteMemory\x12\x1a.ai.v1.DeleteMemoryRequest\x1a\x1b.ai.v1.DeleteMemoryResponse\"T\xbaGI\n" +
@@ -8989,7 +10073,15 @@ const file_ai_v1_assistant_proto_rawDesc = "" +
 	"\x19GetTelegramApprovalLimits\x12'.ai.v1.GetTelegramApprovalLimitsRequest\x1a(.ai.v1.GetTelegramApprovalLimitsResponse\"~\xbaGs\n" +
 	"\x11Assistant Service\x12\x1cGet Telegram Approval Limits\x1a@Read the caller's limits on what they may approve from Telegram.\xa2\xb5\x18\x01\x01\x90\x02\x01\x12\xf2\x01\n" +
 	"\x19SetTelegramApprovalLimits\x12'.ai.v1.SetTelegramApprovalLimitsRequest\x1a(.ai.v1.SetTelegramApprovalLimitsResponse\"\x81\x01\xbaGv\n" +
-	"\x11Assistant Service\x12\x1cSet Telegram Approval Limits\x1aCReplace the caller's limits on what they may approve from Telegram.\xa2\xb5\x18\x01\x01\x90\x02\x02\x1a\r\x8a\xb5\x18\tassistantB\xc6\x01\xbaG\x8a\x01:\x87\x01\n" +
+	"\x11Assistant Service\x12\x1cSet Telegram Approval Limits\x1aCReplace the caller's limits on what they may approve from Telegram.\xa2\xb5\x18\x01\x01\x90\x02\x02\x12\xeb\x01\n" +
+	"\vSetModelKey\x12\x19.ai.v1.SetModelKeyRequest\x1a\x1a.ai.v1.SetModelKeyResponse\"\xa4\x01\xbaG\x9b\x01\n" +
+	"\x11Assistant Service\x12\rSet Model Key\x1awSave the caller's own OpenAI API key, checked with OpenAI first, for the assistant to use instead of its own allowance.\xa2\xb5\x18\x01\x01\x12\xbe\x01\n" +
+	"\vGetModelKey\x12\x19.ai.v1.GetModelKeyRequest\x1a\x1a.ai.v1.GetModelKeyResponse\"x\xbaGm\n" +
+	"\x11Assistant Service\x12\rGet Model Key\x1aIRead the status of the caller's own OpenAI API key, never the key itself.\xa2\xb5\x18\x01\x01\x90\x02\x01\x12\xd5\x01\n" +
+	"\x0eDeleteModelKey\x12\x1c.ai.v1.DeleteModelKeyRequest\x1a\x1d.ai.v1.DeleteModelKeyResponse\"\x85\x01\xbaGz\n" +
+	"\x11Assistant Service\x12\x10Delete Model Key\x1aSDelete the caller's own OpenAI API key; the assistant uses its own allowance again.\xa2\xb5\x18\x01\x01\x90\x02\x02\x12\xf0\x01\n" +
+	"\bGetUsage\x12\x16.ai.v1.GetUsageRequest\x1a\x17.ai.v1.GetUsageResponse\"\xb2\x01\xbaG\xa6\x01\n" +
+	"\x11Assistant Service\x12\tGet Usage\x1a\x85\x01Read the caller's assistant credits today: free credits by VIP tier, used, left, when they reset and what pays for the next messages.\xa2\xb5\x18\x01\x01\x90\x02\x01\x1a\r\x8a\xb5\x18\tassistantB\xc6\x01\xbaG\x8a\x01:\x87\x01\n" +
 	"\x11Assistant Service\x12rConversations with the Polyester trading assistant: messages, resumable run event streams, approvals and memories.Z6github.com/Fabric-Labs/polyester-sdk-go/gen/ai/v1;aiv1b\x06proto3"
 
 var (
@@ -9004,8 +10096,8 @@ func file_ai_v1_assistant_proto_rawDescGZIP() []byte {
 	return file_ai_v1_assistant_proto_rawDescData
 }
 
-var file_ai_v1_assistant_proto_enumTypes = make([]protoimpl.EnumInfo, 17)
-var file_ai_v1_assistant_proto_msgTypes = make([]protoimpl.MessageInfo, 89)
+var file_ai_v1_assistant_proto_enumTypes = make([]protoimpl.EnumInfo, 19)
+var file_ai_v1_assistant_proto_msgTypes = make([]protoimpl.MessageInfo, 103)
 var file_ai_v1_assistant_proto_goTypes = []any{
 	(ErrorCode)(0),                             // 0: ai.v1.ErrorCode
 	(MessageRole)(0),                           // 1: ai.v1.MessageRole
@@ -9016,285 +10108,321 @@ var file_ai_v1_assistant_proto_goTypes = []any{
 	(AssistantKeyState)(0),                     // 6: ai.v1.AssistantKeyState
 	(AccountSelection)(0),                      // 7: ai.v1.AccountSelection
 	(AssistantKeyView)(0),                      // 8: ai.v1.AssistantKeyView
-	(DisplaySetting)(0),                        // 9: ai.v1.DisplaySetting
-	(ReferencePriceSource)(0),                  // 10: ai.v1.ReferencePriceSource
-	(TriggerDirection)(0),                      // 11: ai.v1.TriggerDirection
-	(OrderPriceField)(0),                       // 12: ai.v1.OrderPriceField
-	(PriceOffsetDirection)(0),                  // 13: ai.v1.PriceOffsetDirection
-	(PriceRounding)(0),                         // 14: ai.v1.PriceRounding
-	(UnfilledSlicePolicy)(0),                   // 15: ai.v1.UnfilledSlicePolicy
-	(TriggerChangeAction)(0),                   // 16: ai.v1.TriggerChangeAction
-	(*ErrorDetail)(nil),                        // 17: ai.v1.ErrorDetail
-	(*Conversation)(nil),                       // 18: ai.v1.Conversation
-	(*Message)(nil),                            // 19: ai.v1.Message
-	(*Memory)(nil),                             // 20: ai.v1.Memory
-	(*Usage)(nil),                              // 21: ai.v1.Usage
-	(*OrdersTable)(nil),                        // 22: ai.v1.OrdersTable
-	(*TriggersTable)(nil),                      // 23: ai.v1.TriggersTable
-	(*BalancesTable)(nil),                      // 24: ai.v1.BalancesTable
-	(*PriceChart)(nil),                         // 25: ai.v1.PriceChart
-	(*MarkdownTableRow)(nil),                   // 26: ai.v1.MarkdownTableRow
-	(*MarkdownTable)(nil),                      // 27: ai.v1.MarkdownTable
-	(*DepositAddressCard)(nil),                 // 28: ai.v1.DepositAddressCard
-	(*BalanceHistoryChart)(nil),                // 29: ai.v1.BalanceHistoryChart
-	(*EquityHistoryChart)(nil),                 // 30: ai.v1.EquityHistoryChart
-	(*TransfersTable)(nil),                     // 31: ai.v1.TransfersTable
-	(*View)(nil),                               // 32: ai.v1.View
-	(*TextDelta)(nil),                          // 33: ai.v1.TextDelta
-	(*DiscardPartial)(nil),                     // 34: ai.v1.DiscardPartial
-	(*ToolStarted)(nil),                        // 35: ai.v1.ToolStarted
-	(*ToolFinished)(nil),                       // 36: ai.v1.ToolFinished
-	(*RecalledMemory)(nil),                     // 37: ai.v1.RecalledMemory
-	(*MemoriesRecalled)(nil),                   // 38: ai.v1.MemoriesRecalled
-	(*DestinationsSuggested)(nil),              // 39: ai.v1.DestinationsSuggested
-	(*DisplaySettingAction)(nil),               // 40: ai.v1.DisplaySettingAction
-	(*SkillLoaded)(nil),                        // 41: ai.v1.SkillLoaded
-	(*SubagentStarted)(nil),                    // 42: ai.v1.SubagentStarted
-	(*SubagentFinished)(nil),                   // 43: ai.v1.SubagentFinished
-	(*ApprovalParameter)(nil),                  // 44: ai.v1.ApprovalParameter
-	(*ReferencePrice)(nil),                     // 45: ai.v1.ReferencePrice
-	(*RelativePrice)(nil),                      // 46: ai.v1.RelativePrice
-	(*AttachedExit)(nil),                       // 47: ai.v1.AttachedExit
-	(*AttachedTrailingStop)(nil),               // 48: ai.v1.AttachedTrailingStop
-	(*AttachedExits)(nil),                      // 49: ai.v1.AttachedExits
-	(*MarketOrderPreview)(nil),                 // 50: ai.v1.MarketOrderPreview
-	(*LimitOrderPreview)(nil),                  // 51: ai.v1.LimitOrderPreview
-	(*StopOrderPreview)(nil),                   // 52: ai.v1.StopOrderPreview
-	(*TrailingStopPreview)(nil),                // 53: ai.v1.TrailingStopPreview
-	(*TwapPreview)(nil),                        // 54: ai.v1.TwapPreview
-	(*LadderLevel)(nil),                        // 55: ai.v1.LadderLevel
-	(*LadderPreview)(nil),                      // 56: ai.v1.LadderPreview
-	(*OrderPreview)(nil),                       // 57: ai.v1.OrderPreview
-	(*QuoteValue)(nil),                         // 58: ai.v1.QuoteValue
-	(*PlaceOrdersPreview)(nil),                 // 59: ai.v1.PlaceOrdersPreview
-	(*SwapLegPreview)(nil),                     // 60: ai.v1.SwapLegPreview
-	(*SwapPreview)(nil),                        // 61: ai.v1.SwapPreview
-	(*OrderToCancel)(nil),                      // 62: ai.v1.OrderToCancel
-	(*CancelOrdersPreview)(nil),                // 63: ai.v1.CancelOrdersPreview
-	(*CancelTriggerPreview)(nil),               // 64: ai.v1.CancelTriggerPreview
-	(*OrderChange)(nil),                        // 65: ai.v1.OrderChange
-	(*OrderChangePreview)(nil),                 // 66: ai.v1.OrderChangePreview
-	(*TriggerSettings)(nil),                    // 67: ai.v1.TriggerSettings
-	(*TriggerChangePreview)(nil),               // 68: ai.v1.TriggerChangePreview
-	(*ApprovalRequested)(nil),                  // 69: ai.v1.ApprovalRequested
-	(*ApprovalResolved)(nil),                   // 70: ai.v1.ApprovalResolved
-	(*RunCompleted)(nil),                       // 71: ai.v1.RunCompleted
-	(*RunFailed)(nil),                          // 72: ai.v1.RunFailed
-	(*RunEvent)(nil),                           // 73: ai.v1.RunEvent
-	(*AssistantKey)(nil),                       // 74: ai.v1.AssistantKey
-	(*AssistantKeyAccount)(nil),                // 75: ai.v1.AssistantKeyAccount
-	(*PreparedAssistantKey)(nil),               // 76: ai.v1.PreparedAssistantKey
-	(*Destination)(nil),                        // 77: ai.v1.Destination
-	(*CurrentPage)(nil),                        // 78: ai.v1.CurrentPage
-	(*SendMessageRequest)(nil),                 // 79: ai.v1.SendMessageRequest
-	(*SendMessageResponse)(nil),                // 80: ai.v1.SendMessageResponse
-	(*WatchRunRequest)(nil),                    // 81: ai.v1.WatchRunRequest
-	(*WatchRunResponse)(nil),                   // 82: ai.v1.WatchRunResponse
-	(*CancelRunRequest)(nil),                   // 83: ai.v1.CancelRunRequest
-	(*CancelRunResponse)(nil),                  // 84: ai.v1.CancelRunResponse
-	(*DecideApprovalRequest)(nil),              // 85: ai.v1.DecideApprovalRequest
-	(*DecideApprovalResponse)(nil),             // 86: ai.v1.DecideApprovalResponse
-	(*ListConversationsRequest)(nil),           // 87: ai.v1.ListConversationsRequest
-	(*ListConversationsResponse)(nil),          // 88: ai.v1.ListConversationsResponse
-	(*ListMessagesRequest)(nil),                // 89: ai.v1.ListMessagesRequest
-	(*ListMessagesResponse)(nil),               // 90: ai.v1.ListMessagesResponse
-	(*ListMemoriesRequest)(nil),                // 91: ai.v1.ListMemoriesRequest
-	(*ListMemoriesResponse)(nil),               // 92: ai.v1.ListMemoriesResponse
-	(*DeleteMemoryRequest)(nil),                // 93: ai.v1.DeleteMemoryRequest
-	(*DeleteMemoryResponse)(nil),               // 94: ai.v1.DeleteMemoryResponse
-	(*PrepareAssistantKeysRequest)(nil),        // 95: ai.v1.PrepareAssistantKeysRequest
-	(*PrepareAssistantKeysResponse)(nil),       // 96: ai.v1.PrepareAssistantKeysResponse
-	(*CompleteAssistantKeysRequest)(nil),       // 97: ai.v1.CompleteAssistantKeysRequest
-	(*CompleteAssistantKeysResponse)(nil),      // 98: ai.v1.CompleteAssistantKeysResponse
-	(*ListAssistantKeysRequest)(nil),           // 99: ai.v1.ListAssistantKeysRequest
-	(*ListAssistantKeysResponse)(nil),          // 100: ai.v1.ListAssistantKeysResponse
-	(*TelegramApprovalLimits)(nil),             // 101: ai.v1.TelegramApprovalLimits
-	(*GetTelegramApprovalLimitsRequest)(nil),   // 102: ai.v1.GetTelegramApprovalLimitsRequest
-	(*GetTelegramApprovalLimitsResponse)(nil),  // 103: ai.v1.GetTelegramApprovalLimitsResponse
-	(*SetTelegramApprovalLimitsRequest)(nil),   // 104: ai.v1.SetTelegramApprovalLimitsRequest
-	(*SetTelegramApprovalLimitsResponse)(nil),  // 105: ai.v1.SetTelegramApprovalLimitsResponse
-	(*timestamppb.Timestamp)(nil),              // 106: google.protobuf.Timestamp
-	(*v1.Order)(nil),                           // 107: orders.v1.Order
-	(*v11.Trigger)(nil),                        // 108: triggers.v1.Trigger
-	(*v12.AssetBalance)(nil),                   // 109: ledger.read.v1.AssetBalance
-	(v13.Timeframe)(0),                         // 110: marketdata.v1.Timeframe
-	(*v13.Candle)(nil),                         // 111: marketdata.v1.Candle
-	(*v14.DepositAddress)(nil),                 // 112: chain.deposit.v1.DepositAddress
-	(*v12.GetBalanceHistoryResponse)(nil),      // 113: ledger.read.v1.GetBalanceHistoryResponse
-	(*v12.GetEquityHistorySeriesResponse)(nil), // 114: ledger.read.v1.GetEquityHistorySeriesResponse
-	(*v12.TransferRow)(nil),                    // 115: ledger.read.v1.TransferRow
-	(*v15.PriceAlert)(nil),                     // 116: alerts.v1.PriceAlert
-	(*structpb.Struct)(nil),                    // 117: google.protobuf.Struct
-	(v1.TimeInForce)(0),                        // 118: orders.v1.TimeInForce
-	(v1.TriggerPriceSource)(0),                 // 119: orders.v1.TriggerPriceSource
-	(v1.Side)(0),                               // 120: orders.v1.Side
-	(v11.TriggerType)(0),                       // 121: triggers.v1.TriggerType
-	(v11.TriggerStatus)(0),                     // 122: triggers.v1.TriggerStatus
+	(ModelKeyCheck)(0),                         // 9: ai.v1.ModelKeyCheck
+	(FundingMode)(0),                           // 10: ai.v1.FundingMode
+	(DisplaySetting)(0),                        // 11: ai.v1.DisplaySetting
+	(ReferencePriceSource)(0),                  // 12: ai.v1.ReferencePriceSource
+	(TriggerDirection)(0),                      // 13: ai.v1.TriggerDirection
+	(OrderPriceField)(0),                       // 14: ai.v1.OrderPriceField
+	(PriceOffsetDirection)(0),                  // 15: ai.v1.PriceOffsetDirection
+	(PriceRounding)(0),                         // 16: ai.v1.PriceRounding
+	(UnfilledSlicePolicy)(0),                   // 17: ai.v1.UnfilledSlicePolicy
+	(TriggerChangeAction)(0),                   // 18: ai.v1.TriggerChangeAction
+	(*ErrorDetail)(nil),                        // 19: ai.v1.ErrorDetail
+	(*Conversation)(nil),                       // 20: ai.v1.Conversation
+	(*Message)(nil),                            // 21: ai.v1.Message
+	(*MessageImage)(nil),                       // 22: ai.v1.MessageImage
+	(*ImageAttachment)(nil),                    // 23: ai.v1.ImageAttachment
+	(*Memory)(nil),                             // 24: ai.v1.Memory
+	(*Usage)(nil),                              // 25: ai.v1.Usage
+	(*OrdersTable)(nil),                        // 26: ai.v1.OrdersTable
+	(*TriggersTable)(nil),                      // 27: ai.v1.TriggersTable
+	(*BalancesTable)(nil),                      // 28: ai.v1.BalancesTable
+	(*PriceChart)(nil),                         // 29: ai.v1.PriceChart
+	(*MarkdownTableRow)(nil),                   // 30: ai.v1.MarkdownTableRow
+	(*MarkdownTable)(nil),                      // 31: ai.v1.MarkdownTable
+	(*DepositAddressCard)(nil),                 // 32: ai.v1.DepositAddressCard
+	(*BalanceHistoryChart)(nil),                // 33: ai.v1.BalanceHistoryChart
+	(*EquityHistoryChart)(nil),                 // 34: ai.v1.EquityHistoryChart
+	(*TransfersTable)(nil),                     // 35: ai.v1.TransfersTable
+	(*View)(nil),                               // 36: ai.v1.View
+	(*TextDelta)(nil),                          // 37: ai.v1.TextDelta
+	(*DiscardPartial)(nil),                     // 38: ai.v1.DiscardPartial
+	(*ToolStarted)(nil),                        // 39: ai.v1.ToolStarted
+	(*ToolFinished)(nil),                       // 40: ai.v1.ToolFinished
+	(*RecalledMemory)(nil),                     // 41: ai.v1.RecalledMemory
+	(*MemoriesRecalled)(nil),                   // 42: ai.v1.MemoriesRecalled
+	(*DestinationsSuggested)(nil),              // 43: ai.v1.DestinationsSuggested
+	(*DisplaySettingAction)(nil),               // 44: ai.v1.DisplaySettingAction
+	(*SkillLoaded)(nil),                        // 45: ai.v1.SkillLoaded
+	(*SubagentStarted)(nil),                    // 46: ai.v1.SubagentStarted
+	(*SubagentFinished)(nil),                   // 47: ai.v1.SubagentFinished
+	(*ApprovalParameter)(nil),                  // 48: ai.v1.ApprovalParameter
+	(*ReferencePrice)(nil),                     // 49: ai.v1.ReferencePrice
+	(*RelativePrice)(nil),                      // 50: ai.v1.RelativePrice
+	(*AttachedExit)(nil),                       // 51: ai.v1.AttachedExit
+	(*AttachedTrailingStop)(nil),               // 52: ai.v1.AttachedTrailingStop
+	(*AttachedExits)(nil),                      // 53: ai.v1.AttachedExits
+	(*MarketOrderPreview)(nil),                 // 54: ai.v1.MarketOrderPreview
+	(*LimitOrderPreview)(nil),                  // 55: ai.v1.LimitOrderPreview
+	(*StopOrderPreview)(nil),                   // 56: ai.v1.StopOrderPreview
+	(*TrailingStopPreview)(nil),                // 57: ai.v1.TrailingStopPreview
+	(*TwapPreview)(nil),                        // 58: ai.v1.TwapPreview
+	(*LadderLevel)(nil),                        // 59: ai.v1.LadderLevel
+	(*LadderPreview)(nil),                      // 60: ai.v1.LadderPreview
+	(*OrderPreview)(nil),                       // 61: ai.v1.OrderPreview
+	(*QuoteValue)(nil),                         // 62: ai.v1.QuoteValue
+	(*PlaceOrdersPreview)(nil),                 // 63: ai.v1.PlaceOrdersPreview
+	(*SwapLegPreview)(nil),                     // 64: ai.v1.SwapLegPreview
+	(*SwapPreview)(nil),                        // 65: ai.v1.SwapPreview
+	(*OrderToCancel)(nil),                      // 66: ai.v1.OrderToCancel
+	(*CancelOrdersPreview)(nil),                // 67: ai.v1.CancelOrdersPreview
+	(*CancelTriggerPreview)(nil),               // 68: ai.v1.CancelTriggerPreview
+	(*OrderChange)(nil),                        // 69: ai.v1.OrderChange
+	(*OrderChangePreview)(nil),                 // 70: ai.v1.OrderChangePreview
+	(*TriggerSettings)(nil),                    // 71: ai.v1.TriggerSettings
+	(*TriggerChangePreview)(nil),               // 72: ai.v1.TriggerChangePreview
+	(*ApprovalRequested)(nil),                  // 73: ai.v1.ApprovalRequested
+	(*ApprovalResolved)(nil),                   // 74: ai.v1.ApprovalResolved
+	(*RunCompleted)(nil),                       // 75: ai.v1.RunCompleted
+	(*RunFailed)(nil),                          // 76: ai.v1.RunFailed
+	(*RunEvent)(nil),                           // 77: ai.v1.RunEvent
+	(*AssistantKey)(nil),                       // 78: ai.v1.AssistantKey
+	(*ModelKey)(nil),                           // 79: ai.v1.ModelKey
+	(*AssistantKeyAccount)(nil),                // 80: ai.v1.AssistantKeyAccount
+	(*PreparedAssistantKey)(nil),               // 81: ai.v1.PreparedAssistantKey
+	(*Destination)(nil),                        // 82: ai.v1.Destination
+	(*CurrentPage)(nil),                        // 83: ai.v1.CurrentPage
+	(*SendMessageRequest)(nil),                 // 84: ai.v1.SendMessageRequest
+	(*SendMessageResponse)(nil),                // 85: ai.v1.SendMessageResponse
+	(*WatchRunRequest)(nil),                    // 86: ai.v1.WatchRunRequest
+	(*WatchRunResponse)(nil),                   // 87: ai.v1.WatchRunResponse
+	(*CancelRunRequest)(nil),                   // 88: ai.v1.CancelRunRequest
+	(*CancelRunResponse)(nil),                  // 89: ai.v1.CancelRunResponse
+	(*DecideApprovalRequest)(nil),              // 90: ai.v1.DecideApprovalRequest
+	(*DecideApprovalResponse)(nil),             // 91: ai.v1.DecideApprovalResponse
+	(*ListConversationsRequest)(nil),           // 92: ai.v1.ListConversationsRequest
+	(*ListConversationsResponse)(nil),          // 93: ai.v1.ListConversationsResponse
+	(*ListMessagesRequest)(nil),                // 94: ai.v1.ListMessagesRequest
+	(*ListMessagesResponse)(nil),               // 95: ai.v1.ListMessagesResponse
+	(*GetMessageImageRequest)(nil),             // 96: ai.v1.GetMessageImageRequest
+	(*GetMessageImageResponse)(nil),            // 97: ai.v1.GetMessageImageResponse
+	(*ListMemoriesRequest)(nil),                // 98: ai.v1.ListMemoriesRequest
+	(*ListMemoriesResponse)(nil),               // 99: ai.v1.ListMemoriesResponse
+	(*DeleteMemoryRequest)(nil),                // 100: ai.v1.DeleteMemoryRequest
+	(*DeleteMemoryResponse)(nil),               // 101: ai.v1.DeleteMemoryResponse
+	(*PrepareAssistantKeysRequest)(nil),        // 102: ai.v1.PrepareAssistantKeysRequest
+	(*PrepareAssistantKeysResponse)(nil),       // 103: ai.v1.PrepareAssistantKeysResponse
+	(*CompleteAssistantKeysRequest)(nil),       // 104: ai.v1.CompleteAssistantKeysRequest
+	(*CompleteAssistantKeysResponse)(nil),      // 105: ai.v1.CompleteAssistantKeysResponse
+	(*ListAssistantKeysRequest)(nil),           // 106: ai.v1.ListAssistantKeysRequest
+	(*ListAssistantKeysResponse)(nil),          // 107: ai.v1.ListAssistantKeysResponse
+	(*TelegramApprovalLimits)(nil),             // 108: ai.v1.TelegramApprovalLimits
+	(*GetTelegramApprovalLimitsRequest)(nil),   // 109: ai.v1.GetTelegramApprovalLimitsRequest
+	(*GetTelegramApprovalLimitsResponse)(nil),  // 110: ai.v1.GetTelegramApprovalLimitsResponse
+	(*SetTelegramApprovalLimitsRequest)(nil),   // 111: ai.v1.SetTelegramApprovalLimitsRequest
+	(*SetTelegramApprovalLimitsResponse)(nil),  // 112: ai.v1.SetTelegramApprovalLimitsResponse
+	(*SetModelKeyRequest)(nil),                 // 113: ai.v1.SetModelKeyRequest
+	(*SetModelKeyResponse)(nil),                // 114: ai.v1.SetModelKeyResponse
+	(*GetModelKeyRequest)(nil),                 // 115: ai.v1.GetModelKeyRequest
+	(*GetModelKeyResponse)(nil),                // 116: ai.v1.GetModelKeyResponse
+	(*DeleteModelKeyRequest)(nil),              // 117: ai.v1.DeleteModelKeyRequest
+	(*DeleteModelKeyResponse)(nil),             // 118: ai.v1.DeleteModelKeyResponse
+	(*GetUsageRequest)(nil),                    // 119: ai.v1.GetUsageRequest
+	(*TierCredits)(nil),                        // 120: ai.v1.TierCredits
+	(*GetUsageResponse)(nil),                   // 121: ai.v1.GetUsageResponse
+	(*timestamppb.Timestamp)(nil),              // 122: google.protobuf.Timestamp
+	(*v1.Order)(nil),                           // 123: orders.v1.Order
+	(*v11.Trigger)(nil),                        // 124: triggers.v1.Trigger
+	(*v12.AssetBalance)(nil),                   // 125: ledger.read.v1.AssetBalance
+	(v13.Timeframe)(0),                         // 126: marketdata.v1.Timeframe
+	(*v13.Candle)(nil),                         // 127: marketdata.v1.Candle
+	(*v14.DepositAddress)(nil),                 // 128: chain.deposit.v1.DepositAddress
+	(*v12.GetBalanceHistoryResponse)(nil),      // 129: ledger.read.v1.GetBalanceHistoryResponse
+	(*v12.GetEquityHistorySeriesResponse)(nil), // 130: ledger.read.v1.GetEquityHistorySeriesResponse
+	(*v12.TransferRow)(nil),                    // 131: ledger.read.v1.TransferRow
+	(*v15.PriceAlert)(nil),                     // 132: alerts.v1.PriceAlert
+	(*structpb.Struct)(nil),                    // 133: google.protobuf.Struct
+	(v1.TimeInForce)(0),                        // 134: orders.v1.TimeInForce
+	(v1.TriggerPriceSource)(0),                 // 135: orders.v1.TriggerPriceSource
+	(v1.Side)(0),                               // 136: orders.v1.Side
+	(v11.TriggerType)(0),                       // 137: triggers.v1.TriggerType
+	(v11.TriggerStatus)(0),                     // 138: triggers.v1.TriggerStatus
 }
 var file_ai_v1_assistant_proto_depIdxs = []int32{
 	0,   // 0: ai.v1.ErrorDetail.code:type_name -> ai.v1.ErrorCode
-	106, // 1: ai.v1.Conversation.created_at:type_name -> google.protobuf.Timestamp
-	106, // 2: ai.v1.Conversation.updated_at:type_name -> google.protobuf.Timestamp
+	122, // 1: ai.v1.Conversation.created_at:type_name -> google.protobuf.Timestamp
+	122, // 2: ai.v1.Conversation.updated_at:type_name -> google.protobuf.Timestamp
 	1,   // 3: ai.v1.Message.role:type_name -> ai.v1.MessageRole
-	106, // 4: ai.v1.Message.created_at:type_name -> google.protobuf.Timestamp
-	106, // 5: ai.v1.Memory.created_at:type_name -> google.protobuf.Timestamp
-	5,   // 6: ai.v1.Memory.kind:type_name -> ai.v1.MemoryKind
-	107, // 7: ai.v1.OrdersTable.orders:type_name -> orders.v1.Order
-	108, // 8: ai.v1.TriggersTable.triggers:type_name -> triggers.v1.Trigger
-	109, // 9: ai.v1.BalancesTable.balances:type_name -> ledger.read.v1.AssetBalance
-	110, // 10: ai.v1.PriceChart.timeframe:type_name -> marketdata.v1.Timeframe
-	111, // 11: ai.v1.PriceChart.candles:type_name -> marketdata.v1.Candle
-	26,  // 12: ai.v1.MarkdownTable.rows:type_name -> ai.v1.MarkdownTableRow
-	112, // 13: ai.v1.DepositAddressCard.deposit_address:type_name -> chain.deposit.v1.DepositAddress
-	113, // 14: ai.v1.BalanceHistoryChart.history:type_name -> ledger.read.v1.GetBalanceHistoryResponse
-	114, // 15: ai.v1.EquityHistoryChart.history:type_name -> ledger.read.v1.GetEquityHistorySeriesResponse
-	115, // 16: ai.v1.TransfersTable.transfers:type_name -> ledger.read.v1.TransferRow
-	22,  // 17: ai.v1.View.orders_table:type_name -> ai.v1.OrdersTable
-	24,  // 18: ai.v1.View.balances_table:type_name -> ai.v1.BalancesTable
-	25,  // 19: ai.v1.View.price_chart:type_name -> ai.v1.PriceChart
-	27,  // 20: ai.v1.View.markdown_table:type_name -> ai.v1.MarkdownTable
-	116, // 21: ai.v1.View.price_alert:type_name -> alerts.v1.PriceAlert
-	23,  // 22: ai.v1.View.triggers_table:type_name -> ai.v1.TriggersTable
-	28,  // 23: ai.v1.View.deposit_address:type_name -> ai.v1.DepositAddressCard
-	29,  // 24: ai.v1.View.balance_history_chart:type_name -> ai.v1.BalanceHistoryChart
-	30,  // 25: ai.v1.View.equity_history_chart:type_name -> ai.v1.EquityHistoryChart
-	31,  // 26: ai.v1.View.transfers_table:type_name -> ai.v1.TransfersTable
-	117, // 27: ai.v1.ToolStarted.input:type_name -> google.protobuf.Struct
-	5,   // 28: ai.v1.RecalledMemory.kind:type_name -> ai.v1.MemoryKind
-	37,  // 29: ai.v1.MemoriesRecalled.memories:type_name -> ai.v1.RecalledMemory
-	9,   // 30: ai.v1.DisplaySettingAction.setting:type_name -> ai.v1.DisplaySetting
-	10,  // 31: ai.v1.ReferencePrice.source:type_name -> ai.v1.ReferencePriceSource
-	106, // 32: ai.v1.ReferencePrice.observed_at:type_name -> google.protobuf.Timestamp
-	12,  // 33: ai.v1.RelativePrice.field:type_name -> ai.v1.OrderPriceField
-	13,  // 34: ai.v1.RelativePrice.direction:type_name -> ai.v1.PriceOffsetDirection
-	45,  // 35: ai.v1.RelativePrice.market:type_name -> ai.v1.ReferencePrice
-	14,  // 36: ai.v1.RelativePrice.rounding:type_name -> ai.v1.PriceRounding
-	47,  // 37: ai.v1.AttachedExits.take_profit:type_name -> ai.v1.AttachedExit
-	47,  // 38: ai.v1.AttachedExits.stop_loss:type_name -> ai.v1.AttachedExit
-	48,  // 39: ai.v1.AttachedExits.trailing_stop:type_name -> ai.v1.AttachedTrailingStop
-	49,  // 40: ai.v1.MarketOrderPreview.attached:type_name -> ai.v1.AttachedExits
-	118, // 41: ai.v1.LimitOrderPreview.time_in_force:type_name -> orders.v1.TimeInForce
-	106, // 42: ai.v1.LimitOrderPreview.expire_at:type_name -> google.protobuf.Timestamp
-	49,  // 43: ai.v1.LimitOrderPreview.attached:type_name -> ai.v1.AttachedExits
-	119, // 44: ai.v1.StopOrderPreview.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
-	11,  // 45: ai.v1.StopOrderPreview.direction:type_name -> ai.v1.TriggerDirection
-	118, // 46: ai.v1.StopOrderPreview.time_in_force:type_name -> orders.v1.TimeInForce
-	119, // 47: ai.v1.TrailingStopPreview.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
-	15,  // 48: ai.v1.TwapPreview.unfilled_slice_policy:type_name -> ai.v1.UnfilledSlicePolicy
-	55,  // 49: ai.v1.LadderPreview.levels:type_name -> ai.v1.LadderLevel
-	118, // 50: ai.v1.LadderPreview.time_in_force:type_name -> orders.v1.TimeInForce
-	120, // 51: ai.v1.OrderPreview.side:type_name -> orders.v1.Side
-	45,  // 52: ai.v1.OrderPreview.reference_price:type_name -> ai.v1.ReferencePrice
-	50,  // 53: ai.v1.OrderPreview.market:type_name -> ai.v1.MarketOrderPreview
-	51,  // 54: ai.v1.OrderPreview.limit:type_name -> ai.v1.LimitOrderPreview
-	52,  // 55: ai.v1.OrderPreview.stop_loss:type_name -> ai.v1.StopOrderPreview
-	52,  // 56: ai.v1.OrderPreview.take_profit:type_name -> ai.v1.StopOrderPreview
-	53,  // 57: ai.v1.OrderPreview.trailing_stop:type_name -> ai.v1.TrailingStopPreview
-	54,  // 58: ai.v1.OrderPreview.twap:type_name -> ai.v1.TwapPreview
-	56,  // 59: ai.v1.OrderPreview.ladder:type_name -> ai.v1.LadderPreview
-	46,  // 60: ai.v1.OrderPreview.relative_prices:type_name -> ai.v1.RelativePrice
-	57,  // 61: ai.v1.PlaceOrdersPreview.orders:type_name -> ai.v1.OrderPreview
-	58,  // 62: ai.v1.PlaceOrdersPreview.total_values:type_name -> ai.v1.QuoteValue
-	120, // 63: ai.v1.SwapLegPreview.side:type_name -> orders.v1.Side
-	60,  // 64: ai.v1.SwapPreview.legs:type_name -> ai.v1.SwapLegPreview
-	106, // 65: ai.v1.SwapPreview.quoted_at:type_name -> google.protobuf.Timestamp
-	106, // 66: ai.v1.SwapPreview.expires_at:type_name -> google.protobuf.Timestamp
-	120, // 67: ai.v1.OrderToCancel.side:type_name -> orders.v1.Side
-	62,  // 68: ai.v1.CancelOrdersPreview.orders:type_name -> ai.v1.OrderToCancel
-	120, // 69: ai.v1.CancelOrdersPreview.side:type_name -> orders.v1.Side
-	121, // 70: ai.v1.CancelTriggerPreview.type:type_name -> triggers.v1.TriggerType
-	120, // 71: ai.v1.CancelTriggerPreview.side:type_name -> orders.v1.Side
-	120, // 72: ai.v1.OrderChange.side:type_name -> orders.v1.Side
-	65,  // 73: ai.v1.OrderChangePreview.orders:type_name -> ai.v1.OrderChange
-	122, // 74: ai.v1.TriggerSettings.status:type_name -> triggers.v1.TriggerStatus
-	121, // 75: ai.v1.TriggerChangePreview.type:type_name -> triggers.v1.TriggerType
-	120, // 76: ai.v1.TriggerChangePreview.side:type_name -> orders.v1.Side
-	16,  // 77: ai.v1.TriggerChangePreview.action:type_name -> ai.v1.TriggerChangeAction
-	67,  // 78: ai.v1.TriggerChangePreview.before:type_name -> ai.v1.TriggerSettings
-	67,  // 79: ai.v1.TriggerChangePreview.after:type_name -> ai.v1.TriggerSettings
-	45,  // 80: ai.v1.TriggerChangePreview.reference_price:type_name -> ai.v1.ReferencePrice
-	11,  // 81: ai.v1.TriggerChangePreview.direction:type_name -> ai.v1.TriggerDirection
-	106, // 82: ai.v1.ApprovalRequested.expires_at:type_name -> google.protobuf.Timestamp
-	44,  // 83: ai.v1.ApprovalRequested.parameters:type_name -> ai.v1.ApprovalParameter
-	57,  // 84: ai.v1.ApprovalRequested.order_preview:type_name -> ai.v1.OrderPreview
-	63,  // 85: ai.v1.ApprovalRequested.cancel_orders:type_name -> ai.v1.CancelOrdersPreview
-	66,  // 86: ai.v1.ApprovalRequested.order_change:type_name -> ai.v1.OrderChangePreview
-	68,  // 87: ai.v1.ApprovalRequested.trigger_change:type_name -> ai.v1.TriggerChangePreview
-	59,  // 88: ai.v1.ApprovalRequested.place_orders:type_name -> ai.v1.PlaceOrdersPreview
-	61,  // 89: ai.v1.ApprovalRequested.swap:type_name -> ai.v1.SwapPreview
-	64,  // 90: ai.v1.ApprovalRequested.cancel_trigger:type_name -> ai.v1.CancelTriggerPreview
-	4,   // 91: ai.v1.ApprovalResolved.status:type_name -> ai.v1.ApprovalStatus
-	21,  // 92: ai.v1.RunCompleted.usage:type_name -> ai.v1.Usage
-	2,   // 93: ai.v1.RunFailed.category:type_name -> ai.v1.FailureCategory
-	21,  // 94: ai.v1.RunFailed.usage:type_name -> ai.v1.Usage
-	106, // 95: ai.v1.RunEvent.created_at:type_name -> google.protobuf.Timestamp
-	33,  // 96: ai.v1.RunEvent.text_delta:type_name -> ai.v1.TextDelta
-	34,  // 97: ai.v1.RunEvent.discard_partial:type_name -> ai.v1.DiscardPartial
-	35,  // 98: ai.v1.RunEvent.tool_started:type_name -> ai.v1.ToolStarted
-	36,  // 99: ai.v1.RunEvent.tool_finished:type_name -> ai.v1.ToolFinished
-	41,  // 100: ai.v1.RunEvent.skill_loaded:type_name -> ai.v1.SkillLoaded
-	42,  // 101: ai.v1.RunEvent.subagent_started:type_name -> ai.v1.SubagentStarted
-	43,  // 102: ai.v1.RunEvent.subagent_finished:type_name -> ai.v1.SubagentFinished
-	69,  // 103: ai.v1.RunEvent.approval_requested:type_name -> ai.v1.ApprovalRequested
-	70,  // 104: ai.v1.RunEvent.approval_resolved:type_name -> ai.v1.ApprovalResolved
-	32,  // 105: ai.v1.RunEvent.view:type_name -> ai.v1.View
-	71,  // 106: ai.v1.RunEvent.run_completed:type_name -> ai.v1.RunCompleted
-	72,  // 107: ai.v1.RunEvent.run_failed:type_name -> ai.v1.RunFailed
-	38,  // 108: ai.v1.RunEvent.memories_recalled:type_name -> ai.v1.MemoriesRecalled
-	39,  // 109: ai.v1.RunEvent.destinations_suggested:type_name -> ai.v1.DestinationsSuggested
-	40,  // 110: ai.v1.RunEvent.display_setting_action:type_name -> ai.v1.DisplaySettingAction
-	6,   // 111: ai.v1.AssistantKey.state:type_name -> ai.v1.AssistantKeyState
-	106, // 112: ai.v1.PreparedAssistantKey.registration_deadline:type_name -> google.protobuf.Timestamp
-	77,  // 113: ai.v1.SendMessageRequest.destinations:type_name -> ai.v1.Destination
-	78,  // 114: ai.v1.SendMessageRequest.page:type_name -> ai.v1.CurrentPage
-	9,   // 115: ai.v1.SendMessageRequest.display_settings:type_name -> ai.v1.DisplaySetting
-	7,   // 116: ai.v1.SendMessageRequest.account_selection:type_name -> ai.v1.AccountSelection
-	73,  // 117: ai.v1.WatchRunResponse.event:type_name -> ai.v1.RunEvent
-	3,   // 118: ai.v1.DecideApprovalRequest.decision:type_name -> ai.v1.ApprovalDecision
-	4,   // 119: ai.v1.DecideApprovalResponse.status:type_name -> ai.v1.ApprovalStatus
-	18,  // 120: ai.v1.ListConversationsResponse.conversations:type_name -> ai.v1.Conversation
-	19,  // 121: ai.v1.ListMessagesResponse.messages:type_name -> ai.v1.Message
-	20,  // 122: ai.v1.ListMemoriesResponse.memories:type_name -> ai.v1.Memory
-	75,  // 123: ai.v1.PrepareAssistantKeysRequest.accounts:type_name -> ai.v1.AssistantKeyAccount
-	76,  // 124: ai.v1.PrepareAssistantKeysResponse.keys:type_name -> ai.v1.PreparedAssistantKey
-	106, // 125: ai.v1.PrepareAssistantKeysResponse.expires_at:type_name -> google.protobuf.Timestamp
-	74,  // 126: ai.v1.CompleteAssistantKeysResponse.keys:type_name -> ai.v1.AssistantKey
-	8,   // 127: ai.v1.ListAssistantKeysRequest.view:type_name -> ai.v1.AssistantKeyView
-	74,  // 128: ai.v1.ListAssistantKeysResponse.keys:type_name -> ai.v1.AssistantKey
-	101, // 129: ai.v1.GetTelegramApprovalLimitsResponse.limits:type_name -> ai.v1.TelegramApprovalLimits
-	101, // 130: ai.v1.SetTelegramApprovalLimitsRequest.limits:type_name -> ai.v1.TelegramApprovalLimits
-	101, // 131: ai.v1.SetTelegramApprovalLimitsResponse.limits:type_name -> ai.v1.TelegramApprovalLimits
-	79,  // 132: ai.v1.AssistantService.SendMessage:input_type -> ai.v1.SendMessageRequest
-	81,  // 133: ai.v1.AssistantService.WatchRun:input_type -> ai.v1.WatchRunRequest
-	83,  // 134: ai.v1.AssistantService.CancelRun:input_type -> ai.v1.CancelRunRequest
-	85,  // 135: ai.v1.AssistantService.DecideApproval:input_type -> ai.v1.DecideApprovalRequest
-	87,  // 136: ai.v1.AssistantService.ListConversations:input_type -> ai.v1.ListConversationsRequest
-	89,  // 137: ai.v1.AssistantService.ListMessages:input_type -> ai.v1.ListMessagesRequest
-	91,  // 138: ai.v1.AssistantService.ListMemories:input_type -> ai.v1.ListMemoriesRequest
-	93,  // 139: ai.v1.AssistantService.DeleteMemory:input_type -> ai.v1.DeleteMemoryRequest
-	95,  // 140: ai.v1.AssistantService.PrepareAssistantKeys:input_type -> ai.v1.PrepareAssistantKeysRequest
-	97,  // 141: ai.v1.AssistantService.CompleteAssistantKeys:input_type -> ai.v1.CompleteAssistantKeysRequest
-	99,  // 142: ai.v1.AssistantService.ListAssistantKeys:input_type -> ai.v1.ListAssistantKeysRequest
-	102, // 143: ai.v1.AssistantService.GetTelegramApprovalLimits:input_type -> ai.v1.GetTelegramApprovalLimitsRequest
-	104, // 144: ai.v1.AssistantService.SetTelegramApprovalLimits:input_type -> ai.v1.SetTelegramApprovalLimitsRequest
-	80,  // 145: ai.v1.AssistantService.SendMessage:output_type -> ai.v1.SendMessageResponse
-	82,  // 146: ai.v1.AssistantService.WatchRun:output_type -> ai.v1.WatchRunResponse
-	84,  // 147: ai.v1.AssistantService.CancelRun:output_type -> ai.v1.CancelRunResponse
-	86,  // 148: ai.v1.AssistantService.DecideApproval:output_type -> ai.v1.DecideApprovalResponse
-	88,  // 149: ai.v1.AssistantService.ListConversations:output_type -> ai.v1.ListConversationsResponse
-	90,  // 150: ai.v1.AssistantService.ListMessages:output_type -> ai.v1.ListMessagesResponse
-	92,  // 151: ai.v1.AssistantService.ListMemories:output_type -> ai.v1.ListMemoriesResponse
-	94,  // 152: ai.v1.AssistantService.DeleteMemory:output_type -> ai.v1.DeleteMemoryResponse
-	96,  // 153: ai.v1.AssistantService.PrepareAssistantKeys:output_type -> ai.v1.PrepareAssistantKeysResponse
-	98,  // 154: ai.v1.AssistantService.CompleteAssistantKeys:output_type -> ai.v1.CompleteAssistantKeysResponse
-	100, // 155: ai.v1.AssistantService.ListAssistantKeys:output_type -> ai.v1.ListAssistantKeysResponse
-	103, // 156: ai.v1.AssistantService.GetTelegramApprovalLimits:output_type -> ai.v1.GetTelegramApprovalLimitsResponse
-	105, // 157: ai.v1.AssistantService.SetTelegramApprovalLimits:output_type -> ai.v1.SetTelegramApprovalLimitsResponse
-	145, // [145:158] is the sub-list for method output_type
-	132, // [132:145] is the sub-list for method input_type
-	132, // [132:132] is the sub-list for extension type_name
-	132, // [132:132] is the sub-list for extension extendee
-	0,   // [0:132] is the sub-list for field type_name
+	122, // 4: ai.v1.Message.created_at:type_name -> google.protobuf.Timestamp
+	22,  // 5: ai.v1.Message.images:type_name -> ai.v1.MessageImage
+	122, // 6: ai.v1.Memory.created_at:type_name -> google.protobuf.Timestamp
+	5,   // 7: ai.v1.Memory.kind:type_name -> ai.v1.MemoryKind
+	123, // 8: ai.v1.OrdersTable.orders:type_name -> orders.v1.Order
+	124, // 9: ai.v1.TriggersTable.triggers:type_name -> triggers.v1.Trigger
+	125, // 10: ai.v1.BalancesTable.balances:type_name -> ledger.read.v1.AssetBalance
+	126, // 11: ai.v1.PriceChart.timeframe:type_name -> marketdata.v1.Timeframe
+	127, // 12: ai.v1.PriceChart.candles:type_name -> marketdata.v1.Candle
+	30,  // 13: ai.v1.MarkdownTable.rows:type_name -> ai.v1.MarkdownTableRow
+	128, // 14: ai.v1.DepositAddressCard.deposit_address:type_name -> chain.deposit.v1.DepositAddress
+	129, // 15: ai.v1.BalanceHistoryChart.history:type_name -> ledger.read.v1.GetBalanceHistoryResponse
+	130, // 16: ai.v1.EquityHistoryChart.history:type_name -> ledger.read.v1.GetEquityHistorySeriesResponse
+	131, // 17: ai.v1.TransfersTable.transfers:type_name -> ledger.read.v1.TransferRow
+	26,  // 18: ai.v1.View.orders_table:type_name -> ai.v1.OrdersTable
+	28,  // 19: ai.v1.View.balances_table:type_name -> ai.v1.BalancesTable
+	29,  // 20: ai.v1.View.price_chart:type_name -> ai.v1.PriceChart
+	31,  // 21: ai.v1.View.markdown_table:type_name -> ai.v1.MarkdownTable
+	132, // 22: ai.v1.View.price_alert:type_name -> alerts.v1.PriceAlert
+	27,  // 23: ai.v1.View.triggers_table:type_name -> ai.v1.TriggersTable
+	32,  // 24: ai.v1.View.deposit_address:type_name -> ai.v1.DepositAddressCard
+	33,  // 25: ai.v1.View.balance_history_chart:type_name -> ai.v1.BalanceHistoryChart
+	34,  // 26: ai.v1.View.equity_history_chart:type_name -> ai.v1.EquityHistoryChart
+	35,  // 27: ai.v1.View.transfers_table:type_name -> ai.v1.TransfersTable
+	133, // 28: ai.v1.ToolStarted.input:type_name -> google.protobuf.Struct
+	5,   // 29: ai.v1.RecalledMemory.kind:type_name -> ai.v1.MemoryKind
+	41,  // 30: ai.v1.MemoriesRecalled.memories:type_name -> ai.v1.RecalledMemory
+	11,  // 31: ai.v1.DisplaySettingAction.setting:type_name -> ai.v1.DisplaySetting
+	12,  // 32: ai.v1.ReferencePrice.source:type_name -> ai.v1.ReferencePriceSource
+	122, // 33: ai.v1.ReferencePrice.observed_at:type_name -> google.protobuf.Timestamp
+	14,  // 34: ai.v1.RelativePrice.field:type_name -> ai.v1.OrderPriceField
+	15,  // 35: ai.v1.RelativePrice.direction:type_name -> ai.v1.PriceOffsetDirection
+	49,  // 36: ai.v1.RelativePrice.market:type_name -> ai.v1.ReferencePrice
+	16,  // 37: ai.v1.RelativePrice.rounding:type_name -> ai.v1.PriceRounding
+	51,  // 38: ai.v1.AttachedExits.take_profit:type_name -> ai.v1.AttachedExit
+	51,  // 39: ai.v1.AttachedExits.stop_loss:type_name -> ai.v1.AttachedExit
+	52,  // 40: ai.v1.AttachedExits.trailing_stop:type_name -> ai.v1.AttachedTrailingStop
+	53,  // 41: ai.v1.MarketOrderPreview.attached:type_name -> ai.v1.AttachedExits
+	134, // 42: ai.v1.LimitOrderPreview.time_in_force:type_name -> orders.v1.TimeInForce
+	122, // 43: ai.v1.LimitOrderPreview.expire_at:type_name -> google.protobuf.Timestamp
+	53,  // 44: ai.v1.LimitOrderPreview.attached:type_name -> ai.v1.AttachedExits
+	135, // 45: ai.v1.StopOrderPreview.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
+	13,  // 46: ai.v1.StopOrderPreview.direction:type_name -> ai.v1.TriggerDirection
+	134, // 47: ai.v1.StopOrderPreview.time_in_force:type_name -> orders.v1.TimeInForce
+	135, // 48: ai.v1.TrailingStopPreview.trigger_price_source:type_name -> orders.v1.TriggerPriceSource
+	17,  // 49: ai.v1.TwapPreview.unfilled_slice_policy:type_name -> ai.v1.UnfilledSlicePolicy
+	59,  // 50: ai.v1.LadderPreview.levels:type_name -> ai.v1.LadderLevel
+	134, // 51: ai.v1.LadderPreview.time_in_force:type_name -> orders.v1.TimeInForce
+	136, // 52: ai.v1.OrderPreview.side:type_name -> orders.v1.Side
+	49,  // 53: ai.v1.OrderPreview.reference_price:type_name -> ai.v1.ReferencePrice
+	54,  // 54: ai.v1.OrderPreview.market:type_name -> ai.v1.MarketOrderPreview
+	55,  // 55: ai.v1.OrderPreview.limit:type_name -> ai.v1.LimitOrderPreview
+	56,  // 56: ai.v1.OrderPreview.stop_loss:type_name -> ai.v1.StopOrderPreview
+	56,  // 57: ai.v1.OrderPreview.take_profit:type_name -> ai.v1.StopOrderPreview
+	57,  // 58: ai.v1.OrderPreview.trailing_stop:type_name -> ai.v1.TrailingStopPreview
+	58,  // 59: ai.v1.OrderPreview.twap:type_name -> ai.v1.TwapPreview
+	60,  // 60: ai.v1.OrderPreview.ladder:type_name -> ai.v1.LadderPreview
+	50,  // 61: ai.v1.OrderPreview.relative_prices:type_name -> ai.v1.RelativePrice
+	61,  // 62: ai.v1.PlaceOrdersPreview.orders:type_name -> ai.v1.OrderPreview
+	62,  // 63: ai.v1.PlaceOrdersPreview.total_values:type_name -> ai.v1.QuoteValue
+	136, // 64: ai.v1.SwapLegPreview.side:type_name -> orders.v1.Side
+	64,  // 65: ai.v1.SwapPreview.legs:type_name -> ai.v1.SwapLegPreview
+	122, // 66: ai.v1.SwapPreview.quoted_at:type_name -> google.protobuf.Timestamp
+	122, // 67: ai.v1.SwapPreview.expires_at:type_name -> google.protobuf.Timestamp
+	136, // 68: ai.v1.OrderToCancel.side:type_name -> orders.v1.Side
+	66,  // 69: ai.v1.CancelOrdersPreview.orders:type_name -> ai.v1.OrderToCancel
+	136, // 70: ai.v1.CancelOrdersPreview.side:type_name -> orders.v1.Side
+	137, // 71: ai.v1.CancelTriggerPreview.type:type_name -> triggers.v1.TriggerType
+	136, // 72: ai.v1.CancelTriggerPreview.side:type_name -> orders.v1.Side
+	136, // 73: ai.v1.OrderChange.side:type_name -> orders.v1.Side
+	69,  // 74: ai.v1.OrderChangePreview.orders:type_name -> ai.v1.OrderChange
+	138, // 75: ai.v1.TriggerSettings.status:type_name -> triggers.v1.TriggerStatus
+	137, // 76: ai.v1.TriggerChangePreview.type:type_name -> triggers.v1.TriggerType
+	136, // 77: ai.v1.TriggerChangePreview.side:type_name -> orders.v1.Side
+	18,  // 78: ai.v1.TriggerChangePreview.action:type_name -> ai.v1.TriggerChangeAction
+	71,  // 79: ai.v1.TriggerChangePreview.before:type_name -> ai.v1.TriggerSettings
+	71,  // 80: ai.v1.TriggerChangePreview.after:type_name -> ai.v1.TriggerSettings
+	49,  // 81: ai.v1.TriggerChangePreview.reference_price:type_name -> ai.v1.ReferencePrice
+	13,  // 82: ai.v1.TriggerChangePreview.direction:type_name -> ai.v1.TriggerDirection
+	122, // 83: ai.v1.ApprovalRequested.expires_at:type_name -> google.protobuf.Timestamp
+	48,  // 84: ai.v1.ApprovalRequested.parameters:type_name -> ai.v1.ApprovalParameter
+	61,  // 85: ai.v1.ApprovalRequested.order_preview:type_name -> ai.v1.OrderPreview
+	67,  // 86: ai.v1.ApprovalRequested.cancel_orders:type_name -> ai.v1.CancelOrdersPreview
+	70,  // 87: ai.v1.ApprovalRequested.order_change:type_name -> ai.v1.OrderChangePreview
+	72,  // 88: ai.v1.ApprovalRequested.trigger_change:type_name -> ai.v1.TriggerChangePreview
+	63,  // 89: ai.v1.ApprovalRequested.place_orders:type_name -> ai.v1.PlaceOrdersPreview
+	65,  // 90: ai.v1.ApprovalRequested.swap:type_name -> ai.v1.SwapPreview
+	68,  // 91: ai.v1.ApprovalRequested.cancel_trigger:type_name -> ai.v1.CancelTriggerPreview
+	4,   // 92: ai.v1.ApprovalResolved.status:type_name -> ai.v1.ApprovalStatus
+	25,  // 93: ai.v1.RunCompleted.usage:type_name -> ai.v1.Usage
+	2,   // 94: ai.v1.RunFailed.category:type_name -> ai.v1.FailureCategory
+	25,  // 95: ai.v1.RunFailed.usage:type_name -> ai.v1.Usage
+	122, // 96: ai.v1.RunEvent.created_at:type_name -> google.protobuf.Timestamp
+	37,  // 97: ai.v1.RunEvent.text_delta:type_name -> ai.v1.TextDelta
+	38,  // 98: ai.v1.RunEvent.discard_partial:type_name -> ai.v1.DiscardPartial
+	39,  // 99: ai.v1.RunEvent.tool_started:type_name -> ai.v1.ToolStarted
+	40,  // 100: ai.v1.RunEvent.tool_finished:type_name -> ai.v1.ToolFinished
+	45,  // 101: ai.v1.RunEvent.skill_loaded:type_name -> ai.v1.SkillLoaded
+	46,  // 102: ai.v1.RunEvent.subagent_started:type_name -> ai.v1.SubagentStarted
+	47,  // 103: ai.v1.RunEvent.subagent_finished:type_name -> ai.v1.SubagentFinished
+	73,  // 104: ai.v1.RunEvent.approval_requested:type_name -> ai.v1.ApprovalRequested
+	74,  // 105: ai.v1.RunEvent.approval_resolved:type_name -> ai.v1.ApprovalResolved
+	36,  // 106: ai.v1.RunEvent.view:type_name -> ai.v1.View
+	75,  // 107: ai.v1.RunEvent.run_completed:type_name -> ai.v1.RunCompleted
+	76,  // 108: ai.v1.RunEvent.run_failed:type_name -> ai.v1.RunFailed
+	42,  // 109: ai.v1.RunEvent.memories_recalled:type_name -> ai.v1.MemoriesRecalled
+	43,  // 110: ai.v1.RunEvent.destinations_suggested:type_name -> ai.v1.DestinationsSuggested
+	44,  // 111: ai.v1.RunEvent.display_setting_action:type_name -> ai.v1.DisplaySettingAction
+	6,   // 112: ai.v1.AssistantKey.state:type_name -> ai.v1.AssistantKeyState
+	122, // 113: ai.v1.ModelKey.added_at:type_name -> google.protobuf.Timestamp
+	9,   // 114: ai.v1.ModelKey.last_check:type_name -> ai.v1.ModelKeyCheck
+	122, // 115: ai.v1.ModelKey.checked_at:type_name -> google.protobuf.Timestamp
+	122, // 116: ai.v1.PreparedAssistantKey.registration_deadline:type_name -> google.protobuf.Timestamp
+	82,  // 117: ai.v1.SendMessageRequest.destinations:type_name -> ai.v1.Destination
+	83,  // 118: ai.v1.SendMessageRequest.page:type_name -> ai.v1.CurrentPage
+	11,  // 119: ai.v1.SendMessageRequest.display_settings:type_name -> ai.v1.DisplaySetting
+	7,   // 120: ai.v1.SendMessageRequest.account_selection:type_name -> ai.v1.AccountSelection
+	23,  // 121: ai.v1.SendMessageRequest.images:type_name -> ai.v1.ImageAttachment
+	77,  // 122: ai.v1.WatchRunResponse.event:type_name -> ai.v1.RunEvent
+	3,   // 123: ai.v1.DecideApprovalRequest.decision:type_name -> ai.v1.ApprovalDecision
+	4,   // 124: ai.v1.DecideApprovalResponse.status:type_name -> ai.v1.ApprovalStatus
+	20,  // 125: ai.v1.ListConversationsResponse.conversations:type_name -> ai.v1.Conversation
+	21,  // 126: ai.v1.ListMessagesResponse.messages:type_name -> ai.v1.Message
+	24,  // 127: ai.v1.ListMemoriesResponse.memories:type_name -> ai.v1.Memory
+	80,  // 128: ai.v1.PrepareAssistantKeysRequest.accounts:type_name -> ai.v1.AssistantKeyAccount
+	81,  // 129: ai.v1.PrepareAssistantKeysResponse.keys:type_name -> ai.v1.PreparedAssistantKey
+	122, // 130: ai.v1.PrepareAssistantKeysResponse.expires_at:type_name -> google.protobuf.Timestamp
+	78,  // 131: ai.v1.CompleteAssistantKeysResponse.keys:type_name -> ai.v1.AssistantKey
+	8,   // 132: ai.v1.ListAssistantKeysRequest.view:type_name -> ai.v1.AssistantKeyView
+	78,  // 133: ai.v1.ListAssistantKeysResponse.keys:type_name -> ai.v1.AssistantKey
+	108, // 134: ai.v1.GetTelegramApprovalLimitsResponse.limits:type_name -> ai.v1.TelegramApprovalLimits
+	108, // 135: ai.v1.SetTelegramApprovalLimitsRequest.limits:type_name -> ai.v1.TelegramApprovalLimits
+	108, // 136: ai.v1.SetTelegramApprovalLimitsResponse.limits:type_name -> ai.v1.TelegramApprovalLimits
+	79,  // 137: ai.v1.SetModelKeyResponse.key:type_name -> ai.v1.ModelKey
+	79,  // 138: ai.v1.GetModelKeyResponse.key:type_name -> ai.v1.ModelKey
+	10,  // 139: ai.v1.GetUsageResponse.funding_mode:type_name -> ai.v1.FundingMode
+	122, // 140: ai.v1.GetUsageResponse.resets_at:type_name -> google.protobuf.Timestamp
+	120, // 141: ai.v1.GetUsageResponse.next_tier:type_name -> ai.v1.TierCredits
+	84,  // 142: ai.v1.AssistantService.SendMessage:input_type -> ai.v1.SendMessageRequest
+	86,  // 143: ai.v1.AssistantService.WatchRun:input_type -> ai.v1.WatchRunRequest
+	88,  // 144: ai.v1.AssistantService.CancelRun:input_type -> ai.v1.CancelRunRequest
+	90,  // 145: ai.v1.AssistantService.DecideApproval:input_type -> ai.v1.DecideApprovalRequest
+	92,  // 146: ai.v1.AssistantService.ListConversations:input_type -> ai.v1.ListConversationsRequest
+	94,  // 147: ai.v1.AssistantService.ListMessages:input_type -> ai.v1.ListMessagesRequest
+	96,  // 148: ai.v1.AssistantService.GetMessageImage:input_type -> ai.v1.GetMessageImageRequest
+	98,  // 149: ai.v1.AssistantService.ListMemories:input_type -> ai.v1.ListMemoriesRequest
+	100, // 150: ai.v1.AssistantService.DeleteMemory:input_type -> ai.v1.DeleteMemoryRequest
+	102, // 151: ai.v1.AssistantService.PrepareAssistantKeys:input_type -> ai.v1.PrepareAssistantKeysRequest
+	104, // 152: ai.v1.AssistantService.CompleteAssistantKeys:input_type -> ai.v1.CompleteAssistantKeysRequest
+	106, // 153: ai.v1.AssistantService.ListAssistantKeys:input_type -> ai.v1.ListAssistantKeysRequest
+	109, // 154: ai.v1.AssistantService.GetTelegramApprovalLimits:input_type -> ai.v1.GetTelegramApprovalLimitsRequest
+	111, // 155: ai.v1.AssistantService.SetTelegramApprovalLimits:input_type -> ai.v1.SetTelegramApprovalLimitsRequest
+	113, // 156: ai.v1.AssistantService.SetModelKey:input_type -> ai.v1.SetModelKeyRequest
+	115, // 157: ai.v1.AssistantService.GetModelKey:input_type -> ai.v1.GetModelKeyRequest
+	117, // 158: ai.v1.AssistantService.DeleteModelKey:input_type -> ai.v1.DeleteModelKeyRequest
+	119, // 159: ai.v1.AssistantService.GetUsage:input_type -> ai.v1.GetUsageRequest
+	85,  // 160: ai.v1.AssistantService.SendMessage:output_type -> ai.v1.SendMessageResponse
+	87,  // 161: ai.v1.AssistantService.WatchRun:output_type -> ai.v1.WatchRunResponse
+	89,  // 162: ai.v1.AssistantService.CancelRun:output_type -> ai.v1.CancelRunResponse
+	91,  // 163: ai.v1.AssistantService.DecideApproval:output_type -> ai.v1.DecideApprovalResponse
+	93,  // 164: ai.v1.AssistantService.ListConversations:output_type -> ai.v1.ListConversationsResponse
+	95,  // 165: ai.v1.AssistantService.ListMessages:output_type -> ai.v1.ListMessagesResponse
+	97,  // 166: ai.v1.AssistantService.GetMessageImage:output_type -> ai.v1.GetMessageImageResponse
+	99,  // 167: ai.v1.AssistantService.ListMemories:output_type -> ai.v1.ListMemoriesResponse
+	101, // 168: ai.v1.AssistantService.DeleteMemory:output_type -> ai.v1.DeleteMemoryResponse
+	103, // 169: ai.v1.AssistantService.PrepareAssistantKeys:output_type -> ai.v1.PrepareAssistantKeysResponse
+	105, // 170: ai.v1.AssistantService.CompleteAssistantKeys:output_type -> ai.v1.CompleteAssistantKeysResponse
+	107, // 171: ai.v1.AssistantService.ListAssistantKeys:output_type -> ai.v1.ListAssistantKeysResponse
+	110, // 172: ai.v1.AssistantService.GetTelegramApprovalLimits:output_type -> ai.v1.GetTelegramApprovalLimitsResponse
+	112, // 173: ai.v1.AssistantService.SetTelegramApprovalLimits:output_type -> ai.v1.SetTelegramApprovalLimitsResponse
+	114, // 174: ai.v1.AssistantService.SetModelKey:output_type -> ai.v1.SetModelKeyResponse
+	116, // 175: ai.v1.AssistantService.GetModelKey:output_type -> ai.v1.GetModelKeyResponse
+	118, // 176: ai.v1.AssistantService.DeleteModelKey:output_type -> ai.v1.DeleteModelKeyResponse
+	121, // 177: ai.v1.AssistantService.GetUsage:output_type -> ai.v1.GetUsageResponse
+	160, // [160:178] is the sub-list for method output_type
+	142, // [142:160] is the sub-list for method input_type
+	142, // [142:142] is the sub-list for extension type_name
+	142, // [142:142] is the sub-list for extension extendee
+	0,   // [0:142] is the sub-list for field type_name
 }
 
 func init() { file_ai_v1_assistant_proto_init() }
@@ -9302,9 +10430,9 @@ func file_ai_v1_assistant_proto_init() {
 	if File_ai_v1_assistant_proto != nil {
 		return
 	}
-	file_ai_v1_assistant_proto_msgTypes[3].OneofWrappers = []any{}
-	file_ai_v1_assistant_proto_msgTypes[11].OneofWrappers = []any{}
-	file_ai_v1_assistant_proto_msgTypes[15].OneofWrappers = []any{
+	file_ai_v1_assistant_proto_msgTypes[5].OneofWrappers = []any{}
+	file_ai_v1_assistant_proto_msgTypes[13].OneofWrappers = []any{}
+	file_ai_v1_assistant_proto_msgTypes[17].OneofWrappers = []any{
 		(*View_OrdersTable)(nil),
 		(*View_BalancesTable)(nil),
 		(*View_PriceChart)(nil),
@@ -9316,26 +10444,26 @@ func file_ai_v1_assistant_proto_init() {
 		(*View_EquityHistoryChart)(nil),
 		(*View_TransfersTable)(nil),
 	}
-	file_ai_v1_assistant_proto_msgTypes[19].OneofWrappers = []any{}
-	file_ai_v1_assistant_proto_msgTypes[23].OneofWrappers = []any{}
-	file_ai_v1_assistant_proto_msgTypes[26].OneofWrappers = []any{}
-	file_ai_v1_assistant_proto_msgTypes[29].OneofWrappers = []any{
+	file_ai_v1_assistant_proto_msgTypes[21].OneofWrappers = []any{}
+	file_ai_v1_assistant_proto_msgTypes[25].OneofWrappers = []any{}
+	file_ai_v1_assistant_proto_msgTypes[28].OneofWrappers = []any{}
+	file_ai_v1_assistant_proto_msgTypes[31].OneofWrappers = []any{
 		(*RelativePrice_Market)(nil),
 		(*RelativePrice_LimitPrice)(nil),
 	}
-	file_ai_v1_assistant_proto_msgTypes[30].OneofWrappers = []any{}
-	file_ai_v1_assistant_proto_msgTypes[31].OneofWrappers = []any{
+	file_ai_v1_assistant_proto_msgTypes[32].OneofWrappers = []any{}
+	file_ai_v1_assistant_proto_msgTypes[33].OneofWrappers = []any{
 		(*AttachedTrailingStop_Distance)(nil),
 		(*AttachedTrailingStop_DistanceBps)(nil),
 	}
-	file_ai_v1_assistant_proto_msgTypes[33].OneofWrappers = []any{}
 	file_ai_v1_assistant_proto_msgTypes[35].OneofWrappers = []any{}
-	file_ai_v1_assistant_proto_msgTypes[36].OneofWrappers = []any{
+	file_ai_v1_assistant_proto_msgTypes[37].OneofWrappers = []any{}
+	file_ai_v1_assistant_proto_msgTypes[38].OneofWrappers = []any{
 		(*TrailingStopPreview_Distance)(nil),
 		(*TrailingStopPreview_DistanceBps)(nil),
 	}
-	file_ai_v1_assistant_proto_msgTypes[37].OneofWrappers = []any{}
-	file_ai_v1_assistant_proto_msgTypes[40].OneofWrappers = []any{
+	file_ai_v1_assistant_proto_msgTypes[39].OneofWrappers = []any{}
+	file_ai_v1_assistant_proto_msgTypes[42].OneofWrappers = []any{
 		(*OrderPreview_Market)(nil),
 		(*OrderPreview_Limit)(nil),
 		(*OrderPreview_StopLoss)(nil),
@@ -9344,20 +10472,20 @@ func file_ai_v1_assistant_proto_init() {
 		(*OrderPreview_Twap)(nil),
 		(*OrderPreview_Ladder)(nil),
 	}
-	file_ai_v1_assistant_proto_msgTypes[45].OneofWrappers = []any{}
 	file_ai_v1_assistant_proto_msgTypes[47].OneofWrappers = []any{}
-	file_ai_v1_assistant_proto_msgTypes[48].OneofWrappers = []any{}
-	file_ai_v1_assistant_proto_msgTypes[50].OneofWrappers = []any{
+	file_ai_v1_assistant_proto_msgTypes[49].OneofWrappers = []any{}
+	file_ai_v1_assistant_proto_msgTypes[50].OneofWrappers = []any{}
+	file_ai_v1_assistant_proto_msgTypes[52].OneofWrappers = []any{
 		(*TriggerSettings_TrailingDistancePrice)(nil),
 		(*TriggerSettings_TrailingDistanceBps)(nil),
 		(*TriggerSettings_MaxSlippageBps)(nil),
 		(*TriggerSettings_MaxSlippagePrice)(nil),
 	}
-	file_ai_v1_assistant_proto_msgTypes[51].OneofWrappers = []any{
+	file_ai_v1_assistant_proto_msgTypes[53].OneofWrappers = []any{
 		(*TriggerChangePreview_ReserveIncrease)(nil),
 		(*TriggerChangePreview_ReserveRelease)(nil),
 	}
-	file_ai_v1_assistant_proto_msgTypes[52].OneofWrappers = []any{
+	file_ai_v1_assistant_proto_msgTypes[54].OneofWrappers = []any{
 		(*ApprovalRequested_OrderPreview)(nil),
 		(*ApprovalRequested_CancelOrders)(nil),
 		(*ApprovalRequested_OrderChange)(nil),
@@ -9366,7 +10494,7 @@ func file_ai_v1_assistant_proto_init() {
 		(*ApprovalRequested_Swap)(nil),
 		(*ApprovalRequested_CancelTrigger)(nil),
 	}
-	file_ai_v1_assistant_proto_msgTypes[56].OneofWrappers = []any{
+	file_ai_v1_assistant_proto_msgTypes[58].OneofWrappers = []any{
 		(*RunEvent_TextDelta)(nil),
 		(*RunEvent_DiscardPartial)(nil),
 		(*RunEvent_ToolStarted)(nil),
@@ -9383,19 +10511,20 @@ func file_ai_v1_assistant_proto_init() {
 		(*RunEvent_DestinationsSuggested)(nil),
 		(*RunEvent_DisplaySettingAction)(nil),
 	}
-	file_ai_v1_assistant_proto_msgTypes[57].OneofWrappers = []any{}
-	file_ai_v1_assistant_proto_msgTypes[58].OneofWrappers = []any{}
 	file_ai_v1_assistant_proto_msgTypes[59].OneofWrappers = []any{}
 	file_ai_v1_assistant_proto_msgTypes[61].OneofWrappers = []any{}
 	file_ai_v1_assistant_proto_msgTypes[62].OneofWrappers = []any{}
-	file_ai_v1_assistant_proto_msgTypes[84].OneofWrappers = []any{}
+	file_ai_v1_assistant_proto_msgTypes[64].OneofWrappers = []any{}
+	file_ai_v1_assistant_proto_msgTypes[65].OneofWrappers = []any{}
+	file_ai_v1_assistant_proto_msgTypes[89].OneofWrappers = []any{}
+	file_ai_v1_assistant_proto_msgTypes[102].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ai_v1_assistant_proto_rawDesc), len(file_ai_v1_assistant_proto_rawDesc)),
-			NumEnums:      17,
-			NumMessages:   89,
+			NumEnums:      19,
+			NumMessages:   103,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

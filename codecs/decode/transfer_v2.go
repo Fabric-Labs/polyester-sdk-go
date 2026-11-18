@@ -56,60 +56,87 @@ func optionalLedgerAmount(v *typev1.U128) *models.AssetAmountScaled {
 	return &out
 }
 
+// internalTransferBatchReply is what BatchCreateInternalTransfers and
+// GetInternalTransferBatch both answer.
+type internalTransferBatchReply interface {
+	GetRequestId() string
+	GetStatus() transferv1.InternalTransferBatchStatus
+	GetLegs() []*transferv1.InternalTransferBatchLegResult
+}
+
 // InternalTransferBatchFromProto decodes a BatchCreateInternalTransfers
 // reply for a request of legs legs. It returns a *errors.ResponseContractError
-// when the reply breaks the contract: a batch status this SDK can't name, a
-// leg count or order that doesn't match the request, a submitted batch
-// without its request ID, an accepted leg without its request or transfer ID,
-// or a pending leg without its request ID. The batch may have run: read back
-// or retry with the same idempotency key and legs.
+// when the reply breaks the contract: a batch or leg status this SDK can't
+// name, a leg count or order that doesn't match the request, an accepted or
+// processing batch without its request ID, a leg whose status is not its
+// batch's, a processing or credited leg without its transfer ID, or a
+// credited leg without its flow ID. The batch may have run: read it back
+// with GetInternalTransferBatch, or retry with the same idempotency key and
+// legs.
 func InternalTransferBatchFromProto(msg *transferv1.BatchCreateInternalTransfersResponse, legs int) (models.InternalTransferBatchResult, error) {
-	const op = "BatchCreateInternalTransfers"
+	return internalTransferBatch("BatchCreateInternalTransfers", msg, legs)
+}
+
+// InternalTransferBatchFromGet decodes a GetInternalTransferBatch reply for
+// the batch requestID, with the checks of InternalTransferBatchFromProto; the
+// reply must name the batch it was asked for and hold at least one leg.
+func InternalTransferBatchFromGet(msg *transferv1.GetInternalTransferBatchResponse, requestID string) (models.InternalTransferBatchResult, error) {
+	out, err := internalTransferBatch("GetInternalTransferBatch", msg, -1)
+	if err != nil {
+		return out, err
+	}
+	if out.RequestID != requestID {
+		return models.InternalTransferBatchResult{}, &sdkerrors.ResponseContractError{Operation: "GetInternalTransferBatch", Msg: fmt.Sprintf("reply names batch %q, not %q", out.RequestID, requestID)}
+	}
+	return out, nil
+}
+
+func internalTransferBatch(op string, msg internalTransferBatchReply, legs int) (models.InternalTransferBatchResult, error) {
 	fail := func(format string, args ...any) (models.InternalTransferBatchResult, error) {
 		return models.InternalTransferBatchResult{}, &sdkerrors.ResponseContractError{Operation: op, Msg: fmt.Sprintf(format, args...)}
 	}
 	var status string
+	var legStatus transferv1.InternalTransferBatchLegStatus
 	switch msg.GetStatus() {
-	case transferv1.InternalTransferBatchStatus_BATCH_SUBMITTED:
-		status = "submitted"
-		if msg.GetRequestId() == "" {
-			return fail("missing request_id")
-		}
+	case transferv1.InternalTransferBatchStatus_BATCH_ACCEPTED:
+		status, legStatus = "accepted", transferv1.InternalTransferBatchLegStatus_LEG_CREDITED
+	case transferv1.InternalTransferBatchStatus_BATCH_PROCESSING:
+		status, legStatus = "processing", transferv1.InternalTransferBatchLegStatus_LEG_PROCESSING
 	case transferv1.InternalTransferBatchStatus_BATCH_REFUSED:
-		status = "refused"
+		status, legStatus = "refused", transferv1.InternalTransferBatchLegStatus_LEG_NOT_MOVED
 	default:
-		return fail("batch status %d is not submitted or refused", int32(msg.GetStatus()))
+		return fail("batch status %d is not accepted, processing or refused", int32(msg.GetStatus()))
 	}
-	if len(msg.GetLegs()) != legs {
+	if status != "refused" && msg.GetRequestId() == "" {
+		return fail("%s batch missing request_id", status)
+	}
+	switch {
+	case legs >= 0 && len(msg.GetLegs()) != legs:
 		return fail("%d leg results for %d legs", len(msg.GetLegs()), legs)
+	case len(msg.GetLegs()) == 0:
+		return fail("batch has no leg results")
 	}
-	out := models.InternalTransferBatchResult{RequestID: msg.GetRequestId(), Status: status, Legs: make([]models.InternalTransferBatchLegResult, 0, legs)}
+	out := models.InternalTransferBatchResult{RequestID: msg.GetRequestId(), Status: status, Legs: make([]models.InternalTransferBatchLegResult, 0, len(msg.GetLegs()))}
 	for i, leg := range msg.GetLegs() {
 		if leg.GetLegIndex() != uint32(i) {
 			return fail("leg result %d has leg_index %d", i, leg.GetLegIndex())
 		}
-		legStatus := enumLabel(leg.GetStatus(), "LEG_")
-		switch leg.GetStatus() {
-		case transferv1.InternalTransferBatchLegStatus_LEG_ACCEPTED:
-			if leg.GetRequestId() == "" || leg.GetTransferId() == "" {
-				return fail("accepted leg %d missing request_id or transfer_id", i)
-			}
-		case transferv1.InternalTransferBatchLegStatus_LEG_PENDING:
-			if leg.GetRequestId() == "" {
-				return fail("pending leg %d missing request_id", i)
-			}
-		case transferv1.InternalTransferBatchLegStatus_LEG_REFUSED, transferv1.InternalTransferBatchLegStatus_LEG_NOT_SUBMITTED:
-		default:
-			return fail("leg %d status %d is not a leg outcome", i, int32(leg.GetStatus()))
+		if leg.GetStatus() != legStatus {
+			return fail("%s batch has leg %d with status %d", status, i, int32(leg.GetStatus()))
+		}
+		if legStatus != transferv1.InternalTransferBatchLegStatus_LEG_NOT_MOVED && leg.GetTransferId() == "" {
+			return fail("%s leg %d missing transfer_id", enumLabel(legStatus, "LEG_"), i)
+		}
+		if legStatus == transferv1.InternalTransferBatchLegStatus_LEG_CREDITED && leg.GetFlowId() == "" {
+			return fail("credited leg %d missing flow_id", i)
 		}
 		assetID := leg.GetAssetId()
 		out.Legs = append(out.Legs, models.InternalTransferBatchLegResult{
 			LegIndex:     leg.GetLegIndex(),
-			Status:       legStatus,
-			RequestID:    leg.GetRequestId(),
+			Status:       enumLabel(leg.GetStatus(), "LEG_"),
 			TransferID:   leg.GetTransferId(),
 			FlowID:       leg.GetFlowId(),
-			AcceptedTsNs: leg.GetAcceptedAtTsNs(),
+			CreditedTsNs: leg.GetCreditedAtTsNs(),
 			AssetID:      assetID,
 			AssetCode:    leg.GetAssetCode(),
 			Quantity:     ledgerAmount(leg.GetAmountE18(), &assetID),

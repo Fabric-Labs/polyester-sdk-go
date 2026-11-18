@@ -58,3 +58,27 @@ func TestIsOrderAlreadyTerminal(t *testing.T) {
 		t.Fatal("already ended is not retryable")
 	}
 }
+
+// IsOrderUnknown matches ERROR_CODE_ORDER_UNKNOWN only, which an ended order
+// can answer too; neither helper reads the other's code, and neither is
+// retryable.
+func TestIsOrderUnknown(t *testing.T) {
+	unknown := &sdkerrors.APIError{Code: "ERROR_CODE_ORDER_UNKNOWN"}
+	if !sdkerrors.IsOrderUnknown(unknown) || sdkerrors.IsOrderAlreadyTerminal(unknown) || sdkerrors.IsRetryable(unknown) {
+		t.Fatal("ORDER_UNKNOWN is its own, non-retryable refusal")
+	}
+	if sdkerrors.IsOrderUnknown(&sdkerrors.APIError{Code: "ERROR_CODE_ORDER_ALREADY_TERMINAL"}) || sdkerrors.IsOrderUnknown(nil) {
+		t.Fatal("other codes are not unknown")
+	}
+}
+
+// The Telegram alert refusals read as alert codes, and neither is
+// retryable.
+func TestTelegramAlertRefusals(t *testing.T) {
+	for _, code := range []string{sdkerrors.AlertCodeTelegramNotLinked, sdkerrors.AlertCodeTelegramUnavailable} {
+		err := &sdkerrors.APIError{Code: code}
+		if sdkerrors.AlertErrorCode(err) != code || sdkerrors.IsRetryable(err) {
+			t.Fatalf("%s: code=%q retryable=%v", code, sdkerrors.AlertErrorCode(err), sdkerrors.IsRetryable(err))
+		}
+	}
+}

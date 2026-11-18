@@ -23,6 +23,59 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// AssetDataSource identifies who supplied a market value.
+type AssetDataSource int32
+
+const (
+	// Not set. Never sent for a present value.
+	AssetDataSource_SOURCE_UNSPECIFIED AssetDataSource = 0
+	// Supplied by CoinMarketCap. Show "Source: CoinMarketCap" with the value.
+	AssetDataSource_COINMARKETCAP AssetDataSource = 1
+	// Set by the Polyester team.
+	AssetDataSource_POLYESTER AssetDataSource = 2
+)
+
+// Enum value maps for AssetDataSource.
+var (
+	AssetDataSource_name = map[int32]string{
+		0: "SOURCE_UNSPECIFIED",
+		1: "COINMARKETCAP",
+		2: "POLYESTER",
+	}
+	AssetDataSource_value = map[string]int32{
+		"SOURCE_UNSPECIFIED": 0,
+		"COINMARKETCAP":      1,
+		"POLYESTER":          2,
+	}
+)
+
+func (x AssetDataSource) Enum() *AssetDataSource {
+	p := new(AssetDataSource)
+	*p = x
+	return p
+}
+
+func (x AssetDataSource) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AssetDataSource) Descriptor() protoreflect.EnumDescriptor {
+	return file_marketdata_v1_asset_info_proto_enumTypes[0].Descriptor()
+}
+
+func (AssetDataSource) Type() protoreflect.EnumType {
+	return &file_marketdata_v1_asset_info_proto_enumTypes[0]
+}
+
+func (x AssetDataSource) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AssetDataSource.Descriptor instead.
+func (AssetDataSource) EnumDescriptor() ([]byte, []int) {
+	return file_marketdata_v1_asset_info_proto_rawDescGZIP(), []int{0}
+}
+
 // AssetIssuePrice is a known launch price in US dollars, including zero.
 type AssetIssuePrice struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -206,22 +259,250 @@ func (x *AssetEditorialInfo) GetIssuePrice() *AssetIssuePrice {
 	return nil
 }
 
+// AssetMarketValue is one market datapoint with its source and observation time.
+type AssetMarketValue struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Nonnegative decimal string without sign or exponent, at most 64 characters.
+	Value string `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`
+	// Who supplied the value.
+	Source AssetDataSource `protobuf:"varint,2,opt,name=source,proto3,enum=marketdata.v1.AssetDataSource" json:"source,omitempty"`
+	// When the source last observed or set the value, in UTC. Older values stay
+	// until a newer observation replaces them, so show this time with the value.
+	AsOf          *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=as_of,json=asOf,proto3" json:"as_of,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AssetMarketValue) Reset() {
+	*x = AssetMarketValue{}
+	mi := &file_marketdata_v1_asset_info_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssetMarketValue) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssetMarketValue) ProtoMessage() {}
+
+func (x *AssetMarketValue) ProtoReflect() protoreflect.Message {
+	mi := &file_marketdata_v1_asset_info_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssetMarketValue.ProtoReflect.Descriptor instead.
+func (*AssetMarketValue) Descriptor() ([]byte, []int) {
+	return file_marketdata_v1_asset_info_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *AssetMarketValue) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *AssetMarketValue) GetSource() AssetDataSource {
+	if x != nil {
+		return x.Source
+	}
+	return AssetDataSource_SOURCE_UNSPECIFIED
+}
+
+func (x *AssetMarketValue) GetAsOf() *timestamppb.Timestamp {
+	if x != nil {
+		return x.AsOf
+	}
+	return nil
+}
+
+// AssetMarketFlag is a market fact that holds when present, with its source
+// and observation time.
+type AssetMarketFlag struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Who reported the fact.
+	Source AssetDataSource `protobuf:"varint,1,opt,name=source,proto3,enum=marketdata.v1.AssetDataSource" json:"source,omitempty"`
+	// When the source last observed the fact, in UTC.
+	AsOf          *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=as_of,json=asOf,proto3" json:"as_of,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AssetMarketFlag) Reset() {
+	*x = AssetMarketFlag{}
+	mi := &file_marketdata_v1_asset_info_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssetMarketFlag) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssetMarketFlag) ProtoMessage() {}
+
+func (x *AssetMarketFlag) ProtoReflect() protoreflect.Message {
+	mi := &file_marketdata_v1_asset_info_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssetMarketFlag.ProtoReflect.Descriptor instead.
+func (*AssetMarketFlag) Descriptor() ([]byte, []int) {
+	return file_marketdata_v1_asset_info_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *AssetMarketFlag) GetSource() AssetDataSource {
+	if x != nil {
+		return x.Source
+	}
+	return AssetDataSource_SOURCE_UNSPECIFIED
+}
+
+func (x *AssetMarketFlag) GetAsOf() *timestamppb.Timestamp {
+	if x != nil {
+		return x.AsOf
+	}
+	return nil
+}
+
+// AssetMarketStats contains market datapoints for an asset.
+// An absent value is unknown and may be hidden by clients.
+type AssetMarketStats struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Coins circulating in the market and in public hands, in asset units.
+	CirculatingSupply *AssetMarketValue `protobuf:"bytes,1,opt,name=circulating_supply,json=circulatingSupply,proto3" json:"circulating_supply,omitempty"`
+	// Coins in existence now, minus any verifiably burned, in asset units.
+	TotalSupply *AssetMarketValue `protobuf:"bytes,2,opt,name=total_supply,json=totalSupply,proto3" json:"total_supply,omitempty"`
+	// Maximum coins that will ever exist, in asset units. Absent when unknown or
+	// when max_supply_unlimited is present.
+	MaxSupply *AssetMarketValue `protobuf:"bytes,3,opt,name=max_supply,json=maxSupply,proto3" json:"max_supply,omitempty"`
+	// Present when the source reports no maximum supply; max_supply is then
+	// absent. Absent when a maximum is known or when it is unknown.
+	MaxSupplyUnlimited *AssetMarketFlag `protobuf:"bytes,4,opt,name=max_supply_unlimited,json=maxSupplyUnlimited,proto3" json:"max_supply_unlimited,omitempty"`
+	// Price multiplied by circulating supply, in US dollars.
+	MarketCapUsd *AssetMarketValue `protobuf:"bytes,5,opt,name=market_cap_usd,json=marketCapUsd,proto3" json:"market_cap_usd,omitempty"`
+	// Price multiplied by maximum supply, or by total supply when the maximum is
+	// unknown or unlimited, in US dollars.
+	FullyDilutedMarketCapUsd *AssetMarketValue `protobuf:"bytes,6,opt,name=fully_diluted_market_cap_usd,json=fullyDilutedMarketCapUsd,proto3" json:"fully_diluted_market_cap_usd,omitempty"`
+	// Market capitalization rank among all listed coins as a positive integer
+	// string, where 1 is the largest.
+	Rank          *AssetMarketValue `protobuf:"bytes,7,opt,name=rank,proto3" json:"rank,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AssetMarketStats) Reset() {
+	*x = AssetMarketStats{}
+	mi := &file_marketdata_v1_asset_info_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssetMarketStats) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssetMarketStats) ProtoMessage() {}
+
+func (x *AssetMarketStats) ProtoReflect() protoreflect.Message {
+	mi := &file_marketdata_v1_asset_info_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssetMarketStats.ProtoReflect.Descriptor instead.
+func (*AssetMarketStats) Descriptor() ([]byte, []int) {
+	return file_marketdata_v1_asset_info_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *AssetMarketStats) GetCirculatingSupply() *AssetMarketValue {
+	if x != nil {
+		return x.CirculatingSupply
+	}
+	return nil
+}
+
+func (x *AssetMarketStats) GetTotalSupply() *AssetMarketValue {
+	if x != nil {
+		return x.TotalSupply
+	}
+	return nil
+}
+
+func (x *AssetMarketStats) GetMaxSupply() *AssetMarketValue {
+	if x != nil {
+		return x.MaxSupply
+	}
+	return nil
+}
+
+func (x *AssetMarketStats) GetMaxSupplyUnlimited() *AssetMarketFlag {
+	if x != nil {
+		return x.MaxSupplyUnlimited
+	}
+	return nil
+}
+
+func (x *AssetMarketStats) GetMarketCapUsd() *AssetMarketValue {
+	if x != nil {
+		return x.MarketCapUsd
+	}
+	return nil
+}
+
+func (x *AssetMarketStats) GetFullyDilutedMarketCapUsd() *AssetMarketValue {
+	if x != nil {
+		return x.FullyDilutedMarketCapUsd
+	}
+	return nil
+}
+
+func (x *AssetMarketStats) GetRank() *AssetMarketValue {
+	if x != nil {
+		return x.Rank
+	}
+	return nil
+}
+
 // AssetInfo is independently loaded asset information.
 type AssetInfo struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Numeric asset ID, matching AssetConfig.ledger_id.
 	AssetId uint32 `protobuf:"varint,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
-	// Team-maintained asset information.
+	// Team-maintained asset information. Empty when never edited.
 	Editorial *AssetEditorialInfo `protobuf:"bytes,2,opt,name=editorial,proto3" json:"editorial,omitempty"`
-	// Time of the last effective editorial change, in UTC.
+	// Time of the last effective editorial change, in UTC. Absent when never edited.
 	EditorialUpdatedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=editorial_updated_at,json=editorialUpdatedAt,proto3" json:"editorial_updated_at,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Market datapoints; absent when the asset has none.
+	MarketStats   *AssetMarketStats `protobuf:"bytes,4,opt,name=market_stats,json=marketStats,proto3" json:"market_stats,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AssetInfo) Reset() {
 	*x = AssetInfo{}
-	mi := &file_marketdata_v1_asset_info_proto_msgTypes[2]
+	mi := &file_marketdata_v1_asset_info_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -233,7 +514,7 @@ func (x *AssetInfo) String() string {
 func (*AssetInfo) ProtoMessage() {}
 
 func (x *AssetInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_marketdata_v1_asset_info_proto_msgTypes[2]
+	mi := &file_marketdata_v1_asset_info_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -246,7 +527,7 @@ func (x *AssetInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssetInfo.ProtoReflect.Descriptor instead.
 func (*AssetInfo) Descriptor() ([]byte, []int) {
-	return file_marketdata_v1_asset_info_proto_rawDescGZIP(), []int{2}
+	return file_marketdata_v1_asset_info_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *AssetInfo) GetAssetId() uint32 {
@@ -270,6 +551,13 @@ func (x *AssetInfo) GetEditorialUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *AssetInfo) GetMarketStats() *AssetMarketStats {
+	if x != nil {
+		return x.MarketStats
+	}
+	return nil
+}
+
 // ListAssetInfoRequest selects a finite asset information snapshot.
 type ListAssetInfoRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -282,7 +570,7 @@ type ListAssetInfoRequest struct {
 
 func (x *ListAssetInfoRequest) Reset() {
 	*x = ListAssetInfoRequest{}
-	mi := &file_marketdata_v1_asset_info_proto_msgTypes[3]
+	mi := &file_marketdata_v1_asset_info_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -294,7 +582,7 @@ func (x *ListAssetInfoRequest) String() string {
 func (*ListAssetInfoRequest) ProtoMessage() {}
 
 func (x *ListAssetInfoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_marketdata_v1_asset_info_proto_msgTypes[3]
+	mi := &file_marketdata_v1_asset_info_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -307,7 +595,7 @@ func (x *ListAssetInfoRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAssetInfoRequest.ProtoReflect.Descriptor instead.
 func (*ListAssetInfoRequest) Descriptor() ([]byte, []int) {
-	return file_marketdata_v1_asset_info_proto_rawDescGZIP(), []int{3}
+	return file_marketdata_v1_asset_info_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListAssetInfoRequest) GetAssetIds() []uint32 {
@@ -317,8 +605,9 @@ func (x *ListAssetInfoRequest) GetAssetIds() []uint32 {
 	return nil
 }
 
-// ListAssetInfoResponse contains assets with saved editorial information.
-// Assets never edited are omitted. Cleared information retains an empty entry.
+// ListAssetInfoResponse contains assets with saved editorial information or
+// market datapoints. Other assets are omitted. Cleared editorial information
+// retains an empty entry.
 type ListAssetInfoResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Complete finite result, ordered by ascending asset_id. No pagination.
@@ -329,7 +618,7 @@ type ListAssetInfoResponse struct {
 
 func (x *ListAssetInfoResponse) Reset() {
 	*x = ListAssetInfoResponse{}
-	mi := &file_marketdata_v1_asset_info_proto_msgTypes[4]
+	mi := &file_marketdata_v1_asset_info_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -341,7 +630,7 @@ func (x *ListAssetInfoResponse) String() string {
 func (*ListAssetInfoResponse) ProtoMessage() {}
 
 func (x *ListAssetInfoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_marketdata_v1_asset_info_proto_msgTypes[4]
+	mi := &file_marketdata_v1_asset_info_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -354,7 +643,7 @@ func (x *ListAssetInfoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAssetInfoResponse.ProtoReflect.Descriptor instead.
 func (*ListAssetInfoResponse) Descriptor() ([]byte, []int) {
-	return file_marketdata_v1_asset_info_proto_rawDescGZIP(), []int{4}
+	return file_marketdata_v1_asset_info_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListAssetInfoResponse) GetAssetInfo() []*AssetInfo {
@@ -388,17 +677,38 @@ const file_marketdata_v1_asset_info_proto_rawDesc = "" +
 	"issue_date\x18\t \x01(\tR\tissueDate\x12?\n" +
 	"\vissue_price\x18\n" +
 	" \x01(\v2\x1e.marketdata.v1.AssetIssuePriceR\n" +
-	"issuePrice\"\xb5\x01\n" +
+	"issuePrice\"\x91\x01\n" +
+	"\x10AssetMarketValue\x12\x14\n" +
+	"\x05value\x18\x01 \x01(\tR\x05value\x126\n" +
+	"\x06source\x18\x02 \x01(\x0e2\x1e.marketdata.v1.AssetDataSourceR\x06source\x12/\n" +
+	"\x05as_of\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x04asOf\"z\n" +
+	"\x0fAssetMarketFlag\x126\n" +
+	"\x06source\x18\x01 \x01(\x0e2\x1e.marketdata.v1.AssetDataSourceR\x06source\x12/\n" +
+	"\x05as_of\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x04asOf\"\x95\x04\n" +
+	"\x10AssetMarketStats\x12N\n" +
+	"\x12circulating_supply\x18\x01 \x01(\v2\x1f.marketdata.v1.AssetMarketValueR\x11circulatingSupply\x12B\n" +
+	"\ftotal_supply\x18\x02 \x01(\v2\x1f.marketdata.v1.AssetMarketValueR\vtotalSupply\x12>\n" +
+	"\n" +
+	"max_supply\x18\x03 \x01(\v2\x1f.marketdata.v1.AssetMarketValueR\tmaxSupply\x12P\n" +
+	"\x14max_supply_unlimited\x18\x04 \x01(\v2\x1e.marketdata.v1.AssetMarketFlagR\x12maxSupplyUnlimited\x12E\n" +
+	"\x0emarket_cap_usd\x18\x05 \x01(\v2\x1f.marketdata.v1.AssetMarketValueR\fmarketCapUsd\x12_\n" +
+	"\x1cfully_diluted_market_cap_usd\x18\x06 \x01(\v2\x1f.marketdata.v1.AssetMarketValueR\x18fullyDilutedMarketCapUsd\x123\n" +
+	"\x04rank\x18\a \x01(\v2\x1f.marketdata.v1.AssetMarketValueR\x04rank\"\xf9\x01\n" +
 	"\tAssetInfo\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\rR\aassetId\x12?\n" +
 	"\teditorial\x18\x02 \x01(\v2!.marketdata.v1.AssetEditorialInfoR\teditorial\x12L\n" +
-	"\x14editorial_updated_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x12editorialUpdatedAt\"J\n" +
+	"\x14editorial_updated_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x12editorialUpdatedAt\x12B\n" +
+	"\fmarket_stats\x18\x04 \x01(\v2\x1f.marketdata.v1.AssetMarketStatsR\vmarketStats\"J\n" +
 	"\x14ListAssetInfoRequest\x122\n" +
 	"\tasset_ids\x18\x01 \x03(\rB\x15\xbaH\x12\x92\x01\x0f\x10\xe8\a\"\n" +
 	"*\b\x18\xff\xff\xff\xff\a \x00R\bassetIds\"P\n" +
 	"\x15ListAssetInfoResponse\x127\n" +
 	"\n" +
-	"asset_info\x18\x01 \x03(\v2\x18.marketdata.v1.AssetInfoR\tassetInfoBHZFgithub.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1;marketdatav1b\x06proto3"
+	"asset_info\x18\x01 \x03(\v2\x18.marketdata.v1.AssetInfoR\tassetInfo*K\n" +
+	"\x0fAssetDataSource\x12\x16\n" +
+	"\x12SOURCE_UNSPECIFIED\x10\x00\x12\x11\n" +
+	"\rCOINMARKETCAP\x10\x01\x12\r\n" +
+	"\tPOLYESTER\x10\x02BHZFgithub.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1;marketdatav1b\x06proto3"
 
 var (
 	file_marketdata_v1_asset_info_proto_rawDescOnce sync.Once
@@ -412,25 +722,42 @@ func file_marketdata_v1_asset_info_proto_rawDescGZIP() []byte {
 	return file_marketdata_v1_asset_info_proto_rawDescData
 }
 
-var file_marketdata_v1_asset_info_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_marketdata_v1_asset_info_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_marketdata_v1_asset_info_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_marketdata_v1_asset_info_proto_goTypes = []any{
-	(*AssetIssuePrice)(nil),       // 0: marketdata.v1.AssetIssuePrice
-	(*AssetEditorialInfo)(nil),    // 1: marketdata.v1.AssetEditorialInfo
-	(*AssetInfo)(nil),             // 2: marketdata.v1.AssetInfo
-	(*ListAssetInfoRequest)(nil),  // 3: marketdata.v1.ListAssetInfoRequest
-	(*ListAssetInfoResponse)(nil), // 4: marketdata.v1.ListAssetInfoResponse
-	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
+	(AssetDataSource)(0),          // 0: marketdata.v1.AssetDataSource
+	(*AssetIssuePrice)(nil),       // 1: marketdata.v1.AssetIssuePrice
+	(*AssetEditorialInfo)(nil),    // 2: marketdata.v1.AssetEditorialInfo
+	(*AssetMarketValue)(nil),      // 3: marketdata.v1.AssetMarketValue
+	(*AssetMarketFlag)(nil),       // 4: marketdata.v1.AssetMarketFlag
+	(*AssetMarketStats)(nil),      // 5: marketdata.v1.AssetMarketStats
+	(*AssetInfo)(nil),             // 6: marketdata.v1.AssetInfo
+	(*ListAssetInfoRequest)(nil),  // 7: marketdata.v1.ListAssetInfoRequest
+	(*ListAssetInfoResponse)(nil), // 8: marketdata.v1.ListAssetInfoResponse
+	(*timestamppb.Timestamp)(nil), // 9: google.protobuf.Timestamp
 }
 var file_marketdata_v1_asset_info_proto_depIdxs = []int32{
-	0, // 0: marketdata.v1.AssetEditorialInfo.issue_price:type_name -> marketdata.v1.AssetIssuePrice
-	1, // 1: marketdata.v1.AssetInfo.editorial:type_name -> marketdata.v1.AssetEditorialInfo
-	5, // 2: marketdata.v1.AssetInfo.editorial_updated_at:type_name -> google.protobuf.Timestamp
-	2, // 3: marketdata.v1.ListAssetInfoResponse.asset_info:type_name -> marketdata.v1.AssetInfo
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	1,  // 0: marketdata.v1.AssetEditorialInfo.issue_price:type_name -> marketdata.v1.AssetIssuePrice
+	0,  // 1: marketdata.v1.AssetMarketValue.source:type_name -> marketdata.v1.AssetDataSource
+	9,  // 2: marketdata.v1.AssetMarketValue.as_of:type_name -> google.protobuf.Timestamp
+	0,  // 3: marketdata.v1.AssetMarketFlag.source:type_name -> marketdata.v1.AssetDataSource
+	9,  // 4: marketdata.v1.AssetMarketFlag.as_of:type_name -> google.protobuf.Timestamp
+	3,  // 5: marketdata.v1.AssetMarketStats.circulating_supply:type_name -> marketdata.v1.AssetMarketValue
+	3,  // 6: marketdata.v1.AssetMarketStats.total_supply:type_name -> marketdata.v1.AssetMarketValue
+	3,  // 7: marketdata.v1.AssetMarketStats.max_supply:type_name -> marketdata.v1.AssetMarketValue
+	4,  // 8: marketdata.v1.AssetMarketStats.max_supply_unlimited:type_name -> marketdata.v1.AssetMarketFlag
+	3,  // 9: marketdata.v1.AssetMarketStats.market_cap_usd:type_name -> marketdata.v1.AssetMarketValue
+	3,  // 10: marketdata.v1.AssetMarketStats.fully_diluted_market_cap_usd:type_name -> marketdata.v1.AssetMarketValue
+	3,  // 11: marketdata.v1.AssetMarketStats.rank:type_name -> marketdata.v1.AssetMarketValue
+	2,  // 12: marketdata.v1.AssetInfo.editorial:type_name -> marketdata.v1.AssetEditorialInfo
+	9,  // 13: marketdata.v1.AssetInfo.editorial_updated_at:type_name -> google.protobuf.Timestamp
+	5,  // 14: marketdata.v1.AssetInfo.market_stats:type_name -> marketdata.v1.AssetMarketStats
+	6,  // 15: marketdata.v1.ListAssetInfoResponse.asset_info:type_name -> marketdata.v1.AssetInfo
+	16, // [16:16] is the sub-list for method output_type
+	16, // [16:16] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_marketdata_v1_asset_info_proto_init() }
@@ -443,13 +770,14 @@ func file_marketdata_v1_asset_info_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_marketdata_v1_asset_info_proto_rawDesc), len(file_marketdata_v1_asset_info_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   5,
+			NumEnums:      1,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_marketdata_v1_asset_info_proto_goTypes,
 		DependencyIndexes: file_marketdata_v1_asset_info_proto_depIdxs,
+		EnumInfos:         file_marketdata_v1_asset_info_proto_enumTypes,
 		MessageInfos:      file_marketdata_v1_asset_info_proto_msgTypes,
 	}.Build()
 	File_marketdata_v1_asset_info_proto = out.File

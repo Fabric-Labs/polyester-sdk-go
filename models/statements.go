@@ -9,53 +9,16 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 )
 
-// StatementPage is one page of an account statement, as
-// Statements.ExportPage returns it.
-type StatementPage struct {
-	// CSV holds the page's rows as RFC 4180 CSV in UTF-8 with CRLF line
-	// endings, kept as sent. Only the first page starts with the header row,
-	// so the pages concatenated in order are the whole statement. A period
-	// without movements is the header row alone.
-	CSV string `json:"csv"`
-	// NextPageToken continues the statement; empty on the last page. Reuse it
-	// only with the same request fields.
-	NextPageToken string `json:"next_page_token,omitempty"`
-	// CompleteThrough is how far the statement is complete: it covers
-	// movements from StartTime up to CompleteThrough, exclusive. It is the
-	// earliest of EndTime, the time of the first page's request and the time
-	// through which account history was complete then, never before
-	// StartTime, and the same on every page of one statement. When it is
-	// before EndTime, request the rest, from CompleteThrough to EndTime,
-	// later. nil when the server does not send it.
-	CompleteThrough *time.Time `json:"complete_through,omitempty"`
-}
-
-// Rows parses the page by header name; see ParseStatementCSV. Only the first
-// page carries the header, so Rows of a later page fails: parse a Statement
-// instead.
-func (p StatementPage) Rows() ([]StatementRow, error) {
-	return ParseStatementCSV(p.CSV)
-}
-
-// Statement is a whole account statement: every page's CSV concatenated in
-// order, as Statements.Export returns it.
-type Statement struct {
-	// CSV is the complete statement: the header row, then every row, oldest
-	// first.
-	CSV string `json:"csv"`
-	// CompleteThrough is the pages' CompleteThrough; see StatementPage.
-	CompleteThrough *time.Time `json:"complete_through,omitempty"`
-}
-
 // StatementExport is a whole-period account statement produced in the
-// background as one CSV file, as StatementExports.Create, Get and List return
-// it. The file is byte for byte the Statements.Export pages for the same
-// account, asset and period up to CompleteThrough, concatenated.
+// background as one CSV file, as Statements.CreateExport, GetExport,
+// CancelExport and ListExports return it. The file is the header row, then
+// every row oldest first; ParseStatementCSV reads it.
 //
 // Download a "ready" file within 7 days with an authenticated REST
 // GET /v1/statements/exports/{ExportID}/file (text/csv; it supports Range
-// requests with If-Range). The download has no ConnectRPC method, so this
-// SDK does not wrap it. An "expired" file is gone: create a new export.
+// requests with If-Range), which has no ConnectRPC method, or from the
+// credential-free URL Statements.GetExportDownloadURL returns. An "expired"
+// file is gone: create a new export.
 type StatementExport struct {
 	// ExportID is the export's public ID.
 	ExportID string `json:"export_id"`
@@ -70,8 +33,10 @@ type StatementExport struct {
 	IdempotencyKey string `json:"idempotency_key,omitempty"`
 	// Status is "queued" (waiting for the account history to cover the
 	// period and for the account's other exports), "processing", "ready"
-	// (downloadable until ExpiresAt), "failed" (FailureReason says why) or
-	// "expired"; "unknown(n)" for a status newer than this SDK.
+	// (downloadable until ExpiresAt), "failed" (FailureReason says why),
+	// "expired" or "canceled" (by Statements.CancelExport; its partial file
+	// is deleted); "unknown(n)" for a status newer than this SDK. Every
+	// status but "queued" and "processing" is final; see IsFinal.
 	Status string `json:"status"`
 	// CompleteThrough is the end of what the file covers, exclusive: the
 	// earlier of EndTime and the time the export was created.
@@ -92,15 +57,39 @@ type StatementExport struct {
 	FailureReason string `json:"failure_reason,omitempty"`
 }
 
+// IsFinal reports whether the export's Status can no longer change: every
+// status but "queued" and "processing", including one newer than this SDK.
+func (e StatementExport) IsFinal() bool {
+	return e.Status != "queued" && e.Status != "processing"
+}
+
 // StatementExportsList is one page of an account's exports, newest first.
 type StatementExportsList struct {
 	Exports       []StatementExport `json:"exports"`
 	NextPageToken string            `json:"next_page_token,omitempty"`
+	// InProgressExports counts the root account's exports "queued" or
+	// "processing" across all its sub-accounts, whichever account the list
+	// selects; MaxInProgressExports is the most it may have at a time. While
+	// they are equal, Statements.CreateExport is refused with
+	// ERROR_CODE_STATEMENT_EXPORT_LIMIT_REACHED.
+	InProgressExports    uint32 `json:"in_progress_exports"`
+	MaxInProgressExports uint32 `json:"max_in_progress_exports"`
 }
 
-// Rows parses the statement by header name; see ParseStatementCSV.
-func (s Statement) Rows() ([]StatementRow, error) {
-	return ParseStatementCSV(s.CSV)
+// StatementExportDownloadURL is a credential-free URL of a "ready" statement
+// file, as Statements.GetExportDownloadURL returns it.
+type StatementExportDownloadURL struct {
+	// URL downloads the file without credentials until ExpiresAt. Anyone who
+	// holds it can download the file until then, so it is a Secret: printing
+	// or encoding it writes [REDACTED]. Call URL.Reveal to hand it to a
+	// browser, and never log, store or share it.
+	URL Secret `json:"url"`
+	// ExpiresAt is when URL stops working: 60 seconds after it was signed, or
+	// the file's own expiry if sooner.
+	ExpiresAt time.Time `json:"expires_at"`
+	// Filename is the name the download saves the file as,
+	// statement-<ExportID>.csv.
+	Filename string `json:"filename"`
 }
 
 // StatementRow is the effect of one ledger entry on one account bucket in
@@ -203,5 +192,5 @@ func ParseStatementCSV(text string) ([]StatementRow, error) {
 }
 
 func statementError(msg string) error {
-	return &errors.ResponseContractError{Operation: "ledger.read.v1.LedgerReadService/ExportStatement", Msg: msg}
+	return &errors.ResponseContractError{Operation: "statement CSV", Msg: msg}
 }

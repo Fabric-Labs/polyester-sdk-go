@@ -171,6 +171,14 @@ var file_polyester_api_options_proto_extTypes = []protoimpl.ExtensionInfo{
 		Filename:      "polyester/api/options.proto",
 	},
 	{
+		ExtendedType:  (*descriptorpb.MethodOptions)(nil),
+		ExtensionType: ([]string)(nil),
+		Field:         50005,
+		Name:          "polyester.api.error_codes",
+		Tag:           "bytes,50005,rep,name=error_codes",
+		Filename:      "polyester/api/options.proto",
+	},
+	{
 		ExtendedType:  (*descriptorpb.ServiceOptions)(nil),
 		ExtensionType: (*string)(nil),
 		Field:         50001,
@@ -201,6 +209,13 @@ var (
 	//
 	// repeated polyester.api.AuthenticationMethod authentication_methods = 50004;
 	E_AuthenticationMethods = &file_polyester_api_options_proto_extTypes[3]
+	// Domain error codes this RPC can return, as value names of its package's
+	// error code enum, for example "AMOUNT_OUT_OF_RANGE". The API reference
+	// lists them, with the transport errors every RPC can return, as the RPC's
+	// possible errors. This metadata does not affect runtime payloads.
+	//
+	// repeated string error_codes = 50005;
+	E_ErrorCodes = &file_polyester_api_options_proto_extTypes[4]
 )
 
 // Extension fields to descriptorpb.ServiceOptions.
@@ -210,7 +225,7 @@ var (
 	// "changelog" or "testnet". This metadata does not affect runtime payloads.
 	//
 	// optional string docs_group = 50001;
-	E_DocsGroup = &file_polyester_api_options_proto_extTypes[4]
+	E_DocsGroup = &file_polyester_api_options_proto_extTypes[5]
 )
 
 var File_polyester_api_options_proto protoreflect.FileDescriptor
@@ -232,7 +247,9 @@ const file_polyester_api_options_proto_rawDesc = "" +
 	"\x06public\x12\x1e.google.protobuf.MethodOptions\x18ц\x03 \x01(\bR\x06public:8\n" +
 	"\x06hidden\x12\x1e.google.protobuf.MethodOptions\x18҆\x03 \x01(\bR\x06hidden:h\n" +
 	"\x0fmfa_requirement\x12\x1e.google.protobuf.MethodOptions\x18ӆ\x03 \x01(\x0e2\x1d.polyester.api.MFARequirementR\x0emfaRequirement:|\n" +
-	"\x16authentication_methods\x12\x1e.google.protobuf.MethodOptions\x18Ԇ\x03 \x03(\x0e2#.polyester.api.AuthenticationMethodR\x15authenticationMethods:@\n" +
+	"\x16authentication_methods\x12\x1e.google.protobuf.MethodOptions\x18Ԇ\x03 \x03(\x0e2#.polyester.api.AuthenticationMethodR\x15authenticationMethods:A\n" +
+	"\verror_codes\x12\x1e.google.protobuf.MethodOptions\x18Ն\x03 \x03(\tR\n" +
+	"errorCodes:@\n" +
 	"\n" +
 	"docs_group\x12\x1f.google.protobuf.ServiceOptions\x18ц\x03 \x01(\tR\tdocsGroupBJZHgithub.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api;polyesterapiv1b\x06proto3"
 
@@ -260,13 +277,14 @@ var file_polyester_api_options_proto_depIdxs = []int32{
 	2, // 1: polyester.api.hidden:extendee -> google.protobuf.MethodOptions
 	2, // 2: polyester.api.mfa_requirement:extendee -> google.protobuf.MethodOptions
 	2, // 3: polyester.api.authentication_methods:extendee -> google.protobuf.MethodOptions
-	3, // 4: polyester.api.docs_group:extendee -> google.protobuf.ServiceOptions
-	0, // 5: polyester.api.mfa_requirement:type_name -> polyester.api.MFARequirement
-	1, // 6: polyester.api.authentication_methods:type_name -> polyester.api.AuthenticationMethod
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
-	5, // [5:7] is the sub-list for extension type_name
-	0, // [0:5] is the sub-list for extension extendee
+	2, // 4: polyester.api.error_codes:extendee -> google.protobuf.MethodOptions
+	3, // 5: polyester.api.docs_group:extendee -> google.protobuf.ServiceOptions
+	0, // 6: polyester.api.mfa_requirement:type_name -> polyester.api.MFARequirement
+	1, // 7: polyester.api.authentication_methods:type_name -> polyester.api.AuthenticationMethod
+	8, // [8:8] is the sub-list for method output_type
+	8, // [8:8] is the sub-list for method input_type
+	6, // [6:8] is the sub-list for extension type_name
+	0, // [0:6] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
 }
 
@@ -282,7 +300,7 @@ func file_polyester_api_options_proto_init() {
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_polyester_api_options_proto_rawDesc), len(file_polyester_api_options_proto_rawDesc)),
 			NumEnums:      2,
 			NumMessages:   0,
-			NumExtensions: 5,
+			NumExtensions: 6,
 			NumServices:   0,
 		},
 		GoTypes:           file_polyester_api_options_proto_goTypes,

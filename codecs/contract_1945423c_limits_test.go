@@ -2,6 +2,7 @@ package codecs
 
 import (
 	"fmt"
+	"math"
 	"testing"
 	"time"
 
@@ -14,8 +15,8 @@ import (
 // validation rules, and for the statement export period the CEL rule rebuilt
 // from the SDK's constant.
 func TestContract1945423cLimitsAreTheContracts(t *testing.T) {
-	if BatchInternalTransferLegsMin != 1 || BatchInternalTransferLegsMax != 10 {
-		t.Fatalf("batch legs = %d..%d; want 1..10", BatchInternalTransferLegsMin, BatchInternalTransferLegsMax)
+	if BatchInternalTransferLegsMin != 1 || BatchInternalTransferLegsMax != math.MaxInt {
+		t.Fatalf("batch legs = %d..%d; want 1 and no maximum", BatchInternalTransferLegsMin, BatchInternalTransferLegsMax)
 	}
 	if ListAccountFlowsLimitMax != 500 || ListDustConversionsLimitMax != 100 || ListStatementExportsLimitMax != 100 {
 		t.Fatalf("page maximums = %d, %d, %d; want 500, 100, 100", ListAccountFlowsLimitMax, ListDustConversionsLimitMax, ListStatementExportsLimitMax)

@@ -39,6 +39,12 @@ const (
 	// StatementExportServiceGetStatementExportProcedure is the fully-qualified name of the
 	// StatementExportService's GetStatementExport RPC.
 	StatementExportServiceGetStatementExportProcedure = "/ledger.read.v1.StatementExportService/GetStatementExport"
+	// StatementExportServiceGetStatementExportDownloadUrlProcedure is the fully-qualified name of the
+	// StatementExportService's GetStatementExportDownloadUrl RPC.
+	StatementExportServiceGetStatementExportDownloadUrlProcedure = "/ledger.read.v1.StatementExportService/GetStatementExportDownloadUrl"
+	// StatementExportServiceCancelStatementExportProcedure is the fully-qualified name of the
+	// StatementExportService's CancelStatementExport RPC.
+	StatementExportServiceCancelStatementExportProcedure = "/ledger.read.v1.StatementExportService/CancelStatementExport"
 	// StatementExportServiceListStatementExportsProcedure is the fully-qualified name of the
 	// StatementExportService's ListStatementExports RPC.
 	StatementExportServiceListStatementExportsProcedure = "/ledger.read.v1.StatementExportService/ListStatementExports"
@@ -64,6 +70,35 @@ type StatementExportServiceClient interface {
 	// - NOT_FOUND: no such export for the authenticated account.
 	// - PERMISSION_DENIED: the export's account cannot be read.
 	GetStatementExport(context.Context, *connect.Request[v1.GetStatementExportRequest]) (*connect.Response[v1.GetStatementExportResponse], error)
+	// Get a URL valid for 60 seconds from signing that downloads a READY
+	// export's file without credentials, for a browser to save straight to
+	// disk. Each call returns a new URL.
+	//
+	// Errors:
+	//   - NOT_FOUND: no such export for the authenticated account.
+	//   - PERMISSION_DENIED: the caller may not read statements.
+	//   - FAILED_PRECONDITION (STATEMENT_EXPORT_NOT_READY): the file is not ready
+	//     yet; poll GetStatementExport until it is READY.
+	//   - FAILED_PRECONDITION (STATEMENT_EXPORT_FAILED): the export failed and has
+	//     no file.
+	//   - FAILED_PRECONDITION (STATEMENT_EXPORT_CANCELED): the export was
+	//     canceled and has no file.
+	//   - FAILED_PRECONDITION (STATEMENT_EXPORT_EXPIRED): the file expired, or
+	//     has less than 5 seconds left; create a new export.
+	//   - UNAVAILABLE: retry the same request.
+	GetStatementExportDownloadUrl(context.Context, *connect.Request[v1.GetStatementExportDownloadUrlRequest]) (*connect.Response[v1.GetStatementExportDownloadUrlResponse], error)
+	// Cancel a QUEUED or PROCESSING statement export. It ends CANCELED at
+	// once: it no longer counts toward the root account's 5 exports in
+	// progress, the account's next queued export can start, and any partial
+	// file is deleted. Canceling a CANCELED export returns it as it is.
+	//
+	// Errors:
+	//   - NOT_FOUND: no such export for the authenticated account.
+	//   - PERMISSION_DENIED: the caller may not read statements.
+	//   - FAILED_PRECONDITION (STATEMENT_EXPORT_NOT_CANCELABLE): the export
+	//     already finished, READY, FAILED or EXPIRED.
+	//   - UNAVAILABLE: retry the same request.
+	CancelStatementExport(context.Context, *connect.Request[v1.CancelStatementExportRequest]) (*connect.Response[v1.CancelStatementExportResponse], error)
 	// List one account's statement exports, newest first.
 	//
 	// Errors:
@@ -96,6 +131,20 @@ func NewStatementExportServiceClient(httpClient connect.HTTPClient, baseURL stri
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getStatementExportDownloadUrl: connect.NewClient[v1.GetStatementExportDownloadUrlRequest, v1.GetStatementExportDownloadUrlResponse](
+			httpClient,
+			baseURL+StatementExportServiceGetStatementExportDownloadUrlProcedure,
+			connect.WithSchema(statementExportServiceMethods.ByName("GetStatementExportDownloadUrl")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		cancelStatementExport: connect.NewClient[v1.CancelStatementExportRequest, v1.CancelStatementExportResponse](
+			httpClient,
+			baseURL+StatementExportServiceCancelStatementExportProcedure,
+			connect.WithSchema(statementExportServiceMethods.ByName("CancelStatementExport")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
 		listStatementExports: connect.NewClient[v1.ListStatementExportsRequest, v1.ListStatementExportsResponse](
 			httpClient,
 			baseURL+StatementExportServiceListStatementExportsProcedure,
@@ -108,9 +157,11 @@ func NewStatementExportServiceClient(httpClient connect.HTTPClient, baseURL stri
 
 // statementExportServiceClient implements StatementExportServiceClient.
 type statementExportServiceClient struct {
-	createStatementExport *connect.Client[v1.CreateStatementExportRequest, v1.CreateStatementExportResponse]
-	getStatementExport    *connect.Client[v1.GetStatementExportRequest, v1.GetStatementExportResponse]
-	listStatementExports  *connect.Client[v1.ListStatementExportsRequest, v1.ListStatementExportsResponse]
+	createStatementExport         *connect.Client[v1.CreateStatementExportRequest, v1.CreateStatementExportResponse]
+	getStatementExport            *connect.Client[v1.GetStatementExportRequest, v1.GetStatementExportResponse]
+	getStatementExportDownloadUrl *connect.Client[v1.GetStatementExportDownloadUrlRequest, v1.GetStatementExportDownloadUrlResponse]
+	cancelStatementExport         *connect.Client[v1.CancelStatementExportRequest, v1.CancelStatementExportResponse]
+	listStatementExports          *connect.Client[v1.ListStatementExportsRequest, v1.ListStatementExportsResponse]
 }
 
 // CreateStatementExport calls ledger.read.v1.StatementExportService.CreateStatementExport.
@@ -121,6 +172,17 @@ func (c *statementExportServiceClient) CreateStatementExport(ctx context.Context
 // GetStatementExport calls ledger.read.v1.StatementExportService.GetStatementExport.
 func (c *statementExportServiceClient) GetStatementExport(ctx context.Context, req *connect.Request[v1.GetStatementExportRequest]) (*connect.Response[v1.GetStatementExportResponse], error) {
 	return c.getStatementExport.CallUnary(ctx, req)
+}
+
+// GetStatementExportDownloadUrl calls
+// ledger.read.v1.StatementExportService.GetStatementExportDownloadUrl.
+func (c *statementExportServiceClient) GetStatementExportDownloadUrl(ctx context.Context, req *connect.Request[v1.GetStatementExportDownloadUrlRequest]) (*connect.Response[v1.GetStatementExportDownloadUrlResponse], error) {
+	return c.getStatementExportDownloadUrl.CallUnary(ctx, req)
+}
+
+// CancelStatementExport calls ledger.read.v1.StatementExportService.CancelStatementExport.
+func (c *statementExportServiceClient) CancelStatementExport(ctx context.Context, req *connect.Request[v1.CancelStatementExportRequest]) (*connect.Response[v1.CancelStatementExportResponse], error) {
+	return c.cancelStatementExport.CallUnary(ctx, req)
 }
 
 // ListStatementExports calls ledger.read.v1.StatementExportService.ListStatementExports.
@@ -149,6 +211,35 @@ type StatementExportServiceHandler interface {
 	// - NOT_FOUND: no such export for the authenticated account.
 	// - PERMISSION_DENIED: the export's account cannot be read.
 	GetStatementExport(context.Context, *connect.Request[v1.GetStatementExportRequest]) (*connect.Response[v1.GetStatementExportResponse], error)
+	// Get a URL valid for 60 seconds from signing that downloads a READY
+	// export's file without credentials, for a browser to save straight to
+	// disk. Each call returns a new URL.
+	//
+	// Errors:
+	//   - NOT_FOUND: no such export for the authenticated account.
+	//   - PERMISSION_DENIED: the caller may not read statements.
+	//   - FAILED_PRECONDITION (STATEMENT_EXPORT_NOT_READY): the file is not ready
+	//     yet; poll GetStatementExport until it is READY.
+	//   - FAILED_PRECONDITION (STATEMENT_EXPORT_FAILED): the export failed and has
+	//     no file.
+	//   - FAILED_PRECONDITION (STATEMENT_EXPORT_CANCELED): the export was
+	//     canceled and has no file.
+	//   - FAILED_PRECONDITION (STATEMENT_EXPORT_EXPIRED): the file expired, or
+	//     has less than 5 seconds left; create a new export.
+	//   - UNAVAILABLE: retry the same request.
+	GetStatementExportDownloadUrl(context.Context, *connect.Request[v1.GetStatementExportDownloadUrlRequest]) (*connect.Response[v1.GetStatementExportDownloadUrlResponse], error)
+	// Cancel a QUEUED or PROCESSING statement export. It ends CANCELED at
+	// once: it no longer counts toward the root account's 5 exports in
+	// progress, the account's next queued export can start, and any partial
+	// file is deleted. Canceling a CANCELED export returns it as it is.
+	//
+	// Errors:
+	//   - NOT_FOUND: no such export for the authenticated account.
+	//   - PERMISSION_DENIED: the caller may not read statements.
+	//   - FAILED_PRECONDITION (STATEMENT_EXPORT_NOT_CANCELABLE): the export
+	//     already finished, READY, FAILED or EXPIRED.
+	//   - UNAVAILABLE: retry the same request.
+	CancelStatementExport(context.Context, *connect.Request[v1.CancelStatementExportRequest]) (*connect.Response[v1.CancelStatementExportResponse], error)
 	// List one account's statement exports, newest first.
 	//
 	// Errors:
@@ -177,6 +268,20 @@ func NewStatementExportServiceHandler(svc StatementExportServiceHandler, opts ..
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	statementExportServiceGetStatementExportDownloadUrlHandler := connect.NewUnaryHandler(
+		StatementExportServiceGetStatementExportDownloadUrlProcedure,
+		svc.GetStatementExportDownloadUrl,
+		connect.WithSchema(statementExportServiceMethods.ByName("GetStatementExportDownloadUrl")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	statementExportServiceCancelStatementExportHandler := connect.NewUnaryHandler(
+		StatementExportServiceCancelStatementExportProcedure,
+		svc.CancelStatementExport,
+		connect.WithSchema(statementExportServiceMethods.ByName("CancelStatementExport")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
 	statementExportServiceListStatementExportsHandler := connect.NewUnaryHandler(
 		StatementExportServiceListStatementExportsProcedure,
 		svc.ListStatementExports,
@@ -190,6 +295,10 @@ func NewStatementExportServiceHandler(svc StatementExportServiceHandler, opts ..
 			statementExportServiceCreateStatementExportHandler.ServeHTTP(w, r)
 		case StatementExportServiceGetStatementExportProcedure:
 			statementExportServiceGetStatementExportHandler.ServeHTTP(w, r)
+		case StatementExportServiceGetStatementExportDownloadUrlProcedure:
+			statementExportServiceGetStatementExportDownloadUrlHandler.ServeHTTP(w, r)
+		case StatementExportServiceCancelStatementExportProcedure:
+			statementExportServiceCancelStatementExportHandler.ServeHTTP(w, r)
 		case StatementExportServiceListStatementExportsProcedure:
 			statementExportServiceListStatementExportsHandler.ServeHTTP(w, r)
 		default:
@@ -207,6 +316,14 @@ func (UnimplementedStatementExportServiceHandler) CreateStatementExport(context.
 
 func (UnimplementedStatementExportServiceHandler) GetStatementExport(context.Context, *connect.Request[v1.GetStatementExportRequest]) (*connect.Response[v1.GetStatementExportResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ledger.read.v1.StatementExportService.GetStatementExport is not implemented"))
+}
+
+func (UnimplementedStatementExportServiceHandler) GetStatementExportDownloadUrl(context.Context, *connect.Request[v1.GetStatementExportDownloadUrlRequest]) (*connect.Response[v1.GetStatementExportDownloadUrlResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ledger.read.v1.StatementExportService.GetStatementExportDownloadUrl is not implemented"))
+}
+
+func (UnimplementedStatementExportServiceHandler) CancelStatementExport(context.Context, *connect.Request[v1.CancelStatementExportRequest]) (*connect.Response[v1.CancelStatementExportResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ledger.read.v1.StatementExportService.CancelStatementExport is not implemented"))
 }
 
 func (UnimplementedStatementExportServiceHandler) ListStatementExports(context.Context, *connect.Request[v1.ListStatementExportsRequest]) (*connect.Response[v1.ListStatementExportsResponse], error) {

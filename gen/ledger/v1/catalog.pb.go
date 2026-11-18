@@ -132,6 +132,10 @@ const (
 	// refunded, and Zipper settles it with the user outside Polyester Chain. A withdrawal from the
 	// Trading account uses TRADING_WITHDRAW_REQUEST_FEE instead.
 	TransferCode_WITHDRAW_FAILED TransferCode = 1075
+	// One leg of an all-or-nothing batch of internal transfers between Trading
+	// accounts: credited together with the batch's other legs. Legs of one batch
+	// share its batch reference.
+	TransferCode_INTERNAL_BATCH TransferCode = 1078
 )
 
 // Enum value maps for TransferCode.
@@ -159,6 +163,7 @@ var (
 		1073: "FEE_REFILL",
 		1074: "SYSTEM_ADJUSTMENT",
 		1075: "WITHDRAW_FAILED",
+		1078: "INTERNAL_BATCH",
 	}
 	TransferCode_value = map[string]int32{
 		"TRANSFER_CODE_UNSPECIFIED":    0,
@@ -183,6 +188,7 @@ var (
 		"FEE_REFILL":                   1073,
 		"SYSTEM_ADJUSTMENT":            1074,
 		"WITHDRAW_FAILED":              1075,
+		"INTERNAL_BATCH":               1078,
 	}
 )
 
@@ -221,7 +227,7 @@ const file_ledger_v1_catalog_proto_rawDesc = "" +
 	"\vAccountCode\x12\x1c\n" +
 	"\x18ACCOUNT_CODE_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\aFUNDING\x10\xac\x02\x12\f\n" +
-	"\aTRADING\x10\xad\x02*\x87\x04\n" +
+	"\aTRADING\x10\xad\x02*\x9c\x04\n" +
 	"\fTransferCode\x12\x1d\n" +
 	"\x19TRANSFER_CODE_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\aDEPOSIT\x10\xe8\a\x12\r\n" +
@@ -246,7 +252,8 @@ const file_ledger_v1_catalog_proto_rawDesc = "" +
 	"\n" +
 	"FEE_REFILL\x10\xb1\b\x12\x16\n" +
 	"\x11SYSTEM_ADJUSTMENT\x10\xb2\b\x12\x14\n" +
-	"\x0fWITHDRAW_FAILED\x10\xb3\bB@Z>github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/v1;ledgerv1b\x06proto3"
+	"\x0fWITHDRAW_FAILED\x10\xb3\b\x12\x13\n" +
+	"\x0eINTERNAL_BATCH\x10\xb6\bB@Z>github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/v1;ledgerv1b\x06proto3"
 
 var (
 	file_ledger_v1_catalog_proto_rawDescOnce sync.Once

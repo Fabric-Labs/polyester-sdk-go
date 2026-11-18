@@ -51,6 +51,9 @@ const (
 	// AssistantServiceListMessagesProcedure is the fully-qualified name of the AssistantService's
 	// ListMessages RPC.
 	AssistantServiceListMessagesProcedure = "/ai.v1.AssistantService/ListMessages"
+	// AssistantServiceGetMessageImageProcedure is the fully-qualified name of the AssistantService's
+	// GetMessageImage RPC.
+	AssistantServiceGetMessageImageProcedure = "/ai.v1.AssistantService/GetMessageImage"
 	// AssistantServiceListMemoriesProcedure is the fully-qualified name of the AssistantService's
 	// ListMemories RPC.
 	AssistantServiceListMemoriesProcedure = "/ai.v1.AssistantService/ListMemories"
@@ -72,6 +75,18 @@ const (
 	// AssistantServiceSetTelegramApprovalLimitsProcedure is the fully-qualified name of the
 	// AssistantService's SetTelegramApprovalLimits RPC.
 	AssistantServiceSetTelegramApprovalLimitsProcedure = "/ai.v1.AssistantService/SetTelegramApprovalLimits"
+	// AssistantServiceSetModelKeyProcedure is the fully-qualified name of the AssistantService's
+	// SetModelKey RPC.
+	AssistantServiceSetModelKeyProcedure = "/ai.v1.AssistantService/SetModelKey"
+	// AssistantServiceGetModelKeyProcedure is the fully-qualified name of the AssistantService's
+	// GetModelKey RPC.
+	AssistantServiceGetModelKeyProcedure = "/ai.v1.AssistantService/GetModelKey"
+	// AssistantServiceDeleteModelKeyProcedure is the fully-qualified name of the AssistantService's
+	// DeleteModelKey RPC.
+	AssistantServiceDeleteModelKeyProcedure = "/ai.v1.AssistantService/DeleteModelKey"
+	// AssistantServiceGetUsageProcedure is the fully-qualified name of the AssistantService's GetUsage
+	// RPC.
+	AssistantServiceGetUsageProcedure = "/ai.v1.AssistantService/GetUsage"
 )
 
 // AssistantServiceClient is a client for the ai.v1.AssistantService service.
@@ -79,12 +94,18 @@ type AssistantServiceClient interface {
 	// SendMessage records the caller's message and starts a run that answers
 	// it. It returns once the run is recorded; follow the run with WatchRun. A
 	// conversation runs one run at a time. It is idempotent per caller and key:
-	// repeat the request unchanged to resolve an unknown outcome.
+	// repeat the request unchanged to resolve an unknown outcome. When the
+	// caller has saved their own OpenAI API key (SetModelKey), the run's model
+	// requests use it instead of the assistant's own allowance.
 	//
 	// Errors:
-	//   - INVALID_ARGUMENT: malformed request.
+	//   - INVALID_ARGUMENT: malformed request; IMAGE_TOO_LARGE,
+	//     IMAGE_TYPE_UNSUPPORTED or TOO_MANY_IMAGES for the attached images.
+	//     Nothing is recorded.
 	//   - NOT_FOUND: CONVERSATION_NOT_FOUND.
-	//   - FAILED_PRECONDITION: RUN_ACTIVE; nothing is recorded.
+	//   - FAILED_PRECONDITION: RUN_ACTIVE, or CONVERSATION_ADVANCED when
+	//     expected_latest_run_id is no longer the conversation's latest run;
+	//     nothing is recorded.
 	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT; the original run stands.
 	//   - RESOURCE_EXHAUSTED: USAGE_LIMIT_REACHED; retry later.
 	//   - UNAVAILABLE, DEADLINE_EXCEEDED: SERVICE_UNAVAILABLE or an unknown
@@ -145,6 +166,15 @@ type AssistantServiceClient interface {
 	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry later.
 	// - UNAUTHENTICATED: missing or invalid credentials.
 	ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error)
+	// GetMessageImage returns one image of the caller's messages, as the
+	// message's MessageImage describes it.
+	//
+	// Errors:
+	// - INVALID_ARGUMENT: malformed request.
+	// - NOT_FOUND: IMAGE_NOT_FOUND.
+	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry later.
+	// - UNAUTHENTICATED: missing or invalid credentials.
+	GetMessageImage(context.Context, *connect.Request[v1.GetMessageImageRequest]) (*connect.Response[v1.GetMessageImageResponse], error)
 	// ListMemories lists what the assistant remembers about the caller, newest
 	// first. Each memory carries its kind: a PROFILE memory applies to every
 	// answer, the others are used when relevant to a message.
@@ -211,13 +241,77 @@ type AssistantServiceClient interface {
 	// SetTelegramApprovalLimits replaces the caller's optional limits on what
 	// they may approve from Telegram. A limit left unset is turned off. Only a
 	// signed-in session sets them, never Telegram; they apply to the next
-	// approval from Telegram.
+	// approval from Telegram. Raising a limit, or turning one off, allows more
+	// from Telegram, so it needs the session's recent-MFA window open for
+	// auth.v1 RECENT_MFA_ACTION_TELEGRAM_APPROVAL_LIMITS: complete an MFA
+	// challenge for fresh step-up first, unless auth.v1 MFAService.GetRecentMFA
+	// says the window is open. Setting a new limit or lowering one needs no MFA.
 	//
 	// Errors:
-	// - INVALID_ARGUMENT: malformed request.
-	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry the same request.
-	// - UNAUTHENTICATED: missing or invalid credentials.
+	//   - INVALID_ARGUMENT: malformed request.
+	//   - PERMISSION_DENIED: auth.v1 AuthErrorDetail AUTH_STEP_UP_REQUIRED or
+	//     AUTH_RECENT_MFA_EXPIRED; complete a fresh step-up and retry.
+	//   - ABORTED: the limits changed at the same time; read them and retry.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry the same request.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
 	SetTelegramApprovalLimits(context.Context, *connect.Request[v1.SetTelegramApprovalLimitsRequest]) (*connect.Response[v1.SetTelegramApprovalLimitsResponse], error)
+	// SetModelKey saves the caller's own OpenAI API key, replacing any earlier
+	// one. The key is checked with a small request to OpenAI first and saved
+	// only when OpenAI accepts it for the assistant's model; it is stored
+	// encrypted and never returned. From then on, every model request of the
+	// caller's runs, on any channel, uses this key and is billed to its OpenAI
+	// account instead of the assistant's own allowance; the per-run limits and
+	// the request rate limits still apply. A run uses only the key saved when
+	// its message was sent: replacing or deleting that key never moves the run
+	// to another key or to the assistant's allowance, so the run either
+	// finishes on its key or ends with MODEL_KEY_REFUSED. When OpenAI refuses
+	// the key during a run, the run ends with MODEL_KEY_REFUSED. Only a
+	// signed-in session sets it.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request, including a value that is not an
+	//     OpenAI secret API key.
+	//   - FAILED_PRECONDITION: MODEL_KEY_REJECTED, MODEL_KEY_NO_QUOTA or
+	//     MODEL_KEY_MODEL_UNAVAILABLE; nothing was saved.
+	//   - RESOURCE_EXHAUSTED: USAGE_LIMIT_REACHED; retry later.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE, including when OpenAI could not be
+	//     reached to check the key; nothing was saved. Retry the request.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	//   - PERMISSION_DENIED: the request was made with an API key.
+	SetModelKey(context.Context, *connect.Request[v1.SetModelKeyRequest]) (*connect.Response[v1.SetModelKeyResponse], error)
+	// GetModelKey reads the status of the caller's own OpenAI API key: its
+	// last four characters, when it was saved, and its last check. The key
+	// itself is never returned.
+	//
+	// Errors:
+	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry later.
+	// - UNAUTHENTICATED: missing or invalid credentials.
+	// - PERMISSION_DENIED: the request was made with an API key.
+	GetModelKey(context.Context, *connect.Request[v1.GetModelKeyRequest]) (*connect.Response[v1.GetModelKeyResponse], error)
+	// DeleteModelKey deletes the caller's own OpenAI API key. Messages sent
+	// after it use the assistant's own allowance again. A run of a message sent
+	// before it never moves to the assistant's allowance: it finishes on the
+	// deleted key or ends with MODEL_KEY_REFUSED. Deleting when there is no key
+	// succeeds.
+	//
+	// Errors:
+	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry the request.
+	// - UNAUTHENTICATED: missing or invalid credentials.
+	// - PERMISSION_DENIED: the request was made with an API key.
+	DeleteModelKey(context.Context, *connect.Request[v1.DeleteModelKeyRequest]) (*connect.Response[v1.DeleteModelKeyResponse], error)
+	// GetUsage reads the caller's assistant credits today: the free daily
+	// credits of the caller's VIP tier, how many are used and left, when they
+	// reset, what pays for the caller's next messages, and the next VIP tier's
+	// free credits. A message is answered while free credits are left, or on
+	// the caller's own OpenAI API key, which uses none. Only a signed-in
+	// session reads it.
+	//
+	// Errors:
+	// - RESOURCE_EXHAUSTED: USAGE_LIMIT_REACHED; retry later.
+	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry later.
+	// - UNAUTHENTICATED: missing or invalid credentials.
+	// - PERMISSION_DENIED: the request was made with an API key.
+	GetUsage(context.Context, *connect.Request[v1.GetUsageRequest]) (*connect.Response[v1.GetUsageResponse], error)
 }
 
 // NewAssistantServiceClient constructs a client for the ai.v1.AssistantService service. By default,
@@ -271,6 +365,13 @@ func NewAssistantServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		getMessageImage: connect.NewClient[v1.GetMessageImageRequest, v1.GetMessageImageResponse](
+			httpClient,
+			baseURL+AssistantServiceGetMessageImageProcedure,
+			connect.WithSchema(assistantServiceMethods.ByName("GetMessageImage")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 		listMemories: connect.NewClient[v1.ListMemoriesRequest, v1.ListMemoriesResponse](
 			httpClient,
 			baseURL+AssistantServiceListMemoriesProcedure,
@@ -319,6 +420,33 @@ func NewAssistantServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithIdempotency(connect.IdempotencyIdempotent),
 			connect.WithClientOptions(opts...),
 		),
+		setModelKey: connect.NewClient[v1.SetModelKeyRequest, v1.SetModelKeyResponse](
+			httpClient,
+			baseURL+AssistantServiceSetModelKeyProcedure,
+			connect.WithSchema(assistantServiceMethods.ByName("SetModelKey")),
+			connect.WithClientOptions(opts...),
+		),
+		getModelKey: connect.NewClient[v1.GetModelKeyRequest, v1.GetModelKeyResponse](
+			httpClient,
+			baseURL+AssistantServiceGetModelKeyProcedure,
+			connect.WithSchema(assistantServiceMethods.ByName("GetModelKey")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		deleteModelKey: connect.NewClient[v1.DeleteModelKeyRequest, v1.DeleteModelKeyResponse](
+			httpClient,
+			baseURL+AssistantServiceDeleteModelKeyProcedure,
+			connect.WithSchema(assistantServiceMethods.ByName("DeleteModelKey")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
+		getUsage: connect.NewClient[v1.GetUsageRequest, v1.GetUsageResponse](
+			httpClient,
+			baseURL+AssistantServiceGetUsageProcedure,
+			connect.WithSchema(assistantServiceMethods.ByName("GetUsage")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -330,6 +458,7 @@ type assistantServiceClient struct {
 	decideApproval            *connect.Client[v1.DecideApprovalRequest, v1.DecideApprovalResponse]
 	listConversations         *connect.Client[v1.ListConversationsRequest, v1.ListConversationsResponse]
 	listMessages              *connect.Client[v1.ListMessagesRequest, v1.ListMessagesResponse]
+	getMessageImage           *connect.Client[v1.GetMessageImageRequest, v1.GetMessageImageResponse]
 	listMemories              *connect.Client[v1.ListMemoriesRequest, v1.ListMemoriesResponse]
 	deleteMemory              *connect.Client[v1.DeleteMemoryRequest, v1.DeleteMemoryResponse]
 	prepareAssistantKeys      *connect.Client[v1.PrepareAssistantKeysRequest, v1.PrepareAssistantKeysResponse]
@@ -337,6 +466,10 @@ type assistantServiceClient struct {
 	listAssistantKeys         *connect.Client[v1.ListAssistantKeysRequest, v1.ListAssistantKeysResponse]
 	getTelegramApprovalLimits *connect.Client[v1.GetTelegramApprovalLimitsRequest, v1.GetTelegramApprovalLimitsResponse]
 	setTelegramApprovalLimits *connect.Client[v1.SetTelegramApprovalLimitsRequest, v1.SetTelegramApprovalLimitsResponse]
+	setModelKey               *connect.Client[v1.SetModelKeyRequest, v1.SetModelKeyResponse]
+	getModelKey               *connect.Client[v1.GetModelKeyRequest, v1.GetModelKeyResponse]
+	deleteModelKey            *connect.Client[v1.DeleteModelKeyRequest, v1.DeleteModelKeyResponse]
+	getUsage                  *connect.Client[v1.GetUsageRequest, v1.GetUsageResponse]
 }
 
 // SendMessage calls ai.v1.AssistantService.SendMessage.
@@ -367,6 +500,11 @@ func (c *assistantServiceClient) ListConversations(ctx context.Context, req *con
 // ListMessages calls ai.v1.AssistantService.ListMessages.
 func (c *assistantServiceClient) ListMessages(ctx context.Context, req *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error) {
 	return c.listMessages.CallUnary(ctx, req)
+}
+
+// GetMessageImage calls ai.v1.AssistantService.GetMessageImage.
+func (c *assistantServiceClient) GetMessageImage(ctx context.Context, req *connect.Request[v1.GetMessageImageRequest]) (*connect.Response[v1.GetMessageImageResponse], error) {
+	return c.getMessageImage.CallUnary(ctx, req)
 }
 
 // ListMemories calls ai.v1.AssistantService.ListMemories.
@@ -404,17 +542,43 @@ func (c *assistantServiceClient) SetTelegramApprovalLimits(ctx context.Context, 
 	return c.setTelegramApprovalLimits.CallUnary(ctx, req)
 }
 
+// SetModelKey calls ai.v1.AssistantService.SetModelKey.
+func (c *assistantServiceClient) SetModelKey(ctx context.Context, req *connect.Request[v1.SetModelKeyRequest]) (*connect.Response[v1.SetModelKeyResponse], error) {
+	return c.setModelKey.CallUnary(ctx, req)
+}
+
+// GetModelKey calls ai.v1.AssistantService.GetModelKey.
+func (c *assistantServiceClient) GetModelKey(ctx context.Context, req *connect.Request[v1.GetModelKeyRequest]) (*connect.Response[v1.GetModelKeyResponse], error) {
+	return c.getModelKey.CallUnary(ctx, req)
+}
+
+// DeleteModelKey calls ai.v1.AssistantService.DeleteModelKey.
+func (c *assistantServiceClient) DeleteModelKey(ctx context.Context, req *connect.Request[v1.DeleteModelKeyRequest]) (*connect.Response[v1.DeleteModelKeyResponse], error) {
+	return c.deleteModelKey.CallUnary(ctx, req)
+}
+
+// GetUsage calls ai.v1.AssistantService.GetUsage.
+func (c *assistantServiceClient) GetUsage(ctx context.Context, req *connect.Request[v1.GetUsageRequest]) (*connect.Response[v1.GetUsageResponse], error) {
+	return c.getUsage.CallUnary(ctx, req)
+}
+
 // AssistantServiceHandler is an implementation of the ai.v1.AssistantService service.
 type AssistantServiceHandler interface {
 	// SendMessage records the caller's message and starts a run that answers
 	// it. It returns once the run is recorded; follow the run with WatchRun. A
 	// conversation runs one run at a time. It is idempotent per caller and key:
-	// repeat the request unchanged to resolve an unknown outcome.
+	// repeat the request unchanged to resolve an unknown outcome. When the
+	// caller has saved their own OpenAI API key (SetModelKey), the run's model
+	// requests use it instead of the assistant's own allowance.
 	//
 	// Errors:
-	//   - INVALID_ARGUMENT: malformed request.
+	//   - INVALID_ARGUMENT: malformed request; IMAGE_TOO_LARGE,
+	//     IMAGE_TYPE_UNSUPPORTED or TOO_MANY_IMAGES for the attached images.
+	//     Nothing is recorded.
 	//   - NOT_FOUND: CONVERSATION_NOT_FOUND.
-	//   - FAILED_PRECONDITION: RUN_ACTIVE; nothing is recorded.
+	//   - FAILED_PRECONDITION: RUN_ACTIVE, or CONVERSATION_ADVANCED when
+	//     expected_latest_run_id is no longer the conversation's latest run;
+	//     nothing is recorded.
 	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT; the original run stands.
 	//   - RESOURCE_EXHAUSTED: USAGE_LIMIT_REACHED; retry later.
 	//   - UNAVAILABLE, DEADLINE_EXCEEDED: SERVICE_UNAVAILABLE or an unknown
@@ -475,6 +639,15 @@ type AssistantServiceHandler interface {
 	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry later.
 	// - UNAUTHENTICATED: missing or invalid credentials.
 	ListMessages(context.Context, *connect.Request[v1.ListMessagesRequest]) (*connect.Response[v1.ListMessagesResponse], error)
+	// GetMessageImage returns one image of the caller's messages, as the
+	// message's MessageImage describes it.
+	//
+	// Errors:
+	// - INVALID_ARGUMENT: malformed request.
+	// - NOT_FOUND: IMAGE_NOT_FOUND.
+	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry later.
+	// - UNAUTHENTICATED: missing or invalid credentials.
+	GetMessageImage(context.Context, *connect.Request[v1.GetMessageImageRequest]) (*connect.Response[v1.GetMessageImageResponse], error)
 	// ListMemories lists what the assistant remembers about the caller, newest
 	// first. Each memory carries its kind: a PROFILE memory applies to every
 	// answer, the others are used when relevant to a message.
@@ -541,13 +714,77 @@ type AssistantServiceHandler interface {
 	// SetTelegramApprovalLimits replaces the caller's optional limits on what
 	// they may approve from Telegram. A limit left unset is turned off. Only a
 	// signed-in session sets them, never Telegram; they apply to the next
-	// approval from Telegram.
+	// approval from Telegram. Raising a limit, or turning one off, allows more
+	// from Telegram, so it needs the session's recent-MFA window open for
+	// auth.v1 RECENT_MFA_ACTION_TELEGRAM_APPROVAL_LIMITS: complete an MFA
+	// challenge for fresh step-up first, unless auth.v1 MFAService.GetRecentMFA
+	// says the window is open. Setting a new limit or lowering one needs no MFA.
 	//
 	// Errors:
-	// - INVALID_ARGUMENT: malformed request.
-	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry the same request.
-	// - UNAUTHENTICATED: missing or invalid credentials.
+	//   - INVALID_ARGUMENT: malformed request.
+	//   - PERMISSION_DENIED: auth.v1 AuthErrorDetail AUTH_STEP_UP_REQUIRED or
+	//     AUTH_RECENT_MFA_EXPIRED; complete a fresh step-up and retry.
+	//   - ABORTED: the limits changed at the same time; read them and retry.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry the same request.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
 	SetTelegramApprovalLimits(context.Context, *connect.Request[v1.SetTelegramApprovalLimitsRequest]) (*connect.Response[v1.SetTelegramApprovalLimitsResponse], error)
+	// SetModelKey saves the caller's own OpenAI API key, replacing any earlier
+	// one. The key is checked with a small request to OpenAI first and saved
+	// only when OpenAI accepts it for the assistant's model; it is stored
+	// encrypted and never returned. From then on, every model request of the
+	// caller's runs, on any channel, uses this key and is billed to its OpenAI
+	// account instead of the assistant's own allowance; the per-run limits and
+	// the request rate limits still apply. A run uses only the key saved when
+	// its message was sent: replacing or deleting that key never moves the run
+	// to another key or to the assistant's allowance, so the run either
+	// finishes on its key or ends with MODEL_KEY_REFUSED. When OpenAI refuses
+	// the key during a run, the run ends with MODEL_KEY_REFUSED. Only a
+	// signed-in session sets it.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request, including a value that is not an
+	//     OpenAI secret API key.
+	//   - FAILED_PRECONDITION: MODEL_KEY_REJECTED, MODEL_KEY_NO_QUOTA or
+	//     MODEL_KEY_MODEL_UNAVAILABLE; nothing was saved.
+	//   - RESOURCE_EXHAUSTED: USAGE_LIMIT_REACHED; retry later.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE, including when OpenAI could not be
+	//     reached to check the key; nothing was saved. Retry the request.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	//   - PERMISSION_DENIED: the request was made with an API key.
+	SetModelKey(context.Context, *connect.Request[v1.SetModelKeyRequest]) (*connect.Response[v1.SetModelKeyResponse], error)
+	// GetModelKey reads the status of the caller's own OpenAI API key: its
+	// last four characters, when it was saved, and its last check. The key
+	// itself is never returned.
+	//
+	// Errors:
+	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry later.
+	// - UNAUTHENTICATED: missing or invalid credentials.
+	// - PERMISSION_DENIED: the request was made with an API key.
+	GetModelKey(context.Context, *connect.Request[v1.GetModelKeyRequest]) (*connect.Response[v1.GetModelKeyResponse], error)
+	// DeleteModelKey deletes the caller's own OpenAI API key. Messages sent
+	// after it use the assistant's own allowance again. A run of a message sent
+	// before it never moves to the assistant's allowance: it finishes on the
+	// deleted key or ends with MODEL_KEY_REFUSED. Deleting when there is no key
+	// succeeds.
+	//
+	// Errors:
+	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry the request.
+	// - UNAUTHENTICATED: missing or invalid credentials.
+	// - PERMISSION_DENIED: the request was made with an API key.
+	DeleteModelKey(context.Context, *connect.Request[v1.DeleteModelKeyRequest]) (*connect.Response[v1.DeleteModelKeyResponse], error)
+	// GetUsage reads the caller's assistant credits today: the free daily
+	// credits of the caller's VIP tier, how many are used and left, when they
+	// reset, what pays for the caller's next messages, and the next VIP tier's
+	// free credits. A message is answered while free credits are left, or on
+	// the caller's own OpenAI API key, which uses none. Only a signed-in
+	// session reads it.
+	//
+	// Errors:
+	// - RESOURCE_EXHAUSTED: USAGE_LIMIT_REACHED; retry later.
+	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry later.
+	// - UNAUTHENTICATED: missing or invalid credentials.
+	// - PERMISSION_DENIED: the request was made with an API key.
+	GetUsage(context.Context, *connect.Request[v1.GetUsageRequest]) (*connect.Response[v1.GetUsageResponse], error)
 }
 
 // NewAssistantServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -594,6 +831,13 @@ func NewAssistantServiceHandler(svc AssistantServiceHandler, opts ...connect.Han
 		AssistantServiceListMessagesProcedure,
 		svc.ListMessages,
 		connect.WithSchema(assistantServiceMethods.ByName("ListMessages")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	assistantServiceGetMessageImageHandler := connect.NewUnaryHandler(
+		AssistantServiceGetMessageImageProcedure,
+		svc.GetMessageImage,
+		connect.WithSchema(assistantServiceMethods.ByName("GetMessageImage")),
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
@@ -645,6 +889,33 @@ func NewAssistantServiceHandler(svc AssistantServiceHandler, opts ...connect.Han
 		connect.WithIdempotency(connect.IdempotencyIdempotent),
 		connect.WithHandlerOptions(opts...),
 	)
+	assistantServiceSetModelKeyHandler := connect.NewUnaryHandler(
+		AssistantServiceSetModelKeyProcedure,
+		svc.SetModelKey,
+		connect.WithSchema(assistantServiceMethods.ByName("SetModelKey")),
+		connect.WithHandlerOptions(opts...),
+	)
+	assistantServiceGetModelKeyHandler := connect.NewUnaryHandler(
+		AssistantServiceGetModelKeyProcedure,
+		svc.GetModelKey,
+		connect.WithSchema(assistantServiceMethods.ByName("GetModelKey")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	assistantServiceDeleteModelKeyHandler := connect.NewUnaryHandler(
+		AssistantServiceDeleteModelKeyProcedure,
+		svc.DeleteModelKey,
+		connect.WithSchema(assistantServiceMethods.ByName("DeleteModelKey")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
+	assistantServiceGetUsageHandler := connect.NewUnaryHandler(
+		AssistantServiceGetUsageProcedure,
+		svc.GetUsage,
+		connect.WithSchema(assistantServiceMethods.ByName("GetUsage")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/ai.v1.AssistantService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AssistantServiceSendMessageProcedure:
@@ -659,6 +930,8 @@ func NewAssistantServiceHandler(svc AssistantServiceHandler, opts ...connect.Han
 			assistantServiceListConversationsHandler.ServeHTTP(w, r)
 		case AssistantServiceListMessagesProcedure:
 			assistantServiceListMessagesHandler.ServeHTTP(w, r)
+		case AssistantServiceGetMessageImageProcedure:
+			assistantServiceGetMessageImageHandler.ServeHTTP(w, r)
 		case AssistantServiceListMemoriesProcedure:
 			assistantServiceListMemoriesHandler.ServeHTTP(w, r)
 		case AssistantServiceDeleteMemoryProcedure:
@@ -673,6 +946,14 @@ func NewAssistantServiceHandler(svc AssistantServiceHandler, opts ...connect.Han
 			assistantServiceGetTelegramApprovalLimitsHandler.ServeHTTP(w, r)
 		case AssistantServiceSetTelegramApprovalLimitsProcedure:
 			assistantServiceSetTelegramApprovalLimitsHandler.ServeHTTP(w, r)
+		case AssistantServiceSetModelKeyProcedure:
+			assistantServiceSetModelKeyHandler.ServeHTTP(w, r)
+		case AssistantServiceGetModelKeyProcedure:
+			assistantServiceGetModelKeyHandler.ServeHTTP(w, r)
+		case AssistantServiceDeleteModelKeyProcedure:
+			assistantServiceDeleteModelKeyHandler.ServeHTTP(w, r)
+		case AssistantServiceGetUsageProcedure:
+			assistantServiceGetUsageHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -706,6 +987,10 @@ func (UnimplementedAssistantServiceHandler) ListMessages(context.Context, *conne
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ai.v1.AssistantService.ListMessages is not implemented"))
 }
 
+func (UnimplementedAssistantServiceHandler) GetMessageImage(context.Context, *connect.Request[v1.GetMessageImageRequest]) (*connect.Response[v1.GetMessageImageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ai.v1.AssistantService.GetMessageImage is not implemented"))
+}
+
 func (UnimplementedAssistantServiceHandler) ListMemories(context.Context, *connect.Request[v1.ListMemoriesRequest]) (*connect.Response[v1.ListMemoriesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ai.v1.AssistantService.ListMemories is not implemented"))
 }
@@ -732,4 +1017,20 @@ func (UnimplementedAssistantServiceHandler) GetTelegramApprovalLimits(context.Co
 
 func (UnimplementedAssistantServiceHandler) SetTelegramApprovalLimits(context.Context, *connect.Request[v1.SetTelegramApprovalLimitsRequest]) (*connect.Response[v1.SetTelegramApprovalLimitsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ai.v1.AssistantService.SetTelegramApprovalLimits is not implemented"))
+}
+
+func (UnimplementedAssistantServiceHandler) SetModelKey(context.Context, *connect.Request[v1.SetModelKeyRequest]) (*connect.Response[v1.SetModelKeyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ai.v1.AssistantService.SetModelKey is not implemented"))
+}
+
+func (UnimplementedAssistantServiceHandler) GetModelKey(context.Context, *connect.Request[v1.GetModelKeyRequest]) (*connect.Response[v1.GetModelKeyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ai.v1.AssistantService.GetModelKey is not implemented"))
+}
+
+func (UnimplementedAssistantServiceHandler) DeleteModelKey(context.Context, *connect.Request[v1.DeleteModelKeyRequest]) (*connect.Response[v1.DeleteModelKeyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ai.v1.AssistantService.DeleteModelKey is not implemented"))
+}
+
+func (UnimplementedAssistantServiceHandler) GetUsage(context.Context, *connect.Request[v1.GetUsageRequest]) (*connect.Response[v1.GetUsageResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ai.v1.AssistantService.GetUsage is not implemented"))
 }

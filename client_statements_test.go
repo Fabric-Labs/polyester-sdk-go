@@ -2,8 +2,11 @@ package polyester
 
 import (
 	"context"
+	"encoding/json"
 	stderrors "errors"
+	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -15,37 +18,69 @@ import (
 	ledgerrdv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1/ledgerrdv1connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
+	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/services"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-type fakeStatements struct {
-	ledgerrdv1connect.UnimplementedLedgerReadServiceHandler
+type fakeStatementExports struct {
+	ledgerrdv1connect.UnimplementedStatementExportServiceHandler
 
 	mu       sync.Mutex
-	requests []*ledgerrdv1.ExportStatementRequest
+	creates  []*ledgerrdv1.CreateStatementExportRequest
+	cancels  []*ledgerrdv1.CancelStatementExportRequest
+	urls     []*ledgerrdv1.GetStatementExportDownloadUrlRequest
 	unsigned int
-	pages    map[string]*ledgerrdv1.ExportStatementResponse
+	cancel   *ledgerrdv1.CancelStatementExportResponse
+	url      *ledgerrdv1.GetStatementExportDownloadUrlResponse
+	list     *ledgerrdv1.ListStatementExportsResponse
 }
 
-func (f *fakeStatements) ExportStatement(_ context.Context, req *connect.Request[ledgerrdv1.ExportStatementRequest]) (*connect.Response[ledgerrdv1.ExportStatementResponse], error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.requests = append(f.requests, proto.Clone(req.Msg).(*ledgerrdv1.ExportStatementRequest))
-	if req.Header().Get("X-API-KEY-ID") == "" || req.Header().Get("X-API-SIGNATURE") == "" {
+func (f *fakeStatementExports) signed(h http.Header) {
+	if h.Get("X-API-KEY-ID") == "" || h.Get("X-API-SIGNATURE") == "" {
 		f.unsigned++
 	}
-	page, ok := f.pages[req.Msg.GetPageToken()]
-	if !ok {
-		return nil, connect.NewError(connect.CodeInvalidArgument, stderrors.New("unknown page token"))
-	}
-	return connect.NewResponse(page), nil
 }
 
-func newStatementsClient(t *testing.T, fake *fakeStatements, defaultSub *string) *Client {
+func (f *fakeStatementExports) CreateStatementExport(_ context.Context, req *connect.Request[ledgerrdv1.CreateStatementExportRequest]) (*connect.Response[ledgerrdv1.CreateStatementExportResponse], error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.signed(req.Header())
+	f.creates = append(f.creates, proto.Clone(req.Msg).(*ledgerrdv1.CreateStatementExportRequest))
+	return connect.NewResponse(&ledgerrdv1.CreateStatementExportResponse{Export: &ledgerrdv1.StatementExport{
+		ExportId: 7000000001,
+		Status:   ledgerrdv1.StatementExportStatus_STATEMENT_EXPORT_STATUS_QUEUED,
+	}}), nil
+}
+
+func (f *fakeStatementExports) CancelStatementExport(_ context.Context, req *connect.Request[ledgerrdv1.CancelStatementExportRequest]) (*connect.Response[ledgerrdv1.CancelStatementExportResponse], error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.signed(req.Header())
+	f.cancels = append(f.cancels, proto.Clone(req.Msg).(*ledgerrdv1.CancelStatementExportRequest))
+	return connect.NewResponse(f.cancel), nil
+}
+
+func (f *fakeStatementExports) GetStatementExportDownloadUrl(_ context.Context, req *connect.Request[ledgerrdv1.GetStatementExportDownloadUrlRequest]) (*connect.Response[ledgerrdv1.GetStatementExportDownloadUrlResponse], error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.signed(req.Header())
+	f.urls = append(f.urls, proto.Clone(req.Msg).(*ledgerrdv1.GetStatementExportDownloadUrlRequest))
+	return connect.NewResponse(f.url), nil
+}
+
+func (f *fakeStatementExports) ListStatementExports(_ context.Context, req *connect.Request[ledgerrdv1.ListStatementExportsRequest]) (*connect.Response[ledgerrdv1.ListStatementExportsResponse], error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.signed(req.Header())
+	return connect.NewResponse(f.list), nil
+}
+
+func newStatementExportsClient(t *testing.T, fake *fakeStatementExports, defaultSub *string) *Client {
 	t.Helper()
 	mux := http.NewServeMux()
-	path, handler := ledgerrdv1connect.NewLedgerReadServiceHandler(fake)
+	path, handler := ledgerrdv1connect.NewStatementExportServiceHandler(fake)
 	mux.Handle(path, handler)
 	srv := hardening.NewTestServer(mux)
 	t.Cleanup(srv.Close)
@@ -58,135 +93,169 @@ func newStatementsClient(t *testing.T, fake *fakeStatements, defaultSub *string)
 	return client
 }
 
-const statementHeader = "time,entry_id,type,account,asset,amount,fee,balance,link_id,flow_id\r\n"
-
-func TestStatementsExportFollowsPagesWithTheSameFieldsAndTheDefaultSubAccount(t *testing.T) {
-	fake := &fakeStatements{pages: map[string]*ledgerrdv1.ExportStatementResponse{
-		"": {
-			Csv:           statementHeader + "2026-10-02T14:03:11.000000Z,27419385013475392777,deposit,funding,USDT,100,0,100,,flow_8d1f2c\r\n",
-			NextPageToken: "p2",
-		},
-		"p2": {Csv: "2026-10-03T08:12:45.123456Z,27419385013475392811,trade,trading,USDT,-5000,2.5,4997.5,77,\r\n"},
-	}}
+func TestStatementsCreateExportScopes(t *testing.T) {
+	fake := &fakeStatementExports{}
 	defaultSub := codecs.FormatID(9000000001)
-	client := newStatementsClient(t, fake, &defaultSub)
-
-	start := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
-	end := time.Date(2026, 11, 1, 0, 0, 0, 123456789, time.UTC)
-	statement, err := client.Statements.Export(context.Background(), services.ExportStatementOptions{StartTime: start, EndTime: end, AssetID: 3})
-	if err != nil {
-		t.Fatal(err)
-	}
-	wantCSV := fake.pages[""].GetCsv() + fake.pages["p2"].GetCsv()
-	if statement.CSV != wantCSV {
-		t.Fatalf("CSV = %q, want %q", statement.CSV, wantCSV)
-	}
-
-	fake.mu.Lock()
-	defer fake.mu.Unlock()
-	if len(fake.requests) != 2 || fake.unsigned != 0 {
-		t.Fatalf("requests=%d unsigned=%d; want two signed requests", len(fake.requests), fake.unsigned)
-	}
-	for i, req := range fake.requests {
-		if req.SubaccountId == nil || *req.SubaccountId != 9000000001 {
-			t.Fatalf("request %d subaccount_id = %v, want the default sub-account", i, req.SubaccountId)
-		}
-		if !req.GetStartTime().AsTime().Equal(start) || !req.GetEndTime().AsTime().Equal(end) || req.GetAssetId() != 3 {
-			t.Fatalf("request %d = %v; want the same period (full precision) and asset on every page", i, req)
-		}
-	}
-	if fake.requests[0].GetPageToken() != "" || fake.requests[1].GetPageToken() != "p2" {
-		t.Fatalf("page tokens = %q, %q", fake.requests[0].GetPageToken(), fake.requests[1].GetPageToken())
-	}
-
-	rows, err := statement.Rows()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(rows) != 2 || rows[0].FlowID != "flow_8d1f2c" || rows[1].Fee != "2.5" || rows[1].LinkID != "77" ||
-		!rows[1].Time.Equal(time.Date(2026, 10, 3, 8, 12, 45, 123456000, time.UTC)) {
-		t.Fatalf("rows = %+v", rows)
-	}
-}
-
-func TestStatementsExportPageScopes(t *testing.T) {
-	fake := &fakeStatements{pages: map[string]*ledgerrdv1.ExportStatementResponse{"": {Csv: statementHeader}}}
-	defaultSub := codecs.FormatID(9000000001)
-	client := newStatementsClient(t, fake, &defaultSub)
-	start, end := time.Unix(1_790_000_000, 0), time.Unix(1_790_086_400, 0)
+	client := newStatementExportsClient(t, fake, &defaultSub)
+	start, end := time.Unix(1_790_000_000, 0), time.Unix(1_790_086_400, 123456789)
 	explicit := codecs.FormatID(9000000002)
 	empty := ""
 
 	cases := []struct {
 		name string
-		opts services.ExportStatementOptions
+		opts services.CreateStatementExportOptions
 		want *uint64
 	}{
-		{"explicit sub-account", services.ExportStatementOptions{SubAccountID: &explicit}, proto.Uint64(9000000002)},
-		{"account main is the main account", services.ExportStatementOptions{Account: "main"}, nil},
-		{"account active uses the default", services.ExportStatementOptions{Account: "active"}, proto.Uint64(9000000001)},
+		{"default sub-account", services.CreateStatementExportOptions{}, proto.Uint64(9000000001)},
+		{"explicit sub-account", services.CreateStatementExportOptions{SubAccountID: &explicit}, proto.Uint64(9000000002)},
+		{"account main is the main account", services.CreateStatementExportOptions{Account: "main"}, nil},
+		{"account active uses the default", services.CreateStatementExportOptions{Account: "active"}, proto.Uint64(9000000001)},
 	}
 	for _, tc := range cases {
 		opts := tc.opts
-		opts.StartTime, opts.EndTime = start, end
-		page, err := client.Statements.ExportPage(context.Background(), opts)
+		opts.StartTime, opts.EndTime, opts.AssetID, opts.IdempotencyKey = start, end, 3, "statement-1"
+		export, err := client.Statements.CreateExport(context.Background(), opts)
 		if err != nil {
 			t.Fatalf("%s: %v", tc.name, err)
 		}
-		if page.CSV != statementHeader || page.NextPageToken != "" {
-			t.Fatalf("%s: page = %+v", tc.name, page)
+		if export.Status != "queued" || export.IsFinal() {
+			t.Fatalf("%s: export = %+v", tc.name, export)
 		}
 		fake.mu.Lock()
-		got := fake.requests[len(fake.requests)-1].SubaccountId
+		got := fake.creates[len(fake.creates)-1]
 		fake.mu.Unlock()
-		if (got == nil) != (tc.want == nil) || (got != nil && *got != *tc.want) {
-			t.Fatalf("%s: subaccount_id = %v, want %v", tc.name, got, tc.want)
+		if (got.SubaccountId == nil) != (tc.want == nil) || (got.SubaccountId != nil && *got.SubaccountId != *tc.want) {
+			t.Fatalf("%s: subaccount_id = %v, want %v", tc.name, got.SubaccountId, tc.want)
+		}
+		if !got.GetStartTime().AsTime().Equal(start) || !got.GetEndTime().AsTime().Equal(end) || got.GetAssetId() != 3 {
+			t.Fatalf("%s: request = %v; want the period at full precision and the asset", tc.name, got)
 		}
 	}
 	// An empty sub-account is no ID: it is refused before sending, never the
 	// authenticated account.
 	fake.mu.Lock()
-	sent := len(fake.requests)
+	sent := len(fake.creates)
 	fake.mu.Unlock()
-	opts := services.ExportStatementOptions{SubAccountID: &empty, StartTime: start, EndTime: end}
+	opts := services.CreateStatementExportOptions{SubAccountID: &empty, StartTime: start, EndTime: end, IdempotencyKey: "statement-1"}
 	var validation *sdkerrors.ValidationError
-	if _, err := client.Statements.ExportPage(context.Background(), opts); !stderrors.As(err, &validation) {
+	if _, err := client.Statements.CreateExport(context.Background(), opts); !stderrors.As(err, &validation) {
 		t.Fatalf("empty sub-account: err = %v, want a ValidationError", err)
 	}
 	fake.mu.Lock()
 	defer fake.mu.Unlock()
-	if len(fake.requests) != sent {
-		t.Fatal("empty sub-account was sent")
+	if len(fake.creates) != sent || fake.unsigned != 0 {
+		t.Fatalf("creates=%d (want %d) unsigned=%d", len(fake.creates), sent, fake.unsigned)
 	}
 }
 
-func TestStatementsExportRequiresThePeriodBeforeSending(t *testing.T) {
-	fake := &fakeStatements{}
-	client := newStatementsClient(t, fake, nil)
-	for _, opts := range []services.ExportStatementOptions{
-		{EndTime: time.Now()},
-		{StartTime: time.Now()},
-	} {
-		_, err := client.Statements.ExportPage(context.Background(), opts)
+func TestStatementsCancelExportReturnsTheCanceledExport(t *testing.T) {
+	fake := &fakeStatementExports{cancel: &ledgerrdv1.CancelStatementExportResponse{Export: &ledgerrdv1.StatementExport{
+		ExportId: 7000000001,
+		Status:   ledgerrdv1.StatementExportStatus_STATEMENT_EXPORT_STATUS_CANCELED,
+	}}}
+	client := newStatementExportsClient(t, fake, nil)
+	exportID := codecs.FormatID(7000000001)
+	export, err := client.Statements.CancelExport(context.Background(), exportID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if export.ExportID != exportID || export.Status != "canceled" || !export.IsFinal() {
+		t.Fatalf("export = %+v", export)
+	}
+	if len(fake.cancels) != 1 || fake.cancels[0].GetExportId() != 7000000001 || fake.unsigned != 0 {
+		t.Fatalf("cancels = %v unsigned=%d", fake.cancels, fake.unsigned)
+	}
+
+	// A reply for another export breaks the contract.
+	fake.cancel.Export.ExportId = 7000000002
+	var contract *sdkerrors.ResponseContractError
+	if _, err := client.Statements.CancelExport(context.Background(), exportID); !stderrors.As(err, &contract) {
+		t.Fatalf("other export: err = %v, want *errors.ResponseContractError", err)
+	}
+
+	// A blank or malformed ID is refused before sending.
+	for _, id := range []string{"", "0", "not-base58!"} {
 		var validation *sdkerrors.ValidationError
-		if !stderrors.As(err, &validation) {
-			t.Fatalf("ExportPage(%+v) error = %v, want *errors.ValidationError", opts, err)
+		if _, err := client.Statements.CancelExport(context.Background(), id); !stderrors.As(err, &validation) {
+			t.Fatalf("CancelExport(%q) err = %v, want a ValidationError", id, err)
 		}
 	}
-	if len(fake.requests) != 0 {
-		t.Fatalf("sent %d requests, want none", len(fake.requests))
+	if len(fake.cancels) != 2 {
+		t.Fatalf("sent %d cancels, want 2", len(fake.cancels))
 	}
 }
 
-func TestStatementsExportRefusesARepeatedPageToken(t *testing.T) {
-	fake := &fakeStatements{pages: map[string]*ledgerrdv1.ExportStatementResponse{
-		"":   {Csv: statementHeader, NextPageToken: "p2"},
-		"p2": {Csv: "", NextPageToken: "p2"},
+func TestStatementsGetExportDownloadURLNeverPrintsTheURL(t *testing.T) {
+	const signed = "https://files.example/statement-7000000001.csv?signature=very-secret"
+	expires := time.Date(2026, 11, 16, 21, 0, 0, 0, time.UTC)
+	fake := &fakeStatementExports{url: &ledgerrdv1.GetStatementExportDownloadUrlResponse{
+		Url:       signed,
+		ExpiresAt: timestamppb.New(expires),
+		Filename:  "statement-7000000001.csv",
 	}}
-	client := newStatementsClient(t, fake, nil)
-	_, err := client.Statements.Export(context.Background(), services.ExportStatementOptions{StartTime: time.Unix(1, 0), EndTime: time.Unix(2, 0)})
-	var contract *sdkerrors.ResponseContractError
-	if !stderrors.As(err, &contract) {
-		t.Fatalf("Export error = %v, want *errors.ResponseContractError", err)
+	client := newStatementExportsClient(t, fake, nil)
+	got, err := client.Statements.GetExportDownloadURL(context.Background(), codecs.FormatID(7000000001))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.URL.Reveal() != signed || !got.ExpiresAt.Equal(expires) || got.Filename != "statement-7000000001.csv" {
+		t.Fatalf("download URL = %+v", got)
+	}
+	encoded, err := json.Marshal(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, text := range []string{fmt.Sprintf("%v %+v %#v %s", got, got, got, got.URL), string(encoded)} {
+		if strings.Contains(text, "very-secret") {
+			t.Fatalf("printed the URL: %s", text)
+		}
+	}
+	if len(fake.urls) != 1 || fake.urls[0].GetExportId() != 7000000001 || fake.unsigned != 0 {
+		t.Fatalf("requests = %v unsigned=%d", fake.urls, fake.unsigned)
+	}
+
+	// A reply without its URL or expiry breaks the contract.
+	for _, reply := range []*ledgerrdv1.GetStatementExportDownloadUrlResponse{
+		{ExpiresAt: timestamppb.New(expires)},
+		{Url: signed},
+	} {
+		fake.url = reply
+		_, err := client.Statements.GetExportDownloadURL(context.Background(), codecs.FormatID(7000000001))
+		var contract *sdkerrors.ResponseContractError
+		if !stderrors.As(err, &contract) || strings.Contains(err.Error(), "very-secret") {
+			t.Fatalf("reply %v: err = %v, want a *errors.ResponseContractError without the URL", reply, err)
+		}
+	}
+}
+
+func TestStatementsListExportsCarriesTheInProgressCounts(t *testing.T) {
+	fake := &fakeStatementExports{list: &ledgerrdv1.ListStatementExportsResponse{
+		Exports:              []*ledgerrdv1.StatementExport{{ExportId: 7000000001, Status: ledgerrdv1.StatementExportStatus_STATEMENT_EXPORT_STATUS_PROCESSING}},
+		InProgressExports:    5,
+		MaxInProgressExports: 5,
+	}}
+	client := newStatementExportsClient(t, fake, nil)
+	list, err := client.Statements.ListExports(context.Background(), services.ListStatementExportsOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := models.StatementExportsList{
+		Exports:              []models.StatementExport{{ExportID: codecs.FormatID(7000000001), Status: "processing"}},
+		InProgressExports:    5,
+		MaxInProgressExports: 5,
+	}
+	if fmt.Sprintf("%+v", list) != fmt.Sprintf("%+v", want) {
+		t.Fatalf("list = %+v, want %+v", list, want)
+	}
+}
+
+func TestStatementExportIsFinal(t *testing.T) {
+	for status, final := range map[string]bool{
+		"queued": false, "processing": false,
+		"ready": true, "failed": true, "expired": true, "canceled": true, "unknown(9)": true,
+	} {
+		if got := (models.StatementExport{Status: status}).IsFinal(); got != final {
+			t.Fatalf("IsFinal(%q) = %v, want %v", status, got, final)
+		}
 	}
 }

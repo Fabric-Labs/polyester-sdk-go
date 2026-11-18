@@ -65,6 +65,13 @@ const (
 	// (1,000), so an update with a new key is refused. Updates without a key,
 	// and repeats of a stored key, still work; or create a new alert.
 	ErrorCode_ALERT_UPDATE_LIMIT_REACHED ErrorCode = 12
+	// The alert asks for TELEGRAM, but no Telegram account is linked to the
+	// caller's account. Link Telegram in the account settings first, or choose
+	// IN_APP only.
+	ErrorCode_TELEGRAM_NOT_LINKED ErrorCode = 13
+	// The alert asks for TELEGRAM, but Telegram delivery is not available in
+	// this environment. Choose IN_APP only.
+	ErrorCode_TELEGRAM_UNAVAILABLE ErrorCode = 14
 )
 
 // Enum value maps for ErrorCode.
@@ -83,6 +90,8 @@ var (
 		10: "SERVICE_UNAVAILABLE",
 		11: "SUBACCOUNT_KEY_REFUSED",
 		12: "ALERT_UPDATE_LIMIT_REACHED",
+		13: "TELEGRAM_NOT_LINKED",
+		14: "TELEGRAM_UNAVAILABLE",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_UNSPECIFIED":          0,
@@ -98,6 +107,8 @@ var (
 		"SERVICE_UNAVAILABLE":        10,
 		"SUBACCOUNT_KEY_REFUSED":     11,
 		"ALERT_UPDATE_LIMIT_REACHED": 12,
+		"TELEGRAM_NOT_LINKED":        13,
+		"TELEGRAM_UNAVAILABLE":       14,
 	}
 )
 
@@ -364,7 +375,13 @@ const (
 	// The notification inbox on the website and in the app.
 	AlertChannel_IN_APP AlertChannel = 1
 	// A direct message from the Polyester Telegram bot to the Telegram account
-	// linked to the caller's account.
+	// linked to the caller's account. Creating or changing an alert that asks
+	// for it needs Telegram delivery to be available in the environment
+	// (TELEGRAM_UNAVAILABLE otherwise) and a linked Telegram account
+	// (TELEGRAM_NOT_LINKED otherwise).
+	// When a Telegram message cannot be delivered, for example because Telegram
+	// was unlinked after the alert was set, the fired alert is shown in the
+	// notification inbox instead.
 	AlertChannel_TELEGRAM AlertChannel = 2
 )
 
@@ -1273,7 +1290,7 @@ const file_alerts_v1_price_alerts_proto_rawDesc = "" +
 	"\x12CancelAlertRequest\x12)\n" +
 	"\balert_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\aalertId\"B\n" +
 	"\x13CancelAlertResponse\x12+\n" +
-	"\x05alert\x18\x01 \x01(\v2\x15.alerts.v1.PriceAlertR\x05alert*\xc9\x02\n" +
+	"\x05alert\x18\x01 \x01(\v2\x15.alerts.v1.PriceAlertR\x05alert*\xfc\x02\n" +
 	"\tErrorCode\x12\x15\n" +
 	"\x11ERROR_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fALERT_NOT_FOUND\x10\x01\x12\x12\n" +
@@ -1288,7 +1305,9 @@ const file_alerts_v1_price_alerts_proto_rawDesc = "" +
 	"\x13SERVICE_UNAVAILABLE\x10\n" +
 	"\x12\x1a\n" +
 	"\x16SUBACCOUNT_KEY_REFUSED\x10\v\x12\x1e\n" +
-	"\x1aALERT_UPDATE_LIMIT_REACHED\x10\f*A\n" +
+	"\x1aALERT_UPDATE_LIMIT_REACHED\x10\f\x12\x17\n" +
+	"\x13TELEGRAM_NOT_LINKED\x10\r\x12\x18\n" +
+	"\x14TELEGRAM_UNAVAILABLE\x10\x0e*A\n" +
 	"\x0eAlertDirection\x12\x19\n" +
 	"\x15DIRECTION_UNSPECIFIED\x10\x00\x12\t\n" +
 	"\x05ABOVE\x10\x01\x12\t\n" +

@@ -79,5 +79,14 @@ func WalletBalancesFromProto(msg *chainwithdrawv1.GetWalletBalancesResponse) (mo
 			Amount:         amount,
 		})
 	}
+	for _, a := range msg.GetUnavailableAssets() {
+		out.UnavailableAssets = append(out.UnavailableAssets, models.UnavailableWalletAsset{
+			ZippedAssetID:  a.GetZippedAssetId(),
+			UnifiedAssetID: a.GetUnifiedAssetId(),
+			ChainID:        a.GetChainId(),
+			ZTokenAddress:  a.GetZtokenAddress(),
+			Reason:         enumLabel(a.GetReason(), "UNAVAILABLE_"),
+		})
+	}
 	return out, nil
 }

@@ -184,8 +184,11 @@ const (
 	AuthErrorCode_AUTH_SIGNATURE_INVALID AuthErrorCode = 48
 	// The API key request timestamp is malformed, more than 1 second ahead of the server
 	// clock, or older than the request's receive window (X-API-RECV-WINDOW, 5 seconds when
-	// omitted) when the request arrived. The request was not processed. Sync the clock, then
-	// sign the request again with a fresh timestamp. The REST problem code is TIMESTAMP_SKEW.
+	// omitted) when the request arrived. The request was not processed. The detail's
+	// timestamp_window carries the server time and the window the timestamp was checked
+	// against; the REST problem carries the same as its timestampWindow member. Sync the
+	// clock, for example with the server time from GET /v1/time or this refusal, then sign
+	// the request again with a fresh timestamp. The REST problem code is TIMESTAMP_SKEW.
 	AuthErrorCode_AUTH_TIMESTAMP_SKEW AuthErrorCode = 49
 	// The API key request lacks its timestamp or signature header, or a signed
 	// WebSocket login lacks a valid X-API-NONCE. The REST problem code is
@@ -244,6 +247,10 @@ const (
 	// less than 30 days ago: one change per provider every 30 days. retry_after
 	// says when the next one is allowed. HTTP 412, SOCIAL_CHANGE_LIMIT_REACHED.
 	AuthErrorCode_AUTH_SOCIAL_CHANGE_LIMIT_REACHED AuthErrorCode = 65
+	// The session's recent-MFA window has closed: the action needs a new
+	// step-up. Complete an MFA challenge for fresh step-up and retry; the
+	// step-up opens a new window. PermissionDenied.
+	AuthErrorCode_AUTH_RECENT_MFA_EXPIRED AuthErrorCode = 66
 )
 
 // Enum value maps for AuthErrorCode.
@@ -314,6 +321,7 @@ var (
 		63: "AUTH_REPLAY_DETECTED",
 		64: "AUTH_SOCIAL_ACCOUNT_COOLDOWN",
 		65: "AUTH_SOCIAL_CHANGE_LIMIT_REACHED",
+		66: "AUTH_RECENT_MFA_EXPIRED",
 	}
 	AuthErrorCode_value = map[string]int32{
 		"AUTH_UNSPECIFIED":                        0,
@@ -381,6 +389,7 @@ var (
 		"AUTH_REPLAY_DETECTED":                    63,
 		"AUTH_SOCIAL_ACCOUNT_COOLDOWN":            64,
 		"AUTH_SOCIAL_CHANGE_LIMIT_REACHED":        65,
+		"AUTH_RECENT_MFA_EXPIRED":                 66,
 	}
 )
 
@@ -857,9 +866,12 @@ type AuthErrorDetail struct {
 	// Time in UTC from which the same request may succeed. Set for
 	// AUTH_SOCIAL_ACCOUNT_COOLDOWN and AUTH_SOCIAL_CHANGE_LIMIT_REACHED; empty
 	// otherwise.
-	RetryAfter    *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=retry_after,json=retryAfter,proto3" json:"retry_after,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	RetryAfter *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=retry_after,json=retryAfter,proto3" json:"retry_after,omitempty"`
+	// The server time and the window a signed request's timestamp must fall in.
+	// Set for AUTH_TIMESTAMP_SKEW; empty otherwise.
+	TimestampWindow *TimestampWindow `protobuf:"bytes,4,opt,name=timestamp_window,json=timestampWindow,proto3" json:"timestamp_window,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *AuthErrorDetail) Reset() {
@@ -913,6 +925,85 @@ func (x *AuthErrorDetail) GetRetryAfter() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *AuthErrorDetail) GetTimestampWindow() *TimestampWindow {
+	if x != nil {
+		return x.TimestampWindow
+	}
+	return nil
+}
+
+// TimestampWindow is the window in which the server accepts the timestamp of
+// a request signed with an API key: from server_time_ms minus recv_window_ms
+// to server_time_ms plus max_future_ms, both inclusive. Compare
+// server_time_ms with the clock that signed the request to correct its
+// offset.
+type TimestampWindow struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Server time when the request was refused, in milliseconds since the Unix
+	// epoch (UTC).
+	ServerTimeMs int64 `protobuf:"varint,1,opt,name=server_time_ms,json=serverTimeMs,proto3" json:"server_time_ms,omitempty"`
+	// Receive window the timestamp was checked against, in milliseconds: the
+	// request's X-API-RECV-WINDOW, from 1 to 60000, or 5000 when the header is
+	// omitted.
+	RecvWindowMs uint32 `protobuf:"varint,2,opt,name=recv_window_ms,json=recvWindowMs,proto3" json:"recv_window_ms,omitempty"`
+	// How far a timestamp may run ahead of the server time, in milliseconds:
+	// 1000, whatever the receive window.
+	MaxFutureMs   uint32 `protobuf:"varint,3,opt,name=max_future_ms,json=maxFutureMs,proto3" json:"max_future_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TimestampWindow) Reset() {
+	*x = TimestampWindow{}
+	mi := &file_auth_v1_auth_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TimestampWindow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TimestampWindow) ProtoMessage() {}
+
+func (x *TimestampWindow) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_auth_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TimestampWindow.ProtoReflect.Descriptor instead.
+func (*TimestampWindow) Descriptor() ([]byte, []int) {
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *TimestampWindow) GetServerTimeMs() int64 {
+	if x != nil {
+		return x.ServerTimeMs
+	}
+	return 0
+}
+
+func (x *TimestampWindow) GetRecvWindowMs() uint32 {
+	if x != nil {
+		return x.RecvWindowMs
+	}
+	return 0
+}
+
+func (x *TimestampWindow) GetMaxFutureMs() uint32 {
+	if x != nil {
+		return x.MaxFutureMs
+	}
+	return 0
+}
+
 // AcceptTermsRequest records explicit consent to the terms that apply to the caller's root account.
 type AcceptTermsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -922,7 +1013,7 @@ type AcceptTermsRequest struct {
 
 func (x *AcceptTermsRequest) Reset() {
 	*x = AcceptTermsRequest{}
-	mi := &file_auth_v1_auth_proto_msgTypes[7]
+	mi := &file_auth_v1_auth_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -934,7 +1025,7 @@ func (x *AcceptTermsRequest) String() string {
 func (*AcceptTermsRequest) ProtoMessage() {}
 
 func (x *AcceptTermsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[7]
+	mi := &file_auth_v1_auth_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -947,7 +1038,7 @@ func (x *AcceptTermsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcceptTermsRequest.ProtoReflect.Descriptor instead.
 func (*AcceptTermsRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{7}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{8}
 }
 
 // AcceptTermsResponse confirms acceptance. Repeated requests succeed and
@@ -960,7 +1051,7 @@ type AcceptTermsResponse struct {
 
 func (x *AcceptTermsResponse) Reset() {
 	*x = AcceptTermsResponse{}
-	mi := &file_auth_v1_auth_proto_msgTypes[8]
+	mi := &file_auth_v1_auth_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -972,7 +1063,7 @@ func (x *AcceptTermsResponse) String() string {
 func (*AcceptTermsResponse) ProtoMessage() {}
 
 func (x *AcceptTermsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_auth_proto_msgTypes[8]
+	mi := &file_auth_v1_auth_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -985,7 +1076,7 @@ func (x *AcceptTermsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AcceptTermsResponse.ProtoReflect.Descriptor instead.
 func (*AcceptTermsResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_auth_proto_rawDescGZIP(), []int{8}
+	return file_auth_v1_auth_proto_rawDescGZIP(), []int{9}
 }
 
 var File_auth_v1_auth_proto protoreflect.FileDescriptor
@@ -1032,17 +1123,22 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\busername\x18\v \x01(\tR\busername\x12;\n" +
 	"\x1aroot_smart_account_address\x18\f \x01(\tR\x17rootSmartAccountAddress\x12.\n" +
 	"\asession\x18\x14 \x01(\v2\x14.auth.v1.SessionInfoR\asessionB\r\n" +
-	"\v_api_key_id\"\x94\x01\n" +
+	"\v_api_key_id\"\xd9\x01\n" +
 	"\x0fAuthErrorDetail\x12*\n" +
 	"\x04code\x18\x01 \x01(\x0e2\x16.auth.v1.AuthErrorCodeR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12;\n" +
 	"\vretry_after\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"retryAfter\"\x14\n" +
+	"retryAfter\x12C\n" +
+	"\x10timestamp_window\x18\x04 \x01(\v2\x18.auth.v1.TimestampWindowR\x0ftimestampWindow\"\x81\x01\n" +
+	"\x0fTimestampWindow\x12$\n" +
+	"\x0eserver_time_ms\x18\x01 \x01(\x03R\fserverTimeMs\x12$\n" +
+	"\x0erecv_window_ms\x18\x02 \x01(\rR\frecvWindowMs\x12\"\n" +
+	"\rmax_future_ms\x18\x03 \x01(\rR\vmaxFutureMs\"\x14\n" +
 	"\x12AcceptTermsRequest\"\x15\n" +
 	"\x13AcceptTermsResponse*A\n" +
 	"\x16WalletChallengePurpose\x12\x1c\n" +
 	"\x18WALLET_PROOF_UNSPECIFIED\x10\x00\x12\t\n" +
-	"\x05LOGIN\x10\x01*\xae\x10\n" +
+	"\x05LOGIN\x10\x01*\xcb\x10\n" +
 	"\rAuthErrorCode\x12\x14\n" +
 	"\x10AUTH_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15AUTH_USERNAME_INVALID\x10\x01\x12\x17\n" +
@@ -1109,7 +1205,8 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"#AUTH_ASSISTANT_KEY_DEADLINE_TOO_FAR\x10>\x12\x18\n" +
 	"\x14AUTH_REPLAY_DETECTED\x10?\x12 \n" +
 	"\x1cAUTH_SOCIAL_ACCOUNT_COOLDOWN\x10@\x12$\n" +
-	" AUTH_SOCIAL_CHANGE_LIMIT_REACHED\x10A2\xa6\b\n" +
+	" AUTH_SOCIAL_CHANGE_LIMIT_REACHED\x10A\x12\x1b\n" +
+	"\x17AUTH_RECENT_MFA_EXPIRED\x10B2\xa6\b\n" +
 	"\vAuthService\x12\xf4\x01\n" +
 	"\x15CreateWalletChallenge\x12%.auth.v1.CreateWalletChallengeRequest\x1a&.auth.v1.CreateWalletChallengeResponse\"\x8b\x01\xbaG`\n" +
 	"\fAuth Service\x12\x17Create Wallet Challenge\x1a7Create a short-lived EIP-4361 message for wallet login.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/v1/auth/wallet-challenge\x12\x9e\x02\n" +
@@ -1134,7 +1231,7 @@ func file_auth_v1_auth_proto_rawDescGZIP() []byte {
 }
 
 var file_auth_v1_auth_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_auth_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_auth_v1_auth_proto_goTypes = []any{
 	(WalletChallengePurpose)(0),           // 0: auth.v1.WalletChallengePurpose
 	(AuthErrorCode)(0),                    // 1: auth.v1.AuthErrorCode
@@ -1145,32 +1242,34 @@ var file_auth_v1_auth_proto_goTypes = []any{
 	(*MeRequest)(nil),                     // 6: auth.v1.MeRequest
 	(*MeResponse)(nil),                    // 7: auth.v1.MeResponse
 	(*AuthErrorDetail)(nil),               // 8: auth.v1.AuthErrorDetail
-	(*AcceptTermsRequest)(nil),            // 9: auth.v1.AcceptTermsRequest
-	(*AcceptTermsResponse)(nil),           // 10: auth.v1.AcceptTermsResponse
-	(*timestamppb.Timestamp)(nil),         // 11: google.protobuf.Timestamp
-	(*SessionInfo)(nil),                   // 12: auth.v1.SessionInfo
+	(*TimestampWindow)(nil),               // 9: auth.v1.TimestampWindow
+	(*AcceptTermsRequest)(nil),            // 10: auth.v1.AcceptTermsRequest
+	(*AcceptTermsResponse)(nil),           // 11: auth.v1.AcceptTermsResponse
+	(*timestamppb.Timestamp)(nil),         // 12: google.protobuf.Timestamp
+	(*SessionInfo)(nil),                   // 13: auth.v1.SessionInfo
 }
 var file_auth_v1_auth_proto_depIdxs = []int32{
 	0,  // 0: auth.v1.CreateWalletChallengeRequest.purpose:type_name -> auth.v1.WalletChallengePurpose
-	11, // 1: auth.v1.CreateWalletChallengeResponse.expires_at:type_name -> google.protobuf.Timestamp
-	11, // 2: auth.v1.LoginWithWalletResponse.expires_at:type_name -> google.protobuf.Timestamp
-	12, // 3: auth.v1.LoginWithWalletResponse.session:type_name -> auth.v1.SessionInfo
-	12, // 4: auth.v1.MeResponse.session:type_name -> auth.v1.SessionInfo
+	12, // 1: auth.v1.CreateWalletChallengeResponse.expires_at:type_name -> google.protobuf.Timestamp
+	12, // 2: auth.v1.LoginWithWalletResponse.expires_at:type_name -> google.protobuf.Timestamp
+	13, // 3: auth.v1.LoginWithWalletResponse.session:type_name -> auth.v1.SessionInfo
+	13, // 4: auth.v1.MeResponse.session:type_name -> auth.v1.SessionInfo
 	1,  // 5: auth.v1.AuthErrorDetail.code:type_name -> auth.v1.AuthErrorCode
-	11, // 6: auth.v1.AuthErrorDetail.retry_after:type_name -> google.protobuf.Timestamp
-	2,  // 7: auth.v1.AuthService.CreateWalletChallenge:input_type -> auth.v1.CreateWalletChallengeRequest
-	4,  // 8: auth.v1.AuthService.LoginWithWallet:input_type -> auth.v1.LoginWithWalletRequest
-	9,  // 9: auth.v1.AuthService.AcceptTerms:input_type -> auth.v1.AcceptTermsRequest
-	6,  // 10: auth.v1.AuthService.Me:input_type -> auth.v1.MeRequest
-	3,  // 11: auth.v1.AuthService.CreateWalletChallenge:output_type -> auth.v1.CreateWalletChallengeResponse
-	5,  // 12: auth.v1.AuthService.LoginWithWallet:output_type -> auth.v1.LoginWithWalletResponse
-	10, // 13: auth.v1.AuthService.AcceptTerms:output_type -> auth.v1.AcceptTermsResponse
-	7,  // 14: auth.v1.AuthService.Me:output_type -> auth.v1.MeResponse
-	11, // [11:15] is the sub-list for method output_type
-	7,  // [7:11] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	12, // 6: auth.v1.AuthErrorDetail.retry_after:type_name -> google.protobuf.Timestamp
+	9,  // 7: auth.v1.AuthErrorDetail.timestamp_window:type_name -> auth.v1.TimestampWindow
+	2,  // 8: auth.v1.AuthService.CreateWalletChallenge:input_type -> auth.v1.CreateWalletChallengeRequest
+	4,  // 9: auth.v1.AuthService.LoginWithWallet:input_type -> auth.v1.LoginWithWalletRequest
+	10, // 10: auth.v1.AuthService.AcceptTerms:input_type -> auth.v1.AcceptTermsRequest
+	6,  // 11: auth.v1.AuthService.Me:input_type -> auth.v1.MeRequest
+	3,  // 12: auth.v1.AuthService.CreateWalletChallenge:output_type -> auth.v1.CreateWalletChallengeResponse
+	5,  // 13: auth.v1.AuthService.LoginWithWallet:output_type -> auth.v1.LoginWithWalletResponse
+	11, // 14: auth.v1.AuthService.AcceptTerms:output_type -> auth.v1.AcceptTermsResponse
+	7,  // 15: auth.v1.AuthService.Me:output_type -> auth.v1.MeResponse
+	12, // [12:16] is the sub-list for method output_type
+	8,  // [8:12] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_auth_proto_init() }
@@ -1186,7 +1285,7 @@ func file_auth_v1_auth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_auth_proto_rawDesc), len(file_auth_v1_auth_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   9,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

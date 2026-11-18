@@ -100,6 +100,10 @@ const (
 	// member of the broker requested it, act before the address becomes
 	// payable: an added address is payable 24 hours after it is listed.
 	NotificationType_BROKER_ALLOWLIST_CHANGE NotificationType = 3
+	// A Telegram account was linked to the caller's account. Category SECURITY;
+	// detail telegram_link. The linked Telegram account also receives it. If the
+	// caller did not link it, unlink it and review the account's sessions.
+	NotificationType_TELEGRAM_LINKED NotificationType = 4
 )
 
 // Enum value maps for NotificationType.
@@ -109,12 +113,14 @@ var (
 		1: "PRICE_ALERT",
 		2: "TELEGRAM_APPROVAL",
 		3: "BROKER_ALLOWLIST_CHANGE",
+		4: "TELEGRAM_LINKED",
 	}
 	NotificationType_value = map[string]int32{
 		"TYPE_UNSPECIFIED":        0,
 		"PRICE_ALERT":             1,
 		"TELEGRAM_APPROVAL":       2,
 		"BROKER_ALLOWLIST_CHANGE": 3,
+		"TELEGRAM_LINKED":         4,
 	}
 )
 
@@ -519,6 +525,7 @@ type Notification struct {
 	//	*Notification_PriceAlert
 	//	*Notification_TelegramApproval
 	//	*Notification_BrokerAllowlist
+	//	*Notification_TelegramLink
 	Detail        isNotification_Detail `protobuf_oneof:"detail"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -637,6 +644,15 @@ func (x *Notification) GetBrokerAllowlist() *BrokerAllowlistNotice {
 	return nil
 }
 
+func (x *Notification) GetTelegramLink() *TelegramLinkNotice {
+	if x != nil {
+		if x, ok := x.Detail.(*Notification_TelegramLink); ok {
+			return x.TelegramLink
+		}
+	}
+	return nil
+}
+
 type isNotification_Detail interface {
 	isNotification_Detail()
 }
@@ -656,11 +672,18 @@ type Notification_BrokerAllowlist struct {
 	BrokerAllowlist *BrokerAllowlistNotice `protobuf:"bytes,12,opt,name=broker_allowlist,json=brokerAllowlist,proto3,oneof"`
 }
 
+type Notification_TelegramLink struct {
+	// The Telegram account linked.
+	TelegramLink *TelegramLinkNotice `protobuf:"bytes,13,opt,name=telegram_link,json=telegramLink,proto3,oneof"`
+}
+
 func (*Notification_PriceAlert) isNotification_Detail() {}
 
 func (*Notification_TelegramApproval) isNotification_Detail() {}
 
 func (*Notification_BrokerAllowlist) isNotification_Detail() {}
+
+func (*Notification_TelegramLink) isNotification_Detail() {}
 
 // PriceAlertNotice is a price alert that fired, as it was when it fired.
 type PriceAlertNotice struct {
@@ -1743,13 +1766,60 @@ func (x *MarkAllNotificationsReadResponse) GetChanged() uint64 {
 	return 0
 }
 
+// TelegramLinkNotice is a Telegram account linked to the caller's account, as
+// the link was confirmed.
+type TelegramLinkNotice struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// When the caller confirmed the link.
+	LinkedAt      *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=linked_at,json=linkedAt,proto3" json:"linked_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TelegramLinkNotice) Reset() {
+	*x = TelegramLinkNotice{}
+	mi := &file_notifications_v1_notifications_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TelegramLinkNotice) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TelegramLinkNotice) ProtoMessage() {}
+
+func (x *TelegramLinkNotice) ProtoReflect() protoreflect.Message {
+	mi := &file_notifications_v1_notifications_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TelegramLinkNotice.ProtoReflect.Descriptor instead.
+func (*TelegramLinkNotice) Descriptor() ([]byte, []int) {
+	return file_notifications_v1_notifications_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *TelegramLinkNotice) GetLinkedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LinkedAt
+	}
+	return nil
+}
+
 var File_notifications_v1_notifications_proto protoreflect.FileDescriptor
 
 const file_notifications_v1_notifications_proto_rawDesc = "" +
 	"\n" +
 	"$notifications/v1/notifications.proto\x12\x10notifications.v1\x1a\x1calerts/v1/price_alerts.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\">\n" +
 	"\vErrorDetail\x12/\n" +
-	"\x04code\x18\x01 \x01(\x0e2\x1b.notifications.v1.ErrorCodeR\x04code\"\xcd\x04\n" +
+	"\x04code\x18\x01 \x01(\x0e2\x1b.notifications.v1.ErrorCodeR\x04code\"\x9a\x05\n" +
 	"\fNotification\x12'\n" +
 	"\x0fnotification_id\x18\x01 \x01(\x06R\x0enotificationId\x126\n" +
 	"\x04type\x18\x02 \x01(\x0e2\".notifications.v1.NotificationTypeR\x04type\x12B\n" +
@@ -1763,7 +1833,8 @@ const file_notifications_v1_notifications_proto_rawDesc = "" +
 	" \x01(\v2\".notifications.v1.PriceAlertNoticeH\x00R\n" +
 	"priceAlert\x12W\n" +
 	"\x11telegram_approval\x18\v \x01(\v2(.notifications.v1.TelegramApprovalNoticeH\x00R\x10telegramApproval\x12T\n" +
-	"\x10broker_allowlist\x18\f \x01(\v2'.notifications.v1.BrokerAllowlistNoticeH\x00R\x0fbrokerAllowlistB\b\n" +
+	"\x10broker_allowlist\x18\f \x01(\v2'.notifications.v1.BrokerAllowlistNoticeH\x00R\x0fbrokerAllowlist\x12K\n" +
+	"\rtelegram_link\x18\r \x01(\v2$.notifications.v1.TelegramLinkNoticeH\x00R\ftelegramLinkB\b\n" +
 	"\x06detail\"\xd7\x02\n" +
 	"\x10PriceAlertNotice\x12\x19\n" +
 	"\balert_id\x18\x01 \x01(\x06R\aalertId\x12\x1b\n" +
@@ -1845,16 +1916,19 @@ const file_notifications_v1_notifications_proto_rawDesc = "" +
 	"categories\x126\n" +
 	"\x17through_notification_id\x18\x02 \x01(\x06R\x15throughNotificationId\"<\n" +
 	" MarkAllNotificationsReadResponse\x12\x18\n" +
-	"\achanged\x18\x01 \x01(\x04R\achanged*W\n" +
+	"\achanged\x18\x01 \x01(\x04R\achanged\"M\n" +
+	"\x12TelegramLinkNotice\x127\n" +
+	"\tlinked_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\blinkedAt*W\n" +
 	"\tErrorCode\x12\x15\n" +
 	"\x11ERROR_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16NOTIFICATION_NOT_FOUND\x10\x01\x12\x17\n" +
-	"\x13SERVICE_UNAVAILABLE\x10\x02*m\n" +
+	"\x13SERVICE_UNAVAILABLE\x10\x02*\x82\x01\n" +
 	"\x10NotificationType\x12\x14\n" +
 	"\x10TYPE_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vPRICE_ALERT\x10\x01\x12\x15\n" +
 	"\x11TELEGRAM_APPROVAL\x10\x02\x12\x1b\n" +
-	"\x17BROKER_ALLOWLIST_CHANGE\x10\x03*J\n" +
+	"\x17BROKER_ALLOWLIST_CHANGE\x10\x03\x12\x13\n" +
+	"\x0fTELEGRAM_LINKED\x10\x04*J\n" +
 	"\x14NotificationCategory\x12\x18\n" +
 	"\x14CATEGORY_UNSPECIFIED\x10\x00\x12\n" +
 	"\n" +
@@ -1884,15 +1958,14 @@ const file_notifications_v1_notifications_proto_rawDesc = "" +
 	"\x15BrokerAllowlistAction\x12'\n" +
 	"#BROKER_ALLOWLIST_ACTION_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fADD_DESTINATION\x10\x01\x12\x16\n" +
-	"\x12REMOVE_DESTINATION\x10\x022\xf8\n" +
-	"\n" +
-	"\x13NotificationService\x12\xd3\x01\n" +
-	"\x11ListNotifications\x12*.notifications.v1.ListNotificationsRequest\x1a+.notifications.v1.ListNotificationsResponse\"e\xbaGZ\n" +
-	"\x14Notification Service\x12\x12List Notifications\x1a.List the caller's notifications, newest first.\xa2\xb5\x18\x01\x01\x90\x02\x01\x12\xc1\x01\n" +
-	"\x0fGetNotification\x12(.notifications.v1.GetNotificationRequest\x1a).notifications.v1.GetNotificationResponse\"Y\xbaGN\n" +
-	"\x14Notification Service\x12\x10Get Notification\x1a$Read one notification of the caller.\xa2\xb5\x18\x01\x01\x90\x02\x01\x12\xf9\x01\n" +
-	"\x15GetNotificationCounts\x12..notifications.v1.GetNotificationCountsRequest\x1a/.notifications.v1.GetNotificationCountsResponse\"\x7f\xbaGt\n" +
-	"\x14Notification Service\x12\x17Get Notification Counts\x1aCCount the caller's notifications and unread notifications, by type.\xa2\xb5\x18\x01\x01\x90\x02\x01\x12\xdc\x01\n" +
+	"\x12REMOVE_DESTINATION\x10\x022\xe6\f\n" +
+	"\x13NotificationService\x12\xa2\x02\n" +
+	"\x11ListNotifications\x12*.notifications.v1.ListNotificationsRequest\x1a+.notifications.v1.ListNotificationsResponse\"\xb3\x01\xbaG\xa6\x01\n" +
+	"\x14Notification Service\x12\x12List Notifications\x1azList the caller's notifications, newest first. An API key needs READ_NOTIFICATIONS and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\x90\x02\n" +
+	"\x0fGetNotification\x12(.notifications.v1.GetNotificationRequest\x1a).notifications.v1.GetNotificationResponse\"\xa7\x01\xbaG\x9a\x01\n" +
+	"\x14Notification Service\x12\x10Get Notification\x1apRead one notification of the caller. An API key needs READ_NOTIFICATIONS and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\xc9\x02\n" +
+	"\x15GetNotificationCounts\x12..notifications.v1.GetNotificationCountsRequest\x1a/.notifications.v1.GetNotificationCountsResponse\"\xce\x01\xbaG\xc1\x01\n" +
+	"\x14Notification Service\x12\x17Get Notification Counts\x1a\x8f\x01Count the caller's notifications and unread notifications, by type. An API key needs READ_NOTIFICATIONS and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\xdc\x01\n" +
 	"\x15MarkNotificationsRead\x12..notifications.v1.MarkNotificationsReadRequest\x1a/.notifications.v1.MarkNotificationsReadResponse\"b\xbaGW\n" +
 	"\x14Notification Service\x12\x17Mark Notifications Read\x1a&Mark notifications of the caller read.\xa2\xb5\x18\x01\x01\x90\x02\x02\x12\xe6\x01\n" +
 	"\x17MarkNotificationsUnread\x120.notifications.v1.MarkNotificationsUnreadRequest\x1a1.notifications.v1.MarkNotificationsUnreadResponse\"f\xbaG[\n" +
@@ -1914,7 +1987,7 @@ func file_notifications_v1_notifications_proto_rawDescGZIP() []byte {
 }
 
 var file_notifications_v1_notifications_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
-var file_notifications_v1_notifications_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_notifications_v1_notifications_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_notifications_v1_notifications_proto_goTypes = []any{
 	(ErrorCode)(0),                           // 0: notifications.v1.ErrorCode
 	(NotificationType)(0),                    // 1: notifications.v1.NotificationType
@@ -1942,54 +2015,57 @@ var file_notifications_v1_notifications_proto_goTypes = []any{
 	(*MarkNotificationsUnreadResponse)(nil),  // 23: notifications.v1.MarkNotificationsUnreadResponse
 	(*MarkAllNotificationsReadRequest)(nil),  // 24: notifications.v1.MarkAllNotificationsReadRequest
 	(*MarkAllNotificationsReadResponse)(nil), // 25: notifications.v1.MarkAllNotificationsReadResponse
-	(*timestamppb.Timestamp)(nil),            // 26: google.protobuf.Timestamp
-	(v1.AlertDirection)(0),                   // 27: alerts.v1.AlertDirection
-	(v1.AlertPriceSource)(0),                 // 28: alerts.v1.AlertPriceSource
+	(*TelegramLinkNotice)(nil),               // 26: notifications.v1.TelegramLinkNotice
+	(*timestamppb.Timestamp)(nil),            // 27: google.protobuf.Timestamp
+	(v1.AlertDirection)(0),                   // 28: alerts.v1.AlertDirection
+	(v1.AlertPriceSource)(0),                 // 29: alerts.v1.AlertPriceSource
 }
 var file_notifications_v1_notifications_proto_depIdxs = []int32{
 	0,  // 0: notifications.v1.ErrorDetail.code:type_name -> notifications.v1.ErrorCode
 	1,  // 1: notifications.v1.Notification.type:type_name -> notifications.v1.NotificationType
 	2,  // 2: notifications.v1.Notification.category:type_name -> notifications.v1.NotificationCategory
-	26, // 3: notifications.v1.Notification.created_at:type_name -> google.protobuf.Timestamp
-	26, // 4: notifications.v1.Notification.read_at:type_name -> google.protobuf.Timestamp
+	27, // 3: notifications.v1.Notification.created_at:type_name -> google.protobuf.Timestamp
+	27, // 4: notifications.v1.Notification.read_at:type_name -> google.protobuf.Timestamp
 	9,  // 5: notifications.v1.Notification.price_alert:type_name -> notifications.v1.PriceAlertNotice
 	11, // 6: notifications.v1.Notification.telegram_approval:type_name -> notifications.v1.TelegramApprovalNotice
 	12, // 7: notifications.v1.Notification.broker_allowlist:type_name -> notifications.v1.BrokerAllowlistNotice
-	27, // 8: notifications.v1.PriceAlertNotice.direction:type_name -> alerts.v1.AlertDirection
-	28, // 9: notifications.v1.PriceAlertNotice.price_source:type_name -> alerts.v1.AlertPriceSource
-	26, // 10: notifications.v1.PriceAlertNotice.triggered_at:type_name -> google.protobuf.Timestamp
-	4,  // 11: notifications.v1.TelegramApprovalNotice.action:type_name -> notifications.v1.TelegramApprovalAction
-	10, // 12: notifications.v1.TelegramApprovalNotice.parameters:type_name -> notifications.v1.NoticeField
-	26, // 13: notifications.v1.TelegramApprovalNotice.approved_at:type_name -> google.protobuf.Timestamp
-	5,  // 14: notifications.v1.BrokerAllowlistNotice.event:type_name -> notifications.v1.BrokerAllowlistEvent
-	6,  // 15: notifications.v1.BrokerAllowlistNotice.action:type_name -> notifications.v1.BrokerAllowlistAction
-	2,  // 16: notifications.v1.ListNotificationsRequest.categories:type_name -> notifications.v1.NotificationCategory
-	3,  // 17: notifications.v1.ListNotificationsRequest.read_state:type_name -> notifications.v1.ReadState
-	26, // 18: notifications.v1.ListNotificationsRequest.start_time:type_name -> google.protobuf.Timestamp
-	26, // 19: notifications.v1.ListNotificationsRequest.end_time:type_name -> google.protobuf.Timestamp
-	8,  // 20: notifications.v1.ListNotificationsResponse.notifications:type_name -> notifications.v1.Notification
-	8,  // 21: notifications.v1.GetNotificationResponse.notification:type_name -> notifications.v1.Notification
-	1,  // 22: notifications.v1.TypeCount.type:type_name -> notifications.v1.NotificationType
-	2,  // 23: notifications.v1.TypeCount.category:type_name -> notifications.v1.NotificationCategory
-	18, // 24: notifications.v1.GetNotificationCountsResponse.types:type_name -> notifications.v1.TypeCount
-	2,  // 25: notifications.v1.MarkAllNotificationsReadRequest.categories:type_name -> notifications.v1.NotificationCategory
-	13, // 26: notifications.v1.NotificationService.ListNotifications:input_type -> notifications.v1.ListNotificationsRequest
-	15, // 27: notifications.v1.NotificationService.GetNotification:input_type -> notifications.v1.GetNotificationRequest
-	17, // 28: notifications.v1.NotificationService.GetNotificationCounts:input_type -> notifications.v1.GetNotificationCountsRequest
-	20, // 29: notifications.v1.NotificationService.MarkNotificationsRead:input_type -> notifications.v1.MarkNotificationsReadRequest
-	22, // 30: notifications.v1.NotificationService.MarkNotificationsUnread:input_type -> notifications.v1.MarkNotificationsUnreadRequest
-	24, // 31: notifications.v1.NotificationService.MarkAllNotificationsRead:input_type -> notifications.v1.MarkAllNotificationsReadRequest
-	14, // 32: notifications.v1.NotificationService.ListNotifications:output_type -> notifications.v1.ListNotificationsResponse
-	16, // 33: notifications.v1.NotificationService.GetNotification:output_type -> notifications.v1.GetNotificationResponse
-	19, // 34: notifications.v1.NotificationService.GetNotificationCounts:output_type -> notifications.v1.GetNotificationCountsResponse
-	21, // 35: notifications.v1.NotificationService.MarkNotificationsRead:output_type -> notifications.v1.MarkNotificationsReadResponse
-	23, // 36: notifications.v1.NotificationService.MarkNotificationsUnread:output_type -> notifications.v1.MarkNotificationsUnreadResponse
-	25, // 37: notifications.v1.NotificationService.MarkAllNotificationsRead:output_type -> notifications.v1.MarkAllNotificationsReadResponse
-	32, // [32:38] is the sub-list for method output_type
-	26, // [26:32] is the sub-list for method input_type
-	26, // [26:26] is the sub-list for extension type_name
-	26, // [26:26] is the sub-list for extension extendee
-	0,  // [0:26] is the sub-list for field type_name
+	26, // 8: notifications.v1.Notification.telegram_link:type_name -> notifications.v1.TelegramLinkNotice
+	28, // 9: notifications.v1.PriceAlertNotice.direction:type_name -> alerts.v1.AlertDirection
+	29, // 10: notifications.v1.PriceAlertNotice.price_source:type_name -> alerts.v1.AlertPriceSource
+	27, // 11: notifications.v1.PriceAlertNotice.triggered_at:type_name -> google.protobuf.Timestamp
+	4,  // 12: notifications.v1.TelegramApprovalNotice.action:type_name -> notifications.v1.TelegramApprovalAction
+	10, // 13: notifications.v1.TelegramApprovalNotice.parameters:type_name -> notifications.v1.NoticeField
+	27, // 14: notifications.v1.TelegramApprovalNotice.approved_at:type_name -> google.protobuf.Timestamp
+	5,  // 15: notifications.v1.BrokerAllowlistNotice.event:type_name -> notifications.v1.BrokerAllowlistEvent
+	6,  // 16: notifications.v1.BrokerAllowlistNotice.action:type_name -> notifications.v1.BrokerAllowlistAction
+	2,  // 17: notifications.v1.ListNotificationsRequest.categories:type_name -> notifications.v1.NotificationCategory
+	3,  // 18: notifications.v1.ListNotificationsRequest.read_state:type_name -> notifications.v1.ReadState
+	27, // 19: notifications.v1.ListNotificationsRequest.start_time:type_name -> google.protobuf.Timestamp
+	27, // 20: notifications.v1.ListNotificationsRequest.end_time:type_name -> google.protobuf.Timestamp
+	8,  // 21: notifications.v1.ListNotificationsResponse.notifications:type_name -> notifications.v1.Notification
+	8,  // 22: notifications.v1.GetNotificationResponse.notification:type_name -> notifications.v1.Notification
+	1,  // 23: notifications.v1.TypeCount.type:type_name -> notifications.v1.NotificationType
+	2,  // 24: notifications.v1.TypeCount.category:type_name -> notifications.v1.NotificationCategory
+	18, // 25: notifications.v1.GetNotificationCountsResponse.types:type_name -> notifications.v1.TypeCount
+	2,  // 26: notifications.v1.MarkAllNotificationsReadRequest.categories:type_name -> notifications.v1.NotificationCategory
+	27, // 27: notifications.v1.TelegramLinkNotice.linked_at:type_name -> google.protobuf.Timestamp
+	13, // 28: notifications.v1.NotificationService.ListNotifications:input_type -> notifications.v1.ListNotificationsRequest
+	15, // 29: notifications.v1.NotificationService.GetNotification:input_type -> notifications.v1.GetNotificationRequest
+	17, // 30: notifications.v1.NotificationService.GetNotificationCounts:input_type -> notifications.v1.GetNotificationCountsRequest
+	20, // 31: notifications.v1.NotificationService.MarkNotificationsRead:input_type -> notifications.v1.MarkNotificationsReadRequest
+	22, // 32: notifications.v1.NotificationService.MarkNotificationsUnread:input_type -> notifications.v1.MarkNotificationsUnreadRequest
+	24, // 33: notifications.v1.NotificationService.MarkAllNotificationsRead:input_type -> notifications.v1.MarkAllNotificationsReadRequest
+	14, // 34: notifications.v1.NotificationService.ListNotifications:output_type -> notifications.v1.ListNotificationsResponse
+	16, // 35: notifications.v1.NotificationService.GetNotification:output_type -> notifications.v1.GetNotificationResponse
+	19, // 36: notifications.v1.NotificationService.GetNotificationCounts:output_type -> notifications.v1.GetNotificationCountsResponse
+	21, // 37: notifications.v1.NotificationService.MarkNotificationsRead:output_type -> notifications.v1.MarkNotificationsReadResponse
+	23, // 38: notifications.v1.NotificationService.MarkNotificationsUnread:output_type -> notifications.v1.MarkNotificationsUnreadResponse
+	25, // 39: notifications.v1.NotificationService.MarkAllNotificationsRead:output_type -> notifications.v1.MarkAllNotificationsReadResponse
+	34, // [34:40] is the sub-list for method output_type
+	28, // [28:34] is the sub-list for method input_type
+	28, // [28:28] is the sub-list for extension type_name
+	28, // [28:28] is the sub-list for extension extendee
+	0,  // [0:28] is the sub-list for field type_name
 }
 
 func init() { file_notifications_v1_notifications_proto_init() }
@@ -2001,6 +2077,7 @@ func file_notifications_v1_notifications_proto_init() {
 		(*Notification_PriceAlert)(nil),
 		(*Notification_TelegramApproval)(nil),
 		(*Notification_BrokerAllowlist)(nil),
+		(*Notification_TelegramLink)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -2008,7 +2085,7 @@ func file_notifications_v1_notifications_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_notifications_v1_notifications_proto_rawDesc), len(file_notifications_v1_notifications_proto_rawDesc)),
 			NumEnums:      7,
-			NumMessages:   19,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
