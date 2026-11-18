@@ -35,11 +35,11 @@ func zeroScaleCatalog(t *testing.T) *catalogs.Manager {
 func TestZippedAssetSupplyKeepsKnownZeroScale(t *testing.T) {
 	mgr := zeroScaleCatalog(t)
 	msg := &zipperv1.ZippedAssetSupplyBatch{Updates: []*zipperv1.ZippedAssetSupplyUpdate{
-		{ZippedAssetId: 245, SupplyQ: 3_582_802},
-		{ZippedAssetId: 247, SupplyQ: 2_232_802},
-		{ZippedAssetId: 11, SupplyQ: 1_500_000},
-		{ZippedAssetId: 12, SupplyQ: 150_000_000},
-		{ZippedAssetId: 13, SupplyQ: 1_500_000_000_000_000_000},
+		{ZippedAssetId: 245, SupplyQ: 3_582_802, Status: zipperv1.SupplyStatus_AVAILABLE},
+		{ZippedAssetId: 247, SupplyQ: 2_232_802, Status: zipperv1.SupplyStatus_AVAILABLE},
+		{ZippedAssetId: 11, SupplyQ: 1_500_000, Status: zipperv1.SupplyStatus_AVAILABLE},
+		{ZippedAssetId: 12, SupplyQ: 150_000_000, Status: zipperv1.SupplyStatus_AVAILABLE},
+		{ZippedAssetId: 13, SupplyQ: 1_500_000_000_000_000_000, Status: zipperv1.SupplyStatus_AVAILABLE},
 	}}
 	payload, err := proto.Marshal(msg)
 	if err != nil {

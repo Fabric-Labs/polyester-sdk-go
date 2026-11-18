@@ -23,20 +23,23 @@ import (
 )
 
 // contractFieldMessages are the request and reply messages public contracts
-// 1945423c and 5c2119f added or changed, and the messages nested in their new
+// 1945423c, 5c2119f and 0.93.5 added or changed, and the messages nested in their new
 // replies.
 var contractFieldMessages = []protoreflect.FullName{
 	"auth.v1.AuthErrorDetail",
 	"chain.lifecycle.v1.GetAccountFlowRequest", "chain.lifecycle.v1.GetAccountFlowResponse",
 	"chain.lifecycle.v1.ListAccountFlowsRequest", "chain.lifecycle.v1.ListAccountFlowsResponse",
-	"ledger.read.v1.BalanceSeries", "ledger.read.v1.GetBalanceHistoryResponse", "ledger.read.v1.ExportStatementResponse",
+	"ledger.read.v1.BalanceSeries", "ledger.read.v1.GetBalanceHistoryResponse",
 	"ledger.read.v1.CreateStatementExportRequest", "ledger.read.v1.CreateStatementExportResponse",
 	"ledger.read.v1.GetStatementExportRequest", "ledger.read.v1.GetStatementExportResponse",
 	"ledger.read.v1.ListStatementExportsRequest", "ledger.read.v1.ListStatementExportsResponse", "ledger.read.v1.StatementExport",
+	"ledger.read.v1.CancelStatementExportRequest", "ledger.read.v1.CancelStatementExportResponse",
+	"ledger.read.v1.GetStatementExportDownloadUrlRequest", "ledger.read.v1.GetStatementExportDownloadUrlResponse",
 	"orderbook.v1.GetOrderBookRequest", "orderbook.v1.GetOrderBookResponse",
 	"orders.v1.ErrorDetail",
 	"transfer.v1.BatchCreateInternalTransfersRequest", "transfer.v1.InternalTransferBatchLeg",
 	"transfer.v1.BatchCreateInternalTransfersResponse", "transfer.v1.InternalTransferBatchLegResult", "transfer.v1.ResolvedDestination",
+	"transfer.v1.GetInternalTransferBatchRequest", "transfer.v1.GetInternalTransferBatchResponse",
 	"transfer.v1.ListDustBalancesRequest", "transfer.v1.ListDustBalancesResponse",
 	"transfer.v1.QuoteDustConversionRequest", "transfer.v1.QuoteDustConversionResponse",
 	"transfer.v1.CreateDustConversionRequest", "transfer.v1.CreateDustConversionResponse",
@@ -65,10 +68,12 @@ var contractFieldTypes = map[string]reflect.Type{
 	"models.ResolvedDestination":            reflect.TypeFor[models.ResolvedDestination](),
 	"models.StatementExport":                reflect.TypeFor[models.StatementExport](),
 	"models.StatementExportsList":           reflect.TypeFor[models.StatementExportsList](),
-	"models.StatementPage":                  reflect.TypeFor[models.StatementPage](),
+	"models.StatementExportDownloadURL":     reflect.TypeFor[models.StatementExportDownloadURL](),
 	"errors.APIError":                       reflect.TypeFor[sdkerrors.APIError](),
 	"errors.ValidationError":                reflect.TypeFor[sdkerrors.ValidationError](),
 	"errors.RateLimitError":                 reflect.TypeFor[sdkerrors.RateLimitError](),
+	"errors.TimestampSkewError":             reflect.TypeFor[sdkerrors.TimestampSkewError](),
+	"models.OrderErrorDetail":               reflect.TypeFor[models.OrderErrorDetail](),
 	"errors.LadderLevelCause":               reflect.TypeFor[sdkerrors.LadderLevelCause](),
 	"ListAccountFlowsParams":                reflect.TypeFor[services.ListAccountFlowsParams](),
 	"CreateStatementExportOptions":          reflect.TypeFor[services.CreateStatementExportOptions](),

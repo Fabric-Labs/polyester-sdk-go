@@ -40,6 +40,15 @@ const (
 	// idempotency keys; repeats of stored keys and updates without a key still
 	// work.
 	AlertCodeUpdateLimitReached = "ALERT_UPDATE_LIMIT_REACHED"
+	// AlertCodeTelegramNotLinked: the alert asks for the TELEGRAM channel and
+	// no Telegram account is linked to the caller's account
+	// (failed_precondition); nothing changed. Not retryable until the user
+	// links Telegram; or keep the alert without TELEGRAM.
+	AlertCodeTelegramNotLinked = "TELEGRAM_NOT_LINKED"
+	// AlertCodeTelegramUnavailable: the environment offers no Telegram
+	// alerts, linked or not (failed_precondition); nothing changed. Not
+	// retryable: keep the alert in-app only.
+	AlertCodeTelegramUnavailable = "TELEGRAM_UNAVAILABLE"
 )
 
 var alertCodes = map[string]bool{
@@ -47,6 +56,7 @@ var alertCodes = map[string]bool{
 	AlertCodePriceSourceUnsupported: true, AlertCodeLimitReached: true, AlertCodeRevisionConflict: true,
 	AlertCodeCancelled: true, AlertCodeTriggered: true, AlertCodeIdempotencyConflict: true,
 	AlertCodeServiceUnavailable: true, AlertCodeSubaccountKeyRefused: true, AlertCodeUpdateLimitReached: true,
+	AlertCodeTelegramNotLinked: true, AlertCodeTelegramUnavailable: true,
 }
 
 // AlertErrorCode returns the alerts.v1.ErrorCode name of an error the Alerts

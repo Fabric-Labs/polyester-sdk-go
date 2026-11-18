@@ -50,10 +50,12 @@ func (s *MarketDataService) GetSpotConfig(ctx context.Context) (models.SpotConfi
 	return UnaryPublicDecoded(ctx, s.transport, s.client().GetSpotConfig, &marketdatav1.GetSpotConfigRequest{}, decode.SpotConfigFromProto)
 }
 
-// ListAssetInfo returns the team-maintained information of the given assets
-// (all saved entries when assetIDs is empty), in ascending asset ID order.
-// Asset IDs are the LedgerID of the spot and funding configs; duplicate and
-// unknown IDs are ignored, and assets never edited are left out. Each ID is
+// ListAssetInfo returns the team-maintained information and market
+// datapoints of the given assets (all saved entries when assetIDs is empty),
+// in ascending asset ID order. Asset IDs are the LedgerID of the spot and
+// funding configs; duplicate and unknown IDs are ignored, and assets with
+// neither team-written information nor market datapoints are left out: an
+// asset listed for its MarketStats alone has an empty Editorial. Each ID is
 // 1 to 2147483647 and at most 1000 are taken (codecs.AssetInfoIDMin,
 // AssetInfoIDMax and AssetInfoIDsMax); others are refused with an
 // *errors.ValidationError before sending. It is public: the request is

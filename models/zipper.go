@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 // ZipperTokenConfig describes an on-chain token.
 type ZipperTokenConfig struct {
 	Address  string `json:"address,omitempty"`
@@ -8,16 +10,30 @@ type ZipperTokenConfig struct {
 
 // ZipperAssetChainVariant is per-chain asset variant config.
 type ZipperAssetChainVariant struct {
-	ZippedAssetID     uint32            `json:"zipped_asset_id"`
-	ChainID           uint32            `json:"chain_id"`
-	IsNativeAsset     bool              `json:"is_native_asset,omitempty"`
-	NetworkFee        string            `json:"network_fee,omitempty"`
-	NetworkFeeTsSec   int64             `json:"network_fee_ts_sec,omitempty"`
-	DepositMinAmount  string            `json:"deposit_min_amount,omitempty"`
-	WithdrawMinAmount string            `json:"withdraw_min_amount,omitempty"`
-	Supply            string            `json:"supply,omitempty"`
-	SourceToken       ZipperTokenConfig `json:"source_token,omitempty"`
-	ZToken            ZipperTokenConfig `json:"z_token,omitempty"`
+	ZippedAssetID     uint32 `json:"zipped_asset_id"`
+	ChainID           uint32 `json:"chain_id"`
+	IsNativeAsset     bool   `json:"is_native_asset,omitempty"`
+	NetworkFee        string `json:"network_fee,omitempty"`
+	NetworkFeeTsSec   int64  `json:"network_fee_ts_sec,omitempty"`
+	DepositMinAmount  string `json:"deposit_min_amount,omitempty"`
+	WithdrawMinAmount string `json:"withdraw_min_amount,omitempty"`
+	// Supply is the route's zToken supply, a decimal in the asset's units,
+	// set only while SupplyStatus is SupplyStatusAvailable or
+	// SupplyStatusStale ("0" is then a real supply of zero); empty when no
+	// supply is known. Never read an empty Supply as zero.
+	Supply string `json:"supply,omitempty"`
+	// SupplyStatus says whether Supply is known and current:
+	// SupplyStatusAvailable, SupplyStatusStale (not refreshed for longer than
+	// expected; it may no longer be accurate), SupplyStatusMissing (no supply
+	// is known yet), "" when the server names none (read it as missing) and
+	// "unknown(n)" for a status this SDK does not know. Size a withdrawal
+	// against Supply only while it is SupplyStatusAvailable.
+	SupplyStatus string `json:"supply_status,omitempty"`
+	// SupplyObservedAt is when Supply was read from Polyester chain; nil
+	// when no supply is known.
+	SupplyObservedAt *time.Time        `json:"supply_observed_at,omitempty"`
+	SourceToken      ZipperTokenConfig `json:"source_token,omitempty"`
+	ZToken           ZipperTokenConfig `json:"z_token,omitempty"`
 	// DepositStatus says whether the route accepts new deposits:
 	// RouteStatusNormal or RouteStatusSuspended; "" while availability is not
 	// known, which does not mean available, and "unknown(n)" for a status this
@@ -26,6 +42,36 @@ type ZipperAssetChainVariant struct {
 	// WithdrawalStatus says whether the route accepts new withdrawals, with
 	// the same labels as DepositStatus. Use AcceptsWithdrawals.
 	WithdrawalStatus string `json:"withdrawal_status,omitempty"`
+}
+
+// Supply statuses of ZipperAssetChainVariant.SupplyStatus and
+// ZippedAssetSupplyUpdate.Status.
+const (
+	// SupplyStatusAvailable: Supply was read from Polyester chain recently
+	// and is current.
+	SupplyStatusAvailable = "available"
+	// SupplyStatusStale: Supply is the last value read, but it has not been
+	// refreshed for longer than expected and may no longer be accurate. New
+	// withdrawals to the route are refused with
+	// ERROR_CODE_SUPPLY_UNAVAILABLE until it is available again.
+	SupplyStatusStale = "stale"
+	// SupplyStatusMissing: no supply is known for the route yet. New
+	// withdrawals to it are refused with ERROR_CODE_SUPPLY_UNAVAILABLE.
+	SupplyStatusMissing = "missing"
+)
+
+// SupplyAvailable reports whether the route's Supply is known and current
+// (SupplyStatusAvailable): the only status a withdrawal may be sized
+// against. Treat any other status as "liquidity cannot be confirmed right
+// now", not as zero.
+func (v ZipperAssetChainVariant) SupplyAvailable() bool {
+	return v.SupplyStatus == SupplyStatusAvailable
+}
+
+// SupplyAvailable reports whether the route's Supply is known and current;
+// see ZipperAssetChainVariant.SupplyAvailable.
+func (c ZipperEnrichedAssetChain) SupplyAvailable() bool {
+	return c.SupplyStatus == SupplyStatusAvailable
 }
 
 // Route statuses of ZipperAssetChainVariant.DepositStatus and
@@ -115,15 +161,29 @@ type ZipperChainContractConfig struct {
 // ZipperEnrichedAssetChain joins asset variant with chain metadata.
 type ZipperEnrichedAssetChain struct {
 	ZipperChainConfig
-	ZippedAssetID     uint32            `json:"zipped_asset_id,omitempty"`
-	IsNativeAsset     bool              `json:"is_native_asset,omitempty"`
-	NetworkFee        string            `json:"network_fee,omitempty"`
-	NetworkFeeTsSec   int64             `json:"network_fee_ts_sec,omitempty"`
-	DepositMinAmount  string            `json:"deposit_min_amount,omitempty"`
-	WithdrawMinAmount string            `json:"withdraw_min_amount,omitempty"`
-	Supply            string            `json:"supply,omitempty"`
-	SourceToken       ZipperTokenConfig `json:"source_token,omitempty"`
-	ZToken            ZipperTokenConfig `json:"z_token,omitempty"`
+	ZippedAssetID     uint32 `json:"zipped_asset_id,omitempty"`
+	IsNativeAsset     bool   `json:"is_native_asset,omitempty"`
+	NetworkFee        string `json:"network_fee,omitempty"`
+	NetworkFeeTsSec   int64  `json:"network_fee_ts_sec,omitempty"`
+	DepositMinAmount  string `json:"deposit_min_amount,omitempty"`
+	WithdrawMinAmount string `json:"withdraw_min_amount,omitempty"`
+	// Supply is the route's zToken supply, a decimal in the asset's units,
+	// set only while SupplyStatus is SupplyStatusAvailable or
+	// SupplyStatusStale ("0" is then a real supply of zero); empty when no
+	// supply is known. Never read an empty Supply as zero.
+	Supply string `json:"supply,omitempty"`
+	// SupplyStatus says whether Supply is known and current:
+	// SupplyStatusAvailable, SupplyStatusStale (not refreshed for longer than
+	// expected; it may no longer be accurate), SupplyStatusMissing (no supply
+	// is known yet), "" when the server names none (read it as missing) and
+	// "unknown(n)" for a status this SDK does not know. Size a withdrawal
+	// against Supply only while it is SupplyStatusAvailable.
+	SupplyStatus string `json:"supply_status,omitempty"`
+	// SupplyObservedAt is when Supply was read from Polyester chain; nil
+	// when no supply is known.
+	SupplyObservedAt *time.Time        `json:"supply_observed_at,omitempty"`
+	SourceToken      ZipperTokenConfig `json:"source_token,omitempty"`
+	ZToken           ZipperTokenConfig `json:"z_token,omitempty"`
 	// DepositStatus and WithdrawalStatus are the route's
 	// ZipperAssetChainVariant statuses.
 	DepositStatus    string `json:"deposit_status,omitempty"`
@@ -173,7 +233,18 @@ type DepositWithdrawConfig struct {
 // ZippedAssetSupplyUpdate is a supply patch row.
 type ZippedAssetSupplyUpdate struct {
 	ZippedAssetID uint32 `json:"zipped_asset_id"`
-	Supply        string `json:"supply,omitempty"`
+	// Supply is the route's supply, a decimal in the asset's units; empty
+	// when the update names no known supply.
+	Supply string `json:"supply,omitempty"`
+	// Status is SupplyStatusAvailable or SupplyStatusStale: a route whose
+	// supply stops being refreshed gets one stale update repeating its last
+	// value and observation time, and its next reading makes it available
+	// again. "" when the server names none, "unknown(n)" for a status this
+	// SDK does not know.
+	Status string `json:"status,omitempty"`
+	// ObservedAt is when Supply was read from Polyester chain; nil when the
+	// update names none.
+	ObservedAt *time.Time `json:"observed_at,omitempty"`
 }
 
 // ZippedAssetSupplyBatch is a realtime supply batch.

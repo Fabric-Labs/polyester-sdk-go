@@ -215,17 +215,35 @@ func SubaccountInvitesListFromProto(msg *authv1.ListSubaccountInvitesResponse) (
 }
 
 func SubaccountActivityListFromProto(msg *authv1.ListSubaccountEventsResponse) models.SubAccountActivityList {
-	out := make([]models.SubAccountActivityEvent, 0, len(msg.GetEvents()))
-	for _, e := range msg.GetEvents() {
+	return models.SubAccountActivityList{Events: activityEvents(msg.GetEvents()), NextPageToken: msg.GetNextPageToken()}
+}
+
+// AccountActivityListFromProto decodes a ListAccountActivity page: each
+// event with the sub-account it belongs to and the API key its actor used,
+// both empty when absent.
+func AccountActivityListFromProto(msg *authv1.ListAccountActivityResponse) models.SubAccountActivityList {
+	return models.SubAccountActivityList{Events: activityEvents(msg.GetEvents()), NextPageToken: msg.GetNextPageToken()}
+}
+
+func activityEvents(events []*authv1.ActivityEvent) []models.SubAccountActivityEvent {
+	out := make([]models.SubAccountActivityEvent, 0, len(events))
+	for _, e := range events {
 		var tsMs int64
 		if e.GetCreatedAt() != nil {
 			tsMs = e.GetCreatedAt().AsTime().UnixMilli()
 		}
-		out = append(out, models.SubAccountActivityEvent{
+		event := models.SubAccountActivityEvent{
 			EventType: strings.ToLower(strings.TrimPrefix(e.GetEntityKind().String(), "ACTIVITY_ENTITY_")) +
 				":" + strings.ToLower(strings.TrimPrefix(e.GetEventAction().String(), "ACTIVITY_ACTION_")),
 			TsMs: tsMs,
-		})
+		}
+		if e.GetSubaccountId() != 0 {
+			event.SubaccountID = codecs.FormatID(e.GetSubaccountId())
+		}
+		if e.GetActorApiKeyId() != 0 {
+			event.ActorAPIKeyID = codecs.FormatID(e.GetActorApiKeyId())
+		}
+		out = append(out, event)
 	}
-	return models.SubAccountActivityList{Events: out, NextPageToken: msg.GetNextPageToken()}
+	return out
 }

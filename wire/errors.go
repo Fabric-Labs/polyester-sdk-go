@@ -267,7 +267,7 @@ func mapConnectError(err error) error {
 			case authv1.AuthErrorCode_AUTH_SESSION_KIND_NOT_ALLOWED:
 				return &sdkerrors.SessionRequiredError{Msg: detailMsg}
 			case authv1.AuthErrorCode_AUTH_TIMESTAMP_SKEW:
-				return &sdkerrors.TimestampSkewError{Msg: detailMsg}
+				return &sdkerrors.TimestampSkewError{Msg: detailMsg, Window: timestampWindowFromProto(authDetail.GetTimestampWindow())}
 			case authv1.AuthErrorCode_AUTH_REPLAY_CAPACITY_EXHAUSTED:
 				// Valid credentials, not processed: a retryable rate refusal.
 				return rateLimitError(detailMsg, codeName, nil, headerRetry)
@@ -448,6 +448,15 @@ func mapConnectError(err error) error {
 		return &sdkerrors.NotImplementedError{Msg: msg}
 	}
 	return &sdkerrors.APIError{Msg: msg, Code: connectErr.Code().String()}
+}
+
+// timestampWindowFromProto decodes a timestamp-skew refusal's window; nil
+// when the refusal names none.
+func timestampWindowFromProto(msg *authv1.TimestampWindow) *sdkerrors.TimestampWindow {
+	if msg == nil {
+		return nil
+	}
+	return &sdkerrors.TimestampWindow{ServerTimeMs: msg.GetServerTimeMs(), RecvWindowMs: msg.GetRecvWindowMs(), MaxFutureMs: msg.GetMaxFutureMs()}
 }
 
 // ladderLevelCause reads why a ladder order can't be placed from an order

@@ -109,6 +109,15 @@ func validatePreparedTradingWithdraw(req *chainwithdrawv1.CreateTradingWithdrawR
 	return nil
 }
 
+// WithdrawService moves Trading balances to Funding and to external chains.
+//
+// Every destinationChainID is the Polyester chain id of the destination
+// network: models.ZipperChainConfig.ChainID from
+// Zipper.GetDepositWithdrawConfig, never the network's native chain id
+// (NativeChainID, such as 11155111 for Ethereum Sepolia). A native chain id
+// is refused with ERROR_CODE_INVALID_DESTINATION_CHAIN, which is not
+// retryable, and ValidateDestination answers it with code
+// "unsupported_chain".
 type WithdrawService struct {
 	transport *transport.Factory
 	scoped    ScopedSubAccount
@@ -286,9 +295,12 @@ func (s *WithdrawService) ValidateDestination(ctx context.Context, destinationCh
 // there, net of its network fee, and its flow ends refunded (see
 // Lifecycle.GetFlow). account or subAccountID selects a sub-account, as for
 // Balances.List; neither reads the key's own account. An API key needs
-// READ_BALANCES on its policy. A failed chain read is a retryable unavailable
-// error; an account with no smart account wallet is refused with
-// failed_precondition (SOURCE_SMART_ACCOUNT_UNAVAILABLE).
+// READ_BALANCES on its policy. A zToken whose balance could not be read is
+// listed in UnavailableAssets instead of failing the read, so check
+// models.WalletBalances.Complete before reading a missing asset as zero.
+// When no balance can be read at all, the read fails with a retryable
+// unavailable error; an account with no smart account wallet is refused
+// with failed_precondition (SOURCE_SMART_ACCOUNT_UNAVAILABLE).
 func (s *WithdrawService) GetWalletBalances(ctx context.Context, account AccountScope, subAccountID *string) (models.WalletBalances, error) {
 	req := &chainwithdrawv1.GetWalletBalancesRequest{}
 	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {

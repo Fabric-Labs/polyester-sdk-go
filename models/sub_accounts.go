@@ -136,6 +136,43 @@ type SubAccountInvitesList struct {
 type SubAccountActivityEvent struct {
 	EventType string `json:"event_type,omitempty"`
 	TsMs      int64  `json:"ts_ms,omitempty"`
+	// SubaccountID is the public ID of the sub-account the event belongs
+	// to; empty for the main account's own events. Set by
+	// SubAccounts.ListAccountActivity.
+	SubaccountID string `json:"subaccount_id,omitempty"`
+	// ActorAPIKeyID is the public ID of the API key the actor used; empty
+	// for a session. Set by SubAccounts.ListAccountActivity.
+	ActorAPIKeyID string `json:"actor_api_key_id,omitempty"`
+}
+
+// ListAccountActivityOptions selects the events of
+// SubAccounts.ListAccountActivity. Every filter is optional: an omitted one
+// matches everything the caller may read.
+type ListAccountActivityOptions struct {
+	// SubAccountIDs (public IDs, at most 100, no repeats) and
+	// IncludeMainAccount select the accounts the feed covers:
+	// IncludeMainAccount alone is the main account only, and neither covers
+	// the whole account.
+	SubAccountIDs      []string
+	IncludeMainAccount bool
+	// EntityKinds, EventActions and Sources keep events of these kinds,
+	// actions and client channels, as the labels of EventType spell them
+	// (for example "session", "api_key"; "created", "failed"; "web"), no
+	// repeats.
+	EntityKinds  []string
+	EventActions []string
+	Sources      []string
+	// APIKeyID keeps the events performed with this API key (public ID).
+	APIKeyID *string
+	// StartTime (inclusive) and EndTime (exclusive) bound the event time;
+	// nil for no bound. When both are set, EndTime must be after StartTime.
+	StartTime *time.Time
+	EndTime   *time.Time
+	// Limit is the page size: 0 for the server's default of 50, at most 200.
+	Limit int
+	// PageToken continues from an earlier page's NextPageToken; reuse it only
+	// with the same filters.
+	PageToken string
 }
 
 // SubAccountActivityList lists activity events.

@@ -3,9 +3,11 @@ package services
 import (
 	"context"
 	"iter"
+	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
+	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	systemv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/system/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/system/v1/systemv1connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
@@ -35,6 +37,26 @@ func (s *SystemService) GetVersion(ctx context.Context) (models.ServerVersion, e
 			Commit:      msg.GetCommit(),
 			Environment: msg.GetEnvironment(),
 		}
+	})
+}
+
+// GetServerTime reads the server's clock, the one that checks the timestamp
+// of requests signed with an API key, and estimates this host's offset from
+// it. It is public: the request is never signed, and the answer is never
+// cached. A signed request is accepted only while its timestamp is at most
+// 1000 ms ahead of the server time and at most its receive window behind
+// it. A reply without a positive server time returns a
+// *errors.ResponseContractError.
+func (s *SystemService) GetServerTime(ctx context.Context) (models.ServerTime, error) {
+	sent := time.Now()
+	return UnaryPublicDecoded(ctx, s.transport, s.client().GetTime, &systemv1.GetTimeRequest{}, func(msg *systemv1.GetTimeResponse) (models.ServerTime, error) {
+		received := time.Now()
+		if msg.GetServerTimeMs() <= 0 {
+			return models.ServerTime{}, &errors.ResponseContractError{Operation: "GetTime", Msg: "missing server_time_ms"}
+		}
+		server := time.UnixMilli(msg.GetServerTimeMs()).UTC()
+		roundTrip := received.Sub(sent)
+		return models.ServerTime{Time: server, Offset: server.Sub(sent.Add(roundTrip / 2)), RoundTrip: roundTrip}, nil
 	})
 }
 

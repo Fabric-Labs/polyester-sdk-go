@@ -25,56 +25,61 @@ type InternalTransferBatchLeg struct {
 	DestinationSmartAccountAddress *string
 }
 
-// InternalTransferBatchResult is the answer to InternalTransfers.CreateBatch.
+// InternalTransferBatchResult is the answer to InternalTransfers.CreateBatch
+// and InternalTransfers.GetBatch. A batch moves all of its legs or none.
 //
-// Status "refused" means at least one leg failed its checks, so no leg ran,
-// no funds moved and no step-up was used: the failed legs are "refused" with
-// their ErrorCode, the others "not_submitted". Status "submitted" means every
-// leg passed its checks and the legs ran in order, independently: they are
-// not atomic, so a leg can be "refused" after earlier legs were "accepted".
+// Status "accepted" means every leg is "credited". Status "processing" means
+// the outcome is not known yet: the batch completes on its own and ends
+// accepted or refused, every leg is "processing", and GetBatch with its
+// RequestID (or CreateBatch again with the same idempotency key and legs)
+// reads the outcome. Status "refused" means nothing moved and nothing will
+// under this idempotency key: every leg is "not_moved", and the legs that
+// caused the refusal carry their ErrorCode. Submit a new batch under a new
+// key to try again.
 type InternalTransferBatchResult struct {
-	// RequestID is the batch's stable server-owned identifier; empty when the
-	// batch was refused.
+	// RequestID is the batch's stable server-owned identifier, a decimal
+	// string; set on an accepted or processing batch, and empty when the
+	// batch was refused before it was accepted for processing.
 	RequestID string `json:"request_id,omitempty"`
-	// Status is "submitted" or "refused".
+	// Status is "accepted", "processing" or "refused".
 	Status string `json:"status"`
-	// Legs holds one result per requested leg, in request order.
+	// Legs holds one result per leg, in request order.
 	Legs []InternalTransferBatchLegResult `json:"legs"`
 }
 
-// InternalTransferBatchLegResult is the outcome of one leg of a batch.
+// InternalTransferBatchLegResult is the state of one leg of a batch: its
+// batch's outcome, leg by leg.
 //
-// Status is "accepted" (the transfer has a durable TransferID, not that it
-// has settled), "pending" (the outcome is not known yet: the transfer runs to
-// its outcome without the caller; retry the batch with the same idempotency
-// key and the same legs to read it, which runs no accepted leg twice),
-// "refused" (the leg moved no funds; ErrorCode says why) or "not_submitted"
-// (the leg did not run: its batch was refused, or the request ended before
-// the leg started; a retry with the same key runs it).
+// Status is "credited" (the leg is credited to its destination; its
+// TransferID, FlowID and CreditedTsNs are set), "processing" (the batch's
+// outcome is not known yet; TransferID is set) or "not_moved" (the batch was
+// refused and the leg moved nothing; ErrorCode is set when this leg caused
+// the refusal).
 type InternalTransferBatchLegResult struct {
 	LegIndex uint32 `json:"leg_index"`
 	Status   string `json:"status"`
-	// RequestID is the leg's transfer request; empty while the leg has not
-	// been submitted.
-	RequestID string `json:"request_id,omitempty"`
-	// TransferID and FlowID are set once the leg is accepted. FlowID is the
-	// transfer's lifecycle flow, for Lifecycle.GetAccountFlow.
+	// TransferID is the leg's stable transfer identifier, set while the batch
+	// is processing and once it is accepted. A batch leg is not readable with
+	// InternalTransfers.Get: read the batch with GetBatch.
 	TransferID string `json:"transfer_id,omitempty"`
-	FlowID     string `json:"flow_id,omitempty"`
-	// AcceptedTsNs is when the leg was accepted, in nanoseconds since the
-	// Unix epoch; 0 before.
-	AcceptedTsNs uint64 `json:"accepted_ts_ns,omitempty"`
+	// FlowID is the leg's lifecycle flow, for Lifecycle.GetAccountFlow by its
+	// sender or its recipient; set once the leg is credited.
+	FlowID string `json:"flow_id,omitempty"`
+	// CreditedTsNs is when the leg was credited, in nanoseconds since the
+	// Unix epoch (server time); 0 before.
+	CreditedTsNs uint64 `json:"credited_ts_ns,omitempty"`
 	AssetID      uint32 `json:"asset_id,omitempty"`
-	// AssetCode is set once the leg is submitted.
+	// AssetCode is set once the leg passed its checks.
 	AssetCode string `json:"asset_code,omitempty"`
 	// Quantity echoes the leg's amount at the 18-decimal ledger scale.
 	Quantity AssetAmountScaled `json:"quantity"`
 	// Destination is the destination the server resolved for the leg, set
-	// once the leg is submitted; nil when the reply carries none.
+	// once the leg passed its checks; nil when the reply carries none.
 	Destination *ResolvedDestination `json:"destination,omitempty"`
-	// ErrorCode is why the leg was refused, or why its outcome is not known
-	// yet, as a lowercase label without the ERROR_CODE_ prefix, such as
-	// "insufficient_funds"; empty for an accepted or not-submitted leg, and
+	// ErrorCode is why this leg caused its batch's refusal, as a lowercase
+	// label without the ERROR_CODE_ prefix, such as "insufficient_funds" or
+	// "service_unavailable" (the batch could not complete: submit it again
+	// under a new idempotency key); empty on every other leg, and
 	// UNKNOWN_ERROR_CODE(n) for a code newer than this SDK.
 	ErrorCode    string `json:"error_code,omitempty"`
 	ErrorMessage string `json:"error_message,omitempty"`

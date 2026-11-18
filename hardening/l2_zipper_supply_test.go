@@ -17,6 +17,7 @@ type supplyCase struct {
 	zippedAssetID uint32
 	supplyQ       uint64
 	want          string
+	status        zipperv1.SupplyStatus
 }
 
 // GetDepositWithdrawConfig keeps each variant's supply, supply_q at its
@@ -24,8 +25,19 @@ type supplyCase struct {
 // client hydrates at construction, in both wire formats: zero and positive
 // amounts at scale 0 and scale 8.
 func TestL2DepositWithdrawConfigKeepsVariantSupply(t *testing.T) {
-	scale0 := []supplyCase{{zippedAssetID: 11, supplyQ: 3582802, want: "3582802"}, {zippedAssetID: 12, supplyQ: 0, want: "0"}}
-	scale8 := []supplyCase{{zippedAssetID: 21, supplyQ: 9708173223, want: "97.08173223"}, {zippedAssetID: 22, supplyQ: 0, want: "0"}}
+	// A supply is known only while its status is AVAILABLE or STALE; a
+	// MISSING or unspecified one reads no supply, never "0", whatever
+	// supply_q says.
+	scale0 := []supplyCase{
+		{zippedAssetID: 11, supplyQ: 3582802, want: "3582802", status: zipperv1.SupplyStatus_AVAILABLE},
+		{zippedAssetID: 12, supplyQ: 0, want: "0", status: zipperv1.SupplyStatus_STALE},
+		{zippedAssetID: 13, supplyQ: 0, want: "", status: zipperv1.SupplyStatus_MISSING},
+		{zippedAssetID: 14, supplyQ: 7, want: "", status: zipperv1.SupplyStatus_SUPPLY_UNSPECIFIED},
+	}
+	scale8 := []supplyCase{
+		{zippedAssetID: 21, supplyQ: 9708173223, want: "97.08173223", status: zipperv1.SupplyStatus_AVAILABLE},
+		{zippedAssetID: 22, supplyQ: 0, want: "0", status: zipperv1.SupplyStatus_AVAILABLE},
+	}
 	variants := func(cases []supplyCase) []*zipperv1.AssetChainVariant {
 		out := make([]*zipperv1.AssetChainVariant, 0, len(cases))
 		for _, c := range cases {
@@ -36,6 +48,7 @@ func TestL2DepositWithdrawConfigKeepsVariantSupply(t *testing.T) {
 				DepositMinAmount:  "0.001",
 				WithdrawMinAmount: "0.002",
 				SupplyQ:           c.supplyQ,
+				SupplyStatus:      c.status,
 			})
 		}
 		return out

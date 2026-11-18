@@ -2,6 +2,9 @@ package services
 
 import (
 	"context"
+	"fmt"
+	"iter"
+	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
@@ -11,6 +14,8 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/realtime"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type SubAccountsService struct {
@@ -124,6 +129,116 @@ func (s *SubAccountsService) ListActivity(ctx context.Context, account AccountSc
 		req.PageToken = *pageToken
 	}
 	return UnaryAuth(ctx, s.transport, s.viewClient().ListSubaccountActivity, req, decode.SubaccountActivityListFromProto)
+}
+
+// ListAccountActivity lists the security and activity events of the main
+// account and every sub-account in one feed, newest first: sign-ins, API
+// keys, MFA, policies, members, invites and saved destinations. Only the main
+// account's own session, or an API key with READ_ACCOUNT_ACTIVITY, may call
+// it; a key scoped to a sub-account reads only that sub-account's events and
+// is refused IncludeMainAccount. Filters the contract does not take (more
+// than 100 sub-accounts or a repeated one, an unknown or repeated label, too
+// many labels, an EndTime not after StartTime, a limit above 200) are
+// refused with an *errors.ValidationError before sending.
+func (s *SubAccountsService) ListAccountActivity(ctx context.Context, opts models.ListAccountActivityOptions) (models.SubAccountActivityList, error) {
+	req, err := accountActivityRequest(opts)
+	if err != nil {
+		return models.SubAccountActivityList{}, err
+	}
+	return UnaryAuth(ctx, s.transport, s.readClient().ListAccountActivity, req, decode.AccountActivityListFromProto)
+}
+
+// AccountActivity iterates over ListAccountActivity from opts.PageToken (or
+// the newest event), following each page's NextPageToken with the same
+// filters. It stops at the first error.
+func (s *SubAccountsService) AccountActivity(ctx context.Context, opts models.ListAccountActivityOptions) iter.Seq2[models.SubAccountActivityEvent, error] {
+	return paginate(opts.PageToken, func(token string) ([]models.SubAccountActivityEvent, string, error) {
+		page := opts
+		page.PageToken = token
+		list, err := s.ListAccountActivity(ctx, page)
+		return list.Events, list.NextPageToken, err
+	})
+}
+
+func (s *SubAccountsService) readClient() authv1connect.AccountActivityServiceClient {
+	return authv1connect.NewAccountActivityServiceClient(s.transport.HTTP, s.transport.Config.APIURL, s.transport.ConnectOptions(true)...)
+}
+
+func accountActivityRequest(opts models.ListAccountActivityOptions) (*authv1.ListAccountActivityRequest, error) {
+	limit, err := PaginationLimit(opts.Limit, "limit")
+	if err != nil {
+		return nil, err
+	}
+	req := &authv1.ListAccountActivityRequest{Limit: limit, PageToken: opts.PageToken, IncludeMainAccount: opts.IncludeMainAccount}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return nil, err
+	}
+	if err := codecs.CheckContractRepeated(req, "subaccount_ids", len(opts.SubAccountIDs), "subaccount_ids"); err != nil {
+		return nil, err
+	}
+	seen := make(map[uint64]bool, len(opts.SubAccountIDs))
+	for i, text := range opts.SubAccountIDs {
+		id, err := codecs.ParseAccountID(text, fmt.Sprintf("subaccount_ids[%d]", i))
+		if err != nil {
+			return nil, err
+		}
+		if seen[id] {
+			return nil, &errors.ValidationError{Msg: fmt.Sprintf("subaccount_ids[%d] repeats a sub-account", i)}
+		}
+		seen[id] = true
+		req.SubaccountIds = append(req.SubaccountIds, id)
+	}
+	if req.EntityKinds, err = activityLabels[authv1.ActivityEntityKind](req, "entity_kinds", opts.EntityKinds, "ACTIVITY_ENTITY_", authv1.ActivityEntityKind_value); err != nil {
+		return nil, err
+	}
+	if req.EventActions, err = activityLabels[authv1.ActivityEventAction](req, "event_actions", opts.EventActions, "ACTIVITY_ACTION_", authv1.ActivityEventAction_value); err != nil {
+		return nil, err
+	}
+	if req.Sources, err = activityLabels[authv1.ActivityEventSource](req, "sources", opts.Sources, "ACTIVITY_SOURCE_", authv1.ActivityEventSource_value); err != nil {
+		return nil, err
+	}
+	if opts.APIKeyID != nil {
+		if req.ApiKeyId, err = codecs.ParseAccountID(*opts.APIKeyID, "api_key_id"); err != nil {
+			return nil, err
+		}
+	}
+	if opts.StartTime != nil {
+		req.StartTime = timestamppb.New(*opts.StartTime)
+	}
+	if opts.EndTime != nil {
+		req.EndTime = timestamppb.New(*opts.EndTime)
+	}
+	if opts.StartTime != nil && opts.EndTime != nil && !opts.EndTime.After(*opts.StartTime) {
+		return nil, &errors.ValidationError{Msg: "end_time must be after start_time"}
+	}
+	return req, nil
+}
+
+// activityLabels converts activity filter labels, with or without their
+// enum prefix and in any case, refusing an unknown, unspecified or repeated
+// one and more than the contract's max_items.
+func activityLabels[E ~int32](req *authv1.ListAccountActivityRequest, field protoreflect.Name, labels []string, prefix string, values map[string]int32) ([]E, error) {
+	if err := codecs.CheckContractRepeated(req, field, len(labels), string(field)); err != nil {
+		return nil, err
+	}
+	out := make([]E, 0, len(labels))
+	seen := make(map[int32]bool, len(labels))
+	for i, label := range labels {
+		name := strings.ToUpper(label)
+		if !strings.HasPrefix(name, prefix) {
+			name = prefix + name
+		}
+		value, ok := values[name]
+		if !ok || value == 0 {
+			return nil, &errors.ValidationError{Msg: fmt.Sprintf("%s[%d]: unknown value %q", field, i, label)}
+		}
+		if seen[value] {
+			return nil, &errors.ValidationError{Msg: fmt.Sprintf("%s[%d] repeats %q", field, i, label)}
+		}
+		seen[value] = true
+		out = append(out, E(value))
+	}
+	return out, nil
 }
 
 func (s *SubAccountsService) Subscribe(ctx context.Context, accountID any) (*realtime.Subscription[models.SubAccount], error) {

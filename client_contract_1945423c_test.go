@@ -1,6 +1,7 @@
 package polyester
 
 import (
+	"math"
 	"context"
 	stderrors "errors"
 	"net/http"
@@ -41,9 +42,9 @@ type contractAPI struct {
 	unsigned int
 
 	batch      func(*transferv1.BatchCreateInternalTransfersRequest) *transferv1.BatchCreateInternalTransfersResponse
+	batchRead  *transferv1.GetInternalTransferBatchResponse
 	conversion *transferv1.DustConversion
 	export     *ledgerrdv1.StatementExport
-	pages      map[string]*ledgerrdv1.ExportStatementResponse
 	flow       *lifecyclev1.FlowDetailView
 }
 
@@ -104,13 +105,9 @@ func (a *contractAPI) ListStatementExports(_ context.Context, req *connect.Reque
 	return connect.NewResponse(&ledgerrdv1.ListStatementExportsResponse{Exports: []*ledgerrdv1.StatementExport{a.export}}), nil
 }
 
-func (a *contractAPI) ExportStatement(_ context.Context, req *connect.Request[ledgerrdv1.ExportStatementRequest]) (*connect.Response[ledgerrdv1.ExportStatementResponse], error) {
+func (a *contractAPI) GetInternalTransferBatch(_ context.Context, req *connect.Request[transferv1.GetInternalTransferBatchRequest]) (*connect.Response[transferv1.GetInternalTransferBatchResponse], error) {
 	a.record(req.Header(), req.Msg)
-	page, ok := a.pages[req.Msg.GetPageToken()]
-	if !ok {
-		return nil, connect.NewError(connect.CodeInvalidArgument, stderrors.New("unknown page token"))
-	}
-	return connect.NewResponse(page), nil
+	return connect.NewResponse(a.batchRead), nil
 }
 
 func (a *contractAPI) ListAccountFlows(_ context.Context, req *connect.Request[lifecyclev1.ListAccountFlowsRequest]) (*connect.Response[lifecyclev1.ListAccountFlowsResponse], error) {
@@ -154,12 +151,12 @@ func newContractClient(t *testing.T, api *contractAPI, defaultSub *string) *Clie
 }
 
 func acceptAll(req *transferv1.BatchCreateInternalTransfersRequest) *transferv1.BatchCreateInternalTransfersResponse {
-	resp := &transferv1.BatchCreateInternalTransfersResponse{RequestId: "batch-1", Status: transferv1.InternalTransferBatchStatus_BATCH_SUBMITTED}
+	resp := &transferv1.BatchCreateInternalTransfersResponse{RequestId: "92640625967207661803151833376978068587", Status: transferv1.InternalTransferBatchStatus_BATCH_ACCEPTED}
 	for i, leg := range req.GetLegs() {
 		resp.Legs = append(resp.Legs, &transferv1.InternalTransferBatchLegResult{
-			LegIndex: uint32(i), Status: transferv1.InternalTransferBatchLegStatus_LEG_ACCEPTED,
-			RequestId: "req-" + string(rune('a'+i)), TransferId: "tr-" + string(rune('a'+i)), FlowId: "flow_X",
-			AcceptedAtTsNs: 1_700_000_000_000_000_001, AssetId: leg.GetAssetId(), AssetCode: "USDT", AmountE18: leg.GetAmountE18(),
+			LegIndex: uint32(i), Status: transferv1.InternalTransferBatchLegStatus_LEG_CREDITED,
+			TransferId: "tr-" + string(rune('a'+i)), FlowId: "flow_X",
+			CreditedAtTsNs: 1_700_000_000_000_000_001, AssetId: leg.GetAssetId(), AssetCode: "USDT", AmountE18: leg.GetAmountE18(),
 		})
 	}
 	return resp
@@ -201,11 +198,11 @@ func TestInternalTransfersCreateBatchSendsExactLegs(t *testing.T) {
 	if second.GetSubaccountId() != 9000000002 || second.GetDestinationAccountId() != 42 {
 		t.Fatalf("leg 1 = %v; want its own source and destination", second)
 	}
-	if result.Status != "submitted" || result.RequestID != "batch-1" || len(result.Legs) != 2 {
+	if result.Status != "accepted" || result.RequestID != "92640625967207661803151833376978068587" || len(result.Legs) != 2 {
 		t.Fatalf("result = %+v", result)
 	}
 	leg := result.Legs[0]
-	if leg.Status != "accepted" || leg.TransferID != "tr-a" || leg.AcceptedTsNs != 1_700_000_000_000_000_001 || leg.ErrorCode != "" {
+	if leg.Status != "credited" || leg.TransferID != "tr-a" || leg.FlowID != "flow_X" || leg.CreditedTsNs != 1_700_000_000_000_000_001 || leg.ErrorCode != "" {
 		t.Fatalf("leg 0 = %+v", leg)
 	}
 	if text, err := leg.Quantity.Format(); err != nil || text != "1844674407370.955161" {
@@ -219,10 +216,6 @@ func TestInternalTransfersCreateBatchRefusesOutOfContractRequestsBeforeSending(t
 	scale := 18
 	dest := "0x2222222222222222222222222222222222222222"
 	leg := models.InternalTransferBatchLeg{AssetID: 1, Quantity: models.AssetAmountFromDecimal("1"), QuantityScale: &scale, DestinationSmartAccountAddress: &dest}
-	eleven := make([]models.InternalTransferBatchLeg, 11)
-	for i := range eleven {
-		eleven[i] = leg
-	}
 	noDest, twoDest, noAsset, float := leg, leg, leg, leg
 	noDest.DestinationSmartAccountAddress = nil
 	other := codecs.FormatID(5)
@@ -234,7 +227,6 @@ func TestInternalTransfersCreateBatchRefusesOutOfContractRequestsBeforeSending(t
 		key  string
 	}{
 		"no legs":            {nil, "k"},
-		"eleven legs":        {eleven, "k"},
 		"empty key":          {[]models.InternalTransferBatchLeg{leg}, ""},
 		"key over 128 chars": {[]models.InternalTransferBatchLeg{leg}, strings.Repeat("k", 129)},
 		"no destination":     {[]models.InternalTransferBatchLeg{leg, noDest}, "k"},
@@ -252,8 +244,20 @@ func TestInternalTransfersCreateBatchRefusesOutOfContractRequestsBeforeSending(t
 	if n := len(api.sent(t)); n != 0 {
 		t.Fatalf("%d requests sent", n)
 	}
-	if codecs.BatchInternalTransferLegsMin != 1 || codecs.BatchInternalTransferLegsMax != 10 {
+	// The contract states no maximum: the API refuses more than 500 legs
+	// itself, so 501 legs are sent.
+	if codecs.BatchInternalTransferLegsMin != 1 || codecs.BatchInternalTransferLegsMax != math.MaxInt {
 		t.Fatalf("contract legs = %d..%d", codecs.BatchInternalTransferLegsMin, codecs.BatchInternalTransferLegsMax)
+	}
+	many := make([]models.InternalTransferBatchLeg, 501)
+	for i := range many {
+		many[i] = leg
+	}
+	if _, err := client.InternalTransfers.CreateBatch(context.Background(), many, "k"); err != nil {
+		t.Fatal(err)
+	}
+	if n := len(api.sent(t)); n != 1 {
+		t.Fatalf("%d requests sent, want 1", n)
 	}
 }
 
@@ -267,16 +271,34 @@ func TestInternalTransfersCreateBatchFailsClosedOnAMalformedReply(t *testing.T) 
 	breakages := map[string]func(*transferv1.BatchCreateInternalTransfersResponse){
 		"unspecified status":        func(r *transferv1.BatchCreateInternalTransfersResponse) { r.Status = 0 },
 		"unknown status":            func(r *transferv1.BatchCreateInternalTransfersResponse) { r.Status = 9 },
-		"submitted without request": func(r *transferv1.BatchCreateInternalTransfersResponse) { r.RequestId = "" },
+		"removed submitted status":  func(r *transferv1.BatchCreateInternalTransfersResponse) { r.Status = 1 },
+		"accepted without request":  func(r *transferv1.BatchCreateInternalTransfersResponse) { r.RequestId = "" },
+		"processing without request": func(r *transferv1.BatchCreateInternalTransfersResponse) {
+			r.Status, r.RequestId = transferv1.InternalTransferBatchStatus_BATCH_PROCESSING, ""
+			for _, leg := range r.Legs {
+				leg.Status = transferv1.InternalTransferBatchLegStatus_LEG_PROCESSING
+			}
+		},
 		"missing leg":               func(r *transferv1.BatchCreateInternalTransfersResponse) { r.Legs = r.Legs[:1] },
 		"legs out of order": func(r *transferv1.BatchCreateInternalTransfersResponse) {
 			r.Legs[0].LegIndex, r.Legs[1].LegIndex = 1, 0
 		},
-		"accepted without transfer":   func(r *transferv1.BatchCreateInternalTransfersResponse) { r.Legs[1].TransferId = "" },
-		"accepted without request ID": func(r *transferv1.BatchCreateInternalTransfersResponse) { r.Legs[0].RequestId = "" },
-		"pending without request ID": func(r *transferv1.BatchCreateInternalTransfersResponse) {
-			r.Legs[1].Status, r.Legs[1].RequestId = transferv1.InternalTransferBatchLegStatus_LEG_PENDING, ""
+		"credited without transfer": func(r *transferv1.BatchCreateInternalTransfersResponse) { r.Legs[1].TransferId = "" },
+		"processing leg in an accepted batch": func(r *transferv1.BatchCreateInternalTransfersResponse) {
+			r.Legs[1].Status = transferv1.InternalTransferBatchLegStatus_LEG_PROCESSING
 		},
+		"processing without transfer": func(r *transferv1.BatchCreateInternalTransfersResponse) {
+			r.Status = transferv1.InternalTransferBatchStatus_BATCH_PROCESSING
+			for _, leg := range r.Legs {
+				leg.Status = transferv1.InternalTransferBatchLegStatus_LEG_PROCESSING
+			}
+			r.Legs[0].TransferId = ""
+		},
+		"credited leg in a refused batch": func(r *transferv1.BatchCreateInternalTransfersResponse) {
+			r.Status = transferv1.InternalTransferBatchStatus_BATCH_REFUSED
+			r.Legs[0].Status = transferv1.InternalTransferBatchLegStatus_LEG_NOT_MOVED
+		},
+		"removed leg status": func(r *transferv1.BatchCreateInternalTransfersResponse) { r.Legs[1].Status = 1 },
 		"unspecified leg status": func(r *transferv1.BatchCreateInternalTransfersResponse) { r.Legs[1].Status = 0 },
 	}
 	for name, breakReply := range breakages {
@@ -292,19 +314,80 @@ func TestInternalTransfersCreateBatchFailsClosedOnAMalformedReply(t *testing.T) 
 			t.Fatalf("%s: err = %T %v, want ResponseContractError", name, err, err)
 		}
 	}
-	// A refused batch has no request ID; its legs say why.
+	// A refused batch may have no request ID; nothing moved, and the leg
+	// that caused it says why.
 	api := &contractAPI{batch: func(req *transferv1.BatchCreateInternalTransfersRequest) *transferv1.BatchCreateInternalTransfersResponse {
 		return &transferv1.BatchCreateInternalTransfersResponse{Status: transferv1.InternalTransferBatchStatus_BATCH_REFUSED, Legs: []*transferv1.InternalTransferBatchLegResult{
-			{LegIndex: 0, Status: transferv1.InternalTransferBatchLegStatus_LEG_NOT_SUBMITTED},
-			{LegIndex: 1, Status: transferv1.InternalTransferBatchLegStatus_LEG_REFUSED, ErrorCode: transferv1.ErrorCode_ERROR_CODE_INSUFFICIENT_FUNDS, ErrorMessage: "insufficient funds"},
+			{LegIndex: 0, Status: transferv1.InternalTransferBatchLegStatus_LEG_NOT_MOVED},
+			{LegIndex: 1, Status: transferv1.InternalTransferBatchLegStatus_LEG_NOT_MOVED, ErrorCode: transferv1.ErrorCode_ERROR_CODE_INSUFFICIENT_FUNDS, ErrorMessage: "insufficient funds"},
 		}}
 	}}
 	result, err := newContractClient(t, api, nil).InternalTransfers.CreateBatch(context.Background(), legs, "k")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Status != "refused" || result.Legs[0].Status != "not_submitted" || result.Legs[1].Status != "refused" || result.Legs[1].ErrorCode != "insufficient_funds" {
+	if result.Status != "refused" || result.Legs[0].Status != "not_moved" || result.Legs[0].ErrorCode != "" || result.Legs[1].Status != "not_moved" || result.Legs[1].ErrorCode != "insufficient_funds" {
 		t.Fatalf("result = %+v", result)
+	}
+	// A processing batch carries its request ID and every leg's transfer ID.
+	api = &contractAPI{batch: func(req *transferv1.BatchCreateInternalTransfersRequest) *transferv1.BatchCreateInternalTransfersResponse {
+		resp := acceptAll(req)
+		resp.Status = transferv1.InternalTransferBatchStatus_BATCH_PROCESSING
+		for _, leg := range resp.Legs {
+			leg.Status, leg.FlowId, leg.CreditedAtTsNs = transferv1.InternalTransferBatchLegStatus_LEG_PROCESSING, "", 0
+		}
+		return resp
+	}}
+	result, err = newContractClient(t, api, nil).InternalTransfers.CreateBatch(context.Background(), legs, "k")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != "processing" || result.Legs[1].Status != "processing" || result.Legs[1].TransferID != "tr-b" {
+		t.Fatalf("result = %+v", result)
+	}
+}
+
+// GetBatch reads a batch by its request ID and checks the reply as CreateBatch
+// does, refusing a request ID the contract does not take before sending.
+func TestInternalTransfersGetBatch(t *testing.T) {
+	const requestID = "92640625967207661803151833376978068587"
+	api := &contractAPI{batchRead: &transferv1.GetInternalTransferBatchResponse{
+		RequestId: requestID, Status: transferv1.InternalTransferBatchStatus_BATCH_ACCEPTED,
+		Legs: []*transferv1.InternalTransferBatchLegResult{{
+			LegIndex: 0, Status: transferv1.InternalTransferBatchLegStatus_LEG_CREDITED, TransferId: "tr-a", FlowId: "flow_A",
+			CreditedAtTsNs: 7, AssetId: 7, AssetCode: "BTC",
+		}},
+	}}
+	client := newContractClient(t, api, nil)
+	result, err := client.InternalTransfers.GetBatch(context.Background(), requestID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.RequestID != requestID || result.Status != "accepted" || len(result.Legs) != 1 || result.Legs[0].FlowID != "flow_A" {
+		t.Fatalf("result = %+v", result)
+	}
+	sent := api.sent(t)
+	if len(sent) != 1 || sent[0].(*transferv1.GetInternalTransferBatchRequest).GetRequestId() != requestID || api.unsigned != 0 {
+		t.Fatalf("sent = %v unsigned=%d", sent, api.unsigned)
+	}
+	for _, id := range []string{"", "0", "0123", "12a", strings.Repeat("9", 40)} {
+		var validation *sdkerrors.ValidationError
+		if _, err := client.InternalTransfers.GetBatch(context.Background(), id); !stderrors.As(err, &validation) {
+			t.Fatalf("GetBatch(%q) err = %v, want a ValidationError", id, err)
+		}
+	}
+	// A reply naming another batch, or holding no leg, breaks the contract.
+	for name, breakReply := range map[string]func(*transferv1.GetInternalTransferBatchResponse){
+		"other batch": func(r *transferv1.GetInternalTransferBatchResponse) { r.RequestId = "1" },
+		"no legs":     func(r *transferv1.GetInternalTransferBatchResponse) { r.Legs = nil },
+	} {
+		reply := proto.Clone(api.batchRead).(*transferv1.GetInternalTransferBatchResponse)
+		breakReply(reply)
+		bad := &contractAPI{batchRead: reply}
+		var contractErr *sdkerrors.ResponseContractError
+		if _, err := newContractClient(t, bad, nil).InternalTransfers.GetBatch(context.Background(), requestID); !stderrors.As(err, &contractErr) {
+			t.Fatalf("%s: err = %v, want ResponseContractError", name, err)
+		}
 	}
 }
 
@@ -402,37 +485,6 @@ func TestStatementExportsRefuseRepliesWithoutTheExport(t *testing.T) {
 		if !stderrors.As(err, &contractErr) {
 			t.Fatalf("%s: err = %T %v", name, err, err)
 		}
-	}
-}
-
-func TestStatementsExportCarriesCompleteThroughAndRefusesPagesThatDisagree(t *testing.T) {
-	through := timestamppb.New(time.Date(2026, 11, 13, 3, 4, 5, 123456789, time.UTC))
-	api := &contractAPI{pages: map[string]*ledgerrdv1.ExportStatementResponse{
-		"":   {Csv: statementHeader, NextPageToken: "p2", CompleteThrough: through},
-		"p2": {Csv: "", CompleteThrough: through},
-	}}
-	client := newContractClient(t, api, nil)
-	opts := services.ExportStatementOptions{StartTime: time.Unix(0, 1), EndTime: time.Unix(2_000_000_000, 0)}
-	statement, err := client.Statements.Export(context.Background(), opts)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if statement.CompleteThrough == nil || !statement.CompleteThrough.Equal(through.AsTime()) {
-		t.Fatalf("complete_through = %v", statement.CompleteThrough)
-	}
-	page, err := client.Statements.ExportPage(context.Background(), opts)
-	if err != nil || page.CompleteThrough == nil || !page.CompleteThrough.Equal(through.AsTime()) {
-		t.Fatalf("page = %+v, %v", page, err)
-	}
-	api.pages["p2"] = &ledgerrdv1.ExportStatementResponse{CompleteThrough: timestamppb.New(through.AsTime().Add(time.Nanosecond))}
-	_, err = client.Statements.Export(context.Background(), opts)
-	var contractErr *sdkerrors.ResponseContractError
-	if !stderrors.As(err, &contractErr) {
-		t.Fatalf("disagreeing pages: err = %T %v", err, err)
-	}
-	api.pages["p2"] = &ledgerrdv1.ExportStatementResponse{}
-	if _, err = client.Statements.Export(context.Background(), opts); !stderrors.As(err, &contractErr) {
-		t.Fatalf("a page without complete_through: err = %T %v", err, err)
 	}
 }
 

@@ -551,7 +551,15 @@ func ModifyTriggerToProto(triggerID string, symbolID uint32, symbol string, subA
 		opts.TrailingDistanceTicks == nil && opts.TrailingDistanceBps == nil &&
 		(opts.ActivationPrice == nil || !opts.ActivationPrice.IsSet()) &&
 		opts.MaxSlippageTicks == nil && opts.MaxSlippageBps == nil {
-		return nil, &errors.ValidationError{Msg: "modify requires at least one of trigger_price, trailing_distance_ticks, trailing_distance_bps, activation_price, max_slippage_ticks, or max_slippage_bps"}
+		// The code and rule the API answer for a modify that names no field
+		// to change, with no field path.
+		violations := []errors.FieldViolation{{FieldPath: "", RuleID: "patch_empty", Message: "no patch fields provided"}}
+		return nil, &errors.ValidationError{
+			Msg:        "modify requires at least one of trigger_price, trailing_distance_ticks, trailing_distance_bps, activation_price, max_slippage_ticks, or max_slippage_bps",
+			Code:       orderv1.ErrorCode_ERROR_CODE_TRIGGER_PATCH_EMPTY.String(),
+			Metadata:   errors.ViolationMetadata(violations),
+			Violations: violations,
+		}
 	}
 	if opts.MaxSlippageTicks != nil && opts.MaxSlippageBps != nil {
 		return nil, &errors.ValidationError{Msg: "set at most one of max_slippage_ticks or max_slippage_bps"}
@@ -649,10 +657,12 @@ func CreateOcoToProto(symbolID uint32, in models.CreateOcoInput, subAccountID *s
 	}
 	qtyScaled, err := ResolveQtyScaled(in.Qty, quantityScale, "qty", in.Symbol, &symbolID)
 	if err != nil {
-		return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_BAD_QTY)
+		// The code a standalone trigger's quantity answers, as the API
+		// answers an OCO's.
+		return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_TRIGGER_QTY_INVALID)
 	}
 	intent := &triggersv1.OcoIntent{SymbolId: symbolID, Side: side, QtyScaled: qtyScaled}
-	if in.ClientListID != nil && *in.ClientListID != "" {
+	if in.ClientListID != nil {
 		if intent.ClientListId, err = ValidateClientListID(*in.ClientListID); err != nil {
 			return nil, err
 		}
@@ -683,12 +693,18 @@ func CreateOcoToProto(symbolID uint32, in models.CreateOcoInput, subAccountID *s
 // ValidateClientListID checks a client OCO ID as the contract does, with the
 // client order ID rule: 1 to 36 ASCII letters, digits, ".", "_", ":", "/" or
 // "-". It is sent unchanged, never trimmed, so an ID with surrounding spaces
-// is refused like any other character outside the set.
+// is refused like any other character outside the set, and an empty one is
+// refused, never read as absent. A refusal is an *errors.ValidationError
+// whose Code is ERROR_CODE_CLIENT_LIST_ID_INVALID, the code the API answers.
 func ValidateClientListID(value string) (string, error) {
 	if strings.TrimSpace(value) != value && strings.TrimSpace(value) != "" {
-		return "", &errors.ValidationError{Msg: "client_list_id contains invalid characters; allowed: A-Z a-z 0-9 . _ : / -"}
+		return "", coded(&errors.ValidationError{Msg: "client_list_id contains invalid characters; allowed: A-Z a-z 0-9 . _ : / -"}, orderv1.ErrorCode_ERROR_CODE_CLIENT_LIST_ID_INVALID)
 	}
-	return validateCorrelationID(value, "client_list_id", clientIDMaxLen)
+	id, err := validateCorrelationID(value, "client_list_id", clientIDMaxLen)
+	if err != nil {
+		return "", coded(err, orderv1.ErrorCode_ERROR_CODE_CLIENT_LIST_ID_INVALID)
+	}
+	return id, nil
 }
 
 func ocoLegToProto(leg models.RiskLegInput, fieldName, symbol string) (*triggersv1.OcoLeg, error) {

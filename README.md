@@ -678,8 +678,9 @@ policy, granted from an interactive session: `READ_API_KEYS`
 `READ_SUBACCOUNT_MEMBERS` (`SubAccounts.ListMembers` and the members of
 `SubAccounts.Get`), `READ_SUBACCOUNT_INVITES` (`SubAccounts.ListInvites` and
 the invites of `SubAccounts.Get`), `READ_GUARD_SIGNER_STATUS`
-(`GuardSigner.GetStatus`), `READ_STATEMENTS` (`Statements.ExportPage`,
-`Statements.Export` and the statement export files; `READ_BALANCES` and
+(`GuardSigner.GetStatus`), `READ_STATEMENTS` (`Statements.CreateExport`,
+`GetExport`, `CancelExport`, `ListExports`, `Exports`,
+`GetExportDownloadURL` and the statement files; `READ_BALANCES` and
 `READ_INTERNAL_TRANSFERS` do not grant it), `READ_FUNDING_FLOWS`
 (`Lifecycle.ListAccountFlows`, `AccountFlows`, `GetAccountFlow`) and
 `CONVERT_DUST` (`DustConversions.Quote`, `Convert`, `Get`, `List`, `All`). A key without a policy has none of these, and
@@ -764,10 +765,18 @@ returns its error before anything is canceled.
 A cancel of an order that has already ended, a repeat of the cancel that
 ended it included, fails with `ERROR_CODE_ORDER_ALREADY_TERMINAL`:
 `errors.IsOrderAlreadyTerminal(err)` reports it. Treat it as already done and
-read the order for how it ended. A retry by client order ID more than a
-minute after the order ended may read `ERROR_CODE_ORDER_UNKNOWN`, so cancel by
-order ID once you have it. Every cancel, repeats included, counts against
-the cancel rate limit.
+read the order for how it ended. An ended order can also fail a cancel or
+modify with `ERROR_CODE_ORDER_UNKNOWN` (`errors.IsOrderUnknown(err)`): by
+client order ID more than a minute after it ended, and by order ID once the
+exchange can no longer confirm it (after a market listing or a recovery, for
+example). So `ERROR_CODE_ORDER_UNKNOWN` does not prove that an order never
+existed. For an order you placed and know has ended (you saw its final update,
+or this repeats a cancel that timed out), treat it as done. Otherwise read the
+order with `Orders.Get`, which is definitive at any time (an ended status means
+nothing is left to cancel), or retry by client order ID within its window.
+Never retry by order ID to tell an ended order from an unknown one: the retry
+can answer `ERROR_CODE_ORDER_UNKNOWN` again. Every cancel, repeats included,
+counts against the cancel rate limit.
 
 Use **decimal strings** for human-facing `qty` / `price` inputs. Do **not** pass
 floats. `PriceTicks.Ticks()` returns Polyester protocol price units (fixed 1e9),
@@ -1746,78 +1755,69 @@ for _, bal := range view.Balances.Balances {
 
 ## Account statements
 
-`client.Statements.Export(ctx, opts)` exports an account's balance movements
-for a period as CSV, for reconciliation and tax reporting, and
-`Statements.ExportPage` reads one page (at most 2000 ledger movements, entries
-never split). The call is signed like the other ledger reads, and an API key
-needs `READ_STATEMENTS` on its policy.
-
-```go
-statement, err := client.Statements.Export(ctx, services.ExportStatementOptions{
-	StartTime: time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC), // inclusive
-	EndTime:   time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC), // exclusive
-})
-if err != nil {
-	return err
-}
-_ = os.WriteFile("statement.csv", []byte(statement.CSV), 0o600)
-rows, err := statement.Rows() // []models.StatementRow, read by header name
-```
-
-`StartTime` and `EndTime` are required; the period is at most 366 days. The
-statement covers movements up to `CompleteThrough` (on each page and on the
-whole `Statement`), which is at most `EndTime`: the time the first page was
-requested and through which account history was complete. When it is before
-`EndTime`, request the rest, from `CompleteThrough` to `EndTime`, later. A
-page token issued before the server added `CompleteThrough` is refused: restart
-from the first page.
-`Account` and `SubAccountID` select the account as for `Transfers.List`, and
-without either the client's `DefaultSubAccountID` applies. `AssetID` keeps one
-asset. `Export` follows each page's token with the same fields and returns
-the pages concatenated: only the first page carries the header row. `CSV` is
-RFC 4180 text with CRLF line endings; keep it as text. `Rows` and
-`models.ParseStatementCSV` read the columns by header name, so columns a later
-release appends do not break them, and keep amounts as exact decimal strings
-(`Amount`, `Fee`, `Balance`; `Balance` is the previous balance of the same
-bucket and asset plus `Amount` minus `Fee`). `FlowID` matches the entry's
-`Transfers.List` flow, empty for trades.
-
-### Statement export files
-
-For a long period, ask the server to produce the whole statement as one CSV
-file in the background instead of paging through it:
+`client.Statements` exports an account's balance movements for a period as one
+CSV file, for reconciliation and tax reporting. The server produces the file in
+the background; create an export, wait until it is final, then download it.
+The calls are signed like the other ledger reads, and an API key needs
+`READ_STATEMENTS` on its policy.
 
 ```go
 export, err := client.Statements.CreateExport(ctx, services.CreateStatementExportOptions{
-	StartTime:      time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
-	EndTime:        time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC),
+	StartTime:      time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), // inclusive
+	EndTime:        time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC), // exclusive
 	IdempotencyKey: "statement-2026",
 })
 if err != nil {
 	return err
 }
-for export.Status == "queued" || export.Status == "processing" {
+for !export.IsFinal() {
 	time.Sleep(5 * time.Second)
 	if export, err = client.Statements.GetExport(ctx, export.ExportID); err != nil {
 		return err
 	}
 }
+if export.Status == "ready" {
+	link, err := client.Statements.GetExportDownloadURL(ctx, export.ExportID)
+	if err != nil {
+		return err
+	}
+	_ = link.URL.Reveal() // hand it to a browser; never log it
+}
 ```
 
-`IdempotencyKey` is required (1 to 64 letters, digits, `.`, `_`, `:` or `-`):
-repeating a create with the same key returns the same export, and the same key
-with other fields is refused with `ERROR_CODE_IDEMPOTENCY_KEY_REUSED`. The
-period is at most 366 days. A root account has at most 5 exports queued or
-processing; another create is refused with
+`StartTime` and `EndTime` are required; the period is at most 366 days.
+`Account` and `SubAccountID` select the account as for `Transfers.List`, and
+without either the client's `DefaultSubAccountID` applies. `AssetID` keeps one
+asset. `IdempotencyKey` is required (1 to 64 letters, digits, `.`, `_`, `:` or
+`-`): repeating a create with the same key returns the same export, and the
+same key with other fields is refused with
+`ERROR_CODE_IDEMPOTENCY_KEY_REUSED`. A root account has at most 5 exports
+queued or processing; another create is refused with
 `ERROR_CODE_STATEMENT_EXPORT_LIMIT_REACHED`, which is not retryable until one
-of them finishes. `Status` is `queued`, `processing`, `ready`, `failed`
-(`FailureReason` `too_large`: split the period; `unavailable`: create a new
-export) or `expired`. `Statements.ListExports` and the `Statements.Exports`
-iterator list an account's exports, newest first. A `ready` file is
-downloaded for 7 days with an authenticated REST
-`GET /v1/statements/exports/{exportId}/file`; the download has no ConnectRPC
-method, so this SDK does not wrap it. Access follows `Statements.Export`: an
-API key needs `READ_STATEMENTS`.
+of them finishes. `Statements.ListExports` and the `Statements.Exports`
+iterator list an account's exports, newest first; each page carries
+`InProgressExports` and `MaxInProgressExports`, the root account's room left.
+`Statements.CancelExport` stops a queued or processing export: it becomes
+`canceled` at once and frees its place.
+
+`Status` is `queued`, `processing`, `ready`, `failed` (`FailureReason`
+`too_large`: split the period; `unavailable`: create a new export), `expired`
+or `canceled`; `IsFinal` is true for every status but `queued` and
+`processing`. The file covers movements up to `CompleteThrough`, which is at
+most `EndTime`. A `ready` file can be downloaded for 7 days, with an
+authenticated REST `GET /v1/statements/exports/{exportId}/file` (no ConnectRPC
+method, so this SDK does not wrap it), or from the URL
+`Statements.GetExportDownloadURL` returns: it needs no credentials and works
+for 60 seconds, so ask for it right before downloading. The URL is a
+`models.Secret`, which prints and encodes as `[REDACTED]`: anyone who holds it
+can download the file, so never log, store or share it.
+
+The file is RFC 4180 CSV with CRLF line endings, header row first; keep it as
+text. `models.ParseStatementCSV` reads the columns by header name, so columns
+a later release appends do not break it, and keeps amounts as exact decimal
+strings (`Amount`, `Fee`, `Balance`; `Balance` is the previous balance of the
+same bucket and asset plus `Amount` minus `Fee`). `FlowID` matches the entry's
+`Transfers.List` flow, empty for trades.
 
 ## Dust conversion
 
