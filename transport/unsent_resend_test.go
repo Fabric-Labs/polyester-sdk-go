@@ -151,3 +151,22 @@ func TestUnsentResendStopsWhenTheDeadlinePassesDuringTheRewind(t *testing.T) {
 		t.Fatalf("sent %d times (want once), rewound body closed=%v", len(base.bodies), rewound.closed)
 	}
 }
+
+// The resend matches net/http's own error exactly: a changed or partial
+// text, or the text inside another error's message, is never resent.
+func TestUnsentResendMatchesOnlyTheExactError(t *testing.T) {
+	if connNotEstablished != "http2: client conn could not be established" {
+		t.Fatalf("connNotEstablished = %q", connNotEstablished)
+	}
+	for _, failure := range []error{
+		errors.New("http2: client conn could not be established."),
+		errors.New("http2: client conn could not be"),
+		errors.New("HTTP2: CLIENT CONN COULD NOT BE ESTABLISHED"),
+		errors.New("upstream said: http2: client conn could not be established"),
+	} {
+		base := &scriptedTransport{errs: []error{failure}}
+		if _, err := (unsentResendRoundTripper{base: base}).RoundTrip(newRequest(t, context.Background(), []byte("order"))); !errors.Is(err, failure) || len(base.bodies) != 1 {
+			t.Fatalf("%q: err=%v sent=%d, want the error after one send", failure, err, len(base.bodies))
+		}
+	}
+}
