@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"testing"
+	"time"
 )
 
 // scriptedTransport answers each request with the next error, then succeeds,
@@ -99,5 +100,54 @@ func TestUnsentResendStopsWhenTheCallerIsDone(t *testing.T) {
 	base := &scriptedTransport{errs: []error{errNotEstablished}}
 	if _, err := (unsentResendRoundTripper{base: base}).RoundTrip(newRequest(t, ctx, []byte("order"))); !errors.Is(err, errNotEstablished) || len(base.bodies) != 1 {
 		t.Fatalf("err=%v sent=%d", err, len(base.bodies))
+	}
+}
+
+// trackedBody records whether the wrapper closed a body it did not send.
+type trackedBody struct {
+	io.Reader
+	closed bool
+}
+
+func (b *trackedBody) Close() error { b.closed = true; return nil }
+
+// The caller cancels while the body is rewound: nothing more is sent, and
+// the rewound body is closed.
+func TestUnsentResendStopsWhenTheCallerCancelsDuringTheRewind(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	base := &scriptedTransport{errs: []error{errNotEstablished}}
+	req := newRequest(t, ctx, []byte("order"))
+	rewound := &trackedBody{Reader: bytes.NewReader([]byte("order"))}
+	req.GetBody = func() (io.ReadCloser, error) {
+		cancel()
+		return rewound, nil
+	}
+	if _, err := (unsentResendRoundTripper{base: base}).RoundTrip(req); !errors.Is(err, errNotEstablished) && !errors.Is(err, context.Canceled) {
+		t.Fatalf("err=%v", err)
+	}
+	if len(base.bodies) != 1 || !rewound.closed {
+		t.Fatalf("sent %d times (want once), rewound body closed=%v", len(base.bodies), rewound.closed)
+	}
+}
+
+// The caller's deadline passes while the body is rewound: nothing more is
+// sent. The rewind waits for the deadline, so it passes there whatever the
+// machine's speed.
+func TestUnsentResendStopsWhenTheDeadlinePassesDuringTheRewind(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	base := &scriptedTransport{errs: []error{errNotEstablished}}
+	req := newRequest(t, ctx, []byte("order"))
+	rewound := &trackedBody{Reader: bytes.NewReader([]byte("order"))}
+	req.GetBody = func() (io.ReadCloser, error) {
+		<-ctx.Done()
+		return rewound, nil
+	}
+	if _, err := (unsentResendRoundTripper{base: base}).RoundTrip(req); !errors.Is(err, errNotEstablished) && !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("err=%v", err)
+	}
+	if len(base.bodies) != 1 || !rewound.closed {
+		t.Fatalf("sent %d times (want once), rewound body closed=%v", len(base.bodies), rewound.closed)
 	}
 }

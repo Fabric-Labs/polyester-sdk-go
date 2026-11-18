@@ -25,7 +25,9 @@ const maxUnsentResends = 4
 // request's stream is opened, so no byte of the request left the client,
 // and it removes the connection from the pool. Sending the same request
 // again, on another connection, is then safe for any request, a mutation
-// included: the server never saw the first one.
+// included: the server never saw the first one. Nothing is sent again once
+// the caller's context has ended, also when it ends while the body is
+// rewound.
 type unsentResendRoundTripper struct {
 	base http.RoundTripper
 }
@@ -50,6 +52,13 @@ func (rt unsentResendRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 				return resp, err
 			}
 			next.Body = body
+		}
+		// The rewind can outlast the caller: never send once it is done.
+		if req.Context().Err() != nil {
+			if next.Body != nil {
+				_ = next.Body.Close()
+			}
+			return resp, err
 		}
 		req = next
 	}
