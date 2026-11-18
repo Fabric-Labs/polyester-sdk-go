@@ -20,7 +20,13 @@ func StatusFromProto(msg *guardv1.GetGuardSignerStatusResponse) *models.GuardSig
 	if !st.GetInitialized() {
 		status = "uninitialized"
 	}
-	return &models.GuardSignerStatus{SignerWallet: st.GetSignerAddress(), Status: status}
+	return &models.GuardSignerStatus{
+		SignerWallet:         st.GetSignerAddress(),
+		Status:               status,
+		OnchainSignerAddress: st.GetOnchainSignerAddress(),
+		Nonce:                st.GetNonce(),
+		NonceSpace:           st.GetNonceSpace(),
+	}
 }
 
 // GuardApprovalFromProto maps a signed approval, keeping the exact nonce space

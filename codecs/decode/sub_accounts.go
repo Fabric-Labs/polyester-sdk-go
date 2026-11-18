@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
@@ -34,10 +36,10 @@ func subAccount(msg *authv1.Subaccount) models.SubAccount {
 	if msg == nil {
 		return models.SubAccount{}
 	}
-	var updatedAt *time.Time
-	if ts := msg.GetUpdatedAt(); ts != nil {
-		value := ts.AsTime()
-		updatedAt = &value
+	var saltNonce *uint32
+	if msg.SmartAccountSaltNonce != nil {
+		value := msg.GetSmartAccountSaltNonce()
+		saltNonce = &value
 	}
 	return models.SubAccount{
 		SubaccountID: codecs.FormatUint64ID(msg.GetId()),
@@ -48,8 +50,27 @@ func subAccount(msg *authv1.Subaccount) models.SubAccount {
 		SmartAccountAddress: msg.GetSmartAccountAddress(),
 		Status:              subaccountStatusName(msg.GetStatus()),
 		Revision:            msg.GetRevision(),
-		UpdatedAt:           updatedAt,
+		UpdatedAt:           optionalTime(msg.GetUpdatedAt()),
+		Icon:                msg.GetIcon(),
+		Color:               msg.GetColor(),
+		OwnerUsername:       msg.GetOwnerUsername(),
+		OwnerAvatarURL:      msg.GetOwnerAvatarUrl(),
+
+		OwnerRootSmartAccountAddress: msg.GetOwnerRootSmartAccountAddress(),
+		// Zero means no policy is attached.
+		SubaccountPolicyID:    optionalID(msg.GetSubaccountPolicyId()),
+		RequireMemberMFA:      msg.GetRequireMemberMfa(),
+		SmartAccountSaltNonce: saltNonce,
 	}
+}
+
+// optionalTime reads a timestamp the server may leave out as nil.
+func optionalTime(ts *timestamppb.Timestamp) *time.Time {
+	if ts == nil {
+		return nil
+	}
+	value := ts.AsTime()
+	return &value
 }
 
 // SubaccountMessageFromProto decodes one subaccount message.
@@ -127,6 +148,8 @@ func subAccountMembers(members []*authv1.SubaccountMemberView) []models.SubAccou
 	for _, m := range members {
 		out = append(out, models.SubAccountMember{
 			GranteeAccountID: codecs.FormatUint64ID(m.GetAccountId()), Role: subaccountRoleName(m.GetRole()),
+			Username: m.GetUsername(), SmartAccountAddress: m.GetSmartAccountAddress(),
+			AvatarURL: m.GetAvatarUrl(), MFAEnrolled: m.GetMfaEnrolled(),
 		})
 	}
 	return out
@@ -157,8 +180,19 @@ func inviteFromProto(inv *authv1.SubaccountInvite) models.SubAccountInvite {
 	}
 	return models.SubAccountInvite{
 		InviteID:         codecs.FormatUint64ID(inv.GetId()),
+		SubaccountID:     codecs.FormatUint64ID(inv.GetSubaccountId()),
 		GranteeAccountID: codecs.FormatUint64ID(inv.GetGranteeAccountId()),
+		InviterAccountID: optionalID(inv.GetInviterAccountId()),
 		Role:             subaccountRoleName(inv.GetRole()), Status: inv.GetStatus().String(),
+		CreatedAt:       optionalTime(inv.GetCreatedAt()),
+		RespondedAt:     optionalTime(inv.GetRespondedAt()),
+		GranteeUsername: inv.GetGranteeUsername(),
+		InviterUsername: inv.GetInviterUsername(),
+		SubaccountLabel: inv.GetSubaccountLabel(),
+
+		InviterRootSmartAccountAddress: inv.GetInviterRootSmartAccountAddress(),
+		GranteeRootSmartAccountAddress: inv.GetGranteeRootSmartAccountAddress(),
+		RequireMemberMFA:               inv.GetRequireMemberMfa(),
 	}
 }
 

@@ -2,8 +2,11 @@ package services
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
+	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	chaindepositv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/deposit/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/chain/deposit/v1/chaindepositv1connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
@@ -35,8 +38,13 @@ func (s *DepositService) ListAddresses(ctx context.Context, chainID uint32, acco
 }
 
 // CreateAddress creates a deposit address on chainID. An API key needs
-// CREATE_DEPOSIT_ADDRESS on its policy.
+// CREATE_DEPOSIT_ADDRESS on its policy. A chainID of 0 is refused with an
+// *errors.ValidationError before sending, as the contract takes chain IDs
+// above 0 (codecs.DepositChainIDMin).
 func (s *DepositService) CreateAddress(ctx context.Context, chainID uint32, account AccountScope, subAccountID *string) (models.DepositAddress, error) {
+	if chainID < codecs.DepositChainIDMin {
+		return models.DepositAddress{}, &errors.ValidationError{Msg: fmt.Sprintf("chain_id %d is below %d", chainID, codecs.DepositChainIDMin)}
+	}
 	req := &chaindepositv1.CreateDepositAddressRequest{ChainId: chainID}
 	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.DepositAddress{}, err
