@@ -105,7 +105,7 @@ func registerClientSecrets(cfg Config, creds *auth.Credentials, httpClient *http
 
 func wrapHTTPClient(client *http.Client) *http.Client {
 	recording := *client
-	recording.Transport = responseRefRoundTripper{base: client.Transport}
+	recording.Transport = responseRefRoundTripper{base: unsentResendRoundTripper{base: client.Transport}}
 	return wrapTimestampSkew(useragent.WrapClient(auth.RefuseSignedRedirects(&recording)))
 }
 
