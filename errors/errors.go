@@ -773,9 +773,14 @@ type RealtimeError struct {
 	// RetryAfter is the delay in seconds that answer asked for with
 	// Retry-After; nil when it named none. See errors.RetryAfter.
 	RetryAfter *float64
+	// Err is the typed error that ended the stream, such as the
+	// *ResponseContractError of a publication that breaks the contract; nil
+	// when there is none. errors.As and errors.Is reach it.
+	Err error
 }
 
 func (e *RealtimeError) Error() string        { return e.Msg }
+func (e *RealtimeError) Unwrap() error        { return e.Err }
 func (e *RealtimeError) Is(target error) bool { return target == ErrPolyester }
 
 // SubscriptionEndReason says why a subscription the server ended did not resume.

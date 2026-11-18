@@ -104,7 +104,7 @@ func TestL2DepositWithdrawConfigKeepsVariantSupply(t *testing.T) {
 				t.Fatalf("typed result has %d variants, want %d", seen, len(want))
 			}
 
-			// POLY-9228: spot readiness no longer implies the funding config.
+			// Spot readiness does not imply the funding config: wait for it.
 			if err := client.WaitForFundingCatalog(context.Background()); err != nil {
 				t.Fatal(err)
 			}
