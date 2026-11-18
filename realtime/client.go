@@ -35,6 +35,12 @@ func terminalRealtime(message string) error {
 	return &terminalRealtimeError{err: &sdkerrors.RealtimeError{Msg: message}}
 }
 
+// terminalRealtimeCause ends the stream with cause kept typed behind the
+// *errors.RealtimeError, so errors.As reaches it.
+func terminalRealtimeCause(message string, cause error) error {
+	return &terminalRealtimeError{err: &sdkerrors.RealtimeError{Msg: message + ": " + cause.Error(), Err: cause}}
+}
+
 // Client connects to Centrifugo for public and private protobuf channels, and
 // to the private WebSocket for account order streams (SubscribeOrders).
 type Client struct {
@@ -445,7 +451,7 @@ func runSubscriptionOnce[T any](
 				}
 				items, err := decode(message.data)
 				if err != nil {
-					return terminalRealtime("invalid realtime publication: " + err.Error())
+					return terminalRealtimeCause("invalid realtime publication", err)
 				}
 				for _, item := range items {
 					if !sub.enqueue(item) {

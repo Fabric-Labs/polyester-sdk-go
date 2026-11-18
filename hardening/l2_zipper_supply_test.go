@@ -2,6 +2,7 @@ package hardening_test
 
 import (
 	"context"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"testing"
 	"time"
 
@@ -49,6 +50,7 @@ func TestL2DepositWithdrawConfigKeepsVariantSupply(t *testing.T) {
 				WithdrawMinAmount: "0.002",
 				SupplyQ:           c.supplyQ,
 				SupplyStatus:      c.status,
+				SupplyObservedAt:  supplyObservedAt(c.status),
 			})
 		}
 		return out
@@ -102,7 +104,7 @@ func TestL2DepositWithdrawConfigKeepsVariantSupply(t *testing.T) {
 				t.Fatalf("typed result has %d variants, want %d", seen, len(want))
 			}
 
-			// POLY-9228: spot readiness no longer implies the funding config.
+			// Spot readiness does not imply the funding config: wait for it.
 			if err := client.WaitForFundingCatalog(context.Background()); err != nil {
 				t.Fatal(err)
 			}
@@ -124,4 +126,13 @@ func TestL2DepositWithdrawConfigKeepsVariantSupply(t *testing.T) {
 			}
 		})
 	}
+}
+
+// supplyObservedAt is the read time a known supply (AVAILABLE or STALE)
+// carries; nil for any other status.
+func supplyObservedAt(status zipperv1.SupplyStatus) *timestamppb.Timestamp {
+	if status != zipperv1.SupplyStatus_AVAILABLE && status != zipperv1.SupplyStatus_STALE {
+		return nil
+	}
+	return timestamppb.New(time.Date(2026, 11, 15, 12, 0, 0, 0, time.UTC))
 }

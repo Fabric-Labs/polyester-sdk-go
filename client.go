@@ -477,7 +477,11 @@ func (c *Client) hydrateFunding(ctx context.Context, deadline time.Time) error {
 			if err != nil {
 				return err
 			}
-			if err := c.Catalogs.HydrateZipperConfig(decode.DepositWithdrawConfigFromProto(resp.Msg)); err != nil {
+			cfg, err := decode.DepositWithdrawConfigFromProto(resp.Msg)
+			if err != nil {
+				return &catalogInvalid{err: err}
+			}
+			if err := c.Catalogs.HydrateZipperConfig(cfg); err != nil {
 				return &catalogInvalid{err: err}
 			}
 			return nil

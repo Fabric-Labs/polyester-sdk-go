@@ -10,7 +10,10 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
-func DepositWithdrawConfigFromProto(msg *zipperv1.GetDepositWithdrawConfigResponse) models.DepositWithdrawConfig {
+// DepositWithdrawConfigFromProto decodes the deposit and withdraw config. A
+// route whose supply is known (AVAILABLE or STALE) without the time it was
+// read returns a *errors.ResponseContractError.
+func DepositWithdrawConfigFromProto(msg *zipperv1.GetDepositWithdrawConfigResponse) (models.DepositWithdrawConfig, error) {
 	cfg := models.DepositWithdrawConfig{
 		TsMs: int64(msg.GetTsSec()) * 1000,
 	}
@@ -43,6 +46,12 @@ func DepositWithdrawConfigFromProto(msg *zipperv1.GetDepositWithdrawConfigRespon
 			// (AVAILABLE or STALE), and is scaled by the parent asset's
 			// quantity_scale. Otherwise no supply is known: never zero.
 			if supplyKnown(v.GetSupplyStatus()) {
+				if v.GetSupplyObservedAt() == nil {
+					return models.DepositWithdrawConfig{}, &errors.ResponseContractError{
+						Operation: "GetDepositWithdrawConfig",
+						Msg:       fmt.Sprintf("zipped asset %d has a known supply without supply_observed_at", v.GetZippedAssetId()),
+					}
+				}
 				variant.Supply = formatLedgerU128OrZero(strconv.FormatUint(v.GetSupplyQ(), 10), int(a.GetQuantityScale()))
 				variant.SupplyObservedAt = timestampTime(v.GetSupplyObservedAt())
 			}
@@ -56,7 +65,7 @@ func DepositWithdrawConfigFromProto(msg *zipperv1.GetDepositWithdrawConfigRespon
 			Description: c.GetDescription(), Version: int(c.GetVersion()),
 		})
 	}
-	return cfg
+	return cfg, nil
 }
 
 // supplyKnown reports whether a route's supply_q is a known supply: AVAILABLE
@@ -109,6 +118,12 @@ func zippedAssetSupplyUpdateFromProto(msg *zipperv1.ZippedAssetSupplyUpdate, sca
 	// Updates carry AVAILABLE or STALE; any other status names no known
 	// supply, as the contract reads an unspecified one: never zero.
 	if supplyKnown(msg.GetStatus()) {
+		if msg.GetObservedAt() == nil {
+			return models.ZippedAssetSupplyUpdate{}, &errors.ResponseContractError{
+				Operation: "zipped asset supply update",
+				Msg:       fmt.Sprintf("zipped asset %d has a known supply without observed_at", msg.GetZippedAssetId()),
+			}
+		}
 		update.Supply = formatLedgerU128OrZero(strconv.FormatUint(msg.GetSupplyQ(), 10), scale)
 	}
 	return update, nil

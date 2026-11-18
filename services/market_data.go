@@ -66,7 +66,7 @@ func (s *MarketDataService) ListAssetInfo(ctx context.Context, assetIDs ...uint3
 		return nil, err
 	}
 	req := &marketdatav1.ListAssetInfoRequest{AssetIds: append([]uint32(nil), assetIDs...)}
-	return UnaryPublic(ctx, s.transport, s.client().ListAssetInfo, req, decode.AssetInfoListFromProto)
+	return UnaryPublicDecoded(ctx, s.transport, s.client().ListAssetInfo, req, decode.AssetInfoListFromProto)
 }
 
 func (s *MarketDataService) GetTrades(ctx context.Context, symbol *string, symbolID *uint32, limit int, pageToken *string) (models.MarketTradesResult, error) {

@@ -19,7 +19,7 @@ import (
 // Each chain variant says whether its route accepts new deposits and new
 // withdrawals; an unspecified status is not known, so not available.
 func TestDepositWithdrawConfigRouteStatuses(t *testing.T) {
-	cfg := decode.DepositWithdrawConfigFromProto(&zipperv1.GetDepositWithdrawConfigResponse{
+	cfg, err := decode.DepositWithdrawConfigFromProto(&zipperv1.GetDepositWithdrawConfigResponse{
 		Chains: []*zipperv1.ChainConfig{{ChainId: 2, Code: "ethereum"}},
 		Assets: []*zipperv1.AssetConfig{{
 			Asset: "USDT", LedgerId: 3, QuantityScale: 6,
@@ -30,6 +30,9 @@ func TestDepositWithdrawConfigRouteStatuses(t *testing.T) {
 			},
 		}},
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	variants := cfg.Assets[0].Variants
 	type status struct {
 		deposit, withdrawal string
@@ -111,4 +114,14 @@ func TestApiKeyReadsKeepTheCompleteModel(t *testing.T) {
 			t.Fatalf("read %d = %+v", i, k)
 		}
 	}
+}
+
+// mustDepositWithdrawConfig decodes a config the test expects to be valid.
+func mustDepositWithdrawConfig(t *testing.T, msg *zipperv1.GetDepositWithdrawConfigResponse) models.DepositWithdrawConfig {
+	t.Helper()
+	cfg, err := decode.DepositWithdrawConfigFromProto(msg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return cfg
 }

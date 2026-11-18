@@ -64,7 +64,7 @@ func TestInternalTransferExposesFlowID(t *testing.T) {
 // The hint is display text and is kept verbatim.
 func TestDepositWithdrawConfigCarriesMemoRule(t *testing.T) {
 	hint := "Numeric, 0 to 4294967295; leave empty unless the exchange asks for one."
-	cfg := decode.DepositWithdrawConfigFromProto(&zipperv1.GetDepositWithdrawConfigResponse{Chains: []*zipperv1.ChainConfig{
+	cfg := mustDepositWithdrawConfig(t, &zipperv1.GetDepositWithdrawConfigResponse{Chains: []*zipperv1.ChainConfig{
 		{ChainId: 1, Code: "ethereum", MemoRequirement: zipperv1.MemoRequirement_NOT_SUPPORTED},
 		{ChainId: 7, Code: "xrp", MemoRequirement: zipperv1.MemoRequirement_OPTIONAL, MemoLabel: "Destination tag", MemoFormatHint: hint},
 		{ChainId: 8, Code: "stellar", MemoRequirement: zipperv1.MemoRequirement_REQUIRED, MemoLabel: "Memo"},
