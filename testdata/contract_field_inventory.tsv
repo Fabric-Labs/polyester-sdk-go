@@ -172,3 +172,25 @@ transfer.v1.GetInternalTransferBatchResponse.status	covered	models.InternalTrans
 transfer.v1.GetInternalTransferBatchResponse.legs	covered	models.InternalTransferBatchResult.Legs
 orders.v1.ErrorDetail.price_band_limit_ticks	covered	models.OrderErrorDetail.PriceBandLimit
 auth.v1.AuthErrorDetail.timestamp_window	covered	errors.TimestampSkewError.Window
+auth.v1.ListAccountActivityRequest.limit	covered	models.ListAccountActivityOptions.Limit
+auth.v1.ListAccountActivityRequest.page_token	covered	models.ListAccountActivityOptions.PageToken
+auth.v1.ListAccountActivityRequest.subaccount_ids	covered	models.ListAccountActivityOptions.SubAccountIDs
+auth.v1.ListAccountActivityRequest.include_main_account	covered	models.ListAccountActivityOptions.IncludeMainAccount
+auth.v1.ListAccountActivityRequest.entity_kinds	covered	models.ListAccountActivityOptions.EntityKinds
+auth.v1.ListAccountActivityRequest.event_actions	covered	models.ListAccountActivityOptions.EventActions
+auth.v1.ListAccountActivityRequest.sources	covered	models.ListAccountActivityOptions.Sources
+auth.v1.ListAccountActivityRequest.api_key_id	covered	models.ListAccountActivityOptions.APIKeyID
+auth.v1.ListAccountActivityRequest.start_time	covered	models.ListAccountActivityOptions.StartTime
+auth.v1.ListAccountActivityRequest.end_time	covered	models.ListAccountActivityOptions.EndTime
+auth.v1.ListAccountActivityResponse.events	covered	models.SubAccountActivityList.Events
+auth.v1.ListAccountActivityResponse.next_page_token	covered	models.SubAccountActivityList.NextPageToken
+auth.v1.ActivityEvent.created_at	covered	models.SubAccountActivityEvent.CreatedAt, TsMs
+auth.v1.ActivityEvent.entity_kind	covered	models.SubAccountActivityEvent.EventType
+auth.v1.ActivityEvent.event_action	covered	models.SubAccountActivityEvent.EventType
+auth.v1.ActivityEvent.source	covered	models.SubAccountActivityEvent.Source
+auth.v1.ActivityEvent.ip	covered	models.SubAccountActivityEvent.IP
+auth.v1.ActivityEvent.user_agent	covered	models.SubAccountActivityEvent.UserAgent
+auth.v1.ActivityEvent.actor_account_id	covered	models.SubAccountActivityEvent.ActorAccountID
+auth.v1.ActivityEvent.payload_json	covered	models.SubAccountActivityEvent.PayloadJSON
+auth.v1.ActivityEvent.subaccount_id	covered	models.SubAccountActivityEvent.SubaccountID
+auth.v1.ActivityEvent.actor_api_key_id	covered	models.SubAccountActivityEvent.ActorAPIKeyID

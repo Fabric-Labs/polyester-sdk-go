@@ -1,9 +1,9 @@
 package polyester
 
 import (
-	"math"
 	"context"
 	stderrors "errors"
+	"math"
 	"net/http"
 	"strings"
 	"sync"
@@ -269,21 +269,22 @@ func TestInternalTransfersCreateBatchFailsClosedOnAMalformedReply(t *testing.T) 
 		{AssetID: 1, Quantity: models.AssetAmountFromDecimal("2"), QuantityScale: &scale, DestinationSmartAccountAddress: &dest},
 	}
 	breakages := map[string]func(*transferv1.BatchCreateInternalTransfersResponse){
-		"unspecified status":        func(r *transferv1.BatchCreateInternalTransfersResponse) { r.Status = 0 },
-		"unknown status":            func(r *transferv1.BatchCreateInternalTransfersResponse) { r.Status = 9 },
-		"removed submitted status":  func(r *transferv1.BatchCreateInternalTransfersResponse) { r.Status = 1 },
-		"accepted without request":  func(r *transferv1.BatchCreateInternalTransfersResponse) { r.RequestId = "" },
+		"unspecified status":       func(r *transferv1.BatchCreateInternalTransfersResponse) { r.Status = 0 },
+		"unknown status":           func(r *transferv1.BatchCreateInternalTransfersResponse) { r.Status = 9 },
+		"removed submitted status": func(r *transferv1.BatchCreateInternalTransfersResponse) { r.Status = 1 },
+		"accepted without request": func(r *transferv1.BatchCreateInternalTransfersResponse) { r.RequestId = "" },
 		"processing without request": func(r *transferv1.BatchCreateInternalTransfersResponse) {
 			r.Status, r.RequestId = transferv1.InternalTransferBatchStatus_BATCH_PROCESSING, ""
 			for _, leg := range r.Legs {
 				leg.Status = transferv1.InternalTransferBatchLegStatus_LEG_PROCESSING
 			}
 		},
-		"missing leg":               func(r *transferv1.BatchCreateInternalTransfersResponse) { r.Legs = r.Legs[:1] },
+		"missing leg": func(r *transferv1.BatchCreateInternalTransfersResponse) { r.Legs = r.Legs[:1] },
 		"legs out of order": func(r *transferv1.BatchCreateInternalTransfersResponse) {
 			r.Legs[0].LegIndex, r.Legs[1].LegIndex = 1, 0
 		},
 		"credited without transfer": func(r *transferv1.BatchCreateInternalTransfersResponse) { r.Legs[1].TransferId = "" },
+		"credited without flow":     func(r *transferv1.BatchCreateInternalTransfersResponse) { r.Legs[0].FlowId = "" },
 		"processing leg in an accepted batch": func(r *transferv1.BatchCreateInternalTransfersResponse) {
 			r.Legs[1].Status = transferv1.InternalTransferBatchLegStatus_LEG_PROCESSING
 		},
@@ -298,7 +299,7 @@ func TestInternalTransfersCreateBatchFailsClosedOnAMalformedReply(t *testing.T) 
 			r.Status = transferv1.InternalTransferBatchStatus_BATCH_REFUSED
 			r.Legs[0].Status = transferv1.InternalTransferBatchLegStatus_LEG_NOT_MOVED
 		},
-		"removed leg status": func(r *transferv1.BatchCreateInternalTransfersResponse) { r.Legs[1].Status = 1 },
+		"removed leg status":     func(r *transferv1.BatchCreateInternalTransfersResponse) { r.Legs[1].Status = 1 },
 		"unspecified leg status": func(r *transferv1.BatchCreateInternalTransfersResponse) { r.Legs[1].Status = 0 },
 	}
 	for name, breakReply := range breakages {
@@ -376,10 +377,19 @@ func TestInternalTransfersGetBatch(t *testing.T) {
 			t.Fatalf("GetBatch(%q) err = %v, want a ValidationError", id, err)
 		}
 	}
-	// A reply naming another batch, or holding no leg, breaks the contract.
+	// A processing batch's legs have no flow yet.
+	processing := proto.Clone(api.batchRead).(*transferv1.GetInternalTransferBatchResponse)
+	processing.Status = transferv1.InternalTransferBatchStatus_BATCH_PROCESSING
+	processing.Legs[0].Status, processing.Legs[0].FlowId, processing.Legs[0].CreditedAtTsNs = transferv1.InternalTransferBatchLegStatus_LEG_PROCESSING, "", 0
+	if got, err := newContractClient(t, &contractAPI{batchRead: processing}, nil).InternalTransfers.GetBatch(context.Background(), requestID); err != nil || got.Status != "processing" || got.Legs[0].FlowID != "" {
+		t.Fatalf("processing batch = %+v, %v", got, err)
+	}
+	// A reply naming another batch, holding no leg, or with a credited leg
+	// without its flow ID breaks the contract.
 	for name, breakReply := range map[string]func(*transferv1.GetInternalTransferBatchResponse){
-		"other batch": func(r *transferv1.GetInternalTransferBatchResponse) { r.RequestId = "1" },
-		"no legs":     func(r *transferv1.GetInternalTransferBatchResponse) { r.Legs = nil },
+		"other batch":           func(r *transferv1.GetInternalTransferBatchResponse) { r.RequestId = "1" },
+		"no legs":               func(r *transferv1.GetInternalTransferBatchResponse) { r.Legs = nil },
+		"credited without flow": func(r *transferv1.GetInternalTransferBatchResponse) { r.Legs[0].FlowId = "" },
 	} {
 		reply := proto.Clone(api.batchRead).(*transferv1.GetInternalTransferBatchResponse)
 		breakReply(reply)

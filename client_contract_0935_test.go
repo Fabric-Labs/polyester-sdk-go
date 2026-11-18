@@ -4,6 +4,7 @@ import (
 	"context"
 	stderrors "errors"
 	"net/http"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type fakeClock struct {
@@ -54,13 +56,47 @@ func (f *fakeActivity) ListAccountActivity(_ context.Context, req *connect.Reque
 		f.unsigned++
 	}
 	f.requests = append(f.requests, proto.Clone(req.Msg).(*authv1.ListAccountActivityRequest))
-	resp := &authv1.ListAccountActivityResponse{Events: []*authv1.ActivityEvent{{
-		EntityKind: authv1.ActivityEntityKind_ACTIVITY_ENTITY_SESSION, EventAction: authv1.ActivityEventAction_ACTIVITY_ACTION_CREATED,
-	}}}
+	resp := &authv1.ListAccountActivityResponse{Events: []*authv1.ActivityEvent{fullActivityEvent()}}
 	if req.Msg.GetPageToken() == "" {
 		resp.NextPageToken = "p2"
 	}
 	return connect.NewResponse(resp), nil
+}
+
+// fullActivityEvent is a failed wallet sign-in of a sub-account with every
+// field the contract carries set.
+func fullActivityEvent() *authv1.ActivityEvent {
+	return &authv1.ActivityEvent{
+		CreatedAt:      timestamppb.New(activityAt),
+		EntityKind:     authv1.ActivityEntityKind_ACTIVITY_ENTITY_SESSION,
+		EventAction:    authv1.ActivityEventAction_ACTIVITY_ACTION_FAILED,
+		Source:         authv1.ActivityEventSource_ACTIVITY_SOURCE_WEB,
+		Ip:             "203.0.113.7",
+		UserAgent:      "Mozilla/5.0 (X11; Linux x86_64)",
+		ActorAccountId: 9000000003,
+		PayloadJson:    `{"method":"wallet","wallet":"0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed","reason":"invalid_signature"}`,
+		SubaccountId:   9000000001,
+		ActorApiKeyId:  42,
+	}
+}
+
+var activityAt = time.Date(2026, 11, 17, 7, 1, 2, 345678901, time.UTC)
+
+// wantActivityEvent is fullActivityEvent as the SDK returns it.
+func wantActivityEvent() models.SubAccountActivityEvent {
+	at := activityAt
+	return models.SubAccountActivityEvent{
+		EventType:      "session:failed",
+		TsMs:           activityAt.UnixMilli(),
+		CreatedAt:      &at,
+		Source:         "web",
+		IP:             "203.0.113.7",
+		UserAgent:      "Mozilla/5.0 (X11; Linux x86_64)",
+		ActorAccountID: codecs.FormatID(9000000003),
+		PayloadJSON:    `{"method":"wallet","wallet":"0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed","reason":"invalid_signature"}`,
+		SubaccountID:   codecs.FormatID(9000000001),
+		ActorAPIKeyID:  codecs.FormatID(42),
+	}
 }
 
 func newContract0935Client(t *testing.T, handlers ...func(*http.ServeMux)) *Client {
@@ -135,8 +171,11 @@ func TestListAccountActivitySendsItsFilters(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list.Events) != 1 || list.Events[0].EventType != "session:created" || list.NextPageToken != "p2" {
-		t.Fatalf("list = %+v", list)
+	// Every field of the event is kept: the time exactly, the source, the
+	// client IP and user agent, the actor's account and API key and the
+	// sub-account as public IDs, and the payload JSON raw.
+	if len(list.Events) != 1 || !reflect.DeepEqual(list.Events[0], wantActivityEvent()) || list.NextPageToken != "p2" {
+		t.Fatalf("list = %+v, want the event %+v", list, wantActivityEvent())
 	}
 	want := &authv1.ListAccountActivityRequest{
 		Limit: 200, SubaccountIds: []uint64{9000000001, 9000000002}, IncludeMainAccount: true,
@@ -156,9 +195,12 @@ func TestListAccountActivitySendsItsFilters(t *testing.T) {
 
 	// The iterator follows the page token with the same filters.
 	var events int
-	for _, err := range client.SubAccounts.AccountActivity(context.Background(), models.ListAccountActivityOptions{}) {
+	for event, err := range client.SubAccounts.AccountActivity(context.Background(), models.ListAccountActivityOptions{}) {
 		if err != nil {
 			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(event, wantActivityEvent()) {
+			t.Fatalf("iterated event = %+v", event)
 		}
 		events++
 	}

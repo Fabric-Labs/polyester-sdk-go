@@ -69,7 +69,8 @@ type internalTransferBatchReply interface {
 // when the reply breaks the contract: a batch or leg status this SDK can't
 // name, a leg count or order that doesn't match the request, an accepted or
 // processing batch without its request ID, a leg whose status is not its
-// batch's, or a processing or credited leg without its transfer ID. The batch may have run: read it back
+// batch's, a processing or credited leg without its transfer ID, or a
+// credited leg without its flow ID. The batch may have run: read it back
 // with GetInternalTransferBatch, or retry with the same idempotency key and
 // legs.
 func InternalTransferBatchFromProto(msg *transferv1.BatchCreateInternalTransfersResponse, legs int) (models.InternalTransferBatchResult, error) {
@@ -125,6 +126,9 @@ func internalTransferBatch(op string, msg internalTransferBatchReply, legs int) 
 		}
 		if legStatus != transferv1.InternalTransferBatchLegStatus_LEG_NOT_MOVED && leg.GetTransferId() == "" {
 			return fail("%s leg %d missing transfer_id", enumLabel(legStatus, "LEG_"), i)
+		}
+		if legStatus == transferv1.InternalTransferBatchLegStatus_LEG_CREDITED && leg.GetFlowId() == "" {
+			return fail("credited leg %d missing flow_id", i)
 		}
 		assetID := leg.GetAssetId()
 		out.Legs = append(out.Legs, models.InternalTransferBatchLegResult{

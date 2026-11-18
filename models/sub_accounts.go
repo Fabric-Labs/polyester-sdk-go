@@ -134,8 +134,32 @@ type SubAccountInvitesList struct {
 
 // SubAccountActivityEvent is one activity event.
 type SubAccountActivityEvent struct {
+	// EventType is the event's entity kind and action, such as
+	// "session:failed" or "api_key:created".
 	EventType string `json:"event_type,omitempty"`
-	TsMs      int64  `json:"ts_ms,omitempty"`
+	// TsMs is CreatedAt in milliseconds since the Unix epoch; 0 when the
+	// event names no time.
+	TsMs int64 `json:"ts_ms,omitempty"`
+	// CreatedAt is when the event occurred, exactly as sent; nil when the
+	// event names no time.
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+	// Source is the client channel the event came from, such as "web"; ""
+	// when unspecified and "unknown(n)" for a channel this SDK does not
+	// know.
+	Source string `json:"source,omitempty"`
+	// IP is the public client IP of the request that caused the event, and
+	// UserAgent its user agent; each empty when not recorded.
+	IP        string `json:"ip,omitempty"`
+	UserAgent string `json:"user_agent,omitempty"`
+	// ActorAccountID is the public ID of the account that acted; empty when
+	// none is recorded.
+	ActorAccountID string `json:"actor_account_id,omitempty"`
+	// PayloadJSON is the event's details as the JSON object the server
+	// sent, kept raw; empty when it has none. A sign-in event names its
+	// "method" ("wallet"), the signing "wallet" address (absent when the
+	// sign-in answered no challenge) and, on a failed event, its "reason"
+	// (such as "invalid_signature" or "challenge_expired").
+	PayloadJSON string `json:"payload_json,omitempty"`
 	// SubaccountID is the public ID of the sub-account the event belongs
 	// to; empty for the main account's own events. Set by
 	// SubAccounts.ListAccountActivity.

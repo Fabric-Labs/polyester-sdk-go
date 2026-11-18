@@ -127,7 +127,8 @@ func TestAccountActivityNamesTheSubAccountAndAPIKey(t *testing.T) {
 	list := AccountActivityListFromProto(&authv1.ListAccountActivityResponse{
 		Events: []*authv1.ActivityEvent{
 			{EntityKind: authv1.ActivityEntityKind_ACTIVITY_ENTITY_SESSION, EventAction: authv1.ActivityEventAction_ACTIVITY_ACTION_FAILED, CreatedAt: timestamppb.New(time.UnixMilli(1_763_337_600_000))},
-			{EntityKind: authv1.ActivityEntityKind_ACTIVITY_ENTITY_API_KEY, EventAction: authv1.ActivityEventAction_ACTIVITY_ACTION_CREATED, SubaccountId: 9000000001, ActorApiKeyId: 42},
+			{EntityKind: authv1.ActivityEntityKind_ACTIVITY_ENTITY_API_KEY, EventAction: authv1.ActivityEventAction_ACTIVITY_ACTION_CREATED, SubaccountId: 9000000001, ActorApiKeyId: 42,
+				Source: 99, ActorAccountId: 9000000003, Ip: "203.0.113.7", UserAgent: "ua", PayloadJson: `{"k":1}`},
 		},
 		NextPageToken: "p2",
 	})
@@ -137,6 +138,12 @@ func TestAccountActivityNamesTheSubAccountAndAPIKey(t *testing.T) {
 	main, sub := list.Events[0], list.Events[1]
 	if main.EventType != "session:failed" || main.TsMs != 1_763_337_600_000 || main.SubaccountID != "" || main.ActorAPIKeyID != "" {
 		t.Fatalf("main account event = %+v", main)
+	}
+	if main.Source != "" || main.ActorAccountID != "" || main.IP != "" || main.PayloadJSON != "" || main.CreatedAt == nil {
+		t.Fatalf("main account event = %+v", main)
+	}
+	if sub.CreatedAt != nil || sub.Source != "unknown(99)" || sub.ActorAccountID != codecs.FormatID(9000000003) || sub.IP != "203.0.113.7" || sub.UserAgent != "ua" || sub.PayloadJSON != `{"k":1}` {
+		t.Fatalf("sub-account event = %+v", sub)
 	}
 	if sub.EventType != "api_key:created" || sub.SubaccountID != codecs.FormatID(9000000001) || sub.ActorAPIKeyID != codecs.FormatID(42) {
 		t.Fatalf("sub-account event = %+v", sub)

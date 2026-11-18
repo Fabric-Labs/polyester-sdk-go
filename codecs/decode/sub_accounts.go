@@ -235,7 +235,15 @@ func activityEvents(events []*authv1.ActivityEvent) []models.SubAccountActivityE
 		event := models.SubAccountActivityEvent{
 			EventType: strings.ToLower(strings.TrimPrefix(e.GetEntityKind().String(), "ACTIVITY_ENTITY_")) +
 				":" + strings.ToLower(strings.TrimPrefix(e.GetEventAction().String(), "ACTIVITY_ACTION_")),
-			TsMs: tsMs,
+			TsMs:        tsMs,
+			CreatedAt:   timestampTime(e.GetCreatedAt()),
+			Source:      enumLabel(e.GetSource(), "ACTIVITY_SOURCE_"),
+			IP:          e.GetIp(),
+			UserAgent:   e.GetUserAgent(),
+			PayloadJSON: e.GetPayloadJson(),
+		}
+		if e.GetActorAccountId() != 0 {
+			event.ActorAccountID = codecs.FormatID(e.GetActorAccountId())
 		}
 		if e.GetSubaccountId() != 0 {
 			event.SubaccountID = codecs.FormatID(e.GetSubaccountId())

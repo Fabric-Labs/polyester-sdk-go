@@ -27,6 +27,7 @@ import (
 // replies.
 var contractFieldMessages = []protoreflect.FullName{
 	"auth.v1.AuthErrorDetail",
+	"auth.v1.ListAccountActivityRequest", "auth.v1.ListAccountActivityResponse", "auth.v1.ActivityEvent",
 	"chain.lifecycle.v1.GetAccountFlowRequest", "chain.lifecycle.v1.GetAccountFlowResponse",
 	"chain.lifecycle.v1.ListAccountFlowsRequest", "chain.lifecycle.v1.ListAccountFlowsResponse",
 	"ledger.read.v1.BalanceSeries", "ledger.read.v1.GetBalanceHistoryResponse",
@@ -74,6 +75,9 @@ var contractFieldTypes = map[string]reflect.Type{
 	"errors.RateLimitError":                 reflect.TypeFor[sdkerrors.RateLimitError](),
 	"errors.TimestampSkewError":             reflect.TypeFor[sdkerrors.TimestampSkewError](),
 	"models.OrderErrorDetail":               reflect.TypeFor[models.OrderErrorDetail](),
+	"models.SubAccountActivityEvent":        reflect.TypeFor[models.SubAccountActivityEvent](),
+	"models.SubAccountActivityList":         reflect.TypeFor[models.SubAccountActivityList](),
+	"models.ListAccountActivityOptions":     reflect.TypeFor[models.ListAccountActivityOptions](),
 	"errors.LadderLevelCause":               reflect.TypeFor[sdkerrors.LadderLevelCause](),
 	"ListAccountFlowsParams":                reflect.TypeFor[services.ListAccountFlowsParams](),
 	"CreateStatementExportOptions":          reflect.TypeFor[services.CreateStatementExportOptions](),
