@@ -4,6 +4,13 @@ package models
 type GuardSignerStatus struct {
 	SignerWallet string `json:"signer_wallet,omitempty"`
 	Status       string `json:"status,omitempty"`
+	// OnchainSignerAddress is the signer registered on chain; empty when
+	// none is. A Status of uninitialized with a different address here means
+	// another signer is registered.
+	OnchainSignerAddress string `json:"onchain_signer_address,omitempty"`
+	// Nonce is the current on-chain nonce, a decimal string, in NonceSpace.
+	Nonce      string `json:"nonce,omitempty"`
+	NonceSpace uint64 `json:"nonce_space,omitempty"`
 }
 
 // GuardApproval is a signed protected action approval.

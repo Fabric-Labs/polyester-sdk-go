@@ -123,8 +123,8 @@ func TestSubAccountsGetReturnsMembersInvitesAndPolicyWhenAsked(t *testing.T) {
 			}
 
 			wantMembers := []models.SubAccountMember{
-				{GranteeAccountID: codecs.FormatID(7), Role: "owner"},
-				{GranteeAccountID: codecs.FormatID(9), Role: "trader"},
+				{GranteeAccountID: codecs.FormatID(7), Role: "owner", Username: "alice"},
+				{GranteeAccountID: codecs.FormatID(9), Role: "trader", Username: "bob"},
 			}
 			if !reflect.DeepEqual(got.Members, wantMembers) {
 				t.Fatalf("Members = %+v, want %+v", got.Members, wantMembers)
@@ -135,8 +135,8 @@ func TestSubAccountsGetReturnsMembersInvitesAndPolicyWhenAsked(t *testing.T) {
 				t.Fatalf("Get members %+v != ListMembers %+v", got.Members, listedMembers.Members)
 			}
 			wantInvites := []models.SubAccountInvite{{
-				InviteID: codecs.FormatID(11), GranteeAccountID: codecs.FormatID(12),
-				Role: "viewer", Status: "SUBACCOUNT_INVITE_STATUS_PENDING",
+				InviteID: codecs.FormatID(11), SubaccountID: subID, GranteeAccountID: codecs.FormatID(12),
+				InviterAccountID: codecs.FormatID(7), Role: "viewer", Status: "SUBACCOUNT_INVITE_STATUS_PENDING",
 			}}
 			if !reflect.DeepEqual(got.Invites, wantInvites) {
 				t.Fatalf("Invites = %+v, want %+v", got.Invites, wantInvites)
