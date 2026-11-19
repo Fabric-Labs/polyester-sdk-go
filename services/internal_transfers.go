@@ -4,6 +4,7 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
@@ -130,12 +131,18 @@ func (s *InternalTransfersService) CreateBatch(ctx context.Context, legs []model
 // markBatchRefusedBeforeAdmission marks a batch the API could not decide
 // now as refused before admission: the contract records nothing under its
 // key on SERVICE_UNAVAILABLE or ACCOUNT_SHARD_UNAVAILABLE, so it is retryable
-// with the same key and legs. Only the typed code counts, the transfer error
-// detail's or the REST problem's, which a ServerError carries; the answer's
-// status and Retry-After stay as they are.
+// with the same key and legs. Only an actual 503 proves it, with the code its
+// transfer.v1.ErrorDetail or a contract REST problem carries: a 504 or 502, a
+// foreign detail, a gateway's JSON or the message keep their unknown outcome.
+// The answer's status and Retry-After stay as they are.
 func markBatchRefusedBeforeAdmission(err error) {
 	var server *errors.ServerError
-	if !stderrors.As(err, &server) {
+	if !stderrors.As(err, &server) || server.Status != http.StatusServiceUnavailable {
+		return
+	}
+	switch server.CodeSource {
+	case batchRefusalDetail, errors.CodeSourceProblem:
+	default:
 		return
 	}
 	switch strings.TrimPrefix(server.Code, "ERROR_CODE_") {
@@ -143,6 +150,10 @@ func markBatchRefusedBeforeAdmission(err error) {
 		server.AdmissionRefused = true
 	}
 }
+
+// batchRefusalDetail is the ConnectRPC detail that carries a batch's typed
+// refusal code.
+var batchRefusalDetail = string((&transferv1.ErrorDetail{}).ProtoReflect().Descriptor().FullName())
 
 // GetBatch reads a batch's current outcome and the state of every leg by the
 // RequestID CreateBatch returned, as CreateBatch answered it: for example to

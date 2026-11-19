@@ -9,6 +9,7 @@ import (
 
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
+	alertsv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/alerts/v1"
 	transferv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
@@ -17,6 +18,11 @@ import (
 )
 
 func batchAgainst(t *testing.T, status int, contentType, body string) error {
+	t.Helper()
+	return batchAgainstDetail(t, status, contentType, body)
+}
+
+func batchAgainstDetail(t *testing.T, status int, contentType, body string) error {
 	t.Helper()
 	srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", contentType)
@@ -41,11 +47,16 @@ func batchAgainst(t *testing.T, status int, contentType, body string) error {
 
 func transferDetailBody(t *testing.T, code transferv1.ErrorCode) string {
 	t.Helper()
-	data, err := proto.Marshal(&transferv1.ErrorDetail{Code: code})
+	return connectUnavailableBody(t, "transfer.v1.ErrorDetail", &transferv1.ErrorDetail{Code: code})
+}
+
+func connectUnavailableBody(t *testing.T, typeName string, detail proto.Message) string {
+	t.Helper()
+	data, err := proto.Marshal(detail)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return `{"code":"unavailable","message":"try again","details":[{"type":"transfer.v1.ErrorDetail","value":"` + base64.RawStdEncoding.EncodeToString(data) + `"}]}`
+	return `{"code":"unavailable","message":"try again","details":[{"type":"` + typeName + `","value":"` + base64.RawStdEncoding.EncodeToString(data) + `"}]}`
 }
 
 // A batch whose checks cannot be decided now is refused before admission:
@@ -81,6 +92,58 @@ func TestInternalTransferBatchUnavailableIsRetryableUnderTheSameKey(t *testing.T
 	} {
 		if err := batchAgainst(t, http.StatusServiceUnavailable, "application/json", body); !sdkerrors.MutationOutcomeUnknown(err) {
 			t.Fatalf("%s: %T %v, want an unknown outcome", name, err, err)
+		}
+	}
+}
+
+// Only an actual 503 whose code the batch's own typed detail or a contract
+// REST problem carries proves that nothing was recorded. A 504 never does,
+// nor a 502, a foreign detail or a body that merely looks like a problem:
+// each keeps its unknown outcome and is not retried.
+func TestInternalTransferBatchAmbiguousUnavailableKeepsItsUnknownOutcome(t *testing.T) {
+	cases := map[string]struct {
+		status      int
+		contentType string
+		body        string
+	}{}
+	for _, code := range []transferv1.ErrorCode{transferv1.ErrorCode_ERROR_CODE_SERVICE_UNAVAILABLE, transferv1.ErrorCode_ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE} {
+		rest := code.String()[len("ERROR_CODE_"):]
+		problem := `{"code":"` + rest + `","detail":"try again"}`
+		cases["504 typed detail "+rest] = struct {
+			status      int
+			contentType string
+			body        string
+		}{http.StatusGatewayTimeout, "application/json", transferDetailBody(t, code)}
+		cases["504 problem "+rest] = struct {
+			status      int
+			contentType string
+			body        string
+		}{http.StatusGatewayTimeout, "application/problem+json", problem}
+		cases["502 typed detail "+rest] = struct {
+			status      int
+			contentType string
+			body        string
+		}{http.StatusBadGateway, "application/json", transferDetailBody(t, code)}
+		cases["502 problem "+rest] = struct {
+			status      int
+			contentType string
+			body        string
+		}{http.StatusBadGateway, "application/problem+json", problem}
+		cases["503 generic JSON "+rest] = struct {
+			status      int
+			contentType string
+			body        string
+		}{http.StatusServiceUnavailable, "application/json", `{"code":"` + rest + `"}`}
+	}
+	cases["503 foreign detail"] = struct {
+		status      int
+		contentType string
+		body        string
+	}{http.StatusServiceUnavailable, "application/json", connectUnavailableBody(t, "alerts.v1.ErrorDetail", &alertsv1.ErrorDetail{Code: alertsv1.ErrorCode_SERVICE_UNAVAILABLE})}
+	for name, tc := range cases {
+		err := batchAgainst(t, tc.status, tc.contentType, tc.body)
+		if err == nil || !sdkerrors.MutationOutcomeUnknown(err) || sdkerrors.IsRetryable(err) {
+			t.Errorf("%s: %T %v: unknown=%v retryable=%v, want an unknown outcome that is not retried", name, err, err, sdkerrors.MutationOutcomeUnknown(err), sdkerrors.IsRetryable(err))
 		}
 	}
 }

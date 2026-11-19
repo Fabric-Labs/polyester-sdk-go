@@ -273,7 +273,7 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		if msg == "" {
 			msg = detail.Code
 		}
-		mapped = &sdkerrors.ServerError{Msg: msg, Code: detail.Code, Status: resp.StatusCode}
+		mapped = &sdkerrors.ServerError{Msg: msg, Code: detail.Code, CodeSource: problemCodeSource(resp, recognised), Status: resp.StatusCode}
 	case detail.Code == wire.TimestampSkewCode || detail.Code == sdkerrors.AuthCodeTimestampSkew:
 		mapped = &sdkerrors.TimestampSkewError{
 			Msg:    "API key timestamp is outside the allowed skew window",
@@ -311,7 +311,7 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		if msg == "" {
 			msg = detail.Code
 		}
-		mapped = &sdkerrors.ServerError{Msg: msg, Code: detail.Code, Status: resp.StatusCode}
+		mapped = &sdkerrors.ServerError{Msg: msg, Code: detail.Code, CodeSource: problemCodeSource(resp, recognised), Status: resp.StatusCode}
 	case (recognised && resp.StatusCode != http.StatusUnauthorized && resp.StatusCode != http.StatusForbidden) ||
 		(resp.StatusCode == http.StatusTooManyRequests && restCodeForm.MatchString(detail.Code)):
 		code := wire.ErrorCodeFromREST(detail.Code)
@@ -550,6 +550,16 @@ func decodedErrorBody(encoding string, body []byte) (decoded []byte, overflow bo
 type prefixedBody struct {
 	io.Reader
 	io.Closer
+}
+
+// problemCodeSource is errors.CodeSourceProblem for an answer that is a
+// contract REST problem, an application/problem+json body with a code the
+// contract names, and empty for any other body, such as a gateway's JSON.
+func problemCodeSource(resp *http.Response, recognised bool) string {
+	if recognised && strings.HasPrefix(strings.ToLower(strings.TrimSpace(resp.Header.Get("Content-Type"))), "application/problem+json") {
+		return sdkerrors.CodeSourceProblem
+	}
+	return ""
 }
 
 func isJSONContentType(value string) bool {

@@ -354,7 +354,7 @@ func mapConnectError(err error) error {
 				return rateLimitError(msg, code, nil, headerRetry)
 			}
 			if connectErr.Code() == connect.CodeUnavailable {
-				return &sdkerrors.ServerError{Msg: msg, Code: code}
+				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: string(withdrawDetail.ProtoReflect().Descriptor().FullName())}
 			}
 			if isAuthLikeErrorCode(code) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
@@ -376,7 +376,7 @@ func mapConnectError(err error) error {
 				// No current price to record: nothing was created or changed.
 				return &sdkerrors.ServerError{Msg: msg, Code: code, AdmissionRefused: true}
 			case alertsv1.ErrorCode_SERVICE_UNAVAILABLE:
-				return &sdkerrors.ServerError{Msg: msg, Code: code}
+				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: string(alertDetail.ProtoReflect().Descriptor().FullName())}
 			case alertsv1.ErrorCode_SUBACCOUNT_KEY_REFUSED:
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
 			}
@@ -385,7 +385,7 @@ func mapConnectError(err error) error {
 		if ledgerDetail, ok := value.(*ledgerrdv1.ErrorDetail); ok {
 			code := ledgerDetail.GetCode().String()
 			if connectErr.Code() == connect.CodeUnavailable {
-				return &sdkerrors.ServerError{Msg: msg, Code: code}
+				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: string(ledgerDetail.ProtoReflect().Descriptor().FullName())}
 			}
 			if isAuthLikeErrorCode(code) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
@@ -398,7 +398,7 @@ func mapConnectError(err error) error {
 				return rateLimitError(msg, code, nil, headerRetry)
 			}
 			if connectErr.Code() == connect.CodeUnavailable {
-				return &sdkerrors.ServerError{Msg: msg, Code: code}
+				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: string(transferDetail.ProtoReflect().Descriptor().FullName())}
 			}
 			if isAuthLikeErrorCode(code) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}

@@ -566,12 +566,24 @@ type ServerError struct {
 	AdmissionRefused bool
 	Msg              string
 	Code             string // Service code, or an unrecognised code kept for diagnosis.
-	Status           int    // HTTP status corresponding to the failure, when known.
+	// CodeSource names where the contract carried Code, when the SDK records
+	// it: the full name of the ConnectRPC error detail of an unavailable
+	// refusal (withdraw, alert, ledger read or transfer, such as
+	// "transfer.v1.ErrorDetail"), or CodeSourceProblem for a contract REST
+	// problem. Empty otherwise, for example for a diagnostic code kept from
+	// a gateway's body, which proves nothing about the request.
+	CodeSource string
+	Status     int // HTTP status corresponding to the failure, when known.
 	// RetryAfter is the delay in seconds the answer asked for with
 	// Retry-After (or Retry-After-Ms); nil when it named none. See
 	// errors.RetryAfter.
 	RetryAfter *float64
 }
+
+// CodeSourceProblem is the CodeSource of a ServerError whose Code a contract
+// REST problem carries: an application/problem+json answer with a code the
+// contract names.
+const CodeSourceProblem = "problem"
 
 func (e *ServerError) Error() string        { return e.Msg }
 func (e *ServerError) Is(target error) bool { return target == ErrPolyester }
