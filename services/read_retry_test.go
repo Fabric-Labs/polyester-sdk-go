@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"slices"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -102,15 +103,16 @@ func TestRetryUnavailableHonoursRetryAfter(t *testing.T) {
 		body       string
 		retryAfter string
 		wantCalls  int32
-		minElapsed time.Duration
-		maxElapsed time.Duration
+		// wantWaits is the one wait before the retry; none past the budget.
+		wantWaits []time.Duration
 	}{
-		{"past the budget", `{"code":"UPSTREAM_ERROR","status":503}`, "30", 1, 0, time.Second},
-		{"within the budget", `{"code":"UPSTREAM_ERROR","status":503}`, "0.4", 2, 400 * time.Millisecond, 2 * time.Second},
-		{"auth unavailable past the budget", `{"code":"AUTH_TEMPORARILY_UNAVAILABLE","status":503}`, "30", 1, 0, time.Second},
-		{"auth unavailable within the budget", `{"code":"AUTH_TEMPORARILY_UNAVAILABLE","status":503}`, "0.4", 2, 400 * time.Millisecond, 2 * time.Second},
+		{"past the budget", `{"code":"UPSTREAM_ERROR","status":503}`, "30", 1, nil},
+		{"within the budget", `{"code":"UPSTREAM_ERROR","status":503}`, "0.4", 2, []time.Duration{400 * time.Millisecond}},
+		{"auth unavailable past the budget", `{"code":"AUTH_TEMPORARILY_UNAVAILABLE","status":503}`, "30", 1, nil},
+		{"auth unavailable within the budget", `{"code":"AUTH_TEMPORARILY_UNAVAILABLE","status":503}`, "0.4", 2, []time.Duration{400 * time.Millisecond}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			clock := useFakeClock(t)
 			var calls atomic.Int32
 			srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				if calls.Add(1) == 1 {
@@ -126,11 +128,9 @@ func TestRetryUnavailableHonoursRetryAfter(t *testing.T) {
 			t.Cleanup(srv.Close)
 			factory := transport.NewFactory(transport.Config{APIURL: srv.URL, Timeout: 10 * time.Second}, nil, nil)
 			client := triggersv1connect.NewTriggersServiceClient(factory.HTTP, srv.URL, factory.ConnectOptions(false)...)
-			started := time.Now()
 			_, err := retryUnavailable(triggerReadRetry, client.GetTrigger)(context.Background(), connect.NewRequest(&triggerv1.GetTriggerRequest{}))
-			elapsed := time.Since(started)
-			if calls.Load() != tc.wantCalls || elapsed < tc.minElapsed || elapsed > tc.maxElapsed {
-				t.Fatalf("calls=%d elapsed=%v err=%v", calls.Load(), elapsed, err)
+			if waits := clock.Waits(); calls.Load() != tc.wantCalls || !slices.Equal(waits, tc.wantWaits) {
+				t.Fatalf("calls=%d waits=%v err=%v, want %d calls after %v", calls.Load(), waits, err, tc.wantCalls, tc.wantWaits)
 			}
 			if tc.wantCalls == 1 {
 				if mapped := transport.MapError(err); sdkerrors.RetryAfter(mapped) == nil || *sdkerrors.RetryAfter(mapped) != 30 {
@@ -164,6 +164,7 @@ func TestRetryUnavailableHonoursRetryAfterOnEveryAnswer(t *testing.T) {
 	} {
 		for _, delay := range []string{"30", "0.4"} {
 			t.Run(tc.name+"/"+delay, func(t *testing.T) {
+				clock := useFakeClock(t)
 				var calls atomic.Int32
 				srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 					if calls.Add(1) == 1 {
@@ -179,12 +180,11 @@ func TestRetryUnavailableHonoursRetryAfterOnEveryAnswer(t *testing.T) {
 				t.Cleanup(srv.Close)
 				factory := transport.NewFactory(transport.Config{APIURL: srv.URL, Timeout: 10 * time.Second}, nil, nil)
 				client := triggersv1connect.NewTriggersServiceClient(factory.HTTP, srv.URL, factory.ConnectOptions(false)...)
-				started := time.Now()
 				_, err := retryUnavailable(triggerReadRetry, client.GetTrigger)(context.Background(), connect.NewRequest(&triggerv1.GetTriggerRequest{}))
-				elapsed := time.Since(started)
+				waits := clock.Waits()
 				if !tc.retried || delay == "30" {
-					if calls.Load() != 1 || elapsed > time.Second {
-						t.Fatalf("calls=%d elapsed=%v, want one answer returned at once", calls.Load(), elapsed)
+					if calls.Load() != 1 || len(waits) != 0 {
+						t.Fatalf("calls=%d waits=%v, want one answer returned at once", calls.Load(), waits)
 					}
 					want := 30.0
 					if delay == "0.4" {
@@ -195,8 +195,8 @@ func TestRetryUnavailableHonoursRetryAfterOnEveryAnswer(t *testing.T) {
 					}
 					return
 				}
-				if err != nil || calls.Load() != 2 || elapsed < 400*time.Millisecond {
-					t.Fatalf("calls=%d elapsed=%v err=%v, want a retry after 0.4 s", calls.Load(), elapsed, err)
+				if err != nil || calls.Load() != 2 || !slices.Equal(waits, []time.Duration{400 * time.Millisecond}) {
+					t.Fatalf("calls=%d waits=%v err=%v, want a retry after 0.4 s", calls.Load(), waits, err)
 				}
 			})
 		}

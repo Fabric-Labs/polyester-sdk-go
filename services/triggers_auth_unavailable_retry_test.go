@@ -60,6 +60,7 @@ func newTriggerServiceBehind(t *testing.T, wrap func(http.Handler) http.Handler,
 // Authentication that was briefly unavailable changed nothing, so the trigger
 // reads that retry an unavailable answer retry it over REST as over ConnectRPC.
 func TestTriggerReadsRetryARESTAuthUnavailableAnswer(t *testing.T) {
+	useFakeClock(t)
 	symbol := "BTC-USDT"
 	for name, read := range map[string]func(*TriggersService) error{
 		"Get": func(s *TriggersService) error {
@@ -94,6 +95,7 @@ func TestTriggerReadsRetryARESTAuthUnavailableAnswer(t *testing.T) {
 
 // The ConnectRPC answer, unavailable with the auth detail, is retried alike.
 func TestTriggerReadsRetryAConnectAuthUnavailableAnswer(t *testing.T) {
+	useFakeClock(t)
 	handler := &authUnavailableReadHandler{failures: 1}
 	service := newTriggerServiceBehind(t, func(next http.Handler) http.Handler { return next }, handler)
 	if _, err := service.Get(context.Background(), nil, codecs.FormatID(9), nil); err != nil {

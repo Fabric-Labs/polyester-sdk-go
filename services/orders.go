@@ -815,15 +815,16 @@ func (s *OrdersService) WaitForOrderTradesComplete(
 	if timeout <= 0 {
 		timeout = 15 * time.Second
 	}
-	deadline := time.Now().Add(timeout)
-	waitCtx, cancel := context.WithDeadline(ctx, deadline)
+	// The wait reads waitClock, the wall clock in production.
+	deadline := waitClock.Now().Add(timeout)
+	waitCtx, cancel := waitClock.WithDeadline(ctx, deadline)
 	defer cancel()
 	// expired reports the wait's own deadline as passed. A page read it cuts
 	// short can fail before waitCtx says so: Connect sends the server the
 	// remaining time in whole milliseconds, so the server's copy of the
 	// deadline can pass up to 1 ms earlier.
 	expired := func() bool {
-		return waitCtx.Err() != nil || time.Until(deadline) < time.Millisecond
+		return waitCtx.Err() != nil || deadline.Sub(waitClock.Now()) < time.Millisecond
 	}
 	var last models.GetOrderResult
 	timedOut := func() error {
@@ -850,21 +851,17 @@ func (s *OrdersService) WaitForOrderTradesComplete(
 		last = detail
 		// A read answered in time can still finish after the deadline: it
 		// is then the last result of a wait that timed out, not a success.
-		if !time.Now().Before(deadline) {
+		if !waitClock.Now().Before(deadline) {
 			return last, timedOut()
 		}
 		if detail.Order != nil && orderTradesComplete(detail) {
 			return detail, nil
 		}
-		timer := time.NewTimer(100 * time.Millisecond)
-		select {
-		case <-waitCtx.Done():
-			timer.Stop()
+		if waitClock.Wait(waitCtx, 100*time.Millisecond) != nil {
 			if ctx.Err() != nil {
 				return last, ctx.Err()
 			}
 			return last, timedOut()
-		case <-timer.C:
 		}
 	}
 }

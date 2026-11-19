@@ -180,12 +180,17 @@ func TestTriggerReadsStillRetryRealUnavailability(t *testing.T) {
 	} {
 		for _, read := range triggerReads {
 			t.Run(tc.name+"/"+read.name, func(t *testing.T) {
+				// The budget counts the waits, not how long each attempt takes.
+				clock := useFakeClock(t)
 				service, calls := scriptedTriggerServer(t, read.path, 2, tc.status, tc.contentType, tc.body, "", read.ok)
 				if err := read.call(context.Background(), service); err != nil {
 					t.Fatalf("requests=%d err=%v", calls.Load(), err)
 				}
 				if got := calls.Load(); got != 3 {
 					t.Fatalf("requests=%d, want 3", got)
+				}
+				if got := clock.Waits(); len(got) != 2 || got[0] != 25*time.Millisecond || got[1] != 50*time.Millisecond {
+					t.Fatalf("waits=%v, want 25ms then 50ms", got)
 				}
 			})
 		}
@@ -195,18 +200,17 @@ func TestTriggerReadsStillRetryRealUnavailability(t *testing.T) {
 // When unavailability outlasts the budget, the read stops and reports it as a
 // server failure rather than retrying without limit.
 func TestTriggerReadRetryOfRealUnavailabilityStaysBounded(t *testing.T) {
+	clock := useFakeClock(t)
 	read := triggerReads[1]
 	service, calls := scriptedTriggerServer(t, read.path, 1<<30, 503, "application/problem+json", `{"code":"UNAVAILABLE","detail":"catching up"}`, "", read.ok)
-	started := time.Now()
 	err := read.call(context.Background(), service)
 	var serverErr *sdkerrors.ServerError
 	if !errors.As(err, &serverErr) || !strings.Contains(serverErr.Code, "UNAVAILABLE") {
 		t.Fatalf("got %T %+v", err, err)
 	}
-	if got := calls.Load(); got < 2 || got > 12 {
-		t.Fatalf("requests=%d, want a bounded retry", got)
-	}
-	if elapsed := time.Since(started); elapsed > 5*time.Second {
-		t.Fatalf("took %s, past the read budget", elapsed)
+	// 25 ms doubling to 500 ms: seven waits fit the 2 s budget, so eight
+	// requests in all.
+	if got, waits := calls.Load(), clock.Waits(); got != 8 || len(waits) != 7 {
+		t.Fatalf("requests=%d waits=%v, want 8 requests after 7 waits", got, waits)
 	}
 }
