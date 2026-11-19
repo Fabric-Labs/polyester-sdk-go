@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/http"
 	"strings"
 	"testing"
@@ -19,6 +18,8 @@ const fakeRESTURLPassword = "fake-rest-url-password-marker"
 // REST errors must not carry the password from the API URL's userinfo,
 // whatever the server answers or when it cannot be reached.
 func TestRESTErrorsDoNotLeakURLUserinfo(t *testing.T) {
+	// Retried reads count their waits on the fake clock, not the wall clock.
+	useFakeClock(t)
 	bodies := map[string]string{
 		"problem": `{"type":"about:blank","code":"AUTH_UNAUTHENTICATED","detail":"refused","status":%d}`,
 		"plain":   "refused",
@@ -57,11 +58,8 @@ func TestRESTErrorsDoNotLeakURLUserinfo(t *testing.T) {
 			srv.Close()
 		}
 	}
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	addr := listener.Addr().String()
-	_ = listener.Close()
-	check("connection refused", "http://fake-user:"+fakeRESTURLPassword+"@"+addr)
+	// Port 1 refuses: no test can listen there. A port a test has just
+	// closed can be taken by another test's server, which would answer
+	// this read and receive its retries.
+	check("connection refused", "http://fake-user:"+fakeRESTURLPassword+"@127.0.0.1:1")
 }
