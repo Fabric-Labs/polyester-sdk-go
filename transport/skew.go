@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"mime"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -553,13 +554,19 @@ type prefixedBody struct {
 }
 
 // problemCodeSource is errors.CodeSourceProblem for an answer that is a
-// contract REST problem, an application/problem+json body with a code the
-// contract names, and empty for any other body, such as a gateway's JSON.
+// contract REST problem, a body whose media type is exactly
+// application/problem+json (any case, parameters allowed) with a code the
+// contract names, and empty for any other body, such as a gateway's JSON or
+// one whose Content-Type does not parse.
 func problemCodeSource(resp *http.Response, recognised bool) string {
-	if recognised && strings.HasPrefix(strings.ToLower(strings.TrimSpace(resp.Header.Get("Content-Type"))), "application/problem+json") {
-		return sdkerrors.CodeSourceProblem
+	if !recognised {
+		return ""
 	}
-	return ""
+	mediaType, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	if err != nil || mediaType != "application/problem+json" {
+		return ""
+	}
+	return sdkerrors.CodeSourceProblem
 }
 
 func isJSONContentType(value string) bool {

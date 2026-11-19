@@ -147,3 +147,27 @@ func TestInternalTransferBatchAmbiguousUnavailableKeepsItsUnknownOutcome(t *test
 		}
 	}
 }
+
+// A REST answer is a contract problem only when its media type is exactly
+// application/problem+json, in any case and with parameters; a media type that
+// only starts with it, or a Content-Type that does not parse, proves nothing.
+func TestInternalTransferBatchProblemNeedsTheProblemMediaType(t *testing.T) {
+	body := `{"code":"SERVICE_UNAVAILABLE","detail":"try again"}`
+	for contentType, refused := range map[string]bool{
+		"application/problem+json":                true,
+		"Application/Problem+JSON; charset=utf-8": true,
+		"application/problem+json-gateway":        false,
+		"application/problem+json; charset":       false,
+	} {
+		err := batchAgainst(t, http.StatusServiceUnavailable, contentType, body)
+		if refused && (!sdkerrors.IsRetryable(err) || sdkerrors.MutationOutcomeUnknown(err)) {
+			t.Errorf("%q: %T %v, want retryable with a known outcome", contentType, err, err)
+		}
+		if !refused && (!sdkerrors.MutationOutcomeUnknown(err) || sdkerrors.IsRetryable(err)) {
+			t.Errorf("%q: %T %v, want an unknown outcome that is not retried", contentType, err, err)
+		}
+		if delay := sdkerrors.RetryAfter(err); refused && (delay == nil || *delay != 3) {
+			t.Errorf("%q: retry after %v, want 3", contentType, delay)
+		}
+	}
+}
