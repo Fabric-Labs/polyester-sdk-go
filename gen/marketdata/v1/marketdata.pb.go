@@ -2119,11 +2119,10 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\x19complete_through_trade_id\x18\x03 \x01(\x04R\x16completeThroughTradeId\x12-\n" +
 	"\x13next_after_trade_id\x18\x04 \x01(\x04R\x10nextAfterTradeId\x12;\n" +
 	"\n" +
-	"epoch_ends\x18\x05 \x03(\v2\x1c.marketdata.v1.TradeEpochEndR\tepochEnds\"\xb2\x06\n" +
+	"epoch_ends\x18\x05 \x03(\v2\x1c.marketdata.v1.TradeEpochEndR\tepochEnds\"\xb3\x06\n" +
 	"\x11GetCandlesRequest\x12$\n" +
-	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\x12B\n" +
-	"\ttimeframe\x18\x02 \x01(\x0e2\x18.marketdata.v1.TimeframeB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\ttimeframe\x12\x1e\n" +
+	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\x12C\n" +
+	"\ttimeframe\x18\x02 \x01(\x0e2\x18.marketdata.v1.TimeframeB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\ttimeframe\x12\x1e\n" +
 	"\x05limit\x18\x03 \x01(\rB\b\xbaH\x05*\x03\x18\x90NR\x05limit\x129\n" +
 	"\n" +
 	"start_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
@@ -2133,11 +2132,10 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\n" +
 	"page_token\x18\b \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken:\x9b\x03\xbaH\x97\x03\x1a\xa2\x01\n" +
 	"\x1cget_candles.time_range_valid\x120end_time must be >= start_time when both are set\x1aP!has(this.start_time) || !has(this.end_time) || this.end_time >= this.start_time\x1a\xef\x01\n" +
-	"\x1bget_candles.time_not_future\x12Estart_time and end_time must not be more than 5 minutes in the future\x1a\x88\x01(!has(this.start_time) || this.start_time <= now + duration('300s')) && (!has(this.end_time) || this.end_time <= now + duration('300s'))\"\xc9\x06\n" +
+	"\x1bget_candles.time_not_future\x12Estart_time and end_time must not be more than 5 minutes in the future\x1a\x88\x01(!has(this.start_time) || this.start_time <= now + duration('300s')) && (!has(this.end_time) || this.end_time <= now + duration('300s'))\"\xca\x06\n" +
 	"\x18GetCandlesColumnsRequest\x12$\n" +
-	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\x12B\n" +
-	"\ttimeframe\x18\x02 \x01(\x0e2\x18.marketdata.v1.TimeframeB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\ttimeframe\x12\x1e\n" +
+	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\x12C\n" +
+	"\ttimeframe\x18\x02 \x01(\x0e2\x18.marketdata.v1.TimeframeB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\ttimeframe\x12\x1e\n" +
 	"\x05limit\x18\x03 \x01(\rB\b\xbaH\x05*\x03\x18\x90NR\x05limit\x129\n" +
 	"\n" +
 	"start_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +

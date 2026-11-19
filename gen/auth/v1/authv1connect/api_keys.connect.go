@@ -64,6 +64,15 @@ type ApiKeyServiceClient interface {
 	// MFA enrollment or a fresh step-up proof. The acting caller's root account
 	// must have accepted the current terms, including when targeting a shared
 	// subaccount; otherwise FailedPrecondition with AUTH_TERMS_NOT_ACCEPTED is returned.
+	// Creating an admin key always takes a fresh step-up proof.
+	//
+	// An admin API key with MANAGE_API_KEYS may also create a standard key, for
+	// the main account or a sub-account it owns, without a session. The new key
+	// needs an ip_whitelist whose every entry lies within the admin key's own
+	// allowlist (else PermissionDenied with AUTH_ADMIN_KEY_SCOPE_EXCEEDED). A
+	// request for an admin key from any API key returns PermissionDenied with
+	// AUTH_ADMIN_KEY_ESCALATION_DENIED. Any other API key returns
+	// PermissionDenied with AUTH_ADMIN_KEY_REQUIRED.
 	CreateApiKey(context.Context, *connect.Request[v1.CreateApiKeyRequest]) (*connect.Response[v1.CreateApiKeyResponse], error)
 	// List non-revoked API keys visible to the caller, newest first. An API key
 	// needs READ_API_KEYS; a key scoped to a sub-account sees only that
@@ -74,19 +83,35 @@ type ApiKeyServiceClient interface {
 	// that sub-account's keys.
 	GetApiKey(context.Context, *connect.Request[v1.GetApiKeyRequest]) (*connect.Response[v1.GetApiKeyResponse], error)
 	// Revoke an API key permanently.
+	//
+	// An admin API key with MANAGE_API_KEYS may also revoke a standard key of
+	// the main account or of a sub-account it owns, without a session. It can
+	// never revoke an admin or assistant key, itself included:
+	// PermissionDenied with AUTH_ADMIN_KEY_ESCALATION_DENIED or
+	// AUTH_ADMIN_KEY_FORBIDDEN_TARGET.
 	DeleteApiKey(context.Context, *connect.Request[v1.DeleteApiKeyRequest]) (*connect.Response[v1.DeleteApiKeyResponse], error)
 	// Update API key metadata and allowed status transitions. Revocation must use
-	// DeleteApiKey.
+	// DeleteApiKey. Promoting a key to an admin key, demoting one, and any change
+	// to an admin key always take a fresh step-up proof.
+	//
+	// An admin API key with MANAGE_API_KEYS may also update a standard key of
+	// the main account or of a sub-account it owns, without a session, when the
+	// key's policy allows no money-out action. The key's ip_whitelist after the
+	// update must lie within the admin key's own allowlist (else
+	// PermissionDenied with AUTH_ADMIN_KEY_SCOPE_EXCEEDED). It can never select
+	// purpose, nor change an admin or assistant key, itself included:
+	// PermissionDenied with AUTH_ADMIN_KEY_ESCALATION_DENIED or
+	// AUTH_ADMIN_KEY_FORBIDDEN_TARGET.
 	UpdateApiKey(context.Context, *connect.Request[v1.UpdateApiKeyRequest]) (*connect.Response[v1.UpdateApiKeyResponse], error)
 	// Create or replace the caller's Polyester AI assistant key set: one
 	// ASSISTANT key per enabled account, each bounded by its API policy or by a
 	// permission preset. One step-up covers the whole set, including the
-	// policies its presets create, and the change is all or nothing. Send a
-	// fresh step-up proof in the X-Auth-Step-Up header, which the change
-	// consumes, or no proof while the session's recent-MFA window is open for
-	// RECENT_MFA_ACTION_ASSISTANT_ACCESS (GetRecentMFA). Without either,
-	// PermissionDenied with AUTH_STEP_UP_REQUIRED, or AUTH_RECENT_MFA_EXPIRED
-	// when the window has closed. An entry whose account already has an assistant key with the same
+	// policies its presets create, and the change is all or nothing. An
+	// MFA-elevated session (one that completed an MFA challenge in the last 30
+	// minutes) needs no proof; any other session sends a fresh step-up proof in
+	// the X-Auth-Step-Up header, which the change consumes. Without either,
+	// PermissionDenied with AUTH_STEP_UP_REQUIRED. An entry whose account
+	// already has an assistant key with the same
 	// public key keeps that key, with its status, and takes the requested
 	// policy; any other entry replaces the account's key. Accounts left out of
 	// the set have their assistant key revoked. A sub-account entry needs the
@@ -231,6 +256,15 @@ type ApiKeyServiceHandler interface {
 	// MFA enrollment or a fresh step-up proof. The acting caller's root account
 	// must have accepted the current terms, including when targeting a shared
 	// subaccount; otherwise FailedPrecondition with AUTH_TERMS_NOT_ACCEPTED is returned.
+	// Creating an admin key always takes a fresh step-up proof.
+	//
+	// An admin API key with MANAGE_API_KEYS may also create a standard key, for
+	// the main account or a sub-account it owns, without a session. The new key
+	// needs an ip_whitelist whose every entry lies within the admin key's own
+	// allowlist (else PermissionDenied with AUTH_ADMIN_KEY_SCOPE_EXCEEDED). A
+	// request for an admin key from any API key returns PermissionDenied with
+	// AUTH_ADMIN_KEY_ESCALATION_DENIED. Any other API key returns
+	// PermissionDenied with AUTH_ADMIN_KEY_REQUIRED.
 	CreateApiKey(context.Context, *connect.Request[v1.CreateApiKeyRequest]) (*connect.Response[v1.CreateApiKeyResponse], error)
 	// List non-revoked API keys visible to the caller, newest first. An API key
 	// needs READ_API_KEYS; a key scoped to a sub-account sees only that
@@ -241,19 +275,35 @@ type ApiKeyServiceHandler interface {
 	// that sub-account's keys.
 	GetApiKey(context.Context, *connect.Request[v1.GetApiKeyRequest]) (*connect.Response[v1.GetApiKeyResponse], error)
 	// Revoke an API key permanently.
+	//
+	// An admin API key with MANAGE_API_KEYS may also revoke a standard key of
+	// the main account or of a sub-account it owns, without a session. It can
+	// never revoke an admin or assistant key, itself included:
+	// PermissionDenied with AUTH_ADMIN_KEY_ESCALATION_DENIED or
+	// AUTH_ADMIN_KEY_FORBIDDEN_TARGET.
 	DeleteApiKey(context.Context, *connect.Request[v1.DeleteApiKeyRequest]) (*connect.Response[v1.DeleteApiKeyResponse], error)
 	// Update API key metadata and allowed status transitions. Revocation must use
-	// DeleteApiKey.
+	// DeleteApiKey. Promoting a key to an admin key, demoting one, and any change
+	// to an admin key always take a fresh step-up proof.
+	//
+	// An admin API key with MANAGE_API_KEYS may also update a standard key of
+	// the main account or of a sub-account it owns, without a session, when the
+	// key's policy allows no money-out action. The key's ip_whitelist after the
+	// update must lie within the admin key's own allowlist (else
+	// PermissionDenied with AUTH_ADMIN_KEY_SCOPE_EXCEEDED). It can never select
+	// purpose, nor change an admin or assistant key, itself included:
+	// PermissionDenied with AUTH_ADMIN_KEY_ESCALATION_DENIED or
+	// AUTH_ADMIN_KEY_FORBIDDEN_TARGET.
 	UpdateApiKey(context.Context, *connect.Request[v1.UpdateApiKeyRequest]) (*connect.Response[v1.UpdateApiKeyResponse], error)
 	// Create or replace the caller's Polyester AI assistant key set: one
 	// ASSISTANT key per enabled account, each bounded by its API policy or by a
 	// permission preset. One step-up covers the whole set, including the
-	// policies its presets create, and the change is all or nothing. Send a
-	// fresh step-up proof in the X-Auth-Step-Up header, which the change
-	// consumes, or no proof while the session's recent-MFA window is open for
-	// RECENT_MFA_ACTION_ASSISTANT_ACCESS (GetRecentMFA). Without either,
-	// PermissionDenied with AUTH_STEP_UP_REQUIRED, or AUTH_RECENT_MFA_EXPIRED
-	// when the window has closed. An entry whose account already has an assistant key with the same
+	// policies its presets create, and the change is all or nothing. An
+	// MFA-elevated session (one that completed an MFA challenge in the last 30
+	// minutes) needs no proof; any other session sends a fresh step-up proof in
+	// the X-Auth-Step-Up header, which the change consumes. Without either,
+	// PermissionDenied with AUTH_STEP_UP_REQUIRED. An entry whose account
+	// already has an assistant key with the same
 	// public key keeps that key, with its status, and takes the requested
 	// policy; any other entry replaces the account's key. Accounts left out of
 	// the set have their assistant key revoked. A sub-account entry needs the

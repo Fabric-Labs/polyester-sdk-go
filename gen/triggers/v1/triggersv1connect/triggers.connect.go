@@ -77,14 +77,19 @@ type TriggersServiceClient interface {
 	CreateOco(context.Context, *connect.Request[v1.CreateOcoRequest]) (*connect.Response[v1.CreateOcoResponse], error)
 	// Cancel both legs of an OCO.
 	CancelOco(context.Context, *connect.Request[v1.CancelOcoRequest]) (*connect.Response[v1.CancelOcoResponse], error)
-	// Get a trigger by ID.
+	// Get a trigger by ID. Costs one unit of the root account's trading read
+	// limit.
 	GetTrigger(context.Context, *connect.Request[v1.GetTriggerRequest]) (*connect.Response[v1.GetTriggerResponse], error)
-	// List triggers for a sub-account with optional filters.
+	// List triggers for a sub-account with optional filters. Costs one unit of
+	// the root account's trading read limit per 100 rows the limit asks for,
+	// rounded up.
 	ListTriggers(context.Context, *connect.Request[v1.ListTriggersRequest]) (*connect.Response[v1.ListTriggersResponse], error)
 	// List trigger events (append-only history). A trigger the caller cannot
 	// read (no such trigger, another account's, or one outside the selected
 	// sub-account) answers NOT_FOUND, as GetTrigger does. A trigger the caller
-	// can read that has no event yet answers an empty list.
+	// can read that has no event yet answers an empty list. Costs two units of
+	// the root account's trading read limit per 100 rows the limit asks for,
+	// rounded up.
 	ListTriggerEvents(context.Context, *connect.Request[v1.ListTriggerEventsRequest]) (*connect.Response[v1.ListTriggerEventsResponse], error)
 	// Cancel a trigger: a standalone stop-loss, take-profit, trailing stop,
 	// TWAP or ladder, or an order's attached leg. Canceling a TWAP or a ladder
@@ -282,14 +287,19 @@ type TriggersServiceHandler interface {
 	CreateOco(context.Context, *connect.Request[v1.CreateOcoRequest]) (*connect.Response[v1.CreateOcoResponse], error)
 	// Cancel both legs of an OCO.
 	CancelOco(context.Context, *connect.Request[v1.CancelOcoRequest]) (*connect.Response[v1.CancelOcoResponse], error)
-	// Get a trigger by ID.
+	// Get a trigger by ID. Costs one unit of the root account's trading read
+	// limit.
 	GetTrigger(context.Context, *connect.Request[v1.GetTriggerRequest]) (*connect.Response[v1.GetTriggerResponse], error)
-	// List triggers for a sub-account with optional filters.
+	// List triggers for a sub-account with optional filters. Costs one unit of
+	// the root account's trading read limit per 100 rows the limit asks for,
+	// rounded up.
 	ListTriggers(context.Context, *connect.Request[v1.ListTriggersRequest]) (*connect.Response[v1.ListTriggersResponse], error)
 	// List trigger events (append-only history). A trigger the caller cannot
 	// read (no such trigger, another account's, or one outside the selected
 	// sub-account) answers NOT_FOUND, as GetTrigger does. A trigger the caller
-	// can read that has no event yet answers an empty list.
+	// can read that has no event yet answers an empty list. Costs two units of
+	// the root account's trading read limit per 100 rows the limit asks for,
+	// rounded up.
 	ListTriggerEvents(context.Context, *connect.Request[v1.ListTriggerEventsRequest]) (*connect.Response[v1.ListTriggerEventsResponse], error)
 	// Cancel a trigger: a standalone stop-loss, take-profit, trailing stop,
 	// TWAP or ladder, or an order's attached leg. Canceling a TWAP or a ladder

@@ -7438,19 +7438,21 @@ const file_swap_quickswap_v1_quickswap_broker_proto_rawDesc = "" +
 	"\x06broker\x18\x01 \x01(\tB!\xbaH\x1er\x1c2\x1a^[a-z0-9][a-z0-9_-]{0,62}$R\x06broker\"\x7f\n" +
 	"\x13ListMembersResponse\x123\n" +
 	"\amembers\x18\x01 \x03(\v2\x19.swap.quickswap.v1.MemberR\amembers\x123\n" +
-	"\ainvites\x18\x02 \x03(\v2\x19.swap.quickswap.v1.InviteR\ainvites\"\xc0\x01\n" +
+	"\ainvites\x18\x02 \x03(\v2\x19.swap.quickswap.v1.InviteR\ainvites\"\xc1\x01\n" +
 	"\x13InviteMemberRequest\x129\n" +
 	"\x06broker\x18\x01 \x01(\tB!\xbaH\x1er\x1c2\x1a^[a-z0-9][a-z0-9_-]{0,62}$R\x06broker\x12-\n" +
 	"\n" +
-	"account_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\taccountId\x12?\n" +
-	"\x04role\x18\x03 \x01(\x0e2\x1d.swap.quickswap.v1.BrokerRoleB\f\xbaH\t\x82\x01\x06\x10\x01 \x00 \x01R\x04role\"I\n" +
+	"account_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\taccountId\x12@\n" +
+	"\x04role\x18\x03 \x01(\x0e2\x1d.swap.quickswap.v1.BrokerRoleB\r\xbaH\n" +
+	"\xc8\x01\x01\x82\x01\x04\x10\x01 \x01R\x04role\"I\n" +
 	"\x14InviteMemberResponse\x121\n" +
-	"\x06invite\x18\x01 \x01(\v2\x19.swap.quickswap.v1.InviteR\x06invite\"\xc1\x01\n" +
+	"\x06invite\x18\x01 \x01(\v2\x19.swap.quickswap.v1.InviteR\x06invite\"\xc2\x01\n" +
 	"\x14SetMemberRoleRequest\x129\n" +
 	"\x06broker\x18\x01 \x01(\tB!\xbaH\x1er\x1c2\x1a^[a-z0-9][a-z0-9_-]{0,62}$R\x06broker\x12-\n" +
 	"\n" +
-	"account_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\taccountId\x12?\n" +
-	"\x04role\x18\x03 \x01(\x0e2\x1d.swap.quickswap.v1.BrokerRoleB\f\xbaH\t\x82\x01\x06\x10\x01 \x00 \x01R\x04role\"\x17\n" +
+	"account_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\taccountId\x12@\n" +
+	"\x04role\x18\x03 \x01(\x0e2\x1d.swap.quickswap.v1.BrokerRoleB\r\xbaH\n" +
+	"\xc8\x01\x01\x82\x01\x04\x10\x01 \x01R\x04role\"\x17\n" +
 	"\x15SetMemberRoleResponse\"\x7f\n" +
 	"\x13RemoveMemberRequest\x129\n" +
 	"\x06broker\x18\x01 \x01(\tB!\xbaH\x1er\x1c2\x1a^[a-z0-9][a-z0-9_-]{0,62}$R\x06broker\x12-\n" +
@@ -7509,13 +7511,12 @@ const file_swap_quickswap_v1_quickswap_broker_proto_rawDesc = "" +
 	"\n" +
 	"account_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\taccountId\"K\n" +
 	"\x10GetVaultResponse\x127\n" +
-	"\x05vault\x18\x01 \x01(\v2!.swap.quickswap.v1.AffiliateVaultR\x05vault\"\xc5\x01\n" +
+	"\x05vault\x18\x01 \x01(\v2!.swap.quickswap.v1.AffiliateVaultR\x05vault\"\xc6\x01\n" +
 	"\x15SetVaultStatusRequest\x129\n" +
 	"\x06broker\x18\x01 \x01(\tB!\xbaH\x1er\x1c2\x1a^[a-z0-9][a-z0-9_-]{0,62}$R\x06broker\x12-\n" +
 	"\n" +
-	"account_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\taccountId\x12B\n" +
-	"\x06status\x18\x03 \x01(\x0e2\x1e.swap.quickswap.v1.VaultStatusB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x06status\"Q\n" +
+	"account_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\taccountId\x12C\n" +
+	"\x06status\x18\x03 \x01(\x0e2\x1e.swap.quickswap.v1.VaultStatusB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x06status\"Q\n" +
 	"\x16SetVaultStatusResponse\x127\n" +
 	"\x05vault\x18\x01 \x01(\v2!.swap.quickswap.v1.AffiliateVaultR\x05vault\"\xb4\x05\n" +
 	"\x10QuickSwapSummary\x12\x17\n" +
@@ -7555,11 +7556,10 @@ const file_swap_quickswap_v1_quickswap_broker_proto_rawDesc = "" +
 	"\x16ListQuickSwapsResponse\x12D\n" +
 	"\vquick_swaps\x18\x01 \x03(\v2#.swap.quickswap.v1.QuickSwapSummaryR\n" +
 	"quickSwaps\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\x89\x04\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\x8a\x04\n" +
 	"\x13GetFeeTotalsRequest\x129\n" +
-	"\x06broker\x18\x01 \x01(\tB!\xbaH\x1er\x1c2\x1a^[a-z0-9][a-z0-9_-]{0,62}$R\x06broker\x12K\n" +
-	"\bgroup_by\x18\x02 \x01(\x0e2$.swap.quickswap.v1.FeeTotalsGroupingB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\agroupBy\x12A\n" +
+	"\x06broker\x18\x01 \x01(\tB!\xbaH\x1er\x1c2\x1a^[a-z0-9][a-z0-9_-]{0,62}$R\x06broker\x12L\n" +
+	"\bgroup_by\x18\x02 \x01(\x0e2$.swap.quickswap.v1.FeeTotalsGroupingB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\agroupBy\x12A\n" +
 	"\n" +
 	"start_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\tstartTime\x12=\n" +
 	"\bend_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\aendTime\x12(\n" +
@@ -7575,11 +7575,10 @@ const file_swap_quickswap_v1_quickswap_broker_proto_rawDesc = "" +
 	"\tvalue_usd\x18\x06 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\bvalueUsd\x12%\n" +
 	"\x0eunvalued_count\x18\a \x01(\x04R\runvaluedCount\"K\n" +
 	"\x14GetFeeTotalsResponse\x123\n" +
-	"\x06totals\x18\x01 \x03(\v2\x1b.swap.quickswap.v1.FeeTotalR\x06totals\"\xdd\x03\n" +
+	"\x06totals\x18\x01 \x03(\v2\x1b.swap.quickswap.v1.FeeTotalR\x06totals\"\xde\x03\n" +
 	"\x15GetBrokerStatsRequest\x129\n" +
-	"\x06broker\x18\x01 \x01(\tB!\xbaH\x1er\x1c2\x1a^[a-z0-9][a-z0-9_-]{0,62}$R\x06broker\x12E\n" +
-	"\bgroup_by\x18\x02 \x01(\x0e2\x1e.swap.quickswap.v1.StatsPeriodB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\agroupBy\x12A\n" +
+	"\x06broker\x18\x01 \x01(\tB!\xbaH\x1er\x1c2\x1a^[a-z0-9][a-z0-9_-]{0,62}$R\x06broker\x12F\n" +
+	"\bgroup_by\x18\x02 \x01(\x0e2\x1e.swap.quickswap.v1.StatsPeriodB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\agroupBy\x12A\n" +
 	"\n" +
 	"start_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\tstartTime\x12=\n" +
 	"\bend_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\aendTime:\xbf\x01\xbaH\xbb\x01\x1a\xb8\x01\n" +
@@ -7840,12 +7839,11 @@ const file_swap_quickswap_v1_quickswap_broker_proto_rawDesc = "" +
 	"page_token\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\tpageToken\"\x8e\x01\n" +
 	"!ListVaultAllowlistChangesResponse\x12A\n" +
 	"\achanges\x18\x01 \x03(\v2'.swap.quickswap.v1.VaultAllowlistChangeR\achanges\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xab\x04\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xac\x04\n" +
 	"\"RequestVaultAllowlistChangeRequest\x129\n" +
 	"\x06broker\x18\x01 \x01(\tB!\xbaH\x1er\x1c2\x1a^[a-z0-9][a-z0-9_-]{0,62}$R\x06broker\x128\n" +
-	"\x10vault_account_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x0evaultAccountId\x12F\n" +
-	"\x06action\x18\x03 \x01(\x0e2\".swap.quickswap.v1.AllowlistActionB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x06action\x12=\n" +
+	"\x10vault_account_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x0evaultAccountId\x12G\n" +
+	"\x06action\x18\x03 \x01(\x0e2\".swap.quickswap.v1.AllowlistActionB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x06action\x12=\n" +
 	"\x14destination_chain_id\x18\x04 \x01(\x04B\v\xbaH\b2\x06\x18\xff\xff\x03 \x00R\x12destinationChainId\x12;\n" +
 	"\x13destination_address\x18\x05 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x81\x03R\x12destinationAddress\x122\n" +

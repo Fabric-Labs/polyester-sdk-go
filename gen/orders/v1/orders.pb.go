@@ -4210,9 +4210,18 @@ type CancelAllOrdersRequest struct {
 	// for a new cancellation; do not reuse a key after its replay window.
 	// 1 to 64 ASCII characters using letters, digits, period, underscore, colon,
 	// slash, or hyphen.
-	RequestId     string `protobuf:"bytes,6,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	RequestId string `protobuf:"bytes,6,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	// If true, also stops the account's triggers in the same scope: every
+	// stop-loss, take-profit, trailing stop, TWAP, ladder and attached
+	// take-profit, stop-loss or trailing leg on the matched symbols whose orders
+	// trade on the side filter, created before the request was accepted. Each
+	// ends canceled with reason `TRIGGER_CANCEL_REASON_CANCEL_ALL` and releases
+	// its reserved funds, its open orders are canceled with the others, and none
+	// places an order after the response. Defaults to false: only orders are
+	// canceled and triggers keep running. Part of the criteria a retry must keep.
+	IncludeTriggers bool `protobuf:"varint,7,opt,name=include_triggers,json=includeTriggers,proto3" json:"include_triggers,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *CancelAllOrdersRequest) Reset() {
@@ -4278,6 +4287,13 @@ func (x *CancelAllOrdersRequest) GetRequestId() string {
 		return x.RequestId
 	}
 	return ""
+}
+
+func (x *CancelAllOrdersRequest) GetIncludeTriggers() bool {
+	if x != nil {
+		return x.IncludeTriggers
+	}
+	return false
 }
 
 // CancelledOrder identifies one order whose cancellation a cancel-all
@@ -4383,8 +4399,12 @@ type CancelAllOrdersResponse struct {
 	// Availability of the historical listing. An empty retry listing does not
 	// change the original counts or mean that no cancellations were requested.
 	ListingStatus CancelAllOrdersResponse_ListingStatus `protobuf:"varint,10,opt,name=listing_status,json=listingStatus,proto3,enum=orders.v1.CancelAllOrdersResponse_ListingStatus" json:"listing_status,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// With `include_triggers`, the number of the account's triggers that matched
+	// the filters when the request was accepted, each stopped unless `dry_run`
+	// is set. Zero without `include_triggers`.
+	MatchedTriggers uint32 `protobuf:"varint,11,opt,name=matched_triggers,json=matchedTriggers,proto3" json:"matched_triggers,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *CancelAllOrdersResponse) Reset() {
@@ -4487,6 +4507,13 @@ func (x *CancelAllOrdersResponse) GetListingStatus() CancelAllOrdersResponse_Lis
 	return CancelAllOrdersResponse_LISTING_UNSPECIFIED
 }
 
+func (x *CancelAllOrdersResponse) GetMatchedTriggers() uint32 {
+	if x != nil {
+		return x.MatchedTriggers
+	}
+	return 0
+}
+
 // CancelAllAfterRequest arms/disables a dead-man switch for automatic cancel-all.
 // When the switch fires, it cancels what a CancelAllOrders with the same
 // scope cancels: open orders, never triggers. See CancelAllAfter.
@@ -4508,9 +4535,17 @@ type CancelAllAfterRequest struct {
 	// Idempotency/trace key from caller (required).
 	// 1 to 64 ASCII characters using letters, digits, period, underscore, colon,
 	// slash, or hyphen.
-	RequestId     string `protobuf:"bytes,5,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	RequestId string `protobuf:"bytes,5,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	// If true, the switch's expiry also stops the account's triggers in its
+	// scope, as CancelAllOrders with `include_triggers` does: those created
+	// before the expiry time, even when the expiry is processed later, and
+	// none of them places an order once it is processed. A trigger created at
+	// or after the expiry time is not stopped. Defaults to false: only orders
+	// are canceled on expiry. Each arm or refresh sets it again; a disable
+	// ignores it.
+	IncludeTriggers bool `protobuf:"varint,6,opt,name=include_triggers,json=includeTriggers,proto3" json:"include_triggers,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *CancelAllAfterRequest) Reset() {
@@ -4576,6 +4611,13 @@ func (x *CancelAllAfterRequest) GetRequestId() string {
 		return x.RequestId
 	}
 	return ""
+}
+
+func (x *CancelAllAfterRequest) GetIncludeTriggers() bool {
+	if x != nil {
+		return x.IncludeTriggers
+	}
+	return false
 }
 
 // DeadManSwitchScope describes the recorded scope of an armed dead-man switch.
@@ -6211,15 +6253,14 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"priceTicks\"4\n" +
 	"\bLimitFok\x12(\n" +
 	"\vprice_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\n" +
-	"priceTicks\"q\n" +
-	"\tStaticPeg\x12A\n" +
-	"\treference\x18\x01 \x01(\x0e2\x17.orders.v1.PegReferenceB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\treference\x12!\n" +
-	"\foffset_ticks\x18\x02 \x01(\x03R\voffsetTicks\"\xf3\v\n" +
+	"priceTicks\"r\n" +
+	"\tStaticPeg\x12B\n" +
+	"\treference\x18\x01 \x01(\x0e2\x17.orders.v1.PegReferenceB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\treference\x12!\n" +
+	"\foffset_ticks\x18\x02 \x01(\x03R\voffsetTicks\"\xf4\v\n" +
 	"\vOrderIntent\x12'\n" +
 	"\tsymbol_id\x18\x01 \x01(\rB\n" +
-	"\xe0A\x02\xbaH\x04*\x02 \x00R\bsymbolId\x122\n" +
-	"\x04side\x18\x02 \x01(\x0e2\x0f.orders.v1.SideB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04side\x121\n" +
+	"\xe0A\x02\xbaH\x04*\x02 \x00R\bsymbolId\x123\n" +
+	"\x04side\x18\x02 \x01(\x0e2\x0f.orders.v1.SideB\x0e\xe0A\x02\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x04side\x121\n" +
 	"\x0fbase_qty_scaled\x18\x03 \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x00R\rbaseQtyScaled\x12>\n" +
 	"\x16max_quote_debit_scaled\x18\x04 \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x00R\x13maxQuoteDebitScaled\x12=\n" +
 	"\x15quote_proceeds_scaled\x18\x05 \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x00R\x13quoteProceedsScaled\x125\n" +
@@ -6353,7 +6394,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x03oco\x18\x04 \x01(\bR\x03oco:\xdb\x01\xbaH\xd7\x01\x1a\xd4\x01\n" +
 	"(risk_policy.oco_requires_tp_and_one_stop\x12Noco requires take_profit and exactly one stop leg (stop_loss or trailing_stop)\x1aX!this.oco || (has(this.take_profit) && (has(this.stop_loss) != has(this.trailing_stop)))B\n" +
 	"\n" +
-	"\bstop_leg\"\x8a\x02\n" +
+	"\bstop_leg\"\xb5\x02\n" +
 	"\x16CancelAllOrdersRequest\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12-\n" +
 	"\n" +
@@ -6361,11 +6402,12 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x04side\x18\x03 \x01(\x0e2\x0f.orders.v1.SideB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04side\x12\x17\n" +
 	"\adry_run\x18\x04 \x01(\bR\x06dryRun\x12=\n" +
 	"\n" +
-	"request_id\x18\x06 \x01(\tB\x1e\xbaH\x1br\x19\x10\x01\x18@2\x13^[A-Za-z0-9._:/-]+$R\trequestIdB\x10\n" +
+	"request_id\x18\x06 \x01(\tB\x1e\xbaH\x1br\x19\x10\x01\x18@2\x13^[A-Za-z0-9._:/-]+$R\trequestId\x12)\n" +
+	"\x10include_triggers\x18\a \x01(\bR\x0fincludeTriggersB\x10\n" +
 	"\x0e_subaccount_id\"S\n" +
 	"\x0eCancelledOrder\x12\x19\n" +
 	"\border_id\x18\x01 \x01(\x06R\aorderId\x12&\n" +
-	"\x0fclient_order_id\x18\x02 \x01(\tR\rclientOrderId\"\xb6\x05\n" +
+	"\x0fclient_order_id\x18\x02 \x01(\tR\rclientOrderId\"\xe1\x05\n" +
 	"\x17CancelAllOrdersResponse\x12K\n" +
 	"\x06status\x18\x01 \x01(\x0e2).orders.v1.CancelAllOrdersResponse.StatusB\b\xbaH\x05\x82\x01\x02\x10\x01R\x06status\x12%\n" +
 	"\x0ematched_orders\x18\x02 \x01(\rR\rmatchedOrders\x12+\n" +
@@ -6377,7 +6419,8 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x0ftotal_cancelled\x18\b \x01(\rR\x0etotalCancelled\x12\x1c\n" +
 	"\ttruncated\x18\t \x01(\bR\ttruncated\x12a\n" +
 	"\x0elisting_status\x18\n" +
-	" \x01(\x0e20.orders.v1.CancelAllOrdersResponse.ListingStatusB\b\xbaH\x05\x82\x01\x02\x10\x01R\rlistingStatus\"<\n" +
+	" \x01(\x0e20.orders.v1.CancelAllOrdersResponse.ListingStatusB\b\xbaH\x05\x82\x01\x02\x10\x01R\rlistingStatus\x12)\n" +
+	"\x10matched_triggers\x18\v \x01(\rR\x0fmatchedTriggers\"<\n" +
 	"\x06Status\x12\x16\n" +
 	"\x12STATUS_UNSPECIFIED\x10\x00\x12\r\n" +
 	"\tSUBMITTED\x10\x01\x12\v\n" +
@@ -6385,7 +6428,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\rListingStatus\x12\x17\n" +
 	"\x13LISTING_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\bINCLUDED\x10\x01\x12!\n" +
-	"\x1dNOT_RETAINED_READ_OPEN_ORDERS\x10\x02\"\xb3\x03\n" +
+	"\x1dNOT_RETAINED_READ_OPEN_ORDERS\x10\x02\"\xde\x03\n" +
 	"\x15CancelAllAfterRequest\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12\x1f\n" +
 	"\vtimeout_sec\x18\x02 \x01(\rR\n" +
@@ -6394,7 +6437,8 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\xbaH\a\xd8\x01\x01*\x02 \x00R\bsymbolId\x12-\n" +
 	"\x04side\x18\x04 \x01(\x0e2\x0f.orders.v1.SideB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04side\x12=\n" +
 	"\n" +
-	"request_id\x18\x05 \x01(\tB\x1e\xbaH\x1br\x19\x10\x01\x18@2\x13^[A-Za-z0-9._:/-]+$R\trequestId:\xa5\x01\xbaH\xa1\x01\x1a\x9e\x01\n" +
+	"request_id\x18\x05 \x01(\tB\x1e\xbaH\x1br\x19\x10\x01\x18@2\x13^[A-Za-z0-9._:/-]+$R\trequestId\x12)\n" +
+	"\x10include_triggers\x18\x06 \x01(\bR\x0fincludeTriggers:\xa5\x01\xbaH\xa1\x01\x1a\x9e\x01\n" +
 	"\x1ecancel_all_after.timeout_range\x12+timeout_sec must be 0 or between 10 and 120\x1aOthis.timeout_sec == 0u || (this.timeout_sec >= 10u && this.timeout_sec <= 120u)B\x10\n" +
 	"\x0e_subaccount_id\"\x7f\n" +
 	"\x12DeadManSwitchScope\x12\x1d\n" +
@@ -6814,18 +6858,18 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x1fBatchReplaceItemAdmissionStatus\x123\n" +
 	"/BATCH_REPLACE_ITEM_ADMISSION_STATUS_UNSPECIFIED\x10\x00\x120\n" +
 	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_ADMITTED\x10\x01\x120\n" +
-	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_REJECTED\x10\x022\x8b!\n" +
+	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_REJECTED\x10\x022\xce&\n" +
 	"\rOrdersService\x12\x9a\x02\n" +
 	"\fPreviewOrder\x12\x1e.orders.v1.PreviewOrderRequest\x1a\x1f.orders.v1.PreviewOrderResponse\"\xc8\x01\xbaG\xbe\x01\n" +
 	"\x0eOrders Service\x12\rPreview Order\x1a\x9c\x01Check current order eligibility and available balance without creating an order or reservation. Returns resolved sizing and price protection when available.\xa2\xb5\x18\x02\x01\x02\x12\xb0\x02\n" +
 	"\vCreateOrder\x12\x1d.orders.v1.CreateOrderRequest\x1a\x1e.orders.v1.CreateOrderResponse\"\xe1\x01\xbaG\xd7\x01\n" +
 	"\x0eOrders Service\x12\fCreate Order\x1a\xb6\x01Create a single order with side, type, quantity, and optional price fields. Supports optional client order IDs and attached risk instructions (take-profit, stop-loss, trailing stop).\xa2\xb5\x18\x02\x01\x02\x12\xe4\x01\n" +
 	"\vCancelOrder\x12\x1d.orders.v1.CancelOrderRequest\x1a\x1e.orders.v1.CancelOrderResponse\"\x95\x01\xbaG\x8b\x01\n" +
-	"\x0eOrders Service\x12\fCancel Order\x1akCancel a single open order by order ID or client order ID. Supports optional subaccount and symbol scoping.\xa2\xb5\x18\x02\x01\x02\x12\xee\a\n" +
-	"\x0fCancelAllOrders\x12!.orders.v1.CancelAllOrdersRequest\x1a\".orders.v1.CancelAllOrdersResponse\"\x93\a\xbaG\x89\a\n" +
-	"\x0eOrders Service\x12\x11Cancel All Orders\x1a\xe3\x06Cancel all matching open orders for an account. Supports an optional list of symbols and a side filter plus dry-run preview. Returns up to 200 canceled order IDs, oldest first, with the total count. It cancels open orders, including those that triggers placed (TWAP slices, ladder levels and exit orders), but not triggers. Standalone stop-loss, take-profit and trailing triggers and TWAPs keep running and can place new orders; a ladder stops once its levels are canceled. An attached stop-loss, take-profit or trailing leg whose exit order is canceled ends, and so do the parent's other legs when oco is set, so the position loses that protection. Other attached legs keep protecting the parent's filled quantity; those of a parent canceled before any fill end with it. Cancel triggers separately: list them with List Triggers, then cancel each with Cancel Trigger.\xa2\xb5\x18\x02\x01\x02\x12\xd6\a\n" +
-	"\x0eCancelAllAfter\x12 .orders.v1.CancelAllAfterRequest\x1a!.orders.v1.CancelAllAfterResponse\"\xfe\x06\xbaG\xf4\x06\n" +
-	"\x0eOrders Service\x12\"Cancel All After (Dead-Man Switch)\x1a\xbd\x06Set or disable a dead-man switch timeout for automatic cancel-all. Supports optional symbol and side scope with idempotent heartbeat refresh. On expiry it cancels open orders in scope, including those that triggers placed (TWAP slices, ladder levels and exit orders), but not triggers. Standalone stop-loss, take-profit and trailing triggers and TWAPs keep running and can place new orders; a ladder stops once its levels are canceled. An attached stop-loss, take-profit or trailing leg whose exit order is canceled ends, and so do the parent's other legs when oco is set, so the position loses that protection. Other attached legs keep protecting the parent's filled quantity; those of a parent canceled before any fill end with it. Cancel triggers separately: list them with List Triggers, then cancel each with Cancel Trigger.\xa2\xb5\x18\x02\x01\x02\x12\xa5\x02\n" +
+	"\x0eOrders Service\x12\fCancel Order\x1akCancel a single open order by order ID or client order ID. Supports optional subaccount and symbol scoping.\xa2\xb5\x18\x02\x01\x02\x12\x92\r\n" +
+	"\x0fCancelAllOrders\x12!.orders.v1.CancelAllOrdersRequest\x1a\".orders.v1.CancelAllOrdersResponse\"\xb7\f\xbaG\xad\f\n" +
+	"\x0eOrders Service\x12\x11Cancel All Orders\x1a\x87\fCancel all matching open orders for an account. Supports an optional list of symbols and a side filter plus dry-run preview. Returns up to 200 canceled order IDs, oldest first, with the total count. Unless it is a dry run, it covers every matching order admitted before its requestId was first admitted, from any interface, including orders not yet open and replacement orders: an order whose create or replace response arrived before the first request with this requestId was sent is covered, while requests still in flight or with an unknown outcome have no defined order with it. A retry with the same requestId keeps the original scope and covers no order admitted since; use a fresh requestId for a new cancellation. Each covered order eventually ends; any still open when the cancellation applies is canceled. It cancels open orders, including those that triggers placed (TWAP slices, ladder levels and exit orders). By default it does not cancel triggers: standalone stop-loss, take-profit and trailing triggers and TWAPs keep running and can place new orders; a ladder stops once its levels are canceled. An attached stop-loss, take-profit or trailing leg whose exit order is canceled ends, and so do the parent's other legs when oco is set, so the position loses that protection. Other attached legs keep protecting the parent's filled quantity; those of a parent canceled before any fill end with it. Set include_triggers to also stop every matching trigger, attached legs included, in the same request; matched_triggers counts them.\xa2\xb5\x18\x02\x01\x02\x12\xf5\a\n" +
+	"\x0eCancelAllAfter\x12 .orders.v1.CancelAllAfterRequest\x1a!.orders.v1.CancelAllAfterResponse\"\x9d\a\xbaG\x93\a\n" +
+	"\x0eOrders Service\x12\"Cancel All After (Dead-Man Switch)\x1a\xdc\x06Set or disable a dead-man switch timeout for automatic cancel-all. Supports optional symbol and side scope with idempotent heartbeat refresh. On expiry it cancels open orders in scope, including those that triggers placed (TWAP slices, ladder levels and exit orders). By default it does not cancel triggers: standalone stop-loss, take-profit and trailing triggers and TWAPs keep running and can place new orders; a ladder stops once its levels are canceled. An attached stop-loss, take-profit or trailing leg whose exit order is canceled ends, and so do the parent's other legs when oco is set, so the position loses that protection. Other attached legs keep protecting the parent's filled quantity; those of a parent canceled before any fill end with it. Set include_triggers to also stop every matching trigger, attached legs included, when the switch fires.\xa2\xb5\x18\x02\x01\x02\x12\xa5\x02\n" +
 	"\x11BatchCreateOrders\x12#.orders.v1.BatchCreateOrdersRequest\x1a$.orders.v1.BatchCreateOrdersResponse\"\xc4\x01\xbaG\xba\x01\n" +
 	"\x0eOrders Service\x12\x13Batch Create Orders\x1a\x92\x01Create up to 20 orders in a single request with per-item results. Supports mixed symbols, attached risk payloads, and optional partial acceptance.\xa2\xb5\x18\x02\x01\x02\x12\x98\x02\n" +
 	"\vModifyOrder\x12\x1d.orders.v1.ModifyOrderRequest\x1a\x1e.orders.v1.ModifyOrderResponse\"\xc9\x01\xbaG\xbf\x01\n" +

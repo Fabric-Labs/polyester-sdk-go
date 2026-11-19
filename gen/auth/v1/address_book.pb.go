@@ -28,7 +28,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// AccountScopeType identifies whether address-book data belongs to the root account or a subaccount.
+// AccountScopeType identifies whether address-book data or an API key belongs to the root account or a subaccount.
 type AccountScopeType int32
 
 const (
@@ -4027,17 +4027,15 @@ var File_auth_v1_address_book_proto protoreflect.FileDescriptor
 
 const file_auth_v1_address_book_proto_rawDesc = "" +
 	"\n" +
-	"\x1aauth/v1/address_book.proto\x12\aauth.v1\x1a\x19auth/v1/subaccounts.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\x1a9polyester/api/validation/v1/predefined_string_rules.proto\"\xc7\x01\n" +
-	"\x0fAccountScopeRef\x12D\n" +
+	"\x1aauth/v1/address_book.proto\x12\aauth.v1\x1a\x19auth/v1/subaccounts.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\x1a9polyester/api/validation/v1/predefined_string_rules.proto\"\xc8\x01\n" +
+	"\x0fAccountScopeRef\x12E\n" +
 	"\n" +
-	"scope_type\x18\x01 \x01(\x0e2\x19.auth.v1.AccountScopeTypeB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\tscopeType\x126\n" +
+	"scope_type\x18\x01 \x01(\x0e2\x19.auth.v1.AccountScopeTypeB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\tscopeType\x126\n" +
 	"\x0froot_account_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\rrootAccountId\x126\n" +
-	"\rsubaccount_id\x18\x03 \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\"\x90\x02\n" +
+	"\rsubaccount_id\x18\x03 \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\"\x91\x02\n" +
 	"\vAddressBook\x12.\n" +
-	"\x05scope\x18\x01 \x01(\v2\x18.auth.v1.AccountScopeRefR\x05scope\x12D\n" +
-	"\vcaller_role\x18\x02 \x01(\x0e2\x17.auth.v1.SubaccountRoleB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\n" +
+	"\x05scope\x18\x01 \x01(\v2\x18.auth.v1.AccountScopeRefR\x05scope\x12E\n" +
+	"\vcaller_role\x18\x02 \x01(\x0e2\x17.auth.v1.SubaccountRoleB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\n" +
 	"callerRole\x12\x1d\n" +
 	"\x05label\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18@R\x05label\x12.\n" +
 	"\x0eowner_username\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x18@R\rownerUsername\x12<\n" +
@@ -4065,12 +4063,11 @@ const file_auth_v1_address_book_proto_rawDesc = "" +
 	"\x15AddressBookTagSummary\x12%\n" +
 	"\x06tag_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x05tagId\x12\x1d\n" +
 	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x180R\x04name\x12\x1d\n" +
-	"\x05color\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18 R\x05color\"\xca\x04\n" +
+	"\x05color\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18 R\x05color\"\xcb\x04\n" +
 	"\x10AddressBookEntry\x12A\n" +
 	"\x15address_book_entry_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x12addressBookEntryId\x12.\n" +
-	"\x05scope\x18\x02 \x01(\v2\x18.auth.v1.AccountScopeRefR\x05scope\x12=\n" +
-	"\x04kind\x18\x03 \x01(\x0e2\x1d.auth.v1.AddressBookEntryKindB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04kind\x12\x1e\n" +
+	"\x05scope\x18\x02 \x01(\v2\x18.auth.v1.AccountScopeRefR\x05scope\x12>\n" +
+	"\x04kind\x18\x03 \x01(\x0e2\x1d.auth.v1.AddressBookEntryKindB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x04kind\x12\x1e\n" +
 	"\x05label\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x05label\x12\x1c\n" +
 	"\x04note\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\x04note\x129\n" +
 	"\n" +
@@ -4084,16 +4081,15 @@ const file_auth_v1_address_book_proto_rawDesc = "" +
 	"\x05entry\"\x96\x01\n" +
 	"\x16AddressBookEntriesView\x12=\n" +
 	"\bexternal\x18\x01 \x03(\v2!.auth.v1.ExternalAddressBookEntryR\bexternal\x12=\n" +
-	"\binternal\x18\x02 \x03(\v2!.auth.v1.InternalAddressBookEntryR\binternal\"\xb8\x04\n" +
+	"\binternal\x18\x02 \x03(\v2!.auth.v1.InternalAddressBookEntryR\binternal\"\xb9\x04\n" +
 	"\x18ExternalAddressBookEntry\x12A\n" +
 	"\x15address_book_entry_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x12addressBookEntryId\x12.\n" +
 	"\x05scope\x18\x02 \x01(\v2\x18.auth.v1.AccountScopeRefR\x05scope\x12\x1e\n" +
 	"\x05label\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x05label\x12\x1c\n" +
 	"\x04note\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\x04note\x12!\n" +
 	"\atag_ids\x18\x05 \x03(\x06B\b\xbaH\x05\x92\x01\x02\x10\n" +
-	"R\x06tagIds\x12Z\n" +
-	"\x10whitelist_status\x18\x06 \x01(\x0e2#.auth.v1.DestinationWhitelistStatusB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x0fwhitelistStatus\x125\n" +
+	"R\x06tagIds\x12[\n" +
+	"\x10whitelist_status\x18\x06 \x01(\x0e2#.auth.v1.DestinationWhitelistStatusB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x0fwhitelistStatus\x125\n" +
 	"\x12polychain_chain_id\x18\a \x01(\rB\a\xbaH\x04*\x02 \x00R\x10polychainChainId\x12#\n" +
 	"\aaddress\x18\b \x01(\tB\t\xbaH\x06r\x04\x80\xb5\x18\x01R\aaddress\x129\n" +
 	"\n" +
@@ -4101,16 +4097,15 @@ const file_auth_v1_address_book_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1a\n" +
-	"\brevision\x18\v \x01(\x04R\brevision\"\xc8\x06\n" +
+	"\brevision\x18\v \x01(\x04R\brevision\"\xc9\x06\n" +
 	"\x18InternalAddressBookEntry\x12A\n" +
 	"\x15address_book_entry_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x12addressBookEntryId\x12.\n" +
 	"\x05scope\x18\x02 \x01(\v2\x18.auth.v1.AccountScopeRefR\x05scope\x12\x1e\n" +
 	"\x05label\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x05label\x12\x1c\n" +
 	"\x04note\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\x04note\x12!\n" +
 	"\atag_ids\x18\x05 \x03(\x06B\b\xbaH\x05\x92\x01\x02\x10\n" +
-	"R\x06tagIds\x12Z\n" +
-	"\x10whitelist_status\x18\x06 \x01(\x0e2#.auth.v1.DestinationWhitelistStatusB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x0fwhitelistStatus\x129\n" +
+	"R\x06tagIds\x12[\n" +
+	"\x10whitelist_status\x18\x06 \x01(\x0e2#.auth.v1.DestinationWhitelistStatusB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x0fwhitelistStatus\x129\n" +
 	"\x0froot_account_id\x18\a \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\rrootAccountId\x12=\n" +
 	"\x11target_account_id\x18\b \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x0ftargetAccountId\x12O\n" +
 	"\x11target_scope_type\x18\t \x01(\x0e2\x19.auth.v1.AccountScopeTypeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x0ftargetScopeType\x12=\n" +
@@ -4122,14 +4117,12 @@ const file_auth_v1_address_book_proto_rawDesc = "" +
 	"created_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1a\n" +
-	"\brevision\x18\x0f \x01(\x04R\brevision\"\x97\x05\n" +
+	"\brevision\x18\x0f \x01(\x04R\brevision\"\x99\x05\n" +
 	"\x14TransferCounterparty\x127\n" +
 	"\x0fcounterparty_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x0ecounterpartyId\x12.\n" +
-	"\x05scope\x18\x02 \x01(\v2\x18.auth.v1.AccountScopeRefR\x05scope\x12P\n" +
-	"\tdirection\x18\x03 \x01(\x0e2&.auth.v1.TransferCounterpartyDirectionB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\tdirection\x12=\n" +
-	"\x04kind\x18\x04 \x01(\x0e2\x1d.auth.v1.AddressBookEntryKindB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04kind\x12\x14\n" +
+	"\x05scope\x18\x02 \x01(\v2\x18.auth.v1.AccountScopeRefR\x05scope\x12Q\n" +
+	"\tdirection\x18\x03 \x01(\x0e2&.auth.v1.TransferCounterpartyDirectionB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\tdirection\x12>\n" +
+	"\x04kind\x18\x04 \x01(\x0e2\x1d.auth.v1.AddressBookEntryKindB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x04kind\x12\x14\n" +
 	"\x05saved\x18\x05 \x01(\bR\x05saved\x12D\n" +
 	"\x15address_book_entry_id\x18\x06 \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x12addressBookEntryId\x12\x1b\n" +
 	"\tuse_count\x18\a \x01(\x04R\buseCount\x12>\n" +
@@ -4141,22 +4134,20 @@ const file_auth_v1_address_book_proto_rawDesc = "" +
 	"\fcounterparty\"\xa3\x01\n" +
 	"!AddressBookRecentDestinationsView\x12>\n" +
 	"\bexternal\x18\x01 \x03(\v2\".auth.v1.ExternalRecentDestinationR\bexternal\x12>\n" +
-	"\binternal\x18\x02 \x03(\v2\".auth.v1.InternalRecentDestinationR\binternal\"\xb9\x03\n" +
+	"\binternal\x18\x02 \x03(\v2\".auth.v1.InternalRecentDestinationR\binternal\"\xba\x03\n" +
 	"\x19ExternalRecentDestination\x12.\n" +
-	"\x05scope\x18\x01 \x01(\v2\x18.auth.v1.AccountScopeRefR\x05scope\x12Y\n" +
-	"\x0elast_direction\x18\x02 \x01(\x0e2&.auth.v1.TransferCounterpartyDirectionB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\rlastDirection\x12\x14\n" +
+	"\x05scope\x18\x01 \x01(\v2\x18.auth.v1.AccountScopeRefR\x05scope\x12Z\n" +
+	"\x0elast_direction\x18\x02 \x01(\x0e2&.auth.v1.TransferCounterpartyDirectionB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\rlastDirection\x12\x14\n" +
 	"\x05saved\x18\x03 \x01(\bR\x05saved\x12D\n" +
 	"\x15address_book_entry_id\x18\x04 \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x12addressBookEntryId\x12\x1b\n" +
 	"\tuse_count\x18\x05 \x01(\x04R\buseCount\x12<\n" +
 	"\flast_seen_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"lastSeenAt\x125\n" +
 	"\x12polychain_chain_id\x18\a \x01(\rB\a\xbaH\x04*\x02 \x00R\x10polychainChainId\x12#\n" +
-	"\aaddress\x18\b \x01(\tB\t\xbaH\x06r\x04\x80\xb5\x18\x01R\aaddress\"\xc9\x05\n" +
+	"\aaddress\x18\b \x01(\tB\t\xbaH\x06r\x04\x80\xb5\x18\x01R\aaddress\"\xca\x05\n" +
 	"\x19InternalRecentDestination\x12.\n" +
-	"\x05scope\x18\x01 \x01(\v2\x18.auth.v1.AccountScopeRefR\x05scope\x12Y\n" +
-	"\x0elast_direction\x18\x02 \x01(\x0e2&.auth.v1.TransferCounterpartyDirectionB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\rlastDirection\x12\x14\n" +
+	"\x05scope\x18\x01 \x01(\v2\x18.auth.v1.AccountScopeRefR\x05scope\x12Z\n" +
+	"\x0elast_direction\x18\x02 \x01(\x0e2&.auth.v1.TransferCounterpartyDirectionB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\rlastDirection\x12\x14\n" +
 	"\x05saved\x18\x03 \x01(\bR\x05saved\x12D\n" +
 	"\x15address_book_entry_id\x18\x04 \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x12addressBookEntryId\x12\x1b\n" +
 	"\tuse_count\x18\x05 \x01(\x04R\buseCount\x12<\n" +
@@ -4168,7 +4159,7 @@ const file_auth_v1_address_book_proto_rawDesc = "" +
 	"\x15smart_account_address\x18\n" +
 	" \x01(\tB\t\xbaH\x06r\x04\x88\xb5\x18\x01R\x13smartAccountAddress\x12,\n" +
 	"\rroot_username\x18\v \x01(\tB\a\xbaH\x04r\x02\x18@R\frootUsername\x122\n" +
-	"\x10subaccount_label\x18\f \x01(\tB\a\xbaH\x04r\x02\x18@R\x0fsubaccountLabel\"\xc2\x05\n" +
+	"\x10subaccount_label\x18\f \x01(\tB\a\xbaH\x04r\x02\x18@R\x0fsubaccountLabel\"\xc3\x05\n" +
 	"\x1eInternalTransferWhitelistEntry\x12)\n" +
 	"\bentry_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\aentryId\x12.\n" +
 	"\x05scope\x18\x02 \x01(\v2\x18.auth.v1.AccountScopeRefR\x05scope\x129\n" +
@@ -4182,9 +4173,8 @@ const file_auth_v1_address_book_proto_rawDesc = "" +
 	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12c\n" +
-	"\x11resolution_status\x18\v \x01(\x0e2*.auth.v1.InternalWhitelistResolutionStatusB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x10resolutionStatus\"\xfb\x01\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12d\n" +
+	"\x11resolution_status\x18\v \x01(\x0e2*.auth.v1.InternalWhitelistResolutionStatusB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x10resolutionStatus\"\xfb\x01\n" +
 	"\x1eMirroredWithdrawWhitelistEntry\x125\n" +
 	"\x11canonical_address\x18\x01 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\x10canonicalAddress\x120\n" +
 	"\x0fraw_address_hex\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\bR\rrawAddressHex\x129\n" +
@@ -4195,15 +4185,13 @@ const file_auth_v1_address_book_proto_rawDesc = "" +
 	"\x05scope\x18\x01 \x01(\v2\x18.auth.v1.AccountScopeRefR\x05scope\x12>\n" +
 	"\x1bexternal_whitelist_required\x18\x02 \x01(\bR\x19externalWhitelistRequired\x12N\n" +
 	"\x0eactive_entries\x18\x03 \x03(\v2'.auth.v1.MirroredWithdrawWhitelistEntryR\ractiveEntries\x12>\n" +
-	"\x1binternal_whitelist_required\x18\x04 \x01(\bR\x19internalWhitelistRequired\"\xbe\x04\n" +
+	"\x1binternal_whitelist_required\x18\x04 \x01(\bR\x19internalWhitelistRequired\"\xc0\x04\n" +
 	"\x13TransferDestination\x12.\n" +
-	"\x05scope\x18\x01 \x01(\v2\x18.auth.v1.AccountScopeRefR\x05scope\x12=\n" +
-	"\x04kind\x18\x02 \x01(\x0e2\x1d.auth.v1.AddressBookEntryKindB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04kind\x12\x14\n" +
+	"\x05scope\x18\x01 \x01(\v2\x18.auth.v1.AccountScopeRefR\x05scope\x12>\n" +
+	"\x04kind\x18\x02 \x01(\x0e2\x1d.auth.v1.AddressBookEntryKindB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x04kind\x12\x14\n" +
 	"\x05saved\x18\x03 \x01(\bR\x05saved\x12 \n" +
-	"\vwhitelisted\x18\x04 \x01(\bR\vwhitelisted\x12Z\n" +
-	"\x10whitelist_status\x18\x05 \x01(\x0e2#.auth.v1.DestinationWhitelistStatusB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x0fwhitelistStatus\x12G\n" +
+	"\vwhitelisted\x18\x04 \x01(\bR\vwhitelisted\x12[\n" +
+	"\x10whitelist_status\x18\x05 \x01(\x0e2#.auth.v1.DestinationWhitelistStatusB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x0fwhitelistStatus\x12G\n" +
 	"\x12address_book_entry\x18\x06 \x01(\v2\x19.auth.v1.AddressBookEntryR\x10addressBookEntry\x12>\n" +
 	"\bexternal\x18\x14 \x01(\v2 .auth.v1.ExternalWithdrawAddressH\x00R\bexternal\x12>\n" +
 	"\binternal\x18\x15 \x01(\v2 .auth.v1.InternalTransferAccountH\x00R\binternal\x12L\n" +

@@ -78,10 +78,6 @@ const (
 	// MFAServiceReleaseFreshStepUpProcedure is the fully-qualified name of the MFAService's
 	// ReleaseFreshStepUp RPC.
 	MFAServiceReleaseFreshStepUpProcedure = "/auth.v1.MFAService/ReleaseFreshStepUp"
-	// MFAServiceGetRecentMFAProcedure is the fully-qualified name of the MFAService's GetRecentMFA RPC.
-	MFAServiceGetRecentMFAProcedure = "/auth.v1.MFAService/GetRecentMFA"
-	// MFAServiceEndRecentMFAProcedure is the fully-qualified name of the MFAService's EndRecentMFA RPC.
-	MFAServiceEndRecentMFAProcedure = "/auth.v1.MFAService/EndRecentMFA"
 )
 
 // MFAServiceClient is a client for the auth.v1.MFAService service.
@@ -116,16 +112,6 @@ type MFAServiceClient interface {
 	ConsumeFreshStepUp(context.Context, *connect.Request[v1.ConsumeFreshStepUpRequest]) (*connect.Response[v1.ConsumeFreshStepUpResponse], error)
 	// Release a claimed fresh step-up proof when the protected request does not complete.
 	ReleaseFreshStepUp(context.Context, *connect.Request[v1.ReleaseFreshStepUpRequest]) (*connect.Response[v1.ReleaseFreshStepUpResponse], error)
-	// Read whether the session's recent-MFA window is open for an action, and
-	// until when, so the client can skip the MFA prompt while it is.
-	GetRecentMFA(context.Context, *connect.Request[v1.GetRecentMFARequest]) (*connect.Response[v1.GetRecentMFAResponse], error)
-	// End the session's recent-MFA window at sign-out. It also cancels the
-	// session's pending MFA challenges and revokes its unused step-up proofs,
-	// including one an MFA challenge completing at the same time issues: it
-	// answers once that completion has finished. A step-up completed later,
-	// with a new challenge, opens a new window. Ending a window that is not
-	// open succeeds.
-	EndRecentMFA(context.Context, *connect.Request[v1.EndRecentMFARequest]) (*connect.Response[v1.EndRecentMFAResponse], error)
 }
 
 // NewMFAServiceClient constructs a client for the auth.v1.MFAService service. By default, it uses
@@ -229,20 +215,6 @@ func NewMFAServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(mFAServiceMethods.ByName("ReleaseFreshStepUp")),
 			connect.WithClientOptions(opts...),
 		),
-		getRecentMFA: connect.NewClient[v1.GetRecentMFARequest, v1.GetRecentMFAResponse](
-			httpClient,
-			baseURL+MFAServiceGetRecentMFAProcedure,
-			connect.WithSchema(mFAServiceMethods.ByName("GetRecentMFA")),
-			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-			connect.WithClientOptions(opts...),
-		),
-		endRecentMFA: connect.NewClient[v1.EndRecentMFARequest, v1.EndRecentMFAResponse](
-			httpClient,
-			baseURL+MFAServiceEndRecentMFAProcedure,
-			connect.WithSchema(mFAServiceMethods.ByName("EndRecentMFA")),
-			connect.WithIdempotency(connect.IdempotencyIdempotent),
-			connect.WithClientOptions(opts...),
-		),
 	}
 }
 
@@ -263,8 +235,6 @@ type mFAServiceClient struct {
 	claimFreshStepUp            *connect.Client[v1.ClaimFreshStepUpRequest, v1.ClaimFreshStepUpResponse]
 	consumeFreshStepUp          *connect.Client[v1.ConsumeFreshStepUpRequest, v1.ConsumeFreshStepUpResponse]
 	releaseFreshStepUp          *connect.Client[v1.ReleaseFreshStepUpRequest, v1.ReleaseFreshStepUpResponse]
-	getRecentMFA                *connect.Client[v1.GetRecentMFARequest, v1.GetRecentMFAResponse]
-	endRecentMFA                *connect.Client[v1.EndRecentMFARequest, v1.EndRecentMFAResponse]
 }
 
 // ListMFAFactors calls auth.v1.MFAService.ListMFAFactors.
@@ -342,16 +312,6 @@ func (c *mFAServiceClient) ReleaseFreshStepUp(ctx context.Context, req *connect.
 	return c.releaseFreshStepUp.CallUnary(ctx, req)
 }
 
-// GetRecentMFA calls auth.v1.MFAService.GetRecentMFA.
-func (c *mFAServiceClient) GetRecentMFA(ctx context.Context, req *connect.Request[v1.GetRecentMFARequest]) (*connect.Response[v1.GetRecentMFAResponse], error) {
-	return c.getRecentMFA.CallUnary(ctx, req)
-}
-
-// EndRecentMFA calls auth.v1.MFAService.EndRecentMFA.
-func (c *mFAServiceClient) EndRecentMFA(ctx context.Context, req *connect.Request[v1.EndRecentMFARequest]) (*connect.Response[v1.EndRecentMFAResponse], error) {
-	return c.endRecentMFA.CallUnary(ctx, req)
-}
-
 // MFAServiceHandler is an implementation of the auth.v1.MFAService service.
 type MFAServiceHandler interface {
 	// List the caller's enrolled MFA factors.
@@ -384,16 +344,6 @@ type MFAServiceHandler interface {
 	ConsumeFreshStepUp(context.Context, *connect.Request[v1.ConsumeFreshStepUpRequest]) (*connect.Response[v1.ConsumeFreshStepUpResponse], error)
 	// Release a claimed fresh step-up proof when the protected request does not complete.
 	ReleaseFreshStepUp(context.Context, *connect.Request[v1.ReleaseFreshStepUpRequest]) (*connect.Response[v1.ReleaseFreshStepUpResponse], error)
-	// Read whether the session's recent-MFA window is open for an action, and
-	// until when, so the client can skip the MFA prompt while it is.
-	GetRecentMFA(context.Context, *connect.Request[v1.GetRecentMFARequest]) (*connect.Response[v1.GetRecentMFAResponse], error)
-	// End the session's recent-MFA window at sign-out. It also cancels the
-	// session's pending MFA challenges and revokes its unused step-up proofs,
-	// including one an MFA challenge completing at the same time issues: it
-	// answers once that completion has finished. A step-up completed later,
-	// with a new challenge, opens a new window. Ending a window that is not
-	// open succeeds.
-	EndRecentMFA(context.Context, *connect.Request[v1.EndRecentMFARequest]) (*connect.Response[v1.EndRecentMFAResponse], error)
 }
 
 // NewMFAServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -493,20 +443,6 @@ func NewMFAServiceHandler(svc MFAServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithSchema(mFAServiceMethods.ByName("ReleaseFreshStepUp")),
 		connect.WithHandlerOptions(opts...),
 	)
-	mFAServiceGetRecentMFAHandler := connect.NewUnaryHandler(
-		MFAServiceGetRecentMFAProcedure,
-		svc.GetRecentMFA,
-		connect.WithSchema(mFAServiceMethods.ByName("GetRecentMFA")),
-		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
-		connect.WithHandlerOptions(opts...),
-	)
-	mFAServiceEndRecentMFAHandler := connect.NewUnaryHandler(
-		MFAServiceEndRecentMFAProcedure,
-		svc.EndRecentMFA,
-		connect.WithSchema(mFAServiceMethods.ByName("EndRecentMFA")),
-		connect.WithIdempotency(connect.IdempotencyIdempotent),
-		connect.WithHandlerOptions(opts...),
-	)
 	return "/auth.v1.MFAService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MFAServiceListMFAFactorsProcedure:
@@ -539,10 +475,6 @@ func NewMFAServiceHandler(svc MFAServiceHandler, opts ...connect.HandlerOption) 
 			mFAServiceConsumeFreshStepUpHandler.ServeHTTP(w, r)
 		case MFAServiceReleaseFreshStepUpProcedure:
 			mFAServiceReleaseFreshStepUpHandler.ServeHTTP(w, r)
-		case MFAServiceGetRecentMFAProcedure:
-			mFAServiceGetRecentMFAHandler.ServeHTTP(w, r)
-		case MFAServiceEndRecentMFAProcedure:
-			mFAServiceEndRecentMFAHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -610,12 +542,4 @@ func (UnimplementedMFAServiceHandler) ConsumeFreshStepUp(context.Context, *conne
 
 func (UnimplementedMFAServiceHandler) ReleaseFreshStepUp(context.Context, *connect.Request[v1.ReleaseFreshStepUpRequest]) (*connect.Response[v1.ReleaseFreshStepUpResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.MFAService.ReleaseFreshStepUp is not implemented"))
-}
-
-func (UnimplementedMFAServiceHandler) GetRecentMFA(context.Context, *connect.Request[v1.GetRecentMFARequest]) (*connect.Response[v1.GetRecentMFAResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.MFAService.GetRecentMFA is not implemented"))
-}
-
-func (UnimplementedMFAServiceHandler) EndRecentMFA(context.Context, *connect.Request[v1.EndRecentMFARequest]) (*connect.Response[v1.EndRecentMFAResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.MFAService.EndRecentMFA is not implemented"))
 }

@@ -653,10 +653,9 @@ const file_vip_v1_vip_proto_rawDesc = "" +
 	"\x04tier\x18\x01 \x01(\rB\t\xbaH\x06*\x04\x18\n" +
 	"(\x01R\x04tier\x12d\n" +
 	"\x14volume_threshold_usd\x18\x02 \x01(\tB2\xbaH/r-\x10\x01\x18(2'^(0|[1-9][0-9]{0,20})([.][0-9]{1,18})?$R\x12volumeThresholdUsd\x12l\n" +
-	"\x11aop_threshold_usd\x18\x03 \x01(\tB@\xbaH=r;\x10\x01\x18(25^(0[.][0-9]{1,18}|[1-9][0-9]{0,20}([.][0-9]{1,18})?)$R\x0faopThresholdUsd\"\x84\x01\n" +
-	"\x10VIPMetricQuality\x12;\n" +
-	"\x06status\x18\x01 \x01(\x0e2\x17.vip.v1.VIPMetricStatusB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x06status\x123\n" +
+	"\x11aop_threshold_usd\x18\x03 \x01(\tB@\xbaH=r;\x10\x01\x18(25^(0[.][0-9]{1,18}|[1-9][0-9]{0,20}([.][0-9]{1,18})?)$R\x0faopThresholdUsd\"\x85\x01\n" +
+	"\x10VIPMetricQuality\x12<\n" +
+	"\x06status\x18\x01 \x01(\x0e2\x17.vip.v1.VIPMetricStatusB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x06status\x123\n" +
 	"\x10incomplete_hours\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xd0\x05R\x0fincompleteHours\"\x15\n" +
 	"\x13GetVIPStatusRequest\"\xa2\b\n" +
 	"\x14GetVIPStatusResponse\x12\x1b\n" +

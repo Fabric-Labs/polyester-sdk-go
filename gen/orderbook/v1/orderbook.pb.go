@@ -9,6 +9,7 @@ package orderbookv1
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
+	v1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	_ "github.com/google/gnostic/openapiv3"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -30,10 +31,10 @@ type GetOrderBookRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable numeric pair ID from GetSpotConfig.
 	SymbolId uint32 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
-	// Number of price levels per side, from 1 to the max_depth every response
-	// reports. 0 (unset) selects the default of 50. A depth above max_depth is
-	// rejected with INVALID_ARGUMENT, never truncated.
-	Depth         uint32 `protobuf:"varint,3,opt,name=depth,proto3" json:"depth,omitempty"`
+	// Price levels per side. Every tier is served; DEPTH_UNSPECIFIED selects
+	// DEPTH_50. To follow the book in real time, subscribe to the order book
+	// stream at a streamed tier, then fetch this snapshot at exactly that tier.
+	Depth         v1.DepthTier `protobuf:"varint,2,opt,name=depth,proto3,enum=polyester.type.v1.DepthTier" json:"depth,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -75,11 +76,11 @@ func (x *GetOrderBookRequest) GetSymbolId() uint32 {
 	return 0
 }
 
-func (x *GetOrderBookRequest) GetDepth() uint32 {
+func (x *GetOrderBookRequest) GetDepth() v1.DepthTier {
 	if x != nil {
 		return x.Depth
 	}
-	return 0
+	return v1.DepthTier(0)
 }
 
 // PriceLevel uses scaled integers for the binary (protobuf) API (low-latency).
@@ -168,9 +169,9 @@ type GetOrderBookResponse struct {
 	// book_seq. Discard a snapshot whose epoch is older than the newest one
 	// seen for the symbol. 0 while available is false.
 	BookEpoch uint64 `protobuf:"varint,7,opt,name=book_epoch,json=bookEpoch,proto3" json:"book_epoch,omitempty"`
-	// Largest depth per side the service accepts, the upper bound of the
-	// request's depth. Set in every response, available or not.
-	MaxDepth      uint32 `protobuf:"varint,8,opt,name=max_depth,json=maxDepth,proto3" json:"max_depth,omitempty"`
+	// Tier this snapshot was served at: the request's depth, or DEPTH_50 when
+	// the request left it unset. Set in every response, available or not.
+	Depth         v1.DepthTier `protobuf:"varint,9,opt,name=depth,proto3,enum=polyester.type.v1.DepthTier" json:"depth,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -254,11 +255,11 @@ func (x *GetOrderBookResponse) GetBookEpoch() uint64 {
 	return 0
 }
 
-func (x *GetOrderBookResponse) GetMaxDepth() uint32 {
+func (x *GetOrderBookResponse) GetDepth() v1.DepthTier {
 	if x != nil {
-		return x.MaxDepth
+		return x.Depth
 	}
-	return 0
+	return v1.DepthTier(0)
 }
 
 // OrderBookDelta is an incremental update to the orderbook state of one depth
@@ -274,7 +275,8 @@ func (x *GetOrderBookResponse) GetMaxDepth() uint32 {
 //     A reset carrying the full view is sent periodically, currently about every
 //     30 seconds, and after a sequence gap.
 //
-// To start, subscribe, then fetch GetOrderBook with the tier's depth. Drop
+// To start, subscribe at a streamed tier, then fetch GetOrderBook at exactly
+// that tier. Drop
 // deltas whose book_seq_end is at most the snapshot's book_seq, and apply the
 // first delta only when its book_seq_start equals that book_seq; then apply
 // each delta only when its book_seq_start equals the previous book_seq_end.
@@ -387,16 +389,16 @@ var File_orderbook_v1_orderbook_proto protoreflect.FileDescriptor
 
 const file_orderbook_v1_orderbook_proto_rawDesc = "" +
 	"\n" +
-	"\x1corderbook/v1/orderbook.proto\x12\forderbook.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"Q\n" +
+	"\x1corderbook/v1/orderbook.proto\x12\forderbook.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\x1a\"polyester/type/v1/depth_tier.proto\"y\n" +
 	"\x13GetOrderBookRequest\x12$\n" +
-	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\x12\x14\n" +
-	"\x05depth\x18\x03 \x01(\rR\x05depth\"L\n" +
+	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\x12<\n" +
+	"\x05depth\x18\x02 \x01(\x0e2\x1c.polyester.type.v1.DepthTierB\b\xbaH\x05\x82\x01\x02\x10\x01R\x05depth\"L\n" +
 	"\n" +
 	"PriceLevel\x12\x1f\n" +
 	"\vprice_ticks\x18\x01 \x01(\x03R\n" +
 	"priceTicks\x12\x1d\n" +
 	"\n" +
-	"qty_scaled\x18\x02 \x01(\x03R\tqtyScaled\"\xb0\x02\n" +
+	"qty_scaled\x18\x02 \x01(\x03R\tqtyScaled\"\xc7\x02\n" +
 	"\x14GetOrderBookResponse\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x12\x19\n" +
 	"\bbook_seq\x18\x02 \x01(\x04R\abookSeq\x12,\n" +
@@ -405,8 +407,8 @@ const file_orderbook_v1_orderbook_proto_rawDesc = "" +
 	"\x02ts\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x02ts\x12\x1c\n" +
 	"\tavailable\x18\x06 \x01(\bR\tavailable\x12\x1d\n" +
 	"\n" +
-	"book_epoch\x18\a \x01(\x04R\tbookEpoch\x12\x1b\n" +
-	"\tmax_depth\x18\b \x01(\rR\bmaxDepth\"\x93\x02\n" +
+	"book_epoch\x18\a \x01(\x04R\tbookEpoch\x122\n" +
+	"\x05depth\x18\t \x01(\x0e2\x1c.polyester.type.v1.DepthTierR\x05depth\"\x93\x02\n" +
 	"\x0eOrderBookDelta\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x12$\n" +
 	"\x0ebook_seq_start\x18\x02 \x01(\x04R\fbookSeqStart\x12 \n" +
@@ -415,10 +417,10 @@ const file_orderbook_v1_orderbook_proto_rawDesc = "" +
 	"\x04bids\x18\x04 \x03(\v2\x18.orderbook.v1.PriceLevelR\x04bids\x12,\n" +
 	"\x04asks\x18\x05 \x03(\v2\x18.orderbook.v1.PriceLevelR\x04asks\x12\x14\n" +
 	"\x05reset\x18\x06 \x01(\bR\x05reset\x12*\n" +
-	"\x02ts\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\x02ts2\xd4\x02\n" +
-	"\x10OrderbookService\x12\xaf\x02\n" +
-	"\fGetOrderBook\x12!.orderbook.v1.GetOrderBookRequest\x1a\".orderbook.v1.GetOrderBookResponse\"\xd7\x01\xbaG\xcf\x01\n" +
-	"\x11Orderbook Service\x12\x0eGet Order Book\x1a\xa9\x01Retrieve a spot order book depth snapshot for a symbol. Supports a selectable depth per side, up to the max_depth each response reports, and returns best bid/ask levels.\x88\xb5\x18\x01\x1a\x0e\x8a\xb5\x18\n" +
+	"\x02ts\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\x02ts2\xc1\x02\n" +
+	"\x10OrderbookService\x12\x9c\x02\n" +
+	"\fGetOrderBook\x12!.orderbook.v1.GetOrderBookRequest\x1a\".orderbook.v1.GetOrderBookResponse\"\xc4\x01\xbaG\xbc\x01\n" +
+	"\x11Orderbook Service\x12\x0eGet Order Book\x1a\x96\x01Retrieve a spot order book depth snapshot for a symbol. Supports a selectable depth tier per side, up to 5000 levels, and returns best bid/ask levels.\x88\xb5\x18\x01\x1a\x0e\x8a\xb5\x18\n" +
 	"marketdataB\x97\x01\xbaGN:L\n" +
 	"\x11Orderbook Service\x127Public read surface for spot orderbook depth snapshots.ZDgithub.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1;orderbookv1b\x06proto3"
 
@@ -440,22 +442,25 @@ var file_orderbook_v1_orderbook_proto_goTypes = []any{
 	(*PriceLevel)(nil),            // 1: orderbook.v1.PriceLevel
 	(*GetOrderBookResponse)(nil),  // 2: orderbook.v1.GetOrderBookResponse
 	(*OrderBookDelta)(nil),        // 3: orderbook.v1.OrderBookDelta
-	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
+	(v1.DepthTier)(0),             // 4: polyester.type.v1.DepthTier
+	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
 }
 var file_orderbook_v1_orderbook_proto_depIdxs = []int32{
-	1, // 0: orderbook.v1.GetOrderBookResponse.bids:type_name -> orderbook.v1.PriceLevel
-	1, // 1: orderbook.v1.GetOrderBookResponse.asks:type_name -> orderbook.v1.PriceLevel
-	4, // 2: orderbook.v1.GetOrderBookResponse.ts:type_name -> google.protobuf.Timestamp
-	1, // 3: orderbook.v1.OrderBookDelta.bids:type_name -> orderbook.v1.PriceLevel
-	1, // 4: orderbook.v1.OrderBookDelta.asks:type_name -> orderbook.v1.PriceLevel
-	4, // 5: orderbook.v1.OrderBookDelta.ts:type_name -> google.protobuf.Timestamp
-	0, // 6: orderbook.v1.OrderbookService.GetOrderBook:input_type -> orderbook.v1.GetOrderBookRequest
-	2, // 7: orderbook.v1.OrderbookService.GetOrderBook:output_type -> orderbook.v1.GetOrderBookResponse
-	7, // [7:8] is the sub-list for method output_type
-	6, // [6:7] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	4, // 0: orderbook.v1.GetOrderBookRequest.depth:type_name -> polyester.type.v1.DepthTier
+	1, // 1: orderbook.v1.GetOrderBookResponse.bids:type_name -> orderbook.v1.PriceLevel
+	1, // 2: orderbook.v1.GetOrderBookResponse.asks:type_name -> orderbook.v1.PriceLevel
+	5, // 3: orderbook.v1.GetOrderBookResponse.ts:type_name -> google.protobuf.Timestamp
+	4, // 4: orderbook.v1.GetOrderBookResponse.depth:type_name -> polyester.type.v1.DepthTier
+	1, // 5: orderbook.v1.OrderBookDelta.bids:type_name -> orderbook.v1.PriceLevel
+	1, // 6: orderbook.v1.OrderBookDelta.asks:type_name -> orderbook.v1.PriceLevel
+	5, // 7: orderbook.v1.OrderBookDelta.ts:type_name -> google.protobuf.Timestamp
+	0, // 8: orderbook.v1.OrderbookService.GetOrderBook:input_type -> orderbook.v1.GetOrderBookRequest
+	2, // 9: orderbook.v1.OrderbookService.GetOrderBook:output_type -> orderbook.v1.GetOrderBookResponse
+	9, // [9:10] is the sub-list for method output_type
+	8, // [8:9] is the sub-list for method input_type
+	8, // [8:8] is the sub-list for extension type_name
+	8, // [8:8] is the sub-list for extension extendee
+	0, // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_orderbook_v1_orderbook_proto_init() }

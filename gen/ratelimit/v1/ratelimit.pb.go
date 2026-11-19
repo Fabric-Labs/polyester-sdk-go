@@ -36,6 +36,10 @@ const (
 	TradingRateLimitClass_TRADING_RATE_LIMIT_CLASS_PLACE TradingRateLimitClass = 1
 	// Order and trigger cancellation.
 	TradingRateLimitClass_TRADING_RATE_LIMIT_CLASS_CANCEL TradingRateLimitClass = 2
+	// Order, fill, trigger, trading-limit and fee reads, and order previews.
+	// Every API key, session and subaccount of a root account shares the root
+	// account's read limit.
+	TradingRateLimitClass_TRADING_RATE_LIMIT_CLASS_READ TradingRateLimitClass = 3
 )
 
 // Enum value maps for TradingRateLimitClass.
@@ -44,11 +48,13 @@ var (
 		0: "TRADING_RATE_LIMIT_CLASS_UNSPECIFIED",
 		1: "TRADING_RATE_LIMIT_CLASS_PLACE",
 		2: "TRADING_RATE_LIMIT_CLASS_CANCEL",
+		3: "TRADING_RATE_LIMIT_CLASS_READ",
 	}
 	TradingRateLimitClass_value = map[string]int32{
 		"TRADING_RATE_LIMIT_CLASS_UNSPECIFIED": 0,
 		"TRADING_RATE_LIMIT_CLASS_PLACE":       1,
 		"TRADING_RATE_LIMIT_CLASS_CANCEL":      2,
+		"TRADING_RATE_LIMIT_CLASS_READ":        3,
 	}
 )
 
@@ -79,12 +85,13 @@ func (TradingRateLimitClass) EnumDescriptor() ([]byte, []int) {
 	return file_ratelimit_v1_ratelimit_proto_rawDescGZIP(), []int{0}
 }
 
-// TradingRateLimitRule describes one weighted placement or cancellation quota
-// for one VIP tier.
+// TradingRateLimitRule describes one weighted placement, cancellation or read
+// quota for one VIP tier.
 type TradingRateLimitRule struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Trading operation family governed by this rule. Public responses contain
-	// TRADING_RATE_LIMIT_CLASS_PLACE or TRADING_RATE_LIMIT_CLASS_CANCEL.
+	// TRADING_RATE_LIMIT_CLASS_PLACE, TRADING_RATE_LIMIT_CLASS_CANCEL or
+	// TRADING_RATE_LIMIT_CLASS_READ.
 	PolicyClass TradingRateLimitClass `protobuf:"varint,1,opt,name=policy_class,json=policyClass,proto3,enum=ratelimit.v1.TradingRateLimitClass" json:"policy_class,omitempty"`
 	// VIP tier for this rule, in the inclusive range 0 through 10.
 	VipTier uint32 `protobuf:"varint,2,opt,name=vip_tier,json=vipTier,proto3" json:"vip_tier,omitempty"`
@@ -202,17 +209,18 @@ func (*GetRateLimitConfigRequest) Descriptor() ([]byte, []int) {
 	return file_ratelimit_v1_ratelimit_proto_rawDescGZIP(), []int{1}
 }
 
-// GetRateLimitConfigResponse contains all placement and cancellation rules for
-// one complete policy version.
+// GetRateLimitConfigResponse contains all placement, cancellation and read
+// rules for one complete policy version.
 type GetRateLimitConfigResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Positive identifier of the returned rate-limit policy version.
 	PolicyVersion uint64 `protobuf:"varint,1,opt,name=policy_version,json=policyVersion,proto3" json:"policy_version,omitempty"`
 	// UTC time at which this policy version became effective.
 	EffectiveFrom *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=effective_from,json=effectiveFrom,proto3" json:"effective_from,omitempty"`
-	// Complete placement and cancellation catalog. Rules are ordered by policy
-	// class, then by tier ascending. The list contains one rule per class for
-	// each VIP0 through VIP10 tier and is not paginated.
+	// Complete placement, cancellation and read catalog. Rules are ordered by
+	// policy class (cancellation, placement, read), then by tier ascending. The
+	// list contains one rule per class for each VIP0 through VIP10 tier and is
+	// not paginated.
 	Rules         []*TradingRateLimitRule `protobuf:"bytes,3,rep,name=rules,proto3" json:"rules,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -318,10 +326,13 @@ func (x *GetTradingRateLimitsRequest) GetSubaccountId() uint64 {
 	return 0
 }
 
-// GetTradingRateLimitsResponse contains the placement and cancellation limits
-// enforced for the selected account target. Trading limits apply per account:
-// the root account and each subaccount have their own limits, and every API
-// key and session that trades for an account shares that account's limits.
+// GetTradingRateLimitsResponse contains the placement, cancellation and read
+// limits enforced for the selected account target. Placement and cancellation
+// limits apply per account: the root account and each subaccount have their
+// own limits, and every API key and session that trades for an account shares
+// that account's limits. The read limit applies per root account: the root
+// account, all of its subaccounts and every API key and session share one
+// read limit.
 type GetTradingRateLimitsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Positive identifier of the rate-limit policy version used for the
@@ -329,12 +340,13 @@ type GetTradingRateLimitsResponse struct {
 	PolicyVersion uint64 `protobuf:"varint,1,opt,name=policy_version,json=policyVersion,proto3" json:"policy_version,omitempty"`
 	// UTC time at which this policy version became effective.
 	EffectiveFrom *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=effective_from,json=effectiveFrom,proto3" json:"effective_from,omitempty"`
-	// Placement and cancellation rules enforced for the selected account,
-	// ordered with placement first and cancellation second. All of the
-	// account's API keys and sessions draw on these limits together.
+	// Placement, cancellation and read rules enforced for the selected
+	// account, ordered placement, cancellation, read. All of the account's API
+	// keys and sessions draw on the placement and cancellation limits together;
+	// the read rule is the root account's, shared with all of its subaccounts.
 	Rules []*TradingRateLimitRule `protobuf:"bytes,3,rep,name=rules,proto3" json:"rules,omitempty"`
-	// Placement and cancellation rules resolved for the calling API key, ordered
-	// with placement first and cancellation second. Present only when the caller
+	// Placement, cancellation and read rules resolved for the calling API key,
+	// ordered placement, cancellation, read. Present only when the caller
 	// authenticated with an API key. These rules are informational: trading
 	// requests are not limited per API key, and only the account rules in
 	// `rules` are enforced.
@@ -405,10 +417,9 @@ var File_ratelimit_v1_ratelimit_proto protoreflect.FileDescriptor
 
 const file_ratelimit_v1_ratelimit_proto_rawDesc = "" +
 	"\n" +
-	"\x1cratelimit/v1/ratelimit.proto\x12\fratelimit.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\x8c\x02\n" +
-	"\x14TradingRateLimitRule\x12R\n" +
-	"\fpolicy_class\x18\x01 \x01(\x0e2#.ratelimit.v1.TradingRateLimitClassB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\vpolicyClass\x12\"\n" +
+	"\x1cratelimit/v1/ratelimit.proto\x12\fratelimit.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\x8d\x02\n" +
+	"\x14TradingRateLimitRule\x12S\n" +
+	"\fpolicy_class\x18\x01 \x01(\x0e2#.ratelimit.v1.TradingRateLimitClassB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\vpolicyClass\x12\"\n" +
 	"\bvip_tier\x18\x02 \x01(\rB\a\xbaH\x04*\x02\x18\n" +
 	"R\avipTier\x12*\n" +
 	"\fquota_weight\x18\x03 \x01(\x04B\a\xbaH\x042\x02 \x00R\vquotaWeight\x12$\n" +
@@ -419,7 +430,7 @@ const file_ratelimit_v1_ratelimit_proto_rawDesc = "" +
 	"\x0epolicy_version\x18\x01 \x01(\x04B\a\xbaH\x042\x02 \x00R\rpolicyVersion\x12I\n" +
 	"\x0eeffective_from\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\reffectiveFrom\x12D\n" +
 	"\x05rules\x18\x03 \x03(\v2\".ratelimit.v1.TradingRateLimitRuleB\n" +
-	"\xbaH\a\x92\x01\x04\b\x16\x10\x16R\x05rules\"i\n" +
+	"\xbaH\a\x92\x01\x04\b!\x10!R\x05rules\"i\n" +
 	"\x1bGetTradingRateLimitsRequest\x128\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
 	"\x0e_subaccount_id\"\xb1\x02\n" +
@@ -427,17 +438,18 @@ const file_ratelimit_v1_ratelimit_proto_rawDesc = "" +
 	"\x0epolicy_version\x18\x01 \x01(\x04B\a\xbaH\x042\x02 \x00R\rpolicyVersion\x12I\n" +
 	"\x0eeffective_from\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\reffectiveFrom\x12D\n" +
 	"\x05rules\x18\x03 \x03(\v2\".ratelimit.v1.TradingRateLimitRuleB\n" +
-	"\xbaH\a\x92\x01\x04\b\x02\x10\x02R\x05rules\x12P\n" +
-	"\rapi_key_rules\x18\x04 \x03(\v2\".ratelimit.v1.TradingRateLimitRuleB\b\xbaH\x05\x92\x01\x02\x10\x02R\vapiKeyRules*\x8a\x01\n" +
+	"\xbaH\a\x92\x01\x04\b\x03\x10\x03R\x05rules\x12P\n" +
+	"\rapi_key_rules\x18\x04 \x03(\v2\".ratelimit.v1.TradingRateLimitRuleB\b\xbaH\x05\x92\x01\x02\x10\x03R\vapiKeyRules*\xad\x01\n" +
 	"\x15TradingRateLimitClass\x12(\n" +
 	"$TRADING_RATE_LIMIT_CLASS_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eTRADING_RATE_LIMIT_CLASS_PLACE\x10\x01\x12#\n" +
-	"\x1fTRADING_RATE_LIMIT_CLASS_CANCEL\x10\x022\xd9\x04\n" +
-	"\x10RateLimitService\x12\x93\x02\n" +
-	"\x12GetRateLimitConfig\x12'.ratelimit.v1.GetRateLimitConfigRequest\x1a(.ratelimit.v1.GetRateLimitConfigResponse\"\xa9\x01\xbaG\x87\x01\n" +
-	"\x12Rate Limit Service\x12\x15Get Rate Limit Config\x1aXGet the complete active placement and cancellation quota catalog for VIP0 through VIP10.Z\x00\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x11\x12\x0f/v1/rate-limits\x90\x02\x01\x12\xa1\x02\n" +
-	"\x14GetTradingRateLimits\x12).ratelimit.v1.GetTradingRateLimitsRequest\x1a*.ratelimit.v1.GetTradingRateLimitsResponse\"\xb1\x01\xbaG\x88\x01\n" +
-	"\x12Rate Limit Service\x12\x17Get Trading Rate Limits\x1aYGet the effective placement and cancellation limits for the authenticated account target.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x19\x12\x17/v1/trading/rate-limits\x1a\v\x8a\xb5\x18\atradingB\xb0\x01\xbaGg:e\n" +
+	"\x1fTRADING_RATE_LIMIT_CLASS_CANCEL\x10\x02\x12!\n" +
+	"\x1dTRADING_RATE_LIMIT_CLASS_READ\x10\x032\x97\x05\n" +
+	"\x10RateLimitService\x12\x99\x02\n" +
+	"\x12GetRateLimitConfig\x12'.ratelimit.v1.GetRateLimitConfigRequest\x1a(.ratelimit.v1.GetRateLimitConfigResponse\"\xaf\x01\xbaG\x8d\x01\n" +
+	"\x12Rate Limit Service\x12\x15Get Rate Limit Config\x1a^Get the complete active placement, cancellation and read quota catalog for VIP0 through VIP10.Z\x00\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x11\x12\x0f/v1/rate-limits\x90\x02\x01\x12\xd9\x02\n" +
+	"\x14GetTradingRateLimits\x12).ratelimit.v1.GetTradingRateLimitsRequest\x1a*.ratelimit.v1.GetTradingRateLimitsResponse\"\xe9\x01\xbaG\xc0\x01\n" +
+	"\x12Rate Limit Service\x12\x17Get Trading Rate Limits\x1a\x90\x01Get the effective placement, cancellation and read limits for the authenticated account target. Costs one unit of the root account's read limit.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x19\x12\x17/v1/trading/rate-limits\x1a\v\x8a\xb5\x18\atradingB\xb0\x01\xbaGg:e\n" +
 	"\x12Rate Limit Service\x12OPublic trading quota reference data and authenticated effective trading limits.ZDgithub.com/Fabric-Labs/polyester-sdk-go/gen/ratelimit/v1;ratelimitv1b\x06proto3"
 
 var (

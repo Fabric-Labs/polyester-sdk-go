@@ -1338,10 +1338,9 @@ const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"\n" +
 	"field_path\x18\x02 \x01(\tR\tfieldPath\x12;\n" +
 	"\rmin_floor_e18\x18\x03 \x01(\v2\x17.polyester.type.v1.U128R\vminFloorE18\x12=\n" +
-	"\fpayable_from\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vpayableFrom\"\xcd\x03\n" +
-	"\x1cTradingWithdrawIntentPayload\x12L\n" +
-	"\x06action\x18\x01 \x01(\x0e2(.chain.withdraw.v1.TradingWithdrawActionB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x06action\x12\"\n" +
+	"\fpayable_from\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vpayableFrom\"\xce\x03\n" +
+	"\x1cTradingWithdrawIntentPayload\x12M\n" +
+	"\x06action\x18\x01 \x01(\x0e2(.chain.withdraw.v1.TradingWithdrawActionB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x06action\x12\"\n" +
 	"\basset_id\x18\x02 \x01(\rB\a\xbaH\x04*\x02 \x00R\aassetId\x120\n" +
 	"\x14destination_chain_id\x18\x03 \x01(\x04R\x12destinationChainId\x12>\n" +
 	"\n" +
@@ -1455,16 +1454,16 @@ const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"\x17UNAVAILABLE_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vNO_CONTRACT\x10\x01\x12\x0f\n" +
 	"\vREAD_FAILED\x10\x02\x12\x13\n" +
-	"\x0fINVALID_BALANCE\x10\x032\xae\r\n" +
+	"\x0fINVALID_BALANCE\x10\x032\xe2\r\n" +
 	"\x0fWithdrawService\x12\xe7\x02\n" +
 	"\x11GetWalletBalances\x12+.chain.withdraw.v1.GetWalletBalancesRequest\x1a,.chain.withdraw.v1.GetWalletBalancesResponse\"\xf6\x01\xbaG\xcb\x01\n" +
 	"\vWithdrawals\x12\x13Get Wallet Balances\x1a\xa6\x01Read the zTokens the account's smart account wallet holds on Polyester Chain, such as a rejected withdrawal's refund. An API key needs READ_BALANCES within its scope.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/chain/wallet/balances\x12\x9f\x03\n" +
 	"\x1bValidateWithdrawDestination\x125.chain.withdraw.v1.ValidateWithdrawDestinationRequest\x1a6.chain.withdraw.v1.ValidateWithdrawDestinationResponse\"\x90\x02\xbaG\xd3\x01\n" +
 	"\vWithdrawals\x12\x1dValidate Withdraw Destination\x1a\xa4\x01Validate an external-chain withdraw destination for an authenticated caller without creating a withdraw. An API key needs READ_WITHDRAW_VALIDATION within its scope.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02-:\x01*\"(/v1/chain/withdraws:validate-destination\x12\xd0\x02\n" +
 	"\x15CreateTradingWithdraw\x12/.chain.withdraw.v1.CreateTradingWithdrawRequest\x1a0.chain.withdraw.v1.CreateTradingWithdrawResponse\"\xd3\x01\xbaG\xa4\x01\n" +
-	"\x11Trading Withdraws\x12\x17Create Trading Withdraw\x1avCreate or return one durable withdraw from Trading to Funding or to an external chain for the selected account target.\xa2\xb5\x18\x01\x02\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/v1/chain/trading-withdraws\x12\xb0\x04\n" +
-	"\x1bCreateWalletTradingWithdraw\x125.chain.withdraw.v1.CreateWalletTradingWithdrawRequest\x1a6.chain.withdraw.v1.CreateWalletTradingWithdrawResponse\"\xa1\x03\xbaG\xe7\x02\n" +
-	"\x11Trading Withdraws\x12\x1eCreate Wallet Trading Withdraw\x1a\xb1\x02Create or return one durable Trading withdraw intent from typed frontend fields and a wallet personal_sign signature. Root-owner Trading to Funding and root-owner withdrawals to explicitly whitelisted external destinations accept recent MFA; other interactive movements require a fresh single-use step-up.\x98\xb5\x18\x03\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/chain/trading-withdraws:wallet\x1a\t\x8a\xb5\x18\x05chainB\xb0\x01\xbaG^:\\\n" +
+	"\x11Trading Withdraws\x12\x17Create Trading Withdraw\x1avCreate or return one durable withdraw from Trading to Funding or to an external chain for the selected account target.\xa2\xb5\x18\x01\x02\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/v1/chain/trading-withdraws\x12\xe4\x04\n" +
+	"\x1bCreateWalletTradingWithdraw\x125.chain.withdraw.v1.CreateWalletTradingWithdrawRequest\x1a6.chain.withdraw.v1.CreateWalletTradingWithdrawResponse\"\xd5\x03\xbaG\x9b\x03\n" +
+	"\x11Trading Withdraws\x12\x1eCreate Wallet Trading Withdraw\x1a\xe5\x02Create or return one durable Trading withdraw intent from typed frontend fields and a wallet personal_sign signature. Root-owner Trading to Funding and root-owner withdrawals to explicitly whitelisted external destinations accept an MFA-elevated session (MFA completed in the last 30 minutes); other interactive movements require a fresh single-use step-up.\x98\xb5\x18\x03\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/chain/trading-withdraws:wallet\x1a\t\x8a\xb5\x18\x05chainB\xb0\x01\xbaG^:\\\n" +
 	"\x11Trading Withdraws\x12GRequest withdrawals from Trading for a Polyester account or subaccount.ZMgithub.com/Fabric-Labs/polyester-sdk-go/gen/chain/withdraw/v1;chainwithdrawv1b\x06proto3"
 
 var (

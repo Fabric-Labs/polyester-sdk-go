@@ -43,12 +43,13 @@ const (
 
 // RateLimitServiceClient is a client for the ratelimit.v1.RateLimitService service.
 type RateLimitServiceClient interface {
-	// Get the complete active placement and cancellation quota catalog for
-	// VIP0 through VIP10.
+	// Get the complete active placement, cancellation and read quota catalog
+	// for VIP0 through VIP10.
 	// This public, caller-independent catalog supports cacheable ConnectRPC GET.
 	GetRateLimitConfig(context.Context, *connect.Request[v1.GetRateLimitConfigRequest]) (*connect.Response[v1.GetRateLimitConfigResponse], error)
-	// Get the effective placement and cancellation limits for the authenticated
-	// caller's root account or selected subaccount.
+	// Get the effective placement, cancellation and read limits for the
+	// authenticated caller's root account or selected subaccount. Costs one
+	// unit of the root account's read limit.
 	GetTradingRateLimits(context.Context, *connect.Request[v1.GetTradingRateLimitsRequest]) (*connect.Response[v1.GetTradingRateLimitsResponse], error)
 }
 
@@ -97,12 +98,13 @@ func (c *rateLimitServiceClient) GetTradingRateLimits(ctx context.Context, req *
 
 // RateLimitServiceHandler is an implementation of the ratelimit.v1.RateLimitService service.
 type RateLimitServiceHandler interface {
-	// Get the complete active placement and cancellation quota catalog for
-	// VIP0 through VIP10.
+	// Get the complete active placement, cancellation and read quota catalog
+	// for VIP0 through VIP10.
 	// This public, caller-independent catalog supports cacheable ConnectRPC GET.
 	GetRateLimitConfig(context.Context, *connect.Request[v1.GetRateLimitConfigRequest]) (*connect.Response[v1.GetRateLimitConfigResponse], error)
-	// Get the effective placement and cancellation limits for the authenticated
-	// caller's root account or selected subaccount.
+	// Get the effective placement, cancellation and read limits for the
+	// authenticated caller's root account or selected subaccount. Costs one
+	// unit of the root account's read limit.
 	GetTradingRateLimits(context.Context, *connect.Request[v1.GetTradingRateLimitsRequest]) (*connect.Response[v1.GetTradingRateLimitsResponse], error)
 }
 

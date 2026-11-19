@@ -1003,9 +1003,9 @@ const file_auth_v1_social_verification_proto_rawDesc = "" +
 	"updated_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12;\n" +
 	"\vretry_after\x18\x12 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"retryAfter\x12J\n" +
-	"\x13change_available_at\x18\x13 \x01(\v2\x1a.google.protobuf.TimestampR\x11changeAvailableAt\"\xf4\a\n" +
-	"\x1eStartSocialVerificationRequest\x12B\n" +
-	"\bprovider\x18\x01 \x01(\x0e2\x17.auth.v1.SocialProviderB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\bprovider\x12C\n" +
+	"\x13change_available_at\x18\x13 \x01(\v2\x1a.google.protobuf.TimestampR\x11changeAvailableAt\"\xf5\a\n" +
+	"\x1eStartSocialVerificationRequest\x12C\n" +
+	"\bprovider\x18\x01 \x01(\x0e2\x17.auth.v1.SocialProviderB\x0e\xe0A\x02\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\bprovider\x12C\n" +
 	"\x06method\x18\x03 \x01(\x0e2!.auth.v1.SocialVerificationMethodB\b\xbaH\x05\x82\x01\x02\x10\x01R\x06method\x12\x8c\x01\n" +
 	"\x06handle\x18\x02 \x01(\tBt\xbaHq\xba\x01j\n" +
 	"\x18handle.no_angle_brackets\x12\"handle must not contain '<' or '>'\x1a*!this.contains('<') && !this.contains('>')r\x02\x18@R\x06handle:\xb9\x05\xbaH\xb5\x05\x1a\xb0\x01\n" +
@@ -1020,23 +1020,23 @@ const file_auth_v1_social_verification_proto_rawDesc = "" +
 	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12?\n" +
 	"\fverification\x18\x03 \x01(\v2\x1b.auth.v1.SocialVerificationR\fverification\x12\x1d\n" +
 	"\n" +
-	"action_url\x18\x04 \x01(\tR\tactionUrl\"d\n" +
-	"\x1eSocialVerificationReadyRequest\x12B\n" +
-	"\bprovider\x18\x01 \x01(\x0e2\x17.auth.v1.SocialProviderB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\bprovider\"b\n" +
+	"action_url\x18\x04 \x01(\tR\tactionUrl\"e\n" +
+	"\x1eSocialVerificationReadyRequest\x12C\n" +
+	"\bprovider\x18\x01 \x01(\x0e2\x17.auth.v1.SocialProviderB\x0e\xe0A\x02\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\bprovider\"b\n" +
 	"\x1fSocialVerificationReadyResponse\x12?\n" +
-	"\fverification\x18\x01 \x01(\v2\x1b.auth.v1.SocialVerificationR\fverification\"b\n" +
-	"\x1cGetSocialVerificationRequest\x12B\n" +
-	"\bprovider\x18\x01 \x01(\x0e2\x17.auth.v1.SocialProviderB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\bprovider\"`\n" +
+	"\fverification\x18\x01 \x01(\v2\x1b.auth.v1.SocialVerificationR\fverification\"c\n" +
+	"\x1cGetSocialVerificationRequest\x12C\n" +
+	"\bprovider\x18\x01 \x01(\x0e2\x17.auth.v1.SocialProviderB\x0e\xe0A\x02\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\bprovider\"`\n" +
 	"\x1dGetSocialVerificationResponse\x12?\n" +
-	"\fverification\x18\x01 \x01(\v2\x1b.auth.v1.SocialVerificationR\fverification\"\x8b\x02\n" +
-	" ConfirmSocialVerificationRequest\x12B\n" +
-	"\bprovider\x18\x01 \x01(\x0e2\x17.auth.v1.SocialProviderB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\bprovider\x12E\n" +
+	"\fverification\x18\x01 \x01(\v2\x1b.auth.v1.SocialVerificationR\fverification\"\x8c\x02\n" +
+	" ConfirmSocialVerificationRequest\x12C\n" +
+	"\bprovider\x18\x01 \x01(\x0e2\x17.auth.v1.SocialProviderB\x0e\xe0A\x02\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\bprovider\x12E\n" +
 	"\x10provider_user_id\x18\x02 \x01(\tB\x1b\xe0A\x02\xbaH\x15r\x13\x10\x01\x18\x142\r^[1-9][0-9]*$R\x0eproviderUserId:\\\xbaHY\x1aW\n" +
 	"\x15confirm_telegram_only\x12*only telegram linking needs a confirmation\x1a\x12this.provider == 3\"d\n" +
 	"!ConfirmSocialVerificationResponse\x12?\n" +
-	"\fverification\x18\x01 \x01(\v2\x1b.auth.v1.SocialVerificationR\fverification\"`\n" +
-	"\x1aUnlinkSocialAccountRequest\x12B\n" +
-	"\bprovider\x18\x01 \x01(\x0e2\x17.auth.v1.SocialProviderB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\bprovider\"^\n" +
+	"\fverification\x18\x01 \x01(\v2\x1b.auth.v1.SocialVerificationR\fverification\"a\n" +
+	"\x1aUnlinkSocialAccountRequest\x12C\n" +
+	"\bprovider\x18\x01 \x01(\x0e2\x17.auth.v1.SocialProviderB\x0e\xe0A\x02\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\bprovider\"^\n" +
 	"\x1bUnlinkSocialAccountResponse\x12?\n" +
 	"\fverification\x18\x01 \x01(\v2\x1b.auth.v1.SocialVerificationR\fverification*R\n" +
 	"\x0eSocialProvider\x12\x18\n" +
@@ -1058,14 +1058,14 @@ const file_auth_v1_social_verification_proto_rawDesc = "" +
 	"\x12METHOD_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eMETHOD_PROFILE\x10\x01\x12\x12\n" +
 	"\x0eMETHOD_CHANNEL\x10\x02\x12\r\n" +
-	"\tMETHOD_DM\x10\x032\xcd\x16\n" +
+	"\tMETHOD_DM\x10\x032\xc6\x16\n" +
 	"\x19SocialVerificationService\x12\x9a\x04\n" +
 	"\x17StartSocialVerification\x12'.auth.v1.StartSocialVerificationRequest\x1a(.auth.v1.StartSocialVerificationResponse\"\xab\x03\xbaG\xf1\x02\n" +
 	"\fAuth Service\x12\x19Start Social Verification\x1a\xc5\x02Issue a challenge code for the caller to submit through the provider-specific verification flow. While an X/Twitter or Discord account is linked, AUTH_SOCIAL_CHANGE_LIMIT_REACHED, checked before any step-up, means wait until retry_after; otherwise it needs enrolled MFA and a fresh step-up proof in the X-Auth-Step-Up header.\x98\xb5\x18\x03\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/auth/social/verification:start\x12\xd0\x03\n" +
 	"\x17SocialVerificationReady\x12'.auth.v1.SocialVerificationReadyRequest\x1a(.auth.v1.SocialVerificationReadyResponse\"\xe1\x02\xbaG\xab\x02\n" +
-	"\fAuth Service\x12\x1eMark Social Verification Ready\x1a\xfa\x01Mark verification as ready and request a provider account check. AUTH_SOCIAL_VERIFICATION_EXPIRED means start a new challenge. AUTH_SOCIAL_VERIFICATION_INVALID_STATE means Ready is not valid in the current state; use GetSocialVerification for status.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/auth/social/verification:ready\x12\xdb\x05\n" +
-	"\x19ConfirmSocialVerification\x12).auth.v1.ConfirmSocialVerificationRequest\x1a*.auth.v1.ConfirmSocialVerificationResponse\"\xe6\x04\xbaG\xaa\x04\n" +
-	"\fAuth Service\x12\x1bConfirm Social Verification\x1a\xfc\x03Link the Telegram account that submitted the caller's challenge code, after the user confirmed it. Requires enrolled MFA and a fresh step-up proof in the X-Auth-Step-Up header, or none while the recent-MFA window is open. AUTH_MFA_NOT_ENROLLED means enroll MFA first. AUTH_SOCIAL_VERIFICATION_EXPIRED means start a new challenge. AUTH_SOCIAL_VERIFICATION_INVALID_STATE means no matching account awaits confirmation. AUTH_SOCIAL_ACCOUNT_ALREADY_LINKED means the account is linked to another Polyester account.\x98\xb5\x18\x01\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02):\x01*\"$/v1/auth/social/verification:confirm\x12\xc1\x04\n" +
+	"\fAuth Service\x12\x1eMark Social Verification Ready\x1a\xfa\x01Mark verification as ready and request a provider account check. AUTH_SOCIAL_VERIFICATION_EXPIRED means start a new challenge. AUTH_SOCIAL_VERIFICATION_INVALID_STATE means Ready is not valid in the current state; use GetSocialVerification for status.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/auth/social/verification:ready\x12\xd4\x05\n" +
+	"\x19ConfirmSocialVerification\x12).auth.v1.ConfirmSocialVerificationRequest\x1a*.auth.v1.ConfirmSocialVerificationResponse\"\xdf\x04\xbaG\xa3\x04\n" +
+	"\fAuth Service\x12\x1bConfirm Social Verification\x1a\xf5\x03Link the Telegram account that submitted the caller's challenge code, after the user confirmed it. Requires enrolled MFA and a fresh step-up proof in the X-Auth-Step-Up header, or none from an MFA-elevated session. AUTH_MFA_NOT_ENROLLED means enroll MFA first. AUTH_SOCIAL_VERIFICATION_EXPIRED means start a new challenge. AUTH_SOCIAL_VERIFICATION_INVALID_STATE means no matching account awaits confirmation. AUTH_SOCIAL_ACCOUNT_ALREADY_LINKED means the account is linked to another Polyester account.\x98\xb5\x18\x01\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02):\x01*\"$/v1/auth/social/verification:confirm\x12\xc1\x04\n" +
 	"\x13UnlinkSocialAccount\x12#.auth.v1.UnlinkSocialAccountRequest\x1a$.auth.v1.UnlinkSocialAccountResponse\"\xde\x03\xbaG\xa3\x03\n" +
 	"\fAuth Service\x12\x15Unlink Social Account\x1a\xfb\x02Unlink the caller's X/Twitter, Discord or Telegram account, or cancel a link in progress. Repeating it changes nothing. An X/Twitter or Discord unlink counts as the provider's one change per 30 days: AUTH_SOCIAL_CHANGE_LIMIT_REACHED, checked before any step-up, means wait until retry_after; otherwise it needs enrolled MFA and a fresh step-up proof in the X-Auth-Step-Up header.\x98\xb5\x18\x03\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02(:\x01*\"#/v1/auth/social/verification:unlink\x12\x90\x04\n" +
 	"\x15GetSocialVerification\x12%.auth.v1.GetSocialVerificationRequest\x1a&.auth.v1.GetSocialVerificationResponse\"\xa7\x03\xbaG\xf9\x02\n" +

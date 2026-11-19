@@ -1266,7 +1266,10 @@ type FlowTxMatchView struct {
 	FlowId string `protobuf:"bytes,1,opt,name=flow_id,json=flowId,proto3" json:"flow_id,omitempty"`
 	// Product flow family.
 	FlowKind FlowKind `protobuf:"varint,3,opt,name=flow_kind,json=flowKind,proto3,enum=chain.lifecycle.v1.FlowKind" json:"flow_kind,omitempty"`
-	// First observed source transaction hash for the flow when known.
+	// First observed source transaction hash for the flow when known. For a
+	// transfer between Trading accounts, this is the Polyester Chain transaction
+	// that records the settled transfer; it is empty until that transaction is
+	// observed.
 	SourceTxHash string `protobuf:"bytes,4,opt,name=source_tx_hash,json=sourceTxHash,proto3" json:"source_tx_hash,omitempty"`
 	// Latest transaction reference associated with the current visible state.
 	LatestTxRef string `protobuf:"bytes,5,opt,name=latest_tx_ref,json=latestTxRef,proto3" json:"latest_tx_ref,omitempty"`
@@ -1563,7 +1566,10 @@ type FlowSummaryView struct {
 	// Request-scoped fee details when a fee applies and should be visible for the
 	// current step.
 	RequestFee *RequestFee `protobuf:"bytes,28,opt,name=request_fee,json=requestFee,proto3" json:"request_fee,omitempty"`
-	// First observed source transaction hash for the flow when known.
+	// First observed source transaction hash for the flow when known. For a
+	// transfer between Trading accounts, this is the Polyester Chain transaction
+	// that records the settled transfer; it is empty until that transaction is
+	// observed.
 	SourceTxHash string `protobuf:"bytes,11,opt,name=source_tx_hash,json=sourceTxHash,proto3" json:"source_tx_hash,omitempty"`
 	// Stable occurrence discriminator within a transaction. For source-chain
 	// deposits this is the batched leg index; for on-chain facts it is the log or
@@ -2826,17 +2832,17 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\x1bTIMELINE_STATUS_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19TIMELINE_STATUS_COMPLETED\x10\x01\x12\x1b\n" +
 	"\x17TIMELINE_STATUS_CURRENT\x10\x02\x12\x1b\n" +
-	"\x17TIMELINE_STATUS_PLANNED\x10\x032\x95\v\n" +
-	"\x14LifecycleReadService\x12\xec\x01\n" +
-	"\vGetFlowById\x12&.chain.lifecycle.v1.GetFlowByIdRequest\x1a#.chain.lifecycle.v1.GetFlowResponse\"\x8f\x01\xbaGg\n" +
-	"\tLifecycle\x12\x0eGet Flow By Id\x1aJRetrieve one lifecycle flow a chain transaction started by public flow id.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/chain/flows/{flow_id}\x12\x82\x02\n" +
-	"\tListFlows\x12$.chain.lifecycle.v1.ListFlowsRequest\x1a%.chain.lifecycle.v1.ListFlowsResponse\"\xa7\x01\xbaG\x88\x01\n" +
+	"\x17TIMELINE_STATUS_PLANNED\x10\x032\x9e\v\n" +
+	"\x14LifecycleReadService\x12\xf1\x01\n" +
+	"\vGetFlowById\x12&.chain.lifecycle.v1.GetFlowByIdRequest\x1a#.chain.lifecycle.v1.GetFlowResponse\"\x94\x01\xbaGl\n" +
+	"\tLifecycle\x12\x0eGet Flow By Id\x1aORetrieve one lifecycle flow that carries a chain transaction by public flow id.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/chain/flows/{flow_id}\x12\x85\x02\n" +
+	"\tListFlows\x12$.chain.lifecycle.v1.ListFlowsRequest\x1a%.chain.lifecycle.v1.ListFlowsResponse\"\xaa\x01\xbaG\x8b\x01\n" +
 	"\tLifecycle\x12\n" +
-	"List Flows\x1aoList lifecycle flows a chain transaction started, with optional smart account, chain, asset, and state filters.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x11\x12\x0f/v1/chain/flows\x12\x8f\x02\n" +
-	"\rListFlowsByTx\x12(.chain.lifecycle.v1.ListFlowsByTxRequest\x1a).chain.lifecycle.v1.ListFlowsByTxResponse\"\xa8\x01\xbaGr\n" +
-	"\tLifecycle\x12\x10List Flows By Tx\x1aSList lifecycle flows a chain transaction started that reference a transaction hash.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02)\x12'/v1/chain/flows/by-tx/{tx_hash}/matches\x12\xbf\x02\n" +
-	"\x10ListAccountFlows\x12+.chain.lifecycle.v1.ListAccountFlowsRequest\x1a,.chain.lifecycle.v1.ListAccountFlowsResponse\"\xcf\x01\xbaG\xa6\x01\n" +
-	"\tLifecycle\x12\x12List Account Flows\x1a\x84\x01List the account's own and received lifecycle flows, including those no chain transaction started. API keys need READ_FUNDING_FLOWS.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x19\x12\x17/v1/chain/account-flows\x12\xa9\x02\n" +
+	"List Flows\x1arList lifecycle flows that carry a chain transaction, with optional smart account, chain, asset, and state filters.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x11\x12\x0f/v1/chain/flows\x12\x91\x02\n" +
+	"\rListFlowsByTx\x12(.chain.lifecycle.v1.ListFlowsByTxRequest\x1a).chain.lifecycle.v1.ListFlowsByTxResponse\"\xaa\x01\xbaGt\n" +
+	"\tLifecycle\x12\x10List Flows By Tx\x1aUList lifecycle flows that carry a chain transaction and reference a transaction hash.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02)\x12'/v1/chain/flows/by-tx/{tx_hash}/matches\x12\xbe\x02\n" +
+	"\x10ListAccountFlows\x12+.chain.lifecycle.v1.ListAccountFlowsRequest\x1a,.chain.lifecycle.v1.ListAccountFlowsResponse\"\xce\x01\xbaG\xa5\x01\n" +
+	"\tLifecycle\x12\x12List Account Flows\x1a\x83\x01List the account's own and received lifecycle flows, including those without a chain transaction. API keys need READ_FUNDING_FLOWS.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x19\x12\x17/v1/chain/account-flows\x12\xa9\x02\n" +
 	"\x0eGetAccountFlow\x12).chain.lifecycle.v1.GetAccountFlowRequest\x1a*.chain.lifecycle.v1.GetAccountFlowResponse\"\xbf\x01\xbaG\x8c\x01\n" +
 	"\tLifecycle\x12\x10Get Account Flow\x1amRetrieve one lifecycle flow the account owns or receives by public flow id. API keys need READ_FUNDING_FLOWS.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02#\x12!/v1/chain/account-flows/{flow_id}\x1a\t\x8a\xb5\x18\x05chainB\x94\x01\xbaG@:>\n" +
 	"\tLifecycle\x121Read lifecycle flow state, history, and progress.ZOgithub.com/Fabric-Labs/polyester-sdk-go/gen/chain/lifecycle/v1;chainlifecyclev1b\x06proto3"

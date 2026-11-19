@@ -247,10 +247,36 @@ const (
 	// less than 30 days ago: one change per provider every 30 days. retry_after
 	// says when the next one is allowed. HTTP 412, SOCIAL_CHANGE_LIMIT_REACHED.
 	AuthErrorCode_AUTH_SOCIAL_CHANGE_LIMIT_REACHED AuthErrorCode = 65
-	// The session's recent-MFA window has closed: the action needs a new
-	// step-up. Complete an MFA challenge for fresh step-up and retry; the
-	// step-up opens a new window. PermissionDenied.
-	AuthErrorCode_AUTH_RECENT_MFA_EXPIRED AuthErrorCode = 66
+	// Only an admin API key may call this with an API key; the key that signed
+	// the request is not one. HTTP 403, ADMIN_KEY_REQUIRED.
+	AuthErrorCode_AUTH_ADMIN_KEY_REQUIRED AuthErrorCode = 67
+	// The request would create, promote or change an admin key, or attach an
+	// admin permission, by API key. Only the main account's owner may, in a
+	// signed-in session with a fresh step-up proof. HTTP 403,
+	// ADMIN_KEY_ESCALATION_DENIED.
+	AuthErrorCode_AUTH_ADMIN_KEY_ESCALATION_DENIED AuthErrorCode = 68
+	// The admin API key's change would give a key more than the admin key's own
+	// scope allows: an IP allowlist entry outside the admin key's allowlist, or
+	// on a sub-account key more actions or markets than the sub-account's
+	// policy. HTTP 403, ADMIN_KEY_SCOPE_EXCEEDED.
+	AuthErrorCode_AUTH_ADMIN_KEY_SCOPE_EXCEEDED AuthErrorCode = 69
+	// An admin API key can never reach this target: an assistant key, a key or
+	// policy that allows a money-out action, a locked sub-account policy, or a
+	// sub-account the main account does not own. HTTP 403,
+	// ADMIN_KEY_FORBIDDEN_TARGET.
+	AuthErrorCode_AUTH_ADMIN_KEY_FORBIDDEN_TARGET AuthErrorCode = 70
+	// An admin key's IP allowlist is empty, or has an entry broader than /24
+	// (IPv4) or /48 (IPv6), or an IPv4-mapped IPv6 entry. HTTP 400,
+	// ADMIN_KEY_ALLOWLIST_INVALID.
+	AuthErrorCode_AUTH_ADMIN_KEY_ALLOWLIST_INVALID AuthErrorCode = 71
+	// An admin API key can never be allowed an action that moves value out of
+	// the account or manages where it goes: EXTERNAL_WITHDRAW,
+	// INTERNAL_TRANSFER, MANAGE_ADDRESS_BOOK or MANAGE_AUTO_WITHDRAW. HTTP 412,
+	// ADMIN_KEY_ACTION_NOT_ALLOWED.
+	AuthErrorCode_AUTH_ADMIN_KEY_ACTION_NOT_ALLOWED AuthErrorCode = 72
+	// The account already has the most connected apps it may have. Disconnect
+	// an app before connecting another. FailedPrecondition.
+	AuthErrorCode_AUTH_CONNECTED_APP_LIMIT_REACHED AuthErrorCode = 73
 )
 
 // Enum value maps for AuthErrorCode.
@@ -321,7 +347,13 @@ var (
 		63: "AUTH_REPLAY_DETECTED",
 		64: "AUTH_SOCIAL_ACCOUNT_COOLDOWN",
 		65: "AUTH_SOCIAL_CHANGE_LIMIT_REACHED",
-		66: "AUTH_RECENT_MFA_EXPIRED",
+		67: "AUTH_ADMIN_KEY_REQUIRED",
+		68: "AUTH_ADMIN_KEY_ESCALATION_DENIED",
+		69: "AUTH_ADMIN_KEY_SCOPE_EXCEEDED",
+		70: "AUTH_ADMIN_KEY_FORBIDDEN_TARGET",
+		71: "AUTH_ADMIN_KEY_ALLOWLIST_INVALID",
+		72: "AUTH_ADMIN_KEY_ACTION_NOT_ALLOWED",
+		73: "AUTH_CONNECTED_APP_LIMIT_REACHED",
 	}
 	AuthErrorCode_value = map[string]int32{
 		"AUTH_UNSPECIFIED":                        0,
@@ -389,7 +421,13 @@ var (
 		"AUTH_REPLAY_DETECTED":                    63,
 		"AUTH_SOCIAL_ACCOUNT_COOLDOWN":            64,
 		"AUTH_SOCIAL_CHANGE_LIMIT_REACHED":        65,
-		"AUTH_RECENT_MFA_EXPIRED":                 66,
+		"AUTH_ADMIN_KEY_REQUIRED":                 67,
+		"AUTH_ADMIN_KEY_ESCALATION_DENIED":        68,
+		"AUTH_ADMIN_KEY_SCOPE_EXCEEDED":           69,
+		"AUTH_ADMIN_KEY_FORBIDDEN_TARGET":         70,
+		"AUTH_ADMIN_KEY_ALLOWLIST_INVALID":        71,
+		"AUTH_ADMIN_KEY_ACTION_NOT_ALLOWED":       72,
+		"AUTH_CONNECTED_APP_LIMIT_REACHED":        73,
 	}
 )
 
@@ -785,6 +823,16 @@ type MeResponse struct {
 	// Root smart-account EVM address, formatted as 0x plus 40 hex characters.
 	// Empty if not set.
 	RootSmartAccountAddress string `protobuf:"bytes,12,opt,name=root_smart_account_address,json=rootSmartAccountAddress,proto3" json:"root_smart_account_address,omitempty"`
+	// Account scope of the API key that authenticated this request: SCOPE_ROOT
+	// for a key of the main account, SCOPE_SUBACCOUNT for a key bound to one
+	// sub-account. SCOPE_UNSPECIFIED when the request was not authenticated with
+	// an API key.
+	ApiKeyScope AccountScopeType `protobuf:"varint,13,opt,name=api_key_scope,json=apiKeyScope,proto3,enum=auth.v1.AccountScopeType" json:"api_key_scope,omitempty"`
+	// Sub-account the API key is bound to (opaque ID). Present only when
+	// api_key_scope is SCOPE_SUBACCOUNT. The key's private realtime channels
+	// and account reads name this sub-account, for example
+	// private:ledger:balances:<subaccount_id>.
+	SubaccountId *uint64 `protobuf:"fixed64,14,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	// Session assurance details for the presented access token, if any.
 	Session       *SessionInfo `protobuf:"bytes,20,opt,name=session,proto3" json:"session,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -847,6 +895,20 @@ func (x *MeResponse) GetRootSmartAccountAddress() string {
 		return x.RootSmartAccountAddress
 	}
 	return ""
+}
+
+func (x *MeResponse) GetApiKeyScope() AccountScopeType {
+	if x != nil {
+		return x.ApiKeyScope
+	}
+	return AccountScopeType_SCOPE_UNSPECIFIED
+}
+
+func (x *MeResponse) GetSubaccountId() uint64 {
+	if x != nil && x.SubaccountId != nil {
+		return *x.SubaccountId
+	}
+	return 0
 }
 
 func (x *MeResponse) GetSession() *SessionInfo {
@@ -1083,12 +1145,12 @@ var File_auth_v1_auth_proto protoreflect.FileDescriptor
 
 const file_auth_v1_auth_proto_rawDesc = "" +
 	"\n" +
-	"\x12auth/v1/auth.proto\x12\aauth.v1\x1a\x11auth/v1/mfa.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\xa2\x02\n" +
+	"\x12auth/v1/auth.proto\x12\aauth.v1\x1a\x1aauth/v1/address_book.proto\x1a\x11auth/v1/mfa.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\xa3\x02\n" +
 	"\x1cCreateWalletChallengeRequest\x12Q\n" +
 	"\x15smart_account_address\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x152\x13^0x[0-9a-fA-F]{40}$R\x13smartAccountAddress\x12D\n" +
 	"\x0esigner_address\x18\x02 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x152\x13^0x[0-9a-fA-F]{40}$R\rsignerAddress\x12\x1f\n" +
-	"\x03uri\x18\x03 \x01(\tB\r\xe0A\x02\xbaH\ar\x05\x10\x01\x18\x80\x10R\x03uri\x12H\n" +
-	"\apurpose\x18\x04 \x01(\x0e2\x1f.auth.v1.WalletChallengePurposeB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\apurpose\"t\n" +
+	"\x03uri\x18\x03 \x01(\tB\r\xe0A\x02\xbaH\ar\x05\x10\x01\x18\x80\x10R\x03uri\x12I\n" +
+	"\apurpose\x18\x04 \x01(\x0e2\x1f.auth.v1.WalletChallengePurposeB\x0e\xe0A\x02\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\apurpose\"t\n" +
 	"\x1dCreateWalletChallengeResponse\x12\x18\n" +
 	"\amessage\x18\x01 \x01(\tR\amessage\x129\n" +
 	"\n" +
@@ -1112,7 +1174,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	" \x01(\x06R\taccountId\x12\x1a\n" +
 	"\busername\x18\r \x01(\tR\busername\x12.\n" +
 	"\asession\x18\x14 \x01(\v2\x14.auth.v1.SessionInfoR\asession\"\v\n" +
-	"\tMeRequest\"\x80\x02\n" +
+	"\tMeRequest\"\xfb\x02\n" +
 	"\n" +
 	"MeResponse\x12\x1d\n" +
 	"\n" +
@@ -1121,9 +1183,12 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"api_key_id\x18\n" +
 	" \x01(\tB\x18\xbaH\x15r\x132\x11^ak_[a-f0-9]{32}$H\x00R\bapiKeyId\x88\x01\x01\x12\x1a\n" +
 	"\busername\x18\v \x01(\tR\busername\x12;\n" +
-	"\x1aroot_smart_account_address\x18\f \x01(\tR\x17rootSmartAccountAddress\x12.\n" +
+	"\x1aroot_smart_account_address\x18\f \x01(\tR\x17rootSmartAccountAddress\x12=\n" +
+	"\rapi_key_scope\x18\r \x01(\x0e2\x19.auth.v1.AccountScopeTypeR\vapiKeyScope\x12(\n" +
+	"\rsubaccount_id\x18\x0e \x01(\x06H\x01R\fsubaccountId\x88\x01\x01\x12.\n" +
 	"\asession\x18\x14 \x01(\v2\x14.auth.v1.SessionInfoR\asessionB\r\n" +
-	"\v_api_key_id\"\xd9\x01\n" +
+	"\v_api_key_idB\x10\n" +
+	"\x0e_subaccount_id\"\xd9\x01\n" +
 	"\x0fAuthErrorDetail\x12*\n" +
 	"\x04code\x18\x01 \x01(\x0e2\x16.auth.v1.AuthErrorCodeR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12;\n" +
@@ -1138,7 +1203,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x13AcceptTermsResponse*A\n" +
 	"\x16WalletChallengePurpose\x12\x1c\n" +
 	"\x18WALLET_PROOF_UNSPECIFIED\x10\x00\x12\t\n" +
-	"\x05LOGIN\x10\x01*\xcb\x10\n" +
+	"\x05LOGIN\x10\x01*\xac\x12\n" +
 	"\rAuthErrorCode\x12\x14\n" +
 	"\x10AUTH_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15AUTH_USERNAME_INVALID\x10\x01\x12\x17\n" +
@@ -1206,7 +1271,13 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x14AUTH_REPLAY_DETECTED\x10?\x12 \n" +
 	"\x1cAUTH_SOCIAL_ACCOUNT_COOLDOWN\x10@\x12$\n" +
 	" AUTH_SOCIAL_CHANGE_LIMIT_REACHED\x10A\x12\x1b\n" +
-	"\x17AUTH_RECENT_MFA_EXPIRED\x10B2\xa6\b\n" +
+	"\x17AUTH_ADMIN_KEY_REQUIRED\x10C\x12$\n" +
+	" AUTH_ADMIN_KEY_ESCALATION_DENIED\x10D\x12!\n" +
+	"\x1dAUTH_ADMIN_KEY_SCOPE_EXCEEDED\x10E\x12#\n" +
+	"\x1fAUTH_ADMIN_KEY_FORBIDDEN_TARGET\x10F\x12$\n" +
+	" AUTH_ADMIN_KEY_ALLOWLIST_INVALID\x10G\x12%\n" +
+	"!AUTH_ADMIN_KEY_ACTION_NOT_ALLOWED\x10H\x12$\n" +
+	" AUTH_CONNECTED_APP_LIMIT_REACHED\x10I2\xa6\b\n" +
 	"\vAuthService\x12\xf4\x01\n" +
 	"\x15CreateWalletChallenge\x12%.auth.v1.CreateWalletChallengeRequest\x1a&.auth.v1.CreateWalletChallengeResponse\"\x8b\x01\xbaG`\n" +
 	"\fAuth Service\x12\x17Create Wallet Challenge\x1a7Create a short-lived EIP-4361 message for wallet login.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/v1/auth/wallet-challenge\x12\x9e\x02\n" +
@@ -1247,29 +1318,31 @@ var file_auth_v1_auth_proto_goTypes = []any{
 	(*AcceptTermsResponse)(nil),           // 11: auth.v1.AcceptTermsResponse
 	(*timestamppb.Timestamp)(nil),         // 12: google.protobuf.Timestamp
 	(*SessionInfo)(nil),                   // 13: auth.v1.SessionInfo
+	(AccountScopeType)(0),                 // 14: auth.v1.AccountScopeType
 }
 var file_auth_v1_auth_proto_depIdxs = []int32{
 	0,  // 0: auth.v1.CreateWalletChallengeRequest.purpose:type_name -> auth.v1.WalletChallengePurpose
 	12, // 1: auth.v1.CreateWalletChallengeResponse.expires_at:type_name -> google.protobuf.Timestamp
 	12, // 2: auth.v1.LoginWithWalletResponse.expires_at:type_name -> google.protobuf.Timestamp
 	13, // 3: auth.v1.LoginWithWalletResponse.session:type_name -> auth.v1.SessionInfo
-	13, // 4: auth.v1.MeResponse.session:type_name -> auth.v1.SessionInfo
-	1,  // 5: auth.v1.AuthErrorDetail.code:type_name -> auth.v1.AuthErrorCode
-	12, // 6: auth.v1.AuthErrorDetail.retry_after:type_name -> google.protobuf.Timestamp
-	9,  // 7: auth.v1.AuthErrorDetail.timestamp_window:type_name -> auth.v1.TimestampWindow
-	2,  // 8: auth.v1.AuthService.CreateWalletChallenge:input_type -> auth.v1.CreateWalletChallengeRequest
-	4,  // 9: auth.v1.AuthService.LoginWithWallet:input_type -> auth.v1.LoginWithWalletRequest
-	10, // 10: auth.v1.AuthService.AcceptTerms:input_type -> auth.v1.AcceptTermsRequest
-	6,  // 11: auth.v1.AuthService.Me:input_type -> auth.v1.MeRequest
-	3,  // 12: auth.v1.AuthService.CreateWalletChallenge:output_type -> auth.v1.CreateWalletChallengeResponse
-	5,  // 13: auth.v1.AuthService.LoginWithWallet:output_type -> auth.v1.LoginWithWalletResponse
-	11, // 14: auth.v1.AuthService.AcceptTerms:output_type -> auth.v1.AcceptTermsResponse
-	7,  // 15: auth.v1.AuthService.Me:output_type -> auth.v1.MeResponse
-	12, // [12:16] is the sub-list for method output_type
-	8,  // [8:12] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	14, // 4: auth.v1.MeResponse.api_key_scope:type_name -> auth.v1.AccountScopeType
+	13, // 5: auth.v1.MeResponse.session:type_name -> auth.v1.SessionInfo
+	1,  // 6: auth.v1.AuthErrorDetail.code:type_name -> auth.v1.AuthErrorCode
+	12, // 7: auth.v1.AuthErrorDetail.retry_after:type_name -> google.protobuf.Timestamp
+	9,  // 8: auth.v1.AuthErrorDetail.timestamp_window:type_name -> auth.v1.TimestampWindow
+	2,  // 9: auth.v1.AuthService.CreateWalletChallenge:input_type -> auth.v1.CreateWalletChallengeRequest
+	4,  // 10: auth.v1.AuthService.LoginWithWallet:input_type -> auth.v1.LoginWithWalletRequest
+	10, // 11: auth.v1.AuthService.AcceptTerms:input_type -> auth.v1.AcceptTermsRequest
+	6,  // 12: auth.v1.AuthService.Me:input_type -> auth.v1.MeRequest
+	3,  // 13: auth.v1.AuthService.CreateWalletChallenge:output_type -> auth.v1.CreateWalletChallengeResponse
+	5,  // 14: auth.v1.AuthService.LoginWithWallet:output_type -> auth.v1.LoginWithWalletResponse
+	11, // 15: auth.v1.AuthService.AcceptTerms:output_type -> auth.v1.AcceptTermsResponse
+	7,  // 16: auth.v1.AuthService.Me:output_type -> auth.v1.MeResponse
+	13, // [13:17] is the sub-list for method output_type
+	9,  // [9:13] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_auth_proto_init() }
@@ -1277,6 +1350,7 @@ func file_auth_v1_auth_proto_init() {
 	if File_auth_v1_auth_proto != nil {
 		return
 	}
+	file_auth_v1_address_book_proto_init()
 	file_auth_v1_mfa_proto_init()
 	file_auth_v1_auth_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}

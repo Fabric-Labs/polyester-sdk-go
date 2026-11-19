@@ -9,6 +9,7 @@ package marketdatav1
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
+	v1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -80,77 +81,6 @@ func (HeatmapInterval) EnumDescriptor() ([]byte, []int) {
 	return file_marketdata_v1_heatmap_proto_rawDescGZIP(), []int{0}
 }
 
-// HeatmapDepth controls top-N levels included per side in each heatmap bucket.
-type HeatmapDepth int32
-
-const (
-	HeatmapDepth_DEPTH_UNSPECIFIED HeatmapDepth = 0
-	HeatmapDepth_DEPTH_1           HeatmapDepth = 1
-	HeatmapDepth_DEPTH_5           HeatmapDepth = 2
-	HeatmapDepth_DEPTH_10          HeatmapDepth = 3
-	HeatmapDepth_DEPTH_20          HeatmapDepth = 4
-	HeatmapDepth_DEPTH_50          HeatmapDepth = 5
-	HeatmapDepth_DEPTH_100         HeatmapDepth = 6
-	HeatmapDepth_DEPTH_200         HeatmapDepth = 7
-	HeatmapDepth_DEPTH_500         HeatmapDepth = 8
-	HeatmapDepth_DEPTH_1000        HeatmapDepth = 9
-)
-
-// Enum value maps for HeatmapDepth.
-var (
-	HeatmapDepth_name = map[int32]string{
-		0: "DEPTH_UNSPECIFIED",
-		1: "DEPTH_1",
-		2: "DEPTH_5",
-		3: "DEPTH_10",
-		4: "DEPTH_20",
-		5: "DEPTH_50",
-		6: "DEPTH_100",
-		7: "DEPTH_200",
-		8: "DEPTH_500",
-		9: "DEPTH_1000",
-	}
-	HeatmapDepth_value = map[string]int32{
-		"DEPTH_UNSPECIFIED": 0,
-		"DEPTH_1":           1,
-		"DEPTH_5":           2,
-		"DEPTH_10":          3,
-		"DEPTH_20":          4,
-		"DEPTH_50":          5,
-		"DEPTH_100":         6,
-		"DEPTH_200":         7,
-		"DEPTH_500":         8,
-		"DEPTH_1000":        9,
-	}
-)
-
-func (x HeatmapDepth) Enum() *HeatmapDepth {
-	p := new(HeatmapDepth)
-	*p = x
-	return p
-}
-
-func (x HeatmapDepth) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (HeatmapDepth) Descriptor() protoreflect.EnumDescriptor {
-	return file_marketdata_v1_heatmap_proto_enumTypes[1].Descriptor()
-}
-
-func (HeatmapDepth) Type() protoreflect.EnumType {
-	return &file_marketdata_v1_heatmap_proto_enumTypes[1]
-}
-
-func (x HeatmapDepth) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use HeatmapDepth.Descriptor instead.
-func (HeatmapDepth) EnumDescriptor() ([]byte, []int) {
-	return file_marketdata_v1_heatmap_proto_rawDescGZIP(), []int{1}
-}
-
 // HeatmapQuantityMode controls what qty_scaled means in returned levels.
 type HeatmapQuantityMode int32
 
@@ -185,11 +115,11 @@ func (x HeatmapQuantityMode) String() string {
 }
 
 func (HeatmapQuantityMode) Descriptor() protoreflect.EnumDescriptor {
-	return file_marketdata_v1_heatmap_proto_enumTypes[2].Descriptor()
+	return file_marketdata_v1_heatmap_proto_enumTypes[1].Descriptor()
 }
 
 func (HeatmapQuantityMode) Type() protoreflect.EnumType {
-	return &file_marketdata_v1_heatmap_proto_enumTypes[2]
+	return &file_marketdata_v1_heatmap_proto_enumTypes[1]
 }
 
 func (x HeatmapQuantityMode) Number() protoreflect.EnumNumber {
@@ -198,7 +128,7 @@ func (x HeatmapQuantityMode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use HeatmapQuantityMode.Descriptor instead.
 func (HeatmapQuantityMode) EnumDescriptor() ([]byte, []int) {
-	return file_marketdata_v1_heatmap_proto_rawDescGZIP(), []int{2}
+	return file_marketdata_v1_heatmap_proto_rawDescGZIP(), []int{1}
 }
 
 // HeatmapTimeRange selects historical buckets by [start_time, end_time] (UTC).
@@ -264,8 +194,9 @@ type GetOrderbookHeatmapRequest struct {
 	SymbolId uint32 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Heatmap bucket interval.
 	Interval HeatmapInterval `protobuf:"varint,2,opt,name=interval,proto3,enum=marketdata.v1.HeatmapInterval" json:"interval,omitempty"`
-	// Top-N levels per side included in each bucket.
-	Depth HeatmapDepth `protobuf:"varint,3,opt,name=depth,proto3,enum=marketdata.v1.HeatmapDepth" json:"depth,omitempty"`
+	// Top-N levels per side included in each bucket. Every tier except
+	// DEPTH_5000, which is refused with INVALID_ARGUMENT.
+	Depth v1.DepthTier `protobuf:"varint,3,opt,name=depth,proto3,enum=polyester.type.v1.DepthTier" json:"depth,omitempty"`
 	// Absolute time range for the first page. Reuse the same request filters and
 	// pass page_token from the prior response to continue older buckets.
 	TimeRange *HeatmapTimeRange `protobuf:"bytes,4,opt,name=time_range,json=timeRange,proto3" json:"time_range,omitempty"`
@@ -328,11 +259,11 @@ func (x *GetOrderbookHeatmapRequest) GetInterval() HeatmapInterval {
 	return HeatmapInterval_INTERVAL_UNSPECIFIED
 }
 
-func (x *GetOrderbookHeatmapRequest) GetDepth() HeatmapDepth {
+func (x *GetOrderbookHeatmapRequest) GetDepth() v1.DepthTier {
 	if x != nil {
 		return x.Depth
 	}
-	return HeatmapDepth_DEPTH_UNSPECIFIED
+	return v1.DepthTier(0)
 }
 
 func (x *GetOrderbookHeatmapRequest) GetTimeRange() *HeatmapTimeRange {
@@ -880,7 +811,7 @@ type GetOrderbookHeatmapResponse struct {
 	// Bucket interval used for the returned chain.
 	Interval HeatmapInterval `protobuf:"varint,2,opt,name=interval,proto3,enum=marketdata.v1.HeatmapInterval" json:"interval,omitempty"`
 	// Top-N depth requested per side.
-	Depth HeatmapDepth `protobuf:"varint,3,opt,name=depth,proto3,enum=marketdata.v1.HeatmapDepth" json:"depth,omitempty"`
+	Depth v1.DepthTier `protobuf:"varint,3,opt,name=depth,proto3,enum=polyester.type.v1.DepthTier" json:"depth,omitempty"`
 	// Always returned as snapshot + sparse deltas for the requested interval.
 	Chain *HeatmapDeltaChain `protobuf:"bytes,4,opt,name=chain,proto3" json:"chain,omitempty"`
 	// Latest finalized historical bucket timestamp in seconds since epoch (UTC).
@@ -946,11 +877,11 @@ func (x *GetOrderbookHeatmapResponse) GetInterval() HeatmapInterval {
 	return HeatmapInterval_INTERVAL_UNSPECIFIED
 }
 
-func (x *GetOrderbookHeatmapResponse) GetDepth() HeatmapDepth {
+func (x *GetOrderbookHeatmapResponse) GetDepth() v1.DepthTier {
 	if x != nil {
 		return x.Depth
 	}
-	return HeatmapDepth_DEPTH_UNSPECIFIED
+	return v1.DepthTier(0)
 }
 
 func (x *GetOrderbookHeatmapResponse) GetChain() *HeatmapDeltaChain {
@@ -1013,26 +944,25 @@ var File_marketdata_v1_heatmap_proto protoreflect.FileDescriptor
 
 const file_marketdata_v1_heatmap_proto_rawDesc = "" +
 	"\n" +
-	"\x1bmarketdata/v1/heatmap.proto\x12\rmarketdata.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\xb2\x03\n" +
+	"\x1bmarketdata/v1/heatmap.proto\x12\rmarketdata.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\x1a\"polyester/type/v1/depth_tier.proto\"\xb2\x03\n" +
 	"\x10HeatmapTimeRange\x129\n" +
 	"\n" +
 	"start_time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
 	"\bend_time\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\aendTime:\xab\x02\xbaH\xa7\x02\x1a~\n" +
 	"\x1cheatmap_time_range.non_empty\x122at least one of start_time or end_time must be set\x1a*has(this.start_time) || has(this.end_time)\x1a\xa4\x01\n" +
-	"\x1eheatmap_time_range.valid_order\x120end_time must be >= start_time when both are set\x1aP!has(this.start_time) || !has(this.end_time) || this.end_time >= this.start_time\"\xae\x04\n" +
+	"\x1eheatmap_time_range.valid_order\x120end_time must be >= start_time when both are set\x1aP!has(this.start_time) || !has(this.end_time) || this.end_time >= this.start_time\"\xb4\x04\n" +
 	"\x1aGetOrderbookHeatmapRequest\x12$\n" +
-	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\x12F\n" +
-	"\binterval\x18\x02 \x01(\x0e2\x1e.marketdata.v1.HeatmapIntervalB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\binterval\x12=\n" +
-	"\x05depth\x18\x03 \x01(\x0e2\x1b.marketdata.v1.HeatmapDepthB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x05depth\x12>\n" +
+	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\x12G\n" +
+	"\binterval\x18\x02 \x01(\x0e2\x1e.marketdata.v1.HeatmapIntervalB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\binterval\x12A\n" +
+	"\x05depth\x18\x03 \x01(\x0e2\x1c.polyester.type.v1.DepthTierB\r\xbaH\n" +
+	"\xc8\x01\x01\x82\x01\x04\x10\x01 \n" +
+	"R\x05depth\x12>\n" +
 	"\n" +
 	"time_range\x18\x04 \x01(\v2\x1f.marketdata.v1.HeatmapTimeRangeR\ttimeRange\x12'\n" +
 	"\n" +
 	"page_token\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tpageToken\x12!\n" +
-	"\x05limit\x18\x06 \x01(\rB\v\xbaH\b*\x06\x18\xa0\x9c\x01(\x01R\x05limit\x12S\n" +
-	"\rquantity_mode\x18\a \x01(\x0e2\".marketdata.v1.HeatmapQuantityModeB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\fquantityMode:\x81\x01\xbaH~\x1a|\n" +
+	"\x05limit\x18\x06 \x01(\rB\v\xbaH\b*\x06\x18\xa0\x9c\x01(\x01R\x05limit\x12T\n" +
+	"\rquantity_mode\x18\a \x01(\x0e2\".marketdata.v1.HeatmapQuantityModeB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\fquantityMode:\x81\x01\xbaH~\x1a|\n" +
 	"%get_orderbook_heatmap.anchor_required\x12$time_range or page_token is required\x1a-has(this.time_range) || this.page_token != ''\"\xdc\x01\n" +
 	"\rHeatmapLevels\x12\x1f\n" +
 	"\vprice_ticks\x18\x01 \x03(\x03R\n" +
@@ -1061,11 +991,10 @@ const file_marketdata_v1_heatmap_proto_rawDesc = "" +
 	"\x11updates_in_bucket\x18\x04 \x01(\rR\x0fupdatesInBucket\x12$\n" +
 	"\x0ebook_seq_start\x18\x05 \x01(\x04R\fbookSeqStart\x12 \n" +
 	"\fbook_seq_end\x18\x06 \x01(\x04R\n" +
-	"bookSeqEnd\"\x91\x04\n" +
+	"bookSeqEnd\"\x93\x04\n" +
 	"\x11HeatmapLiveBucket\x12\x1b\n" +
-	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x12F\n" +
-	"\binterval\x18\x02 \x01(\x0e2\x1e.marketdata.v1.HeatmapIntervalB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\binterval\x12\x15\n" +
+	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x12G\n" +
+	"\binterval\x18\x02 \x01(\x0e2\x1e.marketdata.v1.HeatmapIntervalB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\binterval\x12\x15\n" +
 	"\x06ts_sec\x18\x03 \x01(\x04R\x05tsSec\x12\x19\n" +
 	"\bis_final\x18\x04 \x01(\bR\aisFinal\x125\n" +
 	"\x04bids\x18\x05 \x01(\v2!.marketdata.v1.HeatmapDeltaLevelsR\x04bids\x125\n" +
@@ -1073,18 +1002,17 @@ const file_marketdata_v1_heatmap_proto_rawDesc = "" +
 	"\x11updates_in_bucket\x18\a \x01(\rR\x0fupdatesInBucket\x12$\n" +
 	"\x0ebook_seq_start\x18\b \x01(\x04R\fbookSeqStart\x12 \n" +
 	"\fbook_seq_end\x18\t \x01(\x04R\n" +
-	"bookSeqEnd\x12S\n" +
+	"bookSeqEnd\x12T\n" +
 	"\rquantity_mode\x18\n" +
-	" \x01(\x0e2\".marketdata.v1.HeatmapQuantityModeB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\fquantityMode\x12.\n" +
+	" \x01(\x0e2\".marketdata.v1.HeatmapQuantityModeB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\fquantityMode\x12.\n" +
 	"\x13effective_bin_ticks\x18\v \x01(\x04R\x11effectiveBinTicks\"\x93\x01\n" +
 	"\x11HeatmapDeltaChain\x12C\n" +
 	"\rbase_keyframe\x18\x01 \x01(\v2\x1e.marketdata.v1.HeatmapKeyframeR\fbaseKeyframe\x129\n" +
-	"\x06deltas\x18\x02 \x03(\v2!.marketdata.v1.HeatmapDeltaBucketR\x06deltas\"\xd6\x04\n" +
+	"\x06deltas\x18\x02 \x03(\v2!.marketdata.v1.HeatmapDeltaBucketR\x06deltas\"\xd7\x04\n" +
 	"\x1bGetOrderbookHeatmapResponse\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x12:\n" +
-	"\binterval\x18\x02 \x01(\x0e2\x1e.marketdata.v1.HeatmapIntervalR\binterval\x121\n" +
-	"\x05depth\x18\x03 \x01(\x0e2\x1b.marketdata.v1.HeatmapDepthR\x05depth\x126\n" +
+	"\binterval\x18\x02 \x01(\x0e2\x1e.marketdata.v1.HeatmapIntervalR\binterval\x122\n" +
+	"\x05depth\x18\x03 \x01(\x0e2\x1c.polyester.type.v1.DepthTierR\x05depth\x126\n" +
 	"\x05chain\x18\x04 \x01(\v2 .marketdata.v1.HeatmapDeltaChainR\x05chain\x121\n" +
 	"\x15last_persisted_ts_sec\x18\x05 \x01(\x04R\x12lastPersistedTsSec\x122\n" +
 	"\x16live_from_book_seq_end\x18\x06 \x01(\x04R\x12liveFromBookSeqEnd\x12&\n" +
@@ -1100,19 +1028,7 @@ const file_marketdata_v1_heatmap_proto_rawDesc = "" +
 	"\vINTERVAL_1S\x10\x01\x12\x0f\n" +
 	"\vINTERVAL_1M\x10\x02\x12\x0f\n" +
 	"\vINTERVAL_5M\x10\x03\x12\x0f\n" +
-	"\vINTERVAL_1H\x10\x04*\xa6\x01\n" +
-	"\fHeatmapDepth\x12\x15\n" +
-	"\x11DEPTH_UNSPECIFIED\x10\x00\x12\v\n" +
-	"\aDEPTH_1\x10\x01\x12\v\n" +
-	"\aDEPTH_5\x10\x02\x12\f\n" +
-	"\bDEPTH_10\x10\x03\x12\f\n" +
-	"\bDEPTH_20\x10\x04\x12\f\n" +
-	"\bDEPTH_50\x10\x05\x12\r\n" +
-	"\tDEPTH_100\x10\x06\x12\r\n" +
-	"\tDEPTH_200\x10\a\x12\r\n" +
-	"\tDEPTH_500\x10\b\x12\x0e\n" +
-	"\n" +
-	"DEPTH_1000\x10\t*D\n" +
+	"\vINTERVAL_1H\x10\x04*D\n" +
 	"\x13HeatmapQuantityMode\x12\x18\n" +
 	"\x14QTY_MODE_UNSPECIFIED\x10\x00\x12\t\n" +
 	"\x05CLOSE\x10\x01\x12\b\n" +
@@ -1133,47 +1049,47 @@ func file_marketdata_v1_heatmap_proto_rawDescGZIP() []byte {
 	return file_marketdata_v1_heatmap_proto_rawDescData
 }
 
-var file_marketdata_v1_heatmap_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_marketdata_v1_heatmap_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_marketdata_v1_heatmap_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_marketdata_v1_heatmap_proto_goTypes = []any{
 	(HeatmapInterval)(0),                // 0: marketdata.v1.HeatmapInterval
-	(HeatmapDepth)(0),                   // 1: marketdata.v1.HeatmapDepth
-	(HeatmapQuantityMode)(0),            // 2: marketdata.v1.HeatmapQuantityMode
-	(*HeatmapTimeRange)(nil),            // 3: marketdata.v1.HeatmapTimeRange
-	(*GetOrderbookHeatmapRequest)(nil),  // 4: marketdata.v1.GetOrderbookHeatmapRequest
-	(*HeatmapLevels)(nil),               // 5: marketdata.v1.HeatmapLevels
-	(*HeatmapDeltaLevels)(nil),          // 6: marketdata.v1.HeatmapDeltaLevels
-	(*HeatmapKeyframe)(nil),             // 7: marketdata.v1.HeatmapKeyframe
-	(*HeatmapDeltaBucket)(nil),          // 8: marketdata.v1.HeatmapDeltaBucket
-	(*HeatmapLiveBucket)(nil),           // 9: marketdata.v1.HeatmapLiveBucket
-	(*HeatmapDeltaChain)(nil),           // 10: marketdata.v1.HeatmapDeltaChain
-	(*GetOrderbookHeatmapResponse)(nil), // 11: marketdata.v1.GetOrderbookHeatmapResponse
-	(*timestamppb.Timestamp)(nil),       // 12: google.protobuf.Timestamp
+	(HeatmapQuantityMode)(0),            // 1: marketdata.v1.HeatmapQuantityMode
+	(*HeatmapTimeRange)(nil),            // 2: marketdata.v1.HeatmapTimeRange
+	(*GetOrderbookHeatmapRequest)(nil),  // 3: marketdata.v1.GetOrderbookHeatmapRequest
+	(*HeatmapLevels)(nil),               // 4: marketdata.v1.HeatmapLevels
+	(*HeatmapDeltaLevels)(nil),          // 5: marketdata.v1.HeatmapDeltaLevels
+	(*HeatmapKeyframe)(nil),             // 6: marketdata.v1.HeatmapKeyframe
+	(*HeatmapDeltaBucket)(nil),          // 7: marketdata.v1.HeatmapDeltaBucket
+	(*HeatmapLiveBucket)(nil),           // 8: marketdata.v1.HeatmapLiveBucket
+	(*HeatmapDeltaChain)(nil),           // 9: marketdata.v1.HeatmapDeltaChain
+	(*GetOrderbookHeatmapResponse)(nil), // 10: marketdata.v1.GetOrderbookHeatmapResponse
+	(*timestamppb.Timestamp)(nil),       // 11: google.protobuf.Timestamp
+	(v1.DepthTier)(0),                   // 12: polyester.type.v1.DepthTier
 }
 var file_marketdata_v1_heatmap_proto_depIdxs = []int32{
-	12, // 0: marketdata.v1.HeatmapTimeRange.start_time:type_name -> google.protobuf.Timestamp
-	12, // 1: marketdata.v1.HeatmapTimeRange.end_time:type_name -> google.protobuf.Timestamp
+	11, // 0: marketdata.v1.HeatmapTimeRange.start_time:type_name -> google.protobuf.Timestamp
+	11, // 1: marketdata.v1.HeatmapTimeRange.end_time:type_name -> google.protobuf.Timestamp
 	0,  // 2: marketdata.v1.GetOrderbookHeatmapRequest.interval:type_name -> marketdata.v1.HeatmapInterval
-	1,  // 3: marketdata.v1.GetOrderbookHeatmapRequest.depth:type_name -> marketdata.v1.HeatmapDepth
-	3,  // 4: marketdata.v1.GetOrderbookHeatmapRequest.time_range:type_name -> marketdata.v1.HeatmapTimeRange
-	2,  // 5: marketdata.v1.GetOrderbookHeatmapRequest.quantity_mode:type_name -> marketdata.v1.HeatmapQuantityMode
-	5,  // 6: marketdata.v1.HeatmapKeyframe.bids:type_name -> marketdata.v1.HeatmapLevels
-	5,  // 7: marketdata.v1.HeatmapKeyframe.asks:type_name -> marketdata.v1.HeatmapLevels
-	6,  // 8: marketdata.v1.HeatmapDeltaBucket.bids:type_name -> marketdata.v1.HeatmapDeltaLevels
-	6,  // 9: marketdata.v1.HeatmapDeltaBucket.asks:type_name -> marketdata.v1.HeatmapDeltaLevels
+	12, // 3: marketdata.v1.GetOrderbookHeatmapRequest.depth:type_name -> polyester.type.v1.DepthTier
+	2,  // 4: marketdata.v1.GetOrderbookHeatmapRequest.time_range:type_name -> marketdata.v1.HeatmapTimeRange
+	1,  // 5: marketdata.v1.GetOrderbookHeatmapRequest.quantity_mode:type_name -> marketdata.v1.HeatmapQuantityMode
+	4,  // 6: marketdata.v1.HeatmapKeyframe.bids:type_name -> marketdata.v1.HeatmapLevels
+	4,  // 7: marketdata.v1.HeatmapKeyframe.asks:type_name -> marketdata.v1.HeatmapLevels
+	5,  // 8: marketdata.v1.HeatmapDeltaBucket.bids:type_name -> marketdata.v1.HeatmapDeltaLevels
+	5,  // 9: marketdata.v1.HeatmapDeltaBucket.asks:type_name -> marketdata.v1.HeatmapDeltaLevels
 	0,  // 10: marketdata.v1.HeatmapLiveBucket.interval:type_name -> marketdata.v1.HeatmapInterval
-	6,  // 11: marketdata.v1.HeatmapLiveBucket.bids:type_name -> marketdata.v1.HeatmapDeltaLevels
-	6,  // 12: marketdata.v1.HeatmapLiveBucket.asks:type_name -> marketdata.v1.HeatmapDeltaLevels
-	2,  // 13: marketdata.v1.HeatmapLiveBucket.quantity_mode:type_name -> marketdata.v1.HeatmapQuantityMode
-	7,  // 14: marketdata.v1.HeatmapDeltaChain.base_keyframe:type_name -> marketdata.v1.HeatmapKeyframe
-	8,  // 15: marketdata.v1.HeatmapDeltaChain.deltas:type_name -> marketdata.v1.HeatmapDeltaBucket
+	5,  // 11: marketdata.v1.HeatmapLiveBucket.bids:type_name -> marketdata.v1.HeatmapDeltaLevels
+	5,  // 12: marketdata.v1.HeatmapLiveBucket.asks:type_name -> marketdata.v1.HeatmapDeltaLevels
+	1,  // 13: marketdata.v1.HeatmapLiveBucket.quantity_mode:type_name -> marketdata.v1.HeatmapQuantityMode
+	6,  // 14: marketdata.v1.HeatmapDeltaChain.base_keyframe:type_name -> marketdata.v1.HeatmapKeyframe
+	7,  // 15: marketdata.v1.HeatmapDeltaChain.deltas:type_name -> marketdata.v1.HeatmapDeltaBucket
 	0,  // 16: marketdata.v1.GetOrderbookHeatmapResponse.interval:type_name -> marketdata.v1.HeatmapInterval
-	1,  // 17: marketdata.v1.GetOrderbookHeatmapResponse.depth:type_name -> marketdata.v1.HeatmapDepth
-	10, // 18: marketdata.v1.GetOrderbookHeatmapResponse.chain:type_name -> marketdata.v1.HeatmapDeltaChain
-	2,  // 19: marketdata.v1.GetOrderbookHeatmapResponse.quantity_mode:type_name -> marketdata.v1.HeatmapQuantityMode
-	9,  // 20: marketdata.v1.GetOrderbookHeatmapResponse.live_bucket:type_name -> marketdata.v1.HeatmapLiveBucket
-	4,  // 21: marketdata.v1.HeatmapService.GetOrderbookHeatmap:input_type -> marketdata.v1.GetOrderbookHeatmapRequest
-	11, // 22: marketdata.v1.HeatmapService.GetOrderbookHeatmap:output_type -> marketdata.v1.GetOrderbookHeatmapResponse
+	12, // 17: marketdata.v1.GetOrderbookHeatmapResponse.depth:type_name -> polyester.type.v1.DepthTier
+	9,  // 18: marketdata.v1.GetOrderbookHeatmapResponse.chain:type_name -> marketdata.v1.HeatmapDeltaChain
+	1,  // 19: marketdata.v1.GetOrderbookHeatmapResponse.quantity_mode:type_name -> marketdata.v1.HeatmapQuantityMode
+	8,  // 20: marketdata.v1.GetOrderbookHeatmapResponse.live_bucket:type_name -> marketdata.v1.HeatmapLiveBucket
+	3,  // 21: marketdata.v1.HeatmapService.GetOrderbookHeatmap:input_type -> marketdata.v1.GetOrderbookHeatmapRequest
+	10, // 22: marketdata.v1.HeatmapService.GetOrderbookHeatmap:output_type -> marketdata.v1.GetOrderbookHeatmapResponse
 	22, // [22:23] is the sub-list for method output_type
 	21, // [21:22] is the sub-list for method input_type
 	21, // [21:21] is the sub-list for extension type_name
@@ -1191,7 +1107,7 @@ func file_marketdata_v1_heatmap_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_marketdata_v1_heatmap_proto_rawDesc), len(file_marketdata_v1_heatmap_proto_rawDesc)),
-			NumEnums:      3,
+			NumEnums:      2,
 			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
