@@ -100,13 +100,20 @@ func (s *InternalTransfersService) Create(ctx context.Context, assetID uint32, q
 // "refused" is final for its key even once the cause is gone: the same legs
 // under it answer the same refusal. Any HTTP 5xx answer, whatever it names
 // (ERROR_CODE_SERVICE_UNAVAILABLE, ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE and
-// RATE_LIMIT_EXCEEDED included), is an *errors.ServerError with an unknown
-// outcome (OutcomeUnknown) that errors.IsRetryable does not report: no answer
-// proves that nothing was recorded under the key. It keeps the answer's
-// status, Retry-After and code.
-// The safe next step is the same key and the same legs: read the batch with
-// GetBatch, or send it again with the key and legs, after its Retry-After
-// when present. Under one key the batch runs at most once.
+// RATE_LIMIT_EXCEEDED included), is an unknown outcome: no answer proves that
+// nothing was recorded under the key. Check it with
+// errors.MutationOutcomeUnknown(err), which reports it, and
+// errors.IsRetryable(err), which does not; that is the stable interface, not
+// the error's type. An error that is already an unknown outcome keeps its
+// type and fields (a plain unavailable *errors.ServerError, a
+// *errors.ResponseContractError for a malformed answer, a
+// *errors.TransportError for a deadline); any other 5xx is an
+// *errors.ServerError with OutcomeUnknown set. Each keeps the answer's
+// status, Retry-After and code as mapped.
+// The safe next step is the same key and the same legs. Read the batch with
+// GetBatch when you already know its request ID (from an earlier answer);
+// otherwise send it again with the original key and legs, after its
+// Retry-After when present. Under one key the batch runs at most once.
 func (s *InternalTransfersService) CreateBatch(ctx context.Context, legs []models.InternalTransferBatchLeg, idempotencyKey string) (models.InternalTransferBatchResult, error) {
 	if len(legs) < codecs.BatchInternalTransferLegsMin || len(legs) > codecs.BatchInternalTransferLegsMax {
 		return models.InternalTransferBatchResult{}, &errors.ValidationError{Msg: fmt.Sprintf("a batch takes at least %d leg, not %d", codecs.BatchInternalTransferLegsMin, len(legs))}
@@ -180,7 +187,9 @@ func answerCode(err error) string {
 
 // GetBatch reads a batch's current outcome and the state of every leg by the
 // RequestID CreateBatch returned, as CreateBatch answered it: for example to
-// follow a "processing" batch without resubmitting it. It neither submits nor
+// follow a "processing" batch without resubmitting it. It needs that request
+// ID: a CreateBatch call that failed without an answer returns none, so
+// resolve that one by sending the original key and legs again. It neither submits nor
 // retries the batch and needs no fresh MFA. The caller must be allowed to
 // read the transfers of every source account of the batch; any other batch
 // answers ERROR_CODE_NOT_FOUND, as an unknown one does. A requestID that is

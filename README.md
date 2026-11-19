@@ -1881,11 +1881,17 @@ again with the same key and the same legs in the same order, until it is
 final. `refused` is final for its key, even once its cause is gone: fix the
 cause and submit under a new key. A 5xx answer, whatever it names
 (`ERROR_CODE_SERVICE_UNAVAILABLE`, `ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE` and
-`RATE_LIMIT_EXCEEDED` included), is an `*errors.ServerError` with an unknown outcome
-(`errors.MutationOutcomeUnknown(err)`, not `errors.IsRetryable(err)`), with
-the answer's status, Retry-After and code: the batch may or may not be
-recorded under its key. The safe path is the same key and the same legs:
-read the batch with `GetBatch`, or send it again with that key and those
+`RATE_LIMIT_EXCEEDED` included), is an unknown outcome: the batch may or may
+not be recorded under its key. Check it with `errors.MutationOutcomeUnknown(err)`
+(true) and `errors.IsRetryable(err)` (false), the stable interface, rather
+than the error's type: an error that is already an unknown outcome keeps its
+type and fields (a plain unavailable `*errors.ServerError`, an
+`*errors.ResponseContractError` for a malformed answer, an
+`*errors.TransportError` for a deadline), and any other 5xx is an
+`*errors.ServerError` with `OutcomeUnknown` set. Each keeps the answer's
+status, Retry-After and code. The safe path is the same key and the same
+legs: read the batch with `GetBatch` when you already know its request ID
+from an earlier answer, otherwise send it again with the original key and
 legs, after its Retry-After when present. Under one key the batch runs at
 most once; never resubmit it under a new key until it is known to have
 failed. Split a batch into smaller ones under new keys only after a genuine
