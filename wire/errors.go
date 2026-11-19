@@ -22,6 +22,7 @@ import (
 	transferv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/redact"
 	"github.com/Fabric-Labs/polyester-sdk-go/useragent"
+	"google.golang.org/protobuf/proto"
 )
 
 var routeNotFoundMessages = map[string]struct{}{
@@ -36,6 +37,35 @@ const emptyErrorMessage = "request failed without server error details"
 // metadata of the ConnectRPC error connect-go decodes from it. The transport
 // sets it on every failed answer; it never leaves the client.
 const AnswerStatusHeader = "Polyester-Sdk-Answer-Status"
+
+// AnswerWireCodeHeader carries the code a failed answer's ConnectRPC error
+// body names on the wire into the metadata of the error connect-go decodes
+// from it: connect-go infers a code from the HTTP status when the body names
+// none. The transport removes it from every failed answer and sets it only
+// from a JSON body it parsed; it never leaves the client.
+const AnswerWireCodeHeader = "Polyester-Sdk-Answer-Wire-Code"
+
+// typedRefusalSource is the CodeSource of an unavailable refusal whose code
+// detail carries: the detail's full name when the answer's body named the
+// wire code unavailable and carries exactly one detail of detail's type, and
+// empty otherwise. A code connect-go inferred from the status, or details
+// that may disagree, prove nothing.
+func typedRefusalSource(connectErr *connect.Error, detail proto.Message) string {
+	if connectErr.Meta().Get(AnswerWireCodeHeader) != connect.CodeUnavailable.String() {
+		return ""
+	}
+	name := string(detail.ProtoReflect().Descriptor().FullName())
+	count := 0
+	for _, item := range connectErr.Details() {
+		if item.Type() == name {
+			count++
+		}
+	}
+	if count != 1 {
+		return ""
+	}
+	return name
+}
 
 func retryAfterSeconds(connectErr *connect.Error) *float64 {
 	return RetryAfterHeaderSeconds(connectErr.Meta())
@@ -354,7 +384,7 @@ func mapConnectError(err error) error {
 				return rateLimitError(msg, code, nil, headerRetry)
 			}
 			if connectErr.Code() == connect.CodeUnavailable {
-				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: string(withdrawDetail.ProtoReflect().Descriptor().FullName())}
+				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: typedRefusalSource(connectErr, withdrawDetail)}
 			}
 			if isAuthLikeErrorCode(code) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
@@ -376,7 +406,7 @@ func mapConnectError(err error) error {
 				// No current price to record: nothing was created or changed.
 				return &sdkerrors.ServerError{Msg: msg, Code: code, AdmissionRefused: true}
 			case alertsv1.ErrorCode_SERVICE_UNAVAILABLE:
-				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: string(alertDetail.ProtoReflect().Descriptor().FullName())}
+				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: typedRefusalSource(connectErr, alertDetail)}
 			case alertsv1.ErrorCode_SUBACCOUNT_KEY_REFUSED:
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
 			}
@@ -385,7 +415,7 @@ func mapConnectError(err error) error {
 		if ledgerDetail, ok := value.(*ledgerrdv1.ErrorDetail); ok {
 			code := ledgerDetail.GetCode().String()
 			if connectErr.Code() == connect.CodeUnavailable {
-				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: string(ledgerDetail.ProtoReflect().Descriptor().FullName())}
+				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: typedRefusalSource(connectErr, ledgerDetail)}
 			}
 			if isAuthLikeErrorCode(code) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
@@ -398,7 +428,7 @@ func mapConnectError(err error) error {
 				return rateLimitError(msg, code, nil, headerRetry)
 			}
 			if connectErr.Code() == connect.CodeUnavailable {
-				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: string(transferDetail.ProtoReflect().Descriptor().FullName())}
+				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: typedRefusalSource(connectErr, transferDetail)}
 			}
 			if isAuthLikeErrorCode(code) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}

@@ -14,6 +14,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
+	"github.com/Fabric-Labs/polyester-sdk-go/wire"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -22,11 +23,16 @@ func batchAgainst(t *testing.T, status int, contentType, body string) error {
 	return batchAgainstDetail(t, status, contentType, body)
 }
 
-func batchAgainstDetail(t *testing.T, status int, contentType, body string) error {
+func batchAgainstDetail(t *testing.T, status int, contentType, body string, headers ...map[string]string) error {
 	t.Helper()
 	srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", contentType)
 		w.Header().Set("Retry-After", "3")
+		for _, extra := range headers {
+			for name, value := range extra {
+				w.Header().Set(name, value)
+			}
+		}
 		w.WriteHeader(status)
 		_, _ = w.Write([]byte(body))
 	}))
@@ -210,5 +216,53 @@ func TestInternalTransferBatchGatewayStatusesKeepAnUnknownOutcomeInEveryClass(t 
 	var rate *sdkerrors.RateLimitError
 	if !errors.As(err, &rate) || !sdkerrors.IsRetryable(err) || sdkerrors.MutationOutcomeUnknown(err) {
 		t.Fatalf("429: %T %v, want a retryable RateLimitError", err, err)
+	}
+}
+
+// The verified refusal is a ConnectRPC error whose wire code is unavailable
+// and that carries exactly one transfer.v1.ErrorDetail. A 503 without that
+// wire code (connect-go infers unavailable from the status), or with several
+// transfer details, conflicting or not, proves nothing: the batch keeps its
+// unknown outcome.
+func TestInternalTransferBatchRefusalNeedsTheWireCodeAndOneTransferDetail(t *testing.T) {
+	detail := func(code transferv1.ErrorCode) string {
+		data, err := proto.Marshal(&transferv1.ErrorDetail{Code: code})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return `{"type":"transfer.v1.ErrorDetail","value":"` + base64.RawStdEncoding.EncodeToString(data) + `"}`
+	}
+	service := detail(transferv1.ErrorCode_ERROR_CODE_SERVICE_UNAVAILABLE)
+	shard := detail(transferv1.ErrorCode_ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE)
+	capital := detail(transferv1.ErrorCode_ERROR_CODE_CAPITAL_VIEW_UNAVAILABLE)
+	for name, tc := range map[string]struct {
+		body    string
+		refused bool
+	}{
+		"unavailable with one detail": {`{"code":"unavailable","message":"try again","details":[` + service + `]}`, true},
+		"no wire code":                {`{"message":"try again","details":[` + service + `]}`, false},
+		"empty wire code":             {`{"code":"","message":"try again","details":[` + service + `]}`, false},
+		"only details":                {`{"details":[` + service + `]}`, false},
+		"service then capital view":   {`{"code":"unavailable","message":"try again","details":[` + service + `,` + capital + `]}`, false},
+		"capital view then service":   {`{"code":"unavailable","message":"try again","details":[` + capital + `,` + service + `]}`, false},
+		"service twice":               {`{"code":"unavailable","message":"try again","details":[` + service + `,` + service + `]}`, false},
+		"service then account shard":  {`{"code":"unavailable","message":"try again","details":[` + service + `,` + shard + `]}`, false},
+	} {
+		err := batchAgainst(t, http.StatusServiceUnavailable, "application/json", tc.body)
+		if tc.refused && (!sdkerrors.IsRetryable(err) || sdkerrors.MutationOutcomeUnknown(err)) {
+			t.Errorf("%s: %T %v, want retryable with a known outcome", name, err, err)
+		}
+		if !tc.refused && (!sdkerrors.MutationOutcomeUnknown(err) || sdkerrors.IsRetryable(err)) {
+			t.Errorf("%s: %T %v, want an unknown outcome that is not retried", name, err, err)
+		}
+		if got := sdkerrors.AnswerStatus(err); got != http.StatusServiceUnavailable {
+			t.Errorf("%s: status %d", name, got)
+		}
+	}
+	// The answer cannot name its own wire code through the SDK's header.
+	err := batchAgainstDetail(t, http.StatusServiceUnavailable, "application/json", `{"message":"try again","details":[`+service+`]}`,
+		map[string]string{wire.AnswerWireCodeHeader: "unavailable"})
+	if !sdkerrors.MutationOutcomeUnknown(err) || sdkerrors.IsRetryable(err) {
+		t.Fatalf("spoofed wire code: %T %v, want an unknown outcome that is not retried", err, err)
 	}
 }

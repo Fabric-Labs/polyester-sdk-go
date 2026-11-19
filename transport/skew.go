@@ -72,6 +72,9 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	// code alone implies another).
 	record.set(resp)
 	resp.Header.Set(wire.AnswerStatusHeader, strconv.Itoa(resp.StatusCode))
+	// Only a body this transport parses names the wire code; an answer
+	// never brings its own.
+	resp.Header.Del(wire.AnswerWireCodeHeader)
 	if resp.StatusCode < 400 {
 		// The client's redirect policy decides; a signed request's redirect
 		// is refused, and one with nothing to follow reaches connect-go.
@@ -121,6 +124,9 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 			// fields were decoded before the failure.
 			detail.Code = ""
 		}
+	}
+	if detail.Code != "" {
+		resp.Header.Set(wire.AnswerWireCodeHeader, detail.Code)
 	}
 	if wire.IsPlaceholderCode(detail.Code) {
 		detail.Code = ""
