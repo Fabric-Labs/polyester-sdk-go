@@ -27,8 +27,10 @@ type scriptedBookHandler struct {
 	respond func(call int64) *orderbookv1.GetOrderBookResponse
 }
 
-func (h scriptedBookHandler) GetOrderBook(context.Context, *connect.Request[orderbookv1.GetOrderBookRequest]) (*connect.Response[orderbookv1.GetOrderBookResponse], error) {
-	return connect.NewResponse(h.respond(h.calls.Add(1))), nil
+func (h scriptedBookHandler) GetOrderBook(_ context.Context, req *connect.Request[orderbookv1.GetOrderBookRequest]) (*connect.Response[orderbookv1.GetOrderBookResponse], error) {
+	resp := h.respond(h.calls.Add(1))
+	resp.Depth = servedTier(req.Msg)
+	return connect.NewResponse(resp), nil
 }
 
 func availableBook(seq uint64) *orderbookv1.GetOrderBookResponse {

@@ -4,14 +4,16 @@ import (
 	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/wire"
 )
 
 // MeFromProto decodes the caller's identity. A reply without the account ID,
-// with a session without its ID, or naming a sub-account key without its
-// sub-account ID, returns a *errors.ResponseContractError.
+// with a session without its ID, naming a sub-account key without its
+// sub-account ID, or a sub-account ID for any other caller, returns a
+// *errors.ResponseContractError.
 func MeFromProto(msg *authv1.MeResponse) (models.MeResult, error) {
 	if err := requireID("Me", "account_id", msg.GetAccountId()); err != nil {
 		return models.MeResult{}, err
@@ -36,13 +38,14 @@ func MeFromProto(msg *authv1.MeResponse) (models.MeResult, error) {
 		out.RootSmartAccountAddress = msg.GetRootSmartAccountAddress()
 	}
 	out.APIKeyScope = enumLabel(msg.GetApiKeyScope(), "SCOPE_")
+	// subaccount_id is present exactly when the key is a sub-account key.
 	if msg.GetApiKeyScope() == authv1.AccountScopeType_SCOPE_SUBACCOUNT {
 		if err := requireID("Me", "subaccount_id", msg.GetSubaccountId()); err != nil {
 			return models.MeResult{}, err
 		}
-	}
-	if msg.GetSubaccountId() != 0 {
 		out.SubaccountID = codecs.FormatID(msg.GetSubaccountId())
+	} else if msg.SubaccountId != nil {
+		return models.MeResult{}, &sdkerrors.ResponseContractError{Operation: "Me", Msg: "a subaccount_id without a sub-account key scope"}
 	}
 	return out, nil
 }

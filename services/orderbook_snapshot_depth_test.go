@@ -110,14 +110,25 @@ func TestOrderbookGetRefusesADepthThatIsNoTier(t *testing.T) {
 	}
 }
 
-// The reported depth is the tier the reply names as served.
-func TestOrderbookGetReportsTheServedTier(t *testing.T) {
-	var wire, calls atomic.Int32
-	served := typev1.DepthTier_DEPTH_200
-	svc := snapshotDepthServer(t, &wire, &calls, &served, true)
-	got, err := svc.Get(context.Background(), "BTC-USDT", 100)
-	if err != nil || got.Depth != 200 {
-		t.Fatalf("got %+v, %v; want the served depth 200", got, err)
+// The contract serves the requested tier and names it in every reply,
+// available or not: a reply naming none, an unknown one or another tier is
+// an *errors.ResponseContractError, never a snapshot at a depth it did not
+// serve.
+func TestOrderbookGetRefusesAReplyNotAtTheRequestedTier(t *testing.T) {
+	for name, served := range map[string]typev1.DepthTier{
+		"unset":        typev1.DepthTier_DEPTH_UNSPECIFIED,
+		"unknown":      typev1.DepthTier(99),
+		"another tier": typev1.DepthTier_DEPTH_200,
+	} {
+		for _, available := range []bool{true, false} {
+			var wire, calls atomic.Int32
+			svc := snapshotDepthServer(t, &wire, &calls, &served, available)
+			got, err := svc.Get(context.Background(), "BTC-USDT", 100)
+			var contract *sdkerrors.ResponseContractError
+			if !errors.As(err, &contract) {
+				t.Fatalf("%s, available %v: got %+v, %v; want a ResponseContractError", name, available, got, err)
+			}
+		}
 	}
 }
 

@@ -19,6 +19,7 @@ import (
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderbookv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1/orderbookv1connect"
+	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/orderbook"
@@ -87,6 +88,9 @@ type tierMarket struct {
 	conns       map[string][]*tierConn
 	published   map[int]tierView
 
+	// served, when set, replaces the requested tier a snapshot names.
+	served *typev1.DepthTier
+
 	connections atomic.Int64
 	subscribed  chan string
 	// afterSubscribeReply, when set, runs once a subscribe is acknowledged:
@@ -149,6 +153,9 @@ func (m *tierMarket) GetOrderBook(_ context.Context, req *connect.Request[orderb
 	levels, _ := codecs.LevelsForDepthTier(req.Msg.GetDepth())
 	m.snapshots = append(m.snapshots, fmt.Sprint(levels))
 	response := &orderbookv1.GetOrderBookResponse{SymbolId: 1, BookSeq: m.seq, Available: !m.unavailable, Depth: req.Msg.GetDepth()}
+	if m.served != nil {
+		response.Depth = *m.served
+	}
 	if !m.unavailable {
 		response.BookEpoch = 1
 		bids, asks := m.viewLocked(levels)
@@ -695,6 +702,55 @@ func TestManagedBookSequenceZeroSnapshotAppliesNextContiguousDelta(t *testing.T)
 		t.Fatalf("gaps %d seq %s qty %d", gaps(), updated.BookSeq, updated.Bids[0].Qty.Scaled())
 	}
 	assertSnapshots(t, market, "20")
+}
+
+// A snapshot is the base of its tier's delta stream only when it was served
+// at that tier: one naming none, an unknown tier or another tier is an
+// *errors.ResponseContractError and never becomes a view.
+func TestManagedBookRefusesASnapshotNotAtItsTier(t *testing.T) {
+	for name, served := range map[string]typev1.DepthTier{
+		"unset":        typev1.DepthTier_DEPTH_UNSPECIFIED,
+		"unknown":      typev1.DepthTier(99),
+		"another tier": typev1.DepthTier_DEPTH_50,
+	} {
+		t.Run(name, func(t *testing.T) {
+			service, market := newTierService(t, 600)
+			market.update(func(m *tierMarket) { m.served = &served })
+			errs := make(chan error, 16)
+			sub, err := service.CreateSubscription(context.Background(), services.CreateSubscriptionOptions{Symbol: "BTC-USDT", Depth: 10, OnError: func(err error) {
+				select {
+				case errs <- err:
+				default:
+				}
+			}})
+			var contract *sdkerrors.ResponseContractError
+			if err != nil {
+				// The first snapshot is fetched before the subscription returns.
+				if !errors.As(err, &contract) {
+					t.Fatalf("err = %T %v, want a ResponseContractError", err, err)
+				}
+				return
+			}
+			t.Cleanup(sub.Close)
+			select {
+			case err := <-errs:
+				if !errors.As(err, &contract) {
+					t.Fatalf("err = %T %v, want a ResponseContractError", err, err)
+				}
+			case view := <-sub.Updates():
+				t.Fatalf("a snapshot served at %v became a view: %+v", served, view)
+			case <-time.After(tierWait):
+				t.Fatal("no error for a snapshot at the wrong tier")
+			}
+			select {
+			case view, open := <-sub.Updates():
+				if open {
+					t.Fatalf("a snapshot served at %v became a view: %+v", served, view)
+				}
+			default:
+			}
+		})
+	}
 }
 
 func TestManagedBookUnavailableStaysUnknownThenRecoversTrimmed(t *testing.T) {

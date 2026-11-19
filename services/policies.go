@@ -8,8 +8,11 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/realtime"
 )
 
-// PoliciesService exposes private policy realtime streams.
-// Unary policy RPCs require JWT/session auth and are not wrapped in this API-key SDK.
+// PoliciesService exposes private policy realtime streams. The unary policy
+// RPCs are unwrapped for now: the reads accept API keys with
+// READ_SUBACCOUNT_POLICIES or READ_API_POLICIES, and SetApiKeyPolicy,
+// SetSubaccountPolicy and UpdateSubaccountPolicy also accept an admin API key
+// with MANAGE_API_KEY_POLICIES or MANAGE_SUBACCOUNT_POLICIES.
 type PoliciesService struct {
 	defaultAccountID *string
 	realtime         RealtimeClient

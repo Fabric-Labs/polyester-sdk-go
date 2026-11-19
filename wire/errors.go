@@ -259,7 +259,12 @@ func mapConnectError(err error) error {
 		if requestDetail, ok := value.(*polyesterapiv1.RequestErrorDetail); ok && requestDetail.GetCode() == polyesterapiv1.RequestErrorCode_REQUEST_TOO_LARGE {
 			// A request over the API's size limit, refused before it was
 			// read: the same body is refused again, so it is no rate refusal
-			// to wait out. Any other code reads as the plain refusal.
+			// to wait out. Any other code reads as the plain refusal. The
+			// contract sets the limit on every such refusal: one without it
+			// is malformed, not a size refusal to act on.
+			if requestDetail.GetLimitBytes() == 0 {
+				return &sdkerrors.ResponseContractError{Msg: "a REQUEST_TOO_LARGE refusal without its limit_bytes"}
+			}
 			return &sdkerrors.APIError{Msg: msg, Code: sdkerrors.CodeRequestTooLarge, LimitBytes: requestDetail.GetLimitBytes()}
 		}
 		if authDetail, ok := value.(*authv1.AuthErrorDetail); ok {
@@ -422,7 +427,9 @@ func mapConnectError(err error) error {
 		if isRetryableAdmissionCode(namedCode) {
 			return rateLimitError(msg, namedCode, nil, headerRetry)
 		}
-		if _, known := orderv1.ErrorCode_value[namedCode]; known || isServiceCodeMessage(messageCode) {
+		// Only the typed RequestErrorDetail or the REST problem is the size
+		// refusal: a message that reads REQUEST_TOO_LARGE stays a rate refusal.
+		if _, known := orderv1.ErrorCode_value[namedCode]; known || (isServiceCodeMessage(messageCode) && messageCode != sdkerrors.CodeRequestTooLarge) {
 			return &sdkerrors.APIError{Msg: msg, Code: namedCode}
 		}
 	}

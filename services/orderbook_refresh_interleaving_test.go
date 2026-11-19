@@ -107,7 +107,7 @@ func newBookRefreshHarness(t *testing.T, plan func(n int32) fetchStep) *bookRefr
 			return
 		}
 		w.Header().Set("Content-Type", "application/proto")
-		data, _ := proto.Marshal(&ob.GetOrderBookResponse{SymbolId: 1, BookSeq: h.seq.Load(), Available: true})
+		data, _ := proto.Marshal(&ob.GetOrderBookResponse{SymbolId: 1, BookSeq: h.seq.Load(), Available: true, Depth: requestedTier(r)})
 		_, _ = w.Write(data)
 	}))
 	t.Cleanup(func() { close(stop); ws.Close(); httpSrv.Close() })

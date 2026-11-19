@@ -1881,8 +1881,9 @@ again with the same key and the same legs in the same order, until it is
 final. `refused` is final for its key, even once its cause is gone: fix the
 cause and submit under a new key. An `unavailable` error
 (`ERROR_CODE_SERVICE_UNAVAILABLE` or `ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE`)
-means the batch was not decided and nothing was recorded under the key: retry
-with the same key and legs, after its Retry-After when present. Different
+means the batch was not decided and nothing was recorded under the key:
+`errors.IsRetryable(err)` reports it, so retry with the same key and legs,
+after its Retry-After when present. Different
 legs under a used key are refused with `ERROR_CODE_IDEMPOTENCY_CONFLICT`.
 Each leg's `Destination` is the destination the server resolved for it.
 
@@ -2348,7 +2349,8 @@ for book := range ob.Updates() {
 `Orderbook.Get` reads a snapshot at one of the depth tiers 1, 5, 10, 20, 50, 100, 200, 500,
 1000 and 5000 levels per side (`codecs.OrderbookDepthTiers()`); 0 means 50. Any other depth is an
 `*errors.ValidationError` before any request, as the service refuses it
-(`codecs.OrderbookSnapshotDepth`). The result's `Depth` is the tier the service served. A
+(`codecs.OrderbookSnapshotDepth`). The result's `Depth` is the tier the service served, the
+requested one: a reply at another tier, or naming none, is an `*errors.ResponseContractError`. A
 snapshot is a frozen view at its own `(BookEpoch, BookSeq)`: order snapshots with
 `orderbook.CompareSnapshots`, keep the newest, and never apply live deltas to one.
 The delta stream is published at fewer tiers, 1, 20, 50, 200 and 500

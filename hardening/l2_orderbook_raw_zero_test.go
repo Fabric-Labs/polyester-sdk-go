@@ -36,6 +36,7 @@ func (h rawZeroSnapshotHandler) GetOrderBook(_ context.Context, req *connect.Req
 	}
 	return connect.NewResponse(&orderbookv1.GetOrderBookResponse{
 		SymbolId:  req.Msg.GetSymbolId(),
+		Depth:     servedTier(req.Msg),
 		BookSeq:   1,
 		Available: true,
 		Bids:      []*orderbookv1.PriceLevel{{PriceTicks: rawZeroBid, QtyScaled: 3}},

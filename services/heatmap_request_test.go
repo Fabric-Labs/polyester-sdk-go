@@ -137,3 +137,24 @@ func TestHeatmapGetRefusesTheUnspecifiedInterval(t *testing.T) {
 		t.Fatalf("sent %d requests", len(h.calls))
 	}
 }
+
+// A heatmap reply names the tier it was requested at: one naming none, an
+// unknown one, another tier or the unsupported DEPTH_5000 is an
+// *errors.ResponseContractError.
+func TestHeatmapGetRefusesAReplyNotAtTheRequestedTier(t *testing.T) {
+	for name, served := range map[string]typev1.DepthTier{
+		"unset":        typev1.DepthTier_DEPTH_UNSPECIFIED,
+		"unknown":      typev1.DepthTier(99),
+		"another tier": typev1.DepthTier_DEPTH_200,
+		"unsupported":  typev1.DepthTier_DEPTH_5000,
+	} {
+		service, h := newHeatmapRequestService(t)
+		h.served = &served
+		id := uint32(1)
+		_, err := service.Get(context.Background(), nil, &id, "1m", 50, 1, "close", nil, nil, nil)
+		var contract *sdkerrors.ResponseContractError
+		if !stderrors.As(err, &contract) {
+			t.Fatalf("%s: err = %v, want a ResponseContractError", name, err)
+		}
+	}
+}

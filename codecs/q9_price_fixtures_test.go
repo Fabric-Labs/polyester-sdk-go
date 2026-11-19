@@ -8,6 +8,7 @@ import (
 	marketdatav1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1"
 	orderbookv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
+	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
@@ -138,8 +139,9 @@ func TestQ9DecodePaths(t *testing.T) {
 	}
 
 	book, err := decode.OrderbookFromProto(&orderbookv1.GetOrderBookResponse{
-		Bids: []*orderbookv1.PriceLevel{{PriceTicks: 2420000000000, QtyScaled: 2315}},
-		Asks: []*orderbookv1.PriceLevel{{PriceTicks: 2420010000000, QtyScaled: 1}},
+		Depth: typev1.DepthTier_DEPTH_1,
+		Bids:  []*orderbookv1.PriceLevel{{PriceTicks: 2420000000000, QtyScaled: 2315}},
+		Asks:  []*orderbookv1.PriceLevel{{PriceTicks: 2420010000000, QtyScaled: 1}},
 	}, "ETH-USDT", 1, 6)
 	if err != nil {
 		t.Fatal(err)

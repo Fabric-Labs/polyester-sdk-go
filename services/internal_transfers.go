@@ -98,7 +98,9 @@ func (s *InternalTransfersService) Create(ctx context.Context, assetID uint32, q
 // under it answer the same refusal. A check that cannot be decided now fails
 // the whole call with Connect code unavailable (ERROR_CODE_SERVICE_UNAVAILABLE
 // or ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE) and records nothing under the key:
-// retry with the same key and legs, after its Retry-After when present.
+// that *errors.ServerError is AdmissionRefused, so errors.IsRetryable reports
+// it and errors.MutationOutcomeUnknown does not. Retry with the same key and
+// legs, after its Retry-After when present.
 func (s *InternalTransfersService) CreateBatch(ctx context.Context, legs []models.InternalTransferBatchLeg, idempotencyKey string) (models.InternalTransferBatchResult, error) {
 	if len(legs) < codecs.BatchInternalTransferLegsMin || len(legs) > codecs.BatchInternalTransferLegsMax {
 		return models.InternalTransferBatchResult{}, &errors.ValidationError{Msg: fmt.Sprintf("a batch takes at least %d leg, not %d", codecs.BatchInternalTransferLegsMin, len(legs))}
@@ -118,9 +120,28 @@ func (s *InternalTransfersService) CreateBatch(ctx context.Context, legs []model
 		}
 		req.Legs = append(req.Legs, wire)
 	}
-	return UnaryAuthDecoded(ctx, s.transport, s.client().BatchCreateInternalTransfers, req, func(msg *transferv1.BatchCreateInternalTransfersResponse) (models.InternalTransferBatchResult, error) {
+	result, err := UnaryAuthDecoded(ctx, s.transport, s.client().BatchCreateInternalTransfers, req, func(msg *transferv1.BatchCreateInternalTransfersResponse) (models.InternalTransferBatchResult, error) {
 		return decode.InternalTransferBatchFromProto(msg, len(legs))
 	})
+	markBatchRefusedBeforeAdmission(err)
+	return result, err
+}
+
+// markBatchRefusedBeforeAdmission marks a batch the API could not decide
+// now as refused before admission: the contract records nothing under its
+// key on SERVICE_UNAVAILABLE or ACCOUNT_SHARD_UNAVAILABLE, so it is retryable
+// with the same key and legs. Only the typed code counts, the transfer error
+// detail's or the REST problem's, which a ServerError carries; the answer's
+// status and Retry-After stay as they are.
+func markBatchRefusedBeforeAdmission(err error) {
+	var server *errors.ServerError
+	if !stderrors.As(err, &server) {
+		return
+	}
+	switch strings.TrimPrefix(server.Code, "ERROR_CODE_") {
+	case "SERVICE_UNAVAILABLE", "ACCOUNT_SHARD_UNAVAILABLE":
+		server.AdmissionRefused = true
+	}
 }
 
 // GetBatch reads a batch's current outcome and the state of every leg by the

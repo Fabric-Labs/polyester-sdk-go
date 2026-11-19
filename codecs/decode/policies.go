@@ -3,6 +3,7 @@ package decode
 import (
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
@@ -55,6 +56,20 @@ func sourceTemplateID(id uint64) string {
 		return ""
 	}
 	return codecs.FormatUint64ID(id)
+}
+
+// requireTemplateLineage refuses a policy whose template lineage is
+// incomplete: the contract sets source_template_id and
+// source_template_revision together on a copy of a template, and neither on
+// a policy that is no copy.
+func requireTemplateLineage(operation string, templateID, revision uint64) error {
+	switch {
+	case templateID != 0 && revision == 0:
+		return &sdkerrors.ResponseContractError{Operation: operation, Msg: "a policy copied from a template without the template's source_template_revision"}
+	case templateID == 0 && revision != 0:
+		return &sdkerrors.ResponseContractError{Operation: operation, Msg: "a policy with a source_template_revision but no source_template_id"}
+	}
+	return nil
 }
 
 // SubaccountPolicyFromView decodes one subaccount policy view.

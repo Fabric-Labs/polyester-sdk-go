@@ -704,12 +704,18 @@ type NotImplementedError struct {
 func (e *NotImplementedError) Error() string        { return e.Msg }
 func (e *NotImplementedError) Is(target error) bool { return target == ErrPolyester }
 
-// ResponseContractError indicates that a successful mutation response violated
-// the documented wire contract. The mutation may already have been applied, so
-// callers must reconcile state rather than blindly retrying.
+// ResponseContractError indicates that a response, a successful one or a
+// refusal, violated the documented wire contract. A mutation may already have
+// been applied, so callers must reconcile state rather than blindly retrying.
 type ResponseContractError struct {
 	Operation string
 	Msg       string
+	// Status is the HTTP status of a refusal that broke the contract; 0 for
+	// a successful response. See errors.AnswerStatus.
+	Status int
+	// RetryAfter is the delay in seconds that refusal's headers asked for,
+	// when they did. See errors.RetryAfter.
+	RetryAfter *float64
 }
 
 func (e *ResponseContractError) Error() string {
@@ -993,18 +999,19 @@ type answered interface {
 	answer() (status *int, retryAfter **float64)
 }
 
-func (e *RateLimitError) answer() (*int, **float64)       { return &e.Status, &e.RetryAfter }
-func (e *ServerError) answer() (*int, **float64)          { return &e.Status, &e.RetryAfter }
-func (e *APIError) answer() (*int, **float64)             { return &e.Status, &e.RetryAfter }
-func (e *AuthError) answer() (*int, **float64)            { return &e.Status, &e.RetryAfter }
-func (e *ValidationError) answer() (*int, **float64)      { return &e.Status, &e.RetryAfter }
-func (e *TimestampSkewError) answer() (*int, **float64)   { return &e.Status, &e.RetryAfter }
-func (e *NotImplementedError) answer() (*int, **float64)  { return &e.Status, &e.RetryAfter }
-func (e *RouteNotFoundError) answer() (*int, **float64)   { return &e.Status, &e.RetryAfter }
-func (e *SessionRequiredError) answer() (*int, **float64) { return &e.Status, &e.RetryAfter }
-func (e *TransportError) answer() (*int, **float64)       { return &e.Status, &e.RetryAfter }
-func (e *RedirectRefusedError) answer() (*int, **float64) { return &e.StatusCode, &e.RetryAfter }
-func (e *RealtimeError) answer() (*int, **float64)        { return &e.Status, &e.RetryAfter }
+func (e *RateLimitError) answer() (*int, **float64)        { return &e.Status, &e.RetryAfter }
+func (e *ServerError) answer() (*int, **float64)           { return &e.Status, &e.RetryAfter }
+func (e *APIError) answer() (*int, **float64)              { return &e.Status, &e.RetryAfter }
+func (e *AuthError) answer() (*int, **float64)             { return &e.Status, &e.RetryAfter }
+func (e *ValidationError) answer() (*int, **float64)       { return &e.Status, &e.RetryAfter }
+func (e *TimestampSkewError) answer() (*int, **float64)    { return &e.Status, &e.RetryAfter }
+func (e *NotImplementedError) answer() (*int, **float64)   { return &e.Status, &e.RetryAfter }
+func (e *RouteNotFoundError) answer() (*int, **float64)    { return &e.Status, &e.RetryAfter }
+func (e *SessionRequiredError) answer() (*int, **float64)  { return &e.Status, &e.RetryAfter }
+func (e *ResponseContractError) answer() (*int, **float64) { return &e.Status, &e.RetryAfter }
+func (e *TransportError) answer() (*int, **float64)        { return &e.Status, &e.RetryAfter }
+func (e *RedirectRefusedError) answer() (*int, **float64)  { return &e.StatusCode, &e.RetryAfter }
+func (e *RealtimeError) answer() (*int, **float64)         { return &e.Status, &e.RetryAfter }
 func (e *SubaccountOwnerRoleLockedError) answer() (*int, **float64) {
 	return &e.Status, &e.RetryAfter
 }

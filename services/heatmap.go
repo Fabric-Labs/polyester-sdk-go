@@ -117,8 +117,13 @@ func (s *HeatmapService) Get(ctx context.Context, symbol *string, symbolID *uint
 		req.TimeRange = tr
 	}
 
-	return UnaryPublic(ctx, s.transport, s.client().GetOrderbookHeatmap, req, func(msg *heatmapv1.GetOrderbookHeatmapResponse) models.ApiData {
-		return decode.APIDataFromProtoMust(msg)
+	return UnaryPublicDecoded(ctx, s.transport, s.client().GetOrderbookHeatmap, req, func(msg *heatmapv1.GetOrderbookHeatmapResponse) (models.ApiData, error) {
+		// The reply names the tier requested; the heatmap never serves
+		// DEPTH_5000, so a reply naming it names another tier.
+		if err := decode.ServedDepthTier("GetOrderbookHeatmap", req.GetDepth(), msg.GetDepth()); err != nil {
+			return models.ApiData{}, err
+		}
+		return decode.APIDataFromProtoMust(msg), nil
 	})
 }
 

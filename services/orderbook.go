@@ -322,6 +322,11 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 			}
 			req := &orderbookv1.GetOrderBookRequest{SymbolId: *resolvedSymbolID, Depth: tier}
 			return UnaryPublicDecoded(fetchCtx, s.transport, s.client().GetOrderBook, req, func(msg *orderbookv1.GetOrderBookResponse) (models.OrderbookData, error) {
+				// Only a snapshot of the stream's own tier is a base for its
+				// deltas: check it before it touches the book.
+				if err := decode.ServedDepthTier("GetOrderBook", tier, msg.GetDepth()); err != nil {
+					return models.OrderbookData{}, err
+				}
 				nextBids, err := orderbook.LevelsFromProtoLevels(msg.GetBids())
 				if err != nil {
 					return models.OrderbookData{}, err

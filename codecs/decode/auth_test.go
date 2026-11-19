@@ -84,4 +84,15 @@ func TestMeNamesTheAPIKeyScope(t *testing.T) {
 	if _, err := decode.MeFromProto(&authv1.MeResponse{AccountId: 7, ApiKeyScope: authv1.AccountScopeType_SCOPE_SUBACCOUNT}); !errors.As(err, &contract) {
 		t.Fatalf("sub-account key without its ID: err = %v", err)
 	}
+	// subaccount_id is present only for a sub-account key, even when it is 0.
+	for name, msg := range map[string]*authv1.MeResponse{
+		"root key with a sub-account ID":      {AccountId: 7, ApiKeyId: proto.String("ak_2"), ApiKeyScope: authv1.AccountScopeType_SCOPE_ROOT, SubaccountId: proto.Uint64(9000000001)},
+		"session with a sub-account ID":       {AccountId: 7, SubaccountId: proto.Uint64(9000000001)},
+		"root key with a zero sub-account ID": {AccountId: 7, ApiKeyId: proto.String("ak_2"), ApiKeyScope: authv1.AccountScopeType_SCOPE_ROOT, SubaccountId: proto.Uint64(0)},
+		"sub-account key with a zero ID":      {AccountId: 7, ApiKeyId: proto.String("ak_1"), ApiKeyScope: authv1.AccountScopeType_SCOPE_SUBACCOUNT, SubaccountId: proto.Uint64(0)},
+	} {
+		if _, err := decode.MeFromProto(msg); !errors.As(err, &contract) {
+			t.Fatalf("%s: err = %v, want a ResponseContractError", name, err)
+		}
+	}
 }
