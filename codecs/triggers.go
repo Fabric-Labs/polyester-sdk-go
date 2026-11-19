@@ -131,13 +131,15 @@ func CreateTriggerToProto(symbolID uint32, symbol, triggerType string, triggerPr
 		if !ok {
 			return nil, &errors.ValidationError{Msg: "side must be buy or sell"}
 		}
-		triggerTicks := int64(0)
-		if triggerPrice != nil && triggerPrice.IsSet() {
-			parsed, err := positivePriceTicks(*triggerPrice, "trigger_price", symbol)
-			if err != nil {
-				return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_TRIGGER_PRICE_INVALID)
-			}
-			triggerTicks = parsed
+		// The contract's trigger_price_ticks is above 0: a missing trigger
+		// price is refused as an explicit 0 is, with the code the API answers.
+		var price models.PriceInput
+		if triggerPrice != nil {
+			price = *triggerPrice
+		}
+		triggerTicks, err := positivePriceTicks(price, "trigger_price", symbol)
+		if err != nil {
+			return nil, coded(err, orderv1.ErrorCode_ERROR_CODE_TRIGGER_PRICE_INVALID)
 		}
 		child, err := conditionalChildToProto(orderType, tif, limitPrice, symbol, postOnly, sideEnum, opts.MaxSlippageTicks, opts.MaxSlippageBps)
 		if err != nil {
