@@ -276,7 +276,13 @@ var timeframeLabels = map[marketdatav1.Timeframe]string{
 // CandlesColumnsFromProto decodes columnar candle responses into rows.
 // Primary OHLC uses the fixed Q9 price scale. Reference OHLC uses referencePriceScale.
 // Both volume series use the base asset market_data_volume_scale.
-func CandlesColumnsFromProto(msg *marketdatav1.GetCandlesColumnsResponse, volumeScale int, referencePriceScale int) (models.CandlesResult, error) {
+//
+// The columnar response carries no closed flag, so IsClosed follows the
+// request's includeIncomplete: without incomplete candles every row is closed;
+// with them the newest primary row and the newest reference row (the last, as
+// columns are oldest-first) read false, not known to be closed, and every
+// earlier row reads true.
+func CandlesColumnsFromProto(msg *marketdatav1.GetCandlesColumnsResponse, volumeScale int, referencePriceScale int, includeIncomplete bool) (models.CandlesResult, error) {
 	if err := codecs.ValidateProtocolScale(volumeScale); err != nil {
 		return models.CandlesResult{}, err
 	}
@@ -291,7 +297,7 @@ func CandlesColumnsFromProto(msg *marketdatav1.GetCandlesColumnsResponse, volume
 			len(msg.GetClose()), len(msg.GetVolume()), len(quoteVolumes),
 		)}
 	}
-	reference, err := referenceCandlesFromColumns(msg, volumeScale, referencePriceScale)
+	reference, err := referenceCandlesFromColumns(msg, volumeScale, referencePriceScale, includeIncomplete)
 	if err != nil {
 		return models.CandlesResult{}, err
 	}
@@ -309,6 +315,7 @@ func CandlesColumnsFromProto(msg *marketdatav1.GetCandlesColumnsResponse, volume
 			Close:       codecs.FormatPriceTicks(msg.GetClose()[i]),
 			Volume:      formatQtyScaledOrEmpty(msg.GetVolume()[i], volumeScale),
 			QuoteVolume: quoteVolume,
+			IsClosed:    columnClosed(i, rows, includeIncomplete),
 		}
 		out = append(out, candle)
 	}
@@ -318,7 +325,7 @@ func CandlesColumnsFromProto(msg *marketdatav1.GetCandlesColumnsResponse, volume
 	}, nil
 }
 
-func referenceCandlesFromColumns(msg *marketdatav1.GetCandlesColumnsResponse, volumeScale int, referencePriceScale int) ([]models.Candle, error) {
+func referenceCandlesFromColumns(msg *marketdatav1.GetCandlesColumnsResponse, volumeScale int, referencePriceScale int, includeIncomplete bool) ([]models.Candle, error) {
 	rows := len(msg.GetReferenceTsSec())
 	if rows == 0 && len(msg.GetReferenceOpen()) == 0 && len(msg.GetReferenceHigh()) == 0 &&
 		len(msg.GetReferenceLow()) == 0 && len(msg.GetReferenceClose()) == 0 && len(msg.GetReferenceVolume()) == 0 {
@@ -339,15 +346,23 @@ func referenceCandlesFromColumns(msg *marketdatav1.GetCandlesColumnsResponse, vo
 	out := make([]models.Candle, 0, rows)
 	for i, ts := range msg.GetReferenceTsSec() {
 		out = append(out, models.Candle{
-			TsSec:  int64(ts),
-			Open:   formatQtyScaledOrEmpty(msg.GetReferenceOpen()[i], referencePriceScale),
-			High:   formatQtyScaledOrEmpty(msg.GetReferenceHigh()[i], referencePriceScale),
-			Low:    formatQtyScaledOrEmpty(msg.GetReferenceLow()[i], referencePriceScale),
-			Close:  formatQtyScaledOrEmpty(msg.GetReferenceClose()[i], referencePriceScale),
-			Volume: formatQtyScaledOrEmpty(msg.GetReferenceVolume()[i], volumeScale),
+			TsSec:    int64(ts),
+			Open:     formatQtyScaledOrEmpty(msg.GetReferenceOpen()[i], referencePriceScale),
+			High:     formatQtyScaledOrEmpty(msg.GetReferenceHigh()[i], referencePriceScale),
+			Low:      formatQtyScaledOrEmpty(msg.GetReferenceLow()[i], referencePriceScale),
+			Close:    formatQtyScaledOrEmpty(msg.GetReferenceClose()[i], referencePriceScale),
+			Volume:   formatQtyScaledOrEmpty(msg.GetReferenceVolume()[i], volumeScale),
+			IsClosed: columnClosed(i, rows, includeIncomplete),
 		})
 	}
 	return out, nil
+}
+
+// columnClosed reports whether columnar row i of rows is known to be closed:
+// every row is without incomplete candles, and every row but the newest (the
+// last) is with them.
+func columnClosed(i, rows int, includeIncomplete bool) bool {
+	return !includeIncomplete || i != rows-1
 }
 
 // CandlePointFromProto decodes one candle point publication.

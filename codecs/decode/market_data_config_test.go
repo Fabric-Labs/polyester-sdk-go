@@ -97,7 +97,7 @@ func TestCandlesColumnsRejectsShortParallelArrays(t *testing.T) {
 		Low:    []int64{1, 2},
 		Close:  []int64{1, 2},
 		Volume: []int64{1, 2},
-	}, 8, 6)
+	}, 8, 6, false)
 	var transportErr *sdkerrors.TransportError
 	if !errors.As(err, &transportErr) {
 		t.Fatalf("expected TransportError, got %T: %v", err, err)
@@ -113,7 +113,7 @@ func TestCandlesColumnsLabelEveryPublishedTimeframe(t *testing.T) {
 		marketdatav1.Timeframe_DAY_1: "1d", marketdatav1.Timeframe_DAY_3: "3d", marketdatav1.Timeframe_WEEK_1: "1w",
 		marketdatav1.Timeframe_MONTH_1: "1mo",
 	} {
-		got, err := CandlesColumnsFromProto(&marketdatav1.GetCandlesColumnsResponse{SymbolId: 1, Timeframe: tf}, 6, 8)
+		got, err := CandlesColumnsFromProto(&marketdatav1.GetCandlesColumnsResponse{SymbolId: 1, Timeframe: tf}, 6, 8, false)
 		if err != nil {
 			t.Fatalf("%s: %v", tf, err)
 		}

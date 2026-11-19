@@ -37,6 +37,19 @@ func (s *candleClosedServer) GetCandles(_ context.Context, req *connect.Request[
 	return connect.NewResponse(resp), nil
 }
 
+func (s *candleClosedServer) GetCandlesColumns(_ context.Context, req *connect.Request[marketdatav1.GetCandlesColumnsRequest]) (*connect.Response[marketdatav1.GetCandlesColumnsResponse], error) {
+	resp := &marketdatav1.GetCandlesColumnsResponse{
+		SymbolId: req.Msg.GetSymbolId(), Timeframe: req.Msg.GetTimeframe(),
+		TsSec: []uint64{60, 120}, Open: []int64{1_000_000_000, 1_500_000_000}, High: []int64{2_000_000_000, 1_500_000_000},
+		Low: []int64{500_000_000, 1_500_000_000}, Close: []int64{1_500_000_000, 1_500_000_000}, Volume: []int64{300_000_000, 0},
+	}
+	if req.Msg.GetIncludeReference() {
+		resp.ReferenceTsSec, resp.ReferenceOpen, resp.ReferenceHigh = resp.TsSec, resp.Open, resp.High
+		resp.ReferenceLow, resp.ReferenceClose, resp.ReferenceVolume = resp.Low, resp.Close, resp.Volume
+	}
+	return connect.NewResponse(resp), nil
+}
+
 func newCandleClosedClient(t *testing.T, newestClosed bool, wire, wsURL string) *polyester.Client {
 	t.Helper()
 	server := &candleClosedServer{selectorServer: &selectorServer{}, newestClosed: newestClosed}
@@ -126,6 +139,34 @@ func TestL2SubscribeCandlesReportsIsClosed(t *testing.T) {
 			}
 		case <-ctx.Done():
 			t.Fatalf("no live update with is_closed %t", want)
+		}
+	}
+}
+
+// GetCandlesColumns and GetCandlesColumnsWithReference, whose response carries
+// no closed flag, report every row closed without incomplete candles, and the
+// newest row (ts 120) not known to be closed with them, in both wire formats.
+func TestL2CandleColumnsReportIsClosedByIncomplete(t *testing.T) {
+	for _, wire := range []string{"json", "binary"} {
+		client := newCandleClosedClient(t, false, wire, "ws://127.0.0.1:1/unused")
+		id := uint32(1)
+		for _, includeIncomplete := range []bool{false, true} {
+			result, err := client.MarketData.GetCandlesColumnsWithReference(context.Background(), nil, &id, "1m", 2, nil, nil, includeIncomplete, nil, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+			plain, err := client.MarketData.GetCandlesColumns(context.Background(), nil, &id, "1m", 2, nil, nil, includeIncomplete, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for name, rows := range map[string][]models.Candle{"columns": plain.Candles, "with-reference": result.Candles, "reference": result.ReferenceCandles} {
+				if len(rows) != 2 || rows[0].TsSec != 60 || rows[1].TsSec != 120 {
+					t.Fatalf("%s/%s: rows %+v, want ts 60 then 120", wire, name, rows)
+				}
+				if !rows[0].IsClosed || rows[1].IsClosed == includeIncomplete {
+					t.Errorf("%s/%s include_incomplete=%t: is_closed %t, %t; want true, %t", wire, name, includeIncomplete, rows[0].IsClosed, rows[1].IsClosed, !includeIncomplete)
+				}
+			}
 		}
 	}
 }

@@ -187,15 +187,17 @@ func currentCandle(candles []models.Candle) models.Candle {
 }
 
 // GetCandlesColumns returns OHLCV candles in columnar wire form, decoded to rows.
-// Its rows leave Candle.IsClosed false: the columnar response carries no closed
-// flag. GetCandles reports it.
+// The columnar response carries no closed flag: without incomplete candles
+// every row's Candle.IsClosed is true, and with them the newest row's is false,
+// meaning not known to be closed, and every earlier row's true. GetCandles
+// reports each row's flag as the server sends it.
 func (s *MarketDataService) GetCandlesColumns(ctx context.Context, symbol *string, symbolID *uint32, timeframe string, limit int, start, end *time.Time, includeIncomplete bool, pageToken *string) (models.CandlesResult, error) {
 	return s.GetCandlesColumnsWithReference(ctx, symbol, symbolID, timeframe, limit, start, end, includeIncomplete, pageToken, false)
 }
 
 // GetCandlesColumnsWithReference returns columnar OHLCV decoded to rows, including
-// reference candles when includeReference is true. Its rows leave
-// Candle.IsClosed false, as GetCandlesColumns does.
+// reference candles when includeReference is true. Candle.IsClosed follows
+// GetCandlesColumns' rule, applied to the primary and the reference rows each.
 func (s *MarketDataService) GetCandlesColumnsWithReference(ctx context.Context, symbol *string, symbolID *uint32, timeframe string, limit int, start, end *time.Time, includeIncomplete bool, pageToken *string, includeReference bool) (models.CandlesResult, error) {
 	base, scale, refScale, err := s.buildCandlesRequest(ctx, symbol, symbolID, timeframe, limit, start, end, includeIncomplete, pageToken, includeReference)
 	if err != nil {
@@ -214,7 +216,7 @@ func (s *MarketDataService) GetCandlesColumnsWithReference(ctx context.Context, 
 		if err != nil {
 			return models.CandlesResult{}, err
 		}
-		return decode.CandlesColumnsFromProto(msg, scale, priceScale)
+		return decode.CandlesColumnsFromProto(msg, scale, priceScale, req.GetIncludeIncomplete())
 	})
 }
 

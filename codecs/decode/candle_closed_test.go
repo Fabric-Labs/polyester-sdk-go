@@ -55,3 +55,30 @@ func TestCandlePointFromBytesKeepsIsClosed(t *testing.T) {
 		}
 	}
 }
+
+// The columnar response carries no closed flag. Without incomplete candles
+// every row is closed; with them the newest primary and reference rows (the
+// last, as columns are oldest-first) read false and earlier rows true.
+func TestCandlesColumnsFromProtoIsClosedByIncomplete(t *testing.T) {
+	msg := &marketdatav1.GetCandlesColumnsResponse{
+		SymbolId: 1, Timeframe: marketdatav1.Timeframe_MIN_1,
+		TsSec: []uint64{60, 120, 180}, Open: []int64{1, 1, 1}, High: []int64{1, 1, 1},
+		Low: []int64{1, 1, 1}, Close: []int64{1, 1, 1}, Volume: []int64{1, 1, 1},
+		ReferenceTsSec: []uint64{60, 120}, ReferenceOpen: []int64{1, 1}, ReferenceHigh: []int64{1, 1},
+		ReferenceLow: []int64{1, 1}, ReferenceClose: []int64{1, 1}, ReferenceVolume: []int64{1, 1},
+	}
+	for _, includeIncomplete := range []bool{false, true} {
+		result, err := CandlesColumnsFromProto(msg, 8, 9, includeIncomplete)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for name, rows := range map[string][]models.Candle{"candles": result.Candles, "reference_candles": result.ReferenceCandles} {
+			for i, row := range rows {
+				want := !includeIncomplete || i != len(rows)-1
+				if row.IsClosed != want {
+					t.Errorf("include_incomplete=%t %s ts %d: is_closed %t, want %t", includeIncomplete, name, row.TsSec, row.IsClosed, want)
+				}
+			}
+		}
+	}
+}
