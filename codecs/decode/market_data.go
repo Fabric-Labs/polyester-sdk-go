@@ -258,6 +258,7 @@ func candleFromPoint(point *marketdatav1.CandlePoint, volumeScale int, priceScal
 		Close:       formatPrice(point.GetClose()),
 		Volume:      formatQtyScaledOrEmpty(point.GetVolume(), volumeScale),
 		QuoteVolume: point.GetQuoteVolume(),
+		IsClosed:    point.GetIsClosed(),
 	}
 }
 
@@ -362,6 +363,7 @@ func CandlePointFromProto(point *marketdatav1.CandlePoint, symbolID uint32, time
 		Close:       codecs.FormatPriceTicks(point.GetClose()),
 		Volume:      formatQtyScaledOrEmpty(point.GetVolume(), volumeScale),
 		QuoteVolume: point.GetQuoteVolume(),
+		IsClosed:    point.GetIsClosed(),
 		SymbolID:    symbolID,
 		Timeframe:   timeframe,
 	}

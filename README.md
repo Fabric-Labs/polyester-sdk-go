@@ -1957,7 +1957,11 @@ decimal correlation ID of related legs, empty when there is none.
 `GetCandles` returns rows newest-first, with the market and timeframe the
 response names in `SymbolID` and `Timeframe`, also for an empty series. With incomplete candles enabled, the
 open candle is prepended; `GetCurrentCandle` therefore returns the first row, or
-`nil` when no candle rows exist.
+`nil` when no candle rows exist. `Candle.IsClosed` tells the open candle from a
+finished one: it is false only while the bucket is still open, and true for
+every closed row and for the terminal `SubscribeCandles` update of a bucket.
+`GetCandlesColumns` rows leave it false, as the columnar response carries no
+closed flag; read candles with `GetCandles` when you need it.
 
 Merged market overview stream (snapshot + live updates). With `Symbols` set,
 only those markets are emitted, from the snapshot and from live updates:
