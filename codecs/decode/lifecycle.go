@@ -220,11 +220,11 @@ func flowProgress(msg *lifecyclev1.FlowSummaryProgressView) *models.LifecycleFlo
 	}
 }
 
-func flowTimeline(items []*lifecyclev1.FlowTimelineItemView) []models.LifecycleFlowTimelineItem {
+func flowTimeline(items []*lifecyclev1.FlowTimelineItemView) *models.LifecycleFlowTimeline {
 	if len(items) == 0 {
 		return nil
 	}
-	out := make([]models.LifecycleFlowTimelineItem, 0, len(items))
+	out := make(models.LifecycleFlowTimeline, 0, len(items))
 	for _, item := range items {
 		out = append(out, models.LifecycleFlowTimelineItem{
 			Sequence:           item.GetSequence(),
@@ -233,7 +233,7 @@ func flowTimeline(items []*lifecyclev1.FlowTimelineItemView) []models.LifecycleF
 			ExpectedDurationMs: item.GetExpectedDurationMs(),
 		})
 	}
-	return out
+	return &out
 }
 
 func flowSummary(msg *lifecyclev1.FlowSummaryView) models.LifecycleFlowSummary {

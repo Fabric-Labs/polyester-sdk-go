@@ -903,11 +903,15 @@ type LifecycleFlowSummary struct {
 	// LastActivityAt is the time lists order flows by; nil when the server
 	// sends none.
 	LastActivityAt *time.Time `json:"last_activity_at,omitempty"`
-	// EstimatedCompletionAt is when the flow is expected to complete. It is
-	// nil while IsDelayed is true, because no reliable estimate exists then,
-	// and when the server sends none. The contract defines no estimate for a
-	// terminal flow, which the server may still send: read TerminalAt for
-	// when it ended. Transaction lookups do not carry it.
+	// EstimatedCompletionAt is when the flow is expected to complete; nil when
+	// the server sends none, as transaction lookups do.
+	//
+	// The contract sends no estimate (nil here) while IsDelayed is true,
+	// because no reliable one exists then.
+	//
+	// The contract does not say what a terminal flow carries here. Devnet
+	// sends the flow's terminal time, the same as TerminalAt, but do not rely
+	// on that: read TerminalAt for when a flow ended.
 	EstimatedCompletionAt *time.Time `json:"estimated_completion_at,omitempty"`
 	// CurrentStepSequence is the one-based position of LatestStep in
 	// ProgressTimeline; 0 when the server sends none.
@@ -919,8 +923,14 @@ type LifecycleFlowSummary struct {
 	// ProgressTimeline is the flow's expected steps in order, for a progress
 	// bar. Its current step may be derived ahead of the latest step actually
 	// observed. Nil when the server sends none, as transaction lookups do.
-	ProgressTimeline []LifecycleFlowTimelineItem `json:"progress_timeline,omitempty"`
+	// It is a pointer so that LifecycleFlowSummary stays comparable (== and
+	// map keys); like ZipperReason, == compares the pointer, not the steps.
+	ProgressTimeline *LifecycleFlowTimeline `json:"progress_timeline,omitempty"`
 }
+
+// LifecycleFlowTimeline is a lifecycle flow's progress timeline, its expected
+// steps in order.
+type LifecycleFlowTimeline []LifecycleFlowTimelineItem
 
 // LifecycleRequestFee is the fee a lifecycle flow's request pays, apart from
 // the flow's gross Amount.

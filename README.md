@@ -2534,7 +2534,8 @@ flow, with `TxOccurrenceIndex` telling apart the legs of one batched deposit,
 and `LatestTxRef` an opaque reference to the latest one. `SourceDomain` and
 `DestinationDomain` name the route (`funding` to `external_chain` for a Funding
 withdrawal). `StartedAt`, `UpdatedAt`, `LastActivityAt`, `TerminalAt` (nil
-while open) and `EstimatedCompletionAt` (nil while `IsDelayed`) are UTC times.
+while open) and `EstimatedCompletionAt` (nil while `IsDelayed`; read
+`TerminalAt`, not it, for when a flow ended) are UTC times.
 `ProgressTimeline`, `CurrentStepSequence` and `CurrentProgress` drive a
 progress bar. A transaction lookup carries the amount, asset, transactions,
 route and `LastActivityAt`, but no fee, progress or other times.

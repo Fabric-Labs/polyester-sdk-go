@@ -1,6 +1,7 @@
 package decode_test
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -141,12 +142,12 @@ func checkOpenWithdraw(t *testing.T, flow models.LifecycleFlowSummary) {
 		{Sequence: 2, Step: "validation", Status: "current"},
 		{Sequence: 3, Step: "execution", Status: "planned", ExpectedDurationMs: 2000},
 	}
-	if len(flow.ProgressTimeline) != len(want) {
+	if flow.ProgressTimeline == nil || len(*flow.ProgressTimeline) != len(want) {
 		t.Fatalf("ProgressTimeline = %+v", flow.ProgressTimeline)
 	}
-	for i := range want {
-		if flow.ProgressTimeline[i] != want[i] {
-			t.Errorf("ProgressTimeline[%d] = %+v, want %+v", i, flow.ProgressTimeline[i], want[i])
+	for i, got := range *flow.ProgressTimeline {
+		if got != want[i] {
+			t.Errorf("ProgressTimeline[%d] = %+v, want %+v", i, got, want[i])
 		}
 	}
 }
@@ -231,7 +232,7 @@ func TestFlowEnumsNewerThanTheSDKKeepTheirNumber(t *testing.T) {
 		RequestFee:       &lifecyclev1.RequestFee{Status: lifecyclev1.RequestFeeStatus(9)},
 		ProgressTimeline: []*lifecyclev1.FlowTimelineItemView{{Sequence: 1, Status: lifecyclev1.FlowTimelineStatus(7)}},
 	})
-	if flow.SourceDomain != "unknown_domain_42" || flow.RequestFee.Status != "unknown_fee_status_9" || flow.ProgressTimeline[0].Status != "unknown_timeline_status_7" {
+	if flow.SourceDomain != "unknown_domain_42" || flow.RequestFee.Status != "unknown_fee_status_9" || (*flow.ProgressTimeline)[0].Status != "unknown_timeline_status_7" {
 		t.Fatalf("flow = %+v, fee %+v, timeline %+v", flow, flow.RequestFee, flow.ProgressTimeline)
 	}
 }
@@ -263,5 +264,18 @@ func TestFlowsByTxKeepAmountTransactionsAndActivity(t *testing.T) {
 	checkTime(t, "LastActivityAt", flow.LastActivityAt, 1795113314313)
 	if flow.StartedAt != nil || flow.RequestFee != nil || flow.CurrentProgress != nil || flow.ProgressTimeline != nil {
 		t.Errorf("a transaction match set fields it does not carry: %+v", flow)
+	}
+}
+
+// A flow summary stays comparable, as it was before it carried its timeline:
+// callers compare flows with == and key maps by them.
+func TestFlowSummaryStaysComparable(t *testing.T) {
+	flow := decode.FlowSummaryMessageFromProto(openWithdrawView(t))
+	if !reflect.TypeFor[models.LifecycleFlowSummary]().Comparable() {
+		t.Fatal("models.LifecycleFlowSummary is not comparable")
+	}
+	seen := map[models.LifecycleFlowSummary]bool{flow: true}
+	if !seen[flow] || flow == (models.LifecycleFlowSummary{}) {
+		t.Fatalf("comparison: seen=%v flow=%+v", seen[flow], flow)
 	}
 }
