@@ -6,7 +6,6 @@ import (
 	"fmt"
 	alertsv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/alerts/v1"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
@@ -33,25 +32,37 @@ var routeNotFoundMessages = map[string]struct{}{
 
 const emptyErrorMessage = "request failed without server error details"
 
-// AnswerStatusHeader carries a failed answer's real HTTP status into the
-// metadata of the ConnectRPC error connect-go decodes from it. The transport
-// sets it on every failed answer; it never leaves the client.
-const AnswerStatusHeader = "Polyester-Sdk-Answer-Status"
+// AnswerError is a ConnectRPC call's error together with what the transport
+// recorded, in process, of the answer behind it: its HTTP status and the
+// code its ConnectRPC error body named on the wire (connect-go infers one
+// from the status when the body names none). Nothing an answer sends, no
+// header or trailer, supplies either; MapConnectError reads them from here
+// only.
+type AnswerError struct {
+	Err      error
+	Status   int
+	WireCode string
+}
 
-// AnswerWireCodeHeader carries the code a failed answer's ConnectRPC error
-// body names on the wire into the metadata of the error connect-go decodes
-// from it: connect-go infers a code from the HTTP status when the body names
-// none. The transport removes it from every failed answer and sets it only
-// from a JSON body it parsed; it never leaves the client.
-const AnswerWireCodeHeader = "Polyester-Sdk-Answer-Wire-Code"
+func (e *AnswerError) Error() string { return e.Err.Error() }
+func (e *AnswerError) Unwrap() error { return e.Err }
+
+// answerOf returns the transport's record of the answer behind err, or nil.
+func answerOf(err error) *AnswerError {
+	var answer *AnswerError
+	if errors.As(err, &answer) {
+		return answer
+	}
+	return nil
+}
 
 // typedRefusalSource is the CodeSource of an unavailable refusal whose code
 // detail carries: the detail's full name when the answer's body named the
 // wire code unavailable and carries exactly one detail of detail's type, and
 // empty otherwise. A code connect-go inferred from the status, or details
 // that may disagree, prove nothing.
-func typedRefusalSource(connectErr *connect.Error, detail proto.Message) string {
-	if connectErr.Meta().Get(AnswerWireCodeHeader) != connect.CodeUnavailable.String() {
+func typedRefusalSource(answer *AnswerError, connectErr *connect.Error, detail proto.Message) string {
+	if answer == nil || answer.WireCode != connect.CodeUnavailable.String() {
 		return ""
 	}
 	name := string(detail.ProtoReflect().Descriptor().FullName())
@@ -140,10 +151,14 @@ func MapConnectError(err error) error {
 	// REST answer's was captured by the transport, and an error with no
 	// answer behind it, such as a refused connection, has no headers.
 	var connectErr *connect.Error
-	if errors.As(err, &connectErr) && len(connectErr.Meta()) > 0 {
-		// The status is the answer's own, recorded by the transport; it is
-		// never inferred from the code.
-		status, _ := strconv.Atoi(connectErr.Meta().Get(AnswerStatusHeader))
+	if errors.As(err, &connectErr) {
+		// The status is the answer's own, recorded by the transport in
+		// process; it is never inferred from the code or read from what the
+		// answer sent.
+		status := 0
+		if answer := answerOf(err); answer != nil {
+			status = answer.Status
+		}
 		sdkerrors.AttachAnswer(mapped, status, retryAfterSeconds(connectErr))
 	}
 	redactChain(mapped)
@@ -154,6 +169,7 @@ func mapConnectError(err error) error {
 	if err == nil {
 		return nil
 	}
+	answer := answerOf(err)
 	// An SDK error mapped from an answer is kept as it is, with the answer's
 	// metadata, never rebuilt.
 	var mappedTransport *sdkerrors.TransportError
@@ -230,6 +246,12 @@ func mapConnectError(err error) error {
 	msg := redact.Message(connectErr.Message(), connectErr)
 	if strings.TrimSpace(msg) == "" {
 		msg = emptyErrorMessage
+	}
+	// A null detail is a malformed answer, never one to read further.
+	for _, detail := range connectErr.Details() {
+		if detail == nil {
+			return &sdkerrors.ResponseContractError{Msg: "a ConnectRPC error with a null detail"}
+		}
 	}
 	// Business outcomes take precedence over standalone backoff details.
 	var outcome *orderv1.ErrorDetail
@@ -384,7 +406,7 @@ func mapConnectError(err error) error {
 				return rateLimitError(msg, code, nil, headerRetry)
 			}
 			if connectErr.Code() == connect.CodeUnavailable {
-				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: typedRefusalSource(connectErr, withdrawDetail)}
+				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: typedRefusalSource(answer, connectErr, withdrawDetail)}
 			}
 			if isAuthLikeErrorCode(code) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
@@ -406,7 +428,7 @@ func mapConnectError(err error) error {
 				// No current price to record: nothing was created or changed.
 				return &sdkerrors.ServerError{Msg: msg, Code: code, AdmissionRefused: true}
 			case alertsv1.ErrorCode_SERVICE_UNAVAILABLE:
-				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: typedRefusalSource(connectErr, alertDetail)}
+				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: typedRefusalSource(answer, connectErr, alertDetail)}
 			case alertsv1.ErrorCode_SUBACCOUNT_KEY_REFUSED:
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
 			}
@@ -415,7 +437,7 @@ func mapConnectError(err error) error {
 		if ledgerDetail, ok := value.(*ledgerrdv1.ErrorDetail); ok {
 			code := ledgerDetail.GetCode().String()
 			if connectErr.Code() == connect.CodeUnavailable {
-				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: typedRefusalSource(connectErr, ledgerDetail)}
+				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: typedRefusalSource(answer, connectErr, ledgerDetail)}
 			}
 			if isAuthLikeErrorCode(code) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
@@ -428,7 +450,7 @@ func mapConnectError(err error) error {
 				return rateLimitError(msg, code, nil, headerRetry)
 			}
 			if connectErr.Code() == connect.CodeUnavailable {
-				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: typedRefusalSource(connectErr, transferDetail)}
+				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: typedRefusalSource(answer, connectErr, transferDetail)}
 			}
 			if isAuthLikeErrorCode(code) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}

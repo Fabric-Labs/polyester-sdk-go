@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strconv"
 	"sync"
 
 	"connectrpc.com/connect"
@@ -19,9 +18,10 @@ import (
 // timeout, without the answer's headers; answerInterceptor gives that error
 // the recorded ones.
 type answerRecord struct {
-	mu     sync.Mutex
-	status int
-	header http.Header
+	mu       sync.Mutex
+	status   int
+	wireCode string
+	header   http.Header
 }
 
 type answerRecordKey struct{}
@@ -40,7 +40,7 @@ func (r *answerRecord) clear() {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.status, r.header = 0, nil
+	r.status, r.wireCode, r.header = 0, "", nil
 }
 
 // set records a failed answer's status and the headers that name its delay.
@@ -56,31 +56,42 @@ func (r *answerRecord) set(resp *http.Response) {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.status, r.header = resp.StatusCode, header
+	r.status, r.wireCode, r.header = resp.StatusCode, "", header
 }
 
-// attach gives err the recorded answer's status and delay headers where it
-// lacks them, so wire.MapConnectError reads them whatever error it maps to.
-func (r *answerRecord) attach(err error) {
-	var connectErr *connect.Error
-	if r == nil || !errors.As(err, &connectErr) {
+// setWireCode records the code the answer's ConnectRPC error body named, as
+// the transport parsed it; empty when the body named none.
+func (r *answerRecord) setWireCode(code string) {
+	if r == nil {
 		return
 	}
 	r.mu.Lock()
-	status, header := r.status, r.header
+	defer r.mu.Unlock()
+	r.wireCode = code
+}
+
+// attach gives err the recorded answer: its delay headers where the error
+// lacks them, and its status and wire code in a *wire.AnswerError wrapping
+// err, so wire.MapConnectError reads them whatever error it maps to and
+// never from what the answer sent.
+func (r *answerRecord) attach(err error) error {
+	var connectErr *connect.Error
+	if r == nil || !errors.As(err, &connectErr) {
+		return err
+	}
+	r.mu.Lock()
+	status, wireCode, header := r.status, r.wireCode, r.header
 	r.mu.Unlock()
 	if status == 0 {
-		return
+		return err
 	}
 	meta := connectErr.Meta()
-	if meta.Get(wire.AnswerStatusHeader) == "" {
-		meta.Set(wire.AnswerStatusHeader, strconv.Itoa(status))
-	}
 	if meta.Get("Retry-After") == "" && meta.Get("Retry-After-Ms") == "" {
 		for name, values := range header {
 			meta[name] = values
 		}
 	}
+	return &wire.AnswerError{Err: err, Status: status, WireCode: wireCode}
 }
 
 // answerInterceptor gives every call a record of its answer, which the
@@ -94,7 +105,7 @@ func (answerInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 		record := &answerRecord{}
 		resp, err := next(context.WithValue(ctx, answerRecordKey{}, record), req)
 		if err != nil {
-			record.attach(err)
+			err = record.attach(err)
 		}
 		return resp, err
 	}

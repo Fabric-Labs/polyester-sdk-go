@@ -14,7 +14,6 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
-	"github.com/Fabric-Labs/polyester-sdk-go/wire"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -259,10 +258,63 @@ func TestInternalTransferBatchRefusalNeedsTheWireCodeAndOneTransferDetail(t *tes
 			t.Errorf("%s: status %d", name, got)
 		}
 	}
-	// The answer cannot name its own wire code through the SDK's header.
-	err := batchAgainstDetail(t, http.StatusServiceUnavailable, "application/json", `{"message":"try again","details":[`+service+`]}`,
-		map[string]string{wire.AnswerWireCodeHeader: "unavailable"})
-	if !sdkerrors.MutationOutcomeUnknown(err) || sdkerrors.IsRetryable(err) {
-		t.Fatalf("spoofed wire code: %T %v, want an unknown outcome that is not retried", err, err)
+	// What an answer sends, as a header or as ConnectRPC trailer metadata,
+	// never names its wire code or its status: the transport records both in
+	// process.
+	noCode := `{"message":"try again","details":[` + service + `]}`
+	withCode := `{"code":"unavailable","message":"try again","details":[` + service + `]}`
+	for name, tc := range map[string]struct {
+		status  int
+		body    string
+		headers map[string]string
+	}{
+		"wire code header":  {http.StatusServiceUnavailable, noCode, map[string]string{"Polyester-Sdk-Answer-Wire-Code": "unavailable"}},
+		"wire code trailer": {http.StatusServiceUnavailable, noCode, map[string]string{"Trailer-Polyester-Sdk-Answer-Wire-Code": "unavailable"}},
+		"status header":     {http.StatusBadGateway, withCode, map[string]string{"Polyester-Sdk-Answer-Status": "503"}},
+		"status trailer":    {http.StatusBadGateway, withCode, map[string]string{"Trailer-Polyester-Sdk-Answer-Status": "503"}},
+		"both trailers":     {http.StatusBadGateway, noCode, map[string]string{"Trailer-Polyester-Sdk-Answer-Status": "503", "Trailer-Polyester-Sdk-Answer-Wire-Code": "unavailable"}},
+	} {
+		err := batchAgainstDetail(t, tc.status, "application/json", tc.body, tc.headers)
+		if !sdkerrors.MutationOutcomeUnknown(err) || sdkerrors.IsRetryable(err) {
+			t.Errorf("forged %s: %T %v, want an unknown outcome that is not retried", name, err, err)
+		}
+		if got := sdkerrors.AnswerStatus(err); got != tc.status {
+			t.Errorf("forged %s: status %d, want %d", name, got, tc.status)
+		}
 	}
+}
+
+// A null detail is a malformed answer: a ResponseContractError that keeps
+// the answer's status, never a panic and never a refusal.
+func TestInternalTransferBatchNullDetailIsAContractError(t *testing.T) {
+	for _, body := range []string{
+		`{"code":"unavailable","message":"try again","details":[null]}`,
+		`{"code":"unavailable","message":"try again","details":[` + transferDetailBodyItem(t) + `,null]}`,
+	} {
+		var err error
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Fatalf("%s: panic %v", body, r)
+				}
+			}()
+			err = batchAgainst(t, http.StatusServiceUnavailable, "application/json", body)
+		}()
+		var contract *sdkerrors.ResponseContractError
+		if !errors.As(err, &contract) || sdkerrors.IsRetryable(err) {
+			t.Fatalf("%s: %T %v, want a ResponseContractError", body, err, err)
+		}
+		if got := sdkerrors.AnswerStatus(err); got != http.StatusServiceUnavailable {
+			t.Fatalf("%s: status %d", body, got)
+		}
+	}
+}
+
+func transferDetailBodyItem(t *testing.T) string {
+	t.Helper()
+	data, err := proto.Marshal(&transferv1.ErrorDetail{Code: transferv1.ErrorCode_ERROR_CODE_SERVICE_UNAVAILABLE})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return `{"type":"transfer.v1.ErrorDetail","value":"` + base64.RawStdEncoding.EncodeToString(data) + `"}`
 }
