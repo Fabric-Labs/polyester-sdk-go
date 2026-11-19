@@ -10,6 +10,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	alertsv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/alerts/v1"
+	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	transferv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
@@ -229,4 +230,69 @@ func transferDetailBodyItem(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return `{"type":"transfer.v1.ErrorDetail","value":"` + base64.RawStdEncoding.EncodeToString(data) + `"}`
+}
+
+// Every 5xx answer to a batch is an unknown outcome that is not retried,
+// whatever error class it maps to: a rate refusal, a retryable code or an
+// admission-looking code included. Each keeps its status, its Retry-After and
+// its code as mapped: the outcome no longer depends on the code.
+func TestInternalTransferBatchEvery5xxIsUnknownAndKeepsItsCode(t *testing.T) {
+	orderDetail := func(code orderv1.ErrorCode) string {
+		return connectUnavailableBody(t, "orders.v1.ErrorDetail", &orderv1.ErrorDetail{Code: code})
+	}
+	for _, tc := range []struct {
+		name         string
+		status       int
+		contentTypes []string
+		body         string
+		code         string
+	}{
+		{"500 REST RATE_LIMIT_EXCEEDED", 500, []string{"application/problem+json"}, `{"code":"RATE_LIMIT_EXCEEDED","detail":"slow down"}`, "ERROR_CODE_RATE_LIMIT_EXCEEDED"},
+		{"500 resource_exhausted", 500, []string{"application/json"}, `{"code":"resource_exhausted","message":"slow down"}`, ""},
+		{"500 DUST_BUSY", 500, []string{"application/json"}, `{"code":"resource_exhausted","message":"ERROR_CODE_DUST_BUSY"}`, "ERROR_CODE_DUST_BUSY"},
+		{"500 typed transfer RATE_LIMIT_EXCEEDED", 500, []string{"application/json"}, transferDetailBody(t, transferv1.ErrorCode_ERROR_CODE_RATE_LIMIT_EXCEEDED), "ERROR_CODE_RATE_LIMIT_EXCEEDED"},
+		{"501 REST RATE_LIMIT_EXCEEDED", 501, []string{"application/problem+json"}, `{"code":"RATE_LIMIT_EXCEEDED","detail":"slow down"}`, "ERROR_CODE_RATE_LIMIT_EXCEEDED"},
+		{"505 resource_exhausted", 505, []string{"application/json"}, `{"code":"resource_exhausted","message":"slow down"}`, ""},
+		{"503 problem POLICY_UNAVAILABLE", 503, []string{"application/problem+json"}, `{"code":"POLICY_UNAVAILABLE","detail":"try again"}`, "POLICY_UNAVAILABLE"},
+		{"503 typed orders POLICY_UNAVAILABLE", 503, []string{"application/json"}, orderDetail(orderv1.ErrorCode_ERROR_CODE_POLICY_UNAVAILABLE), "ERROR_CODE_POLICY_UNAVAILABLE"},
+		{"503 typed orders PAIR_BACKLOGGED", 503, []string{"application/json"}, orderDetail(orderv1.ErrorCode_ERROR_CODE_PAIR_BACKLOGGED), "ERROR_CODE_PAIR_BACKLOGGED"},
+	} {
+		err := batchAnswer(t, tc.status, tc.contentTypes, tc.body, nil)
+		if err == nil || !sdkerrors.MutationOutcomeUnknown(err) || sdkerrors.IsRetryable(err) {
+			t.Errorf("%s: %T %v: unknown=%v retryable=%v, want an unknown outcome that is not retried", tc.name, err, err, sdkerrors.MutationOutcomeUnknown(err), sdkerrors.IsRetryable(err))
+			continue
+		}
+		var server *sdkerrors.ServerError
+		if !errors.As(err, &server) || server.AdmissionRefused {
+			t.Errorf("%s: %T %+v, want a ServerError not refused before admission", tc.name, err, err)
+			continue
+		}
+		if tc.code != "" && server.Code != tc.code {
+			t.Errorf("%s: code %q, want %q kept", tc.name, server.Code, tc.code)
+		}
+		if got := sdkerrors.AnswerStatus(err); got != tc.status {
+			t.Errorf("%s: status %d, want %d", tc.name, got, tc.status)
+		}
+		if delay := sdkerrors.RetryAfter(err); delay == nil || *delay != 3 {
+			t.Errorf("%s: retry after %v, want 3", tc.name, delay)
+		}
+	}
+}
+
+// Only a genuine HTTP 429 RATE_LIMIT_EXCEEDED is a definite throttle: a rate
+// refusal, retryable, that without a Retry-After calls for smaller batches.
+// The same code on a 5xx answer is an unknown outcome, to be resolved under
+// the original key and legs, never by splitting under fresh keys.
+func TestInternalTransferBatchOnlyA429IsADefiniteThrottle(t *testing.T) {
+	body := `{"code":"RATE_LIMIT_EXCEEDED","detail":"slow down"}`
+	noDelay := map[string]string{"Retry-After": ""}
+	err := batchAnswer(t, http.StatusTooManyRequests, []string{"application/problem+json"}, body, noDelay)
+	var rate *sdkerrors.RateLimitError
+	if !errors.As(err, &rate) || !sdkerrors.IsRetryable(err) || sdkerrors.MutationOutcomeUnknown(err) || sdkerrors.RetryAfter(err) != nil {
+		t.Fatalf("429: %T %v, want a definite rate refusal without a delay", err, err)
+	}
+	err = batchAnswer(t, http.StatusInternalServerError, []string{"application/problem+json"}, body, noDelay)
+	if errors.As(err, &rate) || sdkerrors.IsRetryable(err) || !sdkerrors.MutationOutcomeUnknown(err) {
+		t.Fatalf("500: %T %v, want an unknown outcome, no rate refusal", err, err)
+	}
 }

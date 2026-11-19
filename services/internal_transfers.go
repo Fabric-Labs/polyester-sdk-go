@@ -4,7 +4,6 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
-	"net/http"
 	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
@@ -90,17 +89,21 @@ func (s *InternalTransfersService) Create(ctx context.Context, assetID uint32, q
 // it. Different legs under the key are refused with
 // ERROR_CODE_IDEMPOTENCY_CONFLICT. A batch counts once against the
 // internal-transfer rate limit, with a weight of max(ceil(legs/50), source
-// accounts); a RATE_LIMIT_EXCEEDED refusal without a Retry-After means the
-// batch outweighs the account's burst: split it instead of retrying. A reply
+// accounts). Only a genuine HTTP 429 RATE_LIMIT_EXCEEDED refusal (an
+// *errors.RateLimitError answered 429) is a definite throttle: without a
+// Retry-After it means the batch outweighs the account's burst, so split it
+// into smaller batches under new keys instead of retrying it. The same code
+// on a 5xx answer is an unknown outcome: keep the original key and legs. A reply
 // that breaks the contract returns a *errors.ResponseContractError; the batch
 // may have run, so read it back or retry it with the same key and legs.
 //
 // "refused" is final for its key even once the cause is gone: the same legs
-// under it answer the same refusal. Any HTTP 502 or 503 answer, whatever it
-// names (ERROR_CODE_SERVICE_UNAVAILABLE and ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE
-// included), is an *errors.ServerError with an unknown outcome that
-// errors.IsRetryable does not report: no answer proves that nothing was
-// recorded under the key. It keeps the answer's status, Retry-After and code.
+// under it answer the same refusal. Any HTTP 5xx answer, whatever it names
+// (ERROR_CODE_SERVICE_UNAVAILABLE, ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE and
+// RATE_LIMIT_EXCEEDED included), is an *errors.ServerError with an unknown
+// outcome (OutcomeUnknown) that errors.IsRetryable does not report: no answer
+// proves that nothing was recorded under the key. It keeps the answer's
+// status, Retry-After and code.
 // The safe next step is the same key and the same legs: read the batch with
 // GetBatch, or send it again with the key and legs, after its Retry-After
 // when present. Under one key the batch runs at most once.
@@ -130,26 +133,25 @@ func (s *InternalTransfersService) CreateBatch(ctx context.Context, legs []model
 }
 
 // batchAnswerCertainty decides a failed batch's outcome certainty from its
-// HTTP status, whatever error class the answer maps to: a 502 or 503 never
-// proves that nothing was recorded, so it is an unknown outcome, a rate
-// refusal or a retryable code included. Read the batch back (GetBatch) or
-// send it again with the same key and legs. Its status, Retry-After, code and
-// message are kept for diagnosis. Any other status, a 429 rate refusal
-// included, is left as it maps.
+// HTTP status, whatever error class the answer maps to and whatever code it
+// names: a 5xx never proves that nothing was recorded, so it is an unknown
+// outcome, a rate refusal or a retryable code included. Read the batch back
+// (GetBatch) or send it again with the same key and legs. Its status,
+// Retry-After, code and message are kept as mapped. Any other status, a
+// genuine 429 rate refusal included, is left as it maps.
 func batchAnswerCertainty(err error) error {
 	status := errors.AnswerStatus(err)
-	if err == nil || (status != http.StatusBadGateway && status != http.StatusServiceUnavailable) {
+	if err == nil || status < 500 || status > 599 {
 		return err
 	}
+	// Already an unknown outcome that is not retried, such as a reply that
+	// breaks the contract: kept as it is.
 	if errors.MutationOutcomeUnknown(err) && !errors.IsRetryable(err) {
 		return err
 	}
-	unknown := &errors.ServerError{Msg: err.Error(), Code: answerCode(err), Status: status, RetryAfter: errors.RetryAfter(err)}
-	if !errors.MutationOutcomeUnknown(unknown) {
-		// A code that reads as an admission refusal stays in the message.
-		unknown.Code = ""
+	return &errors.ServerError{
+		Msg: err.Error(), Code: answerCode(err), Status: status, RetryAfter: errors.RetryAfter(err), OutcomeUnknown: true,
 	}
-	return unknown
 }
 
 // answerCode is the service code a mapped error carries, for diagnosis.

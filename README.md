@@ -1879,16 +1879,19 @@ the request (every leg `processing` with its `TransferID`): read it with
 `InternalTransfers.GetBatch(ctx, result.RequestID)`, or call `CreateBatch`
 again with the same key and the same legs in the same order, until it is
 final. `refused` is final for its key, even once its cause is gone: fix the
-cause and submit under a new key. A 502 or 503 answer, whatever it names
-(`ERROR_CODE_SERVICE_UNAVAILABLE` and `ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE`
-included), is an `*errors.ServerError` with an unknown outcome
+cause and submit under a new key. A 5xx answer, whatever it names
+(`ERROR_CODE_SERVICE_UNAVAILABLE`, `ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE` and
+`RATE_LIMIT_EXCEEDED` included), is an `*errors.ServerError` with an unknown outcome
 (`errors.MutationOutcomeUnknown(err)`, not `errors.IsRetryable(err)`), with
 the answer's status, Retry-After and code: the batch may or may not be
 recorded under its key. The safe path is the same key and the same legs:
 read the batch with `GetBatch`, or send it again with that key and those
 legs, after its Retry-After when present. Under one key the batch runs at
 most once; never resubmit it under a new key until it is known to have
-failed. Different legs under a used key are refused with
+failed. Split a batch into smaller ones under new keys only after a genuine
+HTTP 429 `RATE_LIMIT_EXCEEDED` without a Retry-After (an
+`*errors.RateLimitError`), a definite throttle: the batch outweighs the
+account's burst. Different legs under a used key are refused with
 `ERROR_CODE_IDEMPOTENCY_CONFLICT`.
 Each leg's `Destination` is the destination the server resolved for it.
 

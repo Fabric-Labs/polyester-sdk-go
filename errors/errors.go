@@ -564,9 +564,13 @@ type ServerError struct {
 	// an orders-service admission refusal, or a price alert refused for want
 	// of a current price.
 	AdmissionRefused bool
-	Msg              string
-	Code             string // Service code, or an unrecognised code kept for diagnosis.
-	Status           int    // HTTP status corresponding to the failure, when known.
+	// OutcomeUnknown is true when the call's outcome is unknown whatever
+	// Code says, as for every 5xx answer to InternalTransfers.CreateBatch:
+	// MutationOutcomeUnknown reports it and IsRetryable does not.
+	OutcomeUnknown bool
+	Msg            string
+	Code           string // Service code, or an unrecognised code kept for diagnosis.
+	Status         int    // HTTP status corresponding to the failure, when known.
 	// RetryAfter is the delay in seconds the answer asked for with
 	// Retry-After (or Retry-After-Ms); nil when it named none. See
 	// errors.RetryAfter.
@@ -908,7 +912,7 @@ func MutationOutcomeUnknown(err error) bool {
 	serverUnknown := errors.As(err, &serverErr)
 	// A ConnectRPC admission refusal reads from its code (AdmissionRefused);
 	// a REST problem proves one only at 503.
-	if serverUnknown && (serverErr.AdmissionRefused || (serverErr.Status == 503 && isKnownAdmissionRefusal(serverErr.Code))) {
+	if serverUnknown && !serverErr.OutcomeUnknown && (serverErr.AdmissionRefused || (serverErr.Status == 503 && isKnownAdmissionRefusal(serverErr.Code))) {
 		serverUnknown = false
 	}
 	return errors.As(err, &transportErr) || serverUnknown ||
