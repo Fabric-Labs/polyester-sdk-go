@@ -39,9 +39,15 @@ const emptyErrorMessage = "request failed without server error details"
 // header or trailer, supplies either; MapConnectError reads them from here
 // only.
 type AnswerError struct {
-	Err      error
-	Status   int
+	Err    error
+	Status int
+	// WireCode is the code the body named, empty when it named none or
+	// named one more than once.
 	WireCode string
+	// DetailEntries is the number of entries of the body's details member
+	// as sent, decodable or not; -1 when the body named that member more
+	// than once.
+	DetailEntries int
 }
 
 func (e *AnswerError) Error() string { return e.Err.Error() }
@@ -58,11 +64,12 @@ func answerOf(err error) *AnswerError {
 
 // typedRefusalSource is the CodeSource of an unavailable refusal whose code
 // detail carries: the detail's full name when the answer's body named the
-// wire code unavailable and carries exactly one detail of detail's type, and
-// empty otherwise. A code connect-go inferred from the status, or details
-// that may disagree, prove nothing.
+// wire code unavailable once and its details member, as sent, holds exactly
+// one entry, a detail of detail's type; empty otherwise. A code connect-go
+// inferred from the status, a repeated code, or details that may disagree or
+// that connect-go dropped, prove nothing.
 func typedRefusalSource(answer *AnswerError, connectErr *connect.Error, detail proto.Message) string {
-	if answer == nil || answer.WireCode != connect.CodeUnavailable.String() {
+	if answer == nil || answer.WireCode != connect.CodeUnavailable.String() || answer.DetailEntries != 1 {
 		return ""
 	}
 	name := string(detail.ProtoReflect().Descriptor().FullName())
