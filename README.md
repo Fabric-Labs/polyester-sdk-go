@@ -2526,6 +2526,20 @@ for flow, err := range client.Lifecycle.AccountFlows(ctx, services.ListAccountFl
 A page token is bound to the request it was returned for: continue with the
 same account, participation, scope and order; only `Limit` may change.
 
+Every flow read and flow update carries what moved and when. `Amount` is the
+gross principal, exact at the 18-decimal ledger scale in units of
+`UnifiedAssetID` (`Amount.Scaled()`, never a float), and `RequestFee` the
+request's fee apart from it. `SourceTxHash` is the transaction that started the
+flow, with `TxOccurrenceIndex` telling apart the legs of one batched deposit,
+and `LatestTxRef` an opaque reference to the latest one. `SourceDomain` and
+`DestinationDomain` name the route (`funding` to `external_chain` for a Funding
+withdrawal). `StartedAt`, `UpdatedAt`, `LastActivityAt`, `TerminalAt` (nil
+while open) and `EstimatedCompletionAt` (nil while `IsDelayed`; read
+`TerminalAt`, not it, for when a flow ended) are UTC times.
+`ProgressTimeline`, `CurrentStepSequence` and `CurrentProgress` drive a
+progress bar. A transaction lookup carries the amount, asset, transactions,
+route and `LastActivityAt`, but no fee, progress or other times.
+
 A deposit whose `LifecycleReason` is `zipper_deposit_delivered_to_wallet`
 completed at the account's own Polyester Chain wallet (its
 `SmartAccountAddress`) because its destination did not accept the credit, for

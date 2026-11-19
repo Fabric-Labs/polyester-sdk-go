@@ -1,6 +1,6 @@
 # Every field of the request and reply messages public contracts 1945423c
 # and 5c2119f added or changed, and of the messages nested in their new
-# replies. A guard test walks these messages and fails when a field is missing
+# replies, and of the lifecycle flow views. A guard test walks these messages and fails when a field is missing
 # here or listed but gone, so no field of them is dropped by accident.
 #
 # covered: the SDK parameter (request) or model field (reply) that carries it.
@@ -10,6 +10,70 @@
 auth.v1.AuthErrorDetail.code	covered	errors.APIError.Code
 auth.v1.AuthErrorDetail.message	covered	errors.APIError.Msg
 auth.v1.AuthErrorDetail.retry_after	covered	errors.APIError.RetryAt
+chain.lifecycle.v1.AssetIds.unified_asset_id	covered	models.LifecycleFlowSummary.UnifiedAssetID, models.LifecycleRequestFee.UnifiedAssetID
+chain.lifecycle.v1.AssetIds.zipped_asset_id	covered	models.LifecycleFlowSummary.ZippedAssetID, models.LifecycleRequestFee.ZippedAssetID
+chain.lifecycle.v1.FlowSummaryProgressView.approve_count	covered	models.LifecycleFlowProgress.ApproveCount
+chain.lifecycle.v1.FlowSummaryProgressView.current_confirmations	covered	models.LifecycleFlowProgress.CurrentConfirmations
+chain.lifecycle.v1.FlowSummaryProgressView.current_step_expected_duration_ms	covered	models.LifecycleFlowProgress.CurrentStepExpectedDurationMs
+chain.lifecycle.v1.FlowSummaryProgressView.current_step_started_at_unix_ms	covered	models.LifecycleFlowProgress.CurrentStepStartedAt
+chain.lifecycle.v1.FlowSummaryProgressView.reject_count	covered	models.LifecycleFlowProgress.RejectCount
+chain.lifecycle.v1.FlowSummaryProgressView.required_approvals	covered	models.LifecycleFlowProgress.RequiredApprovals
+chain.lifecycle.v1.FlowSummaryProgressView.required_confirmations	covered	models.LifecycleFlowProgress.RequiredConfirmations
+chain.lifecycle.v1.FlowSummaryProgressView.required_rejections	covered	models.LifecycleFlowProgress.RequiredRejections
+chain.lifecycle.v1.FlowSummaryProgressView.validator_count	covered	models.LifecycleFlowProgress.ValidatorCount
+chain.lifecycle.v1.FlowSummaryView.amount_e18	covered	models.LifecycleFlowSummary.Amount
+chain.lifecycle.v1.FlowSummaryView.asset_ids	covered	models.LifecycleFlowSummary.ZippedAssetID, UnifiedAssetID
+chain.lifecycle.v1.FlowSummaryView.current_progress	covered	models.LifecycleFlowSummary.CurrentProgress
+chain.lifecycle.v1.FlowSummaryView.current_step	covered	models.LifecycleFlowSummary.LatestStep
+chain.lifecycle.v1.FlowSummaryView.current_step_sequence	covered	models.LifecycleFlowSummary.CurrentStepSequence
+chain.lifecycle.v1.FlowSummaryView.destination_address	covered	models.LifecycleFlowSummary.DestinationAddress
+chain.lifecycle.v1.FlowSummaryView.destination_domain	covered	models.LifecycleFlowSummary.DestinationDomain
+chain.lifecycle.v1.FlowSummaryView.estimated_completion_unix_ms	covered	models.LifecycleFlowSummary.EstimatedCompletionAt
+chain.lifecycle.v1.FlowSummaryView.flow_id	covered	models.LifecycleFlowSummary.IntentID
+chain.lifecycle.v1.FlowSummaryView.flow_kind	covered	models.LifecycleFlowSummary.FlowKind
+chain.lifecycle.v1.FlowSummaryView.is_delayed	covered	models.LifecycleFlowSummary.IsDelayed
+chain.lifecycle.v1.FlowSummaryView.is_open	covered	models.LifecycleFlowSummary.IsOpen
+chain.lifecycle.v1.FlowSummaryView.is_terminal	covered	models.LifecycleFlowSummary.IsTerminal
+chain.lifecycle.v1.FlowSummaryView.last_activity_at_unix_ms	covered	models.LifecycleFlowSummary.LastActivityAt
+chain.lifecycle.v1.FlowSummaryView.latest_lifecycle_source	omitted	which internal service (relayer, Polyester Chain indexer, executor, ledger, lifecycle) observed the latest activity: server provenance, not flow state; LatestStep, the timeline and the times say where the flow is
+chain.lifecycle.v1.FlowSummaryView.latest_tx_ref	covered	models.LifecycleFlowSummary.LatestTxRef
+chain.lifecycle.v1.FlowSummaryView.lifecycle_reason	covered	models.LifecycleFlowSummary.LifecycleReason
+chain.lifecycle.v1.FlowSummaryView.participation	covered	models.LifecycleFlowSummary.Participation
+chain.lifecycle.v1.FlowSummaryView.polyester_chain_id	covered	models.LifecycleFlowSummary.PolyesterChainID
+chain.lifecycle.v1.FlowSummaryView.progress_timeline	covered	models.LifecycleFlowSummary.ProgressTimeline
+chain.lifecycle.v1.FlowSummaryView.request_fee	covered	models.LifecycleFlowSummary.RequestFee
+chain.lifecycle.v1.FlowSummaryView.smart_account_address	covered	models.LifecycleFlowSummary.SmartAccountAddress
+chain.lifecycle.v1.FlowSummaryView.source_address	covered	models.LifecycleFlowSummary.SourceAddress
+chain.lifecycle.v1.FlowSummaryView.source_domain	covered	models.LifecycleFlowSummary.SourceDomain
+chain.lifecycle.v1.FlowSummaryView.source_tx_hash	covered	models.LifecycleFlowSummary.SourceTxHash
+chain.lifecycle.v1.FlowSummaryView.started_at_unix_ms	covered	models.LifecycleFlowSummary.StartedAt
+chain.lifecycle.v1.FlowSummaryView.terminal_at_unix_ms	covered	models.LifecycleFlowSummary.TerminalAt
+chain.lifecycle.v1.FlowSummaryView.tx_occurrence_index	covered	models.LifecycleFlowSummary.TxOccurrenceIndex
+chain.lifecycle.v1.FlowSummaryView.updated_at_unix_ms	covered	models.LifecycleFlowSummary.UpdatedAt
+chain.lifecycle.v1.FlowSummaryView.zipper_reason	covered	models.LifecycleFlowSummary.ZipperReason
+chain.lifecycle.v1.FlowTimelineItemView.expected_duration_ms	covered	models.LifecycleFlowTimelineItem.ExpectedDurationMs
+chain.lifecycle.v1.FlowTimelineItemView.sequence	covered	models.LifecycleFlowTimelineItem.Sequence
+chain.lifecycle.v1.FlowTimelineItemView.status	covered	models.LifecycleFlowTimelineItem.Status
+chain.lifecycle.v1.FlowTimelineItemView.step	covered	models.LifecycleFlowTimelineItem.Step
+chain.lifecycle.v1.FlowTxMatchView.amount_e18	covered	models.LifecycleFlowSummary.Amount
+chain.lifecycle.v1.FlowTxMatchView.asset_ids	covered	models.LifecycleFlowSummary.ZippedAssetID, UnifiedAssetID
+chain.lifecycle.v1.FlowTxMatchView.current_step	covered	models.LifecycleFlowSummary.LatestStep
+chain.lifecycle.v1.FlowTxMatchView.destination_address	covered	models.LifecycleFlowSummary.DestinationAddress
+chain.lifecycle.v1.FlowTxMatchView.destination_domain	covered	models.LifecycleFlowSummary.DestinationDomain
+chain.lifecycle.v1.FlowTxMatchView.flow_id	covered	models.LifecycleFlowSummary.IntentID
+chain.lifecycle.v1.FlowTxMatchView.flow_kind	covered	models.LifecycleFlowSummary.FlowKind
+chain.lifecycle.v1.FlowTxMatchView.is_open	covered	models.LifecycleFlowSummary.IsOpen
+chain.lifecycle.v1.FlowTxMatchView.is_terminal	covered	models.LifecycleFlowSummary.IsTerminal
+chain.lifecycle.v1.FlowTxMatchView.last_activity_at_unix_ms	covered	models.LifecycleFlowSummary.LastActivityAt
+chain.lifecycle.v1.FlowTxMatchView.latest_tx_ref	covered	models.LifecycleFlowSummary.LatestTxRef
+chain.lifecycle.v1.FlowTxMatchView.lifecycle_reason	covered	models.LifecycleFlowSummary.LifecycleReason
+chain.lifecycle.v1.FlowTxMatchView.polyester_chain_id	covered	models.LifecycleFlowSummary.PolyesterChainID
+chain.lifecycle.v1.FlowTxMatchView.smart_account_address	covered	models.LifecycleFlowSummary.SmartAccountAddress
+chain.lifecycle.v1.FlowTxMatchView.source_address	covered	models.LifecycleFlowSummary.SourceAddress
+chain.lifecycle.v1.FlowTxMatchView.source_domain	covered	models.LifecycleFlowSummary.SourceDomain
+chain.lifecycle.v1.FlowTxMatchView.source_tx_hash	covered	models.LifecycleFlowSummary.SourceTxHash
+chain.lifecycle.v1.FlowTxMatchView.tx_occurrence_index	covered	models.LifecycleFlowSummary.TxOccurrenceIndex
+chain.lifecycle.v1.FlowTxMatchView.zipper_reason	covered	models.LifecycleFlowSummary.ZipperReason
 chain.lifecycle.v1.GetAccountFlowRequest.flow_id	covered	Lifecycle.GetAccountFlow flowID
 chain.lifecycle.v1.GetAccountFlowRequest.subaccount_id	covered	Lifecycle.GetAccountFlow account, subAccountID
 chain.lifecycle.v1.GetAccountFlowResponse.flow	covered	models.LifecycleFlowSummary (the flow's summary; detail steps are not modelled, as for GetFlow)
@@ -28,6 +92,10 @@ chain.lifecycle.v1.ListAccountFlowsRequest.unified_asset_ids	covered	ListAccount
 chain.lifecycle.v1.ListAccountFlowsRequest.zipped_asset_ids	covered	ListAccountFlowsParams.ZippedAssetIDs
 chain.lifecycle.v1.ListAccountFlowsResponse.flows	covered	models.LifecycleFlowsList.Flows
 chain.lifecycle.v1.ListAccountFlowsResponse.next_page_token	covered	models.LifecycleFlowsList.NextPageToken
+chain.lifecycle.v1.RequestFee.amount_e18	covered	models.LifecycleRequestFee.Amount
+chain.lifecycle.v1.RequestFee.asset_ids	covered	models.LifecycleRequestFee.ZippedAssetID, UnifiedAssetID
+chain.lifecycle.v1.RequestFee.recipient_address	covered	models.LifecycleRequestFee.RecipientAddress
+chain.lifecycle.v1.RequestFee.status	covered	models.LifecycleRequestFee.Status
 ledger.read.v1.BalanceSeries.account_code	covered	models.BalanceHistorySeries.AccountCode
 ledger.read.v1.BalanceSeries.asset_id	covered	models.BalanceHistorySeries.AssetID
 ledger.read.v1.BalanceSeries.balance	covered	models.BalanceHistorySeries.Balance

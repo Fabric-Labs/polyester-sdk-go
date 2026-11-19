@@ -24,9 +24,11 @@ import (
 
 // contractFieldMessages are the request and reply messages public contracts
 // 1945423c, 5c2119f and 0.93.5 added or changed, and the messages nested in their new
-// replies.
+// replies, and the lifecycle flow views every flow read and update decodes.
 var contractFieldMessages = []protoreflect.FullName{
 	"auth.v1.AuthErrorDetail",
+	"chain.lifecycle.v1.FlowSummaryView", "chain.lifecycle.v1.FlowTxMatchView", "chain.lifecycle.v1.AssetIds",
+	"chain.lifecycle.v1.RequestFee", "chain.lifecycle.v1.FlowSummaryProgressView", "chain.lifecycle.v1.FlowTimelineItemView",
 	"auth.v1.ListAccountActivityRequest", "auth.v1.ListAccountActivityResponse", "auth.v1.ActivityEvent",
 	"chain.lifecycle.v1.GetAccountFlowRequest", "chain.lifecycle.v1.GetAccountFlowResponse",
 	"chain.lifecycle.v1.ListAccountFlowsRequest", "chain.lifecycle.v1.ListAccountFlowsResponse",
@@ -66,6 +68,10 @@ var contractFieldTypes = map[string]reflect.Type{
 	"models.InternalTransferBatchLegResult": reflect.TypeFor[models.InternalTransferBatchLegResult](),
 	"models.InternalTransferBatchResult":    reflect.TypeFor[models.InternalTransferBatchResult](),
 	"models.LifecycleFlowsList":             reflect.TypeFor[models.LifecycleFlowsList](),
+	"models.LifecycleFlowSummary":           reflect.TypeFor[models.LifecycleFlowSummary](),
+	"models.LifecycleRequestFee":            reflect.TypeFor[models.LifecycleRequestFee](),
+	"models.LifecycleFlowProgress":          reflect.TypeFor[models.LifecycleFlowProgress](),
+	"models.LifecycleFlowTimelineItem":      reflect.TypeFor[models.LifecycleFlowTimelineItem](),
 	"models.ResolvedDestination":            reflect.TypeFor[models.ResolvedDestination](),
 	"models.StatementExport":                reflect.TypeFor[models.StatementExport](),
 	"models.StatementExportsList":           reflect.TypeFor[models.StatementExportsList](),
