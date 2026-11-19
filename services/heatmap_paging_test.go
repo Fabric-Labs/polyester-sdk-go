@@ -5,6 +5,7 @@ import (
 	"context"
 	heatmap "github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1/marketdatav1connect"
+	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
 	"google.golang.org/protobuf/proto"
 	"sync"
@@ -18,6 +19,8 @@ type heatmapPagingHandler struct {
 	marketdatav1connect.UnimplementedHeatmapServiceHandler
 	mu    sync.Mutex
 	calls []*heatmap.GetOrderbookHeatmapRequest
+	// served, when set, replaces the requested tier the reply names.
+	served *typev1.DepthTier
 }
 
 func (h *heatmapPagingHandler) GetOrderbookHeatmap(_ context.Context, r *connect.Request[heatmap.GetOrderbookHeatmapRequest]) (*connect.Response[heatmap.GetOrderbookHeatmapResponse], error) {
@@ -28,7 +31,11 @@ func (h *heatmapPagingHandler) GetOrderbookHeatmap(_ context.Context, r *connect
 	if len(h.calls) == 1 {
 		token = "eyJoZWF0bWFwIjoxfQ=="
 	}
-	return connect.NewResponse(&heatmap.GetOrderbookHeatmapResponse{SymbolId: 1, NextPageToken: token, LastPersistedTsSec: 100}), nil
+	depth := r.Msg.GetDepth()
+	if h.served != nil {
+		depth = *h.served
+	}
+	return connect.NewResponse(&heatmap.GetOrderbookHeatmapResponse{SymbolId: 1, Depth: depth, NextPageToken: token, LastPersistedTsSec: 100}), nil
 }
 func TestReadHeatmapOpaquePaging(t *testing.T) {
 	for _, wire := range []string{"binary", "json"} {

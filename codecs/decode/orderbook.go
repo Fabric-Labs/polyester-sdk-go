@@ -1,15 +1,42 @@
 package decode
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderbookv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1"
+	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
+// ServedDepthTier checks the tier a reply names as served against the tier
+// requested: the contract serves the requested tier and names it in every
+// reply, available or not. A reply naming none, an unknown tier or another
+// tier is an *errors.ResponseContractError of operation.
+func ServedDepthTier(operation string, requested, served typev1.DepthTier) error {
+	if served == requested {
+		return nil
+	}
+	if _, known := codecs.LevelsForDepthTier(served); !known {
+		return &sdkerrors.ResponseContractError{Operation: operation, Msg: fmt.Sprintf("the reply names no known served depth tier (%d), requested %s", int32(served), requested)}
+	}
+	return &sdkerrors.ResponseContractError{Operation: operation, Msg: fmt.Sprintf("the reply was served at %s, requested %s", served, requested)}
+}
+
+// OrderbookFromProto decodes an Orderbook.Get snapshot requested at depth
+// levels per side, a tier (codecs.OrderbookDepthTiers). Its Depth is that
+// tier; a reply that names another served tier, or none, is an
+// *errors.ResponseContractError, and so is a depth that is no tier.
 func OrderbookFromProto(msg *orderbookv1.GetOrderBookResponse, symbol string, depth, quantityScale int) (models.OrderbookData, error) {
+	requested, err := codecs.DepthTierForLevels(depth)
+	if err != nil {
+		return models.OrderbookData{}, err
+	}
+	if err := ServedDepthTier("GetOrderBook", requested, msg.GetDepth()); err != nil {
+		return models.OrderbookData{}, err
+	}
 	bids, err := levelsFromProto(msg.GetBids(), symbol, quantityScale)
 	if err != nil {
 		return models.OrderbookData{}, err
@@ -23,7 +50,6 @@ func OrderbookFromProto(msg *orderbookv1.GetOrderBookResponse, symbol string, de
 		Depth:     depth,
 		BookSeq:   strconv.FormatUint(msg.GetBookSeq(), 10),
 		BookEpoch: strconv.FormatUint(msg.GetBookEpoch(), 10),
-		MaxDepth:  msg.GetMaxDepth(),
 		Bids:      bids,
 		Asks:      asks,
 		Available: msg.GetAvailable(),

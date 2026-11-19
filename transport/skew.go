@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"mime"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -273,7 +274,7 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		if msg == "" {
 			msg = detail.Code
 		}
-		mapped = &sdkerrors.ServerError{Msg: msg, Code: detail.Code, Status: resp.StatusCode}
+		mapped = &sdkerrors.ServerError{Msg: msg, Code: detail.Code, CodeSource: problemCodeSource(resp, recognised), Status: resp.StatusCode}
 	case detail.Code == wire.TimestampSkewCode || detail.Code == sdkerrors.AuthCodeTimestampSkew:
 		mapped = &sdkerrors.TimestampSkewError{
 			Msg:    "API key timestamp is outside the allowed skew window",
@@ -311,7 +312,7 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		if msg == "" {
 			msg = detail.Code
 		}
-		mapped = &sdkerrors.ServerError{Msg: msg, Code: detail.Code, Status: resp.StatusCode}
+		mapped = &sdkerrors.ServerError{Msg: msg, Code: detail.Code, CodeSource: problemCodeSource(resp, recognised), Status: resp.StatusCode}
 	case (recognised && resp.StatusCode != http.StatusUnauthorized && resp.StatusCode != http.StatusForbidden) ||
 		(resp.StatusCode == http.StatusTooManyRequests && restCodeForm.MatchString(detail.Code)):
 		code := wire.ErrorCodeFromREST(detail.Code)
@@ -550,6 +551,22 @@ func decodedErrorBody(encoding string, body []byte) (decoded []byte, overflow bo
 type prefixedBody struct {
 	io.Reader
 	io.Closer
+}
+
+// problemCodeSource is errors.CodeSourceProblem for an answer that is a
+// contract REST problem, a body whose media type is exactly
+// application/problem+json (any case, parameters allowed) with a code the
+// contract names, and empty for any other body, such as a gateway's JSON or
+// one whose Content-Type does not parse.
+func problemCodeSource(resp *http.Response, recognised bool) string {
+	if !recognised {
+		return ""
+	}
+	mediaType, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	if err != nil || mediaType != "application/problem+json" {
+		return ""
+	}
+	return sdkerrors.CodeSourceProblem
 }
 
 func isJSONContentType(value string) bool {

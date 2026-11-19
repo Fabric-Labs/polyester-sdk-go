@@ -1,5 +1,5 @@
 {
-  "source": "Fabric-Labs/polyester-proto develop c35662bc4ab9b444974b71703015e68801c40a01 docs/errors.json: every distinct code, HTTP status and ConnectRPC code of its catalogs but QuickSwap (swap-api), which this SDK does not wrap",
+  "source": "Fabric-Labs/polyester-proto develop 6c18dd0edc14d978bbb0cc8bbb0be9d9e1feab73 docs/errors.json: every distinct code, HTTP status and ConnectRPC code of its catalogs but QuickSwap (swap-api), which this SDK does not wrap",
   "codes": [
     {"code": "ACCOUNT_ORDERS_SUSPENDED", "status": 400, "connect": "failed_precondition"},
     {"code": "ACCOUNT_REPAIRING", "status": 400, "connect": "failed_precondition"},
@@ -26,6 +26,7 @@
     {"code": "ATTACHED_EXIT_WORKING", "status": 400, "connect": "failed_precondition"},
     {"code": "ATTACHED_LEGS_EXCEEDED", "status": 400, "connect": "failed_precondition"},
     {"code": "ATTACHED_RISK_NOT_SUPPORTED", "status": 501, "connect": "unimplemented"},
+    {"code": "AUTH_API_KEY_ACCESS_DENIED", "status": 403, "connect": "permission_denied"},
     {"code": "AUTH_AUTHENTICATION_REQUIRED", "status": 401, "connect": "unauthenticated"},
     {"code": "AUTH_SESSION_KIND_NOT_ALLOWED", "status": 403, "connect": "permission_denied"},
     {"code": "BAD_PRICE", "status": 400, "connect": "invalid_argument"},

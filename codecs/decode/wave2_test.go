@@ -124,7 +124,7 @@ func TestMarketOverviewListFromProto(t *testing.T) {
 // A book being built or invalidated is unknown, not empty: Available is false
 // and the sides carry no levels.
 func TestOrderbookFromProtoUnavailableBookIsUnknown(t *testing.T) {
-	result, err := decode.OrderbookFromProto(&orderbookv1.GetOrderBookResponse{SymbolId: 1, BookSeq: 7}, "BTC-USD", 50, 8)
+	result, err := decode.OrderbookFromProto(&orderbookv1.GetOrderBookResponse{SymbolId: 1, BookSeq: 7, Depth: typev1.DepthTier_DEPTH_50}, "BTC-USD", 50, 8)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,6 +136,7 @@ func TestOrderbookFromProtoUnavailableBookIsUnknown(t *testing.T) {
 func TestOrderbookFromProto(t *testing.T) {
 	msg := &orderbookv1.GetOrderBookResponse{
 		BookSeq:   42,
+		Depth:     typev1.DepthTier_DEPTH_50,
 		Bids:      []*orderbookv1.PriceLevel{{PriceTicks: 100, QtyScaled: 50}},
 		Asks:      []*orderbookv1.PriceLevel{{PriceTicks: 101, QtyScaled: 25}},
 		Available: true,

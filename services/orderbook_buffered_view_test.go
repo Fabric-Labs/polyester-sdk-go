@@ -56,7 +56,7 @@ func TestSnapshotWithBufferedDeltasEmitsOneView(t *testing.T) {
 				time.Sleep(300 * time.Millisecond)
 				w.Header().Set("Content-Type", "application/proto")
 				data, _ := proto.Marshal(&ob.GetOrderBookResponse{
-					SymbolId: 1, BookSeq: 1, Available: true,
+					SymbolId: 1, BookSeq: 1, Available: true, Depth: requestedTier(r),
 					Bids: []*ob.PriceLevel{{PriceTicks: 71_600_000, QtyScaled: 1}},
 					Asks: []*ob.PriceLevel{{PriceTicks: 71_700_000, QtyScaled: 4}},
 				})

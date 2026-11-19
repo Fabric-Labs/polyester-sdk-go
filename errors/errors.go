@@ -45,7 +45,9 @@ const (
 )
 
 // CodeRequestTooLarge is the code of an *APIError for a request body over the
-// endpoint's size limit (REST problem REQUEST_TOO_LARGE, HTTP 413). The API
+// endpoint's size limit: REST problem REQUEST_TOO_LARGE (HTTP 413), or a
+// ConnectRPC resource_exhausted carrying the polyester.api.v1
+// RequestErrorDetail REQUEST_TOO_LARGE, whose limit is LimitBytes. The API
 // refuses it before reading or authenticating the request, so nothing
 // changed, and sending the same body again is refused again: reduce it to fit
 // the limit. Read it with IsRequestTooLarge.
@@ -564,12 +566,24 @@ type ServerError struct {
 	AdmissionRefused bool
 	Msg              string
 	Code             string // Service code, or an unrecognised code kept for diagnosis.
-	Status           int    // HTTP status corresponding to the failure, when known.
+	// CodeSource names where the contract carried Code, when the SDK records
+	// it: the full name of the ConnectRPC error detail of an unavailable
+	// refusal (withdraw, alert, ledger read or transfer, such as
+	// "transfer.v1.ErrorDetail"), or CodeSourceProblem for a contract REST
+	// problem. Empty otherwise, for example for a diagnostic code kept from
+	// a gateway's body, which proves nothing about the request.
+	CodeSource string
+	Status     int // HTTP status corresponding to the failure, when known.
 	// RetryAfter is the delay in seconds the answer asked for with
 	// Retry-After (or Retry-After-Ms); nil when it named none. See
 	// errors.RetryAfter.
 	RetryAfter *float64
 }
+
+// CodeSourceProblem is the CodeSource of a ServerError whose Code a contract
+// REST problem carries: an application/problem+json answer with a code the
+// contract names.
+const CodeSourceProblem = "problem"
 
 func (e *ServerError) Error() string        { return e.Msg }
 func (e *ServerError) Is(target error) bool { return target == ErrPolyester }
@@ -607,6 +621,9 @@ type APIError struct {
 	// request may succeed, on an AUTH_SOCIAL_ACCOUNT_COOLDOWN or
 	// AUTH_SOCIAL_CHANGE_LIMIT_REACHED refusal; nil otherwise.
 	RetryAt *time.Time
+	// LimitBytes is the size limit, in bytes, a request refused with
+	// REQUEST_TOO_LARGE is over, when the refusal names it; 0 otherwise.
+	LimitBytes uint64
 	LadderLevelCause
 }
 
@@ -699,12 +716,18 @@ type NotImplementedError struct {
 func (e *NotImplementedError) Error() string        { return e.Msg }
 func (e *NotImplementedError) Is(target error) bool { return target == ErrPolyester }
 
-// ResponseContractError indicates that a successful mutation response violated
-// the documented wire contract. The mutation may already have been applied, so
-// callers must reconcile state rather than blindly retrying.
+// ResponseContractError indicates that a response, a successful one or a
+// refusal, violated the documented wire contract. A mutation may already have
+// been applied, so callers must reconcile state rather than blindly retrying.
 type ResponseContractError struct {
 	Operation string
 	Msg       string
+	// Status is the HTTP status of a refusal that broke the contract; 0 for
+	// a successful response. See errors.AnswerStatus.
+	Status int
+	// RetryAfter is the delay in seconds that refusal's headers asked for,
+	// when they did. See errors.RetryAfter.
+	RetryAfter *float64
 }
 
 func (e *ResponseContractError) Error() string {
@@ -988,18 +1011,19 @@ type answered interface {
 	answer() (status *int, retryAfter **float64)
 }
 
-func (e *RateLimitError) answer() (*int, **float64)       { return &e.Status, &e.RetryAfter }
-func (e *ServerError) answer() (*int, **float64)          { return &e.Status, &e.RetryAfter }
-func (e *APIError) answer() (*int, **float64)             { return &e.Status, &e.RetryAfter }
-func (e *AuthError) answer() (*int, **float64)            { return &e.Status, &e.RetryAfter }
-func (e *ValidationError) answer() (*int, **float64)      { return &e.Status, &e.RetryAfter }
-func (e *TimestampSkewError) answer() (*int, **float64)   { return &e.Status, &e.RetryAfter }
-func (e *NotImplementedError) answer() (*int, **float64)  { return &e.Status, &e.RetryAfter }
-func (e *RouteNotFoundError) answer() (*int, **float64)   { return &e.Status, &e.RetryAfter }
-func (e *SessionRequiredError) answer() (*int, **float64) { return &e.Status, &e.RetryAfter }
-func (e *TransportError) answer() (*int, **float64)       { return &e.Status, &e.RetryAfter }
-func (e *RedirectRefusedError) answer() (*int, **float64) { return &e.StatusCode, &e.RetryAfter }
-func (e *RealtimeError) answer() (*int, **float64)        { return &e.Status, &e.RetryAfter }
+func (e *RateLimitError) answer() (*int, **float64)        { return &e.Status, &e.RetryAfter }
+func (e *ServerError) answer() (*int, **float64)           { return &e.Status, &e.RetryAfter }
+func (e *APIError) answer() (*int, **float64)              { return &e.Status, &e.RetryAfter }
+func (e *AuthError) answer() (*int, **float64)             { return &e.Status, &e.RetryAfter }
+func (e *ValidationError) answer() (*int, **float64)       { return &e.Status, &e.RetryAfter }
+func (e *TimestampSkewError) answer() (*int, **float64)    { return &e.Status, &e.RetryAfter }
+func (e *NotImplementedError) answer() (*int, **float64)   { return &e.Status, &e.RetryAfter }
+func (e *RouteNotFoundError) answer() (*int, **float64)    { return &e.Status, &e.RetryAfter }
+func (e *SessionRequiredError) answer() (*int, **float64)  { return &e.Status, &e.RetryAfter }
+func (e *ResponseContractError) answer() (*int, **float64) { return &e.Status, &e.RetryAfter }
+func (e *TransportError) answer() (*int, **float64)        { return &e.Status, &e.RetryAfter }
+func (e *RedirectRefusedError) answer() (*int, **float64)  { return &e.StatusCode, &e.RetryAfter }
+func (e *RealtimeError) answer() (*int, **float64)         { return &e.Status, &e.RetryAfter }
 func (e *SubaccountOwnerRoleLockedError) answer() (*int, **float64) {
 	return &e.Status, &e.RetryAfter
 }
