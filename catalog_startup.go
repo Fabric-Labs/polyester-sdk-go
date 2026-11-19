@@ -19,8 +19,8 @@ import (
 
 // The client loads the spot config and the funding (deposit/withdraw) config
 // when it is created, each on its own. A read that fails the way a dropped or
-// stalled connection does (Connect unavailable or deadline_exceeded) is read
-// again, at most catalogStartupAttempts times in all, with backoff, never past
+// stalled connection does (Connect unavailable or deadline_exceeded, or a
+// connection that closed or was reset, mid-answer included) is read again, at most catalogStartupAttempts times in all, with backoff, never past
 // the startup deadline, every retry through connections of its own. Anything
 // else, and a response that does not validate, ends the load at once. Only
 // these reads are retried here: they change nothing on the server.
@@ -122,7 +122,17 @@ func catalogReadRetryable(err error) bool {
 		return false
 	}
 	code := connect.CodeOf(err)
-	return code == connect.CodeUnavailable || code == connect.CodeDeadlineExceeded
+	return code == connect.CodeUnavailable || code == connect.CodeDeadlineExceeded || connectionDropped(err)
+}
+
+// connectionDropped reports a read whose connection closed or was reset
+// before its answer was read whole: connect-go reports a body cut short as
+// "read message: unexpected EOF" with code unknown. It matches the error by
+// identity, never by its text, so no answer can claim it.
+func connectionDropped(err error) bool {
+	return stderrors.Is(err, io.EOF) || stderrors.Is(err, io.ErrUnexpectedEOF) ||
+		stderrors.Is(err, syscall.ECONNRESET) || stderrors.Is(err, syscall.EPIPE) ||
+		stderrors.Is(err, net.ErrClosed)
 }
 
 func catalogFailureKind(err error) string {
