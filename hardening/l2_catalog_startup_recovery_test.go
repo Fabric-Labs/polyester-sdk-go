@@ -143,6 +143,8 @@ type startupAPI struct {
 
 	mu    sync.Mutex
 	calls map[string]int
+	// drops counts the drops done: the tunnels were closed.
+	drops atomic.Int32
 }
 
 func (a *startupAPI) count(operation string) int {
@@ -159,6 +161,7 @@ func (a *startupAPI) arrive(ctx context.Context, operation string) error {
 	switch a.plan(operation, seen) {
 	case startupDrop:
 		a.proxy.closeTunnels()
+		a.drops.Add(1)
 		<-ctx.Done()
 		return ctx.Err()
 	case startupStall:
@@ -300,6 +303,15 @@ func TestL2FundingReadDroppedOnceThroughProxyRecovers(t *testing.T) {
 	if id := client.Catalogs.SymbolIDForSymbol(startupSymbol); id == nil || *id != 1 {
 		t.Fatalf("spot catalog not loaded: %v", id)
 	}
+	// The drop closes every tunnel: send the order once it has happened, so
+	// the order's own connection is not the one it closes.
+	dropped := time.Now().Add(5 * time.Second)
+	for h.api.drops.Load() == 0 {
+		if time.Now().After(dropped) {
+			t.Fatal("the funding read was never dropped")
+		}
+		time.Sleep(time.Millisecond)
+	}
 	assertSpotOrderReachesServer(t, client, h.api)
 	// The funding config loads too, on a second read.
 	deadline := time.Now().Add(5 * time.Second)
@@ -358,5 +370,82 @@ func TestL2DroppedOrderIsNeverRetried(t *testing.T) {
 	}
 	if got := h.api.count("CreateOrder"); got != 1 {
 		t.Fatalf("CreateOrder sent %d times, want 1", got)
+	}
+}
+
+// cutFirstAnswer answers the first request of each operation in ops with a
+// 200 whose body stops short of its Content-Length, as a connection dropped
+// mid-answer does, and passes every other request to next.
+func cutFirstAnswer(next http.Handler, ops ...string) (http.Handler, *sync.Map) {
+	cut := &sync.Map{}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		operation := r.URL.Path[strings.LastIndex(r.URL.Path, "/")+1:]
+		for _, op := range ops {
+			if op != operation {
+				continue
+			}
+			if _, done := cut.LoadOrStore(op, true); done {
+				break
+			}
+			w.Header().Set("Content-Type", r.Header.Get("Content-Type"))
+			w.Header().Set("Content-Length", "64")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte{0x0a, 0x10})
+			// Returning short of the declared length makes the server close
+			// the connection: the client reads an unexpected EOF.
+			return
+		}
+		next.ServeHTTP(w, r)
+	}), cut
+}
+
+// A catalog read changes nothing on the server, so one whose connection
+// closed mid-answer is read again within the startup retry, as one answered
+// unavailable is, instead of failing after one attempt.
+func TestL2CatalogReadCutMidAnswerIsReadAgain(t *testing.T) {
+	api := &startupAPI{plan: func(string, int) startupAction { return startupOK }, calls: map[string]int{}}
+	mux := http.NewServeMux()
+	path, handler := marketdatav1connect.NewMarketDataServiceHandler(api)
+	mux.Handle(path+"GetSpotConfig", handler)
+	zpath, zhandler := chainzipperv1connect.NewZipperServiceHandler(api)
+	mux.Handle(zpath+"GetDepositWithdrawConfig", zhandler)
+	mux.HandleFunc("/", api.other)
+	cutting, cut := cutFirstAnswer(mux, "GetSpotConfig", "GetDepositWithdrawConfig")
+	srv := httptest.NewServer(cutting)
+	t.Cleanup(srv.Close)
+	kp := auth.GenerateEd25519Keypair()
+	client, err := polyester.New(polyester.Config{
+		APIURL:        srv.URL,
+		WSURL:         "ws://127.0.0.1:1/unused",
+		APIKeyID:      "ak_test",
+		APIPrivateKey: kp.SecretKeyHex,
+		Timeout:       5 * time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := client.WaitForCatalogs(ctx); err != nil {
+		t.Fatalf("WaitForCatalogs: %v", err)
+	}
+	if id := client.Catalogs.SymbolIDForSymbol(startupSymbol); id == nil || *id != 1 {
+		t.Fatalf("spot catalog not loaded: %v", id)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for client.Catalogs.LedgerIDForAsset("USDT") == nil {
+		if time.Now().After(deadline) {
+			t.Fatalf("funding config never loaded; %d reads after the cut", api.count("GetDepositWithdrawConfig"))
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	for _, op := range []string{"GetSpotConfig", "GetDepositWithdrawConfig"} {
+		if _, wasCut := cut.Load(op); !wasCut {
+			t.Fatalf("%s was never cut", op)
+		}
+		if got := api.count(op); got != 1 {
+			t.Fatalf("%s answered %d times after its cut, want 1", op, got)
+		}
 	}
 }
