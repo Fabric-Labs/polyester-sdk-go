@@ -1251,11 +1251,10 @@ const file_alerts_v1_price_alerts_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12=\n" +
 	"\ftriggered_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\vtriggeredAt\x122\n" +
-	"\x15triggered_price_ticks\x18\x0e \x01(\x03R\x13triggeredPriceTicks\"\x8c\x03\n" +
+	"\x15triggered_price_ticks\x18\x0e \x01(\x03R\x13triggeredPriceTicks\"\x8d\x03\n" +
 	"\x12CreateAlertRequest\x12$\n" +
-	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\x12C\n" +
-	"\tdirection\x18\x02 \x01(\x0e2\x19.alerts.v1.AlertDirectionB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\tdirection\x12H\n" +
+	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\x12D\n" +
+	"\tdirection\x18\x02 \x01(\x0e2\x19.alerts.v1.AlertDirectionB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\tdirection\x12H\n" +
 	"\fprice_source\x18\x03 \x01(\x0e2\x1b.alerts.v1.AlertPriceSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\vpriceSource\x12(\n" +
 	"\vprice_ticks\x18\x04 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\n" +
 	"priceTicks\x12J\n" +

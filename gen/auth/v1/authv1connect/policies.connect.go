@@ -83,11 +83,25 @@ type PolicyServiceClient interface {
 	GetSubaccountPolicy(context.Context, *connect.Request[v1.GetSubaccountPolicyRequest]) (*connect.Response[v1.GetSubaccountPolicyResponse], error)
 	// Create a new sub-account policy template (optionally attach to a sub-account).
 	CreateSubaccountPolicy(context.Context, *connect.Request[v1.CreateSubaccountPolicyRequest]) (*connect.Response[v1.CreateSubaccountPolicyResponse], error)
-	// Change selected fields on an existing sub-account policy template.
+	// Change selected fields on an existing sub-account policy. Editing a
+	// template changes only the template: sub-accounts it was applied to keep
+	// their copies.
+	//
+	// An admin API key with MANAGE_SUBACCOUNT_POLICIES may also update a policy
+	// of the main account's own sub-accounts without a session. The result can
+	// never allow a money-out action, and it can never lock, unlock or change a
+	// locked policy: PermissionDenied with AUTH_ADMIN_KEY_FORBIDDEN_TARGET.
 	UpdateSubaccountPolicy(context.Context, *connect.Request[v1.UpdateSubaccountPolicyRequest]) (*connect.Response[v1.UpdateSubaccountPolicyResponse], error)
 	// Delete a sub-account policy template.
 	DeleteSubaccountPolicy(context.Context, *connect.Request[v1.DeleteSubaccountPolicyRequest]) (*connect.Response[v1.DeleteSubaccountPolicyResponse], error)
-	// Attach or clear a sub-account policy for a sub-account.
+	// Attach a policy to a sub-account, apply a template to it as a new copy, or
+	// clear its policy.
+	//
+	// An admin API key with MANAGE_SUBACCOUNT_POLICIES may also attach, apply or
+	// clear the policy of a sub-account the main account owns, without a
+	// session. It can never attach or apply a policy that allows a money-out
+	// action, replace a locked policy, or reach a sub-account shared with the
+	// main account: PermissionDenied with AUTH_ADMIN_KEY_FORBIDDEN_TARGET.
 	SetSubaccountPolicy(context.Context, *connect.Request[v1.SetSubaccountPolicyRequest]) (*connect.Response[v1.SetSubaccountPolicyResponse], error)
 	// List API key policy templates available to the caller. An API key needs
 	// READ_API_POLICIES; a key scoped to a sub-account sees only the policies
@@ -99,15 +113,30 @@ type PolicyServiceClient interface {
 	GetApiPolicy(context.Context, *connect.Request[v1.GetApiPolicyRequest]) (*connect.Response[v1.GetApiPolicyResponse], error)
 	// Create a new API key policy template.
 	CreateApiPolicy(context.Context, *connect.Request[v1.CreateApiPolicyRequest]) (*connect.Response[v1.CreateApiPolicyResponse], error)
-	// Change selected fields on an existing API key policy template. Adding a
-	// money-out action to a policy attached to an assistant API key returns
-	// FailedPrecondition with AUTH_ASSISTANT_KEY_ACTION_NOT_ALLOWED.
+	// Change selected fields on an existing API key policy. Editing a template
+	// changes only the template: keys it was applied to keep their copies.
+	// Adding a money-out action to a policy attached to an assistant API key
+	// returns FailedPrecondition with AUTH_ASSISTANT_KEY_ACTION_NOT_ALLOWED, and
+	// to a policy attached to an admin API key FailedPrecondition with
+	// AUTH_ADMIN_KEY_ACTION_NOT_ALLOWED.
 	UpdateApiPolicy(context.Context, *connect.Request[v1.UpdateApiPolicyRequest]) (*connect.Response[v1.UpdateApiPolicyResponse], error)
 	// Delete an API key policy template.
 	DeleteApiPolicy(context.Context, *connect.Request[v1.DeleteApiPolicyRequest]) (*connect.Response[v1.DeleteApiPolicyResponse], error)
-	// Attach or clear an API key policy for a key. Attaching a policy that allows
-	// a money-out action to an assistant API key returns FailedPrecondition with
-	// AUTH_ASSISTANT_KEY_ACTION_NOT_ALLOWED.
+	// Attach a policy to a key, apply a template to it as a new copy, or clear
+	// its policy. Attaching a policy that allows a money-out action to an
+	// assistant API key returns FailedPrecondition with
+	// AUTH_ASSISTANT_KEY_ACTION_NOT_ALLOWED, and applying a template to one
+	// returns FailedPrecondition with AUTH_POLICY_INVALID.
+	//
+	// An admin API key with MANAGE_API_KEY_POLICIES may also attach, apply or
+	// clear the policy of a standard key it may manage, without a session; the
+	// key needs an IP allowlist within the admin key's own. The policy can never
+	// allow a money-out action (AUTH_ADMIN_KEY_FORBIDDEN_TARGET) or an admin
+	// permission (AUTH_ADMIN_KEY_ESCALATION_DENIED), and on a sub-account key
+	// never more actions or markets than the sub-account's policy
+	// (AUTH_ADMIN_KEY_SCOPE_EXCEEDED), each PermissionDenied. Attaching a
+	// money-out policy to an admin key returns FailedPrecondition with
+	// AUTH_ADMIN_KEY_ACTION_NOT_ALLOWED.
 	SetApiKeyPolicy(context.Context, *connect.Request[v1.SetApiKeyPolicyRequest]) (*connect.Response[v1.SetApiKeyPolicyResponse], error)
 }
 
@@ -285,11 +314,25 @@ type PolicyServiceHandler interface {
 	GetSubaccountPolicy(context.Context, *connect.Request[v1.GetSubaccountPolicyRequest]) (*connect.Response[v1.GetSubaccountPolicyResponse], error)
 	// Create a new sub-account policy template (optionally attach to a sub-account).
 	CreateSubaccountPolicy(context.Context, *connect.Request[v1.CreateSubaccountPolicyRequest]) (*connect.Response[v1.CreateSubaccountPolicyResponse], error)
-	// Change selected fields on an existing sub-account policy template.
+	// Change selected fields on an existing sub-account policy. Editing a
+	// template changes only the template: sub-accounts it was applied to keep
+	// their copies.
+	//
+	// An admin API key with MANAGE_SUBACCOUNT_POLICIES may also update a policy
+	// of the main account's own sub-accounts without a session. The result can
+	// never allow a money-out action, and it can never lock, unlock or change a
+	// locked policy: PermissionDenied with AUTH_ADMIN_KEY_FORBIDDEN_TARGET.
 	UpdateSubaccountPolicy(context.Context, *connect.Request[v1.UpdateSubaccountPolicyRequest]) (*connect.Response[v1.UpdateSubaccountPolicyResponse], error)
 	// Delete a sub-account policy template.
 	DeleteSubaccountPolicy(context.Context, *connect.Request[v1.DeleteSubaccountPolicyRequest]) (*connect.Response[v1.DeleteSubaccountPolicyResponse], error)
-	// Attach or clear a sub-account policy for a sub-account.
+	// Attach a policy to a sub-account, apply a template to it as a new copy, or
+	// clear its policy.
+	//
+	// An admin API key with MANAGE_SUBACCOUNT_POLICIES may also attach, apply or
+	// clear the policy of a sub-account the main account owns, without a
+	// session. It can never attach or apply a policy that allows a money-out
+	// action, replace a locked policy, or reach a sub-account shared with the
+	// main account: PermissionDenied with AUTH_ADMIN_KEY_FORBIDDEN_TARGET.
 	SetSubaccountPolicy(context.Context, *connect.Request[v1.SetSubaccountPolicyRequest]) (*connect.Response[v1.SetSubaccountPolicyResponse], error)
 	// List API key policy templates available to the caller. An API key needs
 	// READ_API_POLICIES; a key scoped to a sub-account sees only the policies
@@ -301,15 +344,30 @@ type PolicyServiceHandler interface {
 	GetApiPolicy(context.Context, *connect.Request[v1.GetApiPolicyRequest]) (*connect.Response[v1.GetApiPolicyResponse], error)
 	// Create a new API key policy template.
 	CreateApiPolicy(context.Context, *connect.Request[v1.CreateApiPolicyRequest]) (*connect.Response[v1.CreateApiPolicyResponse], error)
-	// Change selected fields on an existing API key policy template. Adding a
-	// money-out action to a policy attached to an assistant API key returns
-	// FailedPrecondition with AUTH_ASSISTANT_KEY_ACTION_NOT_ALLOWED.
+	// Change selected fields on an existing API key policy. Editing a template
+	// changes only the template: keys it was applied to keep their copies.
+	// Adding a money-out action to a policy attached to an assistant API key
+	// returns FailedPrecondition with AUTH_ASSISTANT_KEY_ACTION_NOT_ALLOWED, and
+	// to a policy attached to an admin API key FailedPrecondition with
+	// AUTH_ADMIN_KEY_ACTION_NOT_ALLOWED.
 	UpdateApiPolicy(context.Context, *connect.Request[v1.UpdateApiPolicyRequest]) (*connect.Response[v1.UpdateApiPolicyResponse], error)
 	// Delete an API key policy template.
 	DeleteApiPolicy(context.Context, *connect.Request[v1.DeleteApiPolicyRequest]) (*connect.Response[v1.DeleteApiPolicyResponse], error)
-	// Attach or clear an API key policy for a key. Attaching a policy that allows
-	// a money-out action to an assistant API key returns FailedPrecondition with
-	// AUTH_ASSISTANT_KEY_ACTION_NOT_ALLOWED.
+	// Attach a policy to a key, apply a template to it as a new copy, or clear
+	// its policy. Attaching a policy that allows a money-out action to an
+	// assistant API key returns FailedPrecondition with
+	// AUTH_ASSISTANT_KEY_ACTION_NOT_ALLOWED, and applying a template to one
+	// returns FailedPrecondition with AUTH_POLICY_INVALID.
+	//
+	// An admin API key with MANAGE_API_KEY_POLICIES may also attach, apply or
+	// clear the policy of a standard key it may manage, without a session; the
+	// key needs an IP allowlist within the admin key's own. The policy can never
+	// allow a money-out action (AUTH_ADMIN_KEY_FORBIDDEN_TARGET) or an admin
+	// permission (AUTH_ADMIN_KEY_ESCALATION_DENIED), and on a sub-account key
+	// never more actions or markets than the sub-account's policy
+	// (AUTH_ADMIN_KEY_SCOPE_EXCEEDED), each PermissionDenied. Attaching a
+	// money-out policy to an admin key returns FailedPrecondition with
+	// AUTH_ADMIN_KEY_ACTION_NOT_ALLOWED.
 	SetApiKeyPolicy(context.Context, *connect.Request[v1.SetApiKeyPolicyRequest]) (*connect.Response[v1.SetApiKeyPolicyResponse], error)
 }
 

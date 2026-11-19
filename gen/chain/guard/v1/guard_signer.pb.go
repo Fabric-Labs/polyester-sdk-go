@@ -1196,17 +1196,15 @@ const file_chain_guard_v1_guard_signer_proto_rawDesc = "" +
 	"\x1bGetGuardSignerStatusRequest\x126\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\"Y\n" +
 	"\x1cGetGuardSignerStatusResponse\x129\n" +
-	"\x06status\x18\x01 \x01(\v2!.chain.guard.v1.GuardSignerStatusR\x06status\"\xd2\x01\n" +
+	"\x06status\x18\x01 \x01(\v2!.chain.guard.v1.GuardSignerStatusR\x06status\"\xd3\x01\n" +
 	"\x1aSignProtectedActionRequest\x126\n" +
-	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12C\n" +
-	"\x06action\x18\x02 \x01(\x0e2\x1f.chain.guard.v1.ProtectedActionB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x06action\x127\n" +
+	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12D\n" +
+	"\x06action\x18\x02 \x01(\x0e2\x1f.chain.guard.v1.ProtectedActionB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x06action\x127\n" +
 	"\x04args\x18\x03 \x01(\v2#.chain.guard.v1.ProtectedActionArgsR\x04args\"X\n" +
 	"\x1bSignProtectedActionResponse\x129\n" +
-	"\bapproval\x18\x01 \x01(\v2\x1d.chain.guard.v1.GuardApprovalR\bapproval\"\x9c\x01\n" +
-	"\x1cBatchSignProtectedActionItem\x12C\n" +
-	"\x06action\x18\x01 \x01(\x0e2\x1f.chain.guard.v1.ProtectedActionB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x06action\x127\n" +
+	"\bapproval\x18\x01 \x01(\v2\x1d.chain.guard.v1.GuardApprovalR\bapproval\"\x9d\x01\n" +
+	"\x1cBatchSignProtectedActionItem\x12D\n" +
+	"\x06action\x18\x01 \x01(\x0e2\x1f.chain.guard.v1.ProtectedActionB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x06action\x127\n" +
 	"\x04args\x18\x02 \x01(\v2#.chain.guard.v1.ProtectedActionArgsR\x04args\"\xae\x01\n" +
 	" BatchSignProtectedActionsRequest\x126\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12R\n" +

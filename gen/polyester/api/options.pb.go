@@ -28,7 +28,8 @@ type MFARequirement int32
 const (
 	// No interactive MFA requirement is declared; documentation treats this as none.
 	MFARequirement_MFA_UNSPECIFIED MFARequirement = 0
-	// The RPC requires recently completed interactive MFA. Stale assurance must be renewed.
+	// The RPC requires an MFA-elevated session: an MFA challenge completed in the last 30 minutes.
+	// An older elevation must be renewed with a new MFA challenge.
 	MFARequirement_MFA_RECENT MFARequirement = 1
 	// The RPC always requires a fresh, single-use step-up proof, even when MFA was completed recently.
 	MFARequirement_MFA_FRESH_STEP_UP MFARequirement = 2

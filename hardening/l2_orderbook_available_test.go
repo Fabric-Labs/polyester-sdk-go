@@ -23,7 +23,7 @@ type orderbookSnapshotHandler struct {
 }
 
 func (h orderbookSnapshotHandler) GetOrderBook(_ context.Context, req *connect.Request[orderbookv1.GetOrderBookRequest]) (*connect.Response[orderbookv1.GetOrderBookResponse], error) {
-	resp := &orderbookv1.GetOrderBookResponse{SymbolId: req.Msg.GetSymbolId(), BookSeq: 10, Available: h.available}
+	resp := &orderbookv1.GetOrderBookResponse{SymbolId: req.Msg.GetSymbolId(), BookSeq: 10, Available: h.available, Depth: servedTier(req.Msg)}
 	if h.available {
 		resp.Bids = []*orderbookv1.PriceLevel{{PriceTicks: 100, QtyScaled: 5}}
 		resp.Asks = []*orderbookv1.PriceLevel{{PriceTicks: 101, QtyScaled: 5}}

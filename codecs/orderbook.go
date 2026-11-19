@@ -2,11 +2,11 @@ package codecs
 
 import (
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
+	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 )
 
 // orderbookStreamDepths are the depths the server publishes on the delta stream.
@@ -18,21 +18,49 @@ var orderbookStreamDepths = [...]int{1, 20, 50, 200, 500}
 // request leaves the depth at 0.
 const OrderbookDefaultDepth = 50
 
-// OrderbookSnapshotDepth returns the depth per side Orderbook.Get reports for
-// depth: depth itself, or OrderbookDefaultDepth for 0. Any level count the
-// uint32 request field holds is sent as given: the largest depth the service
-// accepts is the MaxDepth every snapshot reports, and the service refuses a
-// depth above it with invalid_argument, never truncating it. A negative depth,
-// or one above the uint32 range, is a ValidationError.
+// orderbookDepthTiers are the depths per side, in levels, of the contract's
+// DepthTier values, ascending, each at its value's position less one.
+var orderbookDepthTiers = [...]int{1, 5, 10, 20, 50, 100, 200, 500, 1000, 5000}
+
+// OrderbookDepthTiers returns the depths per side an order book snapshot is
+// served at, ascending: the contract's DepthTier values.
+func OrderbookDepthTiers() []int {
+	return append([]int(nil), orderbookDepthTiers[:]...)
+}
+
+// DepthTierForLevels returns the contract's DepthTier for depth levels per
+// side. A depth that is no tier is an *errors.ValidationError naming the
+// tiers: the contract refuses it.
+func DepthTierForLevels(depth int) (typev1.DepthTier, error) {
+	names := make([]string, 0, len(orderbookDepthTiers))
+	for i, tier := range orderbookDepthTiers {
+		if tier == depth {
+			return typev1.DepthTier(i + 1), nil
+		}
+		names = append(names, strconv.Itoa(tier))
+	}
+	return 0, &errors.ValidationError{Msg: fmt.Sprintf("orderbook depth must be one of %s levels per side, got %d", strings.Join(names, ", "), depth)}
+}
+
+// LevelsForDepthTier returns the depth per side of tier; false for
+// DEPTH_UNSPECIFIED or a tier this SDK does not know.
+func LevelsForDepthTier(tier typev1.DepthTier) (int, bool) {
+	if tier < 1 || int(tier) > len(orderbookDepthTiers) {
+		return 0, false
+	}
+	return orderbookDepthTiers[tier-1], true
+}
+
+// OrderbookSnapshotDepth returns the depth per side Orderbook.Get requests
+// for depth: depth itself when it is a tier (OrderbookDepthTiers), or
+// OrderbookDefaultDepth for 0. Any other depth is an *errors.ValidationError
+// before any request: the contract serves the tiers only.
 func OrderbookSnapshotDepth(depth int) (int, error) {
-	if depth < 0 {
-		return 0, &errors.ValidationError{Msg: fmt.Sprintf("orderbook snapshot depth must not be negative, got %d", depth)}
-	}
-	if uint64(depth) > math.MaxUint32 {
-		return 0, &errors.ValidationError{Msg: fmt.Sprintf("orderbook snapshot depth %d is above the uint32 range", depth)}
-	}
 	if depth == 0 {
 		return OrderbookDefaultDepth, nil
+	}
+	if _, err := DepthTierForLevels(depth); err != nil {
+		return 0, err
 	}
 	return depth, nil
 }
@@ -54,7 +82,7 @@ func OrderbookStreamTier(depth int) (int, error) {
 		}
 	}
 	return 0, &errors.ValidationError{Msg: fmt.Sprintf(
-		"orderbook subscription depth %d is above the deepest published stream tier (%d); use Orderbook.Get for a deeper snapshot, up to the MaxDepth it reports",
+		"orderbook subscription depth %d is above the deepest published stream tier (%d); use Orderbook.Get for a deeper snapshot, at a depth of OrderbookDepthTiers",
 		depth, orderbookStreamDepths[len(orderbookStreamDepths)-1],
 	)}
 }

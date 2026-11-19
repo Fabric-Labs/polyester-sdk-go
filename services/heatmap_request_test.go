@@ -3,11 +3,11 @@ package services
 import (
 	"context"
 	stderrors "errors"
+	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	"testing"
 	"time"
 
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
-	heatmap "github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1/marketdatav1connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
@@ -27,22 +27,22 @@ func newHeatmapRequestService(t *testing.T) (*HeatmapService, *heatmapPagingHand
 // Get requests every supported depth as itself and any other depth up to 1000
 // as the smallest supported depth covering it, as Orderbook.Get does.
 func TestHeatmapGetRequestsTheSmallestSupportedDepthCoveringTheRequest(t *testing.T) {
-	cases := map[int]heatmap.HeatmapDepth{
-		0:    heatmap.HeatmapDepth_DEPTH_50,
-		1:    heatmap.HeatmapDepth_DEPTH_1,
-		2:    heatmap.HeatmapDepth_DEPTH_5,
-		5:    heatmap.HeatmapDepth_DEPTH_5,
-		10:   heatmap.HeatmapDepth_DEPTH_10,
-		11:   heatmap.HeatmapDepth_DEPTH_20,
-		20:   heatmap.HeatmapDepth_DEPTH_20,
-		50:   heatmap.HeatmapDepth_DEPTH_50,
-		100:  heatmap.HeatmapDepth_DEPTH_100,
-		101:  heatmap.HeatmapDepth_DEPTH_200,
-		200:  heatmap.HeatmapDepth_DEPTH_200,
-		201:  heatmap.HeatmapDepth_DEPTH_500,
-		500:  heatmap.HeatmapDepth_DEPTH_500,
-		501:  heatmap.HeatmapDepth_DEPTH_1000,
-		1000: heatmap.HeatmapDepth_DEPTH_1000,
+	cases := map[int]typev1.DepthTier{
+		0:    typev1.DepthTier_DEPTH_50,
+		1:    typev1.DepthTier_DEPTH_1,
+		2:    typev1.DepthTier_DEPTH_5,
+		5:    typev1.DepthTier_DEPTH_5,
+		10:   typev1.DepthTier_DEPTH_10,
+		11:   typev1.DepthTier_DEPTH_20,
+		20:   typev1.DepthTier_DEPTH_20,
+		50:   typev1.DepthTier_DEPTH_50,
+		100:  typev1.DepthTier_DEPTH_100,
+		101:  typev1.DepthTier_DEPTH_200,
+		200:  typev1.DepthTier_DEPTH_200,
+		201:  typev1.DepthTier_DEPTH_500,
+		500:  typev1.DepthTier_DEPTH_500,
+		501:  typev1.DepthTier_DEPTH_1000,
+		1000: typev1.DepthTier_DEPTH_1000,
 	}
 	for depth, want := range cases {
 		service, h := newHeatmapRequestService(t)
@@ -135,5 +135,26 @@ func TestHeatmapGetRefusesTheUnspecifiedInterval(t *testing.T) {
 	defer h.mu.Unlock()
 	if len(h.calls) != 0 {
 		t.Fatalf("sent %d requests", len(h.calls))
+	}
+}
+
+// A heatmap reply names the tier it was requested at: one naming none, an
+// unknown one, another tier or the unsupported DEPTH_5000 is an
+// *errors.ResponseContractError.
+func TestHeatmapGetRefusesAReplyNotAtTheRequestedTier(t *testing.T) {
+	for name, served := range map[string]typev1.DepthTier{
+		"unset":        typev1.DepthTier_DEPTH_UNSPECIFIED,
+		"unknown":      typev1.DepthTier(99),
+		"another tier": typev1.DepthTier_DEPTH_200,
+		"unsupported":  typev1.DepthTier_DEPTH_5000,
+	} {
+		service, h := newHeatmapRequestService(t)
+		h.served = &served
+		id := uint32(1)
+		_, err := service.Get(context.Background(), nil, &id, "1m", 50, 1, "close", nil, nil, nil)
+		var contract *sdkerrors.ResponseContractError
+		if !stderrors.As(err, &contract) {
+			t.Fatalf("%s: err = %v, want a ResponseContractError", name, err)
+		}
 	}
 }

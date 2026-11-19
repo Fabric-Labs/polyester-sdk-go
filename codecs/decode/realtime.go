@@ -172,6 +172,9 @@ func SubaccountPolicyFromBytes(payload []byte) (models.SubaccountPolicy, error) 
 	if err := unmarshalProto(payload, &msg); err != nil {
 		return models.SubaccountPolicy{}, err
 	}
+	if err := requireTemplateLineage("SubaccountPolicy publication", msg.GetSourceTemplateId(), msg.GetSourceTemplateRevision()); err != nil {
+		return models.SubaccountPolicy{}, err
+	}
 	if row := SubaccountPolicyMessageFromProto(&msg); row != nil {
 		return *row, nil
 	}
@@ -182,6 +185,9 @@ func SubaccountPolicyFromBytes(payload []byte) (models.SubaccountPolicy, error) 
 func ApiPolicyFromBytes(payload []byte) (models.ApiPolicy, error) {
 	var msg authv1.ApiPolicyView
 	if err := unmarshalProto(payload, &msg); err != nil {
+		return models.ApiPolicy{}, err
+	}
+	if err := requireTemplateLineage("ApiPolicy publication", msg.GetSourceTemplateId(), msg.GetSourceTemplateRevision()); err != nil {
 		return models.ApiPolicy{}, err
 	}
 	if row := ApiPolicyMessageFromProto(&msg); row != nil {

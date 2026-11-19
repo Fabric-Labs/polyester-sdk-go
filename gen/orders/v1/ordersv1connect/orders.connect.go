@@ -98,13 +98,30 @@ type OrdersServiceClient interface {
 	// placed.
 	CancelOrder(context.Context, *connect.Request[v1.CancelOrderRequest]) (*connect.Response[v1.CancelOrderResponse], error)
 	// Cancels all matching open orders for an account (kill switch).
-	// Evaluates matching orders from a consistent snapshot at request start and
-	// requests cancellation of every one, however many match. The response
-	// lists up to 200 of them, oldest first, with the total count.
-	// Final state is confirmed via the order update stream or read path.
+	// Unless dry_run is set, what it cancels is fixed when its request_id is
+	// first admitted: every matching order of the account admitted before
+	// that, from any interface, and none admitted after it. An order whose create, batch
+	// create, modify or batch replace response arrived before this request was
+	// sent was admitted before it and is covered, including an order not yet
+	// reported open and an order that replaced an earlier one. Requests still
+	// in flight when this request is sent, and requests whose outcome is
+	// unknown, have no defined order with it: an order they create may be
+	// admitted after it and stay open. Wait for their responses before sending
+	// the cancel-all, or send another once they are answered.
 	//
-	// It cancels orders, not triggers. Open orders that triggers placed match
-	// like any other order and are canceled: a TWAP's working slice, a
+	// It requests cancellation of every covered order, however many match. The
+	// response confirms admission, not completion, and lists up to 200 of them,
+	// oldest first, with the total count. Each covered order eventually ends;
+	// any still open when the cancellation applies is canceled. Final state is
+	// confirmed via the order update stream or read path. A retry with the same
+	// request_id returns the original outcome and covers no order admitted
+	// after the original request. A rejected request, or one whose outcome is
+	// unknown, is no barrier: orders sent before it may stay open, so retry it
+	// or read open orders before relying on it.
+	//
+	// By default it cancels orders, not triggers; with `include_triggers` it
+	// also stops the account's matching triggers (see the field). Open orders
+	// that triggers placed match like any other order and are canceled: a TWAP's working slice, a
 	// ladder's levels, the order a fired stop placed, and the working exit of
 	// an attached take-profit, stop-loss or trailing stop. The triggers
 	// themselves are not canceled, and their reserved funds stay reserved:
@@ -120,22 +137,20 @@ type OrdersServiceClient interface {
 	//     canceled before any fill.
 	//   - A paused trigger stays paused and can be resumed.
 	//
-	// To stop all automated trading, cancel each live trigger with
-	// TriggersService.CancelTrigger, then cancel the orders: a trigger that
-	// fires before its cancel places an order that the cancel-all then
-	// cancels. TriggersService.ListTriggers with the statuses STATUS_CREATED,
-	// STATUS_ARMED, STATUS_RUNNING and STATUS_PAUSED lists the live triggers,
-	// attached legs included.
+	// To stop all automated trading in one request, set `include_triggers`:
+	// every matching trigger ends canceled with reason
+	// TRIGGER_CANCEL_REASON_CANCEL_ALL, none places an order after the
+	// response, and `matched_triggers` counts them.
 	CancelAllOrders(context.Context, *connect.Request[v1.CancelAllOrdersRequest]) (*connect.Response[v1.CancelAllOrdersResponse], error)
 	// Set cancel-all-after (dead-man switch).
 	// Arms or disables automatic cancel-all if heartbeat is not refreshed before expiry.
 	// When the switch fires, it cancels what CancelAllOrders with the same
 	// symbol and side scope cancels: open orders, including those that
-	// triggers placed, and no trigger. Standalone stop-loss, take-profit and
-	// trailing stops and running TWAPs stay active and can place new orders
-	// after it fires, and attached legs end or keep protecting the position
-	// exactly as after CancelAllOrders. The switch does not stop them: only
-	// TriggersService.CancelTrigger cancels a trigger.
+	// triggers placed, and, only with `include_triggers`, the matching
+	// triggers. Without it, standalone stop-loss, take-profit and trailing
+	// stops and running TWAPs stay active and can place new orders after it
+	// fires, and attached legs end or keep protecting the position exactly
+	// as after CancelAllOrders.
 	CancelAllAfter(context.Context, *connect.Request[v1.CancelAllAfterRequest]) (*connect.Response[v1.CancelAllAfterResponse], error)
 	// Places multiple orders in a single request (best-effort per item).
 	BatchCreateOrders(context.Context, *connect.Request[v1.BatchCreateOrdersRequest]) (*connect.Response[v1.BatchCreateOrdersResponse], error)
@@ -324,13 +339,30 @@ type OrdersServiceHandler interface {
 	// placed.
 	CancelOrder(context.Context, *connect.Request[v1.CancelOrderRequest]) (*connect.Response[v1.CancelOrderResponse], error)
 	// Cancels all matching open orders for an account (kill switch).
-	// Evaluates matching orders from a consistent snapshot at request start and
-	// requests cancellation of every one, however many match. The response
-	// lists up to 200 of them, oldest first, with the total count.
-	// Final state is confirmed via the order update stream or read path.
+	// Unless dry_run is set, what it cancels is fixed when its request_id is
+	// first admitted: every matching order of the account admitted before
+	// that, from any interface, and none admitted after it. An order whose create, batch
+	// create, modify or batch replace response arrived before this request was
+	// sent was admitted before it and is covered, including an order not yet
+	// reported open and an order that replaced an earlier one. Requests still
+	// in flight when this request is sent, and requests whose outcome is
+	// unknown, have no defined order with it: an order they create may be
+	// admitted after it and stay open. Wait for their responses before sending
+	// the cancel-all, or send another once they are answered.
 	//
-	// It cancels orders, not triggers. Open orders that triggers placed match
-	// like any other order and are canceled: a TWAP's working slice, a
+	// It requests cancellation of every covered order, however many match. The
+	// response confirms admission, not completion, and lists up to 200 of them,
+	// oldest first, with the total count. Each covered order eventually ends;
+	// any still open when the cancellation applies is canceled. Final state is
+	// confirmed via the order update stream or read path. A retry with the same
+	// request_id returns the original outcome and covers no order admitted
+	// after the original request. A rejected request, or one whose outcome is
+	// unknown, is no barrier: orders sent before it may stay open, so retry it
+	// or read open orders before relying on it.
+	//
+	// By default it cancels orders, not triggers; with `include_triggers` it
+	// also stops the account's matching triggers (see the field). Open orders
+	// that triggers placed match like any other order and are canceled: a TWAP's working slice, a
 	// ladder's levels, the order a fired stop placed, and the working exit of
 	// an attached take-profit, stop-loss or trailing stop. The triggers
 	// themselves are not canceled, and their reserved funds stay reserved:
@@ -346,22 +378,20 @@ type OrdersServiceHandler interface {
 	//     canceled before any fill.
 	//   - A paused trigger stays paused and can be resumed.
 	//
-	// To stop all automated trading, cancel each live trigger with
-	// TriggersService.CancelTrigger, then cancel the orders: a trigger that
-	// fires before its cancel places an order that the cancel-all then
-	// cancels. TriggersService.ListTriggers with the statuses STATUS_CREATED,
-	// STATUS_ARMED, STATUS_RUNNING and STATUS_PAUSED lists the live triggers,
-	// attached legs included.
+	// To stop all automated trading in one request, set `include_triggers`:
+	// every matching trigger ends canceled with reason
+	// TRIGGER_CANCEL_REASON_CANCEL_ALL, none places an order after the
+	// response, and `matched_triggers` counts them.
 	CancelAllOrders(context.Context, *connect.Request[v1.CancelAllOrdersRequest]) (*connect.Response[v1.CancelAllOrdersResponse], error)
 	// Set cancel-all-after (dead-man switch).
 	// Arms or disables automatic cancel-all if heartbeat is not refreshed before expiry.
 	// When the switch fires, it cancels what CancelAllOrders with the same
 	// symbol and side scope cancels: open orders, including those that
-	// triggers placed, and no trigger. Standalone stop-loss, take-profit and
-	// trailing stops and running TWAPs stay active and can place new orders
-	// after it fires, and attached legs end or keep protecting the position
-	// exactly as after CancelAllOrders. The switch does not stop them: only
-	// TriggersService.CancelTrigger cancels a trigger.
+	// triggers placed, and, only with `include_triggers`, the matching
+	// triggers. Without it, standalone stop-loss, take-profit and trailing
+	// stops and running TWAPs stay active and can place new orders after it
+	// fires, and attached legs end or keep protecting the position exactly
+	// as after CancelAllOrders.
 	CancelAllAfter(context.Context, *connect.Request[v1.CancelAllAfterRequest]) (*connect.Response[v1.CancelAllAfterResponse], error)
 	// Places multiple orders in a single request (best-effort per item).
 	BatchCreateOrders(context.Context, *connect.Request[v1.BatchCreateOrdersRequest]) (*connect.Response[v1.BatchCreateOrdersResponse], error)

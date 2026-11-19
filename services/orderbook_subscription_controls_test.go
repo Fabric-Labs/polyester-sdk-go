@@ -14,6 +14,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	ob "github.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1"
+	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/realtime"
@@ -84,7 +85,11 @@ func bookTicketService(t *testing.T, seq uint64, available bool, wantID ...uint3
 			return
 		}
 		w.Header().Set("Content-Type", "application/proto")
-		data, _ := proto.Marshal(&ob.GetOrderBookResponse{SymbolId: id, BookSeq: seq, Available: available})
+		served := request.GetDepth()
+		if served == typev1.DepthTier_DEPTH_UNSPECIFIED {
+			served = typev1.DepthTier_DEPTH_50
+		}
+		data, _ := proto.Marshal(&ob.GetOrderBookResponse{SymbolId: id, BookSeq: seq, Available: available, Depth: served})
 		_, _ = w.Write(data)
 	}))
 	t.Cleanup(func() { close(stop); ws.Close(); httpSrv.Close() })

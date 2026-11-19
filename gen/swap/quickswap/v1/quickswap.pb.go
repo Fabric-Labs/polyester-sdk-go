@@ -242,10 +242,12 @@ const (
 	DepositDisposition_ELIGIBLE DepositDisposition = 2
 	// Not accepted: it is returned to return_address and never executes. A
 	// deposit found ineligible after it was credited, such as a late deposit
-	// (LATE_DEPOSIT), one below min_deposit_amount (DEPOSIT_BELOW_MINIMUM) or
-	// above max_deposit_amount (DEPOSIT_ABOVE_MAXIMUM), or one of the wrong
+	// (LATE_DEPOSIT), one below min_deposit_amount but at least the source
+	// network's minimum deposit (DEPOSIT_BELOW_MINIMUM) or above
+	// max_deposit_amount (DEPOSIT_ABOVE_MAXIMUM), or one of the wrong
 	// asset or network (WRONG_ASSET), keeps credited_at and is returned from its
-	// credit.
+	// credit. One never credited is returned directly, and direct_return
+	// reports that return.
 	DepositDisposition_RETURN_ONLY DepositDisposition = 3
 	// Held for review; it neither executes nor returns until released. A
 	// deposit blocked by its risk screen (SOURCE_SCREENING_BLOCKED) keeps this
@@ -335,7 +337,10 @@ const (
 	// The deposit is below the published min_deposit_amount, or its credit after
 	// the deposit network fee is below the smallest order the route's market
 	// accepts. It is not executed: it is returned to return_address, and the
-	// QuickSwap shows RETURNING and RETURNED with this reason. A deposit that
+	// QuickSwap shows RETURNING and RETURNED with this reason. Only a deposit
+	// that reaches the source network's minimum deposit
+	// (AssetChainVariant.deposit_min_amount) is returned; one below it is not
+	// detected and never appears on the QuickSwap. A deposit that
 	// cannot be returned on the network it was received on is held (HELD with
 	// this reason); the broker contacts Polyester broker support with the
 	// swap_id.
@@ -402,6 +407,20 @@ const (
 	// QuickSwap is REJECTED: it never gets a deposit address, and nothing can
 	// be deposited to it.
 	QuickSwapReason_SOURCE_WALLET_SCREENING_FAILED QuickSwapReason = 28
+	// Available liquidity did not fill an order at its protected price; untraded
+	// input or intermediate funds are returned or refunded. Shown on the payout
+	// statuses that follow, including COMPLETED when a partly traded swap
+	// refunded the rest. A trade failure reason (this one or ORDER_REJECTED)
+	// is used only when the execution ended without another reason, such as
+	// EXECUTION_DEADLINE_REACHED or PROTECTION_NOT_MET; it is then the first
+	// slice in schedule order whose reason or carry_reason is
+	// INSUFFICIENT_LIQUIDITY or ORDER_REJECTED, the reason before the
+	// carry_reason within a slice.
+	QuickSwapReason_INSUFFICIENT_LIQUIDITY QuickSwapReason = 29
+	// An order was refused; untraded input or intermediate funds are returned
+	// or refunded. Shown on the payout statuses that follow, chosen as for
+	// INSUFFICIENT_LIQUIDITY.
+	QuickSwapReason_ORDER_REJECTED QuickSwapReason = 30
 )
 
 // Enum value maps for QuickSwapReason.
@@ -428,6 +447,8 @@ var (
 		26: "INTERMEDIATE_BELOW_MINIMUM",
 		27: "MARKET_CLOSED",
 		28: "SOURCE_WALLET_SCREENING_FAILED",
+		29: "INSUFFICIENT_LIQUIDITY",
+		30: "ORDER_REJECTED",
 	}
 	QuickSwapReason_value = map[string]int32{
 		"REASON_UNSPECIFIED":             0,
@@ -451,6 +472,8 @@ var (
 		"INTERMEDIATE_BELOW_MINIMUM":     26,
 		"MARKET_CLOSED":                  27,
 		"SOURCE_WALLET_SCREENING_FAILED": 28,
+		"INSUFFICIENT_LIQUIDITY":         29,
+		"ORDER_REJECTED":                 30,
 	}
 )
 
@@ -479,6 +502,64 @@ func (x QuickSwapReason) Number() protoreflect.EnumNumber {
 // Deprecated: Use QuickSwapReason.Descriptor instead.
 func (QuickSwapReason) EnumDescriptor() ([]byte, []int) {
 	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{4}
+}
+
+// DepositReturnState is the progress of a deposit's direct return.
+type DepositReturnState int32
+
+const (
+	// No state; never returned.
+	DepositReturnState_RETURN_UNSPECIFIED DepositReturnState = 0
+	// The return is queued or being sent.
+	DepositReturnState_RETURN_PENDING DepositReturnState = 1
+	// The return was sent to return_address; tx_hash is its transaction.
+	DepositReturnState_RETURN_COMPLETED DepositReturnState = 2
+	// The return is held for review and is not sent until review releases it.
+	// The broker contacts Polyester broker support with the swap_id.
+	DepositReturnState_RETURN_HELD DepositReturnState = 3
+)
+
+// Enum value maps for DepositReturnState.
+var (
+	DepositReturnState_name = map[int32]string{
+		0: "RETURN_UNSPECIFIED",
+		1: "RETURN_PENDING",
+		2: "RETURN_COMPLETED",
+		3: "RETURN_HELD",
+	}
+	DepositReturnState_value = map[string]int32{
+		"RETURN_UNSPECIFIED": 0,
+		"RETURN_PENDING":     1,
+		"RETURN_COMPLETED":   2,
+		"RETURN_HELD":        3,
+	}
+)
+
+func (x DepositReturnState) Enum() *DepositReturnState {
+	p := new(DepositReturnState)
+	*p = x
+	return p
+}
+
+func (x DepositReturnState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (DepositReturnState) Descriptor() protoreflect.EnumDescriptor {
+	return file_swap_quickswap_v1_quickswap_proto_enumTypes[5].Descriptor()
+}
+
+func (DepositReturnState) Type() protoreflect.EnumType {
+	return &file_swap_quickswap_v1_quickswap_proto_enumTypes[5]
+}
+
+func (x DepositReturnState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use DepositReturnState.Descriptor instead.
+func (DepositReturnState) EnumDescriptor() ([]byte, []int) {
+	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{5}
 }
 
 // WithdrawalRole is why a withdrawal pays its recipient.
@@ -534,11 +615,11 @@ func (x WithdrawalRole) String() string {
 }
 
 func (WithdrawalRole) Descriptor() protoreflect.EnumDescriptor {
-	return file_swap_quickswap_v1_quickswap_proto_enumTypes[5].Descriptor()
+	return file_swap_quickswap_v1_quickswap_proto_enumTypes[6].Descriptor()
 }
 
 func (WithdrawalRole) Type() protoreflect.EnumType {
-	return &file_swap_quickswap_v1_quickswap_proto_enumTypes[5]
+	return &file_swap_quickswap_v1_quickswap_proto_enumTypes[6]
 }
 
 func (x WithdrawalRole) Number() protoreflect.EnumNumber {
@@ -547,7 +628,7 @@ func (x WithdrawalRole) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use WithdrawalRole.Descriptor instead.
 func (WithdrawalRole) EnumDescriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{5}
+	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{6}
 }
 
 // WithdrawalState is the progress of one withdrawal. FINALIZED and NOT_SENT
@@ -606,11 +687,11 @@ func (x WithdrawalState) String() string {
 }
 
 func (WithdrawalState) Descriptor() protoreflect.EnumDescriptor {
-	return file_swap_quickswap_v1_quickswap_proto_enumTypes[6].Descriptor()
+	return file_swap_quickswap_v1_quickswap_proto_enumTypes[7].Descriptor()
 }
 
 func (WithdrawalState) Type() protoreflect.EnumType {
-	return &file_swap_quickswap_v1_quickswap_proto_enumTypes[6]
+	return &file_swap_quickswap_v1_quickswap_proto_enumTypes[7]
 }
 
 func (x WithdrawalState) Number() protoreflect.EnumNumber {
@@ -619,7 +700,7 @@ func (x WithdrawalState) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use WithdrawalState.Descriptor instead.
 func (WithdrawalState) EnumDescriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{6}
+	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{7}
 }
 
 // QuickSwapStatus is the current state of a QuickSwap. While funds progress,
@@ -768,11 +849,11 @@ func (x QuickSwapStatus) String() string {
 }
 
 func (QuickSwapStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_swap_quickswap_v1_quickswap_proto_enumTypes[7].Descriptor()
+	return file_swap_quickswap_v1_quickswap_proto_enumTypes[8].Descriptor()
 }
 
 func (QuickSwapStatus) Type() protoreflect.EnumType {
-	return &file_swap_quickswap_v1_quickswap_proto_enumTypes[7]
+	return &file_swap_quickswap_v1_quickswap_proto_enumTypes[8]
 }
 
 func (x QuickSwapStatus) Number() protoreflect.EnumNumber {
@@ -781,7 +862,7 @@ func (x QuickSwapStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use QuickSwapStatus.Descriptor instead.
 func (QuickSwapStatus) EnumDescriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{7}
+	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{8}
 }
 
 // ErrorCode is the stable machine-readable QuickSwap error code.
@@ -1090,11 +1171,11 @@ func (x ErrorCode) String() string {
 }
 
 func (ErrorCode) Descriptor() protoreflect.EnumDescriptor {
-	return file_swap_quickswap_v1_quickswap_proto_enumTypes[8].Descriptor()
+	return file_swap_quickswap_v1_quickswap_proto_enumTypes[9].Descriptor()
 }
 
 func (ErrorCode) Type() protoreflect.EnumType {
-	return &file_swap_quickswap_v1_quickswap_proto_enumTypes[8]
+	return &file_swap_quickswap_v1_quickswap_proto_enumTypes[9]
 }
 
 func (x ErrorCode) Number() protoreflect.EnumNumber {
@@ -1103,7 +1184,7 @@ func (x ErrorCode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ErrorCode.Descriptor instead.
 func (ErrorCode) EnumDescriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{8}
+	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{9}
 }
 
 // SlicesUnavailableReason explains why slice details cannot be shown.
@@ -1145,11 +1226,11 @@ func (x ExecutionProgress_SlicesUnavailableReason) String() string {
 }
 
 func (ExecutionProgress_SlicesUnavailableReason) Descriptor() protoreflect.EnumDescriptor {
-	return file_swap_quickswap_v1_quickswap_proto_enumTypes[9].Descriptor()
+	return file_swap_quickswap_v1_quickswap_proto_enumTypes[10].Descriptor()
 }
 
 func (ExecutionProgress_SlicesUnavailableReason) Type() protoreflect.EnumType {
-	return &file_swap_quickswap_v1_quickswap_proto_enumTypes[9]
+	return &file_swap_quickswap_v1_quickswap_proto_enumTypes[10]
 }
 
 func (x ExecutionProgress_SlicesUnavailableReason) Number() protoreflect.EnumNumber {
@@ -1158,7 +1239,7 @@ func (x ExecutionProgress_SlicesUnavailableReason) Number() protoreflect.EnumNum
 
 // Deprecated: Use ExecutionProgress_SlicesUnavailableReason.Descriptor instead.
 func (ExecutionProgress_SlicesUnavailableReason) EnumDescriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{12, 0}
+	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{13, 0}
 }
 
 // State distinguishes pending work from a final slice outcome.
@@ -1215,11 +1296,11 @@ func (x ExecutionSlice_State) String() string {
 }
 
 func (ExecutionSlice_State) Descriptor() protoreflect.EnumDescriptor {
-	return file_swap_quickswap_v1_quickswap_proto_enumTypes[10].Descriptor()
+	return file_swap_quickswap_v1_quickswap_proto_enumTypes[11].Descriptor()
 }
 
 func (ExecutionSlice_State) Type() protoreflect.EnumType {
-	return &file_swap_quickswap_v1_quickswap_proto_enumTypes[10]
+	return &file_swap_quickswap_v1_quickswap_proto_enumTypes[11]
 }
 
 func (x ExecutionSlice_State) Number() protoreflect.EnumNumber {
@@ -1228,7 +1309,7 @@ func (x ExecutionSlice_State) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ExecutionSlice_State.Descriptor instead.
 func (ExecutionSlice_State) EnumDescriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{13, 0}
+	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{14, 0}
 }
 
 // Reason explains a slice outcome or why intermediate funds were carried.
@@ -1296,11 +1377,11 @@ func (x ExecutionSlice_Reason) String() string {
 }
 
 func (ExecutionSlice_Reason) Descriptor() protoreflect.EnumDescriptor {
-	return file_swap_quickswap_v1_quickswap_proto_enumTypes[11].Descriptor()
+	return file_swap_quickswap_v1_quickswap_proto_enumTypes[12].Descriptor()
 }
 
 func (ExecutionSlice_Reason) Type() protoreflect.EnumType {
-	return &file_swap_quickswap_v1_quickswap_proto_enumTypes[11]
+	return &file_swap_quickswap_v1_quickswap_proto_enumTypes[12]
 }
 
 func (x ExecutionSlice_Reason) Number() protoreflect.EnumNumber {
@@ -1309,7 +1390,7 @@ func (x ExecutionSlice_Reason) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ExecutionSlice_Reason.Descriptor instead.
 func (ExecutionSlice_Reason) EnumDescriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{13, 1}
+	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{14, 1}
 }
 
 // TokenAmount is an exact token amount in the token's smallest unit.
@@ -1985,10 +2066,15 @@ type QuickSwapQuote struct {
 	// quote.
 	MinRate string `protobuf:"bytes,4,opt,name=min_rate,json=minRate,proto3" json:"min_rate,omitempty"`
 	// Published minimum deposit, in source token units, compared with the
-	// deposit before its network fee. A smaller deposit is returned to
-	// return_address (DEPOSIT_BELOW_MINIMUM). It is never below the source
-	// network's minimum
-	// (AssetChainVariant.deposit_min_amount in the config), and differs from
+	// deposit before its network fee. Send at least this amount. It is never
+	// below the source network's minimum deposit
+	// (AssetChainVariant.deposit_min_amount in the config, for
+	// DepositInstructions.zipped_asset_id). A smaller deposit is returned to
+	// return_address (DEPOSIT_BELOW_MINIMUM) only if it reaches the source
+	// network's minimum deposit; a deposit below that minimum is not detected,
+	// recorded or returned, and is lost. For a bridge, min_deposit_amount
+	// often equals the source network's minimum deposit; when they are equal,
+	// any smaller deposit is lost. It differs from
 	// ErrorDetail.min_deposit_amount, the smallest deposit that currently
 	// quotes. For a TWAP it is the slice count times the smallest deposit one
 	// slice takes, and at least a market execution's minimum.
@@ -2361,7 +2447,14 @@ type Deposit struct {
 	// Public, URL-safe lifecycle flow identifier of this deposit, usable with
 	// GET /v1/chain/flows/{flow_id}; empty until the flow exists. Lifecycle flow
 	// amounts are 18-decimal unified units (amount_e18), not token base units.
-	FlowId        string `protobuf:"bytes,14,opt,name=flow_id,json=flowId,proto3" json:"flow_id,omitempty"`
+	FlowId string `protobuf:"bytes,14,opt,name=flow_id,json=flowId,proto3" json:"flow_id,omitempty"`
+	// Direct return to return_address of a deposit that was never credited: a
+	// RETURN_ONLY deposit that reached the address after its one eligible
+	// deposit or after its funding window. On a MANUAL_RECOVERY deposit it
+	// reports a direct return once one is recorded. Unset until a direct return
+	// is recorded, and on every other deposit, which is returned through
+	// withdrawals.
+	DirectReturn  *DepositReturn `protobuf:"bytes,15,opt,name=direct_return,json=directReturn,proto3" json:"direct_return,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2480,6 +2573,80 @@ func (x *Deposit) GetFlowId() string {
 	return ""
 }
 
+func (x *Deposit) GetDirectReturn() *DepositReturn {
+	if x != nil {
+		return x.DirectReturn
+	}
+	return nil
+}
+
+// DepositReturn is a deposit's direct return to return_address. It pays the
+// return address only, never the deposit's sender, in the asset and on the
+// network the deposit was received in.
+type DepositReturn struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Return progress. Accept state values added later.
+	State DepositReturnState `protobuf:"varint,1,opt,name=state,proto3,enum=swap.quickswap.v1.DepositReturnState" json:"state,omitempty"`
+	// Return transaction on the deposit's network, in the network's native
+	// text form; set once RETURN_COMPLETED.
+	TxHash string `protobuf:"bytes,2,opt,name=tx_hash,json=txHash,proto3" json:"tx_hash,omitempty"`
+	// When the return last changed state.
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DepositReturn) Reset() {
+	*x = DepositReturn{}
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DepositReturn) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DepositReturn) ProtoMessage() {}
+
+func (x *DepositReturn) ProtoReflect() protoreflect.Message {
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DepositReturn.ProtoReflect.Descriptor instead.
+func (*DepositReturn) Descriptor() ([]byte, []int) {
+	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *DepositReturn) GetState() DepositReturnState {
+	if x != nil {
+		return x.State
+	}
+	return DepositReturnState_RETURN_UNSPECIFIED
+}
+
+func (x *DepositReturn) GetTxHash() string {
+	if x != nil {
+		return x.TxHash
+	}
+	return ""
+}
+
+func (x *DepositReturn) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
 // ExecutionProgress is the trading progress of a QuickSwap.
 type ExecutionProgress struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -2538,7 +2705,7 @@ type ExecutionProgress struct {
 
 func (x *ExecutionProgress) Reset() {
 	*x = ExecutionProgress{}
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[12]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2550,7 +2717,7 @@ func (x *ExecutionProgress) String() string {
 func (*ExecutionProgress) ProtoMessage() {}
 
 func (x *ExecutionProgress) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[12]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2563,7 +2730,7 @@ func (x *ExecutionProgress) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecutionProgress.ProtoReflect.Descriptor instead.
 func (*ExecutionProgress) Descriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{12}
+	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ExecutionProgress) GetInputAmount() *TokenAmount {
@@ -2695,7 +2862,7 @@ type ExecutionSlice struct {
 
 func (x *ExecutionSlice) Reset() {
 	*x = ExecutionSlice{}
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[13]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2707,7 +2874,7 @@ func (x *ExecutionSlice) String() string {
 func (*ExecutionSlice) ProtoMessage() {}
 
 func (x *ExecutionSlice) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[13]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2720,7 +2887,7 @@ func (x *ExecutionSlice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecutionSlice.ProtoReflect.Descriptor instead.
 func (*ExecutionSlice) Descriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{13}
+	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ExecutionSlice) GetIndex() uint32 {
@@ -2882,7 +3049,7 @@ type Withdrawal struct {
 
 func (x *Withdrawal) Reset() {
 	*x = Withdrawal{}
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[14]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2894,7 +3061,7 @@ func (x *Withdrawal) String() string {
 func (*Withdrawal) ProtoMessage() {}
 
 func (x *Withdrawal) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[14]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2907,7 +3074,7 @@ func (x *Withdrawal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Withdrawal.ProtoReflect.Descriptor instead.
 func (*Withdrawal) Descriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{14}
+	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Withdrawal) GetIndex() uint32 {
@@ -3031,8 +3198,9 @@ type QuickSwap struct {
 	// and withdrawal details can be corrected as documented on Withdrawal;
 	// another deposit reaching the address also shows as RETURN_ONLY, and
 	// another deposit observed on an already retired address shows as
-	// MANUAL_RECOVERY. Returns made directly for such deposits are not yet
-	// reported in withdrawals; RETURN_ONLY does not confirm a completed return.
+	// MANUAL_RECOVERY. Such a deposit is returned directly, not through
+	// withdrawals: its direct_return reports the return, and RETURN_ONLY alone
+	// does not confirm a completed return.
 	// An EXPIRED QuickSwap whose dropped or replaced deposit confirms after all
 	// becomes HELD (see QuickSwapStatus.EXPIRED). Read again if the end user
 	// reports such a deposit or needs the final retirement time.
@@ -3128,7 +3296,7 @@ type QuickSwap struct {
 
 func (x *QuickSwap) Reset() {
 	*x = QuickSwap{}
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[15]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3140,7 +3308,7 @@ func (x *QuickSwap) String() string {
 func (*QuickSwap) ProtoMessage() {}
 
 func (x *QuickSwap) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[15]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3153,7 +3321,7 @@ func (x *QuickSwap) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QuickSwap.ProtoReflect.Descriptor instead.
 func (*QuickSwap) Descriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{15}
+	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *QuickSwap) GetSwapId() uint64 {
@@ -3381,7 +3549,7 @@ type RequestedFees struct {
 
 func (x *RequestedFees) Reset() {
 	*x = RequestedFees{}
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[16]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3393,7 +3561,7 @@ func (x *RequestedFees) String() string {
 func (*RequestedFees) ProtoMessage() {}
 
 func (x *RequestedFees) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[16]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3406,7 +3574,7 @@ func (x *RequestedFees) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RequestedFees.ProtoReflect.Descriptor instead.
 func (*RequestedFees) Descriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{16}
+	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *RequestedFees) GetBrokerBps() uint32 {
@@ -3450,7 +3618,7 @@ type ChargedFee struct {
 
 func (x *ChargedFee) Reset() {
 	*x = ChargedFee{}
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[17]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3462,7 +3630,7 @@ func (x *ChargedFee) String() string {
 func (*ChargedFee) ProtoMessage() {}
 
 func (x *ChargedFee) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[17]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3475,7 +3643,7 @@ func (x *ChargedFee) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChargedFee.ProtoReflect.Descriptor instead.
 func (*ChargedFee) Descriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{17}
+	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ChargedFee) GetKind() FeeKind {
@@ -3545,7 +3713,7 @@ type QuoteQuickSwapRequest struct {
 
 func (x *QuoteQuickSwapRequest) Reset() {
 	*x = QuoteQuickSwapRequest{}
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[18]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3557,7 +3725,7 @@ func (x *QuoteQuickSwapRequest) String() string {
 func (*QuoteQuickSwapRequest) ProtoMessage() {}
 
 func (x *QuoteQuickSwapRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[18]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3570,7 +3738,7 @@ func (x *QuoteQuickSwapRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QuoteQuickSwapRequest.ProtoReflect.Descriptor instead.
 func (*QuoteQuickSwapRequest) Descriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{18}
+	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *QuoteQuickSwapRequest) GetTerms() *QuickSwapTerms {
@@ -3621,7 +3789,7 @@ type QuoteQuickSwapResponse struct {
 
 func (x *QuoteQuickSwapResponse) Reset() {
 	*x = QuoteQuickSwapResponse{}
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[19]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3633,7 +3801,7 @@ func (x *QuoteQuickSwapResponse) String() string {
 func (*QuoteQuickSwapResponse) ProtoMessage() {}
 
 func (x *QuoteQuickSwapResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[19]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3646,7 +3814,7 @@ func (x *QuoteQuickSwapResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QuoteQuickSwapResponse.ProtoReflect.Descriptor instead.
 func (*QuoteQuickSwapResponse) Descriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{19}
+	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *QuoteQuickSwapResponse) GetQuote() *QuickSwapQuote {
@@ -3674,7 +3842,7 @@ type AffiliateShare struct {
 
 func (x *AffiliateShare) Reset() {
 	*x = AffiliateShare{}
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[20]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3686,7 +3854,7 @@ func (x *AffiliateShare) String() string {
 func (*AffiliateShare) ProtoMessage() {}
 
 func (x *AffiliateShare) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[20]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3699,7 +3867,7 @@ func (x *AffiliateShare) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AffiliateShare.ProtoReflect.Descriptor instead.
 func (*AffiliateShare) Descriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{20}
+	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *AffiliateShare) GetAccountId() uint64 {
@@ -3797,7 +3965,7 @@ type CreateQuickSwapRequest struct {
 
 func (x *CreateQuickSwapRequest) Reset() {
 	*x = CreateQuickSwapRequest{}
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[21]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3809,7 +3977,7 @@ func (x *CreateQuickSwapRequest) String() string {
 func (*CreateQuickSwapRequest) ProtoMessage() {}
 
 func (x *CreateQuickSwapRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[21]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3822,7 +3990,7 @@ func (x *CreateQuickSwapRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateQuickSwapRequest.ProtoReflect.Descriptor instead.
 func (*CreateQuickSwapRequest) Descriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{21}
+	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *CreateQuickSwapRequest) GetIdempotencyKey() string {
@@ -3928,7 +4096,7 @@ type CreateQuickSwapResponse struct {
 
 func (x *CreateQuickSwapResponse) Reset() {
 	*x = CreateQuickSwapResponse{}
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[22]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3940,7 +4108,7 @@ func (x *CreateQuickSwapResponse) String() string {
 func (*CreateQuickSwapResponse) ProtoMessage() {}
 
 func (x *CreateQuickSwapResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[22]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3953,7 +4121,7 @@ func (x *CreateQuickSwapResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateQuickSwapResponse.ProtoReflect.Descriptor instead.
 func (*CreateQuickSwapResponse) Descriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{22}
+	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *CreateQuickSwapResponse) GetQuickSwap() *QuickSwap {
@@ -3979,7 +4147,7 @@ type GetQuickSwapRequest struct {
 
 func (x *GetQuickSwapRequest) Reset() {
 	*x = GetQuickSwapRequest{}
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[23]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3991,7 +4159,7 @@ func (x *GetQuickSwapRequest) String() string {
 func (*GetQuickSwapRequest) ProtoMessage() {}
 
 func (x *GetQuickSwapRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[23]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4004,7 +4172,7 @@ func (x *GetQuickSwapRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetQuickSwapRequest.ProtoReflect.Descriptor instead.
 func (*GetQuickSwapRequest) Descriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{23}
+	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *GetQuickSwapRequest) GetSelector() isGetQuickSwapRequest_Selector {
@@ -4062,7 +4230,7 @@ type GetQuickSwapResponse struct {
 
 func (x *GetQuickSwapResponse) Reset() {
 	*x = GetQuickSwapResponse{}
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[24]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4074,7 +4242,7 @@ func (x *GetQuickSwapResponse) String() string {
 func (*GetQuickSwapResponse) ProtoMessage() {}
 
 func (x *GetQuickSwapResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[24]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4087,7 +4255,7 @@ func (x *GetQuickSwapResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetQuickSwapResponse.ProtoReflect.Descriptor instead.
 func (*GetQuickSwapResponse) Descriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{24}
+	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *GetQuickSwapResponse) GetQuickSwap() *QuickSwap {
@@ -4128,7 +4296,7 @@ type ErrorDetail struct {
 
 func (x *ErrorDetail) Reset() {
 	*x = ErrorDetail{}
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[25]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4140,7 +4308,7 @@ func (x *ErrorDetail) String() string {
 func (*ErrorDetail) ProtoMessage() {}
 
 func (x *ErrorDetail) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[25]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4153,7 +4321,7 @@ func (x *ErrorDetail) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ErrorDetail.ProtoReflect.Descriptor instead.
 func (*ErrorDetail) Descriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{25}
+	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ErrorDetail) GetCode() ErrorCode {
@@ -4201,7 +4369,7 @@ type ExecutionSlice_SecondLeg struct {
 
 func (x *ExecutionSlice_SecondLeg) Reset() {
 	*x = ExecutionSlice_SecondLeg{}
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[26]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4213,7 +4381,7 @@ func (x *ExecutionSlice_SecondLeg) String() string {
 func (*ExecutionSlice_SecondLeg) ProtoMessage() {}
 
 func (x *ExecutionSlice_SecondLeg) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[26]
+	mi := &file_swap_quickswap_v1_quickswap_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4226,7 +4394,7 @@ func (x *ExecutionSlice_SecondLeg) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecutionSlice_SecondLeg.ProtoReflect.Descriptor instead.
 func (*ExecutionSlice_SecondLeg) Descriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{13, 0}
+	return file_swap_quickswap_v1_quickswap_proto_rawDescGZIP(), []int{14, 0}
 }
 
 func (x *ExecutionSlice_SecondLeg) GetInputTraded() *TokenAmount {
@@ -4275,12 +4443,11 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\tExecution\x12<\n" +
 	"\x06market\x18\x01 \x01(\v2\".swap.quickswap.v1.MarketExecutionH\x00R\x06market\x126\n" +
 	"\x04twap\x18\x02 \x01(\v2 .swap.quickswap.v1.TwapExecutionH\x00R\x04twapB\x11\n" +
-	"\bstrategy\x12\x05\xbaH\x02\b\x01\"\x88\x05\n" +
+	"\bstrategy\x12\x05\xbaH\x02\b\x01\"\x89\x05\n" +
 	"\x0eQuickSwapTerms\x12<\n" +
 	"\x16source_zipped_asset_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\x13sourceZippedAssetId\x12F\n" +
-	"\x1bdestination_zipped_asset_id\x18\x02 \x01(\rB\a\xbaH\x04*\x02 \x00R\x18destinationZippedAssetId\x12?\n" +
-	"\x05basis\x18\x03 \x01(\x0e2\x1d.swap.quickswap.v1.QuoteBasisB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x05basis\x12\x93\x01\n" +
+	"\x1bdestination_zipped_asset_id\x18\x02 \x01(\rB\a\xbaH\x04*\x02 \x00R\x18destinationZippedAssetId\x12@\n" +
+	"\x05basis\x18\x03 \x01(\x0e2\x1d.swap.quickswap.v1.QuoteBasisB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x05basis\x12\x93\x01\n" +
 	"\x06amount\x18\x04 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountB[\xbaHX\xba\x01R\n" +
 	"\x1fquickswap_terms.amount.positive\x12\x17amount must be positive\x1a\x16this.base_units != '0'\xc8\x01\x01R\x06amount\x12E\n" +
 	"\n" +
@@ -4323,7 +4490,7 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\x12funding_expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x10fundingExpiresAt\x12H\n" +
 	"\x12address_retires_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x10addressRetiresAt\x12K\n" +
 	"\raddress_state\x18\a \x01(\x0e2&.swap.quickswap.v1.DepositAddressStateR\faddressState\x12/\n" +
-	"\x14min_native_gas_limit\x18\b \x01(\x04R\x11minNativeGasLimit\"\xbd\x04\n" +
+	"\x14min_native_gas_limit\x18\b \x01(\x04R\x11minNativeGasLimit\"\x84\x05\n" +
 	"\aDeposit\x12\x14\n" +
 	"\x05index\x18\x01 \x01(\rR\x05index\x12\x17\n" +
 	"\atx_hash\x18\x02 \x01(\tR\x06txHash\x12.\n" +
@@ -4339,7 +4506,13 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"detectedAt\x12;\n" +
 	"\vcredited_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"creditedAt\x12\x17\n" +
-	"\aflow_id\x18\x0e \x01(\tR\x06flowId\"\x8f\a\n" +
+	"\aflow_id\x18\x0e \x01(\tR\x06flowId\x12E\n" +
+	"\rdirect_return\x18\x0f \x01(\v2 .swap.quickswap.v1.DepositReturnR\fdirectReturn\"\xa0\x01\n" +
+	"\rDepositReturn\x12;\n" +
+	"\x05state\x18\x01 \x01(\x0e2%.swap.quickswap.v1.DepositReturnStateR\x05state\x12\x17\n" +
+	"\atx_hash\x18\x02 \x01(\tR\x06txHash\x129\n" +
+	"\n" +
+	"updated_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x8f\a\n" +
 	"\x11ExecutionProgress\x12A\n" +
 	"\finput_amount\x18\x01 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\vinputAmount\x12E\n" +
 	"\x0eexecuted_input\x18\x02 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\rexecutedInput\x12C\n" +
@@ -4562,7 +4735,7 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\bELIGIBLE\x10\x02\x12\x0f\n" +
 	"\vRETURN_ONLY\x10\x03\x12\v\n" +
 	"\aON_HOLD\x10\x04\x12\x13\n" +
-	"\x0fMANUAL_RECOVERY\x10\x05*\xc7\x04\n" +
+	"\x0fMANUAL_RECOVERY\x10\x05*\xf7\x04\n" +
 	"\x0fQuickSwapReason\x12\x16\n" +
 	"\x12REASON_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17SOURCE_SCREENING_FAILED\x10\x01\x12\x18\n" +
@@ -4584,7 +4757,14 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\x1aDEPOSIT_ADDRESS_NOT_ISSUED\x10\x19\x12\x1e\n" +
 	"\x1aINTERMEDIATE_BELOW_MINIMUM\x10\x1a\x12\x11\n" +
 	"\rMARKET_CLOSED\x10\x1b\x12\"\n" +
-	"\x1eSOURCE_WALLET_SCREENING_FAILED\x10\x1c*h\n" +
+	"\x1eSOURCE_WALLET_SCREENING_FAILED\x10\x1c\x12\x1a\n" +
+	"\x16INSUFFICIENT_LIQUIDITY\x10\x1d\x12\x12\n" +
+	"\x0eORDER_REJECTED\x10\x1e*g\n" +
+	"\x12DepositReturnState\x12\x16\n" +
+	"\x12RETURN_UNSPECIFIED\x10\x00\x12\x12\n" +
+	"\x0eRETURN_PENDING\x10\x01\x12\x14\n" +
+	"\x10RETURN_COMPLETED\x10\x02\x12\x0f\n" +
+	"\vRETURN_HELD\x10\x03*h\n" +
 	"\x0eWithdrawalRole\x12\x14\n" +
 	"\x10ROLE_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vDESTINATION\x10\x01\x12\n" +
@@ -4709,147 +4889,152 @@ func file_swap_quickswap_v1_quickswap_proto_rawDescGZIP() []byte {
 	return file_swap_quickswap_v1_quickswap_proto_rawDescData
 }
 
-var file_swap_quickswap_v1_quickswap_proto_enumTypes = make([]protoimpl.EnumInfo, 12)
-var file_swap_quickswap_v1_quickswap_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
+var file_swap_quickswap_v1_quickswap_proto_enumTypes = make([]protoimpl.EnumInfo, 13)
+var file_swap_quickswap_v1_quickswap_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_swap_quickswap_v1_quickswap_proto_goTypes = []any{
-	(QuoteBasis)(0),          // 0: swap.quickswap.v1.QuoteBasis
-	(FeeKind)(0),             // 1: swap.quickswap.v1.FeeKind
-	(DepositAddressState)(0), // 2: swap.quickswap.v1.DepositAddressState
-	(DepositDisposition)(0),  // 3: swap.quickswap.v1.DepositDisposition
-	(QuickSwapReason)(0),     // 4: swap.quickswap.v1.QuickSwapReason
-	(WithdrawalRole)(0),      // 5: swap.quickswap.v1.WithdrawalRole
-	(WithdrawalState)(0),     // 6: swap.quickswap.v1.WithdrawalState
-	(QuickSwapStatus)(0),     // 7: swap.quickswap.v1.QuickSwapStatus
-	(ErrorCode)(0),           // 8: swap.quickswap.v1.ErrorCode
-	(ExecutionProgress_SlicesUnavailableReason)(0), // 9: swap.quickswap.v1.ExecutionProgress.SlicesUnavailableReason
-	(ExecutionSlice_State)(0),                      // 10: swap.quickswap.v1.ExecutionSlice.State
-	(ExecutionSlice_Reason)(0),                     // 11: swap.quickswap.v1.ExecutionSlice.Reason
-	(*TokenAmount)(nil),                            // 12: swap.quickswap.v1.TokenAmount
-	(*Protection)(nil),                             // 13: swap.quickswap.v1.Protection
-	(*MarketExecution)(nil),                        // 14: swap.quickswap.v1.MarketExecution
-	(*TwapExecution)(nil),                          // 15: swap.quickswap.v1.TwapExecution
-	(*Execution)(nil),                              // 16: swap.quickswap.v1.Execution
-	(*QuickSwapTerms)(nil),                         // 17: swap.quickswap.v1.QuickSwapTerms
-	(*QuoteFee)(nil),                               // 18: swap.quickswap.v1.QuoteFee
-	(*ReferralPricing)(nil),                        // 19: swap.quickswap.v1.ReferralPricing
-	(*QuickSwapQuote)(nil),                         // 20: swap.quickswap.v1.QuickSwapQuote
-	(*Screening)(nil),                              // 21: swap.quickswap.v1.Screening
-	(*DepositInstructions)(nil),                    // 22: swap.quickswap.v1.DepositInstructions
-	(*Deposit)(nil),                                // 23: swap.quickswap.v1.Deposit
-	(*ExecutionProgress)(nil),                      // 24: swap.quickswap.v1.ExecutionProgress
-	(*ExecutionSlice)(nil),                         // 25: swap.quickswap.v1.ExecutionSlice
-	(*Withdrawal)(nil),                             // 26: swap.quickswap.v1.Withdrawal
-	(*QuickSwap)(nil),                              // 27: swap.quickswap.v1.QuickSwap
-	(*RequestedFees)(nil),                          // 28: swap.quickswap.v1.RequestedFees
-	(*ChargedFee)(nil),                             // 29: swap.quickswap.v1.ChargedFee
-	(*QuoteQuickSwapRequest)(nil),                  // 30: swap.quickswap.v1.QuoteQuickSwapRequest
-	(*QuoteQuickSwapResponse)(nil),                 // 31: swap.quickswap.v1.QuoteQuickSwapResponse
-	(*AffiliateShare)(nil),                         // 32: swap.quickswap.v1.AffiliateShare
-	(*CreateQuickSwapRequest)(nil),                 // 33: swap.quickswap.v1.CreateQuickSwapRequest
-	(*CreateQuickSwapResponse)(nil),                // 34: swap.quickswap.v1.CreateQuickSwapResponse
-	(*GetQuickSwapRequest)(nil),                    // 35: swap.quickswap.v1.GetQuickSwapRequest
-	(*GetQuickSwapResponse)(nil),                   // 36: swap.quickswap.v1.GetQuickSwapResponse
-	(*ErrorDetail)(nil),                            // 37: swap.quickswap.v1.ErrorDetail
-	(*ExecutionSlice_SecondLeg)(nil),               // 38: swap.quickswap.v1.ExecutionSlice.SecondLeg
-	(*timestamppb.Timestamp)(nil),                  // 39: google.protobuf.Timestamp
+	(QuoteBasis)(0),                                // 0: swap.quickswap.v1.QuoteBasis
+	(FeeKind)(0),                                   // 1: swap.quickswap.v1.FeeKind
+	(DepositAddressState)(0),                       // 2: swap.quickswap.v1.DepositAddressState
+	(DepositDisposition)(0),                        // 3: swap.quickswap.v1.DepositDisposition
+	(QuickSwapReason)(0),                           // 4: swap.quickswap.v1.QuickSwapReason
+	(DepositReturnState)(0),                        // 5: swap.quickswap.v1.DepositReturnState
+	(WithdrawalRole)(0),                            // 6: swap.quickswap.v1.WithdrawalRole
+	(WithdrawalState)(0),                           // 7: swap.quickswap.v1.WithdrawalState
+	(QuickSwapStatus)(0),                           // 8: swap.quickswap.v1.QuickSwapStatus
+	(ErrorCode)(0),                                 // 9: swap.quickswap.v1.ErrorCode
+	(ExecutionProgress_SlicesUnavailableReason)(0), // 10: swap.quickswap.v1.ExecutionProgress.SlicesUnavailableReason
+	(ExecutionSlice_State)(0),                      // 11: swap.quickswap.v1.ExecutionSlice.State
+	(ExecutionSlice_Reason)(0),                     // 12: swap.quickswap.v1.ExecutionSlice.Reason
+	(*TokenAmount)(nil),                            // 13: swap.quickswap.v1.TokenAmount
+	(*Protection)(nil),                             // 14: swap.quickswap.v1.Protection
+	(*MarketExecution)(nil),                        // 15: swap.quickswap.v1.MarketExecution
+	(*TwapExecution)(nil),                          // 16: swap.quickswap.v1.TwapExecution
+	(*Execution)(nil),                              // 17: swap.quickswap.v1.Execution
+	(*QuickSwapTerms)(nil),                         // 18: swap.quickswap.v1.QuickSwapTerms
+	(*QuoteFee)(nil),                               // 19: swap.quickswap.v1.QuoteFee
+	(*ReferralPricing)(nil),                        // 20: swap.quickswap.v1.ReferralPricing
+	(*QuickSwapQuote)(nil),                         // 21: swap.quickswap.v1.QuickSwapQuote
+	(*Screening)(nil),                              // 22: swap.quickswap.v1.Screening
+	(*DepositInstructions)(nil),                    // 23: swap.quickswap.v1.DepositInstructions
+	(*Deposit)(nil),                                // 24: swap.quickswap.v1.Deposit
+	(*DepositReturn)(nil),                          // 25: swap.quickswap.v1.DepositReturn
+	(*ExecutionProgress)(nil),                      // 26: swap.quickswap.v1.ExecutionProgress
+	(*ExecutionSlice)(nil),                         // 27: swap.quickswap.v1.ExecutionSlice
+	(*Withdrawal)(nil),                             // 28: swap.quickswap.v1.Withdrawal
+	(*QuickSwap)(nil),                              // 29: swap.quickswap.v1.QuickSwap
+	(*RequestedFees)(nil),                          // 30: swap.quickswap.v1.RequestedFees
+	(*ChargedFee)(nil),                             // 31: swap.quickswap.v1.ChargedFee
+	(*QuoteQuickSwapRequest)(nil),                  // 32: swap.quickswap.v1.QuoteQuickSwapRequest
+	(*QuoteQuickSwapResponse)(nil),                 // 33: swap.quickswap.v1.QuoteQuickSwapResponse
+	(*AffiliateShare)(nil),                         // 34: swap.quickswap.v1.AffiliateShare
+	(*CreateQuickSwapRequest)(nil),                 // 35: swap.quickswap.v1.CreateQuickSwapRequest
+	(*CreateQuickSwapResponse)(nil),                // 36: swap.quickswap.v1.CreateQuickSwapResponse
+	(*GetQuickSwapRequest)(nil),                    // 37: swap.quickswap.v1.GetQuickSwapRequest
+	(*GetQuickSwapResponse)(nil),                   // 38: swap.quickswap.v1.GetQuickSwapResponse
+	(*ErrorDetail)(nil),                            // 39: swap.quickswap.v1.ErrorDetail
+	(*ExecutionSlice_SecondLeg)(nil),               // 40: swap.quickswap.v1.ExecutionSlice.SecondLeg
+	(*timestamppb.Timestamp)(nil),                  // 41: google.protobuf.Timestamp
 }
 var file_swap_quickswap_v1_quickswap_proto_depIdxs = []int32{
-	12, // 0: swap.quickswap.v1.Protection.min_amount_out:type_name -> swap.quickswap.v1.TokenAmount
-	14, // 1: swap.quickswap.v1.Execution.market:type_name -> swap.quickswap.v1.MarketExecution
-	15, // 2: swap.quickswap.v1.Execution.twap:type_name -> swap.quickswap.v1.TwapExecution
+	13, // 0: swap.quickswap.v1.Protection.min_amount_out:type_name -> swap.quickswap.v1.TokenAmount
+	15, // 1: swap.quickswap.v1.Execution.market:type_name -> swap.quickswap.v1.MarketExecution
+	16, // 2: swap.quickswap.v1.Execution.twap:type_name -> swap.quickswap.v1.TwapExecution
 	0,  // 3: swap.quickswap.v1.QuickSwapTerms.basis:type_name -> swap.quickswap.v1.QuoteBasis
-	12, // 4: swap.quickswap.v1.QuickSwapTerms.amount:type_name -> swap.quickswap.v1.TokenAmount
-	13, // 5: swap.quickswap.v1.QuickSwapTerms.protection:type_name -> swap.quickswap.v1.Protection
-	16, // 6: swap.quickswap.v1.QuickSwapTerms.execution:type_name -> swap.quickswap.v1.Execution
+	13, // 4: swap.quickswap.v1.QuickSwapTerms.amount:type_name -> swap.quickswap.v1.TokenAmount
+	14, // 5: swap.quickswap.v1.QuickSwapTerms.protection:type_name -> swap.quickswap.v1.Protection
+	17, // 6: swap.quickswap.v1.QuickSwapTerms.execution:type_name -> swap.quickswap.v1.Execution
 	1,  // 7: swap.quickswap.v1.QuoteFee.kind:type_name -> swap.quickswap.v1.FeeKind
-	12, // 8: swap.quickswap.v1.QuoteFee.amount:type_name -> swap.quickswap.v1.TokenAmount
-	12, // 9: swap.quickswap.v1.QuickSwapQuote.deposit_amount:type_name -> swap.quickswap.v1.TokenAmount
-	12, // 10: swap.quickswap.v1.QuickSwapQuote.expected_amount_out:type_name -> swap.quickswap.v1.TokenAmount
-	12, // 11: swap.quickswap.v1.QuickSwapQuote.min_amount_out:type_name -> swap.quickswap.v1.TokenAmount
-	12, // 12: swap.quickswap.v1.QuickSwapQuote.min_deposit_amount:type_name -> swap.quickswap.v1.TokenAmount
-	12, // 13: swap.quickswap.v1.QuickSwapQuote.max_deposit_amount:type_name -> swap.quickswap.v1.TokenAmount
-	18, // 14: swap.quickswap.v1.QuickSwapQuote.fees:type_name -> swap.quickswap.v1.QuoteFee
-	39, // 15: swap.quickswap.v1.QuickSwapQuote.quoted_at:type_name -> google.protobuf.Timestamp
-	39, // 16: swap.quickswap.v1.QuickSwapQuote.expires_at:type_name -> google.protobuf.Timestamp
-	19, // 17: swap.quickswap.v1.QuickSwapQuote.referral:type_name -> swap.quickswap.v1.ReferralPricing
-	39, // 18: swap.quickswap.v1.DepositInstructions.issued_at:type_name -> google.protobuf.Timestamp
-	39, // 19: swap.quickswap.v1.DepositInstructions.funding_expires_at:type_name -> google.protobuf.Timestamp
-	39, // 20: swap.quickswap.v1.DepositInstructions.address_retires_at:type_name -> google.protobuf.Timestamp
+	13, // 8: swap.quickswap.v1.QuoteFee.amount:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 9: swap.quickswap.v1.QuickSwapQuote.deposit_amount:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 10: swap.quickswap.v1.QuickSwapQuote.expected_amount_out:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 11: swap.quickswap.v1.QuickSwapQuote.min_amount_out:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 12: swap.quickswap.v1.QuickSwapQuote.min_deposit_amount:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 13: swap.quickswap.v1.QuickSwapQuote.max_deposit_amount:type_name -> swap.quickswap.v1.TokenAmount
+	19, // 14: swap.quickswap.v1.QuickSwapQuote.fees:type_name -> swap.quickswap.v1.QuoteFee
+	41, // 15: swap.quickswap.v1.QuickSwapQuote.quoted_at:type_name -> google.protobuf.Timestamp
+	41, // 16: swap.quickswap.v1.QuickSwapQuote.expires_at:type_name -> google.protobuf.Timestamp
+	20, // 17: swap.quickswap.v1.QuickSwapQuote.referral:type_name -> swap.quickswap.v1.ReferralPricing
+	41, // 18: swap.quickswap.v1.DepositInstructions.issued_at:type_name -> google.protobuf.Timestamp
+	41, // 19: swap.quickswap.v1.DepositInstructions.funding_expires_at:type_name -> google.protobuf.Timestamp
+	41, // 20: swap.quickswap.v1.DepositInstructions.address_retires_at:type_name -> google.protobuf.Timestamp
 	2,  // 21: swap.quickswap.v1.DepositInstructions.address_state:type_name -> swap.quickswap.v1.DepositAddressState
-	12, // 22: swap.quickswap.v1.Deposit.amount:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 22: swap.quickswap.v1.Deposit.amount:type_name -> swap.quickswap.v1.TokenAmount
 	3,  // 23: swap.quickswap.v1.Deposit.disposition:type_name -> swap.quickswap.v1.DepositDisposition
 	4,  // 24: swap.quickswap.v1.Deposit.reason:type_name -> swap.quickswap.v1.QuickSwapReason
-	39, // 25: swap.quickswap.v1.Deposit.detected_at:type_name -> google.protobuf.Timestamp
-	39, // 26: swap.quickswap.v1.Deposit.credited_at:type_name -> google.protobuf.Timestamp
-	12, // 27: swap.quickswap.v1.ExecutionProgress.input_amount:type_name -> swap.quickswap.v1.TokenAmount
-	12, // 28: swap.quickswap.v1.ExecutionProgress.executed_input:type_name -> swap.quickswap.v1.TokenAmount
-	12, // 29: swap.quickswap.v1.ExecutionProgress.output_amount:type_name -> swap.quickswap.v1.TokenAmount
-	12, // 30: swap.quickswap.v1.ExecutionProgress.intermediate_remainder:type_name -> swap.quickswap.v1.TokenAmount
-	39, // 31: swap.quickswap.v1.ExecutionProgress.started_at:type_name -> google.protobuf.Timestamp
-	39, // 32: swap.quickswap.v1.ExecutionProgress.deadline:type_name -> google.protobuf.Timestamp
-	39, // 33: swap.quickswap.v1.ExecutionProgress.finished_at:type_name -> google.protobuf.Timestamp
-	25, // 34: swap.quickswap.v1.ExecutionProgress.slices:type_name -> swap.quickswap.v1.ExecutionSlice
-	9,  // 35: swap.quickswap.v1.ExecutionProgress.slices_unavailable_reason:type_name -> swap.quickswap.v1.ExecutionProgress.SlicesUnavailableReason
-	39, // 36: swap.quickswap.v1.ExecutionSlice.planned_at:type_name -> google.protobuf.Timestamp
-	39, // 37: swap.quickswap.v1.ExecutionSlice.executed_at:type_name -> google.protobuf.Timestamp
-	39, // 38: swap.quickswap.v1.ExecutionSlice.finished_at:type_name -> google.protobuf.Timestamp
-	10, // 39: swap.quickswap.v1.ExecutionSlice.state:type_name -> swap.quickswap.v1.ExecutionSlice.State
-	11, // 40: swap.quickswap.v1.ExecutionSlice.reason:type_name -> swap.quickswap.v1.ExecutionSlice.Reason
-	12, // 41: swap.quickswap.v1.ExecutionSlice.input_traded:type_name -> swap.quickswap.v1.TokenAmount
-	12, // 42: swap.quickswap.v1.ExecutionSlice.output_received:type_name -> swap.quickswap.v1.TokenAmount
-	38, // 43: swap.quickswap.v1.ExecutionSlice.second_leg:type_name -> swap.quickswap.v1.ExecutionSlice.SecondLeg
-	12, // 44: swap.quickswap.v1.ExecutionSlice.intermediate_carried:type_name -> swap.quickswap.v1.TokenAmount
-	11, // 45: swap.quickswap.v1.ExecutionSlice.carry_reason:type_name -> swap.quickswap.v1.ExecutionSlice.Reason
-	5,  // 46: swap.quickswap.v1.Withdrawal.role:type_name -> swap.quickswap.v1.WithdrawalRole
-	12, // 47: swap.quickswap.v1.Withdrawal.amount:type_name -> swap.quickswap.v1.TokenAmount
-	12, // 48: swap.quickswap.v1.Withdrawal.network_fee:type_name -> swap.quickswap.v1.TokenAmount
-	6,  // 49: swap.quickswap.v1.Withdrawal.state:type_name -> swap.quickswap.v1.WithdrawalState
-	39, // 50: swap.quickswap.v1.Withdrawal.submitted_at:type_name -> google.protobuf.Timestamp
-	39, // 51: swap.quickswap.v1.Withdrawal.finalized_at:type_name -> google.protobuf.Timestamp
-	12, // 52: swap.quickswap.v1.Withdrawal.unsent_amount:type_name -> swap.quickswap.v1.TokenAmount
-	7,  // 53: swap.quickswap.v1.QuickSwap.status:type_name -> swap.quickswap.v1.QuickSwapStatus
-	4,  // 54: swap.quickswap.v1.QuickSwap.reason:type_name -> swap.quickswap.v1.QuickSwapReason
-	17, // 55: swap.quickswap.v1.QuickSwap.terms:type_name -> swap.quickswap.v1.QuickSwapTerms
-	20, // 56: swap.quickswap.v1.QuickSwap.quote:type_name -> swap.quickswap.v1.QuickSwapQuote
-	22, // 57: swap.quickswap.v1.QuickSwap.deposit_instructions:type_name -> swap.quickswap.v1.DepositInstructions
-	21, // 58: swap.quickswap.v1.QuickSwap.screening:type_name -> swap.quickswap.v1.Screening
-	23, // 59: swap.quickswap.v1.QuickSwap.deposits:type_name -> swap.quickswap.v1.Deposit
-	24, // 60: swap.quickswap.v1.QuickSwap.execution:type_name -> swap.quickswap.v1.ExecutionProgress
-	26, // 61: swap.quickswap.v1.QuickSwap.withdrawals:type_name -> swap.quickswap.v1.Withdrawal
-	39, // 62: swap.quickswap.v1.QuickSwap.created_at:type_name -> google.protobuf.Timestamp
-	39, // 63: swap.quickswap.v1.QuickSwap.updated_at:type_name -> google.protobuf.Timestamp
-	39, // 64: swap.quickswap.v1.QuickSwap.terminal_at:type_name -> google.protobuf.Timestamp
-	28, // 65: swap.quickswap.v1.QuickSwap.fees:type_name -> swap.quickswap.v1.RequestedFees
-	29, // 66: swap.quickswap.v1.QuickSwap.charged_fees:type_name -> swap.quickswap.v1.ChargedFee
-	12, // 67: swap.quickswap.v1.QuickSwap.deposited_value_usd:type_name -> swap.quickswap.v1.TokenAmount
-	12, // 68: swap.quickswap.v1.QuickSwap.delivered_value_usd:type_name -> swap.quickswap.v1.TokenAmount
-	32, // 69: swap.quickswap.v1.RequestedFees.affiliates:type_name -> swap.quickswap.v1.AffiliateShare
-	1,  // 70: swap.quickswap.v1.ChargedFee.kind:type_name -> swap.quickswap.v1.FeeKind
-	12, // 71: swap.quickswap.v1.ChargedFee.amount:type_name -> swap.quickswap.v1.TokenAmount
-	12, // 72: swap.quickswap.v1.ChargedFee.value_usd:type_name -> swap.quickswap.v1.TokenAmount
-	17, // 73: swap.quickswap.v1.QuoteQuickSwapRequest.terms:type_name -> swap.quickswap.v1.QuickSwapTerms
-	32, // 74: swap.quickswap.v1.QuoteQuickSwapRequest.affiliates:type_name -> swap.quickswap.v1.AffiliateShare
-	20, // 75: swap.quickswap.v1.QuoteQuickSwapResponse.quote:type_name -> swap.quickswap.v1.QuickSwapQuote
-	17, // 76: swap.quickswap.v1.CreateQuickSwapRequest.terms:type_name -> swap.quickswap.v1.QuickSwapTerms
-	32, // 77: swap.quickswap.v1.CreateQuickSwapRequest.affiliates:type_name -> swap.quickswap.v1.AffiliateShare
-	27, // 78: swap.quickswap.v1.CreateQuickSwapResponse.quick_swap:type_name -> swap.quickswap.v1.QuickSwap
-	27, // 79: swap.quickswap.v1.GetQuickSwapResponse.quick_swap:type_name -> swap.quickswap.v1.QuickSwap
-	8,  // 80: swap.quickswap.v1.ErrorDetail.code:type_name -> swap.quickswap.v1.ErrorCode
-	12, // 81: swap.quickswap.v1.ErrorDetail.min_deposit_amount:type_name -> swap.quickswap.v1.TokenAmount
-	12, // 82: swap.quickswap.v1.ErrorDetail.max_deposit_amount:type_name -> swap.quickswap.v1.TokenAmount
-	12, // 83: swap.quickswap.v1.ExecutionSlice.SecondLeg.input_traded:type_name -> swap.quickswap.v1.TokenAmount
-	12, // 84: swap.quickswap.v1.ExecutionSlice.SecondLeg.output_received:type_name -> swap.quickswap.v1.TokenAmount
-	30, // 85: swap.quickswap.v1.QuickSwapService.QuoteQuickSwap:input_type -> swap.quickswap.v1.QuoteQuickSwapRequest
-	33, // 86: swap.quickswap.v1.QuickSwapService.CreateQuickSwap:input_type -> swap.quickswap.v1.CreateQuickSwapRequest
-	35, // 87: swap.quickswap.v1.QuickSwapService.GetQuickSwap:input_type -> swap.quickswap.v1.GetQuickSwapRequest
-	31, // 88: swap.quickswap.v1.QuickSwapService.QuoteQuickSwap:output_type -> swap.quickswap.v1.QuoteQuickSwapResponse
-	34, // 89: swap.quickswap.v1.QuickSwapService.CreateQuickSwap:output_type -> swap.quickswap.v1.CreateQuickSwapResponse
-	36, // 90: swap.quickswap.v1.QuickSwapService.GetQuickSwap:output_type -> swap.quickswap.v1.GetQuickSwapResponse
-	88, // [88:91] is the sub-list for method output_type
-	85, // [85:88] is the sub-list for method input_type
-	85, // [85:85] is the sub-list for extension type_name
-	85, // [85:85] is the sub-list for extension extendee
-	0,  // [0:85] is the sub-list for field type_name
+	41, // 25: swap.quickswap.v1.Deposit.detected_at:type_name -> google.protobuf.Timestamp
+	41, // 26: swap.quickswap.v1.Deposit.credited_at:type_name -> google.protobuf.Timestamp
+	25, // 27: swap.quickswap.v1.Deposit.direct_return:type_name -> swap.quickswap.v1.DepositReturn
+	5,  // 28: swap.quickswap.v1.DepositReturn.state:type_name -> swap.quickswap.v1.DepositReturnState
+	41, // 29: swap.quickswap.v1.DepositReturn.updated_at:type_name -> google.protobuf.Timestamp
+	13, // 30: swap.quickswap.v1.ExecutionProgress.input_amount:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 31: swap.quickswap.v1.ExecutionProgress.executed_input:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 32: swap.quickswap.v1.ExecutionProgress.output_amount:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 33: swap.quickswap.v1.ExecutionProgress.intermediate_remainder:type_name -> swap.quickswap.v1.TokenAmount
+	41, // 34: swap.quickswap.v1.ExecutionProgress.started_at:type_name -> google.protobuf.Timestamp
+	41, // 35: swap.quickswap.v1.ExecutionProgress.deadline:type_name -> google.protobuf.Timestamp
+	41, // 36: swap.quickswap.v1.ExecutionProgress.finished_at:type_name -> google.protobuf.Timestamp
+	27, // 37: swap.quickswap.v1.ExecutionProgress.slices:type_name -> swap.quickswap.v1.ExecutionSlice
+	10, // 38: swap.quickswap.v1.ExecutionProgress.slices_unavailable_reason:type_name -> swap.quickswap.v1.ExecutionProgress.SlicesUnavailableReason
+	41, // 39: swap.quickswap.v1.ExecutionSlice.planned_at:type_name -> google.protobuf.Timestamp
+	41, // 40: swap.quickswap.v1.ExecutionSlice.executed_at:type_name -> google.protobuf.Timestamp
+	41, // 41: swap.quickswap.v1.ExecutionSlice.finished_at:type_name -> google.protobuf.Timestamp
+	11, // 42: swap.quickswap.v1.ExecutionSlice.state:type_name -> swap.quickswap.v1.ExecutionSlice.State
+	12, // 43: swap.quickswap.v1.ExecutionSlice.reason:type_name -> swap.quickswap.v1.ExecutionSlice.Reason
+	13, // 44: swap.quickswap.v1.ExecutionSlice.input_traded:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 45: swap.quickswap.v1.ExecutionSlice.output_received:type_name -> swap.quickswap.v1.TokenAmount
+	40, // 46: swap.quickswap.v1.ExecutionSlice.second_leg:type_name -> swap.quickswap.v1.ExecutionSlice.SecondLeg
+	13, // 47: swap.quickswap.v1.ExecutionSlice.intermediate_carried:type_name -> swap.quickswap.v1.TokenAmount
+	12, // 48: swap.quickswap.v1.ExecutionSlice.carry_reason:type_name -> swap.quickswap.v1.ExecutionSlice.Reason
+	6,  // 49: swap.quickswap.v1.Withdrawal.role:type_name -> swap.quickswap.v1.WithdrawalRole
+	13, // 50: swap.quickswap.v1.Withdrawal.amount:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 51: swap.quickswap.v1.Withdrawal.network_fee:type_name -> swap.quickswap.v1.TokenAmount
+	7,  // 52: swap.quickswap.v1.Withdrawal.state:type_name -> swap.quickswap.v1.WithdrawalState
+	41, // 53: swap.quickswap.v1.Withdrawal.submitted_at:type_name -> google.protobuf.Timestamp
+	41, // 54: swap.quickswap.v1.Withdrawal.finalized_at:type_name -> google.protobuf.Timestamp
+	13, // 55: swap.quickswap.v1.Withdrawal.unsent_amount:type_name -> swap.quickswap.v1.TokenAmount
+	8,  // 56: swap.quickswap.v1.QuickSwap.status:type_name -> swap.quickswap.v1.QuickSwapStatus
+	4,  // 57: swap.quickswap.v1.QuickSwap.reason:type_name -> swap.quickswap.v1.QuickSwapReason
+	18, // 58: swap.quickswap.v1.QuickSwap.terms:type_name -> swap.quickswap.v1.QuickSwapTerms
+	21, // 59: swap.quickswap.v1.QuickSwap.quote:type_name -> swap.quickswap.v1.QuickSwapQuote
+	23, // 60: swap.quickswap.v1.QuickSwap.deposit_instructions:type_name -> swap.quickswap.v1.DepositInstructions
+	22, // 61: swap.quickswap.v1.QuickSwap.screening:type_name -> swap.quickswap.v1.Screening
+	24, // 62: swap.quickswap.v1.QuickSwap.deposits:type_name -> swap.quickswap.v1.Deposit
+	26, // 63: swap.quickswap.v1.QuickSwap.execution:type_name -> swap.quickswap.v1.ExecutionProgress
+	28, // 64: swap.quickswap.v1.QuickSwap.withdrawals:type_name -> swap.quickswap.v1.Withdrawal
+	41, // 65: swap.quickswap.v1.QuickSwap.created_at:type_name -> google.protobuf.Timestamp
+	41, // 66: swap.quickswap.v1.QuickSwap.updated_at:type_name -> google.protobuf.Timestamp
+	41, // 67: swap.quickswap.v1.QuickSwap.terminal_at:type_name -> google.protobuf.Timestamp
+	30, // 68: swap.quickswap.v1.QuickSwap.fees:type_name -> swap.quickswap.v1.RequestedFees
+	31, // 69: swap.quickswap.v1.QuickSwap.charged_fees:type_name -> swap.quickswap.v1.ChargedFee
+	13, // 70: swap.quickswap.v1.QuickSwap.deposited_value_usd:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 71: swap.quickswap.v1.QuickSwap.delivered_value_usd:type_name -> swap.quickswap.v1.TokenAmount
+	34, // 72: swap.quickswap.v1.RequestedFees.affiliates:type_name -> swap.quickswap.v1.AffiliateShare
+	1,  // 73: swap.quickswap.v1.ChargedFee.kind:type_name -> swap.quickswap.v1.FeeKind
+	13, // 74: swap.quickswap.v1.ChargedFee.amount:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 75: swap.quickswap.v1.ChargedFee.value_usd:type_name -> swap.quickswap.v1.TokenAmount
+	18, // 76: swap.quickswap.v1.QuoteQuickSwapRequest.terms:type_name -> swap.quickswap.v1.QuickSwapTerms
+	34, // 77: swap.quickswap.v1.QuoteQuickSwapRequest.affiliates:type_name -> swap.quickswap.v1.AffiliateShare
+	21, // 78: swap.quickswap.v1.QuoteQuickSwapResponse.quote:type_name -> swap.quickswap.v1.QuickSwapQuote
+	18, // 79: swap.quickswap.v1.CreateQuickSwapRequest.terms:type_name -> swap.quickswap.v1.QuickSwapTerms
+	34, // 80: swap.quickswap.v1.CreateQuickSwapRequest.affiliates:type_name -> swap.quickswap.v1.AffiliateShare
+	29, // 81: swap.quickswap.v1.CreateQuickSwapResponse.quick_swap:type_name -> swap.quickswap.v1.QuickSwap
+	29, // 82: swap.quickswap.v1.GetQuickSwapResponse.quick_swap:type_name -> swap.quickswap.v1.QuickSwap
+	9,  // 83: swap.quickswap.v1.ErrorDetail.code:type_name -> swap.quickswap.v1.ErrorCode
+	13, // 84: swap.quickswap.v1.ErrorDetail.min_deposit_amount:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 85: swap.quickswap.v1.ErrorDetail.max_deposit_amount:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 86: swap.quickswap.v1.ExecutionSlice.SecondLeg.input_traded:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 87: swap.quickswap.v1.ExecutionSlice.SecondLeg.output_received:type_name -> swap.quickswap.v1.TokenAmount
+	32, // 88: swap.quickswap.v1.QuickSwapService.QuoteQuickSwap:input_type -> swap.quickswap.v1.QuoteQuickSwapRequest
+	35, // 89: swap.quickswap.v1.QuickSwapService.CreateQuickSwap:input_type -> swap.quickswap.v1.CreateQuickSwapRequest
+	37, // 90: swap.quickswap.v1.QuickSwapService.GetQuickSwap:input_type -> swap.quickswap.v1.GetQuickSwapRequest
+	33, // 91: swap.quickswap.v1.QuickSwapService.QuoteQuickSwap:output_type -> swap.quickswap.v1.QuoteQuickSwapResponse
+	36, // 92: swap.quickswap.v1.QuickSwapService.CreateQuickSwap:output_type -> swap.quickswap.v1.CreateQuickSwapResponse
+	38, // 93: swap.quickswap.v1.QuickSwapService.GetQuickSwap:output_type -> swap.quickswap.v1.GetQuickSwapResponse
+	91, // [91:94] is the sub-list for method output_type
+	88, // [88:91] is the sub-list for method input_type
+	88, // [88:88] is the sub-list for extension type_name
+	88, // [88:88] is the sub-list for extension extendee
+	0,  // [0:88] is the sub-list for field type_name
 }
 
 func init() { file_swap_quickswap_v1_quickswap_proto_init() }
@@ -4865,7 +5050,7 @@ func file_swap_quickswap_v1_quickswap_proto_init() {
 		(*Execution_Market)(nil),
 		(*Execution_Twap)(nil),
 	}
-	file_swap_quickswap_v1_quickswap_proto_msgTypes[23].OneofWrappers = []any{
+	file_swap_quickswap_v1_quickswap_proto_msgTypes[24].OneofWrappers = []any{
 		(*GetQuickSwapRequest_SwapId)(nil),
 		(*GetQuickSwapRequest_IdempotencyKey)(nil),
 	}
@@ -4874,8 +5059,8 @@ func file_swap_quickswap_v1_quickswap_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swap_quickswap_v1_quickswap_proto_rawDesc), len(file_swap_quickswap_v1_quickswap_proto_rawDesc)),
-			NumEnums:      12,
-			NumMessages:   27,
+			NumEnums:      13,
+			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

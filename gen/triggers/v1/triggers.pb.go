@@ -330,6 +330,10 @@ const (
 	// reserved funds. The market's open orders were canceled at the same time.
 	// The market refuses new triggers until it trades again.
 	TriggerCancelReason_TRIGGER_CANCEL_REASON_MARKET_HALTED TriggerCancelReason = 13
+	// The account's cancel-all, or its dead-man switch, with triggers included
+	// stopped the trigger: its reserved funds were released and its open
+	// orders were canceled with the account's other orders.
+	TriggerCancelReason_TRIGGER_CANCEL_REASON_CANCEL_ALL TriggerCancelReason = 16
 	// The terminal state did not contain a cancellation reason.
 	TriggerCancelReason_TRIGGER_CANCEL_REASON_MISSING_REASON_CODE TriggerCancelReason = 998
 	// An internal invariant or processing failure canceled the trigger.
@@ -350,6 +354,7 @@ var (
 		11:  "TRIGGER_CANCEL_REASON_PAIR_DRAIN_LADDER",
 		12:  "TRIGGER_CANCEL_REASON_PAIR_DRAIN_ATTACHED_LEG",
 		13:  "TRIGGER_CANCEL_REASON_MARKET_HALTED",
+		16:  "TRIGGER_CANCEL_REASON_CANCEL_ALL",
 		998: "TRIGGER_CANCEL_REASON_MISSING_REASON_CODE",
 		999: "TRIGGER_CANCEL_REASON_INTERNAL_ERROR",
 	}
@@ -365,6 +370,7 @@ var (
 		"TRIGGER_CANCEL_REASON_PAIR_DRAIN_LADDER":       11,
 		"TRIGGER_CANCEL_REASON_PAIR_DRAIN_ATTACHED_LEG": 12,
 		"TRIGGER_CANCEL_REASON_MARKET_HALTED":           13,
+		"TRIGGER_CANCEL_REASON_CANCEL_ALL":              16,
 		"TRIGGER_CANCEL_REASON_MISSING_REASON_CODE":     998,
 		"TRIGGER_CANCEL_REASON_INTERNAL_ERROR":          999,
 	}
@@ -615,6 +621,11 @@ const (
 	// price; once that order is gone or no longer first there, it fires again if
 	// its trigger condition still holds.
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_SELF_TRADE_PREVENTED TriggerFailureReason = 249
+	// The account's cancel-all, or its dead-man switch, with triggers included
+	// was stopping the trigger, so the fire placed no order; the trigger then
+	// ends canceled with reason TRIGGER_CANCEL_REASON_CANCEL_ALL. Only on
+	// EVENT_FIRE_REFUSED.
+	TriggerFailureReason_TRIGGER_FAILURE_REASON_TRIGGER_STOPPING TriggerFailureReason = 263
 	// The terminal state did not contain a failure reason.
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_MISSING_REASON_CODE TriggerFailureReason = 998
 	// An internal invariant or processing failure caused the trigger to fail.
@@ -719,6 +730,7 @@ var (
 		241: "TRIGGER_FAILURE_REASON_INDEX_PRICE_UNAVAILABLE",
 		244: "TRIGGER_FAILURE_REASON_TRIGGER_WOULD_TRIGGER_IMMEDIATELY",
 		249: "TRIGGER_FAILURE_REASON_SELF_TRADE_PREVENTED",
+		263: "TRIGGER_FAILURE_REASON_TRIGGER_STOPPING",
 		998: "TRIGGER_FAILURE_REASON_MISSING_REASON_CODE",
 		999: "TRIGGER_FAILURE_REASON_INTERNAL_ERROR",
 	}
@@ -818,6 +830,7 @@ var (
 		"TRIGGER_FAILURE_REASON_INDEX_PRICE_UNAVAILABLE":           241,
 		"TRIGGER_FAILURE_REASON_TRIGGER_WOULD_TRIGGER_IMMEDIATELY": 244,
 		"TRIGGER_FAILURE_REASON_SELF_TRADE_PREVENTED":              249,
+		"TRIGGER_FAILURE_REASON_TRIGGER_STOPPING":                  263,
 		"TRIGGER_FAILURE_REASON_MISSING_REASON_CODE":               998,
 		"TRIGGER_FAILURE_REASON_INTERNAL_ERROR":                    999,
 	}
@@ -5354,13 +5367,12 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\tlimit_gtc\x18\x02 \x01(\v2\x1c.triggers.v1.TriggerLimitGtcH\x00R\blimitGtc\x12;\n" +
 	"\tlimit_ioc\x18\x03 \x01(\v2\x1c.triggers.v1.TriggerLimitIocH\x00R\blimitIoc\x12;\n" +
 	"\tlimit_fok\x18\x04 \x01(\v2\x1c.triggers.v1.TriggerLimitFokH\x00R\blimitFokB\x12\n" +
-	"\texecution\x12\x05\xbaH\x02\b\x01\"\x9f\x02\n" +
+	"\texecution\x12\x05\xbaH\x02\b\x01\"\xa0\x02\n" +
 	"\x12ConditionalTrigger\x127\n" +
-	"\x13trigger_price_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x11triggerPriceTicks\x12/\n" +
-	"\x04side\x18\x02 \x01(\x0e2\x0f.orders.v1.SideB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04side\x12D\n" +
+	"\x13trigger_price_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x11triggerPriceTicks\x120\n" +
+	"\x04side\x18\x02 \x01(\x0e2\x0f.orders.v1.SideB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x04side\x12D\n" +
 	"\x05child\x18\x03 \x01(\v2&.triggers.v1.ConditionalChildExecutionB\x06\xbaH\x03\xc8\x01\x01R\x05child\x12Y\n" +
-	"\x14trigger_price_source\x18\x04 \x01(\x0e2\x1d.orders.v1.TriggerPriceSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\x12triggerPriceSource\"\xbd\x04\n" +
+	"\x14trigger_price_source\x18\x04 \x01(\x0e2\x1d.orders.v1.TriggerPriceSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\x12triggerPriceSource\"\xbe\x04\n" +
 	"\x13TrailingStopTrigger\x12A\n" +
 	"\x17trailing_distance_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x00R\x15trailingDistanceTicks\x12@\n" +
 	"\x15trailing_distance_bps\x18\x02 \x01(\x05B\n" +
@@ -5369,9 +5381,8 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\xbaH\a\xd8\x01\x01\"\x02 \x00R\x14activationPriceTicks\x127\n" +
 	"\x12max_slippage_ticks\x18\x04 \x01(\x03B\a\xbaH\x04\"\x02 \x00H\x01R\x10maxSlippageTicks\x126\n" +
 	"\x10max_slippage_bps\x18\x05 \x01(\x05B\n" +
-	"\xbaH\a\x1a\x05\x18\x90N \x00H\x01R\x0emaxSlippageBps\x12/\n" +
-	"\x04side\x18\x06 \x01(\x0e2\x0f.orders.v1.SideB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04side\x126\n" +
+	"\xbaH\a\x1a\x05\x18\x90N \x00H\x01R\x0emaxSlippageBps\x120\n" +
+	"\x04side\x18\x06 \x01(\x0e2\x0f.orders.v1.SideB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x04side\x126\n" +
 	"\x11limit_price_ticks\x18\a \x01(\x03B\n" +
 	"\xbaH\a\xd8\x01\x01\"\x02 \x00R\x0flimitPriceTicks\x12Y\n" +
 	"\x14trigger_price_source\x18\b \x01(\x0e2\x1d.orders.v1.TriggerPriceSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\x12triggerPriceSourceB\x1a\n" +
@@ -5384,10 +5395,9 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\fmax_slippage\"8\n" +
 	"\fTwapLimitGtc\x12(\n" +
 	"\vprice_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\n" +
-	"priceTicks\"\xa0\x03\n" +
-	"\vTwapTrigger\x12/\n" +
-	"\x04side\x18\x01 \x01(\x0e2\x0f.orders.v1.SideB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04side\x12)\n" +
+	"priceTicks\"\xa1\x03\n" +
+	"\vTwapTrigger\x120\n" +
+	"\x04side\x18\x01 \x01(\x0e2\x0f.orders.v1.SideB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x04side\x12)\n" +
 	"\vduration_ms\x18\x02 \x01(\x03B\b\xbaH\x05\"\x03(\xe8\aR\n" +
 	"durationMs\x123\n" +
 	"\x11slice_interval_ms\x18\x03 \x01(\x03B\a\xbaH\x04\"\x02(dR\x0fsliceIntervalMs\x12;\n" +
@@ -5395,10 +5405,9 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"market_ioc\x18\x04 \x01(\v2\x1a.triggers.v1.TwapMarketIocH\x00R\tmarketIoc\x128\n" +
 	"\tlimit_gtc\x18\x05 \x01(\v2\x19.triggers.v1.TwapLimitGtcH\x00R\blimitGtc:u\xbaHr\x1ap\n" +
 	"\x13twap_trigger.window\x12-slice_interval_ms must not exceed duration_ms\x1a*this.slice_interval_ms <= this.duration_msB\x12\n" +
-	"\texecution\x12\x05\xbaH\x02\b\x01\"\xe2\x02\n" +
-	"\rLadderTrigger\x12/\n" +
-	"\x04side\x18\x01 \x01(\x0e2\x0f.orders.v1.SideB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04side\x12/\n" +
+	"\texecution\x12\x05\xbaH\x02\b\x01\"\xe3\x02\n" +
+	"\rLadderTrigger\x120\n" +
+	"\x04side\x18\x01 \x01(\x0e2\x0f.orders.v1.SideB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x04side\x12/\n" +
 	"\x0fprice_min_ticks\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\rpriceMinTicks\x12/\n" +
 	"\x0fprice_max_ticks\x18\x03 \x01(\x03B\a\xbaH\x04\"\x02 \x00R\rpriceMaxTicks\x12!\n" +
 	"\x06levels\x18\x04 \x01(\x05B\t\xbaH\x06\x1a\x04\x18d(\x02R\x06levels\x12\x1b\n" +
@@ -5436,11 +5445,11 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x13trigger_price_ticks\x18\x01 \x01(\x03B\n" +
 	"\xe0A\x02\xbaH\x04\"\x02 \x00R\x11triggerPriceTicks\x129\n" +
 	"\x05child\x18\x02 \x01(\v2\x18.orders.v1.RiskExecutionB\t\xe0A\x02\xbaH\x03\xc8\x01\x01R\x05child\x12Y\n" +
-	"\x14trigger_price_source\x18\x03 \x01(\x0e2\x1d.orders.v1.TriggerPriceSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\x12triggerPriceSource\"\xc5\x03\n" +
+	"\x14trigger_price_source\x18\x03 \x01(\x0e2\x1d.orders.v1.TriggerPriceSourceB\b\xbaH\x05\x82\x01\x02\x10\x01R\x12triggerPriceSource\"\xc6\x03\n" +
 	"\tOcoIntent\x12'\n" +
 	"\tsymbol_id\x18\x01 \x01(\rB\n" +
-	"\xe0A\x02\xbaH\x04*\x02 \x00R\bsymbolId\x122\n" +
-	"\x04side\x18\x02 \x01(\x0e2\x0f.orders.v1.SideB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04side\x12)\n" +
+	"\xe0A\x02\xbaH\x04*\x02 \x00R\bsymbolId\x123\n" +
+	"\x04side\x18\x02 \x01(\x0e2\x0f.orders.v1.SideB\x0e\xe0A\x02\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x04side\x12)\n" +
 	"\n" +
 	"qty_scaled\x18\x03 \x01(\x03B\n" +
 	"\xe0A\x02\xbaH\x04\"\x02 \x00R\tqtyScaled\x12i\n" +
@@ -5717,7 +5726,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\fEVENT_FAILED\x10\x04\x12\x13\n" +
 	"\x0fEVENT_ACTIVATED\x10\x05\x12\x0f\n" +
 	"\vEVENT_ARMED\x10\x06\x12\x16\n" +
-	"\x12EVENT_FIRE_REFUSED\x10\a*\xce\x04\n" +
+	"\x12EVENT_FIRE_REFUSED\x10\a*\xf4\x04\n" +
 	"\x13TriggerCancelReason\x12%\n" +
 	"!TRIGGER_CANCEL_REASON_UNSPECIFIED\x10\x00\x12&\n" +
 	"\"TRIGGER_CANCEL_REASON_USER_REQUEST\x10\x01\x12\x1d\n" +
@@ -5730,9 +5739,10 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x12+\n" +
 	"'TRIGGER_CANCEL_REASON_PAIR_DRAIN_LADDER\x10\v\x121\n" +
 	"-TRIGGER_CANCEL_REASON_PAIR_DRAIN_ATTACHED_LEG\x10\f\x12'\n" +
-	"#TRIGGER_CANCEL_REASON_MARKET_HALTED\x10\r\x12.\n" +
+	"#TRIGGER_CANCEL_REASON_MARKET_HALTED\x10\r\x12$\n" +
+	" TRIGGER_CANCEL_REASON_CANCEL_ALL\x10\x10\x12.\n" +
 	")TRIGGER_CANCEL_REASON_MISSING_REASON_CODE\x10\xe6\a\x12)\n" +
-	"$TRIGGER_CANCEL_REASON_INTERNAL_ERROR\x10\xe7\a*\xa4%\n" +
+	"$TRIGGER_CANCEL_REASON_INTERNAL_ERROR\x10\xe7\a*\xd2%\n" +
 	"\x14TriggerFailureReason\x12&\n" +
 	"\"TRIGGER_FAILURE_REASON_UNSPECIFIED\x10\x00\x12)\n" +
 	"%TRIGGER_FAILURE_REASON_UNKNOWN_SYMBOL\x10\x01\x12(\n" +
@@ -5829,7 +5839,8 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"(TRIGGER_FAILURE_REASON_ACCOUNT_REPAIRING\x10\xef\x01\x123\n" +
 	".TRIGGER_FAILURE_REASON_INDEX_PRICE_UNAVAILABLE\x10\xf1\x01\x12=\n" +
 	"8TRIGGER_FAILURE_REASON_TRIGGER_WOULD_TRIGGER_IMMEDIATELY\x10\xf4\x01\x120\n" +
-	"+TRIGGER_FAILURE_REASON_SELF_TRADE_PREVENTED\x10\xf9\x01\x12/\n" +
+	"+TRIGGER_FAILURE_REASON_SELF_TRADE_PREVENTED\x10\xf9\x01\x12,\n" +
+	"'TRIGGER_FAILURE_REASON_TRIGGER_STOPPING\x10\x87\x02\x12/\n" +
 	"*TRIGGER_FAILURE_REASON_MISSING_REASON_CODE\x10\xe6\a\x12*\n" +
 	"%TRIGGER_FAILURE_REASON_INTERNAL_ERROR\x10\xe7\a*l\n" +
 	"\x12LadderDistribution\x12#\n" +
@@ -5842,7 +5853,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x1aLADDER_OUTCOME_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fALL_ADMITTED\x10\x01\x12\x14\n" +
 	"\x10MIXED_REJECTIONS\x10\x02\x12\x19\n" +
-	"\x15ALL_CHILDREN_REJECTED\x10\x032\xd3$\n" +
+	"\x15ALL_CHILDREN_REJECTED\x10\x032\xda&\n" +
 	"\x0fTriggersService\x12\x82\x02\n" +
 	"\rCreateTrigger\x12!.triggers.v1.CreateTriggerRequest\x1a\".triggers.v1.CreateTriggerResponse\"\xa9\x01\xbaG\x88\x01\n" +
 	"\x10Triggers Service\x12\x0eCreate Trigger\x1adCreate a standalone trigger order. Supports stop, trailing, TWAP, and ladder trigger configurations.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x11:\x01*\"\f/v1/triggers\x12\xaf\x04\n" +
@@ -5851,14 +5862,14 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"Create OCO\x1a\x9c\x03Create a one-cancels-the-other order list: a take-profit and a stop-loss over a quantity the account already holds. The quantity is reserved once for both legs. When one leg's order trades the whole quantity, the other is canceled; a partly filled order's rest stays protected by the other leg. Cancel All Orders and the dead-man switch do not cancel OCOs; an OCO leg's working order they cancel cancels the OCO.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x15:\x01*\"\x10/v1/triggers/oco\x12\xa3\x03\n" +
 	"\tCancelOco\x12\x1d.triggers.v1.CancelOcoRequest\x1a\x1e.triggers.v1.CancelOcoResponse\"\xd6\x02\xbaG\xa4\x02\n" +
 	"\x10Triggers Service\x12\n" +
-	"Cancel OCO\x1a\x83\x02Cancel an OCO by its ID: both legs end CANCELED and the reserved quantity is released. Cancelling either leg with Cancel Trigger does the same. An ID that is not an OCO, such as a trigger ID or a leg's ID, is refused TRIGGER_NOT_FOUND and nothing is canceled.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\"* /v1/triggers/oco/{order_list_id}\x12\xfc\x01\n" +
+	"Cancel OCO\x1a\x83\x02Cancel an OCO by its ID: both legs end CANCELED and the reserved quantity is released. Cancelling either leg with Cancel Trigger does the same. An ID that is not an OCO, such as a trigger ID or a leg's ID, is refused TRIGGER_NOT_FOUND and nothing is canceled.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\"* /v1/triggers/oco/{order_list_id}\x12\xb6\x02\n" +
 	"\n" +
-	"GetTrigger\x12\x1e.triggers.v1.GetTriggerRequest\x1a\x1f.triggers.v1.GetTriggerResponse\"\xac\x01\xbaG\x81\x01\n" +
-	"\x10Triggers Service\x12\vGet Trigger\x1a`Retrieve a single trigger by trigger ID, including lifecycle state and strategy-specific fields.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/triggers/{trigger_id}\x12\xea\x01\n" +
-	"\fListTriggers\x12 .triggers.v1.ListTriggersRequest\x1a!.triggers.v1.ListTriggersResponse\"\x94\x01\xbaGw\n" +
-	"\x10Triggers Service\x12\rList Triggers\x1aTList triggers for an account with optional symbol, status, and trigger-type filters.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x0e\x12\f/v1/triggers\x12\xd2\x02\n" +
-	"\x11ListTriggerEvents\x12%.triggers.v1.ListTriggerEventsRequest\x1a&.triggers.v1.ListTriggerEventsResponse\"\xed\x01\xbaG\xbb\x01\n" +
-	"\x10Triggers Service\x12\x13List Trigger Events\x1a\x91\x01List append-only trigger events for a trigger, including child-order actions, with optional event-category filtering and reverse-time pagination.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\"\x12 /v1/triggers/{trigger_id}/events\x12\x8a\x04\n" +
+	"GetTrigger\x12\x1e.triggers.v1.GetTriggerRequest\x1a\x1f.triggers.v1.GetTriggerResponse\"\xe6\x01\xbaG\xbb\x01\n" +
+	"\x10Triggers Service\x12\vGet Trigger\x1a\x99\x01Retrieve a single trigger by trigger ID, including lifecycle state and strategy-specific fields. Costs one unit of the root account's trading read limit.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/triggers/{trigger_id}\x12\xd1\x02\n" +
+	"\fListTriggers\x12 .triggers.v1.ListTriggersRequest\x1a!.triggers.v1.ListTriggersResponse\"\xfb\x01\xbaG\xdd\x01\n" +
+	"\x10Triggers Service\x12\rList Triggers\x1a\xb9\x01List triggers for an account with optional symbol, status, and trigger-type filters. Costs one unit of the root account's trading read limit per 100 rows the limit asks for, rounded up.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x0e\x12\f/v1/triggers\x12\xb8\x03\n" +
+	"\x11ListTriggerEvents\x12%.triggers.v1.ListTriggerEventsRequest\x1a&.triggers.v1.ListTriggerEventsResponse\"\xd3\x02\xbaG\xa1\x02\n" +
+	"\x10Triggers Service\x12\x13List Trigger Events\x1a\xf7\x01List append-only trigger events for a trigger, including child-order actions, with optional event-category filtering and reverse-time pagination. Costs two units of the root account's trading read limit per 100 rows the limit asks for, rounded up.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\"\x12 /v1/triggers/{trigger_id}/events\x12\x8a\x04\n" +
 	"\rCancelTrigger\x12!.triggers.v1.CancelTriggerRequest\x1a\".triggers.v1.CancelTriggerResponse\"\xb1\x03\xbaG\x86\x03\n" +
 	"\x10Triggers Service\x12\x0eCancel Trigger\x1a\xe1\x02Cancel a trigger by trigger ID and release its reserved quantity. Cancel All Orders and the dead-man switch cancel open orders only, never triggers; use this method to stop each trigger too. A trigger that has ended answers TRIGGER_STATUS_INVALID for at least 60 s after it ends; after that it may answer TRIGGER_NOT_FOUND. Treat either as already done.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1b*\x19/v1/triggers/{trigger_id}\x12\xe7\x03\n" +
 	"\x13BatchCancelTriggers\x12'.triggers.v1.BatchCancelTriggersRequest\x1a(.triggers.v1.BatchCancelTriggersResponse\"\xfc\x02\xbaG\xce\x02\n" +

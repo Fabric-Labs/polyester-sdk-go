@@ -122,6 +122,9 @@ func GetSubaccountFromProto(msg *authv1.GetSubaccountResponse) (models.GetSubacc
 		if err := requireID("GetSubaccount", "policy id", policy.GetId()); err != nil {
 			return models.GetSubaccountResult{}, err
 		}
+		if err := requireTemplateLineage("GetSubaccount", policy.GetSourceTemplateId(), policy.GetSourceTemplateRevision()); err != nil {
+			return models.GetSubaccountResult{}, err
+		}
 	}
 	s := subAccount(msg.GetSubaccount())
 	out := models.GetSubaccountResult{Subaccount: &s}

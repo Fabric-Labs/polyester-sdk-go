@@ -194,73 +194,6 @@ func (MFAChallengePurpose) EnumDescriptor() ([]byte, []int) {
 	return file_auth_v1_mfa_proto_rawDescGZIP(), []int{2}
 }
 
-// An action that one step-up covers for a short time in the same signed-in
-// session: the recent-MFA window. The window opens when the session completes
-// an MFA challenge for fresh step-up, and lasts 5 minutes. It closes earlier
-// when the session ends (EndRecentMFA or session expiry). Every other action
-// that needs MFA, including withdrawals, transfers, auto-withdraw rules, API
-// key and policy changes outside the assistant, address book changes and MFA
-// settings, still needs a fresh, single-use step-up proof each time.
-type RecentMFAAction int32
-
-const (
-	// No action was specified.
-	RecentMFAAction_RECENT_MFA_ACTION_UNSPECIFIED RecentMFAAction = 0
-	// Confirming a Telegram link (SocialVerificationService.ConfirmSocialVerification
-	// for TELEGRAM).
-	RecentMFAAction_RECENT_MFA_ACTION_TELEGRAM_LINK RecentMFAAction = 1
-	// Changing the Polyester AI assistant's account access
-	// (ApiKeyService.SetAssistantKeys, with policies or presets).
-	RecentMFAAction_RECENT_MFA_ACTION_ASSISTANT_ACCESS RecentMFAAction = 2
-	// Raising or removing a Telegram approval limit
-	// (ai.v1.AssistantService.SetTelegramApprovalLimits). Setting or lowering a
-	// limit never needs MFA.
-	RecentMFAAction_RECENT_MFA_ACTION_TELEGRAM_APPROVAL_LIMITS RecentMFAAction = 3
-)
-
-// Enum value maps for RecentMFAAction.
-var (
-	RecentMFAAction_name = map[int32]string{
-		0: "RECENT_MFA_ACTION_UNSPECIFIED",
-		1: "RECENT_MFA_ACTION_TELEGRAM_LINK",
-		2: "RECENT_MFA_ACTION_ASSISTANT_ACCESS",
-		3: "RECENT_MFA_ACTION_TELEGRAM_APPROVAL_LIMITS",
-	}
-	RecentMFAAction_value = map[string]int32{
-		"RECENT_MFA_ACTION_UNSPECIFIED":              0,
-		"RECENT_MFA_ACTION_TELEGRAM_LINK":            1,
-		"RECENT_MFA_ACTION_ASSISTANT_ACCESS":         2,
-		"RECENT_MFA_ACTION_TELEGRAM_APPROVAL_LIMITS": 3,
-	}
-)
-
-func (x RecentMFAAction) Enum() *RecentMFAAction {
-	p := new(RecentMFAAction)
-	*p = x
-	return p
-}
-
-func (x RecentMFAAction) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (RecentMFAAction) Descriptor() protoreflect.EnumDescriptor {
-	return file_auth_v1_mfa_proto_enumTypes[3].Descriptor()
-}
-
-func (RecentMFAAction) Type() protoreflect.EnumType {
-	return &file_auth_v1_mfa_proto_enumTypes[3]
-}
-
-func (x RecentMFAAction) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use RecentMFAAction.Descriptor instead.
-func (RecentMFAAction) EnumDescriptor() ([]byte, []int) {
-	return file_auth_v1_mfa_proto_rawDescGZIP(), []int{3}
-}
-
 // Current assurance details for an interactive session.
 type SessionInfo struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1752,184 +1685,6 @@ func (*ReleaseFreshStepUpResponse) Descriptor() ([]byte, []int) {
 	return file_auth_v1_mfa_proto_rawDescGZIP(), []int{23}
 }
 
-// Request to read whether the session's recent-MFA window covers an action.
-type GetRecentMFARequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The action the client is about to perform.
-	Action        RecentMFAAction `protobuf:"varint,1,opt,name=action,proto3,enum=auth.v1.RecentMFAAction" json:"action,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetRecentMFARequest) Reset() {
-	*x = GetRecentMFARequest{}
-	mi := &file_auth_v1_mfa_proto_msgTypes[24]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetRecentMFARequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetRecentMFARequest) ProtoMessage() {}
-
-func (x *GetRecentMFARequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_mfa_proto_msgTypes[24]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetRecentMFARequest.ProtoReflect.Descriptor instead.
-func (*GetRecentMFARequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_mfa_proto_rawDescGZIP(), []int{24}
-}
-
-func (x *GetRecentMFARequest) GetAction() RecentMFAAction {
-	if x != nil {
-		return x.Action
-	}
-	return RecentMFAAction_RECENT_MFA_ACTION_UNSPECIFIED
-}
-
-// Whether the session's recent-MFA window is open for the action.
-type GetRecentMFAResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the action needs no new step-up now: send it without a step-up
-	// proof. False when the client must complete an MFA challenge for fresh
-	// step-up first.
-	Open bool `protobuf:"varint,1,opt,name=open,proto3" json:"open,omitempty"`
-	// Time when the window closes. Empty when open is false. A request that
-	// arrives after this time needs a new step-up.
-	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetRecentMFAResponse) Reset() {
-	*x = GetRecentMFAResponse{}
-	mi := &file_auth_v1_mfa_proto_msgTypes[25]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetRecentMFAResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetRecentMFAResponse) ProtoMessage() {}
-
-func (x *GetRecentMFAResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_mfa_proto_msgTypes[25]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetRecentMFAResponse.ProtoReflect.Descriptor instead.
-func (*GetRecentMFAResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_mfa_proto_rawDescGZIP(), []int{25}
-}
-
-func (x *GetRecentMFAResponse) GetOpen() bool {
-	if x != nil {
-		return x.Open
-	}
-	return false
-}
-
-func (x *GetRecentMFAResponse) GetExpiresAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ExpiresAt
-	}
-	return nil
-}
-
-// Request to end the session's recent-MFA window, for example at sign-out.
-type EndRecentMFARequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *EndRecentMFARequest) Reset() {
-	*x = EndRecentMFARequest{}
-	mi := &file_auth_v1_mfa_proto_msgTypes[26]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *EndRecentMFARequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*EndRecentMFARequest) ProtoMessage() {}
-
-func (x *EndRecentMFARequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_mfa_proto_msgTypes[26]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use EndRecentMFARequest.ProtoReflect.Descriptor instead.
-func (*EndRecentMFARequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_mfa_proto_rawDescGZIP(), []int{26}
-}
-
-// Empty response returned after the recent-MFA window is ended.
-type EndRecentMFAResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *EndRecentMFAResponse) Reset() {
-	*x = EndRecentMFAResponse{}
-	mi := &file_auth_v1_mfa_proto_msgTypes[27]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *EndRecentMFAResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*EndRecentMFAResponse) ProtoMessage() {}
-
-func (x *EndRecentMFAResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_mfa_proto_msgTypes[27]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use EndRecentMFAResponse.ProtoReflect.Descriptor instead.
-func (*EndRecentMFAResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_mfa_proto_rawDescGZIP(), []int{27}
-}
-
 // Request to update an MFA factor label.
 type UpdateMFAFactorRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1943,7 +1698,7 @@ type UpdateMFAFactorRequest struct {
 
 func (x *UpdateMFAFactorRequest) Reset() {
 	*x = UpdateMFAFactorRequest{}
-	mi := &file_auth_v1_mfa_proto_msgTypes[28]
+	mi := &file_auth_v1_mfa_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1955,7 +1710,7 @@ func (x *UpdateMFAFactorRequest) String() string {
 func (*UpdateMFAFactorRequest) ProtoMessage() {}
 
 func (x *UpdateMFAFactorRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_mfa_proto_msgTypes[28]
+	mi := &file_auth_v1_mfa_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1968,7 +1723,7 @@ func (x *UpdateMFAFactorRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateMFAFactorRequest.ProtoReflect.Descriptor instead.
 func (*UpdateMFAFactorRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_mfa_proto_rawDescGZIP(), []int{28}
+	return file_auth_v1_mfa_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *UpdateMFAFactorRequest) GetFactorId() string {
@@ -1996,7 +1751,7 @@ type UpdateMFAFactorResponse struct {
 
 func (x *UpdateMFAFactorResponse) Reset() {
 	*x = UpdateMFAFactorResponse{}
-	mi := &file_auth_v1_mfa_proto_msgTypes[29]
+	mi := &file_auth_v1_mfa_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2008,7 +1763,7 @@ func (x *UpdateMFAFactorResponse) String() string {
 func (*UpdateMFAFactorResponse) ProtoMessage() {}
 
 func (x *UpdateMFAFactorResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_mfa_proto_msgTypes[29]
+	mi := &file_auth_v1_mfa_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2021,7 +1776,7 @@ func (x *UpdateMFAFactorResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateMFAFactorResponse.ProtoReflect.Descriptor instead.
 func (*UpdateMFAFactorResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_mfa_proto_rawDescGZIP(), []int{29}
+	return file_auth_v1_mfa_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *UpdateMFAFactorResponse) GetFactor() *MFAFactor {
@@ -2042,7 +1797,7 @@ type DeleteMFAFactorRequest struct {
 
 func (x *DeleteMFAFactorRequest) Reset() {
 	*x = DeleteMFAFactorRequest{}
-	mi := &file_auth_v1_mfa_proto_msgTypes[30]
+	mi := &file_auth_v1_mfa_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2054,7 +1809,7 @@ func (x *DeleteMFAFactorRequest) String() string {
 func (*DeleteMFAFactorRequest) ProtoMessage() {}
 
 func (x *DeleteMFAFactorRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_mfa_proto_msgTypes[30]
+	mi := &file_auth_v1_mfa_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2067,7 +1822,7 @@ func (x *DeleteMFAFactorRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteMFAFactorRequest.ProtoReflect.Descriptor instead.
 func (*DeleteMFAFactorRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_mfa_proto_rawDescGZIP(), []int{30}
+	return file_auth_v1_mfa_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *DeleteMFAFactorRequest) GetFactorId() string {
@@ -2086,7 +1841,7 @@ type DeleteMFAFactorResponse struct {
 
 func (x *DeleteMFAFactorResponse) Reset() {
 	*x = DeleteMFAFactorResponse{}
-	mi := &file_auth_v1_mfa_proto_msgTypes[31]
+	mi := &file_auth_v1_mfa_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2098,7 +1853,7 @@ func (x *DeleteMFAFactorResponse) String() string {
 func (*DeleteMFAFactorResponse) ProtoMessage() {}
 
 func (x *DeleteMFAFactorResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_mfa_proto_msgTypes[31]
+	mi := &file_auth_v1_mfa_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2111,7 +1866,7 @@ func (x *DeleteMFAFactorResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteMFAFactorResponse.ProtoReflect.Descriptor instead.
 func (*DeleteMFAFactorResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_mfa_proto_rawDescGZIP(), []int{31}
+	return file_auth_v1_mfa_proto_rawDescGZIP(), []int{27}
 }
 
 // Request to rotate recovery codes.
@@ -2123,7 +1878,7 @@ type RegenerateRecoveryCodesRequest struct {
 
 func (x *RegenerateRecoveryCodesRequest) Reset() {
 	*x = RegenerateRecoveryCodesRequest{}
-	mi := &file_auth_v1_mfa_proto_msgTypes[32]
+	mi := &file_auth_v1_mfa_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2135,7 +1890,7 @@ func (x *RegenerateRecoveryCodesRequest) String() string {
 func (*RegenerateRecoveryCodesRequest) ProtoMessage() {}
 
 func (x *RegenerateRecoveryCodesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_mfa_proto_msgTypes[32]
+	mi := &file_auth_v1_mfa_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2148,7 +1903,7 @@ func (x *RegenerateRecoveryCodesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegenerateRecoveryCodesRequest.ProtoReflect.Descriptor instead.
 func (*RegenerateRecoveryCodesRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_mfa_proto_rawDescGZIP(), []int{32}
+	return file_auth_v1_mfa_proto_rawDescGZIP(), []int{28}
 }
 
 // Response containing newly generated recovery codes.
@@ -2162,7 +1917,7 @@ type RegenerateRecoveryCodesResponse struct {
 
 func (x *RegenerateRecoveryCodesResponse) Reset() {
 	*x = RegenerateRecoveryCodesResponse{}
-	mi := &file_auth_v1_mfa_proto_msgTypes[33]
+	mi := &file_auth_v1_mfa_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2174,7 +1929,7 @@ func (x *RegenerateRecoveryCodesResponse) String() string {
 func (*RegenerateRecoveryCodesResponse) ProtoMessage() {}
 
 func (x *RegenerateRecoveryCodesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_mfa_proto_msgTypes[33]
+	mi := &file_auth_v1_mfa_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2187,7 +1942,7 @@ func (x *RegenerateRecoveryCodesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegenerateRecoveryCodesResponse.ProtoReflect.Descriptor instead.
 func (*RegenerateRecoveryCodesResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_mfa_proto_rawDescGZIP(), []int{33}
+	return file_auth_v1_mfa_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *RegenerateRecoveryCodesResponse) GetRecoveryCodes() []string {
@@ -2207,11 +1962,10 @@ const file_auth_v1_mfa_proto_rawDesc = "" +
 	"session_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18@R\tsessionId\x12D\n" +
 	"\rsession_level\x18\x02 \x01(\x0e2\x15.auth.v1.SessionLevelB\b\xbaH\x05\x82\x01\x02\x10\x01R\fsessionLevel\x12I\n" +
 	"\x16authentication_methods\x18\x03 \x03(\tB\x12\xbaH\x0f\x92\x01\f\x10\b\x18\x01\"\x06r\x04\x10\x01\x18 R\x15authenticationMethods\x127\n" +
-	"\tauth_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\bauthTime\"\xa5\x02\n" +
+	"\tauth_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\bauthTime\"\xa6\x02\n" +
 	"\tMFAFactor\x12:\n" +
-	"\tfactor_id\x18\x01 \x01(\tB\x1d\xbaH\x1ar\x18\x10\x01\x18@2\x12^mfa_[a-f0-9]{32}$R\bfactorId\x12C\n" +
-	"\vfactor_type\x18\x02 \x01(\x0e2\x16.auth.v1.MFAFactorTypeB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\n" +
+	"\tfactor_id\x18\x01 \x01(\tB\x1d\xbaH\x1ar\x18\x10\x01\x18@2\x12^mfa_[a-f0-9]{32}$R\bfactorId\x12D\n" +
+	"\vfactor_type\x18\x02 \x01(\x0e2\x16.auth.v1.MFAFactorTypeB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\n" +
 	"factorType\x12\x1e\n" +
 	"\x05label\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x05label\x129\n" +
 	"\n" +
@@ -2258,9 +2012,9 @@ const file_auth_v1_mfa_proto_rawDesc = "" +
 	"\x0erecovery_codes\x18\x02 \x03(\tB\x03\xe0A\x03R\rrecoveryCodes\x12.\n" +
 	"\asession\x18\x03 \x01(\v2\x14.auth.v1.SessionInfoR\asession\x12&\n" +
 	"\faccess_token\x18\x04 \x01(\tB\x03\xe0A\x03R\vaccessToken\x12Q\n" +
-	"\x17access_token_expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x14accessTokenExpiresAt\"a\n" +
-	"\x18BeginMFAChallengeRequest\x12E\n" +
-	"\apurpose\x18\x01 \x01(\x0e2\x1c.auth.v1.MFAChallengePurposeB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\apurpose\"\xaf\x02\n" +
+	"\x17access_token_expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x14accessTokenExpiresAt\"b\n" +
+	"\x18BeginMFAChallengeRequest\x12F\n" +
+	"\apurpose\x18\x01 \x01(\x0e2\x1c.auth.v1.MFAChallengePurposeB\x0e\xe0A\x02\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\apurpose\"\xaf\x02\n" +
 	"\x19BeginMFAChallengeResponse\x12@\n" +
 	"\fchallenge_id\x18\x01 \x01(\tB\x1d\xbaH\x1ar\x18\x10\x01\x18@2\x12^mfa_[a-f0-9]{32}$R\vchallengeId\x12]\n" +
 	"\x14allowed_factor_types\x18\x02 \x03(\x0e2\x16.auth.v1.MFAFactorTypeB\x13\xbaH\x10\x92\x01\r\x10\b\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\x12allowedFactorTypes\x126\n" +
@@ -2319,15 +2073,7 @@ const file_auth_v1_mfa_proto_rawDesc = "" +
 	"\vclaim_nonce\x18\x05 \x01(\tB \xe0A\x02\xbaH\x1ar\x18\x10\x01\x18@2\x12^mfa_[a-f0-9]{32}$R\n" +
 	"claimNonce\x12 \n" +
 	"\x06reason\x18\x06 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x06reason\"\x1c\n" +
-	"\x1aReleaseFreshStepUpResponse\"V\n" +
-	"\x13GetRecentMFARequest\x12?\n" +
-	"\x06action\x18\x01 \x01(\x0e2\x18.auth.v1.RecentMFAActionB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\x06action\"e\n" +
-	"\x14GetRecentMFAResponse\x12\x12\n" +
-	"\x04open\x18\x01 \x01(\bR\x04open\x129\n" +
-	"\n" +
-	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\x15\n" +
-	"\x13EndRecentMFARequest\"\x16\n" +
-	"\x14EndRecentMFAResponse\"w\n" +
+	"\x1aReleaseFreshStepUpResponse\"w\n" +
 	"\x16UpdateMFAFactorRequest\x12=\n" +
 	"\tfactor_id\x18\x01 \x01(\tB \xe0A\x02\xbaH\x1ar\x18\x10\x01\x18@2\x12^mfa_[a-f0-9]{32}$R\bfactorId\x12\x1e\n" +
 	"\x05label\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x05label\"E\n" +
@@ -2352,12 +2098,7 @@ const file_auth_v1_mfa_proto_rawDesc = "" +
 	"\x13MFAChallengePurpose\x12%\n" +
 	"!MFA_CHALLENGE_PURPOSE_UNSPECIFIED\x10\x00\x12+\n" +
 	"'MFA_CHALLENGE_PURPOSE_SESSION_ELEVATION\x10\x01\x12'\n" +
-	"#MFA_CHALLENGE_PURPOSE_FRESH_STEP_UP\x10\x02*\xb1\x01\n" +
-	"\x0fRecentMFAAction\x12!\n" +
-	"\x1dRECENT_MFA_ACTION_UNSPECIFIED\x10\x00\x12#\n" +
-	"\x1fRECENT_MFA_ACTION_TELEGRAM_LINK\x10\x01\x12&\n" +
-	"\"RECENT_MFA_ACTION_ASSISTANT_ACCESS\x10\x02\x12.\n" +
-	"*RECENT_MFA_ACTION_TELEGRAM_APPROVAL_LIMITS\x10\x032\xac\x1c\n" +
+	"#MFA_CHALLENGE_PURPOSE_FRESH_STEP_UP\x10\x022\xfe\x1a\n" +
 	"\n" +
 	"MFAService\x12\xd7\x01\n" +
 	"\x0eListMFAFactors\x12\x1e.auth.v1.ListMFAFactorsRequest\x1a\x1f.auth.v1.ListMFAFactorsResponse\"\x83\x01\xbaG_\n" +
@@ -2386,9 +2127,7 @@ const file_auth_v1_mfa_proto_rawDesc = "" +
 	"\fAuth Service\x12\x19Regenerate Recovery Codes\x1a2Rotate recovery codes after a fresh step-up check.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02+:\x01*\"&/v1/auth/mfa/recovery-codes:regenerate\x12^\n" +
 	"\x10ClaimFreshStepUp\x12 .auth.v1.ClaimFreshStepUpRequest\x1a!.auth.v1.ClaimFreshStepUpResponse\"\x05\xa2\xb5\x18\x01\x01\x12d\n" +
 	"\x12ConsumeFreshStepUp\x12\".auth.v1.ConsumeFreshStepUpRequest\x1a#.auth.v1.ConsumeFreshStepUpResponse\"\x05\xa2\xb5\x18\x01\x01\x12d\n" +
-	"\x12ReleaseFreshStepUp\x12\".auth.v1.ReleaseFreshStepUpRequest\x1a#.auth.v1.ReleaseFreshStepUpResponse\"\x05\xa2\xb5\x18\x01\x01\x12U\n" +
-	"\fGetRecentMFA\x12\x1c.auth.v1.GetRecentMFARequest\x1a\x1d.auth.v1.GetRecentMFAResponse\"\b\xa2\xb5\x18\x01\x01\x90\x02\x01\x12U\n" +
-	"\fEndRecentMFA\x12\x1c.auth.v1.EndRecentMFARequest\x1a\x1d.auth.v1.EndRecentMFAResponse\"\b\xa2\xb5\x18\x01\x01\x90\x02\x02\x1a\v\x8a\xb5\x18\aaccountB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
+	"\x12ReleaseFreshStepUp\x12\".auth.v1.ReleaseFreshStepUpRequest\x1a#.auth.v1.ReleaseFreshStepUpResponse\"\x05\xa2\xb5\x18\x01\x01\x1a\v\x8a\xb5\x18\aaccountB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
 
 var (
 	file_auth_v1_mfa_proto_rawDescOnce sync.Once
@@ -2402,118 +2141,107 @@ func file_auth_v1_mfa_proto_rawDescGZIP() []byte {
 	return file_auth_v1_mfa_proto_rawDescData
 }
 
-var file_auth_v1_mfa_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_auth_v1_mfa_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
+var file_auth_v1_mfa_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_auth_v1_mfa_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
 var file_auth_v1_mfa_proto_goTypes = []any{
 	(SessionLevel)(0),                          // 0: auth.v1.SessionLevel
 	(MFAFactorType)(0),                         // 1: auth.v1.MFAFactorType
 	(MFAChallengePurpose)(0),                   // 2: auth.v1.MFAChallengePurpose
-	(RecentMFAAction)(0),                       // 3: auth.v1.RecentMFAAction
-	(*SessionInfo)(nil),                        // 4: auth.v1.SessionInfo
-	(*MFAFactor)(nil),                          // 5: auth.v1.MFAFactor
-	(*ListMFAFactorsRequest)(nil),              // 6: auth.v1.ListMFAFactorsRequest
-	(*ListMFAFactorsResponse)(nil),             // 7: auth.v1.ListMFAFactorsResponse
-	(*BeginTOTPEnrollmentRequest)(nil),         // 8: auth.v1.BeginTOTPEnrollmentRequest
-	(*BeginTOTPEnrollmentResponse)(nil),        // 9: auth.v1.BeginTOTPEnrollmentResponse
-	(*FinishTOTPEnrollmentRequest)(nil),        // 10: auth.v1.FinishTOTPEnrollmentRequest
-	(*FinishTOTPEnrollmentResponse)(nil),       // 11: auth.v1.FinishTOTPEnrollmentResponse
-	(*BeginPasskeyEnrollmentRequest)(nil),      // 12: auth.v1.BeginPasskeyEnrollmentRequest
-	(*BeginPasskeyEnrollmentResponse)(nil),     // 13: auth.v1.BeginPasskeyEnrollmentResponse
-	(*FinishPasskeyEnrollmentRequest)(nil),     // 14: auth.v1.FinishPasskeyEnrollmentRequest
-	(*FinishPasskeyEnrollmentResponse)(nil),    // 15: auth.v1.FinishPasskeyEnrollmentResponse
-	(*BeginMFAChallengeRequest)(nil),           // 16: auth.v1.BeginMFAChallengeRequest
-	(*BeginMFAChallengeResponse)(nil),          // 17: auth.v1.BeginMFAChallengeResponse
-	(*VerifyTOTPChallengeRequest)(nil),         // 18: auth.v1.VerifyTOTPChallengeRequest
-	(*FinishPasskeyChallengeRequest)(nil),      // 19: auth.v1.FinishPasskeyChallengeRequest
-	(*VerifyRecoveryCodeChallengeRequest)(nil), // 20: auth.v1.VerifyRecoveryCodeChallengeRequest
-	(*CompleteMFAChallengeResponse)(nil),       // 21: auth.v1.CompleteMFAChallengeResponse
-	(*ClaimFreshStepUpRequest)(nil),            // 22: auth.v1.ClaimFreshStepUpRequest
-	(*ClaimFreshStepUpResponse)(nil),           // 23: auth.v1.ClaimFreshStepUpResponse
-	(*ConsumeFreshStepUpRequest)(nil),          // 24: auth.v1.ConsumeFreshStepUpRequest
-	(*ConsumeFreshStepUpResponse)(nil),         // 25: auth.v1.ConsumeFreshStepUpResponse
-	(*ReleaseFreshStepUpRequest)(nil),          // 26: auth.v1.ReleaseFreshStepUpRequest
-	(*ReleaseFreshStepUpResponse)(nil),         // 27: auth.v1.ReleaseFreshStepUpResponse
-	(*GetRecentMFARequest)(nil),                // 28: auth.v1.GetRecentMFARequest
-	(*GetRecentMFAResponse)(nil),               // 29: auth.v1.GetRecentMFAResponse
-	(*EndRecentMFARequest)(nil),                // 30: auth.v1.EndRecentMFARequest
-	(*EndRecentMFAResponse)(nil),               // 31: auth.v1.EndRecentMFAResponse
-	(*UpdateMFAFactorRequest)(nil),             // 32: auth.v1.UpdateMFAFactorRequest
-	(*UpdateMFAFactorResponse)(nil),            // 33: auth.v1.UpdateMFAFactorResponse
-	(*DeleteMFAFactorRequest)(nil),             // 34: auth.v1.DeleteMFAFactorRequest
-	(*DeleteMFAFactorResponse)(nil),            // 35: auth.v1.DeleteMFAFactorResponse
-	(*RegenerateRecoveryCodesRequest)(nil),     // 36: auth.v1.RegenerateRecoveryCodesRequest
-	(*RegenerateRecoveryCodesResponse)(nil),    // 37: auth.v1.RegenerateRecoveryCodesResponse
-	(*timestamppb.Timestamp)(nil),              // 38: google.protobuf.Timestamp
-	(*structpb.Struct)(nil),                    // 39: google.protobuf.Struct
+	(*SessionInfo)(nil),                        // 3: auth.v1.SessionInfo
+	(*MFAFactor)(nil),                          // 4: auth.v1.MFAFactor
+	(*ListMFAFactorsRequest)(nil),              // 5: auth.v1.ListMFAFactorsRequest
+	(*ListMFAFactorsResponse)(nil),             // 6: auth.v1.ListMFAFactorsResponse
+	(*BeginTOTPEnrollmentRequest)(nil),         // 7: auth.v1.BeginTOTPEnrollmentRequest
+	(*BeginTOTPEnrollmentResponse)(nil),        // 8: auth.v1.BeginTOTPEnrollmentResponse
+	(*FinishTOTPEnrollmentRequest)(nil),        // 9: auth.v1.FinishTOTPEnrollmentRequest
+	(*FinishTOTPEnrollmentResponse)(nil),       // 10: auth.v1.FinishTOTPEnrollmentResponse
+	(*BeginPasskeyEnrollmentRequest)(nil),      // 11: auth.v1.BeginPasskeyEnrollmentRequest
+	(*BeginPasskeyEnrollmentResponse)(nil),     // 12: auth.v1.BeginPasskeyEnrollmentResponse
+	(*FinishPasskeyEnrollmentRequest)(nil),     // 13: auth.v1.FinishPasskeyEnrollmentRequest
+	(*FinishPasskeyEnrollmentResponse)(nil),    // 14: auth.v1.FinishPasskeyEnrollmentResponse
+	(*BeginMFAChallengeRequest)(nil),           // 15: auth.v1.BeginMFAChallengeRequest
+	(*BeginMFAChallengeResponse)(nil),          // 16: auth.v1.BeginMFAChallengeResponse
+	(*VerifyTOTPChallengeRequest)(nil),         // 17: auth.v1.VerifyTOTPChallengeRequest
+	(*FinishPasskeyChallengeRequest)(nil),      // 18: auth.v1.FinishPasskeyChallengeRequest
+	(*VerifyRecoveryCodeChallengeRequest)(nil), // 19: auth.v1.VerifyRecoveryCodeChallengeRequest
+	(*CompleteMFAChallengeResponse)(nil),       // 20: auth.v1.CompleteMFAChallengeResponse
+	(*ClaimFreshStepUpRequest)(nil),            // 21: auth.v1.ClaimFreshStepUpRequest
+	(*ClaimFreshStepUpResponse)(nil),           // 22: auth.v1.ClaimFreshStepUpResponse
+	(*ConsumeFreshStepUpRequest)(nil),          // 23: auth.v1.ConsumeFreshStepUpRequest
+	(*ConsumeFreshStepUpResponse)(nil),         // 24: auth.v1.ConsumeFreshStepUpResponse
+	(*ReleaseFreshStepUpRequest)(nil),          // 25: auth.v1.ReleaseFreshStepUpRequest
+	(*ReleaseFreshStepUpResponse)(nil),         // 26: auth.v1.ReleaseFreshStepUpResponse
+	(*UpdateMFAFactorRequest)(nil),             // 27: auth.v1.UpdateMFAFactorRequest
+	(*UpdateMFAFactorResponse)(nil),            // 28: auth.v1.UpdateMFAFactorResponse
+	(*DeleteMFAFactorRequest)(nil),             // 29: auth.v1.DeleteMFAFactorRequest
+	(*DeleteMFAFactorResponse)(nil),            // 30: auth.v1.DeleteMFAFactorResponse
+	(*RegenerateRecoveryCodesRequest)(nil),     // 31: auth.v1.RegenerateRecoveryCodesRequest
+	(*RegenerateRecoveryCodesResponse)(nil),    // 32: auth.v1.RegenerateRecoveryCodesResponse
+	(*timestamppb.Timestamp)(nil),              // 33: google.protobuf.Timestamp
+	(*structpb.Struct)(nil),                    // 34: google.protobuf.Struct
 }
 var file_auth_v1_mfa_proto_depIdxs = []int32{
 	0,  // 0: auth.v1.SessionInfo.session_level:type_name -> auth.v1.SessionLevel
-	38, // 1: auth.v1.SessionInfo.auth_time:type_name -> google.protobuf.Timestamp
+	33, // 1: auth.v1.SessionInfo.auth_time:type_name -> google.protobuf.Timestamp
 	1,  // 2: auth.v1.MFAFactor.factor_type:type_name -> auth.v1.MFAFactorType
-	38, // 3: auth.v1.MFAFactor.created_at:type_name -> google.protobuf.Timestamp
-	38, // 4: auth.v1.MFAFactor.last_used_at:type_name -> google.protobuf.Timestamp
-	5,  // 5: auth.v1.ListMFAFactorsResponse.factors:type_name -> auth.v1.MFAFactor
-	38, // 6: auth.v1.BeginTOTPEnrollmentResponse.expires_at:type_name -> google.protobuf.Timestamp
-	5,  // 7: auth.v1.FinishTOTPEnrollmentResponse.factor:type_name -> auth.v1.MFAFactor
-	4,  // 8: auth.v1.FinishTOTPEnrollmentResponse.session:type_name -> auth.v1.SessionInfo
-	38, // 9: auth.v1.FinishTOTPEnrollmentResponse.access_token_expires_at:type_name -> google.protobuf.Timestamp
-	39, // 10: auth.v1.BeginPasskeyEnrollmentResponse.public_key:type_name -> google.protobuf.Struct
-	38, // 11: auth.v1.BeginPasskeyEnrollmentResponse.expires_at:type_name -> google.protobuf.Timestamp
-	39, // 12: auth.v1.FinishPasskeyEnrollmentRequest.credential:type_name -> google.protobuf.Struct
-	5,  // 13: auth.v1.FinishPasskeyEnrollmentResponse.factor:type_name -> auth.v1.MFAFactor
-	4,  // 14: auth.v1.FinishPasskeyEnrollmentResponse.session:type_name -> auth.v1.SessionInfo
-	38, // 15: auth.v1.FinishPasskeyEnrollmentResponse.access_token_expires_at:type_name -> google.protobuf.Timestamp
+	33, // 3: auth.v1.MFAFactor.created_at:type_name -> google.protobuf.Timestamp
+	33, // 4: auth.v1.MFAFactor.last_used_at:type_name -> google.protobuf.Timestamp
+	4,  // 5: auth.v1.ListMFAFactorsResponse.factors:type_name -> auth.v1.MFAFactor
+	33, // 6: auth.v1.BeginTOTPEnrollmentResponse.expires_at:type_name -> google.protobuf.Timestamp
+	4,  // 7: auth.v1.FinishTOTPEnrollmentResponse.factor:type_name -> auth.v1.MFAFactor
+	3,  // 8: auth.v1.FinishTOTPEnrollmentResponse.session:type_name -> auth.v1.SessionInfo
+	33, // 9: auth.v1.FinishTOTPEnrollmentResponse.access_token_expires_at:type_name -> google.protobuf.Timestamp
+	34, // 10: auth.v1.BeginPasskeyEnrollmentResponse.public_key:type_name -> google.protobuf.Struct
+	33, // 11: auth.v1.BeginPasskeyEnrollmentResponse.expires_at:type_name -> google.protobuf.Timestamp
+	34, // 12: auth.v1.FinishPasskeyEnrollmentRequest.credential:type_name -> google.protobuf.Struct
+	4,  // 13: auth.v1.FinishPasskeyEnrollmentResponse.factor:type_name -> auth.v1.MFAFactor
+	3,  // 14: auth.v1.FinishPasskeyEnrollmentResponse.session:type_name -> auth.v1.SessionInfo
+	33, // 15: auth.v1.FinishPasskeyEnrollmentResponse.access_token_expires_at:type_name -> google.protobuf.Timestamp
 	2,  // 16: auth.v1.BeginMFAChallengeRequest.purpose:type_name -> auth.v1.MFAChallengePurpose
 	1,  // 17: auth.v1.BeginMFAChallengeResponse.allowed_factor_types:type_name -> auth.v1.MFAFactorType
-	39, // 18: auth.v1.BeginMFAChallengeResponse.public_key:type_name -> google.protobuf.Struct
-	38, // 19: auth.v1.BeginMFAChallengeResponse.expires_at:type_name -> google.protobuf.Timestamp
-	39, // 20: auth.v1.FinishPasskeyChallengeRequest.credential:type_name -> google.protobuf.Struct
-	4,  // 21: auth.v1.CompleteMFAChallengeResponse.session:type_name -> auth.v1.SessionInfo
-	38, // 22: auth.v1.CompleteMFAChallengeResponse.access_token_expires_at:type_name -> google.protobuf.Timestamp
-	38, // 23: auth.v1.CompleteMFAChallengeResponse.step_up_expires_at:type_name -> google.protobuf.Timestamp
-	38, // 24: auth.v1.ClaimFreshStepUpResponse.claim_expires_at:type_name -> google.protobuf.Timestamp
-	3,  // 25: auth.v1.GetRecentMFARequest.action:type_name -> auth.v1.RecentMFAAction
-	38, // 26: auth.v1.GetRecentMFAResponse.expires_at:type_name -> google.protobuf.Timestamp
-	5,  // 27: auth.v1.UpdateMFAFactorResponse.factor:type_name -> auth.v1.MFAFactor
-	6,  // 28: auth.v1.MFAService.ListMFAFactors:input_type -> auth.v1.ListMFAFactorsRequest
-	8,  // 29: auth.v1.MFAService.BeginTOTPEnrollment:input_type -> auth.v1.BeginTOTPEnrollmentRequest
-	10, // 30: auth.v1.MFAService.FinishTOTPEnrollment:input_type -> auth.v1.FinishTOTPEnrollmentRequest
-	12, // 31: auth.v1.MFAService.BeginPasskeyEnrollment:input_type -> auth.v1.BeginPasskeyEnrollmentRequest
-	14, // 32: auth.v1.MFAService.FinishPasskeyEnrollment:input_type -> auth.v1.FinishPasskeyEnrollmentRequest
-	16, // 33: auth.v1.MFAService.BeginMFAChallenge:input_type -> auth.v1.BeginMFAChallengeRequest
-	18, // 34: auth.v1.MFAService.VerifyTOTPChallenge:input_type -> auth.v1.VerifyTOTPChallengeRequest
-	19, // 35: auth.v1.MFAService.FinishPasskeyChallenge:input_type -> auth.v1.FinishPasskeyChallengeRequest
-	20, // 36: auth.v1.MFAService.VerifyRecoveryCodeChallenge:input_type -> auth.v1.VerifyRecoveryCodeChallengeRequest
-	32, // 37: auth.v1.MFAService.UpdateMFAFactor:input_type -> auth.v1.UpdateMFAFactorRequest
-	34, // 38: auth.v1.MFAService.DeleteMFAFactor:input_type -> auth.v1.DeleteMFAFactorRequest
-	36, // 39: auth.v1.MFAService.RegenerateRecoveryCodes:input_type -> auth.v1.RegenerateRecoveryCodesRequest
-	22, // 40: auth.v1.MFAService.ClaimFreshStepUp:input_type -> auth.v1.ClaimFreshStepUpRequest
-	24, // 41: auth.v1.MFAService.ConsumeFreshStepUp:input_type -> auth.v1.ConsumeFreshStepUpRequest
-	26, // 42: auth.v1.MFAService.ReleaseFreshStepUp:input_type -> auth.v1.ReleaseFreshStepUpRequest
-	28, // 43: auth.v1.MFAService.GetRecentMFA:input_type -> auth.v1.GetRecentMFARequest
-	30, // 44: auth.v1.MFAService.EndRecentMFA:input_type -> auth.v1.EndRecentMFARequest
-	7,  // 45: auth.v1.MFAService.ListMFAFactors:output_type -> auth.v1.ListMFAFactorsResponse
-	9,  // 46: auth.v1.MFAService.BeginTOTPEnrollment:output_type -> auth.v1.BeginTOTPEnrollmentResponse
-	11, // 47: auth.v1.MFAService.FinishTOTPEnrollment:output_type -> auth.v1.FinishTOTPEnrollmentResponse
-	13, // 48: auth.v1.MFAService.BeginPasskeyEnrollment:output_type -> auth.v1.BeginPasskeyEnrollmentResponse
-	15, // 49: auth.v1.MFAService.FinishPasskeyEnrollment:output_type -> auth.v1.FinishPasskeyEnrollmentResponse
-	17, // 50: auth.v1.MFAService.BeginMFAChallenge:output_type -> auth.v1.BeginMFAChallengeResponse
-	21, // 51: auth.v1.MFAService.VerifyTOTPChallenge:output_type -> auth.v1.CompleteMFAChallengeResponse
-	21, // 52: auth.v1.MFAService.FinishPasskeyChallenge:output_type -> auth.v1.CompleteMFAChallengeResponse
-	21, // 53: auth.v1.MFAService.VerifyRecoveryCodeChallenge:output_type -> auth.v1.CompleteMFAChallengeResponse
-	33, // 54: auth.v1.MFAService.UpdateMFAFactor:output_type -> auth.v1.UpdateMFAFactorResponse
-	35, // 55: auth.v1.MFAService.DeleteMFAFactor:output_type -> auth.v1.DeleteMFAFactorResponse
-	37, // 56: auth.v1.MFAService.RegenerateRecoveryCodes:output_type -> auth.v1.RegenerateRecoveryCodesResponse
-	23, // 57: auth.v1.MFAService.ClaimFreshStepUp:output_type -> auth.v1.ClaimFreshStepUpResponse
-	25, // 58: auth.v1.MFAService.ConsumeFreshStepUp:output_type -> auth.v1.ConsumeFreshStepUpResponse
-	27, // 59: auth.v1.MFAService.ReleaseFreshStepUp:output_type -> auth.v1.ReleaseFreshStepUpResponse
-	29, // 60: auth.v1.MFAService.GetRecentMFA:output_type -> auth.v1.GetRecentMFAResponse
-	31, // 61: auth.v1.MFAService.EndRecentMFA:output_type -> auth.v1.EndRecentMFAResponse
-	45, // [45:62] is the sub-list for method output_type
-	28, // [28:45] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	34, // 18: auth.v1.BeginMFAChallengeResponse.public_key:type_name -> google.protobuf.Struct
+	33, // 19: auth.v1.BeginMFAChallengeResponse.expires_at:type_name -> google.protobuf.Timestamp
+	34, // 20: auth.v1.FinishPasskeyChallengeRequest.credential:type_name -> google.protobuf.Struct
+	3,  // 21: auth.v1.CompleteMFAChallengeResponse.session:type_name -> auth.v1.SessionInfo
+	33, // 22: auth.v1.CompleteMFAChallengeResponse.access_token_expires_at:type_name -> google.protobuf.Timestamp
+	33, // 23: auth.v1.CompleteMFAChallengeResponse.step_up_expires_at:type_name -> google.protobuf.Timestamp
+	33, // 24: auth.v1.ClaimFreshStepUpResponse.claim_expires_at:type_name -> google.protobuf.Timestamp
+	4,  // 25: auth.v1.UpdateMFAFactorResponse.factor:type_name -> auth.v1.MFAFactor
+	5,  // 26: auth.v1.MFAService.ListMFAFactors:input_type -> auth.v1.ListMFAFactorsRequest
+	7,  // 27: auth.v1.MFAService.BeginTOTPEnrollment:input_type -> auth.v1.BeginTOTPEnrollmentRequest
+	9,  // 28: auth.v1.MFAService.FinishTOTPEnrollment:input_type -> auth.v1.FinishTOTPEnrollmentRequest
+	11, // 29: auth.v1.MFAService.BeginPasskeyEnrollment:input_type -> auth.v1.BeginPasskeyEnrollmentRequest
+	13, // 30: auth.v1.MFAService.FinishPasskeyEnrollment:input_type -> auth.v1.FinishPasskeyEnrollmentRequest
+	15, // 31: auth.v1.MFAService.BeginMFAChallenge:input_type -> auth.v1.BeginMFAChallengeRequest
+	17, // 32: auth.v1.MFAService.VerifyTOTPChallenge:input_type -> auth.v1.VerifyTOTPChallengeRequest
+	18, // 33: auth.v1.MFAService.FinishPasskeyChallenge:input_type -> auth.v1.FinishPasskeyChallengeRequest
+	19, // 34: auth.v1.MFAService.VerifyRecoveryCodeChallenge:input_type -> auth.v1.VerifyRecoveryCodeChallengeRequest
+	27, // 35: auth.v1.MFAService.UpdateMFAFactor:input_type -> auth.v1.UpdateMFAFactorRequest
+	29, // 36: auth.v1.MFAService.DeleteMFAFactor:input_type -> auth.v1.DeleteMFAFactorRequest
+	31, // 37: auth.v1.MFAService.RegenerateRecoveryCodes:input_type -> auth.v1.RegenerateRecoveryCodesRequest
+	21, // 38: auth.v1.MFAService.ClaimFreshStepUp:input_type -> auth.v1.ClaimFreshStepUpRequest
+	23, // 39: auth.v1.MFAService.ConsumeFreshStepUp:input_type -> auth.v1.ConsumeFreshStepUpRequest
+	25, // 40: auth.v1.MFAService.ReleaseFreshStepUp:input_type -> auth.v1.ReleaseFreshStepUpRequest
+	6,  // 41: auth.v1.MFAService.ListMFAFactors:output_type -> auth.v1.ListMFAFactorsResponse
+	8,  // 42: auth.v1.MFAService.BeginTOTPEnrollment:output_type -> auth.v1.BeginTOTPEnrollmentResponse
+	10, // 43: auth.v1.MFAService.FinishTOTPEnrollment:output_type -> auth.v1.FinishTOTPEnrollmentResponse
+	12, // 44: auth.v1.MFAService.BeginPasskeyEnrollment:output_type -> auth.v1.BeginPasskeyEnrollmentResponse
+	14, // 45: auth.v1.MFAService.FinishPasskeyEnrollment:output_type -> auth.v1.FinishPasskeyEnrollmentResponse
+	16, // 46: auth.v1.MFAService.BeginMFAChallenge:output_type -> auth.v1.BeginMFAChallengeResponse
+	20, // 47: auth.v1.MFAService.VerifyTOTPChallenge:output_type -> auth.v1.CompleteMFAChallengeResponse
+	20, // 48: auth.v1.MFAService.FinishPasskeyChallenge:output_type -> auth.v1.CompleteMFAChallengeResponse
+	20, // 49: auth.v1.MFAService.VerifyRecoveryCodeChallenge:output_type -> auth.v1.CompleteMFAChallengeResponse
+	28, // 50: auth.v1.MFAService.UpdateMFAFactor:output_type -> auth.v1.UpdateMFAFactorResponse
+	30, // 51: auth.v1.MFAService.DeleteMFAFactor:output_type -> auth.v1.DeleteMFAFactorResponse
+	32, // 52: auth.v1.MFAService.RegenerateRecoveryCodes:output_type -> auth.v1.RegenerateRecoveryCodesResponse
+	22, // 53: auth.v1.MFAService.ClaimFreshStepUp:output_type -> auth.v1.ClaimFreshStepUpResponse
+	24, // 54: auth.v1.MFAService.ConsumeFreshStepUp:output_type -> auth.v1.ConsumeFreshStepUpResponse
+	26, // 55: auth.v1.MFAService.ReleaseFreshStepUp:output_type -> auth.v1.ReleaseFreshStepUpResponse
+	41, // [41:56] is the sub-list for method output_type
+	26, // [26:41] is the sub-list for method input_type
+	26, // [26:26] is the sub-list for extension type_name
+	26, // [26:26] is the sub-list for extension extendee
+	0,  // [0:26] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_mfa_proto_init() }
@@ -2526,8 +2254,8 @@ func file_auth_v1_mfa_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_mfa_proto_rawDesc), len(file_auth_v1_mfa_proto_rawDesc)),
-			NumEnums:      4,
-			NumMessages:   34,
+			NumEnums:      3,
+			NumMessages:   30,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

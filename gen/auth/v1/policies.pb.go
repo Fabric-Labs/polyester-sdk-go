@@ -36,7 +36,9 @@ const (
 // exactly the calls it names and never implies another permission. A
 // main-account permission is honored only for an API key scoped to the main
 // account; a key scoped to a sub-account is refused even when its policy
-// grants it. An API key without a policy has no permission at all.
+// grants it. Admin permissions, documented below, apply to API-key policies
+// only and are honored only for an admin API key. An API key without a policy
+// has no permission at all.
 type PolicyAction int32
 
 const (
@@ -174,6 +176,24 @@ const (
 	// reads all of them, a key scoped to a sub-account only that sub-account's.
 	// Account permission.
 	PolicyAction_READ_ACCOUNT_ACTIVITY PolicyAction = 42
+	// Allow creating, updating and revoking the standard API keys of the main
+	// account and of the sub-accounts it owns. Admin permission: honored only
+	// for an admin API key, which never manages an admin or assistant key, a
+	// key whose policy allows a money-out action, or a sub-account shared with
+	// the main account. A key it creates or updates needs an IP allowlist
+	// within the admin key's own.
+	PolicyAction_MANAGE_API_KEYS PolicyAction = 43
+	// Allow attaching and clearing the API policies of the standard API keys
+	// the admin key may manage. A policy it attaches can never allow a
+	// money-out action or an admin permission, and on a sub-account key can
+	// never allow more actions or markets than the sub-account's policy. Admin
+	// permission: honored only for an admin API key.
+	PolicyAction_MANAGE_API_KEY_POLICIES PolicyAction = 44
+	// Allow attaching, clearing and updating the policies of the sub-accounts
+	// the main account owns. The resulting policy can never allow a money-out
+	// action, and a locked policy is never changed. Admin permission: honored
+	// only for an admin API key.
+	PolicyAction_MANAGE_SUBACCOUNT_POLICIES PolicyAction = 45
 )
 
 // Enum value maps for PolicyAction.
@@ -218,6 +238,9 @@ var (
 		40: "READ_FUNDING_FLOWS",
 		41: "READ_NOTIFICATIONS",
 		42: "READ_ACCOUNT_ACTIVITY",
+		43: "MANAGE_API_KEYS",
+		44: "MANAGE_API_KEY_POLICIES",
+		45: "MANAGE_SUBACCOUNT_POLICIES",
 	}
 	PolicyAction_value = map[string]int32{
 		"UNSPECIFIED":                 0,
@@ -259,6 +282,9 @@ var (
 		"READ_FUNDING_FLOWS":          40,
 		"READ_NOTIFICATIONS":          41,
 		"READ_ACCOUNT_ACTIVITY":       42,
+		"MANAGE_API_KEYS":             43,
+		"MANAGE_API_KEY_POLICIES":     44,
+		"MANAGE_SUBACCOUNT_POLICIES":  45,
 	}
 )
 
@@ -490,12 +516,19 @@ type SubaccountPolicyView struct {
 	// Effective high-level actions enabled for the sub-account. Mandatory
 	// read-only actions are always included.
 	Actions []PolicyAction `protobuf:"varint,8,rep,packed,name=actions,proto3,enum=auth.v1.PolicyAction" json:"actions,omitempty"`
-	// True if this policy is a reusable template; false if it is a
-	// per-sub-account instance.
+	// True if this policy is a template: a reusable policy of the main account
+	// that is never attached to a sub-account itself. Applying it with
+	// SetSubaccountPolicy attaches a copy, so editing the template later changes
+	// no sub-account. Set when the policy is created and never changes.
 	IsTemplate bool `protobuf:"varint,10,opt,name=is_template,json=isTemplate,proto3" json:"is_template,omitempty"`
-	// Optional source template this policy was copied from (opaque ID). This is
-	// audit metadata only and does not imply live linkage.
+	// Template this policy was copied from (opaque ID), or 0 when it is not a
+	// copy. Set when the copy is made and never changes, even after the template
+	// is edited or deleted; the copy is not linked to the template.
 	SourceTemplateId uint64 `protobuf:"fixed64,11,opt,name=source_template_id,json=sourceTemplateId,proto3" json:"source_template_id,omitempty"`
+	// Revision of the template when this policy was copied from it, or 0 when
+	// it is not a copy. Compare it with the template's current revision to see
+	// whether the template changed since. Never changes.
+	SourceTemplateRevision uint64 `protobuf:"varint,31,opt,name=source_template_revision,json=sourceTemplateRevision,proto3" json:"source_template_revision,omitempty"`
 	// Maximum notional size allowed for any single order on this sub-account,
 	// expressed in canonical quote microunits (one unit is 0.000001 USDT).
 	// A value of 0 means "no explicit cap".
@@ -608,6 +641,13 @@ func (x *SubaccountPolicyView) GetIsTemplate() bool {
 func (x *SubaccountPolicyView) GetSourceTemplateId() uint64 {
 	if x != nil {
 		return x.SourceTemplateId
+	}
+	return 0
+}
+
+func (x *SubaccountPolicyView) GetSourceTemplateRevision() uint64 {
+	if x != nil {
+		return x.SourceTemplateRevision
 	}
 	return 0
 }
@@ -910,7 +950,12 @@ type SubaccountPolicySpec struct {
 	// Optional review time in UTC. This does not automatically disable the policy.
 	ReviewAt *timestamppb.Timestamp `protobuf:"bytes,26,opt,name=review_at,json=reviewAt,proto3" json:"review_at,omitempty"`
 	// Optional expiry time in UTC. This does not automatically disable the policy.
-	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,27,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,27,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	// Whether the policy is a template, which SetSubaccountPolicy applies as a
+	// copy. Only the main account owner creates templates, and never together
+	// with subaccount_id. Chosen at creation: an update_mask that selects it is
+	// refused with InvalidArgument.
+	IsTemplate    bool `protobuf:"varint,28,opt,name=is_template,json=isTemplate,proto3" json:"is_template,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1022,13 +1067,22 @@ func (x *SubaccountPolicySpec) GetExpiresAt() *timestamppb.Timestamp {
 	return nil
 }
 
-// CreateSubaccountPolicyRequest defines a new sub-account policy template, with
-// an optional attach step for one target sub-account.
+func (x *SubaccountPolicySpec) GetIsTemplate() bool {
+	if x != nil {
+		return x.IsTemplate
+	}
+	return false
+}
+
+// CreateSubaccountPolicyRequest defines a new sub-account policy, with an
+// optional attach step for one target sub-account.
 type CreateSubaccountPolicyRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Complete mutable policy configuration.
 	Policy *SubaccountPolicySpec `protobuf:"bytes,1,opt,name=policy,proto3" json:"policy,omitempty"`
-	// Optional target sub-account to attach atomically after creation.
+	// Optional target sub-account to attach atomically after creation. A
+	// template cannot be attached: setting it with policy.is_template is refused
+	// with InvalidArgument.
 	SubaccountId  *uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3,oneof" json:"subaccount_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1246,8 +1300,8 @@ func (x *UpdateSubaccountPolicyResponse) GetPolicy() *SubaccountPolicyView {
 	return nil
 }
 
-// DeleteSubaccountPolicyRequest deletes a sub-account policy template when it
-// is not in use.
+// DeleteSubaccountPolicyRequest deletes a sub-account policy when it is not in
+// use. A template is never in use; copies made from it keep their lineage.
 type DeleteSubaccountPolicyRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Policy identifier (opaque ID).
@@ -1330,14 +1384,16 @@ func (*DeleteSubaccountPolicyResponse) Descriptor() ([]byte, []int) {
 	return file_auth_v1_policies_proto_rawDescGZIP(), []int{14}
 }
 
-// SetSubaccountPolicyRequest attaches or clears a policy template on a
-// sub-account.
+// SetSubaccountPolicyRequest attaches a policy to a sub-account, applies a
+// template to it, or clears its policy.
 type SetSubaccountPolicyRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Sub-account identifier (opaque ID).
 	SubaccountId uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
-	// Policy template to attach (opaque ID). A value of 0 clears the explicit
-	// binding and restores the system Read Only policy.
+	// Policy to attach (opaque ID), owned by the sub-account's main account. A
+	// template is applied: the sub-account gets a new copy of its current
+	// revision, which later edits of the template do not change. A value of 0
+	// clears the explicit binding and restores the system Read Only policy.
 	PolicyId      uint64 `protobuf:"fixed64,2,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1387,9 +1443,12 @@ func (x *SetSubaccountPolicyRequest) GetPolicyId() uint64 {
 	return 0
 }
 
-// SetSubaccountPolicyResponse is empty when the policy binding succeeds.
+// SetSubaccountPolicyResponse returns the policy now attached.
 type SetSubaccountPolicyResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Policy now attached to the sub-account (opaque ID): the new copy when
+	// policy_id named a template, else policy_id. 0 when the policy was cleared.
+	PolicyId      uint64 `protobuf:"fixed64,1,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1424,6 +1483,13 @@ func (*SetSubaccountPolicyResponse) Descriptor() ([]byte, []int) {
 	return file_auth_v1_policies_proto_rawDescGZIP(), []int{16}
 }
 
+func (x *SetSubaccountPolicyResponse) GetPolicyId() uint64 {
+	if x != nil {
+		return x.PolicyId
+	}
+	return 0
+}
+
 // ApiPolicyView is the public view of an API key policy template. Its action
 // and spot-market floor cannot exceed an attached sub-account policy.
 type ApiPolicyView struct {
@@ -1442,12 +1508,19 @@ type ApiPolicyView struct {
 	// Market-level scope for spot markets. When ALL, spot_markets is returned
 	// for display only and is not enforced.
 	SpotMarketScope MarketScope_Value `protobuf:"varint,7,opt,name=spot_market_scope,json=spotMarketScope,proto3,enum=auth.v1.MarketScope_Value" json:"spot_market_scope,omitempty"` // --- Template / lifecycle metadata ---
-	// When true, this policy is intended to be reused as a template across
-	// multiple API keys. When false, it represents a single-key instance.
+	// True if this policy is a template: a reusable policy of the main account
+	// that is never attached to an API key itself. Applying it with
+	// SetApiKeyPolicy attaches a copy, so editing the template later changes no
+	// API key. Set when the policy is created and never changes.
 	IsTemplate bool `protobuf:"varint,19,opt,name=is_template,json=isTemplate,proto3" json:"is_template,omitempty"`
-	// Optional source template this policy was copied from (opaque ID). This is
-	// audit metadata only and does not imply live linkage.
+	// Template this policy was copied from (opaque ID), or 0 when it is not a
+	// copy. Set when the copy is made and never changes, even after the template
+	// is edited or deleted; the copy is not linked to the template.
 	SourceTemplateId uint64 `protobuf:"fixed64,20,opt,name=source_template_id,json=sourceTemplateId,proto3" json:"source_template_id,omitempty"`
+	// Revision of the template when this policy was copied from it, or 0 when
+	// it is not a copy. Compare it with the template's current revision to see
+	// whether the template changed since. Never changes.
+	SourceTemplateRevision uint64 `protobuf:"varint,24,opt,name=source_template_revision,json=sourceTemplateRevision,proto3" json:"source_template_revision,omitempty"`
 	// Creation time in UTC.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,21,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Last update time in UTC.
@@ -1540,6 +1613,13 @@ func (x *ApiPolicyView) GetIsTemplate() bool {
 func (x *ApiPolicyView) GetSourceTemplateId() uint64 {
 	if x != nil {
 		return x.SourceTemplateId
+	}
+	return 0
+}
+
+func (x *ApiPolicyView) GetSourceTemplateRevision() uint64 {
+	if x != nil {
+		return x.SourceTemplateRevision
 	}
 	return 0
 }
@@ -1778,7 +1858,10 @@ type ApiPolicySpec struct {
 	// High-level actions enabled for the API key policy. An empty list grants no
 	// access. Up to 64 unique explicit actions are allowed.
 	Actions []PolicyAction `protobuf:"varint,7,rep,packed,name=actions,proto3,enum=auth.v1.PolicyAction" json:"actions,omitempty"`
-	// Whether this policy should be treated as a reusable template.
+	// Whether the policy is a template, which SetApiKeyPolicy applies as a copy.
+	// Only the main account owner creates templates, and never together with
+	// assign_to_key_id. Chosen at creation: an update_mask that selects it is
+	// refused with InvalidArgument.
 	IsTemplate    bool `protobuf:"varint,19,opt,name=is_template,json=isTemplate,proto3" json:"is_template,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1856,16 +1939,19 @@ func (x *ApiPolicySpec) GetIsTemplate() bool {
 	return false
 }
 
-// CreateApiPolicyRequest defines a new API key policy template.
+// CreateApiPolicyRequest defines a new API key policy.
 type CreateApiPolicyRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Complete mutable policy configuration.
 	Policy *ApiPolicySpec `protobuf:"bytes,1,opt,name=policy,proto3" json:"policy,omitempty"`
 	// Optional API key identifier to bind this newly-created policy to
 	// atomically. When set, the caller must be allowed to manage the key and the
-	// create+assign operation consumes a single fresh step-up proof. An
-	// assistant API key cannot be assigned a policy that allows a money-out
-	// action: FailedPrecondition with AUTH_ASSISTANT_KEY_ACTION_NOT_ALLOWED.
+	// create+assign operation consumes a single fresh step-up proof. A template
+	// cannot be assigned: setting it with policy.is_template is refused with
+	// InvalidArgument. An assistant API key cannot be assigned a policy that
+	// allows a money-out action: FailedPrecondition with
+	// AUTH_ASSISTANT_KEY_ACTION_NOT_ALLOWED. Nor can an admin API key:
+	// FailedPrecondition with AUTH_ADMIN_KEY_ACTION_NOT_ALLOWED.
 	AssignToKeyId string `protobuf:"bytes,2,opt,name=assign_to_key_id,json=assignToKeyId,proto3" json:"assign_to_key_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2083,7 +2169,8 @@ func (x *UpdateApiPolicyResponse) GetPolicy() *ApiPolicyView {
 	return nil
 }
 
-// DeleteApiPolicyRequest deletes an API key policy template when it is not in use.
+// DeleteApiPolicyRequest deletes an API key policy when it is not in use. A
+// template is never in use; copies made from it keep their lineage.
 type DeleteApiPolicyRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Policy identifier (opaque ID).
@@ -2166,14 +2253,17 @@ func (*DeleteApiPolicyResponse) Descriptor() ([]byte, []int) {
 	return file_auth_v1_policies_proto_rawDescGZIP(), []int{28}
 }
 
-// SetApiKeyPolicyRequest attaches or clears a policy template on an API key.
+// SetApiKeyPolicyRequest attaches a policy to an API key, applies a template to
+// it, or clears its policy.
 type SetApiKeyPolicyRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Opaque API key identifier, formatted as "ak_" followed by 32 lowercase hex
 	// characters.
 	KeyId string `protobuf:"bytes,1,opt,name=key_id,json=keyId,proto3" json:"key_id,omitempty"`
-	// Policy template to attach (opaque ID). A value of 0 clears the binding.
-	// An API key without an attached policy has no permissions.
+	// Policy to attach (opaque ID), owned by the key's main account. A template
+	// is applied: the key gets a new copy of its current revision, which later
+	// edits of the template do not change. A value of 0 clears the binding. An
+	// API key without an attached policy has no permissions.
 	PolicyId      uint64 `protobuf:"fixed64,2,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2223,9 +2313,12 @@ func (x *SetApiKeyPolicyRequest) GetPolicyId() uint64 {
 	return 0
 }
 
-// SetApiKeyPolicyResponse is empty when the policy binding succeeds.
+// SetApiKeyPolicyResponse returns the policy now attached.
 type SetApiKeyPolicyResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Policy now attached to the key (opaque ID): the new copy when policy_id
+	// named a template, else policy_id. 0 when the policy was cleared.
+	PolicyId      uint64 `protobuf:"fixed64,1,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2260,6 +2353,13 @@ func (*SetApiKeyPolicyResponse) Descriptor() ([]byte, []int) {
 	return file_auth_v1_policies_proto_rawDescGZIP(), []int{30}
 }
 
+func (x *SetApiKeyPolicyResponse) GetPolicyId() uint64 {
+	if x != nil {
+		return x.PolicyId
+	}
+	return 0
+}
+
 var File_auth_v1_policies_proto protoreflect.FileDescriptor
 
 const file_auth_v1_policies_proto_rawDesc = "" +
@@ -2273,7 +2373,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x12SpotMarketSelector\x12$\n" +
 	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\"-\n" +
 	"\x0eSpotMarketRule\x12\x1b\n" +
-	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\"\x9a\x06\n" +
+	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\"\xd4\x06\n" +
 	"\x14SubaccountPolicyView\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x06R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -2284,7 +2384,8 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\vis_template\x18\n" +
 	" \x01(\bR\n" +
 	"isTemplate\x12,\n" +
-	"\x12source_template_id\x18\v \x01(\x06R\x10sourceTemplateId\x12,\n" +
+	"\x12source_template_id\x18\v \x01(\x06R\x10sourceTemplateId\x128\n" +
+	"\x18source_template_revision\x18\x1f \x01(\x04R\x16sourceTemplateRevision\x12,\n" +
 	"\x12max_order_notional\x18\r \x01(\x04R\x10maxOrderNotional\x12&\n" +
 	"\x0fmax_open_orders\x18\x0e \x01(\rR\rmaxOpenOrders\x12%\n" +
 	"\x0etrading_halted\x18\x17 \x01(\bR\rtradingHalted\x12\x16\n" +
@@ -2307,7 +2408,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\rsubaccount_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
 	"\x0e_subaccount_id\"T\n" +
 	"\x1bGetSubaccountPolicyResponse\x125\n" +
-	"\x06policy\x18\x01 \x01(\v2\x1d.auth.v1.SubaccountPolicyViewR\x06policy\"\xec\x06\n" +
+	"\x06policy\x18\x01 \x01(\v2\x1d.auth.v1.SubaccountPolicyViewR\x06policy\"\x8d\a\n" +
 	"\x14SubaccountPolicySpec\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18@R\x04name\x12*\n" +
 	"\vdescription\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\vdescription\x12>\n" +
@@ -2320,7 +2421,9 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x06locked\x18\x19 \x01(\bR\x06locked\x127\n" +
 	"\treview_at\x18\x1a \x01(\v2\x1a.google.protobuf.TimestampR\breviewAt\x129\n" +
 	"\n" +
-	"expires_at\x18\x1b \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt:\xa9\x02\xbaH\xa5\x02\x1a\xa7\x01\n" +
+	"expires_at\x18\x1b \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12\x1f\n" +
+	"\vis_template\x18\x1c \x01(\bR\n" +
+	"isTemplate:\xa9\x02\xbaH\xa5\x02\x1a\xa7\x01\n" +
 	"\x1fspot_allowlist_requires_markets\x12Bspot_markets must be non-empty when spot_market_scope is ALLOWLIST\x1a@this.spot_market_scope != 2 ? true : size(this.spot_markets) > 0\x1ay\n" +
 	"\x13spot_markets_unique\x122spot_markets must not contain duplicate symbol IDs\x1a.this.spot_markets.map(m, m.symbol_id).unique()\"\xad\x01\n" +
 	"\x1dCreateSubaccountPolicyRequest\x12@\n" +
@@ -2343,8 +2446,9 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x1eDeleteSubaccountPolicyResponse\"n\n" +
 	"\x1aSetSubaccountPolicyRequest\x123\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12\x1b\n" +
-	"\tpolicy_id\x18\x02 \x01(\x06R\bpolicyId\"\x1d\n" +
-	"\x1bSetSubaccountPolicyResponse\"\x8a\x04\n" +
+	"\tpolicy_id\x18\x02 \x01(\x06R\bpolicyId\":\n" +
+	"\x1bSetSubaccountPolicyResponse\x12\x1b\n" +
+	"\tpolicy_id\x18\x01 \x01(\x06R\bpolicyId\"\xc4\x04\n" +
 	"\rApiPolicyView\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x06R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -2354,7 +2458,8 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x11spot_market_scope\x18\a \x01(\x0e2\x1a.auth.v1.MarketScope.ValueB\b\xbaH\x05\x82\x01\x02\x10\x01R\x0fspotMarketScope\x12\x1f\n" +
 	"\vis_template\x18\x13 \x01(\bR\n" +
 	"isTemplate\x12,\n" +
-	"\x12source_template_id\x18\x14 \x01(\x06R\x10sourceTemplateId\x129\n" +
+	"\x12source_template_id\x18\x14 \x01(\x06R\x10sourceTemplateId\x128\n" +
+	"\x18source_template_revision\x18\x18 \x01(\x04R\x16sourceTemplateRevision\x129\n" +
 	"\n" +
 	"created_at\x18\x15 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
@@ -2400,8 +2505,9 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x17DeleteApiPolicyResponse\"k\n" +
 	"\x16SetApiKeyPolicyRequest\x124\n" +
 	"\x06key_id\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x15\x10\x012\x11^ak_[a-f0-9]{32}$R\x05keyId\x12\x1b\n" +
-	"\tpolicy_id\x18\x02 \x01(\x06R\bpolicyId\"\x19\n" +
-	"\x17SetApiKeyPolicyResponse*\xad\a\n" +
+	"\tpolicy_id\x18\x02 \x01(\x06R\bpolicyId\"6\n" +
+	"\x17SetApiKeyPolicyResponse\x12\x1b\n" +
+	"\tpolicy_id\x18\x01 \x01(\x06R\bpolicyId*\xff\a\n" +
 	"\fPolicyAction\x12\x0f\n" +
 	"\vUNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -2443,32 +2549,35 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\fCONVERT_DUST\x10'\x12\x16\n" +
 	"\x12READ_FUNDING_FLOWS\x10(\x12\x16\n" +
 	"\x12READ_NOTIFICATIONS\x10)\x12\x19\n" +
-	"\x15READ_ACCOUNT_ACTIVITY\x10*2\x9f\x1c\n" +
+	"\x15READ_ACCOUNT_ACTIVITY\x10*\x12\x13\n" +
+	"\x0fMANAGE_API_KEYS\x10+\x12\x1b\n" +
+	"\x17MANAGE_API_KEY_POLICIES\x10,\x12\x1e\n" +
+	"\x1aMANAGE_SUBACCOUNT_POLICIES\x10-2\x9b\x1e\n" +
 	"\rPolicyService\x12\xfc\x02\n" +
 	"\x16ListSubaccountPolicies\x12&.auth.v1.ListSubaccountPoliciesRequest\x1a'.auth.v1.ListSubaccountPoliciesResponse\"\x90\x02\xbaG\xe1\x01\n" +
 	"\fAuth Service\x12\x18List Subaccount Policies\x1a\xb6\x01List sub-account policy templates available to the caller. An API key needs READ_SUBACCOUNT_POLICIES; a key scoped to a sub-account sees only the policy attached to that sub-account.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1f\x12\x1d/v1/auth/policies/subaccounts\x12\xfe\x02\n" +
 	"\x13GetSubaccountPolicy\x12#.auth.v1.GetSubaccountPolicyRequest\x1a$.auth.v1.GetSubaccountPolicyResponse\"\x9b\x02\xbaG\xe0\x01\n" +
 	"\fAuth Service\x12\x15Get Subaccount Policy\x1a\xb8\x01Retrieve a single sub-account policy template by policy ID. An API key needs READ_SUBACCOUNT_POLICIES; a key scoped to a sub-account reads only the policy attached to that sub-account.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02+\x12)/v1/auth/policies/subaccounts/{policy_id}\x12\x97\x02\n" +
 	"\x16CreateSubaccountPolicy\x12&.auth.v1.CreateSubaccountPolicyRequest\x1a'.auth.v1.CreateSubaccountPolicyResponse\"\xab\x01\xbaGw\n" +
-	"\fAuth Service\x12\x18Create Subaccount Policy\x1aMCreate a new sub-account policy template for the caller account or workspace.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/v1/auth/policies/subaccounts\x12\x98\x02\n" +
-	"\x16UpdateSubaccountPolicy\x12&.auth.v1.UpdateSubaccountPolicyRequest\x1a'.auth.v1.UpdateSubaccountPolicyResponse\"\xac\x01\xbaGl\n" +
-	"\fAuth Service\x12\x18Update Subaccount Policy\x1aBChange selected fields on an existing sub-account policy template.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02.:\x01*2)/v1/auth/policies/subaccounts/{policy_id}\x12\x98\x02\n" +
+	"\fAuth Service\x12\x18Create Subaccount Policy\x1aMCreate a new sub-account policy template for the caller account or workspace.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/v1/auth/policies/subaccounts\x12\xf2\x02\n" +
+	"\x16UpdateSubaccountPolicy\x12&.auth.v1.UpdateSubaccountPolicyRequest\x1a'.auth.v1.UpdateSubaccountPolicyResponse\"\x86\x02\xbaG\xc4\x01\n" +
+	"\fAuth Service\x12\x18Update Subaccount Policy\x1a\x99\x01Change selected fields on an existing sub-account policy. Editing a template changes only the template: sub-accounts it was applied to keep their copies.\x98\xb5\x18\x03\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02.:\x01*2)/v1/auth/policies/subaccounts/{policy_id}\x12\x98\x02\n" +
 	"\x16DeleteSubaccountPolicy\x12&.auth.v1.DeleteSubaccountPolicyRequest\x1a'.auth.v1.DeleteSubaccountPolicyResponse\"\xac\x01\xbaGo\n" +
-	"\fAuth Service\x12\x18Delete Subaccount Policy\x1aEDelete an existing sub-account policy template when it is not in use.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02+*)/v1/auth/policies/subaccounts/{policy_id}\x12\x8c\x02\n" +
-	"\x13SetSubaccountPolicy\x12#.auth.v1.SetSubaccountPolicyRequest\x1a$.auth.v1.SetSubaccountPolicyResponse\"\xa9\x01\xbaGg\n" +
-	"\fAuth Service\x12\x15Set Subaccount Policy\x1a@Attach or clear a sub-account policy for the target sub-account.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x020:\x01*2+/v1/auth/subaccounts/{subaccount_id}/policy\x12\xdf\x02\n" +
+	"\fAuth Service\x12\x18Delete Subaccount Policy\x1aEDelete an existing sub-account policy template when it is not in use.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02+*)/v1/auth/policies/subaccounts/{policy_id}\x12\xb3\x02\n" +
+	"\x13SetSubaccountPolicy\x12#.auth.v1.SetSubaccountPolicyRequest\x1a$.auth.v1.SetSubaccountPolicyResponse\"\xd0\x01\xbaG\x8c\x01\n" +
+	"\fAuth Service\x12\x15Set Subaccount Policy\x1aeAttach a policy to the target sub-account, apply a template to it as a new copy, or clear its policy.\x98\xb5\x18\x03\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x020:\x01*2+/v1/auth/subaccounts/{subaccount_id}/policy\x12\xdf\x02\n" +
 	"\x0fListApiPolicies\x12\x1f.auth.v1.ListApiPoliciesRequest\x1a .auth.v1.ListApiPoliciesResponse\"\x88\x02\xbaG\xdc\x01\n" +
 	"\fAuth Service\x12\x15List API Key Policies\x1a\xb4\x01List API key policy templates available to the caller. An API key needs READ_API_POLICIES; a key scoped to a sub-account sees only the policies attached to that sub-account's keys.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1c\x12\x1a/v1/auth/policies/api-keys\x12\xe1\x02\n" +
 	"\fGetApiPolicy\x12\x1c.auth.v1.GetApiPolicyRequest\x1a\x1d.auth.v1.GetApiPolicyResponse\"\x93\x02\xbaG\xdb\x01\n" +
 	"\fAuth Service\x12\x12Get API Key Policy\x1a\xb6\x01Retrieve a single API key policy template by policy ID. An API key needs READ_API_POLICIES; a key scoped to a sub-account reads only the policies attached to that sub-account's keys.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02(\x12&/v1/auth/policies/api-keys/{policy_id}\x12\xf8\x01\n" +
 	"\x0fCreateApiPolicy\x12\x1f.auth.v1.CreateApiPolicyRequest\x1a .auth.v1.CreateApiPolicyResponse\"\xa1\x01\xbaGp\n" +
-	"\fAuth Service\x12\x15Create API Key Policy\x1aICreate a new API key policy template for the caller account or workspace.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1f:\x01*\"\x1a/v1/auth/policies/api-keys\x12\xf9\x01\n" +
-	"\x0fUpdateApiPolicy\x12\x1f.auth.v1.UpdateApiPolicyRequest\x1a .auth.v1.UpdateApiPolicyResponse\"\xa2\x01\xbaGe\n" +
-	"\fAuth Service\x12\x15Update API Key Policy\x1a>Change selected fields on an existing API key policy template.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02+:\x01*2&/v1/auth/policies/api-keys/{policy_id}\x12\xf9\x01\n" +
+	"\fAuth Service\x12\x15Create API Key Policy\x1aICreate a new API key policy template for the caller account or workspace.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1f:\x01*\"\x1a/v1/auth/policies/api-keys\x12\xca\x02\n" +
+	"\x0fUpdateApiPolicy\x12\x1f.auth.v1.UpdateApiPolicyRequest\x1a .auth.v1.UpdateApiPolicyResponse\"\xf3\x01\xbaG\xb5\x01\n" +
+	"\fAuth Service\x12\x15Update API Key Policy\x1a\x8d\x01Change selected fields on an existing API key policy. Editing a template changes only the template: keys it was applied to keep their copies.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02+:\x01*2&/v1/auth/policies/api-keys/{policy_id}\x12\xf9\x01\n" +
 	"\x0fDeleteApiPolicy\x12\x1f.auth.v1.DeleteApiPolicyRequest\x1a .auth.v1.DeleteApiPolicyResponse\"\xa2\x01\xbaGh\n" +
-	"\fAuth Service\x12\x15Delete API Key Policy\x1aADelete an existing API key policy template when it is not in use.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02(*&/v1/auth/policies/api-keys/{policy_id}\x12\xe8\x01\n" +
-	"\x0fSetApiKeyPolicy\x12\x1f.auth.v1.SetApiKeyPolicyRequest\x1a .auth.v1.SetApiKeyPolicyResponse\"\x91\x01\xbaGY\n" +
-	"\fAuth Service\x12\x12Set API Key Policy\x1a5Attach or clear an API key policy for the target key.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02&:\x01*2!/v1/auth/api-keys/{key_id}/policy\x1a\v\x8a\xb5\x18\aaccountB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
+	"\fAuth Service\x12\x15Delete API Key Policy\x1aADelete an existing API key policy template when it is not in use.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02(*&/v1/auth/policies/api-keys/{policy_id}\x12\x92\x02\n" +
+	"\x0fSetApiKeyPolicy\x12\x1f.auth.v1.SetApiKeyPolicyRequest\x1a .auth.v1.SetApiKeyPolicyResponse\"\xbb\x01\xbaG\x81\x01\n" +
+	"\fAuth Service\x12\x12Set API Key Policy\x1a]Attach a policy to the target key, apply a template to it as a new copy, or clear its policy.\x98\xb5\x18\x03\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02&:\x01*2!/v1/auth/api-keys/{key_id}/policy\x1a\v\x8a\xb5\x18\aaccountB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
 
 var (
 	file_auth_v1_policies_proto_rawDescOnce sync.Once

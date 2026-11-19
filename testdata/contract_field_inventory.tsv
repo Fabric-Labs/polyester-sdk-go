@@ -71,7 +71,7 @@ orderbook.v1.GetOrderBookResponse.available	covered	models.OrderbookData.Availab
 orderbook.v1.GetOrderBookResponse.bids	covered	models.OrderbookData.Bids
 orderbook.v1.GetOrderBookResponse.book_epoch	covered	models.OrderbookData.BookEpoch
 orderbook.v1.GetOrderBookResponse.book_seq	covered	models.OrderbookData.BookSeq
-orderbook.v1.GetOrderBookResponse.max_depth	covered	models.OrderbookData.MaxDepth
+orderbook.v1.GetOrderBookResponse.depth	covered	models.OrderbookData.Depth
 orderbook.v1.GetOrderBookResponse.symbol_id	covered	models.OrderbookData.Symbol (the symbol the caller asked for)
 orderbook.v1.GetOrderBookResponse.ts	omitted	best-effort snapshot time, unchanged by this contract and not modelled; order snapshots by (book_epoch, book_seq)
 orders.v1.ErrorDetail.cause_code	covered	errors.LadderLevelCause.CauseCode

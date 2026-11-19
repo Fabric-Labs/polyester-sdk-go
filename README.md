@@ -745,7 +745,13 @@ Read open orders for current state. `Orders.CancelAllAfter` reports the
 armed switch's scope as `EffectiveScope` (nil when disabled).
 
 `Orders.CancelAll` and the dead-man switch (`Orders.CancelAllAfter`) cancel
-open orders, never triggers. The open orders triggers placed (a TWAP's
+open orders, and triggers only with `IncludeTriggers` set
+(`services.CancelAllParams`, and `services.CancelAllAfterParams` with
+`Orders.CancelAllAfterWith`). With it, a cancel-all also stops every trigger
+of the account that matches its filters: each ends canceled, none places an
+order after the response, and the result's `MatchedTriggers` counts them. A
+switch armed with it stops, on expiry, the triggers in its scope created
+before the expiry time. Without it, the open orders triggers placed (a TWAP's
 working slice, a ladder's levels, a fired stop's order, an attached leg's
 working exit) are canceled like any other, but untriggered stops stay armed,
 TWAPs keep running and paused triggers stay paused, with their reserved
@@ -1635,8 +1641,9 @@ SDK notes:
   receipt. Looking a transfer up by transfer or request ID requires an
   interactive session, so this SDK does not wrap it.
 - **Several Trading → trading transfers at once:**
-  `client.InternalTransfers.CreateBatch(ctx, legs, idempotencyKey)` sends 1
-  to 10 legs under one idempotency key and one MFA check (see
+  `client.InternalTransfers.CreateBatch(ctx, legs, idempotencyKey)` moves
+  up to 500 legs together, all or none, under one idempotency key and one MFA
+  check (see
   [Batch internal transfers](#batch-internal-transfers)).
 
 API-key withdrawals always use the authenticated key's bound account or
@@ -1864,16 +1871,23 @@ result, err := client.InternalTransfers.CreateBatch(ctx, []models.InternalTransf
 ```
 
 Each leg takes the fields of `InternalTransfers.Create` and is converted
-exactly the same way; the batch carries one idempotency key. The server checks
-every leg before any leg runs: if one fails, `Status` is `refused`, the failed
-legs are `refused` with an `ErrorCode` and the others `not_submitted`, and
-nothing moves. Otherwise `Status` is `submitted` and the legs run in order,
-independently. They are not atomic: a leg can be `refused` (for example
-`insufficient_funds`) after earlier legs were `accepted`. A `pending` leg's
-outcome is not known yet: retry with the same key and the same legs in the same
-order, which answers accepted legs with the same transfers and runs the rest.
-Each leg counts as one internal transfer against the rate limit. Each leg's
-`Destination` is the destination the server resolved for it.
+exactly the same way; the batch carries one idempotency key and moves all of
+its legs or none. `Status` is `accepted` when every leg is `credited`,
+`refused` when nothing moved (every leg `not_moved`, the legs that caused it
+with an `ErrorCode`), or `processing` when the outcome is not known within
+the request (every leg `processing` with its `TransferID`): read it with
+`InternalTransfers.GetBatch(ctx, result.RequestID)`, or call `CreateBatch`
+again with the same key and the same legs in the same order, until it is
+final. `refused` is final for its key, even once its cause is gone: fix the
+cause and submit under a new key. An `unavailable` error
+(`ERROR_CODE_SERVICE_UNAVAILABLE` or `ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE`)
+means the batch was not decided and nothing was recorded under the key:
+`errors.IsRetryable(err)` reports it, so retry with the same key and legs,
+after its Retry-After when present. Any other 502 or 503 answer has an unknown
+outcome, whatever it names: read the batch with `GetBatch`, or retry with the
+same key and legs. Different
+legs under a used key are refused with `ERROR_CODE_IDEMPOTENCY_CONFLICT`.
+Each leg's `Destination` is the destination the server resolved for it.
 
 ## Public market data
 
@@ -2334,17 +2348,16 @@ for book := range ob.Updates() {
 }
 ```
 
-`Orderbook.Get` takes any level count per side and sends it as given; 0 means 50, and the
-result's `Depth` is the depth requested (`codecs.OrderbookSnapshotDepth`). The largest depth
-the service accepts is the `MaxDepth` every snapshot reports (5,000 by default); a deeper
-request is refused by the service with `invalid_argument` (an `*errors.ValidationError`),
-never truncated, so read `MaxDepth` instead of assuming one. A negative depth is an
-`*errors.ValidationError` before any request. A snapshot is a frozen view at its own
-`(BookEpoch, BookSeq)`: order snapshots with `orderbook.CompareSnapshots`, keep the newest,
-and never apply live deltas to one.
-The delta stream is published at fewer depths, 1, 20, 50, 200 and 500
-(`codecs.OrderbookStreamDepths()`), and the server accepts a subscribe at any other
-depth and then sends nothing on it, so the SDK does not subscribe there:
+`Orderbook.Get` reads a snapshot at one of the depth tiers 1, 5, 10, 20, 50, 100, 200, 500,
+1000 and 5000 levels per side (`codecs.OrderbookDepthTiers()`); 0 means 50. Any other depth is an
+`*errors.ValidationError` before any request, as the service refuses it
+(`codecs.OrderbookSnapshotDepth`). The result's `Depth` is the tier the service served, the
+requested one: a reply at another tier, or naming none, is an `*errors.ResponseContractError`. A
+snapshot is a frozen view at its own `(BookEpoch, BookSeq)`: order snapshots with
+`orderbook.CompareSnapshots`, keep the newest, and never apply live deltas to one.
+The delta stream is published at fewer tiers, 1, 20, 50, 200 and 500
+(`codecs.OrderbookStreamDepths()`), and the server refuses a subscribe at any other
+depth, so the SDK does not subscribe there:
 
 - `Orderbook.CreateSubscription` with `Depth: 10` takes any depth from 1 to 500, and
   0 means 50. It rides the smallest published depth that covers it, 20 here, with its

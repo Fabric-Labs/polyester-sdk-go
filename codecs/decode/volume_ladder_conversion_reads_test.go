@@ -7,6 +7,7 @@ import (
 	marketoverviewv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketoverview/v1"
 	orderbookv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
+	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	triggersv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1"
 )
 
@@ -179,7 +180,7 @@ func TestCurrencyConversionRatesPreserveE8AndAbsentFiat(t *testing.T) {
 }
 
 func TestEmptyOrderbookWithZeroSequenceIsSuccess(t *testing.T) {
-	result, err := OrderbookFromProto(&orderbookv1.GetOrderBookResponse{SymbolId: 1, BookSeq: 0}, "BTC-USDT", 50, 8)
+	result, err := OrderbookFromProto(&orderbookv1.GetOrderBookResponse{SymbolId: 1, BookSeq: 0, Depth: typev1.DepthTier_DEPTH_50}, "BTC-USDT", 50, 8)
 	if err != nil {
 		t.Fatal(err)
 	}

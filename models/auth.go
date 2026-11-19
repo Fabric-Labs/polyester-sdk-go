@@ -9,6 +9,24 @@ type MeResult struct {
 	Username                string         `json:"username,omitempty"`
 	RootSmartAccountAddress string         `json:"root_smart_account_address,omitempty"`
 	Session                 map[string]any `json:"session,omitempty"`
+	// APIKeyScope is the account an API key is scoped to: "root" for a key
+	// of the main account, "subaccount" for a key bound to one sub-account;
+	// empty for a session, and "unknown(n)" for a scope this SDK does not
+	// know.
+	APIKeyScope string `json:"api_key_scope,omitempty"`
+	// SubaccountID is the public ID of the sub-account a sub-account key is
+	// bound to; empty otherwise.
+	SubaccountID string `json:"subaccount_id,omitempty"`
+}
+
+// ChannelAccountID returns the account a caller's private realtime channels
+// and account reads name: the bound sub-account for a sub-account key, the
+// main account otherwise.
+func (m MeResult) ChannelAccountID() string {
+	if m.SubaccountID != "" {
+		return m.SubaccountID
+	}
+	return m.AccountID
 }
 
 // UserProfile is the user profile record.

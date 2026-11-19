@@ -1869,10 +1869,9 @@ var File_chain_withdraw_v1_auto_withdraw_proto protoreflect.FileDescriptor
 
 const file_chain_withdraw_v1_auto_withdraw_proto_rawDesc = "" +
 	"\n" +
-	"%chain/withdraw/v1/auto_withdraw.proto\x12\x11chain.withdraw.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\x1a\x1cpolyester/type/v1/u128.proto\"\x83\x03\n" +
-	"\x14AutoWithdrawSchedule\x12L\n" +
-	"\acadence\x18\x01 \x01(\x0e2&.chain.withdraw.v1.AutoWithdrawCadenceB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\acadence\x12J\n" +
+	"%chain/withdraw/v1/auto_withdraw.proto\x12\x11chain.withdraw.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\x1a\x1cpolyester/type/v1/u128.proto\"\x84\x03\n" +
+	"\x14AutoWithdrawSchedule\x12M\n" +
+	"\acadence\x18\x01 \x01(\x0e2&.chain.withdraw.v1.AutoWithdrawCadenceB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\acadence\x12J\n" +
 	"\aweekday\x18\x02 \x01(\x0e2&.chain.withdraw.v1.AutoWithdrawWeekdayB\b\xbaH\x05\x82\x01\x02\x10\x01R\aweekday\x12,\n" +
 	"\rminute_of_day\x18\x03 \x01(\rB\b\xbaH\x05*\x03\x18\x9f\vR\vminuteOfDay\x12-\n" +
 	"\x0eminute_of_hour\x18\x04 \x01(\rB\a\xbaH\x04*\x02\x18;R\fminuteOfHour\x12)\n" +

@@ -429,6 +429,9 @@ type CancelAllOrdersResult struct {
 	TotalCancelled   int              `json:"total_cancelled,omitempty"`
 	Truncated        bool             `json:"truncated,omitempty"`
 	ListingStatus    string           `json:"listing_status,omitempty"`
+	// MatchedTriggers counts the triggers a cancel-all with IncludeTriggers
+	// matched, each stopped unless it was a dry run; 0 without it.
+	MatchedTriggers int `json:"matched_triggers,omitempty"`
 }
 
 // CancelledOrder is one order a cancel-all requested to cancel.
@@ -1097,9 +1100,11 @@ type ApiKeySummary struct {
 	// a username or account label; empty when the server sends none.
 	CreatedByActor string `json:"created_by_actor,omitempty"`
 	Status         string `json:"status,omitempty"`
-	// Purpose is "STANDARD" for the user's own keys and "ASSISTANT" for keys
-	// the user created for the Polyester assistant; "PURPOSE_UNSPECIFIED" from
-	// a server that predates the field.
+	// Purpose is "STANDARD" for the user's own keys, "ASSISTANT" for keys
+	// the user created for the Polyester assistant and "ADMIN_KEY" for an
+	// admin key, an elevated key of the main account that manages the
+	// account's other API keys and its sub-accounts' policies;
+	// "PURPOSE_UNSPECIFIED" from a server that predates the field.
 	Purpose          string `json:"purpose,omitempty"`
 	PublicKeyEd25519 string `json:"public_key_ed25519,omitempty"`
 	// SubaccountID is the public ID of the sub-account the key is scoped to;

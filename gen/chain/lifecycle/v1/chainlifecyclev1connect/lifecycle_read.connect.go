@@ -53,26 +53,27 @@ const (
 // LifecycleReadServiceClient is a client for the chain.lifecycle.v1.LifecycleReadService service.
 type LifecycleReadServiceClient interface {
 	// GetFlowById retrieves one lifecycle flow by public flow id. It finds only
-	// flows a chain transaction started, which carry `source_tx_hash`; a flow
-	// settled without one, such as a transfer between Trading accounts or a
-	// Trading withdrawal not yet sent to a chain, is not found. Its account
-	// reads it with GetAccountFlow.
+	// flows that carry a chain transaction, `source_tx_hash`; a flow without
+	// one, such as a Trading withdrawal not yet sent to a chain, or a transfer
+	// between Trading accounts before the Polyester Chain transaction that
+	// records it is observed, is not found. Its account reads it with
+	// GetAccountFlow.
 	GetFlowById(context.Context, *connect.Request[v1.GetFlowByIdRequest]) (*connect.Response[v1.GetFlowResponse], error)
 	// ListFlows lists lifecycle flows with optional filters and keyset
-	// pagination. It lists only flows a chain transaction started, which carry
+	// pagination. It lists only flows that carry a chain transaction,
 	// `source_tx_hash`, and identifies accounts by smart account address. An
 	// account lists all of its own flows with ListAccountFlows.
 	ListFlows(context.Context, *connect.Request[v1.ListFlowsRequest]) (*connect.Response[v1.ListFlowsResponse], error)
 	// ListFlowsByTx lists lifecycle flows that reference a transaction hash. It
-	// finds only flows a chain transaction started.
+	// finds only flows that carry a chain transaction, `source_tx_hash`.
 	ListFlowsByTx(context.Context, *connect.Request[v1.ListFlowsByTxRequest]) (*connect.Response[v1.ListFlowsByTxResponse], error)
 	// ListAccountFlows lists the authenticated account's lifecycle flows with
 	// optional filters and keyset pagination: the flows it owns and the
-	// transfers it receives, including those no chain transaction started. API
+	// transfers it receives, including those without a chain transaction. API
 	// keys need the READ_FUNDING_FLOWS policy action.
 	ListAccountFlows(context.Context, *connect.Request[v1.ListAccountFlowsRequest]) (*connect.Response[v1.ListAccountFlowsResponse], error)
 	// GetAccountFlow retrieves one lifecycle flow the authenticated account owns
-	// or receives, including one no chain transaction started. A flow the
+	// or receives, including one without a chain transaction. A flow the
 	// account takes no part in is not found. API keys need the
 	// READ_FUNDING_FLOWS policy action.
 	GetAccountFlow(context.Context, *connect.Request[v1.GetAccountFlowRequest]) (*connect.Response[v1.GetAccountFlowResponse], error)
@@ -160,26 +161,27 @@ func (c *lifecycleReadServiceClient) GetAccountFlow(ctx context.Context, req *co
 // service.
 type LifecycleReadServiceHandler interface {
 	// GetFlowById retrieves one lifecycle flow by public flow id. It finds only
-	// flows a chain transaction started, which carry `source_tx_hash`; a flow
-	// settled without one, such as a transfer between Trading accounts or a
-	// Trading withdrawal not yet sent to a chain, is not found. Its account
-	// reads it with GetAccountFlow.
+	// flows that carry a chain transaction, `source_tx_hash`; a flow without
+	// one, such as a Trading withdrawal not yet sent to a chain, or a transfer
+	// between Trading accounts before the Polyester Chain transaction that
+	// records it is observed, is not found. Its account reads it with
+	// GetAccountFlow.
 	GetFlowById(context.Context, *connect.Request[v1.GetFlowByIdRequest]) (*connect.Response[v1.GetFlowResponse], error)
 	// ListFlows lists lifecycle flows with optional filters and keyset
-	// pagination. It lists only flows a chain transaction started, which carry
+	// pagination. It lists only flows that carry a chain transaction,
 	// `source_tx_hash`, and identifies accounts by smart account address. An
 	// account lists all of its own flows with ListAccountFlows.
 	ListFlows(context.Context, *connect.Request[v1.ListFlowsRequest]) (*connect.Response[v1.ListFlowsResponse], error)
 	// ListFlowsByTx lists lifecycle flows that reference a transaction hash. It
-	// finds only flows a chain transaction started.
+	// finds only flows that carry a chain transaction, `source_tx_hash`.
 	ListFlowsByTx(context.Context, *connect.Request[v1.ListFlowsByTxRequest]) (*connect.Response[v1.ListFlowsByTxResponse], error)
 	// ListAccountFlows lists the authenticated account's lifecycle flows with
 	// optional filters and keyset pagination: the flows it owns and the
-	// transfers it receives, including those no chain transaction started. API
+	// transfers it receives, including those without a chain transaction. API
 	// keys need the READ_FUNDING_FLOWS policy action.
 	ListAccountFlows(context.Context, *connect.Request[v1.ListAccountFlowsRequest]) (*connect.Response[v1.ListAccountFlowsResponse], error)
 	// GetAccountFlow retrieves one lifecycle flow the authenticated account owns
-	// or receives, including one no chain transaction started. A flow the
+	// or receives, including one without a chain transaction. A flow the
 	// account takes no part in is not found. API keys need the
 	// READ_FUNDING_FLOWS policy action.
 	GetAccountFlow(context.Context, *connect.Request[v1.GetAccountFlowRequest]) (*connect.Response[v1.GetAccountFlowResponse], error)

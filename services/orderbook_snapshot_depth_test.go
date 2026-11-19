@@ -4,29 +4,25 @@ import (
 	"context"
 	"errors"
 	"io"
-	"math"
 	"net/http"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	ob "github.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1"
+	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/orderbook"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
 	"google.golang.org/protobuf/proto"
 )
 
-const testMaxDepth = 5000
-
 // snapshotDepthServer answers GetOrderBook as the contract describes: depth is
-// a level count per side up to max_depth, 0 means 50, and a deeper request is
-// refused with invalid_argument, never truncated. Every response reports
-// max_depth, and an available one its book_epoch.
-func snapshotDepthServer(t *testing.T, wire *atomic.Int64, calls *atomic.Int32) *OrderbookService {
+// a DepthTier, DEPTH_UNSPECIFIED serves DEPTH_50, and the reply names the tier
+// served. served, when set, replaces the tier the reply names.
+func snapshotDepthServer(t *testing.T, wire *atomic.Int32, calls *atomic.Int32, served *typev1.DepthTier, available bool) *OrderbookService {
 	t.Helper()
 	srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
@@ -36,18 +32,21 @@ func snapshotDepthServer(t *testing.T, wire *atomic.Int64, calls *atomic.Int32) 
 			t.Error(err)
 			return
 		}
-		wire.Store(int64(req.GetDepth()))
-		if req.GetDepth() > testMaxDepth {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusBadRequest)
-			_, _ = w.Write([]byte(`{"code":"invalid_argument","message":"depth 5001 exceeds max_depth 5000"}`))
-			return
+		wire.Store(int32(req.GetDepth()))
+		depth := req.GetDepth()
+		if depth == typev1.DepthTier_DEPTH_UNSPECIFIED {
+			depth = typev1.DepthTier_DEPTH_50
+		}
+		if served != nil {
+			depth = *served
+		}
+		response := &ob.GetOrderBookResponse{SymbolId: 1, BookSeq: 7, Depth: depth, Available: available}
+		if available {
+			response.BookEpoch = 3
+			response.Bids = []*ob.PriceLevel{{PriceTicks: 65_000_000_000_000, QtyScaled: 125_000_000}}
 		}
 		w.Header().Set("Content-Type", "application/proto")
-		data, _ := proto.Marshal(&ob.GetOrderBookResponse{
-			SymbolId: 1, BookSeq: 7, BookEpoch: 3, MaxDepth: testMaxDepth, Available: true,
-			Bids: []*ob.PriceLevel{{PriceTicks: 65_000_000_000_000, QtyScaled: 125_000_000}},
-		})
+		data, _ := proto.Marshal(response)
 		_, _ = w.Write(data)
 	}))
 	t.Cleanup(srv.Close)
@@ -60,39 +59,33 @@ func snapshotDepthServer(t *testing.T, wire *atomic.Int64, calls *atomic.Int32) 
 	return NewOrderbookService(transport.NewFactory(transport.Config{APIURL: srv.URL, Timeout: 10 * time.Second}, nil, nil), cats, nil)
 }
 
-// Get sends depth as the level count it is: no rounding up to a fixed list of
-// depths and no local maximum, since the service reports its own. 0 is sent as
-// 0 and reported as the default 50.
-func TestOrderbookGetSendsDepthAsGiven(t *testing.T) {
-	var wire atomic.Int64
-	var calls atomic.Int32
-	svc := snapshotDepthServer(t, &wire, &calls)
+// Get sends a depth tier as the contract's DepthTier, 0 as DEPTH_50, and
+// reports the tier the service served.
+func TestOrderbookGetSendsTheDepthTier(t *testing.T) {
+	var wire, calls atomic.Int32
+	svc := snapshotDepthServer(t, &wire, &calls, nil, true)
 	for _, tc := range []struct {
 		depth    int
-		wire     int64
+		wire     typev1.DepthTier
 		reported int
 	}{
-		{0, 0, 50},
-		{1, 1, 1},
-		{2, 2, 2},
-		{20, 20, 20},
-		{1001, 1001, 1001},
-		{2500, 2500, 2500},
-		{testMaxDepth, testMaxDepth, testMaxDepth},
+		{0, typev1.DepthTier_DEPTH_50, 50},
+		{1, typev1.DepthTier_DEPTH_1, 1},
+		{5, typev1.DepthTier_DEPTH_5, 5},
+		{20, typev1.DepthTier_DEPTH_20, 20},
+		{1000, typev1.DepthTier_DEPTH_1000, 1000},
+		{5000, typev1.DepthTier_DEPTH_5000, 5000},
 	} {
 		wire.Store(-1)
 		got, err := svc.Get(context.Background(), "BTC-USDT", tc.depth)
 		if err != nil {
 			t.Fatalf("depth %d: %v", tc.depth, err)
 		}
-		if wire.Load() != tc.wire || got.Depth != tc.reported {
-			t.Fatalf("depth %d: wire=%d reported=%d, want wire=%d reported=%d", tc.depth, wire.Load(), got.Depth, tc.wire, tc.reported)
+		if typev1.DepthTier(wire.Load()) != tc.wire || got.Depth != tc.reported {
+			t.Fatalf("depth %d: wire=%v reported=%d, want wire=%v reported=%d", tc.depth, typev1.DepthTier(wire.Load()), got.Depth, tc.wire, tc.reported)
 		}
-		if got.BookEpoch != "3" || got.BookSeq != "7" || got.MaxDepth != testMaxDepth || !got.Available {
-			t.Fatalf("depth %d: epoch=%q seq=%q max=%d available=%v", tc.depth, got.BookEpoch, got.BookSeq, got.MaxDepth, got.Available)
-		}
-		if len(got.Bids) != 1 || got.Bids[0].Price.Ticks() != 65_000_000_000_000 {
-			t.Fatalf("depth %d: bids %+v", tc.depth, got.Bids)
+		if got.BookEpoch != "3" || got.BookSeq != "7" || !got.Available || len(got.Bids) != 1 {
+			t.Fatalf("depth %d: snapshot %+v", tc.depth, got)
 		}
 		if qty, err := got.Bids[0].Qty.Format(); err != nil || qty != "1.25" {
 			t.Fatalf("depth %d: bid qty %q, %v", tc.depth, qty, err)
@@ -100,35 +93,12 @@ func TestOrderbookGetSendsDepthAsGiven(t *testing.T) {
 	}
 }
 
-// A depth above the service's maximum reaches the service, which refuses it
-// with invalid_argument; the SDK surfaces that refusal and invents no cap.
-func TestOrderbookGetDepthAboveMaxIsRefusedByService(t *testing.T) {
-	var wire atomic.Int64
-	var calls atomic.Int32
-	svc := snapshotDepthServer(t, &wire, &calls)
-	_, err := svc.Get(context.Background(), "BTC-USDT", testMaxDepth+1)
-	var validation *sdkerrors.ValidationError
-	if !errors.As(err, &validation) || validation.Code != connect.CodeInvalidArgument.String() {
-		t.Fatalf("err=%#v, want the service's invalid_argument as a ValidationError", err)
-	}
-	if calls.Load() != 1 || wire.Load() != testMaxDepth+1 {
-		t.Fatalf("calls=%d wire=%d, want the depth sent once as given", calls.Load(), wire.Load())
-	}
-	if sdkerrors.IsRetryable(err) || sdkerrors.MutationOutcomeUnknown(err) {
-		t.Fatal("a refused depth is final")
-	}
-}
-
-// Only what the uint32 field cannot hold is refused before any request.
-func TestOrderbookGetRefusesDepthOutsideUint32(t *testing.T) {
-	var wire atomic.Int64
-	var calls atomic.Int32
-	svc := snapshotDepthServer(t, &wire, &calls)
-	depths := []int{-1, -50}
-	if math.MaxInt > math.MaxUint32 {
-		depths = append(depths, int(uint64(math.MaxUint32)+1))
-	}
-	for _, depth := range depths {
+// A depth that is no tier is refused before any request: the contract
+// serves the tiers only.
+func TestOrderbookGetRefusesADepthThatIsNoTier(t *testing.T) {
+	var wire, calls atomic.Int32
+	svc := snapshotDepthServer(t, &wire, &calls, nil, true)
+	for _, depth := range []int{-1, 2, 37, 1001, 2500, 5001} {
 		_, err := svc.Get(context.Background(), "BTC-USDT", depth)
 		var validation *sdkerrors.ValidationError
 		if !errors.As(err, &validation) {
@@ -140,27 +110,38 @@ func TestOrderbookGetRefusesDepthOutsideUint32(t *testing.T) {
 	}
 }
 
-// An unavailable snapshot reports max_depth and epoch 0, so it orders before
-// any available snapshot.
-func TestOrderbookGetUnavailableSnapshotReportsMaxDepth(t *testing.T) {
-	srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/proto")
-		data, _ := proto.Marshal(&ob.GetOrderBookResponse{SymbolId: 1, MaxDepth: testMaxDepth})
-		_, _ = w.Write(data)
-	}))
-	t.Cleanup(srv.Close)
-	cats := catalogs.NewManager()
-	if err := cats.HydrateSpotConfig(map[string]any{"pairs": []any{
-		map[string]any{"symbol": "BTC-USDT", "symbol_id": 1, "base_quantity_scale": 8},
-	}}); err != nil {
-		t.Fatal(err)
+// The contract serves the requested tier and names it in every reply,
+// available or not: a reply naming none, an unknown one or another tier is
+// an *errors.ResponseContractError, never a snapshot at a depth it did not
+// serve.
+func TestOrderbookGetRefusesAReplyNotAtTheRequestedTier(t *testing.T) {
+	for name, served := range map[string]typev1.DepthTier{
+		"unset":        typev1.DepthTier_DEPTH_UNSPECIFIED,
+		"unknown":      typev1.DepthTier(99),
+		"another tier": typev1.DepthTier_DEPTH_200,
+	} {
+		for _, available := range []bool{true, false} {
+			var wire, calls atomic.Int32
+			svc := snapshotDepthServer(t, &wire, &calls, &served, available)
+			got, err := svc.Get(context.Background(), "BTC-USDT", 100)
+			var contract *sdkerrors.ResponseContractError
+			if !errors.As(err, &contract) {
+				t.Fatalf("%s, available %v: got %+v, %v; want a ResponseContractError", name, available, got, err)
+			}
+		}
 	}
-	svc := NewOrderbookService(transport.NewFactory(transport.Config{APIURL: srv.URL, Timeout: 10 * time.Second}, nil, nil), cats, nil)
+}
+
+// An unavailable snapshot reports epoch 0, so it orders before any available
+// snapshot.
+func TestOrderbookGetUnavailableSnapshot(t *testing.T) {
+	var wire, calls atomic.Int32
+	svc := snapshotDepthServer(t, &wire, &calls, nil, false)
 	got, err := svc.Get(context.Background(), "BTC-USDT", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Available || got.BookEpoch != "0" || got.MaxDepth != testMaxDepth || len(got.Bids)+len(got.Asks) != 0 {
+	if got.Available || got.BookEpoch != "0" || got.Depth != 50 || len(got.Bids)+len(got.Asks) != 0 {
 		t.Fatalf("unavailable snapshot: %+v", got)
 	}
 	newer := got

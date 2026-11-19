@@ -147,8 +147,9 @@ type OrderbookLevel struct {
 // OrderbookData is a normalized orderbook snapshot.
 type OrderbookData struct {
 	Symbol string `json:"symbol"`
-	// Depth is the most levels per side the book holds: the depth requested,
-	// or 50 for a snapshot requested at depth 0.
+	// Depth is the most levels per side the book holds: for an Orderbook.Get
+	// snapshot, the depth tier the service served (50 for a request at depth
+	// 0).
 	Depth int `json:"depth"`
 	// BookSeq is the book sequence as a decimal uint64. A snapshot's sequence
 	// counts within its BookEpoch: compare it only with sequences of the same
@@ -159,13 +160,9 @@ type OrderbookData struct {
 	// is newer whatever its sequence, and a new epoch may restart the
 	// sequence. It is "0" while Available is false. A managed subscription's
 	// views, which follow the delta stream, leave it empty.
-	BookEpoch string `json:"book_epoch,omitempty"`
-	// MaxDepth is the largest depth per side the service accepts, which every
-	// Orderbook.Get snapshot reports, available or not; a deeper request is
-	// refused with invalid_argument. 0 on a managed subscription's views.
-	MaxDepth uint32           `json:"max_depth,omitempty"`
-	Bids     []OrderbookLevel `json:"bids"`
-	Asks     []OrderbookLevel `json:"asks"`
+	BookEpoch string           `json:"book_epoch,omitempty"`
+	Bids      []OrderbookLevel `json:"bids"`
+	Asks      []OrderbookLevel `json:"asks"`
 	// Available is true when the book is current: Bids and Asks are its
 	// levels and an empty side means no liquidity. False while the book is
 	// being built or after it was invalidated: its levels are unknown, not

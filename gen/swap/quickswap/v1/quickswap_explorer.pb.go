@@ -1162,10 +1162,9 @@ const file_swap_quickswap_v1_quickswap_explorer_proto_rawDesc = "" +
 	"\x12destination_volume\x18\x05 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\x11destinationVolume\x12J\n" +
 	"\x11source_volume_usd\x18\x06 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\x0fsourceVolumeUsd\x12T\n" +
 	"\x16destination_volume_usd\x18\a \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\x14destinationVolumeUsd\x12%\n" +
-	"\x0eunvalued_count\x18\b \x01(\x04R\runvaluedCount\"g\n" +
-	"\x18GetQuickSwapStatsRequest\x12K\n" +
-	"\x06window\x18\x01 \x01(\x0e2'.swap.quickswap.v1.QuickSwapStatsWindowB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x06window\"\xe3\x04\n" +
+	"\x0eunvalued_count\x18\b \x01(\x04R\runvaluedCount\"h\n" +
+	"\x18GetQuickSwapStatsRequest\x12L\n" +
+	"\x06window\x18\x01 \x01(\x0e2'.swap.quickswap.v1.QuickSwapStatsWindowB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x06window\"\xe3\x04\n" +
 	"\x19GetQuickSwapStatsResponse\x12?\n" +
 	"\x06window\x18\x01 \x01(\x0e2'.swap.quickswap.v1.QuickSwapStatsWindowR\x06window\x129\n" +
 	"\n" +

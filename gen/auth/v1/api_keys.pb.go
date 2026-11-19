@@ -100,6 +100,17 @@ const (
 	// assistant key is revoked when its creator loses the role that manages the
 	// sub-account's API keys or leaves the sub-account.
 	ApiKeyPurpose_ASSISTANT ApiKeyPurpose = 2
+	// An elevated key the main account's owner created or promoted in a
+	// signed-in session with a fresh step-up proof. Its policy's admin
+	// permissions (MANAGE_API_KEYS, MANAGE_API_KEY_POLICIES and
+	// MANAGE_SUBACCOUNT_POLICIES) let it manage the main account's other keys
+	// and its owned sub-accounts' policies without a session. An admin key acts
+	// for the main account only, needs a non-empty IP allowlist of entries no
+	// broader than /24 (IPv4) or /48 (IPv6), and its policy can never allow an
+	// action that moves value out of the account or manages where it goes. No
+	// API key can create, promote, change or delete an admin key, including the
+	// key itself; only its owner's session with a fresh step-up proof can.
+	ApiKeyPurpose_ADMIN_KEY ApiKeyPurpose = 3
 )
 
 // Enum value maps for ApiKeyPurpose.
@@ -108,11 +119,13 @@ var (
 		0: "PURPOSE_UNSPECIFIED",
 		1: "STANDARD",
 		2: "ASSISTANT",
+		3: "ADMIN_KEY",
 	}
 	ApiKeyPurpose_value = map[string]int32{
 		"PURPOSE_UNSPECIFIED": 0,
 		"STANDARD":            1,
 		"ASSISTANT":           2,
+		"ADMIN_KEY":           3,
 	}
 )
 
@@ -427,8 +440,14 @@ type CreateApiKeyRequest struct {
 	// Ed25519 public key bytes. Must be exactly 32 bytes. The private key or seed
 	// must never be sent to the API.
 	PublicKeyEd25519 []byte `protobuf:"bytes,5,opt,name=public_key_ed25519,json=publicKeyEd25519,proto3" json:"public_key_ed25519,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// What the key is for. Unspecified or STANDARD creates a standard key.
+	// ADMIN_KEY creates an admin key: only the main account's owner may, in a
+	// signed-in session with a fresh step-up proof, for the main account
+	// (subaccount_id unset), with an ip_whitelist that admin keys accept.
+	// ASSISTANT keys are created with SetAssistantKeys.
+	Purpose       ApiKeyPurpose `protobuf:"varint,8,opt,name=purpose,proto3,enum=auth.v1.ApiKeyPurpose" json:"purpose,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateApiKeyRequest) Reset() {
@@ -501,6 +520,13 @@ func (x *CreateApiKeyRequest) GetPublicKeyEd25519() []byte {
 		return x.PublicKeyEd25519
 	}
 	return nil
+}
+
+func (x *CreateApiKeyRequest) GetPurpose() ApiKeyPurpose {
+	if x != nil {
+		return x.Purpose
+	}
+	return ApiKeyPurpose_PURPOSE_UNSPECIFIED
 }
 
 // CreateApiKeyResponse returns the created API key metadata.
@@ -835,7 +861,13 @@ type ApiKeyUpdateSpec struct {
 	// Complete replacement IP whitelist. Empty clears the restriction when selected.
 	IpWhitelist []string `protobuf:"bytes,5,rep,name=ip_whitelist,json=ipWhitelist,proto3" json:"ip_whitelist,omitempty"`
 	// Expiry time in UTC. When selected, omission or the epoch clears expiry.
-	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	// New purpose: STANDARD demotes an admin key, ADMIN_KEY promotes a
+	// standard key. Only the main account's owner may select it, in a signed-in session
+	// with a fresh step-up proof. A promoted key must act for the main account,
+	// have an IP allowlist that admin keys accept, and have no policy that
+	// allows a money-out action. An assistant key's purpose never changes.
+	Purpose       ApiKeyPurpose `protobuf:"varint,7,opt,name=purpose,proto3,enum=auth.v1.ApiKeyPurpose" json:"purpose,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -910,6 +942,13 @@ func (x *ApiKeyUpdateSpec) GetExpiresAt() *timestamppb.Timestamp {
 		return x.ExpiresAt
 	}
 	return nil
+}
+
+func (x *ApiKeyUpdateSpec) GetPurpose() ApiKeyPurpose {
+	if x != nil {
+		return x.Purpose
+	}
+	return ApiKeyPurpose_PURPOSE_UNSPECIFIED
 }
 
 // UpdateApiKeyRequest changes selected mutable fields on an existing API key.
@@ -1042,7 +1081,8 @@ type AssistantKeySpec struct {
 	// exactly 32 bytes, and distinct within the set.
 	PublicKeyEd25519 []byte `protobuf:"bytes,2,opt,name=public_key_ed25519,json=publicKeyEd25519,proto3" json:"public_key_ed25519,omitempty"`
 	// API policy that bounds the key (opaque ID). It must belong to the same
-	// main account as the key, and must not allow EXTERNAL_WITHDRAW,
+	// main account as the key, must not be a template (FailedPrecondition with
+	// AUTH_POLICY_INVALID), and must not allow EXTERNAL_WITHDRAW,
 	// INTERNAL_TRANSFER, MANAGE_ADDRESS_BOOK or MANAGE_AUTO_WITHDRAW. Set
 	// exactly one of policy_id and preset.
 	PolicyId uint64 `protobuf:"fixed64,3,opt,name=policy_id,json=policyId,proto3" json:"policy_id,omitempty"`
@@ -1428,7 +1468,7 @@ const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\apurpose\x18\x1b \x01(\x0e2\x16.auth.v1.ApiKeyPurposeR\apurposeB\x10\n" +
 	"\x0e_subaccount_idB\f\n" +
 	"\n" +
-	"_policy_id\"\xa5\x02\n" +
+	"_policy_id\"\xe3\x02\n" +
 	"\x13CreateApiKeyRequest\x12&\n" +
 	"\x05label\x18\x01 \x01(\tB\x10\xe0A\x02\xbaH\n" +
 	"r\b\x98\xb5\x18\x01\x10\x01\x18@R\x05label\x12(\n" +
@@ -1437,7 +1477,9 @@ const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\x05color\x18\a \x01(\tB\a\xbaH\x04r\x02\x18 R\x05color\x124\n" +
 	"\fip_whitelist\x18\x04 \x03(\tB\x11\xbaH\x0e\x92\x01\v\x10 \x18\x01\"\x05r\x03\xd0\x01\x01R\vipWhitelist\x128\n" +
 	"\x12public_key_ed25519\x18\x05 \x01(\fB\n" +
-	"\xe0A\x02\xbaH\x04z\x02h R\x10publicKeyEd25519B\x10\n" +
+	"\xe0A\x02\xbaH\x04z\x02h R\x10publicKeyEd25519\x12<\n" +
+	"\apurpose\x18\b \x01(\x0e2\x16.auth.v1.ApiKeyPurposeB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x02R\apurposeB\x10\n" +
 	"\x0e_subaccount_id\"@\n" +
 	"\x14CreateApiKeyResponse\x12(\n" +
 	"\aapi_key\x18\x01 \x01(\v2\x0f.auth.v1.ApiKeyR\x06apiKey\"P\n" +
@@ -1452,7 +1494,7 @@ const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\x10GetApiKeyRequest\x124\n" +
 	"\x06key_id\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x15\x10\x012\x11^ak_[a-f0-9]{32}$R\x05keyId\"=\n" +
 	"\x11GetApiKeyResponse\x12(\n" +
-	"\aapi_key\x18\x01 \x01(\v2\x0f.auth.v1.ApiKeyR\x06apiKey\"\xe0\x03\n" +
+	"\aapi_key\x18\x01 \x01(\v2\x0f.auth.v1.ApiKeyR\x06apiKey\"\x9e\x04\n" +
 	"\x10ApiKeyUpdateSpec\x12!\n" +
 	"\x05label\x18\x01 \x01(\tB\v\xbaH\br\x06\x98\xb5\x18\x01\x18@R\x05label\x12\x1b\n" +
 	"\x04icon\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18 R\x04icon\x12\x1d\n" +
@@ -1461,7 +1503,9 @@ const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x02R\x06status\x124\n" +
 	"\fip_whitelist\x18\x05 \x03(\tB\x11\xbaH\x0e\x92\x01\v\x10 \x18\x01\"\x05r\x03\xd0\x01\x01R\vipWhitelist\x129\n" +
 	"\n" +
-	"expires_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt:\xc0\x01\xbaH\xbc\x01\x1a\xb9\x01\n" +
+	"expires_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12<\n" +
+	"\apurpose\x18\a \x01(\x0e2\x16.auth.v1.ApiKeyPurposeB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x02R\apurpose:\xc0\x01\xbaH\xbc\x01\x1a\xb9\x01\n" +
 	"\x19expires_at_future_or_zero\x12(expires_at must be in the future or zero\x1ar!has(this.expires_at) ? true : this.expires_at == timestamp('1970-01-01T00:00:00Z') ? true : this.expires_at > now\"\x8b\x02\n" +
 	"\x13UpdateApiKeyRequest\x124\n" +
 	"\x06key_id\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x15\x10\x012\x11^ak_[a-f0-9]{32}$R\x05keyId\x12=\n" +
@@ -1498,28 +1542,29 @@ const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\n" +
 	"\x06ACTIVE\x10\x01\x12\v\n" +
 	"\aREVOKED\x10\x02\x12\f\n" +
-	"\bDISABLED\x10\x03*E\n" +
+	"\bDISABLED\x10\x03*T\n" +
 	"\rApiKeyPurpose\x12\x17\n" +
 	"\x13PURPOSE_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\bSTANDARD\x10\x01\x12\r\n" +
-	"\tASSISTANT\x10\x02*T\n" +
+	"\tASSISTANT\x10\x02\x12\r\n" +
+	"\tADMIN_KEY\x10\x03*T\n" +
 	"\x12AssistantKeyPreset\x12\x16\n" +
 	"\x12PRESET_UNSPECIFIED\x10\x00\x12\r\n" +
 	"\tREAD_ONLY\x10\x01\x12\x17\n" +
-	"\x13TRADE_WITH_APPROVAL\x10\x022\xe1\x12\n" +
-	"\rApiKeyService\x12\xaf\x02\n" +
-	"\fCreateApiKey\x12\x1c.auth.v1.CreateApiKeyRequest\x1a\x1d.auth.v1.CreateApiKeyResponse\"\xe1\x01\xbaG\xb8\x01\n" +
-	"\fAuth Service\x12\x0eCreate API Key\x1a\x97\x01Create a new API key for the caller account, including public key material and metadata. Requires the acting caller to have accepted the current terms.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v1/auth/api-keys\x12\xe3\x02\n" +
+	"\x13TRADE_WITH_APPROVAL\x10\x022\xdd\x12\n" +
+	"\rApiKeyService\x12\xb0\x02\n" +
+	"\fCreateApiKey\x12\x1c.auth.v1.CreateApiKeyRequest\x1a\x1d.auth.v1.CreateApiKeyResponse\"\xe2\x01\xbaG\xb8\x01\n" +
+	"\fAuth Service\x12\x0eCreate API Key\x1a\x97\x01Create a new API key for the caller account, including public key material and metadata. Requires the acting caller to have accepted the current terms.\x98\xb5\x18\x03\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v1/auth/api-keys\x12\xe3\x02\n" +
 	"\vListApiKeys\x12\x1b.auth.v1.ListApiKeysRequest\x1a\x1c.auth.v1.ListApiKeysResponse\"\x98\x02\xbaG\xf5\x01\n" +
 	"\fAuth Service\x12\rList API Keys\x1a\xd5\x01List non-revoked API keys for the caller account, or for a sub-account the caller owns or administers, newest first. An API key needs READ_API_KEYS; a key scoped to a sub-account sees only that sub-account's keys.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x13\x12\x11/v1/auth/api-keys\x12\xd9\x02\n" +
 	"\tGetApiKey\x12\x19.auth.v1.GetApiKeyRequest\x1a\x1a.auth.v1.GetApiKeyResponse\"\x94\x02\xbaG\xe8\x01\n" +
-	"\fAuth Service\x12\vGet API Key\x1a\xca\x01Retrieve a single API key owned by the caller account or scoped to a sub-account the caller administers. An API key needs READ_API_KEYS; a key scoped to a sub-account reads only that sub-account's keys.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1c\x12\x1a/v1/auth/api-keys/{key_id}\x12\xe3\x01\n" +
-	"\fDeleteApiKey\x12\x1c.auth.v1.DeleteApiKeyRequest\x1a\x1d.auth.v1.DeleteApiKeyResponse\"\x95\x01\xbaGg\n" +
-	"\fAuth Service\x12\x0eDelete API Key\x1aGRevoke an API key owned by the caller account. Revocation is permanent.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1c*\x1a/v1/auth/api-keys/{key_id}\x12\xed\x01\n" +
-	"\fUpdateApiKey\x12\x1c.auth.v1.UpdateApiKeyRequest\x1a\x1d.auth.v1.UpdateApiKeyResponse\"\x9f\x01\xbaGn\n" +
-	"\fAuth Service\x12\x0eUpdate API Key\x1aNUpdate mutable API key fields, including label, status, whitelist, and expiry.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1f:\x01*2\x1a/v1/auth/api-keys/{key_id}\x12\xfe\x02\n" +
-	"\x10SetAssistantKeys\x12 .auth.v1.SetAssistantKeysRequest\x1a!.auth.v1.SetAssistantKeysResponse\"\xa4\x02\xbaG\xf5\x01\n" +
-	"\fAuth Service\x12\x12Set Assistant Keys\x1a\xd0\x01Create or replace the caller's Polyester AI assistant key set with one fresh step-up proof, or none while the recent-MFA window is open. All keys change or none do; accounts left out lose their assistant key.\x98\xb5\x18\x01\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1c:\x01*\x1a\x17/v1/auth/assistant-keys\x12\xf1\x01\n" +
+	"\fAuth Service\x12\vGet API Key\x1a\xca\x01Retrieve a single API key owned by the caller account or scoped to a sub-account the caller administers. An API key needs READ_API_KEYS; a key scoped to a sub-account reads only that sub-account's keys.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1c\x12\x1a/v1/auth/api-keys/{key_id}\x12\xe4\x01\n" +
+	"\fDeleteApiKey\x12\x1c.auth.v1.DeleteApiKeyRequest\x1a\x1d.auth.v1.DeleteApiKeyResponse\"\x96\x01\xbaGg\n" +
+	"\fAuth Service\x12\x0eDelete API Key\x1aGRevoke an API key owned by the caller account. Revocation is permanent.\x98\xb5\x18\x03\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1c*\x1a/v1/auth/api-keys/{key_id}\x12\xee\x01\n" +
+	"\fUpdateApiKey\x12\x1c.auth.v1.UpdateApiKeyRequest\x1a\x1d.auth.v1.UpdateApiKeyResponse\"\xa0\x01\xbaGn\n" +
+	"\fAuth Service\x12\x0eUpdate API Key\x1aNUpdate mutable API key fields, including label, status, whitelist, and expiry.\x98\xb5\x18\x03\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1f:\x01*2\x1a/v1/auth/api-keys/{key_id}\x12\xf7\x02\n" +
+	"\x10SetAssistantKeys\x12 .auth.v1.SetAssistantKeysRequest\x1a!.auth.v1.SetAssistantKeysResponse\"\x9d\x02\xbaG\xee\x01\n" +
+	"\fAuth Service\x12\x12Set Assistant Keys\x1a\xc9\x01Create or replace the caller's Polyester AI assistant key set with one fresh step-up proof, or none from an MFA-elevated session. All keys change or none do; accounts left out lose their assistant key.\x98\xb5\x18\x01\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1c:\x01*\x1a\x17/v1/auth/assistant-keys\x12\xf1\x01\n" +
 	"\x11ListAssistantKeys\x12!.auth.v1.ListAssistantKeysRequest\x1a\".auth.v1.ListAssistantKeysResponse\"\x94\x01\xbaGm\n" +
 	"\fAuth Service\x12\x13List Assistant Keys\x1aHList the caller's non-revoked Polyester AI assistant keys, newest first.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x19\x12\x17/v1/auth/assistant-keys\x12\x83\x02\n" +
 	"\x13DeleteAssistantKeys\x12#.auth.v1.DeleteAssistantKeysRequest\x1a$.auth.v1.DeleteAssistantKeysResponse\"\xa0\x01\xbaGy\n" +
@@ -1572,40 +1617,42 @@ var file_auth_v1_api_keys_proto_depIdxs = []int32{
 	22, // 3: auth.v1.ApiKey.expires_at:type_name -> google.protobuf.Timestamp
 	22, // 4: auth.v1.ApiKey.updated_at:type_name -> google.protobuf.Timestamp
 	1,  // 5: auth.v1.ApiKey.purpose:type_name -> auth.v1.ApiKeyPurpose
-	3,  // 6: auth.v1.CreateApiKeyResponse.api_key:type_name -> auth.v1.ApiKey
-	3,  // 7: auth.v1.ListApiKeysResponse.api_keys:type_name -> auth.v1.ApiKey
-	3,  // 8: auth.v1.GetApiKeyResponse.api_key:type_name -> auth.v1.ApiKey
-	0,  // 9: auth.v1.ApiKeyUpdateSpec.status:type_name -> auth.v1.ApiKeyStatus
-	22, // 10: auth.v1.ApiKeyUpdateSpec.expires_at:type_name -> google.protobuf.Timestamp
-	12, // 11: auth.v1.UpdateApiKeyRequest.api_key:type_name -> auth.v1.ApiKeyUpdateSpec
-	23, // 12: auth.v1.UpdateApiKeyRequest.update_mask:type_name -> google.protobuf.FieldMask
-	3,  // 13: auth.v1.UpdateApiKeyResponse.api_key:type_name -> auth.v1.ApiKey
-	22, // 14: auth.v1.AssistantKeySpec.registration_deadline:type_name -> google.protobuf.Timestamp
-	2,  // 15: auth.v1.AssistantKeySpec.preset:type_name -> auth.v1.AssistantKeyPreset
-	15, // 16: auth.v1.SetAssistantKeysRequest.keys:type_name -> auth.v1.AssistantKeySpec
-	3,  // 17: auth.v1.SetAssistantKeysResponse.api_keys:type_name -> auth.v1.ApiKey
-	3,  // 18: auth.v1.ListAssistantKeysResponse.api_keys:type_name -> auth.v1.ApiKey
-	4,  // 19: auth.v1.ApiKeyService.CreateApiKey:input_type -> auth.v1.CreateApiKeyRequest
-	6,  // 20: auth.v1.ApiKeyService.ListApiKeys:input_type -> auth.v1.ListApiKeysRequest
-	10, // 21: auth.v1.ApiKeyService.GetApiKey:input_type -> auth.v1.GetApiKeyRequest
-	8,  // 22: auth.v1.ApiKeyService.DeleteApiKey:input_type -> auth.v1.DeleteApiKeyRequest
-	13, // 23: auth.v1.ApiKeyService.UpdateApiKey:input_type -> auth.v1.UpdateApiKeyRequest
-	16, // 24: auth.v1.ApiKeyService.SetAssistantKeys:input_type -> auth.v1.SetAssistantKeysRequest
-	18, // 25: auth.v1.ApiKeyService.ListAssistantKeys:input_type -> auth.v1.ListAssistantKeysRequest
-	20, // 26: auth.v1.ApiKeyService.DeleteAssistantKeys:input_type -> auth.v1.DeleteAssistantKeysRequest
-	5,  // 27: auth.v1.ApiKeyService.CreateApiKey:output_type -> auth.v1.CreateApiKeyResponse
-	7,  // 28: auth.v1.ApiKeyService.ListApiKeys:output_type -> auth.v1.ListApiKeysResponse
-	11, // 29: auth.v1.ApiKeyService.GetApiKey:output_type -> auth.v1.GetApiKeyResponse
-	9,  // 30: auth.v1.ApiKeyService.DeleteApiKey:output_type -> auth.v1.DeleteApiKeyResponse
-	14, // 31: auth.v1.ApiKeyService.UpdateApiKey:output_type -> auth.v1.UpdateApiKeyResponse
-	17, // 32: auth.v1.ApiKeyService.SetAssistantKeys:output_type -> auth.v1.SetAssistantKeysResponse
-	19, // 33: auth.v1.ApiKeyService.ListAssistantKeys:output_type -> auth.v1.ListAssistantKeysResponse
-	21, // 34: auth.v1.ApiKeyService.DeleteAssistantKeys:output_type -> auth.v1.DeleteAssistantKeysResponse
-	27, // [27:35] is the sub-list for method output_type
-	19, // [19:27] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	1,  // 6: auth.v1.CreateApiKeyRequest.purpose:type_name -> auth.v1.ApiKeyPurpose
+	3,  // 7: auth.v1.CreateApiKeyResponse.api_key:type_name -> auth.v1.ApiKey
+	3,  // 8: auth.v1.ListApiKeysResponse.api_keys:type_name -> auth.v1.ApiKey
+	3,  // 9: auth.v1.GetApiKeyResponse.api_key:type_name -> auth.v1.ApiKey
+	0,  // 10: auth.v1.ApiKeyUpdateSpec.status:type_name -> auth.v1.ApiKeyStatus
+	22, // 11: auth.v1.ApiKeyUpdateSpec.expires_at:type_name -> google.protobuf.Timestamp
+	1,  // 12: auth.v1.ApiKeyUpdateSpec.purpose:type_name -> auth.v1.ApiKeyPurpose
+	12, // 13: auth.v1.UpdateApiKeyRequest.api_key:type_name -> auth.v1.ApiKeyUpdateSpec
+	23, // 14: auth.v1.UpdateApiKeyRequest.update_mask:type_name -> google.protobuf.FieldMask
+	3,  // 15: auth.v1.UpdateApiKeyResponse.api_key:type_name -> auth.v1.ApiKey
+	22, // 16: auth.v1.AssistantKeySpec.registration_deadline:type_name -> google.protobuf.Timestamp
+	2,  // 17: auth.v1.AssistantKeySpec.preset:type_name -> auth.v1.AssistantKeyPreset
+	15, // 18: auth.v1.SetAssistantKeysRequest.keys:type_name -> auth.v1.AssistantKeySpec
+	3,  // 19: auth.v1.SetAssistantKeysResponse.api_keys:type_name -> auth.v1.ApiKey
+	3,  // 20: auth.v1.ListAssistantKeysResponse.api_keys:type_name -> auth.v1.ApiKey
+	4,  // 21: auth.v1.ApiKeyService.CreateApiKey:input_type -> auth.v1.CreateApiKeyRequest
+	6,  // 22: auth.v1.ApiKeyService.ListApiKeys:input_type -> auth.v1.ListApiKeysRequest
+	10, // 23: auth.v1.ApiKeyService.GetApiKey:input_type -> auth.v1.GetApiKeyRequest
+	8,  // 24: auth.v1.ApiKeyService.DeleteApiKey:input_type -> auth.v1.DeleteApiKeyRequest
+	13, // 25: auth.v1.ApiKeyService.UpdateApiKey:input_type -> auth.v1.UpdateApiKeyRequest
+	16, // 26: auth.v1.ApiKeyService.SetAssistantKeys:input_type -> auth.v1.SetAssistantKeysRequest
+	18, // 27: auth.v1.ApiKeyService.ListAssistantKeys:input_type -> auth.v1.ListAssistantKeysRequest
+	20, // 28: auth.v1.ApiKeyService.DeleteAssistantKeys:input_type -> auth.v1.DeleteAssistantKeysRequest
+	5,  // 29: auth.v1.ApiKeyService.CreateApiKey:output_type -> auth.v1.CreateApiKeyResponse
+	7,  // 30: auth.v1.ApiKeyService.ListApiKeys:output_type -> auth.v1.ListApiKeysResponse
+	11, // 31: auth.v1.ApiKeyService.GetApiKey:output_type -> auth.v1.GetApiKeyResponse
+	9,  // 32: auth.v1.ApiKeyService.DeleteApiKey:output_type -> auth.v1.DeleteApiKeyResponse
+	14, // 33: auth.v1.ApiKeyService.UpdateApiKey:output_type -> auth.v1.UpdateApiKeyResponse
+	17, // 34: auth.v1.ApiKeyService.SetAssistantKeys:output_type -> auth.v1.SetAssistantKeysResponse
+	19, // 35: auth.v1.ApiKeyService.ListAssistantKeys:output_type -> auth.v1.ListAssistantKeysResponse
+	21, // 36: auth.v1.ApiKeyService.DeleteAssistantKeys:output_type -> auth.v1.DeleteAssistantKeysResponse
+	29, // [29:37] is the sub-list for method output_type
+	21, // [21:29] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_api_keys_proto_init() }

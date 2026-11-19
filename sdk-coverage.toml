@@ -3,6 +3,10 @@
 # CI: python3 scripts/check_sdk_coverage.py
 
 [[allowlist]]
+service = "auth.v1.ConnectedAppService"
+reason = "Connecting outside apps with OAuth is for the website's signed-in session; every method refuses an API key."
+
+[[allowlist]]
 service = "auth.v1.MFAService"
 reason = "MFA enrollment and step-up are outside the API-key SDK surface."
 
@@ -16,7 +20,7 @@ reason = "Wallet login is intentionally outside the API-key SDK surface."
 
 [[allowlist]]
 service = "auth.v1.PolicyService"
-reason = "Sub-account and API-key policy reads accept API keys with READ_SUBACCOUNT_POLICIES or READ_API_POLICIES but are not wrapped in this SDK, which exposes policy updates through realtime subscribe; policy writes require an interactive session."
+reason = "Unwrapped for now; admin keys can call them. Policy reads accept API keys with READ_SUBACCOUNT_POLICIES or READ_API_POLICIES, and SetApiKeyPolicy, SetSubaccountPolicy and UpdateSubaccountPolicy accept an admin API key with MANAGE_API_KEY_POLICIES or MANAGE_SUBACCOUNT_POLICIES; this SDK exposes policy updates through realtime subscribe. The other policy writes require an interactive session."
 
 [[allowlist]]
 service = "auth.v1.ProfileService"
@@ -28,15 +32,15 @@ reason = "ResolveAccount accepts API keys with READ_ACCOUNT_DIRECTORY but is not
 
 [[allowlist]]
 procedure = "/auth.v1.ApiKeyService/CreateApiKey"
-reason = "API key create requires JWT/session auth."
+reason = "Unwrapped for now; admin keys can call it: an admin API key with MANAGE_API_KEYS, or a signed-in session."
 
 [[allowlist]]
 procedure = "/auth.v1.ApiKeyService/UpdateApiKey"
-reason = "API key update requires JWT/session auth."
+reason = "Unwrapped for now; admin keys can call it: an admin API key with MANAGE_API_KEYS, or a signed-in session."
 
 [[allowlist]]
 procedure = "/auth.v1.ApiKeyService/DeleteApiKey"
-reason = "API key delete requires JWT/session auth."
+reason = "Unwrapped for now; admin keys can call it: an admin API key with MANAGE_API_KEYS, or a signed-in session."
 
 [[allowlist]]
 procedure = "/auth.v1.SubaccountService/CreateSubaccount"

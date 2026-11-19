@@ -9822,12 +9822,11 @@ const file_ai_v1_assistant_proto_rawDesc = "" +
 	"\x05event\x18\x01 \x01(\v2\x0f.ai.v1.RunEventR\x05event\"9\n" +
 	"\x10CancelRunRequest\x12%\n" +
 	"\x06run_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x05runId\"\x13\n" +
-	"\x11CancelRunResponse\"\x89\x01\n" +
+	"\x11CancelRunResponse\"\x8a\x01\n" +
 	"\x15DecideApprovalRequest\x12/\n" +
 	"\vapproval_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\n" +
-	"approvalId\x12?\n" +
-	"\bdecision\x18\x02 \x01(\x0e2\x17.ai.v1.ApprovalDecisionB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\bdecision\"G\n" +
+	"approvalId\x12@\n" +
+	"\bdecision\x18\x02 \x01(\x0e2\x17.ai.v1.ApprovalDecisionB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\bdecision\"G\n" +
 	"\x16DecideApprovalResponse\x12-\n" +
 	"\x06status\x18\x01 \x01(\x0e2\x15.ai.v1.ApprovalStatusR\x06status\"b\n" +
 	"\x18ListConversationsRequest\x12\x1d\n" +

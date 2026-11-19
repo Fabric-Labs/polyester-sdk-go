@@ -57,24 +57,32 @@ type OrdersReadServiceClient interface {
 	// While the current state of an order in scope is temporarily unavailable, the call
 	// fails with a retryable UNAVAILABLE rather than omitting the order or returning a
 	// stale state; retry the same request.
+	// Costs one unit of the root account's trading read limit per 100 rows the
+	// limit asks for, rounded up.
 	GetOpenOrders(context.Context, *connect.Request[v1.GetOpenOrdersRequest]) (*connect.Response[v1.GetOpenOrdersResponse], error)
 	// Retrieve terminal order history for an account.
 	// Supports optional subaccount, trigger, symbol, side, status, and time-range filters with cursor pagination.
 	// While the current state of an order on the page is temporarily unavailable, the call
 	// fails with a retryable UNAVAILABLE rather than returning a stale state; retry the
 	// same request.
+	// Costs two units of the root account's trading read limit per 100 rows the
+	// limit asks for, rounded up.
 	GetOrderHistory(context.Context, *connect.Request[v1.GetOrderHistoryRequest]) (*connect.Response[v1.GetOrderHistoryResponse], error)
 	// Retrieve per-user trade fills for an account.
 	// Supports exact physical-order or logical-lineage scope, an inclusive generation
 	// cutoff, and subaccount, symbol, side and time filters with cursor pagination.
+	// Costs two units of the root account's trading read limit per 100 rows the
+	// limit asks for, rounded up.
 	GetUserTrades(context.Context, *connect.Request[v1.GetUserTradesRequest]) (*connect.Response[v1.GetUserTradesResponse], error)
 	// Retrieve order state and a bounded page of its lineage executions by order or client order ID.
 	// Use GetUserTrades for paginated execution history and optional settlement legs.
 	// Recent accepted orders may wait briefly for read availability; retry UNAVAILABLE with the same lookup key.
+	// Costs one unit of the root account's trading read limit.
 	GetOrder(context.Context, *connect.Request[v1.GetOrderRequest]) (*connect.Response[v1.GetOrderResponse], error)
 	// Retrieve the execution status of one accepted batch replacement, retained
 	// for 60 seconds from its acceptance. Retry UNAVAILABLE with the same
 	// request; NOT_FOUND means no retained batch, never a rejected replacement.
+	// Costs one unit of the root account's trading read limit.
 	GetBatchReplaceStatus(context.Context, *connect.Request[v1.GetBatchReplaceStatusRequest]) (*connect.Response[v1.GetBatchReplaceStatusResponse], error)
 }
 
@@ -163,24 +171,32 @@ type OrdersReadServiceHandler interface {
 	// While the current state of an order in scope is temporarily unavailable, the call
 	// fails with a retryable UNAVAILABLE rather than omitting the order or returning a
 	// stale state; retry the same request.
+	// Costs one unit of the root account's trading read limit per 100 rows the
+	// limit asks for, rounded up.
 	GetOpenOrders(context.Context, *connect.Request[v1.GetOpenOrdersRequest]) (*connect.Response[v1.GetOpenOrdersResponse], error)
 	// Retrieve terminal order history for an account.
 	// Supports optional subaccount, trigger, symbol, side, status, and time-range filters with cursor pagination.
 	// While the current state of an order on the page is temporarily unavailable, the call
 	// fails with a retryable UNAVAILABLE rather than returning a stale state; retry the
 	// same request.
+	// Costs two units of the root account's trading read limit per 100 rows the
+	// limit asks for, rounded up.
 	GetOrderHistory(context.Context, *connect.Request[v1.GetOrderHistoryRequest]) (*connect.Response[v1.GetOrderHistoryResponse], error)
 	// Retrieve per-user trade fills for an account.
 	// Supports exact physical-order or logical-lineage scope, an inclusive generation
 	// cutoff, and subaccount, symbol, side and time filters with cursor pagination.
+	// Costs two units of the root account's trading read limit per 100 rows the
+	// limit asks for, rounded up.
 	GetUserTrades(context.Context, *connect.Request[v1.GetUserTradesRequest]) (*connect.Response[v1.GetUserTradesResponse], error)
 	// Retrieve order state and a bounded page of its lineage executions by order or client order ID.
 	// Use GetUserTrades for paginated execution history and optional settlement legs.
 	// Recent accepted orders may wait briefly for read availability; retry UNAVAILABLE with the same lookup key.
+	// Costs one unit of the root account's trading read limit.
 	GetOrder(context.Context, *connect.Request[v1.GetOrderRequest]) (*connect.Response[v1.GetOrderResponse], error)
 	// Retrieve the execution status of one accepted batch replacement, retained
 	// for 60 seconds from its acceptance. Retry UNAVAILABLE with the same
 	// request; NOT_FOUND means no retained batch, never a rejected replacement.
+	// Costs one unit of the root account's trading read limit.
 	GetBatchReplaceStatus(context.Context, *connect.Request[v1.GetBatchReplaceStatusRequest]) (*connect.Response[v1.GetBatchReplaceStatusResponse], error)
 }
 

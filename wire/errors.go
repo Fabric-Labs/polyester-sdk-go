@@ -17,6 +17,7 @@ import (
 	withdrawv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/withdraw/v1"
 	ledgerrdv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
+	polyesterapiv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api/v1"
 	ratelimitv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/ratelimit/v1"
 	transferv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/redact"
@@ -255,6 +256,17 @@ func mapConnectError(err error) error {
 			}
 			continue
 		}
+		if requestDetail, ok := value.(*polyesterapiv1.RequestErrorDetail); ok && requestDetail.GetCode() == polyesterapiv1.RequestErrorCode_REQUEST_TOO_LARGE {
+			// A request over the API's size limit, refused before it was
+			// read: the same body is refused again, so it is no rate refusal
+			// to wait out. Any other code reads as the plain refusal. The
+			// contract sets the limit on every such refusal: one without it
+			// is malformed, not a size refusal to act on.
+			if requestDetail.GetLimitBytes() == 0 {
+				return &sdkerrors.ResponseContractError{Msg: "a REQUEST_TOO_LARGE refusal without its limit_bytes"}
+			}
+			return &sdkerrors.APIError{Msg: msg, Code: sdkerrors.CodeRequestTooLarge, LimitBytes: requestDetail.GetLimitBytes()}
+		}
 		if authDetail, ok := value.(*authv1.AuthErrorDetail); ok {
 			codeName := authDetail.GetCode().String()
 			detailMsg := authDetail.GetMessage()
@@ -342,7 +354,7 @@ func mapConnectError(err error) error {
 				return rateLimitError(msg, code, nil, headerRetry)
 			}
 			if connectErr.Code() == connect.CodeUnavailable {
-				return &sdkerrors.ServerError{Msg: msg, Code: code}
+				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: string(withdrawDetail.ProtoReflect().Descriptor().FullName())}
 			}
 			if isAuthLikeErrorCode(code) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
@@ -364,7 +376,7 @@ func mapConnectError(err error) error {
 				// No current price to record: nothing was created or changed.
 				return &sdkerrors.ServerError{Msg: msg, Code: code, AdmissionRefused: true}
 			case alertsv1.ErrorCode_SERVICE_UNAVAILABLE:
-				return &sdkerrors.ServerError{Msg: msg, Code: code}
+				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: string(alertDetail.ProtoReflect().Descriptor().FullName())}
 			case alertsv1.ErrorCode_SUBACCOUNT_KEY_REFUSED:
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
 			}
@@ -373,7 +385,7 @@ func mapConnectError(err error) error {
 		if ledgerDetail, ok := value.(*ledgerrdv1.ErrorDetail); ok {
 			code := ledgerDetail.GetCode().String()
 			if connectErr.Code() == connect.CodeUnavailable {
-				return &sdkerrors.ServerError{Msg: msg, Code: code}
+				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: string(ledgerDetail.ProtoReflect().Descriptor().FullName())}
 			}
 			if isAuthLikeErrorCode(code) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
@@ -386,7 +398,7 @@ func mapConnectError(err error) error {
 				return rateLimitError(msg, code, nil, headerRetry)
 			}
 			if connectErr.Code() == connect.CodeUnavailable {
-				return &sdkerrors.ServerError{Msg: msg, Code: code}
+				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: string(transferDetail.ProtoReflect().Descriptor().FullName())}
 			}
 			if isAuthLikeErrorCode(code) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
@@ -415,7 +427,9 @@ func mapConnectError(err error) error {
 		if isRetryableAdmissionCode(namedCode) {
 			return rateLimitError(msg, namedCode, nil, headerRetry)
 		}
-		if _, known := orderv1.ErrorCode_value[namedCode]; known || isServiceCodeMessage(messageCode) {
+		// Only the typed RequestErrorDetail or the REST problem is the size
+		// refusal: a message that reads REQUEST_TOO_LARGE stays a rate refusal.
+		if _, known := orderv1.ErrorCode_value[namedCode]; known || (isServiceCodeMessage(messageCode) && messageCode != sdkerrors.CodeRequestTooLarge) {
 			return &sdkerrors.APIError{Msg: msg, Code: namedCode}
 		}
 	}

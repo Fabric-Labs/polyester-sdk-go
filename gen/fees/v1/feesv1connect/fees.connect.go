@@ -42,7 +42,8 @@ const (
 type FeeServiceClient interface {
 	// Get effective maker and taker fee rates, the rates an order reserves its
 	// fee at, and the components of the effective rates for the authenticated
-	// caller's root account or selected subaccount.
+	// caller's root account or selected subaccount. Costs one unit of the root
+	// account's trading read limit per 100 symbols returned, rounded up.
 	GetSpotFeeRates(context.Context, *connect.Request[v1.GetSpotFeeRatesRequest]) (*connect.Response[v1.GetSpotFeeRatesResponse], error)
 }
 
@@ -80,7 +81,8 @@ func (c *feeServiceClient) GetSpotFeeRates(ctx context.Context, req *connect.Req
 type FeeServiceHandler interface {
 	// Get effective maker and taker fee rates, the rates an order reserves its
 	// fee at, and the components of the effective rates for the authenticated
-	// caller's root account or selected subaccount.
+	// caller's root account or selected subaccount. Costs one unit of the root
+	// account's trading read limit per 100 symbols returned, rounded up.
 	GetSpotFeeRates(context.Context, *connect.Request[v1.GetSpotFeeRatesRequest]) (*connect.Response[v1.GetSpotFeeRatesResponse], error)
 }
 

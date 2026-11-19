@@ -4,6 +4,7 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
@@ -93,6 +94,16 @@ func (s *InternalTransfersService) Create(ctx context.Context, assetID uint32, q
 // batch outweighs the account's burst: split it instead of retrying. A reply
 // that breaks the contract returns a *errors.ResponseContractError; the batch
 // may have run, so read it back or retry it with the same key and legs.
+//
+// "refused" is final for its key even once the cause is gone: the same legs
+// under it answer the same refusal. A check that cannot be decided now fails
+// the whole call with Connect code unavailable (ERROR_CODE_SERVICE_UNAVAILABLE
+// or ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE) and records nothing under the key:
+// that *errors.ServerError is AdmissionRefused, so errors.IsRetryable reports
+// it and errors.MutationOutcomeUnknown does not. Retry with the same key and
+// legs, after its Retry-After when present. Any other HTTP 502 or 503 answer,
+// whatever it names, is an *errors.ServerError with an unknown outcome: read
+// the batch back with GetBatch, or retry with the same key and legs.
 func (s *InternalTransfersService) CreateBatch(ctx context.Context, legs []models.InternalTransferBatchLeg, idempotencyKey string) (models.InternalTransferBatchResult, error) {
 	if len(legs) < codecs.BatchInternalTransferLegsMin || len(legs) > codecs.BatchInternalTransferLegsMax {
 		return models.InternalTransferBatchResult{}, &errors.ValidationError{Msg: fmt.Sprintf("a batch takes at least %d leg, not %d", codecs.BatchInternalTransferLegsMin, len(legs))}
@@ -112,10 +123,91 @@ func (s *InternalTransfersService) CreateBatch(ctx context.Context, legs []model
 		}
 		req.Legs = append(req.Legs, wire)
 	}
-	return UnaryAuthDecoded(ctx, s.transport, s.client().BatchCreateInternalTransfers, req, func(msg *transferv1.BatchCreateInternalTransfersResponse) (models.InternalTransferBatchResult, error) {
+	result, err := UnaryAuthDecoded(ctx, s.transport, s.client().BatchCreateInternalTransfers, req, func(msg *transferv1.BatchCreateInternalTransfersResponse) (models.InternalTransferBatchResult, error) {
 		return decode.InternalTransferBatchFromProto(msg, len(legs))
 	})
+	return result, batchAnswerCertainty(err)
 }
+
+// batchAnswerCertainty decides a failed batch's outcome certainty from its
+// HTTP status, whatever error class the answer maps to. A 502 or 503 proves
+// nothing was recorded only as the verified refusal below; any other 502 or
+// 503, a rate refusal or a retryable code included, is an unknown outcome:
+// read the batch back (GetBatch) or retry it with the same key and legs. Its
+// status, Retry-After, code and message are kept for diagnosis. Any other
+// status, a 429 rate refusal included, is left as it maps.
+func batchAnswerCertainty(err error) error {
+	status := errors.AnswerStatus(err)
+	if err == nil || (status != http.StatusBadGateway && status != http.StatusServiceUnavailable) {
+		return err
+	}
+	if markBatchRefusedBeforeAdmission(err) {
+		return err
+	}
+	if errors.MutationOutcomeUnknown(err) && !errors.IsRetryable(err) {
+		return err
+	}
+	unknown := &errors.ServerError{Msg: err.Error(), Code: answerCode(err), Status: status, RetryAfter: errors.RetryAfter(err)}
+	if !errors.MutationOutcomeUnknown(unknown) {
+		// A code that reads as an admission refusal stays in the message.
+		unknown.Code = ""
+	}
+	return unknown
+}
+
+// answerCode is the service code a mapped error carries, for diagnosis.
+func answerCode(err error) string {
+	var (
+		rate       *errors.RateLimitError
+		api        *errors.APIError
+		server     *errors.ServerError
+		auth       *errors.AuthError
+		validation *errors.ValidationError
+	)
+	switch {
+	case stderrors.As(err, &rate):
+		return rate.Code
+	case stderrors.As(err, &api):
+		return api.Code
+	case stderrors.As(err, &server):
+		return server.Code
+	case stderrors.As(err, &auth):
+		return auth.Code
+	case stderrors.As(err, &validation):
+		return validation.Code
+	}
+	return ""
+}
+
+// markBatchRefusedBeforeAdmission marks a batch the API could not decide
+// now as refused before admission: the contract records nothing under its
+// key on SERVICE_UNAVAILABLE or ACCOUNT_SHARD_UNAVAILABLE, so it is retryable
+// with the same key and legs. Only an actual 503 proves it, with the code its
+// transfer.v1.ErrorDetail or a contract REST problem carries: a 504 or 502, a
+// foreign detail, a gateway's JSON or the message keep their unknown outcome.
+// The answer's status and Retry-After stay as they are. It reports whether
+// it marked err.
+func markBatchRefusedBeforeAdmission(err error) bool {
+	var server *errors.ServerError
+	if !stderrors.As(err, &server) || server.Status != http.StatusServiceUnavailable {
+		return false
+	}
+	switch server.CodeSource {
+	case batchRefusalDetail, errors.CodeSourceProblem:
+	default:
+		return false
+	}
+	switch strings.TrimPrefix(server.Code, "ERROR_CODE_") {
+	case "SERVICE_UNAVAILABLE", "ACCOUNT_SHARD_UNAVAILABLE":
+		server.AdmissionRefused = true
+		return true
+	}
+	return false
+}
+
+// batchRefusalDetail is the ConnectRPC detail that carries a batch's typed
+// refusal code.
+var batchRefusalDetail = string((&transferv1.ErrorDetail{}).ProtoReflect().Descriptor().FullName())
 
 // GetBatch reads a batch's current outcome and the state of every leg by the
 // RequestID CreateBatch returned, as CreateBatch answered it: for example to

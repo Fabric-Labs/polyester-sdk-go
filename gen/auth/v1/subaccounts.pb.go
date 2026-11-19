@@ -3354,18 +3354,16 @@ var File_auth_v1_subaccounts_proto protoreflect.FileDescriptor
 
 const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\n" +
-	"\x19auth/v1/subaccounts.proto\x12\aauth.v1\x1a\x16auth/v1/api_keys.proto\x1a\x16auth/v1/policies.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a ledger/read/v1/ledger_read.proto\x1a\x1bpolyester/api/options.proto\x1a9polyester/api/validation/v1/predefined_string_rules.proto\"\xf6\x01\n" +
-	"\x1eSubaccountPermissionDefinition\x12I\n" +
+	"\x19auth/v1/subaccounts.proto\x12\aauth.v1\x1a\x16auth/v1/api_keys.proto\x1a\x16auth/v1/policies.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a ledger/read/v1/ledger_read.proto\x1a\x1bpolyester/api/options.proto\x1a9polyester/api/validation/v1/predefined_string_rules.proto\"\xf7\x01\n" +
+	"\x1eSubaccountPermissionDefinition\x12J\n" +
 	"\n" +
-	"permission\x18\x01 \x01(\x0e2\x1d.auth.v1.SubaccountPermissionB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\n" +
+	"permission\x18\x01 \x01(\x0e2\x1d.auth.v1.SubaccountPermissionB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\n" +
 	"permission\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12D\n" +
-	"\rpolicy_action\x18\x04 \x01(\x0e2\x15.auth.v1.PolicyActionB\b\xbaH\x05\x82\x01\x02\x10\x01R\fpolicyAction\"\x85\x02\n" +
-	"\x18SubaccountRoleDefinition\x127\n" +
-	"\x04role\x18\x01 \x01(\x0e2\x17.auth.v1.SubaccountRoleB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04role\x12!\n" +
+	"\rpolicy_action\x18\x04 \x01(\x0e2\x15.auth.v1.PolicyActionB\b\xbaH\x05\x82\x01\x02\x10\x01R\fpolicyAction\"\x86\x02\n" +
+	"\x18SubaccountRoleDefinition\x128\n" +
+	"\x04role\x18\x01 \x01(\x0e2\x17.auth.v1.SubaccountRoleB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x04role\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1e\n" +
 	"\n" +
@@ -3378,16 +3376,15 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\vpermissions\x18\x01 \x03(\v2'.auth.v1.SubaccountPermissionDefinitionR\vpermissions\x127\n" +
 	"\x05roles\x18\x02 \x03(\v2!.auth.v1.SubaccountRoleDefinitionR\x05roles\"b\n" +
 	"(GetEffectiveSubaccountPermissionsRequest\x126\n" +
-	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xe0A\x02\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\"\xe3\x01\n" +
-	")GetEffectiveSubaccountPermissionsResponse\x127\n" +
-	"\x04role\x18\x01 \x01(\x0e2\x17.auth.v1.SubaccountRoleB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04role\x12K\n" +
+	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xe0A\x02\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\"\xe4\x01\n" +
+	")GetEffectiveSubaccountPermissionsResponse\x128\n" +
+	"\x04role\x18\x01 \x01(\x0e2\x17.auth.v1.SubaccountRoleB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x04role\x12K\n" +
 	"\vpermissions\x18\x02 \x03(\x0e2\x1d.auth.v1.SubaccountPermissionB\n" +
 	"\xbaH\a\x92\x01\x04\x10@\x18\x01R\vpermissions\x120\n" +
 	"\x14subaccount_policy_id\x18\x03 \x01(\x06R\x12subaccountPolicyId\"p\n" +
 	"\x12SubaccountRoleView\x12#\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\x125\n" +
-	"\x04role\x18\x02 \x01(\x0e2\x17.auth.v1.SubaccountRoleB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04role\"\xe6\x05\n" +
+	"\x04role\x18\x02 \x01(\x0e2\x17.auth.v1.SubaccountRoleB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04role\"\xe7\x05\n" +
 	"\n" +
 	"Subaccount\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x06R\x02id\x125\n" +
@@ -3395,9 +3392,8 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x05label\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18@R\x05label\x12\x1b\n" +
 	"\x04icon\x18\n" +
 	" \x01(\tB\a\xbaH\x04r\x02\x18 R\x04icon\x12\x1d\n" +
-	"\x05color\x18\v \x01(\tB\a\xbaH\x04r\x02\x18 R\x05color\x12=\n" +
-	"\x06status\x18\x04 \x01(\x0e2\x19.auth.v1.SubaccountStatusB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x06status\x122\n" +
+	"\x05color\x18\v \x01(\tB\a\xbaH\x04r\x02\x18 R\x05color\x12>\n" +
+	"\x06status\x18\x04 \x01(\x0e2\x19.auth.v1.SubaccountStatusB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x06status\x122\n" +
 	"\x15smart_account_address\x18\x05 \x01(\tR\x13smartAccountAddress\x12%\n" +
 	"\x0eowner_username\x18\x06 \x01(\tR\rownerUsername\x12(\n" +
 	"\x10owner_avatar_url\x18\a \x01(\tR\x0eownerAvatarUrl\x12F\n" +
@@ -3474,19 +3470,18 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x1dRemoveSubaccountMemberRequest\x126\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xe0A\x02\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12<\n" +
 	"\x12grantee_account_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x10granteeAccountId\" \n" +
-	"\x1eRemoveSubaccountMemberResponse\"\xd5\x01\n" +
+	"\x1eRemoveSubaccountMemberResponse\"\xd6\x01\n" +
 	"!UpdateSubaccountMemberRoleRequest\x126\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xe0A\x02\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12<\n" +
-	"\x12grantee_account_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x10granteeAccountId\x12:\n" +
-	"\x04role\x18\x03 \x01(\x0e2\x17.auth.v1.SubaccountRoleB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04role\"$\n" +
-	"\"UpdateSubaccountMemberRoleResponse\"\xd6\x05\n" +
+	"\x12grantee_account_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x10granteeAccountId\x12;\n" +
+	"\x04role\x18\x03 \x01(\x0e2\x17.auth.v1.SubaccountRoleB\x0e\xe0A\x02\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x04role\"$\n" +
+	"\"UpdateSubaccountMemberRoleResponse\"\xd7\x05\n" +
 	"\x10SubaccountInvite\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x06R\x02id\x12#\n" +
 	"\rsubaccount_id\x18\x02 \x01(\x06R\fsubaccountId\x12,\n" +
 	"\x12grantee_account_id\x18\x03 \x01(\x06R\x10granteeAccountId\x12,\n" +
-	"\x12inviter_account_id\x18\x04 \x01(\x06R\x10inviterAccountId\x127\n" +
-	"\x04role\x18\x05 \x01(\x0e2\x17.auth.v1.SubaccountRoleB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04role\x127\n" +
+	"\x12inviter_account_id\x18\x04 \x01(\x06R\x10inviterAccountId\x128\n" +
+	"\x04role\x18\x05 \x01(\x0e2\x17.auth.v1.SubaccountRoleB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x04role\x127\n" +
 	"\x06status\x18\x06 \x01(\x0e2\x1f.auth.v1.SubaccountInviteStatusR\x06status\x129\n" +
 	"\n" +
 	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12=\n" +
@@ -3497,20 +3492,20 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x10subaccount_label\x18\v \x01(\tR\x0fsubaccountLabel\x12J\n" +
 	"\"inviter_root_smart_account_address\x18\f \x01(\tR\x1einviterRootSmartAccountAddress\x12J\n" +
 	"\"grantee_root_smart_account_address\x18\r \x01(\tR\x1egranteeRootSmartAccountAddress\x12,\n" +
-	"\x12require_member_mfa\x18\x0e \x01(\bR\x10requireMemberMfa\"\xd1\x01\n" +
+	"\x12require_member_mfa\x18\x0e \x01(\bR\x10requireMemberMfa\"\xd2\x01\n" +
 	"\x1dInviteSubaccountMemberRequest\x126\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xe0A\x02\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12<\n" +
-	"\x12grantee_account_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x10granteeAccountId\x12:\n" +
-	"\x04role\x18\x03 \x01(\x0e2\x17.auth.v1.SubaccountRoleB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04role\"S\n" +
+	"\x12grantee_account_id\x18\x02 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x10granteeAccountId\x12;\n" +
+	"\x04role\x18\x03 \x01(\x0e2\x17.auth.v1.SubaccountRoleB\x0e\xe0A\x02\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x04role\"S\n" +
 	"\x1eInviteSubaccountMemberResponse\x121\n" +
 	"\x06invite\x18\x01 \x01(\v2\x19.auth.v1.SubaccountInviteR\x06invite\"j\n" +
 	"\x1cListSubaccountInvitesRequest\x12J\n" +
 	"\tdirection\x18\x01 \x01(\x0e2\".auth.v1.SubaccountInviteDirectionB\b\xbaH\x05\x82\x01\x02\x10\x01R\tdirection\"T\n" +
 	"\x1dListSubaccountInvitesResponse\x123\n" +
-	"\ainvites\x18\x01 \x03(\v2\x19.auth.v1.SubaccountInviteR\ainvites\"\x85\x01\n" +
+	"\ainvites\x18\x01 \x03(\v2\x19.auth.v1.SubaccountInviteR\ainvites\"\x86\x01\n" +
 	"\x1eRespondSubaccountInviteRequest\x12\x1b\n" +
-	"\tinvite_id\x18\x01 \x01(\x06R\binviteId\x12F\n" +
-	"\x06action\x18\x02 \x01(\x0e2\x1f.auth.v1.SubaccountInviteActionB\r\xe0A\x02\xbaH\a\x82\x01\x04\x10\x01 \x00R\x06action\"T\n" +
+	"\tinvite_id\x18\x01 \x01(\x06R\binviteId\x12G\n" +
+	"\x06action\x18\x02 \x01(\x0e2\x1f.auth.v1.SubaccountInviteActionB\x0e\xe0A\x02\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x06action\"T\n" +
 	"\x1fRespondSubaccountInviteResponse\x121\n" +
 	"\x06invite\x18\x01 \x01(\v2\x19.auth.v1.SubaccountInviteR\x06invite\"\xf7\x02\n" +
 	"\x14GetSubaccountRequest\x126\n" +

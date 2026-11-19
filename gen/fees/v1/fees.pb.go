@@ -597,11 +597,11 @@ const file_fees_v1_fees_proto_rawDesc = "" +
 	"\x10d\x18\x01\"\x04*\x02 \x00R\bsymbolIdB\x10\n" +
 	"\x0e_subaccount_id\"L\n" +
 	"\x17GetSpotFeeRatesResponse\x121\n" +
-	"\tfee_rates\x18\x01 \x03(\v2\x14.fees.v1.SpotFeeRateR\bfeeRates2\xdb\x02\n" +
+	"\tfee_rates\x18\x01 \x03(\v2\x14.fees.v1.SpotFeeRateR\bfeeRates2\xb9\x03\n" +
 	"\n" +
-	"FeeService\x12\xbf\x02\n" +
-	"\x0fGetSpotFeeRates\x12\x1f.fees.v1.GetSpotFeeRatesRequest\x1a .fees.v1.GetSpotFeeRatesResponse\"\xe8\x01\xbaG\xc4\x01\n" +
-	"\vFee Service\x12\x12Get Spot Fee Rates\x1a\xa0\x01Get effective maker and taker fee rates, the rates an order reserves its fee at, and the components of the effective rates for the authenticated account target.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x14\x12\x12/v1/spot/fee-rates\x1a\v\x8a\xb5\x18\atradingB\x7f\xbaG@:>\n" +
+	"FeeService\x12\x9d\x03\n" +
+	"\x0fGetSpotFeeRates\x12\x1f.fees.v1.GetSpotFeeRatesRequest\x1a .fees.v1.GetSpotFeeRatesResponse\"\xc6\x02\xbaG\xa2\x02\n" +
+	"\vFee Service\x12\x12Get Spot Fee Rates\x1a\xfe\x01Get effective maker and taker fee rates, the rates an order reserves its fee at, and the components of the effective rates for the authenticated account target. Costs one unit of the root account's trading read limit per 100 symbols returned, rounded up.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x14\x12\x12/v1/spot/fee-rates\x1a\v\x8a\xb5\x18\atradingB\x7f\xbaG@:>\n" +
 	"\vFee Service\x12/Authenticated effective spot trading fee rates.Z:github.com/Fabric-Labs/polyester-sdk-go/gen/fees/v1;feesv1b\x06proto3"
 
 var (

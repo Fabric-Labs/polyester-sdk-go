@@ -7,6 +7,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderbookv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1"
+	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
@@ -119,8 +120,9 @@ func TestLevelsAreBoundToTheirMarket(t *testing.T) {
 		}
 	}
 	snapshot, err := decode.OrderbookFromProto(&orderbookv1.GetOrderBookResponse{
-		Bids: []*orderbookv1.PriceLevel{{PriceTicks: 52_320_000_000, QtyScaled: 5}},
-		Asks: []*orderbookv1.PriceLevel{{PriceTicks: 52_330_000_000, QtyScaled: 6}},
+		Depth: typev1.DepthTier_DEPTH_5,
+		Bids:  []*orderbookv1.PriceLevel{{PriceTicks: 52_320_000_000, QtyScaled: 5}},
+		Asks:  []*orderbookv1.PriceLevel{{PriceTicks: 52_330_000_000, QtyScaled: 6}},
 	}, "LTC-USDT", 5, 8)
 	if err != nil {
 		t.Fatal(err)
