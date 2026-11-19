@@ -22,6 +22,10 @@ type triggerReadHandler struct {
 	mu          sync.Mutex
 	unavailable int
 	failCode    connect.Code
+	// cancelOnGet, when set, ends the caller's context as the cancelAt-th
+	// GetTrigger arrives, before it answers.
+	cancelOnGet context.CancelFunc
+	cancelAt    int
 	gets        []*triggersv1.GetTriggerRequest
 	lists       []*triggersv1.ListTriggersRequest
 	events      []*triggersv1.ListTriggerEventsRequest
@@ -50,6 +54,9 @@ func (h *triggerReadHandler) GetTrigger(_ context.Context, req *connect.Request[
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.gets = append(h.gets, req.Msg)
+	if h.cancelOnGet != nil && len(h.gets) == h.cancelAt {
+		h.cancelOnGet()
+	}
 	if err := h.answer(); err != nil {
 		return nil, err
 	}
@@ -76,6 +83,9 @@ func newTriggerReadService(t *testing.T, handler *triggerReadHandler) *TriggersS
 }
 
 func TestTriggerReadsRetryCatchingUpWithTheSameRequest(t *testing.T) {
+	// The retry budget counts the waits alone, not how long a loaded machine
+	// takes to answer each attempt.
+	clock := useFakeClock(t)
 	handler := &triggerReadHandler{unavailable: 3}
 	service := newTriggerReadService(t, handler)
 
@@ -99,6 +109,18 @@ func TestTriggerReadsRetryCatchingUpWithTheSameRequest(t *testing.T) {
 		t.Fatalf("list=%+v", list)
 	}
 
+	// 25, 50 and 100 ms before the get's fourth attempt; 25 and 50 ms before
+	// the list's third.
+	want := []time.Duration{25, 50, 100, 25, 50}
+	if got := clock.Waits(); len(got) != len(want) {
+		t.Fatalf("waits=%v, want %v ms", got, want)
+	} else {
+		for i := range want {
+			if got[i] != want[i]*time.Millisecond {
+				t.Fatalf("waits=%v, want %v ms", got, want)
+			}
+		}
+	}
 	handler.mu.Lock()
 	defer handler.mu.Unlock()
 	if len(handler.gets) != 4 || len(handler.lists) != 3 {
@@ -159,16 +181,19 @@ func TestTriggerReadRetryLeavesOtherErrorsAlone(t *testing.T) {
 }
 
 func TestTriggerReadRetryStopsWhenCanceled(t *testing.T) {
-	handler := &triggerReadHandler{unavailable: 1 << 30}
-	service := newTriggerReadService(t, handler)
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Millisecond)
+	useFakeClock(t)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	started := time.Now()
-	if _, err := service.Get(ctx, nil, codecs.FormatID(9), nil); err == nil {
-		t.Fatal("expected an error")
+	// The caller gives up while the second attempt is in flight.
+	handler := &triggerReadHandler{unavailable: 1 << 30, cancelOnGet: cancel, cancelAt: 2}
+	service := newTriggerReadService(t, handler)
+	if _, err := service.Get(ctx, nil, codecs.FormatID(9), nil); !errors.Is(err, context.Canceled) {
+		t.Fatalf("err=%T %v, want the caller's cancellation", err, err)
 	}
-	if elapsed := time.Since(started); elapsed > time.Second {
-		t.Fatalf("cancellation took %s", elapsed)
+	handler.mu.Lock()
+	defer handler.mu.Unlock()
+	if len(handler.gets) != 2 {
+		t.Fatalf("gets=%d, want no attempt after the cancellation", len(handler.gets))
 	}
 }
 
@@ -182,6 +207,7 @@ func (h *triggerReadHandler) ListTriggerEvents(_ context.Context, req *connect.R
 	return connect.NewResponse(&triggersv1.ListTriggerEventsResponse{}), nil
 }
 func TestTriggerEventsRetryAndNotFound(t *testing.T) {
+	useFakeClock(t)
 	handler := &triggerReadHandler{unavailable: 2}
 	service := newTriggerReadService(t, handler)
 	sub, page, event := codecs.FormatID(12), "next-page", "fired"
