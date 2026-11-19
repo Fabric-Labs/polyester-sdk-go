@@ -22,11 +22,16 @@ func batchAgainst(t *testing.T, status int, contentType, body string) error {
 	return batchAgainstDetail(t, status, contentType, body)
 }
 
-func batchAgainstDetail(t *testing.T, status int, contentType, body string) error {
+func batchAgainstDetail(t *testing.T, status int, contentType, body string, headers ...map[string]string) error {
 	t.Helper()
 	srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", contentType)
 		w.Header().Set("Retry-After", "3")
+		for _, extra := range headers {
+			for name, value := range extra {
+				w.Header().Set(name, value)
+			}
+		}
 		w.WriteHeader(status)
 		_, _ = w.Write([]byte(body))
 	}))
@@ -211,4 +216,105 @@ func TestInternalTransferBatchGatewayStatusesKeepAnUnknownOutcomeInEveryClass(t 
 	if !errors.As(err, &rate) || !sdkerrors.IsRetryable(err) || sdkerrors.MutationOutcomeUnknown(err) {
 		t.Fatalf("429: %T %v, want a retryable RateLimitError", err, err)
 	}
+}
+
+// The verified refusal is a ConnectRPC error whose wire code is unavailable
+// and that carries exactly one transfer.v1.ErrorDetail. A 503 without that
+// wire code (connect-go infers unavailable from the status), or with several
+// transfer details, conflicting or not, proves nothing: the batch keeps its
+// unknown outcome.
+func TestInternalTransferBatchRefusalNeedsTheWireCodeAndOneTransferDetail(t *testing.T) {
+	detail := func(code transferv1.ErrorCode) string {
+		data, err := proto.Marshal(&transferv1.ErrorDetail{Code: code})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return `{"type":"transfer.v1.ErrorDetail","value":"` + base64.RawStdEncoding.EncodeToString(data) + `"}`
+	}
+	service := detail(transferv1.ErrorCode_ERROR_CODE_SERVICE_UNAVAILABLE)
+	shard := detail(transferv1.ErrorCode_ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE)
+	capital := detail(transferv1.ErrorCode_ERROR_CODE_CAPITAL_VIEW_UNAVAILABLE)
+	for name, tc := range map[string]struct {
+		body    string
+		refused bool
+	}{
+		"unavailable with one detail": {`{"code":"unavailable","message":"try again","details":[` + service + `]}`, true},
+		"no wire code":                {`{"message":"try again","details":[` + service + `]}`, false},
+		"empty wire code":             {`{"code":"","message":"try again","details":[` + service + `]}`, false},
+		"only details":                {`{"details":[` + service + `]}`, false},
+		"service then capital view":   {`{"code":"unavailable","message":"try again","details":[` + service + `,` + capital + `]}`, false},
+		"capital view then service":   {`{"code":"unavailable","message":"try again","details":[` + capital + `,` + service + `]}`, false},
+		"service twice":               {`{"code":"unavailable","message":"try again","details":[` + service + `,` + service + `]}`, false},
+		"service then account shard":  {`{"code":"unavailable","message":"try again","details":[` + service + `,` + shard + `]}`, false},
+	} {
+		err := batchAgainst(t, http.StatusServiceUnavailable, "application/json", tc.body)
+		if tc.refused && (!sdkerrors.IsRetryable(err) || sdkerrors.MutationOutcomeUnknown(err)) {
+			t.Errorf("%s: %T %v, want retryable with a known outcome", name, err, err)
+		}
+		if !tc.refused && (!sdkerrors.MutationOutcomeUnknown(err) || sdkerrors.IsRetryable(err)) {
+			t.Errorf("%s: %T %v, want an unknown outcome that is not retried", name, err, err)
+		}
+		if got := sdkerrors.AnswerStatus(err); got != http.StatusServiceUnavailable {
+			t.Errorf("%s: status %d", name, got)
+		}
+	}
+	// What an answer sends, as a header or as ConnectRPC trailer metadata,
+	// never names its wire code or its status: the transport records both in
+	// process.
+	noCode := `{"message":"try again","details":[` + service + `]}`
+	withCode := `{"code":"unavailable","message":"try again","details":[` + service + `]}`
+	for name, tc := range map[string]struct {
+		status  int
+		body    string
+		headers map[string]string
+	}{
+		"wire code header":  {http.StatusServiceUnavailable, noCode, map[string]string{"Polyester-Sdk-Answer-Wire-Code": "unavailable"}},
+		"wire code trailer": {http.StatusServiceUnavailable, noCode, map[string]string{"Trailer-Polyester-Sdk-Answer-Wire-Code": "unavailable"}},
+		"status header":     {http.StatusBadGateway, withCode, map[string]string{"Polyester-Sdk-Answer-Status": "503"}},
+		"status trailer":    {http.StatusBadGateway, withCode, map[string]string{"Trailer-Polyester-Sdk-Answer-Status": "503"}},
+		"both trailers":     {http.StatusBadGateway, noCode, map[string]string{"Trailer-Polyester-Sdk-Answer-Status": "503", "Trailer-Polyester-Sdk-Answer-Wire-Code": "unavailable"}},
+	} {
+		err := batchAgainstDetail(t, tc.status, "application/json", tc.body, tc.headers)
+		if !sdkerrors.MutationOutcomeUnknown(err) || sdkerrors.IsRetryable(err) {
+			t.Errorf("forged %s: %T %v, want an unknown outcome that is not retried", name, err, err)
+		}
+		if got := sdkerrors.AnswerStatus(err); got != tc.status {
+			t.Errorf("forged %s: status %d, want %d", name, got, tc.status)
+		}
+	}
+}
+
+// A null detail is a malformed answer: a ResponseContractError that keeps
+// the answer's status, never a panic and never a refusal.
+func TestInternalTransferBatchNullDetailIsAContractError(t *testing.T) {
+	for _, body := range []string{
+		`{"code":"unavailable","message":"try again","details":[null]}`,
+		`{"code":"unavailable","message":"try again","details":[` + transferDetailBodyItem(t) + `,null]}`,
+	} {
+		var err error
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Fatalf("%s: panic %v", body, r)
+				}
+			}()
+			err = batchAgainst(t, http.StatusServiceUnavailable, "application/json", body)
+		}()
+		var contract *sdkerrors.ResponseContractError
+		if !errors.As(err, &contract) || sdkerrors.IsRetryable(err) {
+			t.Fatalf("%s: %T %v, want a ResponseContractError", body, err, err)
+		}
+		if got := sdkerrors.AnswerStatus(err); got != http.StatusServiceUnavailable {
+			t.Fatalf("%s: status %d", body, got)
+		}
+	}
+}
+
+func transferDetailBodyItem(t *testing.T) string {
+	t.Helper()
+	data, err := proto.Marshal(&transferv1.ErrorDetail{Code: transferv1.ErrorCode_ERROR_CODE_SERVICE_UNAVAILABLE})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return `{"type":"transfer.v1.ErrorDetail","value":"` + base64.RawStdEncoding.EncodeToString(data) + `"}`
 }

@@ -71,7 +71,6 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 	// decoded by connect-go keeps the real status in its metadata too (its
 	// code alone implies another).
 	record.set(resp)
-	resp.Header.Set(wire.AnswerStatusHeader, strconv.Itoa(resp.StatusCode))
 	if resp.StatusCode < 400 {
 		// The client's redirect policy decides; a signed request's redirect
 		// is refused, and one with nothing to follow reaches connect-go.
@@ -122,6 +121,9 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 			detail.Code = ""
 		}
 	}
+	// Only a body this transport parsed names the wire code, recorded in
+	// process; nothing the answer sends can name it.
+	record.setWireCode(detail.Code)
 	if wire.IsPlaceholderCode(detail.Code) {
 		detail.Code = ""
 	}
@@ -351,8 +353,8 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 }
 
 // passToConnect hands a failed answer to connect-go, which decodes a
-// ConnectRPC error body and keeps the answer's headers on the error, the
-// transport's AnswerStatusHeader included. An answer it cannot decode (an
+// ConnectRPC error body and keeps the answer's headers on the error; its
+// status and wire code are the transport's record. An answer it cannot decode (an
 // error content type other than application/json, or JSON that does not
 // parse) it reports by status alone and without the answer's headers, so the
 // SDK reads that one here, exactly as connect-go would, with the answer
