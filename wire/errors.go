@@ -21,7 +21,6 @@ import (
 	transferv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/redact"
 	"github.com/Fabric-Labs/polyester-sdk-go/useragent"
-	"google.golang.org/protobuf/proto"
 )
 
 var routeNotFoundMessages = map[string]struct{}{
@@ -41,13 +40,6 @@ const emptyErrorMessage = "request failed without server error details"
 type AnswerError struct {
 	Err    error
 	Status int
-	// WireCode is the code the body named, empty when it named none or
-	// named one more than once.
-	WireCode string
-	// DetailEntries is the number of entries of the body's details member
-	// as sent, decodable or not; -1 when the body named that member more
-	// than once.
-	DetailEntries int
 }
 
 func (e *AnswerError) Error() string { return e.Err.Error() }
@@ -60,29 +52,6 @@ func answerOf(err error) *AnswerError {
 		return answer
 	}
 	return nil
-}
-
-// typedRefusalSource is the CodeSource of an unavailable refusal whose code
-// detail carries: the detail's full name when the answer's body named the
-// wire code unavailable once and its details member, as sent, holds exactly
-// one entry, a detail of detail's type; empty otherwise. A code connect-go
-// inferred from the status, a repeated code, or details that may disagree or
-// that connect-go dropped, prove nothing.
-func typedRefusalSource(answer *AnswerError, connectErr *connect.Error, detail proto.Message) string {
-	if answer == nil || answer.WireCode != connect.CodeUnavailable.String() || answer.DetailEntries != 1 {
-		return ""
-	}
-	name := string(detail.ProtoReflect().Descriptor().FullName())
-	count := 0
-	for _, item := range connectErr.Details() {
-		if item.Type() == name {
-			count++
-		}
-	}
-	if count != 1 {
-		return ""
-	}
-	return name
 }
 
 func retryAfterSeconds(connectErr *connect.Error) *float64 {
@@ -176,7 +145,6 @@ func mapConnectError(err error) error {
 	if err == nil {
 		return nil
 	}
-	answer := answerOf(err)
 	// An SDK error mapped from an answer is kept as it is, with the answer's
 	// metadata, never rebuilt.
 	var mappedTransport *sdkerrors.TransportError
@@ -413,7 +381,7 @@ func mapConnectError(err error) error {
 				return rateLimitError(msg, code, nil, headerRetry)
 			}
 			if connectErr.Code() == connect.CodeUnavailable {
-				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: typedRefusalSource(answer, connectErr, withdrawDetail)}
+				return &sdkerrors.ServerError{Msg: msg, Code: code}
 			}
 			if isAuthLikeErrorCode(code) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
@@ -435,7 +403,7 @@ func mapConnectError(err error) error {
 				// No current price to record: nothing was created or changed.
 				return &sdkerrors.ServerError{Msg: msg, Code: code, AdmissionRefused: true}
 			case alertsv1.ErrorCode_SERVICE_UNAVAILABLE:
-				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: typedRefusalSource(answer, connectErr, alertDetail)}
+				return &sdkerrors.ServerError{Msg: msg, Code: code}
 			case alertsv1.ErrorCode_SUBACCOUNT_KEY_REFUSED:
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
 			}
@@ -444,7 +412,7 @@ func mapConnectError(err error) error {
 		if ledgerDetail, ok := value.(*ledgerrdv1.ErrorDetail); ok {
 			code := ledgerDetail.GetCode().String()
 			if connectErr.Code() == connect.CodeUnavailable {
-				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: typedRefusalSource(answer, connectErr, ledgerDetail)}
+				return &sdkerrors.ServerError{Msg: msg, Code: code}
 			}
 			if isAuthLikeErrorCode(code) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
@@ -457,7 +425,7 @@ func mapConnectError(err error) error {
 				return rateLimitError(msg, code, nil, headerRetry)
 			}
 			if connectErr.Code() == connect.CodeUnavailable {
-				return &sdkerrors.ServerError{Msg: msg, Code: code, CodeSource: typedRefusalSource(answer, connectErr, transferDetail)}
+				return &sdkerrors.ServerError{Msg: msg, Code: code}
 			}
 			if isAuthLikeErrorCode(code) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}

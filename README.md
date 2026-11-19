@@ -1879,14 +1879,26 @@ the request (every leg `processing` with its `TransferID`): read it with
 `InternalTransfers.GetBatch(ctx, result.RequestID)`, or call `CreateBatch`
 again with the same key and the same legs in the same order, until it is
 final. `refused` is final for its key, even once its cause is gone: fix the
-cause and submit under a new key. An `unavailable` error
-(`ERROR_CODE_SERVICE_UNAVAILABLE` or `ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE`)
-means the batch was not decided and nothing was recorded under the key:
-`errors.IsRetryable(err)` reports it, so retry with the same key and legs,
-after its Retry-After when present. Any other 502 or 503 answer has an unknown
-outcome, whatever it names: read the batch with `GetBatch`, or retry with the
-same key and legs. Different
-legs under a used key are refused with `ERROR_CODE_IDEMPOTENCY_CONFLICT`.
+cause and submit under a new key. A 5xx answer, whatever it names
+(`ERROR_CODE_SERVICE_UNAVAILABLE`, `ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE` and
+`RATE_LIMIT_EXCEEDED` included), is an unknown outcome: the batch may or may
+not be recorded under its key. Check it with `errors.MutationOutcomeUnknown(err)`
+(true) and `errors.IsRetryable(err)` (false), the stable interface, rather
+than the error's type: an error that is already an unknown outcome keeps its
+type and fields (a plain unavailable `*errors.ServerError`, an
+`*errors.ResponseContractError` for a malformed answer, an
+`*errors.TransportError` for a deadline), and any other 5xx is an
+`*errors.ServerError` with `OutcomeUnknown` set. Each keeps the answer's
+status, Retry-After and code. The safe path is the same key and the same
+legs: read the batch with `GetBatch` when you already know its request ID
+from an earlier answer, otherwise send it again with the original key and
+legs, after its Retry-After when present. Under one key the batch runs at
+most once; never resubmit it under a new key until it is known to have
+failed. Split a batch into smaller ones under new keys only after a genuine
+HTTP 429 `RATE_LIMIT_EXCEEDED` without a Retry-After (an
+`*errors.RateLimitError`), a definite throttle: the batch outweighs the
+account's burst. Different legs under a used key are refused with
+`ERROR_CODE_IDEMPOTENCY_CONFLICT`.
 Each leg's `Destination` is the destination the server resolved for it.
 
 ## Public market data
