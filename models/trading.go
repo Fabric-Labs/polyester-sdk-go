@@ -853,6 +853,136 @@ type LifecycleFlowSummary struct {
 	// received it.
 	SourceAddress      string `json:"source_address,omitempty"`
 	DestinationAddress string `json:"destination_address,omitempty"`
+	// ZippedAssetID and UnifiedAssetID name the flow's asset: the
+	// chain-specific asset mapping (zToken) row, and the unified asset Funding,
+	// Trading and the other balances count it in. 0 when the server sends
+	// none.
+	ZippedAssetID  uint32 `json:"zipped_asset_id,omitempty"`
+	UnifiedAssetID uint32 `json:"unified_asset_id,omitempty"`
+	// PolyesterChainID is the Polyester Chain the flow belongs to; 0 when it
+	// is not known.
+	PolyesterChainID uint32 `json:"polyester_chain_id,omitempty"`
+	// Amount is the flow's gross principal, exact, at the 18-decimal ledger
+	// scale in units of UnifiedAssetID. It does not include the request fee
+	// (RequestFee). A deposit keeps its deposited amount after Zipper returned
+	// it or transferred it out, which is not the amount Zipper paid. nil when
+	// the server sends none.
+	Amount *AssetAmountScaled `json:"amount,omitempty"`
+	// RequestFee is the request's fee when one applies and is visible for the
+	// current step; nil otherwise. Transaction lookups do not carry it.
+	RequestFee *LifecycleRequestFee `json:"request_fee,omitempty"`
+	// SourceTxHash is the first observed source transaction of the flow; for
+	// a transfer between Trading accounts, the Polyester Chain transaction
+	// that records the settled transfer. Empty until it is observed.
+	SourceTxHash string `json:"source_tx_hash,omitempty"`
+	// TxOccurrenceIndex tells apart the flows of one transaction: the leg
+	// index of a batched source-chain deposit, or the log (or equivalent)
+	// index of an on-chain fact. It is 0 when none is available, which is
+	// also a first leg's index.
+	TxOccurrenceIndex uint64 `json:"tx_occurrence_index,omitempty"`
+	// LatestTxRef references the latest transaction behind the current
+	// visible state. It is opaque: a chain transaction hash or another
+	// reference, such as a decimal ID, depending on the step. Empty when there
+	// is none.
+	LatestTxRef string `json:"latest_tx_ref,omitempty"`
+	// SourceDomain and DestinationDomain are the product domains where the
+	// whole flow starts and where it ends or currently settles, for route
+	// labels such as Funding to Trading: "external_chain", "zipper",
+	// "funding", "trading" or "lending"; "unspecified" when the server sends
+	// none, and "unknown_domain_<n>" for a domain newer than this SDK.
+	SourceDomain      string `json:"source_domain,omitempty"`
+	DestinationDomain string `json:"destination_domain,omitempty"`
+	// StartedAt is the flow's first observed business time and UpdatedAt the
+	// summary's last update; nil when the server sends none. Transaction
+	// lookups carry neither.
+	StartedAt *time.Time `json:"started_at,omitempty"`
+	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+	// TerminalAt is when the flow reached its final state; nil while it is
+	// open. Transaction lookups do not carry it.
+	TerminalAt *time.Time `json:"terminal_at,omitempty"`
+	// LastActivityAt is the time lists order flows by; nil when the server
+	// sends none.
+	LastActivityAt *time.Time `json:"last_activity_at,omitempty"`
+	// EstimatedCompletionAt is when the flow is expected to complete. It is
+	// nil while IsDelayed is true, because no reliable estimate exists then,
+	// and when the server sends none. The contract defines no estimate for a
+	// terminal flow, which the server may still send: read TerminalAt for
+	// when it ended. Transaction lookups do not carry it.
+	EstimatedCompletionAt *time.Time `json:"estimated_completion_at,omitempty"`
+	// CurrentStepSequence is the one-based position of LatestStep in
+	// ProgressTimeline; 0 when the server sends none.
+	CurrentStepSequence uint32 `json:"current_step_sequence,omitempty"`
+	// CurrentProgress is the current step's progress while the flow is open;
+	// nil when the server sends none. On a flow that is no longer open it may
+	// be present with every field zero. Transaction lookups do not carry it.
+	CurrentProgress *LifecycleFlowProgress `json:"current_progress,omitempty"`
+	// ProgressTimeline is the flow's expected steps in order, for a progress
+	// bar. Its current step may be derived ahead of the latest step actually
+	// observed. Nil when the server sends none, as transaction lookups do.
+	ProgressTimeline []LifecycleFlowTimelineItem `json:"progress_timeline,omitempty"`
+}
+
+// LifecycleRequestFee is the fee a lifecycle flow's request pays, apart from
+// the flow's gross Amount.
+type LifecycleRequestFee struct {
+	// ZippedAssetID and UnifiedAssetID name the fee asset, as on
+	// LifecycleFlowSummary.
+	ZippedAssetID  uint32 `json:"zipped_asset_id,omitempty"`
+	UnifiedAssetID uint32 `json:"unified_asset_id,omitempty"`
+	// Amount is the fee, exact, at the 18-decimal ledger scale in units of
+	// the fee asset; nil when the server sends none.
+	Amount *AssetAmountScaled `json:"amount,omitempty"`
+	// RecipientAddress receives the fee once it settles on chain; empty
+	// before.
+	RecipientAddress string `json:"recipient_address,omitempty"`
+	// Status is "locked" (the request locked the fee when it was created),
+	// "settled" (the request completed far enough for the fee to settle) or
+	// "kept" (the request did not complete and the fee was charged anyway:
+	// Zipper does not refund a withdrawal's fee when it rejects the withdrawal
+	// or its execution fails); "unspecified" when the server sends none, and
+	// "unknown_fee_status_<n>" for a status newer than this SDK.
+	Status string `json:"status,omitempty"`
+}
+
+// LifecycleFlowProgress is the progress of an open lifecycle flow's current
+// step. The counts are 0 when they do not apply to the step: confirmations
+// to a step waiting on source-chain confirmations, approvals and rejections
+// to a validation step.
+type LifecycleFlowProgress struct {
+	// CurrentStepStartedAt is when the current step started; nil when the
+	// server sends none.
+	CurrentStepStartedAt *time.Time `json:"current_step_started_at,omitempty"`
+	// CurrentStepExpectedDurationMs is how long the current step is expected
+	// to take, in milliseconds.
+	CurrentStepExpectedDurationMs uint64 `json:"current_step_expected_duration_ms,omitempty"`
+	CurrentConfirmations          uint32 `json:"current_confirmations,omitempty"`
+	RequiredConfirmations         uint32 `json:"required_confirmations,omitempty"`
+	ApproveCount                  uint32 `json:"approve_count,omitempty"`
+	RejectCount                   uint32 `json:"reject_count,omitempty"`
+	// ValidatorCount is the validator set's size.
+	ValidatorCount uint32 `json:"validator_count,omitempty"`
+	// RequiredApprovals is the approvals the step needs, and
+	// RequiredRejections the rejections that would fail it.
+	RequiredApprovals  uint32 `json:"required_approvals,omitempty"`
+	RequiredRejections uint32 `json:"required_rejections,omitempty"`
+}
+
+// LifecycleFlowTimelineItem is one step of a lifecycle flow's progress
+// timeline.
+type LifecycleFlowTimelineItem struct {
+	// Sequence is the step's one-based position in the timeline.
+	Sequence uint32 `json:"sequence,omitempty"`
+	// Step names the step as LifecycleFlowSummary.LatestStep does.
+	Step string `json:"step,omitempty"`
+	// Status is "completed" (observed, or behind the current step),
+	// "current" or "planned" (expected, not observed yet); "unspecified" when
+	// the server sends none, and "unknown_timeline_status_<n>" for a status
+	// newer than this SDK.
+	Status string `json:"status,omitempty"`
+	// ExpectedDurationMs is how long the step is expected to take, in
+	// milliseconds, from recent timing of the same kind of flow; 0 when there
+	// is no estimate.
+	ExpectedDurationMs uint64 `json:"expected_duration_ms,omitempty"`
 }
 
 // LifecycleFlowsList lists lifecycle flows.

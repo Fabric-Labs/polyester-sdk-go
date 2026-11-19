@@ -2,6 +2,8 @@ package decode
 
 import (
 	"fmt"
+	"math"
+	"time"
 
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	lifecyclev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/lifecycle/v1"
@@ -126,6 +128,114 @@ func flowParticipationLabel(participation lifecyclev1.FlowParticipation) string 
 	}
 }
 
+// flowDomainLabel names a FlowDomain lowercased without its DOMAIN_ prefix.
+// A value newer than this SDK reads unknown_domain_<n>, never as unspecified.
+func flowDomainLabel(domain lifecyclev1.FlowDomain) string {
+	switch domain {
+	case lifecyclev1.FlowDomain_DOMAIN_UNSPECIFIED:
+		return "unspecified"
+	case lifecyclev1.FlowDomain_DOMAIN_EXTERNAL_CHAIN:
+		return "external_chain"
+	case lifecyclev1.FlowDomain_DOMAIN_ZIPPER:
+		return "zipper"
+	case lifecyclev1.FlowDomain_DOMAIN_FUNDING:
+		return "funding"
+	case lifecyclev1.FlowDomain_DOMAIN_TRADING:
+		return "trading"
+	case lifecyclev1.FlowDomain_DOMAIN_LENDING:
+		return "lending"
+	default:
+		return fmt.Sprintf("unknown_domain_%d", int32(domain))
+	}
+}
+
+func requestFeeStatusLabel(status lifecyclev1.RequestFeeStatus) string {
+	switch status {
+	case lifecyclev1.RequestFeeStatus_REQUEST_FEE_STATUS_UNSPECIFIED:
+		return "unspecified"
+	case lifecyclev1.RequestFeeStatus_REQUEST_FEE_STATUS_LOCKED:
+		return "locked"
+	case lifecyclev1.RequestFeeStatus_REQUEST_FEE_STATUS_SETTLED:
+		return "settled"
+	case lifecyclev1.RequestFeeStatus_REQUEST_FEE_STATUS_KEPT:
+		return "kept"
+	default:
+		return fmt.Sprintf("unknown_fee_status_%d", int32(status))
+	}
+}
+
+func flowTimelineStatusLabel(status lifecyclev1.FlowTimelineStatus) string {
+	switch status {
+	case lifecyclev1.FlowTimelineStatus_TIMELINE_STATUS_UNSPECIFIED:
+		return "unspecified"
+	case lifecyclev1.FlowTimelineStatus_TIMELINE_STATUS_COMPLETED:
+		return "completed"
+	case lifecyclev1.FlowTimelineStatus_TIMELINE_STATUS_CURRENT:
+		return "current"
+	case lifecyclev1.FlowTimelineStatus_TIMELINE_STATUS_PLANNED:
+		return "planned"
+	default:
+		return fmt.Sprintf("unknown_timeline_status_%d", int32(status))
+	}
+}
+
+// unixMsTime reads a time the contract sends in milliseconds since the epoch
+// (UTC). Zero is the contract's "no time" and reads nil, as does a value past
+// what time.Time holds.
+func unixMsTime(ms uint64) *time.Time {
+	if ms == 0 || ms > math.MaxInt64 {
+		return nil
+	}
+	t := time.UnixMilli(int64(ms)).UTC()
+	return &t
+}
+
+func requestFee(msg *lifecyclev1.RequestFee) *models.LifecycleRequestFee {
+	if msg == nil {
+		return nil
+	}
+	return &models.LifecycleRequestFee{
+		ZippedAssetID:    msg.GetAssetIds().GetZippedAssetId(),
+		UnifiedAssetID:   msg.GetAssetIds().GetUnifiedAssetId(),
+		Amount:           optionalLedgerAmount(msg.GetAmountE18()),
+		RecipientAddress: msg.GetRecipientAddress(),
+		Status:           requestFeeStatusLabel(msg.GetStatus()),
+	}
+}
+
+func flowProgress(msg *lifecyclev1.FlowSummaryProgressView) *models.LifecycleFlowProgress {
+	if msg == nil {
+		return nil
+	}
+	return &models.LifecycleFlowProgress{
+		CurrentStepStartedAt:          unixMsTime(msg.GetCurrentStepStartedAtUnixMs()),
+		CurrentStepExpectedDurationMs: msg.GetCurrentStepExpectedDurationMs(),
+		CurrentConfirmations:          msg.GetCurrentConfirmations(),
+		RequiredConfirmations:         msg.GetRequiredConfirmations(),
+		ApproveCount:                  msg.GetApproveCount(),
+		RejectCount:                   msg.GetRejectCount(),
+		ValidatorCount:                msg.GetValidatorCount(),
+		RequiredApprovals:             msg.GetRequiredApprovals(),
+		RequiredRejections:            msg.GetRequiredRejections(),
+	}
+}
+
+func flowTimeline(items []*lifecyclev1.FlowTimelineItemView) []models.LifecycleFlowTimelineItem {
+	if len(items) == 0 {
+		return nil
+	}
+	out := make([]models.LifecycleFlowTimelineItem, 0, len(items))
+	for _, item := range items {
+		out = append(out, models.LifecycleFlowTimelineItem{
+			Sequence:           item.GetSequence(),
+			Step:               flowStepLabel(item.GetStep()),
+			Status:             flowTimelineStatusLabel(item.GetStatus()),
+			ExpectedDurationMs: item.GetExpectedDurationMs(),
+		})
+	}
+	return out
+}
+
 func flowSummary(msg *lifecyclev1.FlowSummaryView) models.LifecycleFlowSummary {
 	if msg == nil {
 		return models.LifecycleFlowSummary{}
@@ -143,6 +253,25 @@ func flowSummary(msg *lifecyclev1.FlowSummaryView) models.LifecycleFlowSummary {
 		Participation:       flowParticipationLabel(msg.GetParticipation()),
 		SourceAddress:       msg.GetSourceAddress(),
 		DestinationAddress:  msg.GetDestinationAddress(),
+
+		ZippedAssetID:         msg.GetAssetIds().GetZippedAssetId(),
+		UnifiedAssetID:        msg.GetAssetIds().GetUnifiedAssetId(),
+		PolyesterChainID:      msg.GetPolyesterChainId(),
+		Amount:                optionalLedgerAmount(msg.GetAmountE18()),
+		RequestFee:            requestFee(msg.GetRequestFee()),
+		SourceTxHash:          msg.GetSourceTxHash(),
+		TxOccurrenceIndex:     msg.GetTxOccurrenceIndex(),
+		LatestTxRef:           msg.GetLatestTxRef(),
+		SourceDomain:          flowDomainLabel(msg.GetSourceDomain()),
+		DestinationDomain:     flowDomainLabel(msg.GetDestinationDomain()),
+		StartedAt:             unixMsTime(msg.GetStartedAtUnixMs()),
+		UpdatedAt:             unixMsTime(msg.GetUpdatedAtUnixMs()),
+		TerminalAt:            unixMsTime(msg.GetTerminalAtUnixMs()),
+		LastActivityAt:        unixMsTime(msg.GetLastActivityAtUnixMs()),
+		EstimatedCompletionAt: unixMsTime(msg.GetEstimatedCompletionUnixMs()),
+		CurrentStepSequence:   msg.GetCurrentStepSequence(),
+		CurrentProgress:       flowProgress(msg.GetCurrentProgress()),
+		ProgressTimeline:      flowTimeline(msg.GetProgressTimeline()),
 	}
 }
 
@@ -221,6 +350,16 @@ func flowTxMatch(msg *lifecyclev1.FlowTxMatchView) models.LifecycleFlowSummary {
 		ZipperReason:        zipperReasonFromProto(msg.GetZipperReason()),
 		SourceAddress:       msg.GetSourceAddress(),
 		DestinationAddress:  msg.GetDestinationAddress(),
+		ZippedAssetID:       msg.GetAssetIds().GetZippedAssetId(),
+		UnifiedAssetID:      msg.GetAssetIds().GetUnifiedAssetId(),
+		PolyesterChainID:    msg.GetPolyesterChainId(),
+		Amount:              optionalLedgerAmount(msg.GetAmountE18()),
+		SourceTxHash:        msg.GetSourceTxHash(),
+		TxOccurrenceIndex:   msg.GetTxOccurrenceIndex(),
+		LatestTxRef:         msg.GetLatestTxRef(),
+		SourceDomain:        flowDomainLabel(msg.GetSourceDomain()),
+		DestinationDomain:   flowDomainLabel(msg.GetDestinationDomain()),
+		LastActivityAt:      unixMsTime(msg.GetLastActivityAtUnixMs()),
 	}
 }
 
