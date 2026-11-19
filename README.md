@@ -1883,7 +1883,9 @@ cause and submit under a new key. An `unavailable` error
 (`ERROR_CODE_SERVICE_UNAVAILABLE` or `ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE`)
 means the batch was not decided and nothing was recorded under the key:
 `errors.IsRetryable(err)` reports it, so retry with the same key and legs,
-after its Retry-After when present. Different
+after its Retry-After when present. Any other 502 or 503 answer has an unknown
+outcome, whatever it names: read the batch with `GetBatch`, or retry with the
+same key and legs. Different
 legs under a used key are refused with `ERROR_CODE_IDEMPOTENCY_CONFLICT`.
 Each leg's `Destination` is the destination the server resolved for it.
 

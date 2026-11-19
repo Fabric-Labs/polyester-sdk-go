@@ -171,3 +171,44 @@ func TestInternalTransferBatchProblemNeedsTheProblemMediaType(t *testing.T) {
 		}
 	}
 }
+
+// A batch answered with HTTP 502 or 503 has an unknown outcome whatever the
+// answer maps to, a rate refusal or a retryable code included: only the
+// verified refusal above proves that nothing was recorded. The status, the
+// Retry-After and the answer's code and message are kept for diagnosis.
+func TestInternalTransferBatchGatewayStatusesKeepAnUnknownOutcomeInEveryClass(t *testing.T) {
+	bodies := map[string]struct {
+		contentType string
+		body        string
+	}{
+		"REST RATE_LIMIT_EXCEEDED":           {"application/problem+json", `{"code":"RATE_LIMIT_EXCEEDED","detail":"slow down"}`},
+		"typed transfer RATE_LIMIT_EXCEEDED": {"application/json", transferDetailBody(t, transferv1.ErrorCode_ERROR_CODE_RATE_LIMIT_EXCEEDED)},
+		"generic resource_exhausted":         {"application/json", `{"code":"resource_exhausted","message":"slow down"}`},
+		"resource_exhausted DUST_BUSY":       {"application/json", `{"code":"resource_exhausted","message":"ERROR_CODE_DUST_BUSY"}`},
+	}
+	for name, tc := range bodies {
+		for _, status := range []int{http.StatusBadGateway, http.StatusServiceUnavailable} {
+			err := batchAgainst(t, status, tc.contentType, tc.body)
+			if err == nil || !sdkerrors.MutationOutcomeUnknown(err) || sdkerrors.IsRetryable(err) {
+				t.Errorf("%d %s: %T %v: unknown=%v retryable=%v, want an unknown outcome that is not retried", status, name, err, err, sdkerrors.MutationOutcomeUnknown(err), sdkerrors.IsRetryable(err))
+				continue
+			}
+			if got := sdkerrors.AnswerStatus(err); got != status {
+				t.Errorf("%d %s: status %d", status, name, got)
+			}
+			if delay := sdkerrors.RetryAfter(err); delay == nil || *delay != 3 {
+				t.Errorf("%d %s: retry after %v, want 3", status, name, delay)
+			}
+			var server *sdkerrors.ServerError
+			if name == "typed transfer RATE_LIMIT_EXCEEDED" && (!errors.As(err, &server) || server.Code != "ERROR_CODE_RATE_LIMIT_EXCEEDED") {
+				t.Errorf("%d %s: %T %+v, want the code kept for diagnosis", status, name, err, err)
+			}
+		}
+	}
+	// A rate refusal answered with 429 is one: retryable, as before.
+	err := batchAgainst(t, http.StatusTooManyRequests, "application/json", `{"code":"resource_exhausted","message":"slow down"}`)
+	var rate *sdkerrors.RateLimitError
+	if !errors.As(err, &rate) || !sdkerrors.IsRetryable(err) || sdkerrors.MutationOutcomeUnknown(err) {
+		t.Fatalf("429: %T %v, want a retryable RateLimitError", err, err)
+	}
+}
