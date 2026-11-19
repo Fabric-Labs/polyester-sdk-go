@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"mime"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -114,24 +113,13 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		RateLimit       json.RawMessage `json:"rateLimit"`
 		TimestampWindow json.RawMessage `json:"timestampWindow"`
 	}
-	shape := errorBodyShape{}
 	if isJSON || resp.StatusCode == 504 {
 		if json.Unmarshal(decoded, &detail) != nil {
 			// A body Connect's decoder can't read has no code either, whatever
 			// fields were decoded before the failure.
 			detail.Code = ""
-		} else {
-			shape = scanErrorBody(decoded)
 		}
 	}
-	// Only a body this transport parsed names the wire code and its details,
-	// recorded in process; nothing the answer sends can name them. A code
-	// named more than once names none.
-	wireCode := detail.Code
-	if shape.codeMembers != 1 {
-		wireCode = ""
-	}
-	record.setBody(wireCode, shape.detailEntries)
 	if wire.IsPlaceholderCode(detail.Code) {
 		detail.Code = ""
 	}
@@ -284,7 +272,7 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		if msg == "" {
 			msg = detail.Code
 		}
-		mapped = &sdkerrors.ServerError{Msg: msg, Code: detail.Code, CodeSource: problemCodeSource(resp, recognised && shape.codeMembers == 1), Status: resp.StatusCode}
+		mapped = &sdkerrors.ServerError{Msg: msg, Code: detail.Code, Status: resp.StatusCode}
 	case detail.Code == wire.TimestampSkewCode || detail.Code == sdkerrors.AuthCodeTimestampSkew:
 		mapped = &sdkerrors.TimestampSkewError{
 			Msg:    "API key timestamp is outside the allowed skew window",
@@ -322,7 +310,7 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		if msg == "" {
 			msg = detail.Code
 		}
-		mapped = &sdkerrors.ServerError{Msg: msg, Code: detail.Code, CodeSource: problemCodeSource(resp, recognised && shape.codeMembers == 1), Status: resp.StatusCode}
+		mapped = &sdkerrors.ServerError{Msg: msg, Code: detail.Code, Status: resp.StatusCode}
 	case (recognised && resp.StatusCode != http.StatusUnauthorized && resp.StatusCode != http.StatusForbidden) ||
 		(resp.StatusCode == http.StatusTooManyRequests && restCodeForm.MatchString(detail.Code)):
 		code := wire.ErrorCodeFromREST(detail.Code)
@@ -561,78 +549,6 @@ func decodedErrorBody(encoding string, body []byte) (decoded []byte, overflow bo
 type prefixedBody struct {
 	io.Reader
 	io.Closer
-}
-
-// problemCodeSource is errors.CodeSourceProblem for an answer that is a
-// contract REST problem, a body with exactly one Content-Type field naming
-// one media type, exactly application/problem+json (any case, parameters
-// allowed), and a code the contract names. It is empty for any other body:
-// a gateway's JSON, a Content-Type that does not parse, several Content-Type
-// fields, or one field combining several media types.
-func problemCodeSource(resp *http.Response, recognised bool) string {
-	if !recognised {
-		return ""
-	}
-	fields := resp.Header.Values("Content-Type")
-	if len(fields) != 1 || strings.Contains(fields[0], ",") {
-		return ""
-	}
-	mediaType, _, err := mime.ParseMediaType(fields[0])
-	if err != nil || mediaType != "application/problem+json" {
-		return ""
-	}
-	return sdkerrors.CodeSourceProblem
-}
-
-// errorBodyShape is what an error body names as sent, before encoding/json
-// keeps one of repeated members: how many top-level members name its code,
-// and the entries of its details member.
-type errorBodyShape struct {
-	codeMembers int
-	// detailEntries is the number of entries of the details member,
-	// decodable or not; -1 when the body names that member more than once
-	// or it is no array.
-	detailEntries int
-}
-
-// scanErrorBody reads the top-level members of a JSON error body. Member
-// names match as encoding/json matches them, in any letter case. A body
-// that is no object reads as naming nothing.
-func scanErrorBody(body []byte) errorBodyShape {
-	shape := errorBodyShape{}
-	dec := json.NewDecoder(bytes.NewReader(body))
-	if token, err := dec.Token(); err != nil || token != json.Delim('{') {
-		return errorBodyShape{}
-	}
-	detailsMembers := 0
-	for dec.More() {
-		token, err := dec.Token()
-		if err != nil {
-			return errorBodyShape{}
-		}
-		name, _ := token.(string)
-		switch {
-		case strings.EqualFold(name, "code"):
-			shape.codeMembers++
-		case strings.EqualFold(name, "details"):
-			detailsMembers++
-			var entries []json.RawMessage
-			if dec.Decode(&entries) != nil {
-				shape.detailEntries = -1
-				continue
-			}
-			shape.detailEntries = len(entries)
-			continue
-		}
-		var skip json.RawMessage
-		if dec.Decode(&skip) != nil {
-			return errorBodyShape{}
-		}
-	}
-	if detailsMembers > 1 {
-		shape.detailEntries = -1
-	}
-	return shape
 }
 
 func isJSONContentType(value string) bool {

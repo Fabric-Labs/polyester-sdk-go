@@ -19,18 +19,18 @@ import (
 
 func batchAgainst(t *testing.T, status int, contentType, body string) error {
 	t.Helper()
-	return batchAgainstDetail(t, status, contentType, body)
+	return batchAnswer(t, status, []string{contentType}, body, nil)
 }
 
-func batchAgainstDetail(t *testing.T, status int, contentType, body string, headers ...map[string]string) error {
+// batchAnswer sends one batch to a server answering status with body, each of
+// contentTypes as its own Content-Type field, Retry-After 3 and headers.
+func batchAnswer(t *testing.T, status int, contentTypes []string, body string, headers map[string]string) error {
 	t.Helper()
 	srv := hardening.NewTestServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", contentType)
+		w.Header()["Content-Type"] = contentTypes
 		w.Header().Set("Retry-After", "3")
-		for _, extra := range headers {
-			for name, value := range extra {
-				w.Header().Set(name, value)
-			}
+		for name, value := range headers {
+			w.Header().Set(name, value)
 		}
 		w.WriteHeader(status)
 		_, _ = w.Write([]byte(body))
@@ -64,115 +64,93 @@ func connectUnavailableBody(t *testing.T, typeName string, detail proto.Message)
 	return `{"code":"unavailable","message":"try again","details":[{"type":"` + typeName + `","value":"` + base64.RawStdEncoding.EncodeToString(data) + `"}]}`
 }
 
-// A batch whose checks cannot be decided now is refused before admission:
-// nothing is recorded under its key, so it is retryable with the same key and
-// legs, and keeps the answer's status and Retry-After. Over ConnectRPC and as
-// a REST problem alike.
-func TestInternalTransferBatchUnavailableIsRetryableUnderTheSameKey(t *testing.T) {
-	for _, code := range []transferv1.ErrorCode{transferv1.ErrorCode_ERROR_CODE_SERVICE_UNAVAILABLE, transferv1.ErrorCode_ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE} {
-		for wire, err := range map[string]error{
-			"connect": batchAgainst(t, http.StatusServiceUnavailable, "application/json", transferDetailBody(t, code)),
-			"rest":    batchAgainst(t, http.StatusServiceUnavailable, "application/problem+json", `{"code":"`+code.String()[len("ERROR_CODE_"):]+`","detail":"try again"}`),
-		} {
-			var server *sdkerrors.ServerError
-			if !errors.As(err, &server) {
-				t.Fatalf("%s %s: err = %T %v, want a ServerError", wire, code, err, err)
-			}
-			if !sdkerrors.IsRetryable(err) || sdkerrors.MutationOutcomeUnknown(err) {
-				t.Fatalf("%s %s: retryable=%v unknown=%v, want retryable with a known outcome", wire, code, sdkerrors.IsRetryable(err), sdkerrors.MutationOutcomeUnknown(err))
-			}
-			if status := sdkerrors.AnswerStatus(err); status != http.StatusServiceUnavailable {
-				t.Fatalf("%s %s: status %d", wire, code, status)
-			}
-			if delay := sdkerrors.RetryAfter(err); delay == nil || *delay != 3 {
-				t.Fatalf("%s %s: retry after %v", wire, code, delay)
-			}
+// A batch the API answers with unavailability has an unknown outcome,
+// whatever the answer's body, headers or trailers say: no answer proves that
+// nothing was recorded under its key. Each case here, the typed
+// SERVICE_UNAVAILABLE and ACCOUNT_SHARD_UNAVAILABLE refusals included, is an
+// unknown outcome that is not retried, and keeps the answer's status, its
+// Retry-After and, from a typed answer, its code. The safe next step is to
+// read the batch with GetBatch, or to send it again with the same key and
+// legs.
+func TestInternalTransferBatchUnavailableAnswersStayUnknown(t *testing.T) {
+	service := transferDetailBody(t, transferv1.ErrorCode_ERROR_CODE_SERVICE_UNAVAILABLE)
+	shard := transferDetailBody(t, transferv1.ErrorCode_ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE)
+	item := transferDetailBodyItem(t)
+	capital := func() string {
+		data, err := proto.Marshal(&transferv1.ErrorDetail{Code: transferv1.ErrorCode_ERROR_CODE_CAPITAL_VIEW_UNAVAILABLE})
+		if err != nil {
+			t.Fatal(err)
 		}
+		return `{"type":"transfer.v1.ErrorDetail","value":"` + base64.RawStdEncoding.EncodeToString(data) + `"}`
+	}()
+	withDetails := func(code string, details ...string) string {
+		members := ""
+		if code != "" {
+			members = `"code":"` + code + `",`
+		}
+		joined := ""
+		for i, detail := range details {
+			if i > 0 {
+				joined += ","
+			}
+			joined += detail
+		}
+		return `{` + members + `"message":"try again","details":[` + joined + `]}`
 	}
-	// Any other unavailable refusal of the batch keeps its unknown outcome,
-	// and so does one that only names the code in its message.
-	for name, body := range map[string]string{
-		"CAPITAL_VIEW_UNAVAILABLE": transferDetailBody(t, transferv1.ErrorCode_ERROR_CODE_CAPITAL_VIEW_UNAVAILABLE),
-		"code as the message":      `{"code":"unavailable","message":"SERVICE_UNAVAILABLE"}`,
+	problem := `{"code":"SERVICE_UNAVAILABLE","detail":"try again"}`
+	json, problemType := []string{"application/json"}, []string{"application/problem+json"}
+	for _, tc := range []struct {
+		name         string
+		status       int
+		contentTypes []string
+		body         string
+		headers      map[string]string
+		code         string
+	}{
+		// The answers that read as a refusal before this change.
+		{"typed SERVICE_UNAVAILABLE", 503, json, service, nil, "ERROR_CODE_SERVICE_UNAVAILABLE"},
+		{"typed ACCOUNT_SHARD_UNAVAILABLE", 503, json, shard, nil, "ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE"},
+		{"problem SERVICE_UNAVAILABLE", 503, problemType, problem, nil, "SERVICE_UNAVAILABLE"},
+		{"problem ACCOUNT_SHARD_UNAVAILABLE", 503, problemType, `{"code":"ACCOUNT_SHARD_UNAVAILABLE","detail":"try again"}`, nil, "ACCOUNT_SHARD_UNAVAILABLE"},
+		{"problem with parameters", 503, []string{"Application/Problem+JSON; charset=utf-8"}, problem, nil, "SERVICE_UNAVAILABLE"},
+		// Ambiguous or forged evidence, which already read as unknown.
+		{"504 typed", 504, json, service, nil, ""},
+		{"504 problem", 504, problemType, problem, nil, ""},
+		{"502 typed", 502, json, service, nil, ""},
+		{"502 problem", 502, problemType, problem, nil, ""},
+		{"generic JSON code", 503, json, `{"code":"SERVICE_UNAVAILABLE"}`, nil, ""},
+		{"foreign detail", 503, json, connectUnavailableBody(t, "alerts.v1.ErrorDetail", &alertsv1.ErrorDetail{Code: alertsv1.ErrorCode_SERVICE_UNAVAILABLE}), nil, ""},
+		{"code only in the message", 503, json, `{"code":"unavailable","message":"SERVICE_UNAVAILABLE"}`, nil, ""},
+		{"no wire code", 503, json, withDetails("", item), nil, ""},
+		{"several transfer details", 503, json, withDetails("unavailable", item, capital), nil, ""},
+		{"a second entry without a type", 503, json, withDetails("unavailable", item, `{"value":"CAg="}`), nil, ""},
+		{"code named twice", 503, json, `{"code":"internal","code":"unavailable","message":"x","details":[` + item + `]}`, nil, ""},
+		{"problem code named twice", 503, problemType, `{"code":"INTERNAL_ERROR","code":"SERVICE_UNAVAILABLE","detail":"x"}`, nil, ""},
+		{"problem media type with a suffix", 503, []string{"application/problem+json-gateway"}, problem, nil, ""},
+		{"two Content-Type fields", 503, []string{"application/json", "application/json"}, service, nil, ""},
+		{"two problem Content-Type fields", 503, []string{"application/problem+json", "application/problem+json"}, problem, nil, ""},
+		{"combined Content-Type", 503, []string{"application/problem+json, application/json"}, problem, nil, ""},
+		{"forged wire code header", 503, json, withDetails("", item), map[string]string{"Polyester-Sdk-Answer-Wire-Code": "unavailable"}, ""},
+		{"forged wire code trailer", 503, json, withDetails("", item), map[string]string{"Trailer-Polyester-Sdk-Answer-Wire-Code": "unavailable"}, ""},
+		{"forged status trailer", 502, json, service, map[string]string{"Trailer-Polyester-Sdk-Answer-Status": "503"}, ""},
 	} {
-		if err := batchAgainst(t, http.StatusServiceUnavailable, "application/json", body); !sdkerrors.MutationOutcomeUnknown(err) {
-			t.Fatalf("%s: %T %v, want an unknown outcome", name, err, err)
-		}
-	}
-}
-
-// Only an actual 503 whose code the batch's own typed detail or a contract
-// REST problem carries proves that nothing was recorded. A 504 never does,
-// nor a 502, a foreign detail or a body that merely looks like a problem:
-// each keeps its unknown outcome and is not retried.
-func TestInternalTransferBatchAmbiguousUnavailableKeepsItsUnknownOutcome(t *testing.T) {
-	cases := map[string]struct {
-		status      int
-		contentType string
-		body        string
-	}{}
-	for _, code := range []transferv1.ErrorCode{transferv1.ErrorCode_ERROR_CODE_SERVICE_UNAVAILABLE, transferv1.ErrorCode_ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE} {
-		rest := code.String()[len("ERROR_CODE_"):]
-		problem := `{"code":"` + rest + `","detail":"try again"}`
-		cases["504 typed detail "+rest] = struct {
-			status      int
-			contentType string
-			body        string
-		}{http.StatusGatewayTimeout, "application/json", transferDetailBody(t, code)}
-		cases["504 problem "+rest] = struct {
-			status      int
-			contentType string
-			body        string
-		}{http.StatusGatewayTimeout, "application/problem+json", problem}
-		cases["502 typed detail "+rest] = struct {
-			status      int
-			contentType string
-			body        string
-		}{http.StatusBadGateway, "application/json", transferDetailBody(t, code)}
-		cases["502 problem "+rest] = struct {
-			status      int
-			contentType string
-			body        string
-		}{http.StatusBadGateway, "application/problem+json", problem}
-		cases["503 generic JSON "+rest] = struct {
-			status      int
-			contentType string
-			body        string
-		}{http.StatusServiceUnavailable, "application/json", `{"code":"` + rest + `"}`}
-	}
-	cases["503 foreign detail"] = struct {
-		status      int
-		contentType string
-		body        string
-	}{http.StatusServiceUnavailable, "application/json", connectUnavailableBody(t, "alerts.v1.ErrorDetail", &alertsv1.ErrorDetail{Code: alertsv1.ErrorCode_SERVICE_UNAVAILABLE})}
-	for name, tc := range cases {
-		err := batchAgainst(t, tc.status, tc.contentType, tc.body)
+		err := batchAnswer(t, tc.status, tc.contentTypes, tc.body, tc.headers)
 		if err == nil || !sdkerrors.MutationOutcomeUnknown(err) || sdkerrors.IsRetryable(err) {
-			t.Errorf("%s: %T %v: unknown=%v retryable=%v, want an unknown outcome that is not retried", name, err, err, sdkerrors.MutationOutcomeUnknown(err), sdkerrors.IsRetryable(err))
+			t.Errorf("%s: %T %v: unknown=%v retryable=%v, want an unknown outcome that is not retried", tc.name, err, err, sdkerrors.MutationOutcomeUnknown(err), sdkerrors.IsRetryable(err))
+			continue
 		}
-	}
-}
-
-// A REST answer is a contract problem only when its media type is exactly
-// application/problem+json, in any case and with parameters; a media type that
-// only starts with it, or a Content-Type that does not parse, proves nothing.
-func TestInternalTransferBatchProblemNeedsTheProblemMediaType(t *testing.T) {
-	body := `{"code":"SERVICE_UNAVAILABLE","detail":"try again"}`
-	for contentType, refused := range map[string]bool{
-		"application/problem+json":                true,
-		"Application/Problem+JSON; charset=utf-8": true,
-		"application/problem+json-gateway":        false,
-		"application/problem+json; charset":       false,
-	} {
-		err := batchAgainst(t, http.StatusServiceUnavailable, contentType, body)
-		if refused && (!sdkerrors.IsRetryable(err) || sdkerrors.MutationOutcomeUnknown(err)) {
-			t.Errorf("%q: %T %v, want retryable with a known outcome", contentType, err, err)
+		var server *sdkerrors.ServerError
+		if errors.As(err, &server) && server.AdmissionRefused {
+			t.Errorf("%s: marked refused before admission", tc.name)
 		}
-		if !refused && (!sdkerrors.MutationOutcomeUnknown(err) || sdkerrors.IsRetryable(err)) {
-			t.Errorf("%q: %T %v, want an unknown outcome that is not retried", contentType, err, err)
+		if got := sdkerrors.AnswerStatus(err); got != tc.status {
+			t.Errorf("%s: status %d, want %d", tc.name, got, tc.status)
 		}
-		if delay := sdkerrors.RetryAfter(err); refused && (delay == nil || *delay != 3) {
-			t.Errorf("%q: retry after %v, want 3", contentType, delay)
+		if delay := sdkerrors.RetryAfter(err); delay == nil || *delay != 3 {
+			t.Errorf("%s: retry after %v, want 3", tc.name, delay)
+		}
+		if tc.code != "" && (!errors.As(err, &server) || server.Code != tc.code) {
+			t.Errorf("%s: %T %+v, want code %s kept", tc.name, err, err, tc.code)
 		}
 	}
 }
@@ -218,72 +196,6 @@ func TestInternalTransferBatchGatewayStatusesKeepAnUnknownOutcomeInEveryClass(t 
 	}
 }
 
-// The verified refusal is a ConnectRPC error whose wire code is unavailable
-// and that carries exactly one transfer.v1.ErrorDetail. A 503 without that
-// wire code (connect-go infers unavailable from the status), or with several
-// transfer details, conflicting or not, proves nothing: the batch keeps its
-// unknown outcome.
-func TestInternalTransferBatchRefusalNeedsTheWireCodeAndOneTransferDetail(t *testing.T) {
-	detail := func(code transferv1.ErrorCode) string {
-		data, err := proto.Marshal(&transferv1.ErrorDetail{Code: code})
-		if err != nil {
-			t.Fatal(err)
-		}
-		return `{"type":"transfer.v1.ErrorDetail","value":"` + base64.RawStdEncoding.EncodeToString(data) + `"}`
-	}
-	service := detail(transferv1.ErrorCode_ERROR_CODE_SERVICE_UNAVAILABLE)
-	shard := detail(transferv1.ErrorCode_ERROR_CODE_ACCOUNT_SHARD_UNAVAILABLE)
-	capital := detail(transferv1.ErrorCode_ERROR_CODE_CAPITAL_VIEW_UNAVAILABLE)
-	for name, tc := range map[string]struct {
-		body    string
-		refused bool
-	}{
-		"unavailable with one detail": {`{"code":"unavailable","message":"try again","details":[` + service + `]}`, true},
-		"no wire code":                {`{"message":"try again","details":[` + service + `]}`, false},
-		"empty wire code":             {`{"code":"","message":"try again","details":[` + service + `]}`, false},
-		"only details":                {`{"details":[` + service + `]}`, false},
-		"service then capital view":   {`{"code":"unavailable","message":"try again","details":[` + service + `,` + capital + `]}`, false},
-		"capital view then service":   {`{"code":"unavailable","message":"try again","details":[` + capital + `,` + service + `]}`, false},
-		"service twice":               {`{"code":"unavailable","message":"try again","details":[` + service + `,` + service + `]}`, false},
-		"service then account shard":  {`{"code":"unavailable","message":"try again","details":[` + service + `,` + shard + `]}`, false},
-	} {
-		err := batchAgainst(t, http.StatusServiceUnavailable, "application/json", tc.body)
-		if tc.refused && (!sdkerrors.IsRetryable(err) || sdkerrors.MutationOutcomeUnknown(err)) {
-			t.Errorf("%s: %T %v, want retryable with a known outcome", name, err, err)
-		}
-		if !tc.refused && (!sdkerrors.MutationOutcomeUnknown(err) || sdkerrors.IsRetryable(err)) {
-			t.Errorf("%s: %T %v, want an unknown outcome that is not retried", name, err, err)
-		}
-		if got := sdkerrors.AnswerStatus(err); got != http.StatusServiceUnavailable {
-			t.Errorf("%s: status %d", name, got)
-		}
-	}
-	// What an answer sends, as a header or as ConnectRPC trailer metadata,
-	// never names its wire code or its status: the transport records both in
-	// process.
-	noCode := `{"message":"try again","details":[` + service + `]}`
-	withCode := `{"code":"unavailable","message":"try again","details":[` + service + `]}`
-	for name, tc := range map[string]struct {
-		status  int
-		body    string
-		headers map[string]string
-	}{
-		"wire code header":  {http.StatusServiceUnavailable, noCode, map[string]string{"Polyester-Sdk-Answer-Wire-Code": "unavailable"}},
-		"wire code trailer": {http.StatusServiceUnavailable, noCode, map[string]string{"Trailer-Polyester-Sdk-Answer-Wire-Code": "unavailable"}},
-		"status header":     {http.StatusBadGateway, withCode, map[string]string{"Polyester-Sdk-Answer-Status": "503"}},
-		"status trailer":    {http.StatusBadGateway, withCode, map[string]string{"Trailer-Polyester-Sdk-Answer-Status": "503"}},
-		"both trailers":     {http.StatusBadGateway, noCode, map[string]string{"Trailer-Polyester-Sdk-Answer-Status": "503", "Trailer-Polyester-Sdk-Answer-Wire-Code": "unavailable"}},
-	} {
-		err := batchAgainstDetail(t, tc.status, "application/json", tc.body, tc.headers)
-		if !sdkerrors.MutationOutcomeUnknown(err) || sdkerrors.IsRetryable(err) {
-			t.Errorf("forged %s: %T %v, want an unknown outcome that is not retried", name, err, err)
-		}
-		if got := sdkerrors.AnswerStatus(err); got != tc.status {
-			t.Errorf("forged %s: status %d, want %d", name, got, tc.status)
-		}
-	}
-}
-
 // A null detail is a malformed answer: a ResponseContractError that keeps
 // the answer's status, never a panic and never a refusal.
 func TestInternalTransferBatchNullDetailIsAContractError(t *testing.T) {
@@ -317,49 +229,4 @@ func transferDetailBodyItem(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return `{"type":"transfer.v1.ErrorDetail","value":"` + base64.RawStdEncoding.EncodeToString(data) + `"}`
-}
-
-// The refusal's evidence is the error body as sent: exactly one details
-// entry, the transfer detail, and one code member. An entry connect-go cannot
-// decode or drops (no type, an empty object), another detail type, or a
-// repeated code member, in any letter case encoding/json matches, makes it
-// ambiguous: the batch keeps its unknown outcome.
-func TestInternalTransferBatchRefusalReadsTheRawBody(t *testing.T) {
-	service := transferDetailBodyItem(t)
-	problem := func(codes ...string) string {
-		members := ""
-		for _, code := range codes {
-			members += `"code":"` + code + `",`
-		}
-		return `{` + members + `"detail":"try again"}`
-	}
-	for name, tc := range map[string]struct {
-		contentType string
-		body        string
-		refused     bool
-	}{
-		"one detail":                     {"application/json", `{"code":"unavailable","message":"x","details":[` + service + `]}`, true},
-		"second entry without a type":    {"application/json", `{"code":"unavailable","message":"x","details":[` + service + `,{"value":"CAg="}]}`, false},
-		"second entry empty":             {"application/json", `{"code":"unavailable","message":"x","details":[` + service + `,{}]}`, false},
-		"second entry type only":         {"application/json", `{"code":"unavailable","message":"x","details":[` + service + `,{"type":"transfer.v1.ErrorDetail"}]}`, false},
-		"second entry null value":        {"application/json", `{"code":"unavailable","message":"x","details":[` + service + `,{"type":"transfer.v1.ErrorDetail","value":null}]}`, false},
-		"second entry another type":      {"application/json", `{"code":"unavailable","message":"x","details":[` + service + `,{"type":"foo.v1.Bar","value":"CAg="}]}`, false},
-		"two details members":            {"application/json", `{"code":"unavailable","message":"x","details":[` + service + `],"details":[` + service + `]}`, false},
-		"code internal then unavailable": {"application/json", `{"code":"internal","code":"unavailable","message":"x","details":[` + service + `]}`, false},
-		"code unavailable twice":         {"application/json", `{"code":"unavailable","code":"unavailable","message":"x","details":[` + service + `]}`, false},
-		"code in another letter case":    {"application/json", `{"Code":"internal","code":"unavailable","message":"x","details":[` + service + `]}`, false},
-		"one problem code":               {"application/problem+json", problem("SERVICE_UNAVAILABLE"), true},
-		"problem code twice":             {"application/problem+json", problem("INTERNAL_ERROR", "SERVICE_UNAVAILABLE"), false},
-	} {
-		err := batchAgainst(t, http.StatusServiceUnavailable, tc.contentType, tc.body)
-		if tc.refused && (!sdkerrors.IsRetryable(err) || sdkerrors.MutationOutcomeUnknown(err)) {
-			t.Errorf("%s: %T %v, want retryable with a known outcome", name, err, err)
-		}
-		if !tc.refused && (!sdkerrors.MutationOutcomeUnknown(err) || sdkerrors.IsRetryable(err)) {
-			t.Errorf("%s: %T %v, want an unknown outcome that is not retried", name, err, err)
-		}
-		if got := sdkerrors.AnswerStatus(err); got != http.StatusServiceUnavailable {
-			t.Errorf("%s: status %d", name, got)
-		}
-	}
 }
