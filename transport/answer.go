@@ -18,10 +18,11 @@ import (
 // timeout, without the answer's headers; answerInterceptor gives that error
 // the recorded ones.
 type answerRecord struct {
-	mu       sync.Mutex
-	status   int
-	wireCode string
-	header   http.Header
+	mu            sync.Mutex
+	status        int
+	wireCode      string
+	detailEntries int
+	header        http.Header
 }
 
 type answerRecordKey struct{}
@@ -40,7 +41,7 @@ func (r *answerRecord) clear() {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.status, r.wireCode, r.header = 0, "", nil
+	r.status, r.wireCode, r.detailEntries, r.header = 0, "", 0, nil
 }
 
 // set records a failed answer's status and the headers that name its delay.
@@ -56,18 +57,19 @@ func (r *answerRecord) set(resp *http.Response) {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.status, r.wireCode, r.header = resp.StatusCode, "", header
+	r.status, r.wireCode, r.detailEntries, r.header = resp.StatusCode, "", 0, header
 }
 
-// setWireCode records the code the answer's ConnectRPC error body named, as
-// the transport parsed it; empty when the body named none.
-func (r *answerRecord) setWireCode(code string) {
+// setBody records what the answer's error body, as sent, names: its code
+// (empty when it names none or more than one) and the number of entries of
+// its details member (-1 when it names that member more than once).
+func (r *answerRecord) setBody(wireCode string, detailEntries int) {
 	if r == nil {
 		return
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.wireCode = code
+	r.wireCode, r.detailEntries = wireCode, detailEntries
 }
 
 // attach gives err the recorded answer: its delay headers where the error
@@ -80,7 +82,7 @@ func (r *answerRecord) attach(err error) error {
 		return err
 	}
 	r.mu.Lock()
-	status, wireCode, header := r.status, r.wireCode, r.header
+	status, wireCode, detailEntries, header := r.status, r.wireCode, r.detailEntries, r.header
 	r.mu.Unlock()
 	if status == 0 {
 		return err
@@ -91,7 +93,7 @@ func (r *answerRecord) attach(err error) error {
 			meta[name] = values
 		}
 	}
-	return &wire.AnswerError{Err: err, Status: status, WireCode: wireCode}
+	return &wire.AnswerError{Err: err, Status: status, WireCode: wireCode, DetailEntries: detailEntries}
 }
 
 // answerInterceptor gives every call a record of its answer, which the

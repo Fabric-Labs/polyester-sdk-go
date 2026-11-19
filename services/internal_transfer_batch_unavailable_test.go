@@ -318,3 +318,48 @@ func transferDetailBodyItem(t *testing.T) string {
 	}
 	return `{"type":"transfer.v1.ErrorDetail","value":"` + base64.RawStdEncoding.EncodeToString(data) + `"}`
 }
+
+// The refusal's evidence is the error body as sent: exactly one details
+// entry, the transfer detail, and one code member. An entry connect-go cannot
+// decode or drops (no type, an empty object), another detail type, or a
+// repeated code member, in any letter case encoding/json matches, makes it
+// ambiguous: the batch keeps its unknown outcome.
+func TestInternalTransferBatchRefusalReadsTheRawBody(t *testing.T) {
+	service := transferDetailBodyItem(t)
+	problem := func(codes ...string) string {
+		members := ""
+		for _, code := range codes {
+			members += `"code":"` + code + `",`
+		}
+		return `{` + members + `"detail":"try again"}`
+	}
+	for name, tc := range map[string]struct {
+		contentType string
+		body        string
+		refused     bool
+	}{
+		"one detail":                     {"application/json", `{"code":"unavailable","message":"x","details":[` + service + `]}`, true},
+		"second entry without a type":    {"application/json", `{"code":"unavailable","message":"x","details":[` + service + `,{"value":"CAg="}]}`, false},
+		"second entry empty":             {"application/json", `{"code":"unavailable","message":"x","details":[` + service + `,{}]}`, false},
+		"second entry type only":         {"application/json", `{"code":"unavailable","message":"x","details":[` + service + `,{"type":"transfer.v1.ErrorDetail"}]}`, false},
+		"second entry null value":        {"application/json", `{"code":"unavailable","message":"x","details":[` + service + `,{"type":"transfer.v1.ErrorDetail","value":null}]}`, false},
+		"second entry another type":      {"application/json", `{"code":"unavailable","message":"x","details":[` + service + `,{"type":"foo.v1.Bar","value":"CAg="}]}`, false},
+		"two details members":            {"application/json", `{"code":"unavailable","message":"x","details":[` + service + `],"details":[` + service + `]}`, false},
+		"code internal then unavailable": {"application/json", `{"code":"internal","code":"unavailable","message":"x","details":[` + service + `]}`, false},
+		"code unavailable twice":         {"application/json", `{"code":"unavailable","code":"unavailable","message":"x","details":[` + service + `]}`, false},
+		"code in another letter case":    {"application/json", `{"Code":"internal","code":"unavailable","message":"x","details":[` + service + `]}`, false},
+		"one problem code":               {"application/problem+json", problem("SERVICE_UNAVAILABLE"), true},
+		"problem code twice":             {"application/problem+json", problem("INTERNAL_ERROR", "SERVICE_UNAVAILABLE"), false},
+	} {
+		err := batchAgainst(t, http.StatusServiceUnavailable, tc.contentType, tc.body)
+		if tc.refused && (!sdkerrors.IsRetryable(err) || sdkerrors.MutationOutcomeUnknown(err)) {
+			t.Errorf("%s: %T %v, want retryable with a known outcome", name, err, err)
+		}
+		if !tc.refused && (!sdkerrors.MutationOutcomeUnknown(err) || sdkerrors.IsRetryable(err)) {
+			t.Errorf("%s: %T %v, want an unknown outcome that is not retried", name, err, err)
+		}
+		if got := sdkerrors.AnswerStatus(err); got != http.StatusServiceUnavailable {
+			t.Errorf("%s: status %d", name, got)
+		}
+	}
+}
