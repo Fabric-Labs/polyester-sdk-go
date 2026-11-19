@@ -554,15 +554,20 @@ type prefixedBody struct {
 }
 
 // problemCodeSource is errors.CodeSourceProblem for an answer that is a
-// contract REST problem, a body whose media type is exactly
-// application/problem+json (any case, parameters allowed) with a code the
-// contract names, and empty for any other body, such as a gateway's JSON or
-// one whose Content-Type does not parse.
+// contract REST problem, a body with exactly one Content-Type field naming
+// one media type, exactly application/problem+json (any case, parameters
+// allowed), and a code the contract names. It is empty for any other body:
+// a gateway's JSON, a Content-Type that does not parse, several Content-Type
+// fields, or one field combining several media types.
 func problemCodeSource(resp *http.Response, recognised bool) string {
 	if !recognised {
 		return ""
 	}
-	mediaType, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	fields := resp.Header.Values("Content-Type")
+	if len(fields) != 1 || strings.Contains(fields[0], ",") {
+		return ""
+	}
+	mediaType, _, err := mime.ParseMediaType(fields[0])
 	if err != nil || mediaType != "application/problem+json" {
 		return ""
 	}
