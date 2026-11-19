@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -49,14 +50,17 @@ func answerAt(t *testing.T, answer http.HandlerFunc) (string, *atomic.Int32) {
 }
 
 // getTrigger reads a trigger once, as a caller does, and times it.
-func getTrigger(t *testing.T, apiURL string) (time.Duration, error) {
+// getTrigger reads a trigger on the fake clock and returns the read
+// retry's waits with the error: the retry budget counts those waits, not how
+// fast the machine answers.
+func getTrigger(t *testing.T, apiURL string) ([]time.Duration, error) {
 	t.Helper()
+	clock := useFakeClock(t)
 	service := capturedTriggers(t, apiURL)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	started := time.Now()
 	_, err := service.Get(ctx, nil, "7", nil)
-	return time.Since(started), err
+	return clock.Waits(), err
 }
 
 // The answer's status and delay are fixed when its headers arrive, so a
@@ -95,12 +99,12 @@ func TestBodyFailuresCarryTheAnswer(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			apiURL, calls := answerAt(t, tc.answer)
-			took, err := getTrigger(t, apiURL)
+			waits, err := getTrigger(t, apiURL)
 			if err == nil {
 				t.Fatal("no error")
 			}
-			if calls.Load() != 1 || took > 3*time.Second {
-				t.Errorf("%d requests in %v, want one and an immediate return", calls.Load(), took)
+			if calls.Load() != 1 || len(waits) != 0 {
+				t.Errorf("%d requests after waits %v, want one and no wait", calls.Load(), waits)
 			}
 			if got := sdkerrors.AnswerStatus(err); got != http.StatusServiceUnavailable {
 				t.Errorf("%T %v: status %d, want 503", err, err, got)
@@ -129,13 +133,13 @@ func TestRefusedRedirectsCarryTheAnswer(t *testing.T) {
 				w.Header().Set("Location", tc.location)
 				w.WriteHeader(http.StatusTemporaryRedirect)
 			})
-			took, err := getTrigger(t, apiURL)
+			waits, err := getTrigger(t, apiURL)
 			var refused *sdkerrors.RedirectRefusedError
 			if !errors.As(err, &refused) || refused.Malformed != tc.malformed {
 				t.Fatalf("%T %v, want a refused redirect (malformed %v)", err, err, tc.malformed)
 			}
-			if calls.Load() != 1 || targetCalls.Load() != 0 || took > 3*time.Second {
-				t.Errorf("%d requests, %d at the target, in %v", calls.Load(), targetCalls.Load(), took)
+			if calls.Load() != 1 || targetCalls.Load() != 0 || len(waits) != 0 {
+				t.Errorf("%d requests, %d at the target, after waits %v", calls.Load(), targetCalls.Load(), waits)
 			}
 			if got := sdkerrors.AnswerStatus(err); got != http.StatusTemporaryRedirect {
 				t.Errorf("status %d, want 307", got)
@@ -168,9 +172,14 @@ func TestUnfollowableRedirectCarriesTheAnswer(t *testing.T) {
 
 // A refused connection has no answer, so its error carries none.
 func TestRefusedConnectionCarriesNoAnswer(t *testing.T) {
-	_, err := getTrigger(t, "http://127.0.0.1:1")
+	waits, err := getTrigger(t, "http://127.0.0.1:1")
 	if err == nil {
 		t.Fatal("no error")
+	}
+	// A refused connection is retried within the budget: 25 ms doubling to
+	// 500 ms, seven waits.
+	if want := triggerReadBackoff(8); !slices.Equal(waits, want) {
+		t.Fatalf("waits=%v, want %v", waits, want)
 	}
 	if sdkerrors.AnswerStatus(err) != 0 || sdkerrors.RetryAfter(err) != nil {
 		t.Fatalf("%T %v carries an answer", err, err)

@@ -166,3 +166,17 @@ func useSimClock(t *testing.T) *simClock {
 	t.Cleanup(func() { waitClock = saved })
 	return clock
 }
+
+// triggerReadBackoff is the waits of a trigger read that made requests
+// attempts with no Retry-After: 25 ms doubling to 500 ms, one before each
+// attempt after the first. Seven fit the 2 s budget, so eight requests at
+// most.
+func triggerReadBackoff(requests int) []time.Duration {
+	waits := []time.Duration{}
+	delay := triggerReadRetry.first
+	for range max(requests-1, 0) {
+		waits = append(waits, delay)
+		delay = min(2*delay, triggerReadRetry.max)
+	}
+	return waits
+}

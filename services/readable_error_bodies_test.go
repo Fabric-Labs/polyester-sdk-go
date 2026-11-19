@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -101,8 +102,15 @@ func callWithErrorBody(t *testing.T, op string, status int, body errorBody, fail
 	cfg.APIURL = srv.URL
 	factory := transport.NewFactory(cfg, creds, nil)
 	if op == "read" {
+		// The read's retry budget counts its waits on the fake clock, not
+		// how fast a loaded machine answers each attempt.
+		clock := useFakeClock(t)
 		_, err = NewTriggersService(factory, nil, nil, nil, nil, nil, nil).Get(context.Background(), nil, "9", nil)
-		return calls.Load(), err
+		n := calls.Load()
+		if want := triggerReadBackoff(int(n)); !slices.Equal(clock.Waits(), want) {
+			t.Fatalf("%d requests after waits %v, want %v", n, clock.Waits(), want)
+		}
+		return n, err
 	}
 	cats := catalogs.NewManager()
 	if hydrateErr := cats.HydrateSpotConfig(map[string]any{"assets": []any{map[string]any{"asset": "BTC", "market_data_volume_scale": float64(8)}}, "pairs": []any{map[string]any{"symbol": "BTC-USDT", "symbol_id": float64(1), "base_asset": "BTC", "base_quantity_scale": float64(8), "quote_quantity_scale": float64(6)}}}); hydrateErr != nil {
