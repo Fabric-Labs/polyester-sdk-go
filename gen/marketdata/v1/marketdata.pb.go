@@ -246,6 +246,137 @@ func (PairStatus) EnumDescriptor() ([]byte, []int) {
 	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{2}
 }
 
+// PriceBandState is a pair's price band state.
+type PriceBandState int32
+
+const (
+	// Never returned.
+	PriceBandState_BAND_STATE_UNSPECIFIED PriceBandState = 0
+	// The band is on and at least one price lies inside it.
+	PriceBandState_ACTIVE PriceBandState = 1
+	// The pair applies no price band.
+	PriceBandState_OFF PriceBandState = 2
+	// The band is on and no price lies inside it: every order that adds
+	// exposure, market orders included, is rejected with PRICE_BAND_VIOLATION
+	// until the reference price or the band's settings change. This is not a
+	// trading halt.
+	PriceBandState_EMPTY PriceBandState = 3
+	// No band was confirmed current within the last 5 seconds: do not rely on
+	// the band received before. Only the price band streams send it, once, when
+	// the band lapses; GetPriceBand answers PRICE_BAND_STALE or
+	// PRICE_BAND_UNKNOWN instead, which means the same. An UNKNOWN band has no
+	// prices, reference source or settings. Its epoch, update ID and as-of time
+	// are those of the last confirmation of the band it replaces, 0 when there
+	// was none, and its update and valid-until times equal its as-of time. Keep
+	// the band with the greatest epoch, then update ID, then as-of time; at an
+	// equal one, UNKNOWN replaces the band, and a later confirmation replaces
+	// UNKNOWN.
+	PriceBandState_UNKNOWN PriceBandState = 4
+)
+
+// Enum value maps for PriceBandState.
+var (
+	PriceBandState_name = map[int32]string{
+		0: "BAND_STATE_UNSPECIFIED",
+		1: "ACTIVE",
+		2: "OFF",
+		3: "EMPTY",
+		4: "UNKNOWN",
+	}
+	PriceBandState_value = map[string]int32{
+		"BAND_STATE_UNSPECIFIED": 0,
+		"ACTIVE":                 1,
+		"OFF":                    2,
+		"EMPTY":                  3,
+		"UNKNOWN":                4,
+	}
+)
+
+func (x PriceBandState) Enum() *PriceBandState {
+	p := new(PriceBandState)
+	*p = x
+	return p
+}
+
+func (x PriceBandState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PriceBandState) Descriptor() protoreflect.EnumDescriptor {
+	return file_marketdata_v1_marketdata_proto_enumTypes[3].Descriptor()
+}
+
+func (PriceBandState) Type() protoreflect.EnumType {
+	return &file_marketdata_v1_marketdata_proto_enumTypes[3]
+}
+
+func (x PriceBandState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PriceBandState.Descriptor instead.
+func (PriceBandState) EnumDescriptor() ([]byte, []int) {
+	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{3}
+}
+
+// PriceBandReferenceSource is where a band's reference price came from.
+type PriceBandReferenceSource int32
+
+const (
+	// No reference price: the band is OFF.
+	PriceBandReferenceSource_REFERENCE_SOURCE_UNSPECIFIED PriceBandReferenceSource = 0
+	// The price of the pair's last trade.
+	PriceBandReferenceSource_LAST_TRADE PriceBandReferenceSource = 1
+	// The pair's listing reference price, on a pair that has not traded yet.
+	PriceBandReferenceSource_LISTING_REFERENCE PriceBandReferenceSource = 2
+	// The pair's index price, on the tick grid: the reference moves there when
+	// the candidate reference lies outside the band around the index price.
+	PriceBandReferenceSource_INDEX_PRICE PriceBandReferenceSource = 3
+)
+
+// Enum value maps for PriceBandReferenceSource.
+var (
+	PriceBandReferenceSource_name = map[int32]string{
+		0: "REFERENCE_SOURCE_UNSPECIFIED",
+		1: "LAST_TRADE",
+		2: "LISTING_REFERENCE",
+		3: "INDEX_PRICE",
+	}
+	PriceBandReferenceSource_value = map[string]int32{
+		"REFERENCE_SOURCE_UNSPECIFIED": 0,
+		"LAST_TRADE":                   1,
+		"LISTING_REFERENCE":            2,
+		"INDEX_PRICE":                  3,
+	}
+)
+
+func (x PriceBandReferenceSource) Enum() *PriceBandReferenceSource {
+	p := new(PriceBandReferenceSource)
+	*p = x
+	return p
+}
+
+func (x PriceBandReferenceSource) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PriceBandReferenceSource) Descriptor() protoreflect.EnumDescriptor {
+	return file_marketdata_v1_marketdata_proto_enumTypes[4].Descriptor()
+}
+
+func (PriceBandReferenceSource) Type() protoreflect.EnumType {
+	return &file_marketdata_v1_marketdata_proto_enumTypes[4]
+}
+
+func (x PriceBandReferenceSource) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PriceBandReferenceSource.Descriptor instead.
+func (PriceBandReferenceSource) EnumDescriptor() ([]byte, []int) {
+	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{4}
+}
+
 // GetTradesRequest selects recent public trades for one spot market.
 //
 // Results are ordered newest-first by execution timestamp, with match_id as a
@@ -2080,6 +2211,316 @@ func (x *GetSpotConfigResponse) GetMaxOpenOrdersTotal() uint32 {
 	return 0
 }
 
+// LivePriceBand is one pair's price band as of as_of_ts_ns: the reference
+// price and the limit prices the pair admits. It is advisory: the pair checks
+// every order against its own band when the order arrives, and the band may
+// have moved by then.
+//
+// Limits are inclusive and side-specific. A buy limit order is checked
+// against max_buy_price_ticks, and a sell limit order against
+// min_sell_price_ticks; min_buy_price_ticks and max_sell_price_ticks apply
+// only when present. REST responses render prices as decimal strings and
+// times as RFC 3339 timestamps.
+type LivePriceBand struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable numeric pair id from GetSpotConfig.
+	SymbolId uint32 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
+	// The band's state.
+	State PriceBandState `protobuf:"varint,2,opt,name=state,proto3,enum=marketdata.v1.PriceBandState" json:"state,omitempty"`
+	// The band's reference price in quote-asset units scaled by 1e9. Present
+	// when the state is ACTIVE or EMPTY.
+	ReferencePriceTicks *int64 `protobuf:"varint,3,opt,name=reference_price_ticks,json=referencePriceTicks,proto3,oneof" json:"reference_price_ticks,omitempty"`
+	// Where the reference price came from. REFERENCE_SOURCE_UNSPECIFIED when
+	// the state is OFF or UNKNOWN.
+	ReferenceSource PriceBandReferenceSource `protobuf:"varint,4,opt,name=reference_source,json=referenceSource,proto3,enum=marketdata.v1.PriceBandReferenceSource" json:"reference_source,omitempty"`
+	// The highest buy limit price admitted, inclusive, in quote-asset units
+	// scaled by 1e9. Present only when the state is ACTIVE.
+	MaxBuyPriceTicks *int64 `protobuf:"varint,5,opt,name=max_buy_price_ticks,json=maxBuyPriceTicks,proto3,oneof" json:"max_buy_price_ticks,omitempty"`
+	// The lowest sell limit price admitted, inclusive, in quote-asset units
+	// scaled by 1e9. Present only when the state is ACTIVE.
+	MinSellPriceTicks *int64 `protobuf:"varint,6,opt,name=min_sell_price_ticks,json=minSellPriceTicks,proto3,oneof" json:"min_sell_price_ticks,omitempty"`
+	// The lowest buy limit price admitted, inclusive, in quote-asset units
+	// scaled by 1e9. Present only when the state is ACTIVE and the band limits
+	// passive prices too; absent otherwise, when any buy price below
+	// max_buy_price_ticks is admitted.
+	MinBuyPriceTicks *int64 `protobuf:"varint,7,opt,name=min_buy_price_ticks,json=minBuyPriceTicks,proto3,oneof" json:"min_buy_price_ticks,omitempty"`
+	// The highest sell limit price admitted, inclusive, in quote-asset units
+	// scaled by 1e9. Present only when the state is ACTIVE and the band limits
+	// passive prices too; absent otherwise, when any sell price above
+	// min_sell_price_ticks is admitted.
+	MaxSellPriceTicks *int64 `protobuf:"varint,8,opt,name=max_sell_price_ticks,json=maxSellPriceTicks,proto3,oneof" json:"max_sell_price_ticks,omitempty"`
+	// When the band last changed, in nanoseconds since the Unix epoch (UTC): its
+	// first setting, OFF included, a change of its settings, or a move of its
+	// reference price, to the same price included.
+	UpdatedTsNs uint64 `protobuf:"varint,9,opt,name=updated_ts_ns,json=updatedTsNs,proto3" json:"updated_ts_ns,omitempty"`
+	// From when the next order operation on the pair may move the reference
+	// price, in nanoseconds since the Unix epoch (UTC). Nothing moves at that
+	// time by itself: from then on, an order, modification, cancellation or
+	// trigger on the pair can move the reference to a newer trade's price, or to
+	// the index price. Present when the state is ACTIVE or EMPTY.
+	ReanchorEligibleTsNs *uint64 `protobuf:"varint,10,opt,name=reanchor_eligible_ts_ns,json=reanchorEligibleTsNs,proto3,oneof" json:"reanchor_eligible_ts_ns,omitempty"`
+	// True when a trade newer than the reference price is waiting: once the
+	// re-anchor eligibility time has passed, the next order operation moves the
+	// reference to it, unless the index price moves it instead. False does not
+	// promise that the band stays: a move to the index price needs no trade.
+	ReanchorPending bool `protobuf:"varint,11,opt,name=reanchor_pending,json=reanchorPending,proto3" json:"reanchor_pending,omitempty"`
+	// The band's settings, as GetSpotConfig returns them. Absent when the state
+	// is OFF, or when the settings in effect cannot be expressed exactly in
+	// basis points and milliseconds; the limits above are authoritative either
+	// way.
+	Parameters *PriceBand `protobuf:"bytes,12,opt,name=parameters,proto3" json:"parameters,omitempty"`
+	// The band's epoch. It never decreases, and a band of a greater epoch is
+	// newer. Compare update_id only within one epoch.
+	Epoch uint64 `protobuf:"varint,13,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	// Increases with each band update within an epoch, and may increase without
+	// one. Compare it only within one epoch: a greater value is newer.
+	UpdateId uint64 `protobuf:"varint,14,opt,name=update_id,json=updateId,proto3" json:"update_id,omitempty"`
+	// When the band was last confirmed current, in nanoseconds since the Unix
+	// epoch (UTC).
+	AsOfTsNs uint64 `protobuf:"varint,15,opt,name=as_of_ts_ns,json=asOfTsNs,proto3" json:"as_of_ts_ns,omitempty"`
+	// as_of_ts_ns plus 5 seconds. After it, treat the band as unknown and read
+	// it again.
+	ValidUntilTsNs uint64 `protobuf:"varint,16,opt,name=valid_until_ts_ns,json=validUntilTsNs,proto3" json:"valid_until_ts_ns,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *LivePriceBand) Reset() {
+	*x = LivePriceBand{}
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LivePriceBand) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LivePriceBand) ProtoMessage() {}
+
+func (x *LivePriceBand) ProtoReflect() protoreflect.Message {
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LivePriceBand.ProtoReflect.Descriptor instead.
+func (*LivePriceBand) Descriptor() ([]byte, []int) {
+	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *LivePriceBand) GetSymbolId() uint32 {
+	if x != nil {
+		return x.SymbolId
+	}
+	return 0
+}
+
+func (x *LivePriceBand) GetState() PriceBandState {
+	if x != nil {
+		return x.State
+	}
+	return PriceBandState_BAND_STATE_UNSPECIFIED
+}
+
+func (x *LivePriceBand) GetReferencePriceTicks() int64 {
+	if x != nil && x.ReferencePriceTicks != nil {
+		return *x.ReferencePriceTicks
+	}
+	return 0
+}
+
+func (x *LivePriceBand) GetReferenceSource() PriceBandReferenceSource {
+	if x != nil {
+		return x.ReferenceSource
+	}
+	return PriceBandReferenceSource_REFERENCE_SOURCE_UNSPECIFIED
+}
+
+func (x *LivePriceBand) GetMaxBuyPriceTicks() int64 {
+	if x != nil && x.MaxBuyPriceTicks != nil {
+		return *x.MaxBuyPriceTicks
+	}
+	return 0
+}
+
+func (x *LivePriceBand) GetMinSellPriceTicks() int64 {
+	if x != nil && x.MinSellPriceTicks != nil {
+		return *x.MinSellPriceTicks
+	}
+	return 0
+}
+
+func (x *LivePriceBand) GetMinBuyPriceTicks() int64 {
+	if x != nil && x.MinBuyPriceTicks != nil {
+		return *x.MinBuyPriceTicks
+	}
+	return 0
+}
+
+func (x *LivePriceBand) GetMaxSellPriceTicks() int64 {
+	if x != nil && x.MaxSellPriceTicks != nil {
+		return *x.MaxSellPriceTicks
+	}
+	return 0
+}
+
+func (x *LivePriceBand) GetUpdatedTsNs() uint64 {
+	if x != nil {
+		return x.UpdatedTsNs
+	}
+	return 0
+}
+
+func (x *LivePriceBand) GetReanchorEligibleTsNs() uint64 {
+	if x != nil && x.ReanchorEligibleTsNs != nil {
+		return *x.ReanchorEligibleTsNs
+	}
+	return 0
+}
+
+func (x *LivePriceBand) GetReanchorPending() bool {
+	if x != nil {
+		return x.ReanchorPending
+	}
+	return false
+}
+
+func (x *LivePriceBand) GetParameters() *PriceBand {
+	if x != nil {
+		return x.Parameters
+	}
+	return nil
+}
+
+func (x *LivePriceBand) GetEpoch() uint64 {
+	if x != nil {
+		return x.Epoch
+	}
+	return 0
+}
+
+func (x *LivePriceBand) GetUpdateId() uint64 {
+	if x != nil {
+		return x.UpdateId
+	}
+	return 0
+}
+
+func (x *LivePriceBand) GetAsOfTsNs() uint64 {
+	if x != nil {
+		return x.AsOfTsNs
+	}
+	return 0
+}
+
+func (x *LivePriceBand) GetValidUntilTsNs() uint64 {
+	if x != nil {
+		return x.ValidUntilTsNs
+	}
+	return 0
+}
+
+// GetPriceBandRequest selects one spot pair.
+type GetPriceBandRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable numeric pair id from GetSpotConfig.
+	SymbolId      uint32 `protobuf:"varint,1,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPriceBandRequest) Reset() {
+	*x = GetPriceBandRequest{}
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPriceBandRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPriceBandRequest) ProtoMessage() {}
+
+func (x *GetPriceBandRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPriceBandRequest.ProtoReflect.Descriptor instead.
+func (*GetPriceBandRequest) Descriptor() ([]byte, []int) {
+	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *GetPriceBandRequest) GetSymbolId() uint32 {
+	if x != nil {
+		return x.SymbolId
+	}
+	return 0
+}
+
+// GetPriceBandResponse carries the pair's live price band.
+type GetPriceBandResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The pair's price band, confirmed current within the last 5 seconds.
+	// GetPriceBand never returns an UNKNOWN band: it refuses one. The price
+	// band streams send this message with an UNKNOWN band too.
+	Band          *LivePriceBand `protobuf:"bytes,1,opt,name=band,proto3" json:"band,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPriceBandResponse) Reset() {
+	*x = GetPriceBandResponse{}
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPriceBandResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPriceBandResponse) ProtoMessage() {}
+
+func (x *GetPriceBandResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPriceBandResponse.ProtoReflect.Descriptor instead.
+func (*GetPriceBandResponse) Descriptor() ([]byte, []int) {
+	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *GetPriceBandResponse) GetBand() *LivePriceBand {
+	if x != nil {
+		return x.Band
+	}
+	return nil
+}
+
 var File_marketdata_v1_marketdata_proto protoreflect.FileDescriptor
 
 const file_marketdata_v1_marketdata_proto_rawDesc = "" +
@@ -2249,7 +2690,37 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\x06assets\x18\x01 \x03(\v2\x1a.marketdata.v1.AssetConfigR\x06assets\x12/\n" +
 	"\x05pairs\x18\x02 \x03(\v2\x19.marketdata.v1.PairConfigR\x05pairs\x12\x15\n" +
 	"\x06ts_sec\x18\x03 \x01(\x04R\x05tsSec\x121\n" +
-	"\x15max_open_orders_total\x18\x04 \x01(\rR\x12maxOpenOrdersTotal*5\n" +
+	"\x15max_open_orders_total\x18\x04 \x01(\rR\x12maxOpenOrdersTotal\"\x9c\a\n" +
+	"\rLivePriceBand\x12\x1b\n" +
+	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x123\n" +
+	"\x05state\x18\x02 \x01(\x0e2\x1d.marketdata.v1.PriceBandStateR\x05state\x127\n" +
+	"\x15reference_price_ticks\x18\x03 \x01(\x03H\x00R\x13referencePriceTicks\x88\x01\x01\x12R\n" +
+	"\x10reference_source\x18\x04 \x01(\x0e2'.marketdata.v1.PriceBandReferenceSourceR\x0freferenceSource\x122\n" +
+	"\x13max_buy_price_ticks\x18\x05 \x01(\x03H\x01R\x10maxBuyPriceTicks\x88\x01\x01\x124\n" +
+	"\x14min_sell_price_ticks\x18\x06 \x01(\x03H\x02R\x11minSellPriceTicks\x88\x01\x01\x122\n" +
+	"\x13min_buy_price_ticks\x18\a \x01(\x03H\x03R\x10minBuyPriceTicks\x88\x01\x01\x124\n" +
+	"\x14max_sell_price_ticks\x18\b \x01(\x03H\x04R\x11maxSellPriceTicks\x88\x01\x01\x12\"\n" +
+	"\rupdated_ts_ns\x18\t \x01(\x04R\vupdatedTsNs\x12:\n" +
+	"\x17reanchor_eligible_ts_ns\x18\n" +
+	" \x01(\x04H\x05R\x14reanchorEligibleTsNs\x88\x01\x01\x12)\n" +
+	"\x10reanchor_pending\x18\v \x01(\bR\x0freanchorPending\x128\n" +
+	"\n" +
+	"parameters\x18\f \x01(\v2\x18.marketdata.v1.PriceBandR\n" +
+	"parameters\x12\x14\n" +
+	"\x05epoch\x18\r \x01(\x04R\x05epoch\x12\x1b\n" +
+	"\tupdate_id\x18\x0e \x01(\x04R\bupdateId\x12\x1d\n" +
+	"\vas_of_ts_ns\x18\x0f \x01(\x04R\basOfTsNs\x12)\n" +
+	"\x11valid_until_ts_ns\x18\x10 \x01(\x04R\x0evalidUntilTsNsB\x18\n" +
+	"\x16_reference_price_ticksB\x16\n" +
+	"\x14_max_buy_price_ticksB\x17\n" +
+	"\x15_min_sell_price_ticksB\x16\n" +
+	"\x14_min_buy_price_ticksB\x17\n" +
+	"\x15_max_sell_price_ticksB\x1a\n" +
+	"\x18_reanchor_eligible_ts_ns\";\n" +
+	"\x13GetPriceBandRequest\x12$\n" +
+	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\"H\n" +
+	"\x14GetPriceBandResponse\x120\n" +
+	"\x04band\x18\x01 \x01(\v2\x1c.marketdata.v1.LivePriceBandR\x04band*5\n" +
 	"\n" +
 	"SideFilter\x12\x14\n" +
 	"\x10SIDE_UNSPECIFIED\x10\x00\x12\a\n" +
@@ -2290,14 +2761,28 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\x17PAIR_STATUS_CANCEL_ONLY\x10\x03\x12\x19\n" +
 	"\x15PAIR_STATUS_POST_ONLY\x10\x04\x12\x1b\n" +
 	"\x17PAIR_STATUS_REDUCE_ONLY\x10\x05\x12\x16\n" +
-	"\x12PAIR_STATUS_HALTED\x10\x062\x8b\x04\n" +
+	"\x12PAIR_STATUS_HALTED\x10\x06*Y\n" +
+	"\x0ePriceBandState\x12\x1a\n" +
+	"\x16BAND_STATE_UNSPECIFIED\x10\x00\x12\n" +
+	"\n" +
+	"\x06ACTIVE\x10\x01\x12\a\n" +
+	"\x03OFF\x10\x02\x12\t\n" +
+	"\x05EMPTY\x10\x03\x12\v\n" +
+	"\aUNKNOWN\x10\x04*t\n" +
+	"\x18PriceBandReferenceSource\x12 \n" +
+	"\x1cREFERENCE_SOURCE_UNSPECIFIED\x10\x00\x12\x0e\n" +
+	"\n" +
+	"LAST_TRADE\x10\x01\x12\x15\n" +
+	"\x11LISTING_REFERENCE\x10\x02\x12\x0f\n" +
+	"\vINDEX_PRICE\x10\x032\xea\x04\n" +
 	"\x11MarketDataService\x12c\n" +
 	"\rListAssetInfo\x12#.marketdata.v1.ListAssetInfoRequest\x1a$.marketdata.v1.ListAssetInfoResponse\"\a\x88\xb5\x18\x01\x90\x02\x01\x12T\n" +
 	"\tGetTrades\x12\x1f.marketdata.v1.GetTradesRequest\x1a .marketdata.v1.GetTradesResponse\"\x04\x88\xb5\x18\x01\x12W\n" +
 	"\n" +
 	"GetCandles\x12 .marketdata.v1.GetCandlesRequest\x1a!.marketdata.v1.GetCandlesResponse\"\x04\x88\xb5\x18\x01\x12p\n" +
 	"\x11GetCandlesColumns\x12'.marketdata.v1.GetCandlesColumnsRequest\x1a(.marketdata.v1.GetCandlesColumnsResponse\"\b\x88\xb5\x18\x01\x90\xb5\x18\x01\x12`\n" +
-	"\rGetSpotConfig\x12#.marketdata.v1.GetSpotConfigRequest\x1a$.marketdata.v1.GetSpotConfigResponse\"\x04\x88\xb5\x18\x01\x1a\x0e\x8a\xb5\x18\n" +
+	"\rGetSpotConfig\x12#.marketdata.v1.GetSpotConfigRequest\x1a$.marketdata.v1.GetSpotConfigResponse\"\x04\x88\xb5\x18\x01\x12]\n" +
+	"\fGetPriceBand\x12\".marketdata.v1.GetPriceBandRequest\x1a#.marketdata.v1.GetPriceBandResponse\"\x04\x88\xb5\x18\x01\x1a\x0e\x8a\xb5\x18\n" +
 	"marketdataBHZFgithub.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1;marketdatav1b\x06proto3"
 
 var (
@@ -2312,73 +2797,84 @@ func file_marketdata_v1_marketdata_proto_rawDescGZIP() []byte {
 	return file_marketdata_v1_marketdata_proto_rawDescData
 }
 
-var file_marketdata_v1_marketdata_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_marketdata_v1_marketdata_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_marketdata_v1_marketdata_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
+var file_marketdata_v1_marketdata_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_marketdata_v1_marketdata_proto_goTypes = []any{
 	(SideFilter)(0),                   // 0: marketdata.v1.SideFilter
 	(Timeframe)(0),                    // 1: marketdata.v1.Timeframe
 	(PairStatus)(0),                   // 2: marketdata.v1.PairStatus
-	(*GetTradesRequest)(nil),          // 3: marketdata.v1.GetTradesRequest
-	(*MarketTrade)(nil),               // 4: marketdata.v1.MarketTrade
-	(*MarketTradeBatch)(nil),          // 5: marketdata.v1.MarketTradeBatch
-	(*TradeEpochEnd)(nil),             // 6: marketdata.v1.TradeEpochEnd
-	(*GetTradesResponse)(nil),         // 7: marketdata.v1.GetTradesResponse
-	(*GetCandlesRequest)(nil),         // 8: marketdata.v1.GetCandlesRequest
-	(*GetCandlesColumnsRequest)(nil),  // 9: marketdata.v1.GetCandlesColumnsRequest
-	(*CandlePoint)(nil),               // 10: marketdata.v1.CandlePoint
-	(*GetCandlesResponse)(nil),        // 11: marketdata.v1.GetCandlesResponse
-	(*GetCandlesColumnsResponse)(nil), // 12: marketdata.v1.GetCandlesColumnsResponse
-	(*Candle)(nil),                    // 13: marketdata.v1.Candle
-	(*AssetConfig)(nil),               // 14: marketdata.v1.AssetConfig
-	(*PairMarketdataConfig)(nil),      // 15: marketdata.v1.PairMarketdataConfig
-	(*PairConfig)(nil),                // 16: marketdata.v1.PairConfig
-	(*PriceBand)(nil),                 // 17: marketdata.v1.PriceBand
-	(*GetSpotConfigRequest)(nil),      // 18: marketdata.v1.GetSpotConfigRequest
-	(*GetSpotConfigResponse)(nil),     // 19: marketdata.v1.GetSpotConfigResponse
-	(*timestamppb.Timestamp)(nil),     // 20: google.protobuf.Timestamp
-	(*ListAssetInfoRequest)(nil),      // 21: marketdata.v1.ListAssetInfoRequest
-	(*ListAssetInfoResponse)(nil),     // 22: marketdata.v1.ListAssetInfoResponse
+	(PriceBandState)(0),               // 3: marketdata.v1.PriceBandState
+	(PriceBandReferenceSource)(0),     // 4: marketdata.v1.PriceBandReferenceSource
+	(*GetTradesRequest)(nil),          // 5: marketdata.v1.GetTradesRequest
+	(*MarketTrade)(nil),               // 6: marketdata.v1.MarketTrade
+	(*MarketTradeBatch)(nil),          // 7: marketdata.v1.MarketTradeBatch
+	(*TradeEpochEnd)(nil),             // 8: marketdata.v1.TradeEpochEnd
+	(*GetTradesResponse)(nil),         // 9: marketdata.v1.GetTradesResponse
+	(*GetCandlesRequest)(nil),         // 10: marketdata.v1.GetCandlesRequest
+	(*GetCandlesColumnsRequest)(nil),  // 11: marketdata.v1.GetCandlesColumnsRequest
+	(*CandlePoint)(nil),               // 12: marketdata.v1.CandlePoint
+	(*GetCandlesResponse)(nil),        // 13: marketdata.v1.GetCandlesResponse
+	(*GetCandlesColumnsResponse)(nil), // 14: marketdata.v1.GetCandlesColumnsResponse
+	(*Candle)(nil),                    // 15: marketdata.v1.Candle
+	(*AssetConfig)(nil),               // 16: marketdata.v1.AssetConfig
+	(*PairMarketdataConfig)(nil),      // 17: marketdata.v1.PairMarketdataConfig
+	(*PairConfig)(nil),                // 18: marketdata.v1.PairConfig
+	(*PriceBand)(nil),                 // 19: marketdata.v1.PriceBand
+	(*GetSpotConfigRequest)(nil),      // 20: marketdata.v1.GetSpotConfigRequest
+	(*GetSpotConfigResponse)(nil),     // 21: marketdata.v1.GetSpotConfigResponse
+	(*LivePriceBand)(nil),             // 22: marketdata.v1.LivePriceBand
+	(*GetPriceBandRequest)(nil),       // 23: marketdata.v1.GetPriceBandRequest
+	(*GetPriceBandResponse)(nil),      // 24: marketdata.v1.GetPriceBandResponse
+	(*timestamppb.Timestamp)(nil),     // 25: google.protobuf.Timestamp
+	(*ListAssetInfoRequest)(nil),      // 26: marketdata.v1.ListAssetInfoRequest
+	(*ListAssetInfoResponse)(nil),     // 27: marketdata.v1.ListAssetInfoResponse
 }
 var file_marketdata_v1_marketdata_proto_depIdxs = []int32{
-	20, // 0: marketdata.v1.GetTradesRequest.start_time:type_name -> google.protobuf.Timestamp
-	20, // 1: marketdata.v1.GetTradesRequest.end_time:type_name -> google.protobuf.Timestamp
+	25, // 0: marketdata.v1.GetTradesRequest.start_time:type_name -> google.protobuf.Timestamp
+	25, // 1: marketdata.v1.GetTradesRequest.end_time:type_name -> google.protobuf.Timestamp
 	0,  // 2: marketdata.v1.GetTradesRequest.side:type_name -> marketdata.v1.SideFilter
-	4,  // 3: marketdata.v1.MarketTradeBatch.events:type_name -> marketdata.v1.MarketTrade
-	4,  // 4: marketdata.v1.GetTradesResponse.trades:type_name -> marketdata.v1.MarketTrade
-	6,  // 5: marketdata.v1.GetTradesResponse.epoch_ends:type_name -> marketdata.v1.TradeEpochEnd
+	6,  // 3: marketdata.v1.MarketTradeBatch.events:type_name -> marketdata.v1.MarketTrade
+	6,  // 4: marketdata.v1.GetTradesResponse.trades:type_name -> marketdata.v1.MarketTrade
+	8,  // 5: marketdata.v1.GetTradesResponse.epoch_ends:type_name -> marketdata.v1.TradeEpochEnd
 	1,  // 6: marketdata.v1.GetCandlesRequest.timeframe:type_name -> marketdata.v1.Timeframe
-	20, // 7: marketdata.v1.GetCandlesRequest.start_time:type_name -> google.protobuf.Timestamp
-	20, // 8: marketdata.v1.GetCandlesRequest.end_time:type_name -> google.protobuf.Timestamp
+	25, // 7: marketdata.v1.GetCandlesRequest.start_time:type_name -> google.protobuf.Timestamp
+	25, // 8: marketdata.v1.GetCandlesRequest.end_time:type_name -> google.protobuf.Timestamp
 	1,  // 9: marketdata.v1.GetCandlesColumnsRequest.timeframe:type_name -> marketdata.v1.Timeframe
-	20, // 10: marketdata.v1.GetCandlesColumnsRequest.start_time:type_name -> google.protobuf.Timestamp
-	20, // 11: marketdata.v1.GetCandlesColumnsRequest.end_time:type_name -> google.protobuf.Timestamp
+	25, // 10: marketdata.v1.GetCandlesColumnsRequest.start_time:type_name -> google.protobuf.Timestamp
+	25, // 11: marketdata.v1.GetCandlesColumnsRequest.end_time:type_name -> google.protobuf.Timestamp
 	1,  // 12: marketdata.v1.GetCandlesResponse.timeframe:type_name -> marketdata.v1.Timeframe
-	10, // 13: marketdata.v1.GetCandlesResponse.candles:type_name -> marketdata.v1.CandlePoint
-	10, // 14: marketdata.v1.GetCandlesResponse.reference_candles:type_name -> marketdata.v1.CandlePoint
+	12, // 13: marketdata.v1.GetCandlesResponse.candles:type_name -> marketdata.v1.CandlePoint
+	12, // 14: marketdata.v1.GetCandlesResponse.reference_candles:type_name -> marketdata.v1.CandlePoint
 	1,  // 15: marketdata.v1.GetCandlesColumnsResponse.timeframe:type_name -> marketdata.v1.Timeframe
 	1,  // 16: marketdata.v1.Candle.timeframe:type_name -> marketdata.v1.Timeframe
-	15, // 17: marketdata.v1.PairConfig.marketdata:type_name -> marketdata.v1.PairMarketdataConfig
-	20, // 18: marketdata.v1.PairConfig.listing_at:type_name -> google.protobuf.Timestamp
-	20, // 19: marketdata.v1.PairConfig.delisting_at:type_name -> google.protobuf.Timestamp
+	17, // 17: marketdata.v1.PairConfig.marketdata:type_name -> marketdata.v1.PairMarketdataConfig
+	25, // 18: marketdata.v1.PairConfig.listing_at:type_name -> google.protobuf.Timestamp
+	25, // 19: marketdata.v1.PairConfig.delisting_at:type_name -> google.protobuf.Timestamp
 	2,  // 20: marketdata.v1.PairConfig.status:type_name -> marketdata.v1.PairStatus
-	17, // 21: marketdata.v1.PairConfig.price_band:type_name -> marketdata.v1.PriceBand
-	14, // 22: marketdata.v1.GetSpotConfigResponse.assets:type_name -> marketdata.v1.AssetConfig
-	16, // 23: marketdata.v1.GetSpotConfigResponse.pairs:type_name -> marketdata.v1.PairConfig
-	21, // 24: marketdata.v1.MarketDataService.ListAssetInfo:input_type -> marketdata.v1.ListAssetInfoRequest
-	3,  // 25: marketdata.v1.MarketDataService.GetTrades:input_type -> marketdata.v1.GetTradesRequest
-	8,  // 26: marketdata.v1.MarketDataService.GetCandles:input_type -> marketdata.v1.GetCandlesRequest
-	9,  // 27: marketdata.v1.MarketDataService.GetCandlesColumns:input_type -> marketdata.v1.GetCandlesColumnsRequest
-	18, // 28: marketdata.v1.MarketDataService.GetSpotConfig:input_type -> marketdata.v1.GetSpotConfigRequest
-	22, // 29: marketdata.v1.MarketDataService.ListAssetInfo:output_type -> marketdata.v1.ListAssetInfoResponse
-	7,  // 30: marketdata.v1.MarketDataService.GetTrades:output_type -> marketdata.v1.GetTradesResponse
-	11, // 31: marketdata.v1.MarketDataService.GetCandles:output_type -> marketdata.v1.GetCandlesResponse
-	12, // 32: marketdata.v1.MarketDataService.GetCandlesColumns:output_type -> marketdata.v1.GetCandlesColumnsResponse
-	19, // 33: marketdata.v1.MarketDataService.GetSpotConfig:output_type -> marketdata.v1.GetSpotConfigResponse
-	29, // [29:34] is the sub-list for method output_type
-	24, // [24:29] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	19, // 21: marketdata.v1.PairConfig.price_band:type_name -> marketdata.v1.PriceBand
+	16, // 22: marketdata.v1.GetSpotConfigResponse.assets:type_name -> marketdata.v1.AssetConfig
+	18, // 23: marketdata.v1.GetSpotConfigResponse.pairs:type_name -> marketdata.v1.PairConfig
+	3,  // 24: marketdata.v1.LivePriceBand.state:type_name -> marketdata.v1.PriceBandState
+	4,  // 25: marketdata.v1.LivePriceBand.reference_source:type_name -> marketdata.v1.PriceBandReferenceSource
+	19, // 26: marketdata.v1.LivePriceBand.parameters:type_name -> marketdata.v1.PriceBand
+	22, // 27: marketdata.v1.GetPriceBandResponse.band:type_name -> marketdata.v1.LivePriceBand
+	26, // 28: marketdata.v1.MarketDataService.ListAssetInfo:input_type -> marketdata.v1.ListAssetInfoRequest
+	5,  // 29: marketdata.v1.MarketDataService.GetTrades:input_type -> marketdata.v1.GetTradesRequest
+	10, // 30: marketdata.v1.MarketDataService.GetCandles:input_type -> marketdata.v1.GetCandlesRequest
+	11, // 31: marketdata.v1.MarketDataService.GetCandlesColumns:input_type -> marketdata.v1.GetCandlesColumnsRequest
+	20, // 32: marketdata.v1.MarketDataService.GetSpotConfig:input_type -> marketdata.v1.GetSpotConfigRequest
+	23, // 33: marketdata.v1.MarketDataService.GetPriceBand:input_type -> marketdata.v1.GetPriceBandRequest
+	27, // 34: marketdata.v1.MarketDataService.ListAssetInfo:output_type -> marketdata.v1.ListAssetInfoResponse
+	9,  // 35: marketdata.v1.MarketDataService.GetTrades:output_type -> marketdata.v1.GetTradesResponse
+	13, // 36: marketdata.v1.MarketDataService.GetCandles:output_type -> marketdata.v1.GetCandlesResponse
+	14, // 37: marketdata.v1.MarketDataService.GetCandlesColumns:output_type -> marketdata.v1.GetCandlesColumnsResponse
+	21, // 38: marketdata.v1.MarketDataService.GetSpotConfig:output_type -> marketdata.v1.GetSpotConfigResponse
+	24, // 39: marketdata.v1.MarketDataService.GetPriceBand:output_type -> marketdata.v1.GetPriceBandResponse
+	34, // [34:40] is the sub-list for method output_type
+	28, // [28:34] is the sub-list for method input_type
+	28, // [28:28] is the sub-list for extension type_name
+	28, // [28:28] is the sub-list for extension extendee
+	0,  // [0:28] is the sub-list for field type_name
 }
 
 func init() { file_marketdata_v1_marketdata_proto_init() }
@@ -2390,13 +2886,14 @@ func file_marketdata_v1_marketdata_proto_init() {
 	file_marketdata_v1_marketdata_proto_msgTypes[0].OneofWrappers = []any{}
 	file_marketdata_v1_marketdata_proto_msgTypes[11].OneofWrappers = []any{}
 	file_marketdata_v1_marketdata_proto_msgTypes[13].OneofWrappers = []any{}
+	file_marketdata_v1_marketdata_proto_msgTypes[17].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_marketdata_v1_marketdata_proto_rawDesc), len(file_marketdata_v1_marketdata_proto_rawDesc)),
-			NumEnums:      3,
-			NumMessages:   17,
+			NumEnums:      5,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -45,6 +45,9 @@ const (
 	// WithdrawServiceCreateWalletTradingWithdrawProcedure is the fully-qualified name of the
 	// WithdrawService's CreateWalletTradingWithdraw RPC.
 	WithdrawServiceCreateWalletTradingWithdrawProcedure = "/chain.withdraw.v1.WithdrawService/CreateWalletTradingWithdraw"
+	// WithdrawServiceCreateWalletTradingToFundingBatchProcedure is the fully-qualified name of the
+	// WithdrawService's CreateWalletTradingToFundingBatch RPC.
+	WithdrawServiceCreateWalletTradingToFundingBatchProcedure = "/chain.withdraw.v1.WithdrawService/CreateWalletTradingToFundingBatch"
 )
 
 // WithdrawServiceClient is a client for the chain.withdraw.v1.WithdrawService service.
@@ -67,6 +70,16 @@ type WithdrawServiceClient interface {
 	// AUTH_MFA_ELEVATION_REQUIRED). Other external,
 	// cross-owner, and delegated movements require a fresh single-use step-up.
 	CreateWalletTradingWithdraw(context.Context, *connect.Request[v1.CreateWalletTradingWithdrawRequest]) (*connect.Response[v1.CreateWalletTradingWithdrawResponse], error)
+	// Move up to 10 amounts from one Trading account to Funding accounts with
+	// one wallet signature and one MFA check. All legs are accepted or none:
+	// a leg refused for any reason, for example insufficient funds, refuses the
+	// whole batch, and nothing moves. An accepted batch is paid as one, and if
+	// the payment fails every leg is refunded. When every leg goes to the
+	// caller's own accounts, a recent MFA is enough; any other leg needs one
+	// fresh single-use step-up for the whole batch. A session without recent
+	// MFA is refused with the auth error AUTH_MFA_ELEVATION_REQUIRED, and a
+	// missing or spent step-up with AUTH_STEP_UP_REQUIRED.
+	CreateWalletTradingToFundingBatch(context.Context, *connect.Request[v1.CreateWalletTradingToFundingBatchRequest]) (*connect.Response[v1.CreateWalletTradingToFundingBatchResponse], error)
 }
 
 // NewWithdrawServiceClient constructs a client for the chain.withdraw.v1.WithdrawService service.
@@ -104,15 +117,22 @@ func NewWithdrawServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(withdrawServiceMethods.ByName("CreateWalletTradingWithdraw")),
 			connect.WithClientOptions(opts...),
 		),
+		createWalletTradingToFundingBatch: connect.NewClient[v1.CreateWalletTradingToFundingBatchRequest, v1.CreateWalletTradingToFundingBatchResponse](
+			httpClient,
+			baseURL+WithdrawServiceCreateWalletTradingToFundingBatchProcedure,
+			connect.WithSchema(withdrawServiceMethods.ByName("CreateWalletTradingToFundingBatch")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // withdrawServiceClient implements WithdrawServiceClient.
 type withdrawServiceClient struct {
-	getWalletBalances           *connect.Client[v1.GetWalletBalancesRequest, v1.GetWalletBalancesResponse]
-	validateWithdrawDestination *connect.Client[v1.ValidateWithdrawDestinationRequest, v1.ValidateWithdrawDestinationResponse]
-	createTradingWithdraw       *connect.Client[v1.CreateTradingWithdrawRequest, v1.CreateTradingWithdrawResponse]
-	createWalletTradingWithdraw *connect.Client[v1.CreateWalletTradingWithdrawRequest, v1.CreateWalletTradingWithdrawResponse]
+	getWalletBalances                 *connect.Client[v1.GetWalletBalancesRequest, v1.GetWalletBalancesResponse]
+	validateWithdrawDestination       *connect.Client[v1.ValidateWithdrawDestinationRequest, v1.ValidateWithdrawDestinationResponse]
+	createTradingWithdraw             *connect.Client[v1.CreateTradingWithdrawRequest, v1.CreateTradingWithdrawResponse]
+	createWalletTradingWithdraw       *connect.Client[v1.CreateWalletTradingWithdrawRequest, v1.CreateWalletTradingWithdrawResponse]
+	createWalletTradingToFundingBatch *connect.Client[v1.CreateWalletTradingToFundingBatchRequest, v1.CreateWalletTradingToFundingBatchResponse]
 }
 
 // GetWalletBalances calls chain.withdraw.v1.WithdrawService.GetWalletBalances.
@@ -135,6 +155,12 @@ func (c *withdrawServiceClient) CreateWalletTradingWithdraw(ctx context.Context,
 	return c.createWalletTradingWithdraw.CallUnary(ctx, req)
 }
 
+// CreateWalletTradingToFundingBatch calls
+// chain.withdraw.v1.WithdrawService.CreateWalletTradingToFundingBatch.
+func (c *withdrawServiceClient) CreateWalletTradingToFundingBatch(ctx context.Context, req *connect.Request[v1.CreateWalletTradingToFundingBatchRequest]) (*connect.Response[v1.CreateWalletTradingToFundingBatchResponse], error) {
+	return c.createWalletTradingToFundingBatch.CallUnary(ctx, req)
+}
+
 // WithdrawServiceHandler is an implementation of the chain.withdraw.v1.WithdrawService service.
 type WithdrawServiceHandler interface {
 	// Read the zTokens the account's smart account wallet holds on Polyester
@@ -155,6 +181,16 @@ type WithdrawServiceHandler interface {
 	// AUTH_MFA_ELEVATION_REQUIRED). Other external,
 	// cross-owner, and delegated movements require a fresh single-use step-up.
 	CreateWalletTradingWithdraw(context.Context, *connect.Request[v1.CreateWalletTradingWithdrawRequest]) (*connect.Response[v1.CreateWalletTradingWithdrawResponse], error)
+	// Move up to 10 amounts from one Trading account to Funding accounts with
+	// one wallet signature and one MFA check. All legs are accepted or none:
+	// a leg refused for any reason, for example insufficient funds, refuses the
+	// whole batch, and nothing moves. An accepted batch is paid as one, and if
+	// the payment fails every leg is refunded. When every leg goes to the
+	// caller's own accounts, a recent MFA is enough; any other leg needs one
+	// fresh single-use step-up for the whole batch. A session without recent
+	// MFA is refused with the auth error AUTH_MFA_ELEVATION_REQUIRED, and a
+	// missing or spent step-up with AUTH_STEP_UP_REQUIRED.
+	CreateWalletTradingToFundingBatch(context.Context, *connect.Request[v1.CreateWalletTradingToFundingBatchRequest]) (*connect.Response[v1.CreateWalletTradingToFundingBatchResponse], error)
 }
 
 // NewWithdrawServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -188,6 +224,12 @@ func NewWithdrawServiceHandler(svc WithdrawServiceHandler, opts ...connect.Handl
 		connect.WithSchema(withdrawServiceMethods.ByName("CreateWalletTradingWithdraw")),
 		connect.WithHandlerOptions(opts...),
 	)
+	withdrawServiceCreateWalletTradingToFundingBatchHandler := connect.NewUnaryHandler(
+		WithdrawServiceCreateWalletTradingToFundingBatchProcedure,
+		svc.CreateWalletTradingToFundingBatch,
+		connect.WithSchema(withdrawServiceMethods.ByName("CreateWalletTradingToFundingBatch")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chain.withdraw.v1.WithdrawService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case WithdrawServiceGetWalletBalancesProcedure:
@@ -198,6 +240,8 @@ func NewWithdrawServiceHandler(svc WithdrawServiceHandler, opts ...connect.Handl
 			withdrawServiceCreateTradingWithdrawHandler.ServeHTTP(w, r)
 		case WithdrawServiceCreateWalletTradingWithdrawProcedure:
 			withdrawServiceCreateWalletTradingWithdrawHandler.ServeHTTP(w, r)
+		case WithdrawServiceCreateWalletTradingToFundingBatchProcedure:
+			withdrawServiceCreateWalletTradingToFundingBatchHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -221,4 +265,8 @@ func (UnimplementedWithdrawServiceHandler) CreateTradingWithdraw(context.Context
 
 func (UnimplementedWithdrawServiceHandler) CreateWalletTradingWithdraw(context.Context, *connect.Request[v1.CreateWalletTradingWithdrawRequest]) (*connect.Response[v1.CreateWalletTradingWithdrawResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chain.withdraw.v1.WithdrawService.CreateWalletTradingWithdraw is not implemented"))
+}
+
+func (UnimplementedWithdrawServiceHandler) CreateWalletTradingToFundingBatch(context.Context, *connect.Request[v1.CreateWalletTradingToFundingBatchRequest]) (*connect.Response[v1.CreateWalletTradingToFundingBatchResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chain.withdraw.v1.WithdrawService.CreateWalletTradingToFundingBatch is not implemented"))
 }

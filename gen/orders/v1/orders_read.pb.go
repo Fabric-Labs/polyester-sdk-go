@@ -1086,26 +1086,47 @@ type Order struct {
 	// Public order ID.
 	OrderId uint64 `protobuf:"fixed64,1,opt,name=order_id,json=orderId,proto3" json:"order_id,omitempty"`
 	// Trading symbol numeric identifier.
+	// Unset for the replacement order of a batch item refused when it applied
+	// (REJECTED with batch_request_id set), which never existed and carries no
+	// order terms: the client knows them from the batch it sent.
 	SymbolId uint32 `protobuf:"varint,3,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
 	// Client-provided, account-scoped identifier for correlation, lookup, and
 	// cancellation. Empty when none was supplied.
 	ClientOrderId string `protobuf:"bytes,4,opt,name=client_order_id,json=clientOrderId,proto3" json:"client_order_id,omitempty"`
 	// Order side.
+	// Unset for the replacement order of a batch item refused when it applied
+	// (REJECTED with batch_request_id set), which never existed and carries no
+	// order terms: the client knows them from the batch it sent.
 	Side Side `protobuf:"varint,5,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
 	// Current order lifecycle status.
 	Status OrderStatus `protobuf:"varint,6,opt,name=status,proto3,enum=orders.v1.OrderStatus" json:"status,omitempty"`
 	// Order type.
+	// Unset for the replacement order of a batch item refused when it applied
+	// (REJECTED with batch_request_id set), which never existed and carries no
+	// order terms: the client knows them from the batch it sent.
 	OrderType OrderType `protobuf:"varint,7,opt,name=order_type,json=orderType,proto3,enum=orders.v1.OrderType" json:"order_type,omitempty"`
 	// Time-in-force policy.
+	// Unset for the replacement order of a batch item refused when it applied
+	// (REJECTED with batch_request_id set), which never existed and carries no
+	// order terms: the client knows them from the batch it sent.
 	TimeInForce TimeInForce `protobuf:"varint,8,opt,name=time_in_force,json=timeInForce,proto3,enum=orders.v1.TimeInForce" json:"time_in_force,omitempty"`
 	// Self-trade prevention mode.
+	// Unset for the replacement order of a batch item refused when it applied
+	// (REJECTED with batch_request_id set), which never existed and carries no
+	// order terms: the client knows them from the batch it sent.
 	SelfTradePreventionMode SelfTradePreventionMode `protobuf:"varint,9,opt,name=self_trade_prevention_mode,json=selfTradePreventionMode,proto3,enum=orders.v1.SelfTradePreventionMode" json:"self_trade_prevention_mode,omitempty"`
 	// Fee asset selected for fills.
+	// Unset for the replacement order of a batch item refused when it applied
+	// (REJECTED with batch_request_id set), which never existed and carries no
+	// order terms: the client knows them from the batch it sent.
 	FeeAsset FeeAsset `protobuf:"varint,10,opt,name=fee_asset,json=feeAsset,proto3,enum=orders.v1.FeeAsset" json:"fee_asset,omitempty"`
 	// True if the order was submitted as post-only (maker-only).
 	PostOnly bool `protobuf:"varint,11,opt,name=post_only,json=postOnly,proto3" json:"post_only,omitempty"`
 	// Current accepted total order quantity, updated by successful modifies,
 	// scaled by the pair's base_quantity_scale from GetSpotConfig for symbol_id.
+	// 0 as a placeholder for the replacement order of a batch item refused when
+	// it applied, which carries no order terms: the client knows them from the
+	// batch it sent.
 	OrigQtyScaled int64 `protobuf:"varint,12,opt,name=orig_qty_scaled,json=origQtyScaled,proto3" json:"orig_qty_scaled,omitempty"`
 	// Cumulative filled quantity across the lineage through this generation,
 	// scaled by the pair's base_quantity_scale from GetSpotConfig for symbol_id.
@@ -1191,7 +1212,8 @@ type Order struct {
 	// (see MarketIoc). A stop-loss's, take-profit's or
 	// trailing stop's market order takes the price that fired it as its
 	// reference; a buy stop's is never above the protection price at its
-	// trigger price.
+	// trigger price. 0 as a placeholder for the replacement order of a batch
+	// item refused when it applied, which carries no order terms.
 	PriceTicks int64 `protobuf:"varint,15,opt,name=price_ticks,json=priceTicks,proto3" json:"price_ticks,omitempty"`
 	// Creation timestamp in nanoseconds since epoch (UTC).
 	CreatedTsNs uint64 `protobuf:"varint,16,opt,name=created_ts_ns,json=createdTsNs,proto3" json:"created_ts_ns,omitempty"`
@@ -1259,6 +1281,8 @@ type Order struct {
 	// method was submitted.
 	SubmittedQuoteProceedsScaled *int64 `protobuf:"varint,41,opt,name=submitted_quote_proceeds_scaled,json=submittedQuoteProceedsScaled,proto3,oneof" json:"submitted_quote_proceeds_scaled,omitempty"`
 	// Logical-order identity and requested generation. Always populated by order reads.
+	// A batch item's refused replacement never joined its predecessor's
+	// lineage: it is its own, at generation 1.
 	Lineage *OrderLineage `protobuf:"bytes,31,opt,name=lineage,proto3" json:"lineage,omitempty"`
 	// Exact UTC expiry time for GTD orders, within the supported signed
 	// Unix-nanosecond range from 1677-09-21T00:12:43.145224193Z through

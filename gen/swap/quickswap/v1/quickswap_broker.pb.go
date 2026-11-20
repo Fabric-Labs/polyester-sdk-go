@@ -500,7 +500,9 @@ type VaultLedgerEntryKind int32
 const (
 	// Never returned.
 	VaultLedgerEntryKind_LEDGER_ENTRY_KIND_UNSPECIFIED VaultLedgerEntryKind = 0
-	// A broker or affiliate fee a QuickSwap credited to the vault.
+	// A broker or affiliate fee a QuickSwap credited to the vault, or a
+	// referral commission credited to a referral partner's earnings
+	// sub-account.
 	VaultLedgerEntryKind_FEE_CREDIT VaultLedgerEntryKind = 1
 	// An asset's payout in a payout run, debited from the vault.
 	VaultLedgerEntryKind_PAYOUT_DEBIT VaultLedgerEntryKind = 2
@@ -508,6 +510,7 @@ const (
 	// to the vault's own smart account, less the network fee it kept. The
 	// funds stay in that smart account: the refund is not part of the vault
 	// balance ListVaultBalances reads, and no entry returns it to the vault.
+	// A referral partner's earnings sub-account is refunded the same way.
 	VaultLedgerEntryKind_PAYOUT_REFUND VaultLedgerEntryKind = 3
 )
 
@@ -3189,8 +3192,8 @@ type QuickSwapSummary struct {
 	// Broker and affiliate fees as requested, fixed at creation; unset when
 	// the request set none.
 	Fees *RequestedFees `protobuf:"bytes,7,opt,name=fees,proto3" json:"fees,omitempty"`
-	// Broker, affiliate and referral fees charged so far, as settled, as on
-	// QuickSwap.
+	// Service, broker, affiliate and referral fees charged so far, as
+	// settled, as on QuickSwap.
 	ChargedFees []*ChargedFee `protobuf:"bytes,8,rep,name=charged_fees,json=chargedFees,proto3" json:"charged_fees,omitempty"`
 	// When the QuickSwap was created.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
@@ -5049,11 +5052,21 @@ func (x *ListPayoutsRequest) GetPageToken() string {
 
 // ListPayoutsResponse lists payouts newest first by scheduled slot. Runs of
 // the same slot follow a stable server-defined order, the same on every
-// page; it does not follow run_id. Paging lists exactly once every run that
-// sorts after the previous page's last run when the next page is read,
-// including a run started meanwhile for an older slot. A run started
-// meanwhile for a newer slot sorts before the cursor and appears only in a
-// listing started again from the first page.
+// page; it does not follow run_id. next_page_token marks a position in the
+// run history, in that order. Without a status filter it is the last payout
+// returned. On any page filtered by status, a full one included, the
+// position can lie past the last payout returned: when the page uses up its
+// scan before finding another match, it is the last run the page examined.
+// A page may hold fewer than limit payouts, or none, while next_page_token
+// is set and matching payouts remain; keep paging until next_page_token is
+// empty. A complete traversal, followed until next_page_token is empty,
+// lists every payout that matched throughout it exactly once, in order. A
+// run started meanwhile past the position, for an older slot, is listed by
+// a later page. A run started meanwhile at or before the position,
+// including one between the last payout returned and the position, and a
+// run there whose status changes meanwhile into the filter (in progress
+// becoming paid, for example) appear only in a listing started again from
+// the first page.
 type ListPayoutsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The payouts.
@@ -6073,13 +6086,16 @@ func (x *ListVaultPayoutRulesResponse) GetNextPageToken() string {
 // VaultLedgerFeeCredit is the QuickSwap fee of a FEE_CREDIT entry.
 type VaultLedgerFeeCredit struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Public ID of the credit, unique among the broker's fee credits.
+	// Public ID of the credit, unique among fee credits.
 	CreditId uint64 `protobuf:"fixed64,1,opt,name=credit_id,json=creditId,proto3" json:"credit_id,omitempty"`
 	// Public ID of the QuickSwap the fee was charged on. Read it with
-	// GetQuickSwap for its full detail.
+	// GetQuickSwap for its full detail; a referral partner reads it with
+	// QuickSwapReferralService.GetReferredQuickSwap.
 	SwapId uint64 `protobuf:"fixed64,2,opt,name=swap_id,json=swapId,proto3" json:"swap_id,omitempty"`
-	// BROKER (the broker fee, credited to the default vault) or AFFILIATE (an
-	// affiliate fee, credited to that affiliate vault).
+	// BROKER (the broker fee, credited to the default vault), AFFILIATE (an
+	// affiliate fee, credited to that affiliate vault) or REFERRAL (a referral
+	// commission, credited to the partner's earnings sub-account; only
+	// QuickSwapReferralService.ListReferralLedger returns it).
 	FeeKind FeeKind `protobuf:"varint,3,opt,name=fee_kind,json=feeKind,proto3,enum=swap.quickswap.v1.FeeKind" json:"fee_kind,omitempty"`
 	// The fee's rate, in basis points of what each trading leg receives (of
 	// the credited amount on a bridge); a two-leg route credits it once per
@@ -6378,16 +6394,19 @@ func (x *VaultLedgerPayoutRefund) GetRunId() uint64 {
 	return 0
 }
 
-// VaultLedgerEntry is one movement of a broker vault's funds.
+// VaultLedgerEntry is one movement of a broker vault's funds, or of a
+// referral partner's earnings sub-account (ListReferralLedger).
 type VaultLedgerEntry struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// What moved.
 	Kind VaultLedgerEntryKind `protobuf:"varint,1,opt,name=kind,proto3,enum=swap.quickswap.v1.VaultLedgerEntryKind" json:"kind,omitempty"`
-	// When it happened: when a fee credit was credited; a payout debit's and
-	// refund's run's scheduled slot (Payout.scheduled_for).
+	// When it happened: when a fee credit was credited (rounded down to the
+	// minute in ListReferralLedger); a payout debit's and refund's run's
+	// scheduled slot (Payout.scheduled_for).
 	OccurredAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
 	// Public sub-account ID of the vault: the default vault or an affiliate
-	// vault.
+	// vault. In ListReferralLedger, the partner's earnings sub-account
+	// (ReferralPartner.earnings_subaccount_id).
 	VaultAccountId uint64 `protobuf:"fixed64,3,opt,name=vault_account_id,json=vaultAccountId,proto3" json:"vault_account_id,omitempty"`
 	// Asset, as an AssetConfig.ledger_id from
 	// GET /v1/chain/deposit-withdraw/config.
@@ -6839,7 +6858,9 @@ type VaultAllowlistChange struct {
 	RequestedAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=requested_at,json=requestedAt,proto3" json:"requested_at,omitempty"`
 	// The end of the change's approval window: a change not applied by then
 	// ends NOT_APPLIED / TIMED_OUT. A change can stay PENDING shortly past it
-	// while its outcome is confirmed.
+	// while its outcome is confirmed, and longer while an outcome that cannot
+	// be confirmed yet is investigated; the vault takes no other change
+	// meanwhile.
 	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	// Where the change stands.
 	Status AllowlistChangeStatus `protobuf:"varint,10,opt,name=status,proto3,enum=swap.quickswap.v1.AllowlistChangeStatus" json:"status,omitempty"`

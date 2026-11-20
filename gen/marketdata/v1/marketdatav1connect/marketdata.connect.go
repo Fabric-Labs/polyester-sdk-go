@@ -48,6 +48,9 @@ const (
 	// MarketDataServiceGetSpotConfigProcedure is the fully-qualified name of the MarketDataService's
 	// GetSpotConfig RPC.
 	MarketDataServiceGetSpotConfigProcedure = "/marketdata.v1.MarketDataService/GetSpotConfig"
+	// MarketDataServiceGetPriceBandProcedure is the fully-qualified name of the MarketDataService's
+	// GetPriceBand RPC.
+	MarketDataServiceGetPriceBandProcedure = "/marketdata.v1.MarketDataService/GetPriceBand"
 )
 
 // MarketDataServiceClient is a client for the marketdata.v1.MarketDataService service.
@@ -73,6 +76,14 @@ type MarketDataServiceClient interface {
 	GetCandlesColumns(context.Context, *connect.Request[v1.GetCandlesColumnsRequest]) (*connect.Response[v1.GetCandlesColumnsResponse], error)
 	// Retrieve a cacheable snapshot of spot assets and pairs, including precision and trading constraints.
 	GetSpotConfig(context.Context, *connect.Request[v1.GetSpotConfigRequest]) (*connect.Response[v1.GetSpotConfigResponse], error)
+	// Retrieve a spot pair's live price band: its reference price and the
+	// limit prices the pair admits now. Never cached. A band is returned only
+	// when it was confirmed current within the last 5 seconds; otherwise the
+	// call fails with unavailable, and its error code tells a band that went
+	// stale (PRICE_BAND_STALE) from one that is not known
+	// (PRICE_BAND_UNKNOWN). Retry after a second. An unknown symbol_id fails with
+	// not_found (UNKNOWN_SYMBOL).
+	GetPriceBand(context.Context, *connect.Request[v1.GetPriceBandRequest]) (*connect.Response[v1.GetPriceBandResponse], error)
 }
 
 // NewMarketDataServiceClient constructs a client for the marketdata.v1.MarketDataService service.
@@ -117,6 +128,12 @@ func NewMarketDataServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(marketDataServiceMethods.ByName("GetSpotConfig")),
 			connect.WithClientOptions(opts...),
 		),
+		getPriceBand: connect.NewClient[v1.GetPriceBandRequest, v1.GetPriceBandResponse](
+			httpClient,
+			baseURL+MarketDataServiceGetPriceBandProcedure,
+			connect.WithSchema(marketDataServiceMethods.ByName("GetPriceBand")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -127,6 +144,7 @@ type marketDataServiceClient struct {
 	getCandles        *connect.Client[v1.GetCandlesRequest, v1.GetCandlesResponse]
 	getCandlesColumns *connect.Client[v1.GetCandlesColumnsRequest, v1.GetCandlesColumnsResponse]
 	getSpotConfig     *connect.Client[v1.GetSpotConfigRequest, v1.GetSpotConfigResponse]
+	getPriceBand      *connect.Client[v1.GetPriceBandRequest, v1.GetPriceBandResponse]
 }
 
 // ListAssetInfo calls marketdata.v1.MarketDataService.ListAssetInfo.
@@ -154,6 +172,11 @@ func (c *marketDataServiceClient) GetSpotConfig(ctx context.Context, req *connec
 	return c.getSpotConfig.CallUnary(ctx, req)
 }
 
+// GetPriceBand calls marketdata.v1.MarketDataService.GetPriceBand.
+func (c *marketDataServiceClient) GetPriceBand(ctx context.Context, req *connect.Request[v1.GetPriceBandRequest]) (*connect.Response[v1.GetPriceBandResponse], error) {
+	return c.getPriceBand.CallUnary(ctx, req)
+}
+
 // MarketDataServiceHandler is an implementation of the marketdata.v1.MarketDataService service.
 type MarketDataServiceHandler interface {
 	// ListAssetInfo returns a cacheable, caller-independent asset information snapshot.
@@ -177,6 +200,14 @@ type MarketDataServiceHandler interface {
 	GetCandlesColumns(context.Context, *connect.Request[v1.GetCandlesColumnsRequest]) (*connect.Response[v1.GetCandlesColumnsResponse], error)
 	// Retrieve a cacheable snapshot of spot assets and pairs, including precision and trading constraints.
 	GetSpotConfig(context.Context, *connect.Request[v1.GetSpotConfigRequest]) (*connect.Response[v1.GetSpotConfigResponse], error)
+	// Retrieve a spot pair's live price band: its reference price and the
+	// limit prices the pair admits now. Never cached. A band is returned only
+	// when it was confirmed current within the last 5 seconds; otherwise the
+	// call fails with unavailable, and its error code tells a band that went
+	// stale (PRICE_BAND_STALE) from one that is not known
+	// (PRICE_BAND_UNKNOWN). Retry after a second. An unknown symbol_id fails with
+	// not_found (UNKNOWN_SYMBOL).
+	GetPriceBand(context.Context, *connect.Request[v1.GetPriceBandRequest]) (*connect.Response[v1.GetPriceBandResponse], error)
 }
 
 // NewMarketDataServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -217,6 +248,12 @@ func NewMarketDataServiceHandler(svc MarketDataServiceHandler, opts ...connect.H
 		connect.WithSchema(marketDataServiceMethods.ByName("GetSpotConfig")),
 		connect.WithHandlerOptions(opts...),
 	)
+	marketDataServiceGetPriceBandHandler := connect.NewUnaryHandler(
+		MarketDataServiceGetPriceBandProcedure,
+		svc.GetPriceBand,
+		connect.WithSchema(marketDataServiceMethods.ByName("GetPriceBand")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/marketdata.v1.MarketDataService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MarketDataServiceListAssetInfoProcedure:
@@ -229,6 +266,8 @@ func NewMarketDataServiceHandler(svc MarketDataServiceHandler, opts ...connect.H
 			marketDataServiceGetCandlesColumnsHandler.ServeHTTP(w, r)
 		case MarketDataServiceGetSpotConfigProcedure:
 			marketDataServiceGetSpotConfigHandler.ServeHTTP(w, r)
+		case MarketDataServiceGetPriceBandProcedure:
+			marketDataServiceGetPriceBandHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -256,4 +295,8 @@ func (UnimplementedMarketDataServiceHandler) GetCandlesColumns(context.Context, 
 
 func (UnimplementedMarketDataServiceHandler) GetSpotConfig(context.Context, *connect.Request[v1.GetSpotConfigRequest]) (*connect.Response[v1.GetSpotConfigResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("marketdata.v1.MarketDataService.GetSpotConfig is not implemented"))
+}
+
+func (UnimplementedMarketDataServiceHandler) GetPriceBand(context.Context, *connect.Request[v1.GetPriceBandRequest]) (*connect.Response[v1.GetPriceBandResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("marketdata.v1.MarketDataService.GetPriceBand is not implemented"))
 }

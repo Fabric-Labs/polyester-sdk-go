@@ -107,7 +107,11 @@ type TriggersServiceClient interface {
 	// instead, which then means the same. Pausing, resuming or modifying an
 	// ended trigger answers the same way. A trigger ID that names none of the
 	// caller's triggers returns ERROR_CODE_TRIGGER_NOT_FOUND. Cancelling
-	// either leg of an OCO cancels both.
+	// either leg of an OCO created with CreateOco, a trigger with an
+	// order_list_id, cancels both. Cancelling one attached take-profit or stop
+	// leg of an order, a trigger with a parent_order_id, ends only that leg,
+	// whether or not the order's legs are oco: the other leg stays active and
+	// keeps protecting the position.
 	CancelTrigger(context.Context, *connect.Request[v1.CancelTriggerRequest]) (*connect.Response[v1.CancelTriggerResponse], error)
 	// Cancel up to 50 of the account's triggers in one request, each canceled
 	// as CancelTrigger cancels it: a TWAP's or ladder's open child orders are
@@ -317,7 +321,11 @@ type TriggersServiceHandler interface {
 	// instead, which then means the same. Pausing, resuming or modifying an
 	// ended trigger answers the same way. A trigger ID that names none of the
 	// caller's triggers returns ERROR_CODE_TRIGGER_NOT_FOUND. Cancelling
-	// either leg of an OCO cancels both.
+	// either leg of an OCO created with CreateOco, a trigger with an
+	// order_list_id, cancels both. Cancelling one attached take-profit or stop
+	// leg of an order, a trigger with a parent_order_id, ends only that leg,
+	// whether or not the order's legs are oco: the other leg stays active and
+	// keeps protecting the position.
 	CancelTrigger(context.Context, *connect.Request[v1.CancelTriggerRequest]) (*connect.Response[v1.CancelTriggerResponse], error)
 	// Cancel up to 50 of the account's triggers in one request, each canceled
 	// as CancelTrigger cancels it: a TWAP's or ladder's open child orders are
