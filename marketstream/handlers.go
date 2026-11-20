@@ -10,7 +10,7 @@ import (
 )
 
 // handle applies one server message. An error ends the connection; the client
-// reconnects unless it is a SchemaError.
+// reconnects unless it is a SchemaError or Config.AutoReconnect is false.
 func (c *Client) handle(frame []byte) error {
 	decoded, err := decodeFrame(frame)
 	if err != nil {
@@ -350,13 +350,15 @@ func (c *Client) onTrades(m *tradesMsg) error {
 	}
 	scale, _ := c.cfg.Pairs.BaseQuantityScaleForSymbolID(m.symbolID)
 	symbol := c.symbol(m.symbolID)
-	ev := &Trades{SymbolID: m.symbolID, Symbol: symbol, BookEpoch: m.epoch, UpdateID: m.updateID, TransactTime: timeOf(m.transactNs), SendTime: timeOf(m.sendNs), Trades: make([]Trade, len(fills))}
+	transact := timeOf(m.transactNs)
+	ev := &Trades{SymbolID: m.symbolID, Symbol: symbol, BookEpoch: m.epoch, UpdateID: m.updateID, TransactTime: transact, SendTime: timeOf(m.sendNs), Trades: make([]Trade, len(fills))}
 	for i, f := range fills {
 		ev.Trades[i] = Trade{
-			TradeID:   f.tradeID,
-			Price:     codecs.DecodePriceTicks(f.price, symbol),
-			Qty:       codecs.DecodeQtyScaled(f.qty, scale, symbol, &m.symbolID),
-			TakerSide: Side(f.side),
+			TradeID:      f.tradeID,
+			Price:        codecs.DecodePriceTicks(f.price, symbol),
+			Qty:          codecs.DecodeQtyScaled(f.qty, scale, symbol, &m.symbolID),
+			TakerSide:    Side(f.side),
+			TransactTime: transact,
 		}
 	}
 	c.emit(ev)
@@ -515,7 +517,7 @@ func (c *Client) onDepthUpdate(m *depthUpdateMsg) error {
 // neither OK nor NOT_SUBSCRIBED for a stream it holds, as its answers show,
 // those to superseded requests included: the stream stays held whatever the
 // caller wants, so the client reconnects, and every stream it wants is
-// resubscribed.
+// resubscribed; without Config.AutoReconnect it stops with this error.
 type UnsubscribeError struct {
 	Topic  Topic
 	Result SubscribeResult

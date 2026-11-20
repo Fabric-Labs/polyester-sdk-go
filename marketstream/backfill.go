@@ -8,6 +8,7 @@ import (
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
+	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/services"
 )
 
@@ -52,6 +53,12 @@ func (h marketDataHistory) TradesAfter(ctx context.Context, symbolID uint32, aft
 	if err != nil {
 		return HistoryPage{}, err
 	}
+	return historyPage(res)
+}
+
+// historyPage converts a page of the trade history's after-trade-ID walk.
+func historyPage(res models.MarketTradesResult) (HistoryPage, error) {
+	var err error
 	page := HistoryPage{}
 	if page.CompleteThroughTradeID, err = codecs.ParseRequiredUint64Decimal(res.CompleteThroughTradeID, "complete_through_trade_id"); err != nil {
 		return HistoryPage{}, err
@@ -71,11 +78,22 @@ func (h marketDataHistory) TradesAfter(ctx context.Context, symbolID uint32, aft
 		if err != nil {
 			return HistoryPage{}, err
 		}
+		// The history leaves the time empty, or 0, when it does not report it.
+		var transact time.Time
+		if t.TsNs != "" {
+			ns, err := strconv.ParseUint(t.TsNs, 10, 64)
+			if err != nil {
+				return HistoryPage{}, &sdkerrors.ResponseContractError{Operation: "get_trades_after", Msg: fmt.Sprintf("trade %d time %q is not Unix nanoseconds", id, t.TsNs)}
+			}
+			if ns != 0 {
+				transact = timeOf(ns)
+			}
+		}
 		side := SideSell
 		if t.Side == "buy" {
 			side = SideBuy
 		}
-		page.Trades = append(page.Trades, Trade{TradeID: id, Price: t.Price, Qty: t.Qty, TakerSide: side})
+		page.Trades = append(page.Trades, Trade{TradeID: id, Price: t.Price, Qty: t.Qty, TakerSide: side, TransactTime: transact})
 	}
 	return page, nil
 }

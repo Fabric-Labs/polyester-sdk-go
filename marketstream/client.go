@@ -45,13 +45,19 @@ type Config struct {
 	// messages. Default 1000.
 	QueueSize int
 	// PingInterval is how often the client pings the server; a pong must
-	// answer within PongTimeout or the client reconnects. Defaults 15 and 10
+	// answer within PongTimeout or the connection counts as lost, and the
+	// client reconnects by default (AutoReconnect). Defaults 15 and 10
 	// seconds.
 	PingInterval time.Duration
 	PongTimeout  time.Duration
 	// Dialer dials the WebSocket; a default dialer with a 10 second handshake
 	// timeout and the environment's proxy when nil.
 	Dialer *websocket.Dialer
+	// AutoReconnect, when nil or true (the default), reconnects after a lost
+	// connection. Set to false, a lost connection stops the client with the
+	// loss as its terminal error (Err), which requests still in flight return
+	// too; Events delivers the queued events, then closes.
+	AutoReconnect *bool
 }
 
 // URL is the market-data stream URL on the WebSocket host base, such as
@@ -94,15 +100,18 @@ const (
 )
 
 // Client is a connection to the market-data stream that reconnects and
-// resubscribes on its own. Events delivers every stream's messages; the
-// book and quote accessors read the latest state.
+// resubscribes on its own, unless Config.AutoReconnect is false. Events
+// delivers every stream's messages; the book and quote accessors read the
+// latest state.
 type Client struct {
-	cfg    Config
-	events chan Event
-	ctx    context.Context
-	cancel context.CancelFunc
-	done   chan struct{}
-	ids    atomic.Uint64
+	cfg Config
+	// reconnect is Config.AutoReconnect as Dial read it.
+	reconnect bool
+	events    chan Event
+	ctx       context.Context
+	cancel    context.CancelFunc
+	done      chan struct{}
+	ids       atomic.Uint64
 	// healthy is set once a connection delivered a message, so the next
 	// reconnect starts from the shortest backoff.
 	healthy atomic.Bool
@@ -156,8 +165,9 @@ type subscribeOutcome struct {
 }
 
 // Dial connects to the market-data stream. A failure of this first
-// connection is returned; once connected, the client reconnects on its own
-// until Close. Subscribe to topics with Subscribe.
+// connection is returned; once connected, the client by default reconnects
+// on its own until Close, and without Config.AutoReconnect stops at the
+// first lost connection. Subscribe to topics with Subscribe.
 func Dial(ctx context.Context, cfg Config) (*Client, error) {
 	if cfg.URL == "" {
 		return nil, &sdkerrors.ValidationError{Msg: "market stream Config.URL is required"}
@@ -197,21 +207,22 @@ func Dial(ctx context.Context, cfg Config) (*Client, error) {
 func newClient(cfg Config) *Client {
 	runCtx, cancel := context.WithCancel(context.Background())
 	return &Client{
-		cfg:      cfg,
-		events:   make(chan Event, cfg.QueueSize),
-		ctx:      runCtx,
-		cancel:   cancel,
-		done:     make(chan struct{}),
-		wantSet:  map[Topic]bool{},
-		waiting:  map[uint64]chan subscribeOutcome{},
-		sent:     map[uint64]sentRequest{},
-		owners:   map[Topic]*owner{},
-		books:    map[Topic]*book{},
-		quotes:   map[uint32]*BestBidOffer{},
-		feeds:    map[uint32]FeedState{},
-		trackers: map[uint32]*tradeTracker{},
-		active:   map[Topic]bool{},
-		initial:  map[Topic]bool{},
+		cfg:       cfg,
+		reconnect: cfg.AutoReconnect == nil || *cfg.AutoReconnect,
+		events:    make(chan Event, cfg.QueueSize),
+		ctx:       runCtx,
+		cancel:    cancel,
+		done:      make(chan struct{}),
+		wantSet:   map[Topic]bool{},
+		waiting:   map[uint64]chan subscribeOutcome{},
+		sent:      map[uint64]sentRequest{},
+		owners:    map[Topic]*owner{},
+		books:     map[Topic]*book{},
+		quotes:    map[uint32]*BestBidOffer{},
+		feeds:     map[uint32]FeedState{},
+		trackers:  map[uint32]*tradeTracker{},
+		active:    map[Topic]bool{},
+		initial:   map[Topic]bool{},
 	}
 }
 
@@ -222,9 +233,10 @@ func (c *Client) Events() <-chan Event { return c.events }
 // Done is closed once the client has stopped.
 func (c *Client) Done() <-chan struct{} { return c.done }
 
-// Err is the terminal error that stopped the client: a QueueOverflowError,
-// or a SchemaError for a server this client cannot read. Nil while running
-// and after Close.
+// Err is the terminal error that stopped the client: a QueueOverflowError, a
+// SchemaError for a server this client cannot read, or, without
+// Config.AutoReconnect, why the connection was lost. Nil while running and
+// after Close.
 func (c *Client) Err() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -347,6 +359,12 @@ func (c *Client) request(ctx context.Context, topics []Topic, unsubscribe bool) 
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case <-c.done:
+		// The connection's end answers its requests before the client stops.
+		select {
+		case out := <-reply:
+			return out.resp, out.err
+		default:
+		}
 		return nil, ErrClosed
 	}
 }
@@ -533,11 +551,6 @@ func (c *Client) run(conn *websocket.Conn) {
 	for {
 		err := c.session(conn, reconnect)
 		if c.ctx.Err() != nil {
-			return
-		}
-		var schema *SchemaError
-		if errors.As(err, &schema) {
-			c.fail(err)
 			return
 		}
 		if c.Err() != nil {
@@ -817,9 +830,29 @@ func (c *Client) attach(conn *websocket.Conn) bool {
 	return true
 }
 
+// ends reports whether err, which ended a connection, stops the client: a
+// server this client cannot read, or any loss without Config.AutoReconnect.
+// A connection ended by Close is no loss.
+func (c *Client) ends(err error) bool {
+	if err == nil || c.ctx.Err() != nil {
+		return false
+	}
+	var schema *SchemaError
+	return errors.As(err, &schema) || !c.reconnect
+}
+
 // session serves one attached connection until it fails.
-func (c *Client) session(conn *websocket.Conn, reconnect bool) error {
+func (c *Client) session(conn *websocket.Conn, reconnect bool) (err error) {
 	defer func() {
+		// A failure that stops the client stops it before the connection is
+		// detached, so the requests the connection carried get that error
+		// rather than the promise to apply once it reconnects, and any made
+		// from here on find the client stopped (ErrClosed).
+		lost := error(&sdkerrors.RealtimeError{Msg: "market stream connection lost before the subscribe response; the topics are subscribed once it reconnects"})
+		if c.ends(err) {
+			c.fail(err)
+			lost = err
+		}
 		_ = conn.Close()
 		// Detached first: a request from here on waits for the next
 		// connection, so none is recorded against owners lose clears.
@@ -829,7 +862,7 @@ func (c *Client) session(conn *websocket.Conn, reconnect bool) error {
 		c.lose()
 		c.mu.Lock()
 		for id, w := range c.waiting {
-			w <- subscribeOutcome{err: &sdkerrors.RealtimeError{Msg: "market stream connection lost before the subscribe response; the topics are subscribed once it reconnects"}}
+			w <- subscribeOutcome{err: lost}
 			delete(c.waiting, id)
 		}
 		c.mu.Unlock()

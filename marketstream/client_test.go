@@ -296,6 +296,14 @@ func TestClientDeliversEveryStream(t *testing.T) {
 	if trades.Symbol != "BTC-USDC" || len(trades.Trades) != 2 || trades.Trades[0].TradeID != 101 || trades.Trades[0].TakerSide != SideBuy {
 		t.Fatalf("trades %+v", trades)
 	}
+	if want := time.Unix(0, 1_700_000_000_000_000_000).UTC(); !trades.TransactTime.Equal(want) {
+		t.Fatalf("book update time %v, want %v", trades.TransactTime, want)
+	}
+	for _, tr := range trades.Trades {
+		if tr.TransactTime != trades.TransactTime {
+			t.Fatalf("trade %d time %v: each trade carries its book update's time %v", tr.TradeID, tr.TransactTime, trades.TransactTime)
+		}
+	}
 	if trades.Trades[0].Price.Format() != "65000" {
 		t.Fatalf("price %s", trades.Trades[0].Price.Format())
 	}
@@ -402,6 +410,12 @@ func TestClientStopsOnAnotherSchema(t *testing.T) {
 	fs := newFakeServer(t)
 	c := dialTest(t, fs)
 	sc := fs.accept(t)
+	pending := make(chan error, 1)
+	go func() {
+		_, err := c.Subscribe(context.Background(), Topic{7, StreamBBO})
+		pending <- err
+	}()
+	sc.subscribe(t)
 	sc.send(t, withHeader(pongFrame(1), ms.PongSbeBlockLength, ms.PongSbeTemplateID, 21, 0))
 	select {
 	case <-c.Done():
@@ -411,6 +425,11 @@ func TestClientStopsOnAnotherSchema(t *testing.T) {
 	var schema *SchemaError
 	if !errors.As(c.Err(), &schema) || schema.SchemaID != 21 {
 		t.Fatalf("err %v, want SchemaError", c.Err())
+	}
+	// The request in flight gets the terminal error, not the promise to
+	// apply once the client reconnects.
+	if err := <-pending; !errors.Is(err, c.Err()) {
+		t.Fatalf("pending Subscribe: %v", err)
 	}
 	time.Sleep(50 * time.Millisecond)
 	if n := fs.connections(); n != 1 {
@@ -428,6 +447,115 @@ func TestClientReconnectsAfterAMalformedMessage(t *testing.T) {
 		t.Fatalf("disconnected by %v", d.Err)
 	}
 	fs.accept(t)
+}
+
+// By default, and with AutoReconnect set, a lost connection is reported and
+// the client reconnects.
+func TestClientWithAutoReconnectALostConnectionReconnects(t *testing.T) {
+	on := true
+	for name, auto := range map[string]*bool{"default": nil, "on": &on} {
+		t.Run(name, func(t *testing.T) {
+			fs := newFakeServer(t)
+			c := dialTest(t, fs, func(cfg *Config) { cfg.AutoReconnect = auto })
+			fs.accept(t).close()
+			expect[*Disconnected](t, c)
+			fs.accept(t)
+			if again := expect[*Connected](t, c); !again.Reconnect {
+				t.Fatalf("connected %+v", again)
+			}
+			if c.Err() != nil {
+				t.Fatalf("err %v", c.Err())
+			}
+		})
+	}
+}
+
+// Without AutoReconnect, a lost connection, a late pong included, ends the
+// client: the loss is its terminal error, which a request in flight returns
+// too; the queued events stay readable, then Events closes; nothing
+// reconnects.
+func TestClientWithoutAutoReconnectALostConnectionEndsTheStream(t *testing.T) {
+	for name, tc := range map[string]struct {
+		mutate func(*Config)
+		lose   func(*serverConn)
+		cause  string
+	}{
+		"closed by the server": {lose: (*serverConn).close, cause: "closed by the server"},
+		"late pong": {
+			mutate: func(cfg *Config) { cfg.PingInterval, cfg.PongTimeout = 20*time.Millisecond, 100*time.Millisecond },
+			lose:   func(*serverConn) {}, // never answers the ping
+			cause:  "pong",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			fs := newFakeServer(t)
+			off := false
+			c := dialTest(t, fs, func(cfg *Config) {
+				cfg.AutoReconnect = &off
+				if tc.mutate != nil {
+					tc.mutate(cfg)
+				}
+			})
+			sc := fs.accept(t)
+			pending := make(chan error, 1)
+			go func() {
+				_, err := c.Subscribe(context.Background(), Topic{7, StreamBBO})
+				pending <- err
+			}()
+			sc.subscribe(t)
+			tc.lose(sc)
+
+			var events []Event
+			deadline := time.After(5 * time.Second)
+		drain:
+			for {
+				select {
+				case e, ok := <-c.Events():
+					if !ok {
+						break drain
+					}
+					events = append(events, e)
+				case <-deadline:
+					t.Fatalf("events did not end: %v", events)
+				}
+			}
+			if first, ok := events[0].(*Connected); !ok || first.Reconnect {
+				t.Fatalf("events %v", events)
+			}
+			for _, e := range events {
+				if d, ok := e.(*Disconnected); ok {
+					t.Fatalf("a reconnect is announced: %+v", d)
+				}
+			}
+			select {
+			case <-c.Done():
+			case <-time.After(5 * time.Second):
+				t.Fatal("client did not stop")
+			}
+			err := c.Err()
+			if err == nil || !strings.Contains(err.Error(), tc.cause) {
+				t.Fatalf("err %v: the loss is the terminal error", err)
+			}
+			if strings.Contains(err.Error(), "reconnect") {
+				t.Fatalf("the terminal error promises a reconnect: %v", err)
+			}
+			select {
+			case perr := <-pending:
+				if !errors.Is(perr, err) {
+					t.Fatalf("pending Subscribe: %v, want the terminal error %v", perr, err)
+				}
+			case <-time.After(5 * time.Second):
+				t.Fatal("pending Subscribe did not return")
+			}
+			if _, after := c.Subscribe(context.Background(), Topic{7, StreamBBO}); !errors.Is(after, ErrClosed) {
+				t.Fatalf("Subscribe on a stopped client: %v", after)
+			}
+			time.Sleep(50 * time.Millisecond)
+			if n := fs.connections(); n != 1 {
+				t.Fatalf("%d connections: the client reconnected", n)
+			}
+		})
+	}
 }
 
 func TestClientBackfillsTradeGaps(t *testing.T) {
