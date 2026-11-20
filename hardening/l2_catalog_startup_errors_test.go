@@ -47,6 +47,21 @@ func TestL2PersistentFundingStallFailsWithinDeadline(t *testing.T) {
 	h := newStartupHarness(t, stallAlways("GetDepositWithdrawConfig"))
 	cfg := h.config(500 * time.Millisecond)
 	cfg.CatalogTimeout = 1500 * time.Millisecond
+	checkPersistentFundingStall(t, h, cfg)
+}
+
+// The funding read starts once the spot read is under way and shares its
+// connection; each retry still opens one of its own.
+func TestL2PersistentFundingStallSharingTheSpotConnectionFailsWithinDeadline(t *testing.T) {
+	h := newStartupHarness(t, stallAlways("GetDepositWithdrawConfig"))
+	cfg := h.config(500 * time.Millisecond)
+	cfg.CatalogTimeout = 1500 * time.Millisecond
+	h.fundingAfterSpot(cfg)
+	checkPersistentFundingStall(t, h, cfg)
+}
+
+func checkPersistentFundingStall(t *testing.T, h *startupHarness, cfg polyester.Config) {
+	t.Helper()
 	started := time.Now()
 	client := h.client(t, cfg)
 	if err := client.WaitForCatalogs(context.Background()); err != nil {
@@ -62,9 +77,18 @@ func TestL2PersistentFundingStallFailsWithinDeadline(t *testing.T) {
 	if failure.Attempts < 2 || failure.Attempts != h.api.count("GetDepositWithdrawConfig") {
 		t.Fatalf("attempts = %d, reads = %d", failure.Attempts, h.api.count("GetDepositWithdrawConfig"))
 	}
-	// Each retry opened a tunnel of its own instead of queueing behind the stall.
-	if tunnels := h.proxy.tunnels.Load(); tunnels < int64(1+failure.Attempts) {
-		t.Fatalf("tunnels = %d for %d attempts", tunnels, failure.Attempts)
+	// Each retry opened a connection, so a tunnel, of its own instead of
+	// queueing behind the stall: no other read arrived on it. The first read
+	// goes through the client's pool and may share the spot read's.
+	reads := h.api.connsOf("GetDepositWithdrawConfig")
+	if len(reads) != failure.Attempts {
+		t.Fatalf("%d funding reads arrived for %d attempts", len(reads), failure.Attempts)
+	}
+	for i, conn := range reads[1:] {
+		if calls := h.api.callsOn(conn); calls != 1 {
+			t.Fatalf("funding attempt %d shared its connection: %d reads arrived on it (spot %v, funding %v)",
+				i+2, calls, h.api.connsOf("GetSpotConfig"), reads)
+		}
 	}
 	for _, want := range []string{"catalog hydration failed: funding config", fundingOperation, "timed out"} {
 		if !strings.Contains(failure.Error(), want) {
@@ -208,7 +232,7 @@ func TestCatalogTimeoutMustNotBeNegative(t *testing.T) {
 
 func startupSpotResponse(t *testing.T) hardening.HttpResponse {
 	t.Helper()
-	api := &startupAPI{plan: func(string, int) startupAction { return startupOK }, calls: map[string]int{}}
+	api := newStartupAPI(func(string, int) startupAction { return startupOK })
 	resp, err := api.GetSpotConfig(context.Background(), nil)
 	if err != nil {
 		t.Fatal(err)

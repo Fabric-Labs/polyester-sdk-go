@@ -56,7 +56,6 @@ const (
 type connectProxy struct {
 	listener net.Listener
 	target   string
-	tunnels  atomic.Int64
 
 	mu    sync.Mutex
 	conns []net.Conn
@@ -107,7 +106,6 @@ func (p *connectProxy) tunnel(client net.Conn) {
 		_ = client.Close()
 		return
 	}
-	p.tunnels.Add(1)
 	p.mu.Lock()
 	p.conns = append(p.conns, client, upstream)
 	p.mu.Unlock()
@@ -143,9 +141,23 @@ type startupAPI struct {
 
 	mu    sync.Mutex
 	calls map[string]int
+	// conns holds, for each operation, the connection each call arrived on,
+	// in order.
+	conns map[string][]int64
 	// drops counts the drops done: the tunnels were closed.
 	drops atomic.Int32
+	// spotRead is closed when the first spot config read arrives.
+	spotRead     chan struct{}
+	spotReadOnce sync.Once
 }
+
+func newStartupAPI(plan func(operation string, seen int) startupAction) *startupAPI {
+	return &startupAPI{plan: plan, calls: map[string]int{}, conns: map[string][]int64{}, spotRead: make(chan struct{})}
+}
+
+// startupConnKey keys the number the API gives each connection it accepts:
+// every tunnel the proxy opens is a connection of its own.
+type startupConnKey struct{}
 
 func (a *startupAPI) count(operation string) int {
 	a.mu.Lock()
@@ -153,11 +165,38 @@ func (a *startupAPI) count(operation string) int {
 	return a.calls[operation]
 }
 
+// connsOf returns the connection each call of operation arrived on, in order.
+func (a *startupAPI) connsOf(operation string) []int64 {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return append([]int64(nil), a.conns[operation]...)
+}
+
+// callsOn counts the calls of any operation that arrived on conn.
+func (a *startupAPI) callsOn(conn int64) int {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	n := 0
+	for _, conns := range a.conns {
+		for _, c := range conns {
+			if c == conn {
+				n++
+			}
+		}
+	}
+	return n
+}
+
 func (a *startupAPI) arrive(ctx context.Context, operation string) error {
+	conn, _ := ctx.Value(startupConnKey{}).(int64)
 	a.mu.Lock()
 	a.calls[operation]++
 	seen := a.calls[operation]
+	a.conns[operation] = append(a.conns[operation], conn)
 	a.mu.Unlock()
+	if operation == "GetSpotConfig" {
+		a.spotReadOnce.Do(func() { close(a.spotRead) })
+	}
 	switch a.plan(operation, seen) {
 	case startupDrop:
 		a.proxy.closeTunnels()
@@ -215,7 +254,7 @@ type startupHarness struct {
 
 func newStartupHarness(t *testing.T, plan func(string, int) startupAction) *startupHarness {
 	t.Helper()
-	api := &startupAPI{plan: plan, calls: map[string]int{}}
+	api := newStartupAPI(plan)
 	mux := http.NewServeMux()
 	path, handler := marketdatav1connect.NewMarketDataServiceHandler(api)
 	mux.Handle(path+"GetSpotConfig", handler)
@@ -223,6 +262,10 @@ func newStartupHarness(t *testing.T, plan func(string, int) startupAction) *star
 	mux.Handle(zpath+"GetDepositWithdrawConfig", zhandler)
 	mux.HandleFunc("/", api.other)
 	srv := httptest.NewUnstartedServer(mux)
+	var conns atomic.Int64
+	srv.Config.ConnContext = func(ctx context.Context, _ net.Conn) context.Context {
+		return context.WithValue(ctx, startupConnKey{}, conns.Add(1))
+	}
 	srv.EnableHTTP2 = true
 	srv.StartTLS()
 	t.Cleanup(srv.Close)
@@ -244,6 +287,22 @@ func (h *startupHarness) config(timeout time.Duration) polyester.Config {
 		DefaultAccountID: &accountID,
 		Timeout:          timeout,
 		HTTPClient:       &http.Client{Transport: transport},
+	}
+}
+
+// fundingAfterSpot holds the funding config's first read until the spot
+// config's read has reached the API. Over HTTP/2 the funding read then finds
+// the spot read's connection in the client's pool and shares it, as it does
+// whenever it starts late.
+func (h *startupHarness) fundingAfterSpot(cfg polyester.Config) {
+	transport := cfg.HTTPClient.Transport.(*http.Transport)
+	proxy := transport.Proxy
+	var first sync.Once
+	transport.Proxy = func(req *http.Request) (*url.URL, error) {
+		if strings.HasSuffix(req.URL.Path, "/GetDepositWithdrawConfig") {
+			first.Do(func() { <-h.api.spotRead })
+		}
+		return proxy(req)
 	}
 }
 
@@ -403,7 +462,7 @@ func cutFirstAnswer(next http.Handler, ops ...string) (http.Handler, *sync.Map) 
 // closed mid-answer is read again within the startup retry, as one answered
 // unavailable is, instead of failing after one attempt.
 func TestL2CatalogReadCutMidAnswerIsReadAgain(t *testing.T) {
-	api := &startupAPI{plan: func(string, int) startupAction { return startupOK }, calls: map[string]int{}}
+	api := newStartupAPI(func(string, int) startupAction { return startupOK })
 	mux := http.NewServeMux()
 	path, handler := marketdatav1connect.NewMarketDataServiceHandler(api)
 	mux.Handle(path+"GetSpotConfig", handler)
