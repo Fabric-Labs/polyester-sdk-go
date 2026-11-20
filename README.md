@@ -2381,6 +2381,9 @@ for book := range ob.Updates() {
 requested one: a reply at another tier, or naming none, is an `*errors.ResponseContractError`. A
 snapshot is a frozen view at its own `(BookEpoch, BookSeq)`: order snapshots with
 `orderbook.CompareSnapshots`, keep the newest, and never apply live deltas to one.
+Its `Ts` is the server's best-effort snapshot time, nil when the server sends none (never
+the local receipt time); a raw delta's `Ts` and a managed view's `Ts` (the latest snapshot
+or delta applied to the book) follow the same rule.
 The delta stream is published at fewer tiers, 1, 20, 50, 200 and 500
 (`codecs.OrderbookStreamDepths()`), and the server refuses a subscribe at any other
 depth, so the SDK does not subscribe there:

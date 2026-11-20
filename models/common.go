@@ -168,6 +168,12 @@ type OrderbookData struct {
 	// being built or after it was invalidated: its levels are unknown, not
 	// empty. Request the snapshot again later.
 	Available bool `json:"available"`
+	// Ts is the server's best-effort timestamp for this view. For an
+	// Orderbook.Get snapshot it is the snapshot's; for a managed
+	// subscription's view it is that of the latest snapshot or delta applied
+	// to the book. Nil when the server supplied none: it is never the local
+	// receipt time. Order snapshots by (BookEpoch, BookSeq), not by Ts.
+	Ts *time.Time `json:"ts,omitempty"`
 }
 
 // ApiData is an escape hatch for responses not yet modeled.

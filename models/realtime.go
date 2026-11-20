@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 // PriceQtyPair is a scaled price/qty tuple from realtime deltas.
 type PriceQtyPair struct {
 	PriceTicks int64
@@ -14,4 +16,7 @@ type OrderBookDeltaUpdate struct {
 	Reset        bool
 	Bids         []PriceQtyPair
 	Asks         []PriceQtyPair
+	// Ts is the server's best-effort timestamp for this delta; nil when the
+	// server supplied none, never the local receipt time.
+	Ts *time.Time
 }
