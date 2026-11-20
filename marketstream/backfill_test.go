@@ -227,15 +227,15 @@ func TestBackfilledTradesKeepTheirExchangeTime(t *testing.T) {
 		return &marketdatav1.MarketTrade{SymbolId: 7, MatchId: matchID, IsBuy: true, PriceTicks: 65_000_000_000_000, QtyScaled: 1_500, TsNs: tsNs}
 	}
 	res := decode.MarketTradesBackfillFromProto(&marketdatav1.GetTradesResponse{
-		Trades:                 []*marketdatav1.MarketTrade{wire(101, 1_700_000_000_123_456_789), wire(102, 0)},
-		CompleteThroughTradeId: 102,
-		NextAfterTradeId:       102,
+		Trades:                 []*marketdatav1.MarketTrade{wire(101, 1_700_000_000_123_456_789), wire(102, 0), wire(103, 1<<63)},
+		CompleteThroughTradeId: 103,
+		NextAfterTradeId:       103,
 	}, 3)
 	page, err := historyPage(res)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(page.Trades) != 2 {
+	if len(page.Trades) != 3 {
 		t.Fatalf("trades %+v", page.Trades)
 	}
 	if got, want := page.Trades[0].TransactTime, time.Unix(0, 1_700_000_000_123_456_789).UTC(); !got.Equal(want) || got.Location() != time.UTC {
@@ -243,6 +243,10 @@ func TestBackfilledTradesKeepTheirExchangeTime(t *testing.T) {
 	}
 	if got := page.Trades[1].TransactTime; !got.IsZero() {
 		t.Fatalf("trade 102 time %v: a time the history does not report stays zero", got)
+	}
+	// Unix nanoseconds are unsigned: a time past the int64 range is kept.
+	if got, want := page.Trades[2].TransactTime, time.Unix(9_223_372_036, 854_775_808).UTC(); !got.Equal(want) {
+		t.Fatalf("trade 103 time %v, want %v", got, want)
 	}
 }
 

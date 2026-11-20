@@ -54,9 +54,10 @@ type Config struct {
 	// timeout and the environment's proxy when nil.
 	Dialer *websocket.Dialer
 	// AutoReconnect, when nil or true (the default), reconnects after a lost
-	// connection. Set to false, a lost connection stops the client with the
-	// loss as its terminal error (Err), which requests still in flight return
-	// too; Events delivers the queued events, then closes.
+	// connection. Set to false, a lost connection, a failed write included,
+	// stops the client with the loss as its terminal error (Err), which
+	// requests still in flight, and later ones, return too; Events delivers
+	// the queued events, then closes.
 	AutoReconnect *bool
 }
 
@@ -87,7 +88,8 @@ func URL(base string) (string, error) {
 	return u.String(), nil
 }
 
-// ErrClosed is returned by calls on a closed Client.
+// ErrClosed is returned by calls on a Client stopped by Close. A Client
+// stopped by a terminal error returns that error (Client.Err) instead.
 var ErrClosed = &sdkerrors.RealtimeError{Msg: "market stream client is closed"}
 
 const (
@@ -365,8 +367,27 @@ func (c *Client) request(ctx context.Context, topics []Topic, unsubscribe bool) 
 			return out.resp, out.err
 		default:
 		}
-		return nil, ErrClosed
+		return nil, c.stopped()
 	}
+}
+
+// stopped is why the client stopped: its terminal error, ErrClosed after
+// Close, nil while it runs.
+func (c *Client) stopped() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.stoppedLocked()
+}
+
+// stoppedLocked is stopped with c.mu held.
+func (c *Client) stoppedLocked() error {
+	switch {
+	case c.err != nil:
+		return c.err
+	case c.closed:
+		return ErrClosed
+	}
+	return nil
 }
 
 // issue records the caller's intent for topics and sends the request that
@@ -379,10 +400,11 @@ func (c *Client) issue(topics []Topic, unsubscribe bool) (id uint64, reply chan 
 		verb = "unsubscribe"
 	}
 	reply = make(chan subscribeOutcome, 1)
-	offline := false
+	offline, stopped := false, false
 	err = c.transmit(func() ([][]byte, error) {
-		if c.closed || c.err != nil {
-			return nil, ErrClosed
+		if err := c.stoppedLocked(); err != nil {
+			stopped = true
+			return nil, err
 		}
 		for _, t := range topics {
 			if unsubscribe {
@@ -409,13 +431,17 @@ func (c *Client) issue(topics []Topic, unsubscribe bool) (id uint64, reply chan 
 		return [][]byte{frame}, nil
 	})
 	switch {
-	case errors.Is(err, ErrClosed):
+	case stopped:
 		return 0, nil, err
 	case offline:
 		// Between connections: the next connection subscribes what is wanted
 		// then, which these topics are, or no longer are.
 		return 0, nil, &sdkerrors.RealtimeError{Msg: "market stream is reconnecting; the " + verb + " applies once it is connected"}
 	case err != nil:
+		// Without Config.AutoReconnect the failed write stopped the client.
+		if stop := c.stopped(); stop != nil {
+			return id, nil, stop
+		}
 		return id, nil, &sdkerrors.RealtimeError{Msg: "market stream " + verb + ": " + err.Error() + "; it applies once the client reconnects"}
 	}
 	return id, reply, nil
@@ -540,7 +566,7 @@ func (c *Client) run(conn *websocket.Conn) {
 		c.backfills.Wait()
 		c.mu.Lock()
 		for id, w := range c.waiting {
-			w <- subscribeOutcome{err: ErrClosed}
+			w <- subscribeOutcome{err: c.stoppedLocked()}
 			delete(c.waiting, id)
 		}
 		c.mu.Unlock()
@@ -658,13 +684,23 @@ func (c *Client) transmit(build func() ([][]byte, error)) error {
 			err = conn.WriteMessage(websocket.BinaryMessage, frame)
 		}
 		if err != nil {
-			if conn != nil {
-				_ = conn.Close()
-			}
+			c.writeFailed(conn, err)
 			return err
 		}
 	}
 	return nil
+}
+
+// writeFailed ends the connection a write failed on. Without
+// Config.AutoReconnect the failure stops the client first, so it, not the
+// socket close that follows, is the terminal error.
+func (c *Client) writeFailed(conn *websocket.Conn, err error) {
+	if !c.reconnect {
+		c.fail(&sdkerrors.RealtimeError{Msg: "market stream write: " + err.Error()})
+	}
+	if conn != nil {
+		_ = conn.Close()
+	}
 }
 
 // reconcile moves the server toward the caller's intent for each topic
@@ -845,13 +881,15 @@ func (c *Client) ends(err error) bool {
 func (c *Client) session(conn *websocket.Conn, reconnect bool) (err error) {
 	defer func() {
 		// A failure that stops the client stops it before the connection is
-		// detached, so the requests the connection carried get that error
-		// rather than the promise to apply once it reconnects, and any made
-		// from here on find the client stopped (ErrClosed).
-		lost := error(&sdkerrors.RealtimeError{Msg: "market stream connection lost before the subscribe response; the topics are subscribed once it reconnects"})
+		// detached, so the requests the connection carried, and any made from
+		// here on, get the error that stopped it rather than the promise to
+		// apply once it reconnects.
 		if c.ends(err) {
 			c.fail(err)
-			lost = err
+		}
+		lost := c.stopped()
+		if lost == nil {
+			lost = &sdkerrors.RealtimeError{Msg: "market stream connection lost before the subscribe response; the topics are subscribed once it reconnects"}
 		}
 		_ = conn.Close()
 		// Detached first: a request from here on waits for the next
@@ -957,7 +995,7 @@ func (c *Client) heartbeat(conn *websocket.Conn, stop <-chan struct{}, failed ch
 			c.mu.Unlock()
 			if id != 0 {
 				if err := c.write(conn, encodePing(id)); err != nil {
-					_ = conn.Close()
+					c.writeFailed(conn, err)
 					return
 				}
 			}
@@ -995,11 +1033,11 @@ func (c *Client) fail(err error) {
 	c.cancel()
 }
 
+// timeOf is the time of unsigned Unix nanoseconds. Seconds and the
+// nanoseconds within the second are converted apart, so a time past the
+// int64 nanosecond range is kept.
 func timeOf(ns uint64) time.Time {
-	if ns > math.MaxInt64 {
-		return time.Time{}
-	}
-	return time.Unix(0, int64(ns)).UTC()
+	return time.Unix(int64(ns/uint64(time.Second)), int64(ns%uint64(time.Second))).UTC()
 }
 
 func levelsOf(levels []levelMsg, scale int, symbol string, symbolID uint32) []Level {

@@ -16,10 +16,15 @@ func finish(buf []byte, encoded uint64) []byte {
 }
 
 func tradesFrame(symbol uint32, epoch, updateID uint64, fills ...fillMsg) []byte {
+	return tradesFrameAt(symbol, epoch, updateID, 1_700_000_000_000_000_000, fills...)
+}
+
+// tradesFrameAt is tradesFrame of a book update executed at transactNs.
+func tradesFrameAt(symbol uint32, epoch, updateID, transactNs uint64, fills ...fillMsg) []byte {
 	buf := make([]byte, testBufSize)
 	var m ms.Trades
 	m.WrapAndApplyHeader(buf, 0, uint64(len(buf))).
-		SetSymbolId(symbol).SetBookEpoch(epoch).SetUpdateId(updateID).SetTransactTsNs(1_700_000_000_000_000_000).SetSendTsNs(1_700_000_000_000_001_000)
+		SetSymbolId(symbol).SetBookEpoch(epoch).SetUpdateId(updateID).SetTransactTsNs(transactNs).SetSendTsNs(1_700_000_000_000_001_000)
 	g := m.EntriesCount(uint16(len(fills)))
 	for _, f := range fills {
 		g.Next().SetTradeId(f.tradeID).SetPriceTicks(f.price).SetQtyScaled(f.qty).SetTakerSide(ms.Side(f.side))

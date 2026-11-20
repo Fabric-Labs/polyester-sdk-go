@@ -3,10 +3,12 @@ package marketstream
 import (
 	"context"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -342,6 +344,23 @@ func TestClientDeliversEveryStream(t *testing.T) {
 	}
 }
 
+// A live trade's time is unsigned Unix nanoseconds: one past the int64 range
+// is kept, on the trade and its book update.
+func TestClientKeepsTradeTimesPastTheInt64Range(t *testing.T) {
+	fs := newFakeServer(t)
+	c := dialTest(t, fs)
+	sc := fs.accept(t)
+	results := subscribeAsync(c, Topic{7, StreamTrades})
+	sub := sc.subscribe(t)
+	sc.send(t, respond(sub, SubscribeOK), tradesThroughFrame(7, 1, 100), tradesFrameAt(7, 1, 500, 1<<63, fill(101)))
+	awaitResults(t, results)
+	trades := expect[*Trades](t, c)
+	want := time.Unix(9_223_372_036, 854_775_808).UTC()
+	if !trades.TransactTime.Equal(want) || !trades.Trades[0].TransactTime.Equal(want) {
+		t.Fatalf("book update time %v, trade time %v, want %v", trades.TransactTime, trades.Trades[0].TransactTime, want)
+	}
+}
+
 func TestClientDropsRefusedTopicsOnReconnect(t *testing.T) {
 	fs := newFakeServer(t)
 	c := dialTest(t, fs)
@@ -397,6 +416,9 @@ func TestClientFailsWhenTheConsumerFallsBehind(t *testing.T) {
 	if !errors.As(c.Err(), &overflow) {
 		t.Fatalf("err %v, want QueueOverflowError", c.Err())
 	}
+	if _, err := c.Subscribe(context.Background(), Topic{7, StreamBBO}); !errors.Is(err, c.Err()) {
+		t.Fatalf("Subscribe on a stopped client: %v, want the terminal error", err)
+	}
 	n := 0
 	for range c.Events() {
 		n++
@@ -430,6 +452,9 @@ func TestClientStopsOnAnotherSchema(t *testing.T) {
 	// apply once the client reconnects.
 	if err := <-pending; !errors.Is(err, c.Err()) {
 		t.Fatalf("pending Subscribe: %v", err)
+	}
+	if _, err := c.Subscribe(context.Background(), Topic{7, StreamBBO}); !errors.Is(err, c.Err()) {
+		t.Fatalf("Subscribe on a stopped client: %v", err)
 	}
 	time.Sleep(50 * time.Millisecond)
 	if n := fs.connections(); n != 1 {
@@ -547,14 +572,89 @@ func TestClientWithoutAutoReconnectALostConnectionEndsTheStream(t *testing.T) {
 			case <-time.After(5 * time.Second):
 				t.Fatal("pending Subscribe did not return")
 			}
-			if _, after := c.Subscribe(context.Background(), Topic{7, StreamBBO}); !errors.Is(after, ErrClosed) {
-				t.Fatalf("Subscribe on a stopped client: %v", after)
+			if _, after := c.Subscribe(context.Background(), Topic{7, StreamBBO}); !errors.Is(after, err) {
+				t.Fatalf("Subscribe on a stopped client: %v, want the terminal error %v", after, err)
 			}
 			time.Sleep(50 * time.Millisecond)
 			if n := fs.connections(); n != 1 {
 				t.Fatalf("%d connections: the client reconnected", n)
 			}
 		})
+	}
+}
+
+// failingWrites is a connection whose writes fail once armed.
+type failingWrites struct {
+	net.Conn
+	armed *atomic.Bool
+}
+
+var errInjectedWrite = errors.New("injected write failure")
+
+func (f failingWrites) Write(b []byte) (int, error) {
+	if f.armed.Load() {
+		return 0, errInjectedWrite
+	}
+	return f.Conn.Write(b)
+}
+
+// Without AutoReconnect, a request whose write fails stops the client with
+// that failure: the request and those in flight return it, not the promise
+// to apply once the client reconnects, and so do later ones.
+func TestClientWithoutAutoReconnectAFailedWriteEndsTheStream(t *testing.T) {
+	fs := newFakeServer(t)
+	armed := &atomic.Bool{}
+	off := false
+	c := dialTest(t, fs, func(cfg *Config) {
+		cfg.AutoReconnect = &off
+		cfg.Dialer = &websocket.Dialer{NetDialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			conn, err := (&net.Dialer{}).DialContext(ctx, network, addr)
+			if err != nil {
+				return nil, err
+			}
+			return failingWrites{Conn: conn, armed: armed}, nil
+		}}
+	})
+	sc := fs.accept(t)
+	pending := make(chan error, 1)
+	go func() {
+		_, err := c.Subscribe(context.Background(), Topic{7, StreamBBO})
+		pending <- err
+	}()
+	sc.subscribe(t)
+	armed.Store(true)
+	_, failed := c.Subscribe(context.Background(), Topic{7, StreamDepth})
+	select {
+	case <-c.Done():
+	case <-time.After(5 * time.Second):
+		t.Fatal("client did not stop")
+	}
+	err := c.Err()
+	if err == nil || !strings.Contains(err.Error(), errInjectedWrite.Error()) {
+		t.Fatalf("err %v: the write failure is the terminal error", err)
+	}
+	if !errors.Is(failed, err) || strings.Contains(failed.Error(), "reconnect") {
+		t.Fatalf("failed Subscribe: %v, want the terminal error %v", failed, err)
+	}
+	select {
+	case perr := <-pending:
+		if !errors.Is(perr, err) {
+			t.Fatalf("pending Subscribe: %v, want the terminal error %v", perr, err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("pending Subscribe did not return")
+	}
+	if _, after := c.Subscribe(context.Background(), Topic{7, StreamBBO}); !errors.Is(after, err) {
+		t.Fatalf("Subscribe on a stopped client: %v", after)
+	}
+	for e := range c.Events() {
+		if d, ok := e.(*Disconnected); ok {
+			t.Fatalf("a reconnect is announced: %+v", d)
+		}
+	}
+	time.Sleep(50 * time.Millisecond)
+	if n := fs.connections(); n != 1 {
+		t.Fatalf("%d connections: the client reconnected", n)
 	}
 }
 

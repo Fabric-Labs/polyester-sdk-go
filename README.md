@@ -2118,9 +2118,10 @@ The client pings every 15 seconds and reconnects when a pong is late or the
 connection drops, with jittered backoff, and resubscribes every topic the
 server accepted. Topics it refused (an unknown or disabled pair, or more
 subscriptions than one connection may hold) are not resubscribed. With
-`Config.AutoReconnect` set to false, a lost connection stops the client
-instead: `Client.Err` reports the loss, requests in flight return it, and
-`Events` delivers the queued events, then closes. The `Events`
+`Config.AutoReconnect` set to false, a lost connection, a failed write
+included, stops the client instead: `Client.Err` reports the loss, requests
+in flight and later ones return it, and `Events` delivers the queued events,
+then closes. The `Events`
 channel is bounded by `Config.QueueSize`: a consumer that falls behind fails
 the client with `*errors.QueueOverflowError` instead of losing messages.
 
