@@ -6,7 +6,8 @@
 // subscribes and returns a Client whose Events channel delivers every
 // stream's messages in order, with prices and quantities as exact decimal
 // values scaled by the pair's catalog scales. The client reconnects on its own
-// and resubscribes; each stream recovers as the protocol defines:
+// and resubscribes, unless Config.AutoReconnect is false; each stream
+// recovers as the protocol defines:
 //
 //   - trades: every trade arrives once or is reported in a TradesGap, which
 //     the client can backfill from the trade history API (Config.History);
@@ -184,6 +185,10 @@ type Trade struct {
 	Price     models.PriceTicks
 	Qty       models.QtyScaled
 	TakerSide Side
+	// TransactTime is when the trade executed: the time of the book update
+	// that executed it, the Trades.TransactTime of a live trade. Zero when
+	// the trade history does not report it.
+	TransactTime time.Time
 }
 
 // Event is one message of the stream: *Trades, *TradesGap, *TradesThrough,

@@ -2076,8 +2076,9 @@ Streams and recovery:
   `TradesGap`. With `Config.History` set (the default of
   `Client.MarketStream`), the client recovers each gap from the trade history
   API by trade ID and delivers a `TradesBackfill`; `marketstream.Backfill`
-  does the same on demand. A recovery waits, retrying, while the trade history
-  catches up with the live stream.
+  does the same on demand. A recovered trade carries the time it executed
+  (`Trade.TransactTime`), as a live one does. A recovery waits, retrying,
+  while the trade history catches up with the live stream.
 - `StreamBBO` and `StreamDepth20` carry the full state in every message. The
   client delivers only states newer than the last one and keeps the newest
   (`Client.BestBidOffer`, `Client.OrderBook`).
@@ -2116,7 +2117,11 @@ the kept state stays stale until one at least as new confirms or replaces it.
 The client pings every 15 seconds and reconnects when a pong is late or the
 connection drops, with jittered backoff, and resubscribes every topic the
 server accepted. Topics it refused (an unknown or disabled pair, or more
-subscriptions than one connection may hold) are not resubscribed. The `Events`
+subscriptions than one connection may hold) are not resubscribed. With
+`Config.AutoReconnect` set to false, a lost connection, a failed write
+included, stops the client instead: `Client.Err` reports the loss, requests
+in flight and later ones return it, and `Events` delivers the queued events,
+then closes. The `Events`
 channel is bounded by `Config.QueueSize`: a consumer that falls behind fails
 the client with `*errors.QueueOverflowError` instead of losing messages.
 

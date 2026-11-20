@@ -7,7 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
+	marketdatav1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1"
+	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
 // fakeHistory serves a trade store: every trade ID it holds, the epochs that
@@ -214,5 +217,47 @@ func TestBackfillGivesUpAfterRepeatedFailures(t *testing.T) {
 	h := &failingHistory{}
 	if _, err := Backfill(context.Background(), h, TradesGap{SymbolID: 7, AfterTradeID: 1, ThroughTradeID: 2}); err == nil || h.calls != backfillFetchAttempts {
 		t.Fatalf("err %v after %d calls", err, h.calls)
+	}
+}
+
+// A recovered trade keeps its exchange time: the trade history's ts_ns
+// becomes the trade's TransactTime, as on a live trade.
+func TestBackfilledTradesKeepTheirExchangeTime(t *testing.T) {
+	wire := func(matchID, tsNs uint64) *marketdatav1.MarketTrade {
+		return &marketdatav1.MarketTrade{SymbolId: 7, MatchId: matchID, IsBuy: true, PriceTicks: 65_000_000_000_000, QtyScaled: 1_500, TsNs: tsNs}
+	}
+	res := decode.MarketTradesBackfillFromProto(&marketdatav1.GetTradesResponse{
+		Trades:                 []*marketdatav1.MarketTrade{wire(101, 1_700_000_000_123_456_789), wire(102, 0), wire(103, 1<<63)},
+		CompleteThroughTradeId: 103,
+		NextAfterTradeId:       103,
+	}, 3)
+	page, err := historyPage(res)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page.Trades) != 3 {
+		t.Fatalf("trades %+v", page.Trades)
+	}
+	if got, want := page.Trades[0].TransactTime, time.Unix(0, 1_700_000_000_123_456_789).UTC(); !got.Equal(want) || got.Location() != time.UTC {
+		t.Fatalf("trade 101 time %v, want %v", got, want)
+	}
+	if got := page.Trades[1].TransactTime; !got.IsZero() {
+		t.Fatalf("trade 102 time %v: a time the history does not report stays zero", got)
+	}
+	// Unix nanoseconds are unsigned: a time past the int64 range is kept.
+	if got, want := page.Trades[2].TransactTime, time.Unix(9_223_372_036, 854_775_808).UTC(); !got.Equal(want) {
+		t.Fatalf("trade 103 time %v, want %v", got, want)
+	}
+}
+
+func TestABackfilledTradeTimeThatIsNotANumberBreaksTheContract(t *testing.T) {
+	res := models.MarketTradesResult{
+		Trades:                 []models.MarketTrade{{SymbolID: 7, MatchID: "101", TsNs: "soon", Side: "buy"}},
+		CompleteThroughTradeID: "101",
+		NextAfterTradeID:       "101",
+	}
+	var contract *sdkerrors.ResponseContractError
+	if _, err := historyPage(res); !errors.As(err, &contract) {
+		t.Fatalf("err %v, want a ResponseContractError", err)
 	}
 }

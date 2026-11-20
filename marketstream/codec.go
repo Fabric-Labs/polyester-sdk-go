@@ -29,7 +29,8 @@ func (e *SchemaError) Error() string {
 
 // FrameError refuses a message whose bytes do not match its declared layout,
 // or whose values break the protocol. The client reconnects, so every stream
-// restarts from a fresh baseline.
+// restarts from a fresh baseline; without Config.AutoReconnect it stops with
+// this error.
 type FrameError struct {
 	TemplateID uint16
 	Msg        string
