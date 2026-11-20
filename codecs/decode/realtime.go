@@ -58,6 +58,7 @@ func OrderbookDeltaFromBytes(payload []byte) (models.OrderBookDeltaUpdate, error
 		Reset:        msg.GetReset_(),
 		Bids:         bids,
 		Asks:         asks,
+		Ts:           optionalTime(msg.GetTs()),
 	}, nil
 }
 

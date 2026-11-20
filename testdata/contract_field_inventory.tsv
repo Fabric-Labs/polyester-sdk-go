@@ -141,7 +141,7 @@ orderbook.v1.GetOrderBookResponse.book_epoch	covered	models.OrderbookData.BookEp
 orderbook.v1.GetOrderBookResponse.book_seq	covered	models.OrderbookData.BookSeq
 orderbook.v1.GetOrderBookResponse.depth	covered	models.OrderbookData.Depth
 orderbook.v1.GetOrderBookResponse.symbol_id	covered	models.OrderbookData.Symbol (the symbol the caller asked for)
-orderbook.v1.GetOrderBookResponse.ts	omitted	best-effort snapshot time, unchanged by this contract and not modelled; order snapshots by (book_epoch, book_seq)
+orderbook.v1.GetOrderBookResponse.ts	covered	models.OrderbookData.Ts (nil when the reply has none)
 orders.v1.ErrorDetail.cause_code	covered	errors.LadderLevelCause.CauseCode
 orders.v1.ErrorDetail.code	covered	errors.APIError.Code, errors.ValidationError.Code, errors.RateLimitError.Code
 orders.v1.ErrorDetail.existing_order_id	covered	errors.APIError.ExistingOrderID

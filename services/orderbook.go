@@ -107,6 +107,9 @@ type CreateSubscriptionOptions struct {
 // 0 means 50. The book rides the smallest tier covering it, snapshot included,
 // and each view is trimmed to it; a depth no tier covers is a ValidationError
 // before connecting.
+//
+// Each view's Ts is the server timestamp of the latest snapshot or delta
+// applied to the book, nil when that one carried none.
 func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSubscriptionOptions) (*orderbook.Subscription, error) {
 	if err := requireRealtime(s.realtime); err != nil {
 		return nil, err
@@ -194,6 +197,9 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		// awaitingReset is set when a delta did not continue the book: the
 		// book is stale until the next reset or snapshot replaces it.
 		awaitingReset bool
+		// bookTs is the server timestamp of the latest snapshot or delta
+		// applied to the book, nil when it carried none.
+		bookTs *time.Time
 	)
 
 	emit := func() {
@@ -204,6 +210,7 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		}
 		data, err := orderbook.BuildOrderbookData(symbol, depth, currentBookSeq, bids, asks, bucketTicks, quantityScale)
 		data.Available = bookAvailable && !awaitingReset
+		data.Ts = copyTime(bookTs)
 		lastViewUnavailable = !bookAvailable
 		localSub := subscription
 		mu.Unlock()
@@ -250,6 +257,10 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 				return false, false
 			}
 			awaitingReset = false
+		}
+		if newSeq != previousSeq {
+			// Applied: the book is now this delta's view.
+			bookTs = delta.Ts
 		}
 		return true, false
 	}
@@ -340,10 +351,16 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 				asks = nextAsks
 				currentBookSeq = msg.GetBookSeq()
 				bookAvailable = msg.GetAvailable()
+				bookTs = nil
+				if ts := msg.GetTs(); ts != nil {
+					value := ts.AsTime()
+					bookTs = &value
+				}
 				// A new snapshot is a new starting view: deltas continue from it.
 				awaitingReset = false
 				data, err := orderbook.BuildOrderbookData(symbol, depth, currentBookSeq, bids, asks, bucketTicks, quantityScale)
 				data.Available = bookAvailable
+				data.Ts = copyTime(bookTs)
 				mu.Unlock()
 				return data, err
 			})
@@ -401,6 +418,16 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		return nil, err
 	}
 	return subscription, nil
+}
+
+// copyTime gives each view its own timestamp, so a caller changing one
+// cannot change the book's or another view's.
+func copyTime(ts *time.Time) *time.Time {
+	if ts == nil {
+		return nil
+	}
+	value := *ts
+	return &value
 }
 
 // SubscribeDeltas delivers the raw deltas of one published stream depth,

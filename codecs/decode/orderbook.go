@@ -28,7 +28,8 @@ func ServedDepthTier(operation string, requested, served typev1.DepthTier) error
 // OrderbookFromProto decodes an Orderbook.Get snapshot requested at depth
 // levels per side, a tier (codecs.OrderbookDepthTiers). Its Depth is that
 // tier; a reply that names another served tier, or none, is an
-// *errors.ResponseContractError, and so is a depth that is no tier.
+// *errors.ResponseContractError, and so is a depth that is no tier. Its Ts is
+// the snapshot's timestamp, nil when the reply has none.
 func OrderbookFromProto(msg *orderbookv1.GetOrderBookResponse, symbol string, depth, quantityScale int) (models.OrderbookData, error) {
 	requested, err := codecs.DepthTierForLevels(depth)
 	if err != nil {
@@ -53,6 +54,7 @@ func OrderbookFromProto(msg *orderbookv1.GetOrderBookResponse, symbol string, de
 		Bids:      bids,
 		Asks:      asks,
 		Available: msg.GetAvailable(),
+		Ts:        optionalTime(msg.GetTs()),
 	}, nil
 }
 
