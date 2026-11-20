@@ -178,3 +178,15 @@ reason = "Quick Swap referrals authenticate with an interactive session; Quick S
 [[allowlist]]
 service = "notifications.v1.NotificationService"
 reason = "The notification center is not part of the trading SDK surface yet; its reads accept a main-account API key with READ_NOTIFICATIONS, and marking notifications read requires an interactive session."
+
+[[allowlist]]
+procedure = "/chain.withdraw.v1.WithdrawService/CreateWalletTradingToFundingBatch"
+reason = "The Trading to Funding withdraw batch takes an interactive session with a wallet signature and recent MFA or a fresh step-up; API keys are not accepted."
+
+[[allowlist]]
+procedure = "/marketdata.v1.MarketDataService/GetPriceBand"
+reason = "The public live price band read is not wrapped in this SDK yet; call it with the generated marketdatav1connect client."
+
+[[allowlist]]
+service = "strategies.v1.StrategiesService"
+reason = "preview, not served yet"
