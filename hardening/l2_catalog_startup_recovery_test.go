@@ -293,14 +293,25 @@ func (h *startupHarness) config(timeout time.Duration) polyester.Config {
 // fundingAfterSpot holds the funding config's first read until the spot
 // config's read has reached the API. Over HTTP/2 the funding read then finds
 // the spot read's connection in the client's pool and shares it, as it does
-// whenever it starts late.
+// whenever it starts late. A funding read canceled first, by its deadline or
+// the client closing, stops waiting and fails with the cancellation.
 func (h *startupHarness) fundingAfterSpot(cfg polyester.Config) {
 	transport := cfg.HTTPClient.Transport.(*http.Transport)
 	proxy := transport.Proxy
 	var first sync.Once
 	transport.Proxy = func(req *http.Request) (*url.URL, error) {
 		if strings.HasSuffix(req.URL.Path, "/GetDepositWithdrawConfig") {
-			first.Do(func() { <-h.api.spotRead })
+			var err error
+			first.Do(func() {
+				select {
+				case <-h.api.spotRead:
+				case <-req.Context().Done():
+					err = req.Context().Err()
+				}
+			})
+			if err != nil {
+				return nil, err
+			}
 		}
 		return proxy(req)
 	}

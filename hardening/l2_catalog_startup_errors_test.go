@@ -58,6 +58,12 @@ func TestL2PersistentFundingStallSharingTheSpotConnectionFailsWithinDeadline(t *
 	cfg.CatalogTimeout = 1500 * time.Millisecond
 	h.fundingAfterSpot(cfg)
 	checkPersistentFundingStall(t, h, cfg)
+	// The ordering this test holds took place: the first funding read shared
+	// the spot read's connection.
+	spot, funding := h.api.connsOf("GetSpotConfig"), h.api.connsOf("GetDepositWithdrawConfig")
+	if len(spot) != 1 || spot[0] == 0 || funding[0] != spot[0] {
+		t.Fatalf("the first funding read did not share the spot read's connection: spot %v, funding %v", spot, funding)
+	}
 }
 
 func checkPersistentFundingStall(t *testing.T, h *startupHarness, cfg polyester.Config) {
