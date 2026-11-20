@@ -11,12 +11,21 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
-// OrderFromProto decodes an order message.
+// OrderFromProto decodes an order message. A refused batch replacement,
+// which Orders.Get answers for 60 seconds without order terms, decodes with
+// SymbolID 0, empty side, type, time in force, self-trade prevention mode and
+// fee asset, and zero quantities that name no pair.
 func OrderFromProto(msg *orderv1.Order) models.Order {
 	if msg == nil {
 		return models.Order{}
 	}
 	sid := msg.GetSymbolId()
+	// Quantities name the order's pair, so the catalogs can scale them; an
+	// order without one leaves them unnamed rather than naming pair 0.
+	var qtyPair *uint32
+	if sid != 0 {
+		qtyPair = &sid
+	}
 	return models.Order{
 		OrderID:       codecs.FormatUint64ID(msg.GetOrderId()),
 		SymbolID:      sid,
@@ -26,12 +35,12 @@ func OrderFromProto(msg *orderv1.Order) models.Order {
 		OrderType:     codecs.OrderTypeName(msg.GetOrderType()),
 		TIF:           codecs.TimeInForceName(msg.GetTimeInForce()),
 		// Current accepted total; changes after a successful modify.
-		OrigQty:         codecs.DecodeQtyScaled(msg.GetOrigQtyScaled(), -1, "", &sid),
-		CumQty:          codecs.DecodeQtyScaled(msg.GetCumQtyScaled(), -1, "", &sid),
-		InheritedCumQty: codecs.DecodeQtyScaled(msg.GetInheritedCumQtyScaled(), -1, "", &sid),
-		LeavesQty:       codecs.DecodeQtyScaled(msg.GetLeavesQtyScaled(), -1, "", &sid),
-		DisplayQty:      codecs.DecodeQtyScaled(msg.GetDisplayQtyScaled(), -1, "", &sid),
-		HiddenQty:       codecs.DecodeQtyScaled(msg.GetHiddenQtyScaled(), -1, "", &sid),
+		OrigQty:         codecs.DecodeQtyScaled(msg.GetOrigQtyScaled(), -1, "", qtyPair),
+		CumQty:          codecs.DecodeQtyScaled(msg.GetCumQtyScaled(), -1, "", qtyPair),
+		InheritedCumQty: codecs.DecodeQtyScaled(msg.GetInheritedCumQtyScaled(), -1, "", qtyPair),
+		LeavesQty:       codecs.DecodeQtyScaled(msg.GetLeavesQtyScaled(), -1, "", qtyPair),
+		DisplayQty:      codecs.DecodeQtyScaled(msg.GetDisplayQtyScaled(), -1, "", qtyPair),
+		HiddenQty:       codecs.DecodeQtyScaled(msg.GetHiddenQtyScaled(), -1, "", qtyPair),
 		Price:           codecs.DecodePriceTicks(msg.GetPriceTicks(), ""),
 		AvgPx:           codecs.DecodePriceTicks(msg.GetAvgPriceTicks(), ""),
 		CreatedTsNs:     strconv.FormatUint(msg.GetCreatedTsNs(), 10),
@@ -60,20 +69,20 @@ func OrderFromProto(msg *orderv1.Order) models.Order {
 		CancelReason:         OrderCancelReasonLabel(msg.GetCancelReason()),
 		AvgPriceE18:          u128(msg.GetAvgPriceE18()),
 		CumNotional:          u128(msg.GetCumNotional()),
-		FeeTotal:             orderFeeTotalFromProto(msg.GetFeeTotal(), sid),
+		FeeTotal:             orderFeeTotalFromProto(msg.GetFeeTotal(), qtyPair),
 	}
 }
 
 // orderFeeTotalFromProto decodes an order's fee total; nil when the read
 // carries none.
-func orderFeeTotalFromProto(msg *orderv1.OrderFeeTotal, symbolID uint32) *models.OrderFeeTotal {
+func orderFeeTotalFromProto(msg *orderv1.OrderFeeTotal, symbolID *uint32) *models.OrderFeeTotal {
 	if msg == nil {
 		return nil
 	}
 	return &models.OrderFeeTotal{
 		AmountE18: u128(msg.GetAmountE18()),
 		IsRebate:  msg.GetIsRebate(),
-		Qty:       codecs.DecodeQtyScaled(msg.GetQtyScaled(), -1, "", &symbolID),
+		Qty:       codecs.DecodeQtyScaled(msg.GetQtyScaled(), -1, "", symbolID),
 	}
 }
 

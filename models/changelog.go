@@ -124,9 +124,10 @@ type ChangelogSection struct {
 // counts by kind.
 //
 // A published post can be republished, for example to correct its copy or
-// withdraw a change. Its Slug, PublishedAt and its changes' IDs stay the same;
-// Revision and UpdatedAt tell the versions apart. To follow edits, compare
-// Revision with the one you hold and read the post again when it differs.
+// withdraw a change. Its Slug and its changes' IDs stay the same, and a
+// republication does not move PublishedAt; Revision and UpdatedAt tell the
+// versions apart. To follow edits, compare Revision with the one you hold and
+// read the post again when it differs.
 type ChangelogPostSummary struct {
 	// Slug is the post's coverage cutoff date, YYYY-MM-DD, with a -2 or -3
 	// suffix for a later post on the same day. It never changes when the post
@@ -134,11 +135,19 @@ type ChangelogPostSummary struct {
 	Slug         string `json:"slug"`
 	Title        string `json:"title"`
 	Introduction string `json:"introduction"`
-	// PublishedAt is the time of first publication. A republication does not
-	// move it.
+	// PublishedAt is the post's date in the environment the client reads.
+	// For a release post (one with a release version) it is when the release
+	// went live there, the environment's live_at, or the time of first
+	// publication while the release is still pending there; so it differs
+	// between environments and moves, without a new Revision, when the release
+	// goes live or its live_at changes later. Do not keep it as fixed: read it
+	// again with the post. Every other post keeps its time of first
+	// publication. A republication never moves it.
 	PublishedAt *time.Time `json:"published_at,omitempty"`
-	// UpdatedAt is when the current revision was published; it equals
-	// PublishedAt for revision 1. Nil from a server that predates revisions.
+	// UpdatedAt is when the current revision was published. For a release
+	// post it is independent of PublishedAt and can be earlier or later; for
+	// another post it equals PublishedAt at revision 1. Nil from a server that
+	// predates revisions.
 	UpdatedAt *time.Time `json:"updated_at,omitempty"`
 	// Revision is the published revision, starting at 1 and increasing with
 	// each republication. 0 from a server that predates revisions.
@@ -175,10 +184,13 @@ type ChangelogPost struct {
 
 // ChangelogChangeEntry is one change with the post it was published in.
 type ChangelogChangeEntry struct {
-	Change         ChangelogChange `json:"change"`
-	PostSlug       string          `json:"post_slug"`
-	PublishedAt    *time.Time      `json:"published_at,omitempty"`
-	SectionHeading string          `json:"section_heading"`
+	Change   ChangelogChange `json:"change"`
+	PostSlug string          `json:"post_slug"`
+	// PublishedAt is the post's PublishedAt: for a release post, its live
+	// time in the environment read, which can move without a new revision
+	// (see ChangelogPostSummary.PublishedAt).
+	PublishedAt    *time.Time `json:"published_at,omitempty"`
+	SectionHeading string     `json:"section_heading"`
 }
 
 // ChangelogPostsPage is one ListPosts page, newest post first.
@@ -238,11 +250,15 @@ type ChangelogDeploymentGroupPost struct {
 	// ReleaseVersion is the release the post announces, for example "0.92.9".
 	ReleaseVersion string `json:"release_version"`
 	Title          string `json:"title"`
-	// PublishedAt is the time of first publication of the post.
+	// PublishedAt is when the release went live in the environment read (its
+	// live_at), or the post's first publication while the release is pending
+	// there. It can move without a new Revision (see
+	// ChangelogPostSummary.PublishedAt).
 	PublishedAt *time.Time `json:"published_at,omitempty"`
 	// Revision is the post's published revision, starting at 1.
 	Revision uint32 `json:"revision"`
-	// UpdatedAt is when the post's current revision was published.
+	// UpdatedAt is when the post's current revision was published,
+	// independent of PublishedAt.
 	UpdatedAt *time.Time `json:"updated_at,omitempty"`
 }
 

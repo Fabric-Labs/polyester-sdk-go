@@ -7,14 +7,31 @@ import (
 )
 
 // Order is a normalized open or historical order.
+//
+// A refused batch replacement carries no order terms. When a
+// BatchReplaceOrders item is admitted and then refused as it applies, the
+// successor order it would have created never exists, but for 60 seconds
+// from the batch's acceptance Orders.Get of that successor's ID answers it:
+// Status "rejected" with the refusal in RejectReason, BatchRequestID set,
+// Version 1, CreatedTsNs the batch's admission, no TerminalTsNs, and its own
+// Lineage at generation 1. Its SymbolID is 0, and Side, OrderType, TIF,
+// SelfTradePreventionMode and FeeAsset are empty; its quantities and prices
+// read 0 as placeholders. Take its terms from the batch you sent. After the
+// 60 seconds it is not found. Open orders, order history and the order
+// streams always carry the terms.
 type Order struct {
-	OrderID       string `json:"order_id"`
-	SymbolID      uint32 `json:"symbol_id"`
+	OrderID string `json:"order_id"`
+	// SymbolID is the order's pair. 0, and omitted from JSON, only for a
+	// refused batch replacement read through Orders.Get (see Order).
+	SymbolID      uint32 `json:"symbol_id,omitempty"`
 	ClientOrderID string `json:"client_order_id,omitempty"`
-	Side          string `json:"side,omitempty"`
-	Status        string `json:"status,omitempty"`
-	OrderType     string `json:"order_type,omitempty"`
-	TIF           string `json:"tif,omitempty"`
+	// Side is "buy" or "sell". Side, OrderType, TIF, SelfTradePreventionMode
+	// and FeeAsset are empty for a refused batch replacement read through
+	// Orders.Get (see Order).
+	Side      string `json:"side,omitempty"`
+	Status    string `json:"status,omitempty"`
+	OrderType string `json:"order_type,omitempty"`
+	TIF       string `json:"tif,omitempty"`
 	// OrigQty is the current accepted total quantity. A successful modify
 	// updates it to the amended total; retain the first submitted quantity
 	// separately if you need it. CumQty and AvgPx are cumulative execution
@@ -54,10 +71,13 @@ type Order struct {
 	TerminalTsNs string `json:"terminal_ts_ns,omitempty"`
 	Version      uint32 `json:"version,omitempty"`
 	PostOnly     bool   `json:"post_only,omitempty"`
-	FeeAsset     string `json:"fee_asset,omitempty"`
+	// FeeAsset is "quote" or "base"; empty when the server does not report
+	// it, as for a refused batch replacement (see Order).
+	FeeAsset string `json:"fee_asset,omitempty"`
 	// SelfTradePreventionMode is "expire_maker", "expire_taker",
-	// "expire_both" or "decrement"; empty when the server does not report it, and
-	// "unknown(N)" for a mode newer than this SDK.
+	// "expire_both" or "decrement"; empty when the server does not report it,
+	// as for a refused batch replacement, and "unknown(N)" for a mode newer
+	// than this SDK.
 	SelfTradePreventionMode string `json:"self_trade_prevention_mode,omitempty"`
 	// SubmittedMaxQuoteDebitScaled is populated for a BUY sized by a quote
 	// budget, at the pair's quote_quantity_scale.
