@@ -9,8 +9,14 @@ type Candle struct {
 	Close       string `json:"close,omitempty"`
 	Volume      string `json:"volume,omitempty"`
 	QuoteVolume string `json:"quote_volume,omitempty"`
-	SymbolID    uint32 `json:"symbol_id,omitempty"`
-	Timeframe   string `json:"timeframe,omitempty"`
+	// IsClosed is true for a closed candle bucket, including historical rows
+	// and the terminal live update, and false only while the bucket is still
+	// open. The columnar response has no closed flag: GetCandlesColumns rows
+	// are true, except the newest primary row of a first page read with
+	// incomplete candles, which reads false, meaning not known to be closed.
+	IsClosed  bool   `json:"is_closed"`
+	SymbolID  uint32 `json:"symbol_id,omitempty"`
+	Timeframe string `json:"timeframe,omitempty"`
 }
 
 // CandlesResult holds candle rows.

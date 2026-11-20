@@ -258,6 +258,7 @@ func candleFromPoint(point *marketdatav1.CandlePoint, volumeScale int, priceScal
 		Close:       formatPrice(point.GetClose()),
 		Volume:      formatQtyScaledOrEmpty(point.GetVolume(), volumeScale),
 		QuoteVolume: point.GetQuoteVolume(),
+		IsClosed:    point.GetIsClosed(),
 	}
 }
 
@@ -275,7 +276,14 @@ var timeframeLabels = map[marketdatav1.Timeframe]string{
 // CandlesColumnsFromProto decodes columnar candle responses into rows.
 // Primary OHLC uses the fixed Q9 price scale. Reference OHLC uses referencePriceScale.
 // Both volume series use the base asset market_data_volume_scale.
-func CandlesColumnsFromProto(msg *marketdatav1.GetCandlesColumnsResponse, volumeScale int, referencePriceScale int) (models.CandlesResult, error) {
+//
+// The columnar response carries no closed flag, so IsClosed follows the
+// request's includeIncomplete and pageToken. Only the newest primary row (the
+// last, as columns are oldest-first) of a first page (empty pageToken) read with
+// incomplete candles is false, not known to be closed. Every other primary row,
+// every row of a continuation page, which pages only older closed candles, and
+// every reference row, which is always a closed bucket, is true.
+func CandlesColumnsFromProto(msg *marketdatav1.GetCandlesColumnsResponse, volumeScale int, referencePriceScale int, includeIncomplete bool, pageToken string) (models.CandlesResult, error) {
 	if err := codecs.ValidateProtocolScale(volumeScale); err != nil {
 		return models.CandlesResult{}, err
 	}
@@ -294,6 +302,7 @@ func CandlesColumnsFromProto(msg *marketdatav1.GetCandlesColumnsResponse, volume
 	if err != nil {
 		return models.CandlesResult{}, err
 	}
+	newestMayBeOpen := includeIncomplete && pageToken == ""
 	out := make([]models.Candle, 0, len(msg.GetTsSec()))
 	for i, ts := range msg.GetTsSec() {
 		quoteVolume := ""
@@ -308,6 +317,7 @@ func CandlesColumnsFromProto(msg *marketdatav1.GetCandlesColumnsResponse, volume
 			Close:       codecs.FormatPriceTicks(msg.GetClose()[i]),
 			Volume:      formatQtyScaledOrEmpty(msg.GetVolume()[i], volumeScale),
 			QuoteVolume: quoteVolume,
+			IsClosed:    !newestMayBeOpen || i != rows-1,
 		}
 		out = append(out, candle)
 	}
@@ -338,12 +348,13 @@ func referenceCandlesFromColumns(msg *marketdatav1.GetCandlesColumnsResponse, vo
 	out := make([]models.Candle, 0, rows)
 	for i, ts := range msg.GetReferenceTsSec() {
 		out = append(out, models.Candle{
-			TsSec:  int64(ts),
-			Open:   formatQtyScaledOrEmpty(msg.GetReferenceOpen()[i], referencePriceScale),
-			High:   formatQtyScaledOrEmpty(msg.GetReferenceHigh()[i], referencePriceScale),
-			Low:    formatQtyScaledOrEmpty(msg.GetReferenceLow()[i], referencePriceScale),
-			Close:  formatQtyScaledOrEmpty(msg.GetReferenceClose()[i], referencePriceScale),
-			Volume: formatQtyScaledOrEmpty(msg.GetReferenceVolume()[i], volumeScale),
+			TsSec:    int64(ts),
+			Open:     formatQtyScaledOrEmpty(msg.GetReferenceOpen()[i], referencePriceScale),
+			High:     formatQtyScaledOrEmpty(msg.GetReferenceHigh()[i], referencePriceScale),
+			Low:      formatQtyScaledOrEmpty(msg.GetReferenceLow()[i], referencePriceScale),
+			Close:    formatQtyScaledOrEmpty(msg.GetReferenceClose()[i], referencePriceScale),
+			Volume:   formatQtyScaledOrEmpty(msg.GetReferenceVolume()[i], volumeScale),
+			IsClosed: true,
 		})
 	}
 	return out, nil
@@ -362,6 +373,7 @@ func CandlePointFromProto(point *marketdatav1.CandlePoint, symbolID uint32, time
 		Close:       codecs.FormatPriceTicks(point.GetClose()),
 		Volume:      formatQtyScaledOrEmpty(point.GetVolume(), volumeScale),
 		QuoteVolume: point.GetQuoteVolume(),
+		IsClosed:    point.GetIsClosed(),
 		SymbolID:    symbolID,
 		Timeframe:   timeframe,
 	}
