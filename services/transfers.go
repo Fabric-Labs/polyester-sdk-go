@@ -37,7 +37,7 @@ type ListTransfersParams struct {
 	SubAccountID *string
 	// Limit is the page size; 0 uses the server's default.
 	Limit int
-	// Reversed lists oldest first.
+	// Reversed lists newest first; false lists oldest first.
 	Reversed bool
 	// Since lists transfers at or after this time, in UTC epoch microseconds;
 	// nil sets no lower bound.
