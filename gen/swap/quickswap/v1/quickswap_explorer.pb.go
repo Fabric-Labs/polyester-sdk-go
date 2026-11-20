@@ -354,9 +354,20 @@ type ExplorerQuickSwap struct {
 	Deposits []*ExplorerDeposit `protobuf:"bytes,8,rep,name=deposits,proto3" json:"deposits,omitempty"`
 	// The finalized payouts to the destination, oldest first: one in
 	// practice. destination_amount is their total.
-	Withdrawals   []*ExplorerWithdrawal `protobuf:"bytes,9,rep,name=withdrawals,proto3" json:"withdrawals,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Withdrawals []*ExplorerWithdrawal `protobuf:"bytes,9,rep,name=withdrawals,proto3" json:"withdrawals,omitempty"`
+	// USD value of the deposit taken into execution, fixed when it was taken
+	// in, as QuickSwap.deposited_value_usd: in base units of 18 decimals,
+	// rounded down, never repriced. Unset when it has none: not valued by a
+	// current price in time, or from before USD values existed; never zero
+	// for unknown.
+	SourceValueUsd *TokenAmount `protobuf:"bytes,10,opt,name=source_value_usd,json=sourceValueUsd,proto3" json:"source_value_usd,omitempty"`
+	// USD value of what the destination was paid, fixed when its payout was
+	// requested, as QuickSwap.delivered_value_usd. Like source_value_usd, it
+	// is unset when it has none, and can be set a few minutes after
+	// completed_at.
+	DestinationValueUsd *TokenAmount `protobuf:"bytes,11,opt,name=destination_value_usd,json=destinationValueUsd,proto3" json:"destination_value_usd,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *ExplorerQuickSwap) Reset() {
@@ -452,23 +463,74 @@ func (x *ExplorerQuickSwap) GetWithdrawals() []*ExplorerWithdrawal {
 	return nil
 }
 
-// ListCompletedQuickSwapsRequest lists completed QuickSwaps of every broker.
+func (x *ExplorerQuickSwap) GetSourceValueUsd() *TokenAmount {
+	if x != nil {
+		return x.SourceValueUsd
+	}
+	return nil
+}
+
+func (x *ExplorerQuickSwap) GetDestinationValueUsd() *TokenAmount {
+	if x != nil {
+		return x.DestinationValueUsd
+	}
+	return nil
+}
+
+// ListCompletedQuickSwapsRequest lists completed QuickSwaps of every broker,
+// optionally only those matching every filter given. A side's filters match
+// a QuickSwap whose asset and network is any of its zipped_asset_ids, or on
+// any network of any of its asset_ids. The source and destination
+// filters together may select at most 400 routes (source and destination
+// asset and network pairs), counting each asset_id as all its networks.
+// QuickSwaps created before the Explorer launched never match an asset
+// filter, and those without a source_value_usd never match a USD bound.
+//
+// A USD bound is 0 or 1, 2 or 5 times a power of ten dollars from $1 to
+// $1,000,000,000: $1, $2, $5, $10, $20, $50, $100 and so on. With a USD
+// bound, the list holds only QuickSwaps that completed at least 5 minutes
+// before it is read, when their source_value_usd is final, so it lags
+// completion by up to 5 minutes. The routes times the value steps the range
+// covers may be at most 400, counted from the request alone: the steps run
+// $0 to $1, $1 to $2, $2 to $5, $5 to $10 and so on up to $1,000,000,000 and
+// above, the last one, so a range without a maximum covers the steps from
+// its minimum to the last.
 type ListCompletedQuickSwapsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Only QuickSwaps from this source asset and network, as a zipped_asset_id;
-	// 0 for every source.
-	SourceZippedAssetId uint32 `protobuf:"varint,1,opt,name=source_zipped_asset_id,json=sourceZippedAssetId,proto3" json:"source_zipped_asset_id,omitempty"`
-	// Only QuickSwaps to this destination asset and network, as a
-	// zipped_asset_id; 0 for every destination.
-	DestinationZippedAssetId uint32 `protobuf:"varint,2,opt,name=destination_zipped_asset_id,json=destinationZippedAssetId,proto3" json:"destination_zipped_asset_id,omitempty"`
+	// Only QuickSwaps from one of these source assets and networks, as
+	// AssetChainVariant.zipped_asset_id values from
+	// GET /v1/chain/deposit-withdraw/config; at most 20.
+	SourceZippedAssetIds []uint32 `protobuf:"varint,1,rep,packed,name=source_zipped_asset_ids,json=sourceZippedAssetIds,proto3" json:"source_zipped_asset_ids,omitempty"`
+	// Only QuickSwaps to one of these destination assets and networks, as
+	// source_zipped_asset_ids; at most 20.
+	DestinationZippedAssetIds []uint32 `protobuf:"varint,2,rep,packed,name=destination_zipped_asset_ids,json=destinationZippedAssetIds,proto3" json:"destination_zipped_asset_ids,omitempty"`
 	// Maximum number of QuickSwaps to return; 0 means 50, at most 100.
 	Limit uint32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
 	// Opaque keyset cursor from a previous next_page_token, exclusive, bound
-	// to the asset filters and the newest-first order. Reuse it with the same
-	// filters. Empty for the first page.
-	PageToken     string `protobuf:"bytes,4,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// to the filters, the networks their asset IDs covered and the
+	// newest-first order. Reuse it with the same filters. If a network was
+	// added to or removed from one of the asset IDs since the first page, it
+	// is PAGE_TOKEN_INVALID: request the first page again. Empty for the first
+	// page.
+	PageToken string `protobuf:"bytes,4,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	// Only QuickSwaps from one of these assets, on any of their networks, as
+	// AssetConfig.ledger_id values from GET /v1/chain/deposit-withdraw/config;
+	// at most 20.
+	SourceAssetIds []uint32 `protobuf:"varint,5,rep,packed,name=source_asset_ids,json=sourceAssetIds,proto3" json:"source_asset_ids,omitempty"`
+	// Only QuickSwaps to one of these assets, on any of their networks, as
+	// source_asset_ids; at most 20.
+	DestinationAssetIds []uint32 `protobuf:"varint,6,rep,packed,name=destination_asset_ids,json=destinationAssetIds,proto3" json:"destination_asset_ids,omitempty"`
+	// Only QuickSwaps whose source_value_usd is at least this: a bound on the
+	// grid, in base units of 18 decimals as source_value_usd.base_units, for
+	// example 100000000000000000000 for $100. Unset (empty) for no lower
+	// bound.
+	MinSourceValueUsd string `protobuf:"bytes,7,opt,name=min_source_value_usd,json=minSourceValueUsd,proto3" json:"min_source_value_usd,omitempty"`
+	// Only QuickSwaps whose source_value_usd is below this: a bound on the
+	// grid, in base units of 18 decimals, above min_source_value_usd when both
+	// are set, so never 0 alone. Unset (empty) for no upper bound.
+	MaxSourceValueUsd string `protobuf:"bytes,8,opt,name=max_source_value_usd,json=maxSourceValueUsd,proto3" json:"max_source_value_usd,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ListCompletedQuickSwapsRequest) Reset() {
@@ -501,18 +563,18 @@ func (*ListCompletedQuickSwapsRequest) Descriptor() ([]byte, []int) {
 	return file_swap_quickswap_v1_quickswap_explorer_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *ListCompletedQuickSwapsRequest) GetSourceZippedAssetId() uint32 {
+func (x *ListCompletedQuickSwapsRequest) GetSourceZippedAssetIds() []uint32 {
 	if x != nil {
-		return x.SourceZippedAssetId
+		return x.SourceZippedAssetIds
 	}
-	return 0
+	return nil
 }
 
-func (x *ListCompletedQuickSwapsRequest) GetDestinationZippedAssetId() uint32 {
+func (x *ListCompletedQuickSwapsRequest) GetDestinationZippedAssetIds() []uint32 {
 	if x != nil {
-		return x.DestinationZippedAssetId
+		return x.DestinationZippedAssetIds
 	}
-	return 0
+	return nil
 }
 
 func (x *ListCompletedQuickSwapsRequest) GetLimit() uint32 {
@@ -525,6 +587,34 @@ func (x *ListCompletedQuickSwapsRequest) GetLimit() uint32 {
 func (x *ListCompletedQuickSwapsRequest) GetPageToken() string {
 	if x != nil {
 		return x.PageToken
+	}
+	return ""
+}
+
+func (x *ListCompletedQuickSwapsRequest) GetSourceAssetIds() []uint32 {
+	if x != nil {
+		return x.SourceAssetIds
+	}
+	return nil
+}
+
+func (x *ListCompletedQuickSwapsRequest) GetDestinationAssetIds() []uint32 {
+	if x != nil {
+		return x.DestinationAssetIds
+	}
+	return nil
+}
+
+func (x *ListCompletedQuickSwapsRequest) GetMinSourceValueUsd() string {
+	if x != nil {
+		return x.MinSourceValueUsd
+	}
+	return ""
+}
+
+func (x *ListCompletedQuickSwapsRequest) GetMaxSourceValueUsd() string {
+	if x != nil {
+		return x.MaxSourceValueUsd
 	}
 	return ""
 }
@@ -587,32 +677,30 @@ func (x *ListCompletedQuickSwapsResponse) GetNextPageToken() string {
 	return ""
 }
 
-// ZippedAssetVolume is a total amount of one asset on one network.
-type ZippedAssetVolume struct {
+// GetCompletedQuickSwapRequest reads one completed QuickSwap of any broker.
+type GetCompletedQuickSwapRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Asset and network, as an AssetChainVariant.zipped_asset_id from
-	// GET /v1/chain/deposit-withdraw/config.
-	ZippedAssetId uint32 `protobuf:"varint,1,opt,name=zipped_asset_id,json=zippedAssetId,proto3" json:"zipped_asset_id,omitempty"`
-	// Exact total, in that asset's token units.
-	Amount        *TokenAmount `protobuf:"bytes,2,opt,name=amount,proto3" json:"amount,omitempty"`
+	// Public QuickSwap identifier. 0, which no QuickSwap has, is
+	// SWAP_NOT_FOUND like any other identifier no completed QuickSwap has.
+	SwapId        uint64 `protobuf:"fixed64,1,opt,name=swap_id,json=swapId,proto3" json:"swap_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ZippedAssetVolume) Reset() {
-	*x = ZippedAssetVolume{}
+func (x *GetCompletedQuickSwapRequest) Reset() {
+	*x = GetCompletedQuickSwapRequest{}
 	mi := &file_swap_quickswap_v1_quickswap_explorer_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ZippedAssetVolume) String() string {
+func (x *GetCompletedQuickSwapRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ZippedAssetVolume) ProtoMessage() {}
+func (*GetCompletedQuickSwapRequest) ProtoMessage() {}
 
-func (x *ZippedAssetVolume) ProtoReflect() protoreflect.Message {
+func (x *GetCompletedQuickSwapRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_swap_quickswap_v1_quickswap_explorer_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -624,66 +712,117 @@ func (x *ZippedAssetVolume) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ZippedAssetVolume.ProtoReflect.Descriptor instead.
-func (*ZippedAssetVolume) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetCompletedQuickSwapRequest.ProtoReflect.Descriptor instead.
+func (*GetCompletedQuickSwapRequest) Descriptor() ([]byte, []int) {
 	return file_swap_quickswap_v1_quickswap_explorer_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *ZippedAssetVolume) GetZippedAssetId() uint32 {
+func (x *GetCompletedQuickSwapRequest) GetSwapId() uint64 {
 	if x != nil {
-		return x.ZippedAssetId
+		return x.SwapId
 	}
 	return 0
 }
 
-func (x *ZippedAssetVolume) GetAmount() *TokenAmount {
+// GetCompletedQuickSwapResponse returns one completed QuickSwap.
+type GetCompletedQuickSwapResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The QuickSwap, as ListCompletedQuickSwaps lists it.
+	QuickSwap     *ExplorerQuickSwap `protobuf:"bytes,1,opt,name=quick_swap,json=quickSwap,proto3" json:"quick_swap,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCompletedQuickSwapResponse) Reset() {
+	*x = GetCompletedQuickSwapResponse{}
+	mi := &file_swap_quickswap_v1_quickswap_explorer_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCompletedQuickSwapResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCompletedQuickSwapResponse) ProtoMessage() {}
+
+func (x *GetCompletedQuickSwapResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_swap_quickswap_v1_quickswap_explorer_proto_msgTypes[7]
 	if x != nil {
-		return x.Amount
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCompletedQuickSwapResponse.ProtoReflect.Descriptor instead.
+func (*GetCompletedQuickSwapResponse) Descriptor() ([]byte, []int) {
+	return file_swap_quickswap_v1_quickswap_explorer_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GetCompletedQuickSwapResponse) GetQuickSwap() *ExplorerQuickSwap {
+	if x != nil {
+		return x.QuickSwap
 	}
 	return nil
 }
 
 // QuickSwapStatsTotals are the totals of the completed QuickSwaps of a
-// period, counted by completion time. Every list has one entry per asset
-// with a non-zero total, in ascending ID order. The USD values are fixed when
-// each amount happened: a deposit when it was taken into execution, a
-// delivery when its payout was requested and a fee when it was charged. Each
-// is valued once, within minutes, and never repriced, so a past period keeps
-// its value.
+// period, counted by completion time. Each per-asset list is parallel to a
+// list of the response: source_volume and destination_volume to
+// GetQuickSwapStatsResponse.zipped_asset_ids, the fee lists to
+// GetQuickSwapStatsResponse.fee_asset_ids, with "0" or 0 for an asset with
+// nothing in this period.
+//
+// USD values are decimal strings of base units of 18 decimals, rounded down,
+// and fixed when each amount happened: a deposit when it was taken into
+// execution, a delivery when its payout was requested and a fee when it was
+// charged. Each is valued once, within minutes, and never repriced, so a
+// past period keeps its value. An amount without a USD value is left out of
+// the USD sums and counted in unvalued_count or fees_unvalued_count: a
+// count equal to the amounts counted means none was valued.
 type QuickSwapStatsTotals struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Completed QuickSwaps.
-	SwapCount uint64 `protobuf:"varint,1,opt,name=swap_count,json=swapCount,proto3" json:"swap_count,omitempty"`
-	// Amounts deposited, per source asset and network.
-	SourceVolume []*ZippedAssetVolume `protobuf:"bytes,2,rep,name=source_volume,json=sourceVolume,proto3" json:"source_volume,omitempty"`
-	// Amounts delivered, per destination asset and network.
-	DestinationVolume []*ZippedAssetVolume `protobuf:"bytes,3,rep,name=destination_volume,json=destinationVolume,proto3" json:"destination_volume,omitempty"`
-	// Fees charged on those QuickSwaps, per asset: the service, broker,
-	// affiliate and referral fees actually charged, summed over every broker.
-	// Network fees are not included. Each asset is an AssetConfig.ledger_id
-	// from GET /v1/chain/deposit-withdraw/config, in base units of 18
-	// decimals. Each entry carries its USD value.
-	Fees []*AssetVolume `protobuf:"bytes,4,rep,name=fees,proto3" json:"fees,omitempty"`
-	// USD value of the deposited amounts that have one, in base units of 18
-	// decimals, rounded down; unset when none has; never zero for unknown.
-	SourceVolumeUsd *TokenAmount `protobuf:"bytes,5,opt,name=source_volume_usd,json=sourceVolumeUsd,proto3" json:"source_volume_usd,omitempty"`
-	// USD value of the delivered amounts that have one, as source_volume_usd.
-	DestinationVolumeUsd *TokenAmount `protobuf:"bytes,6,opt,name=destination_volume_usd,json=destinationVolumeUsd,proto3" json:"destination_volume_usd,omitempty"`
-	// USD value of the fees that have one, as source_volume_usd.
-	FeesUsd *TokenAmount `protobuf:"bytes,7,opt,name=fees_usd,json=feesUsd,proto3" json:"fees_usd,omitempty"`
-	// Completed QuickSwaps counted here whose deposited or delivered amount
-	// has no USD value, and so is left out of source_volume_usd or
+	SwapCount uint32 `protobuf:"varint,1,opt,name=swap_count,json=swapCount,proto3" json:"swap_count,omitempty"`
+	// Completed QuickSwaps whose deposited or delivered amount has no USD
+	// value, and so is left out of source_volume_usd or
 	// destination_volume_usd: not valued by a current price in time, or from
-	// before USD values existed. Fees without one are counted per asset, in
-	// fees. Zero when the volume USD totals cover every QuickSwap.
-	UnvaluedCount uint64 `protobuf:"varint,8,opt,name=unvalued_count,json=unvaluedCount,proto3" json:"unvalued_count,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// before USD values existed.
+	UnvaluedCount uint32 `protobuf:"varint,2,opt,name=unvalued_count,json=unvaluedCount,proto3" json:"unvalued_count,omitempty"`
+	// USD value of the deposited amounts that have one.
+	SourceVolumeUsd string `protobuf:"bytes,3,opt,name=source_volume_usd,json=sourceVolumeUsd,proto3" json:"source_volume_usd,omitempty"`
+	// USD value of the delivered amounts that have one.
+	DestinationVolumeUsd string `protobuf:"bytes,4,opt,name=destination_volume_usd,json=destinationVolumeUsd,proto3" json:"destination_volume_usd,omitempty"`
+	// USD value of the fees that have one.
+	FeesUsd string `protobuf:"bytes,5,opt,name=fees_usd,json=feesUsd,proto3" json:"fees_usd,omitempty"`
+	// Exact amounts deposited, per source asset and network, as decimal
+	// strings of that asset's base units (zipped_asset_decimals), before the
+	// deposit network fee.
+	SourceVolume []string `protobuf:"bytes,6,rep,name=source_volume,json=sourceVolume,proto3" json:"source_volume,omitempty"`
+	// Exact amounts delivered, per destination asset and network, as decimal
+	// strings of that asset's base units, after the withdrawal network fee.
+	DestinationVolume []string `protobuf:"bytes,7,rep,name=destination_volume,json=destinationVolume,proto3" json:"destination_volume,omitempty"`
+	// Fees charged on those QuickSwaps, per fee asset: the service, broker,
+	// affiliate and referral fees actually charged, summed over every broker,
+	// as decimal strings of base units of 18 decimals. Network fees are not
+	// included.
+	Fees []string `protobuf:"bytes,8,rep,name=fees,proto3" json:"fees,omitempty"`
+	// USD value of each fee asset's fees that have one.
+	FeesUsdByAsset []string `protobuf:"bytes,9,rep,name=fees_usd_by_asset,json=feesUsdByAsset,proto3" json:"fees_usd_by_asset,omitempty"`
+	// Fees of each fee asset without a USD value, left out of
+	// fees_usd_by_asset and fees_usd.
+	FeesUnvaluedCount []uint32 `protobuf:"varint,10,rep,packed,name=fees_unvalued_count,json=feesUnvaluedCount,proto3" json:"fees_unvalued_count,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *QuickSwapStatsTotals) Reset() {
 	*x = QuickSwapStatsTotals{}
-	mi := &file_swap_quickswap_v1_quickswap_explorer_proto_msgTypes[7]
+	mi := &file_swap_quickswap_v1_quickswap_explorer_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -695,7 +834,7 @@ func (x *QuickSwapStatsTotals) String() string {
 func (*QuickSwapStatsTotals) ProtoMessage() {}
 
 func (x *QuickSwapStatsTotals) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_quickswap_v1_quickswap_explorer_proto_msgTypes[7]
+	mi := &file_swap_quickswap_v1_quickswap_explorer_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -708,161 +847,219 @@ func (x *QuickSwapStatsTotals) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QuickSwapStatsTotals.ProtoReflect.Descriptor instead.
 func (*QuickSwapStatsTotals) Descriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_explorer_proto_rawDescGZIP(), []int{7}
+	return file_swap_quickswap_v1_quickswap_explorer_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *QuickSwapStatsTotals) GetSwapCount() uint64 {
+func (x *QuickSwapStatsTotals) GetSwapCount() uint32 {
 	if x != nil {
 		return x.SwapCount
 	}
 	return 0
 }
 
-func (x *QuickSwapStatsTotals) GetSourceVolume() []*ZippedAssetVolume {
+func (x *QuickSwapStatsTotals) GetUnvaluedCount() uint32 {
+	if x != nil {
+		return x.UnvaluedCount
+	}
+	return 0
+}
+
+func (x *QuickSwapStatsTotals) GetSourceVolumeUsd() string {
+	if x != nil {
+		return x.SourceVolumeUsd
+	}
+	return ""
+}
+
+func (x *QuickSwapStatsTotals) GetDestinationVolumeUsd() string {
+	if x != nil {
+		return x.DestinationVolumeUsd
+	}
+	return ""
+}
+
+func (x *QuickSwapStatsTotals) GetFeesUsd() string {
+	if x != nil {
+		return x.FeesUsd
+	}
+	return ""
+}
+
+func (x *QuickSwapStatsTotals) GetSourceVolume() []string {
 	if x != nil {
 		return x.SourceVolume
 	}
 	return nil
 }
 
-func (x *QuickSwapStatsTotals) GetDestinationVolume() []*ZippedAssetVolume {
+func (x *QuickSwapStatsTotals) GetDestinationVolume() []string {
 	if x != nil {
 		return x.DestinationVolume
 	}
 	return nil
 }
 
-func (x *QuickSwapStatsTotals) GetFees() []*AssetVolume {
+func (x *QuickSwapStatsTotals) GetFees() []string {
 	if x != nil {
 		return x.Fees
 	}
 	return nil
 }
 
-func (x *QuickSwapStatsTotals) GetSourceVolumeUsd() *TokenAmount {
+func (x *QuickSwapStatsTotals) GetFeesUsdByAsset() []string {
+	if x != nil {
+		return x.FeesUsdByAsset
+	}
+	return nil
+}
+
+func (x *QuickSwapStatsTotals) GetFeesUnvaluedCount() []uint32 {
+	if x != nil {
+		return x.FeesUnvaluedCount
+	}
+	return nil
+}
+
+// QuickSwapStatsBuckets is the window's time series in columns: entry i of
+// every list is bucket i, oldest first, with every bucket of the window,
+// empty ones included. Bucket i starts at start_time plus i bucket lengths,
+// inclusive, and ends where the next one starts. Per-asset amounts are only
+// in the totals.
+type QuickSwapStatsBuckets struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Completed QuickSwaps.
+	SwapCount []uint32 `protobuf:"varint,1,rep,packed,name=swap_count,json=swapCount,proto3" json:"swap_count,omitempty"`
+	// Completed QuickSwaps whose deposited or delivered amount has no USD
+	// value, as QuickSwapStatsTotals.unvalued_count.
+	UnvaluedCount []uint32 `protobuf:"varint,2,rep,packed,name=unvalued_count,json=unvaluedCount,proto3" json:"unvalued_count,omitempty"`
+	// USD value of the deposited amounts that have one, as
+	// QuickSwapStatsTotals.source_volume_usd.
+	SourceVolumeUsd []string `protobuf:"bytes,3,rep,name=source_volume_usd,json=sourceVolumeUsd,proto3" json:"source_volume_usd,omitempty"`
+	// USD value of the delivered amounts that have one.
+	DestinationVolumeUsd []string `protobuf:"bytes,4,rep,name=destination_volume_usd,json=destinationVolumeUsd,proto3" json:"destination_volume_usd,omitempty"`
+	// USD value of the fees that have one.
+	FeesUsd []string `protobuf:"bytes,5,rep,name=fees_usd,json=feesUsd,proto3" json:"fees_usd,omitempty"`
+	// Fees without a USD value, left out of fees_usd.
+	FeesUnvaluedCount []uint32 `protobuf:"varint,6,rep,packed,name=fees_unvalued_count,json=feesUnvaluedCount,proto3" json:"fees_unvalued_count,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *QuickSwapStatsBuckets) Reset() {
+	*x = QuickSwapStatsBuckets{}
+	mi := &file_swap_quickswap_v1_quickswap_explorer_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QuickSwapStatsBuckets) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QuickSwapStatsBuckets) ProtoMessage() {}
+
+func (x *QuickSwapStatsBuckets) ProtoReflect() protoreflect.Message {
+	mi := &file_swap_quickswap_v1_quickswap_explorer_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QuickSwapStatsBuckets.ProtoReflect.Descriptor instead.
+func (*QuickSwapStatsBuckets) Descriptor() ([]byte, []int) {
+	return file_swap_quickswap_v1_quickswap_explorer_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *QuickSwapStatsBuckets) GetSwapCount() []uint32 {
+	if x != nil {
+		return x.SwapCount
+	}
+	return nil
+}
+
+func (x *QuickSwapStatsBuckets) GetUnvaluedCount() []uint32 {
+	if x != nil {
+		return x.UnvaluedCount
+	}
+	return nil
+}
+
+func (x *QuickSwapStatsBuckets) GetSourceVolumeUsd() []string {
 	if x != nil {
 		return x.SourceVolumeUsd
 	}
 	return nil
 }
 
-func (x *QuickSwapStatsTotals) GetDestinationVolumeUsd() *TokenAmount {
+func (x *QuickSwapStatsBuckets) GetDestinationVolumeUsd() []string {
 	if x != nil {
 		return x.DestinationVolumeUsd
 	}
 	return nil
 }
 
-func (x *QuickSwapStatsTotals) GetFeesUsd() *TokenAmount {
+func (x *QuickSwapStatsBuckets) GetFeesUsd() []string {
 	if x != nil {
 		return x.FeesUsd
 	}
 	return nil
 }
 
-func (x *QuickSwapStatsTotals) GetUnvaluedCount() uint64 {
+func (x *QuickSwapStatsBuckets) GetFeesUnvaluedCount() []uint32 {
 	if x != nil {
-		return x.UnvaluedCount
-	}
-	return 0
-}
-
-// QuickSwapStatsBucket is one bucket of the time series.
-type QuickSwapStatsBucket struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Start of the bucket, inclusive; it ends where the next one starts.
-	StartTime *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
-	// Totals of the QuickSwaps that completed in the bucket.
-	Totals        *QuickSwapStatsTotals `protobuf:"bytes,2,opt,name=totals,proto3" json:"totals,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *QuickSwapStatsBucket) Reset() {
-	*x = QuickSwapStatsBucket{}
-	mi := &file_swap_quickswap_v1_quickswap_explorer_proto_msgTypes[8]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *QuickSwapStatsBucket) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*QuickSwapStatsBucket) ProtoMessage() {}
-
-func (x *QuickSwapStatsBucket) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_quickswap_v1_quickswap_explorer_proto_msgTypes[8]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use QuickSwapStatsBucket.ProtoReflect.Descriptor instead.
-func (*QuickSwapStatsBucket) Descriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_explorer_proto_rawDescGZIP(), []int{8}
-}
-
-func (x *QuickSwapStatsBucket) GetStartTime() *timestamppb.Timestamp {
-	if x != nil {
-		return x.StartTime
+		return x.FeesUnvaluedCount
 	}
 	return nil
 }
 
-func (x *QuickSwapStatsBucket) GetTotals() *QuickSwapStatsTotals {
-	if x != nil {
-		return x.Totals
-	}
-	return nil
-}
-
-// QuickSwapRouteStats are the totals of one route over the window.
-type QuickSwapRouteStats struct {
+// QuickSwapStatsRoutes are the totals of every route with a completed
+// QuickSwap in the window, in columns: entry i of every list is route i,
+// in ascending source then destination order. Amounts are decimal strings
+// of each asset's base units (GetQuickSwapStatsResponse.zipped_asset_ids and
+// zipped_asset_decimals); USD values as in QuickSwapStatsTotals.
+type QuickSwapStatsRoutes struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Source asset and network, as a zipped_asset_id.
-	SourceZippedAssetId uint32 `protobuf:"varint,1,opt,name=source_zipped_asset_id,json=sourceZippedAssetId,proto3" json:"source_zipped_asset_id,omitempty"`
-	// Destination asset and network, as a zipped_asset_id.
-	DestinationZippedAssetId uint32 `protobuf:"varint,2,opt,name=destination_zipped_asset_id,json=destinationZippedAssetId,proto3" json:"destination_zipped_asset_id,omitempty"`
+	// Source asset and network of each route, as a zipped_asset_id.
+	SourceZippedAssetIds []uint32 `protobuf:"varint,1,rep,packed,name=source_zipped_asset_ids,json=sourceZippedAssetIds,proto3" json:"source_zipped_asset_ids,omitempty"`
+	// Destination asset and network of each route, as a zipped_asset_id.
+	DestinationZippedAssetIds []uint32 `protobuf:"varint,2,rep,packed,name=destination_zipped_asset_ids,json=destinationZippedAssetIds,proto3" json:"destination_zipped_asset_ids,omitempty"`
 	// Completed QuickSwaps on the route.
-	SwapCount uint64 `protobuf:"varint,3,opt,name=swap_count,json=swapCount,proto3" json:"swap_count,omitempty"`
-	// Exact amount deposited, in source token units.
-	SourceVolume *TokenAmount `protobuf:"bytes,4,opt,name=source_volume,json=sourceVolume,proto3" json:"source_volume,omitempty"`
-	// Exact amount delivered, in destination token units.
-	DestinationVolume *TokenAmount `protobuf:"bytes,5,opt,name=destination_volume,json=destinationVolume,proto3" json:"destination_volume,omitempty"`
-	// USD value of the deposited amounts that have one, as
-	// QuickSwapStatsTotals.source_volume_usd.
-	SourceVolumeUsd *TokenAmount `protobuf:"bytes,6,opt,name=source_volume_usd,json=sourceVolumeUsd,proto3" json:"source_volume_usd,omitempty"`
-	// USD value of the delivered amounts that have one, as
-	// QuickSwapStatsTotals.destination_volume_usd.
-	DestinationVolumeUsd *TokenAmount `protobuf:"bytes,7,opt,name=destination_volume_usd,json=destinationVolumeUsd,proto3" json:"destination_volume_usd,omitempty"`
+	SwapCount []uint32 `protobuf:"varint,3,rep,packed,name=swap_count,json=swapCount,proto3" json:"swap_count,omitempty"`
 	// Completed QuickSwaps on the route whose deposited or delivered amount
-	// has no USD value, and so is left out of the USD fields.
-	UnvaluedCount uint64 `protobuf:"varint,8,opt,name=unvalued_count,json=unvaluedCount,proto3" json:"unvalued_count,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// has no USD value, and so is left out of the USD values.
+	UnvaluedCount []uint32 `protobuf:"varint,4,rep,packed,name=unvalued_count,json=unvaluedCount,proto3" json:"unvalued_count,omitempty"`
+	// Exact amount deposited, in source token units.
+	SourceVolume []string `protobuf:"bytes,5,rep,name=source_volume,json=sourceVolume,proto3" json:"source_volume,omitempty"`
+	// Exact amount delivered, in destination token units.
+	DestinationVolume []string `protobuf:"bytes,6,rep,name=destination_volume,json=destinationVolume,proto3" json:"destination_volume,omitempty"`
+	// USD value of the deposited amounts that have one.
+	SourceVolumeUsd []string `protobuf:"bytes,7,rep,name=source_volume_usd,json=sourceVolumeUsd,proto3" json:"source_volume_usd,omitempty"`
+	// USD value of the delivered amounts that have one.
+	DestinationVolumeUsd []string `protobuf:"bytes,8,rep,name=destination_volume_usd,json=destinationVolumeUsd,proto3" json:"destination_volume_usd,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
-func (x *QuickSwapRouteStats) Reset() {
-	*x = QuickSwapRouteStats{}
-	mi := &file_swap_quickswap_v1_quickswap_explorer_proto_msgTypes[9]
+func (x *QuickSwapStatsRoutes) Reset() {
+	*x = QuickSwapStatsRoutes{}
+	mi := &file_swap_quickswap_v1_quickswap_explorer_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *QuickSwapRouteStats) String() string {
+func (x *QuickSwapStatsRoutes) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*QuickSwapRouteStats) ProtoMessage() {}
+func (*QuickSwapStatsRoutes) ProtoMessage() {}
 
-func (x *QuickSwapRouteStats) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_quickswap_v1_quickswap_explorer_proto_msgTypes[9]
+func (x *QuickSwapStatsRoutes) ProtoReflect() protoreflect.Message {
+	mi := &file_swap_quickswap_v1_quickswap_explorer_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -873,65 +1070,65 @@ func (x *QuickSwapRouteStats) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use QuickSwapRouteStats.ProtoReflect.Descriptor instead.
-func (*QuickSwapRouteStats) Descriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_explorer_proto_rawDescGZIP(), []int{9}
+// Deprecated: Use QuickSwapStatsRoutes.ProtoReflect.Descriptor instead.
+func (*QuickSwapStatsRoutes) Descriptor() ([]byte, []int) {
+	return file_swap_quickswap_v1_quickswap_explorer_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *QuickSwapRouteStats) GetSourceZippedAssetId() uint32 {
+func (x *QuickSwapStatsRoutes) GetSourceZippedAssetIds() []uint32 {
 	if x != nil {
-		return x.SourceZippedAssetId
+		return x.SourceZippedAssetIds
 	}
-	return 0
+	return nil
 }
 
-func (x *QuickSwapRouteStats) GetDestinationZippedAssetId() uint32 {
+func (x *QuickSwapStatsRoutes) GetDestinationZippedAssetIds() []uint32 {
 	if x != nil {
-		return x.DestinationZippedAssetId
+		return x.DestinationZippedAssetIds
 	}
-	return 0
+	return nil
 }
 
-func (x *QuickSwapRouteStats) GetSwapCount() uint64 {
+func (x *QuickSwapStatsRoutes) GetSwapCount() []uint32 {
 	if x != nil {
 		return x.SwapCount
 	}
-	return 0
+	return nil
 }
 
-func (x *QuickSwapRouteStats) GetSourceVolume() *TokenAmount {
+func (x *QuickSwapStatsRoutes) GetUnvaluedCount() []uint32 {
+	if x != nil {
+		return x.UnvaluedCount
+	}
+	return nil
+}
+
+func (x *QuickSwapStatsRoutes) GetSourceVolume() []string {
 	if x != nil {
 		return x.SourceVolume
 	}
 	return nil
 }
 
-func (x *QuickSwapRouteStats) GetDestinationVolume() *TokenAmount {
+func (x *QuickSwapStatsRoutes) GetDestinationVolume() []string {
 	if x != nil {
 		return x.DestinationVolume
 	}
 	return nil
 }
 
-func (x *QuickSwapRouteStats) GetSourceVolumeUsd() *TokenAmount {
+func (x *QuickSwapStatsRoutes) GetSourceVolumeUsd() []string {
 	if x != nil {
 		return x.SourceVolumeUsd
 	}
 	return nil
 }
 
-func (x *QuickSwapRouteStats) GetDestinationVolumeUsd() *TokenAmount {
+func (x *QuickSwapStatsRoutes) GetDestinationVolumeUsd() []string {
 	if x != nil {
 		return x.DestinationVolumeUsd
 	}
 	return nil
-}
-
-func (x *QuickSwapRouteStats) GetUnvaluedCount() uint64 {
-	if x != nil {
-		return x.UnvaluedCount
-	}
-	return 0
 }
 
 // GetQuickSwapStatsRequest reads the statistics of one window.
@@ -945,7 +1142,7 @@ type GetQuickSwapStatsRequest struct {
 
 func (x *GetQuickSwapStatsRequest) Reset() {
 	*x = GetQuickSwapStatsRequest{}
-	mi := &file_swap_quickswap_v1_quickswap_explorer_proto_msgTypes[10]
+	mi := &file_swap_quickswap_v1_quickswap_explorer_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -957,7 +1154,7 @@ func (x *GetQuickSwapStatsRequest) String() string {
 func (*GetQuickSwapStatsRequest) ProtoMessage() {}
 
 func (x *GetQuickSwapStatsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_quickswap_v1_quickswap_explorer_proto_msgTypes[10]
+	mi := &file_swap_quickswap_v1_quickswap_explorer_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -970,7 +1167,7 @@ func (x *GetQuickSwapStatsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetQuickSwapStatsRequest.ProtoReflect.Descriptor instead.
 func (*GetQuickSwapStatsRequest) Descriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_explorer_proto_rawDescGZIP(), []int{10}
+	return file_swap_quickswap_v1_quickswap_explorer_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetQuickSwapStatsRequest) GetWindow() QuickSwapStatsWindow {
@@ -981,8 +1178,10 @@ func (x *GetQuickSwapStatsRequest) GetWindow() QuickSwapStatsWindow {
 }
 
 // GetQuickSwapStatsResponse is the activity of completed QuickSwaps of every
-// broker over a window, with the window just before it for comparison.
-// Amounts are exact, with their USD values fixed when they happened.
+// broker over a window, with the window just before it for comparison, in
+// columns: each asset is listed once, with its decimals, and the per-asset
+// lists of the totals are parallel to that list. Amounts are exact, with
+// their USD values fixed when they happened.
 type GetQuickSwapStatsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The window.
@@ -993,26 +1192,36 @@ type GetQuickSwapStatsResponse struct {
 	EndTime *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
 	// Length of each bucket.
 	BucketSize QuickSwapStatsBucketSize `protobuf:"varint,4,opt,name=bucket_size,json=bucketSize,proto3,enum=swap.quickswap.v1.QuickSwapStatsBucketSize" json:"bucket_size,omitempty"`
+	// Every asset and network deposited or delivered in the window or the
+	// previous one, ascending, as an AssetChainVariant.zipped_asset_id from
+	// GET /v1/chain/deposit-withdraw/config.
+	ZippedAssetIds []uint32 `protobuf:"varint,5,rep,packed,name=zipped_asset_ids,json=zippedAssetIds,proto3" json:"zipped_asset_ids,omitempty"`
+	// Token decimals of each zipped_asset_ids entry, in the same order.
+	ZippedAssetDecimals []uint32 `protobuf:"varint,6,rep,packed,name=zipped_asset_decimals,json=zippedAssetDecimals,proto3" json:"zipped_asset_decimals,omitempty"`
+	// Every asset a fee was charged in, in the window or the previous one,
+	// ascending, as an AssetConfig.ledger_id from
+	// GET /v1/chain/deposit-withdraw/config. Fees are in base units of 18
+	// decimals.
+	FeeAssetIds []uint32 `protobuf:"varint,7,rep,packed,name=fee_asset_ids,json=feeAssetIds,proto3" json:"fee_asset_ids,omitempty"`
 	// Totals of the window.
-	Totals *QuickSwapStatsTotals `protobuf:"bytes,5,opt,name=totals,proto3" json:"totals,omitempty"`
+	Totals *QuickSwapStatsTotals `protobuf:"bytes,8,opt,name=totals,proto3" json:"totals,omitempty"`
 	// Totals of the previous window: the same length, ending at start_time.
-	PreviousTotals *QuickSwapStatsTotals `protobuf:"bytes,6,opt,name=previous_totals,json=previousTotals,proto3" json:"previous_totals,omitempty"`
-	// Every bucket of the window, oldest first, empty ones included.
-	Buckets []*QuickSwapStatsBucket `protobuf:"bytes,7,rep,name=buckets,proto3" json:"buckets,omitempty"`
-	// Every route with a completed QuickSwap in the window, in ascending
-	// source then destination order. The set is small: the client ranks
-	// routes, source assets and destination assets from it.
-	Routes []*QuickSwapRouteStats `protobuf:"bytes,8,rep,name=routes,proto3" json:"routes,omitempty"`
+	PreviousTotals *QuickSwapStatsTotals `protobuf:"bytes,9,opt,name=previous_totals,json=previousTotals,proto3" json:"previous_totals,omitempty"`
+	// The window's buckets.
+	Buckets *QuickSwapStatsBuckets `protobuf:"bytes,10,opt,name=buckets,proto3" json:"buckets,omitempty"`
+	// Every route with a completed QuickSwap in the window. The set is small:
+	// the client ranks routes, source assets and destination assets from it.
+	Routes *QuickSwapStatsRoutes `protobuf:"bytes,11,opt,name=routes,proto3" json:"routes,omitempty"`
 	// When the statistics were computed. Each window's outcome, answer or
 	// error, is shared for about a minute, so an answer can be that old.
-	AsOf          *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=as_of,json=asOf,proto3" json:"as_of,omitempty"`
+	AsOf          *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=as_of,json=asOf,proto3" json:"as_of,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetQuickSwapStatsResponse) Reset() {
 	*x = GetQuickSwapStatsResponse{}
-	mi := &file_swap_quickswap_v1_quickswap_explorer_proto_msgTypes[11]
+	mi := &file_swap_quickswap_v1_quickswap_explorer_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1024,7 +1233,7 @@ func (x *GetQuickSwapStatsResponse) String() string {
 func (*GetQuickSwapStatsResponse) ProtoMessage() {}
 
 func (x *GetQuickSwapStatsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_quickswap_v1_quickswap_explorer_proto_msgTypes[11]
+	mi := &file_swap_quickswap_v1_quickswap_explorer_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1037,7 +1246,7 @@ func (x *GetQuickSwapStatsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetQuickSwapStatsResponse.ProtoReflect.Descriptor instead.
 func (*GetQuickSwapStatsResponse) Descriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_explorer_proto_rawDescGZIP(), []int{11}
+	return file_swap_quickswap_v1_quickswap_explorer_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetQuickSwapStatsResponse) GetWindow() QuickSwapStatsWindow {
@@ -1068,6 +1277,27 @@ func (x *GetQuickSwapStatsResponse) GetBucketSize() QuickSwapStatsBucketSize {
 	return QuickSwapStatsBucketSize_BUCKET_SIZE_UNSPECIFIED
 }
 
+func (x *GetQuickSwapStatsResponse) GetZippedAssetIds() []uint32 {
+	if x != nil {
+		return x.ZippedAssetIds
+	}
+	return nil
+}
+
+func (x *GetQuickSwapStatsResponse) GetZippedAssetDecimals() []uint32 {
+	if x != nil {
+		return x.ZippedAssetDecimals
+	}
+	return nil
+}
+
+func (x *GetQuickSwapStatsResponse) GetFeeAssetIds() []uint32 {
+	if x != nil {
+		return x.FeeAssetIds
+	}
+	return nil
+}
+
 func (x *GetQuickSwapStatsResponse) GetTotals() *QuickSwapStatsTotals {
 	if x != nil {
 		return x.Totals
@@ -1082,14 +1312,14 @@ func (x *GetQuickSwapStatsResponse) GetPreviousTotals() *QuickSwapStatsTotals {
 	return nil
 }
 
-func (x *GetQuickSwapStatsResponse) GetBuckets() []*QuickSwapStatsBucket {
+func (x *GetQuickSwapStatsResponse) GetBuckets() *QuickSwapStatsBuckets {
 	if x != nil {
 		return x.Buckets
 	}
 	return nil
 }
 
-func (x *GetQuickSwapStatsResponse) GetRoutes() []*QuickSwapRouteStats {
+func (x *GetQuickSwapStatsResponse) GetRoutes() *QuickSwapStatsRoutes {
 	if x != nil {
 		return x.Routes
 	}
@@ -1107,7 +1337,7 @@ var File_swap_quickswap_v1_quickswap_explorer_proto protoreflect.FileDescriptor
 
 const file_swap_quickswap_v1_quickswap_explorer_proto_rawDesc = "" +
 	"\n" +
-	"*swap/quickswap/v1/quickswap_explorer.proto\x12\x11swap.quickswap.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\x1a!swap/quickswap/v1/quickswap.proto\x1a(swap/quickswap/v1/quickswap_broker.proto\"/\n" +
+	"*swap/quickswap/v1/quickswap_explorer.proto\x12\x11swap.quickswap.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\x1a!swap/quickswap/v1/quickswap.proto\"/\n" +
 	"\x10ExplorerRouteLeg\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\"D\n" +
 	"\x0fExplorerDeposit\x12\x17\n" +
@@ -1115,7 +1345,7 @@ const file_swap_quickswap_v1_quickswap_explorer_proto_rawDesc = "" +
 	"\aaddress\x18\x02 \x01(\tR\aaddress\"G\n" +
 	"\x12ExplorerWithdrawal\x12\x17\n" +
 	"\atx_hash\x18\x01 \x01(\tR\x06txHash\x12\x18\n" +
-	"\aaddress\x18\x02 \x01(\tR\aaddress\"\xb5\x04\n" +
+	"\aaddress\x18\x02 \x01(\tR\aaddress\"\xd3\x05\n" +
 	"\x11ExplorerQuickSwap\x12\x17\n" +
 	"\aswap_id\x18\x01 \x01(\x06R\x06swapId\x12=\n" +
 	"\fcompleted_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\x123\n" +
@@ -1125,58 +1355,84 @@ const file_swap_quickswap_v1_quickswap_explorer_proto_rawDesc = "" +
 	"\x12destination_amount\x18\x06 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\x11destinationAmount\x127\n" +
 	"\x04legs\x18\a \x03(\v2#.swap.quickswap.v1.ExplorerRouteLegR\x04legs\x12>\n" +
 	"\bdeposits\x18\b \x03(\v2\".swap.quickswap.v1.ExplorerDepositR\bdeposits\x12G\n" +
-	"\vwithdrawals\x18\t \x03(\v2%.swap.quickswap.v1.ExplorerWithdrawalR\vwithdrawals\"\xdc\x01\n" +
-	"\x1eListCompletedQuickSwapsRequest\x123\n" +
-	"\x16source_zipped_asset_id\x18\x01 \x01(\rR\x13sourceZippedAssetId\x12=\n" +
-	"\x1bdestination_zipped_asset_id\x18\x02 \x01(\rR\x18destinationZippedAssetId\x12\x1d\n" +
+	"\vwithdrawals\x18\t \x03(\v2%.swap.quickswap.v1.ExplorerWithdrawalR\vwithdrawals\x12H\n" +
+	"\x10source_value_usd\x18\n" +
+	" \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\x0esourceValueUsd\x12R\n" +
+	"\x15destination_value_usd\x18\v \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\x13destinationValueUsd\"\xec\b\n" +
+	"\x1eListCompletedQuickSwapsRequest\x12G\n" +
+	"\x17source_zipped_asset_ids\x18\x01 \x03(\rB\x10\xbaH\r\x92\x01\n" +
+	"\x10\x14\x18\x01\"\x04*\x02 \x00R\x14sourceZippedAssetIds\x12Q\n" +
+	"\x1cdestination_zipped_asset_ids\x18\x02 \x03(\rB\x10\xbaH\r\x92\x01\n" +
+	"\x10\x14\x18\x01\"\x04*\x02 \x00R\x19destinationZippedAssetIds\x12\x1d\n" +
 	"\x05limit\x18\x03 \x01(\rB\a\xbaH\x04*\x02\x18dR\x05limit\x12'\n" +
 	"\n" +
-	"page_token\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\tpageToken\"\x90\x01\n" +
+	"page_token\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\tpageToken\x12:\n" +
+	"\x10source_asset_ids\x18\x05 \x03(\rB\x10\xbaH\r\x92\x01\n" +
+	"\x10\x14\x18\x01\"\x04*\x02 \x00R\x0esourceAssetIds\x12D\n" +
+	"\x15destination_asset_ids\x18\x06 \x03(\rB\x10\xbaH\r\x92\x01\n" +
+	"\x10\x14\x18\x01\"\x04*\x02 \x00R\x13destinationAssetIds\x12\xf0\x02\n" +
+	"\x14min_source_value_usd\x18\a \x01(\tB\xbe\x02\xbaH\xba\x02\xba\x01\xb6\x02\n" +
+	"\"explorer.min_source_value_usd.grid\x12\xd5\x01min_source_value_usd must be 0 or 1, 2 or 5 times a power of ten dollars from $1 to $1,000,000,000 ($1, $2, $5, $10, $20, $50, ...): base units 0, or 1, 2 or 5 followed by 18 to 26 zeros, or 1 followed by 27 zeros\x1a8this == '' || this.matches('^(0|[125]0{18,26}|10{27})$')R\x11minSourceValueUsd\x12\xf0\x02\n" +
+	"\x14max_source_value_usd\x18\b \x01(\tB\xbe\x02\xbaH\xba\x02\xba\x01\xb6\x02\n" +
+	"\"explorer.max_source_value_usd.grid\x12\xd5\x01max_source_value_usd must be 0 or 1, 2 or 5 times a power of ten dollars from $1 to $1,000,000,000 ($1, $2, $5, $10, $20, $50, ...): base units 0, or 1, 2 or 5 followed by 18 to 26 zeros, or 1 followed by 27 zeros\x1a8this == '' || this.matches('^(0|[125]0{18,26}|10{27})$')R\x11maxSourceValueUsd\"\x90\x01\n" +
 	"\x1fListCompletedQuickSwapsResponse\x12E\n" +
 	"\vquick_swaps\x18\x01 \x03(\v2$.swap.quickswap.v1.ExplorerQuickSwapR\n" +
 	"quickSwaps\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"s\n" +
-	"\x11ZippedAssetVolume\x12&\n" +
-	"\x0fzipped_asset_id\x18\x01 \x01(\rR\rzippedAssetId\x126\n" +
-	"\x06amount\x18\x02 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\x06amount\"\x8d\x04\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"7\n" +
+	"\x1cGetCompletedQuickSwapRequest\x12\x17\n" +
+	"\aswap_id\x18\x01 \x01(\x06R\x06swapId\"d\n" +
+	"\x1dGetCompletedQuickSwapResponse\x12C\n" +
+	"\n" +
+	"quick_swap\x18\x01 \x01(\v2$.swap.quickswap.v1.ExplorerQuickSwapR\tquickSwap\"\x9c\x03\n" +
 	"\x14QuickSwapStatsTotals\x12\x1d\n" +
 	"\n" +
-	"swap_count\x18\x01 \x01(\x04R\tswapCount\x12I\n" +
-	"\rsource_volume\x18\x02 \x03(\v2$.swap.quickswap.v1.ZippedAssetVolumeR\fsourceVolume\x12S\n" +
-	"\x12destination_volume\x18\x03 \x03(\v2$.swap.quickswap.v1.ZippedAssetVolumeR\x11destinationVolume\x122\n" +
-	"\x04fees\x18\x04 \x03(\v2\x1e.swap.quickswap.v1.AssetVolumeR\x04fees\x12J\n" +
-	"\x11source_volume_usd\x18\x05 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\x0fsourceVolumeUsd\x12T\n" +
-	"\x16destination_volume_usd\x18\x06 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\x14destinationVolumeUsd\x129\n" +
-	"\bfees_usd\x18\a \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\afeesUsd\x12%\n" +
-	"\x0eunvalued_count\x18\b \x01(\x04R\runvaluedCount\"\x92\x01\n" +
-	"\x14QuickSwapStatsBucket\x129\n" +
+	"swap_count\x18\x01 \x01(\rR\tswapCount\x12%\n" +
+	"\x0eunvalued_count\x18\x02 \x01(\rR\runvaluedCount\x12*\n" +
+	"\x11source_volume_usd\x18\x03 \x01(\tR\x0fsourceVolumeUsd\x124\n" +
+	"\x16destination_volume_usd\x18\x04 \x01(\tR\x14destinationVolumeUsd\x12\x19\n" +
+	"\bfees_usd\x18\x05 \x01(\tR\afeesUsd\x12#\n" +
+	"\rsource_volume\x18\x06 \x03(\tR\fsourceVolume\x12-\n" +
+	"\x12destination_volume\x18\a \x03(\tR\x11destinationVolume\x12\x12\n" +
+	"\x04fees\x18\b \x03(\tR\x04fees\x12)\n" +
+	"\x11fees_usd_by_asset\x18\t \x03(\tR\x0efeesUsdByAsset\x12.\n" +
+	"\x13fees_unvalued_count\x18\n" +
+	" \x03(\rR\x11feesUnvaluedCount\"\x8a\x02\n" +
+	"\x15QuickSwapStatsBuckets\x12\x1d\n" +
 	"\n" +
-	"start_time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x12?\n" +
-	"\x06totals\x18\x02 \x01(\v2'.swap.quickswap.v1.QuickSwapStatsTotalsR\x06totals\"\x85\x04\n" +
-	"\x13QuickSwapRouteStats\x123\n" +
-	"\x16source_zipped_asset_id\x18\x01 \x01(\rR\x13sourceZippedAssetId\x12=\n" +
-	"\x1bdestination_zipped_asset_id\x18\x02 \x01(\rR\x18destinationZippedAssetId\x12\x1d\n" +
+	"swap_count\x18\x01 \x03(\rR\tswapCount\x12%\n" +
+	"\x0eunvalued_count\x18\x02 \x03(\rR\runvaluedCount\x12*\n" +
+	"\x11source_volume_usd\x18\x03 \x03(\tR\x0fsourceVolumeUsd\x124\n" +
+	"\x16destination_volume_usd\x18\x04 \x03(\tR\x14destinationVolumeUsd\x12\x19\n" +
+	"\bfees_usd\x18\x05 \x03(\tR\afeesUsd\x12.\n" +
+	"\x13fees_unvalued_count\x18\x06 \x03(\rR\x11feesUnvaluedCount\"\x8a\x03\n" +
+	"\x14QuickSwapStatsRoutes\x125\n" +
+	"\x17source_zipped_asset_ids\x18\x01 \x03(\rR\x14sourceZippedAssetIds\x12?\n" +
+	"\x1cdestination_zipped_asset_ids\x18\x02 \x03(\rR\x19destinationZippedAssetIds\x12\x1d\n" +
 	"\n" +
-	"swap_count\x18\x03 \x01(\x04R\tswapCount\x12C\n" +
-	"\rsource_volume\x18\x04 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\fsourceVolume\x12M\n" +
-	"\x12destination_volume\x18\x05 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\x11destinationVolume\x12J\n" +
-	"\x11source_volume_usd\x18\x06 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\x0fsourceVolumeUsd\x12T\n" +
-	"\x16destination_volume_usd\x18\a \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\x14destinationVolumeUsd\x12%\n" +
-	"\x0eunvalued_count\x18\b \x01(\x04R\runvaluedCount\"h\n" +
+	"swap_count\x18\x03 \x03(\rR\tswapCount\x12%\n" +
+	"\x0eunvalued_count\x18\x04 \x03(\rR\runvaluedCount\x12#\n" +
+	"\rsource_volume\x18\x05 \x03(\tR\fsourceVolume\x12-\n" +
+	"\x12destination_volume\x18\x06 \x03(\tR\x11destinationVolume\x12*\n" +
+	"\x11source_volume_usd\x18\a \x03(\tR\x0fsourceVolumeUsd\x124\n" +
+	"\x16destination_volume_usd\x18\b \x03(\tR\x14destinationVolumeUsd\"h\n" +
 	"\x18GetQuickSwapStatsRequest\x12L\n" +
-	"\x06window\x18\x01 \x01(\x0e2'.swap.quickswap.v1.QuickSwapStatsWindowB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x06window\"\xe3\x04\n" +
+	"\x06window\x18\x01 \x01(\x0e2'.swap.quickswap.v1.QuickSwapStatsWindowB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x06window\"\xe7\x05\n" +
 	"\x19GetQuickSwapStatsResponse\x12?\n" +
 	"\x06window\x18\x01 \x01(\x0e2'.swap.quickswap.v1.QuickSwapStatsWindowR\x06window\x129\n" +
 	"\n" +
 	"start_time\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
 	"\bend_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\aendTime\x12L\n" +
 	"\vbucket_size\x18\x04 \x01(\x0e2+.swap.quickswap.v1.QuickSwapStatsBucketSizeR\n" +
-	"bucketSize\x12?\n" +
-	"\x06totals\x18\x05 \x01(\v2'.swap.quickswap.v1.QuickSwapStatsTotalsR\x06totals\x12P\n" +
-	"\x0fprevious_totals\x18\x06 \x01(\v2'.swap.quickswap.v1.QuickSwapStatsTotalsR\x0epreviousTotals\x12A\n" +
-	"\abuckets\x18\a \x03(\v2'.swap.quickswap.v1.QuickSwapStatsBucketR\abuckets\x12>\n" +
-	"\x06routes\x18\b \x03(\v2&.swap.quickswap.v1.QuickSwapRouteStatsR\x06routes\x12/\n" +
-	"\x05as_of\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\x04asOf*\x8f\x01\n" +
+	"bucketSize\x12(\n" +
+	"\x10zipped_asset_ids\x18\x05 \x03(\rR\x0ezippedAssetIds\x122\n" +
+	"\x15zipped_asset_decimals\x18\x06 \x03(\rR\x13zippedAssetDecimals\x12\"\n" +
+	"\rfee_asset_ids\x18\a \x03(\rR\vfeeAssetIds\x12?\n" +
+	"\x06totals\x18\b \x01(\v2'.swap.quickswap.v1.QuickSwapStatsTotalsR\x06totals\x12P\n" +
+	"\x0fprevious_totals\x18\t \x01(\v2'.swap.quickswap.v1.QuickSwapStatsTotalsR\x0epreviousTotals\x12B\n" +
+	"\abuckets\x18\n" +
+	" \x01(\v2(.swap.quickswap.v1.QuickSwapStatsBucketsR\abuckets\x12?\n" +
+	"\x06routes\x18\v \x01(\v2'.swap.quickswap.v1.QuickSwapStatsRoutesR\x06routes\x12/\n" +
+	"\x05as_of\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\x04asOf*\x8f\x01\n" +
 	"\x14QuickSwapStatsWindow\x12\x1c\n" +
 	"\x18STATS_WINDOW_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rLAST_24_HOURS\x10\x01\x12\x0f\n" +
@@ -1190,10 +1446,12 @@ const file_swap_quickswap_v1_quickswap_explorer_proto_rawDesc = "" +
 	"\x06HOURLY\x10\x01\x12\t\n" +
 	"\x05DAILY\x10\x02\x12\n" +
 	"\n" +
-	"\x06WEEKLY\x10\x032\xfb\x04\n" +
-	"\x18QuickSwapExplorerService\x12\xaa\x02\n" +
-	"\x17ListCompletedQuickSwaps\x121.swap.quickswap.v1.ListCompletedQuickSwapsRequest\x1a2.swap.quickswap.v1.ListCompletedQuickSwapsResponse\"\xa7\x01\xbaG\x89\x01\n" +
-	"\x12QuickSwap Explorer\x12\x19List completed QuickSwaps\x1aXList completed QuickSwaps of every broker, newest first, by source or destination asset.\x88\xb5\x18\x01\xaa\xb5\x18\x12PAGE_TOKEN_INVALID\x12\xa2\x02\n" +
+	"\x06WEEKLY\x10\x032\xa5\a\n" +
+	"\x18QuickSwapExplorerService\x12\xd1\x02\n" +
+	"\x17ListCompletedQuickSwaps\x121.swap.quickswap.v1.ListCompletedQuickSwapsRequest\x1a2.swap.quickswap.v1.ListCompletedQuickSwapsResponse\"\xce\x01\xbaG\xb0\x01\n" +
+	"\x12QuickSwap Explorer\x12\x19List completed QuickSwaps\x1a\x7fList completed QuickSwaps of every broker, newest first, by source and destination assets and networks and by source USD value.\x88\xb5\x18\x01\xaa\xb5\x18\x12PAGE_TOKEN_INVALID\x12\x80\x02\n" +
+	"\x15GetCompletedQuickSwap\x12/.swap.quickswap.v1.GetCompletedQuickSwapRequest\x1a0.swap.quickswap.v1.GetCompletedQuickSwapResponse\"\x83\x01\xbaGj\n" +
+	"\x12QuickSwap Explorer\x12\x19Get a completed QuickSwap\x1a9Get one completed QuickSwap of any broker by its swap ID.\x88\xb5\x18\x01\xaa\xb5\x18\x0eSWAP_NOT_FOUND\x12\xa2\x02\n" +
 	"\x11GetQuickSwapStats\x12+.swap.quickswap.v1.GetQuickSwapStatsRequest\x1a,.swap.quickswap.v1.GetQuickSwapStatsResponse\"\xb1\x01\xbaG\x95\x01\n" +
 	"\x12QuickSwap Explorer\x12\x18Get QuickSwap statistics\x1aeGet totals, a time series and per-route totals of completed QuickSwaps of every broker over a window.\x88\xb5\x18\x01\xaa\xb5\x18\x10STATS_INCOMPLETE\x1a\r\x8a\xb5\x18\tquickswapB\xc9\x01\xbaG{:y\n" +
 	"\x12QuickSwap Explorer\x12cPublic, read-only view of completed QuickSwaps across every broker, and their aggregate statistics.ZIgithub.com/Fabric-Labs/polyester-sdk-go/gen/swap/quickswap/v1;quickswapv1b\x06proto3"
@@ -1211,7 +1469,7 @@ func file_swap_quickswap_v1_quickswap_explorer_proto_rawDescGZIP() []byte {
 }
 
 var file_swap_quickswap_v1_quickswap_explorer_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_swap_quickswap_v1_quickswap_explorer_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_swap_quickswap_v1_quickswap_explorer_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_swap_quickswap_v1_quickswap_explorer_proto_goTypes = []any{
 	(QuickSwapStatsWindow)(0),               // 0: swap.quickswap.v1.QuickSwapStatsWindow
 	(QuickSwapStatsBucketSize)(0),           // 1: swap.quickswap.v1.QuickSwapStatsBucketSize
@@ -1221,56 +1479,48 @@ var file_swap_quickswap_v1_quickswap_explorer_proto_goTypes = []any{
 	(*ExplorerQuickSwap)(nil),               // 5: swap.quickswap.v1.ExplorerQuickSwap
 	(*ListCompletedQuickSwapsRequest)(nil),  // 6: swap.quickswap.v1.ListCompletedQuickSwapsRequest
 	(*ListCompletedQuickSwapsResponse)(nil), // 7: swap.quickswap.v1.ListCompletedQuickSwapsResponse
-	(*ZippedAssetVolume)(nil),               // 8: swap.quickswap.v1.ZippedAssetVolume
-	(*QuickSwapStatsTotals)(nil),            // 9: swap.quickswap.v1.QuickSwapStatsTotals
-	(*QuickSwapStatsBucket)(nil),            // 10: swap.quickswap.v1.QuickSwapStatsBucket
-	(*QuickSwapRouteStats)(nil),             // 11: swap.quickswap.v1.QuickSwapRouteStats
-	(*GetQuickSwapStatsRequest)(nil),        // 12: swap.quickswap.v1.GetQuickSwapStatsRequest
-	(*GetQuickSwapStatsResponse)(nil),       // 13: swap.quickswap.v1.GetQuickSwapStatsResponse
-	(*timestamppb.Timestamp)(nil),           // 14: google.protobuf.Timestamp
-	(*TokenAmount)(nil),                     // 15: swap.quickswap.v1.TokenAmount
-	(*AssetVolume)(nil),                     // 16: swap.quickswap.v1.AssetVolume
+	(*GetCompletedQuickSwapRequest)(nil),    // 8: swap.quickswap.v1.GetCompletedQuickSwapRequest
+	(*GetCompletedQuickSwapResponse)(nil),   // 9: swap.quickswap.v1.GetCompletedQuickSwapResponse
+	(*QuickSwapStatsTotals)(nil),            // 10: swap.quickswap.v1.QuickSwapStatsTotals
+	(*QuickSwapStatsBuckets)(nil),           // 11: swap.quickswap.v1.QuickSwapStatsBuckets
+	(*QuickSwapStatsRoutes)(nil),            // 12: swap.quickswap.v1.QuickSwapStatsRoutes
+	(*GetQuickSwapStatsRequest)(nil),        // 13: swap.quickswap.v1.GetQuickSwapStatsRequest
+	(*GetQuickSwapStatsResponse)(nil),       // 14: swap.quickswap.v1.GetQuickSwapStatsResponse
+	(*timestamppb.Timestamp)(nil),           // 15: google.protobuf.Timestamp
+	(*TokenAmount)(nil),                     // 16: swap.quickswap.v1.TokenAmount
 }
 var file_swap_quickswap_v1_quickswap_explorer_proto_depIdxs = []int32{
-	14, // 0: swap.quickswap.v1.ExplorerQuickSwap.completed_at:type_name -> google.protobuf.Timestamp
-	15, // 1: swap.quickswap.v1.ExplorerQuickSwap.source_amount:type_name -> swap.quickswap.v1.TokenAmount
-	15, // 2: swap.quickswap.v1.ExplorerQuickSwap.destination_amount:type_name -> swap.quickswap.v1.TokenAmount
+	15, // 0: swap.quickswap.v1.ExplorerQuickSwap.completed_at:type_name -> google.protobuf.Timestamp
+	16, // 1: swap.quickswap.v1.ExplorerQuickSwap.source_amount:type_name -> swap.quickswap.v1.TokenAmount
+	16, // 2: swap.quickswap.v1.ExplorerQuickSwap.destination_amount:type_name -> swap.quickswap.v1.TokenAmount
 	2,  // 3: swap.quickswap.v1.ExplorerQuickSwap.legs:type_name -> swap.quickswap.v1.ExplorerRouteLeg
 	3,  // 4: swap.quickswap.v1.ExplorerQuickSwap.deposits:type_name -> swap.quickswap.v1.ExplorerDeposit
 	4,  // 5: swap.quickswap.v1.ExplorerQuickSwap.withdrawals:type_name -> swap.quickswap.v1.ExplorerWithdrawal
-	5,  // 6: swap.quickswap.v1.ListCompletedQuickSwapsResponse.quick_swaps:type_name -> swap.quickswap.v1.ExplorerQuickSwap
-	15, // 7: swap.quickswap.v1.ZippedAssetVolume.amount:type_name -> swap.quickswap.v1.TokenAmount
-	8,  // 8: swap.quickswap.v1.QuickSwapStatsTotals.source_volume:type_name -> swap.quickswap.v1.ZippedAssetVolume
-	8,  // 9: swap.quickswap.v1.QuickSwapStatsTotals.destination_volume:type_name -> swap.quickswap.v1.ZippedAssetVolume
-	16, // 10: swap.quickswap.v1.QuickSwapStatsTotals.fees:type_name -> swap.quickswap.v1.AssetVolume
-	15, // 11: swap.quickswap.v1.QuickSwapStatsTotals.source_volume_usd:type_name -> swap.quickswap.v1.TokenAmount
-	15, // 12: swap.quickswap.v1.QuickSwapStatsTotals.destination_volume_usd:type_name -> swap.quickswap.v1.TokenAmount
-	15, // 13: swap.quickswap.v1.QuickSwapStatsTotals.fees_usd:type_name -> swap.quickswap.v1.TokenAmount
-	14, // 14: swap.quickswap.v1.QuickSwapStatsBucket.start_time:type_name -> google.protobuf.Timestamp
-	9,  // 15: swap.quickswap.v1.QuickSwapStatsBucket.totals:type_name -> swap.quickswap.v1.QuickSwapStatsTotals
-	15, // 16: swap.quickswap.v1.QuickSwapRouteStats.source_volume:type_name -> swap.quickswap.v1.TokenAmount
-	15, // 17: swap.quickswap.v1.QuickSwapRouteStats.destination_volume:type_name -> swap.quickswap.v1.TokenAmount
-	15, // 18: swap.quickswap.v1.QuickSwapRouteStats.source_volume_usd:type_name -> swap.quickswap.v1.TokenAmount
-	15, // 19: swap.quickswap.v1.QuickSwapRouteStats.destination_volume_usd:type_name -> swap.quickswap.v1.TokenAmount
-	0,  // 20: swap.quickswap.v1.GetQuickSwapStatsRequest.window:type_name -> swap.quickswap.v1.QuickSwapStatsWindow
-	0,  // 21: swap.quickswap.v1.GetQuickSwapStatsResponse.window:type_name -> swap.quickswap.v1.QuickSwapStatsWindow
-	14, // 22: swap.quickswap.v1.GetQuickSwapStatsResponse.start_time:type_name -> google.protobuf.Timestamp
-	14, // 23: swap.quickswap.v1.GetQuickSwapStatsResponse.end_time:type_name -> google.protobuf.Timestamp
-	1,  // 24: swap.quickswap.v1.GetQuickSwapStatsResponse.bucket_size:type_name -> swap.quickswap.v1.QuickSwapStatsBucketSize
-	9,  // 25: swap.quickswap.v1.GetQuickSwapStatsResponse.totals:type_name -> swap.quickswap.v1.QuickSwapStatsTotals
-	9,  // 26: swap.quickswap.v1.GetQuickSwapStatsResponse.previous_totals:type_name -> swap.quickswap.v1.QuickSwapStatsTotals
-	10, // 27: swap.quickswap.v1.GetQuickSwapStatsResponse.buckets:type_name -> swap.quickswap.v1.QuickSwapStatsBucket
-	11, // 28: swap.quickswap.v1.GetQuickSwapStatsResponse.routes:type_name -> swap.quickswap.v1.QuickSwapRouteStats
-	14, // 29: swap.quickswap.v1.GetQuickSwapStatsResponse.as_of:type_name -> google.protobuf.Timestamp
-	6,  // 30: swap.quickswap.v1.QuickSwapExplorerService.ListCompletedQuickSwaps:input_type -> swap.quickswap.v1.ListCompletedQuickSwapsRequest
-	12, // 31: swap.quickswap.v1.QuickSwapExplorerService.GetQuickSwapStats:input_type -> swap.quickswap.v1.GetQuickSwapStatsRequest
-	7,  // 32: swap.quickswap.v1.QuickSwapExplorerService.ListCompletedQuickSwaps:output_type -> swap.quickswap.v1.ListCompletedQuickSwapsResponse
-	13, // 33: swap.quickswap.v1.QuickSwapExplorerService.GetQuickSwapStats:output_type -> swap.quickswap.v1.GetQuickSwapStatsResponse
-	32, // [32:34] is the sub-list for method output_type
-	30, // [30:32] is the sub-list for method input_type
-	30, // [30:30] is the sub-list for extension type_name
-	30, // [30:30] is the sub-list for extension extendee
-	0,  // [0:30] is the sub-list for field type_name
+	16, // 6: swap.quickswap.v1.ExplorerQuickSwap.source_value_usd:type_name -> swap.quickswap.v1.TokenAmount
+	16, // 7: swap.quickswap.v1.ExplorerQuickSwap.destination_value_usd:type_name -> swap.quickswap.v1.TokenAmount
+	5,  // 8: swap.quickswap.v1.ListCompletedQuickSwapsResponse.quick_swaps:type_name -> swap.quickswap.v1.ExplorerQuickSwap
+	5,  // 9: swap.quickswap.v1.GetCompletedQuickSwapResponse.quick_swap:type_name -> swap.quickswap.v1.ExplorerQuickSwap
+	0,  // 10: swap.quickswap.v1.GetQuickSwapStatsRequest.window:type_name -> swap.quickswap.v1.QuickSwapStatsWindow
+	0,  // 11: swap.quickswap.v1.GetQuickSwapStatsResponse.window:type_name -> swap.quickswap.v1.QuickSwapStatsWindow
+	15, // 12: swap.quickswap.v1.GetQuickSwapStatsResponse.start_time:type_name -> google.protobuf.Timestamp
+	15, // 13: swap.quickswap.v1.GetQuickSwapStatsResponse.end_time:type_name -> google.protobuf.Timestamp
+	1,  // 14: swap.quickswap.v1.GetQuickSwapStatsResponse.bucket_size:type_name -> swap.quickswap.v1.QuickSwapStatsBucketSize
+	10, // 15: swap.quickswap.v1.GetQuickSwapStatsResponse.totals:type_name -> swap.quickswap.v1.QuickSwapStatsTotals
+	10, // 16: swap.quickswap.v1.GetQuickSwapStatsResponse.previous_totals:type_name -> swap.quickswap.v1.QuickSwapStatsTotals
+	11, // 17: swap.quickswap.v1.GetQuickSwapStatsResponse.buckets:type_name -> swap.quickswap.v1.QuickSwapStatsBuckets
+	12, // 18: swap.quickswap.v1.GetQuickSwapStatsResponse.routes:type_name -> swap.quickswap.v1.QuickSwapStatsRoutes
+	15, // 19: swap.quickswap.v1.GetQuickSwapStatsResponse.as_of:type_name -> google.protobuf.Timestamp
+	6,  // 20: swap.quickswap.v1.QuickSwapExplorerService.ListCompletedQuickSwaps:input_type -> swap.quickswap.v1.ListCompletedQuickSwapsRequest
+	8,  // 21: swap.quickswap.v1.QuickSwapExplorerService.GetCompletedQuickSwap:input_type -> swap.quickswap.v1.GetCompletedQuickSwapRequest
+	13, // 22: swap.quickswap.v1.QuickSwapExplorerService.GetQuickSwapStats:input_type -> swap.quickswap.v1.GetQuickSwapStatsRequest
+	7,  // 23: swap.quickswap.v1.QuickSwapExplorerService.ListCompletedQuickSwaps:output_type -> swap.quickswap.v1.ListCompletedQuickSwapsResponse
+	9,  // 24: swap.quickswap.v1.QuickSwapExplorerService.GetCompletedQuickSwap:output_type -> swap.quickswap.v1.GetCompletedQuickSwapResponse
+	14, // 25: swap.quickswap.v1.QuickSwapExplorerService.GetQuickSwapStats:output_type -> swap.quickswap.v1.GetQuickSwapStatsResponse
+	23, // [23:26] is the sub-list for method output_type
+	20, // [20:23] is the sub-list for method input_type
+	20, // [20:20] is the sub-list for extension type_name
+	20, // [20:20] is the sub-list for extension extendee
+	0,  // [0:20] is the sub-list for field type_name
 }
 
 func init() { file_swap_quickswap_v1_quickswap_explorer_proto_init() }
@@ -1279,14 +1529,13 @@ func file_swap_quickswap_v1_quickswap_explorer_proto_init() {
 		return
 	}
 	file_swap_quickswap_v1_quickswap_proto_init()
-	file_swap_quickswap_v1_quickswap_broker_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swap_quickswap_v1_quickswap_explorer_proto_rawDesc), len(file_swap_quickswap_v1_quickswap_explorer_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   12,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

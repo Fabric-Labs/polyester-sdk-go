@@ -33,15 +33,15 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// ConnectedAppServiceGetAppAuthorizationProcedure is the fully-qualified name of the
-	// ConnectedAppService's GetAppAuthorization RPC.
-	ConnectedAppServiceGetAppAuthorizationProcedure = "/auth.v1.ConnectedAppService/GetAppAuthorization"
-	// ConnectedAppServiceApproveAppAuthorizationProcedure is the fully-qualified name of the
-	// ConnectedAppService's ApproveAppAuthorization RPC.
-	ConnectedAppServiceApproveAppAuthorizationProcedure = "/auth.v1.ConnectedAppService/ApproveAppAuthorization"
-	// ConnectedAppServiceDenyAppAuthorizationProcedure is the fully-qualified name of the
-	// ConnectedAppService's DenyAppAuthorization RPC.
-	ConnectedAppServiceDenyAppAuthorizationProcedure = "/auth.v1.ConnectedAppService/DenyAppAuthorization"
+	// ConnectedAppServiceGetAppConnectionRequestProcedure is the fully-qualified name of the
+	// ConnectedAppService's GetAppConnectionRequest RPC.
+	ConnectedAppServiceGetAppConnectionRequestProcedure = "/auth.v1.ConnectedAppService/GetAppConnectionRequest"
+	// ConnectedAppServiceApproveAppConnectionRequestProcedure is the fully-qualified name of the
+	// ConnectedAppService's ApproveAppConnectionRequest RPC.
+	ConnectedAppServiceApproveAppConnectionRequestProcedure = "/auth.v1.ConnectedAppService/ApproveAppConnectionRequest"
+	// ConnectedAppServiceDenyAppConnectionRequestProcedure is the fully-qualified name of the
+	// ConnectedAppService's DenyAppConnectionRequest RPC.
+	ConnectedAppServiceDenyAppConnectionRequestProcedure = "/auth.v1.ConnectedAppService/DenyAppConnectionRequest"
 	// ConnectedAppServiceListConnectedAppsProcedure is the fully-qualified name of the
 	// ConnectedAppService's ListConnectedApps RPC.
 	ConnectedAppServiceListConnectedAppsProcedure = "/auth.v1.ConnectedAppService/ListConnectedApps"
@@ -54,18 +54,18 @@ const (
 type ConnectedAppServiceClient interface {
 	// Read a pending app connection request, to show the consent page. An
 	// unknown, expired or already answered request is NotFound.
-	GetAppAuthorization(context.Context, *connect.Request[v1.GetAppAuthorizationRequest]) (*connect.Response[v1.GetAppAuthorizationResponse], error)
+	GetAppConnectionRequest(context.Context, *connect.Request[v1.GetAppConnectionRequestRequest]) (*connect.Response[v1.GetAppConnectionRequestResponse], error)
 	// Approve a pending app connection request. The account must have MFA
 	// enrolled, and the request must carry a fresh step-up proof: connecting
 	// an app is durable delegated access. The app receives a one-time
 	// authorization code through the returned redirect URL. An unknown,
 	// expired or already answered request is NotFound; an account with 20
 	// connected apps is FailedPrecondition with AUTH_CONNECTED_APP_LIMIT_REACHED.
-	ApproveAppAuthorization(context.Context, *connect.Request[v1.ApproveAppAuthorizationRequest]) (*connect.Response[v1.ApproveAppAuthorizationResponse], error)
+	ApproveAppConnectionRequest(context.Context, *connect.Request[v1.ApproveAppConnectionRequestRequest]) (*connect.Response[v1.ApproveAppConnectionRequestResponse], error)
 	// Deny a pending app connection request. The app receives the
 	// `access_denied` error through the returned redirect URL. An unknown,
 	// expired or already answered request is NotFound.
-	DenyAppAuthorization(context.Context, *connect.Request[v1.DenyAppAuthorizationRequest]) (*connect.Response[v1.DenyAppAuthorizationResponse], error)
+	DenyAppConnectionRequest(context.Context, *connect.Request[v1.DenyAppConnectionRequestRequest]) (*connect.Response[v1.DenyAppConnectionRequestResponse], error)
 	// List the apps connected to the account.
 	ListConnectedApps(context.Context, *connect.Request[v1.ListConnectedAppsRequest]) (*connect.Response[v1.ListConnectedAppsResponse], error)
 	// Disconnect an app. Its access and refresh tokens stop working at once.
@@ -85,23 +85,23 @@ func NewConnectedAppServiceClient(httpClient connect.HTTPClient, baseURL string,
 	baseURL = strings.TrimRight(baseURL, "/")
 	connectedAppServiceMethods := v1.File_auth_v1_connected_apps_proto.Services().ByName("ConnectedAppService").Methods()
 	return &connectedAppServiceClient{
-		getAppAuthorization: connect.NewClient[v1.GetAppAuthorizationRequest, v1.GetAppAuthorizationResponse](
+		getAppConnectionRequest: connect.NewClient[v1.GetAppConnectionRequestRequest, v1.GetAppConnectionRequestResponse](
 			httpClient,
-			baseURL+ConnectedAppServiceGetAppAuthorizationProcedure,
-			connect.WithSchema(connectedAppServiceMethods.ByName("GetAppAuthorization")),
+			baseURL+ConnectedAppServiceGetAppConnectionRequestProcedure,
+			connect.WithSchema(connectedAppServiceMethods.ByName("GetAppConnectionRequest")),
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
-		approveAppAuthorization: connect.NewClient[v1.ApproveAppAuthorizationRequest, v1.ApproveAppAuthorizationResponse](
+		approveAppConnectionRequest: connect.NewClient[v1.ApproveAppConnectionRequestRequest, v1.ApproveAppConnectionRequestResponse](
 			httpClient,
-			baseURL+ConnectedAppServiceApproveAppAuthorizationProcedure,
-			connect.WithSchema(connectedAppServiceMethods.ByName("ApproveAppAuthorization")),
+			baseURL+ConnectedAppServiceApproveAppConnectionRequestProcedure,
+			connect.WithSchema(connectedAppServiceMethods.ByName("ApproveAppConnectionRequest")),
 			connect.WithClientOptions(opts...),
 		),
-		denyAppAuthorization: connect.NewClient[v1.DenyAppAuthorizationRequest, v1.DenyAppAuthorizationResponse](
+		denyAppConnectionRequest: connect.NewClient[v1.DenyAppConnectionRequestRequest, v1.DenyAppConnectionRequestResponse](
 			httpClient,
-			baseURL+ConnectedAppServiceDenyAppAuthorizationProcedure,
-			connect.WithSchema(connectedAppServiceMethods.ByName("DenyAppAuthorization")),
+			baseURL+ConnectedAppServiceDenyAppConnectionRequestProcedure,
+			connect.WithSchema(connectedAppServiceMethods.ByName("DenyAppConnectionRequest")),
 			connect.WithClientOptions(opts...),
 		),
 		listConnectedApps: connect.NewClient[v1.ListConnectedAppsRequest, v1.ListConnectedAppsResponse](
@@ -123,26 +123,26 @@ func NewConnectedAppServiceClient(httpClient connect.HTTPClient, baseURL string,
 
 // connectedAppServiceClient implements ConnectedAppServiceClient.
 type connectedAppServiceClient struct {
-	getAppAuthorization     *connect.Client[v1.GetAppAuthorizationRequest, v1.GetAppAuthorizationResponse]
-	approveAppAuthorization *connect.Client[v1.ApproveAppAuthorizationRequest, v1.ApproveAppAuthorizationResponse]
-	denyAppAuthorization    *connect.Client[v1.DenyAppAuthorizationRequest, v1.DenyAppAuthorizationResponse]
-	listConnectedApps       *connect.Client[v1.ListConnectedAppsRequest, v1.ListConnectedAppsResponse]
-	revokeConnectedApp      *connect.Client[v1.RevokeConnectedAppRequest, v1.RevokeConnectedAppResponse]
+	getAppConnectionRequest     *connect.Client[v1.GetAppConnectionRequestRequest, v1.GetAppConnectionRequestResponse]
+	approveAppConnectionRequest *connect.Client[v1.ApproveAppConnectionRequestRequest, v1.ApproveAppConnectionRequestResponse]
+	denyAppConnectionRequest    *connect.Client[v1.DenyAppConnectionRequestRequest, v1.DenyAppConnectionRequestResponse]
+	listConnectedApps           *connect.Client[v1.ListConnectedAppsRequest, v1.ListConnectedAppsResponse]
+	revokeConnectedApp          *connect.Client[v1.RevokeConnectedAppRequest, v1.RevokeConnectedAppResponse]
 }
 
-// GetAppAuthorization calls auth.v1.ConnectedAppService.GetAppAuthorization.
-func (c *connectedAppServiceClient) GetAppAuthorization(ctx context.Context, req *connect.Request[v1.GetAppAuthorizationRequest]) (*connect.Response[v1.GetAppAuthorizationResponse], error) {
-	return c.getAppAuthorization.CallUnary(ctx, req)
+// GetAppConnectionRequest calls auth.v1.ConnectedAppService.GetAppConnectionRequest.
+func (c *connectedAppServiceClient) GetAppConnectionRequest(ctx context.Context, req *connect.Request[v1.GetAppConnectionRequestRequest]) (*connect.Response[v1.GetAppConnectionRequestResponse], error) {
+	return c.getAppConnectionRequest.CallUnary(ctx, req)
 }
 
-// ApproveAppAuthorization calls auth.v1.ConnectedAppService.ApproveAppAuthorization.
-func (c *connectedAppServiceClient) ApproveAppAuthorization(ctx context.Context, req *connect.Request[v1.ApproveAppAuthorizationRequest]) (*connect.Response[v1.ApproveAppAuthorizationResponse], error) {
-	return c.approveAppAuthorization.CallUnary(ctx, req)
+// ApproveAppConnectionRequest calls auth.v1.ConnectedAppService.ApproveAppConnectionRequest.
+func (c *connectedAppServiceClient) ApproveAppConnectionRequest(ctx context.Context, req *connect.Request[v1.ApproveAppConnectionRequestRequest]) (*connect.Response[v1.ApproveAppConnectionRequestResponse], error) {
+	return c.approveAppConnectionRequest.CallUnary(ctx, req)
 }
 
-// DenyAppAuthorization calls auth.v1.ConnectedAppService.DenyAppAuthorization.
-func (c *connectedAppServiceClient) DenyAppAuthorization(ctx context.Context, req *connect.Request[v1.DenyAppAuthorizationRequest]) (*connect.Response[v1.DenyAppAuthorizationResponse], error) {
-	return c.denyAppAuthorization.CallUnary(ctx, req)
+// DenyAppConnectionRequest calls auth.v1.ConnectedAppService.DenyAppConnectionRequest.
+func (c *connectedAppServiceClient) DenyAppConnectionRequest(ctx context.Context, req *connect.Request[v1.DenyAppConnectionRequestRequest]) (*connect.Response[v1.DenyAppConnectionRequestResponse], error) {
+	return c.denyAppConnectionRequest.CallUnary(ctx, req)
 }
 
 // ListConnectedApps calls auth.v1.ConnectedAppService.ListConnectedApps.
@@ -159,18 +159,18 @@ func (c *connectedAppServiceClient) RevokeConnectedApp(ctx context.Context, req 
 type ConnectedAppServiceHandler interface {
 	// Read a pending app connection request, to show the consent page. An
 	// unknown, expired or already answered request is NotFound.
-	GetAppAuthorization(context.Context, *connect.Request[v1.GetAppAuthorizationRequest]) (*connect.Response[v1.GetAppAuthorizationResponse], error)
+	GetAppConnectionRequest(context.Context, *connect.Request[v1.GetAppConnectionRequestRequest]) (*connect.Response[v1.GetAppConnectionRequestResponse], error)
 	// Approve a pending app connection request. The account must have MFA
 	// enrolled, and the request must carry a fresh step-up proof: connecting
 	// an app is durable delegated access. The app receives a one-time
 	// authorization code through the returned redirect URL. An unknown,
 	// expired or already answered request is NotFound; an account with 20
 	// connected apps is FailedPrecondition with AUTH_CONNECTED_APP_LIMIT_REACHED.
-	ApproveAppAuthorization(context.Context, *connect.Request[v1.ApproveAppAuthorizationRequest]) (*connect.Response[v1.ApproveAppAuthorizationResponse], error)
+	ApproveAppConnectionRequest(context.Context, *connect.Request[v1.ApproveAppConnectionRequestRequest]) (*connect.Response[v1.ApproveAppConnectionRequestResponse], error)
 	// Deny a pending app connection request. The app receives the
 	// `access_denied` error through the returned redirect URL. An unknown,
 	// expired or already answered request is NotFound.
-	DenyAppAuthorization(context.Context, *connect.Request[v1.DenyAppAuthorizationRequest]) (*connect.Response[v1.DenyAppAuthorizationResponse], error)
+	DenyAppConnectionRequest(context.Context, *connect.Request[v1.DenyAppConnectionRequestRequest]) (*connect.Response[v1.DenyAppConnectionRequestResponse], error)
 	// List the apps connected to the account.
 	ListConnectedApps(context.Context, *connect.Request[v1.ListConnectedAppsRequest]) (*connect.Response[v1.ListConnectedAppsResponse], error)
 	// Disconnect an app. Its access and refresh tokens stop working at once.
@@ -186,23 +186,23 @@ type ConnectedAppServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewConnectedAppServiceHandler(svc ConnectedAppServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	connectedAppServiceMethods := v1.File_auth_v1_connected_apps_proto.Services().ByName("ConnectedAppService").Methods()
-	connectedAppServiceGetAppAuthorizationHandler := connect.NewUnaryHandler(
-		ConnectedAppServiceGetAppAuthorizationProcedure,
-		svc.GetAppAuthorization,
-		connect.WithSchema(connectedAppServiceMethods.ByName("GetAppAuthorization")),
+	connectedAppServiceGetAppConnectionRequestHandler := connect.NewUnaryHandler(
+		ConnectedAppServiceGetAppConnectionRequestProcedure,
+		svc.GetAppConnectionRequest,
+		connect.WithSchema(connectedAppServiceMethods.ByName("GetAppConnectionRequest")),
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
-	connectedAppServiceApproveAppAuthorizationHandler := connect.NewUnaryHandler(
-		ConnectedAppServiceApproveAppAuthorizationProcedure,
-		svc.ApproveAppAuthorization,
-		connect.WithSchema(connectedAppServiceMethods.ByName("ApproveAppAuthorization")),
+	connectedAppServiceApproveAppConnectionRequestHandler := connect.NewUnaryHandler(
+		ConnectedAppServiceApproveAppConnectionRequestProcedure,
+		svc.ApproveAppConnectionRequest,
+		connect.WithSchema(connectedAppServiceMethods.ByName("ApproveAppConnectionRequest")),
 		connect.WithHandlerOptions(opts...),
 	)
-	connectedAppServiceDenyAppAuthorizationHandler := connect.NewUnaryHandler(
-		ConnectedAppServiceDenyAppAuthorizationProcedure,
-		svc.DenyAppAuthorization,
-		connect.WithSchema(connectedAppServiceMethods.ByName("DenyAppAuthorization")),
+	connectedAppServiceDenyAppConnectionRequestHandler := connect.NewUnaryHandler(
+		ConnectedAppServiceDenyAppConnectionRequestProcedure,
+		svc.DenyAppConnectionRequest,
+		connect.WithSchema(connectedAppServiceMethods.ByName("DenyAppConnectionRequest")),
 		connect.WithHandlerOptions(opts...),
 	)
 	connectedAppServiceListConnectedAppsHandler := connect.NewUnaryHandler(
@@ -221,12 +221,12 @@ func NewConnectedAppServiceHandler(svc ConnectedAppServiceHandler, opts ...conne
 	)
 	return "/auth.v1.ConnectedAppService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case ConnectedAppServiceGetAppAuthorizationProcedure:
-			connectedAppServiceGetAppAuthorizationHandler.ServeHTTP(w, r)
-		case ConnectedAppServiceApproveAppAuthorizationProcedure:
-			connectedAppServiceApproveAppAuthorizationHandler.ServeHTTP(w, r)
-		case ConnectedAppServiceDenyAppAuthorizationProcedure:
-			connectedAppServiceDenyAppAuthorizationHandler.ServeHTTP(w, r)
+		case ConnectedAppServiceGetAppConnectionRequestProcedure:
+			connectedAppServiceGetAppConnectionRequestHandler.ServeHTTP(w, r)
+		case ConnectedAppServiceApproveAppConnectionRequestProcedure:
+			connectedAppServiceApproveAppConnectionRequestHandler.ServeHTTP(w, r)
+		case ConnectedAppServiceDenyAppConnectionRequestProcedure:
+			connectedAppServiceDenyAppConnectionRequestHandler.ServeHTTP(w, r)
 		case ConnectedAppServiceListConnectedAppsProcedure:
 			connectedAppServiceListConnectedAppsHandler.ServeHTTP(w, r)
 		case ConnectedAppServiceRevokeConnectedAppProcedure:
@@ -240,16 +240,16 @@ func NewConnectedAppServiceHandler(svc ConnectedAppServiceHandler, opts ...conne
 // UnimplementedConnectedAppServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedConnectedAppServiceHandler struct{}
 
-func (UnimplementedConnectedAppServiceHandler) GetAppAuthorization(context.Context, *connect.Request[v1.GetAppAuthorizationRequest]) (*connect.Response[v1.GetAppAuthorizationResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.ConnectedAppService.GetAppAuthorization is not implemented"))
+func (UnimplementedConnectedAppServiceHandler) GetAppConnectionRequest(context.Context, *connect.Request[v1.GetAppConnectionRequestRequest]) (*connect.Response[v1.GetAppConnectionRequestResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.ConnectedAppService.GetAppConnectionRequest is not implemented"))
 }
 
-func (UnimplementedConnectedAppServiceHandler) ApproveAppAuthorization(context.Context, *connect.Request[v1.ApproveAppAuthorizationRequest]) (*connect.Response[v1.ApproveAppAuthorizationResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.ConnectedAppService.ApproveAppAuthorization is not implemented"))
+func (UnimplementedConnectedAppServiceHandler) ApproveAppConnectionRequest(context.Context, *connect.Request[v1.ApproveAppConnectionRequestRequest]) (*connect.Response[v1.ApproveAppConnectionRequestResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.ConnectedAppService.ApproveAppConnectionRequest is not implemented"))
 }
 
-func (UnimplementedConnectedAppServiceHandler) DenyAppAuthorization(context.Context, *connect.Request[v1.DenyAppAuthorizationRequest]) (*connect.Response[v1.DenyAppAuthorizationResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.ConnectedAppService.DenyAppAuthorization is not implemented"))
+func (UnimplementedConnectedAppServiceHandler) DenyAppConnectionRequest(context.Context, *connect.Request[v1.DenyAppConnectionRequestRequest]) (*connect.Response[v1.DenyAppConnectionRequestResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.ConnectedAppService.DenyAppConnectionRequest is not implemented"))
 }
 
 func (UnimplementedConnectedAppServiceHandler) ListConnectedApps(context.Context, *connect.Request[v1.ListConnectedAppsRequest]) (*connect.Response[v1.ListConnectedAppsResponse], error) {

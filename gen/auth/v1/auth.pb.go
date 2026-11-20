@@ -198,8 +198,9 @@ const (
 	AuthErrorCode_AUTH_KEY_EXPIRED AuthErrorCode = 51
 	// The API key is disabled or revoked. The REST problem code is KEY_DISABLED.
 	AuthErrorCode_AUTH_KEY_DISABLED AuthErrorCode = 52
-	// The API key's IP allowlist does not include the request's source address. The REST
-	// problem code is IP_NOT_ALLOWED.
+	// The API key's IP allowlist, an admin key's included, does not include the request's
+	// source address. ConnectRPC answers unauthenticated with this code in the
+	// AuthErrorDetail; the REST problem code is the short IP_NOT_ALLOWED, with HTTP 401.
 	AuthErrorCode_AUTH_IP_NOT_ALLOWED AuthErrorCode = 53
 	// This API does not accept API keys; authenticate with a session token. The REST problem
 	// code is API_KEY_NOT_ACCEPTED.
@@ -227,13 +228,13 @@ const (
 	AuthErrorCode_AUTH_ASSISTANT_KEY_ACTION_NOT_ALLOWED AuthErrorCode = 59
 	// A new assistant key's registration proof is missing or does not verify
 	// for its account, public key and registration deadline. The REST problem
-	// code is ASSISTANT_KEY_PROOF_INVALID.
+	// code is AUTH_ASSISTANT_KEY_PROOF_INVALID.
 	AuthErrorCode_AUTH_ASSISTANT_KEY_PROOF_INVALID AuthErrorCode = 60
 	// A new assistant key's registration deadline has passed; prepare the key
-	// again. The REST problem code is ASSISTANT_KEY_REGISTRATION_EXPIRED.
+	// again. The REST problem code is AUTH_ASSISTANT_KEY_REGISTRATION_EXPIRED.
 	AuthErrorCode_AUTH_ASSISTANT_KEY_REGISTRATION_EXPIRED AuthErrorCode = 61
 	// A new assistant key's registration deadline is more than 15 minutes
-	// ahead. The REST problem code is ASSISTANT_KEY_DEADLINE_TOO_FAR.
+	// ahead. The REST problem code is AUTH_ASSISTANT_KEY_DEADLINE_TOO_FAR.
 	AuthErrorCode_AUTH_ASSISTANT_KEY_DEADLINE_TOO_FAR AuthErrorCode = 62
 	// The signed WebSocket login nonce has already been used. Create a new login
 	// with a fresh random nonce and signature. HTTP 401, REPLAY_DETECTED.
@@ -241,38 +242,38 @@ const (
 	// The X/Twitter or Discord account was unlinked from another Polyester
 	// account less than 30 days ago, and can be linked to a different account
 	// only after that. The account that unlinked it may link it again at once.
-	// retry_after says when. HTTP 412, SOCIAL_ACCOUNT_COOLDOWN.
+	// retry_after says when. HTTP 412, AUTH_SOCIAL_ACCOUNT_COOLDOWN.
 	AuthErrorCode_AUTH_SOCIAL_ACCOUNT_COOLDOWN AuthErrorCode = 64
 	// The account already changed or unlinked its X/Twitter or Discord account
 	// less than 30 days ago: one change per provider every 30 days. retry_after
-	// says when the next one is allowed. HTTP 412, SOCIAL_CHANGE_LIMIT_REACHED.
+	// says when the next one is allowed. HTTP 412, AUTH_SOCIAL_CHANGE_LIMIT_REACHED.
 	AuthErrorCode_AUTH_SOCIAL_CHANGE_LIMIT_REACHED AuthErrorCode = 65
 	// Only an admin API key may call this with an API key; the key that signed
-	// the request is not one. HTTP 403, ADMIN_KEY_REQUIRED.
+	// the request is not one. HTTP 403, AUTH_ADMIN_KEY_REQUIRED.
 	AuthErrorCode_AUTH_ADMIN_KEY_REQUIRED AuthErrorCode = 67
 	// The request would create, promote or change an admin key, or attach an
 	// admin permission, by API key. Only the main account's owner may, in a
 	// signed-in session with a fresh step-up proof. HTTP 403,
-	// ADMIN_KEY_ESCALATION_DENIED.
+	// AUTH_ADMIN_KEY_ESCALATION_DENIED.
 	AuthErrorCode_AUTH_ADMIN_KEY_ESCALATION_DENIED AuthErrorCode = 68
 	// The admin API key's change would give a key more than the admin key's own
 	// scope allows: an IP allowlist entry outside the admin key's allowlist, or
 	// on a sub-account key more actions or markets than the sub-account's
-	// policy. HTTP 403, ADMIN_KEY_SCOPE_EXCEEDED.
+	// policy. HTTP 403, AUTH_ADMIN_KEY_SCOPE_EXCEEDED.
 	AuthErrorCode_AUTH_ADMIN_KEY_SCOPE_EXCEEDED AuthErrorCode = 69
 	// An admin API key can never reach this target: an assistant key, a key or
 	// policy that allows a money-out action, a locked sub-account policy, or a
 	// sub-account the main account does not own. HTTP 403,
-	// ADMIN_KEY_FORBIDDEN_TARGET.
+	// AUTH_ADMIN_KEY_FORBIDDEN_TARGET.
 	AuthErrorCode_AUTH_ADMIN_KEY_FORBIDDEN_TARGET AuthErrorCode = 70
 	// An admin key's IP allowlist is empty, or has an entry broader than /24
 	// (IPv4) or /48 (IPv6), or an IPv4-mapped IPv6 entry. HTTP 400,
-	// ADMIN_KEY_ALLOWLIST_INVALID.
+	// AUTH_ADMIN_KEY_ALLOWLIST_INVALID.
 	AuthErrorCode_AUTH_ADMIN_KEY_ALLOWLIST_INVALID AuthErrorCode = 71
 	// An admin API key can never be allowed an action that moves value out of
 	// the account or manages where it goes: EXTERNAL_WITHDRAW,
 	// INTERNAL_TRANSFER, MANAGE_ADDRESS_BOOK or MANAGE_AUTO_WITHDRAW. HTTP 412,
-	// ADMIN_KEY_ACTION_NOT_ALLOWED.
+	// AUTH_ADMIN_KEY_ACTION_NOT_ALLOWED.
 	AuthErrorCode_AUTH_ADMIN_KEY_ACTION_NOT_ALLOWED AuthErrorCode = 72
 	// The account already has the most connected apps it may have. Disconnect
 	// an app before connecting another. FailedPrecondition.
@@ -1145,7 +1146,7 @@ var File_auth_v1_auth_proto protoreflect.FileDescriptor
 
 const file_auth_v1_auth_proto_rawDesc = "" +
 	"\n" +
-	"\x12auth/v1/auth.proto\x12\aauth.v1\x1a\x1aauth/v1/address_book.proto\x1a\x11auth/v1/mfa.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\xa3\x02\n" +
+	"\x12auth/v1/auth.proto\x12\aauth.v1\x1a\x1bauth/v1/account_scope.proto\x1a\x11auth/v1/mfa.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\xa3\x02\n" +
 	"\x1cCreateWalletChallengeRequest\x12Q\n" +
 	"\x15smart_account_address\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x152\x13^0x[0-9a-fA-F]{40}$R\x13smartAccountAddress\x12D\n" +
 	"\x0esigner_address\x18\x02 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x152\x13^0x[0-9a-fA-F]{40}$R\rsignerAddress\x12\x1f\n" +
@@ -1350,7 +1351,7 @@ func file_auth_v1_auth_proto_init() {
 	if File_auth_v1_auth_proto != nil {
 		return
 	}
-	file_auth_v1_address_book_proto_init()
+	file_auth_v1_account_scope_proto_init()
 	file_auth_v1_mfa_proto_init()
 	file_auth_v1_auth_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}

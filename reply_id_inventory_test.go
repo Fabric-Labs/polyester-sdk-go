@@ -39,6 +39,7 @@ import (
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/privatews/v1"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/ratelimit/v1"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/rewards/v1"
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/strategies/v1"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/swap/quickswap/v1"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/swap/v1"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/system/v1"

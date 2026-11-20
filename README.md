@@ -1257,16 +1257,21 @@ key, and the server rate-limits it per client address.
 
 - `ListPosts` returns one page of post summaries, newest first, with change counts by
   kind. `Posts` iterates over every page. A published post can be republished, for
-  example to correct its copy or withdraw a change: its `Slug`, `PublishedAt` and change
-  IDs stay the same, `Revision` (from 1) increases and `UpdatedAt` is when the current
-  revision was published. To follow edits, read a post again when its `Revision` differs
+  example to correct its copy or withdraw a change: its `Slug` and change IDs stay the
+  same, a republication does not move `PublishedAt`, `Revision` (from 1) increases and
+  `UpdatedAt` is when the current revision was published. `PublishedAt` is the post's
+  date in the environment you read: a release post's is when the release went live there
+  (that environment's `live_at`), or its first publication while the release is still
+  pending there, so it differs between environments and can move without a new
+  `Revision`; every other post keeps its first publication time. For a release post,
+  `UpdatedAt` is independent of `PublishedAt`. To follow edits, read a post again when its `Revision` differs
   from the one you hold, and drop a post that is no longer listed.
 - `GetPost(ctx, slug)` returns one full post with its sections and changes. A slug is
   the post's coverage cutoff date, `YYYY-MM-DD`; a second or third post on the same day
   gets `-2` or `-3`. An unknown slug fails with `*errors.APIError` whose `Code` is
   `not_found`.
 - `ListChanges` returns one page of changes across posts, each with its post slug,
-  first publication time and section heading. `Changes` iterates over every page and
+  `PublishedAt` and section heading. `Changes` iterates over every page and
   yields each change ID once: when a post is republished during the walk, paging
   restarts at that post's first change. Filters
   on different fields combine with AND; values within one field combine with OR.
@@ -1274,8 +1279,9 @@ key, and the server rate-limits it per client address.
   fails with `*errors.ValidationError` (`invalid_argument`).
 - `BreakingChangesSince(ctx, t)` and `ActionRequiredSince(ctx, t)` return every
   breaking or action-required change published at or after `t`, newest post first,
-  each change once with the wording last received. They filter on first publication,
-  so they don't report an edit to an older post; compare `Revision` for that.
+  each change once with the wording last received. They filter on `PublishedAt`, which
+  a republication does not move, so they don't report an edit to an older post; compare
+  `Revision` for that.
 - `ListDeploymentGroups` returns one page of the environment's deployment groups,
   newest deployment first, and `DeploymentGroups` iterates over every page. A
   deployment group is one deployment that raised the environment's release: its

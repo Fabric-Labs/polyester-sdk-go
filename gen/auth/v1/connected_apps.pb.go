@@ -82,7 +82,7 @@ func (x *ConnectedAppClient) GetName() string {
 }
 
 // A pending request from an app to connect to the account.
-type AppAuthorization struct {
+type AppConnectionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The app that asks.
 	Client *ConnectedAppClient `protobuf:"bytes,1,opt,name=client,proto3" json:"client,omitempty"`
@@ -101,20 +101,20 @@ type AppAuthorization struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *AppAuthorization) Reset() {
-	*x = AppAuthorization{}
+func (x *AppConnectionRequest) Reset() {
+	*x = AppConnectionRequest{}
 	mi := &file_auth_v1_connected_apps_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *AppAuthorization) String() string {
+func (x *AppConnectionRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*AppAuthorization) ProtoMessage() {}
+func (*AppConnectionRequest) ProtoMessage() {}
 
-func (x *AppAuthorization) ProtoReflect() protoreflect.Message {
+func (x *AppConnectionRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_auth_v1_connected_apps_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -126,40 +126,40 @@ func (x *AppAuthorization) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use AppAuthorization.ProtoReflect.Descriptor instead.
-func (*AppAuthorization) Descriptor() ([]byte, []int) {
+// Deprecated: Use AppConnectionRequest.ProtoReflect.Descriptor instead.
+func (*AppConnectionRequest) Descriptor() ([]byte, []int) {
 	return file_auth_v1_connected_apps_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *AppAuthorization) GetClient() *ConnectedAppClient {
+func (x *AppConnectionRequest) GetClient() *ConnectedAppClient {
 	if x != nil {
 		return x.Client
 	}
 	return nil
 }
 
-func (x *AppAuthorization) GetScopes() []string {
+func (x *AppConnectionRequest) GetScopes() []string {
 	if x != nil {
 		return x.Scopes
 	}
 	return nil
 }
 
-func (x *AppAuthorization) GetResource() string {
+func (x *AppConnectionRequest) GetResource() string {
 	if x != nil {
 		return x.Resource
 	}
 	return ""
 }
 
-func (x *AppAuthorization) GetRedirectHost() string {
+func (x *AppConnectionRequest) GetRedirectHost() string {
 	if x != nil {
 		return x.RedirectHost
 	}
 	return ""
 }
 
-func (x *AppAuthorization) GetExpiresAt() *timestamppb.Timestamp {
+func (x *AppConnectionRequest) GetExpiresAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.ExpiresAt
 	}
@@ -269,7 +269,7 @@ func (x *ConnectedApp) GetExpiresAt() *timestamppb.Timestamp {
 }
 
 // Request to read a pending app connection request for the consent page.
-type GetAppAuthorizationRequest struct {
+type GetAppConnectionRequestRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Request ID the authorization endpoint gave the consent page in its
 	// `request` query parameter.
@@ -278,20 +278,20 @@ type GetAppAuthorizationRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetAppAuthorizationRequest) Reset() {
-	*x = GetAppAuthorizationRequest{}
+func (x *GetAppConnectionRequestRequest) Reset() {
+	*x = GetAppConnectionRequestRequest{}
 	mi := &file_auth_v1_connected_apps_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetAppAuthorizationRequest) String() string {
+func (x *GetAppConnectionRequestRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetAppAuthorizationRequest) ProtoMessage() {}
+func (*GetAppConnectionRequestRequest) ProtoMessage() {}
 
-func (x *GetAppAuthorizationRequest) ProtoReflect() protoreflect.Message {
+func (x *GetAppConnectionRequestRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_auth_v1_connected_apps_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -303,12 +303,12 @@ func (x *GetAppAuthorizationRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetAppAuthorizationRequest.ProtoReflect.Descriptor instead.
-func (*GetAppAuthorizationRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetAppConnectionRequestRequest.ProtoReflect.Descriptor instead.
+func (*GetAppConnectionRequestRequest) Descriptor() ([]byte, []int) {
 	return file_auth_v1_connected_apps_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *GetAppAuthorizationRequest) GetRequestId() string {
+func (x *GetAppConnectionRequestRequest) GetRequestId() string {
 	if x != nil {
 		return x.RequestId
 	}
@@ -316,28 +316,28 @@ func (x *GetAppAuthorizationRequest) GetRequestId() string {
 }
 
 // The pending app connection request.
-type GetAppAuthorizationResponse struct {
+type GetAppConnectionRequestResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The request.
-	Authorization *AppAuthorization `protobuf:"bytes,1,opt,name=authorization,proto3" json:"authorization,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ConnectionRequest *AppConnectionRequest `protobuf:"bytes,1,opt,name=connection_request,json=connectionRequest,proto3" json:"connection_request,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
-func (x *GetAppAuthorizationResponse) Reset() {
-	*x = GetAppAuthorizationResponse{}
+func (x *GetAppConnectionRequestResponse) Reset() {
+	*x = GetAppConnectionRequestResponse{}
 	mi := &file_auth_v1_connected_apps_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetAppAuthorizationResponse) String() string {
+func (x *GetAppConnectionRequestResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetAppAuthorizationResponse) ProtoMessage() {}
+func (*GetAppConnectionRequestResponse) ProtoMessage() {}
 
-func (x *GetAppAuthorizationResponse) ProtoReflect() protoreflect.Message {
+func (x *GetAppConnectionRequestResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_auth_v1_connected_apps_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -349,20 +349,20 @@ func (x *GetAppAuthorizationResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetAppAuthorizationResponse.ProtoReflect.Descriptor instead.
-func (*GetAppAuthorizationResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetAppConnectionRequestResponse.ProtoReflect.Descriptor instead.
+func (*GetAppConnectionRequestResponse) Descriptor() ([]byte, []int) {
 	return file_auth_v1_connected_apps_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *GetAppAuthorizationResponse) GetAuthorization() *AppAuthorization {
+func (x *GetAppConnectionRequestResponse) GetConnectionRequest() *AppConnectionRequest {
 	if x != nil {
-		return x.Authorization
+		return x.ConnectionRequest
 	}
 	return nil
 }
 
 // Request to approve a pending app connection request.
-type ApproveAppAuthorizationRequest struct {
+type ApproveAppConnectionRequestRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Request ID the authorization endpoint gave the consent page.
 	RequestId     string `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
@@ -370,20 +370,20 @@ type ApproveAppAuthorizationRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ApproveAppAuthorizationRequest) Reset() {
-	*x = ApproveAppAuthorizationRequest{}
+func (x *ApproveAppConnectionRequestRequest) Reset() {
+	*x = ApproveAppConnectionRequestRequest{}
 	mi := &file_auth_v1_connected_apps_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ApproveAppAuthorizationRequest) String() string {
+func (x *ApproveAppConnectionRequestRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ApproveAppAuthorizationRequest) ProtoMessage() {}
+func (*ApproveAppConnectionRequestRequest) ProtoMessage() {}
 
-func (x *ApproveAppAuthorizationRequest) ProtoReflect() protoreflect.Message {
+func (x *ApproveAppConnectionRequestRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_auth_v1_connected_apps_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -395,12 +395,12 @@ func (x *ApproveAppAuthorizationRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ApproveAppAuthorizationRequest.ProtoReflect.Descriptor instead.
-func (*ApproveAppAuthorizationRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApproveAppConnectionRequestRequest.ProtoReflect.Descriptor instead.
+func (*ApproveAppConnectionRequestRequest) Descriptor() ([]byte, []int) {
 	return file_auth_v1_connected_apps_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *ApproveAppAuthorizationRequest) GetRequestId() string {
+func (x *ApproveAppConnectionRequestRequest) GetRequestId() string {
 	if x != nil {
 		return x.RequestId
 	}
@@ -408,7 +408,7 @@ func (x *ApproveAppAuthorizationRequest) GetRequestId() string {
 }
 
 // The approved request's answer to the app.
-type ApproveAppAuthorizationResponse struct {
+type ApproveAppConnectionRequestResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// URL to send the browser to: the app's redirect URL carrying a one-time
 	// authorization code. It is valid for 60 seconds.
@@ -417,20 +417,20 @@ type ApproveAppAuthorizationResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ApproveAppAuthorizationResponse) Reset() {
-	*x = ApproveAppAuthorizationResponse{}
+func (x *ApproveAppConnectionRequestResponse) Reset() {
+	*x = ApproveAppConnectionRequestResponse{}
 	mi := &file_auth_v1_connected_apps_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ApproveAppAuthorizationResponse) String() string {
+func (x *ApproveAppConnectionRequestResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ApproveAppAuthorizationResponse) ProtoMessage() {}
+func (*ApproveAppConnectionRequestResponse) ProtoMessage() {}
 
-func (x *ApproveAppAuthorizationResponse) ProtoReflect() protoreflect.Message {
+func (x *ApproveAppConnectionRequestResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_auth_v1_connected_apps_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -442,12 +442,12 @@ func (x *ApproveAppAuthorizationResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ApproveAppAuthorizationResponse.ProtoReflect.Descriptor instead.
-func (*ApproveAppAuthorizationResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ApproveAppConnectionRequestResponse.ProtoReflect.Descriptor instead.
+func (*ApproveAppConnectionRequestResponse) Descriptor() ([]byte, []int) {
 	return file_auth_v1_connected_apps_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *ApproveAppAuthorizationResponse) GetRedirectUrl() string {
+func (x *ApproveAppConnectionRequestResponse) GetRedirectUrl() string {
 	if x != nil {
 		return x.RedirectUrl
 	}
@@ -455,7 +455,7 @@ func (x *ApproveAppAuthorizationResponse) GetRedirectUrl() string {
 }
 
 // Request to deny a pending app connection request.
-type DenyAppAuthorizationRequest struct {
+type DenyAppConnectionRequestRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Request ID the authorization endpoint gave the consent page.
 	RequestId     string `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
@@ -463,20 +463,20 @@ type DenyAppAuthorizationRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *DenyAppAuthorizationRequest) Reset() {
-	*x = DenyAppAuthorizationRequest{}
+func (x *DenyAppConnectionRequestRequest) Reset() {
+	*x = DenyAppConnectionRequestRequest{}
 	mi := &file_auth_v1_connected_apps_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *DenyAppAuthorizationRequest) String() string {
+func (x *DenyAppConnectionRequestRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DenyAppAuthorizationRequest) ProtoMessage() {}
+func (*DenyAppConnectionRequestRequest) ProtoMessage() {}
 
-func (x *DenyAppAuthorizationRequest) ProtoReflect() protoreflect.Message {
+func (x *DenyAppConnectionRequestRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_auth_v1_connected_apps_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -488,12 +488,12 @@ func (x *DenyAppAuthorizationRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DenyAppAuthorizationRequest.ProtoReflect.Descriptor instead.
-func (*DenyAppAuthorizationRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use DenyAppConnectionRequestRequest.ProtoReflect.Descriptor instead.
+func (*DenyAppConnectionRequestRequest) Descriptor() ([]byte, []int) {
 	return file_auth_v1_connected_apps_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *DenyAppAuthorizationRequest) GetRequestId() string {
+func (x *DenyAppConnectionRequestRequest) GetRequestId() string {
 	if x != nil {
 		return x.RequestId
 	}
@@ -501,7 +501,7 @@ func (x *DenyAppAuthorizationRequest) GetRequestId() string {
 }
 
 // The denied request's answer to the app.
-type DenyAppAuthorizationResponse struct {
+type DenyAppConnectionRequestResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// URL to send the browser to: the app's redirect URL carrying the
 	// `access_denied` error.
@@ -510,20 +510,20 @@ type DenyAppAuthorizationResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *DenyAppAuthorizationResponse) Reset() {
-	*x = DenyAppAuthorizationResponse{}
+func (x *DenyAppConnectionRequestResponse) Reset() {
+	*x = DenyAppConnectionRequestResponse{}
 	mi := &file_auth_v1_connected_apps_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *DenyAppAuthorizationResponse) String() string {
+func (x *DenyAppConnectionRequestResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DenyAppAuthorizationResponse) ProtoMessage() {}
+func (*DenyAppConnectionRequestResponse) ProtoMessage() {}
 
-func (x *DenyAppAuthorizationResponse) ProtoReflect() protoreflect.Message {
+func (x *DenyAppConnectionRequestResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_auth_v1_connected_apps_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -535,12 +535,12 @@ func (x *DenyAppAuthorizationResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DenyAppAuthorizationResponse.ProtoReflect.Descriptor instead.
-func (*DenyAppAuthorizationResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use DenyAppConnectionRequestResponse.ProtoReflect.Descriptor instead.
+func (*DenyAppConnectionRequestResponse) Descriptor() ([]byte, []int) {
 	return file_auth_v1_connected_apps_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *DenyAppAuthorizationResponse) GetRedirectUrl() string {
+func (x *DenyAppConnectionRequestResponse) GetRedirectUrl() string {
 	if x != nil {
 		return x.RedirectUrl
 	}
@@ -721,8 +721,8 @@ const file_auth_v1_connected_apps_proto_rawDesc = "" +
 	"\x1cauth/v1/connected_apps.proto\x12\aauth.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"E\n" +
 	"\x12ConnectedAppClient\x12\x1b\n" +
 	"\tclient_id\x18\x01 \x01(\tR\bclientId\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\"\xdb\x01\n" +
-	"\x10AppAuthorization\x123\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"\xdf\x01\n" +
+	"\x14AppConnectionRequest\x123\n" +
 	"\x06client\x18\x01 \x01(\v2\x1b.auth.v1.ConnectedAppClientR\x06client\x12\x16\n" +
 	"\x06scopes\x18\x02 \x03(\tR\x06scopes\x12\x1a\n" +
 	"\bresource\x18\x03 \x01(\tR\bresource\x12#\n" +
@@ -738,32 +738,32 @@ const file_auth_v1_connected_apps_proto_rawDesc = "" +
 	"\flast_used_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"lastUsedAt\x129\n" +
 	"\n" +
-	"expires_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"I\n" +
-	"\x1aGetAppAuthorizationRequest\x12+\n" +
+	"expires_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"M\n" +
+	"\x1eGetAppConnectionRequestRequest\x12+\n" +
 	"\n" +
-	"request_id\x18\x01 \x01(\tB\f\xe0A\x02\xbaH\x06r\x04\x10\x01\x18@R\trequestId\"^\n" +
-	"\x1bGetAppAuthorizationResponse\x12?\n" +
-	"\rauthorization\x18\x01 \x01(\v2\x19.auth.v1.AppAuthorizationR\rauthorization\"M\n" +
-	"\x1eApproveAppAuthorizationRequest\x12+\n" +
+	"request_id\x18\x01 \x01(\tB\f\xe0A\x02\xbaH\x06r\x04\x10\x01\x18@R\trequestId\"o\n" +
+	"\x1fGetAppConnectionRequestResponse\x12L\n" +
+	"\x12connection_request\x18\x01 \x01(\v2\x1d.auth.v1.AppConnectionRequestR\x11connectionRequest\"Q\n" +
+	"\"ApproveAppConnectionRequestRequest\x12+\n" +
 	"\n" +
-	"request_id\x18\x01 \x01(\tB\f\xe0A\x02\xbaH\x06r\x04\x10\x01\x18@R\trequestId\"D\n" +
-	"\x1fApproveAppAuthorizationResponse\x12!\n" +
-	"\fredirect_url\x18\x01 \x01(\tR\vredirectUrl\"J\n" +
-	"\x1bDenyAppAuthorizationRequest\x12+\n" +
+	"request_id\x18\x01 \x01(\tB\f\xe0A\x02\xbaH\x06r\x04\x10\x01\x18@R\trequestId\"H\n" +
+	"#ApproveAppConnectionRequestResponse\x12!\n" +
+	"\fredirect_url\x18\x01 \x01(\tR\vredirectUrl\"N\n" +
+	"\x1fDenyAppConnectionRequestRequest\x12+\n" +
 	"\n" +
-	"request_id\x18\x01 \x01(\tB\f\xe0A\x02\xbaH\x06r\x04\x10\x01\x18@R\trequestId\"A\n" +
-	"\x1cDenyAppAuthorizationResponse\x12!\n" +
+	"request_id\x18\x01 \x01(\tB\f\xe0A\x02\xbaH\x06r\x04\x10\x01\x18@R\trequestId\"E\n" +
+	" DenyAppConnectionRequestResponse\x12!\n" +
 	"\fredirect_url\x18\x01 \x01(\tR\vredirectUrl\"\x1a\n" +
 	"\x18ListConnectedAppsRequest\"F\n" +
 	"\x19ListConnectedAppsResponse\x12)\n" +
 	"\x04apps\x18\x01 \x03(\v2\x15.auth.v1.ConnectedAppR\x04apps\"X\n" +
 	"\x19RevokeConnectedAppRequest\x12;\n" +
 	"\x10connected_app_id\x18\x01 \x01(\x06B\x11\xe0A\x02\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x0econnectedAppId\"\x1c\n" +
-	"\x1aRevokeConnectedAppResponse2\xbe\x04\n" +
-	"\x13ConnectedAppService\x12j\n" +
-	"\x13GetAppAuthorization\x12#.auth.v1.GetAppAuthorizationRequest\x1a$.auth.v1.GetAppAuthorizationResponse\"\b\xa2\xb5\x18\x01\x01\x90\x02\x01\x12s\n" +
-	"\x17ApproveAppAuthorization\x12'.auth.v1.ApproveAppAuthorizationRequest\x1a(.auth.v1.ApproveAppAuthorizationResponse\"\x05\xa2\xb5\x18\x01\x01\x12j\n" +
-	"\x14DenyAppAuthorization\x12$.auth.v1.DenyAppAuthorizationRequest\x1a%.auth.v1.DenyAppAuthorizationResponse\"\x05\xa2\xb5\x18\x01\x01\x12d\n" +
+	"\x1aRevokeConnectedAppResponse2\xf3\x04\n" +
+	"\x13ConnectedAppService\x12z\n" +
+	"\x17GetAppConnectionRequest\x12'.auth.v1.GetAppConnectionRequestRequest\x1a(.auth.v1.GetAppConnectionRequestResponse\"\f\x90\xb5\x18\x01\xa2\xb5\x18\x01\x01\x90\x02\x01\x12\x87\x01\n" +
+	"\x1bApproveAppConnectionRequest\x12+.auth.v1.ApproveAppConnectionRequestRequest\x1a,.auth.v1.ApproveAppConnectionRequestResponse\"\r\x90\xb5\x18\x01\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x12z\n" +
+	"\x18DenyAppConnectionRequest\x12(.auth.v1.DenyAppConnectionRequestRequest\x1a).auth.v1.DenyAppConnectionRequestResponse\"\t\x90\xb5\x18\x01\xa2\xb5\x18\x01\x01\x12d\n" +
 	"\x11ListConnectedApps\x12!.auth.v1.ListConnectedAppsRequest\x1a\".auth.v1.ListConnectedAppsResponse\"\b\xa2\xb5\x18\x01\x01\x90\x02\x01\x12g\n" +
 	"\x12RevokeConnectedApp\x12\".auth.v1.RevokeConnectedAppRequest\x1a#.auth.v1.RevokeConnectedAppResponse\"\b\xa2\xb5\x18\x01\x01\x90\x02\x02\x1a\v\x8a\xb5\x18\aaccountB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
 
@@ -781,38 +781,38 @@ func file_auth_v1_connected_apps_proto_rawDescGZIP() []byte {
 
 var file_auth_v1_connected_apps_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_auth_v1_connected_apps_proto_goTypes = []any{
-	(*ConnectedAppClient)(nil),              // 0: auth.v1.ConnectedAppClient
-	(*AppAuthorization)(nil),                // 1: auth.v1.AppAuthorization
-	(*ConnectedApp)(nil),                    // 2: auth.v1.ConnectedApp
-	(*GetAppAuthorizationRequest)(nil),      // 3: auth.v1.GetAppAuthorizationRequest
-	(*GetAppAuthorizationResponse)(nil),     // 4: auth.v1.GetAppAuthorizationResponse
-	(*ApproveAppAuthorizationRequest)(nil),  // 5: auth.v1.ApproveAppAuthorizationRequest
-	(*ApproveAppAuthorizationResponse)(nil), // 6: auth.v1.ApproveAppAuthorizationResponse
-	(*DenyAppAuthorizationRequest)(nil),     // 7: auth.v1.DenyAppAuthorizationRequest
-	(*DenyAppAuthorizationResponse)(nil),    // 8: auth.v1.DenyAppAuthorizationResponse
-	(*ListConnectedAppsRequest)(nil),        // 9: auth.v1.ListConnectedAppsRequest
-	(*ListConnectedAppsResponse)(nil),       // 10: auth.v1.ListConnectedAppsResponse
-	(*RevokeConnectedAppRequest)(nil),       // 11: auth.v1.RevokeConnectedAppRequest
-	(*RevokeConnectedAppResponse)(nil),      // 12: auth.v1.RevokeConnectedAppResponse
-	(*timestamppb.Timestamp)(nil),           // 13: google.protobuf.Timestamp
+	(*ConnectedAppClient)(nil),                  // 0: auth.v1.ConnectedAppClient
+	(*AppConnectionRequest)(nil),                // 1: auth.v1.AppConnectionRequest
+	(*ConnectedApp)(nil),                        // 2: auth.v1.ConnectedApp
+	(*GetAppConnectionRequestRequest)(nil),      // 3: auth.v1.GetAppConnectionRequestRequest
+	(*GetAppConnectionRequestResponse)(nil),     // 4: auth.v1.GetAppConnectionRequestResponse
+	(*ApproveAppConnectionRequestRequest)(nil),  // 5: auth.v1.ApproveAppConnectionRequestRequest
+	(*ApproveAppConnectionRequestResponse)(nil), // 6: auth.v1.ApproveAppConnectionRequestResponse
+	(*DenyAppConnectionRequestRequest)(nil),     // 7: auth.v1.DenyAppConnectionRequestRequest
+	(*DenyAppConnectionRequestResponse)(nil),    // 8: auth.v1.DenyAppConnectionRequestResponse
+	(*ListConnectedAppsRequest)(nil),            // 9: auth.v1.ListConnectedAppsRequest
+	(*ListConnectedAppsResponse)(nil),           // 10: auth.v1.ListConnectedAppsResponse
+	(*RevokeConnectedAppRequest)(nil),           // 11: auth.v1.RevokeConnectedAppRequest
+	(*RevokeConnectedAppResponse)(nil),          // 12: auth.v1.RevokeConnectedAppResponse
+	(*timestamppb.Timestamp)(nil),               // 13: google.protobuf.Timestamp
 }
 var file_auth_v1_connected_apps_proto_depIdxs = []int32{
-	0,  // 0: auth.v1.AppAuthorization.client:type_name -> auth.v1.ConnectedAppClient
-	13, // 1: auth.v1.AppAuthorization.expires_at:type_name -> google.protobuf.Timestamp
+	0,  // 0: auth.v1.AppConnectionRequest.client:type_name -> auth.v1.ConnectedAppClient
+	13, // 1: auth.v1.AppConnectionRequest.expires_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: auth.v1.ConnectedApp.client:type_name -> auth.v1.ConnectedAppClient
 	13, // 3: auth.v1.ConnectedApp.connected_at:type_name -> google.protobuf.Timestamp
 	13, // 4: auth.v1.ConnectedApp.last_used_at:type_name -> google.protobuf.Timestamp
 	13, // 5: auth.v1.ConnectedApp.expires_at:type_name -> google.protobuf.Timestamp
-	1,  // 6: auth.v1.GetAppAuthorizationResponse.authorization:type_name -> auth.v1.AppAuthorization
+	1,  // 6: auth.v1.GetAppConnectionRequestResponse.connection_request:type_name -> auth.v1.AppConnectionRequest
 	2,  // 7: auth.v1.ListConnectedAppsResponse.apps:type_name -> auth.v1.ConnectedApp
-	3,  // 8: auth.v1.ConnectedAppService.GetAppAuthorization:input_type -> auth.v1.GetAppAuthorizationRequest
-	5,  // 9: auth.v1.ConnectedAppService.ApproveAppAuthorization:input_type -> auth.v1.ApproveAppAuthorizationRequest
-	7,  // 10: auth.v1.ConnectedAppService.DenyAppAuthorization:input_type -> auth.v1.DenyAppAuthorizationRequest
+	3,  // 8: auth.v1.ConnectedAppService.GetAppConnectionRequest:input_type -> auth.v1.GetAppConnectionRequestRequest
+	5,  // 9: auth.v1.ConnectedAppService.ApproveAppConnectionRequest:input_type -> auth.v1.ApproveAppConnectionRequestRequest
+	7,  // 10: auth.v1.ConnectedAppService.DenyAppConnectionRequest:input_type -> auth.v1.DenyAppConnectionRequestRequest
 	9,  // 11: auth.v1.ConnectedAppService.ListConnectedApps:input_type -> auth.v1.ListConnectedAppsRequest
 	11, // 12: auth.v1.ConnectedAppService.RevokeConnectedApp:input_type -> auth.v1.RevokeConnectedAppRequest
-	4,  // 13: auth.v1.ConnectedAppService.GetAppAuthorization:output_type -> auth.v1.GetAppAuthorizationResponse
-	6,  // 14: auth.v1.ConnectedAppService.ApproveAppAuthorization:output_type -> auth.v1.ApproveAppAuthorizationResponse
-	8,  // 15: auth.v1.ConnectedAppService.DenyAppAuthorization:output_type -> auth.v1.DenyAppAuthorizationResponse
+	4,  // 13: auth.v1.ConnectedAppService.GetAppConnectionRequest:output_type -> auth.v1.GetAppConnectionRequestResponse
+	6,  // 14: auth.v1.ConnectedAppService.ApproveAppConnectionRequest:output_type -> auth.v1.ApproveAppConnectionRequestResponse
+	8,  // 15: auth.v1.ConnectedAppService.DenyAppConnectionRequest:output_type -> auth.v1.DenyAppConnectionRequestResponse
 	10, // 16: auth.v1.ConnectedAppService.ListConnectedApps:output_type -> auth.v1.ListConnectedAppsResponse
 	12, // 17: auth.v1.ConnectedAppService.RevokeConnectedApp:output_type -> auth.v1.RevokeConnectedAppResponse
 	13, // [13:18] is the sub-list for method output_type

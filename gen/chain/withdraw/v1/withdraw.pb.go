@@ -905,6 +905,365 @@ func (x *CreateWalletTradingWithdrawRequest) GetPayloadSignature() []byte {
 	return nil
 }
 
+// TradingToFundingBatchLeg is one Trading to Funding move of a batch.
+type TradingToFundingBatchLeg struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Unified asset identifier from Polyester asset metadata. amount_e18 is
+	// denominated in this asset at canonical 18-decimal scale.
+	AssetId uint32 `protobuf:"varint,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	// Amount in canonical 18-decimal unified asset units. For example, 0.5 is
+	// encoded as 500000000000000000.
+	AmountE18 *v1.U128 `protobuf:"bytes,2,opt,name=amount_e18,json=amountE18,proto3" json:"amount_e18,omitempty"`
+	// Funding account credited by this leg. Omit it to credit the source
+	// account's own Funding account, or give another Polyester Funding
+	// address. A Funding address of another account must be on the source
+	// account's internal whitelist, as for a single Trading to Funding
+	// withdraw.
+	DestinationAddress string `protobuf:"bytes,3,opt,name=destination_address,json=destinationAddress,proto3" json:"destination_address,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *TradingToFundingBatchLeg) Reset() {
+	*x = TradingToFundingBatchLeg{}
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TradingToFundingBatchLeg) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TradingToFundingBatchLeg) ProtoMessage() {}
+
+func (x *TradingToFundingBatchLeg) ProtoReflect() protoreflect.Message {
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TradingToFundingBatchLeg.ProtoReflect.Descriptor instead.
+func (*TradingToFundingBatchLeg) Descriptor() ([]byte, []int) {
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *TradingToFundingBatchLeg) GetAssetId() uint32 {
+	if x != nil {
+		return x.AssetId
+	}
+	return 0
+}
+
+func (x *TradingToFundingBatchLeg) GetAmountE18() *v1.U128 {
+	if x != nil {
+		return x.AmountE18
+	}
+	return nil
+}
+
+func (x *TradingToFundingBatchLeg) GetDestinationAddress() string {
+	if x != nil {
+		return x.DestinationAddress
+	}
+	return ""
+}
+
+// CreateWalletTradingToFundingBatchRequest moves up to 10 amounts from one
+// Trading account to Funding accounts, authorized by one wallet personal_sign
+// signature over the whole batch. The legs move together or not at all.
+//
+// The wallet signs the UTF-8 text below with EIP-191 personal_sign. Lines are
+// separated by a single line feed (\n), with no trailing line feed. Numbers
+// are base-10 integers without separators or leading zeros. The signer
+// wallet and the verifying contract are lowercase 0x-prefixed hex. A leg's
+// destination is its destination_address as sent, in the letter case sent
+// (a checksummed address stays checksummed), without leading or trailing
+// whitespace; an omitted destination_address leaves an empty value after
+// "Destination: ". Values must not contain control characters.
+//
+//	Polyester Trading Withdrawal Batch
+//
+//	Version: 1
+//	Environment: polyester
+//	Action: TO_FUNDING
+//	Signer Wallet: <signer_wallet>
+//	Account ID: <the caller's public account ID>
+//	Target Account ID: <public ID of the source account: subaccount_id, or the account ID when omitted>
+//	Polyester Chain ID: <EVM chain ID of Polyester Chain, as eth_chainId returns it>
+//	Verifying Contract: <the withdraw verifying contract, as for CreateWalletTradingWithdraw>
+//	Deadline: <deadline_ts_sec>
+//	Nonce: <nonce>
+//	Idempotency Key: <idempotency_key>
+//	Legs: <number of legs>
+//
+//	Leg 1 of <number of legs>
+//	Asset ID: <legs[0].asset_id>
+//	Amount E18: <legs[0].amount_e18>
+//	Destination: <legs[0].destination_address>
+//
+// followed by one such block per further leg, in request order, each after
+// one empty line: "Leg 2 of <number of legs>", and so on. The header values
+// are the ones a single wallet withdraw signs (CreateWalletTradingWithdraw),
+// and the leg numbers bind the order of the legs. A batch signed for another
+// chain ID or verifying contract is never paid.
+type CreateWalletTradingToFundingBatchRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Moves to make, in order. 1 to 10 legs. Legs may repeat an asset or a
+	// destination.
+	Legs []*TradingToFundingBatchLeg `protobuf:"bytes,1,rep,name=legs,proto3" json:"legs,omitempty"`
+	// Optional public subaccount id of the source Trading account. Omit to
+	// move funds from the caller's own Trading account.
+	SubaccountId uint64 `protobuf:"varint,2,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
+	// Unix timestamp in seconds after which the signed batch is no longer
+	// accepted, at most 15 minutes ahead.
+	DeadlineTsSec uint64 `protobuf:"varint,3,opt,name=deadline_ts_sec,json=deadlineTsSec,proto3" json:"deadline_ts_sec,omitempty"`
+	// Client-generated unsigned 128-bit nonce bound to the signed batch. This
+	// is an identifier, not a decimal amount.
+	Nonce *v1.U128 `protobuf:"bytes,4,opt,name=nonce,proto3" json:"nonce,omitempty"`
+	// Client-chosen idempotency key for the whole batch, scoped to the source
+	// account. Retrying with the same key and the same signed batch returns the
+	// first answer; reusing it for another batch is refused with
+	// ERROR_CODE_IDEMPOTENCY_CONFLICT. The first answer stands, after the
+	// deadline too. A refused batch is final: a retry under its key answers the
+	// same refusal, even once its cause is gone, so a corrected batch needs a
+	// new key and signature.
+	IdempotencyKey string `protobuf:"bytes,5,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	// Wallet address that produced payload_signature.
+	SignerWallet string `protobuf:"bytes,6,opt,name=signer_wallet,json=signerWallet,proto3" json:"signer_wallet,omitempty"`
+	// EIP-191 personal_sign signature over the batch message described above.
+	PayloadSignature []byte `protobuf:"bytes,7,opt,name=payload_signature,json=payloadSignature,proto3" json:"payload_signature,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *CreateWalletTradingToFundingBatchRequest) Reset() {
+	*x = CreateWalletTradingToFundingBatchRequest{}
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateWalletTradingToFundingBatchRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateWalletTradingToFundingBatchRequest) ProtoMessage() {}
+
+func (x *CreateWalletTradingToFundingBatchRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateWalletTradingToFundingBatchRequest.ProtoReflect.Descriptor instead.
+func (*CreateWalletTradingToFundingBatchRequest) Descriptor() ([]byte, []int) {
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *CreateWalletTradingToFundingBatchRequest) GetLegs() []*TradingToFundingBatchLeg {
+	if x != nil {
+		return x.Legs
+	}
+	return nil
+}
+
+func (x *CreateWalletTradingToFundingBatchRequest) GetSubaccountId() uint64 {
+	if x != nil {
+		return x.SubaccountId
+	}
+	return 0
+}
+
+func (x *CreateWalletTradingToFundingBatchRequest) GetDeadlineTsSec() uint64 {
+	if x != nil {
+		return x.DeadlineTsSec
+	}
+	return 0
+}
+
+func (x *CreateWalletTradingToFundingBatchRequest) GetNonce() *v1.U128 {
+	if x != nil {
+		return x.Nonce
+	}
+	return nil
+}
+
+func (x *CreateWalletTradingToFundingBatchRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+func (x *CreateWalletTradingToFundingBatchRequest) GetSignerWallet() string {
+	if x != nil {
+		return x.SignerWallet
+	}
+	return ""
+}
+
+func (x *CreateWalletTradingToFundingBatchRequest) GetPayloadSignature() []byte {
+	if x != nil {
+		return x.PayloadSignature
+	}
+	return nil
+}
+
+// TradingToFundingBatchLegResult is one accepted leg of a batch.
+type TradingToFundingBatchLegResult struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Zero-based position of the leg in the request.
+	LegIndex uint32 `protobuf:"varint,1,opt,name=leg_index,json=legIndex,proto3" json:"leg_index,omitempty"`
+	// Stable server-owned intent identifier of the leg's withdraw, the same
+	// identifier a single wallet withdraw returns. Clients use it to follow the
+	// leg's progress.
+	IntentId string `protobuf:"bytes,2,opt,name=intent_id,json=intentId,proto3" json:"intent_id,omitempty"`
+	// Echoed unified asset identifier.
+	AssetId uint32 `protobuf:"varint,3,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	// Echoed amount in canonical 18-decimal unified asset units.
+	AmountE18 *v1.U128 `protobuf:"bytes,4,opt,name=amount_e18,json=amountE18,proto3" json:"amount_e18,omitempty"`
+	// Echoed destination_address; empty when the leg credits the source
+	// account's own Funding account.
+	DestinationAddress string `protobuf:"bytes,5,opt,name=destination_address,json=destinationAddress,proto3" json:"destination_address,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *TradingToFundingBatchLegResult) Reset() {
+	*x = TradingToFundingBatchLegResult{}
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TradingToFundingBatchLegResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TradingToFundingBatchLegResult) ProtoMessage() {}
+
+func (x *TradingToFundingBatchLegResult) ProtoReflect() protoreflect.Message {
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TradingToFundingBatchLegResult.ProtoReflect.Descriptor instead.
+func (*TradingToFundingBatchLegResult) Descriptor() ([]byte, []int) {
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *TradingToFundingBatchLegResult) GetLegIndex() uint32 {
+	if x != nil {
+		return x.LegIndex
+	}
+	return 0
+}
+
+func (x *TradingToFundingBatchLegResult) GetIntentId() string {
+	if x != nil {
+		return x.IntentId
+	}
+	return ""
+}
+
+func (x *TradingToFundingBatchLegResult) GetAssetId() uint32 {
+	if x != nil {
+		return x.AssetId
+	}
+	return 0
+}
+
+func (x *TradingToFundingBatchLegResult) GetAmountE18() *v1.U128 {
+	if x != nil {
+		return x.AmountE18
+	}
+	return nil
+}
+
+func (x *TradingToFundingBatchLegResult) GetDestinationAddress() string {
+	if x != nil {
+		return x.DestinationAddress
+	}
+	return ""
+}
+
+// CreateWalletTradingToFundingBatchResponse is an accepted batch: every leg
+// is reserved and will be paid together with the others, or, if the payment
+// fails, every leg is refunded to the source Trading account.
+type CreateWalletTradingToFundingBatchResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable server-owned identifier of the batch.
+	BatchId string `protobuf:"bytes,1,opt,name=batch_id,json=batchId,proto3" json:"batch_id,omitempty"`
+	// Every leg, in request order.
+	Legs          []*TradingToFundingBatchLegResult `protobuf:"bytes,2,rep,name=legs,proto3" json:"legs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateWalletTradingToFundingBatchResponse) Reset() {
+	*x = CreateWalletTradingToFundingBatchResponse{}
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateWalletTradingToFundingBatchResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateWalletTradingToFundingBatchResponse) ProtoMessage() {}
+
+func (x *CreateWalletTradingToFundingBatchResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateWalletTradingToFundingBatchResponse.ProtoReflect.Descriptor instead.
+func (*CreateWalletTradingToFundingBatchResponse) Descriptor() ([]byte, []int) {
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *CreateWalletTradingToFundingBatchResponse) GetBatchId() string {
+	if x != nil {
+		return x.BatchId
+	}
+	return ""
+}
+
+func (x *CreateWalletTradingToFundingBatchResponse) GetLegs() []*TradingToFundingBatchLegResult {
+	if x != nil {
+		return x.Legs
+	}
+	return nil
+}
+
 // ValidateWithdrawDestinationRequest checks one external-chain
 // destination for an authenticated caller without creating a withdraw.
 type ValidateWithdrawDestinationRequest struct {
@@ -922,7 +1281,7 @@ type ValidateWithdrawDestinationRequest struct {
 
 func (x *ValidateWithdrawDestinationRequest) Reset() {
 	*x = ValidateWithdrawDestinationRequest{}
-	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[6]
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -934,7 +1293,7 @@ func (x *ValidateWithdrawDestinationRequest) String() string {
 func (*ValidateWithdrawDestinationRequest) ProtoMessage() {}
 
 func (x *ValidateWithdrawDestinationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[6]
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -947,7 +1306,7 @@ func (x *ValidateWithdrawDestinationRequest) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use ValidateWithdrawDestinationRequest.ProtoReflect.Descriptor instead.
 func (*ValidateWithdrawDestinationRequest) Descriptor() ([]byte, []int) {
-	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{6}
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ValidateWithdrawDestinationRequest) GetDestinationChainId() uint64 {
@@ -982,7 +1341,7 @@ type ValidateWithdrawDestinationResponse struct {
 
 func (x *ValidateWithdrawDestinationResponse) Reset() {
 	*x = ValidateWithdrawDestinationResponse{}
-	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[7]
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -994,7 +1353,7 @@ func (x *ValidateWithdrawDestinationResponse) String() string {
 func (*ValidateWithdrawDestinationResponse) ProtoMessage() {}
 
 func (x *ValidateWithdrawDestinationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[7]
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1007,7 +1366,7 @@ func (x *ValidateWithdrawDestinationResponse) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use ValidateWithdrawDestinationResponse.ProtoReflect.Descriptor instead.
 func (*ValidateWithdrawDestinationResponse) Descriptor() ([]byte, []int) {
-	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{7}
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ValidateWithdrawDestinationResponse) GetValid() bool {
@@ -1050,7 +1409,7 @@ type GetWalletBalancesRequest struct {
 
 func (x *GetWalletBalancesRequest) Reset() {
 	*x = GetWalletBalancesRequest{}
-	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[8]
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1062,7 +1421,7 @@ func (x *GetWalletBalancesRequest) String() string {
 func (*GetWalletBalancesRequest) ProtoMessage() {}
 
 func (x *GetWalletBalancesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[8]
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1075,7 +1434,7 @@ func (x *GetWalletBalancesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetWalletBalancesRequest.ProtoReflect.Descriptor instead.
 func (*GetWalletBalancesRequest) Descriptor() ([]byte, []int) {
-	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{8}
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetWalletBalancesRequest) GetSubaccountId() uint64 {
@@ -1107,7 +1466,7 @@ type WalletBalance struct {
 
 func (x *WalletBalance) Reset() {
 	*x = WalletBalance{}
-	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[9]
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1119,7 +1478,7 @@ func (x *WalletBalance) String() string {
 func (*WalletBalance) ProtoMessage() {}
 
 func (x *WalletBalance) ProtoReflect() protoreflect.Message {
-	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[9]
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1132,7 +1491,7 @@ func (x *WalletBalance) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WalletBalance.ProtoReflect.Descriptor instead.
 func (*WalletBalance) Descriptor() ([]byte, []int) {
-	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{9}
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *WalletBalance) GetZippedAssetId() uint32 {
@@ -1191,7 +1550,7 @@ type GetWalletBalancesResponse struct {
 
 func (x *GetWalletBalancesResponse) Reset() {
 	*x = GetWalletBalancesResponse{}
-	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[10]
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1203,7 +1562,7 @@ func (x *GetWalletBalancesResponse) String() string {
 func (*GetWalletBalancesResponse) ProtoMessage() {}
 
 func (x *GetWalletBalancesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[10]
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1216,7 +1575,7 @@ func (x *GetWalletBalancesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetWalletBalancesResponse.ProtoReflect.Descriptor instead.
 func (*GetWalletBalancesResponse) Descriptor() ([]byte, []int) {
-	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{10}
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetWalletBalancesResponse) GetSmartAccountAddress() string {
@@ -1261,7 +1620,7 @@ type UnavailableWalletAsset struct {
 
 func (x *UnavailableWalletAsset) Reset() {
 	*x = UnavailableWalletAsset{}
-	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[11]
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1273,7 +1632,7 @@ func (x *UnavailableWalletAsset) String() string {
 func (*UnavailableWalletAsset) ProtoMessage() {}
 
 func (x *UnavailableWalletAsset) ProtoReflect() protoreflect.Message {
-	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[11]
+	mi := &file_chain_withdraw_v1_withdraw_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1286,7 +1645,7 @@ func (x *UnavailableWalletAsset) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnavailableWalletAsset.ProtoReflect.Descriptor instead.
 func (*UnavailableWalletAsset) Descriptor() ([]byte, []int) {
-	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{11}
+	return file_chain_withdraw_v1_withdraw_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *UnavailableWalletAsset) GetZippedAssetId() uint32 {
@@ -1356,7 +1715,33 @@ const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"\apayload\x18\x01 \x01(\v2/.chain.withdraw.v1.TradingWithdrawIntentPayloadB\x06\xbaH\x03\xc8\x01\x01R\apayload\x12#\n" +
 	"\rsubaccount_id\x18\x02 \x01(\x04R\fsubaccountId\x12?\n" +
 	"\rsigner_wallet\x18\x03 \x01(\tB\x1a\xbaH\x17r\x152\x13^0x[0-9a-fA-F]{40}$R\fsignerWallet\x124\n" +
-	"\x11payload_signature\x18\x04 \x01(\fB\a\xbaH\x04z\x02\x10\x01R\x10payloadSignature\"\x99\x01\n" +
+	"\x11payload_signature\x18\x04 \x01(\fB\a\xbaH\x04z\x02\x10\x01R\x10payloadSignature\"\xb9\x01\n" +
+	"\x18TradingToFundingBatchLeg\x12\"\n" +
+	"\basset_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\aassetId\x12>\n" +
+	"\n" +
+	"amount_e18\x18\x02 \x01(\v2\x17.polyester.type.v1.U128B\x06\xbaH\x03\xc8\x01\x01R\tamountE18\x129\n" +
+	"\x13destination_address\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x12destinationAddress\"\xb0\x03\n" +
+	"(CreateWalletTradingToFundingBatchRequest\x12K\n" +
+	"\x04legs\x18\x01 \x03(\v2+.chain.withdraw.v1.TradingToFundingBatchLegB\n" +
+	"\xbaH\a\x92\x01\x04\b\x01\x10\n" +
+	"R\x04legs\x12#\n" +
+	"\rsubaccount_id\x18\x02 \x01(\x04R\fsubaccountId\x12/\n" +
+	"\x0fdeadline_ts_sec\x18\x03 \x01(\x04B\a\xbaH\x042\x02 \x00R\rdeadlineTsSec\x125\n" +
+	"\x05nonce\x18\x04 \x01(\v2\x17.polyester.type.v1.U128B\x06\xbaH\x03\xc8\x01\x01R\x05nonce\x123\n" +
+	"\x0fidempotency_key\x18\x05 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\x0eidempotencyKey\x12?\n" +
+	"\rsigner_wallet\x18\x06 \x01(\tB\x1a\xbaH\x17r\x152\x13^0x[0-9a-fA-F]{40}$R\fsignerWallet\x124\n" +
+	"\x11payload_signature\x18\a \x01(\fB\a\xbaH\x04z\x02\x10\x01R\x10payloadSignature\"\xde\x01\n" +
+	"\x1eTradingToFundingBatchLegResult\x12\x1b\n" +
+	"\tleg_index\x18\x01 \x01(\rR\blegIndex\x12\x1b\n" +
+	"\tintent_id\x18\x02 \x01(\tR\bintentId\x12\x19\n" +
+	"\basset_id\x18\x03 \x01(\rR\aassetId\x126\n" +
+	"\n" +
+	"amount_e18\x18\x04 \x01(\v2\x17.polyester.type.v1.U128R\tamountE18\x12/\n" +
+	"\x13destination_address\x18\x05 \x01(\tR\x12destinationAddress\"\x8d\x01\n" +
+	")CreateWalletTradingToFundingBatchResponse\x12\x19\n" +
+	"\bbatch_id\x18\x01 \x01(\tR\abatchId\x12E\n" +
+	"\x04legs\x18\x02 \x03(\v21.chain.withdraw.v1.TradingToFundingBatchLegResultR\x04legs\"\x99\x01\n" +
 	"\"ValidateWithdrawDestinationRequest\x129\n" +
 	"\x14destination_chain_id\x18\x01 \x01(\x04B\a\xbaH\x042\x02 \x00R\x12destinationChainId\x128\n" +
 	"\x13destination_address\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x12destinationAddress\"\xe3\x01\n" +
@@ -1454,7 +1839,7 @@ const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"\x17UNAVAILABLE_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vNO_CONTRACT\x10\x01\x12\x0f\n" +
 	"\vREAD_FAILED\x10\x02\x12\x13\n" +
-	"\x0fINVALID_BALANCE\x10\x032\xe2\r\n" +
+	"\x0fINVALID_BALANCE\x10\x032\xb6\x12\n" +
 	"\x0fWithdrawService\x12\xe7\x02\n" +
 	"\x11GetWalletBalances\x12+.chain.withdraw.v1.GetWalletBalancesRequest\x1a,.chain.withdraw.v1.GetWalletBalancesResponse\"\xf6\x01\xbaG\xcb\x01\n" +
 	"\vWithdrawals\x12\x13Get Wallet Balances\x1a\xa6\x01Read the zTokens the account's smart account wallet holds on Polyester Chain, such as a rejected withdrawal's refund. An API key needs READ_BALANCES within its scope.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/chain/wallet/balances\x12\x9f\x03\n" +
@@ -1463,7 +1848,9 @@ const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"\x15CreateTradingWithdraw\x12/.chain.withdraw.v1.CreateTradingWithdrawRequest\x1a0.chain.withdraw.v1.CreateTradingWithdrawResponse\"\xd3\x01\xbaG\xa4\x01\n" +
 	"\x11Trading Withdraws\x12\x17Create Trading Withdraw\x1avCreate or return one durable withdraw from Trading to Funding or to an external chain for the selected account target.\xa2\xb5\x18\x01\x02\x82\xd3\xe4\x93\x02 :\x01*\"\x1b/v1/chain/trading-withdraws\x12\xe4\x04\n" +
 	"\x1bCreateWalletTradingWithdraw\x125.chain.withdraw.v1.CreateWalletTradingWithdrawRequest\x1a6.chain.withdraw.v1.CreateWalletTradingWithdrawResponse\"\xd5\x03\xbaG\x9b\x03\n" +
-	"\x11Trading Withdraws\x12\x1eCreate Wallet Trading Withdraw\x1a\xe5\x02Create or return one durable Trading withdraw intent from typed frontend fields and a wallet personal_sign signature. Root-owner Trading to Funding and root-owner withdrawals to explicitly whitelisted external destinations accept an MFA-elevated session (MFA completed in the last 30 minutes); other interactive movements require a fresh single-use step-up.\x98\xb5\x18\x03\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/chain/trading-withdraws:wallet\x1a\t\x8a\xb5\x18\x05chainB\xb0\x01\xbaG^:\\\n" +
+	"\x11Trading Withdraws\x12\x1eCreate Wallet Trading Withdraw\x1a\xe5\x02Create or return one durable Trading withdraw intent from typed frontend fields and a wallet personal_sign signature. Root-owner Trading to Funding and root-owner withdrawals to explicitly whitelisted external destinations accept an MFA-elevated session (MFA completed in the last 30 minutes); other interactive movements require a fresh single-use step-up.\x98\xb5\x18\x03\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02':\x01*\"\"/v1/chain/trading-withdraws:wallet\x12\xd1\x04\n" +
+	"!CreateWalletTradingToFundingBatch\x12;.chain.withdraw.v1.CreateWalletTradingToFundingBatchRequest\x1a<.chain.withdraw.v1.CreateWalletTradingToFundingBatchResponse\"\xb0\x03\xbaG\xf0\x02\n" +
+	"\x11Trading Withdraws\x12&Create Wallet Trading To Funding Batch\x1a\xb2\x02Move up to 10 amounts from one Trading account to Funding accounts with one wallet signature and one MFA check. All legs are accepted or none, and an accepted batch is paid as one. Moves between the caller's own accounts accept recent MFA; any other leg requires one fresh single-use step-up for the batch.\x98\xb5\x18\x03\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02-:\x01*\"(/v1/chain/trading-withdraws:wallet-batch\x1a\t\x8a\xb5\x18\x05chainB\xb0\x01\xbaG^:\\\n" +
 	"\x11Trading Withdraws\x12GRequest withdrawals from Trading for a Polyester account or subaccount.ZMgithub.com/Fabric-Labs/polyester-sdk-go/gen/chain/withdraw/v1;chainwithdrawv1b\x06proto3"
 
 var (
@@ -1479,54 +1866,65 @@ func file_chain_withdraw_v1_withdraw_proto_rawDescGZIP() []byte {
 }
 
 var file_chain_withdraw_v1_withdraw_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_chain_withdraw_v1_withdraw_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_chain_withdraw_v1_withdraw_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_chain_withdraw_v1_withdraw_proto_goTypes = []any{
-	(ErrorCode)(0),                              // 0: chain.withdraw.v1.ErrorCode
-	(TradingWithdrawAction)(0),                  // 1: chain.withdraw.v1.TradingWithdrawAction
-	(WithdrawDestinationValidationCode)(0),      // 2: chain.withdraw.v1.WithdrawDestinationValidationCode
-	(WalletAssetUnavailableReason)(0),           // 3: chain.withdraw.v1.WalletAssetUnavailableReason
-	(*CreateTradingWithdrawResponse)(nil),       // 4: chain.withdraw.v1.CreateTradingWithdrawResponse
-	(*CreateWalletTradingWithdrawResponse)(nil), // 5: chain.withdraw.v1.CreateWalletTradingWithdrawResponse
-	(*ErrorDetail)(nil),                         // 6: chain.withdraw.v1.ErrorDetail
-	(*TradingWithdrawIntentPayload)(nil),        // 7: chain.withdraw.v1.TradingWithdrawIntentPayload
-	(*CreateTradingWithdrawRequest)(nil),        // 8: chain.withdraw.v1.CreateTradingWithdrawRequest
-	(*CreateWalletTradingWithdrawRequest)(nil),  // 9: chain.withdraw.v1.CreateWalletTradingWithdrawRequest
-	(*ValidateWithdrawDestinationRequest)(nil),  // 10: chain.withdraw.v1.ValidateWithdrawDestinationRequest
-	(*ValidateWithdrawDestinationResponse)(nil), // 11: chain.withdraw.v1.ValidateWithdrawDestinationResponse
-	(*GetWalletBalancesRequest)(nil),            // 12: chain.withdraw.v1.GetWalletBalancesRequest
-	(*WalletBalance)(nil),                       // 13: chain.withdraw.v1.WalletBalance
-	(*GetWalletBalancesResponse)(nil),           // 14: chain.withdraw.v1.GetWalletBalancesResponse
-	(*UnavailableWalletAsset)(nil),              // 15: chain.withdraw.v1.UnavailableWalletAsset
-	(*v1.U128)(nil),                             // 16: polyester.type.v1.U128
-	(*timestamppb.Timestamp)(nil),               // 17: google.protobuf.Timestamp
+	(ErrorCode)(0),                                    // 0: chain.withdraw.v1.ErrorCode
+	(TradingWithdrawAction)(0),                        // 1: chain.withdraw.v1.TradingWithdrawAction
+	(WithdrawDestinationValidationCode)(0),            // 2: chain.withdraw.v1.WithdrawDestinationValidationCode
+	(WalletAssetUnavailableReason)(0),                 // 3: chain.withdraw.v1.WalletAssetUnavailableReason
+	(*CreateTradingWithdrawResponse)(nil),             // 4: chain.withdraw.v1.CreateTradingWithdrawResponse
+	(*CreateWalletTradingWithdrawResponse)(nil),       // 5: chain.withdraw.v1.CreateWalletTradingWithdrawResponse
+	(*ErrorDetail)(nil),                               // 6: chain.withdraw.v1.ErrorDetail
+	(*TradingWithdrawIntentPayload)(nil),              // 7: chain.withdraw.v1.TradingWithdrawIntentPayload
+	(*CreateTradingWithdrawRequest)(nil),              // 8: chain.withdraw.v1.CreateTradingWithdrawRequest
+	(*CreateWalletTradingWithdrawRequest)(nil),        // 9: chain.withdraw.v1.CreateWalletTradingWithdrawRequest
+	(*TradingToFundingBatchLeg)(nil),                  // 10: chain.withdraw.v1.TradingToFundingBatchLeg
+	(*CreateWalletTradingToFundingBatchRequest)(nil),  // 11: chain.withdraw.v1.CreateWalletTradingToFundingBatchRequest
+	(*TradingToFundingBatchLegResult)(nil),            // 12: chain.withdraw.v1.TradingToFundingBatchLegResult
+	(*CreateWalletTradingToFundingBatchResponse)(nil), // 13: chain.withdraw.v1.CreateWalletTradingToFundingBatchResponse
+	(*ValidateWithdrawDestinationRequest)(nil),        // 14: chain.withdraw.v1.ValidateWithdrawDestinationRequest
+	(*ValidateWithdrawDestinationResponse)(nil),       // 15: chain.withdraw.v1.ValidateWithdrawDestinationResponse
+	(*GetWalletBalancesRequest)(nil),                  // 16: chain.withdraw.v1.GetWalletBalancesRequest
+	(*WalletBalance)(nil),                             // 17: chain.withdraw.v1.WalletBalance
+	(*GetWalletBalancesResponse)(nil),                 // 18: chain.withdraw.v1.GetWalletBalancesResponse
+	(*UnavailableWalletAsset)(nil),                    // 19: chain.withdraw.v1.UnavailableWalletAsset
+	(*v1.U128)(nil),                                   // 20: polyester.type.v1.U128
+	(*timestamppb.Timestamp)(nil),                     // 21: google.protobuf.Timestamp
 }
 var file_chain_withdraw_v1_withdraw_proto_depIdxs = []int32{
 	0,  // 0: chain.withdraw.v1.ErrorDetail.code:type_name -> chain.withdraw.v1.ErrorCode
-	16, // 1: chain.withdraw.v1.ErrorDetail.min_floor_e18:type_name -> polyester.type.v1.U128
-	17, // 2: chain.withdraw.v1.ErrorDetail.payable_from:type_name -> google.protobuf.Timestamp
+	20, // 1: chain.withdraw.v1.ErrorDetail.min_floor_e18:type_name -> polyester.type.v1.U128
+	21, // 2: chain.withdraw.v1.ErrorDetail.payable_from:type_name -> google.protobuf.Timestamp
 	1,  // 3: chain.withdraw.v1.TradingWithdrawIntentPayload.action:type_name -> chain.withdraw.v1.TradingWithdrawAction
-	16, // 4: chain.withdraw.v1.TradingWithdrawIntentPayload.amount_e18:type_name -> polyester.type.v1.U128
-	16, // 5: chain.withdraw.v1.TradingWithdrawIntentPayload.nonce:type_name -> polyester.type.v1.U128
+	20, // 4: chain.withdraw.v1.TradingWithdrawIntentPayload.amount_e18:type_name -> polyester.type.v1.U128
+	20, // 5: chain.withdraw.v1.TradingWithdrawIntentPayload.nonce:type_name -> polyester.type.v1.U128
 	7,  // 6: chain.withdraw.v1.CreateTradingWithdrawRequest.payload:type_name -> chain.withdraw.v1.TradingWithdrawIntentPayload
 	7,  // 7: chain.withdraw.v1.CreateWalletTradingWithdrawRequest.payload:type_name -> chain.withdraw.v1.TradingWithdrawIntentPayload
-	2,  // 8: chain.withdraw.v1.ValidateWithdrawDestinationResponse.code:type_name -> chain.withdraw.v1.WithdrawDestinationValidationCode
-	16, // 9: chain.withdraw.v1.WalletBalance.amount_e18:type_name -> polyester.type.v1.U128
-	13, // 10: chain.withdraw.v1.GetWalletBalancesResponse.balances:type_name -> chain.withdraw.v1.WalletBalance
-	15, // 11: chain.withdraw.v1.GetWalletBalancesResponse.unavailable_assets:type_name -> chain.withdraw.v1.UnavailableWalletAsset
-	3,  // 12: chain.withdraw.v1.UnavailableWalletAsset.reason:type_name -> chain.withdraw.v1.WalletAssetUnavailableReason
-	12, // 13: chain.withdraw.v1.WithdrawService.GetWalletBalances:input_type -> chain.withdraw.v1.GetWalletBalancesRequest
-	10, // 14: chain.withdraw.v1.WithdrawService.ValidateWithdrawDestination:input_type -> chain.withdraw.v1.ValidateWithdrawDestinationRequest
-	8,  // 15: chain.withdraw.v1.WithdrawService.CreateTradingWithdraw:input_type -> chain.withdraw.v1.CreateTradingWithdrawRequest
-	9,  // 16: chain.withdraw.v1.WithdrawService.CreateWalletTradingWithdraw:input_type -> chain.withdraw.v1.CreateWalletTradingWithdrawRequest
-	14, // 17: chain.withdraw.v1.WithdrawService.GetWalletBalances:output_type -> chain.withdraw.v1.GetWalletBalancesResponse
-	11, // 18: chain.withdraw.v1.WithdrawService.ValidateWithdrawDestination:output_type -> chain.withdraw.v1.ValidateWithdrawDestinationResponse
-	4,  // 19: chain.withdraw.v1.WithdrawService.CreateTradingWithdraw:output_type -> chain.withdraw.v1.CreateTradingWithdrawResponse
-	5,  // 20: chain.withdraw.v1.WithdrawService.CreateWalletTradingWithdraw:output_type -> chain.withdraw.v1.CreateWalletTradingWithdrawResponse
-	17, // [17:21] is the sub-list for method output_type
-	13, // [13:17] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	20, // 8: chain.withdraw.v1.TradingToFundingBatchLeg.amount_e18:type_name -> polyester.type.v1.U128
+	10, // 9: chain.withdraw.v1.CreateWalletTradingToFundingBatchRequest.legs:type_name -> chain.withdraw.v1.TradingToFundingBatchLeg
+	20, // 10: chain.withdraw.v1.CreateWalletTradingToFundingBatchRequest.nonce:type_name -> polyester.type.v1.U128
+	20, // 11: chain.withdraw.v1.TradingToFundingBatchLegResult.amount_e18:type_name -> polyester.type.v1.U128
+	12, // 12: chain.withdraw.v1.CreateWalletTradingToFundingBatchResponse.legs:type_name -> chain.withdraw.v1.TradingToFundingBatchLegResult
+	2,  // 13: chain.withdraw.v1.ValidateWithdrawDestinationResponse.code:type_name -> chain.withdraw.v1.WithdrawDestinationValidationCode
+	20, // 14: chain.withdraw.v1.WalletBalance.amount_e18:type_name -> polyester.type.v1.U128
+	17, // 15: chain.withdraw.v1.GetWalletBalancesResponse.balances:type_name -> chain.withdraw.v1.WalletBalance
+	19, // 16: chain.withdraw.v1.GetWalletBalancesResponse.unavailable_assets:type_name -> chain.withdraw.v1.UnavailableWalletAsset
+	3,  // 17: chain.withdraw.v1.UnavailableWalletAsset.reason:type_name -> chain.withdraw.v1.WalletAssetUnavailableReason
+	16, // 18: chain.withdraw.v1.WithdrawService.GetWalletBalances:input_type -> chain.withdraw.v1.GetWalletBalancesRequest
+	14, // 19: chain.withdraw.v1.WithdrawService.ValidateWithdrawDestination:input_type -> chain.withdraw.v1.ValidateWithdrawDestinationRequest
+	8,  // 20: chain.withdraw.v1.WithdrawService.CreateTradingWithdraw:input_type -> chain.withdraw.v1.CreateTradingWithdrawRequest
+	9,  // 21: chain.withdraw.v1.WithdrawService.CreateWalletTradingWithdraw:input_type -> chain.withdraw.v1.CreateWalletTradingWithdrawRequest
+	11, // 22: chain.withdraw.v1.WithdrawService.CreateWalletTradingToFundingBatch:input_type -> chain.withdraw.v1.CreateWalletTradingToFundingBatchRequest
+	18, // 23: chain.withdraw.v1.WithdrawService.GetWalletBalances:output_type -> chain.withdraw.v1.GetWalletBalancesResponse
+	15, // 24: chain.withdraw.v1.WithdrawService.ValidateWithdrawDestination:output_type -> chain.withdraw.v1.ValidateWithdrawDestinationResponse
+	4,  // 25: chain.withdraw.v1.WithdrawService.CreateTradingWithdraw:output_type -> chain.withdraw.v1.CreateTradingWithdrawResponse
+	5,  // 26: chain.withdraw.v1.WithdrawService.CreateWalletTradingWithdraw:output_type -> chain.withdraw.v1.CreateWalletTradingWithdrawResponse
+	13, // 27: chain.withdraw.v1.WithdrawService.CreateWalletTradingToFundingBatch:output_type -> chain.withdraw.v1.CreateWalletTradingToFundingBatchResponse
+	23, // [23:28] is the sub-list for method output_type
+	18, // [18:23] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_chain_withdraw_v1_withdraw_proto_init() }
@@ -1540,7 +1938,7 @@ func file_chain_withdraw_v1_withdraw_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chain_withdraw_v1_withdraw_proto_rawDesc), len(file_chain_withdraw_v1_withdraw_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   12,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -36,6 +36,9 @@ const (
 	// QuickSwapExplorerServiceListCompletedQuickSwapsProcedure is the fully-qualified name of the
 	// QuickSwapExplorerService's ListCompletedQuickSwaps RPC.
 	QuickSwapExplorerServiceListCompletedQuickSwapsProcedure = "/swap.quickswap.v1.QuickSwapExplorerService/ListCompletedQuickSwaps"
+	// QuickSwapExplorerServiceGetCompletedQuickSwapProcedure is the fully-qualified name of the
+	// QuickSwapExplorerService's GetCompletedQuickSwap RPC.
+	QuickSwapExplorerServiceGetCompletedQuickSwapProcedure = "/swap.quickswap.v1.QuickSwapExplorerService/GetCompletedQuickSwap"
 	// QuickSwapExplorerServiceGetQuickSwapStatsProcedure is the fully-qualified name of the
 	// QuickSwapExplorerService's GetQuickSwapStats RPC.
 	QuickSwapExplorerServiceGetQuickSwapStatsProcedure = "/swap.quickswap.v1.QuickSwapExplorerService/GetQuickSwapStats"
@@ -45,13 +48,25 @@ const (
 // service.
 type QuickSwapExplorerServiceClient interface {
 	// ListCompletedQuickSwaps lists completed QuickSwaps of every broker,
-	// newest completion first, optionally by source or destination asset and
-	// network.
+	// newest completion first, optionally by source and destination assets,
+	// on given networks or on all of them, and by a range of source USD value.
 	//
 	// Errors:
-	//   - INVALID_ARGUMENT: malformed request, or PAGE_TOKEN_INVALID for a
-	//     page_token that is malformed or from other filters.
+	//   - INVALID_ARGUMENT: malformed request; a USD bound off the grid; filters
+	//     that select more than 400 routes, or routes times USD value steps; a
+	//     max_source_value_usd not above min_source_value_usd; or
+	//     PAGE_TOKEN_INVALID for a page_token that is malformed, from other
+	//     filters, or from before a change of the networks the asset IDs cover.
 	ListCompletedQuickSwaps(context.Context, *connect.Request[v1.ListCompletedQuickSwapsRequest]) (*connect.Response[v1.ListCompletedQuickSwapsResponse], error)
+	// GetCompletedQuickSwap returns one completed QuickSwap of any broker by
+	// swap_id, as ListCompletedQuickSwaps lists it.
+	//
+	// Errors:
+	//   - NOT_FOUND: SWAP_NOT_FOUND when no completed QuickSwap has this
+	//     swap_id: none has it, it is 0, or the QuickSwap has not completed,
+	//     whatever its status. Every such answer is the same, so it never tells
+	//     which.
+	GetCompletedQuickSwap(context.Context, *connect.Request[v1.GetCompletedQuickSwapRequest]) (*connect.Response[v1.GetCompletedQuickSwapResponse], error)
 	// GetQuickSwapStats returns the activity of completed QuickSwaps of every
 	// broker over a window: its totals and the previous window's, a time
 	// series and every route's totals.
@@ -83,6 +98,12 @@ func NewQuickSwapExplorerServiceClient(httpClient connect.HTTPClient, baseURL st
 			connect.WithSchema(quickSwapExplorerServiceMethods.ByName("ListCompletedQuickSwaps")),
 			connect.WithClientOptions(opts...),
 		),
+		getCompletedQuickSwap: connect.NewClient[v1.GetCompletedQuickSwapRequest, v1.GetCompletedQuickSwapResponse](
+			httpClient,
+			baseURL+QuickSwapExplorerServiceGetCompletedQuickSwapProcedure,
+			connect.WithSchema(quickSwapExplorerServiceMethods.ByName("GetCompletedQuickSwap")),
+			connect.WithClientOptions(opts...),
+		),
 		getQuickSwapStats: connect.NewClient[v1.GetQuickSwapStatsRequest, v1.GetQuickSwapStatsResponse](
 			httpClient,
 			baseURL+QuickSwapExplorerServiceGetQuickSwapStatsProcedure,
@@ -95,12 +116,18 @@ func NewQuickSwapExplorerServiceClient(httpClient connect.HTTPClient, baseURL st
 // quickSwapExplorerServiceClient implements QuickSwapExplorerServiceClient.
 type quickSwapExplorerServiceClient struct {
 	listCompletedQuickSwaps *connect.Client[v1.ListCompletedQuickSwapsRequest, v1.ListCompletedQuickSwapsResponse]
+	getCompletedQuickSwap   *connect.Client[v1.GetCompletedQuickSwapRequest, v1.GetCompletedQuickSwapResponse]
 	getQuickSwapStats       *connect.Client[v1.GetQuickSwapStatsRequest, v1.GetQuickSwapStatsResponse]
 }
 
 // ListCompletedQuickSwaps calls swap.quickswap.v1.QuickSwapExplorerService.ListCompletedQuickSwaps.
 func (c *quickSwapExplorerServiceClient) ListCompletedQuickSwaps(ctx context.Context, req *connect.Request[v1.ListCompletedQuickSwapsRequest]) (*connect.Response[v1.ListCompletedQuickSwapsResponse], error) {
 	return c.listCompletedQuickSwaps.CallUnary(ctx, req)
+}
+
+// GetCompletedQuickSwap calls swap.quickswap.v1.QuickSwapExplorerService.GetCompletedQuickSwap.
+func (c *quickSwapExplorerServiceClient) GetCompletedQuickSwap(ctx context.Context, req *connect.Request[v1.GetCompletedQuickSwapRequest]) (*connect.Response[v1.GetCompletedQuickSwapResponse], error) {
+	return c.getCompletedQuickSwap.CallUnary(ctx, req)
 }
 
 // GetQuickSwapStats calls swap.quickswap.v1.QuickSwapExplorerService.GetQuickSwapStats.
@@ -112,13 +139,25 @@ func (c *quickSwapExplorerServiceClient) GetQuickSwapStats(ctx context.Context, 
 // swap.quickswap.v1.QuickSwapExplorerService service.
 type QuickSwapExplorerServiceHandler interface {
 	// ListCompletedQuickSwaps lists completed QuickSwaps of every broker,
-	// newest completion first, optionally by source or destination asset and
-	// network.
+	// newest completion first, optionally by source and destination assets,
+	// on given networks or on all of them, and by a range of source USD value.
 	//
 	// Errors:
-	//   - INVALID_ARGUMENT: malformed request, or PAGE_TOKEN_INVALID for a
-	//     page_token that is malformed or from other filters.
+	//   - INVALID_ARGUMENT: malformed request; a USD bound off the grid; filters
+	//     that select more than 400 routes, or routes times USD value steps; a
+	//     max_source_value_usd not above min_source_value_usd; or
+	//     PAGE_TOKEN_INVALID for a page_token that is malformed, from other
+	//     filters, or from before a change of the networks the asset IDs cover.
 	ListCompletedQuickSwaps(context.Context, *connect.Request[v1.ListCompletedQuickSwapsRequest]) (*connect.Response[v1.ListCompletedQuickSwapsResponse], error)
+	// GetCompletedQuickSwap returns one completed QuickSwap of any broker by
+	// swap_id, as ListCompletedQuickSwaps lists it.
+	//
+	// Errors:
+	//   - NOT_FOUND: SWAP_NOT_FOUND when no completed QuickSwap has this
+	//     swap_id: none has it, it is 0, or the QuickSwap has not completed,
+	//     whatever its status. Every such answer is the same, so it never tells
+	//     which.
+	GetCompletedQuickSwap(context.Context, *connect.Request[v1.GetCompletedQuickSwapRequest]) (*connect.Response[v1.GetCompletedQuickSwapResponse], error)
 	// GetQuickSwapStats returns the activity of completed QuickSwaps of every
 	// broker over a window: its totals and the previous window's, a time
 	// series and every route's totals.
@@ -146,6 +185,12 @@ func NewQuickSwapExplorerServiceHandler(svc QuickSwapExplorerServiceHandler, opt
 		connect.WithSchema(quickSwapExplorerServiceMethods.ByName("ListCompletedQuickSwaps")),
 		connect.WithHandlerOptions(opts...),
 	)
+	quickSwapExplorerServiceGetCompletedQuickSwapHandler := connect.NewUnaryHandler(
+		QuickSwapExplorerServiceGetCompletedQuickSwapProcedure,
+		svc.GetCompletedQuickSwap,
+		connect.WithSchema(quickSwapExplorerServiceMethods.ByName("GetCompletedQuickSwap")),
+		connect.WithHandlerOptions(opts...),
+	)
 	quickSwapExplorerServiceGetQuickSwapStatsHandler := connect.NewUnaryHandler(
 		QuickSwapExplorerServiceGetQuickSwapStatsProcedure,
 		svc.GetQuickSwapStats,
@@ -156,6 +201,8 @@ func NewQuickSwapExplorerServiceHandler(svc QuickSwapExplorerServiceHandler, opt
 		switch r.URL.Path {
 		case QuickSwapExplorerServiceListCompletedQuickSwapsProcedure:
 			quickSwapExplorerServiceListCompletedQuickSwapsHandler.ServeHTTP(w, r)
+		case QuickSwapExplorerServiceGetCompletedQuickSwapProcedure:
+			quickSwapExplorerServiceGetCompletedQuickSwapHandler.ServeHTTP(w, r)
 		case QuickSwapExplorerServiceGetQuickSwapStatsProcedure:
 			quickSwapExplorerServiceGetQuickSwapStatsHandler.ServeHTTP(w, r)
 		default:
@@ -169,6 +216,10 @@ type UnimplementedQuickSwapExplorerServiceHandler struct{}
 
 func (UnimplementedQuickSwapExplorerServiceHandler) ListCompletedQuickSwaps(context.Context, *connect.Request[v1.ListCompletedQuickSwapsRequest]) (*connect.Response[v1.ListCompletedQuickSwapsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swap.quickswap.v1.QuickSwapExplorerService.ListCompletedQuickSwaps is not implemented"))
+}
+
+func (UnimplementedQuickSwapExplorerServiceHandler) GetCompletedQuickSwap(context.Context, *connect.Request[v1.GetCompletedQuickSwapRequest]) (*connect.Response[v1.GetCompletedQuickSwapResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swap.quickswap.v1.QuickSwapExplorerService.GetCompletedQuickSwap is not implemented"))
 }
 
 func (UnimplementedQuickSwapExplorerServiceHandler) GetQuickSwapStats(context.Context, *connect.Request[v1.GetQuickSwapStatsRequest]) (*connect.Response[v1.GetQuickSwapStatsResponse], error) {

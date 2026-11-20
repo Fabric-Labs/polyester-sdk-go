@@ -190,9 +190,14 @@ func answerCode(err error) string {
 // follow a "processing" batch without resubmitting it. It needs that request
 // ID: a CreateBatch call that failed without an answer returns none, so
 // resolve that one by sending the original key and legs again. It neither submits nor
-// retries the batch and needs no fresh MFA. The caller must be allowed to
-// read the transfers of every source account of the batch; any other batch
-// answers ERROR_CODE_NOT_FOUND, as an unknown one does. A requestID that is
+// retries the batch and needs no fresh MFA. An API key whose policy does not
+// grant READ_INTERNAL_TRANSFERS is refused for every request ID, whether the
+// batch exists or not, with an *errors.AuthError whose Code is
+// ERROR_CODE_PERMISSION_DENIED (Connect permission_denied) and whose message
+// names the action to grant: grant it on the key's policy rather than
+// treating the batch as unknown. A caller allowed to read transfers must be
+// allowed to read those of every source account of the batch; any other
+// batch answers ERROR_CODE_NOT_FOUND, as an unknown one does. A requestID that is
 // not a decimal batch ID (1 to 39 digits, no leading zero) is refused with an
 // *errors.ValidationError before sending.
 func (s *InternalTransfersService) GetBatch(ctx context.Context, requestID string) (models.InternalTransferBatchResult, error) {

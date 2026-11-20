@@ -146,9 +146,12 @@ func (s *ChangelogService) changeWalk(ctx context.Context, opts models.ListChang
 // BreakingChangesSince returns every breaking change published at or after
 // since, newest post first.
 //
-// It filters on the post's first publication time, which a republication does
-// not move, so an edit to an older post is not reported: compare the
-// Revision of ListPosts summaries to find edited posts. A change met again
+// It filters on the post's PublishedAt, which a republication does not move,
+// so an edit to an older post is not reported: compare the Revision of
+// ListPosts summaries to find edited posts. A release post's PublishedAt is
+// its live time in the environment read, or its first publication while the
+// release is pending there, so it can move into or out of the window when the
+// release goes live or its live_at changes. A change met again
 // because its post was republished during the call is returned once, at its
 // first position, with the wording last received.
 func (s *ChangelogService) BreakingChangesSince(ctx context.Context, since time.Time) ([]models.ChangelogChangeEntry, error) {

@@ -80,8 +80,9 @@ type InternalTransferServiceClient interface {
 	// request ID BatchCreateInternalTransfers returned: for example to follow
 	// a batch that answered BATCH_PROCESSING. The caller must be allowed to
 	// read the transfers of every source account of the batch; any other
-	// batch is not found. This read does not submit or retry the batch and
-	// requires no fresh MFA.
+	// batch is not found. An API key whose policy does not grant
+	// READ_INTERNAL_TRANSFERS is refused PERMISSION_DENIED for any batch.
+	// This read does not submit or retry the batch and requires no fresh MFA.
 	GetInternalTransferBatch(context.Context, *connect.Request[v1.GetInternalTransferBatchRequest]) (*connect.Response[v1.GetInternalTransferBatchResponse], error)
 }
 
@@ -186,8 +187,9 @@ type InternalTransferServiceHandler interface {
 	// request ID BatchCreateInternalTransfers returned: for example to follow
 	// a batch that answered BATCH_PROCESSING. The caller must be allowed to
 	// read the transfers of every source account of the batch; any other
-	// batch is not found. This read does not submit or retry the batch and
-	// requires no fresh MFA.
+	// batch is not found. An API key whose policy does not grant
+	// READ_INTERNAL_TRANSFERS is refused PERMISSION_DENIED for any batch.
+	// This read does not submit or retry the batch and requires no fresh MFA.
 	GetInternalTransferBatch(context.Context, *connect.Request[v1.GetInternalTransferBatchRequest]) (*connect.Response[v1.GetInternalTransferBatchResponse], error)
 }
 

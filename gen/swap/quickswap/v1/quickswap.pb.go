@@ -104,7 +104,7 @@ const (
 	FeeKind_AFFILIATE FeeKind = 3
 	// Network fee withheld from the deposit before it is credited. A quote
 	// shows an estimate; the fee withheld is the network's fee when the
-	// deposit arrives.
+	// deposit arrives; Deposit.network_fee reports the fee recorded.
 	FeeKind_DEPOSIT_NETWORK FeeKind = 4
 	// Estimated network fee for a withdrawal. The actual fee is charged at
 	// withdrawal time and reported on the withdrawal.
@@ -2096,8 +2096,9 @@ type QuickSwapQuote struct {
 	// route order (a bridge has one set, charged at payout), then network fees.
 	// Affiliates are in ascending account_id order. Zero fees are omitted. The fees charged
 	// are each rate applied to the actual execution and can differ from these
-	// amounts; QuickSwap.charged_fees reports the broker, affiliate and
-	// referral fees as charged.
+	// amounts; QuickSwap.charged_fees reports the service, broker, affiliate
+	// and referral fees as charged, and Deposit.network_fee and
+	// Withdrawal.network_fee the network fees.
 	Fees []*QuoteFee `protobuf:"bytes,8,rep,name=fees,proto3" json:"fees,omitempty"`
 	// When the quote was priced.
 	QuotedAt *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=quoted_at,json=quotedAt,proto3" json:"quoted_at,omitempty"`
@@ -2454,7 +2455,13 @@ type Deposit struct {
 	// reports a direct return once one is recorded. Unset until a direct return
 	// is recorded, and on every other deposit, which is returned through
 	// withdrawals.
-	DirectReturn  *DepositReturn `protobuf:"bytes,15,opt,name=direct_return,json=directReturn,proto3" json:"direct_return,omitempty"`
+	DirectReturn *DepositReturn `protobuf:"bytes,15,opt,name=direct_return,json=directReturn,proto3" json:"direct_return,omitempty"`
+	// Deposit network fee that Zipper withheld from this deposit when it
+	// took the deposit in, in zipped_asset_id's token units; zero when it
+	// charged none. Unset until Zipper has taken the deposit in, and on a
+	// deposit it never takes in: a deposit returned or transferred out
+	// without being credited, whose deductions are not reported.
+	NetworkFee    *TokenAmount `protobuf:"bytes,16,opt,name=network_fee,json=networkFee,proto3" json:"network_fee,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2576,6 +2583,13 @@ func (x *Deposit) GetFlowId() string {
 func (x *Deposit) GetDirectReturn() *DepositReturn {
 	if x != nil {
 		return x.DirectReturn
+	}
+	return nil
+}
+
+func (x *Deposit) GetNetworkFee() *TokenAmount {
+	if x != nil {
+		return x.NetworkFee
 	}
 	return nil
 }
@@ -3268,11 +3282,14 @@ type QuickSwap struct {
 	// referral (quote.referral), the broker fee charged is broker_bps less the
 	// referral's discount and commission.
 	Fees *RequestedFees `protobuf:"bytes,29,opt,name=fees,proto3" json:"fees,omitempty"`
-	// Broker, affiliate and referral fees charged so far, as settled: one
-	// entry per fee kind, credited account and asset, in kind, then
-	// account_id, then asset_id order. Grows while the QuickSwap executes or pays out a bridge. Each is
-	// the requested rate applied to the actual execution, so it can differ
-	// from the quote's fee lines.
+	// Service, broker, affiliate and referral fees charged so far, as
+	// settled: one entry per fee kind, credited account and asset, SERVICE
+	// first, then BROKER, then AFFILIATE and REFERRAL by account_id, each
+	// kind and account by asset_id. Grows while the QuickSwap executes or
+	// pays out a bridge. Each is the rate applied to the actual execution, so
+	// it can differ from the quote's fee lines. The SERVICE entries are
+	// Polyester's fee, not an amount credited to the broker: the broker's
+	// earnings are its BROKER and AFFILIATE entries.
 	ChargedFees []*ChargedFee `protobuf:"bytes,30,rep,name=charged_fees,json=chargedFees,proto3" json:"charged_fees,omitempty"`
 	// USD value of the credited deposit taken into execution
 	// (execution.input_amount), at the source asset's USD price when it was
@@ -3591,19 +3608,20 @@ func (x *RequestedFees) GetAffiliates() []*AffiliateShare {
 	return nil
 }
 
-// ChargedFee is what one vault has been credited with for a QuickSwap in
-// one asset, from settled fills and bridge payouts.
+// ChargedFee is a fee charged on a QuickSwap in one asset, from settled
+// fills and bridge payouts, summed per kind and credited account.
 type ChargedFee struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// BROKER, AFFILIATE or REFERRAL.
+	// SERVICE, BROKER, AFFILIATE or REFERRAL.
 	Kind FeeKind `protobuf:"varint,1,opt,name=kind,proto3,enum=swap.quickswap.v1.FeeKind" json:"kind,omitempty"`
 	// Public sub-account ID of the credited vault: the default vault for
-	// BROKER, the affiliate vault for AFFILIATE; zero for REFERRAL.
+	// BROKER, the affiliate vault for AFFILIATE; zero for SERVICE, credited
+	// to Polyester, and for REFERRAL.
 	AccountId uint64 `protobuf:"fixed64,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	// Asset credited, as an AssetConfig.ledger_id from
 	// GET /v1/chain/deposit-withdraw/config.
 	AssetId uint32 `protobuf:"varint,3,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
-	// Amount credited, in base units of 18 decimals.
+	// Amount charged, in base units of 18 decimals.
 	Amount *TokenAmount `protobuf:"bytes,4,opt,name=amount,proto3" json:"amount,omitempty"`
 	// USD value of amount, each fee summed in it valued at its asset's USD
 	// price when it was charged, in base units of 18 decimals, rounded down.
@@ -4490,7 +4508,7 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\x12funding_expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x10fundingExpiresAt\x12H\n" +
 	"\x12address_retires_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x10addressRetiresAt\x12K\n" +
 	"\raddress_state\x18\a \x01(\x0e2&.swap.quickswap.v1.DepositAddressStateR\faddressState\x12/\n" +
-	"\x14min_native_gas_limit\x18\b \x01(\x04R\x11minNativeGasLimit\"\x84\x05\n" +
+	"\x14min_native_gas_limit\x18\b \x01(\x04R\x11minNativeGasLimit\"\xc5\x05\n" +
 	"\aDeposit\x12\x14\n" +
 	"\x05index\x18\x01 \x01(\rR\x05index\x12\x17\n" +
 	"\atx_hash\x18\x02 \x01(\tR\x06txHash\x12.\n" +
@@ -4507,7 +4525,9 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\vcredited_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"creditedAt\x12\x17\n" +
 	"\aflow_id\x18\x0e \x01(\tR\x06flowId\x12E\n" +
-	"\rdirect_return\x18\x0f \x01(\v2 .swap.quickswap.v1.DepositReturnR\fdirectReturn\"\xa0\x01\n" +
+	"\rdirect_return\x18\x0f \x01(\v2 .swap.quickswap.v1.DepositReturnR\fdirectReturn\x12?\n" +
+	"\vnetwork_fee\x18\x10 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\n" +
+	"networkFee\"\xa0\x01\n" +
 	"\rDepositReturn\x12;\n" +
 	"\x05state\x18\x01 \x01(\x0e2%.swap.quickswap.v1.DepositReturnStateR\x05state\x12\x17\n" +
 	"\atx_hash\x18\x02 \x01(\tR\x06txHash\x129\n" +
@@ -4964,77 +4984,78 @@ var file_swap_quickswap_v1_quickswap_proto_depIdxs = []int32{
 	41, // 25: swap.quickswap.v1.Deposit.detected_at:type_name -> google.protobuf.Timestamp
 	41, // 26: swap.quickswap.v1.Deposit.credited_at:type_name -> google.protobuf.Timestamp
 	25, // 27: swap.quickswap.v1.Deposit.direct_return:type_name -> swap.quickswap.v1.DepositReturn
-	5,  // 28: swap.quickswap.v1.DepositReturn.state:type_name -> swap.quickswap.v1.DepositReturnState
-	41, // 29: swap.quickswap.v1.DepositReturn.updated_at:type_name -> google.protobuf.Timestamp
-	13, // 30: swap.quickswap.v1.ExecutionProgress.input_amount:type_name -> swap.quickswap.v1.TokenAmount
-	13, // 31: swap.quickswap.v1.ExecutionProgress.executed_input:type_name -> swap.quickswap.v1.TokenAmount
-	13, // 32: swap.quickswap.v1.ExecutionProgress.output_amount:type_name -> swap.quickswap.v1.TokenAmount
-	13, // 33: swap.quickswap.v1.ExecutionProgress.intermediate_remainder:type_name -> swap.quickswap.v1.TokenAmount
-	41, // 34: swap.quickswap.v1.ExecutionProgress.started_at:type_name -> google.protobuf.Timestamp
-	41, // 35: swap.quickswap.v1.ExecutionProgress.deadline:type_name -> google.protobuf.Timestamp
-	41, // 36: swap.quickswap.v1.ExecutionProgress.finished_at:type_name -> google.protobuf.Timestamp
-	27, // 37: swap.quickswap.v1.ExecutionProgress.slices:type_name -> swap.quickswap.v1.ExecutionSlice
-	10, // 38: swap.quickswap.v1.ExecutionProgress.slices_unavailable_reason:type_name -> swap.quickswap.v1.ExecutionProgress.SlicesUnavailableReason
-	41, // 39: swap.quickswap.v1.ExecutionSlice.planned_at:type_name -> google.protobuf.Timestamp
-	41, // 40: swap.quickswap.v1.ExecutionSlice.executed_at:type_name -> google.protobuf.Timestamp
-	41, // 41: swap.quickswap.v1.ExecutionSlice.finished_at:type_name -> google.protobuf.Timestamp
-	11, // 42: swap.quickswap.v1.ExecutionSlice.state:type_name -> swap.quickswap.v1.ExecutionSlice.State
-	12, // 43: swap.quickswap.v1.ExecutionSlice.reason:type_name -> swap.quickswap.v1.ExecutionSlice.Reason
-	13, // 44: swap.quickswap.v1.ExecutionSlice.input_traded:type_name -> swap.quickswap.v1.TokenAmount
-	13, // 45: swap.quickswap.v1.ExecutionSlice.output_received:type_name -> swap.quickswap.v1.TokenAmount
-	40, // 46: swap.quickswap.v1.ExecutionSlice.second_leg:type_name -> swap.quickswap.v1.ExecutionSlice.SecondLeg
-	13, // 47: swap.quickswap.v1.ExecutionSlice.intermediate_carried:type_name -> swap.quickswap.v1.TokenAmount
-	12, // 48: swap.quickswap.v1.ExecutionSlice.carry_reason:type_name -> swap.quickswap.v1.ExecutionSlice.Reason
-	6,  // 49: swap.quickswap.v1.Withdrawal.role:type_name -> swap.quickswap.v1.WithdrawalRole
-	13, // 50: swap.quickswap.v1.Withdrawal.amount:type_name -> swap.quickswap.v1.TokenAmount
-	13, // 51: swap.quickswap.v1.Withdrawal.network_fee:type_name -> swap.quickswap.v1.TokenAmount
-	7,  // 52: swap.quickswap.v1.Withdrawal.state:type_name -> swap.quickswap.v1.WithdrawalState
-	41, // 53: swap.quickswap.v1.Withdrawal.submitted_at:type_name -> google.protobuf.Timestamp
-	41, // 54: swap.quickswap.v1.Withdrawal.finalized_at:type_name -> google.protobuf.Timestamp
-	13, // 55: swap.quickswap.v1.Withdrawal.unsent_amount:type_name -> swap.quickswap.v1.TokenAmount
-	8,  // 56: swap.quickswap.v1.QuickSwap.status:type_name -> swap.quickswap.v1.QuickSwapStatus
-	4,  // 57: swap.quickswap.v1.QuickSwap.reason:type_name -> swap.quickswap.v1.QuickSwapReason
-	18, // 58: swap.quickswap.v1.QuickSwap.terms:type_name -> swap.quickswap.v1.QuickSwapTerms
-	21, // 59: swap.quickswap.v1.QuickSwap.quote:type_name -> swap.quickswap.v1.QuickSwapQuote
-	23, // 60: swap.quickswap.v1.QuickSwap.deposit_instructions:type_name -> swap.quickswap.v1.DepositInstructions
-	22, // 61: swap.quickswap.v1.QuickSwap.screening:type_name -> swap.quickswap.v1.Screening
-	24, // 62: swap.quickswap.v1.QuickSwap.deposits:type_name -> swap.quickswap.v1.Deposit
-	26, // 63: swap.quickswap.v1.QuickSwap.execution:type_name -> swap.quickswap.v1.ExecutionProgress
-	28, // 64: swap.quickswap.v1.QuickSwap.withdrawals:type_name -> swap.quickswap.v1.Withdrawal
-	41, // 65: swap.quickswap.v1.QuickSwap.created_at:type_name -> google.protobuf.Timestamp
-	41, // 66: swap.quickswap.v1.QuickSwap.updated_at:type_name -> google.protobuf.Timestamp
-	41, // 67: swap.quickswap.v1.QuickSwap.terminal_at:type_name -> google.protobuf.Timestamp
-	30, // 68: swap.quickswap.v1.QuickSwap.fees:type_name -> swap.quickswap.v1.RequestedFees
-	31, // 69: swap.quickswap.v1.QuickSwap.charged_fees:type_name -> swap.quickswap.v1.ChargedFee
-	13, // 70: swap.quickswap.v1.QuickSwap.deposited_value_usd:type_name -> swap.quickswap.v1.TokenAmount
-	13, // 71: swap.quickswap.v1.QuickSwap.delivered_value_usd:type_name -> swap.quickswap.v1.TokenAmount
-	34, // 72: swap.quickswap.v1.RequestedFees.affiliates:type_name -> swap.quickswap.v1.AffiliateShare
-	1,  // 73: swap.quickswap.v1.ChargedFee.kind:type_name -> swap.quickswap.v1.FeeKind
-	13, // 74: swap.quickswap.v1.ChargedFee.amount:type_name -> swap.quickswap.v1.TokenAmount
-	13, // 75: swap.quickswap.v1.ChargedFee.value_usd:type_name -> swap.quickswap.v1.TokenAmount
-	18, // 76: swap.quickswap.v1.QuoteQuickSwapRequest.terms:type_name -> swap.quickswap.v1.QuickSwapTerms
-	34, // 77: swap.quickswap.v1.QuoteQuickSwapRequest.affiliates:type_name -> swap.quickswap.v1.AffiliateShare
-	21, // 78: swap.quickswap.v1.QuoteQuickSwapResponse.quote:type_name -> swap.quickswap.v1.QuickSwapQuote
-	18, // 79: swap.quickswap.v1.CreateQuickSwapRequest.terms:type_name -> swap.quickswap.v1.QuickSwapTerms
-	34, // 80: swap.quickswap.v1.CreateQuickSwapRequest.affiliates:type_name -> swap.quickswap.v1.AffiliateShare
-	29, // 81: swap.quickswap.v1.CreateQuickSwapResponse.quick_swap:type_name -> swap.quickswap.v1.QuickSwap
-	29, // 82: swap.quickswap.v1.GetQuickSwapResponse.quick_swap:type_name -> swap.quickswap.v1.QuickSwap
-	9,  // 83: swap.quickswap.v1.ErrorDetail.code:type_name -> swap.quickswap.v1.ErrorCode
-	13, // 84: swap.quickswap.v1.ErrorDetail.min_deposit_amount:type_name -> swap.quickswap.v1.TokenAmount
-	13, // 85: swap.quickswap.v1.ErrorDetail.max_deposit_amount:type_name -> swap.quickswap.v1.TokenAmount
-	13, // 86: swap.quickswap.v1.ExecutionSlice.SecondLeg.input_traded:type_name -> swap.quickswap.v1.TokenAmount
-	13, // 87: swap.quickswap.v1.ExecutionSlice.SecondLeg.output_received:type_name -> swap.quickswap.v1.TokenAmount
-	32, // 88: swap.quickswap.v1.QuickSwapService.QuoteQuickSwap:input_type -> swap.quickswap.v1.QuoteQuickSwapRequest
-	35, // 89: swap.quickswap.v1.QuickSwapService.CreateQuickSwap:input_type -> swap.quickswap.v1.CreateQuickSwapRequest
-	37, // 90: swap.quickswap.v1.QuickSwapService.GetQuickSwap:input_type -> swap.quickswap.v1.GetQuickSwapRequest
-	33, // 91: swap.quickswap.v1.QuickSwapService.QuoteQuickSwap:output_type -> swap.quickswap.v1.QuoteQuickSwapResponse
-	36, // 92: swap.quickswap.v1.QuickSwapService.CreateQuickSwap:output_type -> swap.quickswap.v1.CreateQuickSwapResponse
-	38, // 93: swap.quickswap.v1.QuickSwapService.GetQuickSwap:output_type -> swap.quickswap.v1.GetQuickSwapResponse
-	91, // [91:94] is the sub-list for method output_type
-	88, // [88:91] is the sub-list for method input_type
-	88, // [88:88] is the sub-list for extension type_name
-	88, // [88:88] is the sub-list for extension extendee
-	0,  // [0:88] is the sub-list for field type_name
+	13, // 28: swap.quickswap.v1.Deposit.network_fee:type_name -> swap.quickswap.v1.TokenAmount
+	5,  // 29: swap.quickswap.v1.DepositReturn.state:type_name -> swap.quickswap.v1.DepositReturnState
+	41, // 30: swap.quickswap.v1.DepositReturn.updated_at:type_name -> google.protobuf.Timestamp
+	13, // 31: swap.quickswap.v1.ExecutionProgress.input_amount:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 32: swap.quickswap.v1.ExecutionProgress.executed_input:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 33: swap.quickswap.v1.ExecutionProgress.output_amount:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 34: swap.quickswap.v1.ExecutionProgress.intermediate_remainder:type_name -> swap.quickswap.v1.TokenAmount
+	41, // 35: swap.quickswap.v1.ExecutionProgress.started_at:type_name -> google.protobuf.Timestamp
+	41, // 36: swap.quickswap.v1.ExecutionProgress.deadline:type_name -> google.protobuf.Timestamp
+	41, // 37: swap.quickswap.v1.ExecutionProgress.finished_at:type_name -> google.protobuf.Timestamp
+	27, // 38: swap.quickswap.v1.ExecutionProgress.slices:type_name -> swap.quickswap.v1.ExecutionSlice
+	10, // 39: swap.quickswap.v1.ExecutionProgress.slices_unavailable_reason:type_name -> swap.quickswap.v1.ExecutionProgress.SlicesUnavailableReason
+	41, // 40: swap.quickswap.v1.ExecutionSlice.planned_at:type_name -> google.protobuf.Timestamp
+	41, // 41: swap.quickswap.v1.ExecutionSlice.executed_at:type_name -> google.protobuf.Timestamp
+	41, // 42: swap.quickswap.v1.ExecutionSlice.finished_at:type_name -> google.protobuf.Timestamp
+	11, // 43: swap.quickswap.v1.ExecutionSlice.state:type_name -> swap.quickswap.v1.ExecutionSlice.State
+	12, // 44: swap.quickswap.v1.ExecutionSlice.reason:type_name -> swap.quickswap.v1.ExecutionSlice.Reason
+	13, // 45: swap.quickswap.v1.ExecutionSlice.input_traded:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 46: swap.quickswap.v1.ExecutionSlice.output_received:type_name -> swap.quickswap.v1.TokenAmount
+	40, // 47: swap.quickswap.v1.ExecutionSlice.second_leg:type_name -> swap.quickswap.v1.ExecutionSlice.SecondLeg
+	13, // 48: swap.quickswap.v1.ExecutionSlice.intermediate_carried:type_name -> swap.quickswap.v1.TokenAmount
+	12, // 49: swap.quickswap.v1.ExecutionSlice.carry_reason:type_name -> swap.quickswap.v1.ExecutionSlice.Reason
+	6,  // 50: swap.quickswap.v1.Withdrawal.role:type_name -> swap.quickswap.v1.WithdrawalRole
+	13, // 51: swap.quickswap.v1.Withdrawal.amount:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 52: swap.quickswap.v1.Withdrawal.network_fee:type_name -> swap.quickswap.v1.TokenAmount
+	7,  // 53: swap.quickswap.v1.Withdrawal.state:type_name -> swap.quickswap.v1.WithdrawalState
+	41, // 54: swap.quickswap.v1.Withdrawal.submitted_at:type_name -> google.protobuf.Timestamp
+	41, // 55: swap.quickswap.v1.Withdrawal.finalized_at:type_name -> google.protobuf.Timestamp
+	13, // 56: swap.quickswap.v1.Withdrawal.unsent_amount:type_name -> swap.quickswap.v1.TokenAmount
+	8,  // 57: swap.quickswap.v1.QuickSwap.status:type_name -> swap.quickswap.v1.QuickSwapStatus
+	4,  // 58: swap.quickswap.v1.QuickSwap.reason:type_name -> swap.quickswap.v1.QuickSwapReason
+	18, // 59: swap.quickswap.v1.QuickSwap.terms:type_name -> swap.quickswap.v1.QuickSwapTerms
+	21, // 60: swap.quickswap.v1.QuickSwap.quote:type_name -> swap.quickswap.v1.QuickSwapQuote
+	23, // 61: swap.quickswap.v1.QuickSwap.deposit_instructions:type_name -> swap.quickswap.v1.DepositInstructions
+	22, // 62: swap.quickswap.v1.QuickSwap.screening:type_name -> swap.quickswap.v1.Screening
+	24, // 63: swap.quickswap.v1.QuickSwap.deposits:type_name -> swap.quickswap.v1.Deposit
+	26, // 64: swap.quickswap.v1.QuickSwap.execution:type_name -> swap.quickswap.v1.ExecutionProgress
+	28, // 65: swap.quickswap.v1.QuickSwap.withdrawals:type_name -> swap.quickswap.v1.Withdrawal
+	41, // 66: swap.quickswap.v1.QuickSwap.created_at:type_name -> google.protobuf.Timestamp
+	41, // 67: swap.quickswap.v1.QuickSwap.updated_at:type_name -> google.protobuf.Timestamp
+	41, // 68: swap.quickswap.v1.QuickSwap.terminal_at:type_name -> google.protobuf.Timestamp
+	30, // 69: swap.quickswap.v1.QuickSwap.fees:type_name -> swap.quickswap.v1.RequestedFees
+	31, // 70: swap.quickswap.v1.QuickSwap.charged_fees:type_name -> swap.quickswap.v1.ChargedFee
+	13, // 71: swap.quickswap.v1.QuickSwap.deposited_value_usd:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 72: swap.quickswap.v1.QuickSwap.delivered_value_usd:type_name -> swap.quickswap.v1.TokenAmount
+	34, // 73: swap.quickswap.v1.RequestedFees.affiliates:type_name -> swap.quickswap.v1.AffiliateShare
+	1,  // 74: swap.quickswap.v1.ChargedFee.kind:type_name -> swap.quickswap.v1.FeeKind
+	13, // 75: swap.quickswap.v1.ChargedFee.amount:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 76: swap.quickswap.v1.ChargedFee.value_usd:type_name -> swap.quickswap.v1.TokenAmount
+	18, // 77: swap.quickswap.v1.QuoteQuickSwapRequest.terms:type_name -> swap.quickswap.v1.QuickSwapTerms
+	34, // 78: swap.quickswap.v1.QuoteQuickSwapRequest.affiliates:type_name -> swap.quickswap.v1.AffiliateShare
+	21, // 79: swap.quickswap.v1.QuoteQuickSwapResponse.quote:type_name -> swap.quickswap.v1.QuickSwapQuote
+	18, // 80: swap.quickswap.v1.CreateQuickSwapRequest.terms:type_name -> swap.quickswap.v1.QuickSwapTerms
+	34, // 81: swap.quickswap.v1.CreateQuickSwapRequest.affiliates:type_name -> swap.quickswap.v1.AffiliateShare
+	29, // 82: swap.quickswap.v1.CreateQuickSwapResponse.quick_swap:type_name -> swap.quickswap.v1.QuickSwap
+	29, // 83: swap.quickswap.v1.GetQuickSwapResponse.quick_swap:type_name -> swap.quickswap.v1.QuickSwap
+	9,  // 84: swap.quickswap.v1.ErrorDetail.code:type_name -> swap.quickswap.v1.ErrorCode
+	13, // 85: swap.quickswap.v1.ErrorDetail.min_deposit_amount:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 86: swap.quickswap.v1.ErrorDetail.max_deposit_amount:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 87: swap.quickswap.v1.ExecutionSlice.SecondLeg.input_traded:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 88: swap.quickswap.v1.ExecutionSlice.SecondLeg.output_received:type_name -> swap.quickswap.v1.TokenAmount
+	32, // 89: swap.quickswap.v1.QuickSwapService.QuoteQuickSwap:input_type -> swap.quickswap.v1.QuoteQuickSwapRequest
+	35, // 90: swap.quickswap.v1.QuickSwapService.CreateQuickSwap:input_type -> swap.quickswap.v1.CreateQuickSwapRequest
+	37, // 91: swap.quickswap.v1.QuickSwapService.GetQuickSwap:input_type -> swap.quickswap.v1.GetQuickSwapRequest
+	33, // 92: swap.quickswap.v1.QuickSwapService.QuoteQuickSwap:output_type -> swap.quickswap.v1.QuoteQuickSwapResponse
+	36, // 93: swap.quickswap.v1.QuickSwapService.CreateQuickSwap:output_type -> swap.quickswap.v1.CreateQuickSwapResponse
+	38, // 94: swap.quickswap.v1.QuickSwapService.GetQuickSwap:output_type -> swap.quickswap.v1.GetQuickSwapResponse
+	92, // [92:95] is the sub-list for method output_type
+	89, // [89:92] is the sub-list for method input_type
+	89, // [89:89] is the sub-list for extension type_name
+	89, // [89:89] is the sub-list for extension extendee
+	0,  // [0:89] is the sub-list for field type_name
 }
 
 func init() { file_swap_quickswap_v1_quickswap_proto_init() }

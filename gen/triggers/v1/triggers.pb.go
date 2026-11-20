@@ -33,9 +33,11 @@ type TriggerType int32
 const (
 	// Trigger type was not provided.
 	TriggerType_TRIGGER_TYPE_UNSPECIFIED TriggerType = 0
-	// Stop-loss: fires when the price crosses a threshold.
+	// Stop-loss: a SELL fires when the price falls to or below its trigger
+	// price, a BUY when the price rises to or above it.
 	TriggerType_STOP_LOSS TriggerType = 1
-	// Take-profit: fires when the price crosses a threshold.
+	// Take-profit: a SELL fires when the price rises to or above its trigger
+	// price, a BUY when the price falls to or below it.
 	TriggerType_TAKE_PROFIT TriggerType = 2
 	// Trailing stop: dynamic stop that trails price by a distance.
 	TriggerType_TRAILING_STOP TriggerType = 3
@@ -1406,12 +1408,39 @@ func (*ConditionalChildExecution_LimitIoc) isConditionalChildExecution_Execution
 
 func (*ConditionalChildExecution_LimitFok) isConditionalChildExecution_Execution() {}
 
-// ConditionalTrigger configures a standalone stop-loss or take-profit.
+// ConditionalTrigger configures a standalone stop-loss or take-profit. There
+// is no direction field: the strategy and the child order's side set the
+// direction in which the watched price must move to fire the trigger.
+//
+//   - A SELL stop-loss fires when the price falls to or below the trigger
+//     price: it limits the loss on a held position.
+//   - A BUY stop-loss is a breakout buy: it fires when the price rises to or
+//     above the trigger price.
+//   - A SELL take-profit sells into a rise: it fires when the price rises to or
+//     above the trigger price.
+//   - A BUY take-profit buys a dip: it fires when the price falls to or below
+//     the trigger price.
+//
+// The comparison is inclusive: a price equal to the trigger price fires the
+// trigger, as does one past it. Trigger reads report the direction as
+// StopDetails.trigger_direction, ABOVE or BELOW.
+//
+// A trigger price that the watched price has already reached when the trigger
+// takes effect, at or past it in the firing direction, is not refused at
+// create: CreateTrigger returns a trigger ID, then the trigger ends
+// STATUS_FAILED with failure reason
+// TRIGGER_FAILURE_REASON_TRIGGER_WOULD_TRIGGER_IMMEDIATELY. It never fires,
+// places no order, and its reserved funds are released. Read the trigger
+// after the create to tell this outcome from an armed trigger.
 type ConditionalTrigger struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Positive trigger threshold in quote units scaled by 1e9.
+	// Positive trigger threshold in quote units scaled by 1e9. The side and
+	// strategy set whether the trigger fires at or above it, or at or below it.
 	TriggerPriceTicks int64 `protobuf:"varint,1,opt,name=trigger_price_ticks,json=triggerPriceTicks,proto3" json:"trigger_price_ticks,omitempty"`
-	// Child order side. Required.
+	// Child order side. Required. With the strategy, it sets the fire
+	// direction: a SELL stop-loss and a BUY take-profit fire at or below the
+	// trigger price; a BUY stop-loss and a SELL take-profit fire at or above
+	// it.
 	Side v1.Side `protobuf:"varint,2,opt,name=side,proto3,enum=orders.v1.Side" json:"side,omitempty"`
 	// Child execution. Required.
 	Child *ConditionalChildExecution `protobuf:"bytes,3,opt,name=child,proto3" json:"child,omitempty"`
@@ -2197,12 +2226,22 @@ type isTriggerIntent_Strategy interface {
 }
 
 type TriggerIntent_StopLoss struct {
-	// Standalone stop-loss.
+	// Standalone stop-loss. A SELL stop-loss fires when the price falls to or
+	// below the trigger price; a BUY stop-loss is a breakout buy that fires
+	// when the price rises to or above it. A trigger price already reached
+	// when the trigger takes effect ends the trigger STATUS_FAILED with
+	// TRIGGER_FAILURE_REASON_TRIGGER_WOULD_TRIGGER_IMMEDIATELY after the
+	// create is accepted, without firing.
 	StopLoss *ConditionalTrigger `protobuf:"bytes,10,opt,name=stop_loss,json=stopLoss,proto3,oneof"`
 }
 
 type TriggerIntent_TakeProfit struct {
-	// Standalone take-profit.
+	// Standalone take-profit. A SELL take-profit fires when the price rises to
+	// or above the trigger price; a BUY take-profit buys a dip and fires when
+	// the price falls to or below it. A trigger price already reached when
+	// the trigger takes effect ends the trigger STATUS_FAILED with
+	// TRIGGER_FAILURE_REASON_TRIGGER_WOULD_TRIGGER_IMMEDIATELY after the
+	// create is accepted, without firing.
 	TakeProfit *ConditionalTrigger `protobuf:"bytes,11,opt,name=take_profit,json=takeProfit,proto3,oneof"`
 }
 
@@ -4482,7 +4521,10 @@ type StopDetails struct {
 	TriggerPriceTicks int64 `protobuf:"varint,1,opt,name=trigger_price_ticks,json=triggerPriceTicks,proto3" json:"trigger_price_ticks,omitempty"`
 	// Price source used for trigger evaluation.
 	TriggerPriceSource v1.TriggerPriceSource `protobuf:"varint,2,opt,name=trigger_price_source,json=triggerPriceSource,proto3,enum=orders.v1.TriggerPriceSource" json:"trigger_price_source,omitempty"`
-	// Direction the price must cross to fire the trigger.
+	// Direction in which the price must reach the trigger price to fire the
+	// trigger, inclusive: ABOVE fires at or above it, BELOW at or below it. Set
+	// from the strategy and side at create: BELOW for a SELL stop-loss or a BUY
+	// take-profit, ABOVE for a BUY stop-loss or a SELL take-profit.
 	TriggerDirection v1.TriggerDirection `protobuf:"varint,3,opt,name=trigger_direction,json=triggerDirection,proto3,enum=orders.v1.TriggerDirection" json:"trigger_direction,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
@@ -5275,12 +5317,16 @@ type isTrigger_Configuration interface {
 }
 
 type Trigger_StopLoss struct {
-	// Stop-loss configuration.
+	// Stop-loss configuration. A SELL stop-loss fires at or below its trigger
+	// price, a BUY stop-loss at or above it; stop.trigger_direction reports
+	// the direction.
 	StopLoss *ConditionalTrigger `protobuf:"bytes,30,opt,name=stop_loss,json=stopLoss,proto3,oneof"`
 }
 
 type Trigger_TakeProfit struct {
-	// Take-profit configuration.
+	// Take-profit configuration. A SELL take-profit fires at or above its
+	// trigger price, a BUY take-profit at or below it; stop.trigger_direction
+	// reports the direction.
 	TakeProfit *ConditionalTrigger `protobuf:"bytes,31,opt,name=take_profit,json=takeProfit,proto3,oneof"`
 }
 

@@ -742,7 +742,15 @@ type PostSummary struct {
 	Title string `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
 	// Introduction.
 	Introduction string `protobuf:"bytes,3,opt,name=introduction,proto3" json:"introduction,omitempty"`
-	// Time of first publication. It never changes when the post is republished.
+	// Publication time of the post in this environment. For a release post,
+	// the time its release went live here, the same value as this
+	// environment's live_at in environments (releases that went live together
+	// share it), or the time the post was first published while the release is
+	// still pending here. It follows that live_at, without a new revision:
+	// it changes when the release goes live here and whenever that live_at
+	// changes later. For other posts, the time of first publication. It never
+	// changes when the post is republished. Post lists are ordered by it,
+	// newest first, then by release version descending at equal times.
 	PublishedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=published_at,json=publishedAt,proto3" json:"published_at,omitempty"`
 	// Exclusive upper bound of the period covered. Omitted when unknown.
 	CoverageCutoff *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=coverage_cutoff,json=coverageCutoff,proto3" json:"coverage_cutoff,omitempty"`
@@ -758,7 +766,9 @@ type PostSummary struct {
 	ImprovementCount uint32 `protobuf:"varint,10,opt,name=improvement_count,json=improvementCount,proto3" json:"improvement_count,omitempty"`
 	// Exact number of BUG_FIX changes.
 	BugFixCount uint32 `protobuf:"varint,11,opt,name=bug_fix_count,json=bugFixCount,proto3" json:"bug_fix_count,omitempty"`
-	// When the current revision was published; equals published_at for revision 1.
+	// When the current revision was published. For a post other than a release
+	// post, it equals published_at for revision 1. For a release post, it is
+	// independent of published_at and can be earlier or later.
 	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	// Published revision, starting at 1. Each republication of the post, for
 	// example to correct its copy or withdraw a change, increments it.
@@ -1325,7 +1335,8 @@ type ChangeEntry struct {
 	Change *Change `protobuf:"bytes,1,opt,name=change,proto3" json:"change,omitempty"`
 	// Slug of the announcing post.
 	PostSlug string `protobuf:"bytes,2,opt,name=post_slug,json=postSlug,proto3" json:"post_slug,omitempty"`
-	// Time of first publication of the announcing post.
+	// Publication time of the announcing post in this environment, as its
+	// PostSummary.published_at.
 	PublishedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=published_at,json=publishedAt,proto3" json:"published_at,omitempty"`
 	// Heading of the section containing the change.
 	SectionHeading string `protobuf:"bytes,4,opt,name=section_heading,json=sectionHeading,proto3" json:"section_heading,omitempty"`
@@ -1456,7 +1467,8 @@ type DeploymentGroupPost struct {
 	ReleaseVersion string `protobuf:"bytes,2,opt,name=release_version,json=releaseVersion,proto3" json:"release_version,omitempty"`
 	// Post title.
 	Title string `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
-	// Time of first publication of the post.
+	// Publication time of the post in this environment, as its
+	// PostSummary.published_at: the time its release went live here.
 	PublishedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=published_at,json=publishedAt,proto3" json:"published_at,omitempty"`
 	// Published revision of the post, starting at 1.
 	Revision uint32 `protobuf:"varint,5,opt,name=revision,proto3" json:"revision,omitempty"`

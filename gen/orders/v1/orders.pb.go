@@ -693,9 +693,10 @@ const (
 	ErrorCode_ERROR_CODE_ORDER_MODIFY_IN_PROGRESS ErrorCode = 226
 	// The placement of the order, or of the replacement an earlier replace
 	// created, has not been confirmed yet, so it cannot be modified. It may already
-	// rest on the book. A refresh that names the replacement order ID from a batch
-	// whose replace has not been confirmed yet gets this code. Retry after a short
-	// backoff, as for ORDER_MODIFY_IN_PROGRESS.
+	// rest on the book. An order event may already report the order WORKING before
+	// it can be modified; retry after a short backoff. A refresh that names the
+	// replacement order ID from a batch whose replace has not been confirmed yet
+	// gets this code. Retry as for ORDER_MODIFY_IN_PROGRESS.
 	ErrorCode_ERROR_CODE_ORDER_PLACEMENT_PENDING ErrorCode = 227
 	// The modify behavior is not a known behavior.
 	ErrorCode_ERROR_CODE_INVALID_MODIFY_BEHAVIOR ErrorCode = 228
@@ -1005,6 +1006,11 @@ const (
 	// hyphen. Answered by CreateOco and by the ListTriggers client_list_id
 	// filter. Nothing changed.
 	ErrorCode_ERROR_CODE_CLIENT_LIST_ID_INVALID ErrorCode = 318
+	// An admitted item of a batch replace had not applied 2 seconds after its
+	// admission, so it was refused when it applied. Nothing changed: the item
+	// left the order as it was, and a replacement's successor never exists.
+	// Send a new batch with the current quote.
+	ErrorCode_ERROR_CODE_MODIFY_APPLY_EXPIRED ErrorCode = 319
 )
 
 // Enum value maps for ErrorCode.
@@ -1217,6 +1223,7 @@ var (
 		314: "ERROR_CODE_INVALID_PEG",
 		315: "ERROR_CODE_TRIGGER_ACTIVATION_PRICE_NOT_MODIFIABLE",
 		318: "ERROR_CODE_CLIENT_LIST_ID_INVALID",
+		319: "ERROR_CODE_MODIFY_APPLY_EXPIRED",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_CODE_UNSPECIFIED":                             0,
@@ -1426,6 +1433,7 @@ var (
 		"ERROR_CODE_INVALID_PEG":                             314,
 		"ERROR_CODE_TRIGGER_ACTIVATION_PRICE_NOT_MODIFIABLE": 315,
 		"ERROR_CODE_CLIENT_LIST_ID_INVALID":                  318,
+		"ERROR_CODE_MODIFY_APPLY_EXPIRED":                    319,
 	}
 )
 
@@ -1576,16 +1584,35 @@ func (TriggerDirection) EnumDescriptor() ([]byte, []int) {
 
 // ModifyBehavior controls how ModifyOrder should handle amend-vs-replace paths.
 // MODIFY_BEHAVIOR_UNSPECIFIED is treated as AMEND_OR_REPLACE by server logic.
+//
+// An amend keeps the order in place, under the same order ID and with its
+// queue priority kept; a replace ends it and creates a successor under a new
+// order ID, with its queue priority reset. Either way, a new total quantity at
+// or below the order's filled quantity when the change applies, fills after
+// the request was sent included, ends the order at its filled quantity
+// (CANCEL_REASON_QTY_AT_OR_BELOW_FILLED) with no successor, and ModifyOrder
+// answers AMENDED with the order's ID rather than an error.
+//
+// Order the states of one order ID by version (Order.version), keeping the
+// highest applied. A terminal status is final: no later state of that order ID
+// is open. Price and quantity order only two open states of one GTC or GTD
+// limit order at version 1 or above: its price stays the same and its total
+// quantity never rises, so the state with the larger total quantity is the
+// older.
 type ModifyBehavior int32
 
 const (
 	// Behavior was not provided; server treats this as AMEND_OR_REPLACE.
 	ModifyBehavior_MODIFY_BEHAVIOR_UNSPECIFIED ModifyBehavior = 0
-	// Try in-place amend first; if patch cannot be amended, fall back to replace.
+	// Replace the order when the patch sets a price other than the order's, a
+	// total quantity above the order's total quantity, or a client order ID
+	// other than the order's; otherwise amend it in place.
 	ModifyBehavior_AMEND_OR_REPLACE ModifyBehavior = 1
-	// In-place amend only; reject if patch requires replace semantics.
+	// Amend the order in place when AMEND_OR_REPLACE would amend it; reject
+	// with MODIFICATION_REQUIRES_REPLACE a patch that AMEND_OR_REPLACE would
+	// replace. Other checks can reject the patch first with their own codes.
 	ModifyBehavior_AMEND_ONLY ModifyBehavior = 2
-	// Always attempt replace semantics.
+	// Replace the order, even when the patch changes no value.
 	ModifyBehavior_REPLACE_ONLY ModifyBehavior = 3
 )
 
@@ -4054,7 +4081,8 @@ func (*TrailingStopPolicy_MaxSlippageBps) isTrailingStopPolicy_MaxSlippage() {}
 // if its condition still holds, exits what remains. After an exit ends, the legs keep
 // protecting whatever position remains, unless you canceled the exit: canceling
 // a leg's exit order, alone or with a cancel-all, ends that leg, and with oco
-// set the other leg too.
+// set the other leg too. Canceling a leg itself with CancelTrigger ends only
+// that leg, whether or not oco is set, and the other leg stays active.
 //
 // The legs end once the parent order is terminal and no position they can
 // exit remains: the leg whose exit ended last completes, and the others are
@@ -4089,13 +4117,15 @@ type RiskPolicy struct {
 	// trailing stop) are linked and shown as one-cancels-the-other. Requires a
 	// take-profit and exactly one stop leg. The legs of every parent share one
 	// position and end together as described on RiskPolicy, so this setting
-	// does not change when exits are submitted. It decides what canceling an
-	// exit order ends: with oco set, canceling one leg's exit ends both legs;
-	// without it, only that leg ends and the other keeps protecting the
-	// remaining position. Changing only this setting with ModifyOrder keeps
-	// the existing legs, with their IDs, arming and a trailing stop's tracked
-	// peak; changing a leg's terms, such as its trigger price, limit price or
-	// trailing distance, still replaces that leg. Default is false.
+	// does not change when exits are submitted. It decides only what canceling
+	// a leg's exit order ends: with oco set, canceling one leg's exit ends both
+	// legs; without it, only that leg ends and the other keeps protecting the
+	// remaining position. Canceling a leg itself with CancelTrigger ends only
+	// that leg either way, and the other leg stays active. Changing only this
+	// setting with ModifyOrder keeps the existing legs, with their IDs, arming
+	// and a trailing stop's tracked peak; changing a leg's terms, such as its
+	// trigger price, limit price or trailing distance, still replaces that leg.
+	// Default is false.
 	Oco           bool `protobuf:"varint,4,opt,name=oco,proto3" json:"oco,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -4212,13 +4242,14 @@ type CancelAllOrdersRequest struct {
 	// slash, or hyphen.
 	RequestId string `protobuf:"bytes,6,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	// If true, also stops the account's triggers in the same scope: every
-	// stop-loss, take-profit, trailing stop, TWAP, ladder and attached
-	// take-profit, stop-loss or trailing leg on the matched symbols whose orders
-	// trade on the side filter, created before the request was accepted. Each
-	// ends canceled with reason `TRIGGER_CANCEL_REASON_CANCEL_ALL` and releases
-	// its reserved funds, its open orders are canceled with the others, and none
-	// places an order after the response. Defaults to false: only orders are
-	// canceled and triggers keep running. Part of the criteria a retry must keep.
+	// stop-loss, take-profit, trailing stop, TWAP, ladder, standalone OCO (both
+	// its legs) and attached take-profit, stop-loss or trailing leg on the
+	// matched symbols whose orders trade on the side filter, created before the
+	// request was accepted. Each ends canceled with reason
+	// `TRIGGER_CANCEL_REASON_CANCEL_ALL` and releases its reserved funds, its
+	// open orders are canceled with the others, and none places an order after
+	// the response. Defaults to false: only orders are canceled and triggers
+	// keep running. Part of the criteria a retry must keep.
 	IncludeTriggers bool `protobuf:"varint,7,opt,name=include_triggers,json=includeTriggers,proto3" json:"include_triggers,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
@@ -5487,8 +5518,10 @@ func (x *ModifyOrderResponse) GetTsNs() uint64 {
 // raise its total quantity and keeps its client order ID amends the order in
 // place, under the same order ID and with its queue priority kept. A new
 // price, a larger total quantity or a new client order ID replaces it with a
-// successor order under a new order ID, with its queue priority reset. To
-// force a replacement, use ModifyOrder with REPLACE_ONLY.
+// successor order under a new order ID, with its queue priority reset. Either
+// way, a new total quantity at or below the order's filled quantity when the
+// item applies ends the order at its filled quantity with no successor (see
+// ModifyBehavior). To force a replacement, use ModifyOrder with REPLACE_ONLY.
 type BatchReplaceOrderItem struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Key:
@@ -5628,7 +5661,8 @@ type BatchReplaceAdmissionItem struct {
 	// only when the requested client order ID names no order.
 	OldOrderId uint64 `protobuf:"fixed64,3,opt,name=old_order_id,json=oldOrderId,proto3" json:"old_order_id,omitempty"`
 	// Assigned successor order ID, for a REPLACED item only. Unset for an AMENDED
-	// item, whose order keeps old_order_id, and for rejected items.
+	// item, whose order keeps old_order_id, and for rejected items. If the item
+	// is refused when it applies, this successor never exists as an order.
 	ReplacementOrderId uint64 `protobuf:"fixed64,4,opt,name=replacement_order_id,json=replacementOrderId,proto3" json:"replacement_order_id,omitempty"`
 	// Client order ID assigned to the successor, for a REPLACED item only.
 	ClientOrderId string `protobuf:"bytes,5,opt,name=client_order_id,json=clientOrderId,proto3" json:"client_order_id,omitempty"`
@@ -5747,6 +5781,23 @@ func (x *BatchReplaceAdmissionItem) GetActionTaken() ModifyActionTaken {
 // here. Resend only the rejected items, in a new batch under a fresh key, after
 // a short backoff: the rejected batch's key keeps replaying its rejection, and
 // admitted items must not be sent again.
+// An admitted item that amends or replaces its order can still be refused when
+// it applies: the item changes nothing, leaving the order as it was (at its old
+// price, quantity and client order ID unless it had ended), and a refused
+// replacement's successor never exists as an order. Such an item that has not applied 2 seconds after its admission is
+// refused with ERROR_CODE_MODIFY_APPLY_EXPIRED, so none applies later than
+// that. The trading WebSocket reports each such refusal with one
+// BatchReplaceItemReject, which can arrive before this response. A refusal at
+// admission is reported in this response alone, so the same code there means
+// the item was never admitted. For 60 seconds from acceptance,
+// GetBatchReplaceStatus reports a refused item as REJECTED, and GetOrder of a
+// refused replacement's successor answers REJECTED with the same code, with no
+// order terms: you know them from the batch you sent. After
+// that window, a successor that is not found while the order it would have
+// replaced is not CANCELED with CANCEL_REASON_REPLACED never becomes an order:
+// the item was refused, or it applied by ending that order at its filled
+// quantity, which that order's CANCEL_REASON_QTY_AT_OR_BELOW_FILLED shows
+// unless a later change of yours ended it so.
 type BatchReplaceOrdersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
@@ -6619,7 +6670,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\fPegReference\x12\x1d\n" +
 	"\x19PEG_REFERENCE_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\bBEST_BID\x10\x01\x12\f\n" +
-	"\bBEST_ASK\x10\x02*\xae@\n" +
+	"\bBEST_ASK\x10\x02*\xd4@\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16ERROR_CODE_BAD_REQUEST\x10\x01\x12\x1f\n" +
@@ -6828,7 +6879,8 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"$ERROR_CODE_PEG_REFERENCE_UNAVAILABLE\x10\xb9\x02\x12\x1b\n" +
 	"\x16ERROR_CODE_INVALID_PEG\x10\xba\x02\x127\n" +
 	"2ERROR_CODE_TRIGGER_ACTIVATION_PRICE_NOT_MODIFIABLE\x10\xbb\x02\x12&\n" +
-	"!ERROR_CODE_CLIENT_LIST_ID_INVALID\x10\xbe\x02*k\n" +
+	"!ERROR_CODE_CLIENT_LIST_ID_INVALID\x10\xbe\x02\x12$\n" +
+	"\x1fERROR_CODE_MODIFY_APPLY_EXPIRED\x10\xbf\x02*k\n" +
 	"\x12TriggerPriceSource\x12$\n" +
 	" TRIGGER_PRICE_SOURCE_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
