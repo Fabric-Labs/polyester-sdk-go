@@ -1960,10 +1960,12 @@ open candle is prepended; `GetCurrentCandle` therefore returns the first row, or
 `nil` when no candle rows exist. `Candle.IsClosed` tells the open candle from a
 finished one: it is false only while the bucket is still open, and true for
 every closed row and for the terminal `SubscribeCandles` update of a bucket.
-The columnar response carries no closed flag, so `GetCandlesColumns` rows are
-all closed without incomplete candles; with them, the newest primary and
-reference rows read false, meaning not known to be closed, and earlier rows
-true. Read candles with `GetCandles` for the flag the server sends.
+The columnar response carries no closed flag, so `GetCandlesColumns` rows read
+true, except the newest primary row of a first page (no page token) read with
+incomplete candles, which reads false, meaning not known to be closed.
+Continuation pages hold only older closed candles, and reference rows are
+always closed buckets. Read candles with `GetCandles` for the flag the server
+sends.
 
 Merged market overview stream (snapshot + live updates). With `Symbols` set,
 only those markets are emitted, from the snapshot and from live updates:

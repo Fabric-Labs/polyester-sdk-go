@@ -278,11 +278,12 @@ var timeframeLabels = map[marketdatav1.Timeframe]string{
 // Both volume series use the base asset market_data_volume_scale.
 //
 // The columnar response carries no closed flag, so IsClosed follows the
-// request's includeIncomplete: without incomplete candles every row is closed;
-// with them the newest primary row and the newest reference row (the last, as
-// columns are oldest-first) read false, not known to be closed, and every
-// earlier row reads true.
-func CandlesColumnsFromProto(msg *marketdatav1.GetCandlesColumnsResponse, volumeScale int, referencePriceScale int, includeIncomplete bool) (models.CandlesResult, error) {
+// request's includeIncomplete and pageToken. Only the newest primary row (the
+// last, as columns are oldest-first) of a first page (empty pageToken) read with
+// incomplete candles is false, not known to be closed. Every other primary row,
+// every row of a continuation page, which pages only older closed candles, and
+// every reference row, which is always a closed bucket, is true.
+func CandlesColumnsFromProto(msg *marketdatav1.GetCandlesColumnsResponse, volumeScale int, referencePriceScale int, includeIncomplete bool, pageToken string) (models.CandlesResult, error) {
 	if err := codecs.ValidateProtocolScale(volumeScale); err != nil {
 		return models.CandlesResult{}, err
 	}
@@ -297,10 +298,11 @@ func CandlesColumnsFromProto(msg *marketdatav1.GetCandlesColumnsResponse, volume
 			len(msg.GetClose()), len(msg.GetVolume()), len(quoteVolumes),
 		)}
 	}
-	reference, err := referenceCandlesFromColumns(msg, volumeScale, referencePriceScale, includeIncomplete)
+	reference, err := referenceCandlesFromColumns(msg, volumeScale, referencePriceScale)
 	if err != nil {
 		return models.CandlesResult{}, err
 	}
+	newestMayBeOpen := includeIncomplete && pageToken == ""
 	out := make([]models.Candle, 0, len(msg.GetTsSec()))
 	for i, ts := range msg.GetTsSec() {
 		quoteVolume := ""
@@ -315,7 +317,7 @@ func CandlesColumnsFromProto(msg *marketdatav1.GetCandlesColumnsResponse, volume
 			Close:       codecs.FormatPriceTicks(msg.GetClose()[i]),
 			Volume:      formatQtyScaledOrEmpty(msg.GetVolume()[i], volumeScale),
 			QuoteVolume: quoteVolume,
-			IsClosed:    columnClosed(i, rows, includeIncomplete),
+			IsClosed:    !newestMayBeOpen || i != rows-1,
 		}
 		out = append(out, candle)
 	}
@@ -325,7 +327,7 @@ func CandlesColumnsFromProto(msg *marketdatav1.GetCandlesColumnsResponse, volume
 	}, nil
 }
 
-func referenceCandlesFromColumns(msg *marketdatav1.GetCandlesColumnsResponse, volumeScale int, referencePriceScale int, includeIncomplete bool) ([]models.Candle, error) {
+func referenceCandlesFromColumns(msg *marketdatav1.GetCandlesColumnsResponse, volumeScale int, referencePriceScale int) ([]models.Candle, error) {
 	rows := len(msg.GetReferenceTsSec())
 	if rows == 0 && len(msg.GetReferenceOpen()) == 0 && len(msg.GetReferenceHigh()) == 0 &&
 		len(msg.GetReferenceLow()) == 0 && len(msg.GetReferenceClose()) == 0 && len(msg.GetReferenceVolume()) == 0 {
@@ -352,17 +354,10 @@ func referenceCandlesFromColumns(msg *marketdatav1.GetCandlesColumnsResponse, vo
 			Low:      formatQtyScaledOrEmpty(msg.GetReferenceLow()[i], referencePriceScale),
 			Close:    formatQtyScaledOrEmpty(msg.GetReferenceClose()[i], referencePriceScale),
 			Volume:   formatQtyScaledOrEmpty(msg.GetReferenceVolume()[i], volumeScale),
-			IsClosed: columnClosed(i, rows, includeIncomplete),
+			IsClosed: true,
 		})
 	}
 	return out, nil
-}
-
-// columnClosed reports whether columnar row i of rows is known to be closed:
-// every row is without incomplete candles, and every row but the newest (the
-// last) is with them.
-func columnClosed(i, rows int, includeIncomplete bool) bool {
-	return !includeIncomplete || i != rows-1
 }
 
 // CandlePointFromProto decodes one candle point publication.
