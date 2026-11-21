@@ -140,7 +140,9 @@ func accountCodesProto(codes []uint32) []ledgerv1.AccountCode {
 //     arrive within 2 seconds (FUNDING updates, repeats and updates of
 //     dropped epochs do not stop that timer);
 //     - Subscription.TakeResubscribed reports true: the stream reconnected,
-//     and publications may have been missed in between.
+//     and publications may have been missed in between. Check it on a timer
+//     of its own, not only when an update arrives: an idle account may
+//     publish nothing more after the reconnect.
 //  5. Apply a FUNDING update when its FundingRevision is higher than the
 //     asset's, taking only its Funding fields.
 //
@@ -155,8 +157,12 @@ func accountCodesProto(codes []uint32) []ledgerv1.AccountCode {
 // is_debit). Count a transfer as applied only by a receipt in the current
 // epoch: its leg, or a TradingAppliedThroughTsNs at or past its ts_ns.
 //
-// The subscription is account-scoped: an unset accountID uses the client's
-// default account.
+// Read the stream and List for the same account. An unset accountID here
+// uses Config.DefaultAccountID, while List with an unset account uses
+// Config.DefaultSubAccountID or the main account, so name the account in
+// both: Subscribe(ctx, mainAccountID) with List(ctx, "main", nil) for the
+// main account, Subscribe(ctx, subAccountID) with List(ctx, subAccountID,
+// nil) for a sub-account.
 func (s *BalancesService) Subscribe(ctx context.Context, accountID any) (*realtime.Subscription[*ledgerrdv1.BalanceUpdate], error) {
 	return SubscribeAccountProto(ctx, s.realtime, "private:ledger:balances:{account_id}:proto", accountID, s.defaultAccountID, decode.BalanceUpdateFromBytes)
 }

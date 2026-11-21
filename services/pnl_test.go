@@ -221,6 +221,31 @@ func TestProfitAndLossRefusesInvalidSelectionBeforeSending(t *testing.T) {
 			_, err := service.ListDaily(ctx, ListDailyProfitAndLossParams{StartTime: start})
 			return err
 		},
+		"start not at midnight": func() error {
+			_, err := service.ListDaily(ctx, ListDailyProfitAndLossParams{StartTime: start.Add(time.Hour), EndTime: start.AddDate(0, 0, 1)})
+			return err
+		},
+		"end not at UTC midnight": func() error {
+			_, err := service.ListDaily(ctx, ListDailyProfitAndLossParams{StartTime: start, EndTime: start.AddDate(0, 0, 1).In(time.FixedZone("UTC+4", 4*3600)).Add(time.Minute)})
+			return err
+		},
+		"equal ends": func() error {
+			_, err := service.ListDaily(ctx, ListDailyProfitAndLossParams{StartTime: start, EndTime: start})
+			return err
+		},
+		"reversed": func() error {
+			_, err := service.ListDaily(ctx, ListDailyProfitAndLossParams{StartTime: start, EndTime: start.AddDate(0, 0, -1)})
+			return err
+		},
+		"367 days": func() error {
+			_, err := service.ListDaily(ctx, ListDailyProfitAndLossParams{StartTime: start, EndTime: start.AddDate(0, 0, 367)})
+			return err
+		},
+		"outside timestamp range": func() error {
+			far := time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC)
+			_, err := service.ListDaily(ctx, ListDailyProfitAndLossParams{StartTime: far, EndTime: far.AddDate(0, 0, 1)})
+			return err
+		},
 		"limit above 366": func() error {
 			_, err := service.ListDaily(ctx, ListDailyProfitAndLossParams{StartTime: start, EndTime: start.AddDate(0, 0, 1), Limit: 367})
 			return err
@@ -234,5 +259,23 @@ func TestProfitAndLossRefusesInvalidSelectionBeforeSending(t *testing.T) {
 	}
 	if len(handler.gets)+len(handler.stats)+len(handler.dailys) != 0 {
 		t.Fatalf("sent %d, %d, %d requests", len(handler.gets), len(handler.stats), len(handler.dailys))
+	}
+}
+
+// The longest range the contract takes, 366 days, is sent, and so is one
+// whose ends are UTC midnights given in another zone.
+func TestProfitAndLossListDailyAcceptsTheLongestRange(t *testing.T) {
+	handler := &pnlHandler{}
+	service := newPnLService(t, handler)
+	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	if _, err := service.ListDaily(context.Background(), ListDailyProfitAndLossParams{StartTime: start, EndTime: start.AddDate(0, 0, MaxDailyProfitAndLossDays)}); err != nil {
+		t.Fatal(err)
+	}
+	zone := time.FixedZone("UTC+4", 4*3600)
+	if _, err := service.ListDaily(context.Background(), ListDailyProfitAndLossParams{StartTime: start.In(zone), EndTime: start.AddDate(0, 0, 1).In(zone)}); err != nil {
+		t.Fatal(err)
+	}
+	if len(handler.dailys) != 2 || !handler.dailys[0].GetEndTime().AsTime().Equal(start.AddDate(0, 0, 366)) {
+		t.Fatalf("requests = %v", handler.dailys)
 	}
 }

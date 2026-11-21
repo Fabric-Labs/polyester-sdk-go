@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"iter"
 	"time"
 
@@ -111,7 +112,9 @@ type ListDailyProfitAndLossParams struct {
 	Account      AccountScope
 	SubAccountID *string
 	// StartTime (inclusive) and EndTime (exclusive) are required, each at
-	// 00:00 UTC of a day, at most 366 days apart.
+	// 00:00 UTC of a day, with EndTime after StartTime and at most
+	// MaxDailyProfitAndLossDays days after it. Any other range is refused
+	// with *errors.ValidationError before sending.
 	StartTime time.Time
 	EndTime   time.Time
 	// Limit is the page size in days; 0 uses the server's default of 31.
@@ -122,12 +125,43 @@ type ListDailyProfitAndLossParams struct {
 	PageToken string
 }
 
+// MaxDailyProfitAndLossDays is the most days one ListDaily range may span.
+const MaxDailyProfitAndLossDays = 366
+
+// checkDailyProfitAndLossRange refuses a range the contract refuses: both
+// ends at 00:00 UTC of a day, within the protobuf timestamp range, the end
+// after the start and at most MaxDailyProfitAndLossDays days after it.
+func checkDailyProfitAndLossRange(start, end time.Time) error {
+	for _, bound := range []struct {
+		name  string
+		value time.Time
+	}{{"start_time", start}, {"end_time", end}} {
+		if bound.value.IsZero() {
+			return &errors.ValidationError{Msg: "pnl.list_daily requires " + bound.name}
+		}
+		if err := timestamppb.New(bound.value).CheckValid(); err != nil {
+			return &errors.ValidationError{Msg: "pnl.list_daily " + bound.name + " is outside the timestamp range"}
+		}
+		utc := bound.value.UTC()
+		if utc.Hour() != 0 || utc.Minute() != 0 || utc.Second() != 0 || utc.Nanosecond() != 0 {
+			return &errors.ValidationError{Msg: "pnl.list_daily " + bound.name + " must be 00:00 UTC of a day"}
+		}
+	}
+	if !end.After(start) {
+		return &errors.ValidationError{Msg: "pnl.list_daily end_time must be after start_time"}
+	}
+	if end.After(start.UTC().AddDate(0, 0, MaxDailyProfitAndLossDays)) {
+		return &errors.ValidationError{Msg: fmt.Sprintf("pnl.list_daily covers at most %d days", MaxDailyProfitAndLossDays)}
+	}
+	return nil
+}
+
 // ListDaily reads one page of the account's PnL per UTC day, oldest first
 // (ListDailyProfitAndLoss). Every day of the range is listed, days without
 // activity included.
 func (s *ProfitAndLossService) ListDaily(ctx context.Context, params ListDailyProfitAndLossParams) (models.DailyProfitAndLossList, error) {
-	if params.StartTime.IsZero() || params.EndTime.IsZero() {
-		return models.DailyProfitAndLossList{}, &errors.ValidationError{Msg: "pnl.list_daily requires start_time and end_time"}
+	if err := checkDailyProfitAndLossRange(params.StartTime, params.EndTime); err != nil {
+		return models.DailyProfitAndLossList{}, err
 	}
 	limit, err := PaginationLimit(params.Limit, "limit")
 	if err != nil {

@@ -1417,16 +1417,22 @@ request ID is first accepted, so triggers created later keep running. The
 result is `submitted` or `dry_run` with `MatchedTriggers`, which counts the
 legs canceled along with a matching one (an attached leg's siblings, an OCO's
 other leg); it lists no trigger IDs, so read the triggers again afterwards.
-Every request counts 10 units of the cancel rate limit. Keep the request ID
-to retry: a retry with the same ID and criteria within two minutes returns the
-original count and cancels nothing again.
+Every request counts 10 units of the cancel rate limit. Supply your own
+`RequestID`, generated once per user action, and keep it: a retry with the
+same ID and criteria within two minutes returns the original count and
+cancels nothing again. The SDK generates an ID when you give none, but does
+not return it, so such a request cannot be retried safely. A blank `Symbol`,
+or a blank entry in `Symbols`, is refused rather than read as every pair;
+leave both unset to cancel on every pair.
 
 ```go
 side := "sell"
+cancelID := "tpsl-cancel-all-7f3a"
 result, err := client.Triggers.CancelAll(ctx, nil, services.CancelAllTriggersParams{
 	Symbols:      []string{"BTC-USDT"},
 	Side:         &side,
 	TriggerTypes: []string{"stop_loss", "take_profit"},
+	RequestID:    &cancelID,
 })
 ```
 
@@ -1798,21 +1804,49 @@ A TRADING update (`Account` is `ledgerv1.AccountCode_TRADING`) is one numbered
 step of the Trading balances: its position, `Complete`, the assets it changed
 with their Trading fields only, and the transfer legs it applied. A FUNDING
 update carries one asset's Funding balance and `FundingRevision`. Tell them
-apart by `Account`, never by the epoch. To keep exact balances:
+apart by `Account`, never by the epoch.
+
+Read the stream and the snapshot of the same account. The two calls select it
+differently: `Balances.Subscribe(ctx, nil)` uses `Config.DefaultAccountID`,
+while `Balances.List(ctx, nil, nil)` uses `Config.DefaultSubAccountID`, or the
+main account when none is set (see [Choosing the account](#choosing-the-account)).
+Name the account explicitly in both:
+
+| Account | Stream | Snapshot |
+| --- | --- | --- |
+| main account | `Balances.Subscribe(ctx, mainAccountID)` | `Balances.List(ctx, "main", nil)` |
+| a sub-account | `Balances.Subscribe(ctx, subAccountID)` | `Balances.List(ctx, subAccountID, nil)` |
+
+`mainAccountID` is your Profile **Account ID**. A sub-account's channel needs an
+API key bound to that sub-account; a root key cannot subscribe to it.
+
+To keep exact balances:
 
 1. Subscribe first and buffer the updates.
 2. Call `Balances.List`, apply its balances and remember its position (E, Q).
    Retry an unavailable answer with a short backoff.
 3. Drop TRADING updates of epoch E at or below Q, then apply E's sequences
    Q+1, Q+2, ... in order, taking only their Trading fields.
-4. Keep the epochs you held before E as dropped, and drop their late updates
-   without reloading. Reload from step 2 when a TRADING update's epoch is
-   neither E nor dropped, when a sequence is skipped, when the next sequence
-   after an update with `Complete` false does not arrive within 2 seconds, or
-   when `TakeResubscribed()` reports true (the stream reconnected and may
-   have missed publications).
+4. Keep a set of dropped epochs: every epoch you held before E, and every
+   epoch other than E of an update received before the `List` call that
+   answered E began, buffered ones included. `List` never answers a dropped
+   epoch again, so drop a TRADING update of a dropped epoch without
+   reloading. Reload from step 2 when:
+   - a TRADING update's epoch is neither E nor dropped (the numbering
+     restarted);
+   - a sequence is skipped (an update was missed);
+   - after an update of E with `Complete` false, E's next sequence does not
+     arrive within 2 seconds (FUNDING updates, repeats and updates of dropped
+     epochs do not stop that timer);
+   - `TakeResubscribed()` reports true: the stream reconnected and may have
+     missed publications.
 5. Apply a FUNDING update when its `FundingRevision` is higher than the
    asset's, taking only its Funding fields.
+
+Check `TakeResubscribed()` on a timer of its own, not only when an update
+arrives: an idle account may publish nothing more after the reconnect, and a
+final update lost in the gap would otherwise stay missing. A reload after it
+covers everything the stream missed, so no heartbeat is needed.
 
 Show Trading values only after an update with `Complete` set: until then the
 same step continues in the next update. Compare epochs only for equality.
@@ -1822,35 +1856,51 @@ after an epoch change.
 ```go
 import ledgerv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/v1"
 
-sub, err := client.Balances.Subscribe(ctx, nil)
+// A sub-account, named the same way in both calls.
+sub, err := client.Balances.Subscribe(ctx, subAccountID)
 if err != nil {
 	log.Fatal(err)
 }
 defer sub.Close()
 // Buffer sub.Messages() from here until the List answer arrives.
-snapshot, err := client.Balances.List(ctx, nil, nil)
+snapshot, err := client.Balances.List(ctx, subAccountID, nil)
 if err != nil {
 	log.Fatal(err)
 }
 epoch, seq := snapshot.TradingEpoch, snapshot.TradingSequence
-for update := range sub.Messages() {
-	if sub.TakeResubscribed() {
-		// Reload: call List again and continue from its position.
-	}
-	if update.GetAccount() != ledgerv1.AccountCode_TRADING {
-		// FUNDING: apply each asset whose FundingRevision is higher.
-		continue
-	}
-	switch {
-	case update.GetTradingEpoch() != epoch:
-		// Drop it if the epoch is one you dropped; otherwise reload.
-	case update.GetTradingSequence() <= seq:
-		// Already in the balances: drop it.
-	case update.GetTradingSequence() != seq+1:
-		// A gap: reload.
-	default:
-		seq = update.GetTradingSequence()
-		// Apply update.GetBalances() Trading fields; show them if update.GetComplete().
+dropped := map[uint64]bool{} // Epochs held before, and others seen before List began.
+resubscribed := time.NewTicker(time.Second)
+defer resubscribed.Stop()
+for {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-resubscribed.C:
+		if sub.TakeResubscribed() {
+			// Reload: buffer, call List again, mark the old epoch dropped,
+			// and continue from the new position.
+		}
+	case update, ok := <-sub.Messages():
+		if !ok {
+			log.Fatal(sub.Err())
+		}
+		if update.GetAccount() != ledgerv1.AccountCode_TRADING {
+			// FUNDING: apply each asset whose FundingRevision is higher.
+			continue
+		}
+		switch {
+		case dropped[update.GetTradingEpoch()]:
+			// A late update of a dropped epoch: drop it.
+		case update.GetTradingEpoch() != epoch:
+			// The numbering restarted: reload.
+		case update.GetTradingSequence() <= seq:
+			// Already in the balances: drop it.
+		case update.GetTradingSequence() != seq+1:
+			// A gap: reload.
+		default:
+			seq = update.GetTradingSequence()
+			// Apply update.GetBalances() Trading fields; show them if update.GetComplete().
+		}
 	}
 }
 ```
@@ -2460,7 +2510,27 @@ sub-account's channels.
 ### Other private streams
 
 Raw Centrifugo subscriptions return a typed channel. Private auth policy
-streams decode `ApiPolicyView` / `SubaccountPolicyView` snapshots:
+streams decode `ApiPolicyView` / `SubaccountPolicyView` snapshots.
+
+The private auth streams carry the account's own records only, and a
+subscription is allowed exactly when the matching read would answer the
+caller. An API key needs the read's permission on its policy, and a refused
+subscription returns that read's own error code, such as
+`AUTH_API_KEY_ACCESS_DENIED`:
+
+| Method | Carries | API key needs |
+| --- | --- | --- |
+| `SubAccounts.Subscribe` | the sub-accounts the account owns | `READ_SUBACCOUNTS` |
+| `Policies.SubscribeAPIPolicies` | the policies of the account's own API keys | `READ_API_POLICIES` |
+| `Policies.Subscribe`, `Policies.SubscribeSubaccountPolicies` | the account's own sub-account policies | `READ_SUBACCOUNT_POLICIES` |
+| `AddressBook.Subscribe`, `AddressBook.SubscribeViewInvalidations` | invalidations of the account's own address book | `READ_ADDRESS_BOOK` |
+
+Records the account reaches through a delegated sub-account role (those
+sub-accounts, their policies and their API-key policies), and invalidations of
+its sub-accounts' address books, are published on separate streams that only
+the account's signed-in session may subscribe to. An API key is refused there
+with `AUTH_SESSION_KIND_NOT_ALLOWED`, so this SDK does not expose them; their
+records still load through the unary reads.
 
 ```go
 apiPolicies, err := client.Policies.SubscribeAPIPolicies(ctx, nil)

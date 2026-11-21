@@ -101,6 +101,7 @@ func TestTriggersCancelAllRefusesInvalidCriteriaBeforeSending(t *testing.T) {
 	service := newTriggerControlServiceWith(t, handler)
 	side := "both"
 	badID := "has space"
+	blank := "  "
 	tooManySymbols := make([]uint32, codecs.MaxCancelAllTriggerSymbols+1)
 	for i := range tooManySymbols {
 		tooManySymbols[i] = uint32(i + 1)
@@ -112,6 +113,9 @@ func TestTriggersCancelAllRefusesInvalidCriteriaBeforeSending(t *testing.T) {
 		"too many symbols": {SymbolIDs: tooManySymbols},
 		"bad request id":   {RequestID: &badID},
 		"two selectors":    {Symbols: []string{"BTC-USDT"}, SymbolIDs: []uint32{5}},
+		"blank symbol":     {Symbol: &blank, DryRun: true},
+		"empty symbol":     {Symbols: []string{""}, DryRun: true},
+		"blank in symbols": {Symbols: []string{"BTC-USDT", " "}},
 	}
 	for name, params := range cases {
 		_, err := service.CancelAll(context.Background(), nil, params)
@@ -144,5 +148,20 @@ func TestTriggersCancelAllReadsTsAndRefusesUnknownStatus(t *testing.T) {
 	var contract *sdkerrors.ResponseContractError
 	if !errors.As(err, &contract) {
 		t.Fatalf("err = %v, want a ResponseContractError", err)
+	}
+}
+
+// Leaving every symbol filter unset still matches every pair: only a
+// supplied blank symbol is refused.
+func TestTriggersCancelAllOmittedSymbolsMatchEveryPair(t *testing.T) {
+	handler := &cancelAllTriggersHandler{}
+	service := newTriggerControlServiceWith(t, handler)
+	for _, params := range []CancelAllTriggersParams{{}, {Symbols: []string{}}} {
+		if _, err := service.CancelAll(context.Background(), nil, params); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(handler.requests) != 2 || len(handler.requests[0].GetSymbolIds()) != 0 || len(handler.requests[1].GetSymbolIds()) != 0 {
+		t.Fatalf("requests = %v", handler.requests)
 	}
 }

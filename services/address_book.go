@@ -153,10 +153,25 @@ func (s *AddressBookService) GetView(ctx context.Context, account AccountScope, 
 	return UnaryAuthDecoded(ctx, s.transport, s.client().GetAddressBookView, req, decode.AddressBookViewFromProto)
 }
 
+// Subscribe streams invalidations of the account's own address book, from
+// private:auth:address-books:{account_id}:proto.
+//
+// It carries the account's own address book only. Invalidations of the
+// address books of sub-accounts the account reads through a sub-account
+// role, owned or delegated, are published on a separate
+// private:auth:address-books:subaccounts:{account_id}:proto stream, which
+// only the account's signed-in session may subscribe to: an API key is
+// refused there with AUTH_SESSION_KIND_NOT_ALLOWED, so this SDK does not
+// expose it. The subscription token is issued exactly when the address
+// book read would answer the caller: an API key needs READ_ADDRESS_BOOK on
+// its policy, and a refusal returns that read's own error code (for
+// example AUTH_API_KEY_ACCESS_DENIED).
 func (s *AddressBookService) Subscribe(ctx context.Context, accountID any) (*realtime.Subscription[models.AddressBookViewInvalidation], error) {
 	return SubscribeAccountProto(ctx, s.realtime, "private:auth:address-books:{account_id}:proto", accountID, s.defaultAccountID, decode.AddressBookInvalidationFromBytes)
 }
 
+// SubscribeViewInvalidations is Subscribe: invalidations of the account's
+// own address book only.
 func (s *AddressBookService) SubscribeViewInvalidations(ctx context.Context, rootAccountPublicID any) (*realtime.Subscription[models.AddressBookViewInvalidation], error) {
 	return s.Subscribe(ctx, rootAccountPublicID)
 }
